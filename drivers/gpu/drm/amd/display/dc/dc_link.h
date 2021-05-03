@@ -333,7 +333,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
-	const struct dc_link_settings *link_setting,
+	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern);
 
 bool dc_link_dp_sync_lt_begin(struct dc_link *link);

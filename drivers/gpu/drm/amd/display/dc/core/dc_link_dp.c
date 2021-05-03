@@ -1324,6 +1324,11 @@ static inline void decide_8b_10b_training_settings(
 		lt_settings->enhanced_framing = *overrides->enhanced_framing;
 	else
 		lt_settings->enhanced_framing = 1;
+
+	if (link->preferred_training_settings.fec_enable != NULL)
+		lt_settings->should_set_fec_ready = *link->preferred_training_settings.fec_enable;
+	else
+		lt_settings->should_set_fec_ready = true;
 }
 
 void dp_decide_training_settings(
@@ -1614,29 +1619,68 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 	return status;
 }
 
+static void dpcd_exit_training_mode(struct dc_link *link)
+{
+	const uint8_t clear_pattern = 0;
+
+	/* clear training pattern set */
+	core_link_write_dpcd(
+			link,
+			DP_TRAINING_PATTERN_SET,
+			&clear_pattern,
+			sizeof(clear_pattern));
+	DC_LOG_HW_LINK_TRAINING("%s\n %x pattern = %x\n",
+			__func__,
+			DP_TRAINING_PATTERN_SET,
+			clear_pattern);
+}
+
+enum dc_status dpcd_configure_channel_coding(struct dc_link *link,
+		struct link_training_settings *lt_settings)
+{
+	enum dp_link_encoding encoding =
+			dp_get_link_encoding_format(
+					&lt_settings->link_settings);
+	enum dc_status status;
+
+	status = core_link_write_dpcd(
+			link,
+			DP_MAIN_LINK_CHANNEL_CODING_SET,
+			(uint8_t *) &encoding,
+			1);
+	DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X MAIN_LINK_CHANNEL_CODING_SET = %x\n",
+					__func__,
+					DP_MAIN_LINK_CHANNEL_CODING_SET,
+					encoding);
+
+	return status;
+}
+
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
-	const struct dc_link_settings *link_setting,
+	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern)
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct link_training_settings lt_settings;
 
-	bool fec_enable;
-	uint8_t repeater_cnt;
-	uint8_t repeater_id;
+	/* reset previous training states */
+	dpcd_exit_training_mode(link);
 
+	/* decide training settings */
 	dp_decide_training_settings(
 			link,
-			link_setting,
+			link_settings,
 			&link->preferred_training_settings,
 			&lt_settings);
+	dpcd_configure_lttpr_mode(link, &lt_settings);
+	dp_set_fec_ready(link, lt_settings.should_set_fec_ready);
+	dpcd_configure_channel_coding(link, &lt_settings);
 
-	/* Configure lttpr mode */
-	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		configure_lttpr_mode_non_transparent(link, &lt_settings);
-	else if (link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
-		configure_lttpr_mode_transparent(link);
+	/* enter training mode:
+	 * Per DP specs starting from here, DPTX device shall not issue
+	 * Non-LT AUX transactions inside training mode.
+	 */
 
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
@@ -1644,14 +1688,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 	/* 1. set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
 
-	if (link->preferred_training_settings.fec_enable != NULL)
-		fec_enable = *link->preferred_training_settings.fec_enable;
-	else
-		fec_enable = true;
-
-	dp_set_fec_ready(link, fec_enable);
-
 	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+		uint8_t repeater_cnt;
+		uint8_t repeater_id;
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
