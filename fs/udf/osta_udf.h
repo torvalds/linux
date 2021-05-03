@@ -178,15 +178,6 @@ struct metadataPartitionMap {
 	uint8_t		reserved2[5];
 } __packed;
 
-/* Virtual Allocation Table (UDF 1.5 2.2.10) */
-struct virtualAllocationTable15 {
-	__le32		vatEntry[0];
-	struct regid	vatIdent;
-	__le32		previousVATICBLoc;
-} __packed;
-
-#define ICBTAG_FILE_TYPE_VAT15		0x00U
-
 /* Virtual Allocation Table (UDF 2.60 2.2.11) */
 struct virtualAllocationTable20 {
 	__le16		lengthHeader;
