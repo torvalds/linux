@@ -7,9 +7,9 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/cputime.h>
+#include <linux/sched/clock.h>
 #include <linux/slab.h>
 #include <linux/taskstats.h>
-#include <linux/time.h>
 #include <linux/sysctl.h>
 #include <linux/delayacct.h>
 #include <linux/module.h>
@@ -42,10 +42,9 @@ void __delayacct_tsk_init(struct task_struct *tsk)
  * Finish delay accounting for a statistic using its timestamps (@start),
  * accumalator (@total) and @count
  */
-static void delayacct_end(raw_spinlock_t *lock, u64 *start, u64 *total,
-			  u32 *count)
+static void delayacct_end(raw_spinlock_t *lock, u64 *start, u64 *total, u32 *count)
 {
-	s64 ns = ktime_get_ns() - *start;
+	s64 ns = local_clock() - *start;
 	unsigned long flags;
 
 	if (ns > 0) {
@@ -58,7 +57,7 @@ static void delayacct_end(raw_spinlock_t *lock, u64 *start, u64 *total,
 
 void __delayacct_blkio_start(void)
 {
-	current->delays->blkio_start = ktime_get_ns();
+	current->delays->blkio_start = local_clock();
 }
 
 /*
@@ -151,21 +150,20 @@ __u64 __delayacct_blkio_ticks(struct task_struct *tsk)
 
 void __delayacct_freepages_start(void)
 {
-	current->delays->freepages_start = ktime_get_ns();
+	current->delays->freepages_start = local_clock();
 }
 
 void __delayacct_freepages_end(void)
 {
-	delayacct_end(
-		&current->delays->lock,
-		&current->delays->freepages_start,
-		&current->delays->freepages_delay,
-		&current->delays->freepages_count);
+	delayacct_end(&current->delays->lock,
+		      &current->delays->freepages_start,
+		      &current->delays->freepages_delay,
+		      &current->delays->freepages_count);
 }
 
 void __delayacct_thrashing_start(void)
 {
-	current->delays->thrashing_start = ktime_get_ns();
+	current->delays->thrashing_start = local_clock();
 }
 
 void __delayacct_thrashing_end(void)
