@@ -209,11 +209,13 @@
   cpufreq_driver_fast_switch
   cpufreq_driver_resolve_freq
   __cpufreq_driver_target
+  cpufreq_driver_target
   cpufreq_enable_fast_switch
   cpufreq_freq_transition_begin
   cpufreq_freq_transition_end
   cpufreq_frequency_table_verify
   cpufreq_generic_attr
+  cpufreq_get
   cpufreq_policy_transition_delay_us
   cpufreq_quick_get
   cpufreq_register_driver
