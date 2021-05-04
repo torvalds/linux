@@ -32,7 +32,6 @@ Required properties:
 				device.
 	"renesas,rcar-gen3-i2c" for a generic R-Car Gen3 or RZ/G2 compatible
 				device.
-	"renesas,i2c-rcar" (deprecated)
 
 	When compatible with the generic version, nodes must list the
 	SoC-specific version corresponding to the platform first followed
