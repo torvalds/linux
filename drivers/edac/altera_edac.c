@@ -1804,11 +1804,8 @@ static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 	regmap_read(edac->ecc_mgr_map, sm_offset, &irq_status);
 
 	bits = irq_status;
-	for_each_set_bit(bit, &bits, 32) {
-		irq = irq_linear_revmap(edac->domain, dberr * 32 + bit);
-		if (irq)
-			generic_handle_irq(irq);
-	}
+	for_each_set_bit(bit, &bits, 32)
+		generic_handle_domain_irq(edac->domain, dberr * 32 + bit);
 
 	chained_irq_exit(chip, desc);
 }
