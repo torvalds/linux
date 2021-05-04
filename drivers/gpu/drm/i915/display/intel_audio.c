@@ -597,8 +597,8 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 		val |= HBLANK_EARLY_ENABLE_TGL(pipe);
 
 	if (crtc_state->dsc.compression_enable &&
-	    (crtc_state->hw.adjusted_mode.hdisplay >= 3840 &&
-	    crtc_state->hw.adjusted_mode.vdisplay >= 2160)) {
+	    crtc_state->hw.adjusted_mode.hdisplay >= 3840 &&
+	    crtc_state->hw.adjusted_mode.vdisplay >= 2160) {
 		/* Get hblank early enable value required */
 		val &= ~HBLANK_START_COUNT_MASK(pipe);
 		hblank_early_prog = calc_hblank_early_prog(encoder, crtc_state);
