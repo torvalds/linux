@@ -336,7 +336,7 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 	}
 }
 
-int kvm_probe_user_return_msr(u32 msr)
+static int kvm_probe_user_return_msr(u32 msr)
 {
 	u64 val;
 	int ret;
@@ -350,16 +350,18 @@ out:
 	preempt_enable();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kvm_probe_user_return_msr);
 
-void kvm_define_user_return_msr(unsigned slot, u32 msr)
+int kvm_add_user_return_msr(u32 msr)
 {
-	BUG_ON(slot >= KVM_MAX_NR_USER_RETURN_MSRS);
-	kvm_uret_msrs_list[slot] = msr;
-	if (slot >= kvm_nr_uret_msrs)
-		kvm_nr_uret_msrs = slot + 1;
+	BUG_ON(kvm_nr_uret_msrs >= KVM_MAX_NR_USER_RETURN_MSRS);
+
+	if (kvm_probe_user_return_msr(msr))
+		return -1;
+
+	kvm_uret_msrs_list[kvm_nr_uret_msrs] = msr;
+	return kvm_nr_uret_msrs++;
 }
-EXPORT_SYMBOL_GPL(kvm_define_user_return_msr);
+EXPORT_SYMBOL_GPL(kvm_add_user_return_msr);
 
 int kvm_find_user_return_msr(u32 msr)
 {
@@ -8132,6 +8134,7 @@ int kvm_arch_init(void *opaque)
 		printk(KERN_ERR "kvm: failed to allocate percpu kvm_user_return_msrs\n");
 		goto out_free_x86_emulator_cache;
 	}
+	kvm_nr_uret_msrs = 0;
 
 	r = kvm_mmu_module_init();
 	if (r)

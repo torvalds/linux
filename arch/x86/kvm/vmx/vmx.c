@@ -454,9 +454,6 @@ static inline void vmx_segment_cache_clear(struct vcpu_vmx *vmx)
 
 static unsigned long host_idt_base;
 
-/* Number of user return MSRs that are actually supported in hardware. */
-static int vmx_nr_uret_msrs;
-
 #if IS_ENABLED(CONFIG_HYPERV)
 static bool __read_mostly enlightened_vmcs = true;
 module_param(enlightened_vmcs, bool, 0444);
@@ -1218,7 +1215,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 */
 	if (!vmx->guest_uret_msrs_loaded) {
 		vmx->guest_uret_msrs_loaded = true;
-		for (i = 0; i < vmx_nr_uret_msrs; ++i) {
+		for (i = 0; i < kvm_nr_uret_msrs; ++i) {
 			if (!vmx->guest_uret_msrs[i].load_into_hardware)
 				continue;
 
@@ -6921,7 +6918,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			goto free_vpid;
 	}
 
-	for (i = 0; i < vmx_nr_uret_msrs; ++i) {
+	for (i = 0; i < kvm_nr_uret_msrs; ++i) {
 		vmx->guest_uret_msrs[i].data = 0;
 		vmx->guest_uret_msrs[i].mask = -1ull;
 	}
@@ -7810,20 +7807,12 @@ static __init void vmx_setup_user_return_msrs(void)
 		MSR_EFER, MSR_TSC_AUX, MSR_STAR,
 		MSR_IA32_TSX_CTRL,
 	};
-	u32 msr;
 	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(vmx_uret_msrs_list) != MAX_NR_USER_RETURN_MSRS);
 
-	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i) {
-		msr = vmx_uret_msrs_list[i];
-
-		if (kvm_probe_user_return_msr(msr))
-			continue;
-
-		kvm_define_user_return_msr(vmx_nr_uret_msrs, msr);
-		vmx_nr_uret_msrs++;
-	}
+	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i)
+		kvm_add_user_return_msr(vmx_uret_msrs_list[i]);
 }
 
 static __init int hardware_setup(void)

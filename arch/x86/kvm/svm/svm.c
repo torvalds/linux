@@ -959,10 +959,7 @@ static __init int svm_hardware_setup(void)
 		kvm_tsc_scaling_ratio_frac_bits = 32;
 	}
 
-	if (!kvm_probe_user_return_msr(MSR_TSC_AUX)) {
-		tsc_aux_uret_slot = 0;
-		kvm_define_user_return_msr(tsc_aux_uret_slot, MSR_TSC_AUX);
-	}
+	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
 
 	/* Check for pause filtering support */
 	if (!boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
