@@ -7,6 +7,7 @@
 #include <linux/crc32poly.h>
 #include <drv_types.h>
 #include <rtw_debug.h>
+#include <crypto/aes.h>
 
 static const char * const _security_type_str[] = {
 	"N/A",
@@ -1931,99 +1932,6 @@ const u8 rcons[] = {
 	/* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
 
-/*
- * Expand the cipher key into the encryption key schedule.
- *
- * @return	the number of rounds for the given cipher key size.
- */
-static void rijndaelKeySetupEnc(u32 rk[/*44*/], const u8 cipherKey[])
-{
-	int i;
-	u32 temp;
-
-	rk[0] = GETU32(cipherKey);
-	rk[1] = GETU32(cipherKey +  4);
-	rk[2] = GETU32(cipherKey +  8);
-	rk[3] = GETU32(cipherKey + 12);
-	for (i = 0; i < 10; i++) {
-		temp  = rk[3];
-		rk[4] = rk[0] ^
-			TE421(temp) ^ TE432(temp) ^ TE443(temp) ^ TE414(temp) ^
-			RCON(i);
-		rk[5] = rk[1] ^ rk[4];
-		rk[6] = rk[2] ^ rk[5];
-		rk[7] = rk[3] ^ rk[6];
-		rk += 4;
-	}
-}
-
-static void rijndaelEncrypt(u32 rk[/*44*/], u8 pt[16], u8 ct[16])
-{
-	u32 s0, s1, s2, s3, t0, t1, t2, t3;
-	int Nr = 10;
-	int r;
-
-	/*
-	 * map byte array block to cipher state
-	 * and add initial round key:
-	 */
-	s0 = GETU32(pt) ^ rk[0];
-	s1 = GETU32(pt +  4) ^ rk[1];
-	s2 = GETU32(pt +  8) ^ rk[2];
-	s3 = GETU32(pt + 12) ^ rk[3];
-
-#define ROUND(i, d, s) \
-	do { \
-		d##0 = TE0(s##0) ^ TE1(s##1) ^ TE2(s##2) ^ TE3(s##3) ^ rk[4 * i]; \
-		d##1 = TE0(s##1) ^ TE1(s##2) ^ TE2(s##3) ^ TE3(s##0) ^ rk[4 * i + 1]; \
-		d##2 = TE0(s##2) ^ TE1(s##3) ^ TE2(s##0) ^ TE3(s##1) ^ rk[4 * i + 2]; \
-		d##3 = TE0(s##3) ^ TE1(s##0) ^ TE2(s##1) ^ TE3(s##2) ^ rk[4 * i + 3]; \
-	} while (0)
-
-	/* Nr - 1 full rounds: */
-	r = Nr >> 1;
-	for (;;) {
-		ROUND(1, t, s);
-		rk += 8;
-		if (--r == 0)
-			break;
-		ROUND(0, s, t);
-	}
-
-#undef ROUND
-
-	/*
-	 * apply last round and
-	 * map cipher state to byte array block:
-	 */
-	s0 = TE41(t0) ^ TE42(t1) ^ TE43(t2) ^ TE44(t3) ^ rk[0];
-	PUTU32(ct, s0);
-	s1 = TE41(t1) ^ TE42(t2) ^ TE43(t3) ^ TE44(t0) ^ rk[1];
-	PUTU32(ct +  4, s1);
-	s2 = TE41(t2) ^ TE42(t3) ^ TE43(t0) ^ TE44(t1) ^ rk[2];
-	PUTU32(ct +  8, s2);
-	s3 = TE41(t3) ^ TE42(t0) ^ TE43(t1) ^ TE44(t2) ^ rk[3];
-	PUTU32(ct + 12, s3);
-}
-
-static void *aes_encrypt_init(u8 *key, size_t len)
-{
-	u32 *rk;
-
-	if (len != 16)
-		return NULL;
-	rk = rtw_malloc(AES_PRIV_SIZE);
-	if (rk == NULL)
-		return NULL;
-	rijndaelKeySetupEnc(rk, key);
-	return rk;
-}
-
-static void aes_128_encrypt(void *ctx, u8 *plain, u8 *crypt)
-{
-	rijndaelEncrypt(ctx, plain, crypt);
-}
-
 static void gf_mulx(u8 *pad)
 {
 	int i, carry;
@@ -2035,11 +1943,6 @@ static void gf_mulx(u8 *pad)
 	pad[AES_BLOCK_SIZE - 1] <<= 1;
 	if (carry)
 		pad[AES_BLOCK_SIZE - 1] ^= 0x87;
-}
-
-static void aes_encrypt_deinit(void *ctx)
-{
-	kfree_sensitive(ctx);
 }
 
 /**
@@ -2058,13 +1961,14 @@ static void aes_encrypt_deinit(void *ctx)
 static int omac1_aes_128_vector(u8 *key, size_t num_elem,
 				u8 *addr[], size_t *len, u8 *mac)
 {
-	void *ctx;
+	struct crypto_aes_ctx ctx;
 	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
 	u8 *pos, *end;
 	size_t i, e, left, total_len;
+	int ret;
 
-	ctx = aes_encrypt_init(key, 16);
-	if (ctx == NULL)
+	ret = aes_expandkey(&ctx, key, 16);
+	if (ret)
 		return -1;
 	memset(cbc, 0, AES_BLOCK_SIZE);
 
@@ -2087,12 +1991,12 @@ static int omac1_aes_128_vector(u8 *key, size_t num_elem,
 			}
 		}
 		if (left > AES_BLOCK_SIZE)
-			aes_128_encrypt(ctx, cbc, cbc);
+			aes_encrypt(&ctx, cbc, cbc);
 		left -= AES_BLOCK_SIZE;
 	}
 
 	memset(pad, 0, AES_BLOCK_SIZE);
-	aes_128_encrypt(ctx, pad, pad);
+	aes_encrypt(&ctx, pad, pad);
 	gf_mulx(pad);
 
 	if (left || total_len == 0) {
@@ -2110,8 +2014,8 @@ static int omac1_aes_128_vector(u8 *key, size_t num_elem,
 
 	for (i = 0; i < AES_BLOCK_SIZE; i++)
 		pad[i] ^= cbc[i];
-	aes_128_encrypt(ctx, pad, mac);
-	aes_encrypt_deinit(ctx);
+	aes_encrypt(&ctx, pad, mac);
+	memzero_explicit(&ctx, sizeof(ctx));
 	return 0;
 }
 
