@@ -44,6 +44,7 @@
 #define AMDGPU_AMDKFD_CREATE_SVM_BO	(1ULL << 62)
 
 #define to_amdgpu_bo_user(abo) container_of((abo), struct amdgpu_bo_user, bo)
+#define to_amdgpu_bo_vm(abo) container_of((abo), struct amdgpu_bo_vm, bo)
 
 struct amdgpu_bo_param {
 	unsigned long			size;
@@ -123,6 +124,12 @@ struct amdgpu_bo_user {
 	void				*metadata;
 	u32				metadata_size;
 
+};
+
+struct amdgpu_bo_vm {
+	struct amdgpu_bo		bo;
+	struct amdgpu_bo		*shadow;
+	struct amdgpu_vm_pt             entries[];
 };
 
 static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
@@ -272,6 +279,9 @@ int amdgpu_bo_create_kernel_at(struct amdgpu_device *adev,
 int amdgpu_bo_create_user(struct amdgpu_device *adev,
 			  struct amdgpu_bo_param *bp,
 			  struct amdgpu_bo_user **ubo_ptr);
+int amdgpu_bo_create_vm(struct amdgpu_device *adev,
+			struct amdgpu_bo_param *bp,
+			struct amdgpu_bo_vm **ubo_ptr);
 void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 			   void **cpu_addr);
 int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
