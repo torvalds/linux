@@ -2130,9 +2130,8 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 	/* hw_supported needs to be aligned with RAS block mask. */
 	*hw_supported &= AMDGPU_RAS_BLOCK_MASK;
 
-	*supported = amdgpu_ras_enable == 0 ?
-			0 : *hw_supported & amdgpu_ras_mask;
-	adev->ras_features = *supported;
+	*supported = amdgpu_ras_enable == 0 ? 0 :
+		*hw_supported & amdgpu_ras_mask;
 }
 
 int amdgpu_ras_init(struct amdgpu_device *adev)
@@ -2154,7 +2153,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	amdgpu_ras_set_context(adev, con);
 
 	amdgpu_ras_check_supported(adev, &con->hw_supported,
-			&con->supported);
+				   &adev->ras_features);
 	if (!con->hw_supported || (adev->asic_type == CHIP_VEGA10)) {
 		/* set gfx block ras context feature for VEGA20 Gaming
 		 * send ras disable cmd to ras ta during ras late init.
@@ -2210,7 +2209,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "RAS INFO: ras initialized successfully, "
 			"hardware ability[%x] ras_mask[%x]\n",
-			con->hw_supported, con->supported);
+			con->hw_supported, adev->ras_features);
 	return 0;
 release_con:
 	amdgpu_ras_set_context(adev, NULL);
