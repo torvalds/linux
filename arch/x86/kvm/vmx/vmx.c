@@ -461,13 +461,19 @@ static unsigned long host_idt_base;
  * support this emulation, IA32_STAR must always be included in
  * vmx_uret_msrs_list[], even in i386 builds.
  */
-static const u32 vmx_uret_msrs_list[] = {
+static u32 vmx_uret_msrs_list[] = {
 #ifdef CONFIG_X86_64
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
 	MSR_EFER, MSR_TSC_AUX, MSR_STAR,
 	MSR_IA32_TSX_CTRL,
 };
+
+/*
+ * Number of user return MSRs that are actually supported in hardware.
+ * vmx_uret_msrs_list is modified when KVM is loaded to drop unsupported MSRs.
+ */
+static int vmx_nr_uret_msrs;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 static bool __read_mostly enlightened_vmcs = true;
@@ -700,9 +706,16 @@ static inline int __vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
-	for (i = 0; i < vmx->nr_uret_msrs; ++i)
+	/*
+	 * Note, vmx->guest_uret_msrs is the same size as vmx_uret_msrs_list,
+	 * but is ordered differently.  The MSR is matched against the list of
+	 * supported uret MSRs using "slot", but the index that is returned is
+	 * the index into guest_uret_msrs.
+	 */
+	for (i = 0; i < vmx_nr_uret_msrs; ++i) {
 		if (vmx_uret_msrs_list[vmx->guest_uret_msrs[i].slot] == msr)
 			return i;
+	}
 	return -1;
 }
 
@@ -6929,18 +6942,10 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			goto free_vpid;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(vmx_uret_msrs_list) != MAX_NR_USER_RETURN_MSRS);
+	for (i = 0; i < vmx_nr_uret_msrs; ++i) {
+		vmx->guest_uret_msrs[i].data = 0;
 
-	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i) {
-		u32 index = vmx_uret_msrs_list[i];
-		int j = vmx->nr_uret_msrs;
-
-		if (kvm_probe_user_return_msr(index))
-			continue;
-
-		vmx->guest_uret_msrs[j].slot = i;
-		vmx->guest_uret_msrs[j].data = 0;
-		switch (index) {
+		switch (vmx_uret_msrs_list[i]) {
 		case MSR_IA32_TSX_CTRL:
 			/*
 			 * TSX_CTRL_CPUID_CLEAR is handled in the CPUID
@@ -6954,15 +6959,14 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 			 * host so that TSX remains always disabled.
 			 */
 			if (boot_cpu_has(X86_FEATURE_RTM))
-				vmx->guest_uret_msrs[j].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
+				vmx->guest_uret_msrs[i].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
 			else
-				vmx->guest_uret_msrs[j].mask = 0;
+				vmx->guest_uret_msrs[i].mask = 0;
 			break;
 		default:
-			vmx->guest_uret_msrs[j].mask = -1ull;
+			vmx->guest_uret_msrs[i].mask = -1ull;
 			break;
 		}
-		++vmx->nr_uret_msrs;
 	}
 
 	err = alloc_loaded_vmcs(&vmx->vmcs01);
@@ -7821,17 +7825,34 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.vcpu_deliver_sipi_vector = kvm_vcpu_deliver_sipi_vector,
 };
 
+static __init void vmx_setup_user_return_msrs(void)
+{
+	u32 msr;
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(vmx_uret_msrs_list) != MAX_NR_USER_RETURN_MSRS);
+
+	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i) {
+		msr = vmx_uret_msrs_list[i];
+
+		if (kvm_probe_user_return_msr(msr))
+			continue;
+
+		kvm_define_user_return_msr(vmx_nr_uret_msrs, msr);
+		vmx_uret_msrs_list[vmx_nr_uret_msrs++] = msr;
+	}
+}
+
 static __init int hardware_setup(void)
 {
 	unsigned long host_bndcfgs;
 	struct desc_ptr dt;
-	int r, i, ept_lpage_level;
+	int r, ept_lpage_level;
 
 	store_idt(&dt);
 	host_idt_base = dt.address;
 
-	for (i = 0; i < ARRAY_SIZE(vmx_uret_msrs_list); ++i)
-		kvm_define_user_return_msr(i, vmx_uret_msrs_list[i]);
+	vmx_setup_user_return_msrs();
 
 	if (setup_vmcs_config(&vmcs_config, &vmx_capability) < 0)
 		return -EIO;
