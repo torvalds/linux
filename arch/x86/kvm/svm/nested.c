@@ -1314,6 +1314,8 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	else
 		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
 
+	svm_set_gif(svm, !!(kvm_state->flags & KVM_STATE_NESTED_GIF_SET));
+
 	svm->nested.nested_run_pending =
 		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
 
