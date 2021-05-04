@@ -68,6 +68,7 @@ config DRM_LONTIUM_LT8912B
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select REGMAP_I2C
+	select VIDEOMODE_HELPERS
 	help
 	  Driver for Lontium LT8912B DSI to HDMI bridge
 	  chip driver.
