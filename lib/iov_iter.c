@@ -70,9 +70,9 @@
 	__label__ __out;					\
 	size_t __off = 0;					\
 	struct page *head = NULL;				\
-	size_t offset;						\
 	loff_t start = i->xarray_start + i->iov_offset;		\
-	pgoff_t index = start >> PAGE_SHIFT;			\
+	unsigned offset = start % PAGE_SIZE;			\
+	pgoff_t index = start / PAGE_SIZE;			\
 	int j;							\
 								\
 	XA_STATE(xas, i->xarray, index);			\
@@ -89,7 +89,6 @@
 		for (j = (head->index < index) ? index - head->index : 0; \
 		     j < thp_nr_pages(head); j++) {		\
 			void *kaddr = kmap_local_page(head + j);	\
-			offset = (start + __off) % PAGE_SIZE;	\
 			base = kaddr + offset;			\
 			len = PAGE_SIZE - offset;		\
 			len = min(n, len);			\
@@ -100,6 +99,7 @@
 			n -= len;				\
 			if (left || n == 0)			\
 				goto __out;			\
+			offset = 0;				\
 		}						\
 	}							\
 __out:								\
