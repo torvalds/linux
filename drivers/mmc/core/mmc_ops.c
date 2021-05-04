@@ -465,8 +465,7 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 }
 
 static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
-			       bool send_status, bool retry_crc_err,
-			       enum mmc_busy_cmd busy_cmd)
+			       bool retry_crc_err, enum mmc_busy_cmd busy_cmd)
 {
 	struct mmc_host *host = card->host;
 	int err;
@@ -474,16 +473,6 @@ static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	unsigned int udelay = 32, udelay_max = 32768;
 	bool expired = false;
 	bool busy = false;
-
-	/*
-	 * In cases when not allowed to poll by using CMD13 or because we aren't
-	 * capable of polling by using ->card_busy(), then rely on waiting the
-	 * stated timeout to be sufficient.
-	 */
-	if (!send_status && !host->ops->card_busy) {
-		mmc_delay(timeout_ms);
-		return 0;
-	}
 
 	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
 	do {
@@ -518,7 +507,7 @@ static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		      enum mmc_busy_cmd busy_cmd)
 {
-	return __mmc_poll_for_busy(card, timeout_ms, true, false, busy_cmd);
+	return __mmc_poll_for_busy(card, timeout_ms, false, busy_cmd);
 }
 
 bool mmc_prepare_busy_cmd(struct mmc_host *host, struct mmc_command *cmd,
@@ -591,8 +580,18 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		mmc_host_is_spi(host))
 		goto out_tim;
 
+	/*
+	 * If the host doesn't support HW polling via the ->card_busy() ops and
+	 * when it's not allowed to poll by using CMD13, then we need to rely on
+	 * waiting the stated timeout to be sufficient.
+	 */
+	if (!send_status && !host->ops->card_busy) {
+		mmc_delay(timeout_ms);
+		goto out_tim;
+	}
+
 	/* Let's try to poll to find out when the command is completed. */
-	err = __mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err,
+	err = __mmc_poll_for_busy(card, timeout_ms, retry_crc_err,
 				  MMC_BUSY_CMD6);
 	if (err)
 		goto out;
