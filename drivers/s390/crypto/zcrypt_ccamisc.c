@@ -295,7 +295,7 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
  * Generate (random) CCA AES DATA secure key.
  */
 int cca_genseckey(u16 cardnr, u16 domain,
-		  u32 keybitsize, u8 seckey[SECKEYBLOBSIZE])
+		  u32 keybitsize, u8 *seckey)
 {
 	int i, rc, keysize;
 	int seckeysize;
@@ -438,7 +438,7 @@ EXPORT_SYMBOL(cca_genseckey);
  * Generate an CCA AES DATA secure key with given key value.
  */
 int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
-		   const u8 *clrkey, u8 seckey[SECKEYBLOBSIZE])
+		   const u8 *clrkey, u8 *seckey)
 {
 	int rc, keysize, seckeysize;
 	u8 *mem, *ptr;
@@ -577,8 +577,8 @@ EXPORT_SYMBOL(cca_clr2seckey);
  * Derive proteced key from an CCA AES DATA secure key.
  */
 int cca_sec2protkey(u16 cardnr, u16 domain,
-		    const u8 seckey[SECKEYBLOBSIZE],
-		    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+		    const u8 *seckey, u8 *protkey, u32 *protkeylen,
+		    u32 *protkeytype)
 {
 	int rc;
 	u8 *mem, *ptr;
