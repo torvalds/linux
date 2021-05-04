@@ -150,11 +150,6 @@ static inline void psi_sched_switch(struct task_struct *prev,
 #endif /* CONFIG_PSI */
 
 #ifdef CONFIG_SCHED_INFO
-static inline void sched_info_reset_dequeued(struct task_struct *t)
-{
-	t->sched_info.last_queued = 0;
-}
-
 /*
  * We are interested in knowing how long it was from the *first* time a
  * task was queued to the time that it finally hit a CPU, we call this routine
@@ -163,13 +158,12 @@ static inline void sched_info_reset_dequeued(struct task_struct *t)
  */
 static inline void sched_info_dequeue(struct rq *rq, struct task_struct *t)
 {
-	unsigned long long now = rq_clock(rq), delta = 0;
+	unsigned long long delta = 0;
 
-	if (sched_info_on()) {
-		if (t->sched_info.last_queued)
-			delta = now - t->sched_info.last_queued;
+	if (t->sched_info.last_queued) {
+		delta = rq_clock(rq) - t->sched_info.last_queued;
+		t->sched_info.last_queued = 0;
 	}
-	sched_info_reset_dequeued(t);
 	t->sched_info.run_delay += delta;
 
 	rq_sched_info_dequeue(rq, delta);
@@ -184,9 +178,10 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 {
 	unsigned long long now = rq_clock(rq), delta = 0;
 
-	if (t->sched_info.last_queued)
+	if (t->sched_info.last_queued) {
 		delta = now - t->sched_info.last_queued;
-	sched_info_reset_dequeued(t);
+		t->sched_info.last_queued = 0;
+	}
 	t->sched_info.run_delay += delta;
 	t->sched_info.last_arrival = now;
 	t->sched_info.pcount++;
@@ -201,10 +196,8 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
  */
 static inline void sched_info_enqueue(struct rq *rq, struct task_struct *t)
 {
-	if (sched_info_on()) {
-		if (!t->sched_info.last_queued)
-			t->sched_info.last_queued = rq_clock(rq);
-	}
+	if (!t->sched_info.last_queued)
+		t->sched_info.last_queued = rq_clock(rq);
 }
 
 /*
@@ -231,7 +224,7 @@ static inline void sched_info_depart(struct rq *rq, struct task_struct *t)
  * the idle task.)  We are only called when prev != next.
  */
 static inline void
-__sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
+sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
 	/*
 	 * prev now departs the CPU.  It's not interesting to record
@@ -245,18 +238,8 @@ __sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct 
 		sched_info_arrive(rq, next);
 }
 
-static inline void
-sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
-{
-	if (sched_info_on())
-		__sched_info_switch(rq, prev, next);
-}
-
 #else /* !CONFIG_SCHED_INFO: */
 # define sched_info_enqueue(rq, t)	do { } while (0)
-# define sched_info_reset_dequeued(t)	do { } while (0)
 # define sched_info_dequeue(rq, t)	do { } while (0)
-# define sched_info_depart(rq, t)	do { } while (0)
-# define sched_info_arrive(rq, next)	do { } while (0)
 # define sched_info_switch(rq, t, next)	do { } while (0)
 #endif /* CONFIG_SCHED_INFO */
