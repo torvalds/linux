@@ -2951,18 +2951,11 @@ static void rockchip_irq_demux(struct irq_desc *desc)
 	pend = readl_relaxed(bank->reg_base + GPIO_INT_STATUS);
 
 	while (pend) {
-		unsigned int irq, virq;
+		unsigned int irq;
+		int ret;
 
 		irq = __ffs(pend);
 		pend &= ~BIT(irq);
-		virq = irq_find_mapping(bank->domain, irq);
-
-		if (!virq) {
-			dev_err(bank->drvdata->dev, "unmapped irq %d\n", irq);
-			continue;
-		}
-
-		dev_dbg(bank->drvdata->dev, "handling irq %d\n", irq);
 
 		/*
 		 * Triggering IRQ on both rising and falling edge
@@ -2993,7 +2986,9 @@ static void rockchip_irq_demux(struct irq_desc *desc)
 			} while ((data & BIT(irq)) != (data_old & BIT(irq)));
 		}
 
-		generic_handle_irq(virq);
+		ret = generic_handle_domain_irq(bank->domain, irq);
+		if (unlikely(ret))
+			dev_err_ratelimited(bank->drvdata->dev, "unmapped irq %d\n", irq);
 	}
 
 	chained_irq_exit(chip, desc);
