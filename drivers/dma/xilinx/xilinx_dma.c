@@ -2453,6 +2453,13 @@ static int xilinx_dma_terminate_all(struct dma_chan *dchan)
 	return 0;
 }
 
+static void xilinx_dma_synchronize(struct dma_chan *dchan)
+{
+	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
+
+	tasklet_kill(&chan->tasklet);
+}
+
 /**
  * xilinx_dma_channel_set_config - Configure VDMA channel
  * Run-time configuration for Axi VDMA, supports:
@@ -3074,6 +3081,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 	xdev->common.device_free_chan_resources =
 				xilinx_dma_free_chan_resources;
 	xdev->common.device_terminate_all = xilinx_dma_terminate_all;
+	xdev->common.device_synchronize = xilinx_dma_synchronize;
 	xdev->common.device_tx_status = xilinx_dma_tx_status;
 	xdev->common.device_issue_pending = xilinx_dma_issue_pending;
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
