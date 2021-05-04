@@ -100,12 +100,6 @@ static const u16 srcr_for_v3u[] = {
 	0x2C20, 0x2C24, 0x2C28, 0x2C2C, 0x2C30, 0x2C34, 0x2C38,
 };
 
-/* Realtime Module Stop Control Register offsets */
-#define RMSTPCR(i)	(smstpcr[i] - 0x20)
-
-/* Modem Module Stop Control Register offsets (r8a73a4) */
-#define MMSTPCR(i)	(smstpcr[i] + 0x20)
-
 /* Software Reset Clearing Register offsets */
 
 static const u16 srstclr[] = {
