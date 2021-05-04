@@ -1771,7 +1771,13 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 			   guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP) ||
 			   guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDPID));
 
-	vmx_setup_uret_msr(vmx, MSR_IA32_TSX_CTRL, true);
+	/*
+	 * hle=0, rtm=0, tsx_ctrl=1 can be found with some combinations of new
+	 * kernel and old userspace.  If those guests run on a tsx=off host, do
+	 * allow guests to use TSX_CTRL, but don't change the value in hardware
+	 * so that TSX remains always disabled.
+	 */
+	vmx_setup_uret_msr(vmx, MSR_IA32_TSX_CTRL, boot_cpu_has(X86_FEATURE_RTM));
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(&vmx->vcpu);
@@ -6919,23 +6925,15 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 		vmx->guest_uret_msrs[i].data = 0;
 		vmx->guest_uret_msrs[i].mask = -1ull;
 	}
-	tsx_ctrl = vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
-	if (tsx_ctrl) {
+	if (boot_cpu_has(X86_FEATURE_RTM)) {
 		/*
 		 * TSX_CTRL_CPUID_CLEAR is handled in the CPUID interception.
 		 * Keep the host value unchanged to avoid changing CPUID bits
 		 * under the host kernel's feet.
-		 *
-		 * hle=0, rtm=0, tsx_ctrl=1 can be found with some combinations
-		 * of new kernel and old userspace.  If those guests run on a
-		 * tsx=off host, do allow guests to use TSX_CTRL, but do not
-		 * change the value on the host so that TSX remains always
-		 * disabled.
 		 */
-		if (boot_cpu_has(X86_FEATURE_RTM))
+		tsx_ctrl = vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
+		if (tsx_ctrl)
 			vmx->guest_uret_msrs[i].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
-		else
-			vmx->guest_uret_msrs[i].mask = 0;
 	}
 
 	err = alloc_loaded_vmcs(&vmx->vmcs01);
