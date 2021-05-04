@@ -16,7 +16,6 @@
 struct pci_vpd_ops {
 	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
 	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-	int (*set_size)(struct pci_dev *dev, size_t len);
 };
 
 struct pci_vpd {
@@ -29,6 +28,11 @@ struct pci_vpd {
 	unsigned int	busy:1;
 	unsigned int	valid:1;
 };
+
+static struct pci_dev *pci_get_func0_dev(struct pci_dev *dev)
+{
+	return pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+}
 
 /**
  * pci_read_vpd - Read one entry from Vital Product Data
@@ -60,19 +64,6 @@ ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void 
 }
 EXPORT_SYMBOL(pci_write_vpd);
 
-/**
- * pci_set_vpd_size - Set size of Vital Product Data space
- * @dev:	pci device struct
- * @len:	size of vpd space
- */
-int pci_set_vpd_size(struct pci_dev *dev, size_t len)
-{
-	if (!dev->vpd || !dev->vpd->ops)
-		return -ENODEV;
-	return dev->vpd->ops->set_size(dev, len);
-}
-EXPORT_SYMBOL(pci_set_vpd_size);
-
 #define PCI_VPD_MAX_SIZE (PCI_VPD_ADDR_MASK + 1)
 
 /**
@@ -85,9 +76,13 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 	size_t off = 0;
 	unsigned char header[1+2];	/* 1 byte tag, 2 bytes length */
 
-	while (off < old_size &&
-	       pci_read_vpd(dev, off, 1, header) == 1) {
+	while (off < old_size && pci_read_vpd(dev, off, 1, header) == 1) {
 		unsigned char tag;
+
+		if (!header[0] && !off) {
+			pci_info(dev, "Invalid VPD tag 00, assume missing optional VPD EPROM\n");
+			return 0;
+		}
 
 		if (header[0] & PCI_VPD_LRDT) {
 			/* Large Resource Data Type Tag */
@@ -297,30 +292,15 @@ out:
 	return ret ? ret : count;
 }
 
-static int pci_vpd_set_size(struct pci_dev *dev, size_t len)
-{
-	struct pci_vpd *vpd = dev->vpd;
-
-	if (len == 0 || len > PCI_VPD_MAX_SIZE)
-		return -EIO;
-
-	vpd->valid = 1;
-	vpd->len = len;
-
-	return 0;
-}
-
 static const struct pci_vpd_ops pci_vpd_ops = {
 	.read = pci_vpd_read,
 	.write = pci_vpd_write,
-	.set_size = pci_vpd_set_size,
 };
 
 static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
 			       void *arg)
 {
-	struct pci_dev *tdev = pci_get_slot(dev->bus,
-					    PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	struct pci_dev *tdev = pci_get_func0_dev(dev);
 	ssize_t ret;
 
 	if (!tdev)
@@ -334,8 +314,7 @@ static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
 static ssize_t pci_vpd_f0_write(struct pci_dev *dev, loff_t pos, size_t count,
 				const void *arg)
 {
-	struct pci_dev *tdev = pci_get_slot(dev->bus,
-					    PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	struct pci_dev *tdev = pci_get_func0_dev(dev);
 	ssize_t ret;
 
 	if (!tdev)
@@ -346,38 +325,23 @@ static ssize_t pci_vpd_f0_write(struct pci_dev *dev, loff_t pos, size_t count,
 	return ret;
 }
 
-static int pci_vpd_f0_set_size(struct pci_dev *dev, size_t len)
-{
-	struct pci_dev *tdev = pci_get_slot(dev->bus,
-					    PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
-	int ret;
-
-	if (!tdev)
-		return -ENODEV;
-
-	ret = pci_set_vpd_size(tdev, len);
-	pci_dev_put(tdev);
-	return ret;
-}
-
 static const struct pci_vpd_ops pci_vpd_f0_ops = {
 	.read = pci_vpd_f0_read,
 	.write = pci_vpd_f0_write,
-	.set_size = pci_vpd_f0_set_size,
 };
 
-int pci_vpd_init(struct pci_dev *dev)
+void pci_vpd_init(struct pci_dev *dev)
 {
 	struct pci_vpd *vpd;
 	u8 cap;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
 	if (!cap)
-		return -ENODEV;
+		return;
 
 	vpd = kzalloc(sizeof(*vpd), GFP_ATOMIC);
 	if (!vpd)
-		return -ENOMEM;
+		return;
 
 	vpd->len = PCI_VPD_MAX_SIZE;
 	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
@@ -389,7 +353,6 @@ int pci_vpd_init(struct pci_dev *dev)
 	vpd->busy = 0;
 	vpd->valid = 0;
 	dev->vpd = vpd;
-	return 0;
 }
 
 void pci_vpd_release(struct pci_dev *dev)
@@ -403,13 +366,6 @@ static ssize_t read_vpd_attr(struct file *filp, struct kobject *kobj,
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
 
-	if (bin_attr->size > 0) {
-		if (off > bin_attr->size)
-			count = 0;
-		else if (count > bin_attr->size - off)
-			count = bin_attr->size - off;
-	}
-
 	return pci_read_vpd(dev, off, count, buf);
 }
 
@@ -418,13 +374,6 @@ static ssize_t write_vpd_attr(struct file *filp, struct kobject *kobj,
 			      loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
-
-	if (bin_attr->size > 0) {
-		if (off > bin_attr->size)
-			count = 0;
-		else if (count > bin_attr->size - off)
-			count = bin_attr->size - off;
-	}
 
 	return pci_write_vpd(dev, off, count, buf);
 }
@@ -464,35 +413,16 @@ void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev)
 	}
 }
 
-int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt)
+int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 {
-	int i;
+	int i = 0;
 
-	for (i = off; i < len; ) {
-		u8 val = buf[i];
+	/* look for LRDT tags only, end tag is the only SRDT tag */
+	while (i + PCI_VPD_LRDT_TAG_SIZE <= len && buf[i] & PCI_VPD_LRDT) {
+		if (buf[i] == rdt)
+			return i;
 
-		if (val & PCI_VPD_LRDT) {
-			/* Don't return success of the tag isn't complete */
-			if (i + PCI_VPD_LRDT_TAG_SIZE > len)
-				break;
-
-			if (val == rdt)
-				return i;
-
-			i += PCI_VPD_LRDT_TAG_SIZE +
-			     pci_vpd_lrdt_size(&buf[i]);
-		} else {
-			u8 tag = val & ~PCI_VPD_SRDT_LEN_MASK;
-
-			if (tag == rdt)
-				return i;
-
-			if (tag == PCI_VPD_SRDT_END)
-				break;
-
-			i += PCI_VPD_SRDT_TAG_SIZE +
-			     pci_vpd_srdt_size(&buf[i]);
-		}
+		i += PCI_VPD_LRDT_TAG_SIZE + pci_vpd_lrdt_size(buf + i);
 	}
 
 	return -ENOENT;
@@ -530,7 +460,7 @@ static void quirk_f0_vpd_link(struct pci_dev *dev)
 	if (!PCI_FUNC(dev->devfn))
 		return;
 
-	f0 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	f0 = pci_get_func0_dev(dev);
 	if (!f0)
 		return;
 
@@ -570,7 +500,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x005d, quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x005f, quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, PCI_ANY_ID,
 		quirk_blacklist_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QLOGIC, 0x2261, quirk_blacklist_vpd);
 /*
  * The Amazon Annapurna Labs 0x0031 device id is reused for other non Root Port
  * device types, so the quirk is registered for the PCI_CLASS_BRIDGE_PCI class.
@@ -578,51 +507,16 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QLOGIC, 0x2261, quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
 			      PCI_CLASS_BRIDGE_PCI, 8, quirk_blacklist_vpd);
 
-/*
- * For Broadcom 5706, 5708, 5709 rev. A nics, any read beyond the
- * VPD end tag will hang the device.  This problem was initially
- * observed when a vpd entry was created in sysfs
- * ('/sys/bus/pci/devices/<id>/vpd').   A read to this sysfs entry
- * will dump 32k of data.  Reading a full 32k will cause an access
- * beyond the VPD end tag causing the device to hang.  Once the device
- * is hung, the bnx2 driver will not be able to reset the device.
- * We believe that it is legal to read beyond the end tag and
- * therefore the solution is to limit the read/write length.
- */
-static void quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
+static void pci_vpd_set_size(struct pci_dev *dev, size_t len)
 {
-	/*
-	 * Only disable the VPD capability for 5706, 5706S, 5708,
-	 * 5708S and 5709 rev. A
-	 */
-	if ((dev->device == PCI_DEVICE_ID_NX2_5706) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5706S) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5708) ||
-	    (dev->device == PCI_DEVICE_ID_NX2_5708S) ||
-	    ((dev->device == PCI_DEVICE_ID_NX2_5709) &&
-	     (dev->revision & 0xf0) == 0x0)) {
-		if (dev->vpd)
-			dev->vpd->len = 0x80;
-	}
+	struct pci_vpd *vpd = dev->vpd;
+
+	if (!vpd || len == 0 || len > PCI_VPD_MAX_SIZE)
+		return;
+
+	vpd->valid = 1;
+	vpd->len = len;
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5706,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5706S,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5708,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5708S,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5709,
-			quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
-			PCI_DEVICE_ID_NX2_5709S,
-			quirk_brcm_570x_limit_vpd);
 
 static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
 {
@@ -642,9 +536,9 @@ static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
 	 * limits.
 	 */
 	if (chip == 0x0 && prod >= 0x20)
-		pci_set_vpd_size(dev, 8192);
+		pci_vpd_set_size(dev, 8192);
 	else if (chip >= 0x4 && func < 0x8)
-		pci_set_vpd_size(dev, 2048);
+		pci_vpd_set_size(dev, 2048);
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,

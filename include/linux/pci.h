@@ -1303,7 +1303,6 @@ void pci_unlock_rescan_remove(void);
 /* Vital Product Data routines */
 ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
 ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-int pci_set_vpd_size(struct pci_dev *dev, size_t len);
 
 /* Helper functions for low-level code (drivers/pci/setup-[bus,res].c) */
 resource_size_t pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx);
@@ -2312,14 +2311,13 @@ static inline u8 pci_vpd_info_field_size(const u8 *info_field)
 /**
  * pci_vpd_find_tag - Locates the Resource Data Type tag provided
  * @buf: Pointer to buffered vpd data
- * @off: The offset into the buffer at which to begin the search
  * @len: The length of the vpd buffer
  * @rdt: The Resource Data Type to search for
  *
  * Returns the index where the Resource Data Type was found or
  * -ENOENT otherwise.
  */
-int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt);
+int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt);
 
 /**
  * pci_vpd_find_info_keyword - Locates an information field keyword in the VPD
