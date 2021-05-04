@@ -280,7 +280,7 @@ config PCIE_TEGRA194_EP
 	select PCIE_TEGRA194
 	help
 	  Enables support for the PCIe controller in the NVIDIA Tegra194 SoC to
-	  work in host mode. There are two instances of PCIe controllers in
+	  work in endpoint mode. There are two instances of PCIe controllers in
 	  Tegra194. This controller can work either as EP or RC. In order to
 	  enable host-specific features PCIE_TEGRA194_HOST must be selected and
 	  in order to enable device-specific features PCIE_TEGRA194_EP must be
