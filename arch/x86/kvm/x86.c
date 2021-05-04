@@ -184,11 +184,6 @@ module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
  */
 #define KVM_MAX_NR_USER_RETURN_MSRS 16
 
-struct kvm_user_return_msrs_global {
-	int nr;
-	u32 msrs[KVM_MAX_NR_USER_RETURN_MSRS];
-};
-
 struct kvm_user_return_msrs {
 	struct user_return_notifier urn;
 	bool registered;
@@ -198,7 +193,9 @@ struct kvm_user_return_msrs {
 	} values[KVM_MAX_NR_USER_RETURN_MSRS];
 };
 
-static struct kvm_user_return_msrs_global __read_mostly user_return_msrs_global;
+u32 __read_mostly kvm_nr_uret_msrs;
+EXPORT_SYMBOL_GPL(kvm_nr_uret_msrs);
+static u32 __read_mostly kvm_uret_msrs_list[KVM_MAX_NR_USER_RETURN_MSRS];
 static struct kvm_user_return_msrs __percpu *user_return_msrs;
 
 #define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
@@ -330,10 +327,10 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 		user_return_notifier_unregister(urn);
 	}
 	local_irq_restore(flags);
-	for (slot = 0; slot < user_return_msrs_global.nr; ++slot) {
+	for (slot = 0; slot < kvm_nr_uret_msrs; ++slot) {
 		values = &msrs->values[slot];
 		if (values->host != values->curr) {
-			wrmsrl(user_return_msrs_global.msrs[slot], values->host);
+			wrmsrl(kvm_uret_msrs_list[slot], values->host);
 			values->curr = values->host;
 		}
 	}
@@ -358,9 +355,9 @@ EXPORT_SYMBOL_GPL(kvm_probe_user_return_msr);
 void kvm_define_user_return_msr(unsigned slot, u32 msr)
 {
 	BUG_ON(slot >= KVM_MAX_NR_USER_RETURN_MSRS);
-	user_return_msrs_global.msrs[slot] = msr;
-	if (slot >= user_return_msrs_global.nr)
-		user_return_msrs_global.nr = slot + 1;
+	kvm_uret_msrs_list[slot] = msr;
+	if (slot >= kvm_nr_uret_msrs)
+		kvm_nr_uret_msrs = slot + 1;
 }
 EXPORT_SYMBOL_GPL(kvm_define_user_return_msr);
 
@@ -368,8 +365,8 @@ int kvm_find_user_return_msr(u32 msr)
 {
 	int i;
 
-	for (i = 0; i < user_return_msrs_global.nr; ++i) {
-		if (user_return_msrs_global.msrs[i] == msr)
+	for (i = 0; i < kvm_nr_uret_msrs; ++i) {
+		if (kvm_uret_msrs_list[i] == msr)
 			return i;
 	}
 	return -1;
@@ -383,8 +380,8 @@ static void kvm_user_return_msr_cpu_online(void)
 	u64 value;
 	int i;
 
-	for (i = 0; i < user_return_msrs_global.nr; ++i) {
-		rdmsrl_safe(user_return_msrs_global.msrs[i], &value);
+	for (i = 0; i < kvm_nr_uret_msrs; ++i) {
+		rdmsrl_safe(kvm_uret_msrs_list[i], &value);
 		msrs->values[i].host = value;
 		msrs->values[i].curr = value;
 	}
@@ -399,7 +396,7 @@ int kvm_set_user_return_msr(unsigned slot, u64 value, u64 mask)
 	value = (value & mask) | (msrs->values[slot].host & ~mask);
 	if (value == msrs->values[slot].curr)
 		return 0;
-	err = wrmsrl_safe(user_return_msrs_global.msrs[slot], value);
+	err = wrmsrl_safe(kvm_uret_msrs_list[slot], value);
 	if (err)
 		return 1;
 
