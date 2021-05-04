@@ -171,6 +171,7 @@ struct dcn_optc_registers {
 	uint32_t OPTC_DATA_FORMAT_CONTROL;
 	uint32_t OPTC_BYTES_PER_PIXEL;
 	uint32_t OPTC_WIDTH_CONTROL;
+	uint32_t OTG_DRR_CONTROL;
 	uint32_t OTG_BLANK_DATA_COLOR;
 	uint32_t OTG_BLANK_DATA_COLOR_EXT;
 	uint32_t OTG_DRR_TRIGGER_WINDOW;
@@ -517,7 +518,8 @@ struct dcn_optc_registers {
 	type OTG_CRC_DSC_MODE;\
 	type OTG_CRC_DATA_STREAM_COMBINE_MODE;\
 	type OTG_CRC_DATA_STREAM_SPLIT_MODE;\
-	type OTG_CRC_DATA_FORMAT;
+	type OTG_CRC_DATA_FORMAT;\
+	type OTG_V_TOTAL_LAST_USED_BY_DRR;
 
 
 struct dcn_optc_shift {

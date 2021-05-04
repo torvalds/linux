@@ -325,6 +325,48 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	return ret;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_stream_get_last_vrr_vtotal
+ *
+ *  @brief
+ *     Looks up the pipe context of dc_stream_state and gets the
+ *     last VTOTAL used by DRR (Dynamic Refresh Rate)
+ *
+ *  @param [in] dc: dc reference
+ *  @param [in] stream: Initial dc stream state
+ *  @param [in] adjust: Updated parameters for vertical_total_min and
+ *  vertical_total_max
+ *****************************************************************************
+ */
+bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t *refresh_rate)
+{
+	bool status = false;
+
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg) {
+			/* Only execute if a function pointer has been defined for
+			 * the DC version in question
+			 */
+			if (pipe->stream_res.tg->funcs->get_last_used_drr_vtotal) {
+				pipe->stream_res.tg->funcs->get_last_used_drr_vtotal(pipe->stream_res.tg, refresh_rate);
+
+				status = true;
+
+				break;
+			}
+		}
+	}
+
+	return status;
+}
+
 bool dc_stream_get_crtc_position(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		unsigned int *v_pos, unsigned int *nom_v_pos)

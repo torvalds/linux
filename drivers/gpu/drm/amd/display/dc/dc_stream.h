@@ -465,6 +465,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 				struct dc_stream_state *stream,
 				struct dc_crtc_timing_adjust *adjust);
 
+bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t *refresh_rate);
+
 bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
 				 int num_streams,
