@@ -764,7 +764,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
-	WARN_ON_ONCE(svm->vmcb->control.exit_code != SVM_EXIT_VMRUN);
 
 	/*
 	 * On vmexit the  GIF is set to false and
