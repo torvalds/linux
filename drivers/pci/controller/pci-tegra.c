@@ -759,7 +759,7 @@ static int tegra_pcie_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 
 static irqreturn_t tegra_pcie_isr(int irq, void *arg)
 {
-	const char *err_msg[] = {
+	static const char * const err_msg[] = {
 		"Unknown",
 		"AXI slave error",
 		"AXI decode error",
