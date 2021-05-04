@@ -11,5 +11,5 @@ struct nvkm_nvenc {
 	struct nvkm_falcon falcon;
 };
 
-int gm107_nvenc_new(struct nvkm_device *, int, struct nvkm_nvenc **);
+int gm107_nvenc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_nvenc **);
 #endif

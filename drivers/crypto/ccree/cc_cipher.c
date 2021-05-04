@@ -921,7 +921,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 			return crypto_skcipher_decrypt(subreq);
 	}
 
-	/* The IV we are handed may be allocted from the stack so
+	/* The IV we are handed may be allocated from the stack so
 	 * we must copy it to a DMAable buffer before use.
 	 */
 	req_ctx->iv = kmemdup(iv, ivsize, flags);

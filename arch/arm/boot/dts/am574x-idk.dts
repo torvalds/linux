@@ -39,3 +39,7 @@
 &m_can0 {
 	status = "disabled";
 };
+
+&emif1 {
+	status = "okay";
+};

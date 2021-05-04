@@ -16,6 +16,7 @@
 #include <linux/hashtable.h>
 #include <net/sock.h>
 #include <net/udp.h>
+#include <net/udp_tunnel.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
@@ -106,58 +107,44 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
  */
 static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 {
+	struct udp_tunnel_sock_cfg tuncfg = {NULL};
+	struct sockaddr_rxrpc *srx = &local->srx;
+	struct udp_port_cfg udp_conf = {0};
 	struct sock *usk;
 	int ret;
 
 	_enter("%p{%d,%d}",
-	       local, local->srx.transport_type, local->srx.transport.family);
+	       local, srx->transport_type, srx->transport.family);
 
-	/* create a socket to represent the local endpoint */
-	ret = sock_create_kern(net, local->srx.transport.family,
-			       local->srx.transport_type, 0, &local->socket);
+	udp_conf.family = srx->transport.family;
+	if (udp_conf.family == AF_INET) {
+		udp_conf.local_ip = srx->transport.sin.sin_addr;
+		udp_conf.local_udp_port = srx->transport.sin.sin_port;
+#if IS_ENABLED(CONFIG_AF_RXRPC_IPV6)
+	} else {
+		udp_conf.local_ip6 = srx->transport.sin6.sin6_addr;
+		udp_conf.local_udp_port = srx->transport.sin6.sin6_port;
+#endif
+	}
+	ret = udp_sock_create(net, &udp_conf, &local->socket);
 	if (ret < 0) {
 		_leave(" = %d [socket]", ret);
 		return ret;
 	}
 
+	tuncfg.encap_type = UDP_ENCAP_RXRPC;
+	tuncfg.encap_rcv = rxrpc_input_packet;
+	tuncfg.sk_user_data = local;
+	setup_udp_tunnel_sock(net, local->socket, &tuncfg);
+
 	/* set the socket up */
 	usk = local->socket->sk;
-	inet_sk(usk)->mc_loop = 0;
-
-	/* Enable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
-	inet_inc_convert_csum(usk);
-
-	rcu_assign_sk_user_data(usk, local);
-
-	udp_sk(usk)->encap_type = UDP_ENCAP_RXRPC;
-	udp_sk(usk)->encap_rcv = rxrpc_input_packet;
-	udp_sk(usk)->encap_destroy = NULL;
-	udp_sk(usk)->gro_receive = NULL;
-	udp_sk(usk)->gro_complete = NULL;
-
-	udp_encap_enable();
-#if IS_ENABLED(CONFIG_AF_RXRPC_IPV6)
-	if (local->srx.transport.family == AF_INET6)
-		udpv6_encap_enable();
-#endif
 	usk->sk_error_report = rxrpc_error_report;
 
-	/* if a local address was supplied then bind it */
-	if (local->srx.transport_len > sizeof(sa_family_t)) {
-		_debug("bind");
-		ret = kernel_bind(local->socket,
-				  (struct sockaddr *)&local->srx.transport,
-				  local->srx.transport_len);
-		if (ret < 0) {
-			_debug("bind failed %d", ret);
-			goto error;
-		}
-	}
-
-	switch (local->srx.transport.family) {
+	switch (srx->transport.family) {
 	case AF_INET6:
 		/* we want to receive ICMPv6 errors */
-		ip6_sock_set_recverr(local->socket->sk);
+		ip6_sock_set_recverr(usk);
 
 		/* Fall through and set IPv4 options too otherwise we don't get
 		 * errors from IPv4 packets sent through the IPv6 socket.
@@ -165,13 +152,13 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		fallthrough;
 	case AF_INET:
 		/* we want to receive ICMP errors */
-		ip_sock_set_recverr(local->socket->sk);
+		ip_sock_set_recverr(usk);
 
 		/* we want to set the don't fragment bit */
-		ip_sock_set_mtu_discover(local->socket->sk, IP_PMTUDISC_DO);
+		ip_sock_set_mtu_discover(usk, IP_PMTUDISC_DO);
 
 		/* We want receive timestamps. */
-		sock_enable_timestamps(local->socket->sk);
+		sock_enable_timestamps(usk);
 		break;
 
 	default:
@@ -180,15 +167,6 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 
 	_leave(" = 0");
 	return 0;
-
-error:
-	kernel_sock_shutdown(local->socket, SHUT_RDWR);
-	local->socket->sk->sk_user_data = NULL;
-	sock_release(local->socket);
-	local->socket = NULL;
-
-	_leave(" = %d", ret);
-	return ret;
 }
 
 /*

@@ -15,6 +15,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/string.h>
 #include <linux/auxiliary_bus.h>
+#include "base.h"
 
 static const struct auxiliary_device_id *auxiliary_match_id(const struct auxiliary_device_id *id,
 							    const struct auxiliary_device *auxdev)
@@ -260,18 +261,10 @@ void auxiliary_driver_unregister(struct auxiliary_driver *auxdrv)
 }
 EXPORT_SYMBOL_GPL(auxiliary_driver_unregister);
 
-static int __init auxiliary_bus_init(void)
+void __init auxiliary_bus_init(void)
 {
-	return bus_register(&auxiliary_bus_type);
+	WARN_ON(bus_register(&auxiliary_bus_type));
 }
-
-static void __exit auxiliary_bus_exit(void)
-{
-	bus_unregister(&auxiliary_bus_type);
-}
-
-module_init(auxiliary_bus_init);
-module_exit(auxiliary_bus_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Auxiliary Bus");

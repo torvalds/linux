@@ -19,6 +19,10 @@
 #include <asm/ptdump.h>
 
 static struct addr_marker address_markers[] = {
+#ifdef CONFIG_KASAN
+	{ KASAN_SHADOW_START,	"Kasan shadow start"},
+	{ KASAN_SHADOW_END,	"Kasan shadow end"},
+#endif
 	{ MODULES_VADDR,	"Modules" },
 	{ PAGE_OFFSET,		"Kernel Mapping" },
 	{ 0,			"vmalloc() Area" },
@@ -429,8 +433,11 @@ static void ptdump_initialize(void)
 				if (pg_level[i].bits[j].nx_bit)
 					pg_level[i].nx_bit = &pg_level[i].bits[j];
 			}
-
+#ifdef CONFIG_KASAN
+	address_markers[4].start_address = VMALLOC_START;
+#else
 	address_markers[2].start_address = VMALLOC_START;
+#endif
 }
 
 static struct ptdump_info kernel_ptdump_info = {

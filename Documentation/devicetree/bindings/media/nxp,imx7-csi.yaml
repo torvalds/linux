@@ -33,10 +33,7 @@ properties:
       - const: mclk
 
   port:
-    type: object
-    description:
-      A node containing input port nodes with endpoint definitions as documented
-      in Documentation/devicetree/bindings/media/video-interfaces.txt
+    $ref: /schemas/graph.yaml#/properties/port
 
 required:
   - compatible

@@ -249,6 +249,7 @@ void uml_finishsetup(void)
 }
 
 /* Set during early boot */
+unsigned long stub_start;
 unsigned long task_size;
 EXPORT_SYMBOL(task_size);
 
@@ -283,6 +284,10 @@ int __init linux_main(int argc, char **argv)
 		add_arg(DEFAULT_COMMAND_LINE_CONSOLE);
 
 	host_task_size = os_get_top_address();
+	/* reserve two pages for the stubs */
+	host_task_size -= 2 * PAGE_SIZE;
+	stub_start = host_task_size;
+
 	/*
 	 * TASK_SIZE needs to be PGDIR_SIZE aligned or else exit_mmap craps
 	 * out

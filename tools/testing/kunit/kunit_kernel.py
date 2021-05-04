@@ -123,7 +123,7 @@ def get_outfile_path(build_dir) -> str:
 class LinuxSourceTree(object):
 	"""Represents a Linux kernel source tree with KUnit tests."""
 
-	def __init__(self, build_dir: str, load_config=True, defconfig=DEFAULT_KUNITCONFIG_PATH) -> None:
+	def __init__(self, build_dir: str, load_config=True, kunitconfig_path='') -> None:
 		signal.signal(signal.SIGINT, self.signal_handler)
 
 		self._ops = LinuxSourceTreeOperations()
@@ -131,9 +131,13 @@ class LinuxSourceTree(object):
 		if not load_config:
 			return
 
-		kunitconfig_path = get_kunitconfig_path(build_dir)
-		if not os.path.exists(kunitconfig_path):
-			shutil.copyfile(defconfig, kunitconfig_path)
+		if kunitconfig_path:
+			if not os.path.exists(kunitconfig_path):
+				raise ConfigError(f'Specified kunitconfig ({kunitconfig_path}) does not exist')
+		else:
+			kunitconfig_path = get_kunitconfig_path(build_dir)
+			if not os.path.exists(kunitconfig_path):
+				shutil.copyfile(DEFAULT_KUNITCONFIG_PATH, kunitconfig_path)
 
 		self._kconfig = kunit_config.Kconfig()
 		self._kconfig.read_from_file(kunitconfig_path)
@@ -199,8 +203,12 @@ class LinuxSourceTree(object):
 			return False
 		return self.validate_config(build_dir)
 
-	def run_kernel(self, args=[], build_dir='', timeout=None) -> Iterator[str]:
+	def run_kernel(self, args=None, build_dir='', filter_glob='', timeout=None) -> Iterator[str]:
+		if not args:
+			args = []
 		args.extend(['mem=1G', 'console=tty'])
+		if filter_glob:
+			args.append('kunit.filter_glob='+filter_glob)
 		self._ops.linux_bin(args, timeout, build_dir)
 		outfile = get_outfile_path(build_dir)
 		subprocess.call(['stty', 'sane'])

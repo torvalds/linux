@@ -40,6 +40,7 @@ properties:
       There is no card detection available; polling must be used.
 
   cd-gpios:
+    maxItems: 1
     description:
       The card detection will be done using the GPIO provided.
 
@@ -104,6 +105,7 @@ properties:
       line. Not used in combination with eMMC or SDIO.
 
   wp-gpios:
+    maxItems: 1
     description:
       GPIO to use for the write-protect detection.
 

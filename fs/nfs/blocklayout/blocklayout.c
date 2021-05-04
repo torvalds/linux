@@ -115,19 +115,14 @@ bl_submit_bio(struct bio *bio)
 	return NULL;
 }
 
-static struct bio *
-bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
+static struct bio *bl_alloc_init_bio(unsigned int npg,
+		struct block_device *bdev, sector_t disk_sector,
 		bio_end_io_t end_io, struct parallel_io *par)
 {
 	struct bio *bio;
 
-	npg = min(npg, BIO_MAX_PAGES);
+	npg = bio_max_segs(npg);
 	bio = bio_alloc(GFP_NOIO, npg);
-	if (!bio && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (npg /= 2))
-			bio = bio_alloc(GFP_NOIO, npg);
-	}
-
 	if (bio) {
 		bio->bi_iter.bi_sector = disk_sector;
 		bio_set_dev(bio, bdev);

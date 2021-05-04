@@ -9,7 +9,7 @@ int arch_check_ftrace_location(struct kprobe *p)
 	return 0;
 }
 
-/* Ftrace callback handler for kprobes -- called under preepmt disabed */
+/* Ftrace callback handler for kprobes -- called under preepmt disabled */
 void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 			   struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {

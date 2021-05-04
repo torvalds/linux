@@ -15,12 +15,19 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ti,am654-sdhci-5.1
-      - ti,j721e-sdhci-8bit
-      - ti,j721e-sdhci-4bit
-      - ti,j7200-sdhci-8bit
-      - ti,j721e-sdhci-4bit
+    oneOf:
+      - const: ti,am654-sdhci-5.1
+      - const: ti,j721e-sdhci-8bit
+      - const: ti,j721e-sdhci-4bit
+      - const: ti,j721e-sdhci-4bit
+      - const: ti,am64-sdhci-8bit
+      - const: ti,am64-sdhci-4bit
+      - items:
+          - const: ti,j7200-sdhci-8bit
+          - const: ti,j721e-sdhci-8bit
+      - items:
+          - const: ti,j7200-sdhci-4bit
+          - const: ti,j721e-sdhci-4bit
 
   reg:
     maxItems: 2

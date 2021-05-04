@@ -196,7 +196,7 @@ static void do_recv_errqueue_timeout(int fdt)
 		default:
 			error(1, 0, "errqueue: errno %u code %u\n",
 			      err->ee_errno, err->ee_code);
-		};
+		}
 
 		tstamp = ((int64_t) err->ee_data) << 32 | err->ee_info;
 		tstamp -= (int64_t) glob_tstart;

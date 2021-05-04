@@ -25,6 +25,7 @@
 #include <asm/cpu_has_feature.h>
 
 #include "pervasive.h"
+#include "ras.h"
 
 static void cbe_power_save(void)
 {

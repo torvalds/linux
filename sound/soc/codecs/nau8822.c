@@ -991,7 +991,7 @@ static struct snd_soc_dai_driver nau8822_dai = {
 		.formats = NAU8822_FORMATS,
 	},
 	.ops = &nau8822_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int nau8822_suspend(struct snd_soc_component *component)

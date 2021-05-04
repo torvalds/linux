@@ -33,8 +33,6 @@ static inline int of_irq_parse_oldworld(struct device_node *device, int index,
 #endif /* CONFIG_PPC32 && CONFIG_PPC_PMAC */
 
 extern int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq);
-extern int of_irq_parse_one(struct device_node *device, int index,
-			  struct of_phandle_args *out_irq);
 extern unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data);
 extern int of_irq_to_resource(struct device_node *dev, int index,
 			      struct resource *r);
@@ -42,6 +40,8 @@ extern int of_irq_to_resource(struct device_node *dev, int index,
 extern void of_irq_init(const struct of_device_id *matches);
 
 #ifdef CONFIG_OF_IRQ
+extern int of_irq_parse_one(struct device_node *device, int index,
+			  struct of_phandle_args *out_irq);
 extern int of_irq_count(struct device_node *dev);
 extern int of_irq_get(struct device_node *dev, int index);
 extern int of_irq_get_byname(struct device_node *dev, const char *name);
@@ -57,6 +57,11 @@ extern struct irq_domain *of_msi_map_get_device_domain(struct device *dev,
 extern void of_msi_configure(struct device *dev, struct device_node *np);
 u32 of_msi_map_id(struct device *dev, struct device_node *msi_np, u32 id_in);
 #else
+static inline int of_irq_parse_one(struct device_node *device, int index,
+				   struct of_phandle_args *out_irq)
+{
+	return -EINVAL;
+}
 static inline int of_irq_count(struct device_node *dev)
 {
 	return 0;

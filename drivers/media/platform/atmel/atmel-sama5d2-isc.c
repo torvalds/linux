@@ -57,7 +57,7 @@
 static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 {
 	struct device_node *np = dev->of_node;
-	struct device_node *epn = NULL, *rem;
+	struct device_node *epn = NULL;
 	struct isc_subdev_entity *subdev_entity;
 	unsigned int flags;
 	int ret;
@@ -71,17 +71,9 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 		if (!epn)
 			return 0;
 
-		rem = of_graph_get_remote_port_parent(epn);
-		if (!rem) {
-			dev_notice(dev, "Remote device at %pOF not found\n",
-				   epn);
-			continue;
-		}
-
 		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(epn),
 						 &v4l2_epn);
 		if (ret) {
-			of_node_put(rem);
 			ret = -EINVAL;
 			dev_err(dev, "Could not parse the endpoint\n");
 			break;
@@ -90,21 +82,10 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 		subdev_entity = devm_kzalloc(dev, sizeof(*subdev_entity),
 					     GFP_KERNEL);
 		if (!subdev_entity) {
-			of_node_put(rem);
 			ret = -ENOMEM;
 			break;
 		}
-
-		/* asd will be freed by the subsystem once it's added to the
-		 * notifier list
-		 */
-		subdev_entity->asd = kzalloc(sizeof(*subdev_entity->asd),
-					     GFP_KERNEL);
-		if (!subdev_entity->asd) {
-			of_node_put(rem);
-			ret = -ENOMEM;
-			break;
-		}
+		subdev_entity->epn = epn;
 
 		flags = v4l2_epn.bus.parallel.flags;
 
@@ -121,12 +102,10 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_CCIR_CRC |
 					ISC_PFE_CFG0_CCIR656;
 
-		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		subdev_entity->asd->match.fwnode = of_fwnode_handle(rem);
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}
-
 	of_node_put(epn);
+
 	return ret;
 }
 
@@ -228,13 +207,20 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	}
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
+		struct v4l2_async_subdev *asd;
+
 		v4l2_async_notifier_init(&subdev_entity->notifier);
 
-		ret = v4l2_async_notifier_add_subdev(&subdev_entity->notifier,
-						     subdev_entity->asd);
-		if (ret) {
-			fwnode_handle_put(subdev_entity->asd->match.fwnode);
-			kfree(subdev_entity->asd);
+		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+					&subdev_entity->notifier,
+					of_fwnode_handle(subdev_entity->epn),
+					struct v4l2_async_subdev);
+
+		of_node_put(subdev_entity->epn);
+		subdev_entity->epn = NULL;
+
+		if (IS_ERR(asd)) {
+			ret = PTR_ERR(asd);
 			goto cleanup_subdev;
 		}
 
@@ -344,4 +330,3 @@ module_platform_driver(atmel_isc_driver);
 MODULE_AUTHOR("Songjun Wu");
 MODULE_DESCRIPTION("The V4L2 driver for Atmel-ISC");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("video");

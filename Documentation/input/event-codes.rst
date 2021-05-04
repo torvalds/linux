@@ -236,6 +236,21 @@ A few EV_ABS codes have special meanings:
   - Used to describe multitouch input events. Please see
     multi-touch-protocol.txt for details.
 
+* ABS_PRESSURE/ABS_MT_PRESSURE:
+
+   - For touch devices, many devices converted contact size into pressure.
+     A finger flattens with pressure, causing a larger contact area and thus
+     pressure and contact size are directly related. This is not the case
+     for other devices, for example digitizers and touchpads with a true
+     pressure sensor ("pressure pads").
+
+     A device should set the resolution of the axis to indicate whether the
+     pressure is in measurable units. If the resolution is zero, the
+     pressure data is in arbitrary units. If the resolution is nonzero, the
+     pressure data is in units/gram. For example, a value of 10 with a
+     resolution of 1 represents 10 gram, a value of 10 with a resolution on
+     1000 represents 10 microgram.
+
 EV_SW
 -----
 

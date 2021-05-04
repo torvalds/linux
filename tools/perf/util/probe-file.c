@@ -794,6 +794,8 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
 	char *ret = NULL;
 	int i, args_count, err;
 	unsigned long long ref_ctr_offset;
+	char *arg;
+	int arg_idx = 0;
 
 	if (strbuf_init(&buf, 32) < 0)
 		return NULL;
@@ -818,11 +820,43 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
 		if (args == NULL)
 			goto error;
 
-		for (i = 0; i < args_count; ++i) {
-			if (synthesize_sdt_probe_arg(&buf, i, args[i]) < 0) {
+		for (i = 0; i < args_count; ) {
+			/*
+			 * FIXUP: Arm64 ELF section '.note.stapsdt' uses string
+			 * format "-4@[sp, NUM]" if a probe is to access data in
+			 * the stack, e.g. below is an example for the SDT
+			 * Arguments:
+			 *
+			 *   Arguments: -4@[sp, 12] -4@[sp, 8] -4@[sp, 4]
+			 *
+			 * Since the string introduces an extra space character
+			 * in the middle of square brackets, the argument is
+			 * divided into two items.  Fixup for this case, if an
+			 * item contains sub string "[sp,", need to concatenate
+			 * the two items.
+			 */
+			if (strstr(args[i], "[sp,") && (i+1) < args_count) {
+				err = asprintf(&arg, "%s %s", args[i], args[i+1]);
+				i += 2;
+			} else {
+				err = asprintf(&arg, "%s", args[i]);
+				i += 1;
+			}
+
+			/* Failed to allocate memory */
+			if (err < 0) {
 				argv_free(args);
 				goto error;
 			}
+
+			if (synthesize_sdt_probe_arg(&buf, arg_idx, arg) < 0) {
+				free(arg);
+				argv_free(args);
+				goto error;
+			}
+
+			free(arg);
+			arg_idx++;
 		}
 
 		argv_free(args);

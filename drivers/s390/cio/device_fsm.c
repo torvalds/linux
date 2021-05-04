@@ -47,7 +47,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	orb = &private->orb;
 	cc = stsch(sch->schid, &schib);
 
-	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
+	printk(KERN_WARNING "cio: ccw device timeout occurred at %lx, "
 	       "device information:\n", get_tod_clock());
 	printk(KERN_WARNING "cio: orb:\n");
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,

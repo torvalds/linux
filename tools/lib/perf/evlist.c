@@ -26,13 +26,10 @@
 
 void perf_evlist__init(struct perf_evlist *evlist)
 {
-	int i;
-
-	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
-		INIT_HLIST_HEAD(&evlist->heads[i]);
 	INIT_LIST_HEAD(&evlist->entries);
 	evlist->nr_entries = 0;
 	fdarray__init(&evlist->pollfd, 64);
+	perf_evlist__reset_id_hash(evlist);
 }
 
 static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
@@ -235,6 +232,14 @@ static void perf_evlist__id_hash(struct perf_evlist *evlist,
 	sid->evsel = evsel;
 	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
 	hlist_add_head(&sid->node, &evlist->heads[hash]);
+}
+
+void perf_evlist__reset_id_hash(struct perf_evlist *evlist)
+{
+	int i;
+
+	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
+		INIT_HLIST_HEAD(&evlist->heads[i]);
 }
 
 void perf_evlist__id_add(struct perf_evlist *evlist,

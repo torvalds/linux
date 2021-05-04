@@ -225,7 +225,7 @@ static void mod_store_ccdlc(struct canfd_frame *cf)
 	if (ccf->len <= CAN_MAX_DLEN)
 		return;
 
-	/* potentially broken values are catched in can_can_gw_rcv() */
+	/* potentially broken values are caught in can_can_gw_rcv() */
 	if (ccf->len > CAN_MAX_RAW_DLC)
 		return;
 

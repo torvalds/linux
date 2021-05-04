@@ -132,7 +132,7 @@ static int oti6858_tiocmget(struct tty_struct *tty);
 static int oti6858_tiocmset(struct tty_struct *tty,
 				unsigned int set, unsigned int clear);
 static int oti6858_port_probe(struct usb_serial_port *port);
-static int oti6858_port_remove(struct usb_serial_port *port);
+static void oti6858_port_remove(struct usb_serial_port *port);
 
 /* device info */
 static struct usb_serial_driver oti6858_device = {
@@ -344,14 +344,12 @@ static int oti6858_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int oti6858_port_remove(struct usb_serial_port *port)
+static void oti6858_port_remove(struct usb_serial_port *port)
 {
 	struct oti6858_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int oti6858_write(struct tty_struct *tty, struct usb_serial_port *port,

@@ -129,7 +129,7 @@ static void remove_client_block(struct r3964_info *pInfo,
 static int r3964_open(struct tty_struct *tty);
 static void r3964_close(struct tty_struct *tty);
 static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
-		unsigned char __user * buf, size_t nr);
+		void *cookie, unsigned char *buf, size_t nr);
 static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 		const unsigned char *buf, size_t nr);
 static int r3964_ioctl(struct tty_struct *tty, struct file *file,
@@ -1058,7 +1058,8 @@ static void r3964_close(struct tty_struct *tty)
 }
 
 static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
-			  unsigned char __user * buf, size_t nr)
+			  unsigned char *kbuf, size_t nr,
+			  void **cookie, unsigned long offset)
 {
 	struct r3964_info *pInfo = tty->disc_data;
 	struct r3964_client_info *pClient;
@@ -1109,10 +1110,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 		kfree(pMsg);
 		TRACE_M("r3964_read - msg kfree %p", pMsg);
 
-		if (copy_to_user(buf, &theMsg, ret)) {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		memcpy(kbuf, &theMsg, ret);
 
 		TRACE_PS("read - return %d", ret);
 		goto unlock;

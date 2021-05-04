@@ -50,6 +50,11 @@ static struct clk_branch gpucc_cxo_clk = {
 	},
 };
 
+static struct pll_vco fabia_vco[] = {
+	{ 249600000, 2000000000, 0 },
+	{ 125000000, 1000000000, 1 },
+};
+
 static const struct clk_div_table post_div_table_fabia_even[] = {
 	{ 0x0, 1 },
 	{ 0x1, 2 },
@@ -61,11 +66,13 @@ static const struct clk_div_table post_div_table_fabia_even[] = {
 static struct clk_alpha_pll gpupll0 = {
 	.offset = 0x0,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_FABIA],
+	.vco_table = fabia_vco,
+	.num_vco = ARRAY_SIZE(fabia_vco),
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpupll0",
 		.parent_hws = (const struct clk_hw *[]){ &gpucc_cxo_clk.clkr.hw },
 		.num_parents = 1,
-		.ops = &clk_alpha_pll_fixed_fabia_ops,
+		.ops = &clk_alpha_pll_fabia_ops,
 	},
 };
 
@@ -80,6 +87,7 @@ static struct clk_alpha_pll_postdiv gpupll0_out_even = {
 		.name = "gpupll0_out_even",
 		.parent_hws = (const struct clk_hw *[]){ &gpupll0.clkr.hw },
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_alpha_pll_postdiv_fabia_ops,
 	},
 };
@@ -253,12 +261,16 @@ static struct gdsc gpu_cx_gdsc = {
 static struct gdsc gpu_gx_gdsc = {
 	.gdscr = 0x1094,
 	.clamp_io_ctrl = 0x130,
+	.resets = (unsigned int []){ GPU_GX_BCR },
+	.reset_count = 1,
+	.cxcs = (unsigned int []){ 0x1098 },
+	.cxc_count = 1,
 	.pd = {
 		.name = "gpu_gx",
 	},
 	.parent = &gpu_cx_gdsc.pd,
-	.pwrsts = PWRSTS_OFF_ON,
-	.flags = CLAMP_IO | AON_RESET,
+	.pwrsts = PWRSTS_OFF_ON | PWRSTS_RET,
+	.flags = CLAMP_IO | SW_RESET | AON_RESET | NO_RET_PERIPH,
 };
 
 static struct clk_regmap *gpucc_msm8998_clocks[] = {

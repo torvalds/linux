@@ -31,6 +31,7 @@
 #include <linux/limits.h>
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
+#include <trace/events/intel_iommu.h>
 
 #include "../irq_remapping.h"
 
@@ -525,6 +526,7 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	struct acpi_dmar_reserved_memory *rmrr;
 	struct acpi_dmar_atsr *atsr;
 	struct acpi_dmar_rhsa *rhsa;
+	struct acpi_dmar_satc *satc;
 
 	switch (header->type) {
 	case ACPI_DMAR_TYPE_HARDWARE_UNIT:
@@ -553,6 +555,10 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	case ACPI_DMAR_TYPE_NAMESPACE:
 		/* We don't print this here because we need to sanity-check
 		   it first. So print it in dmar_parse_one_andd() instead. */
+		break;
+	case ACPI_DMAR_TYPE_SATC:
+		satc = container_of(header, struct acpi_dmar_satc, header);
+		pr_info("SATC flags: 0x%x\n", satc->flags);
 		break;
 	}
 }
@@ -641,6 +647,7 @@ parse_dmar_table(void)
 		.cb[ACPI_DMAR_TYPE_ROOT_ATS] = &dmar_parse_one_atsr,
 		.cb[ACPI_DMAR_TYPE_HARDWARE_AFFINITY] = &dmar_parse_one_rhsa,
 		.cb[ACPI_DMAR_TYPE_NAMESPACE] = &dmar_parse_one_andd,
+		.cb[ACPI_DMAR_TYPE_SATC] = &dmar_parse_one_satc,
 	};
 
 	/*
@@ -1307,6 +1314,8 @@ restart:
 		offset = ((index + i) % QI_LENGTH) << shift;
 		memcpy(qi->desc + offset, &desc[i], 1 << shift);
 		qi->desc_status[(index + i) % QI_LENGTH] = QI_IN_USE;
+		trace_qi_submit(iommu, desc[i].qw0, desc[i].qw1,
+				desc[i].qw2, desc[i].qw3);
 	}
 	qi->desc_status[wait_index] = QI_IN_USE;
 
@@ -2074,6 +2083,7 @@ static guid_t dmar_hp_guid =
 #define	DMAR_DSM_FUNC_DRHD		1
 #define	DMAR_DSM_FUNC_ATSR		2
 #define	DMAR_DSM_FUNC_RHSA		3
+#define	DMAR_DSM_FUNC_SATC		4
 
 static inline bool dmar_detect_dsm(acpi_handle handle, int func)
 {
@@ -2091,6 +2101,7 @@ static int dmar_walk_dsm_resource(acpi_handle handle, int func,
 		[DMAR_DSM_FUNC_DRHD] = ACPI_DMAR_TYPE_HARDWARE_UNIT,
 		[DMAR_DSM_FUNC_ATSR] = ACPI_DMAR_TYPE_ROOT_ATS,
 		[DMAR_DSM_FUNC_RHSA] = ACPI_DMAR_TYPE_HARDWARE_AFFINITY,
+		[DMAR_DSM_FUNC_SATC] = ACPI_DMAR_TYPE_SATC,
 	};
 
 	if (!dmar_detect_dsm(handle, func))

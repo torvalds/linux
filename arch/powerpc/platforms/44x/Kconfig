@@ -206,17 +206,10 @@ config AKEBONO
 	select PPC4xx_HSTA_MSI
 	select I2C
 	select I2C_IBM_IIC
-	select NETDEVICES
-	select ETHERNET
-	select NET_VENDOR_IBM
 	select IBM_EMAC_EMAC4 if IBM_EMAC
 	select USB if USB_SUPPORT
 	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
-	select MMC_SDHCI
-	select MMC_SDHCI_PLTFM
-	select ATA
-	select SATA_AHCI_PLATFORM
 	help
 	  This option enables support for the IBM Akebono (476gtr) evaluation board
 

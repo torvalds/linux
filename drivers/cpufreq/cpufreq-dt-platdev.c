@@ -103,6 +103,8 @@ static const struct of_device_id whitelist[] __initconst = {
 static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "allwinner,sun50i-h6", },
 
+	{ .compatible = "arm,vexpress", },
+
 	{ .compatible = "calxeda,highbank", },
 	{ .compatible = "calxeda,ecx-2000", },
 
@@ -140,8 +142,6 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "st,stih407", },
 	{ .compatible = "st,stih410", },
 	{ .compatible = "st,stih418", },
-
-	{ .compatible = "sigma,tango4", },
 
 	{ .compatible = "ti,am33xx", },
 	{ .compatible = "ti,am43", },

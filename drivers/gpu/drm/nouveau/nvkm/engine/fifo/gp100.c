@@ -91,7 +91,8 @@ gp100_fifo = {
 };
 
 int
-gp100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gp100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gp100_fifo, device, index, 4096, pfifo);
+	return gk104_fifo_new_(&gp100_fifo, device, type, inst, 4096, pfifo);
 }

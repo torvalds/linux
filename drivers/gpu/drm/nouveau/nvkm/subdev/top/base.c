@@ -28,7 +28,8 @@ nvkm_top_device_new(struct nvkm_top *top)
 {
 	struct nvkm_top_device *info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info) {
-		info->index = NVKM_SUBDEV_NR;
+		info->type = NVKM_SUBDEV_NR;
+		info->inst = -1;
 		info->addr = 0;
 		info->fault = -1;
 		info->engine = -1;
@@ -41,14 +42,14 @@ nvkm_top_device_new(struct nvkm_top *top)
 }
 
 u32
-nvkm_top_addr(struct nvkm_device *device, enum nvkm_devidx index)
+nvkm_top_addr(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	if (top) {
 		list_for_each_entry(info, &top->device, head) {
-			if (info->index == index)
+			if (info->type == type && info->inst == inst)
 				return info->addr;
 		}
 	}
@@ -57,14 +58,14 @@ nvkm_top_addr(struct nvkm_device *device, enum nvkm_devidx index)
 }
 
 u32
-nvkm_top_reset(struct nvkm_device *device, enum nvkm_devidx index)
+nvkm_top_reset(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	if (top) {
 		list_for_each_entry(info, &top->device, head) {
-			if (info->index == index && info->reset >= 0)
+			if (info->type == type && info->inst == inst && info->reset >= 0)
 				return BIT(info->reset);
 		}
 	}
@@ -73,14 +74,14 @@ nvkm_top_reset(struct nvkm_device *device, enum nvkm_devidx index)
 }
 
 u32
-nvkm_top_intr_mask(struct nvkm_device *device, enum nvkm_devidx devidx)
+nvkm_top_intr_mask(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	if (top) {
 		list_for_each_entry(info, &top->device, head) {
-			if (info->index == devidx && info->intr >= 0)
+			if (info->type == type && info->inst == inst && info->intr >= 0)
 				return BIT(info->intr);
 		}
 	}
@@ -88,44 +89,21 @@ nvkm_top_intr_mask(struct nvkm_device *device, enum nvkm_devidx devidx)
 	return 0;
 }
 
-u32
-nvkm_top_intr(struct nvkm_device *device, u32 intr, u64 *psubdevs)
-{
-	struct nvkm_top *top = device->top;
-	struct nvkm_top_device *info;
-	u64 subdevs = 0;
-	u32 handled = 0;
-
-	if (top) {
-		list_for_each_entry(info, &top->device, head) {
-			if (info->index != NVKM_SUBDEV_NR && info->intr >= 0) {
-				if (intr & BIT(info->intr)) {
-					subdevs |= BIT_ULL(info->index);
-					handled |= BIT(info->intr);
-				}
-			}
-		}
-	}
-
-	*psubdevs = subdevs;
-	return intr & ~handled;
-}
-
 int
-nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_devidx devidx)
+nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	list_for_each_entry(info, &top->device, head) {
-		if (info->index == devidx && info->fault >= 0)
+		if (info->type == type && info->inst == inst && info->fault >= 0)
 			return info->fault;
 	}
 
 	return -ENOENT;
 }
 
-enum nvkm_devidx
+struct nvkm_subdev *
 nvkm_top_fault(struct nvkm_device *device, int fault)
 {
 	struct nvkm_top *top = device->top;
@@ -133,28 +111,10 @@ nvkm_top_fault(struct nvkm_device *device, int fault)
 
 	list_for_each_entry(info, &top->device, head) {
 		if (info->fault == fault)
-			return info->index;
+			return nvkm_device_subdev(device, info->type, info->inst);
 	}
 
-	return NVKM_SUBDEV_NR;
-}
-
-enum nvkm_devidx
-nvkm_top_engine(struct nvkm_device *device, int index, int *runl, int *engn)
-{
-	struct nvkm_top *top = device->top;
-	struct nvkm_top_device *info;
-	int n = 0;
-
-	list_for_each_entry(info, &top->device, head) {
-		if (info->engine >= 0 && info->runlist >= 0 && n++ == index) {
-			*runl = info->runlist;
-			*engn = info->engine;
-			return info->index;
-		}
-	}
-
-	return -ENODEV;
+	return NULL;
 }
 
 static int
@@ -186,12 +146,12 @@ nvkm_top = {
 
 int
 nvkm_top_new_(const struct nvkm_top_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_top **ptop)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_top **ptop)
 {
 	struct nvkm_top *top;
 	if (!(top = *ptop = kzalloc(sizeof(*top), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_top, device, index, &top->subdev);
+	nvkm_subdev_ctor(&nvkm_top, device, type, inst, &top->subdev);
 	top->func = func;
 	INIT_LIST_HEAD(&top->device);
 	return 0;

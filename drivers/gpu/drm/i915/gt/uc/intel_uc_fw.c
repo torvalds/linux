@@ -152,16 +152,11 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 			uc_fw->path = NULL;
 		}
 	}
-
-	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
-	if (i915->params.enable_guc == -1 && p < INTEL_ICELAKE)
-		uc_fw->path = NULL;
 }
 
 static const char *__override_guc_firmware_path(struct drm_i915_private *i915)
 {
-	if (i915->params.enable_guc & (ENABLE_GUC_SUBMISSION |
-				       ENABLE_GUC_LOAD_HUC))
+	if (i915->params.enable_guc & ENABLE_GUC_MASK)
 		return i915->params.guc_firmware_path;
 	return "";
 }

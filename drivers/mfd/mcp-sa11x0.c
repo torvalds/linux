@@ -214,8 +214,7 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	 * rate.  This is the period for 3 64-bit frames.  Always
 	 * round this time up.
 	 */
-	mcp->rw_timeout = (64 * 3 * 1000000 + mcp->sclk_rate - 1) /
-			  mcp->sclk_rate;
+	mcp->rw_timeout = DIV_ROUND_UP(64 * 3 * 1000000, mcp->sclk_rate);
 
 	ret = mcp_host_add(mcp, data->codec_pdata);
 	if (ret == 0)

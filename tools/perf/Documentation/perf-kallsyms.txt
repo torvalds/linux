@@ -20,5 +20,5 @@ modules).
 OPTIONS
 -------
 -v::
---verbose=::
+--verbose::
 	Increase verbosity level, showing details about symbol table loading, etc.

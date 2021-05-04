@@ -5,6 +5,7 @@
  */
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_gpu_commands.h"
 #include "i915_selftest.h"
 
 #include "gem/selftests/mock_context.h"
@@ -56,33 +57,6 @@ static int request_add_spin(struct i915_request *rq, struct igt_spinner *spin)
 	return err;
 }
 
-static struct i915_vma *create_scratch(struct intel_gt *gt)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int err;
-
-	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
-
-	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		i915_gem_object_put(obj);
-		return vma;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
-	if (err) {
-		i915_gem_object_put(obj);
-		return ERR_PTR(err);
-	}
-
-	return vma;
-}
-
 static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 {
 	struct drm_i915_mocs_table table;
@@ -101,7 +75,7 @@ static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 	if (flags & (HAS_GLOBAL_MOCS | HAS_ENGINE_MOCS))
 		arg->mocs = table;
 
-	arg->scratch = create_scratch(gt);
+	arg->scratch = __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
 	if (IS_ERR(arg->scratch))
 		return PTR_ERR(arg->scratch);
 
@@ -125,7 +99,7 @@ static void live_mocs_fini(struct live_mocs *arg)
 
 static int read_regs(struct i915_request *rq,
 		     u32 addr, unsigned int count,
-		     uint32_t *offset)
+		     u32 *offset)
 {
 	unsigned int i;
 	u32 *cs;
@@ -153,7 +127,7 @@ static int read_regs(struct i915_request *rq,
 
 static int read_mocs_table(struct i915_request *rq,
 			   const struct drm_i915_mocs_table *table,
-			   uint32_t *offset)
+			   u32 *offset)
 {
 	u32 addr;
 
@@ -167,7 +141,7 @@ static int read_mocs_table(struct i915_request *rq,
 
 static int read_l3cc_table(struct i915_request *rq,
 			   const struct drm_i915_mocs_table *table,
-			   uint32_t *offset)
+			   u32 *offset)
 {
 	u32 addr = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
 
@@ -176,7 +150,7 @@ static int read_l3cc_table(struct i915_request *rq,
 
 static int check_mocs_table(struct intel_engine_cs *engine,
 			    const struct drm_i915_mocs_table *table,
-			    uint32_t **vaddr)
+			    u32 **vaddr)
 {
 	unsigned int i;
 	u32 expect;
@@ -205,7 +179,7 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 
 static int check_l3cc_table(struct intel_engine_cs *engine,
 			    const struct drm_i915_mocs_table *table,
-			    uint32_t **vaddr)
+			    u32 **vaddr)
 {
 	/* Can we read the MCR range 0xb00 directly? See intel_workarounds! */
 	u32 reg = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
@@ -361,29 +335,34 @@ static int active_engine_reset(struct intel_context *ce,
 static int __live_mocs_reset(struct live_mocs *mocs,
 			     struct intel_context *ce)
 {
+	struct intel_gt *gt = ce->engine->gt;
 	int err;
 
-	err = intel_engine_reset(ce->engine, "mocs");
-	if (err)
-		return err;
+	if (intel_has_reset_engine(gt)) {
+		err = intel_engine_reset(ce->engine, "mocs");
+		if (err)
+			return err;
 
-	err = check_mocs_engine(mocs, ce);
-	if (err)
-		return err;
+		err = check_mocs_engine(mocs, ce);
+		if (err)
+			return err;
 
-	err = active_engine_reset(ce, "mocs");
-	if (err)
-		return err;
+		err = active_engine_reset(ce, "mocs");
+		if (err)
+			return err;
 
-	err = check_mocs_engine(mocs, ce);
-	if (err)
-		return err;
+		err = check_mocs_engine(mocs, ce);
+		if (err)
+			return err;
+	}
 
-	intel_gt_reset(ce->engine->gt, ce->engine->mask, "mocs");
+	if (intel_has_gpu_reset(gt)) {
+		intel_gt_reset(gt, ce->engine->mask, "mocs");
 
-	err = check_mocs_engine(mocs, ce);
-	if (err)
-		return err;
+		err = check_mocs_engine(mocs, ce);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -397,9 +376,6 @@ static int live_mocs_reset(void *arg)
 	int err = 0;
 
 	/* Check the mocs setup is retained over per-engine and global resets */
-
-	if (!intel_has_reset_engine(gt))
-		return 0;
 
 	err = live_mocs_init(&mocs, gt);
 	if (err)

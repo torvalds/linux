@@ -294,7 +294,7 @@ static int dce_virtual_get_modes(struct drm_connector *connector)
 	static const struct mode_size {
 		int w;
 		int h;
-	} common_modes[21] = {
+	} common_modes[] = {
 		{ 640,  480},
 		{ 720,  480},
 		{ 800,  600},
@@ -312,13 +312,14 @@ static int dce_virtual_get_modes(struct drm_connector *connector)
 		{1600, 1200},
 		{1920, 1080},
 		{1920, 1200},
+		{2560, 1440},
 		{4096, 3112},
 		{3656, 2664},
 		{3840, 2160},
 		{4096, 2160},
 	};
 
-	for (i = 0; i < 21; i++) {
+	for (i = 0; i < ARRAY_SIZE(common_modes); i++) {
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
 		drm_mode_probed_add(connector, mode);
 	}

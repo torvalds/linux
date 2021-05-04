@@ -175,8 +175,8 @@ nvkm_gr = {
 
 int
 nvkm_gr_ctor(const struct nvkm_gr_func *func, struct nvkm_device *device,
-	     int index, bool enable, struct nvkm_gr *gr)
+	     enum nvkm_subdev_type type, int inst, bool enable, struct nvkm_gr *gr)
 {
 	gr->func = func;
-	return nvkm_engine_ctor(&nvkm_gr, device, index, enable, &gr->engine);
+	return nvkm_engine_ctor(&nvkm_gr, device, type, inst, enable, &gr->engine);
 }

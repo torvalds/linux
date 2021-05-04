@@ -39,7 +39,8 @@ mcp77_disp = {
 };
 
 int
-mcp77_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+mcp77_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&mcp77_disp, device, index, pdisp);
+	return nv50_disp_new_(&mcp77_disp, device, type, inst, pdisp);
 }

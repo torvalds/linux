@@ -169,7 +169,7 @@ iser_set_dif_domain(struct scsi_cmnd *sc, struct ib_sig_domain *domain)
 	domain->sig.dif.ref_escape = true;
 	if (sc->prot_flags & SCSI_PROT_REF_INCREMENT)
 		domain->sig.dif.ref_remap = true;
-};
+}
 
 static int
 iser_set_sig_attrs(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs)
@@ -390,4 +390,3 @@ err_reg:
 
 	return err;
 }
-

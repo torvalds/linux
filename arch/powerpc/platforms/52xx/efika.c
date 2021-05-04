@@ -185,8 +185,6 @@ static void __init efika_setup_arch(void)
 	/* Map important registers from the internal memory map */
 	mpc52xx_map_common_devices();
 
-	efika_pcisetup();
-
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = efika_suspend_prepare;
 	mpc52xx_pm_init();
@@ -218,6 +216,7 @@ define_machine(efika)
 	.name			= EFIKA_PLATFORM_NAME,
 	.probe			= efika_probe,
 	.setup_arch		= efika_setup_arch,
+	.discover_phbs		= efika_pcisetup,
 	.init			= mpc52xx_declare_of_platform_devices,
 	.show_cpuinfo		= efika_show_cpuinfo,
 	.init_IRQ		= mpc52xx_init_irq,

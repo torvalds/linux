@@ -982,11 +982,18 @@ struct abort_entry_24xx {
 
 	uint32_t handle;		/* System handle. */
 
-	__le16	nport_handle;		/* N_PORT handle. */
-					/* or Completion status. */
+	union {
+		__le16 nport_handle;            /* N_PORT handle. */
+		__le16 comp_status;             /* Completion status. */
+	};
 
 	__le16	options;		/* Options. */
 #define AOF_NO_ABTS		BIT_0	/* Do not send any ABTS. */
+#define AOF_NO_RRQ		BIT_1   /* Do not send RRQ. */
+#define AOF_ABTS_TIMEOUT	BIT_2   /* Disable logout on ABTS timeout. */
+#define AOF_ABTS_RTY_CNT	BIT_3   /* Use driver specified retry count. */
+#define AOF_RSP_TIMEOUT		BIT_4   /* Use specified response timeout. */
+
 
 	uint32_t handle_to_abort;	/* System handle to abort. */
 
@@ -995,8 +1002,20 @@ struct abort_entry_24xx {
 
 	uint8_t port_id[3];		/* PortID of destination port. */
 	uint8_t vp_index;
-
-	uint8_t reserved_2[12];
+	u8	reserved_2[4];
+	union {
+		struct {
+			__le16 abts_rty_cnt;
+			__le16 rsp_timeout;
+		} drv;
+		struct {
+			u8	ba_rjt_vendorUnique;
+			u8	ba_rjt_reasonCodeExpl;
+			u8	ba_rjt_reasonCode;
+			u8	reserved_3;
+		} fw;
+	};
+	u8	reserved_4[4];
 };
 
 #define ABTS_RCV_TYPE		0x54

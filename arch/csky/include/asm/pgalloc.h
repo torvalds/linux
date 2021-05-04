@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_PGALLOC_H
 #define __ASM_CSKY_PGALLOC_H
@@ -71,7 +70,7 @@ do {							\
 } while (0)
 
 extern void pagetable_init(void);
-extern void pre_mmu_init(void);
+extern void mmu_init(unsigned long min_pfn, unsigned long max_pfn);
 extern void pre_trap_init(void);
 
 #endif /* __ASM_CSKY_PGALLOC_H */

@@ -235,7 +235,7 @@ int shadow_has_parent(struct shadow_spine *s)
 	return s->count >= 2;
 }
 
-int shadow_root(struct shadow_spine *s)
+dm_block_t shadow_root(struct shadow_spine *s)
 {
 	return s->root;
 }

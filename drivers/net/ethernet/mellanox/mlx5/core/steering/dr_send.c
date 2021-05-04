@@ -431,6 +431,8 @@ int mlx5dr_send_postsend_ste(struct mlx5dr_domain *dmn, struct mlx5dr_ste *ste,
 {
 	struct postsend_info send_info = {};
 
+	mlx5dr_ste_prepare_for_postsend(dmn->ste_ctx, data, size);
+
 	send_info.write.addr = (uintptr_t)data;
 	send_info.write.length = size;
 	send_info.write.lkey = 0;
@@ -457,6 +459,8 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 	if (ret)
 		return ret;
 
+	mlx5dr_ste_prepare_for_postsend(dmn->ste_ctx, formatted_ste, DR_STE_SIZE);
+
 	/* Send the data iteration times */
 	for (i = 0; i < iterations; i++) {
 		u32 ste_index = i * (byte_size / DR_STE_SIZE);
@@ -480,6 +484,10 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 				/* Copy bit_mask */
 				memcpy(data + ste_off + DR_STE_SIZE_REDUCED,
 				       mask, DR_STE_SIZE_MASK);
+				/* Only when we have mask we need to re-arrange the STE */
+				mlx5dr_ste_prepare_for_postsend(dmn->ste_ctx,
+								data + (j * DR_STE_SIZE),
+								DR_STE_SIZE);
 			}
 		}
 
@@ -509,6 +517,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 	u32 byte_size = htbl->chunk->byte_size;
 	int iterations;
 	int num_stes;
+	u8 *copy_dst;
 	u8 *data;
 	int ret;
 	int i;
@@ -518,18 +527,20 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < num_stes; i++) {
-		u8 *copy_dst;
-
-		/* Copy the same ste on the data buffer */
-		copy_dst = data + i * DR_STE_SIZE;
-		memcpy(copy_dst, ste_init_data, DR_STE_SIZE);
-
-		if (update_hw_ste) {
-			/* Copy the reduced ste to hash table ste_arr */
+	if (update_hw_ste) {
+		/* Copy the reduced STE to hash table ste_arr */
+		for (i = 0; i < num_stes; i++) {
 			copy_dst = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 			memcpy(copy_dst, ste_init_data, DR_STE_SIZE_REDUCED);
 		}
+	}
+
+	mlx5dr_ste_prepare_for_postsend(dmn->ste_ctx, ste_init_data, DR_STE_SIZE);
+
+	/* Copy the same STE on the data buffer */
+	for (i = 0; i < num_stes; i++) {
+		copy_dst = data + i * DR_STE_SIZE;
+		memcpy(copy_dst, ste_init_data, DR_STE_SIZE);
 	}
 
 	/* Send the data iteration times */

@@ -228,7 +228,7 @@ static struct snd_soc_dai_driver tegra210_dmic_dais[] = {
 				   SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &tegra210_dmic_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 

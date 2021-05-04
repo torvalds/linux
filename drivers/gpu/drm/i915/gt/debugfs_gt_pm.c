@@ -11,6 +11,7 @@
 #include "i915_drv.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
+#include "intel_gt_pm.h"
 #include "intel_llc.h"
 #include "intel_rc6.h"
 #include "intel_rps.h"
@@ -403,34 +404,34 @@ static int frequency_show(struct seq_file *m, void *unused)
 		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
 		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %d (%dns)\n",
+		seq_printf(m, "RP CUR UP EI: %d (%lldns)\n",
 			   rpcurupei,
 			   intel_gt_pm_interval_to_ns(gt, rpcurupei));
-		seq_printf(m, "RP CUR UP: %d (%dns)\n",
+		seq_printf(m, "RP CUR UP: %d (%lldns)\n",
 			   rpcurup, intel_gt_pm_interval_to_ns(gt, rpcurup));
-		seq_printf(m, "RP PREV UP: %d (%dns)\n",
+		seq_printf(m, "RP PREV UP: %d (%lldns)\n",
 			   rpprevup, intel_gt_pm_interval_to_ns(gt, rpprevup));
 		seq_printf(m, "Up threshold: %d%%\n",
 			   rps->power.up_threshold);
-		seq_printf(m, "RP UP EI: %d (%dns)\n",
+		seq_printf(m, "RP UP EI: %d (%lldns)\n",
 			   rpupei, intel_gt_pm_interval_to_ns(gt, rpupei));
-		seq_printf(m, "RP UP THRESHOLD: %d (%dns)\n",
+		seq_printf(m, "RP UP THRESHOLD: %d (%lldns)\n",
 			   rpupt, intel_gt_pm_interval_to_ns(gt, rpupt));
 
-		seq_printf(m, "RP CUR DOWN EI: %d (%dns)\n",
+		seq_printf(m, "RP CUR DOWN EI: %d (%lldns)\n",
 			   rpcurdownei,
 			   intel_gt_pm_interval_to_ns(gt, rpcurdownei));
-		seq_printf(m, "RP CUR DOWN: %d (%dns)\n",
+		seq_printf(m, "RP CUR DOWN: %d (%lldns)\n",
 			   rpcurdown,
 			   intel_gt_pm_interval_to_ns(gt, rpcurdown));
-		seq_printf(m, "RP PREV DOWN: %d (%dns)\n",
+		seq_printf(m, "RP PREV DOWN: %d (%lldns)\n",
 			   rpprevdown,
 			   intel_gt_pm_interval_to_ns(gt, rpprevdown));
 		seq_printf(m, "Down threshold: %d%%\n",
 			   rps->power.down_threshold);
-		seq_printf(m, "RP DOWN EI: %d (%dns)\n",
+		seq_printf(m, "RP DOWN EI: %d (%lldns)\n",
 			   rpdownei, intel_gt_pm_interval_to_ns(gt, rpdownei));
-		seq_printf(m, "RP DOWN THRESHOLD: %d (%dns)\n",
+		seq_printf(m, "RP DOWN THRESHOLD: %d (%lldns)\n",
 			   rpdownt, intel_gt_pm_interval_to_ns(gt, rpdownt));
 
 		max_freq = (IS_GEN9_LP(i915) ? rp_state_cap >> 0 :
@@ -558,7 +559,9 @@ static int rps_boost_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
 	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
-	seq_printf(m, "GPU busy? %s\n", yesno(gt->awake));
+	seq_printf(m, "GPU busy? %s, %llums\n",
+		   yesno(gt->awake),
+		   ktime_to_ms(intel_gt_get_awake_time(gt)));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
@@ -575,7 +578,7 @@ static int rps_boost_show(struct seq_file *m, void *data)
 		   intel_gpu_freq(rps, rps->efficient_freq),
 		   intel_gpu_freq(rps, rps->boost_freq));
 
-	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
+	seq_printf(m, "Wait boosts: %d\n", READ_ONCE(rps->boosts));
 
 	if (INTEL_GEN(i915) >= 6 && intel_rps_is_active(rps)) {
 		struct intel_uncore *uncore = gt->uncore;

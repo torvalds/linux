@@ -85,6 +85,7 @@ do {								\
 struct pt_regs;
 struct task_struct;
 
+void __show_regs(struct pt_regs *regs);
 void die(struct pt_regs *regs, const char *str);
 void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr);
 

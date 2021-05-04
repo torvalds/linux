@@ -49,7 +49,7 @@ static int keyspan_startup(struct usb_serial *serial);
 static void keyspan_disconnect(struct usb_serial *serial);
 static void keyspan_release(struct usb_serial *serial);
 static int keyspan_port_probe(struct usb_serial_port *port);
-static int keyspan_port_remove(struct usb_serial_port *port);
+static void keyspan_port_remove(struct usb_serial_port *port);
 static int keyspan_write_room(struct tty_struct *tty);
 static int keyspan_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *buf, int count);
@@ -2985,7 +2985,7 @@ err_in_buffer:
 	return -ENOMEM;
 }
 
-static int keyspan_port_remove(struct usb_serial_port *port)
+static void keyspan_port_remove(struct usb_serial_port *port)
 {
 	struct keyspan_port_private *p_priv;
 	int i;
@@ -3014,8 +3014,6 @@ static int keyspan_port_remove(struct usb_serial_port *port)
 		kfree(p_priv->in_buffer[i]);
 
 	kfree(p_priv);
-
-	return 0;
 }
 
 /* Structs for the devices, pre and post renumeration. */

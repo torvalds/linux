@@ -454,8 +454,10 @@ struct mv88e6xxx_ops {
 
 	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_frame_mode mode);
-	int (*port_set_egress_floods)(struct mv88e6xxx_chip *chip, int port,
-				      bool unicast, bool multicast);
+	int (*port_set_ucast_flood)(struct mv88e6xxx_chip *chip, int port,
+				    bool unicast);
+	int (*port_set_mcast_flood)(struct mv88e6xxx_chip *chip, int port,
+				    bool multicast);
 	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
 				   u16 etype);
 	int (*port_set_jumbo_size)(struct mv88e6xxx_chip *chip, int port,
@@ -660,6 +662,11 @@ struct mv88e6xxx_hw_stat {
 static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->pvt;
+}
+
+static inline bool mv88e6xxx_has_lag(struct mv88e6xxx_chip *chip)
+{
+	return !!chip->info->global2_addr;
 }
 
 static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)

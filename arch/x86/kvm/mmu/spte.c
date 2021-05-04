@@ -120,7 +120,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 	if (level > PG_LEVEL_4K)
 		spte |= PT_PAGE_SIZE_MASK;
 	if (tdp_enabled)
-		spte |= kvm_x86_ops.get_mt_mask(vcpu, gfn,
+		spte |= static_call(kvm_x86_get_mt_mask)(vcpu, gfn,
 			kvm_is_mmio_pfn(pfn));
 
 	if (host_writable)

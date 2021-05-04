@@ -1,107 +1,12 @@
 * Broadcom Starfighter 2 integrated swich
 
-Required properties:
+See dsa/brcm,bcm7445-switch-v4.0.yaml for the documentation.
 
-- compatible: should be one of
-	"brcm,bcm7445-switch-v4.0"
-	"brcm,bcm7278-switch-v4.0"
-	"brcm,bcm7278-switch-v4.8"
-- reg: addresses and length of the register sets for the device, must be 6
-  pairs of register addresses and lengths
-- interrupts: interrupts for the devices, must be two interrupts
-- #address-cells: must be 1, see dsa/dsa.txt
-- #size-cells: must be 0, see dsa/dsa.txt
-
-Deprecated binding required properties:
+*Deprecated* binding required properties:
 
 - dsa,mii-bus: phandle to the MDIO bus controller, see dsa/dsa.txt
 - dsa,ethernet: phandle to the CPU network interface controller, see dsa/dsa.txt
 - #address-cells: must be 2, see dsa/dsa.txt
-
-Subnodes:
-
-The integrated switch subnode should be specified according to the binding
-described in dsa/dsa.txt.
-
-Optional properties:
-
-- reg-names: litteral names for the device base register addresses, when present
-  must be: "core", "reg", "intrl2_0", "intrl2_1", "fcb", "acb"
-
-- interrupt-names: litternal names for the device interrupt lines, when present
-  must be: "switch_0" and "switch_1"
-
-- brcm,num-gphy: specify the maximum number of integrated gigabit PHYs in the
-  switch
-
-- brcm,num-rgmii-ports: specify the maximum number of RGMII interfaces supported
-  by the switch
-
-- brcm,fcb-pause-override: boolean property, if present indicates that the switch
-  supports Failover Control Block pause override capability
-
-- brcm,acb-packets-inflight: boolean property, if present indicates that the switch
-  Admission Control Block supports reporting the number of packets in-flight in a
-  switch queue
-
-- resets: a single phandle and reset identifier pair. See
-  Documentation/devicetree/bindings/reset/reset.txt for details.
-
-- reset-names: If the "reset" property is specified, this property should have
-  the value "switch" to denote the switch reset line.
-
-- clocks: when provided, the first phandle is to the switch's main clock and
-  is valid for both BCM7445 and BCM7278. The second phandle is only applicable
-  to BCM7445 and is to support dividing the switch core clock.
-
-- clock-names: when provided, the first phandle must be "sw_switch", and the
-  second must be named "sw_switch_mdiv".
-
-Port subnodes:
-
-Optional properties:
-
-- brcm,use-bcm-hdr: boolean property, if present, indicates that the switch
-  port has Broadcom tags enabled (per-packet metadata)
-
-Example:
-
-switch_top@f0b00000 {
-	compatible = "simple-bus";
-	#size-cells = <1>;
-	#address-cells = <1>;
-	ranges = <0 0xf0b00000 0x40804>;
-
-	ethernet_switch@0 {
-		compatible = "brcm,bcm7445-switch-v4.0";
-		#size-cells = <0>;
-		#address-cells = <1>;
-		reg = <0x0 0x40000
-			0x40000 0x110
-			0x40340 0x30
-			0x40380 0x30
-			0x40400 0x34
-			0x40600 0x208>;
-		reg-names = "core", "reg", intrl2_0", "intrl2_1",
-			    "fcb, "acb";
-		interrupts = <0 0x18 0
-				0 0x19 0>;
-		brcm,num-gphy = <1>;
-		brcm,num-rgmii-ports = <2>;
-		brcm,fcb-pause-override;
-		brcm,acb-packets-inflight;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				label = "gphy";
-				reg = <0>;
-			};
-		};
-	};
-};
 
 Example using the old DSA DeviceTree binding:
 
@@ -132,7 +37,7 @@ switch_top@f0b00000 {
 		switch@0 {
 			reg = <0 0>;
 			#size-cells = <0>;
-			#address-cells <1>;
+			#address-cells = <1>;
 
 			port@0 {
 				label = "gphy";

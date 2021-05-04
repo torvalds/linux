@@ -343,7 +343,6 @@ static int msm_iommu_domain_config(struct msm_priv *priv)
 	spin_lock_init(&priv->pgtlock);
 
 	priv->cfg = (struct io_pgtable_cfg) {
-		.quirks = IO_PGTABLE_QUIRK_TLBI_ON_MAP,
 		.pgsize_bitmap = msm_iommu_ops.pgsize_bitmap,
 		.ias = 32,
 		.oas = 32,
@@ -488,6 +487,14 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	spin_unlock_irqrestore(&priv->pgtlock, flags);
 
 	return ret;
+}
+
+static void msm_iommu_sync_map(struct iommu_domain *domain, unsigned long iova,
+			       size_t size)
+{
+	struct msm_priv *priv = to_msm_priv(domain);
+
+	__flush_iotlb_range(iova, size, SZ_4K, false, priv);
 }
 
 static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
@@ -680,6 +687,7 @@ static struct iommu_ops msm_iommu_ops = {
 	 * kick starting the other master.
 	 */
 	.iotlb_sync = NULL,
+	.iotlb_sync_map = msm_iommu_sync_map,
 	.iova_to_phys = msm_iommu_iova_to_phys,
 	.probe_device = msm_iommu_probe_device,
 	.release_device = msm_iommu_release_device,

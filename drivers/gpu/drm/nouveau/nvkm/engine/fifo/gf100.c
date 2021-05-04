@@ -57,7 +57,7 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	int nr = 0;
 	int target;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&fifo->base.mutex);
 	cur = fifo->runlist.mem[fifo->runlist.active];
 	fifo->runlist.active = !fifo->runlist.active;
 
@@ -73,7 +73,7 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	case NVKM_MEM_TARGET_VRAM: target = 0; break;
 	case NVKM_MEM_TARGET_NCOH: target = 3; break;
 	default:
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&fifo->base.mutex);
 		WARN_ON(1);
 		return;
 	}
@@ -86,59 +86,61 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist update timeout\n");
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void
 gf100_fifo_runlist_remove(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 {
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	list_del_init(&chan->head);
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 void
 gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 {
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	list_add_tail(&chan->head, &fifo->chan);
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
-static inline int
-gf100_fifo_engidx(struct gf100_fifo *fifo, u32 engn)
+static struct nvkm_engine *
+gf100_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
 {
-	switch (engn) {
-	case NVKM_ENGINE_GR    : engn = 0; break;
-	case NVKM_ENGINE_MSVLD : engn = 1; break;
-	case NVKM_ENGINE_MSPPP : engn = 2; break;
-	case NVKM_ENGINE_MSPDEC: engn = 3; break;
-	case NVKM_ENGINE_CE0   : engn = 4; break;
-	case NVKM_ENGINE_CE1   : engn = 5; break;
+	enum nvkm_subdev_type type;
+	int inst;
+
+	switch (engi) {
+	case GF100_FIFO_ENGN_GR    : type = NVKM_ENGINE_GR    ; inst = 0; break;
+	case GF100_FIFO_ENGN_MSPDEC: type = NVKM_ENGINE_MSPDEC; inst = 0; break;
+	case GF100_FIFO_ENGN_MSPPP : type = NVKM_ENGINE_MSPPP ; inst = 0; break;
+	case GF100_FIFO_ENGN_MSVLD : type = NVKM_ENGINE_MSVLD ; inst = 0; break;
+	case GF100_FIFO_ENGN_CE0   : type = NVKM_ENGINE_CE    ; inst = 0; break;
+	case GF100_FIFO_ENGN_CE1   : type = NVKM_ENGINE_CE    ; inst = 1; break;
+	case GF100_FIFO_ENGN_SW    : type = NVKM_ENGINE_SW    ; inst = 0; break;
 	default:
-		return -1;
-	}
-
-	return engn;
-}
-
-static inline struct nvkm_engine *
-gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
-{
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-
-	switch (engn) {
-	case 0: engn = NVKM_ENGINE_GR; break;
-	case 1: engn = NVKM_ENGINE_MSVLD; break;
-	case 2: engn = NVKM_ENGINE_MSPPP; break;
-	case 3: engn = NVKM_ENGINE_MSPDEC; break;
-	case 4: engn = NVKM_ENGINE_CE0; break;
-	case 5: engn = NVKM_ENGINE_CE1; break;
-	default:
+		WARN_ON(1);
 		return NULL;
 	}
 
-	return nvkm_device_engine(device, engn);
+	return nvkm_device_engine(fifo->engine.subdev.device, type, inst);
+}
+
+static int
+gf100_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
+{
+	switch (engine->subdev.type) {
+	case NVKM_ENGINE_GR    : return GF100_FIFO_ENGN_GR;
+	case NVKM_ENGINE_MSPDEC: return GF100_FIFO_ENGN_MSPDEC;
+	case NVKM_ENGINE_MSPPP : return GF100_FIFO_ENGN_MSPPP;
+	case NVKM_ENGINE_MSVLD : return GF100_FIFO_ENGN_MSVLD;
+	case NVKM_ENGINE_CE    : return GF100_FIFO_ENGN_CE0 + engine->subdev.inst;
+	case NVKM_ENGINE_SW    : return GF100_FIFO_ENGN_SW;
+	default:
+		WARN_ON(1);
+		return -1;
+	}
 }
 
 static void
@@ -148,20 +150,17 @@ gf100_fifo_recover_work(struct work_struct *w)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_engine *engine;
 	unsigned long flags;
-	u32 engn, engm = 0;
-	u64 mask, todo;
+	u32 engm, engn, todo;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	mask = fifo->recover.mask;
+	engm = fifo->recover.mask;
 	fifo->recover.mask = 0ULL;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn))
-		engm |= 1 << gf100_fifo_engidx(fifo, engn);
 	nvkm_mask(device, 0x002630, engm, engm);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
-		if ((engine = nvkm_device_engine(device, engn))) {
+	for (todo = engm; engn = __ffs(todo), todo; todo &= ~BIT_ULL(engn)) {
+		if ((engine = gf100_fifo_id_engine(&fifo->base, engn))) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
 		}
@@ -179,17 +178,18 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 chid = chan->base.chid;
+	int engi = gf100_fifo_engine_id(&fifo->base, engine);
 
 	nvkm_error(subdev, "%s engine fault on channel %d, recovering...\n",
-		   nvkm_subdev_name[engine->subdev.index], chid);
+		   engine->subdev.name, chid);
 	assert_spin_locked(&fifo->base.lock);
 
 	nvkm_mask(device, 0x003004 + (chid * 0x08), 0x00000001, 0x00000000);
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	if (engine != &fifo->base.engine)
-		fifo->recover.mask |= 1ULL << engine->subdev.index;
+	if (engi >= 0 && engi != GF100_FIFO_ENGN_SW)
+		fifo->recover.mask |= BIT(engi);
 	schedule_work(&fifo->recover.work);
 	nvkm_fifo_kevent(&fifo->base, chid);
 }
@@ -205,8 +205,8 @@ gf100_fifo_fault_engine[] = {
 	{ 0x11, "PMSPPP", NULL, NVKM_ENGINE_MSPPP },
 	{ 0x13, "PCOUNTER" },
 	{ 0x14, "PMSPDEC", NULL, NVKM_ENGINE_MSPDEC },
-	{ 0x15, "PCE0", NULL, NVKM_ENGINE_CE0 },
-	{ 0x16, "PCE1", NULL, NVKM_ENGINE_CE1 },
+	{ 0x15, "PCE0", NULL, NVKM_ENGINE_CE, 0 },
+	{ 0x16, "PCE1", NULL, NVKM_ENGINE_CE, 1 },
 	{ 0x17, "PMU" },
 	{}
 };
@@ -286,7 +286,7 @@ gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_device_engine(device, eu->data2);
+			engine = nvkm_device_engine(device, eu->data2, eu->inst);
 			break;
 		}
 	}
@@ -335,7 +335,7 @@ gf100_fifo_intr_sched_ctxsw(struct gf100_fifo *fifo)
 		if (busy && unk0 && unk1) {
 			list_for_each_entry(chan, &fifo->chan, head) {
 				if (chan->base.chid == chid) {
-					engine = gf100_fifo_engine(fifo, engn);
+					engine = gf100_fifo_id_engine(&fifo->base, engn);
 					if (!engine)
 						break;
 					gf100_fifo_recover(fifo, engine, chan);
@@ -673,6 +673,8 @@ gf100_fifo = {
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
 	.fault = gf100_fifo_fault,
+	.engine_id = gf100_fifo_engine_id,
+	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
 	.chan = {
@@ -682,7 +684,8 @@ gf100_fifo = {
 };
 
 int
-gf100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gf100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
 	struct gf100_fifo *fifo;
 
@@ -692,5 +695,5 @@ gf100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 	INIT_WORK(&fifo->recover.work, gf100_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&gf100_fifo, device, index, 128, &fifo->base);
+	return nvkm_fifo_ctor(&gf100_fifo, device, type, inst, 128, &fifo->base);
 }

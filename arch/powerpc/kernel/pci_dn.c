@@ -443,46 +443,6 @@ void *pci_traverse_device_nodes(struct device_node *start,
 }
 EXPORT_SYMBOL_GPL(pci_traverse_device_nodes);
 
-static struct pci_dn *pci_dn_next_one(struct pci_dn *root,
-				      struct pci_dn *pdn)
-{
-	struct list_head *next = pdn->child_list.next;
-
-	if (next != &pdn->child_list)
-		return list_entry(next, struct pci_dn, list);
-
-	while (1) {
-		if (pdn == root)
-			return NULL;
-
-		next = pdn->list.next;
-		if (next != &pdn->parent->child_list)
-			break;
-
-		pdn = pdn->parent;
-	}
-
-	return list_entry(next, struct pci_dn, list);
-}
-
-void *traverse_pci_dn(struct pci_dn *root,
-		      void *(*fn)(struct pci_dn *, void *),
-		      void *data)
-{
-	struct pci_dn *pdn = root;
-	void *ret;
-
-	/* Only scan the child nodes */
-	for (pdn = pci_dn_next_one(root, pdn); pdn;
-	     pdn = pci_dn_next_one(root, pdn)) {
-		ret = fn(pdn, data);
-		if (ret)
-			return ret;
-	}
-
-	return NULL;
-}
-
 static void *add_pdn(struct device_node *dn, void *data)
 {
 	struct pci_controller *hose = data;
@@ -520,28 +480,6 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	/* Update dn->phb ptrs for new phb and children devices */
 	pci_traverse_device_nodes(dn, add_pdn, phb);
 }
-
-/** 
- * pci_devs_phb_init - Initialize phbs and pci devs under them.
- * 
- * This routine walks over all phb's (pci-host bridges) on the
- * system, and sets up assorted pci-related structures 
- * (including pci info in the device node structs) for each
- * pci device found underneath.  This routine runs once,
- * early in the boot sequence.
- */
-static int __init pci_devs_phb_init(void)
-{
-	struct pci_controller *phb, *tmp;
-
-	/* This must be done first so the device nodes have valid pci info! */
-	list_for_each_entry_safe(phb, tmp, &hose_list, list_node)
-		pci_devs_phb_init_dynamic(phb);
-
-	return 0;
-}
-
-core_initcall(pci_devs_phb_init);
 
 static void pci_dev_pdn_setup(struct pci_dev *pdev)
 {

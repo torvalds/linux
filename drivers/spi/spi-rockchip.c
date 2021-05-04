@@ -566,7 +566,7 @@ static int rockchip_spi_slave_abort(struct spi_controller *ctlr)
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 
 	rs->slave_abort = true;
-	complete(&ctlr->xfer_completion);
+	spi_finalize_current_transfer(ctlr);
 
 	return 0;
 }

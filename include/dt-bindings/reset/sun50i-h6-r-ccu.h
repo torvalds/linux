@@ -13,5 +13,6 @@
 #define RST_R_APB2_I2C		4
 #define RST_R_APB1_IR		5
 #define RST_R_APB1_W1		6
+#define RST_R_APB2_RSB		7
 
 #endif /* _DT_BINDINGS_RST_SUN50I_H6_R_CCU_H_ */

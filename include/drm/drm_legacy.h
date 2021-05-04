@@ -198,8 +198,10 @@ struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
 				     size_t align);
 void drm_pci_free(struct drm_device *dev, struct drm_dma_handle *dmah);
 
-int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
-void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
+int drm_legacy_pci_init(const struct drm_driver *driver,
+			struct pci_driver *pdriver);
+void drm_legacy_pci_exit(const struct drm_driver *driver,
+			 struct pci_driver *pdriver);
 
 #else
 
@@ -214,13 +216,13 @@ static inline void drm_pci_free(struct drm_device *dev,
 {
 }
 
-static inline int drm_legacy_pci_init(struct drm_driver *driver,
+static inline int drm_legacy_pci_init(const struct drm_driver *driver,
 				      struct pci_driver *pdriver)
 {
 	return -EINVAL;
 }
 
-static inline void drm_legacy_pci_exit(struct drm_driver *driver,
+static inline void drm_legacy_pci_exit(const struct drm_driver *driver,
 				       struct pci_driver *pdriver)
 {
 }

@@ -1175,7 +1175,7 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 		dai_drv->probe = samsung_i2s_dai_probe;
 		dai_drv->remove = samsung_i2s_dai_remove;
 
-		dai_drv->symmetric_rates = 1;
+		dai_drv->symmetric_rate = 1;
 		dai_drv->ops = &samsung_i2s_dai_ops;
 
 		dai_drv->playback.channels_min = 1;

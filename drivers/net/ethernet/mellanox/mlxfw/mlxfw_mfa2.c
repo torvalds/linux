@@ -267,7 +267,7 @@ struct mlxfw_mfa2_file *mlxfw_mfa2_file_init(const struct firmware *fw)
 	const void *first_tlv_ptr;
 	const void *cb_top_ptr;
 
-	mfa2_file = kcalloc(1, sizeof(*mfa2_file), GFP_KERNEL);
+	mfa2_file = kzalloc(sizeof(*mfa2_file), GFP_KERNEL);
 	if (!mfa2_file)
 		return ERR_PTR(-ENOMEM);
 

@@ -75,6 +75,7 @@ struct intel_gt {
 	intel_wakeref_t awake;
 
 	u32 clock_frequency;
+	u32 clock_period_ns;
 
 	struct intel_llc llc;
 	struct intel_rc6 rc6;
@@ -86,6 +87,30 @@ struct intel_gt {
 	u32 pm_imr;
 
 	u32 pm_guc_events;
+
+	struct {
+		bool active;
+
+		/**
+		 * @lock: Lock protecting the below fields.
+		 */
+		seqcount_mutex_t lock;
+
+		/**
+		 * @total: Total time this engine was busy.
+		 *
+		 * Accumulated time not counting the most recent block in cases
+		 * where engine is currently busy (active > 0).
+		 */
+		ktime_t total;
+
+		/**
+		 * @start: Timestamp of the last idle to active transition.
+		 *
+		 * Idle is defined as active == 0, active is active > 0.
+		 */
+		ktime_t start;
+	} stats;
 
 	struct intel_engine_cs *engine[I915_NUM_ENGINES];
 	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]

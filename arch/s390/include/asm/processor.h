@@ -38,6 +38,9 @@
 #include <asm/runtime_instr.h>
 #include <asm/fpu/types.h>
 #include <asm/fpu/internal.h>
+#include <asm/irqflags.h>
+
+typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
 
 static inline void set_cpu_flag(int flag)
 {
@@ -101,31 +104,32 @@ extern void __bpon(void);
  */
 struct thread_struct {
 	unsigned int  acrs[NUM_ACRS];
-        unsigned long ksp;              /* kernel stack pointer             */
-	unsigned long user_timer;	/* task cputime in user space */
-	unsigned long guest_timer;	/* task cputime in kvm guest */
-	unsigned long system_timer;	/* task cputime in kernel space */
-	unsigned long hardirq_timer;	/* task cputime in hardirq context */
-	unsigned long softirq_timer;	/* task cputime in softirq context */
-	unsigned long sys_call_table;	/* system call table address */
-	unsigned long gmap_addr;	/* address of last gmap fault. */
-	unsigned int gmap_write_flag;	/* gmap fault write indication */
-	unsigned int gmap_int_code;	/* int code of last gmap fault */
-	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
+	unsigned long ksp;			/* kernel stack pointer */
+	unsigned long user_timer;		/* task cputime in user space */
+	unsigned long guest_timer;		/* task cputime in kvm guest */
+	unsigned long system_timer;		/* task cputime in kernel space */
+	unsigned long hardirq_timer;		/* task cputime in hardirq context */
+	unsigned long softirq_timer;		/* task cputime in softirq context */
+	const sys_call_ptr_t *sys_call_table;	/* system call table address */
+	unsigned long gmap_addr;		/* address of last gmap fault. */
+	unsigned int gmap_write_flag;		/* gmap fault write indication */
+	unsigned int gmap_int_code;		/* int code of last gmap fault */
+	unsigned int gmap_pfault;		/* signal of a pending guest pfault */
+
 	/* Per-thread information related to debugging */
-	struct per_regs per_user;	/* User specified PER registers */
-	struct per_event per_event;	/* Cause of the last PER trap */
-	unsigned long per_flags;	/* Flags to control debug behavior */
-	unsigned int system_call;	/* system call number in signal */
-	unsigned long last_break;	/* last breaking-event-address. */
-        /* pfault_wait is used to block the process on a pfault event */
+	struct per_regs per_user;		/* User specified PER registers */
+	struct per_event per_event;		/* Cause of the last PER trap */
+	unsigned long per_flags;		/* Flags to control debug behavior */
+	unsigned int system_call;		/* system call number in signal */
+	unsigned long last_break;		/* last breaking-event-address. */
+	/* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
-	struct gs_cb *gs_cb;		/* Current guarded storage cb */
-	struct gs_cb *gs_bc_cb;		/* Broadcast guarded storage cb */
-	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+	struct gs_cb *gs_cb;			/* Current guarded storage cb */
+	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
+	unsigned char trap_tdb[256];		/* Transaction abort diagnose block */
 	/*
 	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
 	 * the end.
@@ -184,6 +188,7 @@ static inline void release_thread(struct task_struct *tsk) { }
 
 /* Free guarded storage control block */
 void guarded_storage_release(struct task_struct *tsk);
+void gs_load_bc_cb(struct pt_regs *regs);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \
@@ -323,6 +328,11 @@ extern void memcpy_absolute(void *, void *, size_t);
 
 extern int s390_isolate_bp(void);
 extern int s390_isolate_bp_guest(void);
+
+static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
+{
+	return arch_irqs_disabled_flags(regs->psw.mask);
+}
 
 #endif /* __ASSEMBLY__ */
 

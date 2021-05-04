@@ -76,7 +76,6 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/types.h>
-#include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
 #include "../util/stat.h"

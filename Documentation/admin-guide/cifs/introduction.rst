@@ -7,19 +7,19 @@ Introduction
   protocol which was the successor to the Server Message Block
   (SMB) protocol, the native file sharing mechanism for most early
   PC operating systems. New and improved versions of CIFS are now
-  called SMB2 and SMB3. Use of SMB3 (and later, including SMB3.1.1)
-  is strongly preferred over using older dialects like CIFS due to
-  security reasons. All modern dialects, including the most recent,
-  SMB3.1.1 are supported by the CIFS VFS module. The SMB3 protocol
-  is implemented and supported by all major file servers
-  such as all modern versions of Windows (including Windows 2016
-  Server), as well as by Samba (which provides excellent
-  CIFS/SMB2/SMB3 server support and tools for Linux and many other
-  operating systems).  Apple systems also support SMB3 well, as
-  do most Network Attached Storage vendors, so this network
-  filesystem client can mount to a wide variety of systems.
-  It also supports mounting to the cloud (for example
-  Microsoft Azure), including the necessary security features.
+  called SMB2 and SMB3. Use of SMB3 (and later, including SMB3.1.1
+  the most current dialect) is strongly preferred over using older
+  dialects like CIFS due to security reasons. All modern dialects,
+  including the most recent, SMB3.1.1, are supported by the CIFS VFS
+  module. The SMB3 protocol is implemented and supported by all major
+  file servers such as Windows (including Windows 2019 Server), as
+  well as by Samba (which provides excellent CIFS/SMB2/SMB3 server
+  support and tools for Linux and many other operating systems).
+  Apple systems also support SMB3 well, as do most Network Attached
+  Storage vendors, so this network filesystem client can mount to a
+  wide variety of systems. It also supports mounting to the cloud
+  (for example Microsoft Azure), including the necessary security
+  features.
 
   The intent of this module is to provide the most advanced network
   file system function for SMB3 compliant servers, including advanced
@@ -27,8 +27,8 @@ Introduction
   POSIX compliance, secure per-user session establishment, encryption,
   high performance safe distributed caching (leases/oplocks), optional packet
   signing, large files, Unicode support and other internationalization
-  improvements. Since both Samba server and this filesystem client support
-  the CIFS Unix extensions (and in the future SMB3 POSIX extensions),
+  improvements. Since both Samba server and this filesystem client support the
+  CIFS Unix extensions, and the Linux client also suppors SMB3 POSIX extensions,
   the combination can provide a reasonable alternative to other network and
   cluster file systems for fileserving in some Linux to Linux environments,
   not just in Linux to Windows (or Linux to Mac) environments.

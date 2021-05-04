@@ -37,9 +37,18 @@ static int crct10dif_update_pmull_p8(struct shash_desc *desc, const u8 *data,
 	u16 *crc = shash_desc_ctx(desc);
 
 	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && crypto_simd_usable()) {
-		kernel_neon_begin();
-		*crc = crc_t10dif_pmull_p8(*crc, data, length);
-		kernel_neon_end();
+		do {
+			unsigned int chunk = length;
+
+			if (chunk > SZ_4K + CRC_T10DIF_PMULL_CHUNK_SIZE)
+				chunk = SZ_4K;
+
+			kernel_neon_begin();
+			*crc = crc_t10dif_pmull_p8(*crc, data, chunk);
+			kernel_neon_end();
+			data += chunk;
+			length -= chunk;
+		} while (length);
 	} else {
 		*crc = crc_t10dif_generic(*crc, data, length);
 	}
@@ -53,9 +62,18 @@ static int crct10dif_update_pmull_p64(struct shash_desc *desc, const u8 *data,
 	u16 *crc = shash_desc_ctx(desc);
 
 	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && crypto_simd_usable()) {
-		kernel_neon_begin();
-		*crc = crc_t10dif_pmull_p64(*crc, data, length);
-		kernel_neon_end();
+		do {
+			unsigned int chunk = length;
+
+			if (chunk > SZ_4K + CRC_T10DIF_PMULL_CHUNK_SIZE)
+				chunk = SZ_4K;
+
+			kernel_neon_begin();
+			*crc = crc_t10dif_pmull_p64(*crc, data, chunk);
+			kernel_neon_end();
+			data += chunk;
+			length -= chunk;
+		} while (length);
 	} else {
 		*crc = crc_t10dif_generic(*crc, data, length);
 	}

@@ -379,7 +379,7 @@ struct xlgmac_channel {
 } ____cacheline_aligned;
 
 struct xlgmac_desc_ops {
-	int (*alloc_channles_and_rings)(struct xlgmac_pdata *pdata);
+	int (*alloc_channels_and_rings)(struct xlgmac_pdata *pdata);
 	void (*free_channels_and_rings)(struct xlgmac_pdata *pdata);
 	int (*map_tx_skb)(struct xlgmac_channel *channel,
 			  struct sk_buff *skb);

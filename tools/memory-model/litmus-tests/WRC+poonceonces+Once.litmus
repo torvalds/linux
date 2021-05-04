@@ -8,10 +8,7 @@ C WRC+poonceonces+Once
  * test has no ordering at all.
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x)
 {

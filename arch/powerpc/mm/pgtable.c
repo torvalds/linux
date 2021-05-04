@@ -26,6 +26,7 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/hugetlb.h>
+#include <asm/pte-walk.h>
 
 static inline int is_exec_fault(void)
 {
@@ -81,9 +82,9 @@ static pte_t set_pte_filter_hash(pte_t pte)
 		struct page *pg = maybe_pte_to_page(pte);
 		if (!pg)
 			return pte;
-		if (!test_bit(PG_arch_1, &pg->flags)) {
+		if (!test_bit(PG_dcache_clean, &pg->flags)) {
 			flush_dcache_icache_page(pg);
-			set_bit(PG_arch_1, &pg->flags);
+			set_bit(PG_dcache_clean, &pg->flags);
 		}
 	}
 	return pte;
@@ -116,13 +117,13 @@ static inline pte_t set_pte_filter(pte_t pte)
 		return pte;
 
 	/* If the page clean, we move on */
-	if (test_bit(PG_arch_1, &pg->flags))
+	if (test_bit(PG_dcache_clean, &pg->flags))
 		return pte;
 
 	/* If it's an exec fault, we flush the cache and make it clean */
 	if (is_exec_fault()) {
 		flush_dcache_icache_page(pg);
-		set_bit(PG_arch_1, &pg->flags);
+		set_bit(PG_dcache_clean, &pg->flags);
 		return pte;
 	}
 
@@ -161,12 +162,12 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 		goto bail;
 
 	/* If the page is already clean, we move on */
-	if (test_bit(PG_arch_1, &pg->flags))
+	if (test_bit(PG_dcache_clean, &pg->flags))
 		goto bail;
 
-	/* Clean the page and set PG_arch_1 */
+	/* Clean the page and set PG_dcache_clean */
 	flush_dcache_icache_page(pg);
-	set_bit(PG_arch_1, &pg->flags);
+	set_bit(PG_dcache_clean, &pg->flags);
 
  bail:
 	return pte_mkexec(pte);

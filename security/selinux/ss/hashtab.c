@@ -9,7 +9,7 @@
 #include <linux/errno.h>
 #include "hashtab.h"
 
-static struct kmem_cache *hashtab_node_cachep;
+static struct kmem_cache *hashtab_node_cachep __ro_after_init;
 
 /*
  * Here we simply round the number of elements up to the nearest power of two.

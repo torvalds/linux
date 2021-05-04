@@ -384,19 +384,13 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 			goto out;
 		}
 
-		card->discipline->remove(card->gdev);
-		qeth_core_free_discipline(card);
+		qeth_remove_discipline(card);
 		free_netdev(card->dev);
 		card->dev = ndev;
 	}
 
-	rc = qeth_core_load_discipline(card, newdis);
-	if (rc)
-		goto out;
+	rc = qeth_setup_discipline(card, newdis);
 
-	rc = card->discipline->setup(card->gdev);
-	if (rc)
-		qeth_core_free_discipline(card);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;

@@ -1503,7 +1503,7 @@ static struct snd_soc_dai_driver aic3x_dai = {
 		.rates = AIC3X_RATES,
 		.formats = AIC3X_FORMATS,},
 	.ops = &aic3x_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void aic3x_mono_init(struct snd_soc_component *component)

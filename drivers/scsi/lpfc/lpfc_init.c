@@ -591,7 +591,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Set up heart beat (HB) timer */
 	mod_timer(&phba->hb_tmofunc,
 		  jiffies + msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
-	phba->hb_outstanding = 0;
+	phba->hba_flag &= ~(HBA_HBEAT_INP | HBA_HBEAT_TMO);
 	phba->last_completion_time = jiffies;
 	/* Set up error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll,
@@ -1204,10 +1204,10 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	unsigned long drvr_flag;
 
 	spin_lock_irqsave(&phba->hbalock, drvr_flag);
-	phba->hb_outstanding = 0;
+	phba->hba_flag &= ~(HBA_HBEAT_INP | HBA_HBEAT_TMO);
 	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
-	/* Check and reset heart-beat timer is necessary */
+	/* Check and reset heart-beat timer if necessary */
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 	if (!(phba->pport->fc_flag & FC_OFFLINE_MODE) &&
 		!(phba->link_state == LPFC_HBA_ERROR) &&
@@ -1381,6 +1381,60 @@ static void lpfc_hb_mxp_handler(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_issue_hb_mbox - Issues heart-beat mailbox command
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * If a HB mbox is not already in progrees, this routine will allocate
+ * a LPFC_MBOXQ_t, populate it with a MBX_HEARTBEAT (0x31) command,
+ * and issue it. The HBA_HBEAT_INP flag means the command is in progress.
+ **/
+int
+lpfc_issue_hb_mbox(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *pmboxq;
+	int retval;
+
+	/* Is a Heartbeat mbox already in progress */
+	if (phba->hba_flag & HBA_HBEAT_INP)
+		return 0;
+
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq)
+		return -ENOMEM;
+
+	lpfc_heart_beat(phba, pmboxq);
+	pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
+	pmboxq->vport = phba->pport;
+	retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+
+	if (retval != MBX_BUSY && retval != MBX_SUCCESS) {
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+		return -ENXIO;
+	}
+	phba->hba_flag |= HBA_HBEAT_INP;
+
+	return 0;
+}
+
+/**
+ * lpfc_issue_hb_tmo - Signals heartbeat timer to issue mbox command
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * The heartbeat timer (every 5 sec) will fire. If the HBA_HBEAT_TMO
+ * flag is set, it will force a MBX_HEARTBEAT mbox command, regardless
+ * of the value of lpfc_enable_hba_heartbeat.
+ * If lpfc_enable_hba_heartbeat is set, the timeout routine will always
+ * try to issue a MBX_HEARTBEAT mbox command.
+ **/
+void
+lpfc_issue_hb_tmo(struct lpfc_hba *phba)
+{
+	if (phba->cfg_enable_hba_heartbeat)
+		return;
+	phba->hba_flag |= HBA_HBEAT_TMO;
+}
+
+/**
  * lpfc_hb_timeout_handler - The HBA-timer timeout handler
  * @phba: pointer to lpfc hba data structure.
  *
@@ -1400,9 +1454,9 @@ void
 lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
-	LPFC_MBOXQ_t *pmboxq;
 	struct lpfc_dmabuf *buf_ptr;
-	int retval, i;
+	int retval = 0;
+	int i, tmo;
 	struct lpfc_sli *psli = &phba->sli;
 	LIST_HEAD(completions);
 
@@ -1424,24 +1478,6 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		(phba->pport->fc_flag & FC_OFFLINE_MODE))
 		return;
 
-	spin_lock_irq(&phba->pport->work_port_lock);
-
-	if (time_after(phba->last_completion_time +
-			msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL),
-			jiffies)) {
-		spin_unlock_irq(&phba->pport->work_port_lock);
-		if (!phba->hb_outstanding)
-			mod_timer(&phba->hb_tmofunc,
-				jiffies +
-				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
-		else
-			mod_timer(&phba->hb_tmofunc,
-				jiffies +
-				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
-		return;
-	}
-	spin_unlock_irq(&phba->pport->work_port_lock);
-
 	if (phba->elsbuf_cnt &&
 		(phba->elsbuf_cnt == phba->elsbuf_prev_cnt)) {
 		spin_lock_irq(&phba->hbalock);
@@ -1461,37 +1497,43 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 
 	/* If there is no heart beat outstanding, issue a heartbeat command */
 	if (phba->cfg_enable_hba_heartbeat) {
-		if (!phba->hb_outstanding) {
+		/* If IOs are completing, no need to issue a MBX_HEARTBEAT */
+		spin_lock_irq(&phba->pport->work_port_lock);
+		if (time_after(phba->last_completion_time +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL),
+				jiffies)) {
+			spin_unlock_irq(&phba->pport->work_port_lock);
+			if (phba->hba_flag & HBA_HBEAT_INP)
+				tmo = (1000 * LPFC_HB_MBOX_TIMEOUT);
+			else
+				tmo = (1000 * LPFC_HB_MBOX_INTERVAL);
+			goto out;
+		}
+		spin_unlock_irq(&phba->pport->work_port_lock);
+
+		/* Check if a MBX_HEARTBEAT is already in progress */
+		if (phba->hba_flag & HBA_HBEAT_INP) {
+			/*
+			 * If heart beat timeout called with HBA_HBEAT_INP set
+			 * we need to give the hb mailbox cmd a chance to
+			 * complete or TMO.
+			 */
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"0459 Adapter heartbeat still outstanding: "
+				"last compl time was %d ms.\n",
+				jiffies_to_msecs(jiffies
+					 - phba->last_completion_time));
+			tmo = (1000 * LPFC_HB_MBOX_TIMEOUT);
+		} else {
 			if ((!(psli->sli_flag & LPFC_SLI_MBOX_ACTIVE)) &&
 				(list_empty(&psli->mboxq))) {
-				pmboxq = mempool_alloc(phba->mbox_mem_pool,
-							GFP_KERNEL);
-				if (!pmboxq) {
-					mod_timer(&phba->hb_tmofunc,
-						 jiffies +
-						 msecs_to_jiffies(1000 *
-						 LPFC_HB_MBOX_INTERVAL));
-					return;
-				}
 
-				lpfc_heart_beat(phba, pmboxq);
-				pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
-				pmboxq->vport = phba->pport;
-				retval = lpfc_sli_issue_mbox(phba, pmboxq,
-						MBX_NOWAIT);
-
-				if (retval != MBX_BUSY &&
-					retval != MBX_SUCCESS) {
-					mempool_free(pmboxq,
-							phba->mbox_mem_pool);
-					mod_timer(&phba->hb_tmofunc,
-						jiffies +
-						msecs_to_jiffies(1000 *
-						LPFC_HB_MBOX_INTERVAL));
-					return;
+				retval = lpfc_issue_hb_mbox(phba);
+				if (retval) {
+					tmo = (1000 * LPFC_HB_MBOX_INTERVAL);
+					goto out;
 				}
 				phba->skipped_hb = 0;
-				phba->hb_outstanding = 1;
 			} else if (time_before_eq(phba->last_completion_time,
 					phba->skipped_hb)) {
 				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -1502,30 +1544,23 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 			} else
 				phba->skipped_hb = jiffies;
 
-			mod_timer(&phba->hb_tmofunc,
-				 jiffies +
-				 msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
-			return;
-		} else {
-			/*
-			* If heart beat timeout called with hb_outstanding set
-			* we need to give the hb mailbox cmd a chance to
-			* complete or TMO.
-			*/
-			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-					"0459 Adapter heartbeat still out"
-					"standing:last compl time was %d ms.\n",
-					jiffies_to_msecs(jiffies
-						 - phba->last_completion_time));
-			mod_timer(&phba->hb_tmofunc,
-				jiffies +
-				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
+			tmo = (1000 * LPFC_HB_MBOX_TIMEOUT);
+			goto out;
 		}
 	} else {
-			mod_timer(&phba->hb_tmofunc,
-				jiffies +
-				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
+		/* Check to see if we want to force a MBX_HEARTBEAT */
+		if (phba->hba_flag & HBA_HBEAT_TMO) {
+			retval = lpfc_issue_hb_mbox(phba);
+			if (retval)
+				tmo = (1000 * LPFC_HB_MBOX_INTERVAL);
+			else
+				tmo = (1000 * LPFC_HB_MBOX_TIMEOUT);
+			goto out;
+		}
+		tmo = (1000 * LPFC_HB_MBOX_INTERVAL);
 	}
+out:
+	mod_timer(&phba->hb_tmofunc, jiffies + msecs_to_jiffies(tmo));
 }
 
 /**
@@ -1830,9 +1865,19 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 
 	/* need reset: attempt for port recovery */
 	if (en_rn_msg)
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
+
+	/* If we are no wait, the HBA has been reset and is not
+	 * functional, thus we should clear LPFC_SLI_ACTIVE flag.
+	 */
+	if (mbx_action == LPFC_MBX_NO_WAIT) {
+		spin_lock_irq(&phba->hbalock);
+		phba->sli.sli_flag &= ~LPFC_SLI_ACTIVE;
+		spin_unlock_irq(&phba->hbalock);
+	}
+
 	lpfc_offline_prep(phba, mbx_action);
 	lpfc_sli_flush_io_rings(phba);
 	lpfc_offline(phba);
@@ -2979,7 +3024,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 		del_timer_sync(&phba->rrq_tmr);
 		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	}
-	phba->hb_outstanding = 0;
+	phba->hba_flag &= ~(HBA_HBEAT_INP | HBA_HBEAT_TMO);
 
 	switch (phba->pci_dev_grp) {
 	case LPFC_PCI_DEV_LP:
@@ -3592,7 +3637,11 @@ lpfc_offline(struct lpfc_hba *phba)
 			spin_unlock_irq(shost->host_lock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
-	__lpfc_cpuhp_remove(phba);
+	/* If OFFLINE flag is clear (i.e. unloading), cpuhp removal is handled
+	 * in hba_unset
+	 */
+	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+		__lpfc_cpuhp_remove(phba);
 
 	if (phba->cfg_xri_rebalancing)
 		lpfc_destroy_multixri_pools(phba);
@@ -6177,10 +6226,14 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 		phba->link_state = LPFC_HBA_ERROR;
 		return;
 	}
-	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
+
+	/* If not LPFC_SLI_ACTIVE, force all IO to be flushed */
+	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE) {
 		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
-	else
+	} else {
 		lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
+		lpfc_sli_flush_io_rings(phba);
+	}
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
 	lpfc_online(phba);
@@ -10728,17 +10781,19 @@ lpfc_sli_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 	uint32_t intr_mode = LPFC_INTR_ERROR;
 	int retval;
 
+	/* Need to issue conf_port mbox cmd before conf_msi mbox cmd */
+	retval = lpfc_sli_config_port(phba, LPFC_SLI_REV3);
+	if (retval)
+		return intr_mode;
+	phba->hba_flag &= ~HBA_NEEDS_CFG_PORT;
+
 	if (cfg_mode == 2) {
-		/* Need to issue conf_port mbox cmd before conf_msi mbox cmd */
-		retval = lpfc_sli_config_port(phba, LPFC_SLI_REV3);
+		/* Now, try to enable MSI-X interrupt mode */
+		retval = lpfc_sli_enable_msix(phba);
 		if (!retval) {
-			/* Now, try to enable MSI-X interrupt mode */
-			retval = lpfc_sli_enable_msix(phba);
-			if (!retval) {
-				/* Indicate initialization to MSI-X mode */
-				phba->intr_type = MSIX;
-				intr_mode = 2;
-			}
+			/* Indicate initialization to MSI-X mode */
+			phba->intr_type = MSIX;
+			intr_mode = 2;
 		}
 	}
 
@@ -14122,15 +14177,32 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	int i;
 	int j = 0;
 	unsigned long rem_nsec;
+	struct lpfc_vport **vports;
 
+	/* Don't dump messages if we explicitly set log_verbose for the
+	 * physical port or any vport.
+	 */
 	if (phba->cfg_log_verbose)
 		return;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL) {
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			if (vports[i]->cfg_log_verbose) {
+				lpfc_destroy_vport_work_array(phba, vports);
+				return;
+			}
+		}
+	}
+	lpfc_destroy_vport_work_array(phba, vports);
 
 	if (atomic_cmpxchg(&phba->dbg_log_dmping, 0, 1) != 0)
 		return;
 
 	start_idx = (unsigned int)atomic_read(&phba->dbg_log_idx) % DBG_LOG_SZ;
 	dbg_cnt = (unsigned int)atomic_read(&phba->dbg_log_cnt);
+	if (!dbg_cnt)
+		goto out;
 	temp_idx = start_idx;
 	if (dbg_cnt >= DBG_LOG_SZ) {
 		dbg_cnt = DBG_LOG_SZ;
@@ -14160,6 +14232,7 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 			 rem_nsec / 1000,
 			 phba->dbg_log[temp_idx].log);
 	}
+out:
 	atomic_set(&phba->dbg_log_cnt, 0);
 	atomic_set(&phba->dbg_log_dmping, 0);
 }

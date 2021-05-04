@@ -4,6 +4,11 @@
 #include <linux/mlx5/eswitch.h>
 #include "dr_types.h"
 
+#define DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, dmn_type)	\
+	((dmn)->info.caps.dmn_type##_sw_owner ||	\
+	 ((dmn)->info.caps.dmn_type##_sw_owner_v2 &&	\
+	  (dmn)->info.caps.sw_format_ver <= MLX5_STEERING_FORMAT_CONNECTX_6DX))
+
 static int dr_domain_init_cache(struct mlx5dr_domain *dmn)
 {
 	/* Per vport cached FW FT for checksum recalculation, this
@@ -56,6 +61,12 @@ int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
 static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 {
 	int ret;
+
+	dmn->ste_ctx = mlx5dr_ste_get_ctx(dmn->info.caps.sw_format_ver);
+	if (!dmn->ste_ctx) {
+		mlx5dr_err(dmn, "SW Steering on this device is unsupported\n");
+		return -EOPNOTSUPP;
+	}
 
 	ret = mlx5_core_alloc_pd(dmn->mdev, &dmn->pdn);
 	if (ret) {
@@ -181,6 +192,7 @@ static int dr_domain_query_fdb_caps(struct mlx5_core_dev *mdev,
 		return ret;
 
 	dmn->info.caps.fdb_sw_owner = dmn->info.caps.esw_caps.sw_owner;
+	dmn->info.caps.fdb_sw_owner_v2 = dmn->info.caps.esw_caps.sw_owner_v2;
 	dmn->info.caps.esw_rx_drop_address = dmn->info.caps.esw_caps.drop_icm_address_rx;
 	dmn->info.caps.esw_tx_drop_address = dmn->info.caps.esw_caps.drop_icm_address_tx;
 
@@ -223,18 +235,13 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 	if (ret)
 		return ret;
 
-	if (dmn->info.caps.sw_format_ver != MLX5_STEERING_FORMAT_CONNECTX_5) {
-		mlx5dr_err(dmn, "SW steering is not supported on this device\n");
-		return -EOPNOTSUPP;
-	}
-
 	ret = dr_domain_query_fdb_caps(mdev, dmn);
 	if (ret)
 		return ret;
 
 	switch (dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
-		if (!dmn->info.caps.rx_sw_owner)
+		if (!DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, rx))
 			return -ENOTSUPP;
 
 		dmn->info.supp_sw_steering = true;
@@ -243,7 +250,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 		dmn->info.rx.drop_icm_addr = dmn->info.caps.nic_rx_drop_address;
 		break;
 	case MLX5DR_DOMAIN_TYPE_NIC_TX:
-		if (!dmn->info.caps.tx_sw_owner)
+		if (!DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, tx))
 			return -ENOTSUPP;
 
 		dmn->info.supp_sw_steering = true;
@@ -255,7 +262,7 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 		if (!dmn->info.caps.eswitch_manager)
 			return -ENOTSUPP;
 
-		if (!dmn->info.caps.fdb_sw_owner)
+		if (!DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, fdb))
 			return -ENOTSUPP;
 
 		dmn->info.rx.ste_type = MLX5DR_STE_TYPE_RX;

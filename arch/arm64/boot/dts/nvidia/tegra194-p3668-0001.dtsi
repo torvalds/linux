@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "tegra194-p3668.dtsi"
+
+/ {
+	model = "NVIDIA Jetson Xavier NX (eMMC)";
+	compatible = "nvidia,p3668-0001", "nvidia,tegra194";
+
+	bus@0 {
+		/* SDMMC4 (eMMC) */
+		mmc@3460000 {
+			status = "okay";
+			bus-width = <8>;
+			non-removable;
+
+			vqmmc-supply = <&vdd_1v8ls>;
+			vmmc-supply = <&vdd_emmc_3v3>;
+		};
+	};
+};

@@ -15,6 +15,29 @@
 static const struct intel_uc_ops uc_ops_off;
 static const struct intel_uc_ops uc_ops_on;
 
+static void uc_expand_default_options(struct intel_uc *uc)
+{
+	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+
+	if (i915->params.enable_guc != -1)
+		return;
+
+	/* Don't enable GuC/HuC on pre-Gen12 */
+	if (INTEL_GEN(i915) < 12) {
+		i915->params.enable_guc = 0;
+		return;
+	}
+
+	/* Don't enable GuC/HuC on older Gen12 platforms */
+	if (IS_TIGERLAKE(i915) || IS_ROCKETLAKE(i915)) {
+		i915->params.enable_guc = 0;
+		return;
+	}
+
+	/* Default: enable HuC authentication only */
+	i915->params.enable_guc = ENABLE_GUC_LOAD_HUC;
+}
+
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
 static int __intel_uc_reset_hw(struct intel_uc *uc)
@@ -52,9 +75,6 @@ static void __confirm_options(struct intel_uc *uc)
 		yesno(intel_uc_wants_guc_submission(uc)),
 		yesno(intel_uc_wants_huc(uc)));
 
-	if (i915->params.enable_guc == -1)
-		return;
-
 	if (i915->params.enable_guc == 0) {
 		GEM_BUG_ON(intel_uc_wants_guc(uc));
 		GEM_BUG_ON(intel_uc_wants_guc_submission(uc));
@@ -79,8 +99,7 @@ static void __confirm_options(struct intel_uc *uc)
 			 "Incompatible option enable_guc=%d - %s\n",
 			 i915->params.enable_guc, "GuC submission is N/A");
 
-	if (i915->params.enable_guc & ~(ENABLE_GUC_SUBMISSION |
-					  ENABLE_GUC_LOAD_HUC))
+	if (i915->params.enable_guc & ~ENABLE_GUC_MASK)
 		drm_info(&i915->drm,
 			 "Incompatible option enable_guc=%d - %s\n",
 			 i915->params.enable_guc, "undocumented flag");
@@ -88,6 +107,8 @@ static void __confirm_options(struct intel_uc *uc)
 
 void intel_uc_init_early(struct intel_uc *uc)
 {
+	uc_expand_default_options(uc);
+
 	intel_guc_init_early(&uc->guc);
 	intel_huc_init_early(&uc->huc);
 
@@ -175,19 +196,15 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 
 static void guc_handle_mmio_msg(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
-
 	/* we need communication to be enabled to reply to GuC */
 	GEM_BUG_ON(!guc_communication_enabled(guc));
 
-	if (!guc->mmio_msg)
-		return;
-
-	spin_lock_irq(&i915->irq_lock);
-	intel_guc_to_host_process_recv_msg(guc, &guc->mmio_msg, 1);
-	spin_unlock_irq(&i915->irq_lock);
-
-	guc->mmio_msg = 0;
+	spin_lock_irq(&guc->irq_lock);
+	if (guc->mmio_msg) {
+		intel_guc_to_host_process_recv_msg(guc, &guc->mmio_msg, 1);
+		guc->mmio_msg = 0;
+	}
+	spin_unlock_irq(&guc->irq_lock);
 }
 
 static void guc_reset_interrupts(struct intel_guc *guc)
@@ -207,7 +224,8 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 
 static int guc_enable_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 	int ret;
 
 	GEM_BUG_ON(guc_communication_enabled(guc));
@@ -227,9 +245,9 @@ static int guc_enable_communication(struct intel_guc *guc)
 	guc_enable_interrupts(guc);
 
 	/* check for CT messages received before we enabled interrupts */
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&gt->irq_lock);
 	intel_guc_ct_event_handler(&guc->ct);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&gt->irq_lock);
 
 	drm_dbg(&i915->drm, "GuC communication enabled\n");
 

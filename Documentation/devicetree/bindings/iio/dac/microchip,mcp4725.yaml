@@ -39,20 +39,39 @@ properties:
 
 allOf:
   - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              const: microchip,mcp4726
+      properties:
+        compatible:
+          contains:
+            const: microchip,mcp4725
     then:
       properties:
         vref-supply: false
+      required:
+        - vdd-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,mcp4726
+    then:
+      anyOf:
+        - required:
+            - vdd-supply
+        - required:
+            - vref-supply
+
+  - if:
+      not:
+        required:
+          - vref-supply
+    then:
+      properties:
         microchip,vref-buffered: false
 
 required:
   - compatible
   - reg
-  - vdd-supply
 
 additionalProperties: false
 

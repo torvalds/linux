@@ -12,5 +12,5 @@ struct nvkm_mxm {
 	u8 *mxms;
 };
 
-int nvkm_mxm_new_(struct nvkm_device *, int index, struct nvkm_mxm **);
+int nvkm_mxm_new_(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_mxm **);
 #endif

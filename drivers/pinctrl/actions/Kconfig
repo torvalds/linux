@@ -12,18 +12,21 @@ config PINCTRL_OWL
 
 config PINCTRL_S500
 	bool "Actions Semi S500 pinctrl driver"
+	depends on ARM || COMPILE_TEST
 	depends on PINCTRL_OWL
 	help
 	  Say Y here to enable Actions Semi S500 pinctrl driver
 
 config PINCTRL_S700
 	bool "Actions Semi S700 pinctrl driver"
+	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_OWL
 	help
 	  Say Y here to enable Actions Semi S700 pinctrl driver
 
 config PINCTRL_S900
 	bool "Actions Semi S900 pinctrl driver"
+	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_OWL
 	help
 	  Say Y here to enable Actions Semi S900 pinctrl driver

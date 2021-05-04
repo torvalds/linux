@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Facebook */
 
 #include <linux/err.h>
+#include <netinet/tcp.h>
 #include <test_progs.h>
 #include "bpf_dctcp.skel.h"
 #include "bpf_cubic.skel.h"

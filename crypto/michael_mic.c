@@ -7,7 +7,7 @@
  * Copyright (c) 2004 Jouni Malinen <j@w1.fi>
  */
 #include <crypto/internal/hash.h>
-#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -19,7 +19,7 @@ struct michael_mic_ctx {
 };
 
 struct michael_mic_desc_ctx {
-	u8 pending[4];
+	__le32 pending;
 	size_t pending_len;
 
 	u32 l, r;
@@ -60,13 +60,12 @@ static int michael_update(struct shash_desc *desc, const u8 *data,
 			   unsigned int len)
 {
 	struct michael_mic_desc_ctx *mctx = shash_desc_ctx(desc);
-	const __le32 *src;
 
 	if (mctx->pending_len) {
 		int flen = 4 - mctx->pending_len;
 		if (flen > len)
 			flen = len;
-		memcpy(&mctx->pending[mctx->pending_len], data, flen);
+		memcpy((u8 *)&mctx->pending + mctx->pending_len, data, flen);
 		mctx->pending_len += flen;
 		data += flen;
 		len -= flen;
@@ -74,23 +73,21 @@ static int michael_update(struct shash_desc *desc, const u8 *data,
 		if (mctx->pending_len < 4)
 			return 0;
 
-		src = (const __le32 *)mctx->pending;
-		mctx->l ^= le32_to_cpup(src);
+		mctx->l ^= le32_to_cpu(mctx->pending);
 		michael_block(mctx->l, mctx->r);
 		mctx->pending_len = 0;
 	}
 
-	src = (const __le32 *)data;
-
 	while (len >= 4) {
-		mctx->l ^= le32_to_cpup(src++);
+		mctx->l ^= get_unaligned_le32(data);
 		michael_block(mctx->l, mctx->r);
+		data += 4;
 		len -= 4;
 	}
 
 	if (len > 0) {
 		mctx->pending_len = len;
-		memcpy(mctx->pending, src, len);
+		memcpy(&mctx->pending, data, len);
 	}
 
 	return 0;
@@ -100,8 +97,7 @@ static int michael_update(struct shash_desc *desc, const u8 *data,
 static int michael_final(struct shash_desc *desc, u8 *out)
 {
 	struct michael_mic_desc_ctx *mctx = shash_desc_ctx(desc);
-	u8 *data = mctx->pending;
-	__le32 *dst = (__le32 *)out;
+	u8 *data = (u8 *)&mctx->pending;
 
 	/* Last block and padding (0x5a, 4..7 x 0) */
 	switch (mctx->pending_len) {
@@ -123,8 +119,8 @@ static int michael_final(struct shash_desc *desc, u8 *out)
 	/* l ^= 0; */
 	michael_block(mctx->l, mctx->r);
 
-	dst[0] = cpu_to_le32(mctx->l);
-	dst[1] = cpu_to_le32(mctx->r);
+	put_unaligned_le32(mctx->l, out);
+	put_unaligned_le32(mctx->r, out + 4);
 
 	return 0;
 }
@@ -135,13 +131,11 @@ static int michael_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct michael_mic_ctx *mctx = crypto_shash_ctx(tfm);
 
-	const __le32 *data = (const __le32 *)key;
-
 	if (keylen != 8)
 		return -EINVAL;
 
-	mctx->l = le32_to_cpu(data[0]);
-	mctx->r = le32_to_cpu(data[1]);
+	mctx->l = get_unaligned_le32(key);
+	mctx->r = get_unaligned_le32(key + 4);
 	return 0;
 }
 
@@ -156,7 +150,6 @@ static struct shash_alg alg = {
 		.cra_name		=	"michael_mic",
 		.cra_driver_name	=	"michael_mic-generic",
 		.cra_blocksize		=	8,
-		.cra_alignmask		=	3,
 		.cra_ctxsize		=	sizeof(struct michael_mic_ctx),
 		.cra_module		=	THIS_MODULE,
 	}

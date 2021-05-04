@@ -52,7 +52,7 @@ EXPORT_SYMBOL(elf_hwcap);
 
 /*
  * The following string table, must sync with HWCAP_xx bitmask,
- * which is defined in <asm/procinfo.h>
+ * which is defined above
  */
 static const char *hwcap_str[] = {
 	"mfusr_pc",

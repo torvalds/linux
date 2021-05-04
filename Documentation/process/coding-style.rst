@@ -69,8 +69,25 @@ something to hide:
 	if (condition) do_this;
 	  do_something_everytime;
 
+Don't use commas to avoid using braces:
+
+.. code-block:: c
+
+	if (condition)
+		do_this(), do_that();
+
+Always uses braces for multiple statements:
+
+.. code-block:: c
+
+	if (condition) {
+		do_this();
+		do_that();
+	}
+
 Don't put multiple assignments on a single line either.  Kernel coding style
 is super simple.  Avoid tricky expressions.
+
 
 Outside of comments, documentation and except in Kconfig, spaces are never
 used for indentation, and the above example is deliberately broken.
@@ -306,8 +323,7 @@ that counts the number of active users, you should call that
 
 Encoding the type of a function into the name (so-called Hungarian
 notation) is asinine - the compiler knows the types anyway and can check
-those, and it only confuses the programmer. No wonder Microsoft makes buggy
-programs.
+those, and it only confuses the programmer.
 
 LOCAL variable names should be short, and to the point.  If you have
 some random integer loop counter, it should probably be called ``i``.

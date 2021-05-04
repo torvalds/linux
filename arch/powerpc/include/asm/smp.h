@@ -236,7 +236,7 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 #if defined(CONFIG_PPC64) && (defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE))
 extern void smp_release_cpus(void);
 #else
-static inline void smp_release_cpus(void) { };
+static inline void smp_release_cpus(void) { }
 #endif
 
 extern int smt_enabled_at_boot;

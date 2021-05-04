@@ -408,6 +408,7 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 				   "%s", str);
 	if (err) {
 		pr_err("kobject_init_and_add: %d\n", err);
+		kobject_put(&sess->kobj);
 		return err;
 	}
 	err = sysfs_create_group(&sess->kobj, &rtrs_clt_sess_attr_group);
@@ -419,6 +420,7 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 				   &sess->kobj, "stats");
 	if (err) {
 		pr_err("kobject_init_and_add: %d\n", err);
+		kobject_put(&sess->stats->kobj_stats);
 		goto remove_group;
 	}
 
@@ -469,15 +471,12 @@ int rtrs_clt_create_sysfs_root_files(struct rtrs_clt *clt)
 	return sysfs_create_group(&clt->dev.kobj, &rtrs_clt_attr_group);
 }
 
-void rtrs_clt_destroy_sysfs_root_folders(struct rtrs_clt *clt)
+void rtrs_clt_destroy_sysfs_root(struct rtrs_clt *clt)
 {
+	sysfs_remove_group(&clt->dev.kobj, &rtrs_clt_attr_group);
+
 	if (clt->kobj_paths) {
 		kobject_del(clt->kobj_paths);
 		kobject_put(clt->kobj_paths);
 	}
-}
-
-void rtrs_clt_destroy_sysfs_root_files(struct rtrs_clt *clt)
-{
-	sysfs_remove_group(&clt->dev.kobj, &rtrs_clt_attr_group);
 }

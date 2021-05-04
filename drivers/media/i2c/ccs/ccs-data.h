@@ -10,6 +10,8 @@
 
 #include <linux/types.h>
 
+struct device;
+
 /**
  * struct ccs_data_block_version - CCS static data version
  * @version_major: Major version number

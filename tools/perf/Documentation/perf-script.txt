@@ -118,7 +118,7 @@ OPTIONS
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output,
         brstackinsn, brstackoff, callindent, insn, insnlen, synth, phys_addr,
-        metric, misc, srccode, ipc, data_page_size.
+        metric, misc, srccode, ipc, data_page_size, code_page_size.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -422,8 +422,31 @@ include::itrace.txt[]
 	Only consider the listed symbols. Symbols are typically a name
 	but they may also be hexadecimal address.
 
+	The hexadecimal address may be the start address of a symbol or
+	any other address to filter the trace records
+
 	For example, to select the symbol noploop or the address 0x4007a0:
 	perf script --symbols=noploop,0x4007a0
+
+	Support filtering trace records by symbol name, start address of
+	symbol, any hexadecimal address and address range.
+
+	The comparison order is:
+
+	1. symbol name comparison
+	2. symbol start address comparison.
+	3. any hexadecimal address comparison.
+	4. address range comparison (see --addr-range).
+
+--addr-range::
+       Use with -S or --symbols to list traced records within address range.
+
+       For example, to list the traced records within the address range
+       [0x4007a0, 0x0x4007a9]:
+       perf script -S 0x4007a0 --addr-range 10
+
+--dsos=::
+	Only consider symbols in these DSOs.
 
 --call-trace::
 	Show call stream for intel_pt traces. The CPUs are interleaved, but

@@ -80,7 +80,7 @@ nv04_mc = {
 };
 
 int
-nv04_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+nv04_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&nv04_mc, device, index, pmc);
+	return nvkm_mc_new_(&nv04_mc, device, type, inst, pmc);
 }

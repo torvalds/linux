@@ -602,7 +602,7 @@ int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value,
 		ret = sock_hash_update_common(map, key, sk, flags);
 	sock_map_sk_release(sk);
 out:
-	fput(sock->file);
+	sockfd_put(sock);
 	return ret;
 }
 

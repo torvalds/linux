@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+/dts-v1/;
+
+#include "msm8994-sony-xperia-kitakami.dtsi"
+
+/ {
+	model = "Sony Xperia Z4 Tablet (LTE)";
+	compatible = "sony,karin-row", "qcom,msm8994";
+};
+
+&blsp2_i2c5 {
+	/*
+	 * TI LP8557 backlight driver @ 2c
+	 * AD AD7146 touch controller @ 2f
+	 * sii8620 HDMI/MHL bridge @ 72 (kitakami-common)
+	 */
+};
+
+&pm8994_l3 {
+	regulator-min-microvolt = <1050000>;
+	regulator-max-microvolt = <1050000>;
+};
+
+&pm8994_l17 {
+	regulator-min-microvolt = <2700000>;
+	regulator-max-microvolt = <2700000>;
+};
+
+&pm8994_l22 {
+	regulator-min-microvolt = <3100000>;
+	regulator-max-microvolt = <3100000>;
+};
+
+&pm8994_l25 {
+	regulator-min-microvolt = <1037500>;
+	regulator-max-microvolt = <1037500>;
+};
+
+/delete-node/ &pm8994_l32;
+/* Z4 tablets use a different touchscreen. */
+/delete-node/ &touchscreen;

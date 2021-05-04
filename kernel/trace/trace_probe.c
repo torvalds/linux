@@ -1134,3 +1134,20 @@ bool trace_probe_match_command_args(struct trace_probe *tp,
 	}
 	return true;
 }
+
+int trace_probe_create(const char *raw_command, int (*createfn)(int, const char **))
+{
+	int argc = 0, ret = 0;
+	char **argv;
+
+	argv = argv_split(GFP_KERNEL, raw_command, &argc);
+	if (!argv)
+		return -ENOMEM;
+
+	if (argc)
+		ret = createfn(argc, (const char **)argv);
+
+	argv_free(argv);
+
+	return ret;
+}

@@ -112,6 +112,8 @@
 				regulator-name = "lp8733-ldo0";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
 			};
 
 			lp8733_ldo1_reg: ldo1 {

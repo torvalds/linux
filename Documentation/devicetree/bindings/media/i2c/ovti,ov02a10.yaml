@@ -17,6 +17,9 @@ description: |-
   @ 1600x1200 (UXGA) resolution transferred over a 1-lane MIPI interface. The
   sensor output is available via CSI-2 serial data output.
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     const: ovti,ov02a10
@@ -66,42 +69,34 @@ properties:
     maxItems: 1
 
   rotation:
-    description:
-      Definition of the sensor's placement.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum:
-          - 0    # Sensor Mounted Upright
-          - 180  # Sensor Mounted Upside Down
-        default: 0
+    enum:
+      - 0    # Sensor Mounted Upright
+      - 180  # Sensor Mounted Upside Down
+    default: 0
 
-  # See ../video-interfaces.txt for details
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
     description:
       Output port node, single endpoint describing the CSI-2 transmitter.
 
     properties:
       endpoint:
-        type: object
-        additionalProperties: false
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
 
         properties:
           link-frequencies: true
           ovti,mipi-clock-voltage:
-            allOf:
-              - $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: "/schemas/types.yaml#/definitions/uint32"
             description:
               Definition of MIPI clock voltage unit. This entry corresponds to
               the link speed defined by the 'link-frequencies' property.
               If present, the value shall be in the range of 0-4.
             default: 4
-          remote-endpoint: true
 
         required:
           - link-frequencies
-          - remote-endpoint
 
     required:
       - endpoint

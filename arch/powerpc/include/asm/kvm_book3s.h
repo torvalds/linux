@@ -277,6 +277,13 @@ extern int kvmppc_hcall_impl_hv_realmode(unsigned long cmd);
 extern void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu);
 extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu);
 
+long kvmppc_read_intr(void);
+void kvmppc_bad_interrupt(struct pt_regs *regs);
+void kvmhv_p9_set_lpcr(struct kvm_split_mode *sip);
+void kvmhv_p9_restore_lpcr(struct kvm_split_mode *sip);
+void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr);
+void kvmppc_inject_interrupt_hv(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags);
+
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu);
 void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu);

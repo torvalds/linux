@@ -74,7 +74,7 @@ properties:
       - description: Must be 400 MHz
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description:
       A port node pointing to the input port of a HDMI/DP or MIPI display bridge.
 

@@ -22,6 +22,7 @@
 
 #include "x86.h"
 #include "svm.h"
+#include "svm_ops.h"
 #include "cpuid.h"
 #include "trace.h"
 
@@ -1041,6 +1042,74 @@ e_unpin_memory:
 	return ret;
 }
 
+static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	void __user *report = (void __user *)(uintptr_t)argp->data;
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct sev_data_attestation_report *data;
+	struct kvm_sev_attestation_report params;
+	void __user *p;
+	void *blob = NULL;
+	int ret;
+
+	if (!sev_guest(kvm))
+		return -ENOTTY;
+
+	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+		return -EFAULT;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
+	if (!data)
+		return -ENOMEM;
+
+	/* User wants to query the blob length */
+	if (!params.len)
+		goto cmd;
+
+	p = (void __user *)(uintptr_t)params.uaddr;
+	if (p) {
+		if (params.len > SEV_FW_BLOB_MAX_SIZE) {
+			ret = -EINVAL;
+			goto e_free;
+		}
+
+		ret = -ENOMEM;
+		blob = kmalloc(params.len, GFP_KERNEL);
+		if (!blob)
+			goto e_free;
+
+		data->address = __psp_pa(blob);
+		data->len = params.len;
+		memcpy(data->mnonce, params.mnonce, sizeof(params.mnonce));
+	}
+cmd:
+	data->handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_ATTESTATION_REPORT, data, &argp->error);
+	/*
+	 * If we query the session length, FW responded with expected data.
+	 */
+	if (!params.len)
+		goto done;
+
+	if (ret)
+		goto e_free_blob;
+
+	if (blob) {
+		if (copy_to_user(p, blob, params.len))
+			ret = -EFAULT;
+	}
+
+done:
+	params.len = data->len;
+	if (copy_to_user(report, &params, sizeof(params)))
+		ret = -EFAULT;
+e_free_blob:
+	kfree(blob);
+e_free:
+	kfree(data);
+	return ret;
+}
+
 int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
@@ -1090,6 +1159,9 @@ int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 		break;
 	case KVM_SEV_LAUNCH_SECRET:
 		r = sev_launch_secret(kvm, &sev_cmd);
+		break;
+	case KVM_SEV_GET_ATTESTATION_REPORT:
+		r = sev_get_attestation_report(kvm, &sev_cmd);
 		break;
 	default:
 		r = -EINVAL;
@@ -1994,29 +2066,17 @@ void sev_es_create_vcpu(struct vcpu_svm *svm)
 					    sev_enc_bit));
 }
 
-void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
+void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 	struct vmcb_save_area *hostsa;
-	unsigned int i;
 
 	/*
 	 * As an SEV-ES guest, hardware will restore the host state on VMEXIT,
 	 * of which one step is to perform a VMLOAD. Since hardware does not
 	 * perform a VMSAVE on VMRUN, the host savearea must be updated.
 	 */
-	asm volatile(__ex("vmsave %0") : : "a" (__sme_page_pa(sd->save_area)) : "memory");
-
-	/*
-	 * Certain MSRs are restored on VMEXIT, only save ones that aren't
-	 * restored.
-	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++) {
-		if (host_save_user_msrs[i].sev_es_restored)
-			continue;
-
-		rdmsrl(host_save_user_msrs[i].index, svm->host_user_msrs[i]);
-	}
+	vmsave(__sme_page_pa(sd->save_area));
 
 	/* XCR0 is restored on VMEXIT, save the current host value */
 	hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
@@ -2027,22 +2087,6 @@ void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
 
 	/* MSR_IA32_XSS is restored on VMEXIT, save the currnet host value */
 	hostsa->xss = host_xss;
-}
-
-void sev_es_vcpu_put(struct vcpu_svm *svm)
-{
-	unsigned int i;
-
-	/*
-	 * Certain MSRs are restored on VMEXIT and were saved with vmsave in
-	 * sev_es_vcpu_load() above. Only restore ones that weren't.
-	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++) {
-		if (host_save_user_msrs[i].sev_es_restored)
-			continue;
-
-		wrmsrl(host_save_user_msrs[i].index, svm->host_user_msrs[i]);
-	}
 }
 
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)

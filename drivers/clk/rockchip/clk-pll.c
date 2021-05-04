@@ -97,7 +97,7 @@ static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 	return ret;
 }
 
-/**
+/*
  * PLL used in RK3036
  */
 
@@ -358,7 +358,7 @@ static const struct clk_ops rockchip_rk3036_pll_clk_ops = {
 	.init = rockchip_rk3036_pll_init,
 };
 
-/**
+/*
  * PLL used in RK3066, RK3188 and RK3288
  */
 
@@ -577,7 +577,7 @@ static const struct clk_ops rockchip_rk3066_pll_clk_ops = {
 	.init = rockchip_rk3066_pll_init,
 };
 
-/**
+/*
  * PLL used in RK3399
  */
 

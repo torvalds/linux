@@ -1164,7 +1164,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 	 * Make sure that any changes to mode from another thread have
 	 * been seen after SYSCALL_WORK_SECCOMP was seen.
 	 */
-	rmb();
+	smp_rmb();
 
 	if (!sd) {
 		populate_seccomp_data(&sd_local);
@@ -1284,6 +1284,8 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 			    const bool recheck_after_trace)
 {
 	BUG();
+
+	return -1;
 }
 #endif
 

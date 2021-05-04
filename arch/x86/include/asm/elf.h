@@ -364,7 +364,7 @@ do {									\
 #define COMPAT_ARCH_DLINFO						\
 if (exec->e_machine == EM_X86_64)					\
 	ARCH_DLINFO_X32;						\
-else									\
+else if (IS_ENABLED(CONFIG_IA32_EMULATION))				\
 	ARCH_DLINFO_IA32
 
 #define COMPAT_ELF_ET_DYN_BASE	(TASK_UNMAPPED_BASE + 0x1000000)

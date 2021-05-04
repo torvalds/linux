@@ -2,7 +2,7 @@
 /*
  * OLPC XO 1.75 Laptop.
  *
- * Copyright (C) 2018,2019 Lubomir Rintel <lkundrak@v3.sk>
+ * Copyright (C) 2018,2019,2020 Lubomir Rintel <lkundrak@v3.sk>
  */
 
 /dts-v1/;
@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/marvell,mmp2-audio.h>
 
 / {
 	model = "OLPC XO-1.75";
@@ -32,8 +33,7 @@
 		};
 	};
 
-	memory {
-		linux,usable-memory = <0x0 0x1f800000>;
+	memory@0 {
 		available = <0xcf000 0x1ef31000 0x1000 0xbf000>;
 		reg = <0x0 0x20000000>;
 		device_type = "memory";
@@ -195,7 +195,7 @@
 		port {
 			rt5631_0: endpoint {
 				mclk-fs = <256>;
-				clocks = <&audio_clk 0>;
+				clocks = <&audio_clk MMP2_CLK_AUDIO_SYSCLK>;
 				remote-endpoint = <&sspa0_0>;
 			};
 		};

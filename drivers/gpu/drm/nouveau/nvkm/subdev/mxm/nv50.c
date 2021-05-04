@@ -201,12 +201,13 @@ mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 }
 
 int
-nv50_mxm_new(struct nvkm_device *device, int index, struct nvkm_subdev **pmxm)
+nv50_mxm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_subdev **pmxm)
 {
 	struct nvkm_mxm *mxm;
 	int ret;
 
-	ret = nvkm_mxm_new_(device, index, &mxm);
+	ret = nvkm_mxm_new_(device, type, inst, &mxm);
 	if (mxm)
 		*pmxm = &mxm->subdev;
 	if (ret)

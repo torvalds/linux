@@ -43,7 +43,7 @@ TRACE_EVENT(ath11k_htt_pktlog,
 	),
 
 	TP_printk(
-		"%s %s size %hu pktlog_checksum %d",
+		"%s %s size %u pktlog_checksum %d",
 		__get_str(driver),
 		__get_str(device),
 		__entry->buf_len,

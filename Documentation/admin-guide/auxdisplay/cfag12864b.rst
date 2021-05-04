@@ -3,7 +3,7 @@ cfag12864b LCD Driver Documentation
 ===================================
 
 :License:		GPLv2
-:Author & Maintainer:	Miguel Ojeda Sandonis
+:Author & Maintainer:	Miguel Ojeda <ojeda@kernel.org>
 :Date:			2006-10-27
 
 

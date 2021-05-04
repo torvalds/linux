@@ -26,7 +26,9 @@
 #include <linux/delay.h>
 #include <linux/smp.h>
 
+#include <asm/interrupt.h>
 #include <asm/paca.h>
+#include <asm/nmi.h>
 
 /*
  * The powerpc watchdog ensures that each CPU is able to service timers.
@@ -247,16 +249,17 @@ static void watchdog_timer_interrupt(int cpu)
 		watchdog_smp_panic(cpu, tb);
 }
 
-void soft_nmi_interrupt(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_NMI(soft_nmi_interrupt)
 {
 	unsigned long flags;
 	int cpu = raw_smp_processor_id();
 	u64 tb;
 
-	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
-		return;
+	/* should only arrive from kernel, with irqs disabled */
+	WARN_ON_ONCE(!arch_irq_disabled_regs(regs));
 
-	nmi_enter();
+	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
+		return 0;
 
 	__this_cpu_inc(irq_stat.soft_nmi_irqs);
 
@@ -265,7 +268,7 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 		wd_smp_lock(&flags);
 		if (cpumask_test_cpu(cpu, &wd_smp_cpus_stuck)) {
 			wd_smp_unlock(&flags);
-			goto out;
+			return 0;
 		}
 		set_cpu_stuck(cpu, tb);
 
@@ -289,8 +292,7 @@ void soft_nmi_interrupt(struct pt_regs *regs)
 	if (wd_panic_timeout_tb < 0x7fffffff)
 		mtspr(SPRN_DEC, wd_panic_timeout_tb);
 
-out:
-	nmi_exit();
+	return 0;
 }
 
 static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)

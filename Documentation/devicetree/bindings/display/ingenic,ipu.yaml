@@ -31,9 +31,8 @@ properties:
   clock-names:
     const: ipu
 
-patternProperties:
-  "^ports?$":
-    description: OF graph bindings (specified in bindings/graph.txt).
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
 
 required:
   - compatible

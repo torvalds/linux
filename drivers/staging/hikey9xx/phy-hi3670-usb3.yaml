@@ -8,6 +8,7 @@ title: Hisilicon Kirin970 USB PHY
 
 maintainers:
   - Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
+
 description: |+
   Bindings for USB3 PHY on HiSilicon Kirin 970.
 

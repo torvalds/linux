@@ -14,8 +14,6 @@
 #include <linux/slab.h>
 #include "blk.h"
 
-#define BIP_INLINE_VECS	4
-
 static struct kmem_cache *bip_slab;
 static struct workqueue_struct *kintegrityd_wq;
 
@@ -30,7 +28,7 @@ static void __bio_integrity_free(struct bio_set *bs,
 	if (bs && mempool_initialized(&bs->bio_integrity_pool)) {
 		if (bip->bip_vec)
 			bvec_free(&bs->bvec_integrity_pool, bip->bip_vec,
-				  bip->bip_slab);
+				  bip->bip_max_vcnt);
 		mempool_free(bip, &bs->bio_integrity_pool);
 	} else {
 		kfree(bip);
@@ -63,7 +61,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 		inline_vecs = nr_vecs;
 	} else {
 		bip = mempool_alloc(&bs->bio_integrity_pool, gfp_mask);
-		inline_vecs = BIP_INLINE_VECS;
+		inline_vecs = BIO_INLINE_VECS;
 	}
 
 	if (unlikely(!bip))
@@ -72,14 +70,11 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 	memset(bip, 0, sizeof(*bip));
 
 	if (nr_vecs > inline_vecs) {
-		unsigned long idx = 0;
-
-		bip->bip_vec = bvec_alloc(gfp_mask, nr_vecs, &idx,
-					  &bs->bvec_integrity_pool);
+		bip->bip_max_vcnt = nr_vecs;
+		bip->bip_vec = bvec_alloc(&bs->bvec_integrity_pool,
+					  &bip->bip_max_vcnt, gfp_mask);
 		if (!bip->bip_vec)
 			goto err;
-		bip->bip_max_vcnt = bvec_nr_vecs(idx);
-		bip->bip_slab = idx;
 	} else {
 		bip->bip_vec = bip->bip_inline_vecs;
 		bip->bip_max_vcnt = inline_vecs;
@@ -140,7 +135,7 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 	iv = bip->bip_vec + bip->bip_vcnt;
 
 	if (bip->bip_vcnt &&
-	    bvec_gap_to_prev(bio->bi_disk->queue,
+	    bvec_gap_to_prev(bio->bi_bdev->bd_disk->queue,
 			     &bip->bip_vec[bip->bip_vcnt - 1], offset))
 		return 0;
 
@@ -162,7 +157,7 @@ EXPORT_SYMBOL(bio_integrity_add_page);
 static blk_status_t bio_integrity_process(struct bio *bio,
 		struct bvec_iter *proc_iter, integrity_processing_fn *proc_fn)
 {
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct blk_integrity_iter iter;
 	struct bvec_iter bviter;
 	struct bio_vec bv;
@@ -171,7 +166,7 @@ static blk_status_t bio_integrity_process(struct bio *bio,
 	void *prot_buf = page_address(bip->bip_vec->bv_page) +
 		bip->bip_vec->bv_offset;
 
-	iter.disk_name = bio->bi_disk->disk_name;
+	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	iter.interval = 1 << bi->interval_exp;
 	iter.seed = proc_iter->bi_sector;
 	iter.prot_buf = prot_buf;
@@ -208,8 +203,8 @@ static blk_status_t bio_integrity_process(struct bio *bio,
 bool bio_integrity_prep(struct bio *bio)
 {
 	struct bio_integrity_payload *bip;
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
-	struct request_queue *q = bio->bi_disk->queue;
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	void *buf;
 	unsigned long start, end;
 	unsigned int len, nr_pages;
@@ -329,7 +324,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio_integrity_payload *bip =
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 
 	/*
 	 * At the moment verify is called bio's iterator was advanced
@@ -355,7 +350,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  */
 bool __bio_integrity_endio(struct bio *bio)
 {
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
 	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status &&
@@ -381,7 +376,7 @@ bool __bio_integrity_endio(struct bio *bio)
 void bio_integrity_advance(struct bio *bio, unsigned int bytes_done)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	unsigned bytes = bio_integrity_bytes(bi, bytes_done >> 9);
 
 	bip->bip_iter.bi_sector += bytes_done >> 9;
@@ -397,7 +392,7 @@ void bio_integrity_advance(struct bio *bio, unsigned int bytes_done)
 void bio_integrity_trim(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_disk);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 
 	bip->bip_iter.bi_size = bio_integrity_bytes(bi, bio_sectors(bio));
 }
@@ -470,6 +465,6 @@ void __init bio_integrity_init(void)
 
 	bip_slab = kmem_cache_create("bio_integrity_payload",
 				     sizeof(struct bio_integrity_payload) +
-				     sizeof(struct bio_vec) * BIP_INLINE_VECS,
+				     sizeof(struct bio_vec) * BIO_INLINE_VECS,
 				     0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 }

@@ -4,6 +4,14 @@
 #ifndef _ICE_NVM_H_
 #define _ICE_NVM_H_
 
+struct ice_orom_civd_info {
+	u8 signature[4];	/* Must match ASCII '$CIV' characters */
+	u8 checksum;		/* Simple modulo 256 sum of all structure bytes must equal 0 */
+	__le32 combo_ver;	/* Combo Image Version number */
+	u8 combo_name_len;	/* Length of the unicode combo image version string, max of 32 */
+	__le16 combo_name[32];	/* Unicode string representing the Combo Image version */
+} __packed;
+
 enum ice_status
 ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access);
 void ice_release_nvm(struct ice_hw *hw);
@@ -13,6 +21,12 @@ ice_read_flat_nvm(struct ice_hw *hw, u32 offset, u32 *length, u8 *data,
 enum ice_status
 ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 		       u16 module_type);
+enum ice_status
+ice_get_inactive_orom_ver(struct ice_hw *hw, struct ice_orom_info *orom);
+enum ice_status
+ice_get_inactive_nvm_ver(struct ice_hw *hw, struct ice_nvm_info *nvm);
+enum ice_status
+ice_get_inactive_netlist_ver(struct ice_hw *hw, struct ice_netlist_info *netlist);
 enum ice_status
 ice_read_pba_string(struct ice_hw *hw, u8 *pba_num, u32 pba_num_size);
 enum ice_status ice_init_nvm(struct ice_hw *hw);

@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/delay.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/xts.h>
 #include <asm/cpacf.h>
@@ -128,6 +129,9 @@ static inline int __paes_keyblob2pkey(struct key_blob *kb,
 
 	/* try three times in case of failure */
 	for (i = 0; i < 3; i++) {
+		if (i > 0 && ret == -EAGAIN && in_task())
+			if (msleep_interruptible(1000))
+				return -EINTR;
 		ret = pkey_keyblob2pkey(kb->key, kb->keylen, pk);
 		if (ret == 0)
 			break;
@@ -138,10 +142,12 @@ static inline int __paes_keyblob2pkey(struct key_blob *kb,
 
 static inline int __paes_convert_key(struct s390_paes_ctx *ctx)
 {
+	int ret;
 	struct pkey_protkey pkey;
 
-	if (__paes_keyblob2pkey(&ctx->kb, &pkey))
-		return -EINVAL;
+	ret = __paes_keyblob2pkey(&ctx->kb, &pkey);
+	if (ret)
+		return ret;
 
 	spin_lock_bh(&ctx->pk_lock);
 	memcpy(&ctx->pk, &pkey, sizeof(pkey));
@@ -169,10 +175,12 @@ static void ecb_paes_exit(struct crypto_skcipher *tfm)
 
 static inline int __ecb_paes_set_key(struct s390_paes_ctx *ctx)
 {
+	int rc;
 	unsigned long fc;
 
-	if (__paes_convert_key(ctx))
-		return -EINVAL;
+	rc = __paes_convert_key(ctx);
+	if (rc)
+		return rc;
 
 	/* Pick the correct function code based on the protected key type */
 	fc = (ctx->pk.type == PKEY_KEYTYPE_AES_128) ? CPACF_KM_PAES_128 :
@@ -282,10 +290,12 @@ static void cbc_paes_exit(struct crypto_skcipher *tfm)
 
 static inline int __cbc_paes_set_key(struct s390_paes_ctx *ctx)
 {
+	int rc;
 	unsigned long fc;
 
-	if (__paes_convert_key(ctx))
-		return -EINVAL;
+	rc = __paes_convert_key(ctx);
+	if (rc)
+		return rc;
 
 	/* Pick the correct function code based on the protected key type */
 	fc = (ctx->pk.type == PKEY_KEYTYPE_AES_128) ? CPACF_KMC_PAES_128 :
@@ -577,10 +587,12 @@ static void ctr_paes_exit(struct crypto_skcipher *tfm)
 
 static inline int __ctr_paes_set_key(struct s390_paes_ctx *ctx)
 {
+	int rc;
 	unsigned long fc;
 
-	if (__paes_convert_key(ctx))
-		return -EINVAL;
+	rc = __paes_convert_key(ctx);
+	if (rc)
+		return rc;
 
 	/* Pick the correct function code based on the protected key type */
 	fc = (ctx->pk.type == PKEY_KEYTYPE_AES_128) ? CPACF_KMCTR_PAES_128 :

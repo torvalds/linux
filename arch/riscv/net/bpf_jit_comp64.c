@@ -1027,10 +1027,18 @@ out_be:
 		emit_add(RV_REG_T1, RV_REG_T1, rd, ctx);
 		emit_sd(RV_REG_T1, 0, rs, ctx);
 		break;
-	/* STX XADD: lock *(u32 *)(dst + off) += src */
-	case BPF_STX | BPF_XADD | BPF_W:
-	/* STX XADD: lock *(u64 *)(dst + off) += src */
-	case BPF_STX | BPF_XADD | BPF_DW:
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
+		if (insn->imm != BPF_ADD) {
+			pr_err("bpf-jit: not supported: atomic operation %02x ***\n",
+			       insn->imm);
+			return -EINVAL;
+		}
+
+		/* atomic_add: lock *(u32 *)(dst + off) += src
+		 * atomic_add: lock *(u64 *)(dst + off) += src
+		 */
+
 		if (off) {
 			if (is_12b_int(off)) {
 				emit_addi(RV_REG_T1, rd, off, ctx);

@@ -152,6 +152,7 @@
 #define EM2861_BOARD_MAGIX_VIDEOWANDLER2          103
 #define EM28178_BOARD_PCTV_461E_V2                104
 #define EM2860_BOARD_MYGICA_IGRABBER              105
+#define EM2874_BOARD_HAUPPAUGE_USB_QUADHD         106
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

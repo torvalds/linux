@@ -115,8 +115,8 @@ nouveau_platform_name(struct platform_device *platformdev)
 static u64
 nouveau_name(struct drm_device *dev)
 {
-	if (dev->pdev)
-		return nouveau_pci_name(dev->pdev);
+	if (dev_is_pci(dev->dev))
+		return nouveau_pci_name(to_pci_dev(dev->dev));
 	else
 		return nouveau_platform_name(to_platform_device(dev->dev));
 }
@@ -344,7 +344,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 
 	/* Allocate channel that has access to the graphics engine. */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		arg0 = nvif_fifo_runlist(device, NV_DEVICE_INFO_ENGINE_GR);
+		arg0 = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
 		arg1 = 1;
 	} else {
 		arg0 = NvDmaFB;
@@ -760,7 +760,6 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm;
 
-	drm_dev->pdev = pdev;
 	pci_set_drvdata(pdev, drm_dev);
 
 	ret = nouveau_drm_device_init(drm_dev);

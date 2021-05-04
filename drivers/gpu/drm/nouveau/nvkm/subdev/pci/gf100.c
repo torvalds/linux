@@ -96,7 +96,8 @@ gf100_pci_func = {
 };
 
 int
-gf100_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
+gf100_pci_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pci **ppci)
 {
-	return nvkm_pci_new_(&gf100_pci_func, device, index, ppci);
+	return nvkm_pci_new_(&gf100_pci_func, device, type, inst, ppci);
 }

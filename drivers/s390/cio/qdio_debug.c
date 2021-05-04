@@ -105,8 +105,9 @@ static int qstat_show(struct seq_file *m, void *v)
 	if (!q)
 		return 0;
 
-	seq_printf(m, "Timestamp: %Lx  Last AI: %Lx\n",
-		   q->timestamp, last_ai_time);
+	seq_printf(m, "Timestamp: %llx\n", q->timestamp);
+	seq_printf(m, "Last Data IRQ: %llx  Last AI: %llx\n",
+		   q->irq_ptr->last_data_irq_time, last_ai_time);
 	seq_printf(m, "nr_used: %d  ftc: %d\n",
 		   atomic_read(&q->nr_buf_used), q->first_to_check);
 	if (q->is_input_q) {
@@ -197,15 +198,11 @@ static char *qperf_names[] = {
 	"Assumed adapter interrupts",
 	"QDIO interrupts",
 	"Requested PCIs",
-	"Inbound tasklet runs",
-	"Inbound tasklet resched",
-	"Inbound tasklet resched2",
 	"Outbound tasklet runs",
 	"SIGA read",
 	"SIGA write",
 	"SIGA sync",
 	"Inbound calls",
-	"Inbound handler",
 	"Inbound stop_polling",
 	"Inbound queue full",
 	"Outbound calls",

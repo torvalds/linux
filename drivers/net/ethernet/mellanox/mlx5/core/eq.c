@@ -467,7 +467,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
 		ATOMIC_INIT_NOTIFIER_HEAD(&eq_table->nh[i]);
 
-	eq_table->irq_table = dev->priv.irq_table;
+	eq_table->irq_table = mlx5_irq_table_get(dev);
 	return 0;
 }
 
@@ -594,6 +594,9 @@ static void gather_async_events_mask(struct mlx5_core_dev *dev, u64 mask[4])
 	if (mlx5_eswitch_is_funcs_handler(dev))
 		async_event_mask |=
 			(1ull << MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED);
+
+	if (MLX5_CAP_GEN_MAX(dev, vhca_state))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_VHCA_STATE_CHANGE);
 
 	mask[0] = async_event_mask;
 

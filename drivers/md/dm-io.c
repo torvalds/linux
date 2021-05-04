@@ -341,8 +341,8 @@ static void do_region(int op, int op_flags, unsigned region,
 			num_bvecs = 1;
 			break;
 		default:
-			num_bvecs = min_t(int, BIO_MAX_PAGES,
-					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
+			num_bvecs = bio_max_segs(dm_sector_div_up(remaining,
+						(PAGE_SIZE >> SECTOR_SHIFT)));
 		}
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, &io->client->bios);

@@ -37,7 +37,8 @@ g84_mpeg = {
 };
 
 int
-g84_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
+g84_mpeg_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_engine **pmpeg)
 {
-	return nvkm_engine_new_(&g84_mpeg, device, index, true, pmpeg);
+	return nvkm_engine_new_(&g84_mpeg, device, type, inst, true, pmpeg);
 }

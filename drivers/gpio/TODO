@@ -101,7 +101,7 @@ for a few GPIOs. Those should stay where they are.
 
 At the same time it makes sense to get rid of code duplication in existing or
 new coming drivers. For example, gpio-ml-ioh should be incorporated into
-gpio-pch. In similar way gpio-intel-mid into gpio-pxa.
+gpio-pch.
 
 
 Generic MMIO GPIO

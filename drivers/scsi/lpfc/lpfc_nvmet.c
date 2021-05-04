@@ -1367,17 +1367,22 @@ static void
 lpfc_nvmet_host_release(void *hosthandle)
 {
 	struct lpfc_nodelist *ndlp = hosthandle;
-	struct lpfc_hba *phba = NULL;
+	struct lpfc_hba *phba = ndlp->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
 
-	phba = ndlp->phba;
 	if (!phba->targetport || !phba->targetport->private)
 		return;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-			"6202 NVMET XPT releasing hosthandle x%px\n",
-			hosthandle);
+			"6202 NVMET XPT releasing hosthandle x%px "
+			"DID x%x xflags x%x refcnt %d\n",
+			hosthandle, ndlp->nlp_DID, ndlp->fc4_xpt_flags,
+			kref_read(&ndlp->kref));
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+	spin_lock_irq(&ndlp->lock);
+	ndlp->fc4_xpt_flags &= ~NLP_XPT_HAS_HH;
+	spin_unlock_irq(&ndlp->lock);
+	lpfc_nlp_put(ndlp);
 	atomic_set(&tgtp->state, 0);
 }
 
@@ -3644,14 +3649,32 @@ out:
 void
 lpfc_nvmet_invalidate_host(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
+	u32 ndlp_has_hh;
 	struct lpfc_nvmet_tgtport *tgtp;
 
-	lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_NVME_ABTS,
+	lpfc_printf_log(phba, KERN_INFO,
+			LOG_NVME | LOG_NVME_ABTS | LOG_NVME_DISC,
 			"6203 Invalidating hosthandle x%px\n",
 			ndlp);
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	atomic_set(&tgtp->state, LPFC_NVMET_INV_HOST_ACTIVE);
+
+	spin_lock_irq(&ndlp->lock);
+	ndlp_has_hh = ndlp->fc4_xpt_flags & NLP_XPT_HAS_HH;
+	spin_unlock_irq(&ndlp->lock);
+
+	/* Do not invalidate any nodes that do not have a hosthandle.
+	 * The host_release callbk will cause a node reference
+	 * count imbalance and a crash.
+	 */
+	if (!ndlp_has_hh) {
+		lpfc_printf_log(phba, KERN_INFO,
+				LOG_NVME | LOG_NVME_ABTS | LOG_NVME_DISC,
+				"6204 Skip invalidate on node x%px DID x%x\n",
+				ndlp, ndlp->nlp_DID);
+		return;
+	}
 
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	/* Need to get the nvmet_fc_target_port pointer here.*/

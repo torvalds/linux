@@ -14,11 +14,7 @@ C Z6.0+pooncerelease+poacquirerelease+fencembonceonce
  * involving locking.)
  *)
 
-{
-	int x;
-	int y;
-	int z;
-}
+{}
 
 P0(int *x, int *y)
 {

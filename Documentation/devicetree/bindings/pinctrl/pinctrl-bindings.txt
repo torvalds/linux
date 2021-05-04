@@ -77,13 +77,13 @@ For example:
 	device {
 		pinctrl-names = "active", "idle";
 		pinctrl-0 = <&state_0_node_a>;
-		pinctrl-1 = <&state_1_node_a &state_1_node_b>;
+		pinctrl-1 = <&state_1_node_a>, <&state_1_node_b>;
 	};
 
 	/* For the same device if using state IDs */
 	device {
 		pinctrl-0 = <&state_0_node_a>;
-		pinctrl-1 = <&state_1_node_a &state_1_node_b>;
+		pinctrl-1 = <&state_1_node_a>, <&state_1_node_b>;
 	};
 
 	/*

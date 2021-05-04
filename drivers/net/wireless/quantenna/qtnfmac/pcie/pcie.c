@@ -480,18 +480,7 @@ static struct pci_driver qtnf_pcie_drv_data = {
 #endif
 };
 
-static int __init qtnf_pcie_register(void)
-{
-	return pci_register_driver(&qtnf_pcie_drv_data);
-}
-
-static void __exit qtnf_pcie_exit(void)
-{
-	pci_unregister_driver(&qtnf_pcie_drv_data);
-}
-
-module_init(qtnf_pcie_register);
-module_exit(qtnf_pcie_exit);
+module_pci_driver(qtnf_pcie_drv_data)
 
 MODULE_AUTHOR("Quantenna Communications");
 MODULE_DESCRIPTION("Quantenna PCIe bus driver for 802.11 wireless LAN.");

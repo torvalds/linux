@@ -106,6 +106,7 @@ static int mei_dbgfs_devstate_show(struct seq_file *m, void *unused)
 		seq_printf(m, "\tDR: %01d\n", dev->hbm_f_dr_supported);
 		seq_printf(m, "\tVT: %01d\n", dev->hbm_f_vt_supported);
 		seq_printf(m, "\tCAP: %01d\n", dev->hbm_f_cap_supported);
+		seq_printf(m, "\tCD: %01d\n", dev->hbm_f_cd_supported);
 	}
 
 	seq_printf(m, "pg:  %s, %s\n",

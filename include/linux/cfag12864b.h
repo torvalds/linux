@@ -4,7 +4,7 @@
  *     Version: 0.1.0
  * Description: cfag12864b LCD driver header
  *
- *      Author: Copyright (C) Miguel Ojeda Sandonis
+ *      Author: Copyright (C) Miguel Ojeda <ojeda@kernel.org>
  *        Date: 2006-10-12
  */
 

@@ -13,6 +13,7 @@
 #include "iwl-fh.h"
 #include "queue/tx.h"
 #include <linux/dmapool.h>
+#include "fw/api/commands.h"
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
@@ -102,6 +103,9 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 		return NULL;
 	}
 
+	/* Initialize the wait queue for commands */
+	init_waitqueue_head(&trans->wait_command_queue);
+
 	return trans;
 }
 
@@ -130,6 +134,19 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
 
+	/*
+	 * We can't test IWL_MVM_STATUS_IN_D3 in mvm->status because this
+	 * bit is set early in the D3 flow, before we send all the commands
+	 * that configure the firmware for D3 operation (power, patterns, ...)
+	 * and we don't want to flag all those with CMD_SEND_IN_D3.
+	 * So use the system_pm_mode instead. The only command sent after
+	 * we set system_pm_mode is D3_CONFIG_CMD, which we now flag with
+	 * CMD_SEND_IN_D3.
+	 */
+	if (unlikely(trans->system_pm_mode == IWL_PLAT_PM_MODE_D3 &&
+		     !(cmd->flags & CMD_SEND_IN_D3)))
+		return -EHOSTDOWN;
+
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
 
@@ -145,10 +162,12 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
 
-	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id))
-		cmd->id = DEF_ID(cmd->id);
+	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id)) {
+		if (cmd->id != REPLY_ERROR)
+			cmd->id = DEF_ID(cmd->id);
+	}
 
-	ret = trans->ops->send_cmd(trans, cmd);
+	ret = iwl_trans_txq_send_hcmd(trans, cmd);
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);

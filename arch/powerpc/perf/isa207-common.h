@@ -105,6 +105,10 @@
 #define p10_EVENT_RADIX_SCOPE_QUAL_MASK	0x1
 #define p10_MMCR1_RADIX_SCOPE_QUAL_SHIFT	45
 
+/* Event Threshold Compare bit constant for power10 in config1 attribute */
+#define p10_EVENT_THR_CMP_SHIFT        0
+#define p10_EVENT_THR_CMP_MASK 0x3FFFFull
+
 #define p10_EVENT_VALID_MASK		\
 	((p10_SDAR_MODE_MASK   << p10_SDAR_MODE_SHIFT		|	\
 	(p10_EVENT_THRESH_MASK  << EVENT_THRESH_SHIFT)		|	\
@@ -124,8 +128,8 @@
  *        60        56        52        48        44        40        36        32
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
  *   [   fab_match   ]         [       thresh_cmp      ] [   thresh_ctl    ] [   ]
- *                                                                             |
- *                                                                 thresh_sel -*
+ *                                          |                                  |
+ *                           [  thresh_cmp bits for p10]           thresh_sel -*
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
@@ -151,6 +155,9 @@
 
 #define CNST_THRESH_CTL_SEL_VAL(v)	(((v) & 0x7ffull) << 32)
 #define CNST_THRESH_CTL_SEL_MASK	CNST_THRESH_CTL_SEL_VAL(0x7ff)
+
+#define p10_CNST_THRESH_CMP_VAL(v) (((v) & 0x7ffull) << 43)
+#define p10_CNST_THRESH_CMP_MASK   p10_CNST_THRESH_CMP_VAL(0x7ff)
 
 #define CNST_EBB_VAL(v)		(((v) & EVENT_EBB_MASK) << 24)
 #define CNST_EBB_MASK		CNST_EBB_VAL(EVENT_EBB_MASK)
@@ -262,10 +269,10 @@
 #define PH(a, b)			(P(LVL, HIT) | P(a, b))
 #define PM(a, b)			(P(LVL, MISS) | P(a, b))
 
-int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp);
+int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, u64 event_config1);
 int isa207_compute_mmcr(u64 event[], int n_ev,
 				unsigned int hwc[], struct mmcr_regs *mmcr,
-				struct perf_event *pevents[]);
+				struct perf_event *pevents[], u32 flags);
 void isa207_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr);
 int isa207_get_alternatives(u64 event, u64 alt[], int size, unsigned int flags,
 					const unsigned int ev_alt[][MAX_ALT]);

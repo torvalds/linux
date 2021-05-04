@@ -51,13 +51,6 @@ enum switch_power_state {
  * may contain multiple heads.
  */
 struct drm_device {
-	/**
-	 * @legacy_dev_list:
-	 *
-	 * List of devices per driver for stealth attach cleanup
-	 */
-	struct list_head legacy_dev_list;
-
 	/** @if_version: Highest interface version set */
 	int if_version;
 
@@ -83,11 +76,7 @@ struct drm_device {
 	} managed;
 
 	/** @driver: DRM driver managing the device */
-#ifdef CONFIG_DRM_LEGACY
-	struct drm_driver *driver;
-#else
 	const struct drm_driver *driver;
-#endif
 
 	/**
 	 * @dev_private:
@@ -293,10 +282,6 @@ struct drm_device {
 	/** @pdev: PCI device structure */
 	struct pci_dev *pdev;
 
-#ifdef __alpha__
-	/** @hose: PCI hose, only used on ALPHA platforms. */
-	struct pci_controller *hose;
-#endif
 	/** @num_crtcs: Number of CRTCs on this device */
 	unsigned int num_crtcs;
 
@@ -336,6 +321,14 @@ struct drm_device {
 	/* Everything below here is for legacy driver, never use! */
 	/* private: */
 #if IS_ENABLED(CONFIG_DRM_LEGACY)
+	/* List of devices per driver for stealth attach cleanup */
+	struct list_head legacy_dev_list;
+
+#ifdef __alpha__
+	/** @hose: PCI hose, only used on ALPHA platforms. */
+	struct pci_controller *hose;
+#endif
+
 	/* Context handle management - linked list of context handles */
 	struct list_head ctxlist;
 

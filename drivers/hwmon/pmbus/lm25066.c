@@ -371,21 +371,18 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	case PMBUS_VIN_OV_WARN_LIMIT:
 		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, data->rlimit);
 		ret = pmbus_write_word_data(client, 0, reg, word);
-		pmbus_clear_cache(client);
 		break;
 	case PMBUS_IIN_OC_WARN_LIMIT:
 		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, data->rlimit);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25066_MFR_IIN_OC_WARN_LIMIT,
 					    word);
-		pmbus_clear_cache(client);
 		break;
 	case PMBUS_PIN_OP_WARN_LIMIT:
 		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, data->rlimit);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25066_MFR_PIN_OP_WARN_LIMIT,
 					    word);
-		pmbus_clear_cache(client);
 		break;
 	case PMBUS_VIRT_VMON_UV_WARN_LIMIT:
 		/* Adjust from VIN coefficients (for LM25056) */
@@ -393,7 +390,6 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, data->rlimit);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25056_VAUX_UV_WARN_LIMIT, word);
-		pmbus_clear_cache(client);
 		break;
 	case PMBUS_VIRT_VMON_OV_WARN_LIMIT:
 		/* Adjust from VIN coefficients (for LM25056) */
@@ -401,7 +397,6 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, data->rlimit);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25056_VAUX_OV_WARN_LIMIT, word);
-		pmbus_clear_cache(client);
 		break;
 	case PMBUS_VIRT_RESET_PIN_HISTORY:
 		ret = pmbus_write_byte(client, 0, LM25066_CLEAR_PIN_PEAK);

@@ -18,10 +18,10 @@ void intel_gt_check_clock_frequency(const struct intel_gt *gt);
 static inline void intel_gt_check_clock_frequency(const struct intel_gt *gt) {}
 #endif
 
-u32 intel_gt_clock_interval_to_ns(const struct intel_gt *gt, u32 count);
-u32 intel_gt_pm_interval_to_ns(const struct intel_gt *gt, u32 count);
+u64 intel_gt_clock_interval_to_ns(const struct intel_gt *gt, u64 count);
+u64 intel_gt_pm_interval_to_ns(const struct intel_gt *gt, u64 count);
 
-u32 intel_gt_ns_to_clock_interval(const struct intel_gt *gt, u32 ns);
-u32 intel_gt_ns_to_pm_interval(const struct intel_gt *gt, u32 ns);
+u64 intel_gt_ns_to_clock_interval(const struct intel_gt *gt, u64 ns);
+u64 intel_gt_ns_to_pm_interval(const struct intel_gt *gt, u64 ns);
 
 #endif /* __INTEL_GT_CLOCK_UTILS_H__ */

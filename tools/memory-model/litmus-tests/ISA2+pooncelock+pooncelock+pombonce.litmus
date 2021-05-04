@@ -7,12 +7,7 @@ C ISA2+pooncelock+pooncelock+pombonce
  * (in P0() and P1()) is visible to external process P2().
  *)
 
-{
-	spinlock_t mylock;
-	int x;
-	int y;
-	int z;
-}
+{}
 
 P0(int *x, int *y, spinlock_t *mylock)
 {

@@ -3,7 +3,7 @@ UHID - User-space I/O driver support for HID subsystem
 ======================================================
 
 UHID allows user-space to implement HID transport drivers. Please see
-hid-transport.txt for an introduction into HID transport drivers. This document
+hid-transport.rst for an introduction into HID transport drivers. This document
 relies heavily on the definitions declared there.
 
 With UHID, a user-space transport driver can create kernel hid-devices for each
@@ -15,7 +15,7 @@ There is an example user-space application in ./samples/uhid/uhid-example.c
 The UHID API
 ------------
 
-UHID is accessed through a character misc-device. The minor-number is allocated
+UHID is accessed through a character misc-device. The minor number is allocated
 dynamically so you need to rely on udev (or similar) to create the device node.
 This is /dev/uhid by default.
 
@@ -45,23 +45,23 @@ The "type" field defines the payload. For each type, there is a
 payload-structure available in the union "u" (except for empty payloads). This
 payload contains management and/or device data.
 
-The first thing you should do is sending an UHID_CREATE2 event. This will
-register the device. UHID will respond with an UHID_START event. You can now
+The first thing you should do is send a UHID_CREATE2 event. This will
+register the device. UHID will respond with a UHID_START event. You can now
 start sending data to and reading data from UHID. However, unless UHID sends the
 UHID_OPEN event, the internally attached HID Device Driver has no user attached.
 That is, you might put your device asleep unless you receive the UHID_OPEN
 event. If you receive the UHID_OPEN event, you should start I/O. If the last
-user closes the HID device, you will receive an UHID_CLOSE event. This may be
-followed by an UHID_OPEN event again and so on. There is no need to perform
+user closes the HID device, you will receive a UHID_CLOSE event. This may be
+followed by a UHID_OPEN event again and so on. There is no need to perform
 reference-counting in user-space. That is, you will never receive multiple
-UHID_OPEN events without an UHID_CLOSE event. The HID subsystem performs
+UHID_OPEN events without a UHID_CLOSE event. The HID subsystem performs
 ref-counting for you.
 You may decide to ignore UHID_OPEN/UHID_CLOSE, though. I/O is allowed even
 though the device may have no users.
 
 If you want to send data on the interrupt channel to the HID subsystem, you send
-an HID_INPUT2 event with your raw data payload. If the kernel wants to send data
-on the interrupt channel to the device, you will read an UHID_OUTPUT event.
+a HID_INPUT2 event with your raw data payload. If the kernel wants to send data
+on the interrupt channel to the device, you will read a UHID_OUTPUT event.
 Data requests on the control channel are currently limited to GET_REPORT and
 SET_REPORT (no other data reports on the control channel are defined so far).
 Those requests are always synchronous. That means, the kernel sends
@@ -71,7 +71,7 @@ the response via UHID_GET_REPORT_REPLY and UHID_SET_REPORT_REPLY to the kernel.
 The kernel blocks internal driver-execution during such round-trips (times out
 after a hard-coded period).
 
-If your device disconnects, you should send an UHID_DESTROY event. This will
+If your device disconnects, you should send a UHID_DESTROY event. This will
 unregister the device. You can now send UHID_CREATE2 again to register a new
 device.
 If you close() the fd, the device is automatically unregistered and destroyed
@@ -125,7 +125,7 @@ UHID_START:
   This is sent when the HID device is started. Consider this as an answer to
   UHID_CREATE2. This is always the first event that is sent. Note that this
   event might not be available immediately after write(UHID_CREATE2) returns.
-  Device drivers might required delayed setups.
+  Device drivers might require delayed setups.
   This event contains a payload of type uhid_start_req. The "dev_flags" field
   describes special behaviors of a device. The following flags are defined:
 
@@ -149,7 +149,7 @@ UHID_STOP:
   reloaded/changed the device driver loaded on your HID device (or some other
   maintenance actions happened).
 
-  You can usually ignored any UHID_STOP events safely.
+  You can usually ignore any UHID_STOP events safely.
 
 UHID_OPEN:
   This is sent when the HID device is opened. That is, the data that the HID
@@ -166,17 +166,17 @@ UHID_OUTPUT:
   This is sent if the HID device driver wants to send raw data to the I/O
   device on the interrupt channel. You should read the payload and forward it to
   the device. The payload is of type "struct uhid_output_req".
-  This may be received even though you haven't received UHID_OPEN, yet.
+  This may be received even though you haven't received UHID_OPEN yet.
 
 UHID_GET_REPORT:
   This event is sent if the kernel driver wants to perform a GET_REPORT request
-  on the control channeld as described in the HID specs. The report-type and
+  on the control channel as described in the HID specs. The report-type and
   report-number are available in the payload.
   The kernel serializes GET_REPORT requests so there will never be two in
   parallel. However, if you fail to respond with a UHID_GET_REPORT_REPLY, the
   request might silently time out.
-  Once you read a GET_REPORT request, you shall forward it to the hid device and
-  remember the "id" field in the payload. Once your hid device responds to the
+  Once you read a GET_REPORT request, you shall forward it to the HID device and
+  remember the "id" field in the payload. Once your HID device responds to the
   GET_REPORT (or if it fails), you must send a UHID_GET_REPORT_REPLY to the
   kernel with the exact same "id" as in the request. If the request already
   timed out, the kernel will ignore the response silently. The "id" field is
@@ -184,7 +184,7 @@ UHID_GET_REPORT:
 
 UHID_SET_REPORT:
   This is the SET_REPORT equivalent of UHID_GET_REPORT. On receipt, you shall
-  send a SET_REPORT request to your hid device. Once it replies, you must tell
+  send a SET_REPORT request to your HID device. Once it replies, you must tell
   the kernel about it via UHID_SET_REPORT_REPLY.
   The same restrictions as for UHID_GET_REPORT apply.
 

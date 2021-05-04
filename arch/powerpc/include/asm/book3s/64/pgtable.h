@@ -388,10 +388,27 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define ptep_test_and_clear_young(__vma, __addr, __ptep)	\
 ({								\
-	int __r;						\
-	__r = __ptep_test_and_clear_young((__vma)->vm_mm, __addr, __ptep); \
-	__r;							\
+	__ptep_test_and_clear_young((__vma)->vm_mm, __addr, __ptep); \
 })
+
+/*
+ * On Book3S CPUs, clearing the accessed bit without a TLB flush
+ * doesn't cause data corruption. [ It could cause incorrect
+ * page aging and the (mistaken) reclaim of hot pages, but the
+ * chance of that should be relatively low. ]
+ *
+ * So as a performance optimization don't flush the TLB when
+ * clearing the accessed bit, it will eventually be flushed by
+ * a context switch or a VM operation anyway. [ In the rare
+ * event of it not getting flushed for a long time the delay
+ * shouldn't really matter because there's no real memory
+ * pressure for swapout to react to. ]
+ */
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+#define ptep_clear_flush_young ptep_test_and_clear_young
+
+#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+#define pmdp_clear_flush_young pmdp_test_and_clear_young
 
 static inline int __pte_write(pte_t pte)
 {

@@ -36,7 +36,8 @@ gp108_sec2_fwif[] = {
 };
 
 int
-gp108_sec2_new(struct nvkm_device *device, int index, struct nvkm_sec2 **psec2)
+gp108_sec2_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_sec2 **psec2)
 {
-	return nvkm_sec2_new_(gp108_sec2_fwif, device, index, 0, psec2);
+	return nvkm_sec2_new_(gp108_sec2_fwif, device, type, inst, 0, psec2);
 }

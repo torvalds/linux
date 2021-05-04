@@ -149,14 +149,14 @@ config MLX5_IPSEC
 	IPsec support for the Connect-X family.
 
 config MLX5_EN_IPSEC
-	bool "IPSec XFRM cryptography-offload accelaration"
+	bool "IPSec XFRM cryptography-offload acceleration"
 	depends on MLX5_CORE_EN
 	depends on XFRM_OFFLOAD
 	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
 	depends on MLX5_FPGA_IPSEC || MLX5_IPSEC
 	default n
 	help
-	  Build support for IPsec cryptography-offload accelaration in the NIC.
+	  Build support for IPsec cryptography-offload acceleration in the NIC.
 	  Note: Support for hardware with this capability needs to be selected
 	  for this option to become available.
 
@@ -166,7 +166,6 @@ config MLX5_FPGA_TLS
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
 	depends on MLX5_FPGA
-	depends on XPS
 	select MLX5_EN_TLS
 	default n
 	help
@@ -181,7 +180,6 @@ config MLX5_TLS
 	depends on TLS_DEVICE
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
-	depends on XPS
 	select MLX5_ACCEL
 	select MLX5_EN_TLS
 	default n
@@ -192,7 +190,7 @@ config MLX5_TLS
 config MLX5_EN_TLS
 	bool
 	help
-	Build support for TLS cryptography-offload accelaration in the NIC.
+	Build support for TLS cryptography-offload acceleration in the NIC.
 	Note: Support for hardware with this capability needs to be selected
 	for this option to become available.
 
@@ -203,3 +201,22 @@ config MLX5_SW_STEERING
 	default y
 	help
 	Build support for software-managed steering in the NIC.
+
+config MLX5_SF
+	bool "Mellanox Technologies subfunction device support using auxiliary device"
+	depends on MLX5_CORE && MLX5_CORE_EN
+	default n
+	help
+	Build support for subfuction device in the NIC. A Mellanox subfunction
+	device can support RDMA, netdevice and vdpa device.
+	It is similar to a SRIOV VF but it doesn't require SRIOV support.
+
+config MLX5_SF_MANAGER
+	bool
+	depends on MLX5_SF && MLX5_ESWITCH
+	default y
+	help
+	Build support for subfuction port in the NIC. A Mellanox subfunction
+	port is managed through devlink.  A subfunction supports RDMA, netdevice
+	and vdpa device. It is similar to a SRIOV VF but it doesn't require
+	SRIOV support.

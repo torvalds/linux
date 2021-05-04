@@ -45,7 +45,7 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
-static const char *handler[]= {
+static const char *handler[] = {
 	"Synchronous Abort",
 	"IRQ",
 	"FIQ",

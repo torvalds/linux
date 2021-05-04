@@ -1002,7 +1002,7 @@ static void mcp251x_tx_work_handler(struct work_struct *ws)
 				frame->len = CAN_FRAME_MAX_DATA_LEN;
 			mcp251x_hw_tx(spi, frame, 0);
 			priv->tx_len = 1 + frame->len;
-			can_put_echo_skb(priv->tx_skb, net, 0);
+			can_put_echo_skb(priv->tx_skb, net, 0, 0);
 			priv->tx_skb = NULL;
 		}
 	}
@@ -1171,7 +1171,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 			net->stats.tx_bytes += priv->tx_len - 1;
 			can_led_event(net, CAN_LED_EVENT_TX);
 			if (priv->tx_len) {
-				can_get_echo_skb(net, 0);
+				can_get_echo_skb(net, 0, NULL);
 				priv->tx_len = 0;
 			}
 			netif_wake_queue(net);

@@ -65,6 +65,7 @@
 #include "ebitmap.h"
 #include "audit.h"
 #include "policycap_names.h"
+#include "ima.h"
 
 /* Forward declaration. */
 static int context_struct_to_string(struct policydb *policydb,
@@ -2178,6 +2179,7 @@ static void selinux_notify_policy_change(struct selinux_state *state,
 	selinux_status_update_policyload(state, seqno);
 	selinux_netlbl_cache_invalidate();
 	selinux_xfrm_notify_policyload();
+	selinux_ima_measure_state(state);
 }
 
 void selinux_policy_commit(struct selinux_state *state,
@@ -3693,15 +3695,11 @@ out:
 	return match;
 }
 
-static int (*aurule_callback)(void) = audit_update_lsm_rules;
-
 static int aurule_avc_callback(u32 event)
 {
-	int err = 0;
-
-	if (event == AVC_CALLBACK_RESET && aurule_callback)
-		err = aurule_callback();
-	return err;
+	if (event == AVC_CALLBACK_RESET)
+		return audit_update_lsm_rules();
+	return 0;
 }
 
 static int __init aurule_init(void)
@@ -3874,7 +3872,32 @@ out:
 #endif /* CONFIG_NETLABEL */
 
 /**
+ * __security_read_policy - read the policy.
+ * @policy: SELinux policy
+ * @data: binary policy data
+ * @len: length of data in bytes
+ *
+ */
+static int __security_read_policy(struct selinux_policy *policy,
+				  void *data, size_t *len)
+{
+	int rc;
+	struct policy_file fp;
+
+	fp.data = data;
+	fp.len = *len;
+
+	rc = policydb_write(&policy->policydb, &fp);
+	if (rc)
+		return rc;
+
+	*len = (unsigned long)fp.data - (unsigned long)data;
+	return 0;
+}
+
+/**
  * security_read_policy - read the policy.
+ * @state: selinux_state
  * @data: binary policy data
  * @len: length of data in bytes
  *
@@ -3883,8 +3906,6 @@ int security_read_policy(struct selinux_state *state,
 			 void **data, size_t *len)
 {
 	struct selinux_policy *policy;
-	int rc;
-	struct policy_file fp;
 
 	policy = rcu_dereference_protected(
 			state->policy, lockdep_is_held(&state->policy_mutex));
@@ -3896,14 +3917,35 @@ int security_read_policy(struct selinux_state *state,
 	if (!*data)
 		return -ENOMEM;
 
-	fp.data = *data;
-	fp.len = *len;
+	return __security_read_policy(policy, *data, len);
+}
 
-	rc = policydb_write(&policy->policydb, &fp);
-	if (rc)
-		return rc;
+/**
+ * security_read_state_kernel - read the policy.
+ * @state: selinux_state
+ * @data: binary policy data
+ * @len: length of data in bytes
+ *
+ * Allocates kernel memory for reading SELinux policy.
+ * This function is for internal use only and should not
+ * be used for returning data to user space.
+ *
+ * This function must be called with policy_mutex held.
+ */
+int security_read_state_kernel(struct selinux_state *state,
+			       void **data, size_t *len)
+{
+	struct selinux_policy *policy;
 
-	*len = (unsigned long)fp.data - (unsigned long)*data;
-	return 0;
+	policy = rcu_dereference_protected(
+			state->policy, lockdep_is_held(&state->policy_mutex));
+	if (!policy)
+		return -EINVAL;
 
+	*len = policy->policydb.len;
+	*data = vmalloc(*len);
+	if (!*data)
+		return -ENOMEM;
+
+	return __security_read_policy(policy, *data, len);
 }

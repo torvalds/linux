@@ -881,15 +881,21 @@ void tegra_super_clk_gen5_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
 			struct tegra_clk_pll_params *pll_params);
 
-#ifdef CONFIG_TEGRA124_EMC
-struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
-				   spinlock_t *lock);
+#ifdef CONFIG_TEGRA124_CLK_EMC
+struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+				      spinlock_t *lock);
+bool tegra124_clk_emc_driver_available(struct clk_hw *emc_hw);
 #else
-static inline struct clk *tegra_clk_register_emc(void __iomem *base,
-						 struct device_node *np,
-						 spinlock_t *lock)
+static inline struct clk *
+tegra124_clk_register_emc(void __iomem *base, struct device_node *np,
+			  spinlock_t *lock)
 {
 	return NULL;
+}
+
+static inline bool tegra124_clk_emc_driver_available(struct clk_hw *emc_hw)
+{
+	return false;
 }
 #endif
 

@@ -87,7 +87,7 @@ bool i915_error_injected(void)
 
 void cancel_timer(struct timer_list *t)
 {
-	if (!READ_ONCE(t->expires))
+	if (!timer_active(t))
 		return;
 
 	del_timer(t);

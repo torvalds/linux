@@ -62,12 +62,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		red {
+		led-0 {
 			label = "i12_tvbox:red:usr";
 			gpios = <&pio 7 9 GPIO_ACTIVE_LOW>;
 		};
 
-		blue {
+		led-1 {
 			label = "i12_tvbox:blue:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};

@@ -9,9 +9,11 @@
 #include <linux/arm-smccc.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/slab.h>
 
 #include "common.h"
@@ -23,6 +25,8 @@
  * @shmem: Transmit/Receive shared memory area
  * @shmem_lock: Lock to protect access to Tx/Rx shared memory area
  * @func_id: smc/hvc call function id
+ * @irq: Optional; employed when platforms indicates msg completion by intr.
+ * @tx_complete: Optional, employed only when irq is valid.
  */
 
 struct scmi_smc {
@@ -30,7 +34,18 @@ struct scmi_smc {
 	struct scmi_shared_mem __iomem *shmem;
 	struct mutex shmem_lock;
 	u32 func_id;
+	int irq;
+	struct completion tx_complete;
 };
+
+static irqreturn_t smc_msg_done_isr(int irq, void *data)
+{
+	struct scmi_smc *scmi_info = data;
+
+	complete(&scmi_info->tx_complete);
+
+	return IRQ_HANDLED;
+}
 
 static bool smc_chan_available(struct device *dev, int idx)
 {
@@ -51,7 +66,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	struct resource res;
 	struct device_node *np;
 	u32 func_id;
-	int ret;
+	int ret, irq;
 
 	if (!tx)
 		return -ENODEV;
@@ -78,6 +93,24 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	ret = of_property_read_u32(dev->of_node, "arm,smc-id", &func_id);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * If there is an interrupt named "a2p", then the service and
+	 * completion of a message is signaled by an interrupt rather than by
+	 * the return of the SMC call.
+	 */
+	irq = of_irq_get_byname(cdev->of_node, "a2p");
+	if (irq > 0) {
+		ret = devm_request_irq(dev, irq, smc_msg_done_isr,
+				       IRQF_NO_SUSPEND,
+				       dev_name(dev), scmi_info);
+		if (ret) {
+			dev_err(dev, "failed to setup SCMI smc irq\n");
+			return ret;
+		}
+		init_completion(&scmi_info->tx_complete);
+		scmi_info->irq = irq;
+	}
 
 	scmi_info->func_id = func_id;
 	scmi_info->cinfo = cinfo;
@@ -110,7 +143,14 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	shmem_tx_prepare(scmi_info->shmem, xfer);
 
+	if (scmi_info->irq)
+		reinit_completion(&scmi_info->tx_complete);
+
 	arm_smccc_1_1_invoke(scmi_info->func_id, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	if (scmi_info->irq)
+		wait_for_completion(&scmi_info->tx_complete);
+
 	scmi_rx_callback(scmi_info->cinfo, shmem_read_header(scmi_info->shmem));
 
 	mutex_unlock(&scmi_info->shmem_lock);

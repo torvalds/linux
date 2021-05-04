@@ -30,6 +30,10 @@ static inline int pxm_to_node(int pxm)
 {
 	return 0;
 }
+static inline int node_to_pxm(int node)
+{
+	return 0;
+}
 #endif				/* CONFIG_ACPI_NUMA */
 
 #ifdef CONFIG_ACPI_HMAT

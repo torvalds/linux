@@ -52,11 +52,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define STACK_SLOT_PID		(SFS-32)
 #define STACK_SLOT_IAMR		(SFS-40)
 #define STACK_SLOT_CIABR	(SFS-48)
-#define STACK_SLOT_DAWR		(SFS-56)
-#define STACK_SLOT_DAWRX	(SFS-64)
+#define STACK_SLOT_DAWR0	(SFS-56)
+#define STACK_SLOT_DAWRX0	(SFS-64)
 #define STACK_SLOT_HFSCR	(SFS-72)
 #define STACK_SLOT_AMR		(SFS-80)
 #define STACK_SLOT_UAMOR	(SFS-88)
+#define STACK_SLOT_DAWR1	(SFS-96)
+#define STACK_SLOT_DAWRX1	(SFS-104)
 /* the following is used by the P9 short path */
 #define STACK_SLOT_NVGPRS	(SFS-152)	/* 18 gprs */
 
@@ -85,19 +87,6 @@ _GLOBAL_TOC(kvmppc_hv_entry_trampoline)
 	RFI_TO_KERNEL
 
 kvmppc_call_hv_entry:
-BEGIN_FTR_SECTION
-	/* On P9, do LPCR setting, if necessary */
-	ld	r3, HSTATE_SPLIT_MODE(r13)
-	cmpdi	r3, 0
-	beq	46f
-	lwz	r4, KVM_SPLIT_DO_SET(r3)
-	cmpwi	r4, 0
-	beq	46f
-	bl	kvmhv_p9_set_lpcr
-	nop
-46:
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-
 	ld	r4, HSTATE_KVM_VCPU(r13)
 	bl	kvmppc_hv_entry
 
@@ -361,11 +350,11 @@ kvm_secondary_got_guest:
 	LOAD_REG_ADDR(r6, decrementer_max)
 	ld	r6, 0(r6)
 	mtspr	SPRN_HDEC, r6
+BEGIN_FTR_SECTION
 	/* and set per-LPAR registers, if doing dynamic micro-threading */
 	ld	r6, HSTATE_SPLIT_MODE(r13)
 	cmpdi	r6, 0
 	beq	63f
-BEGIN_FTR_SECTION
 	ld	r0, KVM_SPLIT_RPR(r6)
 	mtspr	SPRN_RPR, r0
 	ld	r0, KVM_SPLIT_PMMAR(r6)
@@ -373,16 +362,7 @@ BEGIN_FTR_SECTION
 	ld	r0, KVM_SPLIT_LDBAR(r6)
 	mtspr	SPRN_LDBAR, r0
 	isync
-FTR_SECTION_ELSE
-	/* On P9 we use the split_info for coordinating LPCR changes */
-	lwz	r4, KVM_SPLIT_DO_SET(r6)
-	cmpwi	r4, 0
-	beq	1f
-	mr	r3, r6
-	bl	kvmhv_p9_set_lpcr
-	nop
-1:
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 63:
 	/* Order load of vcpu after load of vcore */
 	lwsync
@@ -452,19 +432,15 @@ kvm_no_guest:
 	mtcr	r5
 	blr
 
-53:	HMT_LOW
+53:
+BEGIN_FTR_SECTION
+	HMT_LOW
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	cmpdi	r5, 0
 	bne	60f
 	ld	r3, HSTATE_SPLIT_MODE(r13)
 	cmpdi	r3, 0
 	beq	kvm_no_guest
-	lwz	r0, KVM_SPLIT_DO_SET(r3)
-	cmpwi	r0, 0
-	bne	kvmhv_do_set
-	lwz	r0, KVM_SPLIT_DO_RESTORE(r3)
-	cmpwi	r0, 0
-	bne	kvmhv_do_restore
 	lbz	r0, KVM_SPLIT_DO_NAP(r3)
 	cmpwi	r0, 0
 	beq	kvm_no_guest
@@ -472,22 +448,17 @@ kvm_no_guest:
 	b	kvm_unsplit_nap
 60:	HMT_MEDIUM
 	b	kvm_secondary_got_guest
+FTR_SECTION_ELSE
+	HMT_LOW
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	cmpdi	r5, 0
+	beq	kvm_no_guest
+	HMT_MEDIUM
+	b	kvm_secondary_got_guest
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 
 54:	li	r0, KVM_HWTHREAD_IN_KVM
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
-	b	kvm_no_guest
-
-kvmhv_do_set:
-	/* Set LPCR, LPIDR etc. on P9 */
-	HMT_MEDIUM
-	bl	kvmhv_p9_set_lpcr
-	nop
-	b	kvm_no_guest
-
-kvmhv_do_restore:
-	HMT_MEDIUM
-	bl	kvmhv_p9_restore_lpcr
-	nop
 	b	kvm_no_guest
 
 /*
@@ -527,7 +498,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	/* Set kvm_split_mode.napped[tid] = 1 */
 	ld	r3, HSTATE_SPLIT_MODE(r13)
 	li	r0, 1
-	lbz	r4, HSTATE_TID(r13)
+	lhz	r4, PACAPACAINDEX(r13)
+	clrldi	r4, r4, 61	/* micro-threading => P8 => 8 threads/core */
 	addi	r4, r4, KVM_SPLIT_NAPPED
 	stbx	r0, r3, r4
 	/* Check the do_nap flag again after setting napped[] */
@@ -711,10 +683,16 @@ BEGIN_FTR_SECTION
 	mfspr	r7, SPRN_DAWRX0
 	mfspr	r8, SPRN_IAMR
 	std	r5, STACK_SLOT_CIABR(r1)
-	std	r6, STACK_SLOT_DAWR(r1)
-	std	r7, STACK_SLOT_DAWRX(r1)
+	std	r6, STACK_SLOT_DAWR0(r1)
+	std	r7, STACK_SLOT_DAWRX0(r1)
 	std	r8, STACK_SLOT_IAMR(r1)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+BEGIN_FTR_SECTION
+	mfspr	r6, SPRN_DAWR1
+	mfspr	r7, SPRN_DAWRX1
+	std	r6, STACK_SLOT_DAWR1(r1)
+	std	r7, STACK_SLOT_DAWRX1(r1)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S | CPU_FTR_DAWR1)
 
 	mfspr	r5, SPRN_AMR
 	std	r5, STACK_SLOT_AMR(r1)
@@ -801,10 +779,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	lbz	r5, 0(r5)
 	cmpdi	r5, 0
 	beq	1f
-	ld	r5, VCPU_DAWR(r4)
-	ld	r6, VCPU_DAWRX(r4)
+	ld	r5, VCPU_DAWR0(r4)
+	ld	r6, VCPU_DAWRX0(r4)
 	mtspr	SPRN_DAWR0, r5
 	mtspr	SPRN_DAWRX0, r6
+BEGIN_FTR_SECTION
+	ld	r5, VCPU_DAWR1(r4)
+	ld	r6, VCPU_DAWRX1(r4)
+	mtspr	SPRN_DAWR1, r5
+	mtspr	SPRN_DAWRX1, r6
+END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 1:
 	ld	r7, VCPU_CIABR(r4)
 	ld	r8, VCPU_TAR(r4)
@@ -918,15 +902,19 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	cmpdi	r3, 512		/* 1 microsecond */
 	blt	hdec_soon
 
-	/* For hash guest, clear out and reload the SLB */
 	ld	r6, VCPU_KVM(r4)
 	lbz	r0, KVM_RADIX(r6)
 	cmpwi	r0, 0
 	bne	9f
+
+	/* For hash guest, clear out and reload the SLB */
+BEGIN_MMU_FTR_SECTION
+	/* Radix host won't have populated the SLB, so no need to clear */
 	li	r6, 0
 	slbmte	r6, r6
-	slbia
+	PPC_SLBIA(6)
 	ptesync
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 
 	/* Load up guest SLB entries (N.B. slb_max will be 0 for radix) */
 	lwz	r5,VCPU_SLB_MAX(r4)
@@ -1187,6 +1175,20 @@ EXPORT_SYMBOL_GPL(__kvmhv_vcpu_entry_p9)
 	mr	r4, r3
 	b	fast_guest_entry_c
 guest_exit_short_path:
+	/*
+	 * Malicious or buggy radix guests may have inserted SLB entries
+	 * (only 0..3 because radix always runs with UPRT=1), so these must
+	 * be cleared here to avoid side-channels. slbmte is used rather
+	 * than slbia, as it won't clear cached translations.
+	 */
+	li	r0,0
+	slbmte	r0,r0
+	li	r4,1
+	slbmte	r0,r4
+	li	r4,2
+	slbmte	r0,r4
+	li	r4,3
+	slbmte	r0,r4
 
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
@@ -1499,7 +1501,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	lbz	r0, KVM_RADIX(r5)
 	li	r5, 0
 	cmpwi	r0, 0
-	bne	3f			/* for radix, save 0 entries */
+	bne	0f			/* for radix, save 0 entries */
 	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
 	mtctr	r0
 	li	r6,0
@@ -1518,13 +1520,13 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Finally clear out the SLB */
 	li	r0,0
 	slbmte	r0,r0
-	slbia
+	PPC_SLBIA(6)
 	ptesync
-3:	stw	r5,VCPU_SLB_MAX(r9)
+	stw	r5,VCPU_SLB_MAX(r9)
 
 	/* load host SLB entries */
 BEGIN_MMU_FTR_SECTION
-	b	0f
+	b	guest_bypass
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	ld	r8,PACA_SLBSHADOWPTR(r13)
 
@@ -1538,7 +1540,21 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	slbmte	r6,r5
 1:	addi	r8,r8,16
 	.endr
-0:
+	b	guest_bypass
+
+0:	/*
+	 * Sanitise radix guest SLB, see guest_exit_short_path comment.
+	 * We clear vcpu->arch.slb_max to match earlier behaviour.
+	 */
+	li	r0,0
+	stw	r0,VCPU_SLB_MAX(r9)
+	slbmte	r0,r0
+	li	r4,1
+	slbmte	r0,r4
+	li	r4,2
+	slbmte	r0,r4
+	li	r4,3
+	slbmte	r0,r4
 
 guest_bypass:
 	stw	r12, STACK_SLOT_TRAP(r1)
@@ -1759,8 +1775,8 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/* Restore host values of some registers */
 BEGIN_FTR_SECTION
 	ld	r5, STACK_SLOT_CIABR(r1)
-	ld	r6, STACK_SLOT_DAWR(r1)
-	ld	r7, STACK_SLOT_DAWRX(r1)
+	ld	r6, STACK_SLOT_DAWR0(r1)
+	ld	r7, STACK_SLOT_DAWRX0(r1)
 	mtspr	SPRN_CIABR, r5
 	/*
 	 * If the DAWR doesn't work, it's ok to write these here as
@@ -1769,6 +1785,12 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_DAWR0, r6
 	mtspr	SPRN_DAWRX0, r7
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+BEGIN_FTR_SECTION
+	ld	r6, STACK_SLOT_DAWR1(r1)
+	ld	r7, STACK_SLOT_DAWRX1(r1)
+	mtspr	SPRN_DAWR1, r6
+	mtspr	SPRN_DAWRX1, r7
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S | CPU_FTR_DAWR1)
 BEGIN_FTR_SECTION
 	ld	r5, STACK_SLOT_TID(r1)
 	ld	r6, STACK_SLOT_PSSCR(r1)
@@ -1938,24 +1960,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 19:	lis	r8,0x7fff		/* MAX_INT@h */
 	mtspr	SPRN_HDEC,r8
 
-16:
-BEGIN_FTR_SECTION
-	/* On POWER9 with HPT-on-radix we need to wait for all other threads */
-	ld	r3, HSTATE_SPLIT_MODE(r13)
-	cmpdi	r3, 0
-	beq	47f
-	lwz	r8, KVM_SPLIT_DO_RESTORE(r3)
-	cmpwi	r8, 0
-	beq	47f
-	bl	kvmhv_p9_restore_lpcr
-	nop
-	b	48f
-47:
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	ld	r8,KVM_HOST_LPCR(r4)
+16:	ld	r8,KVM_HOST_LPCR(r4)
 	mtspr	SPRN_LPCR,r8
 	isync
-48:
+
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	/* Finish timing, if we have a vcpu */
 	ld	r4, HSTATE_KVM_VCPU(r13)
@@ -2574,8 +2582,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
 	rlwimi	r5, r4, 2, DAWRX_WT
 	clrrdi	r4, r4, 3
-	std	r4, VCPU_DAWR(r3)
-	std	r5, VCPU_DAWRX(r3)
+	std	r4, VCPU_DAWR0(r3)
+	std	r5, VCPU_DAWRX0(r3)
 	/*
 	 * If came in through the real mode hcall handler then it is necessary
 	 * to write the registers since the return path won't. Otherwise it is
@@ -2779,8 +2787,10 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	beq	kvm_end_cede
 	cmpwi	r0, NAPPING_NOVCPU
 	beq	kvm_novcpu_wakeup
+BEGIN_FTR_SECTION
 	cmpwi	r0, NAPPING_UNSPLIT
 	beq	kvm_unsplit_wakeup
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	twi	31,0,0 /* Nap state must not be zero */
 
 33:	mr	r4, r3
@@ -3343,13 +3353,18 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_IAMR, r0
 	mtspr	SPRN_CIABR, r0
 	mtspr	SPRN_DAWRX0, r0
+BEGIN_FTR_SECTION
+	mtspr	SPRN_DAWRX1, r0
+END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
+
+	/* Clear hash and radix guest SLB, see guest_exit_short_path comment. */
+	slbmte	r0, r0
+	PPC_SLBIA(6)
 
 BEGIN_MMU_FTR_SECTION
 	b	4f
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 
-	slbmte	r0, r0
-	slbia
 	ptesync
 	ld	r8, PACA_SLBSHADOWPTR(r13)
 	.rept	SLB_NUM_BOLTED

@@ -50,38 +50,46 @@
 /* Hyper-V HV_X64_MSR_SYNDBG_OPTIONS bits */
 #define HV_X64_SYNDBG_OPTION_USE_HCALLS		BIT(2)
 
-static inline struct kvm_vcpu_hv *vcpu_to_hv_vcpu(struct kvm_vcpu *vcpu)
+static inline struct kvm_hv *to_kvm_hv(struct kvm *kvm)
 {
-	return &vcpu->arch.hyperv;
+	return &kvm->arch.hyperv;
 }
 
-static inline struct kvm_vcpu *hv_vcpu_to_vcpu(struct kvm_vcpu_hv *hv_vcpu)
+static inline struct kvm_vcpu_hv *to_hv_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_arch *arch;
-
-	arch = container_of(hv_vcpu, struct kvm_vcpu_arch, hyperv);
-	return container_of(arch, struct kvm_vcpu, arch);
+	return vcpu->arch.hyperv;
 }
 
-static inline struct kvm_vcpu_hv_synic *vcpu_to_synic(struct kvm_vcpu *vcpu)
+static inline struct kvm_vcpu_hv_synic *to_hv_synic(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.hyperv.synic;
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	return &hv_vcpu->synic;
 }
 
-static inline struct kvm_vcpu *synic_to_vcpu(struct kvm_vcpu_hv_synic *synic)
+static inline struct kvm_vcpu *hv_synic_to_vcpu(struct kvm_vcpu_hv_synic *synic)
 {
-	return hv_vcpu_to_vcpu(container_of(synic, struct kvm_vcpu_hv, synic));
+	struct kvm_vcpu_hv *hv_vcpu = container_of(synic, struct kvm_vcpu_hv, synic);
+
+	return hv_vcpu->vcpu;
 }
 
-static inline struct kvm_hv_syndbg *vcpu_to_hv_syndbg(struct kvm_vcpu *vcpu)
+static inline struct kvm_hv_syndbg *to_hv_syndbg(struct kvm_vcpu *vcpu)
 {
 	return &vcpu->kvm->arch.hyperv.hv_syndbg;
+}
+
+static inline u32 kvm_hv_get_vpindex(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	return hv_vcpu ? hv_vcpu->vp_index : kvm_vcpu_get_idx(vcpu);
 }
 
 int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
 int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host);
 
-bool kvm_hv_hypercall_enabled(struct kvm *kvm);
+bool kvm_hv_hypercall_enabled(struct kvm_vcpu *vcpu);
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu);
 
 void kvm_hv_irq_routing_update(struct kvm *kvm);
@@ -89,32 +97,35 @@ int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vcpu_id, u32 sint);
 void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector);
 int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages);
 
-void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu);
-void kvm_hv_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu);
 
 bool kvm_hv_assist_page_enabled(struct kvm_vcpu *vcpu);
 bool kvm_hv_get_assist_page(struct kvm_vcpu *vcpu,
 			    struct hv_vp_assist_page *assist_page);
 
-static inline struct kvm_vcpu_hv_stimer *vcpu_to_stimer(struct kvm_vcpu *vcpu,
-							int timer_index)
+static inline struct kvm_vcpu_hv_stimer *to_hv_stimer(struct kvm_vcpu *vcpu,
+						      int timer_index)
 {
-	return &vcpu_to_hv_vcpu(vcpu)->stimer[timer_index];
+	return &to_hv_vcpu(vcpu)->stimer[timer_index];
 }
 
-static inline struct kvm_vcpu *stimer_to_vcpu(struct kvm_vcpu_hv_stimer *stimer)
+static inline struct kvm_vcpu *hv_stimer_to_vcpu(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu_hv *hv_vcpu;
 
 	hv_vcpu = container_of(stimer - stimer->index, struct kvm_vcpu_hv,
 			       stimer[0]);
-	return hv_vcpu_to_vcpu(hv_vcpu);
+	return hv_vcpu->vcpu;
 }
 
 static inline bool kvm_hv_has_stimer_pending(struct kvm_vcpu *vcpu)
 {
-	return !bitmap_empty(vcpu->arch.hyperv.stimer_pending_bitmap,
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	if (!hv_vcpu)
+		return false;
+
+	return !bitmap_empty(hv_vcpu->stimer_pending_bitmap,
 			     HV_SYNIC_STIMER_COUNT);
 }
 
@@ -122,9 +133,11 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu);
 
 void kvm_hv_setup_tsc_page(struct kvm *kvm,
 			   struct pvclock_vcpu_time_info *hv_clock);
+void kvm_hv_invalidate_tsc_page(struct kvm *kvm);
 
 void kvm_hv_init_vm(struct kvm *kvm);
 void kvm_hv_destroy_vm(struct kvm *kvm);
+void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu);
 int kvm_vm_ioctl_hv_eventfd(struct kvm *kvm, struct kvm_hyperv_eventfd *args);
 int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 		     struct kvm_cpuid_entry2 __user *entries);

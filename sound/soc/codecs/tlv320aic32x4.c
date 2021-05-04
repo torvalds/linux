@@ -916,7 +916,7 @@ static struct snd_soc_dai_driver aic32x4_dai = {
 			.rates = AIC32X4_RATES,
 			.formats = AIC32X4_FORMATS,},
 	.ops = &aic32x4_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void aic32x4_setup_gpios(struct snd_soc_component *component)

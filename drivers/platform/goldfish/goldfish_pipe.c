@@ -212,9 +212,6 @@ struct goldfish_pipe_dev {
 	int version;
 	unsigned char __iomem *base;
 
-	/* an irq tasklet to run goldfish_interrupt_task */
-	struct tasklet_struct irq_tasklet;
-
 	struct miscdevice miscdev;
 };
 
@@ -577,10 +574,10 @@ static struct goldfish_pipe *signalled_pipes_pop_front(
 	return pipe;
 }
 
-static void goldfish_interrupt_task(unsigned long dev_addr)
+static irqreturn_t goldfish_interrupt_task(int irq, void *dev_addr)
 {
 	/* Iterate over the signalled pipes and wake them one by one */
-	struct goldfish_pipe_dev *dev = (struct goldfish_pipe_dev *)dev_addr;
+	struct goldfish_pipe_dev *dev = dev_addr;
 	struct goldfish_pipe *pipe;
 	int wakes;
 
@@ -599,13 +596,14 @@ static void goldfish_interrupt_task(unsigned long dev_addr)
 		 */
 		wake_up_interruptible(&pipe->wake_queue);
 	}
+	return IRQ_HANDLED;
 }
 
 static void goldfish_pipe_device_deinit(struct platform_device *pdev,
 					struct goldfish_pipe_dev *dev);
 
 /*
- * The general idea of the interrupt handling:
+ * The general idea of the (threaded) interrupt handling:
  *
  *  1. device raises an interrupt if there's at least one signalled pipe
  *  2. IRQ handler reads the signalled pipes and their count from the device
@@ -614,8 +612,8 @@ static void goldfish_pipe_device_deinit(struct platform_device *pdev,
  *      otherwise it leaves it raised, so IRQ handler will be called
  *      again for the next chunk
  *  4. IRQ handler adds all returned pipes to the device's signalled pipes list
- *  5. IRQ handler launches a tasklet to process the signalled pipes from the
- *      list in a separate context
+ *  5. IRQ handler defers processing the signalled pipes from the list in a
+ *      separate context
  */
 static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 {
@@ -645,8 +643,7 @@ static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	tasklet_schedule(&dev->irq_tasklet);
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int get_free_pipe_id_locked(struct goldfish_pipe_dev *dev)
@@ -811,12 +808,10 @@ static int goldfish_pipe_device_init(struct platform_device *pdev,
 {
 	int err;
 
-	tasklet_init(&dev->irq_tasklet, &goldfish_interrupt_task,
-		     (unsigned long)dev);
-
-	err = devm_request_irq(&pdev->dev, dev->irq,
-			       goldfish_pipe_interrupt,
-			       IRQF_SHARED, "goldfish_pipe", dev);
+	err = devm_request_threaded_irq(&pdev->dev, dev->irq,
+					goldfish_pipe_interrupt,
+					goldfish_interrupt_task,
+					IRQF_SHARED, "goldfish_pipe", dev);
 	if (err) {
 		dev_err(&pdev->dev, "unable to allocate IRQ for v2\n");
 		return err;
@@ -874,7 +869,6 @@ static void goldfish_pipe_device_deinit(struct platform_device *pdev,
 					struct goldfish_pipe_dev *dev)
 {
 	misc_deregister(&dev->miscdev);
-	tasklet_kill(&dev->irq_tasklet);
 	kfree(dev->pipes);
 	free_page((unsigned long)dev->buffers);
 }

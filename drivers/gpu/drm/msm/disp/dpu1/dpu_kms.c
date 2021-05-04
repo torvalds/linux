@@ -749,7 +749,7 @@ static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
 	case DRM_MODE_ENCODER_TMDS:
 		info.num_of_h_tiles = 1;
 		break;
-	};
+	}
 
 	rc = dpu_encoder_setup(encoder->dev, encoder, &info);
 	if (rc)

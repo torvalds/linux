@@ -28,7 +28,7 @@
 #define IQS620_GLBL_EVENT_MASK_PMU		BIT(6)
 
 #define IQS62X_NUM_KEYS				16
-#define IQS62X_NUM_EVENTS			(IQS62X_NUM_KEYS + 5)
+#define IQS62X_NUM_EVENTS			(IQS62X_NUM_KEYS + 6)
 
 #define IQS62X_EVENT_SIZE			10
 
@@ -78,6 +78,7 @@ enum iqs62x_event_flag {
 
 	/* everything else */
 	IQS62X_EVENT_SYS_RESET,
+	IQS62X_EVENT_SYS_ATI,
 };
 
 struct iqs62x_event_data {
@@ -97,12 +98,10 @@ struct iqs62x_dev_desc {
 	const char *dev_name;
 	const struct mfd_cell *sub_devs;
 	int num_sub_devs;
-
 	u8 prod_num;
 	u8 sw_num;
 	const u8 *cal_regs;
 	int num_cal_regs;
-
 	u8 prox_mask;
 	u8 sar_mask;
 	u8 hall_mask;
@@ -110,16 +109,12 @@ struct iqs62x_dev_desc {
 	u8 temp_mask;
 	u8 als_mask;
 	u8 ir_mask;
-
 	u8 prox_settings;
 	u8 als_flags;
 	u8 hall_flags;
 	u8 hyst_shift;
-
 	u8 interval;
 	u8 interval_div;
-
-	u8 clk_div;
 	const char *fw_name;
 	const enum iqs62x_event_reg (*event_regs)[IQS62X_EVENT_SIZE];
 };
@@ -130,8 +125,10 @@ struct iqs62x_core {
 	struct regmap *regmap;
 	struct blocking_notifier_head nh;
 	struct list_head fw_blk_head;
+	struct completion ati_done;
 	struct completion fw_done;
 	enum iqs62x_ui_sel ui_sel;
+	unsigned long event_cache;
 };
 
 extern const struct iqs62x_event_desc iqs62x_events[IQS62X_NUM_EVENTS];

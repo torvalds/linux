@@ -148,10 +148,6 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		sector += dev->zone_size_sects;
 	}
 
-	q->limits.zoned = BLK_ZONED_HM;
-	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
-	blk_queue_required_elevator_features(q, ELEVATOR_F_ZBD_SEQ_WRITE);
-
 	return 0;
 }
 
@@ -159,6 +155,10 @@ int null_register_zoned_dev(struct nullb *nullb)
 {
 	struct nullb_device *dev = nullb->dev;
 	struct request_queue *q = nullb->q;
+
+	blk_queue_set_zoned(nullb->disk, BLK_ZONED_HM);
+	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
+	blk_queue_required_elevator_features(q, ELEVATOR_F_ZBD_SEQ_WRITE);
 
 	if (queue_is_mq(q)) {
 		int ret = blk_revalidate_disk_zones(nullb->disk, NULL);

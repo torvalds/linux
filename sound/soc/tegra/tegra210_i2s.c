@@ -577,7 +577,7 @@ static struct snd_soc_dai_driver tegra210_i2s_dais[] = {
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &tegra210_i2s_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 

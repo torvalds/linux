@@ -156,7 +156,9 @@ out:
  * returning 0 characters.
  */
 
-static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file, unsigned char __user * buf, size_t nr)
+static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file,
+				  unsigned char *kbuf, size_t nr,
+				  void **cookie, unsigned long offset)
 {
 	struct serport *serport = (struct serport*) tty->disc_data;
 	struct serio *serio;

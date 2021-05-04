@@ -468,6 +468,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 /**
  * hfi1_make_ud_req - construct a UD request packet
  * @qp: the QP
+ * @ps: the current packet state
  *
  * Assume s_lock is held.
  *
@@ -840,12 +841,7 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 
 /**
  * hfi1_ud_rcv - receive an incoming UD packet
- * @ibp: the port the packet came in on
- * @hdr: the packet header
- * @rcv_flags: flags relevant to rcv processing
- * @data: the packet data
- * @tlen: the packet length
- * @qp: the QP the packet came on
+ * @packet: the packet structure
  *
  * This is called from qp_rcv() to process an incoming UD packet
  * for the given QP.

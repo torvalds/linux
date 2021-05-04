@@ -886,7 +886,7 @@ done:
 
 /**
  * rm_pkey - decrecment the reference count for the given PKEY
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @key: the PKEY index
  *
  * Return true if this was the last reference and the hardware table entry
@@ -916,7 +916,7 @@ bail:
 
 /**
  * add_pkey - add the given PKEY to the hardware table
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * @key: the PKEY
  *
  * Return an error code if unable to add the entry, zero if no change,
@@ -2346,8 +2346,10 @@ static int process_cc(struct ib_device *ibdev, int mad_flags,
  * @port: the port number this packet came in on
  * @in_wc: the work completion entry for this packet
  * @in_grh: the global route header for this packet
- * @in_mad: the incoming MAD
- * @out_mad: any outgoing MAD reply
+ * @in: the incoming MAD
+ * @out: any outgoing MAD reply
+ * @out_mad_size: size of the outgoing MAD reply
+ * @out_mad_pkey_index: unused
  *
  * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are not
  * interested in processing.

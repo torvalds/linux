@@ -753,6 +753,34 @@ struct brcmf_assoclist_le {
 };
 
 /**
+ * struct brcmf_rssi_be - RSSI threshold event format
+ *
+ * @rssi: receive signal strength (in dBm)
+ * @snr: signal-noise ratio
+ * @noise: noise (in dBm)
+ */
+struct brcmf_rssi_be {
+	__be32 rssi;
+	__be32 snr;
+	__be32 noise;
+};
+
+#define BRCMF_MAX_RSSI_LEVELS 8
+
+/**
+ * struct brcm_rssi_event_le - rssi_event IOVAR format
+ *
+ * @rate_limit_msec: RSSI event rate limit
+ * @rssi_level_num: number of supplied RSSI levels
+ * @rssi_levels: RSSI levels in ascending order
+ */
+struct brcmf_rssi_event_le {
+	__le32 rate_limit_msec;
+	s8 rssi_level_num;
+	s8 rssi_levels[BRCMF_MAX_RSSI_LEVELS];
+};
+
+/**
  * struct brcmf_wowl_wakeind_le - Wakeup indicators
  *	Note: note both fields contain same information.
  *

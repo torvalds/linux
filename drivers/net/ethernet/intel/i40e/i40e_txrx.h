@@ -387,6 +387,7 @@ struct i40e_ring {
 					 */
 
 	struct i40e_channel *ch;
+	u16 rx_offset;
 	struct xdp_rxq_info xdp_rxq;
 	struct xsk_buff_pool *xsk_pool;
 	struct xdp_desc *xsk_descs;      /* For storing descriptors in the AF_XDP ZC path */

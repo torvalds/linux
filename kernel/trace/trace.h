@@ -136,25 +136,6 @@ struct kretprobe_trace_entry_head {
 	unsigned long		ret_ip;
 };
 
-/*
- * trace_flag_type is an enumeration that holds different
- * states when a trace occurs. These are:
- *  IRQS_OFF		- interrupts were disabled
- *  IRQS_NOSUPPORT	- arch does not support irqs_disabled_flags
- *  NEED_RESCHED	- reschedule is requested
- *  HARDIRQ		- inside an interrupt handler
- *  SOFTIRQ		- inside a softirq handler
- */
-enum trace_flag_type {
-	TRACE_FLAG_IRQS_OFF		= 0x01,
-	TRACE_FLAG_IRQS_NOSUPPORT	= 0x02,
-	TRACE_FLAG_NEED_RESCHED		= 0x04,
-	TRACE_FLAG_HARDIRQ		= 0x08,
-	TRACE_FLAG_SOFTIRQ		= 0x10,
-	TRACE_FLAG_PREEMPT_RESCHED	= 0x20,
-	TRACE_FLAG_NMI			= 0x40,
-};
-
 #define TRACE_BUF_SIZE		1024
 
 struct trace_array;
@@ -589,8 +570,7 @@ struct ring_buffer_event *
 trace_buffer_lock_reserve(struct trace_buffer *buffer,
 			  int type,
 			  unsigned long len,
-			  unsigned long flags,
-			  int pc);
+			  unsigned int trace_ctx);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
@@ -600,6 +580,8 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 
 void trace_buffer_unlock_commit_nostack(struct trace_buffer *buffer,
 					struct ring_buffer_event *event);
+
+const char *trace_event_format(struct trace_iterator *iter, const char *fmt);
 
 int trace_empty(struct trace_iterator *iter);
 
@@ -615,15 +597,14 @@ unsigned long trace_total_entries(struct trace_array *tr);
 void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
-		    unsigned long flags, int pc);
+		    unsigned int trace_ctx);
 void trace_graph_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
-		    unsigned long flags, int pc);
+		    unsigned int trace_ctx);
 void trace_latency_header(struct seq_file *m);
 void trace_default_header(struct seq_file *m);
 void print_trace_header(struct seq_file *m, struct trace_iterator *iter);
-int trace_empty(struct trace_iterator *iter);
 
 void trace_graph_return(struct ftrace_graph_ret *trace);
 int trace_graph_entry(struct ftrace_graph_ent *trace);
@@ -687,11 +668,10 @@ static inline void latency_fsnotify(struct trace_array *tr) { }
 #endif
 
 #ifdef CONFIG_STACKTRACE
-void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
-		   int pc);
+void __trace_stack(struct trace_array *tr, unsigned int trace_ctx, int skip);
 #else
-static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
-				 int skip, int pc)
+static inline void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
+				 int skip)
 {
 }
 #endif /* CONFIG_STACKTRACE */
@@ -831,10 +811,10 @@ extern void graph_trace_open(struct trace_iterator *iter);
 extern void graph_trace_close(struct trace_iterator *iter);
 extern int __trace_graph_entry(struct trace_array *tr,
 			       struct ftrace_graph_ent *trace,
-			       unsigned long flags, int pc);
+			       unsigned int trace_ctx);
 extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
-				 unsigned long flags, int pc);
+				 unsigned int trace_ctx);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern struct ftrace_hash __rcu *ftrace_graph_hash;
@@ -1194,6 +1174,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(MARKERS,		"markers"),		\
 		C(EVENT_FORK,		"event-fork"),		\
 		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
+		C(HASH_PTR,		"hash-ptr"),	/* Print hashed pointer */ \
 		FUNCTION_FLAGS					\
 		FGRAPH_FLAGS					\
 		STACK_FLAGS					\
@@ -1297,15 +1278,15 @@ extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct trace_buffer *buffer,
 				     struct ring_buffer_event *event,
-				     unsigned long flags, int pc,
+				     unsigned int trcace_ctx,
 				     struct pt_regs *regs);
 
 static inline void trace_buffer_unlock_commit(struct trace_array *tr,
 					      struct trace_buffer *buffer,
 					      struct ring_buffer_event *event,
-					      unsigned long flags, int pc)
+					      unsigned int trace_ctx)
 {
-	trace_buffer_unlock_commit_regs(tr, buffer, event, flags, pc, NULL);
+	trace_buffer_unlock_commit_regs(tr, buffer, event, trace_ctx, NULL);
 }
 
 DECLARE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
@@ -1366,8 +1347,7 @@ __event_trigger_test_discard(struct trace_event_file *file,
  * @buffer: The ring buffer that the event is being written to
  * @event: The event meta data in the ring buffer
  * @entry: The event itself
- * @irq_flags: The state of the interrupts at the start of the event
- * @pc: The state of the preempt count at the start of the event.
+ * @trace_ctx: The tracing context flags.
  *
  * This is a helper function to handle triggers that require data
  * from the event itself. It also tests the event against filters and
@@ -1377,12 +1357,12 @@ static inline void
 event_trigger_unlock_commit(struct trace_event_file *file,
 			    struct trace_buffer *buffer,
 			    struct ring_buffer_event *event,
-			    void *entry, unsigned long irq_flags, int pc)
+			    void *entry, unsigned int trace_ctx)
 {
 	enum event_trigger_type tt = ETT_NONE;
 
 	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
-		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
+		trace_buffer_unlock_commit(file->tr, buffer, event, trace_ctx);
 
 	if (tt)
 		event_triggers_post_call(file, tt);
@@ -1394,8 +1374,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
  * @buffer: The ring buffer that the event is being written to
  * @event: The event meta data in the ring buffer
  * @entry: The event itself
- * @irq_flags: The state of the interrupts at the start of the event
- * @pc: The state of the preempt count at the start of the event.
+ * @trace_ctx: The tracing context flags.
  *
  * This is a helper function to handle triggers that require data
  * from the event itself. It also tests the event against filters and
@@ -1408,14 +1387,14 @@ static inline void
 event_trigger_unlock_commit_regs(struct trace_event_file *file,
 				 struct trace_buffer *buffer,
 				 struct ring_buffer_event *event,
-				 void *entry, unsigned long irq_flags, int pc,
+				 void *entry, unsigned int trace_ctx,
 				 struct pt_regs *regs)
 {
 	enum event_trigger_type tt = ETT_NONE;
 
 	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
 		trace_buffer_unlock_commit_regs(file->tr, buffer, event,
-						irq_flags, pc, regs);
+						trace_ctx, regs);
 
 	if (tt)
 		event_triggers_post_call(file, tt);
@@ -1830,10 +1809,9 @@ extern int tracing_set_cpumask(struct trace_array *tr,
 
 #define MAX_EVENT_NAME_LEN	64
 
-extern int trace_run_command(const char *buf, int (*createfn)(int, char**));
 extern ssize_t trace_parse_run_command(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos,
-		int (*createfn)(int, char**));
+		int (*createfn)(const char *));
 
 extern unsigned int err_pos(char *cmd, const char *str);
 extern void tracing_log_err(struct trace_array *tr,

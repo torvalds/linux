@@ -122,7 +122,7 @@ int rcar_cmm_enable(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		return ret;
 

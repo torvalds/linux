@@ -75,13 +75,10 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	if (!cpus || !threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_free_maps;
+		goto out_delete_evlist;
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
-
-	cpus	= NULL;
-	threads = NULL;
 
 	err = evlist__prepare_workload(evlist, &target, argv, false, workload_exec_failed_signal);
 	if (err < 0) {
@@ -137,7 +134,7 @@ out_init:
 		if (retry_count++ > 1000) {
 			pr_debug("Failed after retrying 1000 times\n");
 			err = -1;
-			goto out_free_maps;
+			goto out_delete_evlist;
 		}
 
 		goto retry;
@@ -148,10 +145,9 @@ out_init:
 		err = -1;
 	}
 
-out_free_maps:
+out_delete_evlist:
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);
-out_delete_evlist:
 	evlist__delete(evlist);
 	return err;
 }

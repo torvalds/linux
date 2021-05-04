@@ -87,6 +87,11 @@ properties:
 
     additionalProperties: false
 
+  sd-vsel-gpios:
+    description: GPIO that is used to switch LDO5 between being configured by
+      LDO5CTRL_L or LDO5CTRL_H register. Use this if the SD_VSEL signal is
+      connected to a host GPIO.
+
 required:
   - compatible
   - reg

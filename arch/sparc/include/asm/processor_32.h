@@ -50,16 +50,12 @@ struct thread_struct {
 	unsigned long   fsr;
 	unsigned long   fpqdepth;
 	struct fpq	fpqueue[16];
-	unsigned long flags;
 	mm_segment_t current_ds;
 };
 
-#define SPARC_FLAG_KTHREAD      0x1    /* task is a kernel thread */
-#define SPARC_FLAG_UNALIGNED    0x2    /* is allowed to do unaligned accesses */
-
 #define INIT_THREAD  { \
-	.flags = SPARC_FLAG_KTHREAD, \
 	.current_ds = KERNEL_DS, \
+	.kregs = (struct pt_regs *)(init_stack+THREAD_SIZE)-1 \
 }
 
 /* Do necessary setup to start up a newly executed thread. */

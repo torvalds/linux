@@ -109,6 +109,14 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
 &dspi0 {
 	bus-num = <0>;
 	status = "okay";

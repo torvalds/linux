@@ -40,10 +40,11 @@ nvkm_engine_unref(struct nvkm_engine **pengine)
 {
 	struct nvkm_engine *engine = *pengine;
 	if (engine) {
-		mutex_lock(&engine->subdev.mutex);
-		if (--engine->usecount == 0)
+		if (refcount_dec_and_mutex_lock(&engine->use.refcount, &engine->use.mutex)) {
 			nvkm_subdev_fini(&engine->subdev, false);
-		mutex_unlock(&engine->subdev.mutex);
+			engine->use.enabled = false;
+			mutex_unlock(&engine->use.mutex);
+		}
 		*pengine = NULL;
 	}
 }
@@ -51,17 +52,21 @@ nvkm_engine_unref(struct nvkm_engine **pengine)
 struct nvkm_engine *
 nvkm_engine_ref(struct nvkm_engine *engine)
 {
+	int ret;
 	if (engine) {
-		mutex_lock(&engine->subdev.mutex);
-		if (++engine->usecount == 1) {
-			int ret = nvkm_subdev_init(&engine->subdev);
-			if (ret) {
-				engine->usecount--;
-				mutex_unlock(&engine->subdev.mutex);
-				return ERR_PTR(ret);
+		if (!refcount_inc_not_zero(&engine->use.refcount)) {
+			mutex_lock(&engine->use.mutex);
+			if (!refcount_inc_not_zero(&engine->use.refcount)) {
+				engine->use.enabled = true;
+				if ((ret = nvkm_subdev_init(&engine->subdev))) {
+					engine->use.enabled = false;
+					mutex_unlock(&engine->use.mutex);
+					return ERR_PTR(ret);
+				}
+				refcount_set(&engine->use.refcount, 1);
 			}
+			mutex_unlock(&engine->use.mutex);
 		}
-		mutex_unlock(&engine->subdev.mutex);
 	}
 	return engine;
 }
@@ -114,7 +119,7 @@ nvkm_engine_init(struct nvkm_subdev *subdev)
 	int ret = 0, i;
 	s64 time;
 
-	if (!engine->usecount) {
+	if (!engine->use.enabled) {
 		nvkm_trace(subdev, "init skipped, engine has no users\n");
 		return ret;
 	}
@@ -156,11 +161,12 @@ nvkm_engine_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_engine *engine = nvkm_engine(subdev);
 	if (engine->func->dtor)
 		return engine->func->dtor(engine);
+	mutex_destroy(&engine->use.mutex);
 	return engine;
 }
 
-static const struct nvkm_subdev_func
-nvkm_engine_func = {
+const struct nvkm_subdev_func
+nvkm_engine = {
 	.dtor = nvkm_engine_dtor,
 	.preinit = nvkm_engine_preinit,
 	.init = nvkm_engine_init,
@@ -170,14 +176,15 @@ nvkm_engine_func = {
 };
 
 int
-nvkm_engine_ctor(const struct nvkm_engine_func *func,
-		 struct nvkm_device *device, int index, bool enable,
-		 struct nvkm_engine *engine)
+nvkm_engine_ctor(const struct nvkm_engine_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, bool enable, struct nvkm_engine *engine)
 {
-	nvkm_subdev_ctor(&nvkm_engine_func, device, index, &engine->subdev);
+	nvkm_subdev_ctor(&nvkm_engine, device, type, inst, &engine->subdev);
 	engine->func = func;
+	refcount_set(&engine->use.refcount, 0);
+	mutex_init(&engine->use.mutex);
 
-	if (!nvkm_boolopt(device->cfgopt, nvkm_subdev_name[index], enable)) {
+	if (!nvkm_boolopt(device->cfgopt, engine->subdev.name, enable)) {
 		nvkm_debug(&engine->subdev, "disabled\n");
 		return -ENODEV;
 	}
@@ -187,11 +194,11 @@ nvkm_engine_ctor(const struct nvkm_engine_func *func,
 }
 
 int
-nvkm_engine_new_(const struct nvkm_engine_func *func,
-		 struct nvkm_device *device, int index, bool enable,
+nvkm_engine_new_(const struct nvkm_engine_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, bool enable,
 		 struct nvkm_engine **pengine)
 {
 	if (!(*pengine = kzalloc(sizeof(**pengine), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_engine_ctor(func, device, index, enable, *pengine);
+	return nvkm_engine_ctor(func, device, type, inst, enable, *pengine);
 }

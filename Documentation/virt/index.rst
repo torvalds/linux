@@ -12,6 +12,7 @@ Linux Virtualization Support
    paravirt_ops
    guest-halt-polling
    ne_overview
+   acrn/index
 
 .. only:: html and subproject
 

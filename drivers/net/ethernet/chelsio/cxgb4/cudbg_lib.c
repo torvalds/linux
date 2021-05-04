@@ -2686,10 +2686,10 @@ int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
 	char vpd_str[CUDBG_VPD_VER_LEN + 1];
-	u32 scfg_vers, vpd_vers, fw_vers;
 	struct cudbg_vpd_data *vpd_data;
 	struct vpd_params vpd = { 0 };
-	int rc, ret;
+	u32 vpd_vers, fw_vers;
+	int rc;
 
 	rc = t4_get_raw_vpd_params(padap, &vpd);
 	if (rc)
@@ -2698,24 +2698,6 @@ int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 	rc = t4_get_fw_version(padap, &fw_vers);
 	if (rc)
 		return rc;
-
-	/* Serial Configuration Version is located beyond the PF's vpd size.
-	 * Temporarily give access to entire EEPROM to get it.
-	 */
-	rc = pci_set_vpd_size(padap->pdev, EEPROMVSIZE);
-	if (rc < 0)
-		return rc;
-
-	ret = cudbg_read_vpd_reg(padap, CUDBG_SCFG_VER_ADDR, CUDBG_SCFG_VER_LEN,
-				 &scfg_vers);
-
-	/* Restore back to original PF's vpd size */
-	rc = pci_set_vpd_size(padap->pdev, CUDBG_VPD_PF_SIZE);
-	if (rc < 0)
-		return rc;
-
-	if (ret)
-		return ret;
 
 	rc = cudbg_read_vpd_reg(padap, CUDBG_VPD_VER_ADDR, CUDBG_VPD_VER_LEN,
 				vpd_str);
@@ -2737,7 +2719,7 @@ int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 	memcpy(vpd_data->bn, vpd.pn, PN_LEN + 1);
 	memcpy(vpd_data->na, vpd.na, MACADDR_LEN + 1);
 	memcpy(vpd_data->mn, vpd.id, ID_LEN + 1);
-	vpd_data->scfg_vers = scfg_vers;
+	vpd_data->scfg_vers = t4_read_reg(padap, PCIE_STATIC_SPARE2_A);
 	vpd_data->vpd_vers = vpd_vers;
 	vpd_data->fw_major = FW_HDR_FW_VER_MAJOR_G(fw_vers);
 	vpd_data->fw_minor = FW_HDR_FW_VER_MINOR_G(fw_vers);

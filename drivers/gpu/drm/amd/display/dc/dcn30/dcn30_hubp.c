@@ -511,6 +511,7 @@ static struct hubp_funcs dcn30_hubp_funcs = {
 	.hubp_init = hubp3_init,
 	.hubp_in_blank = hubp1_in_blank,
 	.hubp_soft_reset = hubp1_soft_reset,
+	.hubp_set_flip_int = hubp1_set_flip_int,
 };
 
 bool hubp3_construct(

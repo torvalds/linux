@@ -75,6 +75,24 @@ report::
 --tid=<tid>::
         stat events on existing thread id (comma separated list)
 
+-b::
+--bpf-prog::
+        stat events on existing bpf program id (comma separated list),
+        requiring root rights. bpftool-prog could be used to find program
+        id all bpf programs in the system. For example:
+
+  # bpftool prog | head -n 1
+  17247: tracepoint  name sys_enter  tag 192d548b9d754067  gpl
+
+  # perf stat -e cycles,instructions --bpf-prog 17247 --timeout 1000
+
+   Performance counter stats for 'BPF program(s) 17247':
+
+             85,967      cycles
+             28,982      instructions              #    0.34  insn per cycle
+
+        1.102235068 seconds time elapsed
+
 ifdef::HAVE_LIBPFM[]
 --pfm-events events::
 Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
@@ -358,7 +376,7 @@ See perf list output for the possble metrics and metricgroups.
 Do not aggregate counts across all monitored CPUs.
 
 --topdown::
-Print top down level 1 metrics if supported by the CPU. This allows to
+Print complete top-down metrics supported by the CPU. This allows to
 determine bottle necks in the CPU pipeline for CPU bound workloads,
 by breaking the cycles consumed down into frontend bound, backend bound,
 bad speculation and retiring.
@@ -392,6 +410,18 @@ on workload with changing phases.
 To interpret the results it is usually needed to know on which
 CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
+
+--td-level::
+Print the top-down statistics that equal to or lower than the input level.
+It allows users to print the interested top-down metrics level instead of
+the complete top-down metrics.
+
+The availability of the top-down metrics level depends on the hardware. For
+example, Ice Lake only supports L1 top-down metrics. The Sapphire Rapids
+supports both L1 and L2 top-down metrics.
+
+Default: 0 means the max level that the current hardware support.
+Error out if the input is higher than the supported max level.
 
 --no-merge::
 Do not merge results from same PMUs.

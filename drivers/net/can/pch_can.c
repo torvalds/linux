@@ -711,7 +711,7 @@ static void pch_can_tx_complete(struct net_device *ndev, u32 int_stat)
 	struct net_device_stats *stats = &(priv->ndev->stats);
 	u32 dlc;
 
-	can_get_echo_skb(ndev, int_stat - PCH_RX_OBJ_END - 1);
+	can_get_echo_skb(ndev, int_stat - PCH_RX_OBJ_END - 1, NULL);
 	iowrite32(PCH_CMASK_RX_TX_GET | PCH_CMASK_CLRINTPND,
 		  &priv->regs->ifregs[1].cmask);
 	pch_can_rw_msg_obj(&priv->regs->ifregs[1].creq, int_stat);
@@ -924,7 +924,7 @@ static netdev_tx_t pch_xmit(struct sk_buff *skb, struct net_device *ndev)
 			  &priv->regs->ifregs[1].data[i / 2]);
 	}
 
-	can_put_echo_skb(skb, ndev, tx_obj_no - PCH_RX_OBJ_END - 1);
+	can_put_echo_skb(skb, ndev, tx_obj_no - PCH_RX_OBJ_END - 1, 0);
 
 	/* Set the size of the data. Update if2_mcont */
 	iowrite32(cf->len | PCH_IF_MCONT_NEWDAT | PCH_IF_MCONT_TXRQXT |

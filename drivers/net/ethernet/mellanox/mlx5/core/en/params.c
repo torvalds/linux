@@ -179,7 +179,7 @@ int mlx5e_validate_params(struct mlx5e_priv *priv, struct mlx5e_params *params)
 
 	stop_room = mlx5e_calc_sq_stop_room(priv->mdev, params);
 	if (stop_room >= sq_size) {
-		netdev_err(priv->netdev, "Stop room %hu is bigger than the SQ size %zu\n",
+		netdev_err(priv->netdev, "Stop room %u is bigger than the SQ size %zu\n",
 			   stop_room, sq_size);
 		return -EINVAL;
 	}

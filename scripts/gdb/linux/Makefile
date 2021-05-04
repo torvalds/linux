@@ -7,7 +7,7 @@ symlinks := $(patsubst $(srctree)/$(src)/%,%,$(wildcard $(srctree)/$(src)/*.py))
 quiet_cmd_symlink = SYMLINK $@
       cmd_symlink = ln -fsn $(patsubst $(obj)/%,$(abspath $(srctree))/$(src)/%,$@) $@
 
-extra-y += $(symlinks)
+always-y += $(symlinks)
 $(addprefix $(obj)/, $(symlinks)): FORCE
 	$(call if_changed,symlink)
 
@@ -18,7 +18,7 @@ quiet_cmd_gen_constants_py = GEN     $@
 	$(CPP) -E -x c -P $(c_flags) $< > $@ ;\
 	sed -i '1,/<!-- end-c-headers -->/d;' $@
 
-extra-y += constants.py
+always-y += constants.py
 $(obj)/constants.py: $(src)/constants.py.in FORCE
 	$(call if_changed_dep,gen_constants_py)
 

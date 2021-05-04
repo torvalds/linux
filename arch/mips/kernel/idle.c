@@ -151,6 +151,7 @@ void __init check_wait(void)
 		cpu_wait = r39xx_wait;
 		break;
 	case CPU_R4200:
+/*	case CPU_R4300: */
 	case CPU_R4600:
 	case CPU_R4640:
 	case CPU_R4650:

@@ -621,14 +621,6 @@ static const struct attribute_group *ccwdev_attr_groups[] = {
 	NULL,
 };
 
-static int ccw_device_add(struct ccw_device *cdev)
-{
-	struct device *dev = &cdev->dev;
-
-	dev->bus = &ccw_bus_type;
-	return device_add(dev);
-}
-
 static int match_dev_id(struct device *dev, const void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
@@ -687,33 +679,47 @@ static struct ccw_device * io_subchannel_allocate_dev(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 	struct gen_pool *dma_pool;
+	int ret;
 
 	cdev  = kzalloc(sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
+	if (!cdev) {
+		ret = -ENOMEM;
 		goto err_cdev;
+	}
 	cdev->private = kzalloc(sizeof(struct ccw_device_private),
 				GFP_KERNEL | GFP_DMA);
-	if (!cdev->private)
+	if (!cdev->private) {
+		ret = -ENOMEM;
 		goto err_priv;
-	cdev->dev.coherent_dma_mask = sch->dev.coherent_dma_mask;
+	}
+
 	cdev->dev.dma_mask = sch->dev.dma_mask;
+	ret = dma_set_coherent_mask(&cdev->dev, sch->dev.coherent_dma_mask);
+	if (ret)
+		goto err_coherent_mask;
+
 	dma_pool = cio_gp_dma_create(&cdev->dev, 1);
-	if (!dma_pool)
+	if (!dma_pool) {
+		ret = -ENOMEM;
 		goto err_dma_pool;
+	}
 	cdev->private->dma_pool = dma_pool;
 	cdev->private->dma_area = cio_gp_dma_zalloc(dma_pool, &cdev->dev,
 					sizeof(*cdev->private->dma_area));
-	if (!cdev->private->dma_area)
+	if (!cdev->private->dma_area) {
+		ret = -ENOMEM;
 		goto err_dma_area;
+	}
 	return cdev;
 err_dma_area:
 	cio_gp_dma_destroy(dma_pool, &cdev->dev);
 err_dma_pool:
+err_coherent_mask:
 	kfree(cdev->private);
 err_priv:
 	kfree(cdev);
 err_cdev:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(ret);
 }
 
 static void ccw_device_todo(struct work_struct *work);
@@ -739,6 +745,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	cdev->ccwlock = sch->lock;
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
+	cdev->dev.bus = &ccw_bus_type;
 	cdev->dev.groups = ccwdev_attr_groups;
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
@@ -840,7 +847,7 @@ static void io_subchannel_register(struct ccw_device *cdev)
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	}
 	/* make it known to the system */
-	ret = ccw_device_add(cdev);
+	ret = device_add(&cdev->dev);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Could not register ccw dev 0.%x.%04x: %d\n",
 			      cdev->private->dev_id.ssid,
@@ -1052,7 +1059,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 			kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		}
 		cdev = sch_get_cdev(sch);
-		rc = ccw_device_add(cdev);
+		rc = device_add(&cdev->dev);
 		if (rc) {
 			/* Release online reference. */
 			put_device(&cdev->dev);

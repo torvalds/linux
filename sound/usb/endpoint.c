@@ -21,8 +21,11 @@
 #include "clock.h"
 #include "quirks.h"
 
-#define EP_FLAG_RUNNING		1
-#define EP_FLAG_STOPPING	2
+enum {
+	EP_STATE_STOPPED,
+	EP_STATE_RUNNING,
+	EP_STATE_STOPPING,
+};
 
 /* interface refcounting */
 struct snd_usb_iface_ref {
@@ -113,6 +116,16 @@ static const char *usb_error_string(int err)
 	default:
 		return "unknown error";
 	}
+}
+
+static inline bool ep_state_running(struct snd_usb_endpoint *ep)
+{
+	return atomic_read(&ep->state) == EP_STATE_RUNNING;
+}
+
+static inline bool ep_state_update(struct snd_usb_endpoint *ep, int old, int new)
+{
+	return atomic_cmpxchg(&ep->state, old, new) == old;
 }
 
 /**
@@ -393,7 +406,7 @@ next_packet_fifo_dequeue(struct snd_usb_endpoint *ep)
  */
 static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 {
-	while (test_bit(EP_FLAG_RUNNING, &ep->flags)) {
+	while (ep_state_running(ep)) {
 
 		unsigned long flags;
 		struct snd_usb_packet_info *packet;
@@ -454,13 +467,13 @@ static void snd_complete_urb(struct urb *urb)
 	if (unlikely(atomic_read(&ep->chip->shutdown)))
 		goto exit_clear;
 
-	if (unlikely(!test_bit(EP_FLAG_RUNNING, &ep->flags)))
+	if (unlikely(!ep_state_running(ep)))
 		goto exit_clear;
 
 	if (usb_pipeout(ep->pipe)) {
 		retire_outbound_urb(ep, ctx);
 		/* can be stopped during retire callback */
-		if (unlikely(!test_bit(EP_FLAG_RUNNING, &ep->flags)))
+		if (unlikely(!ep_state_running(ep)))
 			goto exit_clear;
 
 		if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
@@ -474,12 +487,12 @@ static void snd_complete_urb(struct urb *urb)
 
 		prepare_outbound_urb(ep, ctx);
 		/* can be stopped during prepare callback */
-		if (unlikely(!test_bit(EP_FLAG_RUNNING, &ep->flags)))
+		if (unlikely(!ep_state_running(ep)))
 			goto exit_clear;
 	} else {
 		retire_inbound_urb(ep, ctx);
 		/* can be stopped during retire callback */
-		if (unlikely(!test_bit(EP_FLAG_RUNNING, &ep->flags)))
+		if (unlikely(!ep_state_running(ep)))
 			goto exit_clear;
 
 		prepare_inbound_urb(ep, ctx);
@@ -835,7 +848,7 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
 	int alive;
 
-	if (!test_bit(EP_FLAG_STOPPING, &ep->flags))
+	if (atomic_read(&ep->state) != EP_STATE_STOPPING)
 		return 0;
 
 	do {
@@ -850,10 +863,11 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 		usb_audio_err(ep->chip,
 			"timeout: still %d active urbs on EP #%x\n",
 			alive, ep->ep_num);
-	clear_bit(EP_FLAG_STOPPING, &ep->flags);
 
-	ep->sync_sink = NULL;
-	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
+	if (ep_state_update(ep, EP_STATE_STOPPING, EP_STATE_STOPPED)) {
+		ep->sync_sink = NULL;
+		snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
+	}
 
 	return 0;
 }
@@ -868,26 +882,20 @@ void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
 }
 
 /*
- * Stop and unlink active urbs.
+ * Stop active urbs
  *
- * This function checks and clears EP_FLAG_RUNNING state.
- * When @wait_sync is set, it waits until all pending URBs are killed.
+ * This function moves the EP to STOPPING state if it's being RUNNING.
  */
-static int stop_and_unlink_urbs(struct snd_usb_endpoint *ep, bool force,
-				bool wait_sync)
+static int stop_urbs(struct snd_usb_endpoint *ep, bool force)
 {
 	unsigned int i;
 
-	if (!force && atomic_read(&ep->chip->shutdown)) /* to be sure... */
-		return -EBADFD;
-
-	if (atomic_read(&ep->running))
+	if (!force && atomic_read(&ep->running))
 		return -EBUSY;
 
-	if (!test_and_clear_bit(EP_FLAG_RUNNING, &ep->flags))
-		goto out;
+	if (!ep_state_update(ep, EP_STATE_RUNNING, EP_STATE_STOPPING))
+		return 0;
 
-	set_bit(EP_FLAG_STOPPING, &ep->flags);
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
 	ep->next_packet_head = 0;
 	ep->next_packet_queued = 0;
@@ -901,24 +909,25 @@ static int stop_and_unlink_urbs(struct snd_usb_endpoint *ep, bool force,
 		}
 	}
 
- out:
-	if (wait_sync)
-		return wait_clear_urbs(ep);
 	return 0;
 }
 
 /*
  * release an endpoint's urbs
  */
-static void release_urbs(struct snd_usb_endpoint *ep, int force)
+static int release_urbs(struct snd_usb_endpoint *ep, bool force)
 {
-	int i;
+	int i, err;
 
 	/* route incoming urbs to nirvana */
 	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
-	/* stop urbs */
-	stop_and_unlink_urbs(ep, force, true);
+	/* stop and unlink urbs */
+	err = stop_urbs(ep, force);
+	if (err)
+		return err;
+
+	wait_clear_urbs(ep);
 
 	for (i = 0; i < ep->nurbs; i++)
 		release_urb_ctx(&ep->urb[i]);
@@ -928,6 +937,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 
 	ep->syncbuf = NULL;
 	ep->nurbs = 0;
+	return 0;
 }
 
 /*
@@ -1118,7 +1128,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep)
 	return 0;
 
 out_of_memory:
-	release_urbs(ep, 0);
+	release_urbs(ep, false);
 	return -ENOMEM;
 }
 
@@ -1162,7 +1172,7 @@ static int sync_ep_set_params(struct snd_usb_endpoint *ep)
 	return 0;
 
 out_of_memory:
-	release_urbs(ep, 0);
+	release_urbs(ep, false);
 	return -ENOMEM;
 }
 
@@ -1180,7 +1190,9 @@ static int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
 	int err;
 
 	/* release old buffers, if any */
-	release_urbs(ep, 0);
+	err = release_urbs(ep, false);
+	if (err < 0)
+		return err;
 
 	ep->datainterval = fmt->datainterval;
 	ep->maxpacksize = fmt->maxpacksize;
@@ -1360,7 +1372,8 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	 * from that context.
 	 */
 
-	set_bit(EP_FLAG_RUNNING, &ep->flags);
+	if (!ep_state_update(ep, EP_STATE_STOPPED, EP_STATE_RUNNING))
+		goto __error;
 
 	if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
 		for (i = 0; i < ep->nurbs; i++) {
@@ -1433,7 +1446,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 		WRITE_ONCE(ep->sync_source->sync_sink, NULL);
 
 	if (!atomic_dec_return(&ep->running))
-		stop_and_unlink_urbs(ep, false, false);
+		stop_urbs(ep, false);
 }
 
 /**
@@ -1446,12 +1459,12 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
  */
 void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
 {
-	release_urbs(ep, 1);
+	release_urbs(ep, true);
 }
 
 /**
  * snd_usb_endpoint_free_all: Free the resources of an snd_usb_endpoint
- * @card: The chip
+ * @chip: The chip
  *
  * This free all endpoints and those resources
  */

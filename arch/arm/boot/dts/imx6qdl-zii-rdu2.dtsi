@@ -112,17 +112,17 @@
 
 	sound1 {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "Front";
+		simple-audio-card,name = "front";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&sound1_codec>;
 		simple-audio-card,frame-master = <&sound1_codec>;
 		simple-audio-card,widgets =
 			"Headphone", "Headphone Jack";
 		simple-audio-card,routing =
-			"Headphone Jack", "HPLEFT",
-			"Headphone Jack", "HPRIGHT",
-			"LEFTIN", "HPL",
-			"RIGHTIN", "HPR";
+			"Headphone Jack", "HPA1 HPLEFT",
+			"Headphone Jack", "HPA1 HPRIGHT",
+			"HPA1 LEFTIN", "HPL",
+			"HPA1 RIGHTIN", "HPR";
 		simple-audio-card,aux-devs = <&hpa1>;
 
 		sound1_cpu: simple-audio-card,cpu {
@@ -137,17 +137,17 @@
 
 	sound2 {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "Back";
+		simple-audio-card,name = "periph";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&sound2_codec>;
 		simple-audio-card,frame-master = <&sound2_codec>;
 		simple-audio-card,widgets =
 			"Headphone", "Headphone Jack";
 		simple-audio-card,routing =
-			"Headphone Jack", "HPLEFT",
-			"Headphone Jack", "HPRIGHT",
-			"LEFTIN", "HPL",
-			"RIGHTIN", "HPR";
+			"Headphone Jack", "HPA1 HPLEFT",
+			"Headphone Jack", "HPA1 HPRIGHT",
+			"HPA1 LEFTIN", "HPL",
+			"HPA1 RIGHTIN", "HPR";
 		simple-audio-card,aux-devs = <&hpa2>;
 
 		sound2_cpu: simple-audio-card,cpu {
@@ -399,6 +399,7 @@
 		reg = <0x60>;
 		power-gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		Vdd-supply = <&reg_5p0v_main>;
+		sound-name-prefix = "HPA1";
 	};
 
 	edp-bridge@68 {
@@ -598,6 +599,8 @@
 			touchscreen-inverted-x;
 			touchscreen-swapped-x-y;
 			syna,sensor-type = <1>;
+			syna,delta-x-threshold = <5>;
+			syna,delta-y-threshold = <10>;
 		};
 
 		rmi4-f12@12 {
@@ -626,7 +629,7 @@
 		pinctrl-0 = <&pinctrl_ucs1002_pins>;
 		reg = <0x32>;
 		interrupts-extended = <&gpio5 2 IRQ_TYPE_EDGE_BOTH>,
-				      <&gpio3 21 IRQ_TYPE_EDGE_BOTH>;
+		                      <&gpio3 21 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-names = "a_det", "alert";
 	};
 
@@ -637,6 +640,7 @@
 		reg = <0x60>;
 		power-gpio = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		Vdd-supply = <&reg_5p0v_main>;
+		sound-name-prefix = "HPA1";
 	};
 };
 
@@ -885,10 +889,6 @@
 	};
 };
 
-&wdog1 {
-	status = "disabled";
-};
-
 &iomuxc {
 	pinctrl_accel: accelgrp {
 		fsl,pins = <
@@ -988,22 +988,22 @@
 
 	pinctrl_i2c1: i2c1grp {
 		fsl,pins = <
-			MX6QDL_PAD_CSI0_DAT8__I2C1_SDA		0x4001b8b1
-			MX6QDL_PAD_CSI0_DAT9__I2C1_SCL		0x4001b8b1
+			MX6QDL_PAD_CSI0_DAT8__I2C1_SDA		0x4001b811
+			MX6QDL_PAD_CSI0_DAT9__I2C1_SCL		0x4001b811
 		>;
 	};
 
 	pinctrl_i2c2: i2c2grp {
 		fsl,pins = <
-			MX6QDL_PAD_KEY_COL3__I2C2_SCL		0x4001b8b1
-			MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001b8b1
+			MX6QDL_PAD_KEY_COL3__I2C2_SCL		0x4001b811
+			MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001b811
 		>;
 	};
 
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins = <
-			MX6QDL_PAD_GPIO_3__I2C3_SCL		0x4001b8b1
-			MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b8b1
+			MX6QDL_PAD_GPIO_3__I2C3_SCL		0x4001b811
+			MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b811
 		>;
 	};
 

@@ -168,6 +168,12 @@ struct qede_dump_info {
 	u32 args[QEDE_DUMP_MAX_ARGS];
 };
 
+struct qede_coalesce {
+	bool isvalid;
+	u16 rxc;
+	u16 txc;
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -194,6 +200,7 @@ struct qede_dev {
 	((edev)->dev_info.common.dev_type == QED_DEV_TYPE_AH)
 
 	struct qede_fastpath		*fp_array;
+	struct qede_coalesce            *coal_entry;
 	u8				req_num_tx;
 	u8				fp_num_tx;
 	u8				req_num_rx;
@@ -581,6 +588,9 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 			    struct flow_cls_offload *f);
 
 void qede_forced_speed_maps_init(void);
+int qede_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal);
+int qede_set_per_coalesce(struct net_device *dev, u32 queue,
+			  struct ethtool_coalesce *coal);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))

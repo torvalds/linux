@@ -11,11 +11,7 @@ C MP+polocks
  * to see all prior accesses by those other CPUs.
  *)
 
-{
-	spinlock_t mylock;
-	int buf;
-	int flag;
-}
+{}
 
 P0(int *buf, int *flag, spinlock_t *mylock) // Producer
 {

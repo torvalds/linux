@@ -18,6 +18,7 @@ properties:
 
   compatible:
     enum:
+      - brcm,bcm2711-dsi1
       - brcm,bcm2835-dsi0
       - brcm,bcm2835-dsi1
 

@@ -24,8 +24,8 @@ properties:
   compatible:
     const: aspeed,ast2500-pinctrl
   reg:
-    description: |
-      A hint for the memory regions associated with the pin-controller
+    maxItems: 2
+
   aspeed,external-nodes:
     minItems: 2
     maxItems: 2
@@ -81,7 +81,7 @@ examples:
             reg = <0x1e6e2000 0x1a8>;
 
             pinctrl: pinctrl {
-                compatible = "aspeed,g5-pinctrl";
+                compatible = "aspeed,ast2500-pinctrl";
                 aspeed,external-nodes = <&gfx>, <&lhc>;
 
                 pinctrl_i2c3_default: i2c3_default {

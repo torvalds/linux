@@ -15,6 +15,7 @@
 
 #include <linux/amba/pl022.h>
 #include <linux/clk.h>
+#include <linux/clk/spear.h>
 #include <linux/clocksource.h>
 #include <linux/err.h>
 #include <linux/of.h>
