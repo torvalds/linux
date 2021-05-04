@@ -115,10 +115,14 @@ enum hl_mmu_page_table_location {
  *
  * - HL_RESET_HEARTBEAT
  *       Set if reset is due to heartbeat
+ *
+ * - HL_RESET_TDR
+ *       Set if reset is due to TDR
  */
 #define HL_RESET_HARD			(1 << 0)
 #define HL_RESET_FROM_RESET_THREAD	(1 << 1)
 #define HL_RESET_HEARTBEAT		(1 << 2)
+#define HL_RESET_TDR			(1 << 3)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 
@@ -2163,6 +2167,8 @@ struct hl_mmu_funcs {
  * @device_fini_pending: true if device_fini was called and might be
  *                       waiting for the reset thread to finish
  * @supports_staged_submission: true if staged submissions are supported
+ * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
+ *                    triggered, and cleared after it is shared with preboot.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2273,6 +2279,7 @@ struct hl_device {
 	u8				process_kill_trial_cnt;
 	u8				device_fini_pending;
 	u8				supports_staged_submission;
+	u8				curr_reset_cause;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;

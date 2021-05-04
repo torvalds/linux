@@ -302,17 +302,41 @@ struct cpu_dyn_regs {
 	__le32 reserved1[32];		/* reserve for future use */
 };
 
+/* TODO: remove the desc magic after the code is updated to use message */
 /* HCDM - Habana Communications Descriptor Magic */
 #define HL_COMMS_DESC_MAGIC	0x4843444D
 #define HL_COMMS_DESC_VER	1
 
+/* HCMv - Habana Communications Message + header version */
+#define HL_COMMS_MSG_MAGIC_VER(ver)	(0x48434D00 | ((ver) & 0xff))
+#define HL_COMMS_MSG_MAGIC_V0		HL_COMMS_DESC_MAGIC
+#define HL_COMMS_MSG_MAGIC_V1		HL_COMMS_MSG_MAGIC_VER(1)
+
+#define HL_COMMS_MSG_MAGIC		HL_COMMS_MSG_MAGIC_V1
+
+enum comms_msg_type {
+	HL_COMMS_DESC_TYPE = 0,
+	HL_COMMS_RESET_CAUSE_TYPE = 1,
+};
+
+/* TODO: remove this struct after the code is updated to use comms_msg_header */
 /* this is the comms descriptor header - meta data */
 struct comms_desc_header {
 	__le32 magic;		/* magic for validation */
 	__le32 crc32;		/* CRC32 of the descriptor w/o header */
 	__le16 size;		/* size of the descriptor w/o header */
-	__u8 version;	/* descriptor version */
+	__u8 version;		/* descriptor version */
 	__u8 reserved[5];	/* pad to 64 bit */
+};
+
+/* this is the comms message header - meta data */
+struct comms_msg_header {
+	__le32 magic;		/* magic for validation */
+	__le32 crc32;		/* CRC32 of the message w/o header */
+	__le16 size;		/* size of the message w/o header */
+	__u8 version;		/* message payload version */
+	__u8 type;		/* message type */
+	__u8 reserved[4];	/* pad to 64 bit */
 };
 
 /* this is the main FW descriptor - consider ABI when changing */
@@ -323,7 +347,37 @@ struct lkd_fw_comms_desc {
 	char cur_fw_ver[VERSION_MAX_LEN];
 	/* can be used for 1 more version w/o ABI change */
 	char reserved0[VERSION_MAX_LEN];
-	__le64 img_addr;	/* address for next FW component load */
+	/* address for next FW component load */
+	__le64 img_addr;
+};
+
+enum comms_reset_cause {
+	HL_RESET_CAUSE_UNKNOWN = 0,
+	HL_RESET_CAUSE_HEARTBEAT = 1,
+	HL_RESET_CAUSE_TDR = 2,
+};
+
+#define RESET_CAUSE_PADDING	7
+
+/* this is the comms message descriptor */
+struct lkd_msg_comms {
+	struct comms_msg_header header;
+	/* union for future expantions of new messages */
+	union {
+		struct {
+			struct cpu_dyn_regs cpu_dyn_regs;
+			char fuse_ver[VERSION_MAX_LEN];
+			char cur_fw_ver[VERSION_MAX_LEN];
+			/* can be used for 1 more version w/o ABI change */
+			char reserved0[VERSION_MAX_LEN];
+			/* address for next FW component load */
+			__le64 img_addr;
+		};
+		struct {
+			__u8 reset_cause;
+			__u8 reserved[RESET_CAUSE_PADDING]; /* 64 bit pad */
+		};
+	};
 };
 
 /*
@@ -395,7 +449,7 @@ enum comms_cmd {
 struct comms_command {
 	union {		/* bit fields are only for FW use */
 		struct {
-			u32 size :25;		/* 32MB max. */
+			u32 size :25;			/* 32MB max. */
 			u32 reserved :2;
 			enum comms_cmd cmd :5;		/* 32 commands */
 		};

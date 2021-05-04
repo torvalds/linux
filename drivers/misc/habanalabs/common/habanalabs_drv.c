@@ -330,6 +330,8 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 
 	set_driver_behavior_per_device(hdev);
 
+	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+
 	if (timeout_locked)
 		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
 	else

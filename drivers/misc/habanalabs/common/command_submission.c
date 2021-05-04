@@ -614,7 +614,7 @@ static void cs_timedout(struct work_struct *work)
 	cs_put(cs);
 
 	if (hdev->reset_on_lockup)
-		hl_device_reset(hdev, 0);
+		hl_device_reset(hdev, HL_RESET_TDR);
 	else
 		hdev->needs_reset = true;
 }

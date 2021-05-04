@@ -104,6 +104,41 @@ static int hl_fw_copy_fw_to_device(struct hl_device *hdev,
 }
 
 /**
+ * hl_fw_copy_msg_to_device() - copy message to device
+ *
+ * @hdev: pointer to hl_device structure.
+ * @msg: message
+ * @dst: IO memory mapped address space to copy firmware to
+ * @src_offset: offset in src message to copy from
+ * @size: amount of bytes to copy (0 to copy the whole binary)
+ *
+ * actual copy of message data to device.
+ */
+static int hl_fw_copy_msg_to_device(struct hl_device *hdev,
+		struct lkd_msg_comms *msg, void __iomem *dst,
+		u32 src_offset, u32 size)
+{
+	void *msg_data;
+
+	/* size 0 indicates to copy the whole file */
+	if (!size)
+		size = sizeof(struct lkd_msg_comms);
+
+	if (src_offset + size > sizeof(struct lkd_msg_comms)) {
+		dev_err(hdev->dev,
+			"size to copy(%u) and offset(%u) are invalid\n",
+			size, src_offset);
+		return -EINVAL;
+	}
+
+	msg_data = (void *) msg;
+
+	memcpy_toio(dst, msg_data + src_offset, size);
+
+	return 0;
+}
+
+/**
  * hl_fw_load_fw_to_device() - Load F/W code to device's memory.
  *
  * @hdev: pointer to hl_device structure.
@@ -1699,6 +1734,36 @@ static int hl_fw_dynamic_copy_image(struct hl_device *hdev,
 }
 
 /**
+ * hl_fw_dynamic_copy_msg - copy msg to memory allocated by the FW
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @msg: message
+ * @fw_loader: managing structure for loading device's FW
+ */
+static int hl_fw_dynamic_copy_msg(struct hl_device *hdev,
+		struct lkd_msg_comms *msg, struct fw_load_mgr *fw_loader)
+{
+	struct lkd_fw_comms_desc *fw_desc;
+	struct pci_mem_region *region;
+	void __iomem *dest;
+	u64 addr;
+	int rc;
+
+	fw_desc = &fw_loader->dynamic_loader.comm_desc;
+	addr = le64_to_cpu(fw_desc->img_addr);
+
+	/* find memory region to which to copy the image */
+	region = fw_loader->dynamic_loader.image_region;
+
+	dest = hdev->pcie_bar[region->bar_id] + region->offset_in_bar +
+					(addr - region->region_base);
+
+	rc = hl_fw_copy_msg_to_device(hdev, msg, dest, 0, 0);
+
+	return rc;
+}
+
+/**
  * hl_fw_boot_fit_update_state - update internal data structures after boot-fit
  *                               is loaded
  *
@@ -1771,7 +1836,6 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 	} else {
 		cur_fwc = FW_COMP_BOOT_FIT;
 		fw_name = fw_loader->linux_img.image_name;
-
 	}
 
 	/* request FW in order to communicate to FW the size to be allocated */
@@ -1928,6 +1992,57 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 }
 
 /**
+ * hl_fw_dynamic_report_reset_cause - send a COMMS message with the cause
+ *                                    of the newly triggered hard reset
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @fw_loader: managing structure for loading device's FW
+ * @reset_cause: enumerated cause for the recent hard reset
+ *
+ * @return 0 on success, otherwise non-zero error code
+ */
+static int hl_fw_dynamic_report_reset_cause(struct hl_device *hdev,
+		struct fw_load_mgr *fw_loader,
+		enum comms_reset_cause reset_cause)
+{
+	struct lkd_msg_comms msg;
+	int rc;
+
+	memset(&msg, 0, sizeof(msg));
+
+	/* create message to be sent */
+	msg.header.type = HL_COMMS_RESET_CAUSE_TYPE;
+	msg.header.size = cpu_to_le16(sizeof(struct comms_msg_header));
+	msg.header.magic = cpu_to_le32(HL_COMMS_MSG_MAGIC);
+
+	msg.reset_cause = reset_cause;
+
+	rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader,
+			sizeof(struct lkd_msg_comms));
+	if (rc)
+		return rc;
+
+	/* copy message to space allocated by FW */
+	rc = hl_fw_dynamic_copy_msg(hdev, &msg, fw_loader);
+	if (rc)
+		return rc;
+
+	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_DATA_RDY,
+						0, true,
+						fw_loader->cpu_timeout);
+	if (rc)
+		return rc;
+
+	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_EXEC,
+						0, true,
+						fw_loader->cpu_timeout);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/**
  * hl_fw_dynamic_init_cpu - initialize the device CPU using dynamic protocol
  *
  * @hdev: pointer to the habanalabs device structure
@@ -1961,6 +2076,16 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 						fw_loader->cpu_timeout);
 	if (rc)
 		goto protocol_err;
+
+	if (hdev->curr_reset_cause) {
+		rc = hl_fw_dynamic_report_reset_cause(hdev, fw_loader,
+				hdev->curr_reset_cause);
+		if (rc)
+			goto protocol_err;
+
+		/* Clear current reset cause */
+		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	}
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
 		/* update the preboot state */

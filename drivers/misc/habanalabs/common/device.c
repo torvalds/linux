@@ -901,6 +901,19 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 			return 0;
 
 		/*
+		 * 'reset cause' is being updated here, because getting here
+		 * means that it's the 1st time and the last time we're here
+		 * ('in_reset' makes sure of it). This makes sure that
+		 * 'reset_cause' will continue holding its 1st recorded reason!
+		 */
+		if (flags & HL_RESET_HEARTBEAT)
+			hdev->curr_reset_cause = HL_RESET_CAUSE_HEARTBEAT;
+		else if (flags & HL_RESET_TDR)
+			hdev->curr_reset_cause = HL_RESET_CAUSE_TDR;
+		else
+			hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+
+		/*
 		 * if reset is due to heartbeat, device CPU is no responsive in
 		 * which case no point sending PCI disable message to it
 		 */
@@ -943,9 +956,8 @@ again:
 		hdev->process_kill_trial_cnt = 0;
 
 		/*
-		 * Because the reset function can't run from interrupt or
-		 * from heartbeat work, we need to call the reset function
-		 * from a dedicated work
+		 * Because the reset function can't run from heartbeat work,
+		 * we need to call the reset function from a dedicated work.
 		 */
 		queue_delayed_work(hdev->device_reset_work.wq,
 			&hdev->device_reset_work.reset_work, 0);
