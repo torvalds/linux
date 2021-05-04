@@ -311,6 +311,7 @@ config PCIE_AL
 	depends on OF && (ARM64 || COMPILE_TEST)
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	select PCI_ECAM
 	help
 	  Say Y here to enable support of the Amazon's Annapurna Labs PCIe
 	  controller IP on Amazon SoCs. The PCIe controller uses the DesignWare
