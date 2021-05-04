@@ -88,7 +88,7 @@ static void berlin_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static int berlin_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			     int duty_ns, int period_ns)
+			     u64 duty_ns, u64 period_ns)
 {
 	struct berlin_pwm_chip *bpc = to_berlin_pwm_chip(chip);
 	bool prescale_4096 = false;
@@ -167,13 +167,46 @@ static void berlin_pwm_disable(struct pwm_chip *chip,
 	berlin_pwm_writel(bpc, pwm->hwpwm, value, BERLIN_PWM_EN);
 }
 
+static int berlin_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			    const struct pwm_state *state)
+{
+	int err;
+	bool enabled = pwm->state.enabled;
+
+	if (state->polarity != pwm->state.polarity) {
+		if (enabled) {
+			berlin_pwm_disable(chip, pwm);
+			enabled = false;
+		}
+
+		err = berlin_pwm_set_polarity(chip, pwm, state->polarity);
+		if (err)
+			return err;
+	}
+
+	if (!state->enabled) {
+		if (enabled)
+			berlin_pwm_disable(chip, pwm);
+		return 0;
+	}
+
+	if (state->period != pwm->state.period ||
+	    state->duty_cycle != pwm->state.duty_cycle) {
+		err = berlin_pwm_config(chip, pwm, state->duty_cycle, state->period);
+		if (err)
+			return err;
+	}
+
+	if (!enabled)
+		return berlin_pwm_enable(chip, pwm);
+
+	return 0;
+}
+
 static const struct pwm_ops berlin_pwm_ops = {
 	.request = berlin_pwm_request,
 	.free = berlin_pwm_free,
-	.config = berlin_pwm_config,
-	.set_polarity = berlin_pwm_set_polarity,
-	.enable = berlin_pwm_enable,
-	.disable = berlin_pwm_disable,
+	.apply = berlin_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
