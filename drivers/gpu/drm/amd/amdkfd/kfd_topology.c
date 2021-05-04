@@ -1430,13 +1430,13 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	adev = (struct amdgpu_device *)(dev->gpu->kgd);
 	/* kfd only concerns sram ecc on GFX and HBM ecc on UMC */
 	dev->node_props.capability |=
-		((adev->ras_features & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
+		((adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
 		HSA_CAP_SRAM_EDCSUPPORTED : 0;
-	dev->node_props.capability |= ((adev->ras_features & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
+	dev->node_props.capability |= ((adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
 		HSA_CAP_MEM_EDCSUPPORTED : 0;
 
 	if (adev->asic_type != CHIP_VEGA10)
-		dev->node_props.capability |= (adev->ras_features != 0) ?
+		dev->node_props.capability |= (adev->ras_enabled != 0) ?
 			HSA_CAP_RASEVENTNOTIFY : 0;
 
 	/* SVM API and HMM page migration work together, device memory type

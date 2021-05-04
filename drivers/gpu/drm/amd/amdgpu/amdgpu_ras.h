@@ -475,7 +475,7 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 
 	if (block >= AMDGPU_RAS_BLOCK_COUNT)
 		return 0;
-	return ras && (adev->ras_features & (1 << block));
+	return ras && (adev->ras_enabled & (1 << block));
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev);

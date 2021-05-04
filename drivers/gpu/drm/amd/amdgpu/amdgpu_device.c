@@ -5108,7 +5108,7 @@ int amdgpu_device_baco_enter(struct drm_device *dev)
 	if (!amdgpu_device_supports_baco(adev_to_drm(adev)))
 		return -ENOTSUPP;
 
-	if (ras && adev->ras_features &&
+	if (ras && adev->ras_enabled &&
 	    adev->nbio.funcs->enable_doorbell_interrupt)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, false);
 
@@ -5128,7 +5128,7 @@ int amdgpu_device_baco_exit(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	if (ras && adev->ras_features &&
+	if (ras && adev->ras_enabled &&
 	    adev->nbio.funcs->enable_doorbell_interrupt)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, true);
 

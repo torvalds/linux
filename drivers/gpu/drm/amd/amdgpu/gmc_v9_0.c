@@ -1262,7 +1262,7 @@ static int gmc_v9_0_late_init(void *handle)
 	 * writes, while disables HBM ECC for vega10.
 	 */
 	if (!amdgpu_sriov_vf(adev) && (adev->asic_type == CHIP_VEGA10)) {
-		if (!(adev->ras_features & (1 << AMDGPU_RAS_BLOCK__UMC))) {
+		if (!(adev->ras_enabled & (1 << AMDGPU_RAS_BLOCK__UMC))) {
 			if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
 				adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
 		}

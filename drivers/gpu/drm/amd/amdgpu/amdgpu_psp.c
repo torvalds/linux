@@ -2146,7 +2146,7 @@ static int psp_load_smu_fw(struct psp_context *psp)
 		return 0;
 
 	if ((amdgpu_in_reset(adev) &&
-	     ras && adev->ras_features &&
+	     ras && adev->ras_enabled &&
 	     (adev->asic_type == CHIP_ARCTURUS ||
 	      adev->asic_type == CHIP_VEGA20)) ||
 	     (adev->in_runpm &&

@@ -655,7 +655,7 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 	int ret = 0;
 
 	/* avoid NBIF got stuck when do RAS recovery in BACO reset */
-	if (ras && adev->ras_features)
+	if (ras && adev->ras_enabled)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, false);
 
 	ret = amdgpu_dpm_baco_reset(adev);
@@ -663,7 +663,7 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 		return ret;
 
 	/* re-enable doorbell interrupt after BACO exit */
-	if (ras && adev->ras_features)
+	if (ras && adev->ras_enabled)
 		adev->nbio.funcs->enable_doorbell_interrupt(adev, true);
 
 	return 0;
@@ -710,7 +710,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		 * 1. PMFW version > 0x284300: all cases use baco
 		 * 2. PMFW version <= 0x284300: only sGPU w/o RAS use baco
 		 */
-		if (ras && adev->ras_features &&
+		if (ras && adev->ras_enabled &&
 		    adev->pm.fw_version <= 0x283400)
 			baco_reset = false;
 		break;
