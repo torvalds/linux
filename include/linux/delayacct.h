@@ -58,8 +58,10 @@ struct task_delay_info {
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/jump_label.h>
 
 #ifdef CONFIG_TASK_DELAY_ACCT
+DECLARE_STATIC_KEY_TRUE(delayacct_key);
 extern int delayacct_on;	/* Delay accounting turned on/off */
 extern struct kmem_cache *delayacct_cache;
 extern void delayacct_init(void);
@@ -114,6 +116,9 @@ static inline void delayacct_tsk_free(struct task_struct *tsk)
 
 static inline void delayacct_blkio_start(void)
 {
+	if (!static_branch_likely(&delayacct_key))
+		return;
+
 	delayacct_set_flag(current, DELAYACCT_PF_BLKIO);
 	if (current->delays)
 		__delayacct_blkio_start();
@@ -121,6 +126,9 @@ static inline void delayacct_blkio_start(void)
 
 static inline void delayacct_blkio_end(struct task_struct *p)
 {
+	if (!static_branch_likely(&delayacct_key))
+		return;
+
 	if (p->delays)
 		__delayacct_blkio_end(p);
 	delayacct_clear_flag(p, DELAYACCT_PF_BLKIO);
