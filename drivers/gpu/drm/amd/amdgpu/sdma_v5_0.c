@@ -405,18 +405,6 @@ static void sdma_v5_0_ring_emit_ib(struct amdgpu_ring *ring,
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	uint64_t csa_mc_addr = amdgpu_sdma_get_csa_mc_addr(ring, vmid);
 
-	/* Invalidate L2, because if we don't do it, we might get stale cache
-	 * lines from previous IBs.
-	 */
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_GCR_REQ));
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, (SDMA_GCR_GL2_INV |
-				 SDMA_GCR_GL2_WB |
-				 SDMA_GCR_GLM_INV |
-				 SDMA_GCR_GLM_WB) << 16);
-	amdgpu_ring_write(ring, 0xffffff80);
-	amdgpu_ring_write(ring, 0xffff);
-
 	/* An IB packet must end on a 8 DW boundary--the next dword
 	 * must be on a 8-dword boundary. Our IB packet below is 6
 	 * dwords long, thus add x number of NOPs, such that, in
