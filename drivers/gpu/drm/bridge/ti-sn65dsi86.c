@@ -1251,7 +1251,7 @@ static int __init ti_sn_gpio_register(void)
 	return auxiliary_driver_register(&ti_sn_gpio_driver);
 }
 
-static void __exit ti_sn_gpio_unregister(void)
+static void ti_sn_gpio_unregister(void)
 {
 	auxiliary_driver_unregister(&ti_sn_gpio_driver);
 }
