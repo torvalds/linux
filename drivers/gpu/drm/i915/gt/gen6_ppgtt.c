@@ -343,7 +343,7 @@ static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 	if (!vma)
 		return ERR_PTR(-ENOMEM);
 
-	i915_active_init(&vma->active, NULL, NULL);
+	i915_active_init(&vma->active, NULL, NULL, 0);
 
 	kref_init(&vma->ref);
 	mutex_init(&vma->pages_mutex);

@@ -51,7 +51,7 @@ static int __live_active(struct i915_active *base)
 	return 0;
 }
 
-__i915_active_call static void __live_retire(struct i915_active *base)
+static void __live_retire(struct i915_active *base)
 {
 	struct live_active *active = container_of(base, typeof(*active), base);
 
@@ -68,7 +68,7 @@ static struct live_active *__live_alloc(struct drm_i915_private *i915)
 		return NULL;
 
 	kref_init(&active->ref);
-	i915_active_init(&active->base, __live_active, __live_retire);
+	i915_active_init(&active->base, __live_active, __live_retire, 0);
 
 	return active;
 }

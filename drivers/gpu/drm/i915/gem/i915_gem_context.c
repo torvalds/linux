@@ -1046,7 +1046,6 @@ struct context_barrier_task {
 	void *data;
 };
 
-__i915_active_call
 static void cb_retire(struct i915_active *base)
 {
 	struct context_barrier_task *cb = container_of(base, typeof(*cb), base);
@@ -1080,7 +1079,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	if (!cb)
 		return -ENOMEM;
 
-	i915_active_init(&cb->base, NULL, cb_retire);
+	i915_active_init(&cb->base, NULL, cb_retire, 0);
 	err = i915_active_acquire(&cb->base);
 	if (err) {
 		kfree(cb);
