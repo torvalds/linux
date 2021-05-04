@@ -817,28 +817,17 @@ static int mmc_send_hpi_cmd(struct mmc_card *card)
 {
 	unsigned int busy_timeout_ms = card->ext_csd.out_of_int_time;
 	struct mmc_host *host = card->host;
-	bool use_r1b_resp = true;
+	bool use_r1b_resp = false;
 	struct mmc_command cmd = {};
 	int err;
 
 	cmd.opcode = card->ext_csd.hpi_cmd;
 	cmd.arg = card->rca << 16 | 1;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
-	/*
-	 * Make sure the host's max_busy_timeout fit the needed timeout for HPI.
-	 * In case it doesn't, let's instruct the host to avoid HW busy
-	 * detection, by using a R1 response instead of R1B.
-	 */
-	if (host->max_busy_timeout && busy_timeout_ms > host->max_busy_timeout)
-		use_r1b_resp = false;
-
-	if (cmd.opcode == MMC_STOP_TRANSMISSION && use_r1b_resp) {
-		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-		cmd.busy_timeout = busy_timeout_ms;
-	} else {
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-		use_r1b_resp = false;
-	}
+	if (cmd.opcode == MMC_STOP_TRANSMISSION)
+		use_r1b_resp = mmc_prepare_busy_cmd(host, &cmd,
+						    busy_timeout_ms);
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err) {
