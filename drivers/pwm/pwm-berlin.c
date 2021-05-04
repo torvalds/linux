@@ -256,12 +256,12 @@ static int berlin_pwm_probe(struct platform_device *pdev)
 static int berlin_pwm_remove(struct platform_device *pdev)
 {
 	struct berlin_pwm_chip *bpc = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&bpc->chip);
+	pwmchip_remove(&bpc->chip);
+
 	clk_disable_unprepare(bpc->clk);
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
