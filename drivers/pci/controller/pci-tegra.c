@@ -2546,7 +2546,7 @@ static void *tegra_pcie_ports_seq_start(struct seq_file *s, loff_t *pos)
 	if (list_empty(&pcie->ports))
 		return NULL;
 
-	seq_printf(s, "Index  Status\n");
+	seq_puts(s, "Index  Status\n");
 
 	return seq_list_start(&pcie->ports, *pos);
 }
@@ -2583,16 +2583,16 @@ static int tegra_pcie_ports_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, "%2u     ", port->index);
 
 	if (up)
-		seq_printf(s, "up");
+		seq_puts(s, "up");
 
 	if (active) {
 		if (up)
-			seq_printf(s, ", ");
+			seq_puts(s, ", ");
 
-		seq_printf(s, "active");
+		seq_puts(s, "active");
 	}
 
-	seq_printf(s, "\n");
+	seq_puts(s, "\n");
 	return 0;
 }
 
