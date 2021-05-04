@@ -632,14 +632,8 @@ void irq_init_desc(unsigned int irq)
 
 #endif /* !CONFIG_SPARSE_IRQ */
 
-/**
- * generic_handle_irq - Invoke the handler for a particular irq
- * @irq:	The irq number to handle
- *
- */
-int generic_handle_irq(unsigned int irq)
+int handle_irq_desc(struct irq_desc *desc)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
 	struct irq_data *data;
 
 	if (!desc)
@@ -651,6 +645,17 @@ int generic_handle_irq(unsigned int irq)
 
 	generic_handle_irq_desc(desc);
 	return 0;
+}
+EXPORT_SYMBOL_GPL(handle_irq_desc);
+
+/**
+ * generic_handle_irq - Invoke the handler for a particular irq
+ * @irq:	The irq number to handle
+ *
+ */
+int generic_handle_irq(unsigned int irq)
+{
+	return handle_irq_desc(irq_to_desc(irq));
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);
 
@@ -668,26 +673,31 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 			bool lookup, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	unsigned int irq = hwirq;
+	struct irq_desc *desc;
 	int ret = 0;
 
 	irq_enter();
 
-#ifdef CONFIG_IRQ_DOMAIN
-	if (lookup)
-		irq = irq_find_mapping(domain, hwirq);
-#endif
-
-	/*
-	 * Some hardware gives randomly wrong interrupts.  Rather
-	 * than crashing, do something sensible.
-	 */
-	if (unlikely(!irq || irq >= nr_irqs)) {
-		ack_bad_irq(irq);
-		ret = -EINVAL;
+	if (likely(IS_ENABLED(CONFIG_IRQ_DOMAIN) && lookup)) {
+		/* The irqdomain code provides boundary checks */
+		desc = irq_resolve_mapping(domain, hwirq);
 	} else {
-		generic_handle_irq(irq);
+		/*
+		 * Some hardware gives randomly wrong interrupts.  Rather
+		 * than crashing, do something sensible.
+		 */
+		if (unlikely(!hwirq || hwirq >= nr_irqs)) {
+			ack_bad_irq(hwirq);
+			desc = NULL;
+		} else {
+			desc = irq_to_desc(hwirq);
+		}
 	}
+
+	if (likely(desc))
+		handle_irq_desc(desc);
+	else
+		ret = -EINVAL;
 
 	irq_exit();
 	set_irq_regs(old_regs);
@@ -709,7 +719,7 @@ int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
 		      struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	unsigned int irq;
+	struct irq_desc *desc;
 	int ret = 0;
 
 	/*
@@ -717,14 +727,14 @@ int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
 	 */
 	WARN_ON(!in_nmi());
 
-	irq = irq_find_mapping(domain, hwirq);
+	desc = irq_resolve_mapping(domain, hwirq);
 
 	/*
 	 * ack_bad_irq is not NMI-safe, just report
 	 * an invalid interrupt.
 	 */
-	if (likely(irq))
-		generic_handle_irq(irq);
+	if (likely(desc))
+		handle_irq_desc(desc);
 	else
 		ret = -EINVAL;
 

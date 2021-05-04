@@ -158,6 +158,7 @@ static inline void generic_handle_irq_desc(struct irq_desc *desc)
 	desc->handle_irq(desc);
 }
 
+int handle_irq_desc(struct irq_desc *desc);
 int generic_handle_irq(unsigned int irq);
 
 #ifdef CONFIG_HANDLE_DOMAIN_IRQ
