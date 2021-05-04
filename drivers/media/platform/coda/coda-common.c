@@ -1935,7 +1935,7 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 	if (name && parent) {
 		buf->blob.data = buf->vaddr;
 		buf->blob.size = size;
-		buf->dentry = debugfs_create_blob(name, 0644, parent,
+		buf->dentry = debugfs_create_blob(name, 0444, parent,
 						  &buf->blob);
 	}
 
@@ -3233,7 +3233,7 @@ static int coda_probe(struct platform_device *pdev)
 		memset(dev->iram.vaddr, 0, dev->iram.size);
 		dev->iram.blob.data = dev->iram.vaddr;
 		dev->iram.blob.size = dev->iram.size;
-		dev->iram.dentry = debugfs_create_blob("iram", 0644,
+		dev->iram.dentry = debugfs_create_blob("iram", 0444,
 						       dev->debugfs_root,
 						       &dev->iram.blob);
 	}
