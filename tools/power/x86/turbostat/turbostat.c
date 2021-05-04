@@ -667,6 +667,12 @@ struct msr_counter bic[] = {
 #define	BIC_GFXACTMHz	(1ULL << 51)
 #define	BIC_IPC		(1ULL << 52)
 
+#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
+#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
+#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
+#define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
+#define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
+
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
 unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
@@ -748,6 +754,18 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 
 		if (!strcmp(name_list, "all"))
 			return ~0;
+		if (!strcmp(name_list, "topology"))
+			return BIC_TOPOLOGY;
+		if (!strcmp(name_list, "power"))
+			return BIC_THERMAL_PWR;
+		if (!strcmp(name_list, "idle"))
+			return BIC_IDLE;
+		if (!strcmp(name_list, "frequency"))
+			return BIC_FREQUENCY;
+		if (!strcmp(name_list, "other"))
+			return BIC_OTHER;
+		if (!strcmp(name_list, "all"))
+			return 0;
 
 		for (i = 0; i < MAX_BIC; ++i) {
 			if (!strcmp(name_list, bic[i].name)) {
