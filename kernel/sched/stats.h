@@ -25,7 +25,7 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 }
 
 static inline void
-rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
+rq_sched_info_dequeue(struct rq *rq, unsigned long long delta)
 {
 	if (rq)
 		rq->rq_sched_info.run_delay += delta;
@@ -42,7 +42,7 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 
 #else /* !CONFIG_SCHEDSTATS: */
 static inline void rq_sched_info_arrive  (struct rq *rq, unsigned long long delta) { }
-static inline void rq_sched_info_dequeued(struct rq *rq, unsigned long long delta) { }
+static inline void rq_sched_info_dequeue(struct rq *rq, unsigned long long delta) { }
 static inline void rq_sched_info_depart  (struct rq *rq, unsigned long long delta) { }
 # define   schedstat_enabled()		0
 # define __schedstat_inc(var)		do { } while (0)
@@ -161,7 +161,7 @@ static inline void sched_info_reset_dequeued(struct task_struct *t)
  * from dequeue_task() to account for possible rq->clock skew across CPUs. The
  * delta taken on each CPU would annul the skew.
  */
-static inline void sched_info_dequeued(struct rq *rq, struct task_struct *t)
+static inline void sched_info_dequeue(struct rq *rq, struct task_struct *t)
 {
 	unsigned long long now = rq_clock(rq), delta = 0;
 
@@ -172,7 +172,7 @@ static inline void sched_info_dequeued(struct rq *rq, struct task_struct *t)
 	sched_info_reset_dequeued(t);
 	t->sched_info.run_delay += delta;
 
-	rq_sched_info_dequeued(rq, delta);
+	rq_sched_info_dequeue(rq, delta);
 }
 
 /*
@@ -197,9 +197,9 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 /*
  * This function is only called from enqueue_task(), but also only updates
  * the timestamp if it is already not set.  It's assumed that
- * sched_info_dequeued() will clear that stamp when appropriate.
+ * sched_info_dequeue() will clear that stamp when appropriate.
  */
-static inline void sched_info_queued(struct rq *rq, struct task_struct *t)
+static inline void sched_info_enqueue(struct rq *rq, struct task_struct *t)
 {
 	if (sched_info_on()) {
 		if (!t->sched_info.last_queued)
@@ -212,7 +212,7 @@ static inline void sched_info_queued(struct rq *rq, struct task_struct *t)
  * due, typically, to expiring its time slice (this may also be called when
  * switching to the idle task).  Now we can calculate how long we ran.
  * Also, if the process is still in the TASK_RUNNING state, call
- * sched_info_queued() to mark that it has now again started waiting on
+ * sched_info_enqueue() to mark that it has now again started waiting on
  * the runqueue.
  */
 static inline void sched_info_depart(struct rq *rq, struct task_struct *t)
@@ -222,7 +222,7 @@ static inline void sched_info_depart(struct rq *rq, struct task_struct *t)
 	rq_sched_info_depart(rq, delta);
 
 	if (t->state == TASK_RUNNING)
-		sched_info_queued(rq, t);
+		sched_info_enqueue(rq, t);
 }
 
 /*
@@ -253,9 +253,9 @@ sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *n
 }
 
 #else /* !CONFIG_SCHED_INFO: */
-# define sched_info_queued(rq, t)	do { } while (0)
+# define sched_info_enqueue(rq, t)	do { } while (0)
 # define sched_info_reset_dequeued(t)	do { } while (0)
-# define sched_info_dequeued(rq, t)	do { } while (0)
+# define sched_info_dequeue(rq, t)	do { } while (0)
 # define sched_info_depart(rq, t)	do { } while (0)
 # define sched_info_arrive(rq, next)	do { } while (0)
 # define sched_info_switch(rq, t, next)	do { } while (0)
