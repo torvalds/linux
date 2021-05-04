@@ -1959,7 +1959,10 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	if (k.k->type != KEY_TYPE_reflink_v &&
 	    k.k->type != KEY_TYPE_indirect_inline_data) {
 		bch_err_inum_ratelimited(trans->c, orig_k->k->k.p.inode,
-				"pointer to nonexistent indirect extent");
+			"%llu len %u points to nonexistent indirect extent %llu",
+			orig_k->k->k.p.offset,
+			orig_k->k->k.size,
+			reflink_offset);
 		bch2_inconsistent_error(trans->c);
 		ret = -EIO;
 		goto err;
