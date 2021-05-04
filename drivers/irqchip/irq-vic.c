@@ -225,7 +225,7 @@ static void vic_handle_irq_cascaded(struct irq_desc *desc)
 
 	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		hwirq = ffs(stat) - 1;
-		generic_handle_irq(irq_find_mapping(vic->domain, hwirq));
+		generic_handle_domain_irq(vic->domain, hwirq);
 	}
 
 	chained_irq_exit(host_chip, desc);

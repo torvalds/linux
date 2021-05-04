@@ -161,7 +161,7 @@ static void bcm2836_arm_irqchip_handle_ipi(struct irq_desc *desc)
 	mbox_val = readl_relaxed(intc.base + LOCAL_MAILBOX0_CLR0 + 16 * cpu);
 	if (mbox_val) {
 		int hwirq = ffs(mbox_val) - 1;
-		generic_handle_irq(irq_find_mapping(ipi_domain, hwirq));
+		generic_handle_domain_irq(ipi_domain, hwirq);
 	}
 
 	chained_irq_exit(chip, desc);

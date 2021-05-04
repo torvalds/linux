@@ -85,7 +85,7 @@ static void realtek_irq_dispatch(struct irq_desc *desc)
 		goto out;
 	}
 	domain = irq_desc_get_handler_data(desc);
-	generic_handle_irq(irq_find_mapping(domain, __ffs(pending)));
+	generic_handle_domain_irq(domain, __ffs(pending));
 
 out:
 	chained_irq_exit(chip, desc);

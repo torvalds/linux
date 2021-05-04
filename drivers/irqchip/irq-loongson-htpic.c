@@ -48,7 +48,7 @@ static void htpic_irq_dispatch(struct irq_desc *desc)
 			break;
 		}
 
-		generic_handle_irq(irq_linear_revmap(priv->domain, bit));
+		generic_handle_domain_irq(priv->domain, bit);
 		pending &= ~BIT(bit);
 	}
 	chained_irq_exit(chip, desc);

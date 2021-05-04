@@ -223,7 +223,7 @@ static void pdc_intc_perip_isr(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct pdc_intc_priv *priv;
-	unsigned int i, irq_no;
+	unsigned int i;
 
 	priv = (struct pdc_intc_priv *)irq_desc_get_handler_data(desc);
 
@@ -237,14 +237,13 @@ static void pdc_intc_perip_isr(struct irq_desc *desc)
 found:
 
 	/* pass on the interrupt */
-	irq_no = irq_linear_revmap(priv->domain, i);
-	generic_handle_irq(irq_no);
+	generic_handle_domain_irq(priv->domain, i);
 }
 
 static void pdc_intc_syswake_isr(struct irq_desc *desc)
 {
 	struct pdc_intc_priv *priv;
-	unsigned int syswake, irq_no;
+	unsigned int syswake;
 	unsigned int status;
 
 	priv = (struct pdc_intc_priv *)irq_desc_get_handler_data(desc);
@@ -258,9 +257,7 @@ static void pdc_intc_syswake_isr(struct irq_desc *desc)
 		if (!(status & 1))
 			continue;
 
-		irq_no = irq_linear_revmap(priv->domain,
-					   syswake_to_hwirq(syswake));
-		generic_handle_irq(irq_no);
+		generic_handle_domain_irq(priv->domain, syswake_to_hwirq(syswake));
 	}
 }
 
