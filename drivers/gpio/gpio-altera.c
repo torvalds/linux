@@ -201,9 +201,8 @@ static void altera_gpio_irq_edge_handler(struct irq_desc *desc)
 	      (readl(mm_gc->regs + ALTERA_GPIO_EDGE_CAP) &
 	      readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK)))) {
 		writel(status, mm_gc->regs + ALTERA_GPIO_EDGE_CAP);
-		for_each_set_bit(i, &status, mm_gc->gc.ngpio) {
-			generic_handle_irq(irq_find_mapping(irqdomain, i));
-		}
+		for_each_set_bit(i, &status, mm_gc->gc.ngpio)
+			generic_handle_domain_irq(irqdomain, i);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -228,9 +227,9 @@ static void altera_gpio_irq_leveL_high_handler(struct irq_desc *desc)
 	status = readl(mm_gc->regs + ALTERA_GPIO_DATA);
 	status &= readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
 
-	for_each_set_bit(i, &status, mm_gc->gc.ngpio) {
-		generic_handle_irq(irq_find_mapping(irqdomain, i));
-	}
+	for_each_set_bit(i, &status, mm_gc->gc.ngpio)
+		generic_handle_domain_irq(irqdomain, i);
+
 	chained_irq_exit(chip, desc);
 }
 
