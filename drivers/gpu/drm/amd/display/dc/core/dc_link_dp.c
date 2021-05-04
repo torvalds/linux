@@ -1170,8 +1170,16 @@ static inline enum link_training_result dp_transition_to_video_idle(
 	 * TPS4 must be used instead of POST_LT_ADJ_REQ.
 	 */
 	if (link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED != 1 ||
-			lt_settings->pattern_for_eq == DP_TRAINING_PATTERN_SEQUENCE_4)
+			lt_settings->pattern_for_eq == DP_TRAINING_PATTERN_SEQUENCE_4) {
+		/* delay 5ms after Main Link output idle pattern and then check
+		 * DPCD 0202h.
+		 */
+		if (link->connector_signal != SIGNAL_TYPE_EDP && status == LINK_TRAINING_SUCCESS) {
+			msleep(5);
+			status = dp_check_link_loss_status(link, lt_settings);
+		}
 		return status;
+	}
 
 	if (status == LINK_TRAINING_SUCCESS &&
 		perform_post_lt_adj_req_sequence(link, lt_settings) == false)
@@ -1621,18 +1629,9 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 
 static void dpcd_exit_training_mode(struct dc_link *link)
 {
-	const uint8_t clear_pattern = 0;
 
 	/* clear training pattern set */
-	core_link_write_dpcd(
-			link,
-			DP_TRAINING_PATTERN_SET,
-			&clear_pattern,
-			sizeof(clear_pattern));
-	DC_LOG_HW_LINK_TRAINING("%s\n %x pattern = %x\n",
-			__func__,
-			DP_TRAINING_PATTERN_SET,
-			clear_pattern);
+	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
 }
 
 enum dc_status dpcd_configure_channel_coding(struct dc_link *link,
@@ -1656,41 +1655,22 @@ enum dc_status dpcd_configure_channel_coding(struct dc_link *link,
 	return status;
 }
 
-enum link_training_result dc_link_dp_perform_link_training(
-	struct dc_link *link,
-	const struct dc_link_settings *link_settings,
-	bool skip_video_pattern)
+static enum link_training_result dp_perform_8b_10b_link_training(
+		struct dc_link *link,
+		struct link_training_settings *lt_settings)
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
-	struct link_training_settings lt_settings;
 
-	/* reset previous training states */
-	dpcd_exit_training_mode(link);
-
-	/* decide training settings */
-	dp_decide_training_settings(
-			link,
-			link_settings,
-			&link->preferred_training_settings,
-			&lt_settings);
-	dpcd_configure_lttpr_mode(link, &lt_settings);
-	dp_set_fec_ready(link, lt_settings.should_set_fec_ready);
-	dpcd_configure_channel_coding(link, &lt_settings);
-
-	/* enter training mode:
-	 * Per DP specs starting from here, DPTX device shall not issue
-	 * Non-LT AUX transactions inside training mode.
-	 */
+	uint8_t repeater_cnt;
+	uint8_t repeater_id;
 
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
-		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
+		start_clock_recovery_pattern_early(link, lt_settings, DPRX);
 
 	/* 1. set link rate, lane count and spread. */
-	dpcd_set_link_settings(link, &lt_settings);
+	dpcd_set_link_settings(link, lt_settings);
 
 	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
-		uint8_t repeater_cnt;
-		uint8_t repeater_id;
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
@@ -1699,13 +1679,13 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
 				repeater_id--) {
-			status = perform_clock_recovery_sequence(link, &lt_settings, repeater_id);
+			status = perform_clock_recovery_sequence(link, lt_settings, repeater_id);
 
 			if (status != LINK_TRAINING_SUCCESS)
 				break;
 
 			status = perform_channel_equalization_sequence(link,
-					&lt_settings,
+					lt_settings,
 					repeater_id);
 
 			if (status != LINK_TRAINING_SUCCESS)
@@ -1716,36 +1696,62 @@ enum link_training_result dc_link_dp_perform_link_training(
 	}
 
 	if (status == LINK_TRAINING_SUCCESS) {
-		status = perform_clock_recovery_sequence(link, &lt_settings, DPRX);
+		status = perform_clock_recovery_sequence(link, lt_settings, DPRX);
 	if (status == LINK_TRAINING_SUCCESS) {
 		status = perform_channel_equalization_sequence(link,
-					&lt_settings,
+					lt_settings,
 					DPRX);
 		}
 	}
 
-	/* 3. set training not in progress*/
-	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
-	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
+	return status;
+}
+
+enum link_training_result dc_link_dp_perform_link_training(
+	struct dc_link *link,
+	const struct dc_link_settings *link_settings,
+	bool skip_video_pattern)
+{
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
+	struct link_training_settings lt_settings;
+	enum dp_link_encoding encoding =
+			dp_get_link_encoding_format(link_settings);
+
+	/* decide training settings */
+	dp_decide_training_settings(
+			link,
+			link_settings,
+			&link->preferred_training_settings,
+			&lt_settings);
+
+	/* reset previous training states */
+	dpcd_exit_training_mode(link);
+
+	/* configure link prior to entering training mode */
+	dpcd_configure_lttpr_mode(link, &lt_settings);
+	dp_set_fec_ready(link, lt_settings.should_set_fec_ready);
+	dpcd_configure_channel_coding(link, &lt_settings);
+
+	/* enter training mode:
+	 * Per DP specs starting from here, DPTX device shall not issue
+	 * Non-LT AUX transactions inside training mode.
+	 */
+	if (encoding == DP_8b_10b_ENCODING)
+		status = dp_perform_8b_10b_link_training(link, &lt_settings);
+	else
+		ASSERT(0);
+
+	/* exit training mode and switch to video idle */
+	dpcd_exit_training_mode(link);
+	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern)
 		status = dp_transition_to_video_idle(link,
 				&lt_settings,
 				status);
-	}
 
-	/* delay 5ms after Main Link output idle pattern and then check
-	 * DPCD 0202h.
-	 */
-	if (link->connector_signal != SIGNAL_TYPE_EDP && status == LINK_TRAINING_SUCCESS) {
-		msleep(5);
-		status = dp_check_link_loss_status(link, &lt_settings);
-	}
-
-	/* 6. print status message*/
+	/* dump debug data */
 	print_status_message(link, &lt_settings, status);
-
 	if (status != LINK_TRAINING_SUCCESS)
 		link->ctx->dc->debug_data.ltFailCount++;
-
 	return status;
 }
 
