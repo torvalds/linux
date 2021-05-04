@@ -600,31 +600,24 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 	    (crtc_state->hw.adjusted_mode.hdisplay >= 3840 &&
 	    crtc_state->hw.adjusted_mode.vdisplay >= 2160)) {
 		/* Get hblank early enable value required */
+		val &= ~HBLANK_START_COUNT_MASK(pipe);
 		hblank_early_prog = calc_hblank_early_prog(encoder, crtc_state);
-		if (hblank_early_prog < 32) {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		if (hblank_early_prog < 32)
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_32);
-		} else if (hblank_early_prog < 64) {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		else if (hblank_early_prog < 64)
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_64);
-		} else if (hblank_early_prog < 96) {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		else if (hblank_early_prog < 96)
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_96);
-		} else {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		else
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_128);
-		}
 
 		/* Get samples room value required */
+		val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
 		samples_room = calc_samples_room(crtc_state);
-		if (samples_room < 3) {
-			val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
+		if (samples_room < 3)
 			val |= NUMBER_SAMPLES_PER_LINE(pipe, samples_room);
-		} else {
-			/* Program 0 i.e "All Samples available in buffer" */
-			val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
+		else /* Program 0 i.e "All Samples available in buffer" */
 			val |= NUMBER_SAMPLES_PER_LINE(pipe, 0x0);
-		}
 	}
 
 	intel_de_write(i915, AUD_CONFIG_BE, val);
