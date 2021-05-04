@@ -454,26 +454,7 @@ static inline void vmx_segment_cache_clear(struct vcpu_vmx *vmx)
 
 static unsigned long host_idt_base;
 
-/*
- * Though SYSCALL is only supported in 64-bit mode on Intel CPUs, kvm
- * will emulate SYSCALL in legacy mode if the vendor string in guest
- * CPUID.0:{EBX,ECX,EDX} is "AuthenticAMD" or "AMDisbetter!" To
- * support this emulation, MSR_STAR is included in the list for i386,
- * but is never loaded into hardware.  MSR_CSTAR is also never loaded
- * into hardware and is here purely for emulation purposes.
- */
-static u32 vmx_uret_msrs_list[] = {
-#ifdef CONFIG_X86_64
-	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
-#endif
-	MSR_EFER, MSR_TSC_AUX, MSR_STAR,
-	MSR_IA32_TSX_CTRL,
-};
-
-/*
- * Number of user return MSRs that are actually supported in hardware.
- * vmx_uret_msrs_list is modified when KVM is loaded to drop unsupported MSRs.
- */
+/* Number of user return MSRs that are actually supported in hardware. */
 static int vmx_nr_uret_msrs;
 
 #if IS_ENABLED(CONFIG_HYPERV)
@@ -703,22 +684,11 @@ static bool is_valid_passthrough_msr(u32 msr)
 	return r;
 }
 
-static inline int __vmx_find_uret_msr(u32 msr)
-{
-	int i;
-
-	for (i = 0; i < vmx_nr_uret_msrs; ++i) {
-		if (vmx_uret_msrs_list[i] == msr)
-			return i;
-	}
-	return -1;
-}
-
 struct vmx_uret_msr *vmx_find_uret_msr(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
-	i = __vmx_find_uret_msr(msr);
+	i = kvm_find_user_return_msr(msr);
 	if (i >= 0)
 		return &vmx->guest_uret_msrs[i];
 	return NULL;
@@ -1086,7 +1056,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx)
 		return false;
 	}
 
-	i = __vmx_find_uret_msr(MSR_EFER);
+	i = kvm_find_user_return_msr(MSR_EFER);
 	if (i < 0)
 		return false;
 
@@ -6922,6 +6892,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 
 static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 {
+	struct vmx_uret_msr *tsx_ctrl;
 	struct vcpu_vmx *vmx;
 	int i, cpu, err;
 
@@ -6946,29 +6917,25 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 
 	for (i = 0; i < vmx_nr_uret_msrs; ++i) {
 		vmx->guest_uret_msrs[i].data = 0;
-
-		switch (vmx_uret_msrs_list[i]) {
-		case MSR_IA32_TSX_CTRL:
-			/*
-			 * TSX_CTRL_CPUID_CLEAR is handled in the CPUID
-			 * interception.  Keep the host value unchanged to avoid
-			 * changing CPUID bits under the host kernel's feet.
-			 *
-			 * hle=0, rtm=0, tsx_ctrl=1 can be found with some
-			 * combinations of new kernel and old userspace.  If
-			 * those guests run on a tsx=off host, do allow guests
-			 * to use TSX_CTRL, but do not change the value on the
-			 * host so that TSX remains always disabled.
-			 */
-			if (boot_cpu_has(X86_FEATURE_RTM))
-				vmx->guest_uret_msrs[i].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
-			else
-				vmx->guest_uret_msrs[i].mask = 0;
-			break;
-		default:
-			vmx->guest_uret_msrs[i].mask = -1ull;
-			break;
-		}
+		vmx->guest_uret_msrs[i].mask = -1ull;
+	}
+	tsx_ctrl = vmx_find_uret_msr(vmx, MSR_IA32_TSX_CTRL);
+	if (tsx_ctrl) {
+		/*
+		 * TSX_CTRL_CPUID_CLEAR is handled in the CPUID interception.
+		 * Keep the host value unchanged to avoid changing CPUID bits
+		 * under the host kernel's feet.
+		 *
+		 * hle=0, rtm=0, tsx_ctrl=1 can be found with some combinations
+		 * of new kernel and old userspace.  If those guests run on a
+		 * tsx=off host, do allow guests to use TSX_CTRL, but do not
+		 * change the value on the host so that TSX remains always
+		 * disabled.
+		 */
+		if (boot_cpu_has(X86_FEATURE_RTM))
+			vmx->guest_uret_msrs[i].mask = ~(u64)TSX_CTRL_CPUID_CLEAR;
+		else
+			vmx->guest_uret_msrs[i].mask = 0;
 	}
 
 	err = alloc_loaded_vmcs(&vmx->vmcs01);
@@ -7829,6 +7796,22 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 static __init void vmx_setup_user_return_msrs(void)
 {
+
+	/*
+	 * Though SYSCALL is only supported in 64-bit mode on Intel CPUs, kvm
+	 * will emulate SYSCALL in legacy mode if the vendor string in guest
+	 * CPUID.0:{EBX,ECX,EDX} is "AuthenticAMD" or "AMDisbetter!" To
+	 * support this emulation, MSR_STAR is included in the list for i386,
+	 * but is never loaded into hardware.  MSR_CSTAR is also never loaded
+	 * into hardware and is here purely for emulation purposes.
+	 */
+	const u32 vmx_uret_msrs_list[] = {
+	#ifdef CONFIG_X86_64
+		MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
+	#endif
+		MSR_EFER, MSR_TSC_AUX, MSR_STAR,
+		MSR_IA32_TSX_CTRL,
+	};
 	u32 msr;
 	int i;
 
@@ -7841,7 +7824,7 @@ static __init void vmx_setup_user_return_msrs(void)
 			continue;
 
 		kvm_define_user_return_msr(vmx_nr_uret_msrs, msr);
-		vmx_uret_msrs_list[vmx_nr_uret_msrs++] = msr;
+		vmx_nr_uret_msrs++;
 	}
 }
 

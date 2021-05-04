@@ -364,6 +364,18 @@ void kvm_define_user_return_msr(unsigned slot, u32 msr)
 }
 EXPORT_SYMBOL_GPL(kvm_define_user_return_msr);
 
+int kvm_find_user_return_msr(u32 msr)
+{
+	int i;
+
+	for (i = 0; i < user_return_msrs_global.nr; ++i) {
+		if (user_return_msrs_global.msrs[i] == msr)
+			return i;
+	}
+	return -1;
+}
+EXPORT_SYMBOL_GPL(kvm_find_user_return_msr);
+
 static void kvm_user_return_msr_cpu_online(void)
 {
 	unsigned int cpu = smp_processor_id();
