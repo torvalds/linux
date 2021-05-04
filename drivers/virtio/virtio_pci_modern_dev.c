@@ -605,8 +605,8 @@ static u16 vp_modern_get_queue_notify_off(struct virtio_pci_modern_device *mdev,
  *
  * Returns the address of the notification area
  */
-void *vp_modern_map_vq_notify(struct virtio_pci_modern_device *mdev,
-			      u16 index, resource_size_t *pa)
+void __iomem *vp_modern_map_vq_notify(struct virtio_pci_modern_device *mdev,
+				      u16 index, resource_size_t *pa)
 {
 	u16 off = vp_modern_get_queue_notify_off(mdev, index);
 
@@ -624,10 +624,9 @@ void *vp_modern_map_vq_notify(struct virtio_pci_modern_device *mdev,
 		if (pa)
 			*pa = mdev->notify_pa +
 			      off * mdev->notify_offset_multiplier;
-		return (void __force *)mdev->notify_base +
-			off * mdev->notify_offset_multiplier;
+		return mdev->notify_base + off * mdev->notify_offset_multiplier;
 	} else {
-		return (void __force *)vp_modern_map_capability(mdev,
+		return vp_modern_map_capability(mdev,
 				       mdev->notify_map_cap, 2, 2,
 				       off * mdev->notify_offset_multiplier, 2,
 				       NULL, pa);
