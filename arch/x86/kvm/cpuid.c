@@ -567,6 +567,21 @@ void kvm_set_cpu_caps(void)
 		F(ACE2) | F(ACE2_EN) | F(PHE) | F(PHE_EN) |
 		F(PMM) | F(PMM_EN)
 	);
+
+	/*
+	 * Hide RDTSCP and RDPID if either feature is reported as supported but
+	 * probing MSR_TSC_AUX failed.  This is purely a sanity check and
+	 * should never happen, but the guest will likely crash if RDTSCP or
+	 * RDPID is misreported, and KVM has botched MSR_TSC_AUX emulation in
+	 * the past.  For example, the sanity check may fire if this instance of
+	 * KVM is running as L1 on top of an older, broken KVM.
+	 */
+	if (WARN_ON((kvm_cpu_cap_has(X86_FEATURE_RDTSCP) ||
+		     kvm_cpu_cap_has(X86_FEATURE_RDPID)) &&
+		     !kvm_is_supported_user_return_msr(MSR_TSC_AUX))) {
+		kvm_cpu_cap_clear(X86_FEATURE_RDTSCP);
+		kvm_cpu_cap_clear(X86_FEATURE_RDPID);
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 
