@@ -7,7 +7,6 @@
  * 7-bit I2C address: 0x5C.
  */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -256,17 +255,9 @@ static const struct i2c_device_id am2315_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, am2315_i2c_id);
 
-static const struct acpi_device_id am2315_acpi_id[] = {
-	{"AOS2315", 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(acpi, am2315_acpi_id);
-
 static struct i2c_driver am2315_driver = {
 	.driver = {
 		.name = "am2315",
-		.acpi_match_table = ACPI_PTR(am2315_acpi_id),
 	},
 	.probe =            am2315_probe,
 	.id_table =         am2315_i2c_id,
