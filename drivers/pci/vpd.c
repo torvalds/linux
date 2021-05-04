@@ -20,7 +20,6 @@ struct pci_vpd_ops {
 
 struct pci_vpd {
 	const struct pci_vpd_ops *ops;
-	struct bin_attribute *attr;	/* Descriptor for sysfs VPD entry */
 	struct mutex	lock;
 	unsigned int	len;
 	u16		flag;
@@ -360,58 +359,45 @@ void pci_vpd_release(struct pci_dev *dev)
 	kfree(dev->vpd);
 }
 
-static ssize_t read_vpd_attr(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
-			     loff_t off, size_t count)
+static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
+			struct bin_attribute *bin_attr, char *buf, loff_t off,
+			size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
 
 	return pci_read_vpd(dev, off, count, buf);
 }
 
-static ssize_t write_vpd_attr(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr, char *buf,
-			      loff_t off, size_t count)
+static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *bin_attr, char *buf, loff_t off,
+			 size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
 
 	return pci_write_vpd(dev, off, count, buf);
 }
+static BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
 
-void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev)
+static struct bin_attribute *vpd_attrs[] = {
+	&bin_attr_vpd,
+	NULL,
+};
+
+static umode_t vpd_attr_is_visible(struct kobject *kobj,
+				   struct bin_attribute *a, int n)
 {
-	int retval;
-	struct bin_attribute *attr;
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
-	if (!dev->vpd)
-		return;
+	if (!pdev->vpd)
+		return 0;
 
-	attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-	if (!attr)
-		return;
-
-	sysfs_bin_attr_init(attr);
-	attr->size = 0;
-	attr->attr.name = "vpd";
-	attr->attr.mode = S_IRUSR | S_IWUSR;
-	attr->read = read_vpd_attr;
-	attr->write = write_vpd_attr;
-	retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
-	if (retval) {
-		kfree(attr);
-		return;
-	}
-
-	dev->vpd->attr = attr;
+	return a->attr.mode;
 }
 
-void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev)
-{
-	if (dev->vpd && dev->vpd->attr) {
-		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
-		kfree(dev->vpd->attr);
-	}
-}
+const struct attribute_group pci_dev_vpd_attr_group = {
+	.bin_attrs = vpd_attrs,
+	.is_bin_visible = vpd_attr_is_visible,
+};
 
 int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 {
