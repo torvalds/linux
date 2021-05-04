@@ -884,29 +884,34 @@ void irq_dispose_mapping(unsigned int virq)
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);
 
 /**
- * irq_find_mapping() - Find a linux irq from a hw irq number.
+ * __irq_resolve_mapping() - Find a linux irq from a hw irq number.
  * @domain: domain owning this hardware interrupt
  * @hwirq: hardware irq number in that domain space
+ * @irq: optional pointer to return the Linux irq if required
+ *
+ * Returns the interrupt descriptor.
  */
-unsigned int irq_find_mapping(struct irq_domain *domain,
-			      irq_hw_number_t hwirq)
+struct irq_desc *__irq_resolve_mapping(struct irq_domain *domain,
+				       irq_hw_number_t hwirq,
+				       unsigned int *irq)
 {
+	struct irq_desc *desc = NULL;
 	struct irq_data *data;
 
 	/* Look for default domain if necessary */
 	if (domain == NULL)
 		domain = irq_default_domain;
 	if (domain == NULL)
-		return 0;
+		return desc;
 
 	if (irq_domain_is_nomap(domain)) {
 		if (hwirq < domain->revmap_size) {
 			data = irq_domain_get_irq_data(domain, hwirq);
 			if (data && data->hwirq == hwirq)
-				return hwirq;
+				desc = irq_data_to_desc(data);
 		}
 
-		return 0;
+		return desc;
 	}
 
 	rcu_read_lock();
@@ -915,10 +920,17 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 		data = rcu_dereference(domain->revmap[hwirq]);
 	else
 		data = radix_tree_lookup(&domain->revmap_tree, hwirq);
+
+	if (likely(data)) {
+		desc = irq_data_to_desc(data);
+		if (irq)
+			*irq = data->irq;
+	}
+
 	rcu_read_unlock();
-	return data ? data->irq : 0;
+	return desc;
 }
-EXPORT_SYMBOL_GPL(irq_find_mapping);
+EXPORT_SYMBOL_GPL(__irq_resolve_mapping);
 
 /**
  * irq_domain_xlate_onecell() - Generic xlate for direct one cell bindings
