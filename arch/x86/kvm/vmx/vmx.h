@@ -36,7 +36,7 @@ struct vmx_msrs {
 };
 
 struct vmx_uret_msr {
-	unsigned int slot; /* The MSR's slot in kvm_user_return_msrs. */
+	bool load_into_hardware;
 	u64 data;
 	u64 mask;
 };
