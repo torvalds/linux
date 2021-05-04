@@ -53,6 +53,12 @@ static const u8 tuning_blk_pattern_8bit[] = {
 	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
 };
 
+struct mmc_busy_data {
+	struct mmc_card *card;
+	bool retry_crc_err;
+	enum mmc_busy_cmd busy_cmd;
+};
+
 int __mmc_send_status(struct mmc_card *card, u32 *status, unsigned int retries)
 {
 	int err;
@@ -424,10 +430,10 @@ int mmc_switch_status(struct mmc_card *card, bool crc_err_fatal)
 	return mmc_switch_status_error(card->host, status);
 }
 
-static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
-			   enum mmc_busy_cmd busy_cmd, bool *busy)
+static int mmc_busy_cb(void *cb_data, bool *busy)
 {
-	struct mmc_host *host = card->host;
+	struct mmc_busy_data *data = cb_data;
+	struct mmc_host *host = data->card->host;
 	u32 status = 0;
 	int err;
 
@@ -436,17 +442,17 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 		return 0;
 	}
 
-	err = mmc_send_status(card, &status);
-	if (retry_crc_err && err == -EILSEQ) {
+	err = mmc_send_status(data->card, &status);
+	if (data->retry_crc_err && err == -EILSEQ) {
 		*busy = true;
 		return 0;
 	}
 	if (err)
 		return err;
 
-	switch (busy_cmd) {
+	switch (data->busy_cmd) {
 	case MMC_BUSY_CMD6:
-		err = mmc_switch_status_error(card->host, status);
+		err = mmc_switch_status_error(host, status);
 		break;
 	case MMC_BUSY_ERASE:
 		err = R1_STATUS(status) ? -EIO : 0;
@@ -464,8 +470,9 @@ static int mmc_busy_status(struct mmc_card *card, bool retry_crc_err,
 	return 0;
 }
 
-static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
-			       bool retry_crc_err, enum mmc_busy_cmd busy_cmd)
+int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+			int (*busy_cb)(void *cb_data, bool *busy),
+			void *cb_data)
 {
 	struct mmc_host *host = card->host;
 	int err;
@@ -482,7 +489,7 @@ static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		 */
 		expired = time_after(jiffies, timeout);
 
-		err = mmc_busy_status(card, retry_crc_err, busy_cmd, &busy);
+		err = (*busy_cb)(cb_data, &busy);
 		if (err)
 			return err;
 
@@ -505,9 +512,15 @@ static int __mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 }
 
 int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
-		      enum mmc_busy_cmd busy_cmd)
+		      bool retry_crc_err, enum mmc_busy_cmd busy_cmd)
 {
-	return __mmc_poll_for_busy(card, timeout_ms, false, busy_cmd);
+	struct mmc_busy_data cb_data;
+
+	cb_data.card = card;
+	cb_data.retry_crc_err = retry_crc_err;
+	cb_data.busy_cmd = busy_cmd;
+
+	return __mmc_poll_for_busy(card, timeout_ms, &mmc_busy_cb, &cb_data);
 }
 
 bool mmc_prepare_busy_cmd(struct mmc_host *host, struct mmc_command *cmd,
@@ -591,8 +604,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	}
 
 	/* Let's try to poll to find out when the command is completed. */
-	err = __mmc_poll_for_busy(card, timeout_ms, retry_crc_err,
-				  MMC_BUSY_CMD6);
+	err = mmc_poll_for_busy(card, timeout_ms, retry_crc_err, MMC_BUSY_CMD6);
 	if (err)
 		goto out;
 
@@ -840,7 +852,7 @@ static int mmc_send_hpi_cmd(struct mmc_card *card)
 		return 0;
 
 	/* Let's poll to find out when the HPI request completes. */
-	return mmc_poll_for_busy(card, busy_timeout_ms, MMC_BUSY_HPI);
+	return mmc_poll_for_busy(card, busy_timeout_ms, false, MMC_BUSY_HPI);
 }
 
 /**
