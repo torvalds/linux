@@ -980,7 +980,8 @@ static const struct file_operations fops_blob = {
 /**
  * debugfs_create_blob - create a debugfs file that is used to read a binary blob
  * @name: a pointer to a string containing the name of the file to create.
- * @mode: the permission that the file should have
+ * @mode: the read permission that the file should have (other permissions are
+ *	  masked out)
  * @parent: a pointer to the parent dentry for this file.  This should be a
  *          directory dentry if set.  If this parameter is %NULL, then the
  *          file will be created in the root of the debugfs filesystem.
@@ -1004,7 +1005,7 @@ struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				   struct dentry *parent,
 				   struct debugfs_blob_wrapper *blob)
 {
-	return debugfs_create_file_unsafe(name, mode, parent, blob, &fops_blob);
+	return debugfs_create_file_unsafe(name, mode & 0444, parent, blob, &fops_blob);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_blob);
 
