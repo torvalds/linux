@@ -425,15 +425,104 @@ cpu_util_next_walt(int cpu, struct task_struct *p, int dst_cpu)
 	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
 
+/**
+ * walt_em_cpu_energy() - Estimates the energy consumed by the CPUs of a
+		performance domain
+ * @pd		: performance domain for which energy has to be estimated
+ * @max_util	: highest utilization among CPUs of the domain
+ * @sum_util	: sum of the utilization of all CPUs in the domain
+ *
+ * This function must be used only for CPU devices. There is no validation,
+ * i.e. if the EM is a CPU type and has cpumask allocated. It is called from
+ * the scheduler code quite frequently and that is why there is not checks.
+ *
+ * Return: the sum of the energy consumed by the CPUs of the domain assuming
+ * a capacity state satisfying the max utilization of the domain.
+ */
+static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
+				unsigned long max_util, unsigned long sum_util)
+{
+	unsigned long freq, scale_cpu;
+	struct em_perf_state *ps;
+	int i, cpu;
+
+	if (!sum_util)
+		return 0;
+
+	/*
+	 * In order to predict the performance state, map the utilization of
+	 * the most utilized CPU of the performance domain to a requested
+	 * frequency, like schedutil.
+	 */
+	cpu = cpumask_first(to_cpumask(pd->cpus));
+	scale_cpu = arch_scale_cpu_capacity(cpu);
+	ps = &pd->table[pd->nr_perf_states - 1];
+	freq = map_util_freq(max_util, ps->frequency, scale_cpu);
+
+	/*
+	 * Find the lowest performance state of the Energy Model above the
+	 * requested frequency.
+	 */
+	for (i = 0; i < pd->nr_perf_states; i++) {
+		ps = &pd->table[i];
+		if (ps->frequency >= freq)
+			break;
+	}
+
+	/*
+	 * The capacity of a CPU in the domain at the performance state (ps)
+	 * can be computed as:
+	 *
+	 *             ps->freq * scale_cpu
+	 *   ps->cap = --------------------                          (1)
+	 *                 cpu_max_freq
+	 *
+	 * So, ignoring the costs of idle states (which are not available in
+	 * the EM), the energy consumed by this CPU at that performance state
+	 * is estimated as:
+	 *
+	 *             ps->power * cpu_util
+	 *   cpu_nrg = --------------------                          (2)
+	 *                   ps->cap
+	 *
+	 * since 'cpu_util / ps->cap' represents its percentage of busy time.
+	 *
+	 *   NOTE: Although the result of this computation actually is in
+	 *         units of power, it can be manipulated as an energy value
+	 *         over a scheduling period, since it is assumed to be
+	 *         constant during that interval.
+	 *
+	 * By injecting (1) in (2), 'cpu_nrg' can be re-expressed as a product
+	 * of two terms:
+	 *
+	 *             ps->power * cpu_max_freq   cpu_util
+	 *   cpu_nrg = ------------------------ * ---------          (3)
+	 *                    ps->freq            scale_cpu
+	 *
+	 * The first term is static, and is stored in the em_perf_state struct
+	 * as 'ps->cost'.
+	 *
+	 * Since all CPUs of the domain have the same micro-architecture, they
+	 * share the same 'ps->cost', and the same CPU capacity. Hence, the
+	 * total energy of the domain (which is the simple sum of the energy of
+	 * all of its CPUs) can be factorized as:
+	 *
+	 *            ps->cost * \Sum cpu_util
+	 *   pd_nrg = ------------------------                       (4)
+	 *                  scale_cpu
+	 */
+	return ps->cost * sum_util / scale_cpu;
+}
+
 /*
- * compute_energy(): Estimates the energy that @pd would consume if @p was
+ * walt_pd_compute_energy(): Estimates the energy that @pd would consume if @p was
  * migrated to @dst_cpu. compute_energy() predicts what will be the utilization
  * landscape of @pd's CPUs after the task migration, and uses the Energy Model
  * to compute what would be the energy if we decided to actually migrate that
  * task.
  */
 static long
-compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
+walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 {
 	struct cpumask *pd_mask = perf_domain_span(pd);
 	unsigned long max_util = 0, sum_util = 0;
@@ -455,7 +544,7 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 		max_util = max(max_util, cpu_util);
 	}
 
-	return em_cpu_energy(pd->em_pd, max_util, sum_util);
+	return walt_em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
 static inline long
@@ -464,7 +553,7 @@ walt_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 	long energy = 0;
 
 	for (; pd; pd = pd->next)
-		energy += compute_energy(p, dst_cpu, pd);
+		energy += walt_pd_compute_energy(p, dst_cpu, pd);
 
 	return energy;
 }
