@@ -69,13 +69,13 @@ Compile the kernel with::
 	CONFIG_TASK_DELAY_ACCT=y
 	CONFIG_TASKSTATS=y
 
-Delay accounting is enabled by default at boot up.
-To disable, add::
+Delay accounting is disabled by default at boot up.
+To enable, add::
 
-   nodelayacct
+   delayacct
 
 to the kernel boot options. The rest of the instructions
-below assume this has not been done.
+below assume this has been done.
 
 After the system has booted up, use a utility
 similar to  getdelays.c to access the delays

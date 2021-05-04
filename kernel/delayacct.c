@@ -14,23 +14,23 @@
 #include <linux/delayacct.h>
 #include <linux/module.h>
 
-DEFINE_STATIC_KEY_TRUE(delayacct_key);
-int delayacct_on __read_mostly = 1;	/* Delay accounting turned on/off */
+DEFINE_STATIC_KEY_FALSE(delayacct_key);
+int delayacct_on __read_mostly;	/* Delay accounting turned on/off */
 struct kmem_cache *delayacct_cache;
 
-static int __init delayacct_setup_disable(char *str)
+static int __init delayacct_setup_enable(char *str)
 {
-	delayacct_on = 0;
+	delayacct_on = 1;
 	return 1;
 }
-__setup("nodelayacct", delayacct_setup_disable);
+__setup("delayacct", delayacct_setup_enable);
 
 void delayacct_init(void)
 {
 	delayacct_cache = KMEM_CACHE(task_delay_info, SLAB_PANIC|SLAB_ACCOUNT);
 	delayacct_tsk_init(&init_task);
-	if (!delayacct_on)
-		static_branch_disable(&delayacct_key);
+	if (delayacct_on)
+		static_branch_enable(&delayacct_key);
 }
 
 void __delayacct_tsk_init(struct task_struct *tsk)
@@ -83,7 +83,7 @@ void __delayacct_blkio_end(struct task_struct *p)
 	delayacct_end(&delays->lock, &delays->blkio_start, total, count);
 }
 
-int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
+int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 {
 	u64 utime, stime, stimescaled, utimescaled;
 	unsigned long long t2, t3;
@@ -117,6 +117,9 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	tmp = (s64)d->cpu_run_virtual_total + t3;
 	d->cpu_run_virtual_total =
 		(tmp < (s64)d->cpu_run_virtual_total) ?	0 : tmp;
+
+	if (!tsk->delays)
+		return 0;
 
 	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
 

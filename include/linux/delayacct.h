@@ -61,7 +61,7 @@ struct task_delay_info {
 #include <linux/jump_label.h>
 
 #ifdef CONFIG_TASK_DELAY_ACCT
-DECLARE_STATIC_KEY_TRUE(delayacct_key);
+DECLARE_STATIC_KEY_FALSE(delayacct_key);
 extern int delayacct_on;	/* Delay accounting turned on/off */
 extern struct kmem_cache *delayacct_cache;
 extern void delayacct_init(void);
@@ -69,7 +69,7 @@ extern void __delayacct_tsk_init(struct task_struct *);
 extern void __delayacct_tsk_exit(struct task_struct *);
 extern void __delayacct_blkio_start(void);
 extern void __delayacct_blkio_end(struct task_struct *);
-extern int __delayacct_add_tsk(struct taskstats *, struct task_struct *);
+extern int delayacct_add_tsk(struct taskstats *, struct task_struct *);
 extern __u64 __delayacct_blkio_ticks(struct task_struct *);
 extern void __delayacct_freepages_start(void);
 extern void __delayacct_freepages_end(void);
@@ -116,7 +116,7 @@ static inline void delayacct_tsk_free(struct task_struct *tsk)
 
 static inline void delayacct_blkio_start(void)
 {
-	if (!static_branch_likely(&delayacct_key))
+	if (!static_branch_unlikely(&delayacct_key))
 		return;
 
 	delayacct_set_flag(current, DELAYACCT_PF_BLKIO);
@@ -126,20 +126,12 @@ static inline void delayacct_blkio_start(void)
 
 static inline void delayacct_blkio_end(struct task_struct *p)
 {
-	if (!static_branch_likely(&delayacct_key))
+	if (!static_branch_unlikely(&delayacct_key))
 		return;
 
 	if (p->delays)
 		__delayacct_blkio_end(p);
 	delayacct_clear_flag(p, DELAYACCT_PF_BLKIO);
-}
-
-static inline int delayacct_add_tsk(struct taskstats *d,
-					struct task_struct *tsk)
-{
-	if (!delayacct_on || !tsk->delays)
-		return 0;
-	return __delayacct_add_tsk(d, tsk);
 }
 
 static inline __u64 delayacct_blkio_ticks(struct task_struct *tsk)
