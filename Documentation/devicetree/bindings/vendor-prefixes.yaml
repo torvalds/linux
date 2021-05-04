@@ -315,6 +315,8 @@ patternProperties:
     description: DPTechnics
   "^dragino,.*":
     description: Dragino Technology Co., Limited
+  "^ds,.*":
+    description: DaSheng, Inc.
   "^dserve,.*":
     description: dServe Technology B.V.
   "^dynaimage,.*":
