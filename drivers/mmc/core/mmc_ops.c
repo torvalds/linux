@@ -521,6 +521,27 @@ int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	return __mmc_poll_for_busy(card, timeout_ms, true, false, busy_cmd);
 }
 
+bool mmc_prepare_busy_cmd(struct mmc_host *host, struct mmc_command *cmd,
+			  unsigned int timeout_ms)
+{
+	/*
+	 * If the max_busy_timeout of the host is specified, make sure it's
+	 * enough to fit the used timeout_ms. In case it's not, let's instruct
+	 * the host to avoid HW busy detection, by converting to a R1 response
+	 * instead of a R1B. Note, some hosts requires R1B, which also means
+	 * they are on their own when it comes to deal with the busy timeout.
+	 */
+	if (!(host->caps & MMC_CAP_NEED_RSP_BUSY) && host->max_busy_timeout &&
+	    (timeout_ms > host->max_busy_timeout)) {
+		cmd->flags = MMC_CMD_AC | MMC_RSP_SPI_R1 | MMC_RSP_R1;
+		return false;
+	}
+
+	cmd->flags = MMC_CMD_AC | MMC_RSP_SPI_R1B | MMC_RSP_R1B;
+	cmd->busy_timeout = timeout_ms;
+	return true;
+}
+
 /**
  *	__mmc_switch - modify EXT_CSD register
  *	@card: the MMC card associated with the data transfer
@@ -543,7 +564,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	struct mmc_host *host = card->host;
 	int err;
 	struct mmc_command cmd = {};
-	bool use_r1b_resp = true;
+	bool use_r1b_resp;
 	unsigned char old_timing = host->ios.timing;
 
 	mmc_retune_hold(host);
@@ -554,29 +575,12 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		timeout_ms = card->ext_csd.generic_cmd6_time;
 	}
 
-	/*
-	 * If the max_busy_timeout of the host is specified, make sure it's
-	 * enough to fit the used timeout_ms. In case it's not, let's instruct
-	 * the host to avoid HW busy detection, by converting to a R1 response
-	 * instead of a R1B. Note, some hosts requires R1B, which also means
-	 * they are on their own when it comes to deal with the busy timeout.
-	 */
-	if (!(host->caps & MMC_CAP_NEED_RSP_BUSY) && host->max_busy_timeout &&
-	    (timeout_ms > host->max_busy_timeout))
-		use_r1b_resp = false;
-
 	cmd.opcode = MMC_SWITCH;
 	cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
 		  (index << 16) |
 		  (value << 8) |
 		  set;
-	cmd.flags = MMC_CMD_AC;
-	if (use_r1b_resp) {
-		cmd.flags |= MMC_RSP_SPI_R1B | MMC_RSP_R1B;
-		cmd.busy_timeout = timeout_ms;
-	} else {
-		cmd.flags |= MMC_RSP_SPI_R1 | MMC_RSP_R1;
-	}
+	use_r1b_resp = mmc_prepare_busy_cmd(host, &cmd, timeout_ms);
 
 	err = mmc_wait_for_cmd(host, &cmd, retries);
 	if (err)
