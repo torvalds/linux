@@ -1244,6 +1244,8 @@ patternProperties:
     description: Western Digital Corp.
   "^we,.*":
     description: Würth Elektronik GmbH.
+  "^welltech,.*":
+    description: Welltech Computer Co., Limited.
   "^wetek,.*":
     description: WeTek Electronics, limited.
   "^wexler,.*":
