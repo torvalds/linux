@@ -66,6 +66,13 @@ static const unsigned int sd_au_size[] = {
 		__res & __mask;						\
 	})
 
+#define SD_POWEROFF_NOTIFY_TIMEOUT_MS 2000
+
+struct sd_busy_data {
+	struct mmc_card *card;
+	u8 *reg_buf;
+};
+
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
@@ -996,6 +1003,66 @@ static bool mmc_sd_card_using_v18(struct mmc_card *card)
 	       (SD_MODE_UHS_SDR50 | SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50);
 }
 
+static int sd_write_ext_reg(struct mmc_card *card, u8 fno, u8 page, u16 offset,
+			    u8 reg_data)
+{
+	struct mmc_host *host = card->host;
+	struct mmc_request mrq = {};
+	struct mmc_command cmd = {};
+	struct mmc_data data = {};
+	struct scatterlist sg;
+	u8 *reg_buf;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	/*
+	 * Arguments of CMD49:
+	 * [31:31] MIO (0 = memory).
+	 * [30:27] FNO (function number).
+	 * [26:26] MW - mask write mode (0 = disable).
+	 * [25:18] page number.
+	 * [17:9] offset address.
+	 * [8:0] length (0 = 1 byte).
+	 */
+	cmd.arg = fno << 27 | page << 18 | offset << 9;
+
+	/* The first byte in the buffer is the data to be written. */
+	reg_buf[0] = reg_data;
+
+	data.flags = MMC_DATA_WRITE;
+	data.blksz = 512;
+	data.blocks = 1;
+	data.sg = &sg;
+	data.sg_len = 1;
+	sg_init_one(&sg, reg_buf, 512);
+
+	cmd.opcode = SD_WRITE_EXTR_SINGLE;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	mmc_set_data_timeout(&data, card);
+	mmc_wait_for_req(host, &mrq);
+
+	kfree(reg_buf);
+
+	/*
+	 * Note that, the SD card is allowed to signal busy on DAT0 up to 1s
+	 * after the CMD49. Although, let's leave this to be managed by the
+	 * caller.
+	 */
+
+	if (cmd.error)
+		return cmd.error;
+	if (data.error)
+		return data.error;
+
+	return 0;
+}
+
 static int sd_read_ext_reg(struct mmc_card *card, u8 fno, u8 page,
 			   u16 offset, u16 len, u8 *reg_buf)
 {
@@ -1446,21 +1513,84 @@ static void mmc_sd_detect(struct mmc_host *host)
 	}
 }
 
+static int sd_can_poweroff_notify(struct mmc_card *card)
+{
+	return card->ext_power.feature_support & SD_EXT_POWER_OFF_NOTIFY;
+}
+
+static int sd_busy_poweroff_notify_cb(void *cb_data, bool *busy)
+{
+	struct sd_busy_data *data = cb_data;
+	struct mmc_card *card = data->card;
+	int err;
+
+	/*
+	 * Read the status register for the power management function. It's at
+	 * one byte offset and is one byte long. The Power Off Notification
+	 * Ready is bit 0.
+	 */
+	err = sd_read_ext_reg(card, card->ext_power.fno, card->ext_power.page,
+			      card->ext_power.offset + 1, 1, data->reg_buf);
+	if (err) {
+		pr_warn("%s: error %d reading status reg of PM func\n",
+			mmc_hostname(card->host), err);
+		return err;
+	}
+
+	*busy = !(data->reg_buf[0] & BIT(0));
+	return 0;
+}
+
+static int sd_poweroff_notify(struct mmc_card *card)
+{
+	struct sd_busy_data cb_data;
+	u8 *reg_buf;
+	int err;
+
+	reg_buf = kzalloc(512, GFP_KERNEL);
+	if (!reg_buf)
+		return -ENOMEM;
+
+	/*
+	 * Set the Power Off Notification bit in the power management settings
+	 * register at 2 bytes offset.
+	 */
+	err = sd_write_ext_reg(card, card->ext_power.fno, card->ext_power.page,
+			       card->ext_power.offset + 2, BIT(0));
+	if (err) {
+		pr_warn("%s: error %d writing Power Off Notify bit\n",
+			mmc_hostname(card->host), err);
+		goto out;
+	}
+
+	cb_data.card = card;
+	cb_data.reg_buf = reg_buf;
+	err = __mmc_poll_for_busy(card, SD_POWEROFF_NOTIFY_TIMEOUT_MS,
+				  &sd_busy_poweroff_notify_cb, &cb_data);
+
+out:
+	kfree(reg_buf);
+	return err;
+}
+
 static int _mmc_sd_suspend(struct mmc_host *host)
 {
+	struct mmc_card *card = host->card;
 	int err = 0;
 
 	mmc_claim_host(host);
 
-	if (mmc_card_suspended(host->card))
+	if (mmc_card_suspended(card))
 		goto out;
 
-	if (!mmc_host_is_spi(host))
+	if (sd_can_poweroff_notify(card))
+		err = sd_poweroff_notify(card);
+	else if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
 
 	if (!err) {
 		mmc_power_off(host);
-		mmc_card_set_suspended(host->card);
+		mmc_card_set_suspended(card);
 	}
 
 out:
