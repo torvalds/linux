@@ -683,11 +683,15 @@ cifs_symlink(struct user_namespace *mnt_userns, struct inode *inode,
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	const char *full_path;
-	void *page = alloc_dentry_path();
+	void *page;
 	struct inode *newinode = NULL;
 
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
 		return -EIO;
+
+	page = alloc_dentry_path();
+	if (!page)
+		return -ENOMEM;
 
 	xid = get_xid();
 
