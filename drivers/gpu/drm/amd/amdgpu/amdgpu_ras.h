@@ -313,7 +313,6 @@ struct ras_common_if {
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
-	uint32_t hw_supported;
 	uint32_t features;
 	struct list_head head;
 	/* sysfs */

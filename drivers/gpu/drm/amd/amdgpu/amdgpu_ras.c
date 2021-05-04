@@ -611,11 +611,9 @@ static void amdgpu_ras_parse_status_code(struct amdgpu_device *adev,
 
 /* feature ctl begin */
 static int amdgpu_ras_is_feature_allowed(struct amdgpu_device *adev,
-		struct ras_common_if *head)
+					 struct ras_common_if *head)
 {
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-
-	return con->hw_supported & BIT(head->block);
+	return adev->ras_hw_supported & BIT(head->block);
 }
 
 static int amdgpu_ras_is_feature_enabled(struct amdgpu_device *adev,
@@ -2069,8 +2067,7 @@ static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
  * force enable gfx ras, ignore vbios gfx ras flag
  * due to GC EDC can not write
  */
-static void amdgpu_ras_get_quirks(struct amdgpu_device *adev,
-		uint32_t *hw_supported)
+static void amdgpu_ras_get_quirks(struct amdgpu_device *adev)
 {
 	struct atom_context *ctx = adev->mode_info.atom_context;
 
@@ -2078,8 +2075,8 @@ static void amdgpu_ras_get_quirks(struct amdgpu_device *adev,
 		return;
 
 	if (strnstr(ctx->vbios_version, "D16406",
-				sizeof(ctx->vbios_version)))
-			*hw_supported |= (1 << AMDGPU_RAS_BLOCK__GFX);
+		    sizeof(ctx->vbios_version)))
+		adev->ras_hw_supported |= (1 << AMDGPU_RAS_BLOCK__GFX);
 }
 
 /*
@@ -2091,11 +2088,9 @@ static void amdgpu_ras_get_quirks(struct amdgpu_device *adev,
  * we have to initialize ras as normal. but need check if operation is
  * allowed or not in each function.
  */
-static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
-		uint32_t *hw_supported, uint32_t *supported)
+static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 {
-	*hw_supported = 0;
-	*supported = 0;
+	adev->ras_hw_supported = adev->ras_features = 0;
 
 	if (amdgpu_sriov_vf(adev) || !adev->is_atom_fw ||
 	    !amdgpu_ras_asic_supported(adev))
@@ -2104,34 +2099,34 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 	if (!adev->gmc.xgmi.connected_to_cpu) {
 		if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
 			dev_info(adev->dev, "MEM ECC is active.\n");
-			*hw_supported |= (1 << AMDGPU_RAS_BLOCK__UMC |
-					1 << AMDGPU_RAS_BLOCK__DF);
+			adev->ras_hw_supported |= (1 << AMDGPU_RAS_BLOCK__UMC |
+						   1 << AMDGPU_RAS_BLOCK__DF);
 		} else {
 			dev_info(adev->dev, "MEM ECC is not presented.\n");
 		}
 
 		if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
 			dev_info(adev->dev, "SRAM ECC is active.\n");
-			*hw_supported |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
-					1 << AMDGPU_RAS_BLOCK__DF);
+			adev->ras_hw_supported |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
+						    1 << AMDGPU_RAS_BLOCK__DF);
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
 	} else {
 		/* driver only manages a few IP blocks RAS feature
 		 * when GPU is connected cpu through XGMI */
-		*hw_supported |= (1 << AMDGPU_RAS_BLOCK__GFX |
-				1 << AMDGPU_RAS_BLOCK__SDMA |
-				1 << AMDGPU_RAS_BLOCK__MMHUB);
+		adev->ras_hw_supported |= (1 << AMDGPU_RAS_BLOCK__GFX |
+					   1 << AMDGPU_RAS_BLOCK__SDMA |
+					   1 << AMDGPU_RAS_BLOCK__MMHUB);
 	}
 
-	amdgpu_ras_get_quirks(adev, hw_supported);
+	amdgpu_ras_get_quirks(adev);
 
 	/* hw_supported needs to be aligned with RAS block mask. */
-	*hw_supported &= AMDGPU_RAS_BLOCK_MASK;
+	adev->ras_hw_supported &= AMDGPU_RAS_BLOCK_MASK;
 
-	*supported = amdgpu_ras_enable == 0 ? 0 :
-		*hw_supported & amdgpu_ras_mask;
+	adev->ras_features = amdgpu_ras_enable == 0 ? 0 :
+		adev->ras_hw_supported & amdgpu_ras_mask;
 }
 
 int amdgpu_ras_init(struct amdgpu_device *adev)
@@ -2152,9 +2147,9 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_set_context(adev, con);
 
-	amdgpu_ras_check_supported(adev, &con->hw_supported,
-				   &adev->ras_features);
-	if (!con->hw_supported || (adev->asic_type == CHIP_VEGA10)) {
+	amdgpu_ras_check_supported(adev);
+
+	if (!adev->ras_hw_supported || adev->asic_type == CHIP_VEGA10) {
 		/* set gfx block ras context feature for VEGA20 Gaming
 		 * send ras disable cmd to ras ta during ras late init.
 		 */
@@ -2208,8 +2203,9 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	}
 
 	dev_info(adev->dev, "RAS INFO: ras initialized successfully, "
-			"hardware ability[%x] ras_mask[%x]\n",
-			con->hw_supported, adev->ras_features);
+		 "hardware ability[%x] ras_mask[%x]\n",
+		 adev->ras_hw_supported, adev->ras_features);
+
 	return 0;
 release_con:
 	amdgpu_ras_set_context(adev, NULL);
@@ -2415,10 +2411,8 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
-	uint32_t hw_supported, supported;
-
-	amdgpu_ras_check_supported(adev, &hw_supported, &supported);
-	if (!hw_supported)
+	amdgpu_ras_check_supported(adev);
+	if (!adev->ras_hw_supported)
 		return;
 
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {

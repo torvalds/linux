@@ -1073,7 +1073,8 @@ struct amdgpu_device {
 
 	atomic_t			throttling_logging_enabled;
 	struct ratelimit_state		throttling_logging_rs;
-	uint32_t			ras_features;
+	uint32_t                        ras_hw_supported;
+	uint32_t                        ras_features;
 
 	bool                            in_pci_err_recovery;
 	struct pci_saved_state          *pci_state;
