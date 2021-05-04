@@ -2505,41 +2505,43 @@ void __folio_mark_dirty(struct folio *folio, struct address_space *mapping,
 	xa_unlock_irqrestore(&mapping->i_pages, flags);
 }
 
-/*
- * For address_spaces which do not use buffers.  Just tag the page as dirty in
- * the xarray.
+/**
+ * filemap_dirty_folio - Mark a folio dirty for filesystems which do not use buffer_heads.
+ * @mapping: Address space this folio belongs to.
+ * @folio: Folio to be marked as dirty.
  *
- * This is also used when a single buffer is being dirtied: we want to set the
- * page dirty in that case, but not all the buffers.  This is a "bottom-up"
- * dirtying, whereas __set_page_dirty_buffers() is a "top-down" dirtying.
+ * Filesystems which do not use buffer heads should call this function
+ * from their set_page_dirty address space operation.  It ignores the
+ * contents of folio_get_private(), so if the filesystem marks individual
+ * blocks as dirty, the filesystem should handle that itself.
  *
- * The caller must ensure this doesn't race with truncation.  Most will simply
- * hold the page lock, but e.g. zap_pte_range() calls with the page mapped and
- * the pte lock held, which also locks out truncation.
+ * This is also sometimes used by filesystems which use buffer_heads when
+ * a single buffer is being dirtied: we want to set the folio dirty in
+ * that case, but not all the buffers.  This is a "bottom-up" dirtying,
+ * whereas __set_page_dirty_buffers() is a "top-down" dirtying.
+ *
+ * The caller must ensure this doesn't race with truncation.  Most will
+ * simply hold the folio lock, but e.g. zap_pte_range() calls with the
+ * folio mapped and the pte lock held, which also locks out truncation.
  */
-int __set_page_dirty_nobuffers(struct page *page)
+bool filemap_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	lock_page_memcg(page);
-	if (!TestSetPageDirty(page)) {
-		struct address_space *mapping = page_mapping(page);
-
-		if (!mapping) {
-			unlock_page_memcg(page);
-			return 1;
-		}
-		__set_page_dirty(page, mapping, !PagePrivate(page));
-		unlock_page_memcg(page);
-
-		if (mapping->host) {
-			/* !PageAnon && !swapper_space */
-			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-		}
-		return 1;
+	folio_memcg_lock(folio);
+	if (folio_test_set_dirty(folio)) {
+		folio_memcg_unlock(folio);
+		return false;
 	}
-	unlock_page_memcg(page);
-	return 0;
+
+	__folio_mark_dirty(folio, mapping, !folio_test_private(folio));
+	folio_memcg_unlock(folio);
+
+	if (mapping->host) {
+		/* !PageAnon && !swapper_space */
+		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+	}
+	return true;
 }
-EXPORT_SYMBOL(__set_page_dirty_nobuffers);
+EXPORT_SYMBOL(filemap_dirty_folio);
 
 /*
  * Call this whenever redirtying a page, to de-account the dirty counters
