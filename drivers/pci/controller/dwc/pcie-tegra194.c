@@ -2314,6 +2314,8 @@ static int tegra_pcie_dw_resume_noirq(struct device *dev)
 		goto fail_host_init;
 	}
 
+	dw_pcie_setup_rc(&pcie->pci.pp);
+
 	ret = tegra_pcie_dw_start_link(&pcie->pci);
 	if (ret < 0)
 		goto fail_host_init;
