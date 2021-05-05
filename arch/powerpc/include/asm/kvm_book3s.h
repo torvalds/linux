@@ -210,7 +210,7 @@ extern void kvmppc_free_pgtable_radix(struct kvm *kvm, pgd_t *pgd,
 				      unsigned int lpid);
 extern int kvmppc_radix_init(void);
 extern void kvmppc_radix_exit(void);
-extern bool kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+extern void kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			    unsigned long gfn);
 extern bool kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			  unsigned long gfn);
