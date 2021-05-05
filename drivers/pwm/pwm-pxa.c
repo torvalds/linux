@@ -210,8 +210,6 @@ static int pwm_remove(struct platform_device *pdev)
 	struct pxa_pwm_chip *chip;
 
 	chip = platform_get_drvdata(pdev);
-	if (chip == NULL)
-		return -ENODEV;
 
 	return pwmchip_remove(&chip->chip);
 }
