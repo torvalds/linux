@@ -250,6 +250,11 @@
   cpu_subsys
   crc8
   crc8_populate_msb
+  crypto_aead_decrypt
+  crypto_aead_encrypt
+  crypto_aead_setauthsize
+  crypto_aead_setkey
+  crypto_alloc_aead
   crypto_alloc_base
   crypto_alloc_shash
   crypto_comp_compress
@@ -258,6 +263,8 @@
   crypto_register_alg
   crypto_register_scomp
   crypto_shash_digest
+  crypto_shash_finup
+  crypto_shash_setkey
   crypto_unregister_alg
   crypto_unregister_scomp
   csum_ipv6_magic
@@ -969,6 +976,7 @@
   __kfifo_init
   __kfifo_out
   kfree
+  kfree_sensitive
   kfree_skb
   kill_anon_super
   kill_fasync
