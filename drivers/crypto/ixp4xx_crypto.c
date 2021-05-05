@@ -378,9 +378,9 @@ static void one_packet(dma_addr_t phys)
 
 		free_buf_chain(dev, req_ctx->src, crypt->src_buf);
 		free_buf_chain(dev, req_ctx->dst, crypt->dst_buf);
-		if (req_ctx->hmac_virt) {
+		if (req_ctx->hmac_virt)
 			finish_scattered_hmac(crypt);
-		}
+
 		req->base.complete(&req->base, failed);
 		break;
 	}
@@ -402,9 +402,9 @@ static void one_packet(dma_addr_t phys)
 			}
 		}
 
-		if (req_ctx->dst) {
+		if (req_ctx->dst)
 			free_buf_chain(dev, req_ctx->dst, crypt->dst_buf);
-		}
+
 		free_buf_chain(dev, req_ctx->src, crypt->src_buf);
 		req->base.complete(&req->base, failed);
 		break;
@@ -497,14 +497,14 @@ static int init_ixp_crypto(struct device *dev)
 	buffer_pool = dma_pool_create("buffer", dev,
 			sizeof(struct buffer_desc), 32, 0);
 	ret = -ENOMEM;
-	if (!buffer_pool) {
+	if (!buffer_pool)
 		goto err;
-	}
+
 	ctx_pool = dma_pool_create("context", dev,
 			NPE_CTX_LEN, 16, 0);
-	if (!ctx_pool) {
+	if (!ctx_pool)
 		goto err;
-	}
+
 	ret = qmgr_request_queue(SEND_QID, NPE_QLEN_TOTAL, 0, 0,
 				 "ixp_crypto:out", NULL);
 	if (ret)
@@ -545,11 +545,10 @@ static void release_ixp_crypto(struct device *dev)
 
 	npe_release(npe_c);
 
-	if (crypt_virt) {
+	if (crypt_virt)
 		dma_free_coherent(dev,
 			NPE_QLEN * sizeof(struct crypt_ctl),
 			crypt_virt, crypt_phys);
-	}
 }
 
 static void reset_sa_dir(struct ix_sa_dir *dir)
@@ -562,9 +561,9 @@ static void reset_sa_dir(struct ix_sa_dir *dir)
 static int init_sa_dir(struct ix_sa_dir *dir)
 {
 	dir->npe_ctx = dma_pool_alloc(ctx_pool, GFP_KERNEL, &dir->npe_ctx_phys);
-	if (!dir->npe_ctx) {
+	if (!dir->npe_ctx)
 		return -ENOMEM;
-	}
+
 	reset_sa_dir(dir);
 	return 0;
 }
@@ -585,9 +584,9 @@ static int init_tfm(struct crypto_tfm *tfm)
 	if (ret)
 		return ret;
 	ret = init_sa_dir(&ctx->decrypt);
-	if (ret) {
+	if (ret)
 		free_sa_dir(&ctx->encrypt);
-	}
+
 	return ret;
 }
 
@@ -669,9 +668,8 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 
 	memcpy(pad, key, key_len);
 	memset(pad + key_len, 0, HMAC_PAD_BLOCKLEN - key_len);
-	for (i = 0; i < HMAC_PAD_BLOCKLEN; i++) {
+	for (i = 0; i < HMAC_PAD_BLOCKLEN; i++)
 		pad[i] ^= xpad;
-	}
 
 	crypt->data.tfm = tfm;
 	crypt->regist_ptr = pad;
@@ -751,9 +749,9 @@ static int gen_rev_aes_key(struct crypto_tfm *tfm)
 	struct ix_sa_dir *dir = &ctx->decrypt;
 
 	crypt = get_crypt_desc_emerg();
-	if (!crypt) {
+	if (!crypt)
 		return -EAGAIN;
-	}
+
 	*(u32 *)dir->npe_ctx |= cpu_to_be32(CIPH_ENCR);
 
 	crypt->data.tfm = tfm;
@@ -1004,9 +1002,9 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 free_buf_src:
 	free_buf_chain(dev, req_ctx->src, crypt->src_buf);
 free_buf_dest:
-	if (req->src != req->dst) {
+	if (req->src != req->dst)
 		free_buf_chain(dev, req_ctx->dst, crypt->dst_buf);
-	}
+
 	crypt->ctl_flags = CTL_FLAG_UNUSED;
 	return -ENOMEM;
 }
@@ -1462,14 +1460,11 @@ static int __init ixp_module_init(void)
 		struct skcipher_alg *cra = &ixp4xx_algos[i].crypto;
 
 		if (snprintf(cra->base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-			"%s"IXP_POSTFIX, cra->base.cra_name) >=
-			CRYPTO_MAX_ALG_NAME)
-		{
+			     "%s"IXP_POSTFIX, cra->base.cra_name) >=
+			     CRYPTO_MAX_ALG_NAME)
 			continue;
-		}
-		if (!support_aes && (ixp4xx_algos[i].cfg_enc & MOD_AES)) {
+		if (!support_aes && (ixp4xx_algos[i].cfg_enc & MOD_AES))
 			continue;
-		}
 
 		/* block ciphers */
 		cra->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
