@@ -401,7 +401,7 @@ static int ccwgroup_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(data);
 
-	if (action == BUS_NOTIFY_UNBIND_DRIVER) {
+	if (action == BUS_NOTIFY_UNBOUND_DRIVER) {
 		get_device(&gdev->dev);
 		schedule_work(&gdev->ungroup_work);
 	}
