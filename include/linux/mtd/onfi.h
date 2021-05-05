@@ -24,17 +24,17 @@
 #define ONFI_VERSION_4_0		BIT(9)
 
 /* ONFI features */
-#define ONFI_FEATURE_16_BIT_BUS		(1 << 0)
-#define ONFI_FEATURE_EXT_PARAM_PAGE	(1 << 7)
+#define ONFI_FEATURE_16_BIT_BUS		BIT(0)
+#define ONFI_FEATURE_EXT_PARAM_PAGE	BIT(7)
 
 /* ONFI timing mode, used in both asynchronous and synchronous mode */
-#define ONFI_TIMING_MODE_0		(1 << 0)
-#define ONFI_TIMING_MODE_1		(1 << 1)
-#define ONFI_TIMING_MODE_2		(1 << 2)
-#define ONFI_TIMING_MODE_3		(1 << 3)
-#define ONFI_TIMING_MODE_4		(1 << 4)
-#define ONFI_TIMING_MODE_5		(1 << 5)
-#define ONFI_TIMING_MODE_UNKNOWN	(1 << 6)
+#define ONFI_TIMING_MODE_0		BIT(0)
+#define ONFI_TIMING_MODE_1		BIT(1)
+#define ONFI_TIMING_MODE_2		BIT(2)
+#define ONFI_TIMING_MODE_3		BIT(3)
+#define ONFI_TIMING_MODE_4		BIT(4)
+#define ONFI_TIMING_MODE_5		BIT(5)
+#define ONFI_TIMING_MODE_UNKNOWN	BIT(6)
 
 /* ONFI feature number/address */
 #define ONFI_FEATURE_NUMBER		256
@@ -49,7 +49,7 @@
 #define ONFI_SUBFEATURE_PARAM_LEN	4
 
 /* ONFI optional commands SET/GET FEATURES supported? */
-#define ONFI_OPT_CMD_SET_GET_FEATURES	(1 << 2)
+#define ONFI_OPT_CMD_SET_GET_FEATURES	BIT(2)
 
 struct nand_onfi_params {
 	/* rev info and features block */
