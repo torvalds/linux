@@ -471,6 +471,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 		struct page *page, struct inode *inode)
 {
 	enum page_type type = f2fs_has_inline_dentry(dir) ? NODE : DATA;
+
 	lock_page(page);
 	f2fs_wait_on_page_writeback(page, type, true, true);
 	de->ino = cpu_to_le32(inode->i_ino);
