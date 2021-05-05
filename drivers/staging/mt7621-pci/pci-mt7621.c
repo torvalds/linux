@@ -548,7 +548,6 @@ static int mt7621_pcie_register_host(struct pci_host_bridge *host)
 
 	host->ops = &mt7621_pci_ops;
 	host->sysdata = pcie;
-
 	return pci_host_probe(host);
 }
 
@@ -622,5 +621,4 @@ static struct platform_driver mt7621_pci_driver = {
 		.of_match_table = of_match_ptr(mt7621_pci_ids),
 	},
 };
-
 builtin_platform_driver(mt7621_pci_driver);
