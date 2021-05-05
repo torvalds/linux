@@ -1531,17 +1531,17 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 	char flag = TTY_NORMAL;
 
 	while (count--) {
+		unsigned char c = *cp++;
+
 		if (fp)
 			flag = *fp++;
 
 		if (ldata->lnext) {
-			n_tty_receive_char_lnext(tty, *cp++, flag);
+			n_tty_receive_char_lnext(tty, c, flag);
 			continue;
 		}
 
 		if (likely(flag == TTY_NORMAL)) {
-			unsigned char c = *cp++;
-
 			if (I_ISTRIP(tty))
 				c &= 0x7f;
 			if (I_IUCLC(tty) && L_IEXTEN(tty))
@@ -1555,7 +1555,7 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 			else
 				n_tty_receive_char_special(tty, c);
 		} else
-			n_tty_receive_char_flagged(tty, *cp++, flag);
+			n_tty_receive_char_flagged(tty, c, flag);
 	}
 }
 
