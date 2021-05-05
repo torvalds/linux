@@ -19,7 +19,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -31,10 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
-#include <mt7621.h>
-#include <ralink_regs.h>
-
-#include "../../pci/pci.h"
 
 /* MediaTek specific configuration registers */
 #define PCIE_FTS_NUM			0x70c
