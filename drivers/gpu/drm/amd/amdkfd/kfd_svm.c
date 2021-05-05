@@ -119,28 +119,40 @@ static void svm_range_remove_notifier(struct svm_range *prange)
 }
 
 static int
-svm_range_dma_map_dev(struct device *dev, dma_addr_t **dma_addr,
-		      unsigned long *hmm_pfns, uint64_t npages)
+svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
+		      unsigned long *hmm_pfns, uint32_t gpuidx)
 {
 	enum dma_data_direction dir = DMA_BIDIRECTIONAL;
-	dma_addr_t *addr = *dma_addr;
+	dma_addr_t *addr = prange->dma_addr[gpuidx];
+	struct device *dev = adev->dev;
 	struct page *page;
 	int i, r;
 
 	if (!addr) {
-		addr = kvmalloc_array(npages, sizeof(*addr),
+		addr = kvmalloc_array(prange->npages, sizeof(*addr),
 				      GFP_KERNEL | __GFP_ZERO);
 		if (!addr)
 			return -ENOMEM;
-		*dma_addr = addr;
+		prange->dma_addr[gpuidx] = addr;
 	}
 
-	for (i = 0; i < npages; i++) {
+	for (i = 0; i < prange->npages; i++) {
 		if (WARN_ONCE(addr[i] && !dma_mapping_error(dev, addr[i]),
 			      "leaking dma mapping\n"))
 			dma_unmap_page(dev, addr[i], PAGE_SIZE, dir);
 
 		page = hmm_pfn_to_page(hmm_pfns[i]);
+		if (is_zone_device_page(page)) {
+			struct amdgpu_device *bo_adev =
+					amdgpu_ttm_adev(prange->svm_bo->bo->tbo.bdev);
+
+			addr[i] = (hmm_pfns[i] << PAGE_SHIFT) +
+				   bo_adev->vm_manager.vram_base_offset -
+				   bo_adev->kfd.dev->pgmap.range.start;
+			addr[i] |= SVM_RANGE_VRAM_DOMAIN;
+			pr_debug("vram address detected: 0x%llx\n", addr[i]);
+			continue;
+		}
 		addr[i] = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
 		r = dma_mapping_error(dev, addr[i]);
 		if (r) {
@@ -175,8 +187,7 @@ svm_range_dma_map(struct svm_range *prange, unsigned long *bitmap,
 		}
 		adev = (struct amdgpu_device *)pdd->dev->kgd;
 
-		r = svm_range_dma_map_dev(adev->dev, &prange->dma_addr[gpuidx],
-					  hmm_pfns, prange->npages);
+		r = svm_range_dma_map_dev(adev, prange, hmm_pfns, gpuidx);
 		if (r)
 			break;
 	}
@@ -1020,21 +1031,22 @@ svm_range_split_by_granularity(struct kfd_process *p, struct mm_struct *mm,
 }
 
 static uint64_t
-svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
+svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange,
+			int domain)
 {
 	struct amdgpu_device *bo_adev;
 	uint32_t flags = prange->flags;
 	uint32_t mapping_flags = 0;
 	uint64_t pte_flags;
-	bool snoop = !prange->ttm_res;
+	bool snoop = (domain != SVM_RANGE_VRAM_DOMAIN);
 	bool coherent = flags & KFD_IOCTL_SVM_FLAG_COHERENT;
 
-	if (prange->svm_bo && prange->ttm_res)
+	if (domain == SVM_RANGE_VRAM_DOMAIN)
 		bo_adev = amdgpu_ttm_adev(prange->svm_bo->bo->tbo.bdev);
 
 	switch (adev->asic_type) {
 	case CHIP_ARCTURUS:
-		if (prange->svm_bo && prange->ttm_res) {
+		if (domain == SVM_RANGE_VRAM_DOMAIN) {
 			if (bo_adev == adev) {
 				mapping_flags |= coherent ?
 					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
@@ -1050,7 +1062,7 @@ svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
 		}
 		break;
 	case CHIP_ALDEBARAN:
-		if (prange->svm_bo && prange->ttm_res) {
+		if (domain == SVM_RANGE_VRAM_DOMAIN) {
 			if (bo_adev == adev) {
 				mapping_flags |= coherent ?
 					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
@@ -1080,14 +1092,14 @@ svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
 
 	pte_flags = AMDGPU_PTE_VALID;
-	pte_flags |= prange->ttm_res ? 0 : AMDGPU_PTE_SYSTEM;
+	pte_flags |= (domain == SVM_RANGE_VRAM_DOMAIN) ? 0 : AMDGPU_PTE_SYSTEM;
 	pte_flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
 
 	pte_flags |= amdgpu_gem_va_map_flags(adev, mapping_flags);
 
 	pr_debug("svms 0x%p [0x%lx 0x%lx] vram %d PTE 0x%llx mapping 0x%x\n",
 		 prange->svms, prange->start, prange->last,
-		 prange->ttm_res ? 1:0, pte_flags, mapping_flags);
+		 (domain == SVM_RANGE_VRAM_DOMAIN) ? 1:0, pte_flags, mapping_flags);
 
 	return pte_flags;
 }
@@ -1158,31 +1170,41 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	struct amdgpu_bo_va bo_va;
 	bool table_freed = false;
 	uint64_t pte_flags;
+	unsigned long last_start;
+	int last_domain;
 	int r = 0;
+	int64_t i;
 
 	pr_debug("svms 0x%p [0x%lx 0x%lx]\n", prange->svms, prange->start,
 		 prange->last);
 
-	if (prange->svm_bo && prange->ttm_res) {
+	if (prange->svm_bo && prange->ttm_res)
 		bo_va.is_xgmi = amdgpu_xgmi_same_hive(adev, bo_adev);
-		prange->mapping.bo_va = &bo_va;
-	}
 
-	prange->mapping.start = prange->start;
-	prange->mapping.last = prange->last;
-	prange->mapping.offset = prange->ttm_res ? prange->offset : 0;
-	pte_flags = svm_range_get_pte_flags(adev, prange);
+	last_start = prange->start;
+	for (i = 0; i < prange->npages; i++) {
+		last_domain = dma_addr[i] & SVM_RANGE_VRAM_DOMAIN;
+		dma_addr[i] &= ~SVM_RANGE_VRAM_DOMAIN;
+		if ((prange->start + i) < prange->last &&
+		    last_domain == (dma_addr[i + 1] & SVM_RANGE_VRAM_DOMAIN))
+			continue;
 
-	r = amdgpu_vm_bo_update_mapping(adev, bo_adev, vm, false, false, NULL,
-					prange->mapping.start,
-					prange->mapping.last, pte_flags,
-					prange->mapping.offset,
-					prange->ttm_res,
-					dma_addr, &vm->last_update,
-					&table_freed);
-	if (r) {
-		pr_debug("failed %d to map to gpu 0x%lx\n", r, prange->start);
-		goto out;
+		pr_debug("Mapping range [0x%lx 0x%llx] on domain: %s\n",
+			 last_start, prange->start + i, last_domain ? "GPU" : "CPU");
+		pte_flags = svm_range_get_pte_flags(adev, prange, last_domain);
+		r = amdgpu_vm_bo_update_mapping(adev, bo_adev, vm, false, false, NULL,
+						last_start,
+						prange->start + i, pte_flags,
+						last_start - prange->start,
+						NULL,
+						dma_addr,
+						&vm->last_update,
+						&table_freed);
+		if (r) {
+			pr_debug("failed %d to map to gpu 0x%lx\n", r, prange->start);
+			goto out;
+		}
+		last_start = prange->start + i + 1;
 	}
 
 	r = amdgpu_vm_update_pdes(adev, vm, false);
@@ -1203,7 +1225,6 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 						p->pasid, TLB_FLUSH_LEGACY);
 	}
 out:
-	prange->mapping.bo_va = NULL;
 	return r;
 }
 
