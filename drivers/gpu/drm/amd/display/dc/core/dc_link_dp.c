@@ -2577,7 +2577,11 @@ bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *lin
 	struct dc_link_settings current_link_setting;
 	uint32_t link_bw;
 
-	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14 ||
+	/*
+	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
+	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_13 ||
 			link->dpcd_caps.edp_supported_link_rates_count == 0) {
 		*link_setting = link->verified_link_cap;
 		return true;
@@ -4000,7 +4004,11 @@ void detect_edp_sink_caps(struct dc_link *link)
 	link->dpcd_caps.edp_supported_link_rates_count = 0;
 	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
-	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
+	/*
+	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
+	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
 			(link->dc->debug.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
