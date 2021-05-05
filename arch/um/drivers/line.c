@@ -211,11 +211,6 @@ out_up:
 	return ret;
 }
 
-void line_set_termios(struct tty_struct *tty, struct ktermios * old)
-{
-	/* nothing */
-}
-
 void line_throttle(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
