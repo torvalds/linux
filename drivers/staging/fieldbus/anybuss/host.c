@@ -1194,7 +1194,8 @@ static int anybus_bus_remove(struct device *dev)
 		to_anybuss_client_driver(dev->driver);
 
 	if (adrv->remove)
-		return adrv->remove(to_anybuss_client(dev));
+		adrv->remove(to_anybuss_client(dev));
+
 	return 0;
 }
 
