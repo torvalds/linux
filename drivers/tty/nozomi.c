@@ -1780,16 +1780,11 @@ static unsigned int ntty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
 	struct nozomi *dc = get_dc_by_tty(tty);
-	s32 rval = 0;
 
-	if (unlikely(!dc || !port)) {
-		goto exit_in_buffer;
-	}
+	if (unlikely(!dc || !port))
+		return 0;
 
-	rval = kfifo_len(&port->fifo_ul);
-
-exit_in_buffer:
-	return rval;
+	return kfifo_len(&port->fifo_ul);
 }
 
 static const struct tty_port_operations noz_tty_port_ops = {
