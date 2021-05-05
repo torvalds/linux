@@ -1049,7 +1049,7 @@ static void exynos_ufs_pre_hibern8(struct ufs_hba *hba, u8 enter)
 		exynos_ufs_ungate_clks(ufs);
 
 		if (ufs->opts & EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER) {
-			const unsigned int granularity_tbl[] = {
+			static const unsigned int granularity_tbl[] = {
 				1, 4, 8, 16, 32, 100
 			};
 			int h8_time = attr->pa_hibern8time *
