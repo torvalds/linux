@@ -91,7 +91,7 @@
 
 #define DATA_INTERFACE_REG		0x6C
 #define   DIFACE_SDR_MODE(x)		FIELD_PREP(GENMASK(2, 0), (x))
-#define   DIFACE_DDR_MODE(x)		FIELD_PREP(GENMASK(5, 3), (X))
+#define   DIFACE_DDR_MODE(x)		FIELD_PREP(GENMASK(5, 3), (x))
 #define   DIFACE_SDR			0
 #define   DIFACE_NVDDR			BIT(9)
 
