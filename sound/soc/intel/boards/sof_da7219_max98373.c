@@ -457,3 +457,4 @@ MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:sof_da7219_max98360a");
 MODULE_ALIAS("platform:sof_da7219_max98373");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

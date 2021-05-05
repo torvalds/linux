@@ -321,3 +321,4 @@ MODULE_DESCRIPTION("ASoC Intel(R) Elkhartlake + rt5660 Machine driver");
 MODULE_AUTHOR("libin.yang@intel.com");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:ehl_rt5660");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
