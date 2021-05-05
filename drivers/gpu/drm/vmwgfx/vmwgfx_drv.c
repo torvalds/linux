@@ -1179,7 +1179,7 @@ static void __vmw_svga_enable(struct vmw_private *dev_priv)
 	struct ttm_resource_manager *man = ttm_manager_type(&dev_priv->bdev, TTM_PL_VRAM);
 
 	if (!ttm_resource_manager_used(man)) {
-		vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE);
+		vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE_ENABLE);
 		ttm_resource_manager_set_used(man, true);
 	}
 }
