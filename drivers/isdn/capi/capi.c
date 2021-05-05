@@ -1238,17 +1238,6 @@ static void capinc_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(&mp->port);
 }
 
-static int capinc_tty_break_ctl(struct tty_struct *tty, int state)
-{
-	pr_debug("capinc_tty_break_ctl(%d)\n", state);
-	return 0;
-}
-
-static void capinc_tty_set_ldisc(struct tty_struct *tty)
-{
-	pr_debug("capinc_tty_set_ldisc\n");
-}
-
 static void capinc_tty_send_xchar(struct tty_struct *tty, char ch)
 {
 	pr_debug("capinc_tty_send_xchar(%d)\n", ch);
@@ -1267,8 +1256,6 @@ static const struct tty_operations capinc_ops = {
 	.stop = capinc_tty_stop,
 	.start = capinc_tty_start,
 	.hangup = capinc_tty_hangup,
-	.break_ctl = capinc_tty_break_ctl,
-	.set_ldisc = capinc_tty_set_ldisc,
 	.send_xchar = capinc_tty_send_xchar,
 	.install = capinc_tty_install,
 	.cleanup = capinc_tty_cleanup,
