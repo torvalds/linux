@@ -452,7 +452,7 @@ static int init_ixp_crypto(struct device *dev)
 
 	if (! ( ~(*IXP4XX_EXP_CFG2) & (IXP4XX_FEATURE_HASH |
 				IXP4XX_FEATURE_AES | IXP4XX_FEATURE_DES))) {
-		printk(KERN_ERR "ixp_crypto: No HW crypto available\n");
+		dev_err(dev, "ixp_crypto: No HW crypto available\n");
 		return ret;
 	}
 	npe_c = npe_request(NPE_ID);
@@ -475,8 +475,7 @@ static int init_ixp_crypto(struct device *dev)
 
 	switch ((msg[1]>>16) & 0xff) {
 	case 3:
-		printk(KERN_WARNING "Firmware of %s lacks AES support\n",
-				npe_name(npe_c));
+		dev_warn(dev, "Firmware of %s lacks AES support\n", npe_name(npe_c));
 		support_aes = 0;
 		break;
 	case 4:
@@ -484,8 +483,7 @@ static int init_ixp_crypto(struct device *dev)
 		support_aes = 1;
 		break;
 	default:
-		printk(KERN_ERR "Firmware of %s lacks crypto support\n",
-			npe_name(npe_c));
+		dev_err(dev, "Firmware of %s lacks crypto support\n", npe_name(npe_c));
 		ret = -ENODEV;
 		goto npe_release;
 	}
@@ -521,7 +519,7 @@ static int init_ixp_crypto(struct device *dev)
 	return 0;
 
 npe_error:
-	printk(KERN_ERR "%s not responding\n", npe_name(npe_c));
+	dev_err(dev, "%s not responding\n", npe_name(npe_c));
 	ret = -EIO;
 err:
 	dma_pool_destroy(ctx_pool);
@@ -1487,7 +1485,7 @@ static int __init ixp_module_init(void)
 		cra->base.cra_alignmask = 3;
 		cra->base.cra_priority = 300;
 		if (crypto_register_skcipher(cra))
-			printk(KERN_ERR "Failed to register '%s'\n",
+			dev_err(&pdev->dev, "Failed to register '%s'\n",
 				cra->base.cra_name);
 		else
 			ixp4xx_algos[i].registered = 1;
@@ -1520,7 +1518,7 @@ static int __init ixp_module_init(void)
 		cra->base.cra_priority = 300;
 
 		if (crypto_register_aead(cra))
-			printk(KERN_ERR "Failed to register '%s'\n",
+			dev_err(&pdev->dev, "Failed to register '%s'\n",
 				cra->base.cra_driver_name);
 		else
 			ixp4xx_aeads[i].registered = 1;
