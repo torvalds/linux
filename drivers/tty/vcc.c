@@ -668,7 +668,7 @@ free_port:
  *
  * Return: status of removal
  */
-static int vcc_remove(struct vio_dev *vdev)
+static void vcc_remove(struct vio_dev *vdev)
 {
 	struct vcc_port *port = dev_get_drvdata(&vdev->dev);
 
@@ -703,8 +703,6 @@ static int vcc_remove(struct vio_dev *vdev)
 		kfree(port->domain);
 		kfree(port);
 	}
-
-	return 0;
 }
 
 static const struct vio_device_id vcc_match[] = {

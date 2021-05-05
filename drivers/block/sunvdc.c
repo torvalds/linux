@@ -1071,7 +1071,7 @@ err_out_release_mdesc:
 	return err;
 }
 
-static int vdc_port_remove(struct vio_dev *vdev)
+static void vdc_port_remove(struct vio_dev *vdev)
 {
 	struct vdc_port *port = dev_get_drvdata(&vdev->dev);
 
@@ -1094,7 +1094,6 @@ static int vdc_port_remove(struct vio_dev *vdev)
 
 		kfree(port);
 	}
-	return 0;
 }
 
 static void vdc_requeue_inflight(struct vdc_port *port)

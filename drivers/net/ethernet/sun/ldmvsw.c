@@ -404,7 +404,7 @@ err_out_free_dev:
 	return err;
 }
 
-static int vsw_port_remove(struct vio_dev *vdev)
+static void vsw_port_remove(struct vio_dev *vdev)
 {
 	struct vnet_port *port = dev_get_drvdata(&vdev->dev);
 	unsigned long flags;
@@ -430,8 +430,6 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 		free_netdev(port->dev);
 	}
-
-	return 0;
 }
 
 static void vsw_cleanup(void)
