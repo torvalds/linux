@@ -17,7 +17,7 @@
 /**
  * spi_nor_otp_read_secr() - read OTP data
  * @nor:	pointer to 'struct spi_nor'
- * @from:       offset to read from
+ * @addr:       offset to read from
  * @len:        number of bytes to read
  * @buf:        pointer to dst buffer
  *
@@ -59,7 +59,7 @@ int spi_nor_otp_read_secr(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf)
 /**
  * spi_nor_otp_write_secr() - write OTP data
  * @nor:        pointer to 'struct spi_nor'
- * @to:         offset to write to
+ * @addr:       offset to write to
  * @len:        number of bytes to write
  * @buf:        pointer to src buffer
  *
