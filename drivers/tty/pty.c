@@ -113,7 +113,7 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 	struct tty_struct *to = tty->link;
 	unsigned long flags;
 
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		return 0;
 
 	if (c > 0) {
@@ -138,7 +138,7 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 
 static int pty_write_room(struct tty_struct *tty)
 {
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		return 0;
 	return tty_buffer_space_avail(tty->link->port);
 }

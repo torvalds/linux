@@ -778,14 +778,14 @@ EXPORT_SYMBOL(tty_hung_up_p);
  *	but not always.
  *
  *	Locking:
- *		flow_lock
+ *		flow.lock
  */
 
 void __stop_tty(struct tty_struct *tty)
 {
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		return;
-	tty->stopped = 1;
+	tty->flow.stopped = true;
 	if (tty->ops->stop)
 		tty->ops->stop(tty);
 }
@@ -794,9 +794,9 @@ void stop_tty(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tty->flow_lock, flags);
+	spin_lock_irqsave(&tty->flow.lock, flags);
 	__stop_tty(tty);
-	spin_unlock_irqrestore(&tty->flow_lock, flags);
+	spin_unlock_irqrestore(&tty->flow.lock, flags);
 }
 EXPORT_SYMBOL(stop_tty);
 
@@ -809,14 +809,14 @@ EXPORT_SYMBOL(stop_tty);
  *	start method is invoked and the line discipline woken.
  *
  *	Locking:
- *		flow_lock
+ *		flow.lock
  */
 
 void __start_tty(struct tty_struct *tty)
 {
-	if (!tty->stopped || tty->flow_stopped)
+	if (!tty->flow.stopped || tty->flow.tco_stopped)
 		return;
-	tty->stopped = 0;
+	tty->flow.stopped = false;
 	if (tty->ops->start)
 		tty->ops->start(tty);
 	tty_wakeup(tty);
@@ -826,9 +826,9 @@ void start_tty(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tty->flow_lock, flags);
+	spin_lock_irqsave(&tty->flow.lock, flags);
 	__start_tty(tty);
-	spin_unlock_irqrestore(&tty->flow_lock, flags);
+	spin_unlock_irqrestore(&tty->flow.lock, flags);
 }
 EXPORT_SYMBOL(start_tty);
 
@@ -1172,7 +1172,7 @@ ssize_t redirected_tty_write(struct kiocb *iocb, struct iov_iter *iter)
 
 int tty_send_xchar(struct tty_struct *tty, char ch)
 {
-	int	was_stopped = tty->stopped;
+	bool was_stopped = tty->flow.stopped;
 
 	if (tty->ops->send_xchar) {
 		down_read(&tty->termios_rwsem);
@@ -3141,7 +3141,7 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 	INIT_WORK(&tty->hangup_work, do_tty_hangup);
 	mutex_init(&tty->atomic_write_lock);
 	spin_lock_init(&tty->ctrl_lock);
-	spin_lock_init(&tty->flow_lock);
+	spin_lock_init(&tty->flow.lock);
 	spin_lock_init(&tty->files_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
 	INIT_WORK(&tty->SAK_work, do_SAK_work);

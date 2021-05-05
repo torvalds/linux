@@ -722,7 +722,7 @@ static int fwtty_tx(struct fwtty_port *port, bool drain)
 
 	/* try to write as many dma transactions out as possible */
 	n = -EAGAIN;
-	while (!tty->stopped && !tty->hw_stopped &&
+	while (!tty->flow.stopped && !tty->hw_stopped &&
 	       !test_bit(STOP_TX, &port->flags)) {
 		txn = kmem_cache_alloc(fwtty_txn_cache, GFP_ATOMIC);
 		if (!txn) {

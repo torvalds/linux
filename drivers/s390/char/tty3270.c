@@ -1640,7 +1640,7 @@ tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 	int i_msg, i;
 
 	spin_lock_bh(&tp->view.lock);
-	for (i_msg = 0; !tty->stopped && i_msg < count; i_msg++) {
+	for (i_msg = 0; !tty->flow.stopped && i_msg < count; i_msg++) {
 		if (tp->esc_state != 0) {
 			/* Continue escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);

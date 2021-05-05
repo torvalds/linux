@@ -153,7 +153,7 @@
  * 	This routine notifies the tty driver that it should stop
  * 	outputting characters to the tty device.  
  *
- *	Called with ->flow_lock held. Serialized with start() method.
+ *	Called with ->flow.lock held. Serialized with start() method.
  *
  *	Optional:
  *
@@ -164,7 +164,7 @@
  * 	This routine notifies the tty driver that it resume sending
  *	characters to the tty device.
  *
- *	Called with ->flow_lock held. Serialized with stop() method.
+ *	Called with ->flow.lock held. Serialized with stop() method.
  *
  *	Optional:
  *

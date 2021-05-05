@@ -1221,7 +1221,7 @@ static int moxa_write_room(struct tty_struct *tty)
 {
 	struct moxa_port *ch;
 
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		return 0;
 	ch = tty->driver_data;
 	if (ch == NULL)
@@ -1374,7 +1374,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 			clear_bit(EMPTYWAIT, &p->statusflags);
 			tty_wakeup(tty);
 		}
-		if (test_bit(LOWWAIT, &p->statusflags) && !tty->stopped &&
+		if (test_bit(LOWWAIT, &p->statusflags) && !tty->flow.stopped &&
 				MoxaPortTxQueue(p) <= WAKEUP_CHARS) {
 			clear_bit(LOWWAIT, &p->statusflags);
 			tty_wakeup(tty);

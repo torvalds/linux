@@ -985,7 +985,7 @@ static void tx_done(MGSLPC_INFO *info, struct tty_struct *tty)
 	else
 #endif
 	{
-		if (tty && (tty->stopped || tty->hw_stopped)) {
+		if (tty && (tty->flow.stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1005,7 +1005,7 @@ static void tx_ready(MGSLPC_INFO *info, struct tty_struct *tty)
 		if (!info->tx_active)
 			return;
 	} else {
-		if (tty && (tty->stopped || tty->hw_stopped)) {
+		if (tty && (tty->flow.stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1525,7 +1525,7 @@ static void mgslpc_flush_chars(struct tty_struct *tty)
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_flush_chars"))
 		return;
 
-	if (info->tx_count <= 0 || tty->stopped ||
+	if (info->tx_count <= 0 || tty->flow.stopped ||
 	    tty->hw_stopped || !info->tx_buf)
 		return;
 
@@ -1594,7 +1594,7 @@ static int mgslpc_write(struct tty_struct * tty,
 		ret += c;
 	}
 start:
-	if (info->tx_count && !tty->stopped && !tty->hw_stopped) {
+	if (info->tx_count && !tty->flow.stopped && !tty->hw_stopped) {
 		spin_lock_irqsave(&info->lock, flags);
 		if (!info->tx_active)
 			tx_start(info, tty);

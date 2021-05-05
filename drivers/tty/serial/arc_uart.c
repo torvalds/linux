@@ -149,7 +149,7 @@ static unsigned int arc_serial_tx_empty(struct uart_port *port)
 /*
  * Driver internal routine, used by both tty(serial core) as well as tx-isr
  *  -Called under spinlock in either cases
- *  -also tty->stopped has already been checked
+ *  -also tty->flow.stopped has already been checked
  *     = by uart_start( ) before calling us
  *     = tx_ist checks that too before calling
  */

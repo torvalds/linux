@@ -243,20 +243,22 @@ struct tty_port {
 #define TTY_PORT_KOPENED	5	/* device exclusively opened by
 					   kernel */
 
-/*
- * Where all of the state associated with a tty is kept while the tty
- * is open.  Since the termios state should be kept even if the tty
- * has been closed --- for things like the baud rate, etc --- it is
- * not stored here, but rather a pointer to the real state is stored
- * here.  Possible the winsize structure should have the same
- * treatment, but (1) the default 80x24 is usually right and (2) it's
- * most often used by a windowing system, which will set the correct
- * size each time the window is created or resized anyway.
- * 						- TYT, 9/14/92
- */
-
 struct tty_operations;
 
+/**
+ * struct tty_struct - state associated with a tty while open
+ *
+ * @flow.lock: lock for flow members
+ * @flow.stopped: tty stopped/started by tty_stop/tty_start
+ * @flow.tco_stopped: tty stopped/started by TCOOFF/TCOON ioctls (it has
+ *		      precedense over @flow.stopped)
+ * @flow.unused: alignment for Alpha, so that no members other than @flow.* are
+ *		 modified by the same 64b word store. The @flow's __aligned is
+ *		 there for the very same reason.
+ *
+ * All of the state associated with a tty while the tty is open. Persistent
+ * storage for tty devices is referenced here as @port in struct tty_port.
+ */
 struct tty_struct {
 	int	magic;
 	struct kref kref;
@@ -275,7 +277,6 @@ struct tty_struct {
 	struct rw_semaphore termios_rwsem;
 	struct mutex winsize_mutex;
 	spinlock_t ctrl_lock;
-	spinlock_t flow_lock;
 	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
 	char name[64];
@@ -288,9 +289,14 @@ struct tty_struct {
 	unsigned long flags;
 	int count;
 	struct winsize winsize;		/* winsize_mutex */
-	unsigned long stopped:1,	/* flow_lock */
-		      flow_stopped:1,
-		      unused:BITS_PER_LONG - 2;
+
+	struct {
+		spinlock_t lock;
+		bool stopped;
+		bool tco_stopped;
+		unsigned long unused[0];
+	} __aligned(sizeof(unsigned long)) flow;
+
 	int hw_stopped;
 	unsigned long ctrl_status:8,	/* ctrl_lock */
 		      packet:1,

@@ -1118,7 +1118,7 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 		total += c;
 	}
 
-	if (info->xmit_cnt && !tty->stopped) {
+	if (info->xmit_cnt && !tty->flow.stopped) {
 		if (!tty->hw_stopped ||
 				(info->type == PORT_16550A) ||
 				(info->board->chip_flag)) {
@@ -1149,7 +1149,7 @@ static int mxser_put_char(struct tty_struct *tty, unsigned char ch)
 	info->xmit_head &= SERIAL_XMIT_SIZE - 1;
 	info->xmit_cnt++;
 	spin_unlock_irqrestore(&info->slock, flags);
-	if (!tty->stopped) {
+	if (!tty->flow.stopped) {
 		if (!tty->hw_stopped ||
 				(info->type == PORT_16550A) ||
 				info->board->chip_flag) {
@@ -1169,7 +1169,7 @@ static void mxser_flush_chars(struct tty_struct *tty)
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (info->xmit_cnt <= 0 || tty->stopped || !info->port.xmit_buf ||
+	if (info->xmit_cnt <= 0 || tty->flow.stopped || !info->port.xmit_buf ||
 			(tty->hw_stopped && info->type != PORT_16550A &&
 			 !info->board->chip_flag))
 		return;
@@ -1917,7 +1917,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 /*
  * mxser_stop() and mxser_start()
  *
- * This routines are called before setting or resetting tty->stopped.
+ * This routines are called before setting or resetting tty->flow.stopped.
  * They enable or disable transmitter interrupts, as necessary.
  */
 static void mxser_stop(struct tty_struct *tty)
@@ -1963,7 +1963,7 @@ static void mxser_set_termios(struct tty_struct *tty, struct ktermios *old_termi
 
 	/* Handle sw stopped */
 	if ((old_termios->c_iflag & IXON) && !I_IXON(tty)) {
-		tty->stopped = 0;
+		tty->flow.stopped = 0;
 
 		if (info->board->chip_flag) {
 			spin_lock_irqsave(&info->slock, flags);
@@ -2175,7 +2175,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	if (port->port.xmit_buf == NULL)
 		return;
 
-	if (port->xmit_cnt <= 0 || tty->stopped ||
+	if (port->xmit_cnt <= 0 || tty->flow.stopped ||
 			(tty->hw_stopped &&
 			(port->type != PORT_16550A) &&
 			(!port->board->chip_flag))) {

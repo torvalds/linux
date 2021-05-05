@@ -846,20 +846,20 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 			return retval;
 		switch (arg) {
 		case TCOOFF:
-			spin_lock_irq(&tty->flow_lock);
-			if (!tty->flow_stopped) {
-				tty->flow_stopped = 1;
+			spin_lock_irq(&tty->flow.lock);
+			if (!tty->flow.tco_stopped) {
+				tty->flow.tco_stopped = true;
 				__stop_tty(tty);
 			}
-			spin_unlock_irq(&tty->flow_lock);
+			spin_unlock_irq(&tty->flow.lock);
 			break;
 		case TCOON:
-			spin_lock_irq(&tty->flow_lock);
-			if (tty->flow_stopped) {
-				tty->flow_stopped = 0;
+			spin_lock_irq(&tty->flow.lock);
+			if (tty->flow.tco_stopped) {
+				tty->flow.tco_stopped = false;
 				__start_tty(tty);
 			}
-			spin_unlock_irq(&tty->flow_lock);
+			spin_unlock_irq(&tty->flow.lock);
 			break;
 		case TCIOFF:
 			if (STOP_CHAR(tty) != __DISABLED_CHAR)

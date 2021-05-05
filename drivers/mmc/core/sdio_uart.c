@@ -439,7 +439,7 @@ static void sdio_uart_transmit_chars(struct sdio_uart_port *port)
 	tty = tty_port_tty_get(&port->port);
 
 	if (tty == NULL || !kfifo_len(xmit) ||
-				tty->stopped || tty->hw_stopped) {
+				tty->flow.stopped || tty->hw_stopped) {
 		sdio_uart_stop_tx(port);
 		tty_kref_put(tty);
 		return;

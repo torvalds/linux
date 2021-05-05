@@ -1289,7 +1289,7 @@ static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 		}
 	}
 
-	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
+	if (tty->flow.stopped && !tty->flow.tco_stopped && I_IXON(tty) && I_IXANY(tty)) {
 		start_tty(tty);
 		process_echoes(tty);
 	}
@@ -1398,7 +1398,7 @@ static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
+	if (tty->flow.stopped && !tty->flow.tco_stopped && I_IXON(tty) && I_IXANY(tty)) {
 		start_tty(tty);
 		process_echoes(tty);
 	}
@@ -1427,7 +1427,7 @@ static void n_tty_receive_char_closing(struct tty_struct *tty, unsigned char c)
 		if (c == STOP_CHAR(tty))
 			stop_tty(tty);
 		else if (c == START_CHAR(tty) ||
-			 (tty->stopped && !tty->flow_stopped && I_IXANY(tty) &&
+			 (tty->flow.stopped && !tty->flow.tco_stopped && I_IXANY(tty) &&
 			  c != INTR_CHAR(tty) && c != QUIT_CHAR(tty) &&
 			  c != SUSP_CHAR(tty))) {
 			start_tty(tty);
@@ -1797,7 +1797,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	 * Fix tty hang when I_IXON(tty) is cleared, but the tty
 	 * been stopped by STOP_CHAR(tty) before it.
 	 */
-	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow_stopped) {
+	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow.tco_stopped) {
 		start_tty(tty);
 		process_echoes(tty);
 	}

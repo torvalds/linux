@@ -2888,7 +2888,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	param.vc = vc;
 
-	while (!tty->stopped && count) {
+	while (!tty->flow.stopped && count) {
 		int orig = *buf;
 		buf++;
 		n++;
@@ -3265,7 +3265,7 @@ static int con_put_char(struct tty_struct *tty, unsigned char ch)
 
 static int con_write_room(struct tty_struct *tty)
 {
-	if (tty->stopped)
+	if (tty->flow.stopped)
 		return 0;
 	return 32768;		/* No limit, really; we're not buffering */
 }

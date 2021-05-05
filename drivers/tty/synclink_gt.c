@@ -768,7 +768,7 @@ static int write(struct tty_struct *tty,
 	if (!info->tx_buf || (count > info->max_frame_size))
 		return -EIO;
 
-	if (!count || tty->stopped || tty->hw_stopped)
+	if (!count || tty->flow.stopped || tty->hw_stopped)
 		return 0;
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -889,7 +889,7 @@ static void flush_chars(struct tty_struct *tty)
 		return;
 	DBGINFO(("%s flush_chars entry tx_count=%d\n", info->device_name, info->tx_count));
 
-	if (info->tx_count <= 0 || tty->stopped ||
+	if (info->tx_count <= 0 || tty->flow.stopped ||
 	    tty->hw_stopped || !info->tx_buf)
 		return;
 
@@ -2241,7 +2241,7 @@ static void isr_txeom(struct slgt_info *info, unsigned short status)
 		else
 #endif
 		{
-			if (info->port.tty && (info->port.tty->stopped || info->port.tty->hw_stopped)) {
+			if (info->port.tty && (info->port.tty->flow.stopped || info->port.tty->hw_stopped)) {
 				tx_stop(info);
 				return;
 			}
