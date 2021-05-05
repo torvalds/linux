@@ -221,10 +221,10 @@ static const struct ix_hash_algo hash_alg_sha1 = {
 };
 
 static struct npe *npe_c;
-static struct dma_pool *buffer_pool = NULL;
-static struct dma_pool *ctx_pool = NULL;
+static struct dma_pool *buffer_pool;
+static struct dma_pool *ctx_pool;
 
-static struct crypt_ctl *crypt_virt = NULL;
+static struct crypt_ctl *crypt_virt;
 static dma_addr_t crypt_phys;
 
 static int support_aes = 1;
@@ -275,7 +275,7 @@ static DEFINE_SPINLOCK(desc_lock);
 static struct crypt_ctl *get_crypt_desc(void)
 {
 	int i;
-	static int idx = 0;
+	static int idx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc_lock, flags);
