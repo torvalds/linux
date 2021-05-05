@@ -169,7 +169,7 @@ static const struct can_bittiming_const at91_bittiming_const = {
 };
 
 #define AT91_IS(_model) \
-static inline int at91_is_sam##_model(const struct at91_priv *priv) \
+static inline int __maybe_unused at91_is_sam##_model(const struct at91_priv *priv) \
 { \
 	return priv->devtype_data.type == AT91_DEVTYPE_SAM##_model; \
 }
