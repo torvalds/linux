@@ -1348,7 +1348,7 @@ out_unlock:
 out:
 	if (rc == MIGRATEPAGE_SUCCESS)
 		putback_active_hugepage(hpage);
-	else if (rc != -EAGAIN && rc != MIGRATEPAGE_SUCCESS)
+	else if (rc != -EAGAIN)
 		list_move_tail(&hpage->lru, ret);
 
 	/*
