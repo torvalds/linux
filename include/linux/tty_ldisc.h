@@ -208,8 +208,6 @@ struct tty_ldisc_ops {
 				const char *fp, int count);
 
 	struct  module *owner;
-
-	int refcount;
 };
 
 struct tty_ldisc {
