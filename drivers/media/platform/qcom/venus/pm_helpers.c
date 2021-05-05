@@ -990,9 +990,8 @@ static int core_power_v4(struct venus_core *core, int on)
 
 	if (on == POWER_ON) {
 		if (pmctrl) {
-			ret = pm_runtime_get_sync(pmctrl);
+			ret = pm_runtime_resume_and_get(pmctrl);
 			if (ret < 0) {
-				pm_runtime_put_noidle(pmctrl);
 				return ret;
 			}
 		}
