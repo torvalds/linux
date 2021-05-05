@@ -284,17 +284,17 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
 	 * well for MIPS platforms that don't define PCI_IOBASE, so set the IO
 	 * resource manually instead.
 	 */
-	pcie->io.name = node->full_name;
-	pcie->io.parent = pcie->io.child = pcie->io.sibling = NULL;
 	for_each_of_pci_range(&parser, &range) {
 		switch (range.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
 			pcie->io_map_base =
 				(unsigned long)ioremap(range.cpu_addr,
 						       range.size);
+			pcie->io.name = node->full_name;
 			pcie->io.flags = range.flags;
 			pcie->io.start = range.cpu_addr;
 			pcie->io.end = range.cpu_addr + range.size - 1;
+			pcie->io.parent = pcie->io.child = pcie->io.sibling = NULL;
 			set_io_port_base(pcie->io_map_base);
 			break;
 		}
