@@ -557,6 +557,34 @@ struct nand_nvddr_timings {
 	u32 tWW_min;
 };
 
+/*
+ * While timings related to the data interface itself are mostly different
+ * between SDR and NV-DDR, timings related to the internal chip behavior are
+ * common. IOW, the following entries which describe the internal delays have
+ * the same definition and are shared in both SDR and NV-DDR timing structures:
+ * - tADL_min
+ * - tBERS_max
+ * - tCCS_min
+ * - tFEAT_max
+ * - tPROG_max
+ * - tR_max
+ * - tRR_min
+ * - tRST_max
+ * - tWB_max
+ *
+ * The below macros return the value of a given timing, no matter the interface.
+ */
+#define NAND_COMMON_TIMING_PS(conf, timing_name)		\
+	nand_interface_is_sdr(conf) ?				\
+		nand_get_sdr_timings(conf)->timing_name :	\
+		nand_get_nvddr_timings(conf)->timing_name
+
+#define NAND_COMMON_TIMING_MS(conf, timing_name) \
+	PSEC_TO_MSEC(NAND_COMMON_TIMING_PS((conf), timing_name))
+
+#define NAND_COMMON_TIMING_NS(conf, timing_name) \
+	PSEC_TO_NSEC(NAND_COMMON_TIMING_PS((conf), timing_name))
+
 /**
  * enum nand_interface_type - NAND interface type
  * @NAND_SDR_IFACE:	Single Data Rate interface
