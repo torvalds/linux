@@ -1872,15 +1872,6 @@ int vmstat_refresh(struct ctl_table *table, int write,
 				__func__, zone_stat_name(i), val);
 		}
 	}
-#ifdef CONFIG_NUMA
-	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++) {
-		val = atomic_long_read(&vm_numa_stat[i]);
-		if (val < 0) {
-			pr_warn("%s: %s %ld\n",
-				__func__, numa_stat_name(i), val);
-		}
-	}
-#endif
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
 		/*
 		 * Skip checking stats known to go negative occasionally.
