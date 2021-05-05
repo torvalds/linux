@@ -53,6 +53,7 @@
 #define   PROG_RST			BIT(8)
 #define   PROG_GET_FEATURE		BIT(9)
 #define   PROG_SET_FEATURE		BIT(10)
+#define   PROG_CHG_RD_COL_ENH		BIT(14)
 
 #define INTR_STS_EN_REG			0x14
 #define INTR_SIG_EN_REG			0x18
@@ -622,7 +623,23 @@ static int anfc_param_read_type_exec(struct nand_chip *chip,
 static int anfc_data_read_type_exec(struct nand_chip *chip,
 				    const struct nand_subop *subop)
 {
-	return anfc_misc_data_type_exec(chip, subop, PROG_PGRD);
+	u32 prog_reg = PROG_PGRD;
+
+	/*
+	 * Experience shows that while in SDR mode sending a CHANGE READ COLUMN
+	 * command through the READ PAGE "type" always works fine, when in
+	 * NV-DDR mode the same command simply fails. However, it was also
+	 * spotted that any CHANGE READ COLUMN command sent through the CHANGE
+	 * READ COLUMN ENHANCED "type" would correctly work in both cases (SDR
+	 * and NV-DDR). So, for simplicity, let's program the controller with
+	 * the CHANGE READ COLUMN ENHANCED "type" whenever we are requested to
+	 * perform a CHANGE READ COLUMN operation.
+	 */
+	if (subop->instrs[0].ctx.cmd.opcode == NAND_CMD_RNDOUT &&
+	    subop->instrs[2].ctx.cmd.opcode == NAND_CMD_RNDOUTSTART)
+		prog_reg = PROG_CHG_RD_COL_ENH;
+
+	return anfc_misc_data_type_exec(chip, subop, prog_reg);
 }
 
 static int anfc_param_write_type_exec(struct nand_chip *chip,
