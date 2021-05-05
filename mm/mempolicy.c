@@ -330,7 +330,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
 	else if (pol->flags & MPOL_F_RELATIVE_NODES)
 		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
 	else {
-		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
+		nodes_remap(tmp, pol->v.nodes, pol->w.cpuset_mems_allowed,
 								*nodes);
 		pol->w.cpuset_mems_allowed = *nodes;
 	}
@@ -1124,7 +1124,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	int err = 0;
 	nodemask_t tmp;
 
-	migrate_prep();
+	lru_cache_disable();
 
 	mmap_read_lock(mm);
 
@@ -1161,7 +1161,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 
 	tmp = *from;
 	while (!nodes_empty(tmp)) {
-		int s,d;
+		int s, d;
 		int source = NUMA_NO_NODE;
 		int dest = 0;
 
@@ -1208,6 +1208,8 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 			break;
 	}
 	mmap_read_unlock(mm);
+
+	lru_cache_enable();
 	if (err < 0)
 		return err;
 	return busy;
@@ -1323,7 +1325,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
 
-		migrate_prep();
+		lru_cache_disable();
 	}
 	{
 		NODEMASK_SCRATCH(scratch);
@@ -1371,6 +1373,8 @@ up_out:
 	mmap_write_unlock(mm);
 mpol_out:
 	mpol_put(new);
+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+		lru_cache_enable();
 	return err;
 }
 
