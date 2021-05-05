@@ -2591,7 +2591,6 @@ int hid_check_keys_pressed(struct hid_device *hid)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(hid_check_keys_pressed);
 
 static int __init hid_init(void)
