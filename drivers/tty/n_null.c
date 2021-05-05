@@ -33,7 +33,7 @@ static ssize_t n_null_write(struct tty_struct *tty, struct file *file,
 }
 
 static void n_null_receivebuf(struct tty_struct *tty,
-				 const unsigned char *cp, char *fp,
+				 const unsigned char *cp, const char *fp,
 				 int cnt)
 {
 }

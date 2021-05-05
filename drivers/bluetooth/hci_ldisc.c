@@ -593,7 +593,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  * Return Value:    None
  */
 static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 char *flags, int count)
+				 const char *flags, int count)
 {
 	struct hci_uart *hu = tty->disc_data;
 

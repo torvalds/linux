@@ -308,7 +308,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
  * Return Value:    None
  */
 static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 char *flags, int count)
+				 const char *flags, int count)
 {
 	struct nci_uart *nu = (void *)tty->disc_data;
 

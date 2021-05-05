@@ -467,7 +467,8 @@ static void slc_setup(struct net_device *dev)
  */
 
 static void slcan_receive_buf(struct tty_struct *tty,
-			      const unsigned char *cp, char *fp, int count)
+			      const unsigned char *cp, const char *fp,
+			      int count)
 {
 	struct slcan *sl = (struct slcan *) tty->disc_data;
 

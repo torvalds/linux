@@ -455,7 +455,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *	Returns the number of bytes processed
  */
 int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-			  char *f, int count)
+			  const char *f, int count)
 {
 	if (ld->ops->receive_buf2)
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
@@ -472,7 +472,7 @@ static int
 receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
 {
 	unsigned char *p = char_buf_ptr(head, head->read);
-	char	      *f = NULL;
+	const char *f = NULL;
 	int n;
 
 	if (~head->flags & TTYB_NORMAL)

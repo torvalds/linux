@@ -159,7 +159,7 @@ static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
 #endif
 
 static void ldisc_receive(struct tty_struct *tty, const u8 *data,
-			char *flags, int count)
+			const char *flags, int count)
 {
 	struct sk_buff *skb = NULL;
 	struct ser_device *ser;

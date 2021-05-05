@@ -114,7 +114,8 @@ static void serport_ldisc_close(struct tty_struct *tty)
  * 'interrupt' routine.
  */
 
-static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *cp, char *fp, int count)
+static void serport_ldisc_receive(struct tty_struct *tty,
+		const unsigned char *cp, const char *fp, int count)
 {
 	struct serport *serport = (struct serport*) tty->disc_data;
 	unsigned long flags;
