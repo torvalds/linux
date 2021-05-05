@@ -36,9 +36,6 @@
 
 #include "../../pci/pci.h"
 
-/* sysctl */
-#define MT7621_GPIO_MODE		0x60
-
 /* MediaTek specific configuration registers */
 #define PCIE_FTS_NUM			0x70c
 #define PCIE_FTS_NUM_MASK		GENMASK(15, 8)
@@ -79,8 +76,6 @@
 #define PCIE_PORT_INT_EN(x)		BIT(20 + (x))
 #define PCIE_PORT_LINKUP		BIT(0)
 
-#define PERST_MODE_MASK			GENMASK(11, 10)
-#define PERST_MODE_GPIO			BIT(10)
 #define PERST_DELAY_MS			100
 
 /**
@@ -477,8 +472,6 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct mt7621_pcie_port *port, *tmp;
 	int err;
-
-	rt_sysc_m32(PERST_MODE_MASK, PERST_MODE_GPIO, MT7621_GPIO_MODE);
 
 	mt7621_pcie_reset_assert(pcie);
 	mt7621_pcie_reset_rc_deassert(pcie);
