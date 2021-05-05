@@ -52,7 +52,7 @@ struct android_wifi_priv_cmd {
 	int total_len;
 };
 
-int rtw_android_cmdstr_to_num(char *cmdstr)
+static int rtw_android_cmdstr_to_num(char *cmdstr)
 {
 	int cmd_num;
 
