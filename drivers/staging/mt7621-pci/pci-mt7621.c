@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
@@ -43,15 +42,6 @@
 #define RALINK_PCI_CONFIG_DATA		0x0024
 #define RALINK_PCI_MEMBASE		0x0028
 #define RALINK_PCI_IOBASE		0x002C
-
-/* PCICFG virtual bridges */
-#define PCIE_P2P_CNT			3
-#define PCIE_P2P_BR_DEVNUM_SHIFT(p)	(16 + (p) * 4)
-#define PCIE_P2P_BR_DEVNUM0_SHIFT	PCIE_P2P_BR_DEVNUM_SHIFT(0)
-#define PCIE_P2P_BR_DEVNUM1_SHIFT	PCIE_P2P_BR_DEVNUM_SHIFT(1)
-#define PCIE_P2P_BR_DEVNUM2_SHIFT	PCIE_P2P_BR_DEVNUM_SHIFT(2)
-#define PCIE_P2P_BR_DEVNUM_MASK		0xf
-#define PCIE_P2P_BR_DEVNUM_MASK_FULL	(0xfff << PCIE_P2P_BR_DEVNUM0_SHIFT)
 
 /* PCIe RC control registers */
 #define MT7621_PCIE_OFFSET		0x2000
@@ -83,7 +73,6 @@
  * @pcie_rst: pointer to port reset control
  * @gpio_rst: gpio reset
  * @slot: port slot
- * @irq: GIC irq
  * @enabled: indicates if port is enabled
  */
 struct mt7621_pcie_port {
@@ -95,7 +84,6 @@ struct mt7621_pcie_port {
 	struct reset_control *pcie_rst;
 	struct gpio_desc *gpio_rst;
 	u32 slot;
-	int irq;
 	bool enabled;
 };
 
@@ -107,7 +95,6 @@ struct mt7621_pcie_port {
  * @dev: Pointer to PCIe device
  * @io_map_base: virtual memory base address for io
  * @ports: pointer to PCIe port information
- * @irq_map: irq mapping info according pcie link status
  * @resets_inverted: depends on chip revision
  * reset lines are inverted.
  */
@@ -118,7 +105,6 @@ struct mt7621_pcie {
 	struct resource *mem;
 	unsigned long io_map_base;
 	struct list_head ports;
-	int irq_map[PCIE_P2P_CNT];
 	bool resets_inverted;
 };
 
@@ -253,16 +239,6 @@ static void setup_cm_memory_region(struct mt7621_pcie *pcie)
 	}
 }
 
-static int mt7621_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
-{
-	struct mt7621_pcie *pcie = pdev->bus->sysdata;
-	struct device *dev = pcie->dev;
-	int irq = pcie->irq_map[slot];
-
-	dev_info(dev, "bus=%d slot=%d irq=%d\n", pdev->bus->number, slot, irq);
-	return irq;
-}
-
 static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
 {
 	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
@@ -358,12 +334,6 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 
 	port->slot = slot;
 	port->pcie = pcie;
-
-	port->irq = platform_get_irq(pdev, slot);
-	if (port->irq < 0) {
-		dev_err(dev, "Failed to get IRQ for PCIe%d\n", slot);
-		return -ENXIO;
-	}
 
 	INIT_LIST_HEAD(&port->list);
 	list_add_tail(&port->list, &pcie->ports);
@@ -572,63 +542,11 @@ static int mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 	return 0;
 }
 
-static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
-{
-	u32 pcie_link_status = 0;
-	u32 n = 0;
-	int i = 0;
-	u32 p2p_br_devnum[PCIE_P2P_CNT];
-	int irqs[PCIE_P2P_CNT];
-	struct mt7621_pcie_port *port;
-
-	list_for_each_entry(port, &pcie->ports, list) {
-		u32 slot = port->slot;
-
-		irqs[i++] = port->irq;
-		if (port->enabled)
-			pcie_link_status |= BIT(slot);
-	}
-
-	if (pcie_link_status == 0)
-		return -1;
-
-	/*
-	 * Assign device numbers from zero to the enabled ports,
-	 * then assigning remaining device numbers to any disabled
-	 * ports.
-	 */
-	for (i = 0; i < PCIE_P2P_CNT; i++)
-		if (pcie_link_status & BIT(i))
-			p2p_br_devnum[i] = n++;
-
-	for (i = 0; i < PCIE_P2P_CNT; i++)
-		if ((pcie_link_status & BIT(i)) == 0)
-			p2p_br_devnum[i] = n++;
-
-	pcie_rmw(pcie, RALINK_PCI_PCICFG_ADDR,
-		 PCIE_P2P_BR_DEVNUM_MASK_FULL,
-		 (p2p_br_devnum[0] << PCIE_P2P_BR_DEVNUM0_SHIFT) |
-		 (p2p_br_devnum[1] << PCIE_P2P_BR_DEVNUM1_SHIFT) |
-		 (p2p_br_devnum[2] << PCIE_P2P_BR_DEVNUM2_SHIFT));
-
-	/* Assign IRQs */
-	n = 0;
-	for (i = 0; i < PCIE_P2P_CNT; i++)
-		if (pcie_link_status & BIT(i))
-			pcie->irq_map[n++] = irqs[i];
-
-	for (i = n; i < PCIE_P2P_CNT; i++)
-		pcie->irq_map[i] = -1;
-
-	return 0;
-}
-
 static int mt7621_pcie_register_host(struct pci_host_bridge *host)
 {
 	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 
 	host->ops = &mt7621_pci_ops;
-	host->map_irq = mt7621_map_irq;
 	host->sysdata = pcie;
 
 	return pci_host_probe(host);
@@ -679,12 +597,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	ioport_resource.end = pcie->io.end;
 
 	mt7621_pcie_init_ports(pcie);
-
-	err = mt7621_pcie_init_virtual_bridges(pcie);
-	if (err) {
-		dev_err(dev, "Nothing is connected in virtual bridges. Exiting...");
-		return 0;
-	}
 
 	err = mt7621_pcie_enable_ports(pcie);
 	if (err) {
