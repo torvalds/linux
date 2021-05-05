@@ -37,7 +37,6 @@ struct drm_encoder;
 struct drm_file;
 struct drm_format_info;
 struct drm_framebuffer;
-struct drm_i915_error_state_buf;
 struct drm_i915_gem_object;
 struct drm_i915_private;
 struct drm_mode_fb_cmd2;
@@ -610,11 +609,6 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
-
-struct intel_display_error_state *
-intel_display_capture_error_state(struct drm_i915_private *dev_priv);
-void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
-				     struct intel_display_error_state *error);
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
