@@ -181,7 +181,6 @@ static struct snd_soc_dai_link ehl_rt5660_dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &rt5660_ops,
-		.nonatomic = true,
 		SND_SOC_DAILINK_REG(ssp0_pin, rt5660_codec, platform),
 	},
 	{

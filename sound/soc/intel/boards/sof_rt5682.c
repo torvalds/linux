@@ -637,7 +637,6 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].init = sof_rt5682_codec_init;
 	links[id].exit = sof_rt5682_codec_exit;
 	links[id].ops = &sof_rt5682_ops;
-	links[id].nonatomic = true;
 	links[id].dpcm_playback = 1;
 	links[id].dpcm_capture = 1;
 	links[id].no_pcm = 1;
@@ -775,7 +774,6 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		}
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].nonatomic = true;
 		links[id].dpcm_playback = 1;
 		links[id].no_pcm = 1;
 		links[id].cpus = &cpus[id];

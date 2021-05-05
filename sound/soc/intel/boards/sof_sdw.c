@@ -505,7 +505,6 @@ static void init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links
 	dai_links->name = name;
 	dai_links->platforms = platform_component;
 	dai_links->num_platforms = ARRAY_SIZE(platform_component);
-	dai_links->nonatomic = true;
 	dai_links->no_pcm = 1;
 	dai_links->cpus = cpus;
 	dai_links->num_cpus = cpus_num;
