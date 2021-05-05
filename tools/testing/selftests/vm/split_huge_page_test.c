@@ -7,11 +7,13 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <inttypes.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <malloc.h>
 #include <stdbool.h>
 
@@ -23,6 +25,9 @@ uint64_t pmd_pagesize;
 #define SPLIT_DEBUGFS "/sys/kernel/debug/split_huge_pages"
 #define SMAP_PATH "/proc/self/smaps"
 #define INPUT_MAX 80
+
+#define PID_FMT "%d,0x%lx,0x%lx"
+#define PATH_FMT "%s,0x%lx,0x%lx"
 
 #define PFN_MASK     ((1UL<<55)-1)
 #define KPF_THP      (1UL<<22)
@@ -87,13 +92,16 @@ static int write_file(const char *path, const char *buf, size_t buflen)
 	return (unsigned int) numwritten;
 }
 
-static void write_debugfs(int pid, uint64_t vaddr_start, uint64_t vaddr_end)
+static void write_debugfs(const char *fmt, ...)
 {
 	char input[INPUT_MAX];
 	int ret;
+	va_list argp;
 
-	ret = snprintf(input, INPUT_MAX, "%d,0x%lx,0x%lx", pid, vaddr_start,
-			vaddr_end);
+	va_start(argp, fmt);
+	ret = vsnprintf(input, INPUT_MAX, fmt, argp);
+	va_end(argp);
+
 	if (ret >= INPUT_MAX) {
 		printf("%s: Debugfs input is too long\n", __func__);
 		exit(EXIT_FAILURE);
@@ -183,7 +191,8 @@ void split_pmd_thp(void)
 	}
 
 	/* split all THPs */
-	write_debugfs(getpid(), (uint64_t)one_page, (uint64_t)one_page + len);
+	write_debugfs(PID_FMT, getpid(), (uint64_t)one_page,
+		(uint64_t)one_page + len);
 
 	for (i = 0; i < len; i++)
 		if (one_page[i] != (char)i) {
@@ -274,7 +283,7 @@ void split_pte_mapped_thp(void)
 	}
 
 	/* split all remapped THPs */
-	write_debugfs(getpid(), (uint64_t)pte_mapped,
+	write_debugfs(PID_FMT, getpid(), (uint64_t)pte_mapped,
 		      (uint64_t)pte_mapped + pagesize * 4);
 
 	/* smap does not show THPs after mremap, use kpageflags instead */
@@ -300,6 +309,68 @@ void split_pte_mapped_thp(void)
 	close(kpageflags_fd);
 }
 
+void split_file_backed_thp(void)
+{
+	int status;
+	int fd;
+	ssize_t num_written;
+	char tmpfs_template[] = "/tmp/thp_split_XXXXXX";
+	const char *tmpfs_loc = mkdtemp(tmpfs_template);
+	char testfile[INPUT_MAX];
+	uint64_t pgoff_start = 0, pgoff_end = 1024;
+
+	printf("Please enable pr_debug in split_huge_pages_in_file() if you need more info.\n");
+
+	status = mount("tmpfs", tmpfs_loc, "tmpfs", 0, "huge=always,size=4m");
+
+	if (status) {
+		printf("Unable to create a tmpfs for testing\n");
+		exit(EXIT_FAILURE);
+	}
+
+	status = snprintf(testfile, INPUT_MAX, "%s/thp_file", tmpfs_loc);
+	if (status >= INPUT_MAX) {
+		printf("Fail to create file-backed THP split testing file\n");
+		goto cleanup;
+	}
+
+	fd = open(testfile, O_CREAT|O_WRONLY);
+	if (fd == -1) {
+		perror("Cannot open testing file\n");
+		goto cleanup;
+	}
+
+	/* write something to the file, so a file-backed THP can be allocated */
+	num_written = write(fd, tmpfs_loc, sizeof(tmpfs_loc));
+	close(fd);
+
+	if (num_written < 1) {
+		printf("Fail to write data to testing file\n");
+		goto cleanup;
+	}
+
+	/* split the file-backed THP */
+	write_debugfs(PATH_FMT, testfile, pgoff_start, pgoff_end);
+
+	status = unlink(testfile);
+	if (status)
+		perror("Cannot remove testing file\n");
+
+cleanup:
+	status = umount(tmpfs_loc);
+	if (status) {
+		printf("Unable to umount %s\n", tmpfs_loc);
+		exit(EXIT_FAILURE);
+	}
+	status = rmdir(tmpfs_loc);
+	if (status) {
+		perror("cannot remove tmp dir");
+		exit(EXIT_FAILURE);
+	}
+
+	printf("file-backed THP split test done, please check dmesg for more information\n");
+}
+
 int main(int argc, char **argv)
 {
 	if (geteuid() != 0) {
@@ -313,6 +384,7 @@ int main(int argc, char **argv)
 
 	split_pmd_thp();
 	split_pte_mapped_thp();
+	split_file_backed_thp();
 
 	return 0;
 }
