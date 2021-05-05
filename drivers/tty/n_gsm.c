@@ -3252,9 +3252,9 @@ static int __init gsm_init(void)
 
 	gsm_tty_driver = alloc_tty_driver(256);
 	if (!gsm_tty_driver) {
-		tty_unregister_ldisc(N_GSM0710);
 		pr_err("gsm_init: tty allocation failed.\n");
-		return -EINVAL;
+		status = -ENOMEM;
+		goto err_unreg_ldisc;
 	}
 	gsm_tty_driver->driver_name	= "gsmtty";
 	gsm_tty_driver->name		= "gsmtty";
@@ -3270,14 +3270,18 @@ static int __init gsm_init(void)
 	tty_set_operations(gsm_tty_driver, &gsmtty_ops);
 
 	if (tty_register_driver(gsm_tty_driver)) {
-		put_tty_driver(gsm_tty_driver);
-		tty_unregister_ldisc(N_GSM0710);
 		pr_err("gsm_init: tty registration failed.\n");
-		return -EBUSY;
+		status = -EBUSY;
+		goto err_put_driver;
 	}
 	pr_debug("gsm_init: loaded as %d,%d.\n",
 			gsm_tty_driver->major, gsm_tty_driver->minor_start);
 	return 0;
+err_put_driver:
+	put_tty_driver(gsm_tty_driver);
+err_unreg_ldisc:
+	tty_unregister_ldisc(N_GSM0710);
+	return status;
 }
 
 static void __exit gsm_exit(void)
