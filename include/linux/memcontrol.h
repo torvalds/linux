@@ -114,12 +114,13 @@ struct batched_lruvec_stat {
 };
 
 /*
- * Bitmap of shrinker::id corresponding to memcg-aware shrinkers,
- * which have elements charged to this memcg.
+ * Bitmap and deferred work of shrinker::id corresponding to memcg-aware
+ * shrinkers, which have elements charged to this memcg.
  */
 struct shrinker_info {
 	struct rcu_head rcu;
-	unsigned long map[];
+	atomic_long_t *nr_deferred;
+	unsigned long *map;
 };
 
 /*

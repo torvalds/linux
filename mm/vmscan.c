@@ -187,9 +187,15 @@ static DECLARE_RWSEM(shrinker_rwsem);
 #ifdef CONFIG_MEMCG
 static int shrinker_nr_max;
 
+/* The shrinker_info is expanded in a batch of BITS_PER_LONG */
 static inline int shrinker_map_size(int nr_items)
 {
 	return (DIV_ROUND_UP(nr_items, BITS_PER_LONG) * sizeof(unsigned long));
+}
+
+static inline int shrinker_defer_size(int nr_items)
+{
+	return (round_up(nr_items, BITS_PER_LONG) * sizeof(atomic_long_t));
 }
 
 static struct shrinker_info *shrinker_info_protected(struct mem_cgroup *memcg,
@@ -200,11 +206,13 @@ static struct shrinker_info *shrinker_info_protected(struct mem_cgroup *memcg,
 }
 
 static int expand_one_shrinker_info(struct mem_cgroup *memcg,
-				    int size, int old_size)
+				    int map_size, int defer_size,
+				    int old_map_size, int old_defer_size)
 {
 	struct shrinker_info *new, *old;
 	struct mem_cgroup_per_node *pn;
 	int nid;
+	int size = map_size + defer_size;
 
 	for_each_node(nid) {
 		pn = memcg->nodeinfo[nid];
@@ -217,9 +225,16 @@ static int expand_one_shrinker_info(struct mem_cgroup *memcg,
 		if (!new)
 			return -ENOMEM;
 
-		/* Set all old bits, clear all new bits */
-		memset(new->map, (int)0xff, old_size);
-		memset((void *)new->map + old_size, 0, size - old_size);
+		new->nr_deferred = (atomic_long_t *)(new + 1);
+		new->map = (void *)new->nr_deferred + defer_size;
+
+		/* map: set all old bits, clear all new bits */
+		memset(new->map, (int)0xff, old_map_size);
+		memset((void *)new->map + old_map_size, 0, map_size - old_map_size);
+		/* nr_deferred: copy old values, clear all new values */
+		memcpy(new->nr_deferred, old->nr_deferred, old_defer_size);
+		memset((void *)new->nr_deferred + old_defer_size, 0,
+		       defer_size - old_defer_size);
 
 		rcu_assign_pointer(pn->shrinker_info, new);
 		kvfree_rcu(old, rcu);
@@ -234,9 +249,6 @@ void free_shrinker_info(struct mem_cgroup *memcg)
 	struct shrinker_info *info;
 	int nid;
 
-	if (mem_cgroup_is_root(memcg))
-		return;
-
 	for_each_node(nid) {
 		pn = memcg->nodeinfo[nid];
 		info = rcu_dereference_protected(pn->shrinker_info, true);
@@ -249,12 +261,12 @@ int alloc_shrinker_info(struct mem_cgroup *memcg)
 {
 	struct shrinker_info *info;
 	int nid, size, ret = 0;
-
-	if (mem_cgroup_is_root(memcg))
-		return 0;
+	int map_size, defer_size = 0;
 
 	down_write(&shrinker_rwsem);
-	size = shrinker_map_size(shrinker_nr_max);
+	map_size = shrinker_map_size(shrinker_nr_max);
+	defer_size = shrinker_defer_size(shrinker_nr_max);
+	size = map_size + defer_size;
 	for_each_node(nid) {
 		info = kvzalloc_node(sizeof(*info) + size, GFP_KERNEL, nid);
 		if (!info) {
@@ -262,6 +274,8 @@ int alloc_shrinker_info(struct mem_cgroup *memcg)
 			ret = -ENOMEM;
 			break;
 		}
+		info->nr_deferred = (atomic_long_t *)(info + 1);
+		info->map = (void *)info->nr_deferred + defer_size;
 		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_info, info);
 	}
 	up_write(&shrinker_rwsem);
@@ -269,15 +283,21 @@ int alloc_shrinker_info(struct mem_cgroup *memcg)
 	return ret;
 }
 
+static inline bool need_expand(int nr_max)
+{
+	return round_up(nr_max, BITS_PER_LONG) >
+	       round_up(shrinker_nr_max, BITS_PER_LONG);
+}
+
 static int expand_shrinker_info(int new_id)
 {
-	int size, old_size, ret = 0;
+	int ret = 0;
 	int new_nr_max = new_id + 1;
+	int map_size, defer_size = 0;
+	int old_map_size, old_defer_size = 0;
 	struct mem_cgroup *memcg;
 
-	size = shrinker_map_size(new_nr_max);
-	old_size = shrinker_map_size(shrinker_nr_max);
-	if (size <= old_size)
+	if (!need_expand(new_nr_max))
 		goto out;
 
 	if (!root_mem_cgroup)
@@ -285,11 +305,15 @@ static int expand_shrinker_info(int new_id)
 
 	lockdep_assert_held(&shrinker_rwsem);
 
+	map_size = shrinker_map_size(new_nr_max);
+	defer_size = shrinker_defer_size(new_nr_max);
+	old_map_size = shrinker_map_size(shrinker_nr_max);
+	old_defer_size = shrinker_defer_size(shrinker_nr_max);
+
 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
 	do {
-		if (mem_cgroup_is_root(memcg))
-			continue;
-		ret = expand_one_shrinker_info(memcg, size, old_size);
+		ret = expand_one_shrinker_info(memcg, map_size, defer_size,
+					       old_map_size, old_defer_size);
 		if (ret) {
 			mem_cgroup_iter_break(NULL, memcg);
 			goto out;
