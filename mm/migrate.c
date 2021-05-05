@@ -66,11 +66,13 @@ void migrate_prep(void)
 {
 	/*
 	 * Clear the LRU lists so pages can be isolated.
-	 * Note that pages may be moved off the LRU after we have
-	 * drained them. Those pages will fail to migrate like other
-	 * pages that may be busy.
 	 */
-	lru_add_drain_all();
+	lru_cache_disable();
+}
+
+void migrate_finish(void)
+{
+	lru_cache_enable();
 }
 
 /* Do the necessary work of migrate_prep but not if it involves other CPUs */
@@ -1838,6 +1840,7 @@ out_flush:
 	if (err >= 0)
 		err = err1;
 out:
+	migrate_finish();
 	return err;
 }
 
