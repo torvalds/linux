@@ -588,6 +588,7 @@ struct huge_bootmem_page {
 	struct hstate *hstate;
 };
 
+int isolate_or_dissolve_huge_page(struct page *page);
 struct page *alloc_huge_page(struct vm_area_struct *vma,
 				unsigned long addr, int avoid_reserve);
 struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
@@ -869,6 +870,11 @@ static inline void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 
 #else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};
+
+static inline int isolate_or_dissolve_huge_page(struct page *page)
+{
+	return -ENOMEM;
+}
 
 static inline struct page *alloc_huge_page(struct vm_area_struct *vma,
 					   unsigned long addr,

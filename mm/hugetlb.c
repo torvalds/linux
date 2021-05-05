@@ -2267,6 +2267,122 @@ static void restore_reserve_on_error(struct hstate *h,
 	}
 }
 
+/*
+ * alloc_and_dissolve_huge_page - Allocate a new page and dissolve the old one
+ * @h: struct hstate old page belongs to
+ * @old_page: Old page to dissolve
+ * Returns 0 on success, otherwise negated error.
+ */
+static int alloc_and_dissolve_huge_page(struct hstate *h, struct page *old_page)
+{
+	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+	int nid = page_to_nid(old_page);
+	struct page *new_page;
+	int ret = 0;
+
+	/*
+	 * Before dissolving the page, we need to allocate a new one for the
+	 * pool to remain stable. Using alloc_buddy_huge_page() allows us to
+	 * not having to deal with prep_new_huge_page() and avoids dealing of any
+	 * counters. This simplifies and let us do the whole thing under the
+	 * lock.
+	 */
+	new_page = alloc_buddy_huge_page(h, gfp_mask, nid, NULL, NULL);
+	if (!new_page)
+		return -ENOMEM;
+
+retry:
+	spin_lock_irq(&hugetlb_lock);
+	if (!PageHuge(old_page)) {
+		/*
+		 * Freed from under us. Drop new_page too.
+		 */
+		goto free_new;
+	} else if (page_count(old_page)) {
+		/*
+		 * Someone has grabbed the page, fail for now.
+		 */
+		ret = -EBUSY;
+		goto free_new;
+	} else if (!HPageFreed(old_page)) {
+		/*
+		 * Page's refcount is 0 but it has not been enqueued in the
+		 * freelist yet. Race window is small, so we can succeed here if
+		 * we retry.
+		 */
+		spin_unlock_irq(&hugetlb_lock);
+		cond_resched();
+		goto retry;
+	} else {
+		/*
+		 * Ok, old_page is still a genuine free hugepage. Remove it from
+		 * the freelist and decrease the counters. These will be
+		 * incremented again when calling __prep_account_new_huge_page()
+		 * and enqueue_huge_page() for new_page. The counters will remain
+		 * stable since this happens under the lock.
+		 */
+		remove_hugetlb_page(h, old_page, false);
+
+		/*
+		 * new_page needs to be initialized with the standard hugetlb
+		 * state. This is normally done by prep_new_huge_page() but
+		 * that takes hugetlb_lock which is already held so we need to
+		 * open code it here.
+		 * Reference count trick is needed because allocator gives us
+		 * referenced page but the pool requires pages with 0 refcount.
+		 */
+		__prep_new_huge_page(new_page);
+		__prep_account_new_huge_page(h, nid);
+		page_ref_dec(new_page);
+		enqueue_huge_page(h, new_page);
+
+		/*
+		 * Pages have been replaced, we can safely free the old one.
+		 */
+		spin_unlock_irq(&hugetlb_lock);
+		update_and_free_page(h, old_page);
+	}
+
+	return ret;
+
+free_new:
+	spin_unlock_irq(&hugetlb_lock);
+	__free_pages(new_page, huge_page_order(h));
+
+	return ret;
+}
+
+int isolate_or_dissolve_huge_page(struct page *page)
+{
+	struct hstate *h;
+	struct page *head;
+
+	/*
+	 * The page might have been dissolved from under our feet, so make sure
+	 * to carefully check the state under the lock.
+	 * Return success when racing as if we dissolved the page ourselves.
+	 */
+	spin_lock_irq(&hugetlb_lock);
+	if (PageHuge(page)) {
+		head = compound_head(page);
+		h = page_hstate(head);
+	} else {
+		spin_unlock_irq(&hugetlb_lock);
+		return 0;
+	}
+	spin_unlock_irq(&hugetlb_lock);
+
+	/*
+	 * Fence off gigantic pages as there is a cyclic dependency between
+	 * alloc_contig_range and them. Return -ENOMEM as this has the effect
+	 * of bailing out right away without further retrying.
+	 */
+	if (hstate_is_gigantic(h))
+		return -ENOMEM;
+
+	return alloc_and_dissolve_huge_page(h, head);
+}
+
 struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr, int avoid_reserve)
 {
