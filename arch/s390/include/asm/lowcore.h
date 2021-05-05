@@ -17,6 +17,10 @@
 #define LC_ORDER 1
 #define LC_PAGES 2
 
+struct pgm_tdb {
+	u64 data[32];
+};
+
 struct lowcore {
 	__u8	pad_0x0000[0x0014-0x0000];	/* 0x0000 */
 	__u32	ipl_parmblock_ptr;		/* 0x0014 */
@@ -184,7 +188,7 @@ struct lowcore {
 	__u8	pad_0x1400[0x1800-0x1400];	/* 0x1400 */
 
 	/* Transaction abort diagnostic block */
-	__u8	pgm_tdb[256];			/* 0x1800 */
+	struct pgm_tdb pgm_tdb;			/* 0x1800 */
 	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed __aligned(8192);
 

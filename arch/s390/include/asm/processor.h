@@ -129,7 +129,7 @@ struct thread_struct {
 	struct runtime_instr_cb *ri_cb;
 	struct gs_cb *gs_cb;			/* Current guarded storage cb */
 	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
-	unsigned char trap_tdb[256];		/* Transaction abort diagnose block */
+	struct pgm_tdb trap_tdb;		/* Transaction abort diagnose block */
 	/*
 	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
 	 * the end.
