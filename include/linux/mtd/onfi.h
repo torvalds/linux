@@ -93,7 +93,7 @@ struct nand_onfi_params {
 
 	/* electrical parameter block */
 	u8 io_pin_capacitance_max;
-	__le16 async_timing_mode;
+	__le16 sdr_timing_modes;
 	__le16 program_cache_timing_mode;
 	__le16 t_prog;
 	__le16 t_bers;
@@ -160,7 +160,7 @@ struct onfi_ext_param_page {
  * @tBERS: Block erase time
  * @tR: Page read time
  * @tCCS: Change column setup time
- * @async_timing_mode: Supported asynchronous timing mode
+ * @sdr_timing_modes: Supported asynchronous/SDR timing modes
  * @vendor_revision: Vendor specific revision number
  * @vendor: Vendor specific data
  */
@@ -170,7 +170,7 @@ struct onfi_params {
 	u16 tBERS;
 	u16 tR;
 	u16 tCCS;
-	u16 async_timing_mode;
+	u16 sdr_timing_modes;
 	u16 vendor_revision;
 	u8 vendor[88];
 };
