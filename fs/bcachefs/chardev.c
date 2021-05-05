@@ -414,7 +414,8 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 		struct bch_replicas_entry *src_e =
 			cpu_replicas_entry(&c->replicas, i);
 
-		if (replicas_usage_next(dst_e) > dst_end) {
+		/* check that we have enough space for one replicas entry */
+		if (dst_e + 1 > dst_end) {
 			ret = -ERANGE;
 			break;
 		}
