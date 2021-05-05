@@ -624,7 +624,6 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
 	}
 }
 
-#ifdef CONFIG_MEMORY_HOTREMOVE
 /* Mark all memory sections within the pfn range as offline */
 void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
 {
@@ -645,7 +644,6 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
 		ms->section_mem_map &= ~SECTION_IS_ONLINE;
 	}
 }
-#endif
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 static struct page * __meminit populate_section_memmap(unsigned long pfn,

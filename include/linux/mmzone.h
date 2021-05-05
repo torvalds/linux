@@ -436,6 +436,11 @@ enum zone_type {
 	 *    situations where ZERO_PAGE(0) which is allocated differently
 	 *    on different platforms may end up in a movable zone. ZERO_PAGE(0)
 	 *    cannot be migrated.
+	 * 7. Memory-hotplug: when using memmap_on_memory and onlining the
+	 *    memory to the MOVABLE zone, the vmemmap pages are also placed in
+	 *    such zone. Such pages cannot be really moved around as they are
+	 *    self-stored in the range, but they are treated as movable when
+	 *    the range they describe is about to be offlined.
 	 *
 	 * In general, no unmovable allocations that degrade memory offlining
 	 * should end up in ZONE_MOVABLE. Allocators (like alloc_contig_range())
@@ -1392,9 +1397,7 @@ static inline int online_section_nr(unsigned long nr)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn);
-#ifdef CONFIG_MEMORY_HOTREMOVE
 void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn);
-#endif
 #endif
 
 static inline struct mem_section *__pfn_to_section(unsigned long pfn)
