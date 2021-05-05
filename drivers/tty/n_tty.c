@@ -1538,6 +1538,12 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 	while (count--) {
 		if (fp)
 			flag = *fp++;
+
+		if (ldata->lnext) {
+			n_tty_receive_char_lnext(tty, *cp++, flag);
+			continue;
+		}
+
 		if (likely(flag == TTY_NORMAL)) {
 			unsigned char c = *cp++;
 
@@ -1551,12 +1557,8 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 			}
 			if (!test_bit(c, ldata->char_map))
 				n_tty_receive_char(tty, c);
-			else if (n_tty_receive_char_special(tty, c) && count) {
-				if (fp)
-					flag = *fp++;
-				n_tty_receive_char_lnext(tty, *cp++, flag);
-				count--;
-			}
+			else
+				n_tty_receive_char_special(tty, c);
 		} else
 			n_tty_receive_char_flagged(tty, *cp++, flag);
 	}
@@ -1575,15 +1577,6 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	else if (tty->closing && !L_EXTPROC(tty))
 		n_tty_receive_buf_closing(tty, cp, fp, count);
 	else {
-		if (ldata->lnext) {
-			char flag = TTY_NORMAL;
-
-			if (fp)
-				flag = *fp++;
-			n_tty_receive_char_lnext(tty, *cp++, flag);
-			count--;
-		}
-
 		n_tty_receive_buf_standard(tty, cp, fp, count);
 
 		flush_echoes(tty);
