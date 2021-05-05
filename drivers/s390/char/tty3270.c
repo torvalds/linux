@@ -1071,7 +1071,7 @@ static void tty3270_cleanup(struct tty_struct *tty)
 /*
  * We always have room.
  */
-static int
+static unsigned int
 tty3270_write_room(struct tty_struct *tty)
 {
 	return INT_MAX;

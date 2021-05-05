@@ -136,7 +136,7 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
  *	the other device.
  */
 
-static int pty_write_room(struct tty_struct *tty)
+static unsigned int pty_write_room(struct tty_struct *tty)
 {
 	if (tty->flow.stopped)
 		return 0;

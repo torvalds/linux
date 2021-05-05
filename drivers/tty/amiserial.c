@@ -827,7 +827,7 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	return ret;
 }
 
-static int rs_write_room(struct tty_struct *tty)
+static unsigned int rs_write_room(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 

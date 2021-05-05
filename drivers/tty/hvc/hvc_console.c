@@ -586,7 +586,7 @@ static void hvc_set_winsz(struct work_struct *work)
  * how much write room the driver can guarantee will be sent OR BUFFERED.  This
  * driver MUST honor the return value.
  */
-static int hvc_write_room(struct tty_struct *tty)
+static unsigned int hvc_write_room(struct tty_struct *tty)
 {
 	struct hvc_struct *hp = tty->driver_data;
 

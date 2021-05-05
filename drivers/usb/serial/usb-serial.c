@@ -376,7 +376,7 @@ exit:
 	return retval;
 }
 
-static int serial_write_room(struct tty_struct *tty)
+static unsigned int serial_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 

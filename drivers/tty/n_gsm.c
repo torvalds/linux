@@ -3056,7 +3056,7 @@ static int gsmtty_write(struct tty_struct *tty, const unsigned char *buf,
 	return sent;
 }
 
-static int gsmtty_write_room(struct tty_struct *tty)
+static unsigned int gsmtty_write_room(struct tty_struct *tty)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	if (dlci->state == DLCI_CLOSED)

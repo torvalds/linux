@@ -3263,7 +3263,7 @@ static int con_put_char(struct tty_struct *tty, unsigned char ch)
 	return do_con_write(tty, &ch, 1);
 }
 
-static int con_write_room(struct tty_struct *tty)
+static unsigned int con_write_room(struct tty_struct *tty)
 {
 	if (tty->flow.stopped)
 		return 0;

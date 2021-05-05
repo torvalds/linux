@@ -609,12 +609,12 @@ sclp_vt220_flush_chars(struct tty_struct *tty)
  * to change as output buffers get emptied, or if the output flow
  * control is acted.
  */
-static int
+static unsigned int
 sclp_vt220_write_room(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
-	int count;
+	unsigned int count;
 
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
 	count = 0;

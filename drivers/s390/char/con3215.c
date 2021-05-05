@@ -924,7 +924,7 @@ static void tty3215_close(struct tty_struct *tty, struct file * filp)
 /*
  * Returns the amount of free space in the output buffer.
  */
-static int tty3215_write_room(struct tty_struct *tty)
+static unsigned int tty3215_write_room(struct tty_struct *tty)
 {
 	struct raw3215_info *raw = tty->driver_data;
 

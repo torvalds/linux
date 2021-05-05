@@ -1113,16 +1113,16 @@ static int fwtty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 	return (n < 0) ? 0 : n;
 }
 
-static int fwtty_write_room(struct tty_struct *tty)
+static unsigned int fwtty_write_room(struct tty_struct *tty)
 {
 	struct fwtty_port *port = tty->driver_data;
-	int n;
+	unsigned int n;
 
 	spin_lock_bh(&port->lock);
 	n = dma_fifo_avail(&port->tx_fifo);
 	spin_unlock_bh(&port->lock);
 
-	fwtty_dbg(port, "%d\n", n);
+	fwtty_dbg(port, "%u\n", n);
 
 	return n;
 }

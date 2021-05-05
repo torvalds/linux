@@ -797,7 +797,7 @@ static int sdio_uart_write(struct tty_struct *tty, const unsigned char *buf,
 	return ret;
 }
 
-static int sdio_uart_write_room(struct tty_struct *tty)
+static unsigned int sdio_uart_write_room(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 	return FIFO_SIZE - kfifo_len(&port->xmit_fifo);

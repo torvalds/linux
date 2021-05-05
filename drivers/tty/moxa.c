@@ -188,7 +188,7 @@ module_param(ttymajor, int, 0);
 static int moxa_open(struct tty_struct *, struct file *);
 static void moxa_close(struct tty_struct *, struct file *);
 static int moxa_write(struct tty_struct *, const unsigned char *, int);
-static int moxa_write_room(struct tty_struct *);
+static unsigned int moxa_write_room(struct tty_struct *);
 static void moxa_flush_buffer(struct tty_struct *);
 static int moxa_chars_in_buffer(struct tty_struct *);
 static void moxa_set_termios(struct tty_struct *, struct ktermios *);
@@ -218,7 +218,7 @@ static int MoxaPortWriteData(struct tty_struct *, const unsigned char *, int);
 static int MoxaPortReadData(struct moxa_port *);
 static int MoxaPortTxQueue(struct moxa_port *);
 static int MoxaPortRxQueue(struct moxa_port *);
-static int MoxaPortTxFree(struct moxa_port *);
+static unsigned int MoxaPortTxFree(struct moxa_port *);
 static void MoxaPortTxDisable(struct moxa_port *);
 static void MoxaPortTxEnable(struct moxa_port *);
 static int moxa_get_serial_info(struct tty_struct *, struct serial_struct *);
@@ -1217,7 +1217,7 @@ static int moxa_write(struct tty_struct *tty,
 	return len;
 }
 
-static int moxa_write_room(struct tty_struct *tty)
+static unsigned int moxa_write_room(struct tty_struct *tty)
 {
 	struct moxa_port *ch;
 
@@ -1992,7 +1992,7 @@ static int MoxaPortTxQueue(struct moxa_port *port)
 	return (wptr - rptr) & mask;
 }
 
-static int MoxaPortTxFree(struct moxa_port *port)
+static unsigned int MoxaPortTxFree(struct moxa_port *port)
 {
 	void __iomem *ofsAddr = port->tableAddr;
 	u16 rptr, wptr, mask;

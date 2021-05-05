@@ -1609,7 +1609,7 @@ cleanup:
 
 /* Return the count of free bytes in transmit buffer
  */
-static int mgslpc_write_room(struct tty_struct *tty)
+static unsigned int mgslpc_write_room(struct tty_struct *tty)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	int ret;

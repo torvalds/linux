@@ -103,7 +103,7 @@ static int pdc_console_tty_write(struct tty_struct *tty, const unsigned char *bu
 	return count;
 }
 
-static int pdc_console_tty_write_room(struct tty_struct *tty)
+static unsigned int pdc_console_tty_write_room(struct tty_struct *tty)
 {
 	return 32768; /* no limit, no buffer used */
 }

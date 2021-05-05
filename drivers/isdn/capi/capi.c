@@ -1175,14 +1175,14 @@ static void capinc_tty_flush_chars(struct tty_struct *tty)
 	handle_minor_recv(mp);
 }
 
-static int capinc_tty_write_room(struct tty_struct *tty)
+static unsigned int capinc_tty_write_room(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
-	int room;
+	unsigned int room;
 
 	room = CAPINC_MAX_SENDQUEUE-skb_queue_len(&mp->outqueue);
 	room *= CAPI_MAX_BLKSIZE;
-	pr_debug("capinc_tty_write_room = %d\n", room);
+	pr_debug("capinc_tty_write_room = %u\n", room);
 	return room;
 }
 

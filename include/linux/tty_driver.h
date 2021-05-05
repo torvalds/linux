@@ -89,7 +89,7 @@
  *
  *	Note: Do not call this function directly, call tty_driver_flush_chars
  * 
- * int  (*write_room)(struct tty_struct *tty);
+ * unsigned int  (*write_room)(struct tty_struct *tty);
  *
  * 	This routine returns the numbers of characters the tty driver
  * 	will accept for queuing to be written.  This number is subject
@@ -256,7 +256,7 @@ struct tty_operations {
 		      const unsigned char *buf, int count);
 	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
 	void (*flush_chars)(struct tty_struct *tty);
-	int  (*write_room)(struct tty_struct *tty);
+	unsigned int (*write_room)(struct tty_struct *tty);
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);

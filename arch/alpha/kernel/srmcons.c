@@ -142,7 +142,7 @@ srmcons_write(struct tty_struct *tty,
 	return count;
 }
 
-static int
+static unsigned int
 srmcons_write_room(struct tty_struct *tty)
 {
 	return 512;

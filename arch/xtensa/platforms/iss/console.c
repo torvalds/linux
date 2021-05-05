@@ -100,7 +100,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 {
 }
 
-static int rs_write_room(struct tty_struct *tty)
+static unsigned int rs_write_room(struct tty_struct *tty)
 {
 	/* Let's say iss can always accept 2K characters.. */
 	return 2 * 1024;

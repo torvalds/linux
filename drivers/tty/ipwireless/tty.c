@@ -228,7 +228,7 @@ static int ipw_write(struct tty_struct *linux_tty,
 	return count;
 }
 
-static int ipw_write_room(struct tty_struct *linux_tty)
+static unsigned int ipw_write_room(struct tty_struct *linux_tty)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 	int room;

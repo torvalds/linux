@@ -32,7 +32,7 @@ static irqreturn_t line_interrupt(int irq, void *data)
  *
  * Should be called while holding line->lock (this does not modify data).
  */
-static int write_room(struct line *line)
+static unsigned int write_room(struct line *line)
 {
 	int n;
 
@@ -47,11 +47,11 @@ static int write_room(struct line *line)
 	return n - 1;
 }
 
-int line_write_room(struct tty_struct *tty)
+unsigned int line_write_room(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
 	unsigned long flags;
-	int room;
+	unsigned int room;
 
 	spin_lock_irqsave(&line->lock, flags);
 	room = write_room(line);

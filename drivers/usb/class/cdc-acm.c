@@ -838,7 +838,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	return count;
 }
 
-static int acm_tty_write_room(struct tty_struct *tty)
+static unsigned int acm_tty_write_room(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	/*

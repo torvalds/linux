@@ -1183,7 +1183,7 @@ static void mxser_flush_chars(struct tty_struct *tty)
 	spin_unlock_irqrestore(&info->slock, flags);
 }
 
-static int mxser_write_room(struct tty_struct *tty)
+static unsigned int mxser_write_room(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 	int ret;

@@ -132,7 +132,7 @@ static int tpk_write(struct tty_struct *tty,
 /*
  * TTY operations write_room function.
  */
-static int tpk_write_room(struct tty_struct *tty)
+static unsigned int tpk_write_room(struct tty_struct *tty)
 {
 	return TPK_MAX_ROOM;
 }

@@ -807,7 +807,7 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 	return sent;
 }
 
-static int rfcomm_tty_write_room(struct tty_struct *tty)
+static unsigned int rfcomm_tty_write_room(struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 	int room = 0;

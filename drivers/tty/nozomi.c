@@ -1636,10 +1636,10 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
  * If the port is unplugged report lots of room and let the bits
  * dribble away so we don't block anything.
  */
-static int ntty_write_room(struct tty_struct *tty)
+static unsigned int ntty_write_room(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
-	int room = 4096;
+	unsigned int room = 4096;
 	const struct nozomi *dc = get_dc_by_tty(tty);
 
 	if (dc)
