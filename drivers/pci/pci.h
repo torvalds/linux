@@ -21,16 +21,10 @@ bool pcie_cap_has_rtctl(const struct pci_dev *dev);
 
 int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
-#if !defined(CONFIG_DMI) && !defined(CONFIG_ACPI)
-static inline void pci_create_firmware_label_files(struct pci_dev *pdev)
-{ return; }
-static inline void pci_remove_firmware_label_files(struct pci_dev *pdev)
-{ return; }
-#else
-void pci_create_firmware_label_files(struct pci_dev *pdev);
-void pci_remove_firmware_label_files(struct pci_dev *pdev);
-#endif
 void pci_cleanup_rom(struct pci_dev *dev);
+#ifdef CONFIG_DMI
+extern const struct attribute_group pci_dev_smbios_attr_group;
+#endif
 
 enum pci_mmap_api {
 	PCI_MMAP_SYSFS,	/* mmap on /sys/bus/pci/devices/<BDF>/resource<N> */
@@ -141,10 +135,9 @@ static inline bool pcie_downstream_port(const struct pci_dev *dev)
 	       type == PCI_EXP_TYPE_PCIE_BRIDGE;
 }
 
-int pci_vpd_init(struct pci_dev *dev);
+void pci_vpd_init(struct pci_dev *dev);
 void pci_vpd_release(struct pci_dev *dev);
-void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev);
-void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev);
+extern const struct attribute_group pci_dev_vpd_attr_group;
 
 /* PCI Virtual Channel */
 int pci_save_vc_state(struct pci_dev *dev);
@@ -625,6 +618,12 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 #if defined(CONFIG_PCI_QUIRKS) && defined(CONFIG_ARM64)
 int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
 			  struct resource *res);
+#else
+static inline int acpi_get_rc_resources(struct device *dev, const char *hid,
+					u16 segment, struct resource *res)
+{
+	return -ENODEV;
+}
 #endif
 
 int pci_rebar_get_current_size(struct pci_dev *pdev, int bar);
@@ -697,6 +696,7 @@ static inline int pci_aer_raw_clear_status(struct pci_dev *dev) { return -EINVAL
 
 #ifdef CONFIG_ACPI
 int pci_acpi_program_hp_params(struct pci_dev *dev);
+extern const struct attribute_group pci_dev_acpi_attr_group;
 #else
 static inline int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
