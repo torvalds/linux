@@ -11,6 +11,7 @@
 #define __LINUX_MTD_ONFI_H
 
 #include <linux/types.h>
+#include <linux/bitfield.h>
 
 /* ONFI version bits */
 #define ONFI_VERSION_1_0		BIT(1)
@@ -29,6 +30,9 @@
 #define ONFI_FEATURE_EXT_PARAM_PAGE	BIT(7)
 
 /* ONFI timing mode, used in both asynchronous and synchronous mode */
+#define ONFI_DATA_INTERFACE_SDR		0
+#define ONFI_DATA_INTERFACE_NVDDR	BIT(4)
+#define ONFI_DATA_INTERFACE_NVDDR2	BIT(5)
 #define ONFI_TIMING_MODE_0		BIT(0)
 #define ONFI_TIMING_MODE_1		BIT(1)
 #define ONFI_TIMING_MODE_2		BIT(2)
@@ -36,6 +40,7 @@
 #define ONFI_TIMING_MODE_4		BIT(4)
 #define ONFI_TIMING_MODE_5		BIT(5)
 #define ONFI_TIMING_MODE_UNKNOWN	BIT(6)
+#define ONFI_TIMING_MODE_PARAM(x)	FIELD_GET(GENMASK(3, 0), (x))
 
 /* ONFI feature number/address */
 #define ONFI_FEATURE_NUMBER		256
