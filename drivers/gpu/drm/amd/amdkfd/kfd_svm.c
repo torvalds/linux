@@ -258,6 +258,7 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 {
 	uint64_t size = last - start + 1;
 	struct svm_range *prange;
+	struct kfd_process *p;
 
 	prange = kzalloc(sizeof(*prange), GFP_KERNEL);
 	if (!prange)
@@ -277,6 +278,11 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	prange->validate_timestamp = 0;
 	mutex_init(&prange->migrate_mutex);
 	mutex_init(&prange->lock);
+
+	p = container_of(svms, struct kfd_process, svms);
+	if (p->xnack_enabled)
+		bitmap_fill(prange->bitmap_access, MAX_GPU_INSTANCE);
+
 	svm_range_set_default_attributes(&prange->preferred_loc,
 					 &prange->prefetch_loc,
 					 &prange->granularity, &prange->flags);
@@ -2246,7 +2252,7 @@ svm_range *svm_range_create_unregistered_range(struct amdgpu_device *adev,
 
 	prange = svm_range_new(&p->svms, start, last);
 	if (!prange) {
-		pr_debug("Failed to create prange in address [0x%llx]\\n", addr);
+		pr_debug("Failed to create prange in address [0x%llx]\n", addr);
 		return NULL;
 	}
 	if (kfd_process_gpuid_from_kgd(p, adev, &gpuid, &gpuidx)) {
@@ -2254,9 +2260,7 @@ svm_range *svm_range_create_unregistered_range(struct amdgpu_device *adev,
 		svm_range_free(prange);
 		return NULL;
 	}
-	prange->preferred_loc = gpuid;
-	prange->actual_loc = 0;
-	/* Gurantee prange is migrate it */
+
 	svm_range_add_to_svms(prange);
 	svm_range_add_notifier_locked(mm, prange);
 
