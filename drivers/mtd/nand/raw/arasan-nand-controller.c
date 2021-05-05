@@ -885,25 +885,38 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 	struct arasan_nfc *nfc = to_anfc(chip->controller);
 	struct device_node *np = nfc->dev->of_node;
 	const struct nand_sdr_timings *sdr;
+	const struct nand_nvddr_timings *nvddr;
 
-	sdr = nand_get_sdr_timings(conf);
-	if (IS_ERR(sdr))
-		return PTR_ERR(sdr);
+	if (nand_interface_is_nvddr(conf)) {
+		nvddr = nand_get_nvddr_timings(conf);
+		if (IS_ERR(nvddr))
+			return PTR_ERR(nvddr);
+	} else {
+		sdr = nand_get_sdr_timings(conf);
+		if (IS_ERR(sdr))
+			return PTR_ERR(sdr);
+	}
 
 	if (target < 0)
 		return 0;
 
-	anand->timings = DIFACE_SDR | DIFACE_SDR_MODE(conf->timings.mode);
+	if (nand_interface_is_sdr(conf))
+		anand->timings = DIFACE_SDR |
+				 DIFACE_SDR_MODE(conf->timings.mode);
+	else
+		anand->timings = DIFACE_NVDDR |
+				 DIFACE_DDR_MODE(conf->timings.mode);
+
 	anand->clk = ANFC_XLNX_SDR_DFLT_CORE_CLK;
 
 	/*
 	 * Due to a hardware bug in the ZynqMP SoC, SDR timing modes 0-1 work
 	 * with f > 90MHz (default clock is 100MHz) but signals are unstable
 	 * with higher modes. Hence we decrease a little bit the clock rate to
-	 * 80MHz when using modes 2-5 with this SoC.
+	 * 80MHz when using SDR modes 2-5 with this SoC.
 	 */
 	if (of_device_is_compatible(np, "xlnx,zynqmp-nand-controller") &&
-	    conf->timings.mode >= 2)
+	    nand_interface_is_sdr(conf) && conf->timings.mode >= 2)
 		anand->clk = ANFC_XLNX_SDR_HS_CORE_CLK;
 
 	return 0;
