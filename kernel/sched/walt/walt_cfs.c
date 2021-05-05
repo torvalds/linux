@@ -548,12 +548,18 @@ walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *p
 }
 
 static inline long
-walt_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
+walt_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd,
+								cpumask_t *candidates)
 {
 	long energy = 0;
 
-	for (; pd; pd = pd->next)
-		energy += walt_pd_compute_energy(p, dst_cpu, pd);
+	for (; pd; pd = pd->next) {
+		struct cpumask *pd_mask = perf_domain_span(pd);
+
+		if (cpumask_intersects(candidates, pd_mask)
+				|| cpumask_test_cpu(task_cpu(p), pd_mask))
+			energy += walt_pd_compute_energy(p, dst_cpu, pd);
+	}
 
 	return energy;
 }
@@ -693,7 +699,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 
 	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta))
 		prev_energy = best_energy =
-			walt_compute_energy(p, prev_cpu, pd);
+			walt_compute_energy(p, prev_cpu, pd, candidates);
 	else
 		prev_energy = best_energy = ULONG_MAX;
 
@@ -702,7 +708,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		if (cpu == prev_cpu)
 			continue;
 
-		cur_energy = walt_compute_energy(p, cpu, pd);
+		cur_energy = walt_compute_energy(p, cpu, pd, candidates);
 		trace_sched_compute_energy(p, cpu, cur_energy,
 			prev_energy, best_energy, best_energy_cpu);
 
