@@ -1257,8 +1257,7 @@ struct cifsFileInfo {
 	struct work_struct oplock_break; /* work for oplock breaks */
 	struct work_struct put; /* work for the final part of _put */
 	struct delayed_work deferred;
-	bool oplock_break_received; /* Flag to indicate oplock break */
-	bool deferred_scheduled;
+	bool deferred_close_scheduled; /* Flag to indicate close is scheduled */
 };
 
 struct cifs_io_parms {
