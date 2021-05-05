@@ -872,9 +872,8 @@ int st_core_init(struct st_data_s **core_data)
 	st_gdata = kzalloc(sizeof(struct st_data_s), GFP_KERNEL);
 	if (!st_gdata) {
 		pr_err("memory allocation failed");
-		tty_unregister_ldisc(&st_ldisc_ops);
 		err = -ENOMEM;
-		return err;
+		goto err_unreg_ldisc;
 	}
 
 	/* Initialize ST TxQ and Tx waitQ queue head. All BT/FM/GPS module skb's
@@ -889,15 +888,18 @@ int st_core_init(struct st_data_s **core_data)
 	err = st_ll_init(st_gdata);
 	if (err) {
 		pr_err("error during st_ll initialization(%ld)", err);
-		kfree(st_gdata);
-		tty_unregister_ldisc(&st_ldisc_ops);
-		return err;
+		goto err_free_gdata;
 	}
 
 	INIT_WORK(&st_gdata->work_write_wakeup, work_fn_write_wakeup);
 
 	*core_data = st_gdata;
 	return 0;
+err_free_gdata:
+	kfree(st_gdata);
+err_unreg_ldisc:
+	tty_unregister_ldisc(&st_ldisc_ops);
+	return err;
 }
 
 void st_core_exit(struct st_data_s *st_gdata)
