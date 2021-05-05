@@ -451,18 +451,24 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Spk"),
 	SOC_DAPM_PIN_SWITCH("Left Spk"),
 	SOC_DAPM_PIN_SWITCH("Right Spk"),
 
 };
 
+static const struct snd_kcontrol_new speaker_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Spk"),
+};
+
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Spk", NULL),
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
+};
+
+static const struct snd_soc_dapm_widget speaker_widgets[] = {
+	SND_SOC_DAPM_SPK("Spk", NULL),
 };
 
 static const struct snd_soc_dapm_widget dmic_widgets[] = {
@@ -503,6 +509,21 @@ static int speaker_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, speaker_widgets,
+					ARRAY_SIZE(speaker_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
+		/* Don't need to add routes if widget addition failed */
+		return ret;
+	}
+
+	ret = snd_soc_add_card_controls(card, speaker_controls,
+					ARRAY_SIZE(speaker_controls));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
+		return ret;
+	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, speaker_map,
 				      ARRAY_SIZE(speaker_map));
@@ -570,13 +591,6 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
 		.dai_name = "dmic-hifi",
-	}
-};
-
-static struct snd_soc_dai_link_component max98357a_component[] = {
-	{
-		.name = "MX98357A:00",
-		.dai_name = "HiFi",
 	}
 };
 
@@ -768,9 +782,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 				SOF_RT1011_SPEAKER_AMP_PRESENT) {
 			sof_rt1011_dai_link(&links[id]);
 		} else {
-			links[id].codecs = max98357a_component;
-			links[id].num_codecs = ARRAY_SIZE(max98357a_component);
-			links[id].init = speaker_codec_init;
+			max_98357a_dai_link(&links[id]);
 		}
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
