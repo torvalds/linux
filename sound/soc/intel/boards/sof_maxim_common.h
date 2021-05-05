@@ -24,4 +24,12 @@ int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd);
 void max_98373_set_codec_conf(struct snd_soc_card *card);
 int max_98373_trigger(struct snd_pcm_substream *substream, int cmd);
 
+/*
+ * Maxim MAX98357A
+ */
+#define MAX_98357A_CODEC_DAI	"HiFi"
+#define MAX_98357A_DEV0_NAME	"MX98357A:00"
+
+void max_98357a_dai_link(struct snd_soc_dai_link *link);
+
 #endif /* __SOF_MAXIM_COMMON_H */

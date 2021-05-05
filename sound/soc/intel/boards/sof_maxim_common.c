@@ -133,5 +133,65 @@ void max_98373_set_codec_conf(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_NS(max_98373_set_codec_conf, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
+/*
+ * Maxim MAX98357A
+ */
+static const struct snd_kcontrol_new max_98357a_kcontrols[] = {
+	SOC_DAPM_PIN_SWITCH("Spk"),
+};
+
+static const struct snd_soc_dapm_widget max_98357a_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("Spk", NULL),
+};
+
+static const struct snd_soc_dapm_route max_98357a_dapm_routes[] = {
+	/* speaker */
+	{"Spk", NULL, "Speaker"},
+};
+
+static struct snd_soc_dai_link_component max_98357a_components[] = {
+	{
+		.name = MAX_98357A_DEV0_NAME,
+		.dai_name = MAX_98357A_CODEC_DAI,
+	}
+};
+
+static int max_98357a_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, max_98357a_dapm_widgets,
+					ARRAY_SIZE(max_98357a_dapm_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
+		/* Don't need to add routes if widget addition failed */
+		return ret;
+	}
+
+	ret = snd_soc_add_card_controls(card, max_98357a_kcontrols,
+					ARRAY_SIZE(max_98357a_kcontrols));
+	if (ret) {
+		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, max_98357a_dapm_routes,
+				      ARRAY_SIZE(max_98357a_dapm_routes));
+
+	if (ret)
+		dev_err(rtd->dev, "unable to add dapm routes, ret %d\n", ret);
+
+	return ret;
+}
+
+void max_98357a_dai_link(struct snd_soc_dai_link *link)
+{
+	link->codecs = max_98357a_components;
+	link->num_codecs = ARRAY_SIZE(max_98357a_components);
+	link->init = max_98357a_init;
+}
+EXPORT_SYMBOL_NS(max_98357a_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+
 MODULE_DESCRIPTION("ASoC Intel SOF Maxim helpers");
 MODULE_LICENSE("GPL");
