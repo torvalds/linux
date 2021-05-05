@@ -17,6 +17,9 @@ extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned long __bootdata(ident_map_size);
 
+u64 __bootdata_preserved(stfle_fac_list[16]);
+u64 __bootdata_preserved(alt_stfle_fac_list[16]);
+
 /*
  * Some code and data needs to stay below 2 GB, even when the kernel would be
  * relocated above 2 GB, because it has to use 31 bit addresses.

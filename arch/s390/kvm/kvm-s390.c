@@ -214,7 +214,7 @@ static unsigned long kvm_s390_fac_size(void)
 	BUILD_BUG_ON(SIZE_INTERNAL > S390_ARCH_FAC_MASK_SIZE_U64);
 	BUILD_BUG_ON(SIZE_INTERNAL > S390_ARCH_FAC_LIST_SIZE_U64);
 	BUILD_BUG_ON(SIZE_INTERNAL * sizeof(unsigned long) >
-		sizeof(S390_lowcore.stfle_fac_list));
+		sizeof(stfle_fac_list));
 
 	return SIZE_INTERNAL;
 }
@@ -1458,8 +1458,8 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	mach->ibc = sclp.ibc;
 	memcpy(&mach->fac_mask, kvm->arch.model.fac_mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
-	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
-	       sizeof(S390_lowcore.stfle_fac_list));
+	memcpy((unsigned long *)&mach->fac_list, stfle_fac_list,
+	       sizeof(stfle_fac_list));
 	VM_EVENT(kvm, 3, "GET: host ibc:  0x%4.4x, host cpuid:  0x%16.16llx",
 		 kvm->arch.model.ibc,
 		 kvm->arch.model.cpuid);
@@ -2683,10 +2683,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.model.fac_list = kvm->arch.sie_page2->fac_list;
 
 	for (i = 0; i < kvm_s390_fac_size(); i++) {
-		kvm->arch.model.fac_mask[i] = S390_lowcore.stfle_fac_list[i] &
+		kvm->arch.model.fac_mask[i] = stfle_fac_list[i] &
 					      (kvm_s390_fac_base[i] |
 					       kvm_s390_fac_ext[i]);
-		kvm->arch.model.fac_list[i] = S390_lowcore.stfle_fac_list[i] &
+		kvm->arch.model.fac_list[i] = stfle_fac_list[i] &
 					      kvm_s390_fac_base[i];
 	}
 	kvm->arch.model.subfuncs = kvm_s390_available_subfunc;
@@ -5055,7 +5055,7 @@ static int __init kvm_s390_init(void)
 
 	for (i = 0; i < 16; i++)
 		kvm_s390_fac_base[i] |=
-			S390_lowcore.stfle_fac_list[i] & nonhyp_mask(i);
+			stfle_fac_list[i] & nonhyp_mask(i);
 
 	return kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 }

@@ -180,9 +180,9 @@ void setup_boot_command_line(void)
 static void modify_facility(unsigned long nr, bool clear)
 {
 	if (clear)
-		__clear_facility(nr, S390_lowcore.stfle_fac_list);
+		__clear_facility(nr, stfle_fac_list);
 	else
-		__set_facility(nr, S390_lowcore.stfle_fac_list);
+		__set_facility(nr, stfle_fac_list);
 }
 
 static void check_cleared_facilities(void)
@@ -191,7 +191,7 @@ static void check_cleared_facilities(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
-		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i]) {
+		if ((stfle_fac_list[i] & als[i]) != als[i]) {
 			sclp_early_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
 			print_missing_facilities();
 			break;

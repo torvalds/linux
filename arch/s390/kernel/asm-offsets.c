@@ -75,8 +75,6 @@ int main(void)
 	OFFSET(__LC_SUBCHANNEL_NR, lowcore, subchannel_nr);
 	OFFSET(__LC_IO_INT_PARM, lowcore, io_int_parm);
 	OFFSET(__LC_IO_INT_WORD, lowcore, io_int_word);
-	OFFSET(__LC_STFL_FAC_LIST, lowcore, stfl_fac_list);
-	OFFSET(__LC_STFLE_FAC_LIST, lowcore, stfle_fac_list);
 	OFFSET(__LC_MCCK_CODE, lowcore, mcck_interruption_code);
 	OFFSET(__LC_EXT_DAMAGE_CODE, lowcore, external_damage_code);
 	OFFSET(__LC_MCCK_FAIL_STOR_ADDR, lowcore, failing_storage_address);

@@ -108,6 +108,9 @@ unsigned long __bootdata_preserved(__edma);
 unsigned long __bootdata_preserved(__kaslr_offset);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
+u64 __bootdata_preserved(stfle_fac_list[16]);
+EXPORT_SYMBOL(stfle_fac_list);
+u64 __bootdata_preserved(alt_stfle_fac_list[16]);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -413,11 +416,6 @@ static void __init setup_lowcore_dat_off(void)
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->preempt_count = S390_lowcore.preempt_count;
-	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
-	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
-	       sizeof(lc->stfle_fac_list));
-	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
-	       sizeof(lc->alt_stfle_fac_list));
 	nmi_alloc_boot_cpu(lc);
 	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
