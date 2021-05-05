@@ -1756,11 +1756,6 @@ tty3270_flush_chars(struct tty_struct *tty)
 	}
 }
 
-static void
-tty3270_flush_buffer(struct tty_struct *tty)
-{
-}
-
 /*
  * Check for visible/invisible input switches
  */
@@ -1881,7 +1876,6 @@ static const struct tty_operations tty3270_ops = {
 	.put_char = tty3270_put_char,
 	.flush_chars = tty3270_flush_chars,
 	.write_room = tty3270_write_room,
-	.flush_buffer = tty3270_flush_buffer,
 	.throttle = tty3270_throttle,
 	.unthrottle = tty3270_unthrottle,
 	.hangup = tty3270_hangup,
