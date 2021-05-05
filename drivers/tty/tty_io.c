@@ -638,15 +638,15 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 
 	tty_ldisc_hangup(tty, cons_filp != NULL);
 
-	spin_lock_irq(&tty->ctrl_lock);
+	spin_lock_irq(&tty->ctrl.lock);
 	clear_bit(TTY_THROTTLED, &tty->flags);
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-	put_pid(tty->session);
-	put_pid(tty->pgrp);
-	tty->session = NULL;
-	tty->pgrp = NULL;
-	tty->ctrl_status = 0;
-	spin_unlock_irq(&tty->ctrl_lock);
+	put_pid(tty->ctrl.session);
+	put_pid(tty->ctrl.pgrp);
+	tty->ctrl.session = NULL;
+	tty->ctrl.pgrp = NULL;
+	tty->ctrl.pktstatus = 0;
+	spin_unlock_irq(&tty->ctrl.lock);
 
 	/*
 	 * If one of the devices matches a console pointer, we
@@ -1559,8 +1559,8 @@ static void release_one_tty(struct work_struct *work)
 	list_del_init(&tty->tty_files);
 	spin_unlock(&tty->files_lock);
 
-	put_pid(tty->pgrp);
-	put_pid(tty->session);
+	put_pid(tty->ctrl.pgrp);
+	put_pid(tty->ctrl.session);
 	free_tty_struct(tty);
 }
 
@@ -1861,9 +1861,9 @@ int tty_release(struct inode *inode, struct file *filp)
 	 */
 	if (!tty->count) {
 		read_lock(&tasklist_lock);
-		session_clear_tty(tty->session);
+		session_clear_tty(tty->ctrl.session);
 		if (o_tty)
-			session_clear_tty(o_tty->session);
+			session_clear_tty(o_tty->ctrl.session);
 		read_unlock(&tasklist_lock);
 	}
 
@@ -2250,16 +2250,16 @@ static int __tty_fasync(int fd, struct file *filp, int on)
 		enum pid_type type;
 		struct pid *pid;
 
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		if (tty->pgrp) {
-			pid = tty->pgrp;
+		spin_lock_irqsave(&tty->ctrl.lock, flags);
+		if (tty->ctrl.pgrp) {
+			pid = tty->ctrl.pgrp;
 			type = PIDTYPE_PGID;
 		} else {
 			pid = task_pid(current);
 			type = PIDTYPE_TGID;
 		}
 		get_pid(pid);
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+		spin_unlock_irqrestore(&tty->ctrl.lock, flags);
 		__f_setown(filp, pid, type, 0);
 		put_pid(pid);
 		retval = 0;
@@ -2381,7 +2381,7 @@ EXPORT_SYMBOL(tty_do_resize);
  *
  *	Locking:
  *		Driver dependent. The default do_resize method takes the
- *	tty termios mutex and ctrl_lock. The console takes its own lock
+ *	tty termios mutex and ctrl.lock. The console takes its own lock
  *	then calls into the default method.
  */
 
@@ -3039,9 +3039,9 @@ void __do_SAK(struct tty_struct *tty)
 	if (!tty)
 		return;
 
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	session = get_pid(tty->session);
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	spin_lock_irqsave(&tty->ctrl.lock, flags);
+	session = get_pid(tty->ctrl.session);
+	spin_unlock_irqrestore(&tty->ctrl.lock, flags);
 
 	tty_ldisc_flush(tty);
 
@@ -3129,8 +3129,8 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 		kfree(tty);
 		return NULL;
 	}
-	tty->session = NULL;
-	tty->pgrp = NULL;
+	tty->ctrl.session = NULL;
+	tty->ctrl.pgrp = NULL;
 	mutex_init(&tty->legacy_mutex);
 	mutex_init(&tty->throttle_mutex);
 	init_rwsem(&tty->termios_rwsem);
@@ -3140,7 +3140,7 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 	init_waitqueue_head(&tty->read_wait);
 	INIT_WORK(&tty->hangup_work, do_tty_hangup);
 	mutex_init(&tty->atomic_write_lock);
-	spin_lock_init(&tty->ctrl_lock);
+	spin_lock_init(&tty->ctrl.lock);
 	spin_lock_init(&tty->flow.lock);
 	spin_lock_init(&tty->files_lock);
 	INIT_LIST_HEAD(&tty->tty_files);

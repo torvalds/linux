@@ -342,10 +342,10 @@ static void n_tty_packet_mode_flush(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	if (tty->link->packet) {
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		tty->ctrl_status |= TIOCPKT_FLUSHREAD;
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	if (tty->link->ctrl.packet) {
+		spin_lock_irqsave(&tty->ctrl.lock, flags);
+		tty->ctrl.pktstatus |= TIOCPKT_FLUSHREAD;
+		spin_unlock_irqrestore(&tty->ctrl.lock, flags);
 		wake_up_interruptible(&tty->link->read_wait);
 	}
 }
@@ -361,7 +361,7 @@ static void n_tty_packet_mode_flush(struct tty_struct *tty)
  *	Holds termios_rwsem to exclude producer/consumer while
  *	buffer indices are reset.
  *
- *	Locking: ctrl_lock, exclusive termios_rwsem
+ *	Locking: ctrl.lock, exclusive termios_rwsem
  */
 
 static void n_tty_flush_buffer(struct tty_struct *tty)
@@ -1103,7 +1103,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	buffer is 'output'. The signal is processed first to alert any current
  *	readers or writers to discontinue and exit their i/o loops.
  *
- *	Locking: ctrl_lock
+ *	Locking: ctrl.lock
  */
 
 static void __isig(int sig, struct tty_struct *tty)
@@ -2025,7 +2025,7 @@ static bool canon_copy_from_read_buf(struct tty_struct *tty,
  *
  *	Locking: redirected write test is safe
  *		 current->signal->tty check is safe
- *		 ctrl_lock to safely reference tty->pgrp
+ *		 ctrl.lock to safely reference tty->ctrl.pgrp
  */
 
 static int job_control(struct tty_struct *tty, struct file *file)
@@ -2072,7 +2072,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	int minimum, time;
 	ssize_t retval = 0;
 	long timeout;
-	int packet;
+	bool packet;
 	size_t tail;
 
 	/*
@@ -2128,20 +2128,20 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		}
 	}
 
-	packet = tty->packet;
+	packet = tty->ctrl.packet;
 	tail = ldata->read_tail;
 
 	add_wait_queue(&tty->read_wait, &wait);
 	while (nr) {
 		/* First test for status change. */
-		if (packet && tty->link->ctrl_status) {
+		if (packet && tty->link->ctrl.pktstatus) {
 			unsigned char cs;
 			if (kb != kbuf)
 				break;
-			spin_lock_irq(&tty->link->ctrl_lock);
-			cs = tty->link->ctrl_status;
-			tty->link->ctrl_status = 0;
-			spin_unlock_irq(&tty->link->ctrl_lock);
+			spin_lock_irq(&tty->link->ctrl.lock);
+			cs = tty->link->ctrl.pktstatus;
+			tty->link->ctrl.pktstatus = 0;
+			spin_unlock_irq(&tty->link->ctrl.lock);
 			*kb++ = cs;
 			nr--;
 			break;
@@ -2368,7 +2368,7 @@ static __poll_t n_tty_poll(struct tty_struct *tty, struct file *file,
 		if (input_available_p(tty, 1))
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
-	if (tty->packet && tty->link->ctrl_status)
+	if (tty->ctrl.packet && tty->link->ctrl.pktstatus)
 		mask |= EPOLLPRI | EPOLLIN | EPOLLRDNORM;
 	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 		mask |= EPOLLHUP;

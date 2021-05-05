@@ -255,6 +255,13 @@ struct tty_operations;
  * @flow.unused: alignment for Alpha, so that no members other than @flow.* are
  *		 modified by the same 64b word store. The @flow's __aligned is
  *		 there for the very same reason.
+ * @ctrl.lock: lock for ctrl members
+ * @ctrl.pgrp: process group of this tty (setpgrp(2))
+ * @ctrl.session: session of this tty (setsid(2)). Writes are protected by both
+ *		  @ctrl.lock and legacy mutex, readers must use at least one of
+ *		  them.
+ * @ctrl.pktstatus: packet mode status (bitwise OR of TIOCPKT_* constants)
+ * @ctrl.packet: packet mode enabled
  *
  * All of the state associated with a tty while the tty is open. Persistent
  * storage for tty devices is referenced here as @port in struct tty_port.
@@ -276,16 +283,9 @@ struct tty_struct {
 	struct mutex throttle_mutex;
 	struct rw_semaphore termios_rwsem;
 	struct mutex winsize_mutex;
-	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
 	char name[64];
-	struct pid *pgrp;		/* Protected by ctrl lock */
-	/*
-	 * Writes protected by both ctrl lock and legacy mutex, readers must use
-	 * at least one of them.
-	 */
-	struct pid *session;
 	unsigned long flags;
 	int count;
 	struct winsize winsize;		/* winsize_mutex */
@@ -297,10 +297,16 @@ struct tty_struct {
 		unsigned long unused[0];
 	} __aligned(sizeof(unsigned long)) flow;
 
+	struct {
+		spinlock_t lock;
+		struct pid *pgrp;
+		struct pid *session;
+		unsigned char pktstatus;
+		bool packet;
+		unsigned long unused[0];
+	} __aligned(sizeof(unsigned long)) ctrl;
+
 	int hw_stopped;
-	unsigned long ctrl_status:8,	/* ctrl_lock */
-		      packet:1,
-		      unused_ctrl:BITS_PER_LONG - 9;
 	unsigned int receive_room;	/* Bytes free for queue */
 	int flow_change;
 

@@ -89,7 +89,7 @@ static inline void update_tty_status(struct ser_device *ser)
 	ser->tty_status =
 		ser->tty->flow.stopped << 5 |
 		ser->tty->flow.tco_stopped << 3 |
-		ser->tty->packet << 2;
+		ser->tty->ctrl.packet << 2;
 }
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {

@@ -57,9 +57,9 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	set_bit(TTY_IO_ERROR, &tty->flags);
 	wake_up_interruptible(&tty->read_wait);
 	wake_up_interruptible(&tty->write_wait);
-	spin_lock_irq(&tty->ctrl_lock);
-	tty->packet = 0;
-	spin_unlock_irq(&tty->ctrl_lock);
+	spin_lock_irq(&tty->ctrl.lock);
+	tty->ctrl.packet = false;
+	spin_unlock_irq(&tty->ctrl.lock);
 	/* Review - krefs on tty_link ?? */
 	if (!tty->link)
 		return;
@@ -185,16 +185,16 @@ static int pty_set_pktmode(struct tty_struct *tty, int __user *arg)
 	if (get_user(pktmode, arg))
 		return -EFAULT;
 
-	spin_lock_irq(&tty->ctrl_lock);
+	spin_lock_irq(&tty->ctrl.lock);
 	if (pktmode) {
-		if (!tty->packet) {
-			tty->link->ctrl_status = 0;
+		if (!tty->ctrl.packet) {
+			tty->link->ctrl.pktstatus = 0;
 			smp_mb();
-			tty->packet = 1;
+			tty->ctrl.packet = true;
 		}
 	} else
-		tty->packet = 0;
-	spin_unlock_irq(&tty->ctrl_lock);
+		tty->ctrl.packet = false;
+	spin_unlock_irq(&tty->ctrl.lock);
 
 	return 0;
 }
@@ -202,7 +202,7 @@ static int pty_set_pktmode(struct tty_struct *tty, int __user *arg)
 /* Get the packet mode of a pty */
 static int pty_get_pktmode(struct tty_struct *tty, int __user *arg)
 {
-	int pktmode = tty->packet;
+	int pktmode = tty->ctrl.packet;
 
 	return put_user(pktmode, arg);
 }
@@ -232,11 +232,11 @@ static void pty_flush_buffer(struct tty_struct *tty)
 		return;
 
 	tty_buffer_flush(to, NULL);
-	if (to->packet) {
-		spin_lock_irq(&tty->ctrl_lock);
-		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;
+	if (to->ctrl.packet) {
+		spin_lock_irq(&tty->ctrl.lock);
+		tty->ctrl.pktstatus |= TIOCPKT_FLUSHWRITE;
 		wake_up_interruptible(&to->read_wait);
-		spin_unlock_irq(&tty->ctrl_lock);
+		spin_unlock_irq(&tty->ctrl.lock);
 	}
 }
 
@@ -266,7 +266,7 @@ static void pty_set_termios(struct tty_struct *tty,
 					struct ktermios *old_termios)
 {
 	/* See if packet mode change of state. */
-	if (tty->link && tty->link->packet) {
+	if (tty->link && tty->link->ctrl.packet) {
 		int extproc = (old_termios->c_lflag & EXTPROC) | L_EXTPROC(tty);
 		int old_flow = ((old_termios->c_iflag & IXON) &&
 				(old_termios->c_cc[VSTOP] == '\023') &&
@@ -275,17 +275,17 @@ static void pty_set_termios(struct tty_struct *tty,
 				STOP_CHAR(tty) == '\023' &&
 				START_CHAR(tty) == '\021');
 		if ((old_flow != new_flow) || extproc) {
-			spin_lock_irq(&tty->ctrl_lock);
+			spin_lock_irq(&tty->ctrl.lock);
 			if (old_flow != new_flow) {
-				tty->ctrl_status &= ~(TIOCPKT_DOSTOP | TIOCPKT_NOSTOP);
+				tty->ctrl.pktstatus &= ~(TIOCPKT_DOSTOP | TIOCPKT_NOSTOP);
 				if (new_flow)
-					tty->ctrl_status |= TIOCPKT_DOSTOP;
+					tty->ctrl.pktstatus |= TIOCPKT_DOSTOP;
 				else
-					tty->ctrl_status |= TIOCPKT_NOSTOP;
+					tty->ctrl.pktstatus |= TIOCPKT_NOSTOP;
 			}
 			if (extproc)
-				tty->ctrl_status |= TIOCPKT_IOCTL;
-			spin_unlock_irq(&tty->ctrl_lock);
+				tty->ctrl.pktstatus |= TIOCPKT_IOCTL;
+			spin_unlock_irq(&tty->ctrl.lock);
 			wake_up_interruptible(&tty->link->read_wait);
 		}
 	}
@@ -346,11 +346,11 @@ static void pty_start(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	if (tty->link && tty->link->packet) {
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		tty->ctrl_status &= ~TIOCPKT_STOP;
-		tty->ctrl_status |= TIOCPKT_START;
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	if (tty->link && tty->link->ctrl.packet) {
+		spin_lock_irqsave(&tty->ctrl.lock, flags);
+		tty->ctrl.pktstatus &= ~TIOCPKT_STOP;
+		tty->ctrl.pktstatus |= TIOCPKT_START;
+		spin_unlock_irqrestore(&tty->ctrl.lock, flags);
 		wake_up_interruptible_poll(&tty->link->read_wait, EPOLLIN);
 	}
 }
@@ -359,11 +359,11 @@ static void pty_stop(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	if (tty->link && tty->link->packet) {
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		tty->ctrl_status &= ~TIOCPKT_START;
-		tty->ctrl_status |= TIOCPKT_STOP;
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	if (tty->link && tty->link->ctrl.packet) {
+		spin_lock_irqsave(&tty->ctrl.lock, flags);
+		tty->ctrl.pktstatus &= ~TIOCPKT_START;
+		tty->ctrl.pktstatus |= TIOCPKT_STOP;
+		spin_unlock_irqrestore(&tty->ctrl.lock, flags);
 		wake_up_interruptible_poll(&tty->link->read_wait, EPOLLIN);
 	}
 }

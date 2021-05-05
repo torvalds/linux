@@ -1189,7 +1189,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	information and perform any necessary signal handling.
  *
  *	Caller must hold the console semaphore. Takes the termios rwsem and
- *	ctrl_lock of the tty IFF a tty is passed.
+ *	ctrl.lock of the tty IFF a tty is passed.
  */
 
 static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
@@ -1355,7 +1355,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	the actual work.
  *
  *	Takes the console sem and the called methods then take the tty
- *	termios_rwsem and the tty ctrl_lock in that order.
+ *	termios_rwsem and the tty ctrl.lock in that order.
  */
 static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
