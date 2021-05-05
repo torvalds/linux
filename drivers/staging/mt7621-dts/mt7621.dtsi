@@ -372,13 +372,6 @@
 		clock-names = "nand";
 	};
 
-	ethsys: syscon@1e000000 {
-		compatible = "mediatek,mt7621-ethsys",
-			     "syscon";
-		reg = <0x1e000000 0x1000>;
-		#clock-cells = <1>;
-	};
-
 	ethernet: ethernet@1e100000 {
 		compatible = "mediatek,mt7621-eth";
 		reg = <0x1e100000 0x10000>;
@@ -396,7 +389,7 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
 
-		mediatek,ethsys = <&ethsys>;
+		mediatek,ethsys = <&sysc>;
 
 
 		gmac0: mac@0 {
