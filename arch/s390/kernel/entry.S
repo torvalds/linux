@@ -276,6 +276,7 @@ ENTRY(system_call)
 	xgr	%r10,%r10
 	xgr	%r11,%r11
 	la	%r2,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
+	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA_SYNC
 	lgr	%r3,%r14
 	brasl	%r14,__do_syscall
 	lctlg	%c1,%c1,__LC_USER_ASCE

@@ -24,8 +24,7 @@ struct lowcore {
 	__u32	ext_params;			/* 0x0080 */
 	__u16	ext_cpu_addr;			/* 0x0084 */
 	__u16	ext_int_code;			/* 0x0086 */
-	__u16	svc_ilc;			/* 0x0088 */
-	__u16	svc_code;			/* 0x008a */
+	__u32	svc_int_code;			/* 0x0088 */
 	__u16	pgm_ilc;			/* 0x008c */
 	__u16	pgm_code;			/* 0x008e */
 	__u32	data_exc_code;			/* 0x0090 */
