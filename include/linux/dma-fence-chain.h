@@ -16,21 +16,36 @@
 /**
  * struct dma_fence_chain - fence to represent an node of a fence chain
  * @base: fence base class
- * @lock: spinlock for fence handling
  * @prev: previous fence of the chain
  * @prev_seqno: original previous seqno before garbage collection
  * @fence: encapsulated fence
- * @cb: callback structure for signaling
- * @work: irq work item for signaling
+ * @lock: spinlock for fence handling
  */
 struct dma_fence_chain {
 	struct dma_fence base;
-	spinlock_t lock;
 	struct dma_fence __rcu *prev;
 	u64 prev_seqno;
 	struct dma_fence *fence;
-	struct dma_fence_cb cb;
-	struct irq_work work;
+	union {
+		/**
+		 * @cb: callback for signaling
+		 *
+		 * This is used to add the callback for signaling the
+		 * complection of the fence chain. Never used at the same time
+		 * as the irq work.
+		 */
+		struct dma_fence_cb cb;
+
+		/**
+		 * @work: irq work item for signaling
+		 *
+		 * Irq work structure to allow us to add the callback without
+		 * running into lock inversion. Never used at the same time as
+		 * the callback.
+		 */
+		struct irq_work work;
+	};
+	spinlock_t lock;
 };
 
 extern const struct dma_fence_ops dma_fence_chain_ops;
