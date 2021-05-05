@@ -267,7 +267,7 @@ error_no_buffer:
 	return ret;
 }
 
-static int opticon_write_room(struct tty_struct *tty)
+static unsigned int opticon_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct opticon_private *priv = usb_get_serial_port_data(port);

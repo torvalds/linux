@@ -1033,11 +1033,11 @@ static void mos7720_break(struct tty_struct *tty, int break_state)
  *	If successful, we return the amount of room that we have for this port
  *	Otherwise we return a negative error number.
  */
-static int mos7720_write_room(struct tty_struct *tty)
+static unsigned int mos7720_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct moschip_port *mos7720_port;
-	int room = 0;
+	unsigned int room = 0;
 	int i;
 
 	mos7720_port = usb_get_serial_port_data(port);
@@ -1051,7 +1051,7 @@ static int mos7720_write_room(struct tty_struct *tty)
 			room += URB_TRANSFER_BUFFER_SIZE;
 	}
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, room);
 	return room;
 }
 
