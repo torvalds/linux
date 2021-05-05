@@ -403,3 +403,24 @@ void get_hdr_visual_confirm_color(
 		break;
 	}
 }
+
+void get_surface_tile_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	/* Determine the overscan color based on the top-most (desktop) plane's context */
+	struct pipe_ctx *top_pipe_ctx  = pipe_ctx;
+
+	while (top_pipe_ctx->top_pipe != NULL)
+		top_pipe_ctx = top_pipe_ctx->top_pipe;
+
+	switch (top_pipe_ctx->plane_state->tiling_info.gfx9.swizzle) {
+	case DC_SW_LINEAR:
+		/* LINEAR Surface - set border color to red */
+		color->color_r_cr = color_value;
+		break;
+	default:
+		break;
+	}
+}
