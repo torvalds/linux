@@ -952,13 +952,13 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
 
 		ret = ops->setup_interface(chip, NAND_DATA_IFACE_CHECK_ONLY,
 					   iface);
-		if (!ret)
+		if (!ret) {
+			chip->best_interface_config = iface;
 			break;
+		}
 	}
 
-	chip->best_interface_config = iface;
-
-	return 0;
+	return ret;
 }
 
 /**
