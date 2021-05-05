@@ -1756,17 +1756,6 @@ tty3270_flush_chars(struct tty_struct *tty)
 	}
 }
 
-/*
- * Returns the number of characters in the output buffer. This is
- * used in tty_wait_until_sent to wait until all characters have
- * appeared on the screen.
- */
-static int
-tty3270_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
-}
-
 static void
 tty3270_flush_buffer(struct tty_struct *tty)
 {
@@ -1892,7 +1881,6 @@ static const struct tty_operations tty3270_ops = {
 	.put_char = tty3270_put_char,
 	.flush_chars = tty3270_flush_chars,
 	.write_room = tty3270_write_room,
-	.chars_in_buffer = tty3270_chars_in_buffer,
 	.flush_buffer = tty3270_flush_buffer,
 	.throttle = tty3270_throttle,
 	.unthrottle = tty3270_unthrottle,

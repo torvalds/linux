@@ -149,12 +149,6 @@ srmcons_write_room(struct tty_struct *tty)
 }
 
 static int
-srmcons_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
-}
-
-static int
 srmcons_open(struct tty_struct *tty, struct file *filp)
 {
 	struct srmcons_private *srmconsp = &srmcons_singleton;
@@ -200,7 +194,6 @@ static const struct tty_operations srmcons_ops = {
 	.close		= srmcons_close,
 	.write		= srmcons_write,
 	.write_room	= srmcons_write_room,
-	.chars_in_buffer= srmcons_chars_in_buffer,
 };
 
 static int __init

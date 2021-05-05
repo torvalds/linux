@@ -143,19 +143,6 @@ static unsigned int pty_write_room(struct tty_struct *tty)
 	return tty_buffer_space_avail(tty->link->port);
 }
 
-/**
- *	pty_chars_in_buffer	-	characters currently in our tx queue
- *	@tty: our tty
- *
- *	Report how much we have in the transmit queue. As everything is
- *	instantly at the other end this is easy to implement.
- */
-
-static int pty_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
-}
-
 /* Set the lock flag on a pty */
 static int pty_set_lock(struct tty_struct *tty, int __user *arg)
 {
@@ -525,7 +512,6 @@ static const struct tty_operations master_pty_ops_bsd = {
 	.write = pty_write,
 	.write_room = pty_write_room,
 	.flush_buffer = pty_flush_buffer,
-	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_bsd_ioctl,
 	.compat_ioctl = pty_bsd_compat_ioctl,
@@ -541,7 +527,6 @@ static const struct tty_operations slave_pty_ops_bsd = {
 	.write = pty_write,
 	.write_room = pty_write_room,
 	.flush_buffer = pty_flush_buffer,
-	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.cleanup = pty_cleanup,
@@ -776,7 +761,6 @@ static const struct tty_operations ptm_unix98_ops = {
 	.write = pty_write,
 	.write_room = pty_write_room,
 	.flush_buffer = pty_flush_buffer,
-	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_unix98_ioctl,
 	.compat_ioctl = pty_unix98_compat_ioctl,
@@ -794,7 +778,6 @@ static const struct tty_operations pty_unix98_ops = {
 	.write = pty_write,
 	.write_room = pty_write_room,
 	.flush_buffer = pty_flush_buffer,
-	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.set_termios = pty_set_termios,
 	.start = pty_start,

@@ -3270,11 +3270,6 @@ static unsigned int con_write_room(struct tty_struct *tty)
 	return 32768;		/* No limit, really; we're not buffering */
 }
 
-static int con_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;		/* we're not buffering */
-}
-
 /*
  * con_throttle and con_unthrottle are only used for
  * paste_selection(), which has to stuff in a large number of
@@ -3521,7 +3516,6 @@ static const struct tty_operations con_ops = {
 	.write_room = con_write_room,
 	.put_char = con_put_char,
 	.flush_chars = con_flush_chars,
-	.chars_in_buffer = con_chars_in_buffer,
 	.ioctl = vt_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = vt_compat_ioctl,
