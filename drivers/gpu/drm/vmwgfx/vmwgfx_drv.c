@@ -37,6 +37,7 @@
 #include <drm/drm_sysfs.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
+#include <generated/utsrelease.h>
 
 #include "ttm_object.h"
 #include "vmwgfx_binding.h"
@@ -781,7 +782,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	int ret;
 	enum vmw_res_type i;
 	bool refuse_dma = false;
-	char host_log[100] = {0};
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	dev_priv->vmw_chipset = pci_id;
@@ -1050,10 +1050,9 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		DRM_INFO("SM4 support available.\n");
 	DRM_INFO("Running without reservation semaphore\n");
 
-	snprintf(host_log, sizeof(host_log), "vmwgfx: Module Version: %d.%d.%d",
-		VMWGFX_DRIVER_MAJOR, VMWGFX_DRIVER_MINOR,
-		VMWGFX_DRIVER_PATCHLEVEL);
-	vmw_host_log(host_log);
+	vmw_host_printf("vmwgfx: Module Version: %d.%d.%d (kernel: %s)",
+			VMWGFX_DRIVER_MAJOR, VMWGFX_DRIVER_MINOR,
+			VMWGFX_DRIVER_PATCHLEVEL, UTS_RELEASE);
 
 	if (dev_priv->enable_fb) {
 		vmw_fifo_resource_inc(dev_priv);
