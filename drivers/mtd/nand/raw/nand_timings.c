@@ -637,6 +637,45 @@ static void onfi_fill_sdr_interface_config(struct nand_chip *chip,
 }
 
 /**
+ * onfi_fill_nvddr_interface_config - Initialize a NVDDR interface config from a
+ *                                    given ONFI mode
+ * @chip: The NAND chip
+ * @iface: The interface configuration to fill
+ * @timing_mode: The ONFI timing mode
+ */
+static void onfi_fill_nvddr_interface_config(struct nand_chip *chip,
+					     struct nand_interface_config *iface,
+					     unsigned int timing_mode)
+{
+	struct onfi_params *onfi = chip->parameters.onfi;
+
+	if (WARN_ON(timing_mode >= ARRAY_SIZE(onfi_nvddr_timings)))
+		return;
+
+	*iface = onfi_nvddr_timings[timing_mode];
+
+	/*
+	 * Initialize timings that cannot be deduced from timing mode:
+	 * tPROG, tBERS, tR, tCCS and tCAD.
+	 * These information are part of the ONFI parameter page.
+	 */
+	if (onfi) {
+		struct nand_nvddr_timings *timings = &iface->timings.nvddr;
+
+		/* microseconds -> picoseconds */
+		timings->tPROG_max = 1000000ULL * onfi->tPROG;
+		timings->tBERS_max = 1000000ULL * onfi->tBERS;
+		timings->tR_max = 1000000ULL * onfi->tR;
+
+		/* nanoseconds -> picoseconds */
+		timings->tCCS_min = 1000UL * onfi->tCCS;
+
+		if (onfi->fast_tCAD)
+			timings->tCAD_min = 25000;
+	}
+}
+
+/**
  * onfi_fill_interface_config - Initialize an interface config from a given
  *                              ONFI mode
  * @chip: The NAND chip
@@ -651,4 +690,6 @@ void onfi_fill_interface_config(struct nand_chip *chip,
 {
 	if (type == NAND_SDR_IFACE)
 		return onfi_fill_sdr_interface_config(chip, iface, timing_mode);
+	else
+		return onfi_fill_nvddr_interface_config(chip, iface, timing_mode);
 }
