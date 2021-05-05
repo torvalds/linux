@@ -1008,12 +1008,6 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 
 	drm_modeset_lock_all(&dev_priv->drm);
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0)) {
-		drm_modeset_unlock_all(&dev_priv->drm);
-		return ret;
-	}
-
 	if (!num_clips) {
 		num_clips = 1;
 		clips = &norect;
@@ -1037,7 +1031,6 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	vmw_cmd_flush(dev_priv, false);
-	ttm_read_unlock(&dev_priv->reservation_sem);
 
 	drm_modeset_unlock_all(&dev_priv->drm);
 

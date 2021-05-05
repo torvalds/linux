@@ -779,10 +779,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   size, &ctx);
 	if (unlikely(ret != 0)) {
@@ -913,7 +909,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	rep->sid = user_srf->prime.base.handle;
 	vmw_resource_unreference(&res);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return 0;
 out_no_copy:
 	kfree(srf->offsets);
@@ -924,7 +919,6 @@ out_no_sizes:
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -1542,10 +1536,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	if (drm_is_primary_client(file_priv))
 		user_srf->master = drm_master_get(file_priv->master);
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	res = &user_srf->srf.res;
 
 	if (req->base.buffer_handle != SVGA3D_INVALID_ID) {
@@ -1627,7 +1617,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	vmw_resource_unreference(&res);
 
 out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -2125,10 +2114,6 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	if (req->sizes != NULL)
 		return -EINVAL;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   user_accounting_size, &ctx);
 	if (ret != 0) {
@@ -2192,13 +2177,11 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	 */
 	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), user_accounting_size);
 
 out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }

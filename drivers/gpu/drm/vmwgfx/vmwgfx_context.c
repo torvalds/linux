@@ -748,10 +748,6 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		  ((dev_priv->has_mob) ? vmw_cmdbuf_res_man_size() : 0) +
 		  + VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_user_context_size,
 				   &ttm_opt_ctx);
@@ -759,7 +755,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for context"
 				  " creation.\n");
-		goto out_unlock;
+		goto out_ret;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -767,7 +763,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		ttm_mem_global_free(vmw_mem_glob(dev_priv),
 				    vmw_user_context_size);
 		ret = -ENOMEM;
-		goto out_unlock;
+		goto out_ret;
 	}
 
 	res = &ctx->res;
@@ -780,7 +776,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 
 	ret = vmw_context_init(dev_priv, res, vmw_user_context_free, dx);
 	if (unlikely(ret != 0))
-		goto out_unlock;
+		goto out_ret;
 
 	tmp = vmw_resource_reference(&ctx->res);
 	ret = ttm_base_object_init(tfile, &ctx->base, false, VMW_RES_CONTEXT,
@@ -794,8 +790,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	arg->cid = ctx->base.handle;
 out_err:
 	vmw_resource_unreference(&res);
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
+out_ret:
 	return ret;
 }
 

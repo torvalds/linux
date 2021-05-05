@@ -302,10 +302,6 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	}
 	vfb = vmw_framebuffer_to_vfb(fb);
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		goto out_no_ttm_lock;
-
 	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, arg->sid,
 					      user_surface_converter,
 					      &res);
@@ -322,8 +318,6 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	vmw_surface_unreference(&surface);
 
 out_no_surface:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-out_no_ttm_lock:
 	drm_framebuffer_put(fb);
 out_no_fb:
 	drm_modeset_unlock_all(dev);
@@ -391,15 +385,10 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 		goto out_no_ttm_lock;
 	}
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		goto out_no_ttm_lock;
-
 	ret = vmw_kms_readback(dev_priv, file_priv,
 			       vfb, user_fence_rep,
 			       clips, num_clips);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
 out_no_ttm_lock:
 	drm_framebuffer_put(fb);
 out_no_fb:

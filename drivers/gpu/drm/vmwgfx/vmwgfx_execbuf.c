@@ -4443,10 +4443,6 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 			goto out;
 	}
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = vmw_execbuf_process(file_priv, dev_priv,
 				  (void __user *)(unsigned long)arg->commands,
 				  NULL, arg->command_size, arg->throttle_us,
@@ -4454,7 +4450,6 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 				  (void __user *)(unsigned long)arg->fence_rep,
 				  NULL, arg->flags);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (unlikely(ret != 0))
 		goto out;
 

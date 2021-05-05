@@ -96,10 +96,6 @@ int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 	int ret;
 	uint32_t new_flags;
 
-	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
-	if (unlikely(ret != 0))
-		return ret;
-
 	vmw_execbuf_release_pinned_bo(dev_priv);
 
 	ret = ttm_bo_reserve(bo, interruptible, false, NULL);
@@ -116,9 +112,7 @@ int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 		vmw_bo_pin_reserved(buf, true);
 
 	ttm_bo_unreserve(bo);
-
 err:
-	ttm_write_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -144,10 +138,6 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 	int ret;
 	uint32_t new_flags;
 
-	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
-	if (unlikely(ret != 0))
-		return ret;
-
 	vmw_execbuf_release_pinned_bo(dev_priv);
 
 	ret = ttm_bo_reserve(bo, interruptible, false, NULL);
@@ -172,7 +162,6 @@ out_unreserve:
 
 	ttm_bo_unreserve(bo);
 err:
-	ttm_write_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -228,10 +217,6 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &place;
 
-	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
-	if (unlikely(ret != 0))
-		return ret;
-
 	vmw_execbuf_release_pinned_bo(dev_priv);
 	ret = ttm_bo_reserve(bo, interruptible, false, NULL);
 	if (unlikely(ret != 0))
@@ -263,7 +248,6 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 
 	ttm_bo_unreserve(bo);
 err_unlock:
-	ttm_write_unlock(&dev_priv->reservation_sem);
 
 	return ret;
 }
@@ -287,10 +271,6 @@ int vmw_bo_unpin(struct vmw_private *dev_priv,
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, interruptible);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = ttm_bo_reserve(bo, interruptible, false, NULL);
 	if (unlikely(ret != 0))
 		goto err;
@@ -300,7 +280,6 @@ int vmw_bo_unpin(struct vmw_private *dev_priv,
 	ttm_bo_unreserve(bo);
 
 err:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -906,10 +885,6 @@ int vmw_bo_alloc_ioctl(struct drm_device *dev, void *data,
 	uint32_t handle;
 	int ret;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = vmw_user_bo_alloc(dev_priv, vmw_fpriv(file_priv)->tfile,
 				req->size, false, &handle, &vbo,
 				NULL);
@@ -924,7 +899,6 @@ int vmw_bo_alloc_ioctl(struct drm_device *dev, void *data,
 	vmw_bo_unreference(&vbo);
 
 out_no_bo:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 
 	return ret;
 }
@@ -1119,10 +1093,6 @@ int vmw_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = vmw_user_bo_alloc(dev_priv, vmw_fpriv(file_priv)->tfile,
 				    args->size, false, &args->handle,
 				    &vbo, NULL);
@@ -1131,7 +1101,6 @@ int vmw_dumb_create(struct drm_file *file_priv,
 
 	vmw_bo_unreference(&vbo);
 out_no_bo:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 

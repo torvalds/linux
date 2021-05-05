@@ -708,7 +708,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->binding_mutex);
-	ttm_lock_init(&dev_priv->reservation_sem);
 	spin_lock_init(&dev_priv->resource_lock);
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
@@ -966,6 +965,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		DRM_INFO("SM4_1 support available.\n");
 	if (dev_priv->sm_type == VMW_SM_4)
 		DRM_INFO("SM4 support available.\n");
+	DRM_INFO("Running without reservation semaphore\n");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: Module Version: %d.%d.%d",
 		VMWGFX_DRIVER_MAJOR, VMWGFX_DRIVER_MINOR,
@@ -1191,9 +1191,7 @@ static void __vmw_svga_enable(struct vmw_private *dev_priv)
  */
 void vmw_svga_enable(struct vmw_private *dev_priv)
 {
-	(void) ttm_read_lock(&dev_priv->reservation_sem, false);
 	__vmw_svga_enable(dev_priv);
-	ttm_read_unlock(&dev_priv->reservation_sem);
 }
 
 /**
@@ -1238,7 +1236,6 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	 *
 	 */
 	vmw_kms_lost_device(&dev_priv->drm);
-	ttm_write_lock(&dev_priv->reservation_sem, false);
 	if (ttm_resource_manager_used(man)) {
 		if (ttm_resource_manager_evict_all(&dev_priv->bdev, man))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");
@@ -1247,7 +1244,6 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 			  SVGA_REG_ENABLE_HIDE |
 			  SVGA_REG_ENABLE_ENABLE);
 	}
-	ttm_write_unlock(&dev_priv->reservation_sem);
 }
 
 static void vmw_remove(struct pci_dev *pdev)
@@ -1287,14 +1283,12 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 		 * Once user-space processes have been frozen, we can release
 		 * the lock again.
 		 */
-		ttm_suspend_lock(&dev_priv->reservation_sem);
 		dev_priv->suspend_locked = true;
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
 		if (READ_ONCE(dev_priv->suspend_locked)) {
 			dev_priv->suspend_locked = false;
-			ttm_suspend_unlock(&dev_priv->reservation_sem);
 		}
 		break;
 	default:
@@ -1353,20 +1347,16 @@ static int vmw_pm_freeze(struct device *kdev)
 	int ret;
 
 	/*
-	 * Unlock for vmw_kms_suspend.
 	 * No user-space processes should be running now.
 	 */
-	ttm_suspend_unlock(&dev_priv->reservation_sem);
 	ret = vmw_kms_suspend(&dev_priv->drm);
 	if (ret) {
-		ttm_suspend_lock(&dev_priv->reservation_sem);
 		DRM_ERROR("Failed to freeze modesetting.\n");
 		return ret;
 	}
 	if (dev_priv->enable_fb)
 		vmw_fb_off(dev_priv);
 
-	ttm_suspend_lock(&dev_priv->reservation_sem);
 	vmw_execbuf_release_pinned_bo(dev_priv);
 	vmw_resource_evict_all(dev_priv);
 	vmw_release_device_early(dev_priv);
@@ -1379,7 +1369,6 @@ static int vmw_pm_freeze(struct device *kdev)
 			vmw_fifo_resource_inc(dev_priv);
 		WARN_ON(vmw_request_device_late(dev_priv));
 		dev_priv->suspend_locked = false;
-		ttm_suspend_unlock(&dev_priv->reservation_sem);
 		if (dev_priv->suspend_state)
 			vmw_kms_resume(dev);
 		if (dev_priv->enable_fb)
@@ -1416,7 +1405,6 @@ static int vmw_pm_restore(struct device *kdev)
 
 	vmw_fence_fifo_up(dev_priv->fman);
 	dev_priv->suspend_locked = false;
-	ttm_suspend_unlock(&dev_priv->reservation_sem);
 	if (dev_priv->suspend_state)
 		vmw_kms_resume(&dev_priv->drm);
 

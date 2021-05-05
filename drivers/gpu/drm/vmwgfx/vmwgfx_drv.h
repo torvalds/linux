@@ -40,7 +40,6 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
-#include "ttm_lock.h"
 #include "ttm_object.h"
 
 #include "vmwgfx_fence.h"
@@ -592,11 +591,6 @@ struct vmw_private {
 	bool suspend_locked;
 
 	atomic_t num_fifo_resources;
-
-	/*
-	 * Replace this with an rwsem as soon as we have down_xx_interruptible()
-	 */
-	struct ttm_lock reservation_sem;
 
 	/*
 	 * Query processing. These members
