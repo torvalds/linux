@@ -949,11 +949,11 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
  *	system,
  *	Otherwise we return a negative error number.
  */
-static int mos7720_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mos7720_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int i;
-	int chars = 0;
+	unsigned int chars = 0;
 	struct moschip_port *mos7720_port;
 
 	mos7720_port = usb_get_serial_port_data(port);
@@ -965,7 +965,7 @@ static int mos7720_chars_in_buffer(struct tty_struct *tty)
 		    mos7720_port->write_urb_pool[i]->status == -EINPROGRESS)
 			chars += URB_TRANSFER_BUFFER_SIZE;
 	}
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, chars);
 	return chars;
 }
 

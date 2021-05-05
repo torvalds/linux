@@ -735,12 +735,12 @@ err:
  *	Otherwise we return zero.
  *****************************************************************************/
 
-static int mos7840_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mos7840_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 	int i;
-	int chars = 0;
+	unsigned int chars = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mos7840_port->pool_lock, flags);
@@ -751,7 +751,7 @@ static int mos7840_chars_in_buffer(struct tty_struct *tty)
 		}
 	}
 	spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, chars);
 	return chars;
 
 }

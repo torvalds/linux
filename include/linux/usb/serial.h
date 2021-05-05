@@ -284,7 +284,7 @@ struct usb_serial_driver {
 	void (*set_termios)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 	void (*break_ctl)(struct tty_struct *tty, int break_state);
-	int  (*chars_in_buffer)(struct tty_struct *tty);
+	unsigned int (*chars_in_buffer)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, long timeout);
 	bool (*tx_empty)(struct usb_serial_port *port);
 	void (*throttle)(struct tty_struct *tty);
@@ -348,7 +348,7 @@ int usb_serial_generic_write(struct tty_struct *tty, struct usb_serial_port *por
 void usb_serial_generic_close(struct usb_serial_port *port);
 int usb_serial_generic_resume(struct usb_serial *serial);
 unsigned int usb_serial_generic_write_room(struct tty_struct *tty);
-int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);
+unsigned int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);
 void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout);
 void usb_serial_generic_read_bulk_callback(struct urb *urb);
 void usb_serial_generic_write_bulk_callback(struct urb *urb);

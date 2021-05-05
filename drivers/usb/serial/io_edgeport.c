@@ -1391,11 +1391,11 @@ static unsigned int edge_write_room(struct tty_struct *tty)
  *	system,
  *	Otherwise we return a negative error number.
  *****************************************************************************/
-static int edge_chars_in_buffer(struct tty_struct *tty)
+static unsigned int edge_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	int num_chars;
+	unsigned int num_chars;
 	unsigned long flags;
 
 	if (edge_port == NULL)
@@ -1413,7 +1413,7 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 						edge_port->txfifo.count;
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 	if (num_chars) {
-		dev_dbg(&port->dev, "%s - returns %d\n", __func__, num_chars);
+		dev_dbg(&port->dev, "%s - returns %u\n", __func__, num_chars);
 	}
 
 	return num_chars;

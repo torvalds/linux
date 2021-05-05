@@ -17,7 +17,7 @@ extern int usb_wwan_tiocmset(struct tty_struct *tty,
 			     unsigned int set, unsigned int clear);
 extern int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 			  const unsigned char *buf, int count);
-extern int usb_wwan_chars_in_buffer(struct tty_struct *tty);
+extern unsigned int usb_wwan_chars_in_buffer(struct tty_struct *tty);
 #ifdef CONFIG_PM
 extern int usb_wwan_suspend(struct usb_serial *serial, pm_message_t message);
 extern int usb_wwan_resume(struct usb_serial *serial);
