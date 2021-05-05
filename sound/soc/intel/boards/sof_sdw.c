@@ -147,7 +147,9 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_SDW_TGL_HDMI |
 					SOF_SDW_PCH_DMIC |
-					SOF_SDW_FOUR_SPK),
+					SOF_SDW_FOUR_SPK |
+					SOF_BT_OFFLOAD_SSP(2) |
+					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
 	{
 		.callback = sof_sdw_quirk_cb,
@@ -977,6 +979,9 @@ static int sof_card_dai_links_create(struct device *dev,
 	dmic_num = (sof_sdw_quirk & SOF_SDW_PCH_DMIC || mach_params->dmic_num) ? 2 : 0;
 	comp_num += dmic_num;
 
+	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
+		comp_num++;
+
 	dev_dbg(dev, "sdw %d, ssp %d, dmic %d, hdmi %d", sdw_be_num, ssp_num,
 		dmic_num, ctx->idisp_codec ? hdmi_num : 0);
 
@@ -1160,6 +1165,31 @@ HDMI:
 			      idisp_components + i, 1,
 			      sof_sdw_hdmi_init, NULL);
 		INC_ID(be_id, cpu_id, link_id);
+	}
+
+	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
+		int port = (sof_sdw_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
+				SOF_BT_OFFLOAD_SSP_SHIFT;
+
+		name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
+		if (!name)
+			return -ENOMEM;
+
+		ssp_components = devm_kzalloc(dev, sizeof(*ssp_components),
+						GFP_KERNEL);
+		if (!ssp_components)
+			return -ENOMEM;
+
+		ssp_components->name = "snd-soc-dummy";
+		ssp_components->dai_name = "snd-soc-dummy-dai";
+
+		cpu_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
+		if (!cpu_name)
+			return -ENOMEM;
+
+		cpus[cpu_id].dai_name = cpu_name;
+		init_dai_link(dev, links + link_id, be_id, name, 1, 1,
+				cpus + cpu_id, 1, ssp_components, 1, NULL, NULL);
 	}
 
 	card->dai_link = links;
