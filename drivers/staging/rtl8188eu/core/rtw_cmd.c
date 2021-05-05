@@ -52,13 +52,12 @@ static struct _cmd_callback rtw_cmd_callback[] = {
  * No irqsave is necessary.
  */
 
-int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
+void rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->cmd_queue_comp);
 	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
 	_rtw_init_queue(&pcmdpriv->cmd_queue);
-	return _SUCCESS;
 }
 
 /*

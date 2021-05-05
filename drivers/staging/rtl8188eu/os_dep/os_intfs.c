@@ -424,11 +424,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
 
-	if ((rtw_init_cmd_priv(&padapter->cmdpriv)) == _FAIL) {
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init cmd_priv\n"));
-		ret8 = _FAIL;
-		goto exit;
-	}
+	rtw_init_cmd_priv(&padapter->cmdpriv);
 
 	padapter->cmdpriv.padapter = padapter;
 
