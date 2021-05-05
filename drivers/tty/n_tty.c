@@ -1401,7 +1401,7 @@ handle_newline:
 }
 
 static inline void
-n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
+n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1421,11 +1421,6 @@ n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
 	if (c == (unsigned char) '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
 	put_tty_queue(c, ldata);
-}
-
-static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
-{
-	n_tty_receive_char_inline(tty, c);
 }
 
 static inline void
@@ -1577,7 +1572,7 @@ n_tty_receive_buf_standard(struct tty_struct *tty, const unsigned char *cp,
 				continue;
 			}
 			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char_inline(tty, c);
+				n_tty_receive_char(tty, c);
 			else if (n_tty_receive_char_special(tty, c) && count) {
 				if (fp)
 					flag = *fp++;
