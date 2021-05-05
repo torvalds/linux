@@ -1400,8 +1400,7 @@ handle_newline:
 	return 0;
 }
 
-static void n_tty_receive_char(struct tty_struct *tty, unsigned char c,
-		bool parmrk_dbl)
+static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1418,7 +1417,7 @@ static void n_tty_receive_char(struct tty_struct *tty, unsigned char c,
 		commit_echoes(tty);
 	}
 	/* PARMRK doubling check */
-	if (parmrk_dbl && c == (unsigned char) '\377' && I_PARMRK(tty))
+	if (c == (unsigned char) '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
 	put_tty_queue(c, ldata);
 }
@@ -1474,7 +1473,7 @@ n_tty_receive_char_lnext(struct tty_struct *tty, unsigned char c, char flag)
 			c &= 0x7f;
 		if (I_IUCLC(tty) && L_IEXTEN(tty))
 			c = tolower(c);
-		n_tty_receive_char(tty, c, true);
+		n_tty_receive_char(tty, c);
 	} else
 		n_tty_receive_char_flagged(tty, c, flag);
 }
@@ -1551,7 +1550,7 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 				continue;
 			}
 			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char(tty, c, true);
+				n_tty_receive_char(tty, c);
 			else if (n_tty_receive_char_special(tty, c) && count) {
 				if (fp)
 					flag = *fp++;
