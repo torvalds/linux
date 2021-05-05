@@ -267,6 +267,19 @@ extern void cifs_add_pending_open_locked(struct cifs_fid *fid,
 					 struct tcon_link *tlink,
 					 struct cifs_pending_open *open);
 extern void cifs_del_pending_open(struct cifs_pending_open *open);
+
+extern bool cifs_is_deferred_close(struct cifsFileInfo *cfile,
+				struct cifs_deferred_close **dclose);
+
+extern void cifs_add_deferred_close(struct cifsFileInfo *cfile,
+				struct cifs_deferred_close *dclose);
+
+extern void cifs_del_deferred_close(struct cifsFileInfo *cfile);
+
+extern void cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode);
+
+extern void cifs_close_all_deferred_files(struct cifs_tcon *cifs_tcon);
+
 extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb3_fs_context *ctx);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);

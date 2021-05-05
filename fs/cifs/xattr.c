@@ -30,6 +30,7 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
+#include "cifs_ioctl.h"
 
 #define MAX_EA_VALUE_SIZE CIFSMaxBufSize
 #define CIFS_XATTR_CIFS_ACL "system.cifs_acl" /* DACL only */
@@ -420,6 +421,9 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 	struct cifs_tcon *pTcon;
 	const char *full_path;
 	void *page;
+
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 		return -EOPNOTSUPP;
