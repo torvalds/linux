@@ -1494,7 +1494,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
 	spin_lock_irq(&hugetlb_lock);
 	h->nr_huge_pages++;
 	h->nr_huge_pages_node[nid]++;
-	ClearHPageFreed(page);
 	spin_unlock_irq(&hugetlb_lock);
 }
 
