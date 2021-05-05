@@ -447,6 +447,11 @@ static int has_svm(void)
 		return 0;
 	}
 
+	if (pgtable_l5_enabled()) {
+		pr_info("KVM doesn't yet support 5-level paging on AMD SVM\n");
+		return 0;
+	}
+
 	return 1;
 }
 
