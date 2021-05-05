@@ -601,6 +601,48 @@ onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings)
 }
 
 /**
+ * onfi_find_closest_nvddr_mode - Derive the closest ONFI NVDDR timing mode
+ *                                given a set of timings
+ * @spec_timings: the timings to challenge
+ */
+unsigned int
+onfi_find_closest_nvddr_mode(const struct nand_nvddr_timings *spec_timings)
+{
+	const struct nand_nvddr_timings *onfi_timings;
+	int mode;
+
+	for (mode = ARRAY_SIZE(onfi_nvddr_timings) - 1; mode > 0; mode--) {
+		onfi_timings = &onfi_nvddr_timings[mode].timings.nvddr;
+
+		if (spec_timings->tCCS_min <= onfi_timings->tCCS_min &&
+		    spec_timings->tAC_min <= onfi_timings->tAC_min &&
+		    spec_timings->tADL_min <= onfi_timings->tADL_min &&
+		    spec_timings->tCAD_min <= onfi_timings->tCAD_min &&
+		    spec_timings->tCAH_min <= onfi_timings->tCAH_min &&
+		    spec_timings->tCALH_min <= onfi_timings->tCALH_min &&
+		    spec_timings->tCALS_min <= onfi_timings->tCALS_min &&
+		    spec_timings->tCAS_min <= onfi_timings->tCAS_min &&
+		    spec_timings->tCEH_min <= onfi_timings->tCEH_min &&
+		    spec_timings->tCH_min <= onfi_timings->tCH_min &&
+		    spec_timings->tCK_min <= onfi_timings->tCK_min &&
+		    spec_timings->tCS_min <= onfi_timings->tCS_min &&
+		    spec_timings->tDH_min <= onfi_timings->tDH_min &&
+		    spec_timings->tDQSCK_min <= onfi_timings->tDQSCK_min &&
+		    spec_timings->tDQSD_min <= onfi_timings->tDQSD_min &&
+		    spec_timings->tDS_min <= onfi_timings->tDS_min &&
+		    spec_timings->tDSC_min <= onfi_timings->tDSC_min &&
+		    spec_timings->tRHW_min <= onfi_timings->tRHW_min &&
+		    spec_timings->tRR_min <= onfi_timings->tRR_min &&
+		    spec_timings->tWHR_min <= onfi_timings->tWHR_min &&
+		    spec_timings->tWRCK_min <= onfi_timings->tWRCK_min &&
+		    spec_timings->tWW_min <= onfi_timings->tWW_min)
+			return mode;
+	}
+
+	return 0;
+}
+
+/*
  * onfi_fill_sdr_interface_config - Initialize a SDR interface config from a
  *                                  given ONFI mode
  * @chip: The NAND chip
