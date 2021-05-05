@@ -25,6 +25,7 @@
 
 /* ONFI features */
 #define ONFI_FEATURE_16_BIT_BUS		BIT(0)
+#define ONFI_FEATURE_NV_DDR		BIT(5)
 #define ONFI_FEATURE_EXT_PARAM_PAGE	BIT(7)
 
 /* ONFI timing mode, used in both asynchronous and synchronous mode */
@@ -162,6 +163,7 @@ struct onfi_ext_param_page {
  * @tR: Page read time
  * @tCCS: Change column setup time
  * @sdr_timing_modes: Supported asynchronous/SDR timing modes
+ * @nvddr_timing_modes: Supported source synchronous/NV-DDR timing modes
  * @vendor_revision: Vendor specific revision number
  * @vendor: Vendor specific data
  */
@@ -172,6 +174,7 @@ struct onfi_params {
 	u16 tR;
 	u16 tCCS;
 	u16 sdr_timing_modes;
+	u16 nvddr_timing_modes;
 	u16 vendor_revision;
 	u8 vendor[88];
 };
