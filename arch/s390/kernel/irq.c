@@ -172,7 +172,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 	if (user_mode(regs))
 		update_timer_sys();
 
-	memcpy(&regs->int_code, &S390_lowcore.ext_cpu_addr, 4);
+	regs->int_code = S390_lowcore.ext_int_code_addr;
 	regs->int_parm = S390_lowcore.ext_params;
 	regs->int_parm_long = S390_lowcore.ext_params2;
 
