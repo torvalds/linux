@@ -694,13 +694,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	setup_cm_memory_region(pcie);
 
-	err = mt7621_pcie_register_host(bridge);
-	if (err) {
-		dev_err(dev, "Error registering host\n");
-		return err;
-	}
-
-	return 0;
+	return mt7621_pcie_register_host(bridge);
 }
 
 static const struct of_device_id mt7621_pci_ids[] = {
