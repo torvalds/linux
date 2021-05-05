@@ -854,10 +854,10 @@ static unsigned int mips_ejtag_fdc_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int mips_ejtag_fdc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mips_ejtag_fdc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;
-	int chars;
+	unsigned int chars;
 
 	/* Report the number of bytes in the xmit buffer */
 	spin_lock(&dport->xmit_lock);

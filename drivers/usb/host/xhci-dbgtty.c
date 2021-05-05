@@ -253,11 +253,11 @@ static unsigned int dbc_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int dbc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int dbc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct dbc_port		*port = tty->driver_data;
 	unsigned long		flags;
-	int			chars = 0;
+	unsigned int		chars;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	chars = kfifo_len(&port->write_fifo);

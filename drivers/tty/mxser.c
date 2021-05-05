@@ -1192,7 +1192,7 @@ static unsigned int mxser_write_room(struct tty_struct *tty)
 	return ret < 0 ? 0 : ret;
 }
 
-static int mxser_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mxser_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 	return info->xmit_cnt;

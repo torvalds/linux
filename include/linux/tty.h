@@ -458,7 +458,7 @@ extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
 extern int tty_send_xchar(struct tty_struct *tty, char ch);
 extern int tty_put_char(struct tty_struct *tty, unsigned char c);
-extern int tty_chars_in_buffer(struct tty_struct *tty);
+extern unsigned int tty_chars_in_buffer(struct tty_struct *tty);
 extern unsigned int tty_write_room(struct tty_struct *tty);
 extern void tty_driver_flush_buffer(struct tty_struct *tty);
 extern void tty_throttle(struct tty_struct *tty);

@@ -1254,14 +1254,14 @@ static int synclink_gt_proc_show(struct seq_file *m, void *v)
 /*
  * return count of bytes in transmit buffer
  */
-static int chars_in_buffer(struct tty_struct *tty)
+static unsigned int chars_in_buffer(struct tty_struct *tty)
 {
 	struct slgt_info *info = tty->driver_data;
-	int count;
+	unsigned int count;
 	if (sanity_check(info, tty->name, "chars_in_buffer"))
 		return 0;
 	count = tbuf_bytes(info);
-	DBGINFO(("%s chars_in_buffer()=%d\n", info->device_name, count));
+	DBGINFO(("%s chars_in_buffer()=%u\n", info->device_name, count));
 	return count;
 }
 

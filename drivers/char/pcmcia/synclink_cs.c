@@ -1637,10 +1637,10 @@ static unsigned int mgslpc_write_room(struct tty_struct *tty)
 
 /* Return the count of bytes in transmit buffer
  */
-static int mgslpc_chars_in_buffer(struct tty_struct *tty)
+static unsigned int mgslpc_chars_in_buffer(struct tty_struct *tty)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
-	int rc;
+	unsigned int rc;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgslpc_chars_in_buffer(%s)\n",
@@ -1655,7 +1655,7 @@ static int mgslpc_chars_in_buffer(struct tty_struct *tty)
 		rc = info->tx_count;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
-		printk("%s(%d):mgslpc_chars_in_buffer(%s)=%d\n",
+		printk("%s(%d):mgslpc_chars_in_buffer(%s)=%u\n",
 			 __FILE__, __LINE__, info->device_name, rc);
 
 	return rc;

@@ -629,16 +629,15 @@ sclp_vt220_write_room(struct tty_struct *tty)
 /*
  * Return number of buffered chars.
  */
-static int
+static unsigned int
 sclp_vt220_chars_in_buffer(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
 	struct sclp_vt220_request *r;
-	int count;
+	unsigned int count = 0;
 
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	count = 0;
 	if (sclp_vt220_current_request != NULL)
 		count = sclp_vt220_chars_stored(sclp_vt220_current_request);
 	list_for_each(l, &sclp_vt220_outqueue) {

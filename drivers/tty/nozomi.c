@@ -1776,7 +1776,7 @@ static void ntty_throttle(struct tty_struct *tty)
 }
 
 /* Returns number of chars in buffer, called by tty layer */
-static s32 ntty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int ntty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
 	struct nozomi *dc = get_dc_by_tty(tty);

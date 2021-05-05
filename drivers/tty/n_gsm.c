@@ -3064,7 +3064,7 @@ static unsigned int gsmtty_write_room(struct tty_struct *tty)
 	return TX_SIZE - kfifo_len(&dlci->fifo);
 }
 
-static int gsmtty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int gsmtty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	if (dlci->state == DLCI_CLOSED)

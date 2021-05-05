@@ -270,7 +270,7 @@ static int ipwireless_set_serial_info(struct tty_struct *linux_tty,
 	return 0;	/* Keeps the PCMCIA scripts happy. */
 }
 
-static int ipw_chars_in_buffer(struct tty_struct *linux_tty)
+static unsigned int ipw_chars_in_buffer(struct tty_struct *linux_tty)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 

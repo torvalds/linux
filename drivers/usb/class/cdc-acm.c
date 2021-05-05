@@ -848,7 +848,7 @@ static unsigned int acm_tty_write_room(struct tty_struct *tty)
 	return acm_wb_is_avail(acm) ? acm->writesize : 0;
 }
 
-static int acm_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int acm_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	/*

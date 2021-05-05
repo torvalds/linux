@@ -54,7 +54,7 @@
  *	to be no queue on the device.
  */
 
-int tty_chars_in_buffer(struct tty_struct *tty)
+unsigned int tty_chars_in_buffer(struct tty_struct *tty)
 {
 	if (tty->ops->chars_in_buffer)
 		return tty->ops->chars_in_buffer(tty);

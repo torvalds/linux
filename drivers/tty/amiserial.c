@@ -834,7 +834,7 @@ static unsigned int rs_write_room(struct tty_struct *tty)
 	return CIRC_SPACE(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
 }
 
-static int rs_chars_in_buffer(struct tty_struct *tty)
+static unsigned int rs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
 

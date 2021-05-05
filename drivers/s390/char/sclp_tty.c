@@ -280,16 +280,15 @@ sclp_tty_flush_chars(struct tty_struct *tty)
  * characters in the write buffer (will not be written as long as there is a
  * final line feed missing).
  */
-static int
+static unsigned int
 sclp_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
 	struct sclp_buffer *t;
-	int count;
+	unsigned int count = 0;
 
 	spin_lock_irqsave(&sclp_tty_lock, flags);
-	count = 0;
 	if (sclp_ttybuf != NULL)
 		count = sclp_chars_in_buffer(sclp_ttybuf);
 	list_for_each(l, &sclp_tty_outqueue) {

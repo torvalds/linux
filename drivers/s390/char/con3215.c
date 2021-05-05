@@ -980,7 +980,7 @@ static void tty3215_flush_chars(struct tty_struct *tty)
 /*
  * Returns the number of characters in the output buffer
  */
-static int tty3215_chars_in_buffer(struct tty_struct *tty)
+static unsigned int tty3215_chars_in_buffer(struct tty_struct *tty)
 {
 	struct raw3215_info *raw = tty->driver_data;
 

@@ -1186,7 +1186,7 @@ static unsigned int capinc_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int capinc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int capinc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct capiminor *mp = tty->driver_data;
 

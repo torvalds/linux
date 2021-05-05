@@ -1010,7 +1010,7 @@ static void rfcomm_tty_unthrottle(struct tty_struct *tty)
 	rfcomm_dlc_unthrottle(dev->dlc);
 }
 
-static int rfcomm_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int rfcomm_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 

@@ -596,7 +596,7 @@ static unsigned int hvc_write_room(struct tty_struct *tty)
 	return hp->outbuf_size - hp->n_outbuf;
 }
 
-static int hvc_chars_in_buffer(struct tty_struct *tty)
+static unsigned int hvc_chars_in_buffer(struct tty_struct *tty)
 {
 	struct hvc_struct *hp = tty->driver_data;
 

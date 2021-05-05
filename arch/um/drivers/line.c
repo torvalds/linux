@@ -60,11 +60,11 @@ unsigned int line_write_room(struct tty_struct *tty)
 	return room;
 }
 
-int line_chars_in_buffer(struct tty_struct *tty)
+unsigned int line_chars_in_buffer(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
 	unsigned long flags;
-	int ret;
+	unsigned int ret;
 
 	spin_lock_irqsave(&line->lock, flags);
 	/* write_room subtracts 1 for the needed NULL, so we readd it.*/

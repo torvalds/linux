@@ -897,7 +897,7 @@ static unsigned int hvsi_write_room(struct tty_struct *tty)
 	return N_OUTBUF - hp->n_outbuf;
 }
 
-static int hvsi_chars_in_buffer(struct tty_struct *tty)
+static unsigned int hvsi_chars_in_buffer(struct tty_struct *tty)
 {
 	struct hvsi_struct *hp = tty->driver_data;
 

@@ -385,7 +385,7 @@ static unsigned int serial_write_room(struct tty_struct *tty)
 	return port->serial->type->write_room(tty);
 }
 
-static int serial_chars_in_buffer(struct tty_struct *tty)
+static unsigned int serial_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;

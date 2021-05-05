@@ -467,7 +467,7 @@ static unsigned int ipoctal_write_room(struct tty_struct *tty)
 	return PAGE_SIZE - channel->nb_bytes;
 }
 
-static int ipoctal_chars_in_buffer(struct tty_struct *tty)
+static unsigned int ipoctal_chars_in_buffer(struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
 
