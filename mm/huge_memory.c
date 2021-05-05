@@ -2301,44 +2301,38 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
 	__split_huge_pmd(vma, pmd, address, freeze, page);
 }
 
+static inline void split_huge_pmd_if_needed(struct vm_area_struct *vma, unsigned long address)
+{
+	/*
+	 * If the new address isn't hpage aligned and it could previously
+	 * contain an hugepage: check if we need to split an huge pmd.
+	 */
+	if (!IS_ALIGNED(address, HPAGE_PMD_SIZE) &&
+	    range_in_vma(vma, ALIGN_DOWN(address, HPAGE_PMD_SIZE),
+			 ALIGN(address, HPAGE_PMD_SIZE)))
+		split_huge_pmd_address(vma, address, false, NULL);
+}
+
 void vma_adjust_trans_huge(struct vm_area_struct *vma,
 			     unsigned long start,
 			     unsigned long end,
 			     long adjust_next)
 {
-	/*
-	 * If the new start address isn't hpage aligned and it could
-	 * previously contain an hugepage: check if we need to split
-	 * an huge pmd.
-	 */
-	if (start & ~HPAGE_PMD_MASK &&
-	    (start & HPAGE_PMD_MASK) >= vma->vm_start &&
-	    (start & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
-		split_huge_pmd_address(vma, start, false, NULL);
+	/* Check if we need to split start first. */
+	split_huge_pmd_if_needed(vma, start);
+
+	/* Check if we need to split end next. */
+	split_huge_pmd_if_needed(vma, end);
 
 	/*
-	 * If the new end address isn't hpage aligned and it could
-	 * previously contain an hugepage: check if we need to split
-	 * an huge pmd.
-	 */
-	if (end & ~HPAGE_PMD_MASK &&
-	    (end & HPAGE_PMD_MASK) >= vma->vm_start &&
-	    (end & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
-		split_huge_pmd_address(vma, end, false, NULL);
-
-	/*
-	 * If we're also updating the vma->vm_next->vm_start, if the new
-	 * vm_next->vm_start isn't hpage aligned and it could previously
-	 * contain an hugepage: check if we need to split an huge pmd.
+	 * If we're also updating the vma->vm_next->vm_start,
+	 * check if we need to split it.
 	 */
 	if (adjust_next > 0) {
 		struct vm_area_struct *next = vma->vm_next;
 		unsigned long nstart = next->vm_start;
 		nstart += adjust_next;
-		if (nstart & ~HPAGE_PMD_MASK &&
-		    (nstart & HPAGE_PMD_MASK) >= next->vm_start &&
-		    (nstart & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= next->vm_end)
-			split_huge_pmd_address(next, nstart, false, NULL);
+		split_huge_pmd_if_needed(next, nstart);
 	}
 }
 
