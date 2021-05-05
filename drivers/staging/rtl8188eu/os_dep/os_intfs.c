@@ -423,8 +423,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	rtw_init_cmd_priv(&padapter->cmdpriv);
 
-	padapter->cmdpriv.padapter = padapter;
-
 	if (rtw_init_mlme_priv(padapter) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init mlme_priv\n"));
 		ret8 = _FAIL;
