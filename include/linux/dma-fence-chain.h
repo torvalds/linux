@@ -12,6 +12,7 @@
 
 #include <linux/dma-fence.h>
 #include <linux/irq_work.h>
+#include <linux/slab.h>
 
 /**
  * struct dma_fence_chain - fence to represent an node of a fence chain
@@ -65,6 +66,30 @@ to_dma_fence_chain(struct dma_fence *fence)
 
 	return container_of(fence, struct dma_fence_chain, base);
 }
+
+/**
+ * dma_fence_chain_alloc
+ *
+ * Returns a new struct dma_fence_chain object or NULL on failure.
+ */
+static inline struct dma_fence_chain *dma_fence_chain_alloc(void)
+{
+	return kmalloc(sizeof(struct dma_fence_chain), GFP_KERNEL);
+};
+
+/**
+ * dma_fence_chain_free
+ * @chain: chain node to free
+ *
+ * Frees up an allocated but not used struct dma_fence_chain object. This
+ * doesn't need an RCU grace period since the fence was never initialized nor
+ * published. After dma_fence_chain_init() has been called the fence must be
+ * released by calling dma_fence_put(), and not through this function.
+ */
+static inline void dma_fence_chain_free(struct dma_fence_chain *chain)
+{
+	kfree(chain);
+};
 
 /**
  * dma_fence_chain_for_each - iterate over all fences in chain

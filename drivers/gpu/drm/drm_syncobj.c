@@ -861,7 +861,7 @@ static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
 				     &fence);
 	if (ret)
 		goto err;
-	chain = kzalloc(sizeof(struct dma_fence_chain), GFP_KERNEL);
+	chain = dma_fence_chain_alloc();
 	if (!chain) {
 		ret = -ENOMEM;
 		goto err1;
@@ -1402,10 +1402,10 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 		goto err_points;
 	}
 	for (i = 0; i < args->count_handles; i++) {
-		chains[i] = kzalloc(sizeof(struct dma_fence_chain), GFP_KERNEL);
+		chains[i] = dma_fence_chain_alloc();
 		if (!chains[i]) {
 			for (j = 0; j < i; j++)
-				kfree(chains[j]);
+				dma_fence_chain_free(chains[j]);
 			ret = -ENOMEM;
 			goto err_chains;
 		}

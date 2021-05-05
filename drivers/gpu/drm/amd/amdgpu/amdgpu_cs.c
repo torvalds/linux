@@ -1109,7 +1109,7 @@ static int amdgpu_cs_process_syncobj_timeline_out_dep(struct amdgpu_cs_parser *p
 
 		dep->chain = NULL;
 		if (syncobj_deps[i].point) {
-			dep->chain = kmalloc(sizeof(*dep->chain), GFP_KERNEL);
+			dep->chain = dma_fence_chain_alloc();
 			if (!dep->chain)
 				return -ENOMEM;
 		}
@@ -1117,7 +1117,7 @@ static int amdgpu_cs_process_syncobj_timeline_out_dep(struct amdgpu_cs_parser *p
 		dep->syncobj = drm_syncobj_find(p->filp,
 						syncobj_deps[i].handle);
 		if (!dep->syncobj) {
-			kfree(dep->chain);
+			dma_fence_chain_free(dep->chain);
 			return -EINVAL;
 		}
 		dep->point = syncobj_deps[i].point;
