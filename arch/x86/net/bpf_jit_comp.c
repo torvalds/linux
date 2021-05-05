@@ -282,7 +282,7 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 	/* BPF trampoline can be made to work without these nops,
 	 * but let's waste 5 bytes for now and optimize later
 	 */
-	memcpy(prog, ideal_nops[NOP_ATOMIC5], cnt);
+	memcpy(prog, x86_nops[5], cnt);
 	prog += cnt;
 	if (!ebpf_from_cbpf) {
 		if (tail_call_reachable && !is_subprog)
@@ -330,7 +330,7 @@ static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 				void *old_addr, void *new_addr,
 				const bool text_live)
 {
-	const u8 *nop_insn = ideal_nops[NOP_ATOMIC5];
+	const u8 *nop_insn = x86_nops[5];
 	u8 old_insn[X86_PATCH_SIZE];
 	u8 new_insn[X86_PATCH_SIZE];
 	u8 *prog;
@@ -560,7 +560,7 @@ static void emit_bpf_tail_call_direct(struct bpf_jit_poke_descriptor *poke,
 	if (stack_depth)
 		EMIT3_off32(0x48, 0x81, 0xC4, round_up(stack_depth, 8));
 
-	memcpy(prog, ideal_nops[NOP_ATOMIC5], X86_PATCH_SIZE);
+	memcpy(prog, x86_nops[5], X86_PATCH_SIZE);
 	prog += X86_PATCH_SIZE;
 	/* out: */
 
@@ -881,7 +881,7 @@ static int emit_nops(u8 **pprog, int len)
 			noplen = ASM_NOP_MAX;
 
 		for (i = 0; i < noplen; i++)
-			EMIT1(ideal_nops[noplen][i]);
+			EMIT1(x86_nops[noplen][i]);
 		len -= noplen;
 	}
 
@@ -2021,7 +2021,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 		/* remember return value in a stack for bpf prog to access */
 		emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -8);
 		im->ip_after_call = prog;
-		memcpy(prog, ideal_nops[NOP_ATOMIC5], X86_PATCH_SIZE);
+		memcpy(prog, x86_nops[5], X86_PATCH_SIZE);
 		prog += X86_PATCH_SIZE;
 	}
 

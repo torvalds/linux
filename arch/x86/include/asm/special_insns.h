@@ -214,7 +214,7 @@ static inline void clflush(volatile void *__p)
 
 static inline void clflushopt(volatile void *__p)
 {
-	alternative_io(".byte " __stringify(NOP_DS_PREFIX) "; clflush %P0",
+	alternative_io(".byte 0x3e; clflush %P0",
 		       ".byte 0x66; clflush %P0",
 		       X86_FEATURE_CLFLUSHOPT,
 		       "+m" (*(volatile char __force *)__p));
@@ -225,7 +225,7 @@ static inline void clwb(volatile void *__p)
 	volatile struct { char x[64]; } *p = __p;
 
 	asm volatile(ALTERNATIVE_2(
-		".byte " __stringify(NOP_DS_PREFIX) "; clflush (%[pax])",
+		".byte 0x3e; clflush (%[pax])",
 		".byte 0x66; clflush (%[pax])", /* clflushopt (%%rax) */
 		X86_FEATURE_CLFLUSHOPT,
 		".byte 0x66, 0x0f, 0xae, 0x30",  /* clwb (%%rax) */
