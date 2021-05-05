@@ -81,6 +81,28 @@ TRACE_EVENT(mm_migrate_pages,
 		__print_symbolic(__entry->mode, MIGRATE_MODE),
 		__print_symbolic(__entry->reason, MIGRATE_REASON))
 );
+
+TRACE_EVENT(mm_migrate_pages_start,
+
+	TP_PROTO(enum migrate_mode mode, int reason),
+
+	TP_ARGS(mode, reason),
+
+	TP_STRUCT__entry(
+		__field(enum migrate_mode, mode)
+		__field(int, reason)
+	),
+
+	TP_fast_assign(
+		__entry->mode	= mode;
+		__entry->reason	= reason;
+	),
+
+	TP_printk("mode=%s reason=%s",
+		  __print_symbolic(__entry->mode, MIGRATE_MODE),
+		  __print_symbolic(__entry->reason, MIGRATE_REASON))
+);
+
 #endif /* _TRACE_MIGRATE_H */
 
 /* This part must be outside protection */

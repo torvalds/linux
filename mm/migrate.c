@@ -1418,6 +1418,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	int rc, nr_subpages;
 	LIST_HEAD(ret_pages);
 
+	trace_mm_migrate_pages_start(mode, reason);
+
 	if (!swapwrite)
 		current->flags |= PF_SWAPWRITE;
 
