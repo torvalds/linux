@@ -774,15 +774,9 @@ static int __init sixpack_init_driver(void)
 	return status;
 }
 
-static const char msg_unregfail[] = KERN_ERR \
-	"6pack: can't unregister line discipline (err = %d)\n";
-
 static void __exit sixpack_exit_driver(void)
 {
-	int ret;
-
-	if ((ret = tty_unregister_ldisc(&sp_ldisc)))
-		printk(msg_unregfail, ret);
+	tty_unregister_ldisc(&sp_ldisc);
 }
 
 /* encode an AX.25 packet into 6pack */

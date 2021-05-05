@@ -3286,10 +3286,7 @@ err_unreg_ldisc:
 
 static void __exit gsm_exit(void)
 {
-	int status = tty_unregister_ldisc(&tty_ldisc_packet);
-	if (status != 0)
-		pr_err("n_gsm: can't unregister line discipline (err = %d)\n",
-								status);
+	tty_unregister_ldisc(&tty_ldisc_packet);
 	tty_unregister_driver(gsm_tty_driver);
 	put_tty_driver(gsm_tty_driver);
 }

@@ -129,13 +129,7 @@ static int __init pps_tty_init(void)
 
 static void __exit pps_tty_cleanup(void)
 {
-	int err;
-
-	err = tty_unregister_ldisc(&pps_ldisc_ops);
-	if (err)
-		pr_err("can't unregister PPS line discipline\n");
-	else
-		pr_info("PPS line discipline removed\n");
+	tty_unregister_ldisc(&pps_ldisc_ops);
 }
 
 module_init(pps_tty_init);

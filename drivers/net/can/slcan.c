@@ -784,9 +784,7 @@ static void __exit slcan_exit(void)
 	kfree(slcan_devs);
 	slcan_devs = NULL;
 
-	i = tty_unregister_ldisc(&slc_ldisc);
-	if (i)
-		printk(KERN_ERR "slcan: can't unregister ldisc (err %d)\n", i);
+	tty_unregister_ldisc(&slc_ldisc);
 }
 
 module_init(slcan_init);

@@ -872,9 +872,7 @@ int st_core_init(struct st_data_s **core_data)
 	st_gdata = kzalloc(sizeof(struct st_data_s), GFP_KERNEL);
 	if (!st_gdata) {
 		pr_err("memory allocation failed");
-		err = tty_unregister_ldisc(&st_ldisc_ops);
-		if (err)
-			pr_err("unable to un-register ldisc %ld", err);
+		tty_unregister_ldisc(&st_ldisc_ops);
 		err = -ENOMEM;
 		return err;
 	}
@@ -892,9 +890,7 @@ int st_core_init(struct st_data_s **core_data)
 	if (err) {
 		pr_err("error during st_ll initialization(%ld)", err);
 		kfree(st_gdata);
-		err = tty_unregister_ldisc(&st_ldisc_ops);
-		if (err)
-			pr_err("unable to un-register ldisc");
+		tty_unregister_ldisc(&st_ldisc_ops);
 		return err;
 	}
 
@@ -919,9 +915,7 @@ void st_core_exit(struct st_data_s *st_gdata)
 		kfree_skb(st_gdata->rx_skb);
 		kfree_skb(st_gdata->tx_skb);
 		/* TTY ldisc cleanup */
-		err = tty_unregister_ldisc(&st_ldisc_ops);
-		if (err)
-			pr_err("unable to un-register ldisc %ld", err);
+		tty_unregister_ldisc(&st_ldisc_ops);
 		/* free the global data pointer */
 		kfree(st_gdata);
 	}

@@ -219,8 +219,7 @@ void spk_ttyio_register_ldisc(void)
 
 void spk_ttyio_unregister_ldisc(void)
 {
-	if (tty_unregister_ldisc(&spk_ttyio_ldisc_ops))
-		pr_warn("speakup: Couldn't unregister ldisc\n");
+	tty_unregister_ldisc(&spk_ttyio_ldisc_ops);
 }
 
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)

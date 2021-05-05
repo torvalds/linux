@@ -883,8 +883,6 @@ static int __init hci_uart_init(void)
 
 static void __exit hci_uart_exit(void)
 {
-	int err;
-
 #ifdef CONFIG_BT_HCIUART_H4
 	h4_deinit();
 #endif
@@ -916,10 +914,7 @@ static void __exit hci_uart_exit(void)
 	mrvl_deinit();
 #endif
 
-	/* Release tty registration of line discipline */
-	err = tty_unregister_ldisc(&hci_uart_ldisc);
-	if (err)
-		BT_ERR("Can't unregister HCI line discipline (%d)", err);
+	tty_unregister_ldisc(&hci_uart_ldisc);
 }
 
 module_init(hci_uart_init);
