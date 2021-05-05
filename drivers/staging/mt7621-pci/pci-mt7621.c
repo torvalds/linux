@@ -16,6 +16,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
@@ -42,9 +43,6 @@
 #define PCIE_FTS_NUM			0x70c
 #define PCIE_FTS_NUM_MASK		GENMASK(15, 8)
 #define PCIE_FTS_NUM_L0(x)		(((x) & 0xff) << 8)
-
-/* rt_sysc_membase relative registers */
-#define RALINK_CLKCFG1			0x30
 
 /* Host-PCI bridge registers */
 #define RALINK_PCI_PCICFG_ADDR		0x0000
@@ -79,7 +77,6 @@
 #define PCIE_BAR_MAP_MAX		GENMASK(30, 16)
 #define PCIE_BAR_ENABLE			BIT(0)
 #define PCIE_PORT_INT_EN(x)		BIT(20 + (x))
-#define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
 #define PCIE_PORT_LINKUP		BIT(0)
 
 #define PERST_MODE_MASK			GENMASK(11, 10)
@@ -91,6 +88,7 @@
  * @base: I/O mapped register base
  * @list: port list
  * @pcie: pointer to PCIe host info
+ * @clk: pointer to the port clock gate
  * @phy: pointer to PHY control block
  * @pcie_rst: pointer to port reset control
  * @gpio_rst: gpio reset
@@ -102,6 +100,7 @@ struct mt7621_pcie_port {
 	void __iomem *base;
 	struct list_head list;
 	struct mt7621_pcie *pcie;
+	struct clk *clk;
 	struct phy *phy;
 	struct reset_control *pcie_rst;
 	struct gpio_desc *gpio_rst;
@@ -222,16 +221,6 @@ static inline bool mt7621_pcie_port_is_linkup(struct mt7621_pcie_port *port)
 	return (pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) != 0;
 }
 
-static inline void mt7621_pcie_port_clk_enable(struct mt7621_pcie_port *port)
-{
-	rt_sysc_m32(0, PCIE_PORT_CLK_EN(port->slot), RALINK_CLKCFG1);
-}
-
-static inline void mt7621_pcie_port_clk_disable(struct mt7621_pcie_port *port)
-{
-	rt_sysc_m32(PCIE_PORT_CLK_EN(port->slot), 0, RALINK_CLKCFG1);
-}
-
 static inline void mt7621_control_assert(struct mt7621_pcie_port *port)
 {
 	struct mt7621_pcie *pcie = port->pcie;
@@ -350,6 +339,13 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	port->base = devm_platform_ioremap_resource(pdev, slot + 1);
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
+
+	snprintf(name, sizeof(name), "pcie%d", slot);
+	port->clk = devm_clk_get(dev, name);
+	if (IS_ERR(port->clk)) {
+		dev_err(dev, "failed to get pcie%d clock\n", slot);
+		return PTR_ERR(port->clk);
+	}
 
 	snprintf(name, sizeof(name), "pcie%d", slot);
 	port->pcie_rst = devm_reset_control_get_exclusive(dev, name);
@@ -512,7 +508,7 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 			dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n",
 				slot);
 			mt7621_control_assert(port);
-			mt7621_pcie_port_clk_disable(port);
+			clk_disable_unprepare(port->clk);
 			port->enabled = false;
 
 			if (slot == 0) {
@@ -547,13 +543,14 @@ static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 		   offset + RALINK_PCI_CLASS);
 }
 
-static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
+static int mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct mt7621_pcie_port *port;
 	u8 num_slots_enabled = 0;
 	u32 slot;
 	u32 val;
+	int err;
 
 	/* Setup MEMWIN and IOWIN */
 	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
@@ -561,7 +558,12 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 
 	list_for_each_entry(port, &pcie->ports, list) {
 		if (port->enabled) {
-			mt7621_pcie_port_clk_enable(port);
+			err = clk_prepare_enable(port->clk);
+			if (err) {
+				dev_err(dev, "enabling clk pcie%d\n", slot);
+				return err;
+			}
+
 			mt7621_pcie_enable_port(port);
 			dev_info(dev, "PCIE%d enabled\n", port->slot);
 			num_slots_enabled++;
@@ -578,6 +580,8 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 		val |= PCIE_FTS_NUM_L0(0x50);
 		write_config(pcie, slot, PCIE_FTS_NUM, val);
 	}
+
+	return 0;
 }
 
 static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
@@ -694,7 +698,11 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	mt7621_pcie_enable_ports(pcie);
+	err = mt7621_pcie_enable_ports(pcie);
+	if (err) {
+		dev_err(dev, "Error enabling pcie ports\n");
+		return err;
+	}
 
 	setup_cm_memory_region(pcie);
 
