@@ -219,7 +219,7 @@ void spk_ttyio_register_ldisc(void)
 
 void spk_ttyio_unregister_ldisc(void)
 {
-	if (tty_unregister_ldisc(N_SPEAKUP))
+	if (tty_unregister_ldisc(&spk_ttyio_ldisc_ops))
 		pr_warn("speakup: Couldn't unregister ldisc\n");
 }
 

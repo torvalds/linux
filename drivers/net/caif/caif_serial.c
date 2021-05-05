@@ -447,7 +447,7 @@ static void __exit caif_ser_exit(void)
 	spin_unlock(&ser_lock);
 	ser_release(NULL);
 	cancel_work_sync(&ser_release_work);
-	tty_unregister_ldisc(N_CAIF);
+	tty_unregister_ldisc(&caif_ldisc);
 	debugfs_remove_recursive(debugfsdir);
 }
 

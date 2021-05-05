@@ -131,7 +131,7 @@ static void __exit pps_tty_cleanup(void)
 {
 	int err;
 
-	err = tty_unregister_ldisc(N_PPS);
+	err = tty_unregister_ldisc(&pps_ldisc_ops);
 	if (err)
 		pr_err("can't unregister PPS line discipline\n");
 	else

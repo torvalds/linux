@@ -822,8 +822,7 @@ static int __init n_hdlc_init(void)
 
 static void __exit n_hdlc_exit(void)
 {
-	/* Release tty registration of line discipline */
-	int status = tty_unregister_ldisc(N_HDLC);
+	int status = tty_unregister_ldisc(&n_hdlc_ldisc);
 
 	if (status)
 		pr_err("N_HDLC: can't unregister line discipline (err = %d)\n",

@@ -3280,13 +3280,13 @@ static int __init gsm_init(void)
 err_put_driver:
 	put_tty_driver(gsm_tty_driver);
 err_unreg_ldisc:
-	tty_unregister_ldisc(N_GSM0710);
+	tty_unregister_ldisc(&tty_ldisc_packet);
 	return status;
 }
 
 static void __exit gsm_exit(void)
 {
-	int status = tty_unregister_ldisc(N_GSM0710);
+	int status = tty_unregister_ldisc(&tty_ldisc_packet);
 	if (status != 0)
 		pr_err("n_gsm: can't unregister line discipline (err = %d)\n",
 								status);

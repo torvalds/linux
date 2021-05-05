@@ -304,7 +304,7 @@ static int __init serport_init(void)
 
 static void __exit serport_exit(void)
 {
-	tty_unregister_ldisc(N_MOUSE);
+	tty_unregister_ldisc(&serport_ldisc);
 }
 
 module_init(serport_init);

@@ -1360,7 +1360,7 @@ static void __exit slip_exit(void)
 	kfree(slip_devs);
 	slip_devs = NULL;
 
-	i = tty_unregister_ldisc(N_SLIP);
+	i = tty_unregister_ldisc(&sl_ldisc);
 	if (i != 0)
 		printk(KERN_ERR "SLIP: can't unregister line discipline (err = %d)\n", i);
 }

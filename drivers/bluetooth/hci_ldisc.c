@@ -917,7 +917,7 @@ static void __exit hci_uart_exit(void)
 #endif
 
 	/* Release tty registration of line discipline */
-	err = tty_unregister_ldisc(N_HCI);
+	err = tty_unregister_ldisc(&hci_uart_ldisc);
 	if (err)
 		BT_ERR("Can't unregister HCI line discipline (%d)", err);
 }

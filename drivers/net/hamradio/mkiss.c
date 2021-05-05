@@ -967,7 +967,7 @@ static void __exit mkiss_exit_driver(void)
 {
 	int ret;
 
-	if ((ret = tty_unregister_ldisc(N_AX25)))
+	if ((ret = tty_unregister_ldisc(&ax_ldisc)))
 		printk(msg_unregfail, ret);
 }
 

@@ -462,7 +462,7 @@ static int __init nci_uart_init(void)
 
 static void __exit nci_uart_exit(void)
 {
-	tty_unregister_ldisc(N_NCI);
+	tty_unregister_ldisc(&nci_uart_ldisc);
 }
 
 module_init(nci_uart_init);

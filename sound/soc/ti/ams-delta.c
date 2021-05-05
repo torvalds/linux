@@ -583,7 +583,7 @@ static int ams_delta_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	if (tty_unregister_ldisc(N_V253) != 0)
+	if (tty_unregister_ldisc(&cx81801_ops) != 0)
 		dev_warn(&pdev->dev,
 			"failed to unregister V253 line discipline\n");
 

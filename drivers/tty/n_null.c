@@ -57,7 +57,7 @@ static int __init n_null_init(void)
 
 static void __exit n_null_exit(void)
 {
-	tty_unregister_ldisc(N_NULL);
+	tty_unregister_ldisc(&null_ldisc);
 }
 
 module_init(n_null_init);
