@@ -1400,8 +1400,8 @@ handle_newline:
 	return 0;
 }
 
-static inline void
-n_tty_receive_char(struct tty_struct *tty, unsigned char c)
+static void n_tty_receive_char(struct tty_struct *tty, unsigned char c,
+		bool parmrk_dbl)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1418,28 +1418,8 @@ n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		commit_echoes(tty);
 	}
 	/* PARMRK doubling check */
-	if (c == (unsigned char) '\377' && I_PARMRK(tty))
+	if (parmrk_dbl && c == (unsigned char) '\377' && I_PARMRK(tty))
 		put_tty_queue(c, ldata);
-	put_tty_queue(c, ldata);
-}
-
-static inline void
-n_tty_receive_char_fast(struct tty_struct *tty, unsigned char c)
-{
-	struct n_tty_data *ldata = tty->disc_data;
-
-	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) && I_IXANY(tty)) {
-		start_tty(tty);
-		process_echoes(tty);
-	}
-	if (L_ECHO(tty)) {
-		finish_erasing(ldata);
-		/* Record the column of first canon char. */
-		if (ldata->canon_head == ldata->read_head)
-			echo_set_canon_col(ldata);
-		echo_char(c, tty);
-		commit_echoes(tty);
-	}
 	put_tty_queue(c, ldata);
 }
 
@@ -1494,7 +1474,7 @@ n_tty_receive_char_lnext(struct tty_struct *tty, unsigned char c, char flag)
 			c &= 0x7f;
 		if (I_IUCLC(tty) && L_IEXTEN(tty))
 			c = tolower(c);
-		n_tty_receive_char(tty, c);
+		n_tty_receive_char(tty, c, true);
 	} else
 		n_tty_receive_char_flagged(tty, c, flag);
 }
@@ -1572,7 +1552,7 @@ n_tty_receive_buf_standard(struct tty_struct *tty, const unsigned char *cp,
 				continue;
 			}
 			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char(tty, c);
+				n_tty_receive_char(tty, c, true);
 			else if (n_tty_receive_char_special(tty, c) && count) {
 				if (fp)
 					flag = *fp++;
@@ -1598,7 +1578,7 @@ n_tty_receive_buf_fast(struct tty_struct *tty, const unsigned char *cp,
 			unsigned char c = *cp++;
 
 			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char_fast(tty, c);
+				n_tty_receive_char(tty, c, false);
 			else if (n_tty_receive_char_special(tty, c) && count) {
 				if (fp)
 					flag = *fp++;
