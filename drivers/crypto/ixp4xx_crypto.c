@@ -136,7 +136,7 @@ struct crypt_ctl {
 	u32 crypto_ctx;		/* NPE Crypto Param structure address */
 
 	/* Used by Host: 4*4 bytes*/
-	unsigned ctl_flags;
+	unsigned int ctl_flags;
 	union {
 		struct skcipher_request *ablk_req;
 		struct aead_request *aead_req;
@@ -184,7 +184,7 @@ struct ixp_ctx {
 	u8 enckey[MAX_KEYLEN];
 	u8 salt[MAX_IVLEN];
 	u8 nonce[CTR_RFC3686_NONCE_SIZE];
-	unsigned salted;
+	unsigned int salted;
 	atomic_t configuring;
 	struct completion completion;
 	struct crypto_skcipher *fallback_tfm;
@@ -695,8 +695,8 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 	return 0;
 }
 
-static int setup_auth(struct crypto_tfm *tfm, int encrypt, unsigned authsize,
-		const u8 *key, int key_len, unsigned digest_len)
+static int setup_auth(struct crypto_tfm *tfm, int encrypt, unsigned int authsize,
+		      const u8 *key, int key_len, unsigned int digest_len)
 {
 	u32 itarget, otarget, npe_ctx_addr;
 	unsigned char *cinfo;
@@ -823,12 +823,12 @@ static int setup_cipher(struct crypto_tfm *tfm, int encrypt,
 }
 
 static struct buffer_desc *chainup_buffers(struct device *dev,
-		struct scatterlist *sg,	unsigned nbytes,
+		struct scatterlist *sg,	unsigned int nbytes,
 		struct buffer_desc *buf, gfp_t flags,
 		enum dma_data_direction dir)
 {
 	for (; nbytes > 0; sg = sg_next(sg)) {
-		unsigned len = min(nbytes, sg->length);
+		unsigned int len = min(nbytes, sg->length);
 		struct buffer_desc *next_buf;
 		dma_addr_t next_buf_phys;
 		void *ptr;
@@ -930,7 +930,7 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct ixp_ctx *ctx = crypto_skcipher_ctx(tfm);
-	unsigned ivsize = crypto_skcipher_ivsize(tfm);
+	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
 	struct ix_sa_dir *dir;
 	struct crypt_ctl *crypt;
 	unsigned int nbytes = req->cryptlen;
@@ -1045,8 +1045,8 @@ static int aead_perform(struct aead_request *req, int encrypt,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
-	unsigned ivsize = crypto_aead_ivsize(tfm);
-	unsigned authsize = crypto_aead_authsize(tfm);
+	unsigned int ivsize = crypto_aead_ivsize(tfm);
+	unsigned int authsize = crypto_aead_authsize(tfm);
 	struct ix_sa_dir *dir;
 	struct crypt_ctl *crypt;
 	unsigned int cryptlen;
@@ -1157,7 +1157,7 @@ free_buf_src:
 static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
-	unsigned digest_len = crypto_aead_maxauthsize(tfm);
+	unsigned int digest_len = crypto_aead_maxauthsize(tfm);
 	int ret;
 
 	if (!ctx->enckey_len && !ctx->authkey_len)
