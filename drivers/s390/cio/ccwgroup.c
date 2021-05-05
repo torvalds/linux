@@ -499,15 +499,6 @@ EXPORT_SYMBOL(ccwgroup_driver_register);
  */
 void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 {
-	struct device *dev;
-
-	/* We don't want ccwgroup devices to live longer than their driver. */
-	while ((dev = driver_find_next_device(&cdriver->driver, NULL))) {
-		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-
-		ccwgroup_ungroup(gdev);
-		put_device(dev);
-	}
 	driver_unregister(&cdriver->driver);
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);
