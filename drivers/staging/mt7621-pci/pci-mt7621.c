@@ -441,7 +441,7 @@ static void mt7621_pcie_reset_assert(struct mt7621_pcie *pcie)
 		mt7621_rst_gpio_pcie_assert(port);
 	}
 
-	mdelay(PERST_DELAY_MS);
+	msleep(PERST_DELAY_MS);
 }
 
 static void mt7621_pcie_reset_rc_deassert(struct mt7621_pcie *pcie)
@@ -459,7 +459,7 @@ static void mt7621_pcie_reset_ep_deassert(struct mt7621_pcie *pcie)
 	list_for_each_entry(port, &pcie->ports, list)
 		mt7621_rst_gpio_pcie_deassert(port);
 
-	mdelay(PERST_DELAY_MS);
+	msleep(PERST_DELAY_MS);
 }
 
 static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
