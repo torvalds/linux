@@ -601,22 +601,17 @@ onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings)
 }
 
 /**
- * onfi_fill_interface_config - Initialize an interface config from a given
- *                              ONFI mode
+ * onfi_fill_sdr_interface_config - Initialize a SDR interface config from a
+ *                                  given ONFI mode
  * @chip: The NAND chip
  * @iface: The interface configuration to fill
- * @type: The interface type
  * @timing_mode: The ONFI timing mode
  */
-void onfi_fill_interface_config(struct nand_chip *chip,
-				struct nand_interface_config *iface,
-				enum nand_interface_type type,
-				unsigned int timing_mode)
+static void onfi_fill_sdr_interface_config(struct nand_chip *chip,
+					   struct nand_interface_config *iface,
+					   unsigned int timing_mode)
 {
 	struct onfi_params *onfi = chip->parameters.onfi;
-
-	if (WARN_ON(type != NAND_SDR_IFACE))
-		return;
 
 	if (WARN_ON(timing_mode >= ARRAY_SIZE(onfi_sdr_timings)))
 		return;
@@ -639,4 +634,21 @@ void onfi_fill_interface_config(struct nand_chip *chip,
 		/* nanoseconds -> picoseconds */
 		timings->tCCS_min = 1000UL * onfi->tCCS;
 	}
+}
+
+/**
+ * onfi_fill_interface_config - Initialize an interface config from a given
+ *                              ONFI mode
+ * @chip: The NAND chip
+ * @iface: The interface configuration to fill
+ * @type: The interface type
+ * @timing_mode: The ONFI timing mode
+ */
+void onfi_fill_interface_config(struct nand_chip *chip,
+				struct nand_interface_config *iface,
+				enum nand_interface_type type,
+				unsigned int timing_mode)
+{
+	if (type == NAND_SDR_IFACE)
+		return onfi_fill_sdr_interface_config(chip, iface, timing_mode);
 }
