@@ -720,6 +720,13 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 		}
 	}
 
+	/* Wa_14010254185 Wa_14010103792 */
+	if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B1)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 sel fetch not enabled, missing the implementation of WAs\n");
+		return false;
+	}
+
 	return crtc_state->enable_psr2_sel_fetch = true;
 }
 
