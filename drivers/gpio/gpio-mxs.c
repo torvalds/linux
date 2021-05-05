@@ -60,11 +60,6 @@ static inline int is_imx23_gpio(struct mxs_gpio_port *port)
 	return port->devid == IMX23_GPIO;
 }
 
-static inline int is_imx28_gpio(struct mxs_gpio_port *port)
-{
-	return port->devid == IMX28_GPIO;
-}
-
 /* Note: This driver assumes 32 GPIOs are handled in one register */
 
 static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
