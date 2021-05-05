@@ -330,9 +330,6 @@ static int rtw_start_drv_threads(struct adapter *padapter)
 					  "RTW_CMD_THREAD");
 	if (IS_ERR(padapter->cmdThread))
 		err = PTR_ERR(padapter->cmdThread);
-	else
-		/* wait for cmd_thread to run */
-		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 
 	return err;
 }
