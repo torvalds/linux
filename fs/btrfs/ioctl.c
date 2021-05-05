@@ -1455,7 +1455,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		if (btrfs_defrag_cancelled(fs_info)) {
 			btrfs_debug(fs_info, "defrag_file cancelled");
 			ret = -EAGAIN;
-			break;
+			goto error;
 		}
 
 		if (!should_defrag_range(inode, (u64)i << PAGE_SHIFT,
@@ -1533,6 +1533,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		}
 	}
 
+	ret = defrag_count;
+error:
 	if ((range->flags & BTRFS_DEFRAG_RANGE_START_IO)) {
 		filemap_flush(inode->i_mapping);
 		if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
@@ -1545,8 +1547,6 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	} else if (range->compress_type == BTRFS_COMPRESS_ZSTD) {
 		btrfs_set_fs_incompat(fs_info, COMPRESS_ZSTD);
 	}
-
-	ret = defrag_count;
 
 out_ra:
 	if (do_compress) {
