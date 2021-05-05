@@ -1530,9 +1530,8 @@ n_tty_receive_buf_closing(struct tty_struct *tty, const unsigned char *cp,
 	}
 }
 
-static void
-n_tty_receive_buf_standard(struct tty_struct *tty, const unsigned char *cp,
-			  char *fp, int count)
+static void n_tty_receive_buf_standard(struct tty_struct *tty,
+		const unsigned char *cp, char *fp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	char flag = TTY_NORMAL;
@@ -1553,32 +1552,6 @@ n_tty_receive_buf_standard(struct tty_struct *tty, const unsigned char *cp,
 			}
 			if (!test_bit(c, ldata->char_map))
 				n_tty_receive_char(tty, c, true);
-			else if (n_tty_receive_char_special(tty, c) && count) {
-				if (fp)
-					flag = *fp++;
-				n_tty_receive_char_lnext(tty, *cp++, flag);
-				count--;
-			}
-		} else
-			n_tty_receive_char_flagged(tty, *cp++, flag);
-	}
-}
-
-static void
-n_tty_receive_buf_fast(struct tty_struct *tty, const unsigned char *cp,
-		       char *fp, int count)
-{
-	struct n_tty_data *ldata = tty->disc_data;
-	char flag = TTY_NORMAL;
-
-	while (count--) {
-		if (fp)
-			flag = *fp++;
-		if (likely(flag == TTY_NORMAL)) {
-			unsigned char c = *cp++;
-
-			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char(tty, c, false);
 			else if (n_tty_receive_char_special(tty, c) && count) {
 				if (fp)
 					flag = *fp++;
@@ -1612,10 +1585,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			count--;
 		}
 
-		if (!preops && !I_PARMRK(tty))
-			n_tty_receive_buf_fast(tty, cp, fp, count);
-		else
-			n_tty_receive_buf_standard(tty, cp, fp, count);
+		n_tty_receive_buf_standard(tty, cp, fp, count);
 
 		flush_echoes(tty);
 		if (tty->ops->flush_chars)
