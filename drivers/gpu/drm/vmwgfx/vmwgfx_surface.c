@@ -680,7 +680,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 }
 
 /**
- * vmw_user_surface_free - User visible surface TTM base object destructor
+ * vmw_user_surface_base_release - User visible surface TTM base object destructor
  *
  * @p_base:         Pointer to a pointer to a TTM base object
  *                  embedded in a struct vmw_user_surface.
@@ -702,7 +702,7 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 }
 
 /**
- * vmw_user_surface_destroy_ioctl - Ioctl function implementing
+ * vmw_surface_destroy_ioctl - Ioctl function implementing
  *                                  the user surface destroy functionality.
  *
  * @dev:            Pointer to a struct drm_device.
@@ -719,7 +719,7 @@ int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * vmw_user_surface_define_ioctl - Ioctl function implementing
+ * vmw_surface_define_ioctl - Ioctl function implementing
  *                                  the user surface define functionality.
  *
  * @dev:            Pointer to a struct drm_device.
@@ -1001,7 +1001,7 @@ out_no_lookup:
 }
 
 /**
- * vmw_user_surface_define_ioctl - Ioctl function implementing
+ * vmw_surface_reference_ioctl - Ioctl function implementing
  *                                  the user surface reference functionality.
  *
  * @dev:            Pointer to a struct drm_device.
@@ -1055,7 +1055,7 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * vmw_surface_define_encode - Encode a surface_define command.
+ * vmw_gb_surface_create - Encode a surface_define command.
  *
  * @res:        Pointer to a struct vmw_resource embedded in a struct
  *              vmw_surface.

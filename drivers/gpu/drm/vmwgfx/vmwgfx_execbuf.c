@@ -711,7 +711,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_rebind_dx_query - Rebind DX query associated with the context
+ * vmw_rebind_all_dx_query - Rebind DX query associated with the context
  *
  * @ctx_res: context the query belongs to
  *
@@ -1140,7 +1140,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_translate_mob_pointer - Prepare to translate a user-space buffer handle
+ * vmw_translate_mob_ptr - Prepare to translate a user-space buffer handle
  * to a MOB id.
  *
  * @dev_priv: Pointer to a device private structure.
@@ -1195,7 +1195,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_translate_guest_pointer - Prepare to translate a user-space buffer handle
+ * vmw_translate_guest_ptr - Prepare to translate a user-space buffer handle
  * to a valid SVGAGuestPtr
  *
  * @dev_priv: Pointer to a device private structure.
@@ -2308,7 +2308,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_cmd_dx_ia_set_vertex_buffers - Validate
+ * vmw_cmd_dx_set_index_buffer - Validate
  * SVGA_3D_CMD_DX_IA_SET_INDEX_BUFFER command.
  *
  * @dev_priv: Pointer to a device private struct.
@@ -2347,7 +2347,7 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_cmd_dx_set_rendertarget - Validate SVGA_3D_CMD_DX_SET_RENDERTARGETS
+ * vmw_cmd_dx_set_rendertargets - Validate SVGA_3D_CMD_DX_SET_RENDERTARGETS
  * command
  *
  * @dev_priv: Pointer to a device private struct.
@@ -2402,7 +2402,7 @@ static int vmw_cmd_dx_clear_rendertarget_view(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_cmd_dx_clear_rendertarget_view - Validate
+ * vmw_cmd_dx_clear_depthstencil_view - Validate
  * SVGA_3D_CMD_DX_CLEAR_DEPTHSTENCIL_VIEW command
  *
  * @dev_priv: Pointer to a device private struct.
@@ -3841,7 +3841,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 
 		fence_rep.handle = fence_handle;
 		fence_rep.seqno = fence->base.seqno;
-		vmw_update_seqno(dev_priv, &dev_priv->fifo);
+		vmw_update_seqno(dev_priv);
 		fence_rep.passed_seqno = dev_priv->last_read_seqno;
 	}
 

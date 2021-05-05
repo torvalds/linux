@@ -200,7 +200,8 @@ struct vmw_ttm_tt {
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
 
 /**
- * Helper functions to advance a struct vmw_piter iterator.
+ * __vmw_piter_non_sg_next: Helper functions to advance
+ * a struct vmw_piter iterator.
  *
  * @viter: Pointer to the iterator.
  *
@@ -222,7 +223,8 @@ static bool __vmw_piter_sg_next(struct vmw_piter *viter)
 
 
 /**
- * Helper functions to return a pointer to the current page.
+ * __vmw_piter_non_sg_page: Helper functions to return a pointer
+ * to the current page.
  *
  * @viter: Pointer to the iterator
  *
@@ -236,7 +238,8 @@ static struct page *__vmw_piter_non_sg_page(struct vmw_piter *viter)
 }
 
 /**
- * Helper functions to return the DMA address of the current page.
+ * __vmw_piter_phys_addr: Helper functions to return the DMA
+ * address of the current page.
  *
  * @viter: Pointer to the iterator
  *

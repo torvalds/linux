@@ -653,7 +653,7 @@ int vmw_cotable_notify(struct vmw_resource *res, int id)
 }
 
 /**
- * vmw_cotable_add_view - add a view to the cotable's list of active views.
+ * vmw_cotable_add_resource - add a view to the cotable's list of active views.
  *
  * @res: pointer struct vmw_resource representing the cotable.
  * @head: pointer to the struct list_head member of the resource, dedicated

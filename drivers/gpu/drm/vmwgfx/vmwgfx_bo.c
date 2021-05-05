@@ -600,7 +600,7 @@ static void vmw_user_bo_release(struct ttm_base_object **p_base)
 
 
 /**
- * vmw_user_bo_ref_obj-release - TTM synccpu reference object release callback
+ * vmw_user_bo_ref_obj_release - TTM synccpu reference object release callback
  * for vmw user buffer objects
  *
  * @base: Pointer to the TTM base object

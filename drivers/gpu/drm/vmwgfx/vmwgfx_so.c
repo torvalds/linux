@@ -90,7 +90,7 @@ static const struct vmw_res_func vmw_view_func = {
 };
 
 /**
- * struct vmw_view - view define command body stub
+ * struct vmw_view_define - view define command body stub
  *
  * @view_id: The device id of the view being defined
  * @sid: The surface id of the view being defined

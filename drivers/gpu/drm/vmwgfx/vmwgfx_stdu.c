@@ -742,7 +742,7 @@ out_unref:
 }
 
 /**
- * vmw_stdu_surface_clip - Callback to encode a surface copy command cliprect
+ * vmw_kms_stdu_surface_clip - Callback to encode a surface copy command cliprect
  *
  * @dirty: The closure structure.
  *
@@ -780,7 +780,7 @@ static void vmw_kms_stdu_surface_clip(struct vmw_kms_dirty *dirty)
 }
 
 /**
- * vmw_stdu_surface_fifo_commit - Callback to fill in and submit a surface
+ * vmw_kms_stdu_surface_fifo_commit - Callback to fill in and submit a surface
  * copy command.
  *
  * @dirty: The closure structure.
@@ -1571,7 +1571,7 @@ static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
 /**
  * vmw_stdu_primary_plane_atomic_update - formally switches STDU to new plane
  * @plane: display plane
- * @old_state: Only used to get crtc info
+ * @state: Only used to get crtc info
  *
  * Formally update stdu->display_srf to the new plane, and bind the new
  * plane STDU.  This function is called during the commit phase when

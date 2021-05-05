@@ -809,7 +809,7 @@ void vmw_validation_revert(struct vmw_validation_context *ctx)
 }
 
 /**
- * vmw_validation_cone - Commit validation actions after command submission
+ * vmw_validation_done - Commit validation actions after command submission
  * success.
  * @ctx: The validation context.
  * @fence: Fence with which to fence all buffer objects taking part in the

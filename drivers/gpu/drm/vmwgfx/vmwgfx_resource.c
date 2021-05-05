@@ -280,7 +280,7 @@ out_bad_resource:
 }
 
 /**
- * vmw_user_resource_lookup_handle - lookup a struct resource from a
+ * vmw_user_resource_noref_lookup_handle - lookup a struct resource from a
  * TTM user-space handle and perform basic type checks
  *
  * @dev_priv:     Pointer to a device private struct
@@ -1075,7 +1075,7 @@ enum vmw_res_type vmw_res_type(const struct vmw_resource *res)
 }
 
 /**
- * vmw_resource_update_dirty - Update a resource's dirty tracker with a
+ * vmw_resource_dirty_update - Update a resource's dirty tracker with a
  * sequential range of touched backing store memory.
  * @res: The resource.
  * @start: The first page touched.
