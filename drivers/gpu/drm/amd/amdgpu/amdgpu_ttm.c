@@ -158,6 +158,7 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		}
 		break;
 	case TTM_PL_TT:
+	case AMDGPU_PL_PREEMPT:
 	default:
 		amdgpu_bo_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
 		break;
@@ -217,6 +218,7 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
 	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
+	BUG_ON(mem->mem_type == AMDGPU_PL_PREEMPT);
 
 	/* Map only what can't be accessed directly */
 	if (!tmz && mem->start != AMDGPU_BO_INVALID_OFFSET) {
@@ -480,7 +482,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
-	if (new_mem->mem_type == TTM_PL_TT) {
+	if (new_mem->mem_type == TTM_PL_TT ||
+	    new_mem->mem_type == AMDGPU_PL_PREEMPT) {
 		r = amdgpu_ttm_backend_bind(bo->bdev, bo->ttm, new_mem);
 		if (r)
 			return r;
@@ -498,11 +501,13 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 		goto out;
 	}
 	if (old_mem->mem_type == TTM_PL_SYSTEM &&
-	    new_mem->mem_type == TTM_PL_TT) {
+	    (new_mem->mem_type == TTM_PL_TT ||
+	     new_mem->mem_type == AMDGPU_PL_PREEMPT)) {
 		ttm_bo_move_null(bo, new_mem);
 		goto out;
 	}
-	if (old_mem->mem_type == TTM_PL_TT &&
+	if ((old_mem->mem_type == TTM_PL_TT ||
+	     old_mem->mem_type == AMDGPU_PL_PREEMPT) &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
 		r = ttm_bo_wait_ctx(bo, ctx);
 		if (r)
@@ -587,6 +592,7 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev,
 		/* system memory */
 		return 0;
 	case TTM_PL_TT:
+	case AMDGPU_PL_PREEMPT:
 		break;
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
@@ -1292,7 +1298,8 @@ uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_resource *mem)
 	if (mem && mem->mem_type != TTM_PL_SYSTEM)
 		flags |= AMDGPU_PTE_VALID;
 
-	if (mem && mem->mem_type == TTM_PL_TT) {
+	if (mem && (mem->mem_type == TTM_PL_TT ||
+		    mem->mem_type == AMDGPU_PL_PREEMPT)) {
 		flags |= AMDGPU_PTE_SYSTEM;
 
 		if (ttm->caching == ttm_cached)
@@ -1366,6 +1373,15 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	}
 
 	switch (bo->mem.mem_type) {
+	case AMDGPU_PL_PREEMPT:
+		/* Preemptible BOs don't own system resources managed by the
+		 * driver (pages, VRAM, GART space). They point to resources
+		 * owned by someone else (e.g. pageable memory in user mode
+		 * or a DMABuf). They are used in a preemptible context so we
+		 * can guarantee no deadlocks and good QoS in case of MMU
+		 * notifiers or DMABuf move notifiers from the resource owner.
+		 */
+		return false;
 	case TTM_PL_TT:
 		if (amdgpu_bo_is_amdgpu_bo(bo) &&
 		    amdgpu_bo_encrypted(ttm_to_amdgpu_bo(bo)))
@@ -1747,6 +1763,13 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	DRM_INFO("amdgpu: %uM of GTT memory ready.\n",
 		 (unsigned)(gtt_size / (1024 * 1024)));
 
+	/* Initialize preemptible memory pool */
+	r = amdgpu_preempt_mgr_init(adev);
+	if (r) {
+		DRM_ERROR("Failed initializing PREEMPT heap.\n");
+		return r;
+	}
+
 	/* Initialize various on-chip memory pools */
 	r = amdgpu_ttm_init_on_chip(adev, AMDGPU_PL_GDS, adev->gds.gds_size);
 	if (r) {
@@ -1791,6 +1814,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 
 	amdgpu_vram_mgr_fini(adev);
 	amdgpu_gtt_mgr_fini(adev);
+	amdgpu_preempt_mgr_fini(adev);
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_GDS);
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_GWS);
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_OA);
@@ -1982,6 +2006,11 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 
 	if (!adev->mman.buffer_funcs_enabled) {
 		DRM_ERROR("Trying to clear memory with ring turned off.\n");
+		return -EINVAL;
+	}
+
+	if (bo->tbo.mem.mem_type == AMDGPU_PL_PREEMPT) {
+		DRM_ERROR("Trying to clear preemptible memory.\n");
 		return -EINVAL;
 	}
 

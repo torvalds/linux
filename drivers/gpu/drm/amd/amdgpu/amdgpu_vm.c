@@ -1817,7 +1817,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 				bo = gem_to_amdgpu_bo(gobj);
 		}
 		mem = &bo->tbo.mem;
-		if (mem->mem_type == TTM_PL_TT)
+		if (mem->mem_type == TTM_PL_TT ||
+		    mem->mem_type == AMDGPU_PL_PREEMPT)
 			pages_addr = bo->tbo.ttm->dma_address;
 	}
 
