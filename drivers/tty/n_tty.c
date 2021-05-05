@@ -1541,21 +1541,24 @@ static void n_tty_receive_buf_standard(struct tty_struct *tty,
 			continue;
 		}
 
-		if (likely(flag == TTY_NORMAL)) {
-			if (I_ISTRIP(tty))
-				c &= 0x7f;
-			if (I_IUCLC(tty) && L_IEXTEN(tty))
-				c = tolower(c);
-			if (L_EXTPROC(tty)) {
-				put_tty_queue(c, ldata);
-				continue;
-			}
-			if (!test_bit(c, ldata->char_map))
-				n_tty_receive_char(tty, c);
-			else
-				n_tty_receive_char_special(tty, c);
-		} else
+		if (unlikely(flag != TTY_NORMAL)) {
 			n_tty_receive_char_flagged(tty, c, flag);
+			continue;
+		}
+
+		if (I_ISTRIP(tty))
+			c &= 0x7f;
+		if (I_IUCLC(tty) && L_IEXTEN(tty))
+			c = tolower(c);
+		if (L_EXTPROC(tty)) {
+			put_tty_queue(c, ldata);
+			continue;
+		}
+
+		if (test_bit(c, ldata->char_map))
+			n_tty_receive_char_special(tty, c);
+		else
+			n_tty_receive_char(tty, c);
 	}
 }
 
