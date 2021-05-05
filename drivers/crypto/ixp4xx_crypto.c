@@ -151,6 +151,7 @@ struct ablk_ctx {
 	struct buffer_desc *dst;
 	u8 iv[MAX_IVLEN];
 	bool encrypt;
+	struct skcipher_request fallback_req;   // keep at the end
 };
 
 struct aead_ctx {
@@ -186,6 +187,7 @@ struct ixp_ctx {
 	unsigned salted;
 	atomic_t configuring;
 	struct completion completion;
+	struct crypto_skcipher *fallback_tfm;
 };
 
 struct ixp_alg {
@@ -590,7 +592,23 @@ static int init_tfm(struct crypto_tfm *tfm)
 
 static int init_tfm_ablk(struct crypto_skcipher *tfm)
 {
-	crypto_skcipher_set_reqsize(tfm, sizeof(struct ablk_ctx));
+	struct crypto_tfm *ctfm = crypto_skcipher_tfm(tfm);
+	struct ixp_ctx *ctx = crypto_tfm_ctx(ctfm);
+	const char *name = crypto_tfm_alg_name(ctfm);
+
+	ctx->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(ctx->fallback_tfm)) {
+		pr_err("ERROR: Cannot allocate fallback for %s %ld\n",
+			name, PTR_ERR(ctx->fallback_tfm));
+		return PTR_ERR(ctx->fallback_tfm);
+	}
+
+	pr_info("Fallback for %s is %s\n",
+		 crypto_tfm_alg_driver_name(&tfm->base),
+		 crypto_tfm_alg_driver_name(crypto_skcipher_tfm(ctx->fallback_tfm))
+		 );
+
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct ablk_ctx) + crypto_skcipher_reqsize(ctx->fallback_tfm));
 	return init_tfm(crypto_skcipher_tfm(tfm));
 }
 
@@ -609,6 +627,10 @@ static void exit_tfm(struct crypto_tfm *tfm)
 
 static void exit_tfm_ablk(struct crypto_skcipher *tfm)
 {
+	struct crypto_tfm *ctfm = crypto_skcipher_tfm(tfm);
+	struct ixp_ctx *ctx = crypto_tfm_ctx(ctfm);
+
+	crypto_free_skcipher(ctx->fallback_tfm);
 	exit_tfm(crypto_skcipher_tfm(tfm));
 }
 
@@ -854,7 +876,12 @@ static int ablk_setkey(struct crypto_skcipher *tfm, const u8 *key,
 out:
 	if (!atomic_dec_and_test(&ctx->configuring))
 		wait_for_completion(&ctx->completion);
-	return ret;
+	if (ret)
+		return ret;
+	crypto_skcipher_clear_flags(ctx->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_skcipher_set_flags(ctx->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_skcipher_setkey(ctx->fallback_tfm, key, key_len);
 }
 
 static int ablk_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -880,6 +907,25 @@ static int ablk_rfc3686_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	return ablk_setkey(tfm, key, key_len);
 }
 
+static int ixp4xx_cipher_fallback(struct skcipher_request *areq, int encrypt)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct ixp_ctx *op = crypto_skcipher_ctx(tfm);
+	struct ablk_ctx *rctx = skcipher_request_ctx(areq);
+	int err;
+
+	skcipher_request_set_tfm(&rctx->fallback_req, op->fallback_tfm);
+	skcipher_request_set_callback(&rctx->fallback_req, areq->base.flags,
+				      areq->base.complete, areq->base.data);
+	skcipher_request_set_crypt(&rctx->fallback_req, areq->src, areq->dst,
+				   areq->cryptlen, areq->iv);
+	if (encrypt)
+		err = crypto_skcipher_encrypt(&rctx->fallback_req);
+	else
+		err = crypto_skcipher_decrypt(&rctx->fallback_req);
+	return err;
+}
+
 static int ablk_perform(struct skcipher_request *req, int encrypt)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -895,6 +941,9 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 	unsigned int offset;
 	gfp_t flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
 				GFP_KERNEL : GFP_ATOMIC;
+
+	if (sg_nents(req->src) > 1 || sg_nents(req->dst) > 1)
+		return ixp4xx_cipher_fallback(req, encrypt);
 
 	if (qmgr_stat_full(SEND_QID))
 		return -EAGAIN;
@@ -1422,7 +1471,8 @@ static int __init ixp_module_init(void)
 		/* block ciphers */
 		cra->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
 				      CRYPTO_ALG_ASYNC |
-				      CRYPTO_ALG_ALLOCATES_MEMORY;
+				      CRYPTO_ALG_ALLOCATES_MEMORY |
+				      CRYPTO_ALG_NEED_FALLBACK;
 		if (!cra->setkey)
 			cra->setkey = ablk_setkey;
 		if (!cra->encrypt)
