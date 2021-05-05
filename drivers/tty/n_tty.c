@@ -2424,6 +2424,7 @@ static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops n_tty_ops = {
 	.owner		 = THIS_MODULE,
+	.num		 = N_TTY,
 	.name            = "n_tty",
 	.open            = n_tty_open,
 	.close           = n_tty_close,
@@ -2455,5 +2456,5 @@ EXPORT_SYMBOL_GPL(n_tty_inherit_ops);
 
 void __init n_tty_init(void)
 {
-	tty_register_ldisc(N_TTY, &n_tty_ops);
+	tty_register_ldisc(&n_tty_ops);
 }

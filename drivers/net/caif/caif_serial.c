@@ -382,6 +382,7 @@ static void ldisc_close(struct tty_struct *tty)
 /* The line discipline structure. */
 static struct tty_ldisc_ops caif_ldisc = {
 	.owner =	THIS_MODULE,
+	.num =		N_CAIF,
 	.name =		"n_caif",
 	.open =		ldisc_open,
 	.close =	ldisc_close,
@@ -431,7 +432,7 @@ static int __init caif_ser_init(void)
 {
 	int ret;
 
-	ret = tty_register_ldisc(N_CAIF, &caif_ldisc);
+	ret = tty_register_ldisc(&caif_ldisc);
 	if (ret < 0)
 		pr_err("cannot register CAIF ldisc=%d err=%d\n", N_CAIF, ret);
 

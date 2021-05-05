@@ -2857,6 +2857,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 /* Line discipline for real tty */
 static struct tty_ldisc_ops tty_ldisc_packet = {
 	.owner		 = THIS_MODULE,
+	.num		 = N_GSM0710,
 	.name            = "n_gsm",
 	.open            = gsmld_open,
 	.close           = gsmld_close,
@@ -3242,7 +3243,7 @@ static const struct tty_operations gsmtty_ops = {
 static int __init gsm_init(void)
 {
 	/* Fill in our line protocol discipline, and register it */
-	int status = tty_register_ldisc(N_GSM0710, &tty_ldisc_packet);
+	int status = tty_register_ldisc(&tty_ldisc_packet);
 	if (status != 0) {
 		pr_err("n_gsm: can't register line discipline (err = %d)\n",
 								status);

@@ -744,6 +744,7 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops sp_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_6PACK,
 	.name		= "6pack",
 	.open		= sixpack_open,
 	.close		= sixpack_close,
@@ -766,7 +767,8 @@ static int __init sixpack_init_driver(void)
 	printk(msg_banner);
 
 	/* Register the provided line protocol discipline */
-	if ((status = tty_register_ldisc(N_6PACK, &sp_ldisc)) != 0)
+	status = tty_register_ldisc(&sp_ldisc);
+	if (status)
 		printk(msg_regfail, status);
 
 	return status;

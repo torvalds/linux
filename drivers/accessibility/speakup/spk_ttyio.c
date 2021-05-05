@@ -105,6 +105,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 
 static struct tty_ldisc_ops spk_ttyio_ldisc_ops = {
 	.owner          = THIS_MODULE,
+	.num		= N_SPEAKUP,
 	.name           = "speakup_ldisc",
 	.open           = spk_ttyio_ldisc_open,
 	.close          = spk_ttyio_ldisc_close,
@@ -212,7 +213,7 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 
 void spk_ttyio_register_ldisc(void)
 {
-	if (tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops))
+	if (tty_register_ldisc(&spk_ttyio_ldisc_ops))
 		pr_warn("speakup: Error registering line discipline. Most synths won't work.\n");
 }
 

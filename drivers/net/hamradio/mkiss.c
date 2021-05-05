@@ -933,6 +933,7 @@ out:
 
 static struct tty_ldisc_ops ax_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_AX25,
 	.name		= "mkiss",
 	.open		= mkiss_open,
 	.close		= mkiss_close,
@@ -952,7 +953,7 @@ static int __init mkiss_init_driver(void)
 
 	printk(banner);
 
-	status = tty_register_ldisc(N_AX25, &ax_ldisc);
+	status = tty_register_ldisc(&ax_ldisc);
 	if (status != 0)
 		printk(msg_regfail, status);
 

@@ -845,6 +845,7 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 }
 
 static struct tty_ldisc_ops st_ldisc_ops = {
+	.num = N_TI_WL,
 	.name = "n_st",
 	.open = st_tty_open,
 	.close = st_tty_close,
@@ -860,7 +861,7 @@ int st_core_init(struct st_data_s **core_data)
 	struct st_data_s *st_gdata;
 	long err;
 
-	err = tty_register_ldisc(N_TI_WL, &st_ldisc_ops);
+	err = tty_register_ldisc(&st_ldisc_ops);
 	if (err) {
 		pr_err("error registering %d line discipline %ld",
 			   N_TI_WL, err);

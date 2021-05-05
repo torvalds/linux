@@ -365,6 +365,7 @@ ppp_sync_wakeup(struct tty_struct *tty)
 
 static struct tty_ldisc_ops ppp_sync_ldisc = {
 	.owner	= THIS_MODULE,
+	.num	= N_SYNC_PPP,
 	.name	= "pppsync",
 	.open	= ppp_sync_open,
 	.close	= ppp_sync_close,
@@ -382,7 +383,7 @@ ppp_sync_init(void)
 {
 	int err;
 
-	err = tty_register_ldisc(N_SYNC_PPP, &ppp_sync_ldisc);
+	err = tty_register_ldisc(&ppp_sync_ldisc);
 	if (err != 0)
 		printk(KERN_ERR "PPP_sync: error %d registering line disc.\n",
 		       err);

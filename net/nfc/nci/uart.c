@@ -442,6 +442,7 @@ EXPORT_SYMBOL_GPL(nci_uart_set_config);
 
 static struct tty_ldisc_ops nci_uart_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_NCI,
 	.name		= "n_nci",
 	.open		= nci_uart_tty_open,
 	.close		= nci_uart_tty_close,
@@ -456,7 +457,7 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 
 static int __init nci_uart_init(void)
 {
-	return tty_register_ldisc(N_NCI, &nci_uart_ldisc);
+	return tty_register_ldisc(&nci_uart_ldisc);
 }
 
 static void __exit nci_uart_exit(void)

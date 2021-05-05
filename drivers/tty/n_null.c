@@ -40,6 +40,7 @@ static void n_null_receivebuf(struct tty_struct *tty,
 
 static struct tty_ldisc_ops null_ldisc = {
 	.owner		=	THIS_MODULE,
+	.num		=	N_NULL,
 	.name		=	"n_null",
 	.open		=	n_null_open,
 	.close		=	n_null_close,
@@ -50,7 +51,7 @@ static struct tty_ldisc_ops null_ldisc = {
 
 static int __init n_null_init(void)
 {
-	BUG_ON(tty_register_ldisc(N_NULL, &null_ldisc));
+	BUG_ON(tty_register_ldisc(&null_ldisc));
 	return 0;
 }
 

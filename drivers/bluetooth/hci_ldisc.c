@@ -821,6 +821,7 @@ static __poll_t hci_uart_tty_poll(struct tty_struct *tty,
 
 static struct tty_ldisc_ops hci_uart_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_HCI,
 	.name		= "n_hci",
 	.open		= hci_uart_tty_open,
 	.close		= hci_uart_tty_close,
@@ -840,7 +841,7 @@ static int __init hci_uart_init(void)
 	BT_INFO("HCI UART driver ver %s", VERSION);
 
 	/* Register the tty discipline */
-	err = tty_register_ldisc(N_HCI, &hci_uart_ldisc);
+	err = tty_register_ldisc(&hci_uart_ldisc);
 	if (err) {
 		BT_ERR("HCI line discipline registration failed. (%d)", err);
 		return err;

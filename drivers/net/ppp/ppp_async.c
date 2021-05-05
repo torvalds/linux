@@ -372,6 +372,7 @@ ppp_asynctty_wakeup(struct tty_struct *tty)
 
 static struct tty_ldisc_ops ppp_ldisc = {
 	.owner  = THIS_MODULE,
+	.num	= N_PPP,
 	.name	= "ppp",
 	.open	= ppp_asynctty_open,
 	.close	= ppp_asynctty_close,
@@ -389,7 +390,7 @@ ppp_async_init(void)
 {
 	int err;
 
-	err = tty_register_ldisc(N_PPP, &ppp_ldisc);
+	err = tty_register_ldisc(&ppp_ldisc);
 	if (err != 0)
 		printk(KERN_ERR "PPP_async: error %d registering line disc.\n",
 		       err);

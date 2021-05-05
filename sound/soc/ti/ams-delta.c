@@ -396,6 +396,7 @@ static void cx81801_wakeup(struct tty_struct *tty)
 
 static struct tty_ldisc_ops cx81801_ops = {
 	.name = "cx81801",
+	.num = N_V253,
 	.owner = THIS_MODULE,
 	.open = cx81801_open,
 	.close = cx81801_close,
@@ -503,7 +504,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Register optional line discipline for over the modem control */
-	ret = tty_register_ldisc(N_V253, &cx81801_ops);
+	ret = tty_register_ldisc(&cx81801_ops);
 	if (ret) {
 		dev_warn(card->dev,
 				"Failed to register line discipline, "

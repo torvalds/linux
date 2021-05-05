@@ -698,6 +698,7 @@ static int slcan_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops slc_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_SLCAN,
 	.name		= "slcan",
 	.open		= slcan_open,
 	.close		= slcan_close,
@@ -722,7 +723,7 @@ static int __init slcan_init(void)
 		return -ENOMEM;
 
 	/* Fill in our line protocol discipline, and register it */
-	status = tty_register_ldisc(N_SLCAN, &slc_ldisc);
+	status = tty_register_ldisc(&slc_ldisc);
 	if (status)  {
 		printk(KERN_ERR "slcan: can't register line discipline\n");
 		kfree(slcan_devs);

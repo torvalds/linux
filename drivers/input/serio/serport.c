@@ -274,6 +274,7 @@ static void serport_ldisc_write_wakeup(struct tty_struct * tty)
 
 static struct tty_ldisc_ops serport_ldisc = {
 	.owner =	THIS_MODULE,
+	.num =		N_MOUSE,
 	.name =		"input",
 	.open =		serport_ldisc_open,
 	.close =	serport_ldisc_close,
@@ -294,7 +295,7 @@ static struct tty_ldisc_ops serport_ldisc = {
 static int __init serport_init(void)
 {
 	int retval;
-	retval = tty_register_ldisc(N_MOUSE, &serport_ldisc);
+	retval = tty_register_ldisc(&serport_ldisc);
 	if (retval)
 		printk(KERN_ERR "serport.c: Error registering line discipline.\n");
 
