@@ -884,6 +884,11 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 	struct anand *anand = to_anand(chip);
 	struct arasan_nfc *nfc = to_anfc(chip->controller);
 	struct device_node *np = nfc->dev->of_node;
+	const struct nand_sdr_timings *sdr;
+
+	sdr = nand_get_sdr_timings(conf);
+	if (IS_ERR(sdr))
+		return PTR_ERR(sdr);
 
 	if (target < 0)
 		return 0;
