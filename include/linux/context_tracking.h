@@ -129,10 +129,15 @@ static __always_inline void guest_enter_irqoff(void)
 	}
 }
 
-static __always_inline void guest_exit_irqoff(void)
+static __always_inline void context_tracking_guest_exit(void)
 {
 	if (context_tracking_enabled())
 		__context_tracking_exit(CONTEXT_GUEST);
+}
+
+static __always_inline void guest_exit_irqoff(void)
+{
+	context_tracking_guest_exit();
 
 	instrumentation_begin();
 	if (vtime_accounting_enabled_this_cpu())
@@ -156,6 +161,8 @@ static __always_inline void guest_enter_irqoff(void)
 	rcu_virt_note_context_switch(smp_processor_id());
 	instrumentation_end();
 }
+
+static __always_inline void context_tracking_guest_exit(void) { }
 
 static __always_inline void guest_exit_irqoff(void)
 {
