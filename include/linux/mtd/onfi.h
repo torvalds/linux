@@ -99,8 +99,9 @@ struct nand_onfi_params {
 	__le16 t_bers;
 	__le16 t_r;
 	__le16 t_ccs;
-	__le16 src_sync_timing_mode;
-	u8 src_ssync_features;
+	u8 nvddr_timing_modes;
+	u8 nvddr2_timing_modes;
+	u8 nvddr_nvddr2_features;
 	__le16 clk_pin_capacitance_typ;
 	__le16 io_pin_capacitance_typ;
 	__le16 input_pin_capacitance_typ;
