@@ -4014,8 +4014,6 @@ int init_mlme_ext_priv(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	pmlmeext->padapter = padapter;
-
 	init_mlme_ext_priv_value(padapter);
 	pmlmeinfo->accept_addba_req = pregistrypriv->accept_addba_req;
 
@@ -4038,7 +4036,7 @@ int init_mlme_ext_priv(struct adapter *padapter)
 
 void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 {
-	struct adapter *padapter = pmlmeext->padapter;
+	struct adapter *padapter = container_of(pmlmeext, struct adapter, mlmeextpriv);
 
 	if (!padapter)
 		return;
