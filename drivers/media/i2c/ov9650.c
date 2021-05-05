@@ -1479,8 +1479,8 @@ static int ov965x_detect_sensor(struct v4l2_subdev *sd)
 		if (ov965x->id == OV9650_ID || ov965x->id == OV9652_ID) {
 			v4l2_info(sd, "Found OV%04X sensor\n", ov965x->id);
 		} else {
-			v4l2_err(sd, "Sensor detection failed (%04X, %d)\n",
-				 ov965x->id, ret);
+			v4l2_err(sd, "Sensor detection failed (%04X)\n",
+				 ov965x->id);
 			ret = -ENODEV;
 		}
 	}
