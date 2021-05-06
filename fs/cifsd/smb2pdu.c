@@ -619,7 +619,8 @@ static void destroy_previous_session(struct ksmbd_user *user, u64 id)
 
 	prev_user = prev_sess->user;
 
-	if (strcmp(user->name, prev_user->name) ||
+	if (!prev_user ||
+	    strcmp(user->name, prev_user->name) ||
 	    user->passkey_sz != prev_user->passkey_sz ||
 	    memcmp(user->passkey, prev_user->passkey, user->passkey_sz)) {
 		put_session(prev_sess);
