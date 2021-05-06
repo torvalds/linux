@@ -11580,6 +11580,15 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			}
 		}
 
+		if (IS_ALDERLAKE_P(dev_priv) &&
+		    mode_cmd->modifier[i] != DRM_FORMAT_MOD_LINEAR &&
+		    !is_power_of_2(mode_cmd->pitches[i])) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "plane %d pitch (%d) must be power of two for tiled buffers\n",
+				    i, mode_cmd->pitches[i]);
+			goto err;
+		}
+
 		fb->obj[i] = &obj->base;
 	}
 
