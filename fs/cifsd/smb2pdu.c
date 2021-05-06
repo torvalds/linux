@@ -5820,8 +5820,8 @@ int smb2_read(struct ksmbd_work *work)
 			le64_to_cpu(req->VolatileFileId),
 			le64_to_cpu(req->PersistentFileId));
 	if (!fp) {
-		rsp->hdr.Status = STATUS_FILE_CLOSED;
-		return -ENOENT;
+		err = -ENOENT;
+		goto out;
 	}
 
 	if (!(fp->daccess & (FILE_READ_DATA_LE | FILE_READ_ATTRIBUTES_LE))) {
@@ -6057,7 +6057,7 @@ int smb2_write(struct ksmbd_work *work)
 {
 	struct smb2_write_req *req;
 	struct smb2_write_rsp *rsp, *rsp_org;
-	struct ksmbd_file *fp = NULL;
+	struct ksmbd_file *fp;
 	loff_t offset;
 	size_t length;
 	ssize_t nbytes;
@@ -6082,8 +6082,8 @@ int smb2_write(struct ksmbd_work *work)
 	fp = ksmbd_lookup_fd_slow(work, le64_to_cpu(req->VolatileFileId),
 		le64_to_cpu(req->PersistentFileId));
 	if (!fp) {
-		rsp->hdr.Status = STATUS_FILE_CLOSED;
-		return -ENOENT;
+		err = -ENOENT;
+		goto out;
 	}
 
 	if (!(fp->daccess & (FILE_WRITE_DATA_LE | FILE_READ_ATTRIBUTES_LE))) {
