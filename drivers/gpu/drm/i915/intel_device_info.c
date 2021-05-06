@@ -67,6 +67,7 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(ROCKETLAKE),
 	PLATFORM_NAME(DG1),
 	PLATFORM_NAME(ALDERLAKE_S),
+	PLATFORM_NAME(ALDERLAKE_P),
 };
 #undef PLATFORM_NAME
 
