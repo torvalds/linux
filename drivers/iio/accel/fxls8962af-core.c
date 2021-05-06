@@ -50,6 +50,9 @@
 
 #define FXLS8962AF_SENS_CONFIG2			0x16
 #define FXLS8962AF_SENS_CONFIG3			0x17
+#define FXLS8962AF_SC3_WAKE_ODR_MASK		GENMASK(7, 4)
+#define FXLS8962AF_SC3_WAKE_ODR_PREP(x)		FIELD_PREP(FXLS8962AF_SC3_WAKE_ODR_MASK, (x))
+#define FXLS8962AF_SC3_WAKE_ODR_GET(x)		FIELD_GET(FXLS8962AF_SC3_WAKE_ODR_MASK, (x))
 #define FXLS8962AF_SENS_CONFIG4			0x18
 #define FXLS8962AF_SENS_CONFIG5			0x19
 
@@ -96,12 +99,19 @@
 #define FXLS8962AF_AUTO_SUSPEND_DELAY_MS	2000
 
 #define FXLS8962AF_SCALE_TABLE_LEN		4
+#define FXLS8962AF_SAMP_FREQ_TABLE_LEN		13
 
 static const int fxls8962af_scale_table[FXLS8962AF_SCALE_TABLE_LEN][2] = {
 	{0, IIO_G_TO_M_S_2(980000)},
 	{0, IIO_G_TO_M_S_2(1950000)},
 	{0, IIO_G_TO_M_S_2(3910000)},
 	{0, IIO_G_TO_M_S_2(7810000)},
+};
+
+static const int fxls8962af_samp_freq_table[FXLS8962AF_SAMP_FREQ_TABLE_LEN][2] = {
+	{3200, 0}, {1600, 0}, {800, 0}, {400, 0}, {200, 0}, {100, 0},
+	{50, 0}, {25, 0}, {12, 500000}, {6, 250000}, {3, 125000},
+	{1, 563000}, {0, 781000},
 };
 
 struct fxls8962af_chip_info {
@@ -224,6 +234,11 @@ static int fxls8962af_read_avail(struct iio_dev *indio_dev,
 		*vals = (int *)fxls8962af_scale_table;
 		*length = ARRAY_SIZE(fxls8962af_scale_table) * 2;
 		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		*vals = (int *)fxls8962af_samp_freq_table;
+		*length = ARRAY_SIZE(fxls8962af_samp_freq_table) * 2;
+		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
 	}
@@ -233,7 +248,14 @@ static int fxls8962af_write_raw_get_fmt(struct iio_dev *indio_dev,
 					struct iio_chan_spec const *chan,
 					long mask)
 {
-	return IIO_VAL_INT_PLUS_NANO;
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return IIO_VAL_INT_PLUS_NANO;
+	}
 }
 
 static int fxls8962af_update_config(struct fxls8962af_data *data, u8 reg,
@@ -296,6 +318,43 @@ static unsigned int fxls8962af_read_full_scale(struct fxls8962af_data *data,
 	return IIO_VAL_INT_PLUS_NANO;
 }
 
+static int fxls8962af_set_samp_freq(struct fxls8962af_data *data, u32 val,
+				    u32 val2)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fxls8962af_samp_freq_table); i++)
+		if (val == fxls8962af_samp_freq_table[i][0] &&
+		    val2 == fxls8962af_samp_freq_table[i][1])
+			break;
+
+	if (i == ARRAY_SIZE(fxls8962af_samp_freq_table))
+		return -EINVAL;
+
+	return fxls8962af_update_config(data, FXLS8962AF_SENS_CONFIG3,
+					FXLS8962AF_SC3_WAKE_ODR_MASK,
+					FXLS8962AF_SC3_WAKE_ODR_PREP(i));
+}
+
+static unsigned int fxls8962af_read_samp_freq(struct fxls8962af_data *data,
+					      int *val, int *val2)
+{
+	int ret;
+	unsigned int reg;
+	u8 range_idx;
+
+	ret = regmap_read(data->regmap, FXLS8962AF_SENS_CONFIG3, &reg);
+	if (ret)
+		return ret;
+
+	range_idx = FXLS8962AF_SC3_WAKE_ODR_GET(reg);
+
+	*val = fxls8962af_samp_freq_table[range_idx][0];
+	*val2 = fxls8962af_samp_freq_table[range_idx][1];
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
 static int fxls8962af_read_raw(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *chan,
 			       int *val, int *val2, long mask)
@@ -320,6 +379,8 @@ static int fxls8962af_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		return fxls8962af_read_full_scale(data, val2);
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return fxls8962af_read_samp_freq(data, val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -345,6 +406,15 @@ static int fxls8962af_write_raw(struct iio_dev *indio_dev,
 
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
+		ret = fxls8962af_set_samp_freq(data, val, val2);
+
+		iio_device_release_direct_mode(indio_dev);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -356,8 +426,10 @@ static int fxls8962af_write_raw(struct iio_dev *indio_dev,
 	.modified = 1, \
 	.channel2 = IIO_MOD_##axis, \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) | \
+				    BIT(IIO_CHAN_INFO_SAMP_FREQ), \
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE) | \
+					      BIT(IIO_CHAN_INFO_SAMP_FREQ), \
 	.scan_index = idx, \
 	.scan_type = { \
 		.sign = 's', \
