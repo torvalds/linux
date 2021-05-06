@@ -2810,6 +2810,7 @@ static void btc8821a2ant_action_a2dp(struct btc_coexist *btcoexist)
 					      0x4);
 	}
 
+	/* preserve identical branches for further fine-tuning */
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
@@ -2944,6 +2945,7 @@ static void btc8821a2ant_action_pan_edr(struct btc_coexist *btcoexist)
 					      0x4);
 	}
 
+	/* preserve identical branches for further fine-tuning */
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH))
 		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 26);
@@ -3132,6 +3134,7 @@ static void btc8821a2ant_action_pan_edr_hid(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
 
+	/* preserve identical branches for further fine-tuning */
 	if (wifi_bw == BTC_WIFI_BW_LEGACY) {
 		/* for HID at 11b/g mode */
 		btc8821a2ant_coex_table(btcoexist, NORMAL_EXEC, 0x55ff55ff,
@@ -3321,6 +3324,7 @@ static void btc8821a2ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 					      0x4);
 	}
 
+	/* preserve identical branches for further fine-tuning */
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
