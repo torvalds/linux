@@ -35,8 +35,7 @@ l_yes:
 static __always_inline bool arch_static_branch_jump(struct static_key * const key, const bool branch)
 {
 	asm_volatile_goto("1:"
-		".byte 0xe9 \n\t"
-		".long %l[l_yes] - (. + 4) \n\t"
+		"jmp %l[l_yes]\n\t"
 		JUMP_TABLE_ENTRY
 		: :  "i" (key), "i" (branch) : : l_yes);
 

@@ -15,12 +15,18 @@
 #include <asm/kprobes.h>
 #include <asm/alternative.h>
 #include <asm/text-patching.h>
+#include <asm/insn.h>
 
 #define JUMP_LABEL_NOP_SIZE	JMP32_INSN_SIZE
 
 int arch_jump_entry_size(struct jump_entry *entry)
 {
-	return JMP32_INSN_SIZE;
+	struct insn insn = {};
+
+	insn_decode_kernel(&insn, (void *)jump_entry_code(entry));
+	BUG_ON(insn.length != 2 && insn.length != 5);
+
+	return insn.length;
 }
 
 struct jump_label_patch {
