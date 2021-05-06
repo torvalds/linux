@@ -418,6 +418,33 @@ void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_wtbl_hdr_trans_tlv);
 
+int mt76_connac_mcu_sta_update_hdr_trans(struct mt76_dev *dev,
+					 struct ieee80211_vif *vif,
+					 struct mt76_wcid *wcid, int cmd)
+{
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct wtbl_req_hdr *wtbl_hdr;
+	struct tlv *sta_wtbl;
+	struct sk_buff *skb;
+
+	skb = mt76_connac_mcu_alloc_sta_req(dev, mvif, wcid);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	sta_wtbl = mt76_connac_mcu_add_tlv(skb, STA_REC_WTBL,
+					   sizeof(struct tlv));
+
+	wtbl_hdr = mt76_connac_mcu_alloc_wtbl_req(dev, wcid, WTBL_SET,
+						  sta_wtbl, &skb);
+	if (IS_ERR(wtbl_hdr))
+		return PTR_ERR(wtbl_hdr);
+
+	mt76_connac_mcu_wtbl_hdr_trans_tlv(skb, vif, wcid, sta_wtbl, wtbl_hdr);
+
+	return mt76_mcu_skb_send_msg(dev, skb, cmd, true);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_update_hdr_trans);
+
 void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev,
 				      struct sk_buff *skb,
 				      struct ieee80211_vif *vif,
@@ -870,6 +897,8 @@ int mt76_connac_mcu_add_sta_cmd(struct mt76_phy *phy,
 		mt76_connac_mcu_wtbl_generic_tlv(dev, skb, info->vif,
 						 info->sta, sta_wtbl,
 						 wtbl_hdr);
+		mt76_connac_mcu_wtbl_hdr_trans_tlv(skb, info->vif, info->wcid,
+						   sta_wtbl, wtbl_hdr);
 		if (info->sta)
 			mt76_connac_mcu_wtbl_ht_tlv(dev, skb, info->sta,
 						    sta_wtbl, wtbl_hdr);

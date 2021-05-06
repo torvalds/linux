@@ -972,6 +972,9 @@ void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
 					struct ieee80211_vif *vif,
 					struct mt76_wcid *wcid,
 					void *sta_wtbl, void *wtbl_tlv);
+int mt76_connac_mcu_sta_update_hdr_trans(struct mt76_dev *dev,
+					 struct ieee80211_vif *vif,
+					 struct mt76_wcid *wcid, int cmd);
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,
 			     struct ieee80211_vif *vif,
