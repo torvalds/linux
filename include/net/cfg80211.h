@@ -1245,8 +1245,6 @@ struct cfg80211_csa_settings {
 	u8 count;
 };
 
-#define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
-
 /**
  * struct iface_combination_params - input parameters for interface combinations
  *

@@ -589,14 +589,6 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 		if (WARN_ON(!c->num_different_channels))
 			return -EINVAL;
 
-		/*
-		 * Put a sane limit on maximum number of different
-		 * channels to simplify channel accounting code.
-		 */
-		if (WARN_ON(c->num_different_channels >
-				CFG80211_MAX_NUM_DIFFERENT_CHANNELS))
-			return -EINVAL;
-
 		/* DFS only works on one channel. */
 		if (WARN_ON(c->radar_detect_widths &&
 			    (c->num_different_channels > 1)))
