@@ -3333,6 +3333,7 @@ static int smb2_populate_readdir_entry(struct ksmbd_conn *conn, int info_level,
 
 	d_info->last_entry_offset = d_info->data_count;
 	d_info->data_count += next_entry_offset;
+	d_info->out_buf_len -= next_entry_offset;
 	d_info->wptr += next_entry_offset;
 	kfree(conv_name);
 
