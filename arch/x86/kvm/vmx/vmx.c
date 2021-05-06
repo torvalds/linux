@@ -2014,6 +2014,9 @@ static u64 vcpu_supported_debugctl(struct kvm_vcpu *vcpu)
 	if (!intel_pmu_lbr_is_enabled(vcpu))
 		debugctl &= ~DEBUGCTLMSR_LBR_MASK;
 
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_BUS_LOCK_DETECT))
+		debugctl &= ~DEBUGCTLMSR_BUS_LOCK_DETECT;
+
 	return debugctl;
 }
 
