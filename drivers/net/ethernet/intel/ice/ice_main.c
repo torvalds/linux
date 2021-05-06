@@ -5631,7 +5631,6 @@ ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi, struct ice_ring **rings,
 static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 {
 	struct rtnl_link_stats64 *vsi_stats = &vsi->net_stats;
-	struct ice_ring *ring;
 	u64 pkts, bytes;
 	int i;
 
@@ -5655,7 +5654,8 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 
 	/* update Rx rings counters */
 	ice_for_each_rxq(vsi, i) {
-		ring = READ_ONCE(vsi->rx_rings[i]);
+		struct ice_ring *ring = READ_ONCE(vsi->rx_rings[i]);
+
 		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
 		vsi_stats->rx_packets += pkts;
 		vsi_stats->rx_bytes += bytes;
