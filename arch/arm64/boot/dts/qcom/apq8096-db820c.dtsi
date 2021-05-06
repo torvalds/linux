@@ -162,6 +162,10 @@
 	};
 };
 
+&adsp_pil {
+	status = "okay";
+};
+
 &blsp2_i2c0 {
 	/* On High speed expansion */
 	label = "HS-I2C2";
