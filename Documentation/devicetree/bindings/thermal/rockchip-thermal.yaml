@@ -19,6 +19,7 @@ properties:
       - rockchip,rk3328-tsadc # RK3328 SoCs
       - rockchip,rk3368-tsadc # RK3368 SoCs
       - rockchip,rk3399-tsadc # RK3399 SoCs
+      - rockchip,rk3568-tsadc # RK3568 SoCs
 
   reg:
     maxItems: 1
