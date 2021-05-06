@@ -126,8 +126,10 @@ struct intel_framebuffer {
 
 	/* Params to remap the FB pages and program the plane registers in each view. */
 	struct intel_fb_view normal_view;
-	struct intel_fb_view rotated_view;
-	struct intel_fb_view remapped_view;
+	union {
+		struct intel_fb_view rotated_view;
+		struct intel_fb_view remapped_view;
+	};
 
 	struct i915_address_space *dpt_vm;
 };

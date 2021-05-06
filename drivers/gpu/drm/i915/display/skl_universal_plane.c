@@ -1166,8 +1166,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	}
 
 	if (drm_rotation_90_or_270(rotation)) {
-		if (fb->modifier != I915_FORMAT_MOD_Y_TILED &&
-		    fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
+		if (!intel_fb_supports_90_270_rotation(to_intel_framebuffer(fb))) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Y/Yf tiling required for 90/270!\n");
 			return -EINVAL;

@@ -735,6 +735,15 @@ static void intel_fb_view_init(struct intel_fb_view *view, enum i915_ggtt_view_t
 	view->gtt.type = view_type;
 }
 
+bool intel_fb_supports_90_270_rotation(const struct intel_framebuffer *fb)
+{
+	if (DISPLAY_VER(to_i915(fb->base.dev)) >= 13)
+		return false;
+
+	return fb->base.modifier == I915_FORMAT_MOD_Y_TILED ||
+	       fb->base.modifier == I915_FORMAT_MOD_Yf_TILED;
+}
+
 int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb)
 {
 	struct drm_i915_gem_object *obj = intel_fb_obj(&fb->base);
@@ -745,8 +754,15 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 	unsigned int tile_size = intel_tile_size(i915);
 
 	intel_fb_view_init(&fb->normal_view, I915_GGTT_VIEW_NORMAL);
-	intel_fb_view_init(&fb->rotated_view, I915_GGTT_VIEW_ROTATED);
-	intel_fb_view_init(&fb->remapped_view, I915_GGTT_VIEW_REMAPPED);
+
+	drm_WARN_ON(&i915->drm,
+		    intel_fb_supports_90_270_rotation(fb) &&
+		    intel_fb_needs_pot_stride_remap(fb));
+
+	if (intel_fb_supports_90_270_rotation(fb))
+		intel_fb_view_init(&fb->rotated_view, I915_GGTT_VIEW_ROTATED);
+	if (intel_fb_needs_pot_stride_remap(fb))
+		intel_fb_view_init(&fb->remapped_view, I915_GGTT_VIEW_REMAPPED);
 
 	for (i = 0; i < num_planes; i++) {
 		struct fb_plane_view_dims view_dims;
@@ -787,9 +803,7 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 
 		offset = calc_plane_aligned_offset(fb, i, &x, &y);
 
-		/* Y or Yf modifiers required for 90/270 rotation */
-		if (fb->base.modifier == I915_FORMAT_MOD_Y_TILED ||
-		    fb->base.modifier == I915_FORMAT_MOD_Yf_TILED)
+		if (intel_fb_supports_90_270_rotation(fb))
 			gtt_offset_rotated += calc_plane_remap_info(fb, i, &view_dims,
 								    offset, gtt_offset_rotated, x, y,
 								    &fb->rotated_view);
