@@ -208,6 +208,26 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 }
 EXPORT_SYMBOL(dma_resv_reserve_shared);
 
+#ifdef CONFIG_DEBUG_MUTEXES
+/**
+ * dma_resv_reset_shared_max - reset shared fences for debugging
+ * @obj: the dma_resv object to reset
+ *
+ * Reset the number of pre-reserved shared slots to test that drivers do
+ * correct slot allocation using dma_resv_reserve_shared(). See also
+ * &dma_resv_list.shared_max.
+ */
+void dma_resv_reset_shared_max(struct dma_resv *obj)
+{
+	/* Test shared fence slot reservation */
+	if (rcu_access_pointer(obj->fence)) {
+		struct dma_resv_list *fence = dma_resv_get_list(obj);
+
+		fence->shared_max = fence->shared_count;
+	}
+}
+#endif
+
 /**
  * dma_resv_add_shared_fence - Add a fence to a shared slot
  * @obj: the reservation object
