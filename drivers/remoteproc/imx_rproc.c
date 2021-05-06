@@ -590,6 +590,35 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 	return 0;
 }
 
+static int imx_rproc_clk_enable(struct imx_rproc *priv)
+{
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+	struct device *dev = priv->dev;
+	int ret;
+
+	/* Remote core is not under control of Linux */
+	if (dcfg->method == IMX_RPROC_NONE)
+		return 0;
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "Failed to get clock\n");
+		return PTR_ERR(priv->clk);
+	}
+
+	/*
+	 * clk for M4 block including memory. Should be
+	 * enabled before .start for FW transfer.
+	 */
+	ret = clk_prepare_enable(priv->clk);
+	if (ret) {
+		dev_err(dev, "Failed to enable clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -648,22 +677,9 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put_mbox;
 
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "Failed to get clock\n");
-		ret = PTR_ERR(priv->clk);
+	ret = imx_rproc_clk_enable(priv);
+	if (ret)
 		goto err_put_mbox;
-	}
-
-	/*
-	 * clk for M4 block including memory. Should be
-	 * enabled before .start for FW transfer.
-	 */
-	ret = clk_prepare_enable(priv->clk);
-	if (ret) {
-		dev_err(&rproc->dev, "Failed to enable clock\n");
-		goto err_put_mbox;
-	}
 
 	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
 
