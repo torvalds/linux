@@ -1,1 +1,1 @@
-per-file net=file:/net/OWNERS
+per-file net/**=file:/net/OWNERS

@@ -1,1 +1,1 @@
-per-file f2fs*=file:/fs/f2fs/OWNERS
+per-file f2fs**=file:/fs/f2fs/OWNERS
