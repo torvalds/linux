@@ -1917,9 +1917,13 @@ static noinline int create_smb2_pipe(struct ksmbd_work *work)
 	}
 
 	id = ksmbd_session_rpc_open(work->sess, name);
-	if (id < 0)
+	if (id < 0) {
 		ksmbd_err("Unable to open RPC pipe: %d\n", id);
+		err = id;
+		goto out;
+	}
 
+	rsp->hdr.Status = STATUS_SUCCESS;
 	rsp->StructureSize = cpu_to_le16(89);
 	rsp->OplockLevel = SMB2_OPLOCK_LEVEL_NONE;
 	rsp->Reserved = 0;
@@ -1942,6 +1946,19 @@ static noinline int create_smb2_pipe(struct ksmbd_work *work)
 	return 0;
 
 out:
+	switch (err) {
+	case -EINVAL:
+		rsp->hdr.Status = STATUS_INVALID_PARAMETER;
+		break;
+	case -ENOSPC:
+	case -ENOMEM:
+		rsp->hdr.Status = STATUS_NO_MEMORY;
+		break;
+	}
+
+	if (!IS_ERR(name))
+		kfree(name);
+
 	smb2_set_err_rsp(work);
 	return err;
 }
