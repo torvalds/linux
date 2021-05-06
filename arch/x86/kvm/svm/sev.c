@@ -2197,7 +2197,7 @@ vmgexit_err:
 	return -EINVAL;
 }
 
-static void pre_sev_es_run(struct vcpu_svm *svm)
+void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 {
 	if (!svm->ghcb)
 		return;
@@ -2232,9 +2232,6 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 	int asid = sev_get_asid(svm->vcpu.kvm);
-
-	/* Perform any SEV-ES pre-run actions */
-	pre_sev_es_run(svm);
 
 	/* Assign the asid allocated with this SEV guest */
 	svm->asid = asid;
