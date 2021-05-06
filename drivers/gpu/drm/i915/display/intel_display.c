@@ -9697,8 +9697,6 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 
 	/* on skylake this is done by detaching scalers */
 	if (DISPLAY_VER(dev_priv) >= 9) {
-		skl_detach_scalers(new_crtc_state);
-
 		if (new_crtc_state->pch_pfit.enabled)
 			skl_pfit_enable(new_crtc_state);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
@@ -9724,8 +9722,8 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 		icl_set_pipe_chicken(crtc);
 }
 
-static void commit_pipe_config(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+static void commit_pipe_pre_planes(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
@@ -9743,9 +9741,6 @@ static void commit_pipe_config(struct intel_atomic_state *state,
 		    new_crtc_state->update_pipe)
 			intel_color_commit(new_crtc_state);
 
-		if (DISPLAY_VER(dev_priv) >= 9)
-			skl_detach_scalers(new_crtc_state);
-
 		if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 			bdw_set_pipemisc(new_crtc_state);
 
@@ -9757,6 +9752,23 @@ static void commit_pipe_config(struct intel_atomic_state *state,
 
 	if (dev_priv->display.atomic_update_watermarks)
 		dev_priv->display.atomic_update_watermarks(state, crtc);
+}
+
+static void commit_pipe_post_planes(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/*
+	 * Disable the scaler(s) after the plane(s) so that we don't
+	 * get a catastrophic underrun even if the two operations
+	 * end up happening in two different frames.
+	 */
+	if (DISPLAY_VER(dev_priv) >= 9 &&
+	    !intel_crtc_needs_modeset(new_crtc_state))
+		skl_detach_scalers(new_crtc_state);
 }
 
 static void intel_enable_crtc(struct intel_atomic_state *state,
@@ -9810,12 +9822,14 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(new_crtc_state);
 
-	commit_pipe_config(state, crtc);
+	commit_pipe_pre_planes(state, crtc);
 
 	if (DISPLAY_VER(dev_priv) >= 9)
 		skl_update_planes_on_crtc(state, crtc);
 	else
 		i9xx_update_planes_on_crtc(state, crtc);
+
+	commit_pipe_post_planes(state, crtc);
 
 	intel_pipe_update_end(new_crtc_state);
 
