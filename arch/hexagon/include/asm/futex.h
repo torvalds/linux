@@ -21,7 +21,7 @@
 	"3:\n" \
 	".section .fixup,\"ax\"\n" \
 	"4: %1 = #%5;\n" \
-	"   jump 3b\n" \
+	"   jump ##3b\n" \
 	".previous\n" \
 	".section __ex_table,\"a\"\n" \
 	".long 1b,4b,2b,4b\n" \
@@ -90,7 +90,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
 	"3:\n"
 	".section .fixup,\"ax\"\n"
 	"4: %0 = #%6\n"
-	"   jump 3b\n"
+	"   jump ##3b\n"
 	".previous\n"
 	".section __ex_table,\"a\"\n"
 	".long 1b,4b,2b,4b\n"

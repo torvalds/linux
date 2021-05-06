@@ -8,6 +8,7 @@
 
 #include <asm-generic/timex.h>
 #include <asm/timer-regs.h>
+#include <asm/hexagon_vm.h>
 
 /* Using TCX0 as our clock.  CLOCK_TICK_RATE scheduled to be removed. */
 #define CLOCK_TICK_RATE              TCX0_CLK_RATE
@@ -16,7 +17,7 @@
 
 static inline int read_current_timer(unsigned long *timer_val)
 {
-	*timer_val = (unsigned long) __vmgettime();
+	*timer_val = __vmgettime();
 	return 0;
 }
 
