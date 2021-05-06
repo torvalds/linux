@@ -14,6 +14,7 @@
 
 #include <linux/bits.h>
 #include <linux/bitfield.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
@@ -623,16 +624,42 @@ static const struct iio_buffer_setup_ops fxls8962af_buffer_ops = {
 	.postdisable = fxls8962af_buffer_postdisable,
 };
 
+static int fxls8962af_i2c_raw_read_errata3(struct fxls8962af_data *data,
+					   u16 *buffer, int samples,
+					   int sample_length)
+{
+	int i, ret;
+
+	for (i = 0; i < samples; i++) {
+		ret = regmap_raw_read(data->regmap, FXLS8962AF_BUF_X_LSB,
+				      &buffer[i * 3], sample_length);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static int fxls8962af_fifo_transfer(struct fxls8962af_data *data,
 				    u16 *buffer, int samples)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	int sample_length = 3 * sizeof(*buffer);
-	int ret;
 	int total_length = samples * sample_length;
+	int ret;
 
-	ret = regmap_raw_read(data->regmap, FXLS8962AF_BUF_X_LSB, buffer,
-			      total_length);
+	if (i2c_verify_client(dev))
+		/*
+		 * Due to errata bug:
+		 * E3: FIFO burst read operation error using I2C interface
+		 * We have to avoid burst reads on I2C..
+		 */
+		ret = fxls8962af_i2c_raw_read_errata3(data, buffer, samples,
+						      sample_length);
+	else
+		ret = regmap_raw_read(data->regmap, FXLS8962AF_BUF_X_LSB, buffer,
+				      total_length);
+
 	if (ret)
 		dev_err(dev, "Error transferring data from fifo: %d\n", ret);
 
