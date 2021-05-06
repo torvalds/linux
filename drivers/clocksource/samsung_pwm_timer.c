@@ -421,7 +421,7 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
-	int i;
+	int i, ret;
 
 	memcpy(&pwm.variant, variant, sizeof(pwm.variant));
 	for (i = 0; i < SAMSUNG_PWM_NUM; ++i)
@@ -444,10 +444,24 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 	pwm.timerclk = of_clk_get_by_name(np, "timers");
 	if (IS_ERR(pwm.timerclk)) {
 		pr_crit("failed to get timers clock for timer\n");
-		return PTR_ERR(pwm.timerclk);
+		ret = PTR_ERR(pwm.timerclk);
+		goto err_clk;
 	}
 
-	return _samsung_pwm_clocksource_init();
+	ret = _samsung_pwm_clocksource_init();
+	if (ret)
+		goto err_clocksource;
+
+	return 0;
+
+err_clocksource:
+	clk_put(pwm.timerclk);
+	pwm.timerclk = NULL;
+err_clk:
+	iounmap(pwm.base);
+	pwm.base = NULL;
+
+	return ret;
 }
 
 static const struct samsung_pwm_variant s3c24xx_variant = {
