@@ -20,6 +20,22 @@
 	_ASM_PTR "%c0 + %c1 - .\n\t"			\
 	".popsection \n\t"
 
+#ifdef CONFIG_STACK_VALIDATION
+
+static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
+{
+	asm_volatile_goto("1:"
+		"jmp %l[l_yes] # objtool NOPs this \n\t"
+		JUMP_TABLE_ENTRY
+		: :  "i" (key), "i" (2 | branch) : : l_yes);
+
+	return false;
+l_yes:
+	return true;
+}
+
+#else
+
 static __always_inline bool arch_static_branch(struct static_key * const key, const bool branch)
 {
 	asm_volatile_goto("1:"
@@ -31,6 +47,8 @@ static __always_inline bool arch_static_branch(struct static_key * const key, co
 l_yes:
 	return true;
 }
+
+#endif /* STACK_VALIDATION */
 
 static __always_inline bool arch_static_branch_jump(struct static_key * const key, const bool branch)
 {
