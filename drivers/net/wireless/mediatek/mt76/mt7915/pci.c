@@ -255,6 +255,8 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
+	mt76_pci_disable_aspm(pdev);
+
 	if (id->device == 0x7916)
 		return mt7915_pci_hif2_probe(pdev);
 
