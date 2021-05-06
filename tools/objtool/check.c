@@ -1225,8 +1225,15 @@ static int handle_jump_alt(struct objtool_file *file,
 			   struct instruction *orig_insn,
 			   struct instruction **new_insn)
 {
-	if (orig_insn->type == INSN_NOP)
+	if (orig_insn->type == INSN_NOP) {
+do_nop:
+		if (orig_insn->len == 2)
+			file->jl_nop_short++;
+		else
+			file->jl_nop_long++;
+
 		return 0;
+	}
 
 	if (orig_insn->type != INSN_JUMP_UNCONDITIONAL) {
 		WARN_FUNC("unsupported instruction at jump label",
@@ -1245,8 +1252,13 @@ static int handle_jump_alt(struct objtool_file *file,
 			       orig_insn->offset, orig_insn->len,
 			       arch_nop_insn(orig_insn->len));
 		orig_insn->type = INSN_NOP;
-		return 0;
+		goto do_nop;
 	}
+
+	if (orig_insn->len == 2)
+		file->jl_short++;
+	else
+		file->jl_long++;
 
 	*new_insn = list_next_entry(orig_insn, list);
 	return 0;
@@ -1326,6 +1338,12 @@ static int add_special_section_alts(struct objtool_file *file)
 
 		list_del(&special_alt->list);
 		free(special_alt);
+	}
+
+	if (stats) {
+		printf("jl\\\tNOP\tJMP\n");
+		printf("short:\t%ld\t%ld\n", file->jl_nop_short, file->jl_short);
+		printf("long:\t%ld\t%ld\n", file->jl_nop_long, file->jl_long);
 	}
 
 out:
