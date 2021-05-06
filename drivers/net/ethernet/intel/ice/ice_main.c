@@ -6218,6 +6218,12 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 
 	ice_clear_pxe_mode(hw);
 
+	ret = ice_init_nvm(hw);
+	if (ret) {
+		dev_err(dev, "ice_init_nvm failed %s\n", ice_stat_str(ret));
+		goto err_init_ctrlq;
+	}
+
 	ret = ice_get_caps(hw);
 	if (ret) {
 		dev_err(dev, "ice_get_caps failed %s\n", ice_stat_str(ret));
