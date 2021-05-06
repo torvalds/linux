@@ -231,16 +231,22 @@ static void dpt_cleanup(struct i915_address_space *vm)
 }
 
 static struct i915_address_space *
-intel_dpt_create(struct drm_gem_object *obj)
+intel_dpt_create(struct intel_framebuffer *fb)
 {
+	struct drm_gem_object *obj = &intel_fb_obj(&fb->base)->base;
 	struct drm_i915_private *i915 = to_i915(obj->dev);
-	size_t size = DIV_ROUND_UP_ULL(obj->size, 512);
 	struct drm_i915_gem_object *dpt_obj;
 	struct i915_address_space *vm;
 	struct i915_dpt *dpt;
+	size_t size;
 	int ret;
 
-	size = round_up(size, 4096);
+	if (intel_fb_needs_pot_stride_remap(fb))
+		size = intel_remapped_info_size(&fb->remapped_view.gtt.remapped);
+	else
+		size = DIV_ROUND_UP_ULL(obj->size, I915_GTT_PAGE_SIZE);
+
+	size = round_up(size * sizeof(gen8_pte_t), I915_GTT_PAGE_SIZE);
 
 	if (HAS_LMEM(i915))
 		dpt_obj = i915_gem_object_create_lmem(i915, size, 0);
@@ -11580,8 +11586,10 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			}
 		}
 
+		/* TODO: Add POT stride remapping support for CCS formats as well. */
 		if (IS_ALDERLAKE_P(dev_priv) &&
 		    mode_cmd->modifier[i] != DRM_FORMAT_MOD_LINEAR &&
+		    !intel_fb_needs_pot_stride_remap(intel_fb) &&
 		    !is_power_of_2(mode_cmd->pitches[i])) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "plane %d pitch (%d) must be power of two for tiled buffers\n",
@@ -11599,7 +11607,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (intel_fb_uses_dpt(fb)) {
 		struct i915_address_space *vm;
 
-		vm = intel_dpt_create(&obj->base);
+		vm = intel_dpt_create(intel_fb);
 		if (IS_ERR(vm)) {
 			ret = PTR_ERR(vm);
 			goto err;

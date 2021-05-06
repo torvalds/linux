@@ -478,9 +478,12 @@ static bool intel_plane_can_remap(const struct intel_plane_state *plane_state)
 	return true;
 }
 
-static bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb)
+bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb)
 {
-	return false;
+	struct drm_i915_private *i915 = to_i915(fb->base.dev);
+
+	return IS_ALDERLAKE_P(i915) && fb->base.modifier != DRM_FORMAT_MOD_LINEAR &&
+	       !is_ccs_modifier(fb->base.modifier);
 }
 
 static int intel_fb_pitch(const struct intel_framebuffer *fb, int color_plane, unsigned int rotation)
