@@ -42,6 +42,7 @@
 #define CDN_FW_TIMEOUT_MS	(64 * 1000)
 #define CDN_DPCD_TIMEOUT_MS	5000
 #define CDN_DP_FIRMWARE		"rockchip/dptx.bin"
+MODULE_FIRMWARE(CDN_DP_FIRMWARE);
 
 struct cdn_dp_data {
 	u8 max_phy;
