@@ -23,44 +23,63 @@ int arch_jump_entry_size(struct jump_entry *entry)
 	return JMP32_INSN_SIZE;
 }
 
-static const void *
-__jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type)
+struct jump_label_patch {
+	const void *code;
+	int size;
+};
+
+static struct jump_label_patch
+__jump_label_patch(struct jump_entry *entry, enum jump_label_type type)
 {
-	const void *expect, *code;
+	const void *expect, *code, *nop;
 	const void *addr, *dest;
+	int size;
 
 	addr = (void *)jump_entry_code(entry);
 	dest = (void *)jump_entry_target(entry);
 
-	code = text_gen_insn(JMP32_INSN_OPCODE, addr, dest);
+	size = arch_jump_entry_size(entry);
+	switch (size) {
+	case JMP8_INSN_SIZE:
+		code = text_gen_insn(JMP8_INSN_OPCODE, addr, dest);
+		nop = x86_nops[size];
+		break;
+
+	case JMP32_INSN_SIZE:
+		code = text_gen_insn(JMP32_INSN_OPCODE, addr, dest);
+		nop = x86_nops[size];
+		break;
+
+	default: BUG();
+	}
 
 	if (type == JUMP_LABEL_JMP)
-		expect = x86_nops[5];
+		expect = nop;
 	else
 		expect = code;
 
-	if (memcmp(addr, expect, JUMP_LABEL_NOP_SIZE)) {
+	if (memcmp(addr, expect, size)) {
 		/*
 		 * The location is not an op that we were expecting.
 		 * Something went wrong. Crash the box, as something could be
 		 * corrupting the kernel.
 		 */
-		pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph != %5ph)) type:%d\n",
-				addr, addr, addr, expect, type);
+		pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph != %5ph)) size:%d type:%d\n",
+				addr, addr, addr, expect, size, type);
 		BUG();
 	}
 
 	if (type == JUMP_LABEL_NOP)
-		code = x86_nops[5];
+		code = nop;
 
-	return code;
+	return (struct jump_label_patch){.code = code, .size = size};
 }
 
 static inline void __jump_label_transform(struct jump_entry *entry,
 					  enum jump_label_type type,
 					  int init)
 {
-	const void *opcode = __jump_label_set_jump_code(entry, type);
+	const struct jump_label_patch jlp = __jump_label_patch(entry, type);
 
 	/*
 	 * As long as only a single processor is running and the code is still
@@ -74,12 +93,11 @@ static inline void __jump_label_transform(struct jump_entry *entry,
 	 * always nop being the 'currently valid' instruction
 	 */
 	if (init || system_state == SYSTEM_BOOTING) {
-		text_poke_early((void *)jump_entry_code(entry), opcode,
-				JUMP_LABEL_NOP_SIZE);
+		text_poke_early((void *)jump_entry_code(entry), jlp.code, jlp.size);
 		return;
 	}
 
-	text_poke_bp((void *)jump_entry_code(entry), opcode, JUMP_LABEL_NOP_SIZE, NULL);
+	text_poke_bp((void *)jump_entry_code(entry), jlp.code, jlp.size, NULL);
 }
 
 static void __ref jump_label_transform(struct jump_entry *entry,
@@ -100,7 +118,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 bool arch_jump_label_transform_queue(struct jump_entry *entry,
 				     enum jump_label_type type)
 {
-	const void *opcode;
+	struct jump_label_patch jlp;
 
 	if (system_state == SYSTEM_BOOTING) {
 		/*
@@ -111,9 +129,8 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 	}
 
 	mutex_lock(&text_mutex);
-	opcode = __jump_label_set_jump_code(entry, type);
-	text_poke_queue((void *)jump_entry_code(entry),
-			opcode, JUMP_LABEL_NOP_SIZE, NULL);
+	jlp = __jump_label_patch(entry, type);
+	text_poke_queue((void *)jump_entry_code(entry), jlp.code, jlp.size, NULL);
 	mutex_unlock(&text_mutex);
 	return true;
 }
