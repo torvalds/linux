@@ -76,6 +76,8 @@ struct dccg_funcs {
 	void (*get_dccg_ref_freq)(struct dccg *dccg,
 			unsigned int xtalin_freq_inKhz,
 			unsigned int *dccg_ref_freq_inKhz);
+	void (*set_fifo_errdet_ovr_en)(struct dccg *dccg,
+			bool en);
 	void (*dccg_init)(struct dccg *dccg);
 #if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 

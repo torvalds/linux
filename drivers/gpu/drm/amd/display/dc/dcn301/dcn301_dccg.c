@@ -45,6 +45,7 @@
 static const struct dccg_funcs dccg301_funcs = {
 	.update_dpp_dto = dccg2_update_dpp_dto,
 	.get_dccg_ref_freq = dccg2_get_dccg_ref_freq,
+	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
 	.dccg_init = dccg2_init
 };
 
