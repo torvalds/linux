@@ -4,8 +4,8 @@ This controller is present on BCM6318, BCM6328, BCM6362 and BCM63268.
 In these SoCs it's possible to control LEDs both as GPIOs or by hardware.
 However, on some devices there are Serial LEDs (LEDs connected to a 74x164
 controller), which can either be controlled by software (exporting the 74x164
-as spi-gpio. See Documentation/devicetree/bindings/gpio/gpio-74x164.txt), or
-by hardware using this driver.
+as spi-gpio. See Documentation/devicetree/bindings/gpio/fairchild,74hc595.yaml),
+or by hardware using this driver.
 Some of these Serial LEDs are hardware controlled (e.g. ethernet LEDs) and
 exporting the 74x164 as spi-gpio prevents those LEDs to be hardware
 controlled, so the only chance to keep them working is by using this driver.
