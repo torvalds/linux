@@ -401,7 +401,7 @@ static int __init _samsung_pwm_clocksource_init(void)
 
 void __init samsung_pwm_clocksource_init(void __iomem *base,
 					 unsigned int *irqs,
-					 struct samsung_pwm_variant *variant)
+					 const struct samsung_pwm_variant *variant)
 {
 	pwm.base = base;
 	memcpy(&pwm.variant, variant, sizeof(pwm.variant));
