@@ -320,6 +320,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,msm8996-adsp-pil
               - qcom,msm8998-adsp-pas
     then:
       properties:
@@ -335,6 +336,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,msm8996-slpi-pil
               - qcom,msm8998-slpi-pas
     then:
       properties:
