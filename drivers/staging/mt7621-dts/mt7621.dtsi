@@ -489,7 +489,6 @@
 
 		device_type = "pci";
 
-		bus-range = <0 255>;
 		ranges = <0x02000000 0 0x00000000 0x60000000 0 0x10000000>, /* pci memory */
 			 <0x01000000 0 0x00000000 0x1e160000 0 0x00010000>; /* io space */
 
@@ -520,7 +519,6 @@
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &gic GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH>;
 			ranges;
-			bus-range = <0x00 0xff>;
 		};
 
 		pcie@1,0 {
@@ -531,7 +529,6 @@
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &gic GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH>;
 			ranges;
-			bus-range = <0x00 0xff>;
 		};
 
 		pcie@2,0 {
@@ -542,7 +539,6 @@
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &gic GIC_SHARED 25 IRQ_TYPE_LEVEL_HIGH>;
 			ranges;
-			bus-range = <0x00 0xff>;
 		};
 	};
 
