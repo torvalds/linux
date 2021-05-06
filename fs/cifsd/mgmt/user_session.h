@@ -56,8 +56,8 @@ struct ksmbd_session {
 
 
 
-	__u8				smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
-	__u8				smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
+	__u8				smb3encryptionkey[SMB3_ENC_DEC_KEY_SIZE];
+	__u8				smb3decryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8				smb3signingkey[SMB3_SIGN_KEY_SIZE];
 
 	struct list_head		sessions_entry;

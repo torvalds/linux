@@ -42,10 +42,10 @@ static struct crypto_aead *alloc_aead(int id)
 	struct crypto_aead *tfm = NULL;
 
 	switch (id) {
-	case CRYPTO_AEAD_AES128_GCM:
+	case CRYPTO_AEAD_AES_GCM:
 		tfm = crypto_alloc_aead("gcm(aes)", 0, 0);
 		break;
-	case CRYPTO_AEAD_AES128_CCM:
+	case CRYPTO_AEAD_AES_CCM:
 		tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
 		break;
 	default:
@@ -248,12 +248,12 @@ static struct ksmbd_crypto_ctx *____crypto_aead_ctx_find(int id)
 
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_gcm(void)
 {
-	return ____crypto_aead_ctx_find(CRYPTO_AEAD_AES128_GCM);
+	return ____crypto_aead_ctx_find(CRYPTO_AEAD_AES_GCM);
 }
 
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_ccm(void)
 {
-	return ____crypto_aead_ctx_find(CRYPTO_AEAD_AES128_CCM);
+	return ____crypto_aead_ctx_find(CRYPTO_AEAD_AES_CCM);
 }
 
 void ksmbd_crypto_destroy(void)

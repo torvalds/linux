@@ -77,6 +77,13 @@
 #define SMB2_SIGNATURE_SIZE		16
 #define SMB2_HMACSHA256_SIZE		32
 #define SMB2_CMACAES_SIZE		16
+#define SMB3_GCM128_CRYPTKEY_SIZE	16
+#define SMB3_GCM256_CRYPTKEY_SIZE	32
+
+/*
+ * Size of the smb3 encryption/decryption keys
+ */
+#define SMB3_ENC_DEC_KEY_SIZE		32
 
 /*
  * Size of the smb3 signing key
@@ -151,8 +158,8 @@ struct smb2_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
-#define SMB3_AES128CCM_NONCE 11
-#define SMB3_AES128GCM_NONCE 12
+#define SMB3_AES_CCM_NONCE 11
+#define SMB3_AES_GCM_NONCE 12
 
 struct smb2_transform_hdr {
 	__be32 smb2_buf_length; /* big endian on wire */
@@ -283,13 +290,16 @@ struct smb2_preauth_neg_context {
 /* Encryption Algorithms Ciphers */
 #define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
 #define SMB2_ENCRYPTION_AES128_GCM	cpu_to_le16(0x0002)
+#define SMB2_ENCRYPTION_AES256_CCM	cpu_to_le16(0x0003)
+#define SMB2_ENCRYPTION_AES256_GCM	cpu_to_le16(0x0004)
 
 struct smb2_encryption_neg_context {
 	__le16	ContextType; /* 2 */
 	__le16	DataLength;
 	__le32	Reserved;
-	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
-	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
+	/* CipherCount usally 2, but can be 3 when AES256-GCM enabled */
+	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM by default */
+	__le16	Ciphers[1];
 } __packed;
 
 #define SMB3_COMPRESS_NONE	cpu_to_le16(0x0000)

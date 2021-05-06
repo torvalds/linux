@@ -835,7 +835,8 @@ static int generate_key(struct ksmbd_session *sess, struct kvec label,
 {
 	unsigned char zero = 0x0;
 	__u8 i[4] = {0, 0, 0, 1};
-	__u8 L[4] = {0, 0, 0, 128};
+	__u8 L128[4] = {0, 0, 0, 128};
+	__u8 L256[4] = {0, 0, 1, 0};
 	int rc = -EINVAL;
 	unsigned char prfhash[SMB2_HMACSHA256_SIZE];
 	unsigned char *hashptr = prfhash;
@@ -890,7 +891,11 @@ static int generate_key(struct ksmbd_session *sess, struct kvec label,
 		goto smb3signkey_ret;
 	}
 
-	rc = crypto_shash_update(CRYPTO_HMACSHA256(ctx), L, 4);
+	if (sess->conn->cipher_type == SMB2_ENCRYPTION_AES256_CCM ||
+	    sess->conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+		rc = crypto_shash_update(CRYPTO_HMACSHA256(ctx), L256, 4);
+	else
+		rc = crypto_shash_update(CRYPTO_HMACSHA256(ctx), L128, 4);
 	if (rc) {
 		ksmbd_debug(AUTH, "could not update with L\n");
 		goto smb3signkey_ret;
@@ -981,24 +986,33 @@ static int generate_smb3encryptionkey(struct ksmbd_session *sess,
 
 	rc = generate_key(sess, ptwin->encryption.label,
 			ptwin->encryption.context, sess->smb3encryptionkey,
-			SMB3_SIGN_KEY_SIZE);
+			SMB3_ENC_DEC_KEY_SIZE);
 	if (rc)
 		return rc;
 
 	rc = generate_key(sess, ptwin->decryption.label,
 			ptwin->decryption.context,
-			sess->smb3decryptionkey, SMB3_SIGN_KEY_SIZE);
+			sess->smb3decryptionkey, SMB3_ENC_DEC_KEY_SIZE);
 	if (rc)
 		return rc;
 
 	ksmbd_debug(AUTH, "dumping generated AES encryption keys\n");
+	ksmbd_debug(AUTH, "Cipher type   %d\n", sess->conn->cipher_type);
 	ksmbd_debug(AUTH, "Session Id    %llu\n", sess->id);
 	ksmbd_debug(AUTH, "Session Key   %*ph\n",
 			SMB2_NTLMV2_SESSKEY_SIZE, sess->sess_key);
-	ksmbd_debug(AUTH, "ServerIn Key  %*ph\n",
-			SMB3_SIGN_KEY_SIZE, sess->smb3encryptionkey);
-	ksmbd_debug(AUTH, "ServerOut Key %*ph\n",
-			SMB3_SIGN_KEY_SIZE, sess->smb3decryptionkey);
+	if (sess->conn->cipher_type == SMB2_ENCRYPTION_AES256_CCM ||
+	    sess->conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) {
+		ksmbd_debug(AUTH, "ServerIn Key  %*ph\n",
+			SMB3_GCM256_CRYPTKEY_SIZE, sess->smb3encryptionkey);
+		ksmbd_debug(AUTH, "ServerOut Key %*ph\n",
+			SMB3_GCM256_CRYPTKEY_SIZE, sess->smb3decryptionkey);
+	} else {
+		ksmbd_debug(AUTH, "ServerIn Key  %*ph\n",
+			SMB3_GCM128_CRYPTKEY_SIZE, sess->smb3encryptionkey);
+		ksmbd_debug(AUTH, "ServerOut Key %*ph\n",
+			SMB3_GCM128_CRYPTKEY_SIZE, sess->smb3decryptionkey);
+	}
 	return rc;
 }
 
@@ -1136,7 +1150,7 @@ static int ksmbd_get_encryption_key(struct ksmbd_conn *conn, __u64 ses_id,
 
 	ses_enc_key = enc ? sess->smb3encryptionkey :
 		sess->smb3decryptionkey;
-	memcpy(key, ses_enc_key, SMB3_SIGN_KEY_SIZE);
+	memcpy(key, ses_enc_key, SMB3_ENC_DEC_KEY_SIZE);
 
 	return 0;
 }
@@ -1224,7 +1238,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 	int rc = 0;
 	struct scatterlist *sg;
 	u8 sign[SMB2_SIGNATURE_SIZE] = {};
-	u8 key[SMB3_SIGN_KEY_SIZE];
+	u8 key[SMB3_ENC_DEC_KEY_SIZE];
 	struct aead_request *req;
 	char *iv;
 	unsigned int iv_len;
@@ -1241,7 +1255,8 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 		return 0;
 	}
 
-	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM)
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
 		ctx = ksmbd_crypto_ctx_find_gcm();
 	else
 		ctx = ksmbd_crypto_ctx_find_ccm();
@@ -1250,12 +1265,17 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 		return -EINVAL;
 	}
 
-	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM)
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
 		tfm = CRYPTO_GCM(ctx);
 	else
 		tfm = CRYPTO_CCM(ctx);
 
-	rc = crypto_aead_setkey(tfm, key, SMB3_SIGN_KEY_SIZE);
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES256_CCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+		rc = crypto_aead_setkey(tfm, key, SMB3_GCM256_CRYPTKEY_SIZE);
+	else
+		rc = crypto_aead_setkey(tfm, key, SMB3_GCM128_CRYPTKEY_SIZE);
 	if (rc) {
 		ksmbd_err("Failed to set aead key %d\n", rc);
 		goto free_ctx;
@@ -1294,11 +1314,12 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 		goto free_sg;
 	}
 
-	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM) {
-		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES128GCM_NONCE);
+	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) {
+		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
 	} else {
 		iv[0] = 3;
-		memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES128CCM_NONCE);
+		memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
 	}
 
 	aead_request_set_crypt(req, sg, sg, crypt_len, iv);

@@ -904,7 +904,9 @@ static int decode_encrypt_ctxt(struct ksmbd_conn *conn,
 
 	for (i = 0; i < cph_cnt; i++) {
 		if (pneg_ctxt->Ciphers[i] == SMB2_ENCRYPTION_AES128_GCM ||
-		    pneg_ctxt->Ciphers[i] == SMB2_ENCRYPTION_AES128_CCM) {
+		    pneg_ctxt->Ciphers[i] == SMB2_ENCRYPTION_AES128_CCM ||
+		    pneg_ctxt->Ciphers[i] == SMB2_ENCRYPTION_AES256_CCM ||
+		    pneg_ctxt->Ciphers[i] == SMB2_ENCRYPTION_AES256_GCM) {
 			ksmbd_debug(SMB, "Cipher ID = 0x%x\n",
 				pneg_ctxt->Ciphers[i]);
 			conn->cipher_type = pneg_ctxt->Ciphers[i];
@@ -7979,10 +7981,11 @@ static void fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, char *old_buf,
 	tr_hdr->ProtocolId = SMB2_TRANSFORM_PROTO_NUM;
 	tr_hdr->OriginalMessageSize = cpu_to_le32(orig_len);
 	tr_hdr->Flags = cpu_to_le16(0x01);
-	if (cipher_type == SMB2_ENCRYPTION_AES128_GCM)
-		get_random_bytes(&tr_hdr->Nonce, SMB3_AES128GCM_NONCE);
+	if (cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
+	    cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
 	else
-		get_random_bytes(&tr_hdr->Nonce, SMB3_AES128CCM_NONCE);
+		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
 	memcpy(&tr_hdr->SessionId, &hdr->SessionId, 8);
 	inc_rfc1001_len(tr_hdr, sizeof(struct smb2_transform_hdr) - 4);
 	inc_rfc1001_len(tr_hdr, orig_len);
