@@ -3753,8 +3753,6 @@ static void android_rvh_set_task_cpu(void *unused, struct task_struct *p, unsign
 {
 	if (unlikely(walt_disabled))
 		return;
-	if (new_cpu < 0)
-		return;
 	fixup_busy_time(p, (int) new_cpu);
 }
 
