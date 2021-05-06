@@ -15,11 +15,13 @@ static inline void kuap_update_sr(u32 sr, u32 addr, u32 end)
 {
 	addr &= 0xf0000000;	/* align addr to start of segment */
 	barrier();	/* make sure thread.kuap is updated before playing with SRs */
-	while (addr < end) {
+	for (;;) {
 		mtsr(sr, addr);
+		addr += 0x10000000;	/* address of next segment */
+		if (addr >= end)
+			break;
 		sr += 0x111;		/* next VSID */
 		sr &= 0xf0ffffff;	/* clear VSID overflow */
-		addr += 0x10000000;	/* address of next segment */
 	}
 	isync();	/* Context sync required after mtsr() */
 }
