@@ -601,7 +601,11 @@ plane_view_dst_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
 			    unsigned int pitch_tiles)
 {
 	if (intel_fb_needs_pot_stride_remap(fb))
-		return roundup_pow_of_two(pitch_tiles);
+		/*
+		 * ADL_P, the only platform needing a POT stride has a minimum
+		 * of 8 stride tiles.
+		 */
+		return roundup_pow_of_two(max(pitch_tiles, 8u));
 	else
 		return pitch_tiles;
 }
