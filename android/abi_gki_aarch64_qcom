@@ -1191,6 +1191,7 @@
   irq_domain_update_bus_token
   irq_domain_xlate_onecell
   irq_domain_xlate_twocell
+  irq_do_set_affinity
   irq_find_mapping
   irq_find_matching_fwspec
   irq_get_irqchip_state
