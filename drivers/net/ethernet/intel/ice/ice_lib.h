@@ -45,7 +45,7 @@ int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi);
 
 bool ice_vsi_is_vlan_pruning_ena(struct ice_vsi *vsi);
 
-int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
+int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena);
 
 void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
 
