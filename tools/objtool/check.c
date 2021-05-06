@@ -1234,6 +1234,20 @@ static int handle_jump_alt(struct objtool_file *file,
 		return -1;
 	}
 
+	if (special_alt->key_addend & 2) {
+		struct reloc *reloc = insn_reloc(file, orig_insn);
+
+		if (reloc) {
+			reloc->type = R_NONE;
+			elf_write_reloc(file->elf, reloc);
+		}
+		elf_write_insn(file->elf, orig_insn->sec,
+			       orig_insn->offset, orig_insn->len,
+			       arch_nop_insn(orig_insn->len));
+		orig_insn->type = INSN_NOP;
+		return 0;
+	}
+
 	*new_insn = list_next_entry(orig_insn, list);
 	return 0;
 }
