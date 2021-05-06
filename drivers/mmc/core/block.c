@@ -1167,7 +1167,7 @@ static void mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 	struct mmc_card *card = md->queue.card;
 	int ret = 0;
 
-	ret = mmc_flush_cache(card);
+	ret = mmc_flush_cache(card->host);
 	blk_mq_end_request(req, ret ? BLK_STS_IOERR : BLK_STS_OK);
 }
 

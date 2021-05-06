@@ -20,7 +20,6 @@
 #include "mmc_ops.h"
 
 #define MMC_BKOPS_TIMEOUT_MS		(120 * 1000) /* 120s */
-#define MMC_CACHE_FLUSH_TIMEOUT_MS	(30 * 1000) /* 30s */
 #define MMC_SANITIZE_TIMEOUT_MS		(240 * 1000) /* 240s */
 
 static const u8 tuning_blk_pattern_4bit[] = {
@@ -963,26 +962,6 @@ void mmc_run_bkops(struct mmc_card *card)
 	mmc_retune_release(card->host);
 }
 EXPORT_SYMBOL(mmc_run_bkops);
-
-/*
- * Flush the cache to the non-volatile storage.
- */
-int mmc_flush_cache(struct mmc_card *card)
-{
-	int err = 0;
-
-	if (mmc_cache_enabled(card->host)) {
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				 EXT_CSD_FLUSH_CACHE, 1,
-				 MMC_CACHE_FLUSH_TIMEOUT_MS);
-		if (err)
-			pr_err("%s: cache flush error %d\n",
-					mmc_hostname(card->host), err);
-	}
-
-	return err;
-}
-EXPORT_SYMBOL(mmc_flush_cache);
 
 static int mmc_cmdq_switch(struct mmc_card *card, bool enable)
 {
