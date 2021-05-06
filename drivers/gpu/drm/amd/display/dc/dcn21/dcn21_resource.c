@@ -448,11 +448,11 @@ static const struct dccg_registers dccg_regs = {
 };
 
 static const struct dccg_shift dccg_shift = {
-		DCCG_MASK_SH_LIST_DCN2(__SHIFT)
+		DCCG_MASK_SH_LIST_DCN2_1(__SHIFT)
 };
 
 static const struct dccg_mask dccg_mask = {
-		DCCG_MASK_SH_LIST_DCN2(_MASK)
+		DCCG_MASK_SH_LIST_DCN2_1(_MASK)
 };
 
 #define opp_regs(id)\

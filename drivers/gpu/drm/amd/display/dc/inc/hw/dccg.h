@@ -78,6 +78,10 @@ struct dccg_funcs {
 			unsigned int *dccg_ref_freq_inKhz);
 	void (*set_fifo_errdet_ovr_en)(struct dccg *dccg,
 			bool en);
+	void (*otg_add_pixel)(struct dccg *dccg,
+			uint32_t otg_inst);
+	void (*otg_drop_pixel)(struct dccg *dccg,
+			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
 #if defined(CONFIG_DRM_AMD_DC_DCN3_1)
 
