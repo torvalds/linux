@@ -16,6 +16,13 @@
 #include <asm/alternative.h>
 #include <asm/text-patching.h>
 
+#define JUMP_LABEL_NOP_SIZE	JMP32_INSN_SIZE
+
+int arch_jump_entry_size(struct jump_entry *entry)
+{
+	return JMP32_INSN_SIZE;
+}
+
 static const void *
 __jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type)
 {

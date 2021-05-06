@@ -4,8 +4,6 @@
 
 #define HAVE_JUMP_LABEL_BATCH
 
-#define JUMP_LABEL_NOP_SIZE 5
-
 #include <asm/asm.h>
 #include <asm/nops.h>
 
@@ -46,6 +44,8 @@ static __always_inline bool arch_static_branch_jump(struct static_key * const ke
 l_yes:
 	return true;
 }
+
+extern int arch_jump_entry_size(struct jump_entry *entry);
 
 #endif	/* __ASSEMBLY__ */
 
