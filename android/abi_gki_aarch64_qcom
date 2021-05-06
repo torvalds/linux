@@ -56,6 +56,7 @@
   bdput
   bio_endio
   bitmap_allocate_region
+  __bitmap_andnot
   __bitmap_clear
   bitmap_find_next_zero_area_off
   __bitmap_or
@@ -272,6 +273,7 @@
   cpu_latency_qos_remove_request
   cpu_latency_qos_request_active
   cpu_latency_qos_update_request
+  cpumask_any_but
   cpumask_next
   cpumask_next_and
   cpu_number
