@@ -111,8 +111,6 @@ struct mlme_priv {
 	u8 to_join; /* flag */
 	u8 to_roaming; /*  roaming trying times */
 
-	u8 *nic_hdl;
-
 	struct list_head *pscanned;
 	struct __queue free_bss_pool;
 	struct __queue scanned_queue;

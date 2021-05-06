@@ -32,8 +32,6 @@ int rtw_init_mlme_priv(struct adapter *padapter)
 
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
 
-	pmlmepriv->nic_hdl = (u8 *)padapter;
-
 	pmlmepriv->pscanned = NULL;
 	pmlmepriv->fw_state = 0;
 	pmlmepriv->cur_network.network.InfrastructureMode = Ndis802_11AutoUnknown;
@@ -1446,7 +1444,7 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 {
 	int ret;
 	struct list_head *phead;
-	struct adapter *adapter;
+	struct adapter *adapter = container_of(pmlmepriv, struct adapter, mlmepriv);
 	struct __queue *queue = &pmlmepriv->scanned_queue;
 	struct wlan_network *pnetwork = NULL;
 	struct wlan_network *candidate = NULL;
@@ -1454,7 +1452,6 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 
 	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 	phead = get_list_head(queue);
-	adapter = (struct adapter *)pmlmepriv->nic_hdl;
 	list_for_each(pmlmepriv->pscanned, phead) {
 		pnetwork = list_entry(pmlmepriv->pscanned,
 				      struct wlan_network, list);
