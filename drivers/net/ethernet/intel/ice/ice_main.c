@@ -3078,7 +3078,6 @@ static void ice_set_netdev_features(struct net_device *netdev)
  */
 static int ice_cfg_netdev(struct ice_vsi *vsi)
 {
-	struct ice_pf *pf = vsi->back;
 	struct ice_netdev_priv *np;
 	struct net_device *netdev;
 	u8 mac_addr[ETH_ALEN];
@@ -3098,7 +3097,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	ice_set_ops(netdev);
 
 	if (vsi->type == ICE_VSI_PF) {
-		SET_NETDEV_DEV(netdev, ice_pf_to_dev(pf));
+		SET_NETDEV_DEV(netdev, ice_pf_to_dev(vsi->back));
 		ether_addr_copy(mac_addr, vsi->port_info->mac.perm_addr);
 		ether_addr_copy(netdev->dev_addr, mac_addr);
 		ether_addr_copy(netdev->perm_addr, mac_addr);
