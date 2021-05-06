@@ -16,37 +16,32 @@
 #include <asm/alternative.h>
 #include <asm/text-patching.h>
 
-static void bug_at(const void *ip, int line)
-{
-	/*
-	 * The location is not an op that we were expecting.
-	 * Something went wrong. Crash the box, as something could be
-	 * corrupting the kernel.
-	 */
-	pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph) %d\n", ip, ip, ip, line);
-	BUG();
-}
-
 static const void *
 __jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type)
 {
 	const void *expect, *code;
 	const void *addr, *dest;
-	int line;
 
 	addr = (void *)jump_entry_code(entry);
 	dest = (void *)jump_entry_target(entry);
 
 	code = text_gen_insn(JMP32_INSN_OPCODE, addr, dest);
 
-	if (type == JUMP_LABEL_JMP) {
-		expect = x86_nops[5]; line = __LINE__;
-	} else {
-		expect = code; line = __LINE__;
-	}
+	if (type == JUMP_LABEL_JMP)
+		expect = x86_nops[5];
+	else
+		expect = code;
 
-	if (memcmp(addr, expect, JUMP_LABEL_NOP_SIZE))
-		bug_at(addr, line);
+	if (memcmp(addr, expect, JUMP_LABEL_NOP_SIZE)) {
+		/*
+		 * The location is not an op that we were expecting.
+		 * Something went wrong. Crash the box, as something could be
+		 * corrupting the kernel.
+		 */
+		pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph != %5ph)) type:%d\n",
+				addr, addr, addr, expect, type);
+		BUG();
+	}
 
 	if (type == JUMP_LABEL_NOP)
 		code = x86_nops[5];
