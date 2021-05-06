@@ -623,7 +623,7 @@ static u64 nft_hash_privsize(const struct nlattr * const nla[],
 			     const struct nft_set_desc *desc)
 {
 	return sizeof(struct nft_hash) +
-	       nft_hash_buckets(desc->size) * sizeof(struct hlist_head);
+	       (u64)nft_hash_buckets(desc->size) * sizeof(struct hlist_head);
 }
 
 static int nft_hash_init(const struct nft_set *set,
@@ -663,8 +663,8 @@ static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 		return false;
 
 	est->size   = sizeof(struct nft_hash) +
-		      nft_hash_buckets(desc->size) * sizeof(struct hlist_head) +
-		      desc->size * sizeof(struct nft_hash_elem);
+		      (u64)nft_hash_buckets(desc->size) * sizeof(struct hlist_head) +
+		      (u64)desc->size * sizeof(struct nft_hash_elem);
 	est->lookup = NFT_SET_CLASS_O_1;
 	est->space  = NFT_SET_CLASS_O_N;
 
@@ -681,8 +681,8 @@ static bool nft_hash_fast_estimate(const struct nft_set_desc *desc, u32 features
 		return false;
 
 	est->size   = sizeof(struct nft_hash) +
-		      nft_hash_buckets(desc->size) * sizeof(struct hlist_head) +
-		      desc->size * sizeof(struct nft_hash_elem);
+		      (u64)nft_hash_buckets(desc->size) * sizeof(struct hlist_head) +
+		      (u64)desc->size * sizeof(struct nft_hash_elem);
 	est->lookup = NFT_SET_CLASS_O_1;
 	est->space  = NFT_SET_CLASS_O_N;
 
