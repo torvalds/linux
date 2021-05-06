@@ -7,7 +7,6 @@
  * IIO driver for STK8312; 7-bit I2C address: 0x3D.
  */
 
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -642,18 +641,10 @@ static const struct i2c_device_id stk8312_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, stk8312_i2c_id);
 
-static const struct acpi_device_id stk8312_acpi_id[] = {
-	{ "STK8312", 0 },
-	{}
-};
-
-MODULE_DEVICE_TABLE(acpi, stk8312_acpi_id);
-
 static struct i2c_driver stk8312_driver = {
 	.driver = {
 		.name = STK8312_DRIVER_NAME,
 		.pm = STK8312_PM_OPS,
-		.acpi_match_table = ACPI_PTR(stk8312_acpi_id),
 	},
 	.probe =            stk8312_probe,
 	.remove =           stk8312_remove,
