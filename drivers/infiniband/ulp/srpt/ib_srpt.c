@@ -2858,7 +2858,6 @@ static void srpt_queue_response(struct se_cmd *cmd)
 			&ch->sq_wr_avail) < 0)) {
 		pr_warn("%s: IB send queue full (needed %d)\n",
 				__func__, ioctx->n_rdma);
-		ret = -ENOMEM;
 		goto out;
 	}
 
