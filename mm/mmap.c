@@ -55,7 +55,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/mmap.h>
-
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/mm.h>
 #include "internal.h"
 
 #ifndef arch_mmap_check
@@ -2093,11 +2094,16 @@ static unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long length, low_limit, high_limit, gap_start, gap_end;
+	unsigned long addr;
 
 	/* Adjust search length to account for worst case alignment overhead */
 	length = info->length + info->align_mask;
 	if (length < info->length)
 		return -ENOMEM;
+
+	trace_android_vh_get_unmapped_area_from_anti_fragment_pool(mm, info, &addr);
+	if (addr)
+		return addr;
 
 	/*
 	 * Adjust search limits by the desired length.
@@ -2301,6 +2307,7 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 	info.high_limit = arch_get_mmap_base(addr, mm->mmap_base);
 	info.align_mask = 0;
 	info.align_offset = 0;
+	trace_android_vh_exclude_reserved_zone(mm, &info);
 	addr = vm_unmapped_area(&info);
 
 	/*
@@ -2316,6 +2323,8 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 		info.high_limit = mmap_end;
 		addr = vm_unmapped_area(&info);
 	}
+
+	trace_android_vh_get_unmapped_area_include_reserved_zone(mm, &info, &addr);
 
 	return addr;
 }
