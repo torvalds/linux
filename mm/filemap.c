@@ -835,6 +835,8 @@ EXPORT_SYMBOL(file_write_and_wait_range);
  */
 void replace_page_cache_page(struct page *old, struct page *new)
 {
+	struct folio *fold = page_folio(old);
+	struct folio *fnew = page_folio(new);
 	struct address_space *mapping = old->mapping;
 	void (*freepage)(struct page *) = mapping->a_ops->freepage;
 	pgoff_t offset = old->index;
@@ -848,7 +850,7 @@ void replace_page_cache_page(struct page *old, struct page *new)
 	new->mapping = mapping;
 	new->index = offset;
 
-	mem_cgroup_migrate(old, new);
+	mem_cgroup_migrate(fold, fnew);
 
 	xas_lock_irq(&xas);
 	xas_store(&xas, new);

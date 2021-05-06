@@ -6891,36 +6891,35 @@ void __mem_cgroup_uncharge_list(struct list_head *page_list)
 }
 
 /**
- * mem_cgroup_migrate - charge a page's replacement
- * @oldpage: currently circulating page
- * @newpage: replacement page
+ * mem_cgroup_migrate - Charge a folio's replacement.
+ * @old: Currently circulating folio.
+ * @new: Replacement folio.
  *
- * Charge @newpage as a replacement page for @oldpage. @oldpage will
+ * Charge @new as a replacement folio for @old. @old will
  * be uncharged upon free.
  *
- * Both pages must be locked, @newpage->mapping must be set up.
+ * Both folios must be locked, @new->mapping must be set up.
  */
-void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
+void mem_cgroup_migrate(struct folio *old, struct folio *new)
 {
-	struct folio *newfolio = page_folio(newpage);
 	struct mem_cgroup *memcg;
-	long nr_pages = folio_nr_pages(newfolio);
+	long nr_pages = folio_nr_pages(new);
 	unsigned long flags;
 
-	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-	VM_BUG_ON_FOLIO(!folio_test_locked(newfolio), newfolio);
-	VM_BUG_ON_FOLIO(PageAnon(oldpage) != folio_test_anon(newfolio), newfolio);
-	VM_BUG_ON_FOLIO(compound_nr(oldpage) != nr_pages, newfolio);
+	VM_BUG_ON_FOLIO(!folio_test_locked(old), old);
+	VM_BUG_ON_FOLIO(!folio_test_locked(new), new);
+	VM_BUG_ON_FOLIO(folio_test_anon(old) != folio_test_anon(new), new);
+	VM_BUG_ON_FOLIO(folio_nr_pages(old) != nr_pages, new);
 
 	if (mem_cgroup_disabled())
 		return;
 
-	/* Page cache replacement: new page already charged? */
-	if (folio_memcg(newfolio))
+	/* Page cache replacement: new folio already charged? */
+	if (folio_memcg(new))
 		return;
 
-	memcg = page_memcg(oldpage);
-	VM_WARN_ON_ONCE_PAGE(!memcg, oldpage);
+	memcg = folio_memcg(old);
+	VM_WARN_ON_ONCE_FOLIO(!memcg, old);
 	if (!memcg)
 		return;
 
@@ -6932,11 +6931,11 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 	}
 
 	css_get(&memcg->css);
-	commit_charge(newfolio, memcg);
+	commit_charge(new, memcg);
 
 	local_irq_save(flags);
 	mem_cgroup_charge_statistics(memcg, nr_pages);
-	memcg_check_events(memcg, page_to_nid(newpage));
+	memcg_check_events(memcg, folio_nid(new));
 	local_irq_restore(flags);
 }
 
