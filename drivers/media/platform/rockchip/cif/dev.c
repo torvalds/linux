@@ -1266,7 +1266,7 @@ static int __init rkcif_clr_unready_dev(void)
 
 	return 0;
 }
-late_initcall_sync(rkcif_clr_unready_dev);
+late_initcall(rkcif_clr_unready_dev);
 #endif
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
