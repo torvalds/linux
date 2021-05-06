@@ -763,7 +763,7 @@ static int __sev_dbg_decrypt(struct kvm *kvm, unsigned long src_paddr,
 }
 
 static int __sev_dbg_decrypt_user(struct kvm *kvm, unsigned long paddr,
-				  unsigned long __user dst_uaddr,
+				  void __user *dst_uaddr,
 				  unsigned long dst_paddr,
 				  int size, int *err)
 {
@@ -787,8 +787,7 @@ static int __sev_dbg_decrypt_user(struct kvm *kvm, unsigned long paddr,
 
 	if (tpage) {
 		offset = paddr & 15;
-		if (copy_to_user((void __user *)(uintptr_t)dst_uaddr,
-				 page_address(tpage) + offset, size))
+		if (copy_to_user(dst_uaddr, page_address(tpage) + offset, size))
 			ret = -EFAULT;
 	}
 
@@ -800,9 +799,9 @@ e_free:
 }
 
 static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
-				  unsigned long __user vaddr,
+				  void __user *vaddr,
 				  unsigned long dst_paddr,
-				  unsigned long __user dst_vaddr,
+				  void __user *dst_vaddr,
 				  int size, int *error)
 {
 	struct page *src_tpage = NULL;
@@ -810,13 +809,12 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 	int ret, len = size;
 
 	/* If source buffer is not aligned then use an intermediate buffer */
-	if (!IS_ALIGNED(vaddr, 16)) {
+	if (!IS_ALIGNED((unsigned long)vaddr, 16)) {
 		src_tpage = alloc_page(GFP_KERNEL);
 		if (!src_tpage)
 			return -ENOMEM;
 
-		if (copy_from_user(page_address(src_tpage),
-				(void __user *)(uintptr_t)vaddr, size)) {
+		if (copy_from_user(page_address(src_tpage), vaddr, size)) {
 			__free_page(src_tpage);
 			return -EFAULT;
 		}
@@ -830,7 +828,7 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 	 *   - copy the source buffer in an intermediate buffer
 	 *   - use the intermediate buffer as source buffer
 	 */
-	if (!IS_ALIGNED(dst_vaddr, 16) || !IS_ALIGNED(size, 16)) {
+	if (!IS_ALIGNED((unsigned long)dst_vaddr, 16) || !IS_ALIGNED(size, 16)) {
 		int dst_offset;
 
 		dst_tpage = alloc_page(GFP_KERNEL);
@@ -855,7 +853,7 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 			       page_address(src_tpage), size);
 		else {
 			if (copy_from_user(page_address(dst_tpage) + dst_offset,
-					   (void __user *)(uintptr_t)vaddr, size)) {
+					   vaddr, size)) {
 				ret = -EFAULT;
 				goto e_free;
 			}
@@ -935,15 +933,15 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 		if (dec)
 			ret = __sev_dbg_decrypt_user(kvm,
 						     __sme_page_pa(src_p[0]) + s_off,
-						     dst_vaddr,
+						     (void __user *)dst_vaddr,
 						     __sme_page_pa(dst_p[0]) + d_off,
 						     len, &argp->error);
 		else
 			ret = __sev_dbg_encrypt_user(kvm,
 						     __sme_page_pa(src_p[0]) + s_off,
-						     vaddr,
+						     (void __user *)vaddr,
 						     __sme_page_pa(dst_p[0]) + d_off,
-						     dst_vaddr,
+						     (void __user *)dst_vaddr,
 						     len, &argp->error);
 
 		sev_unpin_memory(kvm, src_p, n);
