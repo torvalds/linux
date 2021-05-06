@@ -2151,7 +2151,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_check_supported(adev);
 
-	if (!adev->ras_hw_enabled || adev->asic_type == CHIP_VEGA10) {
+	if (!adev->ras_enabled || adev->asic_type == CHIP_VEGA10) {
 		/* set gfx block ras context feature for VEGA20 Gaming
 		 * send ras disable cmd to ras ta during ras late init.
 		 */
