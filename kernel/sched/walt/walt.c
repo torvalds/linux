@@ -4186,6 +4186,7 @@ static void walt_init(void)
 
 	input_boost_init();
 	core_ctl_init();
+	walt_boost_init();
 	waltgov_register();
 
 	i = match_string(sched_feat_names, __SCHED_FEAT_NR, "TTWU_QUEUE");

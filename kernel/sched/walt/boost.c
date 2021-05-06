@@ -291,3 +291,9 @@ done:
 	mutex_unlock(&boost_mutex);
 	return ret;
 }
+
+void walt_boost_init(void)
+{
+	/* force call the callbacks for default boost */
+	sched_set_boost(FULL_THROTTLE_BOOST);
+}

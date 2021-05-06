@@ -157,6 +157,7 @@ extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
 extern unsigned int sched_get_group_id(struct task_struct *p);
 extern void core_ctl_check(u64 wallclock);
 extern int sched_set_boost(int enable);
+extern void walt_boost_init(void);
 extern int sched_wake_up_idle_show(struct seq_file *m, void *v);
 extern ssize_t sched_wake_up_idle_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *offset);
