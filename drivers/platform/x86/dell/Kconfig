@@ -53,6 +53,7 @@ config DELL_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
+	depends on DELL_WMI || DELL_WMI = n
 	depends on SERIO_I8042
 	depends on DELL_SMBIOS
 	select POWER_SUPPLY
@@ -163,6 +164,14 @@ config DELL_WMI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
+
+config DELL_WMI_PRIVACY
+	bool "Dell WMI Hardware Privacy Support"
+	depends on DELL_WMI
+	depends on LEDS_TRIGGER_AUDIO
+	help
+	  This option adds integration with the "Dell Hardware Privacy"
+	  feature of Dell laptops to the dell-wmi driver.
 
 config DELL_WMI_AIO
 	tristate "WMI Hotkeys for Dell All-In-One series"

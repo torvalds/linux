@@ -5172,6 +5172,13 @@ M:	Pali Rohár <pali@kernel.org>
 S:	Maintained
 F:	drivers/platform/x86/dell/dell-wmi-base.c
 
+DELL WMI HARDWARE PRIVACY SUPPORT
+M:	Perry Yuan <Perry.Yuan@dell.com>
+L:	Dell.Client.Kernel@dell.com
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell/dell-wmi-privacy.c
+
 DELTA ST MEDIA DRIVER
 M:	Hugues Fruchet <hugues.fruchet@foss.st.com>
 L:	linux-media@vger.kernel.org
