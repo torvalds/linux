@@ -482,17 +482,35 @@ skl_plane_max_stride(struct intel_plane *plane,
 		     u32 pixel_format, u64 modifier,
 		     unsigned int rotation)
 {
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
+	int max_horizontal_pixels = 8192;
+	int max_stride_bytes;
 
-	/*
-	 * "The stride in bytes must not exceed the
-	 * of the size of 8K pixels and 32K bytes."
-	 */
+	if (DISPLAY_VER(i915) >= 13) {
+		/*
+		 * The stride in bytes must not exceed of the size
+		 * of 128K bytes. For pixel formats of 64bpp will allow
+		 * for a 16K pixel surface.
+		 */
+		max_stride_bytes = 131072;
+		if (cpp == 8)
+			max_horizontal_pixels = 16384;
+		else
+			max_horizontal_pixels = 65536;
+	} else {
+		/*
+		 * "The stride in bytes must not exceed the
+		 * of the size of 8K pixels and 32K bytes."
+		 */
+		max_stride_bytes = 32768;
+	}
+
 	if (drm_rotation_90_or_270(rotation))
-		return min(8192, 32768 / cpp);
+		return min(max_horizontal_pixels, max_stride_bytes / cpp);
 	else
-		return min(8192 * cpp, 32768);
+		return min(max_horizontal_pixels * cpp, max_stride_bytes);
 }
 
 
@@ -1457,7 +1475,10 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 		}
 	}
 
-	drm_WARN_ON(&dev_priv->drm, x > 8191 || y > 8191);
+	if (DISPLAY_VER(dev_priv) >= 13)
+		drm_WARN_ON(&dev_priv->drm, x > 65535 || y > 65535);
+	else
+		drm_WARN_ON(&dev_priv->drm, x > 8191 || y > 8191);
 
 	plane_state->view.color_plane[0].offset = offset;
 	plane_state->view.color_plane[0].x = x;
@@ -1531,7 +1552,10 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 		}
 	}
 
-	drm_WARN_ON(&i915->drm, x > 8191 || y > 8191);
+	if (DISPLAY_VER(i915) >= 13)
+		drm_WARN_ON(&i915->drm, x > 65535 || y > 65535);
+	else
+		drm_WARN_ON(&i915->drm, x > 8191 || y > 8191);
 
 	plane_state->view.color_plane[uv_plane].offset = offset;
 	plane_state->view.color_plane[uv_plane].x = x;
@@ -2244,7 +2268,11 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	val = intel_de_read(dev_priv, PLANE_STRIDE(pipe, plane_id));
 	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
-	fb->pitches[0] = (val & 0x3ff) * stride_mult;
+
+	if (DISPLAY_VER(dev_priv) >= 13)
+		fb->pitches[0] = (val & PLANE_STRIDE_MASK_XELPD) * stride_mult;
+	else
+		fb->pitches[0] = (val & PLANE_STRIDE_MASK) * stride_mult;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 
