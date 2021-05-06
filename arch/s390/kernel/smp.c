@@ -1234,3 +1234,55 @@ out:
 	return rc;
 }
 subsys_initcall(s390_smp_init);
+
+static __always_inline void set_new_lowcore(struct lowcore *lc)
+{
+	struct lowcore *old_lc = &S390_lowcore;
+	struct lowcore *new_lc = lc;
+	u32 pfx;
+	register struct lowcore *reg2 asm ("2") = new_lc;
+	register unsigned long	 reg3 asm ("3") = sizeof(*reg2);
+	register struct lowcore *reg4 asm ("4") = old_lc;
+	register unsigned long	 reg5 asm ("5") = sizeof(*reg4);
+
+	asm volatile(
+		"	st	2,%[pfx]\n"
+		"	mvcl	2,4\n"
+		"	spx	%[pfx]\n"
+		: "+&d" (reg2), "+&d" (reg3),
+		  "+&d" (reg4), "+&d" (reg5), [pfx] "=Q" (pfx)
+		: : "memory", "cc");
+}
+
+static int __init smp_reinit_ipl_cpu(void)
+{
+	unsigned long async_stack, nodat_stack, mcck_stack;
+	struct lowcore *lc, *lc_ipl;
+	unsigned long flags;
+
+	lc_ipl = lowcore_ptr[0];
+	lc = (struct lowcore *)	__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
+	nodat_stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+	async_stack = stack_alloc();
+	mcck_stack = stack_alloc();
+	if (!lc || !nodat_stack || !async_stack || !mcck_stack)
+		panic("Couldn't allocate memory");
+
+	local_irq_save(flags);
+	local_mcck_disable();
+	set_new_lowcore(lc);
+	S390_lowcore.nodat_stack = nodat_stack + STACK_INIT_OFFSET;
+	S390_lowcore.async_stack = async_stack + STACK_INIT_OFFSET;
+	S390_lowcore.mcck_stack = mcck_stack + STACK_INIT_OFFSET;
+	lowcore_ptr[0] = lc;
+	pcpu_devices[0].lowcore = lc;
+	local_mcck_enable();
+	local_irq_restore(flags);
+
+	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
+	memblock_free_late(lc_ipl->mcck_stack - STACK_INIT_OFFSET, THREAD_SIZE);
+	memblock_free_late((unsigned long) lc_ipl, sizeof(*lc_ipl));
+
+	return 0;
+}
+early_initcall(smp_reinit_ipl_cpu);

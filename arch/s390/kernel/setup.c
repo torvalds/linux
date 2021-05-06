@@ -341,27 +341,6 @@ int __init arch_early_irq_init(void)
 	return 0;
 }
 
-static int __init stack_realloc(void)
-{
-	unsigned long old, new;
-
-	old = S390_lowcore.async_stack - STACK_INIT_OFFSET;
-	new = stack_alloc();
-	if (!new)
-		panic("Couldn't allocate async stack");
-	WRITE_ONCE(S390_lowcore.async_stack, new + STACK_INIT_OFFSET);
-	free_pages(old, THREAD_SIZE_ORDER);
-
-	old = S390_lowcore.mcck_stack - STACK_INIT_OFFSET;
-	new = stack_alloc();
-	if (!new)
-		panic("Couldn't allocate machine check stack");
-	WRITE_ONCE(S390_lowcore.mcck_stack, new + STACK_INIT_OFFSET);
-	memblock_free_late(old, THREAD_SIZE);
-	return 0;
-}
-early_initcall(stack_realloc);
-
 void __init arch_call_rest_init(void)
 {
 	unsigned long stack;
