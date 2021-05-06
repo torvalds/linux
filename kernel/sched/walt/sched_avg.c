@@ -115,7 +115,7 @@ void sched_update_hyst_times(void)
 	int cpu;
 	unsigned long cpu_cap, coloc_busy_pct;
 
-	rtgb_active = is_rtgb_active() && (sched_boost() != CONSERVATIVE_BOOST)
+	rtgb_active = is_rtgb_active() && (sched_boost_type != CONSERVATIVE_BOOST)
 			&& (get_rtgb_active_time() < MAX_RTGB_TIME);
 
 	for_each_possible_cpu(cpu) {

@@ -404,25 +404,15 @@ static inline unsigned long cpu_util_cum(int cpu)
 	return READ_ONCE(cpu_rq(cpu)->cfs.avg.util_avg);
 }
 
-static inline enum sched_boost_policy sched_boost_policy(void)
-{
-	return boost_policy;
-}
-
-static inline int sched_boost(void)
-{
-	return sched_boost_type;
-}
-
 static inline bool rt_boost_on_big(void)
 {
-	return sched_boost() == FULL_THROTTLE_BOOST ?
-			(sched_boost_policy() == SCHED_BOOST_ON_BIG) : false;
+	return sched_boost_type == FULL_THROTTLE_BOOST ?
+			(boost_policy == SCHED_BOOST_ON_BIG) : false;
 }
 
 static inline bool is_full_throttle_boost(void)
 {
-	return sched_boost() == FULL_THROTTLE_BOOST;
+	return sched_boost_type == FULL_THROTTLE_BOOST;
 }
 
 static inline bool task_sched_boost(struct task_struct *p)
@@ -433,7 +423,7 @@ static inline bool task_sched_boost(struct task_struct *p)
 	struct walt_task_group *wtg;
 
 	/* optimization for FT boost, skip looking at tg */
-	if (sched_boost() == FULL_THROTTLE_BOOST)
+	if (sched_boost_type == FULL_THROTTLE_BOOST)
 		return true;
 
 	rcu_read_lock();
@@ -444,7 +434,7 @@ static inline bool task_sched_boost(struct task_struct *p)
 	}
 	tg = container_of(css, struct task_group, css);
 	wtg = (struct walt_task_group *) tg->android_vendor_data1;
-	sched_boost_enabled = wtg->sched_boost_enable[sched_boost()];
+	sched_boost_enabled = wtg->sched_boost_enable[sched_boost_type];
 	rcu_read_unlock();
 
 	return sched_boost_enabled;
@@ -452,7 +442,7 @@ static inline bool task_sched_boost(struct task_struct *p)
 
 static inline bool task_placement_boost_enabled(struct task_struct *p)
 {
-	if (likely(sched_boost_policy() == SCHED_BOOST_NONE))
+	if (likely(boost_policy == SCHED_BOOST_NONE))
 		return false;
 
 	return task_sched_boost(p);
@@ -462,16 +452,16 @@ static inline enum sched_boost_policy task_boost_policy(struct task_struct *p)
 {
 	enum sched_boost_policy policy;
 
-	if (likely(sched_boost_policy() == SCHED_BOOST_NONE))
+	if (likely(boost_policy == SCHED_BOOST_NONE))
 		return SCHED_BOOST_NONE;
 
-	policy = task_sched_boost(p) ? sched_boost_policy() : SCHED_BOOST_NONE;
+	policy = task_sched_boost(p) ? boost_policy : SCHED_BOOST_NONE;
 	if (policy == SCHED_BOOST_ON_BIG) {
 		/*
 		 * Filter out tasks less than min task util threshold
 		 * under conservative boost.
 		 */
-		if (sched_boost() == CONSERVATIVE_BOOST &&
+		if (sched_boost_type == CONSERVATIVE_BOOST &&
 			task_util(p) <= sysctl_sched_min_task_util_for_boost)
 			policy = SCHED_BOOST_NONE;
 	}
@@ -759,7 +749,6 @@ static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
 extern void sched_get_nr_running_avg(struct sched_avg_stats *stats);
 extern void sched_update_hyst_times(void);
 
-extern enum sched_boost_policy sched_boost_policy(void);
 extern void walt_rt_init(void);
 extern void walt_cfs_init(void);
 extern void walt_pause_init(void);

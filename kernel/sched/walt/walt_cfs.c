@@ -96,7 +96,7 @@ static inline bool walt_task_skip_min_cpu(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	return sched_boost() != CONSERVATIVE_BOOST &&
+	return (sched_boost_type != CONSERVATIVE_BOOST) &&
 		walt_get_rtg_status(p) && wts->unfilter;
 }
 

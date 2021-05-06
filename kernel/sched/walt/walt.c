@@ -60,8 +60,6 @@ static struct irq_work walt_cpufreq_irq_work;
 struct irq_work walt_migration_irq_work;
 unsigned int walt_rotation_enabled;
 cpumask_t asym_cap_sibling_cpus = CPU_MASK_NONE;
-unsigned int sched_boost_type;
-enum sched_boost_policy boost_policy;
 
 unsigned int __read_mostly sched_ravg_window = 20000000;
 unsigned int min_max_possible_capacity = 1024;
@@ -441,8 +439,7 @@ static void update_task_cpu_cycles(struct task_struct *p, int cpu,
 
 static inline bool is_ed_enabled(void)
 {
-	return (walt_rotation_enabled || (sched_boost_policy() !=
-		SCHED_BOOST_NONE));
+	return (walt_rotation_enabled || (boost_policy != SCHED_BOOST_NONE));
 }
 
 static inline bool is_ed_task(struct task_struct *p, u64 wallclock)
@@ -3079,8 +3076,7 @@ static bool is_cluster_hosting_top_app(struct walt_sched_cluster *cluster)
 	if (!grp)
 		return false;
 
-	grp_on_min = !grp->skip_min &&
-			(sched_boost_policy() != SCHED_BOOST_ON_BIG);
+	grp_on_min = !grp->skip_min && (boost_policy != SCHED_BOOST_ON_BIG);
 
 	return (is_min_capacity_cluster(cluster) == grp_on_min);
 }
@@ -3486,7 +3482,7 @@ void walt_rotation_checkpoint(int nr_big)
 	if (!hmp_capable())
 		return;
 
-	if (!sysctl_sched_walt_rotate_big_tasks || sched_boost() != NO_BOOST) {
+	if (!sysctl_sched_walt_rotate_big_tasks || sched_boost_type != NO_BOOST) {
 		walt_rotation_enabled = 0;
 		return;
 	}

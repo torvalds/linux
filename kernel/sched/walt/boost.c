@@ -14,8 +14,9 @@
  * ended up with their load characteristics. Any entity enabling
  * boost is responsible for disabling it as well.
  */
+unsigned int sched_boost_type;
+enum sched_boost_policy boost_policy;
 
-static enum sched_boost_policy boost_policy_dt = SCHED_BOOST_NONE;
 static DEFINE_MUTEX(boost_mutex);
 
 void walt_init_tg(struct task_group *tg)
@@ -72,11 +73,6 @@ static void set_boost_policy(int type)
 {
 	if (type == NO_BOOST || type == RESTRAINED_BOOST) {
 		boost_policy = SCHED_BOOST_NONE;
-		return;
-	}
-
-	if (boost_policy_dt) {
-		boost_policy = boost_policy_dt;
 		return;
 	}
 
