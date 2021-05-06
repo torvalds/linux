@@ -35,7 +35,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 		return rc;
 	zdev->state = ZPCI_FN_STATE_CONFIGURED;
 
-	return zpci_configure_device(zdev, zdev->fh);
+	return zpci_scan_configured_device(zdev, zdev->fh);
 }
 
 static int disable_slot(struct hotplug_slot *hotplug_slot)
