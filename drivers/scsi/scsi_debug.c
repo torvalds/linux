@@ -7684,11 +7684,6 @@ static int sdebug_driver_remove(struct device *dev)
 
 	sdbg_host = to_sdebug_host(dev);
 
-	if (!sdbg_host) {
-		pr_err("Unable to locate host info\n");
-		return -ENODEV;
-	}
-
 	scsi_remove_host(sdbg_host->shost);
 
 	list_for_each_entry_safe(sdbg_devinfo, tmp, &sdbg_host->dev_info_list,
