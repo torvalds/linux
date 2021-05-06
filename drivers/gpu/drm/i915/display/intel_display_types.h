@@ -1975,10 +1975,14 @@ intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pip
 		intel_wait_for_vblank(dev_priv, pipe);
 }
 
+static inline bool intel_modifier_uses_dpt(struct drm_i915_private *i915, u64 modifier)
+{
+	return DISPLAY_VER(i915) >= 13 && modifier != DRM_FORMAT_MOD_LINEAR;
+}
+
 static inline bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
 {
-	return fb && DISPLAY_VER(to_i915(fb->dev)) >= 13 &&
-		fb->modifier != DRM_FORMAT_MOD_LINEAR;
+	return fb && intel_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
 }
 
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)

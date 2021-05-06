@@ -1607,14 +1607,13 @@ u32 intel_fb_max_stride(struct drm_i915_private *dev_priv,
 	 *
 	 * The new CCS hash mode makes remapping impossible
 	 */
-	if (!is_ccs_modifier(modifier)) {
-		if (DISPLAY_VER(dev_priv) >= 7)
-			return 256*1024;
-		else if (DISPLAY_VER(dev_priv) >= 4)
-			return 128*1024;
-	}
-
-	return intel_plane_fb_max_stride(dev_priv, pixel_format, modifier);
+	if (DISPLAY_VER(dev_priv) < 4 || is_ccs_modifier(modifier) ||
+	    intel_modifier_uses_dpt(dev_priv, modifier))
+		return intel_plane_fb_max_stride(dev_priv, pixel_format, modifier);
+	else if (DISPLAY_VER(dev_priv) >= 7)
+		return 256 * 1024;
+	else
+		return 128 * 1024;
 }
 
 static u32
