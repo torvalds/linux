@@ -380,6 +380,8 @@ intel_display_power_put_all_in_set(struct drm_i915_private *i915,
 enum dbuf_slice {
 	DBUF_S1,
 	DBUF_S2,
+	DBUF_S3,
+	DBUF_S4,
 	I915_MAX_DBUF_SLICES
 };
 
