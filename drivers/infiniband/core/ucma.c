@@ -468,8 +468,8 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 	resp.id = ctx->id;
 	if (copy_to_user(u64_to_user_ptr(cmd.response),
 			 &resp, sizeof(resp))) {
-		ucma_destroy_private_ctx(ctx);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err1;
 	}
 
 	mutex_lock(&file->mut);
