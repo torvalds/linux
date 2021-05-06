@@ -503,6 +503,7 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 		clear_bit(ICE_PFR_REQ, pf->state);
 		clear_bit(ICE_CORER_REQ, pf->state);
 		clear_bit(ICE_GLOBR_REQ, pf->state);
+		wake_up(&pf->reset_wait_queue);
 		return;
 	}
 
@@ -515,6 +516,7 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 		ice_rebuild(pf, reset_type);
 		clear_bit(ICE_PREPARED_FOR_RESET, pf->state);
 		clear_bit(ICE_PFR_REQ, pf->state);
+		wake_up(&pf->reset_wait_queue);
 		ice_reset_all_vfs(pf, true);
 	}
 }
@@ -565,6 +567,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			clear_bit(ICE_PFR_REQ, pf->state);
 			clear_bit(ICE_CORER_REQ, pf->state);
 			clear_bit(ICE_GLOBR_REQ, pf->state);
+			wake_up(&pf->reset_wait_queue);
 			ice_reset_all_vfs(pf, true);
 		}
 
@@ -3342,6 +3345,8 @@ static int ice_init_pf(struct ice_pf *pf)
 	INIT_HLIST_HEAD(&pf->aq_wait_list);
 	spin_lock_init(&pf->aq_wait_lock);
 	init_waitqueue_head(&pf->aq_wait_queue);
+
+	init_waitqueue_head(&pf->reset_wait_queue);
 
 	/* setup service timer and periodic service task */
 	timer_setup(&pf->serv_tmr, ice_service_timer, 0);

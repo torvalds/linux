@@ -276,6 +276,12 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	size_t i;
 	int err;
 
+	err = ice_wait_for_reset(pf, 10 * HZ);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Device is busy resetting");
+		return err;
+	}
+
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;

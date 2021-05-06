@@ -455,6 +455,8 @@ struct ice_pf {
 	struct hlist_head aq_wait_list;
 	wait_queue_head_t aq_wait_queue;
 
+	wait_queue_head_t reset_wait_queue;
+
 	u32 hw_csum_rx_error;
 	u16 oicr_idx;		/* Other interrupt cause MSIX vector index */
 	u16 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
