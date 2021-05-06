@@ -128,6 +128,8 @@ struct intel_framebuffer {
 	struct intel_fb_view normal_view;
 	struct intel_fb_view rotated_view;
 	struct intel_fb_view remapped_view;
+
+	struct i915_address_space *dpt_vm;
 };
 
 struct intel_fbdev {
@@ -610,7 +612,8 @@ struct intel_plane_state {
 		enum drm_scaling_filter scaling_filter;
 	} hw;
 
-	struct i915_vma *vma;
+	struct i915_vma *ggtt_vma;
+	struct i915_vma *dpt_vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
 
@@ -1972,9 +1975,15 @@ intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pip
 		intel_wait_for_vblank(dev_priv, pipe);
 }
 
-static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
+static inline bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
 {
-	return i915_ggtt_offset(state->vma);
+	return fb && DISPLAY_VER(to_i915(fb->dev)) >= 13 &&
+		fb->modifier != DRM_FORMAT_MOD_LINEAR;
+}
+
+static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
+{
+	return i915_ggtt_offset(plane_state->ggtt_vma);
 }
 
 static inline struct intel_frontbuffer *

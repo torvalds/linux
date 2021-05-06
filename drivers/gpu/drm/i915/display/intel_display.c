@@ -63,9 +63,11 @@
 #include "display/intel_vdsc.h"
 #include "display/intel_vrr.h"
 
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
 
 #include "gt/intel_rps.h"
+#include "gt/gen8_ppgtt.h"
 
 #include "g4x_dp.h"
 #include "g4x_hdmi.h"
@@ -122,6 +124,176 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 struct drm_modeset_acquire_ctx *ctx);
+
+struct i915_dpt {
+	struct i915_address_space vm;
+
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	void __iomem *iomem;
+};
+
+#define i915_is_dpt(vm) ((vm)->is_dpt)
+
+static inline struct i915_dpt *
+i915_vm_to_dpt(struct i915_address_space *vm)
+{
+	BUILD_BUG_ON(offsetof(struct i915_dpt, vm));
+	GEM_BUG_ON(!i915_is_dpt(vm));
+	return container_of(vm, struct i915_dpt, vm);
+}
+
+#define dpt_total_entries(dpt) ((dpt)->vm.total >> PAGE_SHIFT)
+
+static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
+{
+	writeq(pte, addr);
+}
+
+static void dpt_insert_page(struct i915_address_space *vm,
+			    dma_addr_t addr,
+			    u64 offset,
+			    enum i915_cache_level level,
+			    u32 flags)
+{
+	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
+	gen8_pte_t __iomem *base = dpt->iomem;
+
+	gen8_set_pte(base + offset / I915_GTT_PAGE_SIZE,
+		     vm->pte_encode(addr, level, flags));
+}
+
+static void dpt_insert_entries(struct i915_address_space *vm,
+			       struct i915_vma *vma,
+			       enum i915_cache_level level,
+			       u32 flags)
+{
+	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
+	gen8_pte_t __iomem *base = dpt->iomem;
+	const gen8_pte_t pte_encode = vm->pte_encode(0, level, flags);
+	struct sgt_iter sgt_iter;
+	dma_addr_t addr;
+	int i;
+
+	/*
+	 * Note that we ignore PTE_READ_ONLY here. The caller must be careful
+	 * not to allow the user to override access to a read only page.
+	 */
+
+	i = vma->node.start / I915_GTT_PAGE_SIZE;
+	for_each_sgt_daddr(addr, sgt_iter, vma->pages)
+		gen8_set_pte(&base[i++], pte_encode | addr);
+}
+
+static void dpt_clear_range(struct i915_address_space *vm,
+			    u64 start, u64 length)
+{
+}
+
+static void dpt_bind_vma(struct i915_address_space *vm,
+			 struct i915_vm_pt_stash *stash,
+			 struct i915_vma *vma,
+			 enum i915_cache_level cache_level,
+			 u32 flags)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+	u32 pte_flags;
+
+	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
+	pte_flags = 0;
+	if (vma->vm->has_read_only && i915_gem_object_is_readonly(obj))
+		pte_flags |= PTE_READ_ONLY;
+	if (i915_gem_object_is_lmem(obj))
+		pte_flags |= PTE_LM;
+
+	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
+
+	/*
+	 * Without aliasing PPGTT there's no difference between
+	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
+	 * upgrade to both bound if we bind either to avoid double-binding.
+	 */
+	atomic_or(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND, &vma->flags);
+}
+
+static void dpt_unbind_vma(struct i915_address_space *vm, struct i915_vma *vma)
+{
+	vm->clear_range(vm, vma->node.start, vma->size);
+}
+
+static void dpt_cleanup(struct i915_address_space *vm)
+{
+	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
+
+	i915_gem_object_put(dpt->obj);
+}
+
+static struct i915_address_space *
+intel_dpt_create(struct drm_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->dev);
+	size_t size = DIV_ROUND_UP_ULL(obj->size, 512);
+	struct drm_i915_gem_object *dpt_obj;
+	struct i915_address_space *vm;
+	struct i915_dpt *dpt;
+	int ret;
+
+	size = round_up(size, 4096);
+
+	if (HAS_LMEM(i915))
+		dpt_obj = i915_gem_object_create_lmem(i915, size, 0);
+	else
+		dpt_obj = i915_gem_object_create_stolen(i915, size);
+	if (IS_ERR(dpt_obj))
+		return ERR_CAST(dpt_obj);
+
+	ret = i915_gem_object_set_cache_level(dpt_obj, I915_CACHE_NONE);
+	if (ret) {
+		i915_gem_object_put(dpt_obj);
+		return ERR_PTR(ret);
+	}
+
+	dpt = kzalloc(sizeof(*dpt), GFP_KERNEL);
+	if (!dpt) {
+		i915_gem_object_put(dpt_obj);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	vm = &dpt->vm;
+
+	vm->gt = &i915->gt;
+	vm->i915 = i915;
+	vm->dma = i915->drm.dev;
+	vm->total = (size / sizeof(gen8_pte_t)) * I915_GTT_PAGE_SIZE;
+	vm->is_dpt = true;
+
+	i915_address_space_init(vm, VM_CLASS_DPT);
+
+	vm->insert_page = dpt_insert_page;
+	vm->clear_range = dpt_clear_range;
+	vm->insert_entries = dpt_insert_entries;
+	vm->cleanup = dpt_cleanup;
+
+	vm->vma_ops.bind_vma    = dpt_bind_vma;
+	vm->vma_ops.unbind_vma  = dpt_unbind_vma;
+	vm->vma_ops.set_pages   = ggtt_set_pages;
+	vm->vma_ops.clear_pages = clear_pages;
+
+	vm->pte_encode = gen8_ggtt_pte_encode;
+
+	dpt->obj = dpt_obj;
+
+	return &dpt->vm;
+}
+
+static void intel_dpt_destroy(struct i915_address_space *vm)
+{
+	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
+
+	i915_vm_close(&dpt->vm);
+}
 
 /* returns HPLL frequency in kHz */
 int vlv_get_hpll_vco(struct drm_i915_private *dev_priv)
@@ -973,6 +1145,9 @@ unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
+	if (intel_fb_uses_dpt(fb))
+		return 512 * 4096;
+
 	/* AUX_DIST needs only 4K alignment */
 	if (is_ccs_plane(fb, color_plane))
 		return 4096;
@@ -1024,6 +1199,62 @@ static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 	return DISPLAY_VER(dev_priv) < 4 ||
 		(plane->has_fbc &&
 		 plane_state->view.gtt.type == I915_GGTT_VIEW_NORMAL);
+}
+
+static struct i915_vma *
+intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
+		     const struct i915_ggtt_view *view,
+		     bool uses_fence,
+		     unsigned long *out_flags,
+		     struct i915_address_space *vm)
+{
+	struct drm_device *dev = fb->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct i915_vma *vma;
+	u32 alignment;
+	int ret;
+
+	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
+		return ERR_PTR(-EINVAL);
+
+	alignment = 4096 * 512;
+
+	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
+
+	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
+	if (ret) {
+		vma = ERR_PTR(ret);
+		goto err;
+	}
+
+	vma = i915_vma_instance(obj, vm, view);
+	if (IS_ERR(vma))
+		goto err;
+
+	if (i915_vma_misplaced(vma, 0, alignment, 0)) {
+		ret = i915_vma_unbind(vma);
+		if (ret) {
+			vma = ERR_PTR(ret);
+			goto err;
+		}
+	}
+
+	ret = i915_vma_pin(vma, 0, alignment, PIN_GLOBAL);
+	if (ret) {
+		vma = ERR_PTR(ret);
+		goto err;
+	}
+
+	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
+
+	i915_gem_object_flush_if_display(obj);
+
+	i915_vma_get(vma);
+err:
+	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
+
+	return vma;
 }
 
 struct i915_vma *
@@ -1629,6 +1860,49 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	intel_wait_for_vblank(dev_priv, crtc->pipe);
 }
 
+static struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
+{
+	struct drm_i915_private *i915 = vm->i915;
+	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
+	intel_wakeref_t wakeref;
+	struct i915_vma *vma;
+	void __iomem *iomem;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	atomic_inc(&i915->gpu_error.pending_fb_pin);
+
+	vma = i915_gem_object_ggtt_pin(dpt->obj, NULL, 0, 4096,
+				       HAS_LMEM(i915) ? 0 : PIN_MAPPABLE);
+	if (IS_ERR(vma))
+		goto err;
+
+	iomem = i915_vma_pin_iomap(vma);
+	i915_vma_unpin(vma);
+	if (IS_ERR(iomem)) {
+		vma = iomem;
+		goto err;
+	}
+
+	dpt->vma = vma;
+	dpt->iomem = iomem;
+
+	i915_vma_get(vma);
+
+err:
+	atomic_dec(&i915->gpu_error.pending_fb_pin);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	return vma;
+}
+
+static void intel_dpt_unpin(struct i915_address_space *vm)
+{
+	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
+
+	i915_vma_unpin_iomap(dpt->vma);
+	i915_vma_put(dpt->vma);
+}
+
 static void
 intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			     struct intel_initial_plane_config *plane_config)
@@ -1674,12 +1948,12 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		state = to_intel_plane_state(c->primary->state);
-		if (!state->vma)
+		if (!state->ggtt_vma)
 			continue;
 
 		if (intel_plane_ggtt_offset(state) == plane_config->base) {
 			fb = state->hw.fb;
-			vma = state->vma;
+			vma = state->ggtt_vma;
 			goto valid_fb;
 		}
 	}
@@ -1706,7 +1980,7 @@ valid_fb:
 			   &intel_state->view);
 
 	__i915_vma_pin(vma);
-	intel_state->vma = i915_vma_get(vma);
+	intel_state->ggtt_vma = i915_vma_get(vma);
 	if (intel_plane_uses_fence(intel_state) && i915_vma_pin_fence(vma) == 0)
 		if (vma->fence)
 			intel_state->flags |= PLANE_HAS_FENCE;
@@ -10564,25 +10838,60 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 		plane->id == PLANE_CURSOR &&
 		INTEL_INFO(dev_priv)->display.cursor_needs_physical;
 
-	vma = intel_pin_and_fence_fb_obj(fb, phys_cursor,
-					 &plane_state->view.gtt,
-					 intel_plane_uses_fence(plane_state),
-					 &plane_state->flags);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	if (!intel_fb_uses_dpt(fb)) {
+		vma = intel_pin_and_fence_fb_obj(fb, phys_cursor,
+						 &plane_state->view.gtt,
+						 intel_plane_uses_fence(plane_state),
+						 &plane_state->flags);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
 
-	plane_state->vma = vma;
+		plane_state->ggtt_vma = vma;
+	} else {
+		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+
+		vma = intel_dpt_pin(intel_fb->dpt_vm);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
+
+		plane_state->ggtt_vma = vma;
+
+		vma = intel_pin_fb_obj_dpt(fb, &plane_state->view.gtt, false,
+					   &plane_state->flags, intel_fb->dpt_vm);
+		if (IS_ERR(vma)) {
+			intel_dpt_unpin(intel_fb->dpt_vm);
+			plane_state->ggtt_vma = NULL;
+			return PTR_ERR(vma);
+		}
+
+		plane_state->dpt_vma = vma;
+
+		WARN_ON(plane_state->ggtt_vma == plane_state->dpt_vma);
+	}
 
 	return 0;
 }
 
 void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
 {
+	struct drm_framebuffer *fb = old_plane_state->hw.fb;
 	struct i915_vma *vma;
 
-	vma = fetch_and_zero(&old_plane_state->vma);
-	if (vma)
-		intel_unpin_fb_vma(vma, old_plane_state->flags);
+	if (!intel_fb_uses_dpt(fb)) {
+		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
+		if (vma)
+			intel_unpin_fb_vma(vma, old_plane_state->flags);
+	} else {
+		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+
+		vma = fetch_and_zero(&old_plane_state->dpt_vma);
+		if (vma)
+			intel_unpin_fb_vma(vma, old_plane_state->flags);
+
+		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
+		if (vma)
+			intel_dpt_unpin(intel_fb->dpt_vm);
+	}
 }
 
 /**
@@ -11105,6 +11414,10 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
 	drm_framebuffer_cleanup(fb);
+
+	if (intel_fb_uses_dpt(fb))
+		intel_dpt_destroy(intel_fb->dpt_vm);
+
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 
 	kfree(intel_fb);
@@ -11274,6 +11587,18 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	ret = intel_fill_fb_info(dev_priv, intel_fb);
 	if (ret)
 		goto err;
+
+	if (intel_fb_uses_dpt(fb)) {
+		struct i915_address_space *vm;
+
+		vm = intel_dpt_create(&obj->base);
+		if (IS_ERR(vm)) {
+			ret = PTR_ERR(vm);
+			goto err;
+		}
+
+		intel_fb->dpt_vm = vm;
+	}
 
 	ret = drm_framebuffer_init(&dev_priv->drm, fb, &intel_fb_funcs);
 	if (ret) {

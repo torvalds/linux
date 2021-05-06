@@ -102,7 +102,8 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &intel_state->uapi);
 
-	intel_state->vma = NULL;
+	intel_state->ggtt_vma = NULL;
+	intel_state->dpt_vma = NULL;
 	intel_state->flags = 0;
 
 	/* add reference to fb */
@@ -125,7 +126,9 @@ intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct intel_plane_state *plane_state = to_intel_plane_state(state);
-	drm_WARN_ON(plane->dev, plane_state->vma);
+
+	drm_WARN_ON(plane->dev, plane_state->ggtt_vma);
+	drm_WARN_ON(plane->dev, plane_state->dpt_vma);
 
 	__drm_atomic_helper_plane_destroy_state(&plane_state->uapi);
 	if (plane_state->hw.fb)

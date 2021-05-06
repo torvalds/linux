@@ -43,6 +43,7 @@ struct drm_mode_fb_cmd2;
 struct drm_modeset_acquire_ctx;
 struct drm_plane;
 struct drm_plane_state;
+struct i915_address_space;
 struct i915_ggtt_view;
 struct intel_atomic_state;
 struct intel_crtc;

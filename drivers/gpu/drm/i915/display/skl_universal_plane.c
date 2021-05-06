@@ -934,6 +934,21 @@ static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	return plane_color_ctl;
 }
 
+static u32 skl_surf_address(const struct intel_plane_state *plane_state,
+			    int color_plane)
+{
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	u32 offset = plane_state->view.color_plane[color_plane].offset;
+
+	if (intel_fb_uses_dpt(fb)) {
+		WARN_ON(offset & 0x1fffff);
+		return offset >> 9;
+	} else {
+		WARN_ON(offset & 0xfff);
+		return offset;
+	}
+}
+
 static void
 skl_program_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state,
@@ -944,7 +959,7 @@ skl_program_plane(struct intel_plane *plane,
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	u32 surf_addr = plane_state->view.color_plane[color_plane].offset;
+	u32 surf_addr = skl_surf_address(plane_state, color_plane);
 	u32 stride = skl_plane_stride(plane_state, color_plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
@@ -983,7 +998,7 @@ skl_program_plane(struct intel_plane *plane,
 	}
 
 	if (aux_plane) {
-		aux_dist = plane_state->view.color_plane[aux_plane].offset - surf_addr;
+		aux_dist = skl_surf_address(plane_state, aux_plane) - surf_addr;
 
 		if (DISPLAY_VER(dev_priv) < 12)
 			aux_dist |= skl_plane_stride(plane_state, aux_plane);
