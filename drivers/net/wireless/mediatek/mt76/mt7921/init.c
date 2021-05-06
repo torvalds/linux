@@ -125,8 +125,8 @@ void mt7921_mac_init(struct mt7921_dev *dev)
 	int i;
 
 	mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, 1536);
-	/* disable hardware de-agg */
-	mt76_clear(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN);
+	/* enable hardware de-agg */
+	mt76_set(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN);
 	mt76_clear(dev, MT_MDP_DCR0, MT_MDP_DCR0_RX_HDR_TRANS_EN);
 
 	for (i = 0; i < MT7921_WTBL_SIZE; i++)
