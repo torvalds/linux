@@ -75,7 +75,7 @@ do {									\
 	}								\
 } while (0)
 
-const unsigned char x86nops[] =
+static const unsigned char x86nops[] =
 {
 	BYTES_NOP1,
 	BYTES_NOP2,
