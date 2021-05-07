@@ -822,6 +822,35 @@ transparent_hugepage_adjust(struct kvm_memory_slot *memslot,
 	return PAGE_SIZE;
 }
 
+static int get_vma_page_shift(struct vm_area_struct *vma, unsigned long hva)
+{
+	unsigned long pa;
+
+	if (is_vm_hugetlb_page(vma) && !(vma->vm_flags & VM_PFNMAP))
+		return huge_page_shift(hstate_vma(vma));
+
+	if (!(vma->vm_flags & VM_PFNMAP))
+		return PAGE_SHIFT;
+
+	VM_BUG_ON(is_vm_hugetlb_page(vma));
+
+	pa = (vma->vm_pgoff << PAGE_SHIFT) + (hva - vma->vm_start);
+
+#ifndef __PAGETABLE_PMD_FOLDED
+	if ((hva & (PUD_SIZE - 1)) == (pa & (PUD_SIZE - 1)) &&
+	    ALIGN_DOWN(hva, PUD_SIZE) >= vma->vm_start &&
+	    ALIGN(hva, PUD_SIZE) <= vma->vm_end)
+		return PUD_SHIFT;
+#endif
+
+	if ((hva & (PMD_SIZE - 1)) == (pa & (PMD_SIZE - 1)) &&
+	    ALIGN_DOWN(hva, PMD_SIZE) >= vma->vm_start &&
+	    ALIGN(hva, PMD_SIZE) <= vma->vm_end)
+		return PMD_SHIFT;
+
+	return PAGE_SHIFT;
+}
+
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  struct kvm_memory_slot *memslot, unsigned long hva,
 			  unsigned long fault_status)
@@ -853,7 +882,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 	}
 
-	/* Let's check if we will get back a huge page backed by hugetlbfs */
+	/*
+	 * Let's check if we will get back a huge page backed by hugetlbfs, or
+	 * get block mapping for device MMIO region.
+	 */
 	mmap_read_lock(current->mm);
 	vma = find_vma_intersection(current->mm, hva, hva + 1);
 	if (unlikely(!vma)) {
@@ -862,15 +894,15 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 	}
 
-	if (is_vm_hugetlb_page(vma))
-		vma_shift = huge_page_shift(hstate_vma(vma));
-	else
-		vma_shift = PAGE_SHIFT;
-
-	if (logging_active ||
-	    (vma->vm_flags & VM_PFNMAP)) {
+	/*
+	 * logging_active is guaranteed to never be true for VM_PFNMAP
+	 * memslots.
+	 */
+	if (logging_active) {
 		force_pte = true;
 		vma_shift = PAGE_SHIFT;
+	} else {
+		vma_shift = get_vma_page_shift(vma, hva);
 	}
 
 	switch (vma_shift) {
@@ -943,8 +975,17 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 
 	if (kvm_is_device_pfn(pfn)) {
+		/*
+		 * If the page was identified as device early by looking at
+		 * the VMA flags, vma_pagesize is already representing the
+		 * largest quantity we can map.  If instead it was mapped
+		 * via gfn_to_pfn_prot(), vma_pagesize is set to PAGE_SIZE
+		 * and must not be upgraded.
+		 *
+		 * In both cases, we don't let transparent_hugepage_adjust()
+		 * change things at the last minute.
+		 */
 		device = true;
-		force_pte = true;
 	} else if (logging_active && !write_fault) {
 		/*
 		 * Only actually map the page as writable if this was a write
@@ -965,7 +1006,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * If we are not forced to use page mapping, check if we are
 	 * backed by a THP and thus use block mapping if possible.
 	 */
-	if (vma_pagesize == PAGE_SIZE && !force_pte)
+	if (vma_pagesize == PAGE_SIZE && !(force_pte || device))
 		vma_pagesize = transparent_hugepage_adjust(memslot, hva,
 							   &pfn, &fault_ipa);
 	if (writable)
