@@ -898,7 +898,7 @@ static int engine_init_common(struct intel_engine_cs *engine)
 	return 0;
 
 err_context:
-	intel_context_put(ce);
+	destroy_pinned_context(ce);
 	return ret;
 }
 
