@@ -1234,6 +1234,7 @@
   kern_mount
   kern_unmount
   __kfifo_alloc
+  __kfifo_free
   __kfifo_in
   __kfifo_out
   kfree
