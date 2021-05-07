@@ -329,29 +329,28 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 	ssize_t ret;
 	int const aux_cmd_native_max = 16;
 	int const aux_cmd_i2c_max = 128;
-	struct dp_aux_private *aux = container_of(dp_aux,
-		struct dp_aux_private, dp_aux);
+	struct dp_aux_private *aux;
 
-	mutex_lock(&aux->mutex);
+	aux = container_of(dp_aux, struct dp_aux_private, dp_aux);
 
 	aux->native = msg->request & (DP_AUX_NATIVE_WRITE & DP_AUX_NATIVE_READ);
 
 	/* Ignore address only message */
-	if ((msg->size == 0) || (msg->buffer == NULL)) {
+	if (msg->size == 0 || !msg->buffer) {
 		msg->reply = aux->native ?
 			DP_AUX_NATIVE_REPLY_ACK : DP_AUX_I2C_REPLY_ACK;
-		ret = msg->size;
-		goto unlock_exit;
+		return msg->size;
 	}
 
 	/* msg sanity check */
-	if ((aux->native && (msg->size > aux_cmd_native_max)) ||
-		(msg->size > aux_cmd_i2c_max)) {
+	if ((aux->native && msg->size > aux_cmd_native_max) ||
+	    msg->size > aux_cmd_i2c_max) {
 		DRM_ERROR("%s: invalid msg: size(%zu), request(%x)\n",
 			__func__, msg->size, msg->request);
-		ret = -EINVAL;
-		goto unlock_exit;
+		return -EINVAL;
 	}
+
+	mutex_lock(&aux->mutex);
 
 	dp_aux_update_offset_and_segment(aux, msg);
 	dp_aux_transfer_helper(aux, msg, true);
