@@ -1,1 +1,2 @@
-per-file {crypto,verity}/**=ebiggers@google.com
+per-file crypto/*=ebiggers@google.com
+per-file verity/*=ebiggers@google.com
