@@ -469,6 +469,7 @@ mt7915_mcu_tx_rate_report(struct mt7915_dev *dev, struct sk_buff *skb)
 	u16 attempts = le16_to_cpu(ra->attempts);
 	u16 curr = le16_to_cpu(ra->curr_rate);
 	u16 wcidx = le16_to_cpu(ra->wlan_idx);
+	struct ieee80211_tx_status status = {};
 	struct mt76_phy *mphy = &dev->mphy;
 	struct mt7915_sta_stats *stats;
 	struct mt7915_sta *msta;
@@ -500,6 +501,13 @@ mt7915_mcu_tx_rate_report(struct mt7915_dev *dev, struct sk_buff *skb)
 
 		stats->per = 1000 * (attempts - success) / attempts;
 	}
+
+	status.sta = wcid_to_sta(wcid);
+	if (!status.sta)
+		return;
+
+	status.rate = &stats->tx_rate;
+	ieee80211_tx_status_ext(mphy->hw, &status);
 }
 
 static void
