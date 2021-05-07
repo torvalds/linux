@@ -165,12 +165,12 @@ static inline int has_ebcdic_char(const char *str)
 
 void setup_boot_command_line(void)
 {
-	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE - 1] = 0;
+	parmarea.command_line[ARCH_COMMAND_LINE_SIZE - 1] = 0;
 	/* convert arch command line to ascii if necessary */
-	if (has_ebcdic_char(COMMAND_LINE))
-		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	if (has_ebcdic_char(parmarea.command_line))
+		EBCASC(parmarea.command_line, ARCH_COMMAND_LINE_SIZE);
 	/* copy arch command line */
-	strcpy(early_command_line, strim(COMMAND_LINE));
+	strcpy(early_command_line, strim(parmarea.command_line));
 
 	/* append IPL PARM data to the boot command line */
 	if (!is_prot_virt_guest() && ipl_block_valid)
