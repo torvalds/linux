@@ -621,7 +621,7 @@ isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
 				0);
 		vaddr[3][index[3]++] = data;
 	}
-
+	rkisp_prepare_buffer(params_vdev->dev, &priv_val->buf_lsclut[buf_idx]);
 	data = priv_val->buf_lsclut[buf_idx].dma_addr;
 	rkisp_iowrite32(params_vdev, data, MI_LUT_LSC_RD_BASE);
 	rkisp_iowrite32(params_vdev, RKISP_PARAM_LSC_LUT_BUF_SIZE, MI_LUT_LSC_RD_WSIZE);
@@ -671,13 +671,11 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	/* restore the lsc ctrl status */
 	if (lsc_ctrl & ISP_LSC_EN) {
-		isp_param_set_bits(params_vdev,
-				   ISP_LSC_CTRL,
-				   ISP_LSC_EN);
+		if (!IS_HDR_RDBK(dev->rd_mode))
+			lsc_ctrl |= ISP_LSC_LUT_EN;
+		isp_param_set_bits(params_vdev, ISP_LSC_CTRL, lsc_ctrl);
 	} else {
-		isp_param_clear_bits(params_vdev,
-				     ISP_LSC_CTRL,
-				     ISP_LSC_EN);
+		isp_param_clear_bits(params_vdev, ISP_LSC_CTRL, ISP_LSC_EN);
 	}
 
 	params_vdev->cur_lsccfg = *arg;
@@ -2746,7 +2744,7 @@ isp_3dlut_config(struct rkisp_isp_params_vdev *params_vdev,
 		data[i] = (arg->lut_b[i] & 0x3FF) |
 			  (arg->lut_g[i] & 0xFFF) << 10 |
 			  (arg->lut_r[i] & 0x3FF) << 22;
-
+	rkisp_prepare_buffer(params_vdev->dev, &priv_val->buf_3dlut[buf_idx]);
 	value = priv_val->buf_3dlut[buf_idx].dma_addr;
 	rkisp_iowrite32(params_vdev, value, MI_LUT_3D_RD_BASE);
 	rkisp_iowrite32(params_vdev, arg->actual_size, MI_LUT_3D_RD_WSIZE);
@@ -2818,7 +2816,7 @@ isp_ldch_config(struct rkisp_isp_params_vdev *params_vdev,
 	ldch_head = (struct isp2x_ldch_head *)priv_val->buf_ldch[buf_idx].vaddr;
 	ldch_head->stat = LDCH_BUF_CHIPINUSE;
 	priv_val->buf_ldch_idx = buf_idx;
-
+	rkisp_prepare_buffer(dev, &priv_val->buf_ldch[buf_idx]);
 	value = priv_val->buf_ldch[buf_idx].dma_addr + ldch_head->data_oft;
 	rkisp_iowrite32(params_vdev, value, MI_LUT_LDCH_RD_BASE);
 	rkisp_iowrite32(params_vdev, arg->hsize, MI_LUT_LDCH_RD_H_WSIZE);
@@ -3418,7 +3416,88 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			    const struct isp21_isp_params_cfg *new_params,
 			    enum rkisp_params_type type)
 {
-	u64 module_en_update, module_cfg_update, module_ens;
+	struct rkisp_isp_params_v21_ops *ops =
+		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
+	u64 module_cfg_update = new_params->module_cfg_update;
+
+	if (type == RKISP_PARAMS_SHD) {
+		if ((module_cfg_update & ISP2X_MODULE_HDRMGE))
+			ops->hdrmge_config(params_vdev, &new_params->others.hdrmge_cfg, type);
+
+		if ((module_cfg_update & ISP2X_MODULE_DRC))
+			ops->hdrdrc_config(params_vdev, &new_params->others.drc_cfg, type);
+		return;
+	}
+
+	if ((module_cfg_update & ISP2X_MODULE_DPCC))
+		ops->dpcc_config(params_vdev, &new_params->others.dpcc_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_BLS))
+		ops->bls_config(params_vdev, &new_params->others.bls_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_SDG))
+		ops->sdg_config(params_vdev, &new_params->others.sdg_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_LSC))
+		ops->lsc_config(params_vdev, &new_params->others.lsc_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_AWB_GAIN))
+		ops->awbgain_config(params_vdev, &new_params->others.awb_gain_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_DEBAYER))
+		ops->debayer_config(params_vdev, &new_params->others.debayer_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_CCM))
+		ops->ccm_config(params_vdev, &new_params->others.ccm_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_GOC))
+		ops->goc_config(params_vdev, &new_params->others.gammaout_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_CPROC))
+		ops->cproc_config(params_vdev, &new_params->others.cproc_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_IE))
+		ops->ie_config(params_vdev, &new_params->others.ie_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_HDRMGE))
+		ops->hdrmge_config(params_vdev, &new_params->others.hdrmge_cfg, type);
+
+	if ((module_cfg_update & ISP2X_MODULE_DRC))
+		ops->hdrdrc_config(params_vdev, &new_params->others.drc_cfg, type);
+
+	if ((module_cfg_update & ISP2X_MODULE_GIC))
+		ops->gic_config(params_vdev, &new_params->others.gic_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_DHAZ))
+		ops->dhaz_config(params_vdev, &new_params->others.dhaz_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_3DLUT))
+		ops->isp3dlut_config(params_vdev, &new_params->others.isp3dlut_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_LDCH))
+		ops->ldch_config(params_vdev, &new_params->others.ldch_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_YNR))
+		ops->ynr_config(params_vdev, &new_params->others.ynr_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_CNR))
+		ops->cnr_config(params_vdev, &new_params->others.cnr_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_SHARP))
+		ops->sharp_config(params_vdev, &new_params->others.sharp_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_BAYNR))
+		ops->baynr_config(params_vdev, &new_params->others.baynr_cfg);
+
+	if ((module_cfg_update & ISP2X_MODULE_BAY3D))
+		ops->bay3d_config(params_vdev, &new_params->others.bay3d_cfg);
+}
+
+static __maybe_unused
+void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
+			const struct isp21_isp_params_cfg *new_params,
+			enum rkisp_params_type type)
+{
 	struct rkisp_isp_params_v21_ops *ops =
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
 	struct rkisp_isp_params_val_v21 *priv_val =
@@ -3426,10 +3505,11 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_device *ispdev = params_vdev->dev;
 	bool is_feature_on = ispdev->hw_dev->is_feature_on;
 	u64 iq_feature = ispdev->hw_dev->iq_feature;
+	u64 module_en_update = new_params->module_en_update;
+	u64 module_ens = new_params->module_ens;
 
-	module_en_update = new_params->module_en_update;
-	module_cfg_update = new_params->module_cfg_update;
-	module_ens = new_params->module_ens;
+	if (type == RKISP_PARAMS_SHD)
+		return;
 
 	if (is_feature_on) {
 		module_en_update &= ~ISP2X_MODULE_HDRMGE;
@@ -3441,270 +3521,82 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 		}
 	}
 
-	if (type == RKISP_PARAMS_SHD) {
-		if ((module_en_update & ISP2X_MODULE_HDRMGE) ||
-		    (module_cfg_update & ISP2X_MODULE_HDRMGE)) {
-			if ((module_cfg_update & ISP2X_MODULE_HDRMGE))
-				ops->hdrmge_config(params_vdev,
-					&new_params->others.hdrmge_cfg, type);
-
-			if (module_en_update & ISP2X_MODULE_HDRMGE) {
-				ops->hdrmge_enable(params_vdev,
-					!!(module_ens & ISP2X_MODULE_HDRMGE));
-				priv_val->mge_en = !!(module_ens & ISP2X_MODULE_HDRMGE);
-			}
-		}
-
-		if ((module_en_update & ISP2X_MODULE_DRC) ||
-		    (module_cfg_update & ISP2X_MODULE_DRC)) {
-			if ((module_cfg_update & ISP2X_MODULE_DRC))
-				ops->hdrdrc_config(params_vdev,
-					&new_params->others.drc_cfg, type);
-
-			if (module_en_update & ISP2X_MODULE_DRC)
-				ops->hdrdrc_enable(params_vdev,
-					!!(module_ens & ISP2X_MODULE_DRC));
-		}
-
-		return;
+	if (module_en_update & ISP2X_MODULE_HDRMGE) {
+		ops->hdrmge_enable(params_vdev, !!(module_ens & ISP2X_MODULE_HDRMGE));
+		priv_val->mge_en = !!(module_ens & ISP2X_MODULE_HDRMGE);
 	}
 
-	if ((module_en_update & ISP2X_MODULE_DPCC) ||
-	    (module_cfg_update & ISP2X_MODULE_DPCC)) {
-		if ((module_cfg_update & ISP2X_MODULE_DPCC))
-			ops->dpcc_config(params_vdev,
-				&new_params->others.dpcc_cfg);
+	if (module_en_update & ISP2X_MODULE_DRC)
+		ops->hdrdrc_enable(params_vdev, !!(module_ens & ISP2X_MODULE_DRC));
 
-		if (module_en_update & ISP2X_MODULE_DPCC)
-			ops->dpcc_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_DPCC));
+	if (module_en_update & ISP2X_MODULE_DPCC)
+		ops->dpcc_enable(params_vdev, !!(module_ens & ISP2X_MODULE_DPCC));
+
+	if (module_en_update & ISP2X_MODULE_BLS)
+		ops->bls_enable(params_vdev, !!(module_ens & ISP2X_MODULE_BLS));
+
+	if (module_en_update & ISP2X_MODULE_SDG)
+		ops->sdg_enable(params_vdev, !!(module_ens & ISP2X_MODULE_SDG));
+
+	if (module_en_update & ISP2X_MODULE_LSC) {
+		ops->lsc_enable(params_vdev, !!(module_ens & ISP2X_MODULE_LSC));
+		priv_val->lsc_en = !!(module_ens & ISP2X_MODULE_LSC);
 	}
 
-	if ((module_en_update & ISP2X_MODULE_BLS) ||
-	    (module_cfg_update & ISP2X_MODULE_BLS)) {
-		if ((module_cfg_update & ISP2X_MODULE_BLS))
-			ops->bls_config(params_vdev,
-				&new_params->others.bls_cfg);
+	if (module_en_update & ISP2X_MODULE_AWB_GAIN)
+		ops->awbgain_enable(params_vdev, !!(module_ens & ISP2X_MODULE_AWB_GAIN));
 
-		if (module_en_update & ISP2X_MODULE_BLS)
-			ops->bls_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_BLS));
+	if (module_en_update & ISP2X_MODULE_DEBAYER)
+		ops->debayer_enable(params_vdev, !!(module_ens & ISP2X_MODULE_DEBAYER));
+
+	if (module_en_update & ISP2X_MODULE_CCM)
+		ops->ccm_enable(params_vdev, !!(module_ens & ISP2X_MODULE_CCM));
+
+	if (module_en_update & ISP2X_MODULE_GOC)
+		ops->goc_enable(params_vdev, !!(module_ens & ISP2X_MODULE_GOC));
+
+	if (module_en_update & ISP2X_MODULE_CPROC)
+		ops->cproc_enable(params_vdev, !!(module_ens & ISP2X_MODULE_CPROC));
+
+	if (module_en_update & ISP2X_MODULE_IE)
+		ops->ie_enable(params_vdev, !!(module_ens & ISP2X_MODULE_IE));
+
+	if (module_en_update & ISP2X_MODULE_HDRMGE) {
+		ops->hdrmge_enable(params_vdev, !!(module_ens & ISP2X_MODULE_HDRMGE));
+		priv_val->mge_en = !!(module_ens & ISP2X_MODULE_HDRMGE);
 	}
 
-	if ((module_en_update & ISP2X_MODULE_SDG) ||
-	    (module_cfg_update & ISP2X_MODULE_SDG)) {
-		if ((module_cfg_update & ISP2X_MODULE_SDG))
-			ops->sdg_config(params_vdev,
-				&new_params->others.sdg_cfg);
+	if (module_en_update & ISP2X_MODULE_DRC)
+		ops->hdrdrc_enable(params_vdev, !!(module_ens & ISP2X_MODULE_DRC));
 
-		if (module_en_update & ISP2X_MODULE_SDG)
-			ops->sdg_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_SDG));
+	if (module_en_update & ISP2X_MODULE_GIC)
+		ops->gic_enable(params_vdev, !!(module_ens & ISP2X_MODULE_GIC));
+
+	if (module_en_update & ISP2X_MODULE_DHAZ) {
+		ops->dhaz_enable(params_vdev, !!(module_ens & ISP2X_MODULE_DHAZ));
+		priv_val->dhaz_en = !!(module_ens & ISP2X_MODULE_DHAZ);
 	}
 
-	if ((module_en_update & ISP2X_MODULE_LSC) ||
-	    (module_cfg_update & ISP2X_MODULE_LSC)) {
-		if ((module_cfg_update & ISP2X_MODULE_LSC))
-			ops->lsc_config(params_vdev,
-				&new_params->others.lsc_cfg);
+	if (module_en_update & ISP2X_MODULE_3DLUT)
+		ops->isp3dlut_enable(params_vdev, !!(module_ens & ISP2X_MODULE_3DLUT));
 
-		if (module_en_update & ISP2X_MODULE_LSC) {
-			ops->lsc_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_LSC));
-			priv_val->lsc_en = !!(module_ens & ISP2X_MODULE_LSC);
-		}
-	}
+	if (module_en_update & ISP2X_MODULE_LDCH)
+		ops->ldch_enable(params_vdev, !!(module_ens & ISP2X_MODULE_LDCH));
 
-	if ((module_en_update & ISP2X_MODULE_AWB_GAIN) ||
-	    (module_cfg_update & ISP2X_MODULE_AWB_GAIN)) {
-		if ((module_cfg_update & ISP2X_MODULE_AWB_GAIN))
-			ops->awbgain_config(params_vdev,
-				&new_params->others.awb_gain_cfg);
+	if (module_en_update & ISP2X_MODULE_YNR)
+		ops->ynr_enable(params_vdev, !!(module_ens & ISP2X_MODULE_YNR), &new_params->others.ynr_cfg);
 
-		if (module_en_update & ISP2X_MODULE_AWB_GAIN)
-			ops->awbgain_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_AWB_GAIN));
-	}
+	if (module_en_update & ISP2X_MODULE_CNR)
+		ops->cnr_enable(params_vdev, !!(module_ens & ISP2X_MODULE_CNR), &new_params->others.cnr_cfg);
 
-	if ((module_en_update & ISP2X_MODULE_DEBAYER) ||
-	    (module_cfg_update & ISP2X_MODULE_DEBAYER)) {
-		if ((module_cfg_update & ISP2X_MODULE_DEBAYER))
-			ops->debayer_config(params_vdev,
-				&new_params->others.debayer_cfg);
+	if (module_en_update & ISP2X_MODULE_SHARP)
+		ops->sharp_enable(params_vdev, !!(module_ens & ISP2X_MODULE_SHARP));
 
-		if (module_en_update & ISP2X_MODULE_DEBAYER)
-			ops->debayer_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_DEBAYER));
-	}
+	if (module_en_update & ISP2X_MODULE_BAYNR)
+		ops->baynr_enable(params_vdev, !!(module_ens & ISP2X_MODULE_BAYNR));
 
-	if ((module_en_update & ISP2X_MODULE_CCM) ||
-	    (module_cfg_update & ISP2X_MODULE_CCM)) {
-		if ((module_cfg_update & ISP2X_MODULE_CCM))
-			ops->ccm_config(params_vdev,
-				&new_params->others.ccm_cfg);
-
-		if (module_en_update & ISP2X_MODULE_CCM)
-			ops->ccm_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_CCM));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_GOC) ||
-	    (module_cfg_update & ISP2X_MODULE_GOC)) {
-		if ((module_cfg_update & ISP2X_MODULE_GOC))
-			ops->goc_config(params_vdev,
-				&new_params->others.gammaout_cfg);
-
-		if (module_en_update & ISP2X_MODULE_GOC)
-			ops->goc_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_GOC));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_CPROC) ||
-	    (module_cfg_update & ISP2X_MODULE_CPROC)) {
-		if ((module_cfg_update & ISP2X_MODULE_CPROC))
-			ops->cproc_config(params_vdev,
-				&new_params->others.cproc_cfg);
-
-		if (module_en_update & ISP2X_MODULE_CPROC)
-			ops->cproc_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_CPROC));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_IE) ||
-	    (module_cfg_update & ISP2X_MODULE_IE)) {
-		if ((module_cfg_update & ISP2X_MODULE_IE))
-			ops->ie_config(params_vdev,
-				&new_params->others.ie_cfg);
-
-		if (module_en_update & ISP2X_MODULE_IE)
-			ops->ie_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_IE));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_HDRMGE) ||
-	    (module_cfg_update & ISP2X_MODULE_HDRMGE)) {
-		if ((module_cfg_update & ISP2X_MODULE_HDRMGE))
-			ops->hdrmge_config(params_vdev,
-				&new_params->others.hdrmge_cfg, type);
-
-		if (module_en_update & ISP2X_MODULE_HDRMGE) {
-			ops->hdrmge_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_HDRMGE));
-			priv_val->mge_en = !!(module_ens & ISP2X_MODULE_HDRMGE);
-		}
-	}
-
-	if ((module_en_update & ISP2X_MODULE_DRC) ||
-	    (module_cfg_update & ISP2X_MODULE_DRC)) {
-		if ((module_cfg_update & ISP2X_MODULE_DRC))
-			ops->hdrdrc_config(params_vdev,
-				&new_params->others.drc_cfg, type);
-
-		if (module_en_update & ISP2X_MODULE_DRC)
-			ops->hdrdrc_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_DRC));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_GIC) ||
-	    (module_cfg_update & ISP2X_MODULE_GIC)) {
-		if ((module_cfg_update & ISP2X_MODULE_GIC))
-			ops->gic_config(params_vdev,
-				&new_params->others.gic_cfg);
-
-		if (module_en_update & ISP2X_MODULE_GIC)
-			ops->gic_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_GIC));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_DHAZ) ||
-	    (module_cfg_update & ISP2X_MODULE_DHAZ)) {
-		if ((module_cfg_update & ISP2X_MODULE_DHAZ))
-			ops->dhaz_config(params_vdev,
-				&new_params->others.dhaz_cfg);
-
-		if (module_en_update & ISP2X_MODULE_DHAZ) {
-			ops->dhaz_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_DHAZ));
-			priv_val->dhaz_en = !!(module_ens & ISP2X_MODULE_DHAZ);
-		}
-	}
-
-	if ((module_en_update & ISP2X_MODULE_3DLUT) ||
-	    (module_cfg_update & ISP2X_MODULE_3DLUT)) {
-		if ((module_cfg_update & ISP2X_MODULE_3DLUT))
-			ops->isp3dlut_config(params_vdev,
-				&new_params->others.isp3dlut_cfg);
-
-		if (module_en_update & ISP2X_MODULE_3DLUT)
-			ops->isp3dlut_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_3DLUT));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_LDCH) ||
-	    (module_cfg_update & ISP2X_MODULE_LDCH)) {
-		if ((module_cfg_update & ISP2X_MODULE_LDCH))
-			ops->ldch_config(params_vdev,
-				&new_params->others.ldch_cfg);
-
-		if (module_en_update & ISP2X_MODULE_LDCH)
-			ops->ldch_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_LDCH));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_YNR) ||
-	    (module_cfg_update & ISP2X_MODULE_YNR)) {
-		if ((module_cfg_update & ISP2X_MODULE_YNR))
-			ops->ynr_config(params_vdev,
-				&new_params->others.ynr_cfg);
-
-		if (module_en_update & ISP2X_MODULE_YNR)
-			ops->ynr_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_YNR), &new_params->others.ynr_cfg);
-	}
-
-	if ((module_en_update & ISP2X_MODULE_CNR) ||
-	    (module_cfg_update & ISP2X_MODULE_CNR)) {
-		if ((module_cfg_update & ISP2X_MODULE_CNR))
-			ops->cnr_config(params_vdev,
-				&new_params->others.cnr_cfg);
-
-		if (module_en_update & ISP2X_MODULE_CNR)
-			ops->cnr_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_CNR), &new_params->others.cnr_cfg);
-	}
-
-	if ((module_en_update & ISP2X_MODULE_SHARP) ||
-	    (module_cfg_update & ISP2X_MODULE_SHARP)) {
-		if ((module_cfg_update & ISP2X_MODULE_SHARP))
-			ops->sharp_config(params_vdev,
-				&new_params->others.sharp_cfg);
-
-		if (module_en_update & ISP2X_MODULE_SHARP)
-			ops->sharp_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_SHARP));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_BAYNR) ||
-	    (module_cfg_update & ISP2X_MODULE_BAYNR)) {
-		if ((module_cfg_update & ISP2X_MODULE_BAYNR))
-			ops->baynr_config(params_vdev,
-				&new_params->others.baynr_cfg);
-
-		if (module_en_update & ISP2X_MODULE_BAYNR)
-			ops->baynr_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_BAYNR));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_BAY3D) ||
-	    (module_cfg_update & ISP2X_MODULE_BAY3D)) {
-		if ((module_cfg_update & ISP2X_MODULE_BAY3D))
-			ops->bay3d_config(params_vdev,
-				&new_params->others.bay3d_cfg);
-
-		if (module_en_update & ISP2X_MODULE_BAY3D)
-			ops->bay3d_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_BAY3D));
-	}
+	if (module_en_update & ISP2X_MODULE_BAY3D)
+		ops->bay3d_enable(params_vdev, !!(module_ens & ISP2X_MODULE_BAY3D));
 }
 
 static __maybe_unused
@@ -3712,19 +3604,59 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 			   struct isp21_isp_params_cfg *new_params,
 			   enum rkisp_params_type type)
 {
-	u64 module_en_update, module_cfg_update, module_ens;
+	struct rkisp_isp_params_v21_ops *ops =
+		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
+	u64 module_cfg_update = new_params->module_cfg_update;
+
+	if (type == RKISP_PARAMS_SHD)
+		return;
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWAE0))
+		ops->rawae0_config(params_vdev, &new_params->meas.rawae0);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWAE1))
+		ops->rawae1_config(params_vdev, &new_params->meas.rawae1);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWAE2))
+		ops->rawae2_config(params_vdev, &new_params->meas.rawae2);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWAE3))
+		ops->rawae3_config(params_vdev, &new_params->meas.rawae3);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWHIST0))
+		ops->rawhst0_config(params_vdev, &new_params->meas.rawhist0);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWHIST1))
+		ops->rawhst1_config(params_vdev, &new_params->meas.rawhist1);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWHIST2))
+		ops->rawhst2_config(params_vdev, &new_params->meas.rawhist2);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWHIST3))
+		ops->rawhst3_config(params_vdev, &new_params->meas.rawhist3);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWAWB))
+		ops->rawawb_config(params_vdev, &new_params->meas.rawawb);
+
+	if ((module_cfg_update & ISP2X_MODULE_RAWAF))
+		ops->rawaf_config(params_vdev, &new_params->meas.rawaf);
+}
+
+static __maybe_unused
+void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
+		       struct isp21_isp_params_cfg *new_params,
+		       enum rkisp_params_type type)
+{
 	struct rkisp_isp_params_v21_ops *ops =
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
 	struct rkisp_device *ispdev = params_vdev->dev;
 	bool is_feature_on = ispdev->hw_dev->is_feature_on;
 	u64 iq_feature = ispdev->hw_dev->iq_feature;
+	u64 module_en_update = new_params->module_en_update;
+	u64 module_ens = new_params->module_ens;
 
 	if (type == RKISP_PARAMS_SHD)
 		return;
-
-	module_en_update = new_params->module_en_update;
-	module_cfg_update = new_params->module_cfg_update;
-	module_ens = new_params->module_ens;
 
 	if (is_feature_on) {
 		module_en_update &= ~ISP2X_MODULE_HDRMGE;
@@ -3736,115 +3668,35 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 		}
 	}
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE0) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE0)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE0))
-			ops->rawae0_config(params_vdev,
-				&new_params->meas.rawae0);
+	if (module_en_update & ISP2X_MODULE_RAWAE0)
+		ops->rawae0_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAE0));
 
-		if (module_en_update & ISP2X_MODULE_RAWAE0)
-			ops->rawae0_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE0));
-	}
+	if (module_en_update & ISP2X_MODULE_RAWAE1)
+		ops->rawae1_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAE1));
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE1) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE1)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE1))
-			ops->rawae1_config(params_vdev,
-				&new_params->meas.rawae1);
+	if (module_en_update & ISP2X_MODULE_RAWAE2)
+		ops->rawae2_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAE2));
 
-		if (module_en_update & ISP2X_MODULE_RAWAE1)
-			ops->rawae1_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE1));
-	}
+	if (module_en_update & ISP2X_MODULE_RAWAE3)
+		ops->rawae3_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAE3));
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE2) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE2)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE2))
-			ops->rawae2_config(params_vdev,
-				&new_params->meas.rawae2);
+	if (module_en_update & ISP2X_MODULE_RAWHIST0)
+		ops->rawhst0_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWHIST0));
 
-		if (module_en_update & ISP2X_MODULE_RAWAE2)
-			ops->rawae2_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE2));
-	}
+	if (module_en_update & ISP2X_MODULE_RAWHIST1)
+		ops->rawhst1_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWHIST1));
 
-	if ((module_en_update & ISP2X_MODULE_RAWAE3) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAE3)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAE3))
-			ops->rawae3_config(params_vdev,
-				&new_params->meas.rawae3);
+	if (module_en_update & ISP2X_MODULE_RAWHIST2)
+		ops->rawhst2_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWHIST2));
 
-		if (module_en_update & ISP2X_MODULE_RAWAE3)
-			ops->rawae3_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAE3));
-	}
+	if (module_en_update & ISP2X_MODULE_RAWHIST3)
+		ops->rawhst3_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWHIST3));
 
-	if ((module_en_update & ISP2X_MODULE_RAWHIST0) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST0)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST0))
-			ops->rawhst0_config(params_vdev,
-				&new_params->meas.rawhist0);
+	if (module_en_update & ISP2X_MODULE_RAWAWB)
+		ops->rawawb_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAWB));
 
-		if (module_en_update & ISP2X_MODULE_RAWHIST0)
-			ops->rawhst0_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST0));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_RAWHIST1) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST1)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST1))
-			ops->rawhst1_config(params_vdev,
-				&new_params->meas.rawhist1);
-
-		if (module_en_update & ISP2X_MODULE_RAWHIST1)
-			ops->rawhst1_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST1));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_RAWHIST2) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST2)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST2))
-			ops->rawhst2_config(params_vdev,
-				&new_params->meas.rawhist2);
-
-		if (module_en_update & ISP2X_MODULE_RAWHIST2)
-			ops->rawhst2_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST2));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_RAWHIST3) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWHIST3)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWHIST3))
-			ops->rawhst3_config(params_vdev,
-				&new_params->meas.rawhist3);
-
-		if (module_en_update & ISP2X_MODULE_RAWHIST3)
-			ops->rawhst3_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWHIST3));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_RAWAWB) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAWB)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAWB))
-			ops->rawawb_config(params_vdev,
-				&new_params->meas.rawawb);
-
-		if (module_en_update & ISP2X_MODULE_RAWAWB)
-			ops->rawawb_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAWB));
-	}
-
-	if ((module_en_update & ISP2X_MODULE_RAWAF) ||
-	    (module_cfg_update & ISP2X_MODULE_RAWAF)) {
-		if ((module_cfg_update & ISP2X_MODULE_RAWAF))
-			ops->rawaf_config(params_vdev,
-				&new_params->meas.rawaf);
-
-		if (module_en_update & ISP2X_MODULE_RAWAF)
-			ops->rawaf_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_RAWAF));
-	}
+	if (module_en_update & ISP2X_MODULE_RAWAF)
+		ops->rawaf_enable(params_vdev, !!(module_ens & ISP2X_MODULE_RAWAF));
 }
 
 static __maybe_unused
@@ -3858,12 +3710,6 @@ void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
 
 	ops->hdrdrc_config(params_vdev,
 			   &params_vdev->last_hdrdrc, RKISP_PARAMS_SHD);
-}
-
-static __maybe_unused
-void __preisp_isr_update_hdrae_para(struct rkisp_isp_params_vdev *params_vdev,
-				    struct isp21_isp_params_cfg *new_params)
-{
 }
 
 static
@@ -3926,8 +3772,9 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
 	__isp_isr_other_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
+	__isp_isr_other_en(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
-	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp21_params);
+	__isp_isr_meas_en(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	if (width <= ISP2X_AUTO_BIGMODE_WIDTH && size > ISP2X_NOBIG_OVERFLOW_SIZE) {
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN,
@@ -4109,6 +3956,26 @@ rkisp_params_disable_isp_v2x(struct rkisp_isp_params_vdev *params_vdev)
 }
 
 static void
+ldch_data_abandon(struct rkisp_isp_params_vdev *params_vdev,
+		  struct isp21_isp_params_cfg *params)
+{
+	const struct isp2x_ldch_cfg *arg = &params->others.ldch_cfg;
+	struct rkisp_isp_params_val_v21 *priv_val;
+	struct isp2x_ldch_head *ldch_head;
+	int i;
+
+	priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+	for (i = 0; i < ISP2X_LDCH_BUF_NUM; i++) {
+		if (arg->buf_fd == priv_val->buf_ldch[i].dma_fd &&
+		    priv_val->buf_ldch[i].vaddr) {
+			ldch_head = (struct isp2x_ldch_head *)priv_val->buf_ldch[i].vaddr;
+			ldch_head->stat = LDCH_BUF_CHIPINUSE;
+			break;
+		}
+	}
+}
+
+static void
 rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		     u32 frame_id, enum rkisp_params_type type)
 {
@@ -4126,14 +3993,18 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		cur_buf = list_first_entry(&params_vdev->params,
 				struct rkisp_buffer, queue);
 
-		if (!IS_HDR_RDBK(dev->rd_mode)) {
-			list_del(&cur_buf->queue);
-			break;
-		}
-
 		new_params = (struct isp21_isp_params_cfg *)(cur_buf->vaddr[0]);
 		if (new_params->frame_id < frame_id) {
 			list_del(&cur_buf->queue);
+			if (list_empty(&params_vdev->params))
+				break;
+			else if (new_params->module_en_update) {
+				/* update en immediately */
+				__isp_isr_other_en(params_vdev, new_params, type);
+				__isp_isr_meas_en(params_vdev, new_params, type);
+			}
+			if (new_params->module_cfg_update & ISP2X_MODULE_LDCH)
+				ldch_data_abandon(params_vdev, new_params);
 			vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			cur_buf = NULL;
 			continue;
@@ -4150,7 +4021,9 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 
 	new_params = (struct isp21_isp_params_cfg *)(cur_buf->vaddr[0]);
 	__isp_isr_other_config(params_vdev, new_params, type);
+	__isp_isr_other_en(params_vdev, new_params, type);
 	__isp_isr_meas_config(params_vdev, new_params, type);
+	__isp_isr_meas_en(params_vdev, new_params, type);
 	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
 		__isp_config_hdrshd(params_vdev);
 
@@ -4215,7 +4088,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		rkisp_params_clear_fstflg(params_vdev);
 
 	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->rd_mode))
-		rkisp_params_cfg_v2x(params_vdev, cur_frame_id, RKISP_PARAMS_ALL);
+		rkisp_params_cfg_v2x(params_vdev, cur_frame_id + 1, RKISP_PARAMS_ALL);
 }
 
 static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
