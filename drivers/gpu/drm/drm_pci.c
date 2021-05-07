@@ -119,7 +119,9 @@ int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
 	return drm_pci_irq_by_busid(dev, p);
 }
 
-void drm_pci_agp_destroy(struct drm_device *dev)
+#ifdef CONFIG_DRM_LEGACY
+
+void drm_legacy_pci_agp_destroy(struct drm_device *dev)
 {
 	if (dev->agp) {
 		arch_phys_wc_del(dev->agp->agp_mtrr);
@@ -129,9 +131,7 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_DRM_LEGACY
-
-static void drm_pci_agp_init(struct drm_device *dev)
+static void drm_legacy_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
 		if (pci_find_capability(to_pci_dev(dev->dev), PCI_CAP_ID_AGP))
@@ -145,9 +145,9 @@ static void drm_pci_agp_init(struct drm_device *dev)
 	}
 }
 
-static int drm_get_pci_dev(struct pci_dev *pdev,
-			   const struct pci_device_id *ent,
-			   const struct drm_driver *driver)
+static int drm_legacy_get_pci_dev(struct pci_dev *pdev,
+				  const struct pci_device_id *ent,
+				  const struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -169,7 +169,7 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		pci_set_drvdata(pdev, dev);
 
-	drm_pci_agp_init(dev);
+	drm_legacy_pci_agp_init(dev);
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
@@ -184,7 +184,7 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	return 0;
 
 err_agp:
-	drm_pci_agp_destroy(dev);
+	drm_legacy_pci_agp_destroy(dev);
 	pci_disable_device(pdev);
 err_free:
 	drm_dev_put(dev);
@@ -231,7 +231,7 @@ int drm_legacy_pci_init(const struct drm_driver *driver,
 
 			/* stealth mode requires a manual probe */
 			pci_dev_get(pdev);
-			drm_get_pci_dev(pdev, pid, driver);
+			drm_legacy_get_pci_dev(pdev, pid, driver);
 		}
 	}
 	return 0;

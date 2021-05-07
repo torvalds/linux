@@ -211,4 +211,10 @@ void drm_master_legacy_init(struct drm_master *master);
 static inline void drm_master_legacy_init(struct drm_master *master) {}
 #endif
 
+#if IS_ENABLED(CONFIG_DRM_LEGACY) && IS_ENABLED(CONFIG_PCI)
+void drm_legacy_pci_agp_destroy(struct drm_device *dev);
+#else
+static inline void drm_legacy_pci_agp_destroy(struct drm_device *dev) {}
+#endif
+
 #endif /* __DRM_LEGACY_H__ */
