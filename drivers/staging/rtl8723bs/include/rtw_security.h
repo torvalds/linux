@@ -191,8 +191,6 @@ do {\
 	} \
 } while (0)
 
-#define _AES_IV_LEN_ 8
-
 #define SET_ICE_IV_LEN(iv_len, icv_len, encrypt)\
 do {\
 	switch (encrypt)\
