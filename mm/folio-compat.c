@@ -4,6 +4,7 @@
  * eventually.
  */
 
+#include <linux/migrate.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 
@@ -48,3 +49,13 @@ void mark_page_accessed(struct page *page)
 	folio_mark_accessed(page_folio(page));
 }
 EXPORT_SYMBOL(mark_page_accessed);
+
+#ifdef CONFIG_MIGRATION
+int migrate_page_move_mapping(struct address_space *mapping,
+		struct page *newpage, struct page *page, int extra_count)
+{
+	return folio_migrate_mapping(mapping, page_folio(newpage),
+					page_folio(page), extra_count);
+}
+EXPORT_SYMBOL(migrate_page_move_mapping);
+#endif
