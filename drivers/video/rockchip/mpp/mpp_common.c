@@ -1110,7 +1110,6 @@ static int mpp_process_request(struct mpp_session *session,
 			return mpp->dev_ops->ioctl(session, req);
 
 		mpp_debug(DEBUG_IOCTL, "unknown mpp ioctl cmd %x\n", req->cmd);
-		return -ENOIOCTLCMD;
 	} break;
 	}
 
