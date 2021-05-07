@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/power_supply.h>
 #include <linux/of_device.h>
-#include <linux/max17040_battery.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -142,7 +141,6 @@ struct max17040_chip {
 	struct regmap			*regmap;
 	struct delayed_work		work;
 	struct power_supply		*battery;
-	struct max17040_platform_data	*pdata;
 	struct chip_data		data;
 
 	/* battery capacity */
@@ -451,7 +449,6 @@ static int max17040_probe(struct i2c_client *client,
 
 	chip->client = client;
 	chip->regmap = devm_regmap_init_i2c(client, &max17040_regmap);
-	chip->pdata = client->dev.platform_data;
 	chip_id = (enum chip_id) id->driver_data;
 	if (client->dev.of_node) {
 		ret = max17040_get_of_data(chip);
