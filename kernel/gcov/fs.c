@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include "gcov.h"
 
 /**
@@ -116,7 +116,7 @@ static struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
 	/* Dry-run to get the actual buffer size. */
 	size = convert_to_gcda(NULL, info);
 
-	iter = vmalloc(struct_size(iter, buffer, size));
+	iter = kvmalloc(struct_size(iter, buffer, size), GFP_KERNEL);
 	if (!iter)
 		return NULL;
 
@@ -134,7 +134,7 @@ static struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
  */
 static void gcov_iter_free(struct gcov_iterator *iter)
 {
-	vfree(iter);
+	kvfree(iter);
 }
 
 /**
