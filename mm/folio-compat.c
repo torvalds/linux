@@ -58,4 +58,10 @@ int migrate_page_move_mapping(struct address_space *mapping,
 					page_folio(page), extra_count);
 }
 EXPORT_SYMBOL(migrate_page_move_mapping);
+
+void migrate_page_states(struct page *newpage, struct page *page)
+{
+	folio_migrate_flags(page_folio(newpage), page_folio(page));
+}
+EXPORT_SYMBOL(migrate_page_states);
 #endif

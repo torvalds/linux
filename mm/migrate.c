@@ -539,82 +539,80 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 }
 
 /*
- * Copy the page to its new location
+ * Copy the flags and some other ancillary information
  */
-void migrate_page_states(struct page *newpage, struct page *page)
+void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-	struct folio *newfolio = page_folio(newpage);
 	int cpupid;
 
-	if (PageError(page))
-		SetPageError(newpage);
-	if (PageReferenced(page))
-		SetPageReferenced(newpage);
-	if (PageUptodate(page))
-		SetPageUptodate(newpage);
-	if (TestClearPageActive(page)) {
-		VM_BUG_ON_PAGE(PageUnevictable(page), page);
-		SetPageActive(newpage);
-	} else if (TestClearPageUnevictable(page))
-		SetPageUnevictable(newpage);
-	if (PageWorkingset(page))
-		SetPageWorkingset(newpage);
-	if (PageChecked(page))
-		SetPageChecked(newpage);
-	if (PageMappedToDisk(page))
-		SetPageMappedToDisk(newpage);
+	if (folio_test_error(folio))
+		folio_set_error(newfolio);
+	if (folio_test_referenced(folio))
+		folio_set_referenced(newfolio);
+	if (folio_test_uptodate(folio))
+		folio_mark_uptodate(newfolio);
+	if (folio_test_clear_active(folio)) {
+		VM_BUG_ON_FOLIO(folio_test_unevictable(folio), folio);
+		folio_set_active(newfolio);
+	} else if (folio_test_clear_unevictable(folio))
+		folio_set_unevictable(newfolio);
+	if (folio_test_workingset(folio))
+		folio_set_workingset(newfolio);
+	if (folio_test_checked(folio))
+		folio_set_checked(newfolio);
+	if (folio_test_mappedtodisk(folio))
+		folio_set_mappedtodisk(newfolio);
 
 	/* Move dirty on pages not done by folio_migrate_mapping() */
-	if (PageDirty(page))
-		SetPageDirty(newpage);
+	if (folio_test_dirty(folio))
+		folio_set_dirty(newfolio);
 
-	if (page_is_young(page))
-		set_page_young(newpage);
-	if (page_is_idle(page))
-		set_page_idle(newpage);
+	if (folio_test_young(folio))
+		folio_set_young(newfolio);
+	if (folio_test_idle(folio))
+		folio_set_idle(newfolio);
 
 	/*
 	 * Copy NUMA information to the new page, to prevent over-eager
 	 * future migrations of this same page.
 	 */
-	cpupid = page_cpupid_xchg_last(page, -1);
-	page_cpupid_xchg_last(newpage, cpupid);
+	cpupid = page_cpupid_xchg_last(&folio->page, -1);
+	page_cpupid_xchg_last(&newfolio->page, cpupid);
 
-	ksm_migrate_page(newpage, page);
+	folio_migrate_ksm(newfolio, folio);
 	/*
 	 * Please do not reorder this without considering how mm/ksm.c's
 	 * get_ksm_page() depends upon ksm_migrate_page() and PageSwapCache().
 	 */
-	if (PageSwapCache(page))
-		ClearPageSwapCache(page);
-	ClearPagePrivate(page);
+	if (folio_test_swapcache(folio))
+		folio_clear_swapcache(folio);
+	folio_clear_private(folio);
 
 	/* page->private contains hugetlb specific flags */
-	if (!PageHuge(page))
-		set_page_private(page, 0);
+	if (!folio_test_hugetlb(folio))
+		folio->private = NULL;
 
 	/*
 	 * If any waiters have accumulated on the new page then
 	 * wake them up.
 	 */
-	if (PageWriteback(newpage))
-		end_page_writeback(newpage);
+	if (folio_test_writeback(newfolio))
+		folio_end_writeback(newfolio);
 
 	/*
 	 * PG_readahead shares the same bit with PG_reclaim.  The above
 	 * end_page_writeback() may clear PG_readahead mistakenly, so set the
 	 * bit after that.
 	 */
-	if (PageReadahead(page))
-		SetPageReadahead(newpage);
+	if (folio_test_readahead(folio))
+		folio_set_readahead(newfolio);
 
-	copy_page_owner(page, newpage);
+	folio_copy_owner(newfolio, folio);
 
-	if (!PageHuge(page))
+	if (!folio_test_hugetlb(folio))
 		mem_cgroup_migrate(folio, newfolio);
 }
-EXPORT_SYMBOL(migrate_page_states);
+EXPORT_SYMBOL(folio_migrate_flags);
 
 void migrate_page_copy(struct page *newpage, struct page *page)
 {
@@ -655,7 +653,7 @@ int migrate_page(struct address_space *mapping,
 	if (mode != MIGRATE_SYNC_NO_COPY)
 		migrate_page_copy(newpage, page);
 	else
-		migrate_page_states(newpage, page);
+		folio_migrate_flags(newfolio, folio);
 	return MIGRATEPAGE_SUCCESS;
 }
 EXPORT_SYMBOL(migrate_page);
