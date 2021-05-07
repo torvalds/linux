@@ -129,6 +129,8 @@ struct vc4_hdmi {
 	struct vc4_hdmi_encoder encoder;
 	struct drm_connector connector;
 
+	struct delayed_work scrambling_work;
+
 	struct i2c_adapter *ddc;
 	void __iomem *hdmicore_regs;
 	void __iomem *hd_regs;
