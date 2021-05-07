@@ -1583,6 +1583,7 @@
   overflowuid
   page_endio
   page_mapping
+  __page_pinner_migration_failed
   panic
   panic_notifier_list
   panic_timeout
