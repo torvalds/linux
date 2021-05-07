@@ -620,7 +620,6 @@ static void dm_dcn_vertical_interrupt0_high_irq(void *interrupt_params)
 	amdgpu_dm_crtc_handle_crc_window_irq(&acrtc->base);
 }
 #endif
-#endif
 
 /**
  * dm_dmub_outbox1_low_irq() - Handles Outbox interrupt
@@ -673,6 +672,7 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 
 	ASSERT(count <= DMUB_TRACE_MAX_READ);
 }
+#endif
 
 static int dm_set_clockgating_state(void *handle,
 		  enum amd_clockgating_state state)
