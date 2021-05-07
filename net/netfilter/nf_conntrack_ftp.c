@@ -413,7 +413,10 @@ static int help(struct sk_buff *skb,
 
 	spin_lock_bh(&nf_ftp_lock);
 	fb_ptr = skb_header_pointer(skb, dataoff, datalen, ftp_buffer);
-	BUG_ON(fb_ptr == NULL);
+	if (!fb_ptr) {
+		spin_unlock_bh(&nf_ftp_lock);
+		return NF_ACCEPT;
+	}
 
 	ends_in_nl = (fb_ptr[datalen - 1] == '\n');
 	seq = ntohl(th->seq) + datalen;
