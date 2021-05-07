@@ -240,10 +240,14 @@ static int tpm_tis_spi_driver_probe(struct spi_device *spi)
 	tpm_tis_spi_probe_func probe_func;
 
 	probe_func = of_device_get_match_data(&spi->dev);
-	if (!probe_func && spi_dev_id)
-		probe_func = (tpm_tis_spi_probe_func)spi_dev_id->driver_data;
-	if (!probe_func)
-		return -ENODEV;
+	if (!probe_func) {
+		if (spi_dev_id) {
+			probe_func = (tpm_tis_spi_probe_func)spi_dev_id->driver_data;
+			if (!probe_func)
+				return -ENODEV;
+		} else
+			probe_func = tpm_tis_spi_probe;
+	}
 
 	return probe_func(spi);
 }
