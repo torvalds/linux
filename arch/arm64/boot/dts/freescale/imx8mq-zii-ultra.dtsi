@@ -45,8 +45,8 @@
 	reg_12p0_main: regulator-12p0-main {
 		compatible = "regulator-fixed";
 		regulator-name = "12V_MAIN";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 		regulator-always-on;
 	};
 
