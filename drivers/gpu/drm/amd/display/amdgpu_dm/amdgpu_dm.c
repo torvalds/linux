@@ -3718,6 +3718,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail;
 		}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Use Outbox interrupt */
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
@@ -3731,6 +3732,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	default:
 		DRM_DEBUG_KMS("Unsupported ASIC type for outbox: 0x%X\n", adev->asic_type);
 	}
+#endif
 
 	/* loops over all connectors on the board */
 	for (i = 0; i < link_cnt; i++) {
