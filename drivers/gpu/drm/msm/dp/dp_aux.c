@@ -27,7 +27,6 @@ struct dp_aux_private {
 	bool no_send_stop;
 	u32 offset;
 	u32 segment;
-	u32 isr;
 
 	struct drm_dp_aux dp_aux;
 };
@@ -181,10 +180,8 @@ static void dp_aux_cmd_fifo_rx(struct dp_aux_private *aux,
 	}
 }
 
-static void dp_aux_native_handler(struct dp_aux_private *aux)
+static void dp_aux_native_handler(struct dp_aux_private *aux, u32 isr)
 {
-	u32 isr = aux->isr;
-
 	if (isr & DP_INTR_AUX_I2C_DONE)
 		aux->aux_error_num = DP_AUX_ERR_NONE;
 	else if (isr & DP_INTR_WRONG_ADDR)
@@ -197,14 +194,10 @@ static void dp_aux_native_handler(struct dp_aux_private *aux)
 		aux->aux_error_num = DP_AUX_ERR_PHY;
 		dp_catalog_aux_clear_hw_interrupts(aux->catalog);
 	}
-
-	complete(&aux->comp);
 }
 
-static void dp_aux_i2c_handler(struct dp_aux_private *aux)
+static void dp_aux_i2c_handler(struct dp_aux_private *aux, u32 isr)
 {
-	u32 isr = aux->isr;
-
 	if (isr & DP_INTR_AUX_I2C_DONE) {
 		if (isr & (DP_INTR_I2C_NACK | DP_INTR_I2C_DEFER))
 			aux->aux_error_num = DP_AUX_ERR_NACK;
@@ -226,8 +219,6 @@ static void dp_aux_i2c_handler(struct dp_aux_private *aux)
 			dp_catalog_aux_clear_hw_interrupts(aux->catalog);
 		}
 	}
-
-	complete(&aux->comp);
 }
 
 static void dp_aux_update_offset_and_segment(struct dp_aux_private *aux,
@@ -412,6 +403,7 @@ unlock_exit:
 
 void dp_aux_isr(struct drm_dp_aux *dp_aux)
 {
+	u32 isr;
 	struct dp_aux_private *aux;
 
 	if (!dp_aux) {
@@ -421,15 +413,17 @@ void dp_aux_isr(struct drm_dp_aux *dp_aux)
 
 	aux = container_of(dp_aux, struct dp_aux_private, dp_aux);
 
-	aux->isr = dp_catalog_aux_get_irq(aux->catalog);
+	isr = dp_catalog_aux_get_irq(aux->catalog);
 
 	if (!aux->cmd_busy)
 		return;
 
 	if (aux->native)
-		dp_aux_native_handler(aux);
+		dp_aux_native_handler(aux, isr);
 	else
-		dp_aux_i2c_handler(aux);
+		dp_aux_i2c_handler(aux, isr);
+
+	complete(&aux->comp);
 }
 
 void dp_aux_reconfig(struct drm_dp_aux *dp_aux)
