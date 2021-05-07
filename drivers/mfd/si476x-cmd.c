@@ -731,7 +731,7 @@ static int si476x_core_cmd_intb_pin_cfg_a20(struct si476x_core *core,
  * @core:  - device to send the command to
  * @rsqargs: - pointer to a structure containing a group of sub-args
  *             relevant to sending the RSQ status command
- * @report: - all signal quality information retured by the command
+ * @report: - all signal quality information returned by the command
  *           (if NULL then the output of the command is ignored)
  *
  * Function returns 0 on success and negative error code on failure
@@ -892,7 +892,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_seek_start);
  *                rest RDS data contains the last valid info received
  * @mtfifo: if set the command clears RDS receive FIFO
  * @intack: if set the command clards the RDSINT bit.
- * @report: - all signal quality information retured by the command
+ * @report: - all signal quality information returned by the command
  *           (if NULL then the output of the command is ignored)
  *
  * Function returns 0 on success and negative error code on failure
