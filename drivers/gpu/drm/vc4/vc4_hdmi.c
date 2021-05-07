@@ -35,6 +35,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_scdc_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/i2c.h>
@@ -75,6 +76,8 @@
 
 #define VC5_HDMI_VERTB_VSPO_SHIFT		16
 #define VC5_HDMI_VERTB_VSPO_MASK		VC4_MASK(29, 16)
+
+#define VC5_HDMI_SCRAMBLER_CTL_ENABLE		BIT(0)
 
 #define VC5_HDMI_DEEP_COLOR_CONFIG_1_INIT_PACK_PHASE_SHIFT	8
 #define VC5_HDMI_DEEP_COLOR_CONFIG_1_INIT_PACK_PHASE_MASK	VC4_MASK(10, 8)
@@ -518,6 +521,64 @@ static void vc4_hdmi_set_infoframes(struct drm_encoder *encoder)
 	vc4_hdmi_set_hdr_infoframe(encoder);
 }
 
+static bool vc4_hdmi_supports_scrambling(struct drm_encoder *encoder,
+					 struct drm_display_mode *mode)
+{
+	struct vc4_hdmi_encoder *vc4_encoder = to_vc4_hdmi_encoder(encoder);
+	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+	struct drm_display_info *display = &vc4_hdmi->connector.display_info;
+
+	if (!vc4_encoder->hdmi_monitor)
+		return false;
+
+	if (!display->hdmi.scdc.supported ||
+	    !display->hdmi.scdc.scrambling.supported)
+		return false;
+
+	return true;
+}
+
+static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
+{
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
+	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+
+	if (!vc4_hdmi_supports_scrambling(encoder, mode))
+		return;
+
+	if (!vc4_hdmi_mode_needs_scrambling(mode))
+		return;
+
+	drm_scdc_set_high_tmds_clock_ratio(vc4_hdmi->ddc, true);
+	drm_scdc_set_scrambling(vc4_hdmi->ddc, true);
+
+	HDMI_WRITE(HDMI_SCRAMBLER_CTL, HDMI_READ(HDMI_SCRAMBLER_CTL) |
+		   VC5_HDMI_SCRAMBLER_CTL_ENABLE);
+}
+
+static void vc4_hdmi_disable_scrambling(struct drm_encoder *encoder)
+{
+	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+
+	/*
+	 * At boot, encoder->crtc will be NULL. Since we don't know the
+	 * state of the scrambler and in order to avoid any
+	 * inconsistency, let's disable it all the time.
+	 */
+	if (crtc && !vc4_hdmi_supports_scrambling(encoder, &crtc->mode))
+		return;
+
+	if (crtc && !vc4_hdmi_mode_needs_scrambling(&crtc->mode))
+		return;
+
+	HDMI_WRITE(HDMI_SCRAMBLER_CTL, HDMI_READ(HDMI_SCRAMBLER_CTL) &
+		   ~VC5_HDMI_SCRAMBLER_CTL_ENABLE);
+
+	drm_scdc_set_scrambling(vc4_hdmi->ddc, false);
+	drm_scdc_set_high_tmds_clock_ratio(vc4_hdmi->ddc, false);
+}
+
 static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 					       struct drm_atomic_state *state)
 {
@@ -530,6 +591,8 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 
 	HDMI_WRITE(HDMI_VID_CTL,
 		   HDMI_READ(HDMI_VID_CTL) | VC4_HD_VID_CTL_BLANKPIX);
+
+	vc4_hdmi_disable_scrambling(encoder);
 }
 
 static void vc4_hdmi_encoder_post_crtc_powerdown(struct drm_encoder *encoder,
@@ -980,6 +1043,7 @@ static void vc4_hdmi_encoder_post_crtc_enable(struct drm_encoder *encoder,
 	}
 
 	vc4_hdmi_recenter_fifo(vc4_hdmi);
+	vc4_hdmi_enable_scrambling(encoder);
 }
 
 static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
