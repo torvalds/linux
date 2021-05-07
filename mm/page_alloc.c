@@ -4173,7 +4173,7 @@ out:
 }
 
 /*
- * Maximum number of compaction retries wit a progress before OOM
+ * Maximum number of compaction retries with a progress before OOM
  * killer is consider as the only way to move forward.
  */
 #define MAX_COMPACT_RETRIES 16
