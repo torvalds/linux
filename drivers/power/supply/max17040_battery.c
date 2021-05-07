@@ -219,8 +219,7 @@ static int max17040_get_version(struct max17040_chip *chip)
 
 static int max17040_get_online(struct max17040_chip *chip)
 {
-	return chip->pdata && chip->pdata->battery_online ?
-		chip->pdata->battery_online() : 1;
+	return 1;
 }
 
 static int max17040_get_of_data(struct max17040_chip *chip)
