@@ -34,7 +34,6 @@
 #include <linux/mman.h>
 #include <linux/pci.h>
 
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -1199,7 +1198,7 @@ int i810_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
-	dev->agp = drm_agp_init(dev);
+	dev->agp = drm_legacy_agp_init(dev);
 	if (dev->agp) {
 		dev->agp->agp_mtrr = arch_phys_wc_add(
 			dev->agp->agp_info.aper_base,
