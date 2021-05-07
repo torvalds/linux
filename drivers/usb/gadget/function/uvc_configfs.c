@@ -2767,6 +2767,7 @@ UVCG_OPTS_ATTR(streaming_interval, streaming_interval, 16);
 UVCG_OPTS_ATTR(streaming_maxpacket, streaming_maxpacket, 3072);
 UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, 15);
 UVCG_OPTS_ATTR(uvc_num_request, uvc_num_request, UVC_MAX_NUM_REQUESTS);
+UVCG_OPTS_ATTR(pm_qos_latency, pm_qos_latency, PM_QOS_LATENCY_ANY);
 
 #undef UVCG_OPTS_ATTR
 
@@ -2776,6 +2777,7 @@ static struct configfs_attribute *uvc_attrs[] = {
 	&f_uvc_opts_attr_streaming_maxpacket,
 	&f_uvc_opts_attr_streaming_maxburst,
 	&f_uvc_opts_attr_uvc_num_request,
+	&f_uvc_opts_attr_pm_qos_latency,
 	NULL,
 };
 

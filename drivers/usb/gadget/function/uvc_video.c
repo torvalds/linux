@@ -12,6 +12,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/video.h>
+#include <linux/pm_qos.h>
 
 #include <media/v4l2-dev.h>
 
@@ -340,9 +341,12 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 
 		uvc_video_free_requests(video);
 		uvcg_queue_enable(&video->queue, 0);
+		if (cpu_latency_qos_request_active(&uvc->pm_qos))
+			cpu_latency_qos_remove_request(&uvc->pm_qos);
 		return 0;
 	}
 
+	cpu_latency_qos_add_request(&uvc->pm_qos, opts->pm_qos_latency);
 	if ((ret = uvcg_queue_enable(&video->queue, 1)) < 0)
 		return ret;
 

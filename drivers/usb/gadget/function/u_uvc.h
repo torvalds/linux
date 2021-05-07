@@ -85,6 +85,7 @@ struct f_uvc_opts {
 	 */
 	struct mutex			lock;
 	int				refcnt;
+	int				pm_qos_latency;
 };
 
 #endif /* U_UVC_H */
