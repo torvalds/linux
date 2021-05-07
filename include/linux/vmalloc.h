@@ -229,7 +229,6 @@ static inline void set_vm_flush_reset_perms(void *addr)
 
 /* for /proc/kcore */
 extern long vread(char *buf, char *addr, unsigned long count);
-extern long vwrite(char *buf, char *addr, unsigned long count);
 
 /*
  *	Internals.  Dont't use..
