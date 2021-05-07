@@ -2440,7 +2440,7 @@ mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct sk_buff *rskb,
 		cont->csa_ofs = cpu_to_le16(offs->cntdwn_counter_offs[0] - 4);
 
 	buf = (u8 *)tlv + sizeof(*cont);
-	mt7915_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL,
+	mt7915_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, NULL,
 			      true);
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 }
