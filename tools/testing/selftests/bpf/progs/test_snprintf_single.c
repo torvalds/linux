@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 
 /* The format string is filled from the userspace such that loading fails */
-static const char fmt[10];
+const char fmt[10];
 
 SEC("raw_tp/sys_enter")
 int handler(const void *ctx)

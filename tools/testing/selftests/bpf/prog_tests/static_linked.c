@@ -14,12 +14,7 @@ void test_static_linked(void)
 		return;
 
 	skel->rodata->rovar1 = 1;
-	skel->bss->static_var1 = 2;
-	skel->bss->static_var11 = 3;
-
 	skel->rodata->rovar2 = 4;
-	skel->bss->static_var2 = 5;
-	skel->bss->static_var22 = 6;
 
 	err = test_static_linked__load(skel);
 	if (!ASSERT_OK(err, "skel_load"))
