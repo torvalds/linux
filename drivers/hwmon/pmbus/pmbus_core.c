@@ -523,6 +523,8 @@ static bool pmbus_check_register(struct i2c_client *client,
 	rv = func(client, page, reg);
 	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
 		rv = pmbus_check_status_cml(client);
+	if (rv < 0 && (data->flags & PMBUS_READ_STATUS_AFTER_FAILED_CHECK))
+		data->read_status(client, -1);
 	pmbus_clear_fault_page(client, -1);
 	return rv >= 0;
 }

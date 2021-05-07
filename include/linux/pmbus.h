@@ -43,6 +43,19 @@
  */
 #define PMBUS_NO_CAPABILITY			BIT(2)
 
+/*
+ * PMBUS_READ_STATUS_AFTER_FAILED_CHECK
+ *
+ * Some PMBus chips end up in an undefined state when trying to read an
+ * unsupported register. For such chips, it is necessary to reset the
+ * chip pmbus controller to a known state after a failed register check.
+ * This can be done by reading a known register. By setting this flag the
+ * driver will try to read the STATUS register after each failed
+ * register check. This read may fail, but it will put the chip in a
+ * known state.
+ */
+#define PMBUS_READ_STATUS_AFTER_FAILED_CHECK	BIT(3)
+
 struct pmbus_platform_data {
 	u32 flags;		/* Device specific flags */
 
