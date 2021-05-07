@@ -518,8 +518,6 @@ BEGIN_FTR_SECTION
 	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
-	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
-	mtcrf	0x80,r2
 BEGIN_MMU_FTR_SECTION
 	li	r0,1
 	mfspr	r1,SPRN_SPRG_603_LRU
@@ -531,9 +529,15 @@ BEGIN_MMU_FTR_SECTION
 	mfspr	r2,SPRN_SRR1
 	rlwimi	r2,r0,31-14,14,14
 	mtspr   SPRN_SRR1,r2
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+	mtcrf	0x80,r2
 	tlbld	r3
 	rfi
+MMU_FTR_SECTION_ELSE
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+	tlbld	r3
+	rfi
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 DataAddressInvalid:
 	mfspr	r3,SPRN_SRR1
 	rlwinm	r1,r3,9,6,6	/* Get load/store bit */
@@ -607,9 +611,15 @@ BEGIN_MMU_FTR_SECTION
 	mfspr	r2,SPRN_SRR1
 	rlwimi	r2,r0,31-14,14,14
 	mtspr   SPRN_SRR1,r2
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+	mtcrf	0x80,r2
 	tlbld	r3
 	rfi
+MMU_FTR_SECTION_ELSE
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+	tlbld	r3
+	rfi
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 
 #ifndef CONFIG_ALTIVEC
 #define altivec_assist_exception	unknown_exception
