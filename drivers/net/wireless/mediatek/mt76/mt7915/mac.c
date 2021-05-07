@@ -307,7 +307,8 @@ mt7915_mac_decode_he_radiotap(struct sk_buff *skb,
 	}
 }
 
-int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+static int
+mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -610,9 +611,10 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-#ifdef CONFIG_NL80211_TESTMODE
-void mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
+static void
+mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 {
+#ifdef CONFIG_NL80211_TESTMODE
 	struct mt7915_phy *phy = &dev->phy;
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *rxv_hdr = rxd + 2;
@@ -650,10 +652,10 @@ void mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	phy->test.last_freq_offset = foe;
 	phy->test.last_snr = snr;
+#endif
 
 	dev_kfree_skb(skb);
 }
-#endif
 
 static void
 mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -1129,7 +1131,8 @@ void mt7915_txp_skb_unmap(struct mt76_dev *dev,
 				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
 }
 
-void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
+static void
+mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt7915_tx_free *free = (struct mt7915_tx_free *)skb->data;
 	struct mt76_dev *mdev = &dev->mt76;
@@ -1230,6 +1233,37 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	list_for_each_entry_safe(skb, tmp, &free_list, list) {
 		skb_list_del_init(skb);
 		napi_consume_skb(skb, 1);
+	}
+}
+
+void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+			 struct sk_buff *skb)
+{
+	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	__le32 *rxd = (__le32 *)skb->data;
+	enum rx_pkt_type type;
+
+	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+
+	switch (type) {
+	case PKT_TYPE_TXRX_NOTIFY:
+		mt7915_mac_tx_free(dev, skb);
+		break;
+	case PKT_TYPE_RX_EVENT:
+		mt7915_mcu_rx_event(dev, skb);
+		break;
+	case PKT_TYPE_TXRXV:
+		mt7915_mac_fill_rx_vector(dev, skb);
+		break;
+	case PKT_TYPE_NORMAL:
+		if (!mt7915_mac_fill_rx(dev, skb)) {
+			mt76_rx(&dev->mt76, q, skb);
+			return;
+		}
+		fallthrough;
+	default:
+		dev_kfree_skb(skb);
+		break;
 	}
 }
 

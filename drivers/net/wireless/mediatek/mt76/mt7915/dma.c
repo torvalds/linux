@@ -19,39 +19,6 @@ int mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc)
 	return 0;
 }
 
-void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
-{
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	__le32 *rxd = (__le32 *)skb->data;
-	enum rx_pkt_type type;
-
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
-
-	switch (type) {
-	case PKT_TYPE_TXRX_NOTIFY:
-		mt7915_mac_tx_free(dev, skb);
-		break;
-	case PKT_TYPE_RX_EVENT:
-		mt7915_mcu_rx_event(dev, skb);
-		break;
-#ifdef CONFIG_NL80211_TESTMODE
-	case PKT_TYPE_TXRXV:
-		mt7915_mac_fill_rx_vector(dev, skb);
-		break;
-#endif
-	case PKT_TYPE_NORMAL:
-		if (!mt7915_mac_fill_rx(dev, skb)) {
-			mt76_rx(&dev->mt76, q, skb);
-			return;
-		}
-		fallthrough;
-	default:
-		dev_kfree_skb(skb);
-		break;
-	}
-}
-
 static void
 mt7915_tx_cleanup(struct mt7915_dev *dev)
 {
