@@ -1792,8 +1792,8 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 /*
  * Returns
  *  - 0 if PMD could not be locked
- *  - 1 if PMD was locked but protections unchange and TLB flush unnecessary
- *  - HPAGE_PMD_NR is protections changed and TLB flush necessary
+ *  - 1 if PMD was locked but protections unchanged and TLB flush unnecessary
+ *  - HPAGE_PMD_NR if protections changed and TLB flush necessary
  */
 int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, pgprot_t newprot, unsigned long cp_flags)
@@ -2469,7 +2469,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 		xa_lock(&swap_cache->i_pages);
 	}
 
-	/* lock lru list/PageCompound, ref freezed by page_ref_freeze */
+	/* lock lru list/PageCompound, ref frozen by page_ref_freeze */
 	lruvec = lock_page_lruvec(head);
 
 	for (i = nr - 1; i >= 1; i--) {

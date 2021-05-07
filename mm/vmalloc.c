@@ -1583,7 +1583,7 @@ static unsigned long lazy_max_pages(void)
 static atomic_long_t vmap_lazy_nr = ATOMIC_LONG_INIT(0);
 
 /*
- * Serialize vmap purging.  There is no actual criticial section protected
+ * Serialize vmap purging.  There is no actual critical section protected
  * by this look, but we want to avoid concurrent calls for performance
  * reasons and to make the pcpu_get_vm_areas more deterministic.
  */
@@ -2628,7 +2628,7 @@ static void __vfree(const void *addr)
  * May sleep if called *not* from interrupt context.
  * Must not be called in NMI context (strictly speaking, it could be
  * if we have CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG, but making the calling
- * conventions for vfree() arch-depenedent would be a really bad idea).
+ * conventions for vfree() arch-dependent would be a really bad idea).
  */
 void vfree(const void *addr)
 {
@@ -3141,7 +3141,7 @@ static int aligned_vread(char *buf, char *addr, unsigned long count)
 		/*
 		 * To do safe access to this _mapped_ area, we need
 		 * lock. But adding lock here means that we need to add
-		 * overhead of vmalloc()/vfree() calles for this _debug_
+		 * overhead of vmalloc()/vfree() calls for this _debug_
 		 * interface, rarely used. Instead of that, we'll use
 		 * kmap() and get small overhead in this access function.
 		 */

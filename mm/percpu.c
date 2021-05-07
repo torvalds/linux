@@ -1862,7 +1862,7 @@ fail:
 			pr_info("limit reached, disable warning\n");
 	}
 	if (is_atomic) {
-		/* see the flag handling in pcpu_blance_workfn() */
+		/* see the flag handling in pcpu_balance_workfn() */
 		pcpu_atomic_alloc_failed = true;
 		pcpu_schedule_balance_work();
 	} else {

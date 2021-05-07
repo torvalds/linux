@@ -2012,8 +2012,8 @@ static unsigned int fragmentation_score_wmark(pg_data_t *pgdat, bool low)
 	unsigned int wmark_low;
 
 	/*
-	 * Cap the low watermak to avoid excessive compaction
-	 * activity in case a user sets the proactivess tunable
+	 * Cap the low watermark to avoid excessive compaction
+	 * activity in case a user sets the proactiveness tunable
 	 * close to 100 (maximum).
 	 */
 	wmark_low = max(100U - sysctl_compaction_proactiveness, 5U);

@@ -667,7 +667,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		 *
 		 * The page table that maps the page has been already unlinked
 		 * from the page table tree and this process cannot get
-		 * an additinal pin on the page.
+		 * an additional pin on the page.
 		 *
 		 * New pins can come later if the page is shared across fork,
 		 * but not from this process. The other process cannot write to
