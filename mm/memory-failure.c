@@ -75,7 +75,7 @@ static bool page_handle_poison(struct page *page, bool hugepage_or_freepage, boo
 		if (dissolve_free_huge_page(page) || !take_page_off_buddy(page))
 			/*
 			 * We could fail to take off the target page from buddy
-			 * for example due to racy page allocaiton, but that's
+			 * for example due to racy page allocation, but that's
 			 * acceptable because soft-offlined page is not broken
 			 * and if someone really want to use it, they should
 			 * take it.

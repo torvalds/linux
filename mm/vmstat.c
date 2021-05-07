@@ -934,7 +934,7 @@ void cpu_vm_stats_fold(int cpu)
 
 /*
  * this is only called if !populated_zone(zone), which implies no other users of
- * pset->vm_stat_diff[] exsist.
+ * pset->vm_stat_diff[] exist.
  */
 void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
 {

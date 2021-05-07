@@ -612,7 +612,7 @@ static unsigned long count_vma_pages_range(struct mm_struct *mm,
 	unsigned long nr_pages = 0;
 	struct vm_area_struct *vma;
 
-	/* Find first overlaping mapping */
+	/* Find first overlapping mapping */
 	vma = find_vma_intersection(mm, addr, end);
 	if (!vma)
 		return 0;
@@ -2875,7 +2875,7 @@ int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 	if (unlikely(uf)) {
 		/*
 		 * If userfaultfd_unmap_prep returns an error the vmas
-		 * will remain splitted, but userland will get a
+		 * will remain split, but userland will get a
 		 * highly unexpected error anyway. This is no
 		 * different than the case where the first of the two
 		 * __split_vma fails, but we don't undo the first

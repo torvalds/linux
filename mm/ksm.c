@@ -459,7 +459,7 @@ static inline bool ksm_test_exit(struct mm_struct *mm)
  * but taking great care only to touch a ksm page, in a VM_MERGEABLE vma,
  * in case the application has unmapped and remapped mm,addr meanwhile.
  * Could a ksm page appear anywhere else?  Actually yes, in a VM_PFNMAP
- * mmap of /dev/mem or /dev/kmem, where we would not want to touch it.
+ * mmap of /dev/mem, where we would not want to touch it.
  *
  * FAULT_FLAG/FOLL_REMOTE are because we do this outside the context
  * of the process that owns 'vma'.  We also do not want to enforce
@@ -1065,7 +1065,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		/*
 		 * Ok this is tricky, when get_user_pages_fast() run it doesn't
 		 * take any lock, therefore the check that we are going to make
-		 * with the pagecount against the mapcount is racey and
+		 * with the pagecount against the mapcount is racy and
 		 * O_DIRECT can happen right after the check.
 		 * So we clear the pte and flush the tlb before the check
 		 * this assure us that no O_DIRECT can happen after the check
@@ -1435,7 +1435,7 @@ static struct page *stable_node_dup(struct stable_node **_stable_node_dup,
 			 */
 			*_stable_node = found;
 			/*
-			 * Just for robustneess as stable_node is
+			 * Just for robustness, as stable_node is
 			 * otherwise left as a stable pointer, the
 			 * compiler shall optimize it away at build
 			 * time.

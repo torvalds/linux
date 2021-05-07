@@ -1575,7 +1575,7 @@ finish_or_fault:
  * Returns NULL on any kind of failure - a hole must then be inserted into
  * the corefile, to preserve alignment with its headers; and also returns
  * NULL wherever the ZERO_PAGE, or an anonymous pte_none, has been found -
- * allowing a hole to be left in the corefile to save diskspace.
+ * allowing a hole to be left in the corefile to save disk space.
  *
  * Called without mmap_lock (takes and releases the mmap_lock by itself).
  */

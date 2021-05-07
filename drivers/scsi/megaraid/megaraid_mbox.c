@@ -4068,5 +4068,3 @@ megaraid_sysfs_show_ldnum(struct device *dev, struct device_attribute *attr, cha
  */
 module_init(megaraid_init);
 module_exit(megaraid_exit);
-
-/* vim: set ts=8 sw=8 tw=78 ai si: */

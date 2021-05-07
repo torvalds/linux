@@ -466,7 +466,7 @@ static int allocate_file_region_entries(struct resv_map *resv,
 			      resv->region_cache_count;
 
 		/* At this point, we should have enough entries in the cache
-		 * for all the existings adds_in_progress. We should only be
+		 * for all the existing adds_in_progress. We should only be
 		 * needing to allocate for regions_needed.
 		 */
 		VM_BUG_ON(resv->region_cache_count < resv->adds_in_progress);
@@ -5536,8 +5536,8 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
 		v_end = ALIGN_DOWN(vma->vm_end, PUD_SIZE);
 
 	/*
-	 * vma need span at least one aligned PUD size and the start,end range
-	 * must at least partialy within it.
+	 * vma needs to span at least one aligned PUD size, and the range
+	 * must be at least partially within in.
 	 */
 	if (!(vma->vm_flags & VM_MAYSHARE) || !(v_end > v_start) ||
 		(*end <= v_start) || (*start >= v_end))

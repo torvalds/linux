@@ -74,7 +74,7 @@ static inline bool is_memcg_oom(struct oom_control *oc)
 
 #ifdef CONFIG_NUMA
 /**
- * oom_cpuset_eligible() - check task eligiblity for kill
+ * oom_cpuset_eligible() - check task eligibility for kill
  * @start: task struct of which task to consider
  * @oc: pointer to struct oom_control
  *

@@ -2755,7 +2755,7 @@ unsigned int seek_page_size(struct xa_state *xas, struct page *page)
  * entirely memory-based such as tmpfs, and filesystems which support
  * unwritten extents.
  *
- * Return: The requested offset on successs, or -ENXIO if @whence specifies
+ * Return: The requested offset on success, or -ENXIO if @whence specifies
  * SEEK_DATA and there is no data after @start.  There is an implicit hole
  * after @end - 1, so SEEK_HOLE returns @end if all the bytes between @start
  * and @end contain data.

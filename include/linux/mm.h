@@ -106,7 +106,7 @@ extern int mmap_rnd_compat_bits __read_mostly;
  * embedding these tags into addresses that point to these memory regions, and
  * checking that the memory and the pointer tags match on memory accesses)
  * redefine this macro to strip tags from pointers.
- * It's defined as noop for arcitectures that don't support memory tagging.
+ * It's defined as noop for architectures that don't support memory tagging.
  */
 #ifndef untagged_addr
 #define untagged_addr(addr) (addr)

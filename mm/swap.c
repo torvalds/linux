@@ -496,7 +496,7 @@ void lru_cache_add_inactive_or_unevictable(struct page *page,
 	if (unlikely(unevictable) && !TestSetPageMlocked(page)) {
 		int nr_pages = thp_nr_pages(page);
 		/*
-		 * We use the irq-unsafe __mod_zone_page_stat because this
+		 * We use the irq-unsafe __mod_zone_page_state because this
 		 * counter is not modified from interrupt context, and the pte
 		 * lock is held(spinlock), which implies preemption disabled.
 		 */
@@ -808,7 +808,7 @@ inline void __lru_add_drain_all(bool force_all_cpus)
 	 * below which drains the page vectors.
 	 *
 	 * Let x, y, and z represent some system CPU numbers, where x < y < z.
-	 * Assume CPU #z is is in the middle of the for_each_online_cpu loop
+	 * Assume CPU #z is in the middle of the for_each_online_cpu loop
 	 * below and has already reached CPU #y's per-cpu data. CPU #x comes
 	 * along, adds some pages to its per-cpu vectors, then calls
 	 * lru_add_drain_all().

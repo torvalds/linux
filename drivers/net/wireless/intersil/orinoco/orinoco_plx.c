@@ -360,11 +360,3 @@ static void __exit orinoco_plx_exit(void)
 
 module_init(orinoco_plx_init);
 module_exit(orinoco_plx_exit);
-
-/*
- * Local variables:
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */

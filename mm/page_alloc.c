@@ -893,7 +893,7 @@ compaction_capture(struct capture_control *capc, struct page *page,
 		return false;
 
 	/*
-	 * Do not let lower order allocations polluate a movable pageblock.
+	 * Do not let lower order allocations pollute a movable pageblock.
 	 * This might let an unmovable request use a reclaimable pageblock
 	 * and vice-versa but no more than normal fallback logic which can
 	 * have trouble finding a high-order free page.
@@ -2776,7 +2776,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
 			/*
 			 * In page freeing path, migratetype change is racy so
 			 * we can counter several free pages in a pageblock
-			 * in this loop althoug we changed the pageblock type
+			 * in this loop although we changed the pageblock type
 			 * from highatomic to ac->migratetype. So we should
 			 * adjust the count once.
 			 */
@@ -3080,7 +3080,7 @@ static void drain_local_pages_wq(struct work_struct *work)
 	 * drain_all_pages doesn't use proper cpu hotplug protection so
 	 * we can race with cpu offline when the WQ can move this from
 	 * a cpu pinned worker to an unbound one. We can operate on a different
-	 * cpu which is allright but we also have to make sure to not move to
+	 * cpu which is alright but we also have to make sure to not move to
 	 * a different one.
 	 */
 	preempt_disable();
@@ -4173,7 +4173,7 @@ out:
 }
 
 /*
- * Maximum number of compaction retries wit a progress before OOM
+ * Maximum number of compaction retries with a progress before OOM
  * killer is consider as the only way to move forward.
  */
 #define MAX_COMPACT_RETRIES 16
@@ -5929,7 +5929,7 @@ static int build_zonerefs_node(pg_data_t *pgdat, struct zoneref *zonerefs)
 static int __parse_numa_zonelist_order(char *s)
 {
 	/*
-	 * We used to support different zonlists modes but they turned
+	 * We used to support different zonelists modes but they turned
 	 * out to be just not useful. Let's keep the warning in place
 	 * if somebody still use the cmd line parameter so that we do
 	 * not fail it silently
@@ -7670,7 +7670,7 @@ static void check_for_memory(pg_data_t *pgdat, int nid)
 }
 
 /*
- * Some architecturs, e.g. ARC may have ZONE_HIGHMEM below ZONE_NORMAL. For
+ * Some architectures, e.g. ARC may have ZONE_HIGHMEM below ZONE_NORMAL. For
  * such cases we allow max_zone_pfn sorted in the descending order
  */
 bool __weak arch_has_descending_max_zone_pfns(void)
@@ -8728,7 +8728,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
  * alloc_contig_range() -- tries to allocate given range of pages
  * @start:	start PFN to allocate
  * @end:	one-past-the-last PFN to allocate
- * @migratetype:	migratetype of the underlaying pageblocks (either
+ * @migratetype:	migratetype of the underlying pageblocks (either
  *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
  *			in range must have the same migratetype and it must
  *			be either of the two.
@@ -8988,7 +8988,7 @@ EXPORT_SYMBOL(free_contig_range);
 
 /*
  * The zone indicated has a new number of managed_pages; batch sizes and percpu
- * page high values need to be recalulated.
+ * page high values need to be recalculated.
  */
 void __meminit zone_pcp_update(struct zone *zone)
 {
