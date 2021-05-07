@@ -1788,7 +1788,7 @@ static void sym_update_visibility(Elf64_Sym *sym, int sym_vis)
 	/* libelf doesn't provide setters for ST_VISIBILITY,
 	 * but it is stored in the lower 2 bits of st_other
 	 */
-	sym->st_other &= 0x03;
+	sym->st_other &= ~0x03;
 	sym->st_other |= sym_vis;
 }
 
