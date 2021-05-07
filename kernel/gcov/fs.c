@@ -97,9 +97,9 @@ __setup("gcov_persist=", gcov_persist_setup);
  */
 struct gcov_iterator {
 	struct gcov_info *info;
-	void *buffer;
 	size_t size;
 	loff_t pos;
+	char buffer[];
 };
 
 /**
@@ -111,25 +111,20 @@ struct gcov_iterator {
 static struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
 {
 	struct gcov_iterator *iter;
+	size_t size;
 
-	iter = kzalloc(sizeof(struct gcov_iterator), GFP_KERNEL);
+	/* Dry-run to get the actual buffer size. */
+	size = convert_to_gcda(NULL, info);
+
+	iter = vmalloc(struct_size(iter, buffer, size));
 	if (!iter)
-		goto err_free;
+		return NULL;
 
 	iter->info = info;
-	/* Dry-run to get the actual buffer size. */
-	iter->size = convert_to_gcda(NULL, info);
-	iter->buffer = vmalloc(iter->size);
-	if (!iter->buffer)
-		goto err_free;
-
+	iter->size = size;
 	convert_to_gcda(iter->buffer, info);
 
 	return iter;
-
-err_free:
-	kfree(iter);
-	return NULL;
 }
 
 
@@ -139,8 +134,7 @@ err_free:
  */
 static void gcov_iter_free(struct gcov_iterator *iter)
 {
-	vfree(iter->buffer);
-	kfree(iter);
+	vfree(iter);
 }
 
 /**
