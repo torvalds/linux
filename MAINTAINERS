@@ -9552,6 +9552,7 @@ F:	fs/io-wq.h
 F:	fs/io_uring.c
 F:	include/linux/io_uring.h
 F:	include/uapi/linux/io_uring.h
+F:	tools/io_uring/
 
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
