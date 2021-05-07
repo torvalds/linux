@@ -283,6 +283,8 @@ struct mpp_dev {
 	struct work_struct work;
 	/* task for work queue */
 	struct workqueue_struct *workq;
+	/* the flag for get/get/reduce freq */
+	bool auto_freq_en;
 	/*
 	 * The task capacity is the task queue length that hardware can accept.
 	 * Default 1 means normal hardware can only accept one task at once.

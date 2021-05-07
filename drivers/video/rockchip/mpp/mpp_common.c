@@ -373,7 +373,7 @@ static int mpp_process_task(struct mpp_session *session,
 	task->task_index = atomic_fetch_inc(&mpp->task_index);
 	INIT_DELAYED_WORK(&task->timeout_work, mpp_task_timeout_work);
 
-	if (mpp->hw_ops->get_freq)
+	if (mpp->auto_freq_en && mpp->hw_ops->get_freq)
 		mpp->hw_ops->get_freq(mpp, task);
 
 	/*
@@ -459,7 +459,7 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	else
 		mpp_set_grf(mpp->grf_info);
 
-	if (mpp->hw_ops->reduce_freq)
+	if (mpp->auto_freq_en && mpp->hw_ops->reduce_freq)
 		mpp->hw_ops->reduce_freq(mpp);
 	/* FIXME lock resource lock of the other devices in combo */
 	mpp_iommu_down_write(mpp->iommu_info);
@@ -522,7 +522,7 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	mpp_debug(DEBUG_TASK_INFO, "pid %d, start hw %s\n",
 		  task->session->pid, dev_name(mpp->dev));
 
-	if (mpp->hw_ops->set_freq)
+	if (mpp->auto_freq_en && mpp->hw_ops->set_freq)
 		mpp->hw_ops->set_freq(mpp, task);
 	/*
 	 * TODO: Lock the reader locker of the device resource lock here,
@@ -1665,6 +1665,8 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	struct device_node *np = dev->of_node;
 	struct mpp_hw_info *hw_info = mpp->var->hw_info;
 
+	/* Get disable auto frequent flag from dtsi */
+	mpp->auto_freq_en = !device_property_read_bool(dev, "rockchip,disable-auto-freq");
 	/* read link table capacity */
 	ret = of_property_read_u32(np, "rockchip,task-capacity",
 				   &mpp->task_capacity);
@@ -1830,7 +1832,8 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param)
 	irqreturn_t ret = IRQ_NONE;
 	struct mpp_dev *mpp = param;
 
-	if (mpp->hw_ops->reduce_freq &&
+	if (mpp->auto_freq_en &&
+	    mpp->hw_ops->reduce_freq &&
 	    list_empty(&mpp->queue->pending_list))
 		mpp->hw_ops->reduce_freq(mpp);
 
