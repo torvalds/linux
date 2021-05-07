@@ -1110,6 +1110,14 @@ typedef int (*radeon_packet0_check_t)(struct radeon_cs_parser *p,
 /*
  * AGP
  */
+#if IS_ENABLED(CONFIG_AGP)
+struct drm_agp_head *radeon_agp_head_init(struct drm_device *dev);
+#else
+static inline struct drm_agp_head *radeon_agp_head_init(struct drm_device *dev)
+{
+	return NULL;
+}
+#endif
 int radeon_agp_init(struct radeon_device *rdev);
 void radeon_agp_resume(struct radeon_device *rdev);
 void radeon_agp_suspend(struct radeon_device *rdev);

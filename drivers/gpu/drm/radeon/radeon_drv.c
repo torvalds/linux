@@ -346,7 +346,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 
 	if (pci_find_capability(pdev, PCI_CAP_ID_AGP))
-		dev->agp = drm_agp_init(dev);
+		dev->agp = radeon_agp_head_init(dev);
 	if (dev->agp) {
 		dev->agp->agp_mtrr = arch_phys_wc_add(
 			dev->agp->agp_info.aper_base,
