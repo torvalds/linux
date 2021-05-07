@@ -64,4 +64,10 @@ void migrate_page_states(struct page *newpage, struct page *page)
 	folio_migrate_flags(page_folio(newpage), page_folio(page));
 }
 EXPORT_SYMBOL(migrate_page_states);
+
+void migrate_page_copy(struct page *newpage, struct page *page)
+{
+	folio_migrate_copy(page_folio(newpage), page_folio(page));
+}
+EXPORT_SYMBOL(migrate_page_copy);
 #endif

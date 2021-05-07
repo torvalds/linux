@@ -912,7 +912,7 @@ void __put_page(struct page *page);
 void put_pages_list(struct list_head *pages);
 
 void split_page(struct page *page, unsigned int order);
-void copy_huge_page(struct page *dst, struct page *src);
+void folio_copy(struct folio *dst, struct folio *src);
 
 /*
  * Compound pages have a destructor function.  Provide a

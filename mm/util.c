@@ -747,13 +747,26 @@ int __page_mapcount(struct page *page)
 }
 EXPORT_SYMBOL_GPL(__page_mapcount);
 
-void copy_huge_page(struct page *dst, struct page *src)
+/**
+ * folio_copy - Copy the contents of one folio to another.
+ * @dst: Folio to copy to.
+ * @src: Folio to copy from.
+ *
+ * The bytes in the folio represented by @src are copied to @dst.
+ * Assumes the caller has validated that @dst is at least as large as @src.
+ * Can be called in atomic context for order-0 folios, but if the folio is
+ * larger, it may sleep.
+ */
+void folio_copy(struct folio *dst, struct folio *src)
 {
-	unsigned i, nr = compound_nr(src);
+	long i = 0;
+	long nr = folio_nr_pages(src);
 
-	for (i = 0; i < nr; i++) {
+	for (;;) {
+		copy_highpage(folio_page(dst, i), folio_page(src, i));
+		if (++i == nr)
+			break;
 		cond_resched();
-		copy_highpage(nth_page(dst, i), nth_page(src, i));
 	}
 }
 
