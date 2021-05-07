@@ -1160,10 +1160,9 @@ void __init trap_init(void)
 	/* Init GHCB memory pages when running as an SEV-ES guest */
 	sev_es_init_vc_handling();
 
-	idt_setup_traps();
-
+	/* Initialize TSS before setting up traps so ISTs work */
 	cpu_init_exception_handling();
+	/* Setup traps as cpu_init() might #GP */
+	idt_setup_traps();
 	cpu_init();
-
-	idt_setup_ist_traps();
 }
