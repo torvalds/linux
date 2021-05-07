@@ -54,12 +54,17 @@ enum {
  * @duty_cycle: PWM duty cycle (in nanoseconds)
  * @polarity: PWM polarity
  * @enabled: PWM enabled status
+ * @usage_power: If set, the PWM driver is only required to maintain the power
+ *               output but has more freedom regarding signal form.
+ *               If supported, the signal can be optimized, for example to
+ *               improve EMI by phase shifting individual channels.
  */
 struct pwm_state {
 	u64 period;
 	u64 duty_cycle;
 	enum pwm_polarity polarity;
 	bool enabled;
+	bool usage_power;
 };
 
 /**
@@ -188,6 +193,7 @@ static inline void pwm_init_state(const struct pwm_device *pwm,
 	state->period = args.period;
 	state->polarity = args.polarity;
 	state->duty_cycle = 0;
+	state->usage_power = false;
 }
 
 /**
@@ -558,6 +564,7 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	state.enabled = false;
 	state.polarity = pwm->args.polarity;
 	state.period = pwm->args.period;
+	state.usage_power = false;
 
 	pwm_apply_state(pwm, &state);
 }
