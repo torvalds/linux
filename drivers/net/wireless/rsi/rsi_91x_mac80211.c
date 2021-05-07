@@ -837,6 +837,23 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 			common->cqm_info.rssi_hyst);
 	}
 
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		rsi_dbg(INFO_ZONE, "%s: Changed Beacon interval: %d\n",
+			__func__, bss_conf->beacon_int);
+		if (common->beacon_interval != bss->beacon_int) {
+			common->beacon_interval = bss->beacon_int;
+			if (vif->type == NL80211_IFTYPE_AP) {
+				struct vif_priv *vif_info = (struct vif_priv *)vif->drv_priv;
+
+				rsi_set_vap_capabilities(common, RSI_OPMODE_AP,
+							 vif->addr, vif_info->vap_id,
+							 VAP_UPDATE);
+			}
+		}
+		adapter->ps_info.listen_interval =
+			bss->beacon_int * adapter->ps_info.num_bcns_per_lis_int;
+	}
+
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    ((vif->type == NL80211_IFTYPE_AP) ||
 	     (vif->type == NL80211_IFTYPE_P2P_GO))) {
