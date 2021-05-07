@@ -180,7 +180,7 @@ static const unsigned int top_tasks_bitmap_size =
 static __read_mostly unsigned int walt_scale_demand_divisor;
 #define scale_demand(d) ((d)/walt_scale_demand_divisor)
 
-#define SCHED_PRINT(arg)	pr_emerg("%s=%llu", #arg, arg)
+#define SCHED_PRINT(arg)	printk_deferred("%s=%llu", #arg, arg)
 #define STRG(arg)		#arg
 
 static inline void walt_task_dump(struct task_struct *p)
@@ -238,7 +238,7 @@ static inline void walt_rq_dump(int cpu)
 	 * rq locks held.
 	 */
 	get_task_struct(tsk);
-	pr_emerg("CPU:%d nr_running:%u current: %d (%s)\n",
+	printk_deferred("CPU:%d nr_running:%u current: %d (%s)\n",
 			cpu, rq->nr_running, tsk->pid, tsk->comm);
 
 	printk_deferred("==========================================");
@@ -270,15 +270,15 @@ static inline void walt_dump(void)
 {
 	int cpu;
 
-	pr_emerg("============ WALT RQ DUMP START ==============\n");
-	pr_emerg("Sched ktime_get: %llu\n", sched_ktime_clock());
-	pr_emerg("Time last window changed=%lu\n",
+	printk_deferred("============ WALT RQ DUMP START ==============\n");
+	printk_deferred("Sched ktime_get: %llu\n", sched_ktime_clock());
+	printk_deferred("Time last window changed=%lu\n",
 			sched_ravg_window_change_time);
 	for_each_online_cpu(cpu)
 		walt_rq_dump(cpu);
 	SCHED_PRINT(max_possible_capacity);
 	SCHED_PRINT(min_max_possible_capacity);
-	pr_emerg("============ WALT RQ DUMP END ==============\n");
+	printk_deferred("============ WALT RQ DUMP END ==============\n");
 }
 
 static int in_sched_bug;
@@ -399,7 +399,7 @@ update_window_start(struct rq *rq, u64 wallclock, int event)
 
 	delta = wallclock - wrq->window_start;
 	if (delta < 0) {
-		pr_emerg("WALT-BUG CPU%d; wallclock=%llu is lesser than window_start=%llu",
+		printk_deferred("WALT-BUG CPU%d; wallclock=%llu is lesser than window_start=%llu",
 			rq->cpu, wallclock, wrq->window_start);
 		SCHED_BUG_ON(1);
 	}
