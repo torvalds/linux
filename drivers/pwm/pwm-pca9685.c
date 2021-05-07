@@ -23,11 +23,11 @@
 #include <linux/bitmap.h>
 
 /*
- * Because the PCA9685 has only one prescaler per chip, changing the period of
- * one channel affects the period of all 16 PWM outputs!
- * However, the ratio between each configured duty cycle and the chip-wide
- * period remains constant, because the OFF time is set in proportion to the
- * counter range.
+ * Because the PCA9685 has only one prescaler per chip, only the first channel
+ * that is enabled is allowed to change the prescale register.
+ * PWM channels requested afterwards must use a period that results in the same
+ * prescale setting as the one set by the first requested channel.
+ * GPIOs do not count as enabled PWMs as they are not using the prescaler.
  */
 
 #define PCA9685_MODE1		0x00
@@ -78,8 +78,9 @@
 struct pca9685 {
 	struct pwm_chip chip;
 	struct regmap *regmap;
-#if IS_ENABLED(CONFIG_GPIOLIB)
 	struct mutex lock;
+	DECLARE_BITMAP(pwms_enabled, PCA9685_MAXCHAN + 1);
+#if IS_ENABLED(CONFIG_GPIOLIB)
 	struct gpio_chip gpio;
 	DECLARE_BITMAP(pwms_inuse, PCA9685_MAXCHAN + 1);
 #endif
@@ -88,6 +89,22 @@ struct pca9685 {
 static inline struct pca9685 *to_pca(struct pwm_chip *chip)
 {
 	return container_of(chip, struct pca9685, chip);
+}
+
+/* This function is supposed to be called with the lock mutex held */
+static bool pca9685_prescaler_can_change(struct pca9685 *pca, int channel)
+{
+	/* No PWM enabled: Change allowed */
+	if (bitmap_empty(pca->pwms_enabled, PCA9685_MAXCHAN + 1))
+		return true;
+	/* More than one PWM enabled: Change not allowed */
+	if (bitmap_weight(pca->pwms_enabled, PCA9685_MAXCHAN + 1) > 1)
+		return false;
+	/*
+	 * Only one PWM enabled: Change allowed if the PWM about to
+	 * be changed is the one that is already enabled
+	 */
+	return test_bit(channel, pca->pwms_enabled);
 }
 
 /* Helper function to set the duty cycle ratio to duty/4096 (e.g. duty=2048 -> 50%) */
@@ -269,8 +286,6 @@ static int pca9685_pwm_gpio_probe(struct pca9685 *pca)
 {
 	struct device *dev = pca->chip.dev;
 
-	mutex_init(&pca->lock);
-
 	pca->gpio.label = dev_name(dev);
 	pca->gpio.parent = dev;
 	pca->gpio.request = pca9685_pwm_gpio_request;
@@ -314,8 +329,8 @@ static void pca9685_set_sleep_mode(struct pca9685 *pca, bool enable)
 	}
 }
 
-static int pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			     const struct pwm_state *state)
+static int __pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			       const struct pwm_state *state)
 {
 	struct pca9685 *pca = to_pca(chip);
 	unsigned long long duty, prescale;
@@ -338,6 +353,12 @@ static int pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	regmap_read(pca->regmap, PCA9685_PRESCALE, &val);
 	if (prescale != val) {
+		if (!pca9685_prescaler_can_change(pca, pwm->hwpwm)) {
+			dev_err(chip->dev,
+				"pwm not changed: periods of enabled pwms must match!\n");
+			return -EBUSY;
+		}
+
 		/*
 		 * Putting the chip briefly into SLEEP mode
 		 * at this point won't interfere with the
@@ -358,6 +379,25 @@ static int pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	duty = DIV_ROUND_UP_ULL(duty, state->period);
 	pca9685_pwm_set_duty(pca, pwm->hwpwm, duty);
 	return 0;
+}
+
+static int pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
+{
+	struct pca9685 *pca = to_pca(chip);
+	int ret;
+
+	mutex_lock(&pca->lock);
+	ret = __pca9685_pwm_apply(chip, pwm, state);
+	if (ret == 0) {
+		if (state->enabled)
+			set_bit(pwm->hwpwm, pca->pwms_enabled);
+		else
+			clear_bit(pwm->hwpwm, pca->pwms_enabled);
+	}
+	mutex_unlock(&pca->lock);
+
+	return ret;
 }
 
 static void pca9685_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -401,6 +441,14 @@ static int pca9685_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	if (pca9685_pwm_test_and_set_inuse(pca, pwm->hwpwm))
 		return -EBUSY;
+
+	if (pwm->hwpwm < PCA9685_MAXCHAN) {
+		/* PWMs - except the "all LEDs" channel - default to enabled */
+		mutex_lock(&pca->lock);
+		set_bit(pwm->hwpwm, pca->pwms_enabled);
+		mutex_unlock(&pca->lock);
+	}
+
 	pm_runtime_get_sync(chip->dev);
 
 	return 0;
@@ -410,7 +458,11 @@ static void pca9685_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct pca9685 *pca = to_pca(chip);
 
+	mutex_lock(&pca->lock);
 	pca9685_pwm_set_duty(pca, pwm->hwpwm, 0);
+	clear_bit(pwm->hwpwm, pca->pwms_enabled);
+	mutex_unlock(&pca->lock);
+
 	pm_runtime_put(chip->dev);
 	pca9685_pwm_clear_inuse(pca, pwm->hwpwm);
 }
@@ -450,6 +502,8 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, pca);
+
+	mutex_init(&pca->lock);
 
 	regmap_read(pca->regmap, PCA9685_MODE2, &reg);
 
