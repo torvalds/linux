@@ -57,6 +57,8 @@
 #include <trace/hooks/selinux.h>
 #include <trace/hooks/hung_task.h>
 #include <trace/hooks/mmc_core.h>
+#include <trace/hooks/v4l2core.h>
+#include <trace/hooks/v4l2mc.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -302,3 +304,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_save_track_hash);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_task_comm);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpufreq_acct_update_power);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_typec_tcpm_log);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_media_device_setup_link);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_reserved_fmt_fields);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_fill_ext_fmtdesc);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_mask_adjust);

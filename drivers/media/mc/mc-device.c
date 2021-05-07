@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/usb.h>
 #include <linux/version.h>
+#include <trace/hooks/v4l2mc.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
@@ -203,6 +204,7 @@ static long media_device_setup_link(struct media_device *mdev, void *arg)
 	struct media_link *link = NULL;
 	struct media_entity *source;
 	struct media_entity *sink;
+	int ret = 0;
 
 	/* Find the source and sink entities and link.
 	 */
@@ -221,9 +223,12 @@ static long media_device_setup_link(struct media_device *mdev, void *arg)
 	if (link == NULL)
 		return -EINVAL;
 
-	memset(linkd->reserved, 0, sizeof(linkd->reserved));
+	/* Setup the link on both entities */
+	trace_android_vh_media_device_setup_link(link, linkd, &ret);
+	if (ret)
+		return ret;
 
-	/* Setup the link on both entities. */
+	memset(linkd->reserved, 0, sizeof(linkd->reserved));
 	return __media_entity_setup_link(link, linkd->flags);
 }
 
