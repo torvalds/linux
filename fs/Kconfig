@@ -338,8 +338,8 @@ config NFS_COMMON
 	default y
 
 config NFS_V4_2_SSC_HELPER
-	tristate
-	default y if NFS_V4=y || NFS_FS=y
+	bool
+	default y if NFS_V4_2
 
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
