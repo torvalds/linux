@@ -657,9 +657,11 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	if (WARN_ON(!i915_gem_object_trylock(obj)))
 		return -EBUSY;
 
+	i915_gem_object_init_memory_region(obj, mem);
+
 	err = i915_gem_object_pin_pages(obj);
-	if (!err)
-		i915_gem_object_init_memory_region(obj, mem);
+	if (err)
+		i915_gem_object_release_memory_region(obj);
 	i915_gem_object_unlock(obj);
 
 	return err;
