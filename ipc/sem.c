@@ -786,7 +786,7 @@ static inline void wake_up_sem_queue_prepare(struct sem_queue *q, int error,
 {
 	get_task_struct(q->sleeper);
 
-	/* see SEM_BARRIER_2 for purpuse/pairing */
+	/* see SEM_BARRIER_2 for purpose/pairing */
 	smp_store_release(&q->status, error);
 
 	wake_q_add_safe(wake_q, q->sleeper);
