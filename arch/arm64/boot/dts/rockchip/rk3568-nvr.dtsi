@@ -348,7 +348,8 @@
 };
 
 &rkvdec {
-	rockchip,default-max-load = <100>;
+	rockchip,disable-auto-freq;
+	assigned-clock-rates = <396000000>, <396000000>, <396000000>, <600000000>;
 	status = "okay";
 };
 
