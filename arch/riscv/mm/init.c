@@ -67,11 +67,6 @@ static void __init zone_sizes_init(void)
 	free_area_init(max_zone_pfns);
 }
 
-static void __init setup_zero_page(void)
-{
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
-}
-
 #if defined(CONFIG_MMU) && defined(CONFIG_DEBUG_VM)
 static inline void print_mlk(char *name, unsigned long b, unsigned long t)
 {
@@ -867,7 +862,6 @@ RESERVEDMEM_OF_DECLARE(elfcorehdr, "linux,elfcorehdr", elfcore_hdr_setup);
 void __init paging_init(void)
 {
 	setup_vm_final();
-	setup_zero_page();
 }
 
 void __init misc_mem_init(void)
