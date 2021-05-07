@@ -147,8 +147,6 @@ struct max17040_chip {
 
 	/* battery capacity */
 	int soc;
-	/* State Of Charge */
-	int status;
 	/* Low alert threshold from 32% to 1% of the State of Charge */
 	u32 low_soc_alert;
 	/* some devices return twice the capacity */
@@ -225,24 +223,6 @@ static int max17040_get_online(struct max17040_chip *chip)
 		chip->pdata->battery_online() : 1;
 }
 
-static int max17040_get_status(struct max17040_chip *chip)
-{
-	if (!chip->pdata || !chip->pdata->charger_online
-			|| !chip->pdata->charger_enable)
-		return POWER_SUPPLY_STATUS_UNKNOWN;
-
-	if (max17040_get_soc(chip) > MAX17040_BATTERY_FULL)
-		return POWER_SUPPLY_STATUS_FULL;
-
-	if (chip->pdata->charger_online())
-		if (chip->pdata->charger_enable())
-			return POWER_SUPPLY_STATUS_CHARGING;
-		else
-			return POWER_SUPPLY_STATUS_NOT_CHARGING;
-	else
-		return POWER_SUPPLY_STATUS_DISCHARGING;
-}
-
 static int max17040_get_of_data(struct max17040_chip *chip)
 {
 	struct device *dev = &chip->client->dev;
@@ -283,7 +263,6 @@ static int max17040_get_of_data(struct max17040_chip *chip)
 static void max17040_check_changes(struct max17040_chip *chip)
 {
 	chip->soc = max17040_get_soc(chip);
-	chip->status = max17040_get_status(chip);
 }
 
 static void max17040_queue_work(struct max17040_chip *chip)
@@ -302,17 +281,16 @@ static void max17040_stop_work(void *data)
 static void max17040_work(struct work_struct *work)
 {
 	struct max17040_chip *chip;
-	int last_soc, last_status;
+	int last_soc;
 
 	chip = container_of(work, struct max17040_chip, work.work);
 
-	/* store SOC and status to check changes */
+	/* store SOC to check changes */
 	last_soc = chip->soc;
-	last_status = chip->status;
 	max17040_check_changes(chip);
 
 	/* check changes and send uevent */
-	if (last_soc != chip->soc || last_status != chip->status)
+	if (last_soc != chip->soc)
 		power_supply_changed(chip->battery);
 
 	max17040_queue_work(chip);
@@ -413,9 +391,6 @@ static int max17040_get_property(struct power_supply *psy,
 	struct max17040_chip *chip = power_supply_get_drvdata(psy);
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = max17040_get_status(chip);
-		break;
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = max17040_get_online(chip);
 		break;
@@ -442,7 +417,6 @@ static const struct regmap_config max17040_regmap = {
 };
 
 static enum power_supply_property max17040_battery_props[] = {
-	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
