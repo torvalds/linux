@@ -53,11 +53,6 @@ void can_rx_offload_irq_finish(struct can_rx_offload *offload);
 void can_rx_offload_del(struct can_rx_offload *offload);
 void can_rx_offload_enable(struct can_rx_offload *offload);
 
-static inline void can_rx_offload_schedule(struct can_rx_offload *offload)
-{
-	napi_schedule(&offload->napi);
-}
-
 static inline void can_rx_offload_disable(struct can_rx_offload *offload)
 {
 	napi_disable(&offload->napi);

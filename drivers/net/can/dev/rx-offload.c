@@ -295,7 +295,7 @@ void can_rx_offload_irq_finish(struct can_rx_offload *offload)
 		netdev_dbg(offload->dev, "%s: queue_len=%d\n",
 			   __func__, queue_len);
 
-	can_rx_offload_schedule(offload);
+	napi_schedule(&offload->napi);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_irq_finish);
 
