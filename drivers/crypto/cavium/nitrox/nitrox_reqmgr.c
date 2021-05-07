@@ -159,7 +159,7 @@ static int dma_map_inbufs(struct nitrox_softreq *sr,
 			  struct se_crypto_request *req)
 {
 	struct device *dev = DEV(sr->ndev);
-	struct scatterlist *sg = req->src;
+	struct scatterlist *sg;
 	int i, nents, ret = 0;
 
 	nents = dma_map_sg(dev, req->src, sg_nents(req->src),
