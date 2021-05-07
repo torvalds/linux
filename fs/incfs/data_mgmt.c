@@ -1119,6 +1119,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	int error;
 	int wait_res = 0;
 	unsigned int delayed_pending_us = 0, delayed_min_us = 0;
+	bool delayed_pending = false;
 
 	if (!df || !res_block)
 		return -EFAULT;
@@ -1193,6 +1194,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return wait_res;
 	}
 
+	delayed_pending = true;
 	delayed_pending_us = timeouts->max_pending_time_us -
 				jiffies_to_usecs(wait_res);
 	if (timeouts->min_pending_time_us > delayed_pending_us) {
@@ -1233,7 +1235,7 @@ out:
 	if (!mi->mi_sysfs_node)
 		return 0;
 
-	if (delayed_pending_us) {
+	if (delayed_pending) {
 		mi->mi_sysfs_node->isn_reads_delayed_pending++;
 		mi->mi_sysfs_node->isn_reads_delayed_pending_us +=
 			delayed_pending_us;
