@@ -369,7 +369,7 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 }
 
 /**
- * nitrox_se_request - Send request to SE core
+ * nitrox_process_se_request - Send request to SE core
  * @ndev: NITROX device
  * @req: Crypto request
  *
