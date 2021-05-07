@@ -131,6 +131,10 @@ static int codegen_datasec_def(struct bpf_object *obj,
 		int need_off = sec_var->offset, align_off, align;
 		__u32 var_type_id = var->type;
 
+		/* static variables are not exposed through BPF skeleton */
+		if (btf_var(var)->linkage == BTF_VAR_STATIC)
+			continue;
+
 		if (off > need_off) {
 			p_err("Something is wrong for %s's variable #%d: need offset %d, already at %d.\n",
 			      sec_name, i, need_off, off);
