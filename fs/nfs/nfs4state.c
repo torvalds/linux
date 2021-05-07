@@ -2695,9 +2695,3 @@ static int nfs4_run_state_manager(void *ptr)
 	module_put_and_exit(0);
 	return 0;
 }
-
-/*
- * Local variables:
- *  c-basic-offset: 8
- * End:
- */

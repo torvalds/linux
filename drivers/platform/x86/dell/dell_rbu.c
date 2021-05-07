@@ -675,6 +675,3 @@ static __exit void dcdrbu_exit(void)
 
 module_exit(dcdrbu_exit);
 module_init(dcdrbu_init);
-
-/* vim:noet:ts=8:sw=8
-*/
