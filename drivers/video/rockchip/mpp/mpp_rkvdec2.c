@@ -1026,8 +1026,8 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 	sram_start = round_up(sram_res.start, PAGE_SIZE);
 	sram_end = round_down(sram_res.start + resource_size(&sram_res), PAGE_SIZE);
 	if (sram_end <= sram_start) {
-		dev_err(dev, "no available sram, phy_start %llx, phy_end %llx\n",
-			sram_start, sram_end);
+		dev_err(dev, "no available sram, phy_start %pa, phy_end %pa\n",
+			&sram_start, &sram_end);
 		return -ENOMEM;
 	}
 	sram_size = sram_end - sram_start;
