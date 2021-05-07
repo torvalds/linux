@@ -638,7 +638,7 @@ static int do_object(int argc, char **argv)
 	while (argc) {
 		file = GET_ARG();
 
-		err = bpf_linker__add_file(linker, file);
+		err = bpf_linker__add_file(linker, file, NULL);
 		if (err) {
 			p_err("failed to link '%s': %s (%d)", file, strerror(err), err);
 			goto out;
