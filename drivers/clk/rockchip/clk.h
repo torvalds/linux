@@ -279,6 +279,8 @@ enum rockchip_pll_type {
 	pll_rk3066,
 	pll_rk3328,
 	pll_rk3399,
+	pll_rk3588,
+	pll_rk3588_core,
 };
 
 #define RK3036_PLL_RATE(_rate, _refdiv, _fbdiv, _postdiv1,	\
@@ -309,6 +311,15 @@ enum rockchip_pll_type {
 	.nf = _nf,						\
 	.no = _no,						\
 	.nb = _nb,						\
+}
+
+#define RK3588_PLL_RATE(_rate, _p, _m, _s, _k)			\
+{								\
+	.rate	= _rate##U,					\
+	.p = _p,						\
+	.m = _m,						\
+	.s = _s,						\
+	.k = _k,						\
 }
 
 /**
@@ -346,6 +357,13 @@ struct rockchip_pll_rate_table {
 			unsigned int postdiv2;
 			unsigned int dsmpd;
 			unsigned int frac;
+		};
+		struct {
+			/* for RK3588 */
+			unsigned int m;
+			unsigned int p;
+			unsigned int s;
+			unsigned int k;
 		};
 	};
 };
