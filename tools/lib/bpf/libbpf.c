@@ -700,13 +700,14 @@ bpf_object__add_programs(struct bpf_object *obj, Elf_Data *sec_data,
 		if (err)
 			return err;
 
-		/* if function is a global/weak symbol, but has hidden
-		 * visibility (STV_HIDDEN), mark its BTF FUNC as static to
-		 * enable more permissive BPF verification mode with more
-		 * outside context available to BPF verifier
+		/* if function is a global/weak symbol, but has restricted
+		 * (STV_HIDDEN or STV_INTERNAL) visibility, mark its BTF FUNC
+		 * as static to enable more permissive BPF verification mode
+		 * with more outside context available to BPF verifier
 		 */
 		if (GELF_ST_BIND(sym.st_info) != STB_LOCAL
-		    && GELF_ST_VISIBILITY(sym.st_other) == STV_HIDDEN)
+		    && (GELF_ST_VISIBILITY(sym.st_other) == STV_HIDDEN
+			|| GELF_ST_VISIBILITY(sym.st_other) == STV_INTERNAL))
 			prog->mark_btf_static = true;
 
 		nr_progs++;
