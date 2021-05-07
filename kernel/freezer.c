@@ -13,6 +13,9 @@
 #include <linux/kthread.h>
 #include <linux/mmu_context.h>
 
+#undef CREATE_TRACE_POINT
+#include <trace/hooks/cgroup.h>
+
 /* total number of freezing conditions in effect */
 atomic_t system_freezing_cnt = ATOMIC_INIT(0);
 EXPORT_SYMBOL(system_freezing_cnt);
@@ -71,6 +74,7 @@ bool __refrigerator(bool check_kthr_stop)
 		if (!freezing(current) ||
 		    (check_kthr_stop && kthread_should_stop()))
 			current->flags &= ~PF_FROZEN;
+		trace_android_rvh_refrigerator(pm_nosig_freezing);
 		spin_unlock_irq(&freezer_lock);
 
 		if (!(current->flags & PF_FROZEN))
