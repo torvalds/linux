@@ -285,16 +285,16 @@ alternative_else_nop_endif
 	stp	lr, x21, [sp, #S_LR]
 
 	/*
-	 * For exceptions from EL0, terminate the callchain here.
+	 * For exceptions from EL0, create a terminal frame record.
 	 * For exceptions from EL1, create a synthetic frame record so the
 	 * interrupted code shows up in the backtrace.
 	 */
 	.if \el == 0
-	mov	x29, xzr
+	stp	xzr, xzr, [sp, #S_STACKFRAME]
 	.else
 	stp	x29, x22, [sp, #S_STACKFRAME]
-	add	x29, sp, #S_STACKFRAME
 	.endif
+	add	x29, sp, #S_STACKFRAME
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 alternative_if_not ARM64_HAS_PAN
@@ -314,6 +314,8 @@ alternative_else_nop_endif
 alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	mrs_s	x20, SYS_ICC_PMR_EL1
 	str	x20, [sp, #S_PMR_SAVE]
+	mov	x20, #GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET
+	msr_s	SYS_ICC_PMR_EL1, x20
 alternative_else_nop_endif
 
 	/* Re-enable tag checking (TCO set on exception entry) */
@@ -550,17 +552,7 @@ tsk	.req	x28		// current thread_info
 #endif
 	.endm
 
-	.macro	gic_prio_irq_setup, pmr:req, tmp:req
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	alternative_if ARM64_HAS_IRQ_PRIO_MASKING
-	orr	\tmp, \pmr, #GIC_PRIO_PSR_I_SET
-	msr_s	SYS_ICC_PMR_EL1, \tmp
-	alternative_else_nop_endif
-#endif
-	.endm
-
 	.macro el1_interrupt_handler, handler:req
-	gic_prio_irq_setup pmr=x20, tmp=x1
 	enable_da
 
 	mov	x0, sp
@@ -590,7 +582,6 @@ alternative_else_nop_endif
 	.endm
 
 	.macro el0_interrupt_handler, handler:req
-	gic_prio_irq_setup pmr=x20, tmp=x0
 	user_exit_irqoff
 	enable_da
 
@@ -788,7 +779,6 @@ SYM_CODE_END(el0_fiq)
 SYM_CODE_START_LOCAL(el1_error)
 	kernel_entry 1
 	mrs	x1, esr_el1
-	gic_prio_kentry_setup tmp=x2
 	enable_dbg
 	mov	x0, sp
 	bl	do_serror
@@ -799,7 +789,6 @@ SYM_CODE_START_LOCAL(el0_error)
 	kernel_entry 0
 el0_error_naked:
 	mrs	x25, esr_el1
-	gic_prio_kentry_setup tmp=x2
 	user_exit_irqoff
 	enable_dbg
 	mov	x0, sp
