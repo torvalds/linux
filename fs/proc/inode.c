@@ -483,7 +483,6 @@ proc_reg_get_unmapped_area(struct file *file, unsigned long orig_addr,
 
 static int proc_reg_open(struct inode *inode, struct file *file)
 {
-	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
 	struct proc_dir_entry *pde = PDE(inode);
 	int rv = 0;
 	typeof_member(struct proc_ops, proc_open) open;
@@ -496,9 +495,6 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 			rv = open(inode, file);
 		return rv;
 	}
-
-	if (fs_info->pidonly == PROC_PIDONLY_ON)
-		return -ENOENT;
 
 	/*
 	 * Ensure that
