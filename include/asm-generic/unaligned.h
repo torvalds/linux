@@ -16,7 +16,6 @@
 #if defined(__LITTLE_ENDIAN)
 # ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #  include <linux/unaligned/le_struct.h>
-#  include <linux/unaligned/be_byteshift.h>
 # endif
 # include <linux/unaligned/generic.h>
 # define get_unaligned	__get_unaligned_le
@@ -24,7 +23,6 @@
 #elif defined(__BIG_ENDIAN)
 # ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #  include <linux/unaligned/be_struct.h>
-#  include <linux/unaligned/le_byteshift.h>
 # endif
 # include <linux/unaligned/generic.h>
 # define get_unaligned	__get_unaligned_be

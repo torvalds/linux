@@ -34,4 +34,34 @@ static inline void put_unaligned_be64(u64 val, void *p)
 	__put_unaligned_cpu64(val, p);
 }
 
+static inline u16 get_unaligned_le16(const void *p)
+{
+	return swab16(__get_unaligned_cpu16((const u8 *)p));
+}
+
+static inline u32 get_unaligned_le32(const void *p)
+{
+	return swab32(__get_unaligned_cpu32((const u8 *)p));
+}
+
+static inline u64 get_unaligned_le64(const void *p)
+{
+	return swab64(__get_unaligned_cpu64((const u8 *)p));
+}
+
+static inline void put_unaligned_le16(u16 val, void *p)
+{
+	__put_unaligned_cpu16(swab16(val), p);
+}
+
+static inline void put_unaligned_le32(u32 val, void *p)
+{
+	__put_unaligned_cpu32(swab32(val), p);
+}
+
+static inline void put_unaligned_le64(u64 val, void *p)
+{
+	__put_unaligned_cpu64(swab64(val), p);
+}
+
 #endif /* _LINUX_UNALIGNED_BE_STRUCT_H */
