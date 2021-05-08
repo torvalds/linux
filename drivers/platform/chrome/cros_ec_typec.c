@@ -58,6 +58,7 @@ struct cros_typec_port {
 	/* Variables keeping track of switch state. */
 	struct typec_mux_state state;
 	uint8_t mux_flags;
+	uint8_t role;
 
 	/* Port alt modes. */
 	struct typec_altmode p_altmode[CROS_EC_ALTMODE_MAX];
@@ -220,6 +221,9 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 
+	if (!port->partner)
+		return;
+
 	cros_typec_unregister_altmodes(typec, port_num, true);
 
 	cros_typec_usb_disconnect_state(port);
@@ -234,6 +238,9 @@ static void cros_typec_remove_cable(struct cros_typec_data *typec,
 				    int port_num)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
+
+	if (!port->cable)
+		return;
 
 	cros_typec_unregister_altmodes(typec, port_num, false);
 
@@ -253,11 +260,8 @@ static void cros_unregister_ports(struct cros_typec_data *typec)
 		if (!typec->ports[i])
 			continue;
 
-		if (typec->ports[i]->partner)
-			cros_typec_remove_partner(typec, i);
-
-		if (typec->ports[i]->cable)
-			cros_typec_remove_cable(typec, i);
+		cros_typec_remove_partner(typec, i);
+		cros_typec_remove_cable(typec, i);
 
 		usb_role_switch_put(typec->ports[i]->role_sw);
 		typec_switch_put(typec->ports[i]->ori_sw);
@@ -483,6 +487,11 @@ static int cros_typec_enable_dp(struct cros_typec_data *typec,
 		return -ENOTSUPP;
 	}
 
+	if (!pd_ctrl->dp_mode) {
+		dev_err(typec->dev, "No valid DP mode provided.\n");
+		return -EINVAL;
+	}
+
 	/* Status VDO. */
 	dp_data.status = DP_STATUS_ENABLED;
 	if (port->mux_flags & USB_PD_MUX_HPD_IRQ)
@@ -647,11 +656,8 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 				 "Failed to register partner on port: %d\n",
 				 port_num);
 	} else {
-		if (typec->ports[port_num]->partner)
-			cros_typec_remove_partner(typec, port_num);
-
-		if (typec->ports[port_num]->cable)
-			cros_typec_remove_cable(typec, port_num);
+		cros_typec_remove_partner(typec, port_num);
+		cros_typec_remove_cable(typec, port_num);
 	}
 }
 
@@ -905,6 +911,19 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 		return;
 	}
 
+	/* If we got a hard reset, unregister everything and return. */
+	if (resp.events & PD_STATUS_EVENT_HARD_RESET) {
+		cros_typec_remove_partner(typec, port_num);
+		cros_typec_remove_cable(typec, port_num);
+
+		ret = cros_typec_send_clear_event(typec, port_num,
+						  PD_STATUS_EVENT_HARD_RESET);
+		if (ret < 0)
+			dev_warn(typec->dev,
+				 "Failed hard reset event clear, port: %d\n", port_num);
+		return;
+	}
+
 	/* Handle any events appropriately. */
 	if (resp.events & PD_STATUS_EVENT_SOP_DISC_DONE && !typec->ports[port_num]->sop_disc_done) {
 		u16 sop_revision;
@@ -995,10 +1014,12 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	}
 
 	/* No change needs to be made, let's exit early. */
-	if (typec->ports[port_num]->mux_flags == mux_resp.flags)
+	if (typec->ports[port_num]->mux_flags == mux_resp.flags &&
+	    typec->ports[port_num]->role == resp.role)
 		return 0;
 
 	typec->ports[port_num]->mux_flags = mux_resp.flags;
+	typec->ports[port_num]->role = resp.role;
 	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags, &resp);
 	if (ret)
 		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
@@ -1027,8 +1048,8 @@ static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
 	else
 		typec->pd_ctrl_ver = 0;
 
-	dev_dbg(typec->dev, "PD Control has version mask 0x%hhx\n",
-		typec->pd_ctrl_ver);
+	dev_dbg(typec->dev, "PD Control has version mask 0x%02x\n",
+		typec->pd_ctrl_ver & 0xff);
 
 	return 0;
 }

@@ -104,7 +104,7 @@ rnbd_get_sess_dev(int dev_id, struct rnbd_srv_session *srv_sess)
 
 	rcu_read_lock();
 	sess_dev = xa_load(&srv_sess->index_idr, dev_id);
-	if (likely(sess_dev))
+	if (sess_dev)
 		ret = kref_get_unless_zero(&sess_dev->kref);
 	rcu_read_unlock();
 

@@ -7,6 +7,13 @@ config F2FS_FS
 	select CRYPTO_CRC32
 	select F2FS_FS_XATTR if FS_ENCRYPTION
 	select FS_ENCRYPTION_ALGS if FS_ENCRYPTION
+	select LZ4_COMPRESS if F2FS_FS_LZ4
+	select LZ4_DECOMPRESS if F2FS_FS_LZ4
+	select LZ4HC_COMPRESS if F2FS_FS_LZ4HC
+	select LZO_COMPRESS if F2FS_FS_LZO
+	select LZO_DECOMPRESS if F2FS_FS_LZO
+	select ZSTD_COMPRESS if F2FS_FS_ZSTD
+	select ZSTD_DECOMPRESS if F2FS_FS_ZSTD
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports
 	  versatile "flash-friendly" features. The design has been focused on
@@ -94,8 +101,6 @@ config F2FS_FS_COMPRESSION
 config F2FS_FS_LZO
 	bool "LZO compression support"
 	depends on F2FS_FS_COMPRESSION
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
 	default y
 	help
 	  Support LZO compress algorithm, if unsure, say Y.
@@ -103,8 +108,6 @@ config F2FS_FS_LZO
 config F2FS_FS_LZ4
 	bool "LZ4 compression support"
 	depends on F2FS_FS_COMPRESSION
-	select LZ4_COMPRESS
-	select LZ4_DECOMPRESS
 	default y
 	help
 	  Support LZ4 compress algorithm, if unsure, say Y.
@@ -113,7 +116,6 @@ config F2FS_FS_LZ4HC
 	bool "LZ4HC compression support"
 	depends on F2FS_FS_COMPRESSION
 	depends on F2FS_FS_LZ4
-	select LZ4HC_COMPRESS
 	default y
 	help
 	  Support LZ4HC compress algorithm, LZ4HC has compatible on-disk
@@ -122,8 +124,6 @@ config F2FS_FS_LZ4HC
 config F2FS_FS_ZSTD
 	bool "ZSTD compression support"
 	depends on F2FS_FS_COMPRESSION
-	select ZSTD_COMPRESS
-	select ZSTD_DECOMPRESS
 	default y
 	help
 	  Support ZSTD compress algorithm, if unsure, say Y.
@@ -132,8 +132,6 @@ config F2FS_FS_LZORLE
 	bool "LZO-RLE compression support"
 	depends on F2FS_FS_COMPRESSION
 	depends on F2FS_FS_LZO
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
 	default y
 	help
 	  Support LZO-RLE compress algorithm, if unsure, say Y.

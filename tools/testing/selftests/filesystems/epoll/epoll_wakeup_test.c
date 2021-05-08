@@ -3449,4 +3449,48 @@ TEST(epoll63)
 	close(sfd[1]);
 }
 
+/*
+ *        t0    t1
+ *     (ew) \  / (ew)
+ *           e0
+ *            | (lt)
+ *           s0
+ */
+TEST(epoll64)
+{
+	pthread_t waiter[2];
+	struct epoll_event e;
+	struct epoll_mtcontext ctx = { 0 };
+
+	signal(SIGUSR1, signal_handler);
+
+	ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, ctx.sfd), 0);
+
+	ctx.efd[0] = epoll_create(1);
+	ASSERT_GE(ctx.efd[0], 0);
+
+	e.events = EPOLLIN;
+	ASSERT_EQ(epoll_ctl(ctx.efd[0], EPOLL_CTL_ADD, ctx.sfd[0], &e), 0);
+
+	/*
+	 * main will act as the emitter once both waiter threads are
+	 * blocked and expects to both be awoken upon the ready event.
+	 */
+	ctx.main = pthread_self();
+	ASSERT_EQ(pthread_create(&waiter[0], NULL, waiter_entry1a, &ctx), 0);
+	ASSERT_EQ(pthread_create(&waiter[1], NULL, waiter_entry1a, &ctx), 0);
+
+	usleep(100000);
+	ASSERT_EQ(write(ctx.sfd[1], "w", 1), 1);
+
+	ASSERT_EQ(pthread_join(waiter[0], NULL), 0);
+	ASSERT_EQ(pthread_join(waiter[1], NULL), 0);
+
+	EXPECT_EQ(ctx.count, 2);
+
+	close(ctx.efd[0]);
+	close(ctx.sfd[0]);
+	close(ctx.sfd[1]);
+}
+
 TEST_HARNESS_MAIN

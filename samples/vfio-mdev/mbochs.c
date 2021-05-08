@@ -513,8 +513,6 @@ static int mbochs_create(struct mdev_device *mdev)
 	struct device *dev = mdev_dev(mdev);
 	struct mdev_state *mdev_state;
 
-	if (!type)
-		type = &mbochs_types[0];
 	if (type->mbytes + mbochs_used_mbytes > max_mbytes)
 		return -ENOMEM;
 

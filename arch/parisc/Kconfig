@@ -12,6 +12,7 @@ config PARISC
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_NO_SG_CHAIN
+	select ARCH_SUPPORTS_HUGETLBFS if PA20
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select DMA_OPS
 	select RTC_CLASS
@@ -137,10 +138,6 @@ config PGTABLE_LEVELS
 	int
 	default 3 if 64BIT && PARISC_PAGE_SIZE_4KB
 	default 2
-
-config SYS_SUPPORTS_HUGETLBFS
-	def_bool y if PA20
-
 
 menu "Processor type and features"
 
