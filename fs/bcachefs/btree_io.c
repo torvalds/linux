@@ -1500,6 +1500,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	/* bch2_varint_decode may read up to 7 bytes past the end of the buffer: */
 	bytes += 8;
 
+	/* buffer must be a multiple of the block size */
+	bytes = round_up(bytes, block_bytes(c));
+
 	data = btree_bounce_alloc(c, bytes, &used_mempool);
 
 	if (!b->written) {
