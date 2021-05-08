@@ -408,8 +408,7 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 	data->addr = addr;
 	data->io_lock = io_lock;
 
-	strlcpy(data->wdinfo.identity, "sch56xx watchdog",
-		sizeof(data->wdinfo.identity));
+	strscpy(data->wdinfo.identity, "sch56xx watchdog", sizeof(data->wdinfo.identity));
 	data->wdinfo.firmware_version = revision;
 	data->wdinfo.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT;
 	if (!nowayout)
