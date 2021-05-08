@@ -2429,6 +2429,12 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 	if (!isp_dev->resmem_pa || !isp_dev->resmem_size) {
 		v4l2_info(&isp_dev->v4l2_dev,
 			  "no reserved memory for thunderboot\n");
+		if (isp_dev->hw_dev->is_thunderboot) {
+			rkisp_tb_set_state(RKISP_TB_NG);
+			rkisp_tb_unprotect_clk();
+			rkisp_register_irq(isp_dev->hw_dev);
+			isp_dev->hw_dev->is_thunderboot = false;
+		}
 		return;
 	}
 
