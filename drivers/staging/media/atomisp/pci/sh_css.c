@@ -3224,24 +3224,22 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 
 #ifdef ISP2401
 static unsigned int
-get_crop_lines_for_bayer_order(
-    const struct ia_css_stream_config *config)
+get_crop_lines_for_bayer_order(const struct ia_css_stream_config *config)
 {
 	assert(config);
-	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_BGGR)
-	    || (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
+	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_BGGR) ||
+	    (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
 		return 1;
 
 	return 0;
 }
 
 static unsigned int
-get_crop_columns_for_bayer_order(
-    const struct ia_css_stream_config *config)
+get_crop_columns_for_bayer_order(const struct ia_css_stream_config *config)
 {
 	assert(config);
-	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_RGGB)
-	    || (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
+	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_RGGB) ||
+	    (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
 		return 1;
 
 	return 0;
