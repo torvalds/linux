@@ -378,8 +378,8 @@ static const struct watchdog_ops watchdog_ops = {
 	.set_timeout	= watchdog_set_timeout,
 };
 
-struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
-	u16 addr, u32 revision, struct mutex *io_lock, int check_enabled)
+void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
+			       struct mutex *io_lock, int check_enabled)
 {
 	struct sch56xx_watchdog_data *data;
 	int err, control, output_enable;
@@ -393,17 +393,17 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 	mutex_unlock(io_lock);
 
 	if (control < 0)
-		return NULL;
+		return;
 	if (output_enable < 0)
-		return NULL;
+		return;
 	if (check_enabled && !(output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)) {
 		pr_warn("Watchdog not enabled by BIOS, not registering\n");
-		return NULL;
+		return;
 	}
 
-	data = kzalloc(sizeof(struct sch56xx_watchdog_data), GFP_KERNEL);
+	data = devm_kzalloc(parent, sizeof(struct sch56xx_watchdog_data), GFP_KERNEL);
 	if (!data)
-		return NULL;
+		return;
 
 	data->addr = addr;
 	data->io_lock = io_lock;
@@ -438,23 +438,13 @@ struct sch56xx_watchdog_data *sch56xx_watchdog_register(struct device *parent,
 	data->watchdog_output_enable = output_enable;
 
 	watchdog_set_drvdata(&data->wddev, data);
-	err = watchdog_register_device(&data->wddev);
+	err = devm_watchdog_register_device(parent, &data->wddev);
 	if (err) {
 		pr_err("Registering watchdog chardev: %d\n", err);
-		kfree(data);
-		return NULL;
+		devm_kfree(parent, data);
 	}
-
-	return data;
 }
 EXPORT_SYMBOL(sch56xx_watchdog_register);
-
-void sch56xx_watchdog_unregister(struct sch56xx_watchdog_data *data)
-{
-	watchdog_unregister_device(&data->wddev);
-	kfree(data);
-}
-EXPORT_SYMBOL(sch56xx_watchdog_unregister);
 
 /*
  * platform dev find, add and remove functions
