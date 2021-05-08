@@ -189,7 +189,8 @@ static bool __journal_entry_close(struct journal *j)
 	 * Hence, we want update/set last_seq on the current journal entry right
 	 * before we open a new one:
 	 */
-	buf->data->last_seq	= cpu_to_le64(journal_last_seq(j));
+	buf->last_seq		= journal_last_seq(j);
+	buf->data->last_seq	= cpu_to_le64(buf->last_seq);
 
 	__bch2_journal_pin_put(j, le64_to_cpu(buf->data->seq));
 

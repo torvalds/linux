@@ -23,6 +23,7 @@ struct journal_buf {
 	__BKEY_PADDED(key, BCH_REPLICAS_MAX);
 
 	struct closure_waitlist	wait;
+	u64			last_seq;	/* copy of data->last_seq */
 
 	unsigned		buf_size;	/* size in bytes of @data */
 	unsigned		sectors;	/* maximum size for current entry */
