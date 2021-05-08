@@ -20,8 +20,8 @@
 #include "sch56xx-common.h"
 
 /* Insmod parameters */
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -420,8 +420,7 @@ void sch56xx_watchdog_register(struct device *parent, u16 addr, u32 revision,
 	data->wddev.timeout = 60;
 	data->wddev.min_timeout = 1;
 	data->wddev.max_timeout = 255 * 60;
-	if (nowayout)
-		set_bit(WDOG_NO_WAY_OUT, &data->wddev.status);
+	watchdog_set_nowayout(&data->wddev, nowayout);
 	if (output_enable & SCH56XX_WDOG_OUTPUT_ENABLE)
 		set_bit(WDOG_ACTIVE, &data->wddev.status);
 
