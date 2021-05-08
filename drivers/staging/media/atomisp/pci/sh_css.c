@@ -5328,14 +5328,15 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 		if (err)
 			return err;
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
-						  sizeof(struct ia_css_binary), GFP_KERNEL);
+		mycs->yuv_scaler_binary = kcalloc(cas_scaler_descr.num_stage,
+						  sizeof(struct ia_css_binary),
+						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
 			err = -ENOMEM;
 			return err;
 		}
-		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage
-						* sizeof(bool), GFP_KERNEL);
+		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
+						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
 			err = -ENOMEM;
 			return err;
@@ -5938,14 +5939,15 @@ static int load_primary_binaries(
 			return err;
 		}
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
-						  sizeof(struct ia_css_binary), GFP_KERNEL);
+		mycs->yuv_scaler_binary = kcalloc(cas_scaler_descr.num_stage,
+						  sizeof(struct ia_css_binary),
+						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
 			err = -ENOMEM;
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
-		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage *
+		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
 			err = -ENOMEM;
@@ -6989,14 +6991,14 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 			goto ERR;
 		mycs->num_output = cas_scaler_descr.num_output_stage;
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
+		mycs->yuv_scaler_binary = kcalloc(cas_scaler_descr.num_stage,
 						  sizeof(struct ia_css_binary),
 						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
 			err = -ENOMEM;
 			goto ERR;
 		}
-		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage *
+		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
 			err = -ENOMEM;
@@ -7097,7 +7099,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 
 		mycs->num_vf_pp = 1;
 	}
-	mycs->vf_pp_binary = kzalloc(mycs->num_vf_pp *
+	mycs->vf_pp_binary = kcalloc(mycs->num_vf_pp,
 				     sizeof(struct ia_css_binary),
 				     GFP_KERNEL);
 	if (!mycs->vf_pp_binary) {
