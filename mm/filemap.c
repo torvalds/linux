@@ -121,27 +121,26 @@
  */
 
 static void page_cache_delete(struct address_space *mapping,
-				   struct page *page, void *shadow)
+				   struct folio *folio, void *shadow)
 {
-	XA_STATE(xas, &mapping->i_pages, page->index);
-	unsigned int nr = 1;
+	XA_STATE(xas, &mapping->i_pages, folio->index);
+	long nr = 1;
 
 	mapping_set_update(&xas, mapping);
 
 	/* hugetlb pages are represented by a single entry in the xarray */
-	if (!PageHuge(page)) {
-		xas_set_order(&xas, page->index, compound_order(page));
-		nr = compound_nr(page);
+	if (!folio_test_hugetlb(folio)) {
+		xas_set_order(&xas, folio->index, folio_order(folio));
+		nr = folio_nr_pages(folio);
 	}
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+	VM_BUG_ON_FOLIO(nr != 1 && shadow, folio);
 
 	xas_store(&xas, shadow);
 	xas_init_marks(&xas);
 
-	page->mapping = NULL;
+	folio->mapping = NULL;
 	/* Leave page->index set: truncation lookup relies upon it */
 	mapping->nrpages -= nr;
 }
@@ -223,12 +222,13 @@ static void unaccount_page_cache_page(struct address_space *mapping,
  */
 void __delete_from_page_cache(struct page *page, void *shadow)
 {
+	struct folio *folio = page_folio(page);
 	struct address_space *mapping = page->mapping;
 
 	trace_mm_filemap_delete_from_page_cache(page);
 
 	unaccount_page_cache_page(mapping, page);
-	page_cache_delete(mapping, page, shadow);
+	page_cache_delete(mapping, folio, shadow);
 }
 
 static void page_cache_free_page(struct address_space *mapping,
