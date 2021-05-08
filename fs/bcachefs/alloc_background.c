@@ -371,7 +371,7 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 
 			ret = bch2_alloc_write_key(&trans, iter, flags);
 			if (ret) {
-				percpu_ref_put(&ca->io_ref);
+				percpu_ref_put(&ca->ref);
 				goto err;
 			}
 			bch2_btree_iter_next_slot(iter);

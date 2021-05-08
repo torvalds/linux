@@ -629,9 +629,11 @@ static const char *bch2_fs_online(struct bch_fs *c)
 	down_write(&c->state_lock);
 
 	err = "error creating sysfs objects";
-	__for_each_member_device(ca, c, i, NULL)
-		if (bch2_dev_sysfs_online(c, ca))
+	for_each_member_device(ca, c, i)
+		if (bch2_dev_sysfs_online(c, ca)) {
+			percpu_ref_put(&ca->ref);
 			goto err;
+		}
 
 	list_add(&c->list, &bch_fs_list);
 	err = NULL;
@@ -1839,12 +1841,14 @@ struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *path)
 	if (ret)
 		return ERR_PTR(ret);
 
-	for_each_member_device(ca, c, i)
+	rcu_read_lock();
+	for_each_member_device_rcu(ca, c, i, NULL)
 		if (ca->disk_sb.bdev->bd_dev == dev)
 			goto found;
-
 	ca = ERR_PTR(-ENOENT);
 found:
+	rcu_read_unlock();
+
 	return ca;
 }
 

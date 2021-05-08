@@ -1328,8 +1328,10 @@ int bch2_fs_initialize(struct bch_fs *c)
 	err = "error marking superblock and journal";
 	for_each_member_device(ca, c, i) {
 		ret = bch2_trans_mark_dev_sb(c, ca);
-		if (ret)
+		if (ret) {
+			percpu_ref_put(&ca->ref);
 			goto err;
+		}
 	}
 
 	bch2_inode_init(c, &root_inode, 0, 0,

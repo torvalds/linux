@@ -2071,7 +2071,7 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
 
 int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca)
 {
-	return bch2_trans_do(c, NULL, NULL, 0,
+	return bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
 			__bch2_trans_mark_dev_sb(&trans, ca));
 }
 

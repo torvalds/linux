@@ -1023,7 +1023,7 @@ static void bch2_gc_free(struct bch_fs *c)
 static int bch2_gc_done(struct bch_fs *c,
 			bool initial, bool metadata_only)
 {
-	struct bch_dev *ca;
+	struct bch_dev *ca = NULL;
 	bool verify = !metadata_only && (!initial ||
 		       (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
 	unsigned i, dev;
@@ -1169,6 +1169,8 @@ static int bch2_gc_done(struct bch_fs *c,
 #undef copy_stripe_field
 #undef copy_field
 fsck_err:
+	if (ca)
+		percpu_ref_put(&ca->ref);
 	if (ret)
 		bch_err(c, "%s: ret %i", __func__, ret);
 	return ret;
@@ -1177,7 +1179,7 @@ fsck_err:
 static int bch2_gc_start(struct bch_fs *c,
 			 bool metadata_only)
 {
-	struct bch_dev *ca;
+	struct bch_dev *ca = NULL;
 	unsigned i;
 	int ret;
 

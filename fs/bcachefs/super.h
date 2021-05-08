@@ -107,11 +107,8 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, unsigned *iter,
 	return ca;
 }
 
-#define __for_each_member_device(ca, c, iter, mask)			\
-	for ((iter) = 0; ((ca) = __bch2_next_dev((c), &(iter), mask)); (iter)++)
-
 #define for_each_member_device_rcu(ca, c, iter, mask)			\
-	__for_each_member_device(ca, c, iter, mask)
+	for ((iter) = 0; ((ca) = __bch2_next_dev((c), &(iter), mask)); (iter)++)
 
 static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, unsigned *iter)
 {
