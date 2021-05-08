@@ -10162,7 +10162,7 @@ ia_css_stop_sp(void)
 		timeout--;
 		udelay(1);
 	}
-	if ((ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_TERMINATED))
+	if (ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_TERMINATED)
 		IA_CSS_WARNING("SP has not terminated (SW)");
 
 	if (timeout == 0) {
