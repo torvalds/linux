@@ -504,37 +504,18 @@ static int __init sch56xx_device_add(int address, const char *name)
 	struct resource res = {
 		.start	= address,
 		.end	= address + REGION_LENGTH - 1,
+		.name	= name,
 		.flags	= IORESOURCE_IO,
 	};
 	int err;
 
-	sch56xx_pdev = platform_device_alloc(name, address);
-	if (!sch56xx_pdev)
-		return -ENOMEM;
-
-	res.name = sch56xx_pdev->name;
 	err = acpi_check_resource_conflict(&res);
 	if (err)
-		goto exit_device_put;
+		return err;
 
-	err = platform_device_add_resources(sch56xx_pdev, &res, 1);
-	if (err) {
-		pr_err("Device resource addition failed\n");
-		goto exit_device_put;
-	}
+	sch56xx_pdev = platform_device_register_simple(name, -1, &res, 1);
 
-	err = platform_device_add(sch56xx_pdev);
-	if (err) {
-		pr_err("Device addition failed\n");
-		goto exit_device_put;
-	}
-
-	return 0;
-
-exit_device_put:
-	platform_device_put(sch56xx_pdev);
-
-	return err;
+	return PTR_ERR_OR_ZERO(sch56xx_pdev);
 }
 
 static int __init sch56xx_init(void)
