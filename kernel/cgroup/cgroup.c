@@ -3667,6 +3667,80 @@ static ssize_t cgroup_freeze_write(struct kernfs_open_file *of,
 	return nbytes;
 }
 
+static void __cgroup_kill(struct cgroup *cgrp)
+{
+	struct css_task_iter it;
+	struct task_struct *task;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	spin_lock_irq(&css_set_lock);
+	set_bit(CGRP_KILL, &cgrp->flags);
+	spin_unlock_irq(&css_set_lock);
+
+	css_task_iter_start(&cgrp->self, CSS_TASK_ITER_PROCS | CSS_TASK_ITER_THREADED, &it);
+	while ((task = css_task_iter_next(&it))) {
+		/* Ignore kernel threads here. */
+		if (task->flags & PF_KTHREAD)
+			continue;
+
+		/* Skip tasks that are already dying. */
+		if (__fatal_signal_pending(task))
+			continue;
+
+		send_sig(SIGKILL, task, 0);
+	}
+	css_task_iter_end(&it);
+
+	spin_lock_irq(&css_set_lock);
+	clear_bit(CGRP_KILL, &cgrp->flags);
+	spin_unlock_irq(&css_set_lock);
+}
+
+static void cgroup_kill(struct cgroup *cgrp)
+{
+	struct cgroup_subsys_state *css;
+	struct cgroup *dsct;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	cgroup_for_each_live_descendant_pre(dsct, css, cgrp)
+		__cgroup_kill(dsct);
+}
+
+static ssize_t cgroup_kill_write(struct kernfs_open_file *of, char *buf,
+				 size_t nbytes, loff_t off)
+{
+	ssize_t ret = 0;
+	int kill;
+	struct cgroup *cgrp;
+
+	ret = kstrtoint(strstrip(buf), 0, &kill);
+	if (ret)
+		return ret;
+
+	if (kill != 1)
+		return -ERANGE;
+
+	cgrp = cgroup_kn_lock_live(of->kn, false);
+	if (!cgrp)
+		return -ENOENT;
+
+	/*
+	 * Killing is a process directed operation, i.e. the whole thread-group
+	 * is taken down so act like we do for cgroup.procs and only make this
+	 * writable in non-threaded cgroups.
+	 */
+	if (cgroup_is_threaded(cgrp))
+		ret = -EOPNOTSUPP;
+	else
+		cgroup_kill(cgrp);
+
+	cgroup_kn_unlock(of->kn);
+
+	return ret ?: nbytes;
+}
+
 static int cgroup_file_open(struct kernfs_open_file *of)
 {
 	struct cftype *cft = of_cft(of);
@@ -4858,6 +4932,11 @@ static struct cftype cgroup_base_files[] = {
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.seq_show = cgroup_freeze_show,
 		.write = cgroup_freeze_write,
+	},
+	{
+		.name = "cgroup.kill",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.write = cgroup_kill_write,
 	},
 	{
 		.name = "cpu.stat",
@@ -6085,6 +6164,8 @@ void cgroup_post_fork(struct task_struct *child,
 		      struct kernel_clone_args *kargs)
 	__releases(&cgroup_threadgroup_rwsem) __releases(&cgroup_mutex)
 {
+	unsigned long cgrp_flags = 0;
+	bool kill = false;
 	struct cgroup_subsys *ss;
 	struct css_set *cset;
 	int i;
@@ -6096,6 +6177,11 @@ void cgroup_post_fork(struct task_struct *child,
 
 	/* init tasks are special, only link regular threads */
 	if (likely(child->pid)) {
+		if (kargs->cgrp)
+			cgrp_flags = kargs->cgrp->flags;
+		else
+			cgrp_flags = cset->dfl_cgrp->flags;
+
 		WARN_ON_ONCE(!list_empty(&child->cg_list));
 		cset->nr_tasks++;
 		css_set_move_task(child, NULL, cset, false);
@@ -6104,23 +6190,32 @@ void cgroup_post_fork(struct task_struct *child,
 		cset = NULL;
 	}
 
-	/*
-	 * If the cgroup has to be frozen, the new task has too.  Let's set
-	 * the JOBCTL_TRAP_FREEZE jobctl bit to get the task into the
-	 * frozen state.
-	 */
-	if (unlikely(cgroup_task_freeze(child))) {
-		spin_lock(&child->sighand->siglock);
-		WARN_ON_ONCE(child->frozen);
-		child->jobctl |= JOBCTL_TRAP_FREEZE;
-		spin_unlock(&child->sighand->siglock);
+	if (!(child->flags & PF_KTHREAD)) {
+		if (unlikely(test_bit(CGRP_FREEZE, &cgrp_flags))) {
+			/*
+			 * If the cgroup has to be frozen, the new task has
+			 * too. Let's set the JOBCTL_TRAP_FREEZE jobctl bit to
+			 * get the task into the frozen state.
+			 */
+			spin_lock(&child->sighand->siglock);
+			WARN_ON_ONCE(child->frozen);
+			child->jobctl |= JOBCTL_TRAP_FREEZE;
+			spin_unlock(&child->sighand->siglock);
+
+			/*
+			 * Calling cgroup_update_frozen() isn't required here,
+			 * because it will be called anyway a bit later from
+			 * do_freezer_trap(). So we avoid cgroup's transient
+			 * switch from the frozen state and back.
+			 */
+		}
 
 		/*
-		 * Calling cgroup_update_frozen() isn't required here,
-		 * because it will be called anyway a bit later from
-		 * do_freezer_trap(). So we avoid cgroup's transient switch
-		 * from the frozen state and back.
+		 * If the cgroup is to be killed notice it now and take the
+		 * child down right after we finished preparing it for
+		 * userspace.
 		 */
+		kill = test_bit(CGRP_KILL, &cgrp_flags);
 	}
 
 	spin_unlock_irq(&css_set_lock);
@@ -6142,6 +6237,10 @@ void cgroup_post_fork(struct task_struct *child,
 		child->nsproxy->cgroup_ns->root_cset = cset;
 		put_css_set(rcset);
 	}
+
+	/* Cgroup has to be killed so take down child immediately. */
+	if (unlikely(kill))
+		do_send_sig_info(SIGKILL, SEND_SIG_NOINFO, child, PIDTYPE_TGID);
 
 	cgroup_css_set_put_fork(kargs);
 }
