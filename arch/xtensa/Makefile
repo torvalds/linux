@@ -19,12 +19,8 @@ variant-y := $(patsubst "%",%,$(CONFIG_XTENSA_VARIANT_NAME))
 VARIANT = $(variant-y)
 export VARIANT
 
-# Test for cross compiling
-
 ifneq ($(VARIANT),)
-  COMPILE_ARCH = $(shell uname -m)
-
-  ifneq ($(COMPILE_ARCH), xtensa)
+  ifdef cross_compiling
     ifndef CROSS_COMPILE
       CROSS_COMPILE = xtensa_$(VARIANT)-
     endif

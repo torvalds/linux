@@ -399,11 +399,6 @@ ifeq ($(ARCH),sparc64)
        SRCARCH := sparc
 endif
 
-# Additional ARCH settings for sh
-ifeq ($(ARCH),sh64)
-       SRCARCH := sh
-endif
-
 export cross_compiling :=
 ifneq ($(SRCARCH),$(SUBARCH))
 cross_compiling := 1
@@ -792,15 +787,15 @@ KBUILD_CFLAGS += -Wno-gnu
 KBUILD_CFLAGS += -mno-global-merge
 else
 
-# These warnings generated too much noise in a regular build.
-# Use make W=1 to enable them (see scripts/Makefile.extrawarn)
-KBUILD_CFLAGS += -Wno-unused-but-set-variable
-
 # Warn about unmarked fall-throughs in switch statement.
 # Disabled for clang while comment to attribute conversion happens and
 # https://github.com/ClangBuiltLinux/linux/issues/636 is discussed.
 KBUILD_CFLAGS += $(call cc-option,-Wimplicit-fallthrough,)
 endif
+
+# These warnings generated too much noise in a regular build.
+# Use make W=1 to enable them (see scripts/Makefile.extrawarn)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
 ifdef CONFIG_FRAME_POINTER
@@ -1225,7 +1220,7 @@ PHONY += prepare archprepare
 
 archprepare: outputmakefile archheaders archscripts scripts include/config/kernel.release \
 	asm-generic $(version_h) $(autoksyms_h) include/generated/utsrelease.h \
-	include/generated/autoconf.h
+	include/generated/autoconf.h remove-stale-files
 
 prepare0: archprepare
 	$(Q)$(MAKE) $(build)=scripts/mod
@@ -1233,6 +1228,10 @@ prepare0: archprepare
 
 # All the preparing..
 prepare: prepare0 prepare-objtool prepare-resolve_btfids
+
+PHONY += remove-stale-files
+remove-stale-files:
+	$(Q)$(srctree)/scripts/remove-stale-files
 
 # Support for using generic headers in asm-generic
 asm-generic := -f $(srctree)/scripts/Makefile.asm-generic obj
@@ -1512,9 +1511,6 @@ MRPROPER_FILES += include/config include/generated          \
 		  vmlinux-gdb.py \
 		  *.spec
 
-# Directories & files removed with 'make distclean'
-DISTCLEAN_FILES += tags TAGS cscope* GPATH GTAGS GRTAGS GSYMS
-
 # clean - Delete most, but leave enough to build external modules
 #
 clean: rm-files := $(CLEAN_FILES)
@@ -1541,16 +1537,14 @@ mrproper: clean $(mrproper-dirs)
 
 # distclean
 #
-distclean: rm-files := $(wildcard $(DISTCLEAN_FILES))
-
 PHONY += distclean
 
 distclean: mrproper
-	$(call cmd,rmfiles)
-	@find $(srctree) $(RCS_FIND_IGNORE) \
+	@find . $(RCS_FIND_IGNORE) \
 		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '*%' \
-		-o -name 'core' \) \
+		-o -name 'core' -o -name tags -o -name TAGS -o -name 'cscope*' \
+		-o -name GPATH -o -name GRTAGS -o -name GSYMS -o -name GTAGS \) \
 		-type f -print | xargs rm -f
 
 
@@ -1717,17 +1711,7 @@ else # KBUILD_EXTMOD
 # When building external modules the kernel used as basis is considered
 # read-only, and no consistency checks are made and the make
 # system is not used on the basis kernel. If updates are required
-# in the basis kernel ordinary make commands (without M=...) must
-# be used.
-#
-# The following are the only valid targets when building external
-# modules.
-# make M=dir clean     Delete all automatically generated files
-# make M=dir modules   Make all modules in specified dir
-# make M=dir	       Same as 'make M=dir modules'
-# make M=dir modules_install
-#                      Install the modules built in the module directory
-#                      Assumes install directory is already created
+# in the basis kernel ordinary make commands (without M=...) must be used.
 
 # We are always building only modules.
 KBUILD_BUILTIN :=

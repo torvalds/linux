@@ -96,13 +96,6 @@ endif
 $(foreach o, $(libfdt_objs) atags_to_fdt.o fdt_check_mem_start.o, \
 	$(eval CFLAGS_$(o) := -I $(srctree)/scripts/dtc/libfdt -fno-stack-protector))
 
-# These were previously generated C files. When you are building the kernel
-# with O=, make sure to remove the stale files in the output tree. Otherwise,
-# the build system wrongly compiles the stale ones.
-ifdef building_out_of_srctree
-$(shell rm -f $(addprefix $(obj)/, fdt_rw.c fdt_ro.c fdt_wip.c fdt.c))
-endif
-
 targets       := vmlinux vmlinux.lds piggy_data piggy.o \
 		 lib1funcs.o ashldi3.o bswapsdi2.o \
 		 head.o $(OBJS)
