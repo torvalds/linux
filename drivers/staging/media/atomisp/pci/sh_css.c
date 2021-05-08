@@ -5170,7 +5170,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 	if (binary) {
 		err = ia_css_binary_3a_grid_info(binary, info, pipe);
 		if (err)
-			goto ERR;
+			goto err;
 	} else {
 		memset(&info->s3a_grid, 0, sizeof(info->s3a_grid));
 	}
@@ -5195,7 +5195,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 
 	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
 
-ERR :
+err:
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
 }
