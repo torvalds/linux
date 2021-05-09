@@ -1951,6 +1951,9 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	struct cpu_dyn_regs *dyn_regs;
 	int rc;
 
+	dev_info(hdev->dev,
+		"Loading firmware to device, may take some time...\n");
+
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,
