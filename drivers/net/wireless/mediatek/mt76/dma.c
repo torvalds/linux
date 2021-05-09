@@ -191,6 +191,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 	q->entry[idx].txwi = txwi;
 	q->entry[idx].skb = skb;
+	q->entry[idx].wcid = 0xffff;
 
 	return idx;
 }
