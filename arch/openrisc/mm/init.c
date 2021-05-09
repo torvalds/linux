@@ -128,7 +128,6 @@ void __init paging_init(void)
 {
 	extern void tlb_init(void);
 
-	unsigned long end;
 	int i;
 
 	printk(KERN_INFO "Setting up paging and PTEs.\n");
@@ -143,8 +142,6 @@ void __init paging_init(void)
 	 *  switch_mm)
 	 */
 	current_pgd[smp_processor_id()] = init_mm.pgd;
-
-	end = (unsigned long)__va(max_low_pfn * PAGE_SIZE);
 
 	map_ram();
 
