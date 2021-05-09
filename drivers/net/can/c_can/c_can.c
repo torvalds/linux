@@ -599,7 +599,6 @@ static int c_can_chip_config(struct net_device *dev)
 
 	/* Clear all internal status */
 	atomic_set(&priv->tx_active, 0);
-	priv->rxmasked = 0;
 	priv->tx_dir = 0;
 
 	/* set bittiming params */
