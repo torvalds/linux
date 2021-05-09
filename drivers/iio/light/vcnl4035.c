@@ -144,9 +144,7 @@ static int vcnl4035_set_pm_runtime_state(struct vcnl4035_data *data, bool on)
 	struct device *dev = &data->client->dev;
 
 	if (on) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+		ret = pm_runtime_resume_and_get(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
