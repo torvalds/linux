@@ -1021,6 +1021,9 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 		}
 		ctx->max_channels = result.uint_32;
+		/* If more than one channel requested ... they want multichan */
+		if (result.uint_32 > 1)
+			ctx->multichannel = true;
 		break;
 	case Opt_handletimeout:
 		ctx->handle_timeout = result.uint_32;
