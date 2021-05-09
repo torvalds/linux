@@ -220,58 +220,55 @@ static void filemap_unaccount_folio(struct address_space *mapping,
  * sure the page is locked and that nobody else uses it - or that usage
  * is safe.  The caller must hold the i_pages lock.
  */
-void __delete_from_page_cache(struct page *page, void *shadow)
+void __filemap_remove_folio(struct folio *folio, void *shadow)
 {
-	struct folio *folio = page_folio(page);
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 
 	trace_mm_filemap_delete_from_page_cache(folio);
-
 	filemap_unaccount_folio(mapping, folio);
 	page_cache_delete(mapping, folio, shadow);
 }
 
-static void page_cache_free_page(struct address_space *mapping,
-				struct page *page)
+static void filemap_free_folio(struct address_space *mapping,
+				struct folio *folio)
 {
 	void (*freepage)(struct page *);
 
 	freepage = mapping->a_ops->freepage;
 	if (freepage)
-		freepage(page);
+		freepage(&folio->page);
 
-	if (PageTransHuge(page) && !PageHuge(page)) {
-		page_ref_sub(page, thp_nr_pages(page));
-		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
+	if (folio_test_large(folio) && !folio_test_hugetlb(folio)) {
+		folio_ref_sub(folio, folio_nr_pages(folio));
+		VM_BUG_ON_FOLIO(folio_ref_count(folio) <= 0, folio);
 	} else {
-		put_page(page);
+		folio_put(folio);
 	}
 }
 
 /**
- * delete_from_page_cache - delete page from page cache
- * @page: the page which the kernel is trying to remove from page cache
+ * filemap_remove_folio - Remove folio from page cache.
+ * @folio: The folio.
  *
- * This must be called only on pages that have been verified to be in the page
- * cache and locked.  It will never put the page into the free list, the caller
- * has a reference on the page.
+ * This must be called only on folios that are locked and have been
+ * verified to be in the page cache.  It will never put the folio into
+ * the free list because the caller has a reference on the page.
  */
-void delete_from_page_cache(struct page *page)
+void filemap_remove_folio(struct folio *folio)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping = folio->mapping;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 	spin_lock(&mapping->host->i_lock);
 	xa_lock_irq(&mapping->i_pages);
-	__delete_from_page_cache(page, NULL);
+	__filemap_remove_folio(folio, NULL);
 	xa_unlock_irq(&mapping->i_pages);
 	if (mapping_shrinkable(mapping))
 		inode_add_lru(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
 
-	page_cache_free_page(mapping, page);
+	filemap_free_folio(mapping, folio);
 }
-EXPORT_SYMBOL(delete_from_page_cache);
 
 /*
  * page_cache_delete_batch - delete several pages from page cache
@@ -358,7 +355,7 @@ void delete_from_page_cache_batch(struct address_space *mapping,
 	spin_unlock(&mapping->host->i_lock);
 
 	for (i = 0; i < pagevec_count(pvec); i++)
-		page_cache_free_page(mapping, pvec->pages[i]);
+		filemap_free_folio(mapping, page_folio(pvec->pages[i]));
 }
 
 int filemap_check_errors(struct address_space *mapping)
