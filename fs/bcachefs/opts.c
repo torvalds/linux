@@ -315,11 +315,20 @@ int bch2_opts_check_may_set(struct bch_fs *c)
 int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 			  char *options)
 {
+	char *copied_opts, *copied_opts_start;
 	char *opt, *name, *val;
 	int ret, id;
 	u64 v;
 
-	while ((opt = strsep(&options, ",")) != NULL) {
+	if (!options)
+		return 0;
+
+	copied_opts = kstrdup(options, GFP_KERNEL);
+	if (!copied_opts)
+		return -1;
+	copied_opts_start = copied_opts;
+
+	while ((opt = strsep(&copied_opts, ",")) != NULL) {
 		name	= strsep(&opt, "=");
 		val	= opt;
 
@@ -363,16 +372,24 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 		bch2_opt_set_by_id(opts, id, v);
 	}
 
-	return 0;
+	ret = 0;
+	goto out;
+
 bad_opt:
 	pr_err("Bad mount option %s", name);
-	return -1;
+	ret = -1;
+	goto out;
 bad_val:
 	pr_err("Invalid value %s for mount option %s", val, name);
-	return -1;
+	ret = -1;
+	goto out;
 no_val:
 	pr_err("Mount option %s requires a value", name);
-	return -1;
+	ret = -1;
+	goto out;
+out:
+	kfree(copied_opts_start);
+	return ret;
 }
 
 /* io opts: */
