@@ -4286,8 +4286,6 @@ struct net_device *ib_device_netdev(struct ib_device *dev, u32 port);
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *init_attr);
 int ib_destroy_wq_user(struct ib_wq *wq, struct ib_udata *udata);
-int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *attr,
-		 u32 wq_attr_mask);
 
 int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 		 unsigned int *sg_offset, unsigned int page_size);
