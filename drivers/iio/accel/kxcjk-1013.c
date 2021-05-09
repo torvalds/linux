@@ -601,7 +601,7 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 	int ret;
 
 	if (on)
-		ret = pm_runtime_get_sync(&data->client->dev);
+		ret = pm_runtime_resume_and_get(&data->client->dev);
 	else {
 		pm_runtime_mark_last_busy(&data->client->dev);
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
@@ -609,8 +609,6 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"Failed: %s for %d\n", __func__, on);
-		if (on)
-			pm_runtime_put_noidle(&data->client->dev);
 		return ret;
 	}
 #endif
@@ -1616,7 +1614,6 @@ static int kxcjk1013_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
 
 	if (data->dready_trig) {
 		iio_triggered_buffer_cleanup(indio_dev);
