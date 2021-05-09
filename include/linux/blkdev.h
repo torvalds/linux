@@ -326,8 +326,6 @@ enum blk_bounce {
 };
 
 struct queue_limits {
-	unsigned int		bio_max_bytes;
-
 	enum blk_bounce		bounce;
 	unsigned long		seg_boundary_mask;
 	unsigned long		virt_boundary_mask;
