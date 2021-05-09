@@ -1158,11 +1158,9 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 
 	adc->bufi = 0;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Apply sampling time settings */
 	stm32_adc_writel(adc, regs->smpr[0], adc->smpr_val[0]);
@@ -1364,11 +1362,9 @@ static int stm32_adc_update_scan_mode(struct iio_dev *indio_dev,
 	struct device *dev = indio_dev->dev.parent;
 	int ret;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	adc->num_conv = bitmap_weight(scan_mask, indio_dev->masklength);
 
@@ -1413,11 +1409,9 @@ static int stm32_adc_debugfs_reg_access(struct iio_dev *indio_dev,
 	struct device *dev = indio_dev->dev.parent;
 	int ret;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	if (!readval)
 		stm32_adc_writel(adc, reg, writeval);
@@ -1537,11 +1531,9 @@ static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 	struct device *dev = indio_dev->dev.parent;
 	int ret;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = stm32_adc_set_trig(indio_dev, indio_dev->trig);
 	if (ret) {
