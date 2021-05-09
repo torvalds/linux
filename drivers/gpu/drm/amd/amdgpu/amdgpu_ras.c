@@ -321,11 +321,14 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  * "disable" requires only the block.
  * "enable" requires the block and error type.
  * "inject" requires the block, error type, address, and value.
+ *
  * The block is one of: umc, sdma, gfx, etc.
  *	see ras_block_string[] for details
+ *
  * The error type is one of: ue, ce, where,
  *	ue is multi-uncorrectable
  *	ce is single-correctable
+ *
  * The sub-block is a the sub-block index, pass 0 if there is no sub-block.
  * The address and value are hexadecimal numbers, leading 0x is optional.
  *
