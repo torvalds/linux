@@ -884,11 +884,6 @@ static inline void __set_page_dirty(struct page *page,
 }
 void folio_account_cleaned(struct folio *folio, struct address_space *mapping,
 			  struct bdi_writeback *wb);
-static inline void account_page_cleaned(struct page *page,
-		struct address_space *mapping, struct bdi_writeback *wb)
-{
-	return folio_account_cleaned(page_folio(page), mapping, wb);
-}
 void __folio_cancel_dirty(struct folio *folio);
 static inline void folio_cancel_dirty(struct folio *folio)
 {
