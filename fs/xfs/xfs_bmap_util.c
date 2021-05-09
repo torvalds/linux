@@ -84,6 +84,7 @@ xfs_bmap_rtalloc(
 	xfs_extlen_t		minlen = mp->m_sb.sb_rextsize;
 	xfs_extlen_t		raminlen;
 	bool			rtlocked = false;
+	bool			ignore_locality = false;
 	int			error;
 
 	align = xfs_get_extsz_hint(ap->ip);
@@ -158,7 +159,10 @@ retry:
 	/*
 	 * Realtime allocation, done through xfs_rtallocate_extent.
 	 */
-	do_div(ap->blkno, mp->m_sb.sb_rextsize);
+	if (ignore_locality)
+		ap->blkno = 0;
+	else
+		do_div(ap->blkno, mp->m_sb.sb_rextsize);
 	rtb = ap->blkno;
 	ap->length = ralen;
 	raminlen = max_t(xfs_extlen_t, 1, minlen / mp->m_sb.sb_rextsize);
@@ -194,6 +198,15 @@ retry:
 		ap->offset = orig_offset;
 		ap->length = orig_length;
 		minlen = align = mp->m_sb.sb_rextsize;
+		goto retry;
+	}
+
+	if (!ignore_locality && ap->blkno != 0) {
+		/*
+		 * If we can't allocate near a specific rt extent, try again
+		 * without locality criteria.
+		 */
+		ignore_locality = true;
 		goto retry;
 	}
 
