@@ -1167,6 +1167,7 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 			&c->priv->channel_stats[c->ix]->rq_xdpsq;
 	sq->max_sq_wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
 	sq->stop_room = MLX5E_STOP_ROOM(sq->max_sq_wqebbs);
+	sq->max_sq_mpw_wqebbs = mlx5e_get_sw_max_sq_mpw_wqebbs(sq->max_sq_wqebbs);
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1328,6 +1329,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	sq->max_sq_wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
+	sq->max_sq_mpw_wqebbs = mlx5e_get_sw_max_sq_mpw_wqebbs(sq->max_sq_wqebbs);
 	INIT_WORK(&sq->recover_work, mlx5e_tx_err_cqe_work);
 	if (!MLX5_CAP_ETH(mdev, wqe_vlan_insert))
 		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);

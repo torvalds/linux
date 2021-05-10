@@ -123,12 +123,13 @@ static inline bool mlx5e_xdp_get_inline_state(struct mlx5e_xdpsq *sq, bool cur)
 	return cur;
 }
 
-static inline bool mlx5e_xdp_mpqwe_is_full(struct mlx5e_tx_mpwqe *session)
+static inline bool mlx5e_xdp_mpqwe_is_full(struct mlx5e_tx_mpwqe *session, u8 max_sq_mpw_wqebbs)
 {
 	if (session->inline_on)
 		return session->ds_count + MLX5E_XDP_INLINE_WQE_MAX_DS_CNT >
-		       MLX5E_TX_MPW_MAX_NUM_DS;
-	return mlx5e_tx_mpwqe_is_full(session);
+		       max_sq_mpw_wqebbs * MLX5_SEND_WQEBB_NUM_DS;
+
+	return mlx5e_tx_mpwqe_is_full(session, max_sq_mpw_wqebbs);
 }
 
 struct mlx5e_xdp_wqe_info {
