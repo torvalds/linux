@@ -103,6 +103,13 @@ struct irq_domain *pci_host_bridge_of_msi_domain(struct pci_bus *bus)
 #endif
 }
 
+bool pci_host_of_has_msi_map(struct device *dev)
+{
+	if (dev && dev->of_node)
+		return of_get_property(dev->of_node, "msi-map", NULL);
+	return false;
+}
+
 static inline int __of_pci_pci_compare(struct device_node *node,
 				       unsigned int data)
 {
