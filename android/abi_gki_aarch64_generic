@@ -817,6 +817,7 @@
   handle_simple_irq
   handle_sysrq
   have_governor_per_policy
+  hex2bin
   hex_dump_to_buffer
   hex_to_bin
   hid_add_device
@@ -998,6 +999,7 @@
   kobject_init_and_add
   kobject_put
   kobject_uevent
+  kobject_uevent_env
   kobj_sysfs_ops
   krealloc
   kstat
@@ -1800,6 +1802,7 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_android_rvh_cgroup_force_kthread_migration
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_find_energy_efficient_cpu
@@ -1860,6 +1863,7 @@
   __traceiter_sched_util_est_se_tp
   __traceiter_suspend_resume
   trace_output_call
+  __tracepoint_android_rvh_cgroup_force_kthread_migration
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_find_energy_efficient_cpu
