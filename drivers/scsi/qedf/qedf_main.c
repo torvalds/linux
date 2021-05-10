@@ -3971,10 +3971,6 @@ void qedf_stag_change_work(struct work_struct *work)
 	struct qedf_ctx *qedf =
 	    container_of(work, struct qedf_ctx, stag_work.work);
 
-	if (!qedf) {
-		QEDF_ERR(NULL, "qedf is NULL");
-		return;
-	}
 	QEDF_ERR(&qedf->dbg_ctx, "Performing software context reset.\n");
 	qedf_ctx_soft_reset(qedf->lport);
 }

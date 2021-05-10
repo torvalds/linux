@@ -23,11 +23,6 @@ static void qedf_cmd_timeout(struct work_struct *work)
 	struct qedf_ctx *qedf;
 	struct qedf_rport *fcport;
 
-	if (io_req == NULL) {
-		QEDF_INFO(NULL, QEDF_LOG_IO, "io_req is NULL.\n");
-		return;
-	}
-
 	fcport = io_req->fcport;
 	if (io_req->fcport == NULL) {
 		QEDF_INFO(NULL, QEDF_LOG_IO,  "fcport is NULL.\n");
