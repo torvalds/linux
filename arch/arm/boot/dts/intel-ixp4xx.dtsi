@@ -61,9 +61,31 @@
 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		npe@c8006000 {
+		npe: npe@c8006000 {
 			compatible = "intel,ixp4xx-network-processing-engine";
 			reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+		};
+
+		/* This is known as EthB */
+		ethernet@c8009000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc8009000 0x1000>;
+			status = "disabled";
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 3>;
+			queue-txready = <&qmgr 20>;
+			intel,npe-handle = <&npe 1>;
+		};
+
+		/* This is known as EthC */
+		ethernet@c800a000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc800a000 0x1000>;
+			status = "disabled";
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 0>;
+			queue-txready = <&qmgr 0>;
+			intel,npe-handle = <&npe 2>;
 		};
 	};
 };
