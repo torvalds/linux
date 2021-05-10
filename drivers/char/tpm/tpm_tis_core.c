@@ -1125,11 +1125,19 @@ int tpm_tis_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	/* TPM 1.2 requires self-test on resume. This function actually returns
+	/*
+	 * TPM 1.2 requires self-test on resume. This function actually returns
 	 * an error code but for unknown reason it isn't handled.
 	 */
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
+	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
+		ret = request_locality(chip, 0);
+		if (ret < 0)
+			return ret;
+
 		tpm1_do_selftest(chip);
+
+		release_locality(chip, 0);
+	}
 
 	return 0;
 }
