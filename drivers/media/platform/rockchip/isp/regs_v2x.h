@@ -2362,6 +2362,28 @@
 #define SW_CSI_ID6(a)			(((a) & 0xff) << 16)
 #define SW_CSI_ID7(a)			(((a) & 0xff) << 24)
 
+#define PHY_ERR_SOTHS			GENMASK(3, 0)
+#define PHY_ERR_SOTSYNCHS		GENMASK(7, 4)
+#define PHY_ERR_EOTSYNCHS		GENMASK(11, 8)
+#define PHY_ERR_ESC			GENMASK(15, 12)
+#define PHY_ERR_CTL			GENMASK(23, 20)
+
+#define PACKET_ERR_F_BNDRY_MATCG	GENMASK(3, 0)
+#define PACKET_ERR_F_SEQ		GENMASK(7, 4)
+#define PACKET_ERR_FRAME_DATA		GENMASK(11, 8)
+#define PACKET_ERR_ID			GENMASK(15, 12)
+#define PACKET_ERR_ECC_1BIT		GENMASK(19, 16)
+#define PACKET_ERR_ECC_2BIT		BIT(20)
+#define PACKET_ERR_CHECKSUM		GENMASK(27, 24)
+
+#define AFIFO0_OVERFLOW			BIT(0)
+#define AFIFO1X_OVERFLOW		GENMASK(7, 4)
+#define LAFIFO1X_OVERFLOW		GENMASK(11, 8)
+#define AFIFO2X_OVERFLOW		GENMASK(14, 12)
+#define IBUFX3_OVERFLOW			GENMASK(18, 16)
+#define IBUF3R_OVERFLOW			BIT(19)
+#define Y_STAT_AFIFOX3_OVERFLOW		GENMASK(22, 20)
+
 #define RAW0_WR_FRAME			BIT(0)
 #define RAW1_WR_FRAME			BIT(1)
 #define RAW2_WR_FRAME			BIT(2)
@@ -2369,6 +2391,11 @@
 #define RAW0_RD_FRAME			BIT(4)
 #define RAW1_RD_FRAME			BIT(5)
 #define RAW2_RD_FRAME			BIT(6)
+#define RAW_WR_SIZE_ERR			GENMASK(15, 8)
+#define MIPI_LINECNT			BIT(16)
+#define RAW_RD_SIZE_ERR			GENMASK(19, 17)
+#define MIPI_FRAME_ST_VC(a)		(((a) & 0xf) << 20)
+#define MIPI_FRAME_END_VC(a)		(((a) & 0xf) << 24)
 #define RAW0_Y_STATE			BIT(28)
 #define RAW1_Y_STATE			BIT(29)
 #define RAW2_Y_STATE			BIT(30)
@@ -2599,6 +2626,9 @@ static inline void raw_wr_set_pic_size(struct rkisp_stream *stream,
 
 	if (stream->out_isp_fmt.fmt_type == FMT_YUV)
 		width *= 2;
+	/* hardware received 16bit embedded data */
+	else if (stream->out_isp_fmt.fmt_type == FMT_EBD)
+		width /= 2;
 	writel(height << 16 | width,
 	       base + stream->config->dma.pic_size);
 }

@@ -116,6 +116,16 @@ static const struct capture_fmt dmatx_fmts[] = {
 		.fmt_type = FMT_YUV,
 		.bpp = { 16 },
 		.mplanes = 1,
+	}, {
+		.fourcc = V4l2_PIX_FMT_EBD8,
+		.fmt_type = FMT_EBD,
+		.bpp = { 8 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4l2_PIX_FMT_SPD16,
+		.fmt_type = FMT_SPD,
+		.bpp = { 16 },
+		.mplanes = 1,
 	}
 };
 
@@ -2195,6 +2205,9 @@ void rkisp_mi_v20_isr(u32 mis_val, struct rkisp_device *dev)
 			end_tx1 = true;
 		if (i == RKISP_STREAM_DMATX2)
 			end_tx2 = true;
+		/* DMATX3 no csi frame end isr, mi isr instead */
+		if (i == RKISP_STREAM_DMATX3)
+			atomic_inc(&stream->sequence);
 
 		mi_frame_end_int_clear(stream);
 
@@ -2240,6 +2253,10 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 {
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkisp_stream *stream;
+	u32 packet_err = PACKET_ERR_F_BNDRY_MATCG | PACKET_ERR_F_SEQ |
+		PACKET_ERR_FRAME_DATA | PACKET_ERR_ECC_1BIT |
+		PACKET_ERR_ECC_2BIT | PACKET_ERR_CHECKSUM;
+	u32 state_err = RAW_WR_SIZE_ERR | RAW_RD_SIZE_ERR;
 	int i;
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
@@ -2248,7 +2265,7 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 	if (phy && (dev->isp_inp & INP_CSI) &&
 	    dev->csi_dev.err_cnt++ < RKISP_CONTI_ERR_MAX)
 		v4l2_warn(v4l2_dev, "MIPI error: phy: 0x%08x\n", phy);
-	if (packet && (dev->isp_inp & INP_CSI) &&
+	if ((packet & packet_err) && (dev->isp_inp & INP_CSI) &&
 	    dev->csi_dev.err_cnt < RKISP_CONTI_ERR_MAX) {
 		if (packet & 0xfff)
 			dev->csi_dev.err_cnt++;
@@ -2257,7 +2274,7 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 	if (overflow &&
 	    dev->csi_dev.err_cnt++ < RKISP_CONTI_ERR_MAX)
 		v4l2_warn(v4l2_dev, "MIPI error: overflow: 0x%08x\n", overflow);
-	if (state & 0xeff00)
+	if (state & state_err)
 		v4l2_warn(v4l2_dev, "MIPI error: size: 0x%08x\n", state);
 	if (state & MIPI_DROP_FRM)
 		v4l2_warn(v4l2_dev, "MIPI drop frame\n");

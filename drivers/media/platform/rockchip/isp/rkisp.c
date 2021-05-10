@@ -124,6 +124,12 @@ static int mbus_pixelcode_to_mipi_dt(u32 pixelcode)
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 		mipi_dt = CIF_CSI2_DT_YUV422_8b;
 		break;
+	case MEDIA_BUS_FMT_EBD_1X8:
+		mipi_dt = CIF_CSI2_DT_EBD;
+		break;
+	case MEDIA_BUS_FMT_SPD_2X8:
+		mipi_dt = CIF_CSI2_DT_SPD;
+		break;
 	default:
 		mipi_dt = -EINVAL;
 	}
@@ -449,6 +455,12 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 		break;
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
 		pixelformat = V4L2_PIX_FMT_SRGGB12;
+		break;
+	case MEDIA_BUS_FMT_EBD_1X8:
+		pixelformat = V4l2_PIX_FMT_EBD8;
+		break;
+	case MEDIA_BUS_FMT_SPD_2X8:
+		pixelformat = V4l2_PIX_FMT_SPD16;
 		break;
 	default:
 		pixelformat = V4L2_PIX_FMT_SRGGB10;

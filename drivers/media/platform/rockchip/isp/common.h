@@ -100,6 +100,8 @@ enum rkisp_fmt_pix_type {
 	FMT_BAYER,
 	FMT_JPEG,
 	FMT_FBCGAIN,
+	FMT_EBD,
+	FMT_SPD,
 	FMT_MAX
 };
 
