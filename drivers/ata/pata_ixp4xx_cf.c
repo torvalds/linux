@@ -139,6 +139,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	struct resource *cs0, *cs1;
 	struct ata_host *host;
 	struct ata_port *ap;
+	struct device *dev = &pdev->dev;
 	struct ixp4xx_pata_data *data = dev_get_platdata(&pdev->dev);
 	int ret;
 	int irq;
@@ -150,17 +151,17 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* allocate host */
-	host = ata_host_alloc(&pdev->dev, 1);
+	host = ata_host_alloc(dev, 1);
 	if (!host)
 		return -ENOMEM;
 
 	/* acquire resources and fill host */
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	data->cs0 = devm_ioremap(&pdev->dev, cs0->start, 0x1000);
-	data->cs1 = devm_ioremap(&pdev->dev, cs1->start, 0x1000);
+	data->cs0 = devm_ioremap(dev, cs0->start, 0x1000);
+	data->cs1 = devm_ioremap(dev, cs1->start, 0x1000);
 
 	if (!data->cs0 || !data->cs1)
 		return -ENOMEM;
@@ -185,7 +186,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
 
-	ata_print_version_once(&pdev->dev, DRV_VERSION);
+	ata_print_version_once(dev, DRV_VERSION);
 
 	/* activate host */
 	return ata_host_activate(host, irq, ata_sff_interrupt, 0, &ixp4xx_sht);
