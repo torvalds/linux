@@ -276,13 +276,13 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  const uint8_t trace_chan_id)
 {
 	/* No timestamp packet has been received, nothing to do */
-	if (!packet_queue->timestamp)
+	if (!packet_queue->cs_timestamp)
 		return OCSD_RESP_CONT;
 
-	packet_queue->timestamp = packet_queue->next_timestamp;
+	packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
 
 	/* Estimate the timestamp for the next range packet */
-	packet_queue->next_timestamp += packet_queue->instr_count;
+	packet_queue->next_cs_timestamp += packet_queue->instr_count;
 	packet_queue->instr_count = 0;
 
 	/* Tell the front end which traceid_queue needs attention */
@@ -308,8 +308,8 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 	 * Function do_soft_timestamp() will report the value to the front end,
 	 * hence asking the decoder to keep decoding rather than stopping.
 	 */
-	if (packet_queue->timestamp) {
-		packet_queue->next_timestamp = elem->timestamp;
+	if (packet_queue->cs_timestamp) {
+		packet_queue->next_cs_timestamp = elem->timestamp;
 		return OCSD_RESP_CONT;
 	}
 
@@ -320,8 +320,8 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 	 * which instructions started by subtracting the number of instructions
 	 * executed to the timestamp.
 	 */
-	packet_queue->timestamp = elem->timestamp - packet_queue->instr_count;
-	packet_queue->next_timestamp = elem->timestamp;
+	packet_queue->cs_timestamp = elem->timestamp - packet_queue->instr_count;
+	packet_queue->next_cs_timestamp = elem->timestamp;
 	packet_queue->instr_count = 0;
 
 	/* Tell the front end which traceid_queue needs attention */
@@ -334,8 +334,8 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 static void
 cs_etm_decoder__reset_timestamp(struct cs_etm_packet_queue *packet_queue)
 {
-	packet_queue->timestamp = 0;
-	packet_queue->next_timestamp = 0;
+	packet_queue->cs_timestamp = 0;
+	packet_queue->next_cs_timestamp = 0;
 	packet_queue->instr_count = 0;
 }
 

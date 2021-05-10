@@ -38,8 +38,6 @@
 #include <tools/libc_compat.h>
 #include "util/synthetic-events.h"
 
-#define MAX_TIMESTAMP (~0ULL)
-
 struct cs_etm_auxtrace {
 	struct auxtrace auxtrace;
 	struct auxtrace_queues queues;
@@ -86,7 +84,7 @@ struct cs_etm_queue {
 	struct cs_etm_decoder *decoder;
 	struct auxtrace_buffer *buffer;
 	unsigned int queue_nr;
-	u8 pending_timestamp;
+	u8 pending_timestamp_chan_id;
 	u64 offset;
 	const unsigned char *buf;
 	size_t buf_len, buf_used;
@@ -208,7 +206,7 @@ void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
 	 * be more than one channel per cs_etm_queue, we need to specify
 	 * what traceID queue needs servicing.
 	 */
-	etmq->pending_timestamp = trace_chan_id;
+	etmq->pending_timestamp_chan_id = trace_chan_id;
 }
 
 static u64 cs_etm__etmq_get_timestamp(struct cs_etm_queue *etmq,
@@ -216,22 +214,22 @@ static u64 cs_etm__etmq_get_timestamp(struct cs_etm_queue *etmq,
 {
 	struct cs_etm_packet_queue *packet_queue;
 
-	if (!etmq->pending_timestamp)
+	if (!etmq->pending_timestamp_chan_id)
 		return 0;
 
 	if (trace_chan_id)
-		*trace_chan_id = etmq->pending_timestamp;
+		*trace_chan_id = etmq->pending_timestamp_chan_id;
 
 	packet_queue = cs_etm__etmq_get_packet_queue(etmq,
-						     etmq->pending_timestamp);
+						     etmq->pending_timestamp_chan_id);
 	if (!packet_queue)
 		return 0;
 
 	/* Acknowledge pending status */
-	etmq->pending_timestamp = 0;
+	etmq->pending_timestamp_chan_id = 0;
 
 	/* See function cs_etm_decoder__do_{hard|soft}_timestamp() */
-	return packet_queue->timestamp;
+	return packet_queue->cs_timestamp;
 }
 
 static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
@@ -814,7 +812,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	int ret = 0;
 	unsigned int cs_queue_nr;
 	u8 trace_chan_id;
-	u64 timestamp;
+	u64 cs_timestamp;
 	struct cs_etm_queue *etmq = queue->priv;
 
 	if (list_empty(&queue->head) || etmq)
@@ -854,7 +852,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 
 		/*
 		 * Run decoder on the trace block.  The decoder will stop when
-		 * encountering a timestamp, a full packet queue or the end of
+		 * encountering a CS timestamp, a full packet queue or the end of
 		 * trace for that block.
 		 */
 		ret = cs_etm__decode_data_block(etmq);
@@ -865,10 +863,10 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 		 * Function cs_etm_decoder__do_{hard|soft}_timestamp() does all
 		 * the timestamp calculation for us.
 		 */
-		timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
+		cs_timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
 
 		/* We found a timestamp, no need to continue. */
-		if (timestamp)
+		if (cs_timestamp)
 			break;
 
 		/*
@@ -892,7 +890,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	 * queue and will be processed in cs_etm__process_queues().
 	 */
 	cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
-	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, timestamp);
+	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
 out:
 	return ret;
 }
@@ -2221,7 +2219,7 @@ static int cs_etm__process_queues(struct cs_etm_auxtrace *etm)
 	int ret = 0;
 	unsigned int cs_queue_nr, queue_nr;
 	u8 trace_chan_id;
-	u64 timestamp;
+	u64 cs_timestamp;
 	struct auxtrace_queue *queue;
 	struct cs_etm_queue *etmq;
 	struct cs_etm_traceid_queue *tidq;
@@ -2283,9 +2281,9 @@ refetch:
 		if (ret)
 			goto out;
 
-		timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
+		cs_timestamp = cs_etm__etmq_get_timestamp(etmq, &trace_chan_id);
 
-		if (!timestamp) {
+		if (!cs_timestamp) {
 			/*
 			 * Function cs_etm__decode_data_block() returns when
 			 * there is no more traces to decode in the current
@@ -2308,7 +2306,7 @@ refetch:
 		 * this queue/traceID.
 		 */
 		cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
-		ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, timestamp);
+		ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
 	}
 
 out:
@@ -2380,7 +2378,7 @@ static int cs_etm__process_event(struct perf_session *session,
 				 struct perf_tool *tool)
 {
 	int err = 0;
-	u64 timestamp;
+	u64 sample_kernel_timestamp;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
 						   auxtrace);
@@ -2394,11 +2392,11 @@ static int cs_etm__process_event(struct perf_session *session,
 	}
 
 	if (sample->time && (sample->time != (u64) -1))
-		timestamp = sample->time;
+		sample_kernel_timestamp = sample->time;
 	else
-		timestamp = 0;
+		sample_kernel_timestamp = 0;
 
-	if (timestamp || etm->timeless_decoding) {
+	if (sample_kernel_timestamp || etm->timeless_decoding) {
 		err = cs_etm__update_queues(etm);
 		if (err)
 			return err;
