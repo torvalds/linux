@@ -87,11 +87,11 @@
 		ti,interrupt-ranges = <8 392 56>;
 	};
 
-	main-navss {
+	main_navss: bus@30000000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x00 0x30000000 0x00 0x30000000 0x00 0x0c400000>;
 		dma-coherent;
 		dma-ranges;
 

@@ -42,12 +42,12 @@
 		};
 	};
 
-	dmss: dmss {
+	dmss: bus@48000000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		dma-ranges;
-		ranges;
+		ranges = <0x00 0x48000000 0x00 0x48000000 0x00 0x06400000>;
 
 		ti,sci-dev-id = <25>;
 
