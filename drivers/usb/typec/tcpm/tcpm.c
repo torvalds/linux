@@ -4085,7 +4085,7 @@ static void run_state_machine(struct tcpm_port *port)
 		if (port->vbus_present) {
 			u32 current_lim = tcpm_get_current_limit(port);
 
-			if (port->slow_charger_loop || (current_lim > PD_P_SNK_STDBY_MW / 5))
+			if (port->slow_charger_loop && (current_lim > PD_P_SNK_STDBY_MW / 5))
 				current_lim = PD_P_SNK_STDBY_MW / 5;
 			tcpm_set_current_limit(port, current_lim, 5000);
 			tcpm_set_charge(port, true);
