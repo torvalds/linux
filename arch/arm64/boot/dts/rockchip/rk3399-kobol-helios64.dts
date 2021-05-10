@@ -40,6 +40,20 @@
 		#clock-cells = <0>;
 	};
 
+	fan1 {
+		/* fan connected to P7 */
+		compatible = "pwm-fan";
+		pwms = <&pwm0 0 40000 0>;
+		cooling-levels = <0 80 170 255>;
+	};
+
+	fan2 {
+		/* fan connected to P6 */
+		compatible = "pwm-fan";
+		pwms = <&pwm1 0 40000 0>;
+		cooling-levels = <0 80 170 255>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -349,6 +363,16 @@
 
 &pmu_io_domains {
 	pmu1830-supply = <&vcc3v0_s3>;
+	status = "okay";
+};
+
+&pwm0 {
+	/* pwm-fan on P7 */
+	status = "okay";
+};
+
+&pwm1 {
+	/* pwm-fan on P6 */
 	status = "okay";
 };
 
