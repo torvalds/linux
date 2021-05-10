@@ -7458,10 +7458,12 @@ static int mvpp2_probe(struct platform_device *pdev)
 
 		/* Get system's tclk rate */
 		priv->tclk = clk_get_rate(priv->pp_clk);
-	} else if (device_property_read_u32(&pdev->dev, "clock-frequency",
-					    &priv->tclk)) {
-		dev_err(&pdev->dev, "missing clock-frequency value\n");
-		return -EINVAL;
+	} else {
+		err = device_property_read_u32(&pdev->dev, "clock-frequency", &priv->tclk);
+		if (err) {
+			dev_err(&pdev->dev, "missing clock-frequency value\n");
+			return err;
+		}
 	}
 
 	if (priv->hw_version >= MVPP22) {
