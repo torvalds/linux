@@ -6,7 +6,7 @@
  */
 
 &cbass_wakeup {
-	dmsc: dmsc {
+	dmsc: dmsc@44083000 {
 		compatible = "ti,am654-sci";
 		ti,host-id = <12>;
 		#address-cells = <1>;
@@ -17,6 +17,9 @@
 
 		mboxes= <&secure_proxy_main 11>,
 			<&secure_proxy_main 13>;
+
+		reg-names = "debug_messages";
+		reg = <0x44083000 0x1000>;
 
 		k3_pds: power-controller {
 			compatible = "ti,sci-pm-domain";
