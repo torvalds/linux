@@ -349,11 +349,9 @@ static int aspeed_vuart_handle_irq(struct uart_port *port)
 			struct aspeed_vuart *vuart = port->private_data;
 			__aspeed_vuart_set_throttle(up, true);
 
-			if (!timer_pending(&vuart->unthrottle_timer)) {
-				vuart->port = up;
+			if (!timer_pending(&vuart->unthrottle_timer))
 				mod_timer(&vuart->unthrottle_timer,
 					  jiffies + unthrottle_timeout);
-			}
 
 		} else {
 			count = min(space, 256);
@@ -511,6 +509,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 
 	vuart->line = rc;
+	vuart->port = serial8250_get_port(vuart->line);
 
 	rc = of_parse_phandle_with_fixed_args(
 		np, "aspeed,sirq-polarity-sense", 2, 0,
