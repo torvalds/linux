@@ -235,7 +235,7 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	 */
 	cs->mode = SPI_PPC4XX_MODE_SPE;
 
-	switch (spi->mode & (SPI_CPHA | SPI_CPOL)) {
+	switch (spi->mode & SPI_MODE_X_MASK) {
 	case SPI_MODE_0:
 		cs->mode |= SPI_CLK_MODE0;
 		break;
