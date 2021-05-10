@@ -927,7 +927,6 @@
 			compatible = "ti,bq27541";
 			reg = <0x55>;
 			power-supplies = <&power_supply>;
-			monitored-battery = <&battery_cell>;
 		};
 
 		power_supply: charger@6a {
