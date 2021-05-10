@@ -6267,7 +6267,8 @@ void cgroup_exit(struct task_struct *tsk)
 	cset->nr_tasks--;
 
 	WARN_ON_ONCE(cgroup_task_frozen(tsk));
-	if (unlikely(cgroup_task_freeze(tsk)))
+	if (unlikely(!(tsk->flags & PF_KTHREAD) &&
+		     test_bit(CGRP_FREEZE, &task_dfl_cgroup(tsk)->flags)))
 		cgroup_update_frozen(task_dfl_cgroup(tsk));
 
 	spin_unlock_irq(&css_set_lock);
