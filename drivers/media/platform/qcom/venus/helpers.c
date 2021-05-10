@@ -595,8 +595,7 @@ static int platform_get_bufreq(struct venus_inst *inst, u32 buftype,
 		params.dec.is_secondary_output =
 			inst->opb_buftype == HFI_BUFFER_OUTPUT2;
 		params.dec.is_interlaced =
-			inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE ?
-				true : false;
+			inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE;
 	} else {
 		params.width = inst->out_width;
 		params.height = inst->out_height;
