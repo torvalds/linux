@@ -1022,7 +1022,8 @@ svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
 				mapping_flags |= coherent ?
 					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
 			} else {
-				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+				mapping_flags |= coherent ?
+					AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 				if (amdgpu_xgmi_same_hive(adev, bo_adev))
 					snoop = true;
 			}
