@@ -69,7 +69,7 @@ static int ucsi_psy_get_voltage_max(struct ucsi_connector *con,
 
 	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
-		if (con->num_pdos > 0) {
+		if (con->num_pdos > 0 && con->num_pdos <= UCSI_MAX_PDOS) {
 			pdo = con->src_pdos[con->num_pdos - 1];
 			val->intval = pdo_fixed_voltage(pdo) * 1000;
 		} else {
@@ -98,7 +98,7 @@ static int ucsi_psy_get_voltage_now(struct ucsi_connector *con,
 	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
 		index = rdo_index(con->rdo);
-		if (index > 0) {
+		if (index > 0 && index <= UCSI_MAX_PDOS) {
 			pdo = con->src_pdos[index - 1];
 			val->intval = pdo_fixed_voltage(pdo) * 1000;
 		} else {
@@ -125,7 +125,7 @@ static int ucsi_psy_get_current_max(struct ucsi_connector *con,
 
 	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
-		if (con->num_pdos > 0) {
+		if (con->num_pdos > 0 && con->num_pdos <= UCSI_MAX_PDOS) {
 			pdo = con->src_pdos[con->num_pdos - 1];
 			val->intval = pdo_max_current(pdo) * 1000;
 		} else {
