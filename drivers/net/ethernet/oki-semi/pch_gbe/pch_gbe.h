@@ -596,8 +596,6 @@ struct pch_gbe_adapter {
 
 #define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
 
-extern const char pch_driver_version[];
-
 /* pch_gbe_main.c */
 int pch_gbe_up(struct pch_gbe_adapter *adapter);
 void pch_gbe_down(struct pch_gbe_adapter *adapter);
