@@ -23,6 +23,16 @@
 		mmc1 = &sdhci;
 	};
 
+	avdd_0v9_s0: avdd-0v9-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "avdd_0v9_s0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc1v8_sys_s3>;
+	};
+
 	avdd_1v8_s0: avdd-1v8-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_1v8_s0";
@@ -72,6 +82,18 @@
 		};
 	};
 
+	pcie_power: pcie-power {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&pcie_pwr>;
+		pinctrl-names = "default";
+		regulator-boot-on;
+		regulator-name = "pcie_power";
+		startup-delay-us = <10000>;
+		vin-supply = <&vcc5v0_perdev>;
+	};
+
 	vcc1v8_sys_s0: vcc1v8-sys-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc1v8_sys_s0";
@@ -107,6 +129,16 @@
 		regulator-state-mem {
 			regulator-on-in-suspend;
 		};
+	};
+
+	vcc5v0_perdev: vcc5v0-perdev {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_perdev";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin_bkup>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
@@ -331,6 +363,20 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	status = "okay";
+};
+
+&pcie0 {
+	num-lanes = <2>;
+	status = "okay";
+
+	vpcie12v-supply = <&vcc12v_dcin>;
+	vpcie3v3-supply = <&pcie_power>;
+	vpcie1v8-supply = <&avdd_1v8_s0>;
+	vpcie0v9-supply = <&avdd_0v9_s0>;
+};
+
 &pinctrl {
 	gmac {
 		gphy_reset: gphy-reset {
@@ -345,6 +391,13 @@
 
 		sys_red_led_on: sys-red-led-on {
 			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	pcie {
+		pcie_pwr: pcie-pwr {
+			rockchip,pins =
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
