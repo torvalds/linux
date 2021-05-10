@@ -65,6 +65,10 @@ DECLARE_STATIC_KEY_FALSE(delayacct_key);
 extern int delayacct_on;	/* Delay accounting turned on/off */
 extern struct kmem_cache *delayacct_cache;
 extern void delayacct_init(void);
+
+extern int sysctl_delayacct(struct ctl_table *table, int write, void *buffer,
+			    size_t *lenp, loff_t *ppos);
+
 extern void __delayacct_tsk_init(struct task_struct *);
 extern void __delayacct_tsk_exit(struct task_struct *);
 extern void __delayacct_blkio_start(void);

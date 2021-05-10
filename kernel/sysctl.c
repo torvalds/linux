@@ -71,6 +71,7 @@
 #include <linux/coredump.h>
 #include <linux/latencytop.h>
 #include <linux/pid.h>
+#include <linux/delayacct.h>
 
 #include "../lib/kstrtox.h"
 
@@ -1727,6 +1728,17 @@ static struct ctl_table kern_table[] = {
 		.extra2		= SYSCTL_ONE,
 	},
 #endif /* CONFIG_SCHEDSTATS */
+#ifdef CONFIG_TASK_DELAY_ACCT
+	{
+		.procname	= "task_delayacct",
+		.data		= NULL,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= sysctl_delayacct,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+#endif /* CONFIG_TASK_DELAY_ACCT */
 #ifdef CONFIG_NUMA_BALANCING
 	{
 		.procname	= "numa_balancing",
