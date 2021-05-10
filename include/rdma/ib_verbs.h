@@ -2139,7 +2139,6 @@ struct ib_flow_action {
 };
 
 struct ib_mad;
-struct ib_grh;
 
 enum ib_process_mad_flags {
 	IB_MAD_IGNORE_MKEY	= 1,
