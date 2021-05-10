@@ -1191,8 +1191,9 @@ static int imx317_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
+	struct imx317 *imx317 = to_imx317(sd);
 
-	val = 1 << (IMX317_LANES - 1) |
+	val = 1 << (imx317->lane_num - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	config->type = V4L2_MBUS_CSI2;
