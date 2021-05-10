@@ -1162,7 +1162,7 @@ static void mt7615_sta_set_decap_offload(struct ieee80211_hw *hw,
 	else
 		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
 
-	mt7615_mcu_sta_update_hdr_trans(dev, vif, sta);
+	mt7615_mcu_set_sta_decap_offload(dev, vif, sta);
 }
 
 #ifdef CONFIG_PM
