@@ -698,7 +698,6 @@ extern uintptr_t _dtb_early_pa;
 #define dtb_early_pa	_dtb_early_pa
 #endif /* CONFIG_XIP_KERNEL */
 
-void setup_bootmem(void);
 void paging_init(void);
 void misc_mem_init(void);
 
