@@ -1788,11 +1788,10 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		result = smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetAverageGraphicsActivity,
 				&activity_percent);
-		if (0 == result) {
+		if (0 == result)
 			activity_percent = activity_percent > 100 ? 100 : activity_percent;
-		} else {
-			activity_percent = 50;
-		}
+		else
+			return -EIO;
 		*((uint32_t *)value) = activity_percent;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
@@ -1805,7 +1804,7 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = smu8_thermal_get_temperature(hwmgr);
 		return 0;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 

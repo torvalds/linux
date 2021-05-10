@@ -863,8 +863,8 @@ static int gfx_v9_4_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 }
 
-int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
-				   void *ras_error_status)
+static int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
+					  void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	uint32_t sec_count = 0, ded_count = 0;
@@ -906,7 +906,7 @@ int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 }
 
-void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
+static void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	int i, j, k;
 
@@ -971,7 +971,8 @@ void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_DSM_INDEX, 255);
 }
 
-int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
+static int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev,
+				     void *inject_if)
 {
 	struct ras_inject_if *info = (struct ras_inject_if *)inject_if;
 	int ret;
@@ -996,7 +997,7 @@ int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
 static const struct soc15_reg_entry gfx_v9_4_rdrsp_status_regs =
 	{ SOC15_REG_ENTRY(GC, 0, mmGCEA_ERR_STATUS), 0, 1, 32 };
 
-void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
+static void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 {
 	uint32_t i, j;
 	uint32_t reg_value;
@@ -1021,3 +1022,12 @@ void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 	gfx_v9_4_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
+
+const struct amdgpu_gfx_ras_funcs gfx_v9_4_ras_funcs = {
+        .ras_late_init = amdgpu_gfx_ras_late_init,
+        .ras_fini = amdgpu_gfx_ras_fini,
+        .ras_error_inject = &gfx_v9_4_ras_error_inject,
+        .query_ras_error_count = &gfx_v9_4_query_ras_error_count,
+        .reset_ras_error_count = &gfx_v9_4_reset_ras_error_count,
+        .query_ras_error_status = &gfx_v9_4_query_ras_error_status,
+};

@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2008-2018 Intel Corporation
  */
 
@@ -178,7 +177,7 @@ static int i915_do_reset(struct intel_gt *gt,
 			 intel_engine_mask_t engine_mask,
 			 unsigned int retry)
 {
-	struct pci_dev *pdev = gt->i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(gt->i915->drm.dev);
 	int err;
 
 	/* Assert reset for at least 20 usec, and wait for acknowledgement. */
@@ -207,7 +206,7 @@ static int g33_do_reset(struct intel_gt *gt,
 			intel_engine_mask_t engine_mask,
 			unsigned int retry)
 {
-	struct pci_dev *pdev = gt->i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(gt->i915->drm.dev);
 
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	return wait_for_atomic(g4x_reset_complete(pdev), 50);
@@ -217,7 +216,7 @@ static int g4x_do_reset(struct intel_gt *gt,
 			intel_engine_mask_t engine_mask,
 			unsigned int retry)
 {
-	struct pci_dev *pdev = gt->i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(gt->i915->drm.dev);
 	struct intel_uncore *uncore = gt->uncore;
 	int ret;
 
@@ -787,18 +786,15 @@ static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
 
 static void nop_submit_request(struct i915_request *request)
 {
-	struct intel_engine_cs *engine = request->engine;
-	unsigned long flags;
-
 	RQ_TRACE(request, "-EIO\n");
-	i915_request_set_error_once(request, -EIO);
 
-	spin_lock_irqsave(&engine->active.lock, flags);
-	__i915_request_submit(request);
-	i915_request_mark_complete(request);
-	spin_unlock_irqrestore(&engine->active.lock, flags);
+	request = i915_request_mark_eio(request);
+	if (request) {
+		i915_request_submit(request);
+		intel_engine_signal_breadcrumbs(request->engine);
 
-	intel_engine_signal_breadcrumbs(engine);
+		i915_request_put(request);
+	}
 }
 
 static void __intel_gt_set_wedged(struct intel_gt *gt)
@@ -974,8 +970,6 @@ static int do_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 {
 	int err, i;
 
-	gt_revoke(gt);
-
 	err = __intel_gt_reset(gt, ALL_ENGINES);
 	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
 		msleep(10 * (i + 1));
@@ -1030,6 +1024,13 @@ void intel_gt_reset(struct intel_gt *gt,
 
 	might_sleep();
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &gt->reset.flags));
+
+	/*
+	 * FIXME: Revoking cpu mmap ptes cannot be done from a dma_fence
+	 * critical section like gpu reset.
+	 */
+	gt_revoke(gt);
+
 	mutex_lock(&gt->reset.mutex);
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */

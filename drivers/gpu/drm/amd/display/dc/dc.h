@@ -42,13 +42,17 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.122"
+/* forward declaration */
+struct aux_payload;
+
+#define DC_VER "3.2.130"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 #define MIN_VIEWPORT_SIZE 12
+#define MAX_NUM_EDP 2
 
 /*******************************************************************************
  * Display Core Interfaces
@@ -151,6 +155,8 @@ struct dc_caps {
 	uint32_t max_links;
 	uint32_t max_audios;
 	uint32_t max_slave_planes;
+	uint32_t max_slave_yuv_planes;
+	uint32_t max_slave_rgb_planes;
 	uint32_t max_planes;
 	uint32_t max_downscale_ratio;
 	uint32_t i2c_speed_in_khz;
@@ -301,6 +307,8 @@ struct dc_config {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool clamp_min_dcfclk;
 #endif
+	uint64_t vblank_alignment_dto_params;
+	uint8_t  vblank_alignment_max_frame_time_diff;
 };
 
 enum visual_confirm {
@@ -452,6 +460,7 @@ struct dc_debug_options {
 	enum pipe_split_policy pipe_split_policy;
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
+	bool disable_min_fclk;
 
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
@@ -528,6 +537,10 @@ struct dc_debug_options {
 	bool disable_dsc;
 	bool enable_dram_clock_change_one_display_vactive;
 	union mem_low_power_enable_options enable_mem_low_power;
+	bool force_vblank_alignment;
+
+	/* Enable dmub aux for legacy ddc */
+	bool enable_dmub_aux_for_legacy_ddc;
 };
 
 struct dc_debug_data {
@@ -628,7 +641,6 @@ struct dc {
 #endif
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
-	int optimize_seamless_boot_streams;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
@@ -1292,8 +1304,20 @@ void dc_hardware_release(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 
+bool dc_enable_dmub_notifications(struct dc *dc);
+
+bool dc_process_dmub_aux_transfer_async(struct dc *dc,
+				uint32_t link_index,
+				struct aux_payload *payload);
+
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/
 #include "dc_dsc.h"
+
+/*******************************************************************************
+ * Disable acc mode Interfaces
+ ******************************************************************************/
+void dc_disable_accelerated_mode(struct dc *dc);
+
 #endif /* DC_INTERFACE_H_ */

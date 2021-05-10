@@ -14,10 +14,6 @@
 void do_per_trap(struct pt_regs *regs);
 void do_syscall(struct pt_regs *regs);
 
-typedef void (*pgm_check_func)(struct pt_regs *regs);
-
-extern pgm_check_func pgm_check_table[128];
-
 #ifdef CONFIG_DEBUG_ENTRY
 static __always_inline void arch_check_user_regs(struct pt_regs *regs)
 {

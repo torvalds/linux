@@ -121,7 +121,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 		goto err;
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &fake_ops, &lock_class);
+	i915_gem_object_init(obj, &fake_ops, &lock_class, 0);
 
 	i915_gem_object_set_volatile(obj);
 
@@ -130,7 +130,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 	obj->cache_level = I915_CACHE_NONE;
 
 	/* Preallocate the "backing storage" */
-	if (i915_gem_object_pin_pages(obj))
+	if (i915_gem_object_pin_pages_unlocked(obj))
 		goto err_obj;
 
 	i915_gem_object_unpin_pages(obj);
@@ -146,6 +146,7 @@ static int igt_ppgtt_alloc(void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
 	struct i915_ppgtt *ppgtt;
+	struct i915_gem_ww_ctx ww;
 	u64 size, last, limit;
 	int err = 0;
 
@@ -170,6 +171,12 @@ static int igt_ppgtt_alloc(void *arg)
 	 */
 	limit = totalram_pages() << PAGE_SHIFT;
 	limit = min(ppgtt->vm.total, limit);
+
+	i915_gem_ww_ctx_init(&ww, false);
+retry:
+	err = i915_vm_lock_objects(&ppgtt->vm, &ww);
+	if (err)
+		goto err_ppgtt_cleanup;
 
 	/* Check we can allocate the entire range */
 	for (size = 4096; size <= limit; size <<= 2) {
@@ -215,6 +222,13 @@ static int igt_ppgtt_alloc(void *arg)
 	}
 
 err_ppgtt_cleanup:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
 	i915_vm_put(&ppgtt->vm);
 	return err;
 }
@@ -276,7 +290,7 @@ static int lowlevel_hole(struct i915_address_space *vm,
 
 		GEM_BUG_ON(obj->base.size != BIT_ULL(size));
 
-		if (i915_gem_object_pin_pages(obj)) {
+		if (i915_gem_object_pin_pages_unlocked(obj)) {
 			i915_gem_object_put(obj);
 			kfree(order);
 			break;
@@ -297,20 +311,36 @@ static int lowlevel_hole(struct i915_address_space *vm,
 
 			if (vm->allocate_va_range) {
 				struct i915_vm_pt_stash stash = {};
+				struct i915_gem_ww_ctx ww;
+				int err;
 
+				i915_gem_ww_ctx_init(&ww, false);
+retry:
+				err = i915_vm_lock_objects(vm, &ww);
+				if (err)
+					goto alloc_vm_end;
+
+				err = -ENOMEM;
 				if (i915_vm_alloc_pt_stash(vm, &stash,
 							   BIT_ULL(size)))
-					break;
+					goto alloc_vm_end;
 
-				if (i915_vm_pin_pt_stash(vm, &stash)) {
-					i915_vm_free_pt_stash(vm, &stash);
-					break;
-				}
-
-				vm->allocate_va_range(vm, &stash,
-						      addr, BIT_ULL(size));
+				err = i915_vm_pin_pt_stash(vm, &stash);
+				if (!err)
+					vm->allocate_va_range(vm, &stash,
+							      addr, BIT_ULL(size));
 
 				i915_vm_free_pt_stash(vm, &stash);
+alloc_vm_end:
+				if (err == -EDEADLK) {
+					err = i915_gem_ww_ctx_backoff(&ww);
+					if (!err)
+						goto retry;
+				}
+				i915_gem_ww_ctx_fini(&ww);
+
+				if (err)
+					break;
 			}
 
 			mock_vma->pages = obj->mm.pages;
@@ -1167,7 +1197,7 @@ static int igt_ggtt_page(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto out_free;
 
@@ -1334,7 +1364,7 @@ static int igt_gtt_reserve(void *arg)
 			goto out;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			goto out;
@@ -1386,7 +1416,7 @@ static int igt_gtt_reserve(void *arg)
 			goto out;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			goto out;
@@ -1550,7 +1580,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			goto out;
@@ -1659,7 +1689,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			goto out;
@@ -1830,7 +1860,7 @@ static int igt_cs_tlb(void *arg)
 		goto out_vm;
 	}
 
-	batch = i915_gem_object_pin_map(bbe, I915_MAP_WC);
+	batch = i915_gem_object_pin_map_unlocked(bbe, I915_MAP_WC);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
 		goto out_put_bbe;
@@ -1846,7 +1876,7 @@ static int igt_cs_tlb(void *arg)
 	}
 
 	/* Track the execution of each request by writing into different slot */
-	batch = i915_gem_object_pin_map(act, I915_MAP_WC);
+	batch = i915_gem_object_pin_map_unlocked(act, I915_MAP_WC);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
 		goto out_put_act;
@@ -1893,7 +1923,7 @@ static int igt_cs_tlb(void *arg)
 		goto out_put_out;
 	GEM_BUG_ON(vma->node.start != vm->total - PAGE_SIZE);
 
-	result = i915_gem_object_pin_map(out, I915_MAP_WB);
+	result = i915_gem_object_pin_map_unlocked(out, I915_MAP_WB);
 	if (IS_ERR(result)) {
 		err = PTR_ERR(result);
 		goto out_put_out;
@@ -1909,6 +1939,7 @@ static int igt_cs_tlb(void *arg)
 		while (!__igt_timeout(end_time, NULL)) {
 			struct i915_vm_pt_stash stash = {};
 			struct i915_request *rq;
+			struct i915_gem_ww_ctx ww;
 			u64 offset;
 
 			offset = igt_random_offset(&prng,
@@ -1927,19 +1958,30 @@ static int igt_cs_tlb(void *arg)
 			if (err)
 				goto end;
 
+			i915_gem_ww_ctx_init(&ww, false);
+retry:
+			err = i915_vm_lock_objects(vm, &ww);
+			if (err)
+				goto end_ww;
+
 			err = i915_vm_alloc_pt_stash(vm, &stash, chunk_size);
 			if (err)
-				goto end;
+				goto end_ww;
 
 			err = i915_vm_pin_pt_stash(vm, &stash);
-			if (err) {
-				i915_vm_free_pt_stash(vm, &stash);
-				goto end;
-			}
-
-			vm->allocate_va_range(vm, &stash, offset, chunk_size);
+			if (!err)
+				vm->allocate_va_range(vm, &stash, offset, chunk_size);
 
 			i915_vm_free_pt_stash(vm, &stash);
+end_ww:
+			if (err == -EDEADLK) {
+				err = i915_gem_ww_ctx_backoff(&ww);
+				if (!err)
+					goto retry;
+			}
+			i915_gem_ww_ctx_fini(&ww);
+			if (err)
+				goto end;
 
 			/* Prime the TLB with the dummy pages */
 			for (i = 0; i < count; i++) {

@@ -11,8 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-/**
- * struct nal_h264_hdr_parameters - HDR parameters
+/*
+ * struct nal_h264_hrd_parameters - HRD parameters
  *
  * C struct representation of the sequence parameter set NAL unit as defined by
  * Rec. ITU-T H.264 (04/2017) E.1.2 HRD parameters syntax.
@@ -32,7 +32,7 @@ struct nal_h264_hrd_parameters {
 	unsigned int time_offset_length;
 };
 
-/**
+/*
  * struct nal_h264_vui_parameters - VUI parameters
  *
  * C struct representation of the VUI parameters as defined by Rec. ITU-T
@@ -87,7 +87,7 @@ struct nal_h264_vui_parameters {
 	};
 };
 
-/**
+/*
  * struct nal_h264_sps - Sequence parameter set
  *
  * C struct representation of the sequence parameter set NAL unit as defined by
@@ -142,7 +142,7 @@ struct nal_h264_sps {
 	struct nal_h264_vui_parameters vui;
 };
 
-/**
+/*
  * struct nal_h264_pps - Picture parameter set
  *
  * C struct representation of the picture parameter set NAL unit as defined by

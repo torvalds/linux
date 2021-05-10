@@ -302,12 +302,8 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_stats32_t __user *argp = (void __user *)arg;
-	int err;
 
-	err = drm_ioctl_kernel(file, drm_noop, NULL, 0);
-	if (err)
-		return err;
-
+	/* getstats is defunct, just clear */
 	if (clear_user(argp, sizeof(drm_stats32_t)))
 		return -EFAULT;
 	return 0;
@@ -820,13 +816,8 @@ typedef struct drm_update_draw32 {
 static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-	drm_update_draw32_t update32;
-
-	if (copy_from_user(&update32, (void __user *)arg, sizeof(update32)))
-		return -EFAULT;
-
-	return drm_ioctl_kernel(file, drm_noop, NULL,
-				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
+	/* update_draw is defunct */
+	return 0;
 }
 #endif
 

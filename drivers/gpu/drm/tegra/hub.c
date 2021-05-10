@@ -336,25 +336,27 @@ static void tegra_dc_remove_shared_plane(struct tegra_dc *dc,
 }
 
 static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
-					   struct drm_plane_state *state)
+					   struct drm_atomic_state *state)
 {
-	struct tegra_plane_state *plane_state = to_tegra_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct tegra_plane_state *plane_state = to_tegra_plane_state(new_plane_state);
 	struct tegra_shared_plane *tegra = to_tegra_shared_plane(plane);
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
-	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	struct tegra_dc *dc = to_tegra_dc(new_plane_state->crtc);
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
-	err = tegra_plane_format(state->fb->format->format,
+	err = tegra_plane_format(new_plane_state->fb->format->format,
 				 &plane_state->format,
 				 &plane_state->swap);
 	if (err < 0)
 		return err;
 
-	err = tegra_fb_get_tiling(state->fb, tiling);
+	err = tegra_fb_get_tiling(new_plane_state->fb, tiling);
 	if (err < 0)
 		return err;
 
@@ -369,8 +371,8 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 	 * error out if the user tries to display a framebuffer with such a
 	 * configuration.
 	 */
-	if (state->fb->format->num_planes > 2) {
-		if (state->fb->pitches[2] != state->fb->pitches[1]) {
+	if (new_plane_state->fb->format->num_planes > 2) {
+		if (new_plane_state->fb->pitches[2] != new_plane_state->fb->pitches[1]) {
 			DRM_ERROR("unsupported UV-plane configuration\n");
 			return -EINVAL;
 		}
@@ -378,7 +380,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 
 	/* XXX scaling is not yet supported, add a check here */
 
-	err = tegra_plane_state_add(&tegra->base, state);
+	err = tegra_plane_state_add(&tegra->base, new_plane_state);
 	if (err < 0)
 		return err;
 
@@ -386,8 +388,10 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
-					      struct drm_plane_state *old_state)
+					      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc *dc;
 	u32 value;
@@ -423,23 +427,25 @@ static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
-	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
-	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
-	unsigned int zpos = plane->state->normalized_zpos;
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
+	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
+	unsigned int zpos = new_state->normalized_zpos;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	dma_addr_t base;
 	u32 value;
 	int err;
 
 	/* rien ne va plus */
-	if (!plane->state->crtc || !plane->state->fb)
+	if (!new_state->crtc || !new_state->fb)
 		return;
 
-	if (!plane->state->visible) {
-		tegra_shared_plane_atomic_disable(plane, old_state);
+	if (!new_state->visible) {
+		tegra_shared_plane_atomic_disable(plane, state);
 		return;
 	}
 
@@ -477,22 +483,22 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	/* disable compression */
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
-	base = state->iova[0] + fb->offsets[0];
+	base = tegra_plane_state->iova[0] + fb->offsets[0];
 
-	tegra_plane_writel(p, state->format, DC_WIN_COLOR_DEPTH);
+	tegra_plane_writel(p, tegra_plane_state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);
 
-	value = V_POSITION(plane->state->crtc_y) |
-		H_POSITION(plane->state->crtc_x);
+	value = V_POSITION(new_state->crtc_y) |
+		H_POSITION(new_state->crtc_x);
 	tegra_plane_writel(p, value, DC_WIN_POSITION);
 
-	value = V_SIZE(plane->state->crtc_h) | H_SIZE(plane->state->crtc_w);
+	value = V_SIZE(new_state->crtc_h) | H_SIZE(new_state->crtc_w);
 	tegra_plane_writel(p, value, DC_WIN_SIZE);
 
 	value = WIN_ENABLE | COLOR_EXPAND;
 	tegra_plane_writel(p, value, DC_WIN_WIN_OPTIONS);
 
-	value = V_SIZE(plane->state->crtc_h) | H_SIZE(plane->state->crtc_w);
+	value = V_SIZE(new_state->crtc_h) | H_SIZE(new_state->crtc_w);
 	tegra_plane_writel(p, value, DC_WIN_CROPPED_SIZE);
 
 	tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI);
@@ -504,15 +510,15 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = CLAMP_BEFORE_BLEND | DEGAMMA_SRGB | INPUT_RANGE_FULL;
 	tegra_plane_writel(p, value, DC_WIN_SET_PARAMS);
 
-	value = OFFSET_X(plane->state->src_y >> 16) |
-		OFFSET_Y(plane->state->src_x >> 16);
+	value = OFFSET_X(new_state->src_y >> 16) |
+		OFFSET_Y(new_state->src_x >> 16);
 	tegra_plane_writel(p, value, DC_WINBUF_CROPPED_POINT);
 
 	if (dc->soc->supports_block_linear) {
-		unsigned long height = state->tiling.value;
+		unsigned long height = tegra_plane_state->tiling.value;
 
 		/* XXX */
-		switch (state->tiling.mode) {
+		switch (tegra_plane_state->tiling.mode) {
 		case TEGRA_BO_TILING_MODE_PITCH:
 			value = DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(0) |
 				DC_WINBUF_SURFACE_KIND_PITCH;

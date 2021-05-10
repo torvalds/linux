@@ -52,7 +52,7 @@ static ssize_t amdgpu_mem_info_vram_total_show(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.real_vram_size);
+	return sysfs_emit(buf, "%llu\n", adev->gmc.real_vram_size);
 }
 
 /**
@@ -69,7 +69,7 @@ static ssize_t amdgpu_mem_info_vis_vram_total_show(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.visible_vram_size);
+	return sysfs_emit(buf, "%llu\n", adev->gmc.visible_vram_size);
 }
 
 /**
@@ -87,8 +87,7 @@ static ssize_t amdgpu_mem_info_vram_used_show(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n",
-			amdgpu_vram_mgr_usage(man));
+	return sysfs_emit(buf, "%llu\n", amdgpu_vram_mgr_usage(man));
 }
 
 /**
@@ -106,8 +105,7 @@ static ssize_t amdgpu_mem_info_vis_vram_used_show(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n",
-			amdgpu_vram_mgr_vis_usage(man));
+	return sysfs_emit(buf, "%llu\n", amdgpu_vram_mgr_vis_usage(man));
 }
 
 static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
@@ -119,27 +117,27 @@ static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
 
 	switch (adev->gmc.vram_vendor) {
 	case SAMSUNG:
-		return snprintf(buf, PAGE_SIZE, "samsung\n");
+		return sysfs_emit(buf, "samsung\n");
 	case INFINEON:
-		return snprintf(buf, PAGE_SIZE, "infineon\n");
+		return sysfs_emit(buf, "infineon\n");
 	case ELPIDA:
-		return snprintf(buf, PAGE_SIZE, "elpida\n");
+		return sysfs_emit(buf, "elpida\n");
 	case ETRON:
-		return snprintf(buf, PAGE_SIZE, "etron\n");
+		return sysfs_emit(buf, "etron\n");
 	case NANYA:
-		return snprintf(buf, PAGE_SIZE, "nanya\n");
+		return sysfs_emit(buf, "nanya\n");
 	case HYNIX:
-		return snprintf(buf, PAGE_SIZE, "hynix\n");
+		return sysfs_emit(buf, "hynix\n");
 	case MOSEL:
-		return snprintf(buf, PAGE_SIZE, "mosel\n");
+		return sysfs_emit(buf, "mosel\n");
 	case WINBOND:
-		return snprintf(buf, PAGE_SIZE, "winbond\n");
+		return sysfs_emit(buf, "winbond\n");
 	case ESMT:
-		return snprintf(buf, PAGE_SIZE, "esmt\n");
+		return sysfs_emit(buf, "esmt\n");
 	case MICRON:
-		return snprintf(buf, PAGE_SIZE, "micron\n");
+		return sysfs_emit(buf, "micron\n");
 	default:
-		return snprintf(buf, PAGE_SIZE, "unknown\n");
+		return sysfs_emit(buf, "unknown\n");
 	}
 }
 
@@ -639,15 +637,13 @@ error_free:
 /**
  * amdgpu_vram_mgr_free_sgt - allocate and fill a sg table
  *
- * @adev: amdgpu device pointer
  * @dev: device pointer
  * @dir: data direction of resource to unmap
  * @sgt: sg table to free
  *
  * Free a previously allocate sg table.
  */
-void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
-			      struct device *dev,
+void amdgpu_vram_mgr_free_sgt(struct device *dev,
 			      enum dma_data_direction dir,
 			      struct sg_table *sgt)
 {

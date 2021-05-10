@@ -782,6 +782,16 @@
 	cs89x0_media=	[HW,NET]
 			Format: { rj45 | aui | bnc }
 
+	csdlock_debug=	[KNL] Enable debug add-ons of cross-CPU function call
+			handling. When switched on, additional debug data is
+			printed to the console in case a hanging CPU is
+			detected, and that CPU is pinged again in order to try
+			to resolve the hang situation.
+			0: disable csdlock debugging (default)
+			1: enable basic csdlock debugging (minor impact)
+			ext: enable extended csdlock debugging (more impact,
+			     but more data)
+
 	dasd=		[HW,NET]
 			See header of drivers/s390/block/dasd_devmap.c.
 
@@ -4081,9 +4091,7 @@
 				see CONFIG_RAS_CEC help text.
 
 	rcu_nocbs=	[KNL]
-			The argument is a cpu list, as described above,
-			except that the string "all" can be used to
-			specify every CPU on the system.
+			The argument is a cpu list, as described above.
 
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
@@ -4271,6 +4279,18 @@
 
 	rcuscale.kfree_rcu_test= [KNL]
 			Set to measure performance of kfree_rcu() flooding.
+
+	rcuscale.kfree_rcu_test_double= [KNL]
+			Test the double-argument variant of kfree_rcu().
+			If this parameter has the same value as
+			rcuscale.kfree_rcu_test_single, both the single-
+			and double-argument variants are tested.
+
+	rcuscale.kfree_rcu_test_single= [KNL]
+			Test the single-argument variant of kfree_rcu().
+			If this parameter has the same value as
+			rcuscale.kfree_rcu_test_double, both the single-
+			and double-argument variants are tested.
 
 	rcuscale.kfree_nthreads= [KNL]
 			The number of threads running loops of kfree_rcu().
@@ -4738,7 +4758,7 @@
 
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
-	sched_debug	[KNL] Enables verbose scheduler debug messages.
+	sched_verbose	[KNL] Enables verbose scheduler debug messages.
 
 	schedstats=	[KNL,X86] Enable or disable scheduled statistics.
 			Allowed values are enable and disable. This feature

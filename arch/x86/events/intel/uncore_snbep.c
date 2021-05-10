@@ -3675,7 +3675,8 @@ static struct intel_uncore_ops skx_uncore_iio_ops = {
 
 static inline u8 skx_iio_stack(struct intel_uncore_pmu *pmu, int die)
 {
-	return pmu->type->topology[die] >> (pmu->pmu_idx * BUS_NUM_STRIDE);
+	return pmu->type->topology[die].configuration >>
+	       (pmu->pmu_idx * BUS_NUM_STRIDE);
 }
 
 static umode_t
@@ -3688,19 +3689,14 @@ skx_iio_mapping_visible(struct kobject *kobj, struct attribute *attr, int die)
 }
 
 static ssize_t skx_iio_mapping_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
-	struct pci_bus *bus = pci_find_next_bus(NULL);
-	struct intel_uncore_pmu *uncore_pmu = dev_to_uncore_pmu(dev);
+	struct intel_uncore_pmu *pmu = dev_to_uncore_pmu(dev);
 	struct dev_ext_attribute *ea = to_dev_ext_attribute(attr);
 	long die = (long)ea->var;
 
-	/*
-	 * Current implementation is for single segment configuration hence it's
-	 * safe to take the segment value from the first available root bus.
-	 */
-	return sprintf(buf, "%04x:%02x\n", pci_domain_nr(bus),
-					   skx_iio_stack(uncore_pmu, die));
+	return sprintf(buf, "%04x:%02x\n", pmu->type->topology[die].segment,
+					   skx_iio_stack(pmu, die));
 }
 
 static int skx_msr_cpu_bus_read(int cpu, u64 *topology)
@@ -3737,34 +3733,32 @@ static int die_to_cpu(int die)
 
 static int skx_iio_get_topology(struct intel_uncore_type *type)
 {
-	int i, ret;
-	struct pci_bus *bus = NULL;
+	int die, ret = -EPERM;
 
-	/*
-	 * Verified single-segment environments only; disabled for multiple
-	 * segment topologies for now except VMD domains.
-	 * VMD domains start at 0x10000 to not clash with ACPI _SEG domains.
-	 */
-	while ((bus = pci_find_next_bus(bus))
-		&& (!pci_domain_nr(bus) || pci_domain_nr(bus) > 0xffff))
-		;
-	if (bus)
-		return -EPERM;
-
-	type->topology = kcalloc(uncore_max_dies(), sizeof(u64), GFP_KERNEL);
+	type->topology = kcalloc(uncore_max_dies(), sizeof(*type->topology),
+				 GFP_KERNEL);
 	if (!type->topology)
 		return -ENOMEM;
 
-	for (i = 0; i < uncore_max_dies(); i++) {
-		ret = skx_msr_cpu_bus_read(die_to_cpu(i), &type->topology[i]);
-		if (ret) {
-			kfree(type->topology);
-			type->topology = NULL;
-			return ret;
-		}
+	for (die = 0; die < uncore_max_dies(); die++) {
+		ret = skx_msr_cpu_bus_read(die_to_cpu(die),
+					   &type->topology[die].configuration);
+		if (ret)
+			break;
+
+		ret = uncore_die_to_segment(die);
+		if (ret < 0)
+			break;
+
+		type->topology[die].segment = ret;
 	}
 
-	return 0;
+	if (ret < 0) {
+		kfree(type->topology);
+		type->topology = NULL;
+	}
+
+	return ret;
 }
 
 static struct attribute_group skx_iio_mapping_group = {
@@ -3785,7 +3779,7 @@ static int skx_iio_set_mapping(struct intel_uncore_type *type)
 	struct dev_ext_attribute *eas = NULL;
 
 	ret = skx_iio_get_topology(type);
-	if (ret)
+	if (ret < 0)
 		goto clear_attr_update;
 
 	ret = -ENOMEM;

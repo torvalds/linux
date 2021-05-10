@@ -1865,6 +1865,9 @@ drm_mode_create_from_cmdline_mode(struct drm_device *dev,
 {
 	struct drm_display_mode *mode;
 
+	if (cmd->xres == 0 || cmd->yres == 0)
+		return NULL;
+
 	if (cmd->cvt)
 		mode = drm_cvt_mode(dev,
 				    cmd->xres, cmd->yres,

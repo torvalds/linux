@@ -113,7 +113,7 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		/* Delegate it to a different ring if the hardware hasn't
 		 * already done it.
 		 */
-		if (in_interrupt()) {
+		if (entry->ih == &adev->irq.ih) {
 			amdgpu_irq_delegate(adev, entry, 8);
 			return 1;
 		}
@@ -152,8 +152,9 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		entry->src_id, entry->ring_id, entry->vmid,
 		entry->pasid, task_info.process_name, task_info.tgid,
 		task_info.task_name, task_info.pid);
-	dev_err(adev->dev, "  in page starting at address 0x%012llx from client %d\n",
-		addr, entry->client_id);
+	dev_err(adev->dev, "  in page starting at address 0x%016llx from client 0x%x (%s)\n",
+		addr, entry->client_id,
+		soc15_ih_clientid_name[entry->client_id]);
 
 	if (!amdgpu_sriov_vf(adev))
 		hub->vmhub_funcs->print_l2_protection_fault_status(adev,
@@ -654,7 +655,7 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V8_7_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V8_7_PER_CHANNEL_OFFSET_SIENNA;
 		adev->umc.channel_idx_tbl = &umc_v8_7_channel_idx_tbl[0][0];
-		adev->umc.funcs = &umc_v8_7_funcs;
+		adev->umc.ras_funcs = &umc_v8_7_ras_funcs;
 		break;
 	default:
 		break;

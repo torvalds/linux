@@ -616,7 +616,6 @@ static void mmhub_v2_3_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 }
 
 const struct amdgpu_mmhub_funcs mmhub_v2_3_funcs = {
-	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.init = mmhub_v2_3_init,
 	.gart_enable = mmhub_v2_3_gart_enable,
 	.set_fault_enable_default = mmhub_v2_3_set_fault_enable_default,

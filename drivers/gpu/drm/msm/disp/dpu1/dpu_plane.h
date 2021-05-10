@@ -88,7 +88,7 @@ void dpu_plane_get_ctl_flush(struct drm_plane *plane, struct dpu_hw_ctl *ctl,
  * dpu_plane_restore - restore hw state if previously power collapsed
  * @plane: Pointer to drm plane structure
  */
-void dpu_plane_restore(struct drm_plane *plane);
+void dpu_plane_restore(struct drm_plane *plane, struct drm_atomic_state *state);
 
 /**
  * dpu_plane_flush - final plane operations before commit flush

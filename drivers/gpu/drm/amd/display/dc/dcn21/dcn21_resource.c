@@ -55,13 +55,11 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "virtual/virtual_stream_encoder.h"
-#include "dce110/dce110_resource.h"
 #include "dml/display_mode_vba.h"
 #include "dcn20/dcn20_dccg.h"
 #include "dcn21/dcn21_dccg.h"
 #include "dcn21_hubbub.h"
 #include "dcn10/dcn10_resource.h"
-#include "dce110/dce110_resource.h"
 #include "dce/dce_panel_cntl.h"
 
 #include "dcn20/dcn20_dwb.h"
@@ -883,7 +881,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
 		.disable_48mhz_pwrdwn = false,
-		.usbc_combo_phy_reset_wa = true
+		.usbc_combo_phy_reset_wa = true,
+		.dmub_command_table = true,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -899,7 +899,8 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_stutter = true,
 		.disable_48mhz_pwrdwn = true,
 		.disable_psr = true,
-		.enable_tri_buf = true
+		.enable_tri_buf = true,
+		.use_max_lb = true
 };
 
 enum dcn20_clk_src_array_id {
@@ -1633,11 +1634,11 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i] = clock_limits[i];
 	if (clk_table->num_entries) {
 		dcn2_1_soc.num_states = clk_table->num_entries + 1;
+		/* fill in min DF PState */
+		dcn2_1_soc.clock_limits[1] = construct_low_pstate_lvl(clk_table, closest_clk_lvl);
 		/* duplicate last level */
 		dcn2_1_soc.clock_limits[dcn2_1_soc.num_states] = dcn2_1_soc.clock_limits[dcn2_1_soc.num_states - 1];
 		dcn2_1_soc.clock_limits[dcn2_1_soc.num_states].state = dcn2_1_soc.num_states;
-		/* fill in min DF PState */
-		dcn2_1_soc.clock_limits[1] = construct_low_pstate_lvl(clk_table, closest_clk_lvl);
 	}
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
@@ -1980,6 +1981,8 @@ static bool dcn21_resource_construct(
 	dc->caps.dmdata_alloc_size = 2048;
 
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;

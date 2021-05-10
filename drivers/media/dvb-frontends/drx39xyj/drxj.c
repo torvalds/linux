@@ -4775,7 +4775,7 @@ set_frequency(struct drx_demod_instance *demod,
 	bool select_pos_image = false;
 	bool rf_mirror;
 	bool tuner_mirror;
-	bool image_to_select = true;
+	bool image_to_select;
 	s32 fm_frequency_shift = 0;
 
 	rf_mirror = (ext_attr->mirror == DRX_MIRROR_YES) ? true : false;

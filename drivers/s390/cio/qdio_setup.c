@@ -30,6 +30,7 @@ struct qaob *qdio_allocate_aob(void)
 {
 	return kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
 }
+EXPORT_SYMBOL_GPL(qdio_allocate_aob);
 
 void qdio_release_aob(struct qaob *aob)
 {
@@ -247,8 +248,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 			 struct qdio_initialize *qdio_init)
 {
 	struct qdio_q *q;
-	struct qdio_outbuf_state *output_sbal_state_array =
-				  qdio_init->output_sbal_state_array;
 	int i;
 
 	for_each_input_queue(irq_ptr, q, i) {
@@ -264,9 +263,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 	for_each_output_queue(irq_ptr, q, i) {
 		DBF_EVENT("outq:%1d", i);
 		setup_queues_misc(q, irq_ptr, qdio_init->output_handler, i);
-
-		q->u.out.sbal_state = output_sbal_state_array;
-		output_sbal_state_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		q->is_input_q = 0;
 		setup_storage_lists(q, irq_ptr,
@@ -370,30 +366,6 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 	process_ac_flags(irq_ptr, qdioac);
 	DBF_EVENT("ac 1:%2x 2:%4x", qdioac, irq_ptr->ssqd_desc.qdioac2);
 	DBF_EVENT("3:%4x qib:%4x", irq_ptr->ssqd_desc.qdioac3, irq_ptr->qib.ac);
-}
-
-void qdio_free_async_data(struct qdio_irq *irq_ptr)
-{
-	struct qdio_q *q;
-	int i;
-
-	for (i = 0; i < irq_ptr->max_output_qs; i++) {
-		q = irq_ptr->output_qs[i];
-		if (q->u.out.use_cq) {
-			unsigned int n;
-
-			for (n = 0; n < QDIO_MAX_BUFFERS_PER_Q; n++) {
-				struct qaob *aob = q->u.out.aobs[n];
-
-				if (aob) {
-					qdio_release_aob(aob);
-					q->u.out.aobs[n] = NULL;
-				}
-			}
-
-			qdio_disable_async_operation(&q->u.out);
-		}
-	}
 }
 
 static void qdio_fill_qdr_desc(struct qdesfmt0 *desc, struct qdio_q *queue)
@@ -543,25 +515,6 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 		 (irq_ptr->siga_flag.sync_after_ai) ? "A" : " ",
 		 (irq_ptr->siga_flag.sync_out_after_pci) ? "P" : " ");
 	printk(KERN_INFO "%s", s);
-}
-
-int qdio_enable_async_operation(struct qdio_output_q *outq)
-{
-	outq->aobs = kcalloc(QDIO_MAX_BUFFERS_PER_Q, sizeof(struct qaob *),
-			     GFP_KERNEL);
-	if (!outq->aobs) {
-		outq->use_cq = 0;
-		return -ENOMEM;
-	}
-	outq->use_cq = 1;
-	return 0;
-}
-
-void qdio_disable_async_operation(struct qdio_output_q *q)
-{
-	kfree(q->aobs);
-	q->aobs = NULL;
-	q->use_cq = 0;
 }
 
 int __init qdio_setup_init(void)

@@ -586,6 +586,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_YUV444  v4l2_fourcc('Y', '4', '4', '4') /* 16  xxxxyyyy uuuuvvvv */
 #define V4L2_PIX_FMT_YUV555  v4l2_fourcc('Y', 'U', 'V', 'O') /* 16  YUV-5-5-5     */
 #define V4L2_PIX_FMT_YUV565  v4l2_fourcc('Y', 'U', 'V', 'P') /* 16  YUV-5-6-5     */
+#define V4L2_PIX_FMT_YUV24   v4l2_fourcc('Y', 'U', 'V', '3') /* 24  YUV-8-8-8     */
 #define V4L2_PIX_FMT_YUV32   v4l2_fourcc('Y', 'U', 'V', '4') /* 32  YUV-8-8-8-8   */
 #define V4L2_PIX_FMT_AYUV32  v4l2_fourcc('A', 'Y', 'U', 'V') /* 32  AYUV-8-8-8-8  */
 #define V4L2_PIX_FMT_XYUV32  v4l2_fourcc('X', 'Y', 'U', 'V') /* 32  XYUV-8-8-8-8  */
@@ -694,6 +695,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_VC1_ANNEX_G v4l2_fourcc('V', 'C', '1', 'G') /* SMPTE 421M Annex G compliant stream */
 #define V4L2_PIX_FMT_VC1_ANNEX_L v4l2_fourcc('V', 'C', '1', 'L') /* SMPTE 421M Annex L compliant stream */
 #define V4L2_PIX_FMT_VP8      v4l2_fourcc('V', 'P', '8', '0') /* VP8 */
+#define V4L2_PIX_FMT_VP8_FRAME v4l2_fourcc('V', 'P', '8', 'F') /* VP8 parsed frame */
 #define V4L2_PIX_FMT_VP9      v4l2_fourcc('V', 'P', '9', '0') /* VP9 */
 #define V4L2_PIX_FMT_HEVC     v4l2_fourcc('H', 'E', 'V', 'C') /* HEVC aka H.265 */
 #define V4L2_PIX_FMT_FWHT     v4l2_fourcc('F', 'W', 'H', 'T') /* Fast Walsh Hadamard Transform (vicodec) */
@@ -975,8 +977,10 @@ struct v4l2_requestbuffers {
  *			pointing to this plane
  * @fd:			when memory is V4L2_MEMORY_DMABUF, a userspace file
  *			descriptor associated with this plane
+ * @m:			union of @mem_offset, @userptr and @fd
  * @data_offset:	offset in the plane to the start of data; usually 0,
  *			unless there is a header in front of the data
+ * @reserved:		drivers and applications must zero this array
  *
  * Multi-planar buffers consist of one or more planes, e.g. an YCbCr buffer
  * with two planes can have one plane for Y, and another for interleaved CbCr
@@ -1018,10 +1022,14 @@ struct v4l2_plane {
  *		a userspace file descriptor associated with this buffer
  * @planes:	for multiplanar buffers; userspace pointer to the array of plane
  *		info structs for this buffer
+ * @m:		union of @offset, @userptr, @planes and @fd
  * @length:	size in bytes of the buffer (NOT its payload) for single-plane
  *		buffers (when type != *_MPLANE); number of elements in the
  *		planes array for multi-plane buffers
+ * @reserved2:	drivers and applications must zero this field
  * @request_fd: fd of the request that this buffer should use
+ * @reserved:	for backwards compatibility with applications that do not know
+ *		about @request_fd
  *
  * Contains data exchanged by application and driver using one of the Streaming
  * I/O methods.
@@ -1059,7 +1067,7 @@ struct v4l2_buffer {
 #ifndef __KERNEL__
 /**
  * v4l2_timeval_to_ns - Convert timeval to nanoseconds
- * @ts:		pointer to the timeval variable to be converted
+ * @tv:		pointer to the timeval variable to be converted
  *
  * Returns the scalar nanosecond representation of the timeval
  * parameter.
@@ -1120,6 +1128,7 @@ static inline __u64 v4l2_timeval_to_ns(const struct timeval *tv)
  * @flags:	flags for newly created file, currently only O_CLOEXEC is
  *		supported, refer to manual of open syscall for more details
  * @fd:		file descriptor associated with DMABUF (set by driver)
+ * @reserved:	drivers and applications must zero this array
  *
  * Contains data used for exporting a video buffer as DMABUF file descriptor.
  * The buffer is identified by a 'cookie' returned by VIDIOC_QUERYBUF
@@ -1737,6 +1746,7 @@ struct v4l2_ext_control {
 		struct v4l2_ctrl_h264_slice_params __user *p_h264_slice_params;
 		struct v4l2_ctrl_h264_decode_params __user *p_h264_decode_params;
 		struct v4l2_ctrl_fwht_params __user *p_fwht_params;
+		struct v4l2_ctrl_vp8_frame __user *p_vp8_frame;
 		void __user *ptr;
 	};
 } __attribute__ ((packed));
@@ -1784,6 +1794,9 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_U32	     = 0x0102,
 	V4L2_CTRL_TYPE_AREA          = 0x0106,
 
+	V4L2_CTRL_TYPE_HDR10_CLL_INFO		= 0x0110,
+	V4L2_CTRL_TYPE_HDR10_MASTERING_DISPLAY	= 0x0111,
+
 	V4L2_CTRL_TYPE_H264_SPS             = 0x0200,
 	V4L2_CTRL_TYPE_H264_PPS		    = 0x0201,
 	V4L2_CTRL_TYPE_H264_SCALING_MATRIX  = 0x0202,
@@ -1792,6 +1805,8 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_H264_PRED_WEIGHTS    = 0x0205,
 
 	V4L2_CTRL_TYPE_FWHT_PARAMS	    = 0x0220,
+
+	V4L2_CTRL_TYPE_VP8_FRAME            = 0x0240,
 };
 
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */
@@ -2229,6 +2244,7 @@ struct v4l2_mpeg_vbi_fmt_ivtv {
  *			this plane will be used
  * @bytesperline:	distance in bytes between the leftmost pixels in two
  *			adjacent lines
+ * @reserved:		drivers and applications must zero this array
  */
 struct v4l2_plane_pix_format {
 	__u32		sizeimage;
@@ -2247,8 +2263,10 @@ struct v4l2_plane_pix_format {
  * @num_planes:		number of planes for this format
  * @flags:		format flags (V4L2_PIX_FMT_FLAG_*)
  * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
+ * @hsv_enc:		enum v4l2_hsv_encoding, HSV encoding
  * @quantization:	enum v4l2_quantization, colorspace quantization
  * @xfer_func:		enum v4l2_xfer_func, colorspace transfer function
+ * @reserved:		drivers and applications must zero this array
  */
 struct v4l2_pix_format_mplane {
 	__u32				width;
@@ -2273,6 +2291,7 @@ struct v4l2_pix_format_mplane {
  * struct v4l2_sdr_format - SDR format definition
  * @pixelformat:	little endian four character code (fourcc)
  * @buffersize:		maximum size in bytes required for data
+ * @reserved:		drivers and applications must zero this array
  */
 struct v4l2_sdr_format {
 	__u32				pixelformat;
@@ -2299,6 +2318,8 @@ struct v4l2_meta_format {
  * @vbi:	raw VBI capture or output parameters
  * @sliced:	sliced VBI capture or output parameters
  * @raw_data:	placeholder for future extensions and custom formats
+ * @fmt:	union of @pix, @pix_mp, @win, @vbi, @sliced, @sdr, @meta
+ *		and @raw_data
  */
 struct v4l2_format {
 	__u32	 type;

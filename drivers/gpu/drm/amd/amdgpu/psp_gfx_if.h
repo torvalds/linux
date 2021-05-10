@@ -102,6 +102,21 @@ enum psp_gfx_cmd_id
     /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
     GFX_CMD_ID_LOAD_TOC           = 0x00000020,   /* Load TOC and obtain TMR size */
     GFX_CMD_ID_AUTOLOAD_RLC       = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
+    GFX_CMD_ID_BOOT_CFG           = 0x00000022,   /* Boot Config */
+};
+
+/* PSP boot config sub-commands */
+enum psp_gfx_boot_config_cmd
+{
+    BOOTCFG_CMD_SET         = 1, /* Set boot configuration settings */
+    BOOTCFG_CMD_GET         = 2, /* Get boot configuration settings */
+    BOOTCFG_CMD_INVALIDATE  = 3  /* Reset current boot configuration settings to VBIOS defaults */
+};
+
+/* PSP boot config bitmask values */
+enum psp_gfx_boot_config
+{
+    BOOT_CONFIG_GECC = 0x1,
 };
 
 /* Command to load Trusted Application binary into PSP OS. */
@@ -235,6 +250,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_SDMA6                           = 56,   /* SDMA6                    MI      */
 	GFX_FW_TYPE_SDMA7                           = 57,   /* SDMA7                    MI      */
 	GFX_FW_TYPE_VCN1                            = 58,   /* VCN1                     MI      */
+	GFX_FW_TYPE_REG_LIST                        = 67,   /* REG_LIST                 MI      */
 	GFX_FW_TYPE_MAX
 };
 
@@ -272,6 +288,15 @@ struct psp_gfx_cmd_load_toc
     uint32_t        toc_size;               /* FW buffer size in bytes */
 };
 
+/* Dynamic boot configuration */
+struct psp_gfx_cmd_boot_cfg
+{
+    uint32_t                        timestamp;            /* calendar time as number of seconds */
+    enum psp_gfx_boot_config_cmd    sub_cmd;              /* sub-command indicating how to process command data */
+    uint32_t                        boot_config;          /* dynamic boot configuration bitmask */
+    uint32_t                        boot_config_valid;    /* dynamic boot configuration valid bits bitmask */
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -284,6 +309,7 @@ union psp_gfx_commands
     struct psp_gfx_cmd_reg_prog       cmd_setup_reg_prog;
     struct psp_gfx_cmd_setup_tmr        cmd_setup_vmr;
     struct psp_gfx_cmd_load_toc         cmd_load_toc;
+    struct psp_gfx_cmd_boot_cfg         boot_cfg;
 };
 
 struct psp_gfx_uresp_reserved

@@ -191,7 +191,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 				psp_set_srm(hdcp_work->hdcp.config.psp.handle, hdcp_work->srm, hdcp_work->srm_size,
 					    &hdcp_work->srm_version);
 
-			display->adjust.disable = 0;
+			display->adjust.disable = MOD_HDCP_DISPLAY_NOT_DISABLE;
 			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
 				hdcp_w->link.adjust.hdcp1.disable = 0;
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
@@ -203,7 +203,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 			schedule_delayed_work(&hdcp_w->property_validate_dwork,
 					      msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
 		} else {
-			display->adjust.disable = 1;
+			display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 			hdcp_w->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 			cancel_delayed_work(&hdcp_w->property_validate_dwork);
 		}
@@ -456,7 +456,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.assr_enabled = config->assr_enabled;
 	link->dp.mst_enabled = config->mst_enabled;
-	display->adjust.disable = 1;
+	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 3;
 	link->adjust.hdcp1.disable = 0;
 

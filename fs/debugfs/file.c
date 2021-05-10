@@ -864,6 +864,97 @@ struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_bool);
 
+ssize_t debugfs_read_file_str(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct dentry *dentry = F_DENTRY(file);
+	char *str, *copy = NULL;
+	int copy_len, len;
+	ssize_t ret;
+
+	ret = debugfs_file_get(dentry);
+	if (unlikely(ret))
+		return ret;
+
+	str = *(char **)file->private_data;
+	len = strlen(str) + 1;
+	copy = kmalloc(len, GFP_KERNEL);
+	if (!copy) {
+		debugfs_file_put(dentry);
+		return -ENOMEM;
+	}
+
+	copy_len = strscpy(copy, str, len);
+	debugfs_file_put(dentry);
+	if (copy_len < 0) {
+		kfree(copy);
+		return copy_len;
+	}
+
+	copy[copy_len] = '\n';
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, copy, copy_len);
+	kfree(copy);
+
+	return ret;
+}
+
+static ssize_t debugfs_write_file_str(struct file *file, const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	/* This is really only for read-only strings */
+	return -EINVAL;
+}
+
+static const struct file_operations fops_str = {
+	.read =		debugfs_read_file_str,
+	.write =	debugfs_write_file_str,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
+
+static const struct file_operations fops_str_ro = {
+	.read =		debugfs_read_file_str,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
+
+static const struct file_operations fops_str_wo = {
+	.write =	debugfs_write_file_str,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
+
+/**
+ * debugfs_create_str - create a debugfs file that is used to read and write a string value
+ * @name: a pointer to a string containing the name of the file to create.
+ * @mode: the permission that the file should have
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is %NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @value: a pointer to the variable that the file should read to and write
+ *         from.
+ *
+ * This function creates a file in debugfs with the given name that
+ * contains the value of the variable @value.  If the @mode variable is so
+ * set, it can be read from, and written to.
+ *
+ * This function will return a pointer to a dentry if it succeeds.  This
+ * pointer must be passed to the debugfs_remove() function when the file is
+ * to be removed (no automatic cleanup happens if your module is unloaded,
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
+ * returned.
+ *
+ * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
+ * be returned.
+ */
+void debugfs_create_str(const char *name, umode_t mode,
+			struct dentry *parent, char **value)
+{
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_str,
+				   &fops_str_ro, &fops_str_wo);
+}
+
 static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {

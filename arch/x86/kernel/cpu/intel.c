@@ -1268,3 +1268,19 @@ void __init sld_setup(struct cpuinfo_x86 *c)
 	sld_state_setup();
 	sld_state_show();
 }
+
+#define X86_HYBRID_CPU_TYPE_ID_SHIFT	24
+
+/**
+ * get_this_hybrid_cpu_type() - Get the type of this hybrid CPU
+ *
+ * Returns the CPU type [31:24] (i.e., Atom or Core) of a CPU in
+ * a hybrid processor. If the processor is not hybrid, returns 0.
+ */
+u8 get_this_hybrid_cpu_type(void)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
+		return 0;
+
+	return cpuid_eax(0x0000001a) >> X86_HYBRID_CPU_TYPE_ID_SHIFT;
+}

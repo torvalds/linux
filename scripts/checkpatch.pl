@@ -6699,9 +6699,11 @@ sub process {
 					$specifier = $1;
 					$extension = $2;
 					$qualifier = $3;
-					if ($extension !~ /[SsBKRraEehMmIiUDdgVCbGNOxtf]/ ||
+					if ($extension !~ /[4SsBKRraEehMmIiUDdgVCbGNOxtf]/ ||
 					    ($extension eq "f" &&
-					     defined $qualifier && $qualifier !~ /^w/)) {
+					     defined $qualifier && $qualifier !~ /^w/) ||
+					    ($extension eq "4" &&
+					     defined $qualifier && $qualifier !~ /^cc/)) {
 						$bad_specifier = $specifier;
 						last;
 					}

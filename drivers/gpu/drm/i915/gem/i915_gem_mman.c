@@ -246,12 +246,15 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 		     area->vm_flags & VM_WRITE))
 		return VM_FAULT_SIGBUS;
 
+	if (i915_gem_object_lock_interruptible(obj, NULL))
+		return VM_FAULT_NOPAGE;
+
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
 		goto out;
 
 	iomap = -1;
-	if (!i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE)) {
+	if (!i915_gem_object_has_struct_page(obj)) {
 		iomap = obj->mm.region->iomap.base;
 		iomap -= obj->mm.region->region.start;
 	}
@@ -269,6 +272,7 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	i915_gem_object_unpin_pages(obj);
 
 out:
+	i915_gem_object_unlock(obj);
 	return i915_error_to_vmf_fault(err);
 }
 
@@ -417,7 +421,9 @@ vm_access(struct vm_area_struct *area, unsigned long addr,
 {
 	struct i915_mmap_offset *mmo = area->vm_private_data;
 	struct drm_i915_gem_object *obj = mmo->obj;
+	struct i915_gem_ww_ctx ww;
 	void *vaddr;
+	int err = 0;
 
 	if (i915_gem_object_is_readonly(obj) && write)
 		return -EACCES;
@@ -426,10 +432,18 @@ vm_access(struct vm_area_struct *area, unsigned long addr,
 	if (addr >= obj->base.size)
 		return -EINVAL;
 
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = i915_gem_object_lock(obj, &ww);
+	if (err)
+		goto out;
+
 	/* As this is primarily for debugging, let's focus on simplicity */
 	vaddr = i915_gem_object_pin_map(obj, I915_MAP_FORCE_WC);
-	if (IS_ERR(vaddr))
-		return PTR_ERR(vaddr);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out;
+	}
 
 	if (write) {
 		memcpy(vaddr + addr, buf, len);
@@ -439,6 +453,16 @@ vm_access(struct vm_area_struct *area, unsigned long addr,
 	}
 
 	i915_gem_object_unpin_map(obj);
+out:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	if (err)
+		return err;
 
 	return len;
 }
@@ -653,9 +677,8 @@ __assign_mmap_offset(struct drm_file *file,
 	}
 
 	if (mmap_type != I915_MMAP_TYPE_GTT &&
-	    !i915_gem_object_type_has(obj,
-				      I915_GEM_OBJECT_HAS_STRUCT_PAGE |
-				      I915_GEM_OBJECT_HAS_IOMEM)) {
+	    !i915_gem_object_has_struct_page(obj) &&
+	    !i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM)) {
 		err = -ENODEV;
 		goto out;
 	}
