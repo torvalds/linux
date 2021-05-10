@@ -1315,12 +1315,31 @@ static void mmhub_v1_7_query_ras_error_status(struct amdgpu_device *adev)
 	}
 }
 
+static void mmhub_v1_7_reset_ras_error_status(struct amdgpu_device *adev)
+{
+	int i;
+	uint32_t reg_value;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_7_ea_err_status_regs); i++) {
+		reg_value = RREG32(SOC15_REG_ENTRY_OFFSET(
+			mmhub_v1_7_ea_err_status_regs[i]));
+		reg_value = REG_SET_FIELD(reg_value, MMEA0_ERR_STATUS,
+					  CLEAR_ERROR_STATUS, 0x01);
+		WREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v1_7_ea_err_status_regs[i]),
+		       reg_value);
+	}
+}
+
 const struct amdgpu_mmhub_ras_funcs mmhub_v1_7_ras_funcs = {
 	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.ras_fini = amdgpu_mmhub_ras_fini,
 	.query_ras_error_count = mmhub_v1_7_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v1_7_reset_ras_error_count,
 	.query_ras_error_status = mmhub_v1_7_query_ras_error_status,
+	.reset_ras_error_status = mmhub_v1_7_reset_ras_error_status,
 };
 
 const struct amdgpu_mmhub_funcs mmhub_v1_7_funcs = {

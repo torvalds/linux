@@ -938,6 +938,10 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 		if (adev->mmhub.ras_funcs &&
 		    adev->mmhub.ras_funcs->reset_ras_error_count)
 			adev->mmhub.ras_funcs->reset_ras_error_count(adev);
+
+		if (adev->mmhub.ras_funcs &&
+		    adev->mmhub.ras_funcs->reset_ras_error_status)
+			adev->mmhub.ras_funcs->reset_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__SDMA:
 		if (adev->sdma.funcs->reset_ras_error_count)
