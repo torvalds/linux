@@ -569,8 +569,8 @@ void rtl92e_writel(struct net_device *dev, int x, u32 y);
 
 void force_pci_posting(struct net_device *dev);
 
-void rtl92e_rx_enable(struct net_device *);
-void rtl92e_tx_enable(struct net_device *);
+void rtl92e_rx_enable(struct net_device *dev);
+void rtl92e_tx_enable(struct net_device *dev);
 
 void rtl92e_hw_sleep_wq(void *data);
 void rtl92e_commit(struct net_device *dev);
