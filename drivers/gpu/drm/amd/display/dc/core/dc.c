@@ -2652,6 +2652,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->allow_freesync)
 		stream->allow_freesync = *update->allow_freesync;
 
+	if (update->vrr_active_variable)
+		stream->vrr_active_variable = *update->vrr_active_variable;
+
 	if (update->crtc_timing_adjust)
 		stream->adjust = *update->crtc_timing_adjust;
 

@@ -304,6 +304,7 @@ struct dc_stream_update {
 	bool *dpms_off;
 	bool integer_scaling_update;
 	bool *allow_freesync;
+	bool *vrr_active_variable;
 
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;

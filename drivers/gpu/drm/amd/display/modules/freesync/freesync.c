@@ -1374,7 +1374,7 @@ unsigned long long mod_freesync_calc_field_rate_from_timing(
 	return field_rate_in_uhz;
 }
 
-bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr, struct dc_stream_state *const pStream)
+bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr)
 {
 	return (pVrr->state != VRR_STATE_UNSUPPORTED) && (pVrr->state != VRR_STATE_DISABLED);
 }

@@ -195,7 +195,6 @@ unsigned int mod_freesync_calc_v_total_from_refresh(
 		unsigned int refresh_in_uhz);
 
 // Returns true when FreeSync is supported and enabled (even if it is inactive)
-bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr,
-		struct dc_stream_state *const pStream);
+bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr);
 
 #endif
