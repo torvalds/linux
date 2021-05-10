@@ -64,8 +64,6 @@ static inline struct rk628_lvds *connector_to_lvds(struct drm_connector *c)
 static enum lvds_format rk628_lvds_get_format(u32 bus_format)
 {
 	switch (bus_format) {
-	case MEDIA_BUS_FMT_RGB666_1X7X3_JEIDA:
-		return LVDS_FORMAT_JEIDA_18BIT;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
 		return LVDS_FORMAT_JEIDA_24BIT;
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:

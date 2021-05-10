@@ -124,9 +124,6 @@ static void rk618_lvds_bridge_enable(struct drm_bridge *bridge)
 	rk618_frc_dither_init(lvds->parent, lvds->bus_format);
 
 	switch (lvds->bus_format) {
-	case MEDIA_BUS_FMT_RGB666_1X7X3_JEIDA:
-		format = LVDS_FORMAT_JEIDA_18BIT;
-		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
 		format = LVDS_FORMAT_JEIDA_24BIT;
 		break;

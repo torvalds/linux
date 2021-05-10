@@ -29,7 +29,6 @@ void rk618_frc_dither_init(struct rk618 *rk618, u32 bus_format)
 		val = FRC_OUT_MODE_RGB666 | FRC_DITHER_DISABLE;
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
-	case MEDIA_BUS_FMT_RGB666_1X7X3_JEIDA:
 		val = FRC_OUT_MODE_RGB888 | FRC_DITHER_ENABLE;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
