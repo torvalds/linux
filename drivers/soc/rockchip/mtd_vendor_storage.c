@@ -260,8 +260,7 @@ static int mtd_vendor_write(u32 id, void *pbuf, u32 size)
 				item->size = size;
 				memcpy(&p_data[item->offset], pbuf, size);
 				g_vendor->free_offset = offset + align_size;
-				g_vendor->free_size -= (align_size -
-							alloc_size);
+				g_vendor->free_size = sizeof(g_vendor->data) - g_vendor->free_offset;
 			} else {
 				memcpy(&p_data[item->offset],
 				       pbuf,
