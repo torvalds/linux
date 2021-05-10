@@ -11,6 +11,7 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
@@ -299,15 +300,12 @@ static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
  * @reg:	Pointer of register
  * @bit:	Busy bit
  */
-static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
+static void pch_gbe_wait_clr_bit(void __iomem *reg, u32 bit)
 {
 	u32 tmp;
 
 	/* wait busy */
-	tmp = 1000;
-	while ((ioread32(reg) & bit) && --tmp)
-		cpu_relax();
-	if (!tmp)
+	if (readx_poll_timeout_atomic(ioread32, reg, tmp, !(tmp & bit), 0, 10))
 		pr_err("Error: busy bit is not cleared\n");
 }
 
@@ -491,18 +489,13 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			u16 data)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-	u32 data_out = 0;
-	unsigned int i;
 	unsigned long flags;
+	u32 data_out;
 
 	spin_lock_irqsave(&hw->miim_lock, flags);
 
-	for (i = 100; i; --i) {
-		if ((ioread32(&hw->reg->MIIM) & PCH_GBE_MIIM_OPER_READY))
-			break;
-		udelay(20);
-	}
-	if (i == 0) {
+	if (readx_poll_timeout_atomic(ioread32, &hw->reg->MIIM, data_out,
+				      data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000)) {
 		netdev_err(adapter->netdev, "pch-gbe.miim won't go Ready\n");
 		spin_unlock_irqrestore(&hw->miim_lock, flags);
 		return 0;	/* No way to indicate timeout error */
@@ -510,12 +503,8 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 	iowrite32(((reg << PCH_GBE_MIIM_REG_ADDR_SHIFT) |
 		  (addr << PCH_GBE_MIIM_PHY_ADDR_SHIFT) |
 		  dir | data), &hw->reg->MIIM);
-	for (i = 0; i < 100; i++) {
-		udelay(20);
-		data_out = ioread32(&hw->reg->MIIM);
-		if ((data_out & PCH_GBE_MIIM_OPER_READY))
-			break;
-	}
+	readx_poll_timeout_atomic(ioread32, &hw->reg->MIIM, data_out,
+				  data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000);
 	spin_unlock_irqrestore(&hw->miim_lock, flags);
 
 	netdev_dbg(adapter->netdev, "PHY %s: reg=%d, data=0x%04X\n",
