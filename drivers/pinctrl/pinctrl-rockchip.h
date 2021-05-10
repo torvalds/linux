@@ -87,6 +87,12 @@ enum rockchip_pin_route_type {
 	ROUTE_TYPE_INVALID = -1,
 };
 
+enum rockchip_mux_route_location {
+	ROCKCHIP_ROUTE_SAME = 0,
+	ROCKCHIP_ROUTE_PMU,
+	ROCKCHIP_ROUTE_GRF,
+};
+
 /**
  * @drv_type: drive strength variant using rockchip_perpin_drv_type
  * @offset: if initialized to -1 it will be autocalculated, by specifying
@@ -173,7 +179,7 @@ struct rockchip_mux_recalced_data {
  * @bank_num: bank number.
  * @pin: index at register or used to calc index.
  * @func: the min pin.
- * @route_type: the register type.
+ * @route_location: the mux route location (same, pmu, grf).
  * @route_offset: the max pin.
  * @route_val: the register offset.
  */
@@ -181,7 +187,7 @@ struct rockchip_mux_route_data {
 	u8 bank_num;
 	u8 pin;
 	u8 func;
-	enum rockchip_pin_route_type route_type : 8;
+	enum rockchip_mux_route_location route_location;
 	u32 route_offset;
 	u32 route_val;
 };
