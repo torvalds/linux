@@ -258,7 +258,7 @@ static void sso_led_brightness_set(struct led_classdev *led_cdev,
 				   1 << desc->pin);
 	}
 
-	if (!desc->hw_trig && led->gpiod)
+	if (!desc->hw_trig)
 		gpiod_set_value(led->gpiod, val);
 }
 
