@@ -461,7 +461,6 @@ extern int tty_put_char(struct tty_struct *tty, unsigned char c);
 extern unsigned int tty_chars_in_buffer(struct tty_struct *tty);
 extern unsigned int tty_write_room(struct tty_struct *tty);
 extern void tty_driver_flush_buffer(struct tty_struct *tty);
-extern void tty_throttle(struct tty_struct *tty);
 extern void tty_unthrottle(struct tty_struct *tty);
 extern int tty_throttle_safe(struct tty_struct *tty);
 extern int tty_unthrottle_safe(struct tty_struct *tty);

@@ -97,28 +97,6 @@ void tty_driver_flush_buffer(struct tty_struct *tty)
 EXPORT_SYMBOL(tty_driver_flush_buffer);
 
 /**
- *	tty_throttle		-	flow control
- *	@tty: terminal
- *
- *	Indicate that a tty should stop transmitting data down the stack.
- *	Takes the termios rwsem to protect against parallel throttle/unthrottle
- *	and also to ensure the driver can consistently reference its own
- *	termios data at this point when implementing software flow control.
- */
-
-void tty_throttle(struct tty_struct *tty)
-{
-	down_write(&tty->termios_rwsem);
-	/* check TTY_THROTTLED first so it indicates our state */
-	if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
-	    tty->ops->throttle)
-		tty->ops->throttle(tty);
-	tty->flow_change = 0;
-	up_write(&tty->termios_rwsem);
-}
-EXPORT_SYMBOL(tty_throttle);
-
-/**
  *	tty_unthrottle		-	flow control
  *	@tty: terminal
  *
@@ -146,10 +124,11 @@ EXPORT_SYMBOL(tty_unthrottle);
  *	tty_throttle_safe	-	flow control
  *	@tty: terminal
  *
- *	Similar to tty_throttle() but will only attempt throttle
- *	if tty->flow_change is TTY_THROTTLE_SAFE. Prevents an accidental
- *	throttle due to race conditions when throttling is conditional
- *	on factors evaluated prior to throttling.
+ *	Indicate that a tty should stop transmitting data down the stack.
+ *	tty_throttle_safe will only attempt throttle if tty->flow_change is
+ *	TTY_THROTTLE_SAFE. Prevents an accidental throttle due to race
+ *	conditions when throttling is conditional on factors evaluated prior to
+ *	throttling.
  *
  *	Returns 0 if tty is throttled (or was already throttled)
  */
