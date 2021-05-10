@@ -161,7 +161,7 @@ static int lm70_probe(struct spi_device *spi)
 
 
 	/* signaling is SPI_MODE_0 */
-	if (spi->mode & (SPI_CPOL | SPI_CPHA))
+	if ((spi->mode & SPI_MODE_X_MASK) != SPI_MODE_0)
 		return -EINVAL;
 
 	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
