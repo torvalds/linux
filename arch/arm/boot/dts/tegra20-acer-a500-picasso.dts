@@ -1088,6 +1088,7 @@
 
 		emc-tables@0 {
 			nvidia,ram-code = <0>; /* elpida-8gb */
+			reg = <0>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1185,6 +1186,7 @@
 
 		emc-tables@1 {
 			nvidia,ram-code = <1>; /* elpida-4gb */
+			reg = <1>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1282,6 +1284,7 @@
 
 		emc-tables@2 {
 			nvidia,ram-code = <2>; /* hynix-8gb */
+			reg = <2>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1379,6 +1382,7 @@
 
 		emc-tables@3 {
 			nvidia,ram-code = <3>; /* hynix-4gb */
+			reg = <3>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;

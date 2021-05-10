@@ -318,6 +318,7 @@
 			nvidia,ram-code = <0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			reg = <0>;
 
 			emc-table@166500 {
 				reg = <166500>;
