@@ -36,7 +36,7 @@ struct vmx_msrs {
 };
 
 struct vmx_uret_msr {
-	unsigned int slot; /* The MSR's slot in kvm_user_return_msrs. */
+	bool load_into_hardware;
 	u64 data;
 	u64 mask;
 };
@@ -245,8 +245,16 @@ struct vcpu_vmx {
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 
+	/*
+	 * User return MSRs are always emulated when enabled in the guest, but
+	 * only loaded into hardware when necessary, e.g. SYSCALL #UDs outside
+	 * of 64-bit mode or if EFER.SCE=1, thus the SYSCALL MSRs don't need to
+	 * be loaded into hardware if those conditions aren't met.
+	 * nr_active_uret_msrs tracks the number of MSRs that need to be loaded
+	 * into hardware when running the guest.  guest_uret_msrs[] is resorted
+	 * whenever the number of "active" uret MSRs is modified.
+	 */
 	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
-	int                   nr_uret_msrs;
 	int                   nr_active_uret_msrs;
 	bool                  guest_uret_msrs_loaded;
 #ifdef CONFIG_X86_64
