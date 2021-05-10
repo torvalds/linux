@@ -331,6 +331,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_GID_TABLE)(
 	if (ret)
 		return ret;
 
+	if (!user_entry_size)
+		return -EINVAL;
+
 	max_entries = uverbs_attr_ptr_get_array_size(
 		attrs, UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES,
 		user_entry_size);
