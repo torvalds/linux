@@ -160,6 +160,8 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	struct dc_sink *dc_sink = aconnector->dc_sink;
 	struct drm_dp_mst_port *port = aconnector->port;
 	u8 dsc_caps[16] = { 0 };
+	u8 dsc_branch_dec_caps_raw[3] = { 0 };	// DSC branch decoder caps 0xA0 ~ 0xA2
+	u8 *dsc_branch_dec_caps = NULL;
 
 	aconnector->dsc_aux = drm_dp_mst_dsc_aux_for_port(port);
 #if defined(CONFIG_HP_HOOK_WORKAROUND)
@@ -182,9 +184,13 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	if (drm_dp_dpcd_read(aconnector->dsc_aux, DP_DSC_SUPPORT, dsc_caps, 16) < 0)
 		return false;
 
+	if (drm_dp_dpcd_read(aconnector->dsc_aux,
+			DP_DSC_BRANCH_OVERALL_THROUGHPUT_0, dsc_branch_dec_caps_raw, 3) == 3)
+		dsc_branch_dec_caps = dsc_branch_dec_caps_raw;
+
 	if (!dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
-				   dsc_caps, NULL,
-				   &dc_sink->dsc_caps.dsc_dec_caps))
+				  dsc_caps, dsc_branch_dec_caps,
+				  &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
 
 	return true;
