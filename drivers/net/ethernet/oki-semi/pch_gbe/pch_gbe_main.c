@@ -8,6 +8,9 @@
 
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
+
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
@@ -96,8 +99,6 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
-
-#define MINNOW_PHY_RESET_GPIO		13
 
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
@@ -2628,26 +2629,45 @@ err_free_netdev:
 	return ret;
 }
 
+static void pch_gbe_gpio_remove_table(void *table)
+{
+	gpiod_remove_lookup_table(table);
+}
+
+static int pch_gbe_gpio_add_table(struct device *dev, void *table)
+{
+	gpiod_add_lookup_table(table);
+	return devm_add_action_or_reset(dev, pch_gbe_gpio_remove_table, table);
+}
+
+static struct gpiod_lookup_table pch_gbe_minnow_gpio_table = {
+	.dev_id		= "0000:02:00.1",
+	.table		= {
+		GPIO_LOOKUP("sch_gpio.33158", 13, NULL, GPIO_ACTIVE_LOW),
+		{}
+	},
+};
+
 /* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
  * ensure it is awake for probe and init. Request the line and reset the PHY.
  */
 static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
 {
-	unsigned long flags = GPIOF_OUT_INIT_HIGH;
-	unsigned gpio = MINNOW_PHY_RESET_GPIO;
+	struct gpio_desc *gpiod;
 	int ret;
 
-	ret = devm_gpio_request_one(&pdev->dev, gpio, flags,
-				    "minnow_phy_reset");
-	if (ret) {
-		dev_err(&pdev->dev,
-			"ERR: Can't request PHY reset GPIO line '%d'\n", gpio);
+	ret = pch_gbe_gpio_add_table(&pdev->dev, &pch_gbe_minnow_gpio_table);
+	if (ret)
 		return ret;
-	}
 
-	gpio_set_value(gpio, 0);
+	gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod),
+				     "Can't request PHY reset GPIO line\n");
+
+	gpiod_set_value(gpiod, 1);
 	usleep_range(1250, 1500);
-	gpio_set_value(gpio, 1);
+	gpiod_set_value(gpiod, 0);
 	usleep_range(1250, 1500);
 
 	return ret;
