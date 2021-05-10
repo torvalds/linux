@@ -312,10 +312,12 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	 */
 
 	if (desc->flags == VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED) {
-		rqst_id = vmbus_next_request_id(&channel->requestor, requestid);
-		if (rqst_id == VMBUS_RQST_ERROR) {
-			spin_unlock_irqrestore(&outring_info->ring_lock, flags);
-			return -EAGAIN;
+		if (channel->next_request_id_callback != NULL) {
+			rqst_id = channel->next_request_id_callback(channel, requestid);
+			if (rqst_id == VMBUS_RQST_ERROR) {
+				spin_unlock_irqrestore(&outring_info->ring_lock, flags);
+				return -EAGAIN;
+			}
 		}
 	}
 	desc = hv_get_ring_buffer(outring_info) + old_write;
@@ -343,7 +345,8 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	if (channel->rescind) {
 		if (rqst_id != VMBUS_NO_RQSTOR) {
 			/* Reclaim request ID to avoid leak of IDs */
-			vmbus_request_addr(&channel->requestor, rqst_id);
+			if (channel->request_addr_callback != NULL)
+				channel->request_addr_callback(channel, rqst_id);
 		}
 		return -ENODEV;
 	}

@@ -1189,15 +1189,14 @@ EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);
  * vmbus_next_request_id - Returns a new request id. It is also
  * the index at which the guest memory address is stored.
  * Uses a spin lock to avoid race conditions.
- * @rqstor: Pointer to the requestor struct
+ * @channel: Pointer to the VMbus channel struct
  * @rqst_add: Guest memory address to be stored in the array
  */
-u64 vmbus_next_request_id(struct vmbus_requestor *rqstor, u64 rqst_addr)
+u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 {
+	struct vmbus_requestor *rqstor = &channel->requestor;
 	unsigned long flags;
 	u64 current_id;
-	const struct vmbus_channel *channel =
-		container_of(rqstor, const struct vmbus_channel, requestor);
 
 	/* Check rqstor has been initialized */
 	if (!channel->rqstor_size)
@@ -1231,16 +1230,15 @@ EXPORT_SYMBOL_GPL(vmbus_next_request_id);
 /*
  * vmbus_request_addr - Returns the memory address stored at @trans_id
  * in @rqstor. Uses a spin lock to avoid race conditions.
- * @rqstor: Pointer to the requestor struct
+ * @channel: Pointer to the VMbus channel struct
  * @trans_id: Request id sent back from Hyper-V. Becomes the requestor's
  * next request id.
  */
-u64 vmbus_request_addr(struct vmbus_requestor *rqstor, u64 trans_id)
+u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id)
 {
+	struct vmbus_requestor *rqstor = &channel->requestor;
 	unsigned long flags;
 	u64 req_addr;
-	const struct vmbus_channel *channel =
-		container_of(rqstor, const struct vmbus_channel, requestor);
 
 	/* Check rqstor has been initialized */
 	if (!channel->rqstor_size)
