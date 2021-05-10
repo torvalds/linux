@@ -34,7 +34,6 @@
 
 struct aspeed_vuart {
 	struct device		*dev;
-	void __iomem		*regs;
 	struct clk		*clk;
 	int			line;
 	struct timer_list	unthrottle_timer;
@@ -66,12 +65,12 @@ static const int unthrottle_timeout = HZ/10;
 
 static inline u8 aspeed_vuart_readb(struct aspeed_vuart *vuart, u8 reg)
 {
-	return readb(vuart->regs + reg);
+	return readb(vuart->port->port.membase + reg);
 }
 
 static inline void aspeed_vuart_writeb(struct aspeed_vuart *vuart, u8 val, u8 reg)
 {
-	writeb(val, vuart->regs + reg);
+	writeb(val, vuart->port->port.membase + reg);
 }
 
 static ssize_t lpc_address_show(struct device *dev,
@@ -429,13 +428,9 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	timer_setup(&vuart->unthrottle_timer, aspeed_vuart_unthrottle_exp, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vuart->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(vuart->regs))
-		return PTR_ERR(vuart->regs);
 
 	memset(&port, 0, sizeof(port));
 	port.port.private_data = vuart;
-	port.port.membase = vuart->regs;
 	port.port.mapbase = res->start;
 	port.port.mapsize = resource_size(res);
 	port.port.startup = aspeed_vuart_startup;
@@ -492,7 +487,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	port.port.iotype = UPIO_MEM;
 	port.port.type = PORT_16550A;
 	port.port.uartclk = clk;
-	port.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF
+	port.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
 		| UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_NO_THRE_TEST;
 
 	if (of_property_read_bool(np, "no-loopback-test"))
