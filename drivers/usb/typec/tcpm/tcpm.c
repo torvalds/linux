@@ -4144,7 +4144,7 @@ static void run_state_machine(struct tcpm_port *port)
 								      port->supply_voltage,
 								      port->pd_capable,
 								      &current_limit, &adjust);
-			if (port->slow_charger_loop || (current_limit > PD_P_SNK_STDBY_MW / 5))
+			if (port->slow_charger_loop && (current_limit > PD_P_SNK_STDBY_MW / 5))
 				current_limit = PD_P_SNK_STDBY_MW / 5;
 			tcpm_set_current_limit(port, current_limit, 5000);
 			tcpm_set_charge(port, true);
