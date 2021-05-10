@@ -509,14 +509,13 @@ static void xgpio_irqhandler(struct irq_desc *desc)
 	int irq_offset;
 	u32 status;
 	u32 bit;
-	unsigned long flags;
 
 	status = xgpio_readreg(chip->regs + XGPIO_IPISR_OFFSET);
 	xgpio_writereg(chip->regs + XGPIO_IPISR_OFFSET, status);
 
 	chained_irq_enter(irqchip, desc);
 
-	spin_lock_irqsave(&chip->gpio_lock, flags);
+	spin_lock(&chip->gpio_lock);
 
 	xgpio_read_ch_all(chip, XGPIO_DATA_OFFSET, all);
 
@@ -533,7 +532,7 @@ static void xgpio_irqhandler(struct irq_desc *desc)
 	bitmap_copy(chip->last_irq_read, all, 64);
 	bitmap_or(all, rising, falling, 64);
 
-	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+	spin_unlock(&chip->gpio_lock);
 
 	dev_dbg(gc->parent, "IRQ rising %*pb falling %*pb\n", 64, rising, 64, falling);
 
