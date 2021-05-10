@@ -904,7 +904,7 @@ static void perf_event__cpu_map_swap(union perf_event *event,
 	struct perf_record_record_cpu_map *mask;
 	unsigned i;
 
-	data->type = bswap_64(data->type);
+	data->type = bswap_16(data->type);
 
 	switch (data->type) {
 	case PERF_CPU_MAP__CPUS:
@@ -937,7 +937,7 @@ static void perf_event__stat_config_swap(union perf_event *event,
 {
 	u64 size;
 
-	size  = event->stat_config.nr * sizeof(event->stat_config.data[0]);
+	size  = bswap_64(event->stat_config.nr) * sizeof(event->stat_config.data[0]);
 	size += 1; /* nr item itself */
 	mem_bswap_64(&event->stat_config.nr, size);
 }
