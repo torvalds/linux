@@ -1189,8 +1189,6 @@ void rtw_suspend_common(struct adapter *padapter)
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		rtw_suspend_normal(padapter);
-	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-		rtw_suspend_normal(padapter);
 	else
 		rtw_suspend_normal(padapter);
 
@@ -1271,8 +1269,6 @@ int rtw_resume_common(struct adapter *padapter)
 	netdev_dbg(padapter->pnetdev, "resume start\n");
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		rtw_resume_process_normal(padapter);
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		rtw_resume_process_normal(padapter);
 	} else {
 		rtw_resume_process_normal(padapter);
