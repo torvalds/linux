@@ -29,9 +29,9 @@
 static const struct mfd_cell max8997_devs[] = {
 	{ .name = "max8997-pmic", },
 	{ .name = "max8997-rtc", },
-	{ .name = "max8997-battery", .of_compatible = "maxim,max8997-battery", },
+	{ .name = "max8997-battery", },
 	{ .name = "max8997-haptic", },
-	{ .name = "max8997-muic", .of_compatible = "maxim,max8997-muic", },
+	{ .name = "max8997-muic", },
 	{ .name = "max8997-led", .id = 1 },
 	{ .name = "max8997-led", .id = 2 },
 };

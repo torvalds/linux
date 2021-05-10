@@ -57,6 +57,8 @@ patternProperties:
     description: Advantech Corporation
   "^aeroflexgaisler,.*":
     description: Aeroflex Gaisler AB
+  "^aesop,.*":
+    description: AESOP Embedded Forum
   "^al,.*":
     description: Annapurna Labs
   "^alcatel,.*":
@@ -770,6 +772,8 @@ patternProperties:
     description: Broadcom Corporation (formerly NetLogic Microsystems)
   "^netron-dy,.*":
     description: Netron DY
+  "^netronix,.*":
+    description: Netronix, Inc.
   "^netxeon,.*":
     description: Shenzhen Netxeon Technology CO., LTD
   "^neweast,.*":
@@ -1030,6 +1034,8 @@ patternProperties:
     description: Silergy Corp.
   "^silex-insight,.*":
     description: Silex Insight
+  "^siliconfile,.*":
+    description: Siliconfile Technologies lnc.
   "^siliconmitus,.*":
     description: Silicon Mitus, Inc.
   "^siemens,.*":
@@ -1282,6 +1288,8 @@ patternProperties:
     description: Yamaha Corporation
   "^yes-optoelectronics,.*":
     description: Yes Optoelectronics Co.,Ltd.
+  "^yic,.*":
+    description: YIC System Co., Ltd.
   "^ylm,.*":
     description: Shenzhen Yangliming Electronic Technology Co., Ltd.
   "^yna,.*":

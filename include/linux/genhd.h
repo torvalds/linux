@@ -204,25 +204,6 @@ static inline dev_t disk_devt(struct gendisk *disk)
 
 void disk_uevent(struct gendisk *disk, enum kobject_action action);
 
-/*
- * Smarter partition iterator without context limits.
- */
-#define DISK_PITER_INCL_EMPTY	(1 << 1) /* include 0-sized parts */
-#define DISK_PITER_INCL_PART0	(1 << 2) /* include partition 0 */
-#define DISK_PITER_INCL_EMPTY_PART0 (1 << 3) /* include empty partition 0 */
-
-struct disk_part_iter {
-	struct gendisk		*disk;
-	struct block_device	*part;
-	unsigned long		idx;
-	unsigned int		flags;
-};
-
-extern void disk_part_iter_init(struct disk_part_iter *piter,
-				 struct gendisk *disk, unsigned int flags);
-struct block_device *disk_part_iter_next(struct disk_part_iter *piter);
-extern void disk_part_iter_exit(struct disk_part_iter *piter);
-
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk,
 			    const struct attribute_group **groups);
@@ -273,7 +254,7 @@ static inline sector_t get_capacity(struct gendisk *disk)
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
-int blk_drop_partitions(struct block_device *bdev);
+void blk_drop_partitions(struct gendisk *disk);
 
 extern struct gendisk *__alloc_disk_node(int minors, int node_id);
 extern void put_disk(struct gendisk *disk);

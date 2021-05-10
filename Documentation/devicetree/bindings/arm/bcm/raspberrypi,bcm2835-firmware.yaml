@@ -26,10 +26,7 @@ properties:
       - const: simple-mfd
 
   mboxes:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
-    description: |
-      Phandle to the firmware device's Mailbox.
-      (See: ../mailbox/mailbox.txt for more information)
+    maxItems: 1
 
   clocks:
     type: object

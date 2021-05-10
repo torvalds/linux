@@ -633,13 +633,13 @@ static int qla1280_read_nvram(struct scsi_qla_host *ha)
 	 * to be read a word (two bytes) at a time.
 	 *
 	 * The net result of this would be that the word (and
-	 * doubleword) quantites in the firmware would be correct, but
+	 * doubleword) quantities in the firmware would be correct, but
 	 * the bytes would be pairwise reversed.  Since most of the
-	 * firmware quantites are, in fact, bytes, we do an extra
+	 * firmware quantities are, in fact, bytes, we do an extra
 	 * le16_to_cpu() in the firmware read routine.
 	 *
 	 * The upshot of all this is that the bytes in the firmware
-	 * are in the correct places, but the 16 and 32 bit quantites
+	 * are in the correct places, but the 16 and 32 bit quantities
 	 * are still in little endian format.  We fix that up below by
 	 * doing extra reverses on them */
 	nv->isp_parameter = cpu_to_le16(nv->isp_parameter);
@@ -687,7 +687,7 @@ qla1280_info(struct Scsi_Host *host)
  * The mid-level driver tries to ensures that queuecommand never gets invoked
  * concurrently with itself or the interrupt handler (although the
  * interrupt handler may call this routine as part of request-completion
- * handling).   Unfortunely, it sometimes calls the scheduler in interrupt
+ * handling).   Unfortunately, it sometimes calls the scheduler in interrupt
  * context which is a big NO! NO!.
  **************************************************************************/
 static int
@@ -3054,7 +3054,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 	/* Check for empty slot in outstanding command list. */
 	for (cnt = 0; cnt < MAX_OUTSTANDING_COMMANDS &&
-		     (ha->outstanding_cmds[cnt] != 0); cnt++) ;
+	     ha->outstanding_cmds[cnt]; cnt++);
 
 	if (cnt >= MAX_OUTSTANDING_COMMANDS) {
 		status = SCSI_MLQUEUE_HOST_BUSY;

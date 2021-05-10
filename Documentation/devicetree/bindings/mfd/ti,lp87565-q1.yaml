@@ -19,6 +19,10 @@ properties:
     description: I2C slave address
     const: 0x60
 
+  reset-gpios:
+    description: GPIO connected to NRST pin (active low reset, pin 20)
+    maxItems: 1
+
   gpio-controller: true
 
   '#gpio-cells':

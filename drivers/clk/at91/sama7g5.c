@@ -166,7 +166,7 @@ static const struct {
 		  .c = &pll_characteristics,
 		  .t = PLL_TYPE_FRAC,
 		   /*
-		    * This feeds syspll_divpmcck which may feed critial parts
+		    * This feeds syspll_divpmcck which may feed critical parts
 		    * of the systems like timers. Therefore it should not be
 		    * disabled.
 		    */
@@ -178,7 +178,7 @@ static const struct {
 		  .c = &pll_characteristics,
 		  .t = PLL_TYPE_DIV,
 		   /*
-		    * This may feed critial parts of the systems like timers.
+		    * This may feed critical parts of the systems like timers.
 		    * Therefore it should not be disabled.
 		    */
 		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
@@ -455,7 +455,7 @@ static const struct {
  * @pp:			PLL parents
  * @pp_mux_table:	PLL parents mux table
  * @r:			clock output range
- * @pp_chg_id:		id in parrent array of changeable PLL parent
+ * @pp_chg_id:		id in parent array of changeable PLL parent
  * @pp_count:		PLL parents count
  * @id:			clock id
  */

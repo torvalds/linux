@@ -119,11 +119,17 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 				pgrp = task_pgrp(current);
 			else
 				pgrp = find_vpid(who);
+
+			read_lock(&tasklist_lock);
 			do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 				ret = set_task_ioprio(p, ioprio);
-				if (ret)
-					break;
+				if (ret) {
+					read_unlock(&tasklist_lock);
+					goto out;
+				}
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
+			read_unlock(&tasklist_lock);
+
 			break;
 		case IOPRIO_WHO_USER:
 			uid = make_kuid(current_user_ns(), who);
@@ -153,6 +159,7 @@ free_uid:
 			ret = -EINVAL;
 	}
 
+out:
 	rcu_read_unlock();
 	return ret;
 }

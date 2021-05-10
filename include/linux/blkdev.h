@@ -272,6 +272,12 @@ static inline bool bio_is_passthrough(struct bio *bio)
 	return blk_op_is_scsi(op) || blk_op_is_private(op);
 }
 
+static inline bool blk_op_is_passthrough(unsigned int op)
+{
+	return (blk_op_is_scsi(op & REQ_OP_MASK) ||
+			blk_op_is_private(op & REQ_OP_MASK));
+}
+
 static inline unsigned short req_get_ioprio(struct request *req)
 {
 	return req->ioprio;
@@ -311,8 +317,17 @@ enum blk_zoned_model {
 	BLK_ZONED_HM,		/* Host-managed zoned block device */
 };
 
+/*
+ * BLK_BOUNCE_NONE:	never bounce (default)
+ * BLK_BOUNCE_HIGH:	bounce all highmem pages
+ */
+enum blk_bounce {
+	BLK_BOUNCE_NONE,
+	BLK_BOUNCE_HIGH,
+};
+
 struct queue_limits {
-	unsigned long		bounce_pfn;
+	enum blk_bounce		bounce;
 	unsigned long		seg_boundary_mask;
 	unsigned long		virt_boundary_mask;
 
@@ -433,11 +448,6 @@ struct request_queue {
 	 * ioctx.
 	 */
 	int			id;
-
-	/*
-	 * queue needs bounce pages for pages above this limit
-	 */
-	gfp_t			bounce_gfp;
 
 	spinlock_t		queue_lock;
 
@@ -683,6 +693,8 @@ static inline bool blk_account_rq(struct request *rq)
 	dma_map_page_attrs(dev, (bv)->bv_page, (bv)->bv_offset, (bv)->bv_len, \
 	(dir), (attrs))
 
+#define queue_to_disk(q)	(dev_to_disk(kobj_to_dev((q)->kobj.parent)))
+
 static inline bool queue_is_mq(struct request_queue *q)
 {
 	return q->mq_ops;
@@ -838,24 +850,6 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 	return q->nr_requests;
 }
 
-extern unsigned long blk_max_low_pfn, blk_max_pfn;
-
-/*
- * standard bounce addresses:
- *
- * BLK_BOUNCE_HIGH	: bounce all highmem pages
- * BLK_BOUNCE_ANY	: don't bounce anything
- * BLK_BOUNCE_ISA	: bounce pages above ISA DMA boundary
- */
-
-#if BITS_PER_LONG == 32
-#define BLK_BOUNCE_HIGH		((u64)blk_max_low_pfn << PAGE_SHIFT)
-#else
-#define BLK_BOUNCE_HIGH		-1ULL
-#endif
-#define BLK_BOUNCE_ANY		(-1ULL)
-#define BLK_BOUNCE_ISA		(DMA_BIT_MASK(24))
-
 /*
  * default timeout for SG_IO if none specified
  */
@@ -921,7 +915,7 @@ extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 extern void blk_rq_unprep_clone(struct request *rq);
 extern blk_status_t blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
-extern int blk_rq_append_bio(struct request *rq, struct bio **bio);
+int blk_rq_append_bio(struct request *rq, struct bio *bio);
 extern void blk_queue_split(struct bio **);
 extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
 extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
@@ -1139,7 +1133,7 @@ extern void blk_abort_request(struct request *);
  * Access functions for manipulating queue properties
  */
 extern void blk_cleanup_queue(struct request_queue *);
-extern void blk_queue_bounce_limit(struct request_queue *, u64);
+void blk_queue_bounce_limit(struct request_queue *q, enum blk_bounce limit);
 extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_chunk_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_max_segments(struct request_queue *, unsigned short);
@@ -1868,7 +1862,6 @@ struct block_device_operations {
 	unsigned int (*check_events) (struct gendisk *disk,
 				      unsigned int clearing);
 	void (*unlock_native_capacity) (struct gendisk *);
-	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	int (*set_read_only)(struct block_device *bdev, bool ro);
 	/* this callback is with swap_lock and sometimes page table lock held */

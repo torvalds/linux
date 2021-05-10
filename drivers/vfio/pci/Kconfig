@@ -39,9 +39,3 @@ config VFIO_PCI_IGD
 	  and LPC bridge config space.
 
 	  To enable Intel IGD assignment through vfio-pci, say Y.
-
-config VFIO_PCI_NVLINK2
-	def_bool y
-	depends on VFIO_PCI && PPC_POWERNV && SPAPR_TCE_IOMMU
-	help
-	  VFIO PCI support for P9 Witherspoon machine with NVIDIA V100 GPUs
