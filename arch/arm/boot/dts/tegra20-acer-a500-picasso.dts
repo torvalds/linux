@@ -1059,15 +1059,15 @@
 
 			trips {
 				trip0: cpu-alert0 {
-					/* start throttling at 50C */
-					temperature = <50000>;
+					/* start throttling at 60C */
+					temperature = <60000>;
 					hysteresis = <200>;
 					type = "passive";
 				};
 
 				trip1: cpu-crit {
-					/* shut down at 60C */
-					temperature = <60000>;
+					/* shut down at 70C */
+					temperature = <70000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
