@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0+
-# vim: ts=2:sw=2:et:tw=80:nowrap
 """
 This file helps to extract string names of NI signals as included in comedi.h
 between NI_NAMES_BASE and NI_NAMES_BASE+NI_NUM_NAMES.
