@@ -113,31 +113,31 @@ may not. All metadatas can be now observed in two different spaces (views):
 
     ::
 
-				    |-> aligned with 8B
-					    |-> followed closely
-	+ meta_blkaddr blocks                                      |-> another slot
-	_____________________________________________________________________
-	|  ...   | inode |  xattrs  | extents  | data inline | ... | inode ...
-	|________|_______|(optional)|(optional)|__(optional)_|_____|__________
-		|-> aligned with the inode slot size
-		    .                   .
-		    .                         .
-		.                              .
-		.                                    .
-	    .                                         .
-	    .                                              .
-	.____________________________________________________|-> aligned with 4B
-	| xattr_ibody_header | shared xattrs | inline xattrs |
-	|____________________|_______________|_______________|
-	|->    12 bytes    <-|->x * 4 bytes<-|               .
-			    .                .                 .
-			.                      .                   .
-		.                           .                     .
-	    ._______________________________.______________________.
-	    | id | id | id | id |  ... | id | ent | ... | ent| ... |
-	    |____|____|____|____|______|____|_____|_____|____|_____|
-					    |-> aligned with 4B
-							|-> aligned with 4B
+                                 |-> aligned with 8B
+                                            |-> followed closely
+     + meta_blkaddr blocks                                      |-> another slot
+       _____________________________________________________________________
+     |  ...   | inode |  xattrs  | extents  | data inline | ... | inode ...
+     |________|_______|(optional)|(optional)|__(optional)_|_____|__________
+              |-> aligned with the inode slot size
+                   .                   .
+                 .                         .
+               .                              .
+             .                                    .
+           .                                         .
+         .                                              .
+       .____________________________________________________|-> aligned with 4B
+       | xattr_ibody_header | shared xattrs | inline xattrs |
+       |____________________|_______________|_______________|
+       |->    12 bytes    <-|->x * 4 bytes<-|               .
+                           .                .                 .
+                     .                      .                   .
+                .                           .                     .
+            ._______________________________.______________________.
+            | id | id | id | id |  ... | id | ent | ... | ent| ... |
+            |____|____|____|____|______|____|_____|_____|____|_____|
+                                            |-> aligned with 4B
+                                                        |-> aligned with 4B
 
     Inode could be 32 or 64 bytes, which can be distinguished from a common
     field which all inode versions have -- i_format::
@@ -175,13 +175,13 @@ may not. All metadatas can be now observed in two different spaces (views):
     Each share xattr can also be directly found by the following formula:
          xattr offset = xattr_blkaddr * block_size + 4 * xattr_id
 
-    ::
+::
 
-			    |-> aligned by  4 bytes
-	+ xattr_blkaddr blocks                     |-> aligned with 4 bytes
-	_________________________________________________________________________
-	|  ...   | xattr_entry |  xattr data | ... |  xattr_entry | xattr data  ...
-	|________|_____________|_____________|_____|______________|_______________
+                           |-> aligned by  4 bytes
+    + xattr_blkaddr blocks                     |-> aligned with 4 bytes
+     _________________________________________________________________________
+    |  ...   | xattr_entry |  xattr data | ... |  xattr_entry | xattr data  ...
+    |________|_____________|_____________|_____|______________|_______________
 
 Directories
 -----------
@@ -193,19 +193,18 @@ algorithm (could refer to the related source code).
 
 ::
 
-		    ___________________________
-		    /                           |
-		/              ______________|________________
-		/              /              | nameoff1       | nameoffN-1
-    ____________.______________._______________v________________v__________
-    | dirent | dirent | ... | dirent | filename | filename | ... | filename |
-    |___.0___|____1___|_____|___N-1__|____0_____|____1_____|_____|___N-1____|
-	\                           ^
-	\                          |                           * could have
-	\                         |                             trailing '\0'
-	    \________________________| nameoff0
-
-				Directory block
+                  ___________________________
+                 /                           |
+                /              ______________|________________
+               /              /              | nameoff1       | nameoffN-1
+  ____________.______________._______________v________________v__________
+ | dirent | dirent | ... | dirent | filename | filename | ... | filename |
+ |___.0___|____1___|_____|___N-1__|____0_____|____1_____|_____|___N-1____|
+      \                           ^
+       \                          |                           * could have
+        \                         |                             trailing '\0'
+         \________________________| nameoff0
+                             Directory block
 
 Note that apart from the offset of the first filename, nameoff0 also indicates
 the total number of directory entries in this block since it is no need to
@@ -216,22 +215,22 @@ Compression
 Currently, EROFS supports 4KB fixed-sized output transparent file compression,
 as illustrated below::
 
-	    |---- Variant-Length Extent ----|-------- VLE --------|----- VLE -----
-	    clusterofs                      clusterofs            clusterofs
-	    |                               |                     |   logical data
-    _________v_______________________________v_____________________v_______________
-    ... |    .        |             |        .    |             |  .          | ...
-    ____|____.________|_____________|________.____|_____________|__.__________|____
-	|-> cluster <-|-> cluster <-|-> cluster <-|-> cluster <-|-> cluster <-|
-	    size          size          size          size          size
-	    .                             .                .                   .
-	    .                       .               .                  .
-		.                  .              .                .
-	_______._____________._____________._____________._____________________
-	    ... |             |             |             | ... physical data
-	_______|_____________|_____________|_____________|_____________________
-		|-> cluster <-|-> cluster <-|-> cluster <-|
-		    size          size          size
+          |<-    variable-sized extent    ->|<-       VLE         ->|
+        clusterofs                        clusterofs              clusterofs
+          |                                 |                       |
+ _________v_________________________________v_______________________v________
+ ... |    .         |              |        .     |              |  .   ...
+ ____|____._________|______________|________.___ _|______________|__.________
+     |-> lcluster <-|-> lcluster <-|-> lcluster <-|-> lcluster <-|
+          size           size           size           size   .             .
+           .                            .                .              .
+            .                       .               .               .
+             .                   .              .               .
+       _______.______________.______________.______________._________________
+          ... |              |              |              | ...
+       _______|______________|______________|______________|_________________
+              |-> pcluster <-|-> pcluster <-|-> pcluster <-|
+                    size           size           size
 
 Currently each on-disk physical cluster can contain 4KB (un)compressed data
 at most. For each logical cluster, there is a corresponding on-disk index to
