@@ -8,41 +8,15 @@
 struct incfs_sysfs_node {
 	struct kobject isn_sysfs_node;
 
-	/* Number of reads timed out */
-	u32 isn_reads_failed_timed_out;
+	struct completion isn_completion;
 
-	/* Number of reads failed because hash verification failed */
-	u32 isn_reads_failed_hash_verification;
-
-	/* Number of reads failed for another reason */
-	u32 isn_reads_failed_other;
-
-	/* Number of reads delayed because page had to be fetched */
-	u32 isn_reads_delayed_pending;
-
-	/* Total time waiting for pages to be fetched */
-	u64 isn_reads_delayed_pending_us;
-
-	/*
-	 * Number of reads delayed because of per-uid min_time_us or
-	 * min_pending_time_us settings
-	 */
-	u32 isn_reads_delayed_min;
-
-	/* Total time waiting because of per-uid min_time_us or
-	 * min_pending_time_us settings.
-	 *
-	 * Note that if a read is initially delayed because we have to wait for
-	 * the page, then further delayed because of min_pending_time_us
-	 * setting, this counter gets incremented by only the further delay
-	 * time.
-	 */
-	u64 isn_reads_delayed_min_us;
+	struct mount_info *isn_mi;
 };
 
 int incfs_init_sysfs(void);
 void incfs_cleanup_sysfs(void);
-struct incfs_sysfs_node *incfs_add_sysfs_node(const char *name);
+struct incfs_sysfs_node *incfs_add_sysfs_node(const char *name,
+					      struct mount_info *mi);
 void incfs_free_sysfs_node(struct incfs_sysfs_node *node);
 
 #endif
