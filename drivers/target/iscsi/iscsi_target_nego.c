@@ -118,13 +118,6 @@ static u32 iscsi_handle_authentication(
 					" CHAP auth\n");
 			return -1;
 		}
-		iscsi_nacl = container_of(se_nacl, struct iscsi_node_acl,
-				se_node_acl);
-		if (!iscsi_nacl) {
-			pr_err("Unable to locate struct iscsi_node_acl for"
-					" CHAP auth\n");
-			return -1;
-		}
 
 		if (se_nacl->dynamic_node_acl) {
 			iscsi_tpg = container_of(se_nacl->se_tpg,
