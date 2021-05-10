@@ -349,10 +349,11 @@ static bool ipu_plane_format_mod_supported(struct drm_plane *plane,
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
 
-	/* without a PRG there are no supported modifiers */
-	if (!ipu_prg_present(ipu))
-		return false;
-
+	/*
+	 * Without a PRG the possible modifiers list only includes the linear
+	 * modifier, so we always take the early return from this function and
+	 * only end up here if the PRG is present.
+	 */
 	return ipu_prg_format_supported(ipu, format, modifier);
 }
 
@@ -878,6 +879,10 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 		formats = ipu_plane_rgb_formats;
 		format_count = ARRAY_SIZE(ipu_plane_rgb_formats);
 	}
+
+	if (ipu_prg_present(ipu))
+		modifiers = pre_format_modifiers;
+
 	ipu_plane = drmm_universal_plane_alloc(dev, struct ipu_plane, base,
 					       possible_crtcs, &ipu_plane_funcs,
 					       formats, format_count, modifiers,
@@ -891,9 +896,6 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	ipu_plane->ipu = ipu;
 	ipu_plane->dma = dma;
 	ipu_plane->dp_flow = dp;
-
-	if (ipu_prg_present(ipu))
-		modifiers = pre_format_modifiers;
 
 	drm_plane_helper_add(&ipu_plane->base, &ipu_plane_helper_funcs);
 
