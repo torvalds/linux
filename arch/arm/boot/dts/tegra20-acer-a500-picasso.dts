@@ -762,7 +762,7 @@
 
 		mmc-pwrseq = <&brcm_wifi_pwrseq>;
 		vmmc-supply = <&vdd_3v3_sys>;
-		vqmmc-supply = <&vdd_3v3_sys>;
+		vqmmc-supply = <&vdd_1v8_sys>;
 
 		/* Azurewave AW-NH611 BCM4329 */
 		wifi@1 {
