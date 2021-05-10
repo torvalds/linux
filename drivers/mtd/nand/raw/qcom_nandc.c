@@ -1850,8 +1850,7 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 			 * ERASED_CW bits are set.
 			 */
 			if (host->bch_enabled) {
-				erased = (erased_cw & ERASED_CW) == ERASED_CW ?
-					 true : false;
+				erased = (erased_cw & ERASED_CW) == ERASED_CW;
 			/*
 			 * For RS ECC, HW reports the erased CW by placing
 			 * special characters at certain offsets in the buffer.
