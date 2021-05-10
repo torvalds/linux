@@ -34,7 +34,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 
