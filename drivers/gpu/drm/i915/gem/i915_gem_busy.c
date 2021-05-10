@@ -113,8 +113,7 @@ retry:
 	seq = raw_read_seqcount(&obj->base.resv->seq);
 
 	/* Translate the exclusive fence to the READ *and* WRITE engine */
-	args->busy =
-		busy_check_writer(rcu_dereference(obj->base.resv->fence_excl));
+	args->busy = busy_check_writer(dma_resv_excl_fence(obj->base.resv));
 
 	/* Translate shared fences to READ set of engines */
 	list = rcu_dereference(obj->base.resv->fence);

@@ -226,22 +226,20 @@ static inline void dma_resv_unlock(struct dma_resv *obj)
 }
 
 /**
- * dma_resv_get_excl - get the reservation object's
- * exclusive fence, with update-side lock held
+ * dma_resv_exclusive - return the object's exclusive fence
  * @obj: the reservation object
  *
- * Returns the exclusive fence (if any).  Does NOT take a
- * reference. Writers must hold obj->lock, readers may only
- * hold a RCU read side lock.
+ * Returns the exclusive fence (if any). Caller must either hold the objects
+ * through dma_resv_lock() or the RCU read side lock through rcu_read_lock(),
+ * or one of the variants of each
  *
  * RETURNS
  * The exclusive fence or NULL
  */
 static inline struct dma_fence *
-dma_resv_get_excl(struct dma_resv *obj)
+dma_resv_excl_fence(struct dma_resv *obj)
 {
-	return rcu_dereference_protected(obj->fence_excl,
-					 dma_resv_held(obj));
+	return rcu_dereference_check(obj->fence_excl, dma_resv_held(obj));
 }
 
 /**

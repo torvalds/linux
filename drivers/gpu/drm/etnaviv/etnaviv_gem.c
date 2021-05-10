@@ -471,7 +471,7 @@ static void etnaviv_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 		}
 	}
 
-	fence = rcu_dereference(robj->fence_excl);
+	fence = dma_resv_excl_fence(robj);
 	if (fence)
 		etnaviv_gem_describe_fence(fence, "Exclusive", m);
 	rcu_read_unlock();

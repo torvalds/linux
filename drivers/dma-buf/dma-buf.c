@@ -234,7 +234,7 @@ retry:
 		shared_count = fobj->shared_count;
 	else
 		shared_count = 0;
-	fence_excl = rcu_dereference(resv->fence_excl);
+	fence_excl = dma_resv_excl_fence(resv);
 	if (read_seqcount_retry(&resv->seq, seq)) {
 		rcu_read_unlock();
 		goto retry;
@@ -1382,8 +1382,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 				buf_obj->name ?: "");
 
 		robj = buf_obj->resv;
-		fence = rcu_dereference_protected(robj->fence_excl,
-						  dma_resv_held(robj));
+		fence = dma_resv_excl_fence(robj);
 		if (fence)
 			seq_printf(s, "\tExclusive fence: %s %s %ssignalled\n",
 				   fence->ops->get_driver_name(fence),
