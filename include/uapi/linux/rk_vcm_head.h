@@ -11,6 +11,7 @@
  * where 64 is the setting for infinity and 0 for macro
  */
 #define VCMDRV_MAX_LOG			64U
+#define VCMDRV_SETZOOM_MAXCNT	300U
 
 #define OF_CAMERA_VCMDRV_MAX_CURRENT	"rockchip,vcm-max-current"
 #define OF_CAMERA_VCMDRV_START_CURRENT	"rockchip,vcm-start-current"
@@ -39,6 +40,23 @@
 #define RK_VIDIOC_ZOOM_CORRECTION \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 7, unsigned int)
 
+#define RK_VIDIOC_FOCUS_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 8, unsigned int)
+#define RK_VIDIOC_IRIS_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 9, unsigned int)
+#define RK_VIDIOC_ZOOM_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 10, unsigned int)
+
+#define RK_VIDIOC_ZOOM1_TIMEINFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 13, struct rk_cam_vcm_tim)
+#define RK_VIDIOC_ZOOM1_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 14, unsigned int)
+#define RK_VIDIOC_ZOOM1_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 15, unsigned int)
+
+#define RK_VIDIOC_ZOOM_SET_POSITION \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 12, struct rk_cam_set_zoom)
+
 #ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_compat_vcm_tim)
@@ -46,7 +64,38 @@
 	_IOR('V', BASE_VIDIOC_PRIVATE + 1, struct rk_cam_compat_vcm_tim)
 #define RK_VIDIOC_COMPAT_ZOOM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rk_cam_compat_vcm_tim)
+#define RK_VIDIOC_COMPAT_FOCUS_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 5, unsigned int)
+#define RK_VIDIOC_COMPAT_IRIS_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 6, unsigned int)
+#define RK_VIDIOC_COMPAT_ZOOM_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 7, unsigned int)
+
+#define RK_VIDIOC_COMPAT_FOCUS_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 8, unsigned int)
+#define RK_VIDIOC_COMPAT_IRIS_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 9, unsigned int)
+#define RK_VIDIOC_COMPAT_ZOOM_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 10, unsigned int)
+
+#define RK_VIDIOC_COMPAT_ZOOM1_TIMEINFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 13, struct rk_cam_vcm_tim)
+#define RK_VIDIOC_COMPAT_ZOOM1_CORRECTION \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 14, unsigned int)
+#define RK_VIDIOC_COMPAT_ZOOM1_SET_BACKLASH \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 15, unsigned int)
 #endif
+
+struct rk_cam_zoom_pos {
+	s32 zoom_pos;
+	s32 focus_pos;
+};
+
+struct rk_cam_set_zoom {
+	bool is_need_reback;
+	u32 setzoom_cnt;
+	struct rk_cam_zoom_pos zoom_pos[VCMDRV_SETZOOM_MAXCNT];
+};
 
 struct rk_cam_vcm_tim {
 	struct timeval vcm_start_t;
