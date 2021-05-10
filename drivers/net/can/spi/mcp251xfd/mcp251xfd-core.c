@@ -2196,7 +2196,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 				  priv->regs_status.intf);
 
 		if (!(intf_pending)) {
-			can_rx_offload_irq_finish(&priv->offload);
+			can_rx_offload_threaded_irq_finish(&priv->offload);
 			return handled;
 		}
 
@@ -2298,7 +2298,7 @@ static irqreturn_t mcp251xfd_irq(int irq, void *dev_id)
 	} while (1);
 
  out_fail:
-	can_rx_offload_irq_finish(&priv->offload);
+	can_rx_offload_threaded_irq_finish(&priv->offload);
 
 	netdev_err(priv->ndev, "IRQ handler returned %d (intf=0x%08x).\n",
 		   err, priv->regs_status.intf);
