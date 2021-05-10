@@ -3806,8 +3806,8 @@ struct mlx5_ifc_eqc_bits {
 
 	u8         reserved_at_80[0x20];
 
-	u8         reserved_at_a0[0x18];
-	u8         intr[0x8];
+	u8         reserved_at_a0[0x14];
+	u8         intr[0xc];
 
 	u8         reserved_at_c0[0x3];
 	u8         log_page_size[0x5];
