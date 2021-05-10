@@ -1817,6 +1817,10 @@ static int set_ucontext_resp(struct ib_ucontext *uctx,
 		resp->comp_mask |= MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_ECE;
 
 	resp->num_dyn_bfregs = bfregi->num_dyn_bfregs;
+
+	if (MLX5_CAP_GEN(dev->mdev, drain_sigerr))
+		resp->comp_mask |= MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_SQD2RTS;
+
 	return 0;
 }
 
