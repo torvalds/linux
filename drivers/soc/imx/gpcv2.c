@@ -15,6 +15,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/sizes.h>
 #include <dt-bindings/power/imx7-power.h>
 #include <dt-bindings/power/imx8mq-power.h>
@@ -108,6 +109,7 @@ struct imx_pgc_domain {
 	struct generic_pm_domain genpd;
 	struct regmap *regmap;
 	struct regulator *regulator;
+	struct reset_control *reset;
 	struct clk_bulk_data *clks;
 	int num_clks;
 
@@ -163,6 +165,8 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		goto out_regulator_disable;
 	}
 
+	reset_control_assert(domain->reset);
+
 	if (domain->bits.pxx) {
 		/* request the domain to power up */
 		regmap_update_bits(domain->regmap, GPC_PU_PGC_SW_PUP_REQ,
@@ -184,6 +188,11 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		regmap_clear_bits(domain->regmap, GPC_PGC_CTRL(domain->pgc),
 				  GPC_PGC_CTRL_PCR);
 	}
+
+	/* delay for reset to propagate */
+	udelay(5);
+
+	reset_control_deassert(domain->reset);
 
 	/* request the ADB400 to power up */
 	if (domain->bits.hskreq) {
@@ -539,6 +548,11 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 	if (domain->num_clks < 0)
 		return dev_err_probe(domain->dev, domain->num_clks,
 				     "Failed to get domain's clocks\n");
+
+	domain->reset = devm_reset_control_array_get_optional_exclusive(domain->dev);
+	if (IS_ERR(domain->reset))
+		return dev_err_probe(domain->dev, PTR_ERR(domain->reset),
+				     "Failed to get domain's resets\n");
 
 	pm_runtime_enable(domain->dev);
 
