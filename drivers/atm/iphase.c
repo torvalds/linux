@@ -47,6 +47,7 @@
 #include <linux/errno.h>  
 #include <linux/atm.h>  
 #include <linux/atmdev.h>  
+#include <linux/ctype.h>
 #include <linux/sonet.h>  
 #include <linux/skbuff.h>  
 #include <linux/time.h>  
@@ -996,10 +997,12 @@ static void xdump( u_char*  cp, int  length, char*  prefix )
         }
         pBuf += sprintf( pBuf, "  " );
         for(col = 0;count + col < length && col < 16; col++){
-            if (isprint((int)cp[count + col]))
-                pBuf += sprintf( pBuf, "%c", cp[count + col] );
-            else
-                pBuf += sprintf( pBuf, "." );
+		u_char c = cp[count + col];
+
+		if (isascii(c) && isprint(c))
+			pBuf += sprintf(pBuf, "%c", c);
+		else
+			pBuf += sprintf(pBuf, ".");
                 }
         printk("%s\n", prntBuf);
         count += col;
