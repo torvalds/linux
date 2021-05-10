@@ -134,7 +134,7 @@
 		};
 	};
 
-	dmsc: dmsc@44043000 {
+	dmsc: system-controller@44043000 {
 		compatible = "ti,k2g-sci";
 		ti,host-id = <12>;
 		mbox-names = "rx", "tx";

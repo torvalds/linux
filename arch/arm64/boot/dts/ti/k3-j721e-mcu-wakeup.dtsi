@@ -6,7 +6,7 @@
  */
 
 &cbass_mcu_wakeup {
-	dmsc: dmsc@44083000 {
+	dmsc: system-controller@44083000 {
 		compatible = "ti,k2g-sci";
 		ti,host-id = <12>;
 
