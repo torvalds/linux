@@ -282,6 +282,98 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 	__virt_pg_map(vm, vaddr, paddr, X86_PAGE_SIZE_4K);
 }
 
+static struct pageTableEntry *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
+						       uint64_t vaddr)
+{
+	uint16_t index[4];
+	struct pageUpperEntry *pml4e, *pdpe, *pde;
+	struct pageTableEntry *pte;
+	struct kvm_cpuid_entry2 *entry;
+	struct kvm_sregs sregs;
+	int max_phy_addr;
+	/* Set the bottom 52 bits. */
+	uint64_t rsvd_mask = 0x000fffffffffffff;
+
+	entry = kvm_get_supported_cpuid_index(0x80000008, 0);
+	max_phy_addr = entry->eax & 0x000000ff;
+	/* Clear the bottom bits of the reserved mask. */
+	rsvd_mask = (rsvd_mask >> max_phy_addr) << max_phy_addr;
+
+	/*
+	 * SDM vol 3, fig 4-11 "Formats of CR3 and Paging-Structure Entries
+	 * with 4-Level Paging and 5-Level Paging".
+	 * If IA32_EFER.NXE = 0 and the P flag of a paging-structure entry is 1,
+	 * the XD flag (bit 63) is reserved.
+	 */
+	vcpu_sregs_get(vm, vcpuid, &sregs);
+	if ((sregs.efer & EFER_NX) == 0) {
+		rsvd_mask |= (1ull << 63);
+	}
+
+	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
+		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
+		(vaddr >> vm->page_shift)),
+		"Invalid virtual address, vaddr: 0x%lx",
+		vaddr);
+	/*
+	 * Based on the mode check above there are 48 bits in the vaddr, so
+	 * shift 16 to sign extend the last bit (bit-47),
+	 */
+	TEST_ASSERT(vaddr == (((int64_t)vaddr << 16) >> 16),
+		"Canonical check failed.  The virtual address is invalid.");
+
+	index[0] = (vaddr >> 12) & 0x1ffu;
+	index[1] = (vaddr >> 21) & 0x1ffu;
+	index[2] = (vaddr >> 30) & 0x1ffu;
+	index[3] = (vaddr >> 39) & 0x1ffu;
+
+	pml4e = addr_gpa2hva(vm, vm->pgd);
+	TEST_ASSERT(pml4e[index[3]].present,
+		"Expected pml4e to be present for gva: 0x%08lx", vaddr);
+	TEST_ASSERT((*(uint64_t*)(&pml4e[index[3]]) &
+		(rsvd_mask | (1ull << 7))) == 0,
+		"Unexpected reserved bits set.");
+
+	pdpe = addr_gpa2hva(vm, pml4e[index[3]].pfn * vm->page_size);
+	TEST_ASSERT(pdpe[index[2]].present,
+		"Expected pdpe to be present for gva: 0x%08lx", vaddr);
+	TEST_ASSERT(pdpe[index[2]].page_size == 0,
+		"Expected pdpe to map a pde not a 1-GByte page.");
+	TEST_ASSERT((*(uint64_t*)(&pdpe[index[2]]) & rsvd_mask) == 0,
+		"Unexpected reserved bits set.");
+
+	pde = addr_gpa2hva(vm, pdpe[index[2]].pfn * vm->page_size);
+	TEST_ASSERT(pde[index[1]].present,
+		"Expected pde to be present for gva: 0x%08lx", vaddr);
+	TEST_ASSERT(pde[index[1]].page_size == 0,
+		"Expected pde to map a pte not a 2-MByte page.");
+	TEST_ASSERT((*(uint64_t*)(&pde[index[1]]) & rsvd_mask) == 0,
+		"Unexpected reserved bits set.");
+
+	pte = addr_gpa2hva(vm, pde[index[1]].pfn * vm->page_size);
+	TEST_ASSERT(pte[index[0]].present,
+		"Expected pte to be present for gva: 0x%08lx", vaddr);
+
+	return &pte[index[0]];
+}
+
+uint64_t vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr)
+{
+	struct pageTableEntry *pte = _vm_get_page_table_entry(vm, vcpuid, vaddr);
+
+	return *(uint64_t *)pte;
+}
+
+void vm_set_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr,
+			     uint64_t pte)
+{
+	struct pageTableEntry *new_pte = _vm_get_page_table_entry(vm, vcpuid,
+								  vaddr);
+
+	*(uint64_t *)new_pte = pte;
+}
+
 void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
 	struct pageUpperEntry *pml4e, *pml4e_start;
