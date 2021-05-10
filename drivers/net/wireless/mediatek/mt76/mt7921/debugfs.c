@@ -250,6 +250,9 @@ mt7921_pm_set(void *data, u64 val)
 	ieee80211_iterate_active_interfaces(mphy->hw,
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    mt7921_pm_interface_iter, mphy->priv);
+
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, !!pm->enable);
+
 	mt7921_mutex_release(dev);
 
 	return 0;
@@ -266,6 +269,20 @@ mt7921_pm_get(void *data, u64 *val)
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_pm, mt7921_pm_get, mt7921_pm_set, "%lld\n");
+
+static int
+mt7921_deep_sleep_set(void *data, u64 val)
+{
+	struct mt7921_dev *dev = data;
+
+	mt7921_mutex_acquire(dev);
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, !!val);
+	mt7921_mutex_release(dev);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ds, NULL, mt7921_deep_sleep_set, "%lld\n");
 
 static int
 mt7921_pm_stats(struct seq_file *s, void *data)
@@ -358,6 +375,7 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 	debugfs_create_file("chip_reset", 0600, dir, dev, &fops_reset);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "runtime_pm_stats", dir,
 				    mt7921_pm_stats);
+	debugfs_create_file("deep-sleep", 0600, dir, dev, &fops_ds);
 
 	return 0;
 }
