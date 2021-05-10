@@ -1940,7 +1940,7 @@ static struct kpp_alg ecdh_nist_p192 = {
 		.cra_ctxsize = sizeof(struct hpre_ctx),
 		.cra_priority = HPRE_CRYPTO_ALG_PRI,
 		.cra_name = "ecdh-nist-p192",
-		.cra_driver_name = "hpre-ecdh",
+		.cra_driver_name = "hpre-ecdh-nist-p192",
 		.cra_module = THIS_MODULE,
 	},
 };
@@ -1957,7 +1957,7 @@ static struct kpp_alg ecdh_nist_p256 = {
 		.cra_ctxsize = sizeof(struct hpre_ctx),
 		.cra_priority = HPRE_CRYPTO_ALG_PRI,
 		.cra_name = "ecdh-nist-p256",
-		.cra_driver_name = "hpre-ecdh",
+		.cra_driver_name = "hpre-ecdh-nist-p256",
 		.cra_module = THIS_MODULE,
 	},
 };
