@@ -6546,6 +6546,7 @@ KVM_RUN_BUS_LOCK flag is used to distinguish between them.
 This capability can be used to check / enable 2nd DAWR feature provided
 by POWER10 processor.
 
+
 7.24 KVM_CAP_VM_COPY_ENC_CONTEXT_FROM
 -------------------------------------
 
@@ -6602,6 +6603,25 @@ present in the "ibm,hypertas-functions" device-tree property.
 
 This capability is enabled for hypervisors on platforms like POWER9
 that support radix MMU.
+
+7.27 KVM_CAP_EXIT_ON_EMULATION_FAILURE
+--------------------------------------
+
+:Architectures: x86
+:Parameters: args[0] whether the feature should be enabled or not
+
+When this capability is enabled, an emulation failure will result in an exit
+to userspace with KVM_INTERNAL_ERROR (except when the emulator was invoked
+to handle a VMware backdoor instruction). Furthermore, KVM will now provide up
+to 15 instruction bytes for any exit to userspace resulting from an emulation
+failure.  When these exits to userspace occur use the emulation_failure struct
+instead of the internal struct.  They both have the same layout, but the
+emulation_failure struct matches the content better.  It also explicitly
+defines the 'flags' field which is used to describe the fields in the struct
+that are valid (ie: if KVM_INTERNAL_ERROR_EMULATION_FLAG_INSTRUCTION_BYTES is
+set in the 'flags' field then both 'insn_size' and 'insn_bytes' have valid data
+in them.)
+
 
 8. Other capabilities.
 ======================
