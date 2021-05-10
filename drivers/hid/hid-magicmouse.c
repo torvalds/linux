@@ -779,7 +779,10 @@ err_stop_hw:
 static void magicmouse_remove(struct hid_device *hdev)
 {
 	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
-	cancel_delayed_work_sync(&msc->work);
+
+	if (msc)
+		cancel_delayed_work_sync(&msc->work);
+
 	hid_hw_stop(hdev);
 }
 
