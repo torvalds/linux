@@ -681,8 +681,9 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
 	int ret;
+	bool alloc_kmap = flags & ROCKCHIP_BO_ALLOC_KMAP ? true : false;
 
-	rk_obj = rockchip_gem_create_object(drm, size, false, flags);
+	rk_obj = rockchip_gem_create_object(drm, size, alloc_kmap, flags);
 	if (IS_ERR(rk_obj))
 		return ERR_CAST(rk_obj);
 

@@ -34,8 +34,10 @@ enum drm_rockchip_gem_mem_type {
 	/* write-combine mapping. */
 	ROCKCHIP_BO_WC		= 1 << 2,
 	ROCKCHIP_BO_SECURE	= 1 << 3,
+	/* keep kmap for cma buffer or alloc kmap for other type memory */
+	ROCKCHIP_BO_ALLOC_KMAP	= 1 << 4,
 	ROCKCHIP_BO_MASK	= ROCKCHIP_BO_CONTIG | ROCKCHIP_BO_CACHABLE |
-				ROCKCHIP_BO_WC | ROCKCHIP_BO_SECURE,
+				ROCKCHIP_BO_WC | ROCKCHIP_BO_SECURE | ROCKCHIP_BO_ALLOC_KMAP,
 };
 
 /**
