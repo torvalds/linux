@@ -266,18 +266,18 @@ static int mfd_add_device(struct device *parent, int id,
 			if (has_acpi_companion(&pdev->dev)) {
 				ret = acpi_check_resource_conflict(&res[r]);
 				if (ret)
-					goto fail_of_entry;
+					goto fail_res_conflict;
 			}
 		}
 	}
 
 	ret = platform_device_add_resources(pdev, res, cell->num_resources);
 	if (ret)
-		goto fail_of_entry;
+		goto fail_res_conflict;
 
 	ret = platform_device_add(pdev);
 	if (ret)
-		goto fail_of_entry;
+		goto fail_res_conflict;
 
 	if (cell->pm_runtime_no_callbacks)
 		pm_runtime_no_callbacks(&pdev->dev);
@@ -286,13 +286,15 @@ static int mfd_add_device(struct device *parent, int id,
 
 	return 0;
 
+fail_res_conflict:
+	if (cell->swnode)
+		device_remove_software_node(&pdev->dev);
 fail_of_entry:
 	list_for_each_entry_safe(of_entry, tmp, &mfd_of_node_list, list)
 		if (of_entry->dev == &pdev->dev) {
 			list_del(&of_entry->list);
 			kfree(of_entry);
 		}
-	device_remove_software_node(&pdev->dev);
 fail_alias:
 	regulator_bulk_unregister_supply_alias(&pdev->dev,
 					       cell->parent_supplies,
@@ -358,10 +360,11 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 	if (level && cell->level > *level)
 		return 0;
 
+	if (cell->swnode)
+		device_remove_software_node(&pdev->dev);
+
 	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
 					       cell->num_parent_supplies);
-
-	device_remove_software_node(&pdev->dev);
 
 	platform_device_unregister(pdev);
 	return 0;
