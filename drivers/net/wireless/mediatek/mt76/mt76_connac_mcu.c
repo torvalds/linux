@@ -1979,7 +1979,7 @@ mt76_connac_mcu_set_wow_pattern(struct mt76_dev *dev,
 	ptlv->index = index;
 
 	memcpy(ptlv->pattern, pattern->pattern, pattern->pattern_len);
-	memcpy(ptlv->mask, pattern->mask, pattern->pattern_len / 8);
+	memcpy(ptlv->mask, pattern->mask, DIV_ROUND_UP(pattern->pattern_len, 8));
 
 	return mt76_mcu_skb_send_msg(dev, skb, MCU_UNI_CMD_SUSPEND, true);
 }
@@ -2014,14 +2014,17 @@ mt76_connac_mcu_set_wow_ctrl(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	};
 
 	if (wowlan->magic_pkt)
-		req.wow_ctrl_tlv.trigger |= BIT(0);
+		req.wow_ctrl_tlv.trigger |= UNI_WOW_DETECT_TYPE_MAGIC;
 	if (wowlan->disconnect)
-		req.wow_ctrl_tlv.trigger |= BIT(2);
+		req.wow_ctrl_tlv.trigger |= (UNI_WOW_DETECT_TYPE_DISCONNECT |
+					     UNI_WOW_DETECT_TYPE_BCN_LOST);
 	if (wowlan->nd_config) {
 		mt76_connac_mcu_sched_scan_req(phy, vif, wowlan->nd_config);
-		req.wow_ctrl_tlv.trigger |= BIT(5);
+		req.wow_ctrl_tlv.trigger |= UNI_WOW_DETECT_TYPE_SCH_SCAN_HIT;
 		mt76_connac_mcu_sched_scan_enable(phy, vif, suspend);
 	}
+	if (wowlan->n_patterns)
+		req.wow_ctrl_tlv.trigger |= UNI_WOW_DETECT_TYPE_BITMAP;
 
 	if (mt76_is_mmio(dev))
 		req.wow_ctrl_tlv.wakeup_hif = WOW_PCIE;
