@@ -9,9 +9,6 @@
 	dmsc: dmsc@44083000 {
 		compatible = "ti,am654-sci";
 		ti,host-id = <12>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
 
 		mbox-names = "rx", "tx";
 
