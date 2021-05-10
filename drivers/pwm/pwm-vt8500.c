@@ -207,8 +207,6 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &vt8500_pwm_ops;
-	chip->chip.of_xlate = of_pwm_xlate_with_flags;
-	chip->chip.of_pwm_n_cells = 3;
 	chip->chip.npwm = VT8500_NR_PWMS;
 
 	chip->clk = devm_clk_get(&pdev->dev, NULL);

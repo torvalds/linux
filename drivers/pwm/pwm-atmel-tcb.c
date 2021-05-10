@@ -469,8 +469,6 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 
 	tcbpwm->chip.dev = &pdev->dev;
 	tcbpwm->chip.ops = &atmel_tcb_pwm_ops;
-	tcbpwm->chip.of_xlate = of_pwm_xlate_with_flags;
-	tcbpwm->chip.of_pwm_n_cells = 3;
 	tcbpwm->chip.npwm = NPWM;
 	tcbpwm->channel = channel;
 	tcbpwm->regmap = regmap;

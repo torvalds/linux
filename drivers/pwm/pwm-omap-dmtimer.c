@@ -404,8 +404,6 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	omap->chip.dev = &pdev->dev;
 	omap->chip.ops = &pwm_omap_dmtimer_ops;
 	omap->chip.npwm = 1;
-	omap->chip.of_xlate = of_pwm_xlate_with_flags;
-	omap->chip.of_pwm_n_cells = 3;
 
 	mutex_init(&omap->mutex);
 

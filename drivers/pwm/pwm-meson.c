@@ -551,8 +551,6 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;
 	meson->chip.npwm = MESON_NUM_PWMS;
-	meson->chip.of_xlate = of_pwm_xlate_with_flags;
-	meson->chip.of_pwm_n_cells = 3;
 
 	meson->data = of_device_get_match_data(&pdev->dev);
 

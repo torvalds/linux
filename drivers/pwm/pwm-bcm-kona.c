@@ -272,8 +272,6 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 	kp->chip.dev = &pdev->dev;
 	kp->chip.ops = &kona_pwm_ops;
 	kp->chip.npwm = 6;
-	kp->chip.of_xlate = of_pwm_xlate_with_flags;
-	kp->chip.of_pwm_n_cells = 3;
 
 	kp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kp->base))
