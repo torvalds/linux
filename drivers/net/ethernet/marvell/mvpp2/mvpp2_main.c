@@ -7311,7 +7311,6 @@ static int mvpp2_get_sram(struct platform_device *pdev,
 
 static int mvpp2_probe(struct platform_device *pdev)
 {
-	const struct acpi_device_id *acpi_id;
 	struct fwnode_handle *fwnode = pdev->dev.fwnode;
 	struct fwnode_handle *port_fwnode;
 	struct mvpp2 *priv;
@@ -7324,16 +7323,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	if (has_acpi_companion(&pdev->dev)) {
-		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
-					    &pdev->dev);
-		if (!acpi_id)
-			return -EINVAL;
-		priv->hw_version = (unsigned long)acpi_id->driver_data;
-	} else {
-		priv->hw_version =
-			(unsigned long)of_device_get_match_data(&pdev->dev);
-	}
+	priv->hw_version = (unsigned long)device_get_match_data(&pdev->dev);
 
 	/* multi queue mode isn't supported on PPV2.1, fallback to single
 	 * mode
