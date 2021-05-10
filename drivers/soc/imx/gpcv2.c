@@ -502,17 +502,22 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 	ret = pm_genpd_init(&domain->genpd, NULL, true);
 	if (ret) {
 		dev_err(domain->dev, "Failed to init power domain\n");
-		imx_pgc_put_clocks(domain);
-		return ret;
+		goto out_put_clocks;
 	}
 
 	ret = of_genpd_add_provider_simple(domain->dev->of_node,
 					   &domain->genpd);
 	if (ret) {
 		dev_err(domain->dev, "Failed to add genpd provider\n");
-		pm_genpd_remove(&domain->genpd);
-		imx_pgc_put_clocks(domain);
+		goto out_genpd_remove;
 	}
+
+	return 0;
+
+out_genpd_remove:
+	pm_genpd_remove(&domain->genpd);
+out_put_clocks:
+	imx_pgc_put_clocks(domain);
 
 	return ret;
 }
