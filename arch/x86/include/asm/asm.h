@@ -13,6 +13,8 @@
 # define __ASM_FORM_COMMA(x, ...)	" " __stringify(x,##__VA_ARGS__) ","
 #endif
 
+#define _ASM_BYTES(x, ...)	__ASM_FORM(.byte x,##__VA_ARGS__ ;)
+
 #ifndef __x86_64__
 /* 32 bit */
 # define __ASM_SEL(a,b)		__ASM_FORM(a)
