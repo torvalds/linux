@@ -35,7 +35,9 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 
+#if IS_ENABLED(CONFIG_AGP)
 #include <asm/agp.h>
+#endif
 
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
