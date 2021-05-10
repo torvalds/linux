@@ -23,6 +23,7 @@
 #include "format.h"
 #include "internal.h"
 #include "pseudo_files.h"
+#include "sysfs.h"
 #include "verity.h"
 
 static int incfs_remount_fs(struct super_block *sb, int *flags, char *data);
@@ -1895,5 +1896,9 @@ static int show_options(struct seq_file *m, struct dentry *root)
 	}
 	if (mi->mi_options.report_uid)
 		seq_puts(m, ",report_uid");
+
+	if (mi->mi_sysfs_node)
+		seq_printf(m, ",sysfs_name=%s",
+			   kobject_name(&mi->mi_sysfs_node->isn_sysfs_node));
 	return 0;
 }
