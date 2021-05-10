@@ -178,9 +178,6 @@ static bool is_addsub_imm(u32 imm)
 	return !(imm & ~0xfff) || !(imm & ~0xfff000);
 }
 
-/* Stack must be multiples of 16B */
-#define STACK_ALIGN(sz) (((sz) + 15) & ~15)
-
 /* Tail call offset to jump into */
 #if IS_ENABLED(CONFIG_ARM64_BTI_KERNEL)
 #define PROLOGUE_OFFSET 8
@@ -255,7 +252,8 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 			emit(A64_BTI_J, ctx);
 	}
 
-	ctx->stack_size = STACK_ALIGN(prog->aux->stack_depth);
+	/* Stack must be multiples of 16B */
+	ctx->stack_size = round_up(prog->aux->stack_depth, 16);
 
 	/* Set up function call stack */
 	emit(A64_SUB_I(1, A64_SP, A64_SP, ctx->stack_size), ctx);
