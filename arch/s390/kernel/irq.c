@@ -146,8 +146,8 @@ void noinstr do_io_irq(struct pt_regs *regs)
 		account_idle_time_irq();
 
 	do {
-		memcpy(&regs->int_code, &S390_lowcore.subchannel_id, 12);
-		if (S390_lowcore.io_int_word & BIT(31))
+		regs->tpi_info = S390_lowcore.tpi_info;
+		if (S390_lowcore.tpi_info.adapter_IO)
 			do_irq_async(regs, THIN_INTERRUPT);
 		else
 			do_irq_async(regs, IO_INTERRUPT);
