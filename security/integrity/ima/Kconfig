@@ -334,3 +334,10 @@ config IMA_SECURE_AND_OR_TRUSTED_BOOT
        help
           This option is selected by architectures to enable secure and/or
           trusted boot based on IMA runtime policies.
+
+config IMA_DISABLE_HTABLE
+	bool "Disable htable to allow measurement of duplicate records"
+	depends on IMA
+	default n
+	help
+	   This option disables htable to allow measurement of duplicate records.
