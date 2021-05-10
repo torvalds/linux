@@ -42,6 +42,7 @@
   arm64_const_caps_ready
   arm64_use_ng_mappings
   __arm_smccc_smc
+  arp_tbl
   atomic_notifier_call_chain
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
@@ -1165,6 +1166,7 @@
   ipv6_ext_hdr
   ipv6_find_hdr
   ipv6_skip_exthdr
+  ipv6_stub
   irq_chip_ack_parent
   irq_chip_disable_parent
   irq_chip_enable_parent
@@ -1426,6 +1428,7 @@
   napi_gro_receive
   __napi_schedule
   napi_schedule_prep
+  neigh_lookup
   __netdev_alloc_skb
   netdev_rx_handler_register
   netdev_rx_handler_unregister
