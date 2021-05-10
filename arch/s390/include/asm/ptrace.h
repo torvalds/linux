@@ -9,6 +9,7 @@
 
 #include <linux/bits.h>
 #include <uapi/asm/ptrace.h>
+#include <asm/tpi.h>
 
 #define PIF_SYSCALL		0	/* inside a system call */
 #define PIF_SYSCALL_RESTART	1	/* restart the current system call */
@@ -86,9 +87,14 @@ struct pt_regs
 		};
 	};
 	unsigned long orig_gpr2;
-	unsigned int int_code;
-	unsigned int int_parm;
-	unsigned long int_parm_long;
+	union {
+		struct {
+			unsigned int int_code;
+			unsigned int int_parm;
+			unsigned long int_parm_long;
+		};
+		struct tpi_info tpi_info;
+	};
 	unsigned long flags;
 	unsigned long cr1;
 };
