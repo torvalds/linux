@@ -3453,6 +3453,17 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					   MLX5_QP_OPTPAR_RRE,
 		},
 	},
+	[MLX5_QP_STATE_SQD] = {
+		[MLX5_QP_STATE_RTS] = {
+			[MLX5_QP_ST_UD] = MLX5_QP_OPTPAR_Q_KEY,
+			[MLX5_QP_ST_MLX] = MLX5_QP_OPTPAR_Q_KEY,
+			[MLX5_QP_ST_UC] = MLX5_QP_OPTPAR_RWE,
+			[MLX5_QP_ST_RC] = MLX5_QP_OPTPAR_RNR_TIMEOUT	|
+					  MLX5_QP_OPTPAR_RWE		|
+					  MLX5_QP_OPTPAR_RAE		|
+					  MLX5_QP_OPTPAR_RRE,
+		},
+	},
 };
 
 static int ib_nr_to_mlx5_nr(int ib_mask)
@@ -3848,6 +3859,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		[MLX5_QP_STATE_SQD] = {
 			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
 			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_SQD_RTS_QP,
 		},
 		[MLX5_QP_STATE_SQER] = {
 			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
