@@ -868,7 +868,7 @@ static struct platform_driver intel_sso_led_driver = {
 	.remove		= intel_sso_led_remove,
 	.driver		= {
 			.name = "lgm-ssoled",
-			.of_match_table = of_match_ptr(of_sso_led_match),
+			.of_match_table = of_sso_led_match,
 	},
 };
 
