@@ -100,13 +100,11 @@
 
 #define GPC_PGC_CTRL_PCR		BIT(0)
 
-#define GPC_CLK_MAX		6
-
 struct imx_pgc_domain {
 	struct generic_pm_domain genpd;
 	struct regmap *regmap;
 	struct regulator *regulator;
-	struct clk *clk[GPC_CLK_MAX];
+	struct clk_bulk_data *clks;
 	int num_clks;
 
 	unsigned int pgc;
@@ -149,8 +147,12 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 	}
 
 	/* Enable reset clocks for all devices in the domain */
-	for (i = 0; i < domain->num_clks; i++)
-		clk_prepare_enable(domain->clk[i]);
+	ret = clk_bulk_prepare_enable(domain->num_clks, domain->clks);
+	if (ret) {
+		dev_err(domain->dev, "failed to enable reset clocks\n");
+		regulator_disable(domain->regulator);
+		return ret;
+	}
 
 	if (enable_power_control)
 		regmap_update_bits(domain->regmap, GPC_PGC_CTRL(domain->pgc),
@@ -187,8 +189,7 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 				   GPC_PGC_CTRL_PCR, 0);
 
 	/* Disable reset clocks for all devices in the domain */
-	for (i = 0; i < domain->num_clks; i++)
-		clk_disable_unprepare(domain->clk[i]);
+	clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
 
 	if (has_regulator && !on) {
 		int err;
@@ -438,41 +439,6 @@ static const struct imx_pgc_domain_data imx8m_pgc_domain_data = {
 	.reg_access_table = &imx8m_access_table,
 };
 
-static int imx_pgc_get_clocks(struct imx_pgc_domain *domain)
-{
-	int i, ret;
-
-	for (i = 0; ; i++) {
-		struct clk *clk = of_clk_get(domain->dev->of_node, i);
-		if (IS_ERR(clk))
-			break;
-		if (i >= GPC_CLK_MAX) {
-			dev_err(domain->dev, "more than %d clocks\n",
-				GPC_CLK_MAX);
-			ret = -EINVAL;
-			goto clk_err;
-		}
-		domain->clk[i] = clk;
-	}
-	domain->num_clks = i;
-
-	return 0;
-
-clk_err:
-	while (i--)
-		clk_put(domain->clk[i]);
-
-	return ret;
-}
-
-static void imx_pgc_put_clocks(struct imx_pgc_domain *domain)
-{
-	int i;
-
-	for (i = domain->num_clks - 1; i >= 0; i--)
-		clk_put(domain->clk[i]);
-}
-
 static int imx_pgc_domain_probe(struct platform_device *pdev)
 {
 	struct imx_pgc_domain *domain = pdev->dev.platform_data;
@@ -490,9 +456,10 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 				      domain->voltage, domain->voltage);
 	}
 
-	ret = imx_pgc_get_clocks(domain);
-	if (ret)
-		return dev_err_probe(domain->dev, ret, "Failed to get domain's clocks\n");
+	domain->num_clks = devm_clk_bulk_get_all(domain->dev, &domain->clks);
+	if (domain->num_clks < 0)
+		return dev_err_probe(domain->dev, domain->num_clks,
+				     "Failed to get domain's clocks\n");
 
 	regmap_update_bits(domain->regmap, GPC_PGC_CPU_MAPPING,
 			   domain->bits.map, domain->bits.map);
@@ -517,7 +484,6 @@ out_genpd_remove:
 out_domain_unmap:
 	regmap_update_bits(domain->regmap, GPC_PGC_CPU_MAPPING,
 			   domain->bits.map, 0);
-	imx_pgc_put_clocks(domain);
 
 	return ret;
 }
@@ -531,8 +497,6 @@ static int imx_pgc_domain_remove(struct platform_device *pdev)
 
 	regmap_update_bits(domain->regmap, GPC_PGC_CPU_MAPPING,
 			   domain->bits.map, 0);
-
-	imx_pgc_put_clocks(domain);
 
 	return 0;
 }
