@@ -54,6 +54,7 @@ struct cs_etm_auxtrace {
 	u8 sample_instructions;
 
 	int num_cpu;
+	u64 latest_kernel_timestamp;
 	u32 auxtrace_type;
 	u64 branches_sample_type;
 	u64 branches_id;
@@ -1192,6 +1193,8 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
+	if (!etm->timeless_decoding)
+		sample.time = etm->latest_kernel_timestamp;
 	sample.ip = addr;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -1248,6 +1251,8 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
+	if (!etm->timeless_decoding)
+		sample.time = etm->latest_kernel_timestamp;
 	sample.ip = ip;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -2412,9 +2417,15 @@ static int cs_etm__process_event(struct perf_session *session,
 	else if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE)
 		return cs_etm__process_switch_cpu_wide(etm, event);
 
-	if (!etm->timeless_decoding &&
-	    event->header.type == PERF_RECORD_AUX)
+	if (!etm->timeless_decoding && event->header.type == PERF_RECORD_AUX) {
+		/*
+		 * Record the latest kernel timestamp available in the header
+		 * for samples so that synthesised samples occur from this point
+		 * onwards.
+		 */
+		etm->latest_kernel_timestamp = sample_kernel_timestamp;
 		return cs_etm__process_queues(etm);
+	}
 
 	return 0;
 }
