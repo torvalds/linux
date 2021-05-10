@@ -1162,6 +1162,13 @@ mlx5e_calc_max_nch(struct mlx5e_priv *priv, const struct mlx5e_profile *profile)
 	return priv->netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
 }
 
+static inline bool
+mlx5e_tx_mpwqe_supported(struct mlx5_core_dev *mdev)
+{
+	return !is_kdump_kernel() &&
+		MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe);
+}
+
 int mlx5e_priv_init(struct mlx5e_priv *priv,
 		    struct net_device *netdev,
 		    struct mlx5_core_dev *mdev);
