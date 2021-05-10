@@ -1323,12 +1323,16 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_GEN3_VBAT_SNS_QBG]		= ADC5_CHAN_VOLT("vbat_sns", 3,
+	[ADC5_GEN3_VBAT_SNS_QBG]		= ADC5_CHAN_VOLT("vbat_sns", 1,
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_AMUX3_THM]	= ADC5_CHAN_TEMP("smb_temp", 0,
 					SCALE_HW_CALIB_PM7_SMB_TEMP)
 	[ADC5_GEN3_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
 					SCALE_HW_CALIB_PM7_CHG_TEMP)
+	[ADC5_GEN3_USB_SNS_V_16]	= ADC5_CHAN_TEMP("usb_sns_v_div_16", 3,
+					SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_VIN_DIV16_MUX]	= ADC5_CHAN_TEMP("vin_div_16", 3,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 4,
 					SCALE_HW_CALIB_CUR)
 	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 5,
@@ -1511,7 +1515,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 static const struct adc5_data adc5_gen3_data_pmic = {
 	.name = "pm-adc5-gen3",
 	.full_scale_code_volt = 0x70e4,
-	.full_scale_code_cur = 0x2710,
+	.full_scale_code_cur = 0x2ee0,
 	.adc_chans = adc5_chans_pmic,
 	.decimation = (unsigned int [ADC5_DECIMATION_SAMPLES_MAX])
 				{85, 340, 1360},

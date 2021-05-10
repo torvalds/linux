@@ -61,6 +61,8 @@
 #define R_PU_100K				100000
 #define RATIO_MAX_ADC7				BIT(14)
 
+#define PMIC5_GEN3_USB_IN_I_SCALE_FACTOR	9248
+
 #define ADC_VDD_REF				1875000
 
 /*
@@ -161,13 +163,13 @@ struct adc_tm_client_info {
  *	charger temperature.
  * SCALE_HW_CALIB_PM5_SMB_TEMP: Returns result in millidegrees for PMIC5
  *	SMB1390 temperature.
- * SCALE_HW_CALIB_BATT_THERM_100K: Returns battery thermistor voltage in
+ * SCALE_HW_CALIB_BATT_THERM_100K: Returns battery thermistor temperature in
  *	decidegC using 100k pullup. The hardware applies offset/slope to adc
  *	code.
- * SCALE_HW_CALIB_BATT_THERM_30K: Returns battery thermistor voltage in
+ * SCALE_HW_CALIB_BATT_THERM_30K: Returns battery thermistor temperature in
  *	decidegC using 30k pullup. The hardware applies offset/slope to adc
  *	code.
- * SCALE_HW_CALIB_BATT_THERM_400K: Returns battery thermistor voltage in
+ * SCALE_HW_CALIB_BATT_THERM_400K: Returns battery thermistor temperature in
  *	decidegC using 400k pullup. The hardware applies offset/slope to adc
  *	code.
  * SCALE_HW_CALIB_PM5_SMB1398_TEMP: Returns result in millidegrees for PMIC5
@@ -184,6 +186,13 @@ struct adc_tm_client_info {
  *	S3 die temperature channel on PM2250.
  * SCALE_HW_CALIB_PM5_CUR: Returns result in microamperes for PMIC5 channels
  *	that use voltage scaling.
+ * SCALE_HW_CALIB_PM5_GEN3_BATT_THERM_100K: Returns battery thermistor
+ *	temperature in decidegC using 100k pullup. The hardware applies
+ *	offset/slope to adc code.
+ * SCALE_HW_CALIB_PM5_GEN3_BATT_ID_100K: Returns battery ID resistance
+ *	in ohms using 100k pullup. The hardware applies offset/slope to
+ *	adc code.
+ * SCALE_HW_CALIB_PM5_GEN3_USB_IN_I: Returns USB input current in microamperes.
  */
 enum vadc_scale_fn_type {
 	SCALE_DEFAULT = 0,
@@ -209,6 +218,9 @@ enum vadc_scale_fn_type {
 	SCALE_HW_CALIB_CUR_RAW,
 	SCALE_HW_CALIB_PM2250_S3_DIE_TEMP,
 	SCALE_HW_CALIB_PM5_CUR,
+	SCALE_HW_CALIB_PM5_GEN3_BATT_THERM_100K,
+	SCALE_HW_CALIB_PM5_GEN3_BATT_ID_100K,
+	SCALE_HW_CALIB_PM5_GEN3_USB_IN_I,
 	SCALE_HW_CALIB_INVALID,
 };
 
