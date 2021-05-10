@@ -496,10 +496,10 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	 * the Class H algorithm does not enable weak-drive operation for
 	 * nonzero values of CH_WKFET_DELAY if SP_RATE = 01 or 10
 	 */
-	errata_chk = clk_ctl & CS35L35_SP_RATE_MASK;
+	errata_chk = (clk_ctl & CS35L35_SP_RATE_MASK) >> CS35L35_SP_RATE_SHIFT;
 
 	if (classh->classh_wk_fet_disable == 0x00 &&
-		(errata_chk == 0x01 || errata_chk == 0x03)) {
+		(errata_chk == 0x01 || errata_chk == 0x02)) {
 		ret = regmap_update_bits(cs35l35->regmap,
 					CS35L35_CLASS_H_FET_DRIVE_CTL,
 					CS35L35_CH_WKFET_DEL_MASK,
