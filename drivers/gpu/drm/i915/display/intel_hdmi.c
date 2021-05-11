@@ -1873,11 +1873,17 @@ static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
 
 	switch (bpc) {
 	case 12:
+		if (!has_hdmi_sink)
+			return false;
+
 		if (ycbcr420_output)
 			return hdmi->y420_dc_modes & DRM_EDID_YCBCR420_DC_36;
 		else
 			return info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36;
 	case 10:
+		if (!has_hdmi_sink)
+			return false;
+
 		if (ycbcr420_output)
 			return hdmi->y420_dc_modes & DRM_EDID_YCBCR420_DC_30;
 		else
@@ -1973,9 +1979,6 @@ bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	int i;
 
 	if (crtc_state->pipe_bpp < bpc * 3)
-		return false;
-
-	if (!has_hdmi_sink)
 		return false;
 
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
