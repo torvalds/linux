@@ -8,37 +8,43 @@
 / {
 	soc {
 		i2c@80128000 {
-			/* Marked:
-			 * 129
-			 * M35
-			 * L3GD20
-			 */
-			l3gd20@6a {
-				/* Gyroscope */
-				compatible = "st,l3gd20";
-				status = "disabled";
+			accelerometer@19 {
+				compatible = "st,lsm303dlhc-accel";
 				st,drdy-int-pin = <1>;
-				drive-open-drain;
-				reg = <0x6a>; // 0x6a or 0x6b
+				reg = <0x19>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
+					     <19 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_tvk_mode>;
+			};
+			magnetometer@1e {
+				compatible = "st,lsm303dlm-magn";
+				st,drdy-int-pin = <1>;
+				reg = <0x1e>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				// This interrupt is not properly working with the driver
+				// interrupt-parent = <&gpio1>;
+				// interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&magn_tvk_mode>;
+			};
+			gyroscope@68 {
+				/* Gyroscope */
+				compatible = "st,l3g4200d-gyro";
+				reg = <0x68>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 			};
-			/*
-			 * Marked:
-			 * 2122
-			 * C3H
-			 * DQEEE
-			 * LIS3DH?
-			 */
-			lis3dh@18 {
-				/* Accelerometer */
-				compatible = "st,lis3dh-accel";
-				st,drdy-int-pin = <1>;
-				reg = <0x18>;
+			pressure@5c {
+				/* Barometer/pressure sensor */
+				compatible = "st,lps001wp-press";
+				reg = <0x5c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&accel_tvk_mode>;
 			};
 		};
 
@@ -51,6 +57,27 @@
 					reg = <0>;
 					vddi-supply = <&ab8500_ldo_aux1_reg>;
 					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+		};
+
+		pinctrl {
+			accelerometer {
+				accel_tvk_mode: accel_tvk {
+					/* Accelerometer interrupt lines 1 & 2 */
+					tvk_cfg {
+						pins = "GPIO82_C1", "GPIO83_D3";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			magnetometer {
+				magn_tvk_mode: magn_tvk {
+					/* GPIO 32 used for DRDY, pull this down */
+					tvk_cfg {
+						pins = "GPIO32_V2";
+						ste,config = <&gpio_in_pd>;
+					};
 				};
 			};
 		};

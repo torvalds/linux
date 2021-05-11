@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config_data
+/config_data
 kheaders.md5
 timeconst.h
 hz.bc
