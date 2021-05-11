@@ -179,9 +179,14 @@ static inline void update_busy_hyst_end_time(int cpu, bool dequeue,
 				(util_load_trigger) ?
 				per_cpu(util_hyst_time, cpu) : 0);
 
-	if (agg_hyst_time)
+	if (agg_hyst_time) {
 		atomic64_set(&per_cpu(busy_hyst_end_time, cpu),
 				curr_time + agg_hyst_time);
+		trace_sched_busy_hyst_time(cpu, agg_hyst_time, prev_nr_run,
+					cpu_util(cpu), per_cpu(hyst_time, cpu),
+					per_cpu(coloc_hyst_time, cpu),
+					per_cpu(util_hyst_time, cpu));
+	}
 }
 
 int sched_busy_hyst_handler(struct ctl_table *table, int write,

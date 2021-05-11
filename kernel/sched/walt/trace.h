@@ -589,6 +589,41 @@ TRACE_EVENT(sched_get_nr_running_avg,
 		__entry->nr_scaled)
 );
 
+TRACE_EVENT(sched_busy_hyst_time,
+
+	TP_PROTO(int cpu, u64 hyst_time, unsigned long nr_run,
+		unsigned long cpu_util, u64 busy_hyst_time,
+		u64 coloc_hyst_time, u64 util_hyst_time),
+
+	TP_ARGS(cpu, hyst_time, nr_run, cpu_util, busy_hyst_time,
+		coloc_hyst_time, util_hyst_time),
+
+	TP_STRUCT__entry(
+		__field(int, cpu)
+		__field(u64, hyst_time)
+		__field(unsigned long, nr_run)
+		__field(unsigned long, cpu_util)
+		__field(u64, busy_hyst_time)
+		__field(u64, coloc_hyst_time)
+		__field(u64, util_hyst_time)
+	),
+
+	TP_fast_assign(
+		__entry->cpu = cpu;
+		__entry->hyst_time = hyst_time;
+		__entry->nr_run = nr_run;
+		__entry->cpu_util = cpu_util;
+		__entry->busy_hyst_time = busy_hyst_time;
+		__entry->coloc_hyst_time = coloc_hyst_time;
+		__entry->util_hyst_time = util_hyst_time;
+	),
+
+	TP_printk("cpu=%d hyst_time=%llu nr_run=%lu cpu_util=%lu busy_hyst_time=%llu coloc_hyst_time=%llu util_hyst_time=%llu",
+		__entry->cpu, __entry->hyst_time, __entry->nr_run,
+		__entry->cpu_util, __entry->busy_hyst_time,
+		__entry->coloc_hyst_time, __entry->util_hyst_time)
+);
+
 TRACE_EVENT(sched_ravg_window_change,
 
 	TP_PROTO(unsigned int sched_ravg_window, unsigned int new_sched_ravg_window
