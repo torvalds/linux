@@ -102,6 +102,15 @@
 	};
 };
 
+/* Release reset of the USB Host HUB */
+&gpio1 {
+	usb-host-reset-hog {
+		gpio-hog;
+		gpios = <14 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+};
+
 &i2c1 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
@@ -210,6 +219,17 @@
 
 &usb3_phy0 {
 	vbus-supply = <&reg_usb_otg_vbus>;
+	status = "okay";
+};
+
+&usb_dwc3_1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usb3_phy1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb3_1>;
 	status = "okay";
 };
 
@@ -385,6 +405,12 @@
 	pinctrl_usb3_0: usb3-0grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_GPIO1_IO13_USB1_OTG_OC		0x16
+		>;
+	};
+
+	pinctrl_usb3_1: usb3-1grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_GPIO1_IO14_GPIO1_IO14		0x16
 		>;
 	};
 
