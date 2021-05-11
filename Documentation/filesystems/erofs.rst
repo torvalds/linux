@@ -50,8 +50,8 @@ Here is the main features of EROFS:
 
  - Support POSIX.1e ACLs by using xattrs;
 
- - Support transparent file compression as an option:
-   LZ4 algorithm with 4 KB fixed-sized output compression for high performance.
+ - Support transparent data compression as an option:
+   LZ4 algorithm with the fixed-sized output compression for high performance.
 
 The following git tree provides the file system user-space tools under
 development (ex, formatting tool mkfs.erofs):
@@ -210,10 +210,21 @@ Note that apart from the offset of the first filename, nameoff0 also indicates
 the total number of directory entries in this block since it is no need to
 introduce another on-disk field at all.
 
-Compression
------------
-Currently, EROFS supports 4KB fixed-sized output transparent file compression,
-as illustrated below::
+Data compression
+----------------
+EROFS implements LZ4 fixed-sized output compression which generates fixed-sized
+compressed data blocks from variable-sized input in contrast to other existing
+fixed-sized input solutions. Relatively higher compression ratios can be gotten
+by using fixed-sized output compression since nowadays popular data compression
+algorithms are mostly LZ77-based and such fixed-sized output approach can be
+benefited from the historical dictionary (aka. sliding window).
+
+In details, original (uncompressed) data is turned into several variable-sized
+extents and in the meanwhile, compressed into physical clusters (pclusters).
+In order to record each variable-sized extent, logical clusters (lclusters) are
+introduced as the basic unit of compress indexes to indicate whether a new
+extent is generated within the range (HEAD) or not (NONHEAD). Lclusters are now
+fixed in block size, as illustrated below::
 
           |<-    variable-sized extent    ->|<-       VLE         ->|
         clusterofs                        clusterofs              clusterofs
@@ -222,18 +233,37 @@ as illustrated below::
  ... |    .         |              |        .     |              |  .   ...
  ____|____._________|______________|________.___ _|______________|__.________
      |-> lcluster <-|-> lcluster <-|-> lcluster <-|-> lcluster <-|
-          size           size           size           size   .             .
-           .                            .                .              .
-            .                       .               .               .
-             .                   .              .               .
-       _______.______________.______________.______________._________________
+          (HEAD)        (NONHEAD)       (HEAD)        (NONHEAD)    .
+           .             CBLKCNT            .                    .
+            .                               .                  .
+             .                              .                .
+       _______._____________________________.______________._________________
           ... |              |              |              | ...
        _______|______________|______________|______________|_________________
-              |-> pcluster <-|-> pcluster <-|-> pcluster <-|
-                    size           size           size
+              |->      big pcluster       <-|-> pcluster <-|
 
-Currently each on-disk physical cluster can contain 4KB (un)compressed data
-at most. For each logical cluster, there is a corresponding on-disk index to
-describe its cluster type, physical cluster address, etc.
+A physical cluster can be seen as a container of physical compressed blocks
+which contains compressed data. Previously, only lcluster-sized (4KB) pclusters
+were supported. After big pcluster feature is introduced (available since
+Linux v5.13), pcluster can be a multiple of lcluster size.
 
-See "struct z_erofs_vle_decompressed_index" in erofs_fs.h for more details.
+For each HEAD lcluster, clusterofs is recorded to indicate where a new extent
+starts and blkaddr is used to seek the compressed data. For each NONHEAD
+lcluster, delta0 and delta1 are available instead of blkaddr to indicate the
+distance to its HEAD lcluster and the next HEAD lcluster. A PLAIN lcluster is
+also a HEAD lcluster except that its data is uncompressed. See the comments
+around "struct z_erofs_vle_decompressed_index" in erofs_fs.h for more details.
+
+If big pcluster is enabled, pcluster size in lclusters needs to be recorded as
+well. Let the delta0 of the first NONHEAD lcluster store the compressed block
+count with a special flag as a new called CBLKCNT NONHEAD lcluster. It's easy
+to understand its delta0 is constantly 1, as illustrated below::
+
+   __________________________________________________________
+  | HEAD |  NONHEAD  | NONHEAD | ... | NONHEAD | HEAD | HEAD |
+  |__:___|_(CBLKCNT)_|_________|_____|_________|__:___|____:_|
+     |<----- a big pcluster (with CBLKCNT) ------>|<--  -->|
+           a lcluster-sized pcluster (without CBLKCNT) ^
+
+If another HEAD follows a HEAD lcluster, there is no room to record CBLKCNT,
+but it's easy to know the size of such pcluster is 1 lcluster as well.
