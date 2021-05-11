@@ -236,6 +236,27 @@ static struct resource ixp46x_i2c_resources[] = {
 	}
 };
 
+/* A single 32-bit register on IXP46x */
+#define IXP4XX_HWRANDOM_BASE_PHYS	0x70002100
+
+static struct resource ixp46x_hwrandom_resource[] = {
+	{
+		.start = IXP4XX_HWRANDOM_BASE_PHYS,
+		.end = IXP4XX_HWRANDOM_BASE_PHYS + 0x3,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ixp46x_hwrandom_device = {
+	.name           = "ixp4xx-hwrandom",
+	.id             = -1,
+	.dev = {
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+	.resource = ixp46x_hwrandom_resource,
+	.num_resources  = ARRAY_SIZE(ixp46x_hwrandom_resource),
+};
+
 /*
  * I2C controller. The IXP46x uses the same block as the IOP3xx, so
  * we just use the same device name.
@@ -248,7 +269,8 @@ static struct platform_device ixp46x_i2c_controller = {
 };
 
 static struct platform_device *ixp46x_devices[] __initdata = {
-	&ixp46x_i2c_controller
+	&ixp46x_hwrandom_device,
+	&ixp46x_i2c_controller,
 };
 
 unsigned long ixp4xx_exp_bus_size;
