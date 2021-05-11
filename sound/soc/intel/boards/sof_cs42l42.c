@@ -480,7 +480,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id board_ids[] = {
 	{
-		.name = "glk_cs4242_max98357a",
+		.name = "glk_cs4242_mx98357a",
 		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(2) |
 					SOF_SPEAKER_AMP_PRESENT |
 					SOF_MAX98357A_SPEAKER_AMP_PRESENT |
