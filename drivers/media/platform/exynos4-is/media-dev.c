@@ -1284,7 +1284,6 @@ static DEVICE_ATTR(subdev_conf_mode, S_IWUSR | S_IRUGO,
 static int cam_clk_prepare(struct clk_hw *hw)
 {
 	struct cam_clk *camclk = to_cam_clk(hw);
-	int ret;
 
 	if (camclk->fmd->pmf == NULL)
 		return -ENODEV;
