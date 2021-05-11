@@ -10,6 +10,10 @@
 	model = "Theobroma Systems RK3399-Q7 SoM";
 	compatible = "tsd,rk3399-puma-haikou", "rockchip,rk3399";
 
+	aliases {
+		mmc1 = &sdmmc;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};

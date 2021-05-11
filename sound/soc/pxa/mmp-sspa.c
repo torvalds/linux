@@ -330,7 +330,6 @@ static int mmp_sspa_probe(struct snd_soc_dai *dai)
 				&sspa->playback_dma_data,
 				&sspa->capture_dma_data);
 
-	snd_soc_dai_set_drvdata(dai, sspa);
 	return 0;
 }
 

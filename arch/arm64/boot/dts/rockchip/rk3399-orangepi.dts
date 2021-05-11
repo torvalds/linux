@@ -15,6 +15,12 @@
 	model = "Orange Pi RK3399 Board";
 	compatible = "rockchip,rk3399-orangepi", "rockchip,rk3399";
 
+	aliases {
+		mmc0 = &sdio0;
+		mmc1 = &sdmmc;
+		mmc2 = &sdhci;
+	};
+
 	chosen {
 		stdout-path = "serial2:1500000n8";
 	};

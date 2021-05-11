@@ -49,7 +49,7 @@ to 0.
 
 .. c:type:: v4l2_meta_format
 
-.. tabularcolumns:: |p{1.4cm}|p{2.2cm}|p{13.9cm}|
+.. tabularcolumns:: |p{1.4cm}|p{2.4cm}|p{13.5cm}|
 
 .. flat-table:: struct v4l2_meta_format
     :header-rows:  0

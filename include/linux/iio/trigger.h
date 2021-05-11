@@ -161,7 +161,8 @@ void iio_trigger_poll_chained(struct iio_trigger *trig);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 
-__printf(1, 2) struct iio_trigger *iio_trigger_alloc(const char *fmt, ...);
+__printf(2, 3)
+struct iio_trigger *iio_trigger_alloc(struct device *parent, const char *fmt, ...);
 void iio_trigger_free(struct iio_trigger *trig);
 
 /**

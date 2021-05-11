@@ -96,7 +96,7 @@ static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
 	 * Detecting LTTPRs must be avoided on platforms with an AUX timeout
 	 * period < 3.2ms. (see DP Standard v2.0, 2.11.2, 3.6.6.1).
 	 */
-	if (DISPLAY_VER(i915) < 10)
+	if (DISPLAY_VER(i915) < 10 || IS_GEMINILAKE(i915))
 		return false;
 
 	if (drm_dp_read_lttpr_common_caps(&intel_dp->aux,
@@ -882,7 +882,8 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 	int lttpr_count = intel_dp_init_lttpr_and_dprx_caps(intel_dp);
 
 	if (lttpr_count < 0)
-		return;
+		/* Still continue with enabling the port and link training. */
+		lttpr_count = 0;
 
 	if (!intel_dp_link_train_all_phys(intel_dp, crtc_state, lttpr_count))
 		intel_dp_schedule_fallback_link_training(intel_dp, crtc_state);

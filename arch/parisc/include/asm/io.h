@@ -316,11 +316,6 @@ extern void iowrite64be(u64 val, void __iomem *addr);
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
 
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
 extern int devmem_is_allowed(unsigned long pfn);
 
 #endif

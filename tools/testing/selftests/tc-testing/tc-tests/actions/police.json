@@ -764,5 +764,53 @@
         "teardown": [
             "$TC actions flush action police"
         ]
+    },
+    {
+        "id": "cdd7",
+        "name": "Add valid police action with packets per second rate limit",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police pkts_rate 1000 pkts_burst 200 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 0bit burst 0b mtu 4096Mb pkts_rate 1000 pkts_burst 200",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "f5bc",
+        "name": "Add invalid police action with both bps and pps",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 1kbit burst 10k pkts_rate 1000 pkts_burst 200 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 ",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
     }
 ]

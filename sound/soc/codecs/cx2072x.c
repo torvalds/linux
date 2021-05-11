@@ -827,9 +827,6 @@ static int cx2072x_config_i2spcm(struct cx2072x_priv *cx2072x)
 	}
 	regdbt2.r.i2s_bclk_invert = is_bclk_inv;
 
-	reg1.r.rx_data_one_line = 1;
-	reg1.r.tx_data_one_line = 1;
-
 	/* Configures the BCLK output */
 	bclk_rate = cx2072x->sample_rate * frame_len;
 	reg5.r.i2s_pcm_clk_div_chan_en = 0;
@@ -1433,11 +1430,11 @@ static int cx2072x_jack_status_check(void *data)
 			state |= SND_JACK_HEADSET;
 			if (type & 0x2)
 				state |= SND_JACK_BTN_0;
-		} else if (type & 0x4) {
-			/* Nokia headset */
-			state |= SND_JACK_HEADPHONE;
 		} else {
-			/* Headphone */
+			/*
+			 * Nokia headset (type & 0x4) and
+			 * regular Headphone
+			 */
 			state |= SND_JACK_HEADPHONE;
 		}
 	}
@@ -1535,7 +1532,7 @@ static const struct snd_soc_component_driver soc_codec_driver_cx2072x = {
 /*
  * DAI ops
  */
-static struct snd_soc_dai_ops cx2072x_dai_ops = {
+static const struct snd_soc_dai_ops cx2072x_dai_ops = {
 	.set_sysclk = cx2072x_set_dai_sysclk,
 	.set_fmt = cx2072x_set_dai_fmt,
 	.hw_params = cx2072x_hw_params,

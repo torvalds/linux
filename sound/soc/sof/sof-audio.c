@@ -267,7 +267,7 @@ int sof_restore_pipelines(struct device *dev)
 	/* restore dai links */
 	list_for_each_entry_reverse(dai, &sdev->dai_list, list) {
 		struct sof_ipc_reply reply;
-		struct sof_ipc_dai_config *config = dai->dai_config;
+		struct sof_ipc_dai_config *config = &dai->dai_config[dai->current_config];
 
 		if (!config) {
 			dev_err(dev, "error: no config for DAI %s\n",
@@ -434,6 +434,33 @@ struct snd_sof_dai *snd_sof_find_dai(struct snd_soc_component *scomp,
 }
 
 /*
+ * Helper to get SSP MCLK from a pcm_runtime.
+ * Return 0 if not exist.
+ */
+int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_component *component =
+		snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
+	struct snd_sof_dai *dai =
+		snd_sof_find_dai(component, (char *)rtd->dai_link->name);
+
+	/* use the tplg configured mclk if existed */
+	if (!dai || !dai->dai_config)
+		return 0;
+
+	switch (dai->dai_config->type) {
+	case SOF_DAI_INTEL_SSP:
+		return dai->dai_config->ssp.mclk_rate;
+	default:
+		/* not yet implemented for platforms other than the above */
+		dev_err(rtd->dev, "mclk for dai_config->type %d not supported yet!\n",
+			dai->dai_config->type);
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(sof_dai_get_mclk);
+
+/*
  * SOF Driver enumeration.
  */
 int sof_machine_check(struct snd_sof_dev *sdev)
@@ -441,24 +468,24 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
 	struct snd_soc_acpi_mach *mach;
-	int ret;
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
+	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)) {
 
-	/* find machine */
-	snd_sof_machine_select(sdev);
-	if (sof_pdata->machine) {
-		snd_sof_set_mach_params(sof_pdata->machine, sdev->dev);
-		return 0;
+		/* find machine */
+		snd_sof_machine_select(sdev);
+		if (sof_pdata->machine) {
+			snd_sof_set_mach_params(sof_pdata->machine, sdev);
+			return 0;
+		}
+
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
+			dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+			return -ENODEV;
+		}
+	} else {
+		dev_warn(sdev->dev, "Force to use nocodec mode\n");
 	}
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
-	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
-	return -ENODEV;
-#endif
-#else
-	dev_warn(sdev->dev, "Force to use nocodec mode\n");
-#endif
 	/* select nocodec mode */
 	dev_warn(sdev->dev, "Using nocodec machine driver\n");
 	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
@@ -468,12 +495,8 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	mach->drv_name = "sof-nocodec";
 	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
-	ret = sof_nocodec_setup(sdev->dev, desc->ops, sof_pcm_dai_link_fixup);
-	if (ret < 0)
-		return ret;
-
 	sof_pdata->machine = mach;
-	snd_sof_set_mach_params(sof_pdata->machine, sdev->dev);
+	snd_sof_set_mach_params(sof_pdata->machine, sdev);
 
 	return 0;
 }

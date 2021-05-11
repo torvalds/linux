@@ -87,7 +87,7 @@ static int ebt_limit_mt_check(const struct xt_mtchk_param *par)
 }
 
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 /*
  * no conversion function needed --
  * only avg/burst have meaningful values in userspace.
@@ -107,7 +107,7 @@ static struct xt_match ebt_limit_mt_reg __read_mostly = {
 	.checkentry	= ebt_limit_mt_check,
 	.matchsize	= sizeof(struct ebt_limit_info),
 	.usersize	= offsetof(struct ebt_limit_info, prev),
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 	.compatsize	= sizeof(struct ebt_compat_limit_info),
 #endif
 	.me		= THIS_MODULE,

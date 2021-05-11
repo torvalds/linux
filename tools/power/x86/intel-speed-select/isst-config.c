@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.8";
+static const char *version_str = "v1.9";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -379,6 +379,18 @@ static void set_cpu_online_offline(int cpu, int state)
 		perror("Online/Offline: Operation failed\n");
 
 	close(fd);
+}
+
+static void force_all_cpus_online(void)
+{
+	int i;
+
+	fprintf(stderr, "Forcing all CPUs online\n");
+
+	for (i = 0; i < topo_max_cpus; ++i)
+		set_cpu_online_offline(i, 1);
+
+	unlink("/var/run/isst_cpu_topology.dat");
 }
 
 #define MAX_PACKAGE_COUNT 8
@@ -959,6 +971,10 @@ static void isst_print_extended_platform_info(void)
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is not supported\n");
 
 	ret = isst_read_pm_config(i, &cp_state, &cp_cap);
+	if (ret) {
+		fprintf(outf, "Intel(R) SST-CP (feature core-power) status is unknown\n");
+		return;
+	}
 	if (cp_cap)
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) is supported\n");
 	else
@@ -2763,6 +2779,7 @@ static void usage(void)
 	printf("\t[-f|--format] : output format [json|text]. Default: text\n");
 	printf("\t[-h|--help] : Print help\n");
 	printf("\t[-i|--info] : Print platform information\n");
+	printf("\t[-a|--all-cpus-online] : Force online every CPU in the system\n");
 	printf("\t[-o|--out] : Output file\n");
 	printf("\t\t\tDefault : stderr\n");
 	printf("\t[-p|--pause] : Delay between two mail box commands in milliseconds\n");
@@ -2791,7 +2808,6 @@ static void usage(void)
 static void print_version(void)
 {
 	fprintf(outf, "Version %s\n", version_str);
-	fprintf(outf, "Build date %s time %s\n", __DATE__, __TIME__);
 	exit(0);
 }
 
@@ -2800,11 +2816,12 @@ static void cmdline(int argc, char **argv)
 	const char *pathname = "/dev/isst_interface";
 	char *ptr;
 	FILE *fp;
-	int opt;
+	int opt, force_cpus_online = 0;
 	int option_index = 0;
 	int ret;
 
 	static struct option long_options[] = {
+		{ "all-cpus-online", no_argument, 0, 'a' },
 		{ "cpu", required_argument, 0, 'c' },
 		{ "debug", no_argument, 0, 'd' },
 		{ "format", required_argument, 0, 'f' },
@@ -2840,9 +2857,12 @@ static void cmdline(int argc, char **argv)
 	}
 
 	progname = argv[0];
-	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:v", long_options,
+	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:va", long_options,
 				       &option_index)) != -1) {
 		switch (opt) {
+		case 'a':
+			force_cpus_online = 1;
+			break;
 		case 'c':
 			parse_cpu_command(optarg);
 			break;
@@ -2892,6 +2912,8 @@ static void cmdline(int argc, char **argv)
 		exit(0);
 	}
 	set_max_cpu_num();
+	if (force_cpus_online)
+		force_all_cpus_online();
 	store_cpu_topology();
 	set_cpu_present_cpu_mask();
 	set_cpu_target_cpu_mask();

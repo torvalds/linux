@@ -31,7 +31,26 @@
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
 
+#define smnPCIE_LC_CNTL		0x11140280
+#define smnPCIE_LC_CNTL3	0x111402d4
+#define smnPCIE_LC_CNTL6	0x111402ec
+#define smnPCIE_LC_CNTL7	0x111402f0
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a21c
+#define smnRCC_BIF_STRAP3	0x1012348c
+#define RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER_MASK	0x0000FFFFL
+#define RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER_MASK	0xFFFF0000L
+#define smnRCC_BIF_STRAP5	0x10123494
+#define RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER_MASK	0x0000FFFFL
+#define smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2	0x1014008c
+#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK			0x0400L
+#define smnBIF_CFG_DEV0_EPF0_PCIE_LTR_CAP	0x10140324
+#define smnPSWUSP0_PCIE_LC_CNTL2		0x111402c4
+#define smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL	0x10123538
+#define smnRCC_BIF_STRAP2	0x10123488
+#define RCC_BIF_STRAP2__STRAP_LTR_IN_ASPML1_DIS_MASK	0x00004000L
+#define RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER__SHIFT	0x0
+#define RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER__SHIFT	0x10
+#define RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER__SHIFT	0x0
 
 /*
  * These are nbio v7_4_1 registers mask. Temporarily define these here since
@@ -567,6 +586,111 @@ const struct amdgpu_nbio_ras_funcs nbio_v7_4_ras_funcs = {
 	.ras_fini = amdgpu_nbio_ras_fini,
 };
 
+static void nbio_v7_4_program_ltr(struct amdgpu_device *adev)
+{
+	uint32_t def, data;
+
+	WREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, 0x75EB);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP2);
+	data &= ~RCC_BIF_STRAP2__STRAP_LTR_IN_ASPML1_DIS_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP2, data);
+
+	def = data = RREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
+	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, data);
+
+	def = data = RREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2);
+	data |= BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2, data);
+}
+
+static void nbio_v7_4_program_aspm(struct amdgpu_device *adev)
+{
+	uint32_t def, data;
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
+	data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;
+	data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+	data |= PCIE_LC_CNTL__LC_PMI_TO_L1_DIS_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL7);
+	data |= PCIE_LC_CNTL7__LC_NBIF_ASPM_INPUT_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL7, data);
+
+	def = data = RREG32_PCIE(smnNBIF_MGCG_CTRL_LCLK);
+	data |= NBIF_MGCG_CTRL_LCLK__NBIF_MGCG_REG_DIS_LCLK_MASK;
+	if (def != data)
+		WREG32_PCIE(smnNBIF_MGCG_CTRL_LCLK, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL3);
+	data |= PCIE_LC_CNTL3__LC_DSC_DONT_ENTER_L23_AFTER_PME_ACK_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL3, data);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP3);
+	data &= ~RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER_MASK;
+	data &= ~RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP3, data);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP5);
+	data &= ~RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP5, data);
+
+	def = data = RREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2);
+	data &= ~BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2, data);
+
+	WREG32_PCIE(smnBIF_CFG_DEV0_EPF0_PCIE_LTR_CAP, 0x10011001);
+
+	def = data = RREG32_PCIE(smnPSWUSP0_PCIE_LC_CNTL2);
+	data |= PSWUSP0_PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L1_MASK |
+		PSWUSP0_PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L23_MASK;
+	data &= ~PSWUSP0_PCIE_LC_CNTL2__LC_RCV_L0_TO_RCV_L0S_DIS_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPSWUSP0_PCIE_LC_CNTL2, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL6);
+	data |= PCIE_LC_CNTL6__LC_L1_POWERDOWN_MASK |
+		PCIE_LC_CNTL6__LC_RX_L0S_STANDBY_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL6, data);
+
+	nbio_v7_4_program_ltr(adev);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP3);
+	data |= 0x5DE0 << RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER__SHIFT;
+	data |= 0x0010 << RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER__SHIFT;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP3, data);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP5);
+	data |= 0x0010 << RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER__SHIFT;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP5, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
+	data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+	data |= 0x9 << PCIE_LC_CNTL__LC_L1_INACTIVITY__SHIFT;
+	data |= 0x1 << PCIE_LC_CNTL__LC_PMI_TO_L1_DIS__SHIFT;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL3);
+	data &= ~PCIE_LC_CNTL3__LC_DSC_DONT_ENTER_L23_AFTER_PME_ACK_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL3, data);
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
@@ -587,4 +711,5 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.ih_control = nbio_v7_4_ih_control,
 	.init_registers = nbio_v7_4_init_registers,
 	.remap_hdp_registers = nbio_v7_4_remap_hdp_registers,
+	.program_aspm =  nbio_v7_4_program_aspm,
 };

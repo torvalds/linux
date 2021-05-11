@@ -490,7 +490,7 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 }
 
 /**
- * mraid_mm_attch_buf - Attach a free dma buffer for required size
+ * mraid_mm_attach_buf - Attach a free dma buffer for required size
  * @adp		: Adapter softstate
  * @kioc	: kioc that the buffer needs to be attached to
  * @xferlen	: required length for buffer

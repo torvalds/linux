@@ -2164,15 +2164,13 @@ DEFINE_SHOW_ATTRIBUTE(isp1362);
 /* expect just one isp1362_hcd per system */
 static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
-	isp1362_hcd->debug_file = debugfs_create_file("isp1362", S_IRUGO,
-						      usb_debug_root,
-						      isp1362_hcd,
-						      &isp1362_fops);
+	debugfs_create_file("isp1362", S_IRUGO, usb_debug_root, isp1362_hcd,
+			    &isp1362_fops);
 }
 
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
-	debugfs_remove(isp1362_hcd->debug_file);
+	debugfs_remove(debugfs_lookup("isp1362", usb_debug_root));
 }
 
 /*-------------------------------------------------------------------------*/

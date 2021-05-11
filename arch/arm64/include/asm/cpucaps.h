@@ -67,7 +67,8 @@
 #define ARM64_HAS_LDAPR				59
 #define ARM64_KVM_PROTECTED_MODE		60
 #define ARM64_WORKAROUND_NVIDIA_CARMEL_CNP	61
+#define ARM64_HAS_EPAN				62
 
-#define ARM64_NCAPS				62
+#define ARM64_NCAPS				63
 
 #endif /* __ASM_CPUCAPS_H */

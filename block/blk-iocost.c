@@ -987,10 +987,6 @@ static void ioc_adjust_base_vrate(struct ioc *ioc, u32 rq_wait_pct,
 		return;
 	}
 
-	/* rq_wait signal is always reliable, ignore user vrate_min */
-	if (rq_wait_pct > RQ_WAIT_BUSY_PCT)
-		vrate_min = VRATE_MIN;
-
 	/*
 	 * If vrate is out of bounds, apply clamp gradually as the
 	 * bounds can change abruptly.  Otherwise, apply busy_level

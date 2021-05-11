@@ -99,16 +99,6 @@ struct mdev_state {
 	void *memblk;
 };
 
-static const struct mdpy_type *mdpy_find_type(struct kobject *kobj)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mdpy_types); i++)
-		if (strcmp(mdpy_types[i].name, kobj->name) == 0)
-			return mdpy_types + i;
-	return NULL;
-}
-
 static void mdpy_create_config_space(struct mdev_state *mdev_state)
 {
 	STORE_LE16((u16 *) &mdev_state->vconfig[PCI_VENDOR_ID],
@@ -226,9 +216,10 @@ static int mdpy_reset(struct mdev_device *mdev)
 	return 0;
 }
 
-static int mdpy_create(struct kobject *kobj, struct mdev_device *mdev)
+static int mdpy_create(struct mdev_device *mdev)
 {
-	const struct mdpy_type *type = mdpy_find_type(kobj);
+	const struct mdpy_type *type =
+		&mdpy_types[mdev_get_type_group_id(mdev)];
 	struct device *dev = mdev_dev(mdev);
 	struct mdev_state *mdev_state;
 	u32 fbsize;
@@ -246,8 +237,6 @@ static int mdpy_create(struct kobject *kobj, struct mdev_device *mdev)
 		return -ENOMEM;
 	}
 
-	if (!type)
-		type = &mdpy_types[0];
 	fbsize = roundup_pow_of_two(type->width * type->height * type->bytepp);
 
 	mdev_state->memblk = vmalloc_user(fbsize);
@@ -256,8 +245,8 @@ static int mdpy_create(struct kobject *kobj, struct mdev_device *mdev)
 		kfree(mdev_state);
 		return -ENOMEM;
 	}
-	dev_info(dev, "%s: %s (%dx%d)\n",
-		 __func__, kobj->name, type->width, type->height);
+	dev_info(dev, "%s: %s (%dx%d)\n", __func__, type->name, type->width,
+		 type->height);
 
 	mutex_init(&mdev_state->ops_lock);
 	mdev_state->mdev = mdev;
@@ -417,9 +406,7 @@ static int mdpy_mmap(struct mdev_device *mdev, struct vm_area_struct *vma)
 	if ((vma->vm_flags & VM_SHARED) == 0)
 		return -EINVAL;
 
-	return remap_vmalloc_range_partial(vma, vma->vm_start,
-					   mdev_state->memblk, 0,
-					   vma->vm_end - vma->vm_start);
+	return remap_vmalloc_range(vma, mdev_state->memblk, 0);
 }
 
 static int mdpy_get_region_info(struct mdev_device *mdev,
@@ -658,42 +645,46 @@ static const struct attribute_group mdev_dev_group = {
 	.attrs = mdev_dev_attrs,
 };
 
-const struct attribute_group *mdev_dev_groups[] = {
+static const struct attribute_group *mdev_dev_groups[] = {
 	&mdev_dev_group,
 	NULL,
 };
 
-static ssize_t
-name_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t name_show(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", kobj->name);
-}
-MDEV_TYPE_ATTR_RO(name);
+	const struct mdpy_type *type =
+		&mdpy_types[mtype_get_type_group_id(mtype)];
 
-static ssize_t
-description_show(struct kobject *kobj, struct device *dev, char *buf)
+	return sprintf(buf, "%s\n", type->name);
+}
+static MDEV_TYPE_ATTR_RO(name);
+
+static ssize_t description_show(struct mdev_type *mtype,
+				struct mdev_type_attribute *attr, char *buf)
 {
-	const struct mdpy_type *type = mdpy_find_type(kobj);
+	const struct mdpy_type *type =
+		&mdpy_types[mtype_get_type_group_id(mtype)];
 
 	return sprintf(buf, "virtual display, %dx%d framebuffer\n",
-		       type ? type->width  : 0,
-		       type ? type->height : 0);
+		       type->width, type->height);
 }
-MDEV_TYPE_ATTR_RO(description);
+static MDEV_TYPE_ATTR_RO(description);
 
-static ssize_t
-available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t available_instances_show(struct mdev_type *mtype,
+					struct mdev_type_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%d\n", max_devices - mdpy_count);
 }
-MDEV_TYPE_ATTR_RO(available_instances);
+static MDEV_TYPE_ATTR_RO(available_instances);
 
-static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
-			       char *buf)
+static ssize_t device_api_show(struct mdev_type *mtype,
+			       struct mdev_type_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }
-MDEV_TYPE_ATTR_RO(device_api);
+static MDEV_TYPE_ATTR_RO(device_api);
 
 static struct attribute *mdev_types_attrs[] = {
 	&mdev_type_attr_name.attr,

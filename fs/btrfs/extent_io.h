@@ -66,6 +66,7 @@ enum {
 struct btrfs_root;
 struct btrfs_inode;
 struct btrfs_io_bio;
+struct btrfs_fs_info;
 struct io_failure_record;
 struct extent_io_tree;
 
@@ -269,9 +270,6 @@ struct bio *btrfs_bio_alloc(u64 first_byte);
 struct bio *btrfs_io_bio_alloc(unsigned int nr_iovecs);
 struct bio *btrfs_bio_clone(struct bio *bio);
 struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size);
-
-struct btrfs_fs_info;
-struct btrfs_inode;
 
 int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 		      u64 length, u64 logical, struct page *page,

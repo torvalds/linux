@@ -7,15 +7,11 @@
 
 #include "lib/fs_chains.h"
 #include "en/mapping.h"
-#include "mlx5_core.h"
 #include "fs_core.h"
-#include "eswitch.h"
-#include "en.h"
 #include "en_tc.h"
 
 #define chains_lock(chains) ((chains)->lock)
 #define chains_ht(chains) ((chains)->chains_ht)
-#define chains_mapping(chains) ((chains)->chains_mapping)
 #define prios_ht(chains) ((chains)->prios_ht)
 #define ft_pool_left(chains) ((chains)->ft_left)
 #define tc_default_ft(chains) ((chains)->tc_default_ft)
@@ -300,7 +296,7 @@ create_chain_restore(struct fs_chain *chain)
 	    !mlx5_chains_prios_supported(chains))
 		return 0;
 
-	err = mapping_add(chains_mapping(chains), &chain->chain, &index);
+	err = mlx5_chains_get_chain_mapping(chains, chain->chain, &index);
 	if (err)
 		return err;
 	if (index == MLX5_FS_DEFAULT_FLOW_TAG) {
@@ -310,10 +306,8 @@ create_chain_restore(struct fs_chain *chain)
 		 *
 		 * This case isn't possible with MLX5_FS_DEFAULT_FLOW_TAG = 0.
 		 */
-		err = mapping_add(chains_mapping(chains),
-				  &chain->chain, &index);
-		mapping_remove(chains_mapping(chains),
-			       MLX5_FS_DEFAULT_FLOW_TAG);
+		err = mlx5_chains_get_chain_mapping(chains, chain->chain, &index);
+		mapping_remove(chains->chains_mapping, MLX5_FS_DEFAULT_FLOW_TAG);
 		if (err)
 			return err;
 	}
@@ -361,7 +355,7 @@ err_mod_hdr:
 		mlx5_del_flow_rules(chain->restore_rule);
 err_rule:
 	/* Datapath can't find this mapping, so we can safely remove it */
-	mapping_remove(chains_mapping(chains), chain->id);
+	mapping_remove(chains->chains_mapping, chain->id);
 	return err;
 }
 
@@ -376,7 +370,7 @@ static void destroy_chain_restore(struct fs_chain *chain)
 		mlx5_del_flow_rules(chain->restore_rule);
 
 	mlx5_modify_header_dealloc(chains->dev, chain->miss_modify_hdr);
-	mapping_remove(chains_mapping(chains), chain->id);
+	mapping_remove(chains->chains_mapping, chain->id);
 }
 
 static struct fs_chain *
@@ -797,7 +791,6 @@ static struct mlx5_fs_chains *
 mlx5_chains_init(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)
 {
 	struct mlx5_fs_chains *chains_priv;
-	struct mapping_ctx *mapping;
 	u32 max_flow_counter;
 	int err;
 
@@ -816,6 +809,7 @@ mlx5_chains_init(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)
 	chains_priv->flags = attr->flags;
 	chains_priv->ns = attr->ns;
 	chains_priv->group_num = attr->max_grp_num;
+	chains_priv->chains_mapping = attr->mapping;
 	tc_default_ft(chains_priv) = tc_end_ft(chains_priv) = attr->default_ft;
 
 	mlx5_core_info(dev, "Supported tc offload range - chains: %u, prios: %u\n",
@@ -832,20 +826,10 @@ mlx5_chains_init(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)
 	if (err)
 		goto init_prios_ht_err;
 
-	mapping = mapping_create(sizeof(u32), attr->max_restore_tag,
-				 true);
-	if (IS_ERR(mapping)) {
-		err = PTR_ERR(mapping);
-		goto mapping_err;
-	}
-	chains_mapping(chains_priv) = mapping;
-
 	mutex_init(&chains_lock(chains_priv));
 
 	return chains_priv;
 
-mapping_err:
-	rhashtable_destroy(&prios_ht(chains_priv));
 init_prios_ht_err:
 	rhashtable_destroy(&chains_ht(chains_priv));
 init_chains_ht_err:
@@ -857,7 +841,6 @@ static void
 mlx5_chains_cleanup(struct mlx5_fs_chains *chains)
 {
 	mutex_destroy(&chains_lock(chains));
-	mapping_destroy(chains_mapping(chains));
 	rhashtable_destroy(&prios_ht(chains));
 	rhashtable_destroy(&chains_ht(chains));
 
@@ -884,25 +867,18 @@ int
 mlx5_chains_get_chain_mapping(struct mlx5_fs_chains *chains, u32 chain,
 			      u32 *chain_mapping)
 {
-	return mapping_add(chains_mapping(chains), &chain, chain_mapping);
+	struct mapping_ctx *ctx = chains->chains_mapping;
+	struct mlx5_mapped_obj mapped_obj = {};
+
+	mapped_obj.type = MLX5_MAPPED_OBJ_CHAIN;
+	mapped_obj.chain = chain;
+	return mapping_add(ctx, &mapped_obj, chain_mapping);
 }
 
 int
 mlx5_chains_put_chain_mapping(struct mlx5_fs_chains *chains, u32 chain_mapping)
 {
-	return mapping_remove(chains_mapping(chains), chain_mapping);
-}
+	struct mapping_ctx *ctx = chains->chains_mapping;
 
-int mlx5_get_chain_for_tag(struct mlx5_fs_chains *chains, u32 tag,
-			   u32 *chain)
-{
-	int err;
-
-	err = mapping_find(chains_mapping(chains), tag, chain);
-	if (err) {
-		mlx5_core_warn(chains->dev, "Can't find chain for tag: %d\n", tag);
-		return -ENOENT;
-	}
-
-	return 0;
+	return mapping_remove(ctx, chain_mapping);
 }

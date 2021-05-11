@@ -223,11 +223,14 @@ struct hclgevf_rss_indirection_table_cmd {
 };
 
 #define HCLGEVF_RSS_TC_OFFSET_S		0
-#define HCLGEVF_RSS_TC_OFFSET_M		(0x3ff << HCLGEVF_RSS_TC_OFFSET_S)
+#define HCLGEVF_RSS_TC_OFFSET_M		GENMASK(10, 0)
+#define HCLGEVF_RSS_TC_SIZE_MSB_B	11
 #define HCLGEVF_RSS_TC_SIZE_S		12
-#define HCLGEVF_RSS_TC_SIZE_M		(0x7 << HCLGEVF_RSS_TC_SIZE_S)
+#define HCLGEVF_RSS_TC_SIZE_M		GENMASK(14, 12)
 #define HCLGEVF_RSS_TC_VALID_B		15
 #define HCLGEVF_MAX_TC_NUM		8
+#define HCLGEVF_RSS_TC_SIZE_MSB_OFFSET	3
+
 struct hclgevf_rss_tc_mode_cmd {
 	__le16 rss_tc_mode[HCLGEVF_MAX_TC_NUM];
 	u8 rsv[8];

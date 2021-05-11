@@ -90,8 +90,8 @@ Command	    Function
 ``b``	    Will immediately reboot the system without syncing or unmounting
             your disks.
 
-``c``	    Will perform a system crash by a NULL pointer dereference.
-            A crashdump will be taken if configured.
+``c``	    Will perform a system crash and a crashdump will be taken
+            if configured.
 
 ``d``	    Shows all locks that are held.
 

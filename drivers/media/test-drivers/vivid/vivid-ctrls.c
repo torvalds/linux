@@ -33,6 +33,7 @@
 #define VIVID_CID_U16_MATRIX		(VIVID_CID_CUSTOM_BASE + 9)
 #define VIVID_CID_U8_4D_ARRAY		(VIVID_CID_CUSTOM_BASE + 10)
 #define VIVID_CID_AREA			(VIVID_CID_CUSTOM_BASE + 11)
+#define VIVID_CID_RO_INTEGER		(VIVID_CID_CUSTOM_BASE + 12)
 
 #define VIVID_CID_VIVID_BASE		(0x00f00000 | 0xf000)
 #define VIVID_CID_VIVID_CLASS		(0x00f00000 | 1)
@@ -289,6 +290,17 @@ static const struct v4l2_ctrl_config vivid_ctrl_area = {
 	.name = "Area",
 	.type = V4L2_CTRL_TYPE_AREA,
 	.p_def.p_const = &area,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_ro_int32 = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_RO_INTEGER,
+	.name = "Read-Only Integer 32 Bits",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.flags = V4L2_CTRL_FLAG_READ_ONLY,
+	.min = 0,
+	.max = 255,
+	.step = 1,
 };
 
 /* Framebuffer Controls */
@@ -1601,6 +1613,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	dev->string = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_string, NULL);
 	dev->bitmask = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_bitmask, NULL);
 	dev->int_menu = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_int_menu, NULL);
+	dev->ro_int32 = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_ro_int32, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_area, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u32_array, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u16_matrix, NULL);

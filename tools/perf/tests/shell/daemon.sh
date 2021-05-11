@@ -98,6 +98,23 @@ check_line_other()
 	fi
 }
 
+daemon_exit()
+{
+	local config=$1
+
+	local line=`perf daemon --config ${config} -x: | head -1`
+	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+
+	# Reset trap handler.
+	trap - SIGINT SIGTERM
+
+	# stop daemon
+	perf daemon stop --config ${config}
+
+	# ... and wait for the pid to go away
+	tail --pid=${pid} -f /dev/null
+}
+
 daemon_start()
 {
 	local config=$1
@@ -105,27 +122,22 @@ daemon_start()
 
 	perf daemon start --config ${config}
 
+	# Clean up daemon if interrupted.
+	trap "echo 'FAILED: Signal caught'; daemon_exit ${config}; exit 1" SIGINT SIGTERM
+
 	# wait for the session to ping
 	local state="FAIL"
+	local retries=0
 	while [ "${state}" != "OK" ]; do
 		state=`perf daemon ping --config ${config} --session ${session} | awk '{ print $1 }'`
 		sleep 0.05
+		retries=$((${retries} +1))
+		if [ ${retries} -ge 600 ]; then
+			echo "FAILED: Timeout waiting for daemon to ping"
+			daemon_exit ${config}
+			exit 1
+		fi
 	done
-}
-
-daemon_exit()
-{
-	local base=$1
-	local config=$2
-
-	local line=`perf daemon --config ${config} -x: | head -1`
-	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
-
-	# stop daemon
-	perf daemon stop --config ${config}
-
-	# ... and wait for the pid to go away
-	tail --pid=${pid} -f /dev/null
 }
 
 test_list()
@@ -171,7 +183,7 @@ EOF
 			 ${base}/session-time/ack "0"
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -288,7 +300,7 @@ EOF
 	done
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -333,7 +345,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	# check that sessions are gone
 	if [ -d "/proc/${pid_size}" ]; then
@@ -374,7 +386,7 @@ EOF
 	perf daemon signal --config ${config}
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	# count is 2 perf.data for signals and 1 for perf record finished
 	count=`ls ${base}/session-test/ | grep perf.data | wc -l`
@@ -420,7 +432,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -457,7 +469,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}

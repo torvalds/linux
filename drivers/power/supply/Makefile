@@ -101,3 +101,5 @@ obj-$(CONFIG_CHARGER_BD99954)	+= bd99954-charger.o
 obj-$(CONFIG_CHARGER_WILCO)	+= wilco-charger.o
 obj-$(CONFIG_RN5T618_POWER)	+= rn5t618_power.o
 obj-$(CONFIG_BATTERY_ACER_A500)	+= acer_a500_battery.o
+obj-$(CONFIG_BATTERY_SURFACE)	+= surface_battery.o
+obj-$(CONFIG_CHARGER_SURFACE)	+= surface_charger.o

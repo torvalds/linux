@@ -83,10 +83,12 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 static inline int
 mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				struct net_device *mirred_dev,
-				struct mlx5e_encap_entry *e) { return -EOPNOTSUPP; }
-int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
-				    struct net_device *mirred_dev,
-				    struct mlx5e_encap_entry *e)
+				struct mlx5e_encap_entry *e)
+{ return -EOPNOTSUPP; }
+static inline int
+mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
+				struct net_device *mirred_dev,
+				struct mlx5e_encap_entry *e)
 { return -EOPNOTSUPP; }
 #endif
 int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,

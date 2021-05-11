@@ -188,7 +188,7 @@ static int gdm_tty_write_room(struct tty_struct *tty)
 	struct gdm *gdm = tty->driver_data;
 
 	if (!GDM_TTY_READY(gdm))
-		return -ENODEV;
+		return 0;
 
 	return WRITE_SIZE;
 }

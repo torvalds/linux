@@ -387,8 +387,8 @@
 
 	rcar_sound,dai {
 		dai0 {
-			playback = <&ssi4 &src4 &dvc1>;
-			capture = <&ssi3 &src3 &dvc0>;
+			playback = <&ssi4>, <&src4>, <&dvc1>;
+			capture = <&ssi3>, <&src3>, <&dvc0>;
 		};
 	};
 };

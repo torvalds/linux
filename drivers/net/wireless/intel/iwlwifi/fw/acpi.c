@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -181,14 +181,13 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 	/*
 	 * We need at least two packages, one for the revision and one
 	 * for the data itself.  Also check that the revision is valid
-	 * (i.e. it is an integer smaller than 2, as we currently support only
-	 * 2 revisions).
+	 * (i.e. it is an integer (each caller has to check by itself
+	 * if the returned revision is supported)).
 	 */
 	if (data->type != ACPI_TYPE_PACKAGE ||
 	    data->package.count < 2 ||
-	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    data->package.elements[0].integer.value > 1) {
-		IWL_DEBUG_DEV_RADIO(dev, "Unsupported packages structure\n");
+	    data->package.elements[0].type != ACPI_TYPE_INTEGER) {
+		IWL_DEBUG_DEV_RADIO(dev, "Invalid packages structure\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -696,3 +695,70 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_init);
+
+static u32 iwl_acpi_eval_dsm_func(struct device *dev, enum iwl_dsm_funcs_rev_0 eval_func)
+{
+	union acpi_object *obj;
+	u32 ret;
+
+	obj = iwl_acpi_get_dsm_object(dev, 0,
+				      eval_func, NULL,
+				      &iwl_guid);
+
+	if (IS_ERR(obj)) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM func '%d': Got Error in obj = %ld\n",
+				    eval_func,
+				    PTR_ERR(obj));
+		return 0;
+	}
+
+	if (obj->type != ACPI_TYPE_INTEGER) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM func '%d' did not return a valid object, type=%d\n",
+				    eval_func,
+				    obj->type);
+		ret = 0;
+		goto out;
+	}
+
+	ret = obj->integer.value;
+	IWL_DEBUG_DEV_RADIO(dev,
+			    "ACPI: DSM method evaluated: func='%d', ret=%d\n",
+			    eval_func,
+			    ret);
+out:
+	ACPI_FREE(obj);
+	return ret;
+}
+
+__le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
+{
+	u32 ret;
+	__le32 config_bitmap = 0;
+
+	/*
+	 ** Evaluate func 'DSM_FUNC_ENABLE_INDONESIA_5G2'
+	 */
+	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_ENABLE_INDONESIA_5G2);
+
+	if (ret == DSM_VALUE_INDONESIA_ENABLE)
+		config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+
+	/*
+	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
+	 */
+	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_DISABLE_SRD);
+
+	if (ret == DSM_VALUE_SRD_PASSIVE)
+		config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
+
+	else if (ret == DSM_VALUE_SRD_DISABLE)
+		config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+
+	return config_bitmap;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_lari_config_bitmap);

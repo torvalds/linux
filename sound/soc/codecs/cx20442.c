@@ -285,7 +285,6 @@ static void v253_wakeup(struct tty_struct *tty)
 }
 
 struct tty_ldisc_ops v253_ops = {
-	.magic = TTY_LDISC_MAGIC,
 	.name = "cx20442",
 	.owner = THIS_MODULE,
 	.open = v253_open,

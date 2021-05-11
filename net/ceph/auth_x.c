@@ -526,7 +526,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		if (ret < 0)
 			return ret;
 
-		auth->struct_v = 2;  /* nautilus+ */
+		auth->struct_v = 3;  /* nautilus+ */
 		auth->key = 0;
 		for (u = (u64 *)enc_buf; u + 1 <= (u64 *)(enc_buf + ret); u++)
 			auth->key ^= *(__le64 *)u;
