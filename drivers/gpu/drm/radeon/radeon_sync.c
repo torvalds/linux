@@ -105,7 +105,7 @@ int radeon_sync_resv(struct radeon_device *rdev,
 	else if (f)
 		r = dma_fence_wait(f, true);
 
-	flist = dma_resv_get_list(resv);
+	flist = dma_resv_shared_list(resv);
 	if (shared || !flist || r)
 		return r;
 

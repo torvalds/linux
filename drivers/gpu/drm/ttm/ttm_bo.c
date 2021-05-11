@@ -261,7 +261,7 @@ static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 	int i;
 
 	rcu_read_lock();
-	fobj = rcu_dereference(resv->fence);
+	fobj = dma_resv_shared_list(resv);
 	fence = dma_resv_excl_fence(resv);
 	if (fence && !fence->ops->signaled)
 		dma_fence_enable_sw_signaling(fence);

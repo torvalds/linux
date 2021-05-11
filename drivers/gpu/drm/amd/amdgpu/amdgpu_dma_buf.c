@@ -49,7 +49,7 @@ __dma_resv_make_exclusive(struct dma_resv *obj)
 	unsigned int count;
 	int r;
 
-	if (!dma_resv_get_list(obj)) /* no shared fences to convert */
+	if (!dma_resv_shared_list(obj)) /* no shared fences to convert */
 		return 0;
 
 	r = dma_resv_get_fences_rcu(obj, NULL, &count, &fences);

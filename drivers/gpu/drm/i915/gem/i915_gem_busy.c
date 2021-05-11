@@ -116,7 +116,7 @@ retry:
 	args->busy = busy_check_writer(dma_resv_excl_fence(obj->base.resv));
 
 	/* Translate shared fences to READ set of engines */
-	list = rcu_dereference(obj->base.resv->fence);
+	list = dma_resv_shared_list(obj->base.resv);
 	if (list) {
 		unsigned int shared_count = list->shared_count, i;
 

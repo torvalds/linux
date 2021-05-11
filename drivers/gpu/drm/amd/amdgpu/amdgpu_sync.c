@@ -213,7 +213,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	f = dma_resv_excl_fence(resv);
 	r = amdgpu_sync_fence(sync, f);
 
-	flist = dma_resv_get_list(resv);
+	flist = dma_resv_shared_list(resv);
 	if (!flist || r)
 		return r;
 
