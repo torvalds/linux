@@ -26,7 +26,7 @@
 #include "amdgpu_smu.h"
 
 #define SMU13_DRIVER_IF_VERSION_INV 0xFFFFFFFF
-#define SMU13_DRIVER_IF_VERSION_ALDE 0x6
+#define SMU13_DRIVER_IF_VERSION_ALDE 0x07
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
