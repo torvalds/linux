@@ -3801,6 +3801,7 @@ static int f2fs_is_file_aligned(struct inode *inode)
 	block_t pblock;
 	unsigned long nr_pblocks;
 	unsigned int blocks_per_sec = BLKS_PER_SEC(sbi);
+	unsigned int not_aligned = 0;
 	int ret = 0;
 
 	cur_lblock = 0;
@@ -3833,13 +3834,20 @@ static int f2fs_is_file_aligned(struct inode *inode)
 
 		if ((pblock - main_blkaddr) & (blocks_per_sec - 1) ||
 			nr_pblocks & (blocks_per_sec - 1)) {
-			f2fs_err(sbi, "Swapfile does not align to section");
-			ret = -EINVAL;
-			goto out;
+			if (f2fs_is_pinned_file(inode)) {
+				f2fs_err(sbi, "Swapfile does not align to section");
+				ret = -EINVAL;
+				goto out;
+			}
+			not_aligned++;
 		}
 
 		cur_lblock += nr_pblocks;
 	}
+	if (not_aligned)
+		f2fs_warn(sbi, "Swapfile (%u) is not align to section: \n"
+			"\t1) creat(), 2) ioctl(F2FS_IOC_SET_PIN_FILE), 3) fallocate()",
+			not_aligned);
 out:
 	return ret;
 }
@@ -3858,6 +3866,7 @@ static int check_swap_activate_fast(struct swap_info_struct *sis,
 	int nr_extents = 0;
 	unsigned long nr_pblocks;
 	unsigned int blocks_per_sec = BLKS_PER_SEC(sbi);
+	unsigned int not_aligned = 0;
 	int ret = 0;
 
 	/*
@@ -3896,9 +3905,12 @@ static int check_swap_activate_fast(struct swap_info_struct *sis,
 
 		if ((pblock - SM_I(sbi)->main_blkaddr) & (blocks_per_sec - 1) ||
 				nr_pblocks & (blocks_per_sec - 1)) {
-			f2fs_err(sbi, "Swapfile does not align to section");
-			ret = -EINVAL;
-			goto out;
+			if (f2fs_is_pinned_file(inode)) {
+				f2fs_err(sbi, "Swapfile does not align to section");
+				ret = -EINVAL;
+				goto out;
+			}
+			not_aligned++;
 		}
 
 		if (cur_lblock + nr_pblocks >= sis->max)
@@ -3927,6 +3939,11 @@ static int check_swap_activate_fast(struct swap_info_struct *sis,
 	sis->max = cur_lblock;
 	sis->pages = cur_lblock - 1;
 	sis->highest_bit = cur_lblock - 1;
+
+	if (not_aligned)
+		f2fs_warn(sbi, "Swapfile (%u) is not align to section: \n"
+			"\t1) creat(), 2) ioctl(F2FS_IOC_SET_PIN_FILE), 3) fallocate()",
+			not_aligned);
 out:
 	return ret;
 }
