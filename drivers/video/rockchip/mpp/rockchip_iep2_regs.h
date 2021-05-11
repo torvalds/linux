@@ -61,6 +61,8 @@
 #define     IEP2_REG_DIL_MV_HIST_EN			BIT(17)
 #define     IEP2_REG_DIL_ROI_EN				BIT(16)
 #define     IEP2_REG_DIL_COMB_EN			BIT(15)
+#define     IEP2_REG_DIL_BLE_EN				BIT(14)
+#define     IEP2_REG_DIL_EEDI_EN			BIT(13)
 #define     IEP2_REG_DIL_MEMC_EN			BIT(12)
 #define     IEP2_REG_DIL_OSD_EN				BIT(11)
 #define     IEP2_REG_DIL_PD_EN				BIT(10)

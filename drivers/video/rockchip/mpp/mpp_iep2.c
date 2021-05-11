@@ -381,6 +381,8 @@ static void iep2_config(struct mpp_dev *mpp, struct iep_task *task)
 
 	reg = IEP2_REG_DIL_MV_HIST_EN
 		| IEP2_REG_DIL_COMB_EN
+		| IEP2_REG_DIL_BLE_EN
+		| IEP2_REG_DIL_EEDI_EN
 		| IEP2_REG_DIL_MEMC_EN
 		| IEP2_REG_DIL_OSD_EN
 		| IEP2_REG_DIL_PD_EN
