@@ -90,6 +90,11 @@
 		timeout-ms = <5000>;
 	};
 
+	gpio-beeper {
+		compatible = "gpio-beeper";
+		gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+	};
+
 	soc {
 		bus@50000000 {
 			/* The first 16MB region at CS0 on the expansion bus */
