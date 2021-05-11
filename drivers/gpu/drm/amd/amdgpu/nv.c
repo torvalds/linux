@@ -598,7 +598,7 @@ static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
-	if (amdgpu_aspm != 1)
+	if (!amdgpu_aspm)
 		return;
 
 	if (!(adev->flags & AMD_IS_APU) &&
