@@ -451,7 +451,8 @@ static ssize_t nowayout_show(struct device *dev, struct device_attribute *attr,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", !!test_bit(WDOG_NO_WAY_OUT, &wdd->status));
+	return sysfs_emit(buf, "%d\n", !!test_bit(WDOG_NO_WAY_OUT,
+						  &wdd->status));
 }
 
 static ssize_t nowayout_store(struct device *dev, struct device_attribute *attr,
@@ -485,7 +486,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	status = watchdog_get_status(wdd);
 	mutex_unlock(&wd_data->lock);
 
-	return sprintf(buf, "0x%x\n", status);
+	return sysfs_emit(buf, "0x%x\n", status);
 }
 static DEVICE_ATTR_RO(status);
 
@@ -494,7 +495,7 @@ static ssize_t bootstatus_show(struct device *dev,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", wdd->bootstatus);
+	return sysfs_emit(buf, "%u\n", wdd->bootstatus);
 }
 static DEVICE_ATTR_RO(bootstatus);
 
@@ -510,7 +511,7 @@ static ssize_t timeleft_show(struct device *dev, struct device_attribute *attr,
 	status = watchdog_get_timeleft(wdd, &val);
 	mutex_unlock(&wd_data->lock);
 	if (!status)
-		status = sprintf(buf, "%u\n", val);
+		status = sysfs_emit(buf, "%u\n", val);
 
 	return status;
 }
@@ -521,7 +522,7 @@ static ssize_t timeout_show(struct device *dev, struct device_attribute *attr,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", wdd->timeout);
+	return sysfs_emit(buf, "%u\n", wdd->timeout);
 }
 static DEVICE_ATTR_RO(timeout);
 
@@ -548,7 +549,7 @@ static ssize_t pretimeout_show(struct device *dev,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", wdd->pretimeout);
+	return sysfs_emit(buf, "%u\n", wdd->pretimeout);
 }
 static DEVICE_ATTR_RO(pretimeout);
 
@@ -557,7 +558,7 @@ static ssize_t identity_show(struct device *dev, struct device_attribute *attr,
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", wdd->info->identity);
+	return sysfs_emit(buf, "%s\n", wdd->info->identity);
 }
 static DEVICE_ATTR_RO(identity);
 
@@ -567,9 +568,9 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 
 	if (watchdog_active(wdd))
-		return sprintf(buf, "active\n");
+		return sysfs_emit(buf, "active\n");
 
-	return sprintf(buf, "inactive\n");
+	return sysfs_emit(buf, "inactive\n");
 }
 static DEVICE_ATTR_RO(state);
 

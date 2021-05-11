@@ -445,8 +445,9 @@ static ssize_t ziirave_wdt_sysfs_show_firm(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = sprintf(buf, ZIIRAVE_FW_VERSION_FMT, w_priv->firmware_rev.major,
-		      w_priv->firmware_rev.minor);
+	ret = sysfs_emit(buf, ZIIRAVE_FW_VERSION_FMT,
+			 w_priv->firmware_rev.major,
+			 w_priv->firmware_rev.minor);
 
 	mutex_unlock(&w_priv->sysfs_mutex);
 
@@ -468,8 +469,9 @@ static ssize_t ziirave_wdt_sysfs_show_boot(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = sprintf(buf, ZIIRAVE_BL_VERSION_FMT, w_priv->bootloader_rev.major,
-		      w_priv->bootloader_rev.minor);
+	ret = sysfs_emit(buf, ZIIRAVE_BL_VERSION_FMT,
+			 w_priv->bootloader_rev.major,
+			 w_priv->bootloader_rev.minor);
 
 	mutex_unlock(&w_priv->sysfs_mutex);
 
@@ -491,7 +493,7 @@ static ssize_t ziirave_wdt_sysfs_show_reason(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = sprintf(buf, "%s", ziirave_reasons[w_priv->reset_reason]);
+	ret = sysfs_emit(buf, "%s", ziirave_reasons[w_priv->reset_reason]);
 
 	mutex_unlock(&w_priv->sysfs_mutex);
 

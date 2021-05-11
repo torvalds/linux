@@ -175,8 +175,8 @@ static ssize_t access_cs0_show(struct device *dev,
 	struct aspeed_wdt *wdt = dev_get_drvdata(dev);
 	u32 status = readl(wdt->base + WDT_TIMEOUT_STATUS);
 
-	return sprintf(buf, "%u\n",
-		      !(status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY));
+	return sysfs_emit(buf, "%u\n",
+			  !(status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY));
 }
 
 static ssize_t access_cs0_store(struct device *dev,
