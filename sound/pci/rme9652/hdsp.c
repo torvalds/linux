@@ -289,7 +289,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 	return 104857600000000 / rate; // 100 MHz
 	return 110100480000000 / rate; // 105 MHz
 */
-#define DDS_NUMERATOR 104857600000000ULL;  /*  =  2^20 * 10^8 */
+#define DDS_NUMERATOR 104857600000000ULL  /*  =  2^20 * 10^8 */
 
 #define hdsp_encode_latency(x)       (((x)<<1) & HDSP_LatencyMask)
 #define hdsp_decode_latency(x)       (((x) & HDSP_LatencyMask)>>1)
