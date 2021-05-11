@@ -50,8 +50,6 @@ static int mei_open(struct inode *inode, struct file *file)
 	int err;
 
 	dev = container_of(inode->i_cdev, struct mei_device, cdev);
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
 
