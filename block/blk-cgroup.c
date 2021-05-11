@@ -1217,32 +1217,6 @@ void blkcg_exit_queue(struct request_queue *q)
 	blk_throtl_exit(q);
 }
 
-/*
- * We cannot support shared io contexts, as we have no mean to support
- * two tasks with the same ioc in two different groups without major rework
- * of the main cic data structures.  For now we allow a task to change
- * its cgroup only if it's the only owner of its ioc.
- */
-static int blkcg_can_attach(struct cgroup_taskset *tset)
-{
-	struct task_struct *task;
-	struct cgroup_subsys_state *dst_css;
-	struct io_context *ioc;
-	int ret = 0;
-
-	/* task_lock() is needed to avoid races with exit_io_context() */
-	cgroup_taskset_for_each(task, dst_css, tset) {
-		task_lock(task);
-		ioc = task->io_context;
-		if (ioc && atomic_read(&ioc->nr_tasks) > 1)
-			ret = -EINVAL;
-		task_unlock(task);
-		if (ret)
-			break;
-	}
-	return ret;
-}
-
 static void blkcg_bind(struct cgroup_subsys_state *root_css)
 {
 	int i;
@@ -1275,7 +1249,6 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.css_online = blkcg_css_online,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
-	.can_attach = blkcg_can_attach,
 	.css_rstat_flush = blkcg_rstat_flush,
 	.bind = blkcg_bind,
 	.dfl_cftypes = blkcg_files,
