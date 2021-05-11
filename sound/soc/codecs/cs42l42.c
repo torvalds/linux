@@ -1033,7 +1033,7 @@ static void cs42l42_process_hs_type_detect(struct cs42l42_private *cs42l42)
 			CS42L42_AUTO_HSBIAS_HIZ_MASK |
 			CS42L42_TIP_SENSE_EN_MASK |
 			CS42L42_HSBIAS_SENSE_TRIP_MASK,
-			(1 << CS42L42_HSBIAS_SENSE_EN_SHIFT) |
+			(cs42l42->hs_bias_sense_en << CS42L42_HSBIAS_SENSE_EN_SHIFT) |
 			(1 << CS42L42_AUTO_HSBIAS_HIZ_SHIFT) |
 			(0 << CS42L42_TIP_SENSE_EN_SHIFT) |
 			(3 << CS42L42_HSBIAS_SENSE_TRIP_SHIFT));
@@ -1807,6 +1807,11 @@ static int cs42l42_handle_device_data(struct device *dev,
 			CS42L42_HSBIAS_RAMP_MASK,
 			(cs42l42->hs_bias_ramp_rate <<
 			CS42L42_HSBIAS_RAMP_SHIFT));
+
+	if (device_property_read_bool(dev, "cirrus,hs-bias-sense-disable"))
+		cs42l42->hs_bias_sense_en = 0;
+	else
+		cs42l42->hs_bias_sense_en = 1;
 
 	return 0;
 }
