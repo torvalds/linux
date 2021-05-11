@@ -56,6 +56,7 @@ tools/labs/docs/Dockerfile for dependencies):
    lectures/memory-management.rst
    lectures/fs.rst
    lectures/debugging.rst
+   lectures/networking.rst
 
 .. toctree::
    :caption: Labs
