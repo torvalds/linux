@@ -33,6 +33,7 @@
 #include <linux/completion.h>
 
 #include "cs35l35.h"
+#include "cirrus_legacy.h"
 
 /*
  * Some fields take zero as a valid value so use a high bit flag that won't
@@ -495,10 +496,10 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	 * the Class H algorithm does not enable weak-drive operation for
 	 * nonzero values of CH_WKFET_DELAY if SP_RATE = 01 or 10
 	 */
-	errata_chk = clk_ctl & CS35L35_SP_RATE_MASK;
+	errata_chk = (clk_ctl & CS35L35_SP_RATE_MASK) >> CS35L35_SP_RATE_SHIFT;
 
 	if (classh->classh_wk_fet_disable == 0x00 &&
-		(errata_chk == 0x01 || errata_chk == 0x03)) {
+		(errata_chk == 0x01 || errata_chk == 0x02)) {
 		ret = regmap_update_bits(cs35l35->regmap,
 					CS35L35_CLASS_H_FET_DRIVE_CTL,
 					CS35L35_CH_WKFET_DEL_MASK,
@@ -1471,9 +1472,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l35_private *cs35l35;
 	struct device *dev = &i2c_client->dev;
 	struct cs35l35_platform_data *pdata = dev_get_platdata(dev);
-	int i;
+	int i, devid;
 	int ret;
-	unsigned int devid = 0;
 	unsigned int reg;
 
 	cs35l35 = devm_kzalloc(dev, sizeof(struct cs35l35_private), GFP_KERNEL);
@@ -1552,13 +1552,12 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		goto err;
 	}
 	/* initialize codec */
-	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_AB, &reg);
-
-	devid = (reg & 0xFF) << 12;
-	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs35l35->regmap, CS35L35_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto err;
+	}
 
 	if (devid != CS35L35_CHIP_ID) {
 		dev_err(dev, "CS35L35 Device ID (%X). Expected ID %X\n",

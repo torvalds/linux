@@ -36,6 +36,7 @@
 #include <dt-bindings/sound/cs42l42.h>
 
 #include "cs42l42.h"
+#include "cirrus_legacy.h"
 
 static const struct reg_default cs42l42_reg_defaults[] = {
 	{ CS42L42_FRZ_CTL,			0x00 },
@@ -1814,8 +1815,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
 				       const struct i2c_device_id *id)
 {
 	struct cs42l42_private *cs42l42;
-	int ret, i;
-	unsigned int devid = 0;
+	int ret, i, devid;
 	unsigned int reg;
 
 	cs42l42 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l42_private),
@@ -1878,14 +1878,12 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
 			"Failed to request IRQ: %d\n", ret);
 
 	/* initialize codec */
-	ret = regmap_read(cs42l42->regmap, CS42L42_DEVID_AB, &reg);
-	devid = (reg & 0xFF) << 12;
-
-	ret = regmap_read(cs42l42->regmap, CS42L42_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-
-	ret = regmap_read(cs42l42->regmap, CS42L42_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs42l42->regmap, CS42L42_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		goto err_disable;
+	}
 
 	if (devid != CS42L42_CHIP_ID) {
 		ret = -ENODEV;
