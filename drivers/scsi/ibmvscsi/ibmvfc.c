@@ -4728,19 +4728,24 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 		 * and it failed for some reason, such as there being I/O
 		 * pending to the target. In this case, we will have already
 		 * deleted the rport from the FC transport so we do a move
-		 * login, which works even with I/O pending, as it will cancel
-		 * any active commands.
+		 * login, which works even with I/O pending, however, if
+		 * there is still I/O pending, it will stay outstanding, so
+		 * we only do this if fast fail is disabled for the rport,
+		 * otherwise we let terminate_rport_io clean up the port
+		 * before we login at the new location.
 		 */
 		if (wtgt->action == IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT) {
-			/*
-			 * Do a move login here. The old target is no longer
-			 * known to the transport layer We don't use the
-			 * normal ibmvfc_set_tgt_action to set this, as we
-			 * don't normally want to allow this state change.
-			 */
-			wtgt->new_scsi_id = scsi_id;
-			wtgt->action = IBMVFC_TGT_ACTION_INIT;
-			ibmvfc_init_tgt(wtgt, ibmvfc_tgt_move_login);
+			if (wtgt->move_login) {
+				/*
+				 * Do a move login here. The old target is no longer
+				 * known to the transport layer We don't use the
+				 * normal ibmvfc_set_tgt_action to set this, as we
+				 * don't normally want to allow this state change.
+				 */
+				wtgt->new_scsi_id = scsi_id;
+				wtgt->action = IBMVFC_TGT_ACTION_INIT;
+				ibmvfc_init_tgt(wtgt, ibmvfc_tgt_move_login);
+			}
 			goto unlock_out;
 		} else {
 			tgt_err(wtgt, "Unexpected target state: %d, %p\n",
@@ -5486,6 +5491,18 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				rport = tgt->rport;
 				tgt->rport = NULL;
 				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
+
+				/*
+				 * If fast fail is enabled, we wait for it to fire and then clean up
+				 * the old port, since we expect the fast fail timer to clean up the
+				 * outstanding I/O faster than waiting for normal command timeouts.
+				 * However, if fast fail is disabled, any I/O outstanding to the
+				 * rport LUNs will stay outstanding indefinitely, since the EH handlers
+				 * won't get invoked for I/O's timing out. If this is a NPIV failover
+				 * scenario, the better alternative is to use the move login.
+				 */
+				if (rport && rport->fast_io_fail_tmo == -1)
+					tgt->move_login = 1;
 				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				if (rport)
 					fc_remote_port_delete(rport);

@@ -726,6 +726,7 @@ struct ibmvfc_target {
 	int add_rport;
 	int init_retries;
 	int logo_rcvd;
+	int move_login;
 	u32 cancel_key;
 	struct ibmvfc_service_parms service_parms;
 	struct ibmvfc_service_parms service_parms_change;
