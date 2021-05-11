@@ -2340,6 +2340,20 @@
 		status = "disabled";
 	};
 
+	crypto: crypto@fe380000 {
+		compatible = "rockchip,rk3568-crypto";
+		reg = <0x0 0xfe380000 0x0 0x4000>;
+		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CRYPTO_NS>, <&cru HCLK_CRYPTO_NS>,
+			<&cru CLK_CRYPTO_NS_CORE>, <&cru CLK_CRYPTO_NS_PKA>;
+		clock-names = "aclk", "hclk", "sclk", "apb_pclk";
+		assigned-clocks = <&cru CLK_CRYPTO_NS_CORE>;
+		assigned-clock-rates = <200000000>;
+		resets = <&cru SRST_CRYPTO_NS_CORE>;
+		reset-names = "crypto-rst";
+		status = "disabled";
+	};
+
 	rng: rng@fe388000 {
 		compatible = "rockchip,cryptov2-rng";
 		reg = <0x0 0xfe388000 0x0 0x2000>;
