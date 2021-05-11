@@ -90,24 +90,26 @@
 		timeout-ms = <5000>;
 	};
 
-	/* The first 16MB region on the expansion bus */
-	flash@50000000 {
-		compatible = "intel,ixp4xx-flash", "cfi-flash";
-		bank-width = <2>;
-		/*
-		 * 8 MB of Flash in 0x20000 byte blocks
-		 * mapped in at 0x50000000
-		 */
-		reg = <0x50000000 0x800000>;
-
-		partitions {
-			compatible = "redboot-fis";
-			/* Eraseblock at 0x7e0000 */
-			fis-index-block = <0x3f>;
-		};
-	};
-
 	soc {
+		bus@50000000 {
+			/* The first 16MB region at CS0 on the expansion bus */
+			flash@0 {
+				compatible = "intel,ixp4xx-flash", "cfi-flash";
+				bank-width = <2>;
+				/*
+				 * 8 MB of Flash in 0x20000 byte blocks
+				 * mapped in at CS0.
+				 */
+				reg = <0x00000000 0x800000>;
+
+				partitions {
+					compatible = "redboot-fis";
+					/* Eraseblock at 0x7e0000 */
+					fis-index-block = <0x3f>;
+				};
+			};
+		};
+
 		pci@c0000000 {
 			status = "ok";
 
