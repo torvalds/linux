@@ -56,8 +56,10 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 	int ret;
 
 	regmap = dev_get_regmap(parent, NULL);
-	if (!regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to get parent regmap\n");
+	if (!regmap) {
+		dev_err(dev, "Failed to get parent regmap\n");
+		return -ENODEV;
+	}
 
 	a7cc = devm_kzalloc(dev, sizeof(*a7cc), GFP_KERNEL);
 	if (!a7cc)
