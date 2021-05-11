@@ -114,9 +114,6 @@ static void taprio_free_sched_cb(struct rcu_head *head)
 	struct sched_gate_list *sched = container_of(head, struct sched_gate_list, rcu);
 	struct sched_entry *entry, *n;
 
-	if (!sched)
-		return;
-
 	list_for_each_entry_safe(entry, n, &sched->entries, list) {
 		list_del(&entry->list);
 		kfree(entry);
