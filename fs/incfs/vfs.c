@@ -12,6 +12,7 @@
 #include <linux/fsverity.h>
 #include <linux/mmap_lock.h>
 #include <linux/namei.h>
+#include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 
