@@ -74,8 +74,9 @@
 		clocks = <&k3_clks 148 0>;
 	};
 
-	mcu_gpio_intr: interrupt-controller1 {
+	mcu_gpio_intr: interrupt-controller@4210000 {
 		compatible = "ti,sci-intr";
+		reg = <0x00 0x04210000 0x00 0x200>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;
