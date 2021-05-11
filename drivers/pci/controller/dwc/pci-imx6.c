@@ -1002,10 +1002,8 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 			return ret;
 		}
 		imx6_pcie->phy_base = devm_ioremap_resource(dev, &res);
-		if (IS_ERR(imx6_pcie->phy_base)) {
-			dev_err(dev, "Unable to map PCIe PHY\n");
+		if (IS_ERR(imx6_pcie->phy_base))
 			return PTR_ERR(imx6_pcie->phy_base);
-		}
 	}
 
 	dbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
