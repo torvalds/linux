@@ -17,6 +17,7 @@ config SMB_SERVER
 	select CRYPTO_AEAD2
 	select CRYPTO_CCM
 	select CRYPTO_GCM
+	select ASN1
 	default n
 	help
 	  Choose Y here if you want to allow SMB3 compliant clients

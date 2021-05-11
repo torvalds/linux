@@ -1,0 +1,19 @@
+GSSAPI ::=
+	CHOICE {
+		negTokenInit
+			[0] ANY,
+		negTokenTarg
+			[1] NegTokenTarg
+	}
+
+NegTokenTarg ::=
+	SEQUENCE {
+		negResult
+			[0] ENUMERATED OPTIONAL,
+		supportedMech
+			[1] OBJECT IDENTIFIER OPTIONAL,
+		responseToken
+			[2] OCTET STRING OPTIONAL ({neg_token_targ_resp_token}),
+		mechListMIC
+			[3] OCTET STRING OPTIONAL
+	}
