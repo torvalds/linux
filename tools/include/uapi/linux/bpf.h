@@ -527,6 +527,15 @@ union bpf_iter_link_info {
  *		Look up an element with the given *key* in the map referred to
  *		by the file descriptor *fd*, and if found, delete the element.
  *
+ *		For **BPF_MAP_TYPE_QUEUE** and **BPF_MAP_TYPE_STACK** map
+ *		types, the *flags* argument needs to be set to 0, but for other
+ *		map types, it may be specified as:
+ *
+ *		**BPF_F_LOCK**
+ *			Look up and delete the value of a spin-locked map
+ *			without returning the lock. This must be specified if
+ *			the elements contain a spinlock.
+ *
  *		The **BPF_MAP_TYPE_QUEUE** and **BPF_MAP_TYPE_STACK** map types
  *		implement this command as a "pop" operation, deleting the top
  *		element rather than one corresponding to *key*.
@@ -536,6 +545,10 @@ union bpf_iter_link_info {
  *		This command is only valid for the following map types:
  *		* **BPF_MAP_TYPE_QUEUE**
  *		* **BPF_MAP_TYPE_STACK**
+ *		* **BPF_MAP_TYPE_HASH**
+ *		* **BPF_MAP_TYPE_PERCPU_HASH**
+ *		* **BPF_MAP_TYPE_LRU_HASH**
+ *		* **BPF_MAP_TYPE_LRU_PERCPU_HASH**
  *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
