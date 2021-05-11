@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/hw_random.h>
+#include <linux/of.h>
 #include <linux/soc/ixp4xx/cpu.h>
 
 #include <asm/io.h>
@@ -55,9 +56,18 @@ static int ixp4xx_rng_probe(struct platform_device *pdev)
 	return devm_hwrng_register(dev, &ixp4xx_rng_ops);
 }
 
+static const struct of_device_id ixp4xx_rng_of_match[] = {
+	{
+		.compatible = "intel,ixp46x-rng",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ixp4xx_rng_of_match);
+
 static struct platform_driver ixp4xx_rng_driver = {
 	.driver = {
 		.name = "ixp4xx-hwrandom",
+		.of_match_table = ixp4xx_rng_of_match,
 	},
 	.probe = ixp4xx_rng_probe,
 };
