@@ -110,11 +110,6 @@ static int ar8035_phy_fixup(struct phy_device *dev)
 	 */
 	ar8031_phy_fixup(dev);
 
-	/*check phy power*/
-	val = phy_read(dev, 0x0);
-	if (val & BMCR_PDOWN)
-		phy_write(dev, 0x0, val & ~BMCR_PDOWN);
-
 	return 0;
 }
 
