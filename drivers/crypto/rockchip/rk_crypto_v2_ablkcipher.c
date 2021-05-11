@@ -44,6 +44,8 @@ static int rk_crypto_irq_handle(int irq, void *dev_id)
 	interrupt_status = CRYPTO_READ(dev, CRYPTO_DMA_INT_ST);
 	CRYPTO_WRITE(dev, CRYPTO_DMA_INT_ST, interrupt_status);
 
+	interrupt_status &= CRYPTO_LOCKSTEP_MASK;
+
 	if (interrupt_status != CRYPTO_DST_ITEM_DONE_INT_ST) {
 		dev_err(dev->dev, "DMA desc = %p\n", hw_info->desc);
 		dev_err(dev->dev, "DMA addr_in = %08x\n",
