@@ -370,6 +370,7 @@ static const struct of_device_id bcm_voter_of_match[] = {
 	{ .compatible = "qcom,bcm-voter" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, bcm_voter_of_match);
 
 static struct platform_driver qcom_icc_bcm_voter_driver = {
 	.probe = qcom_icc_bcm_voter_probe,
