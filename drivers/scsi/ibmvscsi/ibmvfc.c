@@ -654,8 +654,10 @@ static void ibmvfc_reinit_host(struct ibmvfc_host *vhost)
  **/
 static void ibmvfc_del_tgt(struct ibmvfc_target *tgt)
 {
-	if (!ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_RPORT))
+	if (!ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_RPORT)) {
 		tgt->job_step = ibmvfc_tgt_implicit_logout_and_del;
+		tgt->init_retries = 0;
+	}
 	wake_up(&tgt->vhost->work_wait_q);
 }
 
@@ -4744,6 +4746,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 				 */
 				wtgt->new_scsi_id = scsi_id;
 				wtgt->action = IBMVFC_TGT_ACTION_INIT;
+				wtgt->init_retries = 0;
 				ibmvfc_init_tgt(wtgt, ibmvfc_tgt_move_login);
 			}
 			goto unlock_out;
@@ -5336,6 +5339,7 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 		tgt_dbg(tgt, "Deleting rport with outstanding I/O\n");
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
 		tgt->rport = NULL;
+		tgt->init_retries = 0;
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		fc_remote_port_delete(rport);
 		return;
@@ -5490,6 +5494,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				tgt_dbg(tgt, "Deleting rport with I/O outstanding\n");
 				rport = tgt->rport;
 				tgt->rport = NULL;
+				tgt->init_retries = 0;
 				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
 
 				/*
