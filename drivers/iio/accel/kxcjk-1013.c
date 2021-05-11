@@ -79,6 +79,45 @@
 #define KXTF9_REG_HYST_SET		0x5F
 #define KXCJK1013_REG_WAKE_THRES	0x6A
 
+/* Everything up to 0x11 is equal to KXCJK1013/KXTF9 above */
+#define KX023_REG_INS1			0x12
+#define KX023_REG_INS2			0x13
+#define KX023_REG_INS3			0x14
+#define KX023_REG_STAT			0x15
+#define KX023_REG_INT_REL		0x17
+#define KX023_REG_CNTL1			0x18
+#define KX023_REG_CNTL2			0x19
+#define KX023_REG_CNTL3			0x1A
+#define KX023_REG_ODCNTL		0x1B
+#define KX023_REG_INC1			0x1C
+#define KX023_REG_INC2			0x1D
+#define KX023_REG_INC3			0x1E
+#define KX023_REG_INC4			0x1F
+#define KX023_REG_INC5			0x20
+#define KX023_REG_INC6			0x21
+#define KX023_REG_TILT_TIMER		0x22
+#define KX023_REG_WUFC			0x23
+#define KX023_REG_TDTRC			0x24
+#define KX023_REG_TDTC			0x25
+#define KX023_REG_TTH			0x26
+#define KX023_REG_TTL			0x27
+#define KX023_REG_FTD			0x28
+#define KX023_REG_STD			0x29
+#define KX023_REG_TLT			0x2A
+#define KX023_REG_TWS			0x2B
+#define KX023_REG_ATH			0x30
+#define KX023_REG_TILT_ANGLE_LL		0x32
+#define KX023_REG_TILT_ANGLE_HL		0x33
+#define KX023_REG_HYST_SET		0x34
+#define KX023_REG_LP_CNTL		0x35
+#define KX023_REG_BUF_CNTL1		0x3A
+#define KX023_REG_BUF_CNTL2		0x3B
+#define KX023_REG_BUF_STATUS_1		0x3C
+#define KX023_REG_BUF_STATUS_2		0x3D
+#define KX023_REG_BUF_CLEAR		0x3E
+#define KX023_REG_BUF_READ		0x3F
+#define KX023_REG_SELF_TEST		0x60
+
 #define KXCJK1013_REG_CTRL1_BIT_PC1	BIT(7)
 #define KXCJK1013_REG_CTRL1_BIT_RES	BIT(6)
 #define KXCJK1013_REG_CTRL1_BIT_DRDY	BIT(5)
@@ -119,6 +158,14 @@
 #define KXCJK1013_REG_INT_SRC2_BIT_XP	BIT(4)
 #define KXCJK1013_REG_INT_SRC2_BIT_XN	BIT(5)
 
+/* KX023 interrupt routing to INT1. INT2 can be configured with INC6 */
+#define KX023_REG_INC4_BFI1		BIT(6)
+#define KX023_REG_INC4_WMI1		BIT(5)
+#define KX023_REG_INC4_DRDY1		BIT(4)
+#define KX023_REG_INC4_TDTI1		BIT(2)
+#define KX023_REG_INC4_WUFI1		BIT(1)
+#define KX023_REG_INC4_TPI1		BIT(0)
+
 #define KXCJK1013_DEFAULT_WAKE_THRES	1
 
 enum kx_chipset {
@@ -126,6 +173,7 @@ enum kx_chipset {
 	KXCJ91008,
 	KXTJ21009,
 	KXTF9,
+	KX0231025,
 	KX_MAX_CHIPS /* this must be last */
 };
 
@@ -170,6 +218,19 @@ static const struct kx_chipset_regs kxtf9_regs = {
 	.data_ctrl	= KXCJK1013_REG_DATA_CTRL,
 	.wake_timer	= KXCJK1013_REG_WAKE_TIMER,
 	.wake_thres	= KXTF9_REG_WAKE_THRESH,
+};
+
+/* The registers have totally different names but the bits are compatible */
+static const struct kx_chipset_regs kx0231025_regs = {
+	.int_src1	= KX023_REG_INS2,
+	.int_src2	= KX023_REG_INS3,
+	.int_rel	= KX023_REG_INT_REL,
+	.ctrl1		= KX023_REG_CNTL1,
+	.wuf_ctrl	= KX023_REG_CNTL3,
+	.int_ctrl1	= KX023_REG_INC1,
+	.data_ctrl	= KX023_REG_ODCNTL,
+	.wake_timer	= KX023_REG_WUFC,
+	.wake_thres	= KX023_REG_ATH,
 };
 
 struct kxcjk1013_data {
@@ -307,6 +368,22 @@ static const struct {
 		{0x04, 11000},
 		{0x05, 5100},
 		{0x06, 2700},
+	},
+	/* KX023-1025 */
+	{
+		/* First 4 are not in datasheet, taken from KXCTJ2-1009 */
+		{0x08, 1240000},
+		{0x09, 621000},
+		{0x0A, 309000},
+		{0x0B, 151000},
+		{0, 81000},
+		{0x01, 40000},
+		{0x02, 22000},
+		{0x03, 12000},
+		{0x04, 7000},
+		{0x05, 4400},
+		{0x06, 3000},
+		{0x07, 3000},
 	},
 };
 
@@ -481,6 +558,17 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_int_ctrl1\n");
 		return ret;
+	}
+
+	/* On KX023, route all used interrupts to INT1 for now */
+	if (data->chipset == KX0231025 && data->client->irq > 0) {
+		ret = i2c_smbus_write_byte_data(data->client, KX023_REG_INC4,
+						KX023_REG_INC4_DRDY1 |
+						KX023_REG_INC4_WUFI1);
+		if (ret < 0) {
+			dev_err(&data->client->dev, "Error writing reg_inc4\n");
+			return ret;
+		}
 	}
 
 	ret = kxcjk1013_set_mode(data, OPERATION);
@@ -1414,6 +1502,9 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	case KXTF9:
 		data->regs = &kxtf9_regs;
 		break;
+	case KX0231025:
+		data->regs = &kx0231025_regs;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1633,6 +1724,7 @@ static const struct i2c_device_id kxcjk1013_id[] = {
 	{"kxcj91008", KXCJ91008},
 	{"kxtj21009", KXTJ21009},
 	{"kxtf9",     KXTF9},
+	{"kx023-1025", KX0231025},
 	{"SMO8500",   KXCJ91008},
 	{}
 };
@@ -1644,6 +1736,7 @@ static const struct of_device_id kxcjk1013_of_match[] = {
 	{ .compatible = "kionix,kxcj91008", },
 	{ .compatible = "kionix,kxtj21009", },
 	{ .compatible = "kionix,kxtf9", },
+	{ .compatible = "kionix,kx023-1025", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, kxcjk1013_of_match);
