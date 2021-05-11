@@ -149,10 +149,6 @@
 /* FIXME: ast2600 supports variable max transmission unit */
 #define ASPEED_MCTP_MTU 64
 
-/* PCIe header definitions */
-#define PCIE_VDM_HDR_REQUESTER_BDF_DW 1
-#define PCIE_VDM_HDR_REQUESTER_BDF_MASK GENMASK(31, 16)
-
 struct aspeed_mctp_tx_cmd {
 	u32 tx_lo;
 	u32 tx_hi;
@@ -684,18 +680,40 @@ static int aspeed_mctp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#define LEN_MASK_HI GENMASK(9, 8)
+#define LEN_MASK_LO GENMASK(7, 0)
+#define PCI_VDM_HDR_LEN_MASK_LO GENMASK(31, 24)
+#define PCI_VDM_HDR_LEN_MASK_HI GENMASK(17, 16)
+#define PCIE_VDM_HDR_REQUESTER_BDF_MASK GENMASK(31, 16)
+
 int aspeed_mctp_send_packet(struct mctp_client *client,
-			    struct mctp_pcie_packet *tx_packet)
+			    struct mctp_pcie_packet *packet)
 {
 	struct aspeed_mctp *priv = client->priv;
-	u8 *hdr = (u8 *)tx_packet->data.hdr;
+	u32 *hdr_dw = (u32 *)packet->data.hdr;
+	u8 *hdr = (u8 *)packet->data.hdr;
+	u16 packet_data_sz_dw;
+	u16 pci_data_len_dw;
 	int ret;
 
 	if (priv->pcie.bdf == 0)
 		return -EIO;
 
-	be32p_replace_bits(&tx_packet->data.hdr[PCIE_VDM_HDR_REQUESTER_BDF_DW],
-			   priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
+	/*
+	 * If the data size is different from contents of PCIe VDM header,
+	 * aspeed_mctp_tx_cmd will be programmed incorrectly. This may cause
+	 * MCTP HW to stop working.
+	 */
+	pci_data_len_dw = FIELD_PREP(LEN_MASK_LO, FIELD_GET(PCI_VDM_HDR_LEN_MASK_LO, hdr_dw[0])) |
+			FIELD_PREP(LEN_MASK_HI, FIELD_GET(PCI_VDM_HDR_LEN_MASK_HI, hdr_dw[0]));
+	if (pci_data_len_dw == 0) /* According to PCIe Spec, 0 means 1024 DW */
+		pci_data_len_dw = SZ_1K;
+
+	packet_data_sz_dw = packet->size / sizeof(u32) - sizeof(packet->data.hdr) / sizeof(u32);
+	if (packet_data_sz_dw != pci_data_len_dw)
+		return -EINVAL;
+
+	be32p_replace_bits(&hdr_dw[1], priv->pcie.bdf, PCIE_VDM_HDR_REQUESTER_BDF_MASK);
 
 	/*
 	 * XXX Don't update EID for MCTP Control messages - old EID may
@@ -704,7 +722,7 @@ int aspeed_mctp_send_packet(struct mctp_client *client,
 	if (priv->eid && hdr[MCTP_HDR_TYPE_OFFSET] != MCTP_HDR_TYPE_CONTROL)
 		hdr[MCTP_HDR_SRC_EID_OFFSET] = priv->eid;
 
-	ret = ptr_ring_produce_bh(&client->tx_queue, tx_packet);
+	ret = ptr_ring_produce_bh(&client->tx_queue, packet);
 	if (!ret)
 		tasklet_hi_schedule(&priv->tx.tasklet);
 
