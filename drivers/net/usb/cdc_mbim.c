@@ -168,6 +168,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 		subdriver = usb_cdc_wdm_register(ctx->control,
 						 &dev->status->desc,
 						 le16_to_cpu(ctx->mbim_desc->wMaxControlMessage),
+						 WWAN_PORT_MBIM,
 						 cdc_mbim_wdm_manage_power);
 	if (IS_ERR(subdriver)) {
 		ret = PTR_ERR(subdriver);
