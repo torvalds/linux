@@ -53,6 +53,8 @@
 	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
 			PPC_RAW_ADDI(t, a, i))
 
+#define TEST_SETB(t, bfa)       ppc_inst(PPC_INST_SETB | ___PPC_RT(t) | ___PPC_RA((bfa & 0x7) << 2))
+
 
 static void __init init_pt_regs(struct pt_regs *regs)
 {
@@ -925,6 +927,33 @@ static struct compute_test compute_tests[] = {
 				.instr = ppc_inst(PPC_INST_NOP),
 				.regs = {
 					.gpr[0] = LONG_MAX,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "setb",
+		.cpu_feature = CPU_FTR_ARCH_300,
+		.subtests = {
+			{
+				.descr = "BFA = 1, CR = GT",
+				.instr = TEST_SETB(20, 1),
+				.regs = {
+					.ccr = 0x4000000,
+				}
+			},
+			{
+				.descr = "BFA = 4, CR = LT",
+				.instr = TEST_SETB(20, 4),
+				.regs = {
+					.ccr = 0x8000,
+				}
+			},
+			{
+				.descr = "BFA = 5, CR = EQ",
+				.instr = TEST_SETB(20, 5),
+				.regs = {
+					.ccr = 0x200,
 				}
 			}
 		}
