@@ -1910,6 +1910,9 @@ intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	enum drm_mode_status status;
 
+	if (ycbcr420_output)
+		clock /= 2;
+
 	/* check if we can do 8bpc */
 	status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 8),
 				       true, has_hdmi_sink);
@@ -1960,8 +1963,6 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	}
 
 	ycbcr_420_only = drm_mode_is_420_only(&connector->display_info, mode);
-	if (ycbcr_420_only)
-		clock /= 2;
 
 	status = intel_hdmi_mode_clock_valid(connector, clock, has_hdmi_sink, ycbcr_420_only);
 	if (status != MODE_OK) {
@@ -1970,7 +1971,6 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 		    !drm_mode_is_420_also(&connector->display_info, mode))
 			return status;
 
-		clock /= 2;
 		status = intel_hdmi_mode_clock_valid(connector, clock, has_hdmi_sink, true);
 		if (status != MODE_OK)
 			return status;
