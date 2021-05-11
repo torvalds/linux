@@ -78,6 +78,15 @@ DECLARE_HOOK(android_vh_mm_dirty_limits,
 		unsigned long nr_reclaimable, unsigned long pages_dirtied),
 	TP_ARGS(gdtc, strictlimit, dirty, bg_thresh,
 		nr_reclaimable, pages_dirtied));
+DECLARE_HOOK(android_vh_save_vmalloc_stack,
+	TP_PROTO(unsigned long flags, struct vm_struct *vm),
+	TP_ARGS(flags, vm));
+DECLARE_HOOK(android_vh_show_stack_hash,
+	TP_PROTO(struct seq_file *m, struct vm_struct *v),
+	TP_ARGS(m, v));
+DECLARE_HOOK(android_vh_save_track_hash,
+	TP_PROTO(unsigned long p),
+	TP_ARGS(p));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */

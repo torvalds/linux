@@ -9,6 +9,7 @@
 #include <asm/page.h>		/* pgprot_t */
 #include <linux/rbtree.h>
 #include <linux/overflow.h>
+#include <linux/android_vendor.h>
 
 #include <asm/vmalloc.h>
 
@@ -57,6 +58,7 @@ struct vm_struct {
 	unsigned int		nr_pages;
 	phys_addr_t		phys_addr;
 	const void		*caller;
+	ANDROID_OEM_DATA(1);
 };
 
 struct vmap_area {
