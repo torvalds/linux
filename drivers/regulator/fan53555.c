@@ -89,6 +89,10 @@ enum {
 	FAN53555_CHIP_ID_08 = 8,
 };
 
+enum {
+	TCS4525_CHIP_ID_12 = 12,
+};
+
 /* IC mask revision */
 enum {
 	FAN53555_CHIP_REV_00 = 0x3,
@@ -368,14 +372,21 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 
 static int fan53555_voltages_setup_tcs(struct fan53555_device_info *di)
 {
-	di->slew_reg = TCS4525_TIME;
-	di->slew_mask = TCS_SLEW_MASK;
-	di->slew_shift = TCS_SLEW_MASK;
+	switch (di->chip_id) {
+	case TCS4525_CHIP_ID_12:
+		di->slew_reg = TCS4525_TIME;
+		di->slew_mask = TCS_SLEW_MASK;
+		di->slew_shift = TCS_SLEW_MASK;
 
-	/* Init voltage range and step */
-	di->vsel_min = 600000;
-	di->vsel_step = 6250;
-	di->vsel_count = FAN53526_NVOLTAGES;
+		/* Init voltage range and step */
+		di->vsel_min = 600000;
+		di->vsel_step = 6250;
+		di->vsel_count = FAN53526_NVOLTAGES;
+		break;
+	default:
+		dev_err(di->dev, "Chip ID %d not supported!\n", di->chip_id);
+		return -EINVAL;
+	}
 
 	return 0;
 }
