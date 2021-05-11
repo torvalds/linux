@@ -3855,8 +3855,12 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 	if (!(m->mnt_sb->s_type->fs_flags & FS_ALLOW_IDMAP))
 		return -EINVAL;
 
+	/* Don't yet support filesystem mountable in user namespaces. */
+	if (m->mnt_sb->s_user_ns != &init_user_ns)
+		return -EINVAL;
+
 	/* We're not controlling the superblock. */
-	if (!ns_capable(m->mnt_sb->s_user_ns, CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Mount has already been visible in the filesystem hierarchy. */
