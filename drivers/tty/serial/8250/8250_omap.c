@@ -104,6 +104,9 @@
 #define UART_OMAP_EFR2			0x23
 #define UART_OMAP_EFR2_TIMEOUT_BEHAVE	BIT(6)
 
+/* RX FIFO occupancy indicator */
+#define UART_OMAP_RX_LVL		0x64
+
 struct omap8250_priv {
 	int line;
 	u8 habit;
@@ -625,6 +628,15 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 	serial8250_rpm_get(up);
 	iir = serial_port_in(port, UART_IIR);
 	ret = serial8250_handle_irq(port, iir);
+	/*
+	 * It is possible that RX TIMEOUT is signalled after FIFO
+	 * has been drained, in which case a dummy read of RX FIFO is
+	 * required to clear RX TIMEOUT condition.
+	 */
+	if ((iir & UART_IIR_RX_TIMEOUT) == UART_IIR_RX_TIMEOUT) {
+		if (serial_port_in(port, UART_OMAP_RX_LVL) == 0)
+			serial_port_in(port, UART_RX);
+	}
 	serial8250_rpm_put(up);
 
 	return IRQ_RETVAL(ret);
