@@ -667,3 +667,4 @@ MODULE_DESCRIPTION("Intel SST Audio for Broxton");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:bxt_alc298s_i2s");
 MODULE_ALIAS("platform:glk_alc298s_i2s");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

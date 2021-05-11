@@ -642,3 +642,4 @@ MODULE_AUTHOR("Naveen Manohar <naveen.m@intel.com>");
 MODULE_AUTHOR("Harsha Priya <harshapriya.n@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:glk_rt5682_max98357a");
+MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
