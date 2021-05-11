@@ -66,7 +66,7 @@ struct spwr_ac_device {
 
 static int spwr_ac_update_unlocked(struct spwr_ac_device *ac)
 {
-	u32 old = ac->state;
+	__le32 old = ac->state;
 	int status;
 
 	lockdep_assert_held(&ac->lock);
