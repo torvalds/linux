@@ -1037,6 +1037,7 @@ static const struct qcom_cc_desc disp_cc_sm8250_desc = {
 };
 
 static const struct of_device_id disp_cc_sm8250_match_table[] = {
+	{ .compatible = "qcom,sc8180x-dispcc" },
 	{ .compatible = "qcom,sm8150-dispcc" },
 	{ .compatible = "qcom,sm8250-dispcc" },
 	{ }
@@ -1053,7 +1054,8 @@ static int disp_cc_sm8250_probe(struct platform_device *pdev)
 
 	/* note: trion == lucid, except for the prepare() op */
 	BUILD_BUG_ON(CLK_ALPHA_PLL_TYPE_TRION != CLK_ALPHA_PLL_TYPE_LUCID);
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sm8150-dispcc")) {
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sc8180x-dispcc") ||
+	    of_device_is_compatible(pdev->dev.of_node, "qcom,sm8150-dispcc")) {
 		disp_cc_pll0_config.config_ctl_hi_val = 0x00002267;
 		disp_cc_pll0_config.config_ctl_hi1_val = 0x00000024;
 		disp_cc_pll0_config.user_ctl_hi1_val = 0x000000D0;

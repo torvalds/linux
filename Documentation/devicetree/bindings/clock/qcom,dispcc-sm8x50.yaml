@@ -20,6 +20,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,sc8180x-dispcc
       - qcom,sm8150-dispcc
       - qcom,sm8250-dispcc
 
