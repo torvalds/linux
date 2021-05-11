@@ -2108,14 +2108,62 @@ static void ath10k_htt_rx_h_unchain(struct ath10k *ar,
 	ath10k_unchain_msdu(amsdu, unchain_cnt);
 }
 
+static bool ath10k_htt_rx_validate_amsdu(struct ath10k *ar,
+					 struct sk_buff_head *amsdu)
+{
+	u8 *subframe_hdr;
+	struct sk_buff *first;
+	bool is_first, is_last;
+	struct htt_rx_desc *rxd;
+	struct ieee80211_hdr *hdr;
+	size_t hdr_len, crypto_len;
+	enum htt_rx_mpdu_encrypt_type enctype;
+	int bytes_aligned = ar->hw_params.decap_align_bytes;
+
+	first = skb_peek(amsdu);
+
+	rxd = (void *)first->data - sizeof(*rxd);
+	hdr = (void *)rxd->rx_hdr_status;
+
+	is_first = !!(rxd->msdu_end.common.info0 &
+		      __cpu_to_le32(RX_MSDU_END_INFO0_FIRST_MSDU));
+	is_last = !!(rxd->msdu_end.common.info0 &
+		     __cpu_to_le32(RX_MSDU_END_INFO0_LAST_MSDU));
+
+	/* Return in case of non-aggregated msdu */
+	if (is_first && is_last)
+		return true;
+
+	/* First msdu flag is not set for the first msdu of the list */
+	if (!is_first)
+		return false;
+
+	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
+		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
+
+	hdr_len = ieee80211_hdrlen(hdr->frame_control);
+	crypto_len = ath10k_htt_rx_crypto_param_len(ar, enctype);
+
+	subframe_hdr = (u8 *)hdr + round_up(hdr_len, bytes_aligned) +
+		       crypto_len;
+
+	/* Validate if the amsdu has a proper first subframe.
+	 * There are chances a single msdu can be received as amsdu when
+	 * the unauthenticated amsdu flag of a QoS header
+	 * gets flipped in non-SPP AMSDU's, in such cases the first
+	 * subframe has llc/snap header in place of a valid da.
+	 * return false if the da matches rfc1042 pattern
+	 */
+	if (ether_addr_equal(subframe_hdr, rfc1042_header))
+		return false;
+
+	return true;
+}
+
 static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 					struct sk_buff_head *amsdu,
 					struct ieee80211_rx_status *rx_status)
 {
-	/* FIXME: It might be a good idea to do some fuzzy-testing to drop
-	 * invalid/dangerous frames.
-	 */
-
 	if (!rx_status->freq) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT, "no channel configured; ignoring frame(s)!\n");
 		return false;
@@ -2123,6 +2171,11 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 
 	if (test_bit(ATH10K_CAC_RUNNING, &ar->dev_flags)) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx cac running\n");
+		return false;
+	}
+
+	if (!ath10k_htt_rx_validate_amsdu(ar, amsdu)) {
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "invalid amsdu received\n");
 		return false;
 	}
 
