@@ -16,7 +16,6 @@
 
 #include <linux/etherdevice.h>
 #include <linux/if.h>
-#include <linux/version.h>
 #include "rsi_debugfs.h"
 #include "rsi_mgmt.h"
 #include "rsi_common.h"

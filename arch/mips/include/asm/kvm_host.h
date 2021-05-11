@@ -88,44 +88,10 @@
 
 #define KVM_HALT_POLL_NS_DEFAULT 500000
 
-#ifdef CONFIG_KVM_MIPS_VZ
 extern unsigned long GUESTID_MASK;
 extern unsigned long GUESTID_FIRST_VERSION;
 extern unsigned long GUESTID_VERSION_MASK;
-#endif
 
-
-/*
- * Special address that contains the comm page, used for reducing # of traps
- * This needs to be within 32Kb of 0x0 (so the zero register can be used), but
- * preferably not at 0x0 so that most kernel NULL pointer dereferences can be
- * caught.
- */
-#define KVM_GUEST_COMMPAGE_ADDR		((PAGE_SIZE > 0x8000) ?	0 : \
-					 (0x8000 - PAGE_SIZE))
-
-#define KVM_GUEST_KERNEL_MODE(vcpu)	((kvm_read_c0_guest_status(vcpu->arch.cop0) & (ST0_EXL | ST0_ERL)) || \
-					((kvm_read_c0_guest_status(vcpu->arch.cop0) & KSU_USER) == 0))
-
-#define KVM_GUEST_KUSEG			0x00000000UL
-#define KVM_GUEST_KSEG0			0x40000000UL
-#define KVM_GUEST_KSEG1			0x40000000UL
-#define KVM_GUEST_KSEG23		0x60000000UL
-#define KVM_GUEST_KSEGX(a)		((_ACAST32_(a)) & 0xe0000000)
-#define KVM_GUEST_CPHYSADDR(a)		((_ACAST32_(a)) & 0x1fffffff)
-
-#define KVM_GUEST_CKSEG0ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG0)
-#define KVM_GUEST_CKSEG1ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG1)
-#define KVM_GUEST_CKSEG23ADDR(a)	(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG23)
-
-/*
- * Map an address to a certain kernel segment
- */
-#define KVM_GUEST_KSEG0ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG0)
-#define KVM_GUEST_KSEG1ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG1)
-#define KVM_GUEST_KSEG23ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG23)
-
-#define KVM_INVALID_PAGE		0xdeadbeef
 #define KVM_INVALID_ADDR		0xdeadbeef
 
 /*
@@ -165,7 +131,6 @@ struct kvm_vcpu_stat {
 	u64 fpe_exits;
 	u64 msa_disabled_exits;
 	u64 flush_dcache_exits;
-#ifdef CONFIG_KVM_MIPS_VZ
 	u64 vz_gpsi_exits;
 	u64 vz_gsfc_exits;
 	u64 vz_hc_exits;
@@ -176,7 +141,6 @@ struct kvm_vcpu_stat {
 	u64 vz_resvd_exits;
 #ifdef CONFIG_CPU_LOONGSON64
 	u64 vz_cpucfg_exits;
-#endif
 #endif
 	u64 halt_successful_poll;
 	u64 halt_attempted_poll;
@@ -303,14 +267,6 @@ enum emulation_result {
 	EMULATE_HYPERCALL,	/* HYPCALL instruction */
 };
 
-#define mips3_paddr_to_tlbpfn(x) \
-	(((unsigned long)(x) >> MIPS3_PG_SHIFT) & MIPS3_PG_FRAME)
-#define mips3_tlbpfn_to_paddr(x) \
-	((unsigned long)((x) & MIPS3_PG_FRAME) << MIPS3_PG_SHIFT)
-
-#define MIPS3_PG_SHIFT		6
-#define MIPS3_PG_FRAME		0x3fffffc0
-
 #if defined(CONFIG_64BIT)
 #define VPN2_MASK		GENMASK(cpu_vmbits - 1, 13)
 #else
@@ -337,7 +293,6 @@ struct kvm_mips_tlb {
 #define KVM_MIPS_AUX_FPU	0x1
 #define KVM_MIPS_AUX_MSA	0x2
 
-#define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
 	void *guest_ebase;
 	int (*vcpu_run)(struct kvm_vcpu *vcpu);
@@ -370,9 +325,6 @@ struct kvm_vcpu_arch {
 	/* COP0 State */
 	struct mips_coproc *cop0;
 
-	/* Host KSEG0 address of the EI/DI offset */
-	void *kseg0_commpage;
-
 	/* Resume PC after MMIO completion */
 	unsigned long io_pc;
 	/* GPR used as IO source/target */
@@ -398,19 +350,9 @@ struct kvm_vcpu_arch {
 	/* Bitmask of pending exceptions to be cleared */
 	unsigned long pending_exceptions_clr;
 
-	/* S/W Based TLB for guest */
-	struct kvm_mips_tlb guest_tlb[KVM_MIPS_GUEST_TLB_SIZE];
-
-	/* Guest kernel/user [partial] mm */
-	struct mm_struct guest_kernel_mm, guest_user_mm;
-
-	/* Guest ASID of last user mode execution */
-	unsigned int last_user_gasid;
-
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
 
-#ifdef CONFIG_KVM_MIPS_VZ
 	/* vcpu's vzguestid is different on each host cpu in an smp system */
 	u32 vzguestid[NR_CPUS];
 
@@ -421,7 +363,6 @@ struct kvm_vcpu_arch {
 
 	/* emulated guest MAAR registers */
 	unsigned long maar[6];
-#endif
 
 	/* Last CPU the VCPU state was loaded on */
 	int last_sched_cpu;
@@ -651,20 +592,6 @@ static inline void kvm_change_##name1(struct mips_coproc *cop0,		\
 	__BUILD_KVM_ATOMIC_SAVED(name, type, _reg, sel)			\
 	__BUILD_KVM_SET_WRAP(c0_guest_##name, sw_gc0_##name, type)
 
-#ifndef CONFIG_KVM_MIPS_VZ
-
-/*
- * T&E (trap & emulate software based virtualisation)
- * We generate the common accessors operating exclusively on the saved context
- * in RAM.
- */
-
-#define __BUILD_KVM_RW_HW	__BUILD_KVM_RW_SW
-#define __BUILD_KVM_SET_HW	__BUILD_KVM_SET_SW
-#define __BUILD_KVM_ATOMIC_HW	__BUILD_KVM_ATOMIC_SW
-
-#else
-
 /*
  * VZ (hardware assisted virtualisation)
  * These macros use the active guest state in VZ mode (hardware registers),
@@ -696,8 +623,6 @@ static inline void kvm_change_##name1(struct mips_coproc *cop0,		\
  * Races must be handled explicitly.
  */
 #define __BUILD_KVM_ATOMIC_HW	__BUILD_KVM_SET_HW
-
-#endif
 
 /*
  * Define accessors for CP0 registers that are accessible to the guest. These
@@ -874,42 +799,9 @@ void kvm_drop_fpu(struct kvm_vcpu *vcpu);
 void kvm_lose_fpu(struct kvm_vcpu *vcpu);
 
 /* TLB handling */
-u32 kvm_get_kernel_asid(struct kvm_vcpu *vcpu);
-
-u32 kvm_get_user_asid(struct kvm_vcpu *vcpu);
-
-u32 kvm_get_commpage_asid (struct kvm_vcpu *vcpu);
-
-#ifdef CONFIG_KVM_MIPS_VZ
 int kvm_mips_handle_vz_root_tlb_fault(unsigned long badvaddr,
 				      struct kvm_vcpu *vcpu, bool write_fault);
-#endif
-extern int kvm_mips_handle_kseg0_tlb_fault(unsigned long badbaddr,
-					   struct kvm_vcpu *vcpu,
-					   bool write_fault);
 
-extern int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
-					      struct kvm_vcpu *vcpu);
-
-extern int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
-						struct kvm_mips_tlb *tlb,
-						unsigned long gva,
-						bool write_fault);
-
-extern enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
-						     u32 *opc,
-						     struct kvm_vcpu *vcpu,
-						     bool write_fault);
-
-extern void kvm_mips_dump_host_tlbs(void);
-extern void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu);
-extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi,
-				 bool user, bool kernel);
-
-extern int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu,
-				     unsigned long entryhi);
-
-#ifdef CONFIG_KVM_MIPS_VZ
 int kvm_vz_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi);
 int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 			    unsigned long *gpa);
@@ -923,48 +815,13 @@ void kvm_vz_load_guesttlb(const struct kvm_mips_tlb *buf, unsigned int index,
 void kvm_loongson_clear_guest_vtlb(void);
 void kvm_loongson_clear_guest_ftlb(void);
 #endif
-#endif
-
-void kvm_mips_suspend_mm(int cpu);
-void kvm_mips_resume_mm(int cpu);
 
 /* MMU handling */
 
-/**
- * enum kvm_mips_flush - Types of MMU flushes.
- * @KMF_USER:	Flush guest user virtual memory mappings.
- *		Guest USeg only.
- * @KMF_KERN:	Flush guest kernel virtual memory mappings.
- *		Guest USeg and KSeg2/3.
- * @KMF_GPA:	Flush guest physical memory mappings.
- *		Also includes KSeg0 if KMF_KERN is set.
- */
-enum kvm_mips_flush {
-	KMF_USER	= 0x0,
-	KMF_KERN	= 0x1,
-	KMF_GPA		= 0x2,
-};
-void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags);
 bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn);
 int kvm_mips_mkclean_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn);
 pgd_t *kvm_pgd_alloc(void);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
-void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
-				  bool user);
-void kvm_trap_emul_gva_lockless_begin(struct kvm_vcpu *vcpu);
-void kvm_trap_emul_gva_lockless_end(struct kvm_vcpu *vcpu);
-
-enum kvm_mips_fault_result {
-	KVM_MIPS_MAPPED = 0,
-	KVM_MIPS_GVA,
-	KVM_MIPS_GPA,
-	KVM_MIPS_TLB,
-	KVM_MIPS_TLBINV,
-	KVM_MIPS_TLBMOD,
-};
-enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
-						   unsigned long gva,
-						   bool write);
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 int kvm_unmap_hva_range(struct kvm *kvm,
@@ -974,7 +831,6 @@ int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 
 /* Emulation */
-int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
 enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause);
 int kvm_get_badinstr(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
 int kvm_get_badinstrp(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
@@ -1006,68 +862,6 @@ static inline bool kvm_is_ifetch_fault(struct kvm_vcpu_arch *vcpu)
 	return false;
 }
 
-extern enum emulation_result kvm_mips_emulate_inst(u32 cause,
-						   u32 *opc,
-						   struct kvm_vcpu *vcpu);
-
-long kvm_mips_guest_exception_base(struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_syscall(u32 cause,
-						      u32 *opc,
-						      struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_tlbmiss_ld(u32 cause,
-							 u32 *opc,
-							 struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_tlbinv_ld(u32 cause,
-							u32 *opc,
-							struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_tlbmiss_st(u32 cause,
-							 u32 *opc,
-							 struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_tlbinv_st(u32 cause,
-							u32 *opc,
-							struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_tlbmod(u32 cause,
-						     u32 *opc,
-						     struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_fpu_exc(u32 cause,
-						      u32 *opc,
-						      struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_handle_ri(u32 cause,
-						u32 *opc,
-						struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_ri_exc(u32 cause,
-						     u32 *opc,
-						     struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_bp_exc(u32 cause,
-						     u32 *opc,
-						     struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_trap_exc(u32 cause,
-						       u32 *opc,
-						       struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_msafpe_exc(u32 cause,
-							 u32 *opc,
-							 struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_fpe_exc(u32 cause,
-						      u32 *opc,
-						      struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_emulate_msadis_exc(u32 cause,
-							 u32 *opc,
-							 struct kvm_vcpu *vcpu);
-
 extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu);
 
 u32 kvm_mips_read_count(struct kvm_vcpu *vcpu);
@@ -1087,26 +881,9 @@ ktime_t kvm_mips_freeze_hrtimer(struct kvm_vcpu *vcpu, u32 *count);
 int kvm_mips_restore_hrtimer(struct kvm_vcpu *vcpu, ktime_t before,
 			     u32 count, int min_drift);
 
-#ifdef CONFIG_KVM_MIPS_VZ
 void kvm_vz_acquire_htimer(struct kvm_vcpu *vcpu);
 void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu);
-#else
-static inline void kvm_vz_acquire_htimer(struct kvm_vcpu *vcpu) {}
-static inline void kvm_vz_lose_htimer(struct kvm_vcpu *vcpu) {}
-#endif
 
-enum emulation_result kvm_mips_check_privilege(u32 cause,
-					       u32 *opc,
-					       struct kvm_vcpu *vcpu);
-
-enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
-					     u32 *opc,
-					     u32 cause,
-					     struct kvm_vcpu *vcpu);
-enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
-					   u32 *opc,
-					   u32 cause,
-					   struct kvm_vcpu *vcpu);
 enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 					     u32 cause,
 					     struct kvm_vcpu *vcpu);
@@ -1117,26 +894,11 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 /* COP0 */
 enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu);
 
-unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu);
-unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu);
-unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu);
-unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
-
 /* Hypercalls (hypcall.c) */
 
 enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
 					    union mips_instruction inst);
 int kvm_mips_handle_hypcall(struct kvm_vcpu *vcpu);
-
-/* Dynamic binary translation */
-extern int kvm_mips_trans_cache_index(union mips_instruction inst,
-				      u32 *opc, struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_cache_va(union mips_instruction inst, u32 *opc,
-				   struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_mfc0(union mips_instruction inst, u32 *opc,
-			       struct kvm_vcpu *vcpu);
-extern int kvm_mips_trans_mtc0(union mips_instruction inst, u32 *opc,
-			       struct kvm_vcpu *vcpu);
 
 /* Misc */
 extern void kvm_mips_dump_stats(struct kvm_vcpu *vcpu);

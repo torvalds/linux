@@ -31,5 +31,6 @@ int ionic_rx_filter_save(struct ionic_lif *lif, u32 flow_id, u16 rxq_index,
 			 u32 hash, struct ionic_admin_ctx *ctx);
 struct ionic_rx_filter *ionic_rx_filter_by_vlan(struct ionic_lif *lif, u16 vid);
 struct ionic_rx_filter *ionic_rx_filter_by_addr(struct ionic_lif *lif, const u8 *addr);
+struct ionic_rx_filter *ionic_rx_filter_rxsteer(struct ionic_lif *lif);
 
 #endif /* _IONIC_RX_FILTER_H_ */

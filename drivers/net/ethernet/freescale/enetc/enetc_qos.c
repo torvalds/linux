@@ -455,11 +455,6 @@ static struct enetc_psfp epsfp = {
 
 static LIST_HEAD(enetc_block_cb_list);
 
-static inline int enetc_get_port(struct enetc_ndev_priv *priv)
-{
-	return priv->si->pdev->devfn & 0x7;
-}
-
 /* Stream Identity Entry Set Descriptor */
 static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 				 struct enetc_streamid *sid,
@@ -504,7 +499,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	si_conf = &cbd.sid_set;
 	/* Only one port supported for one entry, set itself */
-	si_conf->iports = cpu_to_le32(1 << enetc_get_port(priv));
+	si_conf->iports = cpu_to_le32(1 << enetc_pf_to_port(priv->si->pdev));
 	si_conf->id_type = 1;
 	si_conf->oui[2] = 0x0;
 	si_conf->oui[1] = 0x80;
@@ -529,7 +524,7 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	si_conf->en = 0x80;
 	si_conf->stream_handle = cpu_to_le32(sid->handle);
-	si_conf->iports = cpu_to_le32(1 << enetc_get_port(priv));
+	si_conf->iports = cpu_to_le32(1 << enetc_pf_to_port(priv->si->pdev));
 	si_conf->id_type = sid->filtertype;
 	si_conf->oui[2] = 0x0;
 	si_conf->oui[1] = 0x80;
@@ -591,7 +586,8 @@ static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
 	}
 
 	sfi_config->sg_inst_table_index = cpu_to_le16(sfi->gate_id);
-	sfi_config->input_ports = cpu_to_le32(1 << enetc_get_port(priv));
+	sfi_config->input_ports =
+		cpu_to_le32(1 << enetc_pf_to_port(priv->si->pdev));
 
 	/* The priority value which may be matched against the
 	 * frame’s priority value to determine a match for this entry.
@@ -1221,6 +1217,11 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	/* Flow meter and max frame size */
 	if (entryp) {
+		if (entryp->police.rate_pkt_ps) {
+			NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
+			err = -EOPNOTSUPP;
+			goto free_sfi;
+		}
 		if (entryp->police.burst) {
 			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
 			if (!fmi) {
@@ -1557,10 +1558,10 @@ int enetc_setup_tc_psfp(struct net_device *ndev, void *type_data)
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		set_bit(enetc_get_port(priv), &epsfp.dev_bitmap);
+		set_bit(enetc_pf_to_port(priv->si->pdev), &epsfp.dev_bitmap);
 		break;
 	case FLOW_BLOCK_UNBIND:
-		clear_bit(enetc_get_port(priv), &epsfp.dev_bitmap);
+		clear_bit(enetc_pf_to_port(priv->si->pdev), &epsfp.dev_bitmap);
 		if (!epsfp.dev_bitmap)
 			clean_psfp_all();
 		break;

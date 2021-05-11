@@ -33,7 +33,7 @@ xfs_readlink_bmap_ilocked(
 	struct xfs_buf		*bp;
 	xfs_daddr_t		d;
 	char			*cur_chunk;
-	int			pathlen = ip->i_d.di_size;
+	int			pathlen = ip->i_disk_size;
 	int			nmaps = XFS_SYMLINK_MAPS;
 	int			byte_cnt;
 	int			n;
@@ -86,7 +86,7 @@ xfs_readlink_bmap_ilocked(
 	}
 	ASSERT(pathlen == 0);
 
-	link[ip->i_d.di_size] = '\0';
+	link[ip->i_disk_size] = '\0';
 	error = 0;
 
  out:
@@ -104,14 +104,14 @@ xfs_readlink(
 
 	trace_xfs_readlink(ip);
 
-	ASSERT(!(ip->i_df.if_flags & XFS_IFINLINE));
+	ASSERT(ip->i_df.if_format != XFS_DINODE_FMT_LOCAL);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
-	pathlen = ip->i_d.di_size;
+	pathlen = ip->i_disk_size;
 	if (!pathlen)
 		goto out;
 
@@ -210,7 +210,7 @@ xfs_symlink(
 	/*
 	 * Check whether the directory allows new symlinks or not.
 	 */
-	if (dp->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) {
+	if (dp->i_diflags & XFS_DIFLAG_NOSYMLINKS) {
 		error = -EPERM;
 		goto out_trans_cancel;
 	}
@@ -224,7 +224,7 @@ xfs_symlink(
 	 * Allocate an inode for the symlink.
 	 */
 	error = xfs_dir_ialloc(mnt_userns, &tp, dp, S_IFLNK | (mode & ~S_IFMT),
-			       1, 0, prid, &ip);
+			       1, 0, prid, false, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -250,7 +250,7 @@ xfs_symlink(
 	if (pathlen <= XFS_IFORK_DSIZE(ip)) {
 		xfs_init_local_fork(ip, XFS_DATA_FORK, target_path, pathlen);
 
-		ip->i_d.di_size = pathlen;
+		ip->i_disk_size = pathlen;
 		ip->i_df.if_format = XFS_DINODE_FMT_LOCAL;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_DDATA | XFS_ILOG_CORE);
 	} else {
@@ -265,7 +265,7 @@ xfs_symlink(
 			goto out_trans_cancel;
 
 		resblks -= fs_blocks;
-		ip->i_d.di_size = pathlen;
+		ip->i_disk_size = pathlen;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 		cur_chunk = target_path;
@@ -300,7 +300,7 @@ xfs_symlink(
 		}
 		ASSERT(pathlen == 0);
 	}
-	i_size_write(VFS_I(ip), ip->i_d.di_size);
+	i_size_write(VFS_I(ip), ip->i_disk_size);
 
 	/*
 	 * Create the directory entry for the symlink.
@@ -377,7 +377,7 @@ xfs_inactive_symlink_rmt(
 	xfs_trans_t	*tp;
 
 	mp = ip->i_mount;
-	ASSERT(ip->i_df.if_flags & XFS_IFEXTENTS);
+	ASSERT(!xfs_need_iread_extents(&ip->i_df));
 	/*
 	 * We're freeing a symlink that has some
 	 * blocks allocated to it.  Free the
@@ -400,8 +400,8 @@ xfs_inactive_symlink_rmt(
 	 * locked for the second transaction.  In the error paths we need it
 	 * held so the cancel won't rele it, see below.
 	 */
-	size = (int)ip->i_d.di_size;
-	ip->i_d.di_size = 0;
+	size = (int)ip->i_disk_size;
+	ip->i_disk_size = 0;
 	VFS_I(ip)->i_mode = (VFS_I(ip)->i_mode & ~S_IFMT) | S_IFREG;
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	/*
@@ -477,7 +477,7 @@ xfs_inactive_symlink(
 		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	pathlen = (int)ip->i_d.di_size;
+	pathlen = (int)ip->i_disk_size;
 	ASSERT(pathlen);
 
 	if (pathlen <= 0 || pathlen > XFS_SYMLINK_MAXLEN) {
@@ -492,7 +492,7 @@ xfs_inactive_symlink(
 	 * Inline fork state gets removed by xfs_difree() so we have nothing to
 	 * do here in that case.
 	 */
-	if (ip->i_df.if_flags & XFS_IFINLINE) {
+	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		return 0;
 	}

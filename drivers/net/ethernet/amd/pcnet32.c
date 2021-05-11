@@ -2853,8 +2853,7 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 			netif_info(lp, link, dev, "link down\n");
 		}
 		if (lp->phycount > 1) {
-			curr_link = pcnet32_check_otherphy(dev);
-			prev_link = 0;
+			pcnet32_check_otherphy(dev);
 		}
 	} else if (verbose || !prev_link) {
 		netif_carrier_on(dev);

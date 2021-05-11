@@ -19,16 +19,23 @@ static const char *__func_get_name(const struct bpf_insn_cbs *cbs,
 {
 	BUILD_BUG_ON(ARRAY_SIZE(func_id_str) != __BPF_FUNC_MAX_ID);
 
-	if (insn->src_reg != BPF_PSEUDO_CALL &&
+	if (!insn->src_reg &&
 	    insn->imm >= 0 && insn->imm < __BPF_FUNC_MAX_ID &&
 	    func_id_str[insn->imm])
 		return func_id_str[insn->imm];
 
-	if (cbs && cbs->cb_call)
-		return cbs->cb_call(cbs->private_data, insn);
+	if (cbs && cbs->cb_call) {
+		const char *res;
+
+		res = cbs->cb_call(cbs->private_data, insn);
+		if (res)
+			return res;
+	}
 
 	if (insn->src_reg == BPF_PSEUDO_CALL)
 		snprintf(buff, len, "%+d", insn->imm);
+	else if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL)
+		snprintf(buff, len, "kernel-function");
 
 	return buff;
 }

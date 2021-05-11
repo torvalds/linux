@@ -67,7 +67,7 @@ BPF_CALL_2(bpf_bprm_opts_set, struct linux_binprm *, bprm, u64, flags)
 
 BTF_ID_LIST_SINGLE(bpf_bprm_opts_set_btf_ids, struct, linux_binprm)
 
-const static struct bpf_func_proto bpf_bprm_opts_set_proto = {
+static const struct bpf_func_proto bpf_bprm_opts_set_proto = {
 	.func		= bpf_bprm_opts_set,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -88,7 +88,7 @@ static bool bpf_ima_inode_hash_allowed(const struct bpf_prog *prog)
 
 BTF_ID_LIST_SINGLE(bpf_ima_inode_hash_btf_ids, struct, inode)
 
-const static struct bpf_func_proto bpf_ima_inode_hash_proto = {
+static const struct bpf_func_proto bpf_ima_inode_hash_proto = {
 	.func		= bpf_ima_inode_hash,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -115,10 +115,6 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_spin_lock_proto;
 	case BPF_FUNC_spin_unlock:
 		return &bpf_spin_unlock_proto;
-	case BPF_FUNC_task_storage_get:
-		return &bpf_task_storage_get_proto;
-	case BPF_FUNC_task_storage_delete:
-		return &bpf_task_storage_delete_proto;
 	case BPF_FUNC_bprm_opts_set:
 		return &bpf_bprm_opts_set_proto;
 	case BPF_FUNC_ima_inode_hash:

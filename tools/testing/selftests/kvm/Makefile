@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-include ../../../../scripts/Kbuild.include
+include ../../../build/Build.include
 
 all:
 

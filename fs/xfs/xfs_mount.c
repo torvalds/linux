@@ -675,6 +675,18 @@ xfs_unmount_flush_inodes(
 	xfs_health_unmount(mp);
 }
 
+static void
+xfs_mount_setup_inode_geom(
+	struct xfs_mount	*mp)
+{
+	struct xfs_ino_geometry *igeo = M_IGEO(mp);
+
+	igeo->attr_fork_offset = xfs_bmap_compute_attr_offset(mp);
+	ASSERT(igeo->attr_fork_offset < XFS_LITINO(mp));
+
+	xfs_ialloc_setup_geometry(mp);
+}
+
 /*
  * This function does the following on an initial mount of a file system:
  *	- reads the superblock from disk and init the mount struct
@@ -758,7 +770,7 @@ xfs_mountfs(
 	xfs_alloc_compute_maxlevels(mp);
 	xfs_bmap_compute_maxlevels(mp, XFS_DATA_FORK);
 	xfs_bmap_compute_maxlevels(mp, XFS_ATTR_FORK);
-	xfs_ialloc_setup_geometry(mp);
+	xfs_mount_setup_inode_geom(mp);
 	xfs_rmapbt_compute_maxlevels(mp);
 	xfs_refcountbt_compute_maxlevels(mp);
 

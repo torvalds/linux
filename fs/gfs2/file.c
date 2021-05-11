@@ -119,8 +119,8 @@ static int gfs2_readdir(struct file *file, struct dir_context *ctx)
 	return error;
 }
 
-/**
- * fsflag_gfs2flag
+/*
+ * struct fsflag_gfs2flag
  *
  * The FS_JOURNAL_DATA_FL flag maps to GFS2_DIF_INHERIT_JDATA for directories,
  * and to GFS2_DIF_JDATA for non-directories.
@@ -398,7 +398,7 @@ static int gfs2_allocate_page_backing(struct page *page, unsigned int length)
 	do {
 		struct iomap iomap = { };
 
-		if (gfs2_iomap_get_alloc(page->mapping->host, pos, length, &iomap))
+		if (gfs2_iomap_alloc(page->mapping->host, pos, length, &iomap))
 			return -EIO;
 
 		if (length < iomap.length)
@@ -412,7 +412,6 @@ static int gfs2_allocate_page_backing(struct page *page, unsigned int length)
 
 /**
  * gfs2_page_mkwrite - Make a shared, mmap()ed, page writable
- * @vma: The virtual memory area
  * @vmf: The virtual memory fault containing the page to become writable
  *
  * When the page becomes writable, we need to ensure that we have
@@ -563,7 +562,7 @@ static const struct vm_operations_struct gfs2_vm_ops = {
 };
 
 /**
- * gfs2_mmap -
+ * gfs2_mmap
  * @file: The file to map
  * @vma: The VMA which described the mapping
  *
@@ -968,8 +967,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	while (offset < end) {
 		struct iomap iomap = { };
 
-		error = gfs2_iomap_get_alloc(inode, offset, end - offset,
-					     &iomap);
+		error = gfs2_iomap_alloc(inode, offset, end - offset, &iomap);
 		if (error)
 			goto out;
 		offset = iomap.offset + iomap.length;

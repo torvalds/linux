@@ -122,7 +122,6 @@ static struct fsnotify_group *__fsnotify_alloc_group(
 
 	/* set to 0 when there a no external references to this group */
 	refcount_set(&group->refcnt, 1);
-	atomic_set(&group->num_marks, 0);
 	atomic_set(&group->user_waits, 0);
 
 	spin_lock_init(&group->notification_lock);

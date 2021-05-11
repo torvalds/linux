@@ -239,6 +239,23 @@ static int mv88e6xxx_g2_pvt_op(struct mv88e6xxx_chip *chip, int src_dev,
 	return mv88e6xxx_g2_pvt_op_wait(chip);
 }
 
+int mv88e6xxx_g2_pvt_read(struct mv88e6xxx_chip *chip, int src_dev,
+			  int src_port, u16 *data)
+{
+	int err;
+
+	err = mv88e6xxx_g2_pvt_op_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_pvt_op(chip, src_dev, src_port,
+				  MV88E6XXX_G2_PVT_ADDR_OP_READ);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_PVT_DATA, data);
+}
+
 int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
 			   int src_port, u16 data)
 {

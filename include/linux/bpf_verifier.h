@@ -68,6 +68,8 @@ struct bpf_reg_state {
 			unsigned long raw1;
 			unsigned long raw2;
 		} raw;
+
+		u32 subprogno; /* for PTR_TO_FUNC */
 	};
 	/* For PTR_TO_PACKET, used to find other pointers with the same variable
 	 * offset, so they can share range knowledge.
@@ -204,6 +206,7 @@ struct bpf_func_state {
 	int acquired_refs;
 	struct bpf_reference_state *refs;
 	int allocated_stack;
+	bool in_callback_fn;
 	struct bpf_stack_state *stack;
 };
 
@@ -482,6 +485,15 @@ static inline u64 bpf_trampoline_compute_key(const struct bpf_prog *tgt_prog,
 		return ((u64)tgt_prog->aux->id << 32) | btf_id;
 	else
 		return ((u64)btf_obj_id(btf) << 32) | 0x80000000 | btf_id;
+}
+
+/* unpack the IDs from the key as constructed above */
+static inline void bpf_trampoline_unpack_key(u64 key, u32 *obj_id, u32 *btf_id)
+{
+	if (obj_id)
+		*obj_id = key >> 32;
+	if (btf_id)
+		*btf_id = key & 0x7FFFFFFF;
 }
 
 int bpf_check_attach_target(struct bpf_verifier_log *log,

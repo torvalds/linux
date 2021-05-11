@@ -29,7 +29,7 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 			last_htbl = tbl->rx.s_anchor;
 
 		tbl->rx.default_icm_addr = action ?
-			action->dest_tbl.tbl->rx.s_anchor->chunk->icm_addr :
+			action->dest_tbl->tbl->rx.s_anchor->chunk->icm_addr :
 			tbl->rx.nic_dmn->default_icm_addr;
 
 		info.type = CONNECT_MISS;
@@ -53,7 +53,7 @@ int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 			last_htbl = tbl->tx.s_anchor;
 
 		tbl->tx.default_icm_addr = action ?
-			action->dest_tbl.tbl->tx.s_anchor->chunk->icm_addr :
+			action->dest_tbl->tbl->tx.s_anchor->chunk->icm_addr :
 			tbl->tx.nic_dmn->default_icm_addr;
 
 		info.type = CONNECT_MISS;

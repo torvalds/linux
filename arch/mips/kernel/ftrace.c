@@ -90,7 +90,6 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 				unsigned int new_code2)
 {
 	int faulted;
-	mm_segment_t old_fs;
 
 	safe_store_code(new_code1, ip, faulted);
 	if (unlikely(faulted))
@@ -102,10 +101,7 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 		return -EFAULT;
 
 	ip -= 4;
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
-	set_fs(old_fs);
 
 	return 0;
 }
@@ -114,7 +110,6 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
 				 unsigned int new_code2)
 {
 	int faulted;
-	mm_segment_t old_fs;
 
 	ip += 4;
 	safe_store_code(new_code2, ip, faulted);
@@ -126,10 +121,7 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
 	if (unlikely(faulted))
 		return -EFAULT;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
-	set_fs(old_fs);
 
 	return 0;
 }

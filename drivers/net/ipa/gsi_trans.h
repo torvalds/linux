@@ -71,7 +71,7 @@ struct gsi_trans {
 
 /**
  * gsi_trans_pool_init() - Initialize a pool of structures for transactions
- * @gsi:	GSI pointer
+ * @pool:	GSI transaction poll pointer
  * @size:	Size of elements in the pool
  * @count:	Minimum number of elements in the pool
  * @max_alloc:	Maximum number of elements allocated at a time from pool
@@ -123,7 +123,8 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 void *gsi_trans_pool_alloc_dma(struct gsi_trans_pool *pool, dma_addr_t *addr);
 
 /**
- * gsi_trans_pool_exit() - Inverse of gsi_trans_pool_init()
+ * gsi_trans_pool_exit_dma() - Inverse of gsi_trans_pool_init_dma()
+ * @dev:	Device used for DMA
  * @pool:	Pool pointer
  */
 void gsi_trans_pool_exit_dma(struct device *dev, struct gsi_trans_pool *pool);

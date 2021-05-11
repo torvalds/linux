@@ -119,12 +119,12 @@ static struct seg6_local_lwt *seg6_local_lwtunnel(struct lwtunnel_state *lwt)
 	return (struct seg6_local_lwt *)lwt->data;
 }
 
-static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
+static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb, int flags)
 {
 	struct ipv6_sr_hdr *srh;
 	int len, srhoff = 0;
 
-	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, &flags) < 0)
 		return NULL;
 
 	if (!pskb_may_pull(skb, srhoff + sizeof(*srh)))
@@ -152,11 +152,8 @@ static struct ipv6_sr_hdr *get_and_validate_srh(struct sk_buff *skb)
 {
 	struct ipv6_sr_hdr *srh;
 
-	srh = get_srh(skb);
+	srh = get_srh(skb, IP6_FH_F_SKIP_RH);
 	if (!srh)
-		return NULL;
-
-	if (srh->segments_left == 0)
 		return NULL;
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
@@ -172,7 +169,7 @@ static bool decap_and_validate(struct sk_buff *skb, int proto)
 	struct ipv6_sr_hdr *srh;
 	unsigned int off = 0;
 
-	srh = get_srh(skb);
+	srh = get_srh(skb, 0);
 	if (srh && srh->segments_left > 0)
 		return false;
 
@@ -1478,7 +1475,7 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	/* Forcing the desc->optattrs *set* and the desc->attrs *set* to be
 	 * disjoined, this allow us to release acquired resources by optional
 	 * attributes and by required attributes independently from each other
-	 * without any interfarence.
+	 * without any interference.
 	 * In other terms, we are sure that we do not release some the acquired
 	 * resources twice.
 	 *

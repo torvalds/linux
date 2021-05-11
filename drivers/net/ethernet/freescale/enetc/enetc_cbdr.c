@@ -3,9 +3,63 @@
 
 #include "enetc.h"
 
-static void enetc_clean_cbdr(struct enetc_si *si)
+int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,
+		     struct enetc_cbdr *cbdr)
 {
-	struct enetc_cbdr *ring = &si->cbd_ring;
+	int size = bd_count * sizeof(struct enetc_cbd);
+
+	cbdr->bd_base = dma_alloc_coherent(dev, size, &cbdr->bd_dma_base,
+					   GFP_KERNEL);
+	if (!cbdr->bd_base)
+		return -ENOMEM;
+
+	/* h/w requires 128B alignment */
+	if (!IS_ALIGNED(cbdr->bd_dma_base, 128)) {
+		dma_free_coherent(dev, size, cbdr->bd_base,
+				  cbdr->bd_dma_base);
+		return -EINVAL;
+	}
+
+	cbdr->next_to_clean = 0;
+	cbdr->next_to_use = 0;
+	cbdr->dma_dev = dev;
+	cbdr->bd_count = bd_count;
+
+	cbdr->pir = hw->reg + ENETC_SICBDRPIR;
+	cbdr->cir = hw->reg + ENETC_SICBDRCIR;
+	cbdr->mr = hw->reg + ENETC_SICBDRMR;
+
+	/* set CBDR cache attributes */
+	enetc_wr(hw, ENETC_SICAR2,
+		 ENETC_SICAR_RD_COHERENT | ENETC_SICAR_WR_COHERENT);
+
+	enetc_wr(hw, ENETC_SICBDRBAR0, lower_32_bits(cbdr->bd_dma_base));
+	enetc_wr(hw, ENETC_SICBDRBAR1, upper_32_bits(cbdr->bd_dma_base));
+	enetc_wr(hw, ENETC_SICBDRLENR, ENETC_RTBLENR_LEN(cbdr->bd_count));
+
+	enetc_wr_reg(cbdr->pir, cbdr->next_to_clean);
+	enetc_wr_reg(cbdr->cir, cbdr->next_to_use);
+	/* enable ring */
+	enetc_wr_reg(cbdr->mr, BIT(31));
+
+	return 0;
+}
+
+void enetc_teardown_cbdr(struct enetc_cbdr *cbdr)
+{
+	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
+
+	/* disable ring */
+	enetc_wr_reg(cbdr->mr, 0);
+
+	dma_free_coherent(cbdr->dma_dev, size, cbdr->bd_base,
+			  cbdr->bd_dma_base);
+	cbdr->bd_base = NULL;
+	cbdr->dma_dev = NULL;
+}
+
+static void enetc_clean_cbdr(struct enetc_cbdr *ring)
+{
 	struct enetc_cbd *dest_cbd;
 	int i, status;
 
@@ -15,7 +69,7 @@ static void enetc_clean_cbdr(struct enetc_si *si)
 		dest_cbd = ENETC_CBD(*ring, i);
 		status = dest_cbd->status_flags & ENETC_CBD_STATUS_MASK;
 		if (status)
-			dev_warn(&si->pdev->dev, "CMD err %04x for cmd %04x\n",
+			dev_warn(ring->dma_dev, "CMD err %04x for cmd %04x\n",
 				 status, dest_cbd->cmd);
 
 		memset(dest_cbd, 0, sizeof(*dest_cbd));
@@ -43,7 +97,7 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd)
 		return -EIO;
 
 	if (unlikely(!enetc_cbd_unused(ring)))
-		enetc_clean_cbdr(si);
+		enetc_clean_cbdr(ring);
 
 	i = ring->next_to_use;
 	dest_cbd = ENETC_CBD(*ring, i);
@@ -69,7 +123,7 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd)
 	/* CBD may writeback data, feedback up level */
 	*cbd = *dest_cbd;
 
-	enetc_clean_cbdr(si);
+	enetc_clean_cbdr(ring);
 
 	return 0;
 }
@@ -117,6 +171,7 @@ int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
 int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
 		       int index)
 {
+	struct enetc_cbdr *ring = &si->cbd_ring;
 	struct enetc_cbd cbd = {.cmd = 0};
 	dma_addr_t dma, dma_align;
 	void *tmp, *tmp_align;
@@ -129,10 +184,10 @@ int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
 	cbd.length = cpu_to_le16(sizeof(*rfse));
 	cbd.opt[3] = cpu_to_le32(0); /* SI */
 
-	tmp = dma_alloc_coherent(&si->pdev->dev, sizeof(*rfse) + RFSE_ALIGN,
+	tmp = dma_alloc_coherent(ring->dma_dev, sizeof(*rfse) + RFSE_ALIGN,
 				 &dma, GFP_KERNEL);
 	if (!tmp) {
-		dev_err(&si->pdev->dev, "DMA mapping of RFS entry failed!\n");
+		dev_err(ring->dma_dev, "DMA mapping of RFS entry failed!\n");
 		return -ENOMEM;
 	}
 
@@ -145,9 +200,9 @@ int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
 
 	err = enetc_send_cmd(si, &cbd);
 	if (err)
-		dev_err(&si->pdev->dev, "FS entry add failed (%d)!", err);
+		dev_err(ring->dma_dev, "FS entry add failed (%d)!", err);
 
-	dma_free_coherent(&si->pdev->dev, sizeof(*rfse) + RFSE_ALIGN,
+	dma_free_coherent(ring->dma_dev, sizeof(*rfse) + RFSE_ALIGN,
 			  tmp, dma);
 
 	return err;
@@ -157,6 +212,7 @@ int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
 static int enetc_cmd_rss_table(struct enetc_si *si, u32 *table, int count,
 			       bool read)
 {
+	struct enetc_cbdr *ring = &si->cbd_ring;
 	struct enetc_cbd cbd = {.cmd = 0};
 	dma_addr_t dma, dma_align;
 	u8 *tmp, *tmp_align;
@@ -166,10 +222,10 @@ static int enetc_cmd_rss_table(struct enetc_si *si, u32 *table, int count,
 		/* HW only takes in a full 64 entry table */
 		return -EINVAL;
 
-	tmp = dma_alloc_coherent(&si->pdev->dev, count + RSSE_ALIGN,
+	tmp = dma_alloc_coherent(ring->dma_dev, count + RSSE_ALIGN,
 				 &dma, GFP_KERNEL);
 	if (!tmp) {
-		dev_err(&si->pdev->dev, "DMA mapping of RSS table failed!\n");
+		dev_err(ring->dma_dev, "DMA mapping of RSS table failed!\n");
 		return -ENOMEM;
 	}
 	dma_align = ALIGN(dma, RSSE_ALIGN);
@@ -189,13 +245,13 @@ static int enetc_cmd_rss_table(struct enetc_si *si, u32 *table, int count,
 
 	err = enetc_send_cmd(si, &cbd);
 	if (err)
-		dev_err(&si->pdev->dev, "RSS cmd failed (%d)!", err);
+		dev_err(ring->dma_dev, "RSS cmd failed (%d)!", err);
 
 	if (read)
 		for (i = 0; i < count; i++)
 			table[i] = tmp_align[i];
 
-	dma_free_coherent(&si->pdev->dev, count + RSSE_ALIGN, tmp, dma);
+	dma_free_coherent(ring->dma_dev, count + RSSE_ALIGN, tmp, dma);
 
 	return err;
 }

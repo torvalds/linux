@@ -3040,15 +3040,4 @@ static struct pci_driver enic_driver = {
 	.remove = enic_remove,
 };
 
-static int __init enic_init_module(void)
-{
-	return pci_register_driver(&enic_driver);
-}
-
-static void __exit enic_cleanup_module(void)
-{
-	pci_unregister_driver(&enic_driver);
-}
-
-module_init(enic_init_module);
-module_exit(enic_cleanup_module);
+module_pci_driver(enic_driver);

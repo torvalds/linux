@@ -12,10 +12,11 @@ int mlx5_cmd_dealloc_sf(struct mlx5_core_dev *dev, u16 function_id);
 int mlx5_cmd_sf_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_cmd_sf_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
 
-u16 mlx5_sf_sw_to_hw_id(const struct mlx5_core_dev *dev, u16 sw_id);
+u16 mlx5_sf_sw_to_hw_id(struct mlx5_core_dev *dev, u32 controller, u16 sw_id);
 
-int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum);
-void mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u16 id);
-void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u16 id);
+int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 controller, u32 usr_sfnum);
+void mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u32 controller, u16 id);
+void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u32 controller, u16 id);
+bool mlx5_sf_hw_table_supported(const struct mlx5_core_dev *dev);
 
 #endif
