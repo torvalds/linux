@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -70,6 +71,7 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 	struct eeprom_93xx46_dev *edev = priv;
 	char *buf = val;
 	int err = 0;
+	int bits;
 
 	if (unlikely(off >= edev->size))
 		return 0;
@@ -83,21 +85,21 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 	if (edev->pdata->prepare)
 		edev->pdata->prepare(edev);
 
+	/* The opcode in front of the address is three bits. */
+	bits = edev->addrlen + 3;
+
 	while (count) {
 		struct spi_message m;
 		struct spi_transfer t[2] = { { 0 } };
 		u16 cmd_addr = OP_READ << edev->addrlen;
 		size_t nbytes = count;
-		int bits;
 
-		if (edev->addrlen == 7) {
-			cmd_addr |= off & 0x7f;
-			bits = 10;
+		if (edev->pdata->flags & EE_ADDR8) {
+			cmd_addr |= off;
 			if (has_quirk_single_word_read(edev))
 				nbytes = 1;
 		} else {
-			cmd_addr |= (off >> 1) & 0x3f;
-			bits = 9;
+			cmd_addr |= (off >> 1);
 			if (has_quirk_single_word_read(edev))
 				nbytes = 2;
 		}
@@ -152,14 +154,14 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 	int bits, ret;
 	u16 cmd_addr;
 
+	/* The opcode in front of the address is three bits. */
+	bits = edev->addrlen + 3;
+
 	cmd_addr = OP_START << edev->addrlen;
-	if (edev->addrlen == 7) {
+	if (edev->pdata->flags & EE_ADDR8)
 		cmd_addr |= (is_on ? ADDR_EWEN : ADDR_EWDS) << 1;
-		bits = 10;
-	} else {
+	else
 		cmd_addr |= (is_on ? ADDR_EWEN : ADDR_EWDS);
-		bits = 9;
-	}
 
 	if (has_quirk_instruction_length(edev)) {
 		cmd_addr <<= 2;
@@ -205,15 +207,19 @@ eeprom_93xx46_write_word(struct eeprom_93xx46_dev *edev,
 	int bits, data_len, ret;
 	u16 cmd_addr;
 
+	if (unlikely(off >= edev->size))
+		return -EINVAL;
+
+	/* The opcode in front of the address is three bits. */
+	bits = edev->addrlen + 3;
+
 	cmd_addr = OP_WRITE << edev->addrlen;
 
-	if (edev->addrlen == 7) {
-		cmd_addr |= off & 0x7f;
-		bits = 10;
+	if (edev->pdata->flags & EE_ADDR8) {
+		cmd_addr |= off;
 		data_len = 1;
 	} else {
-		cmd_addr |= (off >> 1) & 0x3f;
-		bits = 9;
+		cmd_addr |= (off >> 1);
 		data_len = 2;
 	}
 
@@ -253,7 +259,7 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 		return count;
 
 	/* only write even number of bytes on 16-bit devices */
-	if (edev->addrlen == 6) {
+	if (edev->pdata->flags & EE_ADDR16) {
 		step = 2;
 		count &= ~1;
 	}
@@ -295,14 +301,14 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 	int bits, ret;
 	u16 cmd_addr;
 
+	/* The opcode in front of the address is three bits. */
+	bits = edev->addrlen + 3;
+
 	cmd_addr = OP_START << edev->addrlen;
-	if (edev->addrlen == 7) {
+	if (edev->pdata->flags & EE_ADDR8)
 		cmd_addr |= ADDR_ERAL << 1;
-		bits = 10;
-	} else {
+	else
 		cmd_addr |= ADDR_ERAL;
-		bits = 9;
-	}
 
 	if (has_quirk_instruction_length(edev)) {
 		cmd_addr <<= 2;
@@ -455,10 +461,12 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	if (!edev)
 		return -ENOMEM;
 
+	edev->size = 128;
+
 	if (pd->flags & EE_ADDR8)
-		edev->addrlen = 7;
+		edev->addrlen = ilog2(edev->size);
 	else if (pd->flags & EE_ADDR16)
-		edev->addrlen = 6;
+		edev->addrlen = ilog2(edev->size) - 1;
 	else {
 		dev_err(&spi->dev, "unspecified address type\n");
 		return -EINVAL;
@@ -469,7 +477,6 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	edev->spi = spi;
 	edev->pdata = pd;
 
-	edev->size = 128;
 	edev->nvmem_config.type = NVMEM_TYPE_EEPROM;
 	edev->nvmem_config.name = dev_name(&spi->dev);
 	edev->nvmem_config.dev = &spi->dev;
