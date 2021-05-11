@@ -1904,10 +1904,10 @@ static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
 }
 
 static enum drm_mode_status
-intel_hdmi_mode_clock_valid(struct intel_hdmi *hdmi, int clock, bool has_hdmi_sink)
+intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
+			    bool has_hdmi_sink, bool ycbcr420_output)
 {
-	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	enum drm_mode_status status;
 
 	/* check if we can do 8bpc */
@@ -1916,12 +1916,14 @@ intel_hdmi_mode_clock_valid(struct intel_hdmi *hdmi, int clock, bool has_hdmi_si
 
 	if (has_hdmi_sink) {
 		/* if we can't do 8bpc we may still be able to do 12bpc */
-		if (status != MODE_OK && !HAS_GMCH(dev_priv))
+		if (status != MODE_OK &&
+		    intel_hdmi_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
 			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
 						       true, has_hdmi_sink);
 
 		/* if we can't do 8,12bpc we may still be able to do 10bpc */
-		if (status != MODE_OK && DISPLAY_VER(dev_priv) >= 11)
+		if (status != MODE_OK &&
+		    intel_hdmi_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
 			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
 						       true, has_hdmi_sink);
 	}
@@ -1961,7 +1963,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	if (ycbcr_420_only)
 		clock /= 2;
 
-	status = intel_hdmi_mode_clock_valid(hdmi, clock, has_hdmi_sink);
+	status = intel_hdmi_mode_clock_valid(connector, clock, has_hdmi_sink, ycbcr_420_only);
 	if (status != MODE_OK) {
 		if (ycbcr_420_only ||
 		    !connector->ycbcr_420_allowed ||
@@ -1969,7 +1971,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 			return status;
 
 		clock /= 2;
-		status = intel_hdmi_mode_clock_valid(hdmi, clock, has_hdmi_sink);
+		status = intel_hdmi_mode_clock_valid(connector, clock, has_hdmi_sink, true);
 		if (status != MODE_OK)
 			return status;
 	}
