@@ -29,6 +29,7 @@ static DEFINE_PER_CPU(atomic64_t, busy_hyst_end_time) = ATOMIC64_INIT(0);
 static DEFINE_PER_CPU(u64, hyst_time);
 static DEFINE_PER_CPU(u64, coloc_hyst_busy);
 static DEFINE_PER_CPU(u64, coloc_hyst_time);
+static DEFINE_PER_CPU(u64, util_hyst_time);
 
 #define NR_THRESHOLD_PCT		15
 #define MAX_RTGB_TIME (sysctl_sched_coloc_busy_hyst_max_ms * NSEC_PER_MSEC)
@@ -130,6 +131,9 @@ void sched_update_hyst_times(void)
 			     sysctl_sched_coloc_busy_hyst_cpu[cpu] : 0;
 		per_cpu(coloc_hyst_busy, cpu) = mult_frac(cpu_cap,
 							coloc_busy_pct, 100);
+		per_cpu(util_hyst_time, cpu) = (BIT(cpu)
+				& sysctl_sched_util_busy_hyst_enable_cpus) ?
+				sysctl_sched_util_busy_hyst_cpu[cpu] : 0;
 	}
 }
 
@@ -140,9 +144,12 @@ static inline void update_busy_hyst_end_time(int cpu, bool dequeue,
 {
 	bool nr_run_trigger = false;
 	bool load_trigger = false, coloc_load_trigger = false;
-	u64 agg_hyst_time;
+	u64 agg_hyst_time, total_util = 0;
+	bool util_load_trigger = false;
+	int i;
 
-	if (!per_cpu(hyst_time, cpu) && !per_cpu(coloc_hyst_time, cpu))
+	if (!per_cpu(hyst_time, cpu) && !per_cpu(coloc_hyst_time, cpu) &&
+	    !per_cpu(util_hyst_time, cpu))
 		return;
 
 	if (prev_nr_run >= BUSY_NR_RUN && per_cpu(nr, cpu) < BUSY_NR_RUN)
@@ -155,10 +162,22 @@ static inline void update_busy_hyst_end_time(int cpu, bool dequeue,
 	if (dequeue && cpu_util(cpu) > per_cpu(coloc_hyst_busy, cpu))
 		coloc_load_trigger = true;
 
-	agg_hyst_time = max((nr_run_trigger || load_trigger) ?
+	if (dequeue) {
+		for_each_possible_cpu(i) {
+			total_util += cpu_util(i);
+			if (total_util >= sysctl_sched_util_busy_hyst_cpu_util[cpu]) {
+				util_load_trigger = true;
+				break;
+			}
+		}
+	}
+
+	agg_hyst_time = max(max((nr_run_trigger || load_trigger) ?
 				per_cpu(hyst_time, cpu) : 0,
 				(nr_run_trigger || coloc_load_trigger) ?
-				per_cpu(coloc_hyst_time, cpu) : 0);
+				per_cpu(coloc_hyst_time, cpu) : 0),
+				(util_load_trigger) ?
+				per_cpu(util_hyst_time, cpu) : 0);
 
 	if (agg_hyst_time)
 		atomic64_set(&per_cpu(busy_hyst_end_time, cpu),
