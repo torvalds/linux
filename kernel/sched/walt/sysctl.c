@@ -34,6 +34,9 @@ unsigned int sysctl_sched_coloc_busy_hyst_enable_cpus;
 unsigned int sysctl_sched_coloc_busy_hyst_cpu[WALT_NR_CPUS];
 unsigned int sysctl_sched_coloc_busy_hyst_max_ms;
 unsigned int sysctl_sched_coloc_busy_hyst_cpu_busy_pct[WALT_NR_CPUS];
+unsigned int sysctl_sched_util_busy_hyst_enable_cpus;
+unsigned int sysctl_sched_util_busy_hyst_cpu[WALT_NR_CPUS];
+unsigned int sysctl_sched_util_busy_hyst_cpu_util[WALT_NR_CPUS];
 unsigned int sysctl_sched_boost;
 unsigned int sysctl_sched_wake_up_idle[2];
 unsigned int sysctl_input_boost_ms;
@@ -615,6 +618,33 @@ struct ctl_table walt_table[] = {
 		.extra2		= &one_hundred,
 	},
 	{
+		.procname	= "sched_util_busy_hysteresis_enable_cpus",
+		.data		= &sysctl_sched_util_busy_hyst_enable_cpus,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= sched_busy_hyst_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &two_hundred_fifty_five,
+	},
+	{
+		.procname	= "sched_util_busy_hyst_cpu_ns",
+		.data		= &sysctl_sched_util_busy_hyst_cpu,
+		.maxlen		= sizeof(unsigned int) * WALT_NR_CPUS,
+		.mode		= 0644,
+		.proc_handler	= sched_busy_hyst_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &ns_per_sec,
+	},
+	{
+		.procname	= "sched_util_busy_hyst_cpu_util",
+		.data		= &sysctl_sched_util_busy_hyst_cpu_util,
+		.maxlen		= sizeof(unsigned int) * WALT_NR_CPUS,
+		.mode		= 0644,
+		.proc_handler	= sched_busy_hyst_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &one_thousand,
+	},
+	{
 		.procname	= "sched_ravg_window_nr_ticks",
 		.data		= &sysctl_sched_ravg_window_nr_ticks,
 		.maxlen		= sizeof(unsigned int),
@@ -781,9 +811,13 @@ void walt_tunables(void)
 	for (i = 0; i < WALT_NR_CPUS; i++) {
 		sysctl_sched_coloc_busy_hyst_cpu[i] = 39000000;
 		sysctl_sched_coloc_busy_hyst_cpu_busy_pct[i] = 10;
+		sysctl_sched_util_busy_hyst_cpu[i] = 5000000;
+		sysctl_sched_util_busy_hyst_cpu_util[i] = 15;
 	}
 
 	sysctl_sched_coloc_busy_hyst_enable_cpus = 112;
+
+	sysctl_sched_util_busy_hyst_enable_cpus = 255;
 
 	sysctl_sched_coloc_busy_hyst_max_ms = 5000;
 

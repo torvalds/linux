@@ -210,6 +210,9 @@ extern unsigned int sysctl_sched_coloc_busy_hyst_enable_cpus;
 extern unsigned int sysctl_sched_coloc_busy_hyst_cpu[WALT_NR_CPUS];
 extern unsigned int sysctl_sched_coloc_busy_hyst_max_ms;
 extern unsigned int sysctl_sched_coloc_busy_hyst_cpu_busy_pct[WALT_NR_CPUS];
+extern unsigned int sysctl_sched_util_busy_hyst_enable_cpus;
+extern unsigned int sysctl_sched_util_busy_hyst_cpu[WALT_NR_CPUS];
+extern unsigned int sysctl_sched_util_busy_hyst_cpu_util[WALT_NR_CPUS];
 extern unsigned int sysctl_sched_boost; /* To/from userspace */
 extern unsigned int sysctl_sched_capacity_margin_up[MAX_MARGIN_LEVELS];
 extern unsigned int sysctl_sched_capacity_margin_down[MAX_MARGIN_LEVELS];
