@@ -66,14 +66,14 @@ struct superblock {
 	__u8 magic[8];
 	__u8 version;
 	__u8 log2_interleave_sectors;
-	__u16 integrity_tag_size;
-	__u32 journal_sections;
-	__u64 provided_data_sectors;	/* userspace uses this value */
-	__u32 flags;
+	__le16 integrity_tag_size;
+	__le32 journal_sections;
+	__le64 provided_data_sectors;	/* userspace uses this value */
+	__le32 flags;
 	__u8 log2_sectors_per_block;
 	__u8 log2_blocks_per_bitmap_bit;
 	__u8 pad[2];
-	__u64 recalc_sector;
+	__le64 recalc_sector;
 	__u8 pad2[8];
 	__u8 salt[SALT_SIZE];
 };
@@ -86,16 +86,16 @@ struct superblock {
 
 #define	JOURNAL_ENTRY_ROUNDUP		8
 
-typedef __u64 commit_id_t;
+typedef __le64 commit_id_t;
 #define JOURNAL_MAC_PER_SECTOR		8
 
 struct journal_entry {
 	union {
 		struct {
-			__u32 sector_lo;
-			__u32 sector_hi;
+			__le32 sector_lo;
+			__le32 sector_hi;
 		} s;
-		__u64 sector;
+		__le64 sector;
 	} u;
 	commit_id_t last_bytes[];
 	/* __u8 tag[0]; */
@@ -806,7 +806,7 @@ static void section_mac(struct dm_integrity_c *ic, unsigned section, __u8 result
 	}
 
 	if (ic->sb->flags & cpu_to_le32(SB_FLAG_FIXED_HMAC)) {
-		uint64_t section_le;
+		__le64 section_le;
 
 		r = crypto_shash_update(desc, (__u8 *)&ic->sb->salt, SALT_SIZE);
 		if (unlikely(r < 0)) {
@@ -1640,7 +1640,7 @@ static void integrity_end_io(struct bio *bio)
 static void integrity_sector_checksum(struct dm_integrity_c *ic, sector_t sector,
 				      const char *data, char *result)
 {
-	__u64 sector_le = cpu_to_le64(sector);
+	__le64 sector_le = cpu_to_le64(sector);
 	SHASH_DESC_ON_STACK(req, ic->internal_hash);
 	int r;
 	unsigned digest_size;
@@ -3822,7 +3822,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 			for (i = 0; i < ic->journal_sections; i++) {
 				struct scatterlist sg;
 				struct skcipher_request *section_req;
-				__u32 section_le = cpu_to_le32(i);
+				__le32 section_le = cpu_to_le32(i);
 
 				memset(crypt_iv, 0x00, ivsize);
 				memset(crypt_data, 0x00, crypt_len);
