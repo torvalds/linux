@@ -230,7 +230,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					kfd_signal_hw_exception_event(pasid);
+					kfd_signal_poison_consumed_event(dev, pasid);
 					amdgpu_amdkfd_gpu_reset(dev->kgd);
 					return;
 				}

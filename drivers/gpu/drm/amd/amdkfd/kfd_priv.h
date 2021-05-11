@@ -1144,6 +1144,8 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 
 void kfd_signal_reset_event(struct kfd_dev *dev);
 
+void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid);
+
 void kfd_flush_tlb(struct kfd_process_device *pdd);
 
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
