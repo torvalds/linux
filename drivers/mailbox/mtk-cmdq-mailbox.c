@@ -519,10 +519,8 @@ static int cmdq_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cmdq->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(cmdq->base)) {
-		dev_err(dev, "failed to ioremap gce\n");
+	if (IS_ERR(cmdq->base))
 		return PTR_ERR(cmdq->base);
-	}
 
 	cmdq->irq = platform_get_irq(pdev, 0);
 	if (cmdq->irq < 0)
