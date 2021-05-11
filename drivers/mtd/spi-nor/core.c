@@ -2839,6 +2839,21 @@ static int spi_nor_init(struct spi_nor *nor)
 	return 0;
 }
 
+/**
+ * spi_nor_soft_reset() - Perform a software reset
+ * @nor:	pointer to 'struct spi_nor'
+ *
+ * Performs a "Soft Reset and Enter Default Protocol Mode" sequence which resets
+ * the device to its power-on-reset state. This is useful when the software has
+ * made some changes to device (volatile) registers and needs to reset it before
+ * shutting down, for example.
+ *
+ * Not every flash supports this sequence. The same set of opcodes might be used
+ * for some other operation on a flash that does not support this. Support for
+ * this sequence can be discovered via SFDP in the BFPT table.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
 static void spi_nor_soft_reset(struct spi_nor *nor)
 {
 	struct spi_mem_op op;
