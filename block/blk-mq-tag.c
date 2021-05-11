@@ -202,10 +202,14 @@ struct bt_iter_data {
 static struct request *blk_mq_find_and_get_req(struct blk_mq_tags *tags,
 		unsigned int bitnr)
 {
-	struct request *rq = tags->rqs[bitnr];
+	struct request *rq;
+	unsigned long flags;
 
+	spin_lock_irqsave(&tags->lock, flags);
+	rq = tags->rqs[bitnr];
 	if (!rq || !refcount_inc_not_zero(&rq->ref))
-		return NULL;
+		rq = NULL;
+	spin_unlock_irqrestore(&tags->lock, flags);
 	return rq;
 }
 
@@ -538,6 +542,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
+	spin_lock_init(&tags->lock);
 
 	if (blk_mq_is_sbitmap_shared(flags))
 		return tags;
