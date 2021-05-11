@@ -718,7 +718,7 @@ struct ibmvfc_target {
 	struct ibmvfc_host *vhost;
 	u64 scsi_id;
 	u64 wwpn;
-	u64 old_scsi_id;
+	u64 new_scsi_id;
 	struct fc_rport *rport;
 	int target_id;
 	enum ibmvfc_target_action action;

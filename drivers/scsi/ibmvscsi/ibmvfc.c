@@ -4299,9 +4299,10 @@ static void ibmvfc_tgt_move_login_done(struct ibmvfc_event *evt)
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
 	switch (status) {
 	case IBMVFC_MAD_SUCCESS:
-		tgt_dbg(tgt, "Move Login succeeded for old scsi_id: %llX\n", tgt->old_scsi_id);
+		tgt_dbg(tgt, "Move Login succeeded for new scsi_id: %llX\n", tgt->new_scsi_id);
 		tgt->ids.node_name = wwn_to_u64(rsp->service_parms.node_name);
 		tgt->ids.port_name = wwn_to_u64(rsp->service_parms.port_name);
+		tgt->scsi_id = tgt->new_scsi_id;
 		tgt->ids.port_id = tgt->scsi_id;
 		memcpy(&tgt->service_parms, &rsp->service_parms,
 		       sizeof(tgt->service_parms));
@@ -4319,8 +4320,8 @@ static void ibmvfc_tgt_move_login_done(struct ibmvfc_event *evt)
 		level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_move_login);
 
 		tgt_log(tgt, level,
-			"Move Login failed: old scsi_id: %llX, flags:%x, vios_flags:%x, rc=0x%02X\n",
-			tgt->old_scsi_id, be32_to_cpu(rsp->flags), be16_to_cpu(rsp->vios_flags),
+			"Move Login failed: new scsi_id: %llX, flags:%x, vios_flags:%x, rc=0x%02X\n",
+			tgt->new_scsi_id, be32_to_cpu(rsp->flags), be16_to_cpu(rsp->vios_flags),
 			status);
 		break;
 	}
@@ -4357,8 +4358,8 @@ static void ibmvfc_tgt_move_login(struct ibmvfc_target *tgt)
 	move->common.opcode = cpu_to_be32(IBMVFC_MOVE_LOGIN);
 	move->common.length = cpu_to_be16(sizeof(*move));
 
-	move->old_scsi_id = cpu_to_be64(tgt->old_scsi_id);
-	move->new_scsi_id = cpu_to_be64(tgt->scsi_id);
+	move->old_scsi_id = cpu_to_be64(tgt->scsi_id);
+	move->new_scsi_id = cpu_to_be64(tgt->new_scsi_id);
 	move->wwpn = cpu_to_be64(tgt->wwpn);
 	move->node_name = cpu_to_be64(tgt->ids.node_name);
 
@@ -4367,7 +4368,7 @@ static void ibmvfc_tgt_move_login(struct ibmvfc_target *tgt)
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		kref_put(&tgt->kref, ibmvfc_release_tgt);
 	} else
-		tgt_dbg(tgt, "Sent Move Login for old scsi_id: %llX\n", tgt->old_scsi_id);
+		tgt_dbg(tgt, "Sent Move Login for new scsi_id: %llX\n", tgt->new_scsi_id);
 }
 
 /**
@@ -4737,8 +4738,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 			 * normal ibmvfc_set_tgt_action to set this, as we
 			 * don't normally want to allow this state change.
 			 */
-			wtgt->old_scsi_id = wtgt->scsi_id;
-			wtgt->scsi_id = scsi_id;
+			wtgt->new_scsi_id = scsi_id;
 			wtgt->action = IBMVFC_TGT_ACTION_INIT;
 			ibmvfc_init_tgt(wtgt, ibmvfc_tgt_move_login);
 			goto unlock_out;
