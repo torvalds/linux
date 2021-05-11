@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright IBM Corp. 2006, 2020
+ * Copyright IBM Corp. 2006, 2021
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -76,6 +76,9 @@ EXPORT_SYMBOL(ap_perms_mutex);
 
 /* # of bus scans since init */
 static atomic64_t ap_scan_bus_count;
+
+/* # of bindings complete since init */
+static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
 
 /* completion for initial APQN bindings complete */
 static DECLARE_COMPLETION(ap_init_apqn_bindings_complete);
@@ -613,8 +616,11 @@ static void ap_send_init_scan_done_uevent(void)
 
 static void ap_send_bindings_complete_uevent(void)
 {
-	char *envp[] = { "BINDINGS=complete", NULL };
+	char buf[32];
+	char *envp[] = { "BINDINGS=complete", buf, NULL };
 
+	snprintf(buf, sizeof(buf), "COMPLETECOUNT=%llu",
+		 atomic64_inc_return(&ap_bindings_complete_count));
 	kobject_uevent_env(&ap_root_device->kobj, KOBJ_CHANGE, envp);
 }
 
