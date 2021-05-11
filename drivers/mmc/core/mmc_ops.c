@@ -456,6 +456,7 @@ static int mmc_busy_cb(void *cb_data, bool *busy)
 		err = R1_STATUS(status) ? -EIO : 0;
 		break;
 	case MMC_BUSY_HPI:
+	case MMC_BUSY_EXTR_SINGLE:
 		break;
 	default:
 		err = -EINVAL;

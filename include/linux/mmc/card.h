@@ -196,6 +196,7 @@ struct sd_ext_reg {
 	u8			page;
 	u16			offset;
 	u8			rev;
+	u8			feature_enabled;
 	u8			feature_support;
 /* Power Management Function. */
 #define SD_EXT_POWER_OFF_NOTIFY	(1<<0)
