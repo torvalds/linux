@@ -1069,7 +1069,7 @@ static bool link_slaves_found(struct snd_sof_dev *sdev,
 
 			/* find out how many identical parts are expected */
 			for (k = 0; k < link->num_adr; k++) {
-				u64 adr2 = link->adr_d[i].adr;
+				u64 adr2 = link->adr_d[k].adr;
 				unsigned int part_id2, link_id2, mfg_id2;
 
 				mfg_id2 = SDW_MFG_ID(adr2);
