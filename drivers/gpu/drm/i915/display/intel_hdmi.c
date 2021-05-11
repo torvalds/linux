@@ -1868,11 +1868,15 @@ static int intel_hdmi_port_clock(int clock, int bpc)
 static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
 				    int bpc, bool has_hdmi_sink, bool ycbcr420_output)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	const struct drm_display_info *info = &connector->display_info;
 	const struct drm_hdmi_info *hdmi = &info->hdmi;
 
 	switch (bpc) {
 	case 12:
+		if (HAS_GMCH(i915))
+			return false;
+
 		if (!has_hdmi_sink)
 			return false;
 
@@ -1881,6 +1885,9 @@ static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
 		else
 			return info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36;
 	case 10:
+		if (DISPLAY_VER(i915) < 11)
+			return false;
+
 		if (!has_hdmi_sink)
 			return false;
 
@@ -1999,12 +2006,6 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		to_i915(crtc_state->uapi.crtc->dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-
-	if (HAS_GMCH(dev_priv))
-		return false;
-
-	if (bpc == 10 && DISPLAY_VER(dev_priv) < 11)
-		return false;
 
 	/*
 	 * HDMI deep color affects the clocks, so it's only possible
