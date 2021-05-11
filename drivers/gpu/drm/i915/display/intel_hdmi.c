@@ -1917,19 +1917,17 @@ intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 	status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 8),
 				       true, has_hdmi_sink);
 
-	if (has_hdmi_sink) {
-		/* if we can't do 8bpc we may still be able to do 12bpc */
-		if (status != MODE_OK &&
-		    intel_hdmi_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
-			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
-						       true, has_hdmi_sink);
+	/* if we can't do 8bpc we may still be able to do 12bpc */
+	if (status != MODE_OK &&
+	    intel_hdmi_bpc_possible(connector, 12, has_hdmi_sink, ycbcr420_output))
+		status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
+					       true, has_hdmi_sink);
 
-		/* if we can't do 8,12bpc we may still be able to do 10bpc */
-		if (status != MODE_OK &&
-		    intel_hdmi_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
-			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
-						       true, has_hdmi_sink);
-	}
+	/* if we can't do 8,12bpc we may still be able to do 10bpc */
+	if (status != MODE_OK &&
+	    intel_hdmi_bpc_possible(connector, 10, has_hdmi_sink, ycbcr420_output))
+		status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
+					       true, has_hdmi_sink);
 
 	return status;
 }
