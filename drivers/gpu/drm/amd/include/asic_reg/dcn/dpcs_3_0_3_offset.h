@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright (C) 2021 Advanced Micro Devices, Inc.
+ *
+ * Authors: AMD
+ */
+
 #ifndef _dpcs_3_0_3_OFFSET_HEADER
 #define _dpcs_3_0_3_OFFSET_HEADER
 
