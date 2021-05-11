@@ -38,7 +38,7 @@
 
 #define QMAN_PQ_ENTRY_SIZE	16			/* Bytes */
 
-#define MAX_ASID		1024
+#define MAX_ASID		2
 
 #define PROT_BITS_OFFS		0xF80
 

@@ -234,7 +234,7 @@ struct boot_params {
  * handling of page tables.
  *
  * These enums should only ever be used by x86 code, and the code that uses
- * it should be well contained and compartamentalized.
+ * it should be well contained and compartmentalized.
  *
  * KVM and Xen HVM do not have a subarch as these are expected to follow
  * standard x86 boot entries. If there is a genuine need for "hypervisor" type
@@ -252,7 +252,7 @@ struct boot_params {
  * @X86_SUBARCH_XEN: Used for Xen guest types which follow the PV boot path,
  * 	which start at asm startup_xen() entry point and later jump to the C
  * 	xen_start_kernel() entry point. Both domU and dom0 type of guests are
- * 	currently supportd through this PV boot path.
+ * 	currently supported through this PV boot path.
  * @X86_SUBARCH_INTEL_MID: Used for Intel MID (Mobile Internet Device) platform
  *	systems which do not have the PCI legacy interfaces.
  * @X86_SUBARCH_CE4100: Used for Intel CE media processor (CE4100) SoC

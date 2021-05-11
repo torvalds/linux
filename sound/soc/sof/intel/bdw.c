@@ -559,12 +559,16 @@ static void bdw_machine_select(struct snd_sof_dev *sdev)
 }
 
 static void bdw_set_mach_params(const struct snd_soc_acpi_mach *mach,
-				struct device *dev)
+				struct snd_sof_dev *sdev)
 {
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = pdata->desc;
 	struct snd_soc_acpi_mach_params *mach_params;
 
 	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
-	mach_params->platform = dev_name(dev);
+	mach_params->platform = dev_name(sdev->dev);
+	mach_params->num_dai_drivers = desc->ops->num_drv;
+	mach_params->dai_drivers = desc->ops->drv;
 }
 
 /* Broadwell DAIs */

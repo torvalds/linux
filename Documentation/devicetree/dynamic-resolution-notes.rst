@@ -1,11 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-==================================
-Device Tree Dynamic Resolver Notes
-==================================
+=================================
+Devicetree Dynamic Resolver Notes
+=================================
 
 This document describes the implementation of the in-kernel
-Device Tree resolver, residing in drivers/of/resolver.c
+DeviceTree resolver, residing in drivers/of/resolver.c
 
 How the resolver works
 ----------------------

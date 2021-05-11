@@ -179,7 +179,7 @@ bool irq_can_set_affinity_usr(unsigned int irq)
 
 /**
  *	irq_set_thread_affinity - Notify irq threads to adjust affinity
- *	@desc:		irq descriptor which has affitnity changed
+ *	@desc:		irq descriptor which has affinity changed
  *
  *	We just set IRQTF_AFFINITY and delegate the affinity setting
  *	to the interrupt thread itself. We can not call
@@ -326,7 +326,7 @@ static bool irq_set_affinity_deactivated(struct irq_data *data,
 	 * If the interrupt is not yet activated, just store the affinity
 	 * mask and do not call the chip driver at all. On activation the
 	 * driver has to make sure anyway that the interrupt is in a
-	 * useable state so startup works.
+	 * usable state so startup works.
 	 */
 	if (!IS_ENABLED(CONFIG_IRQ_DOMAIN_HIERARCHY) ||
 	    irqd_is_activated(data) || !irqd_affinity_on_activate(data))
@@ -1054,7 +1054,7 @@ again:
 	 * to IRQS_INPROGRESS and the irq line is masked forever.
 	 *
 	 * This also serializes the state of shared oneshot handlers
-	 * versus "desc->threads_onehsot |= action->thread_mask;" in
+	 * versus "desc->threads_oneshot |= action->thread_mask;" in
 	 * irq_wake_thread(). See the comment there which explains the
 	 * serialization.
 	 */
@@ -1157,7 +1157,7 @@ irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
 
 /*
  * Interrupts explicitly requested as threaded interrupts want to be
- * preemtible - many of them need to sleep and wait for slow busses to
+ * preemptible - many of them need to sleep and wait for slow busses to
  * complete.
  */
 static irqreturn_t irq_thread_fn(struct irq_desc *desc,
@@ -1697,7 +1697,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			irqd_set(&desc->irq_data, IRQD_NO_BALANCING);
 		}
 
-		if (irq_settings_can_autoenable(desc)) {
+		if (!(new->flags & IRQF_NO_AUTOEN) &&
+		    irq_settings_can_autoenable(desc)) {
 			irq_startup(desc, IRQ_RESEND, IRQ_START_COND);
 		} else {
 			/*
@@ -1912,7 +1913,7 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 	/* Last action releases resources */
 	if (!desc->action) {
 		/*
-		 * Reaquire bus lock as irq_release_resources() might
+		 * Reacquire bus lock as irq_release_resources() might
 		 * require it to deallocate resources over the slow bus.
 		 */
 		chip_bus_lock(desc);
@@ -2090,10 +2091,15 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	 * which interrupt is which (messes up the interrupt freeing
 	 * logic etc).
 	 *
+	 * Also shared interrupts do not go well with disabling auto enable.
+	 * The sharing interrupt might request it while it's still disabled
+	 * and then wait for interrupts forever.
+	 *
 	 * Also IRQF_COND_SUSPEND only makes sense for shared interrupts and
 	 * it cannot be set along with IRQF_NO_SUSPEND.
 	 */
 	if (((irqflags & IRQF_SHARED) && !dev_id) ||
+	    ((irqflags & IRQF_SHARED) && (irqflags & IRQF_NO_AUTOEN)) ||
 	    (!(irqflags & IRQF_SHARED) && (irqflags & IRQF_COND_SUSPEND)) ||
 	    ((irqflags & IRQF_NO_SUSPEND) && (irqflags & IRQF_COND_SUSPEND)))
 		return -EINVAL;
@@ -2249,7 +2255,8 @@ int request_nmi(unsigned int irq, irq_handler_t handler,
 
 	desc = irq_to_desc(irq);
 
-	if (!desc || irq_settings_can_autoenable(desc) ||
+	if (!desc || (irq_settings_can_autoenable(desc) &&
+	    !(irqflags & IRQF_NO_AUTOEN)) ||
 	    !irq_settings_can_request(desc) ||
 	    WARN_ON(irq_settings_is_per_cpu_devid(desc)) ||
 	    !irq_supports_nmi(desc))
@@ -2746,7 +2753,7 @@ int __irq_get_irqchip_state(struct irq_data *data, enum irqchip_irq_state which,
  *	irq_get_irqchip_state - returns the irqchip state of a interrupt.
  *	@irq: Interrupt line that is forwarded to a VM
  *	@which: One of IRQCHIP_STATE_* the caller wants to know about
- *	@state: a pointer to a boolean where the state is to be storeed
+ *	@state: a pointer to a boolean where the state is to be stored
  *
  *	This call snapshots the internal irqchip state of an
  *	interrupt, returning into @state the bit corresponding to

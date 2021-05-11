@@ -166,6 +166,7 @@ static int __init dmi_checksum(const u8 *buf, u8 len)
 static const char *dmi_ident[DMI_STRING_MAX];
 static LIST_HEAD(dmi_devices);
 int dmi_available;
+EXPORT_SYMBOL_GPL(dmi_available);
 
 /*
  *	Save a DMI string

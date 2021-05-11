@@ -133,7 +133,7 @@ accumulate_sum(u64 delta, struct sched_avg *sa,
 			 *	runnable = running = 0;
 			 *
 			 * clause from ___update_load_sum(); this results in
-			 * the below usage of @contrib to dissapear entirely,
+			 * the below usage of @contrib to disappear entirely,
 			 * so no point in calculating it.
 			 */
 			contrib = __accumulate_pelt_segments(periods,

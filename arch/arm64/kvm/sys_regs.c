@@ -1063,6 +1063,8 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 		val = cpuid_feature_cap_perfmon_field(val,
 						      ID_AA64DFR0_PMUVER_SHIFT,
 						      kvm_vcpu_has_pmu(vcpu) ? ID_AA64DFR0_PMUVER_8_4 : 0);
+		/* Hide SPE from guests */
+		val &= ~FEATURE(ID_AA64DFR0_PMSVER);
 		break;
 	case SYS_ID_DFR0_EL1:
 		/* Limit guests to PMUv3 for ARMv8.4 */
@@ -1472,6 +1474,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_GCR_EL1), undef_access },
 
 	{ SYS_DESC(SYS_ZCR_EL1), NULL, reset_val, ZCR_EL1, 0, .visibility = sve_visibility },
+	{ SYS_DESC(SYS_TRFCR_EL1), undef_access },
 	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unknown, TTBR0_EL1 },
 	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unknown, TTBR1_EL1 },
 	{ SYS_DESC(SYS_TCR_EL1), access_vm_reg, reset_val, TCR_EL1, 0 },
@@ -1500,6 +1503,19 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_FAR_EL1), access_vm_reg, reset_unknown, FAR_EL1 },
 	{ SYS_DESC(SYS_PAR_EL1), NULL, reset_unknown, PAR_EL1 },
+
+	{ SYS_DESC(SYS_PMSCR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSNEVFR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSICR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSIRR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSFCR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSEVFR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSLATFR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMSIDR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMBLIMITR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMBPTR_EL1), undef_access },
+	{ SYS_DESC(SYS_PMBSR_EL1), undef_access },
+	/* PMBIDR_EL1 is not trapped */
 
 	{ PMU_SYS_REG(SYS_PMINTENSET_EL1),
 	  .access = access_pminten, .reg = PMINTENSET_EL1 },

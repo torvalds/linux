@@ -688,7 +688,8 @@ int iio_read_channel_offset(struct iio_channel *chan, int *val, int *val2)
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_offset);
 
-int iio_read_channel_processed(struct iio_channel *chan, int *val)
+int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
+				     unsigned int scale)
 {
 	int ret;
 
@@ -701,17 +702,28 @@ int iio_read_channel_processed(struct iio_channel *chan, int *val)
 	if (iio_channel_has_info(chan->channel, IIO_CHAN_INFO_PROCESSED)) {
 		ret = iio_channel_read(chan, val, NULL,
 				       IIO_CHAN_INFO_PROCESSED);
+		if (ret < 0)
+			goto err_unlock;
+		*val *= scale;
 	} else {
 		ret = iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_RAW);
 		if (ret < 0)
 			goto err_unlock;
-		ret = iio_convert_raw_to_processed_unlocked(chan, *val, val, 1);
+		ret = iio_convert_raw_to_processed_unlocked(chan, *val, val,
+							    scale);
 	}
 
 err_unlock:
 	mutex_unlock(&chan->indio_dev->info_exist_lock);
 
 	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_channel_processed_scale);
+
+int iio_read_channel_processed(struct iio_channel *chan, int *val)
+{
+	/* This is just a special case with scale factor 1 */
+	return iio_read_channel_processed_scale(chan, val, 1);
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_processed);
 

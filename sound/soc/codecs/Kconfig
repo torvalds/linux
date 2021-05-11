@@ -161,6 +161,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1011
 	imply SND_SOC_RT1015
 	imply SND_SOC_RT1015P
+	imply SND_SOC_RT1019
 	imply SND_SOC_RT1305
 	imply SND_SOC_RT1308
 	imply SND_SOC_RT5514
@@ -180,8 +181,11 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT5682_SDW
 	imply SND_SOC_RT700_SDW
 	imply SND_SOC_RT711_SDW
+	imply SND_SOC_RT711_SDCA_SDW
 	imply SND_SOC_RT715_SDW
+	imply SND_SOC_RT715_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
+	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
 	imply SND_SOC_SIMPLE_AMPLIFIER
@@ -214,7 +218,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TLV320AIC31XX
 	imply SND_SOC_TLV320AIC32X4_I2C
 	imply SND_SOC_TLV320AIC32X4_SPI
-	imply SND_SOC_TLV320AIC3X
+	imply SND_SOC_TLV320AIC3X_I2C
+	imply SND_SOC_TLV320AIC3X_SPI
 	imply SND_SOC_TPA6130A2
 	imply SND_SOC_TLV320DAC33
 	imply SND_SOC_TSCS42XX
@@ -1076,6 +1081,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT1011=y
 	default y if SND_SOC_RT1015=y
 	default y if SND_SOC_RT1015P=y
+	default y if SND_SOC_RT1019=y
 	default y if SND_SOC_RT1305=y
 	default y if SND_SOC_RT1308=y
 	default m if SND_SOC_RT5514=m
@@ -1094,6 +1100,7 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT1011=m
 	default m if SND_SOC_RT1015=m
 	default m if SND_SOC_RT1015P=m
+	default m if SND_SOC_RT1019=m
 	default m if SND_SOC_RT1305=m
 	default m if SND_SOC_RT1308=m
 
@@ -1130,6 +1137,10 @@ config SND_SOC_RT1015P
 	tristate
 	depends on GPIOLIB
 
+config SND_SOC_RT1019
+	tristate
+	depends on I2C
+
 config SND_SOC_RT1305
 	tristate
 	depends on I2C
@@ -1141,6 +1152,11 @@ config SND_SOC_RT1308
 config SND_SOC_RT1308_SDW
 	tristate "Realtek RT1308 Codec - SDW"
 	depends on I2C && SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT1316_SDW
+	tristate "Realtek RT1316 Codec - SDW"
+	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT5514
@@ -1241,6 +1257,12 @@ config SND_SOC_RT711_SDW
 	select SND_SOC_RT711
 	select REGMAP_SOUNDWIRE
 
+config SND_SOC_RT711_SDCA_SDW
+	tristate "Realtek RT711 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+
 config SND_SOC_RT715
 	tristate
 
@@ -1249,6 +1271,12 @@ config SND_SOC_RT715_SDW
 	depends on SOUNDWIRE
 	select SND_SOC_RT715
 	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT715_SDCA_SDW
+	tristate "Realtek RT715 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
@@ -1419,8 +1447,19 @@ config SND_SOC_TLV320AIC32X4_SPI
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC3X
-	tristate "Texas Instruments TLV320AIC3x CODECs"
+	tristate
+
+config SND_SOC_TLV320AIC3X_I2C
+	tristate "Texas Instruments TLV320AIC3x audio CODECs - I2C"
 	depends on I2C
+	select SND_SOC_TLV320AIC3X
+	select REGMAP_I2C
+
+config SND_SOC_TLV320AIC3X_SPI
+	tristate "Texas Instruments TLV320AIC3x audio CODECs - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_TLV320AIC3X
+	select REGMAP_SPI
 
 config SND_SOC_TLV320DAC33
 	tristate
@@ -1784,6 +1823,14 @@ config SND_SOC_MT6359
 	help
 	  Enable support for the platform which uses MT6359 as
 	  external codec device.
+
+config SND_SOC_MT6359_ACCDET
+	tristate "MediaTek MT6359 ACCDET driver"
+	depends on MTK_PMIC_WRAP
+	help
+	  ACCDET means Accessory Detection technology, MediaTek develop it
+	  for ASoC codec soc-jack detection mechanism.
+	  Select N if you don't have jack on board.
 
 config SND_SOC_MT6660
 	tristate "Mediatek MT6660 Speaker Amplifier"

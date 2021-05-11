@@ -10,9 +10,6 @@
 
 struct ipa;
 
-/* The size of a filter or route table entry */
-#define IPA_TABLE_ENTRY_SIZE	sizeof(__le64)	/* Holds a physical address */
-
 /* The maximum number of filter table entries (IPv4, IPv6; hashed or not) */
 #define IPA_FILTER_COUNT_MAX	14
 
@@ -24,7 +21,7 @@ struct ipa;
 /**
  * ipa_table_valid() - Validate route and filter table memory regions
  * @ipa:	IPA pointer
-
+ *
  * Return:	true if all regions are valid, false otherwise
  */
 bool ipa_table_valid(struct ipa *ipa);
@@ -32,6 +29,7 @@ bool ipa_table_valid(struct ipa *ipa);
 /**
  * ipa_filter_map_valid() - Validate a filter table endpoint bitmap
  * @ipa:	IPA pointer
+ * @filter_mask: Filter table endpoint bitmap to check
  *
  * Return:	true if all regions are valid, false otherwise
  */
@@ -55,7 +53,10 @@ static inline bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_mask)
  * ipa_table_hash_support() - Return true if hashed tables are supported
  * @ipa:	IPA pointer
  */
-bool ipa_table_hash_support(struct ipa *ipa);
+static inline bool ipa_table_hash_support(struct ipa *ipa)
+{
+	return ipa->version != IPA_VERSION_4_2;
+}
 
 /**
  * ipa_table_reset() - Reset filter and route tables entries to "none"
@@ -73,26 +74,18 @@ int ipa_table_hash_flush(struct ipa *ipa);
 /**
  * ipa_table_setup() - Set up filter and route tables
  * @ipa:	IPA pointer
+ *
+ * There is no need for a matching ipa_table_teardown() function.
  */
 int ipa_table_setup(struct ipa *ipa);
 
 /**
- * ipa_table_teardown() - Inverse of ipa_table_setup()
- * @ipa:	IPA pointer
- */
-void ipa_table_teardown(struct ipa *ipa);
-
-/**
  * ipa_table_config() - Configure filter and route tables
  * @ipa:	IPA pointer
+ *
+ * There is no need for a matching ipa_table_deconfig() function.
  */
 void ipa_table_config(struct ipa *ipa);
-
-/**
- * ipa_table_deconfig() - Inverse of ipa_table_config()
- * @ipa:	IPA pointer
- */
-void ipa_table_deconfig(struct ipa *ipa);
 
 /**
  * ipa_table_init() - Do early initialization of filter and route tables

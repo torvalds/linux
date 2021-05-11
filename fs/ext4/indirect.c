@@ -705,7 +705,7 @@ static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
 
 /*
  * Truncate transactions can be complex and absolutely huge.  So we need to
- * be able to restart the transaction at a conventient checkpoint to make
+ * be able to restart the transaction at a convenient checkpoint to make
  * sure we don't overflow the journal.
  *
  * Try to extend this transaction for the purposes of truncation.  If

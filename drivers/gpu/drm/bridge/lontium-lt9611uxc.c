@@ -855,7 +855,7 @@ static ssize_t lt9611uxc_firmware_show(struct device *dev, struct device_attribu
 {
 	struct lt9611uxc *lt9611uxc = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%02x\n", lt9611uxc->fw_version);
+	return sysfs_emit(buf, "%02x\n", lt9611uxc->fw_version);
 }
 
 static DEVICE_ATTR_RW(lt9611uxc_firmware);

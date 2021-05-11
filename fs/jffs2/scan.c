@@ -1079,7 +1079,7 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	memcpy(&fd->name, rd->name, checkedlen);
 	fd->name[checkedlen] = 0;
 
-	crc = crc32(0, fd->name, rd->nsize);
+	crc = crc32(0, fd->name, checkedlen);
 	if (crc != je32_to_cpu(rd->name_crc)) {
 		pr_notice("%s(): Name CRC failed on node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
 			  __func__, ofs, je32_to_cpu(rd->name_crc), crc);

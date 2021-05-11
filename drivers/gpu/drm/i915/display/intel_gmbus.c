@@ -392,7 +392,7 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 
 static unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
 {
-	return INTEL_GEN(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
+	return DISPLAY_VER(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
 	       GMBUS_BYTE_COUNT_MAX;
 }
 
@@ -840,7 +840,7 @@ static const struct i2c_lock_operations gmbus_lock_ops = {
  */
 int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;

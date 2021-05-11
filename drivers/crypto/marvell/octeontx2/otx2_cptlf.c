@@ -56,7 +56,7 @@ static int cptlf_set_pri(struct otx2_cptlf_info *lf, int pri)
 
 	ret = otx2_cpt_read_af_reg(lfs->mbox, lfs->pdev,
 				   CPT_AF_LFX_CTL(lf->slot),
-				   &lf_ctrl.u);
+				   &lf_ctrl.u, lfs->blkaddr);
 	if (ret)
 		return ret;
 
@@ -64,7 +64,7 @@ static int cptlf_set_pri(struct otx2_cptlf_info *lf, int pri)
 
 	ret = otx2_cpt_write_af_reg(lfs->mbox, lfs->pdev,
 				    CPT_AF_LFX_CTL(lf->slot),
-				    lf_ctrl.u);
+				    lf_ctrl.u, lfs->blkaddr);
 	return ret;
 }
 
@@ -77,7 +77,7 @@ static int cptlf_set_eng_grps_mask(struct otx2_cptlf_info *lf,
 
 	ret = otx2_cpt_read_af_reg(lfs->mbox, lfs->pdev,
 				   CPT_AF_LFX_CTL(lf->slot),
-				   &lf_ctrl.u);
+				   &lf_ctrl.u, lfs->blkaddr);
 	if (ret)
 		return ret;
 
@@ -85,7 +85,7 @@ static int cptlf_set_eng_grps_mask(struct otx2_cptlf_info *lf,
 
 	ret = otx2_cpt_write_af_reg(lfs->mbox, lfs->pdev,
 				    CPT_AF_LFX_CTL(lf->slot),
-				    lf_ctrl.u);
+				    lf_ctrl.u, lfs->blkaddr);
 	return ret;
 }
 

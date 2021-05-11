@@ -87,6 +87,7 @@ int qxl_irq_init(struct qxl_device *qdev)
 	init_waitqueue_head(&qdev->display_event);
 	init_waitqueue_head(&qdev->cursor_event);
 	init_waitqueue_head(&qdev->io_cmd_event);
+	init_waitqueue_head(&qdev->release_event);
 	INIT_WORK(&qdev->client_monitors_config_work,
 		  qxl_client_monitors_config_work_func);
 	atomic_set(&qdev->irq_received, 0);

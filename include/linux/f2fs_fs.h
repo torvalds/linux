@@ -168,7 +168,7 @@ struct f2fs_checkpoint {
 	unsigned char alloc_type[MAX_ACTIVE_LOGS];
 
 	/* SIT and NAT version bitmap */
-	unsigned char sit_nat_version_bitmap[1];
+	unsigned char sit_nat_version_bitmap[];
 } __packed;
 
 #define CP_CHKSUM_OFFSET	4092	/* default chksum offset in checkpoint */

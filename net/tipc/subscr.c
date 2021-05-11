@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2000-2017, Ericsson AB
  * Copyright (c) 2005-2007, 2010-2013, Wind River Systems
- * Copyright (c) 2020, Red Hat Inc
+ * Copyright (c) 2020-2021, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,77 +40,75 @@
 #include "subscr.h"
 
 static void tipc_sub_send_event(struct tipc_subscription *sub,
-				u32 found_lower, u32 found_upper,
-				u32 event, u32 port, u32 node)
+				struct publication *p,
+				u32 event)
 {
+	struct tipc_subscr *s = &sub->evt.s;
 	struct tipc_event *evt = &sub->evt;
 
 	if (sub->inactive)
 		return;
 	tipc_evt_write(evt, event, event);
-	tipc_evt_write(evt, found_lower, found_lower);
-	tipc_evt_write(evt, found_upper, found_upper);
-	tipc_evt_write(evt, port.ref, port);
-	tipc_evt_write(evt, port.node, node);
+	if (p) {
+		tipc_evt_write(evt, found_lower, p->sr.lower);
+		tipc_evt_write(evt, found_upper, p->sr.upper);
+		tipc_evt_write(evt, port.ref, p->sk.ref);
+		tipc_evt_write(evt, port.node, p->sk.node);
+	} else {
+		tipc_evt_write(evt, found_lower, s->seq.lower);
+		tipc_evt_write(evt, found_upper, s->seq.upper);
+		tipc_evt_write(evt, port.ref, 0);
+		tipc_evt_write(evt, port.node, 0);
+	}
 	tipc_topsrv_queue_evt(sub->net, sub->conid, event, evt);
 }
 
 /**
  * tipc_sub_check_overlap - test for subscription overlap with the given values
- * @seq: tipc_name_seq to check
- * @found_lower: lower value to test
- * @found_upper: upper value to test
+ * @subscribed: the service range subscribed for
+ * @found: the service range we are checning for match
  *
- * Return: 1 if there is overlap, otherwise 0.
+ * Returns true if there is overlap, otherwise false.
  */
-int tipc_sub_check_overlap(struct tipc_service_range *seq, u32 found_lower,
-			   u32 found_upper)
+static bool tipc_sub_check_overlap(struct tipc_service_range *subscribed,
+				   struct tipc_service_range *found)
 {
-	if (found_lower < seq->lower)
-		found_lower = seq->lower;
-	if (found_upper > seq->upper)
-		found_upper = seq->upper;
-	if (found_lower > found_upper)
-		return 0;
-	return 1;
+	u32 found_lower = found->lower;
+	u32 found_upper = found->upper;
+
+	if (found_lower < subscribed->lower)
+		found_lower = subscribed->lower;
+	if (found_upper > subscribed->upper)
+		found_upper = subscribed->upper;
+	return found_lower <= found_upper;
 }
 
 void tipc_sub_report_overlap(struct tipc_subscription *sub,
-			     u32 found_lower, u32 found_upper,
-			     u32 event, u32 port, u32 node,
-			     u32 scope, int must)
+			     struct publication *p,
+			     u32 event, bool must)
 {
-	struct tipc_subscr *s = &sub->evt.s;
-	u32 filter = tipc_sub_read(s, filter);
-	struct tipc_service_range seq;
+	struct tipc_service_range *sr = &sub->s.seq;
+	u32 filter = sub->s.filter;
 
-	seq.type = tipc_sub_read(s, seq.type);
-	seq.lower = tipc_sub_read(s, seq.lower);
-	seq.upper = tipc_sub_read(s, seq.upper);
-
-	if (!tipc_sub_check_overlap(&seq, found_lower, found_upper))
+	if (!tipc_sub_check_overlap(sr, &p->sr))
 		return;
-
 	if (!must && !(filter & TIPC_SUB_PORTS))
 		return;
-	if (filter & TIPC_SUB_CLUSTER_SCOPE && scope == TIPC_NODE_SCOPE)
+	if (filter & TIPC_SUB_CLUSTER_SCOPE && p->scope == TIPC_NODE_SCOPE)
 		return;
-	if (filter & TIPC_SUB_NODE_SCOPE && scope != TIPC_NODE_SCOPE)
+	if (filter & TIPC_SUB_NODE_SCOPE && p->scope != TIPC_NODE_SCOPE)
 		return;
 	spin_lock(&sub->lock);
-	tipc_sub_send_event(sub, found_lower, found_upper,
-			    event, port, node);
+	tipc_sub_send_event(sub, p, event);
 	spin_unlock(&sub->lock);
 }
 
 static void tipc_sub_timeout(struct timer_list *t)
 {
 	struct tipc_subscription *sub = from_timer(sub, t, timer);
-	struct tipc_subscr *s = &sub->evt.s;
 
 	spin_lock(&sub->lock);
-	tipc_sub_send_event(sub, s->seq.lower, s->seq.upper,
-			    TIPC_SUBSCR_TIMEOUT, 0, 0);
+	tipc_sub_send_event(sub, NULL, TIPC_SUBSCR_TIMEOUT);
 	sub->inactive = true;
 	spin_unlock(&sub->lock);
 }
@@ -134,12 +132,14 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 					     struct tipc_subscr *s,
 					     int conid)
 {
+	u32 lower = tipc_sub_read(s, seq.lower);
+	u32 upper = tipc_sub_read(s, seq.upper);
 	u32 filter = tipc_sub_read(s, filter);
 	struct tipc_subscription *sub;
 	u32 timeout;
 
 	if ((filter & TIPC_SUB_PORTS && filter & TIPC_SUB_SERVICE) ||
-	    (tipc_sub_read(s, seq.lower) > tipc_sub_read(s, seq.upper))) {
+	    lower > upper) {
 		pr_warn("Subscription rejected, illegal request\n");
 		return NULL;
 	}
@@ -154,6 +154,12 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 	sub->conid = conid;
 	sub->inactive = false;
 	memcpy(&sub->evt.s, s, sizeof(*s));
+	sub->s.seq.type = tipc_sub_read(s, seq.type);
+	sub->s.seq.lower = lower;
+	sub->s.seq.upper = upper;
+	sub->s.filter = filter;
+	sub->s.timeout = tipc_sub_read(s, timeout);
+	memcpy(sub->s.usr_handle, s->usr_handle, 8);
 	spin_lock_init(&sub->lock);
 	kref_init(&sub->kref);
 	if (!tipc_nametbl_subscribe(sub)) {

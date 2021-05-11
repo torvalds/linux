@@ -665,7 +665,7 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 unlock_and_drop:
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 		rds_message_put(rm);
-		if (was_on_sock && rm)
+		if (was_on_sock)
 			rds_message_put(rm);
 	}
 
@@ -1225,7 +1225,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		}
 		/* If the socket is already bound to a link local address,
 		 * it can only send to peers on the same link.  But allow
-		 * communicating beween link local and non-link local address.
+		 * communicating between link local and non-link local address.
 		 */
 		if (scope_id != rs->rs_bound_scope_id) {
 			if (!scope_id) {

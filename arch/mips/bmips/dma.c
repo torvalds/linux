@@ -10,7 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/dma-direction.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>

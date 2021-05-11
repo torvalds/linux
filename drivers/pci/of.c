@@ -190,10 +190,18 @@ int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
 
 /**
- * This function will try to obtain the host bridge domain number by
- * finding a property called "linux,pci-domain" of the given device node.
+ * of_get_pci_domain_nr - Find the host bridge domain number
+ *			  of the given device node.
+ * @node: Device tree node with the domain information.
  *
- * @node: device tree node with the domain information
+ * This function will try to obtain the host bridge domain number by finding
+ * a property called "linux,pci-domain" of the given device node.
+ *
+ * Return:
+ * * > 0	- On success, an associated domain number.
+ * * -EINVAL	- The property "linux,pci-domain" does not exist.
+ * * -ENODATA	- The linux,pci-domain" property does not have value.
+ * * -EOVERFLOW	- Invalid "linux,pci-domain" property value.
  *
  * Returns the associated domain number from DT in the range [0-0xffff], or
  * a negative value if the required property is not found.
@@ -585,10 +593,16 @@ int devm_of_pci_bridge_init(struct device *dev, struct pci_host_bridge *bridge)
 #endif /* CONFIG_PCI */
 
 /**
+ * of_pci_get_max_link_speed - Find the maximum link speed of the given device node.
+ * @node: Device tree node with the maximum link speed information.
+ *
  * This function will try to find the limitation of link speed by finding
  * a property called "max-link-speed" of the given device node.
  *
- * @node: device tree node with the max link speed information
+ * Return:
+ * * > 0	- On success, a maximum link speed.
+ * * -EINVAL	- Invalid "max-link-speed" property value, or failure to access
+ *		  the property of the device tree node.
  *
  * Returns the associated max link speed from DT, or a negative value if the
  * required property is not found or is invalid.

@@ -20,7 +20,7 @@
 
 /* These are static so they do not need to be qualified */
 #define UVERBS_METHOD_ATTRS(method_id) _method_attrs_##method_id
-#define UVERBS_OBJECT_METHODS(object_id) _object_methods_##object_id
+#define UVERBS_OBJECT_METHODS(object_id) _UVERBS_NAME(_object_methods_##object_id, __LINE__)
 
 #define DECLARE_UVERBS_NAMED_METHOD(_method_id, ...)                           \
 	static const struct uverbs_attr_def *const UVERBS_METHOD_ATTRS(        \

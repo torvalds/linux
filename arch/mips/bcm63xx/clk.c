@@ -76,7 +76,7 @@ static struct clk clk_enet_misc = {
 };
 
 /*
- * Ethernet MAC clocks: only revelant on 6358, silently enable misc
+ * Ethernet MAC clocks: only relevant on 6358, silently enable misc
  * clocks
  */
 static void enetx_set(struct clk *clk, int enable)

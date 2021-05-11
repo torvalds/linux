@@ -206,6 +206,15 @@ static int efx_ethtool_set_wol(struct net_device *net_dev,
 	return efx->type->set_wol(efx, wol->wolopts);
 }
 
+static void efx_ethtool_get_fec_stats(struct net_device *net_dev,
+				      struct ethtool_fec_stats *fec_stats)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->type->get_fec_stats)
+		efx->type->get_fec_stats(efx, fec_stats);
+}
+
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
 				   struct ethtool_ts_info *ts_info)
 {
@@ -257,6 +266,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
 	.get_link_ksettings	= efx_ethtool_get_link_ksettings,
 	.set_link_ksettings	= efx_ethtool_set_link_ksettings,
+	.get_fec_stats		= efx_ethtool_get_fec_stats,
 	.get_fecparam		= efx_ethtool_get_fecparam,
 	.set_fecparam		= efx_ethtool_set_fecparam,
 };

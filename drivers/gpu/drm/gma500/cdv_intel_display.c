@@ -582,7 +582,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct gma_clock_t clock;
 	u32 dpll = 0, dspcntr, pipeconf;
 	bool ok;
-	bool is_lvds = false, is_tv = false;
+	bool is_lvds = false;
 	bool is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
@@ -602,9 +602,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
 			break;
 		case INTEL_OUTPUT_ANALOG:
 		case INTEL_OUTPUT_HDMI:
@@ -660,12 +657,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	dpll = DPLL_VGA_MODE_DIS;
-	if (is_tv) {
-		/* XXX: just matching BIOS for now */
-/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
-		dpll |= 3;
-	}
-/*		dpll |= PLL_REF_INPUT_DREFCLK; */
 
 	if (is_dp || is_edp) {
 		cdv_intel_dp_set_m_n(crtc, mode, adjusted_mode);
@@ -968,18 +959,6 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 	.prepare = gma_crtc_prepare,
 	.commit = gma_crtc_commit,
 	.disable = gma_crtc_disable,
-};
-
-const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
-	.cursor_set = gma_crtc_cursor_set,
-	.cursor_move = gma_crtc_cursor_move,
-	.gamma_set = gma_crtc_gamma_set,
-	.set_config = gma_crtc_set_config,
-	.destroy = gma_crtc_destroy,
-	.page_flip = gma_crtc_page_flip,
-	.enable_vblank = psb_enable_vblank,
-	.disable_vblank = psb_disable_vblank,
-	.get_vblank_counter = psb_get_vblank_counter,
 };
 
 const struct gma_clock_funcs cdv_clock_funcs = {

@@ -95,7 +95,7 @@ static bool test_fw_in_ns(const char *fw_name, const char *sys_path, bool block_
 		}
 		if (block_fw_in_parent_ns)
 			umount("/lib/firmware");
-		return WEXITSTATUS(status) == EXIT_SUCCESS ? true : false;
+		return WEXITSTATUS(status) == EXIT_SUCCESS;
 	}
 
 	if (unshare(CLONE_NEWNS) != 0) {

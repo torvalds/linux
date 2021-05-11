@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-keystone.c - Keystone Specific Glue layer
  *
  * Copyright (C) 2010-2013 Texas Instruments Incorporated - https://www.ti.com

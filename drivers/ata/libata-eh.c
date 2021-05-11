@@ -1599,7 +1599,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	}
 
 	if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
-		int ret = scsi_check_sense(qc->scsicmd);
+		enum scsi_disposition ret = scsi_check_sense(qc->scsicmd);
 		/*
 		 * SUCCESS here means that the sense code could be
 		 * evaluated and should be passed to the upper layers
@@ -2613,6 +2613,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			switch (tmp) {
 			case -EAGAIN:
 				rc = -EAGAIN;
+				break;
 			case 0:
 				break;
 			default:

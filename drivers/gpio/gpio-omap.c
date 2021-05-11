@@ -29,6 +29,7 @@
 #define OMAP4_GPIO_DEBOUNCINGTIME_MASK 0xFF
 
 struct gpio_regs {
+	u32 sysconfig;
 	u32 irqenable1;
 	u32 irqenable2;
 	u32 wake_en;
@@ -1069,6 +1070,7 @@ static void omap_gpio_init_context(struct gpio_bank *p)
 	const struct omap_gpio_reg_offs *regs = p->regs;
 	void __iomem *base = p->base;
 
+	p->context.sysconfig	= readl_relaxed(base + regs->sysconfig);
 	p->context.ctrl		= readl_relaxed(base + regs->ctrl);
 	p->context.oe		= readl_relaxed(base + regs->direction);
 	p->context.wake_en	= readl_relaxed(base + regs->wkup_en);
@@ -1088,6 +1090,7 @@ static void omap_gpio_restore_context(struct gpio_bank *bank)
 	const struct omap_gpio_reg_offs *regs = bank->regs;
 	void __iomem *base = bank->base;
 
+	writel_relaxed(bank->context.sysconfig, base + regs->sysconfig);
 	writel_relaxed(bank->context.wake_en, base + regs->wkup_en);
 	writel_relaxed(bank->context.ctrl, base + regs->ctrl);
 	writel_relaxed(bank->context.leveldetect0, base + regs->leveldetect0);
@@ -1114,6 +1117,10 @@ static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
 	u32 mask, nowake;
 
 	bank->saved_datain = readl_relaxed(base + bank->regs->datain);
+
+	/* Save syconfig, it's runtime value can be different from init value */
+	if (bank->loses_context)
+		bank->context.sysconfig = readl_relaxed(base + bank->regs->sysconfig);
 
 	if (!bank->enabled_non_wakeup_gpios)
 		goto update_gpio_context_count;
@@ -1279,6 +1286,7 @@ out_unlock:
 
 static const struct omap_gpio_reg_offs omap2_gpio_regs = {
 	.revision =		OMAP24XX_GPIO_REVISION,
+	.sysconfig =		OMAP24XX_GPIO_SYSCONFIG,
 	.direction =		OMAP24XX_GPIO_OE,
 	.datain =		OMAP24XX_GPIO_DATAIN,
 	.dataout =		OMAP24XX_GPIO_DATAOUT,
@@ -1302,6 +1310,7 @@ static const struct omap_gpio_reg_offs omap2_gpio_regs = {
 
 static const struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.revision =		OMAP4_GPIO_REVISION,
+	.sysconfig =		OMAP4_GPIO_SYSCONFIG,
 	.direction =		OMAP4_GPIO_OE,
 	.datain =		OMAP4_GPIO_DATAIN,
 	.dataout =		OMAP4_GPIO_DATAOUT,
@@ -1364,15 +1373,14 @@ static int omap_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	const struct of_device_id *match;
 	const struct omap_gpio_platform_data *pdata;
 	struct gpio_bank *bank;
 	struct irq_chip *irqc;
 	int ret;
 
-	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
+	pdata = device_get_match_data(dev);
 
-	pdata = match ? match->data : dev_get_platdata(dev);
+	pdata = pdata ?: dev_get_platdata(dev);
 	if (!pdata)
 		return -EINVAL;
 

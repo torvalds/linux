@@ -128,7 +128,7 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 			to_i915(dig_port->base.base.dev);
 	u32 precharge, timeout;
 
-	if (IS_GEN(dev_priv, 6))
+	if (IS_SANDYBRIDGE(dev_priv))
 		precharge = 3;
 	else
 		precharge = 5;
@@ -654,10 +654,10 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &dig_port->base;
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		intel_dp->aux_ch_ctl_reg = tgl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = tgl_aux_data_reg;
-	} else if (INTEL_GEN(dev_priv) >= 9) {
+	} else if (DISPLAY_VER(dev_priv) >= 9) {
 		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = skl_aux_data_reg;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
@@ -668,7 +668,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 		intel_dp->aux_ch_data_reg = g4x_aux_data_reg;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (DISPLAY_VER(dev_priv) >= 9)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
 	else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
@@ -677,7 +677,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	else
 		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;
 
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (DISPLAY_VER(dev_priv) >= 9)
 		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
 	else
 		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
@@ -685,7 +685,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	if (INTEL_GEN(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
+	if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
 		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX USBC%c/%s",
 					       aux_ch - AUX_CH_USBC1 + '1',
 					       encoder->base.name);

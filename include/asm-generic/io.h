@@ -942,7 +942,9 @@ static inline void *phys_to_virt(unsigned long address)
  *
  * ioremap_wc() and ioremap_wt() can provide more relaxed caching attributes
  * for specific drivers if the architecture choses to implement them.  If they
- * are not implemented we fall back to plain ioremap.
+ * are not implemented we fall back to plain ioremap. Conversely, ioremap_np()
+ * can provide stricter non-posted write semantics if the architecture
+ * implements them.
  */
 #ifndef CONFIG_MMU
 #ifndef ioremap
@@ -990,6 +992,23 @@ static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 #ifndef ioremap_uc
 #define ioremap_uc ioremap_uc
 static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
+{
+	return NULL;
+}
+#endif
+
+/*
+ * ioremap_np needs an explicit architecture implementation, as it
+ * requests stronger semantics than regular ioremap(). Portable drivers
+ * should instead use one of the higher-level abstractions, like
+ * devm_ioremap_resource(), to choose the correct variant for any given
+ * device and bus. Portable drivers with a good reason to want non-posted
+ * write semantics should always provide an ioremap() fallback in case
+ * ioremap_np() is not available.
+ */
+#ifndef ioremap_np
+#define ioremap_np ioremap_np
+static inline void __iomem *ioremap_np(phys_addr_t offset, size_t size)
 {
 	return NULL;
 }
@@ -1044,17 +1063,6 @@ static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
 }
 #endif
 #endif /* CONFIG_GENERIC_IOMAP */
-
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#ifndef xlate_dev_kmem_ptr
-#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
-static inline void *xlate_dev_kmem_ptr(void *addr)
-{
-	return addr;
-}
-#endif
 
 #ifndef xlate_dev_mem_ptr
 #define xlate_dev_mem_ptr xlate_dev_mem_ptr

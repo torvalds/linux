@@ -27,7 +27,10 @@ static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
 {
-	__pud_populate(pudp, __pa(pmdp), PMD_TYPE_TABLE);
+	pudval_t pudval = PUD_TYPE_TABLE;
+
+	pudval |= (mm == &init_mm) ? PUD_TABLE_UXN : PUD_TABLE_PXN;
+	__pud_populate(pudp, __pa(pmdp), pudval);
 }
 #else
 static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
@@ -45,7 +48,10 @@ static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
 
 static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
 {
-	__p4d_populate(p4dp, __pa(pudp), PUD_TYPE_TABLE);
+	p4dval_t p4dval = P4D_TYPE_TABLE;
+
+	p4dval |= (mm == &init_mm) ? P4D_TABLE_UXN : P4D_TABLE_PXN;
+	__p4d_populate(p4dp, __pa(pudp), p4dval);
 }
 #else
 static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
@@ -70,16 +76,15 @@ static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t ptep,
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 {
-	/*
-	 * The pmd must be loaded with the physical address of the PTE table
-	 */
-	__pmd_populate(pmdp, __pa(ptep), PMD_TYPE_TABLE);
+	VM_BUG_ON(mm != &init_mm);
+	__pmd_populate(pmdp, __pa(ptep), PMD_TYPE_TABLE | PMD_TABLE_UXN);
 }
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 {
-	__pmd_populate(pmdp, page_to_phys(ptep), PMD_TYPE_TABLE);
+	VM_BUG_ON(mm == &init_mm);
+	__pmd_populate(pmdp, page_to_phys(ptep), PMD_TYPE_TABLE | PMD_TABLE_PXN);
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 

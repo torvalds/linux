@@ -8057,7 +8057,7 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 		data[i + 3] = data[i + BNX2_VPD_LEN];
 	}
 
-	i = pci_vpd_find_tag(data, 0, BNX2_VPD_LEN, PCI_VPD_LRDT_RO_DATA);
+	i = pci_vpd_find_tag(data, BNX2_VPD_LEN, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0)
 		goto vpd_done;
 

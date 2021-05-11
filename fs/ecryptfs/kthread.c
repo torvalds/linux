@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 2008 International Business Machines Corp.
@@ -108,6 +108,7 @@ void ecryptfs_destroy_kthread(void)
  * @lower_file: Result of dentry_open by root on lower dentry
  * @lower_dentry: Lower dentry for file to open
  * @lower_mnt: Lower vfsmount for file to open
+ * @cred: credential to use for this call
  *
  * This function gets a r/w file opened against the lower dentry.
  *

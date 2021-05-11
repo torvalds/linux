@@ -116,7 +116,6 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 	lpc32xx->chip.dev = &pdev->dev;
 	lpc32xx->chip.ops = &lpc32xx_pwm_ops;
 	lpc32xx->chip.npwm = 1;
-	lpc32xx->chip.base = -1;
 
 	ret = pwmchip_add(&lpc32xx->chip);
 	if (ret < 0) {
@@ -137,10 +136,6 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 static int lpc32xx_pwm_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_pwm_chip *lpc32xx = platform_get_drvdata(pdev);
-	unsigned int i;
-
-	for (i = 0; i < lpc32xx->chip.npwm; i++)
-		pwm_disable(&lpc32xx->chip.pwms[i]);
 
 	return pwmchip_remove(&lpc32xx->chip);
 }

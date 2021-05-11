@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include "dt-bindings/clock/bcm6328-clock.h"
+#include "dt-bindings/reset/bcm6328-reset.h"
+#include "dt-bindings/soc/bcm6328-pm.h"
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -24,16 +29,26 @@
 	};
 
 	clocks {
-		periph_clk: periph-clk {
+		periph_osc: periph-osc {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <50000000>;
+			clock-output-names = "periph";
+		};
+
+		hsspi_osc: hsspi-osc {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <133333333>;
+			clock-output-names = "hsspi_osc";
 		};
 	};
 
 	aliases {
+		nflash = &nflash;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		spi1 = &hsspi;
 	};
 
 	cpu_intc: interrupt-controller {
@@ -51,7 +66,7 @@
 		compatible = "simple-bus";
 		ranges;
 
-		clkctl: clock-controller@10000004 {
+		periph_clk: clock-controller@10000004 {
 			compatible = "brcm,bcm6328-clocks";
 			reg = <0x10000004 0x4>;
 			#clock-cells = <1>;
@@ -75,37 +90,71 @@
 			interrupts = <2>, <3>;
 		};
 
+		wdt: watchdog@1000005c {
+			compatible = "brcm,bcm7038-wdt";
+			reg = <0x1000005c 0xc>;
+
+			clocks = <&periph_osc>;
+			clock-names = "refclk";
+
+			timeout-sec = <30>;
+		};
+
+		soft_reset: syscon@10000068 {
+			compatible = "syscon";
+			reg = <0x10000068 0x4>;
+			native-endian;
+
+			reboot {
+				compatible = "syscon-reboot";
+				offset = <0x0>;
+				mask = <0x1>;
+			};
+		};
+
 		uart0: serial@10000100 {
 			compatible = "brcm,bcm6345-uart";
 			reg = <0x10000100 0x18>;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <28>;
-			clocks = <&periph_clk>;
+
+			clocks = <&periph_osc>;
 			clock-names = "refclk";
+
 			status = "disabled";
 		};
 
 		uart1: serial@10000120 {
 			compatible = "brcm,bcm6345-uart";
 			reg = <0x10000120 0x18>;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <39>;
-			clocks = <&periph_clk>;
+
+			clocks = <&periph_osc>;
 			clock-names = "refclk";
+
 			status = "disabled";
 		};
 
-		timer: syscon@10000040 {
-			compatible = "syscon";
-			reg = <0x10000040 0x2c>;
-			native-endian;
-		};
+		nflash: nand@10000200 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm6368",
+				     "brcm,brcmnand-v2.2",
+				     "brcm,brcmnand";
+			reg = <0x10000200 0x180>,
+			      <0x10000400 0x200>,
+			      <0x10000070 0x10>;
+			reg-names = "nand",
+				    "nand-cache",
+				    "nand-int-base";
 
-		reboot: syscon-reboot@10000068 {
-			compatible = "syscon-reboot";
-			regmap = <&timer>;
-			offset = <0x28>;
-			mask = <0x1>;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <0>;
+
+			status = "disabled";
 		};
 
 		leds0: led-controller@10000800 {
@@ -113,6 +162,27 @@
 			#size-cells = <0>;
 			compatible = "brcm,bcm6328-leds";
 			reg = <0x10000800 0x24>;
+
+			status = "disabled";
+		};
+
+		hsspi: spi@10001000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,bcm6328-hsspi";
+			reg = <0x10001000 0x600>;
+
+			interrupt-parent = <&periph_intc>;
+			interrupts = <29>;
+
+			clocks = <&periph_clk BCM6328_CLK_HSSPI>,
+				 <&hsspi_osc>;
+			clock-names = "hsspi",
+				      "pll";
+
+			resets = <&periph_rst BCM6328_RST_SPI>;
+			reset-names = "hsspi";
+
 			status = "disabled";
 		};
 
@@ -126,8 +196,13 @@
 			compatible = "brcm,bcm6328-ehci", "generic-ehci";
 			reg = <0x10002500 0x100>;
 			big-endian;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <42>;
+
+			phys = <&usbh 0>;
+			phy-names = "usb";
+
 			status = "disabled";
 		};
 
@@ -136,8 +211,29 @@
 			reg = <0x10002600 0x100>;
 			big-endian;
 			no-big-frame-no;
+
 			interrupt-parent = <&periph_intc>;
 			interrupts = <41>;
+
+			phys = <&usbh 0>;
+			phy-names = "usb";
+
+			status = "disabled";
+		};
+
+		usbh: usb-phy@10002700 {
+			compatible = "brcm,bcm6328-usbh-phy";
+			reg = <0x10002700 0x38>;
+			#phy-cells = <1>;
+
+			clocks = <&periph_clk BCM6328_CLK_USBH>;
+			clock-names = "usbh";
+
+			power-domains = <&periph_pwr BCM6328_POWER_DOMAIN_USBH>;
+
+			resets = <&periph_rst BCM6328_RST_USBH>;
+			reset-names = "usbh";
+
 			status = "disabled";
 		};
 	};

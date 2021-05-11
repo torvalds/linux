@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for the Hisilicon SEC units found on Hip06 Hip07
+ * Driver for the HiSilicon SEC units found on Hip06 Hip07
  *
- * Copyright (c) 2016-2017 Hisilicon Limited.
+ * Copyright (c) 2016-2017 HiSilicon Limited.
  */
 #include <linux/acpi.h>
 #include <linux/atomic.h>
@@ -233,7 +233,7 @@ static int sec_queue_map_io(struct sec_queue *queue)
 				    IORESOURCE_MEM,
 				    2 + queue->queue_id);
 	if (!res) {
-		dev_err(dev, "Failed to get queue %d memory resource\n",
+		dev_err(dev, "Failed to get queue %u memory resource\n",
 			queue->queue_id);
 		return -ENOMEM;
 	}
@@ -653,12 +653,12 @@ static int sec_queue_free(struct sec_queue *queue)
 	struct sec_dev_info *info = queue->dev_info;
 
 	if (queue->queue_id >= SEC_Q_NUM) {
-		dev_err(info->dev, "No queue %d\n", queue->queue_id);
+		dev_err(info->dev, "No queue %u\n", queue->queue_id);
 		return -ENODEV;
 	}
 
 	if (!queue->in_use) {
-		dev_err(info->dev, "Queue %d is idle\n", queue->queue_id);
+		dev_err(info->dev, "Queue %u is idle\n", queue->queue_id);
 		return -ENODEV;
 	}
 
@@ -834,6 +834,7 @@ int sec_queue_stop_release(struct sec_queue *queue)
 
 /**
  * sec_queue_empty() - Is this hardware queue currently empty.
+ * @queue: The queue to test
  *
  * We need to know if we have an empty queue for some of the chaining modes
  * as if it is not empty we may need to hold the message in a software queue
@@ -1315,6 +1316,6 @@ static struct platform_driver sec_driver = {
 module_platform_driver(sec_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Hisilicon Security Accelerators");
+MODULE_DESCRIPTION("HiSilicon Security Accelerators");
 MODULE_AUTHOR("Zaibo Xu <xuzaibo@huawei.com");
 MODULE_AUTHOR("Jonathan Cameron <jonathan.cameron@huawei.com>");

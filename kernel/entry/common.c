@@ -341,7 +341,7 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * Checking for rcu_is_watching() here would prevent the nesting
 	 * interrupt to invoke rcu_irq_enter(). If that nested interrupt is
 	 * the tick then rcu_flavor_sched_clock_irq() would wrongfully
-	 * assume that it is the first interupt and eventually claim
+	 * assume that it is the first interrupt and eventually claim
 	 * quiescent state and end grace periods prematurely.
 	 *
 	 * Unconditionally invoke rcu_irq_enter() so RCU state stays
@@ -422,7 +422,7 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 
 		instrumentation_begin();
 		if (IS_ENABLED(CONFIG_PREEMPTION)) {
-#ifdef CONFIG_PREEMT_DYNAMIC
+#ifdef CONFIG_PREEMPT_DYNAMIC
 			static_call(irqentry_exit_cond_resched)();
 #else
 			irqentry_exit_cond_resched();

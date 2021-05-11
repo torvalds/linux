@@ -661,8 +661,14 @@ LEAF(memcpy)					/* a0=dst a1=src a2=len */
 EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 .L__memcpy:
-FEXPORT(__copy_user)
-EXPORT_SYMBOL(__copy_user)
+#ifndef CONFIG_EVA
+FEXPORT(__raw_copy_from_user)
+EXPORT_SYMBOL(__raw_copy_from_user)
+FEXPORT(__raw_copy_to_user)
+EXPORT_SYMBOL(__raw_copy_to_user)
+FEXPORT(__raw_copy_in_user)
+EXPORT_SYMBOL(__raw_copy_in_user)
+#endif
 	/* Legacy Mode, user <-> user */
 	__BUILD_COPY_USER LEGACY_MODE USEROP USEROP
 
@@ -681,10 +687,10 @@ EXPORT_SYMBOL(__copy_user)
  * __copy_from_user (EVA)
  */
 
-LEAF(__copy_from_user_eva)
-EXPORT_SYMBOL(__copy_from_user_eva)
+LEAF(__raw_copy_from_user)
+EXPORT_SYMBOL(__raw_copy_from_user)
 	__BUILD_COPY_USER EVA_MODE USEROP KERNELOP
-END(__copy_from_user_eva)
+END(__raw_copy_from_user)
 
 
 
@@ -692,18 +698,18 @@ END(__copy_from_user_eva)
  * __copy_to_user (EVA)
  */
 
-LEAF(__copy_to_user_eva)
-EXPORT_SYMBOL(__copy_to_user_eva)
+LEAF(__raw_copy_to_user)
+EXPORT_SYMBOL(__raw_copy_to_user)
 __BUILD_COPY_USER EVA_MODE KERNELOP USEROP
-END(__copy_to_user_eva)
+END(__raw_copy_to_user)
 
 /*
  * __copy_in_user (EVA)
  */
 
-LEAF(__copy_in_user_eva)
-EXPORT_SYMBOL(__copy_in_user_eva)
+LEAF(__raw_copy_in_user)
+EXPORT_SYMBOL(__raw_copy_in_user)
 __BUILD_COPY_USER EVA_MODE USEROP USEROP
-END(__copy_in_user_eva)
+END(__raw_copy_in_user)
 
 #endif

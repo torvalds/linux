@@ -907,24 +907,6 @@ static inline unsigned sdma_progress(struct sdma_engine *sde, unsigned seq,
 	return 0;
 }
 
-/**
- * sdma_iowait_schedule() - initialize wait structure
- * @sde: sdma_engine to schedule
- * @wait: wait struct to schedule
- *
- * This function initializes the iowait
- * structure embedded in the QP or PQ.
- *
- */
-static inline void sdma_iowait_schedule(
-	struct sdma_engine *sde,
-	struct iowait *wait)
-{
-	struct hfi1_pportdata *ppd = sde->dd->pport;
-
-	iowait_schedule(wait, ppd->hfi1_wq, sde->cpu);
-}
-
 /* for use by interrupt handling */
 void sdma_engine_error(struct sdma_engine *sde, u64 status);
 void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);

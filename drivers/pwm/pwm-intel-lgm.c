@@ -207,7 +207,6 @@ static int lgm_pwm_probe(struct platform_device *pdev)
 	pc->chip.dev = dev;
 	pc->chip.ops = &lgm_pwm_ops;
 	pc->chip.npwm = 1;
-	pc->chip.base = -1;
 
 	lgm_pwm_init(pc);
 

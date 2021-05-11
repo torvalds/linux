@@ -617,7 +617,7 @@ static void rcar_canfd_tx_failure_cleanup(struct net_device *ndev)
 	u32 i;
 
 	for (i = 0; i < RCANFD_FIFO_DEPTH; i++)
-		can_free_echo_skb(ndev, i);
+		can_free_echo_skb(ndev, i, NULL);
 }
 
 static int rcar_canfd_reset_controller(struct rcar_canfd_global *gpriv)

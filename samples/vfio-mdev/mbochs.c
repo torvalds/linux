@@ -205,16 +205,6 @@ static struct page *__mbochs_get_page(struct mdev_state *mdev_state,
 static struct page *mbochs_get_page(struct mdev_state *mdev_state,
 				    pgoff_t pgoff);
 
-static const struct mbochs_type *mbochs_find_type(struct kobject *kobj)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mbochs_types); i++)
-		if (strcmp(mbochs_types[i].name, kobj->name) == 0)
-			return mbochs_types + i;
-	return NULL;
-}
-
 static void mbochs_create_config_space(struct mdev_state *mdev_state)
 {
 	STORE_LE16((u16 *) &mdev_state->vconfig[PCI_VENDOR_ID],
@@ -516,14 +506,13 @@ static int mbochs_reset(struct mdev_device *mdev)
 	return 0;
 }
 
-static int mbochs_create(struct kobject *kobj, struct mdev_device *mdev)
+static int mbochs_create(struct mdev_device *mdev)
 {
-	const struct mbochs_type *type = mbochs_find_type(kobj);
+	const struct mbochs_type *type =
+		&mbochs_types[mdev_get_type_group_id(mdev)];
 	struct device *dev = mdev_dev(mdev);
 	struct mdev_state *mdev_state;
 
-	if (!type)
-		type = &mbochs_types[0];
 	if (type->mbytes + mbochs_used_mbytes > max_mbytes)
 		return -ENOMEM;
 
@@ -544,7 +533,7 @@ static int mbochs_create(struct kobject *kobj, struct mdev_device *mdev)
 		goto err_mem;
 
 	dev_info(dev, "%s: %s, %d MB, %ld pages\n", __func__,
-		 kobj->name, type->mbytes, mdev_state->pagecount);
+		 type->name, type->mbytes, mdev_state->pagecount);
 
 	mutex_init(&mdev_state->ops_lock);
 	mdev_state->mdev = mdev;
@@ -1334,44 +1323,50 @@ static const struct attribute_group mdev_dev_group = {
 	.attrs = mdev_dev_attrs,
 };
 
-const struct attribute_group *mdev_dev_groups[] = {
+static const struct attribute_group *mdev_dev_groups[] = {
 	&mdev_dev_group,
 	NULL,
 };
 
-static ssize_t
-name_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t name_show(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", kobj->name);
-}
-MDEV_TYPE_ATTR_RO(name);
+	const struct mbochs_type *type =
+		&mbochs_types[mtype_get_type_group_id(mtype)];
 
-static ssize_t
-description_show(struct kobject *kobj, struct device *dev, char *buf)
+	return sprintf(buf, "%s\n", type->name);
+}
+static MDEV_TYPE_ATTR_RO(name);
+
+static ssize_t description_show(struct mdev_type *mtype,
+				struct mdev_type_attribute *attr, char *buf)
 {
-	const struct mbochs_type *type = mbochs_find_type(kobj);
+	const struct mbochs_type *type =
+		&mbochs_types[mtype_get_type_group_id(mtype)];
 
 	return sprintf(buf, "virtual display, %d MB video memory\n",
 		       type ? type->mbytes  : 0);
 }
-MDEV_TYPE_ATTR_RO(description);
+static MDEV_TYPE_ATTR_RO(description);
 
-static ssize_t
-available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t available_instances_show(struct mdev_type *mtype,
+					struct mdev_type_attribute *attr,
+					char *buf)
 {
-	const struct mbochs_type *type = mbochs_find_type(kobj);
+	const struct mbochs_type *type =
+		&mbochs_types[mtype_get_type_group_id(mtype)];
 	int count = (max_mbytes - mbochs_used_mbytes) / type->mbytes;
 
 	return sprintf(buf, "%d\n", count);
 }
-MDEV_TYPE_ATTR_RO(available_instances);
+static MDEV_TYPE_ATTR_RO(available_instances);
 
-static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
-			       char *buf)
+static ssize_t device_api_show(struct mdev_type *mtype,
+			       struct mdev_type_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }
-MDEV_TYPE_ATTR_RO(device_api);
+static MDEV_TYPE_ATTR_RO(device_api);
 
 static struct attribute *mdev_types_attrs[] = {
 	&mdev_type_attr_name.attr,

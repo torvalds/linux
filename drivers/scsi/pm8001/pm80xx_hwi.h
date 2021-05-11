@@ -1272,6 +1272,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE	0x47
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED	0x48
 #define IO_DS_INVALID					0x49
+#define IO_FATAL_ERROR					0x51
 /* WARNING: the value is not contiguous from here */
 #define IO_XFER_ERR_LAST_PIO_DATAIN_CRC_ERR	0x52
 #define IO_XFER_DMA_ACTIVATE_TIMEOUT		0x53

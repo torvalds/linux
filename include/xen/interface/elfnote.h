@@ -208,13 +208,3 @@
 #define XEN_ELFNOTE_MAX XEN_ELFNOTE_PHYS32_ENTRY
 
 #endif /* __XEN_PUBLIC_ELFNOTE_H__ */
-
-/*
- * Local variables:
- * mode: C
- * c-set-style: "BSD"
- * c-basic-offset: 4
- * tab-width: 4
- * indent-tabs-mode: nil
- * End:
- */

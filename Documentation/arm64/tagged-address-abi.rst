@@ -40,7 +40,7 @@ space obtained in one of the following ways:
   during creation and with the same restrictions as for ``mmap()`` above
   (e.g. data, bss, stack).
 
-The AArch64 Tagged Address ABI has two stages of relaxation depending
+The AArch64 Tagged Address ABI has two stages of relaxation depending on
 how the user addresses are used by the kernel:
 
 1. User addresses not accessed by the kernel but used for address space
@@ -112,6 +112,12 @@ ABI relaxation:
   indirectly as arguments to be accessed by the kernel.
 
 - ``shmat()`` and ``shmdt()``.
+
+- ``brk()`` (since kernel v5.6).
+
+- ``mmap()`` (since kernel v5.6).
+
+- ``mremap()``, the ``new_address`` argument (since kernel v5.6).
 
 Any attempt to use non-zero tagged pointers may result in an error code
 being returned, a (fatal) signal being raised, or other modes of

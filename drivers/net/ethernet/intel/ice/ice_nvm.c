@@ -644,6 +644,7 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 
 		/* Verify that the simple checksum is zero */
 		for (i = 0; i < sizeof(tmp); i++)
+			/* cppcheck-suppress objectIndex */
 			sum += ((u8 *)&tmp)[i];
 
 		if (sum) {

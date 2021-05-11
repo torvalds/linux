@@ -1339,6 +1339,61 @@ int br_vlan_get_pvid_rcu(const struct net_device *dev, u16 *p_pvid)
 }
 EXPORT_SYMBOL_GPL(br_vlan_get_pvid_rcu);
 
+void br_vlan_fill_forward_path_pvid(struct net_bridge *br,
+				    struct net_device_path_ctx *ctx,
+				    struct net_device_path *path)
+{
+	struct net_bridge_vlan_group *vg;
+	int idx = ctx->num_vlans - 1;
+	u16 vid;
+
+	path->bridge.vlan_mode = DEV_PATH_BR_VLAN_KEEP;
+
+	if (!br_opt_get(br, BROPT_VLAN_ENABLED))
+		return;
+
+	vg = br_vlan_group(br);
+
+	if (idx >= 0 &&
+	    ctx->vlan[idx].proto == br->vlan_proto) {
+		vid = ctx->vlan[idx].id;
+	} else {
+		path->bridge.vlan_mode = DEV_PATH_BR_VLAN_TAG;
+		vid = br_get_pvid(vg);
+	}
+
+	path->bridge.vlan_id = vid;
+	path->bridge.vlan_proto = br->vlan_proto;
+}
+
+int br_vlan_fill_forward_path_mode(struct net_bridge *br,
+				   struct net_bridge_port *dst,
+				   struct net_device_path *path)
+{
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+
+	if (!br_opt_get(br, BROPT_VLAN_ENABLED))
+		return 0;
+
+	vg = nbp_vlan_group_rcu(dst);
+	v = br_vlan_find(vg, path->bridge.vlan_id);
+	if (!v || !br_vlan_should_use(v))
+		return -EINVAL;
+
+	if (!(v->flags & BRIDGE_VLAN_INFO_UNTAGGED))
+		return 0;
+
+	if (path->bridge.vlan_mode == DEV_PATH_BR_VLAN_TAG)
+		path->bridge.vlan_mode = DEV_PATH_BR_VLAN_KEEP;
+	else if (v->priv_flags & BR_VLFLAG_ADDED_BY_SWITCHDEV)
+		path->bridge.vlan_mode = DEV_PATH_BR_VLAN_UNTAG_HW;
+	else
+		path->bridge.vlan_mode = DEV_PATH_BR_VLAN_UNTAG;
+
+	return 0;
+}
+
 int br_vlan_get_info(const struct net_device *dev, u16 vid,
 		     struct bridge_vlan_info *p_vinfo)
 {
@@ -1750,6 +1805,79 @@ out_err:
 out_kfree:
 	kfree_skb(skb);
 }
+
+static int br_vlan_replay_one(struct notifier_block *nb,
+			      struct net_device *dev,
+			      struct switchdev_obj_port_vlan *vlan,
+			      struct netlink_ext_ack *extack)
+{
+	struct switchdev_notifier_port_obj_info obj_info = {
+		.info = {
+			.dev = dev,
+			.extack = extack,
+		},
+		.obj = &vlan->obj,
+	};
+	int err;
+
+	err = nb->notifier_call(nb, SWITCHDEV_PORT_OBJ_ADD, &obj_info);
+	return notifier_to_errno(err);
+}
+
+int br_vlan_replay(struct net_device *br_dev, struct net_device *dev,
+		   struct notifier_block *nb, struct netlink_ext_ack *extack)
+{
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct net_bridge_port *p;
+	struct net_bridge *br;
+	int err = 0;
+	u16 pvid;
+
+	ASSERT_RTNL();
+
+	if (!netif_is_bridge_master(br_dev))
+		return -EINVAL;
+
+	if (!netif_is_bridge_master(dev) && !netif_is_bridge_port(dev))
+		return -EINVAL;
+
+	if (netif_is_bridge_master(dev)) {
+		br = netdev_priv(dev);
+		vg = br_vlan_group(br);
+		p = NULL;
+	} else {
+		p = br_port_get_rtnl(dev);
+		if (WARN_ON(!p))
+			return -EINVAL;
+		vg = nbp_vlan_group(p);
+		br = p->br;
+	}
+
+	if (!vg)
+		return 0;
+
+	pvid = br_get_pvid(vg);
+
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		struct switchdev_obj_port_vlan vlan = {
+			.obj.orig_dev = dev,
+			.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+			.flags = br_vlan_flags(v, pvid),
+			.vid = v->vid,
+		};
+
+		if (!br_vlan_should_use(v))
+			continue;
+
+		err = br_vlan_replay_one(nb, dev, &vlan, extack);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(br_vlan_replay);
 
 /* check if v_curr can enter a range ending in range_end */
 bool br_vlan_can_enter_range(const struct net_bridge_vlan *v_curr,

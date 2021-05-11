@@ -621,7 +621,7 @@ static int iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
 	for_each_netdev_rcu(&init_net, dev) {
 		if (!memcmp(dev->perm_addr, uid, 8)) {
 			memcpy(iucv->src_user_id, sa->siucv_user_id, 8);
-			/* Check for unitialized siucv_name */
+			/* Check for uninitialized siucv_name */
 			if (strncmp(sa->siucv_name, "        ", 8) == 0)
 				__iucv_auto_name(iucv);
 			else
@@ -2134,7 +2134,7 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 /**
- * afiucv_hs_callback_txnotify() - handle send notifcations from HiperSockets
+ * afiucv_hs_callback_txnotify() - handle send notifications from HiperSockets
  *                                 transport
  **/
 static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify n)

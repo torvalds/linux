@@ -17,7 +17,7 @@
  *  Updated by:	     Tom Rini <trini@kernel.crashing.org>
  *  Updated by:	     Jason Wessel <jason.wessel@windriver.com>
  *  Modified for 386 by Jim Kingdon, Cygnus Support.
- *  Origianl kgdb, compatibility with 2.1.xx kernel by
+ *  Original kgdb, compatibility with 2.1.xx kernel by
  *  David Grothe <dave@gcom.com>
  *  Integrated into 2.2.5 kernel by Tigran Aivazian <tigran@sco.com>
  *  X86_64 changes from Andi Kleen's patch merged by Jim Houston
@@ -642,7 +642,7 @@ void kgdb_arch_late(void)
 	struct perf_event **pevent;
 
 	/*
-	 * Pre-allocate the hw breakpoint structions in the non-atomic
+	 * Pre-allocate the hw breakpoint instructions in the non-atomic
 	 * portion of kgdb because this operation requires mutexs to
 	 * complete.
 	 */

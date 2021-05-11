@@ -1764,7 +1764,7 @@ bnad_dim_timeout(struct timer_list *t)
 		}
 	}
 
-	/* Check for BNAD_CF_DIM_ENABLED, does not eleminate a race */
+	/* Check for BNAD_CF_DIM_ENABLED, does not eliminate a race */
 	if (test_bit(BNAD_RF_DIM_TIMER_RUNNING, &bnad->run_flags))
 		mod_timer(&bnad->dim_timer,
 			  jiffies + msecs_to_jiffies(BNAD_DIM_TIMER_FREQ));

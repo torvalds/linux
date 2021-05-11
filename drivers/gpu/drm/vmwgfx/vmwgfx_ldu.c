@@ -49,7 +49,7 @@ struct vmw_legacy_display {
 	struct vmw_framebuffer *fb;
 };
 
-/**
+/*
  * Display unit using the legacy register interface.
  */
 struct vmw_legacy_display_unit {
@@ -206,6 +206,7 @@ static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
  * vmw_ldu_crtc_atomic_enable - Noop
  *
  * @crtc: CRTC associated with the new screen
+ * @state: Unused
  *
  * This is called after a mode set has been completed.  Here's
  * usually a good place to call vmw_ldu_add_active/vmw_ldu_del_active
@@ -221,6 +222,7 @@ static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
  * vmw_ldu_crtc_atomic_disable - Turns off CRTC
  *
  * @crtc: CRTC to be turned off
+ * @state: Unused
  */
 static void vmw_ldu_crtc_atomic_disable(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
@@ -282,18 +284,22 @@ drm_connector_helper_funcs vmw_ldu_connector_helper_funcs = {
 
 static void
 vmw_ldu_primary_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct vmw_private *dev_priv;
 	struct vmw_legacy_display_unit *ldu;
 	struct vmw_framebuffer *vfb;
 	struct drm_framebuffer *fb;
-	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	struct drm_crtc *crtc = new_state->crtc ?: old_state->crtc;
 
 
 	ldu = vmw_crtc_to_ldu(crtc);
 	dev_priv = vmw_priv(plane->dev);
-	fb       = plane->state->fb;
+	fb       = new_state->fb;
 
 	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
 

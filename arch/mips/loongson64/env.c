@@ -43,7 +43,18 @@ const char *get_system_type(void)
 	return "Generic Loongson64 System";
 }
 
-void __init prom_init_env(void)
+
+void __init prom_dtb_init_env(void)
+{
+	if ((fw_arg2 < CKSEG0 || fw_arg2 > CKSEG1)
+		&& (fw_arg2 < XKPHYS || fw_arg2 > XKSEG))
+
+		loongson_fdt_blob = __dtb_loongson64_2core_2k1000_begin;
+	else
+		loongson_fdt_blob = (void *)fw_arg2;
+}
+
+void __init prom_lefi_init_env(void)
 {
 	struct boot_params *boot_p;
 	struct loongson_params *loongson_p;
@@ -95,7 +106,6 @@ void __init prom_init_env(void)
 		loongson_freqctrl[1] = 0x900010001fe001d0;
 		loongson_freqctrl[2] = 0x900020001fe001d0;
 		loongson_freqctrl[3] = 0x900030001fe001d0;
-		loongson_sysconf.ht_control_base = 0x90000EFDFB000000;
 		loongson_sysconf.workarounds = WORKAROUND_CPUFREQ;
 		break;
 	case Legacy_3B:
@@ -118,7 +128,6 @@ void __init prom_init_env(void)
 		loongson_freqctrl[1] = 0x900020001fe001d0;
 		loongson_freqctrl[2] = 0x900040001fe001d0;
 		loongson_freqctrl[3] = 0x900060001fe001d0;
-		loongson_sysconf.ht_control_base = 0x90001EFDFB000000;
 		loongson_sysconf.workarounds = WORKAROUND_CPUHOTPLUG;
 		break;
 	default:
@@ -136,9 +145,6 @@ void __init prom_init_env(void)
 		loongson_sysconf.cores_per_node - 1) /
 		loongson_sysconf.cores_per_node;
 
-	loongson_sysconf.pci_mem_start_addr = eirq_source->pci_mem_start_addr;
-	loongson_sysconf.pci_mem_end_addr = eirq_source->pci_mem_end_addr;
-	loongson_sysconf.pci_io_base = eirq_source->pci_io_start_addr;
 	loongson_sysconf.dma_mask_bits = eirq_source->dma_mask_bits;
 	if (loongson_sysconf.dma_mask_bits < 32 ||
 		loongson_sysconf.dma_mask_bits > 64)
@@ -153,23 +159,8 @@ void __init prom_init_env(void)
 		loongson_sysconf.poweroff_addr, loongson_sysconf.restart_addr,
 		loongson_sysconf.vgabios_addr);
 
-	memset(loongson_sysconf.ecname, 0, 32);
-	if (esys->has_ec)
-		memcpy(loongson_sysconf.ecname, esys->ec_name, 32);
 	loongson_sysconf.workarounds |= esys->workarounds;
 
-	loongson_sysconf.nr_uarts = esys->nr_uarts;
-	if (esys->nr_uarts < 1 || esys->nr_uarts > MAX_UARTS)
-		loongson_sysconf.nr_uarts = 1;
-	memcpy(loongson_sysconf.uarts, esys->uarts,
-		sizeof(struct uart_device) * loongson_sysconf.nr_uarts);
-
-	loongson_sysconf.nr_sensors = esys->nr_sensors;
-	if (loongson_sysconf.nr_sensors > MAX_SENSORS)
-		loongson_sysconf.nr_sensors = 0;
-	if (loongson_sysconf.nr_sensors)
-		memcpy(loongson_sysconf.sensors, esys->sensors,
-			sizeof(struct sensor_device) * loongson_sysconf.nr_sensors);
 	pr_info("CpuClock = %u\n", cpu_clock_freq);
 
 	/* Read the ID of PCI host bridge to detect bridge type */

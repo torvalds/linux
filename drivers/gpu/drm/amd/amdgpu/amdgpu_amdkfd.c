@@ -44,7 +44,7 @@ int amdgpu_amdkfd_init(void)
 	int ret;
 
 	si_meminfo(&si);
-	amdgpu_amdkfd_total_mem_size = si.totalram - si.totalhigh;
+	amdgpu_amdkfd_total_mem_size = si.freeram - si.freehigh;
 	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
 	ret = kgd2kfd_init();
@@ -165,7 +165,8 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 					adev->doorbell_index.last_non_cp;
 		}
 
-		kgd2kfd_device_init(adev->kfd.dev, adev_to_drm(adev), &gpu_resources);
+		adev->kfd.init_complete = kgd2kfd_device_init(adev->kfd.dev,
+						adev_to_drm(adev), &gpu_resources);
 	}
 }
 
@@ -245,6 +246,7 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	bp.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
 	if (cp_mqd_gfx9)
 		bp.flags |= AMDGPU_GEM_CREATE_CP_MQD_GFX9;
@@ -316,6 +318,7 @@ int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_bo *bo = NULL;
+	struct amdgpu_bo_user *ubo;
 	struct amdgpu_bo_param bp;
 	int r;
 
@@ -326,14 +329,16 @@ int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
 	bp.flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
-	r = amdgpu_bo_create(adev, &bp, &bo);
+	r = amdgpu_bo_create_user(adev, &bp, &ubo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate gws BO for amdkfd (%d)\n", r);
 		return r;
 	}
 
+	bo = &ubo->bo;
 	*mem_obj = bo;
 	return 0;
 }
@@ -494,8 +499,6 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 		*dma_buf_kgd = (struct kgd_dev *)adev;
 	if (bo_size)
 		*bo_size = amdgpu_bo_size(bo);
-	if (metadata_size)
-		*metadata_size = bo->metadata_size;
 	if (metadata_buffer)
 		r = amdgpu_bo_get_metadata(bo, metadata_buffer, buffer_size,
 					   metadata_size, &metadata_flags);
@@ -638,13 +641,6 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	/* Temp workaround to fix the soft hang observed in certain compute
-	 * applications if GFXOFF is enabled.
-	 */
-	if (adev->asic_type == CHIP_SIENNA_CICHLID) {
-		pr_debug("GFXOFF is %s\n", idle ? "enabled" : "disabled");
-		amdgpu_gfx_off_ctrl(adev, idle);
-	}
 	amdgpu_dpm_switch_power_profile(adev,
 					PP_SMC_POWER_PROFILE_COMPUTE,
 					!idle);

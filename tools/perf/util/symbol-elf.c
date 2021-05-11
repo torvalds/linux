@@ -1058,7 +1058,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		curr_dso->symtab_type = dso->symtab_type;
 		maps__insert(kmaps, curr_map);
 		/*
-		 * Add it before we drop the referece to curr_map, i.e. while
+		 * Add it before we drop the reference to curr_map, i.e. while
 		 * we still are sure to have a reference to this DSO via
 		 * *curr_map->dso.
 		 */

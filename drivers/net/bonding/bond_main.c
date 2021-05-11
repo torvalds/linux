@@ -964,7 +964,7 @@ static bool bond_should_notify_peers(struct bonding *bond)
 }
 
 /**
- * change_active_interface - change the active slave into the specified one
+ * bond_change_active_slave - change the active slave into the specified one
  * @bond: our bonding struct
  * @new_active: the new slave to make the active one
  *
@@ -4391,9 +4391,7 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 	int agg_id = 0;
 	int ret = 0;
 
-#ifdef CONFIG_LOCKDEP
-	WARN_ON(lockdep_is_held(&bond->mode_lock));
-#endif
+	might_sleep();
 
 	usable_slaves = kzalloc(struct_size(usable_slaves, arr,
 					    bond->slave_cnt), GFP_KERNEL);
@@ -4406,7 +4404,9 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 
+		spin_lock_bh(&bond->mode_lock);
 		if (bond_3ad_get_active_agg_info(bond, &ad_info)) {
+			spin_unlock_bh(&bond->mode_lock);
 			pr_debug("bond_3ad_get_active_agg_info failed\n");
 			/* No active aggragator means it's not safe to use
 			 * the previous array.
@@ -4414,6 +4414,7 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 			bond_reset_slave_arr(bond);
 			goto out;
 		}
+		spin_unlock_bh(&bond->mode_lock);
 		agg_id = ad_info.aggregator_id;
 	}
 	bond_for_each_slave(bond, slave, iter) {

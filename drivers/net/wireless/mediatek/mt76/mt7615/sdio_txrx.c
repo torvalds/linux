@@ -218,11 +218,14 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	int qid, err, nframes = 0, len = 0, pse_sz = 0, ple_sz = 0;
 	bool mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_sdio *sdio = &dev->sdio;
+	u8 pad;
 
 	qid = mcu ? ARRAY_SIZE(sdio->xmit_buf) - 1 : q->qid;
 	while (q->first != q->head) {
 		struct mt76_queue_entry *e = &q->entry[q->first];
 		struct sk_buff *iter;
+
+		smp_rmb();
 
 		if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state)) {
 			__skb_put_zero(e->skb, 4);
@@ -234,7 +237,8 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 			goto next;
 		}
 
-		if (len + e->skb->len + 4 > MT76S_XMIT_BUF_SZ)
+		pad = roundup(e->skb->len, 4) - e->skb->len;
+		if (len + e->skb->len + pad + 4 > MT76S_XMIT_BUF_SZ)
 			break;
 
 		if (mt7663s_tx_pick_quota(sdio, mcu, e->buf_sz, &pse_sz,
@@ -251,6 +255,11 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 			       iter->len);
 			len += iter->len;
 			nframes++;
+		}
+
+		if (unlikely(pad)) {
+			memset(sdio->xmit_buf[qid] + len, 0, pad);
+			len += pad;
 		}
 next:
 		q->first = (q->first + 1) % q->ndesc;

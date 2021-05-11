@@ -40,6 +40,14 @@ struct dmub_srv;
 	DMUB_SR(DMCUB_INBOX1_SIZE) \
 	DMUB_SR(DMCUB_INBOX1_RPTR) \
 	DMUB_SR(DMCUB_INBOX1_WPTR) \
+	DMUB_SR(DMCUB_OUTBOX0_BASE_ADDRESS) \
+	DMUB_SR(DMCUB_OUTBOX0_SIZE) \
+	DMUB_SR(DMCUB_OUTBOX0_RPTR) \
+	DMUB_SR(DMCUB_OUTBOX0_WPTR) \
+	DMUB_SR(DMCUB_OUTBOX1_BASE_ADDRESS) \
+	DMUB_SR(DMCUB_OUTBOX1_SIZE) \
+	DMUB_SR(DMCUB_OUTBOX1_RPTR) \
+	DMUB_SR(DMCUB_OUTBOX1_WPTR) \
 	DMUB_SR(DMCUB_REGION3_CW0_OFFSET) \
 	DMUB_SR(DMCUB_REGION3_CW1_OFFSET) \
 	DMUB_SR(DMCUB_REGION3_CW2_OFFSET) \
@@ -75,6 +83,9 @@ struct dmub_srv;
 	DMUB_SR(DMCUB_REGION4_OFFSET) \
 	DMUB_SR(DMCUB_REGION4_OFFSET_HIGH) \
 	DMUB_SR(DMCUB_REGION4_TOP_ADDRESS) \
+	DMUB_SR(DMCUB_REGION5_OFFSET) \
+	DMUB_SR(DMCUB_REGION5_OFFSET_HIGH) \
+	DMUB_SR(DMCUB_REGION5_TOP_ADDRESS) \
 	DMUB_SR(DMCUB_SCRATCH0) \
 	DMUB_SR(DMCUB_SCRATCH1) \
 	DMUB_SR(DMCUB_SCRATCH2) \
@@ -95,7 +106,8 @@ struct dmub_srv;
 	DMUB_SR(CC_DC_PIPE_DIS) \
 	DMUB_SR(MMHUBBUB_SOFT_RESET) \
 	DMUB_SR(DCN_VM_FB_LOCATION_BASE) \
-	DMUB_SR(DCN_VM_FB_OFFSET)
+	DMUB_SR(DCN_VM_FB_OFFSET) \
+	DMUB_SR(DMCUB_INTERRUPT_ACK)
 
 #define DMUB_COMMON_FIELDS() \
 	DMUB_SF(DMCUB_CNTL, DMCUB_ENABLE) \
@@ -123,10 +135,13 @@ struct dmub_srv;
 	DMUB_SF(DMCUB_REGION3_CW7_TOP_ADDRESS, DMCUB_REGION3_CW7_ENABLE) \
 	DMUB_SF(DMCUB_REGION4_TOP_ADDRESS, DMCUB_REGION4_TOP_ADDRESS) \
 	DMUB_SF(DMCUB_REGION4_TOP_ADDRESS, DMCUB_REGION4_ENABLE) \
+	DMUB_SF(DMCUB_REGION5_TOP_ADDRESS, DMCUB_REGION5_TOP_ADDRESS) \
+	DMUB_SF(DMCUB_REGION5_TOP_ADDRESS, DMCUB_REGION5_ENABLE) \
 	DMUB_SF(CC_DC_PIPE_DIS, DC_DMCUB_ENABLE) \
 	DMUB_SF(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET) \
 	DMUB_SF(DCN_VM_FB_LOCATION_BASE, FB_BASE) \
-	DMUB_SF(DCN_VM_FB_OFFSET, FB_OFFSET)
+	DMUB_SF(DCN_VM_FB_OFFSET, FB_OFFSET) \
+	DMUB_SF(DMCUB_INTERRUPT_ACK, DMCUB_OUTBOX0_READY_INT_ACK)
 
 struct dmub_srv_common_reg_offset {
 #define DMUB_SR(reg) uint32_t reg;
@@ -180,6 +195,20 @@ uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub);
 
 void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset);
 
+void dmub_dcn20_setup_out_mailbox(struct dmub_srv *dmub,
+			      const struct dmub_region *outbox1);
+
+uint32_t dmub_dcn20_get_outbox1_wptr(struct dmub_srv *dmub);
+
+void dmub_dcn20_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
+
+void dmub_dcn20_setup_outbox0(struct dmub_srv *dmub,
+			      const struct dmub_region *outbox0);
+
+uint32_t dmub_dcn20_get_outbox0_wptr(struct dmub_srv *dmub);
+
+void dmub_dcn20_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
+
 bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub);
 
 bool dmub_dcn20_is_supported(struct dmub_srv *dmub);
@@ -199,5 +228,7 @@ void dmub_dcn20_skip_dmub_panel_power_sequence(struct dmub_srv *dmub, bool skip)
 union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub);
 
 bool dmub_dcn20_use_cached_inbox(struct dmub_srv *dmub);
+
+bool dmub_dcn20_use_cached_trace_buffer(struct dmub_srv *dmub);
 
 #endif /* _DMUB_DCN20_H_ */

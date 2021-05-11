@@ -20,6 +20,7 @@ config DRM_I915
 	select INPUT if ACPI
 	select ACPI_VIDEO if ACPI
 	select ACPI_BUTTON if ACPI
+	select IO_MAPPING
 	select SYNC_FILE
 	select IOSF_MBI
 	select CRC32
@@ -101,6 +102,7 @@ config DRM_I915_GVT
 	bool "Enable Intel GVT-g graphics virtualization host support"
 	depends on DRM_I915
 	depends on 64BIT
+	depends on VFIO_MDEV=y || VFIO_MDEV=DRM_I915
 	default n
 	help
 	  Choose this option if you want to enable Intel GVT-g graphics

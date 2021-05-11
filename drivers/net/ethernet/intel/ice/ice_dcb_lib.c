@@ -563,7 +563,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
 	dcbcfg->numapps = 1;
 	dcbcfg->app[0].selector = ICE_APP_SEL_ETHTYPE;
 	dcbcfg->app[0].priority = 3;
-	dcbcfg->app[0].prot_id = ICE_APP_PROT_ID_FCOE;
+	dcbcfg->app[0].prot_id = ETH_P_FCOE;
 
 	ret = ice_pf_dcb_cfg(pf, dcbcfg, locked);
 	kfree(dcbcfg);

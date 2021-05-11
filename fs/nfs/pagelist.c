@@ -577,7 +577,7 @@ static void nfs_clear_request(struct nfs_page *req)
 }
 
 /**
- * nfs_release_request - Release the count on an NFS read/write request
+ * nfs_free_request - Release the count on an NFS read/write request
  * @req: request to release
  *
  * Note: Should never be called with the spinlock held!
@@ -1152,7 +1152,7 @@ nfs_pageio_cleanup_request(struct nfs_pageio_descriptor *desc,
 }
 
 /**
- * nfs_pageio_add_request - Attempt to coalesce a request into a page list.
+ * __nfs_pageio_add_request - Attempt to coalesce a request into a page list.
  * @desc: destination io descriptor
  * @req: request
  *

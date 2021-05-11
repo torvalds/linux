@@ -203,7 +203,7 @@ static void qib_bad_mkey(struct qib_ibport *ibp, struct ib_smp *smp)
 /*
  * Send a Port Capability Mask Changed trap (ch. 14.3.11).
  */
-void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
+void qib_cap_mask_chg(struct rvt_dev_info *rdi, u32 port_num)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = dd_from_dev(ibdev);
@@ -2360,7 +2360,7 @@ static int process_cc(struct ib_device *ibdev, int mad_flags,
  *
  * This is called by the ib_mad module.
  */
-int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
+int qib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		    const struct ib_mad *in, struct ib_mad *out,
 		    size_t *out_mad_size, u16 *out_mad_pkey_index)

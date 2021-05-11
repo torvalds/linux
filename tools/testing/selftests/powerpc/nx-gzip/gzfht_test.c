@@ -324,7 +324,7 @@ int compress_file(int argc, char **argv, void *handle)
 				fprintf(stderr, "error: cannot progress; ");
 				fprintf(stderr, "too many faults\n");
 				exit(-1);
-			};
+			}
 		}
 
 		fault_tries = NX_MAX_FAULTS; /* Reset for the next chunk */

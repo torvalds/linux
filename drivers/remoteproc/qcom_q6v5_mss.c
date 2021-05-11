@@ -1210,6 +1210,14 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			goto release_firmware;
 		}
 
+		if (phdr->p_filesz > phdr->p_memsz) {
+			dev_err(qproc->dev,
+				"refusing to load segment %d with p_filesz > p_memsz\n",
+				i);
+			ret = -EINVAL;
+			goto release_firmware;
+		}
+
 		ptr = memremap(qproc->mpss_phys + offset, phdr->p_memsz, MEMREMAP_WC);
 		if (!ptr) {
 			dev_err(qproc->dev,
@@ -1237,6 +1245,16 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 							ptr, phdr->p_filesz);
 			if (ret) {
 				dev_err(qproc->dev, "failed to load %s\n", fw_name);
+				memunmap(ptr);
+				goto release_firmware;
+			}
+
+			if (seg_fw->size != phdr->p_filesz) {
+				dev_err(qproc->dev,
+					"failed to load segment %d from truncated file %s\n",
+					i, fw_name);
+				ret = -EINVAL;
+				release_firmware(seg_fw);
 				memunmap(ptr);
 				goto release_firmware;
 			}
@@ -1661,8 +1679,10 @@ static int q6v5_probe(struct platform_device *pdev)
 	mba_image = desc->hexagon_mba_image;
 	ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name",
 					    0, &mba_image);
-	if (ret < 0 && ret != -EINVAL)
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(&pdev->dev, "unable to read mba firmware-name\n");
 		return ret;
+	}
 
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_ops,
 			    mba_image, sizeof(*qproc));
@@ -1680,8 +1700,10 @@ static int q6v5_probe(struct platform_device *pdev)
 	qproc->hexagon_mdt_image = "modem.mdt";
 	ret = of_property_read_string_index(pdev->dev.of_node, "firmware-name",
 					    1, &qproc->hexagon_mdt_image);
-	if (ret < 0 && ret != -EINVAL)
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(&pdev->dev, "unable to read mpss firmware-name\n");
 		goto free_rproc;
+	}
 
 	platform_set_drvdata(pdev, qproc);
 

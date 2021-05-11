@@ -7,18 +7,9 @@
 
 /*
  * Despite that some emulators terminate on UD2, we use it for WARN().
- *
- * Since various instruction decoders/specs disagree on the encoding of
- * UD0/UD1.
  */
-
-#define ASM_UD0		".byte 0x0f, 0xff" /* + ModRM (for Intel) */
-#define ASM_UD1		".byte 0x0f, 0xb9" /* + ModRM */
 #define ASM_UD2		".byte 0x0f, 0x0b"
-
-#define INSN_UD0	0xff0f
 #define INSN_UD2	0x0b0f
-
 #define LEN_UD2		2
 
 #ifdef CONFIG_GENERIC_BUG

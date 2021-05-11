@@ -2545,7 +2545,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	struct driver_data *driver_data = packet->driver_data;
 	int ret = -ENOENT;
 
-	tasklet_disable(&ctx->tasklet);
+	tasklet_disable_in_atomic(&ctx->tasklet);
 
 	if (packet->ack != 0)
 		goto out;
@@ -3465,7 +3465,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	int ret = 0;
 
-	tasklet_disable(&ctx->context.tasklet);
+	tasklet_disable_in_atomic(&ctx->context.tasklet);
 
 	if (!test_and_set_bit_lock(0, &ctx->flushing_completions)) {
 		context_tasklet((unsigned long)&ctx->context);

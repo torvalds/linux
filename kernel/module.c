@@ -2146,6 +2146,8 @@ void __weak module_arch_freeing_init(struct module *mod)
 {
 }
 
+static void cfi_cleanup(struct module *mod);
+
 /* Free a module, remove from lists, etc. */
 static void free_module(struct module *mod)
 {
@@ -2186,6 +2188,9 @@ static void free_module(struct module *mod)
 	/* Wait for RCU-sched synchronizing before releasing mod->list and buglist. */
 	synchronize_rcu();
 	mutex_unlock(&module_mutex);
+
+	/* Clean up CFI for the module. */
+	cfi_cleanup(mod);
 
 	/* This may be empty, but that's OK */
 	module_arch_freeing_init(mod);
@@ -2802,7 +2807,11 @@ void * __weak module_alloc(unsigned long size)
 
 bool __weak module_init_section(const char *name)
 {
+#ifndef CONFIG_MODULE_UNLOAD
+	return strstarts(name, ".init") || module_exit_section(name);
+#else
 	return strstarts(name, ".init");
+#endif
 }
 
 bool __weak module_exit_section(const char *name)
@@ -3116,11 +3125,6 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 		 */
 		shdr->sh_addr = (size_t)info->hdr + shdr->sh_offset;
 
-#ifndef CONFIG_MODULE_UNLOAD
-		/* Don't load .exit sections */
-		if (module_exit_section(info->secstrings+shdr->sh_name))
-			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
-#endif
 	}
 
 	/* Track but don't keep modinfo and version sections. */
@@ -3866,6 +3870,8 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	return 0;
 }
 
+static void cfi_init(struct module *mod);
+
 /*
  * Allocate and load the module: note that size of section 0 is always
  * zero, and we rely on this for optional sections.
@@ -3997,6 +4003,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	flush_module_icache(mod);
 
+	/* Setup CFI for the module. */
+	cfi_init(mod);
+
 	/* Now copy in args */
 	mod->args = strndup_user(uargs, ~0UL >> 1);
 	if (IS_ERR(mod->args)) {
@@ -4070,6 +4079,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	synchronize_rcu();
 	kfree(mod->args);
  free_arch_cleanup:
+	cfi_cleanup(mod);
 	module_arch_cleanup(mod);
  free_modinfo:
 	free_modinfo(mod);
@@ -4414,6 +4424,38 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 }
 #endif /* CONFIG_LIVEPATCH */
 #endif /* CONFIG_KALLSYMS */
+
+static void cfi_init(struct module *mod)
+{
+#ifdef CONFIG_CFI_CLANG
+	initcall_t *init;
+	exitcall_t *exit;
+
+	rcu_read_lock_sched();
+	mod->cfi_check = (cfi_check_fn)
+		find_kallsyms_symbol_value(mod, "__cfi_check");
+	init = (initcall_t *)
+		find_kallsyms_symbol_value(mod, "__cfi_jt_init_module");
+	exit = (exitcall_t *)
+		find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
+	rcu_read_unlock_sched();
+
+	/* Fix init/exit functions to point to the CFI jump table */
+	if (init)
+		mod->init = *init;
+	if (exit)
+		mod->exit = *exit;
+
+	cfi_module_add(mod, module_addr_min);
+#endif
+}
+
+static void cfi_cleanup(struct module *mod)
+{
+#ifdef CONFIG_CFI_CLANG
+	cfi_module_remove(mod, module_addr_min);
+#endif
+}
 
 /* Maximum number of characters written by module_flags() */
 #define MODULE_FLAGS_BUF_SIZE (TAINT_FLAGS_COUNT + 4)

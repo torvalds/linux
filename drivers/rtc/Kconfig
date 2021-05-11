@@ -501,11 +501,11 @@ config RTC_DRV_M41T80_WDT
 	  watchdog timer in the ST M41T60 and M41T80 RTC chips series.
 
 config RTC_DRV_BD70528
-	tristate "ROHM BD70528 PMIC RTC"
-	depends on MFD_ROHM_BD70528 && (BD70528_WATCHDOG || !BD70528_WATCHDOG)
+	tristate "ROHM BD70528, BD71815 and BD71828 PMIC RTC"
+	depends on MFD_ROHM_BD71828 || MFD_ROHM_BD70528 && (BD70528_WATCHDOG || !BD70528_WATCHDOG)
 	help
 	  If you say Y here you will get support for the RTC
-	  block on ROHM BD70528 and BD71828 Power Management IC.
+	  block on ROHM BD70528, BD71815 and BD71828 Power Management IC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-bd70528.
@@ -1296,6 +1296,14 @@ config RTC_DRV_CROS_EC
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-cros-ec.
 
+config RTC_DRV_NTXEC
+	tristate "Netronix embedded controller RTC"
+	depends on MFD_NTXEC
+	help
+	  Say yes here if you want to support the RTC functionality of the
+	  embedded controller found in certain e-book readers designed by the
+	  original design manufacturer Netronix.
+
 comment "on-CPU RTC drivers"
 
 config RTC_DRV_ASM9260
@@ -1331,6 +1339,7 @@ config RTC_DRV_DIGICOLOR
 config RTC_DRV_IMXDI
 	tristate "Freescale IMX DryIce Real Time Clock"
 	depends on ARCH_MXC
+	depends on OF
 	help
 	   Support for Freescale IMX DryIce RTC
 
@@ -1898,7 +1907,7 @@ config RTC_DRV_HID_SENSOR_TIME
 
 config RTC_DRV_GOLDFISH
 	tristate "Goldfish Real Time Clock"
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	help
 	  Say yes to enable RTC driver for the Goldfish based virtual platform.
 

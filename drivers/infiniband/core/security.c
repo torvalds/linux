@@ -193,7 +193,7 @@ static void qp_to_error(struct ib_qp_security *sec)
 
 static inline void check_pkey_qps(struct pkey_index_qp_list *pkey,
 				  struct ib_device *device,
-				  u8 port_num,
+				  u32 port_num,
 				  u64 subnet_prefix)
 {
 	struct ib_port_pkey *pp, *tmp_pp;
@@ -245,7 +245,7 @@ static int port_pkey_list_insert(struct ib_port_pkey *pp)
 	struct pkey_index_qp_list *tmp_pkey;
 	struct pkey_index_qp_list *pkey;
 	struct ib_device *dev;
-	u8 port_num = pp->port_num;
+	u32 port_num = pp->port_num;
 	int ret = 0;
 
 	if (pp->state != IB_PORT_PKEY_VALID)
@@ -538,7 +538,7 @@ void ib_destroy_qp_security_end(struct ib_qp_security *sec)
 }
 
 void ib_security_cache_change(struct ib_device *device,
-			      u8 port_num,
+			      u32 port_num,
 			      u64 subnet_prefix)
 {
 	struct pkey_index_qp_list *pkey;
@@ -649,7 +649,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 }
 
 static int ib_security_pkey_access(struct ib_device *dev,
-				   u8 port_num,
+				   u32 port_num,
 				   u16 pkey_index,
 				   void *sec)
 {
