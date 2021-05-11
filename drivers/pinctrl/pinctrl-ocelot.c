@@ -1362,10 +1362,8 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 
 	base = devm_ioremap_resource(dev,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0));
-	if (IS_ERR(base)) {
-		dev_err(dev, "Failed to ioremap registers\n");
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	info->stride = 1 + (info->desc->npins - 1) / 32;
 
