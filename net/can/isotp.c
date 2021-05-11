@@ -1193,15 +1193,12 @@ static int isotp_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 	return ISOTP_MIN_NAMELEN;
 }
 
-static int isotp_setsockopt(struct socket *sock, int level, int optname,
+static int isotp_setsockopt_locked(struct socket *sock, int level, int optname,
 			    sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct isotp_sock *so = isotp_sk(sk);
 	int ret = 0;
-
-	if (level != SOL_CAN_ISOTP)
-		return -EINVAL;
 
 	if (so->bound)
 		return -EISCONN;
@@ -1274,6 +1271,22 @@ static int isotp_setsockopt(struct socket *sock, int level, int optname,
 		ret = -ENOPROTOOPT;
 	}
 
+	return ret;
+}
+
+static int isotp_setsockopt(struct socket *sock, int level, int optname,
+			    sockptr_t optval, unsigned int optlen)
+
+{
+	struct sock *sk = sock->sk;
+	int ret;
+
+	if (level != SOL_CAN_ISOTP)
+		return -EINVAL;
+
+	lock_sock(sk);
+	ret = isotp_setsockopt_locked(sock, level, optname, optval, optlen);
+	release_sock(sk);
 	return ret;
 }
 
