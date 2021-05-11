@@ -249,7 +249,10 @@ static int ft260_hid_feature_report_get(struct hid_device *hdev,
 
 	ret = hid_hw_raw_request(hdev, report_id, buf, len, HID_FEATURE_REPORT,
 				 HID_REQ_GET_REPORT);
-	memcpy(data, buf, len);
+	if (likely(ret == len))
+		memcpy(data, buf, len);
+	else if (ret >= 0)
+		ret = -EIO;
 	kfree(buf);
 	return ret;
 }
@@ -298,7 +301,7 @@ static int ft260_xfer_status(struct ft260_device *dev)
 
 	ret = ft260_hid_feature_report_get(hdev, FT260_I2C_STATUS,
 					   (u8 *)&report, sizeof(report));
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		hid_err(hdev, "failed to retrieve status: %d\n", ret);
 		return ret;
 	}
@@ -724,10 +727,9 @@ static int ft260_get_system_config(struct hid_device *hdev,
 
 	ret = ft260_hid_feature_report_get(hdev, FT260_SYSTEM_SETTINGS,
 					   (u8 *)cfg, len);
-	if (ret != len) {
+	if (ret < 0) {
 		hid_err(hdev, "failed to retrieve system status\n");
-		if (ret >= 0)
-			return -EIO;
+		return ret;
 	}
 	return 0;
 }
@@ -780,8 +782,8 @@ static int ft260_byte_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 	int ret;
 
 	ret = ft260_hid_feature_report_get(hdev, id, cfg, len);
-	if (ret != len && ret >= 0)
-		return -EIO;
+	if (ret < 0)
+		return ret;
 
 	return scnprintf(buf, PAGE_SIZE, "%hi\n", *field);
 }
@@ -792,8 +794,8 @@ static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 	int ret;
 
 	ret = ft260_hid_feature_report_get(hdev, id, cfg, len);
-	if (ret != len && ret >= 0)
-		return -EIO;
+	if (ret < 0)
+		return ret;
 
 	return scnprintf(buf, PAGE_SIZE, "%hi\n", le16_to_cpu(*field));
 }
@@ -944,10 +946,8 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = ft260_hid_feature_report_get(hdev, FT260_CHIP_VERSION,
 					   (u8 *)&version, sizeof(version));
-	if (ret != sizeof(version)) {
+	if (ret < 0) {
 		hid_err(hdev, "failed to retrieve chip version\n");
-		if (ret >= 0)
-			ret = -EIO;
 		goto err_hid_close;
 	}
 
