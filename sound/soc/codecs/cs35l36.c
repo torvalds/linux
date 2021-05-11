@@ -1156,7 +1156,7 @@ static int cs35l36_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l36_private *cs35l36 =
 			snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int ret;
 
 	if ((cs35l36->rev_id == CS35L36_REV_A0) && cs35l36->pdata.dcm_mode) {
 		regmap_update_bits(cs35l36->regmap, CS35L36_BSTCVRT_DCM_CTRL,
