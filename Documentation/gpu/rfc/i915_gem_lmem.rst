@@ -48,7 +48,7 @@ particular instance, since we can have more than one per class.
 In the future we also want to expose more information which can further
 describe the capabilities of a region.
 
-.. kernel-doc:: Documentation/gpu/rfc/i915_gem_lmem.h
+.. kernel-doc:: include/uapi/drm/i915_drm.h
         :functions: drm_i915_gem_memory_class drm_i915_gem_memory_class_instance drm_i915_memory_region_info drm_i915_query_memory_regions
 
 GEM_CREATE_EXT
@@ -61,7 +61,7 @@ Side note: We also need to support PXP[1] in the near future, which is also
 applicable to integrated platforms, and adds its own gem_create_ext extension,
 which basically lets userspace mark a buffer as "protected".
 
-.. kernel-doc:: Documentation/gpu/rfc/i915_gem_lmem.h
+.. kernel-doc:: include/uapi/drm/i915_drm.h
         :functions: drm_i915_gem_create_ext
 
 I915_GEM_CREATE_EXT_MEMORY_REGIONS
@@ -73,7 +73,7 @@ them each to use the class/instance encoding, as per the output of the regions
 query. Having the list in priority order will be useful in the future when
 placing an object, say during eviction.
 
-.. kernel-doc:: Documentation/gpu/rfc/i915_gem_lmem.h
+.. kernel-doc:: include/uapi/drm/i915_drm.h
         :functions: drm_i915_gem_create_ext_memory_regions
 
 One fair criticism here is that this seems a little over-engineered[2]. If we
