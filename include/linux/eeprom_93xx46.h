@@ -10,6 +10,9 @@ struct eeprom_93xx46_platform_data {
 #define EE_ADDR8	0x01		/*  8 bit addr. cfg */
 #define EE_ADDR16	0x02		/* 16 bit addr. cfg */
 #define EE_READONLY	0x08		/* forbid writing */
+#define EE_SIZE1K	0x10		/* 1 kb of data, that is a 93xx46 */
+#define EE_SIZE2K	0x20		/* 2 kb of data, that is a 93xx56 */
+#define EE_SIZE4K	0x40		/* 4 kb of data, that is a 93xx66 */
 
 	unsigned int	quirks;
 /* Single word read transfers only; no sequential read. */

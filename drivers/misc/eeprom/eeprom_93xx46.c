@@ -29,14 +29,29 @@
 
 struct eeprom_93xx46_devtype_data {
 	unsigned int quirks;
+	unsigned char flags;
+};
+
+static const struct eeprom_93xx46_devtype_data at93c46_data = {
+	.flags = EE_SIZE1K,
+};
+
+static const struct eeprom_93xx46_devtype_data at93c56_data = {
+	.flags = EE_SIZE2K,
+};
+
+static const struct eeprom_93xx46_devtype_data at93c66_data = {
+	.flags = EE_SIZE4K,
 };
 
 static const struct eeprom_93xx46_devtype_data atmel_at93c46d_data = {
+	.flags = EE_SIZE1K,
 	.quirks = EEPROM_93XX46_QUIRK_SINGLE_WORD_READ |
 		  EEPROM_93XX46_QUIRK_INSTRUCTION_LENGTH,
 };
 
 static const struct eeprom_93xx46_devtype_data microchip_93lc46b_data = {
+	.flags = EE_SIZE1K,
 	.quirks = EEPROM_93XX46_QUIRK_EXTRA_READ_CYCLE,
 };
 
@@ -381,8 +396,11 @@ static void select_deassert(void *context)
 }
 
 static const struct of_device_id eeprom_93xx46_of_table[] = {
-	{ .compatible = "eeprom-93xx46", },
+	{ .compatible = "eeprom-93xx46", .data = &at93c46_data, },
+	{ .compatible = "atmel,at93c46", .data = &at93c46_data, },
 	{ .compatible = "atmel,at93c46d", .data = &atmel_at93c46d_data, },
+	{ .compatible = "atmel,at93c56", .data = &at93c56_data, },
+	{ .compatible = "atmel,at93c66", .data = &at93c66_data, },
 	{ .compatible = "microchip,93lc46b", .data = &microchip_93lc46b_data, },
 	{}
 };
@@ -432,6 +450,7 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 		const struct eeprom_93xx46_devtype_data *data = of_id->data;
 
 		pd->quirks = data->quirks;
+		pd->flags |= data->flags;
 	}
 
 	spi->dev.platform_data = pd;
@@ -461,7 +480,16 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	if (!edev)
 		return -ENOMEM;
 
-	edev->size = 128;
+	if (pd->flags & EE_SIZE1K)
+		edev->size = 128;
+	else if (pd->flags & EE_SIZE2K)
+		edev->size = 256;
+	else if (pd->flags & EE_SIZE4K)
+		edev->size = 512;
+	else {
+		dev_err(&spi->dev, "unspecified size\n");
+		return -EINVAL;
+	}
 
 	if (pd->flags & EE_ADDR8)
 		edev->addrlen = ilog2(edev->size);
@@ -496,8 +524,9 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	if (IS_ERR(edev->nvmem))
 		return PTR_ERR(edev->nvmem);
 
-	dev_info(&spi->dev, "%d-bit eeprom %s\n",
+	dev_info(&spi->dev, "%d-bit eeprom containing %d bytes %s\n",
 		(pd->flags & EE_ADDR8) ? 8 : 16,
+		edev->size,
 		(pd->flags & EE_READONLY) ? "(readonly)" : "");
 
 	if (!(pd->flags & EE_READONLY)) {
