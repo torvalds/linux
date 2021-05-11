@@ -436,6 +436,13 @@ struct amdgpu_display_manager {
 	 */
 	struct list_head da_list;
 	struct completion dmub_aux_transfer_done;
+
+	/**
+	 * @brightness:
+	 *
+	 * cached backlight values.
+	 */
+	u32 brightness[AMDGPU_DM_MAX_NUM_EDP];
 };
 
 enum dsc_clock_force_state {
