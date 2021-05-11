@@ -1865,6 +1865,31 @@ static int intel_hdmi_port_clock(int clock, int bpc)
 	return clock * bpc / 8;
 }
 
+static bool intel_hdmi_bpc_possible(struct drm_connector *connector,
+				    int bpc, bool has_hdmi_sink, bool ycbcr420_output)
+{
+	const struct drm_display_info *info = &connector->display_info;
+	const struct drm_hdmi_info *hdmi = &info->hdmi;
+
+	switch (bpc) {
+	case 12:
+		if (ycbcr420_output)
+			return hdmi->y420_dc_modes & DRM_EDID_YCBCR420_DC_36;
+		else
+			return info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36;
+	case 10:
+		if (ycbcr420_output)
+			return hdmi->y420_dc_modes & DRM_EDID_YCBCR420_DC_30;
+		else
+			return info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_30;
+	case 8:
+		return true;
+	default:
+		MISSING_CASE(bpc);
+		return false;
+	}
+}
+
 static enum drm_mode_status
 intel_hdmi_mode_clock_valid(struct intel_hdmi *hdmi, int clock, bool has_hdmi_sink)
 {
@@ -1954,28 +1979,11 @@ bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		return false;
 
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
-		const struct drm_display_info *info = &connector->display_info;
-
 		if (connector_state->crtc != crtc_state->uapi.crtc)
 			continue;
 
-		if (ycbcr420_output) {
-			const struct drm_hdmi_info *hdmi = &info->hdmi;
-
-			if (bpc == 12 && !(hdmi->y420_dc_modes &
-					   DRM_EDID_YCBCR420_DC_36))
-				return false;
-			else if (bpc == 10 && !(hdmi->y420_dc_modes &
-						DRM_EDID_YCBCR420_DC_30))
-				return false;
-		} else {
-			if (bpc == 12 && !(info->edid_hdmi_dc_modes &
-					   DRM_EDID_HDMI_DC_36))
-				return false;
-			else if (bpc == 10 && !(info->edid_hdmi_dc_modes &
-						DRM_EDID_HDMI_DC_30))
-				return false;
-		}
+		if (!intel_hdmi_bpc_possible(connector, bpc, has_hdmi_sink, ycbcr420_output))
+			return false;
 	}
 
 	return true;
