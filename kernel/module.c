@@ -1014,8 +1014,7 @@ void __symbol_put(const char *symbol)
 	};
 
 	preempt_disable();
-	if (!find_symbol(&fsa))
-		BUG();
+	BUG_ON(!find_symbol(&fsa));
 	module_put(fsa.owner);
 	preempt_enable();
 }
