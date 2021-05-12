@@ -553,6 +553,30 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 	return  (uint8_t)ret;
 }
 
+int amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(struct kgd_dev *dst, struct kgd_dev *src, bool is_min)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)dst, *peer_adev;
+	int num_links;
+
+	if (adev->asic_type != CHIP_ALDEBARAN)
+		return 0;
+
+	if (src)
+		peer_adev = (struct amdgpu_device *)src;
+
+	/* num links returns 0 for indirect peers since indirect route is unknown. */
+	num_links = is_min ? 1 : amdgpu_xgmi_get_num_links(adev, peer_adev);
+	if (num_links < 0) {
+		DRM_ERROR("amdgpu: failed to get xgmi num links between node %d and %d. ret = %d\n",
+			adev->gmc.xgmi.physical_node_id,
+			peer_adev->gmc.xgmi.physical_node_id, num_links);
+		num_links = 0;
+	}
+
+	/* Aldebaran xGMI DPM is defeatured so assume x16 x 25Gbps for bandwidth. */
+	return (num_links * 16 * 25000)/BITS_PER_BYTE;
+}
+
 uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
