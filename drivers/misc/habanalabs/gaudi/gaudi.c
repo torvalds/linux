@@ -580,6 +580,9 @@ static u64 gaudi_set_hbm_bar_base(struct hl_device *hdev, u64 addr)
 	if ((gaudi) && (gaudi->hbm_bar_cur_addr == addr))
 		return old_addr;
 
+	if (hdev->asic_prop.iatu_done_by_fw)
+		return U64_MAX;
+
 	/* Inbound Region 2 - Bar 4 - Point to HBM */
 	pci_region.mode = PCI_BAR_MATCH_MODE;
 	pci_region.bar = HBM_BAR_ID;
@@ -3974,10 +3977,27 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 
 static int gaudi_hw_init(struct hl_device *hdev)
 {
+	struct gaudi_device *gaudi = hdev->asic_specific;
 	int rc;
 
 	gaudi_pre_hw_init(hdev);
 
+	/* If iATU is done by FW, the HBM bar ALWAYS points to DRAM_PHYS_BASE.
+	 * So we set it here and if anyone tries to move it later to
+	 * a different address, there will be an error
+	 */
+	if (hdev->asic_prop.iatu_done_by_fw)
+		gaudi->hbm_bar_cur_addr = DRAM_PHYS_BASE;
+
+	/*
+	 * Before pushing u-boot/linux to device, need to set the hbm bar to
+	 * base address of dram
+	 */
+	if (gaudi_set_hbm_bar_base(hdev, DRAM_PHYS_BASE) == U64_MAX) {
+		dev_err(hdev->dev,
+			"failed to map HBM bar to DRAM base address\n");
+		return -EIO;
+	}
 
 	rc = gaudi_init_cpu(hdev);
 	if (rc) {
