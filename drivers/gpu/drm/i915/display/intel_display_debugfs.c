@@ -1340,6 +1340,12 @@ static int i915_lpsp_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
 
+	if (DISPLAY_VER(i915) >= 13) {
+		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915,
+							   SKL_DISP_PW_2));
+		return 0;
+	}
+
 	switch (DISPLAY_VER(i915)) {
 	case 12:
 	case 11:
