@@ -589,6 +589,28 @@ xfs_inode_validate_extsize(
 	inherit_flag = (flags & XFS_DIFLAG_EXTSZINHERIT);
 	extsize_bytes = XFS_FSB_TO_B(mp, extsize);
 
+	/*
+	 * This comment describes a historic gap in this verifier function.
+	 *
+	 * On older kernels, the extent size hint verifier doesn't check that
+	 * the extent size hint is an integer multiple of the realtime extent
+	 * size on a directory with both RTINHERIT and EXTSZINHERIT flags set.
+	 * The verifier has always enforced the alignment rule for regular
+	 * files with the REALTIME flag set.
+	 *
+	 * If a directory with a misaligned extent size hint is allowed to
+	 * propagate that hint into a new regular realtime file, the result
+	 * is that the inode cluster buffer verifier will trigger a corruption
+	 * shutdown the next time it is run.
+	 *
+	 * Unfortunately, there could be filesystems with these misconfigured
+	 * directories in the wild, so we cannot add a check to this verifier
+	 * at this time because that will result a new source of directory
+	 * corruption errors when reading an existing filesystem.  Instead, we
+	 * permit the misconfiguration to pass through the verifiers so that
+	 * callers of this function can correct and mitigate externally.
+	 */
+
 	if (rt_flag)
 		blocksize_bytes = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
 	else
