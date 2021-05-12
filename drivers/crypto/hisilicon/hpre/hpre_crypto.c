@@ -330,9 +330,9 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 
 #define HPRE_NO_HW_ERR		0
 #define HPRE_HW_TASK_DONE	3
-#define HREE_HW_ERR_MASK	0x7ff
-#define HREE_SQE_DONE_MASK	0x3
-#define HREE_ALG_TYPE_MASK	0x1f
+#define HREE_HW_ERR_MASK	GENMASK(10, 0)
+#define HREE_SQE_DONE_MASK	GENMASK(1, 0)
+#define HREE_ALG_TYPE_MASK	GENMASK(4, 0)
 	id = (int)le16_to_cpu(sqe->tag);
 	req = ctx->req_list[id];
 	hpre_rm_req_from_ctx(req);
