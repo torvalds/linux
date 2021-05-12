@@ -10,9 +10,13 @@
 PA-RISC体系架构
 ====================
 
-Todolist:
+.. toctree::
+   :maxdepth: 2
 
    debugging
+
+Todolist:
+
    registers
    features
 
