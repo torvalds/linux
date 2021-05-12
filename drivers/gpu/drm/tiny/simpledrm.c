@@ -530,8 +530,8 @@ static int simpledrm_device_init_mm(struct simpledrm_device *sdev)
 
 	ret = devm_aperture_acquire_from_firmware(dev, mem->start, resource_size(mem));
 	if (ret) {
-		drm_err(dev, "could not acquire memory range [0x%llx:0x%llx]: error %d\n",
-			mem->start, mem->end, ret);
+		drm_err(dev, "could not acquire memory range %pr: error %d\n",
+			mem, ret);
 		return ret;
 	}
 
