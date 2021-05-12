@@ -1662,7 +1662,7 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 }
 
 /* ------------------------------------------------------------------------- */
-static void fec_get_mac(struct net_device *ndev)
+static int fec_get_mac(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	unsigned char *iap, tmpaddr[ETH_ALEN];
@@ -1685,6 +1685,8 @@ static void fec_get_mac(struct net_device *ndev)
 			ret = of_get_mac_address(np, tmpaddr);
 			if (!ret)
 				iap = tmpaddr;
+			else if (ret == -EPROBE_DEFER)
+				return ret;
 		}
 	}
 
@@ -1723,7 +1725,7 @@ static void fec_get_mac(struct net_device *ndev)
 		eth_hw_addr_random(ndev);
 		dev_info(&fep->pdev->dev, "Using random MAC address: %pM\n",
 			 ndev->dev_addr);
-		return;
+		return 0;
 	}
 
 	memcpy(ndev->dev_addr, iap, ETH_ALEN);
@@ -1731,6 +1733,8 @@ static void fec_get_mac(struct net_device *ndev)
 	/* Adjust MAC if using macaddr */
 	if (iap == macaddr)
 		 ndev->dev_addr[ETH_ALEN-1] = macaddr[ETH_ALEN-1] + fep->dev_id;
+
+	return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -3305,7 +3309,10 @@ static int fec_enet_init(struct net_device *ndev)
 	}
 
 	/* Get the Ethernet address */
-	fec_get_mac(ndev);
+	ret = fec_get_mac(ndev);
+	if (ret)
+		goto free_queue_mem;
+
 	/* make sure MAC we just acquired is programmed into the hw */
 	fec_set_mac_address(ndev, NULL);
 
