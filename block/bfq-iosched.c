@@ -372,9 +372,38 @@ struct bfq_queue *bic_to_bfqq(struct bfq_io_cq *bic, bool is_sync)
 	return bic->bfqq[is_sync];
 }
 
+static void bfq_put_stable_ref(struct bfq_queue *bfqq);
+
 void bic_set_bfqq(struct bfq_io_cq *bic, struct bfq_queue *bfqq, bool is_sync)
 {
+	/*
+	 * If bfqq != NULL, then a non-stable queue merge between
+	 * bic->bfqq and bfqq is happening here. This causes troubles
+	 * in the following case: bic->bfqq has also been scheduled
+	 * for a possible stable merge with bic->stable_merge_bfqq,
+	 * and bic->stable_merge_bfqq == bfqq happens to
+	 * hold. Troubles occur because bfqq may then undergo a split,
+	 * thereby becoming eligible for a stable merge. Yet, if
+	 * bic->stable_merge_bfqq points exactly to bfqq, then bfqq
+	 * would be stably merged with itself. To avoid this anomaly,
+	 * we cancel the stable merge if
+	 * bic->stable_merge_bfqq == bfqq.
+	 */
 	bic->bfqq[is_sync] = bfqq;
+
+	if (bfqq && bic->stable_merge_bfqq == bfqq) {
+		/*
+		 * Actually, these same instructions are executed also
+		 * in bfq_setup_cooperator, in case of abort or actual
+		 * execution of a stable merge. We could avoid
+		 * repeating these instructions there too, but if we
+		 * did so, we would nest even more complexity in this
+		 * function.
+		 */
+		bfq_put_stable_ref(bic->stable_merge_bfqq);
+
+		bic->stable_merge_bfqq = NULL;
+	}
 }
 
 struct bfq_data *bic_to_bfqd(struct bfq_io_cq *bic)
@@ -2629,8 +2658,6 @@ static bool bfq_may_be_close_cooperator(struct bfq_queue *bfqq,
 
 static bool idling_boosts_thr_without_issues(struct bfq_data *bfqd,
 					     struct bfq_queue *bfqq);
-
-static void bfq_put_stable_ref(struct bfq_queue *bfqq);
 
 /*
  * Attempt to schedule a merge of bfqq with the currently in-service
