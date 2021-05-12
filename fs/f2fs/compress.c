@@ -892,14 +892,17 @@ static bool cluster_has_invalid_data(struct compress_ctx *cc)
 	return false;
 }
 
-static int __f2fs_cluster_blocks(struct compress_ctx *cc, bool compr)
+static int __f2fs_cluster_blocks(struct inode *inode,
+				unsigned int cluster_idx, bool compr)
 {
 	struct dnode_of_data dn;
+	unsigned int cluster_size = F2FS_I(inode)->i_cluster_size;
+	unsigned int start_idx = cluster_idx <<
+				F2FS_I(inode)->i_log_cluster_size;
 	int ret;
 
-	set_new_dnode(&dn, cc->inode, NULL, NULL, 0);
-	ret = f2fs_get_dnode_of_data(&dn, start_idx_of_cluster(cc),
-							LOOKUP_NODE);
+	set_new_dnode(&dn, inode, NULL, NULL, 0);
+	ret = f2fs_get_dnode_of_data(&dn, start_idx, LOOKUP_NODE);
 	if (ret) {
 		if (ret == -ENOENT)
 			ret = 0;
@@ -910,7 +913,7 @@ static int __f2fs_cluster_blocks(struct compress_ctx *cc, bool compr)
 		int i;
 
 		ret = 1;
-		for (i = 1; i < cc->cluster_size; i++) {
+		for (i = 1; i < cluster_size; i++) {
 			block_t blkaddr;
 
 			blkaddr = data_blkaddr(dn.inode,
@@ -932,25 +935,15 @@ fail:
 /* return # of compressed blocks in compressed cluster */
 static int f2fs_compressed_blocks(struct compress_ctx *cc)
 {
-	return __f2fs_cluster_blocks(cc, true);
+	return __f2fs_cluster_blocks(cc->inode, cc->cluster_idx, true);
 }
 
 /* return # of valid blocks in compressed cluster */
-static int f2fs_cluster_blocks(struct compress_ctx *cc)
-{
-	return __f2fs_cluster_blocks(cc, false);
-}
-
 int f2fs_is_compressed_cluster(struct inode *inode, pgoff_t index)
 {
-	struct compress_ctx cc = {
-		.inode = inode,
-		.log_cluster_size = F2FS_I(inode)->i_log_cluster_size,
-		.cluster_size = F2FS_I(inode)->i_cluster_size,
-		.cluster_idx = index >> F2FS_I(inode)->i_log_cluster_size,
-	};
-
-	return f2fs_cluster_blocks(&cc);
+	return __f2fs_cluster_blocks(inode,
+		index >> F2FS_I(inode)->i_log_cluster_size,
+		false);
 }
 
 static bool cluster_may_compress(struct compress_ctx *cc)
@@ -1001,7 +994,7 @@ static int prepare_compress_overwrite(struct compress_ctx *cc,
 	bool prealloc;
 
 retry:
-	ret = f2fs_cluster_blocks(cc);
+	ret = f2fs_is_compressed_cluster(cc->inode, start_idx);
 	if (ret <= 0)
 		return ret;
 
