@@ -3896,7 +3896,7 @@ static int check_swap_activate_fast(struct swap_info_struct *sis,
 		/* hole */
 		if (!(map.m_flags & F2FS_MAP_FLAGS)) {
 			f2fs_err(sbi, "Swapfile has holes\n");
-			ret = -ENOENT;
+			ret = -EINVAL;
 			goto out;
 		}
 
@@ -4052,7 +4052,7 @@ out:
 	return ret;
 bad_bmap:
 	f2fs_err(sbi, "Swapfile has holes\n");
-	return -ENOENT;
+	return -EINVAL;
 }
 
 static int f2fs_swap_activate(struct swap_info_struct *sis, struct file *file,
