@@ -68,6 +68,42 @@ static bool prepend_name(struct prepend_buffer *p, const struct qstr *name)
 	return true;
 }
 
+static int __prepend_path(const struct dentry *dentry, const struct mount *mnt,
+			  const struct path *root, struct prepend_buffer *p)
+{
+	while (dentry != root->dentry || &mnt->mnt != root->mnt) {
+		const struct dentry *parent = READ_ONCE(dentry->d_parent);
+
+		if (dentry == mnt->mnt.mnt_root) {
+			struct mount *m = READ_ONCE(mnt->mnt_parent);
+			struct mnt_namespace *mnt_ns;
+
+			if (likely(mnt != m)) {
+				dentry = READ_ONCE(mnt->mnt_mountpoint);
+				mnt = m;
+				continue;
+			}
+			/* Global root */
+			mnt_ns = READ_ONCE(mnt->mnt_ns);
+			/* open-coded is_mounted() to use local mnt_ns */
+			if (!IS_ERR_OR_NULL(mnt_ns) && !is_anon_ns(mnt_ns))
+				return 1;	// absolute root
+			else
+				return 2;	// detached or not attached yet
+		}
+
+		if (unlikely(dentry == parent))
+			/* Escaped? */
+			return 3;
+
+		prefetch(parent);
+		if (!prepend_name(p, &dentry->d_name))
+			break;
+		dentry = parent;
+	}
+	return 0;
+}
+
 /**
  * prepend_path - Prepend path string to a buffer
  * @path: the dentry/vfsmount to report
@@ -89,11 +125,9 @@ static int prepend_path(const struct path *path,
 			const struct path *root,
 			struct prepend_buffer *p)
 {
-	struct dentry *dentry;
-	struct mount *mnt;
-	int error = 0;
 	unsigned seq, m_seq = 0;
 	struct prepend_buffer b;
+	int error;
 
 	rcu_read_lock();
 restart_mnt:
@@ -102,43 +136,8 @@ restart_mnt:
 	rcu_read_lock();
 restart:
 	b = *p;
-	error = 0;
-	dentry = path->dentry;
-	mnt = real_mount(path->mnt);
 	read_seqbegin_or_lock(&rename_lock, &seq);
-	while (dentry != root->dentry || &mnt->mnt != root->mnt) {
-		struct dentry * parent;
-
-		if (dentry == mnt->mnt.mnt_root || IS_ROOT(dentry)) {
-			struct mount *parent = READ_ONCE(mnt->mnt_parent);
-			struct mnt_namespace *mnt_ns;
-
-			/* Escaped? */
-			if (dentry != mnt->mnt.mnt_root) {
-				error = 3;
-				break;
-			}
-			/* Global root? */
-			if (mnt != parent) {
-				dentry = READ_ONCE(mnt->mnt_mountpoint);
-				mnt = parent;
-				continue;
-			}
-			mnt_ns = READ_ONCE(mnt->mnt_ns);
-			/* open-coded is_mounted() to use local mnt_ns */
-			if (!IS_ERR_OR_NULL(mnt_ns) && !is_anon_ns(mnt_ns))
-				error = 1;	// absolute root
-			else
-				error = 2;	// detached or not attached yet
-			break;
-		}
-		parent = dentry->d_parent;
-		prefetch(parent);
-		if (!prepend_name(&b, &dentry->d_name))
-			break;
-
-		dentry = parent;
-	}
+	error = __prepend_path(path->dentry, real_mount(path->mnt), root, &b);
 	if (!(seq & 1))
 		rcu_read_unlock();
 	if (need_seqretry(&rename_lock, seq)) {
