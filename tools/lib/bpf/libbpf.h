@@ -498,6 +498,7 @@ LIBBPF_API int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
 			     struct bpf_object **pobj, int *prog_fd);
 
+/* XDP related API */
 struct xdp_link_info {
 	__u32 prog_id;
 	__u32 drv_prog_id;
@@ -519,6 +520,49 @@ LIBBPF_API int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
 LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
 LIBBPF_API int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 				     size_t info_size, __u32 flags);
+
+/* TC related API */
+enum bpf_tc_attach_point {
+	BPF_TC_INGRESS = 1 << 0,
+	BPF_TC_EGRESS  = 1 << 1,
+	BPF_TC_CUSTOM  = 1 << 2,
+};
+
+#define BPF_TC_PARENT(a, b) 	\
+	((((a) << 16) & 0xFFFF0000U) | ((b) & 0x0000FFFFU))
+
+enum bpf_tc_flags {
+	BPF_TC_F_REPLACE = 1 << 0,
+};
+
+struct bpf_tc_hook {
+	size_t sz;
+	int ifindex;
+	enum bpf_tc_attach_point attach_point;
+	__u32 parent;
+	size_t :0;
+};
+#define bpf_tc_hook__last_field parent
+
+struct bpf_tc_opts {
+	size_t sz;
+	int prog_fd;
+	__u32 flags;
+	__u32 prog_id;
+	__u32 handle;
+	__u32 priority;
+	size_t :0;
+};
+#define bpf_tc_opts__last_field priority
+
+LIBBPF_API int bpf_tc_hook_create(struct bpf_tc_hook *hook);
+LIBBPF_API int bpf_tc_hook_destroy(struct bpf_tc_hook *hook);
+LIBBPF_API int bpf_tc_attach(const struct bpf_tc_hook *hook,
+			     struct bpf_tc_opts *opts);
+LIBBPF_API int bpf_tc_detach(const struct bpf_tc_hook *hook,
+			     const struct bpf_tc_opts *opts);
+LIBBPF_API int bpf_tc_query(const struct bpf_tc_hook *hook,
+			    struct bpf_tc_opts *opts);
 
 /* Ring buffer APIs */
 struct ring_buffer;
