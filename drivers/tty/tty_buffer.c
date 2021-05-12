@@ -170,7 +170,8 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 	}
 
 	/* Should possibly check if this fails for the largest buffer we
-	   have queued and recycle that ? */
+	 * have queued and recycle that ?
+	 */
 	if (atomic_read(&port->buf.mem_used) > port->buf.mem_limit)
 		return NULL;
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
@@ -329,7 +330,8 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		copied += space;
 		chars += space;
 		/* There is a small chance that we need to split the data over
-		   several buffers. If this is the case we must loop */
+		 * several buffers. If this is the case we must loop.
+		 */
 	} while (unlikely(size > copied));
 	return copied;
 }
@@ -366,7 +368,8 @@ int tty_insert_flip_string_flags(struct tty_port *port,
 		chars += space;
 		flags += space;
 		/* There is a small chance that we need to split the data over
-		   several buffers. If this is the case we must loop */
+		 * several buffers. If this is the case we must loop.
+		 */
 	} while (unlikely(size > copied));
 	return copied;
 }
