@@ -1090,7 +1090,6 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 		tty_unlock(tty);
 		tty_write_unlock(tty);
 	}
-	return;
 }
 
 
