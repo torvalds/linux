@@ -116,6 +116,7 @@ struct psp_xgmi_node_info {
 	uint8_t					num_hops;
 	uint8_t					is_sharing_enabled;
 	enum ta_xgmi_assigned_sdma_engine	sdma_engine;
+	uint8_t					num_links;
 };
 
 struct psp_xgmi_topology_info {

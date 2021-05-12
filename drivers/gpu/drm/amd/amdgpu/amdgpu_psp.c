@@ -1078,6 +1078,12 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 	return 0;
 }
 
+static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
+{
+	return psp->adev->asic_type == CHIP_ALDEBARAN &&
+				psp->ta_xgmi_ucode_version >= 0x2000000b;
+}
+
 int psp_xgmi_get_topology_info(struct psp_context *psp,
 			       int number_devices,
 			       struct psp_xgmi_topology_info *topology)
@@ -1119,6 +1125,23 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 		topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
 		topology->nodes[i].is_sharing_enabled = topology_info_output->nodes[i].is_sharing_enabled;
 		topology->nodes[i].sdma_engine = topology_info_output->nodes[i].sdma_engine;
+	}
+
+	/* Invoke xgmi ta again to get the link information */
+	if (psp_xgmi_peer_link_info_supported(psp)) {
+		struct ta_xgmi_cmd_get_peer_link_info_output *link_info_output;
+
+		xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
+
+		ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_PEER_LINKS);
+
+		if (ret)
+			return ret;
+
+		link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
+		for (i = 0; i < topology->num_nodes; i++)
+			topology->nodes[i].num_links =
+					link_info_output->nodes[i].num_links;
 	}
 
 	return 0;
