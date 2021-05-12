@@ -57,7 +57,6 @@
 #define HPRE_CORE_INI_STATUS (HPRE_CLSTR_BASE + HPRE_CORE_INI_STATUS_OFFSET)
 #define HPRE_HAC_ECC1_CNT		0x301a04
 #define HPRE_HAC_ECC2_CNT		0x301a08
-#define HPRE_HAC_INT_STATUS		0x301800
 #define HPRE_HAC_SOURCE_INT		0x301600
 #define HPRE_CLSTR_ADDR_INTRVL		0x1000
 #define HPRE_CLUSTER_INQURY		0x100
@@ -822,7 +821,7 @@ static void hpre_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 
 static u32 hpre_get_hw_err_status(struct hisi_qm *qm)
 {
-	return readl(qm->io_base + HPRE_HAC_INT_STATUS);
+	return readl(qm->io_base + HPRE_INT_STATUS);
 }
 
 static void hpre_clear_hw_err_status(struct hisi_qm *qm, u32 err_sts)
