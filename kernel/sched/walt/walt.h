@@ -204,6 +204,7 @@ extern unsigned int __read_mostly sched_load_granule;
 extern unsigned int sysctl_sched_min_task_util_for_boost;
 /* 0.68ms default for 20ms window size scaled to 1024 */
 extern unsigned int sysctl_sched_min_task_util_for_colocation;
+extern unsigned int __read_mostly sysctl_sched_silver_thres;
 extern unsigned int sysctl_sched_busy_hyst_enable_cpus;
 extern unsigned int sysctl_sched_busy_hyst;
 extern unsigned int sysctl_sched_coloc_busy_hyst_enable_cpus;

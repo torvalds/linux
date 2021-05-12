@@ -199,13 +199,25 @@ static void waltgov_deferred_update(struct waltgov_policy *wg_policy, u64 time,
 }
 
 #define TARGET_LOAD 80
+static inline unsigned long walt_map_util_freq(unsigned long util,
+					unsigned long fmax, unsigned long cap,
+					int cpu)
+{
+	if (is_min_capacity_cpu(cpu) &&
+		util >= sysctl_sched_silver_thres &&
+		cpu_util_rt(cpu_rq(cpu)) < (cap >> 2))
+		return (fmax + (fmax >> 4)) * util / cap;
+	return (fmax + (fmax >> 2)) * util / cap;
+}
+
 static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
-				  unsigned long util, unsigned long max)
+				  unsigned long util, unsigned long max,
+				  struct waltgov_cpu *wg_cpu)
 {
 	struct cpufreq_policy *policy = wg_policy->policy;
 	unsigned int freq = policy->cpuinfo.max_freq;
 
-	freq = map_util_freq(util, freq, max);
+	freq = walt_map_util_freq(util, freq, max, wg_cpu->cpu);
 	trace_waltgov_next_freq(policy->cpu, util, max, freq, policy->min, policy->max,
 				wg_policy->cached_raw_freq, wg_policy->need_freq_update);
 
@@ -269,7 +281,13 @@ static inline unsigned long target_util(struct waltgov_policy *wg_policy,
 	unsigned long util;
 
 	util = freq_to_util(wg_policy, freq);
-	util = mult_frac(util, TARGET_LOAD, 100);
+
+	if (wg_policy->max == min_max_possible_capacity &&
+		util >= sysctl_sched_silver_thres)
+		util = mult_frac(util, 94, 100);
+	else
+		util = mult_frac(util, TARGET_LOAD, 100);
+
 	return util;
 }
 
@@ -308,7 +326,7 @@ static unsigned int waltgov_next_freq_shared(struct waltgov_cpu *wg_cpu, u64 tim
 		waltgov_walt_adjust(j_wg_cpu, j_util, j_nl, &util, &max);
 	}
 
-	return get_next_freq(wg_policy, util, max);
+	return get_next_freq(wg_policy, util, max, wg_cpu);
 }
 
 static void waltgov_update_freq(struct waltgov_callback *cb, u64 time,

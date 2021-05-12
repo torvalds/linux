@@ -48,6 +48,7 @@ unsigned int __read_mostly sysctl_sched_coloc_downmigrate_ns;
 unsigned int __read_mostly sysctl_sched_group_downmigrate_pct;
 unsigned int __read_mostly sysctl_sched_group_upmigrate_pct;
 unsigned int __read_mostly sysctl_sched_window_stats_policy;
+unsigned int __read_mostly sysctl_sched_silver_thres;
 unsigned int sysctl_sched_ravg_window_nr_ticks;
 unsigned int sysctl_sched_walt_rotate_big_tasks;
 unsigned int sysctl_sched_task_unfilter_period;
@@ -468,6 +469,15 @@ struct ctl_table walt_table[] = {
 		.extra2		= &four,
 	},
 	{
+		.procname	= "sched_silver_thres",
+		.data		= &sysctl_sched_silver_thres,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &one_thousand,
+	},
+	{
 		.procname	= "sched_group_upmigrate",
 		.data		= &sysctl_sched_group_upmigrate_pct,
 		.maxlen		= sizeof(unsigned int),
@@ -812,6 +822,8 @@ void walt_tunables(void)
 	sysctl_sched_task_unfilter_period = 100000000;
 
 	sysctl_sched_window_stats_policy = WINDOW_STATS_MAX_RECENT_AVG;
+
+	sysctl_sched_silver_thres = 1000;
 
 	sysctl_sched_ravg_window_nr_ticks = (HZ / NR_WINDOWS_PER_SEC);
 
