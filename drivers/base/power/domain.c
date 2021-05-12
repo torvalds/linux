@@ -572,6 +572,7 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
  * RPM status of the releated device is in an intermediate state, not yet turned
  * into RPM_SUSPENDED. This means genpd_power_off() must allow one device to not
  * be RPM_SUSPENDED, while it tries to power off the PM domain.
+ * @depth: nesting count for lockdep.
  *
  * If all of the @genpd's devices have been suspended and all of its subdomains
  * have been powered down, remove power from @genpd.
@@ -2505,7 +2506,7 @@ EXPORT_SYMBOL_GPL(of_genpd_remove_subdomain);
 
 /**
  * of_genpd_remove_last - Remove the last PM domain registered for a provider
- * @provider: Pointer to device structure associated with provider
+ * @np: Pointer to device node associated with provider
  *
  * Find the last PM domain that was added by a particular provider and
  * remove this PM domain from the list of PM domains. The provider is
