@@ -324,13 +324,27 @@ void tick_nohz_full_kick_cpu(int cpu)
 
 static void tick_nohz_kick_task(struct task_struct *tsk)
 {
-	int cpu = task_cpu(tsk);
+	int cpu;
+
+	/*
+	 * If the task is not running, run_posix_cpu_timers()
+	 * has nothing to elapse, IPI can then be spared.
+	 *
+	 * activate_task()                      STORE p->tick_dep_mask
+	 *   STORE p->on_rq
+	 * __schedule() (switch to task 'p')    smp_mb() (atomic_fetch_or())
+	 *   LOCK rq->lock                      LOAD p->on_rq
+	 *   smp_mb__after_spin_lock()
+	 *   tick_nohz_task_switch()
+	 *     LOAD p->tick_dep_mask
+	 */
+	if (!sched_task_on_rq(tsk))
+		return;
 
 	/*
 	 * If the task concurrently migrates to another CPU,
 	 * we guarantee it sees the new tick dependency upon
 	 * schedule.
-	 *
 	 *
 	 * set_task_cpu(p, cpu);
 	 *   STORE p->cpu = @cpu
@@ -340,6 +354,7 @@ static void tick_nohz_kick_task(struct task_struct *tsk)
 	 *   tick_nohz_task_switch()            smp_mb() (atomic_fetch_or())
 	 *      LOAD p->tick_dep_mask           LOAD p->cpu
 	 */
+	cpu = task_cpu(tsk);
 
 	preempt_disable();
 	if (cpu_online(cpu))
