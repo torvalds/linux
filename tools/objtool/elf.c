@@ -961,6 +961,7 @@ static int elf_add_string(struct elf *elf, struct section *strtab, char *str)
 	data->d_buf = str;
 	data->d_size = strlen(str) + 1;
 	data->d_align = 1;
+	data->d_type = ELF_T_SYM;
 
 	len = strtab->len;
 	strtab->len += data->d_size;
