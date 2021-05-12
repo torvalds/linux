@@ -388,7 +388,7 @@ static void handle_removed_tdp_mmu_page(struct kvm *kvm, tdp_ptep_t pt,
 }
 
 /**
- * handle_changed_spte - handle bookkeeping associated with an SPTE change
+ * __handle_changed_spte - handle bookkeeping associated with an SPTE change
  * @kvm: kvm instance
  * @as_id: the address space of the paging structure the SPTE was a part of
  * @gfn: the base GFN that was mapped by the SPTE
@@ -443,6 +443,13 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 		return;
 
 	trace_kvm_tdp_mmu_spte_changed(as_id, gfn, level, old_spte, new_spte);
+
+	if (is_large_pte(old_spte) != is_large_pte(new_spte)) {
+		if (is_large_pte(old_spte))
+			atomic64_sub(1, (atomic64_t*)&kvm->stat.lpages);
+		else
+			atomic64_add(1, (atomic64_t*)&kvm->stat.lpages);
+	}
 
 	/*
 	 * The only times a SPTE should be changed from a non-present to
@@ -1009,6 +1016,14 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		}
 
 		if (!is_shadow_present_pte(iter.old_spte)) {
+			/*
+			 * If SPTE has been forzen by another thread, just
+			 * give up and retry, avoiding unnecessary page table
+			 * allocation and free.
+			 */
+			if (is_removed_spte(iter.old_spte))
+				break;
+
 			sp = alloc_tdp_mmu_page(vcpu, iter.gfn, iter.level);
 			child_pt = sp->spt;
 

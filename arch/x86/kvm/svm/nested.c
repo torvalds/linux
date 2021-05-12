@@ -764,7 +764,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
-	WARN_ON_ONCE(svm->vmcb->control.exit_code != SVM_EXIT_VMRUN);
 
 	/*
 	 * On vmexit the  GIF is set to false and
@@ -872,6 +871,15 @@ void svm_free_nested(struct vcpu_svm *svm)
 	__free_page(virt_to_page(svm->nested.vmcb02.ptr));
 	svm->nested.vmcb02.ptr = NULL;
 
+	/*
+	 * When last_vmcb12_gpa matches the current vmcb12 gpa,
+	 * some vmcb12 fields are not loaded if they are marked clean
+	 * in the vmcb12, since in this case they are up to date already.
+	 *
+	 * When the vmcb02 is freed, this optimization becomes invalid.
+	 */
+	svm->nested.last_vmcb12_gpa = INVALID_GPA;
+
 	svm->nested.initialized = false;
 }
 
@@ -884,9 +892,11 @@ void svm_leave_nested(struct vcpu_svm *svm)
 
 	if (is_guest_mode(vcpu)) {
 		svm->nested.nested_run_pending = 0;
+		svm->nested.vmcb12_gpa = INVALID_GPA;
+
 		leave_guest_mode(vcpu);
 
-		svm_switch_vmcb(svm, &svm->nested.vmcb02);
+		svm_switch_vmcb(svm, &svm->vmcb01);
 
 		nested_svm_uninit_mmu_context(vcpu);
 		vmcb_mark_all_dirty(svm->vmcb);
@@ -1298,12 +1308,17 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	 * L2 registers if needed are moved from the current VMCB to VMCB02.
 	 */
 
+	if (is_guest_mode(vcpu))
+		svm_leave_nested(svm);
+	else
+		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
+
+	svm_set_gif(svm, !!(kvm_state->flags & KVM_STATE_NESTED_GIF_SET));
+
 	svm->nested.nested_run_pending =
 		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
 
 	svm->nested.vmcb12_gpa = kvm_state->hdr.svm.vmcb_pa;
-	if (svm->current_vmcb == &svm->vmcb01)
-		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
 
 	svm->vmcb01.ptr->save.es = save->es;
 	svm->vmcb01.ptr->save.cs = save->cs;
