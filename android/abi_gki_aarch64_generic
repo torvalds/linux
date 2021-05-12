@@ -300,10 +300,15 @@
   _dev_err
   devfreq_add_device
   devfreq_add_governor
+  devfreq_monitor_resume
+  devfreq_monitor_start
+  devfreq_monitor_stop
+  devfreq_monitor_suspend
   devfreq_recommended_opp
   devfreq_register_opp_notifier
   devfreq_remove_device
   devfreq_unregister_opp_notifier
+  devfreq_update_interval
   dev_fwnode
   dev_get_by_name
   device_add_disk
@@ -1279,6 +1284,7 @@
   perf_event_create_kernel_counter
   perf_event_enable
   perf_event_pause
+  perf_event_read_local
   perf_event_read_value
   perf_event_release_kernel
   perf_event_update_userpage
@@ -1928,6 +1934,7 @@
   __tracepoint_sched_util_est_se_tp
   __tracepoint_suspend_resume
   trace_print_array_seq
+  trace_print_bitmask_seq
   trace_print_flags_seq
   trace_print_symbols_seq
   trace_raw_output_prep
