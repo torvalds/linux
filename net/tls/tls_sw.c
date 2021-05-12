@@ -2018,8 +2018,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (copied < 0)
 		goto splice_read_end;
 
-	if (likely(!(flags & MSG_PEEK)))
-		tls_sw_advance_skb(sk, skb, copied);
+	tls_sw_advance_skb(sk, skb, copied);
 
 splice_read_end:
 	release_sock(sk);
