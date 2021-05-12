@@ -6850,7 +6850,7 @@ static int selinux_ib_endport_manage_subnet(void *ib_sec, const char *dev_name,
 		return err;
 
 	ad.type = LSM_AUDIT_DATA_IBENDPORT;
-	strncpy(ibendport.dev_name, dev_name, sizeof(ibendport.dev_name));
+	ibendport.dev_name = dev_name;
 	ibendport.port = port_num;
 	ad.u.ibendport = &ibendport;
 	return avc_has_perm(&selinux_state,
