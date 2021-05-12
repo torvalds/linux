@@ -182,33 +182,16 @@ static int regmap_next_readable_reg(struct regmap *map, int reg)
 	return ret;
 }
 
-/*
- * Work out where the start offset maps into register numbers, bearing
- * in mind that we suppress hidden registers.
- */
-static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
-						  unsigned int base,
-						  loff_t from,
-						  loff_t *pos)
+static int regmap_debugfs_generate_cache(struct regmap *map)
 {
 	struct regmap_debugfs_off_cache *c = NULL;
 	loff_t p = 0;
-	unsigned int i, ret;
-	unsigned int fpos_offset;
-	unsigned int reg_offset;
+	unsigned int i = 0;
 
-	/* Suppress the cache if we're using a subrange */
-	if (base)
-		return base;
-
-	/*
-	 * If we don't have a cache build one so we don't have to do a
-	 * linear scan each time.
-	 */
 	mutex_lock(&map->cache_lock);
-	i = base;
+
 	if (list_empty(&map->debugfs_off_cache)) {
-		for (; i <= map->max_register; i += map->reg_stride) {
+		for (i = 0; i <= map->max_register; i += map->reg_stride) {
 			/* Skip unprinted registers, closing off cache entry */
 			if (!regmap_printable(map, i)) {
 				if (c) {
@@ -228,7 +211,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 				if (!c) {
 					regmap_debugfs_free_dump_cache(map);
 					mutex_unlock(&map->cache_lock);
-					return base;
+					return -ENOMEM;
 				}
 				c->min = p;
 				c->base_reg = i;
@@ -246,6 +229,37 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			      &map->debugfs_off_cache);
 	}
 
+	mutex_unlock(&map->cache_lock);
+
+	return 0;
+}
+
+/*
+ * Work out where the start offset maps into register numbers, bearing
+ * in mind that we suppress hidden registers.
+ */
+static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
+						  unsigned int base,
+						  loff_t from,
+						  loff_t *pos)
+{
+	struct regmap_debugfs_off_cache *c = NULL;
+	unsigned int ret;
+	unsigned int fpos_offset;
+	unsigned int reg_offset;
+
+	/* Suppress the cache if we're using a subrange */
+	if (base)
+		return base;
+
+	/*
+	 * If we don't have a cache build one so we don't have to do a
+	 * linear scan each time.
+	 */
+	if (regmap_debugfs_generate_cache(map) < 0)
+		return base;
+
+	mutex_lock(&map->cache_lock);
 	/*
 	 * This should never happen; we return above if we fail to
 	 * allocate and we should never be in this code if there are
@@ -270,6 +284,34 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	mutex_unlock(&map->cache_lock);
 
 	return ret;
+}
+
+/* Determine the file offset where a register appears */
+static int regmap_debugfs_get_reg_offset(struct regmap *map,
+					 unsigned int reg,
+					 loff_t *pos)
+{
+	struct regmap_debugfs_off_cache *c = NULL;
+	unsigned int reg_offset;
+	int ret;
+
+	regmap_calc_tot_len(map, NULL, 0);
+	ret = regmap_debugfs_generate_cache(map);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&map->cache_lock);
+	list_for_each_entry(c, &map->debugfs_off_cache, list) {
+		if (reg >= c->base_reg && reg <= c->max_reg) {
+			reg_offset = (reg - c->base_reg) / map->reg_stride;
+			*pos = c->min + (reg_offset * map->debugfs_tot_len);
+			mutex_unlock(&map->cache_lock);
+			return 0;
+		}
+	}
+	mutex_unlock(&map->cache_lock);
+
+	return -EINVAL;
 }
 
 static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
@@ -345,25 +387,28 @@ static ssize_t regmap_data_read_file(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
 	struct regmap_qti_debugfs *debug_map = file->private_data;
-	unsigned int len;
-	int new_count;
+	loff_t reg_pos = 0;
+	unsigned int max_reg;
+	ssize_t ret;
 
-	regmap_calc_tot_len(debug_map->regmap, NULL, 0);
-	len = debug_map->regmap->debugfs_tot_len;
-	new_count = debug_map->dump_count * len;
-	if (new_count > count)
-		new_count = count;
+	ret = regmap_debugfs_get_reg_offset(debug_map->regmap,
+					    debug_map->dump_address, &reg_pos);
+	if (ret < 0)
+		return ret;
 
-	if (*ppos == 0)
-		*ppos = debug_map->dump_address * len;
-	else if (*ppos >=
-		 (debug_map->dump_address + debug_map->dump_count) * len)
-		return 0;
-	else if (*ppos < debug_map->dump_address * len)
-		return 0;
+	/* Treat the file position of dump_address as 0 */
+	*ppos += reg_pos;
+	max_reg = debug_map->dump_address +
+		  (debug_map->dump_count ? (debug_map->dump_count - 1) : 0) *
+		  (debug_map->regmap->reg_stride ?: 1);
 
-	return regmap_read_debugfs(debug_map->regmap, 0,
-		debug_map->regmap->max_register, user_buf, new_count, ppos);
+	ret = regmap_read_debugfs(debug_map->regmap, 0, max_reg, user_buf,
+				  count, ppos);
+	if (*ppos < reg_pos)
+		return -EINVAL;
+	*ppos -= reg_pos;
+
+	return ret;
 }
 
 #ifdef CONFIG_REGMAP_QTI_DEBUGFS_ALLOW_WRITE
