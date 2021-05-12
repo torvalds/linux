@@ -69,10 +69,18 @@ SYM_FUNC_START(sve_load_from_fpsimd_state)
 	ret
 SYM_FUNC_END(sve_load_from_fpsimd_state)
 
-/* Zero all SVE registers but the first 128-bits of each vector */
+/*
+ * Zero all SVE registers but the first 128-bits of each vector
+ *
+ * VQ must already be configured by caller, any further updates of VQ
+ * will need to ensure that the register state remains valid.
+ *
+ * x0 = VQ - 1
+ */
 SYM_FUNC_START(sve_flush_live)
+	cbz		x0, 1f	// A VQ-1 of 0 is 128 bits so no extra Z state
 	sve_flush_z
-	sve_flush_p_ffr
+1:	sve_flush_p_ffr
 	ret
 SYM_FUNC_END(sve_flush_live)
 
