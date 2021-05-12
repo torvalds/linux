@@ -115,7 +115,6 @@ restart:
 
 			/* Escaped? */
 			if (dentry != mnt->mnt.mnt_root) {
-				b = *p;
 				error = 3;
 				break;
 			}
@@ -155,6 +154,9 @@ restart:
 		goto restart_mnt;
 	}
 	done_seqretry(&mount_lock, m_seq);
+
+	if (unlikely(error == 3))
+		b = *p;
 
 	if (b.len == p->len)
 		prepend(&b, "/", 1);
