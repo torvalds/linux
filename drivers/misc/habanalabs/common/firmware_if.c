@@ -1123,9 +1123,6 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 
 		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
-
-		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
-			prop->gic_interrupts_enable = false;
 	} else {
 		prop->fw_cpu_boot_dev_sts0_valid = 0;
 	}
@@ -1143,11 +1140,8 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	dev_dbg(hdev->dev, "Firmware preboot hard-reset is %s\n",
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
-	dev_info(hdev->dev, "firmware-level security is %s\n",
+	dev_dbg(hdev->dev, "firmware-level security is %s\n",
 			prop->fw_security_disabled ? "disabled" : "enabled");
-
-	dev_info(hdev->dev, "GIC controller is %s\n",
-			prop->gic_interrupts_enable ? "enabled" : "disabled");
 }
 
 static int hl_fw_static_read_preboot_status(struct hl_device *hdev)
@@ -1971,9 +1965,17 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
 
+		if (prop->fw_app_cpu_boot_dev_sts0 &
+				CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
+			prop->gic_interrupts_enable = false;
+
 		dev_dbg(hdev->dev,
 			"Firmware application CPU status0 %#x\n",
 			prop->fw_app_cpu_boot_dev_sts0);
+
+		dev_dbg(hdev->dev, "GIC controller is %s\n",
+				prop->gic_interrupts_enable ?
+						"enabled" : "disabled");
 	}
 
 	if (prop->fw_cpu_boot_dev_sts1_valid) {

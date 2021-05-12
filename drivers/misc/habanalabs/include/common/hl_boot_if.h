@@ -195,7 +195,7 @@
  *					previleged entity. FW sets this status
  *					bit for host. If this bit is set then
  *					GIC can not be accessed from host.
- *					Initialized in: preboot
+ *					Initialized in: armcpd
  *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
@@ -299,7 +299,13 @@ struct cpu_dyn_regs {
 	__le32 hw_state;
 	__le32 kmd_msg_to_cpu;
 	__le32 cpu_cmd_status_to_host;
-	__le32 reserved1[32];		/* reserve for future use */
+	__le32 gic_host_irq_ctrl;
+	__le32 gic_tpc_qm_irq_ctrl;
+	__le32 gic_mme_qm_irq_ctrl;
+	__le32 gic_dma_qm_irq_ctrl;
+	__le32 gic_nic_qm_irq_ctrl;
+	__le32 gic_dma_core_irq_ctrl;
+	__le32 reserved1[26];		/* reserve for future use */
 };
 
 /* TODO: remove the desc magic after the code is updated to use message */
