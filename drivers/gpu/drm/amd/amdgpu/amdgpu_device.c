@@ -71,6 +71,8 @@
 #include <drm/task_barrier.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_drv.h>
+
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
@@ -281,7 +283,10 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 	unsigned long flags;
 	uint32_t hi = ~0;
 	uint64_t last;
+	int idx;
 
+	if (!drm_dev_enter(&adev->ddev, &idx))
+		return;
 
 #ifdef CONFIG_64BIT
 	last = min(pos + size, adev->gmc.visible_vram_size);
@@ -300,7 +305,7 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 		}
 
 		if (count == size)
-			return;
+			goto exit;
 
 		pos += count;
 		buf += count / 4;
@@ -323,6 +328,9 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 			*buf++ = RREG32_NO_KIQ(mmMM_DATA);
 	}
 	spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+
+exit:
+	drm_dev_exit(idx);
 }
 
 /*
