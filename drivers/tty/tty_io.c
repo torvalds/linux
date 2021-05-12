@@ -320,6 +320,7 @@ static struct tty_driver *get_tty_driver(dev_t device, int *index)
 
 	list_for_each_entry(p, &tty_drivers, tty_drivers) {
 		dev_t base = MKDEV(p->major, p->minor_start);
+
 		if (device < base || device >= base + p->num)
 			continue;
 		*index = device - base;
@@ -1033,6 +1034,7 @@ static inline ssize_t do_tty_write(
 	/* Do the write .. */
 	for (;;) {
 		size_t size = count;
+
 		if (size > chunk)
 			size = chunk;
 
@@ -1155,6 +1157,7 @@ ssize_t redirected_tty_write(struct kiocb *iocb, struct iov_iter *iter)
 	 */
 	if (p) {
 		ssize_t res;
+
 		res = file_tty_write(p, iocb, iter);
 		fput(p);
 		return res;
@@ -1942,6 +1945,7 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
 #ifdef CONFIG_VT
 	case MKDEV(TTY_MAJOR, 0): {
 		extern struct tty_driver *console_driver;
+
 		driver = tty_driver_kref_get(console_driver);
 		*index = fg_console;
 		break;
@@ -1949,6 +1953,7 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
 #endif
 	case MKDEV(TTYAUX_MAJOR, 1): {
 		struct tty_driver *console_driver = console_device(index);
+
 		if (console_driver) {
 			driver = tty_driver_kref_get(console_driver);
 			if (driver && filp) {
@@ -2388,6 +2393,7 @@ EXPORT_SYMBOL(tty_do_resize);
 static int tiocswinsz(struct tty_struct *tty, struct winsize __user *arg)
 {
 	struct winsize tmp_ws;
+
 	if (copy_from_user(&tmp_ws, arg, sizeof(*arg)))
 		return -EFAULT;
 
@@ -2412,6 +2418,7 @@ static int tioccons(struct file *file)
 		return -EPERM;
 	if (file->f_op->write_iter == redirected_tty_write) {
 		struct file *f;
+
 		spin_lock(&redirect_lock);
 		f = redirect;
 		redirect = NULL;
@@ -2734,6 +2741,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TIOCGEXCL:
 	{
 		int excl = test_bit(TTY_EXCLUSIVE, &tty->flags);
+
 		return put_user(excl, (int __user *)p);
 	}
 	case TIOCGETD:
@@ -2748,6 +2756,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TIOCGDEV:
 	{
 		unsigned int ret = new_encode_dev(tty_devnum(real_tty));
+
 		return put_user(ret, (unsigned int __user *)p);
 	}
 	/*
@@ -3103,6 +3112,7 @@ EXPORT_SYMBOL(do_SAK);
 static struct device *tty_get_device(struct tty_struct *tty)
 {
 	dev_t devt = tty_devnum(tty);
+
 	return class_find_device_by_devt(tty_class, devt);
 }
 
