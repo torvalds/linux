@@ -7713,7 +7713,7 @@ bool smb2_is_sign_req(struct ksmbd_work *work, unsigned int command)
 	    command != SMB2_OPLOCK_BREAK_HE)
 		return true;
 
-	return 0;
+	return false;
 }
 
 /**
