@@ -37,6 +37,7 @@ config BPF_SYSCALL
 
 config BPF_JIT
 	bool "Enable BPF Just In Time compiler"
+	depends on BPF
 	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
 	depends on MODULES
 	help
