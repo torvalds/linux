@@ -402,7 +402,7 @@ static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 {
 	struct drmem_lmb *lmb;
-	int lmbs_removed = 0;
+	int lmbs_reserved = 0;
 	int lmbs_available = 0;
 	int rc;
 
@@ -436,12 +436,12 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 		 */
 		drmem_mark_lmb_reserved(lmb);
 
-		lmbs_removed++;
-		if (lmbs_removed == lmbs_to_remove)
+		lmbs_reserved++;
+		if (lmbs_reserved == lmbs_to_remove)
 			break;
 	}
 
-	if (lmbs_removed != lmbs_to_remove) {
+	if (lmbs_reserved != lmbs_to_remove) {
 		pr_err("Memory hot-remove failed, adding LMB's back\n");
 
 		for_each_drmem_lmb(lmb) {
@@ -454,6 +454,10 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 				       lmb->drc_index);
 
 			drmem_remove_lmb_reservation(lmb);
+
+			lmbs_reserved--;
+			if (lmbs_reserved == 0)
+				break;
 		}
 
 		rc = -EINVAL;
@@ -467,6 +471,10 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 				lmb->base_addr);
 
 			drmem_remove_lmb_reservation(lmb);
+
+			lmbs_reserved--;
+			if (lmbs_reserved == 0)
+				break;
 		}
 		rc = 0;
 	}
