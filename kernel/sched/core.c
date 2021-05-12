@@ -5506,7 +5506,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 	}
 
 	/*
-	 * Try and select tasks for each sibling in decending sched_class
+	 * Try and select tasks for each sibling in descending sched_class
 	 * order.
 	 */
 	for_each_class(class) {
@@ -5520,7 +5520,7 @@ again:
 
 			/*
 			 * If this sibling doesn't yet have a suitable task to
-			 * run; ask for the most elegible task, given the
+			 * run; ask for the most eligible task, given the
 			 * highest priority task already selected for this
 			 * core.
 			 */

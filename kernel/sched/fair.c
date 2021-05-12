@@ -10808,11 +10808,11 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
 	 * sched_slice() considers only this active rq and it gets the
 	 * whole slice. But during force idle, we have siblings acting
 	 * like a single runqueue and hence we need to consider runnable
-	 * tasks on this cpu and the forced idle cpu. Ideally, we should
+	 * tasks on this CPU and the forced idle CPU. Ideally, we should
 	 * go through the forced idle rq, but that would be a perf hit.
-	 * We can assume that the forced idle cpu has atleast
+	 * We can assume that the forced idle CPU has at least
 	 * MIN_NR_TASKS_DURING_FORCEIDLE - 1 tasks and use that to check
-	 * if we need to give up the cpu.
+	 * if we need to give up the CPU.
 	 */
 	if (rq->core->core_forceidle && rq->cfs.nr_running == 1 &&
 	    __entity_slice_used(&curr->se, MIN_NR_TASKS_DURING_FORCEIDLE))
