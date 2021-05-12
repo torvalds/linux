@@ -79,7 +79,7 @@ enum copy_direction {
 void rxe_mr_init_dma(struct rxe_pd *pd, int access, struct rxe_mr *mr);
 
 int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
-		     int access, struct ib_udata *udata, struct rxe_mr *mr);
+		     int access, struct rxe_mr *mr);
 
 int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr);
 
