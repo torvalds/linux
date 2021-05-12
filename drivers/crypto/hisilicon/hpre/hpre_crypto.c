@@ -623,9 +623,9 @@ static int hpre_is_dh_params_length_valid(unsigned int key_sz)
 	case _HPRE_DH_GRP15:
 	case _HPRE_DH_GRP16:
 		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static int hpre_dh_set_params(struct hpre_ctx *ctx, struct dh *params)
