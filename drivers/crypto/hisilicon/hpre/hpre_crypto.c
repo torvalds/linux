@@ -1492,7 +1492,7 @@ static int hpre_ecdh_dst_data_init(struct hpre_asym_request *hpre_req,
 	struct hpre_sqe *msg = &hpre_req->req;
 	struct hpre_ctx *ctx = hpre_req->ctx;
 	struct device *dev = ctx->dev;
-	dma_addr_t dma = 0;
+	dma_addr_t dma;
 
 	if (unlikely(!data || !sg_is_last(data) || len != ctx->key_sz << 1)) {
 		dev_err(dev, "data or data length is illegal!\n");
@@ -1825,7 +1825,7 @@ static int hpre_curve25519_dst_init(struct hpre_asym_request *hpre_req,
 	struct hpre_sqe *msg = &hpre_req->req;
 	struct hpre_ctx *ctx = hpre_req->ctx;
 	struct device *dev = ctx->dev;
-	dma_addr_t dma = 0;
+	dma_addr_t dma;
 
 	if (!data || !sg_is_last(data) || len != ctx->key_sz) {
 		dev_err(dev, "data or data length is illegal!\n");
