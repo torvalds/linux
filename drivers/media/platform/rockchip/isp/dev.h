@@ -103,6 +103,14 @@ enum rkisp_isp_inp {
 	INP_CIF = BIT(8),
 };
 
+enum rkisp_rdbk_filt {
+	RDBK_F_VS,
+	RDBK_F_RD0,
+	RDBK_F_RD1,
+	RDBK_F_RD2,
+	RDBK_F_MAX
+};
+
 /*
  * struct rkisp_pipeline - An ISP hardware pipeline
  *
@@ -220,5 +228,14 @@ struct rkisp_device {
 	bool send_fbcgain;
 	struct rkisp_ispp_buf *cur_fbcgain;
 	struct rkisp_buffer *cur_spbuf;
+
+	struct kfifo rdbk_kfifo;
+	spinlock_t rdbk_lock;
+	int rdbk_cnt;
+	int rdbk_cnt_x1;
+	int rdbk_cnt_x2;
+	int rdbk_cnt_x3;
+	u32 rd_mode;
+	u8 filt_state[RDBK_F_MAX];
 };
 #endif

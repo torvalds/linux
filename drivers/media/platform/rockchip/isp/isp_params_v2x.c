@@ -64,7 +64,7 @@ isp_param_get_insize(struct rkisp_isp_params_vdev *params_vdev)
 	u32 height = isp_sdev->in_crop.height;
 
 	if (dev->isp_ver == ISP_V20 &&
-	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
+	    dev->rd_mode == HDR_RDBK_FRAME1)
 		height += RKMODULE_EXTEND_LINE;
 
 	return isp_sdev->in_crop.width * height;
@@ -716,7 +716,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	lsc_ctrl = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
 	isp_param_clear_bits(params_vdev, ISP_LSC_CTRL,
 			     ISP_LSC_EN);
-	if (!IS_HDR_RDBK(dev->csi_dev.rd_mode))
+	if (!IS_HDR_RDBK(dev->rd_mode))
 		isp_lsc_matrix_cfg_ddr(params_vdev, arg);
 
 	for (i = 0; i < 4; i++) {
@@ -766,7 +766,7 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_device *dev = params_vdev->dev;
 	u32 val = ISP_LSC_EN;
 
-	if (!IS_HDR_RDBK(dev->csi_dev.rd_mode))
+	if (!IS_HDR_RDBK(dev->rd_mode))
 		val |= ISP_LSC_LUT_EN;
 
 	if (en)
@@ -3464,8 +3464,8 @@ isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 value, i, gain_wsize;
 	u8 mge_en;
 
-	if (dev->csi_dev.rd_mode != HDR_NORMAL &&
-	    dev->csi_dev.rd_mode != HDR_RDBK_FRAME1)
+	if (dev->rd_mode != HDR_NORMAL &&
+	    dev->rd_mode != HDR_RDBK_FRAME1)
 		mge_en = 1;
 	else
 		mge_en = 0;
@@ -3609,7 +3609,7 @@ isp_ldch_config(struct rkisp_isp_params_vdev *params_vdev,
 
 		value = arg->hsize * 4;
 		memcpy(buf + value * vsize, buf + value * (vsize - cnt), cnt * value);
-		if (dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
+		if (dev->rd_mode == HDR_RDBK_FRAME1)
 			vsize += cnt;
 	}
 	value = priv_val->buf_ldch[buf_idx].dma_addr + ldch_head->data_oft;
@@ -4446,7 +4446,7 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		cur_buf = list_first_entry(&params_vdev->params,
 				struct rkisp_buffer, queue);
 
-		if (!IS_HDR_RDBK(dev->csi_dev.rd_mode)) {
+		if (!IS_HDR_RDBK(dev->rd_mode)) {
 			list_del(&cur_buf->queue);
 			break;
 		}
@@ -4626,7 +4626,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		if (!params_vdev->cur_buf)
 			return;
 
-		if (IS_HDR_RDBK(dev->csi_dev.rd_mode) && !params_vdev->rdbk_times) {
+		if (IS_HDR_RDBK(dev->rd_mode) && !params_vdev->rdbk_times) {
 			struct rkisp_isp_params_val_v2x *priv_val =
 				(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 
@@ -4654,7 +4654,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		writel(ISP2X_HDR_DONE, dev->base_addr + ISP_ISP_ICR);
 	}
 
-	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->csi_dev.rd_mode))
+	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->rd_mode))
 		rkisp_params_cfg_v2x(params_vdev, cur_frame_id, RKISP_PARAMS_ALL);
 }
 

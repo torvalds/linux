@@ -973,7 +973,7 @@ static void crop_on(struct rkisp_bridge_device *dev)
 	u32 ctrl = CIF_DUAL_CROP_CFG_UPD;
 
 	if (ispdev->isp_ver == ISP_V20 &&
-	    ispdev->csi_dev.rd_mode == HDR_RDBK_FRAME1 &&
+	    ispdev->rd_mode == HDR_RDBK_FRAME1 &&
 	    ispdev->isp_sdev.in_fmt.fmt_type == FMT_BAYER)
 		src_h += RKMODULE_EXTEND_LINE;
 

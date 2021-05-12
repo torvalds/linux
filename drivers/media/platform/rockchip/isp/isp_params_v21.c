@@ -640,7 +640,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	lsc_ctrl = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
 	isp_param_clear_bits(params_vdev, ISP_LSC_CTRL,
 			     ISP_LSC_EN);
-	if (!IS_HDR_RDBK(dev->csi_dev.rd_mode))
+	if (!IS_HDR_RDBK(dev->rd_mode))
 		isp_lsc_matrix_cfg_ddr(params_vdev, arg);
 
 	for (i = 0; i < 4; i++) {
@@ -690,7 +690,7 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_device *dev = params_vdev->dev;
 	u32 val = ISP_LSC_EN;
 
-	if (!IS_HDR_RDBK(dev->csi_dev.rd_mode))
+	if (!IS_HDR_RDBK(dev->rd_mode))
 		val |= ISP_LSC_LUT_EN;
 
 	if (en)
@@ -4134,7 +4134,7 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		cur_buf = list_first_entry(&params_vdev->params,
 				struct rkisp_buffer, queue);
 
-		if (!IS_HDR_RDBK(dev->csi_dev.rd_mode)) {
+		if (!IS_HDR_RDBK(dev->rd_mode)) {
 			list_del(&cur_buf->queue);
 			break;
 		}
@@ -4213,7 +4213,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 		if (!params_vdev->cur_buf)
 			return;
 
-		if (IS_HDR_RDBK(dev->csi_dev.rd_mode) && !params_vdev->rdbk_times) {
+		if (IS_HDR_RDBK(dev->rd_mode) && !params_vdev->rdbk_times) {
 			rkisp_params_cfg_v2x(params_vdev, cur_frame_id, RKISP_PARAMS_SHD);
 			return;
 		}
@@ -4222,7 +4222,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	if (isp_mis & CIF_ISP_FRAME)
 		rkisp_params_clear_fstflg(params_vdev);
 
-	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->csi_dev.rd_mode))
+	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->rd_mode))
 		rkisp_params_cfg_v2x(params_vdev, cur_frame_id, RKISP_PARAMS_ALL);
 }
 

@@ -1443,7 +1443,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 			     (dev->hdr.op_mode == HDR_RDBK_FRAME2 && end_tx2 && end_tx0))) {
 				end_tx0 = false;
 				end_tx2 = false;
-				rkisp_trigger_read_back(&dev->csi_dev, false, false, false);
+				rkisp_trigger_read_back(dev, false, false, false);
 			}
 		}
 	}

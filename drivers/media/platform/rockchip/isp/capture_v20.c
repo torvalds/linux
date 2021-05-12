@@ -565,7 +565,7 @@ static int rkisp_stream_config_dcrop(struct rkisp_stream *stream, bool async)
 	src_h = input_win->height;
 
 	if (dev->isp_ver == ISP_V20 &&
-	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1 &&
+	    dev->rd_mode == HDR_RDBK_FRAME1 &&
 	    dev->isp_sdev.in_fmt.fmt_type == FMT_BAYER &&
 	    dev->isp_sdev.out_fmt.fmt_type == FMT_YUV)
 		src_h += RKMODULE_EXTEND_LINE;
@@ -2239,7 +2239,7 @@ void rkisp_mi_v20_isr(u32 mis_val, struct rkisp_device *dev)
 				end_tx0 = false;
 				end_tx1 = false;
 				end_tx2 = false;
-				rkisp_trigger_read_back(&dev->csi_dev, false, false, false);
+				rkisp_trigger_read_back(dev, false, false, false);
 			}
 		}
 	}

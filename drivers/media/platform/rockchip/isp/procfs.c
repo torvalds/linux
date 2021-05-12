@@ -247,15 +247,15 @@ static int isp_show(struct seq_file *p, void *v)
 	if (IS_HDR_RDBK(dev->hdr.op_mode))
 		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms %s time:%dms) cnt(total:%d X1:%d X2:%d X3:%d)\n",
 			   "Isp Read",
-			   dev->csi_dev.rd_mode - 3,
+			   dev->rd_mode - 3,
 			   dev->dmarx_dev.cur_frame.id,
 			   (u32)(dev->dmarx_dev.cur_frame.timestamp - dev->dmarx_dev.pre_frame.timestamp) / 1000 / 1000,
 			   (dev->isp_state & ISP_FRAME_END) ? "idle" : "working",
 			   sdev->dbg.interval / 1000 / 1000,
-			   dev->csi_dev.frame_cnt,
-			   dev->csi_dev.frame_cnt_x1,
-			   dev->csi_dev.frame_cnt_x2,
-			   dev->csi_dev.frame_cnt_x3);
+			   dev->rdbk_cnt,
+			   dev->rdbk_cnt_x1,
+			   dev->rdbk_cnt_x2,
+			   dev->rdbk_cnt_x3);
 	else
 		seq_printf(p, "%-10s frame:%d %s time:%dms\n",
 			   "Isp online",
