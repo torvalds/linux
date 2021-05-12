@@ -100,6 +100,7 @@ struct amdgpu_vmhub {
 	uint32_t	eng_distance;
 	uint32_t	eng_addr_distance; /* include LO32/HI32 */
 
+	uint32_t        vm_cntx_cntl;
 	uint32_t	vm_cntx_cntl_vm_fault;
 	uint32_t	vm_l2_bank_select_reserved_cid2;
 

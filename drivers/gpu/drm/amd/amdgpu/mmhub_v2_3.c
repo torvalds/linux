@@ -324,6 +324,8 @@ static void mmhub_v2_3_setup_vmid_config(struct amdgpu_device *adev)
 				    i * hub->ctx_addr_distance,
 				    upper_32_bits(adev->vm_manager.max_pfn - 1));
 	}
+
+	hub->vm_cntx_cntl = tmp;
 }
 
 static void mmhub_v2_3_program_invalidation(struct amdgpu_device *adev)
