@@ -170,6 +170,8 @@ int generic_handle_irq(unsigned int irq);
 int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 			bool lookup, struct pt_regs *regs);
 
+int generic_handle_domain_irq(struct irq_domain *domain, unsigned int hwirq);
+
 static inline int handle_domain_irq(struct irq_domain *domain,
 				    unsigned int hwirq, struct pt_regs *regs)
 {
