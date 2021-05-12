@@ -30,7 +30,6 @@ struct hpre_ctx;
 #define HPRE_DH_G_FLAG		0x02
 #define HPRE_TRY_SEND_TIMES	100
 #define HPRE_INVLD_REQ_ID		(-1)
-#define HPRE_DEV(ctx)		(&((ctx)->qp->qm->pdev->dev))
 
 #define HPRE_SQE_ALG_BITS	5
 #define HPRE_SQE_DONE_SHIFT	30
@@ -102,6 +101,7 @@ struct hpre_curve25519_ctx {
 
 struct hpre_ctx {
 	struct hisi_qp *qp;
+	struct device *dev;
 	struct hpre_asym_request **req_list;
 	struct hpre *hpre;
 	spinlock_t req_lock;
@@ -214,8 +214,7 @@ static int hpre_get_data_dma_addr(struct hpre_asym_request *hpre_req,
 				  struct scatterlist *data, unsigned int len,
 				  int is_src, dma_addr_t *tmp)
 {
-	struct hpre_ctx *ctx = hpre_req->ctx;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = hpre_req->ctx->dev;
 	enum dma_data_direction dma_dir;
 
 	if (is_src) {
@@ -239,7 +238,7 @@ static int hpre_prepare_dma_buf(struct hpre_asym_request *hpre_req,
 				int is_src, dma_addr_t *tmp)
 {
 	struct hpre_ctx *ctx = hpre_req->ctx;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	void *ptr;
 	int shift;
 
@@ -293,7 +292,7 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 				 struct scatterlist *dst,
 				 struct scatterlist *src)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	struct hpre_sqe *sqe = &req->req;
 	dma_addr_t tmp;
 
@@ -325,7 +324,6 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 				void **kreq)
 {
-	struct device *dev = HPRE_DEV(ctx);
 	struct hpre_asym_request *req;
 	unsigned int err, done, alg;
 	int id;
@@ -350,7 +348,7 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 		return 0;
 
 	alg = le32_to_cpu(sqe->dw0) & HREE_ALG_TYPE_MASK;
-	dev_err_ratelimited(dev, "alg[0x%x] error: done[0x%x], etype[0x%x]\n",
+	dev_err_ratelimited(ctx->dev, "alg[0x%x] error: done[0x%x], etype[0x%x]\n",
 		alg, done, err);
 
 	return -EINVAL;
@@ -365,6 +363,7 @@ static int hpre_ctx_set(struct hpre_ctx *ctx, struct hisi_qp *qp, int qlen)
 
 	spin_lock_init(&ctx->req_lock);
 	ctx->qp = qp;
+	ctx->dev = &qp->qm->pdev->dev;
 
 	hpre = container_of(ctx->qp->qm, struct hpre, qm);
 	ctx->hpre = hpre;
@@ -631,7 +630,7 @@ static int hpre_is_dh_params_length_valid(unsigned int key_sz)
 
 static int hpre_dh_set_params(struct hpre_ctx *ctx, struct dh *params)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int sz;
 
 	if (params->p_size > HPRE_DH_MAX_P_SZ)
@@ -670,7 +669,7 @@ static int hpre_dh_set_params(struct hpre_ctx *ctx, struct dh *params)
 
 static void hpre_dh_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int sz = ctx->key_sz;
 
 	if (is_clear_all)
@@ -883,18 +882,18 @@ static int hpre_rsa_set_n(struct hpre_ctx *ctx, const char *value,
 	if (!hpre_rsa_key_size_is_support(ctx->key_sz))
 		return 0;
 
-	ctx->rsa.pubkey = dma_alloc_coherent(HPRE_DEV(ctx), vlen << 1,
+	ctx->rsa.pubkey = dma_alloc_coherent(ctx->dev, vlen << 1,
 					     &ctx->rsa.dma_pubkey,
 					     GFP_KERNEL);
 	if (!ctx->rsa.pubkey)
 		return -ENOMEM;
 
 	if (private) {
-		ctx->rsa.prikey = dma_alloc_coherent(HPRE_DEV(ctx), vlen << 1,
+		ctx->rsa.prikey = dma_alloc_coherent(ctx->dev, vlen << 1,
 						     &ctx->rsa.dma_prikey,
 						     GFP_KERNEL);
 		if (!ctx->rsa.prikey) {
-			dma_free_coherent(HPRE_DEV(ctx), vlen << 1,
+			dma_free_coherent(ctx->dev, vlen << 1,
 					  ctx->rsa.pubkey,
 					  ctx->rsa.dma_pubkey);
 			ctx->rsa.pubkey = NULL;
@@ -956,7 +955,7 @@ static int hpre_crt_para_get(char *para, size_t para_sz,
 static int hpre_rsa_setkey_crt(struct hpre_ctx *ctx, struct rsa_key *rsa_key)
 {
 	unsigned int hlf_ksz = ctx->key_sz >> 1;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	u64 offset;
 	int ret;
 
@@ -1014,7 +1013,7 @@ free_key:
 static void hpre_rsa_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 {
 	unsigned int half_key_sz = ctx->key_sz >> 1;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 
 	if (is_clear_all)
 		hisi_qm_stop_qp(ctx->qp);
@@ -1185,7 +1184,7 @@ static void hpre_key_to_big_end(u8 *data, int len)
 static void hpre_ecc_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all,
 			       bool is_ecdh)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int sz = ctx->key_sz;
 	unsigned int shift = sz << 1;
 
@@ -1287,7 +1286,7 @@ static unsigned int hpre_ecdh_get_curvesz(unsigned short id)
 
 static int hpre_ecdh_set_param(struct hpre_ctx *ctx, struct ecdh *params)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int sz, shift, curve_sz;
 	int ret;
 
@@ -1338,7 +1337,7 @@ static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 				unsigned int len)
 {
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int sz, sz_shift;
 	struct ecdh params;
 	int ret;
@@ -1373,7 +1372,7 @@ static void hpre_ecdh_hw_data_clr_all(struct hpre_ctx *ctx,
 				      struct scatterlist *dst,
 				      struct scatterlist *src)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	struct hpre_sqe *sqe = &req->req;
 	dma_addr_t dma;
 
@@ -1462,7 +1461,7 @@ static int hpre_ecdh_src_data_init(struct hpre_asym_request *hpre_req,
 {
 	struct hpre_sqe *msg = &hpre_req->req;
 	struct hpre_ctx *ctx = hpre_req->ctx;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int tmpshift;
 	dma_addr_t dma = 0;
 	void *ptr;
@@ -1492,7 +1491,7 @@ static int hpre_ecdh_dst_data_init(struct hpre_asym_request *hpre_req,
 {
 	struct hpre_sqe *msg = &hpre_req->req;
 	struct hpre_ctx *ctx = hpre_req->ctx;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	dma_addr_t dma = 0;
 
 	if (unlikely(!data || !sg_is_last(data) || len != ctx->key_sz << 1)) {
@@ -1515,7 +1514,7 @@ static int hpre_ecdh_compute_value(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	void *tmp = kpp_request_ctx(req);
 	struct hpre_asym_request *hpre_req = PTR_ALIGN(tmp, HPRE_ALIGN_SZ);
 	struct hpre_sqe *msg = &hpre_req->req;
@@ -1621,7 +1620,7 @@ static void hpre_curve25519_fill_curve(struct hpre_ctx *ctx, const void *buf,
 static int hpre_curve25519_set_param(struct hpre_ctx *ctx, const void *buf,
 				     unsigned int len)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	unsigned int sz = ctx->key_sz;
 	unsigned int shift = sz << 1;
 
@@ -1646,7 +1645,7 @@ static int hpre_curve25519_set_secret(struct crypto_kpp *tfm, const void *buf,
 				      unsigned int len)
 {
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	int ret = -EINVAL;
 
 	if (len != CURVE25519_KEY_SIZE ||
@@ -1674,7 +1673,7 @@ static void hpre_curve25519_hw_data_clr_all(struct hpre_ctx *ctx,
 					    struct scatterlist *dst,
 					    struct scatterlist *src)
 {
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	struct hpre_sqe *sqe = &req->req;
 	dma_addr_t dma;
 
@@ -1770,7 +1769,7 @@ static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 {
 	struct hpre_sqe *msg = &hpre_req->req;
 	struct hpre_ctx *ctx = hpre_req->ctx;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	u8 p[CURVE25519_KEY_SIZE] = { 0 };
 	const struct ecc_curve *curve;
 	dma_addr_t dma = 0;
@@ -1825,7 +1824,7 @@ static int hpre_curve25519_dst_init(struct hpre_asym_request *hpre_req,
 {
 	struct hpre_sqe *msg = &hpre_req->req;
 	struct hpre_ctx *ctx = hpre_req->ctx;
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	dma_addr_t dma = 0;
 
 	if (!data || !sg_is_last(data) || len != ctx->key_sz) {
@@ -1848,7 +1847,7 @@ static int hpre_curve25519_compute_value(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
-	struct device *dev = HPRE_DEV(ctx);
+	struct device *dev = ctx->dev;
 	void *tmp = kpp_request_ctx(req);
 	struct hpre_asym_request *hpre_req = PTR_ALIGN(tmp, HPRE_ALIGN_SZ);
 	struct hpre_sqe *msg = &hpre_req->req;
