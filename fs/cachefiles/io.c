@@ -410,7 +410,7 @@ int cachefiles_begin_read_operation(struct netfs_read_request *rreq,
 	rreq->cache_resources.cache_priv = op;
 	rreq->cache_resources.cache_priv2 = file;
 	rreq->cache_resources.ops = &cachefiles_netfs_cache_ops;
-	rreq->cookie_debug_id = object->fscache.debug_id;
+	rreq->cache_resources.debug_id = object->fscache.debug_id;
 	_leave("");
 	return 0;
 
