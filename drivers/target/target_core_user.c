@@ -121,7 +121,7 @@ struct tcmu_dev {
 #define TCMU_DEV_BIT_BROKEN 1
 #define TCMU_DEV_BIT_BLOCKED 2
 #define TCMU_DEV_BIT_TMR_NOTIFY 3
-#define TCM_DEV_BIT_PLUGGED 4
+#define TCMU_DEV_BIT_PLUGGED 4
 	unsigned long flags;
 
 	struct uio_info uio_info;
@@ -980,7 +980,7 @@ static void tcmu_unplug_device(struct se_dev_plug *se_plug)
 	struct se_device *se_dev = se_plug->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 
-	clear_bit(TCM_DEV_BIT_PLUGGED, &udev->flags);
+	clear_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags);
 	uio_event_notify(&udev->uio_info);
 }
 
@@ -988,7 +988,7 @@ static struct se_dev_plug *tcmu_plug_device(struct se_device *se_dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 
-	if (!test_and_set_bit(TCM_DEV_BIT_PLUGGED, &udev->flags))
+	if (!test_and_set_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags))
 		return &udev->se_plug;
 
 	return NULL;
@@ -1122,7 +1122,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->inflight_queue);
 
-	if (!test_bit(TCM_DEV_BIT_PLUGGED, &udev->flags))
+	if (!test_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags))
 		uio_event_notify(&udev->uio_info);
 
 	return 0;
