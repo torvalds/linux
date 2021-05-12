@@ -117,7 +117,7 @@ struct bch_fs *bch2_dev_to_fs(dev_t dev)
 
 	list_for_each_entry(c, &bch_fs_list, list)
 		for_each_member_device_rcu(ca, c, i, NULL)
-			if (ca->disk_sb.bdev->bd_dev == dev) {
+			if (ca->disk_sb.bdev && ca->disk_sb.bdev->bd_dev == dev) {
 				closure_get(&c->cl);
 				goto found;
 			}
