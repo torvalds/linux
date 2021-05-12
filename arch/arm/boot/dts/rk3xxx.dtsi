@@ -256,7 +256,7 @@
 	};
 
 	grf: grf@20008000 {
-		compatible = "syscon";
+		compatible = "syscon", "simple-mfd";
 		reg = <0x20008000 0x200>;
 	};
 
