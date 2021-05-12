@@ -2331,6 +2331,7 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 	if (!adev->ras_features || !con)
 		return 0;
 
+
 	/* Need disable ras on all IPs here before ip [hw/sw]fini */
 	amdgpu_ras_disable_all_features(adev, 0);
 	amdgpu_ras_recovery_fini(adev);
