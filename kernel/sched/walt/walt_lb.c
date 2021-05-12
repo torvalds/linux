@@ -60,7 +60,8 @@ static int walt_lb_active_migration(void *data)
 	if (task_on_rq_queued(push_task) &&
 			push_task->state == TASK_RUNNING &&
 			task_cpu(push_task) == busiest_cpu &&
-			cpu_active(target_cpu)) {
+			cpu_active(target_cpu) &&
+			cpumask_test_cpu(target_cpu, push_task->cpus_ptr)) {
 		walt_detach_task(push_task, busiest_rq, target_rq);
 		push_task_detached = 1;
 	}
