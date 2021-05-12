@@ -1155,7 +1155,7 @@ ssize_t redirected_tty_write(struct kiocb *iocb, struct iov_iter *iter)
 	spin_unlock(&redirect_lock);
 
 	/*
-	 * We know the redirected tty is just another tty, we can can
+	 * We know the redirected tty is just another tty, we can
 	 * call file_tty_write() directly with that file pointer.
 	 */
 	if (p) {
