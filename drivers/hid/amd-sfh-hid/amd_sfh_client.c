@@ -88,6 +88,7 @@ static void amd_sfh_work(struct work_struct *work)
 	sensor_index = req_node->sensor_idx;
 	report_id = req_node->report_id;
 	node_type = req_node->report_type;
+	kfree(req_node);
 
 	if (node_type == HID_FEATURE_REPORT) {
 		report_size = get_feature_report(sensor_index, report_id,
