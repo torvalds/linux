@@ -2341,7 +2341,7 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user *arg)
 	err = copy_to_user(arg, &tty->winsize, sizeof(*arg));
 	mutex_unlock(&tty->winsize_mutex);
 
-	return err ? -EFAULT: 0;
+	return err ? -EFAULT : 0;
 }
 
 /**
