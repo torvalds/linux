@@ -128,9 +128,6 @@ OBJCOPYFLAGS	:= -O binary
 
 head-y		:= arch/s390/kernel/head64.o
 
-# See arch/s390/Kbuild for content of core part of the kernel
-core-y		+= arch/s390/
-
 libs-y		+= arch/s390/lib/
 drivers-y	+= drivers/s390/
 

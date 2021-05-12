@@ -85,9 +85,6 @@ KBUILD_LDFLAGS	+= $(ldflags-y)
 
 head-y		:= arch/arc/kernel/head.o
 
-# See arch/arc/Kbuild for content of core part of the kernel
-core-y		+= arch/arc/
-
 # w/o this dtb won't embed into kernel binary
 core-y		+= arch/arc/boot/dts/
 
