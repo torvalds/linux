@@ -14,10 +14,10 @@ PA-RISC体系架构
    :maxdepth: 2
 
    debugging
+   registers
 
 Todolist:
 
-   registers
    features
 
 .. only::  subproject and html
