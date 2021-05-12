@@ -131,7 +131,6 @@ struct ktermios tty_std_termios = {	/* for the benefit of tty drivers  */
 	.c_ospeed = 38400,
 	/* .c_line = N_TTY, */
 };
-
 EXPORT_SYMBOL(tty_std_termios);
 
 /* This list gets poked at by procfs and various bits of boot up code. This
@@ -249,7 +248,6 @@ const char *tty_name(const struct tty_struct *tty)
 		return "NULL tty";
 	return tty->name;
 }
-
 EXPORT_SYMBOL(tty_name);
 
 const char *tty_driver_name(const struct tty_struct *tty)
@@ -539,7 +537,6 @@ void tty_wakeup(struct tty_struct *tty)
 	}
 	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
-
 EXPORT_SYMBOL_GPL(tty_wakeup);
 
 /**
@@ -697,7 +694,6 @@ void tty_hangup(struct tty_struct *tty)
 	tty_debug_hangup(tty, "hangup\n");
 	schedule_work(&tty->hangup_work);
 }
-
 EXPORT_SYMBOL(tty_hangup);
 
 /**
@@ -714,7 +710,6 @@ void tty_vhangup(struct tty_struct *tty)
 	tty_debug_hangup(tty, "vhangup\n");
 	__tty_hangup(tty, 0);
 }
-
 EXPORT_SYMBOL(tty_vhangup);
 
 
@@ -764,7 +759,6 @@ int tty_hung_up_p(struct file *filp)
 {
 	return (filp && filp->f_op == &hung_up_tty_fops);
 }
-
 EXPORT_SYMBOL(tty_hung_up_p);
 
 /**
@@ -3110,7 +3104,6 @@ void do_SAK(struct tty_struct *tty)
 		return;
 	schedule_work(&tty->SAK_work);
 }
-
 EXPORT_SYMBOL(do_SAK);
 
 /* Must put_device() after it's unused! */
