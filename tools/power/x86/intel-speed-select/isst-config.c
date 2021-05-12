@@ -106,6 +106,22 @@ int is_skx_based_platform(void)
 	return 0;
 }
 
+int is_spr_platform(void)
+{
+	if (cpu_model == 0x8F)
+		return 1;
+
+	return 0;
+}
+
+int is_icx_platform(void)
+{
+	if (cpu_model == 0x6A || cpu_model == 0x6C)
+		return 1;
+
+	return 0;
+}
+
 static int update_cpu_model(void)
 {
 	unsigned int ebx, ecx, edx;
