@@ -64,30 +64,6 @@ extern struct fscache_cookie fscache_fsdef_index;
 extern struct fscache_cookie_def fscache_fsdef_netfs_def;
 
 /*
- * histogram.c
- */
-#ifdef CONFIG_FSCACHE_HISTOGRAM
-extern atomic_t fscache_obj_instantiate_histogram[HZ];
-extern atomic_t fscache_objs_histogram[HZ];
-extern atomic_t fscache_ops_histogram[HZ];
-extern atomic_t fscache_retrieval_delay_histogram[HZ];
-extern atomic_t fscache_retrieval_histogram[HZ];
-
-static inline void fscache_hist(atomic_t histogram[], unsigned long start_jif)
-{
-	unsigned long jif = jiffies - start_jif;
-	if (jif >= HZ)
-		jif = HZ - 1;
-	atomic_inc(&histogram[jif]);
-}
-
-extern const struct seq_operations fscache_histogram_ops;
-
-#else
-#define fscache_hist(hist, start_jif) do {} while (0)
-#endif
-
-/*
  * main.c
  */
 extern unsigned fscache_defer_lookup;

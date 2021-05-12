@@ -496,7 +496,6 @@ int cachefiles_walk_to_object(struct cachefiles_object *parent,
 	struct dentry *dir, *next = NULL;
 	struct inode *inode;
 	struct path path;
-	unsigned long start;
 	const char *name;
 	int ret, nlen;
 
@@ -535,9 +534,7 @@ lookup_again:
 
 	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 
-	start = jiffies;
 	next = lookup_one_len(name, dir, nlen);
-	cachefiles_hist(cachefiles_lookup_histogram, start);
 	if (IS_ERR(next)) {
 		trace_cachefiles_lookup(object, next, NULL);
 		goto lookup_error;
@@ -568,9 +565,7 @@ lookup_again:
 			ret = security_path_mkdir(&path, next, 0);
 			if (ret < 0)
 				goto create_error;
-			start = jiffies;
 			ret = vfs_mkdir(&init_user_ns, d_inode(dir), next, 0);
-			cachefiles_hist(cachefiles_mkdir_histogram, start);
 			if (!key)
 				trace_cachefiles_mkdir(object, next, ret);
 			if (ret < 0)
@@ -604,10 +599,8 @@ lookup_again:
 			ret = security_path_mknod(&path, next, S_IFREG, 0);
 			if (ret < 0)
 				goto create_error;
-			start = jiffies;
 			ret = vfs_create(&init_user_ns, d_inode(dir), next,
 					 S_IFREG, true);
-			cachefiles_hist(cachefiles_create_histogram, start);
 			trace_cachefiles_create(object, next, ret);
 			if (ret < 0)
 				goto create_error;
@@ -765,7 +758,6 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 					const char *dirname)
 {
 	struct dentry *subdir;
-	unsigned long start;
 	struct path path;
 	int ret;
 
@@ -775,9 +767,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	inode_lock(d_inode(dir));
 
 retry:
-	start = jiffies;
 	subdir = lookup_one_len(dirname, dir, strlen(dirname));
-	cachefiles_hist(cachefiles_lookup_histogram, start);
 	if (IS_ERR(subdir)) {
 		if (PTR_ERR(subdir) == -ENOMEM)
 			goto nomem_d_alloc;
@@ -876,7 +866,6 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 	struct cachefiles_object *object;
 	struct rb_node *_n;
 	struct dentry *victim;
-	unsigned long start;
 	int ret;
 
 	//_enter(",%pd/,%s",
@@ -885,9 +874,7 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 	/* look up the victim */
 	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 
-	start = jiffies;
 	victim = lookup_one_len(filename, dir, strlen(filename));
-	cachefiles_hist(cachefiles_lookup_histogram, start);
 	if (IS_ERR(victim))
 		goto lookup_error;
 
