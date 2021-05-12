@@ -110,7 +110,9 @@ properties:
         - pattern: '^dvc\.[0-1]$'
         - pattern: '^clk_(a|b|c|i)$'
 
-  port: true
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
 
 # use patternProperties to avoid naming "xxx,yyy" issue
 patternProperties:
@@ -256,7 +258,6 @@ required:
 
 allOf:
   - $ref: audio-graph.yaml#
-  - $ref: audio-graph-port.yaml#
   - if:
       properties:
         compatible:

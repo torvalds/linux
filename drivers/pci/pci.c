@@ -4102,7 +4102,7 @@ void pci_unmap_iospace(struct resource *res)
 #if defined(PCI_IOBASE) && defined(CONFIG_MMU)
 	unsigned long vaddr = (unsigned long)PCI_IOBASE + res->start;
 
-	unmap_kernel_range(vaddr, resource_size(res));
+	vunmap_range(vaddr, vaddr + resource_size(res));
 #endif
 }
 EXPORT_SYMBOL(pci_unmap_iospace);

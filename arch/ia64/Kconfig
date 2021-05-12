@@ -286,15 +286,6 @@ config FORCE_CPEI_RETARGET
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 
-config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
-	depends on BROKEN
-	help
-	  Say Y to support efficient handling of discontiguous physical memory,
-	  for architectures which are either NUMA (Non-Uniform Memory Access)
-	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa.rst> for more.
-
 config ARCH_FLATMEM_ENABLE
 	def_bool y
 
@@ -325,22 +316,8 @@ config NODES_SHIFT
 	  MAX_NUMNODES will be 2^(This value).
 	  If in doubt, use the default.
 
-# VIRTUAL_MEM_MAP and FLAT_NODE_MEM_MAP are functionally equivalent.
-# VIRTUAL_MEM_MAP has been retained for historical reasons.
-config VIRTUAL_MEM_MAP
-	bool "Virtual mem map"
-	depends on !SPARSEMEM && !FLATMEM
-	default y
-	help
-	  Say Y to compile the kernel with support for a virtual mem map.
-	  This code also only takes effect if a memory hole of greater than
-	  1 Gb is found during boot.  You must turn this option on if you
-	  require the DISCONTIGMEM option for your machine. If you are
-	  unsure, say Y.
-
 config HOLES_IN_ZONE
 	bool
-	default y if VIRTUAL_MEM_MAP
 
 config HAVE_ARCH_NODEDATA_EXTENSION
 	def_bool y

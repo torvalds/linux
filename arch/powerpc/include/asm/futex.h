@@ -33,9 +33,8 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 {
 	int oldval = 0, ret;
 
-	if (!access_ok(uaddr, sizeof(u32)))
+	if (!user_access_begin(uaddr, sizeof(u32)))
 		return -EFAULT;
-	allow_read_write_user(uaddr, uaddr, sizeof(*uaddr));
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -56,10 +55,10 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 	default:
 		ret = -ENOSYS;
 	}
+	user_access_end();
 
 	*oval = oldval;
 
-	prevent_read_write_user(uaddr, uaddr, sizeof(*uaddr));
 	return ret;
 }
 
@@ -70,10 +69,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	int ret = 0;
 	u32 prev;
 
-	if (!access_ok(uaddr, sizeof(u32)))
+	if (!user_access_begin(uaddr, sizeof(u32)))
 		return -EFAULT;
-
-	allow_read_write_user(uaddr, uaddr, sizeof(*uaddr));
 
         __asm__ __volatile__ (
         PPC_ATOMIC_ENTRY_BARRIER
@@ -93,8 +90,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
         : "r" (uaddr), "r" (oldval), "r" (newval), "i" (-EFAULT)
         : "cc", "memory");
 
+	user_access_end();
+
 	*uval = prev;
-	prevent_read_write_user(uaddr, uaddr, sizeof(*uaddr));
 
         return ret;
 }

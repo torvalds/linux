@@ -24,6 +24,8 @@
 #define SIGMA_FW_CHUNK_TYPE_CONTROL 1
 #define SIGMA_FW_CHUNK_TYPE_SAMPLERATES 2
 
+#define READBACK_CTRL_NAME "ReadBack"
+
 struct sigmadsp_control {
 	struct list_head head;
 	uint32_t samplerates;
@@ -31,6 +33,7 @@ struct sigmadsp_control {
 	unsigned int num_bytes;
 	const char *name;
 	struct snd_kcontrol *kcontrol;
+	bool is_readback;
 	bool cached;
 	uint8_t cache[];
 };
@@ -141,7 +144,8 @@ static int sigmadsp_ctrl_put(struct snd_kcontrol *kcontrol,
 
 	if (ret == 0) {
 		memcpy(ctrl->cache, data, ctrl->num_bytes);
-		ctrl->cached = true;
+		if (!ctrl->is_readback)
+			ctrl->cached = true;
 	}
 
 	mutex_unlock(&sigmadsp->lock);
@@ -164,7 +168,8 @@ static int sigmadsp_ctrl_get(struct snd_kcontrol *kcontrol,
 	}
 
 	if (ret == 0) {
-		ctrl->cached = true;
+		if (!ctrl->is_readback)
+			ctrl->cached = true;
 		memcpy(ucontrol->value.bytes.data, ctrl->cache,
 			ctrl->num_bytes);
 	}
@@ -230,6 +235,15 @@ static int sigma_fw_load_control(struct sigmadsp *sigmadsp,
 	memcpy(name, ctrl_chunk->name, name_len);
 	name[name_len] = '\0';
 	ctrl->name = name;
+
+	/*
+	 * Readbacks doesn't work with non-volatile controls, since the
+	 * firmware updates the control value without driver interaction. Mark
+	 * the readbacks to ensure that the values are not cached.
+	 */
+	if (ctrl->name && strncmp(ctrl->name, READBACK_CTRL_NAME,
+				  (sizeof(READBACK_CTRL_NAME) - 1)) == 0)
+		ctrl->is_readback = true;
 
 	ctrl->addr = le16_to_cpu(ctrl_chunk->addr);
 	ctrl->num_bytes = num_bytes;

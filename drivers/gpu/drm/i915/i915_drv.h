@@ -1905,9 +1905,6 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
 /* i915_mm.c */
-int remap_io_mapping(struct vm_area_struct *vma,
-		     unsigned long addr, unsigned long pfn, unsigned long size,
-		     struct io_mapping *iomap);
 int remap_io_sg(struct vm_area_struct *vma,
 		unsigned long addr, unsigned long size,
 		struct scatterlist *sgl, resource_size_t iobase);

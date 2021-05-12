@@ -145,10 +145,10 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
  * family of functions.
  *
  * nodemask, migratetype and highest_zoneidx are initialized only once in
- * __alloc_pages_nodemask() and then never change.
+ * __alloc_pages() and then never change.
  *
  * zonelist, preferred_zone and highest_zoneidx are set first in
- * __alloc_pages_nodemask() for the fast path, and might be later changed
+ * __alloc_pages() for the fast path, and might be later changed
  * in __alloc_pages_slowpath(). All other functions pass the whole structure
  * by a const pointer.
  */
@@ -446,7 +446,9 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 static inline void clear_page_mlock(struct page *page) { }
 static inline void mlock_vma_page(struct page *page) { }
 static inline void mlock_migrate_page(struct page *new, struct page *old) { }
-
+static inline void vunmap_range_noflush(unsigned long start, unsigned long end)
+{
+}
 #endif /* !CONFIG_MMU */
 
 /*
@@ -636,5 +638,22 @@ struct migration_target_control {
 	nodemask_t *nmask;
 	gfp_t gfp_mask;
 };
+
+/*
+ * mm/vmalloc.c
+ */
+#ifdef CONFIG_MMU
+int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
+                pgprot_t prot, struct page **pages, unsigned int page_shift);
+#else
+static inline
+int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
+                pgprot_t prot, struct page **pages, unsigned int page_shift)
+{
+	return -EINVAL;
+}
+#endif
+
+void vunmap_range_noflush(unsigned long start, unsigned long end);
 
 #endif	/* __MM_INTERNAL_H */

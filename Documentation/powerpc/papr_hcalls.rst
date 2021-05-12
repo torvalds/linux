@@ -275,6 +275,20 @@ Health Bitmap Flags:
 Given a DRC Index collect the performance statistics for NVDIMM and copy them
 to the resultBuffer.
 
+**H_SCM_FLUSH**
+
+| Input: *drcIndex, continue-token*
+| Out: *continue-token*
+| Return Value: *H_SUCCESS, H_Parameter, H_P2, H_BUSY*
+
+Given a DRC Index Flush the data to backend NVDIMM device.
+
+The hcall returns H_BUSY when the flush takes longer time and the hcall needs
+to be issued multiple times in order to be completely serviced. The
+*continue-token* from the output to be passed in the argument list of
+subsequent hcalls to the hypervisor until the hcall is completely serviced
+at which point H_SUCCESS or other error is returned by the hypervisor.
+
 References
 ==========
 .. [1] "Power Architecture Platform Reference"

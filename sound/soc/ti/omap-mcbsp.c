@@ -373,10 +373,9 @@ static void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
 
 	/* Disable interrupt requests */
-	if (mcbsp->irq)
+	if (mcbsp->irq) {
 		MCBSP_WRITE(mcbsp, IRQEN, 0);
 
-	if (mcbsp->irq) {
 		free_irq(mcbsp->irq, (void *)mcbsp);
 	} else {
 		free_irq(mcbsp->rx_irq, (void *)mcbsp);

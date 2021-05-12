@@ -14,6 +14,7 @@
 #include <asm/firmware.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
+#include <asm/sections.h>
 
 static LIST_HEAD(module_bug_list);
 
@@ -88,12 +89,28 @@ int module_finalize(const Elf_Ehdr *hdr,
 }
 
 #ifdef MODULES_VADDR
-void *module_alloc(unsigned long size)
+static __always_inline void *
+__module_alloc(unsigned long size, unsigned long start, unsigned long end)
 {
-	BUILD_BUG_ON(TASK_SIZE > MODULES_VADDR);
-
-	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END, GFP_KERNEL,
+	return __vmalloc_node_range(size, 1, start, end, GFP_KERNEL,
 				    PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS, NUMA_NO_NODE,
 				    __builtin_return_address(0));
+}
+
+void *module_alloc(unsigned long size)
+{
+	unsigned long limit = (unsigned long)_etext - SZ_32M;
+	void *ptr = NULL;
+
+	BUILD_BUG_ON(TASK_SIZE > MODULES_VADDR);
+
+	/* First try within 32M limit from _etext to avoid branch trampolines */
+	if (MODULES_VADDR < PAGE_OFFSET && MODULES_END > limit)
+		ptr = __module_alloc(size, limit, MODULES_END);
+
+	if (!ptr)
+		ptr = __module_alloc(size, MODULES_VADDR, MODULES_END);
+
+	return ptr;
 }
 #endif

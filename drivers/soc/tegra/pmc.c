@@ -1904,7 +1904,7 @@ static int tegra_io_pad_pinconf_get(struct pinctrl_dev *pctl_dev,
 		arg = ret;
 		break;
 
-	case PIN_CONFIG_LOW_POWER_MODE:
+	case PIN_CONFIG_MODE_LOW_POWER:
 		ret = tegra_io_pad_is_powered(pmc, pad->id);
 		if (ret < 0)
 			return ret;
@@ -1941,7 +1941,7 @@ static int tegra_io_pad_pinconf_set(struct pinctrl_dev *pctl_dev,
 		arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
-		case PIN_CONFIG_LOW_POWER_MODE:
+		case PIN_CONFIG_MODE_LOW_POWER:
 			if (arg)
 				err = tegra_io_pad_power_disable(pad->id);
 			else

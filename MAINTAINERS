@@ -4663,6 +4663,11 @@ F:	drivers/counter/
 F:	include/linux/counter.h
 F:	include/linux/counter_enum.h
 
+CP2615 I2C DRIVER
+M:	Bence Csókás <bence98@sch.bme.hu>
+S:	Maintained
+F:	drivers/i2c/busses/i2c-cp2615.c
+
 CPMAC ETHERNET DRIVER
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	netdev@vger.kernel.org
@@ -7236,6 +7241,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/i2c/i2c-imx-lpi2c.yaml
 F:	drivers/i2c/busses/i2c-imx-lpi2c.c
 
+FREESCALE MPC I2C DRIVER
+M:	Chris Packham <chris.packham@alliedtelesis.co.nz>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/i2c-mpc.yaml
+F:	drivers/i2c/busses/i2c-mpc.c
+
 FREESCALE QORIQ DPAA ETHERNET DRIVER
 M:	Madalin Bucur <madalin.bucur@nxp.com>
 L:	netdev@vger.kernel.org
@@ -7432,6 +7444,13 @@ F:	Documentation/filesystems/fsverity.rst
 F:	fs/verity/
 F:	include/linux/fsverity.h
 F:	include/uapi/linux/fsverity.h
+
+FT260 FTDI USB-HID TO I2C BRIDGE DRIVER
+M:	Michael Zaidman <michael.zaidman@gmail.com>
+L:	linux-i2c@vger.kernel.org
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/hid-ft260.c
 
 FUJITSU LAPTOP EXTRAS
 M:	Jonathan Woithe <jwoithe@just42.net>
@@ -8150,6 +8169,13 @@ F:	Documentation/ABI/testing/debugfs-hisi-hpre
 F:	drivers/crypto/hisilicon/hpre/hpre.h
 F:	drivers/crypto/hisilicon/hpre/hpre_crypto.c
 F:	drivers/crypto/hisilicon/hpre/hpre_main.c
+
+HISILICON I2C CONTROLLER DRIVER
+M:	Yicong Yang <yangyicong@hisilicon.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+W:	https://www.hisilicon.com
+F:	drivers/i2c/busses/i2c-hisi.c
 
 HISILICON LPC BUS DRIVER
 M:	john.garry@huawei.com
@@ -11752,6 +11778,7 @@ F:	include/linux/gfp.h
 F:	include/linux/memory_hotplug.h
 F:	include/linux/mm.h
 F:	include/linux/mmzone.h
+F:	include/linux/pagewalk.h
 F:	include/linux/vmalloc.h
 F:	mm/
 
@@ -12086,6 +12113,13 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pdx86/platform-drivers-x86.git
 F:	drivers/platform/surface/
+
+MICROSOFT SURFACE HID TRANSPORT DRIVER
+M:	Maximilian Luz <luzmaximilian@gmail.com>
+L:	linux-input@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/surface-hid/
 
 MICROSOFT SURFACE HOT-PLUG DRIVER
 M:	Maximilian Luz <luzmaximilian@gmail.com>
@@ -14345,7 +14379,7 @@ L:	linux-gpio@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git
 F:	Documentation/devicetree/bindings/pinctrl/
-F:	Documentation/driver-api/pinctl.rst
+F:	Documentation/driver-api/pin-control.rst
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 
@@ -19335,6 +19369,15 @@ S:	Maintained
 W:	https://virtio-mem.gitlab.io/
 F:	drivers/virtio/virtio_mem.c
 F:	include/uapi/linux/virtio_mem.h
+
+VIRTIO SOUND DRIVER
+M:	Anton Yakovlev <anton.yakovlev@opensynergy.com>
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	include/uapi/linux/virtio_snd.h
+F:	sound/virtio/*
 
 VIRTUAL BOX GUEST DEVICE DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>

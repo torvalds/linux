@@ -207,6 +207,8 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 			       NULL,
 			       &ctu->pass, RSND_MAX_CHANNELS,
 			       0xC);
+	if (ret < 0)
+		return ret;
 
 	/* ROW0 */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU SV0",

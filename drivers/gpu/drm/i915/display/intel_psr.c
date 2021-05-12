@@ -1519,8 +1519,7 @@ void intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 		u32 psr_status;
 
 		mutex_lock(&intel_dp->psr.lock);
-		if (!intel_dp->psr.enabled ||
-		    (intel_dp->psr.enabled && intel_dp->psr.psr2_enabled)) {
+		if (!intel_dp->psr.enabled || intel_dp->psr.psr2_enabled) {
 			mutex_unlock(&intel_dp->psr.lock);
 			continue;
 		}

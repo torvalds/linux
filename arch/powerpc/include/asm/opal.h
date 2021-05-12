@@ -307,7 +307,7 @@ int opal_secvar_enqueue_update(const char *key, uint64_t key_len, u8 *data,
 
 s64 opal_mpipl_update(enum opal_mpipl_ops op, u64 src, u64 dest, u64 size);
 s64 opal_mpipl_register_tag(enum opal_mpipl_tags tag, u64 addr);
-s64 opal_mpipl_query_tag(enum opal_mpipl_tags tag, u64 *addr);
+s64 opal_mpipl_query_tag(enum opal_mpipl_tags tag, __be64 *addr);
 
 s64 opal_signal_system_reset(s32 cpu);
 s64 opal_quiesce(u64 shutdown_type, s32 cpu);

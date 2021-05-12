@@ -1057,8 +1057,8 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5660_PLL_CTRL1,
 		pll_code.n_code << RT5660_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5660_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5660_PLL_M_SFT |
-		pll_code.m_bp << RT5660_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5660_PLL_M_SFT) |
+		(pll_code.m_bp << RT5660_PLL_M_BP_SFT));
 
 	rt5660->pll_in = freq_in;
 	rt5660->pll_out = freq_out;

@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/dma-map-ops.h>
 #include <linux/kobject.h>
+#include <linux/kexec.h>
 
 #include <asm/iommu.h>
 #include <asm/dma.h>
@@ -1278,6 +1279,20 @@ static int vio_bus_remove(struct device *dev)
 	return 0;
 }
 
+static void vio_bus_shutdown(struct device *dev)
+{
+	struct vio_dev *viodev = to_vio_dev(dev);
+	struct vio_driver *viodrv;
+
+	if (dev->driver) {
+		viodrv = to_vio_driver(dev->driver);
+		if (viodrv->shutdown)
+			viodrv->shutdown(viodev);
+		else if (kexec_in_progress)
+			vio_bus_remove(dev);
+	}
+}
+
 /**
  * vio_register_driver: - Register a new vio driver
  * @viodrv:	The vio_driver structure to be registered.
@@ -1285,6 +1300,10 @@ static int vio_bus_remove(struct device *dev)
 int __vio_register_driver(struct vio_driver *viodrv, struct module *owner,
 			  const char *mod_name)
 {
+	// vio_bus_type is only initialised for pseries
+	if (!machine_is(pseries))
+		return -ENODEV;
+
 	pr_debug("%s: driver %s registering\n", __func__, viodrv->name);
 
 	/* fill in 'struct driver' fields */
@@ -1613,6 +1632,7 @@ struct bus_type vio_bus_type = {
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
 	.remove = vio_bus_remove,
+	.shutdown = vio_bus_shutdown,
 };
 
 /**
