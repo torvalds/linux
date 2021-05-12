@@ -481,7 +481,8 @@ static int init_bios_attributes(int attr_type, const char *guid)
 		/* enumerate all of this attribute */
 		switch (attr_type) {
 		case ENUM:
-			retval = populate_enum_data(elements, instance_id, attr_name_kobj);
+			retval = populate_enum_data(elements, instance_id, attr_name_kobj,
+					obj->package.count);
 			break;
 		case INT:
 			retval = populate_int_data(elements, instance_id, attr_name_kobj);
