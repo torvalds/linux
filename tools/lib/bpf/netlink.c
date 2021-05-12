@@ -73,9 +73,14 @@ cleanup:
 	return ret;
 }
 
-static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
-			    __dump_nlmsg_t _fn, libbpf_dump_nlmsg_t fn,
-			    void *cookie)
+static void libbpf_netlink_close(int sock)
+{
+	close(sock);
+}
+
+static int libbpf_netlink_recv(int sock, __u32 nl_pid, int seq,
+			       __dump_nlmsg_t _fn, libbpf_dump_nlmsg_t fn,
+			       void *cookie)
 {
 	bool multipart = true;
 	struct nlmsgerr *err;
@@ -131,72 +136,72 @@ done:
 	return ret;
 }
 
-static int __bpf_set_link_xdp_fd_replace(int ifindex, int fd, int old_fd,
-					 __u32 flags)
+static int libbpf_netlink_send_recv(struct nlmsghdr *nh,
+				    __dump_nlmsg_t parse_msg,
+				    libbpf_dump_nlmsg_t parse_attr,
+				    void *cookie)
 {
-	int sock, seq = 0, ret;
-	struct nlattr *nla, *nla_xdp;
-	struct {
-		struct nlmsghdr  nh;
-		struct ifinfomsg ifinfo;
-		char             attrbuf[64];
-	} req;
 	__u32 nl_pid = 0;
+	int sock, ret;
 
 	sock = libbpf_netlink_open(&nl_pid);
 	if (sock < 0)
 		return sock;
 
-	memset(&req, 0, sizeof(req));
-	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
-	req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
-	req.nh.nlmsg_type = RTM_SETLINK;
-	req.nh.nlmsg_pid = 0;
-	req.nh.nlmsg_seq = ++seq;
-	req.ifinfo.ifi_family = AF_UNSPEC;
-	req.ifinfo.ifi_index = ifindex;
+	nh->nlmsg_pid = 0;
+	nh->nlmsg_seq = time(NULL);
 
-	/* started nested attribute for XDP */
-	nla = (struct nlattr *)(((char *)&req)
-				+ NLMSG_ALIGN(req.nh.nlmsg_len));
-	nla->nla_type = NLA_F_NESTED | IFLA_XDP;
-	nla->nla_len = NLA_HDRLEN;
-
-	/* add XDP fd */
-	nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
-	nla_xdp->nla_type = IFLA_XDP_FD;
-	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
-	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
-	nla->nla_len += nla_xdp->nla_len;
-
-	/* if user passed in any flags, add those too */
-	if (flags) {
-		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
-		nla_xdp->nla_type = IFLA_XDP_FLAGS;
-		nla_xdp->nla_len = NLA_HDRLEN + sizeof(flags);
-		memcpy((char *)nla_xdp + NLA_HDRLEN, &flags, sizeof(flags));
-		nla->nla_len += nla_xdp->nla_len;
-	}
-
-	if (flags & XDP_FLAGS_REPLACE) {
-		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
-		nla_xdp->nla_type = IFLA_XDP_EXPECTED_FD;
-		nla_xdp->nla_len = NLA_HDRLEN + sizeof(old_fd);
-		memcpy((char *)nla_xdp + NLA_HDRLEN, &old_fd, sizeof(old_fd));
-		nla->nla_len += nla_xdp->nla_len;
-	}
-
-	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
-
-	if (send(sock, &req, req.nh.nlmsg_len, 0) < 0) {
+	if (send(sock, nh, nh->nlmsg_len, 0) < 0) {
 		ret = -errno;
-		goto cleanup;
+		goto out;
 	}
-	ret = bpf_netlink_recv(sock, nl_pid, seq, NULL, NULL, NULL);
 
-cleanup:
-	close(sock);
+	ret = libbpf_netlink_recv(sock, nl_pid, nh->nlmsg_seq,
+				  parse_msg, parse_attr, cookie);
+out:
+	libbpf_netlink_close(sock);
 	return ret;
+}
+
+static int __bpf_set_link_xdp_fd_replace(int ifindex, int fd, int old_fd,
+					 __u32 flags)
+{
+	struct nlattr *nla;
+	int ret;
+	struct {
+		struct nlmsghdr  nh;
+		struct ifinfomsg ifinfo;
+		char             attrbuf[64];
+	} req;
+
+	memset(&req, 0, sizeof(req));
+	req.nh.nlmsg_len      = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nh.nlmsg_flags    = NLM_F_REQUEST | NLM_F_ACK;
+	req.nh.nlmsg_type     = RTM_SETLINK;
+	req.ifinfo.ifi_family = AF_UNSPEC;
+	req.ifinfo.ifi_index  = ifindex;
+
+	nla = nlattr_begin_nested(&req.nh, sizeof(req), IFLA_XDP);
+	if (!nla)
+		return -EMSGSIZE;
+	ret = nlattr_add(&req.nh, sizeof(req), IFLA_XDP_FD, &fd, sizeof(fd));
+	if (ret < 0)
+		return ret;
+	if (flags) {
+		ret = nlattr_add(&req.nh, sizeof(req), IFLA_XDP_FLAGS, &flags,
+				 sizeof(flags));
+		if (ret < 0)
+			return ret;
+	}
+	if (flags & XDP_FLAGS_REPLACE) {
+		ret = nlattr_add(&req.nh, sizeof(req), IFLA_XDP_EXPECTED_FD,
+				 &old_fd, sizeof(old_fd));
+		if (ret < 0)
+			return ret;
+	}
+	nlattr_end_nested(&req.nh, nla);
+
+	return libbpf_netlink_send_recv(&req.nh, NULL, NULL, NULL);
 }
 
 int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
@@ -212,9 +217,7 @@ int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
 		flags |= XDP_FLAGS_REPLACE;
 	}
 
-	return __bpf_set_link_xdp_fd_replace(ifindex, fd,
-					     old_fd,
-					     flags);
+	return __bpf_set_link_xdp_fd_replace(ifindex, fd, old_fd, flags);
 }
 
 int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
@@ -231,6 +234,7 @@ static int __dump_link_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifi));
 	attr = (struct nlattr *) ((void *) ifi + NLMSG_ALIGN(sizeof(*ifi)));
+
 	if (libbpf_nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
@@ -282,16 +286,21 @@ static int get_xdp_info(void *cookie, void *msg, struct nlattr **tb)
 	return 0;
 }
 
-static int libbpf_nl_get_link(int sock, unsigned int nl_pid,
-			      libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie);
-
 int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 			  size_t info_size, __u32 flags)
 {
 	struct xdp_id_md xdp_id = {};
-	int sock, ret;
-	__u32 nl_pid = 0;
 	__u32 mask;
+	int ret;
+	struct {
+		struct nlmsghdr  nh;
+		struct ifinfomsg ifm;
+	} req = {
+		.nh.nlmsg_len   = NLMSG_LENGTH(sizeof(struct ifinfomsg)),
+		.nh.nlmsg_type  = RTM_GETLINK,
+		.nh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.ifm.ifi_family = AF_PACKET,
+	};
 
 	if (flags & ~XDP_FLAGS_MASK || !info_size)
 		return -EINVAL;
@@ -302,14 +311,11 @@ int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 	if (flags && flags & mask)
 		return -EINVAL;
 
-	sock = libbpf_netlink_open(&nl_pid);
-	if (sock < 0)
-		return sock;
-
 	xdp_id.ifindex = ifindex;
 	xdp_id.flags = flags;
 
-	ret = libbpf_nl_get_link(sock, nl_pid, get_xdp_info, &xdp_id);
+	ret = libbpf_netlink_send_recv(&req.nh, __dump_link_nlmsg,
+				       get_xdp_info, &xdp_id);
 	if (!ret) {
 		size_t sz = min(info_size, sizeof(xdp_id.info));
 
@@ -317,7 +323,6 @@ int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 		memset((void *) info + sz, 0, info_size - sz);
 	}
 
-	close(sock);
 	return ret;
 }
 
@@ -347,26 +352,4 @@ int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags)
 		*prog_id = get_xdp_id(&info, flags);
 
 	return ret;
-}
-
-int libbpf_nl_get_link(int sock, unsigned int nl_pid,
-		       libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie)
-{
-	struct {
-		struct nlmsghdr nlh;
-		struct ifinfomsg ifm;
-	} req = {
-		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg)),
-		.nlh.nlmsg_type = RTM_GETLINK,
-		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
-		.ifm.ifi_family = AF_PACKET,
-	};
-	int seq = time(NULL);
-
-	req.nlh.nlmsg_seq = seq;
-	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
-
-	return bpf_netlink_recv(sock, nl_pid, seq, __dump_link_nlmsg,
-				dump_link_nlmsg, cookie);
 }
