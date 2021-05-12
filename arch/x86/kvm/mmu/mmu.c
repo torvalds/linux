@@ -2374,7 +2374,7 @@ static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
 	 * page is available, while the caller may end up allocating as many as
 	 * four pages, e.g. for PAE roots or for 5-level paging.  Temporarily
 	 * exceeding the (arbitrary by default) limit will not harm the host,
-	 * being too agressive may unnecessarily kill the guest, and getting an
+	 * being too aggressive may unnecessarily kill the guest, and getting an
 	 * exact count is far more trouble than it's worth, especially in the
 	 * page fault paths.
 	 */
