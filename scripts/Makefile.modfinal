@@ -39,12 +39,10 @@ prelink-ext := .lto
 # so let's now process the prelinked binary before we link the module.
 
 ifdef CONFIG_STACK_VALIDATION
-ifneq ($(SKIP_STACK_VALIDATION),1)
 cmd_ld_ko_o +=								\
 	$(objtree)/tools/objtool/objtool $(objtool_args)		\
 		$(@:.ko=$(prelink-ext).o);
 
-endif # SKIP_STACK_VALIDATION
 endif # CONFIG_STACK_VALIDATION
 
 endif # CONFIG_LTO_CLANG
