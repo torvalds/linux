@@ -1403,17 +1403,7 @@ static int lpuart32_config_rs485(struct uart_port *port,
 
 static unsigned int lpuart_get_mctrl(struct uart_port *port)
 {
-	unsigned int temp = 0;
-	unsigned char reg;
-
-	reg = readb(port->membase + UARTMODEM);
-	if (reg & UARTMODEM_TXCTSE)
-		temp |= TIOCM_CTS;
-
-	if (reg & UARTMODEM_RXRTSE)
-		temp |= TIOCM_RTS;
-
-	return temp;
+	return 0;
 }
 
 static unsigned int lpuart32_get_mctrl(struct uart_port *port)
@@ -1423,23 +1413,7 @@ static unsigned int lpuart32_get_mctrl(struct uart_port *port)
 
 static void lpuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	unsigned char temp;
-	struct lpuart_port *sport = container_of(port,
-				struct lpuart_port, port);
 
-	/* Make sure RXRTSE bit is not set when RS485 is enabled */
-	if (!(sport->port.rs485.flags & SER_RS485_ENABLED)) {
-		temp = readb(sport->port.membase + UARTMODEM) &
-			~(UARTMODEM_RXRTSE | UARTMODEM_TXCTSE);
-
-		if (mctrl & TIOCM_RTS)
-			temp |= UARTMODEM_RXRTSE;
-
-		if (mctrl & TIOCM_CTS)
-			temp |= UARTMODEM_TXCTSE;
-
-		writeb(temp, port->membase + UARTMODEM);
-	}
 }
 
 static void lpuart32_set_mctrl(struct uart_port *port, unsigned int mctrl)
