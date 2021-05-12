@@ -91,6 +91,7 @@ EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
 unsigned int tty_buffer_space_avail(struct tty_port *port)
 {
 	int space = port->buf.mem_limit - atomic_read(&port->buf.mem_used);
+
 	return max(space, 0);
 }
 EXPORT_SYMBOL_GPL(tty_buffer_space_avail);
@@ -312,11 +313,13 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		const unsigned char *chars, char flag, size_t size)
 {
 	int copied = 0;
+
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
 		int flags = (flag == TTY_NORMAL) ? TTYB_NORMAL : 0;
 		int space = __tty_buffer_request_room(port, goal, flags);
 		struct tty_buffer *tb = port->buf.tail;
+
 		if (unlikely(space == 0))
 			break;
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
@@ -348,10 +351,12 @@ int tty_insert_flip_string_flags(struct tty_port *port,
 		const unsigned char *chars, const char *flags, size_t size)
 {
 	int copied = 0;
+
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
 		int space = tty_buffer_request_room(port, goal);
 		struct tty_buffer *tb = port->buf.tail;
+
 		if (unlikely(space == 0))
 			break;
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
@@ -431,8 +436,10 @@ int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 		size_t size)
 {
 	int space = __tty_buffer_request_room(port, size, TTYB_NORMAL);
+
 	if (likely(space)) {
 		struct tty_buffer *tb = port->buf.tail;
+
 		*chars = char_buf_ptr(tb, tb->used);
 		if (~tb->flags & TTYB_NORMAL)
 			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
