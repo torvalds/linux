@@ -2192,10 +2192,10 @@ vchiq_get_state(void)
 {
 
 	if (!g_state.remote)
-		printk(KERN_ERR "%s: g_state.remote == NULL\n", __func__);
+		pr_err("%s: g_state.remote == NULL\n", __func__);
 	else if (g_state.remote->initialised != 1)
-		printk(KERN_NOTICE "%s: g_state.remote->initialised != 1 (%d)\n",
-			__func__, g_state.remote->initialised);
+		pr_notice("%s: g_state.remote->initialised != 1 (%d)\n",
+			  __func__, g_state.remote->initialised);
 
 	return (g_state.remote &&
 		(g_state.remote->initialised == 1)) ? &g_state : NULL;
