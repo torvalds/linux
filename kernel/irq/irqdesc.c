@@ -659,7 +659,7 @@ int generic_handle_irq(unsigned int irq)
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);
 
-#ifdef CONFIG_HANDLE_DOMAIN_IRQ
+#ifdef CONFIG_IRQ_DOMAIN
 /**
  * generic_handle_domain_irq - Invoke the handler for a HW irq belonging
  *                             to a domain, usually for a non-root interrupt
@@ -676,9 +676,10 @@ int generic_handle_domain_irq(struct irq_domain *domain, unsigned int hwirq)
 }
 EXPORT_SYMBOL_GPL(generic_handle_domain_irq);
 
+#ifdef CONFIG_HANDLE_DOMAIN_IRQ
 /**
- * __handle_domain_irq - Invoke the handler for a HW irq belonging to a domain,
- *                       usually for a root interrupt controller
+ * handle_domain_irq - Invoke the handler for a HW irq belonging to a domain,
+ *                     usually for a root interrupt controller
  * @domain:	The domain where to perform the lookup
  * @hwirq:	The HW irq number to convert to a logical one
  * @lookup:	Whether to perform the domain lookup or not
@@ -686,8 +687,8 @@ EXPORT_SYMBOL_GPL(generic_handle_domain_irq);
  *
  * Returns:	0 on success, or -EINVAL if conversion has failed
  */
-int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
-			bool lookup, struct pt_regs *regs)
+int handle_domain_irq(struct irq_domain *domain,
+		      unsigned int hwirq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc;
@@ -695,22 +696,8 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 
 	irq_enter();
 
-	if (likely(IS_ENABLED(CONFIG_IRQ_DOMAIN) && lookup)) {
-		/* The irqdomain code provides boundary checks */
-		desc = irq_resolve_mapping(domain, hwirq);
-	} else {
-		/*
-		 * Some hardware gives randomly wrong interrupts.  Rather
-		 * than crashing, do something sensible.
-		 */
-		if (unlikely(!hwirq || hwirq >= nr_irqs)) {
-			ack_bad_irq(hwirq);
-			desc = NULL;
-		} else {
-			desc = irq_to_desc(hwirq);
-		}
-	}
-
+	/* The irqdomain code provides boundary checks */
+	desc = irq_resolve_mapping(domain, hwirq);
 	if (likely(desc))
 		handle_irq_desc(desc);
 	else
@@ -721,7 +708,6 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 	return ret;
 }
 
-#ifdef CONFIG_IRQ_DOMAIN
 /**
  * handle_domain_nmi - Invoke the handler for a HW irq belonging to a domain
  * @domain:	The domain where to perform the lookup
