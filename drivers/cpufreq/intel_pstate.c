@@ -1365,8 +1365,6 @@ define_one_global_rw(energy_efficiency);
 static struct attribute *intel_pstate_attributes[] = {
 	&status.attr,
 	&no_turbo.attr,
-	&turbo_pct.attr,
-	&num_pstates.attr,
 	NULL
 };
 
@@ -1390,6 +1388,14 @@ static void __init intel_pstate_sysfs_expose_params(void)
 	rc = sysfs_create_group(intel_pstate_kobject, &intel_pstate_attr_group);
 	if (WARN_ON(rc))
 		return;
+
+	if (!boot_cpu_has(X86_FEATURE_HYBRID_CPU)) {
+		rc = sysfs_create_file(intel_pstate_kobject, &turbo_pct.attr);
+		WARN_ON(rc);
+
+		rc = sysfs_create_file(intel_pstate_kobject, &num_pstates.attr);
+		WARN_ON(rc);
+	}
 
 	/*
 	 * If per cpu limits are enforced there are no global limits, so
@@ -1416,6 +1422,11 @@ static void __init intel_pstate_sysfs_remove(void)
 		return;
 
 	sysfs_remove_group(intel_pstate_kobject, &intel_pstate_attr_group);
+
+	if (!boot_cpu_has(X86_FEATURE_HYBRID_CPU)) {
+		sysfs_remove_file(intel_pstate_kobject, &num_pstates.attr);
+		sysfs_remove_file(intel_pstate_kobject, &turbo_pct.attr);
+	}
 
 	if (!per_cpu_limits) {
 		sysfs_remove_file(intel_pstate_kobject, &max_perf_pct.attr);
