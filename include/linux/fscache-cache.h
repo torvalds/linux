@@ -384,9 +384,6 @@ struct fscache_object {
 	struct list_head	dependents;	/* FIFO of dependent objects */
 	struct list_head	dep_link;	/* link in parent's dependents list */
 	struct list_head	pending_ops;	/* unstarted operations on this object */
-#ifdef CONFIG_FSCACHE_OBJECT_LIST
-	struct rb_node		objlist_link;	/* link in global object list */
-#endif
 	pgoff_t			store_limit;	/* current storage limit */
 	loff_t			store_limit_l;	/* current storage limit */
 };

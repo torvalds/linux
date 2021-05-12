@@ -794,8 +794,6 @@ static void fscache_put_object(struct fscache_object *object,
  */
 void fscache_object_destroy(struct fscache_object *object)
 {
-	fscache_objlist_remove(object);
-
 	/* We can get rid of the cookie now */
 	fscache_cookie_put(object->cookie, fscache_cookie_put_object);
 	object->cookie = NULL;

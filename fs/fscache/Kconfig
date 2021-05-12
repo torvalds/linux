@@ -38,10 +38,3 @@ config FSCACHE_DEBUG
 	  enabled by setting bits in /sys/modules/fscache/parameter/debug.
 
 	  See Documentation/filesystems/caching/fscache.rst for more information.
-
-config FSCACHE_OBJECT_LIST
-	bool "Maintain global object list for debugging purposes"
-	depends on FSCACHE && PROC_FS
-	help
-	  Maintain a global list of active fscache objects that can be
-	  retrieved through /proc/fs/fscache/objects for debugging purposes

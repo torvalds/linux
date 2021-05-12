@@ -620,8 +620,6 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 
 	/* Attach to the cookie.  The object already has a ref on it. */
 	hlist_add_head(&object->cookie_link, &cookie->backing_objects);
-
-	fscache_objlist_add(object);
 	ret = 0;
 
 cant_attach_object:

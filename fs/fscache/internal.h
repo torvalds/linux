@@ -85,19 +85,6 @@ static inline bool fscache_object_congested(void)
 extern void fscache_enqueue_object(struct fscache_object *);
 
 /*
- * object-list.c
- */
-#ifdef CONFIG_FSCACHE_OBJECT_LIST
-extern const struct proc_ops fscache_objlist_proc_ops;
-
-extern void fscache_objlist_add(struct fscache_object *);
-extern void fscache_objlist_remove(struct fscache_object *);
-#else
-#define fscache_objlist_add(object) do {} while(0)
-#define fscache_objlist_remove(object) do {} while(0)
-#endif
-
-/*
  * operation.c
  */
 extern int fscache_submit_exclusive_op(struct fscache_object *,

@@ -261,7 +261,6 @@ int fscache_add_cache(struct fscache_cache *cache,
 	spin_lock(&cache->object_list_lock);
 	list_add_tail(&ifsdef->cache_link, &cache->object_list);
 	spin_unlock(&cache->object_list_lock);
-	fscache_objlist_add(ifsdef);
 
 	/* add the cache's netfs definition index object to the top level index
 	 * cookie as a known backing object */
