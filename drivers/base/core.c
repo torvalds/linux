@@ -3437,7 +3437,7 @@ bool kill_device(struct device *dev)
 	 * to run while we are tearing out the bus/class/sysfs from
 	 * underneath the device.
 	 */
-	lockdep_assert_held(&dev->mutex);
+	device_lock_assert(dev);
 
 	if (dev->p->dead)
 		return false;
