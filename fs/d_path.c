@@ -90,7 +90,6 @@ static int prepend_path(const struct path *path,
 			struct prepend_buffer *p)
 {
 	struct dentry *dentry;
-	struct vfsmount *vfsmnt;
 	struct mount *mnt;
 	int error = 0;
 	unsigned seq, m_seq = 0;
@@ -105,18 +104,17 @@ restart:
 	b = *p;
 	error = 0;
 	dentry = path->dentry;
-	vfsmnt = path->mnt;
-	mnt = real_mount(vfsmnt);
+	mnt = real_mount(path->mnt);
 	read_seqbegin_or_lock(&rename_lock, &seq);
-	while (dentry != root->dentry || vfsmnt != root->mnt) {
+	while (dentry != root->dentry || &mnt->mnt != root->mnt) {
 		struct dentry * parent;
 
-		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
+		if (dentry == mnt->mnt.mnt_root || IS_ROOT(dentry)) {
 			struct mount *parent = READ_ONCE(mnt->mnt_parent);
 			struct mnt_namespace *mnt_ns;
 
 			/* Escaped? */
-			if (dentry != vfsmnt->mnt_root) {
+			if (dentry != mnt->mnt.mnt_root) {
 				b = *p;
 				error = 3;
 				break;
@@ -125,7 +123,6 @@ restart:
 			if (mnt != parent) {
 				dentry = READ_ONCE(mnt->mnt_mountpoint);
 				mnt = parent;
-				vfsmnt = &mnt->mnt;
 				continue;
 			}
 			mnt_ns = READ_ONCE(mnt->mnt_ns);
