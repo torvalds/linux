@@ -1583,6 +1583,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			while (cursor.pfn < frag_start) {
 				amdgpu_vm_free_pts(adev, params->vm, &cursor);
 				amdgpu_vm_pt_next(adev, &cursor);
+				params->table_freed = true;
 			}
 
 		} else if (frag >= shift) {
@@ -1610,6 +1611,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
  * @res: ttm_resource to map
  * @pages_addr: DMA addresses to use for mapping
  * @fence: optional resulting fence
+ * @table_freed: return true if page table is freed
  *
  * Fill in the page table entries between @start and @last.
  *
@@ -1624,7 +1626,8 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				uint64_t flags, uint64_t offset,
 				struct ttm_resource *res,
 				dma_addr_t *pages_addr,
-				struct dma_fence **fence)
+				struct dma_fence **fence,
+				bool *table_freed)
 {
 	struct amdgpu_vm_update_params params;
 	struct amdgpu_res_cursor cursor;
@@ -1718,6 +1721,9 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	};
 
 	r = vm->update_funcs->commit(&params, fence);
+
+	if (table_freed)
+		*table_freed = params.table_freed;
 
 error_unlock:
 	amdgpu_vm_eviction_unlock(vm);
@@ -1815,7 +1821,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 						resv, mapping->start,
 						mapping->last, update_flags,
 						mapping->offset, mem,
-						pages_addr, last_update);
+						pages_addr, last_update, NULL);
 		if (r)
 			return r;
 	}
@@ -2026,7 +2032,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		r = amdgpu_vm_bo_update_mapping(adev, adev, vm, false, false,
 						resv, mapping->start,
 						mapping->last, init_pte_value,
-						0, NULL, NULL, &f);
+						0, NULL, NULL, &f, NULL);
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
 		if (r) {
 			dma_fence_put(f);
@@ -3364,7 +3370,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 	}
 
 	r = amdgpu_vm_bo_update_mapping(adev, adev, vm, true, false, NULL, addr,
-					addr, flags, value, NULL, NULL,
+					addr, flags, value, NULL, NULL, NULL,
 					NULL);
 	if (r)
 		goto error_unlock;

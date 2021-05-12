@@ -231,6 +231,11 @@ struct amdgpu_vm_update_params {
 	 * @num_dw_left: number of dw left for the IB
 	 */
 	unsigned int num_dw_left;
+
+	/**
+	 * @table_freed: return true if page table is freed when updating
+	 */
+	bool table_freed;
 };
 
 struct amdgpu_vm_update_funcs {
@@ -404,7 +409,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				uint64_t flags, uint64_t offset,
 				struct ttm_resource *res,
 				dma_addr_t *pages_addr,
-				struct dma_fence **fence);
+				struct dma_fence **fence, bool *free_table);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
 			bool clear);
