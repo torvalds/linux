@@ -298,6 +298,7 @@ static int simpledrm_device_init_clocks(struct simpledrm_device *sdev)
 			drm_err(dev, "failed to enable clock %u: %d\n",
 				i, ret);
 			clk_put(clock);
+			continue;
 		}
 		sdev->clks[i] = clock;
 	}
@@ -415,6 +416,7 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 			drm_err(dev, "failed to enable regulator %u: %d\n",
 				i, ret);
 			regulator_put(regulator);
+			continue;
 		}
 
 		sdev->regulators[i++] = regulator;
