@@ -215,9 +215,8 @@ int pnp_add_device(struct pnp_dev *dev)
 	for (id = dev->id; id; id = id->next)
 		len += scnprintf(buf + len, sizeof(buf) - len, " %s", id->id);
 
-	dev_printk(KERN_DEBUG, &dev->dev, "%s device, IDs%s (%s)\n",
-		   dev->protocol->name, buf,
-		   dev->active ? "active" : "disabled");
+	dev_dbg(&dev->dev, "%s device, IDs%s (%s)\n", dev->protocol->name, buf,
+		dev->active ? "active" : "disabled");
 	return 0;
 }
 
