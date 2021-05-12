@@ -400,18 +400,16 @@ TRACE_EVENT(nfsd_dirent,
 	TP_STRUCT__entry(
 		__field(u32, fh_hash)
 		__field(u64, ino)
-		__field(int, len)
-		__dynamic_array(unsigned char, name, namlen)
+		__string_len(name, name, namlen)
 	),
 	TP_fast_assign(
 		__entry->fh_hash = fhp ? knfsd_fh_hash(&fhp->fh_handle) : 0;
 		__entry->ino = ino;
-		__entry->len = namlen;
-		memcpy(__get_str(name), name, namlen);
+		__assign_str_len(name, name, namlen)
 	),
-	TP_printk("fh_hash=0x%08x ino=%llu name=%.*s",
-		__entry->fh_hash, __entry->ino,
-		__entry->len, __get_str(name))
+	TP_printk("fh_hash=0x%08x ino=%llu name=%s",
+		__entry->fh_hash, __entry->ino, __get_str(name)
+	)
 )
 
 #include "state.h"
