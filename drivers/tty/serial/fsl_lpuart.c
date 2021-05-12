@@ -1587,6 +1587,9 @@ static void lpuart_tx_dma_startup(struct lpuart_port *sport)
 	u32 uartbaud;
 	int ret;
 
+	if (uart_console(&sport->port))
+		goto err;
+
 	if (!sport->dma_tx_chan)
 		goto err;
 
@@ -1615,6 +1618,9 @@ static void lpuart_rx_dma_startup(struct lpuart_port *sport)
 {
 	int ret;
 	unsigned char cr3;
+
+	if (uart_console(&sport->port))
+		goto err;
 
 	if (!sport->dma_rx_chan)
 		goto err;
