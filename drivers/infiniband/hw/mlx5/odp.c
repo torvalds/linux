@@ -478,7 +478,6 @@ out_mr:
 }
 
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
-					     struct ib_udata *udata,
 					     int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->ibpd.device);

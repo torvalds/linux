@@ -43,8 +43,7 @@ struct mlx5_ib_user_db_page {
 	int			refcnt;
 };
 
-int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context,
-			struct ib_udata *udata, unsigned long virt,
+int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
 			struct mlx5_db *db)
 {
 	struct mlx5_ib_user_db_page *page;
