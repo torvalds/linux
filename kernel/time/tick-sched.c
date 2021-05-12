@@ -921,8 +921,6 @@ static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
 	 * Cancel the scheduled timer and restore the tick
 	 */
 	ts->tick_stopped  = 0;
-	ts->idle_exittime = now;
-
 	tick_nohz_restart(ts, now);
 }
 
@@ -1194,9 +1192,12 @@ unsigned long tick_nohz_get_idle_calls(void)
 	return ts->idle_calls;
 }
 
-static void tick_nohz_account_idle_ticks(struct tick_sched *ts)
+static void tick_nohz_account_idle_time(struct tick_sched *ts,
+					ktime_t now)
 {
 	unsigned long ticks;
+
+	ts->idle_exittime = now;
 
 	if (vtime_accounting_enabled_this_cpu())
 		return;
@@ -1218,8 +1219,9 @@ void tick_nohz_idle_restart_tick(void)
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
 	if (ts->tick_stopped) {
-		tick_nohz_restart_sched_tick(ts, ktime_get());
-		tick_nohz_account_idle_ticks(ts);
+		ktime_t now = ktime_get();
+		tick_nohz_restart_sched_tick(ts, now);
+		tick_nohz_account_idle_time(ts, now);
 	}
 }
 
@@ -1230,7 +1232,7 @@ static void tick_nohz_idle_update_tick(struct tick_sched *ts, ktime_t now)
 	else
 		tick_nohz_restart_sched_tick(ts, now);
 
-	tick_nohz_account_idle_ticks(ts);
+	tick_nohz_account_idle_time(ts, now);
 }
 
 /**
