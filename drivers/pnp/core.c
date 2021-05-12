@@ -31,18 +31,6 @@ DEFINE_MUTEX(pnp_lock);
 int pnp_platform_devices;
 EXPORT_SYMBOL(pnp_platform_devices);
 
-void *pnp_alloc(long size)
-{
-	void *result;
-
-	result = kzalloc(size, GFP_KERNEL);
-	if (!result) {
-		printk(KERN_ERR "pnp: Out of Memory\n");
-		return NULL;
-	}
-	return result;
-}
-
 static void pnp_remove_protocol(struct pnp_protocol *protocol)
 {
 	mutex_lock(&pnp_lock);

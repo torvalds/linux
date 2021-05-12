@@ -80,7 +80,7 @@ static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
 	if (!id)
 		return 0;
 
-	clink = pnp_alloc(sizeof(*clink));
+	clink = kzalloc(sizeof(*clink), GFP_KERNEL);
 	if (!clink)
 		return 0;
 	clink->card = card;
