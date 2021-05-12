@@ -135,8 +135,9 @@ struct ktermios tty_std_termios = {	/* for the benefit of tty drivers  */
 EXPORT_SYMBOL(tty_std_termios);
 
 /* This list gets poked at by procfs and various bits of boot up code. This
-   could do with some rationalisation such as pulling the tty proc function
-   into this file */
+ * could do with some rationalisation such as pulling the tty proc function
+ * into this file.
+ */
 
 LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 
@@ -614,8 +615,9 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	set_bit(TTY_HUPPING, &tty->flags);
 
 	/* inuse_filps is protected by the single tty lock,
-	   this really needs to change if we want to flush the
-	   workqueue with the lock held */
+	 * this really needs to change if we want to flush the
+	 * workqueue with the lock held.
+	 */
 	check_tty_count(tty, "tty_hangup");
 
 	spin_lock(&tty->files_lock);
@@ -942,7 +944,8 @@ static ssize_t tty_read(struct kiocb *iocb, struct iov_iter *to)
 		return -EIO;
 
 	/* We want to wait for the line discipline to sort out in this
-	   situation */
+	 * situation.
+	 */
 	ld = tty_ldisc_ref_wait(tty);
 	if (!ld)
 		return hung_up_tty_read(iocb, to);
@@ -1572,7 +1575,8 @@ static void queue_release_one_tty(struct kref *kref)
 	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
 
 	/* The hangup queue is now free so we can reuse it rather than
-	   waste a chunk of memory for each port */
+	 *  waste a chunk of memory for each port.
+	 */
 	INIT_WORK(&tty->hangup_work, release_one_tty);
 	schedule_work(&tty->hangup_work);
 }
@@ -1877,7 +1881,8 @@ int tty_release(struct inode *inode, struct file *filp)
 	tty_unlock(tty);
 
 	/* At this point, the tty->count == 0 should ensure a dead tty
-	   cannot be re-opened by a racing opener */
+	 * cannot be re-opened by a racing opener.
+	 */
 
 	if (!final)
 		return 0;
