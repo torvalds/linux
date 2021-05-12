@@ -76,7 +76,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 
-	u8 ThermalValue = 0, delta, delta_LCK, delta_IQK, p = 0, i = 0;
+	u8 ThermalValue = 0, delta, delta_LCK, p = 0, i = 0;
 	u8 ThermalValue_AVG_count = 0;
 	u32 ThermalValue_AVG = 0;
 
@@ -137,7 +137,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 		ThermalValue = (u8)(ThermalValue_AVG / ThermalValue_AVG_count);
 	}
 
-	/* 4 5. Calculate delta, delta_LCK, delta_IQK. */
+	/* 4 5. Calculate delta, delta_LCK */
 	/* delta" here is used to determine whether thermal value changes or not. */
 	delta =
 		(ThermalValue > pDM_Odm->RFCalibrateInfo.ThermalValue) ?
@@ -147,10 +147,6 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 		(ThermalValue > pDM_Odm->RFCalibrateInfo.ThermalValue_LCK) ?
 		(ThermalValue - pDM_Odm->RFCalibrateInfo.ThermalValue_LCK) :
 		(pDM_Odm->RFCalibrateInfo.ThermalValue_LCK - ThermalValue);
-	delta_IQK =
-		(ThermalValue > pDM_Odm->RFCalibrateInfo.ThermalValue_IQK) ?
-		(ThermalValue - pDM_Odm->RFCalibrateInfo.ThermalValue_IQK) :
-		(pDM_Odm->RFCalibrateInfo.ThermalValue_IQK - ThermalValue);
 
 	/* 4 6. If necessary, do LCK. */
 	/*  Delta temperature is equal to or larger than 20 centigrade. */
