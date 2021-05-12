@@ -517,7 +517,6 @@ static int dlpar_memory_remove_by_index(u32 drc_index)
 static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 {
 	struct drmem_lmb *lmb, *start_lmb, *end_lmb;
-	int lmbs_available = 0;
 	int rc;
 
 	pr_info("Attempting to hot-remove %u LMB(s) at %x\n",
@@ -530,18 +529,29 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 	if (rc)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/*
+	 * Validate that all LMBs in range are not reserved. Note that it
+	 * is ok if they are !ASSIGNED since our goal here is to remove the
+	 * LMB range, regardless of whether some LMBs were already removed
+	 * by any other reason.
+	 *
+	 * This is a contrast to what is done in remove_by_count() where we
+	 * check for both RESERVED and !ASSIGNED (via lmb_is_removable()),
+	 * because we want to remove a fixed amount of LMBs in that function.
+	 */
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
-		if (lmb->flags & DRCONF_MEM_RESERVED)
-			break;
-
-		lmbs_available++;
+		if (lmb->flags & DRCONF_MEM_RESERVED) {
+			pr_err("Memory at %llx (drc index %x) is reserved\n",
+				lmb->base_addr, lmb->drc_index);
+			return -EINVAL;
+		}
 	}
 
-	if (lmbs_available < lmbs_to_remove)
-		return -EINVAL;
-
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
+		/*
+		 * dlpar_remove_lmb() will error out if the LMB is already
+		 * !ASSIGNED, but this case is a no-op for us.
+		 */
 		if (!(lmb->flags & DRCONF_MEM_ASSIGNED))
 			continue;
 
