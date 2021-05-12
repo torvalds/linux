@@ -87,11 +87,6 @@
 #define HPRE_QM_PM_FLR			BIT(11)
 #define HPRE_QM_SRIOV_FLR		BIT(12)
 
-#define HPRE_CLUSTERS_NUM(qm)		\
-	(((qm)->ver >= QM_HW_V3) ? HPRE_CLUSTERS_NUM_V3 : HPRE_CLUSTERS_NUM_V2)
-#define HPRE_CLUSTER_CORE_MASK(qm)	\
-	(((qm)->ver >= QM_HW_V3) ? HPRE_CLUSTER_CORE_MASK_V3 :\
-		HPRE_CLUSTER_CORE_MASK_V2)
 #define HPRE_VIA_MSI_DSM		1
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
@@ -251,6 +246,18 @@ static u32 vfs_num;
 module_param_cb(vfs_num, &vfs_num_ops, &vfs_num, 0444);
 MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
 
+static inline int hpre_cluster_num(struct hisi_qm *qm)
+{
+	return (qm->ver >= QM_HW_V3) ? HPRE_CLUSTERS_NUM_V3 :
+		HPRE_CLUSTERS_NUM_V2;
+}
+
+static inline int hpre_cluster_core_mask(struct hisi_qm *qm)
+{
+	return (qm->ver >= QM_HW_V3) ?
+		HPRE_CLUSTER_CORE_MASK_V3 : HPRE_CLUSTER_CORE_MASK_V2;
+}
+
 struct hisi_qp *hpre_create_qp(u8 type)
 {
 	int node = cpu_to_node(smp_processor_id());
@@ -317,8 +324,8 @@ static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 
 static int hpre_set_cluster(struct hisi_qm *qm)
 {
-	u32 cluster_core_mask = HPRE_CLUSTER_CORE_MASK(qm);
-	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
+	u32 cluster_core_mask = hpre_cluster_core_mask(qm);
+	u8 clusters_num = hpre_cluster_num(qm);
 	struct device *dev = &qm->pdev->dev;
 	unsigned long offset;
 	u32 val = 0;
@@ -424,7 +431,7 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 
 static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 {
-	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
+	u8 clusters_num = hpre_cluster_num(qm);
 	unsigned long offset;
 	int i;
 
@@ -677,7 +684,7 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 
 static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 {
-	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
+	u8 clusters_num = hpre_cluster_num(qm);
 	struct device *dev = &qm->pdev->dev;
 	char buf[HPRE_DBGFS_VAL_MAX_LEN];
 	struct debugfs_regset32 *regset;
