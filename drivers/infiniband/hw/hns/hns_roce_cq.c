@@ -234,8 +234,7 @@ static int alloc_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 		    udata->outlen >= offsetofend(typeof(*resp), cap_flags)) {
 			uctx = rdma_udata_to_drv_context(udata,
 					struct hns_roce_ucontext, ibucontext);
-			err = hns_roce_db_map_user(uctx, udata, addr,
-						   &hr_cq->db);
+			err = hns_roce_db_map_user(uctx, addr, &hr_cq->db);
 			if (err)
 				return err;
 			hr_cq->flags |= HNS_ROCE_CQ_FLAG_RECORD_DB;

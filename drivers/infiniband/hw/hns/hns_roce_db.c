@@ -8,8 +8,7 @@
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
 
-int hns_roce_db_map_user(struct hns_roce_ucontext *context,
-			 struct ib_udata *udata, unsigned long virt,
+int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
 			 struct hns_roce_db *db)
 {
 	unsigned long page_addr = virt & PAGE_MASK;
