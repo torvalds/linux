@@ -4,12 +4,15 @@
  * Author: Andy Yan <andy.yan@rock-chips.com>
  */
 #include <drm/drm.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_debugfs.h>
 #include <drm/drm_flip_work.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_writeback.h>
 #ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
@@ -39,12 +42,12 @@
 #include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/linux/videodev2.h>
 
+#include "../drm_crtc_internal.h"
 #include "../drm_internal.h"
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
-#include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
 #include "rockchip_vop_reg.h"
 
@@ -244,7 +247,6 @@ struct vop2_plane_state {
 	int global_alpha;
 	int blend_mode;
 	int color_key;
-	void *yrgb_kvaddr;
 	unsigned long offset;
 	int pdaf_data_type;
 	bool async_commit;
@@ -555,8 +557,6 @@ static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
 	{ MEDIA_BUS_FMT_UYYVYY8_0_5X24, "UYYVYY8_0_5X24" },
 	{ MEDIA_BUS_FMT_YUV10_1X30, "YUV10_1X30" },
 	{ MEDIA_BUS_FMT_UYYVYY10_0_5X30, "UYYVYY10_0_5X30" },
-	{ MEDIA_BUS_FMT_SRGB888_3X8, "SRGB888_3X8" },
-	{ MEDIA_BUS_FMT_SRGB888_DUMMY_4X8, "SRGB888_DUMMY_4X8" },
 	{ MEDIA_BUS_FMT_RGB888_1X24, "RGB888_1X24" },
 	{ MEDIA_BUS_FMT_RGB888_1X7X4_SPWG, "RGB888_1X7X4_SPWG" },
 	{ MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA, "RGB888_1X7X4_JEIDA" },
@@ -920,16 +920,10 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 		return VOP2_FMT_RGB565;
 	case DRM_FORMAT_NV12:
 		return VOP2_FMT_YUV420SP;
-	case DRM_FORMAT_NV12_10:
-		return VOP2_FMT_YUV420SP_10;
 	case DRM_FORMAT_NV16:
 		return VOP2_FMT_YUV422SP;
-	case DRM_FORMAT_NV16_10:
-		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
 		return VOP2_FMT_YUV444SP;
-	case DRM_FORMAT_NV24_10:
-		return VOP2_FMT_YUV444SP_10;
 	case DRM_FORMAT_YUYV:
 		return VOP2_FMT_YUYV422;
 	default:
@@ -954,12 +948,8 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 		return VOP2_AFBC_FMT_RGB565;
 	case DRM_FORMAT_NV12:
 		return VOP2_AFBC_FMT_YUV420;
-	case DRM_FORMAT_NV12_10:
-		return VOP2_AFBC_FMT_YUV420_10BIT;
 	case DRM_FORMAT_NV16:
 		return VOP2_AFBC_FMT_YUV422;
-	case DRM_FORMAT_NV16_10:
-		return VOP2_AFBC_FMT_YUV422_10BIT;
 
 		/* either of the below should not be reachable */
 	default:
@@ -1012,7 +1002,6 @@ static bool vop2_afbc_rb_swap(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV24_10:
 		return true;
 	default:
 		return false;
@@ -1024,8 +1013,6 @@ static bool vop2_afbc_uv_swap(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV12_10:
-	case DRM_FORMAT_NV16_10:
 		return true;
 	default:
 		return false;
@@ -1038,9 +1025,6 @@ static bool vop2_win_uv_swap(uint32_t format)
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV12_10:
-	case DRM_FORMAT_NV16_10:
-	case DRM_FORMAT_NV24_10:
 		return true;
 	default:
 		return false;
@@ -1088,11 +1072,8 @@ static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV12_10:
 	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV16_10:
 	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV24_10:
 	case DRM_FORMAT_YUYV:
 		return true;
 	default:
@@ -1181,7 +1162,7 @@ static uint32_t vop2_afbc_transform_offset(struct vop2_plane_state *vpstate)
 {
 	struct drm_rect *src = &vpstate->src;
 	struct drm_framebuffer *fb = vpstate->base.fb;
-	uint32_t bpp = fb->format->bpp[0];
+	uint32_t bpp = fb->format->cpp[0] << 3;
 	uint32_t vir_width = (fb->pitches[0] << 3) / bpp;
 	uint32_t width = drm_rect_width(src) >> 16;
 	uint32_t height = drm_rect_height(src) >> 16;
@@ -1374,9 +1355,9 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 {
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
-	const struct drm_format_info *info;
-	int hsub = drm_format_horz_chroma_subsampling(pixel_format);
-	int vsub = drm_format_vert_chroma_subsampling(pixel_format);
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	uint8_t hsub = info->hsub;
+	uint8_t vsub = info->vsub;
 	uint16_t cbcr_src_w = src_w / hsub;
 	uint16_t cbcr_src_h = src_h / vsub;
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
@@ -1385,8 +1366,6 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	uint8_t gt2 = 0;
 	uint8_t gt4 = 0;
 	uint32_t val;
-
-	info = drm_format_info(pixel_format);
 
 	if (src_h >= (4 * dst_h))
 		gt4 = 1;
@@ -1834,6 +1813,10 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_crtc *crtc = cstate->crtc;
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct drm_framebuffer *fb;
+	struct drm_gem_object *obj, *uv_obj;
+	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
+
+
 
 	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
 		return 0;
@@ -1864,10 +1847,15 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	wb_state->vp_id = vp->id;
-	wb_state->yrgb_addr = rockchip_fb_get_dma_addr(fb, 0);
+	obj = fb->obj[0];
+	rk_obj = to_rockchip_obj(obj);
+	wb_state->yrgb_addr = rk_obj->dma_addr + fb->offsets[0];
+
 	if (fb->format->is_yuv) {
-		wb_state->uv_addr = rockchip_fb_get_dma_addr(fb, 1);
-		wb_state->uv_addr += fb->offsets[1];
+		uv_obj = fb->obj[1];
+		rk_uv_obj = to_rockchip_obj(uv_obj);
+
+		wb_state->uv_addr = rk_uv_obj->dma_addr + fb->offsets[1];
 	}
 
 	return 0;
@@ -1958,7 +1946,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		DRM_DEV_DEBUG(vop2->dev, "Enable wb %ux%u  fmt: %u pitches: %d\n",
 			      fb->width, fb->height, wb_state->format, fb->pitches[0]);
 
-		drm_writeback_queue_job(wb_conn, conn_state->writeback_job);
+		drm_writeback_queue_job(wb_conn, conn_state);
 		conn_state->writeback_job = NULL;
 
 		fifo_throd = fb->pitches[0] >> 4;
@@ -2090,6 +2078,7 @@ static int vop2_crtc_atomic_gamma_set(struct drm_crtc *crtc,
 	return 0;
 }
 
+#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
 static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
 {
@@ -2108,7 +2097,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 	if (!vp->cubic_lut_gem_obj) {
 		size_t size = (vp->cubic_lut_len + 1) / 2 * 16;
 
-		vp->cubic_lut_gem_obj = rockchip_gem_create_object(crtc->dev, size, true, 0);
+		vp->cubic_lut_gem_obj = rockchip_gem_create_object(crtc->dev, size, true);
 		if (IS_ERR(vp->cubic_lut_gem_obj))
 			return -ENOMEM;
 	}
@@ -2143,6 +2132,42 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 
 	return 0;
 }
+
+static void drm_crtc_enable_cubic_lut(struct drm_crtc *crtc, unsigned int cubic_lut_size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (cubic_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->cubic_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->cubic_lut_size_property,
+					   cubic_lut_size);
+	}
+}
+
+static void vop2_cubic_lut_init(struct vop2 *vop2)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data;
+	struct vop2_video_port *vp;
+	struct drm_crtc *crtc;
+	int i;
+
+	for (i = 0; i < vop2_data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		crtc = &vp->crtc;
+		vp_data = &vop2_data->vp[vp->id];
+		vp->cubic_lut_len = vp_data->cubic_lut_len;
+
+		if (vp->cubic_lut_len)
+			drm_crtc_enable_cubic_lut(crtc, vp->cubic_lut_len);
+	}
+}
+#else
+static void vop2_cubic_lut_init(struct vop2 *vop2) { }
+#endif
 
 static int vop2_core_clks_prepare_enable(struct vop2 *vop2)
 {
@@ -2462,11 +2487,12 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	const struct vop2_data *vop2_data;
 	struct drm_rect *dest = &vpstate->dest;
 	struct drm_rect *src = &vpstate->src;
+	struct drm_gem_object *obj, *uv_obj;
+	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	int min_scale = win->regs->scl ? FRAC_16_16(1, 8) : DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->regs->scl ? FRAC_16_16(8, 1) : DRM_PLANE_HELPER_NO_SCALING;
 	unsigned long offset;
 	dma_addr_t dma_addr;
-	void *kvaddr;
 	int ret;
 
 	crtc = crtc ? crtc : plane->state->crtc;
@@ -2550,7 +2576,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		return -EINVAL;
 	}
 
-	offset = (src->x1 >> 16) * fb->format->bpp[0] / 8;
+	offset = (src->x1 >> 16) * fb->format->cpp[0];
 	vpstate->offset = offset + fb->offsets[0];
 
 	/*
@@ -2563,20 +2589,21 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	else
 		offset += (src->y1 >> 16) * fb->pitches[0];
 
-	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
-	kvaddr = rockchip_fb_get_kvaddr(fb, 0);
+	obj = fb->obj[0];
+	rk_obj = to_rockchip_obj(obj);
 
-	vpstate->yrgb_mst = dma_addr + offset + fb->offsets[0];
-	vpstate->yrgb_kvaddr = kvaddr + offset + fb->offsets[0];
+	vpstate->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
 	if (fb->format->is_yuv) {
-		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
-		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
+		int hsub = fb->format->hsub;
+		int vsub = fb->format->vsub;
 
-		offset = (src->x1 >> 16) * fb->format->bpp[1] / hsub / 8;
+		offset = (src->x1 >> 16) * fb->format->cpp[1] / hsub;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
-		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
-		dma_addr += offset + fb->offsets[1];
+		uv_obj = fb->obj[1];
+		rk_uv_obj = to_rockchip_obj(uv_obj);
+
+		dma_addr = rk_uv_obj->dma_addr + offset + fb->offsets[1];
 		vpstate->uv_mst = dma_addr;
 	}
 
@@ -2672,7 +2699,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = pstate->fb;
-	uint32_t bpp = fb->format->bpp[0];
+	uint32_t bpp = fb->format->cpp[0] << 3;
 	uint32_t actual_w, actual_h, dsp_w, dsp_h;
 	uint32_t dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
@@ -3270,6 +3297,10 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	struct drm_rect *src, *dest;
 	struct drm_framebuffer *fb = pstate->fb;
 	struct drm_format_name_buf format_name;
+	struct drm_gem_object *obj;
+	struct rockchip_gem_object *rk_obj;
+	dma_addr_t fb_addr;
+
 	int i;
 
 	DEBUG_PRINT("    %s: %s\n", win->name, pstate->crtc ? "ACTIVE" : "DISABLED");
@@ -3300,8 +3331,10 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	DEBUG_PRINT("\tdst: pos[%d, %d] rect[%d x %d]\n", dest->x1, dest->y1,
 		    drm_rect_width(dest), drm_rect_height(dest));
 
-	for (i = 0; i < drm_format_num_planes(fb->format->format); i++) {
-		dma_addr_t fb_addr = rockchip_fb_get_dma_addr(fb, i);
+	for (i = 0; i < fb->format->num_planes; i++) {
+		obj = fb->obj[0];
+		rk_obj = to_rockchip_obj(obj);
+		fb_addr = rk_obj->dma_addr + fb->offsets[0];
 
 		DEBUG_PRINT("\tbuf[%d]: addr: %pad pitch: %d offset: %d\n",
 			    i, &fb_addr, fb->pitches[i], fb->offsets[i]);
@@ -3487,19 +3520,11 @@ static int vop2_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
 		vop2->debugfs_files[i].data = vop2;
 
-	ret = drm_debugfs_create_files(vop2->debugfs_files,
-				       ARRAY_SIZE(vop2_debugfs_files),
-				       vop2->debugfs,
-				       minor);
-	if (ret) {
-		dev_err(vop2->dev, "could not install rockchip_debugfs_list\n");
-		goto free;
-	}
-
+	drm_debugfs_create_files(vop2->debugfs_files,
+				 ARRAY_SIZE(vop2_debugfs_files),
+				 vop2->debugfs,
+				 minor);
 	return 0;
-free:
-	kfree(vop2->debugfs_files);
-	vop2->debugfs_files = NULL;
 remove:
 	debugfs_remove(vop2->debugfs);
 	vop2->debugfs = NULL;
@@ -3556,7 +3581,7 @@ static size_t vop2_plane_line_bandwidth(struct drm_plane_state *pstate)
 	struct drm_framebuffer *fb = pstate->fb;
 	struct drm_rect *dst = &vpstate->dest;
 	struct drm_rect *src = &vpstate->src;
-	int bpp = fb->format->bpp[0];
+	int bpp = fb->format->cpp[0] << 3;
 	int src_width = drm_rect_width(src) >> 16;
 	int src_height = drm_rect_height(src) >> 16;
 	int dst_width = drm_rect_width(dst);
@@ -3746,8 +3771,6 @@ static void vop2_dither_setup(struct drm_crtc *crtc)
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 0);
 		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 0);
 		break;
-	case MEDIA_BUS_FMT_SRGB888_3X8:
-	case MEDIA_BUS_FMT_SRGB888_DUMMY_4X8:
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
@@ -3881,7 +3904,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d for vp%d\n",
 		     hdisplay, vdisplay, interlaced ? "i" : "p",
-		     adjusted_mode->vrefresh, vcstate->output_type, vp->id);
+		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vp->id);
 	vop2_initial(crtc);
 	vcstate->vdisplay = vdisplay;
 	vcstate->mode_update = vop2_crtc_mode_update(crtc);
@@ -4137,12 +4160,12 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	/*
 	 * HDR video plane input
 	 */
-	if (vpstate->eotf == SMPTE_ST2084)
+	if (vpstate->eotf == HDMI_EOTF_SMPTE_ST2084)
 		hdr_en = 1;
 
 	vp->hdr_en = hdr_en;
 	vp->hdr_in = hdr_en;
-	vp->hdr_out = (vcstate->eotf == SMPTE_ST2084) ? true : false;
+	vp->hdr_out = (vcstate->eotf == HDMI_EOTF_SMPTE_ST2084) ? true : false;
 
 	/*
 	 * only laryer0 support hdr2sdr
@@ -4861,12 +4884,13 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 				vp->gamma_lut = crtc->state->gamma_lut->data;
 			vop2_crtc_atomic_gamma_set(crtc, crtc->state);
 		}
-
+#if defined(CONFIG_ROCKCHIP_DRM_CUBIC_LUT)
 		if (crtc->state->cubic_lut || vp->cubic_lut) {
 			if (crtc->state->cubic_lut)
 				vp->cubic_lut = crtc->state->cubic_lut->data;
 			vop2_crtc_atomic_cubic_lut_set(crtc, crtc->state);
 		}
+#endif
 	} else {
 		VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 0);
 	}
@@ -5474,24 +5498,6 @@ static int vop2_gamma_init(struct vop2 *vop2)
 	return 0;
 }
 
-static void vop2_cubic_lut_init(struct vop2 *vop2)
-{
-	const struct vop2_data *vop2_data = vop2->data;
-	const struct vop2_video_port_data *vp_data;
-	struct vop2_video_port *vp;
-	struct drm_crtc *crtc;
-	int i;
-
-	for (i = 0; i < vop2_data->nr_vps; i++) {
-		vp = &vop2->vps[i];
-		crtc = &vp->crtc;
-		vp_data = &vop2_data->vp[vp->id];
-		vp->cubic_lut_len = vp_data->cubic_lut_len;
-
-		if (vp->cubic_lut_len)
-			drm_crtc_enable_cubic_lut(crtc, vp->cubic_lut_len);
-	}
-}
 
 static int vop2_create_crtc(struct vop2 *vop2)
 {

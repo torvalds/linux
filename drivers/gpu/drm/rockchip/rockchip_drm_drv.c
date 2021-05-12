@@ -37,6 +37,31 @@
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
 
+int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
+				 const struct rockchip_crtc_funcs *crtc_funcs)
+{
+	int pipe = drm_crtc_index(crtc);
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+
+	if (pipe >= ROCKCHIP_MAX_CRTC)
+		return -EINVAL;
+
+	priv->crtc_funcs[pipe] = crtc_funcs;
+
+	return 0;
+}
+
+void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
+{
+	int pipe = drm_crtc_index(crtc);
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+
+	if (pipe >= ROCKCHIP_MAX_CRTC)
+		return;
+
+	priv->crtc_funcs[pipe] = NULL;
+}
+
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
  * device.  This is used by the VOPs to map GEM buffers to a common DMA
