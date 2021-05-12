@@ -1314,7 +1314,13 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 	drm_dev_unplug(dev);
 	amdgpu_driver_unload_kms(dev);
 
+	/*
+	 * Flush any in flight DMA operations from device.
+	 * Clear the Bus Master Enable bit and then wait on the PCIe Device
+	 * StatusTransactions Pending bit.
+	 */
 	pci_disable_device(pdev);
+	pci_wait_for_pending_transaction(pdev);
 }
 
 static void
