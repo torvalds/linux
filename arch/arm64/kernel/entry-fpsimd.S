@@ -72,7 +72,8 @@ SYM_FUNC_END(sve_load_from_fpsimd_state)
 
 /* Zero all SVE registers but the first 128-bits of each vector */
 SYM_FUNC_START(sve_flush_live)
-	sve_flush
+	sve_flush_z
+	sve_flush_p_ffr
 	ret
 SYM_FUNC_END(sve_flush_live)
 
