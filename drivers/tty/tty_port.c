@@ -698,5 +698,4 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 	mutex_unlock(&port->mutex);
 	return tty_port_block_til_ready(port, tty, filp);
 }
-
 EXPORT_SYMBOL(tty_port_open);
