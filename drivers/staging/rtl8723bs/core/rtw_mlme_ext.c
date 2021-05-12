@@ -5125,23 +5125,9 @@ void _linked_info_dump(struct adapter *padapter)
 
 	if (padapter->bLinkInfoDump) {
 
-		if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) {
+		if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
 			rtw_hal_get_def_var(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
-		} else if ((pmlmeinfo->state&0x03) == _HW_STATE_AP_) {
-			struct list_head	*phead, *plist;
 
-			struct sta_info *psta = NULL;
-			struct sta_priv *pstapriv = &padapter->stapriv;
-
-			spin_lock_bh(&pstapriv->asoc_list_lock);
-			phead = &pstapriv->asoc_list;
-			list_for_each(plist, phead) {
-				psta = list_entry(plist, struct sta_info,
-						  asoc_list);
-			}
-			spin_unlock_bh(&pstapriv->asoc_list_lock);
-
-		}
 		for (i = 0; i < NUM_STA; i++) {
 			if (pdvobj->macid[i]) {
 				if (i != 1) /* skip bc/mc sta */
@@ -5150,11 +5136,7 @@ void _linked_info_dump(struct adapter *padapter)
 			}
 		}
 		rtw_hal_set_def_var(padapter, HAL_DEF_DBG_RX_INFO_DUMP, NULL);
-
-
 	}
-
-
 }
 
 static u8 chk_ap_is_alive(struct adapter *padapter, struct sta_info *psta)
