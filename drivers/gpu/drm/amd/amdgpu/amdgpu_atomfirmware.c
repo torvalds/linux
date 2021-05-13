@@ -68,23 +68,20 @@ uint32_t amdgpu_atomfirmware_query_firmware_capability(struct amdgpu_device *ade
 	return fw_cap;
 }
 
-bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev)
+/*
+ * Helper function to query gpu virtualizaiton capability
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Return true if gpu virtualization is supported or false if not
+ */
+bool amdgpu_atomfirmware_gpu_virtualization_supported(struct amdgpu_device *adev)
 {
-	int index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						firmwareinfo);
-	uint16_t data_offset;
+	u32 fw_cap;
 
-	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context, index, NULL,
-					  NULL, NULL, &data_offset)) {
-		struct atom_firmware_info_v3_1 *firmware_info =
-			(struct atom_firmware_info_v3_1 *)(adev->mode_info.atom_context->bios +
-							   data_offset);
+	fw_cap = adev->mode_info.firmware_flags;
 
-		if (le32_to_cpu(firmware_info->firmware_capability) &
-		    ATOM_FIRMWARE_CAP_GPU_VIRTUALIZATION)
-			return true;
-	}
-	return false;
+	return (fw_cap & ATOM_FIRMWARE_CAP_GPU_VIRTUALIZATION) ? true : false;
 }
 
 void amdgpu_atomfirmware_scratch_regs_init(struct amdgpu_device *adev)

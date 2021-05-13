@@ -27,7 +27,7 @@
 #define get_index_into_master_table(master_table, table_name) (offsetof(struct master_table, table_name) / sizeof(uint16_t))
 
 uint32_t amdgpu_atomfirmware_query_firmware_capability(struct amdgpu_device *adev);
-bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev);
+bool amdgpu_atomfirmware_gpu_virtualization_supported(struct amdgpu_device *adev);
 void amdgpu_atomfirmware_scratch_regs_init(struct amdgpu_device *adev);
 int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev);
 int amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,

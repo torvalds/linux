@@ -3034,7 +3034,7 @@ static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev)) {
 		if (adev->is_atom_fw) {
-			if (amdgpu_atomfirmware_gpu_supports_virtualization(adev))
+			if (amdgpu_atomfirmware_gpu_virtualization_supported(adev))
 				adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
 		} else {
 			if (amdgpu_atombios_has_gpu_virtualization_table(adev))
