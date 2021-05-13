@@ -1241,9 +1241,6 @@ static int svm_range_map_to_gpus(struct svm_range *prange,
 				break;
 			}
 		}
-
-		amdgpu_amdkfd_flush_gpu_tlb_pasid((struct kgd_dev *)adev,
-						  p->pasid);
 	}
 
 	return r;
