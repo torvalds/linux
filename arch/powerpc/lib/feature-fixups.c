@@ -325,6 +325,31 @@ static int __do_entry_flush_fixups(void *data)
 	if (types & L1D_FLUSH_MTTRIG)
 		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
 
+	/*
+	 * If we're patching in or out the fallback flush we need to be careful about the
+	 * order in which we patch instructions. That's because it's possible we could
+	 * take a page fault after patching one instruction, so the sequence of
+	 * instructions must be safe even in a half patched state.
+	 *
+	 * To make that work, when patching in the fallback flush we patch in this order:
+	 *  - the mflr		(dest)
+	 *  - the mtlr		(dest + 2)
+	 *  - the branch	(dest + 1)
+	 *
+	 * That ensures the sequence is safe to execute at any point. In contrast if we
+	 * patch the mtlr last, it's possible we could return from the branch and not
+	 * restore LR, leading to a crash later.
+	 *
+	 * When patching out the fallback flush (either with nops or another flush type),
+	 * we patch in this order:
+	 *  - the branch	(dest + 1)
+	 *  - the mtlr		(dest + 2)
+	 *  - the mflr		(dest)
+	 *
+	 * Note we are protected by stop_machine() from other CPUs executing the code in a
+	 * semi-patched state.
+	 */
+
 	start = PTRRELOC(&__start___entry_flush_fixup);
 	end = PTRRELOC(&__stop___entry_flush_fixup);
 	for (i = 0; start < end; start++, i++) {
@@ -332,15 +357,16 @@ static int __do_entry_flush_fixups(void *data)
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-
-		if (types == L1D_FLUSH_FALLBACK)
-			patch_branch((struct ppc_inst *)(dest + 1), (unsigned long)&entry_flush_fallback,
-				     BRANCH_SET_LINK);
-		else
+		if (types == L1D_FLUSH_FALLBACK) {
+			patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
+			patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+			patch_branch((struct ppc_inst *)(dest + 1),
+				     (unsigned long)&entry_flush_fallback, BRANCH_SET_LINK);
+		} else {
 			patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+			patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+			patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
+		}
 	}
 
 	start = PTRRELOC(&__start___scv_entry_flush_fixup);
@@ -350,15 +376,16 @@ static int __do_entry_flush_fixups(void *data)
 
 		pr_devel("patching dest %lx\n", (unsigned long)dest);
 
-		patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
-
-		if (types == L1D_FLUSH_FALLBACK)
-			patch_branch((struct ppc_inst *)(dest + 1), (unsigned long)&scv_entry_flush_fallback,
-				     BRANCH_SET_LINK);
-		else
+		if (types == L1D_FLUSH_FALLBACK) {
+			patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
+			patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+			patch_branch((struct ppc_inst *)(dest + 1),
+				     (unsigned long)&scv_entry_flush_fallback, BRANCH_SET_LINK);
+		} else {
 			patch_instruction((struct ppc_inst *)(dest + 1), ppc_inst(instrs[1]));
-
-		patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+			patch_instruction((struct ppc_inst *)(dest + 2), ppc_inst(instrs[2]));
+			patch_instruction((struct ppc_inst *)dest, ppc_inst(instrs[0]));
+		}
 	}
 
 
