@@ -241,6 +241,8 @@ struct atl1c_tpd_ext_desc {
 #define RRS_PACKET_PROT_IS_IPV6_ONLY(word) \
 	((((word) >> RRS_PROT_ID_SHIFT) & RRS_PROT_ID_MASK) == 6)
 
+#define RRS_MT_PROT_ID_TCPUDP	BIT(19)
+
 struct atl1c_recv_ret_status {
 	__le32  word0;
 	__le32	rss_hash;

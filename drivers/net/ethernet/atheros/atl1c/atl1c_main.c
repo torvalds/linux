@@ -1671,6 +1671,11 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 		  struct sk_buff *skb, struct atl1c_recv_ret_status *prrs)
 {
+	if (adapter->hw.nic_type == athr_mt) {
+		if (prrs->word3 & RRS_MT_PROT_ID_TCPUDP)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		return;
+	}
 	/*
 	 * The pid field in RRS in not correct sometimes, so we
 	 * cannot figure out if the packet is fragmented or not,
