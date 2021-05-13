@@ -273,8 +273,6 @@ static int ad7766_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	spi_set_drvdata(spi, indio_dev);
-
 	ad7766->spi = spi;
 
 	/* First byte always 0 */

@@ -639,8 +639,6 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	priv = iio_priv(indio_dev);
 	priv->dcfg = dcfg;
 
-	spi_set_drvdata(spi, indio_dev);
-
 	priv->spi = spi;
 
 	indio_dev->name = TI_TSC2046_NAME;
