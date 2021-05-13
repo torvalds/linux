@@ -71,6 +71,13 @@ struct slabinfo;
 DECLARE_HOOK(android_vh_cache_show,
 	TP_PROTO(struct seq_file *m, struct slabinfo *sinfo, struct kmem_cache *s),
 	TP_ARGS(m, sinfo, s));
+struct dirty_throttle_control;
+DECLARE_HOOK(android_vh_mm_dirty_limits,
+	TP_PROTO(struct dirty_throttle_control *const gdtc, bool strictlimit,
+		unsigned long dirty, unsigned long bg_thresh,
+		unsigned long nr_reclaimable, unsigned long pages_dirtied),
+	TP_ARGS(gdtc, strictlimit, dirty, bg_thresh,
+		nr_reclaimable, pages_dirtied));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
