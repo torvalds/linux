@@ -43,7 +43,7 @@ struct cma_device;
 struct cma_dev_group;
 
 struct cma_dev_port_group {
-	unsigned int		port_num;
+	u32			port_num;
 	struct cma_dev_group	*cma_dev_group;
 	struct config_group	group;
 };
@@ -200,10 +200,10 @@ static const struct config_item_type cma_port_group_type = {
 static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 			  struct cma_device *cma_dev)
 {
-	struct ib_device *ibdev;
-	unsigned int i;
-	unsigned int ports_num;
 	struct cma_dev_port_group *ports;
+	struct ib_device *ibdev;
+	u32 ports_num;
+	u32 i;
 
 	ibdev = cma_get_ib_dev(cma_dev);
 

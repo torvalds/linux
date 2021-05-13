@@ -125,7 +125,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_query_port(struct ib_device *ibdev, u8 port,
+int pvrdma_query_port(struct ib_device *ibdev, u32 port,
 		      struct ib_port_attr *props)
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);
@@ -183,7 +183,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u8 port,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_query_gid(struct ib_device *ibdev, u8 port, int index,
+int pvrdma_query_gid(struct ib_device *ibdev, u32 port, int index,
 		     union ib_gid *gid)
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);
@@ -205,7 +205,7 @@ int pvrdma_query_gid(struct ib_device *ibdev, u8 port, int index,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int pvrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 		      u16 *pkey)
 {
 	int err = 0;
@@ -232,7 +232,7 @@ int pvrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 }
 
 enum rdma_link_layer pvrdma_port_link_layer(struct ib_device *ibdev,
-					    u8 port)
+					    u32 port)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -274,7 +274,7 @@ int pvrdma_modify_device(struct ib_device *ibdev, int mask,
  *
  * @return: 0 on success, otherwise negative errno
  */
-int pvrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
+int pvrdma_modify_port(struct ib_device *ibdev, u32 port, int mask,
 		       struct ib_port_modify *props)
 {
 	struct ib_port_attr attr;
@@ -516,7 +516,7 @@ int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	struct pvrdma_dev *dev = to_vdev(ibah->device);
 	struct pvrdma_ah *ah = to_vah(ibah);
 	const struct ib_global_route *grh;
-	u8 port_num = rdma_ah_get_port_num(ah_attr);
+	u32 port_num = rdma_ah_get_port_num(ah_attr);
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
 		return -EINVAL;

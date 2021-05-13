@@ -28,7 +28,7 @@ struct ebs_c {
 	spinlock_t lock;		/* Guard bios input list above. */
 	sector_t start;			/* <start> table line argument, see ebs_ctr below. */
 	unsigned int e_bs;		/* Emulated block size in sectors exposed to upper layer. */
-	unsigned int u_bs;		/* Underlying block size in sectors retrievd from/set on lower layer device. */
+	unsigned int u_bs;		/* Underlying block size in sectors retrieved from/set on lower layer device. */
 	unsigned char block_shift;	/* bitshift sectors -> blocks used in dm-bufio API. */
 	bool u_bs_set:1;		/* Flag to indicate underlying block size is set on table line. */
 };
@@ -43,7 +43,7 @@ static inline sector_t __block_mod(sector_t sector, unsigned int bs)
 	return sector & (bs - 1);
 }
 
-/* Return number of blocks for a bio, accounting for misalignement of start and end sectors. */
+/* Return number of blocks for a bio, accounting for misalignment of start and end sectors. */
 static inline unsigned int __nr_blocks(struct ebs_c *ec, struct bio *bio)
 {
 	sector_t end_sector = __block_mod(bio->bi_iter.bi_sector, ec->u_bs) + bio_sectors(bio);
@@ -171,7 +171,7 @@ static void __ebs_forget_bio(struct ebs_c *ec, struct bio *bio)
 	dm_bufio_forget_buffers(ec->bufio, __sector_to_block(ec, sector), blocks);
 }
 
-/* Worker funtion to process incoming bios. */
+/* Worker function to process incoming bios. */
 static void __ebs_process_bios(struct work_struct *ws)
 {
 	int r;

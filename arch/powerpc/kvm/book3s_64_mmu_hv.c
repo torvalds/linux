@@ -752,51 +752,6 @@ void kvmppc_rmap_reset(struct kvm *kvm)
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 }
 
-typedef int (*hva_handler_fn)(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			      unsigned long gfn);
-
-static int kvm_handle_hva_range(struct kvm *kvm,
-				unsigned long start,
-				unsigned long end,
-				hva_handler_fn handler)
-{
-	int ret;
-	int retval = 0;
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
-
-	slots = kvm_memslots(kvm);
-	kvm_for_each_memslot(memslot, slots) {
-		unsigned long hva_start, hva_end;
-		gfn_t gfn, gfn_end;
-
-		hva_start = max(start, memslot->userspace_addr);
-		hva_end = min(end, memslot->userspace_addr +
-					(memslot->npages << PAGE_SHIFT));
-		if (hva_start >= hva_end)
-			continue;
-		/*
-		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
-		 * {gfn, gfn+1, ..., gfn_end-1}.
-		 */
-		gfn = hva_to_gfn_memslot(hva_start, memslot);
-		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
-
-		for (; gfn < gfn_end; ++gfn) {
-			ret = handler(kvm, memslot, gfn);
-			retval |= ret;
-		}
-	}
-
-	return retval;
-}
-
-static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
-			  hva_handler_fn handler)
-{
-	return kvm_handle_hva_range(kvm, hva, hva + 1, handler);
-}
-
 /* Must be called with both HPTE and rmap locked */
 static void kvmppc_unmap_hpte(struct kvm *kvm, unsigned long i,
 			      struct kvm_memory_slot *memslot,
@@ -840,8 +795,8 @@ static void kvmppc_unmap_hpte(struct kvm *kvm, unsigned long i,
 	}
 }
 
-static int kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			   unsigned long gfn)
+static bool kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			    unsigned long gfn)
 {
 	unsigned long i;
 	__be64 *hptep;
@@ -874,16 +829,15 @@ static int kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		unlock_rmap(rmapp);
 		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	}
-	return 0;
+	return false;
 }
 
-int kvm_unmap_hva_range_hv(struct kvm *kvm, unsigned long start, unsigned long end)
+bool kvm_unmap_gfn_range_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	hva_handler_fn handler;
+	if (kvm_is_radix(kvm))
+		return kvm_unmap_radix(kvm, range->slot, range->start);
 
-	handler = kvm_is_radix(kvm) ? kvm_unmap_radix : kvm_unmap_rmapp;
-	kvm_handle_hva_range(kvm, start, end, handler);
-	return 0;
+	return kvm_unmap_rmapp(kvm, range->slot, range->start);
 }
 
 void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
@@ -913,8 +867,8 @@ void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
 	}
 }
 
-static int kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			 unsigned long gfn)
+static bool kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			  unsigned long gfn)
 {
 	struct revmap_entry *rev = kvm->arch.hpt.rev;
 	unsigned long head, i, j;
@@ -968,26 +922,26 @@ static int kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return ret;
 }
 
-int kvm_age_hva_hv(struct kvm *kvm, unsigned long start, unsigned long end)
+bool kvm_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	hva_handler_fn handler;
+	if (kvm_is_radix(kvm))
+		kvm_age_radix(kvm, range->slot, range->start);
 
-	handler = kvm_is_radix(kvm) ? kvm_age_radix : kvm_age_rmapp;
-	return kvm_handle_hva_range(kvm, start, end, handler);
+	return kvm_age_rmapp(kvm, range->slot, range->start);
 }
 
-static int kvm_test_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			      unsigned long gfn)
+static bool kvm_test_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			       unsigned long gfn)
 {
 	struct revmap_entry *rev = kvm->arch.hpt.rev;
 	unsigned long head, i, j;
 	unsigned long *hp;
-	int ret = 1;
+	bool ret = true;
 	unsigned long *rmapp;
 
 	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	if (*rmapp & KVMPPC_RMAP_REFERENCED)
-		return 1;
+		return true;
 
 	lock_rmap(rmapp);
 	if (*rmapp & KVMPPC_RMAP_REFERENCED)
@@ -1002,27 +956,27 @@ static int kvm_test_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				goto out;
 		} while ((i = j) != head);
 	}
-	ret = 0;
+	ret = false;
 
  out:
 	unlock_rmap(rmapp);
 	return ret;
 }
 
-int kvm_test_age_hva_hv(struct kvm *kvm, unsigned long hva)
+bool kvm_test_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	hva_handler_fn handler;
+	if (kvm_is_radix(kvm))
+		kvm_test_age_radix(kvm, range->slot, range->start);
 
-	handler = kvm_is_radix(kvm) ? kvm_test_age_radix : kvm_test_age_rmapp;
-	return kvm_handle_hva(kvm, hva, handler);
+	return kvm_test_age_rmapp(kvm, range->slot, range->start);
 }
 
-void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte)
+bool kvm_set_spte_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	hva_handler_fn handler;
+	if (kvm_is_radix(kvm))
+		return kvm_unmap_radix(kvm, range->slot, range->start);
 
-	handler = kvm_is_radix(kvm) ? kvm_unmap_radix : kvm_unmap_rmapp;
-	kvm_handle_hva(kvm, hva, handler);
+	return kvm_unmap_rmapp(kvm, range->slot, range->start);
 }
 
 static int vcpus_running(struct kvm *kvm)

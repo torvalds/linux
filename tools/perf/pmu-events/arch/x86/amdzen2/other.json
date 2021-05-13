@@ -14,13 +14,13 @@
     "EventName": "de_dis_uops_from_decoder.opcache_dispatched",
     "EventCode": "0xaa",
     "BriefDescription": "Count of dispatched Ops from OpCache.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "de_dis_uops_from_decoder.decoder_dispatched",
     "EventCode": "0xaa",
     "BriefDescription": "Count of dispatched Ops from Decoder.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls1.fp_misc_rsrc_stall",
@@ -50,25 +50,25 @@
     "EventName": "de_dis_dispatch_token_stalls1.int_sched_misc_token_stall",
     "EventCode": "0xae",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. Integer Scheduler miscellaneous resource stall.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls1.store_queue_token_stall",
     "EventCode": "0xae",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. Store queue resource stall. Applies to all ops with store semantics.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls1.load_queue_token_stall",
     "EventCode": "0xae",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. Load queue resource stall. Applies to all ops with load semantics.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls1.int_phy_reg_file_token_stall",
     "EventCode": "0xae",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. Integer Physical Register File resource stall. Applies to all ops that have an integer destination register.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.sc_agu_dispatch_stall",
@@ -92,24 +92,24 @@
     "EventName": "de_dis_dispatch_token_stalls0.alu_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALU tokens total unavailable.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.alsq3_0_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ3_0_TokenStall.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.alsq2_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ 2 Tokens unavailable.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.alsq1_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ 1 Tokens unavailable.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   }
 ]
