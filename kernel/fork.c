@@ -975,6 +975,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 #ifdef CONFIG_MEMCG
 	tsk->active_memcg = NULL;
 #endif
+	trace_android_vh_dup_task_struct(tsk, orig);
 	return tsk;
 
 free_stack:

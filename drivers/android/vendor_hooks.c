@@ -262,6 +262,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpuset_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_cpus_allowed_comm);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sched_setaffinity_early);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_free_task);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dup_task_struct);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_after_enqueue_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_after_dequeue_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_enqueue_entity);
