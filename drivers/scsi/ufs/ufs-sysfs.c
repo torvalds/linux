@@ -960,8 +960,8 @@ static const struct attribute_group ufs_sysfs_string_descriptors_group = {
 
 static inline bool ufshcd_is_wb_flags(enum flag_idn idn)
 {
-	return ((idn >= QUERY_FLAG_IDN_WB_EN) &&
-		(idn <= QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8));
+	return idn >= QUERY_FLAG_IDN_WB_EN &&
+		idn <= QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8;
 }
 
 #define UFS_FLAG(_name, _uname)						\
@@ -1029,8 +1029,8 @@ static const struct attribute_group ufs_sysfs_flags_group = {
 
 static inline bool ufshcd_is_wb_attrs(enum attr_idn idn)
 {
-	return ((idn >= QUERY_ATTR_IDN_WB_FLUSH_STATUS) &&
-		(idn <= QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE));
+	return idn >= QUERY_ATTR_IDN_WB_FLUSH_STATUS &&
+		idn <= QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE;
 }
 
 #define UFS_ATTRIBUTE(_name, _uname)					\
