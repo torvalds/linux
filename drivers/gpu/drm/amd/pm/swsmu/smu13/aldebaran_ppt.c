@@ -1129,12 +1129,17 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 					   enum amd_dpm_forced_level level)
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
+	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct smu_13_0_dpm_table *gfx_table =
+		&dpm_context->dpm_tables.gfx_table;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 
 	/* Disable determinism if switching to another mode */
-	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
-			&& (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
+	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) &&
+	    (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)) {
 		smu_cmn_send_smc_msg(smu, SMU_MSG_DisableDeterminism, NULL);
-
+		pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
+	}
 
 	switch (level) {
 
