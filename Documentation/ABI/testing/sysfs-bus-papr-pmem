@@ -39,9 +39,11 @@ KernelVersion:	v5.9
 Contact:	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-nvdimm@lists.01.org,
 Description:
 		(RO) Report various performance stats related to papr-scm NVDIMM
-		device.  Each stat is reported on a new line with each line
-		composed of a stat-identifier followed by it value. Below are
-		currently known dimm performance stats which are reported:
+		device. This attribute is only available for NVDIMM devices
+		that support reporting NVDIMM performance stats. Each stat is
+		reported on a new line with each line composed of a
+		stat-identifier followed by it value. Below are currently known
+		dimm performance stats which are reported:
 
 		* "CtlResCt" : Controller Reset Count
 		* "CtlResTm" : Controller Reset Elapsed Time
