@@ -3858,8 +3858,6 @@ static void beiscsi_free_mem(struct beiscsi_hba *phba)
 	int i, j;
 
 	mem_descr = phba->init_mem;
-	i = 0;
-	j = 0;
 	for (i = 0; i < SE_MEM_MAX; i++) {
 		for (j = mem_descr->num_elements; j > 0; j--) {
 			dma_free_coherent(&phba->pcidev->dev,
