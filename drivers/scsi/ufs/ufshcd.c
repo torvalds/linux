@@ -8772,8 +8772,8 @@ static int __ufshcd_wl_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	enum uic_link_state req_link_state;
 
 	hba->pm_op_in_progress = true;
-	if (!ufshcd_is_shutdown_pm(pm_op)) {
-		pm_lvl = ufshcd_is_runtime_pm(pm_op) ?
+	if (pm_op != UFS_SHUTDOWN_PM) {
+		pm_lvl = pm_op == UFS_RUNTIME_PM ?
 			 hba->rpm_lvl : hba->spm_lvl;
 		req_dev_pwr_mode = ufs_get_pm_lvl_to_dev_pwr_mode(pm_lvl);
 		req_link_state = ufs_get_pm_lvl_to_link_pwr_state(pm_lvl);
@@ -8807,7 +8807,7 @@ static int __ufshcd_wl_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		goto enable_scaling;
 	}
 
-	if (ufshcd_is_runtime_pm(pm_op)) {
+	if (pm_op == UFS_RUNTIME_PM) {
 		if (ufshcd_can_autobkops_during_suspend(hba)) {
 			/*
 			 * The device is idle with no requests in the queue,
@@ -8837,7 +8837,7 @@ static int __ufshcd_wl_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	flush_work(&hba->eeh_work);
 
 	if (req_dev_pwr_mode != hba->curr_dev_pwr_mode) {
-		if (!ufshcd_is_runtime_pm(pm_op))
+		if (pm_op != UFS_RUNTIME_PM)
 			/* ensure that bkops is disabled */
 			ufshcd_disable_auto_bkops(hba);
 
