@@ -838,10 +838,10 @@ static struct attribute *i8k_attrs[] = {
 static umode_t i8k_is_visible(struct kobject *kobj, struct attribute *attr,
 			      int index)
 {
-	if (disallow_fan_support && index >= 8)
+	if (disallow_fan_support && index >= 20)
 		return 0;
 	if (disallow_fan_type_call &&
-	    (index == 9 || index == 12 || index == 15))
+	    (index == 21 || index == 25 || index == 28))
 		return 0;
 	if (index >= 0 && index <= 1 &&
 	    !(i8k_hwmon_flags & I8K_HWMON_HAVE_TEMP1))
