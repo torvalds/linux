@@ -31,7 +31,7 @@ BEGIN {
 END {
 	printf("#define ARM64_NCAPS\t\t\t\t%d\n", cap_num)
 	print ""
-	print "#endif"
+	print "#endif /* __ASM_CPUCAPS_H */"
 }
 
 # Any lines not handled by previous rules are unexpected
