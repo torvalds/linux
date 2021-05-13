@@ -5752,8 +5752,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 						  0,
 						  link_bandwidth_kbps,
 						  &stream->timing,
-						  &stream->timing.dsc_cfg))
+						  &stream->timing.dsc_cfg)) {
 				stream->timing.flags.DSC = 1;
+				DRM_DEBUG_DRIVER("%s: [%s] DSC is selected from SST RX\n", __func__, drm_connector->name);
+			}
 			/* Overwrite the stream flag if DSC is enabled through debugfs */
 			if (aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE)
 				stream->timing.flags.DSC = 1;
