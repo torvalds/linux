@@ -232,15 +232,14 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 	struct pci_dev    *pdev   = adapter->pdev;
 	int err;
 	unsigned long flags;
-	u16 speed, duplex, phy_data;
+	u16 speed, duplex;
+	bool link;
 
 	spin_lock_irqsave(&adapter->mdio_lock, flags);
-	/* MII_BMSR must read twise */
-	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+	link = atl1c_get_link_status(hw);
 	spin_unlock_irqrestore(&adapter->mdio_lock, flags);
 
-	if ((phy_data & BMSR_LSTATUS) == 0) {
+	if (!link) {
 		/* link down */
 		netif_carrier_off(netdev);
 		hw->hibernate = true;
@@ -284,16 +283,13 @@ static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev    *pdev   = adapter->pdev;
-	u16 phy_data;
-	u16 link_up;
+	bool link;
 
 	spin_lock(&adapter->mdio_lock);
-	atl1c_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
-	atl1c_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
+	link = atl1c_get_link_status(&adapter->hw);
 	spin_unlock(&adapter->mdio_lock);
-	link_up = phy_data & BMSR_LSTATUS;
 	/* notify upper layer link down ASAP */
-	if (!link_up) {
+	if (!link) {
 		if (netif_carrier_ok(netdev)) {
 			/* old link state: Up */
 			netif_carrier_off(netdev);
@@ -478,6 +474,9 @@ static void atl1c_set_rxbufsize(struct atl1c_adapter *adapter,
 static netdev_features_t atl1c_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
+	struct atl1c_adapter *adapter = netdev_priv(netdev);
+	struct atl1c_hw *hw = &adapter->hw;
+
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
@@ -487,8 +486,10 @@ static netdev_features_t atl1c_fix_features(struct net_device *netdev,
 	else
 		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
-	if (netdev->mtu > MAX_TSO_FRAME_SIZE)
-		features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+	if (hw->nic_type != athr_mt) {
+		if (netdev->mtu > MAX_TSO_FRAME_SIZE)
+			features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+	}
 
 	return features;
 }
@@ -515,9 +516,12 @@ static void atl1c_set_max_mtu(struct net_device *netdev)
 	case athr_l1d:
 	case athr_l1d_2:
 		netdev->max_mtu = MAX_JUMBO_FRAME_SIZE -
-				  (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
+			(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 		break;
-	/* The 10/100 devices don't support jumbo packets, max_mtu 1500 */
+	case athr_mt:
+		netdev->max_mtu = 9500;
+		break;
+		/* The 10/100 devices don't support jumbo packets, max_mtu 1500 */
 	default:
 		netdev->max_mtu = ETH_DATA_LEN;
 		break;
@@ -644,6 +648,7 @@ static int atl1c_alloc_queues(struct atl1c_adapter *adapter)
 
 static void atl1c_set_mac_type(struct atl1c_hw *hw)
 {
+	u32 magic;
 	switch (hw->device_id) {
 	case PCI_DEVICE_ID_ATTANSIC_L2C:
 		hw->nic_type = athr_l2c;
@@ -662,6 +667,9 @@ static void atl1c_set_mac_type(struct atl1c_hw *hw)
 		break;
 	case PCI_DEVICE_ID_ATHEROS_L1D_2_0:
 		hw->nic_type = athr_l1d_2;
+		AT_READ_REG(hw, REG_MT_MAGIC, &magic);
+		if (magic == MT_MAGIC)
+			hw->nic_type = athr_mt;
 		break;
 	default:
 		break;
@@ -1659,6 +1667,11 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 		  struct sk_buff *skb, struct atl1c_recv_ret_status *prrs)
 {
+	if (adapter->hw.nic_type == athr_mt) {
+		if (prrs->word3 & RRS_MT_PROT_ID_TCPUDP)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		return;
+	}
 	/*
 	 * The pid field in RRS in not correct sometimes, so we
 	 * cannot figure out if the packet is fragmented or not,
@@ -2207,8 +2220,8 @@ err_dma:
 	return -1;
 }
 
-static void atl1c_tx_queue(struct atl1c_adapter *adapter, struct sk_buff *skb,
-			   struct atl1c_tpd_desc *tpd, enum atl1c_trans_queue type)
+static void atl1c_tx_queue(struct atl1c_adapter *adapter,
+			   enum atl1c_trans_queue type)
 {
 	struct atl1c_tpd_ring *tpd_ring = &adapter->tpd_ring[type];
 	u16 reg;
@@ -2234,6 +2247,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 
 	if (atl1c_tpd_avail(adapter, type) < tpd_req) {
 		/* no enough descriptor, just stop queue */
+		atl1c_tx_queue(adapter, type);
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -2242,6 +2256,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 
 	/* do TSO and check sum */
 	if (atl1c_tso_csum(adapter, skb, &tpd, type) != 0) {
+		atl1c_tx_queue(adapter, type);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -2266,8 +2281,10 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 		atl1c_tx_rollback(adapter, tpd, type);
 		dev_kfree_skb_any(skb);
 	} else {
-		netdev_sent_queue(adapter->netdev, skb->len);
-		atl1c_tx_queue(adapter, skb, tpd, type);
+		bool more = netdev_xmit_more();
+
+		if (__netdev_sent_queue(adapter->netdev, skb->len, more))
+			atl1c_tx_queue(adapter, type);
 	}
 
 	return NETDEV_TX_OK;
