@@ -259,9 +259,9 @@ diagnostic purposes.  The code might look as follows:
 		return ret;
 	}
 
-	int read_foo_diagnostic(void)
+	void read_foo_diagnostic(void)
 	{
-		return data_race(foo);
+		pr_info("Current value of foo: %d\n", data_race(foo));
 	}
 
 The reader-writer lock prevents the compiler from introducing concurrency
