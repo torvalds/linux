@@ -635,6 +635,7 @@ static const struct of_device_id occ_match[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, occ_match);
 
 static struct platform_driver occ_driver = {
 	.driver = {
