@@ -88,6 +88,13 @@ extern const struct nft_set_type nft_set_bitmap_type;
 extern const struct nft_set_type nft_set_pipapo_type;
 extern const struct nft_set_type nft_set_pipapo_avx2_type;
 
+static inline bool
+nft_set_do_lookup(const struct net *net, const struct nft_set *set,
+		  const u32 *key, const struct nft_set_ext **ext)
+{
+	return set->ops->lookup(net, set, key, ext);
+}
+
 struct nft_expr;
 struct nft_regs;
 struct nft_pktinfo;
