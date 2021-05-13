@@ -1907,7 +1907,7 @@ static void tegra_xudc_ep_free_request(struct usb_ep *usb_ep,
 	kfree(req);
 }
 
-static struct usb_ep_ops tegra_xudc_ep_ops = {
+static const struct usb_ep_ops tegra_xudc_ep_ops = {
 	.enable = tegra_xudc_ep_enable,
 	.disable = tegra_xudc_ep_disable,
 	.alloc_request = tegra_xudc_ep_alloc_request,
@@ -1928,7 +1928,7 @@ static int tegra_xudc_ep0_disable(struct usb_ep *usb_ep)
 	return -EBUSY;
 }
 
-static struct usb_ep_ops tegra_xudc_ep0_ops = {
+static const struct usb_ep_ops tegra_xudc_ep0_ops = {
 	.enable = tegra_xudc_ep0_enable,
 	.disable = tegra_xudc_ep0_disable,
 	.alloc_request = tegra_xudc_ep_alloc_request,
@@ -2168,7 +2168,7 @@ static int tegra_xudc_set_selfpowered(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static struct usb_gadget_ops tegra_xudc_gadget_ops = {
+static const struct usb_gadget_ops tegra_xudc_gadget_ops = {
 	.get_frame = tegra_xudc_gadget_get_frame,
 	.wakeup = tegra_xudc_gadget_wakeup,
 	.pullup = tegra_xudc_gadget_pullup,
