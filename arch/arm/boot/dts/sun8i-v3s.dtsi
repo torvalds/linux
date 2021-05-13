@@ -422,6 +422,15 @@
 			clocks = <&osc24M>;
 		};
 
+		pwm: pwm@1c21400 {
+			compatible = "allwinner,sun8i-v3s-pwm",
+				     "allwinner,sun7i-a20-pwm";
+			reg = <0x01c21400 0xc>;
+			clocks = <&osc24M>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		lradc: lradc@1c22800 {
 			compatible = "allwinner,sun4i-a10-lradc-keys";
 			reg = <0x01c22800 0x400>;
