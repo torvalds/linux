@@ -84,6 +84,7 @@ struct isp1760_udc {
 	u16 ep0_length;
 
 	bool connected;
+	bool is_isp1763;
 
 	unsigned int devstatus;
 };

@@ -1151,6 +1151,10 @@ static void isp1760_udc_disconnect(struct isp1760_udc *udc)
 
 static void isp1760_udc_init_hw(struct isp1760_udc *udc)
 {
+	u32 intconf = udc->is_isp1763 ? ISP1763_DC_INTCONF : ISP176x_DC_INTCONF;
+	u32 intena = udc->is_isp1763 ? ISP1763_DC_INTENABLE :
+						ISP176x_DC_INTENABLE;
+
 	/*
 	 * The device controller currently shares its interrupt with the host
 	 * controller, the DC_IRQ polarity and signaling mode are ignored. Set
@@ -1160,11 +1164,11 @@ static void isp1760_udc_init_hw(struct isp1760_udc *udc)
 	 * ACK tokens only (and NYET for the out pipe). The default
 	 * configuration also generates an interrupt on the first NACK token.
 	 */
-	isp1760_reg_write(udc->regs, ISP176x_DC_INTCONF,
+	isp1760_reg_write(udc->regs, intconf,
 			  ISP176x_DC_CDBGMOD_ACK | ISP176x_DC_DDBGMODIN_ACK |
 			  ISP176x_DC_DDBGMODOUT_ACK);
 
-	isp1760_reg_write(udc->regs, ISP176x_DC_INTENABLE, DC_IEPRXTX(7) |
+	isp1760_reg_write(udc->regs, intena, DC_IEPRXTX(7) |
 			  DC_IEPRXTX(6) | DC_IEPRXTX(5) | DC_IEPRXTX(4) |
 			  DC_IEPRXTX(3) | DC_IEPRXTX(2) | DC_IEPRXTX(1) |
 			  DC_IEPRXTX(0) | ISP176x_DC_IEP0SETUP |
@@ -1304,13 +1308,14 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 static int isp1760_udc_stop(struct usb_gadget *gadget)
 {
 	struct isp1760_udc *udc = gadget_to_udc(gadget);
+	u32 mode_reg = udc->is_isp1763 ? ISP1763_DC_MODE : ISP176x_DC_MODE;
 	unsigned long flags;
 
 	dev_dbg(udc->isp->dev, "%s\n", __func__);
 
 	del_timer_sync(&udc->vbus_timer);
 
-	isp1760_reg_write(udc->regs, ISP176x_DC_MODE, 0);
+	isp1760_reg_write(udc->regs, mode_reg, 0);
 
 	spin_lock_irqsave(&udc->lock, flags);
 	udc->driver = NULL;
@@ -1332,15 +1337,30 @@ static const struct usb_gadget_ops isp1760_udc_ops = {
  * Interrupt Handling
  */
 
+static u32 isp1760_udc_irq_get_status(struct isp1760_udc *udc)
+{
+	u32 status;
+
+	if (udc->is_isp1763) {
+		status = isp1760_reg_read(udc->regs, ISP1763_DC_INTERRUPT)
+			& isp1760_reg_read(udc->regs, ISP1763_DC_INTENABLE);
+		isp1760_reg_write(udc->regs, ISP1763_DC_INTERRUPT, status);
+	} else {
+		status = isp1760_reg_read(udc->regs, ISP176x_DC_INTERRUPT)
+			& isp1760_reg_read(udc->regs, ISP176x_DC_INTENABLE);
+		isp1760_reg_write(udc->regs, ISP176x_DC_INTERRUPT, status);
+	}
+
+	return status;
+}
+
 static irqreturn_t isp1760_udc_irq(int irq, void *dev)
 {
 	struct isp1760_udc *udc = dev;
 	unsigned int i;
 	u32 status;
 
-	status = isp1760_reg_read(udc->regs, ISP176x_DC_INTERRUPT)
-	       & isp1760_reg_read(udc->regs, ISP176x_DC_INTENABLE);
-	isp1760_reg_write(udc->regs, ISP176x_DC_INTERRUPT, status);
+	status = isp1760_udc_irq_get_status(udc);
 
 	if (status & DC_IEVBUS) {
 		dev_dbg(udc->isp->dev, "%s(VBUS)\n", __func__);
@@ -1475,6 +1495,7 @@ static void isp1760_udc_init_eps(struct isp1760_udc *udc)
 
 static int isp1760_udc_init(struct isp1760_udc *udc)
 {
+	u32 mode_reg = udc->is_isp1763 ? ISP1763_DC_MODE : ISP176x_DC_MODE;
 	u16 scratch;
 	u32 chipid;
 
@@ -1484,9 +1505,10 @@ static int isp1760_udc_init(struct isp1760_udc *udc)
 	 * register, and reading the scratch register value back. The chip ID
 	 * and scratch register contents must match the expected values.
 	 */
-	isp1760_reg_write(udc->regs, ISP176x_DC_SCRATCH, 0xbabe);
-	chipid = isp1760_reg_read(udc->regs, ISP176x_DC_CHIPID);
-	scratch = isp1760_reg_read(udc->regs, ISP176x_DC_SCRATCH);
+	isp1760_udc_write(udc, DC_SCRATCH, 0xbabe);
+	chipid = isp1760_udc_read(udc, DC_CHIP_ID_HIGH) << 16;
+	chipid |= isp1760_udc_read(udc, DC_CHIP_ID_LOW);
+	scratch = isp1760_udc_read(udc, DC_SCRATCH);
 
 	if (scratch != 0xbabe) {
 		dev_err(udc->isp->dev,
@@ -1495,7 +1517,8 @@ static int isp1760_udc_init(struct isp1760_udc *udc)
 		return -ENODEV;
 	}
 
-	if (chipid != 0x00011582 && chipid != 0x00158210) {
+	if (chipid != 0x00011582 && chipid != 0x00158210 &&
+	    chipid != 0x00176320) {
 		dev_err(udc->isp->dev, "udc: invalid chip ID 0x%08x\n", chipid);
 		return -ENODEV;
 	}
@@ -1503,7 +1526,7 @@ static int isp1760_udc_init(struct isp1760_udc *udc)
 	/* Reset the device controller. */
 	isp1760_udc_set(udc, DC_SFRESET);
 	usleep_range(10000, 11000);
-	isp1760_reg_write(udc->regs, ISP176x_DC_MODE, 0);
+	isp1760_reg_write(udc->regs, mode_reg, 0);
 	usleep_range(10000, 11000);
 
 	return 0;

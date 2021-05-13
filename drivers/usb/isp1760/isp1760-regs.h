@@ -243,8 +243,50 @@ enum isp176x_device_controller_fields {
 	DC_EPENABLE, DC_ENDPTYP,
 	/* DC_FRAMENUM */
 	DC_FRAMENUM, DC_UFRAMENUM,
+	/* DC_CHIP_ID */
+	DC_CHIP_ID_HIGH, DC_CHIP_ID_LOW,
+	/* DC_SCRATCH */
+	DC_SCRATCH,
 	/* Last element */
 	DC_FIELD_MAX,
 };
+
+/* ISP1763 */
+/* Initialization Registers */
+#define ISP1763_DC_ADDRESS		0x00
+#define ISP1763_DC_MODE			0x0c
+#define ISP1763_DC_INTCONF		0x10
+#define ISP1763_DC_INTENABLE		0x14
+
+/* Data Flow Registers */
+#define ISP1763_DC_EPMAXPKTSZ		0x04
+#define ISP1763_DC_EPTYPE		0x08
+
+#define ISP1763_DC_BUFLEN		0x1c
+#define ISP1763_DC_BUFSTAT		0x1e
+#define ISP1763_DC_DATAPORT		0x20
+
+#define ISP1763_DC_CTRLFUNC		0x28
+#define ISP1763_DC_EPINDEX		0x2c
+
+/* DMA Registers */
+#define ISP1763_DC_DMACMD		0x30
+#define ISP1763_DC_DMATXCOUNT		0x34
+#define ISP1763_DC_DMACONF		0x38
+#define ISP1763_DC_DMAHW		0x3c
+#define ISP1763_DC_DMAINTREASON		0x50
+#define ISP1763_DC_DMAINTEN		0x54
+#define ISP1763_DC_DMAEP		0x58
+#define ISP1763_DC_DMABURSTCOUNT	0x64
+
+/* General Registers */
+#define ISP1763_DC_INTERRUPT		0x18
+#define ISP1763_DC_CHIPID_LOW		0x70
+#define ISP1763_DC_CHIPID_HIGH		0x72
+#define ISP1763_DC_FRAMENUM		0x74
+#define ISP1763_DC_SCRATCH		0x78
+#define ISP1763_DC_UNLOCKDEV		0x7c
+#define ISP1763_DC_INTPULSEWIDTH	0x80
+#define ISP1763_DC_TESTMODE		0x84
 
 #endif

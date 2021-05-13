@@ -83,7 +83,8 @@ static int isp1760_init_core(struct isp1760_device *isp)
 	 *
 	 * TODO: Really support OTG. For now we configure port 1 in device mode
 	 */
-	if ((isp->devflags & ISP1760_FLAG_ISP1761) &&
+	if (((isp->devflags & ISP1760_FLAG_ISP1761) ||
+	     (isp->devflags & ISP1760_FLAG_ISP1763)) &&
 	    (isp->devflags & ISP1760_FLAG_PERIPHERAL_EN)) {
 		isp1760_field_set(hcd->fields, HW_DM_PULLDOWN);
 		isp1760_field_set(hcd->fields, HW_DP_PULLDOWN);
@@ -470,13 +471,15 @@ static const struct regmap_config isp1763_dc_regmap_conf = {
 int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		     struct device *dev, unsigned int devflags)
 {
-	bool udc_disabled = !(devflags & ISP1760_FLAG_ISP1761);
 	const struct regmap_config *hc_regmap;
 	const struct reg_field *hc_reg_fields;
+	const struct regmap_config *dc_regmap;
+	const struct reg_field *dc_reg_fields;
 	struct isp1760_device *isp;
 	struct isp1760_hcd *hcd;
 	struct isp1760_udc *udc;
 	struct regmap_field *f;
+	bool udc_enabled;
 	int ret;
 	int i;
 
@@ -484,8 +487,11 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	 * If neither the HCD not the UDC is enabled return an error, as no
 	 * device would be registered.
 	 */
+	udc_enabled = ((devflags & ISP1760_FLAG_ISP1763) ||
+		       (devflags & ISP1760_FLAG_ISP1761));
+
 	if ((!IS_ENABLED(CONFIG_USB_ISP1760_HCD) || usb_disabled()) &&
-	    (!IS_ENABLED(CONFIG_USB_ISP1761_UDC) || udc_disabled))
+	    (!IS_ENABLED(CONFIG_USB_ISP1761_UDC) || !udc_enabled))
 		return -ENODEV;
 
 	isp = devm_kzalloc(dev, sizeof(*isp), GFP_KERNEL);
@@ -498,6 +504,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	udc = &isp->udc;
 
 	hcd->is_isp1763 = !!(devflags & ISP1760_FLAG_ISP1763);
+	udc->is_isp1763 = !!(devflags & ISP1760_FLAG_ISP1763);
 
 	if (!hcd->is_isp1763 && (devflags & ISP1760_FLAG_BUS_WIDTH_8)) {
 		dev_err(dev, "isp1760/61 do not support data width 8\n");
@@ -507,9 +514,13 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	if (hcd->is_isp1763) {
 		hc_regmap = &isp1763_hc_regmap_conf;
 		hc_reg_fields = &isp1763_hc_reg_fields[0];
+		dc_regmap = &isp1763_dc_regmap_conf;
+		dc_reg_fields = &isp1763_dc_reg_fields[0];
 	} else {
 		hc_regmap = &isp1760_hc_regmap_conf;
 		hc_reg_fields = &isp1760_hc_reg_fields[0];
+		dc_regmap = &isp1761_dc_regmap_conf;
+		dc_reg_fields = &isp1761_dc_reg_fields[0];
 	}
 
 	isp->rst_gpio = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
@@ -532,14 +543,12 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		hcd->fields[i] = f;
 	}
 
-	udc->regs = devm_regmap_init_mmio(dev, hcd->base,
-					  &isp1761_dc_regmap_conf);
+	udc->regs = devm_regmap_init_mmio(dev, hcd->base, dc_regmap);
 	if (IS_ERR(udc->regs))
 		return PTR_ERR(udc->regs);
 
 	for (i = 0; i < DC_FIELD_MAX; i++) {
-		f = devm_regmap_field_alloc(dev, udc->regs,
-					    isp1761_dc_reg_fields[i]);
+		f = devm_regmap_field_alloc(dev, udc->regs, dc_reg_fields[i]);
 		if (IS_ERR(f))
 			return PTR_ERR(f);
 
@@ -562,7 +571,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 			return ret;
 	}
 
-	if (IS_ENABLED(CONFIG_USB_ISP1761_UDC) && !udc_disabled) {
+	if (IS_ENABLED(CONFIG_USB_ISP1761_UDC) && udc_enabled) {
 		ret = isp1760_udc_register(isp, irq, irqflags);
 		if (ret < 0) {
 			isp1760_hcd_unregister(hcd);
