@@ -66,44 +66,46 @@ struct ptd {
 #define ATL_PTD_OFFSET		0x0c00
 #define PAYLOAD_OFFSET		0x1000
 
+#define TO_DW(x)	((__force __dw)x)
+#define TO_U32(x)	((__force u32)x)
 
-/* ATL */
-/* DW0 */
-#define DW0_VALID_BIT			1
-#define FROM_DW0_VALID(x)		((x) & 0x01)
-#define TO_DW0_LENGTH(x)		(((u32) x) << 3)
-#define TO_DW0_MAXPACKET(x)		(((u32) x) << 18)
-#define TO_DW0_MULTI(x)			(((u32) x) << 29)
-#define TO_DW0_ENDPOINT(x)		(((u32)	x) << 31)
+ /* ATL */
+ /* DW0 */
+#define DW0_VALID_BIT			TO_DW(1)
+#define FROM_DW0_VALID(x)		(TO_U32(x) & 0x01)
+#define TO_DW0_LENGTH(x)		TO_DW((((u32)x) << 3))
+#define TO_DW0_MAXPACKET(x)		TO_DW((((u32)x) << 18))
+#define TO_DW0_MULTI(x)			TO_DW((((u32)x) << 29))
+#define TO_DW0_ENDPOINT(x)		TO_DW((((u32)x) << 31))
 /* DW1 */
-#define TO_DW1_DEVICE_ADDR(x)		(((u32) x) << 3)
-#define TO_DW1_PID_TOKEN(x)		(((u32) x) << 10)
-#define DW1_TRANS_BULK			((u32) 2 << 12)
-#define DW1_TRANS_INT			((u32) 3 << 12)
-#define DW1_TRANS_SPLIT			((u32) 1 << 14)
-#define DW1_SE_USB_LOSPEED		((u32) 2 << 16)
-#define TO_DW1_PORT_NUM(x)		(((u32) x) << 18)
-#define TO_DW1_HUB_NUM(x)		(((u32) x) << 25)
+#define TO_DW1_DEVICE_ADDR(x)		TO_DW((((u32)x) << 3))
+#define TO_DW1_PID_TOKEN(x)		TO_DW((((u32)x) << 10))
+#define DW1_TRANS_BULK			TO_DW(((u32)2 << 12))
+#define DW1_TRANS_INT			TO_DW(((u32)3 << 12))
+#define DW1_TRANS_SPLIT			TO_DW(((u32)1 << 14))
+#define DW1_SE_USB_LOSPEED		TO_DW(((u32)2 << 16))
+#define TO_DW1_PORT_NUM(x)		TO_DW((((u32)x) << 18))
+#define TO_DW1_HUB_NUM(x)		TO_DW((((u32)x) << 25))
 /* DW2 */
-#define TO_DW2_DATA_START_ADDR(x)	(((u32) x) << 8)
-#define TO_DW2_RL(x)			((x) << 25)
-#define FROM_DW2_RL(x)			(((x) >> 25) & 0xf)
+#define TO_DW2_DATA_START_ADDR(x)	TO_DW((((u32)x) << 8))
+#define TO_DW2_RL(x)			TO_DW(((x) << 25))
+#define FROM_DW2_RL(x)			((TO_U32(x) >> 25) & 0xf)
 /* DW3 */
-#define FROM_DW3_NRBYTESTRANSFERRED(x)		((x) & 0x7fff)
-#define FROM_DW3_SCS_NRBYTESTRANSFERRED(x)	((x) & 0x07ff)
-#define TO_DW3_NAKCOUNT(x)		((x) << 19)
-#define FROM_DW3_NAKCOUNT(x)		(((x) >> 19) & 0xf)
-#define TO_DW3_CERR(x)			((x) << 23)
-#define FROM_DW3_CERR(x)		(((x) >> 23) & 0x3)
-#define TO_DW3_DATA_TOGGLE(x)		((x) << 25)
-#define FROM_DW3_DATA_TOGGLE(x)		(((x) >> 25) & 0x1)
-#define TO_DW3_PING(x)			((x) << 26)
-#define FROM_DW3_PING(x)		(((x) >> 26) & 0x1)
-#define DW3_ERROR_BIT			(1 << 28)
-#define DW3_BABBLE_BIT			(1 << 29)
-#define DW3_HALT_BIT			(1 << 30)
-#define DW3_ACTIVE_BIT			(1 << 31)
-#define FROM_DW3_ACTIVE(x)		(((x) >> 31) & 0x01)
+#define FROM_DW3_NRBYTESTRANSFERRED(x)		TO_U32((x) & 0x7fff)
+#define FROM_DW3_SCS_NRBYTESTRANSFERRED(x)	TO_U32((x) & 0x07ff)
+#define TO_DW3_NAKCOUNT(x)		TO_DW(((x) << 19))
+#define FROM_DW3_NAKCOUNT(x)		((TO_U32(x) >> 19) & 0xf)
+#define TO_DW3_CERR(x)			TO_DW(((x) << 23))
+#define FROM_DW3_CERR(x)		((TO_U32(x) >> 23) & 0x3)
+#define TO_DW3_DATA_TOGGLE(x)		TO_DW(((x) << 25))
+#define FROM_DW3_DATA_TOGGLE(x)		((TO_U32(x) >> 25) & 0x1)
+#define TO_DW3_PING(x)			TO_DW(((x) << 26))
+#define FROM_DW3_PING(x)		((TO_U32(x) >> 26) & 0x1)
+#define DW3_ERROR_BIT			TO_DW((1 << 28))
+#define DW3_BABBLE_BIT			TO_DW((1 << 29))
+#define DW3_HALT_BIT			TO_DW((1 << 30))
+#define DW3_ACTIVE_BIT			TO_DW((1 << 31))
+#define FROM_DW3_ACTIVE(x)		((TO_U32(x) >> 31) & 0x01)
 
 #define INT_UNDERRUN			(1 << 2)
 #define INT_BABBLE			(1 << 1)
@@ -292,12 +294,12 @@ static void ptd_write(void __iomem *base, u32 ptd_offset, u32 slot,
 								struct ptd *ptd)
 {
 	mem_writes8(base, ptd_offset + slot*sizeof(*ptd) + sizeof(ptd->dw0),
-						&ptd->dw1, 7*sizeof(ptd->dw1));
+		    (__force u32 *)&ptd->dw1, 7 * sizeof(ptd->dw1));
 	/* Make sure dw0 gets written last (after other dw's and after payload)
 	   since it contains the enable bit */
 	wmb();
-	mem_writes8(base, ptd_offset + slot*sizeof(*ptd), &ptd->dw0,
-							sizeof(ptd->dw0));
+	mem_writes8(base, ptd_offset + slot * sizeof(*ptd),
+		    (__force u32 *)&ptd->dw0, sizeof(ptd->dw0));
 }
 
 
@@ -553,7 +555,7 @@ static void create_ptd_atl(struct isp1760_qh *qh,
 	ptd->dw0 |= TO_DW0_ENDPOINT(usb_pipeendpoint(qtd->urb->pipe));
 
 	/* DW1 */
-	ptd->dw1 = usb_pipeendpoint(qtd->urb->pipe) >> 1;
+	ptd->dw1 = TO_DW((usb_pipeendpoint(qtd->urb->pipe) >> 1));
 	ptd->dw1 |= TO_DW1_DEVICE_ADDR(usb_pipedevice(qtd->urb->pipe));
 	ptd->dw1 |= TO_DW1_PID_TOKEN(qtd->packet_type);
 
@@ -575,7 +577,7 @@ static void create_ptd_atl(struct isp1760_qh *qh,
 		/* SE bit for Split INT transfers */
 		if (usb_pipeint(qtd->urb->pipe) &&
 				(qtd->urb->dev->speed == USB_SPEED_LOW))
-			ptd->dw1 |= 2 << 16;
+			ptd->dw1 |= DW1_SE_USB_LOSPEED;
 
 		rl = 0;
 		nak = 0;
@@ -647,14 +649,14 @@ static void transform_add_int(struct isp1760_qh *qh,
 		 * that number come from? 0xff seems to work fine...
 		 */
 		/* ptd->dw5 = 0x1c; */
-		ptd->dw5 = 0xff; /* Execute Complete Split on any uFrame */
+		ptd->dw5 = TO_DW(0xff); /* Execute Complete Split on any uFrame */
 	}
 
 	period = period >> 1;/* Ensure equal or shorter period than requested */
 	period &= 0xf8; /* Mask off too large values and lowest unused 3 bits */
 
-	ptd->dw2 |= period;
-	ptd->dw4 = usof;
+	ptd->dw2 |= TO_DW(period);
+	ptd->dw4 = TO_DW(usof);
 }
 
 static void create_ptd_int(struct isp1760_qh *qh,
@@ -977,10 +979,10 @@ static void schedule_ptds(struct usb_hcd *hcd)
 static int check_int_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 								struct urb *urb)
 {
-	__dw dw4;
+	u32 dw4;
 	int i;
 
-	dw4 = ptd->dw4;
+	dw4 = TO_U32(ptd->dw4);
 	dw4 >>= 8;
 
 	/* FIXME: ISP1761 datasheet does not say what to do with these. Do we
