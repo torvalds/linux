@@ -198,7 +198,7 @@ static inline void s3c2410_udc_set_ep0_de(void __iomem *base)
 	udc_writeb(base, S3C2410_UDC_EP0_CSR_DE, S3C2410_UDC_EP0_CSR_REG);
 }
 
-inline void s3c2410_udc_set_ep0_ss(void __iomem *b)
+static inline void s3c2410_udc_set_ep0_ss(void __iomem *b)
 {
 	udc_writeb(b, S3C2410_UDC_INDEX_EP0, S3C2410_UDC_INDEX_REG);
 	udc_writeb(b, S3C2410_UDC_EP0_CSR_SENDSTL, S3C2410_UDC_EP0_CSR_REG);
