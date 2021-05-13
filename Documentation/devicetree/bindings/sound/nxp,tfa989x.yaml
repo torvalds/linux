@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nxp,tfa989x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP/Goodix TFA989X (TFA1) Audio Amplifiers
+
+maintainers:
+  - Stephan Gerhold <stephan@gerhold.net>
+
+properties:
+  compatible:
+    enum:
+      - nxp,tfa9895
+
+  reg:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  sound-name-prefix:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Used as prefix for sink/source names of the component. Must be a
+      unique string among multiple instances of the same component.
+
+required:
+  - compatible
+  - reg
+  - '#sound-dai-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      audio-codec@34 {
+        compatible = "nxp,tfa9895";
+        reg = <0x34>;
+        sound-name-prefix = "Speaker Left";
+        #sound-dai-cells = <0>;
+      };
+      audio-codec@36 {
+        compatible = "nxp,tfa9895";
+        reg = <0x36>;
+        sound-name-prefix = "Speaker Right";
+        #sound-dai-cells = <0>;
+      };
+    };
