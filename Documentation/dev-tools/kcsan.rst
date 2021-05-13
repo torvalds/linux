@@ -89,8 +89,7 @@ the below options are available:
 * KCSAN understands the ``data_race(expr)`` annotation, which tells KCSAN that
   any data races due to accesses in ``expr`` should be ignored and resulting
   behaviour when encountering a data race is deemed safe.  Please see
-  ``tools/memory-model/Documentation/access-marking.txt`` in the kernel source
-  tree for more information.
+  `"Marking Shared-Memory Accesses" in the LKMM`_ for more information.
 
 * Disabling data race detection for entire functions can be accomplished by
   using the function attribute ``__no_kcsan``::
@@ -111,6 +110,8 @@ the below options are available:
   ``Makefile``, add to the respective ``Makefile``::
 
     KCSAN_SANITIZE := n
+
+.. _"Marking Shared-Memory Accesses" in the LKMM: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/memory-model/Documentation/access-marking.txt
 
 Furthermore, it is possible to tell KCSAN to show or hide entire classes of
 data races, depending on preferences. These can be changed via the following
