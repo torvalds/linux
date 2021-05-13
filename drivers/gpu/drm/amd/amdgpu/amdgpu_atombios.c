@@ -1828,6 +1828,9 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 	if (adev->is_atom_fw) {
 		amdgpu_atomfirmware_scratch_regs_init(adev);
 		amdgpu_atomfirmware_allocate_fb_scratch(adev);
+		/* cached firmware_flags for further usage */
+		adev->mode_info.firmware_flags =
+			amdgpu_atomfirmware_query_firmware_capability(adev);
 	} else {
 		amdgpu_atombios_scratch_regs_init(adev);
 		amdgpu_atombios_allocate_fb_scratch(adev);

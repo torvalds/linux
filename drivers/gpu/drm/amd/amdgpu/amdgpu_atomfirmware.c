@@ -29,6 +29,45 @@
 #include "atombios.h"
 #include "soc15_hw_ip.h"
 
+union firmware_info {
+	struct atom_firmware_info_v3_1 v31;
+	struct atom_firmware_info_v3_2 v32;
+	struct atom_firmware_info_v3_3 v33;
+	struct atom_firmware_info_v3_4 v34;
+};
+
+/*
+ * Helper function to query firmware capability
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Return firmware_capability in firmwareinfo table on success or 0 if not
+ */
+uint32_t amdgpu_atomfirmware_query_firmware_capability(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index;
+	u16 data_offset, size;
+	union firmware_info *firmware_info;
+	u8 frev, crev;
+	u32 fw_cap = 0;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+			firmwareinfo);
+
+	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context,
+				index, &size, &frev, &crev, &data_offset)) {
+		/* support firmware_info 3.1 + */
+		if ((frev == 3 && crev >=1) || (frev > 3)) {
+			firmware_info = (union firmware_info *)
+				(mode_info->atom_context->bios + data_offset);
+			fw_cap = le32_to_cpu(firmware_info->v31.firmware_capability);
+		}
+	}
+
+	return fw_cap;
+}
+
 bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev)
 {
 	int index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
@@ -400,13 +439,6 @@ bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
 	return ecc_default_enabled;
 }
 
-union firmware_info {
-	struct atom_firmware_info_v3_1 v31;
-	struct atom_firmware_info_v3_2 v32;
-	struct atom_firmware_info_v3_3 v33;
-	struct atom_firmware_info_v3_4 v34;
-};
-
 /*
  * Return true if vbios supports sram ecc or false if not
  */
@@ -465,10 +497,6 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 
 		adev->pm.current_sclk = adev->clock.default_sclk;
 		adev->pm.current_mclk = adev->clock.default_mclk;
-
-		/* not technically a clock, but... */
-		adev->mode_info.firmware_flags =
-			le32_to_cpu(firmware_info->v31.firmware_capability);
 
 		ret = 0;
 	}
