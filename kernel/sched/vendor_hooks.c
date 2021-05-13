@@ -92,3 +92,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_cpus_allowed_comm);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sched_setaffinity_early);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_account_process_tick_gran);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_account_task_time);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dup_task_struct);
