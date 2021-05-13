@@ -595,67 +595,19 @@ int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 }
 
 /*
- * Check if VBIOS supports GDDR6 training data save/restore
+ * Helper function to query two stage mem training capability
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Return true if two stage mem training is supported or false if not
  */
-static bool gddr6_mem_train_vbios_support(struct amdgpu_device *adev)
+bool amdgpu_atomfirmware_mem_training_supported(struct amdgpu_device *adev)
 {
-	uint16_t data_offset;
-	int index;
+	u32 fw_cap;
 
-	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-					    firmwareinfo);
-	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context, index, NULL,
-					  NULL, NULL, &data_offset)) {
-		struct atom_firmware_info_v3_1 *firmware_info =
-			(struct atom_firmware_info_v3_1 *)(adev->mode_info.atom_context->bios +
-							   data_offset);
+	fw_cap = adev->mode_info.firmware_flags;
 
-		DRM_DEBUG("atom firmware capability:0x%08x.\n",
-			  le32_to_cpu(firmware_info->firmware_capability));
-
-		if (le32_to_cpu(firmware_info->firmware_capability) &
-		    ATOM_FIRMWARE_CAP_ENABLE_2STAGE_BIST_TRAINING)
-			return true;
-	}
-
-	return false;
-}
-
-int amdgpu_mem_train_support(struct amdgpu_device *adev)
-{
-	int ret;
-	uint32_t major, minor, revision, hw_v;
-
-	if (gddr6_mem_train_vbios_support(adev)) {
-		amdgpu_discovery_get_ip_version(adev, MP0_HWID, &major, &minor, &revision);
-		hw_v = HW_REV(major, minor, revision);
-		/*
-		 * treat 0 revision as a special case since register for MP0 and MMHUB is missing
-		 * for some Navi10 A0, preventing driver from discovering the hwip information since
-		 * none of the functions will be initialized, it should not cause any problems
-		 */
-		switch (hw_v) {
-		case HW_REV(11, 0, 0):
-		case HW_REV(11, 0, 5):
-		case HW_REV(11, 0, 7):
-		case HW_REV(11, 0, 11):
-		case HW_REV(11, 0, 12):
-			ret = 1;
-			break;
-		default:
-			DRM_ERROR("memory training vbios supports but psp hw(%08x)"
-				  " doesn't support!\n", hw_v);
-			ret = -1;
-			break;
-		}
-	} else {
-		ret = 0;
-		hw_v = -1;
-	}
-
-
-	DRM_DEBUG("mp0 hw_v %08x, ret:%d.\n", hw_v, ret);
-	return ret;
+	return (fw_cap & ATOM_FIRMWARE_CAP_ENABLE_2STAGE_BIST_TRAINING) ? true : false;
 }
 
 int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
