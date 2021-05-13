@@ -17,8 +17,10 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_OPENED_FILES,
 	CLIENT_METRIC_TYPE_PINNED_ICAPS,
 	CLIENT_METRIC_TYPE_OPENED_INODES,
+	CLIENT_METRIC_TYPE_READ_IO_SIZES,
+	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
 
-	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_OPENED_INODES,
+	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
 };
 
 /*
@@ -34,6 +36,8 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_OPENED_FILES,	\
 	CLIENT_METRIC_TYPE_PINNED_ICAPS,	\
 	CLIENT_METRIC_TYPE_OPENED_INODES,	\
+	CLIENT_METRIC_TYPE_READ_IO_SIZES,	\
+	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,	\
 						\
 	CLIENT_METRIC_TYPE_MAX,			\
 }
@@ -103,6 +107,20 @@ struct ceph_opened_inodes {
 	__le64 total;
 } __packed;
 
+/* metric read io size header */
+struct ceph_read_io_size {
+	struct ceph_metric_header header;
+	__le64 total_ops;
+	__le64 total_size;
+} __packed;
+
+/* metric write io size header */
+struct ceph_write_io_size {
+	struct ceph_metric_header header;
+	__le64 total_ops;
+	__le64 total_size;
+} __packed;
+
 struct ceph_metric_head {
 	__le32 num;	/* the number of metrics that will be sent */
 } __packed;
@@ -119,6 +137,9 @@ struct ceph_client_metric {
 
 	spinlock_t read_metric_lock;
 	u64 total_reads;
+	u64 read_size_sum;
+	u64 read_size_min;
+	u64 read_size_max;
 	ktime_t read_latency_sum;
 	ktime_t read_latency_sq_sum;
 	ktime_t read_latency_min;
@@ -126,6 +147,9 @@ struct ceph_client_metric {
 
 	spinlock_t write_metric_lock;
 	u64 total_writes;
+	u64 write_size_sum;
+	u64 write_size_min;
+	u64 write_size_max;
 	ktime_t write_latency_sum;
 	ktime_t write_latency_sq_sum;
 	ktime_t write_latency_min;
@@ -173,10 +197,10 @@ static inline void ceph_update_cap_mis(struct ceph_client_metric *m)
 
 extern void ceph_update_read_metrics(struct ceph_client_metric *m,
 				     ktime_t r_start, ktime_t r_end,
-				     int rc);
+				     unsigned int size, int rc);
 extern void ceph_update_write_metrics(struct ceph_client_metric *m,
 				      ktime_t r_start, ktime_t r_end,
-				      int rc);
+				      unsigned int size, int rc);
 extern void ceph_update_metadata_metrics(struct ceph_client_metric *m,
 				         ktime_t r_start, ktime_t r_end,
 					 int rc);

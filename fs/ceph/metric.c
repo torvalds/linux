@@ -20,6 +20,8 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_opened_files *files;
 	struct ceph_pinned_icaps *icaps;
 	struct ceph_opened_inodes *inodes;
+	struct ceph_read_io_size *rsize;
+	struct ceph_write_io_size *wsize;
 	struct ceph_client_metric *m = &mdsc->metric;
 	u64 nr_caps = atomic64_read(&m->total_caps);
 	u32 header_len = sizeof(struct ceph_metric_header);
@@ -31,7 +33,8 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	len = sizeof(*head) + sizeof(*cap) + sizeof(*read) + sizeof(*write)
 	      + sizeof(*meta) + sizeof(*dlease) + sizeof(*files)
-	      + sizeof(*icaps) + sizeof(*inodes);
+	      + sizeof(*icaps) + sizeof(*inodes) + sizeof(*rsize)
+	      + sizeof(*wsize);
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_NOFS, true);
 	if (!msg) {
@@ -132,6 +135,26 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	inodes->total = cpu_to_le64(sum);
 	items++;
 
+	/* encode the read io size metric */
+	rsize = (struct ceph_read_io_size *)(inodes + 1);
+	rsize->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_IO_SIZES);
+	rsize->header.ver = 1;
+	rsize->header.compat = 1;
+	rsize->header.data_len = cpu_to_le32(sizeof(*rsize) - header_len);
+	rsize->total_ops = cpu_to_le64(m->total_reads);
+	rsize->total_size = cpu_to_le64(m->read_size_sum);
+	items++;
+
+	/* encode the write io size metric */
+	wsize = (struct ceph_write_io_size *)(rsize + 1);
+	wsize->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_IO_SIZES);
+	wsize->header.ver = 1;
+	wsize->header.compat = 1;
+	wsize->header.data_len = cpu_to_le32(sizeof(*wsize) - header_len);
+	wsize->total_ops = cpu_to_le64(m->total_writes);
+	wsize->total_size = cpu_to_le64(m->write_size_sum);
+	items++;
+
 	put_unaligned_le32(items, &head->num);
 	msg->front.iov_len = len;
 	msg->hdr.version = cpu_to_le16(1);
@@ -226,6 +249,9 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	m->read_latency_max = 0;
 	m->total_reads = 0;
 	m->read_latency_sum = 0;
+	m->read_size_min = U64_MAX;
+	m->read_size_max = 0;
+	m->read_size_sum = 0;
 
 	spin_lock_init(&m->write_metric_lock);
 	m->write_latency_sq_sum = 0;
@@ -233,6 +259,9 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	m->write_latency_max = 0;
 	m->total_writes = 0;
 	m->write_latency_sum = 0;
+	m->write_size_min = U64_MAX;
+	m->write_size_max = 0;
+	m->write_size_sum = 0;
 
 	spin_lock_init(&m->metadata_metric_lock);
 	m->metadata_latency_sq_sum = 0;
@@ -312,7 +341,7 @@ static inline void __update_stdev(ktime_t total, ktime_t lsum,
 
 void ceph_update_read_metrics(struct ceph_client_metric *m,
 			      ktime_t r_start, ktime_t r_end,
-			      int rc)
+			      unsigned int size, int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
 	ktime_t total;
@@ -322,7 +351,11 @@ void ceph_update_read_metrics(struct ceph_client_metric *m,
 
 	spin_lock(&m->read_metric_lock);
 	total = ++m->total_reads;
+	m->read_size_sum += size;
 	m->read_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->read_size_min,
+			      m->read_size_max,
+			      size);
 	METRIC_UPDATE_MIN_MAX(m->read_latency_min,
 			      m->read_latency_max,
 			      lat);
@@ -333,7 +366,7 @@ void ceph_update_read_metrics(struct ceph_client_metric *m,
 
 void ceph_update_write_metrics(struct ceph_client_metric *m,
 			       ktime_t r_start, ktime_t r_end,
-			       int rc)
+			       unsigned int size, int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
 	ktime_t total;
@@ -343,7 +376,11 @@ void ceph_update_write_metrics(struct ceph_client_metric *m,
 
 	spin_lock(&m->write_metric_lock);
 	total = ++m->total_writes;
+	m->write_size_sum += size;
 	m->write_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->write_size_min,
+			      m->write_size_max,
+			      size);
 	METRIC_UPDATE_MIN_MAX(m->write_latency_min,
 			      m->write_latency_max,
 			      lat);
