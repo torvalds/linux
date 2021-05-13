@@ -6,6 +6,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-sm8350.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/interconnect/qcom,sm8350.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
 #include <dt-bindings/power/qcom-aoss-qmp.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
@@ -707,7 +708,7 @@
 					<&rpmhpd 12>;
 			power-domain-names = "load_state", "cx", "mss";
 
-			interconnects = <&mc_virt 0 &mc_virt 1>;
+			interconnects = <&mc_virt MASTER_LLCC &mc_virt SLAVE_EBI1>;
 
 			memory-region = <&pil_modem_mem>;
 
@@ -1114,7 +1115,7 @@
 					<&rpmhpd 10>;
 			power-domain-names = "load_state", "cx", "mxc";
 
-			interconnects = <&compute_noc 1 &mc_virt 1>;
+			interconnects = <&compute_noc MASTER_CDSP_PROC &mc_virt SLAVE_EBI1>;
 
 			memory-region = <&pil_cdsp_mem>;
 
