@@ -238,7 +238,7 @@ static struct usb_endpoint_descriptor fs_out_ep_desc  = {
 	.bEndpointAddress =	USB_DIR_OUT,
 	.bmAttributes =		USB_ENDPOINT_SYNC_ADAPTIVE
 				| USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize	=	cpu_to_le16(UAC1_OUT_EP_MAX_PACKET_SIZE),
+	/* .wMaxPacketSize = DYNAMIC */
 	.bInterval =		1,
 };
 
@@ -248,7 +248,7 @@ static struct usb_endpoint_descriptor as_out_ep_desc  = {
 	.bEndpointAddress =	USB_DIR_OUT,
 	.bmAttributes =		USB_ENDPOINT_SYNC_ADAPTIVE
 				| USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize	=	cpu_to_le16(UAC1_OUT_EP_MAX_PACKET_SIZE),
+	/* .wMaxPacketSize = DYNAMIC */
 	.bInterval =		4,
 };
 
@@ -285,7 +285,7 @@ static struct usb_endpoint_descriptor fs_in_ep_desc  = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_SYNC_ASYNC
 				| USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize	=	cpu_to_le16(UAC1_OUT_EP_MAX_PACKET_SIZE),
+	/* .wMaxPacketSize = DYNAMIC */
 	.bInterval =		1,
 };
 
@@ -295,7 +295,7 @@ static struct usb_endpoint_descriptor as_in_ep_desc  = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_SYNC_ASYNC
 				| USB_ENDPOINT_XFER_ISOC,
-	.wMaxPacketSize	=	cpu_to_le16(UAC1_OUT_EP_MAX_PACKET_SIZE),
+	/* .wMaxPacketSize = DYNAMIC */
 	.bInterval =		4,
 };
 
@@ -1381,6 +1381,60 @@ static int f_audio_validate_opts(struct g_audio *audio, struct device *dev)
 	return 0;
 }
 
+static int set_ep_max_packet_size(const struct f_uac1_opts *opts,
+				  struct usb_endpoint_descriptor *ep_desc,
+				  enum usb_device_speed speed, bool is_playback)
+{
+	int chmask, srate = 0, ssize;
+	u16 max_size_bw, max_size_ep;
+	unsigned int factor;
+	int i;
+
+	switch (speed) {
+	case USB_SPEED_FULL:
+		max_size_ep = 1023;
+		factor = 1000;
+		break;
+
+	case USB_SPEED_HIGH:
+		fallthrough;
+	case USB_SPEED_SUPER:
+		max_size_ep = 1024;
+		factor = 8000;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (is_playback) {
+		chmask = opts->p_chmask;
+		for (i = 0; i < UAC_MAX_RATES; i++) {
+			if (opts->p_srates[i] == 0)
+				break;
+			if (opts->p_srates[i] > srate)
+				srate = opts->p_srates[i];
+		}
+		ssize = opts->p_ssize;
+	} else {
+		chmask = opts->c_chmask;
+		for (i = 0; i < UAC_MAX_RATES; i++) {
+			if (opts->c_srates[i] == 0)
+				break;
+			if (opts->c_srates[i] > srate)
+				srate = opts->c_srates[i];
+		}
+		ssize = opts->c_ssize;
+	}
+
+	max_size_bw = num_channels(chmask) * ssize *
+		((srate / (factor / (1 << (ep_desc->bInterval - 1)))) + 1);
+	ep_desc->wMaxPacketSize = cpu_to_le16(min_t(u16, max_size_bw,
+						    max_size_ep));
+
+	return 0;
+}
+
 /* audio function driver setup/binding */
 static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 {
@@ -1495,6 +1549,43 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		memcpy(as_out_type_i_desc.tSamFreq[idx++],
 				&audio_opts->c_srates[i], 3);
 	}
+
+	/*
+	 * Calculate wMaxPacketSize according to audio bandwidth.
+	 * Set the max packet with USB_SPEED_HIGH by default to
+	 * be compatible with larger bandwidth requirements for
+	 * high speed mode.
+	 */
+	status = set_ep_max_packet_size(audio_opts, &fs_out_ep_desc,
+					USB_SPEED_FULL, false);
+	if (status < 0) {
+		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
+		goto fail;
+	}
+
+	status = set_ep_max_packet_size(audio_opts, &fs_in_ep_desc,
+					USB_SPEED_FULL, true);
+	if (status < 0) {
+		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
+		goto fail;
+	}
+
+	status = set_ep_max_packet_size(audio_opts, &as_out_ep_desc,
+					USB_SPEED_HIGH, false);
+	if (status < 0) {
+		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
+		goto fail;
+	}
+
+	status = set_ep_max_packet_size(audio_opts, &as_in_ep_desc,
+					USB_SPEED_HIGH, true);
+	if (status < 0) {
+		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
+		goto fail;
+	}
+
+	as_out_ep_desc_comp.wBytesPerInterval = as_out_ep_desc.wMaxPacketSize;
+	as_in_ep_desc_comp.wBytesPerInterval = as_in_ep_desc.wMaxPacketSize;
 	as_out_type_i_desc.bLength = UAC_FORMAT_TYPE_I_DISCRETE_DESC_SIZE(idx);
 	as_out_type_i_desc.bSamFreqType = idx;
 
