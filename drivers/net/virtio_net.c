@@ -380,7 +380,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 				   struct page *page, unsigned int offset,
 				   unsigned int len, unsigned int truesize,
 				   bool hdr_valid, unsigned int metasize,
-				   unsigned int headroom)
+				   bool whole_page)
 {
 	struct sk_buff *skb;
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
@@ -398,12 +398,12 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	else
 		hdr_padded_len = sizeof(struct padded_vnet_hdr);
 
-	/* If headroom is not 0, there is an offset between the beginning of the
+	/* If whole_page, there is an offset between the beginning of the
 	 * data and the allocated space, otherwise the data and the allocated
 	 * space are aligned.
 	 */
-	if (headroom) {
-		/* Buffers with headroom use PAGE_SIZE as alloc size,
+	if (whole_page) {
+		/* Buffers with whole_page use PAGE_SIZE as alloc size,
 		 * see add_recvbuf_mergeable() + get_mergeable_buf_len()
 		 */
 		truesize = PAGE_SIZE;
@@ -958,7 +958,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 				put_page(page);
 				head_skb = page_to_skb(vi, rq, xdp_page, offset,
 						       len, PAGE_SIZE, false,
-						       metasize, headroom);
+						       metasize, true);
 				return head_skb;
 			}
 			break;
@@ -1016,7 +1016,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	}
 
 	head_skb = page_to_skb(vi, rq, page, offset, len, truesize, !xdp_prog,
-			       metasize, headroom);
+			       metasize, !!headroom);
 	curr_skb = head_skb;
 
 	if (unlikely(!curr_skb))
