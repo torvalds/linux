@@ -12,6 +12,7 @@
 #include "clk-regmap.h"
 
 static LIST_HEAD(clk_regmap_list);
+static DEFINE_MUTEX(clk_regmap_lock);
 
 /**
  * clk_is_enabled_regmap - standard is_enabled() for regmap users
@@ -246,14 +247,20 @@ EXPORT_SYMBOL(clk_unprepare_regmap);
 bool clk_is_regmap_clk(struct clk_hw *hw)
 {
 	struct clk_regmap *rclk;
+	bool is_regmap_clk = false;
 
 	if (hw) {
-		list_for_each_entry(rclk, &clk_regmap_list, list_node)
-			if (&rclk->hw  == hw)
-				return true;
+		mutex_lock(&clk_regmap_lock);
+		list_for_each_entry(rclk, &clk_regmap_list, list_node) {
+			if (&rclk->hw == hw) {
+				is_regmap_clk = true;
+				break;
+			}
+		}
+		mutex_unlock(&clk_regmap_lock);
 	}
 
-	return false;
+	return is_regmap_clk;
 }
 EXPORT_SYMBOL(clk_is_regmap_clk);
 
@@ -289,8 +296,11 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 	}
 
 	ret = devm_clk_hw_register(dev, &rclk->hw);
-	if (!ret)
+	if (!ret) {
+		mutex_lock(&clk_regmap_lock);
 		list_add(&rclk->list_node, &clk_regmap_list);
+		mutex_unlock(&clk_regmap_lock);
+	}
 
 	return ret;
 }
