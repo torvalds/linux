@@ -18,7 +18,12 @@
 
 static bool br_rports_have_mc_router(struct net_bridge *br)
 {
+#if IS_ENABLED(CONFIG_IPV6)
+	return !hlist_empty(&br->ip4_mc_router_list) ||
+	       !hlist_empty(&br->ip6_mc_router_list);
+#else
 	return !hlist_empty(&br->ip4_mc_router_list);
+#endif
 }
 
 static bool
@@ -31,8 +36,13 @@ br_ip4_rports_get_timer(struct net_bridge_port *port, unsigned long *timer)
 static bool
 br_ip6_rports_get_timer(struct net_bridge_port *port, unsigned long *timer)
 {
+#if IS_ENABLED(CONFIG_IPV6)
+	*timer = br_timer_value(&port->ip6_mc_router_timer);
+	return !hlist_unhashed(&port->ip6_rlist);
+#else
 	*timer = 0;
 	return false;
+#endif
 }
 
 static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,

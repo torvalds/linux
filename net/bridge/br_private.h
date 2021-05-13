@@ -311,6 +311,8 @@ struct net_bridge_port {
 	struct hlist_node		ip4_rlist;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct bridge_mcast_own_query	ip6_own_query;
+	struct timer_list		ip6_mc_router_timer;
+	struct hlist_node		ip6_rlist;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 	u32				multicast_eht_hosts_limit;
 	u32				multicast_eht_hosts_cnt;
@@ -457,6 +459,8 @@ struct net_bridge {
 	struct bridge_mcast_querier	ip4_querier;
 	struct bridge_mcast_stats	__percpu *mcast_stats;
 #if IS_ENABLED(CONFIG_IPV6)
+	struct hlist_head		ip6_mc_router_list;
+	struct timer_list		ip6_mc_router_timer;
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
 	struct bridge_mcast_querier	ip6_querier;
@@ -866,11 +870,19 @@ static inline bool br_group_is_l2(const struct br_ip *group)
 
 static inline struct hlist_node *
 br_multicast_get_first_rport_node(struct net_bridge *b, struct sk_buff *skb) {
+#if IS_ENABLED(CONFIG_IPV6)
+	if (skb->protocol == htons(ETH_P_IPV6))
+		return rcu_dereference(hlist_first_rcu(&b->ip6_mc_router_list));
+#endif
 	return rcu_dereference(hlist_first_rcu(&b->ip4_mc_router_list));
 }
 
 static inline struct net_bridge_port *
 br_multicast_rport_from_node_skb(struct hlist_node *rp, struct sk_buff *skb) {
+#if IS_ENABLED(CONFIG_IPV6)
+	if (skb->protocol == htons(ETH_P_IPV6))
+		return hlist_entry_safe(rp, struct net_bridge_port, ip6_rlist);
+#endif
 	return hlist_entry_safe(rp, struct net_bridge_port, ip4_rlist);
 }
 
@@ -882,7 +894,7 @@ static inline bool br_ip4_multicast_is_router(struct net_bridge *br)
 static inline bool br_ip6_multicast_is_router(struct net_bridge *br)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	return timer_pending(&br->ip4_mc_router_timer);
+	return timer_pending(&br->ip6_mc_router_timer);
 #else
 	return false;
 #endif
