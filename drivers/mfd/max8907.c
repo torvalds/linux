@@ -228,11 +228,9 @@ static int max8907_i2c_probe(struct i2c_client *i2c,
 		goto err_regmap_rtc;
 	}
 
-	irq_set_status_flags(max8907->i2c_gen->irq, IRQ_NOAUTOEN);
-
 	ret = regmap_add_irq_chip(max8907->regmap_gen, max8907->i2c_gen->irq,
-				  IRQF_ONESHOT | IRQF_SHARED, -1,
-				  &max8907_chg_irq_chip,
+				  IRQF_ONESHOT | IRQF_SHARED | IRQF_NO_AUTOEN,
+				  -1, &max8907_chg_irq_chip,
 				  &max8907->irqc_chg);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "failed to add chg irq chip: %d\n", ret);
