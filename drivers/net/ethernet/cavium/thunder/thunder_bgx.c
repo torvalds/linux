@@ -594,9 +594,6 @@ static void bgx_lmac_handler(struct net_device *netdev)
 	struct phy_device *phydev;
 	int link_changed = 0;
 
-	if (!lmac)
-		return;
-
 	phydev = lmac->phydev;
 
 	if (!phydev->link && lmac->last_link)
