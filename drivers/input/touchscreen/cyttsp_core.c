@@ -229,16 +229,21 @@ static int cyttsp_set_sysinfo_regs(struct cyttsp *ts)
 static void cyttsp_hard_reset(struct cyttsp *ts)
 {
 	if (ts->reset_gpio) {
+		/*
+		 * According to the CY8CTMA340 datasheet page 21, the external
+		 * reset pulse width should be >= 1 ms. The datasheet does not
+		 * specify how long we have to wait after reset but a vendor
+		 * tree specifies 5 ms here.
+		 */
 		gpiod_set_value_cansleep(ts->reset_gpio, 1);
-		msleep(CY_DELAY_DFLT);
+		usleep_range(1000, 2000);
 		gpiod_set_value_cansleep(ts->reset_gpio, 0);
-		msleep(CY_DELAY_DFLT);
+		usleep_range(5000, 6000);
 	}
 }
 
 static int cyttsp_soft_reset(struct cyttsp *ts)
 {
-	unsigned long timeout;
 	int retval;
 
 	/* wait for interrupt to set ready completion */
@@ -248,12 +253,16 @@ static int cyttsp_soft_reset(struct cyttsp *ts)
 	enable_irq(ts->irq);
 
 	retval = ttsp_send_command(ts, CY_SOFT_RESET_MODE);
-	if (retval)
+	if (retval) {
+		dev_err(ts->dev, "failed to send soft reset\n");
 		goto out;
+	}
 
-	timeout = wait_for_completion_timeout(&ts->bl_ready,
-			msecs_to_jiffies(CY_DELAY_DFLT * CY_DELAY_MAX));
-	retval = timeout ? 0 : -EIO;
+	if (!wait_for_completion_timeout(&ts->bl_ready,
+			msecs_to_jiffies(CY_DELAY_DFLT * CY_DELAY_MAX))) {
+		dev_err(ts->dev, "timeout waiting for soft reset\n");
+		retval = -EIO;
+	}
 
 out:
 	ts->state = CY_IDLE_STATE;
@@ -405,8 +414,10 @@ static int cyttsp_power_on(struct cyttsp *ts)
 	if (GET_BOOTLOADERMODE(ts->bl_data.bl_status) &&
 	    IS_VALID_APP(ts->bl_data.bl_status)) {
 		error = cyttsp_exit_bl_mode(ts);
-		if (error)
+		if (error) {
+			dev_err(ts->dev, "failed to exit bootloader mode\n");
 			return error;
+		}
 	}
 
 	if (GET_HSTMODE(ts->bl_data.bl_file) != CY_OPERATE_MODE ||
@@ -629,10 +640,8 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 		return ERR_PTR(error);
 
 	init_completion(&ts->bl_ready);
-	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 
 	input_dev->name = "Cypress TTSP TouchScreen";
-	input_dev->phys = ts->phys;
 	input_dev->id.bustype = bus_ops->bustype;
 	input_dev->dev.parent = ts->dev;
 
@@ -643,24 +652,26 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	input_set_capability(input_dev, EV_ABS, ABS_MT_POSITION_X);
 	input_set_capability(input_dev, EV_ABS, ABS_MT_POSITION_Y);
+	/* One byte for width 0..255 so this is the limit */
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+
 	touchscreen_parse_properties(input_dev, true, NULL);
 
-	error = input_mt_init_slots(input_dev, CY_MAX_ID, 0);
+	error = input_mt_init_slots(input_dev, CY_MAX_ID, INPUT_MT_DIRECT);
 	if (error) {
 		dev_err(dev, "Unable to init MT slots.\n");
 		return ERR_PTR(error);
 	}
 
 	error = devm_request_threaded_irq(dev, ts->irq, NULL, cyttsp_irq,
-					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+					  IRQF_NO_AUTOEN,
 					  "cyttsp", ts);
 	if (error) {
 		dev_err(ts->dev, "failed to request IRQ %d, err: %d\n",
 			ts->irq, error);
 		return ERR_PTR(error);
 	}
-
-	disable_irq(ts->irq);
 
 	cyttsp_hard_reset(ts);
 
