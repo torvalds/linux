@@ -17,6 +17,8 @@
 #include <linux/timer.h>
 #include <linux/usb/gadget.h>
 
+#include "isp1760-regs.h"
+
 struct isp1760_device;
 struct isp1760_udc;
 
@@ -48,7 +50,7 @@ struct isp1760_ep {
  * struct isp1760_udc - UDC state information
  * irq: IRQ number
  * irqname: IRQ name (as passed to request_irq)
- * regs: Base address of the UDC registers
+ * regs: regmap for UDC registers
  * driver: Gadget driver
  * gadget: Gadget device
  * lock: Protects driver, vbus_timer, ep, ep0_*, DC_EPINDEX register
@@ -59,12 +61,13 @@ struct isp1760_ep {
  * connected: Tracks gadget driver bus connection state
  */
 struct isp1760_udc {
-#ifdef CONFIG_USB_ISP1761_UDC
 	struct isp1760_device *isp;
 
 	int irq;
 	char *irqname;
-	void __iomem *regs;
+
+	struct regmap *regs;
+	struct regmap_field *fields[DC_FIELD_MAX];
 
 	struct usb_gadget_driver *driver;
 	struct usb_gadget gadget;
@@ -81,7 +84,6 @@ struct isp1760_udc {
 	bool connected;
 
 	unsigned int devstatus;
-#endif
 };
 
 #ifdef CONFIG_USB_ISP1761_UDC

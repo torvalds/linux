@@ -75,9 +75,9 @@ static int isp1761_pci_init(struct pci_dev *dev)
 		/*by default host is in 16bit mode, so
 		 * io operations at this stage must be 16 bit
 		 * */
-		writel(0xface, iobase + HC_SCRATCH_REG);
+		writel(0xface, iobase + ISP176x_HC_SCRATCH);
 		udelay(100);
-		reg_data = readl(iobase + HC_SCRATCH_REG) & 0x0000ffff;
+		reg_data = readl(iobase + ISP176x_HC_SCRATCH) & 0x0000ffff;
 		retry_count--;
 	}
 

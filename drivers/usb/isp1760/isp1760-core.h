@@ -14,6 +14,7 @@
 #define _ISP1760_CORE_H_
 
 #include <linux/ioport.h>
+#include <linux/regmap.h>
 
 #include "isp1760-hcd.h"
 #include "isp1760-udc.h"
@@ -38,7 +39,6 @@ struct gpio_desc;
 struct isp1760_device {
 	struct device *dev;
 
-	void __iomem *regs;
 	unsigned int devflags;
 	struct gpio_desc *rst_gpio;
 
@@ -52,14 +52,42 @@ void isp1760_unregister(struct device *dev);
 
 void isp1760_set_pullup(struct isp1760_device *isp, bool enable);
 
-static inline u32 isp1760_read32(void __iomem *base, u32 reg)
+static inline u32 isp1760_field_read(struct regmap_field **fields, u32 field)
 {
-	return readl(base + reg);
+	unsigned int val;
+
+	regmap_field_read(fields[field], &val);
+
+	return val;
 }
 
-static inline void isp1760_write32(void __iomem *base, u32 reg, u32 val)
+static inline void isp1760_field_write(struct regmap_field **fields, u32 field,
+				       u32 val)
 {
-	writel(val, base + reg);
+	regmap_field_write(fields[field], val);
 }
 
+static inline void isp1760_field_set(struct regmap_field **fields, u32 field)
+{
+	isp1760_field_write(fields, field, 0xFFFFFFFF);
+}
+
+static inline void isp1760_field_clear(struct regmap_field **fields, u32 field)
+{
+	isp1760_field_write(fields, field, 0);
+}
+
+static inline u32 isp1760_reg_read(struct regmap *regs, u32 reg)
+{
+	unsigned int val;
+
+	regmap_read(regs, reg, &val);
+
+	return val;
+}
+
+static inline void isp1760_reg_write(struct regmap *regs, u32 reg, u32 val)
+{
+	regmap_write(regs, reg, val);
+}
 #endif

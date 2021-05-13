@@ -3,6 +3,7 @@
 config USB_ISP1760
 	tristate "NXP ISP 1760/1761 support"
 	depends on USB || USB_GADGET
+	select REGMAP_MMIO
 	help
 	  Say Y or M here if your system as an ISP1760 USB host controller
 	  or an ISP1761 USB dual-role controller.

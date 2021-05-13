@@ -3,6 +3,9 @@
 #define _ISP1760_HCD_H_
 
 #include <linux/spinlock.h>
+#include <linux/regmap.h>
+
+#include "isp1760-regs.h"
 
 struct isp1760_qh;
 struct isp1760_qtd;
@@ -48,10 +51,13 @@ enum isp1760_queue_head_types {
 };
 
 struct isp1760_hcd {
-#ifdef CONFIG_USB_ISP1760_HCD
 	struct usb_hcd		*hcd;
 
-	u32 hcs_params;
+	void __iomem		*base;
+
+	struct regmap		*regs;
+	struct regmap_field	*fields[HC_FIELD_MAX];
+
 	spinlock_t		lock;
 	struct isp1760_slotinfo	atl_slots[32];
 	int			atl_done_map;
@@ -66,20 +72,18 @@ struct isp1760_hcd {
 	unsigned		i_thresh;
 	unsigned long		reset_done;
 	unsigned long		next_statechange;
-#endif
 };
 
 #ifdef CONFIG_USB_ISP1760_HCD
-int isp1760_hcd_register(struct isp1760_hcd *priv, void __iomem *regs,
-			 struct resource *mem, int irq, unsigned long irqflags,
-			 struct device *dev);
+int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
+			 int irq, unsigned long irqflags, struct device *dev);
 void isp1760_hcd_unregister(struct isp1760_hcd *priv);
 
 int isp1760_init_kmem_once(void);
 void isp1760_deinit_kmem_cache(void);
 #else
 static inline int isp1760_hcd_register(struct isp1760_hcd *priv,
-				       void __iomem *regs, struct resource *mem,
+				       struct resource *mem,
 				       int irq, unsigned long irqflags,
 				       struct device *dev)
 {
