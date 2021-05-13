@@ -1088,7 +1088,7 @@ static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 
 static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 {
-	int ret = -EINVAL;
+	int ret;
 	bool changed;
 
 	ret = nvme_rdma_configure_admin_queue(ctrl, new);
