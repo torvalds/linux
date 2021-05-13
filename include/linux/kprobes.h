@@ -409,6 +409,9 @@ void dump_kprobe(struct kprobe *kp);
 void *alloc_insn_page(void);
 void free_insn_page(void *page);
 
+void *alloc_optinsn_page(void);
+void free_optinsn_page(void *page);
+
 int kprobe_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		       char *sym);
 
