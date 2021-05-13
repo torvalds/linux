@@ -526,7 +526,7 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 	}
 
 	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
-			   data_block_counter, index);
+			   data_block_counter, s->packet_index, index);
 }
 
 static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
@@ -630,7 +630,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			       unsigned int *payload_length,
 			       unsigned int *data_blocks,
 			       unsigned int *data_block_counter,
-			       unsigned int *syt, unsigned int index)
+			       unsigned int *syt, unsigned int packet_index, unsigned int index)
 {
 	const __be32 *cip_header;
 	unsigned int cip_header_size;
@@ -668,7 +668,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	}
 
 	trace_amdtp_packet(s, cycle, cip_header, *payload_length, *data_blocks,
-			   *data_block_counter, index);
+			   *data_block_counter, packet_index, index);
 
 	return err;
 }
@@ -707,12 +707,13 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 				     unsigned int packets)
 {
 	unsigned int dbc = s->data_block_counter;
+	unsigned int packet_index = s->packet_index;
+	unsigned int queue_size = s->queue_size;
 	int i;
 	int err;
 
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
-		unsigned int index = (s->packet_index + i) % s->queue_size;
 		unsigned int cycle;
 		unsigned int payload_length;
 		unsigned int data_blocks;
@@ -721,7 +722,7 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 		cycle = compute_cycle_count(ctx_header[1]);
 
 		err = parse_ir_ctx_header(s, cycle, ctx_header, &payload_length,
-					  &data_blocks, &dbc, &syt, i);
+					  &data_blocks, &dbc, &syt, packet_index, i);
 		if (err < 0)
 			return err;
 
@@ -729,13 +730,15 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 		desc->syt = syt;
 		desc->data_blocks = data_blocks;
 		desc->data_block_counter = dbc;
-		desc->ctx_payload = s->buffer.packets[index].buffer;
+		desc->ctx_payload = s->buffer.packets[packet_index].buffer;
 
 		if (!(s->flags & CIP_DBC_IS_END_EVENT))
 			dbc = (dbc + desc->data_blocks) & 0xff;
 
 		ctx_header +=
 			s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
+
+		packet_index = (packet_index + 1) % queue_size;
 	}
 
 	s->data_block_counter = dbc;
