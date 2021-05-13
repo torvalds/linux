@@ -211,6 +211,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
 	imply SND_SOC_TFA9879
+	imply SND_SOC_TFA989X
 	imply SND_SOC_TLV320ADCX140
 	imply SND_SOC_TLV320AIC23_I2C
 	imply SND_SOC_TLV320AIC23_SPI
@@ -1407,6 +1408,16 @@ config SND_SOC_TDA7419
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
+
+config SND_SOC_TFA989X
+	tristate "NXP/Goodix TFA989X (TFA1) amplifiers"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for NXP (now Goodix) TFA989X (TFA1 family) speaker
+	  amplifiers, e.g. TFA9895.
+	  Note that the driver currently bypasses the built-in "CoolFlux DSP"
+	  and does not support (hardware) volume control.
 
 config SND_SOC_TLV320AIC23
 	tristate
