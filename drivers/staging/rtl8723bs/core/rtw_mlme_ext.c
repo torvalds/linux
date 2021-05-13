@@ -2137,7 +2137,7 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 	ret = rtw_hal_mgnt_xmit(padapter, pmgntframe);
 
 	if (ret == _SUCCESS)
-		ret = rtw_sctx_wait(&sctx, __func__);
+		ret = rtw_sctx_wait(&sctx);
 
 	spin_lock_irqsave(&pxmitpriv->lock_sctx, irqL);
 	pxmitbuf->sctx = NULL;

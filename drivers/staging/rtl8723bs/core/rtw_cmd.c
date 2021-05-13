@@ -693,7 +693,7 @@ int rtw_startbss_cmd(struct adapter  *padapter, int flags)
 		res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 
 		if (res == _SUCCESS && (flags & RTW_CMDF_WAIT_ACK)) {
-			rtw_sctx_wait(&sctx, __func__);
+			rtw_sctx_wait(&sctx);
 			if (mutex_lock_interruptible(&pcmdpriv->sctx_mutex) == 0) {
 				if (sctx.status == RTW_SCTX_SUBMITTED)
 					pcmd->sctx = NULL;

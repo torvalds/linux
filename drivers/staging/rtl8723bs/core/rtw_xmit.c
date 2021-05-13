@@ -2505,7 +2505,7 @@ void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
 	sctx->status = RTW_SCTX_SUBMITTED;
 }
 
-int rtw_sctx_wait(struct submit_ctx *sctx, const char *msg)
+int rtw_sctx_wait(struct submit_ctx *sctx)
 {
 	int ret = _FAIL;
 	unsigned long expire;
@@ -2546,7 +2546,7 @@ int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms)
 	pack_tx_ops->timeout_ms = timeout_ms;
 	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
 
-	return rtw_sctx_wait(pack_tx_ops, __func__);
+	return rtw_sctx_wait(pack_tx_ops);
 }
 
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status)
