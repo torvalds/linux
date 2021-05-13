@@ -358,39 +358,29 @@ static void ptd_write(void __iomem *base, u32 ptd_offset, u32 slot,
 /* memory management of the 60kb on the chip from 0x1000 to 0xffff */
 static void init_memory(struct isp1760_hcd *priv)
 {
-	int i, curr;
+	const struct isp1760_memory_layout *mem = priv->memory_layout;
+	int i, j, curr;
 	u32 payload_addr;
 
 	payload_addr = PAYLOAD_OFFSET;
-	for (i = 0; i < BLOCK_1_NUM; i++) {
-		priv->memory_pool[i].start = payload_addr;
-		priv->memory_pool[i].size = BLOCK_1_SIZE;
-		priv->memory_pool[i].free = 1;
-		payload_addr += priv->memory_pool[i].size;
+
+	for (i = 0, curr = 0; i < ARRAY_SIZE(mem->blocks); i++) {
+		for (j = 0; j < mem->blocks[i]; j++, curr++) {
+			priv->memory_pool[curr + j].start = payload_addr;
+			priv->memory_pool[curr + j].size = mem->blocks_size[i];
+			priv->memory_pool[curr + j].free = 1;
+			payload_addr += priv->memory_pool[curr + j].size;
+		}
 	}
 
-	curr = i;
-	for (i = 0; i < BLOCK_2_NUM; i++) {
-		priv->memory_pool[curr + i].start = payload_addr;
-		priv->memory_pool[curr + i].size = BLOCK_2_SIZE;
-		priv->memory_pool[curr + i].free = 1;
-		payload_addr += priv->memory_pool[curr + i].size;
-	}
-
-	curr = i;
-	for (i = 0; i < BLOCK_3_NUM; i++) {
-		priv->memory_pool[curr + i].start = payload_addr;
-		priv->memory_pool[curr + i].size = BLOCK_3_SIZE;
-		priv->memory_pool[curr + i].free = 1;
-		payload_addr += priv->memory_pool[curr + i].size;
-	}
-
-	WARN_ON(payload_addr - priv->memory_pool[0].start > PAYLOAD_AREA_SIZE);
+	WARN_ON(payload_addr - priv->memory_pool[0].start >
+		mem->payload_area_size);
 }
 
 static void alloc_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	const struct isp1760_memory_layout *mem = priv->memory_layout;
 	int i;
 
 	WARN_ON(qtd->payload_addr);
@@ -398,7 +388,7 @@ static void alloc_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 	if (!qtd->length)
 		return;
 
-	for (i = 0; i < BLOCKS; i++) {
+	for (i = 0; i < mem->payload_blocks; i++) {
 		if (priv->memory_pool[i].size >= qtd->length &&
 				priv->memory_pool[i].free) {
 			priv->memory_pool[i].free = 0;
@@ -411,12 +401,13 @@ static void alloc_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 static void free_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	const struct isp1760_memory_layout *mem = priv->memory_layout;
 	int i;
 
 	if (!qtd->payload_addr)
 		return;
 
-	for (i = 0; i < BLOCKS; i++) {
+	for (i = 0; i < mem->payload_blocks; i++) {
 		if (priv->memory_pool[i].start == qtd->payload_addr) {
 			WARN_ON(priv->memory_pool[i].free);
 			priv->memory_pool[i].free = 1;
@@ -1407,8 +1398,6 @@ static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len)
 {
 	qtd->data_buffer = databuffer;
 
-	if (len > MAX_PAYLOAD_SIZE)
-		len = MAX_PAYLOAD_SIZE;
 	qtd->length = len;
 
 	return qtd->length;
@@ -1432,6 +1421,8 @@ static void qtd_list_free(struct list_head *qtd_list)
 static void packetize_urb(struct usb_hcd *hcd,
 		struct urb *urb, struct list_head *head, gfp_t flags)
 {
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	const struct isp1760_memory_layout *mem = priv->memory_layout;
 	struct isp1760_qtd *qtd;
 	void *buf;
 	int len, maxpacketsize;
@@ -1484,6 +1475,10 @@ static void packetize_urb(struct usb_hcd *hcd,
 		qtd = qtd_alloc(flags, urb, packet_type);
 		if (!qtd)
 			goto cleanup;
+
+		if (len > mem->blocks_size[ISP176x_BLOCK_NUM - 1])
+			len = mem->blocks_size[ISP176x_BLOCK_NUM - 1];
+
 		this_qtd_len = qtd_fill(qtd, buf, len);
 		list_add_tail(&qtd->qtd_list, head);
 
@@ -2212,6 +2207,7 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
 			 int irq, unsigned long irqflags,
 			 struct device *dev)
 {
+	const struct isp1760_memory_layout *mem_layout = priv->memory_layout;
 	struct usb_hcd *hcd;
 	int ret;
 
@@ -2222,6 +2218,28 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
 	*(struct isp1760_hcd **)hcd->hcd_priv = priv;
 
 	priv->hcd = hcd;
+
+	priv->memory_pool = kcalloc(mem_layout->payload_blocks,
+				    sizeof(struct isp1760_memory_chunk),
+				    GFP_KERNEL);
+	if (!priv->memory_pool) {
+		ret = -ENOMEM;
+		goto put_hcd;
+	}
+
+	priv->atl_slots = kcalloc(mem_layout->ptd_num,
+				  sizeof(struct isp1760_slotinfo), GFP_KERNEL);
+	if (!priv->atl_slots) {
+		ret = -ENOMEM;
+		goto free_mem_pool;
+	}
+
+	priv->int_slots = kcalloc(mem_layout->ptd_num,
+				  sizeof(struct isp1760_slotinfo), GFP_KERNEL);
+	if (!priv->int_slots) {
+		ret = -ENOMEM;
+		goto free_atl_slots;
+	}
 
 	init_memory(priv);
 
@@ -2234,13 +2252,19 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
 
 	ret = usb_add_hcd(hcd, irq, irqflags);
 	if (ret)
-		goto error;
+		goto free_int_slots;
 
 	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
-error:
+free_int_slots:
+	kfree(priv->int_slots);
+free_atl_slots:
+	kfree(priv->atl_slots);
+free_mem_pool:
+	kfree(priv->memory_pool);
+put_hcd:
 	usb_put_hcd(hcd);
 	return ret;
 }
@@ -2252,4 +2276,7 @@ void isp1760_hcd_unregister(struct isp1760_hcd *priv)
 
 	usb_remove_hcd(priv->hcd);
 	usb_put_hcd(priv->hcd);
+	kfree(priv->atl_slots);
+	kfree(priv->int_slots);
+	kfree(priv->memory_pool);
 }

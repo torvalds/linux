@@ -12,24 +12,6 @@ struct isp1760_qtd;
 struct resource;
 struct usb_hcd;
 
-/*
- * 60kb divided in:
- * - 32 blocks @ 256  bytes
- * - 20 blocks @ 1024 bytes
- * -  4 blocks @ 8192 bytes
- */
-
-#define BLOCK_1_NUM 32
-#define BLOCK_2_NUM 20
-#define BLOCK_3_NUM 4
-
-#define BLOCK_1_SIZE 256
-#define BLOCK_2_SIZE 1024
-#define BLOCK_3_SIZE 8192
-#define BLOCKS (BLOCK_1_NUM + BLOCK_2_NUM + BLOCK_3_NUM)
-#define MAX_PAYLOAD_SIZE BLOCK_3_SIZE
-#define PAYLOAD_AREA_SIZE 0xf000
-
 struct isp1760_slotinfo {
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
@@ -37,6 +19,17 @@ struct isp1760_slotinfo {
 };
 
 /* chip memory management */
+#define ISP176x_BLOCK_NUM 3
+
+struct isp1760_memory_layout {
+	unsigned int blocks[ISP176x_BLOCK_NUM];
+	unsigned int blocks_size[ISP176x_BLOCK_NUM];
+
+	unsigned int ptd_num;
+	unsigned int payload_blocks;
+	unsigned int payload_area_size;
+};
+
 struct isp1760_memory_chunk {
 	unsigned int start;
 	unsigned int size;
@@ -58,12 +51,14 @@ struct isp1760_hcd {
 	struct regmap		*regs;
 	struct regmap_field	*fields[HC_FIELD_MAX];
 
+	const struct isp1760_memory_layout	*memory_layout;
+
 	spinlock_t		lock;
-	struct isp1760_slotinfo	atl_slots[32];
+	struct isp1760_slotinfo	*atl_slots;
 	int			atl_done_map;
-	struct isp1760_slotinfo	int_slots[32];
+	struct isp1760_slotinfo	*int_slots;
 	int			int_done_map;
-	struct isp1760_memory_chunk memory_pool[BLOCKS];
+	struct isp1760_memory_chunk *memory_pool;
 	struct list_head	qh_list[QH_END];
 
 	/* periodic schedule support */
