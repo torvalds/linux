@@ -22,7 +22,6 @@ struct pci_vpd {
 	const struct pci_vpd_ops *ops;
 	struct mutex	lock;
 	unsigned int	len;
-	u16		flag;
 	u8		cap;
 	unsigned int	valid:1;
 };
@@ -117,10 +116,11 @@ error:
  * This code has to spin since there is no other notification from the PCI
  * hardware. Since the VPD is often implemented by serial attachment to an
  * EEPROM, it may take many milliseconds to complete.
+ * @set: if true wait for flag to be set, else wait for it to be cleared
  *
  * Returns 0 on success, negative values indicate error.
  */
-static int pci_vpd_wait(struct pci_dev *dev)
+static int pci_vpd_wait(struct pci_dev *dev, bool set)
 {
 	struct pci_vpd *vpd = dev->vpd;
 	unsigned long timeout = jiffies + msecs_to_jiffies(125);
@@ -134,7 +134,7 @@ static int pci_vpd_wait(struct pci_dev *dev)
 		if (ret < 0)
 			return ret;
 
-		if ((status & PCI_VPD_ADDR_F) == vpd->flag)
+		if (!!(status & PCI_VPD_ADDR_F) == set)
 			return 0;
 
 		if (time_after(jiffies, timeout))
@@ -192,8 +192,7 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 						 pos & ~3);
 		if (ret < 0)
 			break;
-		vpd->flag = PCI_VPD_ADDR_F;
-		ret = pci_vpd_wait(dev);
+		ret = pci_vpd_wait(dev, true);
 		if (ret < 0)
 			break;
 
@@ -257,8 +256,7 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 		if (ret < 0)
 			break;
 
-		vpd->flag = 0;
-		ret = pci_vpd_wait(dev);
+		ret = pci_vpd_wait(dev, false);
 		if (ret < 0)
 			break;
 
