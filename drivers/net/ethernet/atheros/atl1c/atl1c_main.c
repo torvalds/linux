@@ -644,6 +644,7 @@ static int atl1c_alloc_queues(struct atl1c_adapter *adapter)
 
 static void atl1c_set_mac_type(struct atl1c_hw *hw)
 {
+	u32 magic;
 	switch (hw->device_id) {
 	case PCI_DEVICE_ID_ATTANSIC_L2C:
 		hw->nic_type = athr_l2c;
@@ -662,6 +663,9 @@ static void atl1c_set_mac_type(struct atl1c_hw *hw)
 		break;
 	case PCI_DEVICE_ID_ATHEROS_L1D_2_0:
 		hw->nic_type = athr_l1d_2;
+		AT_READ_REG(hw, REG_MT_MAGIC, &magic);
+		if (magic == MT_MAGIC)
+			hw->nic_type = athr_mt;
 		break;
 	default:
 		break;

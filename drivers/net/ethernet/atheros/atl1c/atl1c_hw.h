@@ -764,6 +764,13 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define REG_DEBUG_DATA0 		0x1900
 #define REG_DEBUG_DATA1 		0x1904
 
+#define REG_MT_MAGIC			0x1F00
+#define REG_MT_MODE			0x1F04
+#define REG_MT_SPEED			0x1F08
+#define REG_MT_VERSION			0x1F0C
+
+#define MT_MAGIC			0xaabb1234
+
 #define L1D_MPW_PHYID1			0xD01C  /* V7 */
 #define L1D_MPW_PHYID2			0xD01D  /* V1-V6 */
 #define L1D_MPW_PHYID3			0xD01E  /* V8 */

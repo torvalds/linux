@@ -648,6 +648,15 @@ int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex)
 	int err;
 	u16 phy_data;
 
+	if (hw->nic_type == athr_mt) {
+		u32 spd;
+
+		AT_READ_REG(hw, REG_MT_SPEED, &spd);
+		*speed = spd;
+		*duplex = FULL_DUPLEX;
+		return 0;
+	}
+
 	/* Read   PHY Specific Status Register (17) */
 	err = atl1c_read_phy_reg(hw, MII_GIGA_PSSR, &phy_data);
 	if (err)

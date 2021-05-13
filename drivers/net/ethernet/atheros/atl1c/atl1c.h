@@ -289,6 +289,7 @@ enum atl1c_nic_type {
 	athr_l2c_b2,
 	athr_l1d,
 	athr_l1d_2,
+	athr_mt,
 };
 
 enum atl1c_trans_queue {
