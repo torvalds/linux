@@ -46,118 +46,6 @@ static const char * const supported_hypervisors[] = {
 	[INTEL_GVT_HYPERVISOR_KVM] = "KVM",
 };
 
-static struct intel_vgpu_type *
-intel_gvt_find_vgpu_type(struct intel_gvt *gvt, unsigned int type_group_id)
-{
-	if (WARN_ON(type_group_id >= gvt->num_types))
-		return NULL;
-	return &gvt->types[type_group_id];
-}
-
-static ssize_t available_instances_show(struct mdev_type *mtype,
-					struct mdev_type_attribute *attr,
-					char *buf)
-{
-	struct intel_vgpu_type *type;
-	unsigned int num = 0;
-	void *gvt = kdev_to_i915(mtype_get_parent_dev(mtype))->gvt;
-
-	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(mtype));
-	if (!type)
-		num = 0;
-	else
-		num = type->avail_instance;
-
-	return sprintf(buf, "%u\n", num);
-}
-
-static ssize_t device_api_show(struct mdev_type *mtype,
-			       struct mdev_type_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
-}
-
-static ssize_t description_show(struct mdev_type *mtype,
-				struct mdev_type_attribute *attr, char *buf)
-{
-	struct intel_vgpu_type *type;
-	void *gvt = kdev_to_i915(mtype_get_parent_dev(mtype))->gvt;
-
-	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(mtype));
-	if (!type)
-		return 0;
-
-	return sprintf(buf, "low_gm_size: %dMB\nhigh_gm_size: %dMB\n"
-		       "fence: %d\nresolution: %s\n"
-		       "weight: %d\n",
-		       BYTES_TO_MB(type->low_gm_size),
-		       BYTES_TO_MB(type->high_gm_size),
-		       type->fence, vgpu_edid_str(type->resolution),
-		       type->weight);
-}
-
-static MDEV_TYPE_ATTR_RO(available_instances);
-static MDEV_TYPE_ATTR_RO(device_api);
-static MDEV_TYPE_ATTR_RO(description);
-
-static struct attribute *gvt_type_attrs[] = {
-	&mdev_type_attr_available_instances.attr,
-	&mdev_type_attr_device_api.attr,
-	&mdev_type_attr_description.attr,
-	NULL,
-};
-
-static struct attribute_group *gvt_vgpu_type_groups[] = {
-	[0 ... NR_MAX_INTEL_VGPU_TYPES - 1] = NULL,
-};
-
-static bool intel_get_gvt_attrs(struct attribute_group ***intel_vgpu_type_groups)
-{
-	*intel_vgpu_type_groups = gvt_vgpu_type_groups;
-	return true;
-}
-
-static int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt)
-{
-	int i, j;
-	struct intel_vgpu_type *type;
-	struct attribute_group *group;
-
-	for (i = 0; i < gvt->num_types; i++) {
-		type = &gvt->types[i];
-
-		group = kzalloc(sizeof(struct attribute_group), GFP_KERNEL);
-		if (WARN_ON(!group))
-			goto unwind;
-
-		group->name = type->name;
-		group->attrs = gvt_type_attrs;
-		gvt_vgpu_type_groups[i] = group;
-	}
-
-	return 0;
-
-unwind:
-	for (j = 0; j < i; j++) {
-		group = gvt_vgpu_type_groups[j];
-		kfree(group);
-	}
-
-	return -ENOMEM;
-}
-
-static void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
-{
-	int i;
-	struct attribute_group *group;
-
-	for (i = 0; i < gvt->num_types; i++) {
-		group = gvt_vgpu_type_groups[i];
-		gvt_vgpu_type_groups[i] = NULL;
-		kfree(group);
-	}
-}
-
 static const struct intel_gvt_ops intel_gvt_ops = {
 	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
 	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
@@ -169,8 +57,6 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 	.vgpu_reset = intel_gvt_reset_vgpu,
 	.vgpu_activate = intel_gvt_activate_vgpu,
 	.vgpu_deactivate = intel_gvt_deactivate_vgpu,
-	.gvt_find_vgpu_type = intel_gvt_find_vgpu_type,
-	.get_gvt_attrs = intel_get_gvt_attrs,
 	.vgpu_query_plane = intel_vgpu_query_plane,
 	.vgpu_get_dmabuf = intel_vgpu_get_dmabuf,
 	.write_protect_handler = intel_vgpu_page_track_handler,
@@ -274,7 +160,6 @@ void intel_gvt_clean_device(struct drm_i915_private *i915)
 		return;
 
 	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
-	intel_gvt_cleanup_vgpu_type_groups(gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
 	intel_gvt_debugfs_clean(gvt);
@@ -363,12 +248,6 @@ int intel_gvt_init_device(struct drm_i915_private *i915)
 	if (ret)
 		goto out_clean_thread;
 
-	ret = intel_gvt_init_vgpu_type_groups(gvt);
-	if (ret) {
-		gvt_err("failed to init vgpu type groups: %d\n", ret);
-		goto out_clean_types;
-	}
-
 	vgpu = intel_gvt_create_idle_vgpu(gvt);
 	if (IS_ERR(vgpu)) {
 		ret = PTR_ERR(vgpu);
@@ -454,7 +333,8 @@ EXPORT_SYMBOL_GPL(intel_gvt_register_hypervisor);
 void
 intel_gvt_unregister_hypervisor(void)
 {
-	intel_gvt_hypervisor_host_exit(intel_gvt_host.dev);
+	void *gvt = (void *)kdev_to_i915(intel_gvt_host.dev)->gvt;
+	intel_gvt_hypervisor_host_exit(intel_gvt_host.dev, gvt);
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(intel_gvt_unregister_hypervisor);
