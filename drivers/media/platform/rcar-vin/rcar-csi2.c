@@ -1121,6 +1121,11 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
 	.num_channels = 4,
 };
 
+static const struct rcar_csi2_info rcar_csi2_info_r8a77961 = {
+	.hsfreqrange = hsfreqrange_m3w_h3es1,
+	.num_channels = 4,
+};
+
 static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
 	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
@@ -1172,6 +1177,10 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 	{
 		.compatible = "renesas,r8a7796-csi2",
 		.data = &rcar_csi2_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,r8a77961-csi2",
+		.data = &rcar_csi2_info_r8a77961,
 	},
 	{
 		.compatible = "renesas,r8a77965-csi2",
