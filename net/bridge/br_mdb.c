@@ -23,14 +23,14 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	struct net_bridge_port *p;
 	struct nlattr *nest, *port_nest;
 
-	if (!br->multicast_router || hlist_empty(&br->router_list))
+	if (!br->multicast_router || hlist_empty(&br->ip4_mc_router_list))
 		return 0;
 
 	nest = nla_nest_start_noflag(skb, MDBA_ROUTER);
 	if (nest == NULL)
 		return -EMSGSIZE;
 
-	hlist_for_each_entry_rcu(p, &br->router_list, rlist) {
+	hlist_for_each_entry_rcu(p, &br->ip4_mc_router_list, ip4_rlist) {
 		if (!p)
 			continue;
 		port_nest = nla_nest_start_noflag(skb, MDBA_ROUTER_PORT);
@@ -38,7 +38,7 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 			goto fail;
 		if (nla_put_nohdr(skb, sizeof(u32), &p->dev->ifindex) ||
 		    nla_put_u32(skb, MDBA_ROUTER_PATTR_TIMER,
-				br_timer_value(&p->multicast_router_timer)) ||
+				br_timer_value(&p->ip4_mc_router_timer)) ||
 		    nla_put_u8(skb, MDBA_ROUTER_PATTR_TYPE,
 			       p->multicast_router)) {
 			nla_nest_cancel(skb, port_nest);
