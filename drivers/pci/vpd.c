@@ -68,14 +68,13 @@ EXPORT_SYMBOL(pci_write_vpd);
 /**
  * pci_vpd_size - determine actual size of Vital Product Data
  * @dev:	pci device struct
- * @old_size:	current assumed size, also maximum allowed size
  */
-static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
+static size_t pci_vpd_size(struct pci_dev *dev)
 {
 	size_t off = 0, size;
 	unsigned char tag, header[1+2];	/* 1 byte tag, 2 bytes length */
 
-	while (off < old_size && pci_read_vpd(dev, off, 1, header) == 1) {
+	while (pci_read_vpd(dev, off, 1, header) == 1) {
 		size = 0;
 
 		if (off == 0 && (header[0] == 0x00 || header[0] == 0xff))
@@ -172,7 +171,7 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 
 	if (!vpd->valid) {
 		vpd->valid = 1;
-		vpd->len = pci_vpd_size(dev, vpd->len);
+		vpd->len = pci_vpd_size(dev);
 	}
 
 	if (vpd->len == 0)
@@ -239,7 +238,7 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 
 	if (!vpd->valid) {
 		vpd->valid = 1;
-		vpd->len = pci_vpd_size(dev, vpd->len);
+		vpd->len = pci_vpd_size(dev);
 	}
 
 	if (vpd->len == 0)
@@ -463,6 +462,7 @@ static void quirk_blacklist_vpd(struct pci_dev *dev)
 {
 	if (dev->vpd) {
 		dev->vpd->len = 0;
+		dev->vpd->valid = 1;
 		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
 	}
 }
