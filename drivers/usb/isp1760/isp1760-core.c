@@ -73,10 +73,9 @@ static void isp1760_init_core(struct isp1760_device *isp)
 	 * on ISP1761.
 	 *
 	 * TODO: Really support OTG. For now we configure port 1 in device mode
-	 * when OTG is requested.
 	 */
 	if ((isp->devflags & ISP1760_FLAG_ISP1761) &&
-	    (isp->devflags & ISP1760_FLAG_OTG_EN)) {
+	    (isp->devflags & ISP1760_FLAG_PERIPHERAL_EN)) {
 		isp1760_field_set(hcd->fields, HW_DM_PULLDOWN);
 		isp1760_field_set(hcd->fields, HW_DP_PULLDOWN);
 		isp1760_field_set(hcd->fields, HW_OTG_DISABLE);

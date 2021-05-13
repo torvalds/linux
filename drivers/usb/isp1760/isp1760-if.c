@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/otg.h>
 
 #include "isp1760-core.h"
 #include "isp1760-regs.h"
@@ -213,8 +214,8 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		if (bus_width == 16)
 			devflags |= ISP1760_FLAG_BUS_WIDTH_16;
 
-		if (of_property_read_bool(dp, "port1-otg"))
-			devflags |= ISP1760_FLAG_OTG_EN;
+		if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL)
+			devflags |= ISP1760_FLAG_PERIPHERAL_EN;
 
 		if (of_property_read_bool(dp, "analog-oc"))
 			devflags |= ISP1760_FLAG_ANALOG_OC;
