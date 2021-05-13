@@ -874,11 +874,40 @@ br_multicast_rport_from_node_skb(struct hlist_node *rp, struct sk_buff *skb) {
 	return hlist_entry_safe(rp, struct net_bridge_port, ip4_rlist);
 }
 
-static inline bool br_multicast_is_router(struct net_bridge *br)
+static inline bool br_ip4_multicast_is_router(struct net_bridge *br)
 {
-	return br->multicast_router == 2 ||
-	       (br->multicast_router == 1 &&
-		timer_pending(&br->ip4_mc_router_timer));
+	return timer_pending(&br->ip4_mc_router_timer);
+}
+
+static inline bool br_ip6_multicast_is_router(struct net_bridge *br)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	return timer_pending(&br->ip4_mc_router_timer);
+#else
+	return false;
+#endif
+}
+
+static inline bool
+br_multicast_is_router(struct net_bridge *br, struct sk_buff *skb)
+{
+	switch (br->multicast_router) {
+	case MDB_RTR_TYPE_PERM:
+		return true;
+	case MDB_RTR_TYPE_TEMP_QUERY:
+		if (skb) {
+			if (skb->protocol == htons(ETH_P_IP))
+				return br_ip4_multicast_is_router(br);
+			else if (skb->protocol == htons(ETH_P_IPV6))
+				return br_ip6_multicast_is_router(br);
+		} else {
+			return br_ip4_multicast_is_router(br) ||
+			       br_ip6_multicast_is_router(br);
+		}
+		fallthrough;
+	default:
+		return false;
+	}
 }
 
 static inline bool
