@@ -36,6 +36,12 @@
 
 extern uint64_t amdgpu_amdkfd_total_mem_size;
 
+enum TLB_FLUSH_TYPE {
+	TLB_FLUSH_LEGACY = 0,
+	TLB_FLUSH_LIGHTWEIGHT,
+	TLB_FLUSH_HEAVYWEIGHT
+};
+
 struct amdgpu_device;
 
 struct kfd_bo_va_list {
@@ -135,7 +141,8 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle);
 bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd);
 int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid);
-int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid);
+int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid,
+				      enum TLB_FLUSH_TYPE flush_type);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 
