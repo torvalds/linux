@@ -26,6 +26,7 @@ void atl1c_phy_disable(struct atl1c_hw *hw);
 void atl1c_hw_set_mac_addr(struct atl1c_hw *hw, u8 *mac_addr);
 int atl1c_phy_reset(struct atl1c_hw *hw);
 int atl1c_read_mac_addr(struct atl1c_hw *hw);
+bool atl1c_get_link_status(struct atl1c_hw *hw);
 int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex);
 u32 atl1c_hash_mc_addr(struct atl1c_hw *hw, u8 *mc_addr);
 void atl1c_hash_set(struct atl1c_hw *hw, u32 hash_value);

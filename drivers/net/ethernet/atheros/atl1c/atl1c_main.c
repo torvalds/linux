@@ -232,15 +232,14 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 	struct pci_dev    *pdev   = adapter->pdev;
 	int err;
 	unsigned long flags;
-	u16 speed, duplex, phy_data;
+	u16 speed, duplex;
+	bool link;
 
 	spin_lock_irqsave(&adapter->mdio_lock, flags);
-	/* MII_BMSR must read twise */
-	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+	link = atl1c_get_link_status(hw);
 	spin_unlock_irqrestore(&adapter->mdio_lock, flags);
 
-	if ((phy_data & BMSR_LSTATUS) == 0) {
+	if (!link) {
 		/* link down */
 		netif_carrier_off(netdev);
 		hw->hibernate = true;
@@ -284,16 +283,13 @@ static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev    *pdev   = adapter->pdev;
-	u16 phy_data;
-	u16 link_up;
+	bool link;
 
 	spin_lock(&adapter->mdio_lock);
-	atl1c_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
-	atl1c_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
+	link = atl1c_get_link_status(&adapter->hw);
 	spin_unlock(&adapter->mdio_lock);
-	link_up = phy_data & BMSR_LSTATUS;
 	/* notify upper layer link down ASAP */
-	if (!link_up) {
+	if (!link) {
 		if (netif_carrier_ok(netdev)) {
 			/* old link state: Up */
 			netif_carrier_off(netdev);
