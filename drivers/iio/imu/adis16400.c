@@ -1157,8 +1157,6 @@ static int adis16400_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, indio_dev);
 
 	/* setup the industrialio driver allocated elements */
 	st->variant = &adis16400_chips[spi_get_device_id(spi)->driver_data];
