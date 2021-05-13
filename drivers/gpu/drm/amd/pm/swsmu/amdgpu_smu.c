@@ -686,7 +686,8 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	smu_get_unique_id(smu);
+	if (!amdgpu_sriov_vf(adev))
+		smu_get_unique_id(smu);
 
 	smu_get_fan_parameters(smu);
 

@@ -496,6 +496,8 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 		if((adev->virt.decode_max_dimension_pixels > 0) || (adev->virt.encode_max_dimension_pixels > 0))
 			adev->virt.is_mm_bw_enabled = true;
 
+		adev->unique_id =
+			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->uuid;
 		break;
 	default:
 		DRM_ERROR("invalid pf2vf version\n");
