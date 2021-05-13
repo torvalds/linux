@@ -2,10 +2,12 @@
 /*
  * Driver for the NXP ISP1761 device controller
  *
+ * Copyright 2021 Linaro, Rui Miguel Silva
  * Copyright 2014 Ideas on Board Oy
  *
  * Contacts:
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ *	Rui Miguel Silva <rui.silva@linaro.org>
  */
 
 #include <linux/interrupt.h>

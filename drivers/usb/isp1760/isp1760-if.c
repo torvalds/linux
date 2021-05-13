@@ -7,6 +7,7 @@
  * - PDEV (generic platform device centralized driver model)
  *
  * (c) 2007 Sebastian Siewior <bigeasy@linutronix.de>
+ * Copyright 2021 Linaro, Rui Miguel Silva <rui.silva@linaro.org>
  *
  */
 
@@ -209,10 +210,18 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
 			devflags |= ISP1760_FLAG_ISP1761;
 
-		/* Some systems wire up only 16 of the 32 data lines */
+		if (of_device_is_compatible(dp, "nxp,usb-isp1763"))
+			devflags |= ISP1760_FLAG_ISP1763;
+
+		/*
+		 * Some systems wire up only 8 of 16 data lines or
+		 * 16 of the 32 data lines
+		 */
 		of_property_read_u32(dp, "bus-width", &bus_width);
 		if (bus_width == 16)
 			devflags |= ISP1760_FLAG_BUS_WIDTH_16;
+		else if (bus_width == 8)
+			devflags |= ISP1760_FLAG_BUS_WIDTH_8;
 
 		if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL)
 			devflags |= ISP1760_FLAG_PERIPHERAL_EN;
@@ -250,6 +259,7 @@ static int isp1760_plat_remove(struct platform_device *pdev)
 static const struct of_device_id isp1760_of_match[] = {
 	{ .compatible = "nxp,usb-isp1760", },
 	{ .compatible = "nxp,usb-isp1761", },
+	{ .compatible = "nxp,usb-isp1763", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, isp1760_of_match);

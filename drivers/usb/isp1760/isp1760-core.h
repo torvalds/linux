@@ -2,12 +2,14 @@
 /*
  * Driver for the NXP ISP1760 chip
  *
+ * Copyright 2021 Linaro, Rui Miguel Silva
  * Copyright 2014 Laurent Pinchart
  * Copyright 2007 Sebastian Siewior
  *
  * Contacts:
  *	Sebastian Siewior <bigeasy@linutronix.de>
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ *	Rui Miguel Silva <rui.silva@linaro.org>
  */
 
 #ifndef _ISP1760_CORE_H_
@@ -35,6 +37,8 @@ struct gpio_desc;
 #define ISP1760_FLAG_ISP1761		0x00000040 /* Chip is ISP1761 */
 #define ISP1760_FLAG_INTR_POL_HIGH	0x00000080 /* Interrupt polarity active high */
 #define ISP1760_FLAG_INTR_EDGE_TRIG	0x00000100 /* Interrupt edge triggered */
+#define ISP1760_FLAG_ISP1763		0x00000200 /* Chip is ISP1763 */
+#define ISP1760_FLAG_BUS_WIDTH_8	0x00000400 /* 8-bit data bus width */
 
 struct isp1760_device {
 	struct device *dev;

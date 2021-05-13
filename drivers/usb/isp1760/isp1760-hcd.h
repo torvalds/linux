@@ -19,13 +19,14 @@ struct isp1760_slotinfo {
 };
 
 /* chip memory management */
+#define ISP176x_BLOCK_MAX (32 + 20 + 4)
 #define ISP176x_BLOCK_NUM 3
 
 struct isp1760_memory_layout {
 	unsigned int blocks[ISP176x_BLOCK_NUM];
 	unsigned int blocks_size[ISP176x_BLOCK_NUM];
 
-	unsigned int ptd_num;
+	unsigned int slot_num;
 	unsigned int payload_blocks;
 	unsigned int payload_area_size;
 };
@@ -51,6 +52,7 @@ struct isp1760_hcd {
 	struct regmap		*regs;
 	struct regmap_field	*fields[HC_FIELD_MAX];
 
+	bool			is_isp1763;
 	const struct isp1760_memory_layout	*memory_layout;
 
 	spinlock_t		lock;
@@ -58,7 +60,7 @@ struct isp1760_hcd {
 	int			atl_done_map;
 	struct isp1760_slotinfo	*int_slots;
 	int			int_done_map;
-	struct isp1760_memory_chunk *memory_pool;
+	struct isp1760_memory_chunk memory_pool[ISP176x_BLOCK_MAX];
 	struct list_head	qh_list[QH_END];
 
 	/* periodic schedule support */
