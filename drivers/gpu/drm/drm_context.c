@@ -124,7 +124,7 @@ void drm_legacy_ctxbitmap_cleanup(struct drm_device * dev)
 }
 
 /**
- * drm_ctxbitmap_flush() - Flush all contexts owned by a file
+ * drm_legacy_ctxbitmap_flush() - Flush all contexts owned by a file
  * @dev: DRM device to operate on
  * @file: Open file to flush contexts for
  *
