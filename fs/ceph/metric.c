@@ -22,6 +22,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_opened_inodes *inodes;
 	struct ceph_client_metric *m = &mdsc->metric;
 	u64 nr_caps = atomic64_read(&m->total_caps);
+	u32 header_len = sizeof(struct ceph_metric_header);
 	struct ceph_msg *msg;
 	struct timespec64 ts;
 	s64 sum;
@@ -43,10 +44,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the cap metric */
 	cap = (struct ceph_metric_cap *)(head + 1);
-	cap->type = cpu_to_le32(CLIENT_METRIC_TYPE_CAP_INFO);
-	cap->ver = 1;
-	cap->compat = 1;
-	cap->data_len = cpu_to_le32(sizeof(*cap) - 10);
+	cap->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_CAP_INFO);
+	cap->header.ver = 1;
+	cap->header.compat = 1;
+	cap->header.data_len = cpu_to_le32(sizeof(*cap) - header_len);
 	cap->hit = cpu_to_le64(percpu_counter_sum(&m->i_caps_hit));
 	cap->mis = cpu_to_le64(percpu_counter_sum(&m->i_caps_mis));
 	cap->total = cpu_to_le64(nr_caps);
@@ -54,10 +55,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the read latency metric */
 	read = (struct ceph_metric_read_latency *)(cap + 1);
-	read->type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_LATENCY);
-	read->ver = 1;
-	read->compat = 1;
-	read->data_len = cpu_to_le32(sizeof(*read) - 10);
+	read->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_LATENCY);
+	read->header.ver = 1;
+	read->header.compat = 1;
+	read->header.data_len = cpu_to_le32(sizeof(*read) - header_len);
 	sum = m->read_latency_sum;
 	jiffies_to_timespec64(sum, &ts);
 	read->sec = cpu_to_le32(ts.tv_sec);
@@ -66,10 +67,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the write latency metric */
 	write = (struct ceph_metric_write_latency *)(read + 1);
-	write->type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_LATENCY);
-	write->ver = 1;
-	write->compat = 1;
-	write->data_len = cpu_to_le32(sizeof(*write) - 10);
+	write->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_LATENCY);
+	write->header.ver = 1;
+	write->header.compat = 1;
+	write->header.data_len = cpu_to_le32(sizeof(*write) - header_len);
 	sum = m->write_latency_sum;
 	jiffies_to_timespec64(sum, &ts);
 	write->sec = cpu_to_le32(ts.tv_sec);
@@ -78,10 +79,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the metadata latency metric */
 	meta = (struct ceph_metric_metadata_latency *)(write + 1);
-	meta->type = cpu_to_le32(CLIENT_METRIC_TYPE_METADATA_LATENCY);
-	meta->ver = 1;
-	meta->compat = 1;
-	meta->data_len = cpu_to_le32(sizeof(*meta) - 10);
+	meta->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_METADATA_LATENCY);
+	meta->header.ver = 1;
+	meta->header.compat = 1;
+	meta->header.data_len = cpu_to_le32(sizeof(*meta) - header_len);
 	sum = m->metadata_latency_sum;
 	jiffies_to_timespec64(sum, &ts);
 	meta->sec = cpu_to_le32(ts.tv_sec);
@@ -90,10 +91,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the dentry lease metric */
 	dlease = (struct ceph_metric_dlease *)(meta + 1);
-	dlease->type = cpu_to_le32(CLIENT_METRIC_TYPE_DENTRY_LEASE);
-	dlease->ver = 1;
-	dlease->compat = 1;
-	dlease->data_len = cpu_to_le32(sizeof(*dlease) - 10);
+	dlease->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_DENTRY_LEASE);
+	dlease->header.ver = 1;
+	dlease->header.compat = 1;
+	dlease->header.data_len = cpu_to_le32(sizeof(*dlease) - header_len);
 	dlease->hit = cpu_to_le64(percpu_counter_sum(&m->d_lease_hit));
 	dlease->mis = cpu_to_le64(percpu_counter_sum(&m->d_lease_mis));
 	dlease->total = cpu_to_le64(atomic64_read(&m->total_dentries));
@@ -103,30 +104,30 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the opened files metric */
 	files = (struct ceph_opened_files *)(dlease + 1);
-	files->type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_FILES);
-	files->ver = 1;
-	files->compat = 1;
-	files->data_len = cpu_to_le32(sizeof(*files) - 10);
+	files->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_FILES);
+	files->header.ver = 1;
+	files->header.compat = 1;
+	files->header.data_len = cpu_to_le32(sizeof(*files) - header_len);
 	files->opened_files = cpu_to_le64(atomic64_read(&m->opened_files));
 	files->total = cpu_to_le64(sum);
 	items++;
 
 	/* encode the pinned icaps metric */
 	icaps = (struct ceph_pinned_icaps *)(files + 1);
-	icaps->type = cpu_to_le32(CLIENT_METRIC_TYPE_PINNED_ICAPS);
-	icaps->ver = 1;
-	icaps->compat = 1;
-	icaps->data_len = cpu_to_le32(sizeof(*icaps) - 10);
+	icaps->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_PINNED_ICAPS);
+	icaps->header.ver = 1;
+	icaps->header.compat = 1;
+	icaps->header.data_len = cpu_to_le32(sizeof(*icaps) - header_len);
 	icaps->pinned_icaps = cpu_to_le64(nr_caps);
 	icaps->total = cpu_to_le64(sum);
 	items++;
 
 	/* encode the opened inodes metric */
 	inodes = (struct ceph_opened_inodes *)(icaps + 1);
-	inodes->type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_INODES);
-	inodes->ver = 1;
-	inodes->compat = 1;
-	inodes->data_len = cpu_to_le32(sizeof(*inodes) - 10);
+	inodes->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_INODES);
+	inodes->header.ver = 1;
+	inodes->header.compat = 1;
+	inodes->header.data_len = cpu_to_le32(sizeof(*inodes) - header_len);
 	inodes->opened_inodes = cpu_to_le64(percpu_counter_sum(&m->opened_inodes));
 	inodes->total = cpu_to_le64(sum);
 	items++;
