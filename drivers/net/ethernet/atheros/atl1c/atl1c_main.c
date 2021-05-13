@@ -2211,8 +2211,8 @@ err_dma:
 	return -1;
 }
 
-static void atl1c_tx_queue(struct atl1c_adapter *adapter, struct sk_buff *skb,
-			   struct atl1c_tpd_desc *tpd, enum atl1c_trans_queue type)
+static void atl1c_tx_queue(struct atl1c_adapter *adapter,
+			   enum atl1c_trans_queue type)
 {
 	struct atl1c_tpd_ring *tpd_ring = &adapter->tpd_ring[type];
 	u16 reg;
@@ -2238,6 +2238,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 
 	if (atl1c_tpd_avail(adapter, type) < tpd_req) {
 		/* no enough descriptor, just stop queue */
+		atl1c_tx_queue(adapter, type);
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -2246,6 +2247,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 
 	/* do TSO and check sum */
 	if (atl1c_tso_csum(adapter, skb, &tpd, type) != 0) {
+		atl1c_tx_queue(adapter, type);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -2270,8 +2272,10 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 		atl1c_tx_rollback(adapter, tpd, type);
 		dev_kfree_skb_any(skb);
 	} else {
-		netdev_sent_queue(adapter->netdev, skb->len);
-		atl1c_tx_queue(adapter, skb, tpd, type);
+		bool more = netdev_xmit_more();
+
+		if (__netdev_sent_queue(adapter->netdev, skb->len, more))
+			atl1c_tx_queue(adapter, type);
 	}
 
 	return NETDEV_TX_OK;
