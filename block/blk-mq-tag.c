@@ -471,39 +471,54 @@ static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
 				       node);
 }
 
+int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
+			struct sbitmap_queue *breserved_tags,
+			unsigned int queue_depth, unsigned int reserved,
+			int node, int alloc_policy)
+{
+	unsigned int depth = queue_depth - reserved;
+	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
+
+	if (bt_alloc(bitmap_tags, depth, round_robin, node))
+		return -ENOMEM;
+	if (bt_alloc(breserved_tags, reserved, round_robin, node))
+		goto free_bitmap_tags;
+
+	return 0;
+
+free_bitmap_tags:
+	sbitmap_queue_free(bitmap_tags);
+	return -ENOMEM;
+}
+
 static int blk_mq_init_bitmap_tags(struct blk_mq_tags *tags,
 				   int node, int alloc_policy)
 {
-	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
-	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
+	int ret;
 
-	if (bt_alloc(&tags->__bitmap_tags, depth, round_robin, node))
-		return -ENOMEM;
-	if (bt_alloc(&tags->__breserved_tags, tags->nr_reserved_tags,
-		     round_robin, node))
-		goto free_bitmap_tags;
+	ret = blk_mq_init_bitmaps(&tags->__bitmap_tags,
+				  &tags->__breserved_tags,
+				  tags->nr_tags, tags->nr_reserved_tags,
+				  node, alloc_policy);
+	if (ret)
+		return ret;
 
 	tags->bitmap_tags = &tags->__bitmap_tags;
 	tags->breserved_tags = &tags->__breserved_tags;
 
 	return 0;
-free_bitmap_tags:
-	sbitmap_queue_free(&tags->__bitmap_tags);
-	return -ENOMEM;
 }
 
-int blk_mq_init_shared_sbitmap(struct blk_mq_tag_set *set, unsigned int flags)
+int blk_mq_init_shared_sbitmap(struct blk_mq_tag_set *set)
 {
-	unsigned int depth = set->queue_depth - set->reserved_tags;
 	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags);
-	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
-	int i, node = set->numa_node;
+	int i, ret;
 
-	if (bt_alloc(&set->__bitmap_tags, depth, round_robin, node))
-		return -ENOMEM;
-	if (bt_alloc(&set->__breserved_tags, set->reserved_tags,
-		     round_robin, node))
-		goto free_bitmap_tags;
+	ret = blk_mq_init_bitmaps(&set->__bitmap_tags, &set->__breserved_tags,
+				  set->queue_depth, set->reserved_tags,
+				  set->numa_node, alloc_policy);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		struct blk_mq_tags *tags = set->tags[i];
@@ -513,9 +528,6 @@ int blk_mq_init_shared_sbitmap(struct blk_mq_tag_set *set, unsigned int flags)
 	}
 
 	return 0;
-free_bitmap_tags:
-	sbitmap_queue_free(&set->__bitmap_tags);
-	return -ENOMEM;
 }
 
 void blk_mq_exit_shared_sbitmap(struct blk_mq_tag_set *set)

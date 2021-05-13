@@ -3564,7 +3564,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (blk_mq_is_sbitmap_shared(set->flags)) {
 		atomic_set(&set->active_queues_shared_sbitmap, 0);
 
-		if (blk_mq_init_shared_sbitmap(set, set->flags)) {
+		if (blk_mq_init_shared_sbitmap(set)) {
 			ret = -ENOMEM;
 			goto out_free_mq_rq_maps;
 		}
