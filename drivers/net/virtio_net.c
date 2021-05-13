@@ -407,8 +407,12 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 		 * see add_recvbuf_mergeable() + get_mergeable_buf_len()
 		 */
 		truesize = PAGE_SIZE;
-		tailroom = truesize - len - offset;
-		buf = page_address(page);
+
+		/* page maybe head page, so we should get the buf by p, not the
+		 * page
+		 */
+		tailroom = truesize - len - offset_in_page(p);
+		buf = (char *)((unsigned long)p & PAGE_MASK);
 	} else {
 		tailroom = truesize - len;
 		buf = p;
