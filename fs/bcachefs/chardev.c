@@ -523,7 +523,7 @@ static long bch2_ioctl_read_super(struct bch_fs *c,
 	ret = copy_to_user((void __user *)(unsigned long)arg.sb,
 			   sb, vstruct_bytes(sb));
 err:
-	if (ca)
+	if (!IS_ERR_OR_NULL(ca))
 		percpu_ref_put(&ca->ref);
 	mutex_unlock(&c->sb_lock);
 	return ret;
