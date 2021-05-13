@@ -11,6 +11,8 @@
  *	evm_inode_removexattr, and evm_verifyxattr
  */
 
+#define pr_fmt(fmt) "EVM: "fmt
+
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/audit.h>
@@ -272,6 +274,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		else
 			evm_status = INTEGRITY_FAIL;
 	}
+	pr_debug("digest: (%d) [%*phN]\n", digest.hdr.length, digest.hdr.length,
+		  digest.digest);
 out:
 	if (iint)
 		iint->evm_status = evm_status;
