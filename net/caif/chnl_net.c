@@ -76,8 +76,6 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	u8 buf;
 
 	priv = container_of(layr, struct chnl_net, chnl);
-	if (!priv)
-		return -EINVAL;
 
 	skb = (struct sk_buff *) cfpkt_tonative(pkt);
 
