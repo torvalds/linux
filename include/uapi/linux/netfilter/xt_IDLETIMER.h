@@ -48,7 +48,7 @@ struct idletimer_tg_info_v1 {
 
 	char label[MAX_IDLETIMER_LABEL_SIZE];
 
-	__u8 send_nl_msg;   /* unused: for compatibility with Android */
+	__u8 send_nl_msg;
 	__u8 timer_type;
 
 	/* for kernel module internal use only */

@@ -346,9 +346,6 @@ static int idletimer_tg_checkentry_v1(const struct xt_tgchk_param *par)
 
 	pr_debug("checkentry targinfo%s\n", info->label);
 
-	if (info->send_nl_msg)
-		return -EOPNOTSUPP;
-
 	ret = idletimer_tg_helper((struct idletimer_tg_info *)info);
 	if(ret < 0)
 	{
@@ -358,6 +355,11 @@ static int idletimer_tg_checkentry_v1(const struct xt_tgchk_param *par)
 
 	if (info->timer_type > XT_IDLETIMER_ALARM) {
 		pr_debug("invalid value for timer type\n");
+		return -EINVAL;
+	}
+
+	if (info->send_nl_msg > 1) {
+		pr_debug("invalid value for send_nl_msg\n");
 		return -EINVAL;
 	}
 
