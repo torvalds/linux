@@ -17,8 +17,6 @@
 #include <asm/text-patching.h>
 #include <asm/insn.h>
 
-#define JUMP_LABEL_NOP_SIZE	JMP32_INSN_SIZE
-
 int arch_jump_entry_size(struct jump_entry *entry)
 {
 	struct insn insn = {};
