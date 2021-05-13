@@ -611,7 +611,7 @@ static struct cdev ptmx_cdev;
  */
 int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
 {
-	int fd = -1;
+	int fd;
 	struct file *filp;
 	int retval = -EINVAL;
 	struct path path;
