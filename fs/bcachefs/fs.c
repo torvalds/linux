@@ -32,6 +32,7 @@
 #include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/statfs.h>
+#include <linux/string.h>
 #include <linux/xattr.h>
 
 static struct kmem_cache *bch2_inode_cache;
@@ -1323,6 +1324,9 @@ static char **split_devs(const char *_dev_name, unsigned *nr)
 {
 	char *dev_name = NULL, **devs = NULL, *s;
 	size_t i, nr_devs = 0;
+
+	if (strlen(_dev_name) == 0)
+		return NULL;
 
 	dev_name = kstrdup(_dev_name, GFP_KERNEL);
 	if (!dev_name)
