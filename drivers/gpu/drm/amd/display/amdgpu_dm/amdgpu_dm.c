@@ -5538,6 +5538,65 @@ static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 	}
 }
 
+static void update_dsc_caps(struct amdgpu_dm_connector *aconnector,
+							struct dc_sink *sink, struct dc_stream_state *stream,
+							struct dsc_dec_dpcd_caps *dsc_caps)
+{
+	stream->timing.flags.DSC = 0;
+
+	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
+				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
+				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
+				      dsc_caps);
+#endif
+	}
+}
+
+static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
+										struct dc_sink *sink, struct dc_stream_state *stream,
+										struct dsc_dec_dpcd_caps *dsc_caps)
+{
+	struct drm_connector *drm_connector = &aconnector->base;
+	uint32_t link_bandwidth_kbps;
+
+	link_bandwidth_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
+							dc_link_get_link_cap(aconnector->dc_link));
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* Set DSC policy according to dsc_clock_en */
+	dc_dsc_policy_set_enable_dsc_when_not_needed(
+		aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE);
+
+	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
+
+		if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
+						dsc_caps,
+						aconnector->dc_link->ctx->dc->debug.dsc_min_slice_height_override,
+						0,
+						link_bandwidth_kbps,
+						&stream->timing,
+						&stream->timing.dsc_cfg)) {
+			stream->timing.flags.DSC = 1;
+			DRM_DEBUG_DRIVER("%s: [%s] DSC is selected from SST RX\n", __func__, drm_connector->name);
+		}
+	}
+
+	/* Overwrite the stream flag if DSC is enabled through debugfs */
+	if (aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE)
+		stream->timing.flags.DSC = 1;
+
+	if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_num_slices_h)
+		stream->timing.dsc_cfg.num_slices_h = aconnector->dsc_settings.dsc_num_slices_h;
+
+	if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_num_slices_v)
+		stream->timing.dsc_cfg.num_slices_v = aconnector->dsc_settings.dsc_num_slices_v;
+
+	if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_bits_per_pixel)
+		stream->timing.dsc_cfg.bits_per_pixel = aconnector->dsc_settings.dsc_bits_per_pixel;
+#endif
+}
+
 static struct drm_display_mode *
 get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
 			  bool use_probed_modes)
@@ -5640,7 +5699,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	int preferred_refresh = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dsc_dec_dpcd_caps dsc_caps;
-	uint32_t link_bandwidth_kbps;
 #endif
 	struct dc_sink *sink = NULL;
 
@@ -5730,47 +5788,12 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			stream, &mode, &aconnector->base, con_state, old_stream,
 			requested_bpc);
 
-	stream->timing.flags.DSC = 0;
-
-	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
-				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
-				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
-				      &dsc_caps);
-		link_bandwidth_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
-							     dc_link_get_link_cap(aconnector->dc_link));
-
-		if (aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE && dsc_caps.is_dsc_supported) {
-			/* Set DSC policy according to dsc_clock_en */
-			dc_dsc_policy_set_enable_dsc_when_not_needed(
-				aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE);
-
-			if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
-						  &dsc_caps,
-						  aconnector->dc_link->ctx->dc->debug.dsc_min_slice_height_override,
-						  0,
-						  link_bandwidth_kbps,
-						  &stream->timing,
-						  &stream->timing.dsc_cfg)) {
-				stream->timing.flags.DSC = 1;
-				DRM_DEBUG_DRIVER("%s: [%s] DSC is selected from SST RX\n", __func__, drm_connector->name);
-			}
-			/* Overwrite the stream flag if DSC is enabled through debugfs */
-			if (aconnector->dsc_settings.dsc_force_enable == DSC_CLK_FORCE_ENABLE)
-				stream->timing.flags.DSC = 1;
-
-			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_num_slices_h)
-				stream->timing.dsc_cfg.num_slices_h = aconnector->dsc_settings.dsc_num_slices_h;
-
-			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_num_slices_v)
-				stream->timing.dsc_cfg.num_slices_v = aconnector->dsc_settings.dsc_num_slices_v;
-
-			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_bits_per_pixel)
-				stream->timing.dsc_cfg.bits_per_pixel = aconnector->dsc_settings.dsc_bits_per_pixel;
-		}
+	/* SST DSC determination policy */
+	update_dsc_caps(aconnector, sink, stream, &dsc_caps);
+	if (aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE && dsc_caps.is_dsc_supported)
+		apply_dsc_policy_for_stream(aconnector, sink, stream, &dsc_caps);
 #endif
-	}
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
 
