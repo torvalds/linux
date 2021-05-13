@@ -7,7 +7,7 @@
 /* 8-byte aligned .data */
 static volatile long static_var1 = 2;
 static volatile int static_var2 = 3;
-int var1 = 0;
+int var1 = -1;
 /* 4-byte aligned .rodata */
 const volatile int rovar1;
 

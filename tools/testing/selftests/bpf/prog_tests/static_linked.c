@@ -27,8 +27,8 @@ void test_static_linked(void)
 	/* trigger */
 	usleep(1);
 
-	ASSERT_EQ(skel->bss->var1, 1 * 2 + 2 + 3, "var1");
-	ASSERT_EQ(skel->bss->var2, 4 * 3 + 5 + 6, "var2");
+	ASSERT_EQ(skel->data->var1, 1 * 2 + 2 + 3, "var1");
+	ASSERT_EQ(skel->data->var2, 4 * 3 + 5 + 6, "var2");
 
 cleanup:
 	test_static_linked__destroy(skel);
