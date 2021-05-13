@@ -355,7 +355,7 @@ static umode_t corsairpsu_hwmon_power_is_visible(const struct corsairpsu_data *p
 		return 0444;
 	default:
 		return 0;
-	};
+	}
 }
 
 static umode_t corsairpsu_hwmon_in_is_visible(const struct corsairpsu_data *priv, u32 attr,
@@ -376,7 +376,7 @@ static umode_t corsairpsu_hwmon_in_is_visible(const struct corsairpsu_data *priv
 		break;
 	default:
 		break;
-	};
+	}
 
 	return res;
 }
