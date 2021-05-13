@@ -915,7 +915,7 @@ int rtl8723e_hw_init(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	bool rtstatus = true;
+	bool rtstatus;
 	int err;
 	u8 tmp_u1b;
 	unsigned long flags;
