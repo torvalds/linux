@@ -172,7 +172,6 @@ static int create_txqs(struct hinic_dev *nic_dev)
 				  "Failed to add SQ%d debug\n", i);
 			goto err_add_sq_dbg;
 		}
-
 	}
 
 	return 0;

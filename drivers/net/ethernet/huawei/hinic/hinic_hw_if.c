@@ -395,7 +395,7 @@ static void __print_selftest_reg(struct hinic_hwif *hwif)
 /**
  * hinic_init_hwif - initialize the hw interface
  * @hwif: the HW interface of a pci function device
- * @pdev: the pci device for acessing PCI resources
+ * @pdev: the pci device for accessing PCI resources
  *
  * Return 0 - Success, negative - Failure
  **/

@@ -223,7 +223,7 @@ static void cmdq_prepare_wqe_ctrl(struct hinic_cmdq_wqe *wqe, int wrapped,
 	saved_data = CMDQ_WQE_HEADER(wqe)->saved_data;
 	saved_data = HINIC_SAVED_DATA_CLEAR(saved_data, ARM);
 
-	if ((cmd == CMDQ_SET_ARM_CMD) && (mod == HINIC_MOD_COMM))
+	if (cmd == CMDQ_SET_ARM_CMD && mod == HINIC_MOD_COMM)
 		CMDQ_WQE_HEADER(wqe)->saved_data |=
 						HINIC_SAVED_DATA_SET(1, ARM);
 	else
