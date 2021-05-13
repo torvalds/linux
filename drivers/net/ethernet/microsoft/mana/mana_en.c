@@ -1387,8 +1387,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	gc = gd->gdma_context;
 
-	rxq = kzalloc(sizeof(*rxq) +
-		      RX_BUFFERS_PER_QUEUE * sizeof(struct mana_recv_buf_oob),
+	rxq = kzalloc(struct_size(rxq, rx_oobs, RX_BUFFERS_PER_QUEUE),
 		      GFP_KERNEL);
 	if (!rxq)
 		return NULL;
