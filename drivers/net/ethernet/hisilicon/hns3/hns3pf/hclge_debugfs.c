@@ -1800,21 +1800,33 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	return 0;
 }
 
-int hclge_dbg_read_cmd(struct hnae3_handle *handle, const char *cmd_buf,
+static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
+	{
+		.cmd = HNAE3_DBG_CMD_TM_NODES,
+		.dbg_dump = hclge_dbg_dump_tm_nodes,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_TM_PRI,
+		.dbg_dump = hclge_dbg_dump_tm_pri,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_TM_QSET,
+		.dbg_dump = hclge_dbg_dump_tm_qset,
+	},
+};
+
+int hclge_dbg_read_cmd(struct hnae3_handle *handle, enum hnae3_dbg_cmd cmd,
 		       char *buf, int len)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	u32 i;
 
-	if (strncmp(cmd_buf, HNAE3_DBG_TM_NODES,
-		    strlen(HNAE3_DBG_TM_NODES)) == 0)
-		return hclge_dbg_dump_tm_nodes(hdev, buf, len);
-	else if (strncmp(cmd_buf, HNAE3_DBG_TM_PRI,
-			 strlen(HNAE3_DBG_TM_PRI)) == 0)
-		return hclge_dbg_dump_tm_pri(hdev, buf, len);
-	else if (strncmp(cmd_buf, HNAE3_DBG_TM_QSET,
-			 strlen(HNAE3_DBG_TM_QSET)) == 0)
-		return hclge_dbg_dump_tm_qset(hdev, buf, len);
+	for (i = 0; i < ARRAY_SIZE(hclge_dbg_cmd_func); i++) {
+		if (cmd == hclge_dbg_cmd_func[i].cmd)
+			return hclge_dbg_cmd_func[i].dbg_dump(hdev, buf, len);
+	}
 
+	dev_err(&hdev->pdev->dev, "invalid command(%d)\n", cmd);
 	return -EINVAL;
 }

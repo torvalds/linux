@@ -250,6 +250,13 @@ enum hnae3_port_base_vlan_state {
 	HNAE3_PORT_BASE_VLAN_NOCHANGE,
 };
 
+enum hnae3_dbg_cmd {
+	HNAE3_DBG_CMD_TM_NODES,
+	HNAE3_DBG_CMD_TM_PRI,
+	HNAE3_DBG_CMD_TM_QSET,
+	HNAE3_DBG_CMD_UNKNOWN,
+};
+
 struct hnae3_vector_info {
 	u8 __iomem *io_addr;
 	int vector;
@@ -627,7 +634,7 @@ struct hnae3_ae_ops {
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
 	int (*dbg_run_cmd)(struct hnae3_handle *handle, const char *cmd_buf);
-	int (*dbg_read_cmd)(struct hnae3_handle *handle, const char *cmd_buf,
+	int (*dbg_read_cmd)(struct hnae3_handle *handle, enum hnae3_dbg_cmd cmd,
 			    char *buf, int len);
 	pci_ers_result_t (*handle_hw_ras_error)(struct hnae3_ae_dev *ae_dev);
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
@@ -789,10 +796,6 @@ struct hnae3_handle {
 	hnae3_set_field(origin, 0x1 << (shift), shift, val)
 #define hnae3_get_bit(origin, shift) \
 	hnae3_get_field(origin, 0x1 << (shift), shift)
-
-#define HNAE3_DBG_TM_NODES		"tm_nodes"
-#define HNAE3_DBG_TM_PRI		"tm_priority"
-#define HNAE3_DBG_TM_QSET		"tm_qset"
 
 int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);

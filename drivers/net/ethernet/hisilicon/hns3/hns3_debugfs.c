@@ -5,12 +5,47 @@
 #include <linux/device.h>
 
 #include "hnae3.h"
+#include "hns3_debugfs.h"
 #include "hns3_enet.h"
 
-#define HNS3_DBG_READ_LEN 65536
-#define HNS3_DBG_WRITE_LEN 1024
-
 static struct dentry *hns3_dbgfs_root;
+
+static struct hns3_dbg_dentry_info hns3_dbg_dentry[] = {
+	{
+		.name = "tm"
+	},
+	/* keep common at the bottom and add new directory above */
+	{
+		.name = "common"
+	},
+};
+
+static int hns3_dbg_common_file_init(struct hnae3_handle *handle,
+				     unsigned int cmd);
+
+static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
+	{
+		.name = "tm_nodes",
+		.cmd = HNAE3_DBG_CMD_TM_NODES,
+		.dentry = HNS3_DBG_DENTRY_TM,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "tm_priority",
+		.cmd = HNAE3_DBG_CMD_TM_PRI,
+		.dentry = HNS3_DBG_DENTRY_TM,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "tm_qset",
+		.cmd = HNAE3_DBG_CMD_TM_QSET,
+		.dentry = HNS3_DBG_DENTRY_TM,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+};
 
 static int hns3_dbg_queue_info(struct hnae3_handle *h,
 			       const char *cmd_buf)
@@ -493,37 +528,90 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 	return count;
 }
 
+static int hns3_dbg_get_cmd_index(struct hnae3_handle *handle,
+				  const unsigned char *name, u32 *index)
+{
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
+		if (!strncmp(name, hns3_dbg_cmd[i].name,
+			     strlen(hns3_dbg_cmd[i].name))) {
+			*index = i;
+			return 0;
+		}
+	}
+
+	dev_err(&handle->pdev->dev, "unknown command(%s)\n", name);
+	return -EINVAL;
+}
+
+static int hns3_dbg_read_cmd(struct hnae3_handle *handle,
+			     enum hnae3_dbg_cmd cmd, char *buf, int len)
+{
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (!ops->dbg_read_cmd)
+		return -EOPNOTSUPP;
+
+	return ops->dbg_read_cmd(handle, cmd, buf, len);
+}
+
 static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 			     size_t count, loff_t *ppos)
 {
 	struct hnae3_handle *handle = filp->private_data;
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	struct hns3_nic_priv *priv = handle->priv;
-	char *cmd_buf, *read_buf;
 	ssize_t size = 0;
-	int ret = 0;
+	char **save_buf;
+	char *read_buf;
+	u32 index;
+	int ret;
 
-	read_buf = kzalloc(HNS3_DBG_READ_LEN, GFP_KERNEL);
-	if (!read_buf)
-		return -ENOMEM;
+	ret = hns3_dbg_get_cmd_index(handle, filp->f_path.dentry->d_iname,
+				     &index);
+	if (ret)
+		return ret;
 
-	cmd_buf = filp->f_path.dentry->d_iname;
+	save_buf = &hns3_dbg_cmd[index].buf;
 
-	if (ops->dbg_read_cmd)
-		ret = ops->dbg_read_cmd(handle, cmd_buf, read_buf,
-					HNS3_DBG_READ_LEN);
-
-	if (ret) {
-		dev_info(priv->dev, "unknown command\n");
+	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
+	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state)) {
+		ret = -EBUSY;
 		goto out;
+	}
+
+	if (*save_buf) {
+		read_buf = *save_buf;
+	} else {
+		read_buf = kvzalloc(hns3_dbg_cmd[index].buf_len, GFP_KERNEL);
+		if (!read_buf)
+			return -ENOMEM;
+
+		/* save the buffer addr until the last read operation */
+		*save_buf = read_buf;
+	}
+
+	/* get data ready for the first time to read */
+	if (!*ppos) {
+		ret = hns3_dbg_read_cmd(handle, hns3_dbg_cmd[index].cmd,
+					read_buf, hns3_dbg_cmd[index].buf_len);
+		if (ret)
+			goto out;
 	}
 
 	size = simple_read_from_buffer(buffer, count, ppos, read_buf,
 				       strlen(read_buf));
+	if (size > 0)
+		return size;
 
 out:
-	kfree(read_buf);
-	return size;
+	/* free the buffer for the last read operation */
+	if (*save_buf) {
+		kvfree(*save_buf);
+		*save_buf = NULL;
+	}
+
+	return ret;
 }
 
 static const struct file_operations hns3_dbg_cmd_fops = {
@@ -539,29 +627,76 @@ static const struct file_operations hns3_dbg_fops = {
 	.read  = hns3_dbg_read,
 };
 
-void hns3_dbg_init(struct hnae3_handle *handle)
+static int
+hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd)
+{
+	struct dentry *entry_dir;
+
+	entry_dir = hns3_dbg_dentry[hns3_dbg_cmd[cmd].dentry].dentry;
+	debugfs_create_file(hns3_dbg_cmd[cmd].name, 0400, entry_dir,
+			    handle, &hns3_dbg_fops);
+
+	return 0;
+}
+
+int hns3_dbg_init(struct hnae3_handle *handle)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	const char *name = pci_name(handle->pdev);
-	struct dentry *entry_dir;
+	int ret;
+	u32 i;
 
-	handle->hnae3_dbgfs = debugfs_create_dir(name, hns3_dbgfs_root);
+	hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry =
+				debugfs_create_dir(name, hns3_dbgfs_root);
+	handle->hnae3_dbgfs = hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry;
 
 	debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
 			    &hns3_dbg_cmd_fops);
 
-	entry_dir = debugfs_create_dir("tm", handle->hnae3_dbgfs);
-	if (ae_dev->dev_version > HNAE3_DEVICE_VERSION_V2)
-		debugfs_create_file(HNAE3_DBG_TM_NODES, 0600, entry_dir, handle,
-				    &hns3_dbg_fops);
-	debugfs_create_file(HNAE3_DBG_TM_PRI, 0600, entry_dir, handle,
-			    &hns3_dbg_fops);
-	debugfs_create_file(HNAE3_DBG_TM_QSET, 0600, entry_dir, handle,
-			    &hns3_dbg_fops);
+	for (i = 0; i < HNS3_DBG_DENTRY_COMMON; i++)
+		hns3_dbg_dentry[i].dentry =
+			debugfs_create_dir(hns3_dbg_dentry[i].name,
+					   handle->hnae3_dbgfs);
+
+	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
+		if (hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_TM_NODES &&
+		    ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2)
+			continue;
+
+		if (!hns3_dbg_cmd[i].init) {
+			dev_err(&handle->pdev->dev,
+				"cmd %s lack of init func\n",
+				hns3_dbg_cmd[i].name);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		ret = hns3_dbg_cmd[i].init(handle, i);
+		if (ret) {
+			dev_err(&handle->pdev->dev, "failed to init cmd %s\n",
+				hns3_dbg_cmd[i].name);
+			goto out;
+		}
+	}
+
+	return 0;
+
+out:
+	debugfs_remove_recursive(handle->hnae3_dbgfs);
+	handle->hnae3_dbgfs = NULL;
+	return ret;
 }
 
 void hns3_dbg_uninit(struct hnae3_handle *handle)
 {
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++)
+		if (hns3_dbg_cmd[i].buf) {
+			kvfree(hns3_dbg_cmd[i].buf);
+			hns3_dbg_cmd[i].buf = NULL;
+		}
+
 	debugfs_remove_recursive(handle->hnae3_dbgfs);
 	handle->hnae3_dbgfs = NULL;
 }

@@ -83,6 +83,11 @@ struct hclge_dbg_reg_type_info {
 	struct hclge_dbg_reg_common_msg reg_msg;
 };
 
+struct hclge_dbg_func {
+	enum hnae3_dbg_cmd cmd;
+	int (*dbg_dump)(struct hclge_dev *hdev, char *buf, int len);
+};
+
 static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
 	{false, "Reserved"},
 	{true,	"BP_CPU_STATE"},
