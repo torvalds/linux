@@ -260,16 +260,6 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	dev_info(dev, "(RX)addr: %pad\n", &addr);
 	dev_info(dev, "(RX)l234_info: %u\n", l234info);
 
-	if (l234info & BIT(HNS3_RXD_L2_CSUM_B)) {
-		u32 lo, hi;
-
-		lo = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_L_M,
-				     HNS3_RXD_L2_CSUM_L_S);
-		hi = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_H_M,
-				     HNS3_RXD_L2_CSUM_H_S);
-		dev_info(dev, "(RX)csum: %u\n", lo | hi << 8);
-	}
-
 	dev_info(dev, "(RX)pkt_len: %u\n", le16_to_cpu(rx_desc->rx.pkt_len));
 	dev_info(dev, "(RX)size: %u\n", le16_to_cpu(rx_desc->rx.size));
 	dev_info(dev, "(RX)rss_hash: %u\n", le32_to_cpu(rx_desc->rx.rss_hash));

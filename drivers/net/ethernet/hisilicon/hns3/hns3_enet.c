@@ -3252,20 +3252,20 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 	return 0;
 }
 
-static void hns3_checksum_complete(struct hns3_enet_ring *ring,
-				   struct sk_buff *skb, u32 l234info)
+static bool hns3_checksum_complete(struct hns3_enet_ring *ring,
+				   struct sk_buff *skb, u32 ptype, u16 csum)
 {
-	u32 lo, hi;
+	if (ptype == HNS3_INVALID_PTYPE ||
+	    hns3_rx_ptype_tbl[ptype].ip_summed != CHECKSUM_COMPLETE)
+		return false;
 
 	u64_stats_update_begin(&ring->syncp);
 	ring->stats.csum_complete++;
 	u64_stats_update_end(&ring->syncp);
 	skb->ip_summed = CHECKSUM_COMPLETE;
-	lo = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_L_M,
-			     HNS3_RXD_L2_CSUM_L_S);
-	hi = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_H_M,
-			     HNS3_RXD_L2_CSUM_H_S);
-	skb->csum = csum_unfold((__force __sum16)(lo | hi << 8));
+	skb->csum = csum_unfold((__force __sum16)csum);
+
+	return true;
 }
 
 static void hns3_rx_handle_csum(struct sk_buff *skb, u32 l234info,
@@ -3307,7 +3307,8 @@ static void hns3_rx_handle_csum(struct sk_buff *skb, u32 l234info,
 }
 
 static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
-			     u32 l234info, u32 bd_base_info, u32 ol_info)
+			     u32 l234info, u32 bd_base_info, u32 ol_info,
+			     u16 csum)
 {
 	struct net_device *netdev = ring_to_netdev(ring);
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3324,10 +3325,8 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 		ptype = hnae3_get_field(ol_info, HNS3_RXD_PTYPE_M,
 					HNS3_RXD_PTYPE_S);
 
-	if (l234info & BIT(HNS3_RXD_L2_CSUM_B)) {
-		hns3_checksum_complete(ring, skb, l234info);
+	if (hns3_checksum_complete(ring, skb, ptype, csum))
 		return;
-	}
 
 	/* check if hardware has done checksum */
 	if (!(bd_base_info & BIT(HNS3_RXD_L3L4P_B)))
@@ -3527,7 +3526,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring)
 
 static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 				     struct sk_buff *skb, u32 l234info,
-				     u32 bd_base_info, u32 ol_info)
+				     u32 bd_base_info, u32 ol_info, u16 csum)
 {
 	struct net_device *netdev = ring_to_netdev(ring);
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3538,7 +3537,8 @@ static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 						    HNS3_RXD_GRO_SIZE_S);
 	/* if there is no HW GRO, do not set gro params */
 	if (!skb_shinfo(skb)->gso_size) {
-		hns3_rx_checksum(ring, skb, l234info, bd_base_info, ol_info);
+		hns3_rx_checksum(ring, skb, l234info, bd_base_info, ol_info,
+				 csum);
 		return 0;
 	}
 
@@ -3588,6 +3588,7 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	struct hns3_desc *desc;
 	unsigned int len;
 	int pre_ntc, ret;
+	u16 csum;
 
 	/* bdinfo handled below is only valid on the last BD of the
 	 * current packet, and ring->next_to_clean indicates the first
@@ -3599,6 +3600,7 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
 	l234info = le32_to_cpu(desc->rx.l234_info);
 	ol_info = le32_to_cpu(desc->rx.ol_info);
+	csum = le16_to_cpu(desc->csum);
 
 	/* Based on hw strategy, the tag offloaded will be stored at
 	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
@@ -3631,7 +3633,7 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 
 	/* This is needed in order to enable forwarding support */
 	ret = hns3_set_gro_and_checksum(ring, skb, l234info,
-					bd_base_info, ol_info);
+					bd_base_info, ol_info, csum);
 	if (unlikely(ret)) {
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.rx_err_cnt++;
