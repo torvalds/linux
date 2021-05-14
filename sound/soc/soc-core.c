@@ -75,9 +75,9 @@ static ssize_t pmdown_time_show(struct device *dev,
 	return sprintf(buf, "%ld\n", rtd->pmdown_time);
 }
 
-static ssize_t pmdown_time_set(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t pmdown_time_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 	int ret;
@@ -89,7 +89,7 @@ static ssize_t pmdown_time_set(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(pmdown_time, 0644, pmdown_time_show, pmdown_time_set);
+static DEVICE_ATTR_RW(pmdown_time);
 
 static struct attribute *soc_dev_attrs[] = {
 	&dev_attr_pmdown_time.attr,
