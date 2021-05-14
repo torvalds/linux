@@ -2810,7 +2810,6 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 					conn_state);
 
 		/* FIXME precompute everything properly */
-		/* FIXME how do we turn infoframes off again? */
 		if (dig_port->lspcon.active && dig_port->dp.has_hdmi_sink)
 			dig_port->set_infoframes(encoder,
 						 crtc_state->has_infoframe,
