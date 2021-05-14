@@ -2467,6 +2467,8 @@ static int sa_ul_remove(struct platform_device *pdev)
 {
 	struct sa_crypto_data *dev_data = platform_get_drvdata(pdev);
 
+	of_platform_depopulate(&pdev->dev);
+
 	sa_unregister_algos(&pdev->dev);
 
 	dma_release_channel(dev_data->dma_rx2);
