@@ -2625,6 +2625,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto destroy_buf;
 	}
 
+	stream->fs_cnt_in_single_frame = 0;
+
 	if (dev->active_sensor) {
 		ret = rkcif_update_sensor_info(stream);
 		if (ret < 0) {
@@ -2990,6 +2992,8 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 		stream->extend_line.is_extended = false;
 
 	stream->is_dvp_yuv_addr_init = false;
+	stream->is_fs_fe_not_paired = false;
+	stream->fs_cnt_in_single_frame = 0;
 
 }
 
@@ -4180,6 +4184,7 @@ static bool rkcif_is_csi2_err_trigger_reset(struct rkcif_timer *timer)
 	struct rkcif_device *dev = container_of(timer,
 						struct rkcif_device,
 						reset_watchdog_timer);
+	struct rkcif_stream *stream = &dev->stream[RKCIF_STREAM_MIPI_ID0];
 
 	bool is_triggered = false;
 	unsigned long lock_flags;
@@ -4193,6 +4198,16 @@ static bool rkcif_is_csi2_err_trigger_reset(struct rkcif_timer *timer)
 		timer->csi2_err_cnt_even = 0;
 		timer->reset_src = RKCIF_RESET_SRC_ERR_CSI2;
 		v4l2_info(&dev->v4l2_dev, "do csi2 err reset\n");
+	}
+
+	/*
+	 * when fs cnt is beyond 2, it indicates that frame end is not coming,
+	 * or fs and fe had been not paired.
+	 */
+	if (stream->is_fs_fe_not_paired ||
+	    stream->fs_cnt_in_single_frame > RKCIF_FS_DETECTED_NUM) {
+		is_triggered = true;
+		v4l2_info(&dev->v4l2_dev, "reset for fs & fe not paired\n");
 	}
 
 	spin_unlock_irqrestore(&timer->csi2_err_lock, lock_flags);
@@ -4716,7 +4731,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	struct rkcif_sensor_info *terminal_sensor = &cif_dev->terminal_sensor;
 	struct rkcif_resume_info *resume_info = &cif_dev->reset_work.resume_info;
 	int i, j, ret = 0;
-	u32 on;
+	u32 on, sof_cnt;
 
 	mutex_lock(&cif_dev->stream_lock);
 
@@ -4743,10 +4758,23 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 				stream->stopping = false;
 			}
 
-			if (stream->id == RKCIF_STREAM_MIPI_ID0)
-				resume_info->frm_sync_seq = rkcif_get_sof(cif_dev) + 1;
+			if (stream->id == RKCIF_STREAM_MIPI_ID0) {
+				sof_cnt = rkcif_get_sof(cif_dev);
+				v4l2_err(&cif_dev->v4l2_dev,
+					 "%s: stream[%d] sync frmid & csi_sof, frm_id:%d, csi_sof:%d\n",
+					 __func__,
+					 stream->id,
+					 stream->frame_idx,
+					 sof_cnt);
+
+				resume_info->frm_sync_seq = sof_cnt;
+				if (stream->frame_idx != sof_cnt)
+					stream->frame_idx = sof_cnt;
+			}
 
 			stream->state = RKCIF_STATE_RESET_IN_STREAMING;
+			stream->is_fs_fe_not_paired = false;
+			stream->fs_cnt_in_single_frame = 0;
 			resume_stream[j] = stream;
 			j += 1;
 
@@ -4797,6 +4825,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	}
 
 	for (i = 0; i < j; i++) {
+		resume_stream[i]->fs_cnt_in_single_frame = 0;
 		ret = rkcif_csi_stream_start(resume_stream[i]);
 		if (ret) {
 			v4l2_err(&cif_dev->v4l2_dev, "%s:resume stream[%d] failed\n",
@@ -5112,8 +5141,9 @@ int rkcif_reset_notifier(struct notifier_block *nb,
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *stream;
+	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
 	struct v4l2_mbus_config *mbus;
-	unsigned int intstat, i = 0xff;
+	unsigned int intstat = 0x0, i = 0xff, bak_intstat = 0x0;
 
 	if (!cif_dev->active_sensor)
 		return;
@@ -5156,11 +5186,23 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			return;
 		}
 
+		if ((intstat & (CSI_FRAME0_START_ID0 | CSI_FRAME1_START_ID0)) ==
+			(CSI_FRAME0_START_ID0 | CSI_FRAME1_START_ID0)) {
+			v4l2_err(&cif_dev->v4l2_dev, "%s:ERR: double fs in one fs int\n",
+				 __func__);
+		}
+
 		if (intstat & CSI_FRAME0_START_ID0) {
 			if (mbus->type == V4L2_MBUS_CSI2)
 				rkcif_csi2_event_inc_sof();
 			else if (mbus->type == V4L2_MBUS_CCP2)
 				rkcif_lvds_event_inc_sof(cif_dev);
+
+			if (detect_stream->fs_cnt_in_single_frame >= 1)
+				v4l2_warn(&cif_dev->v4l2_dev,
+					  "%s:warn: fs has been incread:%d(frm0)\n",
+					  __func__, detect_stream->fs_cnt_in_single_frame);
+			detect_stream->fs_cnt_in_single_frame++;
 		}
 
 		if (intstat & CSI_FRAME1_START_ID0) {
@@ -5168,6 +5210,11 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 				rkcif_csi2_event_inc_sof();
 			else if (mbus->type == V4L2_MBUS_CCP2)
 				rkcif_lvds_event_inc_sof(cif_dev);
+
+			if (detect_stream->fs_cnt_in_single_frame >= 1)
+				v4l2_warn(&cif_dev->v4l2_dev, "%s:warn: fs has been incread:%d(frm1)\n",
+				 __func__, detect_stream->fs_cnt_in_single_frame);
+			detect_stream->fs_cnt_in_single_frame++;
 		}
 
 		/* if do not reach frame dma end, return irq */
@@ -5217,6 +5264,19 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 			rkcif_update_stream(cif_dev, stream, mipi_id);
 			rkcif_monitor_reset_event(cif_dev);
+			if (stream->id == RKCIF_STREAM_MIPI_ID0 &&
+			    (intstat & (CSI_FRAME1_START_ID0 | CSI_FRAME0_START_ID0)) == 0 &&
+			     detect_stream->fs_cnt_in_single_frame > 1) {
+				v4l2_err(&cif_dev->v4l2_dev,
+					 "%s ERR: multi fs in oneframe, bak_int:0x%x, fs_num:%d\n",
+					 __func__,
+					 bak_intstat,
+					 detect_stream->fs_cnt_in_single_frame);
+				detect_stream->is_fs_fe_not_paired = true;
+				detect_stream->fs_cnt_in_single_frame = 0;
+			} else {
+				detect_stream->fs_cnt_in_single_frame--;
+			}
 		}
 		cif_dev->irq_stats.all_frm_end_cnt++;
 	} else {

@@ -93,7 +93,7 @@
 	_IOR('V', BASE_VIDIOC_PRIVATE + 15, struct rkmodule_vicap_reset_info)
 
 #define RKMODULE_SET_VICAP_RST_INFO	\
-	_IOR('V', BASE_VIDIOC_PRIVATE + 16, struct rkmodule_vicap_reset_info)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 16, struct rkmodule_vicap_reset_info)
 
 #define RKMODULE_GET_BT656_MBUS_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 17, struct rkmodule_bt656_mbus_info)

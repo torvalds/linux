@@ -65,6 +65,7 @@
 
 #define RKCIF_DEFAULT_WIDTH	640
 #define RKCIF_DEFAULT_HEIGHT	480
+#define RKCIF_FS_DETECTED_NUM	2
 
 /*
  * for HDR mode sync buf
@@ -415,6 +416,8 @@ struct rkcif_stream {
 	struct rkcif_fps_stats		fps_stats;
 	struct rkcif_extend_info	extend_line;
 	bool				is_dvp_yuv_addr_init;
+	bool				is_fs_fe_not_paired;
+	unsigned int			fs_cnt_in_single_frame;
 };
 
 struct rkcif_lvds_subdev {
