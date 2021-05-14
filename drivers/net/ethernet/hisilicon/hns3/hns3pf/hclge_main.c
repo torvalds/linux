@@ -3936,6 +3936,21 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 	return ret;
 }
 
+static void hclge_show_rst_info(struct hclge_dev *hdev)
+{
+	char *buf;
+
+	buf = kzalloc(HCLGE_DBG_RESET_INFO_LEN, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	hclge_dbg_dump_rst_info(hdev, buf, HCLGE_DBG_RESET_INFO_LEN);
+
+	dev_info(&hdev->pdev->dev, "dump reset info:\n%s", buf);
+
+	kfree(buf);
+}
+
 static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 {
 #define MAX_RESET_FAIL_CNT 5
@@ -3966,7 +3981,7 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 
 	dev_err(&hdev->pdev->dev, "Reset fail!\n");
 
-	hclge_dbg_dump_rst_info(hdev);
+	hclge_show_rst_info(hdev);
 
 	set_bit(HCLGE_STATE_RST_FAIL, &hdev->state);
 

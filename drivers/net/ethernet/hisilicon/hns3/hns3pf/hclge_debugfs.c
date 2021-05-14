@@ -4,6 +4,7 @@
 #include <linux/device.h>
 
 #include "hclge_debugfs.h"
+#include "hclge_err.h"
 #include "hclge_main.h"
 #include "hclge_tm.h"
 #include "hnae3.h"
@@ -1389,37 +1390,46 @@ static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
 	kfree(rule_locs);
 }
 
-void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
+int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
 {
-	dev_info(&hdev->pdev->dev, "PF reset count: %u\n",
-		 hdev->rst_stats.pf_rst_cnt);
-	dev_info(&hdev->pdev->dev, "FLR reset count: %u\n",
-		 hdev->rst_stats.flr_rst_cnt);
-	dev_info(&hdev->pdev->dev, "GLOBAL reset count: %u\n",
-		 hdev->rst_stats.global_rst_cnt);
-	dev_info(&hdev->pdev->dev, "IMP reset count: %u\n",
-		 hdev->rst_stats.imp_rst_cnt);
-	dev_info(&hdev->pdev->dev, "reset done count: %u\n",
-		 hdev->rst_stats.reset_done_cnt);
-	dev_info(&hdev->pdev->dev, "HW reset done count: %u\n",
-		 hdev->rst_stats.hw_reset_done_cnt);
-	dev_info(&hdev->pdev->dev, "reset count: %u\n",
-		 hdev->rst_stats.reset_cnt);
-	dev_info(&hdev->pdev->dev, "reset fail count: %u\n",
-		 hdev->rst_stats.reset_fail_cnt);
-	dev_info(&hdev->pdev->dev, "vector0 interrupt enable status: 0x%x\n",
-		 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_REG_BASE));
-	dev_info(&hdev->pdev->dev, "reset interrupt source: 0x%x\n",
-		 hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG));
-	dev_info(&hdev->pdev->dev, "reset interrupt status: 0x%x\n",
-		 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS));
-	dev_info(&hdev->pdev->dev, "hardware reset status: 0x%x\n",
-		 hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG));
-	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
-		 hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG));
-	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
-		 hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING));
-	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
+	int pos = 0;
+
+	pos += scnprintf(buf + pos, len - pos, "PF reset count: %u\n",
+			 hdev->rst_stats.pf_rst_cnt);
+	pos += scnprintf(buf + pos, len - pos, "FLR reset count: %u\n",
+			 hdev->rst_stats.flr_rst_cnt);
+	pos += scnprintf(buf + pos, len - pos, "GLOBAL reset count: %u\n",
+			 hdev->rst_stats.global_rst_cnt);
+	pos += scnprintf(buf + pos, len - pos, "IMP reset count: %u\n",
+			 hdev->rst_stats.imp_rst_cnt);
+	pos += scnprintf(buf + pos, len - pos, "reset done count: %u\n",
+			 hdev->rst_stats.reset_done_cnt);
+	pos += scnprintf(buf + pos, len - pos, "HW reset done count: %u\n",
+			 hdev->rst_stats.hw_reset_done_cnt);
+	pos += scnprintf(buf + pos, len - pos, "reset count: %u\n",
+			 hdev->rst_stats.reset_cnt);
+	pos += scnprintf(buf + pos, len - pos, "reset fail count: %u\n",
+			 hdev->rst_stats.reset_fail_cnt);
+	pos += scnprintf(buf + pos, len - pos,
+			 "vector0 interrupt enable status: 0x%x\n",
+			 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_REG_BASE));
+	pos += scnprintf(buf + pos, len - pos, "reset interrupt source: 0x%x\n",
+			 hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG));
+	pos += scnprintf(buf + pos, len - pos, "reset interrupt status: 0x%x\n",
+			 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS));
+	pos += scnprintf(buf + pos, len - pos, "RAS interrupt status: 0x%x\n",
+			 hclge_read_dev(&hdev->hw,
+					HCLGE_RAS_PF_OTHER_INT_STS_REG));
+	pos += scnprintf(buf + pos, len - pos, "hardware reset status: 0x%x\n",
+			 hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG));
+	pos += scnprintf(buf + pos, len - pos, "handshake status: 0x%x\n",
+			 hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG));
+	pos += scnprintf(buf + pos, len - pos, "function reset status: 0x%x\n",
+			 hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING));
+	pos += scnprintf(buf + pos, len - pos, "hdev state: 0x%lx\n",
+			 hdev->state);
+
+	return 0;
 }
 
 static void hclge_dbg_dump_serv_info(struct hclge_dev *hdev)
@@ -1819,8 +1829,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_qos_buf_cfg(hdev);
 	} else if (strncmp(cmd_buf, DUMP_REG, strlen(DUMP_REG)) == 0) {
 		hclge_dbg_dump_reg_cmd(hdev, &cmd_buf[sizeof(DUMP_REG)]);
-	} else if (strncmp(cmd_buf, "dump reset info", 15) == 0) {
-		hclge_dbg_dump_rst_info(hdev);
 	} else if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
 		hclge_dbg_dump_serv_info(hdev);
 	} else if (strncmp(cmd_buf, "dump m7 info", 12) == 0) {
@@ -1873,6 +1881,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_INTERRUPT_INFO,
 		.dbg_dump = hclge_dbg_dump_interrupt,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_RESET_INFO,
+		.dbg_dump = hclge_dbg_dump_rst_info,
 	},
 };
 
