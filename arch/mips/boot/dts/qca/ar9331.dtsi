@@ -148,6 +148,7 @@
 			fixed-link {
 				speed = <1000>;
 				full-duplex;
+				pause;
 			};
 
 			mdio {
@@ -183,6 +184,7 @@
 							fixed-link {
 								speed = <1000>;
 								full-duplex;
+								pause;
 							};
 						};
 
