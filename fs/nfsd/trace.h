@@ -636,6 +636,7 @@ DEFINE_EVENT(nfsd_clid_class, nfsd_clid_##name, \
 	TP_ARGS(clp))
 
 DEFINE_CLID_EVENT(fresh);
+DEFINE_CLID_EVENT(confirmed_r);
 
 /*
  * from fs/nfsd/filecache.h
