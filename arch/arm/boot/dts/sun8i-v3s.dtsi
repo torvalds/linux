@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (C) 2021 Tobias Schramm <t.schramm@manjaro.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -170,6 +171,15 @@
 			#interrupt-cells = <2>;
 			reg = <0x01c000d0 0x0c>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		dma: dma-controller@1c02000 {
+			compatible = "allwinner,sun8i-v3s-dma";
+			reg = <0x01c02000 0x1000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_DMA>;
+			resets = <&ccu RST_BUS_DMA>;
+			#dma-cells = <1>;
 		};
 
 		tcon0: lcd-controller@1c0c000 {
