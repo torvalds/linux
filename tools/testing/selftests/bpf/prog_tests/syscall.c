@@ -9,6 +9,7 @@ struct args {
 	int max_entries;
 	int map_fd;
 	int prog_fd;
+	int btf_fd;
 };
 
 void test_syscall(void)
@@ -49,4 +50,6 @@ cleanup:
 		close(ctx.prog_fd);
 	if (ctx.map_fd > 0)
 		close(ctx.map_fd);
+	if (ctx.btf_fd > 0)
+		close(ctx.btf_fd);
 }
