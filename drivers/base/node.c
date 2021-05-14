@@ -233,7 +233,7 @@ static ssize_t name##_show(struct device *dev,				\
 	return sysfs_emit(buf, fmt "\n",				\
 			  to_cache_info(dev)->cache_attrs.name);	\
 }									\
-DEVICE_ATTR_RO(name);
+static DEVICE_ATTR_RO(name);
 
 CACHE_ATTR(size, "%llu")
 CACHE_ATTR(line_size, "%u")
