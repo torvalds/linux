@@ -270,6 +270,10 @@ static inline void show_regs_print_info(const char *log_lvl)
 {
 }
 
+static inline void dump_stack_lvl(const char *log_lvl)
+{
+}
+
 static inline void dump_stack(void)
 {
 }
