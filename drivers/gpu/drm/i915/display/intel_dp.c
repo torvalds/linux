@@ -1153,10 +1153,6 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	 */
 	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
 
-	ret = intel_dsc_compute_params(encoder, crtc_state);
-	if (ret)
-		return ret;
-
 	/*
 	 * Slice Height of 8 works for all currently available panels. So start
 	 * with that if pic_height is an integral multiple of 8. Eventually add
@@ -1168,6 +1164,10 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 		vdsc_cfg->slice_height = 4;
 	else
 		vdsc_cfg->slice_height = 2;
+
+	ret = intel_dsc_compute_params(encoder, crtc_state);
+	if (ret)
+		return ret;
 
 	vdsc_cfg->dsc_version_major =
 		(intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
