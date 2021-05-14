@@ -144,8 +144,6 @@ static void qxl_drm_release(struct drm_device *dev)
 	 * reodering qxl_modeset_fini() + qxl_device_fini() calls is
 	 * non-trivial though.
 	 */
-	if (!dev->registered)
-		return;
 	qxl_modeset_fini(qdev);
 	qxl_device_fini(qdev);
 }

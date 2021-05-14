@@ -707,9 +707,9 @@
 	multi-master;
 	status = "okay";
 
-	si7021-a20@20 {
+	si7021-a20@40 {
 		compatible = "silabs,si7020";
-		reg = <0x20>;
+		reg = <0x40>;
 	};
 
 	tmp275@48 {

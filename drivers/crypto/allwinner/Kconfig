@@ -62,10 +62,10 @@ config CRYPTO_DEV_SUN8I_CE_DEBUG
 config CRYPTO_DEV_SUN8I_CE_HASH
 	bool "Enable support for hash on sun8i-ce"
 	depends on CRYPTO_DEV_SUN8I_CE
-	select MD5
-	select SHA1
-	select SHA256
-	select SHA512
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
 	help
 	  Say y to enable support for hash algorithms.
 
@@ -123,8 +123,8 @@ config CRYPTO_DEV_SUN8I_SS_PRNG
 config CRYPTO_DEV_SUN8I_SS_HASH
 	bool "Enable support for hash on sun8i-ss"
 	depends on CRYPTO_DEV_SUN8I_SS
-	select MD5
-	select SHA1
-	select SHA256
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
 	help
 	  Say y to enable support for hash algorithms.

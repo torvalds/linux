@@ -1840,7 +1840,7 @@ static void __init late_iommu_features_init(struct amd_iommu *iommu)
 	 * IVHD and MMIO conflict.
 	 */
 	if (features != iommu->features)
-		pr_warn(FW_WARN "EFR mismatch. Use IVHD EFR (%#llx : %#llx\n).",
+		pr_warn(FW_WARN "EFR mismatch. Use IVHD EFR (%#llx : %#llx).\n",
 			features, iommu->features);
 }
 

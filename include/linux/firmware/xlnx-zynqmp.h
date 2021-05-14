@@ -354,111 +354,131 @@ int zynqmp_pm_read_pggs(u32 index, u32 *value);
 int zynqmp_pm_system_shutdown(const u32 type, const u32 subtype);
 int zynqmp_pm_set_boot_health_status(u32 value);
 #else
-static inline struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void)
-{
-	return ERR_PTR(-ENODEV);
-}
 static inline int zynqmp_pm_get_api_version(u32 *version)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_get_chipid(u32 *idcode, u32 *version)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_query_data(struct zynqmp_pm_query_data qdata,
 				       u32 *out)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_enable(u32 clock_id)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_disable(u32 clock_id)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_getstate(u32 clock_id, u32 *state)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_setdivider(u32 clock_id, u32 divider)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_getdivider(u32 clock_id, u32 *divider)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_setrate(u32 clock_id, u64 rate)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_getrate(u32 clock_id, u64 *rate)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_setparent(u32 clock_id, u32 parent_id)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_clock_getparent(u32 clock_id, u32 *parent_id)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_set_pll_frac_mode(u32 clk_id, u32 mode)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_get_pll_frac_mode(u32 clk_id, u32 *mode)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_set_pll_frac_data(u32 clk_id, u32 data)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_get_pll_frac_data(u32 clk_id, u32 *data)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_set_sd_tapdelay(u32 node_id, u32 type, u32 value)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_reset_assert(const enum zynqmp_pm_reset reset,
 			   const enum zynqmp_pm_reset_action assert_flag)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_reset_get_status(const enum zynqmp_pm_reset reset,
 					     u32 *status)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_init_finalize(void)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_set_suspend_mode(u32 mode)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
 					 const u32 qos,
 					 const enum zynqmp_pm_request_ack ack)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_release_node(const u32 node)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_set_requirement(const u32 node,
 					const u32 capabilities,
 					const u32 qos,
@@ -466,39 +486,48 @@ static inline int zynqmp_pm_set_requirement(const u32 node,
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_aes_engine(const u64 address, u32 *out)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_fpga_load(const u64 address, const u32 size,
 				      const u32 flags)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_fpga_get_status(u32 *value)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_write_ggs(u32 index, u32 value)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_read_ggs(u32 index, u32 *value)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_write_pggs(u32 index, u32 value)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_read_pggs(u32 index, u32 *value)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_system_shutdown(const u32 type, const u32 subtype)
 {
 	return -ENODEV;
 }
+
 static inline int zynqmp_pm_set_boot_health_status(u32 value)
 {
 	return -ENODEV;

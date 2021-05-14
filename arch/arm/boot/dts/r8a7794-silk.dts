@@ -31,6 +31,8 @@
 		serial0 = &scif2;
 		i2c9 = &gpioi2c1;
 		i2c10 = &i2chdmi;
+		mmc0 = &mmcif0;
+		mmc1 = &sdhi1;
 	};
 
 	chosen {

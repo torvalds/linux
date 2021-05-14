@@ -53,6 +53,9 @@
 		i2c12 = &i2cexio1;
 		i2c13 = &i2chdmi;
 		i2c14 = &i2cexio4;
+		mmc0 = &sdhi0;
+		mmc1 = &sdhi1;
+		mmc2 = &sdhi2;
 	};
 
 	chosen {

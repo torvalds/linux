@@ -1358,7 +1358,7 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 	struct packet_sock *po, *po_next, *po_skip = NULL;
 	unsigned int i, j, room = ROOM_NONE;
 
-	po = pkt_sk(f->arr[idx]);
+	po = pkt_sk(rcu_dereference(f->arr[idx]));
 
 	if (try_self) {
 		room = packet_rcv_has_room(po, skb);
@@ -1370,7 +1370,7 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 
 	i = j = min_t(int, po->rollover->sock, num - 1);
 	do {
-		po_next = pkt_sk(f->arr[i]);
+		po_next = pkt_sk(rcu_dereference(f->arr[i]));
 		if (po_next != po_skip && !READ_ONCE(po_next->pressure) &&
 		    packet_rcv_has_room(po_next, skb) == ROOM_NORMAL) {
 			if (i != j)
@@ -1465,7 +1465,7 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 	if (fanout_has_flag(f, PACKET_FANOUT_FLAG_ROLLOVER))
 		idx = fanout_demux_rollover(f, skb, idx, true, num);
 
-	po = pkt_sk(f->arr[idx]);
+	po = pkt_sk(rcu_dereference(f->arr[idx]));
 	return po->prot_hook.func(skb, dev, &po->prot_hook, orig_dev);
 }
 
@@ -1479,7 +1479,7 @@ static void __fanout_link(struct sock *sk, struct packet_sock *po)
 	struct packet_fanout *f = po->fanout;
 
 	spin_lock(&f->lock);
-	f->arr[f->num_members] = sk;
+	rcu_assign_pointer(f->arr[f->num_members], sk);
 	smp_wmb();
 	f->num_members++;
 	if (f->num_members == 1)
@@ -1494,11 +1494,14 @@ static void __fanout_unlink(struct sock *sk, struct packet_sock *po)
 
 	spin_lock(&f->lock);
 	for (i = 0; i < f->num_members; i++) {
-		if (f->arr[i] == sk)
+		if (rcu_dereference_protected(f->arr[i],
+					      lockdep_is_held(&f->lock)) == sk)
 			break;
 	}
 	BUG_ON(i >= f->num_members);
-	f->arr[i] = f->arr[f->num_members - 1];
+	rcu_assign_pointer(f->arr[i],
+			   rcu_dereference_protected(f->arr[f->num_members - 1],
+						     lockdep_is_held(&f->lock)));
 	f->num_members--;
 	if (f->num_members == 0)
 		__dev_remove_pack(&f->prot_hook);
@@ -1636,13 +1639,15 @@ static bool fanout_find_new_id(struct sock *sk, u16 *new_id)
 	return false;
 }
 
-static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
+static int fanout_add(struct sock *sk, struct fanout_args *args)
 {
 	struct packet_rollover *rollover = NULL;
 	struct packet_sock *po = pkt_sk(sk);
+	u16 type_flags = args->type_flags;
 	struct packet_fanout *f, *match;
 	u8 type = type_flags & 0xff;
 	u8 flags = type_flags >> 8;
+	u16 id = args->id;
 	int err;
 
 	switch (type) {
@@ -1700,11 +1705,21 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		}
 	}
 	err = -EINVAL;
-	if (match && match->flags != flags)
-		goto out;
-	if (!match) {
+	if (match) {
+		if (match->flags != flags)
+			goto out;
+		if (args->max_num_members &&
+		    args->max_num_members != match->max_num_members)
+			goto out;
+	} else {
+		if (args->max_num_members > PACKET_FANOUT_MAX)
+			goto out;
+		if (!args->max_num_members)
+			/* legacy PACKET_FANOUT_MAX */
+			args->max_num_members = 256;
 		err = -ENOMEM;
-		match = kzalloc(sizeof(*match), GFP_KERNEL);
+		match = kvzalloc(struct_size(match, arr, args->max_num_members),
+				 GFP_KERNEL);
 		if (!match)
 			goto out;
 		write_pnet(&match->net, sock_net(sk));
@@ -1720,6 +1735,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		match->prot_hook.func = packet_rcv_fanout;
 		match->prot_hook.af_packet_priv = match;
 		match->prot_hook.id_match = match_fanout_group;
+		match->max_num_members = args->max_num_members;
 		list_add(&match->list, &fanout_list);
 	}
 	err = -EINVAL;
@@ -1730,7 +1746,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	    match->prot_hook.type == po->prot_hook.type &&
 	    match->prot_hook.dev == po->prot_hook.dev) {
 		err = -ENOSPC;
-		if (refcount_read(&match->sk_ref) < PACKET_FANOUT_MAX) {
+		if (refcount_read(&match->sk_ref) < match->max_num_members) {
 			__dev_remove_pack(&po->prot_hook);
 			po->fanout = match;
 			po->rollover = rollover;
@@ -1744,7 +1760,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 
 	if (err && !refcount_read(&match->sk_ref)) {
 		list_del(&match->list);
-		kfree(match);
+		kvfree(match);
 	}
 
 out:
@@ -3075,7 +3091,7 @@ static int packet_release(struct socket *sock)
 	kfree(po->rollover);
 	if (f) {
 		fanout_release_data(f);
-		kfree(f);
+		kvfree(f);
 	}
 	/*
 	 *	Now the socket is dead. No more input will appear.
@@ -3866,14 +3882,14 @@ packet_setsockopt(struct socket *sock, int level, int optname, sockptr_t optval,
 	}
 	case PACKET_FANOUT:
 	{
-		int val;
+		struct fanout_args args = { 0 };
 
-		if (optlen != sizeof(val))
+		if (optlen != sizeof(int) && optlen != sizeof(args))
 			return -EINVAL;
-		if (copy_from_sockptr(&val, optval, sizeof(val)))
+		if (copy_from_sockptr(&args, optval, optlen))
 			return -EFAULT;
 
-		return fanout_add(sk, val & 0xffff, val >> 16);
+		return fanout_add(sk, &args);
 	}
 	case PACKET_FANOUT_DATA:
 	{

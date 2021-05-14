@@ -82,7 +82,7 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode, resource_size_
 		return -ENOMEM;
 
 	range->fwnode = fwnode;
-	range->size = size;
+	range->size = size = round_up(size, PAGE_SIZE);
 	range->hw_start = hw_start;
 	range->flags = LOGIC_PIO_CPU_MMIO;
 
