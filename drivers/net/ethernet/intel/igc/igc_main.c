@@ -2151,12 +2151,9 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		}
 
 		if (!skb) {
-			xdp.data = pktbuf + pkt_offset;
-			xdp.data_end = xdp.data + size;
-			xdp.data_hard_start = pktbuf - igc_rx_offset(rx_ring);
-			xdp_set_data_meta_invalid(&xdp);
-			xdp.frame_sz = truesize;
-			xdp.rxq = &rx_ring->xdp_rxq;
+			xdp_init_buff(&xdp, truesize, &rx_ring->xdp_rxq);
+			xdp_prepare_buff(&xdp, pktbuf - igc_rx_offset(rx_ring),
+					 igc_rx_offset(rx_ring) + pkt_offset, size, false);
 
 			skb = igc_xdp_run_prog(adapter, &xdp);
 		}
