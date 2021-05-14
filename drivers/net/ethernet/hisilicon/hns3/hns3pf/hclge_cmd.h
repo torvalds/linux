@@ -267,10 +267,10 @@ enum hclge_opcode_type {
 	/* NCL config command */
 	HCLGE_OPC_QUERY_NCL_CONFIG	= 0x7011,
 
-	/* M7 stats command */
-	HCLGE_OPC_M7_STATS_BD		= 0x7012,
-	HCLGE_OPC_M7_STATS_INFO		= 0x7013,
-	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
+	/* IMP stats command */
+	HCLGE_OPC_IMP_STATS_BD		= 0x7012,
+	HCLGE_OPC_IMP_STATS_INFO		= 0x7013,
+	HCLGE_OPC_IMP_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
 	HCLGE_OPC_GET_SFP_EEPROM	= 0x7100,
@@ -391,6 +391,7 @@ enum HCLGE_CAP_BITS {
 	HCLGE_CAP_UDP_TUNNEL_CSUM_B,
 	HCLGE_CAP_FEC_B = 13,
 	HCLGE_CAP_PAUSE_B = 14,
+	HCLGE_CAP_RXD_ADV_LAYOUT_B = 15,
 };
 
 enum HCLGE_API_CAP_BITS {
@@ -1100,7 +1101,7 @@ struct hclge_fd_user_def_cfg_cmd {
 	u8 rsv[12];
 };
 
-struct hclge_get_m7_bd_cmd {
+struct hclge_get_imp_bd_cmd {
 	__le32 bd_num;
 	u8 rsv[20];
 };

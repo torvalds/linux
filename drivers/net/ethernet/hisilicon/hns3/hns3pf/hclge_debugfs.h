@@ -7,7 +7,6 @@
 #include <linux/etherdevice.h>
 #include "hclge_cmd.h"
 
-#define HCLGE_DBG_BUF_LEN	   256
 #define HCLGE_DBG_MNG_TBL_MAX	   64
 
 #define HCLGE_DBG_MNG_VLAN_MASK_B  BIT(0)
@@ -81,6 +80,11 @@ struct hclge_dbg_reg_type_info {
 	const char *reg_type;
 	const struct hclge_dbg_dfx_message *dfx_msg;
 	struct hclge_dbg_reg_common_msg reg_msg;
+};
+
+struct hclge_dbg_func {
+	enum hnae3_dbg_cmd cmd;
+	int (*dbg_dump)(struct hclge_dev *hdev, char *buf, int len);
 };
 
 static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
@@ -721,6 +725,15 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 	{true, "RCB_CFG_TX_RING_FBDNUM"},
 	{true, "RCB_CFG_TX_RING_OFFSET"},
 	{true, "RCB_CFG_TX_RING_EBDNUM"},
+};
+
+#define HCLGE_DBG_INFO_LEN			256
+#define HCLGE_DBG_ID_LEN			16
+#define HCLGE_DBG_ITEM_NAME_LEN			32
+#define HCLGE_DBG_DATA_STR_LEN			32
+struct hclge_dbg_item {
+	char name[HCLGE_DBG_ITEM_NAME_LEN];
+	u16 interval; /* blank numbers after the item */
 };
 
 #endif

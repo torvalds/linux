@@ -91,6 +91,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_STASH_B,
 	HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B,
 	HNAE3_DEV_SUPPORT_PAUSE_B,
+	HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
 };
 
 #define hnae3_dev_fd_supported(hdev) \
@@ -140,6 +141,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (ae_dev)->caps)
+
+#define hnae3_ae_dev_rxd_adv_layout_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, (ae_dev)->caps)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -244,6 +248,24 @@ enum hnae3_port_base_vlan_state {
 	HNAE3_PORT_BASE_VLAN_ENABLE,
 	HNAE3_PORT_BASE_VLAN_MODIFY,
 	HNAE3_PORT_BASE_VLAN_NOCHANGE,
+};
+
+enum hnae3_dbg_cmd {
+	HNAE3_DBG_CMD_TM_NODES,
+	HNAE3_DBG_CMD_TM_PRI,
+	HNAE3_DBG_CMD_TM_QSET,
+	HNAE3_DBG_CMD_DEV_INFO,
+	HNAE3_DBG_CMD_TX_BD,
+	HNAE3_DBG_CMD_RX_BD,
+	HNAE3_DBG_CMD_MAC_UC,
+	HNAE3_DBG_CMD_MAC_MC,
+	HNAE3_DBG_CMD_MNG_TBL,
+	HNAE3_DBG_CMD_LOOPBACK,
+	HNAE3_DBG_CMD_INTERRUPT_INFO,
+	HNAE3_DBG_CMD_RESET_INFO,
+	HNAE3_DBG_CMD_IMP_INFO,
+	HNAE3_DBG_CMD_NCL_CONFIG,
+	HNAE3_DBG_CMD_UNKNOWN,
 };
 
 struct hnae3_vector_info {
@@ -623,7 +645,7 @@ struct hnae3_ae_ops {
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
 	int (*dbg_run_cmd)(struct hnae3_handle *handle, const char *cmd_buf);
-	int (*dbg_read_cmd)(struct hnae3_handle *handle, const char *cmd_buf,
+	int (*dbg_read_cmd)(struct hnae3_handle *handle, enum hnae3_dbg_cmd cmd,
 			    char *buf, int len);
 	pci_ers_result_t (*handle_hw_ras_error)(struct hnae3_ae_dev *ae_dev);
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
@@ -785,10 +807,6 @@ struct hnae3_handle {
 	hnae3_set_field(origin, 0x1 << (shift), shift, val)
 #define hnae3_get_bit(origin, shift) \
 	hnae3_get_field(origin, 0x1 << (shift), shift)
-
-#define HNAE3_DBG_TM_NODES		"tm_nodes"
-#define HNAE3_DBG_TM_PRI		"tm_priority"
-#define HNAE3_DBG_TM_QSET		"tm_qset"
 
 int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);

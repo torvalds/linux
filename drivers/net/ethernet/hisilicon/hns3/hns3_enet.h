@@ -19,6 +19,7 @@ enum hns3_nic_state {
 	HNS3_NIC_STATE_SERVICE_SCHED,
 	HNS3_NIC_STATE2_RESET_REQUESTED,
 	HNS3_NIC_STATE_HW_TX_CSUM_ENABLE,
+	HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE,
 	HNS3_NIC_STATE_MAX
 };
 
@@ -82,12 +83,6 @@ enum hns3_nic_state {
 #define HNS3_RXD_STRP_TAGP_S			13
 #define HNS3_RXD_STRP_TAGP_M			(0x3 << HNS3_RXD_STRP_TAGP_S)
 
-#define HNS3_RXD_L2_CSUM_B			15
-#define HNS3_RXD_L2_CSUM_L_S			4
-#define HNS3_RXD_L2_CSUM_L_M			(0xff << HNS3_RXD_L2_CSUM_L_S)
-#define HNS3_RXD_L2_CSUM_H_S			24
-#define HNS3_RXD_L2_CSUM_H_M			(0xff << HNS3_RXD_L2_CSUM_H_S)
-
 #define HNS3_RXD_L2E_B				16
 #define HNS3_RXD_L3E_B				17
 #define HNS3_RXD_L4E_B				18
@@ -113,6 +108,9 @@ enum hns3_nic_state {
 #define HNS3_RXD_FBHI_M				(0x3 << HNS3_RXD_FBHI_S)
 #define HNS3_RXD_FBLI_S				14
 #define HNS3_RXD_FBLI_M				(0x3 << HNS3_RXD_FBLI_S)
+
+#define HNS3_RXD_PTYPE_S			4
+#define HNS3_RXD_PTYPE_M			GENMASK(11, 4)
 
 #define HNS3_RXD_BDTYPE_S			0
 #define HNS3_RXD_BDTYPE_M			(0xf << HNS3_RXD_BDTYPE_S)
@@ -238,7 +236,10 @@ enum hns3_pkt_tun_type {
 
 /* hardware spec ring buffer format */
 struct __packed hns3_desc {
-	__le64 addr;
+	union {
+		__le64 addr;
+		__le16 csum;
+	};
 	union {
 		struct {
 			__le16 vlan_tag;
@@ -366,6 +367,14 @@ enum hns3_pkt_ol4type {
 	HNS3_OL4_TYPE_UNKNOWN
 };
 
+struct hns3_rx_ptype {
+	u32 ptype:8;
+	u32 csum_level:2;
+	u32 ip_summed:2;
+	u32 l3_type:4;
+	u32 valid:1;
+};
+
 struct ring_stats {
 	u64 sw_err_cnt;
 	u64 seg_pkt_cnt;
@@ -397,6 +406,7 @@ struct ring_stats {
 			u64 rx_multicast;
 			u64 non_reuse_pg;
 		};
+		__le16 csum;
 	};
 };
 
@@ -640,9 +650,10 @@ void hns3_dcbnl_setup(struct hnae3_handle *handle);
 static inline void hns3_dcbnl_setup(struct hnae3_handle *handle) {}
 #endif
 
-void hns3_dbg_init(struct hnae3_handle *handle);
+int hns3_dbg_init(struct hnae3_handle *handle);
 void hns3_dbg_uninit(struct hnae3_handle *handle);
 void hns3_dbg_register_debugfs(const char *debugfs_dir_name);
 void hns3_dbg_unregister_debugfs(void);
 void hns3_shinfo_pack(struct skb_shared_info *shinfo, __u32 *size);
+u16 hns3_get_max_available_channels(struct hnae3_handle *h);
 #endif

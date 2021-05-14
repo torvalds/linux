@@ -3242,6 +3242,18 @@ static int hclgevf_clear_vport_list(struct hclgevf_dev *hdev)
 	return hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 }
 
+static void hclgevf_init_rxd_adv_layout(struct hclgevf_dev *hdev)
+{
+	if (hnae3_ae_dev_rxd_adv_layout_supported(hdev->ae_dev))
+		hclgevf_write_dev(&hdev->hw, HCLGEVF_RXD_ADV_LAYOUT_EN_REG, 1);
+}
+
+static void hclgevf_uninit_rxd_adv_layout(struct hclgevf_dev *hdev)
+{
+	if (hnae3_ae_dev_rxd_adv_layout_supported(hdev->ae_dev))
+		hclgevf_write_dev(&hdev->hw, HCLGEVF_RXD_ADV_LAYOUT_EN_REG, 0);
+}
+
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
@@ -3278,6 +3290,8 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 	}
 
 	set_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
+
+	hclgevf_init_rxd_adv_layout(hdev);
 
 	dev_info(&hdev->pdev->dev, "Reset done\n");
 
@@ -3379,6 +3393,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
+	hclgevf_init_rxd_adv_layout(hdev);
+
 	hdev->last_reset_time = jiffies;
 	dev_info(&hdev->pdev->dev, "finished initializing %s driver\n",
 		 HCLGEVF_DRIVER_NAME);
@@ -3405,6 +3421,7 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 	struct hclge_vf_to_pf_msg send_msg;
 
 	hclgevf_state_uninit(hdev);
+	hclgevf_uninit_rxd_adv_layout(hdev);
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_VF_UNINIT, 0);
 	hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
