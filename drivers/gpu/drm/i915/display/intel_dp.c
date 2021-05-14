@@ -818,8 +818,11 @@ intel_dp_mode_valid(struct drm_connector *connector,
 		dsc = dsc_max_output_bpp && dsc_slice_count;
 	}
 
-	/* big joiner configuration needs DSC */
-	if (bigjoiner && !dsc)
+	/*
+	 * Big joiner configuration needs DSC for TGL which is not true for
+	 * XE_LPD where uncompressed joiner is supported.
+	 */
+	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc)
 		return MODE_CLOCK_HIGH;
 
 	if (mode_rate > max_rate && !dsc)
