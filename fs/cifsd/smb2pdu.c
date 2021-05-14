@@ -6422,7 +6422,7 @@ int smb2_lock(struct ksmbd_work *work)
 	int flags = 0;
 	int cmd = 0;
 	int err = 0, i;
-	u64 lock_length;
+	u64 lock_start, lock_length;
 	struct ksmbd_lock *smb_lock = NULL, *cmp_lock, *tmp;
 	int nolock = 0;
 	LIST_HEAD(lock_list);
@@ -6461,25 +6461,22 @@ int smb2_lock(struct ksmbd_work *work)
 
 		cmd = smb2_set_flock_flags(flock, flags);
 
-		flock->fl_start = le64_to_cpu(lock_ele[i].Offset);
-		if (flock->fl_start > OFFSET_MAX) {
+		lock_start = le64_to_cpu(lock_ele[i].Offset);
+		lock_length = le64_to_cpu(lock_ele[i].Length);
+		if (lock_start > U64_MAX - lock_length) {
 			ksmbd_err("Invalid lock range requested\n");
 			rsp->hdr.Status = STATUS_INVALID_LOCK_RANGE;
 			goto out;
 		}
 
+		if (lock_start > OFFSET_MAX)
+			flock->fl_start = OFFSET_MAX;
+		else
+			flock->fl_start = lock_start;
+
 		lock_length = le64_to_cpu(lock_ele[i].Length);
-		if (lock_length > 0) {
-			if (lock_length > OFFSET_MAX - flock->fl_start) {
-				ksmbd_debug(SMB,
-					"Invalid lock range requested\n");
-				lock_length = OFFSET_MAX - flock->fl_start;
-				rsp->hdr.Status = STATUS_INVALID_LOCK_RANGE;
-				goto out;
-			}
-		} else {
-			lock_length = 0;
-		}
+		if (lock_length > OFFSET_MAX - flock->fl_start)
+			lock_length = OFFSET_MAX - flock->fl_start;
 
 		flock->fl_end = flock->fl_start + lock_length;
 
