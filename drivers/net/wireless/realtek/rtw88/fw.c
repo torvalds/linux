@@ -172,6 +172,17 @@ static void rtw_fw_bcn_filter_notify(struct rtw_dev *rtwdev, u8 *payload,
 			 &dev_iter_data);
 }
 
+static void rtw_fw_scan_result(struct rtw_dev *rtwdev, u8 *payload,
+			       u8 length)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+
+	dm_info->scan_density = payload[0];
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "scan.density = %x\n",
+		dm_info->scan_density);
+}
+
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 {
 	struct rtw_c2h_cmd *c2h;
@@ -234,6 +245,10 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 		break;
 	case C2H_WLAN_RFON:
 		complete(&rtwdev->lps_leave_check);
+		break;
+	case C2H_SCAN_RESULT:
+		complete(&rtwdev->fw_scan_density);
+		rtw_fw_scan_result(rtwdev, c2h->payload, len);
 		break;
 	default:
 		/* pass offset for further operation */
@@ -1702,4 +1717,14 @@ void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
 	CH_SWITCH_SET_INFO_LOC(h2c_pkt, loc_ch_info);
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_SCAN);
+	SET_SCAN_START(h2c_pkt, start);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }

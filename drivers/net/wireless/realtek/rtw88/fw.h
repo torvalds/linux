@@ -30,6 +30,8 @@
 #define BCN_FILTER_CONNECTED		2
 #define BCN_FILTER_NOTIFY_BEACON_LOSS	3
 
+#define SCAN_NOTIFY_TIMEOUT  msecs_to_jiffies(10)
+
 enum rtw_c2h_cmd_id {
 	C2H_CCX_TX_RPT = 0x03,
 	C2H_BT_INFO = 0x09,
@@ -39,6 +41,7 @@ enum rtw_c2h_cmd_id {
 	C2H_WLAN_INFO = 0x27,
 	C2H_WLAN_RFON = 0x32,
 	C2H_BCN_FILTER_NOTIFY = 0x36,
+	C2H_SCAN_RESULT = 0x38,
 	C2H_HW_FEATURE_DUMP = 0xfd,
 	C2H_HALMAC = 0xff,
 };
@@ -86,6 +89,7 @@ enum rtw_fw_feature {
 	FW_FEATURE_LCLK = BIT(2),
 	FW_FEATURE_PG = BIT(3),
 	FW_FEATURE_BCN_FILTER = BIT(5),
+	FW_FEATURE_NOTIFY_SCAN = BIT(6),
 	FW_FEATURE_MAX = BIT(31),
 };
 
@@ -369,6 +373,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_BCN_FILTER_OFFLOAD_P0	0x56
 #define H2C_CMD_BCN_FILTER_OFFLOAD_P1	0x57
 #define H2C_CMD_WL_PHY_INFO		0x58
+#define H2C_CMD_SCAN			0x59
 
 #define H2C_CMD_COEX_TDMA_TYPE		0x60
 #define H2C_CMD_QUERY_BT_INFO		0x61
@@ -418,6 +423,9 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(3, 0))
 #define SET_BCN_FILTER_OFFLOAD_P1_BCN_INTERVAL(h2c_pkt, value)		       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(13, 4))
+
+#define SET_SCAN_START(h2c_pkt, value)					       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
 
 #define SET_PWR_MODE_SET_MODE(h2c_pkt, value)                                  \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(14, 8))
@@ -652,5 +660,5 @@ void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c);
 void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev);
 int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 		     u32 *buffer);
-
+void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
 #endif

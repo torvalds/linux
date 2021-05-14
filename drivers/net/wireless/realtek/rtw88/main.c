@@ -1185,6 +1185,22 @@ err:
 	return ret;
 }
 
+void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
+{
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_NOTIFY_SCAN))
+		return;
+
+	if (start) {
+		rtw_fw_scan_notify(rtwdev, true);
+	} else {
+		reinit_completion(&rtwdev->fw_scan_density);
+		rtw_fw_scan_notify(rtwdev, false);
+		if (!wait_for_completion_timeout(&rtwdev->fw_scan_density,
+						 SCAN_NOTIFY_TIMEOUT))
+			rtw_warn(rtwdev, "firmware failed to report density after scan\n");
+	}
+}
+
 int rtw_core_start(struct rtw_dev *rtwdev)
 {
 	int ret;
@@ -1763,6 +1779,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	init_waitqueue_head(&rtwdev->coex.wait);
 	init_completion(&rtwdev->lps_leave_check);
+	init_completion(&rtwdev->fw_scan_density);
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;

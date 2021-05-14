@@ -605,6 +605,7 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
 	rtw_coex_scan_notify(rtwdev, COEX_SCAN_START);
+	rtw_core_fw_scan_notify(rtwdev, true);
 
 	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
@@ -623,6 +624,8 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 
 	clear_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 	clear_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
+
+	rtw_core_fw_scan_notify(rtwdev, false);
 
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 	config |= PORT_SET_MAC_ADDR;

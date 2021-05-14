@@ -1620,6 +1620,8 @@ struct rtw_dm_info {
 	struct rtw_iqk_info iqk;
 	struct rtw_gapk_info gapk;
 	bool is_bt_iqk_timeout;
+
+	u8 scan_density;
 };
 
 struct rtw_efuse {
@@ -1869,6 +1871,7 @@ struct rtw_dev {
 	struct rtw_wow_param wow;
 
 	bool need_rfk;
+	struct completion fw_scan_density;
 
 	/* hci related data, must be last */
 	u8 priv[] __aligned(sizeof(void *));
@@ -1974,6 +1977,7 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		    bool fw_exist);
 void rtw_fw_recovery(struct rtw_dev *rtwdev);
+void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
 int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 		const char *prefix_str);
 int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size,
