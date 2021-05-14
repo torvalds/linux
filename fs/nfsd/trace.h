@@ -564,6 +564,38 @@ TRACE_EVENT(nfsd_clid_cred_mismatch,
 	)
 )
 
+TRACE_EVENT(nfsd_clid_verf_mismatch,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct svc_rqst *rqstp,
+		const nfs4_verifier *verf
+	),
+	TP_ARGS(clp, rqstp, verf),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__array(unsigned char, cl_verifier, NFS4_VERIFIER_SIZE)
+		__array(unsigned char, new_verifier, NFS4_VERIFIER_SIZE)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		memcpy(__entry->cl_verifier, (void *)&clp->cl_verifier,
+		       NFS4_VERIFIER_SIZE);
+		memcpy(__entry->new_verifier, (void *)verf,
+		       NFS4_VERIFIER_SIZE);
+		memcpy(__entry->addr, &rqstp->rq_xprt->xpt_remote,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("client %08x:%08x verf=0x%s, updated=0x%s from addr=%pISpc",
+		__entry->cl_boot, __entry->cl_id,
+		__print_hex_str(__entry->cl_verifier, NFS4_VERIFIER_SIZE),
+		__print_hex_str(__entry->new_verifier, NFS4_VERIFIER_SIZE),
+		__entry->addr
+	)
+);
+
 TRACE_EVENT(nfsd_clid_inuse_err,
 	TP_PROTO(const struct nfs4_client *clp),
 	TP_ARGS(clp),
