@@ -33,8 +33,8 @@
 				 a.s6_addr32[3] == b.s6_addr32[3])
 #endif
 
-static volatile const __u32 IFINDEX_SRC;
-static volatile const __u32 IFINDEX_DST;
+volatile const __u32 IFINDEX_SRC;
+volatile const __u32 IFINDEX_DST;
 
 static __always_inline bool is_remote_ep_v4(struct __sk_buff *skb,
 					    __be32 addr)

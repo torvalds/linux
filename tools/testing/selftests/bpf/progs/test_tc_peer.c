@@ -8,8 +8,8 @@
 
 #include <bpf/bpf_helpers.h>
 
-static volatile const __u32 IFINDEX_SRC;
-static volatile const __u32 IFINDEX_DST;
+volatile const __u32 IFINDEX_SRC;
+volatile const __u32 IFINDEX_DST;
 
 SEC("classifier/chk_egress")
 int tc_chk(struct __sk_buff *skb)
