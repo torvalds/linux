@@ -15,6 +15,7 @@ struct bpf_gen {
 	void *data_cur;
 	void *insn_start;
 	void *insn_cur;
+	ssize_t cleanup_label;
 	__u32 nr_progs;
 	__u32 nr_maps;
 	int log_level;
