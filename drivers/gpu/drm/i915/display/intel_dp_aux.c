@@ -602,8 +602,8 @@ static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-	case AUX_CH_USBC5:
-	case AUX_CH_USBC6:
+	case AUX_CH_USBC5:  /* aka AUX_CH_D_XELPD */
+	case AUX_CH_USBC6:  /* aka AUX_CH_E_XELPD */
 		return DP_AUX_CH_CTL(aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
@@ -625,8 +625,8 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-	case AUX_CH_USBC5:
-	case AUX_CH_USBC6:
+	case AUX_CH_USBC5:  /* aka AUX_CH_D_XELPD */
+	case AUX_CH_USBC6:  /* aka AUX_CH_E_XELPD */
 		return DP_AUX_CH_DATA(aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
@@ -680,7 +680,11 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
+	if (DISPLAY_VER(dev_priv) >= 13 && aux_ch >= AUX_CH_D_XELPD)
+		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
+					       aux_ch_name(aux_ch - AUX_CH_D_XELPD + AUX_CH_D),
+					       encoder->base.name);
+	else if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
 		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX USBC%c/%s",
 					       aux_ch - AUX_CH_USBC1 + '1',
 					       encoder->base.name);

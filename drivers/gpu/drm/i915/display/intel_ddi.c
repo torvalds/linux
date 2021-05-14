@@ -854,18 +854,19 @@ void intel_ddi_enable_pipe_clock(struct intel_encoder *encoder,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum port port = encoder->port;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+	u32 val;
 
 	if (cpu_transcoder != TRANSCODER_EDP) {
-		if (DISPLAY_VER(dev_priv) >= 12)
-			intel_de_write(dev_priv,
-				       TRANS_CLK_SEL(cpu_transcoder),
-				       TGL_TRANS_CLK_SEL_PORT(port));
+		if (DISPLAY_VER(dev_priv) >= 13)
+			val = TGL_TRANS_CLK_SEL_PORT(phy);
+		else if (DISPLAY_VER(dev_priv) >= 12)
+			val = TGL_TRANS_CLK_SEL_PORT(encoder->port);
 		else
-			intel_de_write(dev_priv,
-				       TRANS_CLK_SEL(cpu_transcoder),
-				       TRANS_CLK_SEL_PORT(port));
+			val = TRANS_CLK_SEL_PORT(encoder->port);
+
+		intel_de_write(dev_priv, TRANS_CLK_SEL(cpu_transcoder), val);
 	}
 }
 
@@ -4356,6 +4357,17 @@ static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 	       i915->hti_state & HDPORT_DDI_USED(phy);
 }
 
+static enum hpd_pin xelpd_hpd_pin(struct drm_i915_private *dev_priv,
+				  enum port port)
+{
+	if (port >= PORT_D_XELPD)
+		return HPD_PORT_D + port - PORT_D_XELPD;
+	else if (port >= PORT_TC1)
+		return HPD_PORT_TC1 + port - PORT_TC1;
+	else
+		return HPD_PORT_A + port - PORT_A;
+}
+
 static enum hpd_pin dg1_hpd_pin(struct drm_i915_private *dev_priv,
 				enum port port)
 {
@@ -4495,7 +4507,13 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
 
-	if (DISPLAY_VER(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 13 && port >= PORT_D_XELPD) {
+		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
+				 DRM_MODE_ENCODER_TMDS,
+				 "DDI %c/PHY %c",
+				 port_name(port - PORT_D_XELPD + PORT_D),
+				 phy_name(phy));
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
 
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
@@ -4606,7 +4624,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		encoder->get_config = hsw_ddi_get_config;
 	}
 
-	if (IS_DG1(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 13)
+		encoder->hpd_pin = xelpd_hpd_pin(dev_priv, port);
+	else if (IS_DG1(dev_priv))
 		encoder->hpd_pin = dg1_hpd_pin(dev_priv, port);
 	else if (IS_ROCKETLAKE(dev_priv))
 		encoder->hpd_pin = rkl_hpd_pin(dev_priv, port);

@@ -217,6 +217,10 @@ enum port {
 	PORT_TC5,
 	PORT_TC6,
 
+	/* XE_LPD repositions D/E offsets and bitfields */
+	PORT_D_XELPD = PORT_TC5,
+	PORT_E_XELPD,
+
 	I915_MAX_PORTS
 };
 
@@ -300,6 +304,10 @@ enum aux_ch {
 	AUX_CH_USBC4,
 	AUX_CH_USBC5,
 	AUX_CH_USBC6,
+
+	/* XE_LPD repositions D/E offsets and bitfields */
+	AUX_CH_D_XELPD = AUX_CH_USBC5,
+	AUX_CH_E_XELPD,
 };
 
 #define aux_ch_name(a) ((a) + 'A')

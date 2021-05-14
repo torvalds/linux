@@ -3681,7 +3681,11 @@ bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
 
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
 {
-	if (IS_ALDERLAKE_S(i915) && port >= PORT_TC1)
+	if (DISPLAY_VER(i915) >= 13 && port >= PORT_D_XELPD)
+		return PHY_D + port - PORT_D_XELPD;
+	else if (DISPLAY_VER(i915) >= 13 && port >= PORT_TC1)
+		return PHY_F + port - PORT_TC1;
+	else if (IS_ALDERLAKE_S(i915) && port >= PORT_TC1)
 		return PHY_B + port - PORT_TC1;
 	else if ((IS_DG1(i915) || IS_ROCKETLAKE(i915)) && port >= PORT_TC1)
 		return PHY_C + port - PORT_TC1;
