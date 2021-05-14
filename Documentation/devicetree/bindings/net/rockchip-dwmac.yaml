@@ -19,6 +19,7 @@ select:
           - rockchip,rk3128-gmac
           - rockchip,rk3228-gmac
           - rockchip,rk3288-gmac
+          - rockchip,rk3308-gmac
           - rockchip,rk3328-gmac
           - rockchip,rk3366-gmac
           - rockchip,rk3368-gmac
@@ -38,6 +39,7 @@ properties:
           - rockchip,rk3128-gmac
           - rockchip,rk3228-gmac
           - rockchip,rk3288-gmac
+          - rockchip,rk3308-gmac
           - rockchip,rk3328-gmac
           - rockchip,rk3366-gmac
           - rockchip,rk3368-gmac
