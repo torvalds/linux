@@ -262,21 +262,20 @@ static struct regmap_config qca8k_regmap_config = {
 static int
 qca8k_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
 {
-	unsigned long timeout;
+	u32 val;
+	int ret;
 
-	timeout = jiffies + msecs_to_jiffies(20);
+	ret = read_poll_timeout(qca8k_read, val, !(val & mask),
+				0, QCA8K_BUSY_WAIT_TIMEOUT * USEC_PER_MSEC, false,
+				priv, reg);
 
-	/* loop until the busy flag has cleared */
-	do {
-		u32 val = qca8k_read(priv, reg);
-		int busy = val & mask;
+	/* Check if qca8k_read has failed for a different reason
+	 * before returning -ETIMEDOUT
+	 */
+	if (ret < 0 && val < 0)
+		return val;
 
-		if (!busy)
-			break;
-		cond_resched();
-	} while (!time_after_eq(jiffies, timeout));
-
-	return time_after_eq(jiffies, timeout);
+	return ret;
 }
 
 static void

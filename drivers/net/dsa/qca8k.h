@@ -18,6 +18,8 @@
 #define PHY_ID_QCA8337					0x004dd036
 #define QCA8K_ID_QCA8337				0x13
 
+#define QCA8K_BUSY_WAIT_TIMEOUT				20
+
 #define QCA8K_NUM_FDB_RECORDS				2048
 
 #define QCA8K_CPU_PORT					0
