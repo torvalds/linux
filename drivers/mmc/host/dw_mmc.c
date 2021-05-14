@@ -221,7 +221,8 @@ static void dw_mci_wait_while_busy(struct dw_mci *host, u32 cmd_flags)
 	 * expected.
 	 */
 #ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-	if (host->slot->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+	if (host->slot->mmc->caps2 & MMC_CAP2_NO_SD &&
+	    host->slot->mmc->caps2 & MMC_CAP2_NO_SDIO)
 		delay = 0;
 #endif
 	if ((cmd_flags & SDMMC_CMD_PRV_DAT_WAIT) &&
@@ -3239,7 +3240,8 @@ int dw_mci_probe(struct dw_mci *host)
 	struct device *dev = host->dev;
 	u32 intr;
 
-	if (device_property_read_bool(host->dev, "supports-emmc")) {
+	if (host->slot->mmc->caps2 & MMC_CAP2_NO_SD &&
+	    host->slot->mmc->caps2 & MMC_CAP2_NO_SDIO) {
 		if (readl_poll_timeout(host->regs + SDMMC_STATUS,
 				fifo_size,
 				!(fifo_size & (BIT(10) | GENMASK(7, 4))),
