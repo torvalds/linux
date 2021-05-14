@@ -585,10 +585,6 @@ static inline int pseries_remove_mem_node(struct device_node *np)
 {
 	return 0;
 }
-static inline int dlpar_memory_remove(struct pseries_hp_errorlog *hp_elog)
-{
-	return -EOPNOTSUPP;
-}
 static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 {
 	return -EOPNOTSUPP;
