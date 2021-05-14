@@ -512,7 +512,9 @@ static int check_inodes(struct bch_fs *c, bool full)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN, 0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN,
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
@@ -621,7 +623,8 @@ static int check_extents(struct bch_fs *c)
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   POS(BCACHEFS_ROOT_INO, 0),
-				   BTREE_ITER_INTENT);
+				   BTREE_ITER_INTENT|
+				   BTREE_ITER_PREFETCH);
 retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
@@ -719,7 +722,9 @@ static int check_dirents(struct bch_fs *c)
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_dirents,
-				   POS(BCACHEFS_ROOT_INO, 0), 0);
+				   POS(BCACHEFS_ROOT_INO, 0),
+				   BTREE_ITER_INTENT|
+				   BTREE_ITER_PREFETCH);
 retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
@@ -920,7 +925,9 @@ static int check_xattrs(struct bch_fs *c)
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_xattrs,
-				   POS(BCACHEFS_ROOT_INO, 0), 0);
+				   POS(BCACHEFS_ROOT_INO, 0),
+				   BTREE_ITER_INTENT|
+				   BTREE_ITER_PREFETCH);
 retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
@@ -1108,7 +1115,9 @@ static int check_directory_structure(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN, 0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN,
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
@@ -1207,7 +1216,9 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_inodes,
-			   POS(0, start), 0, k, ret) {
+			   POS(0, start),
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
@@ -1255,7 +1266,9 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_dirents, POS_MIN, 0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_dirents, POS_MIN,
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_PREFETCH, k, ret) {
 		switch (k.k->type) {
 		case KEY_TYPE_dirent:
 			d = bkey_s_c_to_dirent(k);
@@ -1293,7 +1306,9 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_inodes,
-			   POS(0, range_start), 0, k, ret) {
+			   POS(0, range_start),
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->p.offset >= range_end)
 			break;
 
