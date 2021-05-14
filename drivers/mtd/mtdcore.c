@@ -779,11 +779,15 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
 
 static ssize_t mtd_otp_size(struct mtd_info *mtd, bool is_user)
 {
-	struct otp_info *info = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	struct otp_info *info;
 	ssize_t size = 0;
 	unsigned int i;
 	size_t retlen;
 	int ret;
+
+	info = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 
 	if (is_user)
 		ret = mtd_get_user_prot_info(mtd, PAGE_SIZE, &retlen, info);
