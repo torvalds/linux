@@ -367,6 +367,9 @@ static void hns3_dbg_dev_caps(struct hnae3_handle *h)
 		 "yes" : "no");
 	dev_info(&h->pdev->dev, "support imp-controlled PHY: %s\n",
 		 test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support rxd advanced layout: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, caps) ?
+		 "yes" : "no");
 }
 
 static void hns3_dbg_dev_specs(struct hnae3_handle *h)

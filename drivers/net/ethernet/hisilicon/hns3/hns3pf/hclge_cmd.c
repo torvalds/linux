@@ -386,6 +386,8 @@ static void hclge_parse_capability(struct hclge_dev *hdev,
 		set_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps);
 	if (hnae3_get_bit(caps, HCLGE_CAP_PHY_IMP_B))
 		set_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_RXD_ADV_LAYOUT_B))
+		set_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, ae_dev->caps);
 }
 
 static __le32 hclge_build_api_caps(void)

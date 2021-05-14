@@ -19,6 +19,7 @@ enum hns3_nic_state {
 	HNS3_NIC_STATE_SERVICE_SCHED,
 	HNS3_NIC_STATE2_RESET_REQUESTED,
 	HNS3_NIC_STATE_HW_TX_CSUM_ENABLE,
+	HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE,
 	HNS3_NIC_STATE_MAX
 };
 
@@ -113,6 +114,9 @@ enum hns3_nic_state {
 #define HNS3_RXD_FBHI_M				(0x3 << HNS3_RXD_FBHI_S)
 #define HNS3_RXD_FBLI_S				14
 #define HNS3_RXD_FBLI_M				(0x3 << HNS3_RXD_FBLI_S)
+
+#define HNS3_RXD_PTYPE_S			4
+#define HNS3_RXD_PTYPE_M			GENMASK(11, 4)
 
 #define HNS3_RXD_BDTYPE_S			0
 #define HNS3_RXD_BDTYPE_M			(0xf << HNS3_RXD_BDTYPE_S)
@@ -364,6 +368,14 @@ enum hns3_pkt_ol4type {
 	HNS3_OL4_TYPE_MAC_IN_UDP,
 	HNS3_OL4_TYPE_NVGRE,
 	HNS3_OL4_TYPE_UNKNOWN
+};
+
+struct hns3_rx_ptype {
+	u32 ptype:8;
+	u32 csum_level:2;
+	u32 ip_summed:2;
+	u32 l3_type:4;
+	u32 valid:1;
 };
 
 struct ring_stats {

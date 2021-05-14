@@ -53,6 +53,7 @@
 /* bar registers for common func */
 #define HCLGE_VECTOR0_OTER_EN_REG	0x20600
 #define HCLGE_GRO_EN_REG		0x28000
+#define HCLGE_RXD_ADV_LAYOUT_EN_REG	0x28008
 
 /* bar registers for rcb */
 #define HCLGE_RING_RX_ADDR_L_REG	0x80000
