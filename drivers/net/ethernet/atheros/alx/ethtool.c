@@ -253,8 +253,10 @@ static int alx_set_pauseparam(struct net_device *netdev,
 
 	if (reconfig_phy) {
 		err = alx_setup_speed_duplex(hw, hw->adv_cfg, fc);
-		if (err)
+		if (err) {
+			mutex_unlock(&alx->mtx);
 			return err;
+		}
 	}
 
 	/* flow control on mac */
