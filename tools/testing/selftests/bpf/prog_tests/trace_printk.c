@@ -21,6 +21,9 @@ void test_trace_printk(void)
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
 		return;
 
+	ASSERT_EQ(skel->rodata->fmt[0], 'T', "invalid printk fmt string");
+	skel->rodata->fmt[0] = 't';
+
 	err = trace_printk__load(skel);
 	if (CHECK(err, "skel_load", "failed to load skeleton: %d\n", err))
 		goto cleanup;
