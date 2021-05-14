@@ -28,10 +28,10 @@ CXL Memory Device
 .. kernel-doc:: drivers/cxl/mem.c
    :internal:
 
-CXL Bus
+CXL Core
 -------
-.. kernel-doc:: drivers/cxl/bus.c
-   :doc: cxl bus
+.. kernel-doc:: drivers/cxl/core.c
+   :doc: cxl core
 
 External Interfaces
 ===================
