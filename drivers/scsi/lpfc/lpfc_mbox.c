@@ -522,7 +522,8 @@ lpfc_init_link(struct lpfc_hba * phba,
 	}
 
 	/* Enable asynchronous ABTS responses from firmware */
-	mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
+	if (phba->sli_rev == LPFC_SLI_REV3 && !phba->cfg_fcp_wait_abts_rsp)
+		mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
 
 	/* NEW_FEATURE
 	 * Setting up the link speed

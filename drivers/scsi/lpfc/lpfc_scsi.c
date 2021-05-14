@@ -518,6 +518,7 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 	struct lpfc_nodelist *ndlp;
 	int rrq_empty = 0;
 	struct lpfc_sli_ring *pring = phba->sli4_hba.els_wq->pring;
+	struct scsi_cmnd *cmd;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
@@ -553,6 +554,31 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 					psb->cur_iocbq.sli4_lxritag, rxid, 1);
 				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 			}
+
+			if (phba->cfg_fcp_wait_abts_rsp) {
+				spin_lock_irqsave(&psb->buf_lock, iflag);
+				cmd = psb->pCmd;
+				psb->pCmd = NULL;
+				spin_unlock_irqrestore(&psb->buf_lock, iflag);
+
+				/* The sdev is not guaranteed to be valid post
+				 * scsi_done upcall.
+				 */
+				if (cmd)
+					cmd->scsi_done(cmd);
+
+				/*
+				 * We expect there is an abort thread waiting
+				 * for command completion wake up the thread.
+				 */
+				spin_lock_irqsave(&psb->buf_lock, iflag);
+				psb->cur_iocbq.iocb_flag &=
+					~LPFC_DRIVER_ABORTED;
+				if (psb->waitq)
+					wake_up(psb->waitq);
+				spin_unlock_irqrestore(&psb->buf_lock, iflag);
+			}
+
 			lpfc_release_scsi_buf_s4(phba, psb);
 			if (rrq_empty)
 				lpfc_worker_wake_up(phba);
@@ -780,7 +806,8 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
 	qp = psb->hdwq;
 	if (psb->flags & LPFC_SBUF_XBUSY) {
 		spin_lock_irqsave(&qp->abts_io_buf_list_lock, iflag);
-		psb->pCmd = NULL;
+		if (!phba->cfg_fcp_wait_abts_rsp)
+			psb->pCmd = NULL;
 		list_add_tail(&psb->list, &qp->lpfc_abts_io_buf_list);
 		qp->abts_scsi_io_bufs++;
 		spin_unlock_irqrestore(&qp->abts_io_buf_list_lock, iflag);
@@ -4045,6 +4072,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	u32 logit = LOG_FCP;
 	u32 status, idx;
 	unsigned long iflags = 0;
+	u8 wait_xb_clr = 0;
 
 	/* Sanity check on return of outstanding command */
 	if (!lpfc_cmd) {
@@ -4096,8 +4124,11 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	lpfc_cmd->result = (wcqe->parameter & IOERR_PARAM_MASK);
 
 	lpfc_cmd->flags &= ~LPFC_SBUF_XBUSY;
-	if (bf_get(lpfc_wcqe_c_xb, wcqe))
+	if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
 		lpfc_cmd->flags |= LPFC_SBUF_XBUSY;
+		if (phba->cfg_fcp_wait_abts_rsp)
+			wait_xb_clr = 1;
+	}
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (lpfc_cmd->prot_data_type) {
@@ -4329,6 +4360,8 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		lpfc_io_ktime(phba, lpfc_cmd);
 	}
 #endif
+	if (wait_xb_clr)
+		goto out;
 	lpfc_cmd->pCmd = NULL;
 	spin_unlock(&lpfc_cmd->buf_lock);
 
@@ -4343,8 +4376,8 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
 	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
+out:
 	spin_unlock(&lpfc_cmd->buf_lock);
-
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
@@ -4398,11 +4431,10 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 	lpfc_cmd->result = (pIocbOut->iocb.un.ulpWord[4] & IOERR_PARAM_MASK);
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
-	/* pick up SLI4 exhange busy status from HBA */
+	/* pick up SLI4 exchange busy status from HBA */
+	lpfc_cmd->flags &= ~LPFC_SBUF_XBUSY;
 	if (pIocbOut->iocb_flag & LPFC_EXCHANGE_BUSY)
 		lpfc_cmd->flags |= LPFC_SBUF_XBUSY;
-	else
-		lpfc_cmd->flags &= ~LPFC_SBUF_XBUSY;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (lpfc_cmd->prot_data_type) {
@@ -4601,6 +4633,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		lpfc_io_ktime(phba, lpfc_cmd);
 	}
 #endif
+
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
 	cmd->scsi_done(cmd);
 
