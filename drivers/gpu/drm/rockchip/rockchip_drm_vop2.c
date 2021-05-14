@@ -4351,7 +4351,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	bool sdr2hdr_en = 0;
 	bool sdr2hdr_tf = 0;
 	bool hdr2sdr_tf_update = 1;
-	bool sdr2hdr_tf_update = 0;
+	bool sdr2hdr_tf_update = 1;
 
 	/*
 	 * Check whether this video port support hdr or not
@@ -4378,7 +4378,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	if (vp->hdr_in && !vp->hdr_out)
 		hdr2sdr_en = 1;
 
-	if (vp->hdr_out && (vp->nr_layers > 1))
+	if (!vp->hdr_in && vp->hdr_out)
 		sdr2hdr_en = 1;
 
 	vp->sdr2hdr_en = sdr2hdr_en;
@@ -4387,7 +4387,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 
 	if (sdr2hdr_en) {
 		sdr2hdr_r2r_mode = BT709_TO_BT2020;
-		if (vp->hdr_in)
+		if (vp->hdr_out)
 			sdr2hdr_tf = SDR2HDR_FOR_HDR;
 		else
 			sdr2hdr_tf = SDR2HDR_FOR_BT2020;
