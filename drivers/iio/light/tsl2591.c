@@ -451,7 +451,7 @@ static int tsl2591_read_channel_data(struct iio_dev *indio_dev,
 					    sizeof(als_data), als_data);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to read data bytes");
-			return ret;
+		return ret;
 	}
 
 	als_ch0 = get_unaligned_le16(&als_data[0]);
