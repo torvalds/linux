@@ -127,16 +127,23 @@ qca8k_mii_write32(struct mii_bus *bus, int phy_id, u32 regnum, u32 val)
 				    "failed to write qca8k 32bit register\n");
 }
 
-static void
+static int
 qca8k_set_page(struct mii_bus *bus, u16 page)
 {
-	if (page == qca8k_current_page)
-		return;
+	int ret;
 
-	if (bus->write(bus, 0x18, 0, page) < 0)
+	if (page == qca8k_current_page)
+		return 0;
+
+	ret = bus->write(bus, 0x18, 0, page);
+	if (ret < 0) {
 		dev_err_ratelimited(&bus->dev,
 				    "failed to set qca8k page\n");
+		return ret;
+	}
+
 	qca8k_current_page = page;
+	return 0;
 }
 
 static u32
@@ -150,11 +157,14 @@ qca8k_read(struct qca8k_priv *priv, u32 reg)
 
 	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 
-	qca8k_set_page(bus, page);
+	val = qca8k_set_page(bus, page);
+	if (val < 0)
+		goto exit;
+
 	val = qca8k_mii_read32(bus, 0x10 | r2, r1);
 
+exit:
 	mutex_unlock(&bus->mdio_lock);
-
 	return val;
 }
 
@@ -163,14 +173,19 @@ qca8k_write(struct qca8k_priv *priv, u32 reg, u32 val)
 {
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
+	int ret;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
 	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 
-	qca8k_set_page(bus, page);
+	ret = qca8k_set_page(bus, page);
+	if (ret < 0)
+		goto exit;
+
 	qca8k_mii_write32(bus, 0x10 | r2, r1, val);
 
+exit:
 	mutex_unlock(&bus->mdio_lock);
 }
 
@@ -185,12 +200,16 @@ qca8k_rmw(struct qca8k_priv *priv, u32 reg, u32 mask, u32 val)
 
 	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 
-	qca8k_set_page(bus, page);
+	ret = qca8k_set_page(bus, page);
+	if (ret < 0)
+		goto exit;
+
 	ret = qca8k_mii_read32(bus, 0x10 | r2, r1);
 	ret &= ~mask;
 	ret |= val;
 	qca8k_mii_write32(bus, 0x10 | r2, r1, ret);
 
+exit:
 	mutex_unlock(&bus->mdio_lock);
 
 	return ret;
