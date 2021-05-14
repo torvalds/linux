@@ -24,7 +24,7 @@ Description:
 		1	  Enable digital signature validation
 		2	  Permit modification of EVM-protected metadata at
 			  runtime. Not supported if HMAC validation and
-			  creation is enabled.
+			  creation is enabled (deprecated).
 		31	  Disable further runtime modification of EVM policy
 		===	  ==================================================
 
@@ -47,7 +47,13 @@ Description:
 
 		will enable digital signature validation, permit
 		modification of EVM-protected metadata and
-		disable all further modification of policy
+		disable all further modification of policy. This option is now
+		deprecated in favor of::
+
+		  echo 0x80000002 ><securityfs>/evm
+
+		as the outstanding issues that prevent the usage of EVM portable
+		signatures have been solved.
 
 		Echoing a value is additive, the new value is added to the
 		existing initialization flags.
