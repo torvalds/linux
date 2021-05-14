@@ -116,7 +116,6 @@ int main(void)
 #ifdef CONFIG_ALTIVEC
 	OFFSET(THREAD_VRSTATE, thread_struct, vr_state.vr);
 	OFFSET(THREAD_VRSAVEAREA, thread_struct, vr_save_area);
-	OFFSET(THREAD_VRSAVE, thread_struct, vrsave);
 	OFFSET(THREAD_USED_VR, thread_struct, used_vr);
 	OFFSET(VRSTATE_VSCR, thread_vr_state, vscr);
 	OFFSET(THREAD_LOAD_VEC, thread_struct, load_vec);
@@ -147,7 +146,6 @@ int main(void)
 #ifdef CONFIG_SPE
 	OFFSET(THREAD_EVR0, thread_struct, evr[0]);
 	OFFSET(THREAD_ACC, thread_struct, acc);
-	OFFSET(THREAD_SPEFSCR, thread_struct, spefscr);
 	OFFSET(THREAD_USED_SPE, thread_struct, used_spe);
 #endif /* CONFIG_SPE */
 #endif /* CONFIG_PPC64 */

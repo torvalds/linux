@@ -1129,6 +1129,10 @@ static inline void save_sprs(struct thread_struct *t)
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		t->vrsave = mfspr(SPRN_VRSAVE);
 #endif
+#ifdef CONFIG_SPE
+	if (cpu_has_feature(CPU_FTR_SPE))
+		t->spefscr = mfspr(SPRN_SPEFSCR);
+#endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_DSCR))
 		t->dscr = mfspr(SPRN_DSCR);
@@ -1158,6 +1162,11 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	if (cpu_has_feature(CPU_FTR_ALTIVEC) &&
 	    old_thread->vrsave != new_thread->vrsave)
 		mtspr(SPRN_VRSAVE, new_thread->vrsave);
+#endif
+#ifdef CONFIG_SPE
+	if (cpu_has_feature(CPU_FTR_SPE) &&
+	    old_thread->spefscr != new_thread->spefscr)
+		mtspr(SPRN_SPEFSCR, new_thread->spefscr);
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_DSCR)) {

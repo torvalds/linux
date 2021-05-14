@@ -176,28 +176,6 @@ _GLOBAL(_switch)
 	/* r3-r12 are caller saved -- Cort */
 	SAVE_NVGPRS(r1)
 	stw	r0,_NIP(r1)	/* Return to switch caller */
-	mfmsr	r11
-	li	r0,MSR_FP	/* Disable floating-point */
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_VEC@h	/* Disable altivec */
-	mfspr	r12,SPRN_VRSAVE	/* save vrsave register value */
-	stw	r12,THREAD+THREAD_VRSAVE(r2)
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_SPE@h	 /* Disable SPE */
-	mfspr	r12,SPRN_SPEFSCR /* save spefscr register value */
-	stw	r12,THREAD+THREAD_SPEFSCR(r2)
-END_FTR_SECTION_IFSET(CPU_FTR_SPE)
-#endif /* CONFIG_SPE */
-	and.	r0,r0,r11	/* FP or altivec or SPE enabled? */
-	beq+	1f
-	andc	r11,r11,r0
-	mtmsr	r11
-	isync
-1:	stw	r11,_MSR(r1)
 	mfcr	r10
 	stw	r10,_CCR(r1)
 	stw	r1,KSP(r3)	/* Set old stack pointer */
@@ -217,19 +195,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 	/* save the old current 'last' for return value */
 	mr	r3,r2
 	addi	r2,r4,-THREAD	/* Update current */
-
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	lwz	r0,THREAD+THREAD_VRSAVE(r2)
-	mtspr	SPRN_VRSAVE,r0		/* if G4, restore VRSAVE reg */
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-BEGIN_FTR_SECTION
-	lwz	r0,THREAD+THREAD_SPEFSCR(r2)
-	mtspr	SPRN_SPEFSCR,r0		/* restore SPEFSCR reg */
-END_FTR_SECTION_IFSET(CPU_FTR_SPE)
-#endif /* CONFIG_SPE */
 
 	lwz	r0,_CCR(r1)
 	mtcrf	0xFF,r0
