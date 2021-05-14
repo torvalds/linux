@@ -914,8 +914,7 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		}
 	} else if (is_acpi_node(mac_cb->fw_port)) {
 		ret = hns_mac_register_phy(mac_cb);
-		/*
-		 * Mac can work well if there is phy or not.If the port don't
+		/* Mac can work well if there is phy or not.If the port don't
 		 * connect with phy, the return value will be ignored. Only
 		 * when there is phy but can't find mdio bus, the return value
 		 * will be handled.
