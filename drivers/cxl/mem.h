@@ -49,10 +49,9 @@ struct cxl_memdev {
 /**
  * struct cxl_mem - A CXL memory device
  * @pdev: The PCI device associated with this CXL device.
- * @regs: IO mappings to the device's MMIO
- * @status_regs: CXL 2.0 8.2.8.3 Device Status Registers
- * @mbox_regs: CXL 2.0 8.2.8.4 Mailbox Registers
- * @memdev_regs: CXL 2.0 8.2.8.5 Memory Device Registers
+ * @base: IO mappings to the device's MMIO
+ * @cxlmd: Logical memory device chardev / interface
+ * @regs: Parsed register blocks
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
  * @mbox_mutex: Mutex to synchronize mailbox access.
@@ -63,12 +62,10 @@ struct cxl_memdev {
  */
 struct cxl_mem {
 	struct pci_dev *pdev;
-	void __iomem *regs;
+	void __iomem *base;
 	struct cxl_memdev *cxlmd;
 
-	void __iomem *status_regs;
-	void __iomem *mbox_regs;
-	void __iomem *memdev_regs;
+	struct cxl_regs regs;
 
 	size_t payload_size;
 	struct mutex mbox_mutex; /* Protects device mailbox and firmware */

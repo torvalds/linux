@@ -34,5 +34,37 @@
 #define CXLDEV_MBOX_BG_CMD_STATUS_OFFSET 0x18
 #define CXLDEV_MBOX_PAYLOAD_OFFSET 0x20
 
+/*
+ * CXL_DEVICE_REGS - Common set of CXL Device register block base pointers
+ * @status: CXL 2.0 8.2.8.3 Device Status Registers
+ * @mbox: CXL 2.0 8.2.8.4 Mailbox Registers
+ * @memdev: CXL 2.0 8.2.8.5 Memory Device Registers
+ */
+#define CXL_DEVICE_REGS() \
+	void __iomem *status; \
+	void __iomem *mbox; \
+	void __iomem *memdev
+
+/* See note for 'struct cxl_regs' for the rationale of this organization */
+struct cxl_device_regs {
+	CXL_DEVICE_REGS();
+};
+
+/*
+ * Note, the anonymous union organization allows for per
+ * register-block-type helper routines, without requiring block-type
+ * agnostic code to include the prefix. I.e.
+ * cxl_setup_device_regs(&cxlm->regs.dev) vs readl(cxlm->regs.mbox).
+ * The specificity reads naturally from left-to-right.
+ */
+struct cxl_regs {
+	union {
+		struct {
+			CXL_DEVICE_REGS();
+		};
+		struct cxl_device_regs device_regs;
+	};
+};
+
 extern struct bus_type cxl_bus_type;
 #endif /* __CXL_H__ */
