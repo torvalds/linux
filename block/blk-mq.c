@@ -2232,8 +2232,9 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		/* Bypass scheduler for flush requests */
 		blk_insert_flush(rq);
 		blk_mq_run_hw_queue(data.hctx, true);
-	} else if (plug && (q->nr_hw_queues == 1 || q->mq_ops->commit_rqs ||
-				!blk_queue_nonrot(q))) {
+	} else if (plug && (q->nr_hw_queues == 1 ||
+		   blk_mq_is_sbitmap_shared(rq->mq_hctx->flags) ||
+		   q->mq_ops->commit_rqs || !blk_queue_nonrot(q))) {
 		/*
 		 * Use plugging if we have a ->commit_rqs() hook as well, as
 		 * we know the driver uses bd->last in a smart fashion.
