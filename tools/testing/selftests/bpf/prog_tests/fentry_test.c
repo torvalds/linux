@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 #include <test_progs.h>
-#include "fentry_test.skel.h"
+#include "fentry_test.lskel.h"
 
 static int fentry_test(struct fentry_test *fentry_skel)
 {
 	int err, prog_fd, i;
 	__u32 duration = 0, retval;
-	struct bpf_link *link;
+	int link_fd;
 	__u64 *result;
 
 	err = fentry_test__attach(fentry_skel);
@@ -15,11 +15,11 @@ static int fentry_test(struct fentry_test *fentry_skel)
 		return err;
 
 	/* Check that already linked program can't be attached again. */
-	link = bpf_program__attach(fentry_skel->progs.test1);
-	if (!ASSERT_ERR_PTR(link, "fentry_attach_link"))
+	link_fd = fentry_test__test1__attach(fentry_skel);
+	if (!ASSERT_LT(link_fd, 0, "fentry_attach_link"))
 		return -1;
 
-	prog_fd = bpf_program__fd(fentry_skel->progs.test1);
+	prog_fd = fentry_skel->progs.test1.prog_fd;
 	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
 				NULL, NULL, &retval, &duration);
 	ASSERT_OK(err, "test_run");
