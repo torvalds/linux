@@ -567,15 +567,24 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* no deferred ACC */
 		kfree(save_iocb);
 
-		/* In order to preserve RPIs, we want to cleanup
-		 * the default RPI the firmware created to rcv
-		 * this ELS request. The only way to do this is
-		 * to register, then unregister the RPI.
+		/* This is an NPIV SLI4 instance that does not need to register
+		 * a default RPI.
 		 */
-		spin_lock_irq(&ndlp->lock);
-		ndlp->nlp_flag |= (NLP_RM_DFLT_RPI | NLP_ACC_REGLOGIN |
-				   NLP_RCV_PLOGI);
-		spin_unlock_irq(&ndlp->lock);
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			mempool_free(login_mbox, phba->mbox_mem_pool);
+			login_mbox = NULL;
+		} else {
+			/* In order to preserve RPIs, we want to cleanup
+			 * the default RPI the firmware created to rcv
+			 * this ELS request. The only way to do this is
+			 * to register, then unregister the RPI.
+			 */
+			spin_lock_irq(&ndlp->lock);
+			ndlp->nlp_flag |= (NLP_RM_DFLT_RPI | NLP_ACC_REGLOGIN |
+					   NLP_RCV_PLOGI);
+			spin_unlock_irq(&ndlp->lock);
+		}
+
 		stat.un.b.lsRjtRsnCode = LSRJT_INVALID_CMD;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 		rc = lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
