@@ -521,7 +521,7 @@ static phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 			reg = HNS_MAC_HILINK4_REG;
 		else
 			reg = HNS_MAC_HILINK3_REG;
-	} else{
+	} else {
 		if (!HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev) && mac_id <= 3)
 			reg = HNS_MAC_HILINK4V2_REG;
 		else
