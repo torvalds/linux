@@ -1927,8 +1927,13 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
 			|| u->plane_info->dcc.independent_64b_blks != u->surface->dcc.independent_64b_blks
 			|| u->plane_info->dcc.meta_pitch != u->surface->dcc.meta_pitch) {
+		/* During DCC on/off, stutter period is calculated before
+		 * DCC has fully transitioned. This results in incorrect
+		 * stutter period calculation. Triggering a full update will
+		 * recalculate stutter period.
+		 */
 		update_flags->bits.dcc_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
 	}
 
 	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
