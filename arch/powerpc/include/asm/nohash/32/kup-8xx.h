@@ -7,32 +7,40 @@
 
 #ifdef CONFIG_PPC_KUAP
 
-#ifdef __ASSEMBLY__
-
-.macro kuap_save_and_lock	sp, thread, gpr1, gpr2, gpr3
-	lis	\gpr2, MD_APG_KUAP@h	/* only APG0 and APG1 are used */
-	mfspr	\gpr1, SPRN_MD_AP
-	mtspr	SPRN_MD_AP, \gpr2
-	stw	\gpr1, STACK_REGS_KUAP(\sp)
-.endm
-
-.macro kuap_restore	sp, current, gpr1, gpr2, gpr3
-	lwz	\gpr1, STACK_REGS_KUAP(\sp)
-	mtspr	SPRN_MD_AP, \gpr1
-.endm
-
-.macro kuap_check	current, gpr
-#ifdef CONFIG_PPC_KUAP_DEBUG
-	mfspr	\gpr, SPRN_MD_AP
-	rlwinm	\gpr, \gpr, 16, 0xffff
-999:	twnei	\gpr, MD_APG_KUAP@h
-	EMIT_BUG_ENTRY 999b, __FILE__, __LINE__, (BUGFLAG_WARNING | BUGFLAG_ONCE)
-#endif
-.endm
-
-#else /* !__ASSEMBLY__ */
+#ifndef __ASSEMBLY__
 
 #include <asm/reg.h>
+
+static inline void kuap_save_and_lock(struct pt_regs *regs)
+{
+	regs->kuap = mfspr(SPRN_MD_AP);
+	mtspr(SPRN_MD_AP, MD_APG_KUAP);
+}
+
+static inline void kuap_user_restore(struct pt_regs *regs)
+{
+}
+
+static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
+{
+	mtspr(SPRN_MD_AP, regs->kuap);
+}
+
+static inline unsigned long kuap_get_and_assert_locked(void)
+{
+	unsigned long kuap = mfspr(SPRN_MD_AP);
+
+	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
+		WARN_ON_ONCE(kuap >> 16 != MD_APG_KUAP >> 16);
+
+	return kuap;
+}
+
+static inline void kuap_assert_locked(void)
+{
+	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
+		kuap_get_and_assert_locked();
+}
 
 static inline void allow_user_access(void __user *to, const void __user *from,
 				     unsigned long size, unsigned long dir)

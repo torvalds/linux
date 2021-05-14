@@ -183,6 +183,40 @@ User command examples:
       values:
          cmode driverinit value true
 
+esw_port_metadata: Eswitch port metadata state
+----------------------------------------------
+When applicable, disabling Eswitch metadata can increase packet rate
+up to 20% depending on the use case and packet sizes.
+
+Eswitch port metadata state controls whether to internally tag packets with
+metadata. Metadata tagging must be enabled for multi-port RoCE, failover
+between representors and stacked devices.
+By default metadata is enabled on the supported devices in E-switch.
+Metadata is applicable only for E-switch in switchdev mode and
+users may disable it when NONE of the below use cases will be in use:
+1. HCA is in Dual/multi-port RoCE mode.
+2. VF/SF representor bonding (Usually used for Live migration)
+3. Stacked devices
+
+When metadata is disabled, the above use cases will fail to initialize if
+users try to enable them.
+
+- Show eswitch port metadata::
+
+    $ devlink dev param show pci/0000:06:00.0 name esw_port_metadata
+      pci/0000:06:00.0:
+        name esw_port_metadata type driver-specific
+          values:
+            cmode runtime value true
+
+- Disable eswitch port metadata::
+
+    $ devlink dev param set pci/0000:06:00.0 name esw_port_metadata value false cmode runtime
+
+- Change eswitch mode to switchdev mode where after choosing the metadata value::
+
+    $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
+
 mlx5 subfunction
 ================
 mlx5 supports subfunction management using devlink port (see :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>`) interface.

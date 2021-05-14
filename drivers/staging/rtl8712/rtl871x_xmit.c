@@ -18,10 +18,10 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "wifi.h"
 #include "osdep_intf.h"
 #include "usb_ops.h"
 
+#include <linux/ieee80211.h>
 
 static const u8 P802_1H_OUI[P80211_OUI_LEN] = {0x00, 0x00, 0xf8};
 static const u8 RFC1042_OUI[P80211_OUI_LEN] = {0x00, 0x00, 0x00};
@@ -293,7 +293,7 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		r8712_set_qos(&pktfile, pattrib);
 	} else {
 		pattrib->hdrlen = WLAN_HDR_A3_LEN;
-		pattrib->subtype = WIFI_DATA_TYPE;
+		pattrib->subtype = IEEE80211_FTYPE_DATA;
 		pattrib->priority = 0;
 	}
 	if (psta->ieee8021x_blocked) {
@@ -479,7 +479,7 @@ static int make_wlanhdr(struct _adapter *padapter, u8 *hdr,
 
 	memset(hdr, 0, WLANHDR_OFFSET);
 	SetFrameSubType(fctrl, pattrib->subtype);
-	if (!(pattrib->subtype & WIFI_DATA_TYPE))
+	if (!(pattrib->subtype & IEEE80211_FTYPE_DATA))
 		return 0;
 
 	bssid = get_bssid(pmlmepriv);
@@ -709,7 +709,7 @@ void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len)
 		break;
 	case AUTO_VCS:
 	default:
-		perp = r8712_get_ie(ie, _ERPINFO_IE_, &erp_len, ie_len);
+		perp = r8712_get_ie(ie, WLAN_EID_ERP_INFO, &erp_len, ie_len);
 		if (!perp) {
 			pxmitpriv->vcs = NONE_VCS;
 		} else {

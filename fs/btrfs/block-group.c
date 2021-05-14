@@ -1289,7 +1289,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 	 * Long running balances can keep us blocked here for eternity, so
 	 * simply skip deletion if we're unable to get the mutex.
 	 */
-	if (!mutex_trylock(&fs_info->delete_unused_bgs_mutex))
+	if (!mutex_trylock(&fs_info->reclaim_bgs_lock))
 		return;
 
 	spin_lock(&fs_info->unused_bgs_lock);
@@ -1462,12 +1462,12 @@ next:
 		spin_lock(&fs_info->unused_bgs_lock);
 	}
 	spin_unlock(&fs_info->unused_bgs_lock);
-	mutex_unlock(&fs_info->delete_unused_bgs_mutex);
+	mutex_unlock(&fs_info->reclaim_bgs_lock);
 	return;
 
 flip_async:
 	btrfs_end_transaction(trans);
-	mutex_unlock(&fs_info->delete_unused_bgs_mutex);
+	mutex_unlock(&fs_info->reclaim_bgs_lock);
 	btrfs_put_block_group(block_group);
 	btrfs_discard_punt_unused_bgs_list(fs_info);
 }
@@ -1481,6 +1481,97 @@ void btrfs_mark_bg_unused(struct btrfs_block_group *bg)
 		btrfs_get_block_group(bg);
 		trace_btrfs_add_unused_block_group(bg);
 		list_add_tail(&bg->bg_list, &fs_info->unused_bgs);
+	}
+	spin_unlock(&fs_info->unused_bgs_lock);
+}
+
+void btrfs_reclaim_bgs_work(struct work_struct *work)
+{
+	struct btrfs_fs_info *fs_info =
+		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
+	struct btrfs_block_group *bg;
+	struct btrfs_space_info *space_info;
+	int ret;
+
+	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
+		return;
+
+	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE))
+		return;
+
+	mutex_lock(&fs_info->reclaim_bgs_lock);
+	spin_lock(&fs_info->unused_bgs_lock);
+	while (!list_empty(&fs_info->reclaim_bgs)) {
+		bg = list_first_entry(&fs_info->reclaim_bgs,
+				      struct btrfs_block_group,
+				      bg_list);
+		list_del_init(&bg->bg_list);
+
+		space_info = bg->space_info;
+		spin_unlock(&fs_info->unused_bgs_lock);
+
+		/* Don't race with allocators so take the groups_sem */
+		down_write(&space_info->groups_sem);
+
+		spin_lock(&bg->lock);
+		if (bg->reserved || bg->pinned || bg->ro) {
+			/*
+			 * We want to bail if we made new allocations or have
+			 * outstanding allocations in this block group.  We do
+			 * the ro check in case balance is currently acting on
+			 * this block group.
+			 */
+			spin_unlock(&bg->lock);
+			up_write(&space_info->groups_sem);
+			goto next;
+		}
+		spin_unlock(&bg->lock);
+
+		/* Get out fast, in case we're unmounting the filesystem */
+		if (btrfs_fs_closing(fs_info)) {
+			up_write(&space_info->groups_sem);
+			goto next;
+		}
+
+		ret = inc_block_group_ro(bg, 0);
+		up_write(&space_info->groups_sem);
+		if (ret < 0)
+			goto next;
+
+		btrfs_info(fs_info, "reclaiming chunk %llu with %llu%% used",
+				bg->start, div_u64(bg->used * 100, bg->length));
+		trace_btrfs_reclaim_block_group(bg);
+		ret = btrfs_relocate_chunk(fs_info, bg->start);
+		if (ret)
+			btrfs_err(fs_info, "error relocating chunk %llu",
+				  bg->start);
+
+next:
+		btrfs_put_block_group(bg);
+		spin_lock(&fs_info->unused_bgs_lock);
+	}
+	spin_unlock(&fs_info->unused_bgs_lock);
+	mutex_unlock(&fs_info->reclaim_bgs_lock);
+	btrfs_exclop_finish(fs_info);
+}
+
+void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
+{
+	spin_lock(&fs_info->unused_bgs_lock);
+	if (!list_empty(&fs_info->reclaim_bgs))
+		queue_work(system_unbound_wq, &fs_info->reclaim_bgs_work);
+	spin_unlock(&fs_info->unused_bgs_lock);
+}
+
+void btrfs_mark_bg_to_reclaim(struct btrfs_block_group *bg)
+{
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+
+	spin_lock(&fs_info->unused_bgs_lock);
+	if (list_empty(&bg->bg_list)) {
+		btrfs_get_block_group(bg);
+		trace_btrfs_add_reclaim_block_group(bg);
+		list_add_tail(&bg->bg_list, &fs_info->reclaim_bgs);
 	}
 	spin_unlock(&fs_info->unused_bgs_lock);
 }
@@ -2267,29 +2358,33 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 	struct btrfs_trans_handle *trans;
 	u64 alloc_flags;
 	int ret;
+	bool dirty_bg_running;
 
-again:
-	trans = btrfs_join_transaction(fs_info->extent_root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	do {
+		trans = btrfs_join_transaction(fs_info->extent_root);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 
-	/*
-	 * we're not allowed to set block groups readonly after the dirty
-	 * block groups cache has started writing.  If it already started,
-	 * back off and let this transaction commit
-	 */
-	mutex_lock(&fs_info->ro_block_group_mutex);
-	if (test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &trans->transaction->flags)) {
-		u64 transid = trans->transid;
+		dirty_bg_running = false;
 
-		mutex_unlock(&fs_info->ro_block_group_mutex);
-		btrfs_end_transaction(trans);
+		/*
+		 * We're not allowed to set block groups readonly after the dirty
+		 * block group cache has started writing.  If it already started,
+		 * back off and let this transaction commit.
+		 */
+		mutex_lock(&fs_info->ro_block_group_mutex);
+		if (test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &trans->transaction->flags)) {
+			u64 transid = trans->transid;
 
-		ret = btrfs_wait_for_commit(fs_info, transid);
-		if (ret)
-			return ret;
-		goto again;
-	}
+			mutex_unlock(&fs_info->ro_block_group_mutex);
+			btrfs_end_transaction(trans);
+
+			ret = btrfs_wait_for_commit(fs_info, transid);
+			if (ret)
+				return ret;
+			dirty_bg_running = true;
+		}
+	} while (dirty_bg_running);
 
 	if (do_chunk_alloc) {
 		/*
@@ -3269,6 +3364,7 @@ static u64 get_profile_num_devs(struct btrfs_fs_info *fs_info, u64 type)
  */
 void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 {
+	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_space_info *info;
 	u64 left;
@@ -3283,6 +3379,7 @@ void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 	lockdep_assert_held(&fs_info->chunk_mutex);
 
 	info = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
+again:
 	spin_lock(&info->lock);
 	left = info->total_bytes - btrfs_space_info_used(info, true);
 	spin_unlock(&info->lock);
@@ -3301,6 +3398,58 @@ void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 
 	if (left < thresh) {
 		u64 flags = btrfs_system_alloc_profile(fs_info);
+		u64 reserved = atomic64_read(&cur_trans->chunk_bytes_reserved);
+
+		/*
+		 * If there's not available space for the chunk tree (system
+		 * space) and there are other tasks that reserved space for
+		 * creating a new system block group, wait for them to complete
+		 * the creation of their system block group and release excess
+		 * reserved space. We do this because:
+		 *
+		 * *) We can end up allocating more system chunks than necessary
+		 *    when there are multiple tasks that are concurrently
+		 *    allocating block groups, which can lead to exhaustion of
+		 *    the system array in the superblock;
+		 *
+		 * *) If we allocate extra and unnecessary system block groups,
+		 *    despite being empty for a long time, and possibly forever,
+		 *    they end not being added to the list of unused block groups
+		 *    because that typically happens only when deallocating the
+		 *    last extent from a block group - which never happens since
+		 *    we never allocate from them in the first place. The few
+		 *    exceptions are when mounting a filesystem or running scrub,
+		 *    which add unused block groups to the list of unused block
+		 *    groups, to be deleted by the cleaner kthread.
+		 *    And even when they are added to the list of unused block
+		 *    groups, it can take a long time until they get deleted,
+		 *    since the cleaner kthread might be sleeping or busy with
+		 *    other work (deleting subvolumes, running delayed iputs,
+		 *    defrag scheduling, etc);
+		 *
+		 * This is rare in practice, but can happen when too many tasks
+		 * are allocating blocks groups in parallel (via fallocate())
+		 * and before the one that reserved space for a new system block
+		 * group finishes the block group creation and releases the space
+		 * reserved in excess (at btrfs_create_pending_block_groups()),
+		 * other tasks end up here and see free system space temporarily
+		 * not enough for updating the chunk tree.
+		 *
+		 * We unlock the chunk mutex before waiting for such tasks and
+		 * lock it again after the wait, otherwise we would deadlock.
+		 * It is safe to do so because allocating a system chunk is the
+		 * first thing done while allocating a new block group.
+		 */
+		if (reserved > trans->chunk_bytes_reserved) {
+			const u64 min_needed = reserved - thresh;
+
+			mutex_unlock(&fs_info->chunk_mutex);
+			wait_event(cur_trans->chunk_reserve_wait,
+			   atomic64_read(&cur_trans->chunk_bytes_reserved) <=
+			   min_needed);
+			mutex_lock(&fs_info->chunk_mutex);
+			goto again;
+		}
 
 		/*
 		 * Ignore failure to create system chunk. We might end up not
@@ -3315,8 +3464,10 @@ void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 		ret = btrfs_block_rsv_add(fs_info->chunk_root,
 					  &fs_info->chunk_block_rsv,
 					  thresh, BTRFS_RESERVE_NO_FLUSH);
-		if (!ret)
+		if (!ret) {
+			atomic64_add(thresh, &cur_trans->chunk_bytes_reserved);
 			trans->chunk_bytes_reserved += thresh;
+		}
 	}
 }
 
@@ -3379,6 +3530,16 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	spin_lock(&info->unused_bgs_lock);
 	while (!list_empty(&info->unused_bgs)) {
 		block_group = list_first_entry(&info->unused_bgs,
+					       struct btrfs_block_group,
+					       bg_list);
+		list_del_init(&block_group->bg_list);
+		btrfs_put_block_group(block_group);
+	}
+	spin_unlock(&info->unused_bgs_lock);
+
+	spin_lock(&info->unused_bgs_lock);
+	while (!list_empty(&info->reclaim_bgs)) {
+		block_group = list_first_entry(&info->reclaim_bgs,
 					       struct btrfs_block_group,
 					       bg_list);
 		list_del_init(&block_group->bg_list);

@@ -39,7 +39,6 @@ properties:
     maxItems: 1
 
   ti,watchdog-timeout-ms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     default: 0
     description: |
       Watchdog timer in ms. 0 (default) disables the watchdog

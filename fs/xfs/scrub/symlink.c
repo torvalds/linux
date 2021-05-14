@@ -18,15 +18,14 @@
 /* Set us up to scrub a symbolic link. */
 int
 xchk_setup_symlink(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
 	/* Allocate the buffer without the inode lock held. */
 	sc->buf = kvzalloc(XFS_SYMLINK_MAXLEN + 1, GFP_KERNEL);
 	if (!sc->buf)
 		return -ENOMEM;
 
-	return xchk_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_inode_contents(sc, 0);
 }
 
 /* Symbolic links. */
@@ -43,7 +42,7 @@ xchk_symlink(
 	if (!S_ISLNK(VFS_I(ip)->i_mode))
 		return -ENOENT;
 	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	len = ip->i_d.di_size;
+	len = ip->i_disk_size;
 
 	/* Plausible size? */
 	if (len > XFS_SYMLINK_MAXLEN || len <= 0) {
@@ -52,7 +51,7 @@ xchk_symlink(
 	}
 
 	/* Inline symlink? */
-	if (ifp->if_flags & XFS_IFINLINE) {
+	if (ifp->if_format == XFS_DINODE_FMT_LOCAL) {
 		if (len > XFS_IFORK_DSIZE(ip) ||
 		    len > strnlen(ifp->if_u1.if_data, XFS_IFORK_DSIZE(ip)))
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);

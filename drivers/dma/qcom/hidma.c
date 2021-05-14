@@ -90,12 +90,6 @@ static inline struct hidma_chan *to_hidma_chan(struct dma_chan *dmach)
 	return container_of(dmach, struct hidma_chan, chan);
 }
 
-static inline
-struct hidma_desc *to_hidma_desc(struct dma_async_tx_descriptor *t)
-{
-	return container_of(t, struct hidma_desc, desc);
-}
-
 static void hidma_free(struct hidma_dev *dmadev)
 {
 	INIT_LIST_HEAD(&dmadev->ddev.channels);

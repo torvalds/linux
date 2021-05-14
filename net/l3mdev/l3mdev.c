@@ -103,7 +103,7 @@ unlock:
 EXPORT_SYMBOL_GPL(l3mdev_ifindex_lookup_by_table_id);
 
 /**
- *	l3mdev_master_ifindex - get index of L3 master device
+ *	l3mdev_master_ifindex_rcu - get index of L3 master device
  *	@dev: targeted interface
  */
 
@@ -136,7 +136,7 @@ int l3mdev_master_ifindex_rcu(const struct net_device *dev)
 EXPORT_SYMBOL_GPL(l3mdev_master_ifindex_rcu);
 
 /**
- *	l3mdev_master_upper_ifindex_by_index - get index of upper l3 master
+ *	l3mdev_master_upper_ifindex_by_index_rcu - get index of upper l3 master
  *					       device
  *	@net: network namespace for device index lookup
  *	@ifindex: targeted interface

@@ -257,7 +257,7 @@ static inline void unlock_anon_vma_root(struct anon_vma *root)
  * Attach the anon_vmas from src to dst.
  * Returns 0 on success, -ENOMEM on failure.
  *
- * anon_vma_clone() is called by __vma_split(), __split_vma(), copy_vma() and
+ * anon_vma_clone() is called by __vma_adjust(), __split_vma(), copy_vma() and
  * anon_vma_fork(). The first three want an exact copy of src, while the last
  * one, anon_vma_fork(), may try to reuse an existing anon_vma to prevent
  * endless growth of anon_vma. Since dst->anon_vma is set to NULL before call,

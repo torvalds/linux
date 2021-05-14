@@ -44,9 +44,9 @@
 
 #include "ttm_resource.h"
 
-struct ttm_bo_global;
+struct ttm_global;
 
-struct ttm_bo_device;
+struct ttm_device;
 
 struct dma_buf_map;
 
@@ -88,7 +88,6 @@ struct ttm_tt;
  * @type: The bo type.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
- * @acc_size: Accounted size for this object.
  * @kref: Reference count of this buffer object. When this refcount reaches
  * zero, the object is destroyed or put on the delayed delete list.
  * @mem: structure describing current placement.
@@ -122,10 +121,9 @@ struct ttm_buffer_object {
 	 * Members constant at init.
 	 */
 
-	struct ttm_bo_device *bdev;
+	struct ttm_device *bdev;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
-	size_t acc_size;
 
 	/**
 	* Members not needing protection.
@@ -146,7 +144,6 @@ struct ttm_buffer_object {
 
 	struct list_head lru;
 	struct list_head ddestroy;
-	struct list_head swap;
 
 	/**
 	 * Members protected by a bo reservation.
@@ -313,7 +310,7 @@ void ttm_bo_put(struct ttm_buffer_object *bo);
  * @bulk: optional bulk move structure to remember BO positions
  *
  * Move this BO to the tail of all lru lists used to lookup and reserve an
- * object. This function must be called with struct ttm_bo_global::lru_lock
+ * object. This function must be called with struct ttm_global::lru_lock
  * held, and is used to make a BO less likely to be considered for eviction.
  */
 void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
@@ -326,7 +323,7 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
  * @bulk: bulk move structure
  *
  * Bulk move BOs to the LRU tail, only valid to use when driver makes sure that
- * BO order never changes. Should be called with ttm_bo_global::lru_lock held.
+ * BO order never changes. Should be called with ttm_global::lru_lock held.
  */
 void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk);
 
@@ -337,14 +334,14 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk);
  * Returns
  * True if the workqueue was queued at the time
  */
-int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev);
+int ttm_bo_lock_delayed_workqueue(struct ttm_device *bdev);
 
 /**
  * ttm_bo_unlock_delayed_workqueue
  *
  * Allows the delayed workqueue to run.
  */
-void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
+void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched);
 
 /**
  * ttm_bo_eviction_valuable
@@ -357,21 +354,16 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 
-size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
-			   unsigned long bo_size,
-			   unsigned struct_size);
-
 /**
  * ttm_bo_init_reserved
  *
- * @bdev: Pointer to a ttm_bo_device struct.
+ * @bdev: Pointer to a ttm_device struct.
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @size: Requested size of buffer object.
  * @type: Requested type of buffer object.
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
  * @ctx: TTM operation context for memory allocation.
- * @acc_size: Accounted size for this object.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -396,20 +388,19 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 
-int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
+int ttm_bo_init_reserved(struct ttm_device *bdev,
 			 struct ttm_buffer_object *bo,
 			 size_t size, enum ttm_bo_type type,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 size_t acc_size, struct sg_table *sg,
-			 struct dma_resv *resv,
+			 struct sg_table *sg, struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *));
 
 /**
  * ttm_bo_init
  *
- * @bdev: Pointer to a ttm_bo_device struct.
+ * @bdev: Pointer to a ttm_device struct.
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @size: Requested size of buffer object.
  * @type: Requested type of buffer object.
@@ -421,7 +412,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
- * @acc_size: Accounted size for this object.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -443,10 +433,10 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * -EINVAL: Invalid placement flags.
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
-int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
+int ttm_bo_init(struct ttm_device *bdev, struct ttm_buffer_object *bo,
 		size_t size, enum ttm_bo_type type,
 		struct ttm_placement *placement,
-		uint32_t page_alignment, bool interrubtible, size_t acc_size,
+		uint32_t page_alignment, bool interrubtible,
 		struct sg_table *sg, struct dma_resv *resv,
 		void (*destroy) (struct ttm_buffer_object *));
 
@@ -537,18 +527,18 @@ int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
  *
  * @filp:      filp as input from the mmap method.
  * @vma:       vma as input from the mmap method.
- * @bdev:      Pointer to the ttm_bo_device with the address space manager.
+ * @bdev:      Pointer to the ttm_device with the address space manager.
  *
  * This function is intended to be called by the device mmap method.
  * if the device address space is to be backed by the bo manager.
  */
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
-		struct ttm_bo_device *bdev);
+		struct ttm_device *bdev);
 
 /**
  * ttm_bo_io
  *
- * @bdev:      Pointer to the struct ttm_bo_device.
+ * @bdev:      Pointer to the struct ttm_device.
  * @filp:      Pointer to the struct file attempting to read / write.
  * @wbuf:      User-space pointer to address of buffer to write. NULL on read.
  * @rbuf:      User-space pointer to address of buffer to read into.
@@ -565,11 +555,12 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
  * the function may return -ERESTARTSYS if
  * interrupted by a signal.
  */
-ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
+ssize_t ttm_bo_io(struct ttm_device *bdev, struct file *filp,
 		  const char __user *wbuf, char __user *rbuf,
 		  size_t count, loff_t *f_pos, bool write);
 
-int ttm_bo_swapout(struct ttm_operation_ctx *ctx);
+int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
+		   gfp_t gfp_flags);
 
 /**
  * ttm_bo_uses_embedded_gem_object - check if the given bo uses the
@@ -619,7 +610,7 @@ static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
 		WARN_ON_ONCE(true);
 }
 
-int ttm_mem_evict_first(struct ttm_bo_device *bdev,
+int ttm_mem_evict_first(struct ttm_device *bdev,
 			struct ttm_resource_manager *man,
 			const struct ttm_place *place,
 			struct ttm_operation_ctx *ctx,
@@ -644,5 +635,6 @@ void ttm_bo_vm_close(struct vm_area_struct *vma);
 
 int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 		     void *buf, int len, int write);
+bool ttm_bo_delayed_delete(struct ttm_device *bdev, bool remove_all);
 
 #endif

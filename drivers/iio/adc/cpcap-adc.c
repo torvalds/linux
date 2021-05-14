@@ -100,7 +100,7 @@ struct cpcap_adc_ato {
 };
 
 /**
- * struct cpcap-adc - cpcap adc device driver data
+ * struct cpcap_adc - cpcap adc device driver data
  * @reg: cpcap regmap
  * @dev: struct device
  * @vendor: cpcap vendor

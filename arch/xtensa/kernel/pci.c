@@ -76,7 +76,7 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 	struct pci_controller *pci_ctrl = (struct pci_controller*) pdev->sysdata;
 	resource_size_t ioaddr = pci_resource_start(pdev, bar);
 
-	if (pci_ctrl == 0)
+	if (!pci_ctrl)
 		return -EINVAL;		/* should never happen */
 
 	/* Convert to an offset within this PCI controller */

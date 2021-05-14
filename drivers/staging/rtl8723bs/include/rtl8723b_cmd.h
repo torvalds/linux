@@ -11,7 +11,7 @@
 /*     H2C CMD DEFINITION    ------------------------------------------------ */
 /*  */
 
-enum h2c_cmd_8723B {
+enum {
 	/* Common Class: 000 */
 	H2C_8723B_RSVD_PAGE = 0x00,
 	H2C_8723B_MEDIA_STATUS_RPT = 0x01,
@@ -176,12 +176,6 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus);
 void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter);
 
 void CheckFwRsvdPageContent(struct adapter *padapter);
-
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-void rtl8723b_set_wowlan_cmd(struct adapter *padapter, u8 enable);
-void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable);
-void SetFwRelatedForWoWLAN8723b(struct adapter *padapter, u8 bHostIsGoingtoSleep);
-#endif/* CONFIG_WOWLAN */
 
 void rtl8723b_set_FwPwrModeInIPS_cmd(struct adapter *padapter, u8 cmd_param);
 

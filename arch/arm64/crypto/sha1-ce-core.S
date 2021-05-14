@@ -121,7 +121,7 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	add		dgav.4s, dgav.4s, dg0v.4s
 
 	cbz		w2, 2f
-	cond_yield	3f, x5
+	cond_yield	3f, x5, x6
 	b		0b
 
 	/*

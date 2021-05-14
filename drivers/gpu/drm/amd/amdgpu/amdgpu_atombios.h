@@ -168,18 +168,6 @@ int amdgpu_atombios_get_memory_pll_dividers(struct amdgpu_device *adev,
 void amdgpu_atombios_set_engine_dram_timings(struct amdgpu_device *adev,
 					     u32 eng_clock, u32 mem_clock);
 
-int amdgpu_atombios_get_leakage_id_from_vbios(struct amdgpu_device *adev,
-					      u16 *leakage_id);
-
-int amdgpu_atombios_get_leakage_vddc_based_on_leakage_params(struct amdgpu_device *adev,
-							     u16 *vddc, u16 *vddci,
-							     u16 virtual_voltage_id,
-							     u16 vbios_voltage_id);
-
-int amdgpu_atombios_get_voltage_evv(struct amdgpu_device *adev,
-				    u16 virtual_voltage_id,
-				    u16 *voltage);
-
 bool
 amdgpu_atombios_is_voltage_gpio(struct amdgpu_device *adev,
 				u8 voltage_type, u8 voltage_mode);

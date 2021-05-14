@@ -8,6 +8,7 @@
 
 #include <linux/can/core.h>
 #include <linux/can/led.h>
+#include <linux/can/rx-offload.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -71,6 +72,7 @@ struct m_can_ops {
 
 struct m_can_classdev {
 	struct can_priv can;
+	struct can_rx_offload offload;
 	struct napi_struct napi;
 	struct net_device *net;
 	struct device *dev;

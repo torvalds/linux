@@ -192,6 +192,7 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 
 	/* 1. Enable Safety Features */
 	value = readl(ioaddr + MTL_ECC_CONTROL);
+	value |= MEEAO; /* MTL ECC Error Addr Status Override */
 	value |= TSOEE; /* TSO ECC */
 	value |= MRXPEE; /* MTL RX Parser ECC */
 	value |= MESTEE; /* MTL EST ECC */
@@ -595,7 +596,93 @@ int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
 		ctrl &= ~EEST;
 
 	writel(ctrl, ioaddr + MTL_EST_CONTROL);
+
+	/* Configure EST interrupt */
+	if (cfg->enable)
+		ctrl = (IECGCE | IEHS | IEHF | IEBE | IECC);
+	else
+		ctrl = 0;
+
+	writel(ctrl, ioaddr + MTL_EST_INT_EN);
+
 	return 0;
+}
+
+void dwmac5_est_irq_status(void __iomem *ioaddr, struct net_device *dev,
+			  struct stmmac_extra_stats *x, u32 txqcnt)
+{
+	u32 status, value, feqn, hbfq, hbfs, btrl;
+	u32 txqcnt_mask = (1 << txqcnt) - 1;
+
+	status = readl(ioaddr + MTL_EST_STATUS);
+
+	value = (CGCE | HLBS | HLBF | BTRE | SWLC);
+
+	/* Return if there is no error */
+	if (!(status & value))
+		return;
+
+	if (status & CGCE) {
+		/* Clear Interrupt */
+		writel(CGCE, ioaddr + MTL_EST_STATUS);
+
+		x->mtl_est_cgce++;
+	}
+
+	if (status & HLBS) {
+		value = readl(ioaddr + MTL_EST_SCH_ERR);
+		value &= txqcnt_mask;
+
+		x->mtl_est_hlbs++;
+
+		/* Clear Interrupt */
+		writel(value, ioaddr + MTL_EST_SCH_ERR);
+
+		/* Collecting info to shows all the queues that has HLBS
+		 * issue. The only way to clear this is to clear the
+		 * statistic
+		 */
+		if (net_ratelimit())
+			netdev_err(dev, "EST: HLB(sched) Queue 0x%x\n", value);
+	}
+
+	if (status & HLBF) {
+		value = readl(ioaddr + MTL_EST_FRM_SZ_ERR);
+		feqn = value & txqcnt_mask;
+
+		value = readl(ioaddr + MTL_EST_FRM_SZ_CAP);
+		hbfq = (value & SZ_CAP_HBFQ_MASK(txqcnt)) >> SZ_CAP_HBFQ_SHIFT;
+		hbfs = value & SZ_CAP_HBFS_MASK;
+
+		x->mtl_est_hlbf++;
+
+		/* Clear Interrupt */
+		writel(feqn, ioaddr + MTL_EST_FRM_SZ_ERR);
+
+		if (net_ratelimit())
+			netdev_err(dev, "EST: HLB(size) Queue %u Size %u\n",
+				   hbfq, hbfs);
+	}
+
+	if (status & BTRE) {
+		if ((status & BTRL) == BTRL_MAX)
+			x->mtl_est_btrlm++;
+		else
+			x->mtl_est_btre++;
+
+		btrl = (status & BTRL) >> BTRL_SHIFT;
+
+		if (net_ratelimit())
+			netdev_info(dev, "EST: BTR Error Loop Count %u\n",
+				    btrl);
+
+		writel(BTRE, ioaddr + MTL_EST_STATUS);
+	}
+
+	if (status & SWLC) {
+		writel(SWLC, ioaddr + MTL_EST_STATUS);
+		netdev_info(dev, "EST: SWOL has been switched\n");
+	}
 }
 
 void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
@@ -619,5 +706,54 @@ void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
 
 	value = readl(ioaddr + MAC_FPE_CTRL_STS);
 	value |= EFPE;
+	writel(value, ioaddr + MAC_FPE_CTRL_STS);
+}
+
+int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev)
+{
+	u32 value;
+	int status;
+
+	status = FPE_EVENT_UNKNOWN;
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+	if (value & TRSP) {
+		status |= FPE_EVENT_TRSP;
+		netdev_info(dev, "FPE: Respond mPacket is transmitted\n");
+	}
+
+	if (value & TVER) {
+		status |= FPE_EVENT_TVER;
+		netdev_info(dev, "FPE: Verify mPacket is transmitted\n");
+	}
+
+	if (value & RRSP) {
+		status |= FPE_EVENT_RRSP;
+		netdev_info(dev, "FPE: Respond mPacket is received\n");
+	}
+
+	if (value & RVER) {
+		status |= FPE_EVENT_RVER;
+		netdev_info(dev, "FPE: Verify mPacket is received\n");
+	}
+
+	return status;
+}
+
+void dwmac5_fpe_send_mpacket(void __iomem *ioaddr, enum stmmac_mpacket_type type)
+{
+	u32 value;
+
+	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+
+	if (type == MPACKET_VERIFY) {
+		value &= ~SRSP;
+		value |= SVER;
+	} else {
+		value &= ~SVER;
+		value |= SRSP;
+	}
+
 	writel(value, ioaddr + MAC_FPE_CTRL_STS);
 }

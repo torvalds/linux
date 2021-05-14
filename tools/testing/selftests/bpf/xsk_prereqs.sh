@@ -82,24 +82,21 @@ clear_configs()
 {
 	if [ $(ip netns show | grep $3 &>/dev/null; echo $?;) == 0 ]; then
 		[ $(ip netns exec $3 ip link show $2 &>/dev/null; echo $?;) == 0 ] &&
-			{ echo "removing link $1:$2"; ip netns exec $3 ip link del $2; }
-		echo "removing ns $3"
+			{ ip netns exec $3 ip link del $2; }
 		ip netns del $3
 	fi
 	#Once we delete a veth pair node, the entire veth pair is removed,
 	#this is just to be cautious just incase the NS does not exist then
 	#veth node inside NS won't get removed so we explicitly remove it
 	[ $(ip link show $1 &>/dev/null; echo $?;) == 0 ] &&
-		{ echo "removing link $1"; ip link del $1; }
+		{ ip link del $1; }
 	if [ -f ${SPECFILE} ]; then
-		echo "removing spec file:" ${SPECFILE}
 		rm -f ${SPECFILE}
 	fi
 }
 
 cleanup_exit()
 {
-	echo "cleaning up..."
 	clear_configs $1 $2 $3
 }
 
@@ -108,28 +105,7 @@ validate_ip_utility()
 	[ ! $(type -P ip) ] && { echo "'ip' not found. Skipping tests."; test_exit $ksft_skip 1; }
 }
 
-vethXDPgeneric()
-{
-	ip link set dev $1 xdpdrv off
-	ip netns exec $3 ip link set dev $2 xdpdrv off
-}
-
-vethXDPnative()
-{
-	ip link set dev $1 xdpgeneric off
-	ip netns exec $3 ip link set dev $2 xdpgeneric off
-}
-
 execxdpxceiver()
 {
-	local -a 'paramkeys=("${!'"$1"'[@]}")' copy
-	paramkeysstr=${paramkeys[*]}
-
-	for index in $paramkeysstr;
-		do
-			current=$1"[$index]"
-			copy[$index]=${!current}
-		done
-
-	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${copy[*]} -C ${NUMPKTS}
+	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} -C ${NUMPKTS} ${VERBOSE_ARG} ${DUMP_PKTS_ARG}
 }

@@ -9,7 +9,7 @@
  * Functions to keep the agpgart mappings coherent with the MMU. The
  * GART gives the CPU a physical alias of pages in memory. The alias
  * region is mapped uncacheable. Make sure there are no conflicting
- * mappings with different cachability attributes for the same
+ * mappings with different cacheability attributes for the same
  * page. This avoids data corruption on some CPUs.
  */
 

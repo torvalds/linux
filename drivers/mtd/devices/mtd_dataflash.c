@@ -527,7 +527,7 @@ static int dataflash_read_user_otp(struct mtd_info *mtd,
 }
 
 static int dataflash_write_user_otp(struct mtd_info *mtd,
-		loff_t from, size_t len, size_t *retlen, u_char *buf)
+		loff_t from, size_t len, size_t *retlen, const u_char *buf)
 {
 	struct spi_message	m;
 	const size_t		l = 4 + 64;

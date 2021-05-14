@@ -528,7 +528,8 @@ add_mapping_response_exit:
 }
 
 /* netlink attribute policy for the response to add and query mapping request
- * and response with remote address info */
+ * and response with remote address info
+ */
 static const struct nla_policy resp_query_policy[IWPM_NLA_RQUERY_MAPPING_MAX] = {
 	[IWPM_NLA_RQUERY_MAPPING_SEQ]     = { .type = NLA_U32 },
 	[IWPM_NLA_RQUERY_LOCAL_ADDR]      = {

@@ -29,7 +29,6 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_psp.h"
-#include "amdgpu_smu.h"
 #include "nv.h"
 #include "nvd.h"
 
@@ -173,6 +172,11 @@
 
 #define mmGC_THROTTLE_CTRL_Sienna_Cichlid              0x2030
 #define mmGC_THROTTLE_CTRL_Sienna_Cichlid_BASE_IDX     0
+
+#define GFX_RLCG_GC_WRITE_OLD	(0x8 << 28)
+#define GFX_RLCG_GC_WRITE	(0x0 << 28)
+#define GFX_RLCG_GC_READ	(0x1 << 28)
+#define GFX_RLCG_MMHUB_WRITE	(0x2 << 28)
 
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
@@ -1419,38 +1423,127 @@ static const struct soc15_reg_golden golden_settings_gc_10_1_2[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmUTCL1_CTRL, 0xffffffff, 0x00800000)
 };
 
-static void gfx_v10_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
+static bool gfx_v10_is_rlcg_rw(struct amdgpu_device *adev, u32 offset, uint32_t *flag, bool write)
+{
+	/* always programed by rlcg, only for gc */
+	if (offset == SOC15_REG_OFFSET(GC, 0, mmRLC_CSIB_ADDR_HI) ||
+	    offset == SOC15_REG_OFFSET(GC, 0, mmRLC_CSIB_ADDR_LO) ||
+	    offset == SOC15_REG_OFFSET(GC, 0, mmRLC_CSIB_LENGTH) ||
+	    offset == SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_CNTL) ||
+	    offset == SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_INDEX) ||
+	    offset == SOC15_REG_OFFSET(GC, 0, mmCP_ME_CNTL)) {
+		if (!amdgpu_sriov_reg_indirect_gc(adev))
+			*flag = GFX_RLCG_GC_WRITE_OLD;
+		else
+			*flag = write ? GFX_RLCG_GC_WRITE : GFX_RLCG_GC_READ;
+
+		return true;
+	}
+
+	/* currently support gc read/write, mmhub write */
+	if (offset >= SOC15_REG_OFFSET(GC, 0, mmSDMA0_DEC_START) &&
+	    offset <= SOC15_REG_OFFSET(GC, 0, mmRLC_GTS_OFFSET_MSB)) {
+		if (amdgpu_sriov_reg_indirect_gc(adev))
+			*flag = write ? GFX_RLCG_GC_WRITE : GFX_RLCG_GC_READ;
+		else
+			return false;
+	} else {
+		if (amdgpu_sriov_reg_indirect_mmhub(adev))
+			*flag = GFX_RLCG_MMHUB_WRITE;
+		else
+			return false;
+	}
+
+	return true;
+}
+
+static u32 gfx_v10_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint32_t flag)
 {
 	static void *scratch_reg0;
 	static void *scratch_reg1;
+	static void *scratch_reg2;
+	static void *scratch_reg3;
 	static void *spare_int;
+	static uint32_t grbm_cntl;
+	static uint32_t grbm_idx;
 	uint32_t i = 0;
 	uint32_t retries = 50000;
+	u32 ret = 0;
 
-	scratch_reg0 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0)*4;
-	scratch_reg1 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG1)*4;
-	spare_int = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_BASE_IDX] + mmRLC_SPARE_INT)*4;
+	scratch_reg0 = adev->rmmio +
+		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0) * 4;
+	scratch_reg1 = adev->rmmio +
+		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG1) * 4;
+	scratch_reg2 = adev->rmmio +
+		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG2) * 4;
+	scratch_reg3 = adev->rmmio +
+		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG3) * 4;
+	spare_int = adev->rmmio +
+		    (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_BASE_IDX] + mmRLC_SPARE_INT) * 4;
 
-	if (amdgpu_sriov_runtime(adev)) {
-		pr_err("shouldn't call rlcg write register during runtime\n");
+	grbm_cntl = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_CNTL_BASE_IDX] + mmGRBM_GFX_CNTL;
+	grbm_idx = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_INDEX_BASE_IDX] + mmGRBM_GFX_INDEX;
+
+	if (offset == grbm_cntl || offset == grbm_idx) {
+		if (offset  == grbm_cntl)
+			writel(v, scratch_reg2);
+		else if (offset == grbm_idx)
+			writel(v, scratch_reg3);
+
+		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+	} else {
+		writel(v, scratch_reg0);
+		writel(offset | flag, scratch_reg1);
+		writel(1, spare_int);
+		for (i = 0; i < retries; i++) {
+			u32 tmp;
+
+			tmp = readl(scratch_reg1);
+			if (!(tmp & flag))
+				break;
+
+			udelay(10);
+		}
+
+		if (i >= retries)
+			pr_err("timeout: rlcg program reg:0x%05x failed !\n", offset);
+	}
+
+	ret = readl(scratch_reg0);
+
+	return ret;
+}
+
+static void gfx_v10_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 value, u32 flag)
+{
+	uint32_t rlcg_flag;
+
+	if (amdgpu_sriov_fullaccess(adev) &&
+	    gfx_v10_is_rlcg_rw(adev, offset, &rlcg_flag, 1)) {
+		gfx_v10_rlcg_rw(adev, offset, value, rlcg_flag);
+
 		return;
 	}
+	if (flag & AMDGPU_REGS_NO_KIQ)
+		WREG32_NO_KIQ(offset, value);
+	else
+		WREG32(offset, value);
+}
 
-	writel(v, scratch_reg0);
-	writel(offset | 0x80000000, scratch_reg1);
-	writel(1, spare_int);
-	for (i = 0; i < retries; i++) {
-		u32 tmp;
+static u32 gfx_v10_rlcg_rreg(struct amdgpu_device *adev, u32 offset, u32 flag)
+{
+	uint32_t rlcg_flag;
 
-		tmp = readl(scratch_reg1);
-		if (!(tmp & 0x80000000))
-			break;
+	if (amdgpu_sriov_fullaccess(adev) &&
+	    gfx_v10_is_rlcg_rw(adev, offset, &rlcg_flag, 0))
+		return gfx_v10_rlcg_rw(adev, offset, 0, rlcg_flag);
 
-		udelay(10);
-	}
+	if (flag & AMDGPU_REGS_NO_KIQ)
+		return RREG32_NO_KIQ(offset);
+	else
+		return RREG32(offset);
 
-	if (i >= retries)
-		pr_err("timeout: rlcg program reg:0x%05x failed !\n", offset);
+	return 0;
 }
 
 static const struct soc15_reg_golden golden_settings_gc_10_1_nv14[] =
@@ -3280,7 +3373,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_3_4[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPF_GCR_CNTL, 0x0007ffff, 0x0000c000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0x00000280, 0x00000280),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG4, 0x07800000, 0x00800000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL, 0x00001d00, 0x00000500),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL_Sienna_Cichlid, 0x00001d00, 0x00000500),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGE_PC_CNTL, 0x003c0000, 0x00280400),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2A_ADDR_MATCH_MASK, 0xffffffff, 0xffffffcf),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2C_ADDR_MATCH_MASK, 0xffffffff, 0xffffffcf),
@@ -4459,9 +4552,8 @@ static int gfx_v10_0_gfx_ring_init(struct amdgpu_device *adev, int ring_id,
 	sprintf(ring->name, "gfx_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
 	irq_type = AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP + ring->pipe;
-	r = amdgpu_ring_init(adev, ring, 1024,
-			     &adev->gfx.eop_irq, irq_type,
-			     AMDGPU_RING_PRIO_DEFAULT);
+	r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq, irq_type,
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		return r;
 	return 0;
@@ -4495,8 +4587,8 @@ static int gfx_v10_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	hw_prio = amdgpu_gfx_is_high_priority_compute_queue(adev, ring) ?
 			AMDGPU_GFX_PIPE_PRIO_HIGH : AMDGPU_GFX_PIPE_PRIO_NORMAL;
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
-	r = amdgpu_ring_init(adev, ring, 1024,
-			     &adev->gfx.eop_irq, irq_type, hw_prio);
+	r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq, irq_type,
+			     hw_prio, NULL);
 	if (r)
 		return r;
 
@@ -7172,16 +7264,10 @@ static int gfx_v10_0_hw_init(void *handle)
 		 * loaded firstly, so in direct type, it has to load smc ucode
 		 * here before rlc.
 		 */
-		if (adev->smu.ppt_funcs != NULL && !(adev->flags & AMD_IS_APU)) {
-			r = smu_load_microcode(&adev->smu);
+		if (!(adev->flags & AMD_IS_APU)) {
+			r = amdgpu_pm_load_smu_firmware(adev, NULL);
 			if (r)
 				return r;
-
-			r = smu_check_fw_status(&adev->smu);
-			if (r) {
-				pr_err("SMC firmware status is not correct\n");
-				return r;
-			}
 		}
 		gfx_v10_0_disable_gpa_mode(adev);
 	}
@@ -7892,6 +7978,7 @@ static const struct amdgpu_rlc_funcs gfx_v10_0_rlc_funcs_sriov = {
 	.start = gfx_v10_0_rlc_start,
 	.update_spm_vmid = gfx_v10_0_update_spm_vmid,
 	.rlcg_wreg = gfx_v10_rlcg_wreg,
+	.rlcg_rreg = gfx_v10_rlcg_rreg,
 	.is_rlcg_access_range = gfx_v10_0_is_rlcg_access_range,
 };
 

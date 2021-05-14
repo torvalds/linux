@@ -245,7 +245,7 @@ struct vmw_framebuffer_bo {
 };
 
 
-static const uint32_t vmw_primary_plane_formats[] = {
+static const uint32_t __maybe_unused vmw_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
@@ -253,7 +253,7 @@ static const uint32_t vmw_primary_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-static const uint32_t vmw_cursor_plane_formats[] = {
+static const uint32_t __maybe_unused vmw_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
@@ -456,11 +456,11 @@ void vmw_du_cursor_plane_destroy(struct drm_plane *plane);
 
 /* Atomic Helpers */
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_plane_state *state);
+				      struct drm_atomic_state *state);
 int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
-				     struct drm_plane_state *state);
+				     struct drm_atomic_state *state);
 void vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
-				       struct drm_plane_state *old_state);
+				       struct drm_atomic_state *state);
 int vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state);
 void vmw_du_plane_cleanup_fb(struct drm_plane *plane,

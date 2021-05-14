@@ -1151,20 +1151,6 @@ u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_system_image_guid);
 
-/**
- * mlx5_eswitch_get_total_vports - Get total vports of the eswitch
- *
- * @dev:	Pointer to core device
- *
- * mlx5_eswitch_get_total_vports returns total number of vports for
- * the eswitch.
- */
-u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
-{
-	return MLX5_SPECIAL_VPORTS(dev) + mlx5_core_max_vfs(dev) + mlx5_sf_max_functions(dev);
-}
-EXPORT_SYMBOL_GPL(mlx5_eswitch_get_total_vports);
-
 int mlx5_vport_get_other_func_cap(struct mlx5_core_dev *dev, u16 function_id, void *out)
 {
 	u16 opmod = (MLX5_CAP_GENERAL << 1) | (HCA_CAP_OPMOD_GET_MAX & 0x01);

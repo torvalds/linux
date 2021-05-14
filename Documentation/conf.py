@@ -331,27 +331,34 @@ htmlhelp_basename = 'TheLinuxKerneldoc'
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
-# The paper size ('letterpaper' or 'a4paper').
-'papersize': 'a4paper',
+    # The paper size ('letterpaper' or 'a4paper').
+    'papersize': 'a4paper',
 
-# The font size ('10pt', '11pt' or '12pt').
-'pointsize': '11pt',
+    # The font size ('10pt', '11pt' or '12pt').
+    'pointsize': '11pt',
 
-# Latex figure (float) alignment
-#'figure_align': 'htbp',
+    # Latex figure (float) alignment
+    #'figure_align': 'htbp',
 
-# Don't mangle with UTF-8 chars
-'inputenc': '',
-'utf8extra': '',
+    # Don't mangle with UTF-8 chars
+    'inputenc': '',
+    'utf8extra': '',
 
-# Additional stuff for the LaTeX preamble.
+    # Set document margins
+    'sphinxsetup': '''
+        hmargin=0.5in, vmargin=1in,
+        parsedliteralwraps=true,
+        verbatimhintsturnover=false,
+    ''',
+
+    # Additional stuff for the LaTeX preamble.
     'preamble': '''
-	% Use some font with UTF-8 support with XeLaTeX
+        % Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
         \\setsansfont{DejaVu Sans}
         \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
-     '''
+     ''',
 }
 
 # At least one book (translations) may have Asian characters

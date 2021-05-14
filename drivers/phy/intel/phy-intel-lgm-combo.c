@@ -462,7 +462,7 @@ static int intel_cbphy_fwnode_parse(struct intel_combo_phy *cbphy)
 
 	/*
 	 * syscfg and hsiocfg variables stores the handle of the registers set
-	 * in which ComboPhy subsytem specific registers are subset. Using
+	 * in which ComboPhy subsystem specific registers are subset. Using
 	 * Register map framework to access the registers set.
 	 */
 	ret = fwnode_property_get_reference_args(fwnode, "intel,syscfg", NULL,

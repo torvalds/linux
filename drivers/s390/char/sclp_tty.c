@@ -35,11 +35,11 @@
  */
 
 /* Lock to guard over changes to global variables. */
-static spinlock_t sclp_tty_lock;
+static DEFINE_SPINLOCK(sclp_tty_lock);
 /* List of free pages that can be used for console output buffering. */
-static struct list_head sclp_tty_pages;
+static LIST_HEAD(sclp_tty_pages);
 /* List of full struct sclp_buffer structures ready for output. */
-static struct list_head sclp_tty_outqueue;
+static LIST_HEAD(sclp_tty_outqueue);
 /* Counter how many buffers are emitted. */
 static int sclp_tty_buffer_count;
 /* Pointer to current console buffer. */
@@ -54,8 +54,8 @@ static unsigned short int sclp_tty_chars_count;
 struct tty_driver *sclp_tty_driver;
 
 static int sclp_tty_tolower;
-static int sclp_tty_columns = 80;
 
+#define SCLP_TTY_COLUMNS 320
 #define SPACES_PER_TAB 8
 #define CASE_DELIMITER 0x6c /* to separate upper and lower case (% in EBCDIC) */
 
@@ -193,7 +193,7 @@ static int sclp_tty_write_string(const unsigned char *str, int count, int may_fa
 			}
 			page = sclp_tty_pages.next;
 			list_del((struct list_head *) page);
-			sclp_ttybuf = sclp_make_buffer(page, sclp_tty_columns,
+			sclp_ttybuf = sclp_make_buffer(page, SCLP_TTY_COLUMNS,
 						       SPACES_PER_TAB);
 		}
 		/* try to write the string to the current output buffer */
@@ -516,7 +516,6 @@ sclp_tty_init(void)
 		return rc;
 	}
 	/* Allocate pages for output buffering */
-	INIT_LIST_HEAD(&sclp_tty_pages);
 	for (i = 0; i < MAX_KMEM_PAGES; i++) {
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (page == NULL) {
@@ -525,17 +524,10 @@ sclp_tty_init(void)
 		}
 		list_add_tail((struct list_head *) page, &sclp_tty_pages);
 	}
-	INIT_LIST_HEAD(&sclp_tty_outqueue);
-	spin_lock_init(&sclp_tty_lock);
 	timer_setup(&sclp_tty_timer, sclp_tty_timeout, 0);
 	sclp_ttybuf = NULL;
 	sclp_tty_buffer_count = 0;
 	if (MACHINE_IS_VM) {
-		/*
-		 * save 4 characters for the CPU number
-		 * written at start of each line by VM/CP
-		 */
-		sclp_tty_columns = 76;
 		/* case input lines to lowercase */
 		sclp_tty_tolower = 1;
 	}

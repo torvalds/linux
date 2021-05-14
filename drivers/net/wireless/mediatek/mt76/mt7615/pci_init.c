@@ -40,12 +40,15 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->mcu_work, mt7615_pci_init_work);
-	spin_lock_init(&dev->token_lock);
-	idr_init(&dev->token);
-
 	ret = mt7615_eeprom_init(dev, addr);
 	if (ret < 0)
 		return ret;
+
+	if (is_mt7663(&dev->mt76)) {
+		/* Reset RGU */
+		mt76_clear(dev, MT_MCU_CIRQ_IRQ_SEL(4), BIT(1));
+		mt76_set(dev, MT_MCU_CIRQ_IRQ_SEL(4), BIT(1));
+	}
 
 	ret = mt7615_dma_init(dev);
 	if (ret)
@@ -76,7 +79,7 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 	mt76 = container_of(led_cdev, struct mt76_dev, led_cdev);
 	dev = container_of(mt76, struct mt7615_dev, mt76);
 
-	if (test_bit(MT76_STATE_PM, &mt76->phy.state))
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm))
 		return;
 
 	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xffff) |
@@ -94,6 +97,8 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 		val |= MT_LED_CTRL_POLARITY(mt76->led_pin);
 	addr = mt7615_reg_map(dev, MT_LED_CTRL);
 	mt76_wr(dev, addr, val);
+
+	mt76_connac_pm_unref(&dev->pm);
 }
 
 static int
@@ -126,6 +131,7 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	int ret;
 
 	mt7615_init_device(dev);
+	INIT_WORK(&dev->reset_work, mt7615_mac_reset_work);
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
@@ -163,10 +169,9 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	mt76_unregister_device(&dev->mt76);
 	if (mcu_running)
 		mt7615_mcu_exit(dev);
-	mt7615_dma_cleanup(dev);
 
 	mt7615_tx_token_put(dev);
-
+	mt7615_dma_cleanup(dev);
 	tasklet_disable(&dev->irq_tasklet);
 
 	mt76_free_device(&dev->mt76);

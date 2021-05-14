@@ -273,7 +273,7 @@ static bool rtc_does_wakealarm(struct rtc_device *rtc)
 	if (!device_can_wakeup(rtc->dev.parent))
 		return false;
 
-	return rtc->ops->set_alarm != NULL;
+	return !!test_bit(RTC_FEATURE_ALARM, rtc->features);
 }
 
 static umode_t rtc_attr_is_visible(struct kobject *kobj,

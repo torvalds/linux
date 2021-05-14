@@ -18,8 +18,6 @@
 /* SMBUS HID definition as supported by Microsoft Windows */
 #define ACPI_SMBUS_MS_HID		"SMB0001"
 
-ACPI_MODULE_NAME("smbus_cmi");
-
 struct smbus_methods_t {
 	char *mt_info;
 	char *mt_sbr;

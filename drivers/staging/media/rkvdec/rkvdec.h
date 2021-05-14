@@ -25,7 +25,6 @@
 struct rkvdec_ctx;
 
 struct rkvdec_ctrl_desc {
-	u32 mandatory : 1;
 	struct v4l2_ctrl_config cfg;
 };
 

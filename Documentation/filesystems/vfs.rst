@@ -441,6 +441,9 @@ As of kernel 2.6.22, the following members are defined:
 				   unsigned open_flag, umode_t create_mode);
 		int (*tmpfile) (struct user_namespace *, struct inode *, struct dentry *, umode_t);
 	        int (*set_acl)(struct user_namespace *, struct inode *, struct posix_acl *, int);
+		int (*fileattr_set)(struct user_namespace *mnt_userns,
+				    struct dentry *dentry, struct fileattr *fa);
+		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
 	};
 
 Again, all methods are called without any locks being held, unless
@@ -587,6 +590,18 @@ otherwise noted.
 	called in the end of O_TMPFILE open().  Optional, equivalent to
 	atomically creating, opening and unlinking a file in given
 	directory.
+
+``fileattr_get``
+	called on ioctl(FS_IOC_GETFLAGS) and ioctl(FS_IOC_FSGETXATTR) to
+	retrieve miscellaneous file flags and attributes.  Also called
+	before the relevant SET operation to check what is being changed
+	(in this case with i_rwsem locked exclusive).  If unset, then
+	fall back to f_op->ioctl().
+
+``fileattr_set``
+	called on ioctl(FS_IOC_SETFLAGS) and ioctl(FS_IOC_FSSETXATTR) to
+	change miscellaneous file flags and attributes.  Callers hold
+	i_rwsem exclusive.  If unset, then fall back to f_op->ioctl().
 
 
 The Address Space Object

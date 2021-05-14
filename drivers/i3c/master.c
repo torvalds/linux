@@ -2535,7 +2535,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 
 	ret = i3c_master_bus_init(master);
 	if (ret)
-		goto err_destroy_wq;
+		goto err_put_dev;
 
 	ret = device_add(&master->dev);
 	if (ret)
@@ -2565,9 +2565,6 @@ err_del_dev:
 
 err_cleanup_bus:
 	i3c_master_bus_cleanup(master);
-
-err_destroy_wq:
-	destroy_workqueue(master->wq);
 
 err_put_dev:
 	put_device(&master->dev);

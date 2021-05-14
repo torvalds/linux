@@ -9,7 +9,7 @@
 #include "ste-href-tvk1281618-r2.dtsi"
 
 / {
-	model = "ST-Ericsson HREF (pre-v60) and TVK1281618 UIB";
+	model = "ST-Ericsson HREF (pre-v60) and TVK1281618 R2 UIB";
 	compatible = "st-ericsson,mop500", "st-ericsson,u8500";
 
 	/* ST6G3244ME level translator for 1.8/2.9 V */

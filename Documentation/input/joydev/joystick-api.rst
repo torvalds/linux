@@ -71,7 +71,7 @@ The possible values of ``type`` are::
 	#define JS_EVENT_INIT           0x80    /* initial state of device */
 
 As mentioned above, the driver will issue synthetic JS_EVENT_INIT ORed
-events on open. That is, if it's issuing a INIT BUTTON event, the
+events on open. That is, if it's issuing an INIT BUTTON event, the
 current type value will be::
 
 	int type = JS_EVENT_BUTTON | JS_EVENT_INIT;	/* 0x81 */
@@ -100,8 +100,8 @@ is, you have both an axis 0 and a button 0). Generally,
         =============== =======
 
 Hats vary from one joystick type to another. Some can be moved in 8
-directions, some only in 4, The driver, however, always reports a hat as two
-independent axis, even if the hardware doesn't allow independent movement.
+directions, some only in 4. The driver, however, always reports a hat as two
+independent axes, even if the hardware doesn't allow independent movement.
 
 
 js_event.value
@@ -188,10 +188,10 @@ One reason for emptying the queue is that if it gets full you'll start
 missing events since the queue is finite, and older events will get
 overwritten.
 
-The other reason is that you want to know all what happened, and not
+The other reason is that you want to know all that happened, and not
 delay the processing till later.
 
-Why can get the queue full? Because you don't empty the queue as
+Why can the queue get full? Because you don't empty the queue as
 mentioned, or because too much time elapses from one read to another
 and too many events to store in the queue get generated. Note that
 high system load may contribute to space those reads even more.
@@ -277,7 +277,7 @@ to be in the stable part of the API, and therefore may change without
 warning in following releases of the driver.
 
 Both JSIOCSCORR and JSIOCGCORR expect &js_corr to be able to hold
-information for all axis. That is, struct js_corr corr[MAX_AXIS];
+information for all axes. That is, struct js_corr corr[MAX_AXIS];
 
 struct js_corr is defined as::
 
@@ -328,7 +328,7 @@ To test the state of the buttons,
 	second_button_state = js.buttons & 2;
 
 The axis values do not have a defined range in the original 0.x driver,
-except for that the values are non-negative. The 1.2.8+ drivers use a
+except that the values are non-negative. The 1.2.8+ drivers use a
 fixed range for reporting the values, 1 being the minimum, 128 the
 center, and 255 maximum value.
 

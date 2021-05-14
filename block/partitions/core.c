@@ -285,8 +285,11 @@ struct device_type part_type = {
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct block_device *part)
+static void delete_partition(struct block_device *part)
 {
+	fsync_bdev(part);
+	__invalidate_device(part, true);
+
 	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
 	kobject_put(part->bd_holder_dir);
 	device_del(&part->bd_device);
@@ -424,21 +427,21 @@ out_put:
 static bool partition_overlaps(struct gendisk *disk, sector_t start,
 		sector_t length, int skip_partno)
 {
-	struct disk_part_iter piter;
 	struct block_device *part;
 	bool overlap = false;
+	unsigned long idx;
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
-	while ((part = disk_part_iter_next(&piter))) {
-		if (part->bd_partno == skip_partno ||
-		    start >= part->bd_start_sect + bdev_nr_sectors(part) ||
-		    start + length <= part->bd_start_sect)
-			continue;
-		overlap = true;
-		break;
+	rcu_read_lock();
+	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
+		if (part->bd_partno != skip_partno &&
+		    start < part->bd_start_sect + bdev_nr_sectors(part) &&
+		    start + length > part->bd_start_sect) {
+			overlap = true;
+			break;
+		}
 	}
+	rcu_read_unlock();
 
-	disk_part_iter_exit(&piter);
 	return overlap;
 }
 
@@ -474,9 +477,6 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	ret = -EBUSY;
 	if (part->bd_openers)
 		goto out_unlock;
-
-	sync_blockdev(part);
-	invalidate_bdev(part);
 
 	delete_partition(part);
 	ret = 0;
@@ -533,28 +533,20 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	}
 }
 
-int blk_drop_partitions(struct block_device *bdev)
+void blk_drop_partitions(struct gendisk *disk)
 {
-	struct disk_part_iter piter;
 	struct block_device *part;
+	unsigned long idx;
 
-	if (bdev->bd_part_count)
-		return -EBUSY;
+	lockdep_assert_held(&disk->part0->bd_mutex);
 
-	sync_blockdev(bdev);
-	invalidate_bdev(bdev);
-
-	disk_part_iter_init(&piter, bdev->bd_disk, DISK_PITER_INCL_EMPTY);
-	while ((part = disk_part_iter_next(&piter)))
+	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
+		if (!bdgrab(part))
+			continue;
 		delete_partition(part);
-	disk_part_iter_exit(&piter);
-
-	return 0;
+		bdput(part);
+	}
 }
-#ifdef CONFIG_S390
-/* for historic reasons in the DASD driver */
-EXPORT_SYMBOL_GPL(blk_drop_partitions);
-#endif
 
 static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 		struct parsed_partitions *state, int p)

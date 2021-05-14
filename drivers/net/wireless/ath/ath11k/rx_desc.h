@@ -414,7 +414,7 @@ struct rx_attention {
 
 #define RX_MPDU_START_RAW_MPDU			BIT(0)
 
-struct rx_mpdu_start {
+struct rx_mpdu_start_ipq8074 {
 	__le16 info0;
 	__le16 phy_ppdu_id;
 	__le16 ast_index;
@@ -438,6 +438,112 @@ struct rx_mpdu_start {
 	__le16 qos_ctrl;
 	__le32 ht_ctrl;
 	__le32 raw;
+} __packed;
+
+#define RX_MPDU_START_INFO7_REO_DEST_IND		GENMASK(4, 0)
+#define RX_MPDU_START_INFO7_LMAC_PEER_ID_MSB		GENMASK(6, 5)
+#define RX_MPDU_START_INFO7_FLOW_ID_TOEPLITZ		BIT(7)
+#define RX_MPDU_START_INFO7_PKT_SEL_FP_UCAST_DATA	BIT(8)
+#define RX_MPDU_START_INFO7_PKT_SEL_FP_MCAST_DATA	BIT(9)
+#define RX_MPDU_START_INFO7_PKT_SEL_FP_CTRL_BAR		BIT(10)
+#define RX_MPDU_START_INFO7_RXDMA0_SRC_RING_SEL		GENMASK(12, 11)
+#define RX_MPDU_START_INFO7_RXDMA0_DST_RING_SEL		GENMASK(14, 13)
+
+#define RX_MPDU_START_INFO8_REO_QUEUE_DESC_HI		GENMASK(7, 0)
+#define RX_MPDU_START_INFO8_RECV_QUEUE_NUM		GENMASK(23, 8)
+#define RX_MPDU_START_INFO8_PRE_DELIM_ERR_WARN		BIT(24)
+#define RX_MPDU_START_INFO8_FIRST_DELIM_ERR		BIT(25)
+
+#define RX_MPDU_START_INFO9_EPD_EN			BIT(0)
+#define RX_MPDU_START_INFO9_ALL_FRAME_ENCPD		BIT(1)
+#define RX_MPDU_START_INFO9_ENC_TYPE			GENMASK(5, 2)
+#define RX_MPDU_START_INFO9_VAR_WEP_KEY_WIDTH		GENMASK(7, 6)
+#define RX_MPDU_START_INFO9_MESH_STA			GENMASK(9, 8)
+#define RX_MPDU_START_INFO9_BSSID_HIT			BIT(10)
+#define RX_MPDU_START_INFO9_BSSID_NUM			GENMASK(14, 11)
+#define RX_MPDU_START_INFO9_TID				GENMASK(18, 15)
+
+#define RX_MPDU_START_INFO10_RXPCU_MPDU_FLTR		GENMASK(1, 0)
+#define RX_MPDU_START_INFO10_SW_FRAME_GRP_ID		GENMASK(8, 2)
+#define RX_MPDU_START_INFO10_NDP_FRAME			BIT(9)
+#define RX_MPDU_START_INFO10_PHY_ERR			BIT(10)
+#define RX_MPDU_START_INFO10_PHY_ERR_MPDU_HDR		BIT(11)
+#define RX_MPDU_START_INFO10_PROTO_VER_ERR		BIT(12)
+#define RX_MPDU_START_INFO10_AST_LOOKUP_VALID		BIT(13)
+
+#define RX_MPDU_START_INFO11_MPDU_FCTRL_VALID		BIT(0)
+#define RX_MPDU_START_INFO11_MPDU_DUR_VALID		BIT(1)
+#define RX_MPDU_START_INFO11_MAC_ADDR1_VALID		BIT(2)
+#define RX_MPDU_START_INFO11_MAC_ADDR2_VALID		BIT(3)
+#define RX_MPDU_START_INFO11_MAC_ADDR3_VALID		BIT(4)
+#define RX_MPDU_START_INFO11_MAC_ADDR4_VALID		BIT(5)
+#define RX_MPDU_START_INFO11_MPDU_SEQ_CTRL_VALID	BIT(6)
+#define RX_MPDU_START_INFO11_MPDU_QOS_CTRL_VALID	BIT(7)
+#define RX_MPDU_START_INFO11_MPDU_HT_CTRL_VALID		BIT(8)
+#define RX_MPDU_START_INFO11_ENCRYPT_INFO_VALID		BIT(9)
+#define RX_MPDU_START_INFO11_MPDU_FRAG_NUMBER		GENMASK(13, 10)
+#define RX_MPDU_START_INFO11_MORE_FRAG_FLAG		BIT(14)
+#define RX_MPDU_START_INFO11_FROM_DS			BIT(16)
+#define RX_MPDU_START_INFO11_TO_DS			BIT(17)
+#define RX_MPDU_START_INFO11_ENCRYPTED			BIT(18)
+#define RX_MPDU_START_INFO11_MPDU_RETRY			BIT(19)
+#define RX_MPDU_START_INFO11_MPDU_SEQ_NUM		GENMASK(31, 20)
+
+#define RX_MPDU_START_INFO12_KEY_ID			GENMASK(7, 0)
+#define RX_MPDU_START_INFO12_NEW_PEER_ENTRY		BIT(8)
+#define RX_MPDU_START_INFO12_DECRYPT_NEEDED		BIT(9)
+#define RX_MPDU_START_INFO12_DECAP_TYPE			GENMASK(11, 10)
+#define RX_MPDU_START_INFO12_VLAN_TAG_C_PADDING		BIT(12)
+#define RX_MPDU_START_INFO12_VLAN_TAG_S_PADDING		BIT(13)
+#define RX_MPDU_START_INFO12_STRIP_VLAN_TAG_C		BIT(14)
+#define RX_MPDU_START_INFO12_STRIP_VLAN_TAG_S		BIT(15)
+#define RX_MPDU_START_INFO12_PRE_DELIM_COUNT		GENMASK(27, 16)
+#define RX_MPDU_START_INFO12_AMPDU_FLAG			BIT(28)
+#define RX_MPDU_START_INFO12_BAR_FRAME			BIT(29)
+#define RX_MPDU_START_INFO12_RAW_MPDU			BIT(30)
+
+#define RX_MPDU_START_INFO13_MPDU_LEN			GENMASK(13, 0)
+#define RX_MPDU_START_INFO13_FIRST_MPDU			BIT(14)
+#define RX_MPDU_START_INFO13_MCAST_BCAST		BIT(15)
+#define RX_MPDU_START_INFO13_AST_IDX_NOT_FOUND		BIT(16)
+#define RX_MPDU_START_INFO13_AST_IDX_TIMEOUT		BIT(17)
+#define RX_MPDU_START_INFO13_POWER_MGMT			BIT(18)
+#define RX_MPDU_START_INFO13_NON_QOS			BIT(19)
+#define RX_MPDU_START_INFO13_NULL_DATA			BIT(20)
+#define RX_MPDU_START_INFO13_MGMT_TYPE			BIT(21)
+#define RX_MPDU_START_INFO13_CTRL_TYPE			BIT(22)
+#define RX_MPDU_START_INFO13_MORE_DATA			BIT(23)
+#define RX_MPDU_START_INFO13_EOSP			BIT(24)
+#define RX_MPDU_START_INFO13_FRAGMENT			BIT(25)
+#define RX_MPDU_START_INFO13_ORDER			BIT(26)
+#define RX_MPDU_START_INFO13_UAPSD_TRIGGER		BIT(27)
+#define RX_MPDU_START_INFO13_ENCRYPT_REQUIRED		BIT(28)
+#define RX_MPDU_START_INFO13_DIRECTED			BIT(29)
+#define RX_MPDU_START_INFO13_AMSDU_PRESENT		BIT(30)
+
+struct rx_mpdu_start_qcn9074 {
+	__le32 info7;
+	__le32 reo_queue_desc_lo;
+	__le32 info8;
+	__le32 pn[4];
+	__le32 info9;
+	__le32 peer_meta_data;
+	__le16 info10;
+	__le16 phy_ppdu_id;
+	__le16 ast_index;
+	__le16 sw_peer_id;
+	__le32 info11;
+	__le32 info12;
+	__le32 info13;
+	__le16 frame_ctrl;
+	__le16 duration;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	__le16 qos_ctrl;
+	__le32 ht_ctrl;
 } __packed;
 
 /* rx_mpdu_start
@@ -672,7 +778,7 @@ enum rx_msdu_start_reception_type {
 #define RX_MSDU_START_INFO3_RECEPTION_TYPE	GENMASK(23, 21)
 #define RX_MSDU_START_INFO3_MIMO_SS_BITMAP	GENMASK(31, 24)
 
-struct rx_msdu_start {
+struct rx_msdu_start_ipq8074 {
 	__le16 info0;
 	__le16 phy_ppdu_id;
 	__le32 info1;
@@ -682,6 +788,20 @@ struct rx_msdu_start {
 	__le32 info3;
 	__le32 ppdu_start_timestamp;
 	__le32 phy_meta_data;
+} __packed;
+
+struct rx_msdu_start_qcn9074 {
+	__le16 info0;
+	__le16 phy_ppdu_id;
+	__le32 info1;
+	__le32 info2;
+	__le32 toeplitz_hash;
+	__le32 flow_id_toeplitz;
+	__le32 info3;
+	__le32 ppdu_start_timestamp;
+	__le32 phy_meta_data;
+	__le16 vlan_ctag_c1;
+	__le16 vlan_stag_c1;
 } __packed;
 
 /* rx_msdu_start
@@ -894,7 +1014,7 @@ struct rx_msdu_start {
 #define RX_MSDU_END_INFO5_REO_DEST_IND		GENMASK(5, 1)
 #define RX_MSDU_END_INFO5_FLOW_IDX		GENMASK(25, 6)
 
-struct rx_msdu_end {
+struct rx_msdu_end_ipq8074 {
 	__le16 info0;
 	__le16 phy_ppdu_id;
 	__le16 ip_hdr_cksum;
@@ -915,6 +1035,58 @@ struct rx_msdu_end {
 	__le32 fse_metadata;
 	__le16 cce_metadata;
 	__le16 sa_sw_peer_id;
+} __packed;
+
+#define RX_MSDU_END_MPDU_LENGTH_INFO		GENMASK(13, 0)
+
+#define RX_MSDU_END_INFO2_DA_OFFSET		GENMASK(5, 0)
+#define RX_MSDU_END_INFO2_SA_OFFSET		GENMASK(11, 6)
+#define RX_MSDU_END_INFO2_DA_OFFSET_VALID	BIT(12)
+#define RX_MSDU_END_INFO2_SA_OFFSET_VALID	BIT(13)
+#define RX_MSDU_END_INFO2_L3_TYPE		GENMASK(31, 16)
+
+#define RX_MSDU_END_INFO4_SA_IDX_TIMEOUT	BIT(0)
+#define RX_MSDU_END_INFO4_DA_IDX_TIMEOUT	BIT(1)
+#define RX_MSDU_END_INFO4_MSDU_LIMIT_ERR	BIT(2)
+#define RX_MSDU_END_INFO4_FLOW_IDX_TIMEOUT	BIT(3)
+#define RX_MSDU_END_INFO4_FLOW_IDX_INVALID	BIT(4)
+#define RX_MSDU_END_INFO4_WIFI_PARSER_ERR	BIT(5)
+#define RX_MSDU_END_INFO4_AMSDU_PARSER_ERR	BIT(6)
+#define RX_MSDU_END_INFO4_SA_IS_VALID		BIT(7)
+#define RX_MSDU_END_INFO4_DA_IS_VALID		BIT(8)
+#define RX_MSDU_END_INFO4_DA_IS_MCBC		BIT(9)
+#define RX_MSDU_END_INFO4_L3_HDR_PADDING	GENMASK(11, 10)
+#define RX_MSDU_END_INFO4_FIRST_MSDU		BIT(12)
+#define RX_MSDU_END_INFO4_LAST_MSDU		BIT(13)
+
+#define RX_MSDU_END_INFO6_AGGR_COUNT		GENMASK(7, 0)
+#define RX_MSDU_END_INFO6_FLOW_AGGR_CONTN	BIT(8)
+#define RX_MSDU_END_INFO6_FISA_TIMEOUT		BIT(9)
+
+struct rx_msdu_end_qcn9074 {
+	__le16 info0;
+	__le16 phy_ppdu_id;
+	__le16 ip_hdr_cksum;
+	__le16 mpdu_length_info;
+	__le32 info1;
+	__le32 rule_indication[2];
+	__le32 info2;
+	__le32 ipv6_options_crc;
+	__le32 tcp_seq_num;
+	__le32 tcp_ack_num;
+	__le16 info3;
+	__le16 window_size;
+	__le16 tcp_udp_cksum;
+	__le16 info4;
+	__le16 sa_idx;
+	__le16 da_idx;
+	__le32 info5;
+	__le32 fse_metadata;
+	__le16 cce_metadata;
+	__le16 sa_sw_peer_id;
+	__le32 info6;
+	__le16 cum_l4_cksum;
+	__le16 cum_ip_length;
 } __packed;
 
 /* rx_msdu_end
@@ -1190,16 +1362,16 @@ struct rx_mpdu_end {
 
 #define HAL_RX_DESC_HDR_STATUS_LEN	120
 
-struct hal_rx_desc {
+struct hal_rx_desc_ipq8074 {
 	__le32 msdu_end_tag;
-	struct rx_msdu_end msdu_end;
+	struct rx_msdu_end_ipq8074 msdu_end;
 	__le32 rx_attn_tag;
 	struct rx_attention attention;
 	__le32 msdu_start_tag;
-	struct rx_msdu_start msdu_start;
+	struct rx_msdu_start_ipq8074 msdu_start;
 	u8 rx_padding0[HAL_RX_DESC_PADDING0_BYTES];
 	__le32 mpdu_start_tag;
-	struct rx_mpdu_start mpdu_start;
+	struct rx_mpdu_start_ipq8074 mpdu_start;
 	__le32 mpdu_end_tag;
 	struct rx_mpdu_end mpdu_end;
 	u8 rx_padding1[HAL_RX_DESC_PADDING1_BYTES];
@@ -1207,6 +1379,32 @@ struct hal_rx_desc {
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
 	u8 msdu_payload[0];
+} __packed;
+
+struct hal_rx_desc_qcn9074 {
+	__le32 msdu_end_tag;
+	struct rx_msdu_end_qcn9074 msdu_end;
+	__le32 rx_attn_tag;
+	struct rx_attention attention;
+	__le32 msdu_start_tag;
+	struct rx_msdu_start_qcn9074 msdu_start;
+	u8 rx_padding0[HAL_RX_DESC_PADDING0_BYTES];
+	__le32 mpdu_start_tag;
+	struct rx_mpdu_start_qcn9074 mpdu_start;
+	__le32 mpdu_end_tag;
+	struct rx_mpdu_end mpdu_end;
+	u8 rx_padding1[HAL_RX_DESC_PADDING1_BYTES];
+	__le32 hdr_status_tag;
+	__le32 phy_ppdu_id;
+	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
+	u8 msdu_payload[0];
+} __packed;
+
+struct hal_rx_desc {
+	union {
+		struct hal_rx_desc_ipq8074 ipq8074;
+		struct hal_rx_desc_qcn9074 qcn9074;
+	} u;
 } __packed;
 
 #define HAL_RX_RU_ALLOC_TYPE_MAX 6

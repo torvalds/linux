@@ -683,7 +683,7 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 	 * T1 is removed, so this code is called and would reprogram
 	 * the hardware to 5s from now. Any hrtimer_start after that
 	 * will not reprogram the hardware due to hang_detected being
-	 * set. So we'd effectivly block all timers until the T2 event
+	 * set. So we'd effectively block all timers until the T2 event
 	 * fires.
 	 */
 	if (!__hrtimer_hres_active(cpu_base) || cpu_base->hang_detected)
@@ -1019,7 +1019,7 @@ static void __remove_hrtimer(struct hrtimer *timer,
 	 * cpu_base->next_timer. This happens when we remove the first
 	 * timer on a remote cpu. No harm as we never dereference
 	 * cpu_base->next_timer. So the worst thing what can happen is
-	 * an superflous call to hrtimer_force_reprogram() on the
+	 * an superfluous call to hrtimer_force_reprogram() on the
 	 * remote cpu later on if the same timer gets enqueued again.
 	 */
 	if (reprogram && timer == cpu_base->next_timer)
@@ -1212,7 +1212,7 @@ static void hrtimer_cpu_base_unlock_expiry(struct hrtimer_cpu_base *base)
  * The counterpart to hrtimer_cancel_wait_running().
  *
  * If there is a waiter for cpu_base->expiry_lock, then it was waiting for
- * the timer callback to finish. Drop expiry_lock and reaquire it. That
+ * the timer callback to finish. Drop expiry_lock and reacquire it. That
  * allows the waiter to acquire the lock and make progress.
  */
 static void hrtimer_sync_wait_running(struct hrtimer_cpu_base *cpu_base,
@@ -1398,7 +1398,7 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 	int base;
 
 	/*
-	 * On PREEMPT_RT enabled kernels hrtimers which are not explicitely
+	 * On PREEMPT_RT enabled kernels hrtimers which are not explicitly
 	 * marked for hard interrupt expiry mode are moved into soft
 	 * interrupt context for latency reasons and because the callbacks
 	 * can invoke functions which might sleep on RT, e.g. spin_lock().
@@ -1430,7 +1430,7 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
  * hrtimer_init - initialize a timer to the given clock
  * @timer:	the timer to be initialized
  * @clock_id:	the clock to be used
- * @mode:       The modes which are relevant for intitialization:
+ * @mode:       The modes which are relevant for initialization:
  *              HRTIMER_MODE_ABS, HRTIMER_MODE_REL, HRTIMER_MODE_ABS_SOFT,
  *              HRTIMER_MODE_REL_SOFT
  *
@@ -1487,7 +1487,7 @@ EXPORT_SYMBOL_GPL(hrtimer_active);
  * insufficient for that.
  *
  * The sequence numbers are required because otherwise we could still observe
- * a false negative if the read side got smeared over multiple consequtive
+ * a false negative if the read side got smeared over multiple consecutive
  * __run_hrtimer() invocations.
  */
 
@@ -1588,7 +1588,7 @@ static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 			 * minimizing wakeups, not running timers at the
 			 * earliest interrupt after their soft expiration.
 			 * This allows us to avoid using a Priority Search
-			 * Tree, which can answer a stabbing querry for
+			 * Tree, which can answer a stabbing query for
 			 * overlapping intervals and instead use the simple
 			 * BST we already have.
 			 * We don't add extra wakeups by delaying timers that
@@ -1822,7 +1822,7 @@ static void __hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 				   clockid_t clock_id, enum hrtimer_mode mode)
 {
 	/*
-	 * On PREEMPT_RT enabled kernels hrtimers which are not explicitely
+	 * On PREEMPT_RT enabled kernels hrtimers which are not explicitly
 	 * marked for hard interrupt expiry mode are moved into soft
 	 * interrupt context either for latency reasons or because the
 	 * hrtimer callback takes regular spinlocks or invokes other
@@ -1835,7 +1835,7 @@ static void __hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 	 * the same CPU. That causes a latency spike due to the wakeup of
 	 * a gazillion threads.
 	 *
-	 * OTOH, priviledged real-time user space applications rely on the
+	 * OTOH, privileged real-time user space applications rely on the
 	 * low latency of hard interrupt wakeups. If the current task is in
 	 * a real-time scheduling class, mark the mode for hard interrupt
 	 * expiry.

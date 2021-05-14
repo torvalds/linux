@@ -332,4 +332,11 @@ static inline void memcpy_to_page(struct page *page, size_t offset,
 	kunmap_local(to);
 }
 
+static inline void memzero_page(struct page *page, size_t offset, size_t len)
+{
+	char *addr = kmap_atomic(page);
+	memset(addr + offset, 0, len);
+	kunmap_atomic(addr);
+}
+
 #endif /* _LINUX_HIGHMEM_H */

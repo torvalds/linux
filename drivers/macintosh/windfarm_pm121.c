@@ -433,7 +433,7 @@ struct pm121_sys_state {
 	struct wf_pid_state	pid;
 };
 
-struct pm121_sys_state *pm121_sys_state[N_LOOPS] = {};
+static struct pm121_sys_state *pm121_sys_state[N_LOOPS] = {};
 
 /*
  * ****** CPU Fans Control Loop ******

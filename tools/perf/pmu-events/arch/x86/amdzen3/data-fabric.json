@@ -1,0 +1,98 @@
+[
+  {
+    "EventName": "remote_outbound_data_controller_0",
+    "PublicDescription": "Remote Link Controller Outbound Packet Types: Data (32B): Remote Link Controller 0",
+    "EventCode": "0x7c7",
+    "UMask": "0x02",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "remote_outbound_data_controller_1",
+    "PublicDescription": "Remote Link Controller Outbound Packet Types: Data (32B): Remote Link Controller 1",
+    "EventCode": "0x807",
+    "UMask": "0x02",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "remote_outbound_data_controller_2",
+    "PublicDescription": "Remote Link Controller Outbound Packet Types: Data (32B): Remote Link Controller 2",
+    "EventCode": "0x847",
+    "UMask": "0x02",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "remote_outbound_data_controller_3",
+    "PublicDescription": "Remote Link Controller Outbound Packet Types: Data (32B): Remote Link Controller 3",
+    "EventCode": "0x887",
+    "UMask": "0x02",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_0",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x07",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_1",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x47",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_2",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x87",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_3",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0xc7",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_4",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x107",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_5",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x147",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_6",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x187",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  },
+  {
+    "EventName": "dram_channel_data_controller_7",
+    "PublicDescription": "DRAM Channel Controller Request Types: Requests with Data (64B): DRAM Channel Controller 0",
+    "EventCode": "0x1c7",
+    "UMask": "0x38",
+    "PerPkg": "1",
+    "Unit": "DFPMC"
+  }
+]

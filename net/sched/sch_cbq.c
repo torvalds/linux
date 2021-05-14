@@ -263,7 +263,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		/*
 		 * Step 3+n. If classifier selected a link sharing class,
 		 *	   apply agency specific classifier.
-		 *	   Repeat this procdure until we hit a leaf node.
+		 *	   Repeat this procedure until we hit a leaf node.
 		 */
 		head = cl;
 	}
@@ -859,7 +859,7 @@ cbq_dequeue(struct Qdisc *sch)
 	return NULL;
 }
 
-/* CBQ class maintanance routines */
+/* CBQ class maintenance routines */
 
 static void cbq_adjust_levels(struct cbq_class *this)
 {

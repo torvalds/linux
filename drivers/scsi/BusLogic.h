@@ -237,18 +237,10 @@ struct blogic_probeinfo {
 
 struct blogic_probe_options {
 	bool noprobe:1;			/* Bit 0 */
-	bool noprobe_isa:1;		/* Bit 1 */
 	bool noprobe_pci:1;		/* Bit 2 */
 	bool nosort_pci:1;		/* Bit 3 */
 	bool multimaster_first:1;	/* Bit 4 */
 	bool flashpoint_first:1;	/* Bit 5 */
-	bool limited_isa:1;		/* Bit 6 */
-	bool probe330:1;		/* Bit 7 */
-	bool probe334:1;		/* Bit 8 */
-	bool probe230:1;		/* Bit 9 */
-	bool probe234:1;		/* Bit 10 */
-	bool probe130:1;		/* Bit 11 */
-	bool probe134:1;		/* Bit 12 */
 };
 
 /*
@@ -997,10 +989,8 @@ struct blogic_adapter {
 	unsigned char bus;
 	unsigned char dev;
 	unsigned char irq_ch;
-	unsigned char dma_ch;
 	unsigned char scsi_id;
 	bool irq_acquired:1;
-	bool dma_chan_acquired:1;
 	bool ext_trans_enable:1;
 	bool parity:1;
 	bool reset_enabled:1;
@@ -1013,7 +1003,6 @@ struct blogic_adapter {
 	bool terminfo_valid:1;
 	bool low_term:1;
 	bool high_term:1;
-	bool need_bouncebuf:1;
 	bool strict_rr:1;
 	bool scam_enabled:1;
 	bool scam_lev2:1;

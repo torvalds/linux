@@ -103,6 +103,21 @@ TRACE_EVENT(vmbus_ongpadl_created,
 		    )
 	);
 
+TRACE_EVENT(vmbus_onmodifychannel_response,
+	    TP_PROTO(const struct vmbus_channel_modifychannel_response *response),
+	    TP_ARGS(response),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(u32, status)
+		    ),
+	    TP_fast_assign(__entry->child_relid = response->child_relid;
+			   __entry->status = response->status;
+		    ),
+	    TP_printk("child_relid 0x%x, status %d",
+		      __entry->child_relid,  __entry->status
+		    )
+	);
+
 TRACE_EVENT(vmbus_ongpadl_torndown,
 	    TP_PROTO(const struct vmbus_channel_gpadl_torndown *gpadltorndown),
 	    TP_ARGS(gpadltorndown),

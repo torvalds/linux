@@ -905,7 +905,7 @@ static int emc_init(struct tegra_emc *emc)
 	else
 		emc->dram_bus_width = 32;
 
-	dev_info(emc->dev, "%ubit DRAM bus\n", emc->dram_bus_width);
+	dev_info_once(emc->dev, "%ubit DRAM bus\n", emc->dram_bus_width);
 
 	emc->dram_type &= EMC_FBIO_CFG5_DRAM_TYPE_MASK;
 	emc->dram_type >>= EMC_FBIO_CFG5_DRAM_TYPE_SHIFT;
@@ -1204,7 +1204,7 @@ static int tegra_emc_debug_min_rate_set(void *data, u64 rate)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tegra_emc_debug_min_rate_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(tegra_emc_debug_min_rate_fops,
 			tegra_emc_debug_min_rate_get,
 			tegra_emc_debug_min_rate_set, "%llu\n");
 
@@ -1234,7 +1234,7 @@ static int tegra_emc_debug_max_rate_set(void *data, u64 rate)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tegra_emc_debug_max_rate_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(tegra_emc_debug_max_rate_fops,
 			tegra_emc_debug_max_rate_get,
 			tegra_emc_debug_max_rate_set, "%llu\n");
 
@@ -1419,8 +1419,8 @@ static int tegra_emc_opp_table_init(struct tegra_emc *emc)
 		goto put_hw_table;
 	}
 
-	dev_info(emc->dev, "OPP HW ver. 0x%x, current clock rate %lu MHz\n",
-		 hw_version, clk_get_rate(emc->clk) / 1000000);
+	dev_info_once(emc->dev, "OPP HW ver. 0x%x, current clock rate %lu MHz\n",
+		      hw_version, clk_get_rate(emc->clk) / 1000000);
 
 	/* first dummy rate-set initializes voltage state */
 	err = dev_pm_opp_set_rate(emc->dev, clk_get_rate(emc->clk));
@@ -1475,9 +1475,9 @@ static int tegra_emc_probe(struct platform_device *pdev)
 		if (err)
 			return err;
 	} else {
-		dev_info(&pdev->dev,
-			 "no memory timings for RAM code %u found in DT\n",
-			 ram_code);
+		dev_info_once(&pdev->dev,
+			      "no memory timings for RAM code %u found in DT\n",
+			      ram_code);
 	}
 
 	err = emc_init(emc);

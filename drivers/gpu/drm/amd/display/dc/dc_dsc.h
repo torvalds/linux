@@ -51,6 +51,7 @@ struct dc_dsc_policy {
 	int min_slice_height; // Must not be less than 8
 	uint32_t max_target_bpp;
 	uint32_t min_target_bpp;
+	uint32_t preferred_bpp_x16;
 	bool enable_dsc_when_not_needed;
 };
 
@@ -62,8 +63,8 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 bool dc_dsc_compute_bandwidth_range(
 		const struct display_stream_compressor *dsc,
 		uint32_t dsc_min_slice_height_override,
-		uint32_t min_bpp,
-		uint32_t max_bpp,
+		uint32_t min_bpp_x16,
+		uint32_t max_bpp_x16,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range);
@@ -77,12 +78,16 @@ bool dc_dsc_compute_config(
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);
 
+uint32_t dc_dsc_stream_bandwidth_in_kbps(uint32_t pix_clk_100hz, uint32_t bpp_x16);
+
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
-		uint32_t max_target_bpp_limit_override,
+		uint32_t max_target_bpp_limit_override_x16,
 		struct dc_dsc_policy *policy);
 
 void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit);
 
 void dc_dsc_policy_set_enable_dsc_when_not_needed(bool enable);
+
+uint32_t dc_dsc_stream_bandwidth_in_kbps(uint32_t pix_clk_100hz, uint32_t bpp_x16);
 
 #endif

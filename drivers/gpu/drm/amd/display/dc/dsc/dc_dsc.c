@@ -37,59 +37,6 @@ static uint32_t dsc_policy_max_target_bpp_limit = 16;
 /* default DSC policy enables DSC only when needed */
 static bool dsc_policy_enable_dsc_when_not_needed;
 
-static uint32_t dc_dsc_bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing)
-{
-	uint32_t bits_per_channel = 0;
-	uint32_t kbps;
-
-	if (timing->flags.DSC) {
-		kbps = (timing->pix_clk_100hz * timing->dsc_cfg.bits_per_pixel);
-		kbps = kbps / 160 + ((kbps % 160) ? 1 : 0);
-		return kbps;
-	}
-
-	switch (timing->display_color_depth) {
-	case COLOR_DEPTH_666:
-		bits_per_channel = 6;
-		break;
-	case COLOR_DEPTH_888:
-		bits_per_channel = 8;
-		break;
-	case COLOR_DEPTH_101010:
-		bits_per_channel = 10;
-		break;
-	case COLOR_DEPTH_121212:
-		bits_per_channel = 12;
-		break;
-	case COLOR_DEPTH_141414:
-		bits_per_channel = 14;
-		break;
-	case COLOR_DEPTH_161616:
-		bits_per_channel = 16;
-		break;
-	default:
-		break;
-	}
-
-	ASSERT(bits_per_channel != 0);
-
-	kbps = timing->pix_clk_100hz / 10;
-	kbps *= bits_per_channel;
-
-	if (timing->flags.Y_ONLY != 1) {
-		/*Only YOnly make reduce bandwidth by 1/3 compares to RGB*/
-		kbps *= 3;
-		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-			kbps /= 2;
-		else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-			kbps = kbps * 2 / 3;
-	}
-
-	return kbps;
-
-}
-
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
 {
 
@@ -315,18 +262,18 @@ static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
  * and uncompressed bandwidth.
  */
 static void get_dsc_bandwidth_range(
-		const uint32_t min_bpp,
-		const uint32_t max_bpp,
+		const uint32_t min_bpp_x16,
+		const uint32_t max_bpp_x16,
 		const struct dsc_enc_caps *dsc_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range)
 {
 	/* native stream bandwidth */
-	range->stream_kbps = dc_dsc_bandwidth_in_kbps_from_timing(timing);
+	range->stream_kbps = dc_bandwidth_in_kbps_from_timing(timing);
 
 	/* max dsc target bpp */
-	range->max_kbps = dsc_div_by_10_round_up(max_bpp * timing->pix_clk_100hz);
-	range->max_target_bpp_x16 = max_bpp * 16;
+	range->max_kbps = dc_dsc_stream_bandwidth_in_kbps(timing->pix_clk_100hz, max_bpp_x16);
+	range->max_target_bpp_x16 = max_bpp_x16;
 	if (range->max_kbps > range->stream_kbps) {
 		/* max dsc target bpp is capped to native bandwidth */
 		range->max_kbps = range->stream_kbps;
@@ -334,8 +281,8 @@ static void get_dsc_bandwidth_range(
 	}
 
 	/* min dsc target bpp */
-	range->min_kbps = dsc_div_by_10_round_up(min_bpp * timing->pix_clk_100hz);
-	range->min_target_bpp_x16 = min_bpp * 16;
+	range->min_kbps = dc_dsc_stream_bandwidth_in_kbps(timing->pix_clk_100hz, min_bpp_x16);
+	range->min_target_bpp_x16 = min_bpp_x16;
 	if (range->min_kbps > range->max_kbps) {
 		/* min dsc target bpp is capped to max dsc bandwidth*/
 		range->min_kbps = range->max_kbps;
@@ -363,12 +310,17 @@ static bool decide_dsc_target_bpp_x16(
 
 	memset(&range, 0, sizeof(range));
 
-	get_dsc_bandwidth_range(policy->min_target_bpp, policy->max_target_bpp,
+	get_dsc_bandwidth_range(policy->min_target_bpp * 16, policy->max_target_bpp * 16,
 			dsc_common_caps, timing, &range);
 	if (!policy->enable_dsc_when_not_needed && target_bandwidth_kbps >= range.stream_kbps) {
 		/* enough bandwidth without dsc */
 		*target_bpp_x16 = 0;
 		should_use_dsc = false;
+	} else if (policy->preferred_bpp_x16 > 0 &&
+			policy->preferred_bpp_x16 <= range.max_target_bpp_x16 &&
+			policy->preferred_bpp_x16 >= range.min_target_bpp_x16) {
+		*target_bpp_x16 = policy->preferred_bpp_x16;
+		should_use_dsc = true;
 	} else if (target_bandwidth_kbps >= range.max_kbps) {
 		/* use max target bpp allowed */
 		*target_bpp_x16 = range.max_target_bpp_x16;
@@ -545,7 +497,7 @@ static bool setup_dsc_config(
 		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		int min_slice_height_override,
-		int max_dsc_target_bpp_limit_override,
+		int max_dsc_target_bpp_limit_override_x16,
 		struct dc_dsc_config *dsc_cfg)
 {
 	struct dsc_enc_caps dsc_common_caps;
@@ -564,7 +516,7 @@ static bool setup_dsc_config(
 
 	memset(dsc_cfg, 0, sizeof(struct dc_dsc_config));
 
-	dc_dsc_get_policy_for_timing(timing, max_dsc_target_bpp_limit_override, &policy);
+	dc_dsc_get_policy_for_timing(timing, max_dsc_target_bpp_limit_override_x16, &policy);
 	pic_width = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
@@ -865,8 +817,8 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_da
 bool dc_dsc_compute_bandwidth_range(
 		const struct display_stream_compressor *dsc,
 		uint32_t dsc_min_slice_height_override,
-		uint32_t min_bpp,
-		uint32_t max_bpp,
+		uint32_t min_bpp_x16,
+		uint32_t max_bpp_x16,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range)
@@ -883,10 +835,10 @@ bool dc_dsc_compute_bandwidth_range(
 
 	if (is_dsc_possible)
 		is_dsc_possible = setup_dsc_config(dsc_sink_caps, &dsc_enc_caps, 0, timing,
-				dsc_min_slice_height_override, max_bpp, &config);
+				dsc_min_slice_height_override, max_bpp_x16, &config);
 
 	if (is_dsc_possible)
-		get_dsc_bandwidth_range(min_bpp, max_bpp, &dsc_common_caps, timing, range);
+		get_dsc_bandwidth_range(min_bpp_x16, max_bpp_x16, &dsc_common_caps, timing, range);
 
 	return is_dsc_possible;
 }
@@ -908,11 +860,20 @@ bool dc_dsc_compute_config(
 			&dsc_enc_caps,
 			target_bandwidth_kbps,
 			timing, dsc_min_slice_height_override,
-			max_target_bpp_limit_override, dsc_cfg);
+			max_target_bpp_limit_override * 16, dsc_cfg);
 	return is_dsc_possible;
 }
 
-void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing, uint32_t max_target_bpp_limit_override, struct dc_dsc_policy *policy)
+uint32_t dc_dsc_stream_bandwidth_in_kbps(uint32_t pix_clk_100hz, uint32_t bpp_x16)
+{
+	struct fixed31_32 link_bw_kbps;
+	link_bw_kbps = dc_fixpt_from_int(pix_clk_100hz);
+	link_bw_kbps = dc_fixpt_div_int(link_bw_kbps, 160);
+	link_bw_kbps = dc_fixpt_mul_int(link_bw_kbps, bpp_x16);
+	return dc_fixpt_ceil(link_bw_kbps);
+}
+
+void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing, uint32_t max_target_bpp_limit_override_x16, struct dc_dsc_policy *policy)
 {
 	uint32_t bpc = 0;
 
@@ -967,13 +928,15 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing, uint32_t 
 		return;
 	}
 
+	policy->preferred_bpp_x16 = timing->dsc_fixed_bits_per_pixel_x16;
+
 	/* internal upper limit, default 16 bpp */
 	if (policy->max_target_bpp > dsc_policy_max_target_bpp_limit)
 		policy->max_target_bpp = dsc_policy_max_target_bpp_limit;
 
 	/* apply override */
-	if (max_target_bpp_limit_override && policy->max_target_bpp > max_target_bpp_limit_override)
-		policy->max_target_bpp = max_target_bpp_limit_override;
+	if (max_target_bpp_limit_override_x16 && policy->max_target_bpp > max_target_bpp_limit_override_x16 / 16)
+		policy->max_target_bpp = max_target_bpp_limit_override_x16 / 16;
 
 	/* enable DSC when not needed, default false */
 	if (dsc_policy_enable_dsc_when_not_needed)

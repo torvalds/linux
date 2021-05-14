@@ -645,16 +645,19 @@ static int mlx5_get_pps_pin_mode(struct mlx5_clock *clock, u8 pin)
 	return PTP_PF_NONE;
 }
 
-static int mlx5_init_pin_config(struct mlx5_clock *clock)
+static void mlx5_init_pin_config(struct mlx5_clock *clock)
 {
 	int i;
+
+	if (!clock->ptp_info.n_pins)
+		return;
 
 	clock->ptp_info.pin_config =
 			kcalloc(clock->ptp_info.n_pins,
 				sizeof(*clock->ptp_info.pin_config),
 				GFP_KERNEL);
 	if (!clock->ptp_info.pin_config)
-		return -ENOMEM;
+		return;
 	clock->ptp_info.enable = mlx5_ptp_enable;
 	clock->ptp_info.verify = mlx5_ptp_verify;
 	clock->ptp_info.pps = 1;
@@ -667,8 +670,6 @@ static int mlx5_init_pin_config(struct mlx5_clock *clock)
 		clock->ptp_info.pin_config[i].func = mlx5_get_pps_pin_mode(clock, i);
 		clock->ptp_info.pin_config[i].chan = 0;
 	}
-
-	return 0;
 }
 
 static void mlx5_get_pps_caps(struct mlx5_core_dev *mdev)
@@ -859,6 +860,17 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 	}
 }
 
+static void mlx5_init_pps(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock *clock = &mdev->clock;
+
+	if (!MLX5_PPS_CAP(mdev))
+		return;
+
+	mlx5_get_pps_caps(mdev);
+	mlx5_init_pin_config(clock);
+}
+
 void mlx5_init_clock(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_clock *clock = &mdev->clock;
@@ -876,10 +888,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 	clock->ptp_info = mlx5_ptp_clock_info;
 
 	/* Initialize 1PPS data structures */
-	if (MLX5_PPS_CAP(mdev))
-		mlx5_get_pps_caps(mdev);
-	if (clock->ptp_info.n_pins)
-		mlx5_init_pin_config(clock);
+	mlx5_init_pps(mdev);
 
 	clock->ptp = ptp_clock_register(&clock->ptp_info,
 					&mdev->pdev->dev);

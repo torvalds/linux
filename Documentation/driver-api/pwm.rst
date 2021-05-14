@@ -55,7 +55,11 @@ several parameter at once. For example, if you see pwm_config() and
 pwm_{enable,disable}() calls in the same function, this probably means you
 should switch to pwm_apply_state().
 
-The PWM user API also allows one to query the PWM state with pwm_get_state().
+The PWM user API also allows one to query the PWM state that was passed to the
+last invocation of pwm_apply_state() using pwm_get_state(). Note this is
+different to what the driver has actually implemented if the request cannot be
+satisfied exactly with the hardware in use. There is currently no way for
+consumers to get the actually implemented settings.
 
 In addition to the PWM state, the PWM API also exposes PWM arguments, which
 are the reference PWM config one should use on this PWM.

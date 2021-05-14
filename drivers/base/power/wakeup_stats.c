@@ -137,7 +137,7 @@ static struct device *wakeup_source_device_create(struct device *parent,
 						  struct wakeup_source *ws)
 {
 	struct device *dev = NULL;
-	int retval = -ENODEV;
+	int retval;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
@@ -154,7 +154,7 @@ static struct device *wakeup_source_device_create(struct device *parent,
 	dev_set_drvdata(dev, ws);
 	device_set_pm_not_required(dev);
 
-	retval = kobject_set_name(&dev->kobj, "wakeup%d", ws->id);
+	retval = dev_set_name(dev, "wakeup%d", ws->id);
 	if (retval)
 		goto error;
 

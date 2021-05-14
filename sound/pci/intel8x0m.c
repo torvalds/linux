@@ -57,7 +57,7 @@ enum { \
 	ICH_REG_##name##_PICB	= base + 0x08,	/* word - position in current buffer */ \
 	ICH_REG_##name##_PIV	= base + 0x0a,	/* byte - prefetched index value */ \
 	ICH_REG_##name##_CR	= base + 0x0b,	/* byte - control register */ \
-};
+}
 
 /* busmaster blocks */
 DEFINE_REGSET(OFF, 0);		/* offset */

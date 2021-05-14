@@ -110,7 +110,7 @@ static ssize_t ddr_perf_identifier_show(struct device *dev,
 {
 	struct ddr_pmu *pmu = dev_get_drvdata(dev);
 
-	return sprintf(page, "%s\n", pmu->devtype_data->identifier);
+	return sysfs_emit(page, "%s\n", pmu->devtype_data->identifier);
 }
 
 static umode_t ddr_perf_identifier_attr_visible(struct kobject *kobj,
@@ -170,8 +170,7 @@ static ssize_t ddr_perf_filter_cap_show(struct device *dev,
 		container_of(attr, struct dev_ext_attribute, attr);
 	int cap = (long)ea->var;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n",
-			ddr_perf_filter_cap_get(pmu, cap));
+	return sysfs_emit(buf, "%u\n", ddr_perf_filter_cap_get(pmu, cap));
 }
 
 #define PERF_EXT_ATTR_ENTRY(_name, _func, _var)				\
@@ -220,7 +219,7 @@ ddr_pmu_event_show(struct device *dev, struct device_attribute *attr,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
 #define IMX8_DDR_PMU_EVENT_ATTR(_name, _id)				\

@@ -33,7 +33,6 @@ static int chcr_get_nfrags_to_send(struct sk_buff *skb, u32 start, u32 len)
 
 	if (unlikely(start < skb_linear_data_len)) {
 		frag_size = min(len, skb_linear_data_len - start);
-		start = 0;
 	} else {
 		start -= skb_linear_data_len;
 
@@ -873,10 +872,10 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 	}
 	/* update receive window */
 	if (first_wr || tx_info->prev_win != tcp_win) {
-		pos = chcr_write_cpl_set_tcb_ulp(tx_info, q, tx_info->tid, pos,
-						 TCB_RCV_WND_W,
-						 TCB_RCV_WND_V(TCB_RCV_WND_M),
-						 TCB_RCV_WND_V(tcp_win), 0);
+		chcr_write_cpl_set_tcb_ulp(tx_info, q, tx_info->tid, pos,
+					   TCB_RCV_WND_W,
+					   TCB_RCV_WND_V(TCB_RCV_WND_M),
+					   TCB_RCV_WND_V(tcp_win), 0);
 		tx_info->prev_win = tcp_win;
 		cpl++;
 	}
@@ -1485,7 +1484,6 @@ static int chcr_ktls_tx_plaintxt(struct chcr_ktls_info *tx_info,
 	wr->op_to_compl = htonl(FW_WR_OP_V(FW_ULPTX_WR));
 	wr->flowid_len16 = htonl(wr_mid | FW_WR_LEN16_V(len16));
 	wr->cookie = 0;
-	pos += sizeof(*wr);
 	/* ULP_TXPKT */
 	ulptx = (struct ulp_txpkt *)(wr + 1);
 	ulptx->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) |

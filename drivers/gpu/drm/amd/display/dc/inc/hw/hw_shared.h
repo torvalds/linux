@@ -36,6 +36,7 @@
 
 #define MAX_AUDIOS 7
 #define MAX_PIPES 6
+#define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1
 
 struct gamma_curve {

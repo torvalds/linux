@@ -59,7 +59,7 @@ In principle, these ioctls are optional, not all drivers may support them. They 
 introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decoders
 (as further documented in :ref:`decoder`).
 
-.. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
+.. tabularcolumns:: |p{2.0cm}|p{1.1cm}|p{2.2cm}|p{11.8cm}|
 
 .. c:type:: v4l2_decoder_cmd
 
@@ -129,7 +129,9 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
       -
 
 
-.. tabularcolumns:: |p{5.6cm}|p{0.6cm}|p{11.3cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.6cm}|p{11.1cm}|
+
+.. cssclass:: longtable
 
 .. _decoder-cmds:
 

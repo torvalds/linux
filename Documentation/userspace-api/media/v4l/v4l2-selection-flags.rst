@@ -6,9 +6,15 @@
 Selection flags
 ***************
 
-.. tabularcolumns:: |p{5.2cm}|p{2.0cm}|p{6.5cm}|p{1.2cm}|p{1.6cm}|
-
 .. _v4l2-selection-flags-table:
+
+.. raw:: latex
+
+   \small
+
+.. tabularcolumns:: |p{5.6cm}|p{2.0cm}|p{6.5cm}|p{1.2cm}|p{1.2cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: Selection flag definitions
     :header-rows:  1
@@ -42,3 +48,7 @@ Selection flags
 	inside the subdevice to all further processing steps.
       - No
       - Yes
+
+.. raw:: latex
+
+   \normalsize

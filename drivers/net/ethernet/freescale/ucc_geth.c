@@ -3562,7 +3562,6 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	struct resource res;
 	int err, ucc_num, max_speed = 0;
 	const unsigned int *prop;
-	const void *mac_addr;
 	phy_interface_t phy_interface;
 	static const int enet_to_speed[] = {
 		SPEED_10, SPEED_10, SPEED_10,
@@ -3733,9 +3732,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		goto err_free_netdev;
 	}
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(dev->dev_addr, mac_addr);
+	of_get_mac_address(np, dev->dev_addr);
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = device;

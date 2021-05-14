@@ -260,7 +260,7 @@ static int ad7292_probe(struct spi_device *spi)
 	struct ad7292_state *st;
 	struct iio_dev *indio_dev;
 	struct device_node *child;
-	bool diff_channels = 0;
+	bool diff_channels = false;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));

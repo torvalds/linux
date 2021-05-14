@@ -10,10 +10,17 @@
 #include "../nfp_port.h"
 
 #define NFP_FL_QOS_UPDATE		msecs_to_jiffies(1000)
+#define NFP_FL_QOS_PPS  BIT(15)
 
 struct nfp_police_cfg_head {
 	__be32 flags_opts;
 	__be32 port;
+};
+
+enum NFP_FL_QOS_TYPES {
+	NFP_FL_QOS_TYPE_BPS,
+	NFP_FL_QOS_TYPE_PPS,
+	NFP_FL_QOS_TYPE_MAX,
 };
 
 /* Police cmsg for configuring a trTCM traffic conditioner (8W/32B)
@@ -22,7 +29,7 @@ struct nfp_police_cfg_head {
  *    3                   2                   1
  *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |                          Flag options                         |
+ * |             Reserved          |p|         Reserved            |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                          Port Ingress                         |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -38,6 +45,9 @@ struct nfp_police_cfg_head {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                    Committed Information Rate                 |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * Word[0](FLag options):
+ * [15] p(pps) 1 for pps ,0 for bps
+ *
  */
 struct nfp_police_config {
 	struct nfp_police_cfg_head head;
@@ -62,13 +72,18 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 				struct tc_cls_matchall_offload *flow,
 				struct netlink_ext_ack *extack)
 {
-	struct flow_action_entry *action = &flow->rule->action.entries[0];
+	struct flow_action_entry *paction = &flow->rule->action.entries[0];
+	u32 action_num = flow->rule->action.num_entries;
 	struct nfp_flower_priv *fl_priv = app->priv;
+	struct flow_action_entry *action = NULL;
 	struct nfp_flower_repr_priv *repr_priv;
 	struct nfp_police_config *config;
+	u32 netdev_port_id, i;
 	struct nfp_repr *repr;
 	struct sk_buff *skb;
-	u32 netdev_port_id;
+	bool pps_support;
+	u32 bps_num = 0;
+	u32 pps_num = 0;
 	u32 burst;
 	u64 rate;
 
@@ -78,6 +93,8 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	}
 	repr = netdev_priv(netdev);
 	repr_priv = repr->app_priv;
+	netdev_port_id = nfp_repr_get_port_id(netdev);
+	pps_support = !!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_PPS);
 
 	if (repr_priv->block_shared) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on shared blocks");
@@ -89,9 +106,18 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 
-	if (!flow_offload_has_one_action(&flow->rule->action)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload requires a single action");
-		return -EOPNOTSUPP;
+	if (pps_support) {
+		if (action_num > 2 || action_num == 0) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: qos rate limit offload only support action number 1 or 2");
+			return -EOPNOTSUPP;
+		}
+	} else {
+		if (!flow_offload_has_one_action(&flow->rule->action)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: qos rate limit offload requires a single action");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (flow->common.prio != 1) {
@@ -99,31 +125,69 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 
-	if (action->id != FLOW_ACTION_POLICE) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload requires police action");
-		return -EOPNOTSUPP;
+	for (i = 0 ; i < action_num; i++) {
+		action = paction + i;
+		if (action->id != FLOW_ACTION_POLICE) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: qos rate limit offload requires police action");
+			return -EOPNOTSUPP;
+		}
+		if (action->police.rate_bytes_ps > 0) {
+			if (bps_num++) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "unsupported offload: qos rate limit offload only support one BPS action");
+				return -EOPNOTSUPP;
+			}
+		}
+		if (action->police.rate_pkt_ps > 0) {
+			if (!pps_support) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "unsupported offload: FW does not support PPS action");
+				return -EOPNOTSUPP;
+			}
+			if (pps_num++) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "unsupported offload: qos rate limit offload only support one PPS action");
+				return -EOPNOTSUPP;
+			}
+		}
 	}
 
-	rate = action->police.rate_bytes_ps;
-	burst = action->police.burst;
-	netdev_port_id = nfp_repr_get_port_id(netdev);
+	for (i = 0 ; i < action_num; i++) {
+		/* Set QoS data for this interface */
+		action = paction + i;
+		if (action->police.rate_bytes_ps > 0) {
+			rate = action->police.rate_bytes_ps;
+			burst = action->police.burst;
+		} else if (action->police.rate_pkt_ps > 0) {
+			rate = action->police.rate_pkt_ps;
+			burst = action->police.burst_pkt;
+		} else {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: qos rate limit is not BPS or PPS");
+			continue;
+		}
 
-	skb = nfp_flower_cmsg_alloc(repr->app, sizeof(struct nfp_police_config),
-				    NFP_FLOWER_CMSG_TYPE_QOS_MOD, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
+		if (rate != 0) {
+			skb = nfp_flower_cmsg_alloc(repr->app, sizeof(struct nfp_police_config),
+						    NFP_FLOWER_CMSG_TYPE_QOS_MOD, GFP_KERNEL);
+			if (!skb)
+				return -ENOMEM;
 
-	config = nfp_flower_cmsg_get_data(skb);
-	memset(config, 0, sizeof(struct nfp_police_config));
-	config->head.port = cpu_to_be32(netdev_port_id);
-	config->bkt_tkn_p = cpu_to_be32(burst);
-	config->bkt_tkn_c = cpu_to_be32(burst);
-	config->pbs = cpu_to_be32(burst);
-	config->cbs = cpu_to_be32(burst);
-	config->pir = cpu_to_be32(rate);
-	config->cir = cpu_to_be32(rate);
-	nfp_ctrl_tx(repr->app->ctrl, skb);
-
+			config = nfp_flower_cmsg_get_data(skb);
+			memset(config, 0, sizeof(struct nfp_police_config));
+			if (action->police.rate_pkt_ps > 0)
+				config->head.flags_opts = cpu_to_be32(NFP_FL_QOS_PPS);
+			config->head.port = cpu_to_be32(netdev_port_id);
+			config->bkt_tkn_p = cpu_to_be32(burst);
+			config->bkt_tkn_c = cpu_to_be32(burst);
+			config->pbs = cpu_to_be32(burst);
+			config->cbs = cpu_to_be32(burst);
+			config->pir = cpu_to_be32(rate);
+			config->cir = cpu_to_be32(rate);
+			nfp_ctrl_tx(repr->app->ctrl, skb);
+		}
+	}
 	repr_priv->qos_table.netdev_port_id = netdev_port_id;
 	fl_priv->qos_rate_limiters++;
 	if (fl_priv->qos_rate_limiters == 1)
@@ -141,9 +205,10 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_flower_priv *fl_priv = app->priv;
 	struct nfp_flower_repr_priv *repr_priv;
 	struct nfp_police_config *config;
+	u32 netdev_port_id, i;
 	struct nfp_repr *repr;
 	struct sk_buff *skb;
-	u32 netdev_port_id;
+	bool pps_support;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
@@ -153,27 +218,38 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 
 	netdev_port_id = nfp_repr_get_port_id(netdev);
 	repr_priv = repr->app_priv;
+	pps_support = !!(fl_priv->flower_ext_feats & NFP_FL_FEATS_QOS_PPS);
 
 	if (!repr_priv->qos_table.netdev_port_id) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot remove qos entry that does not exist");
 		return -EOPNOTSUPP;
 	}
 
-	skb = nfp_flower_cmsg_alloc(repr->app, sizeof(struct nfp_police_config),
-				    NFP_FLOWER_CMSG_TYPE_QOS_DEL, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
-	/* Clear all qos associate data for this interface */
 	memset(&repr_priv->qos_table, 0, sizeof(struct nfp_fl_qos));
 	fl_priv->qos_rate_limiters--;
 	if (!fl_priv->qos_rate_limiters)
 		cancel_delayed_work_sync(&fl_priv->qos_stats_work);
+	for (i = 0 ; i < NFP_FL_QOS_TYPE_MAX; i++) {
+		if (i == NFP_FL_QOS_TYPE_PPS && !pps_support)
+			break;
+		/* 0:bps 1:pps
+		 * Clear QoS data for this interface.
+		 * There is no need to check if a specific QOS_TYPE was
+		 * configured as the firmware handles clearing a QoS entry
+		 * safely, even if it wasn't explicitly added.
+		 */
+		skb = nfp_flower_cmsg_alloc(repr->app, sizeof(struct nfp_police_config),
+					    NFP_FLOWER_CMSG_TYPE_QOS_DEL, GFP_KERNEL);
+		if (!skb)
+			return -ENOMEM;
 
-	config = nfp_flower_cmsg_get_data(skb);
-	memset(config, 0, sizeof(struct nfp_police_config));
-	config->head.port = cpu_to_be32(netdev_port_id);
-	nfp_ctrl_tx(repr->app->ctrl, skb);
+		config = nfp_flower_cmsg_get_data(skb);
+		memset(config, 0, sizeof(struct nfp_police_config));
+		if (i == NFP_FL_QOS_TYPE_PPS)
+			config->head.flags_opts = cpu_to_be32(NFP_FL_QOS_PPS);
+		config->head.port = cpu_to_be32(netdev_port_id);
+		nfp_ctrl_tx(repr->app->ctrl, skb);
+	}
 
 	return 0;
 }

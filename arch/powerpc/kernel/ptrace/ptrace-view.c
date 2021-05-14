@@ -111,7 +111,7 @@ static unsigned long get_user_msr(struct task_struct *task)
 	return task->thread.regs->msr | task->thread.fpexc_mode;
 }
 
-static int set_user_msr(struct task_struct *task, unsigned long msr)
+static __always_inline int set_user_msr(struct task_struct *task, unsigned long msr)
 {
 	task->thread.regs->msr &= ~MSR_DEBUGCHANGE;
 	task->thread.regs->msr |= msr & MSR_DEBUGCHANGE;
@@ -147,7 +147,7 @@ static int set_user_dscr(struct task_struct *task, unsigned long dscr)
  * We prevent mucking around with the reserved area of trap
  * which are used internally by the kernel.
  */
-static int set_user_trap(struct task_struct *task, unsigned long trap)
+static __always_inline int set_user_trap(struct task_struct *task, unsigned long trap)
 {
 	set_trap(task->thread.regs, trap);
 	return 0;
@@ -221,16 +221,8 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 #ifdef CONFIG_PPC64
 	struct membuf to_softe = membuf_at(&to, offsetof(struct pt_regs, softe));
 #endif
-	int i;
-
 	if (target->thread.regs == NULL)
 		return -EIO;
-
-	if (!FULL_REGS(target->thread.regs)) {
-		/* We have a partial register set.  Fill 14-31 with bogus values */
-		for (i = 14; i < 32; i++)
-			target->thread.regs->gpr[i] = NV_REG_POISON;
-	}
 
 	membuf_write(&to, target->thread.regs, sizeof(struct user_pt_regs));
 
@@ -251,8 +243,6 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 
 	if (target->thread.regs == NULL)
 		return -EIO;
-
-	CHECK_FULL_REGS(target->thread.regs);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 target->thread.regs,
@@ -659,6 +649,9 @@ int gpr32_set_common(struct task_struct *target,
 	const compat_ulong_t __user *u = ubuf;
 	compat_ulong_t reg;
 
+	if (!kbuf && !user_read_access_begin(u, count))
+		return -EFAULT;
+
 	pos /= sizeof(reg);
 	count /= sizeof(reg);
 
@@ -667,8 +660,7 @@ int gpr32_set_common(struct task_struct *target,
 			regs[pos++] = *k++;
 	else
 		for (; count > 0 && pos < PT_MSR; --count) {
-			if (__get_user(reg, u++))
-				return -EFAULT;
+			unsafe_get_user(reg, u++, Efault);
 			regs[pos++] = reg;
 		}
 
@@ -676,8 +668,8 @@ int gpr32_set_common(struct task_struct *target,
 	if (count > 0 && pos == PT_MSR) {
 		if (kbuf)
 			reg = *k++;
-		else if (__get_user(reg, u++))
-			return -EFAULT;
+		else
+			unsafe_get_user(reg, u++, Efault);
 		set_user_msr(target, reg);
 		++pos;
 		--count;
@@ -690,24 +682,24 @@ int gpr32_set_common(struct task_struct *target,
 			++k;
 	} else {
 		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count) {
-			if (__get_user(reg, u++))
-				return -EFAULT;
+			unsafe_get_user(reg, u++, Efault);
 			regs[pos++] = reg;
 		}
 		for (; count > 0 && pos < PT_TRAP; --count, ++pos)
-			if (__get_user(reg, u++))
-				return -EFAULT;
+			unsafe_get_user(reg, u++, Efault);
 	}
 
 	if (count > 0 && pos == PT_TRAP) {
 		if (kbuf)
 			reg = *k++;
-		else if (__get_user(reg, u++))
-			return -EFAULT;
+		else
+			unsafe_get_user(reg, u++, Efault);
 		set_user_trap(target, reg);
 		++pos;
 		--count;
 	}
+	if (!kbuf)
+		user_read_access_end();
 
 	kbuf = k;
 	ubuf = u;
@@ -715,25 +707,19 @@ int gpr32_set_common(struct task_struct *target,
 	count *= sizeof(reg);
 	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
 					 (PT_TRAP + 1) * sizeof(reg), -1);
+
+Efault:
+	user_read_access_end();
+	return -EFAULT;
 }
 
 static int gpr32_get(struct task_struct *target,
 		     const struct user_regset *regset,
 		     struct membuf to)
 {
-	int i;
-
 	if (target->thread.regs == NULL)
 		return -EIO;
 
-	if (!FULL_REGS(target->thread.regs)) {
-		/*
-		 * We have a partial register set.
-		 * Fill 14-31 with bogus values.
-		 */
-		for (i = 14; i < 32; i++)
-			target->thread.regs->gpr[i] = NV_REG_POISON;
-	}
 	return gpr32_get_common(target, regset, to,
 			&target->thread.regs->gpr[0]);
 }
@@ -746,7 +732,6 @@ static int gpr32_set(struct task_struct *target,
 	if (target->thread.regs == NULL)
 		return -EIO;
 
-	CHECK_FULL_REGS(target->thread.regs);
 	return gpr32_set_common(target, regset, pos, count, kbuf, ubuf,
 			&target->thread.regs->gpr[0]);
 }

@@ -1494,7 +1494,7 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 {
 	struct t10_wwn *t10_wwn = to_t10_wwn(item);
 	struct se_device *dev = t10_wwn->t10_dev;
-	unsigned char buf[INQUIRY_VPD_SERIAL_LEN];
+	unsigned char buf[INQUIRY_VPD_SERIAL_LEN] = { };
 
 	/*
 	 * If Linux/SCSI subsystem_api_t plugin got a VPD Unit Serial
@@ -1536,7 +1536,6 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 	 * Also, strip any newline added from the userspace
 	 * echo $UUID > $TARGET/$HBA/$STORAGE_OBJECT/wwn/vpd_unit_serial
 	 */
-	memset(buf, 0, INQUIRY_VPD_SERIAL_LEN);
 	snprintf(buf, INQUIRY_VPD_SERIAL_LEN, "%s", page);
 	snprintf(dev->t10_wwn.unit_serial, INQUIRY_VPD_SERIAL_LEN,
 			"%s", strstrip(buf));
@@ -1556,10 +1555,8 @@ static ssize_t target_wwn_vpd_protocol_identifier_show(struct config_item *item,
 {
 	struct t10_wwn *t10_wwn = to_t10_wwn(item);
 	struct t10_vpd *vpd;
-	unsigned char buf[VPD_TMP_BUF_SIZE];
+	unsigned char buf[VPD_TMP_BUF_SIZE] = { };
 	ssize_t len = 0;
-
-	memset(buf, 0, VPD_TMP_BUF_SIZE);
 
 	spin_lock(&t10_wwn->t10_vpd_lock);
 	list_for_each_entry(vpd, &t10_wwn->t10_vpd_list, vpd_list) {
@@ -1663,9 +1660,7 @@ static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 {
 	struct se_node_acl *se_nacl;
 	struct t10_pr_registration *pr_reg;
-	char i_buf[PR_REG_ISID_ID_LEN];
-
-	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
+	char i_buf[PR_REG_ISID_ID_LEN] = { };
 
 	pr_reg = dev->dev_pr_res_holder;
 	if (!pr_reg)
@@ -2286,7 +2281,7 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 	struct se_hba *hba = dev->se_hba;
 	struct t10_alua_lu_gp *lu_gp = NULL, *lu_gp_new = NULL;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
-	unsigned char buf[LU_GROUP_NAME_BUF];
+	unsigned char buf[LU_GROUP_NAME_BUF] = { };
 	int move = 0;
 
 	lu_gp_mem = dev->dev_alua_lu_gp_mem;
@@ -2297,7 +2292,6 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 		pr_err("ALUA LU Group Alias too large!\n");
 		return -EINVAL;
 	}
-	memset(buf, 0, LU_GROUP_NAME_BUF);
 	memcpy(buf, page, count);
 	/*
 	 * Any ALUA logical unit alias besides "NULL" means we will be
@@ -2615,9 +2609,7 @@ static ssize_t target_lu_gp_members_show(struct config_item *item, char *page)
 	struct se_hba *hba;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	ssize_t len = 0, cur_len;
-	unsigned char buf[LU_GROUP_NAME_BUF];
-
-	memset(buf, 0, LU_GROUP_NAME_BUF);
+	unsigned char buf[LU_GROUP_NAME_BUF] = { };
 
 	spin_lock(&lu_gp->lu_gp_lock);
 	list_for_each_entry(lu_gp_mem, &lu_gp->lu_gp_mem_list, lu_gp_mem_list) {
@@ -2753,8 +2745,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
 	int new_state, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do implicit ALUA on non valid"
-			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
+		pr_err("Unable to do implicit ALUA on invalid tg_pt_gp ID\n");
 		return -EINVAL;
 	}
 	if (!target_dev_configured(dev)) {
@@ -2805,9 +2796,7 @@ static ssize_t target_tg_pt_gp_alua_access_status_store(
 	int new_status, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do set ALUA access status on non"
-			" valid tg_pt_gp ID: %hu\n",
-			tg_pt_gp->tg_pt_gp_valid_id);
+		pr_err("Unable to set ALUA access status on invalid tg_pt_gp ID\n");
 		return -EINVAL;
 	}
 
@@ -2860,9 +2849,7 @@ static ssize_t target_tg_pt_gp_alua_support_##_name##_store(		\
 	int ret;							\
 									\
 	if (!t->tg_pt_gp_valid_id) {					\
-		pr_err("Unable to do set " #_name " ALUA state on non"	\
-		       " valid tg_pt_gp ID: %hu\n",			\
-		       t->tg_pt_gp_valid_id);				\
+		pr_err("Unable to set " #_name " ALUA state on invalid tg_pt_gp ID\n"); \
 		return -EINVAL;						\
 	}								\
 									\
@@ -3020,9 +3007,7 @@ static ssize_t target_tg_pt_gp_members_show(struct config_item *item,
 	struct t10_alua_tg_pt_gp *tg_pt_gp = to_tg_pt_gp(item);
 	struct se_lun *lun;
 	ssize_t len = 0, cur_len;
-	unsigned char buf[TG_PT_GROUP_NAME_BUF];
-
-	memset(buf, 0, TG_PT_GROUP_NAME_BUF);
+	unsigned char buf[TG_PT_GROUP_NAME_BUF] = { };
 
 	spin_lock(&tg_pt_gp->tg_pt_gp_lock);
 	list_for_each_entry(lun, &tg_pt_gp->tg_pt_gp_lun_list,
@@ -3409,11 +3394,10 @@ static struct config_group *target_core_call_addhbatotarget(
 {
 	char *se_plugin_str, *str, *str2;
 	struct se_hba *hba;
-	char buf[TARGET_CORE_NAME_MAX_LEN];
+	char buf[TARGET_CORE_NAME_MAX_LEN] = { };
 	unsigned long plugin_dep_id = 0;
 	int ret;
 
-	memset(buf, 0, TARGET_CORE_NAME_MAX_LEN);
 	if (strlen(name) >= TARGET_CORE_NAME_MAX_LEN) {
 		pr_err("Passed *name strlen(): %d exceeds"
 			" TARGET_CORE_NAME_MAX_LEN: %d\n", (int)strlen(name),

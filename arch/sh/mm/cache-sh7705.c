@@ -13,6 +13,7 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/pagemap.h>
 #include <linux/threads.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>

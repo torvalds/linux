@@ -329,6 +329,22 @@ static void test_zero_memory_regions(void)
 }
 #endif /* __x86_64__ */
 
+static int test_memory_region_add(struct kvm_vm *vm, void *mem, uint32_t slot,
+				   uint32_t size, uint64_t guest_addr)
+{
+	struct kvm_userspace_memory_region region;
+	int ret;
+
+	region.slot = slot;
+	region.flags = 0;
+	region.guest_phys_addr = guest_addr;
+	region.memory_size = size;
+	region.userspace_addr = (uintptr_t) mem;
+	ret = ioctl(vm_get_fd(vm), KVM_SET_USER_MEMORY_REGION, &region);
+
+	return ret;
+}
+
 /*
  * Test it can be added memory slots up to KVM_CAP_NR_MEMSLOTS, then any
  * tentative to add further slots should fail.
@@ -339,9 +355,15 @@ static void test_add_max_memory_regions(void)
 	struct kvm_vm *vm;
 	uint32_t max_mem_slots;
 	uint32_t slot;
-	uint64_t guest_addr = 0x0;
-	uint64_t mem_reg_npages;
-	void *mem;
+	void *mem, *mem_aligned, *mem_extra;
+	size_t alignment;
+
+#ifdef __s390x__
+	/* On s390x, the host address must be aligned to 1M (due to PGSTEs) */
+	alignment = 0x100000;
+#else
+	alignment = 1;
+#endif
 
 	max_mem_slots = kvm_check_cap(KVM_CAP_NR_MEMSLOTS);
 	TEST_ASSERT(max_mem_slots > 0,
@@ -350,30 +372,37 @@ static void test_add_max_memory_regions(void)
 
 	vm = vm_create(VM_MODE_DEFAULT, 0, O_RDWR);
 
-	mem_reg_npages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, MEM_REGION_SIZE);
-
 	/* Check it can be added memory slots up to the maximum allowed */
 	pr_info("Adding slots 0..%i, each memory region with %dK size\n",
 		(max_mem_slots - 1), MEM_REGION_SIZE >> 10);
+
+	mem = mmap(NULL, MEM_REGION_SIZE * max_mem_slots + alignment,
+		   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
+	mem_aligned = (void *)(((size_t) mem + alignment - 1) & ~(alignment - 1));
+
 	for (slot = 0; slot < max_mem_slots; slot++) {
-		vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-					    guest_addr, slot, mem_reg_npages,
-					    0);
-		guest_addr += MEM_REGION_SIZE;
+		ret = test_memory_region_add(vm, mem_aligned +
+					     ((uint64_t)slot * MEM_REGION_SIZE),
+					     slot, MEM_REGION_SIZE,
+					     (uint64_t)slot * MEM_REGION_SIZE);
+		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
+			    "  rc: %i errno: %i slot: %i\n",
+			    ret, errno, slot);
 	}
 
 	/* Check it cannot be added memory slots beyond the limit */
-	mem = mmap(NULL, MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
+	mem_extra = mmap(NULL, MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
+			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	TEST_ASSERT(mem_extra != MAP_FAILED, "Failed to mmap() host");
 
-	ret = ioctl(vm_get_fd(vm), KVM_SET_USER_MEMORY_REGION,
-		    &(struct kvm_userspace_memory_region) {slot, 0, guest_addr,
-		    MEM_REGION_SIZE, (uint64_t) mem});
+	ret = test_memory_region_add(vm, mem_extra, max_mem_slots, MEM_REGION_SIZE,
+				     (uint64_t)max_mem_slots * MEM_REGION_SIZE);
 	TEST_ASSERT(ret == -1 && errno == EINVAL,
 		    "Adding one more memory slot should fail with EINVAL");
 
-	munmap(mem, MEM_REGION_SIZE);
+	munmap(mem, MEM_REGION_SIZE * max_mem_slots + alignment);
+	munmap(mem_extra, MEM_REGION_SIZE);
 	kvm_vm_free(vm);
 }
 

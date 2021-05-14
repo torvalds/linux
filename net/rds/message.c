@@ -180,7 +180,6 @@ void rds_message_put(struct rds_message *rm)
 		rds_message_purge(rm);
 
 		kfree(rm);
-		rm = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(rds_message_put);

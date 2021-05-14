@@ -583,7 +583,8 @@ static blk_status_t gdrom_readdisk_dma(struct request *req)
 	read_command->cmd[1] = 0x20;
 	block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
 	block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
-	__raw_writel(virt_to_phys(bio_data(req->bio)), GDROM_DMA_STARTADDR_REG);
+	__raw_writel(page_to_phys(bio_page(req->bio)) + bio_offset(req->bio),
+			GDROM_DMA_STARTADDR_REG);
 	__raw_writel(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 	__raw_writel(1, GDROM_DMA_DIRECTION_REG);
 	__raw_writel(1, GDROM_DMA_ENABLE_REG);
@@ -788,8 +789,6 @@ static int probe_gdrom(struct platform_device *devptr)
 		gd.gdrom_rq = NULL;
 		goto probe_fail_requestq;
 	}
-
-	blk_queue_bounce_limit(gd.gdrom_rq, BLK_BOUNCE_HIGH);
 
 	err = probe_gdrom_setupqueue();
 	if (err)

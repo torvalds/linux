@@ -48,7 +48,7 @@ static inline u32 mlx_to_net_policy(enum port_state_policy mlx_policy)
 	}
 }
 
-int mlx5_ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+int mlx5_ib_get_vf_config(struct ib_device *device, int vf, u32 port,
 			  struct ifla_vf_info *info)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
@@ -91,7 +91,7 @@ static inline enum port_state_policy net_to_mlx_policy(int policy)
 }
 
 int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
-			      u8 port, int state)
+			      u32 port, int state)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -119,7 +119,7 @@ out:
 }
 
 int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
-			 u8 port, struct ifla_vf_stats *stats)
+			 u32 port, struct ifla_vf_stats *stats)
 {
 	int out_sz = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 	struct mlx5_core_dev *mdev;
@@ -149,7 +149,8 @@ ex:
 	return err;
 }
 
-static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
+static int set_vf_node_guid(struct ib_device *device, int vf, u32 port,
+			    u64 guid)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -172,7 +173,8 @@ static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	return err;
 }
 
-static int set_vf_port_guid(struct ib_device *device, int vf, u8 port, u64 guid)
+static int set_vf_port_guid(struct ib_device *device, int vf, u32 port,
+			    u64 guid)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -195,7 +197,7 @@ static int set_vf_port_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	return err;
 }
 
-int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
+int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u32 port,
 			u64 guid, int type)
 {
 	if (type == IFLA_VF_IB_NODE_GUID)
@@ -206,7 +208,7 @@ int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 	return -EINVAL;
 }
 
-int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
 			struct ifla_vf_guid *node_guid,
 			struct ifla_vf_guid *port_guid)
 {

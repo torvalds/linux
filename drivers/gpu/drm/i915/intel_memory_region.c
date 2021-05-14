@@ -6,14 +6,22 @@
 #include "intel_memory_region.h"
 #include "i915_drv.h"
 
-/* XXX: Hysterical raisins. BIT(inst) needs to just be (inst) at some point. */
-#define REGION_MAP(type, inst) \
-	BIT((type) + INTEL_MEMORY_TYPE_SHIFT) | BIT(inst)
-
-static const u32 intel_region_map[] = {
-	[INTEL_REGION_SMEM] = REGION_MAP(INTEL_MEMORY_SYSTEM, 0),
-	[INTEL_REGION_LMEM] = REGION_MAP(INTEL_MEMORY_LOCAL, 0),
-	[INTEL_REGION_STOLEN] = REGION_MAP(INTEL_MEMORY_STOLEN, 0),
+static const struct {
+	u16 class;
+	u16 instance;
+} intel_region_map[] = {
+	[INTEL_REGION_SMEM] = {
+		.class = INTEL_MEMORY_SYSTEM,
+		.instance = 0,
+	},
+	[INTEL_REGION_LMEM] = {
+		.class = INTEL_MEMORY_LOCAL,
+		.instance = 0,
+	},
+	[INTEL_REGION_STOLEN_SMEM] = {
+		.class = INTEL_MEMORY_STOLEN_SYSTEM,
+		.instance = 0,
+	},
 };
 
 struct intel_memory_region *
@@ -156,7 +164,20 @@ int intel_memory_region_init_buddy(struct intel_memory_region *mem)
 
 void intel_memory_region_release_buddy(struct intel_memory_region *mem)
 {
+	i915_buddy_free_list(&mem->mm, &mem->reserved);
 	i915_buddy_fini(&mem->mm);
+}
+
+int intel_memory_region_reserve(struct intel_memory_region *mem,
+				u64 offset, u64 size)
+{
+	int ret;
+
+	mutex_lock(&mem->mm_lock);
+	ret = i915_buddy_alloc_range(&mem->mm, &mem->reserved, offset, size);
+	mutex_unlock(&mem->mm_lock);
+
+	return ret;
 }
 
 struct intel_memory_region *
@@ -185,6 +206,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mutex_init(&mem->objects.lock);
 	INIT_LIST_HEAD(&mem->objects.list);
 	INIT_LIST_HEAD(&mem->objects.purgeable);
+	INIT_LIST_HEAD(&mem->reserved);
 
 	mutex_init(&mem->mm_lock);
 
@@ -245,22 +267,22 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 
 	for (i = 0; i < ARRAY_SIZE(i915->mm.regions); i++) {
 		struct intel_memory_region *mem = ERR_PTR(-ENODEV);
-		u32 type;
+		u16 type, instance;
 
 		if (!HAS_REGION(i915, BIT(i)))
 			continue;
 
-		type = MEMORY_TYPE_FROM_REGION(intel_region_map[i]);
+		type = intel_region_map[i].class;
+		instance = intel_region_map[i].instance;
 		switch (type) {
 		case INTEL_MEMORY_SYSTEM:
 			mem = i915_gem_shmem_setup(i915);
 			break;
-		case INTEL_MEMORY_STOLEN:
+		case INTEL_MEMORY_STOLEN_SYSTEM:
 			mem = i915_gem_stolen_setup(i915);
 			break;
-		case INTEL_MEMORY_LOCAL:
-			mem = intel_setup_fake_lmem(i915);
-			break;
+		default:
+			continue;
 		}
 
 		if (IS_ERR(mem)) {
@@ -271,9 +293,9 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 			goto out_cleanup;
 		}
 
-		mem->id = intel_region_map[i];
+		mem->id = i;
 		mem->type = type;
-		mem->instance = MEMORY_INSTANCE_FROM_REGION(intel_region_map[i]);
+		mem->instance = instance;
 
 		i915->mm.regions[i] = mem;
 	}
