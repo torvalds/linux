@@ -15,6 +15,8 @@
 #define QCA8K_NUM_PORTS					7
 #define QCA8K_MAX_MTU					9000
 
+#define PHY_ID_QCA8327					0x004dd034
+#define QCA8K_ID_QCA8327				0x12
 #define PHY_ID_QCA8337					0x004dd036
 #define QCA8K_ID_QCA8337				0x13
 
@@ -211,6 +213,10 @@ enum qca8k_vlan_cmd {
 
 struct ar8xxx_port_status {
 	int enabled;
+};
+
+struct qca8k_match_data {
+	u8 id;
 };
 
 struct qca8k_priv {
