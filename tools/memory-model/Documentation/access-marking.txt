@@ -126,6 +126,11 @@ consistent errors, which in turn are quite capable of breaking heuristics.
 Therefore use of data_race() should be limited to cases where some other
 code (such as a barrier() call) will force the occasional reload.
 
+Note that this use case requires that the heuristic be able to handle
+any possible error.  In contrast, if the heuristics might be fatally
+confused by one or more of the possible erroneous values, use READ_ONCE()
+instead of data_race().
+
 In theory, plain C-language loads can also be used for this use case.
 However, in practice this will have the disadvantage of causing KCSAN
 to generate false positives because KCSAN will have no way of knowing
