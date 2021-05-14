@@ -8,6 +8,7 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
+static const char * const state_str[] = { "off", "on" };
 static const char * const hclge_mac_state_str[] = {
 	"TO_ADD", "TO_DEL", "ACTIVE"
 };
@@ -1566,32 +1567,34 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 	}
 }
 
-static void hclge_dbg_dump_loopback(struct hclge_dev *hdev)
+static int hclge_dbg_dump_loopback(struct hclge_dev *hdev, char *buf, int len)
 {
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	struct hclge_config_mac_mode_cmd *req_app;
 	struct hclge_common_lb_cmd *req_common;
 	struct hclge_desc desc;
 	u8 loopback_en;
+	int pos = 0;
 	int ret;
 
 	req_app = (struct hclge_config_mac_mode_cmd *)desc.data;
 	req_common = (struct hclge_common_lb_cmd *)desc.data;
 
-	dev_info(&hdev->pdev->dev, "mac id: %u\n", hdev->hw.mac.mac_id);
+	pos += scnprintf(buf + pos, len - pos, "mac id: %u\n",
+			 hdev->hw.mac.mac_id);
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"failed to dump app loopback status, ret = %d\n", ret);
-		return;
+		return ret;
 	}
 
 	loopback_en = hnae3_get_bit(le32_to_cpu(req_app->txrx_pad_fcs_loop_en),
 				    HCLGE_MAC_APP_LP_B);
-	dev_info(&hdev->pdev->dev, "app loopback: %s\n",
-		 loopback_en ? "on" : "off");
+	pos += scnprintf(buf + pos, len - pos, "app loopback: %s\n",
+			 state_str[loopback_en]);
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -1599,27 +1602,30 @@ static void hclge_dbg_dump_loopback(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"failed to dump common loopback status, ret = %d\n",
 			ret);
-		return;
+		return ret;
 	}
 
 	loopback_en = req_common->enable & HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
-	dev_info(&hdev->pdev->dev, "serdes serial loopback: %s\n",
-		 loopback_en ? "on" : "off");
+	pos += scnprintf(buf + pos, len - pos, "serdes serial loopback: %s\n",
+			 state_str[loopback_en]);
 
 	loopback_en = req_common->enable &
-			HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B;
-	dev_info(&hdev->pdev->dev, "serdes parallel loopback: %s\n",
-		 loopback_en ? "on" : "off");
+			HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B ? 1 : 0;
+	pos += scnprintf(buf + pos, len - pos, "serdes parallel loopback: %s\n",
+			 state_str[loopback_en]);
 
 	if (phydev) {
-		dev_info(&hdev->pdev->dev, "phy loopback: %s\n",
-			 phydev->loopback_enabled ? "on" : "off");
+		loopback_en = phydev->loopback_enabled;
+		pos += scnprintf(buf + pos, len - pos, "phy loopback: %s\n",
+				 state_str[loopback_en]);
 	} else if (hnae3_dev_phy_imp_supported(hdev)) {
 		loopback_en = req_common->enable &
 			      HCLGE_CMD_GE_PHY_INNER_LOOP_B;
-		dev_info(&hdev->pdev->dev, "phy loopback: %s\n",
-			 loopback_en ? "on" : "off");
+		pos += scnprintf(buf + pos, len - pos, "phy loopback: %s\n",
+				 state_str[loopback_en]);
 	}
+
+	return 0;
 }
 
 /* hclge_dbg_dump_mac_tnl_status: print message about mac tnl interrupt
@@ -1785,7 +1791,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 {
 #define DUMP_REG	"dump reg"
 #define DUMP_TM_MAP	"dump tm map"
-#define DUMP_LOOPBACK	"dump loopback"
 #define DUMP_INTERRUPT	"dump intr"
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -1818,9 +1823,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 					  &cmd_buf[sizeof("dump ncl_config")]);
 	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
 		hclge_dbg_dump_mac_tnl_status(hdev);
-	} else if (strncmp(cmd_buf, DUMP_LOOPBACK,
-		   strlen(DUMP_LOOPBACK)) == 0) {
-		hclge_dbg_dump_loopback(hdev);
 	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
@@ -1859,6 +1861,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_MNG_TBL,
 		.dbg_dump = hclge_dbg_dump_mng_table,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_LOOPBACK,
+		.dbg_dump = hclge_dbg_dump_loopback,
 	},
 };
 
