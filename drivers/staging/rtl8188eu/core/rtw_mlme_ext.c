@@ -4038,9 +4038,6 @@ void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 {
 	struct adapter *padapter = container_of(pmlmeext, struct adapter, mlmeextpriv);
 
-	if (!padapter)
-		return;
-
 	if (padapter->bDriverStopped) {
 		del_timer_sync(&pmlmeext->survey_timer);
 		del_timer_sync(&pmlmeext->link_timer);
