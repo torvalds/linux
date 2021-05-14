@@ -2163,6 +2163,9 @@ config TEST_KSTRTOX
 config TEST_PRINTF
 	tristate "Test printf() family of functions at runtime"
 
+config TEST_SCANF
+	tristate "Test scanf() family of functions at runtime"
+
 config TEST_BITMAP
 	tristate "Test bitmap_*() family of functions at runtime"
 	help
