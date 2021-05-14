@@ -59,20 +59,6 @@
 #define RETIMER_REDRIVER_INFO(...) \
 	DC_LOG_RETIMER_REDRIVER(  \
 		__VA_ARGS__)
-/*******************************************************************************
- * Private structures
- ******************************************************************************/
-
-enum {
-	PEAK_FACTOR_X1000 = 1006,
-	/*
-	 * Some receivers fail to train on first try and are good
-	 * on subsequent tries. 2 retries should be plenty. If we
-	 * don't have a successful training then we don't expect to
-	 * ever get one.
-	 */
-	LINK_TRAINING_MAX_VERIFY_RETRY = 2
-};
 
 /*******************************************************************************
  * Private functions
@@ -718,11 +704,9 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 
 static bool detect_dp(struct dc_link *link,
 		      struct display_sink_capability *sink_caps,
-		      bool *converter_disable_audio,
-		      struct audio_support *audio_support,
 		      enum dc_detect_reason reason)
 {
-	bool boot = false;
+	struct audio_support *audio_support = &link->dc->res_pool->audio_support;
 
 	sink_caps->signal = link_detect_sink(link, reason);
 	sink_caps->transaction_type =
@@ -745,60 +729,12 @@ static bool detect_dp(struct dc_link *link,
 			 * of this function). */
 			query_hdcp_capability(SIGNAL_TYPE_DISPLAY_PORT_MST, link);
 #endif
-			/*
-			 * This call will initiate MST topology discovery. Which
-			 * will detect MST ports and add new DRM connector DRM
-			 * framework. Then read EDID via remote i2c over aux. In
-			 * the end, will notify DRM detect result and save EDID
-			 * into DRM framework.
-			 *
-			 * .detect is called by .fill_modes.
-			 * .fill_modes is called by user mode ioctl
-			 * DRM_IOCTL_MODE_GETCONNECTOR.
-			 *
-			 * .get_modes is called by .fill_modes.
-			 *
-			 * call .get_modes, AMDGPU DM implementation will create
-			 * new dc_sink and add to dc_link. For long HPD plug
-			 * in/out, MST has its own handle.
-			 *
-			 * Therefore, just after dc_create, link->sink is not
-			 * created for MST until user mode app calls
-			 * DRM_IOCTL_MODE_GETCONNECTOR.
-			 *
-			 * Need check ->sink usages in case ->sink = NULL
-			 * TODO: s3 resume check
-			 */
-			if (reason == DETECT_REASON_BOOT)
-				boot = true;
-
-			dm_helpers_dp_update_branch_info(link->ctx, link);
-
-			if (!dm_helpers_dp_mst_start_top_mgr(link->ctx,
-							     link, boot)) {
-				/* MST not supported */
-				link->type = dc_connection_single;
-				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
-			}
 		}
 
 		if (link->type != dc_connection_mst_branch &&
-		    is_dp_branch_device(link)) {
+				is_dp_branch_device(link))
 			/* DP SST branch */
 			link->type = dc_connection_sst_branch;
-			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
-				/*
-				 * SST branch unplug processing for short irq
-				 */
-				link_disconnect_sink(link);
-				return true;
-			}
-
-			if (is_dp_active_dongle(link) &&
-				(link->dpcd_caps.dongle_type !=
-					DISPLAY_DONGLE_DP_HDMI_CONVERTER))
-				*converter_disable_audio = true;
-		}
 	} else {
 		/* DP passive dongles */
 		sink_caps->signal = dp_passive_dongle_detection(link->ddc,
@@ -893,7 +829,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	struct dc_sink *sink = NULL;
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
-	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	enum dc_connection_type pre_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
@@ -984,33 +919,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 					return false;
 			}
 
-			if (!detect_dp(link, &sink_caps,
-				       &converter_disable_audio,
-				       aud_support, reason)) {
+			if (!detect_dp(link, &sink_caps, reason)) {
 				if (prev_sink)
 					dc_sink_release(prev_sink);
 				return false;
-			}
-
-			// Check if dpcp block is the same
-			if (prev_sink) {
-				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps,
-					   sizeof(struct dpcd_caps)))
-					same_dpcd = false;
-			}
-			/* Active SST downstream branch device unplug*/
-			if (link->type == dc_connection_sst_branch &&
-			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
-				if (prev_sink)
-					/* Downstream unplug */
-					dc_sink_release(prev_sink);
-				return true;
-			}
-
-			// link switch from MST to non-MST stop topology manager
-			if (pre_connection_type == dc_connection_mst_branch &&
-				link->type != dc_connection_mst_branch) {
-				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 			}
 
 			if (link->type == dc_connection_mst_branch) {
@@ -1023,15 +935,69 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				 */
 				dp_verify_mst_link_cap(link);
 
-				if (prev_sink)
-					dc_sink_release(prev_sink);
-				return false;
+				/*
+				 * This call will initiate MST topology discovery. Which
+				 * will detect MST ports and add new DRM connector DRM
+				 * framework. Then read EDID via remote i2c over aux. In
+				 * the end, will notify DRM detect result and save EDID
+				 * into DRM framework.
+				 *
+				 * .detect is called by .fill_modes.
+				 * .fill_modes is called by user mode ioctl
+				 * DRM_IOCTL_MODE_GETCONNECTOR.
+				 *
+				 * .get_modes is called by .fill_modes.
+				 *
+				 * call .get_modes, AMDGPU DM implementation will create
+				 * new dc_sink and add to dc_link. For long HPD plug
+				 * in/out, MST has its own handle.
+				 *
+				 * Therefore, just after dc_create, link->sink is not
+				 * created for MST until user mode app calls
+				 * DRM_IOCTL_MODE_GETCONNECTOR.
+				 *
+				 * Need check ->sink usages in case ->sink = NULL
+				 * TODO: s3 resume check
+				 */
+
+				dm_helpers_dp_update_branch_info(link->ctx, link);
+				if (dm_helpers_dp_mst_start_top_mgr(link->ctx,
+						link, reason == DETECT_REASON_BOOT)) {
+					if (prev_sink)
+						dc_sink_release(prev_sink);
+					return false;
+				} else {
+					link->type = dc_connection_sst_branch;
+					sink_caps.signal = SIGNAL_TYPE_DISPLAY_PORT;
+				}
 			}
+
+			/* Active SST downstream branch device unplug*/
+			if (link->type == dc_connection_sst_branch &&
+			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
+				if (prev_sink)
+					/* Downstream unplug */
+					dc_sink_release(prev_sink);
+				return true;
+			}
+
+			/* disable audio for non DP to HDMI active sst converter */
+			if (link->type == dc_connection_sst_branch &&
+					is_dp_active_dongle(link) &&
+					(link->dpcd_caps.dongle_type !=
+							DISPLAY_DONGLE_DP_HDMI_CONVERTER))
+				converter_disable_audio = true;
+
+			// link switch from MST to non-MST stop topology manager
+			if (pre_connection_type == dc_connection_mst_branch &&
+					link->type != dc_connection_mst_branch)
+				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
+
 
 			// For seamless boot, to skip verify link cap, we read UEFI settings and set them as verified.
 			if (reason == DETECT_REASON_BOOT &&
-			    !dc_ctx->dc->config.power_down_display_on_boot &&
-			    link->link_status.link_active)
+					!dc_ctx->dc->config.power_down_display_on_boot &&
+					link->link_status.link_active)
 				perform_dp_seamless_boot = true;
 
 			if (perform_dp_seamless_boot) {
@@ -1214,11 +1180,11 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		link->dongle_max_pix_clk = 0;
 	}
 
-	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
+	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
 		  link->link_index, sink,
 		  (sink_caps.signal ==
 		   SIGNAL_TYPE_NONE ? "Disconnected" : "Connected"),
-		  prev_sink, same_dpcd, same_edid);
+		  prev_sink, same_edid);
 
 	if (prev_sink)
 		dc_sink_release(prev_sink);
