@@ -5185,6 +5185,14 @@ static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
 	return level > 0;
 }
 
+static int skl_wm_max_lines(struct drm_i915_private *dev_priv)
+{
+	if (DISPLAY_VER(dev_priv) >= 13)
+		return 255;
+	else
+		return 31;
+}
+
 static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 				 int level,
 				 unsigned int latency,
@@ -5289,7 +5297,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	if (!skl_wm_has_lines(dev_priv, level))
 		lines = 0;
 
-	if (lines > 31) {
+	if (lines > skl_wm_max_lines(dev_priv)) {
 		/* reject it */
 		result->min_ddb_alloc = U16_MAX;
 		return;
@@ -5585,7 +5593,7 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 	if (level->ignore_lines)
 		val |= PLANE_WM_IGNORE_LINES;
 	val |= level->blocks;
-	val |= level->lines << PLANE_WM_LINES_SHIFT;
+	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
 	intel_de_write_fw(dev_priv, reg, val);
 }
@@ -6193,8 +6201,7 @@ static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
 	level->enable = val & PLANE_WM_EN;
 	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
 	level->blocks = val & PLANE_WM_BLOCKS_MASK;
-	level->lines = (val >> PLANE_WM_LINES_SHIFT) &
-		PLANE_WM_LINES_MASK;
+	level->lines = REG_FIELD_GET(PLANE_WM_LINES_MASK, val);
 }
 
 void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
