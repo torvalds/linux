@@ -2679,6 +2679,12 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		}
 	}
 
+	/* This nlp_put pairs with lpfc_sli4_resume_rpi */
+	if (pmb->u.mb.mbxCommand == MBX_RESUME_RPI) {
+		ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+		lpfc_nlp_put(ndlp);
+	}
+
 	/* Check security permission status on INIT_LINK mailbox command */
 	if ((pmb->u.mb.mbxCommand == MBX_INIT_LINK) &&
 	    (pmb->u.mb.mbxStatus == MBXERR_SEC_NO_PERMISSION))
@@ -19037,14 +19043,28 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 	if (!mboxq)
 		return -ENOMEM;
 
+	/* If cmpl assigned, then this nlp_get pairs with
+	 * lpfc_mbx_cmpl_resume_rpi.
+	 *
+	 * Else cmpl is NULL, then this nlp_get pairs with
+	 * lpfc_sli_def_mbox_cmpl.
+	 */
+	if (!lpfc_nlp_get(ndlp)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+				"2122 %s: Failed to get nlp ref\n",
+				__func__);
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return -EIO;
+	}
+
 	/* Post all rpi memory regions to the port. */
 	lpfc_resume_rpi(mboxq, ndlp);
 	if (cmpl) {
 		mboxq->mbox_cmpl = cmpl;
 		mboxq->ctx_buf = arg;
-		mboxq->ctx_ndlp = ndlp;
 	} else
 		mboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	mboxq->ctx_ndlp = ndlp;
 	mboxq->vport = ndlp->vport;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
@@ -19052,6 +19072,7 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 				"2010 Resume RPI Mailbox failed "
 				"status %d, mbxStatus x%x\n", rc,
 				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
+		lpfc_nlp_put(ndlp);
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		return -EIO;
 	}

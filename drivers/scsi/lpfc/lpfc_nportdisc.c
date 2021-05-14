@@ -662,6 +662,10 @@ lpfc_mbx_cmpl_resume_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, elsiocb,
 			ndlp, NULL);
 	}
+
+	/* This nlp_put pairs with lpfc_sli4_resume_rpi */
+	lpfc_nlp_put(ndlp);
+
 	kfree(elsiocb);
 	mempool_free(mboxq, phba->mbox_mem_pool);
 }
