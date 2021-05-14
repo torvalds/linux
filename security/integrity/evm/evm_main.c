@@ -342,7 +342,8 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
  * For posix xattr acls only, permit security.evm, even if it currently
  * doesn't exist, to be updated unless the EVM signature is immutable.
  */
-static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
+static int evm_protect_xattr(struct user_namespace *mnt_userns,
+			     struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
 	enum integrity_status evm_status;
@@ -406,6 +407,7 @@ out:
 
 /**
  * evm_inode_setxattr - protect the EVM extended attribute
+ * @mnt_userns: user namespace of the idmapped mount
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  * @xattr_value: pointer to the new extended attribute value
@@ -417,8 +419,9 @@ out:
  * userspace from writing HMAC value.  Writing 'security.evm' requires
  * requires CAP_SYS_ADMIN privileges.
  */
-int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
-		       const void *xattr_value, size_t xattr_value_len)
+int evm_inode_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		       const char *xattr_name, const void *xattr_value,
+		       size_t xattr_value_len)
 {
 	const struct evm_ima_xattr_data *xattr_data = xattr_value;
 
@@ -435,19 +438,21 @@ int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		    xattr_data->type != EVM_XATTR_PORTABLE_DIGSIG)
 			return -EPERM;
 	}
-	return evm_protect_xattr(dentry, xattr_name, xattr_value,
+	return evm_protect_xattr(mnt_userns, dentry, xattr_name, xattr_value,
 				 xattr_value_len);
 }
 
 /**
  * evm_inode_removexattr - protect the EVM extended attribute
+ * @mnt_userns: user namespace of the idmapped mount
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  *
  * Removing 'security.evm' requires CAP_SYS_ADMIN privileges and that
  * the current value is valid.
  */
-int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
+int evm_inode_removexattr(struct user_namespace *mnt_userns,
+			  struct dentry *dentry, const char *xattr_name)
 {
 	/* Policy permits modification of the protected xattrs even though
 	 * there's no HMAC key loaded
@@ -455,7 +460,7 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
 
-	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
+	return evm_protect_xattr(mnt_userns, dentry, xattr_name, NULL, 0);
 }
 
 static void evm_reset_status(struct inode *inode)
