@@ -719,10 +719,10 @@ static int vmw_setup_pci_resources(struct vmw_private *dev,
 		dev->rmmio = devm_ioremap(dev->drm.dev,
 					  rmmio_start,
 					  rmmio_size);
-		if (IS_ERR(dev->rmmio)) {
+		if (!dev->rmmio) {
 			DRM_ERROR("Failed mapping registers mmio memory.\n");
 			pci_release_regions(pdev);
-			return PTR_ERR(dev->rmmio);
+			return -ENOMEM;
 		}
 	} else if (pci_id == VMWGFX_PCI_ID_SVGA2) {
 		dev->io_start = pci_resource_start(pdev, 0);
