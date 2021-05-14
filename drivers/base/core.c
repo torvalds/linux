@@ -199,6 +199,12 @@ static void device_link_synchronize_removal(void)
 {
 	synchronize_srcu(&device_links_srcu);
 }
+
+static void device_link_remove_from_lists(struct device_link *link)
+{
+	list_del_rcu(&link->s_node);
+	list_del_rcu(&link->c_node);
+}
 #else /* !CONFIG_SRCU */
 static DECLARE_RWSEM(device_links_lock);
 
@@ -232,6 +238,12 @@ int device_links_read_lock_held(void)
 
 static inline void device_link_synchronize_removal(void)
 {
+}
+
+static void device_link_remove_from_lists(struct device_link *link)
+{
+	list_del(&link->s_node);
+	list_del(&link->c_node);
 }
 #endif /* !CONFIG_SRCU */
 
@@ -855,7 +867,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(device_link_add);
 
-#ifdef CONFIG_SRCU
 static void __device_link_del(struct kref *kref)
 {
 	struct device_link *link = container_of(kref, struct device_link, kref);
@@ -865,25 +876,9 @@ static void __device_link_del(struct kref *kref)
 
 	pm_runtime_drop_link(link);
 
-	list_del_rcu(&link->s_node);
-	list_del_rcu(&link->c_node);
+	device_link_remove_from_lists(link);
 	device_unregister(&link->link_dev);
 }
-#else /* !CONFIG_SRCU */
-static void __device_link_del(struct kref *kref)
-{
-	struct device_link *link = container_of(kref, struct device_link, kref);
-
-	dev_info(link->consumer, "Dropping the link to %s\n",
-		 dev_name(link->supplier));
-
-	pm_runtime_drop_link(link);
-
-	list_del(&link->s_node);
-	list_del(&link->c_node);
-	device_unregister(&link->link_dev);
-}
-#endif /* !CONFIG_SRCU */
 
 static void device_link_put_kref(struct device_link *link)
 {
