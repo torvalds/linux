@@ -2975,7 +2975,7 @@ static void
 dump_log_buf(void)
 {
 	struct kmsg_dump_iter iter;
-	unsigned char buf[128];
+	static unsigned char buf[1024];
 	size_t len;
 
 	if (setjmp(bus_error_jmp) != 0) {
