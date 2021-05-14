@@ -83,8 +83,8 @@
 #define AT803X_MODE_CFG_MASK			0x0F
 #define AT803X_MODE_CFG_SGMII			0x01
 
-#define AT803X_PSSR			0x11	/*PHY-Specific Status Register*/
-#define AT803X_PSSR_MR_AN_COMPLETE	0x0200
+#define AT803X_PSSR				0x11	/*PHY-Specific Status Register*/
+#define AT803X_PSSR_MR_AN_COMPLETE		0x0200
 
 #define AT803X_DEBUG_REG_0			0x00
 #define AT803X_DEBUG_RX_CLK_DLY_EN		BIT(15)
@@ -128,24 +128,28 @@
 #define AT803X_CLK_OUT_STRENGTH_HALF		1
 #define AT803X_CLK_OUT_STRENGTH_QUARTER		2
 
-#define AT803X_DEFAULT_DOWNSHIFT 5
-#define AT803X_MIN_DOWNSHIFT 2
-#define AT803X_MAX_DOWNSHIFT 9
+#define AT803X_DEFAULT_DOWNSHIFT		5
+#define AT803X_MIN_DOWNSHIFT			2
+#define AT803X_MAX_DOWNSHIFT			9
 
 #define AT803X_MMD3_SMARTEEE_CTL1		0x805b
 #define AT803X_MMD3_SMARTEEE_CTL2		0x805c
 #define AT803X_MMD3_SMARTEEE_CTL3		0x805d
 #define AT803X_MMD3_SMARTEEE_CTL3_LPI_EN	BIT(8)
 
-#define ATH9331_PHY_ID 0x004dd041
-#define ATH8030_PHY_ID 0x004dd076
-#define ATH8031_PHY_ID 0x004dd074
-#define ATH8032_PHY_ID 0x004dd023
-#define ATH8035_PHY_ID 0x004dd072
+#define ATH9331_PHY_ID				0x004dd041
+#define ATH8030_PHY_ID				0x004dd076
+#define ATH8031_PHY_ID				0x004dd074
+#define ATH8032_PHY_ID				0x004dd023
+#define ATH8035_PHY_ID				0x004dd072
 #define AT8030_PHY_ID_MASK			0xffffffef
 
-#define AT803X_PAGE_FIBER		0
-#define AT803X_PAGE_COPPER		1
+#define AT803X_PAGE_FIBER			0
+#define AT803X_PAGE_COPPER			1
+
+/* don't turn off internal PLL */
+#define AT803X_KEEP_PLL_ENABLED			BIT(0)
+#define AT803X_DISABLE_SMARTEEE			BIT(1)
 
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
@@ -153,8 +157,6 @@ MODULE_LICENSE("GPL");
 
 struct at803x_priv {
 	int flags;
-#define AT803X_KEEP_PLL_ENABLED	BIT(0)	/* don't turn off internal PLL */
-#define AT803X_DISABLE_SMARTEEE	BIT(1)
 	u16 clk_25m_reg;
 	u16 clk_25m_mask;
 	u8 smarteee_lpi_tw_1g;
