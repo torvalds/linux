@@ -8,6 +8,10 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
+static const char * const hclge_mac_state_str[] = {
+	"TO_ADD", "TO_DEL", "ACTIVE"
+};
+
 static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 	{ .reg_type = "bios common",
 	  .dfx_msg = &hclge_dbg_bios_common_reg[0],
@@ -70,6 +74,35 @@ static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 		       .offset = HCLGE_DBG_DFX_TQP_OFFSET,
 		       .cmd = HCLGE_OPC_DFX_TQP_REG } },
 };
+
+static void hclge_dbg_fill_content(char *content, u16 len,
+				   const struct hclge_dbg_item *items,
+				   const char **result, u16 size)
+{
+	char *pos = content;
+	u16 i;
+
+	memset(content, ' ', len);
+	for (i = 0; i < size; i++) {
+		if (result)
+			strncpy(pos, result[i], strlen(result[i]));
+		else
+			strncpy(pos, items[i].name, strlen(items[i].name));
+		pos += strlen(items[i].name) + items[i].interval;
+	}
+	*pos++ = '\n';
+	*pos++ = '\0';
+}
+
+static char *hclge_dbg_get_func_id_str(char *buf, u8 id)
+{
+	if (id)
+		sprintf(buf, "vf%u", id - 1);
+	else
+		sprintf(buf, "pf");
+
+	return buf;
+}
 
 static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset)
 {
@@ -1693,45 +1726,65 @@ static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
 	hclge_dbg_dump_qs_shaper_single(hdev, qsid);
 }
 
-static int hclge_dbg_dump_mac_list(struct hclge_dev *hdev, const char *cmd_buf,
-				   bool is_unicast)
+static const struct hclge_dbg_item mac_list_items[] = {
+	{ "FUNC_ID", 2 },
+	{ "MAC_ADDR", 12 },
+	{ "STATE", 2 },
+};
+
+static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
+				    bool is_unicast)
 {
+	char data_str[ARRAY_SIZE(mac_list_items)][HCLGE_DBG_DATA_STR_LEN];
+	char content[HCLGE_DBG_INFO_LEN], str_id[HCLGE_DBG_ID_LEN];
+	char *result[ARRAY_SIZE(mac_list_items)];
 	struct hclge_mac_node *mac_node, *tmp;
 	struct hclge_vport *vport;
 	struct list_head *list;
 	u32 func_id;
-	int ret;
+	int pos = 0;
+	int i;
 
-	ret = kstrtouint(cmd_buf, 0, &func_id);
-	if (ret < 0) {
-		dev_err(&hdev->pdev->dev,
-			"dump mac list: bad command string, ret = %d\n", ret);
-		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(mac_list_items); i++)
+		result[i] = &data_str[i][0];
+
+	pos += scnprintf(buf + pos, len - pos, "%s MAC_LIST:\n",
+			 is_unicast ? "UC" : "MC");
+	hclge_dbg_fill_content(content, sizeof(content), mac_list_items,
+			       NULL, ARRAY_SIZE(mac_list_items));
+	pos += scnprintf(buf + pos, len - pos, "%s", content);
+
+	for (func_id = 0; func_id < hdev->num_alloc_vport; func_id++) {
+		vport = &hdev->vport[func_id];
+		list = is_unicast ? &vport->uc_mac_list : &vport->mc_mac_list;
+		spin_lock_bh(&vport->mac_list_lock);
+		list_for_each_entry_safe(mac_node, tmp, list, node) {
+			i = 0;
+			result[i++] = hclge_dbg_get_func_id_str(str_id,
+								func_id);
+			sprintf(result[i++], "%pM", mac_node->mac_addr);
+			sprintf(result[i++], "%5s",
+				hclge_mac_state_str[mac_node->state]);
+			hclge_dbg_fill_content(content, sizeof(content),
+					       mac_list_items,
+					       (const char **)result,
+					       ARRAY_SIZE(mac_list_items));
+			pos += scnprintf(buf + pos, len - pos, "%s", content);
+		}
+		spin_unlock_bh(&vport->mac_list_lock);
 	}
+}
 
-	if (func_id >= hdev->num_alloc_vport) {
-		dev_err(&hdev->pdev->dev,
-			"function id(%u) is out of range(0-%u)\n", func_id,
-			hdev->num_alloc_vport - 1);
-		return -EINVAL;
-	}
+static int hclge_dbg_dump_mac_uc(struct hclge_dev *hdev, char *buf, int len)
+{
+	hclge_dbg_dump_mac_list(hdev, buf, len, true);
 
-	vport = &hdev->vport[func_id];
+	return 0;
+}
 
-	list = is_unicast ? &vport->uc_mac_list : &vport->mc_mac_list;
-
-	dev_info(&hdev->pdev->dev, "vport %u %s mac list:\n",
-		 func_id, is_unicast ? "uc" : "mc");
-	dev_info(&hdev->pdev->dev, "mac address              state\n");
-
-	spin_lock_bh(&vport->mac_list_lock);
-
-	list_for_each_entry_safe(mac_node, tmp, list, node) {
-		dev_info(&hdev->pdev->dev, "%pM         %d\n",
-			 mac_node->mac_addr, mac_node->state);
-	}
-
-	spin_unlock_bh(&vport->mac_list_lock);
+static int hclge_dbg_dump_mac_mc(struct hclge_dev *hdev, char *buf, int len)
+{
+	hclge_dbg_dump_mac_list(hdev, buf, len, false);
 
 	return 0;
 }
@@ -1781,14 +1834,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
-	} else if (strncmp(cmd_buf, "dump uc mac list", 16) == 0) {
-		hclge_dbg_dump_mac_list(hdev,
-					&cmd_buf[sizeof("dump uc mac list")],
-					true);
-	} else if (strncmp(cmd_buf, "dump mc mac list", 16) == 0) {
-		hclge_dbg_dump_mac_list(hdev,
-					&cmd_buf[sizeof("dump mc mac list")],
-					false);
 	} else if (strncmp(cmd_buf, DUMP_INTERRUPT,
 		   strlen(DUMP_INTERRUPT)) == 0) {
 		hclge_dbg_dump_interrupt(hdev);
@@ -1812,6 +1857,14 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_TM_QSET,
 		.dbg_dump = hclge_dbg_dump_tm_qset,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_MAC_UC,
+		.dbg_dump = hclge_dbg_dump_mac_uc,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_MAC_MC,
+		.dbg_dump = hclge_dbg_dump_mac_mc,
 	},
 };
 
