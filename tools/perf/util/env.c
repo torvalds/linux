@@ -202,6 +202,12 @@ void perf_env__exit(struct perf_env *env)
 	for (i = 0; i < env->nr_memory_nodes; i++)
 		zfree(&env->memory_nodes[i].set);
 	zfree(&env->memory_nodes);
+
+	for (i = 0; i < env->nr_hybrid_nodes; i++) {
+		zfree(&env->hybrid_nodes[i].pmu_name);
+		zfree(&env->hybrid_nodes[i].cpus);
+	}
+	zfree(&env->hybrid_nodes);
 }
 
 void perf_env__init(struct perf_env *env __maybe_unused)

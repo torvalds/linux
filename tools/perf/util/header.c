@@ -932,6 +932,40 @@ static int write_clock_data(struct feat_fd *ff,
 	return do_write(ff, data64, sizeof(*data64));
 }
 
+static int write_hybrid_topology(struct feat_fd *ff,
+				 struct evlist *evlist __maybe_unused)
+{
+	struct hybrid_topology *tp;
+	int ret;
+	u32 i;
+
+	tp = hybrid_topology__new();
+	if (!tp)
+		return -ENOENT;
+
+	ret = do_write(ff, &tp->nr, sizeof(u32));
+	if (ret < 0)
+		goto err;
+
+	for (i = 0; i < tp->nr; i++) {
+		struct hybrid_topology_node *n = &tp->nodes[i];
+
+		ret = do_write_string(ff, n->pmu_name);
+		if (ret < 0)
+			goto err;
+
+		ret = do_write_string(ff, n->cpus);
+		if (ret < 0)
+			goto err;
+	}
+
+	ret = 0;
+
+err:
+	hybrid_topology__delete(tp);
+	return ret;
+}
+
 static int write_dir_format(struct feat_fd *ff,
 			    struct evlist *evlist __maybe_unused)
 {
@@ -1621,6 +1655,18 @@ static void print_clock_data(struct feat_fd *ff, FILE *fp)
 		    tstr, (long) tod_ns.tv_sec, (int) tod_ns.tv_usec,
 		    (long) clockid_ns.tv_sec, clockid_ns.tv_nsec,
 		    clockid_name(clockid));
+}
+
+static void print_hybrid_topology(struct feat_fd *ff, FILE *fp)
+{
+	int i;
+	struct hybrid_node *n;
+
+	fprintf(fp, "# hybrid cpu system:\n");
+	for (i = 0; i < ff->ph->env.nr_hybrid_nodes; i++) {
+		n = &ff->ph->env.hybrid_nodes[i];
+		fprintf(fp, "# %s cpu list : %s\n", n->pmu_name, n->cpus);
+	}
 }
 
 static void print_dir_format(struct feat_fd *ff, FILE *fp)
@@ -2849,6 +2895,46 @@ static int process_clock_data(struct feat_fd *ff,
 	return 0;
 }
 
+static int process_hybrid_topology(struct feat_fd *ff,
+				   void *data __maybe_unused)
+{
+	struct hybrid_node *nodes, *n;
+	u32 nr, i;
+
+	/* nr nodes */
+	if (do_read_u32(ff, &nr))
+		return -1;
+
+	nodes = zalloc(sizeof(*nodes) * nr);
+	if (!nodes)
+		return -ENOMEM;
+
+	for (i = 0; i < nr; i++) {
+		n = &nodes[i];
+
+		n->pmu_name = do_read_string(ff);
+		if (!n->pmu_name)
+			goto error;
+
+		n->cpus = do_read_string(ff);
+		if (!n->cpus)
+			goto error;
+	}
+
+	ff->ph->env.nr_hybrid_nodes = nr;
+	ff->ph->env.hybrid_nodes = nodes;
+	return 0;
+
+error:
+	for (i = 0; i < nr; i++) {
+		free(nodes[i].pmu_name);
+		free(nodes[i].cpus);
+	}
+
+	free(nodes);
+	return -1;
+}
+
 static int process_dir_format(struct feat_fd *ff,
 			      void *_data __maybe_unused)
 {
@@ -3117,6 +3203,7 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(COMPRESSED,	compressed,	false),
 	FEAT_OPR(CPU_PMU_CAPS,	cpu_pmu_caps,	false),
 	FEAT_OPR(CLOCK_DATA,	clock_data,	false),
+	FEAT_OPN(HYBRID_TOPOLOGY,	hybrid_topology,	true),
 };
 
 struct header_print_data {

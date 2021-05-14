@@ -37,6 +37,11 @@ struct memory_node {
 	unsigned long	*set;
 };
 
+struct hybrid_node {
+	char	*pmu_name;
+	char	*cpus;
+};
+
 struct perf_env {
 	char			*hostname;
 	char			*os_release;
@@ -59,6 +64,7 @@ struct perf_env {
 	int			nr_pmu_mappings;
 	int			nr_groups;
 	int			nr_cpu_pmu_caps;
+	int			nr_hybrid_nodes;
 	char			*cmdline;
 	const char		**cmdline_argv;
 	char			*sibling_cores;
@@ -77,6 +83,7 @@ struct perf_env {
 	struct numa_node	*numa_nodes;
 	struct memory_node	*memory_nodes;
 	unsigned long long	 memory_bsize;
+	struct hybrid_node	*hybrid_nodes;
 #ifdef HAVE_LIBBPF_SUPPORT
 	/*
 	 * bpf_info_lock protects bpf rbtrees. This is needed because the
