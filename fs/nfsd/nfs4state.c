@@ -2665,6 +2665,8 @@ static void force_expire_client(struct nfs4_client *clp)
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	bool already_expired;
 
+	trace_nfsd_clid_admin_expired(&clp->cl_clientid);
+
 	spin_lock(&clp->cl_lock);
 	clp->cl_time = 0;
 	spin_unlock(&clp->cl_lock);
@@ -3211,6 +3213,7 @@ out_new:
 		status = mark_client_expired_locked(conf);
 		if (status)
 			goto out;
+		trace_nfsd_clid_replaced(&conf->cl_clientid);
 	}
 	new->cl_minorversion = cstate->minorversion;
 	new->cl_spo_must_allow.u.words[0] = exid->spo_must_allow[0];
@@ -3450,6 +3453,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 				old = NULL;
 				goto out_free_conn;
 			}
+			trace_nfsd_clid_replaced(&old->cl_clientid);
 		}
 		move_to_confirmed(unconf);
 		conf = unconf;
@@ -4078,6 +4082,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 				old = NULL;
 				goto out;
 			}
+			trace_nfsd_clid_replaced(&old->cl_clientid);
 		}
 		move_to_confirmed(unconf);
 		conf = unconf;
@@ -5508,10 +5513,8 @@ nfs4_laundromat(struct nfsd_net *nn)
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		if (!state_expired(&lt, clp->cl_time))
 			break;
-		if (mark_client_expired_locked(clp)) {
-			trace_nfsd_clid_expired(&clp->cl_clientid);
+		if (mark_client_expired_locked(clp))
 			continue;
-		}
 		list_add(&clp->cl_lru, &reaplist);
 	}
 	spin_unlock(&nn->client_lock);
