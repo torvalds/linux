@@ -3670,6 +3670,43 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	return 0;
 }
 
+ /**
+  * lpfc_els_rcv_rdf - Receive RDF ELS request from the fabric.
+  * @vport: pointer to a host virtual N_Port data structure.
+  * @cmdiocb: pointer to lpfc command iocb data structure.
+  * @ndlp: pointer to a node-list data structure.
+  *
+  * A received RDF implies a possible change to fabric supported diagnostic
+  * functions.  This routine sends LS_ACC and then has the Nx_Port issue a new
+  * RDF request to reregister for supported diagnostic functions.
+  *
+  * Return code
+  *   0 - Success
+  *   -EIO - Failed to process received RDF
+  **/
+static int
+lpfc_els_rcv_rdf(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
+		 struct lpfc_nodelist *ndlp)
+{
+	/* Send LS_ACC */
+	if (lpfc_els_rsp_acc(vport, ELS_CMD_RDF, cmdiocb, ndlp, NULL)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "1623 Failed to RDF_ACC from x%x for x%x\n",
+				 ndlp->nlp_DID, vport->fc_myDID);
+		return -EIO;
+	}
+
+	/* Issue new RDF for reregistering */
+	if (lpfc_issue_els_rdf(vport, 0)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "2623 Failed to re register RDF for x%x\n",
+				 vport->fc_myDID);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * lpfc_cancel_retry_delay_tmo - Cancel the timer with delayed iocb-cmd retry
  * @vport: pointer to a host virtual N_Port data structure.
@@ -4803,6 +4840,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 	uint16_t cmdsize;
 	int rc;
 	ELS_PKT *els_pkt_ptr;
+	struct fc_els_rdf_resp *rdf_resp;
 
 	oldcmd = &oldiocb->iocb;
 
@@ -4913,6 +4951,29 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 			"Issue ACC PRLO:  did:x%x flg:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag, 0);
+		break;
+	case ELS_CMD_RDF:
+		cmdsize = sizeof(*rdf_resp);
+		elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry,
+					     ndlp, ndlp->nlp_DID, ELS_CMD_ACC);
+		if (!elsiocb)
+			return 1;
+
+		icmd = &elsiocb->iocb;
+		icmd->ulpContext = oldcmd->ulpContext;	/* Xri / rx_id */
+		icmd->unsli3.rcvsli3.ox_id = oldcmd->unsli3.rcvsli3.ox_id;
+		pcmd = (((struct lpfc_dmabuf *)elsiocb->context2)->virt);
+		rdf_resp = (struct fc_els_rdf_resp *)pcmd;
+		memset(rdf_resp, 0, sizeof(*rdf_resp));
+		rdf_resp->acc_hdr.la_cmd = ELS_LS_ACC;
+
+		/* FC-LS-5 specifies desc_list_len shall be set to 12 */
+		rdf_resp->desc_list_len = cpu_to_be32(12);
+
+		/* FC-LS-5 specifies LS REQ Information descriptor */
+		rdf_resp->lsri.desc_tag = cpu_to_be32(1);
+		rdf_resp->lsri.desc_len = cpu_to_be32(sizeof(u32));
+		rdf_resp->lsri.rqst_w0.cmd = ELS_RDF;
 		break;
 	default:
 		return 1;
@@ -9026,6 +9087,20 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				  payload_len);
 
 		/* There are no replies, so no rjt codes */
+		break;
+	case ELS_CMD_RDF:
+		phba->fc_stat.elsRcvRDF++;
+		/* Accept RDF only from fabric controller */
+		if (did != Fabric_Cntl_DID) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+					 "1115 Received RDF from invalid DID "
+					 "x%x\n", did);
+			rjt_err = LSRJT_PROTOCOL_ERR;
+			rjt_exp = LSEXP_NOTHING_MORE;
+			goto lsrjt;
+		}
+
+		lpfc_els_rcv_rdf(vport, elsiocb, ndlp);
 		break;
 	default:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
