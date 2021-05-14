@@ -26,4 +26,14 @@ struct hns3_dbg_cmd_info {
 	int (*init)(struct hnae3_handle *handle, unsigned int cmd);
 };
 
+struct hns3_dbg_func {
+	enum hnae3_dbg_cmd cmd;
+	int (*dbg_dump)(struct hnae3_handle *handle, char *buf, int len);
+};
+
+struct hns3_dbg_cap_info {
+	const char *name;
+	enum HNAE3_DEV_CAP_BITS cap_bit;
+};
+
 #endif

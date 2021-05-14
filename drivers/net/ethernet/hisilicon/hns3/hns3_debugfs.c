@@ -45,6 +45,50 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
+	{
+		.name = "dev_info",
+		.cmd = HNAE3_DBG_CMD_DEV_INFO,
+		.dentry = HNS3_DBG_DENTRY_COMMON,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+};
+
+static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
+	{
+		.name = "support FD",
+		.cap_bit = HNAE3_DEV_SUPPORT_FD_B,
+	}, {
+		.name = "support GRO",
+		.cap_bit = HNAE3_DEV_SUPPORT_GRO_B,
+	}, {
+		.name = "support FEC",
+		.cap_bit = HNAE3_DEV_SUPPORT_FEC_B,
+	}, {
+		.name = "support UDP GSO",
+		.cap_bit = HNAE3_DEV_SUPPORT_UDP_GSO_B,
+	}, {
+		.name = "support PTP",
+		.cap_bit = HNAE3_DEV_SUPPORT_PTP_B,
+	}, {
+		.name = "support INT QL",
+		.cap_bit = HNAE3_DEV_SUPPORT_INT_QL_B,
+	}, {
+		.name = "support HW TX csum",
+		.cap_bit = HNAE3_DEV_SUPPORT_HW_TX_CSUM_B,
+	}, {
+		.name = "support UDP tunnel csum",
+		.cap_bit = HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B,
+	}, {
+		.name = "support TX push",
+		.cap_bit = HNAE3_DEV_SUPPORT_TX_PUSH_B,
+	}, {
+		.name = "support imp-controlled PHY",
+		.cap_bit = HNAE3_DEV_SUPPORT_PHY_IMP_B,
+	}, {
+		.name = "support rxd advanced layout",
+		.cap_bit = HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
+	},
 };
 
 static int hns3_dbg_queue_info(struct hnae3_handle *h,
@@ -320,8 +364,6 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "queue info <number>\n");
 	dev_info(&h->pdev->dev, "queue map\n");
 	dev_info(&h->pdev->dev, "bd info <q_num> <bd index>\n");
-	dev_info(&h->pdev->dev, "dev capability\n");
-	dev_info(&h->pdev->dev, "dev spec\n");
 
 	if (!hns3_is_phys_func(h->pdev))
 		return;
@@ -363,68 +405,78 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "%s", printf_buf);
 }
 
-static void hns3_dbg_dev_caps(struct hnae3_handle *h)
+static void
+hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	unsigned long *caps;
+	static const char * const str[] = {"no", "yes"};
+	unsigned long *caps = ae_dev->caps;
+	u32 i, state;
 
-	caps = ae_dev->caps;
+	*pos += scnprintf(buf + *pos, len - *pos, "dev capability:\n");
 
-	dev_info(&h->pdev->dev, "support FD: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_FD_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support GRO: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_GRO_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support FEC: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_FEC_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support UDP GSO: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support PTP: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_PTP_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support INT QL: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support HW TX csum: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support UDP tunnel csum: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, caps) ?
-		 "yes" : "no");
-	dev_info(&h->pdev->dev, "support PAUSE: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps) ?
-		 "yes" : "no");
-	dev_info(&h->pdev->dev, "support imp-controlled PHY: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, caps) ? "yes" : "no");
-	dev_info(&h->pdev->dev, "support rxd advanced layout: %s\n",
-		 test_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, caps) ?
-		 "yes" : "no");
+	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cap); i++) {
+		state = test_bit(hns3_dbg_cap[i].cap_bit, caps);
+		*pos += scnprintf(buf + *pos, len - *pos, "%s: %s\n",
+				  hns3_dbg_cap[i].name, str[state]);
+	}
+
+	*pos += scnprintf(buf + *pos, len - *pos, "\n");
 }
 
-static void hns3_dbg_dev_specs(struct hnae3_handle *h)
+static void
+hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	struct hnae3_dev_specs *dev_specs = &ae_dev->dev_specs;
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
-	struct hns3_nic_priv *priv  = h->priv;
 
-	dev_info(priv->dev, "MAC entry num: %u\n", dev_specs->mac_entry_num);
-	dev_info(priv->dev, "MNG entry num: %u\n", dev_specs->mng_entry_num);
-	dev_info(priv->dev, "MAX non tso bd num: %u\n",
-		 dev_specs->max_non_tso_bd_num);
-	dev_info(priv->dev, "RSS ind tbl size: %u\n",
-		 dev_specs->rss_ind_tbl_size);
-	dev_info(priv->dev, "RSS key size: %u\n", dev_specs->rss_key_size);
-	dev_info(priv->dev, "RSS size: %u\n", kinfo->rss_size);
-	dev_info(priv->dev, "Allocated RSS size: %u\n", kinfo->req_rss_size);
-	dev_info(priv->dev, "Task queue pairs numbers: %u\n", kinfo->num_tqps);
+	*pos += scnprintf(buf + *pos, len - *pos, "dev_spec:\n");
+	*pos += scnprintf(buf + *pos, len - *pos, "MAC entry num: %u\n",
+			  dev_specs->mac_entry_num);
+	*pos += scnprintf(buf + *pos, len - *pos, "MNG entry num: %u\n",
+			  dev_specs->mng_entry_num);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAX non tso bd num: %u\n",
+			  dev_specs->max_non_tso_bd_num);
+	*pos += scnprintf(buf + *pos, len - *pos, "RSS ind tbl size: %u\n",
+			  dev_specs->rss_ind_tbl_size);
+	*pos += scnprintf(buf + *pos, len - *pos, "RSS key size: %u\n",
+			  dev_specs->rss_key_size);
+	*pos += scnprintf(buf + *pos, len - *pos, "RSS size: %u\n",
+			  kinfo->rss_size);
+	*pos += scnprintf(buf + *pos, len - *pos, "Allocated RSS size: %u\n",
+			  kinfo->req_rss_size);
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "Task queue pairs numbers: %u\n",
+			  kinfo->num_tqps);
+	*pos += scnprintf(buf + *pos, len - *pos, "RX buffer length: %u\n",
+			  kinfo->rx_buf_len);
+	*pos += scnprintf(buf + *pos, len - *pos, "Desc num per TX queue: %u\n",
+			  kinfo->num_tx_desc);
+	*pos += scnprintf(buf + *pos, len - *pos, "Desc num per RX queue: %u\n",
+			  kinfo->num_rx_desc);
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "Total number of enabled TCs: %u\n",
+			  kinfo->tc_info.num_tc);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAX INT QL: %u\n",
+			  dev_specs->int_ql_max);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAX INT GL: %u\n",
+			  dev_specs->max_int_gl);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAX TM RATE: %u\n",
+			  dev_specs->max_tm_rate);
+	*pos += scnprintf(buf + *pos, len - *pos, "MAX QSET number: %u\n",
+			  dev_specs->max_qset_num);
+}
 
-	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
-	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
-	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
-	dev_info(priv->dev, "Total number of enabled TCs: %u\n",
-		 kinfo->tc_info.num_tc);
-	dev_info(priv->dev, "MAX INT QL: %u\n", dev_specs->int_ql_max);
-	dev_info(priv->dev, "MAX INT GL: %u\n", dev_specs->max_int_gl);
-	dev_info(priv->dev, "MAX frame size: %u\n", dev_specs->max_frm_size);
-	dev_info(priv->dev, "MAX TM RATE: %uMbps\n", dev_specs->max_tm_rate);
-	dev_info(priv->dev, "MAX QSET number: %u\n", dev_specs->max_qset_num);
+static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
+{
+	int pos = 0;
+
+	hns3_dbg_dev_caps(h, buf, len, &pos);
+
+	hns3_dbg_dev_specs(h, buf, len, &pos);
+
+	return 0;
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
@@ -468,10 +520,6 @@ static int hns3_dbg_check_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		ret = hns3_dbg_queue_map(handle);
 	else if (strncmp(cmd_buf, "bd info", 7) == 0)
 		ret = hns3_dbg_bd_info(handle, cmd_buf);
-	else if (strncmp(cmd_buf, "dev capability", 14) == 0)
-		hns3_dbg_dev_caps(handle);
-	else if (strncmp(cmd_buf, "dev spec", 8) == 0)
-		hns3_dbg_dev_specs(handle);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
 	else
@@ -545,10 +593,23 @@ static int hns3_dbg_get_cmd_index(struct hnae3_handle *handle,
 	return -EINVAL;
 }
 
+static const struct hns3_dbg_func hns3_dbg_cmd_func[] = {
+	{
+		.cmd = HNAE3_DBG_CMD_DEV_INFO,
+		.dbg_dump = hns3_dbg_dev_info,
+	},
+};
+
 static int hns3_dbg_read_cmd(struct hnae3_handle *handle,
 			     enum hnae3_dbg_cmd cmd, char *buf, int len)
 {
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd_func); i++) {
+		if (cmd == hns3_dbg_cmd_func[i].cmd)
+			return hns3_dbg_cmd_func[i].dbg_dump(handle, buf, len);
+	}
 
 	if (!ops->dbg_read_cmd)
 		return -EOPNOTSUPP;
