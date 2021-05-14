@@ -1298,6 +1298,9 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 	struct gendisk *disk = bdev->bd_disk;
 	int ret = 0;
 
+	if (!(disk->flags & GENHD_FL_UP))
+		return -ENXIO;
+
 	if (!bdev->bd_openers) {
 		if (!bdev_is_partition(bdev)) {
 			ret = 0;
@@ -1332,8 +1335,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 			whole->bd_part_count++;
 			mutex_unlock(&whole->bd_mutex);
 
-			if (!(disk->flags & GENHD_FL_UP) ||
-			    !bdev_nr_sectors(bdev)) {
+			if (!bdev_nr_sectors(bdev)) {
 				__blkdev_put(whole, mode, 1);
 				bdput(whole);
 				return -ENXIO;
@@ -1364,16 +1366,12 @@ struct block_device *blkdev_get_no_open(dev_t dev)
 	struct block_device *bdev;
 	struct gendisk *disk;
 
-	down_read(&bdev_lookup_sem);
 	bdev = bdget(dev);
 	if (!bdev) {
-		up_read(&bdev_lookup_sem);
 		blk_request_module(dev);
-		down_read(&bdev_lookup_sem);
-
 		bdev = bdget(dev);
 		if (!bdev)
-			goto unlock;
+			return NULL;
 	}
 
 	disk = bdev->bd_disk;
@@ -1383,14 +1381,11 @@ struct block_device *blkdev_get_no_open(dev_t dev)
 		goto put_disk;
 	if (!try_module_get(bdev->bd_disk->fops->owner))
 		goto put_disk;
-	up_read(&bdev_lookup_sem);
 	return bdev;
 put_disk:
 	put_disk(disk);
 bdput:
 	bdput(bdev);
-unlock:
-	up_read(&bdev_lookup_sem);
 	return NULL;
 }
 
