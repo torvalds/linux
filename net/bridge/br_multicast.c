@@ -62,9 +62,9 @@ static void br_multicast_port_group_rexmit(struct timer_list *t);
 
 static void
 br_multicast_rport_del_notify(struct net_bridge_port *p, bool deleted);
-#if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_add_router(struct net_bridge *br,
 					struct net_bridge_port *port);
+#if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_leave_group(struct net_bridge *br,
 					 struct net_bridge_port *port,
 					 const struct in6_addr *group,
