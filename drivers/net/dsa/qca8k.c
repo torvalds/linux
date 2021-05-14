@@ -701,7 +701,7 @@ qca8k_setup(struct dsa_switch *ds)
 
 	/* Make sure that port 0 is the cpu port */
 	if (!dsa_is_cpu_port(ds, 0)) {
-		pr_err("port 0 is not the CPU port\n");
+		dev_err(priv->dev, "port 0 is not the CPU port");
 		return -EINVAL;
 	}
 
@@ -711,7 +711,7 @@ qca8k_setup(struct dsa_switch *ds)
 	priv->regmap = devm_regmap_init(ds->dev, NULL, priv,
 					&qca8k_regmap_config);
 	if (IS_ERR(priv->regmap))
-		pr_warn("regmap initialization failed");
+		dev_warn(priv->dev, "regmap initialization failed");
 
 	ret = qca8k_setup_mdio_bus(priv);
 	if (ret)
