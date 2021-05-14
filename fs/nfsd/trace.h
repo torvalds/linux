@@ -912,6 +912,7 @@ DEFINE_EVENT(nfsd_cb_class, nfsd_cb_##name,		\
 
 DEFINE_NFSD_CB_EVENT(setup);
 DEFINE_NFSD_CB_EVENT(state);
+DEFINE_NFSD_CB_EVENT(lost);
 DEFINE_NFSD_CB_EVENT(shutdown);
 
 TRACE_DEFINE_ENUM(RPC_AUTH_NULL);
