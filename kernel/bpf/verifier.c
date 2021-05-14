@@ -13196,6 +13196,14 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	int ret;
 	u64 key;
 
+	if (prog->type == BPF_PROG_TYPE_SYSCALL) {
+		if (prog->aux->sleepable)
+			/* attach_btf_id checked to be zero already */
+			return 0;
+		verbose(env, "Syscall programs can only be sleepable\n");
+		return -EINVAL;
+	}
+
 	if (prog->aux->sleepable && prog->type != BPF_PROG_TYPE_TRACING &&
 	    prog->type != BPF_PROG_TYPE_LSM) {
 		verbose(env, "Only fentry/fexit/fmod_ret and lsm programs can be sleepable\n");
