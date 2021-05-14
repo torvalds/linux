@@ -42,7 +42,7 @@ bool ftrace_graph_is_dead(void)
 }
 
 /**
- * ftrace_graph_stop - set to permanently disable function graph tracincg
+ * ftrace_graph_stop - set to permanently disable function graph tracing
  *
  * In case of an error int function graph tracing, this is called
  * to try to keep function graph tracing from causing any more harm.
@@ -117,7 +117,7 @@ int function_graph_enter(unsigned long ret, unsigned long func,
 
 	/*
 	 * Skip graph tracing if the return location is served by direct trampoline,
-	 * since call sequence and return addresses is unpredicatable anymore.
+	 * since call sequence and return addresses are unpredictable anyway.
 	 * Ex: BPF trampoline may call original function and may skip frame
 	 * depending on type of BPF programs attached.
 	 */
