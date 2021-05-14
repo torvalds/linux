@@ -256,8 +256,8 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	return val & DP_PHY_MODE_STATUS_COMPLETED(dig_port->tc_phy_fia_idx);
 }
 
-static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
-				     bool enable)
+static bool icl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
+				      bool take)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
@@ -267,20 +267,20 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 				PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, can't %s safe-mode\n",
-			    dig_port->tc_port_name, enabledisable(enable));
+			    "Port %s: PHY in TCCOLD, can't %s ownership\n",
+			    dig_port->tc_port_name, take ? "take" : "release");
 
 		return false;
 	}
 
 	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
-	if (!enable)
+	if (take)
 		val |= DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
 
 	intel_uncore_write(uncore,
 			   PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia), val);
 
-	if (enable && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
+	if (!take && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
 		drm_dbg_kms(&i915->drm,
 			    "Port %s: PHY complete clear timed out\n",
 			    dig_port->tc_port_name);
@@ -288,7 +288,7 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	return true;
 }
 
-static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
+static bool icl_tc_phy_is_owned(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
@@ -303,7 +303,7 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 		return true;
 	}
 
-	return !(val & DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx));
+	return val & DP_PHY_MODE_STATUS_NOT_SAFE(dig_port->tc_phy_fia_idx);
 }
 
 /*
@@ -329,7 +329,7 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 		goto out_set_tbt_alt_mode;
 	}
 
-	if (!icl_tc_phy_set_safe_mode(dig_port, false) &&
+	if (!icl_tc_phy_take_ownership(dig_port, true) &&
 	    !drm_WARN_ON(&i915->drm, dig_port->tc_legacy_port))
 		goto out_set_tbt_alt_mode;
 
@@ -348,7 +348,7 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	if (!(tc_port_live_status_mask(dig_port) & BIT(TC_PORT_DP_ALT))) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY sudden disconnect\n",
 			    dig_port->tc_port_name);
-		goto out_set_safe_mode;
+		goto out_release_phy;
 	}
 
 	if (max_lanes < required_lanes) {
@@ -356,15 +356,15 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 			    "Port %s: PHY max lanes %d < required lanes %d\n",
 			    dig_port->tc_port_name,
 			    max_lanes, required_lanes);
-		goto out_set_safe_mode;
+		goto out_release_phy;
 	}
 
 	dig_port->tc_mode = TC_PORT_DP_ALT;
 
 	return;
 
-out_set_safe_mode:
-	icl_tc_phy_set_safe_mode(dig_port, true);
+out_release_phy:
+	icl_tc_phy_take_ownership(dig_port, false);
 out_set_tbt_alt_mode:
 	dig_port->tc_mode = TC_PORT_TBT_ALT;
 }
@@ -380,7 +380,7 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 		/* Nothing to do, we never disconnect from legacy mode */
 		break;
 	case TC_PORT_DP_ALT:
-		icl_tc_phy_set_safe_mode(dig_port, true);
+		icl_tc_phy_take_ownership(dig_port, false);
 		dig_port->tc_mode = TC_PORT_TBT_ALT;
 		break;
 	case TC_PORT_TBT_ALT:
@@ -401,8 +401,8 @@ static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 		return dig_port->tc_mode == TC_PORT_TBT_ALT;
 	}
 
-	if (icl_tc_phy_is_in_safe_mode(dig_port)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY still in safe mode\n",
+	if (!icl_tc_phy_is_owned(dig_port)) {
+		drm_dbg_kms(&i915->drm, "Port %s: PHY not owned\n",
 			    dig_port->tc_port_name);
 
 		return false;
@@ -417,10 +417,9 @@ intel_tc_port_get_current_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	u32 live_status_mask = tc_port_live_status_mask(dig_port);
-	bool in_safe_mode = icl_tc_phy_is_in_safe_mode(dig_port);
 	enum tc_port_mode mode;
 
-	if (in_safe_mode ||
+	if (!icl_tc_phy_is_owned(dig_port) ||
 	    drm_WARN_ON(&i915->drm, !icl_tc_phy_status_complete(dig_port)))
 		return TC_PORT_TBT_ALT;
 
