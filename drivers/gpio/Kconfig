@@ -782,6 +782,18 @@ config GPIO_MSC313
 	  Say Y here to support the main GPIO block on MStar/SigmaStar
 	  ARMv7 based SoCs.
 
+config GPIO_IDT3243X
+	tristate "IDT 79RC3243X GPIO support"
+	depends on MIKROTIK_RB532 || COMPILE_TEST
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Select this option to enable GPIO driver for
+	  IDT 79RC3243X based devices like Mikrotik RB532.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-idt3243x.
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
