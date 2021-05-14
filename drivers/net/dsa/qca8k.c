@@ -719,6 +719,9 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 
 	ports = of_get_child_by_name(priv->dev->of_node, "ports");
 	if (!ports)
+		ports = of_get_child_by_name(priv->dev->of_node, "ethernet-ports");
+
+	if (!ports)
 		return -EINVAL;
 
 	for_each_available_child_of_node(ports, port) {
