@@ -459,7 +459,6 @@ DEFINE_STATEID_EVENT(layout_recall_release);
 
 DEFINE_STATEID_EVENT(open);
 DEFINE_STATEID_EVENT(deleg_read);
-DEFINE_STATEID_EVENT(deleg_break);
 DEFINE_STATEID_EVENT(deleg_recall);
 
 DECLARE_EVENT_CLASS(nfsd_stateseqid_class,
@@ -1025,6 +1024,37 @@ TRACE_EVENT(nfsd_cb_done,
 	TP_printk("addr=%pISpc client %08x:%08x status=%d",
 		__entry->addr, __entry->cl_boot, __entry->cl_id,
 		__entry->status)
+);
+
+TRACE_EVENT(nfsd_cb_recall,
+	TP_PROTO(
+		const struct nfs4_stid *stid
+	),
+	TP_ARGS(stid),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(u32, si_id)
+		__field(u32, si_generation)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		const stateid_t *stp = &stid->sc_stateid;
+		const struct nfs4_client *clp = stid->sc_client;
+
+		__entry->cl_boot = stp->si_opaque.so_clid.cl_boot;
+		__entry->cl_id = stp->si_opaque.so_clid.cl_id;
+		__entry->si_id = stp->si_opaque.so_id;
+		__entry->si_generation = stp->si_generation;
+		if (clp)
+			memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
+				sizeof(struct sockaddr_in6));
+		else
+			memset(__entry->addr, 0, sizeof(struct sockaddr_in6));
+	),
+	TP_printk("addr=%pISpc client %08x:%08x stateid %08x:%08x",
+		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__entry->si_id, __entry->si_generation)
 );
 
 TRACE_EVENT(nfsd_cb_notify_lock,
