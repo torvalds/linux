@@ -634,7 +634,7 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 	return 0;
 }
 
-static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
+u16 hns3_get_max_available_channels(struct hnae3_handle *h)
 {
 	u16 alloc_tqps, max_rss_size, rss_size;
 

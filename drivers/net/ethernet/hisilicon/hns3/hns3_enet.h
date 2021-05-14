@@ -655,4 +655,5 @@ void hns3_dbg_uninit(struct hnae3_handle *handle);
 void hns3_dbg_register_debugfs(const char *debugfs_dir_name);
 void hns3_dbg_unregister_debugfs(void);
 void hns3_shinfo_pack(struct skb_shared_info *shinfo, __u32 *size);
+u16 hns3_get_max_available_channels(struct hnae3_handle *h);
 #endif
