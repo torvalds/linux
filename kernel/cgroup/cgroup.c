@@ -61,6 +61,9 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/cgroup.h>
+#undef CREATE_TRACE_POINTS
+
+#include <trace/hooks/cgroup.h>
 
 #define CGROUP_FILE_NAME_MAX		(MAX_CGROUP_TYPE_NAMELEN +	\
 					 MAX_CFTYPE_NAME + 2)
@@ -2459,6 +2462,7 @@ static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx)
 		do_each_subsys_mask(ss, ssid, mgctx->ss_mask) {
 			if (ss->attach) {
 				tset->ssid = ssid;
+				trace_android_vh_cgroup_attach(ss, tset);
 				ss->attach(tset);
 			}
 		} while_each_subsys_mask();
