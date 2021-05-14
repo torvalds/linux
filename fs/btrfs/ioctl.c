@@ -3206,6 +3206,7 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ioctl_vol_args_v2 *vol_args;
 	int ret;
+	bool cancel = false;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -3224,18 +3225,22 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
+	vol_args->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
+	if (!(vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID) &&
+	    strcmp("cancel", vol_args->name) == 0)
+		cancel = true;
 
-	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_DEV_REMOVE)) {
-		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
+	ret = exclop_start_or_cancel_reloc(fs_info, BTRFS_EXCLOP_DEV_REMOVE,
+					   cancel);
+	if (ret)
 		goto out;
-	}
+	/* Exclusive operation is now claimed */
 
-	if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID) {
+	if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID)
 		ret = btrfs_rm_device(fs_info, NULL, vol_args->devid);
-	} else {
-		vol_args->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
+	else
 		ret = btrfs_rm_device(fs_info, vol_args->name, 0);
-	}
+
 	btrfs_exclop_finish(fs_info);
 
 	if (!ret) {
@@ -3259,6 +3264,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ioctl_vol_args *vol_args;
 	int ret;
+	bool cancel;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -3267,25 +3273,24 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_DEV_REMOVE)) {
-		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
-		goto out_drop_write;
-	}
-
 	vol_args = memdup_user(arg, sizeof(*vol_args));
 	if (IS_ERR(vol_args)) {
 		ret = PTR_ERR(vol_args);
-		goto out;
+		goto out_drop_write;
+	}
+	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
+	cancel = (strcmp("cancel", vol_args->name) == 0);
+
+	ret = exclop_start_or_cancel_reloc(fs_info, BTRFS_EXCLOP_DEV_REMOVE,
+					   cancel);
+	if (ret == 0) {
+		ret = btrfs_rm_device(fs_info, vol_args->name, 0);
+		if (!ret)
+			btrfs_info(fs_info, "disk deleted %s", vol_args->name);
+		btrfs_exclop_finish(fs_info);
 	}
 
-	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
-	ret = btrfs_rm_device(fs_info, vol_args->name, 0);
-
-	if (!ret)
-		btrfs_info(fs_info, "disk deleted %s", vol_args->name);
 	kfree(vol_args);
-out:
-	btrfs_exclop_finish(fs_info);
 out_drop_write:
 	mnt_drop_write_file(file);
 
