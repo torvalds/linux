@@ -6828,7 +6828,8 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		for_each_plane_id_on_crtc(crtc, plane_id)
 			raw->plane[plane_id] = active->wm.plane[plane_id];
 
-		if (++level > max_level)
+		level = G4X_WM_LEVEL_SR;
+		if (level > max_level)
 			goto out;
 
 		raw = &crtc_state->wm.g4x.raw[level];
@@ -6837,7 +6838,8 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		raw->plane[PLANE_SPRITE0] = 0;
 		raw->fbc = active->sr.fbc;
 
-		if (++level > max_level)
+		level = G4X_WM_LEVEL_HPLL;
+		if (level > max_level)
 			goto out;
 
 		raw = &crtc_state->wm.g4x.raw[level];
@@ -6846,6 +6848,7 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		raw->plane[PLANE_SPRITE0] = 0;
 		raw->fbc = active->hpll.fbc;
 
+		level++;
 	out:
 		for_each_plane_id_on_crtc(crtc, plane_id)
 			g4x_raw_plane_wm_set(crtc_state, level,
