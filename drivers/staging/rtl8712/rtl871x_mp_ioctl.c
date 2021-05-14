@@ -197,7 +197,7 @@ static int mp_start_test(struct _adapter *padapter)
 	/* 3 3. join pseudo AdHoc */
 	tgt_network->join_res = 1;
 	tgt_network->aid = psta->aid = 1;
-	memcpy(&tgt_network->network, &bssid, length);
+	memcpy(&tgt_network->network, bssid, length);
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 	r8712_os_indicate_connect(padapter);
 	/* Set to LINKED STATE for MP TRX Testing */
