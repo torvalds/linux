@@ -1253,6 +1253,27 @@ static const struct intel_cdclk_vals rkl_cdclk_table[] = {
 	{}
 };
 
+static const struct intel_cdclk_vals adlp_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk = 172800, .divider = 3, .ratio = 27 },
+	{ .refclk = 19200, .cdclk = 192000, .divider = 2, .ratio = 20 },
+	{ .refclk = 19200, .cdclk = 307200, .divider = 2, .ratio = 32 },
+	{ .refclk = 19200, .cdclk = 556800, .divider = 2, .ratio = 58 },
+	{ .refclk = 19200, .cdclk = 652800, .divider = 2, .ratio = 68 },
+
+	{ .refclk = 24000, .cdclk = 176000, .divider = 3, .ratio = 22 },
+	{ .refclk = 24000, .cdclk = 192000, .divider = 2, .ratio = 16 },
+	{ .refclk = 24000, .cdclk = 312000, .divider = 2, .ratio = 26 },
+	{ .refclk = 24000, .cdclk = 552000, .divider = 2, .ratio = 46 },
+	{ .refclk = 24400, .cdclk = 648000, .divider = 2, .ratio = 54 },
+
+	{ .refclk = 38400, .cdclk = 179200, .divider = 3, .ratio = 14 },
+	{ .refclk = 38400, .cdclk = 192000, .divider = 2, .ratio = 10 },
+	{ .refclk = 38400, .cdclk = 307200, .divider = 2, .ratio = 16 },
+	{ .refclk = 38400, .cdclk = 556800, .divider = 2, .ratio = 29 },
+	{ .refclk = 38400, .cdclk = 652800, .divider = 2, .ratio = 34 },
+	{}
+};
+
 static int bxt_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 {
 	const struct intel_cdclk_vals *table = dev_priv->cdclk.table;
@@ -1428,18 +1449,12 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 		div = 2;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
-		drm_WARN(&dev_priv->drm,
-			 DISPLAY_VER(dev_priv) >= 10,
-			 "Unsupported divider\n");
 		div = 3;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_2:
 		div = 4;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_4:
-		drm_WARN(&dev_priv->drm,
-			 DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv),
-			 "Unsupported divider\n");
 		div = 8;
 		break;
 	default:
@@ -1550,16 +1565,10 @@ static u32 bxt_cdclk_cd2x_div_sel(struct drm_i915_private *dev_priv,
 	case 2:
 		return BXT_CDCLK_CD2X_DIV_SEL_1;
 	case 3:
-		drm_WARN(&dev_priv->drm,
-			 DISPLAY_VER(dev_priv) >= 10,
-			 "Unsupported divider\n");
 		return BXT_CDCLK_CD2X_DIV_SEL_1_5;
 	case 4:
 		return BXT_CDCLK_CD2X_DIV_SEL_2;
 	case 8:
-		drm_WARN(&dev_priv->drm,
-			 DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv),
-			 "Unsupported divider\n");
 		return BXT_CDCLK_CD2X_DIV_SEL_4;
 	}
 }
@@ -2825,7 +2834,13 @@ u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
  */
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_ROCKETLAKE(dev_priv)) {
+	if (IS_ALDERLAKE_P(dev_priv)) {
+		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
+		dev_priv->cdclk.table = adlp_cdclk_table;
+	} else if (IS_ROCKETLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
