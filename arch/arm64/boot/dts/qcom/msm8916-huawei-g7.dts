@@ -6,6 +6,7 @@
 #include "msm8916-pm8916.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/leds/common.h>
 
 /*
@@ -81,6 +82,38 @@
 		id-gpio = <&msmgpio 117 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
+	};
+};
+
+&blsp_i2c5 {
+	status = "okay";
+
+	rmi4@70 {
+		compatible = "syna,rmi4-i2c";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l16>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_irq_default>;
+
+		syna,startup-delay-ms = <100>;
+
+		rmi4-f01@1 {
+			reg = <0x1>;
+			syna,nosleep-mode = <1>; /* Allow sleeping */
+		};
+
+		rmi4-f11@11 {
+			reg = <0x11>;
+			syna,sensor-type = <1>; /* Touchscreen */
+		};
 	};
 };
 
@@ -230,7 +263,7 @@
 
 	l16 {
 		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
 	l17 {
@@ -263,6 +296,14 @@
 
 	sdhc2_cd_default: sdhc2-cd-default {
 		pins = "gpio56";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	ts_irq_default: ts-irq-default {
+		pins = "gpio13";
 		function = "gpio";
 
 		drive-strength = <2>;
