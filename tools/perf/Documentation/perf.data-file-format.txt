@@ -419,6 +419,22 @@ Example:
   cpu_core cpu list : 0-15
   cpu_atom cpu list : 16-23
 
+	HEADER_HYBRID_CPU_PMU_CAPS = 31,
+
+	A list of hybrid CPU PMU capabilities.
+
+struct {
+	u32 nr_pmu;
+	struct {
+		u32 nr_cpu_pmu_caps;
+		{
+			char	name[];
+			char	value[];
+		} [nr_cpu_pmu_caps];
+		char pmu_name[];
+	} [nr_pmu];
+};
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 
