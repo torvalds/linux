@@ -1152,17 +1152,13 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	cpp = plane_state->hw.fb->format->cpp[0];
 
 	/*
-	 * Not 100% sure which way ELK should go here as the
-	 * spec only says CL/CTG should assume 32bpp and BW
-	 * doesn't need to. But as these things followed the
-	 * mobile vs. desktop lines on gen3 as well, let's
-	 * assume ELK doesn't need this.
+	 * WaUse32BppForSRWM:ctg,elk
 	 *
-	 * The spec also fails to list such a restriction for
-	 * the HPLL watermark, which seems a little strange.
+	 * The spec fails to list this restriction for the
+	 * HPLL watermark, which seems a little strange.
 	 * Let's use 32bpp for the HPLL watermark as well.
 	 */
-	if (IS_GM45(dev_priv) && plane->id == PLANE_PRIMARY &&
+	if (plane->id == PLANE_PRIMARY &&
 	    level != G4X_WM_LEVEL_NORMAL)
 		cpp = max(cpp, 4u);
 
