@@ -213,7 +213,7 @@ static int tsl2591_gain_to_multiplier(const u8 als_gain)
 	}
 }
 
-static u8 tsl2591_multiplier_to_gain(const u32 multiplier)
+static int tsl2591_multiplier_to_gain(const u32 multiplier)
 {
 	switch (multiplier) {
 	case TSL2591_CTRL_ALS_LOW_GAIN_MULTIPLIER:
@@ -783,8 +783,8 @@ static int tsl2591_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct tsl2591_chip *chip = iio_priv(indio_dev);
-	u32 int_time;
-	u8 gain;
+	int int_time;
+	int gain;
 	int ret;
 
 	mutex_lock(&chip->als_mutex);
