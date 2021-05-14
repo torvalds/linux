@@ -624,6 +624,10 @@ tc_has_modular_fia(struct drm_i915_private *i915, struct intel_digital_port *dig
 	if (!INTEL_INFO(i915)->display.has_modular_fia)
 		return false;
 
+	/* TODO: check if in real HW MODULAR_FIA_MASK is set, if so remove this block */
+	if (IS_ALDERLAKE_P(i915))
+		return true;
+
 	wakeref = tc_cold_block(dig_port);
 	val = intel_uncore_read(&i915->uncore, PORT_TX_DFLEXDPSP(FIA1));
 	tc_cold_unblock(dig_port, wakeref);
