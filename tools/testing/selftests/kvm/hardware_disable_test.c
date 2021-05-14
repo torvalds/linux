@@ -132,6 +132,36 @@ static void run_test(uint32_t run)
 	TEST_ASSERT(false, "%s: [%d] child escaped the ninja\n", __func__, run);
 }
 
+void wait_for_child_setup(pid_t pid)
+{
+	/*
+	 * Wait for the child to post to the semaphore, but wake up periodically
+	 * to check if the child exited prematurely.
+	 */
+	for (;;) {
+		const struct timespec wait_period = { .tv_sec = 1 };
+		int status;
+
+		if (!sem_timedwait(sem, &wait_period))
+			return;
+
+		/* Child is still running, keep waiting. */
+		if (pid != waitpid(pid, &status, WNOHANG))
+			continue;
+
+		/*
+		 * Child is no longer running, which is not expected.
+		 *
+		 * If it exited with a non-zero status, we explicitly forward
+		 * the child's status in case it exited with KSFT_SKIP.
+		 */
+		if (WIFEXITED(status))
+			exit(WEXITSTATUS(status));
+		else
+			TEST_ASSERT(false, "Child exited unexpectedly");
+	}
+}
+
 int main(int argc, char **argv)
 {
 	uint32_t i;
@@ -148,7 +178,7 @@ int main(int argc, char **argv)
 			run_test(i); /* This function always exits */
 
 		pr_debug("%s: [%d] waiting semaphore\n", __func__, i);
-		sem_wait(sem);
+		wait_for_child_setup(pid);
 		r = (rand() % DELAY_US_MAX) + 1;
 		pr_debug("%s: [%d] waiting %dus\n", __func__, i, r);
 		usleep(r);
