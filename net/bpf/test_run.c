@@ -409,7 +409,7 @@ static void *bpf_ctx_init(const union bpf_attr *kattr, u32 max_size)
 		return ERR_PTR(-ENOMEM);
 
 	if (data_in) {
-		err = bpf_check_uarg_tail_zero(data_in, max_size, size);
+		err = bpf_check_uarg_tail_zero(USER_BPFPTR(data_in), max_size, size);
 		if (err) {
 			kfree(data);
 			return ERR_PTR(err);

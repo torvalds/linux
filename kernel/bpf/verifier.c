@@ -9436,7 +9436,7 @@ static int check_abnormal_return(struct bpf_verifier_env *env)
 
 static int check_btf_func(struct bpf_verifier_env *env,
 			  const union bpf_attr *attr,
-			  union bpf_attr __user *uattr)
+			  bpfptr_t uattr)
 {
 	const struct btf_type *type, *func_proto, *ret_type;
 	u32 i, nfuncs, urec_size, min_size;
@@ -9445,7 +9445,7 @@ static int check_btf_func(struct bpf_verifier_env *env,
 	struct bpf_func_info_aux *info_aux = NULL;
 	struct bpf_prog *prog;
 	const struct btf *btf;
-	void __user *urecord;
+	bpfptr_t urecord;
 	u32 prev_offset = 0;
 	bool scalar_return;
 	int ret = -ENOMEM;
@@ -9473,7 +9473,7 @@ static int check_btf_func(struct bpf_verifier_env *env,
 	prog = env->prog;
 	btf = prog->aux->btf;
 
-	urecord = u64_to_user_ptr(attr->func_info);
+	urecord = make_bpfptr(attr->func_info, uattr.is_kernel);
 	min_size = min_t(u32, krec_size, urec_size);
 
 	krecord = kvcalloc(nfuncs, krec_size, GFP_KERNEL | __GFP_NOWARN);
@@ -9491,13 +9491,15 @@ static int check_btf_func(struct bpf_verifier_env *env,
 				/* set the size kernel expects so loader can zero
 				 * out the rest of the record.
 				 */
-				if (put_user(min_size, &uattr->func_info_rec_size))
+				if (copy_to_bpfptr_offset(uattr,
+							  offsetof(union bpf_attr, func_info_rec_size),
+							  &min_size, sizeof(min_size)))
 					ret = -EFAULT;
 			}
 			goto err_free;
 		}
 
-		if (copy_from_user(&krecord[i], urecord, min_size)) {
+		if (copy_from_bpfptr(&krecord[i], urecord, min_size)) {
 			ret = -EFAULT;
 			goto err_free;
 		}
@@ -9549,7 +9551,7 @@ static int check_btf_func(struct bpf_verifier_env *env,
 		}
 
 		prev_offset = krecord[i].insn_off;
-		urecord += urec_size;
+		bpfptr_add(&urecord, urec_size);
 	}
 
 	prog->aux->func_info = krecord;
@@ -9581,14 +9583,14 @@ static void adjust_btf_func(struct bpf_verifier_env *env)
 
 static int check_btf_line(struct bpf_verifier_env *env,
 			  const union bpf_attr *attr,
-			  union bpf_attr __user *uattr)
+			  bpfptr_t uattr)
 {
 	u32 i, s, nr_linfo, ncopy, expected_size, rec_size, prev_offset = 0;
 	struct bpf_subprog_info *sub;
 	struct bpf_line_info *linfo;
 	struct bpf_prog *prog;
 	const struct btf *btf;
-	void __user *ulinfo;
+	bpfptr_t ulinfo;
 	int err;
 
 	nr_linfo = attr->line_info_cnt;
@@ -9614,7 +9616,7 @@ static int check_btf_line(struct bpf_verifier_env *env,
 
 	s = 0;
 	sub = env->subprog_info;
-	ulinfo = u64_to_user_ptr(attr->line_info);
+	ulinfo = make_bpfptr(attr->line_info, uattr.is_kernel);
 	expected_size = sizeof(struct bpf_line_info);
 	ncopy = min_t(u32, expected_size, rec_size);
 	for (i = 0; i < nr_linfo; i++) {
@@ -9622,14 +9624,15 @@ static int check_btf_line(struct bpf_verifier_env *env,
 		if (err) {
 			if (err == -E2BIG) {
 				verbose(env, "nonzero tailing record in line_info");
-				if (put_user(expected_size,
-					     &uattr->line_info_rec_size))
+				if (copy_to_bpfptr_offset(uattr,
+							  offsetof(union bpf_attr, line_info_rec_size),
+							  &expected_size, sizeof(expected_size)))
 					err = -EFAULT;
 			}
 			goto err_free;
 		}
 
-		if (copy_from_user(&linfo[i], ulinfo, ncopy)) {
+		if (copy_from_bpfptr(&linfo[i], ulinfo, ncopy)) {
 			err = -EFAULT;
 			goto err_free;
 		}
@@ -9681,7 +9684,7 @@ static int check_btf_line(struct bpf_verifier_env *env,
 		}
 
 		prev_offset = linfo[i].insn_off;
-		ulinfo += rec_size;
+		bpfptr_add(&ulinfo, rec_size);
 	}
 
 	if (s != env->subprog_cnt) {
@@ -9703,7 +9706,7 @@ err_free:
 
 static int check_btf_info(struct bpf_verifier_env *env,
 			  const union bpf_attr *attr,
-			  union bpf_attr __user *uattr)
+			  bpfptr_t uattr)
 {
 	struct btf *btf;
 	int err;
@@ -13275,8 +13278,7 @@ struct btf *bpf_get_btf_vmlinux(void)
 	return btf_vmlinux;
 }
 
-int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
-	      union bpf_attr __user *uattr)
+int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr)
 {
 	u64 start_time = ktime_get_ns();
 	struct bpf_verifier_env *env;
