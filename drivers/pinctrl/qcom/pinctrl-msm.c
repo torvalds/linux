@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013, Sony Mobile Communications AB.
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -23,8 +23,8 @@
 #include <linux/pm.h>
 #include <linux/log2.h>
 #include <linux/qcom_scm.h>
-
 #include <linux/soc/qcom/irq.h>
+#include <linux/bitmap.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -34,6 +34,7 @@
 #define MAX_NR_GPIO 300
 #define MAX_NR_TILES 4
 #define PS_HOLD_OFFSET 0x820
+#define QUP_MASK       GENMASK(5, 0)
 
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
@@ -78,6 +79,22 @@ struct msm_pinctrl {
 	const struct msm_pinctrl_soc_data *soc;
 	void __iomem *regs[MAX_NR_TILES];
 	u32 phys_base[MAX_NR_TILES];
+};
+
+static struct msm_pinctrl *msm_pinctrl_data;
+
+#define EGPIO_PRESENT			11
+#define EGPIO_ENABLE			12
+#define MSM_APPS_OWNER			1
+#define MSM_REMOTE_OWNER		0
+
+/* custom pinconf parameters for msm pinictrl*/
+#define MSM_PIN_CONFIG_APPS		(PIN_CONFIG_END + 1)
+#define MSM_PIN_CONFIG_REMOTE		(PIN_CONFIG_END + 2)
+
+static const struct pinconf_generic_params msm_gpio_bindings[] = {
+	{"qcom,apps",			MSM_PIN_CONFIG_APPS,	0},
+	{"qcom,remote",			MSM_PIN_CONFIG_REMOTE,	0},
 };
 
 #define MSM_ACCESSOR(name) \
@@ -219,7 +236,6 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	val = msm_readl_ctl(pctrl, g);
-
 	if (egpio_func && i == egpio_func) {
 		if (val & BIT(g->egpio_present))
 			val &= ~BIT(g->egpio_enable);
@@ -300,6 +316,11 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	case PIN_CONFIG_OUTPUT:
 	case PIN_CONFIG_INPUT_ENABLE:
 		*bit = g->oe_bit;
+		*mask = 1;
+		break;
+	case MSM_PIN_CONFIG_APPS:
+	case MSM_PIN_CONFIG_REMOTE:
+		*bit = EGPIO_ENABLE;
 		*mask = 1;
 		break;
 	default:
@@ -393,6 +414,20 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case MSM_PIN_CONFIG_APPS:
+		/* Pin do not support egpio or remote owner */
+		if (!(val & BIT(EGPIO_PRESENT)) || !arg)
+			return -EINVAL;
+
+		arg = 1;
+		break;
+	case MSM_PIN_CONFIG_REMOTE:
+		/* Pin do not support epgio or APPS owner */
+		if (!(val & BIT(EGPIO_PRESENT)) || arg)
+			return -EINVAL;
+
+		arg = 1;
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -414,6 +449,7 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 	unsigned mask;
 	unsigned arg;
 	unsigned bit;
+	u32 owner_bit, owner_update = 0;
 	int ret;
 	u32 val;
 	int i;
@@ -476,6 +512,14 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			/* disable output */
 			arg = 0;
 			break;
+		case MSM_PIN_CONFIG_APPS:
+			owner_update = 1;
+			owner_bit = MSM_APPS_OWNER;
+			break;
+		case MSM_PIN_CONFIG_REMOTE:
+			owner_update = 1;
+			owner_bit = MSM_REMOTE_OWNER;
+			break;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
 				param);
@@ -487,12 +531,31 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			dev_err(pctrl->dev, "config %x: %x is invalid\n", param, arg);
 			return -EINVAL;
 		}
+		/* Update the owner bits as final config update */
+		if (param == MSM_PIN_CONFIG_APPS || param == MSM_PIN_CONFIG_REMOTE)
+			continue;
 
 		raw_spin_lock_irqsave(&pctrl->lock, flags);
 		val = msm_readl_ctl(pctrl, g);
 		val &= ~(mask << bit);
 		val |= arg << bit;
 		msm_writel_ctl(val, pctrl, g);
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	}
+
+	if (owner_update) {
+		ret = msm_config_reg(pctrl, g,
+					MSM_PIN_CONFIG_APPS, &mask, &bit);
+		if (ret < 0)
+			return ret;
+
+		raw_spin_lock_irqsave(&pctrl->lock, flags);
+		val = msm_readl_ctl(pctrl, g);
+		if (val & BIT(EGPIO_PRESENT)) {
+			val &= ~(mask << bit);
+			val |= owner_bit << bit;
+			msm_writel_ctl(val, pctrl, g);
+		}
 		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 	}
 
@@ -678,6 +741,8 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 	int ret;
 	unsigned int len, i;
 	const int *reserved = pctrl->soc->reserved_gpios;
+	struct property *prop;
+	const __be32 *p;
 	u16 *tmp;
 
 	/* Driver provided reserved list overrides DT and ACPI */
@@ -692,6 +757,17 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 		}
 
 		return 0;
+	}
+
+	if (of_property_count_u32_elems(pctrl->dev->of_node, "reserved-gpios") > 0) {
+		bitmap_fill(valid_mask, ngpios);
+		of_property_for_each_u32(pctrl->dev->of_node, "reserved-gpios", prop, p, i) {
+			if (i >= ngpios) {
+				dev_err(pctrl->dev, "invalid list of reserved GPIOs\n");
+				return -EINVAL;
+			}
+			clear_bit(i, valid_mask);
+		}
 	}
 
 	/* The number of GPIOs in the ACPI tables */
@@ -1240,10 +1316,18 @@ static int msm_gpio_wakeirq(struct gpio_chip *gc,
 
 static bool msm_gpio_needs_valid_mask(struct msm_pinctrl *pctrl)
 {
+	bool have_reserved, have_gpios;
+
 	if (pctrl->soc->reserved_gpios)
 		return true;
 
-	return device_property_count_u16(pctrl->dev, "gpios") > 0;
+	have_reserved = of_property_count_u32_elems(pctrl->dev->of_node, "reserved-gpios") > 0;
+	have_gpios = device_property_count_u16(pctrl->dev, "gpios") > 0;
+
+	if (have_reserved && have_gpios)
+		dev_warn(pctrl->dev, "reserved-gpios and gpios are both defined. Only one should be used.\n");
+
+	return have_reserved || have_gpios;
 }
 
 static int msm_gpio_init(struct msm_pinctrl *pctrl)
@@ -1399,6 +1483,74 @@ SIMPLE_DEV_PM_OPS(msm_pinctrl_dev_pm_ops, msm_pinctrl_suspend,
 
 EXPORT_SYMBOL(msm_pinctrl_dev_pm_ops);
 
+/*
+ * msm_gpio_mpm_wake_set - API to make interrupt wakeup capable
+ * @dev:        Device corrsponding to pinctrl
+ * @gpio:       Gpio number to make interrupt wakeup capable
+ * @enable:     Enable/Disable wakeup capability
+ */
+int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable)
+{
+	const struct msm_pingroup *g;
+	unsigned long flags;
+	u32 val;
+
+	g = &msm_pinctrl_data->soc->groups[gpio];
+	if (g->wake_bit == -1)
+		return -ENOENT;
+
+	raw_spin_lock_irqsave(&msm_pinctrl_data->lock, flags);
+	val = readl_relaxed(msm_pinctrl_data->regs[g->tile] + g->wake_reg);
+	if (enable)
+		val |= BIT(g->wake_bit);
+	else
+		val &= ~BIT(g->wake_bit);
+
+	writel_relaxed(val, msm_pinctrl_data->regs[g->tile] + g->wake_reg);
+	raw_spin_unlock_irqrestore(&msm_pinctrl_data->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(msm_gpio_mpm_wake_set);
+
+int msm_qup_write(u32 mode, u32 val)
+{
+	int i;
+	struct pinctrl_qup *regs = msm_pinctrl_data->soc->qup_regs;
+	int num_regs =  msm_pinctrl_data->soc->nqup_regs;
+
+	/*Iterate over modes*/
+	for (i = 0; i < num_regs; i++) {
+		if (regs[i].mode == mode) {
+			writel_relaxed(val & QUP_MASK,
+				 msm_pinctrl_data->regs[0] + regs[i].offset);
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(msm_qup_write);
+
+int msm_qup_read(unsigned int mode)
+{
+	int i, val;
+	struct pinctrl_qup *regs = msm_pinctrl_data->soc->qup_regs;
+	int num_regs =  msm_pinctrl_data->soc->nqup_regs;
+
+	/*Iterate over modes*/
+	for (i = 0; i < num_regs; i++) {
+		if (regs[i].mode == mode) {
+			val = readl_relaxed(msm_pinctrl_data->regs[0] +
+								regs[i].offset);
+			return val & QUP_MASK;
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(msm_qup_read);
+
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data)
 {
@@ -1407,7 +1559,7 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	int ret;
 	int i;
 
-	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
+	msm_pinctrl_data = pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
 
@@ -1430,6 +1582,9 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 		}
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -ENOENT;
+
 		pctrl->regs[0] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(pctrl->regs[0]))
 			return PTR_ERR(pctrl->regs[0]);
@@ -1450,6 +1605,8 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	pctrl->desc.name = dev_name(&pdev->dev);
 	pctrl->desc.pins = pctrl->soc->pins;
 	pctrl->desc.npins = pctrl->soc->npins;
+	pctrl->desc.num_custom_params = ARRAY_SIZE(msm_gpio_bindings);
+	pctrl->desc.custom_params = msm_gpio_bindings;
 
 	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &pctrl->desc, pctrl);
 	if (IS_ERR(pctrl->pctrl)) {
@@ -1481,5 +1638,6 @@ int msm_pinctrl_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(msm_pinctrl_remove);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. TLMM driver");
+MODULE_SOFTDEP("pre: qcom-pdc");
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. pinctrl-msm driver");
 MODULE_LICENSE("GPL v2");
