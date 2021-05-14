@@ -247,10 +247,11 @@ config NXP_TJA11XX_PHY
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
 
 config AT803X_PHY
-	tristate "Qualcomm Atheros AR803X PHYs"
+	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"
 	depends on REGULATOR
 	help
-	  Currently supports the AR8030, AR8031, AR8033 and AR8035 model
+	  Currently supports the AR8030, AR8031, AR8033, AR8035 and internal
+	  QCA8337(Internal qca8k PHY) model
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"
