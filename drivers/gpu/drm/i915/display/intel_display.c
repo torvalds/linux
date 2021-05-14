@@ -3411,6 +3411,7 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 					 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *master = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(master->base.dev);
 	struct intel_crtc_state *master_crtc_state;
 	struct drm_connector_state *conn_state;
 	struct drm_connector *conn;
@@ -3444,6 +3445,9 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 		/* and DSC on slave */
 		intel_dsc_enable(NULL, crtc_state);
 	}
+
+	if (DISPLAY_VER(dev_priv) >= 13)
+		intel_uncompressed_joiner_enable(crtc_state);
 }
 
 static void hsw_crtc_enable(struct intel_atomic_state *state,
@@ -6250,6 +6254,8 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	intel_dsc_get_config(pipe_config);
+	if (DISPLAY_VER(dev_priv) >= 13 && !pipe_config->dsc.compression_enable)
+		intel_uncompressed_joiner_get_config(pipe_config);
 
 	if (!active) {
 		/* bigjoiner slave doesn't enable transcoder */
