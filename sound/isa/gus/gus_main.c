@@ -393,7 +393,7 @@ static int snd_gus_check_version(struct snd_gus_card * gus)
 			}
 		}
 	}
-	strcpy(card->shortname, card->longname);
+	strscpy(card->shortname, card->longname, sizeof(card->shortname));
 	gus->uart_enable = 1;	/* standard GUSes doesn't have midi uart trouble */
 	snd_gus_init_control(gus);
 	return 0;
