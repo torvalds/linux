@@ -180,10 +180,13 @@ int tegra_output_probe(struct tegra_output *output)
 
 void tegra_output_remove(struct tegra_output *output)
 {
+	int connector_type = output->connector.connector_type;
+
 	if (output->hpd_gpio)
 		free_irq(output->hpd_irq, output);
 
-	if (output->ddc)
+	if (connector_type != DRM_MODE_CONNECTOR_eDP &&
+	    connector_type != DRM_MODE_CONNECTOR_DisplayPort && output->ddc)
 		i2c_put_adapter(output->ddc);
 }
 

@@ -3745,11 +3745,11 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		if (!sor->aux)
 			return -EPROBE_DEFER;
 
-		if (get_device(&sor->aux->ddc.dev)) {
-			if (try_module_get(sor->aux->ddc.owner))
+		if (get_device(sor->aux->dev)) {
+			if (try_module_get(sor->aux->dev->driver->owner))
 				sor->output.ddc = &sor->aux->ddc;
 			else
-				put_device(&sor->aux->ddc.dev);
+				put_device(sor->aux->dev);
 		}
 	}
 
