@@ -34,14 +34,40 @@
 #include "inc/link_dpcd.h"
 #include "dm_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
+#include "inc/link_dpcd.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
 
 enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 {
-	/** @todo Read corresponding DPCD region and update link caps. */
-	return DC_OK;
+	enum dc_status status = DC_OK;
+	uint8_t dpcd_dp_tun_data[3] = {0};
+	uint8_t dpcd_topology_data[DPCD_USB4_TOPOLOGY_ID_LEN] = {0};
+	uint8_t i = 0;
+
+	status = core_link_read_dpcd(link,
+			DP_TUNNELING_CAPABILITIES_SUPPORT,
+			dpcd_dp_tun_data,
+			sizeof(dpcd_dp_tun_data));
+
+	status = core_link_read_dpcd(link,
+			DP_USB4_ROUTER_TOPOLOGY_ID,
+			dpcd_topology_data,
+			sizeof(dpcd_topology_data));
+
+	link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.raw =
+			dpcd_dp_tun_data[DP_TUNNELING_CAPABILITIES_SUPPORT -
+					 DP_TUNNELING_CAPABILITIES_SUPPORT];
+	link->dpcd_caps.usb4_dp_tun_info.dpia_info.raw =
+			dpcd_dp_tun_data[DP_IN_ADAPTER_INFO - DP_TUNNELING_CAPABILITIES_SUPPORT];
+	link->dpcd_caps.usb4_dp_tun_info.usb4_driver_id =
+			dpcd_dp_tun_data[DP_USB4_DRIVER_ID - DP_TUNNELING_CAPABILITIES_SUPPORT];
+
+	for (i = 0; i < DPCD_USB4_TOPOLOGY_ID_LEN; i++)
+		link->dpcd_caps.usb4_dp_tun_info.usb4_topology_id[i] = dpcd_topology_data[i];
+
+	return status;
 }
 
 /* Configure link as prescribed in link_setting; set LTTPR mode; and

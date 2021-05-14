@@ -859,6 +859,37 @@ struct psr_caps {
 	bool psr_exit_link_training_required;
 };
 
+/* Length of router topology ID read from DPCD in bytes. */
+#define DPCD_USB4_TOPOLOGY_ID_LEN 5
+
+/* DPCD[0xE000D] DP_TUNNELING_CAPABILITIES SUPPORT register. */
+union dp_tun_cap_support {
+	struct {
+		uint8_t dp_tunneling :1;
+		uint8_t rsvd :5;
+		uint8_t panel_replay_tun_opt :1;
+		uint8_t dpia_bw_alloc :1;
+	} bits;
+	uint8_t raw;
+};
+
+/* DPCD[0xE000E] DP_IN_ADAPTER_INFO register. */
+union dpia_info {
+	struct {
+		uint8_t dpia_num :5;
+		uint8_t rsvd :3;
+	} bits;
+	uint8_t raw;
+};
+
+/* DP Tunneling over USB4 */
+struct dpcd_usb4_dp_tunneling_info {
+	union dp_tun_cap_support dp_tun_cap;
+	union dpia_info dpia_info;
+	uint8_t usb4_driver_id;
+	uint8_t usb4_topology_id[DPCD_USB4_TOPOLOGY_ID_LEN];
+};
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #ifndef DP_MAIN_LINK_CHANNEL_CODING_CAP
 #define DP_MAIN_LINK_CHANNEL_CODING_CAP			0x006

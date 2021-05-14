@@ -35,6 +35,13 @@ struct dc_link_settings;
 /* The approximate time (us) it takes to transmit 9 USB4 DP clock sync packets. */
 #define DPIA_CLK_SYNC_DELAY 16000
 
+/** @note Can remove once DP tunneling registers in upstream include/drm/drm_dp_helper.h */
+/* DPCD DP Tunneling over USB4 */
+#define DP_TUNNELING_CAPABILITIES_SUPPORT 0xe000d
+#define DP_IN_ADAPTER_INFO                0xe000e
+#define DP_USB4_DRIVER_ID                 0xe000f
+#define DP_USB4_ROUTER_TOPOLOGY_ID        0xe001b
+
 /* SET_CONFIG message types sent by driver. */
 enum dpia_set_config_type {
 	DPIA_SET_CFG_SET_LINK = 0x01,
