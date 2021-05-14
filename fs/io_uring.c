@@ -100,6 +100,8 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+#define IORING_MAX_REG_BUFFERS	(1U << 14)
+
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
 				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
 				IOSQE_BUFFER_SELECT)
@@ -8389,7 +8391,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	if (ctx->user_bufs)
 		return -EBUSY;
-	if (!nr_args || nr_args > UIO_MAXIOV)
+	if (!nr_args || nr_args > IORING_MAX_REG_BUFFERS)
 		return -EINVAL;
 	ret = io_rsrc_node_switch_start(ctx);
 	if (ret)
