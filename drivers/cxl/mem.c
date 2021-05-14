@@ -13,6 +13,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include "pci.h"
 #include "cxl.h"
+#include "mem.h"
 
 /**
  * DOC: cxl mem
@@ -29,12 +30,6 @@
  *  - Support management of interleave sets.
  *  - Handle and manage error conditions.
  */
-
-/*
- * An entire PCI topology full of devices should be enough for any
- * config
- */
-#define CXL_MEM_MAX_DEVS 65536
 
 #define cxl_doorbell_busy(cxlm)                                                \
 	(readl((cxlm)->mbox_regs + CXLDEV_MBOX_CTRL_OFFSET) &                  \
@@ -90,20 +85,6 @@ struct mbox_cmd {
 	size_t size_out;
 	u16 return_code;
 #define CXL_MBOX_SUCCESS 0
-};
-
-/**
- * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
- * @dev: driver core device object
- * @cdev: char dev core object for ioctl operations
- * @cxlm: pointer to the parent device driver data
- * @id: id number of this memdev instance.
- */
-struct cxl_memdev {
-	struct device dev;
-	struct cdev cdev;
-	struct cxl_mem *cxlm;
-	int id;
 };
 
 static int cxl_mem_major;
