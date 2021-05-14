@@ -193,6 +193,24 @@
 	};
 };
 
+&blsp_i2c6 {
+	status = "okay";
+
+	nfc@28 {
+		compatible = "nxp,pn547", "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <21 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&msmgpio 20 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&msmgpio 2 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_default>;
+	};
+};
+
 &blsp1_uart2 {
 	status = "okay";
 };
@@ -372,6 +390,14 @@
 
 	gpio_leds_default: gpio-leds-default {
 		pins = "gpio8", "gpio9", "gpio10";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	nfc_default: nfc-default {
+		pins = "gpio2", "gpio20", "gpio21";
 		function = "gpio";
 
 		drive-strength = <2>;
