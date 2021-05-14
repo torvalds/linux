@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/iommu.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fh.h>
@@ -1955,6 +1956,15 @@ static void rkcif_do_cru_reset(struct rkcif_device *dev)
 		if (cif_hw->cif_rst[i])
 			reset_control_deassert(cif_hw->cif_rst[i]);
 
+	if (cif_hw->iommu_en) {
+		struct iommu_domain *domain;
+
+		domain = iommu_get_domain_for_dev(cif_hw->dev);
+		if (domain) {
+			domain->ops->detach_dev(domain, cif_hw->dev);
+			domain->ops->attach_dev(domain, cif_hw->dev);
+		}
+	}
 }
 
 static void rkcif_release_rdbk_buf(struct rkcif_stream *stream)
@@ -4833,6 +4843,8 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 	rkcif_start_luma(&cif_dev->luma_vdev,
 			 cif_dev->stream[RKCIF_STREAM_MIPI_ID0].cif_fmt_in);
+
+	rkcif_monitor_reset_event(cif_dev);
 
 	v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev, "do rkcif reset successfully!\n");
 
