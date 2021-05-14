@@ -2388,7 +2388,6 @@ MODULE_DEVICE_TABLE(of, of_match);
 
 static int sa_ul_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct resource *res;
@@ -2399,6 +2398,10 @@ static int sa_ul_probe(struct platform_device *pdev)
 	dev_data = devm_kzalloc(dev, sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
 		return -ENOMEM;
+
+	dev_data->match_data = of_device_get_match_data(dev);
+	if (!dev_data->match_data)
+		return -ENODEV;
 
 	sa_k3_dev = dev;
 	dev_data->dev = dev;
@@ -2419,13 +2422,6 @@ static int sa_ul_probe(struct platform_device *pdev)
 	ret = sa_dma_init(dev_data);
 	if (ret)
 		goto destroy_dma_pool;
-
-	match = of_match_node(of_match, dev->of_node);
-	if (!match) {
-		dev_err(dev, "No compatible match found\n");
-		return -ENODEV;
-	}
-	dev_data->match_data = match->data;
 
 	spin_lock_init(&dev_data->scid_lock);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
