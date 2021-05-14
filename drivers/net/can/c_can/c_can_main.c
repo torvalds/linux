@@ -1334,6 +1334,7 @@ int register_c_can_dev(struct net_device *dev)
 
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 	dev->netdev_ops = &c_can_netdev_ops;
+	c_can_set_ethtool_ops(dev);
 
 	err = register_candev(dev);
 	if (!err)

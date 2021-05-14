@@ -218,4 +218,6 @@ int c_can_power_up(struct net_device *dev);
 int c_can_power_down(struct net_device *dev);
 #endif
 
+void c_can_set_ethtool_ops(struct net_device *dev);
+
 #endif /* C_CAN_H */
