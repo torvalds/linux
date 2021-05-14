@@ -1212,24 +1212,19 @@ err_qos_cmd_send:
 		"dump qos buf cfg fail(0x%x), ret = %d\n", cmd, ret);
 }
 
-static void hclge_dbg_dump_mng_table(struct hclge_dev *hdev)
+static int hclge_dbg_dump_mng_table(struct hclge_dev *hdev, char *buf, int len)
 {
 	struct hclge_mac_ethertype_idx_rd_cmd *req0;
-	char printf_buf[HCLGE_DBG_BUF_LEN];
 	struct hclge_desc desc;
 	u32 msg_egress_port;
+	int pos = 0;
 	int ret, i;
 
-	dev_info(&hdev->pdev->dev, "mng tab:\n");
-	memset(printf_buf, 0, HCLGE_DBG_BUF_LEN);
-	strncat(printf_buf,
-		"entry|mac_addr         |mask|ether|mask|vlan|mask",
-		HCLGE_DBG_BUF_LEN - 1);
-	strncat(printf_buf + strlen(printf_buf),
-		"|i_map|i_dir|e_type|pf_id|vf_id|q_id|drop\n",
-		HCLGE_DBG_BUF_LEN - strlen(printf_buf) - 1);
-
-	dev_info(&hdev->pdev->dev, "%s", printf_buf);
+	pos += scnprintf(buf + pos, len - pos,
+			 "entry  mac_addr          mask  ether  ");
+	pos += scnprintf(buf + pos, len - pos,
+			 "mask  vlan  mask  i_map  i_dir  e_type  ");
+	pos += scnprintf(buf + pos, len - pos, "pf_id  vf_id  q_id  drop\n");
 
 	for (i = 0; i < HCLGE_DBG_MNG_TBL_MAX; i++) {
 		hclge_cmd_setup_basic_desc(&desc, HCLGE_MAC_ETHERTYPE_IDX_RD,
@@ -1240,43 +1235,40 @@ static void hclge_dbg_dump_mng_table(struct hclge_dev *hdev)
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"call hclge_cmd_send fail, ret = %d\n", ret);
-			return;
+				"failed to dump manage table, ret = %d\n", ret);
+			return ret;
 		}
 
 		if (!req0->resp_code)
 			continue;
 
-		memset(printf_buf, 0, HCLGE_DBG_BUF_LEN);
-		snprintf(printf_buf, HCLGE_DBG_BUF_LEN,
-			 "%02u   |%02x:%02x:%02x:%02x:%02x:%02x|",
-			 le16_to_cpu(req0->index),
-			 req0->mac_addr[0], req0->mac_addr[1],
-			 req0->mac_addr[2], req0->mac_addr[3],
-			 req0->mac_addr[4], req0->mac_addr[5]);
+		pos += scnprintf(buf + pos, len - pos, "%02u     %pM ",
+				 le16_to_cpu(req0->index), req0->mac_addr);
 
-		snprintf(printf_buf + strlen(printf_buf),
-			 HCLGE_DBG_BUF_LEN - strlen(printf_buf),
-			 "%x   |%04x |%x   |%04x|%x   |%02x   |%02x   |",
-			 !!(req0->flags & HCLGE_DBG_MNG_MAC_MASK_B),
-			 le16_to_cpu(req0->ethter_type),
-			 !!(req0->flags & HCLGE_DBG_MNG_ETHER_MASK_B),
-			 le16_to_cpu(req0->vlan_tag) & HCLGE_DBG_MNG_VLAN_TAG,
-			 !!(req0->flags & HCLGE_DBG_MNG_VLAN_MASK_B),
-			 req0->i_port_bitmap, req0->i_port_direction);
+		pos += scnprintf(buf + pos, len - pos,
+				 "%x     %04x   %x     %04x  ",
+				 !!(req0->flags & HCLGE_DBG_MNG_MAC_MASK_B),
+				 le16_to_cpu(req0->ethter_type),
+				 !!(req0->flags & HCLGE_DBG_MNG_ETHER_MASK_B),
+				 le16_to_cpu(req0->vlan_tag) &
+				 HCLGE_DBG_MNG_VLAN_TAG);
+
+		pos += scnprintf(buf + pos, len - pos,
+				 "%x     %02x     %02x     ",
+				 !!(req0->flags & HCLGE_DBG_MNG_VLAN_MASK_B),
+				 req0->i_port_bitmap, req0->i_port_direction);
 
 		msg_egress_port = le16_to_cpu(req0->egress_port);
-		snprintf(printf_buf + strlen(printf_buf),
-			 HCLGE_DBG_BUF_LEN - strlen(printf_buf),
-			 "%x     |%x    |%02x   |%04x|%x\n",
-			 !!(msg_egress_port & HCLGE_DBG_MNG_E_TYPE_B),
-			 msg_egress_port & HCLGE_DBG_MNG_PF_ID,
-			 (msg_egress_port >> 3) & HCLGE_DBG_MNG_VF_ID,
-			 le16_to_cpu(req0->egress_queue),
-			 !!(msg_egress_port & HCLGE_DBG_MNG_DROP_B));
-
-		dev_info(&hdev->pdev->dev, "%s", printf_buf);
+		pos += scnprintf(buf + pos, len - pos,
+				 "%x       %x      %02x     %04x  %x\n",
+				 !!(msg_egress_port & HCLGE_DBG_MNG_E_TYPE_B),
+				 msg_egress_port & HCLGE_DBG_MNG_PF_ID,
+				 (msg_egress_port >> 3) & HCLGE_DBG_MNG_VF_ID,
+				 le16_to_cpu(req0->egress_queue),
+				 !!(msg_egress_port & HCLGE_DBG_MNG_DROP_B));
 	}
+
+	return 0;
 }
 
 static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
@@ -1813,8 +1805,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_qos_pri_map(hdev);
 	} else if (strncmp(cmd_buf, "dump qos buf cfg", 16) == 0) {
 		hclge_dbg_dump_qos_buf_cfg(hdev);
-	} else if (strncmp(cmd_buf, "dump mng tbl", 12) == 0) {
-		hclge_dbg_dump_mng_table(hdev);
 	} else if (strncmp(cmd_buf, DUMP_REG, strlen(DUMP_REG)) == 0) {
 		hclge_dbg_dump_reg_cmd(hdev, &cmd_buf[sizeof(DUMP_REG)]);
 	} else if (strncmp(cmd_buf, "dump reset info", 15) == 0) {
@@ -1865,6 +1855,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_MC,
 		.dbg_dump = hclge_dbg_dump_mac_mc,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_MNG_TBL,
+		.dbg_dump = hclge_dbg_dump_mng_table,
 	},
 };
 

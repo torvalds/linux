@@ -7,7 +7,6 @@
 #include <linux/etherdevice.h>
 #include "hclge_cmd.h"
 
-#define HCLGE_DBG_BUF_LEN	   256
 #define HCLGE_DBG_MNG_TBL_MAX	   64
 
 #define HCLGE_DBG_MNG_VLAN_MASK_B  BIT(0)
