@@ -7141,6 +7141,14 @@ static void gen12lp_init_clock_gating(struct drm_i915_private *dev_priv)
 				 CLKREQ_POLICY_MEM_UP_OVRD, 0);
 }
 
+static void adlp_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	gen12lp_init_clock_gating(dev_priv);
+
+	/* Wa_22011091694:adlp */
+	intel_de_rmw(dev_priv, GEN9_CLKGATE_DIS_5, 0, DPCE_GATING_DIS);
+}
+
 static void dg1_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	gen12lp_init_clock_gating(dev_priv);
@@ -7618,7 +7626,9 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_DG1(dev_priv))
+	if (IS_ALDERLAKE_P(dev_priv))
+		dev_priv->display.init_clock_gating = adlp_init_clock_gating;
+	else if (IS_DG1(dev_priv))
 		dev_priv->display.init_clock_gating = dg1_init_clock_gating;
 	else if (IS_GEN(dev_priv, 12))
 		dev_priv->display.init_clock_gating = gen12lp_init_clock_gating;
