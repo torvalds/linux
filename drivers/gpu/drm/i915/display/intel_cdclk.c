@@ -1253,6 +1253,21 @@ static const struct intel_cdclk_vals rkl_cdclk_table[] = {
 	{}
 };
 
+static const struct intel_cdclk_vals adlp_a_step_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk = 307200, .divider = 2, .ratio = 32 },
+	{ .refclk = 19200, .cdclk = 556800, .divider = 2, .ratio = 58 },
+	{ .refclk = 19200, .cdclk = 652800, .divider = 2, .ratio = 68 },
+
+	{ .refclk = 24000, .cdclk = 312000, .divider = 2, .ratio = 26 },
+	{ .refclk = 24000, .cdclk = 552000, .divider = 2, .ratio = 46 },
+	{ .refclk = 24400, .cdclk = 648000, .divider = 2, .ratio = 54 },
+
+	{ .refclk = 38400, .cdclk = 307200, .divider = 2, .ratio = 16 },
+	{ .refclk = 38400, .cdclk = 556800, .divider = 2, .ratio = 29 },
+	{ .refclk = 38400, .cdclk = 652800, .divider = 2, .ratio = 34 },
+	{}
+};
+
 static const struct intel_cdclk_vals adlp_cdclk_table[] = {
 	{ .refclk = 19200, .cdclk = 172800, .divider = 3, .ratio = 27 },
 	{ .refclk = 19200, .cdclk = 192000, .divider = 2, .ratio = 20 },
@@ -2801,7 +2816,11 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
-		dev_priv->cdclk.table = adlp_cdclk_table;
+		/* Wa_22011320316:adlp[a0] */
+		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+			dev_priv->cdclk.table = adlp_a_step_cdclk_table;
+		else
+			dev_priv->cdclk.table = adlp_cdclk_table;
 	} else if (IS_ROCKETLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
