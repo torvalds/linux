@@ -821,13 +821,11 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vpu->dev = &pdev->dev;
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tcm");
-	vpu->reg.tcm = devm_ioremap_resource(dev, res);
+	vpu->reg.tcm = devm_platform_ioremap_resource_byname(pdev, "tcm");
 	if (IS_ERR((__force void *)vpu->reg.tcm))
 		return PTR_ERR((__force void *)vpu->reg.tcm);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_reg");
-	vpu->reg.cfg = devm_ioremap_resource(dev, res);
+	vpu->reg.cfg = devm_platform_ioremap_resource_byname(pdev, "cfg_reg");
 	if (IS_ERR((__force void *)vpu->reg.cfg))
 		return PTR_ERR((__force void *)vpu->reg.cfg);
 
