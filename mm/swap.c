@@ -992,17 +992,18 @@ void __pagevec_release(struct pagevec *pvec)
 }
 EXPORT_SYMBOL(__pagevec_release);
 
-static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec)
+static void __pagevec_lru_add_fn(struct folio *folio, struct lruvec *lruvec)
 {
-	int was_unevictable = TestClearPageUnevictable(page);
-	int nr_pages = thp_nr_pages(page);
+	int was_unevictable = folio_test_clear_unevictable(folio);
+	long nr_pages = folio_nr_pages(folio);
 
-	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM_BUG_ON_FOLIO(folio_test_lru(folio), folio);
 
 	/*
-	 * Page becomes evictable in two ways:
+	 * A folio becomes evictable in two ways:
 	 * 1) Within LRU lock [munlock_vma_page() and __munlock_pagevec()].
-	 * 2) Before acquiring LRU lock to put the page to correct LRU and then
+	 * 2) Before acquiring LRU lock to put the folio on the correct LRU
+	 *    and then
 	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
 	 *   b) do PageLRU check before lock [clear_page_mlock]
 	 *
@@ -1011,35 +1012,36 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec)
 	 *
 	 * #0: __pagevec_lru_add_fn		#1: clear_page_mlock
 	 *
-	 * SetPageLRU()				TestClearPageMlocked()
+	 * folio_set_lru()			folio_test_clear_mlocked()
 	 * smp_mb() // explicit ordering	// above provides strict
 	 *					// ordering
-	 * PageMlocked()			PageLRU()
+	 * folio_test_mlocked()			folio_test_lru()
 	 *
 	 *
-	 * if '#1' does not observe setting of PG_lru by '#0' and fails
-	 * isolation, the explicit barrier will make sure that page_evictable
-	 * check will put the page in correct LRU. Without smp_mb(), SetPageLRU
-	 * can be reordered after PageMlocked check and can make '#1' to fail
-	 * the isolation of the page whose Mlocked bit is cleared (#0 is also
-	 * looking at the same page) and the evictable page will be stranded
-	 * in an unevictable LRU.
+	 * if '#1' does not observe setting of PG_lru by '#0' and
+	 * fails isolation, the explicit barrier will make sure that
+	 * folio_evictable check will put the folio on the correct
+	 * LRU. Without smp_mb(), folio_set_lru() can be reordered
+	 * after folio_test_mlocked() check and can make '#1' fail the
+	 * isolation of the folio whose mlocked bit is cleared (#0 is
+	 * also looking at the same folio) and the evictable folio will
+	 * be stranded on an unevictable LRU.
 	 */
-	SetPageLRU(page);
+	folio_set_lru(folio);
 	smp_mb__after_atomic();
 
-	if (page_evictable(page)) {
+	if (folio_evictable(folio)) {
 		if (was_unevictable)
 			__count_vm_events(UNEVICTABLE_PGRESCUED, nr_pages);
 	} else {
-		ClearPageActive(page);
-		SetPageUnevictable(page);
+		folio_clear_active(folio);
+		folio_set_unevictable(folio);
 		if (!was_unevictable)
 			__count_vm_events(UNEVICTABLE_PGCULLED, nr_pages);
 	}
 
-	add_page_to_lru_list(page, lruvec);
-	trace_mm_lru_insertion(page);
+	lruvec_add_folio(lruvec, folio);
+	trace_mm_lru_insertion(folio);
 }
 
 /*
@@ -1053,11 +1055,10 @@ void __pagevec_lru_add(struct pagevec *pvec)
 	unsigned long flags = 0;
 
 	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-		struct folio *folio = page_folio(page);
+		struct folio *folio = page_folio(pvec->pages[i]);
 
 		lruvec = folio_lruvec_relock_irqsave(folio, lruvec, &flags);
-		__pagevec_lru_add_fn(page, lruvec);
+		__pagevec_lru_add_fn(folio, lruvec);
 	}
 	if (lruvec)
 		unlock_page_lruvec_irqrestore(lruvec, flags);
