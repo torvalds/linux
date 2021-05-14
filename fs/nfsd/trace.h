@@ -536,6 +536,34 @@ DEFINE_EVENT(nfsd_net_class, nfsd_##name, \
 DEFINE_NET_EVENT(grace_start);
 DEFINE_NET_EVENT(grace_complete);
 
+TRACE_EVENT(nfsd_clid_cred_mismatch,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct svc_rqst *rqstp
+	),
+	TP_ARGS(clp, rqstp),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(unsigned long, cl_flavor)
+		__field(unsigned long, new_flavor)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__entry->cl_flavor = clp->cl_cred.cr_flavor;
+		__entry->new_flavor = rqstp->rq_cred.cr_flavor;
+		memcpy(__entry->addr, &rqstp->rq_xprt->xpt_remote,
+			sizeof(struct sockaddr_in6));
+	),
+	TP_printk("client %08x:%08x flavor=%s, conflict=%s from addr=%pISpc",
+		__entry->cl_boot, __entry->cl_id,
+		show_nfsd_authflavor(__entry->cl_flavor),
+		show_nfsd_authflavor(__entry->new_flavor), __entry->addr
+	)
+)
+
 TRACE_EVENT(nfsd_clid_inuse_err,
 	TP_PROTO(const struct nfs4_client *clp),
 	TP_ARGS(clp),
