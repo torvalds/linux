@@ -33,6 +33,7 @@ unsigned long kernel_virt_addr = KERNEL_LINK_ADDR;
 EXPORT_SYMBOL(kernel_virt_addr);
 #ifdef CONFIG_XIP_KERNEL
 #define kernel_virt_addr       (*((unsigned long *)XIP_FIXUP(&kernel_virt_addr)))
+extern char _xiprom[], _exiprom[];
 #endif
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
@@ -170,13 +171,6 @@ static void __init setup_bootmem(void)
 	dma_contiguous_reserve(dma32_phys_limit);
 	memblock_allow_resize();
 }
-
-#ifdef CONFIG_XIP_KERNEL
-
-extern char _xiprom[], _exiprom[];
-extern char _sdata[], _edata[];
-
-#endif /* CONFIG_XIP_KERNEL */
 
 #ifdef CONFIG_MMU
 static struct pt_alloc_ops _pt_ops __ro_after_init;
