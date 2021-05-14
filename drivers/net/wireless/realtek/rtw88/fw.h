@@ -591,6 +591,12 @@ static inline struct rtw_c2h_cmd *get_c2h_from_skb(struct sk_buff *skb)
 	return (struct rtw_c2h_cmd *)(skb->data + pkt_offset);
 }
 
+static inline bool rtw_fw_feature_check(struct rtw_fw_state *fw,
+					enum rtw_fw_feature feature)
+{
+	return !!(fw->feature & feature);
+}
+
 void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 			       struct sk_buff *skb);
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb);

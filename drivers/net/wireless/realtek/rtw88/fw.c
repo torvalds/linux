@@ -584,10 +584,9 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 	struct rtw_sta_info *si =
 		sta ? (struct rtw_sta_info *)sta->drv_priv : NULL;
 	s32 threshold = bss_conf->cqm_rssi_thold + rssi_offset;
-	struct rtw_fw_state *fw = &rtwdev->fw;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
-	if (!(fw->feature & FW_FEATURE_BCN_FILTER))
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		return;
 
 	if (!connect) {

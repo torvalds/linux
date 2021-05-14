@@ -148,13 +148,12 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
-	struct rtw_fw_state *fw = &rtwdev->fw;
 	enum rtw_net_type net_type;
 	u32 config = 0;
 	u8 port = 0;
 	u8 bcn_ctrl = 0;
 
-	if (fw->feature & FW_FEATURE_BCN_FILTER)
+	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 	rtwvif->port = port;
