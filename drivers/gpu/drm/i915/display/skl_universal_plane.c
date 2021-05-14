@@ -199,6 +199,13 @@ static const u64 gen12_plane_format_modifiers_rc_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+static const u64 adlp_step_a_plane_format_modifiers[] = {
+	I915_FORMAT_MOD_Y_TILED,
+	I915_FORMAT_MOD_X_TILED,
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 {
 	switch (format) {
@@ -1881,6 +1888,10 @@ static bool gen12_plane_supports_mc_ccs(struct drm_i915_private *dev_priv,
 	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0))
 		return false;
 
+	/* Wa_22011186057 */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+		return false;
+
 	return plane_id < PLANE_SPRITE4;
 }
 
@@ -1898,8 +1909,12 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 	case I915_FORMAT_MOD_Y_TILED:
+		break;
 	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
 	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+		/* Wa_22011186057 */
+		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+			return false;
 		break;
 	default:
 		return false;
@@ -1954,7 +1969,10 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 static const u64 *gen12_get_plane_modifiers(struct drm_i915_private *dev_priv,
 					    enum plane_id plane_id)
 {
-	if (gen12_plane_supports_mc_ccs(dev_priv, plane_id))
+	/* Wa_22011186057 */
+	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0))
+		return adlp_step_a_plane_format_modifiers;
+	else if (gen12_plane_supports_mc_ccs(dev_priv, plane_id))
 		return gen12_plane_format_modifiers_mc_ccs;
 	else
 		return gen12_plane_format_modifiers_rc_ccs;
