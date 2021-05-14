@@ -9033,6 +9033,44 @@ intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
 	verify_disabled_dpll_state(dev_priv);
 }
 
+int intel_modeset_all_pipes(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	/*
+	 * Add all pipes to the state, and force
+	 * a modeset on all the active ones.
+	 */
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
+		int ret;
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (!crtc_state->hw.active ||
+		    drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
+			continue;
+
+		crtc_state->uapi.mode_changed = true;
+
+		ret = drm_atomic_add_affected_connectors(&state->base,
+							 &crtc->base);
+		if (ret)
+			return ret;
+
+		ret = intel_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			return ret;
+
+		crtc_state->update_planes |= crtc_state->active_planes;
+	}
+
+	return 0;
+}
+
 static void
 intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 {
