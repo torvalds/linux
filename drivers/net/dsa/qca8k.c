@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <net/dsa.h>
 #include <linux/of_net.h>
+#include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/if_bridge.h>
 #include <linux/mdio.h>
@@ -629,7 +630,7 @@ qca8k_port_to_phy(int port)
 }
 
 static int
-qca8k_mdio_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
+qca8k_mdio_busy_wait(struct mii_bus *bus, u32 reg, u32 mask)
 {
 	u16 r1, r2, page;
 	u32 val;
@@ -639,7 +640,7 @@ qca8k_mdio_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
 
 	ret = read_poll_timeout(qca8k_mii_read32, val, !(val & mask), 0,
 				QCA8K_BUSY_WAIT_TIMEOUT * USEC_PER_MSEC, false,
-				priv->bus, 0x10 | r2, r1);
+				bus, 0x10 | r2, r1);
 
 	/* Check if qca8k_read has failed for a different reason
 	 * before returnting -ETIMEDOUT
@@ -651,19 +652,16 @@ qca8k_mdio_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
 }
 
 static int
-qca8k_mdio_write(struct qca8k_priv *priv, int port, u32 regnum, u16 data)
+qca8k_mdio_write(struct mii_bus *salve_bus, int phy, int regnum, u16 data)
 {
+	struct qca8k_priv *priv = salve_bus->priv;
 	u16 r1, r2, page;
-	u32 phy, val;
+	u32 val;
 	int ret;
 
 	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
 		return -EINVAL;
 
-	/* callee is responsible for not passing bad ports,
-	 * but we still would like to make spills impossible.
-	 */
-	phy = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
 	val = QCA8K_MDIO_MASTER_BUSY | QCA8K_MDIO_MASTER_EN |
 	      QCA8K_MDIO_MASTER_WRITE | QCA8K_MDIO_MASTER_PHY_ADDR(phy) |
 	      QCA8K_MDIO_MASTER_REG_ADDR(regnum) |
@@ -679,33 +677,29 @@ qca8k_mdio_write(struct qca8k_priv *priv, int port, u32 regnum, u16 data)
 
 	qca8k_mii_write32(priv->bus, 0x10 | r2, r1, val);
 
-	ret = qca8k_mdio_busy_wait(priv, QCA8K_MDIO_MASTER_CTRL,
+	ret = qca8k_mdio_busy_wait(priv->bus, QCA8K_MDIO_MASTER_CTRL,
 				   QCA8K_MDIO_MASTER_BUSY);
 
 exit:
-	mutex_unlock(&priv->bus->mdio_lock);
-
 	/* even if the busy_wait timeouts try to clear the MASTER_EN */
-	qca8k_reg_clear(priv, QCA8K_MDIO_MASTER_CTRL,
-			QCA8K_MDIO_MASTER_EN);
+	qca8k_mii_write32(priv->bus, 0x10 | r2, r1, 0);
+
+	mutex_unlock(&priv->bus->mdio_lock);
 
 	return ret;
 }
 
 static int
-qca8k_mdio_read(struct qca8k_priv *priv, int port, u32 regnum)
+qca8k_mdio_read(struct mii_bus *salve_bus, int phy, int regnum)
 {
+	struct qca8k_priv *priv = salve_bus->priv;
 	u16 r1, r2, page;
-	u32 phy, val;
+	u32 val;
 	int ret;
 
 	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
 		return -EINVAL;
 
-	/* callee is responsible for not passing bad ports,
-	 * but we still would like to make spills impossible.
-	 */
-	phy = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
 	val = QCA8K_MDIO_MASTER_BUSY | QCA8K_MDIO_MASTER_EN |
 	      QCA8K_MDIO_MASTER_READ | QCA8K_MDIO_MASTER_PHY_ADDR(phy) |
 	      QCA8K_MDIO_MASTER_REG_ADDR(regnum);
@@ -720,23 +714,21 @@ qca8k_mdio_read(struct qca8k_priv *priv, int port, u32 regnum)
 
 	qca8k_mii_write32(priv->bus, 0x10 | r2, r1, val);
 
-	ret = qca8k_mdio_busy_wait(priv, QCA8K_MDIO_MASTER_CTRL,
+	ret = qca8k_mdio_busy_wait(priv->bus, QCA8K_MDIO_MASTER_CTRL,
 				   QCA8K_MDIO_MASTER_BUSY);
 	if (ret)
 		goto exit;
 
 	val = qca8k_mii_read32(priv->bus, 0x10 | r2, r1);
-	val &= QCA8K_MDIO_MASTER_DATA_MASK;
 
 exit:
+	/* even if the busy_wait timeouts try to clear the MASTER_EN */
+	qca8k_mii_write32(priv->bus, 0x10 | r2, r1, 0);
+
 	mutex_unlock(&priv->bus->mdio_lock);
 
 	if (val >= 0)
 		val &= QCA8K_MDIO_MASTER_DATA_MASK;
-
-	/* even if the busy_wait timeouts try to clear the MASTER_EN */
-	qca8k_reg_clear(priv, QCA8K_MDIO_MASTER_CTRL,
-			QCA8K_MDIO_MASTER_EN);
 
 	return val;
 }
@@ -746,7 +738,14 @@ qca8k_phy_write(struct dsa_switch *ds, int port, int regnum, u16 data)
 {
 	struct qca8k_priv *priv = ds->priv;
 
-	return qca8k_mdio_write(priv, port, regnum, data);
+	/* Check if the legacy mapping should be used and the
+	 * port is not correctly mapped to the right PHY in the
+	 * devicetree
+	 */
+	if (priv->legacy_phy_port_mapping)
+		port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+
+	return qca8k_mdio_write(priv->bus, port, regnum, data);
 }
 
 static int
@@ -755,7 +754,14 @@ qca8k_phy_read(struct dsa_switch *ds, int port, int regnum)
 	struct qca8k_priv *priv = ds->priv;
 	int ret;
 
-	ret = qca8k_mdio_read(priv, port, regnum);
+	/* Check if the legacy mapping should be used and the
+	 * port is not correctly mapped to the right PHY in the
+	 * devicetree
+	 */
+	if (priv->legacy_phy_port_mapping)
+		port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+
+	ret = qca8k_mdio_read(priv->bus, port, regnum);
 
 	if (ret < 0)
 		return 0xffff;
@@ -764,10 +770,37 @@ qca8k_phy_read(struct dsa_switch *ds, int port, int regnum)
 }
 
 static int
+qca8k_mdio_register(struct qca8k_priv *priv, struct device_node *mdio)
+{
+	struct dsa_switch *ds = priv->ds;
+	struct mii_bus *bus;
+
+	bus = devm_mdiobus_alloc(ds->dev);
+
+	if (!bus)
+		return -ENOMEM;
+
+	bus->priv = (void *)priv;
+	bus->name = "qca8k slave mii";
+	bus->read = qca8k_mdio_read;
+	bus->write = qca8k_mdio_write;
+	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d",
+		 ds->index);
+
+	bus->parent = ds->dev;
+	bus->phy_mask = ~ds->phys_mii_mask;
+
+	ds->slave_mii_bus = bus;
+
+	return devm_of_mdiobus_register(priv->dev, bus, mdio);
+}
+
+static int
 qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 {
 	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
-	struct device_node *ports, *port;
+	struct device_node *ports, *port, *mdio;
+	phy_interface_t mode;
 	int err;
 
 	ports = of_get_child_by_name(priv->dev->of_node, "ports");
@@ -788,7 +821,10 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 		if (!dsa_is_user_port(priv->ds, reg))
 			continue;
 
-		if (of_property_read_bool(port, "phy-handle"))
+		of_get_phy_mode(port, &mode);
+
+		if (of_property_read_bool(port, "phy-handle") &&
+		    mode != PHY_INTERFACE_MODE_INTERNAL)
 			external_mdio_mask |= BIT(reg);
 		else
 			internal_mdio_mask |= BIT(reg);
@@ -825,8 +861,23 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 				       QCA8K_MDIO_MASTER_EN);
 	}
 
+	/* Check if the devicetree declare the port:phy mapping */
+	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
+	if (of_device_is_available(mdio)) {
+		err = qca8k_mdio_register(priv, mdio);
+		if (err)
+			of_node_put(mdio);
+
+		return err;
+	}
+
+	/* If a mapping can't be found the legacy mapping is used,
+	 * using the qca8k_port_to_phy function
+	 */
+	priv->legacy_phy_port_mapping = true;
 	priv->ops.phy_read = qca8k_phy_read;
 	priv->ops.phy_write = qca8k_phy_write;
+
 	return 0;
 }
 
@@ -1212,7 +1263,8 @@ qca8k_phylink_validate(struct dsa_switch *ds, int port,
 	case 5:
 		/* Internal PHY */
 		if (state->interface != PHY_INTERFACE_MODE_NA &&
-		    state->interface != PHY_INTERFACE_MODE_GMII)
+		    state->interface != PHY_INTERFACE_MODE_GMII &&
+		    state->interface != PHY_INTERFACE_MODE_INTERNAL)
 			goto unsupported;
 		break;
 	case 6: /* 2nd CPU port / external PHY */
