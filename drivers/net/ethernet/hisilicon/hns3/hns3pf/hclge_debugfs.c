@@ -1456,56 +1456,73 @@ static int hclge_dbg_dump_interrupt(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
+static void hclge_dbg_imp_info_data_print(struct hclge_desc *desc_src,
+					  char *buf, int len, u32 bd_num)
 {
-	struct hclge_desc *desc_src, *desc_tmp;
-	struct hclge_get_m7_bd_cmd *req;
+#define HCLGE_DBG_IMP_INFO_PRINT_OFFSET 0x2
+
+	struct hclge_desc *desc_index = desc_src;
+	u32 offset = 0;
+	int pos = 0;
+	u32 i, j;
+
+	pos += scnprintf(buf + pos, len - pos, "offset | data\n");
+
+	for (i = 0; i < bd_num; i++) {
+		j = 0;
+		while (j < HCLGE_DESC_DATA_LEN - 1) {
+			pos += scnprintf(buf + pos, len - pos, "0x%04x | ",
+					 offset);
+			pos += scnprintf(buf + pos, len - pos, "0x%08x  ",
+					 le32_to_cpu(desc_index->data[j++]));
+			pos += scnprintf(buf + pos, len - pos, "0x%08x\n",
+					 le32_to_cpu(desc_index->data[j++]));
+			offset += sizeof(u32) * HCLGE_DBG_IMP_INFO_PRINT_OFFSET;
+		}
+		desc_index++;
+	}
+}
+
+static int
+hclge_dbg_get_imp_stats_info(struct hclge_dev *hdev, char *buf, int len)
+{
+	struct hclge_get_imp_bd_cmd *req;
+	struct hclge_desc *desc_src;
 	struct hclge_desc desc;
-	u32 bd_num, buf_len;
-	int ret, i;
+	u32 bd_num;
+	int ret;
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_M7_STATS_BD, true);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_IMP_STATS_BD, true);
 
-	req = (struct hclge_get_m7_bd_cmd *)desc.data;
+	req = (struct hclge_get_imp_bd_cmd *)desc.data;
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"get firmware statistics bd number failed, ret = %d\n",
+			"failed to get imp statistics bd number, ret = %d\n",
 			ret);
-		return;
+		return ret;
 	}
 
 	bd_num = le32_to_cpu(req->bd_num);
 
-	buf_len	 = sizeof(struct hclge_desc) * bd_num;
-	desc_src = kzalloc(buf_len, GFP_KERNEL);
+	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc_src)
-		return;
+		return -ENOMEM;
 
-	desc_tmp = desc_src;
-	ret  = hclge_dbg_cmd_send(hdev, desc_tmp, 0, bd_num,
-				  HCLGE_OPC_M7_STATS_INFO);
+	ret  = hclge_dbg_cmd_send(hdev, desc_src, 0, bd_num,
+				  HCLGE_OPC_IMP_STATS_INFO);
 	if (ret) {
 		kfree(desc_src);
 		dev_err(&hdev->pdev->dev,
-			"get firmware statistics failed, ret = %d\n", ret);
-		return;
+			"failed to get imp statistics, ret = %d\n", ret);
+		return ret;
 	}
 
-	for (i = 0; i < bd_num; i++) {
-		dev_info(&hdev->pdev->dev, "0x%08x  0x%08x  0x%08x\n",
-			 le32_to_cpu(desc_tmp->data[0]),
-			 le32_to_cpu(desc_tmp->data[1]),
-			 le32_to_cpu(desc_tmp->data[2]));
-		dev_info(&hdev->pdev->dev, "0x%08x  0x%08x  0x%08x\n",
-			 le32_to_cpu(desc_tmp->data[3]),
-			 le32_to_cpu(desc_tmp->data[4]),
-			 le32_to_cpu(desc_tmp->data[5]));
-
-		desc_tmp++;
-	}
+	hclge_dbg_imp_info_data_print(desc_src, buf, len, bd_num);
 
 	kfree(desc_src);
+
+	return 0;
 }
 
 #define HCLGE_CMD_NCL_CONFIG_BD_NUM	5
@@ -1831,8 +1848,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_reg_cmd(hdev, &cmd_buf[sizeof(DUMP_REG)]);
 	} else if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
 		hclge_dbg_dump_serv_info(hdev);
-	} else if (strncmp(cmd_buf, "dump m7 info", 12) == 0) {
-		hclge_dbg_get_m7_stats_info(hdev);
 	} else if (strncmp(cmd_buf, "dump ncl_config", 15) == 0) {
 		hclge_dbg_dump_ncl_config(hdev,
 					  &cmd_buf[sizeof("dump ncl_config")]);
@@ -1885,6 +1900,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_RESET_INFO,
 		.dbg_dump = hclge_dbg_dump_rst_info,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_IMP_INFO,
+		.dbg_dump = hclge_dbg_get_imp_stats_info,
 	},
 };
 
