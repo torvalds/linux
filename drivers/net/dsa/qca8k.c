@@ -778,6 +778,68 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 }
 
 static int
+qca8k_setup_of_rgmii_delay(struct qca8k_priv *priv)
+{
+	struct device_node *port_dn;
+	phy_interface_t mode;
+	struct dsa_port *dp;
+	u32 val;
+
+	/* CPU port is already checked */
+	dp = dsa_to_port(priv->ds, 0);
+
+	port_dn = dp->dn;
+
+	/* Check if port 0 is set to the correct type */
+	of_get_phy_mode(port_dn, &mode);
+	if (mode != PHY_INTERFACE_MODE_RGMII_ID &&
+	    mode != PHY_INTERFACE_MODE_RGMII_RXID &&
+	    mode != PHY_INTERFACE_MODE_RGMII_TXID) {
+		return 0;
+	}
+
+	switch (mode) {
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		if (of_property_read_u32(port_dn, "rx-internal-delay-ps", &val))
+			val = 2;
+		else
+			/* Switch regs accept value in ns, convert ps to ns */
+			val = val / 1000;
+
+		if (val > QCA8K_MAX_DELAY) {
+			dev_err(priv->dev, "rgmii rx delay is limited to a max value of 3ns, setting to the max value");
+			val = 3;
+		}
+
+		priv->rgmii_rx_delay = val;
+		/* Stop here if we need to check only for rx delay */
+		if (mode != PHY_INTERFACE_MODE_RGMII_ID)
+			break;
+
+		fallthrough;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		if (of_property_read_u32(port_dn, "tx-internal-delay-ps", &val))
+			val = 1;
+		else
+			/* Switch regs accept value in ns, convert ps to ns */
+			val = val / 1000;
+
+		if (val > QCA8K_MAX_DELAY) {
+			dev_err(priv->dev, "rgmii tx delay is limited to a max value of 3ns, setting to the max value");
+			val = 3;
+		}
+
+		priv->rgmii_tx_delay = val;
+		break;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int
 qca8k_setup(struct dsa_switch *ds)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
@@ -799,6 +861,10 @@ qca8k_setup(struct dsa_switch *ds)
 		dev_warn(priv->dev, "regmap initialization failed");
 
 	ret = qca8k_setup_mdio_bus(priv);
+	if (ret)
+		return ret;
+
+	ret = qca8k_setup_of_rgmii_delay(priv);
 	if (ret)
 		return ret;
 
@@ -970,6 +1036,8 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	case 0: /* 1st CPU port */
 		if (state->interface != PHY_INTERFACE_MODE_RGMII &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII_ID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_TXID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_RXID &&
 		    state->interface != PHY_INTERFACE_MODE_SGMII)
 			return;
 
@@ -985,6 +1053,8 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	case 6: /* 2nd CPU port / external PHY */
 		if (state->interface != PHY_INTERFACE_MODE_RGMII &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII_ID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_TXID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_RXID &&
 		    state->interface != PHY_INTERFACE_MODE_SGMII &&
 		    state->interface != PHY_INTERFACE_MODE_1000BASEX)
 			return;
@@ -1008,14 +1078,18 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 		qca8k_write(priv, reg, QCA8K_PORT_PAD_RGMII_EN);
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
 		/* RGMII_ID needs internal delay. This is enabled through
 		 * PORT5_PAD_CTRL for all ports, rather than individual port
 		 * registers
 		 */
 		qca8k_write(priv, reg,
 			    QCA8K_PORT_PAD_RGMII_EN |
-			    QCA8K_PORT_PAD_RGMII_TX_DELAY(QCA8K_MAX_DELAY) |
-			    QCA8K_PORT_PAD_RGMII_RX_DELAY(QCA8K_MAX_DELAY));
+			    QCA8K_PORT_PAD_RGMII_TX_DELAY(priv->rgmii_tx_delay) |
+			    QCA8K_PORT_PAD_RGMII_RX_DELAY(priv->rgmii_rx_delay) |
+			    QCA8K_PORT_PAD_RGMII_TX_DELAY_EN |
+			    QCA8K_PORT_PAD_RGMII_RX_DELAY_EN);
 		/* QCA8337 requires to set rgmii rx delay */
 		if (priv->switch_id == QCA8K_ID_QCA8337)
 			qca8k_write(priv, QCA8K_REG_PORT5_PAD_CTRL,
@@ -1073,6 +1147,8 @@ qca8k_phylink_validate(struct dsa_switch *ds, int port,
 		if (state->interface != PHY_INTERFACE_MODE_NA &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII_ID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_TXID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_RXID &&
 		    state->interface != PHY_INTERFACE_MODE_SGMII)
 			goto unsupported;
 		break;
@@ -1090,6 +1166,8 @@ qca8k_phylink_validate(struct dsa_switch *ds, int port,
 		if (state->interface != PHY_INTERFACE_MODE_NA &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII &&
 		    state->interface != PHY_INTERFACE_MODE_RGMII_ID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_TXID &&
+		    state->interface != PHY_INTERFACE_MODE_RGMII_RXID &&
 		    state->interface != PHY_INTERFACE_MODE_SGMII &&
 		    state->interface != PHY_INTERFACE_MODE_1000BASEX)
 			goto unsupported;
