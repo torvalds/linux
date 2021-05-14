@@ -66,5 +66,8 @@ struct cxl_regs {
 	};
 };
 
+void cxl_setup_device_regs(struct device *dev, void __iomem *base,
+			   struct cxl_device_regs *regs);
+
 extern struct bus_type cxl_bus_type;
 #endif /* __CXL_H__ */
