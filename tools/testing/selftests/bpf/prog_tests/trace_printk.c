@@ -3,7 +3,7 @@
 
 #include <test_progs.h>
 
-#include "trace_printk.skel.h"
+#include "trace_printk.lskel.h"
 
 #define TRACEBUF	"/sys/kernel/debug/tracing/trace_pipe"
 #define SEARCHMSG	"testing,testing"
