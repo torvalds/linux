@@ -232,6 +232,8 @@ static void igc_clean_tx_ring(struct igc_ring *tx_ring)
 				igc_unmap_tx_buffer(tx_ring->dev, tx_buffer);
 		}
 
+		tx_buffer->next_to_watch = NULL;
+
 		/* move us one more past the eop_desc for start of next pkt */
 		tx_buffer++;
 		i++;
