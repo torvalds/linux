@@ -1613,9 +1613,9 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	host_err = vfs_symlink(&init_user_ns, d_inode(dentry), dnew, path);
 	err = nfserrno(host_err);
+	fh_unlock(fhp);
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
-	fh_unlock(fhp);
 
 	fh_drop_write(fhp);
 
@@ -1680,6 +1680,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	if (d_really_is_negative(dold))
 		goto out_dput;
 	host_err = vfs_link(dold, &init_user_ns, dirp, dnew, NULL);
+	fh_unlock(ffhp);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
 		if (!err)
@@ -1902,10 +1903,10 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		host_err = vfs_rmdir(&init_user_ns, dirp, rdentry);
 	}
 
+	fh_unlock(fhp);
 	if (!host_err)
 		host_err = commit_metadata(fhp);
 	dput(rdentry);
-	fh_unlock(fhp);
 	iput(rinode);    /* truncate the inode here */
 
 out_drop_write:
