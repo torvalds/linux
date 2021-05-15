@@ -162,7 +162,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			goto fail;
 		}
 		if (pp->merge_3d && pp->merge_3d < MERGE_3D_MAX)
-			hw->merge_3d = rm->merge_3d_blks[pp->merge_3d - MERGE_3D_0];
+			hw->merge_3d = to_dpu_hw_merge_3d(rm->merge_3d_blks[pp->merge_3d - MERGE_3D_0]);
 		rm->pingpong_blks[pp->id - PINGPONG_0] = &hw->base;
 	}
 
