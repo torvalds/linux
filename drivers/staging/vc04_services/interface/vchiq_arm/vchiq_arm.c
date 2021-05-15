@@ -302,8 +302,9 @@ static enum vchiq_status vchiq_add_service(
 	if (service) {
 		*phandle = service->handle;
 		status = VCHIQ_SUCCESS;
-	} else
+	} else {
 		status = VCHIQ_ERROR;
+	}
 
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p): returning %d", __func__, instance, status);
@@ -942,8 +943,9 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 					header->data, header->size) == 0)) {
 			ret = header->size;
 			vchiq_release_message(service->handle, header);
-		} else
+		} else {
 			ret = -EFAULT;
+		}
 	} else {
 		vchiq_log_error(vchiq_arm_log_level,
 			"header %pK: bufsize %x < size %x",
@@ -1401,8 +1403,9 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						service->base.fourcc),
 					service->client_id);
 			}
-		} else
+		} else {
 			ret = -EINVAL;
+		}
 	} break;
 
 	case VCHIQ_IOC_QUEUE_MESSAGE: {
@@ -1539,8 +1542,9 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			struct user_service *user_service =
 				(struct user_service *)service->base.userdata;
 			close_delivered(user_service);
-		} else
+		} else {
 			ret = -EINVAL;
+		}
 	} break;
 
 	default:

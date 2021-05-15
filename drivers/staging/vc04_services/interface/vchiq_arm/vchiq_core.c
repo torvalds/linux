@@ -689,13 +689,13 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 						count - 1;
 				spin_unlock(&quota_spinlock);
 
-				if (count == quota->message_quota)
+				if (count == quota->message_quota) {
 					/*
 					 * Signal the service that it
 					 * has dropped below its quota
 					 */
 					complete(&quota->quota_event);
-				else if (count == 0) {
+				} else if (count == 0) {
 					vchiq_log_error(vchiq_core_log_level,
 						"service %d message_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
 						port,
@@ -1691,10 +1691,11 @@ parse_rx_slots(struct vchiq_state *state)
 				vchiq_set_service_state(service,
 					VCHIQ_SRVSTATE_OPEN);
 				complete(&service->remove_event);
-			} else
+			} else {
 				vchiq_log_error(vchiq_core_log_level,
 					"OPENACK received in state %s",
 					srvstate_names[service->srvstate]);
+			}
 			break;
 		case VCHIQ_MSG_CLOSE:
 			WARN_ON(size != 0); /* There should be no data */
@@ -2449,11 +2450,11 @@ vchiq_add_service_internal(struct vchiq_state *state,
 			struct vchiq_service *srv;
 
 			srv = rcu_dereference(state->services[i]);
-			if (!srv)
+			if (!srv) {
 				pservice = &state->services[i];
-			else if ((srv->public_fourcc == params->fourcc) &&
-				 ((srv->instance != instance) ||
-				  (srv->base.callback != params->callback))) {
+			} else if ((srv->public_fourcc == params->fourcc) &&
+				   ((srv->instance != instance) ||
+				   (srv->base.callback != params->callback))) {
 				/*
 				 * There is another server using this
 				 * fourcc which doesn't match.
@@ -2654,10 +2655,12 @@ close_service_complete(struct vchiq_service *service, int failstate)
 				service->client_id = 0;
 				service->remoteport = VCHIQ_PORT_FREE;
 				newstate = VCHIQ_SRVSTATE_LISTENING;
-			} else
+			} else {
 				newstate = VCHIQ_SRVSTATE_CLOSEWAIT;
-		} else
+			}
+		} else {
 			newstate = VCHIQ_SRVSTATE_CLOSED;
+		}
 		vchiq_set_service_state(service, newstate);
 		break;
 	case VCHIQ_SRVSTATE_LISTENING:
@@ -2687,16 +2690,17 @@ close_service_complete(struct vchiq_service *service, int failstate)
 		service->client_id = 0;
 		service->remoteport = VCHIQ_PORT_FREE;
 
-		if (service->srvstate == VCHIQ_SRVSTATE_CLOSED)
+		if (service->srvstate == VCHIQ_SRVSTATE_CLOSED) {
 			vchiq_free_service_internal(service);
-		else if (service->srvstate != VCHIQ_SRVSTATE_CLOSEWAIT) {
+		} else if (service->srvstate != VCHIQ_SRVSTATE_CLOSEWAIT) {
 			if (is_server)
 				service->closing = 0;
 
 			complete(&service->remove_event);
 		}
-	} else
+	} else {
 		vchiq_set_service_state(service, failstate);
+	}
 
 	return status;
 }
@@ -2718,11 +2722,11 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	case VCHIQ_SRVSTATE_HIDDEN:
 	case VCHIQ_SRVSTATE_LISTENING:
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
-		if (close_recvd)
+		if (close_recvd) {
 			vchiq_log_error(vchiq_core_log_level,
 				"%s(1) called in state %s",
 				__func__, srvstate_names[service->srvstate]);
-		else if (is_server) {
+		} else if (is_server) {
 			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
 				status = VCHIQ_ERROR;
 			} else {
@@ -2734,8 +2738,9 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 						VCHIQ_SRVSTATE_LISTENING);
 			}
 			complete(&service->remove_event);
-		} else
+		} else {
 			vchiq_free_service_internal(service);
+		}
 		break;
 	case VCHIQ_SRVSTATE_OPENING:
 		if (close_recvd) {
@@ -3325,8 +3330,9 @@ vchiq_release_message(unsigned int handle,
 
 			release_slot(state, slot_info, header, service);
 		}
-	} else if (slot_index == remote->slot_sync)
+	} else if (slot_index == remote->slot_sync) {
 		release_message_sync(state, header);
+	}
 
 	unlock_service(service);
 }
@@ -3620,8 +3626,9 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				scnprintf(remoteport + len2,
 					sizeof(remoteport) - len2,
 					" (client %x)", service->client_id);
-		} else
+		} else {
 			strcpy(remoteport, "n/a");
+		}
 
 		len += scnprintf(buf + len, sizeof(buf) - len,
 			" '%c%c%c%c' remote %s (msg use %d/%d, slot use %d/%d)",
