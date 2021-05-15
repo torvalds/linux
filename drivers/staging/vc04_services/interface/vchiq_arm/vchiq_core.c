@@ -1175,7 +1175,6 @@ static void
 release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 	     struct vchiq_header *header, struct vchiq_service *service)
 {
-	int release_count;
 
 	mutex_lock(&state->recycle_mutex);
 
@@ -1192,10 +1191,9 @@ release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 		header->msgid = msgid & ~VCHIQ_MSGID_CLAIMED;
 	}
 
-	release_count = slot_info->release_count;
-	slot_info->release_count = ++release_count;
+	slot_info->release_count++;
 
-	if (release_count == slot_info->use_count) {
+	if (slot_info->release_count == slot_info->use_count) {
 		int slot_queue_recycle;
 		/* Add to the freed queue */
 
