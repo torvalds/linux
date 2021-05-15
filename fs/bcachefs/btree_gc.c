@@ -427,18 +427,38 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p = { 0 };
 	bool do_update = false;
+	char buf[200];
 	int ret = 0;
 
 	bkey_for_each_ptr_decode(k->k, ptrs, p, entry) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 		struct bucket *g = PTR_BUCKET(ca, &p.ptr, true);
 		struct bucket *g2 = PTR_BUCKET(ca, &p.ptr, false);
+		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
+
+		if (fsck_err_on(g->mark.data_type &&
+				g->mark.data_type != data_type, c,
+				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
+				"while marking %s",
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				bch2_data_types[g->mark.data_type],
+				bch2_data_types[data_type],
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
+			if (data_type == BCH_DATA_btree) {
+				g2->_mark.data_type = g->_mark.data_type = data_type;
+				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
+			} else {
+				do_update = true;
+			}
+		}
 
 		if (fsck_err_on(!g->gen_valid, c,
-				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree",
+				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
+				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen)) {
+				p.ptr.gen,
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
 			if (!p.ptr.cached) {
 				g2->_mark.gen	= g->_mark.gen		= p.ptr.gen;
 				g2->gen_valid	= g->gen_valid		= true;
@@ -449,10 +469,12 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 		}
 
 		if (fsck_err_on(gen_cmp(p.ptr.gen, g->mark.gen) > 0, c,
-				"bucket %u:%zu data type %s ptr gen in the future: %u > %u",
+				"bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
+				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen, g->mark.gen)) {
+				p.ptr.gen, g->mark.gen,
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
 			if (!p.ptr.cached) {
 				g2->_mark.gen	= g->_mark.gen	= p.ptr.gen;
 				g2->gen_valid	= g->gen_valid	= true;
@@ -468,23 +490,29 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 
 		if (fsck_err_on(!p.ptr.cached &&
 				gen_cmp(p.ptr.gen, g->mark.gen) < 0, c,
-				"bucket %u:%zu data type %s stale dirty ptr: %u < %u",
+				"bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
+				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen, g->mark.gen))
+				p.ptr.gen, g->mark.gen,
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
 			do_update = true;
 
 		if (p.has_ec) {
 			struct stripe *m = genradix_ptr(&c->stripes[true], p.ec.idx);
 
 			if (fsck_err_on(!m || !m->alive, c,
-					"pointer to nonexistent stripe %llu",
-					(u64) p.ec.idx))
+					"pointer to nonexistent stripe %llu\n"
+					"while marking %s",
+					(u64) p.ec.idx,
+					(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
 				do_update = true;
 
 			if (fsck_err_on(!bch2_ptr_matches_stripe_m(m, p), c,
-					"pointer does not match stripe %llu",
-					(u64) p.ec.idx))
+					"pointer does not match stripe %llu\n"
+					"while marking %s",
+					(u64) p.ec.idx,
+					(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
 				do_update = true;
 		}
 	}
@@ -525,11 +553,14 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, ({
 				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 				struct bucket *g = PTR_BUCKET(ca, ptr, true);
+				enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, ptr);
 
 				(ptr->cached &&
 				 (!g->gen_valid || gen_cmp(ptr->gen, g->mark.gen) > 0)) ||
 				(!ptr->cached &&
-				 gen_cmp(ptr->gen, g->mark.gen) < 0);
+				 gen_cmp(ptr->gen, g->mark.gen) < 0) ||
+				(g->mark.data_type &&
+				 g->mark.data_type != data_type);
 			}));
 again:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
