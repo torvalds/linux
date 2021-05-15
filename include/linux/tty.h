@@ -303,6 +303,10 @@ struct tty_struct {
 	spinlock_t flow_lock;
 	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
+
+	/* termiox is estored only for ABI preservation, do not use */
+	struct termiox *termiox;
+
 	char name[64];
 	struct pid *pgrp;		/* Protected by ctrl lock */
 	/*

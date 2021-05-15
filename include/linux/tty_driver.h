@@ -277,6 +277,10 @@ struct tty_operations {
 	int (*tiocmset)(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 	int (*resize)(struct tty_struct *tty, struct winsize *ws);
+
+	/* only for abi preservation */
+	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
+
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
 	int  (*get_serial)(struct tty_struct *tty, struct serial_struct *p);
