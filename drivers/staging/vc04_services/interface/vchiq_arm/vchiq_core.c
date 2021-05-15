@@ -2928,7 +2928,7 @@ vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instan
 	struct vchiq_service *service;
 	int i;
 
-	/* Find all services registered to this client and enable them. */
+	/* Find all services registered to this client and remove them. */
 	i = 0;
 	while ((service = next_service_by_instance(state, instance,
 		&i)) !=	NULL) {
