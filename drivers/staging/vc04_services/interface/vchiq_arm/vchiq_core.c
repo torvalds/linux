@@ -2157,7 +2157,7 @@ vchiq_init_slots(void *mem_base, int mem_size)
 	return slot_zero;
 }
 
-enum vchiq_status
+int
 vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 {
 	struct vchiq_shared_state *local;
