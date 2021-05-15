@@ -46,3 +46,4 @@ Operating Systems 2
    assign2-driver-uart.rst
    assign3-software-raid.rst
    assign-chall-pitix.rst
+   assign4-transport-protocol.rst
