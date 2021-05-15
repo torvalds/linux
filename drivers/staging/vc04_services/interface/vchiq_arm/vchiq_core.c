@@ -2578,42 +2578,43 @@ release_service_messages(struct vchiq_service *service)
 	for (i = state->remote->slot_first; i <= slot_last; i++) {
 		struct vchiq_slot_info *slot_info =
 			SLOT_INFO_FROM_INDEX(state, i);
-		if (slot_info->release_count != slot_info->use_count) {
-			char *data =
-				(char *)SLOT_DATA_FROM_INDEX(state, i);
-			unsigned int pos, end;
+		unsigned int pos, end;
+		char *data;
 
-			end = VCHIQ_SLOT_SIZE;
-			if (data == state->rx_data)
-				/*
-				 * This buffer is still being read from - stop
-				 * at the current read position
-				 */
-				end = state->rx_pos & VCHIQ_SLOT_MASK;
+		if (slot_info->release_count == slot_info->use_count)
+			continue;
 
-			pos = 0;
+		data = (char *)SLOT_DATA_FROM_INDEX(state, i);
+		end = VCHIQ_SLOT_SIZE;
+		if (data == state->rx_data)
+			/*
+			 * This buffer is still being read from - stop
+			 * at the current read position
+			 */
+			end = state->rx_pos & VCHIQ_SLOT_MASK;
 
-			while (pos < end) {
-				struct vchiq_header *header =
-					(struct vchiq_header *)(data + pos);
-				int msgid = header->msgid;
-				int port = VCHIQ_MSG_DSTPORT(msgid);
+		pos = 0;
 
-				if ((port == service->localport) &&
-					(msgid & VCHIQ_MSGID_CLAIMED)) {
-					vchiq_log_info(vchiq_core_log_level,
-						"  fsi - hdr %pK", header);
-					release_slot(state, slot_info, header,
-						NULL);
-				}
-				pos += calc_stride(header->size);
-				if (pos > VCHIQ_SLOT_SIZE) {
-					vchiq_log_error(vchiq_core_log_level,
-						"fsi - pos %x: header %pK, msgid %x, header->msgid %x, header->size %x",
-						pos, header, msgid,
-						header->msgid, header->size);
-					WARN(1, "invalid slot position\n");
-				}
+		while (pos < end) {
+			struct vchiq_header *header =
+				(struct vchiq_header *)(data + pos);
+			int msgid = header->msgid;
+			int port = VCHIQ_MSG_DSTPORT(msgid);
+
+			if ((port == service->localport) &&
+				(msgid & VCHIQ_MSGID_CLAIMED)) {
+				vchiq_log_info(vchiq_core_log_level,
+					"  fsi - hdr %pK", header);
+				release_slot(state, slot_info, header,
+					NULL);
+			}
+			pos += calc_stride(header->size);
+			if (pos > VCHIQ_SLOT_SIZE) {
+				vchiq_log_error(vchiq_core_log_level,
+					"fsi - pos %x: header %pK, msgid %x, header->msgid %x, header->size %x",
+					pos, header, msgid,
+					header->msgid, header->size);
+				WARN(1, "invalid slot position\n");
 			}
 		}
 	}
