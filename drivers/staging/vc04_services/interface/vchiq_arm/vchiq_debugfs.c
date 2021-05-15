@@ -11,11 +11,6 @@
 
 #ifdef CONFIG_DEBUG_FS
 
-/****************************************************************************
- *
- *   log category entries
- *
- ***************************************************************************/
 #define DEBUGFS_WRITE_BUF_SIZE 256
 
 #define VCHIQ_LOG_ERROR_STR   "error"

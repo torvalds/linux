@@ -493,11 +493,6 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 
 	return status;
 }
-/****************************************************************************
- *
- *   add_completion
- *
- ***************************************************************************/
 
 static enum vchiq_status
 add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
@@ -563,12 +558,6 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 
 	return VCHIQ_SUCCESS;
 }
-
-/****************************************************************************
- *
- *   service_callback
- *
- ***************************************************************************/
 
 static enum vchiq_status
 service_callback(enum vchiq_reason reason, struct vchiq_header *header,
@@ -681,22 +670,12 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 		bulk_userdata);
 }
 
-/****************************************************************************
- *
- *   user_service_free
- *
- ***************************************************************************/
 static void
 user_service_free(void *userdata)
 {
 	kfree(userdata);
 }
 
-/****************************************************************************
- *
- *   close_delivered
- *
- ***************************************************************************/
 static void close_delivered(struct user_service *user_service)
 {
 	vchiq_log_info(vchiq_arm_log_level,
@@ -759,11 +738,6 @@ static ssize_t vchiq_ioc_copy_element_data(void *context, void *dest,
 	return maxsize;
 }
 
-/**************************************************************************
- *
- *   vchiq_ioc_queue_message
- *
- **************************************************************************/
 static int
 vchiq_ioc_queue_message(unsigned int handle,
 			struct vchiq_element *elements,
@@ -1242,11 +1216,6 @@ out:
 	return ret;
 }
 
-/****************************************************************************
- *
- *   vchiq_ioctl
- *
- ***************************************************************************/
 static long
 vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -2003,12 +1972,6 @@ out:
 	return ret;
 }
 
-/****************************************************************************
- *
- *   vchiq_dump
- *
- ***************************************************************************/
-
 int vchiq_dump(void *dump_context, const char *str, int len)
 {
 	struct dump_context *context = (struct dump_context *)dump_context;
@@ -2049,12 +2012,6 @@ int vchiq_dump(void *dump_context, const char *str, int len)
 	}
 	return 0;
 }
-
-/****************************************************************************
- *
- *   vchiq_dump_platform_instance_state
- *
- ***************************************************************************/
 
 int vchiq_dump_platform_instances(void *dump_context)
 {
@@ -2118,12 +2075,6 @@ int vchiq_dump_platform_instances(void *dump_context)
 	return 0;
 }
 
-/****************************************************************************
- *
- *   vchiq_dump_platform_service_state
- *
- ***************************************************************************/
-
 int vchiq_dump_platform_service_state(void *dump_context,
 				      struct vchiq_service *service)
 {
@@ -2148,12 +2099,6 @@ int vchiq_dump_platform_service_state(void *dump_context,
 
 	return vchiq_dump(dump_context, buf, len + 1);
 }
-
-/****************************************************************************
- *
- *   vchiq_read
- *
- ***************************************************************************/
 
 static ssize_t
 vchiq_read(struct file *file, char __user *buf,
