@@ -33,10 +33,11 @@ bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 
 struct bch_hash_info {
 	u8			type;
-	union {
-		__le64		crc_key;
-		SIPHASH_KEY	siphash_key;
-	};
+	/*
+	 * For crc32 or crc64 string hashes the first key value of
+	 * the siphash_key (k0) is used as the key.
+	 */
+	SIPHASH_KEY	siphash_key;
 };
 
 static inline struct bch_hash_info
@@ -46,7 +47,7 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 	struct bch_hash_info info = {
 		.type = (bi->bi_flags >> INODE_STR_HASH_OFFSET) &
 			~(~0U << INODE_STR_HASH_BITS),
-		.crc_key = bi->bi_hash_seed,
+		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};
 
 	if (unlikely(info.type == BCH_STR_HASH_SIPHASH_OLD)) {
@@ -76,10 +77,12 @@ static inline void bch2_str_hash_init(struct bch_str_hash_ctx *ctx,
 {
 	switch (info->type) {
 	case BCH_STR_HASH_CRC32C:
-		ctx->crc32c = crc32c(~0, &info->crc_key, sizeof(info->crc_key));
+		ctx->crc32c = crc32c(~0, &info->siphash_key.k0,
+				     sizeof(info->siphash_key.k0));
 		break;
 	case BCH_STR_HASH_CRC64:
-		ctx->crc64 = crc64_be(~0, &info->crc_key, sizeof(info->crc_key));
+		ctx->crc64 = crc64_be(~0, &info->siphash_key.k0,
+				      sizeof(info->siphash_key.k0));
 		break;
 	case BCH_STR_HASH_SIPHASH_OLD:
 	case BCH_STR_HASH_SIPHASH:

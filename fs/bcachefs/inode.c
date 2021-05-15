@@ -478,7 +478,7 @@ struct btree_iter *bch2_inode_create(struct btree_trans *trans,
 	struct btree_iter *iter = NULL;
 	struct bkey_s_c k;
 	u64 min, max, start, pos, *hint;
-	int ret;
+	int ret = 0;
 
 	u64 cpu = raw_smp_processor_id();
 	unsigned bits = (c->opts.inodes_32bit

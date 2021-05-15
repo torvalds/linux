@@ -1646,8 +1646,8 @@ static int bch2_trans_mark_stripe(struct btree_trans *trans,
 				  struct bkey_s_c old, struct bkey_s_c new,
 				  unsigned flags)
 {
-	struct bkey_s_c_stripe old_s = { NULL };
-	struct bkey_s_c_stripe new_s = { NULL };
+	struct bkey_s_c_stripe old_s = { .k = NULL };
+	struct bkey_s_c_stripe new_s = { .k = NULL };
 	struct bch_replicas_padded r;
 	unsigned i;
 	int ret = 0;
