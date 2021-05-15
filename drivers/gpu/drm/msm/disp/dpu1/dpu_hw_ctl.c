@@ -589,8 +589,6 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 		ops->set_active_pipes = dpu_hw_ctl_set_fetch_pipe_active;
 };
 
-static struct dpu_hw_blk_ops dpu_hw_ops;
-
 struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 		void __iomem *addr,
 		const struct dpu_mdss_cfg *m)
@@ -615,7 +613,7 @@ struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 	c->mixer_count = m->mixer_count;
 	c->mixer_hw_caps = m->mixer;
 
-	dpu_hw_blk_init(&c->base, DPU_HW_BLK_CTL, idx, &dpu_hw_ops);
+	dpu_hw_blk_init(&c->base, DPU_HW_BLK_CTL, idx);
 
 	return c;
 }
