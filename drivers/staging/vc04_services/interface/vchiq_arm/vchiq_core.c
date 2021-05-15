@@ -41,6 +41,9 @@
 #define NO_CLOSE_RECVD	0
 #define CLOSE_RECVD	1
 
+#define NO_RETRY_POLL	0
+#define RETRY_POLL	1
+
 struct vchiq_open_payload {
 	int fourcc;
 	int client_id;
@@ -1366,11 +1369,9 @@ poll_services_of_group(struct vchiq_state *state, int group)
 					     VCHIQ_POLL_TERMINATE);
 		}
 		if (service_flags & BIT(VCHIQ_POLL_TXNOTIFY))
-			notify_bulks(service, &service->bulk_tx,
-				     1/*retry_poll*/);
+			notify_bulks(service, &service->bulk_tx, RETRY_POLL);
 		if (service_flags & BIT(VCHIQ_POLL_RXNOTIFY))
-			notify_bulks(service, &service->bulk_rx,
-				     1/*retry_poll*/);
+			notify_bulks(service, &service->bulk_rx, RETRY_POLL);
 		unlock_service(service);
 	}
 }
@@ -1794,7 +1795,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			queue->process++;
 			mutex_unlock(&service->bulk_mutex);
 			DEBUG_TRACE(PARSE_LINE);
-			notify_bulks(service, queue, 1/*retry_poll*/);
+			notify_bulks(service, queue, RETRY_POLL);
 			DEBUG_TRACE(PARSE_LINE);
 		}
 		break;
@@ -2650,11 +2651,11 @@ do_abort_bulks(struct vchiq_service *service)
 	abort_outstanding_bulks(service, &service->bulk_rx);
 	mutex_unlock(&service->bulk_mutex);
 
-	status = notify_bulks(service, &service->bulk_tx, 0/*!retry_poll*/);
+	status = notify_bulks(service, &service->bulk_tx, NO_RETRY_POLL);
 	if (status != VCHIQ_SUCCESS)
 		return 0;
 
-	status = notify_bulks(service, &service->bulk_rx, 0/*!retry_poll*/);
+	status = notify_bulks(service, &service->bulk_rx, NO_RETRY_POLL);
 	return (status == VCHIQ_SUCCESS);
 }
 
