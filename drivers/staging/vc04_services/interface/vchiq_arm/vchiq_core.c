@@ -685,8 +685,7 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 				spin_lock(&quota_spinlock);
 				count = quota->message_use_count;
 				if (count > 0)
-					quota->message_use_count =
-						count - 1;
+					quota->message_use_count = count - 1;
 				spin_unlock(&quota_spinlock);
 
 				if (count == quota->message_quota) {
@@ -757,8 +756,7 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 			spin_lock(&quota_spinlock);
 			count = state->data_use_count;
 			if (count > 0)
-				state->data_use_count =
-					count - 1;
+				state->data_use_count = count - 1;
 			spin_unlock(&quota_spinlock);
 			if (count == state->data_quota)
 				complete(&state->data_quota_event);
@@ -899,8 +897,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 		while ((quota->message_use_count == quota->message_quota) ||
 			((tx_end_index != quota->previous_tx_index) &&
-			(quota->slot_use_count ==
-				quota->slot_quota))) {
+			(quota->slot_use_count == quota->slot_quota))) {
 			spin_unlock(&quota_spinlock);
 			vchiq_log_trace(vchiq_core_log_level,
 				"%d: qm:%d %s,%zx - quota stall (msg %d, slot %d)",
@@ -1293,8 +1290,7 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 					complete(&waiter->event);
 				}
 				spin_unlock(&bulk_waiter_spinlock);
-			} else if (bulk->mode ==
-				VCHIQ_BULK_MODE_CALLBACK) {
+			} else if (bulk->mode == VCHIQ_BULK_MODE_CALLBACK) {
 				enum vchiq_reason reason =
 						get_bulk_reason(bulk);
 				status = make_service_callback(service,
@@ -2076,8 +2072,7 @@ sync_func(void *v)
 				state->id, header, size, remoteport, localport);
 
 			if ((service->remoteport == remoteport) &&
-				(service->srvstate ==
-				VCHIQ_SRVSTATE_OPENSYNC)) {
+			    (service->srvstate == VCHIQ_SRVSTATE_OPENSYNC)) {
 				if (make_service_callback(service,
 					VCHIQ_MESSAGE_AVAILABLE, header,
 					NULL) == VCHIQ_RETRY)
@@ -2211,8 +2206,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	state->slot_queue_available = 0;
 
 	for (i = 0; i < VCHIQ_MAX_SERVICES; i++) {
-		struct vchiq_service_quota *quota =
-			&state->service_quotas[i];
+		struct vchiq_service_quota *quota = &state->service_quotas[i];
 		init_completion(&quota->quota_event);
 	}
 

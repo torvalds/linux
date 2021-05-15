@@ -139,8 +139,7 @@ static const char *const ioctl_names[] = {
 	"CLOSE_DELIVERED"
 };
 
-vchiq_static_assert(ARRAY_SIZE(ioctl_names) ==
-		    (VCHIQ_IOC_MAX + 1));
+vchiq_static_assert(ARRAY_SIZE(ioctl_names) == (VCHIQ_IOC_MAX + 1));
 
 static enum vchiq_status
 vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
@@ -871,8 +870,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 				break;
 			}
 			spin_lock(&msg_queue_spinlock);
-		} while (user_service->msg_remove ==
-			user_service->msg_insert);
+		} while (user_service->msg_remove == user_service->msg_insert);
 
 		if (ret)
 			goto out;
@@ -1083,8 +1081,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 	mutex_lock(&instance->completion_mutex);
 
 	DEBUG_TRACE(AWAIT_COMPLETION_LINE);
-	while ((instance->completion_remove ==
-		instance->completion_insert)
+	while ((instance->completion_remove == instance->completion_insert)
 		&& !instance->closing) {
 		int rc;
 
@@ -1924,8 +1921,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	}
 
 	/* Release any closed services */
-	while (instance->completion_remove !=
-		instance->completion_insert) {
+	while (instance->completion_remove != instance->completion_insert) {
 		struct vchiq_completion_data_kernel *completion;
 		struct vchiq_service *service;
 
