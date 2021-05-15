@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/reset.h>
 #include <linux/irqreturn.h>
 #include <linux/poll.h>
@@ -281,12 +282,15 @@ struct mpp_dev {
 	struct mpp_hw_ops *hw_ops;
 	struct mpp_dev_ops *dev_ops;
 
-	/* per-device work for attached taskqueue */
-	struct work_struct work;
+	/* kworker for attached taskqueue */
+	struct kthread_worker worker;
 	/* task for work queue */
-	struct workqueue_struct *workq;
+	struct task_struct *kworker_task;
+	/* per-device work for attached taskqueue */
+	struct kthread_work work;
 	/* the flag for get/get/reduce freq */
 	bool auto_freq_en;
+
 	/*
 	 * The task capacity is the task queue length that hardware can accept.
 	 * Default 1 means normal hardware can only accept one task at once.

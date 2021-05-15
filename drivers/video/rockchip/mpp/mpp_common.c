@@ -189,7 +189,7 @@ mpp_taskqueue_pop_running(struct mpp_taskqueue *queue,
 static void
 mpp_taskqueue_trigger_work(struct mpp_dev *mpp)
 {
-	queue_work(mpp->workq, &mpp->work);
+	kthread_queue_work(&mpp->worker, &mpp->work);
 }
 
 int mpp_power_on(struct mpp_dev *mpp)
@@ -541,7 +541,7 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	return 0;
 }
 
-static void mpp_task_try_run(struct work_struct *work_s)
+static void mpp_task_try_run(struct kthread_work *work_s)
 {
 	struct mpp_task *task;
 	struct mpp_dev *mpp = container_of(work_s, struct mpp_dev, work);
@@ -1668,14 +1668,21 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 
 	/* Get disable auto frequent flag from dtsi */
 	mpp->auto_freq_en = !device_property_read_bool(dev, "rockchip,disable-auto-freq");
+
+	kthread_init_worker(&mpp->worker);
+	mpp->kworker_task = kthread_run(kthread_worker_fn, &mpp->worker,
+					"%s", np->name);
+
 	/* read link table capacity */
 	ret = of_property_read_u32(np, "rockchip,task-capacity",
 				   &mpp->task_capacity);
 	if (ret) {
 		mpp->task_capacity = 1;
-		INIT_WORK(&mpp->work, mpp_task_try_run);
+		kthread_init_work(&mpp->work, mpp_task_try_run);
 	} else {
-		INIT_WORK(&mpp->work, NULL);
+		dev_info(dev, "%d task capacity link mode detected\n",
+			 mpp->task_capacity);
+		kthread_init_work(&mpp->work, NULL);
 	}
 
 	/* Get and attach to service */
@@ -1683,12 +1690,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	if (ret) {
 		dev_err(dev, "failed to attach service\n");
 		return -ENODEV;
-	}
-
-	mpp->workq = create_singlethread_workqueue(np->name);
-	if (!mpp->workq) {
-		dev_err(dev, "failed to create workqueue\n");
-		return -ENOMEM;
 	}
 
 	mpp->dev = dev;
@@ -1769,7 +1770,11 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 failed_init:
 	pm_runtime_put_sync(dev);
 failed:
-	destroy_workqueue(mpp->workq);
+	if (mpp->kworker_task) {
+		kthread_flush_worker(&mpp->worker);
+		kthread_stop(mpp->kworker_task);
+		mpp->kworker_task = NULL;
+	}
 	mpp_detach_workqueue(mpp);
 	device_init_wakeup(dev, false);
 	pm_runtime_disable(dev);
@@ -1785,9 +1790,10 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 	mpp_iommu_remove(mpp->iommu_info);
 	platform_device_put(mpp->pdev_srv);
 
-	if (mpp->workq) {
-		destroy_workqueue(mpp->workq);
-		mpp->workq = NULL;
+	if (mpp->kworker_task) {
+		kthread_flush_worker(&mpp->worker);
+		kthread_stop(mpp->kworker_task);
+		mpp->kworker_task = NULL;
 	}
 
 	mpp_detach_workqueue(mpp);
