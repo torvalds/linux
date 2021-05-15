@@ -750,11 +750,6 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra186_gpio_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 #define TEGRA186_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
 	[TEGRA186_MAIN_GPIO_PORT_##_name] = {			\
 		.name = #_name,					\
@@ -924,7 +919,6 @@ static struct platform_driver tegra186_gpio_driver = {
 		.of_match_table = tegra186_gpio_of_match,
 	},
 	.probe = tegra186_gpio_probe,
-	.remove = tegra186_gpio_remove,
 };
 module_platform_driver(tegra186_gpio_driver);
 
