@@ -153,8 +153,6 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 	struct vchiq_instance *instance = NULL;
 	int i, ret;
 
-	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
-
 	/*
 	 * VideoCore may not be ready due to boot up timing.
 	 * It may never be ready if kernel and firmware are mismatched,so don't
@@ -207,9 +205,6 @@ enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance)
 	enum vchiq_status status;
 	struct vchiq_state *state = instance->state;
 
-	vchiq_log_trace(vchiq_core_log_level,
-		"%s(%p) called", __func__, instance);
-
 	if (mutex_lock_killable(&state->mutex))
 		return VCHIQ_RETRY;
 
@@ -249,9 +244,6 @@ enum vchiq_status vchiq_connect(struct vchiq_instance *instance)
 	enum vchiq_status status;
 	struct vchiq_state *state = instance->state;
 
-	vchiq_log_trace(vchiq_core_log_level,
-		"%s(%p) called", __func__, instance);
-
 	if (mutex_lock_killable(&state->mutex)) {
 		vchiq_log_trace(vchiq_core_log_level,
 			"%s: call to mutex_lock failed", __func__);
@@ -282,9 +274,6 @@ static enum vchiq_status vchiq_add_service(
 	struct vchiq_state *state = instance->state;
 	struct vchiq_service *service = NULL;
 	int srvstate;
-
-	vchiq_log_trace(vchiq_core_log_level,
-		"%s(%p) called", __func__, instance);
 
 	*phandle = VCHIQ_SERVICE_HANDLE_INVALID;
 
@@ -320,9 +309,6 @@ enum vchiq_status vchiq_open_service(
 	enum vchiq_status   status = VCHIQ_ERROR;
 	struct vchiq_state   *state = instance->state;
 	struct vchiq_service *service = NULL;
-
-	vchiq_log_trace(vchiq_core_log_level,
-		"%s(%p) called", __func__, instance);
 
 	*phandle = VCHIQ_SERVICE_HANDLE_INVALID;
 
@@ -2350,8 +2336,6 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		goto out;
 	}
 
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
 	if (use_type == USE_TYPE_VCHIQ) {
 		sprintf(entity, "VCHIQ:   ");
 		entity_uc = &arm_state->peer_use_count;
@@ -2409,8 +2393,6 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 		goto out;
 	}
 
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
 	if (service) {
 		sprintf(entity, "%c%c%c%c:%03d",
 			VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
@@ -2450,7 +2432,6 @@ vchiq_on_remote_use(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
 	atomic_inc(&arm_state->ka_use_count);
 	complete(&arm_state->ka_evt);
 }
@@ -2460,7 +2441,6 @@ vchiq_on_remote_release(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
 	atomic_inc(&arm_state->ka_release_count);
 	complete(&arm_state->ka_evt);
 }
@@ -2646,8 +2626,6 @@ vchiq_check_service(struct vchiq_service *service)
 
 	if (!service || !service->state)
 		goto out;
-
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
 
 	arm_state = vchiq_platform_get_arm_state(service->state);
 
