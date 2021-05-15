@@ -19,9 +19,7 @@ struct dpu_hw_blk;
  * @refcount: reference/usage count
  */
 struct dpu_hw_blk {
-	u32 type;
-	int id;
+	/* opaque */
 };
 
-void dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id);
 #endif /*_DPU_HW_BLK_H */
