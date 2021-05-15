@@ -898,13 +898,13 @@ static int it66121_probe(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
-	if (!ep)
-		return -EINVAL;
-
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
+	if (!ep)
+		return -EINVAL;
 
 	ctx->dev = dev;
 	ctx->client = client;
