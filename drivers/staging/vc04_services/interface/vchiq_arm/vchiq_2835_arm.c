@@ -29,6 +29,8 @@
 #define BELL0	0x00
 #define BELL2	0x08
 
+#define ARM_DS_ACTIVE	BIT(2)
+
 struct vchiq_2835_state {
 	int inited;
 	struct vchiq_arm_state arm_state;
@@ -269,7 +271,7 @@ vchiq_doorbell_irq(int irq, void *dev_id)
 	/* Read (and clear) the doorbell */
 	status = readl(g_regs + BELL0);
 
-	if (status & 0x4) {  /* Was the doorbell rung? */
+	if (status & ARM_DS_ACTIVE) {  /* Was the doorbell rung? */
 		remote_event_pollall(state);
 		ret = IRQ_HANDLED;
 	}
