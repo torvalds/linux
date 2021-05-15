@@ -107,7 +107,7 @@ static int rn5t618_irq_init(struct rn5t618 *rn5t618)
 
 	ret = devm_regmap_add_irq_chip(rn5t618->dev, rn5t618->regmap,
 				       rn5t618->irq,
-				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				       IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				       0, irq_chip, &rn5t618->irq_data);
 	if (ret)
 		dev_err(rn5t618->dev, "Failed to register IRQ chip\n");
