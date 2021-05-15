@@ -1325,59 +1325,54 @@ poll_services_of_group(struct vchiq_state *state, int group)
 	int i;
 
 	for (i = 0; flags; i++) {
-		if (flags & BIT(i)) {
-			struct vchiq_service *service =
-				find_service_by_port(state,
-					(group<<5) + i);
-			u32 service_flags;
+		struct vchiq_service *service;
+		u32 service_flags;
 
-			flags &= ~BIT(i);
-			if (!service)
-				continue;
-			service_flags =
-				atomic_xchg(&service->poll_flags, 0);
-			if (service_flags &
-				BIT(VCHIQ_POLL_REMOVE)) {
-				vchiq_log_info(vchiq_core_log_level,
-					"%d: ps - remove %d<->%d",
-					state->id, service->localport,
-					service->remoteport);
+		if ((flags & BIT(i)) == 0)
+			continue;
 
-				/*
-				 * Make it look like a client, because
-				 * it must be removed and not left in
-				 * the LISTENING state.
-				 */
-				service->public_fourcc =
-					VCHIQ_FOURCC_INVALID;
+		service = find_service_by_port(state, (group << 5) + i);
+		flags &= ~BIT(i);
 
-				if (vchiq_close_service_internal(
-					service, 0/*!close_recvd*/) !=
-					VCHIQ_SUCCESS)
-					request_poll(state, service,
-						VCHIQ_POLL_REMOVE);
-			} else if (service_flags &
-				BIT(VCHIQ_POLL_TERMINATE)) {
-				vchiq_log_info(vchiq_core_log_level,
-					"%d: ps - terminate %d<->%d",
-					state->id, service->localport,
-					service->remoteport);
-				if (vchiq_close_service_internal(
-					service, 0/*!close_recvd*/) !=
-					VCHIQ_SUCCESS)
-					request_poll(state, service,
-						VCHIQ_POLL_TERMINATE);
-			}
-			if (service_flags & BIT(VCHIQ_POLL_TXNOTIFY))
-				notify_bulks(service,
-					&service->bulk_tx,
-					1/*retry_poll*/);
-			if (service_flags & BIT(VCHIQ_POLL_RXNOTIFY))
-				notify_bulks(service,
-					&service->bulk_rx,
-					1/*retry_poll*/);
-			unlock_service(service);
+		if (!service)
+			continue;
+
+		service_flags = atomic_xchg(&service->poll_flags, 0);
+		if ((service_flags & BIT(VCHIQ_POLL_REMOVE)) == 0)
+			continue;
+
+		vchiq_log_info(vchiq_core_log_level, "%d: ps - remove %d<->%d",
+			       state->id, service->localport,
+			       service->remoteport);
+
+		/*
+		 * Make it look like a client, because
+		 * it must be removed and not left in
+		 * the LISTENING state.
+		 */
+		service->public_fourcc = VCHIQ_FOURCC_INVALID;
+
+		if (vchiq_close_service_internal(service, 0/*!close_recvd*/) !=
+						 VCHIQ_SUCCESS) {
+			request_poll(state, service, VCHIQ_POLL_REMOVE);
+		} else if (service_flags & BIT(VCHIQ_POLL_TERMINATE)) {
+			vchiq_log_info(vchiq_core_log_level,
+				"%d: ps - terminate %d<->%d",
+				state->id, service->localport,
+				service->remoteport);
+			if (vchiq_close_service_internal(
+				service, 0/*!close_recvd*/) !=
+				VCHIQ_SUCCESS)
+				request_poll(state, service,
+					     VCHIQ_POLL_TERMINATE);
 		}
+		if (service_flags & BIT(VCHIQ_POLL_TXNOTIFY))
+			notify_bulks(service, &service->bulk_tx,
+				     1/*retry_poll*/);
+		if (service_flags & BIT(VCHIQ_POLL_RXNOTIFY))
+			notify_bulks(service, &service->bulk_rx,
+				     1/*retry_poll*/);
+		unlock_service(service);
 	}
 }
 
