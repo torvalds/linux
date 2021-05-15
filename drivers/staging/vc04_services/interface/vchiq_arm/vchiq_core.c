@@ -243,7 +243,8 @@ __next_service_by_instance(struct vchiq_state *state,
 	while (idx < state->unused_service) {
 		struct vchiq_service *srv;
 
-		srv = rcu_dereference(state->services[idx++]);
+		srv = rcu_dereference(state->services[idx]);
+		idx++;
 		if (srv && srv->srvstate != VCHIQ_SRVSTATE_FREE &&
 		    srv->instance == instance) {
 			service = srv;
@@ -649,11 +650,12 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 
 	while (slot_queue_available != local->slot_queue_recycle) {
 		unsigned int pos;
-		int slot_index = local->slot_queue[slot_queue_available++ &
+		int slot_index = local->slot_queue[slot_queue_available &
 			VCHIQ_SLOT_QUEUE_MASK];
 		char *data = (char *)SLOT_DATA_FROM_INDEX(state, slot_index);
 		int data_found = 0;
 
+		slot_queue_available++;
 		/*
 		 * Beware of the address dependency - data is calculated
 		 * using an index written by the other side.
@@ -1175,7 +1177,6 @@ static void
 release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 	     struct vchiq_header *header, struct vchiq_service *service)
 {
-
 	mutex_lock(&state->recycle_mutex);
 
 	if (header) {
@@ -2215,7 +2216,8 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	}
 
 	for (i = local->slot_first; i <= local->slot_last; i++) {
-		local->slot_queue[state->slot_queue_available++] = i;
+		local->slot_queue[state->slot_queue_available] = i;
+		state->slot_queue_available++;
 		complete(&state->slot_available_event);
 	}
 
@@ -2319,7 +2321,8 @@ void vchiq_msg_queue_push(unsigned int handle, struct vchiq_header *header)
 			flush_signals(current);
 	}
 
-	pos = service->msg_queue_write++ & (VCHIQ_MAX_SLOTS - 1);
+	pos = service->msg_queue_write & (VCHIQ_MAX_SLOTS - 1);
+	service->msg_queue_write++;
 	service->msg_queue[pos] = header;
 
 	complete(&service->msg_queue_push);
@@ -2340,7 +2343,8 @@ struct vchiq_header *vchiq_msg_hold(unsigned int handle)
 			flush_signals(current);
 	}
 
-	pos = service->msg_queue_read++ & (VCHIQ_MAX_SLOTS - 1);
+	pos = service->msg_queue_read & (VCHIQ_MAX_SLOTS - 1);
+	service->msg_queue_read++;
 	header = service->msg_queue[pos];
 
 	complete(&service->msg_queue_pop);
