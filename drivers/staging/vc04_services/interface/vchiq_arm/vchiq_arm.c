@@ -202,33 +202,30 @@ EXPORT_SYMBOL(vchiq_initialise);
 
 enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance)
 {
-	enum vchiq_status status;
+	enum vchiq_status status = VCHIQ_SUCCESS;
 	struct vchiq_state *state = instance->state;
+	struct bulk_waiter_node *waiter, *next;
 
 	if (mutex_lock_killable(&state->mutex))
 		return VCHIQ_RETRY;
 
 	/* Remove all services */
-	status = vchiq_shutdown_internal(state, instance);
+	vchiq_shutdown_internal(state, instance);
 
 	mutex_unlock(&state->mutex);
 
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p): returning %d", __func__, instance, status);
 
-	if (status == VCHIQ_SUCCESS) {
-		struct bulk_waiter_node *waiter, *next;
-
-		list_for_each_entry_safe(waiter, next,
-					 &instance->bulk_waiter_list, list) {
-			list_del(&waiter->list);
-			vchiq_log_info(vchiq_arm_log_level,
-					"bulk_waiter - cleaned up %pK for pid %d",
-					waiter, waiter->pid);
-			kfree(waiter);
-		}
-		kfree(instance);
+	list_for_each_entry_safe(waiter, next,
+				 &instance->bulk_waiter_list, list) {
+		list_del(&waiter->list);
+		vchiq_log_info(vchiq_arm_log_level,
+				"bulk_waiter - cleaned up %pK for pid %d",
+				waiter, waiter->pid);
+		kfree(waiter);
 	}
+	kfree(instance);
 
 	return status;
 }

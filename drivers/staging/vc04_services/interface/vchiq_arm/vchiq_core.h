@@ -563,7 +563,7 @@ vchiq_terminate_service_internal(struct vchiq_service *service);
 extern void
 vchiq_free_service_internal(struct vchiq_service *service);
 
-extern enum vchiq_status
+extern void
 vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instance);
 
 extern void

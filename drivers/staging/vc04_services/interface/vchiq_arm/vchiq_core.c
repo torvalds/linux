@@ -2922,7 +2922,7 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 	return VCHIQ_SUCCESS;
 }
 
-enum vchiq_status
+void
 vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instance)
 {
 	struct vchiq_service *service;
@@ -2935,8 +2935,6 @@ vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instan
 		(void)vchiq_remove_service(service->handle);
 		unlock_service(service);
 	}
-
-	return VCHIQ_SUCCESS;
 }
 
 enum vchiq_status
