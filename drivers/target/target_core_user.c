@@ -1421,7 +1421,7 @@ static bool tcmu_handle_completions(struct tcmu_dev *udev)
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags)) {
 		pr_err("ring broken, not handling completions\n");
-		return 0;
+		return false;
 	}
 
 	mb = udev->mb_addr;
