@@ -4122,7 +4122,7 @@ flr_done:
 	if (qm_flr_reset_complete(pdev))
 		pci_info(pdev, "FLR reset complete\n");
 
-	clear_bit(QM_RESETTING, &qm->misc_ctl);
+	clear_bit(QM_RESETTING, &pf_qm->misc_ctl);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_reset_done);
 
