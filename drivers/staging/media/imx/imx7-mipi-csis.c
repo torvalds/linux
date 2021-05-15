@@ -457,25 +457,6 @@ static void mipi_csis_sw_reset(struct csi_state *state)
 	usleep_range(10, 20);
 }
 
-static int mipi_csis_phy_init(struct csi_state *state)
-{
-	state->mipi_phy_regulator = devm_regulator_get(state->dev, "phy");
-	if (IS_ERR(state->mipi_phy_regulator))
-		return PTR_ERR(state->mipi_phy_regulator);
-
-	return regulator_set_voltage(state->mipi_phy_regulator, 1000000,
-				     1000000);
-}
-
-static void mipi_csis_phy_reset(struct csi_state *state)
-{
-	reset_control_assert(state->mrst);
-
-	msleep(20);
-
-	reset_control_deassert(state->mrst);
-}
-
 static void mipi_csis_system_enable(struct csi_state *state, int on)
 {
 	u32 val, mask;
@@ -677,6 +658,42 @@ static irqreturn_t mipi_csis_irq_handler(int irq, void *dev_id)
 	mipi_csis_write(state, MIPI_CSIS_DBG_INTR_SRC, dbg_status);
 
 	return IRQ_HANDLED;
+}
+
+/* -----------------------------------------------------------------------------
+ * PHY regulator and reset
+ */
+
+static int mipi_csis_phy_enable(struct csi_state *state)
+{
+	return regulator_enable(state->mipi_phy_regulator);
+}
+
+static int mipi_csis_phy_disable(struct csi_state *state)
+{
+	return regulator_disable(state->mipi_phy_regulator);
+}
+
+static void mipi_csis_phy_reset(struct csi_state *state)
+{
+	reset_control_assert(state->mrst);
+	msleep(20);
+	reset_control_deassert(state->mrst);
+}
+
+static int mipi_csis_phy_init(struct csi_state *state)
+{
+	/* Get MIPI PHY reset and regulator. */
+	state->mrst = devm_reset_control_get_exclusive(state->dev, NULL);
+	if (IS_ERR(state->mrst))
+		return PTR_ERR(state->mrst);
+
+	state->mipi_phy_regulator = devm_regulator_get(state->dev, "phy");
+	if (IS_ERR(state->mipi_phy_regulator))
+		return PTR_ERR(state->mipi_phy_regulator);
+
+	return regulator_set_voltage(state->mipi_phy_regulator, 1000000,
+				     1000000);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1177,7 +1194,7 @@ static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
 	mutex_lock(&state->lock);
 	if (state->state & ST_POWERED) {
 		mipi_csis_stop_stream(state);
-		ret = regulator_disable(state->mipi_phy_regulator);
+		ret = mipi_csis_phy_disable(state);
 		if (ret)
 			goto unlock;
 		mipi_csis_clk_disable(state);
@@ -1203,7 +1220,7 @@ static int mipi_csis_pm_resume(struct device *dev, bool runtime)
 		goto unlock;
 
 	if (!(state->state & ST_POWERED)) {
-		ret = regulator_enable(state->mipi_phy_regulator);
+		ret = mipi_csis_phy_enable(state);
 		if (ret)
 			goto unlock;
 
@@ -1286,11 +1303,6 @@ static int mipi_csis_parse_dt(struct csi_state *state)
 	if (of_property_read_u32(node, "clock-frequency",
 				 &state->clk_frequency))
 		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
-
-	/* Get MIPI PHY resets */
-	state->mrst = devm_reset_control_get_exclusive(state->dev, NULL);
-	if (IS_ERR(state->mrst))
-		return PTR_ERR(state->mrst);
 
 	return 0;
 }
