@@ -4085,6 +4085,14 @@ void hisi_qm_reset_done(struct pci_dev *pdev)
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int ret;
 
+	if (qm->fun_type == QM_HW_PF) {
+		ret = qm_dev_hw_init(qm);
+		if (ret) {
+			pci_err(pdev, "Failed to init PF, ret = %d.\n", ret);
+			goto flr_done;
+		}
+	}
+
 	hisi_qm_dev_err_init(pf_qm);
 
 	ret = qm_restart(qm);
@@ -4094,12 +4102,6 @@ void hisi_qm_reset_done(struct pci_dev *pdev)
 	}
 
 	if (qm->fun_type == QM_HW_PF) {
-		ret = qm_dev_hw_init(qm);
-		if (ret) {
-			pci_err(pdev, "Failed to init PF, ret = %d.\n", ret);
-			goto flr_done;
-		}
-
 		if (!qm->vfs_num)
 			goto flr_done;
 
