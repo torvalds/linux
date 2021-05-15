@@ -72,6 +72,7 @@ simplefb_get_validated_format(struct drm_device *dev, const char *format_name)
 	static const struct simplefb_format formats[] = SIMPLEFB_FORMATS;
 	const struct simplefb_format *fmt = formats;
 	const struct simplefb_format *end = fmt + ARRAY_SIZE(formats);
+	const struct drm_format_info *info;
 
 	if (!format_name) {
 		drm_err(dev, "simplefb: missing framebuffer format\n");
@@ -79,8 +80,12 @@ simplefb_get_validated_format(struct drm_device *dev, const char *format_name)
 	}
 
 	while (fmt < end) {
-		if (!strcmp(format_name, fmt->name))
-			return drm_format_info(fmt->fourcc);
+		if (!strcmp(format_name, fmt->name)) {
+			info = drm_format_info(fmt->fourcc);
+			if (!info)
+				return ERR_PTR(-EINVAL);
+			return info;
+		}
 		++fmt;
 	}
 
