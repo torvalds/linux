@@ -50,6 +50,7 @@
 #define HPRE_RAS_NFE_ENB		0x301414
 #define HPRE_HAC_RAS_NFE_ENABLE		0x3ffffe
 #define HPRE_RAS_FE_ENB			0x301418
+#define HPRE_OOO_SHUTDOWN_SEL		0x301a3c
 #define HPRE_HAC_RAS_FE_ENABLE		0
 
 #define HPRE_CORE_ENB		(HPRE_CLSTR_BASE + HPRE_CORE_EN_OFFSET)
@@ -446,23 +447,36 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 	hisi_qm_debug_regs_clear(qm);
 }
 
+static void hpre_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
+{
+	u32 val1, val2;
+
+	val1 = readl(qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+	if (enable) {
+		val1 |= HPRE_AM_OOO_SHUTDOWN_ENABLE;
+		val2 = HPRE_HAC_RAS_NFE_ENABLE;
+	} else {
+		val1 &= ~HPRE_AM_OOO_SHUTDOWN_ENABLE;
+		val2 = 0x0;
+	}
+
+	if (qm->ver > QM_HW_V2)
+		writel(val2, qm->io_base + HPRE_OOO_SHUTDOWN_SEL);
+
+	writel(val1, qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+}
+
 static void hpre_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	/* disable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_INT_MASK);
 
-	/* disable HPRE block master OOO when m-bit error occur */
-	val = readl(qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
-	val &= ~HPRE_AM_OOO_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+	/* disable HPRE block master OOO when nfe occurs on Kunpeng930 */
+	hpre_master_ooo_ctrl(qm, false);
 }
 
 static void hpre_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	/* clear HPRE hw error source if having */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_HAC_SOURCE_INT);
 
@@ -471,10 +485,8 @@ static void hpre_hw_error_enable(struct hisi_qm *qm)
 	writel(HPRE_HAC_RAS_NFE_ENABLE, qm->io_base + HPRE_RAS_NFE_ENB);
 	writel(HPRE_HAC_RAS_FE_ENABLE, qm->io_base + HPRE_RAS_FE_ENB);
 
-	/* enable HPRE block master OOO when m-bit error occur */
-	val = readl(qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
-	val |= HPRE_AM_OOO_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+	/* enable HPRE block master OOO when nfe occurs on Kunpeng930 */
+	hpre_master_ooo_ctrl(qm, true);
 
 	/* enable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_ENABLE, qm->io_base + HPRE_INT_MASK);

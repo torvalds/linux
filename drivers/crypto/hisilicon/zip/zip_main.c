@@ -68,6 +68,7 @@
 #define HZIP_CORE_INT_RAS_CE_ENABLE	0x1
 #define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
 #define HZIP_CORE_INT_RAS_FE_ENB        0x301168
+#define HZIP_OOO_SHUTDOWN_SEL		0x30120C
 #define HZIP_CORE_INT_RAS_NFE_ENABLE	0x1FFE
 #define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
 #define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
@@ -312,10 +313,27 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	return 0;
 }
 
+static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
+{
+	u32 val1, val2;
+
+	val1 = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	if (enable) {
+		val1 |= HZIP_AXI_SHUTDOWN_ENABLE;
+		val2 = HZIP_CORE_INT_RAS_NFE_ENABLE;
+	} else {
+		val1 &= ~HZIP_AXI_SHUTDOWN_ENABLE;
+		val2 = 0x0;
+	}
+
+	if (qm->ver > QM_HW_V2)
+		writel(val2, qm->io_base + HZIP_OOO_SHUTDOWN_SEL);
+
+	writel(val1, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+}
+
 static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_MASK_ALL,
 		       qm->io_base + HZIP_CORE_INT_MASK_REG);
@@ -333,10 +351,8 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	writel(HZIP_CORE_INT_RAS_NFE_ENABLE,
 	       qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
-	/* enable ZIP block master OOO when m-bit error occur */
-	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
-	val = val | HZIP_AXI_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	/* enable ZIP block master OOO when nfe occurs on Kunpeng930 */
+	hisi_zip_master_ooo_ctrl(qm, true);
 
 	/* enable ZIP hw error interrupts */
 	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
@@ -344,15 +360,11 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 
 static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	/* disable ZIP hw error interrupts */
 	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
-	/* disable ZIP block master OOO when m-bit error occur */
-	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
-	val = val & ~HZIP_AXI_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+	/* disable ZIP block master OOO when nfe occurs on Kunpeng930 */
+	hisi_zip_master_ooo_ctrl(qm, false);
 }
 
 static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)

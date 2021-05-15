@@ -52,6 +52,7 @@
 #define SEC_RAS_CE_ENB_MSK		0x88
 #define SEC_RAS_FE_ENB_MSK		0x0
 #define SEC_RAS_NFE_ENB_MSK		0x7c177
+#define SEC_OOO_SHUTDOWN_SEL		0x301014
 #define SEC_RAS_DISABLE		0x0
 #define SEC_MEM_START_INIT_REG	0x301100
 #define SEC_MEM_INIT_DONE_REG		0x301104
@@ -430,10 +431,27 @@ static void sec_debug_regs_clear(struct hisi_qm *qm)
 	hisi_qm_debug_regs_clear(qm);
 }
 
+static void sec_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
+{
+	u32 val1, val2;
+
+	val1 = readl(qm->io_base + SEC_CONTROL_REG);
+	if (enable) {
+		val1 |= SEC_AXI_SHUTDOWN_ENABLE;
+		val2 = SEC_RAS_NFE_ENB_MSK;
+	} else {
+		val1 &= SEC_AXI_SHUTDOWN_DISABLE;
+		val2 = 0x0;
+	}
+
+	if (qm->ver > QM_HW_V2)
+		writel(val2, qm->io_base + SEC_OOO_SHUTDOWN_SEL);
+
+	writel(val1, qm->io_base + SEC_CONTROL_REG);
+}
+
 static void sec_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	if (qm->ver == QM_HW_V1) {
 		writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
 		pci_info(qm->pdev, "V1 not support hw error handle\n");
@@ -448,10 +466,8 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 	writel(SEC_RAS_FE_ENB_MSK, qm->io_base + SEC_RAS_FE_REG);
 	writel(SEC_RAS_NFE_ENB_MSK, qm->io_base + SEC_RAS_NFE_REG);
 
-	/* enable SEC block master OOO when m-bit error occur */
-	val = readl(qm->io_base + SEC_CONTROL_REG);
-	val = val | SEC_AXI_SHUTDOWN_ENABLE;
-	writel(val, qm->io_base + SEC_CONTROL_REG);
+	/* enable SEC block master OOO when nfe occurs on Kunpeng930 */
+	sec_master_ooo_ctrl(qm, true);
 
 	/* enable SEC hw error interrupts */
 	writel(SEC_CORE_INT_ENABLE, qm->io_base + SEC_CORE_INT_MASK);
@@ -459,15 +475,11 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 
 static void sec_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 val;
-
 	/* disable SEC hw error interrupts */
 	writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
 
-	/* disable SEC block master OOO when m-bit error occur */
-	val = readl(qm->io_base + SEC_CONTROL_REG);
-	val = val & SEC_AXI_SHUTDOWN_DISABLE;
-	writel(val, qm->io_base + SEC_CONTROL_REG);
+	/* disable SEC block master OOO when nfe occurs on Kunpeng930 */
+	sec_master_ooo_ctrl(qm, false);
 
 	/* disable RAS int */
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_CE_REG);
