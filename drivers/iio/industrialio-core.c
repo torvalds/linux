@@ -1711,7 +1711,7 @@ struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv)
 	ret = devm_add_action_or_reset(parent, devm_iio_device_release,
 				       iio_dev);
 	if (ret)
-		return ERR_PTR(ret);
+		return NULL;
 
 	return iio_dev;
 }
