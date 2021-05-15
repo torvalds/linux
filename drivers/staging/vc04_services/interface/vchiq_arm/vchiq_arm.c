@@ -1019,6 +1019,7 @@ static inline int vchiq_get_user_ptr(void __user **buf, void __user *ubuf, int i
 	if (in_compat_syscall()) {
 		compat_uptr_t ptr32;
 		compat_uptr_t __user *uptr = ubuf;
+
 		ret = get_user(ptr32, uptr + index);
 		if (ret)
 			return ret;
@@ -1026,6 +1027,7 @@ static inline int vchiq_get_user_ptr(void __user **buf, void __user *ubuf, int i
 		*buf = compat_ptr(ptr32);
 	} else {
 		uintptr_t ptr, __user *uptr = ubuf;
+
 		ret = get_user(ptr, uptr + index);
 
 		if (ret)
@@ -1798,6 +1800,7 @@ static long
 vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = compat_ptr(arg);
+
 	switch (cmd) {
 	case VCHIQ_IOC_CREATE_SERVICE32:
 		return vchiq_compat_ioctl_create_service(file, cmd, argp);

@@ -35,6 +35,7 @@ static struct vchiq_debugfs_log_entry vchiq_debugfs_log_entries[] = {
 	{ "susp", &vchiq_susp_log_level },
 	{ "arm",  &vchiq_arm_log_level },
 };
+
 static int n_log_entries = ARRAY_SIZE(vchiq_debugfs_log_entries);
 
 static int debugfs_log_show(struct seq_file *f, void *offset)
