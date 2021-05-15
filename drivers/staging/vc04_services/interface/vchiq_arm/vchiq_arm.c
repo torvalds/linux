@@ -459,7 +459,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 			}
 		}
 	} else {
-		waiter = kzalloc(sizeof(struct bulk_waiter_node), GFP_KERNEL);
+		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
 		if (!waiter) {
 			vchiq_log_error(vchiq_core_log_level,
 				"%s - out of memory", __func__);
@@ -962,8 +962,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		return -EINVAL;
 
 	if (args->mode == VCHIQ_BULK_MODE_BLOCKING) {
-		waiter = kzalloc(sizeof(struct bulk_waiter_node),
-			GFP_KERNEL);
+		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
 		if (!waiter) {
 			ret = -ENOMEM;
 			goto out;
