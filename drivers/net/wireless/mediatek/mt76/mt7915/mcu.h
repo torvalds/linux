@@ -216,6 +216,19 @@ struct mt7915_mcu_phy_rx_info {
 #define MT_RA_RATE_DCM_EN		BIT(4)
 #define MT_RA_RATE_BW			GENMASK(14, 13)
 
+struct mt7915_mcu_mib {
+	__le32 band;
+	__le32 offs;
+	__le64 data;
+} __packed;
+
+enum mt7915_chan_mib_offs {
+	MIB_BUSY_TIME = 14,
+	MIB_TX_TIME = 81,
+	MIB_RX_TIME,
+	MIB_OBSS_AIRTIME = 86
+};
+
 struct edca {
 	u8 queue;
 	u8 set;
@@ -301,6 +314,7 @@ enum {
 	MCU_EXT_CMD_MUAR_UPDATE = 0x48,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
 	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
+	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
 	MCU_EXT_CMD_SCS_CTRL = 0x82,

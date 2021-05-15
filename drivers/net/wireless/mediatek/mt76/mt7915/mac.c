@@ -1374,14 +1374,10 @@ void mt7915_mac_reset_counters(struct mt7915_phy *phy)
 	memset(&dev->mt76.aggr_stats[i], 0, sizeof(dev->mt76.aggr_stats) / 2);
 
 	/* reset airtime counters */
-	mt76_rr(dev, MT_MIB_SDR9(ext_phy));
-	mt76_rr(dev, MT_MIB_SDR36(ext_phy));
-	mt76_rr(dev, MT_MIB_SDR37(ext_phy));
-
-	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(ext_phy),
-		 MT_WF_RMAC_MIB_RXTIME_CLR);
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(ext_phy),
 		 MT_WF_RMAC_MIB_RXTIME_CLR);
+
+	mt7915_mcu_get_chan_mib_info(phy, true);
 }
 
 void mt7915_mac_set_timing(struct mt7915_phy *phy)
@@ -1478,20 +1474,11 @@ mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
 static void
 mt7915_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
-	struct mt7915_dev *dev = container_of(mphy->dev, struct mt7915_dev, mt76);
 	struct mt7915_phy *phy = (struct mt7915_phy *)mphy->priv;
-	struct mt76_channel_state *state;
-	u64 busy_time, tx_time, rx_time, obss_time;
+	struct mt76_channel_state *state = mphy->chan_state;
 	int nf;
 
-	busy_time = mt76_get_field(dev, MT_MIB_SDR9(idx),
-				   MT_MIB_SDR9_BUSY_MASK);
-	tx_time = mt76_get_field(dev, MT_MIB_SDR36(idx),
-				 MT_MIB_SDR36_TXTIME_MASK);
-	rx_time = mt76_get_field(dev, MT_MIB_SDR37(idx),
-				 MT_MIB_SDR37_RXTIME_MASK);
-	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_AIRTIME14(idx),
-				   MT_MIB_OBSSTIME_MASK);
+	mt7915_mcu_get_chan_mib_info(phy, false);
 
 	nf = mt7915_phy_get_nf(phy, idx);
 	if (!phy->noise)
@@ -1499,27 +1486,14 @@ mt7915_phy_update_channel(struct mt76_phy *mphy, int idx)
 	else if (nf)
 		phy->noise += nf - (phy->noise >> 4);
 
-	state = mphy->chan_state;
-	state->cc_busy += busy_time;
-	state->cc_tx += tx_time;
-	state->cc_rx += rx_time + obss_time;
-	state->cc_bss_rx += rx_time;
 	state->noise = -(phy->noise >> 4);
 }
 
 void mt7915_update_channel(struct mt76_dev *mdev)
 {
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-
 	mt7915_phy_update_channel(&mdev->phy, 0);
 	if (mdev->phy2)
 		mt7915_phy_update_channel(mdev->phy2, 1);
-
-	/* reset obss airtime */
-	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
-	if (mdev->phy2)
-		mt76_set(dev, MT_WF_RMAC_MIB_TIME0(1),
-			 MT_WF_RMAC_MIB_RXTIME_CLR);
 }
 
 static bool
@@ -1723,7 +1697,7 @@ void mt7915_mac_reset_work(struct work_struct *work)
 }
 
 static void
-mt7915_mac_update_mib_stats(struct mt7915_phy *phy)
+mt7915_mac_update_stats(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	struct mib_stats *mib = &phy->mib;
@@ -1834,7 +1808,7 @@ void mt7915_mac_work(struct work_struct *work)
 	if (++mphy->mac_work_count == 5) {
 		mphy->mac_work_count = 0;
 
-		mt7915_mac_update_mib_stats(phy);
+		mt7915_mac_update_stats(phy);
 	}
 
 	if (++phy->sta_work_count == 10) {
