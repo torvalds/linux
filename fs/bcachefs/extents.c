@@ -229,33 +229,36 @@ void bch2_extent_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
-bool bch2_extent_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
+bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 {
-	struct bkey_s_extent l = bkey_s_to_extent(_l);
-	struct bkey_s_c_extent r = bkey_s_c_to_extent(_r);
+	struct bkey_ptrs   l_ptrs = bch2_bkey_ptrs(l);
+	struct bkey_ptrs_c r_ptrs = bch2_bkey_ptrs_c(r);
 	union bch_extent_entry *en_l;
 	const union bch_extent_entry *en_r;
 	struct extent_ptr_decoded lp, rp;
 	bool use_right_ptr;
 	struct bch_dev *ca;
 
-	if (bkey_val_u64s(l.k) != bkey_val_u64s(r.k))
-		return false;
-
-	extent_for_each_entry(l, en_l) {
-		en_r = vstruct_idx(r.v, (u64 *) en_l - l.v->_data);
-
+	en_l = l_ptrs.start;
+	en_r = r_ptrs.start;
+	while (en_l < l_ptrs.end && en_r < r_ptrs.end) {
 		if (extent_entry_type(en_l) != extent_entry_type(en_r))
 			return false;
+
+		en_l = extent_entry_next(en_l);
+		en_r = extent_entry_next(en_r);
 	}
 
-	en_l = l.v->start;
-	en_r = r.v->start;
+	if (en_l < l_ptrs.end || en_r < r_ptrs.end)
+		return false;
+
+	en_l = l_ptrs.start;
+	en_r = r_ptrs.start;
 	lp.crc = bch2_extent_crc_unpack(l.k, NULL);
 	rp.crc = bch2_extent_crc_unpack(r.k, NULL);
 
-	while (__bkey_ptr_next_decode(l.k, extent_entry_last(l), lp, en_l) &&
-	       __bkey_ptr_next_decode(r.k, extent_entry_last(r), rp, en_r)) {
+	while (__bkey_ptr_next_decode(l.k, l_ptrs.end, lp, en_l) &&
+	       __bkey_ptr_next_decode(r.k, r_ptrs.end, rp, en_r)) {
 		if (lp.ptr.offset + lp.crc.offset + lp.crc.live_size !=
 		    rp.ptr.offset + rp.crc.offset ||
 		    lp.ptr.dev			!= rp.ptr.dev ||
@@ -311,43 +314,45 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
 	}
 
 	use_right_ptr = false;
-	extent_for_each_entry(l, en_l) {
-		struct bch_extent_crc_unpacked crc_l, crc_r;
-
-		en_r = vstruct_idx(r.v, (u64 *) en_l - l.v->_data);
-
+	en_l = l_ptrs.start;
+	en_r = r_ptrs.start;
+	while (en_l < l_ptrs.end) {
 		if (extent_entry_type(en_l) == BCH_EXTENT_ENTRY_ptr &&
 		    use_right_ptr)
 			en_l->ptr = en_r->ptr;
 
-		if (!extent_entry_is_crc(en_l))
-			continue;
+		if (extent_entry_is_crc(en_l)) {
+			struct bch_extent_crc_unpacked crc_l =
+				bch2_extent_crc_unpack(l.k, entry_to_crc(en_l));
+			struct bch_extent_crc_unpacked crc_r =
+				bch2_extent_crc_unpack(r.k, entry_to_crc(en_r));
 
-		use_right_ptr = false;
+			use_right_ptr = false;
 
-		crc_l = bch2_extent_crc_unpack(l.k, entry_to_crc(en_l));
-		crc_r = bch2_extent_crc_unpack(r.k, entry_to_crc(en_r));
+			if (crc_l.offset + crc_l.live_size + crc_r.live_size <=
+			    crc_l.uncompressed_size) {
+				/* can use left extent's crc entry */
+			} else if (crc_l.live_size <= crc_r.offset ) {
+				/* can use right extent's crc entry */
+				crc_r.offset -= crc_l.live_size;
+				bch2_extent_crc_pack(entry_to_crc(en_l), crc_r,
+						     extent_entry_type(en_l));
+				use_right_ptr = true;
+			} else {
+				crc_l.csum = bch2_checksum_merge(crc_l.csum_type,
+								 crc_l.csum,
+								 crc_r.csum,
+								 crc_r.uncompressed_size << 9);
 
-		if (crc_l.offset + crc_l.live_size + crc_r.live_size <=
-		    crc_l.uncompressed_size) {
-			/* can use left extent's crc entry */
-		} else if (crc_l.live_size <= crc_r.offset ) {
-			/* can use right extent's crc entry */
-			crc_r.offset -= crc_l.live_size;
-			bch2_extent_crc_pack(entry_to_crc(en_l), crc_r,
-					     extent_entry_type(en_l));
-			use_right_ptr = true;
-		} else {
-			crc_l.csum = bch2_checksum_merge(crc_l.csum_type,
-							 crc_l.csum,
-							 crc_r.csum,
-							 crc_r.uncompressed_size << 9);
-
-			crc_l.uncompressed_size	+= crc_r.uncompressed_size;
-			crc_l.compressed_size	+= crc_r.compressed_size;
-			bch2_extent_crc_pack(entry_to_crc(en_l), crc_l,
-					     extent_entry_type(en_l));
+				crc_l.uncompressed_size	+= crc_r.uncompressed_size;
+				crc_l.compressed_size	+= crc_r.compressed_size;
+				bch2_extent_crc_pack(entry_to_crc(en_l), crc_l,
+						     extent_entry_type(en_l));
+			}
 		}
+
+		en_l = extent_entry_next(en_l);
+		en_r = extent_entry_next(en_r);
 	}
 
 	bch2_key_resize(l.k, l.k->size + r.k->size);
