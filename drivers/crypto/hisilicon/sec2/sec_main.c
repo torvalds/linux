@@ -440,13 +440,8 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 		return;
 	}
 
-	val = readl(qm->io_base + SEC_CONTROL_REG);
-
 	/* clear SEC hw error source if having */
 	writel(SEC_CORE_INT_CLEAR, qm->io_base + SEC_CORE_INT_SOURCE);
-
-	/* enable SEC hw error interrupts */
-	writel(SEC_CORE_INT_ENABLE, qm->io_base + SEC_CORE_INT_MASK);
 
 	/* enable RAS int */
 	writel(SEC_RAS_CE_ENB_MSK, qm->io_base + SEC_RAS_CE_REG);
@@ -454,29 +449,30 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 	writel(SEC_RAS_NFE_ENB_MSK, qm->io_base + SEC_RAS_NFE_REG);
 
 	/* enable SEC block master OOO when m-bit error occur */
+	val = readl(qm->io_base + SEC_CONTROL_REG);
 	val = val | SEC_AXI_SHUTDOWN_ENABLE;
-
 	writel(val, qm->io_base + SEC_CONTROL_REG);
+
+	/* enable SEC hw error interrupts */
+	writel(SEC_CORE_INT_ENABLE, qm->io_base + SEC_CORE_INT_MASK);
 }
 
 static void sec_hw_error_disable(struct hisi_qm *qm)
 {
 	u32 val;
 
+	/* disable SEC hw error interrupts */
+	writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
+
+	/* disable SEC block master OOO when m-bit error occur */
 	val = readl(qm->io_base + SEC_CONTROL_REG);
+	val = val & SEC_AXI_SHUTDOWN_DISABLE;
+	writel(val, qm->io_base + SEC_CONTROL_REG);
 
 	/* disable RAS int */
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_CE_REG);
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_FE_REG);
 	writel(SEC_RAS_DISABLE, qm->io_base + SEC_RAS_NFE_REG);
-
-	/* disable SEC hw error interrupts */
-	writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
-
-	/* disable SEC block master OOO when m-bit error occur */
-	val = val & SEC_AXI_SHUTDOWN_DISABLE;
-
-	writel(val, qm->io_base + SEC_CONTROL_REG);
 }
 
 static u32 sec_clear_enable_read(struct sec_debug_file *file)

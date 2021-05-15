@@ -3917,6 +3917,7 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 	}
 
 	qm_restart_prepare(qm);
+	hisi_qm_dev_err_init(qm);
 
 	ret = qm_restart(qm);
 	if (ret) {
@@ -3938,7 +3939,6 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 		return -EPERM;
 	}
 
-	hisi_qm_dev_err_init(qm);
 	qm_restart_done(qm);
 
 	clear_bit(QM_RESETTING, &qm->misc_ctl);

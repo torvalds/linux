@@ -466,8 +466,7 @@ static void hpre_hw_error_enable(struct hisi_qm *qm)
 	/* clear HPRE hw error source if having */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_HAC_SOURCE_INT);
 
-	/* enable hpre hw error interrupts */
-	writel(HPRE_CORE_INT_ENABLE, qm->io_base + HPRE_INT_MASK);
+	/* configure error type */
 	writel(HPRE_HAC_RAS_CE_ENABLE, qm->io_base + HPRE_RAS_CE_ENB);
 	writel(HPRE_HAC_RAS_NFE_ENABLE, qm->io_base + HPRE_RAS_NFE_ENB);
 	writel(HPRE_HAC_RAS_FE_ENABLE, qm->io_base + HPRE_RAS_FE_ENB);
@@ -476,6 +475,9 @@ static void hpre_hw_error_enable(struct hisi_qm *qm)
 	val = readl(qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
 	val |= HPRE_AM_OOO_SHUTDOWN_ENABLE;
 	writel(val, qm->io_base + HPRE_AM_OOO_SHUTDOWN_ENB);
+
+	/* enable hpre hw error interrupts */
+	writel(HPRE_CORE_INT_ENABLE, qm->io_base + HPRE_INT_MASK);
 }
 
 static inline struct hisi_qm *hpre_file_to_qm(struct hpre_debugfs_file *file)
