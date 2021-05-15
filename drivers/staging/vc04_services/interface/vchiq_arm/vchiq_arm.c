@@ -265,10 +265,10 @@ failed:
 }
 EXPORT_SYMBOL(vchiq_connect);
 
-static enum vchiq_status vchiq_add_service(
-	struct vchiq_instance             *instance,
-	const struct vchiq_service_params_kernel *params,
-	unsigned int       *phandle)
+static enum vchiq_status
+vchiq_add_service(struct vchiq_instance *instance,
+		  const struct vchiq_service_params_kernel *params,
+		  unsigned int *phandle)
 {
 	enum vchiq_status status;
 	struct vchiq_state *state = instance->state;
@@ -301,10 +301,10 @@ static enum vchiq_status vchiq_add_service(
 	return status;
 }
 
-enum vchiq_status vchiq_open_service(
-	struct vchiq_instance             *instance,
-	const struct vchiq_service_params_kernel *params,
-	unsigned int       *phandle)
+enum vchiq_status
+vchiq_open_service(struct vchiq_instance *instance,
+		   const struct vchiq_service_params_kernel *params,
+		   unsigned int *phandle)
 {
 	enum vchiq_status   status = VCHIQ_ERROR;
 	struct vchiq_state   *state = instance->state;
@@ -339,8 +339,8 @@ failed:
 EXPORT_SYMBOL(vchiq_open_service);
 
 enum vchiq_status
-vchiq_bulk_transmit(unsigned int handle, const void *data,
-	unsigned int size, void *userdata, enum vchiq_bulk_mode mode)
+vchiq_bulk_transmit(unsigned int handle, const void *data, unsigned int size,
+		    void *userdata, enum vchiq_bulk_mode mode)
 {
 	enum vchiq_status status;
 
@@ -414,8 +414,8 @@ enum vchiq_status vchiq_bulk_receive(unsigned int handle, void *data,
 EXPORT_SYMBOL(vchiq_bulk_receive);
 
 static enum vchiq_status
-vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
-	unsigned int size, enum vchiq_bulk_dir dir)
+vchiq_blocking_bulk_transfer(unsigned int handle, void *data, unsigned int size,
+			     enum vchiq_bulk_dir dir)
 {
 	struct vchiq_instance *instance;
 	struct vchiq_service *service;
@@ -739,8 +739,7 @@ static ssize_t vchiq_ioc_copy_element_data(void *context, void *dest,
 }
 
 static int
-vchiq_ioc_queue_message(unsigned int handle,
-			struct vchiq_element *elements,
+vchiq_ioc_queue_message(unsigned int handle, struct vchiq_element *elements,
 			unsigned long count)
 {
 	struct vchiq_io_copy_callback_context context;
@@ -1560,10 +1559,8 @@ struct vchiq_create_service32 {
 	_IOWR(VCHIQ_IOC_MAGIC, 2, struct vchiq_create_service32)
 
 static long
-vchiq_compat_ioctl_create_service(
-	struct file *file,
-	unsigned int cmd,
-	struct vchiq_create_service32 __user *ptrargs32)
+vchiq_compat_ioctl_create_service(struct file *file, unsigned int cmd,
+				  struct vchiq_create_service32 __user *ptrargs32)
 {
 	struct vchiq_create_service args;
 	struct vchiq_create_service32 args32;
@@ -2104,8 +2101,7 @@ int vchiq_dump_platform_service_state(void *dump_context,
 }
 
 static ssize_t
-vchiq_read(struct file *file, char __user *buf,
-	size_t count, loff_t *ppos)
+vchiq_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct dump_context context;
 	int err;
@@ -2156,9 +2152,8 @@ vchiq_fops = {
 
 static enum vchiq_status
 vchiq_keepalive_vchiq_callback(enum vchiq_reason reason,
-	struct vchiq_header *header,
-	unsigned int service_user,
-	void *bulk_user)
+			       struct vchiq_header *header,
+			       unsigned int service_user, void *bulk_user)
 {
 	vchiq_log_error(vchiq_susp_log_level,
 		"%s callback reason %d", __func__, reason);
