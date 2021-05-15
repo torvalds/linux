@@ -73,6 +73,7 @@ tools/labs/docs/Dockerfile for dependencies):
    labs/filesystems_part1.rst
    labs/filesystems_part2.rst
    labs/networking.rst
+   labs/arm_kernel_development.rst
    labs/memory_mapping.rst
    labs/device_model.rst
 
