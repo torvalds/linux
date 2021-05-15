@@ -1154,6 +1154,14 @@ struct cifs_pending_open {
 	__u32 oplock;
 };
 
+struct cifs_deferred_close {
+	struct list_head dlist;
+	struct tcon_link *tlink;
+	__u16  netfid;
+	__u64  persistent_fid;
+	__u64  volatile_fid;
+};
+
 /*
  * This info hangs off the cifsFileInfo structure, pointed to by llist.
  * This is used to track byte stream locks on the file
@@ -1248,6 +1256,9 @@ struct cifsFileInfo {
 	struct cifs_search_info srch_inf;
 	struct work_struct oplock_break; /* work for oplock breaks */
 	struct work_struct put; /* work for the final part of _put */
+	struct delayed_work deferred;
+	bool oplock_break_received; /* Flag to indicate oplock break */
+	bool deferred_scheduled;
 };
 
 struct cifs_io_parms {
@@ -1392,6 +1403,7 @@ struct cifsInodeInfo {
 #define CIFS_INO_DELETE_PENDING		  (3) /* delete pending on server */
 #define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
 #define CIFS_INO_LOCK			  (5) /* lock bit for synchronization */
+#define CIFS_INO_MODIFIED_ATTR            (6) /* Indicate change in mtime/ctime */
 	unsigned long flags;
 	spinlock_t writers_lock;
 	unsigned int writers;		/* Number of writers on this inode */
@@ -1404,6 +1416,8 @@ struct cifsInodeInfo {
 	struct fscache_cookie *fscache;
 #endif
 	struct inode vfs_inode;
+	struct list_head deferred_closes; /* list of deferred closes */
+	spinlock_t deferred_lock; /* protection on deferred list */
 };
 
 static inline struct cifsInodeInfo *
@@ -1871,11 +1885,14 @@ extern bool disable_legacy_dialects;  /* forbid vers=1.0 and vers=2.0 mounts */
 
 void cifs_oplock_break(struct work_struct *work);
 void cifs_queue_oplock_break(struct cifsFileInfo *cfile);
+void smb2_deferred_work_close(struct work_struct *work);
 
+extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
 extern struct workqueue_struct *decrypt_wq;
 extern struct workqueue_struct *fileinfo_put_wq;
 extern struct workqueue_struct *cifsoplockd_wq;
+extern struct workqueue_struct *deferredclose_wq;
 extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_mid_poolp;

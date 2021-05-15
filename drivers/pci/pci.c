@@ -4072,6 +4072,7 @@ phys_addr_t pci_pio_to_address(unsigned long pio)
 
 	return address;
 }
+EXPORT_SYMBOL_GPL(pci_pio_to_address);
 
 unsigned long __weak pci_address_to_pio(phys_addr_t address)
 {
@@ -4472,6 +4473,23 @@ void pci_clear_mwi(struct pci_dev *dev)
 #endif
 }
 EXPORT_SYMBOL(pci_clear_mwi);
+
+/**
+ * pci_disable_parity - disable parity checking for device
+ * @dev: the PCI device to operate on
+ *
+ * Disable parity checking for device @dev
+ */
+void pci_disable_parity(struct pci_dev *dev)
+{
+	u16 cmd;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	if (cmd & PCI_COMMAND_PARITY) {
+		cmd &= ~PCI_COMMAND_PARITY;
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
+}
 
 /**
  * pci_intx - enables/disables PCI INTx for device dev

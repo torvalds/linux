@@ -993,7 +993,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_vcpu *vcpu,
 }
 
 /* Called with kvm->mmu_lock held */
-bool kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+void kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		     unsigned long gfn)
 {
 	pte_t *ptep;
@@ -1002,14 +1002,13 @@ bool kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE) {
 		uv_page_inval(kvm->arch.lpid, gpa, PAGE_SHIFT);
-		return false;
+		return;
 	}
 
 	ptep = find_kvm_secondary_pte(kvm, gpa, &shift);
 	if (ptep && pte_present(*ptep))
 		kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot,
 				 kvm->arch.lpid);
-	return false;
 }
 
 /* Called with kvm->mmu_lock held */

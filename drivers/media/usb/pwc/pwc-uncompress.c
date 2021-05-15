@@ -9,9 +9,6 @@
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
-
-
-   vim: set ts=8:
 */
 
 #include <asm/current.h>

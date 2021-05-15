@@ -109,7 +109,7 @@ required:
   - resets
   - ddc
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

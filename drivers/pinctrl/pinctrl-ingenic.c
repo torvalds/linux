@@ -11,6 +11,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -3853,6 +3854,8 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+#define IF_ENABLED(cfg, ptr)	PTR_IF(IS_ENABLED(cfg), (ptr))
 
 static const struct of_device_id ingenic_pinctrl_of_match[] = {
 	{

@@ -370,41 +370,45 @@ long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_NVME_MULTIPATH
-static int nvme_ns_head_ctrl_ioctl(struct nvme_ns_head *head,
-		unsigned int cmd, void __user *argp)
+static int nvme_ns_head_ctrl_ioctl(struct nvme_ns *ns, unsigned int cmd,
+		void __user *argp, struct nvme_ns_head *head, int srcu_idx)
 {
-	struct nvme_ctrl *ctrl = nvme_find_get_live_ctrl(head->subsys);
+	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
 
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
-	ret = nvme_ctrl_ioctl(ctrl, cmd, argp);
+	nvme_get_ctrl(ns->ctrl);
+	nvme_put_ns_from_disk(head, srcu_idx);
+	ret = nvme_ctrl_ioctl(ns->ctrl, cmd, argp);
+
 	nvme_put_ctrl(ctrl);
-	return ret;
-}
-
-static int nvme_ns_head_ns_ioctl(struct nvme_ns_head *head,
-		unsigned int cmd, void __user *argp)
-{
-	int srcu_idx = srcu_read_lock(&head->srcu);
-	struct nvme_ns *ns = nvme_find_path(head);
-	int ret = -EWOULDBLOCK;
-
-	if (ns)
-		ret = nvme_ns_ioctl(ns, cmd, argp);
-	srcu_read_unlock(&head->srcu, srcu_idx);
 	return ret;
 }
 
 int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
-	struct nvme_ns_head *head = bdev->bd_disk->private_data;
+	struct nvme_ns_head *head = NULL;
 	void __user *argp = (void __user *)arg;
+	struct nvme_ns *ns;
+	int srcu_idx, ret;
 
+	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
+	if (unlikely(!ns))
+		return -EWOULDBLOCK;
+
+	/*
+	 * Handle ioctls that apply to the controller instead of the namespace
+	 * seperately and drop the ns SRCU reference early.  This avoids a
+	 * deadlock when deleting namespaces using the passthrough interface.
+	 */
 	if (is_ctrl_ioctl(cmd))
-		return nvme_ns_head_ctrl_ioctl(head, cmd, argp);
-	return nvme_ns_head_ns_ioctl(head, cmd, argp);
+		ret = nvme_ns_head_ctrl_ioctl(ns, cmd, argp, head, srcu_idx);
+	else {
+		ret = nvme_ns_ioctl(ns, cmd, argp);
+		nvme_put_ns_from_disk(head, srcu_idx);
+	}
+
+	return ret;
 }
 
 long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
@@ -414,10 +418,23 @@ long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
 	struct nvme_ns_head *head =
 		container_of(cdev, struct nvme_ns_head, cdev);
 	void __user *argp = (void __user *)arg;
+	struct nvme_ns *ns;
+	int srcu_idx, ret;
+
+	srcu_idx = srcu_read_lock(&head->srcu);
+	ns = nvme_find_path(head);
+	if (!ns) {
+		srcu_read_unlock(&head->srcu, srcu_idx);
+		return -EWOULDBLOCK;
+	}
 
 	if (is_ctrl_ioctl(cmd))
-		return nvme_ns_head_ctrl_ioctl(head, cmd, argp);
-	return nvme_ns_head_ns_ioctl(head, cmd, argp);
+		return nvme_ns_head_ctrl_ioctl(ns, cmd, argp, head, srcu_idx);
+
+	ret = nvme_ns_ioctl(ns, cmd, argp);
+	nvme_put_ns_from_disk(head, srcu_idx);
+
+	return ret;
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 

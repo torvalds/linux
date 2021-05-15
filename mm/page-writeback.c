@@ -1806,7 +1806,7 @@ pause:
 			break;
 
 		/*
-		 * In the case of an unresponding NFS server and the NFS dirty
+		 * In the case of an unresponsive NFS server and the NFS dirty
 		 * pages exceeds dirty_thresh, give the other good wb's a pipe
 		 * to go through, so that tasks on them still remain responsive.
 		 *
@@ -2216,7 +2216,7 @@ int write_cache_pages(struct address_space *mapping,
 			 * Page truncated or invalidated. We can freely skip it
 			 * then, even for data integrity operations: the page
 			 * has disappeared concurrently, so there could be no
-			 * real expectation of this data interity operation
+			 * real expectation of this data integrity operation
 			 * even if there is now a new, dirty page at the same
 			 * pagecache address.
 			 */

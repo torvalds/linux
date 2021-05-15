@@ -12794,7 +12794,7 @@ static void bnxt_vpd_read_info(struct bnxt *bp)
 		goto exit;
 	}
 
-	i = pci_vpd_find_tag(vpd_data, 0, vpd_size, PCI_VPD_LRDT_RO_DATA);
+	i = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0) {
 		netdev_err(bp->dev, "VPD READ-Only not found\n");
 		goto exit;

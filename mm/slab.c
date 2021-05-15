@@ -259,7 +259,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 
 #define BATCHREFILL_LIMIT	16
 /*
- * Optimization question: fewer reaps means less probability for unnessary
+ * Optimization question: fewer reaps means less probability for unnecessary
  * cpucache drain/refill cycles.
  *
  * OTOH the cpuarrays can contain lots of objects,
@@ -2284,7 +2284,7 @@ void __kmem_cache_release(struct kmem_cache *cachep)
  * Because if it is the case, that means we defer the creation of
  * the kmalloc_{dma,}_cache of size sizeof(slab descriptor) to this point.
  * And we eventually call down to __kmem_cache_create(), which
- * in turn looks up in the kmalloc_{dma,}_caches for the disired-size one.
+ * in turn looks up in the kmalloc_{dma,}_caches for the desired-size one.
  * This is a "chicken-and-egg" problem.
  *
  * So the off-slab slab descriptor shall come from the kmalloc_{dma,}_caches,
@@ -2381,8 +2381,8 @@ union freelist_init_state {
 };
 
 /*
- * Initialize the state based on the randomization methode available.
- * return true if the pre-computed list is available, false otherwize.
+ * Initialize the state based on the randomization method available.
+ * return true if the pre-computed list is available, false otherwise.
  */
 static bool freelist_state_initialize(union freelist_init_state *state,
 				struct kmem_cache *cachep,

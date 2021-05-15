@@ -4,7 +4,7 @@
 
    1 char	Memory devices
 		  1 = /dev/mem		Physical memory access
-		  2 = /dev/kmem		Kernel virtual memory access
+		  2 = /dev/kmem		OBSOLETE - replaced by /proc/kcore
 		  3 = /dev/null		Null device
 		  4 = /dev/port		I/O port access
 		  5 = /dev/zero		Null byte source

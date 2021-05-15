@@ -316,7 +316,7 @@ int kasan_populate_vmalloc(unsigned long addr, unsigned long size)
 	 * // rest of vmalloc process		<data dependency>
 	 * STORE p, a				LOAD shadow(x+99)
 	 *
-	 * If there is no barrier between the end of unpoisioning the shadow
+	 * If there is no barrier between the end of unpoisoning the shadow
 	 * and the store of the result to p, the stores could be committed
 	 * in a different order by CPU#0, and CPU#1 could erroneously observe
 	 * poison in the shadow.
@@ -384,7 +384,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
  * How does this work?
  * -------------------
  *
- * We have a region that is page aligned, labelled as A.
+ * We have a region that is page aligned, labeled as A.
  * That might not map onto the shadow in a way that is page-aligned:
  *
  *                    start                     end

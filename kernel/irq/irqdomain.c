@@ -295,8 +295,8 @@ void irq_domain_update_bus_token(struct irq_domain *domain,
 EXPORT_SYMBOL_GPL(irq_domain_update_bus_token);
 
 /**
- * irq_domain_add_simple() - Register an irq_domain and optionally map a range of irqs
- * @of_node: pointer to interrupt controller's device tree node.
+ * irq_domain_create_simple() - Register an irq_domain and optionally map a range of irqs
+ * @fwnode: firmware node for the interrupt controller
  * @size: total number of irqs in mapping
  * @first_irq: first number of irq block assigned to the domain,
  *	pass zero to assign irqs on-the-fly. If first_irq is non-zero, then
@@ -312,15 +312,15 @@ EXPORT_SYMBOL_GPL(irq_domain_update_bus_token);
  * irqs get mapped dynamically on the fly. However, if the controller requires
  * static virq assignments (non-DT boot) then it will set that up correctly.
  */
-struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
-					 unsigned int size,
-					 unsigned int first_irq,
-					 const struct irq_domain_ops *ops,
-					 void *host_data)
+struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
+					    unsigned int size,
+					    unsigned int first_irq,
+					    const struct irq_domain_ops *ops,
+					    void *host_data)
 {
 	struct irq_domain *domain;
 
-	domain = __irq_domain_add(of_node_to_fwnode(of_node), size, size, 0, ops, host_data);
+	domain = __irq_domain_add(fwnode, size, size, 0, ops, host_data);
 	if (!domain)
 		return NULL;
 
@@ -328,7 +328,7 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 		if (IS_ENABLED(CONFIG_SPARSE_IRQ)) {
 			/* attempt to allocated irq_descs */
 			int rc = irq_alloc_descs(first_irq, first_irq, size,
-						 of_node_to_nid(of_node));
+						 of_node_to_nid(to_of_node(fwnode)));
 			if (rc < 0)
 				pr_info("Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
 					first_irq);
@@ -338,7 +338,7 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 
 	return domain;
 }
-EXPORT_SYMBOL_GPL(irq_domain_add_simple);
+EXPORT_SYMBOL_GPL(irq_domain_create_simple);
 
 /**
  * irq_domain_add_legacy() - Allocate and register a legacy revmap irq_domain.

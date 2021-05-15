@@ -616,6 +616,7 @@ static const struct file_operations esas2r_proc_fops = {
 };
 
 static const struct proc_ops esas2r_proc_ops = {
+	.proc_lseek		= default_llseek,
 	.proc_ioctl		= esas2r_proc_ioctl,
 #ifdef CONFIG_COMPAT
 	.proc_compat_ioctl	= compat_ptr_ioctl,

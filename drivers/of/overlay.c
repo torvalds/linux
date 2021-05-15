@@ -1024,7 +1024,6 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	struct device_node *overlay_root = NULL;
 
 	*ovcs_id = 0;
-	ret = 0;
 
 	if (overlay_fdt_size < sizeof(struct fdt_header) ||
 	    fdt_check_header(overlay_fdt)) {
@@ -1194,8 +1193,6 @@ int of_overlay_remove(int *ovcs_id)
 {
 	struct overlay_changeset *ovcs;
 	int ret, ret_apply, ret_tmp;
-
-	ret = 0;
 
 	if (devicetree_corrupt()) {
 		pr_err("suspect devicetree state, refuse to remove overlay\n");

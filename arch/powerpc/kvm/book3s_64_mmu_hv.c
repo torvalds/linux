@@ -795,7 +795,7 @@ static void kvmppc_unmap_hpte(struct kvm *kvm, unsigned long i,
 	}
 }
 
-static bool kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
+static void kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			    unsigned long gfn)
 {
 	unsigned long i;
@@ -829,15 +829,21 @@ static bool kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		unlock_rmap(rmapp);
 		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	}
-	return false;
 }
 
 bool kvm_unmap_gfn_range_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	if (kvm_is_radix(kvm))
-		return kvm_unmap_radix(kvm, range->slot, range->start);
+	gfn_t gfn;
 
-	return kvm_unmap_rmapp(kvm, range->slot, range->start);
+	if (kvm_is_radix(kvm)) {
+		for (gfn = range->start; gfn < range->end; gfn++)
+			kvm_unmap_radix(kvm, range->slot, gfn);
+	} else {
+		for (gfn = range->start; gfn < range->end; gfn++)
+			kvm_unmap_rmapp(kvm, range->slot, range->start);
+	}
+
+	return false;
 }
 
 void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
@@ -924,10 +930,18 @@ static bool kvm_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 bool kvm_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	if (kvm_is_radix(kvm))
-		kvm_age_radix(kvm, range->slot, range->start);
+	gfn_t gfn;
+	bool ret = false;
 
-	return kvm_age_rmapp(kvm, range->slot, range->start);
+	if (kvm_is_radix(kvm)) {
+		for (gfn = range->start; gfn < range->end; gfn++)
+			ret |= kvm_age_radix(kvm, range->slot, gfn);
+	} else {
+		for (gfn = range->start; gfn < range->end; gfn++)
+			ret |= kvm_age_rmapp(kvm, range->slot, gfn);
+	}
+
+	return ret;
 }
 
 static bool kvm_test_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
@@ -965,18 +979,24 @@ static bool kvm_test_age_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 
 bool kvm_test_age_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	if (kvm_is_radix(kvm))
-		kvm_test_age_radix(kvm, range->slot, range->start);
+	WARN_ON(range->start + 1 != range->end);
 
-	return kvm_test_age_rmapp(kvm, range->slot, range->start);
+	if (kvm_is_radix(kvm))
+		return kvm_test_age_radix(kvm, range->slot, range->start);
+	else
+		return kvm_test_age_rmapp(kvm, range->slot, range->start);
 }
 
 bool kvm_set_spte_gfn_hv(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	if (kvm_is_radix(kvm))
-		return kvm_unmap_radix(kvm, range->slot, range->start);
+	WARN_ON(range->start + 1 != range->end);
 
-	return kvm_unmap_rmapp(kvm, range->slot, range->start);
+	if (kvm_is_radix(kvm))
+		kvm_unmap_radix(kvm, range->slot, range->start);
+	else
+		kvm_unmap_rmapp(kvm, range->slot, range->start);
+
+	return false;
 }
 
 static int vcpus_running(struct kvm *kvm)

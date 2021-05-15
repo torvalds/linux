@@ -2039,6 +2039,7 @@ static void tcp_zc_finalize_rx_tstamp(struct sock *sk,
 		(__kernel_size_t)zc->msg_controllen;
 	cmsg_dummy.msg_flags = in_compat_syscall()
 		? MSG_CMSG_COMPAT : 0;
+	cmsg_dummy.msg_control_is_user = true;
 	zc->msg_flags = 0;
 	if (zc->msg_control == msg_control_addr &&
 	    zc->msg_controllen == cmsg_dummy.msg_controllen) {

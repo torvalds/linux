@@ -129,7 +129,7 @@ static const char * const ecrc_policy_str[] = {
 };
 
 /**
- * enable_ercr_checking - enable PCIe ECRC checking for a device
+ * enable_ecrc_checking - enable PCIe ECRC checking for a device
  * @dev: the PCI device
  *
  * Returns 0 on success, or negative on failure.
@@ -153,7 +153,7 @@ static int enable_ecrc_checking(struct pci_dev *dev)
 }
 
 /**
- * disable_ercr_checking - disables PCIe ECRC checking for a device
+ * disable_ecrc_checking - disables PCIe ECRC checking for a device
  * @dev: the PCI device
  *
  * Returns 0 on success, or negative on failure.
@@ -1442,7 +1442,7 @@ static struct pcie_port_service_driver aerdriver = {
 };
 
 /**
- * aer_service_init - register AER root service driver
+ * pcie_aer_init - register AER root service driver
  *
  * Invoked when AER root service driver is loaded.
  */

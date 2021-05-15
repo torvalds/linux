@@ -354,7 +354,7 @@ $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 
 targets += $(filter-out $(subdir-builtin), $(real-obj-y))
 targets += $(filter-out $(subdir-modorder), $(real-obj-m))
-targets += $(lib-y) $(always-y) $(MAKECMDGOALS)
+targets += $(real-dtb-y) $(lib-y) $(always-y) $(MAKECMDGOALS)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------

@@ -55,9 +55,9 @@ extern bool kasan_flag_async __ro_after_init;
 #define KASAN_TAG_MAX		0xFD /* maximum value for random tags */
 
 #ifdef CONFIG_KASAN_HW_TAGS
-#define KASAN_TAG_MIN		0xF0 /* mimimum value for random tags */
+#define KASAN_TAG_MIN		0xF0 /* minimum value for random tags */
 #else
-#define KASAN_TAG_MIN		0x00 /* mimimum value for random tags */
+#define KASAN_TAG_MIN		0x00 /* minimum value for random tags */
 #endif
 
 #ifdef CONFIG_KASAN_GENERIC
@@ -403,7 +403,7 @@ static inline bool kasan_byte_accessible(const void *addr)
 #else /* CONFIG_KASAN_HW_TAGS */
 
 /**
- * kasan_poison - mark the memory range as unaccessible
+ * kasan_poison - mark the memory range as inaccessible
  * @addr - range start address, must be aligned to KASAN_GRANULE_SIZE
  * @size - range size, must be aligned to KASAN_GRANULE_SIZE
  * @value - value that's written to metadata for the range
@@ -434,7 +434,7 @@ bool kasan_byte_accessible(const void *addr);
 
 /**
  * kasan_poison_last_granule - mark the last granule of the memory range as
- * unaccessible
+ * inaccessible
  * @addr - range start address, must be aligned to KASAN_GRANULE_SIZE
  * @size - range size
  *

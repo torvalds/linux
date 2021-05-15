@@ -2,7 +2,7 @@
 VFIO - "Virtual Function I/O" [1]_
 ==================================
 
-Many modern system now provide DMA and interrupt remapping facilities
+Many modern systems now provide DMA and interrupt remapping facilities
 to help ensure I/O devices behave within the boundaries they've been
 allotted.  This includes x86 hardware with AMD-Vi and Intel VT-d,
 POWER systems with Partitionable Endpoints (PEs) and embedded PowerPC

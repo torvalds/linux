@@ -320,20 +320,6 @@ cleanup()
 	rm -f .vmlinux.d
 }
 
-on_exit()
-{
-	if [ $? -ne 0 ]; then
-		cleanup
-	fi
-}
-trap on_exit EXIT
-
-on_signals()
-{
-	exit 1
-}
-trap on_signals HUP INT QUIT TERM
-
 # Use "make V=1" to debug this script
 case "${KBUILD_VERBOSE}" in
 *1*)

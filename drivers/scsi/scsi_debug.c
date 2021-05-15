@@ -218,7 +218,7 @@ static const char *sdebug_version_date = "20200710";
  */
 #define SDEBUG_CANQUEUE_WORDS  3	/* a WORD is bits in a long */
 #define SDEBUG_CANQUEUE  (SDEBUG_CANQUEUE_WORDS * BITS_PER_LONG)
-#define DEF_CMD_PER_LUN  255
+#define DEF_CMD_PER_LUN  SDEBUG_CANQUEUE
 
 /* UA - Unit Attention; SA - Service Action; SSU - Start Stop Unit */
 #define F_D_IN			1	/* Data-in command (e.g. READ) */
@@ -5695,8 +5695,8 @@ MODULE_PARM_DESC(lbpu, "enable LBP, support UNMAP command (def=0)");
 MODULE_PARM_DESC(lbpws, "enable LBP, support WRITE SAME(16) with UNMAP bit (def=0)");
 MODULE_PARM_DESC(lbpws10, "enable LBP, support WRITE SAME(10) with UNMAP bit (def=0)");
 MODULE_PARM_DESC(lowest_aligned, "lowest aligned lba (def=0)");
-MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
 MODULE_PARM_DESC(lun_format, "LUN format: 0->peripheral (def); 1 --> flat address method");
+MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
 MODULE_PARM_DESC(max_queue, "max number of queued commands (1 to max(def))");
 MODULE_PARM_DESC(medium_error_count, "count of sectors to return follow on MEDIUM error");
 MODULE_PARM_DESC(medium_error_start, "starting sector number to return MEDIUM error");
@@ -5710,7 +5710,7 @@ MODULE_PARM_DESC(opt_xferlen_exp, "optimal transfer length granularity exponent 
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err... (def=0)");
 MODULE_PARM_DESC(per_host_store, "If set, next positive add_host will get new store (def=0)");
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
-MODULE_PARM_DESC(poll_queues, "support for iouring iopoll queues (1 to max(submit_queues - 1)");
+MODULE_PARM_DESC(poll_queues, "support for iouring iopoll queues (1 to max(submit_queues - 1))");
 MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=0[disk])");
 MODULE_PARM_DESC(random, "If set, uniformly randomize command duration between 0 and delay_in_ns");
 MODULE_PARM_DESC(removable, "claim to have removable media (def=0)");
@@ -7165,12 +7165,15 @@ static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 	}
 	num_in_q = atomic_read(&devip->num_in_q);
 
+	if (qdepth > SDEBUG_CANQUEUE) {
+		qdepth = SDEBUG_CANQUEUE;
+		pr_warn("%s: requested qdepth [%d] exceeds canqueue [%d], trim\n", __func__,
+			qdepth, SDEBUG_CANQUEUE);
+	}
 	if (qdepth < 1)
 		qdepth = 1;
-	/* allow to exceed max host qc_arr elements for testing */
-	if (qdepth > SDEBUG_CANQUEUE + 10)
-		qdepth = SDEBUG_CANQUEUE + 10;
-	scsi_change_queue_depth(sdev, qdepth);
+	if (qdepth != sdev->queue_depth)
+		scsi_change_queue_depth(sdev, qdepth);
 
 	if (SDEBUG_OPT_Q_NOISE & sdebug_opts) {
 		sdev_printk(KERN_INFO, sdev, "%s: qdepth=%d, num_in_q=%d\n",
@@ -7558,6 +7561,7 @@ static int sdebug_driver_probe(struct device *dev)
 	sdbg_host = to_sdebug_host(dev);
 
 	sdebug_driver_template.can_queue = sdebug_max_queue;
+	sdebug_driver_template.cmd_per_lun = sdebug_max_queue;
 	if (!sdebug_clustering)
 		sdebug_driver_template.dma_boundary = PAGE_SIZE - 1;
 
@@ -7593,7 +7597,11 @@ static int sdebug_driver_probe(struct device *dev)
 	 * If condition not met, trim poll_queues to 1 (just for simplicity).
 	 */
 	if (poll_queues >= submit_queues) {
-		pr_warn("%s: trim poll_queues to 1\n", my_name);
+		if (submit_queues < 3)
+			pr_warn("%s: trim poll_queues to 1\n", my_name);
+		else
+			pr_warn("%s: trim poll_queues to 1. Perhaps try poll_queues=%d\n",
+				my_name, submit_queues - 1);
 		poll_queues = 1;
 	}
 	if (poll_queues)

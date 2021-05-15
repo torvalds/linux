@@ -51,10 +51,8 @@ static struct addr_marker address_markers[] = {
 	{ FIXADDR_TOP,			"Fixmap end" },
 	{ PCI_IO_START,			"PCI I/O start" },
 	{ PCI_IO_END,			"PCI I/O end" },
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
 	{ VMEMMAP_START,		"vmemmap start" },
 	{ VMEMMAP_START + VMEMMAP_SIZE,	"vmemmap end" },
-#endif
 	{ -1,				NULL },
 };
 

@@ -1777,6 +1777,7 @@ sub dump_function($$) {
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__init +//;
     $prototype =~ s/__init_or_module +//;
+    $prototype =~ s/__deprecated +//;
     $prototype =~ s/__flatten +//;
     $prototype =~ s/__meminit +//;
     $prototype =~ s/__must_check +//;

@@ -2775,7 +2775,7 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	if (id_len > ID_LEN)
 		id_len = ID_LEN;
 
-	i = pci_vpd_find_tag(vpd, 0, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
+	i = pci_vpd_find_tag(vpd, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0) {
 		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
 		ret = -EINVAL;

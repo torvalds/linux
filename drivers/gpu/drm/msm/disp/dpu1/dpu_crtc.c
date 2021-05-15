@@ -648,16 +648,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	if (unlikely(!cstate->num_mixers))
 		return;
 
-	/*
-	 * For planes without commit update, drm framework will not add
-	 * those planes to current state since hardware update is not
-	 * required. However, if those planes were power collapsed since
-	 * last commit cycle, driver has to restore the hardware state
-	 * of those planes explicitly here prior to plane flush.
-	 */
-	drm_atomic_crtc_for_each_plane(plane, crtc)
-		dpu_plane_restore(plane, state);
-
 	/* update performance setting before crtc kickoff */
 	dpu_core_perf_crtc_update(crtc, 1, false);
 

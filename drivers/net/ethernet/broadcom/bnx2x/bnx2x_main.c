@@ -12206,8 +12206,7 @@ static void bnx2x_read_fwinfo(struct bnx2x *bp)
 	/* VPD RO tag should be first tag after identifier string, hence
 	 * we should be able to find it in first BNX2X_VPD_LEN chars
 	 */
-	i = pci_vpd_find_tag(vpd_start, 0, BNX2X_VPD_LEN,
-			     PCI_VPD_LRDT_RO_DATA);
+	i = pci_vpd_find_tag(vpd_start, BNX2X_VPD_LEN, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0)
 		goto out_not_found;
 

@@ -103,7 +103,6 @@ xfs_rmapbt_alloc_block(
 	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_ag.agno, bno, 1,
 			false);
 
-	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
 	be32_add_cpu(&agf->agf_rmap_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
@@ -136,7 +135,6 @@ xfs_rmapbt_free_block(
 
 	xfs_extent_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
-	xfs_trans_agbtree_delta(cur->bc_tp, -1);
 
 	pag = cur->bc_ag.agbp->b_pag;
 	xfs_ag_resv_free_extent(pag, XFS_AG_RESV_RMAPBT, NULL, 1);

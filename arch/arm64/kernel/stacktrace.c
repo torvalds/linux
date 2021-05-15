@@ -68,10 +68,6 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	unsigned long fp = frame->fp;
 	struct stack_info info;
 
-	/* Terminal record; nothing to unwind */
-	if (!fp)
-		return -ENOENT;
-
 	if (fp & 0xf)
 		return -EINVAL;
 
@@ -131,6 +127,12 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 	frame->pc = ptrauth_strip_insn_pac(frame->pc);
+
+	/*
+	 * This is a terminal record, so we have finished unwinding.
+	 */
+	if (!frame->fp && !frame->pc)
+		return -ENOENT;
 
 	return 0;
 }
