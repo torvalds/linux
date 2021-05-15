@@ -38,6 +38,9 @@
 #define SRVTRACE_ENABLED(srv, lev) \
 	(((srv) && (srv)->trace) || (vchiq_core_msg_log_level >= (lev)))
 
+#define NO_CLOSE_RECVD	0
+#define CLOSE_RECVD	1
+
 struct vchiq_open_payload {
 	int fourcc;
 	int client_id;
@@ -1348,7 +1351,7 @@ poll_services_of_group(struct vchiq_state *state, int group)
 		 */
 		service->public_fourcc = VCHIQ_FOURCC_INVALID;
 
-		if (vchiq_close_service_internal(service, 0/*!close_recvd*/) !=
+		if (vchiq_close_service_internal(service, NO_CLOSE_RECVD) !=
 						 VCHIQ_SUCCESS) {
 			request_poll(state, service, VCHIQ_POLL_REMOVE);
 		} else if (service_flags & BIT(VCHIQ_POLL_TERMINATE)) {
@@ -1357,7 +1360,7 @@ poll_services_of_group(struct vchiq_state *state, int group)
 				state->id, service->localport,
 				service->remoteport);
 			if (vchiq_close_service_internal(
-				service, 0/*!close_recvd*/) !=
+				service, NO_CLOSE_RECVD) !=
 				VCHIQ_SUCCESS)
 				request_poll(state, service,
 					     VCHIQ_POLL_TERMINATE);
@@ -1683,7 +1686,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		mark_service_closing_internal(service, 1);
 
 		if (vchiq_close_service_internal(service,
-			1/*close_recvd*/) == VCHIQ_RETRY)
+			CLOSE_RECVD) == VCHIQ_RETRY)
 			goto bail_not_ready;
 
 		vchiq_log_info(vchiq_core_log_level,
@@ -2976,8 +2979,7 @@ vchiq_close_service(unsigned int handle)
 	mark_service_closing(service);
 
 	if (current == service->state->slot_handler_thread) {
-		status = vchiq_close_service_internal(service,
-			0/*!close_recvd*/);
+		status = vchiq_close_service_internal(service, NO_CLOSE_RECVD);
 		WARN_ON(status == VCHIQ_RETRY);
 	} else {
 	/* Mark the service for termination by the slot handler */
@@ -3041,8 +3043,7 @@ vchiq_remove_service(unsigned int handle)
 		 */
 		service->public_fourcc = VCHIQ_FOURCC_INVALID;
 
-		status = vchiq_close_service_internal(service,
-			0/*!close_recvd*/);
+		status = vchiq_close_service_internal(service, NO_CLOSE_RECVD);
 		WARN_ON(status == VCHIQ_RETRY);
 	} else {
 		/* Mark the service for removal by the slot handler */
