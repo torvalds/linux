@@ -30,6 +30,7 @@ properties:
       - items:
           - enum:
               - rockchip,px30-dw-mshc
+              - rockchip,rk1808-dw-mshc
               - rockchip,rk3036-dw-mshc
               - rockchip,rk3228-dw-mshc
               - rockchip,rk3308-dw-mshc
