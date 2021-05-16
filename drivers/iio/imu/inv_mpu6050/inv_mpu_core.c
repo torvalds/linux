@@ -570,11 +570,9 @@ static int inv_mpu6050_read_channel_data(struct iio_dev *indio_dev,
 	freq_hz = INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
 	period_us = 1000000 / freq_hz;
 
-	result = pm_runtime_get_sync(pdev);
-	if (result < 0) {
-		pm_runtime_put_noidle(pdev);
+	result = pm_runtime_resume_and_get(pdev);
+	if (result)
 		return result;
-	}
 
 	switch (chan->type) {
 	case IIO_ANGL_VEL:
@@ -812,11 +810,9 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 		return result;
 
 	mutex_lock(&st->lock);
-	result = pm_runtime_get_sync(pdev);
-	if (result < 0) {
-		pm_runtime_put_noidle(pdev);
+	result = pm_runtime_resume_and_get(pdev);
+	if (result)
 		goto error_write_raw_unlock;
-	}
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
@@ -930,11 +926,9 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 		result = 0;
 		goto fifo_rate_fail_unlock;
 	}
-	result = pm_runtime_get_sync(pdev);
-	if (result < 0) {
-		pm_runtime_put_noidle(pdev);
+	result = pm_runtime_resume_and_get(pdev);
+	if (result)
 		goto fifo_rate_fail_unlock;
-	}
 
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
@@ -1421,7 +1415,6 @@ static void inv_mpu_pm_disable(void *data)
 {
 	struct device *dev = data;
 
-	pm_runtime_put_sync_suspend(dev);
 	pm_runtime_disable(dev);
 }
 
