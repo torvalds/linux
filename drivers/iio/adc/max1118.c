@@ -201,6 +201,11 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void max1118_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int max1118_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -225,6 +230,12 @@ static int max1118_probe(struct spi_device *spi)
 		ret = regulator_enable(adc->reg);
 		if (ret)
 			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev, max1118_reg_disable,
+					       adc->reg);
+		if (ret)
+			return ret;
+
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -243,38 +254,12 @@ static int max1118_probe(struct spi_device *spi)
 	 */
 	max1118_read(spi, 0);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					max1118_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      max1118_trigger_handler, NULL);
 	if (ret)
-		goto err_reg_disable;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto err_buffer_cleanup;
-
-	return 0;
-
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-err_reg_disable:
-	if (id->driver_data == max1118)
-		regulator_disable(adc->reg);
-
-	return ret;
-}
-
-static int max1118_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct max1118 *adc = iio_priv(indio_dev);
-	const struct spi_device_id *id = spi_get_device_id(spi);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	if (id->driver_data == max1118)
-		return regulator_disable(adc->reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id max1118_id[] = {
@@ -299,7 +284,6 @@ static struct spi_driver max1118_spi_driver = {
 		.of_match_table = max1118_dt_ids,
 	},
 	.probe = max1118_probe,
-	.remove = max1118_remove,
 	.id_table = max1118_id,
 };
 module_spi_driver(max1118_spi_driver);
