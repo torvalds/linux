@@ -18,7 +18,7 @@ Operating Systems 2
    lec9-debugging.rst
    lec10-networking.rst
    lec11-virtualization.rst
-   lec12-profiling.rst
+   lec12-virtualization.rst
 
 .. toctree::
    :caption: Labs
