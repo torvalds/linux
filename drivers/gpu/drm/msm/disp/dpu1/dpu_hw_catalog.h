@@ -733,7 +733,6 @@ struct dpu_perf_cfg {
  * @cursor_formats     Supported formats for cursor pipe
  * @vig_formats        Supported formats for vig pipe
  * @mdss_irqs:         Bitmap with the irqs supported by the target
- * @obsolete_irq:       Irq types that are obsolete for a particular target
  */
 struct dpu_mdss_cfg {
 	u32 hwversion;
@@ -780,7 +779,6 @@ struct dpu_mdss_cfg {
 	const struct dpu_format_extended *vig_formats;
 
 	unsigned long mdss_irqs;
-	unsigned long obsolete_irq;
 };
 
 struct dpu_mdss_hw_cfg_handler {

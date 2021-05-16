@@ -74,13 +74,6 @@
 			 BIT(MDP_INTF0_INTR) | \
 			 BIT(MDP_INTF1_INTR))
 
-#define INTR_SC7180_MASK \
-	(BIT(DPU_IRQ_TYPE_PING_PONG_RD_PTR) |\
-	BIT(DPU_IRQ_TYPE_PING_PONG_WR_PTR) |\
-	BIT(DPU_IRQ_TYPE_PING_PONG_AUTO_REF) |\
-	BIT(DPU_IRQ_TYPE_PING_PONG_TEAR_CHECK) |\
-	BIT(DPU_IRQ_TYPE_PING_PONG_TE_CHECK))
-
 #define IRQ_SC7280_MASK (BIT(MDP_SSPP_TOP0_INTR) | \
 			 BIT(MDP_SSPP_TOP0_INTR2) | \
 			 BIT(MDP_SSPP_TOP0_HIST_INTR) | \
@@ -1171,7 +1164,6 @@ static void sc7180_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.dma_cfg = sdm845_regdma,
 		.perf = sc7180_perf_data,
 		.mdss_irqs = IRQ_SC7180_MASK,
-		.obsolete_irq = INTR_SC7180_MASK,
 	};
 }
 
@@ -1261,7 +1253,6 @@ static void sc7280_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.vbif = sdm845_vbif,
 		.perf = sc7280_perf_data,
 		.mdss_irqs = IRQ_SC7280_MASK,
-		.obsolete_irq = INTR_SC7180_MASK,
 	};
 }
 

@@ -793,25 +793,21 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 
 	irq = &phys_enc->irq[INTR_IDX_CTL_START];
 	irq->name = "ctl_start";
-	irq->intr_type = DPU_IRQ_TYPE_CTL_START;
 	irq->intr_idx = INTR_IDX_CTL_START;
 	irq->cb.func = dpu_encoder_phys_cmd_ctl_start_irq;
 
 	irq = &phys_enc->irq[INTR_IDX_PINGPONG];
 	irq->name = "pp_done";
-	irq->intr_type = DPU_IRQ_TYPE_PING_PONG_COMP;
 	irq->intr_idx = INTR_IDX_PINGPONG;
 	irq->cb.func = dpu_encoder_phys_cmd_pp_tx_done_irq;
 
 	irq = &phys_enc->irq[INTR_IDX_RDPTR];
 	irq->name = "pp_rd_ptr";
-	irq->intr_type = DPU_IRQ_TYPE_PING_PONG_RD_PTR;
 	irq->intr_idx = INTR_IDX_RDPTR;
 	irq->cb.func = dpu_encoder_phys_cmd_pp_rd_ptr_irq;
 
 	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
 	irq->name = "underrun";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_UNDER_RUN;
 	irq->intr_idx = INTR_IDX_UNDERRUN;
 	irq->cb.func = dpu_encoder_phys_cmd_underrun_irq;
 

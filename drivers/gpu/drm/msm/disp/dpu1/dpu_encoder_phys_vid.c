@@ -735,13 +735,11 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 
 	irq = &phys_enc->irq[INTR_IDX_VSYNC];
 	irq->name = "vsync_irq";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_VSYNC;
 	irq->intr_idx = INTR_IDX_VSYNC;
 	irq->cb.func = dpu_encoder_phys_vid_vblank_irq;
 
 	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
 	irq->name = "underrun";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_UNDER_RUN;
 	irq->intr_idx = INTR_IDX_UNDERRUN;
 	irq->cb.func = dpu_encoder_phys_vid_underrun_irq;
 
