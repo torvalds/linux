@@ -742,6 +742,10 @@ void batadv_forw_packet_ogmv1_queue(struct batadv_priv *bat_priv,
  * Adds a broadcast packet to the queue and sets up timers. Broadcast packets
  * are sent multiple times to increase probability for being received.
  *
+ * This call clones the given skb, hence the caller needs to take into
+ * account that the data segment of the original skb might not be
+ * modifiable anymore.
+ *
  * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY on errors.
  */
 static int batadv_forw_bcast_packet_to_list(struct batadv_priv *bat_priv,
@@ -755,7 +759,7 @@ static int batadv_forw_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	unsigned long send_time = jiffies;
 	struct sk_buff *newskb;
 
-	newskb = skb_copy(skb, GFP_ATOMIC);
+	newskb = skb_clone(skb, GFP_ATOMIC);
 	if (!newskb)
 		goto err;
 
@@ -794,6 +798,10 @@ err:
  * or if a delay is given after that. Furthermore, queues additional
  * retransmissions if this interface is a wireless one.
  *
+ * This call clones the given skb, hence the caller needs to take into
+ * account that the data segment of the original skb might not be
+ * modifiable anymore.
+ *
  * Return: NETDEV_TX_OK on success and NETDEV_TX_BUSY on errors.
  */
 static int batadv_forw_bcast_packet_if(struct batadv_priv *bat_priv,
@@ -808,7 +816,7 @@ static int batadv_forw_bcast_packet_if(struct batadv_priv *bat_priv,
 	int ret = NETDEV_TX_OK;
 
 	if (!delay) {
-		newskb = skb_copy(skb, GFP_ATOMIC);
+		newskb = skb_clone(skb, GFP_ATOMIC);
 		if (!newskb)
 			return NETDEV_TX_BUSY;
 
