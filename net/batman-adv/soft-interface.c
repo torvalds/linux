@@ -191,7 +191,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	struct vlan_ethhdr *vhdr;
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
-	unsigned long brd_delay = 1;
+	unsigned long brd_delay = 0;
 	bool do_bcast = false, client_added;
 	unsigned short vid;
 	u32 seqno;
@@ -330,7 +330,7 @@ send:
 
 		bcast_packet = (struct batadv_bcast_packet *)skb->data;
 		bcast_packet->version = BATADV_COMPAT_VERSION;
-		bcast_packet->ttl = BATADV_TTL;
+		bcast_packet->ttl = BATADV_TTL - 1;
 
 		/* batman packet type: broadcast */
 		bcast_packet->packet_type = BATADV_BCAST;
@@ -346,13 +346,7 @@ send:
 		seqno = atomic_inc_return(&bat_priv->bcast_seqno);
 		bcast_packet->seqno = htonl(seqno);
 
-		batadv_add_bcast_packet_to_list(bat_priv, skb, brd_delay, true);
-
-		/* a copy is stored in the bcast list, therefore removing
-		 * the original skb.
-		 */
-		consume_skb(skb);
-
+		batadv_send_bcast_packet(bat_priv, skb, brd_delay, true);
 	/* unicast packet */
 	} else {
 		/* DHCP packets going to a server will use the GW feature */

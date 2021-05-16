@@ -88,7 +88,6 @@
 /* number of packets to send for broadcasts on different interface types */
 #define BATADV_NUM_BCASTS_DEFAULT 1
 #define BATADV_NUM_BCASTS_WIRELESS 3
-#define BATADV_NUM_BCASTS_MAX 3
 
 /* length of the single packet used by the TP meter */
 #define BATADV_TP_PACKET_LEN ETH_DATA_LEN
