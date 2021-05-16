@@ -298,11 +298,8 @@ struct io_sq_data {
 struct io_comp_state {
 	struct io_kiocb		*reqs[IO_COMPL_BATCH];
 	unsigned int		nr;
-	unsigned int		locked_free_nr;
 	/* inline/task_work completion list, under ->uring_lock */
 	struct list_head	free_list;
-	/* IRQ completion list, under ->completion_lock */
-	struct list_head	locked_free_list;
 };
 
 struct io_submit_link {
@@ -379,6 +376,9 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	struct io_submit_state		submit_state;
+	/* IRQ completion list, under ->completion_lock */
+	struct list_head	locked_free_list;
+	unsigned int		locked_free_nr;
 
 	struct io_rings	*rings;
 
@@ -1189,7 +1189,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	init_llist_head(&ctx->rsrc_put_llist);
 	INIT_LIST_HEAD(&ctx->tctx_list);
 	INIT_LIST_HEAD(&ctx->submit_state.comp.free_list);
-	INIT_LIST_HEAD(&ctx->submit_state.comp.locked_free_list);
+	INIT_LIST_HEAD(&ctx->locked_free_list);
 	return ctx;
 err:
 	kfree(ctx->dummy_ubuf);
@@ -1592,8 +1592,6 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 	 * free_list cache.
 	 */
 	if (req_ref_put_and_test(req)) {
-		struct io_comp_state *cs = &ctx->submit_state.comp;
-
 		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
 			if (req->flags & (REQ_F_LINK_TIMEOUT | REQ_F_FAIL))
 				io_disarm_next(req);
@@ -1604,8 +1602,8 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 		}
 		io_dismantle_req(req);
 		io_put_task(req->task, 1);
-		list_add(&req->compl.list, &cs->locked_free_list);
-		cs->locked_free_nr++;
+		list_add(&req->compl.list, &ctx->locked_free_list);
+		ctx->locked_free_nr++;
 	} else {
 		if (!percpu_ref_tryget(&ctx->refs))
 			req = NULL;
@@ -1660,8 +1658,8 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 					struct io_comp_state *cs)
 {
 	spin_lock_irq(&ctx->completion_lock);
-	list_splice_init(&cs->locked_free_list, &cs->free_list);
-	cs->locked_free_nr = 0;
+	list_splice_init(&ctx->locked_free_list, &cs->free_list);
+	ctx->locked_free_nr = 0;
 	spin_unlock_irq(&ctx->completion_lock);
 }
 
@@ -1677,7 +1675,7 @@ static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
 	 * locked cache, grab the lock and move them over to our submission
 	 * side cache.
 	 */
-	if (READ_ONCE(cs->locked_free_nr) > IO_COMPL_BATCH)
+	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH)
 		io_flush_cached_locked_reqs(ctx, cs);
 
 	nr = state->free_reqs;
