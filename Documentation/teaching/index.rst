@@ -77,6 +77,7 @@ tools/labs/docs/Dockerfile for dependencies):
    labs/arm_kernel_development.rst
    labs/memory_mapping.rst
    labs/device_model.rst
+   labs/kernel_profiling.rst
 
 .. toctree::
    :caption: Useful info
