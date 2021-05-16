@@ -417,19 +417,43 @@ enum dc_scan_direction {
 	SCAN_DIRECTION_VERTICAL = 2,    /* 90, 270 rotation */
 };
 
+/**
+ * struct dc_cursor_position: Hardware cursor data.
+ *
+ * This struct keeps the action information related to the cursor that will be
+ * sent and received from our DC core.
+ */
 struct dc_cursor_position {
+	/**
+	 * @x: It represents the top left abscissa coordinate of the cursor.
+	 */
 	uint32_t x;
+
+	/**
+	 * @y: It is the top ordinate of the cursor coordinate.
+	 */
 	uint32_t y;
 
+	/**
+	 * @x_hotspot: Define the abscissa point where mouse click happens.
+	 */
 	uint32_t x_hotspot;
+
+	/**
+	 * @y_hotspot: Define the ordinate point where mouse click happens.
+	 */
 	uint32_t y_hotspot;
 
-	/*
-	 * This parameter indicates whether HW cursor should be enabled
+	/**
+	 * @enable: This parameter indicates whether hardware cursor should be
+	 * enabled.
 	 */
 	bool enable;
 
-	/* Translate cursor x/y by the source rectangle for each plane. */
+	/**
+	 * @translate_by_source: Translate cursor x/y by the source rectangle
+	 * for each plane.
+	 */
 	bool translate_by_source;
 };
 
@@ -494,7 +518,9 @@ struct dc_gamma {
 /* Used by both ipp amd opp functions*/
 /* TODO: to be consolidated with enum color_space */
 
-/*
+/**
+ * enum dc_cursor_color_format - DC cursor programming mode
+ *
  * This enum is for programming CURSOR_MODE register field. What this register
  * should be programmed to depends on OS requested cursor shape flags and what
  * we stored in the cursor surface.
@@ -530,17 +556,39 @@ union dc_cursor_attribute_flags {
 };
 
 struct dc_cursor_attributes {
+	/**
+	 * @address: This field represents the framebuffer address associated
+	 * with the cursor. It is important to highlight that this address is
+	 * divided into a high and low parts.
+	 */
 	PHYSICAL_ADDRESS_LOC address;
+
+	/**
+	 * @pitch: Cursor line stride.
+	 */
 	uint32_t pitch;
 
-	/* Width and height should correspond to cursor surface width x heigh */
+	/**
+	 * @width: Width should correspond to cursor surface width.
+	 */
 	uint32_t width;
+	/**
+	 * @heigh: Height should correspond to cursor surface heigh.
+	 */
 	uint32_t height;
 
+	/**
+	 * @color_format: DC cursor programming mode.
+	 */
 	enum dc_cursor_color_format color_format;
-	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
+	/**
+	 * @sdr_white_level: Boosting (SDR) cursor in HDR mode.
+	 */
+	uint32_t sdr_white_level;
 
-	/* In case we support HW Cursor rotation in the future */
+	/**
+	 * @rotation_angle: In case we support HW Cursor rotation in the future
+	 */
 	enum dc_rotation_angle rotation_angle;
 
 	union dc_cursor_attribute_flags attribute_flags;
