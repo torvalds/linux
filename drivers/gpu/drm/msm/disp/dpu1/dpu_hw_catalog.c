@@ -7,6 +7,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include "dpu_hw_mdss.h"
+#include "dpu_hw_interrupts.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_kms.h"
 
@@ -56,12 +57,46 @@
 
 #define INTF_SC7280_MASK INTF_SC7180_MASK | BIT(DPU_DATA_HCTL_EN)
 
+#define IRQ_SDM845_MASK (BIT(MDP_SSPP_TOP0_INTR) | \
+			 BIT(MDP_SSPP_TOP0_INTR2) | \
+			 BIT(MDP_SSPP_TOP0_HIST_INTR) | \
+			 BIT(MDP_INTF0_INTR) | \
+			 BIT(MDP_INTF1_INTR) | \
+			 BIT(MDP_INTF2_INTR) | \
+			 BIT(MDP_INTF3_INTR) | \
+			 BIT(MDP_INTF4_INTR) | \
+			 BIT(MDP_AD4_0_INTR) | \
+			 BIT(MDP_AD4_1_INTR))
+
+#define IRQ_SC7180_MASK (BIT(MDP_SSPP_TOP0_INTR) | \
+			 BIT(MDP_SSPP_TOP0_INTR2) | \
+			 BIT(MDP_SSPP_TOP0_HIST_INTR) | \
+			 BIT(MDP_INTF0_INTR) | \
+			 BIT(MDP_INTF1_INTR))
+
 #define INTR_SC7180_MASK \
 	(BIT(DPU_IRQ_TYPE_PING_PONG_RD_PTR) |\
 	BIT(DPU_IRQ_TYPE_PING_PONG_WR_PTR) |\
 	BIT(DPU_IRQ_TYPE_PING_PONG_AUTO_REF) |\
 	BIT(DPU_IRQ_TYPE_PING_PONG_TEAR_CHECK) |\
 	BIT(DPU_IRQ_TYPE_PING_PONG_TE_CHECK))
+
+#define IRQ_SC7280_MASK (BIT(MDP_SSPP_TOP0_INTR) | \
+			 BIT(MDP_SSPP_TOP0_INTR2) | \
+			 BIT(MDP_SSPP_TOP0_HIST_INTR) | \
+			 BIT(MDP_INTF0_7xxx_INTR) | \
+			 BIT(MDP_INTF1_7xxx_INTR) | \
+			 BIT(MDP_INTF5_7xxx_INTR))
+
+#define IRQ_SM8250_MASK (BIT(MDP_SSPP_TOP0_INTR) | \
+			 BIT(MDP_SSPP_TOP0_INTR2) | \
+			 BIT(MDP_SSPP_TOP0_HIST_INTR) | \
+			 BIT(MDP_INTF0_INTR) | \
+			 BIT(MDP_INTF1_INTR) | \
+			 BIT(MDP_INTF2_INTR) | \
+			 BIT(MDP_INTF3_INTR) | \
+			 BIT(MDP_INTF4_INTR))
+
 
 #define DEFAULT_PIXEL_RAM_SIZE		(50 * 1024)
 #define DEFAULT_DPU_LINE_WIDTH		2048
@@ -1060,7 +1095,7 @@ static void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.reg_dma_count = 1,
 		.dma_cfg = sdm845_regdma,
 		.perf = sdm845_perf_data,
-		.mdss_irqs = 0x3ff,
+		.mdss_irqs = IRQ_SDM845_MASK,
 	};
 }
 
@@ -1091,7 +1126,7 @@ static void sc7180_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.reg_dma_count = 1,
 		.dma_cfg = sdm845_regdma,
 		.perf = sc7180_perf_data,
-		.mdss_irqs = 0x3f,
+		.mdss_irqs = IRQ_SC7180_MASK,
 		.obsolete_irq = INTR_SC7180_MASK,
 	};
 }
@@ -1125,7 +1160,7 @@ static void sm8150_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.reg_dma_count = 1,
 		.dma_cfg = sm8150_regdma,
 		.perf = sm8150_perf_data,
-		.mdss_irqs = 0x3ff,
+		.mdss_irqs = IRQ_SDM845_MASK,
 	};
 }
 
@@ -1158,7 +1193,7 @@ static void sm8250_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.reg_dma_count = 1,
 		.dma_cfg = sm8250_regdma,
 		.perf = sm8250_perf_data,
-		.mdss_irqs = 0xff,
+		.mdss_irqs = IRQ_SM8250_MASK,
 	};
 }
 
@@ -1181,7 +1216,7 @@ static void sc7280_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),
 		.vbif = sdm845_vbif,
 		.perf = sc7280_perf_data,
-		.mdss_irqs = 0x1c07,
+		.mdss_irqs = IRQ_SC7280_MASK,
 		.obsolete_irq = INTR_SC7180_MASK,
 	};
 }

@@ -74,6 +74,24 @@ enum dpu_intr_type {
 	DPU_IRQ_TYPE_RESERVED,
 };
 
+/* When making changes be sure to sync with dpu_intr_set */
+enum dpu_hw_intr_reg {
+	MDP_SSPP_TOP0_INTR,
+	MDP_SSPP_TOP0_INTR2,
+	MDP_SSPP_TOP0_HIST_INTR,
+	MDP_INTF0_INTR,
+	MDP_INTF1_INTR,
+	MDP_INTF2_INTR,
+	MDP_INTF3_INTR,
+	MDP_INTF4_INTR,
+	MDP_AD4_0_INTR,
+	MDP_AD4_1_INTR,
+	MDP_INTF0_7xxx_INTR,
+	MDP_INTF1_7xxx_INTR,
+	MDP_INTF5_7xxx_INTR,
+	MDP_INTR_MAX,
+};
+
 struct dpu_hw_intr;
 
 /**
