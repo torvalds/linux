@@ -146,6 +146,11 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void adc081c_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int adc081c_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -175,6 +180,11 @@ static int adc081c_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
+	err = devm_add_action_or_reset(&client->dev, adc081c_reg_disable,
+				       adc->ref);
+	if (err)
+		return err;
+
 	iio->name = dev_name(&client->dev);
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->info = &adc081c_info;
@@ -182,38 +192,14 @@ static int adc081c_probe(struct i2c_client *client,
 	iio->channels = model->channels;
 	iio->num_channels = ADC081C_NUM_CHANNELS;
 
-	err = iio_triggered_buffer_setup(iio, NULL, adc081c_trigger_handler, NULL);
+	err = devm_iio_triggered_buffer_setup(&client->dev, iio, NULL,
+					      adc081c_trigger_handler, NULL);
 	if (err < 0) {
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
-		goto err_regulator_disable;
+		return err;
 	}
 
-	err = iio_device_register(iio);
-	if (err < 0)
-		goto err_buffer_cleanup;
-
-	i2c_set_clientdata(client, iio);
-
-	return 0;
-
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(iio);
-err_regulator_disable:
-	regulator_disable(adc->ref);
-
-	return err;
-}
-
-static int adc081c_remove(struct i2c_client *client)
-{
-	struct iio_dev *iio = i2c_get_clientdata(client);
-	struct adc081c *adc = iio_priv(iio);
-
-	iio_device_unregister(iio);
-	iio_triggered_buffer_cleanup(iio);
-	regulator_disable(adc->ref);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, iio);
 }
 
 static const struct i2c_device_id adc081c_id[] = {
@@ -238,7 +224,6 @@ static struct i2c_driver adc081c_driver = {
 		.of_match_table = adc081c_of_match,
 	},
 	.probe = adc081c_probe,
-	.remove = adc081c_remove,
 	.id_table = adc081c_id,
 };
 module_i2c_driver(adc081c_driver);
