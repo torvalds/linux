@@ -30,19 +30,6 @@ void dpu_core_irq_uninstall(struct dpu_kms *dpu_kms);
 irqreturn_t dpu_core_irq(struct dpu_kms *dpu_kms);
 
 /**
- * dpu_core_irq_idx_lookup - IRQ helper function for lookup irq_idx from HW
- *                      interrupt mapping table.
- * @dpu_kms:		DPU handle
- * @intr_type:		DPU HW interrupt type for lookup
- * @instance_idx:	DPU HW block instance defined in dpu_hw_mdss.h
- * @return:		irq_idx or -EINVAL when fail to lookup
- */
-int dpu_core_irq_idx_lookup(
-		struct dpu_kms *dpu_kms,
-		enum dpu_intr_type intr_type,
-		uint32_t instance_idx);
-
-/**
  * dpu_core_irq_enable - IRQ helper function for enabling one or more IRQs
  * @dpu_kms:		DPU handle
  * @irq_idxs:		Array of irq index

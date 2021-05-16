@@ -464,13 +464,15 @@ struct dpu_mdp_cfg {
 	struct dpu_clk_ctrl_reg clk_ctrls[DPU_CLK_CTRL_MAX];
 };
 
-/* struct dpu_mdp_cfg : MDP TOP-BLK instance info
+/* struct dpu_ctl_cfg : MDP CTL instance info
  * @id:                index identifying this block
  * @base:              register base offset to mdss
  * @features           bit mask identifying sub-blocks/features
+ * @intr_start:        interrupt index for CTL_START
  */
 struct dpu_ctl_cfg {
 	DPU_HW_BLK_INFO;
+	s32 intr_start;
 };
 
 /**
@@ -526,11 +528,15 @@ struct dpu_dspp_cfg  {
  * @id                 enum identifying this block
  * @base               register offset of this block
  * @features           bit mask identifying sub-blocks/features
+ * @intr_done:         index for PINGPONG done interrupt
+ * @intr_rdptr:        index for PINGPONG readpointer done interrupt
  * @sblk               sub-blocks information
  */
 struct dpu_pingpong_cfg  {
 	DPU_HW_BLK_INFO;
 	u32 merge_3d;
+	s32 intr_done;
+	s32 intr_rdptr;
 	const struct dpu_pingpong_sub_blks *sblk;
 };
 
@@ -555,12 +561,16 @@ struct dpu_merge_3d_cfg  {
  * @type:              Interface type(DSI, DP, HDMI)
  * @controller_id:     Controller Instance ID in case of multiple of intf type
  * @prog_fetch_lines_worst_case	Worst case latency num lines needed to prefetch
+ * @intr_underrun:	index for INTF underrun interrupt
+ * @intr_vsync:	        index for INTF VSYNC interrupt
  */
 struct dpu_intf_cfg  {
 	DPU_HW_BLK_INFO;
 	u32 type;   /* interface type*/
 	u32 controller_id;
 	u32 prog_fetch_lines_worst_case;
+	s32 intr_underrun;
+	s32 intr_vsync;
 };
 
 /**

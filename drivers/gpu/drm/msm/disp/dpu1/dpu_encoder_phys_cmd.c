@@ -144,28 +144,6 @@ static void dpu_encoder_phys_cmd_underrun_irq(void *arg, int irq_idx)
 			phys_enc);
 }
 
-static void _dpu_encoder_phys_cmd_setup_irq_hw_idx(
-		struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_encoder_irq *irq;
-
-	irq = &phys_enc->irq[INTR_IDX_CTL_START];
-	irq->hw_idx = phys_enc->hw_ctl->idx;
-	irq->irq_idx = -EINVAL;
-
-	irq = &phys_enc->irq[INTR_IDX_PINGPONG];
-	irq->hw_idx = phys_enc->hw_pp->idx;
-	irq->irq_idx = -EINVAL;
-
-	irq = &phys_enc->irq[INTR_IDX_RDPTR];
-	irq->hw_idx = phys_enc->hw_pp->idx;
-	irq->irq_idx = -EINVAL;
-
-	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
-	irq->hw_idx = phys_enc->intf_idx;
-	irq->irq_idx = -EINVAL;
-}
-
 static void dpu_encoder_phys_cmd_mode_set(
 		struct dpu_encoder_phys *phys_enc,
 		struct drm_display_mode *mode,
@@ -173,6 +151,7 @@ static void dpu_encoder_phys_cmd_mode_set(
 {
 	struct dpu_encoder_phys_cmd *cmd_enc =
 		to_dpu_encoder_phys_cmd(phys_enc);
+	struct dpu_encoder_irq *irq;
 
 	if (!mode || !adj_mode) {
 		DPU_ERROR("invalid args\n");
@@ -182,7 +161,17 @@ static void dpu_encoder_phys_cmd_mode_set(
 	DPU_DEBUG_CMDENC(cmd_enc, "caching mode:\n");
 	drm_mode_debug_printmodeline(adj_mode);
 
-	_dpu_encoder_phys_cmd_setup_irq_hw_idx(phys_enc);
+	irq = &phys_enc->irq[INTR_IDX_CTL_START];
+	irq->irq_idx = phys_enc->hw_ctl->caps->intr_start;
+
+	irq = &phys_enc->irq[INTR_IDX_PINGPONG];
+	irq->irq_idx = phys_enc->hw_pp->caps->intr_done;
+
+	irq = &phys_enc->irq[INTR_IDX_RDPTR];
+	irq->irq_idx = phys_enc->hw_pp->caps->intr_rdptr;
+
+	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
+	irq->irq_idx = phys_enc->hw_intf->cap->intr_underrun;
 }
 
 static int _dpu_encoder_phys_cmd_handle_ppdone_timeout(
@@ -799,7 +788,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 		irq = &phys_enc->irq[i];
 		INIT_LIST_HEAD(&irq->cb.list);
 		irq->irq_idx = -EINVAL;
-		irq->hw_idx = -EINVAL;
 		irq->cb.arg = phys_enc;
 	}
 
