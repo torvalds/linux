@@ -930,7 +930,7 @@ static void __init tegra30_super_clk_init(void)
 	/* CCLKG */
 	clk = tegra_clk_register_super_cclk("cclk_g", cclk_g_parents,
 				  ARRAY_SIZE(cclk_g_parents),
-				  CLK_SET_RATE_PARENT,
+				  CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 				  clk_base + CCLKG_BURST_POLICY,
 				  0, NULL);
 	clks[TEGRA30_CLK_CCLK_G] = clk;
