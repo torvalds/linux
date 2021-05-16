@@ -468,7 +468,6 @@ static int simpledrm_device_init_fb(struct simpledrm_device *sdev)
 {
 	int width, height, stride;
 	const struct drm_format_info *format;
-	struct drm_format_name_buf buf;
 	struct drm_device *dev = &sdev->dev;
 	struct platform_device *pdev = sdev->pdev;
 	const struct simplefb_platform_data *pd = dev_get_platdata(&pdev->dev);
@@ -512,9 +511,8 @@ static int simpledrm_device_init_fb(struct simpledrm_device *sdev)
 	drm_dbg_kms(dev, "display mode={" DRM_MODE_FMT "}\n",
 		    DRM_MODE_ARG(&sdev->mode));
 	drm_dbg_kms(dev,
-		    "framebuffer format=\"%s\", size=%dx%d, stride=%d byte\n",
-		    drm_get_format_name(format->format, &buf), width,
-		    height, stride);
+		    "framebuffer format=%p4cc, size=%dx%d, stride=%d byte\n",
+		    &format->format, width, height, stride);
 
 	return 0;
 }
