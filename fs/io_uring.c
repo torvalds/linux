@@ -6801,10 +6801,10 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 		    !(ctx->flags & IORING_SETUP_R_DISABLED))
 			ret = io_submit_sqes(ctx, to_submit);
 		mutex_unlock(&ctx->uring_lock);
-	}
 
-	if (!io_sqring_full(ctx) && wq_has_sleeper(&ctx->sqo_sq_wait))
-		wake_up(&ctx->sqo_sq_wait);
+		if (to_submit && wq_has_sleeper(&ctx->sqo_sq_wait))
+			wake_up(&ctx->sqo_sq_wait);
+	}
 
 	return ret;
 }
