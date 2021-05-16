@@ -55,14 +55,6 @@ static void clk_periph_enable_locked(struct clk_hw *hw)
 	write_enb_set(periph_clk_to_bit(gate), gate);
 	udelay(2);
 
-	if (!(gate->flags & TEGRA_PERIPH_NO_RESET) &&
-	    !(gate->flags & TEGRA_PERIPH_MANUAL_RESET)) {
-		if (read_rst(gate) & periph_clk_to_bit(gate)) {
-			udelay(5); /* reset propogation delay */
-			write_rst_clr(periph_clk_to_bit(gate), gate);
-		}
-	}
-
 	if (gate->flags & TEGRA_PERIPH_WAR_1005168) {
 		writel_relaxed(0, gate->clk_base + LVL2_CLK_GATE_OVRE);
 		writel_relaxed(BIT(22), gate->clk_base + LVL2_CLK_GATE_OVRE);
