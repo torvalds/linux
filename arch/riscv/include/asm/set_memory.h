@@ -27,7 +27,7 @@ static inline int set_memory_rw_nx(unsigned long addr, int numpages) { return 0;
 #endif
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_STRICT_KERNEL_RWX)
-void protect_kernel_linear_mapping_text_rodata(void);
+void __init protect_kernel_linear_mapping_text_rodata(void);
 #else
 static inline void protect_kernel_linear_mapping_text_rodata(void) {}
 #endif

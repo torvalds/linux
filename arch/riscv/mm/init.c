@@ -54,7 +54,7 @@ struct pt_alloc_ops {
 #endif
 };
 
-static phys_addr_t dma32_phys_limit __ro_after_init;
+static phys_addr_t dma32_phys_limit __initdata;
 
 static void __init zone_sizes_init(void)
 {
@@ -173,7 +173,7 @@ static void __init setup_bootmem(void)
 }
 
 #ifdef CONFIG_MMU
-static struct pt_alloc_ops _pt_ops __ro_after_init;
+static struct pt_alloc_ops _pt_ops __initdata;
 
 #ifdef CONFIG_XIP_KERNEL
 #define pt_ops (*(struct pt_alloc_ops *)XIP_FIXUP(&_pt_ops))
@@ -189,13 +189,13 @@ EXPORT_SYMBOL(va_pa_offset);
 #endif
 /* Offset between kernel mapping virtual address and kernel load address */
 #ifdef CONFIG_64BIT
-unsigned long va_kernel_pa_offset;
+unsigned long va_kernel_pa_offset __ro_after_init;
 EXPORT_SYMBOL(va_kernel_pa_offset);
 #endif
 #ifdef CONFIG_XIP_KERNEL
 #define va_kernel_pa_offset    (*((unsigned long *)XIP_FIXUP(&va_kernel_pa_offset)))
 #endif
-unsigned long va_kernel_xip_pa_offset;
+unsigned long va_kernel_xip_pa_offset __ro_after_init;
 EXPORT_SYMBOL(va_kernel_xip_pa_offset);
 #ifdef CONFIG_XIP_KERNEL
 #define va_kernel_xip_pa_offset        (*((unsigned long *)XIP_FIXUP(&va_kernel_xip_pa_offset)))
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(pfn_base);
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
 pgd_t trampoline_pg_dir[PTRS_PER_PGD] __page_aligned_bss;
-pte_t fixmap_pte[PTRS_PER_PTE] __page_aligned_bss;
+static pte_t fixmap_pte[PTRS_PER_PTE] __page_aligned_bss;
 
 pgd_t early_pg_dir[PTRS_PER_PGD] __initdata __aligned(PAGE_SIZE);
 
@@ -242,7 +242,7 @@ static inline pte_t *__init get_pte_virt_fixmap(phys_addr_t pa)
 	return (pte_t *)set_fixmap_offset(FIX_PTE, pa);
 }
 
-static inline pte_t *get_pte_virt_late(phys_addr_t pa)
+static inline pte_t *__init get_pte_virt_late(phys_addr_t pa)
 {
 	return (pte_t *) __va(pa);
 }
@@ -261,7 +261,7 @@ static inline phys_addr_t __init alloc_pte_fixmap(uintptr_t va)
 	return memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
 }
 
-static phys_addr_t alloc_pte_late(uintptr_t va)
+static phys_addr_t __init alloc_pte_late(uintptr_t va)
 {
 	unsigned long vaddr;
 
@@ -285,10 +285,10 @@ static void __init create_pte_mapping(pte_t *ptep,
 
 #ifndef __PAGETABLE_PMD_FOLDED
 
-pmd_t trampoline_pmd[PTRS_PER_PMD] __page_aligned_bss;
-pmd_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
-pmd_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
-pmd_t early_dtb_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
+static pmd_t trampoline_pmd[PTRS_PER_PMD] __page_aligned_bss;
+static pmd_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
+static pmd_t early_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
+static pmd_t early_dtb_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
 
 #ifdef CONFIG_XIP_KERNEL
 #define trampoline_pmd ((pmd_t *)XIP_FIXUP(trampoline_pmd))
@@ -308,7 +308,7 @@ static pmd_t *__init get_pmd_virt_fixmap(phys_addr_t pa)
 	return (pmd_t *)set_fixmap_offset(FIX_PMD, pa);
 }
 
-static pmd_t *get_pmd_virt_late(phys_addr_t pa)
+static pmd_t *__init get_pmd_virt_late(phys_addr_t pa)
 {
 	return (pmd_t *) __va(pa);
 }
@@ -325,7 +325,7 @@ static phys_addr_t __init alloc_pmd_fixmap(uintptr_t va)
 	return memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
 }
 
-static phys_addr_t alloc_pmd_late(uintptr_t va)
+static phys_addr_t __init alloc_pmd_late(uintptr_t va)
 {
 	unsigned long vaddr;
 
@@ -443,14 +443,16 @@ asmlinkage void __init __copy_data(void)
 #error "setup_vm() is called from head.S before relocate so it should not use absolute addressing."
 #endif
 
-uintptr_t load_pa, load_sz;
+static uintptr_t load_pa __initdata;
+static uintptr_t load_sz __initdata;
 #ifdef CONFIG_XIP_KERNEL
 #define load_pa        (*((uintptr_t *)XIP_FIXUP(&load_pa)))
 #define load_sz        (*((uintptr_t *)XIP_FIXUP(&load_sz)))
 #endif
 
 #ifdef CONFIG_XIP_KERNEL
-uintptr_t xiprom, xiprom_sz;
+static uintptr_t xiprom __inidata;
+static uintptr_t xiprom_sz __initdata;
 #define xiprom_sz      (*((uintptr_t *)XIP_FIXUP(&xiprom_sz)))
 #define xiprom         (*((uintptr_t *)XIP_FIXUP(&xiprom)))
 
@@ -635,7 +637,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 }
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_STRICT_KERNEL_RWX)
-void protect_kernel_linear_mapping_text_rodata(void)
+void __init protect_kernel_linear_mapping_text_rodata(void)
 {
 	unsigned long text_start = (unsigned long)lm_alias(_start);
 	unsigned long init_text_start = (unsigned long)lm_alias(__init_text_begin);
@@ -843,7 +845,7 @@ static void __init reserve_crashkernel(void)
  * reserved once we call early_init_fdt_scan_reserved_mem()
  * later on.
  */
-static int elfcore_hdr_setup(struct reserved_mem *rmem)
+static int __init elfcore_hdr_setup(struct reserved_mem *rmem)
 {
 	elfcorehdr_addr = rmem->base;
 	elfcorehdr_size = rmem->size;
