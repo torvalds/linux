@@ -288,7 +288,6 @@ struct io_sq_data {
 
 	unsigned long		state;
 	struct completion	exited;
-	struct callback_head	*park_task_work;
 };
 
 #define IO_IOPOLL_BATCH			8
@@ -6834,7 +6833,6 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 		mutex_lock(&sqd->lock);
 	}
 	io_run_task_work();
-	io_run_task_work_head(&sqd->park_task_work);
 	return did_sig || test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 }
 
@@ -6856,9 +6854,6 @@ static int io_sq_thread(void *data)
 	current->flags |= PF_NO_SETAFFINITY;
 
 	mutex_lock(&sqd->lock);
-	/* a user may had exited before the thread started */
-	io_run_task_work_head(&sqd->park_task_work);
-
 	while (1) {
 		int ret;
 		bool cap_entries, sqt_spin, needs_sched;
@@ -6919,7 +6914,6 @@ static int io_sq_thread(void *data)
 		}
 
 		finish_wait(&sqd->wait, &wait);
-		io_run_task_work_head(&sqd->park_task_work);
 		timeout = jiffies + sqd->sq_thread_idle;
 	}
 
@@ -6928,7 +6922,6 @@ static int io_sq_thread(void *data)
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		io_ring_set_wakeup_flag(ctx);
 	io_run_task_work();
-	io_run_task_work_head(&sqd->park_task_work);
 	mutex_unlock(&sqd->lock);
 
 	complete(&sqd->exited);
