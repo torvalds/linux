@@ -136,14 +136,6 @@ struct drm_format_info {
 };
 
 /**
- * struct drm_format_name_buf - name of a DRM format
- * @str: string buffer containing the format name
- */
-struct drm_format_name_buf {
-	char str[32];
-};
-
-/**
  * drm_format_info_is_yuv_packed - check that the format info matches a YUV
  * format with data laid in a single plane
  * @info: format info
