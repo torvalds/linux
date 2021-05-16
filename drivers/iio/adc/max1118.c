@@ -66,9 +66,8 @@ static const struct iio_chan_spec max1118_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
-static int max1118_read(struct spi_device *spi, int channel)
+static int max1118_read(struct iio_dev *indio_dev, int channel)
 {
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct max1118 *adc = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
 		/*
@@ -103,9 +102,9 @@ static int max1118_read(struct spi_device *spi, int channel)
 	int ret;
 
 	if (channel == 0)
-		ret = spi_sync_transfer(spi, xfers + 1, 2);
+		ret = spi_sync_transfer(adc->spi, xfers + 1, 2);
 	else
-		ret = spi_sync_transfer(spi, xfers, 3);
+		ret = spi_sync_transfer(adc->spi, xfers, 3);
 
 	if (ret)
 		return ret;
@@ -113,11 +112,10 @@ static int max1118_read(struct spi_device *spi, int channel)
 	return adc->data;
 }
 
-static int max1118_get_vref_mV(struct spi_device *spi)
+static int max1118_get_vref_mV(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct max1118 *adc = iio_priv(indio_dev);
-	const struct spi_device_id *id = spi_get_device_id(spi);
+	const struct spi_device_id *id = spi_get_device_id(adc->spi);
 	int vref_uV;
 
 	switch (id->driver_data) {
@@ -144,14 +142,14 @@ static int max1118_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&adc->lock);
-		*val = max1118_read(adc->spi, chan->channel);
+		*val = max1118_read(indio_dev, chan->channel);
 		mutex_unlock(&adc->lock);
 		if (*val < 0)
 			return *val;
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = max1118_get_vref_mV(adc->spi);
+		*val = max1118_get_vref_mV(indio_dev);
 		if (*val < 0)
 			return *val;
 		*val2 = 8;
@@ -180,7 +178,7 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 			indio_dev->masklength) {
 		const struct iio_chan_spec *scan_chan =
 				&indio_dev->channels[scan_index];
-		int ret = max1118_read(adc->spi, scan_chan->channel);
+		int ret = max1118_read(indio_dev, scan_chan->channel);
 
 		if (ret < 0) {
 			dev_warn(&adc->spi->dev,
@@ -238,8 +236,6 @@ static int max1118_probe(struct spi_device *spi)
 
 	}
 
-	spi_set_drvdata(spi, indio_dev);
-
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &max1118_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -252,7 +248,7 @@ static int max1118_probe(struct spi_device *spi)
 	 * a conversion has been completed, the MAX1117/MAX1118/MAX1119 will go
 	 * into AutoShutdown mode until the next conversion is initiated.
 	 */
-	max1118_read(spi, 0);
+	max1118_read(indio_dev, 0);
 
 	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
 					      max1118_trigger_handler, NULL);
