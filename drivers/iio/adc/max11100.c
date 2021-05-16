@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
@@ -63,7 +64,7 @@ static int max11100_read_single(struct iio_dev *indio_dev, int *val)
 		return -EINVAL;
 	}
 
-	*val = (state->buffer[1] << 8) | state->buffer[2];
+	*val = get_unaligned_be16(&state->buffer[1]);
 
 	return 0;
 }
