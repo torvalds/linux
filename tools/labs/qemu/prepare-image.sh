@@ -11,7 +11,11 @@ TMP=$(mktemp -d)
 mount -t ext4 -o loop $1 $TMP
 
 # add console
-echo "hvc0:12345:respawn:/sbin/getty 115200 hvc0" >> $TMP/etc/inittab
+if [ "$ARCH" = "x86" ]; then
+    echo "hvc0:12345:respawn:/sbin/getty 115200 hvc0" >> $TMP/etc/inittab
+else
+    echo "mxc0:12345:respawn:/sbin/getty 115200 ttymxc0" >> $TMP/etc/inittab
+fi
 
 # add more vty
 cat >> $TMP/etc/inittab <<EOF

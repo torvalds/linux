@@ -60,7 +60,7 @@ gdb: $(ZIMAGE)
 
 $(YOCTO_IMAGE):
 	wget $(YOCTO_URL)/$(YOCTO_IMAGE)
-	sudo qemu/prepare-image.sh $(YOCTO_IMAGE)
+	sudo ARCH=$(ARCH) qemu/prepare-image.sh $(YOCTO_IMAGE)
 
 tap0:
 	qemu/create_net.sh $@
