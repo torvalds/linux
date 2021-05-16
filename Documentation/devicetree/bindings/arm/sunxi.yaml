@@ -275,6 +275,11 @@ properties:
           - const: friendlyarm,nanopi-r1
           - const: allwinner,sun8i-h3
 
+      - description: FriendlyARM NanoPi R1S H5
+        items:
+          - const: friendlyarm,nanopi-r1s-h5
+          - const: allwinner,sun50i-h5
+
       - description: FriendlyARM ZeroPi
         items:
           - const: friendlyarm,zeropi
