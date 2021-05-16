@@ -43,7 +43,7 @@ void BlinkWorkItemCallback(struct work_struct *work)
 void ResetLedStatus(struct LED_871x *pLed)
 {
 	pLed->CurrLedState = RTW_LED_OFF; /*  Current LED state. */
-	pLed->bLedOn = false; /*  true if LED is ON, false if LED is OFF. */
+	pLed->led_on = false; /*  true if LED is ON, false if LED is OFF. */
 
 	pLed->bLedBlinkInProgress = false; /*  true if it is blinking, false o.w.. */
 	pLed->bLedWPSBlinkInProgress = false;
@@ -110,7 +110,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 
 	switch (pLed->CurrLedState) {
 	case LED_BLINK_SLOWLY:
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -118,7 +118,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			  msecs_to_jiffies(LED_BLINK_NO_LINK_INTERVAL_ALPHA));
 		break;
 	case LED_BLINK_NORMAL:
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -131,7 +131,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 				pLed->bLedLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_NORMAL;
-				if (pLed->bLedOn)
+				if (pLed->led_on)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -141,7 +141,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			} else if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 				pLed->bLedNoLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_SLOWLY;
-				if (pLed->bLedOn)
+				if (pLed->led_on)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -151,7 +151,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			}
 			pLed->bLedScanBlinkInProgress = false;
 		} else {
-			if (pLed->bLedOn)
+			if (pLed->led_on)
 				pLed->BlinkingLedState = RTW_LED_OFF;
 			else
 				pLed->BlinkingLedState = RTW_LED_ON;
@@ -165,7 +165,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 				pLed->bLedLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_NORMAL;
-				if (pLed->bLedOn)
+				if (pLed->led_on)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -175,7 +175,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			} else if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 				pLed->bLedNoLinkBlinkInProgress = true;
 				pLed->CurrLedState = LED_BLINK_SLOWLY;
-				if (pLed->bLedOn)
+				if (pLed->led_on)
 					pLed->BlinkingLedState = RTW_LED_OFF;
 				else
 					pLed->BlinkingLedState = RTW_LED_ON;
@@ -185,7 +185,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 			}
 			pLed->bLedBlinkInProgress = false;
 		} else {
-			if (pLed->bLedOn)
+			if (pLed->led_on)
 				pLed->BlinkingLedState = RTW_LED_OFF;
 			else
 				pLed->BlinkingLedState = RTW_LED_ON;
@@ -194,7 +194,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 		}
 		break;
 	case LED_BLINK_WPS:
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -205,7 +205,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 		if (pLed->BlinkingLedState != RTW_LED_ON) {
 			pLed->bLedLinkBlinkInProgress = true;
 			pLed->CurrLedState = LED_BLINK_NORMAL;
-			if (pLed->bLedOn)
+			if (pLed->led_on)
 				pLed->BlinkingLedState = RTW_LED_OFF;
 			else
 				pLed->BlinkingLedState = RTW_LED_ON;
@@ -251,7 +251,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		pLed->bLedNoLinkBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_SLOWLY;
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -274,7 +274,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		pLed->bLedLinkBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_NORMAL;
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -304,7 +304,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		pLed->bLedScanBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_SCAN;
 		pLed->BlinkTimes = 24;
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -329,7 +329,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		pLed->bLedBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_TXRX;
 		pLed->BlinkTimes = 2;
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -358,7 +358,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		pLed->bLedWPSBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_WPS;
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
@@ -387,7 +387,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		else
 			pLed->bLedWPSBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_WPS_STOP;
-		if (pLed->bLedOn) {
+		if (pLed->led_on) {
 			pLed->BlinkingLedState = RTW_LED_OFF;
 			mod_timer(&pLed->BlinkTimer, jiffies +
 				  msecs_to_jiffies(LED_BLINK_WPS_SUCCESS_INTERVAL_ALPHA));
@@ -404,7 +404,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		pLed->bLedNoLinkBlinkInProgress = true;
 		pLed->CurrLedState = LED_BLINK_SLOWLY;
-		if (pLed->bLedOn)
+		if (pLed->led_on)
 			pLed->BlinkingLedState = RTW_LED_OFF;
 		else
 			pLed->BlinkingLedState = RTW_LED_ON;
