@@ -3,7 +3,7 @@
 size=$(stat -c%s $1)
 if [ $size -lt 50000000 ]; then
     e2fsck -f $1
-    resize2fs $1 50M
+    resize2fs $1 64M
 fi
 
 TMP=$(mktemp -d)
