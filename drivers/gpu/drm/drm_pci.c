@@ -165,9 +165,6 @@ static int drm_legacy_get_pci_dev(struct pci_dev *pdev,
 	dev->hose = pdev->sysdata;
 #endif
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		pci_set_drvdata(pdev, dev);
-
 	drm_legacy_pci_agp_init(dev);
 
 	ret = drm_dev_register(dev, ent->driver_data);
