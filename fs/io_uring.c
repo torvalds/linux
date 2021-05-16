@@ -391,21 +391,17 @@ struct io_ring_ctx {
 	struct list_head	sqd_list;
 
 	/*
-	 * If used, fixed file set. Writers must ensure that ->refs is dead,
-	 * readers must ensure that ->refs is alive as long as the file* is
-	 * used. Only updated through io_uring_register(2).
+	 * Fixed resources fast path, should be accessed only under uring_lock,
+	 * and updated through io_uring_register(2)
 	 */
-	struct io_rsrc_data	*file_data;
+	struct io_rsrc_node	*rsrc_node;
+
 	struct io_file_table	file_table;
 	unsigned		nr_user_files;
-
-	/* if used, fixed mapped user buffers */
-	struct io_rsrc_data	*buf_data;
 	unsigned		nr_user_bufs;
 	struct io_mapped_ubuf	**user_bufs;
 
 	struct xarray		io_buffers;
-
 	struct xarray		personalities;
 	u32			pers_next;
 
@@ -437,15 +433,20 @@ struct io_ring_ctx {
 		bool			poll_multi_file;
 	} ____cacheline_aligned_in_smp;
 
-	struct delayed_work		rsrc_put_work;
-	struct llist_head		rsrc_put_llist;
-	struct list_head		rsrc_ref_list;
-	spinlock_t			rsrc_ref_lock;
-	struct io_rsrc_node		*rsrc_node;
-	struct io_rsrc_node		*rsrc_backup_node;
-	struct io_mapped_ubuf		*dummy_ubuf;
-
 	struct io_restriction		restrictions;
+
+	/* slow path rsrc auxilary data, used by update/register */
+	struct {
+		struct io_rsrc_node		*rsrc_backup_node;
+		struct io_mapped_ubuf		*dummy_ubuf;
+		struct io_rsrc_data		*file_data;
+		struct io_rsrc_data		*buf_data;
+
+		struct delayed_work		rsrc_put_work;
+		struct llist_head		rsrc_put_llist;
+		struct list_head		rsrc_ref_list;
+		spinlock_t			rsrc_ref_lock;
+	};
 
 	/* Keep this last, we don't need it for the fast path */
 	struct {
