@@ -31,8 +31,6 @@
 #include "nouveau_mem.h"
 #include "nouveau_ttm.h"
 
-#include <drm/drm_legacy.h>
-
 #include <core/tegra.h>
 
 static void
