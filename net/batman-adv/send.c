@@ -1072,7 +1072,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	}
 
 	/* send a copy of the saved skb */
-	skb1 = skb_copy(forw_packet->skb, GFP_ATOMIC);
+	skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 	if (!skb1)
 		goto out;
 
