@@ -6894,11 +6894,10 @@ static int io_sq_thread(void *data)
 
 		prepare_to_wait(&sqd->wait, &wait, TASK_INTERRUPTIBLE);
 		if (!io_sqd_events_pending(sqd)) {
-			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
-				io_ring_set_wakeup_flag(ctx);
-
 			needs_sched = true;
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
+				io_ring_set_wakeup_flag(ctx);
+
 				if ((ctx->flags & IORING_SETUP_IOPOLL) &&
 				    !list_empty_careful(&ctx->iopoll_list)) {
 					needs_sched = false;
