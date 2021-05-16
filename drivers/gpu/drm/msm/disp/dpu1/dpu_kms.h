@@ -82,14 +82,12 @@ struct dpu_irq_callback {
  * struct dpu_irq: IRQ structure contains callback registration info
  * @total_irq:    total number of irq_idx obtained from HW interrupts mapping
  * @irq_cb_tbl:   array of IRQ callbacks setting
- * @enable_counts array of IRQ enable counts
  * @cb_lock:      callback lock
  * @debugfs_file: debugfs file for irq statistics
  */
 struct dpu_irq {
 	u32 total_irqs;
 	struct list_head *irq_cb_tbl;
-	atomic_t *enable_counts;
 	atomic_t *irq_counts;
 	spinlock_t cb_lock;
 };

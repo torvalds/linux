@@ -875,29 +875,6 @@ TRACE_EVENT(dpu_pp_connect_ext_te,
 	TP_printk("pp:%d cfg:%u", __entry->pp, __entry->cfg)
 );
 
-DECLARE_EVENT_CLASS(dpu_core_irq_idx_cnt_template,
-	TP_PROTO(int irq_idx, int enable_count),
-	TP_ARGS(irq_idx, enable_count),
-	TP_STRUCT__entry(
-		__field(	int,	irq_idx		)
-		__field(	int,	enable_count	)
-	),
-	TP_fast_assign(
-		__entry->irq_idx = irq_idx;
-		__entry->enable_count = enable_count;
-	),
-	TP_printk("irq_idx:%d enable_count:%u", __entry->irq_idx,
-		  __entry->enable_count)
-);
-DEFINE_EVENT(dpu_core_irq_idx_cnt_template, dpu_core_irq_enable_idx,
-	TP_PROTO(int irq_idx, int enable_count),
-	TP_ARGS(irq_idx, enable_count)
-);
-DEFINE_EVENT(dpu_core_irq_idx_cnt_template, dpu_core_irq_disable_idx,
-	TP_PROTO(int irq_idx, int enable_count),
-	TP_ARGS(irq_idx, enable_count)
-);
-
 DECLARE_EVENT_CLASS(dpu_core_irq_callback_template,
 	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
 	TP_ARGS(irq_idx, callback),

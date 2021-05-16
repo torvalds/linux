@@ -361,17 +361,6 @@ int dpu_encoder_helper_register_irq(struct dpu_encoder_phys *phys_enc,
 		return ret;
 	}
 
-	ret = dpu_core_irq_enable(phys_enc->dpu_kms, &irq->irq_idx, 1);
-	if (ret) {
-		DRM_ERROR("enable failed id=%u, intr=%d, irq=%d",
-			  DRMID(phys_enc->parent), intr_idx,
-			  irq->irq_idx);
-		dpu_core_irq_unregister_callback(phys_enc->dpu_kms,
-				irq->irq_idx, &irq->cb);
-		irq->irq_idx = -EINVAL;
-		return ret;
-	}
-
 	trace_dpu_enc_irq_register_success(DRMID(phys_enc->parent), intr_idx,
 				irq->irq_idx);
 
@@ -392,13 +381,6 @@ int dpu_encoder_helper_unregister_irq(struct dpu_encoder_phys *phys_enc,
 			  DRMID(phys_enc->parent), intr_idx,
 			  irq->irq_idx);
 		return 0;
-	}
-
-	ret = dpu_core_irq_disable(phys_enc->dpu_kms, &irq->irq_idx, 1);
-	if (ret) {
-		DRM_ERROR("disable failed id=%u, intr=%d, irq=%d ret=%d",
-			  DRMID(phys_enc->parent), intr_idx,
-			  irq->irq_idx, ret);
 	}
 
 	ret = dpu_core_irq_unregister_callback(phys_enc->dpu_kms, irq->irq_idx,
