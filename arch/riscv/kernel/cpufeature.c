@@ -59,7 +59,7 @@ bool __riscv_isa_extension_available(const unsigned long *isa_bitmap, int bit)
 }
 EXPORT_SYMBOL_GPL(__riscv_isa_extension_available);
 
-void riscv_fill_hwcap(void)
+void __init riscv_fill_hwcap(void)
 {
 	struct device_node *node;
 	const char *isa;
