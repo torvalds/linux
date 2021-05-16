@@ -26,13 +26,13 @@ static bool __init sev_es_check_cpu_features(void)
 
 static void __noreturn sev_es_terminate(unsigned int reason)
 {
-	u64 val = GHCB_SEV_TERMINATE;
+	u64 val = GHCB_MSR_TERM_REQ;
 
 	/*
 	 * Tell the hypervisor what went wrong - only reason-set 0 is
 	 * currently supported.
 	 */
-	val |= GHCB_SEV_TERMINATE_REASON(0, reason);
+	val |= GHCB_SEV_TERM_REASON(0, reason);
 
 	/* Request Guest Termination from Hypvervisor */
 	sev_es_wr_ghcb_msr(val);
@@ -47,15 +47,15 @@ static bool sev_es_negotiate_protocol(void)
 	u64 val;
 
 	/* Do the GHCB protocol version negotiation */
-	sev_es_wr_ghcb_msr(GHCB_SEV_INFO_REQ);
+	sev_es_wr_ghcb_msr(GHCB_MSR_SEV_INFO_REQ);
 	VMGEXIT();
 	val = sev_es_rd_ghcb_msr();
 
-	if (GHCB_INFO(val) != GHCB_SEV_INFO)
+	if (GHCB_MSR_INFO(val) != GHCB_MSR_SEV_INFO_RESP)
 		return false;
 
-	if (GHCB_PROTO_MAX(val) < GHCB_PROTO_OUR ||
-	    GHCB_PROTO_MIN(val) > GHCB_PROTO_OUR)
+	if (GHCB_MSR_PROTO_MAX(val) < GHCB_PROTO_OUR ||
+	    GHCB_MSR_PROTO_MIN(val) > GHCB_PROTO_OUR)
 		return false;
 
 	return true;
@@ -153,28 +153,28 @@ void __init do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code)
 	sev_es_wr_ghcb_msr(GHCB_CPUID_REQ(fn, GHCB_CPUID_REQ_EAX));
 	VMGEXIT();
 	val = sev_es_rd_ghcb_msr();
-	if (GHCB_SEV_GHCB_RESP_CODE(val) != GHCB_SEV_CPUID_RESP)
+	if (GHCB_RESP_CODE(val) != GHCB_MSR_CPUID_RESP)
 		goto fail;
 	regs->ax = val >> 32;
 
 	sev_es_wr_ghcb_msr(GHCB_CPUID_REQ(fn, GHCB_CPUID_REQ_EBX));
 	VMGEXIT();
 	val = sev_es_rd_ghcb_msr();
-	if (GHCB_SEV_GHCB_RESP_CODE(val) != GHCB_SEV_CPUID_RESP)
+	if (GHCB_RESP_CODE(val) != GHCB_MSR_CPUID_RESP)
 		goto fail;
 	regs->bx = val >> 32;
 
 	sev_es_wr_ghcb_msr(GHCB_CPUID_REQ(fn, GHCB_CPUID_REQ_ECX));
 	VMGEXIT();
 	val = sev_es_rd_ghcb_msr();
-	if (GHCB_SEV_GHCB_RESP_CODE(val) != GHCB_SEV_CPUID_RESP)
+	if (GHCB_RESP_CODE(val) != GHCB_MSR_CPUID_RESP)
 		goto fail;
 	regs->cx = val >> 32;
 
 	sev_es_wr_ghcb_msr(GHCB_CPUID_REQ(fn, GHCB_CPUID_REQ_EDX));
 	VMGEXIT();
 	val = sev_es_rd_ghcb_msr();
-	if (GHCB_SEV_GHCB_RESP_CODE(val) != GHCB_SEV_CPUID_RESP)
+	if (GHCB_RESP_CODE(val) != GHCB_MSR_CPUID_RESP)
 		goto fail;
 	regs->dx = val >> 32;
 
