@@ -362,7 +362,6 @@ struct io_ring_ctx {
 		u32			*sq_array;
 		unsigned		cached_sq_head;
 		unsigned		sq_entries;
-		unsigned		sq_mask;
 		unsigned		sq_thread_idle;
 		unsigned		cached_sq_dropped;
 		unsigned		cached_cq_overflow;
@@ -408,7 +407,6 @@ struct io_ring_ctx {
 	struct {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
-		unsigned		cq_mask;
 		atomic_t		cq_timeouts;
 		unsigned		cq_last_tm_flush;
 		unsigned		cq_extra;
@@ -1367,7 +1365,7 @@ static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 static inline struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
-	unsigned tail;
+	unsigned tail, mask = ctx->cq_entries - 1;
 
 	/*
 	 * writes to the cq entry need to come after reading head; the
@@ -1378,7 +1376,7 @@ static inline struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 		return NULL;
 
 	tail = ctx->cached_cq_tail++;
-	return &rings->cqes[tail & ctx->cq_mask];
+	return &rings->cqes[tail & mask];
 }
 
 static inline bool io_should_trigger_evfd(struct io_ring_ctx *ctx)
@@ -6680,7 +6678,7 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
 static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 {
 	u32 *sq_array = ctx->sq_array;
-	unsigned head;
+	unsigned head, mask = ctx->sq_entries - 1;
 
 	/*
 	 * The cached sq head (or cq tail) serves two purposes:
@@ -6690,7 +6688,7 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 	 * 2) allows the kernel side to track the head on its own, even
 	 *    though the application is the one updating it.
 	 */
-	head = READ_ONCE(sq_array[ctx->cached_sq_head++ & ctx->sq_mask]);
+	head = READ_ONCE(sq_array[ctx->cached_sq_head++ & mask]);
 	if (likely(head < ctx->sq_entries))
 		return &ctx->sq_sqes[head];
 
@@ -9512,8 +9510,6 @@ static int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	rings->cq_ring_mask = p->cq_entries - 1;
 	rings->sq_ring_entries = p->sq_entries;
 	rings->cq_ring_entries = p->cq_entries;
-	ctx->sq_mask = rings->sq_ring_mask;
-	ctx->cq_mask = rings->cq_ring_mask;
 
 	size = array_size(sizeof(struct io_uring_sqe), p->sq_entries);
 	if (size == SIZE_MAX) {
