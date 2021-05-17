@@ -1417,6 +1417,7 @@ struct cifsInodeInfo {
 	struct inode vfs_inode;
 	struct list_head deferred_closes; /* list of deferred closes */
 	spinlock_t deferred_lock; /* protection on deferred list */
+	bool lease_granted; /* Flag to indicate whether lease or oplock is granted. */
 };
 
 static inline struct cifsInodeInfo *

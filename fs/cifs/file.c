@@ -896,6 +896,7 @@ int cifs_close(struct inode *inode, struct file *file)
 		file->private_data = NULL;
 		dclose = kmalloc(sizeof(struct cifs_deferred_close), GFP_KERNEL);
 		if ((cinode->oplock == CIFS_CACHE_RHW_FLG) &&
+		    cinode->lease_granted &&
 		    dclose) {
 			if (test_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags))
 				inode->i_ctime = inode->i_mtime = current_time(inode);
