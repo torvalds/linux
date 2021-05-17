@@ -19,9 +19,12 @@
 来的大量 kerneldoc 信息；有朝一日，若有人有动力的话，应当把它们拆分
 出来。
 
-Todolist:
+.. toctree::
+   :maxdepth: 1
 
    kernel-api
+
+Todolist:
    workqueue
    printk-basics
    printk-formats
