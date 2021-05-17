@@ -804,8 +804,11 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		long b;
 
 		if (new_fs) {
+			if (c)
+				percpu_down_read(&c->mark_lock);
 			b = bch2_bucket_alloc_new_fs(ca);
 			if (b < 0) {
+				percpu_up_read(&c->mark_lock);
 				ret = -ENOSPC;
 				goto err;
 			}
@@ -820,10 +823,10 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 			}
 
 			b = sector_to_bucket(ca, ob->ptr.offset);
-
-			percpu_down_read(&c->mark_lock);
-			spin_lock(&c->journal.lock);
 		}
+
+		if (c)
+			spin_lock(&c->journal.lock);
 
 		/*
 		 * XXX
@@ -850,15 +853,17 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (pos <= ja->cur_idx)
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
+		if (c)
+			spin_unlock(&c->journal.lock);
+
 		if (new_fs) {
 			bch2_mark_metadata_bucket(c, ca, b, BCH_DATA_journal,
 						  ca->mi.bucket_size,
 						  gc_phase(GC_PHASE_SB),
 						  0);
+			if (c)
+				percpu_up_read(&c->mark_lock);
 		} else {
-			spin_unlock(&c->journal.lock);
-			percpu_up_read(&c->mark_lock);
-
 			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
 				bch2_trans_mark_metadata_bucket(&trans, ca,
 						b, BCH_DATA_journal,
