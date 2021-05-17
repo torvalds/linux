@@ -150,6 +150,7 @@ static int snd_usx2y_card_used[SNDRV_CARDS];
 
 static void usx2y_usb_disconnect(struct usb_device *usb_device, void *ptr);
 static void snd_usx2y_card_private_free(struct snd_card *card);
+static void usx2y_unlinkseq(struct snd_usx2y_async_seq *s);
 
 /*
  * pipe 4 is used for switching the lamps, setting samplerate, volumes ....
@@ -252,6 +253,9 @@ int usx2y_async_seq04_init(struct usx2ydev *usx2y)
 {
 	int	err = 0, i;
 
+	if (WARN_ON(usx2y->as04.buffer))
+		return -EBUSY;
+
 	usx2y->as04.buffer = kmalloc_array(URBS_ASYNC_SEQ,
 					   URB_DATA_LEN_ASYNC_SEQ, GFP_KERNEL);
 	if (!usx2y->as04.buffer) {
@@ -272,27 +276,47 @@ int usx2y_async_seq04_init(struct usx2ydev *usx2y)
 				break;
 		}
 	}
+	if (err)
+		usx2y_unlinkseq(&usx2y->as04);
 	return err;
 }
 
 int usx2y_in04_init(struct usx2ydev *usx2y)
 {
+	int err;
+
+	if (WARN_ON(usx2y->in04_urb))
+		return -EBUSY;
+
 	usx2y->in04_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!usx2y->in04_urb)
-		return -ENOMEM;
+	if (!usx2y->in04_urb) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	usx2y->in04_buf = kmalloc(21, GFP_KERNEL);
-	if (!usx2y->in04_buf)
-		return -ENOMEM;
+	if (!usx2y->in04_buf) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	init_waitqueue_head(&usx2y->in04_wait_queue);
 	usb_fill_int_urb(usx2y->in04_urb, usx2y->dev, usb_rcvintpipe(usx2y->dev, 0x4),
 			 usx2y->in04_buf, 21,
 			 i_usx2y_in04_int, usx2y,
 			 10);
-	if (usb_urb_ep_type_check(usx2y->in04_urb))
-		return -EINVAL;
+	if (usb_urb_ep_type_check(usx2y->in04_urb)) {
+		err = -EINVAL;
+		goto error;
+	}
 	return usb_submit_urb(usx2y->in04_urb, GFP_KERNEL);
+
+ error:
+	kfree(usx2y->in04_buf);
+	usb_free_urb(usx2y->in04_urb);
+	usx2y->in04_buf = NULL;
+	usx2y->in04_urb = NULL;
+	return err;
 }
 
 static void usx2y_unlinkseq(struct snd_usx2y_async_seq *s)
@@ -300,11 +324,14 @@ static void usx2y_unlinkseq(struct snd_usx2y_async_seq *s)
 	int	i;
 
 	for (i = 0; i < URBS_ASYNC_SEQ; ++i) {
+		if (!s->urb[i])
+			continue;
 		usb_kill_urb(s->urb[i]);
 		usb_free_urb(s->urb[i]);
 		s->urb[i] = NULL;
 	}
 	kfree(s->buffer);
+	s->buffer = NULL;
 }
 
 static const struct usb_device_id snd_usx2y_usb_id_table[] = {
