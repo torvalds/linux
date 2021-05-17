@@ -1329,17 +1329,15 @@ exit:
 
 void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pframequeue)
 {
-	struct list_head *plist, *phead;
-	struct	xmit_frame	*pxmitframe;
+	struct list_head *phead;
+	struct	xmit_frame	*pxmitframe, *temp;
 
 	spin_lock_bh(&pframequeue->lock);
 
 	phead = get_list_head(pframequeue);
-	list_for_each(plist, phead) {
-		pxmitframe = list_entry(plist, struct xmit_frame, list);
-
+	list_for_each_entry_safe(pxmitframe, temp, phead, list)
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
-	}
+
 	spin_unlock_bh(&pframequeue->lock);
 }
 
