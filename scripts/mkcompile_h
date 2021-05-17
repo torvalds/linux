@@ -9,8 +9,6 @@ PREEMPT_RT=$5
 CC_VERSION="$6"
 LD=$7
 
-vecho() { [ "${quiet}" = "silent_" ] || echo "$@" ; }
-
 # Do not expand names
 set -f
 
@@ -82,7 +80,7 @@ if [ -r $TARGET ] && \
       cmp -s .tmpver.1 .tmpver.2; then
    rm -f .tmpcompile
 else
-   vecho "  UPD     $TARGET"
+   echo "  UPD     $TARGET"
    mv -f .tmpcompile $TARGET
 fi
 rm -f .tmpver.1 .tmpver.2
