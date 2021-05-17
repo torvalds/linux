@@ -443,6 +443,13 @@ struct vop2_video_port {
 	 *
 	 */
 	bool sdr2hdr_en;
+	/**
+	 * @skip_vsync: skip on vsync when port_mux changed on this vp.
+	 * a win move from one VP to another need wait one vsync until
+	 * port_mut take effect before this win can be enabled.
+	 *
+	 */
+	bool skip_vsync;
 
 	/**
 	 * @bg_ovl_dly: The timing delay from background layer
@@ -933,6 +940,7 @@ static void vop2_wait_for_port_mux_done(struct vop2 *vop2)
 		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
 			      port_mux_cfg, vop2->port_mux_cfg);
 }
+
 
 static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 {
@@ -3037,14 +3045,14 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 	/*
 	 * This means this window is moved from another vp
-	 * so the VOP2_PORT_SEL register is changed
-	 * in this commit, we should not change this
-	 * win register before the VOP2_PORT_SEL take effect
-	 * on this VP, so skip this frame for safe.
+	 * so the VOP2_PORT_SEL register is changed and
+	 * take effect by vop2_wait_for_port_mux_done
+	 * in this commit. so we can continue configure
+	 * the window and report vsync
 	 */
 	if (win->old_vp_mask != win->vp_mask) {
 		win->old_vp_mask = win->vp_mask;
-		return;
+		vp->skip_vsync = false;
 	}
 
 	actual_w = drm_rect_width(src) >> 16;
@@ -4870,6 +4878,21 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	}
 }
 
+static void vop2_setup_port_mux(struct vop2_video_port *vp, uint16_t port_mux_cfg)
+{
+	struct vop2 *vop2 = vp->vop2;
+
+	spin_lock(&vop2->reg_lock);
+	if (vop2->port_mux_cfg != port_mux_cfg) {
+		VOP_CTRL_SET(vop2, ovl_port_mux_cfg, port_mux_cfg);
+		vp->skip_vsync = true;
+		vop2_cfg_done(&vp->crtc);
+		vop2->port_mux_cfg = port_mux_cfg;
+		vop2_wait_for_port_mux_done(vop2);
+	}
+	spin_unlock(&vop2->reg_lock);
+}
+
 static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 					  const struct vop2_zpos *vop2_zpos)
 {
@@ -4917,12 +4940,6 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 
 	port_mux_cfg |= 7 << (4 * (vop2->data->nr_vps - 1));
 
-	vop2_wait_for_port_mux_done(vop2);
-	vop2->port_mux_cfg = port_mux_cfg;
-	VOP_CTRL_SET(vop2, ovl_port_mux_cfg, port_mux_cfg);
-	VOP_CTRL_SET(vop2, ovl_cfg_done_port, port_id);
-	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
-
 	/*
 	 * Win and layer must map one by one, if a win is selected
 	 * by two layers, unexpected error may happen.
@@ -4952,6 +4969,10 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		win->layer_id = layer_id;
 		layer->win_phys_id = win_phys_id;
 	}
+
+	VOP_CTRL_SET(vop2, ovl_cfg_done_port, vp->id);
+	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
+	vop2_setup_port_mux(vp, port_mux_cfg);
 }
 
 /*
@@ -5776,7 +5797,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 
 		if (active_irqs & FS_FIELD_INTR) {
 			vop2_wb_handler(vp);
-			if (vp->layer_sel_update == false) {
+			if (likely(!vp->skip_vsync) || (vp->layer_sel_update == false)) {
 				drm_crtc_handle_vblank(crtc);
 				vop2_handle_vblank(vop2, crtc);
 			}
