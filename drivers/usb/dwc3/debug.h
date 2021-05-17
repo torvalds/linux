@@ -221,8 +221,8 @@ static inline const char *dwc3_gadget_event_string(char *str, size_t size,
 		snprintf(str, size, "WakeUp [%s]",
 				dwc3_gadget_link_string(state));
 		break;
-	case DWC3_DEVICE_EVENT_EOPF:
-		snprintf(str, size, "End-Of-Frame [%s]",
+	case DWC3_DEVICE_EVENT_SUSPEND:
+		snprintf(str, size, "Suspend [%s]",
 				dwc3_gadget_link_string(state));
 		break;
 	case DWC3_DEVICE_EVENT_SOF:
@@ -353,8 +353,8 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 		return "Wake-Up";
 	case DWC3_DEVICE_EVENT_HIBER_REQ:
 		return "Hibernation";
-	case DWC3_DEVICE_EVENT_EOPF:
-		return "End of Periodic Frame";
+	case DWC3_DEVICE_EVENT_SUSPEND:
+		return "Suspend";
 	case DWC3_DEVICE_EVENT_SOF:
 		return "Start of Frame";
 	case DWC3_DEVICE_EVENT_ERRATIC_ERROR:
