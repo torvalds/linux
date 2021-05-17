@@ -56,7 +56,6 @@
 #define FAN53555_NVOLTAGES	64	/* Numbers of voltages */
 #define FAN53526_NVOLTAGES	128
 
-#define TCS_VSEL_NSEL_MASK	0x7f
 #define TCS_VSEL0_MODE		(1 << 7)
 #define TCS_VSEL1_MODE		(1 << 6)
 
@@ -361,7 +360,6 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 			"Chip ID %d not supported!\n", di->chip_id);
 		return -EINVAL;
 	}
-	di->slew_reg = FAN53555_CONTROL;
 	di->slew_reg = FAN53555_CONTROL;
 	di->slew_mask = CTL_SLEW_MASK;
 	di->slew_shift = CTL_SLEW_SHIFT;
