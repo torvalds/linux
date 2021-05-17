@@ -187,7 +187,7 @@ char *__d_path(const struct path *path,
 	DECLARE_BUFFER(b, buf, buflen);
 
 	prepend(&b, "", 1);
-	if (prepend_path(path, root, &b) > 0)
+	if (unlikely(prepend_path(path, root, &b) > 0))
 		return NULL;
 	return extract_string(&b);
 }
@@ -199,7 +199,7 @@ char *d_absolute_path(const struct path *path,
 	DECLARE_BUFFER(b, buf, buflen);
 
 	prepend(&b, "", 1);
-	if (prepend_path(path, &root, &b) > 1)
+	if (unlikely(prepend_path(path, &root, &b) > 1))
 		return ERR_PTR(-EINVAL);
 	return extract_string(&b);
 }
@@ -396,7 +396,7 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 		DECLARE_BUFFER(b, page, PATH_MAX);
 
 		prepend(&b, "", 1);
-		if (prepend_path(&pwd, &root, &b) > 0)
+		if (unlikely(prepend_path(&pwd, &root, &b) > 0))
 			prepend(&b, "(unreachable)", 13);
 		rcu_read_unlock();
 
