@@ -1552,10 +1552,8 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 		qat_uclo_ummap_auth_fw(handle, &desc);
 	} else {
 		if (handle->chip_info->mmp_sram_size < mem_size) {
-			dev_dbg(&handle->pci_dev->dev,
-				"QAT MMP fw not loaded for device 0x%x",
-				handle->pci_dev->device);
-			return status;
+			pr_err("QAT: MMP size is too large: 0x%x\n", mem_size);
+			return -EFBIG;
 		}
 		qat_uclo_wr_sram_by_words(handle, 0, addr_ptr, mem_size);
 	}
