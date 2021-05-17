@@ -565,6 +565,12 @@ enum {
 	 */
 	BTRFS_FS_BALANCE_RUNNING,
 
+	/*
+	 * Indicate that relocation of a chunk has started, it's set per chunk
+	 * and is toggled between chunks.
+	 */
+	BTRFS_FS_RELOC_RUNNING,
+
 	/* Indicate that the cleaner thread is awake and doing something. */
 	BTRFS_FS_CLEANER_RUNNING,
 
@@ -870,6 +876,9 @@ struct btrfs_fs_info {
 	atomic_t balance_cancel_req;
 	struct btrfs_balance_control *balance_ctl;
 	wait_queue_head_t balance_wait_q;
+
+	/* Cancellation requests for chunk relocation */
+	atomic_t reloc_cancel_req;
 
 	u32 data_chunk_allocations;
 	u32 metadata_ratio;
