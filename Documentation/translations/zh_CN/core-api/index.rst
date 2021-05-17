@@ -25,9 +25,9 @@
    kernel-api
    printk-basics
    printk-formats
+   workqueue
 
 Todolist:
-   workqueue
    symbol-namespaces
 
 数据结构和低级实用程序
