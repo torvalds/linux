@@ -148,7 +148,6 @@ MODULE_PARM_DESC(enable, "Enable "NAME_ALLCAPS".");
 
 static int snd_usx2y_card_used[SNDRV_CARDS];
 
-static void usx2y_usb_disconnect(struct usb_device *usb_device, void *ptr);
 static void snd_usx2y_card_private_free(struct snd_card *card);
 static void usx2y_unlinkseq(struct snd_usx2y_async_seq *s);
 
@@ -390,66 +389,6 @@ static int usx2y_create_card(struct usb_device *device,
 	return 0;
 }
 
-static int usx2y_usb_probe(struct usb_device *device,
-			   struct usb_interface *intf,
-			   const struct usb_device_id *device_id,
-			   struct snd_card **cardp)
-{
-	int		err;
-	struct snd_card *card;
-
-	*cardp = NULL;
-	if (le16_to_cpu(device->descriptor.idVendor) != 0x1604 ||
-	    (le16_to_cpu(device->descriptor.idProduct) != USB_ID_US122 &&
-	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US224 &&
-	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US428))
-		return -EINVAL;
-
-	err = usx2y_create_card(device, intf, &card);
-	if (err < 0)
-		return err;
-	err = usx2y_hwdep_new(card, device);
-	if (err < 0)
-		goto error;
-	err = snd_card_register(card);
-	if (err < 0)
-		goto error;
-	*cardp = card;
-	return 0;
-
- error:
-	snd_card_free(card);
-	return err;
-}
-
-/*
- * new 2.5 USB kernel API
- */
-static int snd_usx2y_probe(struct usb_interface *intf, const struct usb_device_id *id)
-{
-	struct snd_card *card;
-	int err;
-
-	err = usx2y_usb_probe(interface_to_usbdev(intf), intf, id, &card);
-	if (err < 0)
-		return err;
-	dev_set_drvdata(&intf->dev, card);
-	return 0;
-}
-
-static void snd_usx2y_disconnect(struct usb_interface *intf)
-{
-	usx2y_usb_disconnect(interface_to_usbdev(intf),
-			     usb_get_intfdata(intf));
-}
-
-static struct usb_driver snd_usx2y_usb_driver = {
-	.name =		"snd-usb-usx2y",
-	.probe =	snd_usx2y_probe,
-	.disconnect =	snd_usx2y_disconnect,
-	.id_table =	snd_usx2y_usb_id_table,
-};
-
 static void snd_usx2y_card_private_free(struct snd_card *card)
 {
 	struct usx2ydev *usx2y = usx2y(card);
@@ -463,18 +402,15 @@ static void snd_usx2y_card_private_free(struct snd_card *card)
 		snd_usx2y_card_used[usx2y->card_index] = 0;
 }
 
-/*
- * Frees the device.
- */
-static void usx2y_usb_disconnect(struct usb_device *device, void *ptr)
+static void snd_usx2y_disconnect(struct usb_interface *intf)
 {
 	struct snd_card *card;
 	struct usx2ydev *usx2y;
 	struct list_head *p;
 
-	if (!ptr)
+	card = usb_get_intfdata(intf);
+	if (!card)
 		return;
-	card = ptr;
 	usx2y = usx2y(card);
 	usx2y->chip_status = USX2Y_STAT_CHIP_HUP;
 	usx2y_unlinkseq(&usx2y->as04);
@@ -490,4 +426,41 @@ static void usx2y_usb_disconnect(struct usb_device *device, void *ptr)
 	snd_card_free(card);
 }
 
+static int snd_usx2y_probe(struct usb_interface *intf,
+			   const struct usb_device_id *id)
+{
+	struct usb_device *device = interface_to_usbdev(intf);
+	struct snd_card *card;
+	int err;
+
+	if (le16_to_cpu(device->descriptor.idVendor) != 0x1604 ||
+	    (le16_to_cpu(device->descriptor.idProduct) != USB_ID_US122 &&
+	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US224 &&
+	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US428))
+		return -EINVAL;
+
+	err = usx2y_create_card(device, intf, &card);
+	if (err < 0)
+		return err;
+	err = usx2y_hwdep_new(card, device);
+	if (err < 0)
+		goto error;
+	err = snd_card_register(card);
+	if (err < 0)
+		goto error;
+
+	dev_set_drvdata(&intf->dev, card);
+	return 0;
+
+ error:
+	snd_card_free(card);
+	return err;
+}
+
+static struct usb_driver snd_usx2y_usb_driver = {
+	.name =		"snd-usb-usx2y",
+	.probe =	snd_usx2y_probe,
+	.disconnect =	snd_usx2y_disconnect,
+	.id_table =	snd_usx2y_usb_id_table,
+};
 module_usb_driver(snd_usx2y_usb_driver);
