@@ -231,7 +231,6 @@ static int smbus_alarm(void *context)
 		case ACPI_SBS_BATTERY:
 			acpi_os_execute(OSL_NOTIFY_HANDLER,
 					acpi_smbus_callback, hc);
-		default:;
 	}
 	mutex_unlock(&hc->lock);
 	return 0;
