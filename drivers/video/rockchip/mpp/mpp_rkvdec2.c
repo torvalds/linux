@@ -131,7 +131,6 @@ struct rkvdec2_task {
 	enum MPP_CLOCK_MODE clk_mode;
 	u32 reg[RKVDEC_REG_NUM];
 	struct reg_offset_info off_inf;
-	struct rkvdec2_rcb_info rcb_inf;
 
 	/* perf sel data back */
 	u32 reg_sel[RKVDEC_PERF_SEL_NUM];
@@ -157,6 +156,8 @@ struct rkvdec2_session_priv {
 		/* item data */
 		u64 val;
 	} codec_info[DEC_INFO_BUTT];
+	/* rcb_info for sram */
+	struct rkvdec2_rcb_info rcb_inf;
 };
 
 struct rkvdec2_dev {
@@ -244,21 +245,21 @@ static int mpp_extract_rcb_info(struct rkvdec2_rcb_info *rcb_inf,
 	int max_size = ARRAY_SIZE(rcb_inf->elem);
 	int cnt = req->size / sizeof(rcb_inf->elem[0]);
 
-	if ((cnt + rcb_inf->cnt) > max_size) {
-		mpp_err("count %d, total %d, max_size %d\n",
-			cnt, rcb_inf->cnt, max_size);
+	if (req->size > sizeof(rcb_inf->elem)) {
+		mpp_err("count %d,max_size %d\n", cnt, max_size);
 		return -EINVAL;
 	}
-	if (copy_from_user(&rcb_inf->elem[rcb_inf->cnt], req->data, req->size)) {
+	if (copy_from_user(rcb_inf->elem, req->data, req->size)) {
 		mpp_err("copy_from_user failed\n");
 		return -EINVAL;
 	}
-	rcb_inf->cnt += cnt;
+	rcb_inf->cnt = cnt;
 
 	return 0;
 }
 
-static int rkvdec2_extract_task_msg(struct rkvdec2_task *task,
+static int rkvdec2_extract_task_msg(struct mpp_session *session,
+				    struct rkvdec2_task *task,
 				    struct mpp_task_msgs *msgs)
 {
 	u32 i;
@@ -309,7 +310,10 @@ static int rkvdec2_extract_task_msg(struct rkvdec2_task *task,
 			mpp_extract_reg_offset_info(&task->off_inf, req);
 		} break;
 		case MPP_CMD_SET_RCB_INFO: {
-			mpp_extract_rcb_info(&task->rcb_inf, req);
+			struct rkvdec2_session_priv *priv = session->priv;
+
+			if (priv)
+				mpp_extract_rcb_info(&priv->rcb_inf, req);
 		} break;
 		default:
 			break;
@@ -321,16 +325,19 @@ static int rkvdec2_extract_task_msg(struct rkvdec2_task *task,
 	return 0;
 }
 
-static int mpp_set_rcbbuf(struct mpp_dev *mpp, struct rkvdec2_task *task)
+static int mpp_set_rcbbuf(struct mpp_dev *mpp,
+			  struct mpp_session *session,
+			  struct rkvdec2_task *task)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec2_session_priv *priv = session->priv;
 
 	mpp_debug_enter();
 
-	if (dec->rcb_iova) {
+	if (priv && dec->rcb_iova) {
 		int i;
 		u32 reg_idx, rcb_size, rcb_offset;
-		struct rkvdec2_rcb_info *rcb_inf = &task->rcb_inf;
+		struct rkvdec2_rcb_info *rcb_inf = &priv->rcb_inf;
 
 		rcb_offset = 0;
 		for (i = 0; i < rcb_inf->cnt; i++) {
@@ -371,7 +378,7 @@ static void *rkvdec2_alloc_task(struct mpp_session *session,
 	mpp_task->hw_info = mpp->var->hw_info;
 	mpp_task->reg = task->reg;
 	/* extract reqs for current task */
-	ret = rkvdec2_extract_task_msg(task, msgs);
+	ret = rkvdec2_extract_task_msg(session, task, msgs);
 	if (ret)
 		goto fail;
 
@@ -386,7 +393,7 @@ static void *rkvdec2_alloc_task(struct mpp_session *session,
 
 		mpp_translate_reg_offset_info(&task->mpp_task, &task->off_inf, task->reg);
 	}
-	mpp_set_rcbbuf(mpp, task);
+	mpp_set_rcbbuf(mpp, session, task);
 	task->strm_addr = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
 	task->clk_mode = CLK_MODE_NORMAL;
 	/* get resolution info */
