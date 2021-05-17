@@ -3007,7 +3007,6 @@ static const struct seq_operations ipmr_mfc_seq_ops = {
 #ifdef CONFIG_IP_PIMSM_V2
 static const struct net_protocol pim_protocol = {
 	.handler	=	pim_rcv,
-	.netns_ok	=	1,
 };
 #endif
 

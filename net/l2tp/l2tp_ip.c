@@ -635,7 +635,6 @@ static struct inet_protosw l2tp_ip_protosw = {
 
 static struct net_protocol l2tp_ip_protocol __read_mostly = {
 	.handler	= l2tp_ip_recv,
-	.netns_ok	= 1,
 };
 
 static int __init l2tp_ip_init(void)
