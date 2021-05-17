@@ -15,9 +15,9 @@
 
    configure-git
    rebasing-and-merging
+   pull-requests
 
 TODOList:
 
--   pull-requests
 -   maintainer-entry-profile
 -   modifying-patches
