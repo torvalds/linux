@@ -1211,6 +1211,10 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	bool last, update = false;
 	int i;
 
+	/* Ignore packet that was sent with noAck flag */
+	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+		return;
+
 	/* This packet was aggregated but doesn't carry status info */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
