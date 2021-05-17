@@ -2,6 +2,7 @@
 #include "bcachefs.h"
 #include "bkey_buf.h"
 #include "btree_update.h"
+#include "buckets.h"
 #include "extents.h"
 #include "inode.h"
 #include "io.h"
@@ -224,6 +225,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 				       BTREE_ITER_INTENT);
 
 	while (ret == 0 || ret == -EINTR) {
+		struct disk_reservation disk_res = { 0 };
+
 		bch2_trans_begin(&trans);
 
 		if (fatal_signal_pending(current)) {
@@ -287,8 +290,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 				    dst_end.offset - dst_iter->pos.offset));
 
 		ret = bch2_extent_update(&trans, dst_iter, new_dst.k,
-					 NULL, journal_seq,
+					 &disk_res, journal_seq,
 					 new_i_size, i_sectors_delta);
+		bch2_disk_reservation_put(c, &disk_res);
 		if (ret)
 			continue;
 
