@@ -1336,7 +1336,6 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 		memcpy(mem_region, loop, sizeof(*loop));
 		buffer = mem_region->hdl;
 		kref_get(&buffer->ref);
-		buffer->last_used = ktime_get();
 	} else {
 		down_read(&mpp->iommu_info->rw_sem);
 		buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
