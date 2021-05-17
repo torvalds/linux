@@ -1380,8 +1380,8 @@ static int setup(struct spi_device *spi)
 	}
 
 	chip->cr1 &= ~(SSCR1_SPO | SSCR1_SPH);
-	chip->cr1 |= (((spi->mode & SPI_CPHA) != 0) ? SSCR1_SPH : 0)
-			| (((spi->mode & SPI_CPOL) != 0) ? SSCR1_SPO : 0);
+	chip->cr1 |= ((spi->mode & SPI_CPHA) ? SSCR1_SPH : 0) |
+		     ((spi->mode & SPI_CPOL) ? SSCR1_SPO : 0);
 
 	if (spi->mode & SPI_LOOP)
 		chip->cr1 |= SSCR1_LBM;
@@ -1859,7 +1859,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	/* Register with the SPI framework */
 	platform_set_drvdata(pdev, drv_data);
 	status = spi_register_controller(controller);
-	if (status != 0) {
+	if (status) {
 		dev_err(&pdev->dev, "problem registering spi controller\n");
 		goto out_error_pm_runtime_enabled;
 	}
@@ -1918,7 +1918,7 @@ static int pxa2xx_spi_suspend(struct device *dev)
 	int status;
 
 	status = spi_controller_suspend(drv_data->controller);
-	if (status != 0)
+	if (status)
 		return status;
 
 	pxa_ssp_disable(ssp);
