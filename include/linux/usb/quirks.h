@@ -32,7 +32,7 @@
 #define USB_QUIRK_DELAY_INIT			BIT(6)
 
 /*
- * For high speed and super speed interupt endpoints, the USB 2.0 and
+ * For high speed and super speed interrupt endpoints, the USB 2.0 and
  * USB 3.0 spec require the interval in microframes
  * (1 microframe = 125 microseconds) to be calculated as
  * interval = 2 ^ (bInterval-1).

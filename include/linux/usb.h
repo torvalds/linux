@@ -1485,7 +1485,7 @@ typedef void (*usb_complete_t)(struct urb *);
  *
  * Note that transfer_buffer must still be set if the controller
  * does not support DMA (as indicated by hcd_uses_dma()) and when talking
- * to root hub. If you have to trasfer between highmem zone and the device
+ * to root hub. If you have to transfer between highmem zone and the device
  * on such controller, create a bounce buffer or bail out with an error.
  * If transfer_buffer cannot be set (is in highmem) and the controller is DMA
  * capable, assign NULL to it, so that usbmon knows not to use the value.

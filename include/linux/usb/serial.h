@@ -395,7 +395,7 @@ static inline void usb_serial_debug_data(struct device *dev,
 }
 
 /*
- * Macro for reporting errors in write path to avoid inifinite loop
+ * Macro for reporting errors in write path to avoid infinite loop
  * when port is used as a console.
  */
 #define dev_err_console(usport, fmt, ...)				\

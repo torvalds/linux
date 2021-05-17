@@ -59,7 +59,7 @@
  * USB Host Controller Driver (usb_hcd) framework
  *
  * Since "struct usb_bus" is so thin, you can't share much code in it.
- * This framework is a layer over that, and should be more sharable.
+ * This framework is a layer over that, and should be more shareable.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -299,7 +299,7 @@ struct hc_driver {
 	 * (optional) these hooks allow an HCD to override the default DMA
 	 * mapping and unmapping routines.  In general, they shouldn't be
 	 * necessary unless the host controller has special DMA requirements,
-	 * such as alignment contraints.  If these are not specified, the
+	 * such as alignment constraints.  If these are not specified, the
 	 * general usb_hcd_(un)?map_urb_for_dma functions will be used instead
 	 * (and it may be a good idea to call these functions in your HCD
 	 * implementation)
