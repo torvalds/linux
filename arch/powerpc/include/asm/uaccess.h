@@ -157,7 +157,7 @@ do {								\
 		"2:	lwz%X1 %L0, %L1\n"			\
 		EX_TABLE(1b, %l2)				\
 		EX_TABLE(2b, %l2)				\
-		: "=r" (x)					\
+		: "=&r" (x)					\
 		: "m" (*addr)					\
 		:						\
 		: label)

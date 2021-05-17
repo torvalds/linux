@@ -2901,7 +2901,7 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 		ctrl->hmmaxd = le16_to_cpu(id->hmmaxd);
 	}
 
-	ret = nvme_mpath_init(ctrl, id);
+	ret = nvme_mpath_init_identify(ctrl, id);
 	if (ret < 0)
 		goto out_free;
 
@@ -4364,6 +4364,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		min(default_ps_max_latency_us, (unsigned long)S32_MAX));
 
 	nvme_fault_inject_init(&ctrl->fault_inject, dev_name(ctrl->device));
+	nvme_mpath_init_ctrl(ctrl);
 
 	return 0;
 out_free_name:
