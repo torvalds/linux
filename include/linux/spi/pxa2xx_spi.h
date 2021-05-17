@@ -14,7 +14,10 @@
 
 struct dma_chan;
 
-/* device.platform_data for SSP controller devices */
+/*
+ * The platform data for SSP controller devices
+ * (resides in device.platform_data).
+ */
 struct pxa2xx_spi_controller {
 	u16 num_chipselect;
 	u8 enable_dma;
@@ -30,8 +33,11 @@ struct pxa2xx_spi_controller {
 	struct ssp_device ssp;
 };
 
-/* spi_board_info.controller_data for SPI slave devices,
- * copied to spi_device.platform_data ... mostly for dma tuning
+/*
+ * The controller specific data for SPI slave devices
+ * (resides in spi_board_info.controller_data),
+ * copied to spi_device.platform_data ... mostly for
+ * DMA tuning.
  */
 struct pxa2xx_spi_chip {
 	u8 tx_threshold;

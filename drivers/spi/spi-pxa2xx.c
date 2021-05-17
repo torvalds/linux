@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2005 Stephen Street / StreetFire Sound Labs
- * Copyright (C) 2013, Intel Corporation
+ * Copyright (C) 2013, 2021 Intel Corporation
  */
 
 #include <linux/acpi.h>
@@ -40,11 +40,11 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 #define TIMOUT_DFLT		1000
 
 /*
- * for testing SSCR1 changes that require SSP restart, basically
- * everything except the service and interrupt enables, the pxa270 developer
+ * For testing SSCR1 changes that require SSP restart, basically
+ * everything except the service and interrupt enables, the PXA270 developer
  * manual says only SSCR1_SCFR, SSCR1_SPH, SSCR1_SPO need to be in this
- * list, but the PXA255 dev man says all bits without really meaning the
- * service and interrupt enables
+ * list, but the PXA255 developer manual says all bits without really meaning
+ * the service and interrupt enables.
  */
 #define SSCR1_CHANGE_MASK (SSCR1_TTELP | SSCR1_TTE | SSCR1_SCFR \
 				| SSCR1_ECRA | SSCR1_ECRB | SSCR1_SCLKDIR \
@@ -653,12 +653,12 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 		irq_status &= ~SSSR_TFS;
 
 	if (irq_status & SSSR_ROR) {
-		int_error_stop(drv_data, "interrupt_transfer: fifo overrun", -EIO);
+		int_error_stop(drv_data, "interrupt_transfer: FIFO overrun", -EIO);
 		return IRQ_HANDLED;
 	}
 
 	if (irq_status & SSSR_TUR) {
-		int_error_stop(drv_data, "interrupt_transfer: fifo underrun", -EIO);
+		int_error_stop(drv_data, "interrupt_transfer: FIFO underrun", -EIO);
 		return IRQ_HANDLED;
 	}
 
@@ -670,7 +670,7 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 		}
 	}
 
-	/* Drain rx fifo, Fill tx fifo and prevent overruns */
+	/* Drain Rx FIFO, Fill Tx FIFO and prevent overruns */
 	do {
 		if (drv_data->read(drv_data)) {
 			int_transfer_complete(drv_data);
@@ -691,8 +691,8 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 		sccr1_reg &= ~SSCR1_TIE;
 
 		/*
-		 * PXA25x_SSP has no timeout, set up rx threshould for the
-		 * remaining RX bytes.
+		 * PXA25x_SSP has no timeout, set up Rx threshold for
+		 * the remaining Rx bytes.
 		 */
 		if (pxa25x_ssp_comp(drv_data)) {
 			u32 rx_thre;
@@ -914,7 +914,7 @@ static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 
 	/*
 	 * Calculate the divisor for the SCR (Serial Clock Rate), avoiding
-	 * that the SSP transmission rate can be greater than the device rate
+	 * that the SSP transmission rate can be greater than the device rate.
 	 */
 	if (ssp->type == PXA25x_SSP || ssp->type == CE4100_SSP)
 		return (DIV_ROUND_UP(ssp_clk, 2 * rate) - 1) & 0xff;
@@ -972,7 +972,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	/* Check if we can DMA this transfer */
 	if (transfer->len > MAX_DMA_LEN && chip->enable_dma) {
 
-		/* reject already-mapped transfers; PIO won't always work */
+		/* Reject already-mapped transfers; PIO won't always work */
 		if (message->is_dma_mapped
 				|| transfer->rx_dma || transfer->tx_dma) {
 			dev_err(&spi->dev,
@@ -981,7 +981,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 			return -EINVAL;
 		}
 
-		/* warn ... we force this to PIO mode */
+		/* Warn ... we force this to PIO mode */
 		dev_warn_ratelimited(&spi->dev,
 				     "DMA disabled for transfer length %u greater than %d\n",
 				     transfer->len, MAX_DMA_LEN);
@@ -1026,8 +1026,8 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 					u32_writer : null_writer;
 	}
 	/*
-	 * if bits/word is changed in dma mode, then must check the
-	 * thresholds and burst also
+	 * If bits per word is changed in DMA mode, then must check
+	 * the thresholds and burst also.
 	 */
 	if (chip->enable_dma) {
 		if (pxa2xx_spi_set_dma_burst_and_threshold(chip,
@@ -1101,10 +1101,10 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	if (!pxa25x_ssp_comp(drv_data))
 		pxa2xx_spi_write(drv_data, SSTO, chip->timeout);
 
-	/* first set CR1 without interrupt and service enables */
+	/* First set CR1 without interrupt and service enables */
 	pxa2xx_spi_update(drv_data, SSCR1, change_mask, cr1);
 
-	/* see if we need to reload the config registers */
+	/* See if we need to reload the configuration registers */
 	pxa2xx_spi_update(drv_data, SSCR0, GENMASK(31, 0), cr0);
 
 	/* Restart the SSP */
@@ -1114,7 +1114,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		u8 tx_level = read_SSSR_bits(drv_data, SSSR_TFL_MASK) >> 8;
 
 		if (tx_level) {
-			/* On MMP2, flipping SSE doesn't to empty TXFIFO. */
+			/* On MMP2, flipping SSE doesn't to empty Tx FIFO. */
 			dev_warn(&spi->dev, "%u bytes of garbage in Tx FIFO!\n", tx_level);
 			if (tx_level > transfer->len)
 				tx_level = transfer->len;
@@ -1134,7 +1134,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 	/*
 	 * Release the data by enabling service requests and interrupts,
-	 * without changing any mode bits
+	 * without changing any mode bits.
 	 */
 	pxa2xx_spi_write(drv_data, SSCR1, cr1);
 
@@ -1207,12 +1207,13 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 	if (drv_data->ssp_type == CE4100_SSP)
 		return 0;
 
-	/* NOTE: setup() can be called multiple times, possibly with
-	 * different chip_info, release previously requested GPIO
+	/*
+	 * NOTE: setup() can be called multiple times, possibly with
+	 * different chip_info, release previously requested GPIO.
 	 */
 	cleanup_cs(spi);
 
-	/* If (*cs_control) is provided, ignore GPIO chip select */
+	/* If ->cs_control() is provided, ignore GPIO chip select */
 	if (chip_info->cs_control) {
 		chip->cs_control = chip_info->cs_control;
 		return 0;
@@ -1288,7 +1289,7 @@ static int setup(struct spi_device *spi)
 		break;
 	}
 
-	/* Only alloc on first setup */
+	/* Only allocate on the first setup */
 	chip = spi_get_ctldata(spi);
 	if (!chip) {
 		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
@@ -1307,8 +1308,10 @@ static int setup(struct spi_device *spi)
 		chip->timeout = TIMOUT_DFLT;
 	}
 
-	/* protocol drivers may change the chip settings, so...
-	 * if chip_info exists, use it */
+	/*
+	 * Protocol drivers may change the chip settings, so...
+	 * if chip_info exists, use it.
+	 */
 	chip_info = spi->controller_data;
 
 	/* chip_info isn't always needed */
@@ -1344,11 +1347,13 @@ static int setup(struct spi_device *spi)
 		chip->lpss_tx_threshold = tx_thres;
 	}
 
-	/* set dma burst and threshold outside of chip_info path so that if
-	 * chip_info goes away after setting chip->enable_dma, the
-	 * burst and threshold can still respond to changes in bits_per_word */
+	/*
+	 * Set DMA burst and threshold outside of chip_info path so that if
+	 * chip_info goes away after setting chip->enable_dma, the burst and
+	 * threshold can still respond to changes in bits_per_word.
+	 */
 	if (chip->enable_dma) {
-		/* set up legal burst and threshold for dma */
+		/* Set up legal burst and threshold for DMA */
 		if (pxa2xx_spi_set_dma_burst_and_threshold(chip, spi,
 						spi->bits_per_word,
 						&chip->dma_burst_size,
@@ -1677,7 +1682,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		ssp = &platform_info->ssp;
 
 	if (!ssp->mmio_base) {
-		dev_err(&pdev->dev, "failed to get ssp\n");
+		dev_err(&pdev->dev, "failed to get SSP\n");
 		return -ENODEV;
 	}
 
@@ -1699,7 +1704,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	controller->dev.of_node = dev->of_node;
 	controller->dev.fwnode = dev->fwnode;
 
-	/* the spi->mode bits understood by this driver: */
+	/* The spi->mode bits understood by this driver: */
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 
 	controller->bus_num = ssp->port_id;
@@ -1787,7 +1792,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		      QUARK_X1000_SSCR1_TxTresh(TX_THRESH_QUARK_X1000_DFLT);
 		pxa2xx_spi_write(drv_data, SSCR1, tmp);
 
-		/* using the Motorola SPI protocol and use 8 bit frame */
+		/* Using the Motorola SPI protocol and use 8 bit frame */
 		tmp = QUARK_X1000_SSCR0_Motorola | QUARK_X1000_SSCR0_DataSize(8);
 		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 		break;
@@ -1859,7 +1864,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, drv_data);
 	status = spi_register_controller(controller);
 	if (status) {
-		dev_err(&pdev->dev, "problem registering spi controller\n");
+		dev_err(&pdev->dev, "problem registering SPI controller\n");
 		goto out_error_pm_runtime_enabled;
 	}
 

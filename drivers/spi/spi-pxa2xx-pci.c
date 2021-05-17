@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CE4100's SPI device is more or less the same one as found on PXA
+ * PCI glue driver for SPI PXA2xx compatible controllers.
+ * CE4100's SPI device is more or less the same one as found on PXA.
  *
- * Copyright (C) 2016, Intel Corporation
+ * Copyright (C) 2016, 2021 Intel Corporation
  */
 #include <linux/clk-provider.h>
 #include <linux/module.h>

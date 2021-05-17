@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  Copyright (C) 2003 Russell King, All Rights Reserved.
+ * Copyright (C) 2003 Russell King, All Rights Reserved.
  *
  * This driver supports the following PXA CPU/SSP ports:-
  *
@@ -59,7 +59,7 @@ struct device_node;
 /* PXA27x, PXA3xx */
 #define SSCR0_EDSS	BIT(20)		/* Extended data size select */
 #define SSCR0_NCS	BIT(21)		/* Network clock select */
-#define SSCR0_RIM	BIT(22)		/* Receive FIFO overrrun interrupt mask */
+#define SSCR0_RIM	BIT(22)		/* Receive FIFO overrun interrupt mask */
 #define SSCR0_TUM	BIT(23)		/* Transmit FIFO underrun interrupt mask */
 #define SSCR0_FRDC	GENMASK(26, 24)	/* Frame rate divider control (mask) */
 #define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
@@ -126,7 +126,7 @@ struct device_node;
 #define QUARK_X1000_SSCR1_EFWR	BIT(16)		/* Enable FIFO Write/Read */
 #define QUARK_X1000_SSCR1_STRF	BIT(17)		/* Select FIFO or EFWR */
 
-/* extra bits in PXA255, PXA26x and PXA27x SSP ports */
+/* Extra bits in PXA255, PXA26x and PXA27x SSP ports */
 #define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
 #define SSCR0_PSP		(3 << 4)	/* PSP - Programmable Serial Protocol */
 
@@ -222,7 +222,8 @@ enum pxa_ssp_type {
 	CE4100_SSP,
 	MRFLD_SSP,
 	QUARK_X1000_SSP,
-	LPSS_LPT_SSP, /* Keep LPSS types sorted with lpss_platforms[] */
+	/* Keep LPSS types sorted with lpss_platforms[] */
+	LPSS_LPT_SSP,
 	LPSS_BYT_SSP,
 	LPSS_BSW_SSP,
 	LPSS_SPT_SSP,

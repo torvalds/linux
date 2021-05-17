@@ -2,7 +2,7 @@
 /*
  * PXA2xx SPI DMA engine support.
  *
- * Copyright (C) 2013, Intel Corporation
+ * Copyright (C) 2013, 2021 Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
@@ -26,7 +26,7 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 	 * It is possible that one CPU is handling ROR interrupt and other
 	 * just gets DMA completion. Calling pump_transfers() twice for the
 	 * same transfer leads to problems thus we prevent concurrent calls
-	 * by using ->dma_running.
+	 * by using dma_running.
 	 */
 	if (atomic_dec_and_test(&drv_data->dma_running)) {
 		/*
