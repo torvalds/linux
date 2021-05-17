@@ -789,7 +789,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 }
 
 /**
- * sxgbe_tx_clean:
+ * sxgbe_tx_all_clean:
  * @priv: driver private structure
  * Description: it reclaims resources after transmission completes.
  */
@@ -1015,7 +1015,7 @@ static void sxgbe_tx_timer(struct timer_list *t)
 }
 
 /**
- * sxgbe_init_tx_coalesce: init tx mitigation options.
+ * sxgbe_tx_init_coalesce: init tx mitigation options.
  * @priv: driver private structure
  * Description:
  * This inits the transmit coalesce parameters: i.e. timer rate,
