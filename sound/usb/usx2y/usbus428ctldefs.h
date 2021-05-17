@@ -39,15 +39,15 @@ enum E_IN84 {
 
 
 struct us428_ctls {
-	unsigned char   fader[9];
-	unsigned char 	transport;
-	unsigned char 	modifier;
-	unsigned char 	filters_elect;
-	unsigned char 	select;
-	unsigned char   mute;
-	unsigned char   unknown;
-	unsigned char   wswitch;	     
-	unsigned char   wheel[5];
+	unsigned char	fader[9];
+	unsigned char	transport;
+	unsigned char	modifier;
+	unsigned char	filters_elect;
+	unsigned char	select;
+	unsigned char	mute;
+	unsigned char	unknown;
+	unsigned char	wswitch;
+	unsigned char	wheel[5];
 };
 
 struct us428_set_byte {

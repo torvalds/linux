@@ -3,9 +3,9 @@
 #define USBUSX2Y_H
 #include "../usbaudio.h"
 #include "../midi.h"
-#include "usbus428ctldefs.h" 
+#include "usbus428ctldefs.h"
 
-#define NRURBS	        2	
+#define NRURBS	        2
 
 
 #define URBS_ASYNC_SEQ 10
@@ -55,7 +55,7 @@ struct snd_usx2y_substream {
 	struct usx2ydev	*usx2y;
 	struct snd_pcm_substream *pcm_substream;
 
-	int			endpoint;		
+	int			endpoint;
 	unsigned int		maxpacksize;		/* max packet size in bytes */
 
 	atomic_t		state;
