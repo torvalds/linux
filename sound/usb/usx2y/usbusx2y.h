@@ -46,7 +46,6 @@ struct usx2ydev {
 	struct snd_usx2y_substream	* volatile  prepare_subs;
 	wait_queue_head_t	prepare_wait_queue;
 	struct list_head	midi_list;
-	struct list_head	pcm_list;
 	int			pcm_devs;
 };
 

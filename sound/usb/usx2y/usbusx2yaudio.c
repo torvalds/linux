@@ -1017,9 +1017,7 @@ static int usx2y_audio_stream_new(struct snd_card *card, int playback_endpoint, 
  */
 int usx2y_audio_create(struct snd_card *card)
 {
-	int err = 0;
-
-	INIT_LIST_HEAD(&usx2y(card)->pcm_list);
+	int err;
 
 	err = usx2y_audio_stream_new(card, 0xA, 0x8);
 	if (err < 0)
