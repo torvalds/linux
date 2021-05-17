@@ -361,6 +361,11 @@ void amdgpu_irq_fini_hw(struct amdgpu_device *adev)
 		if (!amdgpu_device_has_dc_support(adev))
 			flush_work(&adev->hotplug_work);
 	}
+
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih_soft);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih1);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih2);
 }
 
 /**

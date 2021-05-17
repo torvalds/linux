@@ -898,7 +898,6 @@ static int gmc_v6_0_sw_fini(void *handle)
 	amdgpu_vm_manager_fini(adev);
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
-	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 

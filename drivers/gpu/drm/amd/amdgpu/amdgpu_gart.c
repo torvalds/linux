@@ -92,7 +92,7 @@ static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
  *
  * Frees the dummy page used by the driver (all asics).
  */
-static void amdgpu_gart_dummy_page_fini(struct amdgpu_device *adev)
+void amdgpu_gart_dummy_page_fini(struct amdgpu_device *adev)
 {
 	if (!adev->dummy_page_addr)
 		return;
@@ -364,16 +364,4 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 		 adev->gart.num_cpu_pages, adev->gart.num_gpu_pages);
 
 	return 0;
-}
-
-/**
- * amdgpu_gart_fini - tear down the driver info for managing the gart
- *
- * @adev: amdgpu_device pointer
- *
- * Tear down the gart driver info and free the dummy page (all asics).
- */
-void amdgpu_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_dummy_page_fini(adev);
 }

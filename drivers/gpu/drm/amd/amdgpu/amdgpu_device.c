@@ -3256,7 +3256,6 @@ static const struct attribute *amdgpu_dev_attributes[] = {
 	NULL
 };
 
-
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -3696,12 +3695,13 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 		amdgpu_ucode_sysfs_fini(adev);
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_dev_attributes);
 
-
 	amdgpu_fbdev_fini(adev);
 
 	amdgpu_irq_fini_hw(adev);
 
 	amdgpu_device_ip_fini_early(adev);
+
+	amdgpu_gart_dummy_page_fini(adev);
 }
 
 void amdgpu_device_fini_sw(struct amdgpu_device *adev)
