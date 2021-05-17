@@ -446,8 +446,15 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 	struct bpos orig = in;
 #endif
 	bool exact = true;
+	unsigned i;
 
-	*w = 0;
+	/*
+	 * bch2_bkey_pack_key() will write to all of f->key_u64s, minus the 3
+	 * byte header, but pack_pos() won't if the len/version fields are big
+	 * enough - we need to make sure to zero them out:
+	 */
+	for (i = 0; i < f->key_u64s; i++)
+		w[i] = 0;
 
 	if (unlikely(in.snapshot <
 		     le64_to_cpu(f->field_offset[BKEY_FIELD_SNAPSHOT]))) {
