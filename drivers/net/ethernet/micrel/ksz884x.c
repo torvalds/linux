@@ -2153,7 +2153,7 @@ static void sw_cfg_broad_storm(struct ksz_hw *hw, u8 percent)
 }
 
 /**
- * sw_get_board_storm - get broadcast storm threshold
+ * sw_get_broad_storm - get broadcast storm threshold
  * @hw: 	The hardware instance.
  * @percent:	Buffer to store the broadcast storm threshold percentage.
  *
@@ -2973,7 +2973,7 @@ static void hw_r_phy(struct ksz_hw *hw, int port, u16 reg, u16 *val)
 }
 
 /**
- * port_w_phy - write data to PHY register
+ * hw_w_phy - write data to PHY register
  * @hw: 	The hardware instance.
  * @port:	Port to write.
  * @reg:	PHY register to write.
@@ -4782,7 +4782,7 @@ static void transmit_cleanup(struct dev_info *hw_priv, int normal)
 }
 
 /**
- * transmit_done - transmit done processing
+ * tx_done - transmit done processing
  * @hw_priv:	Network device.
  *
  * This routine is called when the transmit interrupt is triggered, indicating

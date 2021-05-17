@@ -351,7 +351,7 @@ hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool dereset)
 }
 
 /**
- * hns_dsaf_srst_chns - reset dsaf channels
+ * hns_dsaf_srst_chns_acpi - reset dsaf channels
  * @dsaf_dev: dsaf device struct pointer
  * @msk: xbar channels mask value:
  * @dereset: false - request reset , true - drop reset
@@ -501,7 +501,7 @@ static void hns_ppe_com_srst(struct dsaf_device *dsaf_dev, bool dereset)
 }
 
 /**
- * hns_mac_get_sds_mode - get phy ifterface form serdes mode
+ * hns_mac_get_phy_if - get phy ifterface form serdes mode
  * @mac_cb: mac control block
  * retuen phy interface
  */

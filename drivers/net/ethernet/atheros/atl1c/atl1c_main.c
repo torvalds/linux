@@ -432,7 +432,7 @@ static void atl1c_restore_vlan(struct atl1c_adapter *adapter)
 }
 
 /**
- * atl1c_set_mac - Change the Ethernet Address of the NIC
+ * atl1c_set_mac_addr - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
  *
@@ -960,7 +960,7 @@ static void atl1c_free_ring_resources(struct atl1c_adapter *adapter)
 }
 
 /**
- * atl1c_setup_mem_resources - allocate Tx / RX descriptor resources
+ * atl1c_setup_ring_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
  * Return 0 on success, negative on failure
@@ -1366,7 +1366,7 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, u16 link_speed)
 }
 
 /**
- * atl1c_configure - Configure Transmit&Receive Unit after Reset
+ * atl1c_configure_mac - Configure Transmit&Receive Unit after Reset
  * @adapter: board private structure
  *
  * Configure the Tx /Rx unit of the MAC after a reset.

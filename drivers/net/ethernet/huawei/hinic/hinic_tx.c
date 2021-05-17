@@ -660,7 +660,7 @@ static void tx_free_skb(struct hinic_dev *nic_dev, struct sk_buff *skb,
 }
 
 /**
- * free_all_rx_skbs - free all skbs in tx queue
+ * free_all_tx_skbs - free all skbs in tx queue
  * @txq: tx queue
  **/
 static void free_all_tx_skbs(struct hinic_txq *txq)

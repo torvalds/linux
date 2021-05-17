@@ -2743,7 +2743,7 @@ static int s2io_chk_rx_buffers(struct s2io_nic *nic, struct ring_info *ring)
 }
 
 /**
- * s2io_poll - Rx interrupt handler for NAPI support
+ * s2io_poll_msix - Rx interrupt handler for NAPI support
  * @napi : pointer to the napi structure.
  * @budget : The number of packets that were budgeted to be processed
  * during  one pass through the 'Poll" function.
@@ -5288,7 +5288,7 @@ s2io_ethtool_set_link_ksettings(struct net_device *dev,
 }
 
 /**
- * s2io_ethtol_get_link_ksettings - Return link specific information.
+ * s2io_ethtool_get_link_ksettings - Return link specific information.
  * @dev: pointer to netdev
  * @cmd : pointer to the structure with parameters given by ethtool
  * to return link information.

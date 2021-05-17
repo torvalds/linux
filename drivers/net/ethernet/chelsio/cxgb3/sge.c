@@ -665,7 +665,7 @@ static void t3_reset_qset(struct sge_qset *q)
 
 
 /**
- *	free_qset - free the resources of an SGE queue set
+ *	t3_free_qset - free the resources of an SGE queue set
  *	@adapter: the adapter owning the queue set
  *	@q: the queue set
  *
@@ -1256,7 +1256,7 @@ static inline void t3_stop_tx_queue(struct netdev_queue *txq,
 }
 
 /**
- *	eth_xmit - add a packet to the Ethernet Tx queue
+ *	t3_eth_xmit - add a packet to the Ethernet Tx queue
  *	@skb: the packet
  *	@dev: the egress net device
  *

@@ -48,7 +48,7 @@ enum io_status {
 };
 
 /**
- * get_capability - convert device capabilities to NIC capabilities
+ * parse_capability - convert device capabilities to NIC capabilities
  * @hwdev: the HW device to set and convert device capabilities for
  * @dev_cap: device capabilities from FW
  *
@@ -92,7 +92,7 @@ static int parse_capability(struct hinic_hwdev *hwdev,
 }
 
 /**
- * get_cap_from_fw - get device capabilities from FW
+ * get_capability - get device capabilities from FW
  * @pfhwdev: the PF HW device to get capabilities for
  *
  * Return 0 - Success, negative - Failure
@@ -346,7 +346,7 @@ static int wait_for_db_state(struct hinic_hwdev *hwdev)
 }
 
 /**
- * clear_io_resource - set the IO resources as not active in the NIC
+ * clear_io_resources - set the IO resources as not active in the NIC
  * @hwdev: the NIC HW device
  *
  * Return 0 - Success, negative - Failure
@@ -1090,7 +1090,7 @@ struct hinic_sq *hinic_hwdev_get_sq(struct hinic_hwdev *hwdev, int i)
 }
 
 /**
- * hinic_hwdev_get_sq - get RQ
+ * hinic_hwdev_get_rq - get RQ
  * @hwdev: the NIC HW device
  * @i: the position of the RQ
  *

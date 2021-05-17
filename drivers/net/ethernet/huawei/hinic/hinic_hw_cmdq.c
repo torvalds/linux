@@ -594,7 +594,7 @@ static void cmdq_update_errcode(struct hinic_cmdq *cmdq, u16 prod_idx,
 }
 
 /**
- * cmdq_arm_ceq_handler - cmdq completion event handler for sync command
+ * cmdq_sync_cmd_handler - cmdq completion event handler for sync command
  * @cmdq: the cmdq of the command
  * @cons_idx: the consumer index to update the error code for
  * @errcode: the error code
