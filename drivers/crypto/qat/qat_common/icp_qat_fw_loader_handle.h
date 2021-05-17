@@ -24,7 +24,7 @@ struct icp_qat_fw_loader_hal_handle {
 };
 
 struct icp_qat_fw_loader_chip_info {
-	bool sram_visible;
+	int mmp_sram_size;
 	bool nn;
 	bool lm2lm3;
 	u32 lm_size;
