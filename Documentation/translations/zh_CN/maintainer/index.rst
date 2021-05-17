@@ -17,7 +17,5 @@
    rebasing-and-merging
    pull-requests
    maintainer-entry-profile
+   modifying-patches
 
-TODOList:
-
--   modifying-patches
