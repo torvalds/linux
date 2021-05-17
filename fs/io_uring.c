@@ -5019,10 +5019,10 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 		 * Can't handle multishot for double wait for now, turn it
 		 * into one-shot mode.
 		 */
-		if (!(req->poll.events & EPOLLONESHOT))
-			req->poll.events |= EPOLLONESHOT;
+		if (!(poll_one->events & EPOLLONESHOT))
+			poll_one->events |= EPOLLONESHOT;
 		/* double add on the same waitqueue head, ignore */
-		if (poll->head == head)
+		if (poll_one->head == head)
 			return;
 		poll = kmalloc(sizeof(*poll), GFP_ATOMIC);
 		if (!poll) {
