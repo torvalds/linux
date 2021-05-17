@@ -1083,12 +1083,13 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	}
 
 	if (is_mrfld_ssp(drv_data)) {
+		u32 mask = SFIFOTT_RFT | SFIFOTT_TFT;
 		u32 thresh = 0;
 
 		thresh |= SFIFOTT_RxThresh(chip->lpss_rx_threshold);
 		thresh |= SFIFOTT_TxThresh(chip->lpss_tx_threshold);
 
-		pxa2xx_spi_update(drv_data, SFIFOTT, 0xffffffff, thresh);
+		pxa2xx_spi_update(drv_data, SFIFOTT, mask, thresh);
 	}
 
 	if (is_quark_x1000_ssp(drv_data))
