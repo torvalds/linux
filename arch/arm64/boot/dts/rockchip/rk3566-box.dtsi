@@ -177,6 +177,7 @@
 };
 
 &dmc {
+	auto-freq-en = <0>;
 	center-supply = <&vdd_fixed>;
 	status = "okay";
 };
