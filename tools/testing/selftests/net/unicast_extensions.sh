@@ -189,6 +189,15 @@ segmenttest 255.255.255.1 255.255.255.254 24 "assign and ping inside 255.255.255
 route_test 240.5.6.7 240.5.6.1  255.1.2.1    255.1.2.3      24 "route between 240.5.6/24 and 255.1.2/24 (is allowed)"
 route_test 0.200.6.7 0.200.38.1 245.99.101.1 245.99.200.111 16 "route between 0.200/16 and 245.99/16 (is allowed)"
 #
+# Test support for lowest address ending in .0
+segmenttest 5.10.15.20 5.10.15.0 24 "assign and ping lowest address (/24)"
+#
+# Test support for lowest address not ending in .0
+segmenttest 192.168.101.192 192.168.101.193 26 "assign and ping lowest address (/26)"
+#
+# Routing using lowest address as a gateway/endpoint
+route_test 192.168.42.1 192.168.42.0 9.8.7.6 9.8.7.0 24 "routing using lowest address"
+#
 # ==============================================
 # ==== TESTS THAT CURRENTLY EXPECT FAILURE =====
 # ==============================================
@@ -201,14 +210,6 @@ segmenttest 255.255.255.1 255.255.255.255 16 "assigning 255.255.255.255 (is forb
 # Test support for not having all of 127 be loopback
 # Currently Linux does not allow this, so this should fail too
 segmenttest 127.99.4.5 127.99.4.6 16 "assign and ping inside 127/8 (is forbidden)"
-#
-# Test support for lowest address
-# Currently Linux does not allow this, so this should fail too
-segmenttest 5.10.15.20 5.10.15.0 24 "assign and ping lowest address (is forbidden)"
-#
-# Routing using lowest address as a gateway/endpoint
-# Currently Linux does not allow this, so this should fail too
-route_test 192.168.42.1 192.168.42.0 9.8.7.6 9.8.7.0 24 "routing using lowest address (is forbidden)"
 #
 # Test support for unicast use of class D
 # Currently Linux does not allow this, so this should fail too
