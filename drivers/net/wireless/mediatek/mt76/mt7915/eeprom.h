@@ -33,7 +33,7 @@ enum mt7915_eeprom_field {
 #define MT_EE_WIFI_CAL_GROUP			BIT(0)
 #define MT_EE_WIFI_CAL_DPD			GENMASK(2, 1)
 #define MT_EE_CAL_UNIT				1024
-#define MT_EE_CAL_GROUP_SIZE			(44 * MT_EE_CAL_UNIT)
+#define MT_EE_CAL_GROUP_SIZE			(49 * MT_EE_CAL_UNIT + 16)
 #define MT_EE_CAL_DPD_SIZE			(54 * MT_EE_CAL_UNIT)
 
 #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
