@@ -155,6 +155,7 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
     RK_U32 *bRGA_SRC_ACT_INFO;
     RK_U32 *bRGA_MASK_ADDR;
 	RK_U32 *bRGA_SRC_TR_COLOR0, *bRGA_SRC_TR_COLOR1;
+	RK_U8 src_fmt_yuv400_en = 0;
 
     RK_U32 reg = 0;
     RK_U8 src0_format = 0;
@@ -268,6 +269,8 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
         case RGA2_FORMAT_YCrCb_420_SP_10B : src0_format = 0xa; xdiv = 1; ydiv = 2; src0_cbcr_swp = 1; yuv10 = 1; break;
 		case RGA2_FORMAT_YCbCr_422_SP_10B : src0_format = 0x8; xdiv = 1; ydiv = 1; yuv10 = 1; break;
 		case RGA2_FORMAT_YCrCb_422_SP_10B : src0_format = 0x8; xdiv = 1; ydiv = 1; src0_cbcr_swp = 1; yuv10 = 1; break;
+
+		case RGA2_FORMAT_YCbCr_400 : src0_format = 0x8; src_fmt_yuv400_en = 1; xdiv = 1; ydiv = 1; break;
     };
 
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SRC_FMT)) | (s_RGA2_SRC_INFO_SW_SRC_FMT(src0_format)));
@@ -310,9 +313,21 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
 	}
 #endif
 
-    *bRGA_SRC_BASE0 = (RK_U32)(msg->src.yrgb_addr + msg->src.y_offset * (stride<<2) + msg->src.x_offset * pixel_width);
-    *bRGA_SRC_BASE1 = (RK_U32)(msg->src.uv_addr + (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv));
-    *bRGA_SRC_BASE2 = (RK_U32)(msg->src.v_addr + (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv));
+    if (src_fmt_yuv400_en == 1) {
+        /*
+         * When Y400 as the input format, because the current RGA does not support closing
+         * the access of the UV channel, the address of the UV channel access is equal to
+         * the address of the Y channel access to ensure that the UV channel can access,
+         * preventing the RGA hardware from reporting errors.
+         */
+        *bRGA_SRC_BASE0 = (RK_U32)(msg->src.yrgb_addr + msg->src.y_offset * (stride<<2) + msg->src.x_offset * pixel_width);
+        *bRGA_SRC_BASE1 = *bRGA_SRC_BASE0;
+        *bRGA_SRC_BASE2 = *bRGA_SRC_BASE0;
+    } else {
+        *bRGA_SRC_BASE0 = (RK_U32)(msg->src.yrgb_addr + msg->src.y_offset * (stride<<2) + msg->src.x_offset * pixel_width);
+        *bRGA_SRC_BASE1 = (RK_U32)(msg->src.uv_addr + (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv));
+        *bRGA_SRC_BASE2 = (RK_U32)(msg->src.v_addr + (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv));
+    }
 
     //mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
     mask_stride = msg->rop_mask_stride;
