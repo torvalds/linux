@@ -1799,7 +1799,7 @@ static void vxge_reset(struct work_struct *work)
 }
 
 /**
- * vxge_poll - Receive handler when Receive Polling is used.
+ * vxge_poll_msix - Receive handler when Receive Polling is used.
  * @napi: pointer to the napi structure.
  * @budget: Number of packets budgeted to be processed in this iteration.
  *
@@ -4752,7 +4752,7 @@ _exit0:
 }
 
 /**
- * vxge_rem_nic - Free the PCI device
+ * vxge_remove - Free the PCI device
  * @pdev: structure containing the PCI related information of the device.
  * Description: This function is called by the Pci subsystem to release a
  * PCI device and free up all resource held up by the device.
