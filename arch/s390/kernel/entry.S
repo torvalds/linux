@@ -214,7 +214,7 @@ ENTRY(sie64a)
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
 # Other instructions between sie64a and .Lsie_done should not cause program
 # interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
-# See also .Lcleanup_sie_mcck/.Lcleanup_sie_int
+# See also .Lcleanup_sie
 .Lrewind_pad6:
 	nopr	7
 .Lrewind_pad4:
@@ -399,7 +399,7 @@ ENTRY(\name)
 	lghi	%r13,.Lsie_done - .Lsie_gmap
 	clgr	%r14,%r13
 	jhe	0f
-	brasl	%r14,.Lcleanup_sie_int
+	brasl	%r14,.Lcleanup_sie
 #endif
 0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
@@ -547,7 +547,13 @@ ENTRY(mcck_int_handler)
 	lghi	%r13,.Lsie_done - .Lsie_gmap
 	clgr	%r14,%r13
 	jhe	.Lmcck_stack
-	brasl	%r14,.Lcleanup_sie_mcck
+	larl	%r13,.Lsie_entry
+	slgr	%r9,%r13
+	lghi	%r13,.Lsie_skip - .Lsie_entry
+	clgr	%r9,%r13
+	jhe	5f
+	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
+5:	brasl	%r14,.Lcleanup_sie
 #endif
 	j	.Lmcck_stack
 .Lmcck_user:
@@ -649,21 +655,13 @@ ENDPROC(stack_overflow)
 #endif
 
 #if IS_ENABLED(CONFIG_KVM)
-.Lcleanup_sie_mcck:
-	larl	%r13,.Lsie_entry
-	slgr	%r9,%r13
-	lghi	%r13,.Lsie_skip - .Lsie_entry
-	clgr	%r9,%r13
-	jhe	.Lcleanup_sie_int
-	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-.Lcleanup_sie_int:
+.Lcleanup_sie:
 	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	BR_EX	%r14,%r13
-
 #endif
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
