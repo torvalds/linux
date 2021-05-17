@@ -111,7 +111,7 @@ int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 }
 
 /**
- *hns_mac_is_adjust_link - check is need change mac speed and duplex register
+ *hns_mac_need_adjust_link - check is need change mac speed and duplex register
  *@mac_cb: mac device
  *@speed: phy device speed
  *@duplex:phy device duplex
@@ -374,7 +374,7 @@ static void hns_mac_param_get(struct mac_params *param,
 }
 
 /**
- * hns_mac_queue_config_bc_en - set broadcast rx&tx enable
+ * hns_mac_port_config_bc_en - set broadcast rx&tx enable
  * @mac_cb: mac device
  * @port_num: queue number
  * @vlan_id: vlan id`
@@ -597,7 +597,7 @@ int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable)
 }
 
 /**
- * hns_mac_set_autoneg - set rx & tx pause parameter
+ * hns_mac_set_pauseparam - set rx & tx pause parameter
  * @mac_cb: mac control block
  * @rx_en: rx enable or not
  * @tx_en: tx enable or not
