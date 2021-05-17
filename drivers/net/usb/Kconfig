@@ -169,7 +169,7 @@ config USB_NET_AX8817X
 	  This option adds support for ASIX AX88xxx based USB 2.0
 	  10/100 Ethernet adapters.
 
- 	  This driver should work with at least the following devices:
+	  This driver should work with at least the following devices:
 	    * Aten UC210T
 	    * ASIX AX88172
 	    * Billionton Systems, USB2AR
@@ -220,13 +220,13 @@ config USB_NET_CDCETHER
 	  CDC Ethernet is an implementation option for DOCSIS cable modems
 	  that support USB connectivity, used for non-Microsoft USB hosts.
 	  The Linux-USB CDC Ethernet Gadget driver is an open implementation.
- 	  This driver should work with at least the following devices:
+	  This driver should work with at least the following devices:
 
 	    * Dell Wireless 5530 HSPA
- 	    * Ericsson PipeRider (all variants)
+	    * Ericsson PipeRider (all variants)
 	    * Ericsson Mobile Broadband Module (all variants)
- 	    * Motorola (DM100 and SB4100)
- 	    * Broadcom Cable Modem (reference design)
+	    * Motorola (DM100 and SB4100)
+	    * Broadcom Cable Modem (reference design)
 	    * Toshiba (PCX1100U and F3507g/F3607gw)
 	    * ...
 
