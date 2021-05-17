@@ -438,19 +438,15 @@ static int remove_nodes(struct device *dev,
 			struct list_head *first, struct list_head *end,
 			struct list_head *todo)
 {
+	struct devres_node *node, *n;
 	int cnt = 0, nr_groups = 0;
-	struct list_head *cur;
 
 	/* First pass - move normal devres entries to @todo and clear
 	 * devres_group colors.
 	 */
-	cur = first;
-	while (cur != end) {
-		struct devres_node *node;
+	node = list_entry(first, struct devres_node, entry);
+	list_for_each_entry_safe_from(node, n, end, entry) {
 		struct devres_group *grp;
-
-		node = list_entry(cur, struct devres_node, entry);
-		cur = cur->next;
 
 		grp = node_to_group(node);
 		if (grp) {
@@ -471,17 +467,13 @@ static int remove_nodes(struct device *dev,
 
 	/* Second pass - Scan groups and color them.  A group gets
 	 * color value of two iff the group is wholly contained in
-	 * [cur, end).  That is, for a closed group, both opening and
-	 * closing markers should be in the range, while just the
+	 * [current node, end). That is, for a closed group, both opening
+	 * and closing markers should be in the range, while just the
 	 * opening marker is enough for an open group.
 	 */
-	cur = first;
-	while (cur != end) {
-		struct devres_node *node;
+	node = list_entry(first, struct devres_node, entry);
+	list_for_each_entry_safe_from(node, n, end, entry) {
 		struct devres_group *grp;
-
-		node = list_entry(cur, struct devres_node, entry);
-		cur = cur->next;
 
 		grp = node_to_group(node);
 		BUG_ON(!grp || list_empty(&grp->node[0].entry));
@@ -492,7 +484,7 @@ static int remove_nodes(struct device *dev,
 
 		BUG_ON(grp->color <= 0 || grp->color > 2);
 		if (grp->color == 2) {
-			/* No need to update cur or end.  The removed
+			/* No need to update current node or end. The removed
 			 * nodes are always before both.
 			 */
 			list_move_tail(&grp->node[0].entry, todo);
