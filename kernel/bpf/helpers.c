@@ -698,8 +698,9 @@ static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
 #define MAX_BPRINTF_BUF_LEN	512
 
 /* Support executing three nested bprintf helper calls on a given CPU */
+#define MAX_BPRINTF_NEST_LEVEL	3
 struct bpf_bprintf_buffers {
-	char tmp_bufs[3][MAX_BPRINTF_BUF_LEN];
+	char tmp_bufs[MAX_BPRINTF_NEST_LEVEL][MAX_BPRINTF_BUF_LEN];
 };
 static DEFINE_PER_CPU(struct bpf_bprintf_buffers, bpf_bprintf_bufs);
 static DEFINE_PER_CPU(int, bpf_bprintf_nest_level);
@@ -711,7 +712,7 @@ static int try_get_fmt_tmp_buf(char **tmp_buf)
 
 	preempt_disable();
 	nest_level = this_cpu_inc_return(bpf_bprintf_nest_level);
-	if (WARN_ON_ONCE(nest_level > ARRAY_SIZE(bufs->tmp_bufs))) {
+	if (WARN_ON_ONCE(nest_level > MAX_BPRINTF_NEST_LEVEL)) {
 		this_cpu_dec(bpf_bprintf_nest_level);
 		preempt_enable();
 		return -EBUSY;
