@@ -190,6 +190,59 @@ static DEVICE_ATTR_RO(ddr_data_rate_point_2);
 static DEVICE_ATTR_RO(ddr_data_rate_point_3);
 static DEVICE_ATTR_RW(rfi_disable);
 
+static ssize_t rfi_restriction_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	u16 cmd_id = 0x0008;
+	u32 cmd_resp;
+	u32 input;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &input);
+	if (ret)
+		return ret;
+
+	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, input, &cmd_resp);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t rfi_restriction_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	u16 cmd_id = 0x0007;
+	u32 cmd_resp;
+	int ret;
+
+	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, 0, &cmd_resp);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%u\n", cmd_resp);
+}
+
+static ssize_t ddr_data_rate_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	u16 cmd_id = 0x0107;
+	u32 cmd_resp;
+	int ret;
+
+	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, 0, &cmd_resp);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%u\n", cmd_resp);
+}
+
+static DEVICE_ATTR_RW(rfi_restriction);
+static DEVICE_ATTR_RO(ddr_data_rate);
+
 static struct attribute *dvfs_attrs[] = {
 	&dev_attr_rfi_restriction_run_busy.attr,
 	&dev_attr_rfi_restriction_err_code.attr,
@@ -199,6 +252,8 @@ static struct attribute *dvfs_attrs[] = {
 	&dev_attr_ddr_data_rate_point_2.attr,
 	&dev_attr_ddr_data_rate_point_3.attr,
 	&dev_attr_rfi_disable.attr,
+	&dev_attr_ddr_data_rate.attr,
+	&dev_attr_rfi_restriction.attr,
 	NULL
 };
 
