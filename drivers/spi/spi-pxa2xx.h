@@ -72,7 +72,6 @@ struct chip_data {
 	int (*write)(struct driver_data *drv_data);
 	int (*read)(struct driver_data *drv_data);
 
-	unsigned int frm;
 	void (*cs_control)(u32 command);
 };
 

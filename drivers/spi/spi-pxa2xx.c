@@ -432,7 +432,7 @@ static void cs_assert(struct spi_device *spi)
 		spi_controller_get_devdata(spi->controller);
 
 	if (drv_data->ssp_type == CE4100_SSP) {
-		pxa2xx_spi_write(drv_data, SSSR, chip->frm);
+		pxa2xx_spi_write(drv_data, SSSR, spi->chip_select);
 		return;
 	}
 
@@ -1303,8 +1303,6 @@ static int setup(struct spi_device *spi)
 				kfree(chip);
 				return -EINVAL;
 			}
-
-			chip->frm = spi->chip_select;
 		}
 		chip->enable_dma = drv_data->controller_info->enable_dma;
 		chip->timeout = TIMOUT_DFLT;
