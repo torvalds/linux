@@ -1718,7 +1718,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->controller_info = platform_info;
 	drv_data->ssp = ssp;
 
-	controller->dev.of_node = pdev->dev.of_node;
+	controller->dev.of_node = dev->of_node;
+	controller->dev.fwnode = dev->fwnode;
+
 	/* the spi->mode bits understood by this driver: */
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 
