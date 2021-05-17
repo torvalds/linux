@@ -14,10 +14,10 @@
    :maxdepth: 2
 
    configure-git
+   rebasing-and-merging
 
 TODOList:
 
--   rebasing-and-merging
 -   pull-requests
 -   maintainer-entry-profile
 -   modifying-patches
