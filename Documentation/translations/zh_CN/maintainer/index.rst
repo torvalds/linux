@@ -10,9 +10,13 @@
 本手册还需要大量完善！请自由提出（和编写）本手册的补充内容。
 *译注：指英文原版*
 
+.. toctree::
+   :maxdepth: 2
+
+   configure-git
+
 TODOList:
 
--   configure-git
 -   rebasing-and-merging
 -   pull-requests
 -   maintainer-entry-profile
