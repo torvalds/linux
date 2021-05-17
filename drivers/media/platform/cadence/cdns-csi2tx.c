@@ -436,6 +436,7 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 	struct resource *res;
 	unsigned int i;
 	u32 dev_cfg;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	csi2tx->base = devm_ioremap_resource(&pdev->dev, res);
@@ -454,7 +455,12 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 		return PTR_ERR(csi2tx->esc_clk);
 	}
 
-	clk_prepare_enable(csi2tx->p_clk);
+	ret = clk_prepare_enable(csi2tx->p_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't prepare and enable p_clk\n");
+		return ret;
+	}
+
 	dev_cfg = readl(csi2tx->base + CSI2TX_DEVICE_CONFIG_REG);
 	clk_disable_unprepare(csi2tx->p_clk);
 
