@@ -441,11 +441,6 @@ static void cs_assert(struct spi_device *spi)
 		return;
 	}
 
-	if (chip->gpiod_cs) {
-		gpiod_set_value(chip->gpiod_cs, chip->gpio_cs_inverted);
-		return;
-	}
-
 	if (is_lpss_ssp(drv_data))
 		lpss_ssp_cs_control(spi, true);
 }
@@ -468,11 +463,6 @@ static void cs_deassert(struct spi_device *spi)
 
 	if (chip->cs_control) {
 		chip->cs_control(PXA2XX_CS_DEASSERT);
-		return;
-	}
-
-	if (chip->gpiod_cs) {
-		gpiod_set_value(chip->gpiod_cs, !chip->gpio_cs_inverted);
 		return;
 	}
 
@@ -1195,11 +1185,19 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 	return 0;
 }
 
+static void cleanup_cs(struct spi_device *spi)
+{
+	if (!gpio_is_valid(spi->cs_gpio))
+		return;
+
+	gpio_free(spi->cs_gpio);
+	spi->cs_gpio = -ENOENT;
+}
+
 static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		    struct pxa2xx_spi_chip *chip_info)
 {
-	struct gpio_desc *gpiod;
-	int err = 0;
+	struct driver_data *drv_data = spi_controller_get_devdata(spi->controller);
 
 	if (chip == NULL)
 		return 0;
@@ -1207,13 +1205,13 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 	if (chip_info == NULL)
 		return 0;
 
+	if (drv_data->ssp_type == CE4100_SSP)
+		return 0;
+
 	/* NOTE: setup() can be called multiple times, possibly with
 	 * different chip_info, release previously requested GPIO
 	 */
-	if (chip->gpiod_cs) {
-		gpiod_put(chip->gpiod_cs);
-		chip->gpiod_cs = NULL;
-	}
+	cleanup_cs(spi);
 
 	/* If (*cs_control) is provided, ignore GPIO chip select */
 	if (chip_info->cs_control) {
@@ -1222,21 +1220,25 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 	}
 
 	if (gpio_is_valid(chip_info->gpio_cs)) {
-		err = gpio_request(chip_info->gpio_cs, "SPI_CS");
+		int gpio = chip_info->gpio_cs;
+		int err;
+
+		err = gpio_request(gpio, "SPI_CS");
 		if (err) {
-			dev_err(&spi->dev, "failed to request chip select GPIO%d\n",
-				chip_info->gpio_cs);
+			dev_err(&spi->dev, "failed to request chip select GPIO%d\n", gpio);
 			return err;
 		}
 
-		gpiod = gpio_to_desc(chip_info->gpio_cs);
-		chip->gpiod_cs = gpiod;
-		chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
+		err = gpio_direction_output(gpio, !(spi->mode & SPI_CS_HIGH));
+		if (err) {
+			gpio_free(gpio);
+			return err;
+		}
 
-		err = gpiod_direction_output(gpiod, !chip->gpio_cs_inverted);
+		spi->cs_gpio = gpio;
 	}
 
-	return err;
+	return 0;
 }
 
 static int setup(struct spi_device *spi)
@@ -1411,15 +1413,8 @@ static int setup(struct spi_device *spi)
 static void cleanup(struct spi_device *spi)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
-	struct driver_data *drv_data =
-		spi_controller_get_devdata(spi->controller);
 
-	if (!chip)
-		return;
-
-	if (drv_data->ssp_type != CE4100_SSP && chip->gpiod_cs)
-		gpiod_put(chip->gpiod_cs);
-
+	cleanup_cs(spi);
 	kfree(chip);
 }
 
