@@ -3134,6 +3134,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 	vop2_setup_csc_mode(vp, vpstate);
 
+	afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
+
 	spin_lock(&vop2->reg_lock);
 	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@%dx%d] fmt[%.4s_%s] addr[%pad]\n",
 		      vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
@@ -3159,7 +3161,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 		rb_swap = vop2_afbc_rb_swap(fb->format->format);
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
-		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 		vpstate->afbc_half_block_en = afbc_half_block_en;
 		transform_offset = vop2_afbc_transform_offset(vpstate);
 		VOP_CLUSTER_SET(vop2, win, afbc_enable, 1);
@@ -3168,7 +3169,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		VOP_AFBC_SET(vop2, win, uv_swap, uv_swap);
 		VOP_AFBC_SET(vop2, win, auto_gating_en, 0);
 		VOP_AFBC_SET(vop2, win, block_split_en, 0);
-		VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
 		VOP_AFBC_SET(vop2, win, transform_offset, transform_offset);
@@ -3191,6 +3191,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		actual_w = drm_rect_height(src) >> 16;
 		actual_h = drm_rect_width(src) >> 16;
 	}
+
+	/* rk3588 should set half_blocK_en to 1 in line and tile mode */
+	VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 
 	VOP_WIN_SET(vop2, win, format, format);
 	/* win->yrgb_vir only take effect at non-afbc mode */
