@@ -72,11 +72,11 @@ TODOlist:
    dev-tools/index
    doc-guide/index
    kernel-hacking/index
+   maintainer/index
 
 TODOList:
 
 * trace/index
-* maintainer/index
 * fault-injection/index
 * livepatch/index
 * rust/index
