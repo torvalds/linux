@@ -2473,6 +2473,10 @@ static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
 	struct evlist *evlist = etm->session->evlist;
 	bool timeless_decoding = true;
 
+	/* Override timeless mode with user input from --itrace=Z */
+	if (etm->synth_opts.timeless_decoding)
+		return true;
+
 	/*
 	 * Circle through the list of event and complain if we find one
 	 * with the time bit set.
