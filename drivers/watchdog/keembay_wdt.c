@@ -84,7 +84,6 @@ static int keembay_wdt_start(struct watchdog_device *wdog)
 {
 	struct keembay_wdt *wdt = watchdog_get_drvdata(wdog);
 
-	keembay_wdt_set_timeout_reg(wdog);
 	keembay_wdt_writel(wdt, TIM_WDOG_EN, 1);
 
 	return 0;
