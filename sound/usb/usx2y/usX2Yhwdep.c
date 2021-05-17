@@ -85,7 +85,7 @@ static __poll_t snd_us428ctls_poll(struct snd_hwdep *hw, struct file *file, poll
 
 	poll_wait(file, &us428->us428ctls_wait_queue_head, wait);
 
-	if (shm != NULL && shm->ctl_snapshot_last != shm->ctl_snapshot_red)
+	if (shm && shm->ctl_snapshot_last != shm->ctl_snapshot_red)
 		mask |= EPOLLIN;
 
 	return mask;
@@ -114,7 +114,7 @@ static int snd_usx2y_hwdep_dsp_status(struct snd_hwdep *hw,
 		id = USX2Y_TYPE_428;
 		break;
 	}
-	if (0 > id)
+	if (id < 0)
 		return -ENODEV;
 	strcpy(info->id, type_ids[id]);
 	info->num_dsps = 2;		// 0: Prepad Data, 1: FPGA Code
@@ -158,7 +158,7 @@ static int usx2y_create_usbmidi(struct snd_card *card)
 		le16_to_cpu(dev->descriptor.idProduct) == USB_ID_US428 ?
 		&quirk_2 : &quirk_1;
 
-	snd_printdd("usx2y_create_usbmidi\n");
+	snd_printdd("%s\n", __func__);
 	return snd_usbmidi_create(card, iface, &usx2y(card)->midi_list, quirk);
 }
 
@@ -166,20 +166,21 @@ static int usx2y_create_alsa_devices(struct snd_card *card)
 {
 	int err;
 
-	do {
-		if ((err = usx2y_create_usbmidi(card)) < 0) {
-			snd_printk(KERN_ERR "usx2y_create_alsa_devices: usx2y_create_usbmidi error %i\n", err);
-			break;
-		}
-		if ((err = usx2y_audio_create(card)) < 0)
-			break;
-		if ((err = usx2y_hwdep_pcm_new(card)) < 0)
-			break;
-		if ((err = snd_card_register(card)) < 0)
-			break;
-	} while (0);
-
-	return err;
+	err = usx2y_create_usbmidi(card);
+	if (err < 0) {
+		snd_printk(KERN_ERR "%s: usx2y_create_usbmidi error %i\n", __func__, err);
+		return err;
+	}
+	err = usx2y_audio_create(card);
+	if (err < 0)
+		return err;
+	err = usx2y_hwdep_pcm_new(card);
+	if (err < 0)
+		return err;
+	err = snd_card_register(card);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int snd_usx2y_hwdep_dsp_load(struct snd_hwdep *hw,
@@ -233,7 +234,8 @@ int usx2y_hwdep_new(struct snd_card *card, struct usb_device *device)
 	int err;
 	struct snd_hwdep *hw;
 
-	if ((err = snd_hwdep_new(card, SND_USX2Y_LOADER_ID, 0, &hw)) < 0)
+	err = snd_hwdep_new(card, SND_USX2Y_LOADER_ID, 0, &hw);
+	if (err < 0)
 		return err;
 
 	hw->iface = SNDRV_HWDEP_IFACE_USX2Y;

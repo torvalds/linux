@@ -114,9 +114,9 @@ static vm_fault_t usb_stream_hwdep_vm_fault(struct vm_fault *vmf)
 		goto unlock;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
-	if (offset < PAGE_ALIGN(s->read_size))
+	if (offset < PAGE_ALIGN(s->read_size)) {
 		vaddr = (char *)s + offset;
-	else {
+	} else {
 		offset -= PAGE_ALIGN(s->read_size);
 		if (offset >= PAGE_ALIGN(s->write_size))
 			goto unlock;
@@ -238,7 +238,7 @@ static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
 					  struct file *file, poll_table *wait)
 {
 	struct us122l	*us122l = hw->private_data;
-	unsigned	*polled;
+	unsigned int	*polled;
 	__poll_t	mask;
 
 	poll_wait(file, &us122l->sk.sleep, wait);
@@ -255,8 +255,9 @@ static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
 			if (*polled != s->periods_done) {
 				*polled = s->periods_done;
 				mask = EPOLLIN | EPOLLOUT | EPOLLWRNORM;
-			} else
+			} else {
 				mask = 0;
+			}
 		}
 		mutex_unlock(&us122l->mutex);
 	}
@@ -294,11 +295,11 @@ static int us122l_set_sample_rate(struct usb_device *dev, int rate)
 }
 
 static bool us122l_start(struct us122l *us122l,
-			 unsigned rate, unsigned period_frames)
+			 unsigned int rate, unsigned int period_frames)
 {
 	struct list_head *p;
 	int err;
-	unsigned use_packsize = 0;
+	unsigned int use_packsize = 0;
 	bool success = false;
 
 	if (us122l->dev->speed == USB_SPEED_HIGH) {
@@ -331,7 +332,7 @@ static bool us122l_start(struct us122l *us122l,
 	err = usb_stream_start(&us122l->sk);
 	if (err < 0) {
 		us122l_stop(us122l);
-		snd_printk(KERN_ERR "us122l_start error %i\n", err);
+		snd_printk(KERN_ERR "%s error %i\n", __func__, err);
 		goto out;
 	}
 	list_for_each(p, &us122l->midi_list)
@@ -342,12 +343,12 @@ out:
 }
 
 static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
-				  unsigned cmd, unsigned long arg)
+				  unsigned int cmd, unsigned long arg)
 {
 	struct usb_stream_config cfg;
 	struct us122l *us122l = hw->private_data;
 	struct usb_stream *s;
-	unsigned min_period_frames;
+	unsigned int min_period_frames;
 	int err = 0;
 	bool high_speed;
 
@@ -388,9 +389,9 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 
 	mutex_lock(&us122l->mutex);
 	s = us122l->sk.s;
-	if (!us122l->master)
+	if (!us122l->master) {
 		us122l->master = file;
-	else if (us122l->master != file) {
+	} else if (us122l->master != file) {
 		if (!s || memcmp(&cfg, &s->cfg, sizeof(cfg))) {
 			err = -EIO;
 			goto unlock;
@@ -490,7 +491,7 @@ static void snd_us122l_free(struct snd_card *card)
 	struct us122l	*us122l = US122L(card);
 	int		index = us122l->card_index;
 
-	if (index >= 0  &&  index < SNDRV_CARDS)
+	if (index >= 0 && index < SNDRV_CARDS)
 		snd_us122l_card_used[index] = 0;
 }
 

@@ -163,7 +163,7 @@ static void i_usx2y_out04_int(struct urb *urb)
 
 		for (i = 0; i < 10 && usx2y->as04.urb[i] != urb; i++)
 			;
-		snd_printdd("i_usx2y_out04_int() urb %i status=%i\n", i, urb->status);
+		snd_printdd("%s urb %i status=%i\n", __func__, i, urb->status);
 	}
 #endif
 }
@@ -173,6 +173,8 @@ static void i_usx2y_in04_int(struct urb *urb)
 	int			err = 0;
 	struct usx2ydev		*usx2y = urb->context;
 	struct us428ctls_sharedmem	*us428ctls = usx2y->us428ctls_sharedmem;
+	struct us428_p4out *p4out;
+	int i, j, n, diff, send;
 
 	usx2y->in04_int_calls++;
 
@@ -183,15 +185,12 @@ static void i_usx2y_in04_int(struct urb *urb)
 
 	//	printk("%i:0x%02X ", 8, (int)((unsigned char*)usx2y->in04_buf)[8]); Master volume shows 0 here if fader is at max during boot ?!?
 	if (us428ctls) {
-		int diff = -1;
-
-		if (-2 == us428ctls->ctl_snapshot_last) {
+		diff = -1;
+		if (us428ctls->ctl_snapshot_last == -2) {
 			diff = 0;
 			memcpy(usx2y->in04_last, usx2y->in04_buf, sizeof(usx2y->in04_last));
 			us428ctls->ctl_snapshot_last = -1;
 		} else {
-			int i;
-
 			for (i = 0; i < 21; i++) {
 				if (usx2y->in04_last[i] != ((char *)usx2y->in04_buf)[i]) {
 					if (diff < 0)
@@ -200,10 +199,9 @@ static void i_usx2y_in04_int(struct urb *urb)
 				}
 			}
 		}
-		if (0 <= diff) {
-			int n = us428ctls->ctl_snapshot_last + 1;
-
-			if (n >= N_US428_CTL_BUFS  ||  n < 0)
+		if (diff >= 0) {
+			n = us428ctls->ctl_snapshot_last + 1;
+			if (n >= N_US428_CTL_BUFS || n < 0)
 				n = 0;
 			memcpy(us428ctls->ctl_snapshot + n, usx2y->in04_buf, sizeof(us428ctls->ctl_snapshot[0]));
 			us428ctls->ctl_snapshot_differs_at[n] = diff;
@@ -213,21 +211,20 @@ static void i_usx2y_in04_int(struct urb *urb)
 	}
 
 	if (usx2y->us04) {
-		if (0 == usx2y->us04->submitted)
+		if (!usx2y->us04->submitted) {
 			do {
 				err = usb_submit_urb(usx2y->us04->urb[usx2y->us04->submitted++], GFP_ATOMIC);
 			} while (!err && usx2y->us04->submitted < usx2y->us04->len);
-	} else
+		}
+	} else {
 		if (us428ctls && us428ctls->p4out_last >= 0 && us428ctls->p4out_last < N_US428_P4OUT_BUFS) {
 			if (us428ctls->p4out_last != us428ctls->p4out_sent) {
-				int j, send = us428ctls->p4out_sent + 1;
-
+				send = us428ctls->p4out_sent + 1;
 				if (send >= N_US428_P4OUT_BUFS)
 					send = 0;
-				for (j = 0; j < URBS_ASYNC_SEQ  &&  !err; ++j)
-					if (0 == usx2y->as04.urb[j]->status) {
-						struct us428_p4out *p4out = us428ctls->p4out + send;	// FIXME if more than 1 p4out is new, 1 gets lost.
-
+				for (j = 0; j < URBS_ASYNC_SEQ && !err; ++j) {
+					if (!usx2y->as04.urb[j]->status) {
+						p4out = us428ctls->p4out + send;	// FIXME if more than 1 p4out is new, 1 gets lost.
 						usb_fill_bulk_urb(usx2y->as04.urb[j], usx2y->dev,
 								  usb_sndbulkpipe(usx2y->dev, 0x04), &p4out->val.vol,
 								  p4out->type == ELT_LIGHT ? sizeof(struct us428_lights) : 5,
@@ -236,8 +233,10 @@ static void i_usx2y_in04_int(struct urb *urb)
 						us428ctls->p4out_sent = send;
 						break;
 					}
+				}
 			}
 		}
+	}
 
 	if (err)
 		snd_printk(KERN_ERR "in04_int() usb_submit_urb err=%i\n", err);
@@ -255,31 +254,35 @@ int usx2y_async_seq04_init(struct usx2ydev *usx2y)
 
 	usx2y->as04.buffer = kmalloc_array(URBS_ASYNC_SEQ,
 					   URB_DATA_LEN_ASYNC_SEQ, GFP_KERNEL);
-	if (NULL == usx2y->as04.buffer) {
+	if (!usx2y->as04.buffer) {
 		err = -ENOMEM;
-	} else
+	} else {
 		for (i = 0; i < URBS_ASYNC_SEQ; ++i) {
-			if (NULL == (usx2y->as04.urb[i] = usb_alloc_urb(0, GFP_KERNEL))) {
+			usx2y->as04.urb[i] = usb_alloc_urb(0, GFP_KERNEL);
+			if (!usx2y->as04.urb[i]) {
 				err = -ENOMEM;
 				break;
 			}
 			usb_fill_bulk_urb(usx2y->as04.urb[i], usx2y->dev,
 					  usb_sndbulkpipe(usx2y->dev, 0x04),
-					  usx2y->as04.buffer + URB_DATA_LEN_ASYNC_SEQ*i, 0,
+					  usx2y->as04.buffer + URB_DATA_LEN_ASYNC_SEQ * i, 0,
 					  i_usx2y_out04_int, usx2y);
 			err = usb_urb_ep_type_check(usx2y->as04.urb[i]);
 			if (err < 0)
 				break;
 		}
+	}
 	return err;
 }
 
 int usx2y_in04_init(struct usx2ydev *usx2y)
 {
-	if (!(usx2y->in04_urb = usb_alloc_urb(0, GFP_KERNEL)))
+	usx2y->in04_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!usx2y->in04_urb)
 		return -ENOMEM;
 
-	if (!(usx2y->in04_buf = kmalloc(21, GFP_KERNEL)))
+	usx2y->in04_buf = kmalloc(21, GFP_KERNEL);
+	if (!usx2y->in04_buf)
 		return -ENOMEM;
 
 	init_waitqueue_head(&usx2y->in04_wait_queue);
@@ -354,8 +357,7 @@ static int usx2y_create_card(struct usb_device *device,
 		le16_to_cpu(device->descriptor.idVendor),
 		le16_to_cpu(device->descriptor.idProduct),
 		0,//us428(card)->usbmidi.ifnum,
-		usx2y(card)->dev->bus->busnum, usx2y(card)->dev->devnum
-		);
+		usx2y(card)->dev->bus->busnum, usx2y(card)->dev->devnum);
 	*cardp = card;
 	return 0;
 }
@@ -378,13 +380,18 @@ static int usx2y_usb_probe(struct usb_device *device,
 	err = usx2y_create_card(device, intf, &card);
 	if (err < 0)
 		return err;
-	if ((err = usx2y_hwdep_new(card, device)) < 0  ||
-	    (err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = usx2y_hwdep_new(card, device);
+	if (err < 0)
+		goto error;
+	err = snd_card_register(card);
+	if (err < 0)
+		goto error;
 	*cardp = card;
 	return 0;
+
+ error:
+	snd_card_free(card);
+	return err;
 }
 
 /*
@@ -405,7 +412,7 @@ static int snd_usx2y_probe(struct usb_interface *intf, const struct usb_device_i
 static void snd_usx2y_disconnect(struct usb_interface *intf)
 {
 	usx2y_usb_disconnect(interface_to_usbdev(intf),
-				 usb_get_intfdata(intf));
+			     usb_get_intfdata(intf));
 }
 
 static struct usb_driver snd_usx2y_usb_driver = {
@@ -417,13 +424,15 @@ static struct usb_driver snd_usx2y_usb_driver = {
 
 static void snd_usx2y_card_private_free(struct snd_card *card)
 {
-	kfree(usx2y(card)->in04_buf);
-	usb_free_urb(usx2y(card)->in04_urb);
-	if (usx2y(card)->us428ctls_sharedmem)
-		free_pages_exact(usx2y(card)->us428ctls_sharedmem,
-				 sizeof(*usx2y(card)->us428ctls_sharedmem));
-	if (usx2y(card)->card_index >= 0  &&  usx2y(card)->card_index < SNDRV_CARDS)
-		snd_usx2y_card_used[usx2y(card)->card_index] = 0;
+	struct usx2ydev *usx2y = usx2y(card);
+
+	kfree(usx2y->in04_buf);
+	usb_free_urb(usx2y->in04_urb);
+	if (usx2y->us428ctls_sharedmem)
+		free_pages_exact(usx2y->us428ctls_sharedmem,
+				 sizeof(*usx2y->us428ctls_sharedmem));
+	if (usx2y->card_index >= 0 && usx2y->card_index < SNDRV_CARDS)
+		snd_usx2y_card_used[usx2y->card_index] = 0;
 }
 
 /*
@@ -431,23 +440,26 @@ static void snd_usx2y_card_private_free(struct snd_card *card)
  */
 static void usx2y_usb_disconnect(struct usb_device *device, void *ptr)
 {
-	if (ptr) {
-		struct snd_card *card = ptr;
-		struct usx2ydev *usx2y = usx2y(card);
-		struct list_head *p;
+	struct snd_card *card;
+	struct usx2ydev *usx2y;
+	struct list_head *p;
 
-		usx2y->chip_status = USX2Y_STAT_CHIP_HUP;
-		usx2y_unlinkseq(&usx2y->as04);
-		usb_kill_urb(usx2y->in04_urb);
-		snd_card_disconnect(card);
-		/* release the midi resources */
-		list_for_each(p, &usx2y->midi_list) {
-			snd_usbmidi_disconnect(p);
-		}
-		if (usx2y->us428ctls_sharedmem)
-			wake_up(&usx2y->us428ctls_wait_queue_head);
-		snd_card_free(card);
+	if (!ptr)
+		return;
+	card = ptr;
+	usx2y = usx2y(card);
+	usx2y->chip_status = USX2Y_STAT_CHIP_HUP;
+	usx2y_unlinkseq(&usx2y->as04);
+	usb_kill_urb(usx2y->in04_urb);
+	snd_card_disconnect(card);
+
+	/* release the midi resources */
+	list_for_each(p, &usx2y->midi_list) {
+		snd_usbmidi_disconnect(p);
 	}
+	if (usx2y->us428ctls_sharedmem)
+		wake_up(&usx2y->us428ctls_wait_queue_head);
+	snd_card_free(card);
 }
 
 module_usb_driver(snd_usx2y_usb_driver);

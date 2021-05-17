@@ -10,7 +10,7 @@
 
 /*                             setup                                  */
 
-static unsigned usb_stream_next_packet_size(struct usb_stream_kernel *sk)
+static unsigned int usb_stream_next_packet_size(struct usb_stream_kernel *sk)
 {
 	struct usb_stream *s = sk->s;
 
@@ -44,9 +44,10 @@ check:
 		    lb, s->period_size);
 }
 
-static int init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
-			   struct urb **urbs, char *transfer,
-			   struct usb_device *dev, int pipe)
+static int init_pipe_urbs(struct usb_stream_kernel *sk,
+			  unsigned int use_packsize,
+			  struct urb **urbs, char *transfer,
+			  struct usb_device *dev, int pipe)
 {
 	int u, p;
 	int maxpacket = use_packsize ?
@@ -82,8 +83,8 @@ static int init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
 	return 0;
 }
 
-static int init_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
-		      struct usb_device *dev, int in_pipe, int out_pipe)
+static int init_urbs(struct usb_stream_kernel *sk, unsigned int use_packsize,
+		     struct usb_device *dev, int in_pipe, int out_pipe)
 {
 	struct usb_stream	*s = sk->s;
 	char			*indata =
@@ -112,7 +113,7 @@ static int init_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
  * convert a sampling rate into our full speed format (fs/1000 in Q16.16)
  * this will overflow at approx 524 kHz
  */
-static inline unsigned get_usb_full_speed_rate(unsigned rate)
+static inline unsigned int get_usb_full_speed_rate(unsigned int rate)
 {
 	return ((rate << 13) + 62) / 125;
 }
@@ -121,7 +122,7 @@ static inline unsigned get_usb_full_speed_rate(unsigned rate)
  * convert a sampling rate into USB high speed format (fs/8000 in Q16.16)
  * this will overflow at approx 4 MHz
  */
-static inline unsigned get_usb_high_speed_rate(unsigned rate)
+static inline unsigned int get_usb_high_speed_rate(unsigned int rate)
 {
 	return ((rate << 10) + 62) / 125;
 }
@@ -129,7 +130,7 @@ static inline unsigned get_usb_high_speed_rate(unsigned rate)
 void usb_stream_free(struct usb_stream_kernel *sk)
 {
 	struct usb_stream *s;
-	unsigned u;
+	unsigned int u;
 
 	for (u = 0; u < USB_STREAM_NURBS; ++u) {
 		usb_free_urb(sk->inurb[u]);
@@ -150,9 +151,12 @@ void usb_stream_free(struct usb_stream_kernel *sk)
 
 struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 				  struct usb_device *dev,
-				  unsigned in_endpoint, unsigned out_endpoint,
-				  unsigned sample_rate, unsigned use_packsize,
-				  unsigned period_frames, unsigned frame_size)
+				  unsigned int in_endpoint,
+				  unsigned int out_endpoint,
+				  unsigned int sample_rate,
+				  unsigned int use_packsize,
+				  unsigned int period_frames,
+				  unsigned int frame_size)
 {
 	int packets, max_packsize;
 	int in_pipe, out_pipe;
@@ -528,7 +532,7 @@ static void stream_start(struct usb_stream_kernel *sk,
 	if (s->state >= usb_stream_sync1) {
 		int l, p, max_diff, max_diff_0;
 		int urb_size = 0;
-		unsigned frames_per_packet, min_frames = 0;
+		unsigned int frames_per_packet, min_frames = 0;
 
 		frames_per_packet = (s->period_size - s->idle_insize);
 		frames_per_packet <<= 8;
@@ -570,7 +574,7 @@ static void stream_start(struct usb_stream_kernel *sk,
 				(s->inpacket_head + 1) % s->inpackets;
 			s->next_inpacket_split_at = 0;
 		} else {
-			unsigned split = s->inpacket_head;
+			unsigned int split = s->inpacket_head;
 
 			l = s->idle_insize;
 			while (l > s->inpacket[split].length) {

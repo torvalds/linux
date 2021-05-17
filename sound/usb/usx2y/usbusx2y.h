@@ -30,7 +30,7 @@ struct usx2ydev {
 	struct urb		*in04_urb;
 	void			*in04_buf;
 	char			in04_last[24];
-	unsigned		in04_int_calls;
+	unsigned int		in04_int_calls;
 	struct snd_usx2y_urb_seq	*us04;
 	wait_queue_head_t	in04_wait_queue;
 	struct snd_usx2y_async_seq	as04;
