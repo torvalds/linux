@@ -513,7 +513,7 @@ ecryptfs_dentry_to_lower_path(struct dentry *dentry)
 }
 
 #define ecryptfs_printk(type, fmt, arg...) \
-        __ecryptfs_printk(type "%s: " fmt, __func__, ## arg);
+        __ecryptfs_printk(type "%s: " fmt, __func__, ## arg)
 __printf(1, 2)
 void __ecryptfs_printk(const char *fmt, ...);
 

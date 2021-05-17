@@ -210,16 +210,6 @@ long vread(char *buf, char *addr, unsigned long count)
 	return count;
 }
 
-long vwrite(char *buf, char *addr, unsigned long count)
-{
-	/* Don't allow overflow */
-	if ((unsigned long) addr + count < count)
-		count = -(unsigned long) addr;
-
-	memcpy(addr, buf, count);
-	return count;
-}
-
 /*
  *	vmalloc  -  allocate virtually contiguous memory
  *

@@ -4184,6 +4184,7 @@ static int nf_tables_newset(struct sk_buff *skb, const struct nfnl_info *info,
 	unsigned char *udata;
 	struct nft_set *set;
 	struct nft_ctx ctx;
+	size_t alloc_size;
 	u64 timeout;
 	char *name;
 	int err, i;
@@ -4329,8 +4330,10 @@ static int nf_tables_newset(struct sk_buff *skb, const struct nfnl_info *info,
 	size = 0;
 	if (ops->privsize != NULL)
 		size = ops->privsize(nla, &desc);
-
-	set = kvzalloc(sizeof(*set) + size + udlen, GFP_KERNEL);
+	alloc_size = sizeof(*set) + size + udlen;
+	if (alloc_size < size)
+		return -ENOMEM;
+	set = kvzalloc(alloc_size, GFP_KERNEL);
 	if (!set)
 		return -ENOMEM;
 
@@ -6615,9 +6618,9 @@ err_obj_ht:
 	INIT_LIST_HEAD(&obj->list);
 	return err;
 err_trans:
-	kfree(obj->key.name);
-err_userdata:
 	kfree(obj->udata);
+err_userdata:
+	kfree(obj->key.name);
 err_strdup:
 	if (obj->ops->destroy)
 		obj->ops->destroy(&ctx, obj);

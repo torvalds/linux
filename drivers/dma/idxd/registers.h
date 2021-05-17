@@ -24,8 +24,8 @@ union gen_cap_reg {
 		u64 overlap_copy:1;
 		u64 cache_control_mem:1;
 		u64 cache_control_cache:1;
+		u64 cmd_cap:1;
 		u64 rsvd:3;
-		u64 int_handle_req:1;
 		u64 dest_readback:1;
 		u64 drain_readback:1;
 		u64 rsvd2:6;
@@ -120,7 +120,8 @@ union gencfg_reg {
 union genctrl_reg {
 	struct {
 		u32 softerr_int_en:1;
-		u32 rsvd:31;
+		u32 halt_int_en:1;
+		u32 rsvd:30;
 	};
 	u32 bits;
 } __packed;
@@ -180,7 +181,10 @@ enum idxd_cmd {
 	IDXD_CMD_DRAIN_PASID,
 	IDXD_CMD_ABORT_PASID,
 	IDXD_CMD_REQUEST_INT_HANDLE,
+	IDXD_CMD_RELEASE_INT_HANDLE,
 };
+
+#define CMD_INT_HANDLE_IMS		0x10000
 
 #define IDXD_CMDSTS_OFFSET		0xa8
 union cmdsts_reg {
@@ -193,6 +197,8 @@ union cmdsts_reg {
 	u32 bits;
 } __packed;
 #define IDXD_CMDSTS_ACTIVE		0x80000000
+#define IDXD_CMDSTS_ERR_MASK		0xff
+#define IDXD_CMDSTS_RES_SHIFT		8
 
 enum idxd_cmdsts_err {
 	IDXD_CMDSTS_SUCCESS = 0,
@@ -227,6 +233,8 @@ enum idxd_cmdsts_err {
 	IDXD_CMDSTS_ERR_INVAL_INT_IDX = 0x41,
 	IDXD_CMDSTS_ERR_NO_HANDLE,
 };
+
+#define IDXD_CMDCAP_OFFSET		0xb0
 
 #define IDXD_SWERR_OFFSET		0xc0
 #define IDXD_SWERR_VALID		0x00000001
@@ -377,5 +385,113 @@ union wqcfg {
 					   (n) * GRPCFG_SIZE + sizeof(u64) * (ofs))
 #define GRPENGCFG_OFFSET(idxd_dev, n) ((idxd_dev)->grpcfg_offset + (n) * GRPCFG_SIZE + 32)
 #define GRPFLGCFG_OFFSET(idxd_dev, n) ((idxd_dev)->grpcfg_offset + (n) * GRPCFG_SIZE + 40)
+
+/* Following is performance monitor registers */
+#define IDXD_PERFCAP_OFFSET		0x0
+union idxd_perfcap {
+	struct {
+		u64 num_perf_counter:6;
+		u64 rsvd1:2;
+		u64 counter_width:8;
+		u64 num_event_category:4;
+		u64 global_event_category:16;
+		u64 filter:8;
+		u64 rsvd2:8;
+		u64 cap_per_counter:1;
+		u64 writeable_counter:1;
+		u64 counter_freeze:1;
+		u64 overflow_interrupt:1;
+		u64 rsvd3:8;
+	};
+	u64 bits;
+} __packed;
+
+#define IDXD_EVNTCAP_OFFSET		0x80
+union idxd_evntcap {
+	struct {
+		u64 events:28;
+		u64 rsvd:36;
+	};
+	u64 bits;
+} __packed;
+
+struct idxd_event {
+	union {
+		struct {
+			u32 event_category:4;
+			u32 events:28;
+		};
+		u32 val;
+	};
+} __packed;
+
+#define IDXD_CNTRCAP_OFFSET		0x800
+struct idxd_cntrcap {
+	union {
+		struct {
+			u32 counter_width:8;
+			u32 rsvd:20;
+			u32 num_events:4;
+		};
+		u32 val;
+	};
+	struct idxd_event events[];
+} __packed;
+
+#define IDXD_PERFRST_OFFSET		0x10
+union idxd_perfrst {
+	struct {
+		u32 perfrst_config:1;
+		u32 perfrst_counter:1;
+		u32 rsvd:30;
+	};
+	u32 val;
+} __packed;
+
+#define IDXD_OVFSTATUS_OFFSET		0x30
+#define IDXD_PERFFRZ_OFFSET		0x20
+#define IDXD_CNTRCFG_OFFSET		0x100
+union idxd_cntrcfg {
+	struct {
+		u64 enable:1;
+		u64 interrupt_ovf:1;
+		u64 global_freeze_ovf:1;
+		u64 rsvd1:5;
+		u64 event_category:4;
+		u64 rsvd2:20;
+		u64 events:28;
+		u64 rsvd3:4;
+	};
+	u64 val;
+} __packed;
+
+#define IDXD_FLTCFG_OFFSET		0x300
+
+#define IDXD_CNTRDATA_OFFSET		0x200
+union idxd_cntrdata {
+	struct {
+		u64 event_count_value;
+	};
+	u64 val;
+} __packed;
+
+union event_cfg {
+	struct {
+		u64 event_cat:4;
+		u64 event_enc:28;
+	};
+	u64 val;
+} __packed;
+
+union filter_cfg {
+	struct {
+		u64 wq:32;
+		u64 tc:8;
+		u64 pg_sz:4;
+		u64 xfer_sz:8;
+		u64 eng:8;
+	};
+	u64 val;
+} __packed;
 
 #endif

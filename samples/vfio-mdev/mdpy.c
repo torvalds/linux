@@ -667,8 +667,7 @@ static ssize_t description_show(struct mdev_type *mtype,
 		&mdpy_types[mtype_get_type_group_id(mtype)];
 
 	return sprintf(buf, "virtual display, %dx%d framebuffer\n",
-		       type ? type->width  : 0,
-		       type ? type->height : 0);
+		       type->width, type->height);
 }
 static MDEV_TYPE_ATTR_RO(description);
 

@@ -185,7 +185,6 @@ static int ep93xx_pwm_probe(struct platform_device *pdev)
 
 	ep93xx_pwm->chip.dev = &pdev->dev;
 	ep93xx_pwm->chip.ops = &ep93xx_pwm_ops;
-	ep93xx_pwm->chip.base = -1;
 	ep93xx_pwm->chip.npwm = 1;
 
 	ret = pwmchip_add(&ep93xx_pwm->chip);

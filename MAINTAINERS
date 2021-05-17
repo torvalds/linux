@@ -624,6 +624,7 @@ F:	fs/affs/
 
 AFS FILESYSTEM
 M:	David Howells <dhowells@redhat.com>
+M:	Marc Dionne <marc.dionne@auristor.com>
 L:	linux-afs@lists.infradead.org
 S:	Supported
 W:	https://www.infradead.org/~dhowells/kafs/
@@ -3206,6 +3207,22 @@ S:	Maintained
 F:	Documentation/filesystems/bfs.rst
 F:	fs/bfs/
 F:	include/uapi/linux/bfs_fs.h
+
+BITMAP API
+M:	Yury Norov <yury.norov@gmail.com>
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+R:	Rasmus Villemoes <linux@rasmusvillemoes.dk>
+S:	Maintained
+F:	include/asm-generic/bitops/find.h
+F:	include/linux/bitmap.h
+F:	lib/bitmap.c
+F:	lib/find_bit.c
+F:	lib/find_bit_benchmark.c
+F:	lib/test_bitmap.c
+F:	tools/include/asm-generic/bitops/find.h
+F:	tools/include/linux/bitmap.h
+F:	tools/lib/bitmap.c
+F:	tools/lib/find_bit.c
 
 BLINKM RGB LED DRIVER
 M:	Jan-Simon Moeller <jansimon.moeller@gmx.de>
@@ -8388,6 +8405,13 @@ S:	Maintained
 F:	mm/hwpoison-inject.c
 F:	mm/memory-failure.c
 
+HYCON HY46XX TOUCHSCREEN SUPPORT
+M:	Giulio Benetti <giulio.benetti@benettiengineering.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/touchscreen/hycon,hy46xx.yaml
+F:	drivers/input/touchscreen/hycon-hy46xx.c
+
 HYGON PROCESSOR SUPPORT
 M:	Pu Wen <puwen@hygon.cn>
 L:	linux-kernel@vger.kernel.org
@@ -9529,6 +9553,7 @@ F:	fs/io-wq.h
 F:	fs/io_uring.c
 F:	include/linux/io_uring.h
 F:	include/uapi/linux/io_uring.h
+F:	tools/io_uring/
 
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
@@ -10169,6 +10194,12 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 F:	Documentation/devicetree/bindings/leds/backlight/kinetic,ktd253.yaml
 F:	drivers/video/backlight/ktd253-backlight.c
+
+KTEST
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	John Hawley <warthog9@eaglescrag.net>
+S:	Maintained
+F:	tools/testing/ktest
 
 L3MDEV
 M:	David Ahern <dsahern@kernel.org>
@@ -13977,6 +14008,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/fsl,imx6q-pcie.txt
 F:	drivers/pci/controller/dwc/*imx6*
 
+PCI DRIVER FOR FU740
+M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Greentime Hu <greentime.hu@sifive.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/sifive,fu740-pcie.yaml
+F:	drivers/pci/controller/dwc/pcie-fu740.c
+
 PCI DRIVER FOR INTEL VOLUME MANAGEMENT DEVICE (VMD)
 M:	Jonathan Derrick <jonathan.derrick@intel.com>
 L:	linux-pci@vger.kernel.org
@@ -14060,13 +14099,6 @@ S:	Supported
 F:	Documentation/devicetree/bindings/pci/ti-pci.txt
 F:	drivers/pci/controller/cadence/pci-j721e.c
 F:	drivers/pci/controller/dwc/pci-dra7xx.c
-
-PCI DRIVER FOR TI KEYSTONE
-M:	Murali Karicheri <m-karicheri2@ti.com>
-L:	linux-pci@vger.kernel.org
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/pci/controller/dwc/pci-keystone.c
 
 PCI DRIVER FOR V3 SEMICONDUCTOR V360EPC
 M:	Linus Walleij <linus.walleij@linaro.org>
@@ -14184,7 +14216,6 @@ PCIE DRIVER FOR HISILICON
 M:	Zhou Wang <wangzhou1@hisilicon.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/pci/hisilicon-pcie.txt
 F:	drivers/pci/controller/dwc/pcie-hisi.c
 
 PCIE DRIVER FOR HISILICON KIRIN
@@ -14204,6 +14235,7 @@ F:	drivers/pci/controller/dwc/pcie-histb.c
 
 PCIE DRIVER FOR MEDIATEK
 M:	Ryder Lee <ryder.lee@mediatek.com>
+M:	Jianjun Wang <jianjun.wang@mediatek.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-mediatek@lists.infradead.org
 S:	Supported
@@ -15191,6 +15223,7 @@ F:	include/linux/if_rmnet.h
 
 QUALCOMM TSENS THERMAL DRIVER
 M:	Amit Kucheria <amitk@kernel.org>
+M:	Thara Gopinath <thara.gopinath@linaro.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -15852,6 +15885,7 @@ F:	drivers/infiniband/ulp/rtrs/
 
 RXRPC SOCKETS (AF_RXRPC)
 M:	David Howells <dhowells@redhat.com>
+M:	Marc Dionne <marc.dionne@auristor.com>
 L:	linux-afs@lists.infradead.org
 S:	Supported
 W:	https://www.infradead.org/~dhowells/kafs/
@@ -18095,7 +18129,7 @@ THERMAL/CPU_COOLING
 M:	Amit Daniel Kachhap <amit.kachhap@gmail.com>
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
-M:	Javi Merino <javi.merino@kernel.org>
+R:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/driver-api/thermal/cpu-cooling-api.rst
@@ -18267,13 +18301,6 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/isabelle*
 F:	sound/soc/codecs/lm49453*
-
-TI NETCP ETHERNET DRIVER
-M:	Wingman Kwok <w-kwok2@ti.com>
-M:	Murali Karicheri <m-karicheri2@ti.com>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/ti/netcp*
 
 TI PCM3060 ASoC CODEC DRIVER
 M:	Kirill Marinushkin <kmarinushkin@birdec.com>

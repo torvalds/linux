@@ -48,7 +48,7 @@ TRACE_EVENT(rcu_utilization,
  * RCU flavor, the grace-period number, and a string identifying the
  * grace-period-related event as follows:
  *
- *	"AccReadyCB": CPU acclerates new callbacks to RCU_NEXT_READY_TAIL.
+ *	"AccReadyCB": CPU accelerates new callbacks to RCU_NEXT_READY_TAIL.
  *	"AccWaitCB": CPU accelerates new callbacks to RCU_WAIT_TAIL.
  *	"newreq": Request a new grace period.
  *	"start": Start a grace period.

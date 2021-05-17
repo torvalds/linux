@@ -113,6 +113,12 @@ ABI relaxation:
 
 - ``shmat()`` and ``shmdt()``.
 
+- ``brk()`` (since kernel v5.6).
+
+- ``mmap()`` (since kernel v5.6).
+
+- ``mremap()``, the ``new_address`` argument (since kernel v5.6).
+
 Any attempt to use non-zero tagged pointers may result in an error code
 being returned, a (fatal) signal being raised, or other modes of
 failure.

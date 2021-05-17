@@ -254,13 +254,13 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		if (mb->un.varDmp.word_cnt == 0)
 			break;
 
-		i =  mb->un.varDmp.word_cnt * sizeof(uint32_t);
-		if (offset + i >  DMP_VPD_SIZE)
-			i =  DMP_VPD_SIZE - offset;
+		if (mb->un.varDmp.word_cnt > DMP_VPD_SIZE - offset)
+			mb->un.varDmp.word_cnt = DMP_VPD_SIZE - offset;
 		lpfc_sli_pcimem_bcopy(((uint8_t *)mb) + DMP_RSP_OFFSET,
-				      lpfc_vpd_data  + offset, i);
-		offset += i;
-	} while (offset < DMP_VPD_SIZE);
+				      lpfc_vpd_data + offset,
+				      mb->un.varDmp.word_cnt);
+		offset += mb->un.varDmp.word_cnt;
+	} while (mb->un.varDmp.word_cnt && offset < DMP_VPD_SIZE);
 
 	lpfc_parse_vpd(phba, lpfc_vpd_data, offset);
 

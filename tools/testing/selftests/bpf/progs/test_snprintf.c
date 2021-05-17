@@ -5,6 +5,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
+__u32 pid = 0;
+
 char num_out[64] = {};
 long num_ret = 0;
 
@@ -41,6 +43,9 @@ int handler(const void *ctx)
 	const __u8 ex_ipv6[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
 	static const char str1[] = "str1";
 	static const char longstr[] = "longstr";
+
+	if ((int)bpf_get_current_pid_tgid() != pid)
+		return 0;
 
 	/* Integer types */
 	num_ret  = BPF_SNPRINTF(num_out, sizeof(num_out),

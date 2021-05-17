@@ -638,6 +638,21 @@ struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, blk_mq_req_flags_t flags);
 void nvme_cleanup_cmd(struct request *req);
 blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req);
+blk_status_t nvme_fail_nonready_command(struct nvme_ctrl *ctrl,
+		struct request *req);
+bool __nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
+		bool queue_live);
+
+static inline bool nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
+		bool queue_live)
+{
+	if (likely(ctrl->state == NVME_CTRL_LIVE))
+		return true;
+	if (ctrl->ops->flags & NVME_F_FABRICS &&
+	    ctrl->state == NVME_CTRL_DELETING)
+		return true;
+	return __nvme_check_ready(ctrl, rq, queue_live);
+}
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
@@ -664,7 +679,6 @@ struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
 void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx);
 bool nvme_tryget_ns_head(struct nvme_ns_head *head);
 void nvme_put_ns_head(struct nvme_ns_head *head);
-struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys);
 int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 		const struct file_operations *fops, struct module *owner);
 void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device);

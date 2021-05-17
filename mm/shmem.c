@@ -3508,7 +3508,7 @@ static int shmem_parse_options(struct fs_context *fc, void *data)
 			}
 		}
 		if (*this_char) {
-			char *value = strchr(this_char,'=');
+			char *value = strchr(this_char, '=');
 			size_t len = 0;
 			int err;
 

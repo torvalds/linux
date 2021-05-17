@@ -33,7 +33,7 @@
 /*
  * If the arch's mcount caller does not support all of ftrace's
  * features, then it must call an indirect function that
- * does. Or at least does enough to prevent any unwelcomed side effects.
+ * does. Or at least does enough to prevent any unwelcome side effects.
  */
 #if !ARCH_SUPPORTS_FTRACE_OPS
 # define FTRACE_FORCE_LIST_FUNC 1
@@ -389,7 +389,7 @@ DECLARE_PER_CPU(int, disable_stack_tracer);
  */
 static inline void stack_tracer_disable(void)
 {
-	/* Preemption or interupts must be disabled */
+	/* Preemption or interrupts must be disabled */
 	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_inc(disable_stack_tracer);

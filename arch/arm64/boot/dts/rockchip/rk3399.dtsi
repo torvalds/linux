@@ -1182,7 +1182,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm0_pin>;
 		clocks = <&pmucru PCLK_RKPWM_PMU>;
-		clock-names = "pwm";
 		status = "disabled";
 	};
 
@@ -1193,7 +1192,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm1_pin>;
 		clocks = <&pmucru PCLK_RKPWM_PMU>;
-		clock-names = "pwm";
 		status = "disabled";
 	};
 
@@ -1204,7 +1202,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm2_pin>;
 		clocks = <&pmucru PCLK_RKPWM_PMU>;
-		clock-names = "pwm";
 		status = "disabled";
 	};
 
@@ -1215,7 +1212,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm3a_pin>;
 		clocks = <&pmucru PCLK_RKPWM_PMU>;
-		clock-names = "pwm";
 		status = "disabled";
 	};
 

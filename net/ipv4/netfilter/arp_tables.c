@@ -1556,13 +1556,12 @@ out_free:
 	return ret;
 }
 
-void arpt_unregister_table_pre_exit(struct net *net, const char *name,
-				    const struct nf_hook_ops *ops)
+void arpt_unregister_table_pre_exit(struct net *net, const char *name)
 {
 	struct xt_table *table = xt_find_table(net, NFPROTO_ARP, name);
 
 	if (table)
-		nf_unregister_net_hooks(net, ops, hweight32(table->valid_hooks));
+		nf_unregister_net_hooks(net, table->ops, hweight32(table->valid_hooks));
 }
 EXPORT_SYMBOL(arpt_unregister_table_pre_exit);
 

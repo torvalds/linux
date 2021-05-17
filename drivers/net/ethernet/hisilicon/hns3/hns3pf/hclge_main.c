@@ -3978,6 +3978,12 @@ static void hclge_update_reset_level(struct hclge_dev *hdev)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	enum hnae3_reset_type reset_level;
 
+	/* reset request will not be set during reset, so clear
+	 * pending reset request to avoid unnecessary reset
+	 * caused by the same reason.
+	 */
+	hclge_get_reset_level(ae_dev, &hdev->reset_request);
+
 	/* if default_reset_request has a higher level reset request,
 	 * it should be handled as soon as possible. since some errors
 	 * need this kind of reset to fix.

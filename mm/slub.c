@@ -3391,7 +3391,7 @@ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
  */
 
 /*
- * Mininum / Maximum order of slab pages. This influences locking overhead
+ * Minimum / Maximum order of slab pages. This influences locking overhead
  * and slab fragmentation. A higher order reduces the number of partial slabs
  * and increases the number of allocations possible without having to
  * take the list_lock.

@@ -64,7 +64,6 @@ static inline void *phys_to_virt(unsigned long address)
  * convert a physical pointer to a virtual kernel pointer for
  * /dev/mem access.
  */
-#define xlate_dev_kmem_ptr(p)    __va(p)
 #define xlate_dev_mem_ptr(p)    __va(p)
 
 /*

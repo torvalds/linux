@@ -576,6 +576,11 @@ static void nvme_free_ns(struct kref *kref)
 	kfree(ns);
 }
 
+static inline bool nvme_get_ns(struct nvme_ns *ns)
+{
+	return kref_get_unless_zero(&ns->kref);
+}
+
 void nvme_put_ns(struct nvme_ns *ns)
 {
 	kref_put(&ns->kref, nvme_free_ns);
@@ -584,9 +589,6 @@ EXPORT_SYMBOL_NS_GPL(nvme_put_ns, NVME_TARGET_PASSTHRU);
 
 static inline void nvme_clear_nvme_request(struct request *req)
 {
-	struct nvme_command *cmd = nvme_req(req)->cmd;
-
-	memset(cmd, 0, sizeof(*cmd));
 	nvme_req(req)->retries = 0;
 	nvme_req(req)->flags = 0;
 	req->rq_flags |= RQF_DONTPREP;
@@ -636,6 +638,66 @@ static struct request *nvme_alloc_request_qid(struct request_queue *q,
 		nvme_init_request(req, cmd);
 	return req;
 }
+
+/*
+ * For something we're not in a state to send to the device the default action
+ * is to busy it and retry it after the controller state is recovered.  However,
+ * if the controller is deleting or if anything is marked for failfast or
+ * nvme multipath it is immediately failed.
+ *
+ * Note: commands used to initialize the controller will be marked for failfast.
+ * Note: nvme cli/ioctl commands are marked for failfast.
+ */
+blk_status_t nvme_fail_nonready_command(struct nvme_ctrl *ctrl,
+		struct request *rq)
+{
+	if (ctrl->state != NVME_CTRL_DELETING_NOIO &&
+	    ctrl->state != NVME_CTRL_DEAD &&
+	    !test_bit(NVME_CTRL_FAILFAST_EXPIRED, &ctrl->flags) &&
+	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
+		return BLK_STS_RESOURCE;
+	return nvme_host_path_error(rq);
+}
+EXPORT_SYMBOL_GPL(nvme_fail_nonready_command);
+
+bool __nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
+		bool queue_live)
+{
+	struct nvme_request *req = nvme_req(rq);
+
+	/*
+	 * currently we have a problem sending passthru commands
+	 * on the admin_q if the controller is not LIVE because we can't
+	 * make sure that they are going out after the admin connect,
+	 * controller enable and/or other commands in the initialization
+	 * sequence. until the controller will be LIVE, fail with
+	 * BLK_STS_RESOURCE so that they will be rescheduled.
+	 */
+	if (rq->q == ctrl->admin_q && (req->flags & NVME_REQ_USERCMD))
+		return false;
+
+	if (ctrl->ops->flags & NVME_F_FABRICS) {
+		/*
+		 * Only allow commands on a live queue, except for the connect
+		 * command, which is require to set the queue live in the
+		 * appropinquate states.
+		 */
+		switch (ctrl->state) {
+		case NVME_CTRL_CONNECTING:
+			if (blk_rq_is_passthrough(rq) && nvme_is_fabrics(req->cmd) &&
+			    req->cmd->fabrics.fctype == nvme_fabrics_type_connect)
+				return true;
+			break;
+		default:
+			break;
+		case NVME_CTRL_DEAD:
+			return false;
+		}
+	}
+
+	return queue_live;
+}
+EXPORT_SYMBOL_GPL(__nvme_check_ready);
 
 static int nvme_toggle_streams(struct nvme_ctrl *ctrl, bool enable)
 {
@@ -898,8 +960,10 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 	struct nvme_command *cmd = nvme_req(req)->cmd;
 	blk_status_t ret = BLK_STS_OK;
 
-	if (!(req->rq_flags & RQF_DONTPREP))
+	if (!(req->rq_flags & RQF_DONTPREP)) {
 		nvme_clear_nvme_request(req);
+		memset(cmd, 0, sizeof(*cmd));
+	}
 
 	switch (req_op(req)) {
 	case REQ_OP_DRV_IN:
@@ -1494,7 +1558,7 @@ static int nvme_ns_open(struct nvme_ns *ns)
 	/* should never be called due to GENHD_FL_HIDDEN */
 	if (WARN_ON_ONCE(nvme_ns_head_multipath(ns->head)))
 		goto fail;
-	if (!kref_get_unless_zero(&ns->kref))
+	if (!nvme_get_ns(ns))
 		goto fail;
 	if (!try_module_get(ns->ctrl->ops->module))
 		goto fail_put_ns;
@@ -1998,28 +2062,6 @@ static const struct block_device_operations nvme_bdev_ops = {
 	.report_zones	= nvme_report_zones,
 	.pr_ops		= &nvme_pr_ops,
 };
-
-#ifdef CONFIG_NVME_MULTIPATH
-struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys)
-{
-	struct nvme_ctrl *ctrl;
-	int ret;
-
-	ret = mutex_lock_killable(&nvme_subsystems_lock);
-	if (ret)
-		return ERR_PTR(ret);
-	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry) {
-		if (ctrl->state == NVME_CTRL_LIVE)
-			goto found;
-	}
-	mutex_unlock(&nvme_subsystems_lock);
-	return ERR_PTR(-EWOULDBLOCK);
-found:
-	nvme_get_ctrl(ctrl);
-	mutex_unlock(&nvme_subsystems_lock);
-	return ctrl;
-}
-#endif /* CONFIG_NVME_MULTIPATH */
 
 static int nvme_wait_ready(struct nvme_ctrl *ctrl, u64 cap, bool enabled)
 {
@@ -3604,7 +3646,7 @@ struct nvme_ns *nvme_find_get_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	down_read(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		if (ns->head->ns_id == nsid) {
-			if (!kref_get_unless_zero(&ns->kref))
+			if (!nvme_get_ns(ns))
 				continue;
 			ret = ns;
 			break;

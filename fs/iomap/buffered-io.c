@@ -1134,9 +1134,7 @@ iomap_ioend_can_merge(struct iomap_ioend *ioend, struct iomap_ioend *next)
 }
 
 void
-iomap_ioend_try_merge(struct iomap_ioend *ioend, struct list_head *more_ioends,
-		void (*merge_private)(struct iomap_ioend *ioend,
-				struct iomap_ioend *next))
+iomap_ioend_try_merge(struct iomap_ioend *ioend, struct list_head *more_ioends)
 {
 	struct iomap_ioend *next;
 
@@ -1148,8 +1146,6 @@ iomap_ioend_try_merge(struct iomap_ioend *ioend, struct list_head *more_ioends,
 			break;
 		list_move_tail(&next->io_list, &ioend->io_list);
 		ioend->io_size += next->io_size;
-		if (next->io_private && merge_private)
-			merge_private(ioend, next);
 	}
 }
 EXPORT_SYMBOL_GPL(iomap_ioend_try_merge);
@@ -1236,7 +1232,6 @@ iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
 	ioend->io_inode = inode;
 	ioend->io_size = 0;
 	ioend->io_offset = offset;
-	ioend->io_private = NULL;
 	ioend->io_bio = bio;
 	return ioend;
 }

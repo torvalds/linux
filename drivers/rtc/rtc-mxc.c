@@ -415,7 +415,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
-		   .of_match_table = of_match_ptr(imx_rtc_dt_ids),
+		   .of_match_table = imx_rtc_dt_ids,
 	},
 	.probe = mxc_rtc_probe,
 };

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 1997-2004 Erez Zadok
@@ -199,7 +199,7 @@ out_lock:
 	return inode;
 }
 
-/**
+/*
  * ecryptfs_initialize_file
  *
  * Cause the file to be changed from a basic empty file to an ecryptfs
@@ -242,10 +242,8 @@ out:
 	return rc;
 }
 
-/**
+/*
  * ecryptfs_create
- * @dir: The inode of the directory in which to create the file.
- * @dentry: The eCryptfs dentry
  * @mode: The mode of the new file.
  *
  * Creates a new file.
@@ -313,7 +311,7 @@ static int ecryptfs_i_size_read(struct dentry *dentry, struct inode *inode)
 	return 0;
 }
 
-/**
+/*
  * ecryptfs_lookup_interpose - Dentry interposition for a lookup
  */
 static struct dentry *ecryptfs_lookup_interpose(struct dentry *dentry,
@@ -873,6 +871,7 @@ ecryptfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
 
 /**
  * ecryptfs_setattr
+ * @mnt_userns: user namespace of the target mount
  * @dentry: dentry handle to the inode to modify
  * @ia: Structure with flags of what to change and values
  *

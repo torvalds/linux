@@ -256,11 +256,11 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    irq_hw_number_t hwirq_max, int direct_max,
 				    const struct irq_domain_ops *ops,
 				    void *host_data);
-struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
-					 unsigned int size,
-					 unsigned int first_irq,
-					 const struct irq_domain_ops *ops,
-					 void *host_data);
+struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
+					    unsigned int size,
+					    unsigned int first_irq,
+					    const struct irq_domain_ops *ops,
+					    void *host_data);
 struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 unsigned int size,
 					 unsigned int first_irq,
@@ -323,6 +323,15 @@ static inline struct irq_domain *irq_find_host(struct device_node *node)
 		d = irq_find_matching_host(node, DOMAIN_BUS_ANY);
 
 	return d;
+}
+
+static inline struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
+						       unsigned int size,
+						       unsigned int first_irq,
+						       const struct irq_domain_ops *ops,
+						       void *host_data)
+{
+	return irq_domain_create_simple(of_node_to_fwnode(of_node), size, first_irq, ops, host_data);
 }
 
 /**

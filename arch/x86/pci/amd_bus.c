@@ -126,7 +126,7 @@ static int __init early_root_info_init(void)
 		node = (reg >> 4) & 0x07;
 		link = (reg >> 8) & 0x03;
 
-		info = alloc_pci_root_info(min_bus, max_bus, node, link);
+		alloc_pci_root_info(min_bus, max_bus, node, link);
 	}
 
 	/*

@@ -480,6 +480,7 @@ devided||divided
 deviece||device
 devision||division
 diable||disable
+diabled||disabled
 dicline||decline
 dictionnary||dictionary
 didnt||didn't
@@ -1027,6 +1028,8 @@ oustanding||outstanding
 overaall||overall
 overhread||overhead
 overlaping||overlapping
+overflw||overflow
+overlfow||overflow
 overide||override
 overrided||overridden
 overriden||overridden

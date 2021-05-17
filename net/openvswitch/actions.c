@@ -827,17 +827,17 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 	}
 
 	if (key->eth.type == htons(ETH_P_IP)) {
-		struct dst_entry ovs_dst;
+		struct rtable ovs_rt = { 0 };
 		unsigned long orig_dst;
 
 		prepare_frag(vport, skb, orig_network_offset,
 			     ovs_key_mac_proto(key));
-		dst_init(&ovs_dst, &ovs_dst_ops, NULL, 1,
+		dst_init(&ovs_rt.dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
-		ovs_dst.dev = vport->dev;
+		ovs_rt.dst.dev = vport->dev;
 
 		orig_dst = skb->_skb_refdst;
-		skb_dst_set_noref(skb, &ovs_dst);
+		skb_dst_set_noref(skb, &ovs_rt.dst);
 		IPCB(skb)->frag_max_size = mru;
 
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);

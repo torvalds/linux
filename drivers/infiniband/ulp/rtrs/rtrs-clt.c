@@ -2976,7 +2976,8 @@ EXPORT_SYMBOL(rtrs_clt_request);
 
 int rtrs_clt_rdma_cq_direct(struct rtrs_clt *clt, unsigned int index)
 {
-	int cnt;
+	/* If no path, return -1 for block layer not to try again */
+	int cnt = -1;
 	struct rtrs_con *con;
 	struct rtrs_clt_sess *sess;
 	struct path_it it;

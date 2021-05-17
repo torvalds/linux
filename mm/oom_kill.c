@@ -74,7 +74,7 @@ static inline bool is_memcg_oom(struct oom_control *oc)
 
 #ifdef CONFIG_NUMA
 /**
- * oom_cpuset_eligible() - check task eligiblity for kill
+ * oom_cpuset_eligible() - check task eligibility for kill
  * @start: task struct of which task to consider
  * @oc: pointer to struct oom_control
  *
@@ -993,7 +993,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	if (oom_group) {
 		mem_cgroup_print_oom_group(oom_group);
 		mem_cgroup_scan_tasks(oom_group, oom_kill_memcg_member,
-				      (void*)message);
+				      (void *)message);
 		mem_cgroup_put(oom_group);
 	}
 }

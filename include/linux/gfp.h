@@ -490,7 +490,7 @@ static inline int gfp_zonelist(gfp_t flags)
 
 /*
  * We get the zone list from the current node and the gfp_mask.
- * This zone list contains a maximum of MAXNODES*MAX_NR_ZONES zones.
+ * This zone list contains a maximum of MAX_NUMNODES*MAX_NR_ZONES zones.
  * There are two zonelists per node, one for all zones with memory and
  * one containing just zones from the node the zonelist belongs to.
  *
@@ -657,7 +657,7 @@ extern int alloc_contig_range(unsigned long start, unsigned long end,
 extern struct page *alloc_contig_pages(unsigned long nr_pages, gfp_t gfp_mask,
 				       int nid, nodemask_t *nodemask);
 #endif
-void free_contig_range(unsigned long pfn, unsigned int nr_pages);
+void free_contig_range(unsigned long pfn, unsigned long nr_pages);
 
 #ifdef CONFIG_CMA
 /* CMA stuff */

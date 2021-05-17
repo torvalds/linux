@@ -53,15 +53,15 @@
 #define GSI_EE_REG_ADJUST			0x0000d000	/* IPA v4.5+ */
 
 /* The two inter-EE IRQ register offsets are relative to gsi->virt_raw */
-#define GSI_INTER_EE_SRC_CH_IRQ_OFFSET \
-			GSI_INTER_EE_N_SRC_CH_IRQ_OFFSET(GSI_EE_AP)
-#define GSI_INTER_EE_N_SRC_CH_IRQ_OFFSET(ee) \
-			(0x0000c018 + 0x1000 * (ee))
+#define GSI_INTER_EE_SRC_CH_IRQ_MSK_OFFSET \
+			GSI_INTER_EE_N_SRC_CH_IRQ_MSK_OFFSET(GSI_EE_AP)
+#define GSI_INTER_EE_N_SRC_CH_IRQ_MSK_OFFSET(ee) \
+			(0x0000c020 + 0x1000 * (ee))
 
-#define GSI_INTER_EE_SRC_EV_CH_IRQ_OFFSET \
-			GSI_INTER_EE_N_SRC_EV_CH_IRQ_OFFSET(GSI_EE_AP)
-#define GSI_INTER_EE_N_SRC_EV_CH_IRQ_OFFSET(ee) \
-			(0x0000c01c + 0x1000 * (ee))
+#define GSI_INTER_EE_SRC_EV_CH_IRQ_MSK_OFFSET \
+			GSI_INTER_EE_N_SRC_EV_CH_IRQ_MSK_OFFSET(GSI_EE_AP)
+#define GSI_INTER_EE_N_SRC_EV_CH_IRQ_MSK_OFFSET(ee) \
+			(0x0000c024 + 0x1000 * (ee))
 
 /* All other register offsets are relative to gsi->virt */
 

@@ -233,7 +233,7 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
 	/*
 	 * We don't clear the bit on the oldpage as it's going to be freed
 	 * after migration. Until then, the info can be useful in case of
-	 * a bug, and the overal stats will be off a bit only temporarily.
+	 * a bug, and the overall stats will be off a bit only temporarily.
 	 * Also, migrate_misplaced_transhuge_page() can still fail the
 	 * migration and then we want the oldpage to retain the info. But
 	 * in that case we also don't need to explicitly clear the info from

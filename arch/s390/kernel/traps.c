@@ -17,6 +17,7 @@
 #include "asm/ptrace.h"
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+#include <linux/randomize_kstack.h>
 #include <linux/extable.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
@@ -301,6 +302,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	unsigned int trapnr, syscall_redirect = 0;
 	irqentry_state_t state;
 
+	add_random_kstack_offset();
 	regs->int_code = *(u32 *)&S390_lowcore.pgm_ilc;
 	regs->int_parm_long = S390_lowcore.trans_exc_code;
 
