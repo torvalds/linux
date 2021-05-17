@@ -1546,7 +1546,8 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 	int status = 0;
 
 	if (handle->chip_info->fw_auth) {
-		if (!qat_uclo_map_auth_fw(handle, addr_ptr, mem_size, &desc))
+		status = qat_uclo_map_auth_fw(handle, addr_ptr, mem_size, &desc);
+		if (!status)
 			status = qat_uclo_auth_fw(handle, desc);
 		qat_uclo_ummap_auth_fw(handle, &desc);
 	} else {
