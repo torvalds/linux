@@ -1547,8 +1547,8 @@ static int rsi_eeprom_read(struct rsi_common *common)
 }
 
 /**
- * This function sends a frame to block/unblock
- * data queues in the firmware
+ * rsi_send_block_unblock_frame() - This function sends a frame to block/unblock
+ *                                  data queues in the firmware
  *
  * @common: Pointer to the driver private structure.
  * @block_event: Event block if true, unblock if false
