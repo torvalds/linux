@@ -983,8 +983,8 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 		/* warn ... we force this to PIO mode */
 		dev_warn_ratelimited(&spi->dev,
-				     "DMA disabled for transfer length %ld greater than %d\n",
-				     (long)transfer->len, MAX_DMA_LEN);
+				     "DMA disabled for transfer length %u greater than %d\n",
+				     transfer->len, MAX_DMA_LEN);
 	}
 
 	/* Setup the transfer state based on the type of transfer */
@@ -1115,8 +1115,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 		if (tx_level) {
 			/* On MMP2, flipping SSE doesn't to empty TXFIFO. */
-			dev_warn(&spi->dev, "%d bytes of garbage in TXFIFO!\n",
-								tx_level);
+			dev_warn(&spi->dev, "%u bytes of garbage in Tx FIFO!\n", tx_level);
 			if (tx_level > transfer->len)
 				tx_level = transfer->len;
 			drv_data->tx += tx_level;
