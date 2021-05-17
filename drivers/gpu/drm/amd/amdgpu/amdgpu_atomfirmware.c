@@ -546,6 +546,21 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 		ret = 0;
 	}
 
+	/* if asic is Navi+, the rlc reference clock is used for system clock
+	 * from vbios gfx_info table */
+	if (adev->asic_type >= CHIP_NAVI10) {
+		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+						   gfx_info);
+		if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
+					  &frev, &crev, &data_offset)) {
+			struct atom_gfx_info_v2_2 *gfx_info = (struct atom_gfx_info_v2_2*)
+				(mode_info->atom_context->bios + data_offset);
+			if ((frev == 2) && (crev >= 2))
+				spll->reference_freq = le32_to_cpu(gfx_info->rlc_gpu_timer_refclk);
+			ret = 0;
+		}
+	}
+
 	return ret;
 }
 
