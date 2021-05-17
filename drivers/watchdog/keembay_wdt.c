@@ -27,6 +27,8 @@
 #define WDT_TO_INT_MASK		BIT(9)
 #define WDT_ISR_CLEAR		0x8200ff18
 #define WDT_UNLOCK		0xf1d0dead
+#define WDT_DISABLE		0x0
+#define WDT_ENABLE		0x1
 #define WDT_LOAD_MAX		U32_MAX
 #define WDT_LOAD_MIN		1
 #define WDT_TIMEOUT		5
@@ -84,7 +86,7 @@ static int keembay_wdt_start(struct watchdog_device *wdog)
 {
 	struct keembay_wdt *wdt = watchdog_get_drvdata(wdog);
 
-	keembay_wdt_writel(wdt, TIM_WDOG_EN, 1);
+	keembay_wdt_writel(wdt, TIM_WDOG_EN, WDT_ENABLE);
 
 	return 0;
 }
@@ -93,7 +95,7 @@ static int keembay_wdt_stop(struct watchdog_device *wdog)
 {
 	struct keembay_wdt *wdt = watchdog_get_drvdata(wdog);
 
-	keembay_wdt_writel(wdt, TIM_WDOG_EN, 0);
+	keembay_wdt_writel(wdt, TIM_WDOG_EN, WDT_DISABLE);
 
 	return 0;
 }
