@@ -1347,8 +1347,7 @@ static void msdc_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
 	}
 }
 
-static void msdc_data_xfer_next(struct msdc_host *host,
-				struct mmc_request *mrq, struct mmc_data *data)
+static void msdc_data_xfer_next(struct msdc_host *host, struct mmc_request *mrq)
 {
 	if (mmc_op_multi(mrq->cmd->opcode) && mrq->stop && !mrq->stop->error &&
 	    !mrq->sbc)
@@ -1407,7 +1406,7 @@ static bool msdc_data_xfer_done(struct msdc_host *host, u32 events,
 				(int)data->error, data->bytes_xfered);
 		}
 
-		msdc_data_xfer_next(host, mrq, data);
+		msdc_data_xfer_next(host, mrq);
 		done = true;
 	}
 	return done;
