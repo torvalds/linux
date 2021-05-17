@@ -379,9 +379,9 @@ exit:
 /*  free all stainfo which in sta_hash[all] */
 void rtw_free_all_stainfo(struct adapter *padapter)
 {
-	struct list_head *plist, *phead;
+	struct list_head *phead;
 	s32 index;
-	struct sta_info *psta = NULL;
+	struct sta_info *psta, *temp;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *pbcmc_stainfo = rtw_get_bcmc_stainfo(padapter);
 
@@ -392,9 +392,7 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &pstapriv->sta_hash[index];
-		list_for_each(plist, phead) {
-			psta = list_entry(plist, struct sta_info, hash_list);
-
+		list_for_each_entry_safe(psta, temp, phead, hash_list) {
 			if (pbcmc_stainfo != psta)
 				rtw_free_stainfo(padapter, psta);
 		}
