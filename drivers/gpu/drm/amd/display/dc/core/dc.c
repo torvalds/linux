@@ -49,10 +49,13 @@
 #include "timing_generator.h"
 #include "abm.h"
 #include "virtual/virtual_link_encoder.h"
+#include "hubp.h"
 
 #include "link_hwss.h"
 #include "link_encoder.h"
+#include "link_enc_cfg.h"
 
+#include "dc_link.h"
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
@@ -304,7 +307,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	int i = 0;
 	bool ret = false;
 
-	stream->adjust = *adjust;
+	stream->adjust.v_total_max = adjust->v_total_max;
+	stream->adjust.v_total_mid = adjust->v_total_mid;
+	stream->adjust.v_total_mid_frame_num = adjust->v_total_mid_frame_num;
+	stream->adjust.v_total_min = adjust->v_total_min;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -312,10 +318,7 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		if (pipe->stream == stream && pipe->stream_res.tg) {
 			dc->hwss.set_drr(&pipe,
 					1,
-					adjust->v_total_min,
-					adjust->v_total_max,
-					adjust->v_total_mid,
-					adjust->v_total_mid_frame_num);
+					*adjust);
 
 			ret = true;
 		}
@@ -870,6 +873,9 @@ static bool dc_construct(struct dc *dc,
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
 
+	/* Initialise DIG link encoder resource tracking variables. */
+	link_enc_cfg_init(dc, dc->current_state);
+
 	return true;
 
 fail:
@@ -1317,11 +1323,10 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 	struct dc_link *link = sink->link;
 	unsigned int i, enc_inst, tg_inst = 0;
 
-	// Seamless port only support single DP and EDP so far
-	if ((sink->sink_signal != SIGNAL_TYPE_DISPLAY_PORT &&
-		sink->sink_signal != SIGNAL_TYPE_EDP) ||
-		sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+	/* Support seamless boot on EDP displays only */
+	if (sink->sink_signal != SIGNAL_TYPE_EDP) {
 		return false;
+	}
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
@@ -1394,6 +1399,10 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 	if (crtc_timing->v_sync_width != hw_crtc_timing.v_sync_width)
 		return false;
 
+	/* block DSC for now, as VBIOS does not currently support DSC timings */
+	if (crtc_timing->flags.DSC)
+		return false;
+
 	if (dc_is_dp_signal(link->connector_signal)) {
 		unsigned int pix_clk_100hz;
 
@@ -1421,6 +1430,11 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 	}
 
 	if (link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+		return false;
+	}
+
+	if (is_edp_ilr_optimization_required(link, crtc_timing)) {
+		DC_LOG_EVENT_LINK_TRAINING("Seamless boot disabled to optimize eDP link rate\n");
 		return false;
 	}
 
@@ -2091,6 +2105,10 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	if (stream_status == NULL || stream_status->plane_count != surface_count)
 		overall_type = UPDATE_TYPE_FULL;
 
+	if (stream_update && stream_update->pending_test_pattern) {
+		overall_type = UPDATE_TYPE_FULL;
+	}
+
 	/* some stream updates require passive update */
 	if (stream_update) {
 		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
@@ -2390,6 +2408,8 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
 
+	if (update->pending_test_pattern)
+		stream->test_pattern = *update->pending_test_pattern;
 	/* update current stream with writeback info */
 	if (update->wb_update) {
 		int i;
@@ -2485,12 +2505,22 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				}
 			}
 
+
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
 			if (stream_update->dsc_config)
 				dp_update_dsc_config(pipe_ctx);
+
+			if (stream_update->pending_test_pattern) {
+				dc_link_dp_set_test_pattern(stream->link,
+					stream->test_pattern.type,
+					stream->test_pattern.color_space,
+					stream->test_pattern.p_link_settings,
+					stream->test_pattern.p_custom_pattern,
+					stream->test_pattern.cust_pattern_size);
+			}
 
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
@@ -2578,6 +2608,17 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	if (stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE) {
+		struct pipe_ctx *mpcc_pipe;
+		struct pipe_ctx *odm_pipe;
+
+		for (mpcc_pipe = top_pipe_to_program; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+			for (odm_pipe = mpcc_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				odm_pipe->ttu_regs.min_ttu_vblank = MAX_TTU;
+	}
+#endif
+
 	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
 			if (should_use_dmub_lock(stream->link)) {
@@ -2645,6 +2686,10 @@ static void commit_planes_for_stream(struct dc *dc,
 						/*triple buffer for VUpdate  only*/
 						plane_state->triplebuffer_flips = true;
 				}
+			}
+			if (update_type == UPDATE_TYPE_FULL) {
+				/* force vsync flip when reconfiguring pipes to prevent underflow */
+				plane_state->flip_immediate = false;
 			}
 		}
 	}
@@ -2784,9 +2829,13 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
+		if (!pipe_ctx->plane_state)
+			continue;
+
 		if (pipe_ctx->bottom_pipe || pipe_ctx->next_odm_pipe ||
 				!pipe_ctx->stream || pipe_ctx->stream != stream ||
-				!pipe_ctx->plane_state->update_flags.bits.addr_update)
+				!pipe_ctx->plane_state->update_flags.bits.addr_update ||
+				pipe_ctx->plane_state->skip_manual_trigger)
 			continue;
 
 		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
@@ -3170,6 +3219,19 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 	}
 }
 
+void dc_wait_for_vblank(struct dc *dc, struct dc_stream_state *stream)
+{
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream) {
+			struct timing_generator *tg =
+				dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg;
+			tg->funcs->wait_for_state(tg, CRTC_STATE_VBLANK);
+			break;
+		}
+}
+
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
 {
 	info->displayClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dispclk_khz;
@@ -3224,6 +3286,10 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 {
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
+
+	if (dc->clk_mgr->funcs->is_smu_present)
+		if (!dc->clk_mgr->funcs->is_smu_present(dc->clk_mgr))
+			return;
 
 	if (allow == dc->idle_optimizations_allowed)
 		return;

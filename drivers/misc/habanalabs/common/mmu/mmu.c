@@ -532,6 +532,8 @@ int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
 	struct hl_mmu_hop_info hops;
 	int rc;
 
+	memset(&hops, 0, sizeof(hops));
+
 	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
 	if (rc)
 		return rc;
@@ -589,6 +591,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
 	case ASIC_GAUDI:
+	case ASIC_GAUDI_SEC:
 		hl_mmu_v1_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		break;
 	default:

@@ -45,8 +45,11 @@ static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
 	case RN5T618_INTMON:
 	case RN5T618_RTC_CTRL1 ... RN5T618_RTC_CTRL2:
 	case RN5T618_RTC_SECONDS ... RN5T618_RTC_YEAR:
+	case RN5T618_CHGCTL1:
+	case RN5T618_REGISET1 ... RN5T618_REGISET2:
 	case RN5T618_CHGSTATE:
 	case RN5T618_CHGCTRL_IRR ... RN5T618_CHGERR_MONI:
+	case RN5T618_GCHGDET:
 	case RN5T618_CONTROL ... RN5T618_CC_AVEREG0:
 		return true;
 	default:

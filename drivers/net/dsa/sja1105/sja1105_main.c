@@ -3049,21 +3049,6 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	}
 }
 
-static int sja1105_port_enable(struct dsa_switch *ds, int port,
-			       struct phy_device *phy)
-{
-	struct net_device *slave;
-
-	if (!dsa_is_user_port(ds, port))
-		return 0;
-
-	slave = dsa_to_port(ds, port)->slave;
-
-	slave->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
-
-	return 0;
-}
-
 static void sja1105_port_disable(struct dsa_switch *ds, int port)
 {
 	struct sja1105_private *priv = ds->priv;
@@ -3152,7 +3137,7 @@ static void sja1105_port_deferred_xmit(struct kthread_work *work)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&sp->xmit_queue)) != NULL) {
-		struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
+		struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
 
 		mutex_lock(&priv->mgmt_lock);
 
@@ -3491,7 +3476,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
 	.get_ts_info		= sja1105_get_ts_info,
-	.port_enable		= sja1105_port_enable,
 	.port_disable		= sja1105_port_disable,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,

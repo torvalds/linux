@@ -51,6 +51,7 @@ static LIST_HEAD(deferred_sync);
 static unsigned int defer_sync_state_count = 1;
 static DEFINE_MUTEX(fwnode_link_lock);
 static bool fw_devlink_is_permissive(void);
+static bool fw_devlink_drv_reg_done;
 
 /**
  * fwnode_link_add - Create a link between two fwnode_handles.
@@ -1154,6 +1155,41 @@ static ssize_t waiting_for_supplier_show(struct device *dev,
 static DEVICE_ATTR_RO(waiting_for_supplier);
 
 /**
+ * device_links_force_bind - Prepares device to be force bound
+ * @dev: Consumer device.
+ *
+ * device_bind_driver() force binds a device to a driver without calling any
+ * driver probe functions. So the consumer really isn't going to wait for any
+ * supplier before it's bound to the driver. We still want the device link
+ * states to be sensible when this happens.
+ *
+ * In preparation for device_bind_driver(), this function goes through each
+ * supplier device links and checks if the supplier is bound. If it is, then
+ * the device link status is set to CONSUMER_PROBE. Otherwise, the device link
+ * is dropped. Links without the DL_FLAG_MANAGED flag set are ignored.
+ */
+void device_links_force_bind(struct device *dev)
+{
+	struct device_link *link, *ln;
+
+	device_links_write_lock();
+
+	list_for_each_entry_safe(link, ln, &dev->links.suppliers, c_node) {
+		if (!(link->flags & DL_FLAG_MANAGED))
+			continue;
+
+		if (link->status != DL_STATE_AVAILABLE) {
+			device_link_drop_managed(link);
+			continue;
+		}
+		WRITE_ONCE(link->status, DL_STATE_CONSUMER_PROBE);
+	}
+	dev->links.status = DL_DEV_PROBING;
+
+	device_links_write_unlock();
+}
+
+/**
  * device_links_driver_bound - Update device links after probing its driver.
  * @dev: Device to update the links for.
  *
@@ -1503,7 +1539,7 @@ static void device_links_purge(struct device *dev)
 #define FW_DEVLINK_FLAGS_RPM		(FW_DEVLINK_FLAGS_ON | \
 					 DL_FLAG_PM_RUNTIME)
 
-static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_PERMISSIVE;
+static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_ON;
 static int __init fw_devlink_setup(char *arg)
 {
 	if (!arg)
@@ -1563,6 +1599,52 @@ static void fw_devlink_parse_fwtree(struct fwnode_handle *fwnode)
 		fw_devlink_parse_fwtree(child);
 }
 
+static void fw_devlink_relax_link(struct device_link *link)
+{
+	if (!(link->flags & DL_FLAG_INFERRED))
+		return;
+
+	if (link->flags == (DL_FLAG_MANAGED | FW_DEVLINK_FLAGS_PERMISSIVE))
+		return;
+
+	pm_runtime_drop_link(link);
+	link->flags = DL_FLAG_MANAGED | FW_DEVLINK_FLAGS_PERMISSIVE;
+	dev_dbg(link->consumer, "Relaxing link with %s\n",
+		dev_name(link->supplier));
+}
+
+static int fw_devlink_no_driver(struct device *dev, void *data)
+{
+	struct device_link *link = to_devlink(dev);
+
+	if (!link->supplier->can_match)
+		fw_devlink_relax_link(link);
+
+	return 0;
+}
+
+void fw_devlink_drivers_done(void)
+{
+	fw_devlink_drv_reg_done = true;
+	device_links_write_lock();
+	class_for_each_device(&devlink_class, NULL, NULL,
+			      fw_devlink_no_driver);
+	device_links_write_unlock();
+}
+
+static void fw_devlink_unblock_consumers(struct device *dev)
+{
+	struct device_link *link;
+
+	if (!fw_devlink_flags || fw_devlink_is_permissive())
+		return;
+
+	device_links_write_lock();
+	list_for_each_entry(link, &dev->links.consumers, s_node)
+		fw_devlink_relax_link(link);
+	device_links_write_unlock();
+}
+
 /**
  * fw_devlink_relax_cycle - Convert cyclic links to SYNC_STATE_ONLY links
  * @con: Device to check dependencies for.
@@ -1599,21 +1681,16 @@ static int fw_devlink_relax_cycle(struct device *con, void *sup)
 
 		ret = 1;
 
-		if (!(link->flags & DL_FLAG_INFERRED))
-			continue;
-
-		pm_runtime_drop_link(link);
-		link->flags = DL_FLAG_MANAGED | FW_DEVLINK_FLAGS_PERMISSIVE;
-		dev_dbg(link->consumer, "Relaxing link with %s\n",
-			dev_name(link->supplier));
+		fw_devlink_relax_link(link);
 	}
 	return ret;
 }
 
 /**
  * fw_devlink_create_devlink - Create a device link from a consumer to fwnode
- * @con - Consumer device for the device link
- * @sup_handle - fwnode handle of supplier
+ * @con: consumer device for the device link
+ * @sup_handle: fwnode handle of supplier
+ * @flags: devlink flags
  *
  * This function will try to create a device link between the consumer device
  * @con and the supplier device represented by @sup_handle.
@@ -1709,7 +1786,7 @@ out:
 
 /**
  * __fw_devlink_link_to_consumers - Create device links to consumers of a device
- * @dev - Device that needs to be linked to its consumers
+ * @dev: Device that needs to be linked to its consumers
  *
  * This function looks at all the consumer fwnodes of @dev and creates device
  * links between the consumer device and @dev (supplier).
@@ -1779,8 +1856,8 @@ static void __fw_devlink_link_to_consumers(struct device *dev)
 
 /**
  * __fw_devlink_link_to_suppliers - Create device links to suppliers of a device
- * @dev - The consumer device that needs to be linked to its suppliers
- * @fwnode - Root of the fwnode tree that is used to create device links
+ * @dev: The consumer device that needs to be linked to its suppliers
+ * @fwnode: Root of the fwnode tree that is used to create device links
  *
  * This function looks at all the supplier fwnodes of fwnode tree rooted at
  * @fwnode and creates device links between @dev (consumer) and all the
@@ -3240,6 +3317,15 @@ int device_add(struct device *dev)
 	}
 
 	bus_probe_device(dev);
+
+	/*
+	 * If all driver registration is done and a newly added device doesn't
+	 * match with any driver, don't block its consumers from probing in
+	 * case the consumer device is able to operate without this supplier.
+	 */
+	if (dev->fwnode && fw_devlink_drv_reg_done && !dev->can_match)
+		fw_devlink_unblock_consumers(dev);
+
 	if (parent)
 		klist_add_tail(&dev->p->knode_parent,
 			       &parent->p->klist_children);

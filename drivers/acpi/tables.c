@@ -780,7 +780,7 @@ acpi_status acpi_os_table_override(struct acpi_table_header *existing_table,
 }
 
 /*
- * acpi_table_init()
+ * acpi_locate_initial_tables()
  *
  * find RSDP, find and checksum SDT/XSDT.
  * checksum all tables, print SDT/XSDT
@@ -788,7 +788,7 @@ acpi_status acpi_os_table_override(struct acpi_table_header *existing_table,
  * result: sdt_entry[] is initialized
  */
 
-int __init acpi_table_init(void)
+int __init acpi_locate_initial_tables(void)
 {
 	acpi_status status;
 
@@ -803,9 +803,45 @@ int __init acpi_table_init(void)
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
-	acpi_table_initrd_scan();
 
+	return 0;
+}
+
+void __init acpi_reserve_initial_tables(void)
+{
+	int i;
+
+	for (i = 0; i < ACPI_MAX_TABLES; i++) {
+		struct acpi_table_desc *table_desc = &initial_tables[i];
+		u64 start = table_desc->address;
+		u64 size = table_desc->length;
+
+		if (!start || !size)
+			break;
+
+		pr_info("Reserving %4s table memory at [mem 0x%llx-0x%llx]\n",
+			table_desc->signature.ascii, start, start + size - 1);
+
+		memblock_reserve(start, size);
+	}
+}
+
+void __init acpi_table_init_complete(void)
+{
+	acpi_table_initrd_scan();
 	check_multiple_madt();
+}
+
+int __init acpi_table_init(void)
+{
+	int ret;
+
+	ret = acpi_locate_initial_tables();
+	if (ret)
+		return ret;
+
+	acpi_table_init_complete();
+
 	return 0;
 }
 

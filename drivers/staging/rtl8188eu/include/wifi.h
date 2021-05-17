@@ -7,21 +7,8 @@
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
-#define WLAN_IEEE_OUI_LEN	3
-#define WLAN_CRC_LEN		4
-#define WLAN_BSSID_LEN		6
-#define WLAN_BSS_TS_LEN		8
 #define WLAN_HDR_A3_LEN		24
-#define WLAN_HDR_A4_LEN		30
 #define WLAN_HDR_A3_QOS_LEN	26
-#define WLAN_HDR_A4_QOS_LEN	32
-#define WLAN_DATA_MAXLEN	2312
-
-#define WLAN_A3_PN_OFFSET	24
-#define WLAN_A4_PN_OFFSET	30
-
-#define WLAN_MIN_ETHFRM_LEN	60
-#define WLAN_MAX_ETHFRM_LEN	1514
 
 #define P80211CAPTURE_VERSION	0x80211001
 
@@ -72,20 +59,6 @@ enum WIFI_FRAME_SUBTYPE {
 	WIFI_CF_POLL        = (BIT(6) | BIT(5) | WIFI_DATA_TYPE),
 	WIFI_CF_ACKPOLL     = (BIT(6) | BIT(5) | BIT(4) | WIFI_DATA_TYPE),
 	WIFI_QOS_DATA_NULL	= (BIT(6) | WIFI_QOS_DATA_TYPE),
-};
-
-enum WIFI_REG_DOMAIN {
-	DOMAIN_FCC	= 1,
-	DOMAIN_IC	= 2,
-	DOMAIN_ETSI	= 3,
-	DOMAIN_SPA	= 4,
-	DOMAIN_FRANCE	= 5,
-	DOMAIN_MKK	= 6,
-	DOMAIN_ISRAEL	= 7,
-	DOMAIN_MKK1	= 8,
-	DOMAIN_MKK2	= 9,
-	DOMAIN_MKK3	= 10,
-	DOMAIN_MAX
 };
 
 #define SetToDs(pbuf)	\
@@ -199,52 +172,6 @@ enum WIFI_REG_DOMAIN {
 
 #define GetAddr3Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 16))
 
-#define GetAddr4Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 24))
-
-static inline unsigned char *get_da(unsigned char *pframe)
-{
-	unsigned char	*da;
-	unsigned int to_fr_ds = (GetToDs(pframe) << 1) | GetFrDs(pframe);
-
-	switch (to_fr_ds) {
-	case 0x00:	/*  ToDs=0, FromDs=0 */
-		da = GetAddr1Ptr(pframe);
-		break;
-	case 0x01:	/*  ToDs=0, FromDs=1 */
-		da = GetAddr1Ptr(pframe);
-		break;
-	case 0x02:	/*  ToDs=1, FromDs=0 */
-		da = GetAddr3Ptr(pframe);
-		break;
-	default:	/*  ToDs=1, FromDs=1 */
-		da = GetAddr3Ptr(pframe);
-		break;
-	}
-	return da;
-}
-
-static inline unsigned char *get_sa(unsigned char *pframe)
-{
-	unsigned char	*sa;
-	unsigned int	to_fr_ds = (GetToDs(pframe) << 1) | GetFrDs(pframe);
-
-	switch (to_fr_ds) {
-	case 0x00:	/*  ToDs=0, FromDs=0 */
-		sa = GetAddr2Ptr(pframe);
-		break;
-	case 0x01:	/*  ToDs=0, FromDs=1 */
-		sa = GetAddr3Ptr(pframe);
-		break;
-	case 0x02:	/*  ToDs=1, FromDs=0 */
-		sa = GetAddr2Ptr(pframe);
-		break;
-	default:	/*  ToDs=1, FromDs=1 */
-		sa = GetAddr4Ptr(pframe);
-		break;
-	}
-	return sa;
-}
-
 static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 {
 	unsigned char	*sa;
@@ -270,30 +197,9 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 	return sa;
 }
 
-static inline int IsFrameTypeCtrl(unsigned char *pframe)
-{
-	if (GetFrameType(pframe) == WIFI_CTRL_TYPE)
-		return true;
-	else
-		return false;
-}
-
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/
-#define _RESERVED_FRAME_TYPE_		0
-#define _SKB_FRAME_TYPE_		2
-#define _PRE_ALLOCMEM_			1
-#define _PRE_ALLOCHDR_			3
-#define _PRE_ALLOCLLCHDR_		4
-#define _PRE_ALLOCICVHDR_		5
-#define _PRE_ALLOCMICHDR_		6
-
-#define _SIFSTIME_				\
-	((priv->pmib->dot11BssType.net_work_type & WIRELESS_11A) ? 16 : 10)
-#define _ACKCTSLNG_		14	/* 14 bytes long, including crclng */
-#define _CRCLNG_		4
-
 #define _ASOCREQ_IE_OFFSET_	4	/*  excluding wlan_hdr */
 #define	_ASOCRSP_IE_OFFSET_	6
 #define _REASOCREQ_IE_OFFSET_	10
@@ -324,22 +230,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define AUTH_ODD_TO		0
 #define AUTH_EVEN_TO		1
 
-#define WLAN_ETHCONV_ENCAP	1
-#define WLAN_ETHCONV_RFC1042	2
-#define WLAN_ETHCONV_8021h	3
-
-#define cap_ESS		BIT(0)
-#define cap_IBSS	BIT(1)
-#define cap_CFPollable	BIT(2)
-#define cap_CFRequest	BIT(3)
-#define cap_Privacy	BIT(4)
-#define cap_ShortPremble BIT(5)
-#define cap_PBCC	BIT(6)
-#define cap_ChAgility	BIT(7)
-#define cap_SpecMgmt	BIT(8)
-#define cap_QoSi	BIT(9)
-#define cap_ShortSlot	BIT(10)
-
 /*-----------------------------------------------------------------------------
 				Below is the definition for 802.11i / 802.1x
 ------------------------------------------------------------------------------*/
@@ -360,7 +250,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 				Below is the definition for WMM
 ------------------------------------------------------------------------------*/
 #define _WMM_IE_Length_				7  /*  for WMM STA */
-#define _WMM_Para_Element_Length_		24
 
 /*-----------------------------------------------------------------------------
 				Below is the definition for 802.11n
@@ -432,13 +321,6 @@ enum ht_cap_ampdu_factor {
 #define HT_INFO_OPERATION_MODE_TRANSMIT_BURST_LIMIT	((u8)BIT(3))
 #define HT_INFO_OPERATION_MODE_NON_HT_STA_PRESENT	((u8)BIT(4))
 
-#define HT_INFO_STBC_PARAM_DUAL_BEACON		((u16)BIT(6))
-#define HT_INFO_STBC_PARAM_DUAL_STBC_PROTECT	((u16)BIT(7))
-#define HT_INFO_STBC_PARAM_SECONDARY_BC		((u16)BIT(8))
-#define HT_INFO_STBC_PARAM_LSIG_TXOP_PROTECT_ALLOWED	((u16)BIT(9))
-#define HT_INFO_STBC_PARAM_PCO_ACTIVE		((u16)BIT(10))
-#define HT_INFO_STBC_PARAM_PCO_PHASE		((u16)BIT(11))
-
 /*	===============WPS Section=============== */
 /*	For WPSv1.0 */
 #define WPSOUI					0x0050f204
@@ -497,47 +379,9 @@ enum ht_cap_ampdu_factor {
 #define WPS_CONFIG_METHOD_VDISPLAY	0x2008
 #define WPS_CONFIG_METHOD_PDISPLAY	0x4008
 
-/*	Value of Category ID of WPS Primary Device Type Attribute */
-#define WPS_PDT_CID_DISPLAYS		0x0007
-#define WPS_PDT_CID_MULIT_MEDIA		0x0008
-#define WPS_PDT_CID_RTK_WIDI		WPS_PDT_CID_MULIT_MEDIA
-
-/*	Value of Sub Category ID of WPS Primary Device Type Attribute */
-#define WPS_PDT_SCID_MEDIA_SERVER	0x0005
-#define WPS_PDT_SCID_RTK_DMP		WPS_PDT_SCID_MEDIA_SERVER
-
-/*	Value of Device Password ID */
-#define WPS_DPID_P			0x0000
-#define WPS_DPID_USER_SPEC		0x0001
-#define WPS_DPID_MACHINE_SPEC		0x0002
-#define WPS_DPID_REKEY			0x0003
-#define WPS_DPID_PBC			0x0004
-#define WPS_DPID_REGISTRAR_SPEC		0x0005
-
 /*	Value of WPS RF Bands Attribute */
 #define WPS_RF_BANDS_2_4_GHZ		0x01
 #define WPS_RF_BANDS_5_GHZ		0x02
-
-/*	Value of WPS Association State Attribute */
-#define WPS_ASSOC_STATE_NOT_ASSOCIATED		0x00
-#define WPS_ASSOC_STATE_CONNECTION_SUCCESS	0x01
-#define WPS_ASSOC_STATE_CONFIGURATION_FAILURE	0x02
-#define WPS_ASSOC_STATE_ASSOCIATION_FAILURE	0x03
-#define WPS_ASSOC_STATE_IP_FAILURE		0x04
-
-/*	WPS Configuration Method */
-#define	WPS_CM_NONE			0x0000
-#define	WPS_CM_LABEL			0x0004
-#define	WPS_CM_DISPLYA			0x0008
-#define	WPS_CM_EXTERNAL_NFC_TOKEN	0x0010
-#define	WPS_CM_INTEGRATED_NFC_TOKEN	0x0020
-#define	WPS_CM_NFC_INTERFACE		0x0040
-#define	WPS_CM_PUSH_BUTTON		0x0080
-#define	WPS_CM_KEYPAD			0x0100
-#define	WPS_CM_SW_PUHS_BUTTON		0x0280
-#define	WPS_CM_HW_PUHS_BUTTON		0x0480
-#define	WPS_CM_SW_DISPLAY_P		0x2008
-#define	WPS_CM_LCD_DISPLAY_P		0x4008
 
 #define IP_MCAST_MAC(mac)				\
 	((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))

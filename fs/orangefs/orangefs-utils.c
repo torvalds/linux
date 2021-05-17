@@ -221,7 +221,7 @@ static int orangefs_inode_is_stale(struct inode *inode,
 	 * If the inode type or symlink target have changed then this
 	 * inode is stale.
 	 */
-	if (type == -1 || !(inode->i_mode & type)) {
+	if (type == -1 || inode_wrong_type(inode, type)) {
 		orangefs_make_bad_inode(inode);
 		return 1;
 	}

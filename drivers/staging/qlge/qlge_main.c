@@ -3815,8 +3815,7 @@ static int qlge_adapter_down(struct qlge_adapter *qdev)
 
 	qlge_tx_ring_clean(qdev);
 
-	/* Call netif_napi_del() from common point.
-	*/
+	/* Call netif_napi_del() from common point. */
 	for (i = 0; i < qdev->rss_ring_count; i++)
 		netif_napi_del(&qdev->rx_ring[i].napi);
 
@@ -4550,7 +4549,7 @@ static int qlge_probe(struct pci_dev *pdev,
 	struct net_device *ndev = NULL;
 	struct devlink *devlink;
 	static int cards_found;
-	int err = 0;
+	int err;
 
 	devlink = devlink_alloc(&qlge_devlink_ops, sizeof(struct qlge_adapter));
 	if (!devlink)
@@ -4561,8 +4560,10 @@ static int qlge_probe(struct pci_dev *pdev,
 	ndev = alloc_etherdev_mq(sizeof(struct qlge_netdev_priv),
 				 min(MAX_CPUS,
 				     netif_get_num_default_rss_queues()));
-	if (!ndev)
+	if (!ndev) {
+		err = -ENOMEM;
 		goto devlink_free;
+	}
 
 	ndev_priv = netdev_priv(ndev);
 	ndev_priv->qdev = qdev;
@@ -4620,7 +4621,11 @@ static int qlge_probe(struct pci_dev *pdev,
 	if (err)
 		goto netdev_free;
 
-	qlge_health_create_reporters(qdev);
+	err = qlge_health_create_reporters(qdev);
+
+	if (err)
+		goto devlink_unregister;
+
 	/* Start up the timer to trigger EEH if
 	 * the bus goes dead
 	 */
@@ -4632,6 +4637,8 @@ static int qlge_probe(struct pci_dev *pdev,
 	cards_found++;
 	return 0;
 
+devlink_unregister:
+	devlink_unregister(devlink);
 netdev_free:
 	free_netdev(ndev);
 devlink_free:

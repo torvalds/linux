@@ -11,7 +11,7 @@ develop firmware for this, and flash it using this adapter cable.
 
 You can make this adapter from an old printer cable and solder things
 directly to the Butterfly.  Or (if you have the parts and skills) you
-can come up with something fancier, providing ciruit protection to the
+can come up with something fancier, providing circuit protection to the
 Butterfly and the printer port, or with a better power supply than two
 signal pins from the printer port.  Or for that matter, you can use
 similar cables to talk to many AVR boards, even a breadboard.

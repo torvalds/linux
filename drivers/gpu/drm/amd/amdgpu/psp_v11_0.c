@@ -598,7 +598,7 @@ static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 }
 
 /*
- * save and restore proces
+ * save and restore process
  */
 static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 {
@@ -661,9 +661,9 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 
 	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
 		/*
-		 * Long traing will encroach certain mount of bottom VRAM,
-		 * saving the content of this bottom VRAM to system memory
-		 * before training, and restoring it after training to avoid
+		 * Long training will encroach a certain amount on the bottom of VRAM;
+		 * save the content from the bottom of VRAM to system memory
+		 * before training, and restore it after training to avoid
 		 * VRAM corruption.
 		 */
 		sz = GDDR6_MEM_TRAINING_ENCROACHED_SIZE;

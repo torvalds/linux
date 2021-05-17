@@ -668,7 +668,7 @@ struct ib_mad_reg_req {
  * @registration_flags: Registration flags to set for this agent
  */
 struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
-					   u8 port_num,
+					   u32 port_num,
 					   enum ib_qp_type qp_type,
 					   struct ib_mad_reg_req *mad_reg_req,
 					   u8 rmpp_version,

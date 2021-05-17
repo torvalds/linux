@@ -1332,6 +1332,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.gfx_state_change_set = renoir_gfx_state_change_set,
 	.set_fine_grain_gfx_freq_parameters = renoir_set_fine_grain_gfx_freq_parameters,
 	.od_edit_dpm_table = renoir_od_edit_dpm_table,
+	.get_vbios_bootup_values = smu_v12_0_get_vbios_bootup_values,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)

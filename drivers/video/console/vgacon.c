@@ -79,7 +79,6 @@ static struct uni_pagedir *vgacon_uni_pagedir;
 static int vgacon_refcount;
 
 /* Description of the hardware situation */
-static bool		vga_init_done;
 static unsigned long	vga_vram_base		__read_mostly;	/* Base of video memory */
 static unsigned long	vga_vram_end		__read_mostly;	/* End of video memory */
 static unsigned int	vga_vram_size		__read_mostly;	/* Size of video memory */
@@ -96,7 +95,7 @@ static bool 		vga_is_gfx;
 static bool 		vga_512_chars;
 static int 		vga_video_font_height;
 static int 		vga_scan_lines		__read_mostly;
-static unsigned int 	vga_rolled_over;
+static unsigned int 	vga_rolled_over; /* last vc_origin offset before wrap */
 
 static bool vgacon_text_mode_force;
 static bool vga_hardscroll_enabled;
@@ -358,8 +357,6 @@ static const char *vgacon_startup(void)
 
 	vgacon_xres = screen_info.orig_video_cols * VGA_FONTWIDTH;
 	vgacon_yres = vga_scan_lines;
-
-	vga_init_done = true;
 
 	return display_desc;
 }

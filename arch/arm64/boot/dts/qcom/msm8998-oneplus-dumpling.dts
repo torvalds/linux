@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * OnePlus 5T (dumpling) device tree
+ *
+ * Copyright (c) 2021, Jami Kettunen <jamipkettunen@gmail.com>
+ */
+
+#include "msm8998-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 5T";
+	compatible = "oneplus,dumpling", "qcom,msm8998";
+	/* Required for bootloader to select correct board */
+	qcom,board-id = <8 0 17801 43>;
+};
+
+/* Update the screen height values from 1920 to 2160 on the 5T */
+&framebuffer0 {
+	height = <2160>;
+};
+
+/* Adjust digitizer area height to match the 5T's taller panel */
+&rmi4_f12 {
+	touchscreen-y-mm = <137>;
+};

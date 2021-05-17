@@ -51,17 +51,6 @@ static inline void set_64bit_val(u64 *wqe_words, u32 byte_index, u64 value)
 }
 
 /**
- * set_32bit_val - set 32 value to hw wqe
- * @wqe_words: wqe addr to write
- * @byte_index: index in wqe
- * @value: value to write
- **/
-static inline void set_32bit_val(u32 *wqe_words, u32 byte_index, u32 value)
-{
-	wqe_words[byte_index >> 2] = value;
-}
-
-/**
  * get_64bit_val - read 64 bit value from wqe
  * @wqe_words: wqe addr
  * @byte_index: index to read from
@@ -70,17 +59,6 @@ static inline void set_32bit_val(u32 *wqe_words, u32 byte_index, u32 value)
 static inline void get_64bit_val(u64 *wqe_words, u32 byte_index, u64 *value)
 {
 	*value = wqe_words[byte_index >> 3];
-}
-
-/**
- * get_32bit_val - read 32 bit value from wqe
- * @wqe_words: wqe addr
- * @byte_index: index to reaad from
- * @value: return 32 bit value
- **/
-static inline void get_32bit_val(u32 *wqe_words, u32 byte_index, u32 *value)
-{
-	*value = wqe_words[byte_index >> 2];
 }
 
 struct i40iw_dma_mem {

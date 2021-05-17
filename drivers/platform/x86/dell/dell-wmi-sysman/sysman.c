@@ -210,25 +210,17 @@ static struct kobj_attribute pending_reboot = __ATTR_RO(pending_reboot);
  */
 static int create_attributes_level_sysfs_files(void)
 {
-	int ret = sysfs_create_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
+	int ret;
 
-	if (ret) {
-		pr_debug("could not create reset_bios file\n");
+	ret = sysfs_create_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
+	if (ret)
 		return ret;
-	}
 
 	ret = sysfs_create_file(&wmi_priv.main_dir_kset->kobj, &pending_reboot.attr);
-	if (ret) {
-		pr_debug("could not create changing_pending_reboot file\n");
-		sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
-	}
-	return ret;
-}
+	if (ret)
+		return ret;
 
-static void release_reset_bios_data(void)
-{
-	sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
-	sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &pending_reboot.attr);
+	return 0;
 }
 
 static ssize_t wmi_sysman_attr_show(struct kobject *kobj, struct attribute *attr,
@@ -373,8 +365,6 @@ static void destroy_attribute_objs(struct kset *kset)
  */
 static void release_attributes_data(void)
 {
-	release_reset_bios_data();
-
 	mutex_lock(&wmi_priv.mutex);
 	exit_enum_attributes();
 	exit_int_attributes();
@@ -386,11 +376,13 @@ static void release_attributes_data(void)
 		wmi_priv.authentication_dir_kset = NULL;
 	}
 	if (wmi_priv.main_dir_kset) {
+		sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &reset_bios.attr);
+		sysfs_remove_file(&wmi_priv.main_dir_kset->kobj, &pending_reboot.attr);
 		destroy_attribute_objs(wmi_priv.main_dir_kset);
 		kset_unregister(wmi_priv.main_dir_kset);
+		wmi_priv.main_dir_kset = NULL;
 	}
 	mutex_unlock(&wmi_priv.mutex);
-
 }
 
 /**
@@ -407,6 +399,7 @@ static int init_bios_attributes(int attr_type, const char *guid)
 	union acpi_object *obj = NULL;
 	union acpi_object *elements;
 	struct kset *tmp_set;
+	int min_elements;
 
 	/* instance_id needs to be reset for each type GUID
 	 * also, instance IDs are unique within GUID but not across
@@ -417,14 +410,38 @@ static int init_bios_attributes(int attr_type, const char *guid)
 	retval = alloc_attributes_data(attr_type);
 	if (retval)
 		return retval;
+
+	switch (attr_type) {
+	case ENUM:	min_elements = 8;	break;
+	case INT:	min_elements = 9;	break;
+	case STR:	min_elements = 8;	break;
+	case PO:	min_elements = 4;	break;
+	default:
+		pr_err("Error: Unknown attr_type: %d\n", attr_type);
+		return -EINVAL;
+	}
+
 	/* need to use specific instance_id and guid combination to get right data */
 	obj = get_wmiobj_pointer(instance_id, guid);
-	if (!obj || obj->type != ACPI_TYPE_PACKAGE)
+	if (!obj)
 		return -ENODEV;
-	elements = obj->package.elements;
 
 	mutex_lock(&wmi_priv.mutex);
-	while (elements) {
+	while (obj) {
+		if (obj->type != ACPI_TYPE_PACKAGE) {
+			pr_err("Error: Expected ACPI-package type, got: %d\n", obj->type);
+			retval = -EIO;
+			goto err_attr_init;
+		}
+
+		if (obj->package.count < min_elements) {
+			pr_err("Error: ACPI-package does not have enough elements: %d < %d\n",
+			       obj->package.count, min_elements);
+			goto nextobj;
+		}
+
+		elements = obj->package.elements;
+
 		/* sanity checking */
 		if (elements[ATTR_NAME].type != ACPI_TYPE_STRING) {
 			pr_debug("incorrect element type\n");
@@ -489,7 +506,6 @@ nextobj:
 		kfree(obj);
 		instance_id++;
 		obj = get_wmiobj_pointer(instance_id, guid);
-		elements = obj ? obj->package.elements : NULL;
 	}
 
 	mutex_unlock(&wmi_priv.mutex);
@@ -497,7 +513,6 @@ nextobj:
 
 err_attr_init:
 	mutex_unlock(&wmi_priv.mutex);
-	release_attributes_data();
 	kfree(obj);
 	return retval;
 }
@@ -513,102 +528,91 @@ static int __init sysman_init(void)
 	}
 
 	ret = init_bios_attr_set_interface();
-	if (ret || !wmi_priv.bios_attr_wdev) {
-		pr_debug("failed to initialize set interface\n");
-		goto fail_set_interface;
-	}
+	if (ret)
+		return ret;
 
 	ret = init_bios_attr_pass_interface();
-	if (ret || !wmi_priv.password_attr_wdev) {
-		pr_debug("failed to initialize pass interface\n");
-		goto fail_pass_interface;
+	if (ret)
+		goto err_exit_bios_attr_set_interface;
+
+	if (!wmi_priv.bios_attr_wdev || !wmi_priv.password_attr_wdev) {
+		pr_debug("failed to find set or pass interface\n");
+		ret = -ENODEV;
+		goto err_exit_bios_attr_pass_interface;
 	}
 
 	ret = class_register(&firmware_attributes_class);
 	if (ret)
-		goto fail_class;
+		goto err_exit_bios_attr_pass_interface;
 
 	wmi_priv.class_dev = device_create(&firmware_attributes_class, NULL, MKDEV(0, 0),
 				  NULL, "%s", DRIVER_NAME);
 	if (IS_ERR(wmi_priv.class_dev)) {
 		ret = PTR_ERR(wmi_priv.class_dev);
-		goto fail_classdev;
+		goto err_unregister_class;
 	}
 
 	wmi_priv.main_dir_kset = kset_create_and_add("attributes", NULL,
 						     &wmi_priv.class_dev->kobj);
 	if (!wmi_priv.main_dir_kset) {
 		ret = -ENOMEM;
-		goto fail_main_kset;
+		goto err_destroy_classdev;
 	}
 
 	wmi_priv.authentication_dir_kset = kset_create_and_add("authentication", NULL,
 								&wmi_priv.class_dev->kobj);
 	if (!wmi_priv.authentication_dir_kset) {
 		ret = -ENOMEM;
-		goto fail_authentication_kset;
+		goto err_release_attributes_data;
 	}
 
 	ret = create_attributes_level_sysfs_files();
 	if (ret) {
 		pr_debug("could not create reset BIOS attribute\n");
-		goto fail_reset_bios;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(ENUM, DELL_WMI_BIOS_ENUMERATION_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate enumeration type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(INT, DELL_WMI_BIOS_INTEGER_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate integer type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(STR, DELL_WMI_BIOS_STRING_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate string type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	ret = init_bios_attributes(PO, DELL_WMI_BIOS_PASSOBJ_ATTRIBUTE_GUID);
 	if (ret) {
 		pr_debug("failed to populate pass object type attributes\n");
-		goto fail_create_group;
+		goto err_release_attributes_data;
 	}
 
 	return 0;
 
-fail_create_group:
+err_release_attributes_data:
 	release_attributes_data();
 
-fail_reset_bios:
-	if (wmi_priv.authentication_dir_kset) {
-		kset_unregister(wmi_priv.authentication_dir_kset);
-		wmi_priv.authentication_dir_kset = NULL;
-	}
-
-fail_authentication_kset:
-	if (wmi_priv.main_dir_kset) {
-		kset_unregister(wmi_priv.main_dir_kset);
-		wmi_priv.main_dir_kset = NULL;
-	}
-
-fail_main_kset:
+err_destroy_classdev:
 	device_destroy(&firmware_attributes_class, MKDEV(0, 0));
 
-fail_classdev:
+err_unregister_class:
 	class_unregister(&firmware_attributes_class);
 
-fail_class:
+err_exit_bios_attr_pass_interface:
 	exit_bios_attr_pass_interface();
 
-fail_pass_interface:
+err_exit_bios_attr_set_interface:
 	exit_bios_attr_set_interface();
 
-fail_set_interface:
 	return ret;
 }
 
@@ -624,7 +628,7 @@ static void __exit sysman_exit(void)
 module_init(sysman_init);
 module_exit(sysman_exit);
 
-MODULE_AUTHOR("Mario Limonciello <mario.limonciello@dell.com>");
+MODULE_AUTHOR("Mario Limonciello <mario.limonciello@outlook.com>");
 MODULE_AUTHOR("Prasanth Ksr <prasanth.ksr@dell.com>");
 MODULE_AUTHOR("Divya Bharathi <divya.bharathi@dell.com>");
 MODULE_DESCRIPTION("Dell platform setting control interface");

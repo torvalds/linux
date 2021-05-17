@@ -101,7 +101,7 @@ struct _vcs_dpi_ip_params_st dcn3_02_ip = {
 		.dcc_supported = true,
 		.writeback_interface_buffer_size_kbytes = 90,
 		.writeback_line_buffer_buffer_size = 0,
-		.max_line_buffer_lines = 32,
+		.max_line_buffer_lines = 12,
 		.writeback_luma_buffer_size_kbytes = 12,  // writeback_line_buffer_buffer_size = 656640
 		.writeback_chroma_buffer_size_kbytes = 8,
 		.writeback_chroma_line_buffer_width_pixels = 4,
@@ -164,7 +164,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_02_soc = {
 
 		.min_dcfclk = 500.0, /* TODO: set this to actual min DCFCLK */
 		.num_states = 1,
-		.sr_exit_time_us = 12,
+		.sr_exit_time_us = 15.5,
 		.sr_enter_plus_exit_time_us = 20,
 		.urgent_latency_us = 4.0,
 		.urgent_latency_pixel_data_only_us = 4.0,

@@ -11,6 +11,8 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
+#include "hl_boot_if.h"
+
 #define NUM_HBM_PSEUDO_CH				2
 #define NUM_HBM_CH_PER_DEV				8
 #define CPUCP_PKT_HBM_ECC_INFO_WR_PAR_SHIFT		0
@@ -27,6 +29,17 @@
 #define CPUCP_PKT_HBM_ECC_INFO_TYPE_MASK		0x00000020
 #define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_SHIFT		6
 #define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_MASK		0x000007C0
+
+#define PLL_MAP_MAX_BITS	128
+#define PLL_MAP_LEN		(PLL_MAP_MAX_BITS / 8)
+
+/*
+ * info of the pkt queue pointers in the first async occurrence
+ */
+struct cpucp_pkt_sync_err {
+	__le32 pi;
+	__le32 ci;
+};
 
 struct hl_eq_hbm_ecc_data {
 	/* SERR counter */
@@ -77,6 +90,7 @@ struct hl_eq_entry {
 		struct hl_eq_ecc_data ecc_data;
 		struct hl_eq_hbm_ecc_data hbm_ecc_data;
 		struct hl_eq_sm_sei_data sm_sei_data;
+		struct cpucp_pkt_sync_err pkt_sync_err;
 		__le64 data[7];
 	};
 };
@@ -287,6 +301,30 @@ enum pq_init_status {
  *       The result is composed of 4 outputs, each is 16-bit
  *       frequency in MHz.
  *
+ * CPUCP_PACKET_POWER_GET
+ *       Fetch the present power consumption of the device (Current * Voltage).
+ *
+ * CPUCP_PACKET_NIC_PFC_SET -
+ *       Enable/Disable the NIC PFC feature. The packet's arguments specify the
+ *       NIC port, relevant lanes to configure and one bit indication for
+ *       enable/disable.
+ *
+ * CPUCP_PACKET_NIC_FAULT_GET -
+ *       Fetch the current indication for local/remote faults from the NIC MAC.
+ *       The result is 32-bit value of the relevant register.
+ *
+ * CPUCP_PACKET_NIC_LPBK_SET -
+ *       Enable/Disable the MAC loopback feature. The packet's arguments specify
+ *       the NIC port, relevant lanes to configure and one bit indication for
+ *       enable/disable.
+ *
+ * CPUCP_PACKET_NIC_MAC_INIT -
+ *       Configure the NIC MAC channels. The packet's arguments specify the
+ *       NIC port and the speed.
+ *
+ * CPUCP_PACKET_MSI_INFO_SET -
+ *       set the index number for each supported msi type going from
+ *       host to device
  */
 
 enum cpucp_packet_id {
@@ -320,6 +358,13 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,	/* internal */
 	CPUCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
 	CPUCP_PACKET_PLL_INFO_GET,		/* internal */
+	CPUCP_PACKET_NIC_STATUS,		/* internal */
+	CPUCP_PACKET_POWER_GET,			/* internal */
+	CPUCP_PACKET_NIC_PFC_SET,		/* internal */
+	CPUCP_PACKET_NIC_FAULT_GET,		/* internal */
+	CPUCP_PACKET_NIC_LPBK_SET,		/* internal */
+	CPUCP_PACKET_NIC_MAC_CFG,		/* internal */
+	CPUCP_PACKET_MSI_INFO_SET,		/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -391,6 +436,12 @@ struct cpucp_unmask_irq_arr_packet {
 	__le32 irqs[0];
 };
 
+struct cpucp_array_data_packet {
+	struct cpucp_packet cpucp_pkt;
+	__le32 length;
+	__le32 data[0];
+};
+
 enum cpucp_packet_rc {
 	cpucp_packet_success,
 	cpucp_packet_invalid,
@@ -459,6 +510,51 @@ enum cpucp_pll_type_attributes {
 	cpucp_pll_pci,
 };
 
+/*
+ * MSI type enumeration table for all ASICs and future SW versions.
+ * For future ASIC-LKD compatibility, we can only add new enumerations.
+ * at the end of the table (before CPUCP_NUM_OF_MSI_TYPES).
+ * Changing the order of entries or removing entries is not allowed.
+ */
+enum cpucp_msi_type {
+	CPUCP_EVENT_QUEUE_MSI_TYPE,
+	CPUCP_NIC_PORT1_MSI_TYPE,
+	CPUCP_NIC_PORT3_MSI_TYPE,
+	CPUCP_NIC_PORT5_MSI_TYPE,
+	CPUCP_NIC_PORT7_MSI_TYPE,
+	CPUCP_NIC_PORT9_MSI_TYPE,
+	CPUCP_NUM_OF_MSI_TYPES
+};
+
+/*
+ * PLL enumeration table used for all ASICs and future SW versions.
+ * For future ASIC-LKD compatibility, we can only add new enumerations.
+ * at the end of the table.
+ * Changing the order of entries or removing entries is not allowed.
+ */
+enum pll_index {
+	CPU_PLL = 0,
+	PCI_PLL = 1,
+	NIC_PLL = 2,
+	DMA_PLL = 3,
+	MESH_PLL = 4,
+	MME_PLL = 5,
+	TPC_PLL = 6,
+	IF_PLL = 7,
+	SRAM_PLL = 8,
+	NS_PLL = 9,
+	HBM_PLL = 10,
+	MSS_PLL = 11,
+	DDR_PLL = 12,
+	VID_PLL = 13,
+	BANK_PLL = 14,
+	MMU_PLL = 15,
+	IC_PLL = 16,
+	MC_PLL = 17,
+	EMMC_PLL = 18,
+	PLL_MAX
+};
+
 /* Event Queue Packets */
 
 struct eq_generic_event {
@@ -470,7 +566,6 @@ struct eq_generic_event {
  */
 
 #define CARD_NAME_MAX_LEN		16
-#define VERSION_MAX_LEN			128
 #define CPUCP_MAX_SENSORS		128
 #define CPUCP_MAX_NICS			128
 #define CPUCP_LANES_PER_NIC		4
@@ -533,6 +628,7 @@ struct cpucp_security_info {
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  * @sec_info: security information
+ * @pll_map: Bit map of supported PLLs for current ASIC version.
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -554,6 +650,7 @@ struct cpucp_info {
 	__u8 pad[7];
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
+	__u8 pll_map[PLL_MAP_LEN];
 };
 
 struct cpucp_mac_addr {

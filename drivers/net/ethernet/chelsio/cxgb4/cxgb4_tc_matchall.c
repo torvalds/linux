@@ -48,6 +48,11 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 	flow_action_for_each(i, entry, actions) {
 		switch (entry->id) {
 		case FLOW_ACTION_POLICE:
+			if (entry->police.rate_pkt_ps) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "QoS offload not support packets per second");
+				return -EOPNOTSUPP;
+			}
 			/* Convert bytes per second to bits per second */
 			if (entry->police.rate_bytes_ps * 8 > max_link_rate) {
 				NL_SET_ERR_MSG_MOD(extack,
@@ -145,7 +150,11 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 	flow_action_for_each(i, entry, &cls->rule->action)
 		if (entry->id == FLOW_ACTION_POLICE)
 			break;
-
+	if (entry->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
 	/* Convert from bytes per second to Kbps */
 	p.u.params.maxrate = div_u64(entry->police.rate_bytes_ps * 8, 1000);
 	p.u.params.channel = pi->tx_chan;

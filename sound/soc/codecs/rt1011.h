@@ -692,7 +692,6 @@ struct rt1011_priv {
 	unsigned int r0_reg, cali_done;
 	unsigned int r0_calib, temperature_calib;
 	int recv_spk_mode;
-	unsigned int pack_id; /* 0: WLCSP; 1: QFN */
 };
 
 #endif		/* end of _RT1011_H_ */

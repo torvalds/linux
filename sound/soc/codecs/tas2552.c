@@ -730,8 +730,10 @@ static int tas2552_probe(struct i2c_client *client,
 	ret = devm_snd_soc_register_component(&client->dev,
 				      &soc_component_dev_tas2552,
 				      tas2552_dai, ARRAY_SIZE(tas2552_dai));
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register component: %d\n", ret);
+		pm_runtime_get_noresume(&client->dev);
+	}
 
 	return ret;
 }

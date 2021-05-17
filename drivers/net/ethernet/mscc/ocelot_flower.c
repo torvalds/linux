@@ -220,6 +220,11 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 						   "Last action must be GOTO");
 				return -EOPNOTSUPP;
 			}
+			if (a->police.rate_pkt_ps) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "QoS offload not support packets per second");
+				return -EOPNOTSUPP;
+			}
 			filter->action.police_ena = true;
 			rate = a->police.rate_bytes_ps;
 			filter->action.pol.rate = div_u64(rate, 1000) * 8;

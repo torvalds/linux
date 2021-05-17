@@ -26,22 +26,8 @@
 
 #define MSM_VFE_NAME "msm_vfe"
 
-#define vfe_line_array(ptr_line)	\
-	((const struct vfe_line (*)[]) &(ptr_line[-(ptr_line->id)]))
-
-#define to_vfe(ptr_line)	\
-	container_of(vfe_line_array(ptr_line), struct vfe_device, line)
-
 /* VFE reset timeout */
 #define VFE_RESET_TIMEOUT_MS 50
-/* VFE halt timeout */
-#define VFE_HALT_TIMEOUT_MS 100
-/* Max number of frame drop updates per frame */
-#define VFE_FRAME_DROP_UPDATES 2
-/* Frame drop value. VAL + UPDATES - 1 should not exceed 31 */
-#define VFE_FRAME_DROP_VAL 30
-
-#define VFE_NEXT_SOF_MS 500
 
 #define SCALER_RATIO_MAX 16
 
@@ -108,6 +94,32 @@ static const struct vfe_format formats_pix_8x96[] = {
 	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
 	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
 	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+};
+
+static const struct vfe_format formats_rdi_845[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, 16 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14 },
+	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
+	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16 },
 };
 
 /*
@@ -206,7 +218,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 			return sink_code;
 		}
 	else if (vfe->camss->version == CAMSS_8x96 ||
-		 vfe->camss->version == CAMSS_660)
+		 vfe->camss->version == CAMSS_660 ||
+		 vfe->camss->version == CAMSS_845)
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_YUYV8_2X8:
 		{
@@ -270,13 +283,7 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 		return 0;
 }
 
-/*
- * vfe_reset - Trigger reset on VFE module and wait to complete
- * @vfe: VFE device
- *
- * Return 0 on success or a negative error code otherwise
- */
-static int vfe_reset(struct vfe_device *vfe)
+int vfe_reset(struct vfe_device *vfe)
 {
 	unsigned long time;
 
@@ -294,35 +301,11 @@ static int vfe_reset(struct vfe_device *vfe)
 	return 0;
 }
 
-/*
- * vfe_halt - Trigger halt on VFE module and wait to complete
- * @vfe: VFE device
- *
- * Return 0 on success or a negative error code otherwise
- */
-static int vfe_halt(struct vfe_device *vfe)
-{
-	unsigned long time;
-
-	reinit_completion(&vfe->halt_complete);
-
-	vfe->ops->halt_request(vfe);
-
-	time = wait_for_completion_timeout(&vfe->halt_complete,
-		msecs_to_jiffies(VFE_HALT_TIMEOUT_MS));
-	if (!time) {
-		dev_err(vfe->camss->dev, "VFE halt timeout\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static void vfe_init_outputs(struct vfe_device *vfe)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(vfe->line); i++) {
+	for (i = 0; i < vfe->line_num; i++) {
 		struct vfe_output *output = &vfe->line[i].output;
 
 		output->state = VFE_OUTPUT_OFF;
@@ -340,71 +323,7 @@ static void vfe_reset_output_maps(struct vfe_device *vfe)
 		vfe->wm_output_map[i] = VFE_LINE_NONE;
 }
 
-static void vfe_output_init_addrs(struct vfe_device *vfe,
-				  struct vfe_output *output, u8 sync)
-{
-	u32 ping_addr;
-	u32 pong_addr;
-	unsigned int i;
-
-	output->active_buf = 0;
-
-	for (i = 0; i < output->wm_num; i++) {
-		if (output->buf[0])
-			ping_addr = output->buf[0]->addr[i];
-		else
-			ping_addr = 0;
-
-		if (output->buf[1])
-			pong_addr = output->buf[1]->addr[i];
-		else
-			pong_addr = ping_addr;
-
-		vfe->ops->wm_set_ping_addr(vfe, output->wm_idx[i], ping_addr);
-		vfe->ops->wm_set_pong_addr(vfe, output->wm_idx[i], pong_addr);
-		if (sync)
-			vfe->ops->bus_reload_wm(vfe, output->wm_idx[i]);
-	}
-}
-
-static void vfe_output_update_ping_addr(struct vfe_device *vfe,
-					struct vfe_output *output, u8 sync)
-{
-	u32 addr;
-	unsigned int i;
-
-	for (i = 0; i < output->wm_num; i++) {
-		if (output->buf[0])
-			addr = output->buf[0]->addr[i];
-		else
-			addr = 0;
-
-		vfe->ops->wm_set_ping_addr(vfe, output->wm_idx[i], addr);
-		if (sync)
-			vfe->ops->bus_reload_wm(vfe, output->wm_idx[i]);
-	}
-}
-
-static void vfe_output_update_pong_addr(struct vfe_device *vfe,
-					struct vfe_output *output, u8 sync)
-{
-	u32 addr;
-	unsigned int i;
-
-	for (i = 0; i < output->wm_num; i++) {
-		if (output->buf[1])
-			addr = output->buf[1]->addr[i];
-		else
-			addr = 0;
-
-		vfe->ops->wm_set_pong_addr(vfe, output->wm_idx[i], addr);
-		if (sync)
-			vfe->ops->bus_reload_wm(vfe, output->wm_idx[i]);
-	}
-
-}
-
-static int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id)
+int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id)
 {
 	int ret = -EBUSY;
 	int i;
@@ -420,7 +339,7 @@ static int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id)
 	return ret;
 }
 
-static int vfe_release_wm(struct vfe_device *vfe, u8 wm)
+int vfe_release_wm(struct vfe_device *vfe, u8 wm)
 {
 	if (wm >= ARRAY_SIZE(vfe->wm_output_map))
 		return -EINVAL;
@@ -430,29 +349,7 @@ static int vfe_release_wm(struct vfe_device *vfe, u8 wm)
 	return 0;
 }
 
-static void vfe_output_frame_drop(struct vfe_device *vfe,
-				  struct vfe_output *output,
-				  u32 drop_pattern)
-{
-	u8 drop_period;
-	unsigned int i;
-
-	/* We need to toggle update period to be valid on next frame */
-	output->drop_update_idx++;
-	output->drop_update_idx %= VFE_FRAME_DROP_UPDATES;
-	drop_period = VFE_FRAME_DROP_VAL + output->drop_update_idx;
-
-	for (i = 0; i < output->wm_num; i++) {
-		vfe->ops->wm_set_framedrop_period(vfe, output->wm_idx[i],
-						  drop_period);
-		vfe->ops->wm_set_framedrop_pattern(vfe, output->wm_idx[i],
-						   drop_pattern);
-	}
-	vfe->ops->reg_update(vfe,
-			     container_of(output, struct vfe_line, output)->id);
-}
-
-static struct camss_buffer *vfe_buf_get_pending(struct vfe_output *output)
+struct camss_buffer *vfe_buf_get_pending(struct vfe_output *output)
 {
 	struct camss_buffer *buffer = NULL;
 
@@ -466,13 +363,8 @@ static struct camss_buffer *vfe_buf_get_pending(struct vfe_output *output)
 	return buffer;
 }
 
-/*
- * vfe_buf_add_pending - Add output buffer to list of pending
- * @output: VFE output
- * @buffer: Video buffer
- */
-static void vfe_buf_add_pending(struct vfe_output *output,
-				struct camss_buffer *buffer)
+void vfe_buf_add_pending(struct vfe_output *output,
+			 struct camss_buffer *buffer)
 {
 	INIT_LIST_HEAD(&buffer->queue);
 	list_add_tail(&buffer->queue, &output->pending_bufs);
@@ -495,149 +387,7 @@ static void vfe_buf_flush_pending(struct vfe_output *output,
 	}
 }
 
-static void vfe_buf_update_wm_on_next(struct vfe_device *vfe,
-				      struct vfe_output *output)
-{
-	switch (output->state) {
-	case VFE_OUTPUT_CONTINUOUS:
-		vfe_output_frame_drop(vfe, output, 3);
-		break;
-	case VFE_OUTPUT_SINGLE:
-	default:
-		dev_err_ratelimited(vfe->camss->dev,
-				    "Next buf in wrong state! %d\n",
-				    output->state);
-		break;
-	}
-}
-
-static void vfe_buf_update_wm_on_last(struct vfe_device *vfe,
-				      struct vfe_output *output)
-{
-	switch (output->state) {
-	case VFE_OUTPUT_CONTINUOUS:
-		output->state = VFE_OUTPUT_SINGLE;
-		vfe_output_frame_drop(vfe, output, 1);
-		break;
-	case VFE_OUTPUT_SINGLE:
-		output->state = VFE_OUTPUT_STOPPING;
-		vfe_output_frame_drop(vfe, output, 0);
-		break;
-	default:
-		dev_err_ratelimited(vfe->camss->dev,
-				    "Last buff in wrong state! %d\n",
-				    output->state);
-		break;
-	}
-}
-
-static void vfe_buf_update_wm_on_new(struct vfe_device *vfe,
-				     struct vfe_output *output,
-				     struct camss_buffer *new_buf)
-{
-	int inactive_idx;
-
-	switch (output->state) {
-	case VFE_OUTPUT_SINGLE:
-		inactive_idx = !output->active_buf;
-
-		if (!output->buf[inactive_idx]) {
-			output->buf[inactive_idx] = new_buf;
-
-			if (inactive_idx)
-				vfe_output_update_pong_addr(vfe, output, 0);
-			else
-				vfe_output_update_ping_addr(vfe, output, 0);
-
-			vfe_output_frame_drop(vfe, output, 3);
-			output->state = VFE_OUTPUT_CONTINUOUS;
-		} else {
-			vfe_buf_add_pending(output, new_buf);
-			dev_err_ratelimited(vfe->camss->dev,
-					    "Inactive buffer is busy\n");
-		}
-		break;
-
-	case VFE_OUTPUT_IDLE:
-		if (!output->buf[0]) {
-			output->buf[0] = new_buf;
-
-			vfe_output_init_addrs(vfe, output, 1);
-
-			vfe_output_frame_drop(vfe, output, 1);
-			output->state = VFE_OUTPUT_SINGLE;
-		} else {
-			vfe_buf_add_pending(output, new_buf);
-			dev_err_ratelimited(vfe->camss->dev,
-					    "Output idle with buffer set!\n");
-		}
-		break;
-
-	case VFE_OUTPUT_CONTINUOUS:
-	default:
-		vfe_buf_add_pending(output, new_buf);
-		break;
-	}
-}
-
-static int vfe_get_output(struct vfe_line *line)
-{
-	struct vfe_device *vfe = to_vfe(line);
-	struct vfe_output *output;
-	struct v4l2_format *f = &line->video_out.active_fmt;
-	unsigned long flags;
-	int i;
-	int wm_idx;
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-
-	output = &line->output;
-	if (output->state != VFE_OUTPUT_OFF) {
-		dev_err(vfe->camss->dev, "Output is running\n");
-		goto error;
-	}
-	output->state = VFE_OUTPUT_RESERVED;
-
-	output->active_buf = 0;
-
-	switch (f->fmt.pix_mp.pixelformat) {
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV21:
-	case V4L2_PIX_FMT_NV16:
-	case V4L2_PIX_FMT_NV61:
-		output->wm_num = 2;
-		break;
-	default:
-		output->wm_num = 1;
-		break;
-	}
-
-	for (i = 0; i < output->wm_num; i++) {
-		wm_idx = vfe_reserve_wm(vfe, line->id);
-		if (wm_idx < 0) {
-			dev_err(vfe->camss->dev, "Can not reserve wm\n");
-			goto error_get_wm;
-		}
-		output->wm_idx[i] = wm_idx;
-	}
-
-	output->drop_update_idx = 0;
-
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	return 0;
-
-error_get_wm:
-	for (i--; i >= 0; i--)
-		vfe_release_wm(vfe, output->wm_idx[i]);
-	output->state = VFE_OUTPUT_OFF;
-error:
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	return -EINVAL;
-}
-
-static int vfe_put_output(struct vfe_line *line)
+int vfe_put_output(struct vfe_line *line)
 {
 	struct vfe_device *vfe = to_vfe(line);
 	struct vfe_output *output = &line->output;
@@ -655,452 +405,25 @@ static int vfe_put_output(struct vfe_line *line)
 	return 0;
 }
 
-static int vfe_enable_output(struct vfe_line *line)
-{
-	struct vfe_device *vfe = to_vfe(line);
-	struct vfe_output *output = &line->output;
-	const struct vfe_hw_ops *ops = vfe->ops;
-	struct media_entity *sensor;
-	unsigned long flags;
-	unsigned int frame_skip = 0;
-	unsigned int i;
-	u16 ub_size;
-
-	ub_size = ops->get_ub_size(vfe->id);
-	if (!ub_size)
-		return -EINVAL;
-
-	sensor = camss_find_sensor(&line->subdev.entity);
-	if (sensor) {
-		struct v4l2_subdev *subdev =
-					media_entity_to_v4l2_subdev(sensor);
-
-		v4l2_subdev_call(subdev, sensor, g_skip_frames, &frame_skip);
-		/* Max frame skip is 29 frames */
-		if (frame_skip > VFE_FRAME_DROP_VAL - 1)
-			frame_skip = VFE_FRAME_DROP_VAL - 1;
-	}
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-
-	ops->reg_update_clear(vfe, line->id);
-
-	if (output->state != VFE_OUTPUT_RESERVED) {
-		dev_err(vfe->camss->dev, "Output is not in reserved state %d\n",
-			output->state);
-		spin_unlock_irqrestore(&vfe->output_lock, flags);
-		return -EINVAL;
-	}
-	output->state = VFE_OUTPUT_IDLE;
-
-	output->buf[0] = vfe_buf_get_pending(output);
-	output->buf[1] = vfe_buf_get_pending(output);
-
-	if (!output->buf[0] && output->buf[1]) {
-		output->buf[0] = output->buf[1];
-		output->buf[1] = NULL;
-	}
-
-	if (output->buf[0])
-		output->state = VFE_OUTPUT_SINGLE;
-
-	if (output->buf[1])
-		output->state = VFE_OUTPUT_CONTINUOUS;
-
-	switch (output->state) {
-	case VFE_OUTPUT_SINGLE:
-		vfe_output_frame_drop(vfe, output, 1 << frame_skip);
-		break;
-	case VFE_OUTPUT_CONTINUOUS:
-		vfe_output_frame_drop(vfe, output, 3 << frame_skip);
-		break;
-	default:
-		vfe_output_frame_drop(vfe, output, 0);
-		break;
-	}
-
-	output->sequence = 0;
-	output->wait_sof = 0;
-	output->wait_reg_update = 0;
-	reinit_completion(&output->sof);
-	reinit_completion(&output->reg_update);
-
-	vfe_output_init_addrs(vfe, output, 0);
-
-	if (line->id != VFE_LINE_PIX) {
-		ops->set_cgc_override(vfe, output->wm_idx[0], 1);
-		ops->enable_irq_wm_line(vfe, output->wm_idx[0], line->id, 1);
-		ops->bus_connect_wm_to_rdi(vfe, output->wm_idx[0], line->id);
-		ops->wm_set_subsample(vfe, output->wm_idx[0]);
-		ops->set_rdi_cid(vfe, line->id, 0);
-		ops->wm_set_ub_cfg(vfe, output->wm_idx[0],
-				   (ub_size + 1) * output->wm_idx[0], ub_size);
-		ops->wm_frame_based(vfe, output->wm_idx[0], 1);
-		ops->wm_enable(vfe, output->wm_idx[0], 1);
-		ops->bus_reload_wm(vfe, output->wm_idx[0]);
-	} else {
-		ub_size /= output->wm_num;
-		for (i = 0; i < output->wm_num; i++) {
-			ops->set_cgc_override(vfe, output->wm_idx[i], 1);
-			ops->wm_set_subsample(vfe, output->wm_idx[i]);
-			ops->wm_set_ub_cfg(vfe, output->wm_idx[i],
-					   (ub_size + 1) * output->wm_idx[i],
-					   ub_size);
-			ops->wm_line_based(vfe, output->wm_idx[i],
-					&line->video_out.active_fmt.fmt.pix_mp,
-					i, 1);
-			ops->wm_enable(vfe, output->wm_idx[i], 1);
-			ops->bus_reload_wm(vfe, output->wm_idx[i]);
-		}
-		ops->enable_irq_pix_line(vfe, 0, line->id, 1);
-		ops->set_module_cfg(vfe, 1);
-		ops->set_camif_cfg(vfe, line);
-		ops->set_realign_cfg(vfe, line, 1);
-		ops->set_xbar_cfg(vfe, output, 1);
-		ops->set_demux_cfg(vfe, line);
-		ops->set_scale_cfg(vfe, line);
-		ops->set_crop_cfg(vfe, line);
-		ops->set_clamp_cfg(vfe);
-		ops->set_camif_cmd(vfe, 1);
-	}
-
-	ops->reg_update(vfe, line->id);
-
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	return 0;
-}
-
-static int vfe_disable_output(struct vfe_line *line)
-{
-	struct vfe_device *vfe = to_vfe(line);
-	struct vfe_output *output = &line->output;
-	const struct vfe_hw_ops *ops = vfe->ops;
-	unsigned long flags;
-	unsigned long time;
-	unsigned int i;
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-
-	output->wait_sof = 1;
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	time = wait_for_completion_timeout(&output->sof,
-					   msecs_to_jiffies(VFE_NEXT_SOF_MS));
-	if (!time)
-		dev_err(vfe->camss->dev, "VFE sof timeout\n");
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-	for (i = 0; i < output->wm_num; i++)
-		ops->wm_enable(vfe, output->wm_idx[i], 0);
-
-	ops->reg_update(vfe, line->id);
-	output->wait_reg_update = 1;
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	time = wait_for_completion_timeout(&output->reg_update,
-					   msecs_to_jiffies(VFE_NEXT_SOF_MS));
-	if (!time)
-		dev_err(vfe->camss->dev, "VFE reg update timeout\n");
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-
-	if (line->id != VFE_LINE_PIX) {
-		ops->wm_frame_based(vfe, output->wm_idx[0], 0);
-		ops->bus_disconnect_wm_from_rdi(vfe, output->wm_idx[0],
-						line->id);
-		ops->enable_irq_wm_line(vfe, output->wm_idx[0], line->id, 0);
-		ops->set_cgc_override(vfe, output->wm_idx[0], 0);
-		spin_unlock_irqrestore(&vfe->output_lock, flags);
-	} else {
-		for (i = 0; i < output->wm_num; i++) {
-			ops->wm_line_based(vfe, output->wm_idx[i], NULL, i, 0);
-			ops->set_cgc_override(vfe, output->wm_idx[i], 0);
-		}
-
-		ops->enable_irq_pix_line(vfe, 0, line->id, 0);
-		ops->set_module_cfg(vfe, 0);
-		ops->set_realign_cfg(vfe, line, 0);
-		ops->set_xbar_cfg(vfe, output, 0);
-
-		ops->set_camif_cmd(vfe, 0);
-		spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-		ops->camif_wait_for_stop(vfe, vfe->camss->dev);
-	}
-
-	return 0;
-}
-
-/*
- * vfe_enable - Enable streaming on VFE line
- * @line: VFE line
- *
- * Return 0 on success or a negative error code otherwise
- */
-static int vfe_enable(struct vfe_line *line)
-{
-	struct vfe_device *vfe = to_vfe(line);
-	int ret;
-
-	mutex_lock(&vfe->stream_lock);
-
-	if (!vfe->stream_count) {
-		vfe->ops->enable_irq_common(vfe);
-
-		vfe->ops->bus_enable_wr_if(vfe, 1);
-
-		vfe->ops->set_qos(vfe);
-
-		vfe->ops->set_ds(vfe);
-	}
-
-	vfe->stream_count++;
-
-	mutex_unlock(&vfe->stream_lock);
-
-	ret = vfe_get_output(line);
-	if (ret < 0)
-		goto error_get_output;
-
-	ret = vfe_enable_output(line);
-	if (ret < 0)
-		goto error_enable_output;
-
-	vfe->was_streaming = 1;
-
-	return 0;
-
-
-error_enable_output:
-	vfe_put_output(line);
-
-error_get_output:
-	mutex_lock(&vfe->stream_lock);
-
-	if (vfe->stream_count == 1)
-		vfe->ops->bus_enable_wr_if(vfe, 0);
-
-	vfe->stream_count--;
-
-	mutex_unlock(&vfe->stream_lock);
-
-	return ret;
-}
-
-/*
- * vfe_disable - Disable streaming on VFE line
- * @line: VFE line
- *
- * Return 0 on success or a negative error code otherwise
- */
-static int vfe_disable(struct vfe_line *line)
-{
-	struct vfe_device *vfe = to_vfe(line);
-
-	vfe_disable_output(line);
-
-	vfe_put_output(line);
-
-	mutex_lock(&vfe->stream_lock);
-
-	if (vfe->stream_count == 1)
-		vfe->ops->bus_enable_wr_if(vfe, 0);
-
-	vfe->stream_count--;
-
-	mutex_unlock(&vfe->stream_lock);
-
-	return 0;
-}
-
-/*
- * vfe_isr_sof - Process start of frame interrupt
- * @vfe: VFE Device
- * @line_id: VFE line
- */
-static void vfe_isr_sof(struct vfe_device *vfe, enum vfe_line_id line_id)
-{
-	struct vfe_output *output;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-	output = &vfe->line[line_id].output;
-	if (output->wait_sof) {
-		output->wait_sof = 0;
-		complete(&output->sof);
-	}
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-}
-
-/*
- * vfe_isr_reg_update - Process reg update interrupt
- * @vfe: VFE Device
- * @line_id: VFE line
- */
-static void vfe_isr_reg_update(struct vfe_device *vfe, enum vfe_line_id line_id)
-{
-	struct vfe_output *output;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-	vfe->ops->reg_update_clear(vfe, line_id);
-
-	output = &vfe->line[line_id].output;
-
-	if (output->wait_reg_update) {
-		output->wait_reg_update = 0;
-		complete(&output->reg_update);
-		spin_unlock_irqrestore(&vfe->output_lock, flags);
-		return;
-	}
-
-	if (output->state == VFE_OUTPUT_STOPPING) {
-		/* Release last buffer when hw is idle */
-		if (output->last_buffer) {
-			vb2_buffer_done(&output->last_buffer->vb.vb2_buf,
-					VB2_BUF_STATE_DONE);
-			output->last_buffer = NULL;
-		}
-		output->state = VFE_OUTPUT_IDLE;
-
-		/* Buffers received in stopping state are queued in */
-		/* dma pending queue, start next capture here */
-
-		output->buf[0] = vfe_buf_get_pending(output);
-		output->buf[1] = vfe_buf_get_pending(output);
-
-		if (!output->buf[0] && output->buf[1]) {
-			output->buf[0] = output->buf[1];
-			output->buf[1] = NULL;
-		}
-
-		if (output->buf[0])
-			output->state = VFE_OUTPUT_SINGLE;
-
-		if (output->buf[1])
-			output->state = VFE_OUTPUT_CONTINUOUS;
-
-		switch (output->state) {
-		case VFE_OUTPUT_SINGLE:
-			vfe_output_frame_drop(vfe, output, 2);
-			break;
-		case VFE_OUTPUT_CONTINUOUS:
-			vfe_output_frame_drop(vfe, output, 3);
-			break;
-		default:
-			vfe_output_frame_drop(vfe, output, 0);
-			break;
-		}
-
-		vfe_output_init_addrs(vfe, output, 1);
-	}
-
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-}
-
-/*
- * vfe_isr_wm_done - Process write master done interrupt
- * @vfe: VFE Device
- * @wm: Write master id
- */
-static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
-{
-	struct camss_buffer *ready_buf;
-	struct vfe_output *output;
-	dma_addr_t *new_addr;
-	unsigned long flags;
-	u32 active_index;
-	u64 ts = ktime_get_ns();
-	unsigned int i;
-
-	active_index = vfe->ops->wm_get_ping_pong_status(vfe, wm);
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-
-	if (vfe->wm_output_map[wm] == VFE_LINE_NONE) {
-		dev_err_ratelimited(vfe->camss->dev,
-				    "Received wm done for unmapped index\n");
-		goto out_unlock;
-	}
-	output = &vfe->line[vfe->wm_output_map[wm]].output;
-
-	if (output->active_buf == active_index) {
-		dev_err_ratelimited(vfe->camss->dev,
-				    "Active buffer mismatch!\n");
-		goto out_unlock;
-	}
-	output->active_buf = active_index;
-
-	ready_buf = output->buf[!active_index];
-	if (!ready_buf) {
-		dev_err_ratelimited(vfe->camss->dev,
-				    "Missing ready buf %d %d!\n",
-				    !active_index, output->state);
-		goto out_unlock;
-	}
-
-	ready_buf->vb.vb2_buf.timestamp = ts;
-	ready_buf->vb.sequence = output->sequence++;
-
-	/* Get next buffer */
-	output->buf[!active_index] = vfe_buf_get_pending(output);
-	if (!output->buf[!active_index]) {
-		/* No next buffer - set same address */
-		new_addr = ready_buf->addr;
-		vfe_buf_update_wm_on_last(vfe, output);
-	} else {
-		new_addr = output->buf[!active_index]->addr;
-		vfe_buf_update_wm_on_next(vfe, output);
-	}
-
-	if (active_index)
-		for (i = 0; i < output->wm_num; i++)
-			vfe->ops->wm_set_ping_addr(vfe, output->wm_idx[i],
-						   new_addr[i]);
-	else
-		for (i = 0; i < output->wm_num; i++)
-			vfe->ops->wm_set_pong_addr(vfe, output->wm_idx[i],
-						   new_addr[i]);
-
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	if (output->state == VFE_OUTPUT_STOPPING)
-		output->last_buffer = ready_buf;
-	else
-		vb2_buffer_done(&ready_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-
-	return;
-
-out_unlock:
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-}
-
-/*
- * vfe_isr_wm_done - Process composite image done interrupt
+/**
+ * vfe_isr_comp_done() - Process composite image done interrupt
  * @vfe: VFE Device
  * @comp: Composite image id
  */
-static void vfe_isr_comp_done(struct vfe_device *vfe, u8 comp)
+void vfe_isr_comp_done(struct vfe_device *vfe, u8 comp)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(vfe->wm_output_map); i++)
 		if (vfe->wm_output_map[i] == VFE_LINE_PIX) {
-			vfe_isr_wm_done(vfe, i);
+			vfe->isr_ops.wm_done(vfe, i);
 			break;
 		}
 }
 
-static inline void vfe_isr_reset_ack(struct vfe_device *vfe)
+void vfe_isr_reset_ack(struct vfe_device *vfe)
 {
 	complete(&vfe->reset_complete);
-}
-
-static inline void vfe_isr_halt_ack(struct vfe_device *vfe)
-{
-	complete(&vfe->halt_complete);
-	vfe->ops->halt_clear(vfe);
 }
 
 /*
@@ -1112,11 +435,11 @@ static inline void vfe_isr_halt_ack(struct vfe_device *vfe)
 static int vfe_set_clock_rates(struct vfe_device *vfe)
 {
 	struct device *dev = vfe->camss->dev;
-	u32 pixel_clock[MSM_VFE_LINE_NUM];
+	u64 pixel_clock[VFE_LINE_NUM_MAX];
 	int i, j;
 	int ret;
 
-	for (i = VFE_LINE_RDI0; i <= VFE_LINE_PIX; i++) {
+	for (i = VFE_LINE_RDI0; i < vfe->line_num; i++) {
 		ret = camss_get_pixel_clock(&vfe->line[i].subdev.entity,
 					    &pixel_clock[i]);
 		if (ret)
@@ -1127,11 +450,12 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 		struct camss_clock *clock = &vfe->clock[i];
 
 		if (!strcmp(clock->name, "vfe0") ||
-		    !strcmp(clock->name, "vfe1")) {
+		    !strcmp(clock->name, "vfe1") ||
+		    !strcmp(clock->name, "vfe_lite")) {
 			u64 min_rate = 0;
 			long rate;
 
-			for (j = VFE_LINE_RDI0; j <= VFE_LINE_PIX; j++) {
+			for (j = VFE_LINE_RDI0; j < vfe->line_num; j++) {
 				u32 tmp;
 				u8 bpp;
 
@@ -1194,11 +518,11 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
  */
 static int vfe_check_clock_rates(struct vfe_device *vfe)
 {
-	u32 pixel_clock[MSM_VFE_LINE_NUM];
+	u64 pixel_clock[VFE_LINE_NUM_MAX];
 	int i, j;
 	int ret;
 
-	for (i = VFE_LINE_RDI0; i <= VFE_LINE_PIX; i++) {
+	for (i = VFE_LINE_RDI0; i < vfe->line_num; i++) {
 		ret = camss_get_pixel_clock(&vfe->line[i].subdev.entity,
 					    &pixel_clock[i]);
 		if (ret)
@@ -1213,7 +537,7 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
 			u64 min_rate = 0;
 			unsigned long rate;
 
-			for (j = VFE_LINE_RDI0; j <= VFE_LINE_PIX; j++) {
+			for (j = VFE_LINE_RDI0; j < vfe->line_num; j++) {
 				u32 tmp;
 				u8 bpp;
 
@@ -1256,7 +580,7 @@ static int vfe_get(struct vfe_device *vfe)
 	mutex_lock(&vfe->power_lock);
 
 	if (vfe->power_count == 0) {
-		ret = camss_pm_domain_on(vfe->camss, vfe->id);
+		ret = vfe->ops->pm_domain_on(vfe);
 		if (ret < 0)
 			goto error_pm_domain;
 
@@ -1296,7 +620,7 @@ error_reset:
 
 error_pm_runtime_get:
 	pm_runtime_put_sync(vfe->camss->dev);
-	camss_pm_domain_off(vfe->camss, vfe->id);
+	vfe->ops->pm_domain_off(vfe);
 
 error_pm_domain:
 	mutex_unlock(&vfe->power_lock);
@@ -1318,46 +642,17 @@ static void vfe_put(struct vfe_device *vfe)
 	} else if (vfe->power_count == 1) {
 		if (vfe->was_streaming) {
 			vfe->was_streaming = 0;
-			vfe_halt(vfe);
+			vfe->ops->vfe_halt(vfe);
 		}
 		camss_disable_clocks(vfe->nclocks, vfe->clock);
 		pm_runtime_put_sync(vfe->camss->dev);
-		camss_pm_domain_off(vfe->camss, vfe->id);
+		vfe->ops->pm_domain_off(vfe);
 	}
 
 	vfe->power_count--;
 
 exit:
 	mutex_unlock(&vfe->power_lock);
-}
-
-/*
- * vfe_queue_buffer - Add empty buffer
- * @vid: Video device structure
- * @buf: Buffer to be enqueued
- *
- * Add an empty buffer - depending on the current number of buffers it will be
- * put in pending buffer queue or directly given to the hardware to be filled.
- *
- * Return 0 on success or a negative error code otherwise
- */
-static int vfe_queue_buffer(struct camss_video *vid,
-			    struct camss_buffer *buf)
-{
-	struct vfe_line *line = container_of(vid, struct vfe_line, video_out);
-	struct vfe_device *vfe = to_vfe(line);
-	struct vfe_output *output;
-	unsigned long flags;
-
-	output = &line->output;
-
-	spin_lock_irqsave(&vfe->output_lock, flags);
-
-	vfe_buf_update_wm_on_new(vfe, output, buf);
-
-	spin_unlock_irqrestore(&vfe->output_lock, flags);
-
-	return 0;
 }
 
 /*
@@ -1370,8 +665,8 @@ static int vfe_queue_buffer(struct camss_video *vid,
  *
  * Return 0 on success or a negative error code otherwise
  */
-static int vfe_flush_buffers(struct camss_video *vid,
-			     enum vb2_buffer_state state)
+int vfe_flush_buffers(struct camss_video *vid,
+		      enum vb2_buffer_state state)
 {
 	struct vfe_line *line = container_of(vid, struct vfe_line, video_out);
 	struct vfe_device *vfe = to_vfe(line);
@@ -1442,12 +737,12 @@ static int vfe_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable) {
-		ret = vfe_enable(line);
+		ret = vfe->ops->vfe_enable(line);
 		if (ret < 0)
 			dev_err(vfe->camss->dev,
 				"Failed to enable vfe outputs\n");
 	} else {
-		ret = vfe_disable(line);
+		ret = vfe->ops->vfe_disable(line);
 		if (ret < 0)
 			dev_err(vfe->camss->dev,
 				"Failed to disable vfe outputs\n");
@@ -1985,13 +1280,6 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	int i, j;
 	int ret;
 
-	vfe->isr_ops.reset_ack = vfe_isr_reset_ack;
-	vfe->isr_ops.halt_ack = vfe_isr_halt_ack;
-	vfe->isr_ops.reg_update = vfe_isr_reg_update;
-	vfe->isr_ops.sof = vfe_isr_sof;
-	vfe->isr_ops.comp_done = vfe_isr_comp_done;
-	vfe->isr_ops.wm_done = vfe_isr_wm_done;
-
 	switch (camss->version) {
 	case CAMSS_8x16:
 		vfe->ops = &vfe_ops_4_1;
@@ -2002,9 +1290,14 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	case CAMSS_660:
 		vfe->ops = &vfe_ops_4_8;
 		break;
+
+	case CAMSS_845:
+		vfe->ops = &vfe_ops_170;
+		break;
 	default:
 		return -EINVAL;
 	}
+	vfe->ops->subdev_init(dev, vfe);
 
 	/* Memory */
 
@@ -2086,7 +1379,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	vfe->id = id;
 	vfe->reg_update = 0;
 
-	for (i = VFE_LINE_RDI0; i <= VFE_LINE_PIX; i++) {
+	for (i = VFE_LINE_RDI0; i < vfe->line_num; i++) {
 		struct vfe_line *l = &vfe->line[i];
 
 		l->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -2112,6 +1405,9 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 				l->formats = formats_rdi_8x96;
 				l->nformats = ARRAY_SIZE(formats_rdi_8x96);
 			}
+		} else if (camss->version == CAMSS_845) {
+			l->formats = formats_rdi_845;
+			l->nformats = ARRAY_SIZE(formats_rdi_845);
 		} else {
 			return -EINVAL;
 		}
@@ -2209,11 +1505,6 @@ static const struct media_entity_operations vfe_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static const struct camss_video_ops camss_vfe_video_ops = {
-	.queue_buffer = vfe_queue_buffer,
-	.flush_buffers = vfe_flush_buffers,
-};
-
 /*
  * msm_vfe_register_entities - Register subdev node for VFE module
  * @vfe: VFE device
@@ -2236,7 +1527,7 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 	int ret;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(vfe->line); i++) {
+	for (i = 0; i < vfe->line_num; i++) {
 		char name[32];
 
 		sd = &vfe->line[i].subdev;
@@ -2279,7 +1570,7 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 			goto error_reg_subdev;
 		}
 
-		video_out->ops = &camss_vfe_video_ops;
+		video_out->ops = &vfe->video_ops;
 		video_out->bpl_alignment = 8;
 		video_out->line_based = 0;
 		if (i == VFE_LINE_PIX) {
@@ -2343,7 +1634,7 @@ void msm_vfe_unregister_entities(struct vfe_device *vfe)
 	mutex_destroy(&vfe->power_lock);
 	mutex_destroy(&vfe->stream_lock);
 
-	for (i = 0; i < ARRAY_SIZE(vfe->line); i++) {
+	for (i = 0; i < vfe->line_num; i++) {
 		struct v4l2_subdev *sd = &vfe->line[i].subdev;
 		struct camss_video *video_out = &vfe->line[i].video_out;
 

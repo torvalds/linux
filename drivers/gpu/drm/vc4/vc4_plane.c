@@ -1150,7 +1150,6 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	plane->state->src_y = new_plane_state->src_y;
 	plane->state->src_w = new_plane_state->src_w;
 	plane->state->src_h = new_plane_state->src_h;
-	plane->state->src_h = new_plane_state->src_h;
 	plane->state->alpha = new_plane_state->alpha;
 	plane->state->pixel_blend_mode = new_plane_state->pixel_blend_mode;
 	plane->state->rotation = new_plane_state->rotation;

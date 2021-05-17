@@ -75,16 +75,12 @@ examples:
             spi-flash@0 {
                 compatible = "jedec,spi-nor";
                 reg = <0>;
-                #address-cells = <1>;
-                #size-cells = <0>;
                 spi-max-frequency = <40000000>;
             };
 
-            spi-device@1 {
-                compatible = "lineartechnology,ltc2488";
+            sensor@1 {
+                compatible = "bosch,bme680";
                 reg = <1>;
-                #address-cells = <1>;
-                #size-cells = <0>;
                 spi-max-frequency = <10000000>;
             };
         };

@@ -30,6 +30,7 @@
  */
 
 #define NEXTHDR_HOP		0	/* Hop-by-hop option header. */
+#define NEXTHDR_IPV4		4	/* IPv4 in IPv6 */
 #define NEXTHDR_TCP		6	/* TCP segment. */
 #define NEXTHDR_UDP		17	/* UDP message. */
 #define NEXTHDR_IPV6		41	/* IPv6 in IPv6 */

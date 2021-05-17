@@ -249,6 +249,7 @@ static const struct qmi_msg_handler ipa_server_msg_handlers[] = {
 		.decoded_size	= IPA_QMI_DRIVER_INIT_COMPLETE_REQ_SZ,
 		.fn		= ipa_server_driver_init_complete,
 	},
+	{ },
 };
 
 /* Handle an INIT_DRIVER response message from the modem. */
@@ -269,6 +270,7 @@ static const struct qmi_msg_handler ipa_client_msg_handlers[] = {
 		.decoded_size	= IPA_QMI_INIT_DRIVER_RSP_SZ,
 		.fn		= ipa_client_init_driver,
 	},
+	{ },
 };
 
 /* Return a pointer to an init modem driver request structure, which contains
@@ -306,12 +308,12 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 	mem = &ipa->mem[IPA_MEM_V4_ROUTE];
 	req.v4_route_tbl_info_valid = 1;
 	req.v4_route_tbl_info.start = ipa->mem_offset + mem->offset;
-	req.v4_route_tbl_info.count = mem->size / IPA_TABLE_ENTRY_SIZE;
+	req.v4_route_tbl_info.count = mem->size / sizeof(__le64);
 
 	mem = &ipa->mem[IPA_MEM_V6_ROUTE];
 	req.v6_route_tbl_info_valid = 1;
 	req.v6_route_tbl_info.start = ipa->mem_offset + mem->offset;
-	req.v6_route_tbl_info.count = mem->size / IPA_TABLE_ENTRY_SIZE;
+	req.v6_route_tbl_info.count = mem->size / sizeof(__le64);
 
 	mem = &ipa->mem[IPA_MEM_V4_FILTER];
 	req.v4_filter_tbl_start_valid = 1;
@@ -350,8 +352,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 		req.v4_hash_route_tbl_info_valid = 1;
 		req.v4_hash_route_tbl_info.start =
 				ipa->mem_offset + mem->offset;
-		req.v4_hash_route_tbl_info.count =
-				mem->size / IPA_TABLE_ENTRY_SIZE;
+		req.v4_hash_route_tbl_info.count = mem->size / sizeof(__le64);
 	}
 
 	mem = &ipa->mem[IPA_MEM_V6_ROUTE_HASHED];
@@ -359,8 +360,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 		req.v6_hash_route_tbl_info_valid = 1;
 		req.v6_hash_route_tbl_info.start =
 			ipa->mem_offset + mem->offset;
-		req.v6_hash_route_tbl_info.count =
-			mem->size / IPA_TABLE_ENTRY_SIZE;
+		req.v6_hash_route_tbl_info.count = mem->size / sizeof(__le64);
 	}
 
 	mem = &ipa->mem[IPA_MEM_V4_FILTER_HASHED];
@@ -377,8 +377,8 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 
 	/* None of the stats fields are valid (IPA v4.0 and above) */
 
-	if (ipa->version != IPA_VERSION_3_5_1) {
-		mem = &ipa->mem[IPA_MEM_STATS_QUOTA];
+	if (ipa->version >= IPA_VERSION_4_0) {
+		mem = &ipa->mem[IPA_MEM_STATS_QUOTA_MODEM];
 		if (mem->size) {
 			req.hw_stats_quota_base_addr_valid = 1;
 			req.hw_stats_quota_base_addr =

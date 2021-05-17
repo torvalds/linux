@@ -30,7 +30,6 @@
 #include <linux/kvm_host.h>
 
 #include "interrupt.h"
-#include "commpage.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -58,7 +57,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("fpe", fpe_exits),
 	VCPU_STAT("msa_disabled", msa_disabled_exits),
 	VCPU_STAT("flush_dcache", flush_dcache_exits),
-#ifdef CONFIG_KVM_MIPS_VZ
 	VCPU_STAT("vz_gpsi", vz_gpsi_exits),
 	VCPU_STAT("vz_gsfc", vz_gsfc_exits),
 	VCPU_STAT("vz_hc", vz_hc_exits),
@@ -69,7 +67,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("vz_resvd", vz_resvd_exits),
 #ifdef CONFIG_CPU_LOONGSON64
 	VCPU_STAT("vz_cpucfg", vz_cpucfg_exits),
-#endif
 #endif
 	VCPU_STAT("halt_successful_poll", halt_successful_poll),
 	VCPU_STAT("halt_attempted_poll", halt_attempted_poll),
@@ -139,11 +136,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	switch (type) {
 	case KVM_VM_MIPS_AUTO:
 		break;
-#ifdef CONFIG_KVM_MIPS_VZ
 	case KVM_VM_MIPS_VZ:
-#else
-	case KVM_VM_MIPS_TE:
-#endif
 		break;
 	default:
 		/* Unsupported KVM type */
@@ -204,9 +197,7 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
 	/* Flush whole GPA */
 	kvm_mips_flush_gpa_pt(kvm, 0, ~0);
-
-	/* Let implementation do the rest */
-	kvm_mips_callbacks->flush_shadow_all(kvm);
+	kvm_flush_remote_tlbs(kvm);
 }
 
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
@@ -221,8 +212,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 	/* Flush slot from GPA */
 	kvm_mips_flush_gpa_pt(kvm, slot->base_gfn,
 			      slot->base_gfn + slot->npages - 1);
-	/* Let implementation do the rest */
-	kvm_mips_callbacks->flush_shadow_memslot(kvm, slot);
+	kvm_arch_flush_remote_tlbs_memslot(kvm, slot);
 	spin_unlock(&kvm->mmu_lock);
 }
 
@@ -262,9 +252,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 		/* Write protect GPA page table entries */
 		needs_flush = kvm_mips_mkclean_gpa_pt(kvm, new->base_gfn,
 					new->base_gfn + new->npages - 1);
-		/* Let implementation do the rest */
 		if (needs_flush)
-			kvm_mips_callbacks->flush_shadow_memslot(kvm, new);
+			kvm_arch_flush_remote_tlbs_memslot(kvm, new);
 		spin_unlock(&kvm->mmu_lock);
 	}
 }
@@ -361,7 +350,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	/* TLB refill (or XTLB refill on 64-bit VZ where KX=1) */
 	refill_start = gebase;
-	if (IS_ENABLED(CONFIG_KVM_MIPS_VZ) && IS_ENABLED(CONFIG_64BIT))
+	if (IS_ENABLED(CONFIG_64BIT))
 		refill_start += 0x080;
 	refill_end = kvm_mips_build_tlb_refill_exception(refill_start, handler);
 
@@ -397,20 +386,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	flush_icache_range((unsigned long)gebase,
 			   (unsigned long)gebase + ALIGN(size, PAGE_SIZE));
 
-	/*
-	 * Allocate comm page for guest kernel, a TLB will be reserved for
-	 * mapping GVA @ 0xFFFF8000 to this page
-	 */
-	vcpu->arch.kseg0_commpage = kzalloc(PAGE_SIZE << 1, GFP_KERNEL);
-
-	if (!vcpu->arch.kseg0_commpage) {
-		err = -ENOMEM;
-		goto out_free_gebase;
-	}
-
-	kvm_debug("Allocated COMM page @ %p\n", vcpu->arch.kseg0_commpage);
-	kvm_mips_commpage_init(vcpu);
-
 	/* Init */
 	vcpu->arch.last_sched_cpu = -1;
 	vcpu->arch.last_exec_cpu = -1;
@@ -418,12 +393,10 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	/* Initial guest state */
 	err = kvm_mips_callbacks->vcpu_setup(vcpu);
 	if (err)
-		goto out_free_commpage;
+		goto out_free_gebase;
 
 	return 0;
 
-out_free_commpage:
-	kfree(vcpu->arch.kseg0_commpage);
 out_free_gebase:
 	kfree(gebase);
 out_uninit_vcpu:
@@ -439,7 +412,6 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 	kvm_mmu_free_memory_caches(vcpu);
 	kfree(vcpu->arch.guest_ebase);
-	kfree(vcpu->arch.kseg0_commpage);
 
 	kvm_mips_callbacks->vcpu_uninit(vcpu);
 }
@@ -996,11 +968,16 @@ void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 
 }
 
-void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
-					struct kvm_memory_slot *memslot)
+int kvm_arch_flush_remote_tlb(struct kvm *kvm)
 {
-	/* Let implementation handle TLB/GVA invalidation */
-	kvm_mips_callbacks->flush_shadow_memslot(kvm, memslot);
+	kvm_mips_callbacks->prepare_flush_shadow(kvm);
+	return 1;
+}
+
+void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
+					const struct kvm_memory_slot *memslot)
+{
+	kvm_flush_remote_tlbs(kvm);
 }
 
 long kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
@@ -1212,10 +1189,6 @@ int kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 
-	/* re-enable HTW before enabling interrupts */
-	if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ))
-		htw_start();
-
 	/* Set a default exit reason */
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
@@ -1231,22 +1204,6 @@ int kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 	kvm_debug("kvm_mips_handle_exit: cause: %#x, PC: %p, kvm_run: %p, kvm_vcpu: %p\n",
 			cause, opc, run, vcpu);
 	trace_kvm_exit(vcpu, exccode);
-
-	if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
-		/*
-		 * Do a privilege check, if in UM most of these exit conditions
-		 * end up causing an exception to be delivered to the Guest
-		 * Kernel
-		 */
-		er = kvm_mips_check_privilege(cause, opc, vcpu);
-		if (er == EMULATE_PRIV_FAIL) {
-			goto skip_emul;
-		} else if (er == EMULATE_FAIL) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-			goto skip_emul;
-		}
-	}
 
 	switch (exccode) {
 	case EXCCODE_INT:
@@ -1357,7 +1314,6 @@ int kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 
 	}
 
-skip_emul:
 	local_irq_disable();
 
 	if (ret == RESUME_GUEST)
@@ -1406,11 +1362,6 @@ skip_emul:
 		    read_c0_config5() & MIPS_CONF5_MSAEN)
 			__kvm_restore_msacsr(&vcpu->arch);
 	}
-
-	/* Disable HTW before returning to guest or host */
-	if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ))
-		htw_stop();
-
 	return ret;
 }
 
@@ -1429,10 +1380,6 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	 * FR=0 FPU state, and we don't want to hit reserved instruction
 	 * exceptions trying to save the MSA state later when CU=1 && FR=1, so
 	 * play it safe and save it first.
-	 *
-	 * In theory we shouldn't ever hit this case since kvm_lose_fpu() should
-	 * get called when guest CU1 is set, however we can't trust the guest
-	 * not to clobber the status register directly via the commpage.
 	 */
 	if (cpu_has_msa && sr & ST0_CU1 && !(sr & ST0_FR) &&
 	    vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA)
@@ -1553,11 +1500,6 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 
 	preempt_disable();
 	if (cpu_has_msa && vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA) {
-		if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
-			set_c0_config5(MIPS_CONF5_MSAEN);
-			enable_fpu_hazard();
-		}
-
 		__kvm_save_msa(&vcpu->arch);
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU_MSA);
 
@@ -1569,11 +1511,6 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 		}
 		vcpu->arch.aux_inuse &= ~(KVM_MIPS_AUX_FPU | KVM_MIPS_AUX_MSA);
 	} else if (vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU) {
-		if (!IS_ENABLED(CONFIG_KVM_MIPS_VZ)) {
-			set_c0_status(ST0_CU1);
-			enable_fpu_hazard();
-		}
-
 		__kvm_save_fpu(&vcpu->arch);
 		vcpu->arch.aux_inuse &= ~KVM_MIPS_AUX_FPU;
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU);

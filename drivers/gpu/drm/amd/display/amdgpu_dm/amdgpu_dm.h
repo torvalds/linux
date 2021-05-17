@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright (C) 2015-2020 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -66,6 +66,7 @@ struct dc_plane_state;
 struct common_irq_params {
 	struct amdgpu_device *adev;
 	enum dc_irq_source irq_src;
+	atomic64_t previous_timestamp;
 };
 
 /**
@@ -339,6 +340,15 @@ struct amdgpu_display_manager {
 	struct common_irq_params
 	vupdate_params[DC_IRQ_SOURCE_VUPDATE6 - DC_IRQ_SOURCE_VUPDATE1 + 1];
 
+	/**
+	 * @dmub_trace_params:
+	 *
+	 * DMUB trace event IRQ parameters, passed to registered handlers when
+	 * triggered.
+	 */
+	struct common_irq_params
+	dmub_trace_params[1];
+
 	spinlock_t irq_handler_list_table_lock;
 
 	struct backlight_device *backlight_dev;
@@ -385,6 +395,11 @@ struct amdgpu_display_manager {
 #endif
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	/**
+	 * @crc_rd_wrk:
+	 *
+	 * Work to be executed in a separate thread to communicate with PSP.
+	 */
 	struct crc_rd_work *crc_rd_wrk;
 #endif
 
@@ -395,6 +410,7 @@ struct amdgpu_display_manager {
 	 */
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
 	bool force_timing_sync;
+	bool disable_hpd_irq;
 	bool dmcub_trace_event_en;
 	/**
 	 * @da_list:

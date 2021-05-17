@@ -107,7 +107,7 @@ extern void (*free_init_pages_eva)(void *begin, void *end);
 extern char arcs_cmdline[COMMAND_LINE_SIZE];
 
 /*
- * Registers a0, a1, a3 and a4 as passed to the kernel entry by firmware
+ * Registers a0, a1, a2 and a3 as passed to the kernel entry by firmware
  */
 extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 

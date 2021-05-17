@@ -135,11 +135,11 @@ int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
  */
 void kfd_iommu_unbind_process(struct kfd_process *p)
 {
-	struct kfd_process_device *pdd;
+	int i;
 
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
-		if (pdd->bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
+	for (i = 0; i < p->n_pdds; i++)
+		if (p->pdds[i]->bound == PDD_BOUND)
+			amd_iommu_unbind_pasid(p->pdds[i]->dev->pdev, p->pasid);
 }
 
 /* Callback for process shutdown invoked by the IOMMU driver */
@@ -332,10 +332,6 @@ int kfd_iommu_resume(struct kfd_dev *kfd)
 
 	return 0;
 }
-
-extern bool amd_iommu_pc_supported(void);
-extern u8 amd_iommu_pc_get_max_banks(u16 devid);
-extern u8 amd_iommu_pc_get_max_counters(u16 devid);
 
 /** kfd_iommu_add_perf_counters - Add IOMMU performance counters to topology
  */

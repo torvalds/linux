@@ -150,6 +150,12 @@ struct dc_vbios_funcs {
 			struct dc_bios *dcb,
 			struct graphics_object_id object_id,
 			struct bp_disp_connector_caps_info *info);
+	enum bp_result (*get_lttpr_caps)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
+	enum bp_result (*get_lttpr_interop)(
+			struct dc_bios *dcb,
+			uint8_t *dce_caps);
 };
 
 struct bios_registers {

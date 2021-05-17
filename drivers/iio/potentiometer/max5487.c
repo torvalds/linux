@@ -92,7 +92,7 @@ static int max5487_spi_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(&spi->dev, indio_dev);
+	spi_set_drvdata(spi, indio_dev);
 	data = iio_priv(indio_dev);
 
 	data->spi = spi;
@@ -114,7 +114,7 @@ static int max5487_spi_probe(struct spi_device *spi)
 
 static int max5487_spi_remove(struct spi_device *spi)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(&spi->dev);
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
 

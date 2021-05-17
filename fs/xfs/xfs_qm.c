@@ -788,7 +788,7 @@ xfs_qm_qino_alloc(
 
 	if (need_alloc) {
 		error = xfs_dir_ialloc(&init_user_ns, &tp, NULL, S_IFREG, 1, 0,
-				       0, ipp);
+				       0, false, ipp);
 		if (error) {
 			xfs_trans_cancel(tp);
 			return error;
@@ -992,7 +992,7 @@ xfs_qm_reset_dqcounts_buf(
 	 * trans_reserve. But, this gets called during quotacheck, and that
 	 * happens only at mount time which is single threaded.
 	 */
-	if (qip->i_d.di_nblocks == 0)
+	if (qip->i_nblocks == 0)
 		return 0;
 
 	map = kmem_alloc(XFS_DQITER_MAP_SIZE * sizeof(*map), 0);
@@ -1165,16 +1165,14 @@ xfs_qm_dqusage_adjust(
 	if (XFS_IS_REALTIME_INODE(ip)) {
 		struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 
-		if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-			error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
-			if (error)
-				goto error0;
-		}
+		error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
+		if (error)
+			goto error0;
 
 		xfs_bmap_count_leaves(ifp, &rtblks);
 	}
 
-	nblks = (xfs_qcnt_t)ip->i_d.di_nblocks - rtblks;
+	nblks = (xfs_qcnt_t)ip->i_nblocks - rtblks;
 
 	/*
 	 * Add the (disk blocks and inode) resources occupied by this
@@ -1716,7 +1714,7 @@ xfs_qm_vop_dqalloc(
 	}
 	if ((flags & XFS_QMOPT_PQUOTA) && XFS_IS_PQUOTA_ON(mp)) {
 		ASSERT(O_pdqpp);
-		if (ip->i_d.di_projid != prid) {
+		if (ip->i_projid != prid) {
 			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, prid,
 					XFS_DQTYPE_PROJ, true, &pq);
@@ -1779,11 +1777,11 @@ xfs_qm_vop_chown(
 	ASSERT(prevdq);
 	ASSERT(prevdq != newdq);
 
-	xfs_trans_mod_dquot(tp, prevdq, bfield, -(ip->i_d.di_nblocks));
+	xfs_trans_mod_dquot(tp, prevdq, bfield, -(ip->i_nblocks));
 	xfs_trans_mod_dquot(tp, prevdq, XFS_TRANS_DQ_ICOUNT, -1);
 
 	/* the sparkling new dquot */
-	xfs_trans_mod_dquot(tp, newdq, bfield, ip->i_d.di_nblocks);
+	xfs_trans_mod_dquot(tp, newdq, bfield, ip->i_nblocks);
 	xfs_trans_mod_dquot(tp, newdq, XFS_TRANS_DQ_ICOUNT, 1);
 
 	/*
@@ -1877,7 +1875,7 @@ xfs_qm_vop_create_dqattach(
 	}
 	if (pdqp && XFS_IS_PQUOTA_ON(mp)) {
 		ASSERT(ip->i_pdquot == NULL);
-		ASSERT(ip->i_d.di_projid == pdqp->q_id);
+		ASSERT(ip->i_projid == pdqp->q_id);
 
 		ip->i_pdquot = xfs_qm_dqhold(pdqp);
 		xfs_trans_mod_dquot(tp, pdqp, XFS_TRANS_DQ_ICOUNT, 1);

@@ -228,9 +228,9 @@ void r8712_do_queue_select(struct _adapter *padapter,
 	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
 
 	if (pdvobj->nr_endpoint == 6) {
-		qsel = (unsigned int) pattrib->priority;
+		qsel = (unsigned int)pattrib->priority;
 	} else if (pdvobj->nr_endpoint == 4) {
-		qsel = (unsigned int) pattrib->priority;
+		qsel = (unsigned int)pattrib->priority;
 		if (qsel == 0 || qsel == 3)
 			qsel = 3;
 		else if (qsel == 1 || qsel == 2)
@@ -317,7 +317,6 @@ void r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 			 0x0000ffff)));
 }
 
-
 void r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 			      struct xmit_frame *pxmitframe)
 {
@@ -360,7 +359,7 @@ void r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 	struct tx_desc *ptxdesc = pxmitbuf->pbuf;
 	struct cmd_hdr *pcmd_hdr = (struct cmd_hdr *)
 		(pxmitbuf->pbuf + TXDESC_SIZE);
-	u16 total_length = (u16) (ptxdesc->txdw0 & 0xffff);
+	u16 total_length = (u16)(ptxdesc->txdw0 & 0xffff);
 
 	/* use 1st xmitframe as media */
 	xmitframe_xmitbuf_attach(pxmitframe, pxmitbuf);
@@ -369,7 +368,7 @@ void r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 							0xffff0000));
 
 	/* urb length in cmd_dw1 */
-	pcmd_hdr->cmd_dw1 = cpu_to_le32((pxmitbuf->aggr_nr & 0xff)|
+	pcmd_hdr->cmd_dw1 = cpu_to_le32((pxmitbuf->aggr_nr & 0xff) |
 					((total_length + TXDESC_SIZE) << 16));
 	pxmitframe->last[0] = 1;
 	pxmitframe->bpending[0] = false;
@@ -507,7 +506,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 
 		/*offset 12*/
 		/* f/w will increase the seqnum by itself, driver pass the
-		 * correct priority to fw
+		 * correct priority to fw.
 		 * fw will check the correct priority for increasing the
 		 * seqnum per tid. about usb using 4-endpoint, qsel points out
 		 * the correct mapping between AC&Endpoint,
@@ -560,7 +559,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 			ptxdesc->txdw2 |= cpu_to_le32(BMC);
 		/* offset 12 */
 		/* f/w will increase the seqnum by itself, driver pass the
-		 * correct priority to fw
+		 * correct priority to fw.
 		 * fw will check the correct priority for increasing the seqnum
 		 * per tid. about usb using 4-endpoint, qsel points out the
 		 * correct mapping between AC&Endpoint,

@@ -226,7 +226,7 @@ void dml_log_pipe_params(
 		dml_print("DML PARAMS: PIPE [%d] DISPLAY OUTPUT PARAMS:\n", i);
 		dml_print("DML PARAMS:     output_type                = %d\n", dout->output_type);
 		dml_print("DML PARAMS:     output_format              = %d\n", dout->output_format);
-		dml_print("DML PARAMS:     output_bpc                 = %d\n", dout->output_bpc);
+		dml_print("DML PARAMS:     dsc_input_bpc              = %d\n", dout->dsc_input_bpc);
 		dml_print("DML PARAMS:     output_bpp                 = %3.4f\n", dout->output_bpp);
 		dml_print("DML PARAMS:     dp_lanes                   = %d\n", dout->dp_lanes);
 		dml_print("DML PARAMS:     dsc_enable                 = %d\n", dout->dsc_enable);

@@ -434,7 +434,7 @@ set_var_mtrr_range(struct var_mtrr_state *state, unsigned long base_pfn,
 	state->range_sizek  = sizek - second_sizek;
 }
 
-/* Mininum size of mtrr block that can take hole: */
+/* Minimum size of mtrr block that can take hole: */
 static u64 mtrr_chunk_size __initdata = (256ULL<<20);
 
 static int __init parse_mtrr_chunk_size_opt(char *p)

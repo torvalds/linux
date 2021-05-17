@@ -307,7 +307,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 			goto cleanup;
 		}
 
-		aux = &aconn->dm_dp_aux.aux;
+		aux = (aconn->port) ? &aconn->port->aux : &aconn->dm_dp_aux.aux;
 
 		if (!aux) {
 			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");

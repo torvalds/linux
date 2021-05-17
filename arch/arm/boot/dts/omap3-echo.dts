@@ -7,6 +7,7 @@
 #include "dm3725.dtsi"
 
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Amazon Echo (first generation)";
@@ -139,179 +140,367 @@
 	clock-frequency = <400000>;
 
 	lp5523A: lp5523A@32 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "national,lp5523";
 		label = "q1";
 		reg = <0x32>;
 		clock-mode = /bits/ 8 <0>; /* LP55XX_CLOCK_AUTO */
 		enable-gpio = <&gpio4 13 GPIO_ACTIVE_HIGH>; /* GPIO_109 */
 
-		chan0 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@0 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x0>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@1 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x1>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@6 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x6>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan1 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@2 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x2>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@3 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x3>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@7 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x7>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan2 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan3 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan4 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan5 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan6 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan7 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan8 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@4 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x4>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@5 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x5>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@8 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x8>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
 	};
 
 	lp5523B: lp5523B@33 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "national,lp5523";
 		label = "q3";
 		reg = <0x33>;
 		clock-mode = /bits/ 8 <0>; /* LP55XX_CLOCK_AUTO */
 
-		chan0 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@0 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x0>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@1 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x1>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@6 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x6>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan1 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@2 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x2>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@3 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x3>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@7 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x7>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan2 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan3 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan4 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan5 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan6 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan7 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan8 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@4 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x4>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@5 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x5>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@8 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x8>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
 	};
 
 	lp5523C: lp5523C@34 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "national,lp5523";
 		label = "q4";
 		reg = <0x34>;
 		clock-mode = /bits/ 8 <0>; /* LP55XX_CLOCK_AUTO */
 
-		chan0 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@0 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x0>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@1 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x1>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@6 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x6>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan1 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@2 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x2>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@3 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x3>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@7 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x7>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan2 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan3 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan4 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan5 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan6 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan7 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan8 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@4 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x4>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@5 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x5>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@8 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x8>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
 	};
 
 	lp5523D: lp552D@35 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "national,lp5523";
 		label = "q2";
 		reg = <0x35>;
 		clock-mode = /bits/ 8 <0>; /* LP55XX_CLOCK_AUTO */
 
-		chan0 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@0 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x0>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@1 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x1>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@6 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x6>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan1 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@2 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x2>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@3 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x3>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@7 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x7>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
-		chan2 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan3 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan4 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan5 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan6 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan7 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
-		};
-		chan8 {
-			led-cur = /bits/ 8 <12>;
-			max-cur = /bits/ 8 <15>;
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@4 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x4>;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@5 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x5>;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+
+			led@8 {
+				led-cur = /bits/ 8 <12>;
+				max-cur = /bits/ 8 <15>;
+				reg = <0x8>;
+				color = <LED_COLOR_ID_RED>;
+			};
 		};
 	};
 };
@@ -417,6 +606,8 @@
 };
 
 &mmc3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
 	bus-width = <4>;
 	pinctrl-names = "default";
@@ -426,6 +617,11 @@
 	mmc-pwrseq = <&sdio_pwrseq>;
 	vmmc-supply = <&vcc3v3>;
 	vqmmc-supply = <&vcc1v8>;
+	atheros@0 {
+		compatible = "atheros,ath6kl";
+		reg = <0>;
+		bus-width = <4>;
+	};
 };
 
 &tps {

@@ -234,6 +234,7 @@ static inline u32 hv_get_avail_to_write_percent(
  * 5 . 0  (Newer Windows 10)
  * 5 . 1  (Windows 10 RS4)
  * 5 . 2  (Windows Server 2019, RS5)
+ * 5 . 3  (Windows Server 2022)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
@@ -245,6 +246,7 @@ static inline u32 hv_get_avail_to_write_percent(
 #define VERSION_WIN10_V5 ((5 << 16) | (0))
 #define VERSION_WIN10_V5_1 ((5 << 16) | (1))
 #define VERSION_WIN10_V5_2 ((5 << 16) | (2))
+#define VERSION_WIN10_V5_3 ((5 << 16) | (3))
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -284,7 +286,7 @@ struct vmbus_channel_offer {
 
 		/*
 		 * Pipes:
-		 * The following sructure is an integrated pipe protocol, which
+		 * The following structure is an integrated pipe protocol, which
 		 * is implemented on top of standard user-defined data. Pipe
 		 * clients have MAX_PIPE_USER_DEFINED_BYTES left for their own
 		 * use.
@@ -475,6 +477,7 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_MODIFYCHANNEL		= 22,
 	CHANNELMSG_TL_CONNECT_RESULT		= 23,
+	CHANNELMSG_MODIFYCHANNEL_RESPONSE	= 24,
 	CHANNELMSG_COUNT
 };
 
@@ -585,6 +588,13 @@ struct vmbus_channel_open_result {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
 	u32 openid;
+	u32 status;
+} __packed;
+
+/* Modify Channel Result parameters */
+struct vmbus_channel_modifychannel_response {
+	struct vmbus_channel_message_header header;
+	u32 child_relid;
 	u32 status;
 } __packed;
 
@@ -720,6 +730,7 @@ struct vmbus_channel_msginfo {
 		struct vmbus_channel_gpadl_torndown gpadl_torndown;
 		struct vmbus_channel_gpadl_created gpadl_created;
 		struct vmbus_channel_version_response version_response;
+		struct vmbus_channel_modifychannel_response modify_response;
 	} response;
 
 	u32 msgsize;
@@ -883,11 +894,11 @@ struct vmbus_channel {
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
-	 * The support for sub-channels is implemented as an extention
+	 * The support for sub-channels is implemented as an extension
 	 * to the current infrastructure.
 	 * The initial offer is considered the primary channel and this
 	 * offer message will indicate if the host supports sub-channels.
-	 * The guest is free to ask for sub-channels to be offerred and can
+	 * The guest is free to ask for sub-channels to be offered and can
 	 * open these sub-channels as a normal "primary" channel. However,
 	 * all sub-channels will have the same type and instance guids as the
 	 * primary channel. Requests sent on a given channel will result in a
@@ -951,7 +962,7 @@ struct vmbus_channel {
 	 * Clearly, these optimizations improve throughput at the expense of
 	 * latency. Furthermore, since the channel is shared for both
 	 * control and data messages, control messages currently suffer
-	 * unnecessary latency adversley impacting performance and boot
+	 * unnecessary latency adversely impacting performance and boot
 	 * time. To fix this issue, permit tagging the channel as being
 	 * in "low latency" mode. In this mode, we will bypass the monitor
 	 * mechanism.
@@ -1594,7 +1605,7 @@ extern __u32 vmbus_proto_version;
 
 int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
 				  const guid_t *shv_host_servie_id);
-int vmbus_send_modifychannel(u32 child_relid, u32 target_vp);
+int vmbus_send_modifychannel(struct vmbus_channel *channel, u32 target_vp);
 void vmbus_set_event(struct vmbus_channel *channel);
 
 /* Get the start of the ring buffer. */
@@ -1726,6 +1737,7 @@ static inline unsigned long virt_to_hvpfn(void *addr)
 #define NR_HV_HYP_PAGES_IN_PAGE	(PAGE_SIZE / HV_HYP_PAGE_SIZE)
 #define offset_in_hvpage(ptr)	((unsigned long)(ptr) & ~HV_HYP_PAGE_MASK)
 #define HVPFN_UP(x)	(((x) + HV_HYP_PAGE_SIZE-1) >> HV_HYP_PAGE_SHIFT)
+#define HVPFN_DOWN(x)	((x) >> HV_HYP_PAGE_SHIFT)
 #define page_to_hvpfn(page)	(page_to_pfn(page) * NR_HV_HYP_PAGES_IN_PAGE)
 
 #endif /* _HYPERV_H */

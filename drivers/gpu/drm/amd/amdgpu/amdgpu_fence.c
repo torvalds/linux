@@ -439,7 +439,8 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
  * Helper function for amdgpu_fence_driver_init().
  */
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
-				  unsigned num_hw_submission)
+				  unsigned num_hw_submission,
+				  atomic_t *sched_score)
 {
 	struct amdgpu_device *adev = ring->adev;
 	long timeout;
@@ -467,30 +468,31 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 		return -ENOMEM;
 
 	/* No need to setup the GPU scheduler for rings that don't need it */
-	if (!ring->no_scheduler) {
-		switch (ring->funcs->type) {
-		case AMDGPU_RING_TYPE_GFX:
-			timeout = adev->gfx_timeout;
-			break;
-		case AMDGPU_RING_TYPE_COMPUTE:
-			timeout = adev->compute_timeout;
-			break;
-		case AMDGPU_RING_TYPE_SDMA:
-			timeout = adev->sdma_timeout;
-			break;
-		default:
-			timeout = adev->video_timeout;
-			break;
-		}
+	if (ring->no_scheduler)
+		return 0;
 
-		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
-				   num_hw_submission, amdgpu_job_hang_limit,
-				   timeout, NULL, ring->name);
-		if (r) {
-			DRM_ERROR("Failed to create scheduler on ring %s.\n",
-				  ring->name);
-			return r;
-		}
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_GFX:
+		timeout = adev->gfx_timeout;
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		timeout = adev->compute_timeout;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		timeout = adev->sdma_timeout;
+		break;
+	default:
+		timeout = adev->video_timeout;
+		break;
+	}
+
+	r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
+			   num_hw_submission, amdgpu_job_hang_limit,
+			   timeout, sched_score, ring->name);
+	if (r) {
+		DRM_ERROR("Failed to create scheduler on ring %s.\n",
+			  ring->name);
+		return r;
 	}
 
 	return 0;

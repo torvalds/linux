@@ -147,6 +147,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	.callback = video_detect_force_vendor,
 	.ident = "Sony VPCEH3U1E",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -382,6 +383,30 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 5735Z"),
 		DMI_MATCH(DMI_BOARD_NAME, "BA51_MV"),
+		},
+	},
+	{
+	.callback = video_detect_force_native,
+	.ident = "ASUSTeK COMPUTER INC. GA401",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GA401"),
+		},
+	},
+	{
+	.callback = video_detect_force_native,
+	.ident = "ASUSTeK COMPUTER INC. GA502",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GA502"),
+		},
+	},
+	{
+	.callback = video_detect_force_native,
+	.ident = "ASUSTeK COMPUTER INC. GA503",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GA503"),
 		},
 	},
 

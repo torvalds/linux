@@ -21,8 +21,27 @@ union aegis_block {
 	u8 bytes[AEGIS_BLOCK_SIZE];
 };
 
+struct aegis_state;
+
+extern int aegis128_have_aes_insn;
+
 #define AEGIS_BLOCK_ALIGN (__alignof__(union aegis_block))
 #define AEGIS_ALIGNED(p) IS_ALIGNED((uintptr_t)p, AEGIS_BLOCK_ALIGN)
+
+bool crypto_aegis128_have_simd(void);
+void crypto_aegis128_update_simd(struct aegis_state *state, const void *msg);
+void crypto_aegis128_init_simd(struct aegis_state *state,
+			       const union aegis_block *key,
+			       const u8 *iv);
+void crypto_aegis128_encrypt_chunk_simd(struct aegis_state *state, u8 *dst,
+					const u8 *src, unsigned int size);
+void crypto_aegis128_decrypt_chunk_simd(struct aegis_state *state, u8 *dst,
+					const u8 *src, unsigned int size);
+int crypto_aegis128_final_simd(struct aegis_state *state,
+			       union aegis_block *tag_xor,
+			       unsigned int assoclen,
+			       unsigned int cryptlen,
+			       unsigned int authsize);
 
 static __always_inline void crypto_aegis_block_xor(union aegis_block *dst,
 						   const union aegis_block *src)

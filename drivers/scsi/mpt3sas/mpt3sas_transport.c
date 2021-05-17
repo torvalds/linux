@@ -62,7 +62,7 @@
 
 /**
  * _transport_get_port_id_by_sas_phy - get zone's port id that Phy belong to
- * @phy - sas_phy object
+ * @phy: sas_phy object
  *
  * Return Port number
  */
@@ -339,10 +339,11 @@ struct rep_manu_reply {
 };
 
 /**
- * transport_expander_report_manufacture - obtain SMP report_manufacture
+ * _transport_expander_report_manufacture - obtain SMP report_manufacture
  * @ioc: per adapter object
  * @sas_address: expander sas address
  * @edev: the sas_expander_device object
+ * @port_id: Port ID number
  *
  * Fills in the sas_expander_device object when SMP port is created.
  *
@@ -671,7 +672,7 @@ _transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
  * @ioc: per adapter object
  * @handle: handle of attached device
  * @sas_address: sas address of parent expander or sas host
- * @port: hba port entry
+ * @hba_port: hba port entry
  * Context: This function will acquire ioc->sas_node_lock.
  *
  * Adding new port object to the sas_node->sas_port_list.

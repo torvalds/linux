@@ -51,6 +51,9 @@ struct module;
 struct property_entry;
 
 #if IS_ENABLED(CONFIG_I2C)
+/* Return the Frequency mode string based on the bus frequency */
+const char *i2c_freq_mode_string(u32 bus_freq_hz);
+
 /*
  * The master routines are the ones normally used to transmit data to devices
  * on a bus (or read from them). Apart from two basic transfer functions to
@@ -306,6 +309,8 @@ struct i2c_driver {
  *	userspace_devices list
  * @slave_cb: Callback when I2C slave mode of an adapter is used. The adapter
  *	calls it to pass on slave events to the slave driver.
+ * @devres_group_id: id of the devres group that will be created for resources
+ *	acquired when probing this device.
  *
  * An i2c_client identifies a single device (i.e. chip) connected to an
  * i2c bus. The behaviour exposed to Linux is defined by the driver
@@ -334,6 +339,7 @@ struct i2c_client {
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
 #endif
+	void *devres_group_id;		/* ID of probe devres group	*/
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 
@@ -391,7 +397,7 @@ static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
  * @platform_data: stored in i2c_client.dev.platform_data
  * @of_node: pointer to OpenFirmware device node
  * @fwnode: device node supplied by the platform firmware
- * @properties: additional device properties for the device
+ * @swnode: software node for the device
  * @resources: resources associated with the device
  * @num_resources: number of resources in the @resources array
  * @irq: stored in i2c_client.irq
@@ -415,7 +421,7 @@ struct i2c_board_info {
 	void		*platform_data;
 	struct device_node *of_node;
 	struct fwnode_handle *fwnode;
-	const struct property_entry *properties;
+	const struct software_node *swnode;
 	const struct resource *resources;
 	unsigned int	num_resources;
 	int		irq;
@@ -687,6 +693,8 @@ struct i2c_adapter_quirks {
 #define I2C_AQ_NO_ZERO_LEN_READ		BIT(5)
 #define I2C_AQ_NO_ZERO_LEN_WRITE	BIT(6)
 #define I2C_AQ_NO_ZERO_LEN		(I2C_AQ_NO_ZERO_LEN_READ | I2C_AQ_NO_ZERO_LEN_WRITE)
+/* adapter cannot do repeated START */
+#define I2C_AQ_NO_REP_START		BIT(7)
 
 /*
  * i2c_adapter is the structure used to identify a physical i2c bus along
@@ -844,6 +852,7 @@ static inline void i2c_mark_adapter_resumed(struct i2c_adapter *adap)
  */
 #if IS_ENABLED(CONFIG_I2C)
 int i2c_add_adapter(struct i2c_adapter *adap);
+int devm_i2c_add_adapter(struct device *dev, struct i2c_adapter *adapter);
 void i2c_del_adapter(struct i2c_adapter *adap);
 int i2c_add_numbered_adapter(struct i2c_adapter *adap);
 

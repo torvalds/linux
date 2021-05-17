@@ -408,17 +408,17 @@ static void qh_lines(struct fotg210_hcd *fotg210, struct fotg210_qh *qh,
 		temp = snprintf(next, size,
 				"\n\t%p%c%s len=%d %08x urb %p",
 				td, mark, ({ char *tmp;
-				 switch ((scratch>>8)&0x03) {
-				 case 0:
+				switch ((scratch>>8)&0x03) {
+				case 0:
 					tmp = "out";
 					break;
-				 case 1:
+				case 1:
 					tmp = "in";
 					break;
-				 case 2:
+				case 2:
 					tmp = "setup";
 					break;
-				 default:
+				default:
 					tmp = "?";
 					break;
 				 } tmp; }),
@@ -2699,7 +2699,7 @@ cleanup:
  * any previous qh and cancel its urbs first; endpoints are
  * implicitly reset then (data toggle too).
  * That'd mean updating how usbcore talks to HCDs. (2.7?)
-*/
+ */
 
 
 /* Each QH holds a qtd list; a QH is used for everything except iso.

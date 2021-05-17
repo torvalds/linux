@@ -102,7 +102,7 @@ struct platform_device *ipmi_platform_add(const char *name, unsigned int inst,
 		goto err;
 	}
  add_properties:
-	rv = platform_device_add_properties(pdev, pr);
+	rv = device_create_managed_software_node(&pdev->dev, pr, NULL);
 	if (rv) {
 		dev_err(&pdev->dev,
 			"Unable to add hard-code properties: %d\n", rv);

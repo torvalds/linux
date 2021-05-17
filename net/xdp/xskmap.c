@@ -87,7 +87,6 @@ static void xsk_map_free(struct bpf_map *map)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
 
-	bpf_clear_redirect_map(map);
 	synchronize_net();
 	bpf_map_area_free(m);
 }
@@ -123,6 +122,16 @@ static int xsk_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	*insn++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
 	*insn++ = BPF_MOV64_IMM(ret, 0);
 	return insn - insn_buf;
+}
+
+static void *__xsk_map_lookup_elem(struct bpf_map *map, u32 key)
+{
+	struct xsk_map *m = container_of(map, struct xsk_map, map);
+
+	if (key >= map->max_entries)
+		return NULL;
+
+	return READ_ONCE(m->xsk_map[key]);
 }
 
 static void *xsk_map_lookup_elem(struct bpf_map *map, void *key)
@@ -215,6 +224,11 @@ static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 	return 0;
 }
 
+static int xsk_map_redirect(struct bpf_map *map, u32 ifindex, u64 flags)
+{
+	return __bpf_xdp_redirect_map(map, ifindex, flags, __xsk_map_lookup_elem);
+}
+
 void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
 			     struct xdp_sock **map_entry)
 {
@@ -247,4 +261,5 @@ const struct bpf_map_ops xsk_map_ops = {
 	.map_check_btf = map_check_no_btf,
 	.map_btf_name = "xsk_map",
 	.map_btf_id = &xsk_map_btf_id,
+	.map_redirect = xsk_map_redirect,
 };

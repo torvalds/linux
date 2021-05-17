@@ -431,7 +431,8 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 			netif_carrier_on(port->dev);
 			if (!delayed_work_pending(caching_dw))
 				queue_delayed_work(prestera_wq, caching_dw, 0);
-		} else {
+		} else if (netif_running(port->dev) &&
+			   netif_carrier_ok(port->dev)) {
 			netif_carrier_off(port->dev);
 			if (delayed_work_pending(caching_dw))
 				cancel_delayed_work(caching_dw);
@@ -456,20 +457,17 @@ static int prestera_switch_set_base_mac_addr(struct prestera_switch *sw)
 {
 	struct device_node *base_mac_np;
 	struct device_node *np;
-	const char *base_mac;
+	int ret;
 
 	np = of_find_compatible_node(NULL, NULL, "marvell,prestera");
 	base_mac_np = of_parse_phandle(np, "base-mac-provider", 0);
 
-	base_mac = of_get_mac_address(base_mac_np);
-	of_node_put(base_mac_np);
-	if (!IS_ERR(base_mac))
-		ether_addr_copy(sw->base_mac, base_mac);
-
-	if (!is_valid_ether_addr(sw->base_mac)) {
+	ret = of_get_mac_address(base_mac_np, sw->base_mac);
+	if (ret) {
 		eth_random_addr(sw->base_mac);
 		dev_info(prestera_dev(sw), "using random base mac address\n");
 	}
+	of_node_put(base_mac_np);
 
 	return prestera_hw_switch_mac_set(sw, sw->base_mac);
 }

@@ -1930,6 +1930,9 @@ enum dc_status dc_remove_stream_from_ctx(
 				dc->res_pool,
 			del_pipe->stream_res.stream_enc,
 			false);
+	/* Release link encoder from stream in new dc_state. */
+	if (dc->res_pool->funcs->link_enc_unassign)
+		dc->res_pool->funcs->link_enc_unassign(new_ctx, del_pipe->stream);
 
 	if (del_pipe->stream_res.audio)
 		update_audio_usage(
@@ -2503,26 +2506,31 @@ static void set_avi_info_frame(
 		hdmi_info.bits.ITC = itc_value;
 	}
 
+	if (stream->qs_bit == 1) {
+		if (color_space == COLOR_SPACE_SRGB ||
+			color_space == COLOR_SPACE_2020_RGB_FULLRANGE)
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
+		else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
+					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE)
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
+		else
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+	} else
+		hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+
 	/* TODO : We should handle YCC quantization */
 	/* but we do not have matrix calculation */
-	if (stream->qs_bit == 1 &&
-			stream->qy_bit == 1) {
+	if (stream->qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
-			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
-			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
+			color_space == COLOR_SPACE_2020_RGB_FULLRANGE)
 			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
-		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
-					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
-			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
+		else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
+					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE)
 			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
-		} else {
-			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+		else
 			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
-		}
-	} else {
-		hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
-		hdmi_info.bits.YQ0_YQ1   = YYC_QUANTIZATION_LIMITED_RANGE;
-	}
+	} else
+		hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 
 	///VIC
 	format = stream->timing.timing_3d_format;
@@ -2840,6 +2848,10 @@ bool pipe_need_reprogram(
 		return true;
 
 	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
+		return true;
+
+	/* DIG link encoder resource assignment for stream changed. */
+	if (pipe_ctx_old->stream->link_enc != pipe_ctx->stream->link_enc)
 		return true;
 
 	return false;

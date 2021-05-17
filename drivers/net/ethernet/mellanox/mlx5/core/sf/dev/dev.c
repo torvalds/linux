@@ -148,9 +148,19 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 	struct mlx5_sf_dev_table *table = container_of(nb, struct mlx5_sf_dev_table, nb);
 	const struct mlx5_vhca_state_event *event = data;
 	struct mlx5_sf_dev *sf_dev;
+	u16 max_functions;
 	u16 sf_index;
+	u16 base_id;
 
-	sf_index = event->function_id - MLX5_CAP_GEN(table->dev, sf_base_id);
+	max_functions = mlx5_sf_max_functions(table->dev);
+	if (!max_functions)
+		return 0;
+
+	base_id = MLX5_CAP_GEN(table->dev, sf_base_id);
+	if (event->function_id < base_id || event->function_id >= (base_id + max_functions))
+		return 0;
+
+	sf_index = event->function_id - base_id;
 	sf_dev = xa_load(&table->devices, sf_index);
 	switch (event->new_vhca_state) {
 	case MLX5_VHCA_STATE_ALLOCATED:
@@ -181,15 +191,13 @@ static int mlx5_sf_dev_vhca_arm_all(struct mlx5_sf_dev_table *table)
 	u16 max_functions;
 	u16 function_id;
 	int err = 0;
-	bool ecpu;
 	int i;
 
 	max_functions = mlx5_sf_max_functions(dev);
 	function_id = MLX5_CAP_GEN(dev, sf_base_id);
-	ecpu = mlx5_read_embedded_cpu(dev);
 	/* Arm the vhca context as the vhca event notifier */
 	for (i = 0; i < max_functions; i++) {
-		err = mlx5_vhca_event_arm(dev, function_id, ecpu);
+		err = mlx5_vhca_event_arm(dev, function_id);
 		if (err)
 			return err;
 

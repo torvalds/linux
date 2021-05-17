@@ -76,6 +76,7 @@ struct scpsys_bus_prot_data {
 
 /**
  * struct scpsys_domain_data - scp domain data for power on/off flow
+ * @name: The name of the power domain.
  * @sta_mask: The mask for power on/off status bit.
  * @ctl_offs: The offset for main power control register.
  * @sram_pdn_bits: The mask for sram power control bits.
@@ -85,6 +86,7 @@ struct scpsys_bus_prot_data {
  * @bp_smi: bus protection for smi subsystem
  */
 struct scpsys_domain_data {
+	const char *name;
 	u32 sta_mask;
 	int ctl_offs;
 	u32 sram_pdn_bits;

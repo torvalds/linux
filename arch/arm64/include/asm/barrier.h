@@ -23,11 +23,8 @@
 #define dsb(opt)	asm volatile("dsb " #opt : : : "memory")
 
 #define psb_csync()	asm volatile("hint #17" : : : "memory")
+#define tsb_csync()	asm volatile("hint #18" : : : "memory")
 #define csdb()		asm volatile("hint #20" : : : "memory")
-
-#define spec_bar()	asm volatile(ALTERNATIVE("dsb nsh\nisb\n",		\
-						 SB_BARRIER_INSN"nop\n",	\
-						 ARM64_HAS_SB))
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 #define pmr_sync()						\
@@ -69,6 +66,25 @@ static inline unsigned long array_index_mask_nospec(unsigned long idx,
 	csdb();
 	return mask;
 }
+
+/*
+ * Ensure that reads of the counter are treated the same as memory reads
+ * for the purposes of ordering by subsequent memory barriers.
+ *
+ * This insanity brought to you by speculative system register reads,
+ * out-of-order memory accesses, sequence locks and Thomas Gleixner.
+ *
+ * http://lists.infradead.org/pipermail/linux-arm-kernel/2019-February/631195.html
+ */
+#define arch_counter_enforce_ordering(val) do {				\
+	u64 tmp, _val = (val);						\
+									\
+	asm volatile(							\
+	"	eor	%0, %1, %1\n"					\
+	"	add	%0, sp, %0\n"					\
+	"	ldr	xzr, [%0]"					\
+	: "=r" (tmp) : "r" (_val));					\
+} while (0)
 
 #define __smp_mb()	dmb(ish)
 #define __smp_rmb()	dmb(ishld)

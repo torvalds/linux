@@ -76,10 +76,10 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
 
-static int smu_cmn_wait_for_response(struct smu_context *smu)
+int smu_cmn_wait_for_response(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t cur_value, i, timeout = adev->usec_timeout * 10;
+	uint32_t cur_value, i, timeout = adev->usec_timeout * 20;
 
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
@@ -779,4 +779,32 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	header->content_revision = crev;
 	header->structure_size = structure_size;
 
+}
+
+int smu_cmn_set_mp1_state(struct smu_context *smu,
+			  enum pp_mp1_state mp1_state)
+{
+	enum smu_message_type msg;
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_SHUTDOWN:
+		msg = SMU_MSG_PrepareMp1ForShutdown;
+		break;
+	case PP_MP1_STATE_UNLOAD:
+		msg = SMU_MSG_PrepareMp1ForUnload;
+		break;
+	case PP_MP1_STATE_RESET:
+		msg = SMU_MSG_PrepareMp1ForReset;
+		break;
+	case PP_MP1_STATE_NONE:
+	default:
+		return 0;
+	}
+
+	ret = smu_cmn_send_smc_msg(smu, msg, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "[PrepareMp1] Failed!\n");
+
+	return ret;
 }

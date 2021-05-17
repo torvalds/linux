@@ -360,11 +360,10 @@ static ssize_t radeon_get_pm_profile(struct device *dev,
 	struct radeon_device *rdev = ddev->dev_private;
 	int cp = rdev->pm.profile;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(cp == PM_PROFILE_AUTO) ? "auto" :
-			(cp == PM_PROFILE_LOW) ? "low" :
-			(cp == PM_PROFILE_MID) ? "mid" :
-			(cp == PM_PROFILE_HIGH) ? "high" : "default");
+	return sysfs_emit(buf, "%s\n", (cp == PM_PROFILE_AUTO) ? "auto" :
+			  (cp == PM_PROFILE_LOW) ? "low" :
+			  (cp == PM_PROFILE_MID) ? "mid" :
+			  (cp == PM_PROFILE_HIGH) ? "high" : "default");
 }
 
 static ssize_t radeon_set_pm_profile(struct device *dev,
@@ -415,9 +414,8 @@ static ssize_t radeon_get_pm_method(struct device *dev,
 	struct radeon_device *rdev = ddev->dev_private;
 	int pm = rdev->pm.pm_method;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(pm == PM_METHOD_DYNPM) ? "dynpm" :
-			(pm == PM_METHOD_PROFILE) ? "profile" : "dpm");
+	return sysfs_emit(buf, "%s\n", (pm == PM_METHOD_DYNPM) ? "dynpm" :
+			  (pm == PM_METHOD_PROFILE) ? "profile" : "dpm");
 }
 
 static ssize_t radeon_set_pm_method(struct device *dev,
@@ -472,9 +470,9 @@ static ssize_t radeon_get_dpm_state(struct device *dev,
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_pm_state_type pm = rdev->pm.dpm.user_state;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(pm == POWER_STATE_TYPE_BATTERY) ? "battery" :
-			(pm == POWER_STATE_TYPE_BALANCED) ? "balanced" : "performance");
+	return sysfs_emit(buf, "%s\n",
+			  (pm == POWER_STATE_TYPE_BATTERY) ? "battery" :
+			  (pm == POWER_STATE_TYPE_BALANCED) ? "balanced" : "performance");
 }
 
 static ssize_t radeon_set_dpm_state(struct device *dev,
@@ -518,11 +516,11 @@ static ssize_t radeon_get_dpm_forced_performance_level(struct device *dev,
 
 	if  ((rdev->flags & RADEON_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
-		return snprintf(buf, PAGE_SIZE, "off\n");
+		return sysfs_emit(buf, "off\n");
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(level == RADEON_DPM_FORCED_LEVEL_AUTO) ? "auto" :
-			(level == RADEON_DPM_FORCED_LEVEL_LOW) ? "low" : "high");
+	return sysfs_emit(buf, "%s\n",
+			  (level == RADEON_DPM_FORCED_LEVEL_AUTO) ? "auto" :
+			  (level == RADEON_DPM_FORCED_LEVEL_LOW) ? "low" : "high");
 }
 
 static ssize_t radeon_set_dpm_forced_performance_level(struct device *dev,
@@ -685,7 +683,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 	else
 		temp = 0;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
+	return sysfs_emit(buf, "%d\n", temp);
 }
 
 static ssize_t radeon_hwmon_show_temp_thresh(struct device *dev,
@@ -701,7 +699,7 @@ static ssize_t radeon_hwmon_show_temp_thresh(struct device *dev,
 	else
 		temp = rdev->pm.dpm.thermal.max_temp;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
+	return sysfs_emit(buf, "%d\n", temp);
 }
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, radeon_hwmon_show_temp, NULL, 0);
@@ -731,7 +729,7 @@ static ssize_t radeon_hwmon_show_sclk(struct device *dev,
 	   for hwmon */
 	sclk *= 10000;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", sclk);
+	return sysfs_emit(buf, "%u\n", sclk);
 }
 
 static SENSOR_DEVICE_ATTR(freq1_input, S_IRUGO, radeon_hwmon_show_sclk, NULL,
@@ -752,7 +750,7 @@ static ssize_t radeon_hwmon_show_vddc(struct device *dev,
 	if (rdev->asic->dpm.get_current_vddc)
 		vddc = rdev->asic->dpm.get_current_vddc(rdev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", vddc);
+	return sysfs_emit(buf, "%u\n", vddc);
 }
 
 static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, radeon_hwmon_show_vddc, NULL,

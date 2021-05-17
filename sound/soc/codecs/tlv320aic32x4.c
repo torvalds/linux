@@ -577,12 +577,12 @@ static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
 		.window_start = 0,
 		.window_len = 128,
 		.range_min = 0,
-		.range_max = AIC32X4_RMICPGAVOL,
+		.range_max = AIC32X4_REFPOWERUP,
 	},
 };
 
 const struct regmap_config aic32x4_regmap_config = {
-	.max_register = AIC32X4_RMICPGAVOL,
+	.max_register = AIC32X4_REFPOWERUP,
 	.ranges = aic32x4_regmap_pages,
 	.num_ranges = ARRAY_SIZE(aic32x4_regmap_pages),
 };
@@ -1243,16 +1243,16 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 	if (ret)
 		goto err_disable_regulators;
 
+	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
+	if (ret)
+		goto err_disable_regulators;
+
 	ret = devm_snd_soc_register_component(dev,
 			&soc_component_dev_aic32x4, &aic32x4_dai, 1);
 	if (ret) {
 		dev_err(dev, "Failed to register component\n");
 		goto err_disable_regulators;
 	}
-
-	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
-	if (ret)
-		goto err_disable_regulators;
 
 	return 0;
 

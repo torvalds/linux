@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Hisilicon HiP04 INTC
+ * HiSilicon HiP04 INTC
  *
  * Copyright (C) 2002-2014 ARM Limited.
- * Copyright (c) 2013-2014 Hisilicon Ltd.
+ * Copyright (c) 2013-2014 HiSilicon Ltd.
  * Copyright (c) 2013-2014 Linaro Ltd.
  *
  * Interrupt architecture for the HIP04 INTC:

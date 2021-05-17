@@ -4,6 +4,7 @@
 #include <linux/kallsyms.h>
 #include <linux/semaphore.h>
 #include <linux/sched.h>
+#include "tty.h"
 
 /* Legacy tty mutex glue */
 

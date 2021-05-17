@@ -3408,6 +3408,14 @@ retry_probe:
 		goto err2;
 	}
 
+	if (mode != QEDF_MODE_RECOVERY) {
+		qedf->devlink = qed_ops->common->devlink_register(qedf->cdev);
+		if (IS_ERR(qedf->devlink)) {
+			QEDF_ERR(&qedf->dbg_ctx, "Cannot register devlink\n");
+			qedf->devlink = NULL;
+		}
+	}
+
 	/* Record BDQ producer doorbell addresses */
 	qedf->bdq_primary_prod = qedf->dev_info.primary_dbq_rq_addr;
 	qedf->bdq_secondary_prod = qedf->dev_info.secondary_bdq_rq_addr;
@@ -3789,6 +3797,11 @@ static void __qedf_remove(struct pci_dev *pdev, int mode)
 		QEDF_ERR(&(qedf->dbg_ctx),
 			"Failed to send drv state to MFW.\n");
 
+	if (mode != QEDF_MODE_RECOVERY && qedf->devlink) {
+		qed_ops->common->devlink_unregister(qedf->devlink);
+		qedf->devlink = NULL;
+	}
+
 	qed_ops->common->slowpath_stop(qedf->cdev);
 	qed_ops->common->remove(qedf->cdev);
 
@@ -3846,8 +3859,9 @@ void qedf_schedule_hw_err_handler(void *dev, enum qed_hw_err_type err_type)
 		/* Prevent HW attentions from being reasserted */
 		qed_ops->common->attn_clr_enable(qedf->cdev, true);
 
-		if (qedf_enable_recovery)
-			qed_ops->common->recovery_process(qedf->cdev);
+		if (qedf_enable_recovery && qedf->devlink)
+			qed_ops->common->report_fatal_error(qedf->devlink,
+				err_type);
 
 		break;
 	default:

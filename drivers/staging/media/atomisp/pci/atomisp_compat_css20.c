@@ -1142,7 +1142,7 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 	 * Thus the stream created in set_fmt get destroyed and need to be
 	 * recreated in the next stream on.
 	 */
-	if (asd->stream_prepared == false) {
+	if (!asd->stream_prepared) {
 		if (__create_pipes(asd)) {
 			dev_err(isp->dev, "create pipe error.\n");
 			return -EINVAL;
@@ -2098,8 +2098,8 @@ int atomisp_css_input_configure_port(
 	return 0;
 }
 
-int atomisp_css_stop(struct atomisp_sub_device *asd,
-		     enum ia_css_pipe_id pipe_id, bool in_reset)
+void atomisp_css_stop(struct atomisp_sub_device *asd,
+		      enum ia_css_pipe_id pipe_id, bool in_reset)
 {
 	struct atomisp_device *isp = asd->isp;
 	struct atomisp_s3a_buf *s3a_buf;
@@ -2188,12 +2188,11 @@ int atomisp_css_stop(struct atomisp_sub_device *asd,
 	atomisp_flush_params_queue(&asd->video_out_video_capture);
 	atomisp_free_css_parameters(&asd->params.css_param);
 	memset(&asd->params.css_param, 0, sizeof(asd->params.css_param));
-	return 0;
 }
 
-int atomisp_css_continuous_set_num_raw_frames(
-    struct atomisp_sub_device *asd,
-    int num_frames)
+void atomisp_css_continuous_set_num_raw_frames(
+     struct atomisp_sub_device *asd,
+     int num_frames)
 {
 	if (asd->enable_raw_buffer_lock->val) {
 		asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
@@ -2217,7 +2216,6 @@ int atomisp_css_continuous_set_num_raw_frames(
 
 	asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
 	.stream_config.target_num_cont_raw_buf = num_frames;
-	return 0;
 }
 
 static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(

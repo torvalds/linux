@@ -120,7 +120,7 @@ Then there is the::
 
 call to tell those who receive the events that we've sent a complete report.
 This doesn't seem important in the one button case, but is quite important
-for for example mouse movement, where you don't want the X and Y values
+for example for mouse movement, where you don't want the X and Y values
 to be interpreted separately, because that'd result in a different movement.
 
 dev->open() and dev->close()
@@ -128,7 +128,7 @@ dev->open() and dev->close()
 
 In case the driver has to repeatedly poll the device, because it doesn't
 have an interrupt coming from it and the polling is too expensive to be done
-all the time, or if the device uses a valuable resource (eg. interrupt), it
+all the time, or if the device uses a valuable resource (e.g. interrupt), it
 can use the open and close callback to know when it can stop polling or
 release the interrupt and when it must resume polling or grab the interrupt
 again. To do that, we would add this to our example driver::
@@ -161,7 +161,7 @@ makes sure that dev->open() is called only when the first user connects
 to the device and that dev->close() is called when the very last user
 disconnects. Calls to both callbacks are serialized.
 
-The open() callback should return a 0 in case of success or any nonzero value
+The open() callback should return a 0 in case of success or any non-zero value
 in case of failure. The close() callback (which is void) must always succeed.
 
 Inhibiting input devices
@@ -182,8 +182,8 @@ providing events to the input core.
 
 Calling the device's close() method on inhibit (if there are users) allows the
 driver to save power. Either by directly powering down the device or by
-releasing the runtime-pm reference it got in open() when the driver is using
-runtime-pm.
+releasing the runtime-PM reference it got in open() when the driver is using
+runtime-PM.
 
 Inhibiting and uninhibiting are orthogonal to opening and closing the device by
 input handlers. Userspace might want to inhibit a device in anticipation before
@@ -219,8 +219,8 @@ It's reported to the input system via::
 	input_report_key(struct input_dev *dev, int code, int value)
 
 See uapi/linux/input-event-codes.h for the allowable values of code (from 0 to
-KEY_MAX). Value is interpreted as a truth value, ie any nonzero value means key
-pressed, zero value means key released. The input code generates events only
+KEY_MAX). Value is interpreted as a truth value, i.e. any non-zero value means
+key pressed, zero value means key released. The input code generates events only
 in case the value is different from before.
 
 In addition to EV_KEY, there are two more basic event types: EV_REL and
@@ -231,12 +231,12 @@ because it doesn't have any absolute coordinate system to work in. Absolute
 events are namely for joysticks and digitizers - devices that do work in an
 absolute coordinate systems.
 
-Having the device report EV_REL buttons is as simple as with EV_KEY, simply
+Having the device report EV_REL buttons is as simple as with EV_KEY; simply
 set the corresponding bits and call the::
 
 	input_report_rel(struct input_dev *dev, int code, int value)
 
-function. Events are generated only for nonzero value.
+function. Events are generated only for non-zero values.
 
 However EV_ABS requires a little special care. Before calling
 input_register_device, you have to fill additional fields in the input_dev
@@ -280,7 +280,7 @@ device driver. It's a string like 'Generic button device' containing a
 user friendly name of the device.
 
 The id* fields contain the bus ID (PCI, USB, ...), vendor ID and device ID
-of the device. The bus IDs are defined in input.h. The vendor and device ids
+of the device. The bus IDs are defined in input.h. The vendor and device IDs
 are defined in pci_ids.h, usb_ids.h and similar include files. These fields
 should be set by the input device driver before registering it.
 

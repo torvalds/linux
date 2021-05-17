@@ -616,8 +616,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	u32 link_mask;
 	int ret = 0;
 
-	device_disable_async_suspend(bus->dev);
-
 	/* check if dsp is there */
 	if (bus->ppcap)
 		dev_dbg(sdev->dev, "PP capability, will probe DSP later.\n");
@@ -897,6 +895,7 @@ free_streams:
 /* dsp_unmap: not currently used */
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 hdac_bus_unmap:
+	platform_device_unregister(hdev->dmic_dev);
 	iounmap(bus->remap_addr);
 	hda_codec_i915_exit(sdev);
 err:
@@ -1214,12 +1213,16 @@ static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
 #endif
 
 void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
-			 struct device *dev)
+			 struct snd_sof_dev *sdev)
 {
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = pdata->desc;
 	struct snd_soc_acpi_mach_params *mach_params;
 
 	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
-	mach_params->platform = dev_name(dev);
+	mach_params->platform = dev_name(sdev->dev);
+	mach_params->num_dai_drivers = desc->ops->num_drv;
+	mach_params->dai_drivers = desc->ops->drv;
 }
 
 void hda_machine_select(struct snd_sof_dev *sdev)

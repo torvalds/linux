@@ -34,7 +34,7 @@
  * the config symbols are rebuilt.
  *
  * So if the user changes his CONFIG_HIS_DRIVER option, only the objects
- * which depend on "include/config/his/driver.h" will be rebuilt,
+ * which depend on "include/config/HIS_DRIVER" will be rebuilt,
  * so most likely only his driver ;-)
  *
  * The idea above dates, by the way, back to Michael E Chastain, AFAIK.
@@ -74,7 +74,7 @@
  *
  * and then basically copies the .<target>.d file to stdout, in the
  * process filtering out the dependency on autoconf.h and adding
- * dependencies on include/config/my/option.h for every
+ * dependencies on include/config/MY_OPTION for every
  * CONFIG_MY_OPTION encountered in any of the prerequisites.
  *
  * We don't even try to really parse the header files, but
@@ -107,8 +107,8 @@ static void usage(void)
 
 /*
  * In the intended usage of this program, the stdout is redirected to .*.cmd
- * files. The return value of printf() and putchar() must be checked to catch
- * any error, e.g. "No space left on device".
+ * files. The return value of printf() must be checked to catch any error,
+ * e.g. "No space left on device".
  */
 static void xprintf(const char *format, ...)
 {
@@ -122,38 +122,6 @@ static void xprintf(const char *format, ...)
 		exit(1);
 	}
 	va_end(ap);
-}
-
-static void xputchar(int c)
-{
-	int ret;
-
-	ret = putchar(c);
-	if (ret == EOF) {
-		perror("fixdep");
-		exit(1);
-	}
-}
-
-/*
- * Print out a dependency path from a symbol name
- */
-static void print_dep(const char *m, int slen, const char *dir)
-{
-	int c, prev_c = '/', i;
-
-	xprintf("    $(wildcard %s/", dir);
-	for (i = 0; i < slen; i++) {
-		c = m[i];
-		if (c == '_')
-			c = '/';
-		else
-			c = tolower(c);
-		if (c != '/' || prev_c != '/')
-			xputchar(c);
-		prev_c = c;
-	}
-	xprintf(".h) \\\n");
 }
 
 struct item {
@@ -220,7 +188,8 @@ static void use_config(const char *m, int slen)
 	    return;
 
 	define_config(m, slen, hash);
-	print_dep(m, slen, "include/config");
+	/* Print out a dependency path from a symbol name. */
+	xprintf("    $(wildcard include/config/%.*s) \\\n", slen, m);
 }
 
 /* test if s ends in sub */

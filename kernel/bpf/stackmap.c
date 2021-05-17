@@ -517,9 +517,17 @@ const struct bpf_func_proto bpf_get_stack_proto = {
 BPF_CALL_4(bpf_get_task_stack, struct task_struct *, task, void *, buf,
 	   u32, size, u64, flags)
 {
-	struct pt_regs *regs = task_pt_regs(task);
+	struct pt_regs *regs;
+	long res;
 
-	return __bpf_get_stack(regs, task, NULL, buf, size, flags);
+	if (!try_get_task_stack(task))
+		return -EFAULT;
+
+	regs = task_pt_regs(task);
+	res = __bpf_get_stack(regs, task, NULL, buf, size, flags);
+	put_task_stack(task);
+
+	return res;
 }
 
 BTF_ID_LIST_SINGLE(bpf_get_task_stack_btf_ids, struct, task_struct)

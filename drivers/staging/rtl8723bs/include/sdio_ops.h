@@ -25,17 +25,10 @@ s32 _sdio_write32(struct adapter *padapter, u32 addr, u32 val);
 extern void sd_int_hdl(struct adapter *padapter);
 extern u8 CheckIPSStatus(struct adapter *padapter);
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-extern u8 RecvOnePkt(struct adapter *padapter, u32 size);
-#endif /*  CONFIG_WOWLAN */
 extern void InitInterrupt8723BSdio(struct adapter *padapter);
 extern void InitSysInterrupt8723BSdio(struct adapter *padapter);
 extern void EnableInterrupt8723BSdio(struct adapter *padapter);
 extern void DisableInterrupt8723BSdio(struct adapter *padapter);
 extern u8 HalQueryTxBufferStatus8723BSdio(struct adapter *padapter);
 extern void HalQueryTxOQTBufferStatus8723BSdio(struct adapter *padapter);
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-extern void ClearInterrupt8723BSdio(struct adapter *padapter);
-#endif /* CONFIG_WOWLAN */
-
 #endif /*  !__SDIO_OPS_H__ */

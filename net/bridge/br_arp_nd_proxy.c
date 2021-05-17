@@ -160,7 +160,9 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 	if (br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED)) {
 		if (p && (p->flags & BR_NEIGH_SUPPRESS))
 			return;
-		if (ipv4_is_zeronet(sip) || sip == tip) {
+		if (parp->ar_op != htons(ARPOP_RREQUEST) &&
+		    parp->ar_op != htons(ARPOP_RREPLY) &&
+		    (ipv4_is_zeronet(sip) || sip == tip)) {
 			/* prevent flooding to neigh suppress ports */
 			BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 			return;

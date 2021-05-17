@@ -38,15 +38,16 @@
 
 int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 *in)
 {
+	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 	int err;
 
 	err = mlx5_core_create_tir(mdev, in, &tir->tirn);
 	if (err)
 		return err;
 
-	mutex_lock(&mdev->mlx5e_res.td.list_lock);
-	list_add(&tir->list, &mdev->mlx5e_res.td.tirs_list);
-	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
+	mutex_lock(&res->td.list_lock);
+	list_add(&tir->list, &res->td.tirs_list);
+	mutex_unlock(&res->td.list_lock);
 
 	return 0;
 }
@@ -54,10 +55,12 @@ int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 *in)
 void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 		       struct mlx5e_tir *tir)
 {
-	mutex_lock(&mdev->mlx5e_res.td.list_lock);
+	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
+
+	mutex_lock(&res->td.list_lock);
 	mlx5_core_destroy_tir(mdev, tir->tirn);
 	list_del(&tir->list);
-	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
+	mutex_unlock(&res->td.list_lock);
 }
 
 void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
@@ -99,7 +102,7 @@ static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 {
-	struct mlx5e_resources *res = &mdev->mlx5e_res;
+	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 	int err;
 
 	err = mlx5_core_alloc_pd(mdev, &res->pdn);
@@ -126,8 +129,8 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_destroy_mkey;
 	}
 
-	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
-	mutex_init(&mdev->mlx5e_res.td.list_lock);
+	INIT_LIST_HEAD(&res->td.tirs_list);
+	mutex_init(&res->td.list_lock);
 
 	return 0;
 
@@ -142,7 +145,7 @@ err_dealloc_pd:
 
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 {
-	struct mlx5e_resources *res = &mdev->mlx5e_res;
+	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 
 	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
@@ -180,8 +183,8 @@ int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 
-	mutex_lock(&mdev->mlx5e_res.td.list_lock);
-	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
+	mutex_lock(&mdev->mlx5e_res.hw_objs.td.list_lock);
+	list_for_each_entry(tir, &mdev->mlx5e_res.hw_objs.td.tirs_list, list) {
 		tirn = tir->tirn;
 		err = mlx5_core_modify_tir(mdev, tirn, in);
 		if (err)
@@ -192,7 +195,7 @@ out:
 	kvfree(in);
 	if (err)
 		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
-	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
+	mutex_unlock(&mdev->mlx5e_res.hw_objs.td.list_lock);
 
 	return err;
 }

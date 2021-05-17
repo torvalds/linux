@@ -1156,11 +1156,3 @@ static void __exit atarilance_module_exit(void)
 module_init(atarilance_module_init);
 module_exit(atarilance_module_exit);
 #endif /* MODULE */
-
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  tab-width: 4
- * End:
- */

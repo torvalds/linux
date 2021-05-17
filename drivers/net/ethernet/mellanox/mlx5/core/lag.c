@@ -603,8 +603,6 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 	if (err)
 		mlx5_core_err(dev, "Failed to init multipath lag err=%d\n",
 			      err);
-
-	return;
 }
 
 /* Must be called with intf_mutex held */
@@ -768,7 +766,7 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 
 	spin_lock(&lag_lock);
 	ldev = mlx5_lag_dev_get(dev);
-	if (ldev && __mlx5_lag_is_roce(ldev)) {
+	if (ldev && __mlx5_lag_is_active(ldev)) {
 		num_ports = MLX5_MAX_PORTS;
 		mdev[MLX5_LAG_P1] = ldev->pf[MLX5_LAG_P1].dev;
 		mdev[MLX5_LAG_P2] = ldev->pf[MLX5_LAG_P2].dev;

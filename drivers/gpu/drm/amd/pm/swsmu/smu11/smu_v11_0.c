@@ -561,6 +561,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.firmware_caps = v_3_1->firmware_capability;
 		break;
 	case 3:
+	case 4:
 	default:
 		v_3_3 = (struct atom_firmware_info_v3_3 *)header;
 		smu->smu_table.boot_values.revision = v_3_3->firmware_revision;

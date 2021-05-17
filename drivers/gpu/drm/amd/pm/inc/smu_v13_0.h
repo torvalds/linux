@@ -26,7 +26,7 @@
 #include "amdgpu_smu.h"
 
 #define SMU13_DRIVER_IF_VERSION_INV 0xFFFFFFFF
-#define SMU13_DRIVER_IF_VERSION_ALDE 0x5
+#define SMU13_DRIVER_IF_VERSION_ALDE 0x6
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
@@ -267,6 +267,9 @@ int smu_v13_0_get_current_pcie_link_speed(struct smu_context *smu);
 
 int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);
+
+int smu_v13_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
+			     uint64_t event_arg);
 
 #endif
 #endif

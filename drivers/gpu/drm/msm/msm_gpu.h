@@ -152,6 +152,8 @@ struct msm_gpu {
 		ktime_t time;
 	} devfreq;
 
+	uint32_t suspend_count;
+
 	struct msm_gpu_state *crashstate;
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;

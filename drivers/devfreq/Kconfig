@@ -62,7 +62,7 @@ config DEVFREQ_GOV_USERSPACE
 	help
 	  Sets the frequency at the user specified one.
 	  This governor returns the user configured frequency if there
-	  has been an input to /sys/devices/.../power/devfreq_set_freq.
+	  has been an input to /sys/devices/.../userspace/set_freq.
 	  Otherwise, the governor does not change the frequency
 	  given at the initialization.
 

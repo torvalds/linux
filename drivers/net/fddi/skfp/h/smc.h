@@ -228,7 +228,7 @@ struct s_phy {
 	u_char timer1_exp ;
 	u_char timer2_exp ;
 	u_char pcm_pad1[1] ;
-	int	cem_pst ;	/* CEM privae state; used for dual homing */
+	int	cem_pst ;	/* CEM private state; used for dual homing */
 	struct lem_counter lem ;
 #ifdef	AMDPLC
 	struct s_plc	plc ;

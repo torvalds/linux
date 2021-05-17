@@ -130,11 +130,6 @@ void *extend_brk(size_t size, size_t align);
 			: : "i" (sz));					\
 	}
 
-/* Helper for reserving space for arrays of things */
-#define RESERVE_BRK_ARRAY(type, name, entries)		\
-	type *name;					\
-	RESERVE_BRK(name, sizeof(type) * entries)
-
 extern void probe_roms(void);
 #ifdef __i386__
 

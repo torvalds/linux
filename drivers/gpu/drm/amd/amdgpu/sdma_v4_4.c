@@ -160,6 +160,7 @@ static const struct soc15_ras_field_entry sdma_v4_4_ras_fields[] = {
 };
 
 static void sdma_v4_4_get_ras_error_count(struct amdgpu_device *adev,
+					  uint32_t reg_offset,
 					  uint32_t value,
 					  uint32_t instance,
 					  uint32_t *sec_count)
@@ -169,6 +170,9 @@ static void sdma_v4_4_get_ras_error_count(struct amdgpu_device *adev,
 
 	/* double bits error (multiple bits) error detection is not supported */
 	for (i = 0; i < ARRAY_SIZE(sdma_v4_4_ras_fields); i++) {
+		if (sdma_v4_4_ras_fields[i].reg_offset != reg_offset)
+			continue;
+
 		/* the SDMA_EDC_COUNTER register in each sdma instance
 		 * shares the same sed shift_mask
 		 * */
@@ -197,13 +201,30 @@ static int sdma_v4_4_query_ras_error_count(struct amdgpu_device *adev,
 	reg_value = RREG32(reg_offset);
 	/* double bit error is not supported */
 	if (reg_value)
-		sdma_v4_4_get_ras_error_count(adev, reg_value, instance, &sec_count);
-	/* err_data->ce_count should be initialized to 0
-	 * before calling into this function */
-	err_data->ce_count += sec_count;
-	/* double bit error is not supported
-	 * set ue count to 0 */
-	err_data->ue_count = 0;
+		sdma_v4_4_get_ras_error_count(adev, regSDMA0_EDC_COUNTER, reg_value,
+					      instance, &sec_count);
+
+	reg_offset = sdma_v4_4_get_reg_offset(adev, instance, regSDMA0_EDC_COUNTER2);
+	reg_value = RREG32(reg_offset);
+	/* double bit error is not supported */
+	if (reg_value)
+		sdma_v4_4_get_ras_error_count(adev, regSDMA0_EDC_COUNTER2, reg_value,
+					      instance, &sec_count);
+
+	/*
+	 * err_data->ue_count should be initialized to 0
+	 * before calling into this function
+	 *
+	 * SDMA RAS supports single bit uncorrectable error detection.
+	 * So, increment uncorrectable error count.
+	 */
+	err_data->ue_count += sec_count;
+
+	/*
+	 * SDMA RAS does not support correctable errors.
+	 * Set ce count to 0.
+	 */
+	err_data->ce_count = 0;
 
 	return 0;
 };

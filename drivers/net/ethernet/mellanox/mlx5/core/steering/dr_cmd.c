@@ -85,14 +85,52 @@ int mlx5dr_cmd_query_esw_caps(struct mlx5_core_dev *mdev,
 	return 0;
 }
 
+static int dr_cmd_query_nic_vport_roce_en(struct mlx5_core_dev *mdev,
+					  u16 vport, bool *roce_en)
+{
+	u32 out[MLX5_ST_SZ_DW(query_nic_vport_context_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_nic_vport_context_in)] = {};
+	int err;
+
+	MLX5_SET(query_nic_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_NIC_VPORT_CONTEXT);
+	MLX5_SET(query_nic_vport_context_in, in, vport_number, vport);
+	MLX5_SET(query_nic_vport_context_in, in, other_vport, !!vport);
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*roce_en = MLX5_GET(query_nic_vport_context_out, out,
+			    nic_vport_context.roce_en);
+	return 0;
+}
+
 int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 			    struct mlx5dr_cmd_caps *caps)
 {
+	bool roce_en;
+	int err;
+
 	caps->prio_tag_required	= MLX5_CAP_GEN(mdev, prio_tag_required);
 	caps->eswitch_manager	= MLX5_CAP_GEN(mdev, eswitch_manager);
 	caps->gvmi		= MLX5_CAP_GEN(mdev, vhca_id);
 	caps->flex_protocols	= MLX5_CAP_GEN(mdev, flex_parser_protocols);
 	caps->sw_format_ver	= MLX5_CAP_GEN(mdev, steering_format_version);
+
+	if (MLX5_CAP_GEN(mdev, roce)) {
+		err = dr_cmd_query_nic_vport_roce_en(mdev, 0, &roce_en);
+		if (err)
+			return err;
+
+		caps->roce_caps.roce_en = roce_en;
+		caps->roce_caps.fl_rc_qp_when_roce_disabled =
+			MLX5_CAP_ROCE(mdev, fl_rc_qp_when_roce_disabled);
+		caps->roce_caps.fl_rc_qp_when_roce_enabled =
+			MLX5_CAP_ROCE(mdev, fl_rc_qp_when_roce_enabled);
+	}
+
+	caps->isolate_vl_tc = MLX5_CAP_GEN(mdev, isolate_vl_tc_new);
 
 	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED) {
 		caps->flex_parser_id_icmp_dw0 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw0);
@@ -105,6 +143,34 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 		caps->flex_parser_id_icmpv6_dw1 =
 			MLX5_CAP_GEN(mdev, flex_parser_id_icmpv6_dw1);
 	}
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GENEVE_TLV_OPTION_0_ENABLED)
+		caps->flex_parser_id_geneve_tlv_option_0 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_geneve_tlv_option_0);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_MPLS_OVER_GRE_ENABLED)
+		caps->flex_parser_id_mpls_over_gre =
+			MLX5_CAP_GEN(mdev, flex_parser_id_outer_first_mpls_over_gre);
+
+	if (caps->flex_protocols & mlx5_FLEX_PARSER_MPLS_OVER_UDP_ENABLED)
+		caps->flex_parser_id_mpls_over_udp =
+			MLX5_CAP_GEN(mdev, flex_parser_id_outer_first_mpls_over_udp_label);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_DW_0_ENABLED)
+		caps->flex_parser_id_gtpu_dw_0 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_dw_0);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_TEID_ENABLED)
+		caps->flex_parser_id_gtpu_teid =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_teid);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_DW_2_ENABLED)
+		caps->flex_parser_id_gtpu_dw_2 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_dw_2);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_FIRST_EXT_DW_0_ENABLED)
+		caps->flex_parser_id_gtpu_first_ext_dw_0 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_first_ext_dw_0);
 
 	caps->nic_rx_drop_address =
 		MLX5_CAP64_FLOWTABLE(mdev, sw_steering_nic_rx_action_drop_icm_address);
@@ -287,7 +353,7 @@ int mlx5dr_cmd_create_empty_flow_group(struct mlx5_core_dev *mdev,
 	u32 *in;
 	int err;
 
-	in = kzalloc(inlen, GFP_KERNEL);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -302,7 +368,7 @@ int mlx5dr_cmd_create_empty_flow_group(struct mlx5_core_dev *mdev,
 	*group_id = MLX5_GET(create_flow_group_out, out, group_id);
 
 out:
-	kfree(in);
+	kvfree(in);
 	return err;
 }
 

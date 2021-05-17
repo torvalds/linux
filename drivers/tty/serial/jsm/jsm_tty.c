@@ -603,18 +603,22 @@ void jsm_input(struct jsm_channel *ch)
 
 		if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
 			for (i = 0; i < s; i++) {
+				u8 chr   = ch->ch_rqueue[tail + i];
+				u8 error = ch->ch_equeue[tail + i];
+				char flag = TTY_NORMAL;
+
 				/*
-				 * Give the Linux ld the flags in the
-				 * format it likes.
+				 * Give the Linux ld the flags in the format it
+				 * likes.
 				 */
-				if (*(ch->ch_equeue + tail + i) & UART_LSR_BI)
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i),  TTY_BREAK);
-				else if (*(ch->ch_equeue +tail +i) & UART_LSR_PE)
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_PARITY);
-				else if (*(ch->ch_equeue +tail +i) & UART_LSR_FE)
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_FRAME);
-				else
-					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_NORMAL);
+				if (error & UART_LSR_BI)
+					flag = TTY_BREAK;
+				else if (error & UART_LSR_PE)
+					flag = TTY_PARITY;
+				else if (error & UART_LSR_FE)
+					flag = TTY_FRAME;
+
+				tty_insert_flip_char(port, chr, flag);
 			}
 		} else {
 			tty_insert_flip_string(port, ch->ch_rqueue + tail, s);

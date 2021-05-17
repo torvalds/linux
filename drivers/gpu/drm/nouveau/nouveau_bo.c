@@ -548,6 +548,10 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 
 	if (!ttm_dma)
 		return;
+	if (!ttm_dma->pages) {
+		NV_DEBUG(drm, "ttm_dma 0x%p: pages NULL\n", ttm_dma);
+		return;
+	}
 
 	/* Don't waste time looping if the object is coherent */
 	if (nvbo->force_coherent)
@@ -580,6 +584,10 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 
 	if (!ttm_dma)
 		return;
+	if (!ttm_dma->pages) {
+		NV_DEBUG(drm, "ttm_dma 0x%p: pages NULL\n", ttm_dma);
+		return;
+	}
 
 	/* Don't waste time looping if the object is coherent */
 	if (nvbo->force_coherent)

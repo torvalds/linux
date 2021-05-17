@@ -259,22 +259,22 @@
 			ranges = <0x00000000 0x0000d000 0x00001000>,
 				 <0x00001000 0x0000e000 0x00001000>;
 
-				tscadc: tscadc@0 {
-					compatible = "ti,am3359-tscadc";
-					reg = <0x0 0x1000>;
-					interrupts = <16>;
-					status = "disabled";
-					dmas = <&edma 53 0>, <&edma 57 0>;
-					dma-names = "fifo0", "fifo1";
+			tscadc: tscadc@0 {
+				compatible = "ti,am3359-tscadc";
+				reg = <0x0 0x1000>;
+				interrupts = <16>;
+				status = "disabled";
+				dmas = <&edma 53 0>, <&edma 57 0>;
+				dma-names = "fifo0", "fifo1";
 
-					tsc {
-						compatible = "ti,am3359-tsc";
-					};
-					am335x_adc: adc {
-						#io-channel-cells = <1>;
-						compatible = "ti,am3359-adc";
-					};
+				tsc {
+					compatible = "ti,am3359-tsc";
 				};
+				am335x_adc: adc {
+					#io-channel-cells = <1>;
+					compatible = "ti,am3359-adc";
+				};
+			};
 		};
 
 		target-module@10000 {			/* 0x44e10000, ap 22 0c.0 */

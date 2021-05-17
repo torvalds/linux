@@ -4,13 +4,48 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_CMD_C_
 
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
 #include <rtw_mlme_ext.h>
+
+static struct cmd_hdl wlancmds[] = {
+	{sizeof(struct wlan_bssid_ex), join_cmd_hdl},
+	{sizeof(struct disconnect_parm), disconnect_hdl},
+	{sizeof(struct wlan_bssid_ex), createbss_hdl},
+	{sizeof(struct setopmode_parm), setopmode_hdl},
+	{sizeof(struct sitesurvey_parm), sitesurvey_cmd_hdl},
+	{sizeof(struct setauth_parm), setauth_hdl},
+	{sizeof(struct setkey_parm), setkey_hdl},
+	{sizeof(struct set_stakey_parm), set_stakey_hdl},
+	{sizeof(struct set_assocsta_parm), NULL},
+	{sizeof(struct addBaReq_parm), add_ba_hdl},
+	{sizeof(struct set_ch_parm), set_ch_hdl},
+	{sizeof(struct wlan_bssid_ex), tx_beacon_hdl},
+	{0, mlme_evt_hdl},
+	{0, rtw_drvextra_cmd_hdl},
+	{sizeof(struct SetChannelPlan_param), set_chplan_hdl}
+};
+
+static struct _cmd_callback rtw_cmd_callback[] = {
+	{_JoinBss_CMD_, &rtw_joinbss_cmd_callback},
+	{_DisConnect_CMD_, &rtw_disassoc_cmd_callback},
+	{_CreateBss_CMD_, &rtw_createbss_cmd_callback},
+	{_SetOpMode_CMD_, NULL},
+	{_SiteSurvey_CMD_, &rtw_survey_cmd_callback},
+	{_SetAuth_CMD_, NULL},
+	{_SetKey_CMD_, NULL},
+	{_SetStaKey_CMD_, &rtw_setstaKey_cmdrsp_callback},
+	{_SetAssocSta_CMD_, &rtw_setassocsta_cmdrsp_callback},
+	{_AddBAReq_CMD_, NULL},
+	{_SetChannel_CMD_, NULL},
+	{_TX_Beacon_CMD_, NULL},
+	{_Set_MLME_EVT_CMD_, NULL},
+	{_Set_Drv_Extra_CMD_, NULL},
+	{_SetChannelPlan_CMD_, NULL},
+};
 
 /*
  * Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
@@ -153,17 +188,6 @@ int rtw_cmd_thread(void *context)
 		 ("start r871x %s !!!!\n", __func__));
 
 	while (1) {
-		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
-			break;
-
-		if (padapter->bDriverStopped ||
-		    padapter->bSurpriseRemoved) {
-			DBG_88E("%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
-				__func__, padapter->bDriverStopped,
-				padapter->bSurpriseRemoved, __LINE__);
-			break;
-		}
-_next:
 		if (padapter->bDriverStopped ||
 		    padapter->bSurpriseRemoved) {
 			DBG_88E("%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
@@ -173,8 +197,13 @@ _next:
 		}
 
 		pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue);
-		if (!pcmd)
+		if (!pcmd) {
+			/* The queue is empty. Wait until someone enqueues a command. */
+			if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
+				break;
+
 			continue;
+		}
 
 		if (rtw_cmd_filter(pcmdpriv, pcmd) == _FAIL) {
 			pcmd->res = H2C_DROPPED;
@@ -189,8 +218,6 @@ _next:
 			} else {
 				pcmd->res = H2C_PARAMETERS_ERROR;
 			}
-
-			cmd_hdl = NULL;
 		}
 
 		/* call callback function for post-processed */
@@ -200,22 +227,19 @@ _next:
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
 					 ("mlme_cmd_hdl(): pcmd_callback = 0x%p, cmdcode = 0x%x\n",
 					  pcmd_callback, pcmd->cmdcode));
-				rtw_free_cmd_obj(pcmd);
 			} else {
 				/* todo: !!! fill rsp_buf to pcmd->rsp if (pcmd->rsp!= NULL) */
-				pcmd_callback(pcmd->padapter, pcmd);/* need consider that free cmd_obj in rtw_cmd_callback */
+				pcmd_callback(pcmd->padapter, pcmd);
 			}
 		} else {
 			RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 				 ("%s: cmdcode = 0x%x callback not defined!\n",
 				  __func__, pcmd->cmdcode));
-			rtw_free_cmd_obj(pcmd);
 		}
+		rtw_free_cmd_obj(pcmd);
 
 		if (signal_pending(current))
 			flush_signals(current);
-
-		goto _next;
 	}
 	pcmdpriv->cmdthd_running = false;
 
@@ -1151,9 +1175,6 @@ void rtw_survey_cmd_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\n ********Error: MgntActrtw_set_802_11_bssid_LIST_SCAN Fail ************\n\n."));
 	}
-
-	/*  free cmd */
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
@@ -1167,11 +1188,7 @@ void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\n ***Error: disconnect_cmd_callback Fail ***\n."));
-		return;
 	}
-
-	/*  free cmd */
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_joinbss_cmd_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1189,8 +1206,6 @@ void rtw_joinbss_cmd_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
 	}
-
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
@@ -1257,8 +1272,6 @@ void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 createbss_cmd_fail:
 
 	spin_unlock_bh(&pmlmepriv->lock);
-
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_setstaKey_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1270,10 +1283,7 @@ void rtw_setstaKey_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pc
 	if (!psta) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\nERROR: %s => can't get sta_info\n\n", __func__));
-		goto exit;
 	}
-exit:
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_setassocsta_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1287,7 +1297,7 @@ void rtw_setassocsta_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *
 	if (!psta) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\nERROR: %s => can't get sta_info\n\n", __func__));
-		goto exit;
+		return;
 	}
 
 	psta->aid = passocsta_rsp->cam_id;
@@ -1297,7 +1307,4 @@ void rtw_setassocsta_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *
 
 	set_fwstate(pmlmepriv, _FW_LINKED);
 	spin_unlock_bh(&pmlmepriv->lock);
-
-exit:
-	rtw_free_cmd_obj(pcmd);
 }

@@ -312,11 +312,3 @@ static void __exit orinoco_nortel_exit(void)
 
 module_init(orinoco_nortel_init);
 module_exit(orinoco_nortel_exit);
-
-/*
- * Local variables:
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */

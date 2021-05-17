@@ -327,10 +327,10 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	list_del(&port->list);
 	write_unlock_irq(&adapter->port_list_lock);
 
-	put_device(&port->dev);
-
 	zfcp_erp_port_shutdown(port, 0, "syprs_1");
 	device_unregister(&port->dev);
+
+	put_device(&port->dev); /* undo zfcp_get_port_by_wwpn() */
  out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
@@ -435,7 +435,7 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	NULL
 };
 
-struct attribute_group zfcp_sysfs_adapter_attrs = {
+static const struct attribute_group zfcp_sysfs_adapter_attr_group = {
 	.attrs = zfcp_adapter_attrs,
 };
 
@@ -906,7 +906,13 @@ static struct attribute *zfcp_sysfs_diag_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group zfcp_sysfs_diag_attr_group = {
+static const struct attribute_group zfcp_sysfs_diag_attr_group = {
 	.name = "diagnostics",
 	.attrs = zfcp_sysfs_diag_attrs,
+};
+
+const struct attribute_group *zfcp_sysfs_adapter_attr_groups[] = {
+	&zfcp_sysfs_adapter_attr_group,
+	&zfcp_sysfs_diag_attr_group,
+	NULL,
 };

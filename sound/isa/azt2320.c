@@ -35,11 +35,6 @@
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("Aztech Systems AZT2320");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Aztech Systems,PRO16V},"
-		"{Aztech Systems,AZT2320},"
-		"{Aztech Systems,AZT3300},"
-		"{Aztech Systems,AZT2320},"
-		"{Aztech Systems,AZT3000}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

@@ -109,6 +109,7 @@ enum enetc_bdr_type {TX, RX};
 /* RX BDR reg offsets */
 #define ENETC_RBMR	0
 #define ENETC_RBMR_BDS	BIT(2)
+#define ENETC_RBMR_CM	BIT(4)
 #define ENETC_RBMR_VTE	BIT(5)
 #define ENETC_RBMR_EN	BIT(31)
 #define ENETC_RBSR	0x4
@@ -180,6 +181,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PSIVLANR(n)	(0x0240 + (n) * 4) /* n = SI index */
 #define ENETC_PSIVLAN_EN	BIT(31)
 #define ENETC_PSIVLAN_SET_QOS(val)	((u32)(val) << 12)
+#define ENETC_PPAUONTR		0x0410
+#define ENETC_PPAUOFFTR		0x0414
 #define ENETC_PTXMBAR		0x0608
 #define ENETC_PCAPR0		0x0900
 #define ENETC_PCAPR0_RXBDR(val)	((val) >> 24)
@@ -227,6 +230,7 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_TX_EN		BIT(0)
 #define ENETC_PM0_RX_EN		BIT(1)
 #define ENETC_PM0_PROMISC	BIT(4)
+#define ENETC_PM0_PAUSE_IGN	BIT(8)
 #define ENETC_PM0_CMD_XGLP	BIT(10)
 #define ENETC_PM0_CMD_TXP	BIT(11)
 #define ENETC_PM0_CMD_PHY_TX_EN	BIT(15)
@@ -238,6 +242,17 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_RX_FIFO_VAL	1
 
 #define ENETC_PM_IMDIO_BASE	0x8030
+
+#define ENETC_PM0_PAUSE_QUANTA	0x8054
+#define ENETC_PM0_PAUSE_THRESH	0x8064
+#define ENETC_PM1_PAUSE_QUANTA	0x9054
+#define ENETC_PM1_PAUSE_THRESH	0x9064
+
+#define ENETC_PM0_SINGLE_STEP		0x80c0
+#define ENETC_PM1_SINGLE_STEP		0x90c0
+#define ENETC_PM0_SINGLE_STEP_CH	BIT(7)
+#define ENETC_PM0_SINGLE_STEP_EN	BIT(31)
+#define ENETC_SET_SINGLE_STEP_OFFSET(v)	(((v) & 0xff) << 8)
 
 #define ENETC_PM0_IF_MODE	0x8300
 #define ENETC_PM0_IFM_RG	BIT(2)
@@ -548,6 +563,7 @@ static inline void enetc_clear_tx_bd(union enetc_tx_bd *txbd)
 
 /* Extension flags */
 #define ENETC_TXBD_E_FLAGS_VLAN_INS	BIT(0)
+#define ENETC_TXBD_E_FLAGS_ONE_STEP_PTP	BIT(1)
 #define ENETC_TXBD_E_FLAGS_TWO_STEP_PTP	BIT(2)
 
 union enetc_rx_bd {

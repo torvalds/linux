@@ -1,0 +1,22 @@
+[
+  {
+    "EventCode": "301E8",
+    "EventName": "PM_THRESH_EXC_64",
+    "BriefDescription": "Threshold counter exceeded a value of 64."
+  },
+  {
+    "EventCode": "45050",
+    "EventName": "PM_1FLOP_CMPL",
+    "BriefDescription": "One floating point instruction completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+  },
+  {
+    "EventCode": "45052",
+    "EventName": "PM_4FLOP_CMPL",
+    "BriefDescription": "Four floating point instructions completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+  },
+  {
+    "EventCode": "4D054",
+    "EventName": "PM_8FLOP_CMPL",
+    "BriefDescription": "Four Double Precision vector instructions completed."
+  }
+]

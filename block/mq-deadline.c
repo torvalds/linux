@@ -500,11 +500,8 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 
 	trace_block_rq_insert(rq);
 
-	if (at_head || blk_rq_is_passthrough(rq)) {
-		if (at_head)
-			list_add(&rq->queuelist, &dd->dispatch);
-		else
-			list_add_tail(&rq->queuelist, &dd->dispatch);
+	if (at_head) {
+		list_add(&rq->queuelist, &dd->dispatch);
 	} else {
 		deadline_add_rq_rb(dd, rq);
 

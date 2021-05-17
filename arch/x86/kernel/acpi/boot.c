@@ -830,7 +830,7 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
 /**
- * acpi_ioapic_registered - Check whether IOAPIC assoicatied with @gsi_base
+ * acpi_ioapic_registered - Check whether IOAPIC associated with @gsi_base
  *			    has been registered
  * @handle:	ACPI handle of the IOAPIC device
  * @gsi_base:	GSI base associated with the IOAPIC
@@ -1554,10 +1554,18 @@ void __init acpi_boot_table_init(void)
 	/*
 	 * Initialize the ACPI boot-time table parser.
 	 */
-	if (acpi_table_init()) {
+	if (acpi_locate_initial_tables())
 		disable_acpi();
-		return;
-	}
+	else
+		acpi_reserve_initial_tables();
+}
+
+int __init early_acpi_boot_init(void)
+{
+	if (acpi_disabled)
+		return 1;
+
+	acpi_table_init_complete();
 
 	acpi_table_parse(ACPI_SIG_BOOT, acpi_parse_sbf);
 
@@ -1570,18 +1578,9 @@ void __init acpi_boot_table_init(void)
 		} else {
 			printk(KERN_WARNING PREFIX "Disabling ACPI support\n");
 			disable_acpi();
-			return;
+			return 1;
 		}
 	}
-}
-
-int __init early_acpi_boot_init(void)
-{
-	/*
-	 * If acpi_disabled, bail out
-	 */
-	if (acpi_disabled)
-		return 1;
 
 	/*
 	 * Process the Multiple APIC Description Table (MADT), if present
@@ -1657,7 +1656,7 @@ static int __init parse_acpi(char *arg)
 	else if (strcmp(arg, "noirq") == 0) {
 		acpi_noirq_set();
 	}
-	/* "acpi=copy_dsdt" copys DSDT */
+	/* "acpi=copy_dsdt" copies DSDT */
 	else if (strcmp(arg, "copy_dsdt") == 0) {
 		acpi_gbl_copy_dsdt_locally = 1;
 	}

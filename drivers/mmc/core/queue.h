@@ -82,7 +82,6 @@ struct mmc_queue {
 	unsigned int		cqe_busy;
 #define MMC_CQE_DCMD_BUSY	BIT(0)
 	bool			busy;
-	bool			use_cqe;
 	bool			recovery_needed;
 	bool			in_recovery;
 	bool			rw_wait;

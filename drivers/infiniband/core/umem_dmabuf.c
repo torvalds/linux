@@ -168,6 +168,10 @@ void ib_umem_dmabuf_release(struct ib_umem_dmabuf *umem_dmabuf)
 {
 	struct dma_buf *dmabuf = umem_dmabuf->attach->dmabuf;
 
+	dma_resv_lock(dmabuf->resv, NULL);
+	ib_umem_dmabuf_unmap_pages(umem_dmabuf);
+	dma_resv_unlock(dmabuf->resv);
+
 	dma_buf_detach(dmabuf, umem_dmabuf->attach);
 	dma_buf_put(dmabuf);
 	kfree(umem_dmabuf);

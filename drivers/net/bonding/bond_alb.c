@@ -1098,7 +1098,7 @@ static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
  * If @slave's permanent hw address is different both from its current
  * address and from @bond's address, then somewhere in the bond there's
  * a slave that has @slave's permanet address as its current address.
- * We'll make sure that that slave no longer uses @slave's permanent address.
+ * We'll make sure that slave no longer uses @slave's permanent address.
  *
  * Caller must hold RTNL and no other locks
  */

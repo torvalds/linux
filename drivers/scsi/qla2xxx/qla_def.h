@@ -396,6 +396,7 @@ typedef union {
 	} b;
 } port_id_t;
 #define INVALID_PORT_ID	0xFFFFFF
+#define ISP_REG16_DISCONNECT 0xFFFF
 
 static inline le_id_t be_id_to_le(be_id_t id)
 {
@@ -1527,7 +1528,7 @@ struct init_sf_cb {
 	 * BIT_12 = Remote Write Optimization (1 - Enabled, 0 - Disabled)
 	 * BIT 11-0 = Reserved
 	 */
-	uint16_t flags;
+	__le16	flags;
 	uint8_t	reserved1[32];
 	uint16_t discard_OHRB_timeout_value;
 	uint16_t remote_write_opt_queue_num;
@@ -3815,7 +3816,7 @@ struct qlt_hw_data {
 	__le32 __iomem *atio_q_in;
 	__le32 __iomem *atio_q_out;
 
-	struct qla_tgt_func_tmpl *tgt_ops;
+	const struct qla_tgt_func_tmpl *tgt_ops;
 	struct qla_tgt_vp_map *tgt_vp_map;
 
 	int saved_set;
@@ -3857,6 +3858,13 @@ struct qla_hw_data_stat {
 	u32 num_mpi_reset;
 };
 
+/* refer to pcie_do_recovery reference */
+typedef enum {
+	QLA_PCI_RESUME,
+	QLA_PCI_ERR_DETECTED,
+	QLA_PCI_MMIO_ENABLED,
+	QLA_PCI_SLOT_RESET,
+} pci_error_state_t;
 /*
  * Qlogic host adapter specific data structure.
 */
@@ -4607,6 +4615,7 @@ struct qla_hw_data {
 #define DEFAULT_ZIO_THRESHOLD 5
 
 	struct qla_hw_data_stat stat;
+	pci_error_state_t pci_error_state;
 };
 
 struct active_regions {
@@ -4727,7 +4736,7 @@ typedef struct scsi_qla_host {
 #define FX00_CRITEMP_RECOVERY	25
 #define FX00_HOST_INFO_RESEND	26
 #define QPAIR_ONLINE_CHECK_NEEDED	27
-#define SET_NVME_ZIO_THRESHOLD_NEEDED	28
+#define DO_EEH_RECOVERY		28
 #define DETECT_SFP_CHANGE	29
 #define N2N_LOGIN_NEEDED	30
 #define IOCB_WORK_ACTIVE	31

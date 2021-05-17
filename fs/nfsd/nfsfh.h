@@ -82,7 +82,7 @@ enum fsid_source {
 	FSIDSOURCE_FSID,
 	FSIDSOURCE_UUID,
 };
-extern enum fsid_source fsid_source(struct svc_fh *fhp);
+extern enum fsid_source fsid_source(const struct svc_fh *fhp);
 
 
 /*

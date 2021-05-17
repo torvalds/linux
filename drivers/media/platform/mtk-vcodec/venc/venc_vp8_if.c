@@ -367,7 +367,7 @@ static int vp8_enc_encode(void *handle,
 
 	mtk_vcodec_debug_enter(inst);
 
-	enable_irq(ctx->dev->enc_lt_irq);
+	enable_irq(ctx->dev->enc_irq);
 
 	switch (opt) {
 	case VENC_START_OPT_ENCODE_FRAME:
@@ -386,7 +386,7 @@ static int vp8_enc_encode(void *handle,
 
 encode_err:
 
-	disable_irq(ctx->dev->enc_lt_irq);
+	disable_irq(ctx->dev->enc_irq);
 	mtk_vcodec_debug_leave(inst);
 
 	return ret;

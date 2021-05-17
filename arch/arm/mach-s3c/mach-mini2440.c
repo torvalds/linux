@@ -542,10 +542,14 @@ static const struct property_entry mini2440_at24_properties[] = {
 	{ }
 };
 
+static const struct software_node mini2440_at24_node = {
+	.properties = mini2440_at24_properties,
+};
+
 static struct i2c_board_info mini2440_i2c_devs[] __initdata = {
 	{
 		I2C_BOARD_INFO("24c08", 0x50),
-		.properties = mini2440_at24_properties,
+		.swnode = &mini2440_at24_node,
 	},
 };
 

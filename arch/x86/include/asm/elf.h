@@ -283,12 +283,12 @@ extern u32 elf_hwcap2;
  *
  * The decision process for determining the results are:
  *
- *                 CPU: | lacks NX*  | has NX, ia32     | has NX, x86_64 |
- * ELF:                 |            |                  |                |
+ *                 CPU: | lacks NX*  | has NX, ia32     | has NX, x86_64 |
+ * ELF:                 |            |                  |                |
  * ---------------------|------------|------------------|----------------|
- * missing PT_GNU_STACK | exec-all   | exec-all         | exec-none      |
- * PT_GNU_STACK == RWX  | exec-stack | exec-stack       | exec-stack     |
- * PT_GNU_STACK == RW   | exec-none  | exec-none        | exec-none      |
+ * missing PT_GNU_STACK | exec-all   | exec-all         | exec-none      |
+ * PT_GNU_STACK == RWX  | exec-stack | exec-stack       | exec-stack     |
+ * PT_GNU_STACK == RW   | exec-none  | exec-none        | exec-none      |
  *
  *  exec-all  : all PROT_READ user mappings are executable, except when
  *              backed by files on a noexec-filesystem.

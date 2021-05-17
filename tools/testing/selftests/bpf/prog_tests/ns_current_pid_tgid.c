@@ -68,10 +68,10 @@ static void test_ns_current_pid_tgid_new_ns(void)
 	cpid = clone(test_current_pid_tgid, child_stack + STACK_SIZE,
 		     CLONE_NEWPID | SIGCHLD, NULL);
 
-	if (CHECK(cpid == -1, "clone", strerror(errno)))
+	if (CHECK(cpid == -1, "clone", "%s\n", strerror(errno)))
 		return;
 
-	if (CHECK(waitpid(cpid, &wstatus, 0) == -1, "waitpid", strerror(errno)))
+	if (CHECK(waitpid(cpid, &wstatus, 0) == -1, "waitpid", "%s\n", strerror(errno)))
 		return;
 
 	if (CHECK(WEXITSTATUS(wstatus) != 0, "newns_pidtgid", "failed"))

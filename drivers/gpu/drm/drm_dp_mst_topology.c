@@ -4109,10 +4109,9 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 		return 0;
 
 	up_req = kzalloc(sizeof(*up_req), GFP_KERNEL);
-	if (!up_req) {
-		DRM_ERROR("Not enough memory to process MST up req\n");
+	if (!up_req)
 		return -ENOMEM;
-	}
+
 	INIT_LIST_HEAD(&up_req->next);
 
 	drm_dp_sideband_parse_req(&mgr->up_req_recv, &up_req->msg);

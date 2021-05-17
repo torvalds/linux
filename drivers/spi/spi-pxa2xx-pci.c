@@ -252,7 +252,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	ssp->irq = pci_irq_vector(dev, 0);
 
 	snprintf(buf, sizeof(buf), "pxa2xx-spi.%d", ssp->port_id);
-	ssp->clk = clk_register_fixed_rate(&dev->dev, buf , NULL, 0,
+	ssp->clk = clk_register_fixed_rate(&dev->dev, buf, NULL, 0,
 					   c->max_clk_rate);
 	 if (IS_ERR(ssp->clk))
 		return PTR_ERR(ssp->clk);

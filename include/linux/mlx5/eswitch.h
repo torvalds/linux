@@ -48,6 +48,7 @@ struct mlx5_eswitch_rep {
 	/* Only IB rep is using vport_index */
 	u16		       vport_index;
 	u32		       vlan_refcount;
+	struct                 mlx5_eswitch *esw;
 };
 
 void mlx5_eswitch_register_vport_reps(struct mlx5_eswitch *esw,
@@ -61,10 +62,8 @@ struct mlx5_eswitch_rep *mlx5_eswitch_vport_rep(struct mlx5_eswitch *esw,
 						u16 vport_num);
 void *mlx5_eswitch_uplink_get_proto_dev(struct mlx5_eswitch *esw, u8 rep_type);
 struct mlx5_flow_handle *
-mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw,
-				    u16 vport_num, u32 sqn);
-
-u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
+mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *on_esw,
+				    struct mlx5_eswitch_rep *rep, u32 sqn);
 
 #ifdef CONFIG_MLX5_ESWITCH
 enum devlink_eswitch_encap_mode
@@ -74,20 +73,19 @@ bool mlx5_eswitch_reg_c1_loopback_enabled(const struct mlx5_eswitch *esw);
 bool mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw);
 
 /* Reg C0 usage:
- * Reg C0 = < ESW_PFNUM_BITS(4) | ESW_VPORT BITS(12) | ESW_CHAIN_TAG(16) >
+ * Reg C0 = < ESW_PFNUM_BITS(4) | ESW_VPORT BITS(12) | ESW_REG_C0_OBJ(16) >
  *
  * Highest 4 bits of the reg c0 is the PF_NUM (range 0-15), 12 bits of
  * unique non-zero vport id (range 1-4095). The rest (lowest 16 bits) is left
- * for tc chain tag restoration.
+ * for user data objects managed by a common mapping context.
  * PFNUM + VPORT comprise the SOURCE_PORT matching.
  */
 #define ESW_VPORT_BITS 12
 #define ESW_PFNUM_BITS 4
 #define ESW_SOURCE_PORT_METADATA_BITS (ESW_PFNUM_BITS + ESW_VPORT_BITS)
 #define ESW_SOURCE_PORT_METADATA_OFFSET (32 - ESW_SOURCE_PORT_METADATA_BITS)
-#define ESW_CHAIN_TAG_METADATA_BITS (32 - ESW_SOURCE_PORT_METADATA_BITS)
-#define ESW_CHAIN_TAG_METADATA_MASK GENMASK(ESW_CHAIN_TAG_METADATA_BITS - 1,\
-					    0)
+#define ESW_REG_C0_USER_DATA_METADATA_BITS (32 - ESW_SOURCE_PORT_METADATA_BITS)
+#define ESW_REG_C0_USER_DATA_METADATA_MASK GENMASK(ESW_REG_C0_USER_DATA_METADATA_BITS - 1, 0)
 
 static inline u32 mlx5_eswitch_get_vport_metadata_mask(void)
 {
@@ -126,6 +124,8 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 #define ESW_TUN_SLOW_TABLE_GOTO_VPORT_MARK ESW_TUN_OPTS_MASK
 
 u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev);
+u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 
 static inline u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev)
@@ -152,8 +152,7 @@ mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw)
 };
 
 static inline u32
-mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
-					  int vport_num)
+mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	return 0;
 };
@@ -163,10 +162,17 @@ mlx5_eswitch_get_vport_metadata_mask(void)
 {
 	return 0;
 }
+
+static inline u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
+{
+	return 0;
+}
+
 #endif /* CONFIG_MLX5_ESWITCH */
 
 static inline bool is_mdev_switchdev_mode(struct mlx5_core_dev *dev)
 {
 	return mlx5_eswitch_mode(dev) == MLX5_ESWITCH_OFFLOADS;
 }
+
 #endif

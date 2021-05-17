@@ -5,6 +5,7 @@
 
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -621,7 +622,8 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 {
 	struct gpio_desc *gp_reset;
 	struct device *dev = lt->dev;
-	int ret = 0;
+	int ret;
+	int data_lanes;
 	struct device_node *port_node;
 	struct device_node *endpoint;
 
@@ -635,19 +637,21 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	lt->gp_reset = gp_reset;
 
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
-	if (IS_ERR(endpoint)) {
-		ret = PTR_ERR(endpoint);
-		goto end;
-	}
+	if (!endpoint)
+		return -ENODEV;
 
-	lt->data_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
+	data_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
 	of_node_put(endpoint);
+	if (data_lanes < 0) {
+		dev_err(lt->dev, "%s: Bad data-lanes property\n", __func__);
+		return data_lanes;
+	}
+	lt->data_lanes = data_lanes;
 
 	lt->host_node = of_graph_get_remote_node(dev->of_node, 0, -1);
 	if (!lt->host_node) {
 		dev_err(lt->dev, "%s: Failed to get remote port\n", __func__);
-		ret = -ENODEV;
-		goto end;
+		return -ENODEV;
 	}
 
 	port_node = of_graph_get_remote_node(dev->of_node, 1, -1);
@@ -658,24 +662,23 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	}
 
 	lt->hdmi_port = of_drm_find_bridge(port_node);
-	if (IS_ERR(lt->hdmi_port)) {
+	if (!lt->hdmi_port) {
 		dev_err(lt->dev, "%s: Failed to get hdmi port\n", __func__);
-		ret = PTR_ERR(lt->hdmi_port);
-		of_node_put(lt->host_node);
-		goto end;
+		ret = -ENODEV;
+		goto err_free_host_node;
 	}
 
 	if (!of_device_is_compatible(port_node, "hdmi-connector")) {
 		dev_err(lt->dev, "%s: Failed to get hdmi port\n", __func__);
 		ret = -EINVAL;
+		goto err_free_host_node;
 	}
 
 	of_node_put(port_node);
-
-end:
-	return ret;
+	return 0;
 
 err_free_host_node:
+	of_node_put(port_node);
 	of_node_put(lt->host_node);
 	return ret;
 }

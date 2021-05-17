@@ -1404,8 +1404,8 @@ static int idtcm_set_pll_mode(struct idtcm_channel *channel,
 
 /* PTP Hardware Clock interface */
 
-/**
- * @brief Maximum absolute value for write phase offset in picoseconds
+/*
+ * Maximum absolute value for write phase offset in picoseconds
  *
  * Destination signed register is 32-bit register in resolution of 50ps
  *

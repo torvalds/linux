@@ -21,6 +21,7 @@ properties:
         items:
           - enum:
               - netgear,r8000p
+              - tplink,archer-c2300-v1
           - const: brcm,bcm4906
           - const: brcm,bcm4908
 

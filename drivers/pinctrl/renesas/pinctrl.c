@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
@@ -840,21 +841,48 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	return pinctrl_enable(pmx->pctl);
 }
 
+static const struct pinmux_bias_reg *
+rcar_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
+		     unsigned int *bit)
+{
+	unsigned int i, j;
+
+	for (i = 0; pfc->info->bias_regs[i].puen || pfc->info->bias_regs[i].pud; i++) {
+		for (j = 0; j < ARRAY_SIZE(pfc->info->bias_regs[i].pins); j++) {
+			if (pfc->info->bias_regs[i].pins[j] == pin) {
+				*bit = j;
+				return &pfc->info->bias_regs[i];
+			}
+		}
+	}
+
+	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
+
+	return NULL;
+}
+
 unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 {
 	const struct pinmux_bias_reg *reg;
 	unsigned int bit;
 
-	reg = sh_pfc_pin_to_bias_reg(pfc, pin, &bit);
+	reg = rcar_pin_to_bias_reg(pfc, pin, &bit);
 	if (!reg)
 		return PIN_CONFIG_BIAS_DISABLE;
 
-	if (!(sh_pfc_read(pfc, reg->puen) & BIT(bit)))
-		return PIN_CONFIG_BIAS_DISABLE;
-	else if (!reg->pud || (sh_pfc_read(pfc, reg->pud) & BIT(bit)))
-		return PIN_CONFIG_BIAS_PULL_UP;
-	else
-		return PIN_CONFIG_BIAS_PULL_DOWN;
+	if (reg->puen) {
+		if (!(sh_pfc_read(pfc, reg->puen) & BIT(bit)))
+			return PIN_CONFIG_BIAS_DISABLE;
+		else if (!reg->pud || (sh_pfc_read(pfc, reg->pud) & BIT(bit)))
+			return PIN_CONFIG_BIAS_PULL_UP;
+		else
+			return PIN_CONFIG_BIAS_PULL_DOWN;
+	} else {
+		if (sh_pfc_read(pfc, reg->pud) & BIT(bit))
+			return PIN_CONFIG_BIAS_PULL_DOWN;
+		else
+			return PIN_CONFIG_BIAS_DISABLE;
+	}
 }
 
 void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
@@ -864,21 +892,68 @@ void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	u32 enable, updown;
 	unsigned int bit;
 
-	reg = sh_pfc_pin_to_bias_reg(pfc, pin, &bit);
+	reg = rcar_pin_to_bias_reg(pfc, pin, &bit);
 	if (!reg)
 		return;
 
-	enable = sh_pfc_read(pfc, reg->puen) & ~BIT(bit);
-	if (bias != PIN_CONFIG_BIAS_DISABLE)
-		enable |= BIT(bit);
+	if (reg->puen) {
+		enable = sh_pfc_read(pfc, reg->puen) & ~BIT(bit);
+		if (bias != PIN_CONFIG_BIAS_DISABLE)
+			enable |= BIT(bit);
 
-	if (reg->pud) {
-		updown = sh_pfc_read(pfc, reg->pud) & ~BIT(bit);
-		if (bias == PIN_CONFIG_BIAS_PULL_UP)
-			updown |= BIT(bit);
+		if (reg->pud) {
+			updown = sh_pfc_read(pfc, reg->pud) & ~BIT(bit);
+			if (bias == PIN_CONFIG_BIAS_PULL_UP)
+				updown |= BIT(bit);
 
-		sh_pfc_write(pfc, reg->pud, updown);
+			sh_pfc_write(pfc, reg->pud, updown);
+		}
+
+		sh_pfc_write(pfc, reg->puen, enable);
+	} else {
+		enable = sh_pfc_read(pfc, reg->pud) & ~BIT(bit);
+		if (bias == PIN_CONFIG_BIAS_PULL_DOWN)
+			enable |= BIT(bit);
+
+		sh_pfc_write(pfc, reg->pud, enable);
+	}
+}
+
+#define PORTnCR_PULMD_OFF	(0 << 6)
+#define PORTnCR_PULMD_DOWN	(2 << 6)
+#define PORTnCR_PULMD_UP	(3 << 6)
+#define PORTnCR_PULMD_MASK	(3 << 6)
+
+unsigned int rmobile_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
+{
+	void __iomem *reg = pfc->info->ops->pin_to_portcr(pfc, pin);
+	u32 value = ioread8(reg) & PORTnCR_PULMD_MASK;
+
+	switch (value) {
+	case PORTnCR_PULMD_UP:
+		return PIN_CONFIG_BIAS_PULL_UP;
+	case PORTnCR_PULMD_DOWN:
+		return PIN_CONFIG_BIAS_PULL_DOWN;
+	case PORTnCR_PULMD_OFF:
+	default:
+		return PIN_CONFIG_BIAS_DISABLE;
+	}
+}
+
+void rmobile_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
+			     unsigned int bias)
+{
+	void __iomem *reg = pfc->info->ops->pin_to_portcr(pfc, pin);
+	u32 value = ioread8(reg) & ~PORTnCR_PULMD_MASK;
+
+	switch (bias) {
+	case PIN_CONFIG_BIAS_PULL_UP:
+		value |= PORTnCR_PULMD_UP;
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		value |= PORTnCR_PULMD_DOWN;
+		break;
 	}
 
-	sh_pfc_write(pfc, reg->puen, enable);
+	iowrite8(value, reg);
 }

@@ -420,3 +420,4 @@ module_i2c_driver(q54sj108a2_driver);
 MODULE_AUTHOR("Xiao.Ma <xiao.mx.ma@deltaww.com>");
 MODULE_DESCRIPTION("PMBus driver for Delta Q54SJ108A2 series modules");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

@@ -122,9 +122,6 @@ struct p80211_caphdr {
 	__be32 encoding;
 };
 
-/* buffer free method pointer type */
-typedef void (*freebuf_method_t) (void *buf, int size);
-
 struct p80211_metawep {
 	void *data;
 	u8 iv[4];

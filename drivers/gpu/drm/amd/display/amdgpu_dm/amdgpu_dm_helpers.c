@@ -700,6 +700,39 @@ void dm_helpers_free_gpu_mem(
 
 bool dm_helpers_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable)
 {
-	// TODO
-	return true;
+	enum dc_irq_source irq_source;
+	bool ret;
+
+	irq_source = DC_IRQ_SOURCE_DMCUB_OUTBOX0;
+
+	ret = dc_interrupt_set(ctx->dc, irq_source, enable);
+
+	DRM_DEBUG_DRIVER("Dmub trace irq %sabling: r=%d\n",
+			 enable ? "en" : "dis", ret);
+	return ret;
+}
+
+void dm_helpers_mst_enable_stream_features(const struct dc_stream_state *stream)
+{
+	/* TODO: virtual DPCD */
+	struct dc_link *link = stream->link;
+	union down_spread_ctrl old_downspread;
+	union down_spread_ctrl new_downspread;
+
+	if (link->aux_access_disabled)
+		return;
+
+	if (!dm_helpers_dp_read_dpcd(link->ctx, link, DP_DOWNSPREAD_CTRL,
+				     &old_downspread.raw,
+				     sizeof(old_downspread)))
+		return;
+
+	new_downspread.raw = old_downspread.raw;
+	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
+		(stream->ignore_msa_timing_param) ? 1 : 0;
+
+	if (new_downspread.raw != old_downspread.raw)
+		dm_helpers_dp_write_dpcd(link->ctx, link, DP_DOWNSPREAD_CTRL,
+					 &new_downspread.raw,
+					 sizeof(new_downspread));
 }

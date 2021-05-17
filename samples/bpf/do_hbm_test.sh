@@ -10,7 +10,7 @@
 Usage() {
   echo "Script for testing HBM (Host Bandwidth Manager) framework."
   echo "It creates a cgroup to use for testing and load a BPF program to limit"
-  echo "egress or ingress bandwidht. It then uses iperf3 or netperf to create"
+  echo "egress or ingress bandwidth. It then uses iperf3 or netperf to create"
   echo "loads. The output is the goodput in Mbps (unless -D was used)."
   echo ""
   echo "USAGE: $name [out] [-b=<prog>|--bpf=<prog>] [-c=<cc>|--cc=<cc>]"

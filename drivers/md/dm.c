@@ -840,7 +840,6 @@ int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
 	*result = &td->dm_dev;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dm_get_table_device);
 
 void dm_put_table_device(struct mapped_device *md, struct dm_dev *d)
 {
@@ -854,7 +853,6 @@ void dm_put_table_device(struct mapped_device *md, struct dm_dev *d)
 	}
 	mutex_unlock(&md->table_devices_lock);
 }
-EXPORT_SYMBOL(dm_put_table_device);
 
 static void free_table_devices(struct list_head *devices)
 {
@@ -1641,38 +1639,35 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 	} else {
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
-		while (ci.sector_count && !error) {
-			error = __split_and_process_non_flush(&ci);
-			if (ci.sector_count && !error) {
-				/*
-				 * Remainder must be passed to submit_bio_noacct()
-				 * so that it gets handled *after* bios already submitted
-				 * have been completely processed.
-				 * We take a clone of the original to store in
-				 * ci.io->orig_bio to be used by end_io_acct() and
-				 * for dec_pending to use for completion handling.
-				 */
-				struct bio *b = bio_split(bio, bio_sectors(bio) - ci.sector_count,
-							  GFP_NOIO, &md->queue->bio_split);
-				ci.io->orig_bio = b;
+		error = __split_and_process_non_flush(&ci);
+		if (ci.sector_count && !error) {
+			/*
+			 * Remainder must be passed to submit_bio_noacct()
+			 * so that it gets handled *after* bios already submitted
+			 * have been completely processed.
+			 * We take a clone of the original to store in
+			 * ci.io->orig_bio to be used by end_io_acct() and
+			 * for dec_pending to use for completion handling.
+			 */
+			struct bio *b = bio_split(bio, bio_sectors(bio) - ci.sector_count,
+						  GFP_NOIO, &md->queue->bio_split);
+			ci.io->orig_bio = b;
 
-				/*
-				 * Adjust IO stats for each split, otherwise upon queue
-				 * reentry there will be redundant IO accounting.
-				 * NOTE: this is a stop-gap fix, a proper fix involves
-				 * significant refactoring of DM core's bio splitting
-				 * (by eliminating DM's splitting and just using bio_split)
-				 */
-				part_stat_lock();
-				__dm_part_stat_sub(dm_disk(md)->part0,
-						   sectors[op_stat_group(bio_op(bio))], ci.sector_count);
-				part_stat_unlock();
+			/*
+			 * Adjust IO stats for each split, otherwise upon queue
+			 * reentry there will be redundant IO accounting.
+			 * NOTE: this is a stop-gap fix, a proper fix involves
+			 * significant refactoring of DM core's bio splitting
+			 * (by eliminating DM's splitting and just using bio_split)
+			 */
+			part_stat_lock();
+			__dm_part_stat_sub(dm_disk(md)->part0,
+					   sectors[op_stat_group(bio_op(bio))], ci.sector_count);
+			part_stat_unlock();
 
-				bio_chain(b, bio);
-				trace_block_split(b, bio->bi_iter.bi_sector);
-				ret = submit_bio_noacct(bio);
-				break;
-			}
+			bio_chain(b, bio);
+			trace_block_split(b, bio->bi_iter.bi_sector);
+			ret = submit_bio_noacct(bio);
 		}
 	}
 
@@ -2036,7 +2031,10 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	if (size != dm_get_size(md))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
-	set_capacity_and_notify(md->disk, size);
+	if (!get_capacity(md->disk))
+		set_capacity(md->disk, size);
+	else
+		set_capacity_and_notify(md->disk, size);
 
 	dm_table_event_callback(t, event_callback, md);
 

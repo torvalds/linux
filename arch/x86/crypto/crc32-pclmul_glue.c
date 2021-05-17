@@ -24,7 +24,7 @@
 /*
  * Copyright 2012 Xyratex Technology Limited
  *
- * Wrappers for kernel crypto shash api to pclmulqdq crc32 imlementation.
+ * Wrappers for kernel crypto shash api to pclmulqdq crc32 implementation.
  */
 #include <linux/init.h>
 #include <linux/module.h>

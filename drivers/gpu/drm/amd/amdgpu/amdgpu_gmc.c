@@ -55,6 +55,8 @@ int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev)
 		AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
 	r = amdgpu_bo_create(adev, &bp, &adev->gmc.pdb0_bo);
 	if (r)
 		return r;
@@ -389,26 +391,46 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
-		r = adev->umc.funcs->ras_late_init(adev);
+	if (adev->umc.ras_funcs &&
+	    adev->umc.ras_funcs->ras_late_init) {
+		r = adev->umc.ras_funcs->ras_late_init(adev);
 		if (r)
 			return r;
 	}
 
-	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
-		r = adev->mmhub.funcs->ras_late_init(adev);
+	if (adev->mmhub.ras_funcs &&
+	    adev->mmhub.ras_funcs->ras_late_init) {
+		r = adev->mmhub.ras_funcs->ras_late_init(adev);
 		if (r)
 			return r;
 	}
 
-	return amdgpu_xgmi_ras_late_init(adev);
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		adev->gmc.xgmi.ras_funcs = &xgmi_ras_funcs;
+
+	if (adev->gmc.xgmi.ras_funcs &&
+	    adev->gmc.xgmi.ras_funcs->ras_late_init) {
+		r = adev->gmc.xgmi.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	return 0;
 }
 
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 {
-	amdgpu_umc_ras_fini(adev);
-	amdgpu_mmhub_ras_fini(adev);
-	amdgpu_xgmi_ras_fini(adev);
+	if (adev->umc.ras_funcs &&
+	    adev->umc.ras_funcs->ras_fini)
+		adev->umc.ras_funcs->ras_fini(adev);
+
+	if (adev->mmhub.ras_funcs &&
+	    adev->mmhub.ras_funcs->ras_fini)
+		amdgpu_mmhub_ras_fini(adev);
+
+	if (adev->gmc.xgmi.ras_funcs &&
+	    adev->gmc.xgmi.ras_funcs->ras_fini)
+		adev->gmc.xgmi.ras_funcs->ras_fini(adev);
 }
 
 	/*
@@ -465,6 +487,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		if (amdgpu_tmz == 0) {
 			adev->gmc.tmz_enabled = false;
 			dev_info(adev->dev,
@@ -475,7 +498,6 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 				 "Trusted Memory Zone (TMZ) feature enabled\n");
 		}
 		break;
-	case CHIP_RENOIR:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
@@ -514,6 +536,7 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
 	case CHIP_ALDEBARAN:
 		/*
 		 * noretry = 0 will cause kfd page fault tests fail
@@ -638,8 +661,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	u64 vram_addr = adev->vm_manager.vram_base_offset -
 		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 	u64 vram_end = vram_addr + vram_size;
-	u64 gart_ptb_gpu_pa = amdgpu_bo_gpu_offset(adev->gart.bo) +
-		adev->vm_manager.vram_base_offset - adev->gmc.vram_start;
+	u64 gart_ptb_gpu_pa = amdgpu_gmc_vram_pa(adev, adev->gart.bo);
 
 	flags |= AMDGPU_PTE_VALID | AMDGPU_PTE_READABLE;
 	flags |= AMDGPU_PTE_WRITEABLE;
@@ -661,4 +683,40 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SNOOPED;
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
+}
+
+/**
+ * amdgpu_gmc_vram_mc2pa - calculate vram buffer's physical address from MC
+ * address
+ *
+ * @adev: amdgpu_device pointer
+ * @mc_addr: MC address of buffer
+ */
+uint64_t amdgpu_gmc_vram_mc2pa(struct amdgpu_device *adev, uint64_t mc_addr)
+{
+	return mc_addr - adev->gmc.vram_start + adev->vm_manager.vram_base_offset;
+}
+
+/**
+ * amdgpu_gmc_vram_pa - calculate vram buffer object's physical address from
+ * GPU's view
+ *
+ * @adev: amdgpu_device pointer
+ * @bo: amdgpu buffer object
+ */
+uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
+{
+	return amdgpu_gmc_vram_mc2pa(adev, amdgpu_bo_gpu_offset(bo));
+}
+
+/**
+ * amdgpu_gmc_vram_cpu_pa - calculate vram buffer object's physical address
+ * from CPU's view
+ *
+ * @adev: amdgpu_device pointer
+ * @bo: amdgpu buffer object
+ */
+uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
+{
+	return amdgpu_bo_gpu_offset(bo) - adev->gmc.vram_start + adev->gmc.aper_base;
 }

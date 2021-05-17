@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * mCube MC3230 3-Axis Accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>

@@ -74,7 +74,7 @@ const char *rnc_state_name(enum scis_sds_remote_node_context_states state)
 #undef C
 
 /**
- *
+ * sci_remote_node_context_is_ready()
  * @sci_rnc: The state of the remote node context object to check.
  *
  * This method will return true if the remote node context is in a READY state
@@ -163,12 +163,7 @@ static void sci_remote_node_context_construct_buffer(struct sci_remote_node_cont
 	rnc->ssp.oaf_source_zone_group = 0;
 	rnc->ssp.oaf_more_compatibility_features = 0;
 }
-/**
- *
- * @sci_rnc:
- * @callback:
- * @callback_parameter:
- *
+/*
  * This method will setup the remote node context object so it will transition
  * to its ready state.  If the remote node context is already setup to
  * transition to its final state then this function does nothing. none
@@ -202,9 +197,7 @@ static void sci_remote_node_context_setup_to_destroy(
 	wake_up(&ihost->eventq);
 }
 
-/**
- *
- *
+/*
  * This method just calls the user callback function and then resets the
  * callback.
  */

@@ -257,13 +257,13 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
 {
 	struct mt76_phy *mphy = phy->mt76;
 	struct mt76_testmode_data *td = &mphy->test;
-	struct sk_buff *old = td->tx_skb, *new;
 	struct ieee80211_supported_band *sband;
 	struct rate_info rate = {};
 	u16 flags = 0, tx_len;
 	u32 bitrate;
+	int ret;
 
-	if (!tx_time || !old)
+	if (!tx_time)
 		return 0;
 
 	rate.mcs = td->tx_rate_idx;
@@ -323,21 +323,9 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
 	bitrate = cfg80211_calculate_bitrate(&rate);
 	tx_len = bitrate * tx_time / 10 / 8;
 
-	if (tx_len < sizeof(struct ieee80211_hdr))
-		tx_len = sizeof(struct ieee80211_hdr);
-	else if (tx_len > IEEE80211_MAX_FRAME_LEN)
-		tx_len = IEEE80211_MAX_FRAME_LEN;
-
-	new = alloc_skb(tx_len, GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-
-	skb_copy_header(new, old);
-	__skb_put_zero(new, tx_len);
-	memcpy(new->data, old->data, sizeof(struct ieee80211_hdr));
-
-	dev_kfree_skb(old);
-	td->tx_skb = new;
+	ret = mt76_testmode_alloc_skb(phy->mt76, tx_len);
+	if (ret)
+		return ret;
 
 	return 0;
 }

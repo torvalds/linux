@@ -47,7 +47,7 @@
 
 #include "usbtv.h"
 
-static struct usbtv_norm_params norm_params[] = {
+static const struct usbtv_norm_params norm_params[] = {
 	{
 		.norm = V4L2_STD_525_60,
 		.cap_width = 720,
@@ -63,7 +63,7 @@ static struct usbtv_norm_params norm_params[] = {
 static int usbtv_configure_for_norm(struct usbtv *usbtv, v4l2_std_id norm)
 {
 	int i, ret = 0;
-	struct usbtv_norm_params *params = NULL;
+	const struct usbtv_norm_params *params = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(norm_params); i++) {
 		if (norm_params[i].norm & norm) {
@@ -685,7 +685,7 @@ static int usbtv_s_input(struct file *file, void *priv, unsigned int i)
 	return usbtv_select_input(usbtv, i);
 }
 
-static struct v4l2_ioctl_ops usbtv_ioctl_ops = {
+static const struct v4l2_ioctl_ops usbtv_ioctl_ops = {
 	.vidioc_querycap = usbtv_querycap,
 	.vidioc_enum_input = usbtv_enum_input,
 	.vidioc_enum_fmt_vid_cap = usbtv_enum_fmt_vid_cap,

@@ -678,7 +678,7 @@ static int __init acpi_init(void)
 
 	result = acpi_bus_register_driver(&acpi_driver);
 	if (result < 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error registering driver\n"));
+		pr_debug("Error registering driver\n");
 		return -ENODEV;
 	}
 

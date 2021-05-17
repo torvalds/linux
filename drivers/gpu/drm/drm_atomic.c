@@ -1183,7 +1183,7 @@ EXPORT_SYMBOL(drm_atomic_add_encoder_bridges);
  * This function walks the current configuration and adds all connectors
  * currently using @crtc to the atomic configuration @state. Note that this
  * function must acquire the connection mutex. This can potentially cause
- * unneeded seralization if the update is just for the planes on one CRTC. Hence
+ * unneeded serialization if the update is just for the planes on one CRTC. Hence
  * drivers and helpers should only call this when really needed (e.g. when a
  * full modeset needs to happen due to some change).
  *
@@ -1248,7 +1248,7 @@ EXPORT_SYMBOL(drm_atomic_add_affected_connectors);
  *
  * Since acquiring a plane state will always also acquire the w/w mutex of the
  * current CRTC for that plane (if there is any) adding all the plane states for
- * a CRTC will not reduce parallism of atomic updates.
+ * a CRTC will not reduce parallelism of atomic updates.
  *
  * Returns:
  * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK

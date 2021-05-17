@@ -24,7 +24,6 @@
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
 MODULE_DESCRIPTION("SiS7019");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{SiS,SiS7019 Audio Accelerator}}");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */

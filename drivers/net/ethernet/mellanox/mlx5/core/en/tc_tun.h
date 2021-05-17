@@ -21,6 +21,11 @@ enum {
 	MLX5E_TC_TUNNEL_TYPE_MPLSOUDP,
 };
 
+struct mlx5e_encap_key {
+	const struct ip_tunnel_key *ip_tun_key;
+	struct mlx5e_tc_tunnel     *tc_tunnel;
+};
+
 struct mlx5e_tc_tunnel {
 	int tunnel_type;
 	enum mlx5_flow_match_level match_level;
@@ -44,6 +49,8 @@ struct mlx5e_tc_tunnel {
 			    struct flow_cls_offload *f,
 			    void *headers_c,
 			    void *headers_v);
+	bool (*encap_info_equal)(struct mlx5e_encap_key *a,
+				 struct mlx5e_encap_key *b);
 };
 
 extern struct mlx5e_tc_tunnel vxlan_tunnel;
@@ -76,10 +83,12 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 static inline int
 mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				struct net_device *mirred_dev,
-				struct mlx5e_encap_entry *e) { return -EOPNOTSUPP; }
-int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
-				    struct net_device *mirred_dev,
-				    struct mlx5e_encap_entry *e)
+				struct mlx5e_encap_entry *e)
+{ return -EOPNOTSUPP; }
+static inline int
+mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
+				struct net_device *mirred_dev,
+				struct mlx5e_encap_entry *e)
 { return -EOPNOTSUPP; }
 #endif
 int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
@@ -100,6 +109,9 @@ int mlx5e_tc_tun_parse_udp_ports(struct mlx5e_priv *priv,
 				 struct flow_cls_offload *f,
 				 void *headers_c,
 				 void *headers_v);
+
+bool mlx5e_tc_tun_encap_info_equal_generic(struct mlx5e_encap_key *a,
+					   struct mlx5e_encap_key *b);
 
 #endif /* CONFIG_MLX5_ESWITCH */
 

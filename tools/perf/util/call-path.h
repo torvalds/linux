@@ -23,7 +23,7 @@
  * @children: tree of call paths of functions called
  *
  * In combination with the call_return structure, the call_path structure
- * defines a context-sensitve call-graph.
+ * defines a context-sensitive call-graph.
  */
 struct call_path {
 	struct call_path *parent;

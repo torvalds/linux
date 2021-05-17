@@ -1268,7 +1268,6 @@ static struct iio_trigger *kmx61_trigger_setup(struct kmx61_data *data,
 	if (!trig)
 		return ERR_PTR(-ENOMEM);
 
-	trig->dev.parent = &data->client->dev;
 	trig->ops = &kmx61_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 

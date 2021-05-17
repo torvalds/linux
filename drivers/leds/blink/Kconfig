@@ -1,20 +1,17 @@
-menuconfig LEDS_BLINK
-	bool "LED Blink support"
-	depends on LEDS_CLASS
-	help
-	  This option enables blink support for the leds class.
-	  If unsure, say Y.
+config LEDS_LGM
+       tristate "LED support for LGM SoC series"
+       depends on X86 || COMPILE_TEST
+       depends on GPIOLIB && LEDS_CLASS && MFD_SYSCON && OF
+       help
+         This option enables support for LEDs connected to GPIO lines on
+         Lightning Mountain (LGM) SoC. Lightning Mountain is a AnyWAN
+         gateway-on-a-chip SoC to be shipped on mid and high end home
+         gateways and routers.
 
-if LEDS_BLINK
+         These LEDs are driven by a Serial Shift Output (SSO) controller.
+         The driver supports hardware blinking and the LEDs can be configured
+         to be triggered by software/CPU or by hardware.
 
-config LEDS_BLINK_LGM
-	tristate "LED support for Intel LGM SoC series"
-	depends on LEDS_CLASS
-	depends on MFD_SYSCON
-	depends on OF
-	help
-	  Parallel to serial conversion, which is also called SSO controller,
-	  can drive external shift register for LED outputs.
-	  This enables LED support for Serial Shift Output controller(SSO).
-
-endif # LEDS_BLINK
+         Say 'Y' here if you are working on LGM SoC based platform. Otherwise,
+         say 'N'. To compile this driver as a module, choose M here: the module
+         will be called leds-lgm-sso.

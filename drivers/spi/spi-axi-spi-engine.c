@@ -170,14 +170,10 @@ static void spi_engine_gen_sleep(struct spi_engine_program *p, bool dry,
 	unsigned int t;
 	int delay;
 
-	if (xfer->delay_usecs) {
-		delay = xfer->delay_usecs;
-	} else {
-		delay = spi_delay_to_ns(&xfer->delay, xfer);
-		if (delay < 0)
-			return;
-		delay /= 1000;
-	}
+	delay = spi_delay_to_ns(&xfer->delay, xfer);
+	if (delay < 0)
+		return;
+	delay /= 1000;
 
 	if (delay == 0)
 		return;

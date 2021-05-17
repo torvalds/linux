@@ -157,7 +157,7 @@ static int netlink_recv(int sock, __u32 nl_pid, __u32 seq,
 		if (len == 0)
 			break;
 
-		for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len);
+		for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, (unsigned int)len);
 		     nh = NLMSG_NEXT(nh, len)) {
 			if (nh->nlmsg_pid != nl_pid) {
 				ret = -LIBBPF_ERRNO__WRNGPID;

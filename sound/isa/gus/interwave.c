@@ -28,14 +28,8 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
 #ifndef SNDRV_STB
 MODULE_DESCRIPTION("AMD InterWave");
-MODULE_SUPPORTED_DEVICE("{{Gravis,UltraSound Plug & Play},"
-		"{STB,SoundRage32},"
-		"{MED,MED3210},"
-		"{Dynasonix,Dynasonix Pro},"
-		"{Panasonic,PCA761AW}}");
 #else
 MODULE_DESCRIPTION("AMD InterWave STB with TEA6330T");
-MODULE_SUPPORTED_DEVICE("{{AMD,InterWave STB with TEA6330T}}");
 #endif
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */

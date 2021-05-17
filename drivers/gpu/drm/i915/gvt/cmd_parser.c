@@ -916,19 +916,26 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 
 	if (!strncmp(cmd, "srm", 3) ||
 			!strncmp(cmd, "lrm", 3)) {
-		if (offset != i915_mmio_reg_offset(GEN8_L3SQCREG4) &&
-				offset != 0x21f0) {
+		if (offset == i915_mmio_reg_offset(GEN8_L3SQCREG4) ||
+		    offset == 0x21f0 ||
+		    (IS_BROADWELL(gvt->gt->i915) &&
+		     offset == i915_mmio_reg_offset(INSTPM)))
+			return 0;
+		else {
 			gvt_vgpu_err("%s access to register (%x)\n",
 					cmd, offset);
 			return -EPERM;
-		} else
-			return 0;
+		}
 	}
 
 	if (!strncmp(cmd, "lrr-src", 7) ||
 			!strncmp(cmd, "lrr-dst", 7)) {
-		gvt_vgpu_err("not allowed cmd %s\n", cmd);
-		return -EPERM;
+		if (IS_BROADWELL(gvt->gt->i915) && offset == 0x215c)
+			return 0;
+		else {
+			gvt_vgpu_err("not allowed cmd %s reg (%x)\n", cmd, offset);
+			return -EPERM;
+		}
 	}
 
 	if (!strncmp(cmd, "pipe_ctrl", 9)) {
@@ -941,11 +948,6 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 
 	/* below are all lri handlers */
 	vreg = &vgpu_vreg(s->vgpu, offset);
-	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
-		gvt_vgpu_err("%s access to non-render register (%x)\n",
-				cmd, offset);
-		return -EBADRQC;
-	}
 
 	if (is_cmd_update_pdps(offset, s) &&
 	    cmd_pdp_mmio_update_handler(s, offset, index))

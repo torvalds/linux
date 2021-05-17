@@ -140,7 +140,7 @@ static void pm_clk_op_unlock(struct pm_subsys_data *psd, unsigned long *flags)
 }
 
 /**
- * pm_clk_enable - Enable a clock, reporting any errors
+ * __pm_clk_enable - Enable a clock, reporting any errors
  * @dev: The device for the given clock
  * @ce: PM clock entry corresponding to the clock.
  */

@@ -1098,8 +1098,9 @@ walk_ipv6:
 	tmp.disp_flag = QETH_DISP_ADDR_ADD;
 	tmp.is_multicast = 1;
 
-	read_lock_bh(&in6_dev->lock);
-	for (im6 = in6_dev->mc_list; im6 != NULL; im6 = im6->next) {
+	for (im6 = rtnl_dereference(in6_dev->mc_list);
+	     im6;
+	     im6 = rtnl_dereference(im6->next)) {
 		tmp.u.a6.addr = im6->mca_addr;
 
 		ipm = qeth_l3_find_addr_by_ip(card, &tmp);
@@ -1117,27 +1118,8 @@ walk_ipv6:
 			 qeth_l3_ipaddr_hash(ipm));
 
 	}
-	read_unlock_bh(&in6_dev->lock);
 
 out:
-	return 0;
-}
-
-static int qeth_l3_vlan_rx_add_vid(struct net_device *dev,
-				   __be16 proto, u16 vid)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	QETH_CARD_TEXT_(card, 4, "aid:%d", vid);
-	return 0;
-}
-
-static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
-				    __be16 proto, u16 vid)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
 	return 0;
 }
 
@@ -1861,8 +1843,6 @@ static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_do_ioctl		= qeth_do_ioctl,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
-	.ndo_vlan_rx_add_vid	= qeth_l3_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid   = qeth_l3_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= qeth_tx_timeout,
 };
 
@@ -1878,8 +1858,6 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_do_ioctl		= qeth_do_ioctl,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
-	.ndo_vlan_rx_add_vid	= qeth_l3_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid   = qeth_l3_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= qeth_tx_timeout,
 	.ndo_neigh_setup	= qeth_l3_neigh_setup,
 };
@@ -1933,8 +1911,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 
 	card->dev->needed_headroom = headroom;
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
-				NETIF_F_HW_VLAN_CTAG_RX |
-				NETIF_F_HW_VLAN_CTAG_FILTER;
+				NETIF_F_HW_VLAN_CTAG_RX;
 
 	netif_keep_dst(card->dev);
 	if (card->dev->hw_features & (NETIF_F_TSO | NETIF_F_TSO6))

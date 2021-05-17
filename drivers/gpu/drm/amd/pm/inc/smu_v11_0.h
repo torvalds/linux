@@ -32,7 +32,7 @@
 #define SMU11_DRIVER_IF_VERSION_NV14 0x38
 #define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x3D
 #define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0xE
-#define SMU11_DRIVER_IF_VERSION_VANGOGH 0x02
+#define SMU11_DRIVER_IF_VERSION_VANGOGH 0x03
 #define SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish 0xF
 
 /* MP Apertures */
@@ -61,8 +61,8 @@
 #define LINK_WIDTH_MAX			6
 #define LINK_SPEED_MAX			3
 
-static __maybe_unused uint16_t link_width[] = {0, 1, 2, 4, 8, 12, 16};
-static __maybe_unused uint16_t link_speed[] = {25, 50, 80, 160};
+static const __maybe_unused uint16_t link_width[] = {0, 1, 2, 4, 8, 12, 16};
+static const __maybe_unused uint16_t link_speed[] = {25, 50, 80, 160};
 
 static const
 struct smu_temperature_range __maybe_unused smu11_thermal_policy[] =

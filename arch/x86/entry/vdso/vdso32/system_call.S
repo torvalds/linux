@@ -6,7 +6,7 @@
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/cpufeatures.h>
-#include <asm/alternative-asm.h>
+#include <asm/alternative.h>
 
 	.text
 	.globl __kernel_vsyscall
@@ -29,7 +29,7 @@ __kernel_vsyscall:
 	 * anyone with an AMD CPU, for example).  Nonetheless, we try to keep
 	 * it working approximately as well as it ever worked.
 	 *
-	 * This link may eludicate some of the history:
+	 * This link may elucidate some of the history:
 	 *   https://android-review.googlesource.com/#/q/Iac3295376d61ef83e713ac9b528f3b50aa780cd7
 	 * personally, I find it hard to understand what's going on there.
 	 *

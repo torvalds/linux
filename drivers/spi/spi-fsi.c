@@ -26,7 +26,7 @@
 #define SPI_FSI_BASE			0x70000
 #define SPI_FSI_INIT_TIMEOUT_MS		1000
 #define SPI_FSI_MAX_XFR_SIZE		2048
-#define SPI_FSI_MAX_XFR_SIZE_RESTRICTED	32
+#define SPI_FSI_MAX_XFR_SIZE_RESTRICTED	8
 
 #define SPI_FSI_ERROR			0x0
 #define SPI_FSI_COUNTER_CFG		0x1
@@ -265,14 +265,12 @@ static int fsi_spi_sequence_transfer(struct fsi_spi *ctx,
 				     struct fsi_spi_sequence *seq,
 				     struct spi_transfer *transfer)
 {
-	bool docfg = false;
 	int loops;
 	int idx;
 	int rc;
 	u8 val = 0;
 	u8 len = min(transfer->len, 8U);
 	u8 rem = transfer->len % len;
-	u64 cfg = 0ULL;
 
 	loops = transfer->len / len;
 
@@ -292,28 +290,17 @@ static int fsi_spi_sequence_transfer(struct fsi_spi *ctx,
 		return -EINVAL;
 	}
 
-	if (ctx->restricted) {
-		const int eidx = rem ? 5 : 6;
-
-		while (loops > 1 && idx <= eidx) {
-			idx = fsi_spi_sequence_add(seq, val);
-			loops--;
-			docfg = true;
-		}
-
-		if (loops > 1) {
-			dev_warn(ctx->dev, "No sequencer slots; aborting.\n");
-			return -EINVAL;
-		}
+	if (ctx->restricted && loops > 1) {
+		dev_warn(ctx->dev,
+			 "Transfer too large; no branches permitted.\n");
+		return -EINVAL;
 	}
 
 	if (loops > 1) {
-		fsi_spi_sequence_add(seq, SPI_FSI_SEQUENCE_BRANCH(idx));
-		docfg = true;
-	}
+		u64 cfg = SPI_FSI_COUNTER_CFG_LOOPS(loops - 1);
 
-	if (docfg) {
-		cfg = SPI_FSI_COUNTER_CFG_LOOPS(loops - 1);
+		fsi_spi_sequence_add(seq, SPI_FSI_SEQUENCE_BRANCH(idx));
+
 		if (transfer->rx_buf)
 			cfg |= SPI_FSI_COUNTER_CFG_N2_RX |
 				SPI_FSI_COUNTER_CFG_N2_TX |
@@ -579,8 +566,10 @@ static int fsi_spi_probe(struct device *dev)
 			continue;
 
 		ctlr = spi_alloc_master(dev, sizeof(*ctx));
-		if (!ctlr)
+		if (!ctlr) {
+			of_node_put(np);
 			break;
+		}
 
 		ctlr->dev.of_node = np;
 		ctlr->num_chipselect = of_get_available_child_count(np) ?: 1;

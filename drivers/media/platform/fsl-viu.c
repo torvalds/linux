@@ -1529,7 +1529,7 @@ err_irq:
 
 static int viu_of_remove(struct platform_device *op)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&op->dev);
+	struct v4l2_device *v4l2_dev = platform_get_drvdata(op);
 	struct viu_dev *dev = container_of(v4l2_dev, struct viu_dev, v4l2_dev);
 	struct v4l2_subdev *sdev = list_entry(v4l2_dev->subdevs.next,
 					      struct v4l2_subdev, list);
@@ -1550,7 +1550,7 @@ static int viu_of_remove(struct platform_device *op)
 #ifdef CONFIG_PM
 static int viu_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&op->dev);
+	struct v4l2_device *v4l2_dev = platform_get_drvdata(op);
 	struct viu_dev *dev = container_of(v4l2_dev, struct viu_dev, v4l2_dev);
 
 	clk_disable(dev->clk);
@@ -1559,7 +1559,7 @@ static int viu_suspend(struct platform_device *op, pm_message_t state)
 
 static int viu_resume(struct platform_device *op)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&op->dev);
+	struct v4l2_device *v4l2_dev = platform_get_drvdata(op);
 	struct viu_dev *dev = container_of(v4l2_dev, struct viu_dev, v4l2_dev);
 
 	clk_enable(dev->clk);

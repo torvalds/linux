@@ -382,8 +382,8 @@ const struct bpf_func_proto bpf_get_current_ancestor_cgroup_id_proto = {
 };
 
 #ifdef CONFIG_CGROUP_BPF
-DECLARE_PER_CPU(struct bpf_cgroup_storage*,
-		bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
+DECLARE_PER_CPU(struct bpf_cgroup_storage_info,
+		bpf_cgroup_storage_info[BPF_CGROUP_STORAGE_NEST_MAX]);
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
@@ -392,10 +392,17 @@ BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 	 * verifier checks that its value is correct.
 	 */
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
-	struct bpf_cgroup_storage *storage;
+	struct bpf_cgroup_storage *storage = NULL;
 	void *ptr;
+	int i;
 
-	storage = this_cpu_read(bpf_cgroup_storage[stype]);
+	for (i = 0; i < BPF_CGROUP_STORAGE_NEST_MAX; i++) {
+		if (unlikely(this_cpu_read(bpf_cgroup_storage_info[i].task) != current))
+			continue;
+
+		storage = this_cpu_read(bpf_cgroup_storage_info[i].storage[stype]);
+		break;
+	}
 
 	if (stype == BPF_CGROUP_STORAGE_SHARED)
 		ptr = &READ_ONCE(storage->buf)->data[0];
@@ -662,6 +669,322 @@ const struct bpf_func_proto bpf_this_cpu_ptr_proto = {
 	.arg1_type	= ARG_PTR_TO_PERCPU_BTF_ID,
 };
 
+static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
+		size_t bufsz)
+{
+	void __user *user_ptr = (__force void __user *)unsafe_ptr;
+
+	buf[0] = 0;
+
+	switch (fmt_ptype) {
+	case 's':
+#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+		if ((unsigned long)unsafe_ptr < TASK_SIZE)
+			return strncpy_from_user_nofault(buf, user_ptr, bufsz);
+		fallthrough;
+#endif
+	case 'k':
+		return strncpy_from_kernel_nofault(buf, unsafe_ptr, bufsz);
+	case 'u':
+		return strncpy_from_user_nofault(buf, user_ptr, bufsz);
+	}
+
+	return -EINVAL;
+}
+
+/* Per-cpu temp buffers which can be used by printf-like helpers for %s or %p
+ */
+#define MAX_PRINTF_BUF_LEN	512
+
+struct bpf_printf_buf {
+	char tmp_buf[MAX_PRINTF_BUF_LEN];
+};
+static DEFINE_PER_CPU(struct bpf_printf_buf, bpf_printf_buf);
+static DEFINE_PER_CPU(int, bpf_printf_buf_used);
+
+static int try_get_fmt_tmp_buf(char **tmp_buf)
+{
+	struct bpf_printf_buf *bufs;
+	int used;
+
+	preempt_disable();
+	used = this_cpu_inc_return(bpf_printf_buf_used);
+	if (WARN_ON_ONCE(used > 1)) {
+		this_cpu_dec(bpf_printf_buf_used);
+		preempt_enable();
+		return -EBUSY;
+	}
+	bufs = this_cpu_ptr(&bpf_printf_buf);
+	*tmp_buf = bufs->tmp_buf;
+
+	return 0;
+}
+
+void bpf_bprintf_cleanup(void)
+{
+	if (this_cpu_read(bpf_printf_buf_used)) {
+		this_cpu_dec(bpf_printf_buf_used);
+		preempt_enable();
+	}
+}
+
+/*
+ * bpf_bprintf_prepare - Generic pass on format strings for bprintf-like helpers
+ *
+ * Returns a negative value if fmt is an invalid format string or 0 otherwise.
+ *
+ * This can be used in two ways:
+ * - Format string verification only: when bin_args is NULL
+ * - Arguments preparation: in addition to the above verification, it writes in
+ *   bin_args a binary representation of arguments usable by bstr_printf where
+ *   pointers from BPF have been sanitized.
+ *
+ * In argument preparation mode, if 0 is returned, safe temporary buffers are
+ * allocated and bpf_bprintf_cleanup should be called to free them after use.
+ */
+int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
+			u32 **bin_args, u32 num_args)
+{
+	char *unsafe_ptr = NULL, *tmp_buf = NULL, *tmp_buf_end, *fmt_end;
+	size_t sizeof_cur_arg, sizeof_cur_ip;
+	int err, i, num_spec = 0;
+	u64 cur_arg;
+	char fmt_ptype, cur_ip[16], ip_spec[] = "%pXX";
+
+	fmt_end = strnchr(fmt, fmt_size, 0);
+	if (!fmt_end)
+		return -EINVAL;
+	fmt_size = fmt_end - fmt;
+
+	if (bin_args) {
+		if (num_args && try_get_fmt_tmp_buf(&tmp_buf))
+			return -EBUSY;
+
+		tmp_buf_end = tmp_buf + MAX_PRINTF_BUF_LEN;
+		*bin_args = (u32 *)tmp_buf;
+	}
+
+	for (i = 0; i < fmt_size; i++) {
+		if ((!isprint(fmt[i]) && !isspace(fmt[i])) || !isascii(fmt[i])) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		if (fmt[i] != '%')
+			continue;
+
+		if (fmt[i + 1] == '%') {
+			i++;
+			continue;
+		}
+
+		if (num_spec >= num_args) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		/* The string is zero-terminated so if fmt[i] != 0, we can
+		 * always access fmt[i + 1], in the worst case it will be a 0
+		 */
+		i++;
+
+		/* skip optional "[0 +-][num]" width formatting field */
+		while (fmt[i] == '0' || fmt[i] == '+'  || fmt[i] == '-' ||
+		       fmt[i] == ' ')
+			i++;
+		if (fmt[i] >= '1' && fmt[i] <= '9') {
+			i++;
+			while (fmt[i] >= '0' && fmt[i] <= '9')
+				i++;
+		}
+
+		if (fmt[i] == 'p') {
+			sizeof_cur_arg = sizeof(long);
+
+			if ((fmt[i + 1] == 'k' || fmt[i + 1] == 'u') &&
+			    fmt[i + 2] == 's') {
+				fmt_ptype = fmt[i + 1];
+				i += 2;
+				goto fmt_str;
+			}
+
+			if (fmt[i + 1] == 0 || isspace(fmt[i + 1]) ||
+			    ispunct(fmt[i + 1]) || fmt[i + 1] == 'K' ||
+			    fmt[i + 1] == 'x' || fmt[i + 1] == 's' ||
+			    fmt[i + 1] == 'S') {
+				/* just kernel pointers */
+				if (tmp_buf)
+					cur_arg = raw_args[num_spec];
+				i++;
+				goto nocopy_fmt;
+			}
+
+			if (fmt[i + 1] == 'B') {
+				if (tmp_buf)  {
+					err = snprintf(tmp_buf,
+						       (tmp_buf_end - tmp_buf),
+						       "%pB",
+						       (void *)(long)raw_args[num_spec]);
+					tmp_buf += (err + 1);
+				}
+
+				i++;
+				num_spec++;
+				continue;
+			}
+
+			/* only support "%pI4", "%pi4", "%pI6" and "%pi6". */
+			if ((fmt[i + 1] != 'i' && fmt[i + 1] != 'I') ||
+			    (fmt[i + 2] != '4' && fmt[i + 2] != '6')) {
+				err = -EINVAL;
+				goto out;
+			}
+
+			i += 2;
+			if (!tmp_buf)
+				goto nocopy_fmt;
+
+			sizeof_cur_ip = (fmt[i] == '4') ? 4 : 16;
+			if (tmp_buf_end - tmp_buf < sizeof_cur_ip) {
+				err = -ENOSPC;
+				goto out;
+			}
+
+			unsafe_ptr = (char *)(long)raw_args[num_spec];
+			err = copy_from_kernel_nofault(cur_ip, unsafe_ptr,
+						       sizeof_cur_ip);
+			if (err < 0)
+				memset(cur_ip, 0, sizeof_cur_ip);
+
+			/* hack: bstr_printf expects IP addresses to be
+			 * pre-formatted as strings, ironically, the easiest way
+			 * to do that is to call snprintf.
+			 */
+			ip_spec[2] = fmt[i - 1];
+			ip_spec[3] = fmt[i];
+			err = snprintf(tmp_buf, tmp_buf_end - tmp_buf,
+				       ip_spec, &cur_ip);
+
+			tmp_buf += err + 1;
+			num_spec++;
+
+			continue;
+		} else if (fmt[i] == 's') {
+			fmt_ptype = fmt[i];
+fmt_str:
+			if (fmt[i + 1] != 0 &&
+			    !isspace(fmt[i + 1]) &&
+			    !ispunct(fmt[i + 1])) {
+				err = -EINVAL;
+				goto out;
+			}
+
+			if (!tmp_buf)
+				goto nocopy_fmt;
+
+			if (tmp_buf_end == tmp_buf) {
+				err = -ENOSPC;
+				goto out;
+			}
+
+			unsafe_ptr = (char *)(long)raw_args[num_spec];
+			err = bpf_trace_copy_string(tmp_buf, unsafe_ptr,
+						    fmt_ptype,
+						    tmp_buf_end - tmp_buf);
+			if (err < 0) {
+				tmp_buf[0] = '\0';
+				err = 1;
+			}
+
+			tmp_buf += err;
+			num_spec++;
+
+			continue;
+		}
+
+		sizeof_cur_arg = sizeof(int);
+
+		if (fmt[i] == 'l') {
+			sizeof_cur_arg = sizeof(long);
+			i++;
+		}
+		if (fmt[i] == 'l') {
+			sizeof_cur_arg = sizeof(long long);
+			i++;
+		}
+
+		if (fmt[i] != 'i' && fmt[i] != 'd' && fmt[i] != 'u' &&
+		    fmt[i] != 'x' && fmt[i] != 'X') {
+			err = -EINVAL;
+			goto out;
+		}
+
+		if (tmp_buf)
+			cur_arg = raw_args[num_spec];
+nocopy_fmt:
+		if (tmp_buf) {
+			tmp_buf = PTR_ALIGN(tmp_buf, sizeof(u32));
+			if (tmp_buf_end - tmp_buf < sizeof_cur_arg) {
+				err = -ENOSPC;
+				goto out;
+			}
+
+			if (sizeof_cur_arg == 8) {
+				*(u32 *)tmp_buf = *(u32 *)&cur_arg;
+				*(u32 *)(tmp_buf + 4) = *((u32 *)&cur_arg + 1);
+			} else {
+				*(u32 *)tmp_buf = (u32)(long)cur_arg;
+			}
+			tmp_buf += sizeof_cur_arg;
+		}
+		num_spec++;
+	}
+
+	err = 0;
+out:
+	if (err)
+		bpf_bprintf_cleanup();
+	return err;
+}
+
+#define MAX_SNPRINTF_VARARGS		12
+
+BPF_CALL_5(bpf_snprintf, char *, str, u32, str_size, char *, fmt,
+	   const void *, data, u32, data_len)
+{
+	int err, num_args;
+	u32 *bin_args;
+
+	if (data_len % 8 || data_len > MAX_SNPRINTF_VARARGS * 8 ||
+	    (data_len && !data))
+		return -EINVAL;
+	num_args = data_len / 8;
+
+	/* ARG_PTR_TO_CONST_STR guarantees that fmt is zero-terminated so we
+	 * can safely give an unbounded size.
+	 */
+	err = bpf_bprintf_prepare(fmt, UINT_MAX, data, &bin_args, num_args);
+	if (err < 0)
+		return err;
+
+	err = bstr_printf(str, str_size, fmt, bin_args);
+
+	bpf_bprintf_cleanup();
+
+	return err + 1;
+}
+
+const struct bpf_func_proto bpf_snprintf_proto = {
+	.func		= bpf_snprintf,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_MEM_OR_NULL,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_PTR_TO_CONST_STR,
+	.arg4_type	= ARG_PTR_TO_MEM_OR_NULL,
+	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+};
+
 const struct bpf_func_proto bpf_get_current_task_proto __weak;
 const struct bpf_func_proto bpf_probe_read_user_proto __weak;
 const struct bpf_func_proto bpf_probe_read_user_str_proto __weak;
@@ -708,6 +1031,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_ringbuf_discard_proto;
 	case BPF_FUNC_ringbuf_query:
 		return &bpf_ringbuf_query_proto;
+	case BPF_FUNC_for_each_map_elem:
+		return &bpf_for_each_map_elem_proto;
 	default:
 		break;
 	}
@@ -748,6 +1073,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_probe_read_kernel_str_proto;
 	case BPF_FUNC_snprintf_btf:
 		return &bpf_snprintf_btf_proto;
+	case BPF_FUNC_snprintf:
+		return &bpf_snprintf_proto;
 	default:
 		return NULL;
 	}

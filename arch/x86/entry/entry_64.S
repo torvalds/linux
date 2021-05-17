@@ -305,7 +305,7 @@ SYM_CODE_END(ret_from_fork)
 .macro DEBUG_ENTRY_ASSERT_IRQS_OFF
 #ifdef CONFIG_DEBUG_ENTRY
 	pushq %rax
-	SAVE_FLAGS(CLBR_RAX)
+	SAVE_FLAGS
 	testl $X86_EFLAGS_IF, %eax
 	jz .Lokay_\@
 	ud2
@@ -511,7 +511,7 @@ SYM_CODE_START(\asmsym)
 	/*
 	 * No need to switch back to the IST stack. The current stack is either
 	 * identical to the stack in the IRET frame or the VC fall-back stack,
-	 * so it is definitly mapped even with PTI enabled.
+	 * so it is definitely mapped even with PTI enabled.
 	 */
 	jmp	paranoid_exit
 

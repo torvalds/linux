@@ -471,7 +471,13 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.DSCEnable[mode_lib->vba.NumberOfActivePlanes] = dout->dsc_enable;
 		mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dsc_slices;
-		mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpc;
+		if (!dout->dsc_input_bpc) {
+			mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
+				ip->maximum_dsc_bits_per_component;
+		} else {
+			mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
+				dout->dsc_input_bpc;
+		}
 		mode_lib->vba.WritebackEnable[mode_lib->vba.NumberOfActivePlanes] = dout->wb_enable;
 		mode_lib->vba.ActiveWritebacksPerPlane[mode_lib->vba.NumberOfActivePlanes] =
 				dout->num_active_wb;

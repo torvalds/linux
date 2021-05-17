@@ -54,12 +54,14 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 .PP
 \fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44
 .PP
-\fB--hide column\fP do not show the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--hide sysfs" to hide the sysfs statistics columns as a group.
+\fB--hide column\fP do not show the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.
 .PP
 \fB--enable column\fP show the specified built-in columns, which are otherwise disabled, by default.  Currently the only built-in counters disabled by default are "usec", "Time_Of_Day_Seconds", "APIC" and "X2APIC".
 The column name "all" can be used to enable all disabled-by-default built-in counters.
 .PP
-\fB--show column\fP show only the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--show sysfs" to show the sysfs statistics columns as a group.
+\fB--show column\fP show only the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.
+.PP
+\fB--show CATEGORY --hide CATEGORY\fP  Show and hide also accept a single CATEGORY of columns: "all", "topology", "idle", "frequency", "power", "sysfs", "other".
 .PP
 \fB--Dump\fP displays the raw counter values.
 .PP

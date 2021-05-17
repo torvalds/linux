@@ -281,8 +281,12 @@ sub create_labels {
 # Outputs the book on ReST format
 #
 
-# \b doesn't work well with paths. So, we need to define something else
-my $bondary = qr { (?<![\w\/\`\{])(?=[\w\/\`\{])|(?<=[\w\/\`\{])(?![\w\/\`\{]) }x;
+# \b doesn't work well with paths. So, we need to define something else:
+# Boundaries are punct characters, spaces and end-of-line
+my $start = qr {(^|\s|\() }x;
+my $bondary = qr { ([,.:;\)\s]|\z) }x;
+my $xref_match = qr { $start(\/(sys|config|proc|dev|kvd)\/[^,.:;\)\s]+)$bondary }x;
+my $symbols = qr { ([\x01-\x08\x0e-\x1f\x21-\x2f\x3a-\x40\x7b-\xff]) }x;
 
 sub output_rest {
 	create_labels();
@@ -305,7 +309,6 @@ sub output_rest {
 		}
 
 		my $w = $what;
-		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
 		if ($type ne "File") {
 			my $cur_part = $what;
@@ -329,6 +332,7 @@ sub output_rest {
 			my $len = 0;
 
 			foreach my $name (@names) {
+				$name =~ s/$symbols/\\$1/g;
 				$name = "**$name**";
 				$len = length($name) if (length($name) > $len);
 			}
@@ -377,32 +381,60 @@ sub output_rest {
 
 				# Enrich text by creating cross-references
 
-				$desc =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
+				my $new_desc = "";
+				my $init_indent = -1;
+				my $literal_indent = -1;
 
-				my @matches = $desc =~ m,Documentation/ABI/([\w\/\-]+),;
-				foreach my $f (@matches) {
-					my $xref = $f;
-					my $path = $f;
-					$path =~ s,.*/(.*/.*),$1,;;
-					$path =~ s,[/\-],_,g;;
-					$xref .= " <abi_file_" . $path . ">";
-					$desc =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
-				}
-
-				@matches = $desc =~ m,$bondary(/sys/[^\s\.\,\;\:\*\s\`\'\(\)]+)$bondary,;
-
-				foreach my $s (@matches) {
-					if (defined($data{$s}) && defined($data{$s}->{label})) {
-						my $xref = $s;
-
-						$xref =~ s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
-						$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
-
-						$desc =~ s,$bondary$s$bondary,$xref,g;
+				open(my $fh, "+<", \$desc);
+				while (my $d = <$fh>) {
+					my $indent = $d =~ m/^(\s+)/;
+					my $spaces = length($indent);
+					$init_indent = $indent if ($init_indent < 0);
+					if ($literal_indent >= 0) {
+						if ($spaces > $literal_indent) {
+							$new_desc .= $d;
+							next;
+						} else {
+							$literal_indent = -1;
+						}
+					} else {
+						if ($d =~ /()::$/ && !($d =~ /^\s*\.\./)) {
+							$literal_indent = $spaces;
+						}
 					}
-				}
 
-				print "$desc\n\n";
+					$d =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
+
+					my @matches = $d =~ m,Documentation/ABI/([\w\/\-]+),g;
+					foreach my $f (@matches) {
+						my $xref = $f;
+						my $path = $f;
+						$path =~ s,.*/(.*/.*),$1,;;
+						$path =~ s,[/\-],_,g;;
+						$xref .= " <abi_file_" . $path . ">";
+						$d =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
+					}
+
+					# Seek for cross reference symbols like /sys/...
+					@matches = $d =~ m/$xref_match/g;
+
+					foreach my $s (@matches) {
+						next if (!($s =~ m,/,));
+						if (defined($data{$s}) && defined($data{$s}->{label})) {
+							my $xref = $s;
+
+							$xref =~ s/$symbols/\\$1/g;
+							$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
+
+							$d =~ s,$start$s$bondary,$1$xref$2,g;
+						}
+					}
+					$new_desc .= $d;
+				}
+				close $fh;
+
+
+				print "$new_desc\n\n";
 			} else {
 				$desc =~ s/^\s+//;
 

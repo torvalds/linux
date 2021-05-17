@@ -24,10 +24,10 @@ struct noise_level {
 };
 
 
-typedef struct _ODM_NOISE_MONITOR_ {
+struct odm_noise_monitor {
 	s8 noise[MAX_RF_PATH];
 	s16 noise_all;
-} ODM_NOISE_MONITOR;
+};
 
 s16 ODM_InbandNoise_Monitor(
 	void *pDM_VOID,

@@ -3206,7 +3206,7 @@ static int cx88_xc4000_tuner_callback(struct cx88_core *core,
 
 /*
  * Tuner callback function. Currently only needed for the Pinnacle
- * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both
+ * PCTV HD 800i with an xc5000 silicon tuner. This is used for both
  * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)
  */
 static int cx88_xc5000_tuner_callback(struct cx88_core *core,

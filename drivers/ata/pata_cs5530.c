@@ -271,7 +271,7 @@ fail_put:
 
 /**
  *	cs5530_init_one		-	Initialise a CS5530
- *	@dev: PCI device
+ *	@pdev: PCI device
  *	@id: Entry in match table
  *
  *	Install a driver for the newly found CS5530 companion chip. Most of

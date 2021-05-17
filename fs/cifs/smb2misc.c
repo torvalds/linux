@@ -667,6 +667,7 @@ smb2_is_valid_lease_break(char *buffer)
 				    !memcmp(rsp->LeaseKey,
 					    tcon->crfid.fid->lease_key,
 					    SMB2_LEASE_KEY_SIZE)) {
+					tcon->crfid.time = 0;
 					INIT_WORK(&tcon->crfid.lease_break,
 						  smb2_cached_lease_break);
 					queue_work(cifsiod_wq,
@@ -754,8 +755,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
-	return false;
+	cifs_dbg(FYI, "No file id matched, oplock break ignored\n");
+	return true;
 }
 
 void

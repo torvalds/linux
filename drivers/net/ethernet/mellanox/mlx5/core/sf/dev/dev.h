@@ -47,7 +47,7 @@ static inline void mlx5_sf_driver_unregister(void)
 
 static inline bool mlx5_sf_dev_allocated(const struct mlx5_core_dev *dev)
 {
-	return 0;
+	return false;
 }
 
 #endif

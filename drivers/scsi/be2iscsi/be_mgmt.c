@@ -1256,7 +1256,7 @@ beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * beiscsi_phys_port()- Display Physical Port Identifier
+ * beiscsi_phys_port_disp()- Display Physical Port Identifier
  * @dev: ptr to device not used.
  * @attr: device attribute, not used.
  * @buf: contains formatted text port identifier

@@ -130,7 +130,7 @@ static inline void update_idle_rq_clock_pelt(struct rq *rq)
 	 * Reflecting stolen time makes sense only if the idle
 	 * phase would be present at max capacity. As soon as the
 	 * utilization of a rq has reached the maximum value, it is
-	 * considered as an always runnig rq without idle time to
+	 * considered as an always running rq without idle time to
 	 * steal. This potential idle time is considered as lost in
 	 * this case. We keep track of this lost idle time compare to
 	 * rq's clock_task.

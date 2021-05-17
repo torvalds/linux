@@ -435,8 +435,12 @@ typedef struct {
   uint8_t  GpioI2cSda; // Serial Data
   uint16_t spare5;
 
+  uint16_t XgmiMaxCurrent; // in Amps
+  int8_t   XgmiOffset;     // in Amps
+  uint8_t  Padding_TelemetryXgmi;
+
   //reserved
-  uint32_t reserved[16];
+  uint32_t reserved[15];
 
 } PPTable_t;
 
@@ -481,7 +485,10 @@ typedef struct {
   uint16_t TemperatureAllHBM[4]  ;
   uint32_t GfxBusyAcc            ;
   uint32_t DramBusyAcc           ;
-  uint32_t Spare[4];
+  uint32_t EnergyAcc64bitLow     ; //15.259uJ resolution
+  uint32_t EnergyAcc64bitHigh    ;
+  uint32_t TimeStampLow          ; //10ns resolution
+  uint32_t TimeStampHigh         ;
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use

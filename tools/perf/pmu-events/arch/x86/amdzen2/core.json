@@ -68,21 +68,21 @@
     "EventCode": "0xcb",
     "BriefDescription": "SSE instructions (SSE, SSE2, SSE3, SSSE3, SSE4A, SSE41, SSE42, AVX).",
     "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes non-numeric instructions it is not suitable for measuring MFLOPS. SSE instructions (SSE, SSE2, SSE3, SSSE3, SSE4A, SSE41, SSE42, AVX).",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ex_ret_mmx_fp_instr.mmx_instr",
     "EventCode": "0xcb",
     "BriefDescription": "MMX instructions.",
     "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes non-numeric instructions it is not suitable for measuring MFLOPS. MMX instructions.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ex_ret_mmx_fp_instr.x87_instr",
     "EventCode": "0xcb",
     "BriefDescription": "x87 instructions.",
     "PublicDescription": "The number of MMX, SSE or x87 instructions retired. The UnitMask allows the selection of the individual classes of instructions as given in the table. Each increment represents one complete instruction. Since this event includes non-numeric instructions it is not suitable for measuring MFLOPS. x87 instructions.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ex_ret_cond",
@@ -108,19 +108,19 @@
     "EventName": "ex_tagged_ibs_ops.ibs_count_rollover",
     "EventCode": "0x1cf",
     "BriefDescription": "Tagged IBS Ops. Number of times an op could not be tagged by IBS because of a previous tagged op that has not retired.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "ex_tagged_ibs_ops.ibs_tagged_ops_ret",
     "EventCode": "0x1cf",
     "BriefDescription": "Tagged IBS Ops. Number of Ops tagged by IBS that retired.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ex_tagged_ibs_ops.ibs_tagged_ops",
     "EventCode": "0x1cf",
     "BriefDescription": "Tagged IBS Ops. Number of Ops tagged by IBS.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "ex_ret_fus_brnch_inst",

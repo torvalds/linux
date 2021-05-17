@@ -1,0 +1,228 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/wireless/mediatek,mt76.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek mt76 wireless devices Generic Binding
+
+maintainers:
+  - Felix Fietkau <nbd@nbd.name>
+  - Lorenzo Bianconi <lorenzo@kernel.org>
+  - Ryder Lee <ryder.lee@mediatek.com>
+
+description: |
+  This node provides properties for configuring the MediaTek mt76xx
+  wireless device. The node is expected to be specified as a child
+  node of the PCI controller to which the wireless chip is connected.
+  Alternatively, it can specify the wireless part of the MT7628/MT7688
+  or MT7622 SoC.
+
+allOf:
+  - $ref: ieee80211.yaml#
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt76
+      - mediatek,mt7628-wmac
+      - mediatek,mt7622-wmac
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  mediatek,infracfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the infrastructure bus fabric syscon node.
+      This property is MT7622 specific
+
+  ieee80211-freq-limit: true
+
+  mediatek,mtd-eeprom:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Phandle to a MTD partition + offset containing EEPROM data
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Specify if the radio eeprom partition is written in big-endian
+
+  mediatek,eeprom-merge-otp:
+    type: boolean
+    description:
+      Merge EEPROM data with OTP data. Can be used on boards where the flash
+      calibration data is generic and specific calibration data should be
+      pulled from the OTP ROM
+
+  led:
+    type: object
+    $ref: /schemas/leds/common.yaml#
+    additionalProperties: false
+    properties:
+      led-sources:
+        maxItems: 1
+
+  power-limits:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^r[0-9]+":
+        type: object
+        additionalProperties: false
+        properties:
+          regdomain:
+            $ref: /schemas/types.yaml#/definitions/string
+            description:
+              Regdomain refers to a legal regulatory region. Different
+              countries define different levels of allowable transmitter
+              power, time that a channel can be occupied, and different
+              available channels
+            enum:
+              - FCC
+              - ETSI
+              - JP
+
+        patternProperties:
+          "^txpower-[256]g$":
+            type: object
+            additionalProperties: false
+            patternProperties:
+              "^b[0-9]+$":
+                type: object
+                additionalProperties: false
+                properties:
+                  channels:
+                    $ref: /schemas/types.yaml#/definitions/uint32-array
+                    minItems: 2
+                    maxItems: 2
+                    description:
+                      Pairs of first and last channel number of the selected
+                      band
+
+                  rates-cck:
+                    $ref: /schemas/types.yaml#/definitions/uint8-array
+                    minItems: 4
+                    maxItems: 4
+                    description:
+                      4 half-dBm per-rate power limit values
+
+                  rates-ofdm:
+                    $ref: /schemas/types.yaml#/definitions/uint8-array
+                    minItems: 8
+                    maxItems: 8
+                    description:
+                      8 half-dBm per-rate power limit values
+
+                  rates-mcs:
+                    $ref: /schemas/types.yaml#/definitions/uint8-matrix
+                    description:
+                      Sets of per-rate power limit values for 802.11n/802.11ac
+                      rates for multiple channel bandwidth settings.
+                      Each set starts with the number of channel bandwidth
+                      settings for which the rate set applies, followed by
+                      either 8 or 10 power limit values. The order of the
+                      channel bandwidth settings is 20, 40, 80 and 160 MHz.
+                    maxItems: 4
+                    items:
+                      minItems: 9
+                      maxItems: 11
+
+                  rates-ru:
+                    $ref: /schemas/types.yaml#/definitions/uint8-matrix
+                    description:
+                      Sets of per-rate power limit values for 802.11ax rates
+                      for multiple channel bandwidth or resource unit settings.
+                      Each set starts with the number of channel bandwidth or
+                      resource unit settings for which the rate set applies,
+                      followed by 12 power limit values. The order of the
+                      channel resource unit settings is RU26, RU52, RU106,
+                      RU242/SU20, RU484/SU40, RU996/SU80 and RU2x996/SU160.
+                    items:
+                      minItems: 13
+                      maxItems: 13
+
+                  txs-delta:
+                    $ref: /schemas/types.yaml#/definitions/uint32-array
+                    description:
+                      Half-dBm power delta for different numbers of antennas
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    pcie0 {
+      #address-cells = <3>;
+      #size-cells = <2>;
+      wifi@0,0 {
+        compatible = "mediatek,mt76";
+        reg = <0x0000 0 0 0 0>;
+        ieee80211-freq-limit = <5000000 6000000>;
+        mediatek,mtd-eeprom = <&factory 0x8000>;
+        big-endian;
+
+        led {
+          led-sources = <2>;
+        };
+
+        power-limits {
+          r0 {
+            regdomain = "FCC";
+            txpower-5g {
+               b0 {
+                   channels = <36 48>;
+                   rates-ofdm = /bits/ 8 <23 23 23 23 23 23 23 23>;
+                   rates-mcs = /bits/ 8 <1 23 23 23 23 23 23 23 23 23 23>,
+                                        <3 22 22 22 22 22 22 22 22 22 22>;
+                   rates-ru = /bits/ 8 <3 22 22 22 22 22 22 22 22 22 22 22 22>,
+                                       <4 20 20 20 20 20 20 20 20 20 20 20 20>;
+               };
+               b1 {
+                   channels = <100 181>;
+                   rates-ofdm = /bits/ 8 <14 14 14 14 14 14 14 14>;
+                   rates-mcs = /bits/ 8  <4 14 14 14 14 14 14 14 14 14 14>;
+                   txs-delta = <12 9 6>;
+                   rates-ru = /bits/ 8  <7 14 14 14 14 14 14 14 14 14 14 14 14>;
+               };
+             };
+          };
+        };
+      };
+    };
+
+  - |
+    wifi@10300000 {
+      compatible = "mediatek,mt7628-wmac";
+      reg = <0x10300000 0x100000>;
+
+      interrupt-parent = <&cpuintc>;
+      interrupts = <6>;
+
+      mediatek,mtd-eeprom = <&factory 0x0>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    wifi@18000000 {
+      compatible = "mediatek,mt7622-wmac";
+      reg = <0x10300000 0x100000>;
+      interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_LOW>;
+
+      mediatek,infracfg = <&infracfg>;
+
+      power-domains = <&scpsys 3>;
+    };

@@ -2018,7 +2018,6 @@ static int ims_pcu_probe(struct usb_interface *intf,
 	}
 
 	usb_set_intfdata(pcu->ctrl_intf, pcu);
-	usb_set_intfdata(pcu->data_intf, pcu);
 
 	error = ims_pcu_buffers_alloc(pcu);
 	if (error)

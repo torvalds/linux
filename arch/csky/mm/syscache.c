@@ -17,6 +17,7 @@ SYSCALL_DEFINE3(cacheflush,
 		flush_icache_mm_range(current->mm,
 				(unsigned long)addr,
 				(unsigned long)addr + bytes);
+		fallthrough;
 	case DCACHE:
 		dcache_wb_range((unsigned long)addr,
 				(unsigned long)addr + bytes);

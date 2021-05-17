@@ -39,11 +39,6 @@
 MODULE_AUTHOR("Zach Brown <zab@zabbo.net>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ESS Maestro3 PCI");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESS,Maestro3 PCI},"
-		"{ESS,ES1988},"
-		"{ESS,Allegro PCI},"
-		"{ESS,Allegro-1 PCI},"
-	        "{ESS,Canyon3D-2/LE PCI}}");
 MODULE_FIRMWARE("ess/maestro3_assp_kernel.fw");
 MODULE_FIRMWARE("ess/maestro3_assp_minisrc.fw");
 

@@ -97,8 +97,8 @@ enum bnxt_re_hw_stats {
 };
 
 struct rdma_hw_stats *bnxt_re_ib_alloc_hw_stats(struct ib_device *ibdev,
-						u8 port_num);
+						u32 port_num);
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			    struct rdma_hw_stats *stats,
-			    u8 port, int index);
+			    u32 port, int index);
 #endif /* __BNXT_RE_HW_STATS_H__ */

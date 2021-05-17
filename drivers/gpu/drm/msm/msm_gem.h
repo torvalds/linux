@@ -11,6 +11,11 @@
 #include <linux/dma-resv.h>
 #include "msm_drv.h"
 
+/* Make all GEM related WARN_ON()s ratelimited.. when things go wrong they
+ * tend to go wrong 1000s of times in a short timespan.
+ */
+#define GEM_WARN_ON(x)  WARN_RATELIMIT(x, "%s", __stringify(x))
+
 /* Additional internal-use only BO flags: */
 #define MSM_BO_STOLEN        0x10000000    /* try to use stolen/splash memory */
 #define MSM_BO_MAP_PRIV      0x20000000    /* use IOMMU_PRIV when mapping */
@@ -51,17 +56,34 @@ struct msm_gem_object {
 	uint8_t madv;
 
 	/**
+	 * Is object on inactive_dontneed list (ie. counted in priv->shrinkable_count)?
+	 */
+	bool dontneed : 1;
+
+	/**
+	 * Is object evictable (ie. counted in priv->evictable_count)?
+	 */
+	bool evictable : 1;
+
+	/**
 	 * count of active vmap'ing
 	 */
 	uint8_t vmap_count;
 
-	/* And object is either:
-	 *  inactive - on priv->inactive_list
+	/**
+	 * Node in list of all objects (mainly for debugfs, protected by
+	 * priv->obj_lock
+	 */
+	struct list_head node;
+
+	/**
+	 * An object is either:
+	 *  inactive - on priv->inactive_dontneed or priv->inactive_willneed
+	 *     (depending on purgeability status)
 	 *  active   - on one one of the gpu's active_list..  well, at
 	 *     least for now we don't have (I don't think) hw sync between
 	 *     2d and 3d one devices which have both, meaning we need to
 	 *     block on submit if a bo is already on other ring
-	 *
 	 */
 	struct list_head mm_list;
 
@@ -78,8 +100,6 @@ struct msm_gem_object {
 
 	struct list_head vmas;    /* list of msm_gem_vma */
 
-	struct llist_node freed;
-
 	/* For physically contiguous buffers.  Used when we don't have
 	 * an IOMMU.  Also used for stolen/splashscreen buffer.
 	 */
@@ -88,6 +108,7 @@ struct msm_gem_object {
 	char name[32]; /* Identifier to print for the debugfs files */
 
 	int active_count;
+	int pin_count;
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 
@@ -147,8 +168,17 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
 __printf(2, 3)
 void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...);
+
 #ifdef CONFIG_DEBUG_FS
-void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
+struct msm_gem_stats {
+	struct {
+		unsigned count;
+		size_t size;
+	} all, active, resident, purgeable, purged;
+};
+
+void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
+		struct msm_gem_stats *stats);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
@@ -184,23 +214,101 @@ msm_gem_is_locked(struct drm_gem_object *obj)
 
 static inline bool is_active(struct msm_gem_object *msm_obj)
 {
-	WARN_ON(!msm_gem_is_locked(&msm_obj->base));
+	GEM_WARN_ON(!msm_gem_is_locked(&msm_obj->base));
 	return msm_obj->active_count;
+}
+
+/* imported/exported objects are not purgeable: */
+static inline bool is_unpurgeable(struct msm_gem_object *msm_obj)
+{
+	return msm_obj->base.dma_buf && msm_obj->base.import_attach;
 }
 
 static inline bool is_purgeable(struct msm_gem_object *msm_obj)
 {
 	return (msm_obj->madv == MSM_MADV_DONTNEED) && msm_obj->sgt &&
-			!msm_obj->base.dma_buf && !msm_obj->base.import_attach;
+			!is_unpurgeable(msm_obj);
 }
 
 static inline bool is_vunmapable(struct msm_gem_object *msm_obj)
 {
-	WARN_ON(!msm_gem_is_locked(&msm_obj->base));
+	GEM_WARN_ON(!msm_gem_is_locked(&msm_obj->base));
 	return (msm_obj->vmap_count == 0) && msm_obj->vaddr;
 }
 
+static inline void mark_purgeable(struct msm_gem_object *msm_obj)
+{
+	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
+
+	GEM_WARN_ON(!mutex_is_locked(&priv->mm_lock));
+
+	if (is_unpurgeable(msm_obj))
+		return;
+
+	if (GEM_WARN_ON(msm_obj->dontneed))
+		return;
+
+	priv->shrinkable_count += msm_obj->base.size >> PAGE_SHIFT;
+	msm_obj->dontneed = true;
+}
+
+static inline void mark_unpurgeable(struct msm_gem_object *msm_obj)
+{
+	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
+
+	GEM_WARN_ON(!mutex_is_locked(&priv->mm_lock));
+
+	if (is_unpurgeable(msm_obj))
+		return;
+
+	if (GEM_WARN_ON(!msm_obj->dontneed))
+		return;
+
+	priv->shrinkable_count -= msm_obj->base.size >> PAGE_SHIFT;
+	GEM_WARN_ON(priv->shrinkable_count < 0);
+	msm_obj->dontneed = false;
+}
+
+static inline bool is_unevictable(struct msm_gem_object *msm_obj)
+{
+	return is_unpurgeable(msm_obj) || msm_obj->pin_count || msm_obj->vaddr;
+}
+
+static inline void mark_evictable(struct msm_gem_object *msm_obj)
+{
+	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
+
+	WARN_ON(!mutex_is_locked(&priv->mm_lock));
+
+	if (is_unevictable(msm_obj))
+		return;
+
+	if (WARN_ON(msm_obj->evictable))
+		return;
+
+	priv->evictable_count += msm_obj->base.size >> PAGE_SHIFT;
+	msm_obj->evictable = true;
+}
+
+static inline void mark_unevictable(struct msm_gem_object *msm_obj)
+{
+	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
+
+	WARN_ON(!mutex_is_locked(&priv->mm_lock));
+
+	if (is_unevictable(msm_obj))
+		return;
+
+	if (WARN_ON(!msm_obj->evictable))
+		return;
+
+	priv->evictable_count -= msm_obj->base.size >> PAGE_SHIFT;
+	WARN_ON(priv->evictable_count < 0);
+	msm_obj->evictable = false;
+}
+
 void msm_gem_purge(struct drm_gem_object *obj);
+void msm_gem_evict(struct drm_gem_object *obj);
 void msm_gem_vunmap(struct drm_gem_object *obj);
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,

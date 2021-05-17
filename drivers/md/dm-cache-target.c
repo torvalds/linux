@@ -3387,7 +3387,7 @@ static bool origin_dev_supports_discard(struct block_device *origin_bdev)
 {
 	struct request_queue *q = bdev_get_queue(origin_bdev);
 
-	return q && blk_queue_discard(q);
+	return blk_queue_discard(q);
 }
 
 /*

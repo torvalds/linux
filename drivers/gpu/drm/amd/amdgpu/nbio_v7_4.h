@@ -28,5 +28,6 @@
 
 extern const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg;
 extern const struct amdgpu_nbio_funcs nbio_v7_4_funcs;
+extern const struct amdgpu_nbio_ras_funcs nbio_v7_4_ras_funcs;
 
 #endif

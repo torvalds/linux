@@ -39,7 +39,6 @@ static inline void pm_vt_switch_unregister(struct device *dev)
  * Device power management
  */
 
-struct device;
 
 #ifdef CONFIG_PM
 extern const char power_group_name[];		/* = "power" */

@@ -705,8 +705,9 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 		return 0;
 
 	if (no_wait_gpu) {
+		ret = dma_fence_is_signaled(fence) ? 0 : -EBUSY;
 		dma_fence_put(fence);
-		return -EBUSY;
+		return ret;
 	}
 
 	dma_resv_add_shared_fence(bo->base.resv, fence);

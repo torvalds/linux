@@ -4,7 +4,7 @@ menu "Certificates for signature checking"
 config MODULE_SIG_KEY
 	string "File name or PKCS#11 URI of module signing key"
 	default "certs/signing_key.pem"
-	depends on MODULE_SIG
+	depends on MODULE_SIG || (IMA_APPRAISE_MODSIG && MODULES)
 	help
          Provide the file name of a private key/certificate in PEM format,
          or a PKCS#11 URI according to RFC7512. The file should contain, or
@@ -82,5 +82,22 @@ config SYSTEM_BLACKLIST_HASH_LIST
 	  form "<hash>", "<hash>", ... .  This will be included into a C
 	  wrapper to incorporate the list into the kernel.  Each <hash> should
 	  be a string of hex digits.
+
+config SYSTEM_REVOCATION_LIST
+	bool "Provide system-wide ring of revocation certificates"
+	depends on SYSTEM_BLACKLIST_KEYRING
+	depends on PKCS7_MESSAGE_PARSER=y
+	help
+	  If set, this allows revocation certificates to be stored in the
+	  blacklist keyring and implements a hook whereby a PKCS#7 message can
+	  be checked to see if it matches such a certificate.
+
+config SYSTEM_REVOCATION_KEYS
+	string "X.509 certificates to be preloaded into the system blacklist keyring"
+	depends on SYSTEM_REVOCATION_LIST
+	help
+	  If set, this option should be the filename of a PEM-formatted file
+	  containing X.509 certificates to be included in the default blacklist
+	  keyring.
 
 endmenu

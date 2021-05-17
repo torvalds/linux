@@ -1177,18 +1177,7 @@ static struct platform_driver ftmac100_driver = {
 /******************************************************************************
  * initialization / finalization
  *****************************************************************************/
-static int __init ftmac100_init(void)
-{
-	return platform_driver_register(&ftmac100_driver);
-}
-
-static void __exit ftmac100_exit(void)
-{
-	platform_driver_unregister(&ftmac100_driver);
-}
-
-module_init(ftmac100_init);
-module_exit(ftmac100_exit);
+module_platform_driver(ftmac100_driver);
 
 MODULE_AUTHOR("Po-Yu Chuang <ratbert@faraday-tech.com>");
 MODULE_DESCRIPTION("FTMAC100 driver");

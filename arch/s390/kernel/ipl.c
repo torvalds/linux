@@ -1849,12 +1849,12 @@ static void __do_restart(void *ignore)
 	stop_run(&on_restart_trigger);
 }
 
-void do_restart(void)
+void do_restart(void *arg)
 {
 	tracing_off();
 	debug_locks_off();
 	lgr_info_log();
-	smp_call_online_cpu(__do_restart, NULL);
+	smp_call_online_cpu(__do_restart, arg);
 }
 
 /* on halt */

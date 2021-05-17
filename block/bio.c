@@ -277,7 +277,7 @@ static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	if (!parent->bi_status)
+	if (bio->bi_status && !parent->bi_status)
 		parent->bi_status = bio->bi_status;
 	bio_put(bio);
 	return parent;
@@ -493,20 +493,20 @@ struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned short nr_iovecs)
 }
 EXPORT_SYMBOL(bio_kmalloc);
 
-void zero_fill_bio_iter(struct bio *bio, struct bvec_iter start)
+void zero_fill_bio(struct bio *bio)
 {
 	unsigned long flags;
 	struct bio_vec bv;
 	struct bvec_iter iter;
 
-	__bio_for_each_segment(bv, bio, iter, start) {
+	bio_for_each_segment(bv, bio, iter) {
 		char *data = bvec_kmap_irq(&bv, &flags);
 		memset(data, 0, bv.bv_len);
 		flush_dcache_page(bv.bv_page);
 		bvec_kunmap_irq(data, &flags);
 	}
 }
-EXPORT_SYMBOL(zero_fill_bio_iter);
+EXPORT_SYMBOL(zero_fill_bio);
 
 /**
  * bio_truncate - truncate the bio to small size of @new_size
@@ -949,7 +949,7 @@ void bio_release_pages(struct bio *bio, bool mark_dirty)
 }
 EXPORT_SYMBOL_GPL(bio_release_pages);
 
-static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
+static void __bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 {
 	WARN_ON_ONCE(bio->bi_max_vecs);
 
@@ -959,8 +959,23 @@ static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 	bio->bi_iter.bi_size = iter->count;
 	bio_set_flag(bio, BIO_NO_PAGE_REF);
 	bio_set_flag(bio, BIO_CLONED);
+}
 
+static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
+{
+	__bio_iov_bvec_set(bio, iter);
 	iov_iter_advance(iter, iter->count);
+	return 0;
+}
+
+static int bio_iov_bvec_set_append(struct bio *bio, struct iov_iter *iter)
+{
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+	struct iov_iter i = *iter;
+
+	iov_iter_truncate(&i, queue_max_zone_append_sectors(q) << 9);
+	__bio_iov_bvec_set(bio, &i);
+	iov_iter_advance(iter, i.count);
 	return 0;
 }
 
@@ -1094,8 +1109,8 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	int ret = 0;
 
 	if (iov_iter_is_bvec(iter)) {
-		if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
-			return -EINVAL;
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+			return bio_iov_bvec_set_append(bio, iter);
 		return bio_iov_bvec_set(bio, iter);
 	}
 
@@ -1220,43 +1235,6 @@ void bio_copy_data(struct bio *dst, struct bio *src)
 	bio_copy_data_iter(dst, &dst_iter, src, &src_iter);
 }
 EXPORT_SYMBOL(bio_copy_data);
-
-/**
- * bio_list_copy_data - copy contents of data buffers from one chain of bios to
- * another
- * @src: source bio list
- * @dst: destination bio list
- *
- * Stops when it reaches the end of either the @src list or @dst list - that is,
- * copies min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of
- * bios).
- */
-void bio_list_copy_data(struct bio *dst, struct bio *src)
-{
-	struct bvec_iter src_iter = src->bi_iter;
-	struct bvec_iter dst_iter = dst->bi_iter;
-
-	while (1) {
-		if (!src_iter.bi_size) {
-			src = src->bi_next;
-			if (!src)
-				break;
-
-			src_iter = src->bi_iter;
-		}
-
-		if (!dst_iter.bi_size) {
-			dst = dst->bi_next;
-			if (!dst)
-				break;
-
-			dst_iter = dst->bi_iter;
-		}
-
-		bio_copy_data_iter(dst, &dst_iter, src, &src_iter);
-	}
-}
-EXPORT_SYMBOL(bio_list_copy_data);
 
 void bio_free_pages(struct bio *bio)
 {

@@ -199,13 +199,13 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	 * ack the interrupt if it is there
 	 */
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF)) {
-		if (adev->nbio.funcs &&
-		    adev->nbio.funcs->handle_ras_controller_intr_no_bifring)
-			adev->nbio.funcs->handle_ras_controller_intr_no_bifring(adev);
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->handle_ras_controller_intr_no_bifring)
+			adev->nbio.ras_funcs->handle_ras_controller_intr_no_bifring(adev);
 
-		if (adev->nbio.funcs &&
-		    adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring)
-			adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->handle_ras_err_event_athub_intr_no_bifring)
+			adev->nbio.ras_funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
 	}
 
 	return ret;
@@ -382,11 +382,6 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 
 			kfree(src->enabled_types);
 			src->enabled_types = NULL;
-			if (src->data) {
-				kfree(src->data);
-				kfree(src);
-				adev->irq.client[i].sources[j] = NULL;
-			}
 		}
 		kfree(adev->irq.client[i].sources);
 		adev->irq.client[i].sources = NULL;

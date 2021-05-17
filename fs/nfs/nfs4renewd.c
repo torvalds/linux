@@ -149,9 +149,3 @@ void nfs4_set_lease_period(struct nfs_client *clp,
 	/* Cap maximum reconnect timeout at 1/2 lease period */
 	rpc_set_connect_timeout(clp->cl_rpcclient, lease, lease >> 1);
 }
-
-/*
- * Local variables:
- *   c-basic-offset: 8
- * End:
- */

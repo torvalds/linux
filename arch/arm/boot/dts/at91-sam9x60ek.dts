@@ -8,6 +8,7 @@
  */
 /dts-v1/;
 #include "sam9x60.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Microchip SAM9X60-EK";
@@ -84,7 +85,7 @@
 		sw1 {
 			label = "SW1";
 			gpios = <&pioD 18 GPIO_ACTIVE_LOW>;
-			linux,code=<0x104>;
+			linux,code=<KEY_PROG1>;
 			wakeup-source;
 		};
 	};
@@ -334,14 +335,6 @@
 };
 
 &pinctrl {
-	atmel,mux-mask = <
-			 /*	A	B	C	*/
-			 0xFFFFFE7F 0xC0E0397F 0xEF00019D	/* pioA */
-			 0x03FFFFFF 0x02FC7E68 0x00780000	/* pioB */
-			 0xffffffff 0xF83FFFFF 0xB800F3FC	/* pioC */
-			 0x003FFFFF 0x003F8000 0x00000000	/* pioD */
-			 >;
-
 	adc {
 		pinctrl_adc_default: adc_default {
 			atmel,pins = <AT91_PIOB 15 AT91_PERIPH_A AT91_PINCTRL_NONE>;

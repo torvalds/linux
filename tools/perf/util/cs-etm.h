@@ -12,28 +12,43 @@
 
 struct perf_session;
 
-/* Versionning header in case things need tro change in the future.  That way
+/*
+ * Versioning header in case things need to change in the future.  That way
  * decoding of old snapshot is still possible.
  */
 enum {
 	/* Starting with 0x0 */
-	CS_HEADER_VERSION_0,
+	CS_HEADER_VERSION,
 	/* PMU->type (32 bit), total # of CPUs (32 bit) */
 	CS_PMU_TYPE_CPUS,
 	CS_ETM_SNAPSHOT,
-	CS_HEADER_VERSION_0_MAX,
+	CS_HEADER_VERSION_MAX,
 };
+
+/*
+ * Update the version for new format.
+ *
+ * New version 1 format adds a param count to the per cpu metadata.
+ * This allows easy adding of new metadata parameters.
+ * Requires that new params always added after current ones.
+ * Also allows client reader to handle file versions that are different by
+ * checking the number of params in the file vs the number expected.
+ */
+#define CS_HEADER_CURRENT_VERSION 1
 
 /* Beginning of header common to both ETMv3 and V4 */
 enum {
 	CS_ETM_MAGIC,
 	CS_ETM_CPU,
+	/* Number of trace config params in following ETM specific block */
+	CS_ETM_NR_TRC_PARAMS,
+	CS_ETM_COMMON_BLK_MAX_V1,
 };
 
 /* ETMv3/PTM metadata */
 enum {
 	/* Dynamic, configurable parameters */
-	CS_ETM_ETMCR = CS_ETM_CPU + 1,
+	CS_ETM_ETMCR = CS_ETM_COMMON_BLK_MAX_V1,
 	CS_ETM_ETMTRACEIDR,
 	/* RO, taken from sysFS */
 	CS_ETM_ETMCCER,
@@ -41,10 +56,13 @@ enum {
 	CS_ETM_PRIV_MAX,
 };
 
+/* define fixed version 0 length - allow new format reader to read old files. */
+#define CS_ETM_NR_TRC_PARAMS_V0 (CS_ETM_ETMIDR - CS_ETM_ETMCR + 1)
+
 /* ETMv4 metadata */
 enum {
 	/* Dynamic, configurable parameters */
-	CS_ETMV4_TRCCONFIGR = CS_ETM_CPU + 1,
+	CS_ETMV4_TRCCONFIGR = CS_ETM_COMMON_BLK_MAX_V1,
 	CS_ETMV4_TRCTRACEIDR,
 	/* RO, taken from sysFS */
 	CS_ETMV4_TRCIDR0,
@@ -55,9 +73,12 @@ enum {
 	CS_ETMV4_PRIV_MAX,
 };
 
+/* define fixed version 0 length - allow new format reader to read old files. */
+#define CS_ETMV4_NR_TRC_PARAMS_V0 (CS_ETMV4_TRCAUTHSTATUS - CS_ETMV4_TRCCONFIGR + 1)
+
 /*
  * ETMv3 exception encoding number:
- * See Embedded Trace Macrocell spcification (ARM IHI 0014Q)
+ * See Embedded Trace Macrocell specification (ARM IHI 0014Q)
  * table 7-12 Encoding of Exception[3:0] for non-ARMv7-M processors.
  */
 enum {
@@ -162,7 +183,7 @@ struct cs_etm_packet_queue {
 
 #define BMVAL(val, lsb, msb)	((val & GENMASK(msb, lsb)) >> lsb)
 
-#define CS_ETM_HEADER_SIZE (CS_HEADER_VERSION_0_MAX * sizeof(u64))
+#define CS_ETM_HEADER_SIZE (CS_HEADER_VERSION_MAX * sizeof(u64))
 
 #define __perf_cs_etmv3_magic 0x3030303030303030ULL
 #define __perf_cs_etmv4_magic 0x4040404040404040ULL
@@ -173,6 +194,7 @@ struct cs_etm_packet_queue {
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);
+int cs_etm__get_pid_fmt(u8 trace_chan_id, u64 *pid_fmt);
 int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
 			 pid_t tid, u8 trace_chan_id);
 bool cs_etm__etmq_is_timeless(struct cs_etm_queue *etmq);

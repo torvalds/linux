@@ -2569,6 +2569,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 		pr_err("r600_cp: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->me_fw->size, fw_name);
 		err = -EINVAL;
+		goto out;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
@@ -2579,6 +2580,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 		pr_err("r600_rlc: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->rlc_fw->size, fw_name);
 		err = -EINVAL;
+		goto out;
 	}
 
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_HEMLOCK)) {

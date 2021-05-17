@@ -606,6 +606,15 @@
 				compatible = "microchip,sam9x60-pinctrl", "atmel,at91sam9x5-pinctrl", "atmel,at91rm9200-pinctrl", "simple-bus";
 				ranges = <0xfffff400 0xfffff400 0x800>;
 
+				/* mux-mask corresponding to sam9x60 SoC in TFBGA228L package */
+				atmel,mux-mask = <
+						 /*	A	B	C	*/
+						 0xffffffff 0xffe03fff 0xef00019d	/* pioA */
+						 0x03ffffff 0x02fc7e7f 0x00780000	/* pioB */
+						 0xffffffff 0xffffffff 0xf83fffff	/* pioC */
+						 0x003fffff 0x003f8000 0x00000000	/* pioD */
+						 >;
+
 				pioA: gpio@fffff400 {
 					compatible = "microchip,sam9x60-gpio", "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;

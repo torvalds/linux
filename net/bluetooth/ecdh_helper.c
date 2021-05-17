@@ -126,8 +126,6 @@ int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 	int err;
 	struct ecdh p = {0};
 
-	p.curve_id = ECC_CURVE_NIST_P256;
-
 	if (private_key) {
 		tmp = kmalloc(32, GFP_KERNEL);
 		if (!tmp)

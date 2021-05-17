@@ -126,6 +126,8 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		bp.type = ttm_bo_type_kernel;
 		bp.resv = NULL;
+		bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
 		r = amdgpu_bo_create(adev, &bp, &adev->gart.bo);
 		if (r) {
 			return r;

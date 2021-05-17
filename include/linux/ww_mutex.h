@@ -48,22 +48,11 @@ struct ww_acquire_ctx {
 #endif
 };
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-# define __WW_CLASS_MUTEX_INITIALIZER(lockname, class) \
-		, .ww_class = class
-#else
-# define __WW_CLASS_MUTEX_INITIALIZER(lockname, class)
-#endif
-
 #define __WW_CLASS_INITIALIZER(ww_class, _is_wait_die)	    \
 		{ .stamp = ATOMIC_LONG_INIT(0) \
 		, .acquire_name = #ww_class "_acquire" \
 		, .mutex_name = #ww_class "_mutex" \
 		, .is_wait_die = _is_wait_die }
-
-#define __WW_MUTEX_INITIALIZER(lockname, class) \
-		{ .base =  __MUTEX_INITIALIZER(lockname.base) \
-		__WW_CLASS_MUTEX_INITIALIZER(lockname, class) }
 
 #define DEFINE_WD_CLASS(classname) \
 	struct ww_class classname = __WW_CLASS_INITIALIZER(classname, 1)
@@ -71,16 +60,14 @@ struct ww_acquire_ctx {
 #define DEFINE_WW_CLASS(classname) \
 	struct ww_class classname = __WW_CLASS_INITIALIZER(classname, 0)
 
-#define DEFINE_WW_MUTEX(mutexname, ww_class) \
-	struct ww_mutex mutexname = __WW_MUTEX_INITIALIZER(mutexname, ww_class)
-
 /**
  * ww_mutex_init - initialize the w/w mutex
  * @lock: the mutex to be initialized
  * @ww_class: the w/w class the mutex should belong to
  *
  * Initialize the w/w mutex to unlocked state and associate it with the given
- * class.
+ * class. Static define macro for w/w mutex is not provided and this function
+ * is the only way to properly initialize the w/w mutex.
  *
  * It is not allowed to initialize an already locked mutex.
  */
@@ -173,9 +160,10 @@ static inline void ww_acquire_done(struct ww_acquire_ctx *ctx)
  */
 static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
 {
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 	mutex_release(&ctx->dep_map, _THIS_IP_);
-
+#endif
+#ifdef CONFIG_DEBUG_MUTEXES
 	DEBUG_LOCKS_WARN_ON(ctx->acquired);
 	if (!IS_ENABLED(CONFIG_PROVE_LOCKING))
 		/*

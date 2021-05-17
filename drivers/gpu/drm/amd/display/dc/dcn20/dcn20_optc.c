@@ -134,22 +134,6 @@ void optc2_set_gsl_window(struct timing_generator *optc,
 		OTG_GSL_WINDOW_END_Y, params->gsl_window_end_y);
 }
 
-/**
- * Vupdate keepout can be set to a window to block the update lock for that pipe from changing.
- * Start offset begins with vstartup and goes for x number of clocks,
- * end offset starts from end of vupdate to x number of clocks.
- */
-void optc2_set_vupdate_keepout(struct timing_generator *optc,
-		   const struct vupdate_keepout_params *params)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
-		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, params->start_offset,
-		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, params->end_offset,
-		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, params->enable);
-}
-
 void optc2_set_gsl_source_select(
 		struct timing_generator *optc,
 		int group_idx,

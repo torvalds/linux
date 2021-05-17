@@ -574,7 +574,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	 * be updated to avoid reading an incorrect value due to
 	 * the new fast GRBM interface.
 	 */
-	if (entry->vmid_src == AMDGPU_GFXHUB_0)
+	if ((entry->vmid_src == AMDGPU_GFXHUB_0) &&
+	    (adev->asic_type < CHIP_ALDEBARAN))
 		RREG32(hub->vm_l2_pro_fault_status);
 
 	status = RREG32(hub->vm_l2_pro_fault_status);
@@ -653,7 +654,8 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 
-	if (!amdgpu_sriov_vf(adev)) {
+	if (!amdgpu_sriov_vf(adev) &&
+	    !adev->gmc.xgmi.connected_to_cpu) {
 		adev->gmc.ecc_irq.num_types = 1;
 		adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
 	}
@@ -801,7 +803,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		 * be cleared to avoid a false ACK due to the new fast
 		 * GRBM interface.
 		 */
-		if (vmhub == AMDGPU_GFXHUB_0)
+		if ((vmhub == AMDGPU_GFXHUB_0) &&
+		    (adev->asic_type < CHIP_ALDEBARAN))
 			RREG32_NO_KIQ(hub->vm_inv_eng0_req +
 				      hub->eng_distance * eng);
 
@@ -1047,8 +1050,7 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
 	if (!(*flags & AMDGPU_PDE_PTE) && !(*flags & AMDGPU_PTE_SYSTEM))
-		*addr = adev->vm_manager.vram_base_offset + *addr -
-			adev->gmc.vram_start;
+		*addr = amdgpu_gmc_vram_mc2pa(adev, *addr);
 	BUG_ON(*addr & 0xFFFF00000000003FULL);
 
 	if (!adev->gmc.translate_further)
@@ -1155,7 +1157,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_VG20;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
-		adev->umc.funcs = &umc_v6_1_funcs;
+		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
 		break;
 	case CHIP_ARCTURUS:
 		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
@@ -1163,7 +1165,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_ARCT;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
-		adev->umc.funcs = &umc_v6_1_funcs;
+		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
 		break;
 	default:
 		break;
@@ -1185,6 +1187,24 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	}
 }
 
+static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		adev->mmhub.ras_funcs = &mmhub_v1_0_ras_funcs;
+		break;
+	case CHIP_ARCTURUS:
+		adev->mmhub.ras_funcs = &mmhub_v9_4_ras_funcs;
+		break;
+	case CHIP_ALDEBARAN:
+		adev->mmhub.ras_funcs = &mmhub_v1_7_ras_funcs;
+		break;
+	default:
+		/* mmhub ras is not available */
+		break;
+	}
+}
+
 static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
 	adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
@@ -1194,12 +1214,6 @@ static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v9_0_set_gmc_funcs(adev);
-	gmc_v9_0_set_irq_funcs(adev);
-	gmc_v9_0_set_umc_funcs(adev);
-	gmc_v9_0_set_mmhub_funcs(adev);
-	gmc_v9_0_set_gfxhub_funcs(adev);
-
 	if (adev->asic_type == CHIP_VEGA20 ||
 	    adev->asic_type == CHIP_ARCTURUS)
 		adev->gmc.xgmi.supported = true;
@@ -1208,7 +1222,14 @@ static int gmc_v9_0_early_init(void *handle)
 		adev->gmc.xgmi.supported = true;
 		adev->gmc.xgmi.connected_to_cpu =
 			adev->smuio.funcs->is_host_gpu_xgmi_supported(adev);
-        }
+	}
+
+	gmc_v9_0_set_gmc_funcs(adev);
+	gmc_v9_0_set_irq_funcs(adev);
+	gmc_v9_0_set_umc_funcs(adev);
+	gmc_v9_0_set_mmhub_funcs(adev);
+	gmc_v9_0_set_mmhub_ras_funcs(adev);
+	gmc_v9_0_set_gfxhub_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -1240,8 +1261,9 @@ static int gmc_v9_0_late_init(void *handle)
 		}
 	}
 
-	if (adev->mmhub.funcs && adev->mmhub.funcs->reset_ras_error_count)
-		adev->mmhub.funcs->reset_ras_error_count(adev);
+	if (adev->mmhub.ras_funcs &&
+	    adev->mmhub.ras_funcs->reset_ras_error_count)
+		adev->mmhub.ras_funcs->reset_ras_error_count(adev);
 
 	r = amdgpu_gmc_ras_late_init(adev);
 	if (r)
@@ -1506,7 +1528,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (!amdgpu_sriov_vf(adev)) {
+	if (!amdgpu_sriov_vf(adev) &&
+	    !adev->gmc.xgmi.connected_to_cpu) {
 		/* interrupt sent to DF. */
 		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
 				      &adev->gmc.ecc_irq);

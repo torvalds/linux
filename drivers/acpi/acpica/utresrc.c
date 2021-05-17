@@ -64,6 +64,7 @@ const u8 acpi_gbl_resource_aml_serial_bus_sizes[] = {
 	ACPI_AML_SIZE_LARGE(struct aml_resource_i2c_serialbus),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_spi_serialbus),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_uart_serialbus),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_csi2_serialbus),
 };
 
 /*

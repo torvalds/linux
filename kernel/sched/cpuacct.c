@@ -104,7 +104,7 @@ static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu,
 
 	/*
 	 * We allow index == CPUACCT_STAT_NSTATS here to read
-	 * the sum of suages.
+	 * the sum of usages.
 	 */
 	BUG_ON(index > CPUACCT_STAT_NSTATS);
 

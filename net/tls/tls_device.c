@@ -418,7 +418,7 @@ static int tls_push_data(struct sock *sk,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
-	struct tls_record_info *record = ctx->open_record;
+	struct tls_record_info *record;
 	int tls_push_record_flags;
 	struct page_frag *pfrag;
 	size_t orig_size = size;
@@ -601,7 +601,7 @@ struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 	if (!info ||
 	    before(seq, info->end_seq - info->len)) {
 		/* if retransmit_hint is irrelevant start
-		 * from the beggining of the list
+		 * from the beginning of the list
 		 */
 		info = list_first_entry_or_null(&context->records_list,
 						struct tls_record_info, list);

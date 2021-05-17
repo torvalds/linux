@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Aosong AM2315 relative humidity and temperature
  *
  * Copyright (c) 2016, Intel Corporation.

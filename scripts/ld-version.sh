@@ -6,11 +6,6 @@
 
 set -e
 
-# When you raise the minimum linker version, please update
-# Documentation/process/changes.rst as well.
-bfd_min_version=2.23.0
-lld_min_version=10.0.1
-
 # Convert the version string x.y.z to a canonical 5 or 6-digit form.
 get_canonical_version()
 {
@@ -35,10 +30,12 @@ set -- $(LC_ALL=C "$@" --version)
 IFS=' '
 set -- $1
 
+min_tool_version=$(dirname $0)/min-tool-version.sh
+
 if [ "$1" = GNU -a "$2" = ld ]; then
 	shift $(($# - 1))
 	version=$1
-	min_version=$bfd_min_version
+	min_version=$($min_tool_version binutils)
 	name=BFD
 	disp_name="GNU ld"
 elif [ "$1" = GNU -a "$2" = gold ]; then
@@ -51,7 +48,7 @@ else
 
 	if [ "$1" = LLD ]; then
 		version=$2
-		min_version=$lld_min_version
+		min_version=$($min_tool_version llvm)
 		name=LLD
 		disp_name=LLD
 	else

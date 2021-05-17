@@ -1322,7 +1322,7 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
 {
-	if (kfd)
+	if (kfd && kfd->init_complete)
 		kfd_smi_event_update_thermal_throttling(kfd, throttle_bitmask);
 }
 

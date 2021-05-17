@@ -411,6 +411,30 @@ static const char *const rt5645_supply_names[] = {
 	"cpvdd",
 };
 
+struct rt5645_platform_data {
+	/* IN2 can optionally be differential */
+	bool in2_diff;
+
+	unsigned int dmic1_data_pin;
+	/* 0 = IN2N; 1 = GPIO5; 2 = GPIO11 */
+	unsigned int dmic2_data_pin;
+	/* 0 = IN2P; 1 = GPIO6; 2 = GPIO10; 3 = GPIO12 */
+
+	unsigned int jd_mode;
+	/* Use level triggered irq */
+	bool level_trigger_irq;
+	/* Invert JD1_1 status polarity */
+	bool inv_jd1_1;
+	/* Invert HP detect status polarity */
+	bool inv_hp_pol;
+
+	/* Value to assign to snd_soc_card.long_name */
+	const char *long_name;
+
+	/* Some (package) variants have the headset-mic pin not-connected */
+	bool no_headset_mic;
+};
+
 struct rt5645_priv {
 	struct snd_soc_component *component;
 	struct rt5645_platform_data pdata;
@@ -690,7 +714,7 @@ static int rt5645_hweq_get(struct snd_kcontrol *kcontrol,
 
 static bool rt5645_validate_hweq(unsigned short reg)
 {
-	if ((reg >= 0x1a4 && reg <= 0x1cd) | (reg >= 0x1e5 && reg <= 0x1f8) |
+	if ((reg >= 0x1a4 && reg <= 0x1cd) || (reg >= 0x1e5 && reg <= 0x1f8) ||
 		(reg == RT5645_EQ_CTRL2))
 		return true;
 
@@ -2956,8 +2980,8 @@ static int rt5645_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5645_PLL_CTRL1,
 		pll_code.n_code << RT5645_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5645_PLL_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5645_PLL_M_SFT |
-		pll_code.m_bp << RT5645_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5645_PLL_M_SFT) |
+		(pll_code.m_bp << RT5645_PLL_M_BP_SFT));
 
 	rt5645->pll_in = freq_in;
 	rt5645->pll_out = freq_out;
@@ -3159,7 +3183,7 @@ static int rt5645_jack_detect(struct snd_soc_component *component, int jack_inse
 		val &= 0x7;
 		dev_dbg(component->dev, "val = %d\n", val);
 
-		if (val == 1 || val == 2) {
+		if ((val == 1 || val == 2) && !rt5645->pdata.no_headset_mic) {
 			rt5645->jack_type = SND_JACK_HEADSET;
 			if (rt5645->en_button_func) {
 				rt5645_enable_push_button_irq(component, true);
@@ -3834,7 +3858,7 @@ static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 static int rt5645_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
-	struct rt5645_platform_data *pdata = dev_get_platdata(&i2c->dev);
+	struct rt5645_platform_data *pdata = NULL;
 	const struct dmi_system_id *dmi_data;
 	struct rt5645_priv *rt5645;
 	int ret, i;
@@ -3872,9 +3896,16 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645->pdata.dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
 	}
 
-	if (cht_rt5645_gpios && has_acpi_companion(&i2c->dev))
-		if (devm_acpi_dev_add_driver_gpios(&i2c->dev, cht_rt5645_gpios))
-			dev_dbg(&i2c->dev, "Failed to add driver gpios\n");
+	if (has_acpi_companion(&i2c->dev)) {
+		if (cht_rt5645_gpios) {
+			if (devm_acpi_dev_add_driver_gpios(&i2c->dev, cht_rt5645_gpios))
+				dev_dbg(&i2c->dev, "Failed to add driver gpios\n");
+		}
+
+		/* The ALC3270 package has the headset-mic pin not-connected */
+		if (acpi_dev_hid_uid_match(ACPI_COMPANION(&i2c->dev), "10EC3270", NULL))
+			rt5645->pdata.no_headset_mic = true;
+	}
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);

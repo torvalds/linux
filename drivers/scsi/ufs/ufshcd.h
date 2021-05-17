@@ -773,7 +773,10 @@ struct ufs_hba {
 	u32 ufshcd_state;
 	u32 eh_flags;
 	u32 intr_mask;
-	u16 ee_ctrl_mask;
+	u16 ee_ctrl_mask; /* Exception event mask */
+	u16 ee_drv_mask;  /* Exception event mask for driver */
+	u16 ee_usr_mask;  /* Exception event mask for user (via debugfs) */
+	struct mutex ee_ctrl_mutex;
 	bool is_powered;
 	bool shutting_down;
 	struct semaphore host_sem;
@@ -840,6 +843,8 @@ struct ufs_hba {
 #endif
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
+	struct delayed_work debugfs_ee_work;
+	u32 debugfs_ee_rate_limit_ms;
 #endif
 };
 
@@ -1099,7 +1104,7 @@ int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 			     u8 *desc_buff, int *buff_len,
 			     enum query_opcode desc_op);
 
-int ufshcd_wb_ctrl(struct ufs_hba *hba, bool enable);
+int ufshcd_wb_toggle(struct ufs_hba *hba, bool enable);
 
 /* Wrapper functions for safely calling variant operations */
 static inline const char *ufshcd_get_var_name(struct ufs_hba *hba)
@@ -1181,7 +1186,7 @@ static inline int ufshcd_vops_phy_initialization(struct ufs_hba *hba)
 }
 
 static inline int ufshcd_vops_pwr_change_notify(struct ufs_hba *hba,
-				  bool status,
+				  enum ufs_notify_change_status status,
 				  struct ufs_pa_layer_attr *dev_max_params,
 				  struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -1284,5 +1289,24 @@ static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
 
 int ufshcd_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 		     const char *prefix);
+
+int __ufshcd_write_ee_control(struct ufs_hba *hba, u32 ee_ctrl_mask);
+int ufshcd_write_ee_control(struct ufs_hba *hba);
+int ufshcd_update_ee_control(struct ufs_hba *hba, u16 *mask, u16 *other_mask,
+			     u16 set, u16 clr);
+
+static inline int ufshcd_update_ee_drv_mask(struct ufs_hba *hba,
+					    u16 set, u16 clr)
+{
+	return ufshcd_update_ee_control(hba, &hba->ee_drv_mask,
+					&hba->ee_usr_mask, set, clr);
+}
+
+static inline int ufshcd_update_ee_usr_mask(struct ufs_hba *hba,
+					    u16 set, u16 clr)
+{
+	return ufshcd_update_ee_control(hba, &hba->ee_usr_mask,
+					&hba->ee_drv_mask, set, clr);
+}
 
 #endif /* End of Header */

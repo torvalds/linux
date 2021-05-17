@@ -10,6 +10,7 @@
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
 #include <scsi/scsi_request.h>
 
 struct Scsi_Host;
@@ -55,11 +56,10 @@ struct scsi_pointer {
 
 /* for scmd->flags */
 #define SCMD_TAGGED		(1 << 0)
-#define SCMD_UNCHECKED_ISA_DMA	(1 << 1)
-#define SCMD_INITIALIZED	(1 << 2)
-#define SCMD_LAST		(1 << 3)
+#define SCMD_INITIALIZED	(1 << 1)
+#define SCMD_LAST		(1 << 2)
 /* flags preserved across unprep / reprep */
-#define SCMD_PRESERVED_FLAGS	(SCMD_UNCHECKED_ISA_DMA | SCMD_INITIALIZED)
+#define SCMD_PRESERVED_FLAGS	(SCMD_INITIALIZED)
 
 /* for scmd->state */
 #define SCMD_STATE_COMPLETE	0
@@ -74,6 +74,8 @@ struct scsi_cmnd {
 	struct rcu_head rcu;
 
 	int eh_eflags;		/* Used by error handlr */
+
+	int budget_token;
 
 	/*
 	 * This is set to jiffies as it was when the command was first

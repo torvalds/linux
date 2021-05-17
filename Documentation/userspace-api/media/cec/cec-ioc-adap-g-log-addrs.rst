@@ -67,7 +67,7 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. c:type:: cec_log_addrs
 
-.. tabularcolumns:: |p{1.0cm}|p{8.0cm}|p{7.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{8.0cm}|p{8.0cm}|
 
 .. cssclass:: longtable
 
@@ -150,7 +150,7 @@ logical address types are already defined will return with error ``EBUSY``.
         give the CEC framework more information about the device type, even
         though the framework won't use it directly in the CEC message.
 
-.. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.5cm}|
 
 .. _cec-log-addrs-flags:
 
@@ -186,7 +186,7 @@ logical address types are already defined will return with error ``EBUSY``.
 
 	All other messages are ignored.
 
-.. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.5cm}|
 
 .. _cec-versions:
 
@@ -211,7 +211,7 @@ logical address types are already defined will return with error ``EBUSY``.
       - 6
       - CEC version according to the HDMI 2.0 standard.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _cec-prim-dev-types:
 
@@ -256,7 +256,7 @@ logical address types are already defined will return with error ``EBUSY``.
       - 7
       - Use for a video processor device.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _cec-log-addr-types:
 
@@ -304,7 +304,7 @@ logical address types are already defined will return with error ``EBUSY``.
 	Control).
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _cec-all-dev-types-flags:
 

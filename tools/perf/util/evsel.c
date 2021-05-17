@@ -47,6 +47,7 @@
 #include "memswap.h"
 #include "util.h"
 #include "hashmap.h"
+#include "pmu-hybrid.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
@@ -295,11 +296,11 @@ static bool perf_event_can_profile_kernel(void)
 	return perf_event_paranoid_check(1);
 }
 
-struct evsel *evsel__new_cycles(bool precise)
+struct evsel *evsel__new_cycles(bool precise, __u32 type, __u64 config)
 {
 	struct perf_event_attr attr = {
-		.type	= PERF_TYPE_HARDWARE,
-		.config	= PERF_COUNT_HW_CPU_CYCLES,
+		.type	= type,
+		.config	= config,
 		.exclude_kernel	= !perf_event_can_profile_kernel(),
 	};
 	struct evsel *evsel;
@@ -492,6 +493,28 @@ const char *evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"ref-cycles",
 };
 
+char *evsel__bpf_counter_events;
+
+bool evsel__match_bpf_counter_events(const char *name)
+{
+	int name_len;
+	bool match;
+	char *ptr;
+
+	if (!evsel__bpf_counter_events)
+		return false;
+
+	ptr = strstr(evsel__bpf_counter_events, name);
+	name_len = strlen(name);
+
+	/* check name matches a full token in evsel__bpf_counter_events */
+	match = (ptr != NULL) &&
+		((ptr == evsel__bpf_counter_events) || (*(ptr - 1) == ',')) &&
+		((*(ptr + name_len) == ',') || (*(ptr + name_len) == '\0'));
+
+	return match;
+}
+
 static const char *__evsel__hw_name(u64 config)
 {
 	if (config < PERF_COUNT_HW_MAX && evsel__hw_names[config])
@@ -621,7 +644,7 @@ const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_AL
 #define COP(x)		(1 << x)
 
 /*
- * cache operartion stat
+ * cache operation stat
  * L1I : Read and prefetch only
  * ITLB and BPU : Read-only
  */
@@ -2275,7 +2298,7 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 		/*
 		 * Undo swap of u64, then swap on individual u32s,
 		 * get the size of the raw area and undo all of the
-		 * swap. The pevent interface handles endianity by
+		 * swap. The pevent interface handles endianness by
 		 * itself.
 		 */
 		if (swapped) {
@@ -2796,4 +2819,9 @@ void evsel__zero_per_pkg(struct evsel *evsel)
 
 		hashmap__clear(evsel->per_pkg_mask);
 	}
+}
+
+bool evsel__is_hybrid(struct evsel *evsel)
+{
+	return evsel->pmu_name && perf_pmu__is_hybrid(evsel->pmu_name);
 }

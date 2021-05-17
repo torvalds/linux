@@ -257,7 +257,6 @@ static void moxart_dma_complete(void *param)
 static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 {
 	u32 len, dir_slave;
-	long dma_time;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *dma_chan;
 
@@ -294,8 +293,8 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 
 	data->bytes_xfered += host->data_remain;
 
-	dma_time = wait_for_completion_interruptible_timeout(
-		   &host->dma_complete, host->timeout);
+	wait_for_completion_interruptible_timeout(&host->dma_complete,
+						  host->timeout);
 
 	dma_unmap_sg(dma_chan->device->dev,
 		     data->sg, data->sg_len,
@@ -395,7 +394,6 @@ static void moxart_prepare_data(struct moxart_host *host)
 static void moxart_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct moxart_host *host = mmc_priv(mmc);
-	long pio_time;
 	unsigned long flags;
 	u32 status;
 
@@ -431,8 +429,8 @@ static void moxart_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			spin_unlock_irqrestore(&host->lock, flags);
 
 			/* PIO transfers start from interrupt. */
-			pio_time = wait_for_completion_interruptible_timeout(
-				   &host->pio_complete, host->timeout);
+			wait_for_completion_interruptible_timeout(&host->pio_complete,
+								  host->timeout);
 
 			spin_lock_irqsave(&host->lock, flags);
 		}

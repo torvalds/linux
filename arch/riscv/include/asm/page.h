@@ -90,15 +90,58 @@ typedef struct page *pgtable_t;
 
 #ifdef CONFIG_MMU
 extern unsigned long va_pa_offset;
+#ifdef CONFIG_64BIT
+extern unsigned long va_kernel_pa_offset;
+#endif
+#ifdef CONFIG_XIP_KERNEL
+extern unsigned long va_kernel_xip_pa_offset;
+#endif
 extern unsigned long pfn_base;
 #define ARCH_PFN_OFFSET		(pfn_base)
 #else
 #define va_pa_offset		0
+#ifdef CONFIG_64BIT
+#define va_kernel_pa_offset	0
+#endif
 #define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
 #endif /* CONFIG_MMU */
 
-#define __pa_to_va_nodebug(x)	((void *)((unsigned long) (x) + va_pa_offset))
-#define __va_to_pa_nodebug(x)	((unsigned long)(x) - va_pa_offset)
+extern unsigned long kernel_virt_addr;
+
+#ifdef CONFIG_64BIT
+#define linear_mapping_pa_to_va(x)	((void *)((unsigned long)(x) + va_pa_offset))
+#ifdef CONFIG_XIP_KERNEL
+#define kernel_mapping_pa_to_va(y)	({						\
+	unsigned long _y = y;								\
+	(_y >= CONFIG_PHYS_RAM_BASE) ?							\
+		(void *)((unsigned long)(_y) + va_kernel_pa_offset + XIP_OFFSET) :	\
+		(void *)((unsigned long)(_y) + va_kernel_xip_pa_offset);		\
+	})
+#else
+#define kernel_mapping_pa_to_va(x)	((void *)((unsigned long)(x) + va_kernel_pa_offset))
+#endif
+#define __pa_to_va_nodebug(x)		linear_mapping_pa_to_va(x)
+
+#define linear_mapping_va_to_pa(x)	((unsigned long)(x) - va_pa_offset)
+#ifdef CONFIG_XIP_KERNEL
+#define kernel_mapping_va_to_pa(y) ({						\
+	unsigned long _y = y;							\
+	(_y < kernel_virt_addr + XIP_OFFSET) ?					\
+		((unsigned long)(_y) - va_kernel_xip_pa_offset) :		\
+		((unsigned long)(_y) - va_kernel_pa_offset - XIP_OFFSET);	\
+	})
+#else
+#define kernel_mapping_va_to_pa(x)	((unsigned long)(x) - va_kernel_pa_offset)
+#endif
+#define __va_to_pa_nodebug(x)	({						\
+	unsigned long _x = x;							\
+	(_x < kernel_virt_addr) ?						\
+		linear_mapping_va_to_pa(_x) : kernel_mapping_va_to_pa(_x);	\
+	})
+#else
+#define __pa_to_va_nodebug(x)  ((void *)((unsigned long) (x) + va_pa_offset))
+#define __va_to_pa_nodebug(x)  ((unsigned long)(x) - va_pa_offset)
+#endif
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);

@@ -19,11 +19,11 @@
 
 #include "mtk_vpu.h"
 
-/**
+/*
  * VPU (video processor unit) is a tiny processor controlling video hardware
  * related to video codec, scaling and color format converting.
  * VPU interfaces with other blocks by share memory and interrupt.
- **/
+ */
 
 #define INIT_TIMEOUT_MS		2000U
 #define IPI_TIMEOUT_MS		2000U

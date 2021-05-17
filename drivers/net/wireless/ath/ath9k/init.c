@@ -37,7 +37,6 @@ static char *dev_info = "ath9k";
 
 MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
-MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
@@ -618,7 +617,6 @@ static int ath9k_of_init(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath_bus_type bus_type = common->bus_ops->ath_bus_type;
-	const char *mac;
 	char eeprom_name[100];
 	int ret;
 
@@ -641,9 +639,7 @@ static int ath9k_of_init(struct ath_softc *sc)
 		ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
 
-	mac = of_get_mac_address(np);
-	if (!IS_ERR(mac))
-		ether_addr_copy(common->macaddr, mac);
+	of_get_mac_address(np, common->macaddr);
 
 	return 0;
 }

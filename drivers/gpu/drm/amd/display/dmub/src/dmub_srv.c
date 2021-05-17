@@ -415,6 +415,12 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
 
+	if (!inst_fb || !stack_fb || !data_fb || !bios_fb || !mail_fb ||
+		!tracebuff_fb || !fw_state_fb || !scratch_mem_fb) {
+		ASSERT(0);
+		return DMUB_STATUS_INVALID;
+	}
+
 	dmub->fb_base = params->fb_base;
 	dmub->fb_offset = params->fb_offset;
 	dmub->psp_version = params->psp_version;
@@ -422,101 +428,89 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	if (dmub->hw_funcs.reset)
 		dmub->hw_funcs.reset(dmub);
 
-	if (inst_fb && data_fb) {
-		cw0.offset.quad_part = inst_fb->gpu_addr;
-		cw0.region.base = DMUB_CW0_BASE;
-		cw0.region.top = cw0.region.base + inst_fb->size - 1;
+	cw0.offset.quad_part = inst_fb->gpu_addr;
+	cw0.region.base = DMUB_CW0_BASE;
+	cw0.region.top = cw0.region.base + inst_fb->size - 1;
 
-		cw1.offset.quad_part = stack_fb->gpu_addr;
-		cw1.region.base = DMUB_CW1_BASE;
-		cw1.region.top = cw1.region.base + stack_fb->size - 1;
+	cw1.offset.quad_part = stack_fb->gpu_addr;
+	cw1.region.base = DMUB_CW1_BASE;
+	cw1.region.top = cw1.region.base + stack_fb->size - 1;
 
-		if (params->load_inst_const && dmub->hw_funcs.backdoor_load) {
-		    /**
-		     * Read back all the instruction memory so we don't hang the
-		     * DMCUB when backdoor loading if the write from x86 hasn't been
-		     * flushed yet. This only occurs in backdoor loading.
-		     */
-		    dmub_flush_buffer_mem(inst_fb);
-		    dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
-		}
-
-	}
-
-	if (inst_fb && data_fb && bios_fb && mail_fb && tracebuff_fb &&
-	    fw_state_fb && scratch_mem_fb) {
-		cw2.offset.quad_part = data_fb->gpu_addr;
-		cw2.region.base = DMUB_CW0_BASE + inst_fb->size;
-		cw2.region.top = cw2.region.base + data_fb->size;
-
-		cw3.offset.quad_part = bios_fb->gpu_addr;
-		cw3.region.base = DMUB_CW3_BASE;
-		cw3.region.top = cw3.region.base + bios_fb->size;
-
-		cw4.offset.quad_part = mail_fb->gpu_addr;
-		cw4.region.base = DMUB_CW4_BASE;
-		cw4.region.top = cw4.region.base + mail_fb->size;
-
+	if (params->load_inst_const && dmub->hw_funcs.backdoor_load) {
 		/**
-		 * Doubled the mailbox region to accomodate inbox and outbox.
-		 * Note: Currently, currently total mailbox size is 16KB. It is split
-		 * equally into 8KB between inbox and outbox. If this config is
-		 * changed, then uncached base address configuration of outbox1
-		 * has to be updated in funcs->setup_out_mailbox.
+		 * Read back all the instruction memory so we don't hang the
+		 * DMCUB when backdoor loading if the write from x86 hasn't been
+		 * flushed yet. This only occurs in backdoor loading.
 		 */
-		inbox1.base = cw4.region.base;
-		inbox1.top = cw4.region.base + DMUB_RB_SIZE;
-		outbox1.base = inbox1.top;
-		outbox1.top = cw4.region.top;
-
-		cw5.offset.quad_part = tracebuff_fb->gpu_addr;
-		cw5.region.base = DMUB_CW5_BASE;
-		cw5.region.top = cw5.region.base + tracebuff_fb->size;
-
-		outbox0.base = DMUB_REGION5_BASE + TRACE_BUFFER_ENTRY_OFFSET;
-		outbox0.top = outbox0.base + tracebuff_fb->size - TRACE_BUFFER_ENTRY_OFFSET;
-
-
-		cw6.offset.quad_part = fw_state_fb->gpu_addr;
-		cw6.region.base = DMUB_CW6_BASE;
-		cw6.region.top = cw6.region.base + fw_state_fb->size;
-
-		dmub->fw_state = fw_state_fb->cpu_addr;
-
-		dmub->scratch_mem_fb = *scratch_mem_fb;
-
-		if (dmub->hw_funcs.setup_windows)
-			dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4,
-						     &cw5, &cw6);
-
-		if (dmub->hw_funcs.setup_outbox0)
-			dmub->hw_funcs.setup_outbox0(dmub, &outbox0);
-
-		if (dmub->hw_funcs.setup_mailbox)
-			dmub->hw_funcs.setup_mailbox(dmub, &inbox1);
-		if (dmub->hw_funcs.setup_out_mailbox)
-			dmub->hw_funcs.setup_out_mailbox(dmub, &outbox1);
+		dmub_flush_buffer_mem(inst_fb);
+		dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
 	}
 
-	if (mail_fb) {
-		dmub_memset(&rb_params, 0, sizeof(rb_params));
-		rb_params.ctx = dmub;
-		rb_params.base_address = mail_fb->cpu_addr;
-		rb_params.capacity = DMUB_RB_SIZE;
+	cw2.offset.quad_part = data_fb->gpu_addr;
+	cw2.region.base = DMUB_CW0_BASE + inst_fb->size;
+	cw2.region.top = cw2.region.base + data_fb->size;
 
-		dmub_rb_init(&dmub->inbox1_rb, &rb_params);
+	cw3.offset.quad_part = bios_fb->gpu_addr;
+	cw3.region.base = DMUB_CW3_BASE;
+	cw3.region.top = cw3.region.base + bios_fb->size;
 
-		// Initialize outbox1 ring buffer
-		rb_params.ctx = dmub;
-		rb_params.base_address = (void *) ((uint8_t *) (mail_fb->cpu_addr) + DMUB_RB_SIZE);
-		rb_params.capacity = DMUB_RB_SIZE;
-		dmub_rb_init(&dmub->outbox1_rb, &rb_params);
+	cw4.offset.quad_part = mail_fb->gpu_addr;
+	cw4.region.base = DMUB_CW4_BASE;
+	cw4.region.top = cw4.region.base + mail_fb->size;
 
-	}
+	/**
+	 * Doubled the mailbox region to accomodate inbox and outbox.
+	 * Note: Currently, currently total mailbox size is 16KB. It is split
+	 * equally into 8KB between inbox and outbox. If this config is
+	 * changed, then uncached base address configuration of outbox1
+	 * has to be updated in funcs->setup_out_mailbox.
+	 */
+	inbox1.base = cw4.region.base;
+	inbox1.top = cw4.region.base + DMUB_RB_SIZE;
+	outbox1.base = inbox1.top;
+	outbox1.top = cw4.region.top;
+
+	cw5.offset.quad_part = tracebuff_fb->gpu_addr;
+	cw5.region.base = DMUB_CW5_BASE;
+	cw5.region.top = cw5.region.base + tracebuff_fb->size;
+
+	outbox0.base = DMUB_REGION5_BASE + TRACE_BUFFER_ENTRY_OFFSET;
+	outbox0.top = outbox0.base + tracebuff_fb->size - TRACE_BUFFER_ENTRY_OFFSET;
+
+	cw6.offset.quad_part = fw_state_fb->gpu_addr;
+	cw6.region.base = DMUB_CW6_BASE;
+	cw6.region.top = cw6.region.base + fw_state_fb->size;
+
+	dmub->fw_state = fw_state_fb->cpu_addr;
+
+	dmub->scratch_mem_fb = *scratch_mem_fb;
+
+	if (dmub->hw_funcs.setup_windows)
+		dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4, &cw5, &cw6);
+
+	if (dmub->hw_funcs.setup_outbox0)
+		dmub->hw_funcs.setup_outbox0(dmub, &outbox0);
+
+	if (dmub->hw_funcs.setup_mailbox)
+		dmub->hw_funcs.setup_mailbox(dmub, &inbox1);
+	if (dmub->hw_funcs.setup_out_mailbox)
+		dmub->hw_funcs.setup_out_mailbox(dmub, &outbox1);
+
+	dmub_memset(&rb_params, 0, sizeof(rb_params));
+	rb_params.ctx = dmub;
+	rb_params.base_address = mail_fb->cpu_addr;
+	rb_params.capacity = DMUB_RB_SIZE;
+	dmub_rb_init(&dmub->inbox1_rb, &rb_params);
+
+	// Initialize outbox1 ring buffer
+	rb_params.ctx = dmub;
+	rb_params.base_address = (void *) ((uint8_t *) (mail_fb->cpu_addr) + DMUB_RB_SIZE);
+	rb_params.capacity = DMUB_RB_SIZE;
+	dmub_rb_init(&dmub->outbox1_rb, &rb_params);
 
 	dmub_memset(&outbox0_rb_params, 0, sizeof(outbox0_rb_params));
 	outbox0_rb_params.ctx = dmub;
-	outbox0_rb_params.base_address = (void *)((uint64_t)(tracebuff_fb->cpu_addr) + TRACE_BUFFER_ENTRY_OFFSET);
+	outbox0_rb_params.base_address = (void *)((uintptr_t)(tracebuff_fb->cpu_addr) + TRACE_BUFFER_ENTRY_OFFSET);
 	outbox0_rb_params.capacity = tracebuff_fb->size - dmub_align(TRACE_BUFFER_ENTRY_OFFSET, 64);
 	dmub_rb_init(&dmub->outbox0_rb, &outbox0_rb_params);
 
@@ -653,6 +647,8 @@ dmub_srv_send_gpint_command(struct dmub_srv *dmub,
 	dmub->hw_funcs.set_gpint(dmub, reg);
 
 	for (i = 0; i < timeout_us; ++i) {
+		udelay(1);
+
 		if (dmub->hw_funcs.is_gpint_acked(dmub, reg))
 			return DMUB_STATUS_OK;
 	}

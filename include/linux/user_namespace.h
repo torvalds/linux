@@ -50,6 +50,10 @@ enum ucount_type {
 	UCOUNT_INOTIFY_INSTANCES,
 	UCOUNT_INOTIFY_WATCHES,
 #endif
+#ifdef CONFIG_FANOTIFY
+	UCOUNT_FANOTIFY_GROUPS,
+	UCOUNT_FANOTIFY_MARKS,
+#endif
 	UCOUNT_COUNTS,
 };
 
@@ -63,6 +67,9 @@ struct user_namespace {
 	kgid_t			group;
 	struct ns_common	ns;
 	unsigned long		flags;
+	/* parent_could_setfcap: true if the creator if this ns had CAP_SETFCAP
+	 * in its effective capability set at the child ns creation time. */
+	bool			parent_could_setfcap;
 
 #ifdef CONFIG_KEYS
 	/* List of joinable keyrings in this namespace.  Modification access of

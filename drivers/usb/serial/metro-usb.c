@@ -299,7 +299,7 @@ static int metrousb_tiocmset(struct tty_struct *tty,
 	unsigned long flags = 0;
 	unsigned long control_state = 0;
 
-	dev_dbg(tty->dev, "%s - set=%d, clear=%d\n", __func__, set, clear);
+	dev_dbg(&port->dev, "%s - set=%d, clear=%d\n", __func__, set, clear);
 
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	control_state = metro_priv->control_state;
@@ -334,7 +334,7 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	/* Submit the urb to read from the port. */
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
-		dev_err(tty->dev,
+		dev_err(&port->dev,
 			"failed submitting interrupt in urb error code=%d\n",
 			result);
 }

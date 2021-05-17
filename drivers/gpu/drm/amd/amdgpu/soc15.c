@@ -76,7 +76,6 @@
 #include "smuio_v13_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
-#include "amdgpu_smu.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
 #include <uapi/linux/kfd_ioctl.h>
@@ -817,11 +816,12 @@ static void soc15_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void soc15_program_aspm(struct amdgpu_device *adev)
 {
-
-	if (amdgpu_aspm == 0)
+	if (amdgpu_aspm != 1)
 		return;
 
-	/* todo */
+	if (!(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->program_aspm))
+		adev->nbio.funcs->program_aspm(adev);
 }
 
 static void soc15_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -1495,8 +1495,8 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_HDP_LS |
 			AMD_CG_SUPPORT_SDMA_MGCG |
 			AMD_CG_SUPPORT_SDMA_LS |
-			AMD_CG_SUPPORT_IH_CG;
-			/*AMD_CG_SUPPORT_VCN_MGCG |AMD_CG_SUPPORT_JPEG_MGCG;*/
+			AMD_CG_SUPPORT_IH_CG |
+			AMD_CG_SUPPORT_VCN_MGCG | AMD_CG_SUPPORT_JPEG_MGCG;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
@@ -1524,8 +1524,9 @@ static int soc15_common_late_init(void *handle)
 	if (adev->hdp.funcs->reset_ras_error_count)
 		adev->hdp.funcs->reset_ras_error_count(adev);
 
-	if (adev->nbio.funcs->ras_late_init)
-		r = adev->nbio.funcs->ras_late_init(adev);
+	if (adev->nbio.ras_funcs &&
+	    adev->nbio.ras_funcs->ras_late_init)
+		r = adev->nbio.ras_funcs->ras_late_init(adev);
 
 	return r;
 }
@@ -1546,7 +1547,9 @@ static int soc15_common_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_nbio_ras_fini(adev);
+	if (adev->nbio.ras_funcs &&
+	    adev->nbio.ras_funcs->ras_fini)
+		adev->nbio.ras_funcs->ras_fini(adev);
 	adev->df.funcs->sw_fini(adev);
 	return 0;
 }
@@ -1610,9 +1613,11 @@ static int soc15_common_hw_fini(void *handle)
 
 	if (adev->nbio.ras_if &&
 	    amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
-		if (adev->nbio.funcs->init_ras_controller_interrupt)
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->init_ras_controller_interrupt)
 			amdgpu_irq_put(adev, &adev->nbio.ras_controller_irq, 0);
-		if (adev->nbio.funcs->init_ras_err_event_athub_interrupt)
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt)
 			amdgpu_irq_put(adev, &adev->nbio.ras_err_event_athub_irq, 0);
 	}
 

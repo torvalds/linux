@@ -202,9 +202,11 @@ static inline int roundup_len(__u32 len)
 	return (len + 7) / 8 * 8;
 }
 
-static int ringbuf_process_ring(struct ring* r)
+static int64_t ringbuf_process_ring(struct ring* r)
 {
-	int *len_ptr, len, err, cnt = 0;
+	int *len_ptr, len, err;
+	/* 64-bit to avoid overflow in case of extreme application behavior */
+	int64_t cnt = 0;
 	unsigned long cons_pos, prod_pos;
 	bool got_new_data;
 	void *sample;
@@ -227,7 +229,7 @@ static int ringbuf_process_ring(struct ring* r)
 			if ((len & BPF_RINGBUF_DISCARD_BIT) == 0) {
 				sample = (void *)len_ptr + BPF_RINGBUF_HDR_SZ;
 				err = r->sample_cb(r->ctx, sample, len);
-				if (err) {
+				if (err < 0) {
 					/* update consumer pos and bail out */
 					smp_store_release(r->consumer_pos,
 							  cons_pos);
@@ -244,12 +246,14 @@ done:
 }
 
 /* Consume available ring buffer(s) data without event polling.
- * Returns number of records consumed across all registered ring buffers, or
- * negative number if any of the callbacks return error.
+ * Returns number of records consumed across all registered ring buffers (or
+ * INT_MAX, whichever is less), or negative number if any of the callbacks
+ * return error.
  */
 int ring_buffer__consume(struct ring_buffer *rb)
 {
-	int i, err, res = 0;
+	int64_t err, res = 0;
+	int i;
 
 	for (i = 0; i < rb->ring_cnt; i++) {
 		struct ring *ring = &rb->rings[i];
@@ -259,18 +263,24 @@ int ring_buffer__consume(struct ring_buffer *rb)
 			return err;
 		res += err;
 	}
+	if (res > INT_MAX)
+		return INT_MAX;
 	return res;
 }
 
 /* Poll for available data and consume records, if any are available.
- * Returns number of records consumed, or negative number, if any of the
- * registered callbacks returned error.
+ * Returns number of records consumed (or INT_MAX, whichever is less), or
+ * negative number, if any of the registered callbacks returned error.
  */
 int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms)
 {
-	int i, cnt, err, res = 0;
+	int i, cnt;
+	int64_t err, res = 0;
 
 	cnt = epoll_wait(rb->epoll_fd, rb->events, rb->ring_cnt, timeout_ms);
+	if (cnt < 0)
+		return -errno;
+
 	for (i = 0; i < cnt; i++) {
 		__u32 ring_id = rb->events[i].data.fd;
 		struct ring *ring = &rb->rings[ring_id];
@@ -280,7 +290,9 @@ int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms)
 			return err;
 		res += err;
 	}
-	return cnt < 0 ? -errno : res;
+	if (res > INT_MAX)
+		return INT_MAX;
+	return res;
 }
 
 /* Get an fd that can be used to sleep until data is available in the ring(s) */

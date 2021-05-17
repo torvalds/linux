@@ -1534,8 +1534,7 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_set_master(pdev);
 
-	ioaddr = pci_resource_start(pdev, 0);
-	if (!ioaddr) {
+	if (!pci_resource_len(pdev, 0)) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("card has no PCI IO resources, aborting\n");
 		err = -ENODEV;
@@ -1548,6 +1547,8 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 			pr_err("architecture does not support 32bit PCI busmaster DMA\n");
 		goto err_disable_dev;
 	}
+
+	ioaddr = pci_resource_start(pdev, 0);
 	if (!request_region(ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_pci")) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("io address range already allocated\n");
@@ -2852,8 +2853,7 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 			netif_info(lp, link, dev, "link down\n");
 		}
 		if (lp->phycount > 1) {
-			curr_link = pcnet32_check_otherphy(dev);
-			prev_link = 0;
+			pcnet32_check_otherphy(dev);
 		}
 	} else if (verbose || !prev_link) {
 		netif_carrier_on(dev);
@@ -3029,10 +3029,3 @@ static void __exit pcnet32_cleanup_module(void)
 
 module_init(pcnet32_init_module);
 module_exit(pcnet32_cleanup_module);
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  tab-width: 8
- * End:
- */

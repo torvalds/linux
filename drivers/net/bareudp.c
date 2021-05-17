@@ -218,6 +218,7 @@ static struct socket *bareudp_create_sock(struct net *net, __be16 port)
 	if (err < 0)
 		return ERR_PTR(err);
 
+	udp_allow_gso(sock->sk);
 	return sock;
 }
 

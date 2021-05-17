@@ -1127,7 +1127,6 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_MCLK:
 	case SMU_UCLK:
-	case SMU_DCEFCLK:
 	case SMU_FCLK:
 		/* There is only 2 levels for fine grained DPM */
 		if (sienna_cichlid_is_support_fine_grained_dpm(smu, clk_type)) {
@@ -1146,6 +1145,9 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 		ret = smu_v11_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
 		if (ret)
 			goto forec_level_out;
+		break;
+	case SMU_DCEFCLK:
+		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is not supported!\n");
 		break;
 	default:
 		break;
@@ -3110,6 +3112,23 @@ static int sienna_cichlid_system_features_control(struct smu_context *smu,
 	return smu_v11_0_system_features_control(smu, en);
 }
 
+static int sienna_cichlid_set_mp1_state(struct smu_context *smu,
+					enum pp_mp1_state mp1_state)
+{
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		ret = smu_cmn_set_mp1_state(smu, mp1_state);
+		break;
+	default:
+		/* Ignore others */
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
@@ -3195,6 +3214,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_fan_parameters = sienna_cichlid_get_fan_parameters,
 	.interrupt_work = smu_v11_0_interrupt_work,
 	.gpo_control = sienna_cichlid_gpo_control,
+	.set_mp1_state = sienna_cichlid_set_mp1_state,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)

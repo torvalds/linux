@@ -1327,6 +1327,17 @@ static int omap2_mcspi_controller_setup(struct omap2_mcspi *mcspi)
 	return 0;
 }
 
+static int omap_mcspi_runtime_suspend(struct device *dev)
+{
+	int error;
+
+	error = pinctrl_pm_select_idle_state(dev);
+	if (error)
+		dev_warn(dev, "%s: failed to set pins: %i\n", __func__, error);
+
+	return 0;
+}
+
 /*
  * When SPI wake up from off-mode, CS is in activate state. If it was in
  * inactive state when driver was suspend, then force it to inactive state at
@@ -1338,6 +1349,11 @@ static int omap_mcspi_runtime_resume(struct device *dev)
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
 	struct omap2_mcspi_regs *ctx = &mcspi->ctx;
 	struct omap2_mcspi_cs *cs;
+	int error;
+
+	error = pinctrl_pm_select_default_state(dev);
+	if (error)
+		dev_warn(dev, "%s: failed to set pins: %i\n", __func__, error);
 
 	/* McSPI: context restore */
 	mcspi_write_reg(master, OMAP2_MCSPI_MODULCTRL, ctx->modulctrl);
@@ -1566,11 +1582,6 @@ static int __maybe_unused omap2_mcspi_resume(struct device *dev)
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
 	int error;
 
-	error = pinctrl_pm_select_default_state(dev);
-	if (error)
-		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
-			 __func__, error);
-
 	error = spi_master_resume(master);
 	if (error)
 		dev_warn(mcspi->dev, "%s: master resume failed: %i\n",
@@ -1582,7 +1593,8 @@ static int __maybe_unused omap2_mcspi_resume(struct device *dev)
 static const struct dev_pm_ops omap2_mcspi_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(omap2_mcspi_suspend,
 				omap2_mcspi_resume)
-	.runtime_resume	= omap_mcspi_runtime_resume,
+	.runtime_suspend	= omap_mcspi_runtime_suspend,
+	.runtime_resume		= omap_mcspi_runtime_resume,
 };
 
 static struct platform_driver omap2_mcspi_driver = {

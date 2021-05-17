@@ -120,6 +120,12 @@ enum mod_hdcp_display_state {
 	MOD_HDCP_DISPLAY_ENCRYPTION_ENABLED
 };
 
+enum mod_hdcp_display_disable_option {
+	MOD_HDCP_DISPLAY_NOT_DISABLE = 0,
+	MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION,
+	MOD_HDCP_DISPLAY_DISABLE_ENCRYPTION,
+};
+
 struct mod_hdcp_ddc {
 	void *handle;
 	struct {
@@ -149,8 +155,8 @@ struct mod_hdcp_psp {
 };
 
 struct mod_hdcp_display_adjustment {
-	uint8_t disable			: 1;
-	uint8_t reserved		: 7;
+	uint8_t disable			: 2;
+	uint8_t reserved		: 6;
 };
 
 struct mod_hdcp_link_adjustment_hdcp1 {
@@ -254,8 +260,6 @@ struct mod_hdcp_config {
 	struct mod_hdcp_ddc ddc;
 	uint8_t index;
 };
-
-struct mod_hdcp;
 
 /* dm allocates memory of mod_hdcp per dc_link on dm init based on memory size*/
 size_t mod_hdcp_get_memory_size(void);

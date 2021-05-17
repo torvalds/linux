@@ -251,6 +251,29 @@ out:
 	return ret < 0 ? ret : count;
 }
 
+static void cap_show_by_dw(struct seq_file *s, struct tb_switch *sw,
+			   struct tb_port *port, unsigned int cap,
+			   unsigned int offset, u8 cap_id, u8 vsec_id,
+			   int dwords)
+{
+	int i, ret;
+	u32 data;
+
+	for (i = 0; i < dwords; i++) {
+		if (port)
+			ret = tb_port_read(port, &data, TB_CFG_PORT, cap + offset + i, 1);
+		else
+			ret = tb_sw_read(sw, &data, TB_CFG_SWITCH, cap + offset + i, 1);
+		if (ret) {
+			seq_printf(s, "0x%04x <not accessible>\n", cap + offset + i);
+			continue;
+		}
+
+		seq_printf(s, "0x%04x %4d 0x%02x 0x%02x 0x%08x\n", cap + offset + i,
+			   offset + i, cap_id, vsec_id, data);
+	}
+}
+
 static void cap_show(struct seq_file *s, struct tb_switch *sw,
 		     struct tb_port *port, unsigned int cap, u8 cap_id,
 		     u8 vsec_id, int length)
@@ -267,10 +290,7 @@ static void cap_show(struct seq_file *s, struct tb_switch *sw,
 		else
 			ret = tb_sw_read(sw, data, TB_CFG_SWITCH, cap + offset, dwords);
 		if (ret) {
-			seq_printf(s, "0x%04x <not accessible>\n",
-				   cap + offset);
-			if (dwords > 1)
-				seq_printf(s, "0x%04x ...\n", cap + offset + 1);
+			cap_show_by_dw(s, sw, port, cap, offset, cap_id, vsec_id, length);
 			return;
 		}
 
@@ -341,15 +361,6 @@ static void port_cap_show(struct tb_port *port, struct seq_file *s,
 		} else {
 			length = header.extended_short.length;
 			vsec_id = header.extended_short.vsec_id;
-			/*
-			 * Ice Lake and Tiger Lake do not implement the
-			 * full length of the capability, only first 32
-			 * dwords so hard-code it here.
-			 */
-			if (!vsec_id &&
-			    (tb_switch_is_ice_lake(port->sw) ||
-			     tb_switch_is_tiger_lake(port->sw)))
-				length = 32;
 		}
 		break;
 

@@ -69,6 +69,8 @@ properties:
 
       where voltage is in V, frequency is in MHz.
 
+  dma-coherent: true
+
 required:
   - compatible
   - reg

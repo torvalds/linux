@@ -420,4 +420,7 @@ int psp_init_ta_microcode(struct psp_context *psp,
 			  const char *chip_name);
 int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 					uint64_t *output_ptr);
+
+int psp_load_fw_list(struct psp_context *psp,
+		     struct amdgpu_firmware_info **ucode_list, int ucode_count);
 #endif

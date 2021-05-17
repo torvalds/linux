@@ -362,11 +362,10 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	if (IS_ERR(icnclk))
 		icnclk = NULL;
 
-	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc))
-		rstc = NULL;
-	else
-		reset_control_deassert(rstc);
+		return PTR_ERR(rstc);
+	reset_control_deassert(rstc);
 
 	host = sdhci_pltfm_init(pdev, &sdhci_st_pdata, sizeof(*pdata));
 	if (IS_ERR(host)) {
@@ -401,10 +400,8 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "top-mmc-delay");
 	pdata->top_ioaddr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pdata->top_ioaddr)) {
-		dev_warn(&pdev->dev, "FlashSS Top Dly registers not available");
+	if (IS_ERR(pdata->top_ioaddr))
 		pdata->top_ioaddr = NULL;
-	}
 
 	pltfm_host->clk = clk;
 	pdata->icnclk = icnclk;
@@ -432,8 +429,7 @@ err_icnclk:
 err_of:
 	sdhci_pltfm_free(pdev);
 err_pltfm_init:
-	if (rstc)
-		reset_control_assert(rstc);
+	reset_control_assert(rstc);
 
 	return ret;
 }
@@ -450,8 +446,7 @@ static int sdhci_st_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(pdata->icnclk);
 
-	if (rstc)
-		reset_control_assert(rstc);
+	reset_control_assert(rstc);
 
 	return ret;
 }
@@ -471,8 +466,7 @@ static int sdhci_st_suspend(struct device *dev)
 	if (ret)
 		goto out;
 
-	if (pdata->rstc)
-		reset_control_assert(pdata->rstc);
+	reset_control_assert(pdata->rstc);
 
 	clk_disable_unprepare(pdata->icnclk);
 	clk_disable_unprepare(pltfm_host->clk);
@@ -498,8 +492,7 @@ static int sdhci_st_resume(struct device *dev)
 		return ret;
 	}
 
-	if (pdata->rstc)
-		reset_control_deassert(pdata->rstc);
+	reset_control_deassert(pdata->rstc);
 
 	st_mmcss_cconfig(np, host);
 

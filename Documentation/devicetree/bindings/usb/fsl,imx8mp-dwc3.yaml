@@ -52,11 +52,8 @@ properties:
 # Required child node:
 
 patternProperties:
-  "^dwc3@[0-9a-f]+$":
-    type: object
-    description:
-      A child node must exist to represent the core DWC3 IP block
-      The content of the node is defined in dwc3.txt.
+  "^usb@[0-9a-f]+$":
+    $ref: snps,dwc3.yaml#
 
 required:
   - compatible
@@ -87,7 +84,7 @@ examples:
       dma-ranges = <0x40000000 0x40000000 0xc0000000>;
       ranges;
 
-      dwc3@38100000 {
+      usb@38100000 {
         compatible = "snps,dwc3";
         reg = <0x38100000 0x10000>;
         clocks = <&clk IMX8MP_CLK_HSIO_AXI>,

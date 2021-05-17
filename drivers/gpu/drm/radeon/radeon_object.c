@@ -380,6 +380,8 @@ int radeon_bo_evict_vram(struct radeon_device *rdev)
 	}
 #endif
 	man = ttm_manager_type(bdev, TTM_PL_VRAM);
+	if (!man)
+		return 0;
 	return ttm_resource_manager_evict_all(bdev, man);
 }
 

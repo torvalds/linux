@@ -159,8 +159,8 @@ int axienet_mdio_enable(struct axienet_local *lp)
 
 	lp->mii_clk_div = 0;
 
-	if (lp->clk) {
-		host_clock = clk_get_rate(lp->clk);
+	if (lp->axi_clk) {
+		host_clock = clk_get_rate(lp->axi_clk);
 	} else {
 		struct device_node *np1;
 
