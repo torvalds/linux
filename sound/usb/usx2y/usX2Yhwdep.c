@@ -220,7 +220,6 @@ static int snd_usx2y_hwdep_dsp_load(struct snd_hwdep *hw,
 		err = usx2y_create_alsa_devices(hw->card);
 		if (err) {
 			snd_printk(KERN_ERR "usx2y_create_alsa_devices error %i\n", err);
-			snd_card_free(hw->card);
 			return err;
 		}
 		priv->chip_status |= USX2Y_STAT_CHIP_INIT;
