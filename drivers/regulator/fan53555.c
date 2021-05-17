@@ -376,7 +376,7 @@ static int fan53526_voltages_setup_tcs(struct fan53555_device_info *di)
 	case TCS4525_CHIP_ID_12:
 		di->slew_reg = TCS4525_TIME;
 		di->slew_mask = TCS_SLEW_MASK;
-		di->slew_shift = TCS_SLEW_MASK;
+		di->slew_shift = TCS_SLEW_SHIFT;
 
 		/* Init voltage range and step */
 		di->vsel_min = 600000;
