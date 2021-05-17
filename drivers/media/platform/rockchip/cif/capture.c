@@ -1942,6 +1942,9 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkcif_buffer *buf = NULL;
 	int ret;
+	struct rkcif_hw *hw_dev = dev->hw_dev;
+	bool can_reset = true;
+	int i;
 
 	mutex_lock(&dev->stream_lock);
 
@@ -2006,7 +2009,14 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		dev->can_be_reset = true;
 	}
 
-	if (dev->can_be_reset && !atomic_read(&(dev->pipe.stream_cnt))) {
+	for (i = 0; i < hw_dev->dev_num; i++) {
+		if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
+			can_reset = false;
+			break;
+		}
+	}
+
+	if (dev->can_be_reset && can_reset) {
 		rkcif_do_cru_reset(dev);
 		dev->can_be_reset = false;
 		dev->reset_work_cancel = true;
