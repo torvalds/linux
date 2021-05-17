@@ -14,14 +14,13 @@
 #include <asm/sections.h>
 
 #include "base.h"
+#include "trace.h"
 
 struct devres_node {
 	struct list_head		entry;
 	dr_release_t			release;
-#ifdef CONFIG_DEBUG_DEVRES
 	const char			*name;
 	size_t				size;
-#endif
 };
 
 struct devres {
@@ -43,10 +42,6 @@ struct devres_group {
 	/* -- 8 pointers */
 };
 
-#ifdef CONFIG_DEBUG_DEVRES
-static int log_devres = 0;
-module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
-
 static void set_node_dbginfo(struct devres_node *node, const char *name,
 			     size_t size)
 {
@@ -54,7 +49,11 @@ static void set_node_dbginfo(struct devres_node *node, const char *name,
 	node->size = size;
 }
 
-static void devres_log(struct device *dev, struct devres_node *node,
+#ifdef CONFIG_DEBUG_DEVRES
+static int log_devres = 0;
+module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
+
+static void devres_dbg(struct device *dev, struct devres_node *node,
 		       const char *op)
 {
 	if (unlikely(log_devres))
@@ -62,9 +61,15 @@ static void devres_log(struct device *dev, struct devres_node *node,
 			op, node, node->name, node->size);
 }
 #else /* CONFIG_DEBUG_DEVRES */
-#define set_node_dbginfo(node, n, s)	do {} while (0)
-#define devres_log(dev, node, op)	do {} while (0)
+#define devres_dbg(dev, node, op)	do {} while (0)
 #endif /* CONFIG_DEBUG_DEVRES */
+
+static void devres_log(struct device *dev, struct devres_node *node,
+		       const char *op)
+{
+	trace_devres_log(dev, op, node, node->name, node->size);
+	devres_dbg(dev, node, op);
+}
 
 /*
  * Release functions for devres group.  These callbacks are used only
@@ -134,9 +139,23 @@ static void replace_dr(struct device *dev,
 	list_replace(&old->entry, &new->entry);
 }
 
-#ifdef CONFIG_DEBUG_DEVRES
-void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
-		      const char *name)
+/**
+ * __devres_alloc_node - Allocate device resource data
+ * @release: Release function devres will be associated with
+ * @size: Allocation size
+ * @gfp: Allocation flags
+ * @nid: NUMA node
+ * @name: Name of the resource
+ *
+ * Allocate devres of @size bytes.  The allocated area is zeroed, then
+ * associated with @release.  The returned pointer can be passed to
+ * other devres_*() functions.
+ *
+ * RETURNS:
+ * Pointer to allocated devres on success, NULL on failure.
+ */
+void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
+			  const char *name)
 {
 	struct devres *dr;
 
@@ -147,32 +166,6 @@ void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid
 	return dr->data;
 }
 EXPORT_SYMBOL_GPL(__devres_alloc_node);
-#else
-/**
- * devres_alloc_node - Allocate device resource data
- * @release: Release function devres will be associated with
- * @size: Allocation size
- * @gfp: Allocation flags
- * @nid: NUMA node
- *
- * Allocate devres of @size bytes.  The allocated area is zeroed, then
- * associated with @release.  The returned pointer can be passed to
- * other devres_*() functions.
- *
- * RETURNS:
- * Pointer to allocated devres on success, NULL on failure.
- */
-void * devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid)
-{
-	struct devres *dr;
-
-	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
-	if (unlikely(!dr))
-		return NULL;
-	return dr->data;
-}
-EXPORT_SYMBOL_GPL(devres_alloc_node);
-#endif
 
 /**
  * devres_for_each_res - Resource iterator
