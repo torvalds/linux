@@ -8,14 +8,11 @@
 #include <asm/unistd.h>
 #include <asm/syscall.h>
 
-#define __SYSCALL_X32(nr, sym)
-#define __SYSCALL_COMMON(nr, sym) __SYSCALL_64(nr, sym)
-
-#define __SYSCALL_64(nr, sym) extern long __x64_##sym(const struct pt_regs *);
+#define __SYSCALL(nr, sym) extern long __x64_##sym(const struct pt_regs *);
 #include <asm/syscalls_64.h>
-#undef __SYSCALL_64
+#undef __SYSCALL
 
-#define __SYSCALL_64(nr, sym) [nr] = __x64_##sym,
+#define __SYSCALL(nr, sym) [nr] = __x64_##sym,
 
 asmlinkage const sys_call_ptr_t sys_call_table[__NR_syscall_max+1] = {
 	/*
