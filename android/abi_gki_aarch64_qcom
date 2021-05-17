@@ -495,6 +495,8 @@
   devm_reset_control_array_get
   __devm_reset_control_get
   devm_reset_controller_register
+  devm_rproc_add
+  devm_rproc_alloc
   devm_rtc_allocate_device
   devm_snd_soc_register_card
   devm_thermal_of_cooling_device_register
