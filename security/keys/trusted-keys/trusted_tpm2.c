@@ -336,9 +336,9 @@ out:
 			rc = -EPERM;
 	}
 	if (blob_len < 0)
-		return blob_len;
-
-	payload->blob_len = blob_len;
+		rc = blob_len;
+	else
+		payload->blob_len = blob_len;
 
 	tpm_put_ops(chip);
 	return rc;
