@@ -1181,7 +1181,7 @@ static struct bkey_packed *bset_search_write_set(const struct btree *b,
 
 static inline void prefetch_four_cachelines(void *p)
 {
-#ifdef CONFIG_X86_64
+#if (CONFIG_X86_64 && !defined(__clang__))
 	asm(".intel_syntax noprefix;"
 	    "prefetcht0 [%0 - 127 + 64 * 0];"
 	    "prefetcht0 [%0 - 127 + 64 * 1];"

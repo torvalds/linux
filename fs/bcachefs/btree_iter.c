@@ -1898,6 +1898,7 @@ static inline void bch2_btree_iter_init(struct btree_trans *trans,
 	iter->trans			= trans;
 	iter->uptodate			= BTREE_ITER_NEED_TRAVERSE;
 	iter->btree_id			= btree_id;
+	iter->real_pos			= POS_MIN;
 	iter->level			= 0;
 	iter->min_depth			= 0;
 	iter->locks_want		= 0;
