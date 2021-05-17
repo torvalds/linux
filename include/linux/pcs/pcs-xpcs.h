@@ -32,6 +32,8 @@ struct mdio_xpcs_ops {
 	int (*link_up)(struct mdio_xpcs_args *xpcs, int speed,
 		       phy_interface_t interface);
 	int (*probe)(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
+	int (*config_eee)(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
+			  int enable);
 };
 
 #if IS_ENABLED(CONFIG_PCS_XPCS)
