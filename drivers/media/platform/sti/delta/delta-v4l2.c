@@ -1007,7 +1007,6 @@ static void delta_run_work(struct work_struct *work)
 			dev_err(delta->dev,
 				"%s  NULL decoded frame\n",
 				ctx->name);
-			ret = -EIO;
 			goto out;
 		}
 
