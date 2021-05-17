@@ -972,7 +972,6 @@ static int isc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	index -= ARRAY_SIZE(controller_formats);
 
-	i = 0;
 	supported_index = 0;
 
 	for (i = 0; i < ARRAY_SIZE(formats_list); i++) {
