@@ -526,6 +526,10 @@ int devres_release_all(struct device *dev)
 	if (WARN_ON(dev->devres_head.next == NULL))
 		return -ENODEV;
 
+	/* Nothing to release if list is empty */
+	if (list_empty(&dev->devres_head))
+		return 0;
+
 	spin_lock_irqsave(&dev->devres_lock, flags);
 	cnt = remove_nodes(dev, dev->devres_head.next, &dev->devres_head, &todo);
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
