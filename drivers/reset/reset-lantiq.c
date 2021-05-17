@@ -186,7 +186,7 @@ static int lantiq_rcu_reset_probe(struct platform_device *pdev)
 	priv->rcdev.of_xlate = lantiq_rcu_reset_xlate;
 	priv->rcdev.of_reset_n_cells = 2;
 
-	return reset_controller_register(&priv->rcdev);
+	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);
 }
 
 static const struct of_device_id lantiq_rcu_reset_dt_ids[] = {
