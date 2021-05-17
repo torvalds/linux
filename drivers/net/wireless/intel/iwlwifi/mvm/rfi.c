@@ -7,7 +7,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/phy-ctxt.h"
 
-/**
+/*
  * DDR needs frequency in units of 16.666MHz, so provide FW with the
  * frequency values in the adjusted format.
  */
