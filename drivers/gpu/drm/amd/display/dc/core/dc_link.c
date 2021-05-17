@@ -2701,8 +2701,12 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
 
 	if (psr == NULL && force_static)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	link->psr_settings.psr_allow_active = allow_active;
@@ -2713,8 +2717,8 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled) {
 		if (force_static && psr->funcs->psr_force_static)
-			psr->funcs->psr_force_static(psr);
-		psr->funcs->psr_enable(psr, allow_active, wait);
+			psr->funcs->psr_force_static(psr, panel_inst);
+		psr->funcs->psr_enable(psr, allow_active, wait, panel_inst);
 	} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 	else
@@ -2728,9 +2732,13 @@ bool dc_link_get_psr_state(const struct dc_link *link, enum dc_psr_state *state)
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_state(psr, state);
+		psr->funcs->psr_get_state(psr, state, panel_inst);
 	else if (dmcu != NULL && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, state);
 
@@ -2780,6 +2788,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
 	int i;
+	unsigned int panel_inst;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
 
@@ -2793,6 +2802,9 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr = dc->res_pool->psr;
 
 	if (!dmcu && !psr)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
 
@@ -2909,7 +2921,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->frame_delay = 0;
 
 	if (psr)
-		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
+		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
+			link, psr_context, panel_inst);
 	else
 		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 

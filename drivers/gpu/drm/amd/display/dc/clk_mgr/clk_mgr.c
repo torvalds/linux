@@ -93,15 +93,20 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
 	int edp_num;
+	unsigned int panel_inst;
 
 	get_edp_links(dc, edp_links, &edp_num);
 	if (dc->hwss.exit_optimized_pwr_state)
 		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
 
 	if (edp_num) {
-		edp_link = edp_links[0];
-		clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
-		dc_link_set_psr_allow_active(edp_link, false, false, false);
+		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			edp_link = edp_links[panel_inst];
+			if (!edp_link->psr_settings.psr_feature_enabled)
+				continue;
+			clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
+			dc_link_set_psr_allow_active(edp_link, false, false, false);
+		}
 	}
 
 }
@@ -111,12 +116,17 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
 	int edp_num;
+	unsigned int panel_inst;
 
 	get_edp_links(dc, edp_links, &edp_num);
 	if (edp_num) {
-		edp_link = edp_links[0];
-		dc_link_set_psr_allow_active(edp_link,
-				clk_mgr->psr_allow_active_cache, false, false);
+		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			edp_link = edp_links[panel_inst];
+			if (!edp_link->psr_settings.psr_feature_enabled)
+				continue;
+			dc_link_set_psr_allow_active(edp_link,
+					clk_mgr->psr_allow_active_cache, false, false);
+		}
 	}
 
 	if (dc->hwss.optimize_pwr_state)

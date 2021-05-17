@@ -123,6 +123,17 @@
 #define TRACE_BUFFER_ENTRY_OFFSET  16
 
 /**
+ *
+ * PSR control version legacy
+ */
+#define DMUB_CMD_PSR_CONTROL_VERSION_UNKNOWN 0x0
+/**
+ * PSR control version with multi edp support
+ */
+#define DMUB_CMD_PSR_CONTROL_VERSION_1 0x1
+
+
+/**
  * ABM control version legacy
  */
 #define DMUB_CMD_ABM_CONTROL_VERSION_UNKNOWN 0x0
@@ -1380,9 +1391,15 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t fec_enable_delay_in100us;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * PSR control version.
 	 */
-	uint8_t pad3[2];
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
 };
 
 /**
@@ -1408,9 +1425,15 @@ struct dmub_cmd_psr_set_level_data {
 	 */
 	uint16_t psr_level;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * PSR control version.
 	 */
-	uint8_t pad[2];
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
 };
 
 /**
@@ -1427,6 +1450,23 @@ struct dmub_rb_cmd_psr_set_level {
 	struct dmub_cmd_psr_set_level_data psr_set_level_data;
 };
 
+struct dmub_rb_cmd_psr_enable_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
 /**
  * Definition of a DMUB_CMD__PSR_ENABLE command.
  * PSR enable/disable is controlled using the sub_type.
@@ -1436,6 +1476,8 @@ struct dmub_rb_cmd_psr_enable {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+
+	struct dmub_rb_cmd_psr_enable_data data;
 };
 
 /**
@@ -1446,6 +1488,20 @@ struct dmub_cmd_psr_set_version_data {
 	 * PSR version that FW should implement.
 	 */
 	enum psr_version version;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1462,6 +1518,23 @@ struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
 };
 
+struct dmub_cmd_psr_force_static_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
 /**
  * Definition of a DMUB_CMD__PSR_FORCE_STATIC command.
  */
@@ -1470,6 +1543,10 @@ struct dmub_rb_cmd_psr_force_static {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__PSR_FORCE_STATIC command.
+	 */
+	struct dmub_cmd_psr_force_static_data psr_force_static_data;
 };
 
 /**

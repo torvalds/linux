@@ -3278,10 +3278,13 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 			continue;
 
 		if (link->psr_settings.psr_feature_enabled) {
-			if (enable && !link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, true, false, false);
-			else if (!enable && link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, false, true, false);
+			if (enable && !link->psr_settings.psr_allow_active) {
+				if (!dc_link_set_psr_allow_active(link, true, false, false))
+					return false;
+			} else if (!enable && link->psr_settings.psr_allow_active) {
+				if (!dc_link_set_psr_allow_active(link, false, true, false))
+					return false;
+			}
 		}
 	}
 
