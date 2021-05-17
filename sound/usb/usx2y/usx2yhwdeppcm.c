@@ -503,15 +503,18 @@ static int snd_usx2y_usbpcm_prepare(struct snd_pcm_substream *substream)
 
 	snd_printdd("snd_usx2y_pcm_prepare(%p)\n", substream);
 
+	mutex_lock(&usx2y->pcm_mutex);
+
 	if (!usx2y->hwdep_pcm_shm) {
 		usx2y->hwdep_pcm_shm = alloc_pages_exact(USX2Y_HWDEP_PCM_PAGES,
 							 GFP_KERNEL);
-		if (!usx2y->hwdep_pcm_shm)
-			return -ENOMEM;
+		if (!usx2y->hwdep_pcm_shm) {
+			err = -ENOMEM;
+			goto up_prepare_mutex;
+		}
 		memset(usx2y->hwdep_pcm_shm, 0, USX2Y_HWDEP_PCM_PAGES);
 	}
 
-	mutex_lock(&usx2y->pcm_mutex);
 	usx2y_subs_prepare(subs);
 	// Start hardware streams
 	// SyncStream first....
