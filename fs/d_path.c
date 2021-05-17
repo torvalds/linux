@@ -390,9 +390,11 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	rcu_read_lock();
 	get_fs_root_and_pwd_rcu(current->fs, &root, &pwd);
 
-	error = -ENOENT;
-	if (!d_unlinked(pwd.dentry)) {
-		unsigned long len;
+	if (unlikely(d_unlinked(pwd.dentry))) {
+		rcu_read_unlock();
+		error = -ENOENT;
+	} else {
+		unsigned len;
 		DECLARE_BUFFER(b, page, PATH_MAX);
 
 		prepend(&b, "", 1);
@@ -400,23 +402,16 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 			prepend(&b, "(unreachable)", 13);
 		rcu_read_unlock();
 
-		if (b.len < 0) {
-			error = -ENAMETOOLONG;
-			goto out;
-		}
-
-		error = -ERANGE;
 		len = PATH_MAX - b.len;
-		if (len <= size) {
+		if (unlikely(len > PATH_MAX))
+			error = -ENAMETOOLONG;
+		else if (unlikely(len > size))
+			error = -ERANGE;
+		else if (copy_to_user(buf, b.buf, len))
+			error = -EFAULT;
+		else
 			error = len;
-			if (copy_to_user(buf, b.buf, len))
-				error = -EFAULT;
-		}
-	} else {
-		rcu_read_unlock();
 	}
-
-out:
 	__putname(page);
 	return error;
 }
