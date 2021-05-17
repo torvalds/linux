@@ -1859,7 +1859,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "register netdevice failed\n");
-		goto out_unlock;
+		goto out_unmap;
 	}
 
 	netdev_info(netdev,
