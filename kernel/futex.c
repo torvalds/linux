@@ -1728,12 +1728,9 @@ retry_private:
 				return ret;
 		}
 
-		if (!(flags & FLAGS_SHARED)) {
-			cond_resched();
-			goto retry_private;
-		}
-
 		cond_resched();
+		if (!(flags & FLAGS_SHARED))
+			goto retry_private;
 		goto retry;
 	}
 
