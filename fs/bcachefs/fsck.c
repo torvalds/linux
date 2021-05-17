@@ -1161,7 +1161,8 @@ static int add_nlink(struct nlink_table *t, u64 inum, u32 snapshot)
 			return -ENOMEM;
 		}
 
-		memcpy(d, t->d, t->size * sizeof(t->d[0]));
+		if (t->d)
+			memcpy(d, t->d, t->size * sizeof(t->d[0]));
 		kvfree(t->d);
 
 		t->d = d;
