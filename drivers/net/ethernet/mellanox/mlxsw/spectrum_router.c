@@ -2282,6 +2282,7 @@ static void mlxsw_sp_router_neigh_ent_ipv4_process(struct mlxsw_sp *mlxsw_sp,
 						   char *rauhtd_pl,
 						   int ent_index)
 {
+	u64 max_rifs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 	struct net_device *dev;
 	struct neighbour *n;
 	__be32 dipn;
@@ -2290,6 +2291,8 @@ static void mlxsw_sp_router_neigh_ent_ipv4_process(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_reg_rauhtd_ent_ipv4_unpack(rauhtd_pl, ent_index, &rif, &dip);
 
+	if (WARN_ON_ONCE(rif >= max_rifs))
+		return;
 	if (!mlxsw_sp->router->rifs[rif]) {
 		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Incorrect RIF in neighbour entry\n");
 		return;
@@ -3841,8 +3844,8 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	bool offload_change = false;
 	u32 adj_index;
 	bool old_adj_index_valid;
-	int i, err2, err = 0;
 	u32 old_adj_index;
+	int i, err2, err;
 
 	if (!nhgi->gateway)
 		return mlxsw_sp_nexthop_fib_entries_update(mlxsw_sp, nh_grp);
@@ -3872,11 +3875,13 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	}
 	mlxsw_sp_nexthop_group_normalize(nhgi);
-	if (!nhgi->sum_norm_weight)
+	if (!nhgi->sum_norm_weight) {
 		/* No neigh of this group is connected so we just set
 		 * the trap and let everthing flow through kernel.
 		 */
+		err = 0;
 		goto set_trap;
+	}
 
 	ecmp_size = nhgi->sum_norm_weight;
 	err = mlxsw_sp_fix_adj_grp_size(mlxsw_sp, &ecmp_size);

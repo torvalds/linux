@@ -630,7 +630,7 @@ static int mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	struct sk_buff *skb;
 	int err;
 
-	skb = skb_copy(trans->tx_skb, GFP_KERNEL);
+	skb = skb_clone(trans->tx_skb, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
