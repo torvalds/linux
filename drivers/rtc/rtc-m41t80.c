@@ -611,10 +611,8 @@ static unsigned long wdt_is_open;
 static int boot_flag;
 
 /**
- *	wdt_ping:
- *
- *	Reload counter one with the watchdog timeout. We don't bother reloading
- *	the cascade counter.
+ *	wdt_ping - Reload counter one with the watchdog timeout.
+ *	We don't bother reloading the cascade counter.
  */
 static void wdt_ping(void)
 {
@@ -650,9 +648,7 @@ static void wdt_ping(void)
 }
 
 /**
- *	wdt_disable:
- *
- *	disables watchdog.
+ *	wdt_disable - disables watchdog.
  */
 static void wdt_disable(void)
 {
@@ -689,7 +685,7 @@ static void wdt_disable(void)
 }
 
 /**
- *	wdt_write:
+ *	wdt_write - write to watchdog.
  *	@file: file handle to the watchdog
  *	@buf: buffer to write (unused as data does not matter here
  *	@count: count of bytes
@@ -715,7 +711,7 @@ static ssize_t wdt_read(struct file *file, char __user *buf,
 }
 
 /**
- *	wdt_ioctl:
+ *	wdt_ioctl - ioctl handler to set watchdog.
  *	@file: file handle to the device
  *	@cmd: watchdog command
  *	@arg: argument pointer
@@ -790,7 +786,7 @@ static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
 }
 
 /**
- *	wdt_open:
+ *	wdt_open - open a watchdog.
  *	@inode: inode of device
  *	@file: file handle to device
  *
@@ -814,7 +810,7 @@ static int wdt_open(struct inode *inode, struct file *file)
 }
 
 /**
- *	wdt_close:
+ *	wdt_release - release a watchdog.
  *	@inode: inode to board
  *	@file: file handle to board
  *
@@ -827,7 +823,7 @@ static int wdt_release(struct inode *inode, struct file *file)
 }
 
 /**
- *	notify_sys:
+ *	wdt_notify_sys - notify to watchdog.
  *	@this: our notifier block
  *	@code: the event being reported
  *	@unused: unused
