@@ -6983,7 +6983,7 @@ int t4_fw_bye(struct adapter *adap, unsigned int mbox)
 }
 
 /**
- *	t4_init_cmd - ask FW to initialize the device
+ *	t4_early_init - ask FW to initialize the device
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
  *
@@ -10224,7 +10224,7 @@ out:
 }
 
 /**
- *	t4_set_vf_mac - Set MAC address for the specified VF
+ *	t4_set_vf_mac_acl - Set MAC address for the specified VF
  *	@adapter: The adapter
  *	@vf: one of the VFs instantiated by the specified PF
  *	@naddr: the number of MAC addresses
