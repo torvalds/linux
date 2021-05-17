@@ -1198,24 +1198,11 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		    struct pxa2xx_spi_chip *chip_info)
 {
-	struct driver_data *drv_data =
-		spi_controller_get_devdata(spi->controller);
 	struct gpio_desc *gpiod;
 	int err = 0;
 
 	if (chip == NULL)
 		return 0;
-
-	if (drv_data->cs_gpiods) {
-		gpiod = drv_data->cs_gpiods[spi->chip_select];
-		if (gpiod) {
-			chip->gpiod_cs = gpiod;
-			chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
-			gpiod_set_value(gpiod, chip->gpio_cs_inverted);
-		}
-
-		return 0;
-	}
 
 	if (chip_info == NULL)
 		return 0;
@@ -1430,8 +1417,7 @@ static void cleanup(struct spi_device *spi)
 	if (!chip)
 		return;
 
-	if (drv_data->ssp_type != CE4100_SSP && !drv_data->cs_gpiods &&
-	    chip->gpiod_cs)
+	if (drv_data->ssp_type != CE4100_SSP && chip->gpiod_cs)
 		gpiod_put(chip->gpiod_cs);
 
 	kfree(chip);
@@ -1682,7 +1668,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	struct driver_data *drv_data;
 	struct ssp_device *ssp;
 	const struct lpss_config *config;
-	int status, count;
+	int status;
 	u32 tmp;
 
 	platform_info = dev_get_platdata(dev);
@@ -1861,38 +1847,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		}
 	}
 	controller->num_chipselect = platform_info->num_chipselect;
-
-	count = gpiod_count(&pdev->dev, "cs");
-	if (count > 0) {
-		int i;
-
-		controller->num_chipselect = max_t(int, count,
-			controller->num_chipselect);
-
-		drv_data->cs_gpiods = devm_kcalloc(&pdev->dev,
-			controller->num_chipselect, sizeof(struct gpio_desc *),
-			GFP_KERNEL);
-		if (!drv_data->cs_gpiods) {
-			status = -ENOMEM;
-			goto out_error_clock_enabled;
-		}
-
-		for (i = 0; i < controller->num_chipselect; i++) {
-			struct gpio_desc *gpiod;
-
-			gpiod = devm_gpiod_get_index(dev, "cs", i, GPIOD_ASIS);
-			if (IS_ERR(gpiod)) {
-				/* Means use native chip select */
-				if (PTR_ERR(gpiod) == -ENOENT)
-					continue;
-
-				status = PTR_ERR(gpiod);
-				goto out_error_clock_enabled;
-			} else {
-				drv_data->cs_gpiods[i] = gpiod;
-			}
-		}
-	}
+	controller->use_gpio_descriptors = true;
 
 	if (platform_info->is_slave) {
 		drv_data->gpiod_ready = devm_gpiod_get_optional(dev,

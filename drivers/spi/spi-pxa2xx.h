@@ -53,9 +53,6 @@ struct driver_data {
 
 	void __iomem *lpss_base;
 
-	/* GPIOs for chip selects */
-	struct gpio_desc **cs_gpiods;
-
 	/* Optional slave FIFO ready signal */
 	struct gpio_desc *gpiod_ready;
 };
