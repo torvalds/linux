@@ -219,6 +219,7 @@
 		memory-region = <&drm_logo>, <&drm_cubic_lut>;
 		memory-region-names = "drm-logo", "drm-cubic-lut";
 		ports = <&vop_out>;
+		devfreq = <&dmc>;
 
 		route {
 			route_dsi0: route-dsi0 {
