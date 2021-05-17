@@ -457,6 +457,11 @@ static __always_inline void sev_es_put_ghcb(struct ghcb_state *state)
 		data->backup_ghcb_active = false;
 		state->ghcb = NULL;
 	} else {
+		/*
+		 * Invalidate the GHCB so a VMGEXIT instruction issued
+		 * from userspace won't appear to be valid.
+		 */
+		vc_ghcb_invalidate(ghcb);
 		data->ghcb_active = false;
 	}
 }
