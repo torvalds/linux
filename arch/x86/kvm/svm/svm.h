@@ -20,6 +20,7 @@
 #include <linux/bits.h>
 
 #include <asm/svm.h>
+#include <asm/sev-common.h>
 
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
@@ -525,40 +526,9 @@ void svm_vcpu_unblocking(struct kvm_vcpu *vcpu);
 
 /* sev.c */
 
-#define GHCB_VERSION_MAX		1ULL
-#define GHCB_VERSION_MIN		1ULL
+#define GHCB_VERSION_MAX	1ULL
+#define GHCB_VERSION_MIN	1ULL
 
-#define GHCB_MSR_INFO_POS		0
-#define GHCB_MSR_INFO_MASK		(BIT_ULL(12) - 1)
-
-#define GHCB_MSR_SEV_INFO_RESP		0x001
-#define GHCB_MSR_SEV_INFO_REQ		0x002
-#define GHCB_MSR_VER_MAX_POS		48
-#define GHCB_MSR_VER_MAX_MASK		0xffff
-#define GHCB_MSR_VER_MIN_POS		32
-#define GHCB_MSR_VER_MIN_MASK		0xffff
-#define GHCB_MSR_CBIT_POS		24
-#define GHCB_MSR_CBIT_MASK		0xff
-#define GHCB_MSR_SEV_INFO(_max, _min, _cbit)				\
-	((((_max) & GHCB_MSR_VER_MAX_MASK) << GHCB_MSR_VER_MAX_POS) |	\
-	 (((_min) & GHCB_MSR_VER_MIN_MASK) << GHCB_MSR_VER_MIN_POS) |	\
-	 (((_cbit) & GHCB_MSR_CBIT_MASK) << GHCB_MSR_CBIT_POS) |	\
-	 GHCB_MSR_SEV_INFO_RESP)
-
-#define GHCB_MSR_CPUID_REQ		0x004
-#define GHCB_MSR_CPUID_RESP		0x005
-#define GHCB_MSR_CPUID_FUNC_POS		32
-#define GHCB_MSR_CPUID_FUNC_MASK	0xffffffff
-#define GHCB_MSR_CPUID_VALUE_POS	32
-#define GHCB_MSR_CPUID_VALUE_MASK	0xffffffff
-#define GHCB_MSR_CPUID_REG_POS		30
-#define GHCB_MSR_CPUID_REG_MASK		0x3
-
-#define GHCB_MSR_TERM_REQ		0x100
-#define GHCB_MSR_TERM_REASON_SET_POS	12
-#define GHCB_MSR_TERM_REASON_SET_MASK	0xf
-#define GHCB_MSR_TERM_REASON_POS	16
-#define GHCB_MSR_TERM_REASON_MASK	0xff
 
 extern unsigned int max_sev_asid;
 
@@ -581,6 +551,7 @@ void sev_es_init_vmcb(struct vcpu_svm *svm);
 void sev_es_create_vcpu(struct vcpu_svm *svm);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
 void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu);
+void sev_es_unmap_ghcb(struct vcpu_svm *svm);
 
 /* vmenter.S */
 

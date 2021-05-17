@@ -776,7 +776,3 @@ static struct platform_driver dwc2_platform_driver = {
 };
 
 module_platform_driver(dwc2_platform_driver);
-
-MODULE_DESCRIPTION("DESIGNWARE HS OTG Platform Glue");
-MODULE_AUTHOR("Matthijs Kooijman <matthijs@stdin.nl>");
-MODULE_LICENSE("Dual BSD/GPL");

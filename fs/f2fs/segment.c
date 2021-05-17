@@ -3574,12 +3574,12 @@ int f2fs_inplace_write_data(struct f2fs_io_info *fio)
 
 	return err;
 drop_bio:
-	if (fio->bio) {
+	if (fio->bio && *(fio->bio)) {
 		struct bio *bio = *(fio->bio);
 
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
-		fio->bio = NULL;
+		*(fio->bio) = NULL;
 	}
 	return err;
 }
