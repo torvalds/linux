@@ -1270,14 +1270,15 @@ int bch2_mark_update(struct btree_trans *trans,
 
 static noinline __cold
 void fs_usage_apply_warn(struct btree_trans *trans,
-			 unsigned disk_res_sectors)
+			 unsigned disk_res_sectors,
+			 s64 should_not_have_added)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
 	char buf[200];
 
-	bch_err(c, "disk usage increased more than %u sectors reserved",
-		disk_res_sectors);
+	bch_err(c, "disk usage increased %lli more than %u sectors reserved",
+		should_not_have_added, disk_res_sectors);
 
 	trans_for_each_update(trans, i) {
 		pr_err("while inserting");
@@ -1309,6 +1310,7 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 			}
 		}
 	}
+	__WARN();
 }
 
 void bch2_trans_fs_usage_apply(struct btree_trans *trans,
@@ -1367,7 +1369,7 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 	preempt_enable();
 
 	if (unlikely(warn) && !xchg(&warned_disk_usage, 1))
-		fs_usage_apply_warn(trans, disk_res_sectors);
+		fs_usage_apply_warn(trans, disk_res_sectors, should_not_have_added);
 }
 
 /* trans_mark: */

@@ -806,12 +806,12 @@ static int extent_update_to_keys(struct btree_trans *trans,
 {
 	int ret;
 
-	if (bkey_deleted(&n.k->k))
-		return 0;
-
 	ret = bch2_extent_can_insert(trans, n.iter, n.k);
 	if (ret)
 		return ret;
+
+	if (bkey_deleted(&n.k->k))
+		return 0;
 
 	n.iter = bch2_trans_get_iter(trans, n.iter->btree_id, n.k->k.p,
 				     BTREE_ITER_INTENT|
