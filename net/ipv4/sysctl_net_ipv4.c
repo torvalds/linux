@@ -30,6 +30,7 @@
 #include <net/netevent.h>
 
 static int two = 2;
+static int three __maybe_unused = 3;
 static int four = 4;
 static int thousand = 1000;
 static int tcp_retr1_max = 255;
@@ -1053,7 +1054,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_fib_multipath_hash_policy,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= &two,
+		.extra2		= &three,
 	},
 	{
 		.procname	= "fib_multipath_hash_fields",
