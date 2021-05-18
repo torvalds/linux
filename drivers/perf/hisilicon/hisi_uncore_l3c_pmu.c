@@ -578,7 +578,6 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 		dev_err(l3c_pmu->dev, "L3C PMU register failed!\n");
 		cpuhp_state_remove_instance_nocalls(
 			CPUHP_AP_PERF_ARM_HISI_L3_ONLINE, &l3c_pmu->node);
-		irq_set_affinity_hint(l3c_pmu->irq, NULL);
 	}
 
 	return ret;
@@ -591,8 +590,6 @@ static int hisi_l3c_pmu_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&l3c_pmu->pmu);
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
 					    &l3c_pmu->node);
-	irq_set_affinity_hint(l3c_pmu->irq, NULL);
-
 	return 0;
 }
 

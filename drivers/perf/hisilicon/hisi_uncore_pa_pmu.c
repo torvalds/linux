@@ -436,7 +436,6 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 		dev_err(pa_pmu->dev, "PMU register failed, ret = %d\n", ret);
 		cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
 					    &pa_pmu->node);
-		irq_set_affinity_hint(pa_pmu->irq, NULL);
 		return ret;
 	}
 
@@ -451,8 +450,6 @@ static int hisi_pa_pmu_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&pa_pmu->pmu);
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_PA_ONLINE,
 					    &pa_pmu->node);
-	irq_set_affinity_hint(pa_pmu->irq, NULL);
-
 	return 0;
 }
 
