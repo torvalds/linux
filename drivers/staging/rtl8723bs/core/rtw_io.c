@@ -116,25 +116,6 @@ int rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 	return RTW_STATUS_CODE(ret);
 }
 
-u8 _rtw_sd_f0_read8(struct adapter *adapter, u32 addr)
-{
-	u8 r_val = 0x00;
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &(pio_priv->intf);
-	u8 (*_sd_f0_read8)(struct intf_hdl *pintfhdl, u32 addr);
-
-	_sd_f0_read8 = pintfhdl->io_ops._sd_f0_read8;
-
-	if (_sd_f0_read8)
-		r_val = _sd_f0_read8(pintfhdl, addr);
-	else
-		netdev_warn(adapter->pnetdev,
-			    FUNC_ADPT_FMT " _sd_f0_read8 callback is NULL\n",
-			    FUNC_ADPT_ARG(adapter));
-
-	return r_val;
-}
-
 u32 rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
 	u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);

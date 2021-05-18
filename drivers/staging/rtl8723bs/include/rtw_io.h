@@ -178,11 +178,7 @@ extern int rtw_write8(struct adapter *adapter, u32 addr, u8 val);
 extern int rtw_write16(struct adapter *adapter, u32 addr, u16 val);
 extern int rtw_write32(struct adapter *adapter, u32 addr, u32 val);
 
-extern u8 _rtw_sd_f0_read8(struct adapter *adapter, u32 addr);
-
 extern u32 rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
-#define rtw_sd_f0_read8(adapter, addr) _rtw_sd_f0_read8((adapter), (addr))
 
 extern void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
 
