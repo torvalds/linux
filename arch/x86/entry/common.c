@@ -52,6 +52,8 @@ __visible noinstr void do_syscall_64(struct pt_regs *regs, unsigned long nr)
 					X32_NR_syscalls);
 		regs->ax = x32_sys_call_table[nr](regs);
 #endif
+	} else if (unlikely((int)nr != -1)) {
+		regs->ax = __x64_sys_ni_syscall(regs);
 	}
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
@@ -76,6 +78,8 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs,
 	if (likely(nr < IA32_NR_syscalls)) {
 		nr = array_index_nospec(nr, IA32_NR_syscalls);
 		regs->ax = ia32_sys_call_table[nr](regs);
+	} else if (unlikely((int)nr != -1)) {
+		regs->ax = __ia32_sys_ni_syscall(regs);
 	}
 }
 
