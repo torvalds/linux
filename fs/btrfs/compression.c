@@ -427,24 +427,16 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	bio->bi_end_io = end_compressed_bio_write;
 
 	if (use_append) {
-		struct extent_map *em;
-		struct map_lookup *map;
-		struct block_device *bdev;
+		struct btrfs_device *device;
 
-		em = btrfs_get_chunk_map(fs_info, disk_start, PAGE_SIZE);
-		if (IS_ERR(em)) {
+		device = btrfs_zoned_get_device(fs_info, disk_start, PAGE_SIZE);
+		if (IS_ERR(device)) {
 			kfree(cb);
 			bio_put(bio);
 			return BLK_STS_NOTSUPP;
 		}
 
-		map = em->map_lookup;
-		/* We only support single profile for now */
-		ASSERT(map->num_stripes == 1);
-		bdev = map->stripes[0].dev->bdev;
-
-		bio_set_dev(bio, bdev);
-		free_extent_map(em);
+		bio_set_dev(bio, device->bdev);
 	}
 
 	if (blkcg_css) {
