@@ -176,6 +176,8 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn20_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn20_set_outbox0_rptr;
 
+		funcs->get_diagnostic_data = dmub_dcn20_get_diagnostic_data;
+
 		if (asic == DMUB_ASIC_DCN21) {
 			dmub->regs = &dmub_srv_dcn21_regs;
 
@@ -793,4 +795,12 @@ bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entr
 	dmub->outbox0_rb.wrpt = dmub->hw_funcs.get_outbox0_wptr(dmub);
 
 	return dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
+}
+
+bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+{
+	if (!dmub || !dmub->hw_funcs.get_diagnostic_data || !diag_data)
+		return false;
+	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
+	return true;
 }
