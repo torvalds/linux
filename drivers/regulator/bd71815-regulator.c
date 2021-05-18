@@ -13,6 +13,8 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
