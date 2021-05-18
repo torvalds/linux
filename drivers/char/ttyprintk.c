@@ -52,7 +52,7 @@ static void tpk_flush(void)
 
 static int tpk_printk(const unsigned char *buf, int count)
 {
-	int i = tpk_curr;
+	int i;
 
 	for (i = 0; i < count; i++) {
 		if (tpk_curr >= TPK_STR_SIZE) {
