@@ -299,8 +299,11 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		/* the entity ID we are looking for is a selector.
 		 * find out what it currently selects */
 		ret = uac_clock_selector_get_val(chip, clock_id);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			if (!chip->autoclock)
+				return ret;
+			goto find_others;
+		}
 
 		/* Selector values are one-based */
 
@@ -309,7 +312,10 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 				"%s(): selector reported illegal value, id %d, ret %d\n",
 				__func__, clock_id, ret);
 
-			return -EINVAL;
+			if (!chip->autoclock)
+				return -EINVAL;
+			ret = 0;
+			goto find_others;
 		}
 
 	find_source:
@@ -326,6 +332,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		if (!validate || ret > 0 || !chip->autoclock)
 			return ret;
 
+	find_others:
 		/* The current clock source is invalid, try others. */
 		for (i = 1; i <= pins; i++) {
 			if (i == cur)
