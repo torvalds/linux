@@ -211,23 +211,6 @@ char *d_absolute_path(const struct path *path,
 	return res;
 }
 
-/*
- * same as __d_path but appends "(deleted)" for unlinked files.
- */
-static int path_with_deleted(const struct path *path,
-			     const struct path *root,
-			     char **buf, int *buflen)
-{
-	prepend(buf, buflen, "", 1);
-	if (d_unlinked(path->dentry)) {
-		int error = prepend(buf, buflen, " (deleted)", 10);
-		if (error)
-			return error;
-	}
-
-	return prepend_path(path, root, buf, buflen);
-}
-
 static int prepend_unreachable(char **buffer, int *buflen)
 {
 	return prepend(buffer, buflen, "(unreachable)", 13);
@@ -282,7 +265,11 @@ char *d_path(const struct path *path, char *buf, int buflen)
 
 	rcu_read_lock();
 	get_fs_root_rcu(current->fs, &root);
-	error = path_with_deleted(path, &root, &res, &buflen);
+	if (unlikely(d_unlinked(path->dentry)))
+		prepend(&res, &buflen, " (deleted)", 11);
+	else
+		prepend(&res, &buflen, "", 1);
+	error = prepend_path(path, &root, &res, &buflen);
 	rcu_read_unlock();
 
 	if (error < 0)
