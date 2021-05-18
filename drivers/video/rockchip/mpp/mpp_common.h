@@ -267,6 +267,8 @@ struct mpp_mem_region {
 	u32 reg_idx;
 	void *hdl;
 	int fd;
+	/* whether is dup import entity */
+	bool is_dup;
 };
 
 struct mpp_dma_session;

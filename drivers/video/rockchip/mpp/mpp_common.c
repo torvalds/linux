@@ -1334,12 +1334,11 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 	mem_region = &task->mem_regions[task->mem_count];
 	if (found) {
 		memcpy(mem_region, loop, sizeof(*loop));
-		buffer = mem_region->hdl;
-		kref_get(&buffer->ref);
+		mem_region->is_dup = true;
 	} else {
-		down_read(&mpp->iommu_info->rw_sem);
+		mpp_iommu_down_read(mpp->iommu_info);
 		buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
-		up_read(&mpp->iommu_info->rw_sem);
+		mpp_iommu_up_read(mpp->iommu_info);
 		if (IS_ERR_OR_NULL(buffer)) {
 			mpp_err("can't import dma-buf %d\n", fd);
 			return ERR_PTR(-ENOMEM);
@@ -1349,8 +1348,10 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 		mem_region->iova = buffer->iova;
 		mem_region->len = buffer->size;
 		mem_region->fd = fd;
+		mem_region->is_dup = false;
 	}
 	task->mem_count++;
+	INIT_LIST_HEAD(&mem_region->reg_link);
 	list_add_tail(&mem_region->reg_link, &task->mem_region_list);
 
 	return mem_region;
@@ -1545,17 +1546,18 @@ int mpp_task_finish(struct mpp_session *session,
 int mpp_task_finalize(struct mpp_session *session,
 		      struct mpp_task *task)
 {
-	struct mpp_dev *mpp = NULL;
 	struct mpp_mem_region *mem_region = NULL, *n;
+	struct mpp_dev *mpp = session->mpp;
 
-	mpp = session->mpp;
 	/* release memory region attach to this registers table. */
 	list_for_each_entry_safe(mem_region, n,
 				 &task->mem_region_list,
 				 reg_link) {
-		mpp_iommu_down_read(mpp->iommu_info);
-		mpp_dma_release(session->dma, mem_region->hdl);
-		mpp_iommu_up_read(mpp->iommu_info);
+		if (!mem_region->is_dup) {
+			mpp_iommu_down_read(mpp->iommu_info);
+			mpp_dma_release(session->dma, mem_region->hdl);
+			mpp_iommu_up_read(mpp->iommu_info);
+		}
 		list_del_init(&mem_region->reg_link);
 	}
 
