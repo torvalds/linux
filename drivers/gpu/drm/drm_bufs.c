@@ -984,8 +984,16 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 
 	while (entry->buf_count < count) {
 		dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
-		if (!dmah)
+		if (!dmah) {
+			/* Set count correctly so we free the proper amount. */
+			entry->buf_count = count;
+			entry->seg_count = count;
+			drm_cleanup_buf_error(dev, entry);
+			kfree(temp_pagelist);
+			mutex_unlock(&dev->struct_mutex);
+			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
+		}
 
 		dmah->size = total;
 		dmah->vaddr = dma_alloc_coherent(dev->dev,
