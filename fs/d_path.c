@@ -329,31 +329,22 @@ char *simple_dname(struct dentry *dentry, char *buffer, int buflen)
 static char *__dentry_path(const struct dentry *d, char *p, int buflen)
 {
 	const struct dentry *dentry;
-	char *end, *retval;
+	char *end;
 	int len, seq = 0;
-	int error = 0;
-
-	if (buflen < 1)
-		goto Elong;
 
 	rcu_read_lock();
 restart:
 	dentry = d;
 	end = p;
 	len = buflen;
-	/* Get '/' right */
-	retval = end-1;
-	*retval = '/';
 	read_seqbegin_or_lock(&rename_lock, &seq);
 	while (!IS_ROOT(dentry)) {
 		const struct dentry *parent = dentry->d_parent;
 
 		prefetch(parent);
-		error = prepend_name(&end, &len, &dentry->d_name);
-		if (error)
+		if (unlikely(prepend_name(&end, &len, &dentry->d_name) < 0))
 			break;
 
-		retval = end;
 		dentry = parent;
 	}
 	if (!(seq & 1))
@@ -363,11 +354,9 @@ restart:
 		goto restart;
 	}
 	done_seqretry(&rename_lock, seq);
-	if (error)
-		goto Elong;
-	return retval;
-Elong:
-	return ERR_PTR(-ENAMETOOLONG);
+	if (len == buflen)
+		prepend(&end, &len, "/", 1);
+	return len >= 0 ? end : ERR_PTR(-ENAMETOOLONG);
 }
 
 char *dentry_path_raw(const struct dentry *dentry, char *buf, int buflen)
