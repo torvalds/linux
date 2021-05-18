@@ -59,7 +59,7 @@ u16 rtw_read16(struct adapter *adapter, u32 addr)
 	return rtw_le16_to_cpu(r_val);
 }
 
-u32 _rtw_read32(struct adapter *adapter, u32 addr)
+u32 rtw_read32(struct adapter *adapter, u32 addr)
 {
 	u32 r_val;
 	/* struct	io_queue	*pio_queue = (struct io_queue *)adapter->pio_queue; */
