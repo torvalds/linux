@@ -8,14 +8,13 @@
 #include <linux/prefetch.h>
 #include "mount.h"
 
-static int prepend(char **buffer, int *buflen, const char *str, int namelen)
+static void prepend(char **buffer, int *buflen, const char *str, int namelen)
 {
 	*buflen -= namelen;
-	if (*buflen < 0)
-		return -ENAMETOOLONG;
-	*buffer -= namelen;
-	memcpy(*buffer, str, namelen);
-	return 0;
+	if (likely(*buflen >= 0)) {
+		*buffer -= namelen;
+		memcpy(*buffer, str, namelen);
+	}
 }
 
 /**
@@ -298,11 +297,10 @@ char *simple_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	char *end = buffer + buflen;
 	/* these dentries are never renamed, so d_lock is not needed */
-	if (prepend(&end, &buflen, " (deleted)", 11) ||
-	    prepend(&end, &buflen, dentry->d_name.name, dentry->d_name.len) ||
-	    prepend(&end, &buflen, "/", 1))  
-		end = ERR_PTR(-ENAMETOOLONG);
-	return end;
+	prepend(&end, &buflen, " (deleted)", 11);
+	prepend(&end, &buflen, dentry->d_name.name, dentry->d_name.len);
+	prepend(&end, &buflen, "/", 1);
+	return buflen >= 0 ? end : ERR_PTR(-ENAMETOOLONG);
 }
 
 /*
