@@ -326,22 +326,21 @@ char *simple_dname(struct dentry *dentry, char *buffer, int buflen)
 /*
  * Write full pathname from the root of the filesystem into the buffer.
  */
-static char *__dentry_path(const struct dentry *d, char *buf, int buflen)
+static char *__dentry_path(const struct dentry *d, char *p, int buflen)
 {
 	const struct dentry *dentry;
 	char *end, *retval;
 	int len, seq = 0;
 	int error = 0;
 
-	if (buflen < 2)
+	if (buflen < 1)
 		goto Elong;
 
 	rcu_read_lock();
 restart:
 	dentry = d;
-	end = buf + buflen;
+	end = p;
 	len = buflen;
-	prepend(&end, &len, "", 1);
 	/* Get '/' right */
 	retval = end-1;
 	*retval = '/';
@@ -373,27 +372,21 @@ Elong:
 
 char *dentry_path_raw(const struct dentry *dentry, char *buf, int buflen)
 {
-	return __dentry_path(dentry, buf, buflen);
+	char *p = buf + buflen;
+	prepend(&p, &buflen, "", 1);
+	return __dentry_path(dentry, p, buflen);
 }
 EXPORT_SYMBOL(dentry_path_raw);
 
 char *dentry_path(const struct dentry *dentry, char *buf, int buflen)
 {
-	char *p = NULL;
-	char *retval;
+	char *p = buf + buflen;
 
-	if (d_unlinked(dentry)) {
-		p = buf + buflen;
-		if (prepend(&p, &buflen, "//deleted", 10) != 0)
-			goto Elong;
-		buflen++;
-	}
-	retval = __dentry_path(dentry, buf, buflen);
-	if (!IS_ERR(retval) && p)
-		*p = '/';	/* restore '/' overriden with '\0' */
-	return retval;
-Elong:
-	return ERR_PTR(-ENAMETOOLONG);
+	if (unlikely(d_unlinked(dentry)))
+		prepend(&p, &buflen, "//deleted", 10);
+	else
+		prepend(&p, &buflen, "", 1);
+	return __dentry_path(dentry, p, buflen);
 }
 
 static void get_fs_root_and_pwd_rcu(struct fs_struct *fs, struct path *root,
