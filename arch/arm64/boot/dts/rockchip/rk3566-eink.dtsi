@@ -64,8 +64,15 @@
 	opp-528000000 {
 		opp-microvolt = <875000>;
 	};
-	/delete-node/ opp-780000000;
-	/delete-node/ opp-1056000000;
+	opp-780000000 {
+		status = "disabled";
+	};
+	opp-920000000 {
+		status = "disabled";
+	};
+	opp-1056000000 {
+		status = "disabled";
+	};
 };
 
 &ebc {
