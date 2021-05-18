@@ -45,7 +45,7 @@ u8 rtw_read8(struct adapter *adapter, u32 addr)
 	return _read8(pintfhdl, addr);
 }
 
-u16 _rtw_read16(struct adapter *adapter, u32 addr)
+u16 rtw_read16(struct adapter *adapter, u32 addr)
 {
 	u16 r_val;
 	/* struct	io_queue	*pio_queue = (struct io_queue *)adapter->pio_queue; */
