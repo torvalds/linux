@@ -535,7 +535,7 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	struct intel_dmc *dmc;
 	i915_reg_t dc5_reg, dc6_reg = {};
 
-	if (!HAS_CSR(dev_priv))
+	if (!HAS_DMC(dev_priv))
 		return -ENODEV;
 
 	dmc = &dev_priv->dmc;
