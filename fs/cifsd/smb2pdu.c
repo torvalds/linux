@@ -4622,7 +4622,8 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 					       FILE_PERSISTENT_ACLS |
 					       FILE_UNICODE_ON_DISK |
 					       FILE_CASE_PRESERVED_NAMES |
-					       FILE_CASE_SENSITIVE_SEARCH);
+					       FILE_CASE_SENSITIVE_SEARCH |
+					       FILE_SUPPORTS_BLOCK_REFCOUNTING);
 
 		info->Attributes |= cpu_to_le32(server_conf.share_fake_fscaps);
 
@@ -7328,6 +7329,55 @@ int smb2_ioctl(struct ksmbd_work *work)
 		reparse_ptr->ReparseDataLength = 0;
 		ksmbd_fd_put(work, fp);
 		nbytes = sizeof(struct reparse_data_buffer);
+		break;
+	}
+	case FSCTL_DUPLICATE_EXTENTS_TO_FILE:
+	{
+		struct ksmbd_file *fp_in, *fp_out = NULL;
+		struct duplicate_extents_to_file *dup_ext;
+		loff_t src_off, dst_off, length, cloned;
+
+		dup_ext = (struct duplicate_extents_to_file *)&req->Buffer[0];
+
+		fp_in = ksmbd_lookup_fd_slow(work, dup_ext->VolatileFileHandle,
+				dup_ext->PersistentFileHandle);
+		if (!fp_in) {
+			ksmbd_err("not found file handle in duplicate extent to file\n");
+			ret = -ENOENT;
+			goto out;
+		}
+
+		fp_out = ksmbd_lookup_fd_fast(work, id);
+		if (!fp_out) {
+			ksmbd_err("not found fp\n");
+			ret = -ENOENT;
+			goto dup_ext_out;
+		}
+
+		src_off = le64_to_cpu(dup_ext->SourceFileOffset);
+		dst_off = le64_to_cpu(dup_ext->TargetFileOffset);
+		length = le64_to_cpu(dup_ext->ByteCount);
+		cloned = vfs_clone_file_range(fp_in->filp, src_off, fp_out->filp,
+				dst_off, length, 0);
+		if (cloned == -EXDEV || cloned == -EOPNOTSUPP) {
+			ret = -EOPNOTSUPP;
+			goto dup_ext_out;
+		} else if (cloned != length) {
+			cloned = ksmbd_vfs_copy_file_range(fp_in->filp, src_off,
+					fp_out->filp, dst_off, length);
+			if (cloned != length) {
+				if (cloned < 0)
+					ret = cloned;
+				else
+					ret = -EINVAL;
+			}
+		}
+
+dup_ext_out:
+		ksmbd_fd_put(work, fp_in);
+		ksmbd_fd_put(work, fp_out);
+		if (ret < 0)
+			goto out;
 		break;
 	}
 	default:

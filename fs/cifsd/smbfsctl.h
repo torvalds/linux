@@ -64,6 +64,7 @@
 #define FSCTL_SET_SHORT_NAME_BEHAVIOR 0x000901B4 /* BB add struct */
 #define FSCTL_QUERY_ALLOCATED_RANGES 0x000940CF /* BB add struct */
 #define FSCTL_SET_DEFECT_MANAGEMENT  0x00098134 /* BB add struct */
+#define FSCTL_DUPLICATE_EXTENTS_TO_FILE 0x00098344
 #define FSCTL_SIS_LINK_FILES         0x0009C104
 #define FSCTL_PIPE_PEEK              0x0011400C /* BB add struct */
 #define FSCTL_PIPE_TRANSCEIVE        0x0011C017 /* BB add struct */

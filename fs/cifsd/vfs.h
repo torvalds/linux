@@ -218,7 +218,8 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 		struct srv_copychunk *chunks, unsigned int chunk_count,
 		unsigned int *chunk_count_written,
 		unsigned int *chunk_size_written, loff_t  *total_size_written);
-
+int ksmbd_vfs_copy_file_range(struct file *file_in, loff_t pos_in,
+		struct file *file_out, loff_t pos_out, size_t len);
 ssize_t ksmbd_vfs_listxattr(struct dentry *dentry, char **list);
 ssize_t ksmbd_vfs_getxattr(struct dentry *dentry, char *xattr_name,
 		char **xattr_buf);

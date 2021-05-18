@@ -1789,7 +1789,7 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 	return 0;
 }
 
-static int ksmbd_vfs_copy_file_range(struct file *file_in, loff_t pos_in,
+int ksmbd_vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 		struct file *file_out, loff_t pos_out, size_t len)
 {
 	struct inode *inode_in = file_inode(file_in);
