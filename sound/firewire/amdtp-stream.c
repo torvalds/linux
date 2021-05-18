@@ -723,7 +723,8 @@ static inline u32 compute_ohci_it_cycle(const __be32 ctx_header_tstamp,
 static int generate_device_pkt_descs(struct amdtp_stream *s,
 				     struct pkt_desc *descs,
 				     const __be32 *ctx_header,
-				     unsigned int packets)
+				     unsigned int packets,
+				     unsigned int *desc_count)
 {
 	unsigned int next_cycle = s->next_cycle;
 	unsigned int dbc = s->data_block_counter;
@@ -732,8 +733,9 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 	int i;
 	int err;
 
+	*desc_count = 0;
 	for (i = 0; i < packets; ++i) {
-		struct pkt_desc *desc = descs + i;
+		struct pkt_desc *desc = descs + *desc_count;
 		unsigned int cycle;
 		bool lost;
 		unsigned int data_blocks;
@@ -745,11 +747,25 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 			if (s->flags & CIP_NO_HEADER) {
 				// Fireface skips transmission just for an isoc cycle corresponding
 				// to empty packet.
+				unsigned int prev_cycle = next_cycle;
+
 				next_cycle = increment_ohci_cycle_count(next_cycle, 1);
 				lost = (next_cycle != cycle);
+				if (!lost) {
+					// Prepare a description for the skipped cycle for
+					// sequence replay.
+					desc->cycle = prev_cycle;
+					desc->syt = 0;
+					desc->data_blocks = 0;
+					desc->data_block_counter = dbc;
+					desc->ctx_payload = NULL;
+					++desc;
+					++(*desc_count);
+				}
 			} else if (s->flags & CIP_JUMBO_PAYLOAD) {
 				// OXFW970 skips transmission for several isoc cycles during
-				// asynchronous transaction.
+				// asynchronous transaction. The sequence replay is impossible due
+				// to the reason.
 				unsigned int safe_cycle = increment_ohci_cycle_count(next_cycle,
 								IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES);
 				lost = (compare_ohci_cycle_count(safe_cycle, cycle) > 0);
@@ -776,6 +792,7 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 			dbc = (dbc + desc->data_blocks) & 0xff;
 
 		next_cycle = increment_ohci_cycle_count(next_cycle, 1);
+		++(*desc_count);
 		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
 		packet_index = (packet_index + 1) % queue_size;
 	}
@@ -927,6 +944,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	struct amdtp_stream *s = private_data;
 	__be32 *ctx_header = header;
 	unsigned int packets;
+	unsigned int desc_count;
 	int i;
 	int err;
 
@@ -936,14 +954,15 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / s->ctx_data.tx.ctx_header_size;
 
-	err = generate_device_pkt_descs(s, s->pkt_descs, ctx_header, packets);
+	desc_count = 0;
+	err = generate_device_pkt_descs(s, s->pkt_descs, ctx_header, packets, &desc_count);
 	if (err < 0) {
 		if (err != -EAGAIN) {
 			cancel_stream(s);
 			return;
 		}
 	} else {
-		process_ctx_payloads(s, s->pkt_descs, packets);
+		process_ctx_payloads(s, s->pkt_descs, desc_count);
 	}
 
 	for (i = 0; i < packets; ++i) {
