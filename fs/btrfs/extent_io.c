@@ -3762,7 +3762,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		/* Note that em_end from extent_map_end() is exclusive */
 		iosize = min(em_end, end + 1) - cur;
 
-		if (btrfs_use_zone_append(inode, em))
+		if (btrfs_use_zone_append(inode, em->block_start))
 			opf = REQ_OP_ZONE_APPEND;
 
 		free_extent_map(em);
