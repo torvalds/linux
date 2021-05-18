@@ -434,9 +434,7 @@ void ssb_bus_unregister(struct ssb_bus *bus)
 	int err;
 
 	err = ssb_gpio_unregister(bus);
-	if (err == -EBUSY)
-		pr_debug("Some GPIOs are still in use\n");
-	else if (err)
+	if (err)
 		pr_debug("Can not unregister GPIO driver: %i\n", err);
 
 	ssb_buses_lock();
