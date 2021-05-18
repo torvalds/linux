@@ -982,7 +982,6 @@
   kasprintf
   kernel_cpustat
   kernel_kobj
-  kernel_read
   kernel_restart
   kern_mount
   kern_unmount
