@@ -421,7 +421,7 @@ static struct dmc620_pmu_irq *__dmc620_pmu_get_irq(int irq_num)
 	if (ret)
 		goto out_free_aff;
 
-	ret = irq_set_affinity_hint(irq_num, cpumask_of(irq->cpu));
+	ret = irq_set_affinity(irq_num, cpumask_of(irq->cpu));
 	if (ret)
 		goto out_free_irq;
 
@@ -475,7 +475,6 @@ static void dmc620_pmu_put_irq(struct dmc620_pmu *dmc620_pmu)
 	list_del(&irq->irqs_node);
 	mutex_unlock(&dmc620_pmu_irqs_lock);
 
-	WARN_ON(irq_set_affinity_hint(irq->irq_num, NULL));
 	free_irq(irq->irq_num, irq);
 	cpuhp_state_remove_instance_nocalls(cpuhp_state_num, &irq->node);
 	kfree(irq);
@@ -622,7 +621,7 @@ static int dmc620_pmu_cpu_teardown(unsigned int cpu,
 		perf_pmu_migrate_context(&dmc620_pmu->pmu, irq->cpu, target);
 	mutex_unlock(&dmc620_pmu_irqs_lock);
 
-	WARN_ON(irq_set_affinity_hint(irq->irq_num, cpumask_of(target)));
+	WARN_ON(irq_set_affinity(irq->irq_num, cpumask_of(target)));
 	irq->cpu = target;
 
 	return 0;
