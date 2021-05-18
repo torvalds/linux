@@ -106,7 +106,8 @@ enum snd_motu_protocol_version {
 struct snd_motu_spec {
 	const char *const name;
 	enum snd_motu_protocol_version protocol_version;
-	enum snd_motu_spec_flags flags;
+	// The combination of snd_motu_spec_flags enumeration-constants.
+	unsigned int flags;
 
 	unsigned char tx_fixed_pcm_chunks[3];
 	unsigned char rx_fixed_pcm_chunks[3];
