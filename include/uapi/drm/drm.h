@@ -812,8 +812,8 @@ struct drm_get_cap {
  * DRM_CLIENT_CAP_WRITEBACK_CONNECTORS
  *
  * If set to 1, the DRM core will expose special connectors to be used for
- * writing back to memory the scene setup in the commit. Depends on client
- * also supporting DRM_CLIENT_CAP_ATOMIC
+ * writing back to memory the scene setup in the commit. The client must enable
+ * &DRM_CLIENT_CAP_ATOMIC first.
  */
 #define DRM_CLIENT_CAP_WRITEBACK_CONNECTORS	5
 
