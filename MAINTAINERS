@@ -18546,9 +18546,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty.git
 F:	Documentation/driver-api/serial/
 F:	drivers/tty/
 F:	drivers/tty/serial/serial_core.c
+F:	include/linux/selection.h
 F:	include/linux/serial.h
 F:	include/linux/serial_core.h
-F:	include/linux/tty.h
+F:	include/linux/sysrq.h
+F:	include/linux/tty*.h
+F:	include/linux/vt.h
+F:	include/linux/vt_*.h
 F:	include/uapi/linux/serial.h
 F:	include/uapi/linux/serial_core.h
 F:	include/uapi/linux/tty.h
