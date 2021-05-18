@@ -109,6 +109,12 @@ properties:
           Phandle to a regulator that provides power to VBUS.
           See ./phy-bindings.txt for details.
 
+      rockchip,utmi-avalid:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, the usb2 phy will use avalid status bit to
+          get vbus status. If not, it will use bvalid status bit to get vbus
+          status by default.
+
     required:
       - "#phy-cells"
       - interrupts
