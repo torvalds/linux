@@ -664,6 +664,7 @@ EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 {
+	static const struct ttm_place sys_mem = { .mem_type = TTM_PL_SYSTEM };
 	struct ttm_buffer_object *ghost;
 	int ret;
 
@@ -676,8 +677,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	if (ret)
 		ttm_bo_wait(bo, false, false);
 
-	memset(&bo->mem, 0, sizeof(bo->mem));
-	bo->mem.mem_type = TTM_PL_SYSTEM;
+	ttm_resource_alloc(bo, &sys_mem, &bo->mem);
 	bo->ttm = NULL;
 
 	dma_resv_unlock(&ghost->base._resv);

@@ -68,6 +68,7 @@ config DRM_LONTIUM_LT8912B
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select REGMAP_I2C
+	select VIDEOMODE_HELPERS
 	help
 	  Driver for Lontium LT8912B DSI to HDMI bridge
 	  chip driver.
@@ -103,6 +104,14 @@ config DRM_LONTIUM_LT9611UXC
 	  chip driver that converts dual DSI and I2S to
 	  HDMI signals
 	  Please say Y if you have such hardware.
+
+config DRM_ITE_IT66121
+	tristate "ITE IT66121 HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	help
+	  Support for ITE IT66121 HDMI bridge.
 
 config DRM_LVDS_CODEC
 	tristate "Transparent LVDS encoders and decoders support"
@@ -172,7 +181,7 @@ config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
 	select DRM_KMS_HELPER
-	imply EXTCON
+	select EXTCON
 	depends on RC_CORE || !RC_CORE
 	help
 	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
@@ -270,6 +279,7 @@ config DRM_TI_SN65DSI86
 	select REGMAP_I2C
 	select DRM_PANEL
 	select DRM_MIPI_DSI
+	select AUXILIARY_BUS
 	help
 	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
 

@@ -400,6 +400,21 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+/* Test the shrinker functions and dump the result */
+static int ttm_tt_debugfs_shrink_show(struct seq_file *m, void *data)
+{
+	struct ttm_operation_ctx ctx = { false, false };
+
+	seq_printf(m, "%d\n", ttm_global_swapout(&ctx, GFP_KERNEL));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_tt_debugfs_shrink);
+
+#endif
+
+
 /**
  * ttm_tt_mgr_init - register with the MM shrinker
  *
@@ -407,6 +422,11 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
  */
 void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages)
 {
+#ifdef CONFIG_DEBUG_FS
+	debugfs_create_file("tt_shrink", 0400, ttm_debugfs_root, NULL,
+			    &ttm_tt_debugfs_shrink_fops);
+#endif
+
 	if (!ttm_pages_limit)
 		ttm_pages_limit = num_pages;
 

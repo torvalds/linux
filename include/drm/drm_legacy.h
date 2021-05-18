@@ -33,6 +33,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/agp_backend.h>
+
 #include <drm/drm.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_hashtab.h>
@@ -194,10 +196,6 @@ void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
 #ifdef CONFIG_PCI
 
-struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
-				     size_t align);
-void drm_pci_free(struct drm_device *dev, struct drm_dma_handle *dmah);
-
 int drm_legacy_pci_init(const struct drm_driver *driver,
 			struct pci_driver *pdriver);
 void drm_legacy_pci_exit(const struct drm_driver *driver,
@@ -227,6 +225,86 @@ static inline void drm_legacy_pci_exit(const struct drm_driver *driver,
 {
 }
 
+#endif
+
+/*
+ * AGP Support
+ */
+
+struct drm_agp_head {
+	struct agp_kern_info agp_info;
+	struct list_head memory;
+	unsigned long mode;
+	struct agp_bridge_data *bridge;
+	int enabled;
+	int acquired;
+	unsigned long base;
+	int agp_mtrr;
+	int cant_use_aperture;
+	unsigned long page_mask;
+};
+
+#if IS_ENABLED(CONFIG_DRM_LEGACY) && IS_ENABLED(CONFIG_AGP)
+struct drm_agp_head *drm_legacy_agp_init(struct drm_device *dev);
+int drm_legacy_agp_acquire(struct drm_device *dev);
+int drm_legacy_agp_release(struct drm_device *dev);
+int drm_legacy_agp_enable(struct drm_device *dev, struct drm_agp_mode mode);
+int drm_legacy_agp_info(struct drm_device *dev, struct drm_agp_info *info);
+int drm_legacy_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request);
+int drm_legacy_agp_free(struct drm_device *dev, struct drm_agp_buffer *request);
+int drm_legacy_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request);
+int drm_legacy_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
+#else
+static inline struct drm_agp_head *drm_legacy_agp_init(struct drm_device *dev)
+{
+	return NULL;
+}
+
+static inline int drm_legacy_agp_acquire(struct drm_device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_release(struct drm_device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_enable(struct drm_device *dev,
+					struct drm_agp_mode mode)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_info(struct drm_device *dev,
+				      struct drm_agp_info *info)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_alloc(struct drm_device *dev,
+				       struct drm_agp_buffer *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_free(struct drm_device *dev,
+				      struct drm_agp_buffer *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_unbind(struct drm_device *dev,
+					struct drm_agp_binding *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_bind(struct drm_device *dev,
+				      struct drm_agp_binding *request)
+{
+	return -ENODEV;
+}
 #endif
 
 /* drm_memory.c */

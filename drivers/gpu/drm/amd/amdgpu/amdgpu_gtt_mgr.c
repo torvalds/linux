@@ -205,7 +205,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 
 	spin_lock(&mgr->lock);
 	r = drm_mm_insert_node_in_range(&mgr->mm, &node->node, mem->num_pages,
-					mem->page_alignment, 0, place->fpfn,
+					tbo->page_alignment, 0, place->fpfn,
 					place->lpfn, DRM_MM_INSERT_BEST);
 	spin_unlock(&mgr->lock);
 

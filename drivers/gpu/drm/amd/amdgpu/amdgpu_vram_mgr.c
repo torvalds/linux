@@ -450,7 +450,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* default to 2MB */
 		pages_per_node = (2UL << (20UL - PAGE_SHIFT));
 #endif
-		pages_per_node = max((uint32_t)pages_per_node, mem->page_alignment);
+		pages_per_node = max((uint32_t)pages_per_node,
+				     tbo->page_alignment);
 		num_nodes = DIV_ROUND_UP(mem->num_pages, pages_per_node);
 	}
 
@@ -489,7 +490,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 
 	for (; pages_left; ++i) {
 		unsigned long pages = min(pages_left, pages_per_node);
-		uint32_t alignment = mem->page_alignment;
+		uint32_t alignment = tbo->page_alignment;
 
 		if (pages == pages_per_node)
 			alignment = pages_per_node;

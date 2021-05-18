@@ -33,7 +33,7 @@
  * The currently only reason we need to keep track of views is that if we
  * destroy a hardware surface, all views pointing to it must also be destroyed,
  * otherwise the device will error.
- * So in particuar if a surface is evicted, we must destroy all views pointing
+ * So in particular if a surface is evicted, we must destroy all views pointing
  * to it, and all context bindings of that view. Similarly we must restore
  * the view bindings, views and surfaces pointed to by the views when a
  * context is referenced in the command stream.
@@ -90,7 +90,7 @@ static const struct vmw_res_func vmw_view_func = {
 };
 
 /**
- * struct vmw_view - view define command body stub
+ * struct vmw_view_define - view define command body stub
  *
  * @view_id: The device id of the view being defined
  * @sid: The surface id of the view being defined

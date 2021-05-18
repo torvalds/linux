@@ -11705,8 +11705,6 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	mode_config->preferred_depth = 24;
 	mode_config->prefer_shadow = 1;
 
-	mode_config->allow_fb_modifiers = true;
-
 	mode_config->funcs = &intel_mode_funcs;
 
 	mode_config->async_page_flip = has_async_flips(i915);

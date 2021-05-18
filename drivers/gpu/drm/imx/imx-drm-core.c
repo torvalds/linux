@@ -210,7 +210,6 @@ static int imx_drm_bind(struct device *dev)
 	drm->mode_config.max_height = 4096;
 	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
 	drm->mode_config.helper_private = &imx_drm_mode_config_helpers;
-	drm->mode_config.allow_fb_modifiers = true;
 	drm->mode_config.normalize_zpos = true;
 
 	ret = drmm_mode_config_init(drm);

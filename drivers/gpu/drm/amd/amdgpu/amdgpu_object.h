@@ -191,7 +191,7 @@ static inline unsigned amdgpu_bo_ngpu_pages(struct amdgpu_bo *bo)
 
 static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
 {
-	return (bo->tbo.mem.page_alignment << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
+	return (bo->tbo.page_alignment << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
 }
 
 /**
@@ -300,6 +300,8 @@ int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr);
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
 u64 amdgpu_bo_gpu_offset_no_check(struct amdgpu_bo *bo);
 int amdgpu_bo_validate(struct amdgpu_bo *bo);
+void amdgpu_bo_get_memory(struct amdgpu_bo *bo, uint64_t *vram_mem,
+				uint64_t *gtt_mem, uint64_t *cpu_mem);
 int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow,
 			     struct dma_fence **fence);
 uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,

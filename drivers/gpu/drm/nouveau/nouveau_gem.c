@@ -253,7 +253,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->offset = vma->addr;
 	}
 
-	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
+	rep->size = nvbo->bo.base.size;
 	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.base.vma_node);
 	rep->tile_mode = nvbo->mode;
 	rep->tile_flags = nvbo->contig ? 0 : NOUVEAU_GEM_TILE_NONCONTIG;
@@ -638,7 +638,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 		nvbo = (void *)(unsigned long)bo[r->reloc_bo_index].user_priv;
 
 		if (unlikely(r->reloc_bo_offset + 4 >
-			     nvbo->bo.mem.num_pages << PAGE_SHIFT)) {
+			     nvbo->bo.base.size)) {
 			NV_PRINTK(err, cli, "reloc outside of bo\n");
 			ret = -EINVAL;
 			break;

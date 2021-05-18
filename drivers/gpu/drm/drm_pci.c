@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 
 #include <drm/drm.h>
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>
 
@@ -41,64 +40,6 @@
 /* List of devices hanging off drivers with stealth attach. */
 static LIST_HEAD(legacy_dev_list);
 static DEFINE_MUTEX(legacy_dev_list_lock);
-
-/**
- * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.
- * @dev: DRM device
- * @size: size of block to allocate
- * @align: alignment of block
- *
- * FIXME: This is a needless abstraction of the Linux dma-api and should be
- * removed.
- *
- * Return: A handle to the allocated memory block on success or NULL on
- * failure.
- */
-drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
-{
-	drm_dma_handle_t *dmah;
-
-	/* pci_alloc_consistent only guarantees alignment to the smallest
-	 * PAGE_SIZE order which is greater than or equal to the requested size.
-	 * Return NULL here for now to make sure nobody tries for larger alignment
-	 */
-	if (align > size)
-		return NULL;
-
-	dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
-	if (!dmah)
-		return NULL;
-
-	dmah->size = size;
-	dmah->vaddr = dma_alloc_coherent(dev->dev, size,
-					 &dmah->busaddr,
-					 GFP_KERNEL);
-
-	if (dmah->vaddr == NULL) {
-		kfree(dmah);
-		return NULL;
-	}
-
-	return dmah;
-}
-EXPORT_SYMBOL(drm_pci_alloc);
-
-/**
- * drm_pci_free - Free a PCI consistent memory block
- * @dev: DRM device
- * @dmah: handle to memory block
- *
- * FIXME: This is a needless abstraction of the Linux dma-api and should be
- * removed.
- */
-void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
-{
-	dma_free_coherent(dev->dev, dmah->size, dmah->vaddr,
-			  dmah->busaddr);
-	kfree(dmah);
-}
-
-EXPORT_SYMBOL(drm_pci_free);
 #endif
 
 static int drm_get_pci_domain(struct drm_device *dev)
@@ -177,7 +118,9 @@ int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
 	return drm_pci_irq_by_busid(dev, p);
 }
 
-void drm_pci_agp_destroy(struct drm_device *dev)
+#ifdef CONFIG_DRM_LEGACY
+
+void drm_legacy_pci_agp_destroy(struct drm_device *dev)
 {
 	if (dev->agp) {
 		arch_phys_wc_del(dev->agp->agp_mtrr);
@@ -187,13 +130,11 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_DRM_LEGACY
-
-static void drm_pci_agp_init(struct drm_device *dev)
+static void drm_legacy_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
 		if (pci_find_capability(to_pci_dev(dev->dev), PCI_CAP_ID_AGP))
-			dev->agp = drm_agp_init(dev);
+			dev->agp = drm_legacy_agp_init(dev);
 		if (dev->agp) {
 			dev->agp->agp_mtrr = arch_phys_wc_add(
 				dev->agp->agp_info.aper_base,
@@ -203,9 +144,9 @@ static void drm_pci_agp_init(struct drm_device *dev)
 	}
 }
 
-static int drm_get_pci_dev(struct pci_dev *pdev,
-			   const struct pci_device_id *ent,
-			   const struct drm_driver *driver)
+static int drm_legacy_get_pci_dev(struct pci_dev *pdev,
+				  const struct pci_device_id *ent,
+				  const struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -220,7 +161,6 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	if (ret)
 		goto err_free;
 
-	dev->pdev = pdev;
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
@@ -228,7 +168,7 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		pci_set_drvdata(pdev, dev);
 
-	drm_pci_agp_init(dev);
+	drm_legacy_pci_agp_init(dev);
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
@@ -243,7 +183,7 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	return 0;
 
 err_agp:
-	drm_pci_agp_destroy(dev);
+	drm_legacy_pci_agp_destroy(dev);
 	pci_disable_device(pdev);
 err_free:
 	drm_dev_put(dev);
@@ -290,7 +230,7 @@ int drm_legacy_pci_init(const struct drm_driver *driver,
 
 			/* stealth mode requires a manual probe */
 			pci_dev_get(pdev);
-			drm_get_pci_dev(pdev, pid, driver);
+			drm_legacy_get_pci_dev(pdev, pid, driver);
 		}
 	}
 	return 0;

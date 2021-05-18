@@ -876,15 +876,9 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 		goto out_bad_arg;
 	}
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		goto out_bad_arg;
-
 	ret = vmw_user_shader_alloc(dev_priv, buffer, size, offset,
 				    shader_type, num_input_sig,
 				    num_output_sig, tfile, shader_handle);
-
-	ttm_read_unlock(&dev_priv->reservation_sem);
 out_bad_arg:
 	vmw_bo_unreference(&buffer);
 	return ret;

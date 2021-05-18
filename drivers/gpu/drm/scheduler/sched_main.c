@@ -671,7 +671,7 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 static struct drm_sched_job *
 drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 {
-	struct drm_sched_job *job;
+	struct drm_sched_job *job, *next;
 
 	/*
 	 * Don't destroy jobs while the timeout worker is running  OR thread
@@ -690,6 +690,13 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	if (job && dma_fence_is_signaled(&job->s_fence->finished)) {
 		/* remove job from pending_list */
 		list_del_init(&job->list);
+		/* make the scheduled timestamp more accurate */
+		next = list_first_entry_or_null(&sched->pending_list,
+						typeof(*next), list);
+		if (next)
+			next->s_fence->scheduled.timestamp =
+				job->s_fence->finished.timestamp;
+
 	} else {
 		job = NULL;
 		/* queue timeout for next job */

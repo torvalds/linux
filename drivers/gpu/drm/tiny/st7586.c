@@ -323,16 +323,12 @@ static int st7586_probe(struct spi_device *spi)
 	bufsize = (st7586_mode.vdisplay + 2) / 3 * st7586_mode.hdisplay;
 
 	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(dbi->reset)) {
-		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
-		return PTR_ERR(dbi->reset);
-	}
+	if (IS_ERR(dbi->reset))
+		return dev_err_probe(dev, PTR_ERR(dbi->reset), "Failed to get GPIO 'reset'\n");
 
 	a0 = devm_gpiod_get(dev, "a0", GPIOD_OUT_LOW);
-	if (IS_ERR(a0)) {
-		DRM_DEV_ERROR(dev, "Failed to get gpio 'a0'\n");
-		return PTR_ERR(a0);
-	}
+	if (IS_ERR(a0))
+		return dev_err_probe(dev, PTR_ERR(a0), "Failed to get GPIO 'a0'\n");
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
