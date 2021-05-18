@@ -299,10 +299,6 @@
 	status = "disabled";
 };
 
-&vpu {
-	status = "disabled";
-};
-
 &iomuxc {
 	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
