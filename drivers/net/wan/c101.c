@@ -28,8 +28,8 @@
 
 #include "hd64570.h"
 
-static const char* version = "Moxa C101 driver version: 1.15";
-static const char* devname = "C101";
+static const char *version = "Moxa C101 driver version: 1.15";
+static const char *devname = "C101";
 
 #undef DEBUG_PKT
 #define DEBUG_RINGS
