@@ -20,7 +20,7 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
-#define OHCI_MAX_SECOND		8
+#define OHCI_SECOND_MODULUS		8
 
 /* Always support Linux tracing subsystem. */
 #define CREATE_TRACE_POINTS
@@ -688,17 +688,17 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 // In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
 // the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
 // it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
-static inline u32 compute_cycle_count(__be32 ctx_header_tstamp)
+static inline u32 compute_ohci_cycle_count(__be32 ctx_header_tstamp)
 {
 	u32 tstamp = be32_to_cpu(ctx_header_tstamp) & HEADER_TSTAMP_MASK;
 	return (((tstamp >> 13) & 0x07) * 8000) + (tstamp & 0x1fff);
 }
 
-static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
+static inline u32 increment_ohci_cycle_count(u32 cycle, unsigned int addend)
 {
 	cycle += addend;
-	if (cycle >= OHCI_MAX_SECOND * CYCLES_PER_SECOND)
-		cycle -= OHCI_MAX_SECOND * CYCLES_PER_SECOND;
+	if (cycle >= OHCI_SECOND_MODULUS * CYCLES_PER_SECOND)
+		cycle -= OHCI_SECOND_MODULUS * CYCLES_PER_SECOND;
 	return cycle;
 }
 
@@ -706,11 +706,11 @@ static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
 // This module queued the same number of isochronous cycle as the size of queue
 // to kip isochronous cycle, therefore it's OK to just increment the cycle by
 // the size of queue for scheduled cycle.
-static inline u32 compute_it_cycle(const __be32 ctx_header_tstamp,
-				   unsigned int queue_size)
+static inline u32 compute_ohci_it_cycle(const __be32 ctx_header_tstamp,
+					unsigned int queue_size)
 {
-	u32 cycle = compute_cycle_count(ctx_header_tstamp);
-	return increment_cycle_count(cycle, queue_size);
+	u32 cycle = compute_ohci_cycle_count(ctx_header_tstamp);
+	return increment_ohci_cycle_count(cycle, queue_size);
 }
 
 static int generate_device_pkt_descs(struct amdtp_stream *s,
@@ -731,7 +731,7 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 		unsigned int data_blocks;
 		unsigned int syt;
 
-		cycle = compute_cycle_count(ctx_header[1]);
+		cycle = compute_ohci_cycle_count(ctx_header[1]);
 
 		err = parse_ir_ctx_header(s, cycle, ctx_header, &payload_length,
 					  &data_blocks, &dbc, &syt, packet_index, i);
@@ -784,7 +784,7 @@ static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
 		const struct seq_desc *seq = seq_descs + seq_index;
 		unsigned int syt;
 
-		desc->cycle = compute_it_cycle(*ctx_header, s->queue_size);
+		desc->cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
 		syt = seq->syt_offset;
 		if (syt != CIP_SYT_NO_INFO) {
@@ -1025,11 +1025,11 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	wake_up(&s->callback_wait);
 
 	if (s->direction == AMDTP_IN_STREAM) {
-		cycle = compute_cycle_count(ctx_header[1]);
+		cycle = compute_ohci_cycle_count(ctx_header[1]);
 
 		context->callback.sc = in_stream_callback;
 	} else {
-		cycle = compute_it_cycle(*ctx_header, s->queue_size);
+		cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
 		if (s == s->domain->irq_target)
 			context->callback.sc = irq_target_callback;
