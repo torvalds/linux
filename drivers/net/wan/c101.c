@@ -84,7 +84,7 @@ static card_t **new_card = &first_card;
 /* EDA address register must be set in EDAL, EDAH order - 8 bit ISA bus */
 #define sca_outw(value, reg, card) do { \
 	writeb(value & 0xFF, (card)->win0base + C101_SCA + (reg)); \
-	writeb((value >> 8 ) & 0xFF, (card)->win0base + C101_SCA + (reg + 1));\
+	writeb((value >> 8) & 0xFF, (card)->win0base + C101_SCA + (reg + 1));\
 } while (0)
 
 #define port_to_card(port)	   (port)
