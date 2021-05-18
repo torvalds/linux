@@ -656,11 +656,18 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	}
 
 	if (cip_header_size > 0) {
-		cip_header = ctx_header + 2;
-		err = check_cip_header(s, cip_header, *payload_length,
-				       data_blocks, data_block_counter, syt);
-		if (err < 0)
-			return err;
+		if (*payload_length >= cip_header_size) {
+			cip_header = ctx_header + 2;
+			err = check_cip_header(s, cip_header, *payload_length, data_blocks,
+					       data_block_counter, syt);
+			if (err < 0)
+				return err;
+		} else {
+			// Handle the cycle so that empty packet arrives.
+			cip_header = NULL;
+			*data_blocks = 0;
+			*syt = 0;
+		}
 	} else {
 		cip_header = NULL;
 		err = 0;
