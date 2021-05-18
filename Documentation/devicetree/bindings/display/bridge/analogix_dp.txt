@@ -29,6 +29,8 @@ Optional properties for dp-controller:
 	-hpd-gpios:
 		Hotplug detect GPIO.
 		Indicates which GPIO should be used for hotplug detection
+	-panel-self-test:
+		Enable optional LCD Panel Self Test.
 	-port@[X]: SoC specific port nodes with endpoint definitions as defined
 		in Documentation/devicetree/bindings/media/video-interfaces.txt,
 		please refer to the SoC specific binding document:

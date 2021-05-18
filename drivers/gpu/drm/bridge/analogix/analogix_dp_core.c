@@ -959,11 +959,9 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 	struct video_info *video = &dp->video_info;
 	int ret;
 
-	/* Keep the panel disabled while we configure video */
-	if (dp->plat_data->panel) {
-		if (drm_panel_disable(dp->plat_data->panel))
-			DRM_ERROR("failed to disable the panel\n");
-	}
+	if (device_property_read_bool(dp->dev, "panel-self-test"))
+		return drm_dp_dpcd_writeb(&dp->aux, DP_EDP_CONFIGURATION_SET,
+					  DP_PANEL_SELF_TEST_ENABLE);
 
 	ret = analogix_dp_train_link(dp);
 	if (ret) {
@@ -987,15 +985,6 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 	if (ret) {
 		dev_err(dp->dev, "unable to config video\n");
 		return ret;
-	}
-
-	/* Safe to enable the panel now */
-	if (dp->plat_data->panel) {
-		ret = drm_panel_enable(dp->plat_data->panel);
-		if (ret) {
-			DRM_ERROR("failed to enable the panel\n");
-			return ret;
-		}
 	}
 
 	/* Check whether panel supports fast training */
@@ -1301,10 +1290,13 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 	}
 
 	ret = analogix_dp_commit(dp);
-	if (ret) {
+	if (ret < 0) {
 		DRM_ERROR("dp commit error, ret = %d\n", ret);
 		goto out_dp_init;
 	}
+
+	if (dp->plat_data->panel)
+		drm_panel_enable(dp->plat_data->panel);
 
 	if (dp->plat_data->power_on_end)
 		dp->plat_data->power_on_end(dp->plat_data);
