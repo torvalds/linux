@@ -834,7 +834,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	struct amdtp_stream *s = private_data;
 	const struct amdtp_domain *d = s->domain;
 	const __be32 *ctx_header = header;
-	unsigned int events_per_period = s->ctx_data.rx.events_per_period;
+	unsigned int events_per_period = d->events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
 	unsigned int packets;
 	int i;
@@ -1490,7 +1490,6 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	}
 
 	s = d->irq_target;
-	s->ctx_data.rx.events_per_period = events_per_period;
 	s->ctx_data.rx.event_count = 0;
 	s->ctx_data.rx.seq_index = 0;
 
