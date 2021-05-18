@@ -574,8 +574,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	/* Calculate data blocks */
 	fdf = (cip_header[1] & CIP_FDF_MASK) >> CIP_FDF_SHIFT;
-	if (payload_length < sizeof(__be32) * 2 ||
-	    (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
+	if (payload_length == 0 || (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
 		*data_blocks = 0;
 	} else {
 		unsigned int data_block_quadlets =
@@ -590,8 +589,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 		if (s->flags & CIP_WRONG_DBS)
 			data_block_quadlets = s->data_block_quadlets;
 
-		*data_blocks = (payload_length / sizeof(__be32) - 2) /
-							data_block_quadlets;
+		*data_blocks = payload_length / sizeof(__be32) / data_block_quadlets;
 	}
 
 	/* Check data block counter continuity */
@@ -658,8 +656,8 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	if (cip_header_size > 0) {
 		if (payload_length >= cip_header_size) {
 			cip_header = ctx_header + 2;
-			err = check_cip_header(s, cip_header, payload_length, data_blocks,
-					       data_block_counter, syt);
+			err = check_cip_header(s, cip_header, payload_length - cip_header_size,
+					       data_blocks, data_block_counter, syt);
 			if (err < 0)
 				return err;
 		} else {
