@@ -1159,8 +1159,6 @@ static int hl_fw_static_read_preboot_status(struct hl_device *hdev)
 	if (rc)
 		return rc;
 
-	hl_fw_preboot_update_state(hdev);
-
 	return 0;
 }
 
@@ -1188,6 +1186,8 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 					boot_err1_reg, timeout);
 	if (rc)
 		return rc;
+
+	hl_fw_preboot_update_state(hdev);
 
 	/* no need to read preboot status in dynamic load */
 	if (hdev->asic_prop.dynamic_fw_load)
@@ -1864,9 +1864,6 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 		hl_fw_boot_fit_update_state(hdev,
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
-	} else {
-		/* update state during preboot handshake */
-		hl_fw_preboot_update_state(hdev);
 	}
 
 	/* copy boot fit to space allocated by FW */
@@ -2097,9 +2094,6 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	}
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
-		/* update the preboot state */
-		hl_fw_preboot_update_state(hdev);
-
 		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader, 0);
 		if (rc)
 			goto protocol_err;
