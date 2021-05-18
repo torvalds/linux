@@ -12,10 +12,10 @@ struct drm_i915_private;
 #define DMC_VERSION_MAJOR(version)	((version) >> 16)
 #define DMC_VERSION_MINOR(version)	((version) & 0xffff)
 
-void intel_csr_ucode_init(struct drm_i915_private *i915);
-void intel_csr_load_program(struct drm_i915_private *i915);
-void intel_csr_ucode_fini(struct drm_i915_private *i915);
-void intel_csr_ucode_suspend(struct drm_i915_private *i915);
-void intel_csr_ucode_resume(struct drm_i915_private *i915);
+void intel_dmc_ucode_init(struct drm_i915_private *i915);
+void intel_dmc_load_program(struct drm_i915_private *i915);
+void intel_dmc_ucode_fini(struct drm_i915_private *i915);
+void intel_dmc_ucode_suspend(struct drm_i915_private *i915);
+void intel_dmc_ucode_resume(struct drm_i915_private *i915);
 
 #endif /* __INTEL_CSR_H__ */

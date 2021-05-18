@@ -12185,7 +12185,7 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return 0;
 
-	intel_csr_ucode_init(i915);
+	intel_dmc_ucode_init(i915);
 
 	i915->modeset_wq = alloc_ordered_workqueue("i915_modeset", 0);
 	i915->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
@@ -12197,15 +12197,15 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 
 	ret = intel_cdclk_init(i915);
 	if (ret)
-		goto cleanup_vga_client_pw_domain_csr;
+		goto cleanup_vga_client_pw_domain_dmc;
 
 	ret = intel_dbuf_init(i915);
 	if (ret)
-		goto cleanup_vga_client_pw_domain_csr;
+		goto cleanup_vga_client_pw_domain_dmc;
 
 	ret = intel_bw_init(i915);
 	if (ret)
-		goto cleanup_vga_client_pw_domain_csr;
+		goto cleanup_vga_client_pw_domain_dmc;
 
 	init_llist_head(&i915->atomic_helper.free_list);
 	INIT_WORK(&i915->atomic_helper.free_work,
@@ -12217,8 +12217,8 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 
 	return 0;
 
-cleanup_vga_client_pw_domain_csr:
-	intel_csr_ucode_fini(i915);
+cleanup_vga_client_pw_domain_dmc:
+	intel_dmc_ucode_fini(i915);
 	intel_power_domains_driver_remove(i915);
 	intel_vga_unregister(i915);
 cleanup_bios:
@@ -13297,7 +13297,7 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 /* part #3: call after gem init */
 void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915)
 {
-	intel_csr_ucode_fini(i915);
+	intel_dmc_ucode_fini(i915);
 
 	intel_power_domains_driver_remove(i915);
 

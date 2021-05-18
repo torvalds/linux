@@ -302,14 +302,14 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_csr_load_program() - write the firmware from memory to register.
+ * intel_dmc_load_program() - write the firmware from memory to register.
  * @dev_priv: i915 drm device.
  *
- * CSR firmware is read from a .bin file and kept in internal memory one time.
+ * DMC firmware is read from a .bin file and kept in internal memory one time.
  * Everytime display comes back from low power state this function is called to
  * copy the firmware from internal memory to registers.
  */
-void intel_csr_load_program(struct drm_i915_private *dev_priv)
+void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 {
 	u32 *payload = dev_priv->dmc.dmc_payload;
 	u32 i, fw_size;
@@ -391,9 +391,9 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 	return dmc_offset;
 }
 
-static u32 parse_csr_fw_dmc(struct intel_dmc *dmc,
-			    const struct intel_dmc_header_base *dmc_header,
-			    size_t rem_size)
+static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
+			       const struct intel_dmc_header_base *dmc_header,
+			       size_t rem_size)
 {
 	unsigned int header_len_bytes, dmc_header_size, payload_size, i;
 	const u32 *mmioaddr, *mmiodata;
@@ -498,7 +498,7 @@ error_truncated:
 }
 
 static u32
-parse_csr_fw_package(struct intel_dmc *dmc,
+parse_dmc_fw_package(struct intel_dmc *dmc,
 		     const struct intel_package_header *package_header,
 		     const struct stepping_info *si,
 		     size_t rem_size)
@@ -557,7 +557,7 @@ error_truncated:
 }
 
 /* Return number of bytes parsed or 0 on error */
-static u32 parse_csr_fw_css(struct intel_dmc *dmc,
+static u32 parse_dmc_fw_css(struct intel_dmc *dmc,
 			    struct intel_css_header *css_header,
 			    size_t rem_size)
 {
@@ -590,7 +590,7 @@ static u32 parse_csr_fw_css(struct intel_dmc *dmc,
 	return sizeof(struct intel_css_header);
 }
 
-static void parse_csr_fw(struct drm_i915_private *dev_priv,
+static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 			 const struct firmware *fw)
 {
 	struct intel_css_header *css_header;
@@ -606,7 +606,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract CSS Header information */
 	css_header = (struct intel_css_header *)fw->data;
-	r = parse_csr_fw_css(dmc, css_header, fw->size);
+	r = parse_dmc_fw_css(dmc, css_header, fw->size);
 	if (!r)
 		return;
 
@@ -614,7 +614,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract Package Header information */
 	package_header = (struct intel_package_header *)&fw->data[readcount];
-	r = parse_csr_fw_package(dmc, package_header, si, fw->size - readcount);
+	r = parse_dmc_fw_package(dmc, package_header, si, fw->size - readcount);
 	if (!r)
 		return;
 
@@ -622,17 +622,17 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract dmc_header information */
 	dmc_header = (struct intel_dmc_header_base *)&fw->data[readcount];
-	parse_csr_fw_dmc(dmc, dmc_header, fw->size - readcount);
+	parse_dmc_fw_header(dmc, dmc_header, fw->size - readcount);
 }
 
-static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
+static void intel_dmc_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
 	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
 	dev_priv->dmc.wakeref =
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
 
-static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
+static void intel_dmc_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
 	intel_wakeref_t wakeref __maybe_unused =
 		fetch_and_zero(&dev_priv->dmc.wakeref);
@@ -640,7 +640,7 @@ static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 }
 
-static void csr_load_work_fn(struct work_struct *work)
+static void dmc_load_work_fn(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv;
 	struct intel_dmc *dmc;
@@ -650,11 +650,11 @@ static void csr_load_work_fn(struct work_struct *work)
 	dmc = &dev_priv->dmc;
 
 	request_firmware(&fw, dev_priv->dmc.fw_path, dev_priv->drm.dev);
-	parse_csr_fw(dev_priv, fw);
+	parse_dmc_fw(dev_priv, fw);
 
 	if (dev_priv->dmc.dmc_payload) {
-		intel_csr_load_program(dev_priv);
-		intel_csr_runtime_pm_put(dev_priv);
+		intel_dmc_load_program(dev_priv);
+		intel_dmc_runtime_pm_put(dev_priv);
 
 		drm_info(&dev_priv->drm,
 			 "Finished loading DMC firmware %s (v%u.%u)\n",
@@ -673,17 +673,17 @@ static void csr_load_work_fn(struct work_struct *work)
 }
 
 /**
- * intel_csr_ucode_init() - initialize the firmware loading.
+ * intel_dmc_ucode_init() - initialize the firmware loading.
  * @dev_priv: i915 drm device.
  *
  * This function is called at the time of loading the display driver to read
  * firmware from a .bin file and copied into a internal memory.
  */
-void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_dmc *dmc = &dev_priv->dmc;
 
-	INIT_WORK(&dev_priv->dmc.work, csr_load_work_fn);
+	INIT_WORK(&dev_priv->dmc.work, dmc_load_work_fn);
 
 	if (!HAS_DMC(dev_priv))
 		return;
@@ -696,7 +696,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	 * suspend as runtime suspend *requires* a working DMC for whatever
 	 * reason.
 	 */
-	intel_csr_runtime_pm_get(dev_priv);
+	intel_dmc_runtime_pm_get(dev_priv);
 
 	if (IS_ALDERLAKE_S(dev_priv)) {
 		dmc->fw_path = ADLS_DMC_PATH;
@@ -766,14 +766,14 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_csr_ucode_suspend() - prepare CSR firmware before system suspend
+ * intel_dmc_ucode_suspend() - prepare DMC firmware before system suspend
  * @dev_priv: i915 drm device
  *
  * Prepare the DMC firmware before entering system suspend. This includes
  * flushing pending work items and releasing any resources acquired during
  * init.
  */
-void intel_csr_ucode_suspend(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_suspend(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_DMC(dev_priv))
 		return;
@@ -782,17 +782,17 @@ void intel_csr_ucode_suspend(struct drm_i915_private *dev_priv)
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!dev_priv->dmc.dmc_payload)
-		intel_csr_runtime_pm_put(dev_priv);
+		intel_dmc_runtime_pm_put(dev_priv);
 }
 
 /**
- * intel_csr_ucode_resume() - init CSR firmware during system resume
+ * intel_dmc_ucode_resume() - init DMC firmware during system resume
  * @dev_priv: i915 drm device
  *
  * Reinitialize the DMC firmware during system resume, reacquiring any
- * resources released in intel_csr_ucode_suspend().
+ * resources released in intel_dmc_ucode_suspend().
  */
-void intel_csr_ucode_resume(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_resume(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_DMC(dev_priv))
 		return;
@@ -802,22 +802,22 @@ void intel_csr_ucode_resume(struct drm_i915_private *dev_priv)
 	 * loaded.
 	 */
 	if (!dev_priv->dmc.dmc_payload)
-		intel_csr_runtime_pm_get(dev_priv);
+		intel_dmc_runtime_pm_get(dev_priv);
 }
 
 /**
- * intel_csr_ucode_fini() - unload the CSR firmware.
+ * intel_dmc_ucode_fini() - unload the DMC firmware.
  * @dev_priv: i915 drm device.
  *
  * Firmmware unloading includes freeing the internal memory and reset the
  * firmware loading status.
  */
-void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_DMC(dev_priv))
 		return;
 
-	intel_csr_ucode_suspend(dev_priv);
+	intel_dmc_ucode_suspend(dev_priv);
 	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
 
 	kfree(dev_priv->dmc.dmc_payload);

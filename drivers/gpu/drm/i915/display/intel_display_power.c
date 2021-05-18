@@ -958,7 +958,7 @@ static void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 	intel_pps_unlock_regs_wa(dev_priv);
 }
 
-static void assert_csr_loaded(struct drm_i915_private *dev_priv)
+static void assert_dmc_loaded(struct drm_i915_private *dev_priv)
 {
 	drm_WARN_ONCE(&dev_priv->drm,
 		      !intel_de_read(dev_priv, DMC_PROGRAM(0)),
@@ -1057,7 +1057,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 		      "DC5 already programmed to be enabled.\n");
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
-	assert_csr_loaded(dev_priv);
+	assert_dmc_loaded(dev_priv);
 }
 
 static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
@@ -1084,7 +1084,7 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 		       DC_STATE_EN_UPTO_DC6),
 		      "DC6 already programmed to be enabled.\n");
 
-	assert_csr_loaded(dev_priv);
+	assert_dmc_loaded(dev_priv);
 }
 
 static void skl_enable_dc6(struct drm_i915_private *dev_priv)
@@ -5574,7 +5574,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	gen9_dbuf_enable(dev_priv);
 
 	if (resume && dev_priv->dmc.dmc_payload)
-		intel_csr_load_program(dev_priv);
+		intel_dmc_load_program(dev_priv);
 }
 
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
@@ -5641,7 +5641,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	gen9_dbuf_enable(dev_priv);
 
 	if (resume && dev_priv->dmc.dmc_payload)
-		intel_csr_load_program(dev_priv);
+		intel_dmc_load_program(dev_priv);
 }
 
 static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
@@ -5707,7 +5707,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	gen9_dbuf_enable(dev_priv);
 
 	if (resume && dev_priv->dmc.dmc_payload)
-		intel_csr_load_program(dev_priv);
+		intel_dmc_load_program(dev_priv);
 }
 
 static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
@@ -5864,7 +5864,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		tgl_bw_buddy_init(dev_priv);
 
 	if (resume && dev_priv->dmc.dmc_payload)
-		intel_csr_load_program(dev_priv);
+		intel_dmc_load_program(dev_priv);
 
 	/* Wa_14011508470 */
 	if (DISPLAY_VER(dev_priv) == 12) {
