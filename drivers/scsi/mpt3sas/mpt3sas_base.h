@@ -500,6 +500,7 @@ struct MPT3SAS_DEVICE {
 #define MPT3_CMD_PENDING	0x0002	/* pending */
 #define MPT3_CMD_REPLY_VALID	0x0004	/* reply is valid */
 #define MPT3_CMD_RESET		0x0008	/* host reset dropped the command */
+#define MPT3_CMD_COMPLETE_ASYNC 0x0010  /* tells whether cmd completes in same thread or not */
 
 /**
  * struct _internal_cmd - internal commands struct
