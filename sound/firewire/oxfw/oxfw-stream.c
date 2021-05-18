@@ -153,8 +153,13 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
 	enum amdtp_stream_direction s_dir;
-	unsigned int flags = CIP_NONBLOCKING;
+	unsigned int flags;
 	int err;
+
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_BLOCKING_TRANSMISSION))
+		flags = CIP_NONBLOCKING;
+	else
+		flags = CIP_BLOCKING;
 
 	if (stream == &oxfw->tx_stream) {
 		conn = &oxfw->out_conn;
