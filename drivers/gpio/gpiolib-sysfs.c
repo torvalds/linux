@@ -312,10 +312,7 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
 		return 0;
 
-	if (value)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-	else
-		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	assign_bit(FLAG_ACTIVE_LOW, &desc->flags, value);
 
 	/* reconfigure poll(2) support if enabled on one edge only */
 	if (flags == GPIO_IRQF_TRIGGER_FALLING ||
