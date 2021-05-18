@@ -685,6 +685,7 @@ static void drm_cleanup_buf_error(struct drm_device *dev,
 						  dmah->size,
 						  dmah->vaddr,
 						  dmah->busaddr);
+				kfree(dmah);
 			}
 		}
 		kfree(entry->seglist);
