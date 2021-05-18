@@ -485,17 +485,12 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		break;
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
+		emit(A64_UDIV(is64, dst, dst, src), ctx);
+		break;
 	case BPF_ALU | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		switch (BPF_OP(code)) {
-		case BPF_DIV:
-			emit(A64_UDIV(is64, dst, dst, src), ctx);
-			break;
-		case BPF_MOD:
-			emit(A64_UDIV(is64, tmp, dst, src), ctx);
-			emit(A64_MSUB(is64, dst, dst, tmp, src), ctx);
-			break;
-		}
+		emit(A64_UDIV(is64, tmp, dst, src), ctx);
+		emit(A64_MSUB(is64, dst, dst, tmp, src), ctx);
 		break;
 	case BPF_ALU | BPF_LSH | BPF_X:
 	case BPF_ALU64 | BPF_LSH | BPF_X:
