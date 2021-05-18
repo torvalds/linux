@@ -1685,8 +1685,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	data->regmap = regmap;
 
 	if (!bmc150_apply_acpi_orientation(dev, &data->orientation)) {
-		ret = iio_read_mount_matrix(dev, "mount-matrix",
-					     &data->orientation);
+		ret = iio_read_mount_matrix(dev, &data->orientation);
 		if (ret)
 			return ret;
 	}

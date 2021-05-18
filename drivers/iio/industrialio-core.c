@@ -617,7 +617,6 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  * iio_read_mount_matrix() - retrieve iio device mounting matrix from
  *                           device "mount-matrix" property
  * @dev:	device the mounting matrix property is assigned to
- * @propname:	device specific mounting matrix property name
  * @matrix:	where to store retrieved matrix
  *
  * If device is assigned no mounting matrix property, a default 3x3 identity
@@ -625,14 +624,12 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  *
  * Return: 0 if success, or a negative error code on failure.
  */
-int iio_read_mount_matrix(struct device *dev, const char *propname,
-			  struct iio_mount_matrix *matrix)
+int iio_read_mount_matrix(struct device *dev, struct iio_mount_matrix *matrix)
 {
 	size_t len = ARRAY_SIZE(iio_mount_idmatrix.rotation);
 	int err;
 
-	err = device_property_read_string_array(dev, propname,
-						matrix->rotation, len);
+	err = device_property_read_string_array(dev, "mount-matrix", matrix->rotation, len);
 	if (err == len)
 		return 0;
 

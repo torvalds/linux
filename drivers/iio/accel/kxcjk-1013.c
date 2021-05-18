@@ -1455,8 +1455,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	} else {
 		data->active_high_intr = true; /* default polarity */
 
-		ret = iio_read_mount_matrix(&client->dev, "mount-matrix",
-					    &data->orientation);
+		ret = iio_read_mount_matrix(&client->dev, &data->orientation);
 		if (ret)
 			return ret;
 	}

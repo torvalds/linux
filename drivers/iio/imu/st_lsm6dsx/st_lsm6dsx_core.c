@@ -2256,7 +2256,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	err = iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
+	err = iio_read_mount_matrix(hw->dev, &hw->orientation);
 	if (err)
 		return err;
 

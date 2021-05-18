@@ -862,7 +862,7 @@ int fxls8962af_core_probe(struct device *dev, struct regmap *regmap, int irq)
 	dev_set_drvdata(dev, indio_dev);
 	data->regmap = regmap;
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &data->orientation);
+	ret = iio_read_mount_matrix(dev, &data->orientation);
 	if (ret)
 		return ret;
 
