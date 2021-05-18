@@ -4317,12 +4317,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	if (ret)
 		goto out_init_phy;
 
-	ret = register_netdev(netdev);
-	if (ret) {
-		dev_err(priv->dev, "probe register netdev fail!\n");
-		goto out_reg_netdev_fail;
-	}
-
 	/* the device can work without cpu rmap, only aRFS needs it */
 	ret = hns3_set_rx_cpu_rmap(netdev);
 	if (ret)
@@ -4355,17 +4349,23 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
 		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
 
+	ret = register_netdev(netdev);
+	if (ret) {
+		dev_err(priv->dev, "probe register netdev fail!\n");
+		goto out_reg_netdev_fail;
+	}
+
 	if (netif_msg_drv(handle))
 		hns3_info_show(priv);
 
 	return ret;
 
+out_reg_netdev_fail:
+	hns3_dbg_uninit(handle);
 out_client_start:
 	hns3_free_rx_cpu_rmap(netdev);
 	hns3_nic_uninit_irq(priv);
 out_init_irq_fail:
-	unregister_netdev(netdev);
-out_reg_netdev_fail:
 	hns3_uninit_phy(netdev);
 out_init_phy:
 	hns3_uninit_all_ring(priv);
