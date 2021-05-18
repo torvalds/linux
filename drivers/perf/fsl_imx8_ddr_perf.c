@@ -674,7 +674,7 @@ static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	perf_pmu_migrate_context(&pmu->pmu, cpu, target);
 	pmu->cpu = target;
 
-	WARN_ON(irq_set_affinity_hint(pmu->irq, cpumask_of(pmu->cpu)));
+	WARN_ON(irq_set_affinity(pmu->irq, cpumask_of(pmu->cpu)));
 
 	return 0;
 }
@@ -749,7 +749,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	}
 
 	pmu->irq = irq;
-	ret = irq_set_affinity_hint(pmu->irq, cpumask_of(pmu->cpu));
+	ret = irq_set_affinity(pmu->irq, cpumask_of(pmu->cpu));
 	if (ret) {
 		dev_err(pmu->dev, "Failed to set interrupt affinity!\n");
 		goto ddr_perf_err;
@@ -777,7 +777,6 @@ static int ddr_perf_remove(struct platform_device *pdev)
 
 	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
 	cpuhp_remove_multi_state(pmu->cpuhp_state);
-	irq_set_affinity_hint(pmu->irq, NULL);
 
 	perf_pmu_unregister(&pmu->pmu);
 
