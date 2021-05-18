@@ -48,8 +48,8 @@
 #define ST_SENSORS_MAX_NAME			17
 #define ST_SENSORS_MAX_4WAI			8
 
-#define ST_SENSORS_LSM_CHANNELS(device_type, mask, index, mod, \
-					ch2, s, endian, rbits, sbits, addr) \
+#define ST_SENSORS_LSM_CHANNELS_EXT(device_type, mask, index, mod, \
+				    ch2, s, endian, rbits, sbits, addr, ext) \
 { \
 	.type = device_type, \
 	.modified = mod, \
@@ -65,7 +65,13 @@
 		.storagebits = sbits, \
 		.endianness = endian, \
 	}, \
+	.ext_info = ext, \
 }
+
+#define ST_SENSORS_LSM_CHANNELS(device_type, mask, index, mod, \
+				ch2, s, endian, rbits, sbits, addr)	\
+	ST_SENSORS_LSM_CHANNELS_EXT(device_type, mask, index, mod,	\
+				    ch2, s, endian, rbits, sbits, addr, NULL)
 
 #define ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL() \
 		IIO_DEV_ATTR_SAMP_FREQ_AVAIL( \
