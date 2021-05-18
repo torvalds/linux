@@ -699,6 +699,16 @@ static inline u32 increment_ohci_cycle_count(u32 cycle, unsigned int addend)
 	return cycle;
 }
 
+static int compare_ohci_cycle_count(u32 lval, u32 rval)
+{
+	if (lval == rval)
+		return 0;
+	else if (lval < rval && rval - lval < OHCI_SECOND_MODULUS * CYCLES_PER_SECOND / 2)
+		return -1;
+	else
+		return 1;
+}
+
 // Align to actual cycle count for the packet which is going to be scheduled.
 // This module queued the same number of isochronous cycle as the size of queue
 // to kip isochronous cycle, therefore it's OK to just increment the cycle by
@@ -715,6 +725,7 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 				     const __be32 *ctx_header,
 				     unsigned int packets)
 {
+	unsigned int next_cycle = s->next_cycle;
 	unsigned int dbc = s->data_block_counter;
 	unsigned int packet_index = s->packet_index;
 	unsigned int queue_size = s->queue_size;
@@ -724,10 +735,31 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
 		unsigned int cycle;
+		bool lost;
 		unsigned int data_blocks;
 		unsigned int syt;
 
 		cycle = compute_ohci_cycle_count(ctx_header[1]);
+		lost = (next_cycle != cycle);
+		if (lost) {
+			if (s->flags & CIP_NO_HEADER) {
+				// Fireface skips transmission just for an isoc cycle corresponding
+				// to empty packet.
+				next_cycle = increment_ohci_cycle_count(next_cycle, 1);
+				lost = (next_cycle != cycle);
+			} else if (s->flags & CIP_JUMBO_PAYLOAD) {
+				// OXFW970 skips transmission for several isoc cycles during
+				// asynchronous transaction.
+				unsigned int safe_cycle = increment_ohci_cycle_count(next_cycle,
+								IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES);
+				lost = (compare_ohci_cycle_count(safe_cycle, cycle) > 0);
+			}
+			if (lost) {
+				dev_err(&s->unit->device, "Detect discontinuity of cycle: %d %d\n",
+					next_cycle, cycle);
+				return -EIO;
+			}
+		}
 
 		err = parse_ir_ctx_header(s, cycle, ctx_header, &data_blocks, &dbc, &syt,
 					  packet_index, i);
@@ -743,12 +775,12 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 		if (!(s->flags & CIP_DBC_IS_END_EVENT))
 			dbc = (dbc + desc->data_blocks) & 0xff;
 
-		ctx_header +=
-			s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
-
+		next_cycle = increment_ohci_cycle_count(next_cycle, 1);
+		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
 		packet_index = (packet_index + 1) % queue_size;
 	}
 
+	s->next_cycle = next_cycle;
 	s->data_block_counter = dbc;
 
 	return 0;
@@ -1022,6 +1054,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 
 	if (s->direction == AMDTP_IN_STREAM) {
 		cycle = compute_ohci_cycle_count(ctx_header[1]);
+		s->next_cycle = cycle;
 
 		context->callback.sc = in_stream_callback;
 	} else {
