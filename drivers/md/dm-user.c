@@ -916,7 +916,6 @@ static int user_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * channels have been closed.
 	 */
 	kref_init(&t->references);
-	kref_get(&t->references);
 
 	mutex_init(&t->lock);
 	init_waitqueue_head(&t->wq);
