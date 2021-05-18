@@ -277,13 +277,14 @@ static u32 df_v3_6_get_fb_channel_number(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	tmp = RREG32_SOC15(DF, 0, mmDF_CS_UMC_AON0_DramBaseAddress0);
-	if (adev->asic_type == CHIP_ALDEBARAN)
+	if (adev->asic_type == CHIP_ALDEBARAN) {
+		tmp = RREG32_SOC15(DF, 0, mmDF_GCM_AON0_DramMegaBaseAddress0);
 		tmp &=
 		ALDEBARAN_DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK;
-	else
+	} else {
+		tmp = RREG32_SOC15(DF, 0, mmDF_CS_UMC_AON0_DramBaseAddress0);
 		tmp &= DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK;
-
+	}
 	tmp >>= DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
 
 	return tmp;
