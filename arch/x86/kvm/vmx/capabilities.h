@@ -90,8 +90,7 @@ static inline bool cpu_has_vmx_preemption_timer(void)
 
 static inline bool cpu_has_vmx_posted_intr(void)
 {
-	return IS_ENABLED(CONFIG_X86_LOCAL_APIC) &&
-		vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
+	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
 }
 
 static inline bool cpu_has_load_ia32_efer(void)
