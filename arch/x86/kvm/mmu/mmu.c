@@ -3312,6 +3312,10 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		}
 	}
 
+	r = alloc_all_memslots_rmaps(vcpu->kvm);
+	if (r)
+		return r;
+
 	write_lock(&vcpu->kvm->mmu_lock);
 	r = make_mmu_pages_available(vcpu);
 	if (r < 0)
@@ -5523,9 +5527,13 @@ void kvm_mmu_init_vm(struct kvm *kvm)
 {
 	struct kvm_page_track_notifier_node *node = &kvm->arch.mmu_sp_tracker;
 
-	kvm_mmu_init_tdp_mmu(kvm);
-
-	kvm->arch.memslots_have_rmaps = true;
+	if (!kvm_mmu_init_tdp_mmu(kvm))
+		/*
+		 * No smp_load/store wrappers needed here as we are in
+		 * VM init and there cannot be any memslots / other threads
+		 * accessing this struct kvm yet.
+		 */
+		kvm->arch.memslots_have_rmaps = true;
 
 	node->track_write = kvm_mmu_pte_write;
 	node->track_flush_slot = kvm_mmu_invalidate_zap_pages_in_memslot;

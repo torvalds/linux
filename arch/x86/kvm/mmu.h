@@ -234,7 +234,12 @@ void kvm_mmu_pre_destroy_vm(struct kvm *kvm);
 
 static inline bool kvm_memslots_have_rmaps(struct kvm *kvm)
 {
-	return kvm->arch.memslots_have_rmaps;
+	/*
+	 * Read memslot_have_rmaps before rmap pointers.  Hence, threads reading
+	 * memslots_have_rmaps in any lock context are guaranteed to see the
+	 * pointers.  Pairs with smp_store_release in alloc_all_memslots_rmaps.
+	 */
+	return smp_load_acquire(&kvm->arch.memslots_have_rmaps);
 }
 
 #endif
