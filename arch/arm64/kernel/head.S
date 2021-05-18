@@ -195,7 +195,7 @@ SYM_CODE_END(preserve_boot_args)
 	and	\iend, \iend, \istart	// iend = (vend >> shift) & (ptrs - 1)
 	mov	\istart, \ptrs
 	mul	\istart, \istart, \count
-	add	\iend, \iend, \istart	// iend += (count - 1) * ptrs
+	add	\iend, \iend, \istart	// iend += count * ptrs
 					// our entries span multiple tables
 
 	lsr	\istart, \vstart, \shift
