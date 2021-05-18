@@ -371,6 +371,32 @@ bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
+/*
+ * Conditionally allow to enter the exclusive operation in case it's compatible
+ * with the running one.  This must be paired with btrfs_exclop_start_unlock and
+ * btrfs_exclop_finish.
+ *
+ * Compatibility:
+ * - the same type is already running
+ * - not BTRFS_EXCLOP_NONE - this is intentionally incompatible and the caller
+ *   must check the condition first that would allow none -> @type
+ */
+bool btrfs_exclop_start_try_lock(struct btrfs_fs_info *fs_info,
+				 enum btrfs_exclusive_operation type)
+{
+	spin_lock(&fs_info->super_lock);
+	if (fs_info->exclusive_operation == type)
+		return true;
+
+	spin_unlock(&fs_info->super_lock);
+	return false;
+}
+
+void btrfs_exclop_start_unlock(struct btrfs_fs_info *fs_info)
+{
+	spin_unlock(&fs_info->super_lock);
+}
+
 void btrfs_exclop_finish(struct btrfs_fs_info *fs_info)
 {
 	spin_lock(&fs_info->super_lock);
