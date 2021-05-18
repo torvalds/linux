@@ -742,6 +742,7 @@ static void binder_restore_priority_hook(void *data,
 		wts->boost = bndrtrans->android_vendor_data1;
 
 }
+
 /*
  * Higher prio mvp can preempt lower prio mvp.
  *

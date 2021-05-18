@@ -868,7 +868,6 @@ static inline bool walt_fair_task(struct task_struct *p)
 	return p->prio >= MAX_RT_PRIO && !is_idle_task(p);
 }
 
-
 #define WALT_MVP_SLICE		3000000U
 #define WALT_MVP_LIMIT		(4 * WALT_MVP_SLICE)
 
