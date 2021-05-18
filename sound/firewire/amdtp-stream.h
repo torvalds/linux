@@ -112,7 +112,8 @@ typedef unsigned int (*amdtp_stream_process_ctx_payloads_t)(
 struct amdtp_domain;
 struct amdtp_stream {
 	struct fw_unit *unit;
-	enum cip_flags flags;
+	// The combination of cip_flags enumeration-constants.
+	unsigned int flags;
 	enum amdtp_stream_direction direction;
 	struct mutex mutex;
 
@@ -184,7 +185,7 @@ struct amdtp_stream {
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
-		      enum amdtp_stream_direction dir, enum cip_flags flags,
+		      enum amdtp_stream_direction dir, unsigned int flags,
 		      unsigned int fmt,
 		      amdtp_stream_process_ctx_payloads_t process_ctx_payloads,
 		      unsigned int protocol_size);
