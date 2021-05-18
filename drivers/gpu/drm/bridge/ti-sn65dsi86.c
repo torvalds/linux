@@ -1042,7 +1042,9 @@ exit:
 	pm_runtime_mark_last_busy(pdata->dev);
 	pm_runtime_put_autosuspend(pdata->dev);
 
-	return ret ? ret : len;
+	if (ret)
+		return ret;
+	return len;
 }
 
 static int ti_sn_bridge_parse_dsi_host(struct ti_sn65dsi86 *pdata)
