@@ -2055,6 +2055,15 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 			dev_err(musb->controller, "Could not enable: %i\n",
 				error);
 		musb->quirk_retries = 3;
+
+		/*
+		 * We can get a spurious MUSB_INTR_SESSREQ interrupt on start-up
+		 * in B-peripheral mode with nothing connected and the session
+		 * bit clears silently. Check status again in 3 seconds.
+		 */
+		if (devctl & MUSB_DEVCTL_BDEVICE)
+			schedule_delayed_work(&musb->irq_work,
+					      msecs_to_jiffies(3000));
 	} else {
 		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
 		pm_runtime_mark_last_busy(musb->controller);
