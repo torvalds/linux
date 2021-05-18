@@ -2973,8 +2973,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 				goto out;
 			}
 			poll_end = cur = ktime_get();
-		} while (single_task_running() && !need_resched() &&
-			 ktime_before(cur, stop));
+		} while (kvm_vcpu_can_poll(cur, stop));
 	}
 
 	prepare_to_rcuwait(&vcpu->wait);
