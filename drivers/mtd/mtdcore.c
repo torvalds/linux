@@ -792,10 +792,8 @@ static ssize_t mtd_otp_size(struct mtd_info *mtd, bool is_user)
 	if (ret)
 		goto err;
 
-	for (i = 0; i < retlen / sizeof(*info); i++) {
-		size += info->length;
-		info++;
-	}
+	for (i = 0; i < retlen / sizeof(*info); i++)
+		size += info[i].length;
 
 	kfree(info);
 	return size;
