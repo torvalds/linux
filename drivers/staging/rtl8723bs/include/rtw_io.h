@@ -170,7 +170,7 @@ extern void unregister_intf_hdl(struct intf_hdl *pintfhdl);
 extern void _rtw_attrib_read(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 extern void _rtw_attrib_write(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-extern u8 _rtw_read8(struct adapter *adapter, u32 addr);
+extern u8 rtw_read8(struct adapter *adapter, u32 addr);
 extern u16 _rtw_read16(struct adapter *adapter, u32 addr);
 extern u32 _rtw_read32(struct adapter *adapter, u32 addr);
 
@@ -182,7 +182,6 @@ extern u8 _rtw_sd_f0_read8(struct adapter *adapter, u32 addr);
 
 extern u32 _rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-#define rtw_read8(adapter, addr) _rtw_read8((adapter), (addr))
 #define rtw_read16(adapter, addr) _rtw_read16((adapter), (addr))
 #define rtw_read32(adapter, addr) _rtw_read32((adapter), (addr))
 
@@ -243,8 +242,6 @@ extern void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 #define PlatformEFIOWrite4Byte(_a, _b, _c)		\
 	rtw_write32(_a, _b, _c)
 
-#define PlatformEFIORead1Byte(_a, _b)		\
-		rtw_read8(_a, _b)
 #define PlatformEFIORead2Byte(_a, _b)		\
 		rtw_read16(_a, _b)
 #define PlatformEFIORead4Byte(_a, _b)		\

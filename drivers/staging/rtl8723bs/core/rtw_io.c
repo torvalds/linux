@@ -33,7 +33,7 @@ jackson@realtek.com.tw
 #define rtw_cpu_to_le16(val)		val
 #define rtw_cpu_to_le32(val)		val
 
-u8 _rtw_read8(struct adapter *adapter, u32 addr)
+u8 rtw_read8(struct adapter *adapter, u32 addr)
 {
 	/* struct	io_queue	*pio_queue = (struct io_queue *)adapter->pio_queue; */
 	struct io_priv *pio_priv = &adapter->iopriv;
