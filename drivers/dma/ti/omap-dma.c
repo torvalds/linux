@@ -1608,7 +1608,8 @@ static int omap_dma_context_notifier(struct notifier_block *nb,
 			return NOTIFY_BAD;
 		omap_dma_context_save(od);
 		break;
-	case CPU_CLUSTER_PM_ENTER_FAILED:
+	case CPU_CLUSTER_PM_ENTER_FAILED:	/* No need to restore context */
+		break;
 	case CPU_CLUSTER_PM_EXIT:
 		omap_dma_context_restore(od);
 		break;
