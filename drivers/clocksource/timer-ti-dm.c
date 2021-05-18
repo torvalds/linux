@@ -128,7 +128,8 @@ static int omap_timer_context_notifier(struct notifier_block *nb,
 			break;
 		omap_timer_save_context(timer);
 		break;
-	case CPU_CLUSTER_PM_ENTER_FAILED:
+	case CPU_CLUSTER_PM_ENTER_FAILED:	/* No need to restore context */
+		break;
 	case CPU_CLUSTER_PM_EXIT:
 		if ((timer->capability & OMAP_TIMER_ALWON) ||
 		    !atomic_read(&timer->enabled))
