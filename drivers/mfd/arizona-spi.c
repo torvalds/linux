@@ -25,8 +25,8 @@
 #include "arizona.h"
 
 #ifdef CONFIG_ACPI
-const struct acpi_gpio_params reset_gpios = { 1, 0, false };
-const struct acpi_gpio_params ldoena_gpios = { 2, 0, false };
+static const struct acpi_gpio_params reset_gpios = { 1, 0, false };
+static const struct acpi_gpio_params ldoena_gpios = { 2, 0, false };
 
 static const struct acpi_gpio_mapping arizona_acpi_gpios[] = {
 	{ "reset-gpios", &reset_gpios, 1, },

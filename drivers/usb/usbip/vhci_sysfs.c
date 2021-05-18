@@ -185,6 +185,8 @@ static int vhci_port_disconnect(struct vhci_hcd *vhci_hcd, __u32 rhport)
 
 	usbip_dbg_vhci_sysfs("enter\n");
 
+	mutex_lock(&vdev->ud.sysfs_lock);
+
 	/* lock */
 	spin_lock_irqsave(&vhci->lock, flags);
 	spin_lock(&vdev->ud.lock);
@@ -195,6 +197,7 @@ static int vhci_port_disconnect(struct vhci_hcd *vhci_hcd, __u32 rhport)
 		/* unlock */
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock_irqrestore(&vhci->lock, flags);
+		mutex_unlock(&vdev->ud.sysfs_lock);
 
 		return -EINVAL;
 	}
@@ -204,6 +207,8 @@ static int vhci_port_disconnect(struct vhci_hcd *vhci_hcd, __u32 rhport)
 	spin_unlock_irqrestore(&vhci->lock, flags);
 
 	usbip_event_add(&vdev->ud, VDEV_EVENT_DOWN);
+
+	mutex_unlock(&vdev->ud.sysfs_lock);
 
 	return 0;
 }
@@ -312,6 +317,8 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 	struct vhci *vhci;
 	int err;
 	unsigned long flags;
+	struct task_struct *tcp_rx = NULL;
+	struct task_struct *tcp_tx = NULL;
 
 	/*
 	 * @rhport: port number of vhci_hcd
@@ -347,14 +354,43 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 	else
 		vdev = &vhci->vhci_hcd_hs->vdev[rhport];
 
+	mutex_lock(&vdev->ud.sysfs_lock);
+
 	/* Extract socket from fd. */
 	socket = sockfd_lookup(sockfd, &err);
-	if (!socket)
-		return -EINVAL;
+	if (!socket) {
+		dev_err(dev, "failed to lookup sock");
+		err = -EINVAL;
+		goto unlock_mutex;
+	}
+	if (socket->type != SOCK_STREAM) {
+		dev_err(dev, "Expecting SOCK_STREAM - found %d",
+			socket->type);
+		sockfd_put(socket);
+		err = -EINVAL;
+		goto unlock_mutex;
+	}
 
-	/* now need lock until setting vdev status as used */
+	/* create threads before locking */
+	tcp_rx = kthread_create(vhci_rx_loop, &vdev->ud, "vhci_rx");
+	if (IS_ERR(tcp_rx)) {
+		sockfd_put(socket);
+		err = -EINVAL;
+		goto unlock_mutex;
+	}
+	tcp_tx = kthread_create(vhci_tx_loop, &vdev->ud, "vhci_tx");
+	if (IS_ERR(tcp_tx)) {
+		kthread_stop(tcp_rx);
+		sockfd_put(socket);
+		err = -EINVAL;
+		goto unlock_mutex;
+	}
 
-	/* begin a lock */
+	/* get task structs now */
+	get_task_struct(tcp_rx);
+	get_task_struct(tcp_tx);
+
+	/* now begin lock until setting vdev status set */
 	spin_lock_irqsave(&vhci->lock, flags);
 	spin_lock(&vdev->ud.lock);
 
@@ -364,13 +400,16 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 		spin_unlock_irqrestore(&vhci->lock, flags);
 
 		sockfd_put(socket);
+		kthread_stop_put(tcp_rx);
+		kthread_stop_put(tcp_tx);
 
 		dev_err(dev, "port %d already used\n", rhport);
 		/*
 		 * Will be retried from userspace
 		 * if there's another free port.
 		 */
-		return -EBUSY;
+		err = -EBUSY;
+		goto unlock_mutex;
 	}
 
 	dev_info(dev, "pdev(%u) rhport(%u) sockfd(%d)\n",
@@ -382,6 +421,8 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 	vdev->speed         = speed;
 	vdev->ud.sockfd     = sockfd;
 	vdev->ud.tcp_socket = socket;
+	vdev->ud.tcp_rx     = tcp_rx;
+	vdev->ud.tcp_tx     = tcp_tx;
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
 	usbip_kcov_handle_init(&vdev->ud);
 
@@ -389,12 +430,20 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 	spin_unlock_irqrestore(&vhci->lock, flags);
 	/* end the lock */
 
-	vdev->ud.tcp_rx = kthread_get_run(vhci_rx_loop, &vdev->ud, "vhci_rx");
-	vdev->ud.tcp_tx = kthread_get_run(vhci_tx_loop, &vdev->ud, "vhci_tx");
+	wake_up_process(vdev->ud.tcp_rx);
+	wake_up_process(vdev->ud.tcp_tx);
 
 	rh_port_connect(vdev, speed);
 
+	dev_info(dev, "Device attached\n");
+
+	mutex_unlock(&vdev->ud.sysfs_lock);
+
 	return count;
+
+unlock_mutex:
+	mutex_unlock(&vdev->ud.sysfs_lock);
+	return err;
 }
 static DEVICE_ATTR_WO(attach);
 

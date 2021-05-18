@@ -384,6 +384,8 @@ static struct s3c2410fb_mach_info rx1950_lcd_cfg = {
 static struct pwm_lookup rx1950_pwm_lookup[] = {
 	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight.0", NULL, 48000,
 		   PWM_POLARITY_NORMAL),
+	PWM_LOOKUP("samsung-pwm", 1, "pwm-backlight.0", "RX1950 LCD", LCD_PWM_PERIOD,
+		   PWM_POLARITY_NORMAL),
 };
 
 static struct pwm_device *lcd_pwm;
@@ -498,19 +500,18 @@ static void rx1950_bl_power(int enable)
 static int rx1950_backlight_init(struct device *dev)
 {
 	WARN_ON(gpio_request(S3C2410_GPB(0), "Backlight"));
-	lcd_pwm = pwm_request(1, "RX1950 LCD");
+	lcd_pwm = pwm_get(dev, "RX1950 LCD");
 	if (IS_ERR(lcd_pwm)) {
 		dev_err(dev, "Unable to request PWM for LCD power!\n");
 		return PTR_ERR(lcd_pwm);
 	}
 
 	/*
-	 * This is only required to initialize .polarity; all other values are
-	 * fixed in this driver.
+	 * Call pwm_init_state to initialize .polarity and .period. The other
+	 * values are fixed in this driver.
 	 */
 	pwm_init_state(lcd_pwm, &lcd_pwm_state);
 
-	lcd_pwm_state.period = LCD_PWM_PERIOD;
 	lcd_pwm_state.duty_cycle = LCD_PWM_DUTY;
 
 	rx1950_lcd_power(1);
@@ -524,7 +525,7 @@ static void rx1950_backlight_exit(struct device *dev)
 	rx1950_bl_power(0);
 	rx1950_lcd_power(0);
 
-	pwm_free(lcd_pwm);
+	pwm_put(lcd_pwm);
 	gpio_free(S3C2410_GPB(0));
 }
 

@@ -22,7 +22,7 @@
 static inline enum ib_qp_type cm_req_get_qp_type(struct cm_req_msg *req_msg)
 {
 	u8 transport_type = IBA_GET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg);
-	switch(transport_type) {
+	switch (transport_type) {
 	case 0: return IB_QPT_RC;
 	case 1: return IB_QPT_UC;
 	case 3:
@@ -37,7 +37,7 @@ static inline enum ib_qp_type cm_req_get_qp_type(struct cm_req_msg *req_msg)
 static inline void cm_req_set_qp_type(struct cm_req_msg *req_msg,
 				      enum ib_qp_type qp_type)
 {
-	switch(qp_type) {
+	switch (qp_type) {
 	case IB_QPT_UC:
 		IBA_SET(CM_REQ_TRANSPORT_SERVICE_TYPE, req_msg, 1);
 		break;

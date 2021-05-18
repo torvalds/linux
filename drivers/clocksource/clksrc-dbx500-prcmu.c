@@ -18,7 +18,7 @@
 
 #define RATE_32K		32768
 
-#define TIMER_MODE_CONTINOUS	0x1
+#define TIMER_MODE_CONTINUOUS	0x1
 #define TIMER_DOWNCOUNT_VAL	0xffffffff
 
 #define PRCMU_TIMER_REF		0
@@ -55,13 +55,13 @@ static int __init clksrc_dbx500_prcmu_init(struct device_node *node)
 
 	/*
 	 * The A9 sub system expects the timer to be configured as
-	 * a continous looping timer.
+	 * a continuous looping timer.
 	 * The PRCMU should configure it but if it for some reason
 	 * don't we do it here.
 	 */
 	if (readl(clksrc_dbx500_timer_base + PRCMU_TIMER_MODE) !=
-	    TIMER_MODE_CONTINOUS) {
-		writel(TIMER_MODE_CONTINOUS,
+	    TIMER_MODE_CONTINUOUS) {
+		writel(TIMER_MODE_CONTINUOUS,
 		       clksrc_dbx500_timer_base + PRCMU_TIMER_MODE);
 		writel(TIMER_DOWNCOUNT_VAL,
 		       clksrc_dbx500_timer_base + PRCMU_TIMER_REF);

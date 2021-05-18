@@ -43,8 +43,6 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 
 	if (mix) {
 		struct rsnd_dai *rdai;
-		struct rsnd_mod *src;
-		struct rsnd_dai_stream *tio;
 		int i;
 
 		/*
@@ -54,8 +52,9 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 		 */
 		data = 0;
 		for_each_rsnd_dai(rdai, priv, i) {
-			tio = &rdai->playback;
-			src = rsnd_io_to_mod_src(tio);
+			struct rsnd_dai_stream *tio = &rdai->playback;
+			struct rsnd_mod *src = rsnd_io_to_mod_src(tio);
+
 			if (mix == rsnd_io_to_mod_mix(tio))
 				data |= path[rsnd_mod_id(src)];
 
@@ -142,7 +141,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_cmd *cmd;
-	int i, nr, ret;
+	int i, nr;
 
 	/* This driver doesn't support Gen1 at this point */
 	if (rsnd_is_gen1(priv))
@@ -161,9 +160,9 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	priv->cmd	= cmd;
 
 	for_each_rsnd_cmd(cmd, priv, i) {
-		ret = rsnd_mod_init(priv, rsnd_mod_get(cmd),
-				    &rsnd_cmd_ops, NULL,
-				    RSND_MOD_CMD, i);
+		int ret = rsnd_mod_init(priv, rsnd_mod_get(cmd),
+					&rsnd_cmd_ops, NULL,
+					RSND_MOD_CMD, i);
 		if (ret)
 			return ret;
 	}

@@ -295,7 +295,7 @@ static inline void nau8825_sema_reset(struct nau8825 *nau8825)
 }
 
 /**
- * Ramp up the headphone volume change gradually to target level.
+ * nau8825_hpvol_ramp - Ramp up the headphone volume change gradually to target level.
  *
  * @nau8825:  component to register the codec private data with
  * @vol_from: the volume to start up
@@ -347,8 +347,9 @@ static void nau8825_hpvol_ramp(struct nau8825 *nau8825,
 }
 
 /**
- * Computes log10 of a value; the result is round off to 3 decimal. This func-
- * tion takes reference to dvb-math. The source code locates as the following.
+ * nau8825_intlog10_dec3 - Computes log10 of a value
+ * the result is round off to 3 decimal. This function takes reference to
+ * dvb-math. The source code locates as the following.
  * Linux/drivers/media/dvb-core/dvb_math.c
  * @value:  input for log10
  *
@@ -408,7 +409,7 @@ static u32 nau8825_intlog10_dec3(u32 value)
 }
 
 /**
- * computes cross talk suppression sidetone gain.
+ * nau8825_xtalk_sidetone - computes cross talk suppression sidetone gain.
  *
  * @sig_org: orignal signal level
  * @sig_cros: cross talk signal level
@@ -2110,7 +2111,7 @@ static int nau8825_set_pll(struct snd_soc_component *component, int pll_id, int 
 
 static int nau8825_mclk_prepare(struct nau8825 *nau8825, unsigned int freq)
 {
-	int ret = 0;
+	int ret;
 
 	nau8825->mclk = devm_clk_get(nau8825->dev, "mclk");
 	if (IS_ERR(nau8825->mclk)) {

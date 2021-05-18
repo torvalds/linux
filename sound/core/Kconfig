@@ -203,4 +203,10 @@ config SND_DMA_SGBUF
 	def_bool y
 	depends on X86
 
+config SND_CTL_LED
+	tristate
+	select NEW_LEDS if SND_CTL_LED
+	select LEDS_TRIGGERS if SND_CTL_LED
+	select LEDS_TRIGGER_AUDIO if SND_CTL_LED
+
 source "sound/core/seq/Kconfig"

@@ -236,6 +236,10 @@
 	status = "okay";
 };
 
+&smmu_pcie {
+	status = "okay";
+};
+
 &etm0 {
 	cpu = <&A72_0>;
 };

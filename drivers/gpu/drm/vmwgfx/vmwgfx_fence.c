@@ -58,13 +58,11 @@ struct vmw_user_fence {
 /**
  * struct vmw_event_fence_action - fence action that delivers a drm event.
  *
- * @e: A struct drm_pending_event that controls the event delivery.
  * @action: A struct vmw_fence_action to hook up to a fence.
+ * @event: A pointer to the pending event.
  * @fence: A referenced pointer to the fence to keep it alive while @action
  * hangs on it.
  * @dev: Pointer to a struct drm_device so we can access the event stuff.
- * @kref: Both @e and @action has destructors, so we need to refcount.
- * @size: Size accounted for this object.
  * @tv_sec: If non-null, the variable pointed to will be assigned
  * current time tv_sec val when the fence signals.
  * @tv_usec: Must be set if @tv_sec is set, and the variable pointed to will
@@ -87,7 +85,7 @@ fman_from_fence(struct vmw_fence_obj *fence)
 	return container_of(fence->base.lock, struct vmw_fence_manager, lock);
 }
 
-/**
+/*
  * Note on fencing subsystem usage of irqs:
  * Typically the vmw_fences_update function is called
  *
@@ -250,7 +248,7 @@ static const struct dma_fence_ops vmw_fence_ops = {
 };
 
 
-/**
+/*
  * Execute signal actions on fences recently signaled.
  * This is done from a workqueue so we don't have to execute
  * signal actions from atomic context.
@@ -708,7 +706,7 @@ int vmw_wait_dma_fence(struct vmw_fence_manager *fman,
 }
 
 
-/**
+/*
  * vmw_fence_fifo_down - signal all unsignaled fence objects.
  */
 
@@ -948,8 +946,8 @@ static void vmw_event_fence_action_cleanup(struct vmw_fence_action *action)
 /**
  * vmw_fence_obj_add_action - Add an action to a fence object.
  *
- * @fence - The fence object.
- * @action - The action to add.
+ * @fence: The fence object.
+ * @action: The action to add.
  *
  * Note that the action callbacks may be executed before this function
  * returns.
@@ -1001,6 +999,10 @@ static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
  * @fence: The fence object on which to post the event.
  * @event: Event to be posted. This event should've been alloced
  * using k[mz]alloc, and should've been completely initialized.
+ * @tv_sec: If non-null, the variable pointed to will be assigned
+ * current time tv_sec val when the fence signals.
+ * @tv_usec: Must be set if @tv_sec is set, and the variable pointed to will
+ * be assigned the current time tv_usec val when the fence signals.
  * @interruptible: Interruptible waits if possible.
  *
  * As a side effect, the object pointed to by @event may have been

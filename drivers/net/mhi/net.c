@@ -265,9 +265,11 @@ static void mhi_net_rx_refill_work(struct work_struct *work)
 						      rx_refill.work);
 	struct net_device *ndev = mhi_netdev->ndev;
 	struct mhi_device *mdev = mhi_netdev->mdev;
-	int size = READ_ONCE(ndev->mtu);
 	struct sk_buff *skb;
+	unsigned int size;
 	int err;
+
+	size = mhi_netdev->mru ? mhi_netdev->mru : READ_ONCE(ndev->mtu);
 
 	while (!mhi_queue_is_full(mdev, DMA_FROM_DEVICE)) {
 		skb = netdev_alloc_skb(ndev, size);
@@ -359,8 +361,7 @@ static void mhi_net_remove(struct mhi_device *mhi_dev)
 
 	mhi_unprepare_from_transfer(mhi_netdev->mdev);
 
-	if (mhi_netdev->skbagg_head)
-		kfree_skb(mhi_netdev->skbagg_head);
+	kfree_skb(mhi_netdev->skbagg_head);
 
 	free_netdev(mhi_netdev->ndev);
 }

@@ -1088,34 +1088,6 @@ static void genpd_sync_power_on(struct generic_pm_domain *genpd, bool use_lock,
 }
 
 /**
- * resume_needed - Check whether to resume a device before system suspend.
- * @dev: Device to check.
- * @genpd: PM domain the device belongs to.
- *
- * There are two cases in which a device that can wake up the system from sleep
- * states should be resumed by genpd_prepare(): (1) if the device is enabled
- * to wake up the system and it has to remain active for this purpose while the
- * system is in the sleep state and (2) if the device is not enabled to wake up
- * the system from sleep states and it generally doesn't generate wakeup signals
- * by itself (those signals are generated on its behalf by other parts of the
- * system).  In the latter case it may be necessary to reconfigure the device's
- * wakeup settings during system suspend, because it may have been set up to
- * signal remote wakeup from the system's working state as needed by runtime PM.
- * Return 'true' in either of the above cases.
- */
-static bool resume_needed(struct device *dev,
-			  const struct generic_pm_domain *genpd)
-{
-	bool active_wakeup;
-
-	if (!device_can_wakeup(dev))
-		return false;
-
-	active_wakeup = genpd_is_active_wakeup(genpd);
-	return device_may_wakeup(dev) ? active_wakeup : !active_wakeup;
-}
-
-/**
  * genpd_prepare - Start power transition of a device in a PM domain.
  * @dev: Device to start the transition of.
  *
@@ -1134,14 +1106,6 @@ static int genpd_prepare(struct device *dev)
 	genpd = dev_to_genpd(dev);
 	if (IS_ERR(genpd))
 		return -EINVAL;
-
-	/*
-	 * If a wakeup request is pending for the device, it should be woken up
-	 * at this point and a system wakeup event should be reported if it's
-	 * set up to wake up the system from sleep states.
-	 */
-	if (resume_needed(dev, genpd))
-		pm_runtime_resume(dev);
 
 	genpd_lock(genpd);
 

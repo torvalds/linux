@@ -651,7 +651,7 @@ static int ehci_run (struct usb_hcd *hcd)
 		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
 		temp >> 8, temp & 0xff,
-		ignore_oc ? ", overcurrent ignored" : "");
+		(ignore_oc || ehci->spurious_oc) ? ", overcurrent ignored" : "");
 
 	ehci_writel(ehci, INTR_MASK,
 		    &ehci->regs->intr_enable); /* Turn On Interrupts */
@@ -705,15 +705,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			status, masked_status, pcd_status = 0, cmd;
 	int			bh;
-	unsigned long		flags;
 
-	/*
-	 * For threadirqs option we use spin_lock_irqsave() variant to prevent
-	 * deadlock with ehci hrtimer callback, because hrtimer callbacks run
-	 * in interrupt context even when threadirqs is specified. We can go
-	 * back to spin_lock() variant when hrtimer callbacks become threaded.
-	 */
-	spin_lock_irqsave(&ehci->lock, flags);
+	spin_lock(&ehci->lock);
 
 	status = ehci_readl(ehci, &ehci->regs->status);
 
@@ -731,7 +724,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* Shared IRQ? */
 	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
-		spin_unlock_irqrestore(&ehci->lock, flags);
+		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}
 
@@ -842,7 +835,7 @@ dead:
 
 	if (bh)
 		ehci_work (ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
+	spin_unlock(&ehci->lock);
 	if (pcd_status)
 		usb_hcd_poll_rh_status(hcd);
 	return IRQ_HANDLED;

@@ -2609,7 +2609,7 @@ static void qib_chk_6120_errormask(struct qib_devdata *dd)
 }
 
 /**
- * qib_get_faststats - get word counters from chip before they overflow
+ * qib_get_6120_faststats - get word counters from chip before they overflow
  * @t: contains a pointer to the qlogic_ib device qib_devdata
  *
  * This needs more work; in particular, decision on whether we really

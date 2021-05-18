@@ -20,7 +20,7 @@ static int acp_power_gating;
 module_param(acp_power_gating, int, 0644);
 MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
 
-/**
+/*
  * dmic_acpi_check = -1 - Use ACPI/DMI method to detect the DMIC hardware presence at runtime
  *                 =  0 - Skip the DMIC device creation and return probe failure
  *                 =  1 - Force DMIC support

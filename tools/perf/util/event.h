@@ -147,6 +147,7 @@ struct perf_sample {
 	u8  cpumode;
 	u16 misc;
 	u16 ins_lat;
+	u16 p_stage_cyc;
 	bool no_hw_idx;		/* No hw_idx collected in branch_stack */
 	char insn[MAX_INSN];
 	void *raw_data;
@@ -427,5 +428,7 @@ char *get_page_size_name(u64 size, char *str);
 
 void arch_perf_parse_sample_weight(struct perf_sample *data, const __u64 *array, u64 type);
 void arch_perf_synthesize_sample_weight(const struct perf_sample *data, __u64 *array, u64 type);
+const char *arch_perf_header_entry(const char *se_header);
+int arch_support_sort_key(const char *sort_key);
 
 #endif /* __PERF_RECORD_H */

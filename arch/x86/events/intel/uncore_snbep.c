@@ -280,17 +280,17 @@
  * | [63]  |    00h    | VALID - When set, indicates the CPU bus
  *                       numbers have been initialized. (RO)
  * |[62:48]|    ---    | Reserved
- * |[47:40]|    00h    | BUS_NUM_5 — Return the bus number BIOS assigned
+ * |[47:40]|    00h    | BUS_NUM_5 - Return the bus number BIOS assigned
  *                       CPUBUSNO(5). (RO)
- * |[39:32]|    00h    | BUS_NUM_4 — Return the bus number BIOS assigned
+ * |[39:32]|    00h    | BUS_NUM_4 - Return the bus number BIOS assigned
  *                       CPUBUSNO(4). (RO)
- * |[31:24]|    00h    | BUS_NUM_3 — Return the bus number BIOS assigned
+ * |[31:24]|    00h    | BUS_NUM_3 - Return the bus number BIOS assigned
  *                       CPUBUSNO(3). (RO)
- * |[23:16]|    00h    | BUS_NUM_2 — Return the bus number BIOS assigned
+ * |[23:16]|    00h    | BUS_NUM_2 - Return the bus number BIOS assigned
  *                       CPUBUSNO(2). (RO)
- * |[15:8] |    00h    | BUS_NUM_1 — Return the bus number BIOS assigned
+ * |[15:8] |    00h    | BUS_NUM_1 - Return the bus number BIOS assigned
  *                       CPUBUSNO(1). (RO)
- * | [7:0] |    00h    | BUS_NUM_0 — Return the bus number BIOS assigned
+ * | [7:0] |    00h    | BUS_NUM_0 - Return the bus number BIOS assigned
  *                       CPUBUSNO(0). (RO)
  */
 #define SKX_MSR_CPU_BUS_NUMBER		0x300
@@ -1159,7 +1159,6 @@ enum {
 	SNBEP_PCI_QPI_PORT0_FILTER,
 	SNBEP_PCI_QPI_PORT1_FILTER,
 	BDX_PCI_QPI_PORT2_FILTER,
-	HSWEP_PCI_PCU_3,
 };
 
 static int snbep_qpi_hw_config(struct intel_uncore_box *box, struct perf_event *event)
@@ -2857,22 +2856,33 @@ static struct intel_uncore_type *hswep_msr_uncores[] = {
 	NULL,
 };
 
+#define HSWEP_PCU_DID			0x2fc0
+#define HSWEP_PCU_CAPID4_OFFET		0x94
+#define hswep_get_chop(_cap)		(((_cap) >> 6) & 0x3)
+
+static bool hswep_has_limit_sbox(unsigned int device)
+{
+	struct pci_dev *dev = pci_get_device(PCI_VENDOR_ID_INTEL, device, NULL);
+	u32 capid4;
+
+	if (!dev)
+		return false;
+
+	pci_read_config_dword(dev, HSWEP_PCU_CAPID4_OFFET, &capid4);
+	if (!hswep_get_chop(capid4))
+		return true;
+
+	return false;
+}
+
 void hswep_uncore_cpu_init(void)
 {
-	int pkg = boot_cpu_data.logical_proc_id;
-
 	if (hswep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		hswep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 
 	/* Detect 6-8 core systems with only two SBOXes */
-	if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
-		u32 capid4;
-
-		pci_read_config_dword(uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3],
-				      0x94, &capid4);
-		if (((capid4 >> 6) & 0x3) == 0)
-			hswep_uncore_sbox.num_boxes = 2;
-	}
+	if (hswep_has_limit_sbox(HSWEP_PCU_DID))
+		hswep_uncore_sbox.num_boxes = 2;
 
 	uncore_msr_uncores = hswep_msr_uncores;
 }
@@ -3135,11 +3145,6 @@ static const struct pci_device_id hswep_uncore_pci_ids[] = {
 		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
 						   SNBEP_PCI_QPI_PORT1_FILTER),
 	},
-	{ /* PCU.3 (for Capability registers) */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2fc0),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
-						   HSWEP_PCI_PCU_3),
-	},
 	{ /* end: all zeroes */ }
 };
 
@@ -3231,27 +3236,18 @@ static struct event_constraint bdx_uncore_pcu_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+#define BDX_PCU_DID			0x6fc0
+
 void bdx_uncore_cpu_init(void)
 {
-	int pkg = topology_phys_to_logical_pkg(boot_cpu_data.phys_proc_id);
-
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
 
-	/* BDX-DE doesn't have SBOX */
-	if (boot_cpu_data.x86_model == 86) {
-		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 	/* Detect systems with no SBOXes */
-	} else if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
-		struct pci_dev *pdev;
-		u32 capid4;
+	if ((boot_cpu_data.x86_model == 86) || hswep_has_limit_sbox(BDX_PCU_DID))
+		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 
-		pdev = uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3];
-		pci_read_config_dword(pdev, 0x94, &capid4);
-		if (((capid4 >> 6) & 0x3) == 0)
-			bdx_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
-	}
 	hswep_uncore_pcu.constraints = bdx_uncore_pcu_constraints;
 }
 
@@ -3472,11 +3468,6 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
 						   BDX_PCI_QPI_PORT2_FILTER),
 	},
-	{ /* PCU.3 (for Capability registers) */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fc0),
-		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV,
-						   HSWEP_PCI_PCU_3),
-	},
 	{ /* end: all zeroes */ }
 };
 
@@ -3684,7 +3675,8 @@ static struct intel_uncore_ops skx_uncore_iio_ops = {
 
 static inline u8 skx_iio_stack(struct intel_uncore_pmu *pmu, int die)
 {
-	return pmu->type->topology[die] >> (pmu->pmu_idx * BUS_NUM_STRIDE);
+	return pmu->type->topology[die].configuration >>
+	       (pmu->pmu_idx * BUS_NUM_STRIDE);
 }
 
 static umode_t
@@ -3697,19 +3689,14 @@ skx_iio_mapping_visible(struct kobject *kobj, struct attribute *attr, int die)
 }
 
 static ssize_t skx_iio_mapping_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
-	struct pci_bus *bus = pci_find_next_bus(NULL);
-	struct intel_uncore_pmu *uncore_pmu = dev_to_uncore_pmu(dev);
+	struct intel_uncore_pmu *pmu = dev_to_uncore_pmu(dev);
 	struct dev_ext_attribute *ea = to_dev_ext_attribute(attr);
 	long die = (long)ea->var;
 
-	/*
-	 * Current implementation is for single segment configuration hence it's
-	 * safe to take the segment value from the first available root bus.
-	 */
-	return sprintf(buf, "%04x:%02x\n", pci_domain_nr(bus),
-					   skx_iio_stack(uncore_pmu, die));
+	return sprintf(buf, "%04x:%02x\n", pmu->type->topology[die].segment,
+					   skx_iio_stack(pmu, die));
 }
 
 static int skx_msr_cpu_bus_read(int cpu, u64 *topology)
@@ -3746,34 +3733,32 @@ static int die_to_cpu(int die)
 
 static int skx_iio_get_topology(struct intel_uncore_type *type)
 {
-	int i, ret;
-	struct pci_bus *bus = NULL;
+	int die, ret = -EPERM;
 
-	/*
-	 * Verified single-segment environments only; disabled for multiple
-	 * segment topologies for now except VMD domains.
-	 * VMD domains start at 0x10000 to not clash with ACPI _SEG domains.
-	 */
-	while ((bus = pci_find_next_bus(bus))
-		&& (!pci_domain_nr(bus) || pci_domain_nr(bus) > 0xffff))
-		;
-	if (bus)
-		return -EPERM;
-
-	type->topology = kcalloc(uncore_max_dies(), sizeof(u64), GFP_KERNEL);
+	type->topology = kcalloc(uncore_max_dies(), sizeof(*type->topology),
+				 GFP_KERNEL);
 	if (!type->topology)
 		return -ENOMEM;
 
-	for (i = 0; i < uncore_max_dies(); i++) {
-		ret = skx_msr_cpu_bus_read(die_to_cpu(i), &type->topology[i]);
-		if (ret) {
-			kfree(type->topology);
-			type->topology = NULL;
-			return ret;
-		}
+	for (die = 0; die < uncore_max_dies(); die++) {
+		ret = skx_msr_cpu_bus_read(die_to_cpu(die),
+					   &type->topology[die].configuration);
+		if (ret)
+			break;
+
+		ret = uncore_die_to_segment(die);
+		if (ret < 0)
+			break;
+
+		type->topology[die].segment = ret;
 	}
 
-	return 0;
+	if (ret < 0) {
+		kfree(type->topology);
+		type->topology = NULL;
+	}
+
+	return ret;
 }
 
 static struct attribute_group skx_iio_mapping_group = {
@@ -3794,7 +3779,7 @@ static int skx_iio_set_mapping(struct intel_uncore_type *type)
 	struct dev_ext_attribute *eas = NULL;
 
 	ret = skx_iio_get_topology(type);
-	if (ret)
+	if (ret < 0)
 		goto clear_attr_update;
 
 	ret = -ENOMEM;

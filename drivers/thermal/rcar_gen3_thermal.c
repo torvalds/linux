@@ -60,7 +60,7 @@
 #define MCELSIUS(temp)	((temp) * 1000)
 #define GEN3_FUSE_MASK	0xFFF
 
-#define TSC_MAX_NUM	4
+#define TSC_MAX_NUM	5
 
 /* default THCODE values if FUSEs are missing */
 static const int thcodes[TSC_MAX_NUM][3] = {
@@ -68,6 +68,7 @@ static const int thcodes[TSC_MAX_NUM][3] = {
 	{ 3393, 2795, 2216 },
 	{ 3389, 2805, 2237 },
 	{ 3415, 2694, 2195 },
+	{ 3356, 2724, 2244 },
 };
 
 /* Structure for thermal temperature calculation */

@@ -86,6 +86,7 @@ struct coredump_params {
 	unsigned long mm_flags;
 	loff_t written;
 	loff_t pos;
+	loff_t to_skip;
 };
 
 /*

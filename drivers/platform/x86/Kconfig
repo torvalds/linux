@@ -123,6 +123,17 @@ config XIAOMI_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called xiaomi-wmi.
 
+config GIGABYTE_WMI
+	tristate "Gigabyte WMI temperature driver"
+	depends on ACPI_WMI
+	depends on HWMON
+	help
+	  Say Y here if you want to support WMI-based temperature reporting on
+	  Gigabyte mainboards.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gigabyte-wmi.
+
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
@@ -192,6 +203,17 @@ config AMD_PMC
 
 	  If you choose to compile this driver as a module the module will be
 	  called amd-pmc.
+
+config ADV_SWBUTTON
+	tristate "Advantech ACPI Software Button Driver"
+	depends on ACPI && INPUT
+	help
+	  Say Y here to enable support for Advantech software defined
+	  button feature. More information can be found at
+	  <http://www.advantech.com.tw/products/>
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called adv_swbutton.
 
 config APPLE_GMUX
 	tristate "Apple Gmux Driver"
@@ -410,6 +432,7 @@ config HP_WMI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	select INPUT_SPARSEKMAP
+	select ACPI_PLATFORM_PROFILE
 	help
 	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
 	 to read data from WMI such as docking or ambient light sensor state.
@@ -1171,23 +1194,29 @@ config INTEL_MRFLD_PWRBTN
 config INTEL_PMC_CORE
 	tristate "Intel PMC Core driver"
 	depends on PCI
+	depends on ACPI
 	help
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
-	  to Power Management Controller registers via a PCI interface. This
+	  to Power Management Controller registers via various interfaces. This
 	  driver can utilize debugging capabilities and supported features as
-	  exposed by the Power Management Controller.
+	  exposed by the Power Management Controller. It also may perform some
+	  tasks in the PMC in order to enable transition into the SLPS0 state.
+	  It should be selected on all Intel platforms supported by the driver.
 
 	  Supported features:
 		- SLP_S0_RESIDENCY counter
 		- PCH IP Power Gating status
-		- LTR Ignore
+		- LTR Ignore / LTR Show
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
+		- SLPS0 Debug registers (Cannonlake/Icelake PCH)
+		- Low Power Mode registers (Tigerlake and beyond)
+		- PMC quirks as needed to enable SLPS0/S0ix
 
 config INTEL_PMT_CLASS
 	tristate
 	help
 	  The Intel Platform Monitoring Technology (PMT) class driver provides
-	  the basic sysfs interface and file hierarchy uses by PMT devices.
+	  the basic sysfs interface and file hierarchy used by PMT devices.
 
 	  For more information, see:
 	  <file:Documentation/ABI/testing/sysfs-class-intel_pmt>

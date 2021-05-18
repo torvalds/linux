@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-imx8mp.c - NXP imx8mp Specific Glue layer
  *
  * Copyright (c) 2020 NXP.

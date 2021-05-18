@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
-#include <linux/memblock.h>
 #include <linux/printk.h>
 #include <asm/tlbflush.h>
 
@@ -29,7 +28,7 @@
 #define ISA_POOL_SIZE	16
 
 static struct bio_set bounce_bio_set, bounce_bio_split;
-static mempool_t page_pool, isa_page_pool;
+static mempool_t page_pool;
 
 static void init_bounce_bioset(void)
 {
@@ -49,11 +48,11 @@ static void init_bounce_bioset(void)
 	bounce_bs_setup = true;
 }
 
-#if defined(CONFIG_HIGHMEM)
 static __init int init_emergency_pool(void)
 {
 	int ret;
-#if defined(CONFIG_HIGHMEM) && !defined(CONFIG_MEMORY_HOTPLUG)
+
+#ifndef CONFIG_MEMORY_HOTPLUG
 	if (max_pfn <= max_low_pfn)
 		return 0;
 #endif
@@ -67,9 +66,7 @@ static __init int init_emergency_pool(void)
 }
 
 __initcall(init_emergency_pool);
-#endif
 
-#ifdef CONFIG_HIGHMEM
 /*
  * highmem version, map in to vec
  */
@@ -80,48 +77,6 @@ static void bounce_copy_vec(struct bio_vec *to, unsigned char *vfrom)
 	vto = kmap_atomic(to->bv_page);
 	memcpy(vto + to->bv_offset, vfrom, to->bv_len);
 	kunmap_atomic(vto);
-}
-
-#else /* CONFIG_HIGHMEM */
-
-#define bounce_copy_vec(to, vfrom)	\
-	memcpy(page_address((to)->bv_page) + (to)->bv_offset, vfrom, (to)->bv_len)
-
-#endif /* CONFIG_HIGHMEM */
-
-/*
- * allocate pages in the DMA region for the ISA pool
- */
-static void *mempool_alloc_pages_isa(gfp_t gfp_mask, void *data)
-{
-	return mempool_alloc_pages(gfp_mask | GFP_DMA, data);
-}
-
-static DEFINE_MUTEX(isa_mutex);
-
-/*
- * gets called "every" time someone init's a queue with BLK_BOUNCE_ISA
- * as the max address, so check if the pool has already been created.
- */
-int init_emergency_isa_pool(void)
-{
-	int ret;
-
-	mutex_lock(&isa_mutex);
-
-	if (mempool_initialized(&isa_page_pool)) {
-		mutex_unlock(&isa_mutex);
-		return 0;
-	}
-
-	ret = mempool_init(&isa_page_pool, ISA_POOL_SIZE, mempool_alloc_pages_isa,
-			   mempool_free_pages, (void *) 0);
-	BUG_ON(ret);
-
-	pr_info("isa pool size: %d pages\n", ISA_POOL_SIZE);
-	init_bounce_bioset();
-	mutex_unlock(&isa_mutex);
-	return 0;
 }
 
 /*
@@ -159,7 +114,7 @@ static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
 	}
 }
 
-static void bounce_end_io(struct bio *bio, mempool_t *pool)
+static void bounce_end_io(struct bio *bio)
 {
 	struct bio *bio_orig = bio->bi_private;
 	struct bio_vec *bvec, orig_vec;
@@ -173,7 +128,7 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
 		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
 		if (bvec->bv_page != orig_vec.bv_page) {
 			dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
-			mempool_free(bvec->bv_page, pool);
+			mempool_free(bvec->bv_page, &page_pool);
 		}
 		bio_advance_iter(bio_orig, &orig_iter, orig_vec.bv_len);
 	}
@@ -185,33 +140,17 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
 
 static void bounce_end_io_write(struct bio *bio)
 {
-	bounce_end_io(bio, &page_pool);
+	bounce_end_io(bio);
 }
 
-static void bounce_end_io_write_isa(struct bio *bio)
-{
-
-	bounce_end_io(bio, &isa_page_pool);
-}
-
-static void __bounce_end_io_read(struct bio *bio, mempool_t *pool)
+static void bounce_end_io_read(struct bio *bio)
 {
 	struct bio *bio_orig = bio->bi_private;
 
 	if (!bio->bi_status)
 		copy_to_high_bio_irq(bio_orig, bio);
 
-	bounce_end_io(bio, pool);
-}
-
-static void bounce_end_io_read(struct bio *bio)
-{
-	__bounce_end_io_read(bio, &page_pool);
-}
-
-static void bounce_end_io_read_isa(struct bio *bio)
-{
-	__bounce_end_io_read(bio, &isa_page_pool);
+	bounce_end_io(bio);
 }
 
 static struct bio *bounce_clone_bio(struct bio *bio_src)
@@ -229,10 +168,10 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *  - The point of cloning the biovec is to produce a bio with a biovec
 	 *    the caller can modify: bi_idx and bi_bvec_done should be 0.
 	 *
-	 *  - The original bio could've had more than BIO_MAX_PAGES biovecs; if
+	 *  - The original bio could've had more than BIO_MAX_VECS biovecs; if
 	 *    we tried to clone the whole thing bio_alloc_bioset() would fail.
 	 *    But the clone should succeed as long as the number of biovecs we
-	 *    actually need to allocate is fewer than BIO_MAX_PAGES.
+	 *    actually need to allocate is fewer than BIO_MAX_VECS.
 	 *
 	 *  - Lastly, bi_vcnt should not be looked at or relied upon by code
 	 *    that does not own the bio - reason being drivers don't use it for
@@ -241,12 +180,8 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    asking for trouble and would force extra work on
 	 *    __bio_clone_fast() anyways.
 	 */
-	if (bio_is_passthrough(bio_src))
-		bio = bio_kmalloc(GFP_NOIO | __GFP_NOFAIL,
-				  bio_segments(bio_src));
-	else
-		bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
-				       &bounce_bio_set);
+	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
+			       &bounce_bio_set);
 	bio->bi_bdev		= bio_src->bi_bdev;
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
@@ -287,8 +222,7 @@ err_put:
 	return NULL;
 }
 
-static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
-			       mempool_t *pool)
+void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 {
 	struct bio *bio;
 	int rw = bio_data_dir(*bio_orig);
@@ -299,16 +233,15 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	int sectors = 0;
 
 	bio_for_each_segment(from, *bio_orig, iter) {
-		if (i++ < BIO_MAX_PAGES)
+		if (i++ < BIO_MAX_VECS)
 			sectors += from.bv_len >> 9;
-		if (page_to_pfn(from.bv_page) > q->limits.bounce_pfn)
+		if (PageHighMem(from.bv_page))
 			bounce = true;
 	}
 	if (!bounce)
 		return;
 
-	if (!bio_is_passthrough(*bio_orig) &&
-	    sectors < bio_sectors(*bio_orig)) {
+	if (sectors < bio_sectors(*bio_orig)) {
 		bio = bio_split(*bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
 		bio_chain(bio, *bio_orig);
 		submit_bio_noacct(*bio_orig);
@@ -324,10 +257,10 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	for (i = 0, to = bio->bi_io_vec; i < bio->bi_vcnt; to++, i++) {
 		struct page *page = to->bv_page;
 
-		if (page_to_pfn(page) <= q->limits.bounce_pfn)
+		if (!PageHighMem(page))
 			continue;
 
-		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
+		to->bv_page = mempool_alloc(&page_pool, GFP_NOIO);
 		inc_zone_page_state(to->bv_page, NR_BOUNCE);
 
 		if (rw == WRITE) {
@@ -346,46 +279,11 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 
 	bio->bi_flags |= (1 << BIO_BOUNCED);
 
-	if (pool == &page_pool) {
+	if (rw == READ)
+		bio->bi_end_io = bounce_end_io_read;
+	else
 		bio->bi_end_io = bounce_end_io_write;
-		if (rw == READ)
-			bio->bi_end_io = bounce_end_io_read;
-	} else {
-		bio->bi_end_io = bounce_end_io_write_isa;
-		if (rw == READ)
-			bio->bi_end_io = bounce_end_io_read_isa;
-	}
 
 	bio->bi_private = *bio_orig;
 	*bio_orig = bio;
-}
-
-void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
-{
-	mempool_t *pool;
-
-	/*
-	 * Data-less bio, nothing to bounce
-	 */
-	if (!bio_has_data(*bio_orig))
-		return;
-
-	/*
-	 * for non-isa bounce case, just check if the bounce pfn is equal
-	 * to or bigger than the highest pfn in the system -- in that case,
-	 * don't waste time iterating over bio segments
-	 */
-	if (!(q->bounce_gfp & GFP_DMA)) {
-		if (q->limits.bounce_pfn >= blk_max_pfn)
-			return;
-		pool = &page_pool;
-	} else {
-		BUG_ON(!mempool_initialized(&isa_page_pool));
-		pool = &isa_page_pool;
-	}
-
-	/*
-	 * slow path
-	 */
-	__blk_queue_bounce(q, bio_orig, pool);
 }

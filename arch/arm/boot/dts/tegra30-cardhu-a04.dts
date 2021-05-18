@@ -2,8 +2,6 @@
 /dts-v1/;
 
 #include "tegra30-cardhu.dtsi"
-#include "tegra30-cpu-opp.dtsi"
-#include "tegra30-cpu-opp-microvolt.dtsi"
 
 /* This dts file support the cardhu A04 and later versions of board */
 
@@ -91,51 +89,5 @@
 		regulator-boot-on;
 		enable-active-high;
 		gpio = <&gpio TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
-	};
-
-	i2c@7000d000 {
-		pmic: tps65911@2d {
-			regulators {
-				vddctrl_reg: vddctrl {
-					regulator-min-microvolt = <800000>;
-					regulator-max-microvolt = <1125000>;
-					regulator-coupled-with = <&vddcore_reg>;
-					regulator-coupled-max-spread = <300000>;
-					regulator-max-step-microvolt = <100000>;
-
-					nvidia,tegra-cpu-regulator;
-				};
-			};
-		};
-
-		vddcore_reg: tps62361@60 {
-			regulator-coupled-with = <&vddctrl_reg>;
-			regulator-coupled-max-spread = <300000>;
-			regulator-max-step-microvolt = <100000>;
-
-			nvidia,tegra-core-regulator;
-		};
-	};
-
-	cpus {
-		cpu0: cpu@0 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
-
-		cpu@1 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
-
-		cpu@2 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
-
-		cpu@3 {
-			cpu-supply = <&vddctrl_reg>;
-			operating-points-v2 = <&cpu0_opp_table>;
-		};
 	};
 };

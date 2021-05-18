@@ -85,6 +85,58 @@ static void hl_pci_bars_unmap(struct hl_device *hdev)
 	pci_release_regions(pdev);
 }
 
+int hl_pci_elbi_read(struct hl_device *hdev, u64 addr, u32 *data)
+{
+	struct pci_dev *pdev = hdev->pdev;
+	ktime_t timeout;
+	u64 msec;
+	u32 val;
+
+	if (hdev->pldm)
+		msec = HL_PLDM_PCI_ELBI_TIMEOUT_MSEC;
+	else
+		msec = HL_PCI_ELBI_TIMEOUT_MSEC;
+
+	/* Clear previous status */
+	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_STS, 0);
+
+	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_ADDR, (u32) addr);
+	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_CTRL, 0);
+
+	timeout = ktime_add_ms(ktime_get(), msec);
+	for (;;) {
+		pci_read_config_dword(pdev, mmPCI_CONFIG_ELBI_STS, &val);
+		if (val & PCI_CONFIG_ELBI_STS_MASK)
+			break;
+		if (ktime_compare(ktime_get(), timeout) > 0) {
+			pci_read_config_dword(pdev, mmPCI_CONFIG_ELBI_STS,
+						&val);
+			break;
+		}
+
+		usleep_range(300, 500);
+	}
+
+	if ((val & PCI_CONFIG_ELBI_STS_MASK) == PCI_CONFIG_ELBI_STS_DONE) {
+		pci_read_config_dword(pdev, mmPCI_CONFIG_ELBI_DATA, data);
+
+		return 0;
+	}
+
+	if (val & PCI_CONFIG_ELBI_STS_ERR) {
+		dev_err(hdev->dev, "Error reading from ELBI\n");
+		return -EIO;
+	}
+
+	if (!(val & PCI_CONFIG_ELBI_STS_MASK)) {
+		dev_err(hdev->dev, "ELBI read didn't finish in time\n");
+		return -EIO;
+	}
+
+	dev_err(hdev->dev, "ELBI read has undefined bits in status\n");
+	return -EIO;
+}
+
 /**
  * hl_pci_elbi_write() - Write through the ELBI interface.
  * @hdev: Pointer to hl_device structure.

@@ -85,6 +85,8 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	bp.flags = 0;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
 	n = AMDGPU_BENCHMARK_ITERATIONS;
 	r = amdgpu_bo_create(adev, &bp, &sobj);
 	if (r) {

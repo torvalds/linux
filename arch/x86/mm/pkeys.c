@@ -128,7 +128,7 @@ u32 init_pkru_value = PKRU_AD_KEY( 1) | PKRU_AD_KEY( 2) | PKRU_AD_KEY( 3) |
 /*
  * Called from the FPU code when creating a fresh set of FPU
  * registers.  This is called from a very specific context where
- * we know the FPU regstiers are safe for use and we can use PKRU
+ * we know the FPU registers are safe for use and we can use PKRU
  * directly.
  */
 void copy_init_pkru_to_fpregs(void)

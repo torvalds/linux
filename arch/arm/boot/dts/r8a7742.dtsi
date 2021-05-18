@@ -367,13 +367,13 @@
 		apmu@e6151000 {
 			compatible = "renesas,r8a7742-apmu", "renesas,apmu";
 			reg = <0 0xe6151000 0 0x188>;
-			cpus = <&cpu4 &cpu5 &cpu6 &cpu7>;
+			cpus = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
 		};
 
 		apmu@e6152000 {
 			compatible = "renesas,r8a7742-apmu", "renesas,apmu";
 			reg = <0 0xe6152000 0 0x188>;
-			cpus = <&cpu0 &cpu1 &cpu2 &cpu3>;
+			cpus = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 		};
 
 		rst: reset-controller@e6160000 {

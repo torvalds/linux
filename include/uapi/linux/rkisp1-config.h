@@ -15,7 +15,7 @@
 #define RKISP1_CIF_ISP_MODULE_BLS		(1U << 1)
 /* Sensor De-gamma */
 #define RKISP1_CIF_ISP_MODULE_SDG		(1U << 2)
-/* Histogram */
+/* Histogram statistics configuration */
 #define RKISP1_CIF_ISP_MODULE_HST		(1U << 3)
 /* Lens Shade Control */
 #define RKISP1_CIF_ISP_MODULE_LSC		(1U << 4)
@@ -31,13 +31,13 @@
 #define RKISP1_CIF_ISP_MODULE_GOC		(1U << 9)
 /* Color Processing */
 #define RKISP1_CIF_ISP_MODULE_CPROC		(1U << 10)
-/* Auto Focus Control */
+/* Auto Focus Control statistics configuration */
 #define RKISP1_CIF_ISP_MODULE_AFC		(1U << 11)
-/* Auto White Balancing */
+/* Auto White Balancing statistics configuration */
 #define RKISP1_CIF_ISP_MODULE_AWB		(1U << 12)
 /* Image Effect */
 #define RKISP1_CIF_ISP_MODULE_IE		(1U << 13)
-/* Auto Exposure Control */
+/* Auto Exposure Control statistics configuration */
 #define RKISP1_CIF_ISP_MODULE_AEC		(1U << 14)
 /* Wide Dynamic Range */
 #define RKISP1_CIF_ISP_MODULE_WDR		(1U << 15)
@@ -411,7 +411,7 @@ struct rkisp1_cif_isp_cproc_config {
 };
 
 /**
- * struct rkisp1_cif_isp_awb_meas_config - Configuration used by auto white balance
+ * struct rkisp1_cif_isp_awb_meas_config - Configuration for the AWB statistics
  *
  * @awb_mode: the awb meas mode. From enum rkisp1_cif_isp_awb_mode_type.
  * @awb_wnd: white balance measurement window (in pixels)
@@ -550,7 +550,7 @@ struct rkisp1_cif_isp_goc_config {
 };
 
 /**
- * struct rkisp1_cif_isp_hst_config - Configuration used by Histogram
+ * struct rkisp1_cif_isp_hst_config - Configuration for Histogram statistics
  *
  * @mode: histogram mode (from enum rkisp1_cif_isp_histogram_mode)
  * @histogram_predivider: process every stepsize pixel, all other pixels are
@@ -575,7 +575,7 @@ struct rkisp1_cif_isp_hst_config {
 };
 
 /**
- * struct rkisp1_cif_isp_aec_config - Configuration used by Auto Exposure Control
+ * struct rkisp1_cif_isp_aec_config - Configuration for Auto Exposure statistics
  *
  * @mode: Exposure measure mode (from enum rkisp1_cif_isp_exp_meas_mode)
  * @autostop: stop mode (from enum rkisp1_cif_isp_exp_ctrl_autostop)
@@ -588,7 +588,7 @@ struct rkisp1_cif_isp_aec_config {
 };
 
 /**
- * struct rkisp1_cif_isp_afc_config - Configuration used by Auto Focus Control
+ * struct rkisp1_cif_isp_afc_config - Configuration for the Auto Focus statistics
  *
  * @num_afm_win: max RKISP1_CIF_ISP_AFM_MAX_WINDOWS
  * @afm_win: coordinates of the meas window

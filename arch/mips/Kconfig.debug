@@ -77,6 +77,7 @@ config CMDLINE_OVERRIDE
 config SB1XXX_CORELIS
 	bool "Corelis Debugger"
 	depends on SIBYTE_SB1xxx_SOC
+	select DEBUG_KERNEL if !COMPILE_TEST
 	select DEBUG_INFO if !COMPILE_TEST
 	help
 	  Select compile flags that produce code that can be processed by the

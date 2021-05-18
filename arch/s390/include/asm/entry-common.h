@@ -4,19 +4,17 @@
 
 #include <linux/sched.h>
 #include <linux/audit.h>
+#include <linux/randomize_kstack.h>
 #include <linux/tracehook.h>
 #include <linux/processor.h>
 #include <linux/uaccess.h>
+#include <asm/timex.h>
 #include <asm/fpu/api.h>
 
 #define ARCH_EXIT_TO_USER_MODE_WORK (_TIF_GUARDED_STORAGE | _TIF_PER_TRAP)
 
 void do_per_trap(struct pt_regs *regs);
 void do_syscall(struct pt_regs *regs);
-
-typedef void (*pgm_check_func)(struct pt_regs *regs);
-
-extern pgm_check_func pgm_check_table[128];
 
 #ifdef CONFIG_DEBUG_ENTRY
 static __always_inline void arch_check_user_regs(struct pt_regs *regs)
@@ -51,6 +49,14 @@ static __always_inline void arch_exit_to_user_mode(void)
 }
 
 #define arch_exit_to_user_mode arch_exit_to_user_mode
+
+static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
+						  unsigned long ti_work)
+{
+	choose_random_kstack_offset(get_tod_clock_fast() & 0xff);
+}
+
+#define arch_exit_to_user_mode_prepare arch_exit_to_user_mode_prepare
 
 static inline bool on_thread_stack(void)
 {

@@ -255,11 +255,3 @@ static void __exit orinoco_pci_exit(void)
 
 module_init(orinoco_pci_init);
 module_exit(orinoco_pci_exit);
-
-/*
- * Local variables:
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */

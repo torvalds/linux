@@ -268,7 +268,7 @@ static void artop6260_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	artop_6210_qc_defer	-	implement serialization
+ *	artop6210_qc_defer	-	implement serialization
  *	@qc: command
  *
  *	Issue commands per host on this chip.
@@ -344,7 +344,7 @@ static void atp8xx_fixup(struct pci_dev *pdev)
 /**
  *	artop_init_one - Register ARTOP ATA PCI device with kernel services
  *	@pdev: PCI device to register
- *	@ent: Entry in artop_pci_tbl matching with @pdev
+ *	@id: PCI device ID
  *
  *	Called from kernel PCI layer.
  *

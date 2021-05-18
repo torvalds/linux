@@ -118,6 +118,7 @@ struct thread_info {
 	.task		=	&tsk,			\
 	.current_ds	=	ASI_P,			\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
+	.kregs		=	(struct pt_regs *)(init_stack+THREAD_SIZE)-1 \
 }
 
 /* how to get the thread information struct from C */

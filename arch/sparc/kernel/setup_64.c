@@ -165,8 +165,6 @@ extern int root_mountflags;
 
 char reboot_command[COMMAND_LINE_SIZE];
 
-static struct pt_regs fake_swapper_regs = { { 0, }, 0, 0, 0, 0 };
-
 static void __init per_cpu_patch(void)
 {
 	struct cpuid_patch_entry *p;
@@ -660,8 +658,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = ram_flags & RAMDISK_IMAGE_START_MASK;
 #endif
-
-	task_thread_info(&init_task)->kregs = &fake_swapper_regs;
 
 #ifdef CONFIG_IP_PNP
 	if (!ic_set_manually) {

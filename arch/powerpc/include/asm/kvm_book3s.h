@@ -210,12 +210,12 @@ extern void kvmppc_free_pgtable_radix(struct kvm *kvm, pgd_t *pgd,
 				      unsigned int lpid);
 extern int kvmppc_radix_init(void);
 extern void kvmppc_radix_exit(void);
-extern int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			unsigned long gfn);
-extern int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			unsigned long gfn);
-extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			unsigned long gfn);
+extern void kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			    unsigned long gfn);
+extern bool kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			  unsigned long gfn);
+extern bool kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			       unsigned long gfn);
 extern long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
 extern void kvmppc_radix_flush_memslot(struct kvm *kvm,
@@ -258,6 +258,8 @@ extern long kvmppc_hv_get_dirty_log_hpt(struct kvm *kvm,
 extern void kvmppc_harvest_vpa_dirty(struct kvmppc_vpa *vpa,
 			struct kvm_memory_slot *memslot,
 			unsigned long *map);
+extern unsigned long kvmppc_filter_lpcr_hv(struct kvm *kvm,
+			unsigned long lpcr);
 extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 			unsigned long mask);
 extern void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr);

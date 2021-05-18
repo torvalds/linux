@@ -5,7 +5,7 @@ DT_MK_SCHEMA ?= dt-mk-schema
 
 DT_SCHEMA_LINT = $(shell which yamllint)
 
-DT_SCHEMA_MIN_VERSION = 2020.8.1
+DT_SCHEMA_MIN_VERSION = 2021.2.1
 
 PHONY += check_dtschema_version
 check_dtschema_version:
@@ -48,12 +48,15 @@ define rule_chkdt
 	$(call cmd,mk_schema)
 endef
 
-DT_DOCS = $(shell $(find_cmd) | sed -e 's|^$(srctree)/||')
+DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_cmd)))
 
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \
 	-Wno-graph_child_address \
 	-Wno-interrupt_provider
+
+# Disable undocumented compatible checks until warning free
+override DT_CHECKER_FLAGS ?=
 
 $(obj)/processed-schema-examples.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)

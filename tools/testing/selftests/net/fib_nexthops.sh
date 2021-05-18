@@ -19,10 +19,39 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-IPV4_TESTS="ipv4_fcnal ipv4_grp_fcnal ipv4_withv6_fcnal ipv4_fcnal_runtime ipv4_large_grp ipv4_compat_mode ipv4_fdb_grp_fcnal ipv4_torture"
-IPV6_TESTS="ipv6_fcnal ipv6_grp_fcnal ipv6_fcnal_runtime ipv6_large_grp ipv6_compat_mode ipv6_fdb_grp_fcnal ipv6_torture"
+IPV4_TESTS="
+	ipv4_fcnal
+	ipv4_grp_fcnal
+	ipv4_res_grp_fcnal
+	ipv4_withv6_fcnal
+	ipv4_fcnal_runtime
+	ipv4_large_grp
+	ipv4_large_res_grp
+	ipv4_compat_mode
+	ipv4_fdb_grp_fcnal
+	ipv4_torture
+	ipv4_res_torture
+"
 
-ALL_TESTS="basic ${IPV4_TESTS} ${IPV6_TESTS}"
+IPV6_TESTS="
+	ipv6_fcnal
+	ipv6_grp_fcnal
+	ipv6_res_grp_fcnal
+	ipv6_fcnal_runtime
+	ipv6_large_grp
+	ipv6_large_res_grp
+	ipv6_compat_mode
+	ipv6_fdb_grp_fcnal
+	ipv6_torture
+	ipv6_res_torture
+"
+
+ALL_TESTS="
+	basic
+	basic_res
+	${IPV4_TESTS}
+	${IPV6_TESTS}
+"
 TESTS="${ALL_TESTS}"
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -232,6 +261,19 @@ check_nexthop()
 	check_output "${out}" "${expected}"
 }
 
+check_nexthop_bucket()
+{
+	local nharg="$1"
+	local expected="$2"
+	local out
+
+	# remove the idle time since we cannot match it
+	out=$($IP nexthop bucket ${nharg} \
+		| sed s/idle_time\ [0-9.]*\ // 2>/dev/null)
+
+	check_output "${out}" "${expected}"
+}
+
 check_route()
 {
 	local pfx="$1"
@@ -308,6 +350,25 @@ check_large_grp()
 	log_test $? 0 "Dump large (x$ecmp) ecmp groups"
 }
 
+check_large_res_grp()
+{
+	local ipv=$1
+	local buckets=$2
+	local ipstr=""
+
+	if [ $ipv -eq 4 ]; then
+		ipstr="172.16.1.2"
+	else
+		ipstr="2001:db8:91::2"
+	fi
+
+	# create a resilient group with $buckets buckets and dump them
+	run_cmd "$IP nexthop add id 100 via $ipstr dev veth1"
+	run_cmd "$IP nexthop add id 1000 group 100 type resilient buckets $buckets"
+	run_cmd "$IP nexthop bucket list"
+	log_test $? 0 "Dump large (x$buckets) nexthop buckets"
+}
+
 start_ip_monitor()
 {
 	local mtype=$1
@@ -340,6 +401,15 @@ check_nexthop_fdb_support()
 	$IP nexthop help 2>&1 | grep -q fdb
 	if [ $? -ne 0 ]; then
 		echo "SKIP: iproute2 too old, missing fdb nexthop support"
+		return $ksft_skip
+	fi
+}
+
+check_nexthop_res_support()
+{
+	$IP nexthop help 2>&1 | grep -q resilient
+	if [ $? -ne 0 ]; then
+		echo "SKIP: iproute2 too old, missing resilient nexthop group support"
 		return $ksft_skip
 	fi
 }
@@ -666,6 +736,70 @@ ipv6_grp_fcnal()
 	log_test $? 2 "Nexthop group can not have a blackhole and another nexthop"
 }
 
+ipv6_res_grp_fcnal()
+{
+	local rc
+
+	echo
+	echo "IPv6 resilient groups functional"
+	echo "--------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	#
+	# migration of nexthop buckets - equal weights
+	#
+	run_cmd "$IP nexthop add id 62 via 2001:db8:91::2 dev veth1"
+	run_cmd "$IP nexthop add id 63 via 2001:db8:91::3 dev veth1"
+	run_cmd "$IP nexthop add id 102 group 62/63 type resilient buckets 2 idle_timer 0"
+
+	run_cmd "$IP nexthop del id 63"
+	check_nexthop "id 102" \
+		"id 102 group 62 type resilient buckets 2 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated when entry is deleted"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 62 id 102 index 1 nhid 62"
+	log_test $? 0 "Nexthop buckets updated when entry is deleted"
+
+	run_cmd "$IP nexthop add id 63 via 2001:db8:91::3 dev veth1"
+	run_cmd "$IP nexthop replace id 102 group 62/63 type resilient buckets 2 idle_timer 0"
+	check_nexthop "id 102" \
+		"id 102 group 62/63 type resilient buckets 2 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated after replace"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 63 id 102 index 1 nhid 62"
+	log_test $? 0 "Nexthop buckets updated after replace"
+
+	$IP nexthop flush >/dev/null 2>&1
+
+	#
+	# migration of nexthop buckets - unequal weights
+	#
+	run_cmd "$IP nexthop add id 62 via 2001:db8:91::2 dev veth1"
+	run_cmd "$IP nexthop add id 63 via 2001:db8:91::3 dev veth1"
+	run_cmd "$IP nexthop add id 102 group 62,3/63,1 type resilient buckets 4 idle_timer 0"
+
+	run_cmd "$IP nexthop del id 63"
+	check_nexthop "id 102" \
+		"id 102 group 62,3 type resilient buckets 4 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated when entry is deleted - nECMP"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 62 id 102 index 1 nhid 62 id 102 index 2 nhid 62 id 102 index 3 nhid 62"
+	log_test $? 0 "Nexthop buckets updated when entry is deleted - nECMP"
+
+	run_cmd "$IP nexthop add id 63 via 2001:db8:91::3 dev veth1"
+	run_cmd "$IP nexthop replace id 102 group 62,3/63,1 type resilient buckets 4 idle_timer 0"
+	check_nexthop "id 102" \
+		"id 102 group 62,3/63 type resilient buckets 4 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated after replace - nECMP"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 63 id 102 index 1 nhid 62 id 102 index 2 nhid 62 id 102 index 3 nhid 62"
+	log_test $? 0 "Nexthop buckets updated after replace - nECMP"
+}
+
 ipv6_fcnal_runtime()
 {
 	local rc
@@ -824,6 +958,22 @@ ipv6_large_grp()
 	$IP nexthop flush >/dev/null 2>&1
 }
 
+ipv6_large_res_grp()
+{
+	echo
+	echo "IPv6 large resilient group (128k buckets)"
+	echo "-----------------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	check_large_res_grp 6 $((128 * 1024))
+
+	$IP nexthop flush >/dev/null 2>&1
+}
+
 ipv6_del_add_loop1()
 {
 	while :; do
@@ -874,11 +1024,67 @@ ipv6_torture()
 
 	sleep 300
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
 	# if we did not crash, success
 	log_test 0 0 "IPv6 torture test"
 }
 
+ipv6_res_grp_replace_loop()
+{
+	while :; do
+		$IP nexthop replace id 102 group 100/101 type resilient
+	done >/dev/null 2>&1
+}
+
+ipv6_res_torture()
+{
+	local pid1
+	local pid2
+	local pid3
+	local pid4
+	local pid5
+
+	echo
+	echo "IPv6 runtime resilient nexthop group torture"
+	echo "--------------------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	if [ ! -x "$(command -v mausezahn)" ]; then
+		echo "SKIP: Could not run test; need mausezahn tool"
+		return
+	fi
+
+	run_cmd "$IP nexthop add id 100 via 2001:db8:91::2 dev veth1"
+	run_cmd "$IP nexthop add id 101 via 2001:db8:92::2 dev veth3"
+	run_cmd "$IP nexthop add id 102 group 100/101 type resilient buckets 512 idle_timer 0"
+	run_cmd "$IP route add 2001:db8:101::1 nhid 102"
+	run_cmd "$IP route add 2001:db8:101::2 nhid 102"
+
+	ipv6_del_add_loop1 &
+	pid1=$!
+	ipv6_res_grp_replace_loop &
+	pid2=$!
+	ip netns exec me ping -f 2001:db8:101::1 >/dev/null 2>&1 &
+	pid3=$!
+	ip netns exec me ping -f 2001:db8:101::2 >/dev/null 2>&1 &
+	pid4=$!
+	ip netns exec me mausezahn -6 veth1 \
+			    -B 2001:db8:101::2 -A 2001:db8:91::1 -c 0 \
+			    -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
+	pid5=$!
+
+	sleep 300
+	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
+
+	# if we did not crash, success
+	log_test 0 0 "IPv6 resilient nexthop group torture test"
+}
 
 ipv4_fcnal()
 {
@@ -1036,6 +1242,70 @@ ipv4_grp_fcnal()
 
 	run_cmd "$IP nexthop add id 108 group 31/24"
 	log_test $? 2 "Nexthop group can not have a blackhole and another nexthop"
+}
+
+ipv4_res_grp_fcnal()
+{
+	local rc
+
+	echo
+	echo "IPv4 resilient groups functional"
+	echo "--------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	#
+	# migration of nexthop buckets - equal weights
+	#
+	run_cmd "$IP nexthop add id 12 via 172.16.1.2 dev veth1"
+	run_cmd "$IP nexthop add id 13 via 172.16.1.3 dev veth1"
+	run_cmd "$IP nexthop add id 102 group 12/13 type resilient buckets 2 idle_timer 0"
+
+	run_cmd "$IP nexthop del id 13"
+	check_nexthop "id 102" \
+		"id 102 group 12 type resilient buckets 2 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated when entry is deleted"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 12 id 102 index 1 nhid 12"
+	log_test $? 0 "Nexthop buckets updated when entry is deleted"
+
+	run_cmd "$IP nexthop add id 13 via 172.16.1.3 dev veth1"
+	run_cmd "$IP nexthop replace id 102 group 12/13 type resilient buckets 2 idle_timer 0"
+	check_nexthop "id 102" \
+		"id 102 group 12/13 type resilient buckets 2 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated after replace"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 13 id 102 index 1 nhid 12"
+	log_test $? 0 "Nexthop buckets updated after replace"
+
+	$IP nexthop flush >/dev/null 2>&1
+
+	#
+	# migration of nexthop buckets - unequal weights
+	#
+	run_cmd "$IP nexthop add id 12 via 172.16.1.2 dev veth1"
+	run_cmd "$IP nexthop add id 13 via 172.16.1.3 dev veth1"
+	run_cmd "$IP nexthop add id 102 group 12,3/13,1 type resilient buckets 4 idle_timer 0"
+
+	run_cmd "$IP nexthop del id 13"
+	check_nexthop "id 102" \
+		"id 102 group 12,3 type resilient buckets 4 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated when entry is deleted - nECMP"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 12 id 102 index 1 nhid 12 id 102 index 2 nhid 12 id 102 index 3 nhid 12"
+	log_test $? 0 "Nexthop buckets updated when entry is deleted - nECMP"
+
+	run_cmd "$IP nexthop add id 13 via 172.16.1.3 dev veth1"
+	run_cmd "$IP nexthop replace id 102 group 12,3/13,1 type resilient buckets 4 idle_timer 0"
+	check_nexthop "id 102" \
+		"id 102 group 12,3/13 type resilient buckets 4 idle_timer 0 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Nexthop group updated after replace - nECMP"
+	check_nexthop_bucket "list id 102" \
+		"id 102 index 0 nhid 13 id 102 index 1 nhid 12 id 102 index 2 nhid 12 id 102 index 3 nhid 12"
+	log_test $? 0 "Nexthop buckets updated after replace - nECMP"
 }
 
 ipv4_withv6_fcnal()
@@ -1259,6 +1529,22 @@ ipv4_large_grp()
 	$IP nexthop flush >/dev/null 2>&1
 }
 
+ipv4_large_res_grp()
+{
+	echo
+	echo "IPv4 large resilient group (128k buckets)"
+	echo "-----------------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	check_large_res_grp 4 $((128 * 1024))
+
+	$IP nexthop flush >/dev/null 2>&1
+}
+
 sysctl_nexthop_compat_mode_check()
 {
 	local sysctlname="net.ipv4.nexthop_compat_mode"
@@ -1476,9 +1762,66 @@ ipv4_torture()
 
 	sleep 300
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
 	# if we did not crash, success
 	log_test 0 0 "IPv4 torture test"
+}
+
+ipv4_res_grp_replace_loop()
+{
+	while :; do
+		$IP nexthop replace id 102 group 100/101 type resilient
+	done >/dev/null 2>&1
+}
+
+ipv4_res_torture()
+{
+	local pid1
+	local pid2
+	local pid3
+	local pid4
+	local pid5
+
+	echo
+	echo "IPv4 runtime resilient nexthop group torture"
+	echo "--------------------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	if [ ! -x "$(command -v mausezahn)" ]; then
+		echo "SKIP: Could not run test; need mausezahn tool"
+		return
+	fi
+
+	run_cmd "$IP nexthop add id 100 via 172.16.1.2 dev veth1"
+	run_cmd "$IP nexthop add id 101 via 172.16.2.2 dev veth3"
+	run_cmd "$IP nexthop add id 102 group 100/101 type resilient buckets 512 idle_timer 0"
+	run_cmd "$IP route add 172.16.101.1 nhid 102"
+	run_cmd "$IP route add 172.16.101.2 nhid 102"
+
+	ipv4_del_add_loop1 &
+	pid1=$!
+	ipv4_res_grp_replace_loop &
+	pid2=$!
+	ip netns exec me ping -f 172.16.101.1 >/dev/null 2>&1 &
+	pid3=$!
+	ip netns exec me ping -f 172.16.101.2 >/dev/null 2>&1 &
+	pid4=$!
+	ip netns exec me mausezahn veth1 \
+				-B 172.16.101.2 -A 172.16.1.1 -c 0 \
+				-t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
+	pid5=$!
+
+	sleep 300
+	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
+
+	# if we did not crash, success
+	log_test 0 0 "IPv4 resilient nexthop group torture test"
 }
 
 basic()
@@ -1523,6 +1866,14 @@ basic()
 	# blackhole nexthop can not have other specs
 	run_cmd "$IP nexthop replace id 2 blackhole dev veth1"
 	log_test $? 2 "Blackhole nexthop with other attributes"
+
+	# blackhole nexthop should not be affected by the state of the loopback
+	# device
+	run_cmd "$IP link set dev lo down"
+	check_nexthop "id 2" "id 2 blackhole"
+	log_test $? 0 "Blackhole nexthop with loopback device down"
+
+	run_cmd "$IP link set dev lo up"
 
 	#
 	# groups
@@ -1580,6 +1931,219 @@ basic()
 
 	run_cmd "$IP nexthop add id 104 group 1 blackhole"
 	log_test $? 2 "Nexthop group and blackhole"
+
+	$IP nexthop flush >/dev/null 2>&1
+
+	# Test to ensure that flushing with a multi-part nexthop dump works as
+	# expected.
+	local batch_file=$(mktemp)
+
+	for i in $(seq 1 $((64 * 1024))); do
+		echo "nexthop add id $i blackhole" >> $batch_file
+	done
+
+	$IP -b $batch_file
+	$IP nexthop flush >/dev/null 2>&1
+	[[ $($IP nexthop | wc -l) -eq 0 ]]
+	log_test $? 0 "Large scale nexthop flushing"
+
+	rm $batch_file
+}
+
+check_nexthop_buckets_balance()
+{
+	local nharg=$1; shift
+	local ret
+
+	while (($# > 0)); do
+		local selector=$1; shift
+		local condition=$1; shift
+		local count
+
+		count=$($IP -j nexthop bucket ${nharg} ${selector} | jq length)
+		(( $count $condition ))
+		ret=$?
+		if ((ret != 0)); then
+			return $ret
+		fi
+	done
+
+	return 0
+}
+
+basic_res()
+{
+	echo
+	echo "Basic resilient nexthop group functional tests"
+	echo "----------------------------------------------"
+
+	check_nexthop_res_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	run_cmd "$IP nexthop add id 1 dev veth1"
+
+	#
+	# resilient nexthop group addition
+	#
+
+	run_cmd "$IP nexthop add id 101 group 1 type resilient buckets 8"
+	log_test $? 0 "Add a nexthop group with default parameters"
+
+	run_cmd "$IP nexthop get id 101"
+	check_nexthop "id 101" \
+		"id 101 group 1 type resilient buckets 8 idle_timer 120 unbalanced_timer 0 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group with default parameters"
+
+	run_cmd "$IP nexthop add id 102 group 1 type resilient
+			buckets 4 idle_timer 100 unbalanced_timer 5"
+	run_cmd "$IP nexthop get id 102"
+	check_nexthop "id 102" \
+		"id 102 group 1 type resilient buckets 4 idle_timer 100 unbalanced_timer 5 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group with non-default parameters"
+
+	run_cmd "$IP nexthop add id 103 group 1 type resilient buckets 0"
+	log_test $? 2 "Add a nexthop group with 0 buckets"
+
+	#
+	# resilient nexthop group replacement
+	#
+
+	run_cmd "$IP nexthop replace id 101 group 1 type resilient
+			buckets 8 idle_timer 240 unbalanced_timer 80"
+	log_test $? 0 "Replace nexthop group parameters"
+	check_nexthop "id 101" \
+		"id 101 group 1 type resilient buckets 8 idle_timer 240 unbalanced_timer 80 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group after replacing parameters"
+
+	run_cmd "$IP nexthop replace id 101 group 1 type resilient idle_timer 512"
+	log_test $? 0 "Replace idle timer"
+	check_nexthop "id 101" \
+		"id 101 group 1 type resilient buckets 8 idle_timer 512 unbalanced_timer 80 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group after replacing idle timer"
+
+	run_cmd "$IP nexthop replace id 101 group 1 type resilient unbalanced_timer 256"
+	log_test $? 0 "Replace unbalanced timer"
+	check_nexthop "id 101" \
+		"id 101 group 1 type resilient buckets 8 idle_timer 512 unbalanced_timer 256 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group after replacing unbalanced timer"
+
+	run_cmd "$IP nexthop replace id 101 group 1 type resilient"
+	log_test $? 0 "Replace with no parameters"
+	check_nexthop "id 101" \
+		"id 101 group 1 type resilient buckets 8 idle_timer 512 unbalanced_timer 256 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group after replacing no parameters"
+
+	run_cmd "$IP nexthop replace id 101 group 1"
+	log_test $? 2 "Replace nexthop group type - implicit"
+
+	run_cmd "$IP nexthop replace id 101 group 1 type mpath"
+	log_test $? 2 "Replace nexthop group type - explicit"
+
+	run_cmd "$IP nexthop replace id 101 group 1 type resilient buckets 1024"
+	log_test $? 2 "Replace number of nexthop buckets"
+
+	check_nexthop "id 101" \
+		"id 101 group 1 type resilient buckets 8 idle_timer 512 unbalanced_timer 256 unbalanced_time 0"
+	log_test $? 0 "Get a nexthop group after replacing with invalid parameters"
+
+	#
+	# resilient nexthop buckets dump
+	#
+
+	$IP nexthop flush >/dev/null 2>&1
+	run_cmd "$IP nexthop add id 1 dev veth1"
+	run_cmd "$IP nexthop add id 2 dev veth3"
+	run_cmd "$IP nexthop add id 101 group 1/2 type resilient buckets 4"
+	run_cmd "$IP nexthop add id 201 group 1/2"
+
+	check_nexthop_bucket "" \
+		"id 101 index 0 nhid 2 id 101 index 1 nhid 2 id 101 index 2 nhid 1 id 101 index 3 nhid 1"
+	log_test $? 0 "Dump all nexthop buckets"
+
+	check_nexthop_bucket "list id 101" \
+		"id 101 index 0 nhid 2 id 101 index 1 nhid 2 id 101 index 2 nhid 1 id 101 index 3 nhid 1"
+	log_test $? 0 "Dump all nexthop buckets in a group"
+
+	(( $($IP -j nexthop bucket list id 101 |
+	     jq '[.[] | select(.bucket.idle_time > 0 and
+	                       .bucket.idle_time < 2)] | length') == 4 ))
+	log_test $? 0 "All nexthop buckets report a positive near-zero idle time"
+
+	check_nexthop_bucket "list dev veth1" \
+		"id 101 index 2 nhid 1 id 101 index 3 nhid 1"
+	log_test $? 0 "Dump all nexthop buckets with a specific nexthop device"
+
+	check_nexthop_bucket "list nhid 2" \
+		"id 101 index 0 nhid 2 id 101 index 1 nhid 2"
+	log_test $? 0 "Dump all nexthop buckets with a specific nexthop identifier"
+
+	run_cmd "$IP nexthop bucket list id 111"
+	log_test $? 2 "Dump all nexthop buckets in a non-existent group"
+
+	run_cmd "$IP nexthop bucket list id 201"
+	log_test $? 2 "Dump all nexthop buckets in a non-resilient group"
+
+	run_cmd "$IP nexthop bucket list dev bla"
+	log_test $? 255 "Dump all nexthop buckets using a non-existent device"
+
+	run_cmd "$IP nexthop bucket list groups"
+	log_test $? 255 "Dump all nexthop buckets with invalid 'groups' keyword"
+
+	run_cmd "$IP nexthop bucket list fdb"
+	log_test $? 255 "Dump all nexthop buckets with invalid 'fdb' keyword"
+
+	#
+	# resilient nexthop buckets get requests
+	#
+
+	check_nexthop_bucket "get id 101 index 0" "id 101 index 0 nhid 2"
+	log_test $? 0 "Get a valid nexthop bucket"
+
+	run_cmd "$IP nexthop bucket get id 101 index 999"
+	log_test $? 2 "Get a nexthop bucket with valid group, but invalid index"
+
+	run_cmd "$IP nexthop bucket get id 201 index 0"
+	log_test $? 2 "Get a nexthop bucket from a non-resilient group"
+
+	run_cmd "$IP nexthop bucket get id 999 index 0"
+	log_test $? 2 "Get a nexthop bucket from a non-existent group"
+
+	#
+	# tests for bucket migration
+	#
+
+	$IP nexthop flush >/dev/null 2>&1
+
+	run_cmd "$IP nexthop add id 1 dev veth1"
+	run_cmd "$IP nexthop add id 2 dev veth3"
+	run_cmd "$IP nexthop add id 101
+			group 1/2 type resilient buckets 10
+			idle_timer 1 unbalanced_timer 20"
+
+	check_nexthop_buckets_balance "list id 101" \
+				      "nhid 1" "== 5" \
+				      "nhid 2" "== 5"
+	log_test $? 0 "Initial bucket allocation"
+
+	run_cmd "$IP nexthop replace id 101
+			group 1,2/2,3 type resilient"
+	check_nexthop_buckets_balance "list id 101" \
+				      "nhid 1" "== 4" \
+				      "nhid 2" "== 6"
+	log_test $? 0 "Bucket allocation after replace"
+
+	# Check that increase in idle timer does not make buckets appear busy.
+	run_cmd "$IP nexthop replace id 101
+			group 1,2/2,3 type resilient
+			idle_timer 10"
+	run_cmd "$IP nexthop replace id 101
+			group 1/2 type resilient"
+	check_nexthop_buckets_balance "list id 101" \
+				      "nhid 1" "== 5" \
+				      "nhid 2" "== 5"
+	log_test $? 0 "Buckets migrated after idle timer change"
 
 	$IP nexthop flush >/dev/null 2>&1
 }

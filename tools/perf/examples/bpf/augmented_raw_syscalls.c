@@ -262,7 +262,7 @@ int sys_enter(struct syscall_enter_args *args)
 	/*
 	 * Jump to syscall specific augmenter, even if the default one,
 	 * "!raw_syscalls:unaugmented" that will just return 1 to return the
-	 * unagmented tracepoint payload.
+	 * unaugmented tracepoint payload.
 	 */
 	bpf_tail_call(args, &syscalls_sys_enter, augmented_args->args.syscall_nr);
 
@@ -282,7 +282,7 @@ int sys_exit(struct syscall_exit_args *args)
 	/*
 	 * Jump to syscall specific return augmenter, even if the default one,
 	 * "!raw_syscalls:unaugmented" that will just return 1 to return the
-	 * unagmented tracepoint payload.
+	 * unaugmented tracepoint payload.
 	 */
 	bpf_tail_call(args, &syscalls_sys_exit, exit_args.syscall_nr);
 	/*

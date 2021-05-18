@@ -4,8 +4,10 @@
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/fsl/enetc_mdio.h>
+#include <linux/of_platform.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
+#include "enetc_ierb.h"
 #include "enetc_pf.h"
 
 #define ENETC_DRV_NAME_STR "ENETC PF driver"
@@ -129,16 +131,20 @@ static void enetc_clear_mac_ht_flt(struct enetc_si *si, int si_idx, int type)
 }
 
 static void enetc_set_mac_ht_flt(struct enetc_si *si, int si_idx, int type,
-				 u32 *hash)
+				 unsigned long hash)
 {
 	bool err = si->errata & ENETC_ERR_UCMCSWP;
 
 	if (type == UC) {
-		enetc_port_wr(&si->hw, ENETC_PSIUMHFR0(si_idx, err), *hash);
-		enetc_port_wr(&si->hw, ENETC_PSIUMHFR1(si_idx), *(hash + 1));
+		enetc_port_wr(&si->hw, ENETC_PSIUMHFR0(si_idx, err),
+			      lower_32_bits(hash));
+		enetc_port_wr(&si->hw, ENETC_PSIUMHFR1(si_idx),
+			      upper_32_bits(hash));
 	} else { /* MC */
-		enetc_port_wr(&si->hw, ENETC_PSIMMHFR0(si_idx, err), *hash);
-		enetc_port_wr(&si->hw, ENETC_PSIMMHFR1(si_idx), *(hash + 1));
+		enetc_port_wr(&si->hw, ENETC_PSIMMHFR0(si_idx, err),
+			      lower_32_bits(hash));
+		enetc_port_wr(&si->hw, ENETC_PSIMMHFR1(si_idx),
+			      upper_32_bits(hash));
 	}
 }
 
@@ -182,7 +188,7 @@ static void enetc_sync_mac_filters(struct enetc_pf *pf)
 		if (i == UC)
 			enetc_clear_mac_flt_entry(si, pos);
 
-		enetc_set_mac_ht_flt(si, 0, i, (u32 *)f->mac_hash_table);
+		enetc_set_mac_ht_flt(si, 0, i, *f->mac_hash_table);
 	}
 }
 
@@ -190,7 +196,6 @@ static void enetc_pf_set_rx_mode(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
-	char vlan_promisc_simap = pf->vlan_promisc_simap;
 	struct enetc_hw *hw = &priv->si->hw;
 	bool uprom = false, mprom = false;
 	struct enetc_mac_filter *filter;
@@ -203,15 +208,11 @@ static void enetc_pf_set_rx_mode(struct net_device *ndev)
 		psipmr = ENETC_PSIPMR_SET_UP(0) | ENETC_PSIPMR_SET_MP(0);
 		uprom = true;
 		mprom = true;
-		/* Enable VLAN promiscuous mode for SI0 (PF) */
-		vlan_promisc_simap |= BIT(0);
 	} else if (ndev->flags & IFF_ALLMULTI) {
 		/* enable multi cast promisc mode for SI0 (PF) */
 		psipmr = ENETC_PSIPMR_SET_MP(0);
 		mprom = true;
 	}
-
-	enetc_set_vlan_promisc(&pf->si->hw, vlan_promisc_simap);
 
 	/* first 2 filter entries belong to PF */
 	if (!uprom) {
@@ -253,10 +254,10 @@ static void enetc_pf_set_rx_mode(struct net_device *ndev)
 }
 
 static void enetc_set_vlan_ht_filter(struct enetc_hw *hw, int si_idx,
-				     u32 *hash)
+				     unsigned long hash)
 {
-	enetc_port_wr(hw, ENETC_PSIVHFR0(si_idx), *hash);
-	enetc_port_wr(hw, ENETC_PSIVHFR1(si_idx), *(hash + 1));
+	enetc_port_wr(hw, ENETC_PSIVHFR0(si_idx), lower_32_bits(hash));
+	enetc_port_wr(hw, ENETC_PSIVHFR1(si_idx), upper_32_bits(hash));
 }
 
 static int enetc_vid_hash_idx(unsigned int vid)
@@ -284,7 +285,7 @@ static void enetc_sync_vlan_ht_filter(struct enetc_pf *pf, bool rehash)
 		}
 	}
 
-	enetc_set_vlan_ht_filter(&pf->si->hw, 0, (u32 *)pf->vlan_ht_filter);
+	enetc_set_vlan_ht_filter(&pf->si->hw, 0, *pf->vlan_ht_filter);
 }
 
 static int enetc_vlan_rx_add_vid(struct net_device *ndev, __be16 prot, u16 vid)
@@ -320,7 +321,7 @@ static void enetc_set_loopback(struct net_device *ndev, bool en)
 	u32 reg;
 
 	reg = enetc_port_rd(hw, ENETC_PM0_IF_MODE);
-	if (reg & ENETC_PMO_IFM_RG) {
+	if (reg & ENETC_PM0_IFM_RG) {
 		/* RGMII mode */
 		reg = (reg & ~ENETC_PM0_IFM_RLP) |
 		      (en ? ENETC_PM0_IFM_RLP : 0);
@@ -391,23 +392,54 @@ static int enetc_pf_set_vf_spoofchk(struct net_device *ndev, int vf, bool en)
 	return 0;
 }
 
-static void enetc_port_setup_primary_mac_address(struct enetc_si *si)
+static int enetc_setup_mac_address(struct device_node *np, struct enetc_pf *pf,
+				   int si)
 {
-	unsigned char mac_addr[MAX_ADDR_LEN];
-	struct enetc_pf *pf = enetc_si_priv(si);
-	struct enetc_hw *hw = &si->hw;
-	int i;
+	struct device *dev = &pf->si->pdev->dev;
+	struct enetc_hw *hw = &pf->si->hw;
+	u8 mac_addr[ETH_ALEN] = { 0 };
+	int err;
 
-	/* check MAC addresses for PF and all VFs, if any is 0 set it ro rand */
-	for (i = 0; i < pf->total_vfs + 1; i++) {
-		enetc_pf_get_primary_mac_addr(hw, i, mac_addr);
-		if (!is_zero_ether_addr(mac_addr))
-			continue;
-		eth_random_addr(mac_addr);
-		dev_info(&si->pdev->dev, "no MAC address specified for SI%d, using %pM\n",
-			 i, mac_addr);
-		enetc_pf_set_primary_mac_addr(hw, i, mac_addr);
+	/* (1) try to get the MAC address from the device tree */
+	if (np) {
+		err = of_get_mac_address(np, mac_addr);
+		if (err == -EPROBE_DEFER)
+			return err;
 	}
+
+	/* (2) bootloader supplied MAC address */
+	if (is_zero_ether_addr(mac_addr))
+		enetc_pf_get_primary_mac_addr(hw, si, mac_addr);
+
+	/* (3) choose a random one */
+	if (is_zero_ether_addr(mac_addr)) {
+		eth_random_addr(mac_addr);
+		dev_info(dev, "no MAC address specified for SI%d, using %pM\n",
+			 si, mac_addr);
+	}
+
+	enetc_pf_set_primary_mac_addr(hw, si, mac_addr);
+
+	return 0;
+}
+
+static int enetc_setup_mac_addresses(struct device_node *np,
+				     struct enetc_pf *pf)
+{
+	int err, i;
+
+	/* The PF might take its MAC from the device tree */
+	err = enetc_setup_mac_address(np, pf, 0);
+	if (err)
+		return err;
+
+	for (i = 0; i < pf->total_vfs; i++) {
+		err = enetc_setup_mac_address(NULL, pf, i + 1);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static void enetc_port_assign_rfs_entries(struct enetc_si *si)
@@ -488,24 +520,36 @@ static void enetc_configure_port_mac(struct enetc_hw *hw)
 		      ENETC_SET_MAXFRM(ENETC_RX_MAXFRM_SIZE));
 
 	enetc_port_wr(hw, ENETC_PTCMSDUR(0), ENETC_MAC_MAXFRM_SIZE);
-	enetc_port_wr(hw, ENETC_PTXMBAR, 2 * ENETC_MAC_MAXFRM_SIZE);
 
 	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
 		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
 
 	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
 		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
+
+	/* On LS1028A, the MAC RX FIFO defaults to 2, which is too high
+	 * and may lead to RX lock-up under traffic. Set it to 1 instead,
+	 * as recommended by the hardware team.
+	 */
+	enetc_port_wr(hw, ENETC_PM0_RX_FIFO, ENETC_PM0_RX_FIFO_VAL);
 }
 
 static void enetc_mac_config(struct enetc_hw *hw, phy_interface_t phy_mode)
 {
-	/* set auto-speed for RGMII */
-	if (enetc_port_rd(hw, ENETC_PM0_IF_MODE) & ENETC_PMO_IFM_RG ||
-	    phy_interface_mode_is_rgmii(phy_mode))
-		enetc_port_wr(hw, ENETC_PM0_IF_MODE, ENETC_PM0_IFM_RGAUTO);
+	u32 val;
 
-	if (phy_mode == PHY_INTERFACE_MODE_USXGMII)
-		enetc_port_wr(hw, ENETC_PM0_IF_MODE, ENETC_PM0_IFM_XGMII);
+	if (phy_interface_mode_is_rgmii(phy_mode)) {
+		val = enetc_port_rd(hw, ENETC_PM0_IF_MODE);
+		val &= ~ENETC_PM0_IFM_EN_AUTO;
+		val &= ENETC_PM0_IFM_IFMODE_MASK;
+		val |= ENETC_PM0_IFM_IFMODE_GMII | ENETC_PM0_IFM_RG;
+		enetc_port_wr(hw, ENETC_PM0_IF_MODE, val);
+	}
+
+	if (phy_mode == PHY_INTERFACE_MODE_USXGMII) {
+		val = ENETC_PM0_IFM_FULL_DPX | ENETC_PM0_IFM_IFMODE_XGMII;
+		enetc_port_wr(hw, ENETC_PM0_IF_MODE, val);
+	}
 }
 
 static void enetc_mac_enable(struct enetc_hw *hw, bool en)
@@ -549,9 +593,6 @@ static void enetc_configure_port(struct enetc_pf *pf)
 
 	/* split up RFS entries */
 	enetc_port_assign_rfs_entries(pf->si);
-
-	/* fix-up primary MAC addresses, if not set already */
-	enetc_port_setup_primary_mac_address(pf->si);
 
 	/* enforce VLAN promisc mode for all SIs */
 	pf->vlan_promisc_simap = ENETC_VLAN_PROMISC_MAP_ALL;
@@ -695,6 +736,8 @@ static const struct net_device_ops enetc_ndev_ops = {
 	.ndo_set_features	= enetc_pf_set_features,
 	.ndo_do_ioctl		= enetc_ioctl,
 	.ndo_setup_tc		= enetc_setup_tc,
+	.ndo_bpf		= enetc_setup_bpf,
+	.ndo_xdp_xmit		= enetc_xdp_xmit,
 };
 
 static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
@@ -937,19 +980,107 @@ static void enetc_pl_mac_config(struct phylink_config *config,
 		phylink_set_pcs(priv->phylink, &pf->pcs->pcs);
 }
 
+static void enetc_force_rgmii_mac(struct enetc_hw *hw, int speed, int duplex)
+{
+	u32 old_val, val;
+
+	old_val = val = enetc_port_rd(hw, ENETC_PM0_IF_MODE);
+
+	if (speed == SPEED_1000) {
+		val &= ~ENETC_PM0_IFM_SSP_MASK;
+		val |= ENETC_PM0_IFM_SSP_1000;
+	} else if (speed == SPEED_100) {
+		val &= ~ENETC_PM0_IFM_SSP_MASK;
+		val |= ENETC_PM0_IFM_SSP_100;
+	} else if (speed == SPEED_10) {
+		val &= ~ENETC_PM0_IFM_SSP_MASK;
+		val |= ENETC_PM0_IFM_SSP_10;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		val |= ENETC_PM0_IFM_FULL_DPX;
+	else
+		val &= ~ENETC_PM0_IFM_FULL_DPX;
+
+	if (val == old_val)
+		return;
+
+	enetc_port_wr(hw, ENETC_PM0_IF_MODE, val);
+}
+
 static void enetc_pl_mac_link_up(struct phylink_config *config,
 				 struct phy_device *phy, unsigned int mode,
 				 phy_interface_t interface, int speed,
 				 int duplex, bool tx_pause, bool rx_pause)
 {
 	struct enetc_pf *pf = phylink_to_enetc_pf(config);
+	u32 pause_off_thresh = 0, pause_on_thresh = 0;
+	u32 init_quanta = 0, refresh_quanta = 0;
+	struct enetc_hw *hw = &pf->si->hw;
 	struct enetc_ndev_priv *priv;
+	u32 rbmr, cmd_cfg;
+	int idx;
 
 	priv = netdev_priv(pf->si->ndev);
 	if (priv->active_offloads & ENETC_F_QBV)
 		enetc_sched_speed_set(priv, speed);
 
-	enetc_mac_enable(&pf->si->hw, true);
+	if (!phylink_autoneg_inband(mode) &&
+	    phy_interface_mode_is_rgmii(interface))
+		enetc_force_rgmii_mac(hw, speed, duplex);
+
+	/* Flow control */
+	for (idx = 0; idx < priv->num_rx_rings; idx++) {
+		rbmr = enetc_rxbdr_rd(hw, idx, ENETC_RBMR);
+
+		if (tx_pause)
+			rbmr |= ENETC_RBMR_CM;
+		else
+			rbmr &= ~ENETC_RBMR_CM;
+
+		enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
+	}
+
+	if (tx_pause) {
+		/* When the port first enters congestion, send a PAUSE request
+		 * with the maximum number of quanta. When the port exits
+		 * congestion, it will automatically send a PAUSE frame with
+		 * zero quanta.
+		 */
+		init_quanta = 0xffff;
+
+		/* Also, set up the refresh timer to send follow-up PAUSE
+		 * frames at half the quanta value, in case the congestion
+		 * condition persists.
+		 */
+		refresh_quanta = 0xffff / 2;
+
+		/* Start emitting PAUSE frames when 3 large frames (or more
+		 * smaller frames) have accumulated in the FIFO waiting to be
+		 * DMAed to the RX ring.
+		 */
+		pause_on_thresh = 3 * ENETC_MAC_MAXFRM_SIZE;
+		pause_off_thresh = 1 * ENETC_MAC_MAXFRM_SIZE;
+	}
+
+	enetc_port_wr(hw, ENETC_PM0_PAUSE_QUANTA, init_quanta);
+	enetc_port_wr(hw, ENETC_PM1_PAUSE_QUANTA, init_quanta);
+	enetc_port_wr(hw, ENETC_PM0_PAUSE_THRESH, refresh_quanta);
+	enetc_port_wr(hw, ENETC_PM1_PAUSE_THRESH, refresh_quanta);
+	enetc_port_wr(hw, ENETC_PPAUONTR, pause_on_thresh);
+	enetc_port_wr(hw, ENETC_PPAUOFFTR, pause_off_thresh);
+
+	cmd_cfg = enetc_port_rd(hw, ENETC_PM0_CMD_CFG);
+
+	if (rx_pause)
+		cmd_cfg &= ~ENETC_PM0_PAUSE_IGN;
+	else
+		cmd_cfg |= ENETC_PM0_PAUSE_IGN;
+
+	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, cmd_cfg);
+	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, cmd_cfg);
+
+	enetc_mac_enable(hw, true);
 }
 
 static void enetc_pl_mac_link_down(struct phylink_config *config,
@@ -1041,6 +1172,30 @@ static int enetc_init_port_rss_memory(struct enetc_si *si)
 	return err;
 }
 
+static int enetc_pf_register_with_ierb(struct pci_dev *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct platform_device *ierb_pdev;
+	struct device_node *ierb_node;
+
+	/* Don't register with the IERB if the PF itself is disabled */
+	if (!node || !of_device_is_available(node))
+		return 0;
+
+	ierb_node = of_find_compatible_node(NULL, NULL,
+					    "fsl,ls1028a-enetc-ierb");
+	if (!ierb_node || !of_device_is_available(ierb_node))
+		return -ENODEV;
+
+	ierb_pdev = of_find_device_by_node(ierb_node);
+	of_node_put(ierb_node);
+
+	if (!ierb_pdev)
+		return -EPROBE_DEFER;
+
+	return enetc_ierb_register_pf(ierb_pdev, pdev);
+}
+
 static int enetc_pf_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent)
 {
@@ -1051,10 +1206,13 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	struct enetc_pf *pf;
 	int err;
 
-	if (node && !of_device_is_available(node)) {
-		dev_info(&pdev->dev, "device is disabled, skipping\n");
-		return -ENODEV;
-	}
+	err = enetc_pf_register_with_ierb(pdev);
+	if (err == -EPROBE_DEFER)
+		return err;
+	if (err)
+		dev_warn(&pdev->dev,
+			 "Could not register with IERB driver: %pe, please update the device tree\n",
+			 ERR_PTR(err));
 
 	err = enetc_pci_probe(pdev, KBUILD_MODNAME, sizeof(*pf));
 	if (err) {
@@ -1069,9 +1227,36 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_map_pf_space;
 	}
 
+	err = enetc_setup_cbdr(&pdev->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
+			       &si->cbd_ring);
+	if (err)
+		goto err_setup_cbdr;
+
+	err = enetc_init_port_rfs_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
+		goto err_init_port_rfs;
+	}
+
+	err = enetc_init_port_rss_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
+		goto err_init_port_rss;
+	}
+
+	if (node && !of_device_is_available(node)) {
+		dev_info(&pdev->dev, "device is disabled, skipping\n");
+		err = -ENODEV;
+		goto err_device_disabled;
+	}
+
 	pf = enetc_si_priv(si);
 	pf->si = si;
 	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
+
+	err = enetc_setup_mac_addresses(node, pf);
+	if (err)
+		goto err_setup_mac_addresses;
 
 	enetc_configure_port(pf);
 
@@ -1096,16 +1281,10 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_alloc_si_res;
 	}
 
-	err = enetc_init_port_rfs_memory(si);
+	err = enetc_configure_si(priv);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
-		goto err_init_port_rfs;
-	}
-
-	err = enetc_init_port_rss_memory(si);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
-		goto err_init_port_rss;
+		dev_err(&pdev->dev, "Failed to configure SI\n");
+		goto err_config_si;
 	}
 
 	err = enetc_alloc_msix(priv);
@@ -1136,14 +1315,19 @@ err_phylink_create:
 	enetc_mdiobus_destroy(pf);
 err_mdiobus_create:
 	enetc_free_msix(priv);
-err_init_port_rss:
-err_init_port_rfs:
+err_config_si:
 err_alloc_msix:
 	enetc_free_si_resources(priv);
 err_alloc_si_res:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
+err_init_port_rss:
+err_init_port_rfs:
+err_device_disabled:
+err_setup_mac_addresses:
+	enetc_teardown_cbdr(&si->cbd_ring);
+err_setup_cbdr:
 err_map_pf_space:
 	enetc_pci_remove(pdev);
 
@@ -1169,6 +1353,7 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	enetc_free_msix(priv);
 
 	enetc_free_si_resources(priv);
+	enetc_teardown_cbdr(&si->cbd_ring);
 
 	free_netdev(si->ndev);
 

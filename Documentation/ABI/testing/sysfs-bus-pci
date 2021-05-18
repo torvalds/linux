@@ -195,10 +195,13 @@ What:		/sys/bus/pci/devices/.../index
 Date:		July 2010
 Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
 Description:
-		Reading this attribute will provide the firmware
-		given instance (SMBIOS type 41 device type instance) of the
-		PCI device. The attribute will be created only if the firmware
-		has given an instance number to the PCI device.
+		Reading this attribute will provide the firmware given instance
+		number of the PCI device.  Depending on the platform this can
+		be for example the SMBIOS type 41 device type instance or the
+		user-defined ID (UID) on s390. The attribute will be created
+		only if the firmware has given an instance number to the PCI
+		device and that number is guaranteed to uniquely identify the
+		device in the system.
 Users:
 		Userspace applications interested in knowing the
 		firmware assigned device type instance of the PCI
@@ -375,3 +378,32 @@ Description:
 		The value comes from the PCI kernel device state and can be one
 		of: "unknown", "error", "D0", D1", "D2", "D3hot", "D3cold".
 		The file is read only.
+
+What:		/sys/bus/pci/devices/.../sriov_vf_total_msix
+Date:		January 2021
+Contact:	Leon Romanovsky <leonro@nvidia.com>
+Description:
+		This file is associated with a SR-IOV physical function (PF).
+		It contains the total number of MSI-X vectors available for
+		assignment to all virtual functions (VFs) associated with PF.
+		The value will be zero if the device doesn't support this
+		functionality. For supported devices, the value will be
+		constant and won't be changed after MSI-X vectors assignment.
+
+What:		/sys/bus/pci/devices/.../sriov_vf_msix_count
+Date:		January 2021
+Contact:	Leon Romanovsky <leonro@nvidia.com>
+Description:
+		This file is associated with a SR-IOV virtual function (VF).
+		It allows configuration of the number of MSI-X vectors for
+		the VF. This allows devices that have a global pool of MSI-X
+		vectors to optimally divide them between VFs based on VF usage.
+
+		The values accepted are:
+		 * > 0 - this number will be reported as the Table Size in the
+			 VF's MSI-X capability
+		 * < 0 - not valid
+		 * = 0 - will reset to the device default value
+
+		The file is writable if the PF is bound to a driver that
+		implements ->sriov_set_msix_vec_count().

@@ -15,3 +15,11 @@ config DEBUG_ENTRY
 	  exits or otherwise impact performance.
 
 	  If unsure, say N.
+
+config CIO_INJECT
+       bool "CIO Inject interfaces"
+       depends on DEBUG_KERNEL && DEBUG_FS
+       help
+	This option provides a debugging facility to inject certain artificial events
+	and instruction responses to the CIO layer of Linux kernel. The newly created
+	debugfs user-interfaces will be at /sys/kernel/debug/s390/cio/*

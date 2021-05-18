@@ -108,7 +108,7 @@ void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 /* hsr_debugfs_term - Tear down debugfs intrastructure
  *
  * Description:
- * When Debufs is configured this routine removes debugfs file system
+ * When Debugfs is configured this routine removes debugfs file system
  * elements that are specific to hsr
  */
 void

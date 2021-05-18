@@ -137,3 +137,62 @@ void hns_roce_cleanup_uar_table(struct hns_roce_dev *hr_dev)
 {
 	hns_roce_bitmap_cleanup(&hr_dev->uar_table.bitmap);
 }
+
+static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)
+{
+	unsigned long obj;
+	int ret;
+
+	ret = hns_roce_bitmap_alloc(&hr_dev->xrcd_bitmap, &obj);
+	if (ret)
+		return ret;
+
+	*xrcdn = obj;
+
+	return 0;
+}
+
+static void hns_roce_xrcd_free(struct hns_roce_dev *hr_dev,
+			       u32 xrcdn)
+{
+	hns_roce_bitmap_free(&hr_dev->xrcd_bitmap, xrcdn, BITMAP_NO_RR);
+}
+
+int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev)
+{
+	return hns_roce_bitmap_init(&hr_dev->xrcd_bitmap,
+				    hr_dev->caps.num_xrcds,
+				    hr_dev->caps.num_xrcds - 1,
+				    hr_dev->caps.reserved_xrcds, 0);
+}
+
+void hns_roce_cleanup_xrcd_table(struct hns_roce_dev *hr_dev)
+{
+	hns_roce_bitmap_cleanup(&hr_dev->xrcd_bitmap);
+}
+
+int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_xrcd->device);
+	struct hns_roce_xrcd *xrcd = to_hr_xrcd(ib_xrcd);
+	int ret;
+
+	if (!(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC))
+		return -EINVAL;
+
+	ret = hns_roce_xrcd_alloc(hr_dev, &xrcd->xrcdn);
+	if (ret) {
+		dev_err(hr_dev->dev, "failed to alloc xrcdn, ret = %d.\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int hns_roce_dealloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
+{
+	hns_roce_xrcd_free(to_hr_dev(ib_xrcd->device),
+			   to_hr_xrcd(ib_xrcd)->xrcdn);
+
+	return 0;
+}

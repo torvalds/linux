@@ -25,6 +25,10 @@
 #define DMA_TBS_CTRL			0x00001050
 
 /* DMA Bus Mode bitmap */
+#define DMA_BUS_MODE_DCHE		BIT(19)
+#define DMA_BUS_MODE_INTM_MASK		GENMASK(17, 16)
+#define DMA_BUS_MODE_INTM_SHIFT		16
+#define DMA_BUS_MODE_INTM_MODE1		0x1
 #define DMA_BUS_MODE_SFT_RESET		BIT(0)
 
 /* DMA SYS Bus Mode bitmap */
@@ -149,6 +153,25 @@
 #define DMA_CHAN_STATUS_TPS		BIT(1)
 #define DMA_CHAN_STATUS_TI		BIT(0)
 
+#define DMA_CHAN_STATUS_MSK_COMMON	(DMA_CHAN_STATUS_NIS | \
+					 DMA_CHAN_STATUS_AIS | \
+					 DMA_CHAN_STATUS_CDE | \
+					 DMA_CHAN_STATUS_FBE)
+
+#define DMA_CHAN_STATUS_MSK_RX		(DMA_CHAN_STATUS_REB | \
+					 DMA_CHAN_STATUS_ERI | \
+					 DMA_CHAN_STATUS_RWT | \
+					 DMA_CHAN_STATUS_RPS | \
+					 DMA_CHAN_STATUS_RBU | \
+					 DMA_CHAN_STATUS_RI | \
+					 DMA_CHAN_STATUS_MSK_COMMON)
+
+#define DMA_CHAN_STATUS_MSK_TX		(DMA_CHAN_STATUS_ETI | \
+					 DMA_CHAN_STATUS_TBU | \
+					 DMA_CHAN_STATUS_TPS | \
+					 DMA_CHAN_STATUS_TI | \
+					 DMA_CHAN_STATUS_MSK_COMMON)
+
 /* Interrupt enable bits per channel */
 #define DMA_CHAN_INTR_ENA_NIE		BIT(16)
 #define DMA_CHAN_INTR_ENA_AIE		BIT(15)
@@ -206,7 +229,7 @@ void dwmac4_dma_stop_tx(void __iomem *ioaddr, u32 chan);
 void dwmac4_dma_start_rx(void __iomem *ioaddr, u32 chan);
 void dwmac4_dma_stop_rx(void __iomem *ioaddr, u32 chan);
 int dwmac4_dma_interrupt(void __iomem *ioaddr,
-			 struct stmmac_extra_stats *x, u32 chan);
+			 struct stmmac_extra_stats *x, u32 chan, u32 dir);
 void dwmac4_set_rx_ring_len(void __iomem *ioaddr, u32 len, u32 chan);
 void dwmac4_set_tx_ring_len(void __iomem *ioaddr, u32 len, u32 chan);
 void dwmac4_set_rx_tail_ptr(void __iomem *ioaddr, u32 tail_ptr, u32 chan);

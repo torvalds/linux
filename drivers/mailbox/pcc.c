@@ -32,7 +32,7 @@
  *  * Client writes WRITE cmd in communication region cmd address.
  *  * Client issues mbox_send_message() which rings the PCC doorbell
  *		for its PCC channel.
- *  * If command completes, then writes have succeded and it can release
+ *  * If command completes, then writes have succeeded and it can release
  *		the channel lock.
  *
  *  There is a Nominal latency defined for each channel which indicates
@@ -577,7 +577,6 @@ static struct platform_driver pcc_mbox_driver = {
 	.probe = pcc_mbox_probe,
 	.driver = {
 		.name = "PCCT",
-		.owner = THIS_MODULE,
 	},
 };
 

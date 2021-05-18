@@ -1,44 +1,152 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Device Tree for the TVK1281618 R2 UIB
+ * Device Tree for the TVK1281618 R3 user interface board (UIB)
+ * also known as the "CYTTSP board"
  */
 
-#include "ste-href-tvk1281618.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 
 / {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vdd-supply = <&ab8500_ldo_aux1_reg>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hall_tvk_mode>;
+
+		button@145 {
+			/* Hall sensor */
+			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+			linux,code = <0>; /* SW_LID */
+			label = "HED54XXU11 Hall Effect Sensor";
+		};
+	};
+
 	soc {
-		i2c@80128000 {
-			/* Marked:
-			 * 129
-			 * M35
-			 * L3GD20
-			 */
-			l3gd20@6a {
-				/* Gyroscope */
-				compatible = "st,l3gd20";
+		i2c@80004000 {
+			tc35893@44 {
+				compatible = "toshiba,tc35893";
+				reg = <0x44>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tc35893_tvk_mode>;
+
+				interrupt-controller;
+				#interrupt-cells = <1>;
 				status = "disabled";
+
+				tc3589x_gpio {
+					compatible = "toshiba,tc3589x-gpio";
+					interrupts = <0>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+				tc3589x_keypad {
+					compatible = "toshiba,tc3589x-keypad";
+					interrupts = <6>;
+					debounce-delay-ms = <4>;
+					keypad,num-columns = <8>;
+					keypad,num-rows = <8>;
+					linux,no-autorepeat;
+					wakeup-source;
+					linux,keymap = <MATRIX_KEY(3, 1, KEY_END)>,
+						       <MATRIX_KEY(4, 1, KEY_HOME)>,
+						       <MATRIX_KEY(6, 4, KEY_VOLUMEDOWN)>,
+						       <MATRIX_KEY(4, 2, KEY_EMAIL)>,
+						       <MATRIX_KEY(3, 3, KEY_RIGHT)>,
+						       <MATRIX_KEY(2, 5, KEY_BACKSPACE)>,
+						       <MATRIX_KEY(6, 7, KEY_MENU)>,
+						       <MATRIX_KEY(5, 0, KEY_ENTER)>,
+						       <MATRIX_KEY(4, 3, KEY_0)>,
+						       <MATRIX_KEY(3, 4, KEY_DOT)>,
+						       <MATRIX_KEY(5, 2, KEY_UP)>,
+						       <MATRIX_KEY(3, 5, KEY_DOWN)>,
+						       <MATRIX_KEY(4, 5, KEY_SEND)>,
+						       <MATRIX_KEY(0, 5, KEY_BACK)>,
+						       <MATRIX_KEY(6, 2, KEY_VOLUMEUP)>,
+						       <MATRIX_KEY(1, 3, KEY_SPACE)>,
+						       <MATRIX_KEY(7, 6, KEY_LEFT)>,
+						       <MATRIX_KEY(5, 5, KEY_SEARCH)>;
+				};
+			};
+		};
+
+		i2c@80128000 {
+			accelerometer@19 {
+				compatible = "st,lsm303dlhc-accel";
 				st,drdy-int-pin = <1>;
-				drive-open-drain;
-				reg = <0x6a>; // 0x6a or 0x6b
+				reg = <0x19>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
+					     <19 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_tvk_mode>;
+			};
+			magnetometer@1e {
+				compatible = "st,lsm303dlm-magn";
+				st,drdy-int-pin = <1>;
+				reg = <0x1e>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				// This interrupt is not properly working with the driver
+				// interrupt-parent = <&gpio1>;
+				// interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&magn_tvk_mode>;
+			};
+			gyroscope@68 {
+				/* Gyroscope */
+				compatible = "st,l3g4200d-gyro";
+				reg = <0x68>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 			};
-			/*
-			 * Marked:
-			 * 2122
-			 * C3H
-			 * DQEEE
-			 * LIS3DH?
-			 */
-			lis3dh@18 {
-				/* Accelerometer */
-				compatible = "st,lis3dh-accel";
-				st,drdy-int-pin = <1>;
-				reg = <0x18>;
+			pressure@5c {
+				/* Barometer/pressure sensor */
+				compatible = "st,lps001wp-press";
+				reg = <0x5c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+		};
+
+		spi@80111000 {
+			num-cs = <1>;
+			cs-gpios = <&gpio6 24 GPIO_ACTIVE_LOW>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi2_default_mode>;
+			status = "okay";
+
+			touchscreen@0 {
+				compatible = "cypress,cy8ctma340";
+				/*
+				 * Actually the max frequency is 6 MHz, but over 2 MHz the
+				 * data rate needs to be restricted to max 2Mbps which the
+				 * SPI framework cannot handle.
+				 */
+				spi-max-frequency = <2000000>;
+				reg = <0>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+				vcpin-supply = <&ab8500_ldo_aux1_reg>;
+				vdd-supply = <&db8500_vsmps2_reg>;
+				reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+				touchscreen-size-x = <480>;
+				touchscreen-size-y = <854>;
+				active-interval-ms = <0>;
+				touch-timeout-ms = <255>;
+				lowpower-interval-ms = <10>;
+				bootloader-key = /bits/ 8 <0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&accel_tvk_mode>;
+				pinctrl-0 = <&cyttsp_tvk_mode>;
 			};
 		};
 
@@ -51,6 +159,58 @@
 					reg = <0>;
 					vddi-supply = <&ab8500_ldo_aux1_reg>;
 					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+		};
+
+		pinctrl {
+			hall {
+				hall_tvk_mode: hall_tvk {
+					tvk_cfg {
+						pins = "GPIO145_C13";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			tc35893 {
+				/* IRQ from the TC35893 */
+				tc35893_tvk_mode: tc35893_tvk {
+					tvk_cfg {
+						pins = "GPIO64_F3";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			accelerometer {
+				accel_tvk_mode: accel_tvk {
+					/* Accelerometer interrupt lines 1 & 2 */
+					tvk_cfg {
+						pins = "GPIO82_C1", "GPIO83_D3";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			magnetometer {
+				magn_tvk_mode: magn_tvk {
+					/* GPIO 32 used for DRDY, pull this down */
+					tvk_cfg {
+						pins = "GPIO32_V2";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			cyttsp {
+				cyttsp_tvk_mode: cyttsp_tvk {
+					/* Touchscreen uses GPIO84 for IRQ */
+					tvk_cfg1 {
+						pins = "GPIO84_C2";
+						ste,config = <&gpio_in_pu>;
+					};
+					/* GPIO143 is reset */
+					tvk_cfg2 {
+						pins = "GPIO143_D12";
+						ste,config = <&gpio_out_hi>;
+					};
 				};
 			};
 		};

@@ -54,7 +54,7 @@ struct nal_hevc_profile_tier_level {
 	unsigned int general_level_idc;
 };
 
-/**
+/*
  * struct nal_hevc_vps - Video parameter set
  *
  * C struct representation of the video parameter set NAL unit as defined by
@@ -129,7 +129,7 @@ struct nal_hevc_hrd_parameters {
 	};
 };
 
-/**
+/*
  * struct nal_hevc_vui_parameters - VUI parameters
  *
  * C struct representation of the VUI parameters as defined by Rec. ITU-T
@@ -192,7 +192,7 @@ struct nal_hevc_vui_parameters {
 	};
 };
 
-/**
+/*
  * struct nal_hevc_sps - Sequence parameter set
  *
  * C struct representation of the video parameter set NAL unit as defined by

@@ -218,7 +218,7 @@ static struct gc2235_reg const gc2235_stream_off[] = {
 };
 
 static struct gc2235_reg const gc2235_init_settings[] = {
-	/* Sysytem */
+	/* System */
 	{ GC2235_8BIT, 0xfe, 0x80 },
 	{ GC2235_8BIT, 0xfe, 0x80 },
 	{ GC2235_8BIT, 0xfe, 0x80 },

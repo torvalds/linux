@@ -245,6 +245,14 @@ source "net/l3mdev/Kconfig"
 source "net/qrtr/Kconfig"
 source "net/ncsi/Kconfig"
 
+config PCPU_DEV_REFCNT
+	bool "Use percpu variables to maintain network device refcount"
+	depends on SMP
+	default y
+	help
+	  network device refcount are using per cpu variables if this option is set.
+	  This can be forced to N to detect underflows (with a performance drop).
+
 config RPS
 	bool
 	depends on SMP && SYSFS
@@ -317,12 +325,8 @@ config BPF_STREAM_PARSER
 	select STREAM_PARSER
 	select NET_SOCK_MSG
 	help
-	  Enabling this allows a stream parser to be used with
+	  Enabling this allows a TCP stream parser to be used with
 	  BPF_MAP_TYPE_SOCKMAP.
-
-	  BPF_MAP_TYPE_SOCKMAP provides a map type to use with network sockets.
-	  It can be used to enforce socket policy, implement socket redirects,
-	  etc.
 
 config NET_FLOW_LIMIT
 	bool
@@ -424,6 +428,10 @@ config GRO_CELLS
 
 config SOCK_VALIDATE_XMIT
 	bool
+
+config NET_SELFTESTS
+	def_tristate PHYLIB
+	depends on PHYLIB && INET
 
 config NET_SOCK_MSG
 	bool

@@ -263,7 +263,7 @@ static int pm_unmap_queues_vi(struct packet_manager *pm, uint32_t *buffer,
 }
 
 static int pm_query_status_vi(struct packet_manager *pm, uint32_t *buffer,
-			uint64_t fence_address,	uint32_t fence_value)
+			uint64_t fence_address,	uint64_t fence_value)
 {
 	struct pm4_mes_query_status *packet;
 

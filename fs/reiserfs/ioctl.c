@@ -10,6 +10,59 @@
 #include <linux/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/compat.h>
+#include <linux/fileattr.h>
+
+int reiserfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+
+	if (!reiserfs_attrs(inode->i_sb))
+		return -ENOTTY;
+
+	fileattr_fill_flags(fa, REISERFS_I(inode)->i_attrs);
+
+	return 0;
+}
+
+int reiserfs_fileattr_set(struct user_namespace *mnt_userns,
+			  struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	unsigned int flags = fa->flags;
+	int err;
+
+	reiserfs_write_lock(inode->i_sb);
+
+	err = -ENOTTY;
+	if (!reiserfs_attrs(inode->i_sb))
+		goto unlock;
+
+	err = -EOPNOTSUPP;
+	if (fileattr_has_fsx(fa))
+		goto unlock;
+
+	/*
+	 * Is it quota file? Do not allow user to mess with it
+	 */
+	err = -EPERM;
+	if (IS_NOQUOTA(inode))
+		goto unlock;
+
+	if ((flags & REISERFS_NOTAIL_FL) && S_ISREG(inode->i_mode)) {
+		err = reiserfs_unpack(inode);
+		if (err)
+			goto unlock;
+	}
+	sd_attrs_to_i_attrs(flags, inode);
+	REISERFS_I(inode)->i_attrs = flags;
+	inode->i_ctime = current_time(inode);
+	mark_inode_dirty(inode);
+	err = 0;
+unlock:
+	reiserfs_write_unlock(inode->i_sb);
+
+	return err;
+}
 
 /*
  * reiserfs_ioctl - handler for ioctl for inode
@@ -23,7 +76,6 @@
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	unsigned int flags;
 	int err = 0;
 
 	reiserfs_write_lock(inode->i_sb);
@@ -32,7 +84,7 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case REISERFS_IOC_UNPACK:
 		if (S_ISREG(inode->i_mode)) {
 			if (arg)
-				err = reiserfs_unpack(inode, filp);
+				err = reiserfs_unpack(inode);
 		} else
 			err = -ENOTTY;
 		break;
@@ -40,63 +92,6 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		 * following two cases are taken from fs/ext2/ioctl.c by Remy
 		 * Card (card@masi.ibp.fr)
 		 */
-	case REISERFS_IOC_GETFLAGS:
-		if (!reiserfs_attrs(inode->i_sb)) {
-			err = -ENOTTY;
-			break;
-		}
-
-		flags = REISERFS_I(inode)->i_attrs;
-		err = put_user(flags, (int __user *)arg);
-		break;
-	case REISERFS_IOC_SETFLAGS:{
-			if (!reiserfs_attrs(inode->i_sb)) {
-				err = -ENOTTY;
-				break;
-			}
-
-			err = mnt_want_write_file(filp);
-			if (err)
-				break;
-
-			if (!inode_owner_or_capable(&init_user_ns, inode)) {
-				err = -EPERM;
-				goto setflags_out;
-			}
-			if (get_user(flags, (int __user *)arg)) {
-				err = -EFAULT;
-				goto setflags_out;
-			}
-			/*
-			 * Is it quota file? Do not allow user to mess with it
-			 */
-			if (IS_NOQUOTA(inode)) {
-				err = -EPERM;
-				goto setflags_out;
-			}
-			err = vfs_ioc_setflags_prepare(inode,
-						     REISERFS_I(inode)->i_attrs,
-						     flags);
-			if (err)
-				goto setflags_out;
-			if ((flags & REISERFS_NOTAIL_FL) &&
-			    S_ISREG(inode->i_mode)) {
-				int result;
-
-				result = reiserfs_unpack(inode, filp);
-				if (result) {
-					err = result;
-					goto setflags_out;
-				}
-			}
-			sd_attrs_to_i_attrs(flags, inode);
-			REISERFS_I(inode)->i_attrs = flags;
-			inode->i_ctime = current_time(inode);
-			mark_inode_dirty(inode);
-setflags_out:
-			mnt_drop_write_file(filp);
-			break;
-		}
 	case REISERFS_IOC_GETVERSION:
 		err = put_user(inode->i_generation, (int __user *)arg);
 		break;
@@ -138,12 +133,6 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 	case REISERFS_IOC32_UNPACK:
 		cmd = REISERFS_IOC_UNPACK;
 		break;
-	case REISERFS_IOC32_GETFLAGS:
-		cmd = REISERFS_IOC_GETFLAGS;
-		break;
-	case REISERFS_IOC32_SETFLAGS:
-		cmd = REISERFS_IOC_SETFLAGS;
-		break;
 	case REISERFS_IOC32_GETVERSION:
 		cmd = REISERFS_IOC_GETVERSION;
 		break;
@@ -165,7 +154,7 @@ int reiserfs_commit_write(struct file *f, struct page *page,
  * Function try to convert tail from direct item into indirect.
  * It set up nopack attribute in the REISERFS_I(inode)->nopack
  */
-int reiserfs_unpack(struct inode *inode, struct file *filp)
+int reiserfs_unpack(struct inode *inode)
 {
 	int retval = 0;
 	int index;

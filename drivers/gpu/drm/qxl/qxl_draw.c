@@ -48,7 +48,7 @@ static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
 	struct qxl_clip_rects *dev_clips;
 	int ret;
 
-	ret = qxl_bo_kmap(clips_bo, &map);
+	ret = qxl_bo_vmap_locked(clips_bo, &map);
 	if (ret)
 		return NULL;
 	dev_clips = map.vaddr; /* TODO: Use mapping abstraction properly */
@@ -202,7 +202,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	if (ret)
 		goto out_release_backoff;
 
-	ret = qxl_bo_kmap(bo, &surface_map);
+	ret = qxl_bo_vmap_locked(bo, &surface_map);
 	if (ret)
 		goto out_release_backoff;
 	surface_base = surface_map.vaddr; /* TODO: Use mapping abstraction properly */
@@ -210,7 +210,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	ret = qxl_image_init(qdev, release, dimage, surface_base,
 			     left - dumb_shadow_offset,
 			     top, width, height, depth, stride);
-	qxl_bo_kunmap(bo);
+	qxl_bo_vunmap_locked(bo);
 	if (ret)
 		goto out_release_backoff;
 
@@ -247,7 +247,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		rects[i].top    = clips_ptr->y1;
 		rects[i].bottom = clips_ptr->y2;
 	}
-	qxl_bo_kunmap(clips_bo);
+	qxl_bo_vunmap_locked(clips_bo);
 
 	qxl_release_fence_buffer_objects(release);
 	qxl_push_command_ring_release(qdev, release, QXL_CMD_DRAW, false);

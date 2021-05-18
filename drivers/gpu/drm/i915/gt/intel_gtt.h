@@ -85,6 +85,10 @@ typedef u64 gen8_pte_t;
 #define BYT_PTE_SNOOPED_BY_CPU_CACHES	REG_BIT(2)
 #define BYT_PTE_WRITEABLE		REG_BIT(1)
 
+#define GEN12_PPGTT_PTE_LM	BIT_ULL(11)
+
+#define GEN12_GGTT_PTE_LM	BIT_ULL(1)
+
 /*
  * Cacheability Control is a 4-bit value. The low three bits are stored in bits
  * 3:1 of the PTE, while the fourth bit is stored in bit 11 of the PTE.
@@ -238,6 +242,7 @@ struct i915_address_space {
 	atomic_t open;
 
 	struct mutex mutex; /* protects vma and our lists */
+	struct dma_resv resv; /* reservation lock for all pd objects, and buffer pool */
 #define VM_CLASS_GGTT 0
 #define VM_CLASS_PPGTT 1
 
@@ -264,6 +269,7 @@ struct i915_address_space {
 			  enum i915_cache_level level,
 			  u32 flags); /* Create a valid PTE */
 #define PTE_READ_ONLY	BIT(0)
+#define PTE_LM		BIT(1)
 
 	void (*allocate_va_range)(struct i915_address_space *vm,
 				  struct i915_vm_pt_stash *stash,
@@ -345,6 +351,9 @@ struct i915_ppgtt {
 };
 
 #define i915_is_ggtt(vm) ((vm)->is_ggtt)
+
+int __must_check
+i915_vm_lock_objects(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww);
 
 static inline bool
 i915_vm_is_4lvl(const struct i915_address_space *vm)
@@ -522,6 +531,7 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm);
 struct i915_page_directory *__alloc_pd(int npde);
 
 int pin_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj);
+int pin_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj);
 
 void free_px(struct i915_address_space *vm,
 	     struct i915_page_table *pt, int lvl);
@@ -575,6 +585,9 @@ void i915_vm_free_pt_stash(struct i915_address_space *vm,
 
 struct i915_vma *
 __vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size);
+
+struct i915_vma *
+__vm_create_scratch_for_read_pinned(struct i915_address_space *vm, unsigned long size);
 
 static inline struct sgt_dma {
 	struct scatterlist *sg;

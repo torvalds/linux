@@ -2,14 +2,14 @@ Qualcomm Technologies, Inc. DPU KMS
 
 Description:
 
-Device tree bindings for MSM Mobile Display Subsytem(MDSS) that encapsulates
+Device tree bindings for MSM Mobile Display Subsystem(MDSS) that encapsulates
 sub-blocks like DPU display controller, DSI and DP interfaces etc.
 The DPU display controller is found in SDM845 SoC.
 
 MDSS:
 Required properties:
 - compatible:  "qcom,sdm845-mdss", "qcom,sc7180-mdss"
-- reg: physical base address and length of contoller's registers.
+- reg: physical base address and length of controller's registers.
 - reg-names: register region names. The following region is required:
   * "mdss"
 - power-domains: a power domain consumer specifier according to

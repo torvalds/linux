@@ -172,29 +172,8 @@
 /include/ "pq3-mpic-timer-B.dtsi"
 
 /include/ "pq3-etsec2-0.dtsi"
-	enet0: ethernet@b0000 {
-		queue-group@b0000 {
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
-		};
-	};
-
 /include/ "pq3-etsec2-1.dtsi"
-	enet1: ethernet@b1000 {
-		queue-group@b1000 {
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
-		};
-	};
-
 /include/ "pq3-etsec2-2.dtsi"
-	enet2: ethernet@b2000 {
-		queue-group@b2000 {
-			fsl,rx-bit-map = <0xff>;
-			fsl,tx-bit-map = <0xff>;
-		};
-
-	};
 
 	global-utilities@e0000 {
 		compatible = "fsl,p1010-guts";

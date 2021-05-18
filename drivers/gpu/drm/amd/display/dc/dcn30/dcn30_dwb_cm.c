@@ -217,7 +217,7 @@ static bool dwb3_program_ogam_lut(
 	else
 		next_mode = LUT_RAM_A;
 
-	dwb3_configure_ogam_lut(dwbc30, next_mode == LUT_RAM_A ? true : false);
+	dwb3_configure_ogam_lut(dwbc30, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		dwb3_program_ogam_luta_settings(dwbc30, params);

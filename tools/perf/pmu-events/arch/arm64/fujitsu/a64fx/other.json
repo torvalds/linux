@@ -1,0 +1,188 @@
+[
+  {
+    "PublicDescription": "This event counts the occurrence count of the micro-operation split.",
+    "EventCode": "0x139",
+    "EventName": "UOP_SPLIT",
+    "BriefDescription": "This event counts the occurrence count of the micro-operation split."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no operation was committed because the oldest and uncommitted load/store/prefetch operation waits for memory access.",
+    "EventCode": "0x180",
+    "EventName": "LD_COMP_WAIT_L2_MISS",
+    "BriefDescription": "This event counts every cycle that no operation was committed because the oldest and uncommitted load/store/prefetch operation waits for memory access."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for memory access.",
+    "EventCode": "0x181",
+    "EventName": "LD_COMP_WAIT_L2_MISS_EX",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for memory access."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L2 cache access.",
+    "EventCode": "0x182",
+    "EventName": "LD_COMP_WAIT_L1_MISS",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L2 cache access."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L2 cache access.",
+    "EventCode": "0x183",
+    "EventName": "LD_COMP_WAIT_L1_MISS_EX",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L2 cache access."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L1D cache, L2 cache and memory access.",
+    "EventCode": "0x184",
+    "EventName": "LD_COMP_WAIT",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L1D cache, L2 cache and memory access."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L1D cache, L2 cache and memory access.",
+    "EventCode": "0x185",
+    "EventName": "LD_COMP_WAIT_EX",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L1D cache, L2 cache and memory access."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed due to the lack of an available prefetch port.",
+    "EventCode": "0x186",
+    "EventName": "LD_COMP_WAIT_PFP_BUSY",
+    "BriefDescription": "This event counts every cycle that no instruction was committed due to the lack of an available prefetch port."
+  },
+  {
+    "PublicDescription": "This event counts the LD_COMP_WAIT_PFP_BUSY caused by an integer load operation.",
+    "EventCode": "0x187",
+    "EventName": "LD_COMP_WAIT_PFP_BUSY_EX",
+    "BriefDescription": "This event counts the LD_COMP_WAIT_PFP_BUSY caused by an integer load operation."
+  },
+  {
+    "PublicDescription": "This event counts the LD_COMP_WAIT_PFP_BUSY caused by a software prefetch instruction.",
+    "EventCode": "0x188",
+    "EventName": "LD_COMP_WAIT_PFP_BUSY_SWPF",
+    "BriefDescription": "This event counts the LD_COMP_WAIT_PFP_BUSY caused by a software prefetch instruction."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is an integer or floating-point/SIMD instruction.",
+    "EventCode": "0x189",
+    "EventName": "EU_COMP_WAIT",
+    "BriefDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is an integer or floating-point/SIMD instruction."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is a floating-point/SIMD instruction.",
+    "EventCode": "0x18A",
+    "EventName": "FL_COMP_WAIT",
+    "BriefDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is a floating-point/SIMD instruction."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is a branch instruction.",
+    "EventCode": "0x18B",
+    "EventName": "BR_COMP_WAIT",
+    "BriefDescription": "This event counts every cycle that no instruction was committed and the oldest and uncommitted instruction is a branch instruction."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the CSE is empty.",
+    "EventCode": "0x18C",
+    "EventName": "ROB_EMPTY",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the CSE is empty."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed because the CSE is empty and the store port (SP) is full.",
+    "EventCode": "0x18D",
+    "EventName": "ROB_EMPTY_STQ_BUSY",
+    "BriefDescription": "This event counts every cycle that no instruction was committed because the CSE is empty and the store port (SP) is full."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that the instruction unit is halted by the WFE/WFI instruction.",
+    "EventCode": "0x18E",
+    "EventName": "WFE_WFI_CYCLE",
+    "BriefDescription": "This event counts every cycle that the instruction unit is halted by the WFE/WFI instruction."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that no instruction was committed, but counts at the time when commits MOVPRFX only.",
+    "EventCode": "0x190",
+    "EventName": "_0INST_COMMIT",
+    "BriefDescription": "This event counts every cycle that no instruction was committed, but counts at the time when commits MOVPRFX only."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that one instruction is committed.",
+    "EventCode": "0x191",
+    "EventName": "_1INST_COMMIT",
+    "BriefDescription": "This event counts every cycle that one instruction is committed."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that two instructions are committed.",
+    "EventCode": "0x192",
+    "EventName": "_2INST_COMMIT",
+    "BriefDescription": "This event counts every cycle that two instructions are committed."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that three instructions are committed.",
+    "EventCode": "0x193",
+    "EventName": "_3INST_COMMIT",
+    "BriefDescription": "This event counts every cycle that three instructions are committed."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that four instructions are committed.",
+    "EventCode": "0x194",
+    "EventName": "_4INST_COMMIT",
+    "BriefDescription": "This event counts every cycle that four instructions are committed."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that only any micro-operations are committed.",
+    "EventCode": "0x198",
+    "EventName": "UOP_ONLY_COMMIT",
+    "BriefDescription": "This event counts every cycle that only any micro-operations are committed."
+  },
+  {
+    "PublicDescription": "This event counts every cycle that only the MOVPRFX instruction is committed.",
+    "EventCode": "0x199",
+    "EventName": "SINGLE_MOVPRFX_COMMIT",
+    "BriefDescription": "This event counts every cycle that only the MOVPRFX instruction is committed."
+  },
+  {
+    "PublicDescription": "This event counts energy consumption per cycle of core.",
+    "EventCode": "0x1E0",
+    "EventName": "EA_CORE",
+    "BriefDescription": "This event counts energy consumption per cycle of core."
+  },
+  {
+    "PublicDescription": "This event counts streaming prefetch requests to L1D cache generated by hardware prefetcher.",
+    "EventCode": "0x230",
+    "EventName": "L1HWPF_STREAM_PF",
+    "BriefDescription": "This event counts streaming prefetch requests to L1D cache generated by hardware prefetcher."
+  },
+  {
+    "PublicDescription": "This event counts allocation type prefetch injection requests to L1D cache generated by hardware prefetcher.",
+    "EventCode": "0x231",
+    "EventName": "L1HWPF_INJ_ALLOC_PF",
+    "BriefDescription": "This event counts allocation type prefetch injection requests to L1D cache generated by hardware prefetcher."
+  },
+  {
+    "PublicDescription": "This event counts non-allocation type prefetch injection requests to L1D cache generated by hardware prefetcher.",
+    "EventCode": "0x232",
+    "EventName": "L1HWPF_INJ_NOALLOC_PF",
+    "BriefDescription": "This event counts non-allocation type prefetch injection requests to L1D cache generated by hardware prefetcher."
+  },
+  {
+    "PublicDescription": "This event counts streaming prefetch requests to L2 cache generated by hardware prefecher.",
+    "EventCode": "0x233",
+    "EventName": "L2HWPF_STREAM_PF",
+    "BriefDescription": "This event counts streaming prefetch requests to L2 cache generated by hardware prefecher."
+  },
+  {
+    "PublicDescription": "This event counts allocation type prefetch injection requests to L2 cache generated by hardware prefetcher.",
+    "EventCode": "0x234",
+    "EventName": "L2HWPF_INJ_ALLOC_PF",
+    "BriefDescription": "This event counts allocation type prefetch injection requests to L2 cache generated by hardware prefetcher."
+  },
+  {
+    "PublicDescription": "This event counts non-allocation type prefetch injection requests to L2 cache generated by hardware prefetcher.",
+    "EventCode": "0x235",
+    "EventName": "L2HWPF_INJ_NOALLOC_PF",
+    "BriefDescription": "This event counts non-allocation type prefetch injection requests to L2 cache generated by hardware prefetcher."
+  },
+  {
+    "PublicDescription": "This event counts prefetch requests to L2 cache generated by the other causes.",
+    "EventCode": "0x236",
+    "EventName": "L2HWPF_OTHER",
+    "BriefDescription": "This event counts prefetch requests to L2 cache generated by the other causes."
+  }
+]

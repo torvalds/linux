@@ -455,9 +455,9 @@ static int __init tcb_clksrc_init(struct device_node *node)
 	tcaddr = tc.regs;
 
 	if (bits == 32) {
-		/* use apropriate function to read 32 bit counter */
+		/* use appropriate function to read 32 bit counter */
 		clksrc.read = tc_get_cycles32;
-		/* setup ony channel 0 */
+		/* setup only channel 0 */
 		tcb_setup_single_chan(&tc, best_divisor_idx);
 		tc_sched_clock = tc_sched_clock_read32;
 		tc_delay_timer.read_current_timer = tc_delay_timer_read32;

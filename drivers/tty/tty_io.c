@@ -108,6 +108,7 @@
 
 #include <linux/kmod.h>
 #include <linux/nsproxy.h>
+#include "tty.h"
 
 #undef TTY_DEBUG_HANGUP
 #ifdef TTY_DEBUG_HANGUP
@@ -544,11 +545,9 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *	@tty: tty device
  *
  *	This is available to the pty code so if the master closes, if the
- *	slave is a redirect it can release the redirect.  It returns the
- *	filp for the redirect, which must be fput when the operations on
- *	the tty are completed.
+ *	slave is a redirect it can release the redirect.
  */
-struct file *tty_release_redirect(struct tty_struct *tty)
+static struct file *tty_release_redirect(struct tty_struct *tty)
 {
 	struct file *f = NULL;
 
@@ -1196,8 +1195,6 @@ int tty_send_xchar(struct tty_struct *tty, char ch)
 	return 0;
 }
 
-static char ptychar[] = "pqrstuvwxyzabcde";
-
 /**
  *	pty_line_name	-	generate name for a pty
  *	@driver: the tty driver in use
@@ -1211,6 +1208,7 @@ static char ptychar[] = "pqrstuvwxyzabcde";
  */
 static void pty_line_name(struct tty_driver *driver, int index, char *p)
 {
+	static const char ptychar[] = "pqrstuvwxyzabcde";
 	int i = index + driver->name_base;
 	/* ->name is initialized to "ttyp", but "tty" is expected */
 	sprintf(p, "%s%c%x",
@@ -2531,14 +2529,14 @@ out:
  *	@p: pointer to result
  *
  *	Obtain the modem status bits from the tty driver if the feature
- *	is supported. Return -EINVAL if it is not available.
+ *	is supported. Return -ENOTTY if it is not available.
  *
  *	Locking: none (up to the driver)
  */
 
 static int tty_tiocmget(struct tty_struct *tty, int __user *p)
 {
-	int retval = -EINVAL;
+	int retval = -ENOTTY;
 
 	if (tty->ops->tiocmget) {
 		retval = tty->ops->tiocmget(tty);
@@ -2556,7 +2554,7 @@ static int tty_tiocmget(struct tty_struct *tty, int __user *p)
  *	@p: pointer to desired bits
  *
  *	Set the modem status bits from the tty driver if the feature
- *	is supported. Return -EINVAL if it is not available.
+ *	is supported. Return -ENOTTY if it is not available.
  *
  *	Locking: none (up to the driver)
  */
@@ -2568,7 +2566,7 @@ static int tty_tiocmset(struct tty_struct *tty, unsigned int cmd,
 	unsigned int set, clear, val;
 
 	if (tty->ops->tiocmset == NULL)
-		return -EINVAL;
+		return -ENOTTY;
 
 	retval = get_user(val, p);
 	if (retval)
@@ -2608,7 +2606,7 @@ int tty_get_icount(struct tty_struct *tty,
 	if (tty->ops->get_icount)
 		return tty->ops->get_icount(tty, icount);
 	else
-		return -EINVAL;
+		return -ENOTTY;
 }
 EXPORT_SYMBOL_GPL(tty_get_icount);
 
@@ -2626,26 +2624,31 @@ static int tty_tiocgicount(struct tty_struct *tty, void __user *arg)
 	return 0;
 }
 
+static int tty_set_serial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	char comm[TASK_COMM_LEN];
+	int flags;
+
+	flags = ss->flags & ASYNC_DEPRECATED;
+
+	if (flags)
+		pr_warn_ratelimited("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
+				__func__, get_task_comm(comm, current), flags);
+
+	if (!tty->ops->set_serial)
+		return -ENOTTY;
+
+	return tty->ops->set_serial(tty, ss);
+}
+
 static int tty_tiocsserial(struct tty_struct *tty, struct serial_struct __user *ss)
 {
-	static DEFINE_RATELIMIT_STATE(depr_flags,
-			DEFAULT_RATELIMIT_INTERVAL,
-			DEFAULT_RATELIMIT_BURST);
-	char comm[TASK_COMM_LEN];
 	struct serial_struct v;
-	int flags;
 
 	if (copy_from_user(&v, ss, sizeof(*ss)))
 		return -EFAULT;
 
-	flags = v.flags & ASYNC_DEPRECATED;
-
-	if (flags && __ratelimit(&depr_flags))
-		pr_warn("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
-			__func__, get_task_comm(comm, current), flags);
-	if (!tty->ops->set_serial)
-		return -ENOTTY;
-	return tty->ops->set_serial(tty, &v);
+	return tty_set_serial(tty, &v);
 }
 
 static int tty_tiocgserial(struct tty_struct *tty, struct serial_struct __user *ss)
@@ -2843,13 +2846,8 @@ struct serial_struct32 {
 static int compat_tty_tiocsserial(struct tty_struct *tty,
 		struct serial_struct32 __user *ss)
 {
-	static DEFINE_RATELIMIT_STATE(depr_flags,
-			DEFAULT_RATELIMIT_INTERVAL,
-			DEFAULT_RATELIMIT_BURST);
-	char comm[TASK_COMM_LEN];
 	struct serial_struct32 v32;
 	struct serial_struct v;
-	int flags;
 
 	if (copy_from_user(&v32, ss, sizeof(*ss)))
 		return -EFAULT;
@@ -2860,14 +2858,7 @@ static int compat_tty_tiocsserial(struct tty_struct *tty,
 	v.port_high = v32.port_high;
 	v.iomap_base = 0;
 
-	flags = v.flags & ASYNC_DEPRECATED;
-
-	if (flags && __ratelimit(&depr_flags))
-		pr_warn("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
-			__func__, get_task_comm(comm, current), flags);
-	if (!tty->ops->set_serial)
-		return -ENOTTY;
-	return tty->ops->set_serial(tty, &v);
+	return tty_set_serial(tty, &v);
 }
 
 static int compat_tty_tiocgserial(struct tty_struct *tty,
@@ -3525,21 +3516,14 @@ EXPORT_SYMBOL(tty_register_driver);
 /*
  * Called by a tty driver to unregister itself.
  */
-int tty_unregister_driver(struct tty_driver *driver)
+void tty_unregister_driver(struct tty_driver *driver)
 {
-#if 0
-	/* FIXME */
-	if (driver->refcount)
-		return -EBUSY;
-#endif
 	unregister_chrdev_region(MKDEV(driver->major, driver->minor_start),
 				driver->num);
 	mutex_lock(&tty_mutex);
 	list_del(&driver->tty_drivers);
 	mutex_unlock(&tty_mutex);
-	return 0;
 }
-
 EXPORT_SYMBOL(tty_unregister_driver);
 
 dev_t tty_devnum(struct tty_struct *tty)

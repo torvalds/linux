@@ -13,6 +13,12 @@
 	model = "Rockchip PX30 EVB";
 	compatible = "rockchip,px30-evb", "rockchip,px30";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &sdio;
+		mmc2 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial5:115200n8";
 	};

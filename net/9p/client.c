@@ -122,7 +122,7 @@ static int get_protocol_version(char *s)
 }
 
 /**
- * parse_options - parse mount options into client structure
+ * parse_opts - parse mount options into client structure
  * @opts: options string passed from mount
  * @clnt: existing v9fs client information
  *
@@ -256,7 +256,7 @@ EXPORT_SYMBOL(p9_fcall_fini);
 static struct kmem_cache *p9_req_cache;
 
 /**
- * p9_req_alloc - Allocate a new request.
+ * p9_tag_alloc - Allocate a new request.
  * @c: Client session.
  * @type: Transaction type.
  * @max_size: Maximum packet size for this request.
@@ -1623,10 +1623,6 @@ p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
-	if (!count) {
-		p9_tag_remove(clnt, req);
-		return 0;
-	}
 
 	if (non_zc) {
 		int n = copy_to_iter(dataptr, count, to);

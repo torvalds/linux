@@ -827,6 +827,15 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	mc->debugfs.root = debugfs_create_dir("mc", NULL);
+
+	if (mc->soc->init) {
+		err = mc->soc->init(mc);
+		if (err < 0)
+			dev_err(&pdev->dev, "failed to initialize SoC driver: %d\n",
+				err);
+	}
+
 	err = tegra_mc_reset_setup(mc);
 	if (err < 0)
 		dev_err(&pdev->dev, "failed to register reset controller: %d\n",

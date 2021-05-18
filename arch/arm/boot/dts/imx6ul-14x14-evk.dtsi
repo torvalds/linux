@@ -210,9 +210,6 @@
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET_REF>;
 			clock-names = "rmii-ref";
-			reset-gpios = <&gpio_spi 1 GPIO_ACTIVE_LOW>;
-			reset-assert-us = <10000>;
-			reset-deassert-us = <100>;
 
 		};
 
@@ -222,9 +219,6 @@
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET2_REF>;
 			clock-names = "rmii-ref";
-			reset-gpios = <&gpio_spi 2 GPIO_ACTIVE_LOW>;
-			reset-assert-us = <10000>;
-			reset-deassert-us = <100>;
 		};
 	};
 };
@@ -241,6 +235,22 @@
 	pinctrl-0 = <&pinctrl_flexcan2>;
 	xceiver-supply = <&reg_can_3v3>;
 	status = "okay";
+};
+
+&gpio_spi {
+	eth0-phy-hog {
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "eth0-phy";
+	};
+
+	eth1-phy-hog {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "eth1-phy";
+	};
 };
 
 &i2c1 {

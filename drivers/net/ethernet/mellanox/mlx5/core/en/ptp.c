@@ -1,8 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2020 Mellanox Technologies
 
+#include <linux/ptp_classify.h>
 #include "en/ptp.h"
 #include "en/txrx.h"
+#include "en/params.h"
+#include "en/fs_tt_redirect.h"
+
+struct mlx5e_ptp_fs {
+	struct mlx5_flow_handle *l2_rule;
+	struct mlx5_flow_handle *udp_v4_rule;
+	struct mlx5_flow_handle *udp_v6_rule;
+	bool valid;
+};
+
+#define MLX5E_PTP_CHANNEL_IX 0
+
+struct mlx5e_ptp_params {
+	struct mlx5e_params params;
+	struct mlx5e_sq_param txq_sq_param;
+	struct mlx5e_rq_param rq_param;
+};
 
 struct mlx5e_skb_cb_hwtstamp {
 	ktime_t cqe_hwtstamp;
@@ -116,9 +134,9 @@ static bool mlx5e_ptp_poll_ts_cq(struct mlx5e_cq *cq, int budget)
 
 static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 {
-	struct mlx5e_port_ptp *c = container_of(napi, struct mlx5e_port_ptp,
-						napi);
+	struct mlx5e_ptp *c = container_of(napi, struct mlx5e_ptp, napi);
 	struct mlx5e_ch_stats *ch_stats = c->stats;
+	struct mlx5e_rq *rq = &c->rq;
 	bool busy = false;
 	int work_done = 0;
 	int i;
@@ -127,9 +145,19 @@ static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 
 	ch_stats->poll++;
 
-	for (i = 0; i < c->num_tc; i++) {
-		busy |= mlx5e_poll_tx_cq(&c->ptpsq[i].txqsq.cq, budget);
-		busy |= mlx5e_ptp_poll_ts_cq(&c->ptpsq[i].ts_cq, budget);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (i = 0; i < c->num_tc; i++) {
+			busy |= mlx5e_poll_tx_cq(&c->ptpsq[i].txqsq.cq, budget);
+			busy |= mlx5e_ptp_poll_ts_cq(&c->ptpsq[i].ts_cq, budget);
+		}
+	}
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state) && likely(budget)) {
+		work_done = mlx5e_poll_rx_cq(&rq->cq, budget);
+		busy |= work_done == budget;
+		busy |= INDIRECT_CALL_2(rq->post_wqes,
+					mlx5e_post_rx_mpwqes,
+					mlx5e_post_rx_wqes,
+					rq);
 	}
 
 	if (busy) {
@@ -142,10 +170,14 @@ static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 
 	ch_stats->arm++;
 
-	for (i = 0; i < c->num_tc; i++) {
-		mlx5e_cq_arm(&c->ptpsq[i].txqsq.cq);
-		mlx5e_cq_arm(&c->ptpsq[i].ts_cq);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (i = 0; i < c->num_tc; i++) {
+			mlx5e_cq_arm(&c->ptpsq[i].txqsq.cq);
+			mlx5e_cq_arm(&c->ptpsq[i].ts_cq);
+		}
 	}
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+		mlx5e_cq_arm(&rq->cq);
 
 out:
 	rcu_read_unlock();
@@ -153,7 +185,7 @@ out:
 	return work_done;
 }
 
-static int mlx5e_ptp_alloc_txqsq(struct mlx5e_port_ptp *c, int txq_ix,
+static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 				 struct mlx5e_params *params,
 				 struct mlx5e_sq_param *param,
 				 struct mlx5e_txqsq *sq, int tc,
@@ -172,20 +204,18 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_port_ptp *c, int txq_ix,
 	sq->netdev    = c->netdev;
 	sq->priv      = c->priv;
 	sq->mdev      = mdev;
-	sq->ch_ix     = c->ix;
+	sq->ch_ix     = MLX5E_PTP_CHANNEL_IX;
 	sq->txq_ix    = txq_ix;
-	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
+	sq->uar_map   = mdev->mlx5e_res.hw_objs.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-	sq->stats     = &c->priv->port_ptp_stats.sq[tc];
+	sq->stats     = &c->priv->ptp_stats.sq[tc];
 	sq->ptpsq     = ptpsq;
 	INIT_WORK(&sq->recover_work, mlx5e_tx_err_cqe_work);
 	if (!MLX5_CAP_ETH(mdev, wqe_vlan_insert))
 		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);
 	sq->stop_room = param->stop_room;
-	sq->ptp_cyc2time = mlx5_is_real_time_sq(mdev) ?
-			   mlx5_real_time_cyc2time :
-			   mlx5_timecounter_cyc2time;
+	sq->ptp_cyc2time = mlx5_sq_ts_translator(mdev);
 
 	node = dev_to_node(mlx5_core_dma_dev(mdev));
 
@@ -243,7 +273,7 @@ static void mlx5e_ptp_free_traffic_db(struct mlx5e_skb_fifo *skb_fifo)
 	kvfree(skb_fifo->fifo);
 }
 
-static int mlx5e_ptp_open_txqsq(struct mlx5e_port_ptp *c, u32 tisn,
+static int mlx5e_ptp_open_txqsq(struct mlx5e_ptp *c, u32 tisn,
 				int txq_ix, struct mlx5e_ptp_params *cparams,
 				int tc, struct mlx5e_ptpsq *ptpsq)
 {
@@ -293,7 +323,7 @@ static void mlx5e_ptp_close_txqsq(struct mlx5e_ptpsq *ptpsq)
 	mlx5e_free_txqsq(sq);
 }
 
-static int mlx5e_ptp_open_txqsqs(struct mlx5e_port_ptp *c,
+static int mlx5e_ptp_open_txqsqs(struct mlx5e_ptp *c,
 				 struct mlx5e_ptp_params *cparams)
 {
 	struct mlx5e_params *params = &cparams->params;
@@ -321,7 +351,7 @@ close_txqsq:
 	return err;
 }
 
-static void mlx5e_ptp_close_txqsqs(struct mlx5e_port_ptp *c)
+static void mlx5e_ptp_close_txqsqs(struct mlx5e_ptp *c)
 {
 	int tc;
 
@@ -329,8 +359,8 @@ static void mlx5e_ptp_close_txqsqs(struct mlx5e_port_ptp *c)
 		mlx5e_ptp_close_txqsq(&c->ptpsq[tc]);
 }
 
-static int mlx5e_ptp_open_cqs(struct mlx5e_port_ptp *c,
-			      struct mlx5e_ptp_params *cparams)
+static int mlx5e_ptp_open_tx_cqs(struct mlx5e_ptp *c,
+				 struct mlx5e_ptp_params *cparams)
 {
 	struct mlx5e_params *params = &cparams->params;
 	struct mlx5e_create_cq_param ccp = {};
@@ -342,7 +372,7 @@ static int mlx5e_ptp_open_cqs(struct mlx5e_port_ptp *c,
 	ccp.node     = dev_to_node(mlx5_core_dma_dev(c->mdev));
 	ccp.ch_stats = c->stats;
 	ccp.napi     = &c->napi;
-	ccp.ix       = c->ix;
+	ccp.ix       = MLX5E_PTP_CHANNEL_IX;
 
 	cq_param = &cparams->txq_sq_param.cqp;
 
@@ -362,7 +392,7 @@ static int mlx5e_ptp_open_cqs(struct mlx5e_port_ptp *c,
 		if (err)
 			goto out_err_ts_cq;
 
-		ptpsq->cq_stats = &c->priv->port_ptp_stats.cq[tc];
+		ptpsq->cq_stats = &c->priv->ptp_stats.cq[tc];
 	}
 
 	return 0;
@@ -378,7 +408,25 @@ out_err_txqsq_cq:
 	return err;
 }
 
-static void mlx5e_ptp_close_cqs(struct mlx5e_port_ptp *c)
+static int mlx5e_ptp_open_rx_cq(struct mlx5e_ptp *c,
+				struct mlx5e_ptp_params *cparams)
+{
+	struct mlx5e_create_cq_param ccp = {};
+	struct dim_cq_moder ptp_moder = {};
+	struct mlx5e_cq_param *cq_param;
+	struct mlx5e_cq *cq = &c->rq.cq;
+
+	ccp.node     = dev_to_node(mlx5_core_dma_dev(c->mdev));
+	ccp.ch_stats = c->stats;
+	ccp.napi     = &c->napi;
+	ccp.ix       = MLX5E_PTP_CHANNEL_IX;
+
+	cq_param = &cparams->rq_param.cqp;
+
+	return mlx5e_open_cq(c->priv, ptp_moder, cq_param, &ccp, cq);
+}
+
+static void mlx5e_ptp_close_tx_cqs(struct mlx5e_ptp *c)
 {
 	int tc;
 
@@ -389,22 +437,36 @@ static void mlx5e_ptp_close_cqs(struct mlx5e_port_ptp *c)
 		mlx5e_close_cq(&c->ptpsq[tc].txqsq.cq);
 }
 
-static void mlx5e_ptp_build_sq_param(struct mlx5e_priv *priv,
+static void mlx5e_ptp_build_sq_param(struct mlx5_core_dev *mdev,
 				     struct mlx5e_params *params,
 				     struct mlx5e_sq_param *param)
 {
 	void *sqc = param->sqc;
 	void *wq;
 
-	mlx5e_build_sq_param_common(priv, param);
+	mlx5e_build_sq_param_common(mdev, param);
 
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
 	param->stop_room = mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
-	mlx5e_build_tx_cq_param(priv, params, &param->cqp);
+	mlx5e_build_tx_cq_param(mdev, params, &param->cqp);
 }
 
-static void mlx5e_ptp_build_params(struct mlx5e_port_ptp *c,
+static void mlx5e_ptp_build_rq_param(struct mlx5_core_dev *mdev,
+				     struct net_device *netdev,
+				     u16 q_counter,
+				     struct mlx5e_ptp_params *ptp_params)
+{
+	struct mlx5e_rq_param *rq_params = &ptp_params->rq_param;
+	struct mlx5e_params *params = &ptp_params->params;
+
+	params->rq_wq_type = MLX5_WQ_TYPE_CYCLIC;
+	mlx5e_init_rq_type_params(mdev, params);
+	params->sw_mtu = netdev->max_mtu;
+	mlx5e_build_rq_param(mdev, params, NULL, q_counter, rq_params);
+}
+
+static void mlx5e_ptp_build_params(struct mlx5e_ptp *c,
 				   struct mlx5e_ptp_params *cparams,
 				   struct mlx5e_params *orig)
 {
@@ -417,52 +479,193 @@ static void mlx5e_ptp_build_params(struct mlx5e_port_ptp *c,
 	params->num_tc = orig->num_tc;
 
 	/* SQ */
-	params->log_sq_size = orig->log_sq_size;
-
-	mlx5e_ptp_build_sq_param(c->priv, params, &cparams->txq_sq_param);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		params->log_sq_size = orig->log_sq_size;
+		mlx5e_ptp_build_sq_param(c->mdev, params, &cparams->txq_sq_param);
+	}
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+		mlx5e_ptp_build_rq_param(c->mdev, c->netdev, c->priv->q_counter, cparams);
 }
 
-static int mlx5e_ptp_open_queues(struct mlx5e_port_ptp *c,
+static int mlx5e_init_ptp_rq(struct mlx5e_ptp *c, struct mlx5e_params *params,
+			     struct mlx5e_rq *rq)
+{
+	struct mlx5_core_dev *mdev = c->mdev;
+	struct mlx5e_priv *priv = c->priv;
+	int err;
+
+	rq->wq_type      = params->rq_wq_type;
+	rq->pdev         = mdev->device;
+	rq->netdev       = priv->netdev;
+	rq->priv         = priv;
+	rq->clock        = &mdev->clock;
+	rq->tstamp       = &priv->tstamp;
+	rq->mdev         = mdev;
+	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+	rq->stats        = &c->priv->ptp_stats.rq;
+	rq->ptp_cyc2time = mlx5_rq_ts_translator(mdev);
+	err = mlx5e_rq_set_handlers(rq, params, false);
+	if (err)
+		return err;
+
+	return xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq->ix, 0);
+}
+
+static int mlx5e_ptp_open_rq(struct mlx5e_ptp *c, struct mlx5e_params *params,
+			     struct mlx5e_rq_param *rq_param)
+{
+	int node = dev_to_node(c->mdev->device);
+	int err;
+
+	err = mlx5e_init_ptp_rq(c, params, &c->rq);
+	if (err)
+		return err;
+
+	return mlx5e_open_rq(params, rq_param, NULL, node, &c->rq);
+}
+
+static int mlx5e_ptp_open_queues(struct mlx5e_ptp *c,
 				 struct mlx5e_ptp_params *cparams)
 {
 	int err;
 
-	err = mlx5e_ptp_open_cqs(c, cparams);
-	if (err)
-		return err;
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		err = mlx5e_ptp_open_tx_cqs(c, cparams);
+		if (err)
+			return err;
 
-	err = mlx5e_ptp_open_txqsqs(c, cparams);
-	if (err)
-		goto close_cqs;
+		err = mlx5e_ptp_open_txqsqs(c, cparams);
+		if (err)
+			goto close_tx_cqs;
+	}
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+		err = mlx5e_ptp_open_rx_cq(c, cparams);
+		if (err)
+			goto close_txqsq;
 
+		err = mlx5e_ptp_open_rq(c, &cparams->params, &cparams->rq_param);
+		if (err)
+			goto close_rx_cq;
+	}
 	return 0;
 
-close_cqs:
-	mlx5e_ptp_close_cqs(c);
+close_rx_cq:
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+		mlx5e_close_cq(&c->rq.cq);
+close_txqsq:
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state))
+		mlx5e_ptp_close_txqsqs(c);
+close_tx_cqs:
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state))
+		mlx5e_ptp_close_tx_cqs(c);
 
 	return err;
 }
 
-static void mlx5e_ptp_close_queues(struct mlx5e_port_ptp *c)
+static void mlx5e_ptp_close_queues(struct mlx5e_ptp *c)
 {
-	mlx5e_ptp_close_txqsqs(c);
-	mlx5e_ptp_close_cqs(c);
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+		mlx5e_close_rq(&c->rq);
+		mlx5e_close_cq(&c->rq.cq);
+	}
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		mlx5e_ptp_close_txqsqs(c);
+		mlx5e_ptp_close_tx_cqs(c);
+	}
 }
 
-int mlx5e_port_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
-			u8 lag_port, struct mlx5e_port_ptp **cp)
+static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
+{
+	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_TX_PORT_TS))
+		__set_bit(MLX5E_PTP_STATE_TX, c->state);
+
+	if (params->ptp_rx)
+		__set_bit(MLX5E_PTP_STATE_RX, c->state);
+
+	return bitmap_empty(c->state, MLX5E_PTP_STATE_NUM_STATES) ? -EINVAL : 0;
+}
+
+static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+
+	if (!ptp_fs->valid)
+		return;
+
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->l2_rule);
+	mlx5e_fs_tt_redirect_any_destroy(priv);
+
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v6_rule);
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v4_rule);
+	mlx5e_fs_tt_redirect_udp_destroy(priv);
+	ptp_fs->valid = false;
+}
+
+static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+	struct mlx5_flow_handle *rule;
+	u32 tirn = priv->ptp_tir.tirn;
+	int err;
+
+	if (ptp_fs->valid)
+		return 0;
+
+	err = mlx5e_fs_tt_redirect_udp_create(priv);
+	if (err)
+		goto out_free;
+
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5E_TT_IPV4_UDP,
+						 tirn, PTP_EV_PORT);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto out_destroy_fs_udp;
+	}
+	ptp_fs->udp_v4_rule = rule;
+
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5E_TT_IPV6_UDP,
+						 tirn, PTP_EV_PORT);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto out_destroy_udp_v4_rule;
+	}
+	ptp_fs->udp_v6_rule = rule;
+
+	err = mlx5e_fs_tt_redirect_any_create(priv);
+	if (err)
+		goto out_destroy_udp_v6_rule;
+
+	rule = mlx5e_fs_tt_redirect_any_add_rule(priv, tirn, ETH_P_1588);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto out_destroy_fs_any;
+	}
+	ptp_fs->l2_rule = rule;
+	ptp_fs->valid = true;
+
+	return 0;
+
+out_destroy_fs_any:
+	mlx5e_fs_tt_redirect_any_destroy(priv);
+out_destroy_udp_v6_rule:
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v6_rule);
+out_destroy_udp_v4_rule:
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v4_rule);
+out_destroy_fs_udp:
+	mlx5e_fs_tt_redirect_udp_destroy(priv);
+out_free:
+	return err;
+}
+
+int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
+		   u8 lag_port, struct mlx5e_ptp **cp)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_ptp_params *cparams;
-	struct mlx5e_port_ptp *c;
-	unsigned int irq;
+	struct mlx5e_ptp *c;
 	int err;
-	int eqn;
 
-	err = mlx5_vector2eqn(priv->mdev, 0, &eqn, &irq);
-	if (err)
-		return err;
 
 	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, dev_to_node(mlx5_core_dma_dev(mdev)));
 	cparams = kvzalloc(sizeof(*cparams), GFP_KERNEL);
@@ -472,13 +675,16 @@ int mlx5e_port_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	c->priv     = priv;
 	c->mdev     = priv->mdev;
 	c->tstamp   = &priv->tstamp;
-	c->ix       = 0;
 	c->pdev     = mlx5_core_dma_dev(priv->mdev);
 	c->netdev   = priv->netdev;
-	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
+	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey.key);
 	c->num_tc   = params->num_tc;
-	c->stats    = &priv->port_ptp_stats.ch;
+	c->stats    = &priv->ptp_stats.ch;
 	c->lag_port = lag_port;
+
+	err = mlx5e_ptp_set_state(c, params);
+	if (err)
+		goto err_free;
 
 	netif_napi_add(netdev, &c->napi, mlx5e_ptp_napi_poll, 64);
 
@@ -488,6 +694,9 @@ int mlx5e_port_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_napi_del;
 
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+		priv->rx_ptp_opened = true;
+
 	*cp = c;
 
 	kvfree(cparams);
@@ -496,13 +705,13 @@ int mlx5e_port_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 
 err_napi_del:
 	netif_napi_del(&c->napi);
-
+err_free:
 	kvfree(cparams);
 	kvfree(c);
 	return err;
 }
 
-void mlx5e_port_ptp_close(struct mlx5e_port_ptp *c)
+void mlx5e_ptp_close(struct mlx5e_ptp *c)
 {
 	mlx5e_ptp_close_queues(c);
 	netif_napi_del(&c->napi);
@@ -510,22 +719,94 @@ void mlx5e_port_ptp_close(struct mlx5e_port_ptp *c)
 	kvfree(c);
 }
 
-void mlx5e_ptp_activate_channel(struct mlx5e_port_ptp *c)
+void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c)
 {
 	int tc;
 
 	napi_enable(&c->napi);
 
-	for (tc = 0; tc < c->num_tc; tc++)
-		mlx5e_activate_txqsq(&c->ptpsq[tc].txqsq);
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (tc = 0; tc < c->num_tc; tc++)
+			mlx5e_activate_txqsq(&c->ptpsq[tc].txqsq);
+	}
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+		mlx5e_ptp_rx_set_fs(c->priv);
+		mlx5e_activate_rq(&c->rq);
+	}
 }
 
-void mlx5e_ptp_deactivate_channel(struct mlx5e_port_ptp *c)
+void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c)
 {
 	int tc;
 
-	for (tc = 0; tc < c->num_tc; tc++)
-		mlx5e_deactivate_txqsq(&c->ptpsq[tc].txqsq);
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+		mlx5e_deactivate_rq(&c->rq);
+
+	if (test_bit(MLX5E_PTP_STATE_TX, c->state)) {
+		for (tc = 0; tc < c->num_tc; tc++)
+			mlx5e_deactivate_txqsq(&c->ptpsq[tc].txqsq);
+	}
 
 	napi_disable(&c->napi);
+}
+
+int mlx5e_ptp_get_rqn(struct mlx5e_ptp *c, u32 *rqn)
+{
+	if (!c || !test_bit(MLX5E_PTP_STATE_RX, c->state))
+		return -EINVAL;
+
+	*rqn = c->rq.rqn;
+	return 0;
+}
+
+int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs;
+
+	if (!priv->profile->rx_ptp_support)
+		return 0;
+
+	ptp_fs = kzalloc(sizeof(*ptp_fs), GFP_KERNEL);
+	if (!ptp_fs)
+		return -ENOMEM;
+
+	priv->fs.ptp_fs = ptp_fs;
+	return 0;
+}
+
+void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+
+	if (!priv->profile->rx_ptp_support)
+		return;
+
+	mlx5e_ptp_rx_unset_fs(priv);
+	kfree(ptp_fs);
+}
+
+int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set)
+{
+	struct mlx5e_ptp *c = priv->channels.ptp;
+
+	if (!priv->profile->rx_ptp_support)
+		return 0;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
+	if (set) {
+		if (!c || !test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+			netdev_WARN_ONCE(priv->netdev, "Don't try to add PTP RX-FS rules");
+			return -EINVAL;
+		}
+		return mlx5e_ptp_rx_set_fs(priv);
+	}
+	/* set == false */
+	if (c && test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+		netdev_WARN_ONCE(priv->netdev, "Don't try to remove PTP RX-FS rules");
+		return -EINVAL;
+	}
+	mlx5e_ptp_rx_unset_fs(priv);
+	return 0;
 }

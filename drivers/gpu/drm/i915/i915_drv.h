@@ -86,9 +86,10 @@
 #include "gt/uc/intel_uc.h"
 
 #include "intel_device_info.h"
+#include "intel_memory_region.h"
 #include "intel_pch.h"
 #include "intel_runtime_pm.h"
-#include "intel_memory_region.h"
+#include "intel_step.h"
 #include "intel_uncore.h"
 #include "intel_wakeref.h"
 #include "intel_wopcm.h"
@@ -475,42 +476,6 @@ struct i915_drrs {
 	enum drrs_support_type type;
 };
 
-struct i915_psr {
-	struct mutex lock;
-
-#define I915_PSR_DEBUG_MODE_MASK	0x0f
-#define I915_PSR_DEBUG_DEFAULT		0x00
-#define I915_PSR_DEBUG_DISABLE		0x01
-#define I915_PSR_DEBUG_ENABLE		0x02
-#define I915_PSR_DEBUG_FORCE_PSR1	0x03
-#define I915_PSR_DEBUG_IRQ		0x10
-
-	u32 debug;
-	bool sink_support;
-	bool enabled;
-	struct intel_dp *dp;
-	enum pipe pipe;
-	enum transcoder transcoder;
-	bool active;
-	struct work_struct work;
-	unsigned busy_frontbuffer_bits;
-	bool sink_psr2_support;
-	bool link_standby;
-	bool colorimetry_support;
-	bool psr2_enabled;
-	bool psr2_sel_fetch_enabled;
-	u8 sink_sync_latency;
-	ktime_t last_entry_attempt;
-	ktime_t last_exit;
-	bool sink_not_reliable;
-	bool irq_aux_error;
-	u16 su_x_granularity;
-	bool dc3co_enabled;
-	u32 dc3co_exit_delay;
-	struct delayed_work dc3co_work;
-	struct drm_dp_vsc_sdp vsc;
-};
-
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
@@ -590,12 +555,13 @@ struct i915_gem_mm {
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
 
+#ifdef CONFIG_MMU_NOTIFIER
 	/**
-	 * Workqueue to fault in userptr pages, flushed by the execbuf
-	 * when required but otherwise left to userspace to try again
-	 * on EAGAIN.
+	 * notifier_lock for mmu notifiers, memory may not be allocated
+	 * while holding this lock.
 	 */
-	struct workqueue_struct *userptr_wq;
+	spinlock_t notifier_lock;
+#endif
 
 	/* shrinker accounting, also useful for userland debugging */
 	u64 shrink_memory;
@@ -618,7 +584,7 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 
 struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
-	const struct child_device_config *child;
+	struct intel_bios_encoder_data *devdata;
 
 	int max_tmds_clock;
 
@@ -626,18 +592,9 @@ struct ddi_vbt_port_info {
 	u8 hdmi_level_shift;
 	u8 hdmi_level_shift_set:1;
 
-	u8 supports_dvi:1;
-	u8 supports_hdmi:1;
-	u8 supports_dp:1;
-	u8 supports_edp:1;
-	u8 supports_typec_usb:1;
-	u8 supports_tbt:1;
-
 	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
 
-	u8 dp_boost_level;
-	u8 hdmi_boost_level;
 	int dp_max_link_rate;		/* 0 for not limited by VBT */
 };
 
@@ -649,6 +606,9 @@ enum psr_lines_to_wait {
 };
 
 struct intel_vbt_data {
+	/* bdb version */
+	u16 version;
+
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
@@ -974,8 +934,6 @@ struct drm_i915_private {
 	struct i915_ggtt ggtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
-	DECLARE_HASHTABLE(mm_structs, 7);
-	spinlock_t mm_lock;
 
 	/* Kernel Modesetting */
 
@@ -1037,8 +995,6 @@ struct drm_i915_private {
 	u32 edram_size_mb;
 
 	struct i915_power_domains power_domains;
-
-	struct i915_psr psr;
 
 	struct i915_gpu_error gpu_error;
 
@@ -1133,7 +1089,9 @@ struct drm_i915_private {
 			INTEL_DRAM_DDR3,
 			INTEL_DRAM_DDR4,
 			INTEL_DRAM_LPDDR3,
-			INTEL_DRAM_LPDDR4
+			INTEL_DRAM_LPDDR4,
+			INTEL_DRAM_DDR5,
+			INTEL_DRAM_LPDDR5,
 		} type;
 		u8 num_qgv_points;
 	} dram_info;
@@ -1279,8 +1237,13 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define INTEL_GEN(dev_priv)	(INTEL_INFO(dev_priv)->gen)
 #define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
 
+#define DISPLAY_VER(i915)	(INTEL_INFO(i915)->display.version)
+#define IS_DISPLAY_RANGE(i915, from, until) \
+	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
+#define IS_DISPLAY_VER(i915, v) (DISPLAY_VER(i915) == (v))
+
 #define REVID_FOREVER		0xff
-#define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)
+#define INTEL_REVID(dev_priv)	(to_pci_dev((dev_priv)->drm.dev)->revision)
 
 #define INTEL_GEN_MASK(s, e) ( \
 	BUILD_BUG_ON_ZERO(!__builtin_constant_p(s)) + \
@@ -1304,6 +1267,17 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
  */
 #define IS_REVID(p, since, until) \
 	(INTEL_REVID(p) >= (since) && INTEL_REVID(p) <= (until))
+
+#define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
+#define INTEL_GT_STEP(__i915) (RUNTIME_INFO(__i915)->step.gt_step)
+
+#define IS_DISPLAY_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
+	 INTEL_DISPLAY_STEP(__i915) >= (since) && INTEL_DISPLAY_STEP(__i915) <= (until))
+
+#define IS_GT_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_GT_STEP(__i915) == STEP_NONE), \
+	 INTEL_GT_STEP(__i915) >= (since) && INTEL_GT_STEP(__i915) <= (until))
 
 static __always_inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
@@ -1334,7 +1308,7 @@ intel_subplatform(const struct intel_runtime_info *info, enum intel_platform p)
 {
 	const unsigned int pi = __platform_mask_index(info, p);
 
-	return info->platform_mask[pi] & ((1 << INTEL_SUBPLATFORM_BITS) - 1);
+	return info->platform_mask[pi] & INTEL_SUBPLATFORM_MASK;
 }
 
 static __always_inline bool
@@ -1388,6 +1362,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_IRONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IRONLAKE)
 #define IS_IRONLAKE_M(dev_priv) \
 	(IS_PLATFORM(dev_priv, INTEL_IRONLAKE) && IS_MOBILE(dev_priv))
+#define IS_SANDYBRIDGE(dev_priv) IS_PLATFORM(dev_priv, INTEL_SANDYBRIDGE)
 #define IS_IVYBRIDGE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IVYBRIDGE)
 #define IS_IVB_GT1(dev_priv)	(IS_IVYBRIDGE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 1)
@@ -1408,6 +1383,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_TIGERLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_TIGERLAKE)
 #define IS_ROCKETLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ROCKETLAKE)
 #define IS_DG1(dev_priv)        IS_PLATFORM(dev_priv, INTEL_DG1)
+#define IS_ALDERLAKE_S(dev_priv) IS_PLATFORM(dev_priv, INTEL_ALDERLAKE_S)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev_priv) \
@@ -1490,34 +1466,10 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_BXT_REVID(dev_priv, since, until) \
 	(IS_BROXTON(dev_priv) && IS_REVID(dev_priv, since, until))
 
-enum {
-	KBL_REVID_A0,
-	KBL_REVID_B0,
-	KBL_REVID_B1,
-	KBL_REVID_C0,
-	KBL_REVID_D0,
-	KBL_REVID_D1,
-	KBL_REVID_E0,
-	KBL_REVID_F0,
-	KBL_REVID_G0,
-};
-
-struct i915_rev_steppings {
-	u8 gt_stepping;
-	u8 disp_stepping;
-};
-
-/* Defined in intel_workarounds.c */
-extern const struct i915_rev_steppings kbl_revids[];
-
-#define IS_KBL_GT_REVID(dev_priv, since, until) \
-	(IS_KABYLAKE(dev_priv) && \
-	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping >= since && \
-	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping <= until)
-#define IS_KBL_DISP_REVID(dev_priv, since, until) \
-	(IS_KABYLAKE(dev_priv) && \
-	 kbl_revids[INTEL_REVID(dev_priv)].disp_stepping >= since && \
-	 kbl_revids[INTEL_REVID(dev_priv)].disp_stepping <= until)
+#define IS_KBL_GT_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_GT_STEP(dev_priv, since, until))
+#define IS_KBL_DISPLAY_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_DISPLAY_STEP(dev_priv, since, until))
 
 #define GLK_REVID_A0		0x0
 #define GLK_REVID_A1		0x1
@@ -1549,55 +1501,17 @@ extern const struct i915_rev_steppings kbl_revids[];
 #define IS_JSL_EHL_REVID(p, since, until) \
 	(IS_JSL_EHL(p) && IS_REVID(p, since, until))
 
-enum {
-	TGL_REVID_A0,
-	TGL_REVID_B0,
-	TGL_REVID_B1,
-	TGL_REVID_C0,
-	TGL_REVID_D0,
-};
+#define IS_TGL_DISPLAY_STEP(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define TGL_UY_REVIDS_SIZE	4
-#define TGL_REVIDS_SIZE		2
+#define IS_TGL_UY_GT_STEP(__i915, since, until) \
+	((IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
+	 IS_GT_STEP(__i915, since, until))
 
-extern const struct i915_rev_steppings tgl_uy_revids[TGL_UY_REVIDS_SIZE];
-extern const struct i915_rev_steppings tgl_revids[TGL_REVIDS_SIZE];
-
-static inline const struct i915_rev_steppings *
-tgl_revids_get(struct drm_i915_private *dev_priv)
-{
-	u8 revid = INTEL_REVID(dev_priv);
-	u8 size;
-	const struct i915_rev_steppings *tgl_revid_tbl;
-
-	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
-		tgl_revid_tbl = tgl_uy_revids;
-		size = ARRAY_SIZE(tgl_uy_revids);
-	} else {
-		tgl_revid_tbl = tgl_revids;
-		size = ARRAY_SIZE(tgl_revids);
-	}
-
-	revid = min_t(u8, revid, size - 1);
-
-	return &tgl_revid_tbl[revid];
-}
-
-#define IS_TGL_DISP_REVID(p, since, until) \
-	(IS_TIGERLAKE(p) && \
-	 tgl_revids_get(p)->disp_stepping >= (since) && \
-	 tgl_revids_get(p)->disp_stepping <= (until))
-
-#define IS_TGL_UY_GT_REVID(p, since, until) \
-	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids_get(p)->gt_stepping >= (since) && \
-	 tgl_revids_get(p)->gt_stepping <= (until))
-
-#define IS_TGL_GT_REVID(p, since, until) \
-	(IS_TIGERLAKE(p) && \
-	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids_get(p)->gt_stepping >= (since) && \
-	 tgl_revids_get(p)->gt_stepping <= (until))
+#define IS_TGL_GT_STEP(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && !(IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
+	 IS_GT_STEP(__i915, since, until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
@@ -1611,6 +1525,14 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define IS_DG1_REVID(p, since, until) \
 	(IS_DG1(p) && IS_REVID(p, since, until))
+
+#define IS_ADLS_DISPLAY_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
+
+#define IS_ADLS_GT_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_GT_STEP(__i915, since, until))
 
 #define IS_LP(dev_priv)	(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))
@@ -1703,7 +1625,7 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 #define HAS_DP_MST(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dp_mst)
 
 #define HAS_DDI(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ddi)
-#define HAS_FPGA_DBG_UNCLAIMED(dev_priv) (INTEL_INFO(dev_priv)->has_fpga_dbg)
+#define HAS_FPGA_DBG_UNCLAIMED(dev_priv) (INTEL_INFO(dev_priv)->display.has_fpga_dbg)
 #define HAS_PSR(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_psr)
 #define HAS_PSR_HW_TRACKING(dev_priv) \
 	(INTEL_INFO(dev_priv)->display.has_psr_hw_tracking)
@@ -1717,6 +1639,8 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 #define HAS_RPS(dev_priv)	(INTEL_INFO(dev_priv)->has_rps)
 
 #define HAS_CSR(dev_priv)	(INTEL_INFO(dev_priv)->display.has_csr)
+
+#define HAS_MSO(i915)		(INTEL_GEN(i915) >= 12)
 
 #define HAS_RUNTIME_PM(dev_priv) (INTEL_INFO(dev_priv)->has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) (INTEL_INFO(dev_priv)->has_64bit_reloc)
@@ -1735,7 +1659,7 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define HAS_GMCH(dev_priv) (INTEL_INFO(dev_priv)->display.has_gmch)
 
-#define HAS_LSPCON(dev_priv) (INTEL_GEN(dev_priv) >= 9)
+#define HAS_LSPCON(dev_priv) (IS_GEN_RANGE(dev_priv, 9, 10))
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev_priv) (INTEL_INFO(dev_priv)->has_l3_dpf)
@@ -1759,6 +1683,9 @@ static inline bool run_as_guest(void)
 {
 	return !hypervisor_is_type(X86_HYPER_NATIVE);
 }
+
+#define HAS_D12_PLANE_MINIMIZATION(dev_priv) (IS_ROCKETLAKE(dev_priv) || \
+					      IS_ALDERLAKE_S(dev_priv))
 
 static inline bool intel_vtd_active(void)
 {
@@ -1952,14 +1879,19 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv);
-void intel_engine_init_cmd_parser(struct intel_engine_cs *engine);
+int intel_engine_init_cmd_parser(struct intel_engine_cs *engine);
 void intel_engine_cleanup_cmd_parser(struct intel_engine_cs *engine);
+unsigned long *intel_engine_cmd_parser_alloc_jump_whitelist(u32 batch_length,
+							    bool trampoline);
+
 int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    struct i915_vma *batch,
 			    unsigned long batch_offset,
 			    unsigned long batch_length,
 			    struct i915_vma *shadow,
-			    bool trampoline);
+			    unsigned long *jump_whitelist,
+			    void *shadow_map,
+			    const void *batch_map);
 #define I915_CMD_PARSER_TRAMPOLINE_SIZE 8
 
 /* intel_device_info.c */
@@ -1973,9 +1905,6 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
 /* i915_mm.c */
-int remap_io_mapping(struct vm_area_struct *vma,
-		     unsigned long addr, unsigned long pfn, unsigned long size,
-		     struct io_mapping *iomap);
 int remap_io_sg(struct vm_area_struct *vma,
 		unsigned long addr, unsigned long size,
 		struct scatterlist *sgl, resource_size_t iobase);

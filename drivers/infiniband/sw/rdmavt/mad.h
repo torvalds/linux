@@ -50,7 +50,7 @@
 
 #include <rdma/rdma_vt.h>
 
-int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		    const struct ib_mad_hdr *in, size_t in_mad_size,
 		    struct ib_mad_hdr *out, size_t *out_mad_size,

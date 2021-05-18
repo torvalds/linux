@@ -115,10 +115,10 @@ struct object {
 
 static int verbose;
 
-int eprintf(int level, int var, const char *fmt, ...)
+static int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
-	int ret;
+	int ret = 0;
 
 	if (var >= level) {
 		va_start(args, fmt);
@@ -260,6 +260,11 @@ static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 	return btf_id__add(root, id, false);
 }
 
+/* Older libelf.h and glibc elf.h might not yet define the ELF compression types. */
+#ifndef SHF_COMPRESSED
+#define SHF_COMPRESSED (1 << 11) /* Section with compressed data. */
+#endif
+
 /*
  * The data of compressed section should be aligned to 4
  * (for 32bit) or 8 (for 64 bit) bytes. The binutils ld
@@ -380,7 +385,7 @@ static int elf_collect(struct object *obj)
 static int symbols_collect(struct object *obj)
 {
 	Elf_Scn *scn = NULL;
-	int n, i, err = 0;
+	int n, i;
 	GElf_Shdr sh;
 	char *name;
 
@@ -397,11 +402,10 @@ static int symbols_collect(struct object *obj)
 	 * Scan symbols and look for the ones starting with
 	 * __BTF_ID__* over .BTF_ids section.
 	 */
-	for (i = 0; !err && i < n; i++) {
-		char *tmp, *prefix;
+	for (i = 0; i < n; i++) {
+		char *prefix;
 		struct btf_id *id;
 		GElf_Sym sym;
-		int err = -1;
 
 		if (!gelf_getsym(obj->efile.symbols, i, &sym))
 			return -1;

@@ -5,6 +5,8 @@
  * All Rights Reserved.
  */
 
+#define pr_fmt(fmt)	"habanalabs: " fmt
+
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
@@ -224,19 +226,14 @@ static int device_utilization(struct hl_device *hdev, struct hl_info_args *args)
 	struct hl_info_device_utilization device_util = {0};
 	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
 
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	if ((args->period_ms < 100) || (args->period_ms > 1000) ||
-		(args->period_ms % 100)) {
-		dev_err(hdev->dev,
-			"period %u must be between 100 - 1000 and must be divisible by 100\n",
-			args->period_ms);
+	rc = hl_device_utilization(hdev, &device_util.utilization);
+	if (rc)
 		return -EINVAL;
-	}
-
-	device_util.utilization = hl_device_utilization(hdev, args->period_ms);
 
 	return copy_to_user(out, &device_util,
 		min((size_t) max_size, sizeof(device_util))) ? -EFAULT : 0;
@@ -444,6 +441,25 @@ static int pll_frequency_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(freq_info))) ? -EFAULT : 0;
 }
 
+static int power_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_power_info power_info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_cpucp_power_get(hdev, &power_info.power);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &power_info,
+		min((size_t) max_size, sizeof(power_info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -524,6 +540,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_PLL_FREQUENCY:
 		return pll_frequency_info(hpriv, args);
 
+	case HL_INFO_POWER:
+		return power_info(hpriv, args);
+
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);
 		rc = -ENOTTY;
@@ -594,7 +613,7 @@ static const struct hl_ioctl_desc hl_ioctls[] = {
 	HL_IOCTL_DEF(HL_IOCTL_INFO, hl_info_ioctl),
 	HL_IOCTL_DEF(HL_IOCTL_CB, hl_cb_ioctl),
 	HL_IOCTL_DEF(HL_IOCTL_CS, hl_cs_ioctl),
-	HL_IOCTL_DEF(HL_IOCTL_WAIT_CS, hl_cs_wait_ioctl),
+	HL_IOCTL_DEF(HL_IOCTL_WAIT_CS, hl_wait_ioctl),
 	HL_IOCTL_DEF(HL_IOCTL_MEMORY, hl_mem_ioctl),
 	HL_IOCTL_DEF(HL_IOCTL_DEBUG, hl_debug_ioctl)
 };
@@ -682,6 +701,11 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
 
+	if (!hdev) {
+		pr_err_ratelimited("Sending ioctl after device was removed! Please close FD\n");
+		return -ENODEV;
+	}
+
 	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
 		ioctl = &hl_ioctls[nr];
 	} else {
@@ -699,6 +723,11 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 	struct hl_device *hdev = hpriv->hdev;
 	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
+
+	if (!hdev) {
+		pr_err_ratelimited("Sending ioctl after device was removed! Please close FD\n");
+		return -ENODEV;
+	}
 
 	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
 		ioctl = &hl_ioctls_control[nr];

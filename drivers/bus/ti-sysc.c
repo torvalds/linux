@@ -2887,6 +2887,9 @@ static int sysc_init_soc(struct sysc *ddata)
 	switch (sysc_soc->soc) {
 	case SOC_AM3:
 	case SOC_AM4:
+	case SOC_4430 ... SOC_4470:
+	case SOC_5430:
+	case SOC_DRA7:
 		np = of_find_node_by_path("/ocp");
 		WARN_ONCE(np && of_device_is_compatible(np, "simple-bus"),
 			  "ti-sysc: Incomplete old dtb, please update\n");

@@ -91,7 +91,7 @@ int gsi_trans_pool_init(struct gsi_trans_pool *pool, size_t size, u32 count,
 	void *virt;
 
 #ifdef IPA_VALIDATE
-	if (!size || size % 8)
+	if (!size)
 		return -EINVAL;
 	if (count < max_alloc)
 		return -EINVAL;
@@ -141,7 +141,7 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 	void *virt;
 
 #ifdef IPA_VALIDATE
-	if (!size || size % 8)
+	if (!size)
 		return -EINVAL;
 	if (count < max_alloc)
 		return -EINVAL;
@@ -153,11 +153,10 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 	size = __roundup_pow_of_two(size);
 	total_size = (count + max_alloc - 1) * size;
 
-	/* The allocator will give us a power-of-2 number of pages.  But we
-	 * can't guarantee that, so request it.  That way we won't waste any
-	 * memory that would be available beyond the required space.
-	 *
-	 * Note that gsi_trans_pool_exit_dma() assumes the total allocated
+	/* The allocator will give us a power-of-2 number of pages
+	 * sufficient to satisfy our request.  Round up our requested
+	 * size to avoid any unused space in the allocation.  This way
+	 * gsi_trans_pool_exit_dma() can assume the total allocated
 	 * size is exactly (count * size).
 	 */
 	total_size = get_order(total_size) << PAGE_SHIFT;

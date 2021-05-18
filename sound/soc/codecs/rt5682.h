@@ -1439,6 +1439,7 @@ struct rt5682_priv {
 	int pll_out[RT5682_PLLS];
 
 	int jack_type;
+	int irq_work_delay_time;
 };
 
 extern const char *rt5682_supply_names[RT5682_NUM_SUPPLIES];

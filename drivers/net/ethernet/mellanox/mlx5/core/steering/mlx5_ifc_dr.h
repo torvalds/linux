@@ -434,10 +434,7 @@ struct mlx5_ifc_ste_gre_bits {
 };
 
 struct mlx5_ifc_ste_flex_parser_0_bits {
-	u8         parser_3_label[0x14];
-	u8         parser_3_exp[0x3];
-	u8         parser_3_s_bos[0x1];
-	u8         parser_3_ttl[0x8];
+	u8         flex_parser_3[0x20];
 
 	u8         flex_parser_2[0x20];
 
@@ -486,6 +483,17 @@ struct mlx5_ifc_ste_flex_parser_tnl_geneve_bits {
 	u8         reserved_at_38[0x8];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ste_flex_parser_tnl_gtpu_bits {
+	u8	   reserved_at_0[0x5];
+	u8	   gtpu_msg_flags[0x3];
+	u8	   gtpu_msg_type[0x8];
+	u8	   reserved_at_10[0x10];
+
+	u8	   gtpu_teid[0x20];
+
+	u8	   reserved_at_40[0x40];
 };
 
 struct mlx5_ifc_ste_general_purpose_bits {

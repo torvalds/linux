@@ -53,6 +53,10 @@ class Conf:
         # Override 'srctree' environment to make the test as the top directory
         extra_env['srctree'] = self._test_dir
 
+        # Clear KCONFIG_DEFCONFIG_LIST to keep unit tests from being affected
+        # by the user's environment.
+        extra_env['KCONFIG_DEFCONFIG_LIST'] = ''
+
         # Run Kconfig in a temporary directory.
         # This directory is automatically removed when done.
         with tempfile.TemporaryDirectory() as temp_dir:

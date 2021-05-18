@@ -1522,6 +1522,8 @@ const struct inode_operations jfs_dir_inode_operations = {
 	.rename		= jfs_rename,
 	.listxattr	= jfs_listxattr,
 	.setattr	= jfs_setattr,
+	.fileattr_get	= jfs_fileattr_get,
+	.fileattr_set	= jfs_fileattr_set,
 #ifdef CONFIG_JFS_POSIX_ACL
 	.get_acl	= jfs_get_acl,
 	.set_acl	= jfs_set_acl,
@@ -1533,9 +1535,7 @@ const struct file_operations jfs_dir_operations = {
 	.iterate	= jfs_readdir,
 	.fsync		= jfs_fsync,
 	.unlocked_ioctl = jfs_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= jfs_compat_ioctl,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= generic_file_llseek,
 };
 

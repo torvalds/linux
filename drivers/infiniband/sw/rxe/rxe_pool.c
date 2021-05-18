@@ -8,8 +8,6 @@
 #include "rxe_loc.h"
 
 /* info about object pools
- * note that mr and mw share a single index space
- * so that one can map an lkey to the correct type of object
  */
 struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
 	[RXE_TYPE_UC] = {
@@ -56,18 +54,18 @@ struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
 	},
 	[RXE_TYPE_MR] = {
 		.name		= "rxe-mr",
-		.size		= sizeof(struct rxe_mem),
-		.elem_offset	= offsetof(struct rxe_mem, pelem),
-		.cleanup	= rxe_mem_cleanup,
+		.size		= sizeof(struct rxe_mr),
+		.elem_offset	= offsetof(struct rxe_mr, pelem),
+		.cleanup	= rxe_mr_cleanup,
 		.flags		= RXE_POOL_INDEX,
 		.max_index	= RXE_MAX_MR_INDEX,
 		.min_index	= RXE_MIN_MR_INDEX,
 	},
 	[RXE_TYPE_MW] = {
 		.name		= "rxe-mw",
-		.size		= sizeof(struct rxe_mem),
-		.elem_offset	= offsetof(struct rxe_mem, pelem),
-		.flags		= RXE_POOL_INDEX,
+		.size		= sizeof(struct rxe_mw),
+		.elem_offset	= offsetof(struct rxe_mw, pelem),
+		.flags		= RXE_POOL_INDEX | RXE_POOL_NO_ALLOC,
 		.max_index	= RXE_MAX_MW_INDEX,
 		.min_index	= RXE_MIN_MW_INDEX,
 	},

@@ -18,8 +18,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("EMU10K1");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB Live!/PCI512/E-mu APS},"
-	       "{Creative Labs,SB Audigy}}");
 
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 #define ENABLE_SYNTH

@@ -14,7 +14,6 @@
 		i2c5 = "/bus@0/i2c@31c0000";
 		i2c6 = "/bus@0/i2c@c250000";
 		i2c7 = "/bus@0/i2c@31e0000";
-		mmc0 = "/bus@0/mmc@3460000";
 		rtc0 = "/bpmp/i2c/pmic@3c";
 		rtc1 = "/bus@0/rtc@c2a0000";
 		serial0 = &tcu;

@@ -18,6 +18,7 @@
 
 	aliases {
 		ethernet0 = &fec;
+		ethernet1 = &eqos;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -309,6 +310,22 @@
 				reg = <0x30280000 0x10000>;
 				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_WDOG1_ROOT>;
+				status = "disabled";
+			};
+
+			wdog2: watchdog@30290000 {
+				compatible = "fsl,imx8mp-wdt", "fsl,imx21-wdt";
+				reg = <0x30290000 0x10000>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_WDOG2_ROOT>;
+				status = "disabled";
+			};
+
+			wdog3: watchdog@302a0000 {
+				compatible = "fsl,imx8mp-wdt", "fsl,imx21-wdt";
+				reg = <0x302a0000 0x10000>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MP_CLK_WDOG3_ROOT>;
 				status = "disabled";
 			};
 
@@ -786,6 +803,28 @@
 				nvmem_macaddr_swap;
 				status = "disabled";
 			};
+
+			eqos: ethernet@30bf0000 {
+				compatible = "nxp,imx8mp-dwmac-eqos", "snps,dwmac-5.10a";
+				reg = <0x30bf0000 0x10000>;
+				interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "eth_wake_irq", "macirq";
+				clocks = <&clk IMX8MP_CLK_ENET_QOS_ROOT>,
+					 <&clk IMX8MP_CLK_QOS_ENET_ROOT>,
+					 <&clk IMX8MP_CLK_ENET_QOS_TIMER>,
+					 <&clk IMX8MP_CLK_ENET_QOS>;
+				clock-names = "stmmaceth", "pclk", "ptp_ref", "tx";
+				assigned-clocks = <&clk IMX8MP_CLK_ENET_AXI>,
+						  <&clk IMX8MP_CLK_ENET_QOS_TIMER>,
+						  <&clk IMX8MP_CLK_ENET_QOS>;
+				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>,
+							 <&clk IMX8MP_SYS_PLL2_100M>,
+							 <&clk IMX8MP_SYS_PLL2_125M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>;
+				intf_mode = <&gpr 0x4>;
+				status = "disabled";
+			};
 		};
 
 		gic: interrupt-controller@38800000 {
@@ -828,7 +867,7 @@
 			ranges;
 			status = "disabled";
 
-			usb_dwc3_0: dwc3@38100000 {
+			usb_dwc3_0: usb@38100000 {
 				compatible = "snps,dwc3";
 				reg = <0x38100000 0x10000>;
 				clocks = <&clk IMX8MP_CLK_HSIO_AXI>,
@@ -869,7 +908,7 @@
 			ranges;
 			status = "disabled";
 
-			usb_dwc3_1: dwc3@38200000 {
+			usb_dwc3_1: usb@38200000 {
 				compatible = "snps,dwc3";
 				reg = <0x38200000 0x10000>;
 				clocks = <&clk IMX8MP_CLK_HSIO_AXI>,

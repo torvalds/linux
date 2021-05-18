@@ -904,7 +904,7 @@ static nokprobe_inline int do_vsx_load(struct instruction_op *op,
 	if (!address_ok(regs, ea, size) || copy_mem_in(mem, ea, size, regs))
 		return -EFAULT;
 
-	nr_vsx_regs = size / sizeof(__vector128);
+	nr_vsx_regs = max(1ul, size / sizeof(__vector128));
 	emulate_vsx_load(op, buf, mem, cross_endian);
 	preempt_disable();
 	if (reg < 32) {
@@ -951,7 +951,7 @@ static nokprobe_inline int do_vsx_store(struct instruction_op *op,
 	if (!address_ok(regs, ea, size))
 		return -EFAULT;
 
-	nr_vsx_regs = size / sizeof(__vector128);
+	nr_vsx_regs = max(1ul, size / sizeof(__vector128));
 	preempt_disable();
 	if (reg < 32) {
 		/* FP regs + extensions */
@@ -1400,10 +1400,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		}
 		break;
 	}
-
-	/* Following cases refer to regs->gpr[], so we need all regs */
-	if (!FULL_REGS(regs))
-		return -1;
 
 	rd = (word >> 21) & 0x1f;
 	ra = (word >> 16) & 0x1f;
@@ -3086,15 +3082,6 @@ NOKPROBE_SYMBOL(analyse_instr);
  */
 static nokprobe_inline int handle_stack_update(unsigned long ea, struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC32
-	/*
-	 * Check if we will touch kernel stack overflow
-	 */
-	if (ea - STACK_INT_FRAME_SIZE <= current->thread.ksp_limit) {
-		printk(KERN_CRIT "Can't kprobe this since kernel stack would overflow.\n");
-		return -EINVAL;
-	}
-#endif /* CONFIG_PPC32 */
 	/*
 	 * Check if we already set since that means we'll
 	 * lose the previous value.

@@ -100,6 +100,8 @@ struct cam_clk {
  * @sensor: array of registered sensor subdevs
  * @num_sensors: actual number of registered sensors
  * @camclk: external sensor clock information
+ * @wbclk: external writeback clock information
+ * @fimc_lite: array of registered fimc-lite devices
  * @fimc: array of registered fimc devices
  * @fimc_is: fimc-is data structure
  * @use_isp: set to true when FIMC-IS subsystem is used
@@ -107,9 +109,12 @@ struct cam_clk {
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
- * @cam_clk_provider: CAMCLK clock provider structure
+ * @clk_provider: CAMCLK clock provider structure
+ * @subdev_notifier: notifier for the subdevs
  * @user_subdev_api: true if subdevs are not configured by the host driver
  * @slock: spinlock protecting @sensor array
+ * @pipelines: list of pipelines
+ * @link_setup_graph: graph iterator
  */
 struct fimc_md {
 	struct fimc_csis_info csis[CSIS_MAX_ENTITIES];

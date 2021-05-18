@@ -345,6 +345,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_LPS_PG_INFO		0x2b
 #define H2C_CMD_RA_INFO			0x40
 #define H2C_CMD_RSSI_MONITOR		0x42
+#define H2C_CMD_WL_PHY_INFO		0x58
 
 #define H2C_CMD_COEX_TDMA_TYPE		0x60
 #define H2C_CMD_QUERY_BT_INFO		0x61
@@ -353,6 +354,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_WL_CH_INFO		0x66
 #define H2C_CMD_QUERY_BT_MP_INFO	0x67
 #define H2C_CMD_BT_WIFI_CONTROL		0x69
+#define H2C_CMD_WIFI_CALIBRATION	0x6d
 
 #define H2C_CMD_KEEP_ALIVE		0x03
 #define H2C_CMD_DISCONNECT_DECISION	0x04
@@ -368,6 +370,17 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
 #define MEDIA_STATUS_RPT_SET_MACID(h2c_pkt, value)                             \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
+
+#define SET_WL_PHY_INFO_TX_TP(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(17, 8))
+#define SET_WL_PHY_INFO_RX_TP(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(27, 18))
+#define SET_WL_PHY_INFO_TX_RATE_DESC(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(7, 0))
+#define SET_WL_PHY_INFO_RX_RATE_DESC(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(15, 8))
+#define SET_WL_PHY_INFO_RX_EVM(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(23, 16))
 
 #define SET_PWR_MODE_SET_MODE(h2c_pkt, value)                                  \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(14, 8))
@@ -530,6 +543,9 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32_get_bits(*((__le32 *)(_header) + 0x01), GENMASK(31, 16))
 #define GET_FW_DUMP_TLV_VAL(_header)					\
 	le32_get_bits(*((__le32 *)(_header) + 0x02), GENMASK(31, 0))
+
+#define RFK_SET_INFORM_START(h2c_pkt, value)				\
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
 static inline struct rtw_c2h_cmd *get_c2h_from_skb(struct sk_buff *skb)
 {
 	u32 pkt_offset;
@@ -545,6 +561,7 @@ void rtw_fw_send_general_info(struct rtw_dev *rtwdev);
 void rtw_fw_send_phydm_info(struct rtw_dev *rtwdev);
 
 void rtw_fw_do_iqk(struct rtw_dev *rtwdev, struct rtw_iqk_para *para);
+void rtw_fw_inform_rfk_status(struct rtw_dev *rtwdev, bool start);
 void rtw_fw_set_pwr_mode(struct rtw_dev *rtwdev);
 void rtw_fw_set_pg_info(struct rtw_dev *rtwdev);
 void rtw_fw_query_bt_info(struct rtw_dev *rtwdev);
@@ -559,6 +576,7 @@ void rtw_fw_bt_wifi_control(struct rtw_dev *rtwdev, u8 op_code, u8 *data);
 void rtw_fw_send_rssi_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_fw_media_status_report(struct rtw_dev *rtwdev, u8 mac_id, bool conn);
+void rtw_fw_update_wl_phy_info(struct rtw_dev *rtwdev);
 int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 				u8 *buf, u32 size);
 void rtw_remove_rsvd_page(struct rtw_dev *rtwdev,

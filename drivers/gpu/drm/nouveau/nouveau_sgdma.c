@@ -16,7 +16,7 @@ struct nouveau_sgdma_be {
 };
 
 void
-nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+nouveau_sgdma_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 
@@ -29,7 +29,7 @@ nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 }
 
 int
-nouveau_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *reg)
+nouveau_sgdma_bind(struct ttm_device *bdev, struct ttm_tt *ttm, struct ttm_resource *reg)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
@@ -56,7 +56,7 @@ nouveau_sgdma_bind(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_re
 }
 
 void
-nouveau_sgdma_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+nouveau_sgdma_unbind(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
 	if (nvbe->mem) {

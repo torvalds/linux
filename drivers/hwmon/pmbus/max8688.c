@@ -191,3 +191,4 @@ module_i2c_driver(max8688_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX8688");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

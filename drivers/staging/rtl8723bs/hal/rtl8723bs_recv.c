@@ -38,7 +38,6 @@ static void update_recvframe_attrib(struct adapter *padapter,
 
 	/*  update rx report to recv_frame attribute */
 	pattrib->pkt_rpt_type = prxreport->c2h_ind ? C2H_PACKET : NORMAL_RX;
-/* 	DBG_871X("%s: pkt_rpt_type =%d\n", __func__, pattrib->pkt_rpt_type); */
 
 	if (pattrib->pkt_rpt_type == NORMAL_RX) {
 		/*  Normal rx packet */
@@ -98,7 +97,7 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 		.is_beacon   = false,
 	};
 
-	/* _irqL		irqL; */
+	/* unsigned long		irqL; */
 	struct sta_priv *pstapriv;
 	struct sta_info *psta;
 
@@ -124,11 +123,9 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 
 	pstapriv = &padapter->stapriv;
 	psta = rtw_get_stainfo(pstapriv, sa);
-	if (psta) {
+	if (psta)
 		pkt_info.station_id = psta->mac_id;
-		/* DBG_8192C("%s ==> StationID(%d)\n",
-		 * 	  __func__, pkt_info.station_id); */
-	}
+
 	pkt_info.data_rate = pattrib->data_rate;
 
 	/* rtl8723b_query_rx_phy_status(precvframe, pphy_status); */
@@ -165,8 +162,6 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
 	if (length == 0)
 		return;
 
-	/* DBG_871X("+%s() length =%d\n", __func__, length); */
-
 	tmp = rtw_zmalloc(length);
 	if (!tmp)
 		return;
@@ -177,8 +172,6 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
 
 	if (!res)
 		kfree(tmp);
-
-	/* DBG_871X("-%s res(%d)\n", __func__, res); */
 }
 
 static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,
@@ -188,7 +181,6 @@ static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,
 
 	precvframe = rtw_alloc_recvframe(&precvpriv->free_recv_queue);
 	if (!precvframe) {
-		DBG_8192C("%s: no enough recv frame!\n", __func__);
 		rtw_enqueue_recvbuf_to_head(precvbuf,
 					    &precvpriv->recv_buf_pending_queue);
 
@@ -207,8 +199,6 @@ static inline bool rx_crc_err(struct recv_priv *precvpriv,
 {
 	/*  fix Hardware RX data error, drop whole recv_buffer */
 	if ((!(p_hal_data->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err) {
-		DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n",
-			  __func__, __LINE__);
 		rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 		return true;
 	}
@@ -221,8 +211,6 @@ static inline bool pkt_exceeds_tail(struct recv_priv *precvpriv,
 				    union recv_frame *precvframe)
 {
 	if (end > tail) {
-		DBG_8192C("%s()-%d: : next pkt len(%p,%d) exceed ptail(%p)!\n",
-			  __func__, __LINE__, ptr, pkt_offset, precvbuf->ptail);
 		rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 		return true;
 	}
@@ -242,7 +230,7 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 	struct __queue *recv_buf_queue;
 	u8 *ptr;
 	u32 pkt_offset, skb_len, alloc_sz;
-	_pkt *pkt_copy = NULL;
+	struct sk_buff *pkt_copy = NULL;
 	u8 shift_sz = 0, rx_report_sz = 0;
 
 	p_hal_data = GET_HAL_DATA(padapter);
@@ -281,9 +269,6 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 				break;
 
 			if ((pattrib->crc_err) || (pattrib->icv_err)) {
-				DBG_8192C("%s: crc_err =%d icv_err =%d, skip!\n",
-					  __func__, pattrib->crc_err,
-					  pattrib->icv_err);
 				rtw_free_recvframe(precvframe,
 						   &precvpriv->free_recv_queue);
 			} else {
@@ -312,7 +297,6 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 
 				pkt_copy = rtw_skb_alloc(alloc_sz);
 				if (!pkt_copy) {
-					DBG_8192C("%s: alloc_skb fail, drop frame\n", __func__);
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 					break;
 				}
@@ -345,11 +329,9 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 					if (pattrib->physt)
 						update_recvframe_phyinfo(precvframe, (struct phy_stat *)ptr);
 
-					if (rtw_recv_entry(precvframe) != _SUCCESS) {
-						RT_TRACE(_module_rtl871x_recv_c_, _drv_dump_, ("%s: rtw_recv_entry(precvframe) != _SUCCESS\n", __func__));
-					}
+					rtw_recv_entry(precvframe);
 				} else if (pattrib->pkt_rpt_type == C2H_PACKET) {
-					C2H_EVT_HDR	C2hEvent;
+					struct c2h_evt_hdr_t	C2hEvent;
 
 					u16 len_c2h = pattrib->pkt_len;
 					u8 *pbuf_c2h = precvframe->u.hdr.rx_data;
@@ -404,7 +386,6 @@ s32 rtl8723bs_init_recv_priv(struct adapter *padapter)
 	precvpriv->pallocated_recv_buf = rtw_zmalloc(n);
 	if (!precvpriv->pallocated_recv_buf) {
 		res = _FAIL;
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("alloc recv_buf fail!\n"));
 		goto exit;
 	}
 
@@ -427,10 +408,6 @@ s32 rtl8723bs_init_recv_priv(struct adapter *padapter)
 				tmpaddr = (SIZE_PTR)precvbuf->pskb->data;
 				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
 				skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
-			}
-
-			if (!precvbuf->pskb) {
-				DBG_871X("%s: alloc_skb fail!\n", __func__);
 			}
 		}
 

@@ -322,12 +322,9 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	     mode_cmd->pitches[0] >= 0x10000 || /* at most 64k pitch */
 	     (mode_cmd->pitches[1] && /* pitches for planes must match */
 	      mode_cmd->pitches[0] != mode_cmd->pitches[1]))) {
-		struct drm_format_name_buf format_name;
-		DRM_DEBUG_KMS("Unsuitable framebuffer: format: %s; pitches: 0x%x\n 0x%x\n",
-			      drm_get_format_name(mode_cmd->pixel_format,
-						  &format_name),
-			      mode_cmd->pitches[0],
-			      mode_cmd->pitches[1]);
+		DRM_DEBUG_KMS("Unsuitable framebuffer: format: %p4cc; pitches: 0x%x\n 0x%x\n",
+			      &mode_cmd->pixel_format,
+			      mode_cmd->pitches[0], mode_cmd->pitches[1]);
 		return -EINVAL;
 	}
 

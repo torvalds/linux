@@ -169,7 +169,7 @@ static struct platform_driver imx_bus_platdrv = {
 	.probe		= imx_bus_probe,
 	.driver = {
 		.name	= "imx-bus-devfreq",
-		.of_match_table = of_match_ptr(imx_bus_of_match),
+		.of_match_table = imx_bus_of_match,
 	},
 };
 module_platform_driver(imx_bus_platdrv);

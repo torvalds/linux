@@ -61,7 +61,7 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 {
 	struct adapter *padapter = wiphy_to_adapter(wiphy);
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	RT_CHANNEL_INFO *channel_set = pmlmeext->channel_set;
+	struct rt_channel_info *channel_set = pmlmeext->channel_set;
 	u8 max_chan_nums = pmlmeext->max_chan_nums;
 
 	struct ieee80211_supported_band *sband;
@@ -149,8 +149,6 @@ void rtw_regd_init(struct wiphy *wiphy,
 void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
-
-	DBG_8192C("%s\n", __func__);
 
 	_rtw_reg_notifier_apply(wiphy, request, reg);
 }

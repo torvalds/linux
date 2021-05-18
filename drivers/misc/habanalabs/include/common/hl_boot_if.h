@@ -13,6 +13,8 @@
 
 #define BOOT_FIT_SRAM_OFFSET		0x200000
 
+#define VERSION_MAX_LEN			128
+
 /*
  * CPU error bits in BOOT_ERROR registers
  *
@@ -73,6 +75,9 @@
  * CPU_BOOT_ERR0_PLL_FAIL		PLL settings failed, meaning that one
  *					of the PLLs remains in REF_CLK
  *
+ * CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	Device is unusable and customer support
+ *					should be contacted.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -92,6 +97,7 @@
 #define CPU_BOOT_ERR0_PRI_IMG_VER_FAIL		(1 << 10)
 #define CPU_BOOT_ERR0_SEC_IMG_VER_FAIL		(1 << 11)
 #define CPU_BOOT_ERR0_PLL_FAIL			(1 << 12)
+#define CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	(1 << 13)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
 
 /*
@@ -170,6 +176,20 @@
  *					is set to the PI counter.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_FW_LD_COM_EN	Flexible FW loading communication
+ *					protocol is enabled.
+ *					Initialized in: preboot
+ *
+ * CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN	FW iATU configuration is enabled.
+ *					This bit if set, means the iATU has been
+ *					configured and is ready for use.
+ *					Initialized in: ppboot
+ *
+ * CPU_BOOT_DEV_STS0_DYN_PLL_EN		Dynamic PLL configuration is enabled.
+ *					FW sends to host a bitmap of supported
+ *					PLLs.
+ *					Initialized in: linux
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -195,6 +215,9 @@
 #define CPU_BOOT_DEV_STS0_CLK_GATE_EN			(1 << 13)
 #define CPU_BOOT_DEV_STS0_HBM_ECC_EN			(1 << 14)
 #define CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN			(1 << 15)
+#define CPU_BOOT_DEV_STS0_FW_LD_COM_EN			(1 << 16)
+#define CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN		(1 << 17)
+#define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
@@ -230,12 +253,208 @@ enum kmd_msg {
 	KMD_MSG_SKIP_BMC,
 	RESERVED,
 	KMD_MSG_RST_DEV,
+	KMD_MSG_LAST
 };
 
 enum cpu_msg_status {
 	CPU_MSG_CLR = 0,
 	CPU_MSG_OK,
 	CPU_MSG_ERR,
+};
+
+/* communication registers mapping - consider ABI when changing */
+struct cpu_dyn_regs {
+	uint32_t cpu_pq_base_addr_low;
+	uint32_t cpu_pq_base_addr_high;
+	uint32_t cpu_pq_length;
+	uint32_t cpu_pq_init_status;
+	uint32_t cpu_eq_base_addr_low;
+	uint32_t cpu_eq_base_addr_high;
+	uint32_t cpu_eq_length;
+	uint32_t cpu_eq_ci;
+	uint32_t cpu_cq_base_addr_low;
+	uint32_t cpu_cq_base_addr_high;
+	uint32_t cpu_cq_length;
+	uint32_t cpu_pf_pq_pi;
+	uint32_t cpu_boot_dev_sts0;
+	uint32_t cpu_boot_dev_sts1;
+	uint32_t cpu_boot_err0;
+	uint32_t cpu_boot_err1;
+	uint32_t cpu_boot_status;
+	uint32_t fw_upd_sts;
+	uint32_t fw_upd_cmd;
+	uint32_t fw_upd_pending_sts;
+	uint32_t fuse_ver_offset;
+	uint32_t preboot_ver_offset;
+	uint32_t uboot_ver_offset;
+	uint32_t hw_state;
+	uint32_t kmd_msg_to_cpu;
+	uint32_t cpu_cmd_status_to_host;
+	uint32_t reserved1[32];		/* reserve for future use */
+};
+
+/* HCDM - Habana Communications Descriptor Magic */
+#define HL_COMMS_DESC_MAGIC	0x4843444D
+#define HL_COMMS_DESC_VER	1
+
+/* this is the comms descriptor header - meta data */
+struct comms_desc_header {
+	uint32_t magic;		/* magic for validation */
+	uint32_t crc32;		/* CRC32 of the descriptor w/o header */
+	uint16_t size;		/* size of the descriptor w/o header */
+	uint8_t version;	/* descriptor version */
+	uint8_t reserved[5];	/* pad to 64 bit */
+};
+
+/* this is the main FW descriptor - consider ABI when changing */
+struct lkd_fw_comms_desc {
+	struct comms_desc_header header;
+	struct cpu_dyn_regs cpu_dyn_regs;
+	char fuse_ver[VERSION_MAX_LEN];
+	char cur_fw_ver[VERSION_MAX_LEN];
+	/* can be used for 1 more version w/o ABI change */
+	char reserved0[VERSION_MAX_LEN];
+	uint64_t img_addr;	/* address for next FW component load */
+};
+
+/*
+ * LKD commands:
+ *
+ * COMMS_NOOP			Used to clear the command register and no actual
+ *				command is send.
+ *
+ * COMMS_CLR_STS		Clear status command - FW should clear the
+ *				status register. Used for synchronization
+ *				between the commands as part of the race free
+ *				protocol.
+ *
+ * COMMS_RST_STATE		Reset the current communication state which is
+ *				kept by FW for proper responses.
+ *				Should be used in the beginning of the
+ *				communication cycle to clean any leftovers from
+ *				previous communication attempts.
+ *
+ * COMMS_PREP_DESC		Prepare descriptor for setting up the
+ *				communication and other dynamic data:
+ *				struct lkd_fw_comms_desc.
+ *				This command has a parameter stating the next FW
+ *				component size, so the FW can actually prepare a
+ *				space for it and in the status response provide
+ *				the descriptor offset. The Offset of the next FW
+ *				data component is a part of the descriptor
+ *				structure.
+ *
+ * COMMS_DATA_RDY		The FW data has been uploaded and is ready for
+ *				validation.
+ *
+ * COMMS_EXEC			Execute the next FW component.
+ *
+ * COMMS_RST_DEV		Reset the device.
+ *
+ * COMMS_GOTO_WFE		Execute WFE command. Allowed only on non-secure
+ *				devices.
+ *
+ * COMMS_SKIP_BMC		Perform actions required for BMC-less servers.
+ *				Do not wait for BMC response.
+ *
+ * COMMS_LOW_PLL_OPP		Initialize PLLs for low OPP.
+ */
+enum comms_cmd {
+	COMMS_NOOP = 0,
+	COMMS_CLR_STS = 1,
+	COMMS_RST_STATE = 2,
+	COMMS_PREP_DESC = 3,
+	COMMS_DATA_RDY = 4,
+	COMMS_EXEC = 5,
+	COMMS_RST_DEV = 6,
+	COMMS_GOTO_WFE = 7,
+	COMMS_SKIP_BMC = 8,
+	COMMS_LOW_PLL_OPP = 9,
+	COMMS_INVLD_LAST
+};
+
+#define COMMS_COMMAND_SIZE_SHIFT	0
+#define COMMS_COMMAND_SIZE_MASK		0x1FFFFFF
+#define COMMS_COMMAND_CMD_SHIFT		27
+#define COMMS_COMMAND_CMD_MASK		0xF8000000
+
+/*
+ * LKD command to FW register structure
+ * @size	- FW component size
+ * @cmd		- command from enum comms_cmd
+ */
+struct comms_command {
+	union {		/* bit fields are only for FW use */
+		struct {
+			unsigned int size :25;		/* 32MB max. */
+			unsigned int reserved :2;
+			enum comms_cmd cmd :5;		/* 32 commands */
+		};
+		unsigned int val;
+	};
+};
+
+/*
+ * FW status
+ *
+ * COMMS_STS_NOOP		Used to clear the status register and no actual
+ *				status is provided.
+ *
+ * COMMS_STS_ACK		Command has been received and recognized.
+ *
+ * COMMS_STS_OK			Command execution has finished successfully.
+ *
+ * COMMS_STS_ERR		Command execution was unsuccessful and resulted
+ *				in error.
+ *
+ * COMMS_STS_VALID_ERR		FW validation has failed.
+ *
+ * COMMS_STS_TIMEOUT_ERR	Command execution has timed out.
+ */
+enum comms_sts {
+	COMMS_STS_NOOP = 0,
+	COMMS_STS_ACK = 1,
+	COMMS_STS_OK = 2,
+	COMMS_STS_ERR = 3,
+	COMMS_STS_VALID_ERR = 4,
+	COMMS_STS_TIMEOUT_ERR = 5,
+	COMMS_STS_INVLD_LAST
+};
+
+/* RAM types for FW components loading - defines the base address */
+enum comms_ram_types {
+	COMMS_SRAM = 0,
+	COMMS_DRAM = 1,
+};
+
+#define COMMS_STATUS_OFFSET_SHIFT	0
+#define COMMS_STATUS_OFFSET_MASK	0x03FFFFFF
+#define COMMS_STATUS_OFFSET_ALIGN_SHIFT	2
+#define COMMS_STATUS_RAM_TYPE_SHIFT	26
+#define COMMS_STATUS_RAM_TYPE_MASK	0x0C000000
+#define COMMS_STATUS_STATUS_SHIFT	28
+#define COMMS_STATUS_STATUS_MASK	0xF0000000
+
+/*
+ * FW status to LKD register structure
+ * @offset	- an offset from the base of the ram_type shifted right by
+ *		  2 bits (always aligned to 32 bits).
+ *		  Allows a maximum addressable offset of 256MB from RAM base.
+ *		  Example: for real offset in RAM of 0x800000 (8MB), the value
+ *		  in offset field is (0x800000 >> 2) = 0x200000.
+ * @ram_type	- the RAM type that should be used for offset from
+ *		  enum comms_ram_types
+ * @status	- status from enum comms_sts
+ */
+struct comms_status {
+	union {		/* bit fields are only for FW use */
+		struct {
+			unsigned int offset :26;
+			unsigned int ram_type :2;
+			enum comms_sts status :4;	/* 16 statuses */
+		};
+		unsigned int val;
+	};
 };
 
 #endif /* HL_BOOT_IF_H */

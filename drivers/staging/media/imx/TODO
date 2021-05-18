@@ -17,9 +17,12 @@
 - This media driver supports inheriting V4L2 controls to the
   video capture devices, from the subdevices in the capture device's
   pipeline. The controls for each capture device are updated in the
-  link_notify callback when the pipeline is modified. It should be
-  decided whether this feature is useful enough to make it generally
-  available by exporting to v4l2-core.
+  link_notify callback when the pipeline is modified. This feature should be
+  removed, userspace should use the subdev-based userspace API instead.
+
+- Similarly to the legacy control handling, legacy format handling where
+  formats on the video nodes are influenced by the active format of the
+  connected subdev should be removed.
 
 - i.MX7: all of the above, since it uses the imx media core
 

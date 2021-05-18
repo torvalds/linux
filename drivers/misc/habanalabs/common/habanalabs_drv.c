@@ -27,13 +27,13 @@ static struct class *hl_class;
 static DEFINE_IDR(hl_devs_idr);
 static DEFINE_MUTEX(hl_devs_idr_lock);
 
-static int timeout_locked = 5;
+static int timeout_locked = 30;
 static int reset_on_lockup = 1;
 static int memory_scrub = 1;
 
 module_param(timeout_locked, int, 0444);
 MODULE_PARM_DESC(timeout_locked,
-	"Device lockup timeout in seconds (0 = disabled, default 5s)");
+	"Device lockup timeout in seconds (0 = disabled, default 30s)");
 
 module_param(reset_on_lockup, int, 0444);
 MODULE_PARM_DESC(reset_on_lockup,
@@ -47,10 +47,12 @@ MODULE_PARM_DESC(memory_scrub,
 
 #define PCI_IDS_GOYA			0x0001
 #define PCI_IDS_GAUDI			0x1000
+#define PCI_IDS_GAUDI_SEC		0x1010
 
 static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GOYA), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI_SEC), },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ids);
@@ -74,12 +76,25 @@ static enum hl_asic_type get_asic_type(u16 device)
 	case PCI_IDS_GAUDI:
 		asic_type = ASIC_GAUDI;
 		break;
+	case PCI_IDS_GAUDI_SEC:
+		asic_type = ASIC_GAUDI_SEC;
+		break;
 	default:
 		asic_type = ASIC_INVALID;
 		break;
 	}
 
 	return asic_type;
+}
+
+static bool is_asic_secured(enum hl_asic_type asic_type)
+{
+	switch (asic_type) {
+	case ASIC_GAUDI_SEC:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /*
@@ -234,8 +249,7 @@ out_err:
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
-	hdev->cpu_enable = 1;
-	hdev->fw_loading = FW_TYPE_ALL_TYPES;
+	hdev->fw_components = FW_TYPE_ALL_TYPES;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
 	hdev->mmu_enable = 1;
@@ -287,6 +301,12 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	} else {
 		hdev->asic_type = asic_type;
 	}
+
+	if (pdev)
+		hdev->asic_prop.fw_security_disabled =
+				!is_asic_secured(pdev->device);
+	else
+		hdev->asic_prop.fw_security_disabled = true;
 
 	/* Assign status description string */
 	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],

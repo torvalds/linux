@@ -663,7 +663,8 @@ static int dm_exception_table_init(struct dm_exception_table *et,
 
 	et->hash_shift = hash_shift;
 	et->hash_mask = size - 1;
-	et->table = dm_vcalloc(size, sizeof(struct hlist_bl_head));
+	et->table = kvmalloc_array(size, sizeof(struct hlist_bl_head),
+				   GFP_KERNEL);
 	if (!et->table)
 		return -ENOMEM;
 
@@ -689,7 +690,7 @@ static void dm_exception_table_exit(struct dm_exception_table *et,
 			kmem_cache_free(mem, ex);
 	}
 
-	vfree(et->table);
+	kvfree(et->table);
 }
 
 static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk)

@@ -651,6 +651,8 @@
 				reg = <0x1a>;
 				interrupt-parent = <&gpio>;
 				interrupts = <TEGRA194_MAIN_GPIO(S, 5) GPIO_ACTIVE_HIGH>;
+				clocks = <&bpmp TEGRA194_CLK_AUD_MCLK>;
+				clock-names = "mclk";
 				realtek,jd-src = <2>;
 				sound-name-prefix = "CVB-RT";
 
@@ -658,7 +660,6 @@
 					rt5658_ep: endpoint {
 						remote-endpoint = <&i2s1_dap_ep>;
 						mclk-fs = <256>;
-						clocks = <&bpmp TEGRA194_CLK_AUD_MCLK>;
 					};
 				};
 			};

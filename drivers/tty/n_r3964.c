@@ -146,7 +146,6 @@ static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 static struct tty_ldisc_ops tty_ldisc_N_R3964 = {
 	.owner = THIS_MODULE,
-	.magic = TTY_LDISC_MAGIC,
 	.name = "R3964",
 	.open = r3964_open,
 	.close = r3964_close,

@@ -396,6 +396,7 @@ struct cec_drm_connector_info {
  * associated with the CEC adapter.
  * @type: connector type (if any)
  * @drm: drm connector info
+ * @raw: array to pad the union
  */
 struct cec_connector_info {
 	__u32 type;
@@ -453,7 +454,7 @@ struct cec_event_lost_msgs {
  * struct cec_event - CEC event structure
  * @ts: the timestamp of when the event was sent.
  * @event: the event.
- * array.
+ * @flags: event flags.
  * @state_change: the event payload for CEC_EVENT_STATE_CHANGE.
  * @lost_msgs: the event payload for CEC_EVENT_LOST_MSGS.
  * @raw: array to pad the union.

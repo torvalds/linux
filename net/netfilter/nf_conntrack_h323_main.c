@@ -146,7 +146,8 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 		/* Get first TPKT pointer */
 		tpkt = skb_header_pointer(skb, tcpdataoff, tcpdatalen,
 					  h323_buffer);
-		BUG_ON(tpkt == NULL);
+		if (!tpkt)
+			goto clear_out;
 
 		/* Validate TPKT identifier */
 		if (tcpdatalen < 4 || tpkt[0] != 0x03 || tpkt[1] != 0) {

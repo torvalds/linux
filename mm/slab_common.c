@@ -71,11 +71,19 @@ static int __init setup_slab_nomerge(char *str)
 	return 1;
 }
 
+static int __init setup_slab_merge(char *str)
+{
+	slab_nomerge = false;
+	return 1;
+}
+
 #ifdef CONFIG_SLUB
 __setup_param("slub_nomerge", slub_nomerge, setup_slab_nomerge, 0);
+__setup_param("slub_merge", slub_merge, setup_slab_merge, 0);
 #endif
 
 __setup("slab_nomerge", setup_slab_nomerge);
+__setup("slab_merge", setup_slab_merge);
 
 /*
  * Determine the size of a slab object
@@ -526,6 +534,7 @@ bool slab_is_available(void)
 	return slab_state >= UP;
 }
 
+#ifdef CONFIG_PRINTK
 /**
  * kmem_valid_obj - does the pointer reference a valid slab object?
  * @object: pointer to query.
@@ -544,6 +553,7 @@ bool kmem_valid_obj(void *object)
 	page = virt_to_head_page(object);
 	return PageSlab(page);
 }
+EXPORT_SYMBOL_GPL(kmem_valid_obj);
 
 /**
  * kmem_dump_obj - Print available slab provenance information
@@ -600,6 +610,8 @@ void kmem_dump_obj(void *object)
 		pr_info("    %pS\n", kp.kp_stack[i]);
 	}
 }
+EXPORT_SYMBOL_GPL(kmem_dump_obj);
+#endif
 
 #ifndef CONFIG_SLOB
 /* Create a cache during boot when no slab services are available yet */

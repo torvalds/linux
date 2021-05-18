@@ -5,6 +5,10 @@
 	model = "NVIDIA Jetson Xavier NX (SD-card)";
 	compatible = "nvidia,p3668-0000", "nvidia,tegra194";
 
+	aliases {
+		mmc0 = "/bus@0/mmc@3400000";
+	};
+
 	bus@0 {
 		/* SDMMC1 (SD/MMC) */
 		mmc@3400000 {

@@ -97,15 +97,15 @@ config CORESIGHT_SOURCE_ETM3X
 	  module will be called coresight-etm3x.
 
 config CORESIGHT_SOURCE_ETM4X
-	tristate "CoreSight Embedded Trace Macrocell 4.x driver"
+	tristate "CoreSight ETMv4.x / ETE driver"
 	depends on ARM64
 	select CORESIGHT_LINKS_AND_SINKS
 	select PID_IN_CONTEXTIDR
 	help
-	  This driver provides support for the ETM4.x tracer module, tracing the
-	  instructions that a processor is executing. This is primarily useful
-	  for instruction level tracing. Depending on the implemented version
-	  data tracing may also be available.
+	  This driver provides support for the CoreSight Embedded Trace Macrocell
+	  version 4.x and the Embedded Trace Extensions (ETE). Both are CPU tracer
+	  modules, tracing the instructions that a processor is executing. This is
+	  primarily useful for instruction level tracing.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called coresight-etm4x.
@@ -173,4 +173,18 @@ config CORESIGHT_CTI_INTEGRATION_REGS
 	  CTI trigger connections between this and other devices.These
 	  registers are not used in normal operation and can leave devices in
 	  an inconsistent state.
+
+config CORESIGHT_TRBE
+	tristate "Trace Buffer Extension (TRBE) driver"
+	depends on ARM64 && CORESIGHT_SOURCE_ETM4X
+	help
+	  This driver provides support for percpu Trace Buffer Extension (TRBE).
+	  TRBE always needs to be used along with it's corresponding percpu ETE
+	  component. ETE generates trace data which is then captured with TRBE.
+	  Unlike traditional sink devices, TRBE is a CPU feature accessible via
+	  system registers. But it's explicit dependency with trace unit (ETE)
+	  requires it to be plugged in as a coresight sink device.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called coresight-trbe.
 endif

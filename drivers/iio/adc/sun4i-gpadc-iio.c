@@ -470,7 +470,8 @@ static int sun4i_irq_init(struct platform_device *pdev, const char *name,
 	}
 
 	*irq = ret;
-	ret = devm_request_any_context_irq(&pdev->dev, *irq, handler, 0,
+	ret = devm_request_any_context_irq(&pdev->dev, *irq, handler,
+					   IRQF_NO_AUTOEN,
 					   devname, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not request %s interrupt: %d\n",
@@ -478,7 +479,6 @@ static int sun4i_irq_init(struct platform_device *pdev, const char *name,
 		return ret;
 	}
 
-	disable_irq(*irq);
 	atomic_set(atomic, 0);
 
 	return 0;

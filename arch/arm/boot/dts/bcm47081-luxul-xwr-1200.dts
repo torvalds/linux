@@ -21,6 +21,11 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 

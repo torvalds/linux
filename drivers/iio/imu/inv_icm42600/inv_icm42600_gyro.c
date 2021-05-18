@@ -720,7 +720,6 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 	const char *name;
 	struct inv_icm42600_timestamp *ts;
 	struct iio_dev *indio_dev;
-	struct iio_buffer *buffer;
 	int ret;
 
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s-gyro", st->name);
@@ -731,23 +730,23 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 	if (!indio_dev)
 		return ERR_PTR(-ENOMEM);
 
-	buffer = devm_iio_kfifo_allocate(dev);
-	if (!buffer)
-		return ERR_PTR(-ENOMEM);
-
 	ts = iio_priv(indio_dev);
 	inv_icm42600_timestamp_init(ts, inv_icm42600_odr_to_period(st->conf.gyro.odr));
 
 	iio_device_set_drvdata(indio_dev, st);
 	indio_dev->name = name;
 	indio_dev->info = &inv_icm42600_gyro_info;
-	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = inv_icm42600_gyro_channels;
 	indio_dev->num_channels = ARRAY_SIZE(inv_icm42600_gyro_channels);
 	indio_dev->available_scan_masks = inv_icm42600_gyro_scan_masks;
 	indio_dev->setup_ops = &inv_icm42600_buffer_ops;
 
-	iio_device_attach_buffer(indio_dev, buffer);
+	ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
+					  INDIO_BUFFER_SOFTWARE,
+					  &inv_icm42600_buffer_ops);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)

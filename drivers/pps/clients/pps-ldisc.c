@@ -13,8 +13,6 @@
 #include <linux/pps_kernel.h>
 #include <linux/bug.h>
 
-#define PPS_TTY_MAGIC		0x0001
-
 static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status)
 {
 	struct pps_device *pps;
@@ -114,7 +112,6 @@ static int __init pps_tty_init(void)
 
 	/* Init PPS_TTY data */
 	pps_ldisc_ops.owner = THIS_MODULE;
-	pps_ldisc_ops.magic = PPS_TTY_MAGIC;
 	pps_ldisc_ops.name = "pps_tty";
 	pps_ldisc_ops.dcd_change = pps_tty_dcd_change;
 	pps_ldisc_ops.open = pps_tty_open;

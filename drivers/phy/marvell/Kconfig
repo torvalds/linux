@@ -3,8 +3,8 @@
 # Phy drivers for Marvell platforms
 #
 config ARMADA375_USBCLUSTER_PHY
-	def_bool y
-	depends on MACH_ARMADA_375 || COMPILE_TEST
+	bool "Armada 375 USB cluster PHY support" if COMPILE_TEST
+	default y if MACH_ARMADA_375
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 
@@ -66,6 +66,14 @@ config PHY_MVEBU_CP110_COMPHY
 	  shared serdes PHYs on Marvell Armada 7k/8k (in the CP110). Its serdes
 	  lanes can be used by various controllers (Ethernet, sata, usb,
 	  PCIe...).
+
+config PHY_MVEBU_CP110_UTMI
+	tristate "Marvell CP110 UTMI driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF && USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell CP110 UTMI PHY driver.
 
 config PHY_MVEBU_SATA
 	def_bool y

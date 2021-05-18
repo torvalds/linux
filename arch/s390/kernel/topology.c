@@ -76,8 +76,6 @@ static void cpu_group_map(cpumask_t *dst, struct mask_info *info, unsigned int c
 			}
 			info = info->next;
 		}
-		if (cpumask_empty(&mask))
-			cpumask_copy(&mask, cpumask_of(cpu));
 		break;
 	case TOPOLOGY_MODE_PACKAGE:
 		cpumask_copy(&mask, cpu_present_mask);

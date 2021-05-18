@@ -1397,6 +1397,8 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	host->ones = ones;
 
+	dev_set_drvdata(&spi->dev, mmc);
+
 	/* Platform data is used to hook up things like card sensing
 	 * and power switching gpios.
 	 */
@@ -1412,8 +1414,6 @@ static int mmc_spi_probe(struct spi_device *spi)
 		if (!host->powerup_msecs || host->powerup_msecs > 250)
 			host->powerup_msecs = 250;
 	}
-
-	dev_set_drvdata(&spi->dev, mmc);
 
 	/* preallocate dma buffers */
 	host->data = kmalloc(sizeof(*host->data), GFP_KERNEL);
@@ -1494,8 +1494,8 @@ fail_glue_init:
 fail_dma:
 	kfree(host->data);
 fail_nobuf1:
-	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
+	mmc_free_host(mmc);
 nomem:
 	kfree(ones);
 	return status;
@@ -1518,8 +1518,8 @@ static int mmc_spi_remove(struct spi_device *spi)
 	kfree(host->ones);
 
 	spi->max_speed_hz = mmc->f_max;
-	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
+	mmc_free_host(mmc);
 	return 0;
 }
 

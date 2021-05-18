@@ -59,9 +59,9 @@ static inline struct gen6_ppgtt *to_gen6_ppgtt(struct i915_ppgtt *base)
 	for (iter = gen6_pde_index(start);				\
 	     length > 0 && iter < I915_PDES &&				\
 		     (pt = i915_pt_entry(pd, iter), true);		\
-	     ({ u32 temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT);		\
+	     ({ u32 temp = ALIGN(start + 1, 1 << GEN6_PDE_SHIFT);	\
 		    temp = min(temp - start, length);			\
-		    start += temp, length -= temp; }), ++iter)
+		    start += temp; length -= temp; }), ++iter)
 
 #define gen6_for_all_pdes(pt, pd, iter)					\
 	for (iter = 0;							\

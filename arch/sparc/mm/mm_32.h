@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* fault_32.c - visible as they are called from assembler */
-asmlinkage int lookup_fault(unsigned long pc, unsigned long ret_pc,
-                            unsigned long address);
 asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
                                unsigned long address);
 

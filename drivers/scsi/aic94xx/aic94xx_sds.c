@@ -1244,7 +1244,7 @@ int asd_chk_write_status(struct asd_ha_struct *asd_ha,
 }
 
 /**
- * asd_hwi_erase_nv_sector - Erase the flash memory sectors.
+ * asd_erase_nv_sector - Erase the flash memory sectors.
  * @asd_ha: pointer to the host adapter structure
  * @flash_addr: pointer to offset from flash memory
  * @size: total bytes to erase.

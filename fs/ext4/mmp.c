@@ -56,7 +56,7 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 	wait_on_buffer(bh);
 	sb_end_write(sb);
 	if (unlikely(!buffer_uptodate(bh)))
-		return 1;
+		return -EIO;
 
 	return 0;
 }

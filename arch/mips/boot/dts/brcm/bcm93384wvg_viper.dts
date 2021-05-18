@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "bcm3384_viper.dtsi"
+#include "bcm3384_viper.dtsi"
 
 / {
 	compatible = "brcm,bcm93384wvg-viper", "brcm,bcm3384-viper";

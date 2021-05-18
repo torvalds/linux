@@ -391,9 +391,9 @@ void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 	}
 	// Note: mutex_is_lock cause an implicit memory barrier that protect
 	// buf_send
-	if (mutex_is_locked(&wdev->hif_cmd.lock)
-	    && wdev->hif_cmd.buf_send
-	    && wdev->hif_cmd.buf_send->id == hif_id) {
+	if (mutex_is_locked(&wdev->hif_cmd.lock) &&
+	    wdev->hif_cmd.buf_send &&
+	    wdev->hif_cmd.buf_send->id == hif_id) {
 		hif_generic_confirm(wdev, hif, hif->body);
 		goto free;
 	}

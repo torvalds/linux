@@ -551,7 +551,6 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	spin_lock_init(&rtlpriv->locks.rf_lock);
 	spin_lock_init(&rtlpriv->locks.waitq_lock);
 	spin_lock_init(&rtlpriv->locks.entry_list_lock);
-	spin_lock_init(&rtlpriv->locks.c2hcmd_lock);
 	spin_lock_init(&rtlpriv->locks.scan_list_lock);
 	spin_lock_init(&rtlpriv->locks.cck_and_rw_pagea_lock);
 	spin_lock_init(&rtlpriv->locks.fw_ps_lock);
@@ -2269,7 +2268,6 @@ static bool rtl_c2h_fast_cmd(struct ieee80211_hw *hw, struct sk_buff *skb)
 void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	unsigned long flags;
 
 	if (rtl_c2h_fast_cmd(hw, skb)) {
 		rtl_c2h_content_parsing(hw, skb);
@@ -2278,11 +2276,7 @@ void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	/* enqueue */
-	spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
-
-	__skb_queue_tail(&rtlpriv->c2hcmd_queue, skb);
-
-	spin_unlock_irqrestore(&rtlpriv->locks.c2hcmd_lock, flags);
+	skb_queue_tail(&rtlpriv->c2hcmd_queue, skb);
 
 	/* wake up wq */
 	queue_delayed_work(rtlpriv->works.rtl_wq, &rtlpriv->works.c2hcmd_wq, 0);
@@ -2340,16 +2334,11 @@ void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct sk_buff *skb;
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < 200; i++) {
 		/* dequeue a task */
-		spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
-
-		skb = __skb_dequeue(&rtlpriv->c2hcmd_queue);
-
-		spin_unlock_irqrestore(&rtlpriv->locks.c2hcmd_lock, flags);
+		skb = skb_dequeue(&rtlpriv->c2hcmd_queue);
 
 		/* do it */
 		if (!skb)

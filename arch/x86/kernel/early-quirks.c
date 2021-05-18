@@ -551,6 +551,7 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_EHL_IDS(&gen11_early_ops),
 	INTEL_TGL_12_IDS(&gen11_early_ops),
 	INTEL_RKL_IDS(&gen11_early_ops),
+	INTEL_ADLS_IDS(&gen11_early_ops),
 };
 
 struct resource intel_graphics_stolen_res __ro_after_init = DEFINE_RES_MEM(0, 0);

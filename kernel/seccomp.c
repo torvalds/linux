@@ -119,8 +119,11 @@ struct seccomp_kaddfd {
 	int fd;
 	unsigned int flags;
 
-	/* To only be set on reply */
-	int ret;
+	union {
+		bool setfd;
+		/* To only be set on reply */
+		int ret;
+	};
 	struct completion completion;
 	struct list_head list;
 };
@@ -817,7 +820,7 @@ static void seccomp_cache_prepare_bitmap(struct seccomp_filter *sfilter,
 }
 
 /**
- * seccomp_cache_prepare - emulate the filter to find cachable syscalls
+ * seccomp_cache_prepare - emulate the filter to find cacheable syscalls
  * @sfilter: The seccomp filter
  *
  * Returns 0 if successful or -errno if error occurred.
@@ -1069,7 +1072,11 @@ static void seccomp_handle_addfd(struct seccomp_kaddfd *addfd)
 	 * that it has been handled.
 	 */
 	list_del_init(&addfd->list);
-	addfd->ret = receive_fd_replace(addfd->fd, addfd->file, addfd->flags);
+	if (!addfd->setfd)
+		addfd->ret = receive_fd(addfd->file, addfd->flags);
+	else
+		addfd->ret = receive_fd_replace(addfd->fd, addfd->file,
+						addfd->flags);
 	complete(&addfd->completion);
 }
 
@@ -1583,8 +1590,8 @@ static long seccomp_notify_addfd(struct seccomp_filter *filter,
 		return -EBADF;
 
 	kaddfd.flags = addfd.newfd_flags;
-	kaddfd.fd = (addfd.flags & SECCOMP_ADDFD_FLAG_SETFD) ?
-		    addfd.newfd : -1;
+	kaddfd.setfd = addfd.flags & SECCOMP_ADDFD_FLAG_SETFD;
+	kaddfd.fd = addfd.newfd;
 	init_completion(&kaddfd.completion);
 
 	ret = mutex_lock_interruptible(&filter->notify_lock);

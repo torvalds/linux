@@ -1,2 +1,0 @@
-This binding has been converted to yaml please see power-supply.yaml in this
-directory.

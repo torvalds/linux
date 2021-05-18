@@ -4,7 +4,7 @@
 #include "i40e_prototype.h"
 
 /**
- * i40e_init_nvm_ops - Initialize NVM function pointers
+ * i40e_init_nvm - Initialize NVM function pointers
  * @hw: pointer to the HW structure
  *
  * Setup the function pointers and the NVM info structure. Should be called

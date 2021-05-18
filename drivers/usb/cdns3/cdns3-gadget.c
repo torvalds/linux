@@ -59,6 +59,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/usb/gadget.h>
 #include <linux/module.h>
+#include <linux/dmapool.h>
 #include <linux/iopoll.h>
 
 #include "core.h"
@@ -190,29 +191,13 @@ dma_addr_t cdns3_trb_virt_to_dma(struct cdns3_endpoint *priv_ep,
 	return priv_ep->trb_pool_dma + offset;
 }
 
-static int cdns3_ring_size(struct cdns3_endpoint *priv_ep)
-{
-	switch (priv_ep->type) {
-	case USB_ENDPOINT_XFER_ISOC:
-		return TRB_ISO_RING_SIZE;
-	case USB_ENDPOINT_XFER_CONTROL:
-		return TRB_CTRL_RING_SIZE;
-	default:
-		if (priv_ep->use_streams)
-			return TRB_STREAM_RING_SIZE;
-		else
-			return TRB_RING_SIZE;
-	}
-}
-
 static void cdns3_free_trb_pool(struct cdns3_endpoint *priv_ep)
 {
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
 
 	if (priv_ep->trb_pool) {
-		dma_free_coherent(priv_dev->sysdev,
-				  cdns3_ring_size(priv_ep),
-				  priv_ep->trb_pool, priv_ep->trb_pool_dma);
+		dma_pool_free(priv_dev->eps_dma_pool,
+			      priv_ep->trb_pool, priv_ep->trb_pool_dma);
 		priv_ep->trb_pool = NULL;
 	}
 }
@@ -226,7 +211,7 @@ static void cdns3_free_trb_pool(struct cdns3_endpoint *priv_ep)
 int cdns3_allocate_trb_pool(struct cdns3_endpoint *priv_ep)
 {
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
-	int ring_size = cdns3_ring_size(priv_ep);
+	int ring_size = TRB_RING_SIZE;
 	int num_trbs = ring_size / TRB_SIZE;
 	struct cdns3_trb *link_trb;
 
@@ -234,10 +219,10 @@ int cdns3_allocate_trb_pool(struct cdns3_endpoint *priv_ep)
 		cdns3_free_trb_pool(priv_ep);
 
 	if (!priv_ep->trb_pool) {
-		priv_ep->trb_pool = dma_alloc_coherent(priv_dev->sysdev,
-						       ring_size,
-						       &priv_ep->trb_pool_dma,
-						       GFP_DMA32 | GFP_ATOMIC);
+		priv_ep->trb_pool = dma_pool_alloc(priv_dev->eps_dma_pool,
+						   GFP_DMA32 | GFP_ATOMIC,
+						   &priv_ep->trb_pool_dma);
+
 		if (!priv_ep->trb_pool)
 			return -ENOMEM;
 
@@ -834,9 +819,15 @@ void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
 					priv_ep->dir);
 
 	if ((priv_req->flags & REQUEST_UNALIGNED) &&
-	    priv_ep->dir == USB_DIR_OUT && !request->status)
+	    priv_ep->dir == USB_DIR_OUT && !request->status) {
+		/* Make DMA buffer CPU accessible */
+		dma_sync_single_for_cpu(priv_dev->sysdev,
+			priv_req->aligned_buf->dma,
+			priv_req->aligned_buf->size,
+			priv_req->aligned_buf->dir);
 		memcpy(request->buf, priv_req->aligned_buf->buf,
 		       request->length);
+	}
 
 	priv_req->flags &= ~(REQUEST_PENDING | REQUEST_UNALIGNED);
 	/* All TRBs have finished, clear the counter */
@@ -898,8 +889,8 @@ static void cdns3_free_aligned_request_buf(struct work_struct *work)
 			 * interrupts.
 			 */
 			spin_unlock_irqrestore(&priv_dev->lock, flags);
-			dma_free_coherent(priv_dev->sysdev, buf->size,
-					  buf->buf, buf->dma);
+			dma_free_noncoherent(priv_dev->sysdev, buf->size,
+					  buf->buf, buf->dma, buf->dir);
 			kfree(buf);
 			spin_lock_irqsave(&priv_dev->lock, flags);
 		}
@@ -926,10 +917,13 @@ static int cdns3_prepare_aligned_request_buf(struct cdns3_request *priv_req)
 			return -ENOMEM;
 
 		buf->size = priv_req->request.length;
+		buf->dir = usb_endpoint_dir_in(priv_ep->endpoint.desc) ?
+			DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
-		buf->buf = dma_alloc_coherent(priv_dev->sysdev,
+		buf->buf = dma_alloc_noncoherent(priv_dev->sysdev,
 					      buf->size,
 					      &buf->dma,
+					      buf->dir,
 					      GFP_ATOMIC);
 		if (!buf->buf) {
 			kfree(buf);
@@ -951,9 +945,16 @@ static int cdns3_prepare_aligned_request_buf(struct cdns3_request *priv_req)
 	}
 
 	if (priv_ep->dir == USB_DIR_IN) {
+		/* Make DMA buffer CPU accessible */
+		dma_sync_single_for_cpu(priv_dev->sysdev,
+			buf->dma, buf->size, buf->dir);
 		memcpy(buf->buf, priv_req->request.buf,
 		       priv_req->request.length);
 	}
+
+	/* Transfer DMA buffer ownership back to device */
+	dma_sync_single_for_device(priv_dev->sysdev,
+			buf->dma, buf->size, buf->dir);
 
 	priv_req->flags |= REQUEST_UNALIGNED;
 	trace_cdns3_prepare_aligned_request(priv_req);
@@ -3103,9 +3104,10 @@ static void cdns3_gadget_exit(struct cdns *cdns)
 		struct cdns3_aligned_buf *buf;
 
 		buf = cdns3_next_align_buf(&priv_dev->aligned_buf_list);
-		dma_free_coherent(priv_dev->sysdev, buf->size,
+		dma_free_noncoherent(priv_dev->sysdev, buf->size,
 				  buf->buf,
-				  buf->dma);
+				  buf->dma,
+				  buf->dir);
 
 		list_del(&buf->list);
 		kfree(buf);
@@ -3113,6 +3115,7 @@ static void cdns3_gadget_exit(struct cdns *cdns)
 
 	dma_free_coherent(priv_dev->sysdev, 8, priv_dev->setup_buf,
 			  priv_dev->setup_dma);
+	dma_pool_destroy(priv_dev->eps_dma_pool);
 
 	kfree(priv_dev->zlp_buf);
 	usb_put_gadget(&priv_dev->gadget);
@@ -3185,6 +3188,14 @@ static int cdns3_gadget_start(struct cdns *cdns)
 	/* initialize endpoint container */
 	INIT_LIST_HEAD(&priv_dev->gadget.ep_list);
 	INIT_LIST_HEAD(&priv_dev->aligned_buf_list);
+	priv_dev->eps_dma_pool = dma_pool_create("cdns3_eps_dma_pool",
+						 priv_dev->sysdev,
+						 TRB_RING_SIZE, 8, 0);
+	if (!priv_dev->eps_dma_pool) {
+		dev_err(priv_dev->dev, "Failed to create TRB dma pool\n");
+		ret = -ENOMEM;
+		goto err1;
+	}
 
 	ret = cdns3_init_eps(priv_dev);
 	if (ret) {
@@ -3235,6 +3246,8 @@ err3:
 err2:
 	cdns3_free_all_eps(priv_dev);
 err1:
+	dma_pool_destroy(priv_dev->eps_dma_pool);
+
 	usb_put_gadget(&priv_dev->gadget);
 	cdns->gadget_dev = NULL;
 	return ret;
@@ -3304,6 +3317,8 @@ static int cdns3_gadget_resume(struct cdns *cdns, bool hibernated)
 		return 0;
 
 	cdns3_gadget_config(priv_dev);
+	if (hibernated)
+		writel(USB_CONF_DEVEN, &priv_dev->regs->usb_conf);
 
 	return 0;
 }

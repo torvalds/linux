@@ -391,8 +391,6 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 	list_del_init(&mark->g_list);
 	spin_unlock(&mark->lock);
 
-	atomic_dec(&group->num_marks);
-
 	/* Drop mark reference acquired in fsnotify_add_mark_locked() */
 	fsnotify_put_mark(mark);
 }
@@ -656,7 +654,6 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE | FSNOTIFY_MARK_FLAG_ATTACHED;
 
 	list_add(&mark->g_list, &group->marks_list);
-	atomic_inc(&group->num_marks);
 	fsnotify_get_mark(mark); /* for g_list */
 	spin_unlock(&mark->lock);
 
@@ -674,7 +671,6 @@ err:
 			 FSNOTIFY_MARK_FLAG_ATTACHED);
 	list_del_init(&mark->g_list);
 	spin_unlock(&mark->lock);
-	atomic_dec(&group->num_marks);
 
 	fsnotify_put_mark(mark);
 	return ret;

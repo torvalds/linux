@@ -228,7 +228,7 @@ enum {
 #define MMU_FTRS_ALWAYS		0
 #endif
 
-static inline bool early_mmu_has_feature(unsigned long feature)
+static __always_inline bool early_mmu_has_feature(unsigned long feature)
 {
 	if (MMU_FTRS_ALWAYS & feature)
 		return true;
@@ -286,7 +286,7 @@ static inline void mmu_feature_keys_init(void)
 
 }
 
-static inline bool mmu_has_feature(unsigned long feature)
+static __always_inline bool mmu_has_feature(unsigned long feature)
 {
 	return early_mmu_has_feature(feature);
 }

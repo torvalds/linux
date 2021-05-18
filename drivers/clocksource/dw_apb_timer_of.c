@@ -38,7 +38,7 @@ static int __init timer_get_base_and_rate(struct device_node *np,
 	}
 
 	/*
-	 * Not all implementations use a periphal clock, so don't panic
+	 * Not all implementations use a peripheral clock, so don't panic
 	 * if it's not present
 	 */
 	pclk = of_clk_get_by_name(np, "pclk");
@@ -52,18 +52,34 @@ static int __init timer_get_base_and_rate(struct device_node *np,
 		return 0;
 
 	timer_clk = of_clk_get_by_name(np, "timer");
-	if (IS_ERR(timer_clk))
-		return PTR_ERR(timer_clk);
+	if (IS_ERR(timer_clk)) {
+		ret = PTR_ERR(timer_clk);
+		goto out_pclk_disable;
+	}
 
 	ret = clk_prepare_enable(timer_clk);
 	if (ret)
-		return ret;
+		goto out_timer_clk_put;
 
 	*rate = clk_get_rate(timer_clk);
-	if (!(*rate))
-		return -EINVAL;
+	if (!(*rate)) {
+		ret = -EINVAL;
+		goto out_timer_clk_disable;
+	}
 
 	return 0;
+
+out_timer_clk_disable:
+	clk_disable_unprepare(timer_clk);
+out_timer_clk_put:
+	clk_put(timer_clk);
+out_pclk_disable:
+	if (!IS_ERR(pclk)) {
+		clk_disable_unprepare(pclk);
+		clk_put(pclk);
+	}
+	iounmap(*base);
+	return ret;
 }
 
 static int __init add_clockevent(struct device_node *event_timer)

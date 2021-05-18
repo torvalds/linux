@@ -207,7 +207,7 @@ int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 				HDA_DSP_REG_ADSPCS, adspcs,
-				!(adspcs & HDA_DSP_ADSPCS_SPA_MASK(core_mask)),
+				!(adspcs & HDA_DSP_ADSPCS_CPA_MASK(core_mask)),
 				HDA_DSP_REG_POLL_INTERVAL_US,
 				HDA_DSP_PD_TIMEOUT * USEC_PER_MSEC);
 	if (ret < 0)
@@ -226,10 +226,17 @@ bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
 
 	val = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPCS);
 
-	is_enable = (val & HDA_DSP_ADSPCS_CPA_MASK(core_mask)) &&
-		    (val & HDA_DSP_ADSPCS_SPA_MASK(core_mask)) &&
-		    !(val & HDA_DSP_ADSPCS_CRST_MASK(core_mask)) &&
-		    !(val & HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
+#define MASK_IS_EQUAL(v, m, field) ({	\
+	u32 _m = field(m);		\
+	((v) & _m) == _m;		\
+})
+
+	is_enable = MASK_IS_EQUAL(val, core_mask, HDA_DSP_ADSPCS_CPA_MASK) &&
+		MASK_IS_EQUAL(val, core_mask, HDA_DSP_ADSPCS_SPA_MASK) &&
+		!(val & HDA_DSP_ADSPCS_CRST_MASK(core_mask)) &&
+		!(val & HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
+
+#undef MASK_IS_EQUAL
 
 	dev_dbg(sdev->dev, "DSP core(s) enabled? %d : core_mask %x\n",
 		is_enable, core_mask);
@@ -678,7 +685,7 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to start controller after resume\n");
-		return ret;
+		goto cleanup;
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -704,6 +711,10 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	hda_dsp_ctrl_ppcap_enable(sdev, true);
 	hda_dsp_ctrl_ppcap_int_enable(sdev, true);
 
+cleanup:
+	/* display codec can powered off after controller init */
+	hda_codec_i915_display_power(sdev, false);
+
 	return 0;
 }
 
@@ -723,8 +734,6 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 
 	/* resume from D0I3 */
 	if (sdev->dsp_power_state.state == SOF_DSP_PM_D0) {
-		hda_codec_i915_display_power(sdev, true);
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 		/* power up links that were active before suspend */
 		list_for_each_entry(hlink, &bus->hlink_list, list) {
@@ -835,9 +844,6 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	cancel_delayed_work_sync(&hda->d0i3_work);
 
 	if (target_state == SOF_DSP_PM_D0) {
-		/* we can't keep a wakeref to display driver at suspend */
-		hda_codec_i915_display_power(sdev, false);
-
 		/* Set DSP power state */
 		ret = snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
 		if (ret < 0) {
@@ -883,6 +889,12 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	}
 
 	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
+}
+
+int hda_dsp_shutdown(struct snd_sof_dev *sdev)
+{
+	sdev->system_suspend_target = SOF_SUSPEND_S3;
+	return snd_sof_suspend(sdev->dev);
 }
 
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)

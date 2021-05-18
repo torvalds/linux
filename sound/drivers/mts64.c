@@ -37,7 +37,6 @@ MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
 MODULE_AUTHOR("Matthias Koenig <mk@phasorlab.de>");
 MODULE_DESCRIPTION("ESI Miditerminal 4140");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESI,Miditerminal 4140}}");
 
 /*********************************************************************
  * Chip specific

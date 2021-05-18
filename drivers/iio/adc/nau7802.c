@@ -498,7 +498,8 @@ static int nau7802_probe(struct i2c_client *client,
 		ret = request_threaded_irq(client->irq,
 				NULL,
 				nau7802_eoc_trigger,
-				IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
+				IRQF_NO_AUTOEN,
 				client->dev.driver->name,
 				indio_dev);
 		if (ret) {
@@ -513,8 +514,7 @@ static int nau7802_probe(struct i2c_client *client,
 			dev_info(&client->dev,
 				"Failed to allocate IRQ, using polling mode\n");
 			client->irq = 0;
-		} else
-			disable_irq(client->irq);
+		}
 	}
 
 	if (!client->irq) {

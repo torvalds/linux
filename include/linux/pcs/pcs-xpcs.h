@@ -10,10 +10,15 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 
+/* AN mode */
+#define DW_AN_C73			1
+#define DW_AN_C37_SGMII			2
+
 struct mdio_xpcs_args {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 	struct mii_bus *bus;
 	int addr;
+	int an_mode;
 };
 
 struct mdio_xpcs_ops {

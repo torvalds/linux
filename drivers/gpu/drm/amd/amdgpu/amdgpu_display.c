@@ -837,6 +837,174 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 	return 0;
 }
 
+static void get_block_dimensions(unsigned int block_log2, unsigned int cpp,
+				 unsigned int *width, unsigned int *height)
+{
+	unsigned int cpp_log2 = ilog2(cpp);
+	unsigned int pixel_log2 = block_log2 - cpp_log2;
+	unsigned int width_log2 = (pixel_log2 + 1) / 2;
+	unsigned int height_log2 = pixel_log2 - width_log2;
+
+	*width = 1 << width_log2;
+	*height = 1 << height_log2;
+}
+
+static unsigned int get_dcc_block_size(uint64_t modifier, bool rb_aligned,
+				       bool pipe_aligned)
+{
+	unsigned int ver = AMD_FMT_MOD_GET(TILE_VERSION, modifier);
+
+	switch (ver) {
+	case AMD_FMT_MOD_TILE_VER_GFX9: {
+		/*
+		 * TODO: for pipe aligned we may need to check the alignment of the
+		 * total size of the surface, which may need to be bigger than the
+		 * natural alignment due to some HW workarounds
+		 */
+		return max(10 + (rb_aligned ? (int)AMD_FMT_MOD_GET(RB, modifier) : 0), 12);
+	}
+	case AMD_FMT_MOD_TILE_VER_GFX10:
+	case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS: {
+		int pipes_log2 = AMD_FMT_MOD_GET(PIPE_XOR_BITS, modifier);
+
+		if (ver == AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS && pipes_log2 > 1 &&
+		    AMD_FMT_MOD_GET(PACKERS, modifier) == pipes_log2)
+			++pipes_log2;
+
+		return max(8 + (pipe_aligned ? pipes_log2 : 0), 12);
+	}
+	default:
+		return 0;
+	}
+}
+
+static int amdgpu_display_verify_plane(struct amdgpu_framebuffer *rfb, int plane,
+				       const struct drm_format_info *format,
+				       unsigned int block_width, unsigned int block_height,
+				       unsigned int block_size_log2)
+{
+	unsigned int width = rfb->base.width /
+		((plane && plane < format->num_planes) ? format->hsub : 1);
+	unsigned int height = rfb->base.height /
+		((plane && plane < format->num_planes) ? format->vsub : 1);
+	unsigned int cpp = plane < format->num_planes ? format->cpp[plane] : 1;
+	unsigned int block_pitch = block_width * cpp;
+	unsigned int min_pitch = ALIGN(width * cpp, block_pitch);
+	unsigned int block_size = 1 << block_size_log2;
+	uint64_t size;
+
+	if (rfb->base.pitches[plane] % block_pitch) {
+		drm_dbg_kms(rfb->base.dev,
+			    "pitch %d for plane %d is not a multiple of block pitch %d\n",
+			    rfb->base.pitches[plane], plane, block_pitch);
+		return -EINVAL;
+	}
+	if (rfb->base.pitches[plane] < min_pitch) {
+		drm_dbg_kms(rfb->base.dev,
+			    "pitch %d for plane %d is less than minimum pitch %d\n",
+			    rfb->base.pitches[plane], plane, min_pitch);
+		return -EINVAL;
+	}
+
+	/* Force at least natural alignment. */
+	if (rfb->base.offsets[plane] % block_size) {
+		drm_dbg_kms(rfb->base.dev,
+			    "offset 0x%x for plane %d is not a multiple of block pitch 0x%x\n",
+			    rfb->base.offsets[plane], plane, block_size);
+		return -EINVAL;
+	}
+
+	size = rfb->base.offsets[plane] +
+		(uint64_t)rfb->base.pitches[plane] / block_pitch *
+		block_size * DIV_ROUND_UP(height, block_height);
+
+	if (rfb->base.obj[0]->size < size) {
+		drm_dbg_kms(rfb->base.dev,
+			    "BO size 0x%zx is less than 0x%llx required for plane %d\n",
+			    rfb->base.obj[0]->size, size, plane);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
+{
+	const struct drm_format_info *format_info = drm_format_info(rfb->base.format->format);
+	uint64_t modifier = rfb->base.modifier;
+	int ret;
+	unsigned int i, block_width, block_height, block_size_log2;
+
+	if (!rfb->base.dev->mode_config.allow_fb_modifiers)
+		return 0;
+
+	for (i = 0; i < format_info->num_planes; ++i) {
+		if (modifier == DRM_FORMAT_MOD_LINEAR) {
+			block_width = 256 / format_info->cpp[i];
+			block_height = 1;
+			block_size_log2 = 8;
+		} else {
+			int swizzle = AMD_FMT_MOD_GET(TILE, modifier);
+
+			switch ((swizzle & ~3) + 1) {
+			case DC_SW_256B_S:
+				block_size_log2 = 8;
+				break;
+			case DC_SW_4KB_S:
+			case DC_SW_4KB_S_X:
+				block_size_log2 = 12;
+				break;
+			case DC_SW_64KB_S:
+			case DC_SW_64KB_S_T:
+			case DC_SW_64KB_S_X:
+				block_size_log2 = 16;
+				break;
+			default:
+				drm_dbg_kms(rfb->base.dev,
+					    "Swizzle mode with unknown block size: %d\n", swizzle);
+				return -EINVAL;
+			}
+
+			get_block_dimensions(block_size_log2, format_info->cpp[i],
+					     &block_width, &block_height);
+		}
+
+		ret = amdgpu_display_verify_plane(rfb, i, format_info,
+						  block_width, block_height, block_size_log2);
+		if (ret)
+			return ret;
+	}
+
+	if (AMD_FMT_MOD_GET(DCC, modifier)) {
+		if (AMD_FMT_MOD_GET(DCC_RETILE, modifier)) {
+			block_size_log2 = get_dcc_block_size(modifier, false, false);
+			get_block_dimensions(block_size_log2 + 8, format_info->cpp[0],
+					     &block_width, &block_height);
+			ret = amdgpu_display_verify_plane(rfb, i, format_info,
+							  block_width, block_height,
+							  block_size_log2);
+			if (ret)
+				return ret;
+
+			++i;
+			block_size_log2 = get_dcc_block_size(modifier, true, true);
+		} else {
+			bool pipe_aligned = AMD_FMT_MOD_GET(DCC_PIPE_ALIGN, modifier);
+
+			block_size_log2 = get_dcc_block_size(modifier, true, pipe_aligned);
+		}
+		get_block_dimensions(block_size_log2 + 8, format_info->cpp[0],
+				     &block_width, &block_height);
+		ret = amdgpu_display_verify_plane(rfb, i, format_info,
+						  block_width, block_height, block_size_log2);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
 				      uint64_t *tiling_flags, bool *tmz_surface)
 {
@@ -870,17 +1038,73 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 	return r;
 }
 
+int amdgpu_display_gem_fb_init(struct drm_device *dev,
+			       struct amdgpu_framebuffer *rfb,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       struct drm_gem_object *obj)
+{
+	int ret;
+
+	rfb->base.obj[0] = obj;
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
+	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
+	if (ret)
+		goto err;
+
+	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	drm_err(dev, "Failed to init gem fb: %d\n", ret);
+	rfb->base.obj[0] = NULL;
+	return ret;
+}
+
+int amdgpu_display_gem_fb_verify_and_init(
+	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	struct drm_gem_object *obj)
+{
+	int ret;
+
+	rfb->base.obj[0] = obj;
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
+	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
+	if (ret)
+		goto err;
+	/* Verify that the modifier is supported. */
+	if (!drm_any_plane_has_format(dev, mode_cmd->pixel_format,
+				      mode_cmd->modifier[0])) {
+		struct drm_format_name_buf format_name;
+		drm_dbg_kms(dev,
+			    "unsupported pixel format %s / modifier 0x%llx\n",
+			    drm_get_format_name(mode_cmd->pixel_format,
+						&format_name),
+			    mode_cmd->modifier[0]);
+
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	drm_err(dev, "Failed to verify and init gem fb: %d\n", ret);
+	rfb->base.obj[0] = NULL;
+	return ret;
+}
+
 int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    struct amdgpu_framebuffer *rfb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,
 				    struct drm_gem_object *obj)
 {
 	int ret, i;
-	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
-	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
-	if (ret)
-		goto fail;
 
 	/*
 	 * This needs to happen before modifier conversion as that might change
@@ -891,13 +1115,13 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 			drm_dbg_kms(dev, "Plane 0 and %d have different BOs: %u vs. %u\n",
 				    i, mode_cmd->handles[0], mode_cmd->handles[i]);
 			ret = -EINVAL;
-			goto fail;
+			return ret;
 		}
 	}
 
 	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
 	if (ret)
-		goto fail;
+		return ret;
 
 	if (dev->mode_config.allow_fb_modifiers &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
@@ -905,20 +1129,20 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 		if (ret) {
 			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
 				    rfb->tiling_flags);
-			goto fail;
+			return ret;
 		}
 	}
 
-	for (i = 1; i < rfb->base.format->num_planes; ++i) {
+	ret = amdgpu_display_verify_sizes(rfb);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < rfb->base.format->num_planes; ++i) {
+		drm_gem_object_get(rfb->base.obj[0]);
 		rfb->base.obj[i] = rfb->base.obj[0];
-		drm_gem_object_get(rfb->base.obj[i]);
 	}
 
 	return 0;
-
-fail:
-	rfb->base.obj[0] = NULL;
-	return ret;
 }
 
 struct drm_framebuffer *
@@ -944,6 +1168,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	domains = amdgpu_display_supported_domains(drm_to_adev(dev), bo->flags);
 	if (obj->import_attach && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
 		drm_dbg_kms(dev, "Cannot create framebuffer from imported dma_buf\n");
+		drm_gem_object_put(obj);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -953,13 +1178,15 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = amdgpu_display_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
+	ret = amdgpu_display_gem_fb_verify_and_init(dev, amdgpu_fb, file_priv,
+						    mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
 		drm_gem_object_put(obj);
 		return ERR_PTR(ret);
 	}
 
+	drm_gem_object_put(obj);
 	return &amdgpu_fb->base;
 }
 
@@ -1310,3 +1537,92 @@ bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
 						  stime, etime, mode);
 }
+
+int amdgpu_display_suspend_helper(struct amdgpu_device *adev)
+{
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+	int r;
+
+	/* turn off display hw */
+	drm_modeset_lock_all(dev);
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
+		drm_helper_connector_dpms(connector,
+					  DRM_MODE_DPMS_OFF);
+	drm_connector_list_iter_end(&iter);
+	drm_modeset_unlock_all(dev);
+	/* unpin the front buffers and cursors */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+		struct drm_framebuffer *fb = crtc->primary->fb;
+		struct amdgpu_bo *robj;
+
+		if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
+			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+			r = amdgpu_bo_reserve(aobj, true);
+			if (r == 0) {
+				amdgpu_bo_unpin(aobj);
+				amdgpu_bo_unreserve(aobj);
+			}
+		}
+
+		if (fb == NULL || fb->obj[0] == NULL) {
+			continue;
+		}
+		robj = gem_to_amdgpu_bo(fb->obj[0]);
+		/* don't unpin kernel fb objects */
+		if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
+			r = amdgpu_bo_reserve(robj, true);
+			if (r == 0) {
+				amdgpu_bo_unpin(robj);
+				amdgpu_bo_unreserve(robj);
+			}
+		}
+	}
+	return 0;
+}
+
+int amdgpu_display_resume_helper(struct amdgpu_device *adev)
+{
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+	struct drm_crtc *crtc;
+	int r;
+
+	/* pin cursors */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+		if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
+			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+			r = amdgpu_bo_reserve(aobj, true);
+			if (r == 0) {
+				r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
+				if (r != 0)
+					dev_err(adev->dev, "Failed to pin cursor BO (%d)\n", r);
+				amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
+				amdgpu_bo_unreserve(aobj);
+			}
+		}
+	}
+
+	drm_helper_resume_force_mode(dev);
+
+	/* turn on display hw */
+	drm_modeset_lock_all(dev);
+
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
+		drm_helper_connector_dpms(connector,
+					  DRM_MODE_DPMS_ON);
+	drm_connector_list_iter_end(&iter);
+
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+

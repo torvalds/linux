@@ -187,12 +187,7 @@ static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 static int sm_disk_commit(struct dm_space_map *sm)
 {
 	int r;
-	dm_block_t nr_free;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
-
-	r = sm_disk_get_nr_free(sm, &nr_free);
-	if (r)
-		return r;
 
 	r = sm_ll_commit(&smd->ll);
 	if (r)
@@ -201,10 +196,6 @@ static int sm_disk_commit(struct dm_space_map *sm)
 	memcpy(&smd->old_ll, &smd->ll, sizeof(smd->old_ll));
 	smd->begin = 0;
 	smd->nr_allocated_this_transaction = 0;
-
-	r = sm_disk_get_nr_free(sm, &nr_free);
-	if (r)
-		return r;
 
 	return 0;
 }

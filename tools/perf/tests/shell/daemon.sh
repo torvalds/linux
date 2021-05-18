@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # daemon operations
 # SPDX-License-Identifier: GPL-2.0
 
@@ -98,6 +98,23 @@ check_line_other()
 	fi
 }
 
+daemon_exit()
+{
+	local config=$1
+
+	local line=`perf daemon --config ${config} -x: | head -1`
+	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+
+	# Reset trap handler.
+	trap - SIGINT SIGTERM
+
+	# stop daemon
+	perf daemon stop --config ${config}
+
+	# ... and wait for the pid to go away
+	tail --pid=${pid} -f /dev/null
+}
+
 daemon_start()
 {
 	local config=$1
@@ -105,27 +122,22 @@ daemon_start()
 
 	perf daemon start --config ${config}
 
+	# Clean up daemon if interrupted.
+	trap "echo 'FAILED: Signal caught'; daemon_exit ${config}; exit 1" SIGINT SIGTERM
+
 	# wait for the session to ping
 	local state="FAIL"
+	local retries=0
 	while [ "${state}" != "OK" ]; do
 		state=`perf daemon ping --config ${config} --session ${session} | awk '{ print $1 }'`
 		sleep 0.05
+		retries=$((${retries} +1))
+		if [ ${retries} -ge 600 ]; then
+			echo "FAILED: Timeout waiting for daemon to ping"
+			daemon_exit ${config}
+			exit 1
+		fi
 	done
-}
-
-daemon_exit()
-{
-	local base=$1
-	local config=$2
-
-	local line=`perf daemon --config ${config} -x: | head -1`
-	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
-
-	# stop daemon
-	perf daemon stop --config ${config}
-
-	# ... and wait for the pid to go away
-	tail --pid=${pid} -f /dev/null
 }
 
 test_list()
@@ -140,10 +152,10 @@ test_list()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -159,19 +171,19 @@ EOF
 	# check 1st session
 	# pid:size:-e cpu-clock:base/size:base/size/output:base/size/control:base/size/ack:0
 	local line=`perf daemon --config ${config} -x: | head -2 | tail -1`
-	check_line_other "${line}" size "-e cpu-clock" ${base}/session-size \
+	check_line_other "${line}" size "-e cpu-clock -m 1 sleep 10" ${base}/session-size \
 			 ${base}/session-size/output ${base}/session-size/control \
 			 ${base}/session-size/ack "0"
 
 	# check 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
 	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
-	check_line_other "${line}" time "-e task-clock" ${base}/session-time \
+	check_line_other "${line}" time "-e task-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control \
 			 ${base}/session-time/ack "0"
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -190,10 +202,10 @@ test_reconfig()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -204,7 +216,7 @@ EOF
 	# check 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
 	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
-	check_line_other "${line}" time "-e task-clock" ${base}/session-time \
+	check_line_other "${line}" time "-e task-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control ${base}/session-time/ack "0"
 	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
 
@@ -215,10 +227,10 @@ EOF
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 EOF
 
 	# TEST 1 - change config
@@ -238,7 +250,7 @@ EOF
 	# check reconfigured 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
 	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
-	check_line_other "${line}" time "-e cpu-clock" ${base}/session-time \
+	check_line_other "${line}" time "-e cpu-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control ${base}/session-time/ack "0"
 
 	# TEST 2 - empty config
@@ -288,7 +300,7 @@ EOF
 	done
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -309,10 +321,10 @@ test_stop()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -333,7 +345,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	# check that sessions are gone
 	if [ -d "/proc/${pid_size}" ]; then
@@ -361,7 +373,7 @@ test_signal()
 base=BASE
 
 [session-test]
-run = -e cpu-clock --switch-output
+run = -e cpu-clock --switch-output -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -374,7 +386,7 @@ EOF
 	perf daemon signal --config ${config}
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	# count is 2 perf.data for signals and 1 for perf record finished
 	count=`ls ${base}/session-test/ | grep perf.data | wc -l`
@@ -400,10 +412,10 @@ test_ping()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -420,7 +432,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -439,7 +451,7 @@ test_lock()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -457,7 +469,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}

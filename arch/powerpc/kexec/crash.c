@@ -24,6 +24,7 @@
 #include <asm/smp.h>
 #include <asm/setjmp.h>
 #include <asm/debug.h>
+#include <asm/interrupt.h>
 
 /*
  * The primary CPU waits a while for all secondary CPUs to enter. This is to
@@ -336,7 +337,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	 * If we came in via system reset, wait a while for the secondary
 	 * CPUs to enter.
 	 */
-	if (TRAP(regs) == 0x100)
+	if (TRAP(regs) == INTERRUPT_SYSTEM_RESET)
 		mdelay(PRIMARY_TIMEOUT);
 
 	crash_kexec_prepare_cpus(crashing_cpu);

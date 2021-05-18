@@ -113,7 +113,7 @@ xfs_dir3_leaf1_check(
 	} else if (leafhdr.magic != XFS_DIR2_LEAF1_MAGIC)
 		return __this_address;
 
-	return xfs_dir3_leaf_check_int(dp->i_mount, &leafhdr, leaf);
+	return xfs_dir3_leaf_check_int(dp->i_mount, &leafhdr, leaf, false);
 }
 
 static inline void
@@ -139,7 +139,8 @@ xfs_failaddr_t
 xfs_dir3_leaf_check_int(
 	struct xfs_mount		*mp,
 	struct xfs_dir3_icleaf_hdr	*hdr,
-	struct xfs_dir2_leaf		*leaf)
+	struct xfs_dir2_leaf		*leaf,
+	bool				expensive_checking)
 {
 	struct xfs_da_geometry		*geo = mp->m_dir_geo;
 	xfs_dir2_leaf_tail_t		*ltp;
@@ -151,7 +152,7 @@ xfs_dir3_leaf_check_int(
 	/*
 	 * XXX (dgc): This value is not restrictive enough.
 	 * Should factor in the size of the bests table as well.
-	 * We can deduce a value for that from di_size.
+	 * We can deduce a value for that from i_disk_size.
 	 */
 	if (hdr->count > geo->leaf_max_ents)
 		return __this_address;
@@ -161,6 +162,9 @@ xfs_dir3_leaf_check_int(
 	     hdr->magic == XFS_DIR3_LEAF1_MAGIC) &&
 	    (char *)&hdr->ents[hdr->count] > (char *)xfs_dir2_leaf_bests_p(ltp))
 		return __this_address;
+
+	if (!expensive_checking)
+		return NULL;
 
 	/* Check hash value order, count stale entries.  */
 	for (i = stale = 0; i < hdr->count; i++) {
@@ -195,7 +199,7 @@ xfs_dir3_leaf_verify(
 		return fa;
 
 	xfs_dir2_leaf_hdr_from_disk(mp, &leafhdr, bp->b_addr);
-	return xfs_dir3_leaf_check_int(mp, &leafhdr, bp->b_addr);
+	return xfs_dir3_leaf_check_int(mp, &leafhdr, bp->b_addr, true);
 }
 
 static void

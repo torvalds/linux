@@ -14,9 +14,6 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
-		mmc0 = &sdmmc;
-		mmc1 = &sdio;
-		mmc2 = &emmc;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -370,7 +367,7 @@
 	};
 
 	wdt: watchdog@110a0000 {
-		compatible = "snps,dw-wdt";
+		compatible = "rockchip,rk3228-wdt", "snps,dw-wdt";
 		reg = <0x110a0000 0x100>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_CPU>;

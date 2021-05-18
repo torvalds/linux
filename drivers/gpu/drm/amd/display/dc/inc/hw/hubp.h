@@ -29,6 +29,7 @@
 #include "mem_input.h"
 
 #define OPP_ID_INVALID 0xf
+#define MAX_TTU 0xffffff
 
 
 enum cursor_pitch {
@@ -190,6 +191,8 @@ struct hubp_funcs {
 		bool enable);
 	bool (*hubp_in_blank)(struct hubp *hubp);
 	void (*hubp_soft_reset)(struct hubp *hubp, bool reset);
+
+	void (*hubp_set_flip_int)(struct hubp *hubp);
 
 };
 

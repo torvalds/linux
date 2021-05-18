@@ -80,7 +80,7 @@ static u8 evbuffer[1024];
 static void __iomem *compaq_int15_entry_point;
 
 /* lock for ordering int15_bios_call() */
-static spinlock_t int15_lock;
+static DEFINE_SPINLOCK(int15_lock);
 
 
 /* This is a series of function that deals with
@@ -415,9 +415,6 @@ void compaq_nvram_init(void __iomem *rom_start)
 		compaq_int15_entry_point = (rom_start + ROM_INT15_PHY_ADDR - ROM_PHY_ADDR);
 
 	dbg("int15 entry  = %p\n", compaq_int15_entry_point);
-
-	/* initialize our int15 lock */
-	spin_lock_init(&int15_lock);
 }
 
 

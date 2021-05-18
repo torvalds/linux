@@ -934,15 +934,11 @@ static int eeprom_read_ushort(struct i2c_adapter *adapter, u16 tag, u16 *data)
 
 static int eeprom_write_ushort(struct i2c_adapter *adapter, u16 tag, u16 data)
 {
-	int stat;
 	u8 buf[2];
 
 	buf[0] = data >> 8;
 	buf[1] = data & 0xff;
-	stat = WriteEEProm(adapter, tag, 2, buf);
-	if (stat)
-		return stat;
-	return 0;
+	return WriteEEProm(adapter, tag, 2, buf);
 }
 
 static s16 osc_deviation(void *priv, s16 deviation, int flag)

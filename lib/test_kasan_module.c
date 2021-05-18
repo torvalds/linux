@@ -22,7 +22,7 @@ static noinline void __init copy_user_test(void)
 	char *kmem;
 	char __user *usermem;
 	size_t size = 10;
-	int unused;
+	int __maybe_unused unused;
 
 	kmem = kmalloc(size, GFP_KERNEL);
 	if (!kmem)

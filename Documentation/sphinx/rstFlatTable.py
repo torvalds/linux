@@ -22,7 +22,7 @@ u"""
 
     * *auto span* rightmost cell of a table row over the missing cells on the
       right side of that table-row.  With Option ``:fill-cells:`` this behavior
-      can changed from *auto span* to *auto fill*, which automaticly inserts
+      can be changed from *auto span* to *auto fill*, which automatically inserts
       (empty) cells instead of spanning the last cell.
 
     Options:
@@ -161,7 +161,7 @@ class ListTableBuilder(object):
         for colwidth in colwidths:
             colspec = nodes.colspec(colwidth=colwidth)
             # FIXME: It seems, that the stub method only works well in the
-            # absence of rowspan (observed by the html buidler, the docutils-xml
+            # absence of rowspan (observed by the html builder, the docutils-xml
             # build seems OK).  This is not extraordinary, because there exists
             # no table directive (except *this* flat-table) which allows to
             # define coexistent of rowspan and stubs (there was no use-case

@@ -71,6 +71,9 @@ struct caam_skcipher_alg {
  * @adata: authentication algorithm details
  * @cdata: encryption algorithm details
  * @authsize: authentication tag (a.k.a. ICV / MAC) size
+ * @xts_key_fallback: true if fallback tfm needs to be used due
+ *		      to unsupported xts key lengths
+ * @fallback: xts fallback tfm
  */
 struct caam_ctx {
 	struct caam_flc flc[NUM_OP];

@@ -34,16 +34,20 @@
 #define PCIE_SMLH_REQ_RST_LINK_DOWN		0x2
 #define PCIE_INT_CLEAR_ALL			0xffffffff
 
-#define PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG	0x01e0c0ac
+#define PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG(x) \
+		(ab->hw_params.regs->pcie_qserdes_sysclk_en_sel)
 #define PCIE_QSERDES_COM_SYSCLK_EN_SEL_VAL	0x10
 #define PCIE_QSERDES_COM_SYSCLK_EN_SEL_MSK	0xffffffff
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_REG	0x01e0c628
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_VAL	0x02
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_REG	0x01e0c62c
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_VAL	0x52
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_REG	0x01e0c634
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_VAL	0xff
-#define PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK	0x000000ff
+#define PCIE_PCS_OSC_DTCT_CONFIG1_REG(x) \
+		(ab->hw_params.regs->pcie_pcs_osc_dtct_config_base)
+#define PCIE_PCS_OSC_DTCT_CONFIG1_VAL		0x02
+#define PCIE_PCS_OSC_DTCT_CONFIG2_REG(x) \
+		(ab->hw_params.regs->pcie_pcs_osc_dtct_config_base + 0x4)
+#define PCIE_PCS_OSC_DTCT_CONFIG2_VAL		0x52
+#define PCIE_PCS_OSC_DTCT_CONFIG4_REG(x) \
+		(ab->hw_params.regs->pcie_pcs_osc_dtct_config_base + 0xc)
+#define PCIE_PCS_OSC_DTCT_CONFIG4_VAL		0xff
+#define PCIE_PCS_OSC_DTCT_CONFIG_MSK		0x000000ff
 
 #define WLAON_QFPROM_PWR_CTRL_REG		0x01f8031c
 #define QFPROM_PWR_CTRL_VDD4BLOW_MASK		0x4
@@ -73,6 +77,7 @@ struct ath11k_pci {
 	char amss_path[100];
 	u32 msi_ep_base_data;
 	struct mhi_controller *mhi_ctrl;
+	const struct ath11k_msi_config *msi_config;
 	unsigned long mhi_state;
 	u32 register_window;
 

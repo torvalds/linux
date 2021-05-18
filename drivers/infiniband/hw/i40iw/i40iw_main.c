@@ -78,7 +78,7 @@ static struct i40e_client i40iw_client;
 static char i40iw_client_name[I40E_CLIENT_STR_LENGTH] = "i40iw";
 
 static LIST_HEAD(i40iw_handlers);
-static spinlock_t i40iw_handler_lock;
+static DEFINE_SPINLOCK(i40iw_handler_lock);
 
 static enum i40iw_status_code i40iw_virtchnl_send(struct i40iw_sc_dev *dev,
 						  u32 vf_id, u8 *msg, u16 len);
@@ -251,7 +251,7 @@ static void i40iw_destroy_cqp(struct i40iw_device *iwdev, bool free_hwcqp)
 }
 
 /**
- * i40iw_disable_irqs - disable device interrupts
+ * i40iw_disable_irq - disable device interrupts
  * @dev: hardware control device structure
  * @msix_vec: msix vector to disable irq
  * @dev_id: parameter to pass to free_irq (used during irq setup)
@@ -2043,7 +2043,6 @@ static int __init i40iw_init_module(void)
 	i40iw_client.ops = &i40e_ops;
 	memcpy(i40iw_client.name, i40iw_client_name, I40E_CLIENT_STR_LENGTH);
 	i40iw_client.type = I40E_CLIENT_IWARP;
-	spin_lock_init(&i40iw_handler_lock);
 	ret = i40e_register_client(&i40iw_client);
 	i40iw_register_notifiers();
 

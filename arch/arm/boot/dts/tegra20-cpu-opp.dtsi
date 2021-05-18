@@ -9,12 +9,14 @@
 			clock-latency-ns = <400000>;
 			opp-supported-hw = <0x0F 0x0003>;
 			opp-hz = /bits/ 64 <216000000>;
+			opp-suspend;
 		};
 
 		opp@216000000,800 {
 			clock-latency-ns = <400000>;
 			opp-supported-hw = <0x0F 0x0004>;
 			opp-hz = /bits/ 64 <216000000>;
+			opp-suspend;
 		};
 
 		opp@312000000,750 {

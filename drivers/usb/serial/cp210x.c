@@ -145,6 +145,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8857) },	/* CEL EM357 ZigBee USB Stick */
 	{ USB_DEVICE(0x10C4, 0x88A4) }, /* MMB Networks ZigBee USB Device */
 	{ USB_DEVICE(0x10C4, 0x88A5) }, /* Planet Innovation Ingeni ZigBee USB Device */
+	{ USB_DEVICE(0x10C4, 0x88D8) }, /* Acuity Brands nLight Air Adapter */
 	{ USB_DEVICE(0x10C4, 0x88FB) }, /* CESINEL MEDCAL STII Network Analyzer */
 	{ USB_DEVICE(0x10C4, 0x8938) }, /* CESINEL MEDCAL S II Network Analyzer */
 	{ USB_DEVICE(0x10C4, 0x8946) }, /* Ketra N1 Wireless Interface */
@@ -201,6 +202,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1901, 0x0194) },	/* GE Healthcare Remote Alarm Box */
 	{ USB_DEVICE(0x1901, 0x0195) },	/* GE B850/B650/B450 CP2104 DP UART interface */
 	{ USB_DEVICE(0x1901, 0x0196) },	/* GE B850 CP2105 DP UART interface */
+	{ USB_DEVICE(0x1901, 0x0197) }, /* GE CS1000 Display serial interface */
+	{ USB_DEVICE(0x1901, 0x0198) }, /* GE CS1000 M.2 Key E serial interface */
 	{ USB_DEVICE(0x199B, 0xBA30) }, /* LORD WSDA-200-USB */
 	{ USB_DEVICE(0x19CF, 0x3000) }, /* Parrot NMEA GPS Flight Recorder */
 	{ USB_DEVICE(0x1ADB, 0x0001) }, /* Schweitzer Engineering C662 Cable */
@@ -1407,17 +1410,6 @@ static void cp210x_break_ctl(struct tty_struct *tty, int break_state)
 }
 
 #ifdef CONFIG_GPIOLIB
-static int cp210x_gpio_request(struct gpio_chip *gc, unsigned int offset)
-{
-	struct usb_serial *serial = gpiochip_get_data(gc);
-	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
-
-	if (priv->gpio_altfunc & BIT(offset))
-		return -ENODEV;
-
-	return 0;
-}
-
 static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
@@ -1544,6 +1536,24 @@ static int cp210x_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 		return 0;
 
 	return -ENOTSUPP;
+}
+
+static int cp210x_gpio_init_valid_mask(struct gpio_chip *gc,
+		unsigned long *valid_mask, unsigned int ngpios)
+{
+	struct usb_serial *serial = gpiochip_get_data(gc);
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	struct device *dev = &serial->interface->dev;
+	unsigned long altfunc_mask = priv->gpio_altfunc;
+
+	bitmap_complement(valid_mask, &altfunc_mask, ngpios);
+
+	if (bitmap_empty(valid_mask, ngpios))
+		dev_dbg(dev, "no pin configured for GPIO\n");
+	else
+		dev_dbg(dev, "GPIO.%*pbl configured for GPIO\n", ngpios,
+				valid_mask);
+	return 0;
 }
 
 /*
@@ -1783,13 +1793,13 @@ static int cp210x_gpio_init(struct usb_serial *serial)
 		return result;
 
 	priv->gc.label = "cp210x";
-	priv->gc.request = cp210x_gpio_request;
 	priv->gc.get_direction = cp210x_gpio_direction_get;
 	priv->gc.direction_input = cp210x_gpio_direction_input;
 	priv->gc.direction_output = cp210x_gpio_direction_output;
 	priv->gc.get = cp210x_gpio_get;
 	priv->gc.set = cp210x_gpio_set;
 	priv->gc.set_config = cp210x_gpio_set_config;
+	priv->gc.init_valid_mask = cp210x_gpio_init_valid_mask;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.parent = &serial->interface->dev;
 	priv->gc.base = -1;

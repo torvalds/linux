@@ -3672,11 +3672,6 @@ static const struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(41,  167),	/* IRQ31A */
 };
 
-#define PORTnCR_PULMD_OFF	(0 << 6)
-#define PORTnCR_PULMD_DOWN	(2 << 6)
-#define PORTnCR_PULMD_UP	(3 << 6)
-#define PORTnCR_PULMD_MASK	(3 << 6)
-
 struct r8a7740_portcr_group {
 	unsigned int end_pin;
 	unsigned int offset;
@@ -3686,7 +3681,7 @@ static const struct r8a7740_portcr_group r8a7740_portcr_offsets[] = {
 	{ 83, 0x0000 }, { 114, 0x1000 }, { 209, 0x2000 }, { 211, 0x3000 },
 };
 
-static void __iomem *r8a7740_pinmux_portcr(struct sh_pfc *pfc, unsigned int pin)
+static void __iomem *r8a7740_pin_to_portcr(struct sh_pfc *pfc, unsigned int pin)
 {
 	unsigned int i;
 
@@ -3701,43 +3696,10 @@ static void __iomem *r8a7740_pinmux_portcr(struct sh_pfc *pfc, unsigned int pin)
 	return NULL;
 }
 
-static unsigned int r8a7740_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
-{
-	void __iomem *addr = r8a7740_pinmux_portcr(pfc, pin);
-	u32 value = ioread8(addr) & PORTnCR_PULMD_MASK;
-
-	switch (value) {
-	case PORTnCR_PULMD_UP:
-		return PIN_CONFIG_BIAS_PULL_UP;
-	case PORTnCR_PULMD_DOWN:
-		return PIN_CONFIG_BIAS_PULL_DOWN;
-	case PORTnCR_PULMD_OFF:
-	default:
-		return PIN_CONFIG_BIAS_DISABLE;
-	}
-}
-
-static void r8a7740_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-				   unsigned int bias)
-{
-	void __iomem *addr = r8a7740_pinmux_portcr(pfc, pin);
-	u32 value = ioread8(addr) & ~PORTnCR_PULMD_MASK;
-
-	switch (bias) {
-	case PIN_CONFIG_BIAS_PULL_UP:
-		value |= PORTnCR_PULMD_UP;
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		value |= PORTnCR_PULMD_DOWN;
-		break;
-	}
-
-	iowrite8(value, addr);
-}
-
 static const struct sh_pfc_soc_operations r8a7740_pfc_ops = {
-	.get_bias = r8a7740_pinmux_get_bias,
-	.set_bias = r8a7740_pinmux_set_bias,
+	.get_bias = rmobile_pinmux_get_bias,
+	.set_bias = rmobile_pinmux_set_bias,
+	.pin_to_portcr = r8a7740_pin_to_portcr,
 };
 
 const struct sh_pfc_soc_info r8a7740_pinmux_info = {

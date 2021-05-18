@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include <linux/fs.h>
 #include "mt7921.h"
+#include "mt7921_trace.h"
 #include "mcu.h"
 #include "mac.h"
 
@@ -159,8 +160,10 @@ mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	int ret = 0;
 
 	if (!skb) {
-		dev_err(mdev->dev, "Message %d (seq %d) timeout\n",
+		dev_err(mdev->dev, "Message %08x (seq %d) timeout\n",
 			cmd, seq);
+		mt7921_reset(mdev);
+
 		return -ETIMEDOUT;
 	}
 
@@ -222,8 +225,16 @@ mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	u32 val;
 	u8 seq;
 
-	/* TODO: make dynamic based on msg type */
-	mdev->mcu.timeout = 20 * HZ;
+	switch (cmd) {
+	case MCU_UNI_CMD_HIF_CTRL:
+	case MCU_UNI_CMD_SUSPEND:
+	case MCU_UNI_CMD_OFFLOAD:
+		mdev->mcu.timeout = HZ / 3;
+		break;
+	default:
+		mdev->mcu.timeout = 3 * HZ;
+		break;
+	}
 
 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 	if (!seq)
@@ -404,11 +415,12 @@ mt7921_mcu_tx_rate_report(struct mt7921_dev *dev, struct sk_buff *skb,
 
 	if (wlan_idx >= MT76_N_WCIDS)
 		return;
+
+	rcu_read_lock();
+
 	wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
-	if (!wcid) {
-		stats->tx_rate = rate;
-		return;
-	}
+	if (!wcid)
+		goto out;
 
 	msta = container_of(wcid, struct mt7921_sta, wcid);
 	stats = &msta->stats;
@@ -416,6 +428,8 @@ mt7921_mcu_tx_rate_report(struct mt7921_dev *dev, struct sk_buff *skb,
 	/* current rate */
 	mt7921_mcu_tx_rate_parse(mphy, &peer, &rate, curr);
 	stats->tx_rate = rate;
+out:
+	rcu_read_unlock();
 }
 
 static void
@@ -468,30 +482,42 @@ mt7921_mcu_bss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 static void
 mt7921_mcu_debug_msg_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
-	struct debug_msg {
+	struct mt7921_debug_msg {
 		__le16 id;
 		u8 type;
 		u8 flag;
 		__le32 value;
 		__le16 len;
 		u8 content[512];
-	} __packed * debug_msg;
-	u16 cur_len;
-	int i;
+	} __packed * msg;
 
-	skb_pull(skb, sizeof(*rxd));
-	debug_msg = (struct debug_msg *)skb->data;
+	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	msg = (struct mt7921_debug_msg *)skb->data;
 
-	cur_len = min_t(u16, le16_to_cpu(debug_msg->len), 512);
+	if (msg->type == 3) { /* fw log */
+		u16 len = min_t(u16, le16_to_cpu(msg->len), 512);
+		int i;
 
-	if (debug_msg->type == 0x3) {
-		for (i = 0 ; i < cur_len; i++)
-			if (!debug_msg->content[i])
-				debug_msg->content[i] = ' ';
-
-		dev_dbg(dev->mt76.dev, "%s", debug_msg->content);
+		for (i = 0 ; i < len; i++) {
+			if (!msg->content[i])
+				msg->content[i] = ' ';
+		}
+		wiphy_info(mt76_hw(dev)->wiphy, "%.*s", len, msg->content);
 	}
+}
+
+static void
+mt7921_mcu_low_power_event(struct mt7921_dev *dev, struct sk_buff *skb)
+{
+	struct mt7921_mcu_lp_event {
+		u8 state;
+		u8 reserved[3];
+	} __packed * event;
+
+	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	event = (struct mt7921_mcu_lp_event *)skb->data;
+
+	trace_lp_event(dev, event->state);
 }
 
 static void
@@ -517,6 +543,9 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		mt76_connac_mcu_coredump_event(&dev->mt76, skb,
 					       &dev->coredump);
 		return;
+	case MCU_EVENT_LP_INFO:
+		mt7921_mcu_low_power_event(dev, skb);
+		break;
 	default:
 		break;
 	}
@@ -539,6 +568,7 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	    rxd->eid == MCU_EVENT_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_DBG_MSG ||
 	    rxd->eid == MCU_EVENT_COREDUMP ||
+	    rxd->eid == MCU_EVENT_LP_INFO ||
 	    !rxd->seq)
 		mt7921_mcu_rx_unsolicited_event(dev, skb);
 	else
@@ -921,6 +951,24 @@ int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl)
 				 sizeof(data), false);
 }
 
+int mt7921_run_firmware(struct mt7921_dev *dev)
+{
+	int err;
+
+	err = mt7921_driver_own(dev);
+	if (err)
+		return err;
+
+	err = mt7921_load_firmware(dev);
+	if (err)
+		return err;
+
+	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+	mt7921_mcu_fw_log_2_host(dev, 1);
+
+	return 0;
+}
+
 int mt7921_mcu_init(struct mt7921_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7921_mcu_ops = {
@@ -929,38 +977,15 @@ int mt7921_mcu_init(struct mt7921_dev *dev)
 		.mcu_parse_response = mt7921_mcu_parse_response,
 		.mcu_restart = mt7921_mcu_restart,
 	};
-	int ret;
 
 	dev->mt76.mcu_ops = &mt7921_mcu_ops;
 
-	ret = mt7921_driver_own(dev);
-	if (ret)
-		return ret;
-
-	ret = mt7921_load_firmware(dev);
-	if (ret)
-		return ret;
-
-	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
-	mt7921_mcu_fw_log_2_host(dev, 1);
-
-	return 0;
+	return mt7921_run_firmware(dev);
 }
 
 void mt7921_mcu_exit(struct mt7921_dev *dev)
 {
-	u32 reg = mt7921_reg_map_l1(dev, MT_TOP_MISC);
-
-	__mt76_mcu_restart(&dev->mt76);
-	if (!mt76_poll_msec(dev, reg, MT_TOP_MISC_FW_STATE,
-			    FIELD_PREP(MT_TOP_MISC_FW_STATE,
-				       FW_STATE_FW_DOWNLOAD), 1000)) {
-		dev_err(dev->mt76.dev, "Failed to exit mcu\n");
-		return;
-	}
-
-	reg = mt7921_reg_map_l1(dev, MT_TOP_LPCR_HOST_BAND0);
-	mt76_wr(dev, reg, MT_TOP_LPCR_HOST_FW_OWN);
+	mt7921_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
 
@@ -1240,12 +1265,35 @@ int mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 				 sizeof(req), false);
 }
 
+int mt7921_mcu_sta_add(struct mt7921_dev *dev, struct ieee80211_sta *sta,
+		       struct ieee80211_vif *vif, bool enable)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	int rssi = -ewma_rssi_read(&mvif->rssi);
+	struct mt76_sta_cmd_info info = {
+		.sta = sta,
+		.vif = vif,
+		.enable = enable,
+		.cmd = MCU_UNI_CMD_STA_REC_UPDATE,
+		.rcpi = to_rcpi(rssi),
+	};
+	struct mt7921_sta *msta;
+
+	msta = sta ? (struct mt7921_sta *)sta->drv_priv : NULL;
+	info.wcid = msta ? &msta->wcid : &mvif->sta.wcid;
+
+	return mt76_connac_mcu_add_sta_cmd(&dev->mphy, &info);
+}
+
 int mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	int i;
+	struct mt76_connac_pm *pm = &dev->pm;
+	int i, err = 0;
 
-	if (!test_and_clear_bit(MT76_STATE_PM, &mphy->state))
+	mutex_lock(&pm->mutex);
+
+	if (!test_bit(MT76_STATE_PM, &mphy->state))
 		goto out;
 
 	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
@@ -1257,22 +1305,35 @@ int mt7921_mcu_drv_pmctrl(struct mt7921_dev *dev)
 
 	if (i == MT7921_DRV_OWN_RETRY_COUNT) {
 		dev_err(dev->mt76.dev, "driver own failed\n");
-		return -EIO;
+		err = -EIO;
+		goto out;
 	}
 
-out:
-	dev->pm.last_activity = jiffies;
+	mt7921_wpdma_reinit_cond(dev);
+	clear_bit(MT76_STATE_PM, &mphy->state);
 
-	return 0;
+	pm->stats.last_wake_event = jiffies;
+	pm->stats.doze_time += pm->stats.last_wake_event -
+			       pm->stats.last_doze_event;
+out:
+	mutex_unlock(&pm->mutex);
+
+	if (err)
+		mt7921_reset(&dev->mt76);
+
+	return err;
 }
 
 int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	int i;
+	struct mt76_connac_pm *pm = &dev->pm;
+	int i, err = 0;
 
-	if (test_and_set_bit(MT76_STATE_PM, &mphy->state))
-		return 0;
+	mutex_lock(&pm->mutex);
+
+	if (mt76_connac_skip_fw_pmctrl(mphy, pm))
+		goto out;
 
 	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
 		mt76_wr(dev, MT_CONN_ON_LPCTL, PCIE_LPCR_HOST_SET_OWN);
@@ -1283,10 +1344,20 @@ int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev)
 
 	if (i == MT7921_DRV_OWN_RETRY_COUNT) {
 		dev_err(dev->mt76.dev, "firmware own failed\n");
-		return -EIO;
+		clear_bit(MT76_STATE_PM, &mphy->state);
+		err = -EIO;
 	}
 
-	return 0;
+	pm->stats.last_doze_event = jiffies;
+	pm->stats.awake_time += pm->stats.last_doze_event -
+				pm->stats.last_wake_event;
+out:
+	mutex_unlock(&pm->mutex);
+
+	if (err)
+		mt7921_reset(&dev->mt76);
+
+	return err;
 }
 
 void
@@ -1294,8 +1365,14 @@ mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt7921_phy *phy = priv;
 	struct mt7921_dev *dev = phy->dev;
+	int ret;
 
-	if (mt7921_mcu_set_bss_pm(dev, vif, dev->pm.enable))
+	if (dev->pm.enable)
+		ret = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
+	else
+		ret = mt7921_mcu_set_bss_pm(dev, vif, false);
+
+	if (ret)
 		return;
 
 	if (dev->pm.enable) {
@@ -1305,4 +1382,27 @@ mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
 		mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
 	}
+}
+
+int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr)
+{
+	struct mt7921_txpwr_event *event;
+	struct mt7921_txpwr_req req = {
+		.dbdc_idx = 0,
+	};
+	struct sk_buff *skb;
+	int ret;
+
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_CMD_GET_TXPWR,
+					&req, sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	event = (struct mt7921_txpwr_event *)skb->data;
+	WARN_ON(skb->len != le16_to_cpu(event->len));
+	memcpy(txpwr, &event->txpwr, sizeof(event->txpwr));
+
+	dev_kfree_skb(skb);
+
+	return 0;
 }

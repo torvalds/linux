@@ -520,10 +520,10 @@ static u64 get_time_ref_counter(struct kvm *kvm)
 	u64 tsc;
 
 	/*
-	 * The guest has not set up the TSC page or the clock isn't
-	 * stable, fall back to get_kvmclock_ns.
+	 * Fall back to get_kvmclock_ns() when TSC page hasn't been set up,
+	 * is broken, disabled or being updated.
 	 */
-	if (!hv->tsc_ref.tsc_sequence)
+	if (hv->hv_tsc_page_status != HV_TSC_PAGE_SET)
 		return div_u64(get_kvmclock_ns(kvm), 100);
 
 	vcpu = kvm_get_vcpu(kvm, 0);
@@ -1077,6 +1077,21 @@ static bool compute_tsc_page_parameters(struct pvclock_vcpu_time_info *hv_clock,
 	return true;
 }
 
+/*
+ * Don't touch TSC page values if the guest has opted for TSC emulation after
+ * migration. KVM doesn't fully support reenlightenment notifications and TSC
+ * access emulation and Hyper-V is known to expect the values in TSC page to
+ * stay constant before TSC access emulation is disabled from guest side
+ * (HV_X64_MSR_TSC_EMULATION_STATUS). KVM userspace is expected to preserve TSC
+ * frequency and guest visible TSC value across migration (and prevent it when
+ * TSC scaling is unsupported).
+ */
+static inline bool tsc_page_update_unsafe(struct kvm_hv *hv)
+{
+	return (hv->hv_tsc_page_status != HV_TSC_PAGE_GUEST_CHANGED) &&
+		hv->hv_tsc_emulation_control;
+}
+
 void kvm_hv_setup_tsc_page(struct kvm *kvm,
 			   struct pvclock_vcpu_time_info *hv_clock)
 {
@@ -1087,7 +1102,8 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	BUILD_BUG_ON(sizeof(tsc_seq) != sizeof(hv->tsc_ref.tsc_sequence));
 	BUILD_BUG_ON(offsetof(struct ms_hyperv_tsc_page, tsc_sequence) != 0);
 
-	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
+	if (hv->hv_tsc_page_status == HV_TSC_PAGE_BROKEN ||
+	    hv->hv_tsc_page_status == HV_TSC_PAGE_UNSET)
 		return;
 
 	mutex_lock(&hv->hv_lock);
@@ -1101,7 +1117,15 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	 */
 	if (unlikely(kvm_read_guest(kvm, gfn_to_gpa(gfn),
 				    &tsc_seq, sizeof(tsc_seq))))
+		goto out_err;
+
+	if (tsc_seq && tsc_page_update_unsafe(hv)) {
+		if (kvm_read_guest(kvm, gfn_to_gpa(gfn), &hv->tsc_ref, sizeof(hv->tsc_ref)))
+			goto out_err;
+
+		hv->hv_tsc_page_status = HV_TSC_PAGE_SET;
 		goto out_unlock;
+	}
 
 	/*
 	 * While we're computing and writing the parameters, force the
@@ -1110,15 +1134,15 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	hv->tsc_ref.tsc_sequence = 0;
 	if (kvm_write_guest(kvm, gfn_to_gpa(gfn),
 			    &hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence)))
-		goto out_unlock;
+		goto out_err;
 
 	if (!compute_tsc_page_parameters(hv_clock, &hv->tsc_ref))
-		goto out_unlock;
+		goto out_err;
 
 	/* Ensure sequence is zero before writing the rest of the struct.  */
 	smp_wmb();
 	if (kvm_write_guest(kvm, gfn_to_gpa(gfn), &hv->tsc_ref, sizeof(hv->tsc_ref)))
-		goto out_unlock;
+		goto out_err;
 
 	/*
 	 * Now switch to the TSC page mechanism by writing the sequence.
@@ -1131,8 +1155,45 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	smp_wmb();
 
 	hv->tsc_ref.tsc_sequence = tsc_seq;
-	kvm_write_guest(kvm, gfn_to_gpa(gfn),
-			&hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence));
+	if (kvm_write_guest(kvm, gfn_to_gpa(gfn),
+			    &hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence)))
+		goto out_err;
+
+	hv->hv_tsc_page_status = HV_TSC_PAGE_SET;
+	goto out_unlock;
+
+out_err:
+	hv->hv_tsc_page_status = HV_TSC_PAGE_BROKEN;
+out_unlock:
+	mutex_unlock(&hv->hv_lock);
+}
+
+void kvm_hv_invalidate_tsc_page(struct kvm *kvm)
+{
+	struct kvm_hv *hv = to_kvm_hv(kvm);
+	u64 gfn;
+
+	if (hv->hv_tsc_page_status == HV_TSC_PAGE_BROKEN ||
+	    hv->hv_tsc_page_status == HV_TSC_PAGE_UNSET ||
+	    tsc_page_update_unsafe(hv))
+		return;
+
+	mutex_lock(&hv->hv_lock);
+
+	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
+		goto out_unlock;
+
+	/* Preserve HV_TSC_PAGE_GUEST_CHANGED/HV_TSC_PAGE_HOST_CHANGED states */
+	if (hv->hv_tsc_page_status == HV_TSC_PAGE_SET)
+		hv->hv_tsc_page_status = HV_TSC_PAGE_UPDATING;
+
+	gfn = hv->hv_tsc_page >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
+
+	hv->tsc_ref.tsc_sequence = 0;
+	if (kvm_write_guest(kvm, gfn_to_gpa(gfn),
+			    &hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence)))
+		hv->hv_tsc_page_status = HV_TSC_PAGE_BROKEN;
+
 out_unlock:
 	mutex_unlock(&hv->hv_lock);
 }
@@ -1193,8 +1254,15 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 	}
 	case HV_X64_MSR_REFERENCE_TSC:
 		hv->hv_tsc_page = data;
-		if (hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE)
+		if (hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE) {
+			if (!host)
+				hv->hv_tsc_page_status = HV_TSC_PAGE_GUEST_CHANGED;
+			else
+				hv->hv_tsc_page_status = HV_TSC_PAGE_HOST_CHANGED;
 			kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
+		} else {
+			hv->hv_tsc_page_status = HV_TSC_PAGE_UNSET;
+		}
 		break;
 	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
 		return kvm_hv_msr_set_crash_data(kvm,
@@ -1229,6 +1297,9 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		hv->hv_tsc_emulation_control = data;
 		break;
 	case HV_X64_MSR_TSC_EMULATION_STATUS:
+		if (data && !host)
+			return 1;
+
 		hv->hv_tsc_emulation_status = data;
 		break;
 	case HV_X64_MSR_TIME_REF_COUNT:

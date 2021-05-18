@@ -8,6 +8,8 @@
 #ifndef WFX_HWIO_H
 #define WFX_HWIO_H
 
+#include <linux/types.h>
+
 struct wfx_dev;
 
 int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t buf_len);

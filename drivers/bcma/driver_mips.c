@@ -52,13 +52,6 @@ static inline u32 mips_read32(struct bcma_drv_mips *mcore,
 	return bcma_read32(mcore->core, offset);
 }
 
-static inline void mips_write32(struct bcma_drv_mips *mcore,
-				u16 offset,
-				u32 value)
-{
-	bcma_write32(mcore->core, offset, value);
-}
-
 static u32 bcma_core_mips_irqflag(struct bcma_device *dev)
 {
 	u32 flag;

@@ -35,46 +35,40 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 	/* ts->resp == SAS_TASK_COMPLETE */
 	/* task delivered, what happened afterwards? */
 	switch (ts->stat) {
-		case SAS_DEV_NO_RESPONSE:
-			return AC_ERR_TIMEOUT;
-
-		case SAS_INTERRUPTED:
-		case SAS_PHY_DOWN:
-		case SAS_NAK_R_ERR:
-			return AC_ERR_ATA_BUS;
-
-
-		case SAS_DATA_UNDERRUN:
-			/*
-			 * Some programs that use the taskfile interface
-			 * (smartctl in particular) can cause underrun
-			 * problems.  Ignore these errors, perhaps at our
-			 * peril.
-			 */
-			return 0;
-
-		case SAS_DATA_OVERRUN:
-		case SAS_QUEUE_FULL:
-		case SAS_DEVICE_UNKNOWN:
-		case SAS_SG_ERR:
-			return AC_ERR_INVALID;
-
-		case SAS_OPEN_TO:
-		case SAS_OPEN_REJECT:
-			pr_warn("%s: Saw error %d.  What to do?\n",
-				__func__, ts->stat);
-			return AC_ERR_OTHER;
-
-		case SAM_STAT_CHECK_CONDITION:
-		case SAS_ABORTED_TASK:
-			return AC_ERR_DEV;
-
-		case SAS_PROTO_RESPONSE:
-			/* This means the ending_fis has the error
-			 * value; return 0 here to collect it */
-			return 0;
-		default:
-			return 0;
+	case SAS_DEV_NO_RESPONSE:
+		return AC_ERR_TIMEOUT;
+	case SAS_INTERRUPTED:
+	case SAS_PHY_DOWN:
+	case SAS_NAK_R_ERR:
+		return AC_ERR_ATA_BUS;
+	case SAS_DATA_UNDERRUN:
+		/*
+		 * Some programs that use the taskfile interface
+		 * (smartctl in particular) can cause underrun
+		 * problems.  Ignore these errors, perhaps at our
+		 * peril.
+		 */
+		return 0;
+	case SAS_DATA_OVERRUN:
+	case SAS_QUEUE_FULL:
+	case SAS_DEVICE_UNKNOWN:
+	case SAS_SG_ERR:
+		return AC_ERR_INVALID;
+	case SAS_OPEN_TO:
+	case SAS_OPEN_REJECT:
+		pr_warn("%s: Saw error %d.  What to do?\n",
+			__func__, ts->stat);
+		return AC_ERR_OTHER;
+	case SAM_STAT_CHECK_CONDITION:
+	case SAS_ABORTED_TASK:
+		return AC_ERR_DEV;
+	case SAS_PROTO_RESPONSE:
+		/* This means the ending_fis has the error
+		 * value; return 0 here to collect it
+		 */
+		return 0;
+	default:
+		return 0;
 	}
 }
 
@@ -201,18 +195,17 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;
 		task->num_scatter = qc->n_elem;
+		task->data_dir = qc->dma_dir;
+	} else if (qc->tf.protocol == ATA_PROT_NODATA) {
+		task->data_dir = DMA_NONE;
 	} else {
 		for_each_sg(qc->sg, sg, qc->n_elem, si)
 			xfer += sg_dma_len(sg);
 
 		task->total_xfer_len = xfer;
 		task->num_scatter = si;
-	}
-
-	if (qc->tf.protocol == ATA_PROT_NODATA)
-		task->data_dir = DMA_NONE;
-	else
 		task->data_dir = qc->dma_dir;
+	}
 	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;

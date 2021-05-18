@@ -55,7 +55,7 @@ the desired pad number in the struct
 zero the ``reserved`` array. Attempts to query capabilities on a pad
 that doesn't support them will return an ``EINVAL`` error code.
 
-.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.3cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.2cm}|p{12.9cm}|
 
 .. c:type:: v4l2_bt_timings_cap
 
@@ -96,7 +96,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 	Drivers must set the array to zero.
 
 
-.. tabularcolumns:: |p{1.0cm}|p{4.0cm}|p{3.5cm}|p{9.2cm}|
+.. tabularcolumns:: |p{4.4cm}|p{3.6cm}|p{9.3cm}|
 
 .. c:type:: v4l2_dv_timings_cap
 
@@ -128,7 +128,7 @@ that doesn't support them will return an ``EINVAL`` error code.
     * - }
       -
 
-.. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
+.. tabularcolumns:: |p{7.2cm}|p{10.3cm}|
 
 .. _dv-bt-cap-capabilities:
 

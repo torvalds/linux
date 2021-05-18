@@ -20,6 +20,10 @@
 #include <asm/time.h>
 #include <asm/unistd.h>
 
+#if defined(CONFIG_PPC_ADV_DEBUG_REGS) && defined(CONFIG_PPC32)
+unsigned long global_dbcr0[NR_CPUS];
+#endif
+
 typedef long (*syscall_fn)(long, long, long, long, long, long);
 
 /* Has to run notrace because it is entered not completely "reconciled" */
@@ -29,20 +33,24 @@ notrace long system_call_exception(long r3, long r4, long r5,
 {
 	syscall_fn f;
 
+	kuep_lock();
+#ifdef CONFIG_PPC32
+	kuap_save_and_lock(regs);
+#endif
+
 	regs->orig_gpr3 = r3;
 
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		BUG_ON(irq_soft_mask_return() != IRQS_ALL_DISABLED);
 
+	trace_hardirqs_off(); /* finish reconciling */
+
 	CT_WARN_ON(ct_state() == CONTEXT_KERNEL);
 	user_exit_irqoff();
-
-	trace_hardirqs_off(); /* finish reconciling */
 
 	if (!IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x))
 		BUG_ON(!(regs->msr & MSR_RI));
 	BUG_ON(!(regs->msr & MSR_PR));
-	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(arch_irq_disabled_regs(regs));
 
 #ifdef CONFIG_PPC_PKEY
@@ -69,9 +77,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
 			isync();
 	} else
 #endif
-#ifdef CONFIG_PPC64
-		kuap_check_amr();
-#endif
+		kuap_assert_locked();
 
 	booke_restore_dbcr0();
 
@@ -149,7 +155,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
  * enabled when the interrupt handler returns (indicating a process-context /
  * synchronous interrupt) then irqs_enabled should be true.
  */
-static notrace inline bool __prep_irq_for_enabled_exit(bool clear_ri)
+static notrace __always_inline bool __prep_irq_for_enabled_exit(bool clear_ri)
 {
 	/* This must be done with RI=1 because tracing may touch vmaps */
 	trace_hardirqs_on();
@@ -247,9 +253,7 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 
 	CT_WARN_ON(ct_state() == CONTEXT_USER);
 
-#ifdef CONFIG_PPC64
-	kuap_check_amr();
-#endif
+	kuap_assert_locked();
 
 	regs->result = r3;
 
@@ -344,16 +348,13 @@ again:
 
 	account_cpu_user_exit();
 
-#ifdef CONFIG_PPC_BOOK3S_64 /* BOOK3E and ppc32 not using this */
-	/*
-	 * We do this at the end so that we do context switch with KERNEL AMR
-	 */
+	/* Restore user access locks last */
 	kuap_user_restore(regs);
-#endif
+	kuep_unlock();
+
 	return ret;
 }
 
-#ifndef CONFIG_PPC_BOOK3E_64 /* BOOK3E not yet using this */
 notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned long msr)
 {
 	unsigned long ti_flags;
@@ -363,7 +364,6 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	if (!IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x))
 		BUG_ON(!(regs->msr & MSR_RI));
 	BUG_ON(!(regs->msr & MSR_PR));
-	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(arch_irq_disabled_regs(regs));
 	CT_WARN_ON(ct_state() == CONTEXT_USER);
 
@@ -371,9 +371,7 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	 * We don't need to restore AMR on the way back to userspace for KUAP.
 	 * AMR can only have been unlocked if we interrupted the kernel.
 	 */
-#ifdef CONFIG_PPC64
-	kuap_check_amr();
-#endif
+	kuap_assert_locked();
 
 	local_irq_save(flags);
 
@@ -392,7 +390,7 @@ again:
 		ti_flags = READ_ONCE(current_thread_info()->flags);
 	}
 
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && IS_ENABLED(CONFIG_PPC_FPU)) {
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && IS_ENABLED(CONFIG_PPC_FPU)) {
 		if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) &&
 				unlikely((ti_flags & _TIF_RESTORE_TM))) {
 			restore_tm_state(regs);
@@ -427,41 +425,32 @@ again:
 
 	account_cpu_user_exit();
 
-	/*
-	 * We do this at the end so that we do context switch with KERNEL AMR
-	 */
-#ifdef CONFIG_PPC64
+	/* Restore user access locks last */
 	kuap_user_restore(regs);
-#endif
+
 	return ret;
 }
 
-void unrecoverable_exception(struct pt_regs *regs);
 void preempt_schedule_irq(void);
 
 notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsigned long msr)
 {
 	unsigned long flags;
 	unsigned long ret = 0;
-#ifdef CONFIG_PPC64
-	unsigned long amr;
-#endif
+	unsigned long kuap;
 
 	if (!IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x) &&
 	    unlikely(!(regs->msr & MSR_RI)))
 		unrecoverable_exception(regs);
 	BUG_ON(regs->msr & MSR_PR);
-	BUG_ON(!FULL_REGS(regs));
 	/*
 	 * CT_WARN_ON comes here via program_check_exception,
 	 * so avoid recursion.
 	 */
-	if (TRAP(regs) != 0x700)
+	if (TRAP(regs) != INTERRUPT_PROGRAM)
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
-#ifdef CONFIG_PPC64
-	amr = kuap_get_and_check_amr();
-#endif
+	kuap = kuap_get_and_assert_locked();
 
 	if (unlikely(current_thread_info()->flags & _TIF_EMULATE_STACK_STORE)) {
 		clear_bits(_TIF_EMULATE_STACK_STORE, &current_thread_info()->flags);
@@ -499,14 +488,11 @@ again:
 #endif
 
 	/*
-	 * Don't want to mfspr(SPRN_AMR) here, because this comes after mtmsr,
-	 * which would cause Read-After-Write stalls. Hence, we take the AMR
-	 * value from the check above.
+	 * 64s does not want to mfspr(SPRN_AMR) here, because this comes after
+	 * mtmsr, which would cause Read-After-Write stalls. Hence, take the
+	 * AMR value from the check above.
 	 */
-#ifdef CONFIG_PPC64
-	kuap_kernel_restore(regs, amr);
-#endif
+	kuap_kernel_restore(regs, kuap);
 
 	return ret;
 }
-#endif

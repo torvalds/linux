@@ -843,11 +843,15 @@ typedef struct {
   uint16_t      FanMaximumRpm;
   uint16_t      FanMinimumPwm;
   uint16_t      FanTargetTemperature; // Degree Celcius 
+  uint16_t      FanMode;
+  uint16_t      FanMaxPwm;
+  uint16_t      FanMinPwm;
+  uint16_t      FanMaxTemp; // Degree Celcius
+  uint16_t      FanMinTemp; // Degree Celcius
   uint16_t      MaxOpTemp;            // Degree Celcius
   uint16_t      FanZeroRpmEnable;
-  uint16_t      Padding;
 
-  uint32_t     MmHubPadding[8]; // SMU internal use  
+  uint32_t     MmHubPadding[6]; // SMU internal use
 
 } OverDriveTable_t; 
 
@@ -879,6 +883,45 @@ typedef struct {
   uint8_t  LinkDpmLevel;
   uint8_t  Padding8_2;
   uint16_t CurrFanSpeed;
+
+  // Padding - ignore
+  uint32_t     MmHubPadding[8]; // SMU internal use
+} SmuMetrics_legacy_t;
+
+typedef struct {
+  uint16_t CurrClock[PPCLK_COUNT];
+  uint16_t AverageGfxclkFrequencyPostDs;
+  uint16_t AverageSocclkFrequency;
+  uint16_t AverageUclkFrequencyPostDs;
+  uint16_t AverageGfxActivity    ;
+  uint16_t AverageUclkActivity   ;
+  uint8_t  CurrSocVoltageOffset  ;
+  uint8_t  CurrGfxVoltageOffset  ;
+  uint8_t  CurrMemVidOffset      ;
+  uint8_t  Padding8              ;
+  uint16_t AverageSocketPower    ;
+  uint16_t TemperatureEdge       ;
+  uint16_t TemperatureHotspot    ;
+  uint16_t TemperatureMem        ;
+  uint16_t TemperatureVrGfx      ;
+  uint16_t TemperatureVrMem0     ;
+  uint16_t TemperatureVrMem1     ;  
+  uint16_t TemperatureVrSoc      ;  
+  uint16_t TemperatureLiquid0    ;
+  uint16_t TemperatureLiquid1    ;  
+  uint16_t TemperaturePlx        ;
+  uint16_t Padding16             ;
+  uint32_t ThrottlerStatus       ; 
+ 
+  uint8_t  LinkDpmLevel;
+  uint8_t  Padding8_2;
+  uint16_t CurrFanSpeed;
+
+  uint16_t AverageGfxclkFrequencyPreDs;
+  uint16_t AverageUclkFrequencyPreDs;
+  uint8_t  PcieRate;
+  uint8_t  PcieWidth;
+  uint8_t  Padding8_3[2];
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
@@ -921,7 +964,58 @@ typedef struct {
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
+} SmuMetrics_NV12_legacy_t;
+
+typedef struct {
+  uint16_t CurrClock[PPCLK_COUNT];
+  uint16_t AverageGfxclkFrequencyPostDs;
+  uint16_t AverageSocclkFrequency;
+  uint16_t AverageUclkFrequencyPostDs;
+  uint16_t AverageGfxActivity    ;
+  uint16_t AverageUclkActivity   ;
+  uint8_t  CurrSocVoltageOffset  ;
+  uint8_t  CurrGfxVoltageOffset  ;
+  uint8_t  CurrMemVidOffset      ;
+  uint8_t  Padding8              ;
+  uint16_t AverageSocketPower    ;
+  uint16_t TemperatureEdge       ;
+  uint16_t TemperatureHotspot    ;
+  uint16_t TemperatureMem        ;
+  uint16_t TemperatureVrGfx      ;
+  uint16_t TemperatureVrMem0     ;
+  uint16_t TemperatureVrMem1     ;
+  uint16_t TemperatureVrSoc      ;
+  uint16_t TemperatureLiquid0    ;
+  uint16_t TemperatureLiquid1    ;
+  uint16_t TemperaturePlx        ;
+  uint16_t Padding16             ;
+  uint32_t ThrottlerStatus       ;
+
+  uint8_t  LinkDpmLevel;
+  uint8_t  Padding8_2;
+  uint16_t CurrFanSpeed;
+
+  uint16_t AverageVclkFrequency  ;
+  uint16_t AverageDclkFrequency  ;
+  uint16_t VcnActivityPercentage ;
+  uint16_t AverageGfxclkFrequencyPreDs;
+  uint16_t AverageUclkFrequencyPreDs;
+  uint8_t  PcieRate;
+  uint8_t  PcieWidth;
+
+  uint32_t Padding32_1;
+  uint64_t EnergyAccumulator;
+
+  // Padding - ignore
+  uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_NV12_t;
+
+typedef union SmuMetrics {
+	SmuMetrics_legacy_t		nv10_legacy_metrics;
+	SmuMetrics_t			nv10_metrics;
+	SmuMetrics_NV12_legacy_t	nv12_legacy_metrics;
+	SmuMetrics_NV12_t		nv12_metrics;
+} SmuMetrics_NV1X_t;
 
 typedef struct {
   uint16_t MinClock; // This is either DCEFCLK or SOCCLK (in MHz)

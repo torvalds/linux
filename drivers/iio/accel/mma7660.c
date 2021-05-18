@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Freescale MMA7660FC 3-Axis Accelerometer
  *
  * Copyright (c) 2016, Intel Corporation.

@@ -263,6 +263,29 @@ int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
 }
 EXPORT_SYMBOL(hid_sensor_read_raw_hyst_value);
 
+int hid_sensor_read_raw_hyst_rel_value(struct hid_sensor_common *st, int *val1,
+				       int *val2)
+{
+	s32 value;
+	int ret;
+
+	ret = sensor_hub_get_feature(st->hsdev,
+				     st->sensitivity_rel.report_id,
+				     st->sensitivity_rel.index, sizeof(value),
+				     &value);
+	if (ret < 0 || value < 0) {
+		*val1 = *val2 = 0;
+		return -EINVAL;
+	}
+
+	convert_from_vtf_format(value, st->sensitivity_rel.size,
+				st->sensitivity_rel.unit_expo, val1, val2);
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+EXPORT_SYMBOL(hid_sensor_read_raw_hyst_rel_value);
+
+
 int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 					int val1, int val2)
 {
@@ -293,6 +316,37 @@ int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 	return 0;
 }
 EXPORT_SYMBOL(hid_sensor_write_raw_hyst_value);
+
+int hid_sensor_write_raw_hyst_rel_value(struct hid_sensor_common *st,
+					int val1, int val2)
+{
+	s32 value;
+	int ret;
+
+	if (val1 < 0 || val2 < 0)
+		return -EINVAL;
+
+	value = convert_to_vtf_format(st->sensitivity_rel.size,
+				st->sensitivity_rel.unit_expo,
+				val1, val2);
+	ret = sensor_hub_set_feature(st->hsdev, st->sensitivity_rel.report_id,
+				     st->sensitivity_rel.index, sizeof(value),
+				     &value);
+	if (ret < 0 || value < 0)
+		return -EINVAL;
+
+	ret = sensor_hub_get_feature(st->hsdev,
+				     st->sensitivity_rel.report_id,
+				     st->sensitivity_rel.index, sizeof(value),
+				     &value);
+	if (ret < 0 || value < 0)
+		return -EINVAL;
+
+	st->raw_hystersis = value;
+
+	return 0;
+}
+EXPORT_SYMBOL(hid_sensor_write_raw_hyst_rel_value);
 
 /*
  * This fuction applies the unit exponent to the scale.
@@ -448,12 +502,15 @@ EXPORT_SYMBOL(hid_sensor_batch_mode_supported);
 
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
-					struct hid_sensor_common *st)
+					struct hid_sensor_common *st,
+					const u32 *sensitivity_addresses,
+					u32 sensitivity_addresses_len)
 {
 
 	struct hid_sensor_hub_attribute_info timestamp;
 	s32 value;
 	int ret;
+	int i;
 
 	hid_sensor_get_reporting_interval(hsdev, usage_id, st);
 
@@ -474,6 +531,30 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 			HID_FEATURE_REPORT, usage_id,
 			HID_USAGE_SENSOR_PROP_SENSITIVITY_ABS,
 			 &st->sensitivity);
+
+	sensor_hub_input_get_attribute_info(hsdev,
+			HID_FEATURE_REPORT, usage_id,
+			HID_USAGE_SENSOR_PROP_SENSITIVITY_REL_PCT,
+			&st->sensitivity_rel);
+	/*
+	 * Set Sensitivity field ids, when there is no individual modifier, will
+	 * check absolute sensitivity and relative sensitivity of data field
+	 */
+	for (i = 0; i < sensitivity_addresses_len; i++) {
+		if (st->sensitivity.index < 0)
+			sensor_hub_input_get_attribute_info(
+				hsdev, HID_FEATURE_REPORT, usage_id,
+				HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
+					sensitivity_addresses[i],
+				&st->sensitivity);
+
+		if (st->sensitivity_rel.index < 0)
+			sensor_hub_input_get_attribute_info(
+				hsdev, HID_FEATURE_REPORT, usage_id,
+				HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_REL_PCT |
+					sensitivity_addresses[i],
+				&st->sensitivity_rel);
+	}
 
 	st->raw_hystersis = -1;
 

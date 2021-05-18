@@ -67,7 +67,7 @@ static ssize_t occ_sysfs_show(struct device *dev,
 		return -EINVAL;
 	}
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t occ_error_show(struct device *dev,
@@ -77,7 +77,7 @@ static ssize_t occ_error_show(struct device *dev,
 
 	occ_update_response(occ);
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", occ->error);
+	return sysfs_emit(buf, "%d\n", occ->error);
 }
 
 static SENSOR_DEVICE_ATTR(occ_master, 0444, occ_sysfs_show, NULL, 0);

@@ -176,7 +176,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid __maybe_unused)
 }
 
 /*
- * Incase of powerpc architecture, pmu registers are programmable
+ * In case of powerpc architecture, pmu registers are programmable
  * by guest kernel. So monitoring guest via host may not provide
  * valid samples with default 'cycles' event. It is better to use
  * 'trace_imc/trace_cycles' event for guest profiling, since it

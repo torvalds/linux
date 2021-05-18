@@ -10,6 +10,8 @@
 
 #include "fw/api/soc.h"
 #include "fw/api/commands.h"
+#include "fw/api/rx.h"
+#include "fw/api/datapath.h"
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 			const struct iwl_fw *fw,
@@ -95,3 +97,60 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_set_soc_latency);
+
+int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
+{
+	int i, num_queues, size, ret;
+	struct iwl_rfh_queue_config *cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(DATA_PATH_GROUP, RFH_QUEUE_CONFIG_CMD),
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+
+	/*
+	 * The default queue is configured via context info, so if we
+	 * have a single queue, there's nothing to do here.
+	 */
+	if (fwrt->trans->num_rx_queues == 1)
+		return 0;
+
+	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_22000)
+		return 0;
+
+	/* skip the default queue */
+	num_queues = fwrt->trans->num_rx_queues - 1;
+
+	size = struct_size(cmd, data, num_queues);
+
+	cmd = kzalloc(size, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->num_queues = num_queues;
+
+	for (i = 0; i < num_queues; i++) {
+		struct iwl_trans_rxq_dma_data data;
+
+		cmd->data[i].q_num = i + 1;
+		iwl_trans_get_rxq_dma_data(fwrt->trans, i + 1, &data);
+
+		cmd->data[i].fr_bd_cb = cpu_to_le64(data.fr_bd_cb);
+		cmd->data[i].urbd_stts_wrptr =
+			cpu_to_le64(data.urbd_stts_wrptr);
+		cmd->data[i].ur_bd_cb = cpu_to_le64(data.ur_bd_cb);
+		cmd->data[i].fr_bd_wid = cpu_to_le32(data.fr_bd_wid);
+	}
+
+	hcmd.data[0] = cmd;
+	hcmd.len[0] = size;
+
+	ret = iwl_trans_send_cmd(fwrt->trans, &hcmd);
+
+	kfree(cmd);
+
+	if (ret)
+		IWL_ERR(fwrt, "Failed to configure RX queues: %d\n", ret);
+
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_configure_rxq);

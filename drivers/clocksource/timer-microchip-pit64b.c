@@ -237,7 +237,7 @@ static void __init mchp_pit64b_pres_compute(u32 *pres, u32 clk_rate,
 			break;
 	}
 
-	/* Use the bigest prescaler if we didn't match one. */
+	/* Use the biggest prescaler if we didn't match one. */
 	if (*pres == MCHP_PIT64B_PRES_MAX)
 		*pres = MCHP_PIT64B_PRES_MAX - 1;
 }

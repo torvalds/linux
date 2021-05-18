@@ -351,6 +351,17 @@ config HID_EZKEY
 	help
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_FT260
+	tristate "FTDI FT260 USB HID to I2C host support"
+	depends on USB_HID && HIDRAW && I2C
+	help
+	  Provides I2C host adapter functionality over USB-HID through FT260
+	  device. The customizable USB descriptor fields are exposed as sysfs
+	  attributes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hid-ft260.
+
 config HID_GEMBIRD
 	tristate "Gembird Joypad"
 	depends on HID
@@ -1042,10 +1053,11 @@ config HID_THINGM
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
-	depends on HID
+	depends on USB_HID
 	help
-	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
-	  a THRUSTMASTER Ferrari GT Rumble Wheel.
+	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2,
+	  a THRUSTMASTER Ferrari GT Rumble Wheel or Thrustmaster FFB
+	  Wheel (T150RS, T300RS, T300 Ferrari Alcantara Edition, T500RS).
 
 config THRUSTMASTER_FF
 	bool "ThrustMaster devices force feedback support"
@@ -1205,5 +1217,7 @@ source "drivers/hid/i2c-hid/Kconfig"
 source "drivers/hid/intel-ish-hid/Kconfig"
 
 source "drivers/hid/amd-sfh-hid/Kconfig"
+
+source "drivers/hid/surface-hid/Kconfig"
 
 endmenu

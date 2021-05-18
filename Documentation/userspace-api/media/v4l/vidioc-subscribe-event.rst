@@ -39,7 +39,7 @@ Description
 Subscribe or unsubscribe V4L2 event. Subscribed events are dequeued by
 using the :ref:`VIDIOC_DQEVENT` ioctl.
 
-.. tabularcolumns:: |p{4.6cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{2.6cm}|p{4.4cm}|p{10.3cm}|
 
 .. c:type:: v4l2_event_subscription
 
@@ -71,7 +71,7 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 	the array to zero.
 
 
-.. tabularcolumns:: |p{6.8cm}|p{2.2cm}|p{8.5cm}|
+.. tabularcolumns:: |p{7.5cm}|p{2.0cm}|p{7.8cm}|
 
 .. _event-flags:
 

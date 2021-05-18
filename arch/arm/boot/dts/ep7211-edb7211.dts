@@ -7,7 +7,7 @@
 	model = "Cirrus Logic EP7211 Development Board";
 	compatible = "cirrus,edb7211", "cirrus,ep7211", "cirrus,ep7209";
 
-	memory {
+	memory@c0000000 {
 		device_type = "memory";
 		reg = <0xc0000000 0x02000000>;
 	};

@@ -567,8 +567,6 @@ static const struct user_regset_view user_parisc_native_view = {
 };
 
 #ifdef CONFIG_64BIT
-#include <linux/compat.h>
-
 static int gpr32_get(struct task_struct *target,
 		     const struct user_regset *regset,
 		     struct membuf to)

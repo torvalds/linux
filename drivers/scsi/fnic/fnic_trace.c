@@ -153,7 +153,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			if (rd_idx > (fnic_max_trace_entries-1))
 				rd_idx = 0;
 			/*
-			 * Continure dumpping trace buffer entries into
+			 * Continue dumping trace buffer entries into
 			 * memory file till rd_idx reaches write index
 			 */
 			if (rd_idx == wr_idx)
@@ -189,7 +189,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 				  tbp->data[3], tbp->data[4]);
 			rd_idx++;
 			/*
-			 * Continue dumpping trace buffer entries into
+			 * Continue dumping trace buffer entries into
 			 * memory file till rd_idx reaches write index
 			 */
 			if (rd_idx == wr_idx)
@@ -632,7 +632,7 @@ void fnic_fc_trace_free(void)
  * fnic_fc_ctlr_set_trace_data:
  *       Maintain rd & wr idx accordingly and set data
  * Passed parameters:
- *       host_no: host number accociated with fnic
+ *       host_no: host number associated with fnic
  *       frame_type: send_frame, rece_frame or link event
  *       fc_frame: pointer to fc_frame
  *       frame_len: Length of the fc_frame
@@ -715,13 +715,13 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
  * fnic_fc_ctlr_get_trace_data: Copy trace buffer to a memory file
  * Passed parameter:
  *       @fnic_dbgfs_t: pointer to debugfs trace buffer
- *       rdata_flag: 1 => Unformated file
- *                   0 => formated file
+ *       rdata_flag: 1 => Unformatted file
+ *                   0 => formatted file
  * Description:
  *       This routine will copy the trace data to memory file with
  *       proper formatting and also copy to another memory
- *       file without formatting for further procesing.
- * Retrun Value:
+ *       file without formatting for further processing.
+ * Return Value:
  *       Number of bytes that were dumped into fnic_dbgfs_t
  */
 
@@ -785,10 +785,10 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag)
  *      @fc_trace_hdr_t: pointer to trace data
  *      @fnic_dbgfs_t: pointer to debugfs trace buffer
  *      @orig_len: pointer to len
- *      rdata_flag: 0 => Formated file, 1 => Unformated file
+ *      rdata_flag: 0 => Formatted file, 1 => Unformatted file
  * Description:
  *      This routine will format and copy the passed trace data
- *      for formated file or unformated file accordingly.
+ *      for formatted file or unformatted file accordingly.
  */
 
 void copy_and_format_trace_data(struct fc_trace_hdr *tdata,

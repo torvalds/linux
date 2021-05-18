@@ -229,7 +229,7 @@ int netvsc_send(struct net_device *net,
 		bool xdp_tx);
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp,
-				void *data);
+				void *data, u32 data_buflen);
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *nvdev,
 			 struct netvsc_channel *nvchan);
@@ -269,7 +269,7 @@ int rndis_filter_receive(struct net_device *ndev,
 int rndis_filter_set_device_mac(struct netvsc_device *ndev,
 				const char *mac);
 
-void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
+int netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -1717,5 +1717,9 @@ struct rndis_message {
 #define TRANSPORT_INFO_IPV4_UDP 0x02
 #define TRANSPORT_INFO_IPV6_TCP 0x10
 #define TRANSPORT_INFO_IPV6_UDP 0x20
+
+#define RETRY_US_LO	5000
+#define RETRY_US_HI	10000
+#define RETRY_MAX	2000	/* >10 sec */
 
 #endif /* _HYPERV_NET_H */

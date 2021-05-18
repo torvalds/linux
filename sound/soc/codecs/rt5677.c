@@ -4568,8 +4568,8 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL1,
 		pll_code.n_code << RT5677_PLL_N_SFT | pll_code.k_code);
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5677_PLL_M_SFT |
-		pll_code.m_bp << RT5677_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5677_PLL_M_SFT) |
+		(pll_code.m_bp << RT5677_PLL_M_BP_SFT));
 
 	rt5677->pll_in = freq_in;
 	rt5677->pll_out = freq_out;
@@ -5332,7 +5332,7 @@ static bool rt5677_check_hotword(struct rt5677_priv *rt5677)
 static irqreturn_t rt5677_irq(int unused, void *data)
 {
 	struct rt5677_priv *rt5677 = data;
-	int ret = 0, loop, i, reg_irq, virq;
+	int ret, loop, i, reg_irq, virq;
 	bool irq_fired = false;
 
 	mutex_lock(&rt5677->irq_lock);

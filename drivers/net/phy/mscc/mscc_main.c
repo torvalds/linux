@@ -1362,6 +1362,12 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 	u16 crc, reg;
 	int ret;
 
+	ret = vsc8584_pll5g_reset(phydev);
+	if (ret < 0) {
+		dev_err(dev, "failed LCPLL reset, ret: %d\n", ret);
+		return ret;
+	}
+
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
 	/* all writes below are broadcasted to all PHYs in the same package */
@@ -1466,6 +1472,24 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 	if (ret)
 		goto out;
 
+	/* Write patch vector 0, to skip IB cal polling  */
+	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED_GPIO);
+	reg = MSCC_ROM_TRAP_SERDES_6G_CFG; /* ROM address to trap, for patch vector 0 */
+	ret = phy_base_write(phydev, MSCC_TRAP_ROM_ADDR(1), reg);
+	if (ret)
+		goto out;
+
+	reg = MSCC_RAM_TRAP_SERDES_6G_CFG; /* RAM address to jump to, when patch vector 0 enabled */
+	ret = phy_base_write(phydev, MSCC_PATCH_RAM_ADDR(1), reg);
+	if (ret)
+		goto out;
+
+	reg = phy_base_read(phydev, MSCC_INT_MEM_CNTL);
+	reg |= PATCH_VEC_ZERO_EN; /* bit 8, enable patch vector 0 */
+	ret = phy_base_write(phydev, MSCC_INT_MEM_CNTL, reg);
+	if (ret)
+		goto out;
+
 	vsc8584_micro_deassert_reset(phydev, true);
 
 out:
@@ -1531,6 +1555,136 @@ static void vsc85xx_coma_mode_release(struct phy_device *phydev)
 	vsc85xx_phy_write_page(phydev, MSCC_PHY_PAGE_STANDARD);
 }
 
+static int vsc8584_config_host_serdes(struct phy_device *phydev)
+{
+	struct vsc8531_private *vsc8531 = phydev->priv;
+	int ret;
+	u16 val;
+
+	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			     MSCC_PHY_PAGE_EXTENDED_GPIO);
+	if (ret)
+		return ret;
+
+	val = phy_base_read(phydev, MSCC_PHY_MAC_CFG_FASTLINK);
+	val &= ~MAC_CFG_MASK;
+	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII) {
+		val |= MAC_CFG_QSGMII;
+	} else if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		val |= MAC_CFG_SGMII;
+	} else {
+		ret = -EINVAL;
+		return ret;
+	}
+
+	ret = phy_base_write(phydev, MSCC_PHY_MAC_CFG_FASTLINK, val);
+	if (ret)
+		return ret;
+
+	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			     MSCC_PHY_PAGE_STANDARD);
+	if (ret)
+		return ret;
+
+	val = PROC_CMD_MCB_ACCESS_MAC_CONF | PROC_CMD_RST_CONF_PORT |
+		PROC_CMD_READ_MOD_WRITE_PORT;
+	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
+		val |= PROC_CMD_QSGMII_MAC;
+	else
+		val |= PROC_CMD_SGMII_MAC;
+
+	ret = vsc8584_cmd(phydev, val);
+	if (ret)
+		return ret;
+
+	usleep_range(10000, 20000);
+
+	/* Disable SerDes for 100Base-FX */
+	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
+			  PROC_CMD_FIBER_PORT(vsc8531->addr) |
+			  PROC_CMD_FIBER_DISABLE |
+			  PROC_CMD_READ_MOD_WRITE_PORT |
+			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_100BASE_FX);
+	if (ret)
+		return ret;
+
+	/* Disable SerDes for 1000Base-X */
+	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
+			  PROC_CMD_FIBER_PORT(vsc8531->addr) |
+			  PROC_CMD_FIBER_DISABLE |
+			  PROC_CMD_READ_MOD_WRITE_PORT |
+			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_1000BASE_X);
+	if (ret)
+		return ret;
+
+	return vsc85xx_sd6g_config_v2(phydev);
+}
+
+static int vsc8574_config_host_serdes(struct phy_device *phydev)
+{
+	struct vsc8531_private *vsc8531 = phydev->priv;
+	int ret;
+	u16 val;
+
+	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			     MSCC_PHY_PAGE_EXTENDED_GPIO);
+	if (ret)
+		return ret;
+
+	val = phy_base_read(phydev, MSCC_PHY_MAC_CFG_FASTLINK);
+	val &= ~MAC_CFG_MASK;
+	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII) {
+		val |= MAC_CFG_QSGMII;
+	} else if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		val |= MAC_CFG_SGMII;
+	} else if (phy_interface_is_rgmii(phydev)) {
+		val |= MAC_CFG_RGMII;
+	} else {
+		ret = -EINVAL;
+		return ret;
+	}
+
+	ret = phy_base_write(phydev, MSCC_PHY_MAC_CFG_FASTLINK, val);
+	if (ret)
+		return ret;
+
+	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			     MSCC_PHY_PAGE_STANDARD);
+	if (ret)
+		return ret;
+
+	if (!phy_interface_is_rgmii(phydev)) {
+		val = PROC_CMD_MCB_ACCESS_MAC_CONF | PROC_CMD_RST_CONF_PORT |
+			PROC_CMD_READ_MOD_WRITE_PORT;
+		if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
+			val |= PROC_CMD_QSGMII_MAC;
+		else
+			val |= PROC_CMD_SGMII_MAC;
+
+		ret = vsc8584_cmd(phydev, val);
+		if (ret)
+			return ret;
+
+		usleep_range(10000, 20000);
+	}
+
+	/* Disable SerDes for 100Base-FX */
+	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
+			  PROC_CMD_FIBER_PORT(vsc8531->addr) |
+			  PROC_CMD_FIBER_DISABLE |
+			  PROC_CMD_READ_MOD_WRITE_PORT |
+			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_100BASE_FX);
+	if (ret)
+		return ret;
+
+	/* Disable SerDes for 1000Base-X */
+	return vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
+			   PROC_CMD_FIBER_PORT(vsc8531->addr) |
+			   PROC_CMD_FIBER_DISABLE |
+			   PROC_CMD_READ_MOD_WRITE_PORT |
+			   PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_1000BASE_X);
+}
+
 static int vsc8584_config_init(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
@@ -1567,12 +1721,23 @@ static int vsc8584_config_init(struct phy_device *phydev)
 		case PHY_ID_VSC8572:
 		case PHY_ID_VSC8574:
 			ret = vsc8574_config_pre_init(phydev);
+			if (ret)
+				goto err;
+			ret = vsc8574_config_host_serdes(phydev);
+			if (ret)
+				goto err;
 			break;
 		case PHY_ID_VSC856X:
 		case PHY_ID_VSC8575:
 		case PHY_ID_VSC8582:
 		case PHY_ID_VSC8584:
 			ret = vsc8584_config_pre_init(phydev);
+			if (ret)
+				goto err;
+			ret = vsc8584_config_host_serdes(phydev);
+			if (ret)
+				goto err;
+			vsc85xx_coma_mode_release(phydev);
 			break;
 		default:
 			ret = -EINVAL;
@@ -1582,66 +1747,6 @@ static int vsc8584_config_init(struct phy_device *phydev)
 		if (ret)
 			goto err;
 	}
-
-	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
-			     MSCC_PHY_PAGE_EXTENDED_GPIO);
-	if (ret)
-		goto err;
-
-	val = phy_base_read(phydev, MSCC_PHY_MAC_CFG_FASTLINK);
-	val &= ~MAC_CFG_MASK;
-	if (phydev->interface == PHY_INTERFACE_MODE_QSGMII) {
-		val |= MAC_CFG_QSGMII;
-	} else if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		val |= MAC_CFG_SGMII;
-	} else if (phy_interface_is_rgmii(phydev)) {
-		val |= MAC_CFG_RGMII;
-	} else {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	ret = phy_base_write(phydev, MSCC_PHY_MAC_CFG_FASTLINK, val);
-	if (ret)
-		goto err;
-
-	ret = phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
-			     MSCC_PHY_PAGE_STANDARD);
-	if (ret)
-		goto err;
-
-	if (!phy_interface_is_rgmii(phydev)) {
-		val = PROC_CMD_MCB_ACCESS_MAC_CONF | PROC_CMD_RST_CONF_PORT |
-			PROC_CMD_READ_MOD_WRITE_PORT;
-		if (phydev->interface == PHY_INTERFACE_MODE_QSGMII)
-			val |= PROC_CMD_QSGMII_MAC;
-		else
-			val |= PROC_CMD_SGMII_MAC;
-
-		ret = vsc8584_cmd(phydev, val);
-		if (ret)
-			goto err;
-
-		usleep_range(10000, 20000);
-	}
-
-	/* Disable SerDes for 100Base-FX */
-	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
-			  PROC_CMD_FIBER_PORT(vsc8531->addr) |
-			  PROC_CMD_FIBER_DISABLE |
-			  PROC_CMD_READ_MOD_WRITE_PORT |
-			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_100BASE_FX);
-	if (ret)
-		goto err;
-
-	/* Disable SerDes for 1000Base-X */
-	ret = vsc8584_cmd(phydev, PROC_CMD_FIBER_MEDIA_CONF |
-			  PROC_CMD_FIBER_PORT(vsc8531->addr) |
-			  PROC_CMD_FIBER_DISABLE |
-			  PROC_CMD_READ_MOD_WRITE_PORT |
-			  PROC_CMD_RST_CONF_PORT | PROC_CMD_FIBER_1000BASE_X);
-	if (ret)
-		goto err;
 
 	phy_unlock_mdio_bus(phydev);
 

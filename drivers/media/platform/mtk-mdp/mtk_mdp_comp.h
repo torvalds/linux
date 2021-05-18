@@ -19,7 +19,6 @@ enum mtk_mdp_comp_type {
 	MTK_MDP_RSZ,
 	MTK_MDP_WDMA,
 	MTK_MDP_WROT,
-	MTK_MDP_COMP_TYPE_MAX,
 };
 
 /**

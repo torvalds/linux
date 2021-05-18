@@ -151,6 +151,9 @@ enum {
 #define BD71828_REG_GPIO_CTRL3		0x49
 #define BD71828_REG_IO_STAT		0xed
 
+/* clk */
+#define BD71828_REG_OUT32K		0x4b
+
 /* RTC */
 #define BD71828_REG_RTC_SEC		0x4c
 #define BD71828_REG_RTC_MINUTE		0x4d
