@@ -37,7 +37,9 @@ compiler's use of code-motion and common-subexpression optimizations.
 Therefore, if a given access is involved in an intentional data race,
 using READ_ONCE() for loads and WRITE_ONCE() for stores is usually
 preferable to data_race(), which in turn is usually preferable to plain
-C-language accesses.
+C-language accesses.  It is permissible to combine #2 and #3, for example,
+data_race(READ_ONCE(a)), which will both restrict compiler optimizations
+and disable KCSAN diagnostics.
 
 KCSAN will complain about many types of data races involving plain
 C-language accesses, but marking all accesses involved in a given data
@@ -85,6 +87,10 @@ to x allows KCSAN to detect reads from x from within regions of code
 that fail to exclude the updates.  In this case, it is important to use
 data_race() for the diagnostic reads because otherwise KCSAN would give
 false-positive warnings about these diagnostic reads.
+
+If it is necessary to both restrict compiler optimizations and disable
+KCSAN diagnostics, use both data_race() and READ_ONCE(), for example,
+data_race(READ_ONCE(a)).
 
 In theory, plain C-language loads can also be used for this use case.
 However, in practice this will have the disadvantage of causing KCSAN
@@ -279,19 +285,34 @@ tells KCSAN that data races are expected, and should be silently
 ignored.  This data_race() also tells the human reading the code that
 read_foo_diagnostic() might sometimes return a bogus value.
 
-However, please note that your kernel must be built with
-CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n in order for KCSAN to
-detect a buggy lockless write.  If you need KCSAN to detect such a
-write even if that write did not change the value of foo, you also
-need CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY=n.  If you need KCSAN to
-detect such a write happening in an interrupt handler running on the
-same CPU doing the legitimate lock-protected write, you also need
-CONFIG_KCSAN_INTERRUPT_WATCHER=y.  With some or all of these Kconfig
-options set properly, KCSAN can be quite helpful, although it is not
-necessarily a full replacement for hardware watchpoints.  On the other
-hand, neither are hardware watchpoints a full replacement for KCSAN
-because it is not always easy to tell hardware watchpoint to conditionally
-trap on accesses.
+If it is necessary to suppress compiler optimization and also detect
+buggy lockless writes, read_foo_diagnostic() can be updated as follows:
+
+	void read_foo_diagnostic(void)
+	{
+		pr_info("Current value of foo: %d\n", data_race(READ_ONCE(foo)));
+	}
+
+Alternatively, given that KCSAN is to ignore all accesses in this function,
+this function can be marked __no_kcsan and the data_race() can be dropped:
+
+	void __no_kcsan read_foo_diagnostic(void)
+	{
+		pr_info("Current value of foo: %d\n", READ_ONCE(foo));
+	}
+
+However, in order for KCSAN to detect buggy lockless writes, your kernel
+must be built with CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n.  If you
+need KCSAN to detect such a write even if that write did not change
+the value of foo, you also need CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY=n.
+If you need KCSAN to detect such a write happening in an interrupt handler
+running on the same CPU doing the legitimate lock-protected write, you
+also need CONFIG_KCSAN_INTERRUPT_WATCHER=y.  With some or all of these
+Kconfig options set properly, KCSAN can be quite helpful, although
+it is not necessarily a full replacement for hardware watchpoints.
+On the other hand, neither are hardware watchpoints a full replacement
+for KCSAN because it is not always easy to tell hardware watchpoint to
+conditionally trap on accesses.
 
 
 Lock-Protected Writes With Lockless Reads
