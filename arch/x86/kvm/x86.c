@@ -8360,6 +8360,9 @@ static void kvm_sched_yield(struct kvm_vcpu *vcpu, unsigned long dest_id)
 
 	vcpu->stat.directed_yield_attempted++;
 
+	if (single_task_running())
+		goto no_yield;
+
 	rcu_read_lock();
 	map = rcu_dereference(vcpu->kvm->arch.apic_map);
 
