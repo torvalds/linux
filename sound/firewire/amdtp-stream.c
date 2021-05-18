@@ -852,8 +852,8 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / sizeof(*ctx_header);
 
-	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, d->seq_descs,
-			   d->seq_size);
+	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, d->seq.descs,
+			   d->seq.size);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
 
@@ -931,12 +931,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 {
 	struct amdtp_stream *irq_target = d->irq_target;
-	unsigned int seq_tail = d->seq_tail;
-	unsigned int seq_size = d->seq_size;
+	unsigned int seq_tail = d->seq.tail;
+	unsigned int seq_size = d->seq.size;
 	unsigned int min_avail;
 	struct amdtp_stream *s;
 
-	min_avail = d->seq_size;
+	min_avail = d->seq.size;
 	list_for_each_entry(s, &d->streams, list) {
 		unsigned int seq_index;
 		unsigned int avail;
@@ -945,9 +945,9 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 			continue;
 
 		seq_index = s->ctx_data.rx.seq_index;
-		avail = d->seq_tail;
+		avail = d->seq.tail;
 		if (seq_index > avail)
-			avail += d->seq_size;
+			avail += d->seq.size;
 		avail -= seq_index;
 
 		if (avail < min_avail)
@@ -955,7 +955,7 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 	}
 
 	while (min_avail < packets) {
-		struct seq_desc *desc = d->seq_descs + seq_tail;
+		struct seq_desc *desc = d->seq.descs + seq_tail;
 
 		desc->syt_offset = calculate_syt_offset(&d->last_syt_offset,
 					&d->syt_offset_state, irq_target->sfc);
@@ -970,7 +970,7 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 		++min_avail;
 	}
 
-	d->seq_tail = seq_tail;
+	d->seq.tail = seq_tail;
 }
 
 static void irq_target_callback(struct fw_iso_context *context, u32 tstamp,
@@ -1323,7 +1323,7 @@ int amdtp_domain_init(struct amdtp_domain *d)
 
 	d->events_per_period = 0;
 
-	d->seq_descs = NULL;
+	d->seq.descs = NULL;
 
 	return 0;
 }
@@ -1438,11 +1438,11 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	queue_size = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_buffer,
 				  amdtp_rate_table[d->irq_target->sfc]);
 
-	d->seq_descs = kcalloc(queue_size, sizeof(*d->seq_descs), GFP_KERNEL);
-	if (!d->seq_descs)
+	d->seq.descs = kcalloc(queue_size, sizeof(*d->seq.descs), GFP_KERNEL);
+	if (!d->seq.descs)
 		return -ENOMEM;
-	d->seq_size = queue_size;
-	d->seq_tail = 0;
+	d->seq.size = queue_size;
+	d->seq.tail = 0;
 
 	entry = &initial_state[s->sfc];
 	d->data_block_state = entry->data_block;
@@ -1511,8 +1511,8 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 error:
 	list_for_each_entry(s, &d->streams, list)
 		amdtp_stream_stop(s);
-	kfree(d->seq_descs);
-	d->seq_descs = NULL;
+	kfree(d->seq.descs);
+	d->seq.descs = NULL;
 	return err;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_start);
@@ -1538,7 +1538,7 @@ void amdtp_domain_stop(struct amdtp_domain *d)
 	d->events_per_period = 0;
 	d->irq_target = NULL;
 
-	kfree(d->seq_descs);
-	d->seq_descs = NULL;
+	kfree(d->seq.descs);
+	d->seq.descs = NULL;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_stop);

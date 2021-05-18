@@ -287,9 +287,11 @@ struct amdtp_domain {
 
 	struct amdtp_stream *irq_target;
 
-	struct seq_desc *seq_descs;
-	unsigned int seq_size;
-	unsigned int seq_tail;
+	struct {
+		struct seq_desc *descs;
+		unsigned int size;
+		unsigned int tail;
+	} seq;
 
 	unsigned int data_block_state;
 	unsigned int syt_offset_state;
