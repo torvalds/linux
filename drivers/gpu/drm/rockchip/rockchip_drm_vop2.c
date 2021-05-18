@@ -543,6 +543,7 @@ struct vop2 {
 	bool is_iommu_needed;
 	bool is_enabled;
 	bool support_multi_area;
+	bool disable_afbc_win;
 
 	bool loader_protect;
 
@@ -5602,6 +5603,11 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	unsigned int max_width, max_height;
 	int ret;
 
+	if (win->feature & WIN_FEATURE_AFBDC) {
+		if (vop2->disable_afbc_win)
+			return 0;
+	}
+
 	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, possible_crtcs,
 				       &vop2_plane_funcs, win->formats, win->nformats,
 				       win->format_modifiers, win->type, win->name);
@@ -6100,6 +6106,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, vop2);
 
 	vop2->support_multi_area = of_property_read_bool(dev->of_node, "support-multi-area");
+	vop2->disable_afbc_win = of_property_read_bool(dev->of_node, "disable-afbc-win");
 
 	ret = vop2_win_init(vop2);
 	if (ret)
