@@ -127,8 +127,7 @@ restart:
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
-		error = prepend_name(&bptr, &blen, &dentry->d_name);
-		if (error)
+		if (unlikely(prepend_name(&bptr, &blen, &dentry->d_name) < 0))
 			break;
 
 		dentry = parent;
@@ -149,12 +148,9 @@ restart:
 	}
 	done_seqretry(&mount_lock, m_seq);
 
-	if (error >= 0 && bptr == *buffer) {
-		if (--blen < 0)
-			error = -ENAMETOOLONG;
-		else
-			*--bptr = '/';
-	}
+	if (blen == *buflen)
+		prepend(&bptr, &blen, "/", 1);
+
 	*buffer = bptr;
 	*buflen = blen;
 	return error;
@@ -181,16 +177,11 @@ char *__d_path(const struct path *path,
 	       char *buf, int buflen)
 {
 	char *res = buf + buflen;
-	int error;
 
 	prepend(&res, &buflen, "", 1);
-	error = prepend_path(path, root, &res, &buflen);
-
-	if (error < 0)
-		return ERR_PTR(error);
-	if (error > 0)
+	if (prepend_path(path, root, &res, &buflen) > 0)
 		return NULL;
-	return res;
+	return buflen >= 0 ? res : ERR_PTR(-ENAMETOOLONG);
 }
 
 char *d_absolute_path(const struct path *path,
@@ -198,16 +189,11 @@ char *d_absolute_path(const struct path *path,
 {
 	struct path root = {};
 	char *res = buf + buflen;
-	int error;
 
 	prepend(&res, &buflen, "", 1);
-	error = prepend_path(path, &root, &res, &buflen);
-
-	if (error > 1)
-		error = -EINVAL;
-	if (error < 0)
-		return ERR_PTR(error);
-	return res;
+	if (prepend_path(path, &root, &res, &buflen) > 1)
+		return ERR_PTR(-EINVAL);
+	return buflen >= 0 ? res : ERR_PTR(-ENAMETOOLONG);
 }
 
 static void get_fs_root_rcu(struct fs_struct *fs, struct path *root)
@@ -240,7 +226,6 @@ char *d_path(const struct path *path, char *buf, int buflen)
 {
 	char *res = buf + buflen;
 	struct path root;
-	int error;
 
 	/*
 	 * We have various synthetic filesystems that never get mounted.  On
@@ -263,12 +248,10 @@ char *d_path(const struct path *path, char *buf, int buflen)
 		prepend(&res, &buflen, " (deleted)", 11);
 	else
 		prepend(&res, &buflen, "", 1);
-	error = prepend_path(path, &root, &res, &buflen);
+	prepend_path(path, &root, &res, &buflen);
 	rcu_read_unlock();
 
-	if (error < 0)
-		res = ERR_PTR(error);
-	return res;
+	return buflen >= 0 ? res : ERR_PTR(-ENAMETOOLONG);
 }
 EXPORT_SYMBOL(d_path);
 
