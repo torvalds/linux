@@ -396,7 +396,7 @@ int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
 		 enum amdtp_stream_direction dir)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
-	enum cip_flags flags;
+	unsigned int flags;
 
 	// Use different mode between incoming/outgoing.
 	if (dir == AMDTP_IN_STREAM) {
