@@ -101,7 +101,7 @@ int rtw_write16(struct adapter *adapter, u32 addr, u16 val)
 	ret = _write16(pintfhdl, addr, val);
 	return RTW_STATUS_CODE(ret);
 }
-int _rtw_write32(struct adapter *adapter, u32 addr, u32 val)
+int rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 {
 	/* struct	io_queue	*pio_queue = (struct io_queue *)adapter->pio_queue; */
 	struct io_priv *pio_priv = &adapter->iopriv;

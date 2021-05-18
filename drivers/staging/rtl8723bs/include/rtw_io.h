@@ -176,13 +176,11 @@ extern u32 rtw_read32(struct adapter *adapter, u32 addr);
 
 extern int rtw_write8(struct adapter *adapter, u32 addr, u8 val);
 extern int rtw_write16(struct adapter *adapter, u32 addr, u16 val);
-extern int _rtw_write32(struct adapter *adapter, u32 addr, u32 val);
+extern int rtw_write32(struct adapter *adapter, u32 addr, u32 val);
 
 extern u8 _rtw_sd_f0_read8(struct adapter *adapter, u32 addr);
 
 extern u32 _rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
-#define  rtw_write32(adapter, addr, val) _rtw_write32((adapter), (addr), (val))
 
 #define rtw_write_port(adapter, addr, cnt, mem) _rtw_write_port((adapter), (addr), (cnt), (mem))
 
@@ -229,8 +227,5 @@ extern void async_bus_io(struct io_queue *pio_q);
 extern void bus_sync_io(struct io_queue *pio_q);
 extern u32 _ioreq2rwmem(struct io_queue *pio_q);
 extern void dev_power_down(struct adapter *Adapter, u8 bpwrup);
-
-#define PlatformEFIOWrite4Byte(_a, _b, _c)		\
-	rtw_write32(_a, _b, _c)
 
 #endif	/* _RTL8711_IO_H_ */
