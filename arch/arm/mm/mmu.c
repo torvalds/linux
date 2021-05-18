@@ -1121,7 +1121,7 @@ void __init debug_ll_io_init(void)
 }
 #endif
 
-static unsigned long __initdata vmalloc_start = VMALLOC_END - (240 << 20);
+static unsigned long __initdata vmalloc_size = 240 << 20;
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
@@ -1146,7 +1146,7 @@ static int __init early_vmalloc(char *arg)
 			vmalloc_reserve >> 20);
 	}
 
-	vmalloc_start = VMALLOC_END - vmalloc_reserve;
+	vmalloc_size = vmalloc_reserve;
 	return 0;
 }
 early_param("vmalloc", early_vmalloc);
@@ -1166,7 +1166,7 @@ void __init adjust_lowmem_bounds(void)
 	 * and may itself be outside the valid range for which phys_addr_t
 	 * and therefore __pa() is defined.
 	 */
-	vmalloc_limit = (u64)vmalloc_start - VMALLOC_OFFSET -
+	vmalloc_limit = (u64)VMALLOC_END - vmalloc_size - VMALLOC_OFFSET -
 			PAGE_OFFSET + PHYS_OFFSET;
 
 	/*
