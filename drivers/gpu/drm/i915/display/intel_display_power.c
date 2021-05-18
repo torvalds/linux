@@ -829,8 +829,8 @@ static void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "Resetting DC state tracking from %02x to %02x\n",
-		    dev_priv->csr.dc_state, val);
-	dev_priv->csr.dc_state = val;
+		    dev_priv->dmc.dc_state, val);
+	dev_priv->dmc.dc_state = val;
 }
 
 /**
@@ -865,8 +865,8 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 		return;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm,
-			     state & ~dev_priv->csr.allowed_dc_mask))
-		state &= dev_priv->csr.allowed_dc_mask;
+			     state & ~dev_priv->dmc.allowed_dc_mask))
+		state &= dev_priv->dmc.allowed_dc_mask;
 
 	val = intel_de_read(dev_priv, DC_STATE_EN);
 	mask = gen9_dc_mask(dev_priv);
@@ -874,16 +874,16 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 		    val & mask, state);
 
 	/* Check if DMC is ignoring our DC state requests */
-	if ((val & mask) != dev_priv->csr.dc_state)
+	if ((val & mask) != dev_priv->dmc.dc_state)
 		drm_err(&dev_priv->drm, "DC state mismatch (0x%x -> 0x%x)\n",
-			dev_priv->csr.dc_state, val & mask);
+			dev_priv->dmc.dc_state, val & mask);
 
 	val &= ~mask;
 	val |= state;
 
 	gen9_write_dc_state(dev_priv, val);
 
-	dev_priv->csr.dc_state = val & mask;
+	dev_priv->dmc.dc_state = val & mask;
 }
 
 static u32
@@ -902,7 +902,7 @@ sanitize_target_dc_state(struct drm_i915_private *dev_priv,
 		if (target_dc_state != states[i])
 			continue;
 
-		if (dev_priv->csr.allowed_dc_mask & target_dc_state)
+		if (dev_priv->dmc.allowed_dc_mask & target_dc_state)
 			break;
 
 		target_dc_state = states[i + 1];
@@ -1016,7 +1016,7 @@ void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
 
 	state = sanitize_target_dc_state(dev_priv, state);
 
-	if (state == dev_priv->csr.target_dc_state)
+	if (state == dev_priv->dmc.target_dc_state)
 		goto unlock;
 
 	dc_off_enabled = power_well->desc->ops->is_enabled(dev_priv,
@@ -1028,7 +1028,7 @@ void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
 	if (!dc_off_enabled)
 		power_well->desc->ops->enable(dev_priv, power_well);
 
-	dev_priv->csr.target_dc_state = state;
+	dev_priv->dmc.target_dc_state = state;
 
 	if (!dc_off_enabled)
 		power_well->desc->ops->disable(dev_priv, power_well);
@@ -1181,7 +1181,7 @@ static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_config cdclk_config = {};
 
-	if (dev_priv->csr.target_dc_state == DC_STATE_EN_DC3CO) {
+	if (dev_priv->dmc.target_dc_state == DC_STATE_EN_DC3CO) {
 		tgl_disable_dc3co(dev_priv);
 		return;
 	}
@@ -1220,10 +1220,10 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	if (!dev_priv->csr.dmc_payload)
+	if (!dev_priv->dmc.dmc_payload)
 		return;
 
-	switch (dev_priv->csr.target_dc_state) {
+	switch (dev_priv->dmc.target_dc_state) {
 	case DC_STATE_EN_DC3CO:
 		tgl_enable_dc3co(dev_priv);
 		break;
@@ -5090,10 +5090,10 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	dev_priv->params.disable_power_well =
 		sanitize_disable_power_well_option(dev_priv,
 						   dev_priv->params.disable_power_well);
-	dev_priv->csr.allowed_dc_mask =
+	dev_priv->dmc.allowed_dc_mask =
 		get_allowed_dc_mask(dev_priv, dev_priv->params.enable_dc);
 
-	dev_priv->csr.target_dc_state =
+	dev_priv->dmc.target_dc_state =
 		sanitize_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 
 	BUILD_BUG_ON(POWER_DOMAIN_NUM > 64);
@@ -5573,7 +5573,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	gen9_dbuf_enable(dev_priv);
 
-	if (resume && dev_priv->csr.dmc_payload)
+	if (resume && dev_priv->dmc.dmc_payload)
 		intel_csr_load_program(dev_priv);
 }
 
@@ -5640,7 +5640,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	gen9_dbuf_enable(dev_priv);
 
-	if (resume && dev_priv->csr.dmc_payload)
+	if (resume && dev_priv->dmc.dmc_payload)
 		intel_csr_load_program(dev_priv);
 }
 
@@ -5706,7 +5706,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	/* 6. Enable DBUF */
 	gen9_dbuf_enable(dev_priv);
 
-	if (resume && dev_priv->csr.dmc_payload)
+	if (resume && dev_priv->dmc.dmc_payload)
 		intel_csr_load_program(dev_priv);
 }
 
@@ -5863,7 +5863,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_bw_buddy_init(dev_priv);
 
-	if (resume && dev_priv->csr.dmc_payload)
+	if (resume && dev_priv->dmc.dmc_payload)
 		intel_csr_load_program(dev_priv);
 
 	/* Wa_14011508470 */
@@ -6222,9 +6222,9 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	 * resources as required and also enable deeper system power states
 	 * that would be blocked if the firmware was inactive.
 	 */
-	if (!(i915->csr.allowed_dc_mask & DC_STATE_EN_DC9) &&
+	if (!(i915->dmc.allowed_dc_mask & DC_STATE_EN_DC9) &&
 	    suspend_mode == I915_DRM_SUSPEND_IDLE &&
-	    i915->csr.dmc_payload) {
+	    i915->dmc.dmc_payload) {
 		intel_display_power_flush_work(i915);
 		intel_power_domains_verify_state(i915);
 		return;
@@ -6414,19 +6414,19 @@ void intel_display_power_resume(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) >= 11) {
 		bxt_disable_dc9(i915);
 		icl_display_core_init(i915, true);
-		if (i915->csr.dmc_payload) {
-			if (i915->csr.allowed_dc_mask &
+		if (i915->dmc.dmc_payload) {
+			if (i915->dmc.allowed_dc_mask &
 			    DC_STATE_EN_UPTO_DC6)
 				skl_enable_dc6(i915);
-			else if (i915->csr.allowed_dc_mask &
+			else if (i915->dmc.allowed_dc_mask &
 				 DC_STATE_EN_UPTO_DC5)
 				gen9_enable_dc5(i915);
 		}
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
 		bxt_disable_dc9(i915);
 		bxt_display_core_init(i915, true);
-		if (i915->csr.dmc_payload &&
-		    (i915->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
+		if (i915->dmc.dmc_payload &&
+		    (i915->dmc.allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
 			gen9_enable_dc5(i915);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_disable_pc8(i915);

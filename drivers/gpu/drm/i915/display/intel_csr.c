@@ -312,7 +312,7 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
  */
 void intel_csr_load_program(struct drm_i915_private *dev_priv)
 {
-	u32 *payload = dev_priv->csr.dmc_payload;
+	u32 *payload = dev_priv->dmc.dmc_payload;
 	u32 i, fw_size;
 
 	if (!HAS_CSR(dev_priv)) {
@@ -321,13 +321,13 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	if (!dev_priv->csr.dmc_payload) {
+	if (!dev_priv->dmc.dmc_payload) {
 		drm_err(&dev_priv->drm,
 			"Tried to program CSR with empty payload\n");
 		return;
 	}
 
-	fw_size = dev_priv->csr.dmc_fw_size;
+	fw_size = dev_priv->dmc.dmc_fw_size;
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	preempt_disable();
@@ -338,12 +338,12 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 
 	preempt_enable();
 
-	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
-		intel_de_write(dev_priv, dev_priv->csr.mmioaddr[i],
-			       dev_priv->csr.mmiodata[i]);
+	for (i = 0; i < dev_priv->dmc.mmio_count; i++) {
+		intel_de_write(dev_priv, dev_priv->dmc.mmioaddr[i],
+			       dev_priv->dmc.mmiodata[i]);
 	}
 
-	dev_priv->csr.dc_state = 0;
+	dev_priv->dmc.dc_state = 0;
 
 	gen9_set_dc_state_debugmask(dev_priv);
 }
@@ -392,7 +392,7 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 	return dmc_offset;
 }
 
-static u32 parse_csr_fw_dmc(struct intel_csr *csr,
+static u32 parse_csr_fw_dmc(struct intel_dmc *dmc,
 			    const struct intel_dmc_header_base *dmc_header,
 			    size_t rem_size)
 {
@@ -401,8 +401,8 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 	u32 mmio_count, mmio_count_max;
 	u8 *payload;
 
-	BUILD_BUG_ON(ARRAY_SIZE(csr->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
-		     ARRAY_SIZE(csr->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
+	BUILD_BUG_ON(ARRAY_SIZE(dmc->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
+		     ARRAY_SIZE(dmc->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
 
 	/*
 	 * Check if we can access common fields, we will checkc again below
@@ -464,10 +464,10 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 				  mmioaddr[i]);
 			return 0;
 		}
-		csr->mmioaddr[i] = _MMIO(mmioaddr[i]);
-		csr->mmiodata[i] = mmiodata[i];
+		dmc->mmioaddr[i] = _MMIO(mmioaddr[i]);
+		dmc->mmiodata[i] = mmiodata[i];
 	}
-	csr->mmio_count = mmio_count;
+	dmc->mmio_count = mmio_count;
 
 	rem_size -= header_len_bytes;
 
@@ -476,20 +476,20 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 	if (rem_size < payload_size)
 		goto error_truncated;
 
-	if (payload_size > csr->max_fw_size) {
+	if (payload_size > dmc->max_fw_size) {
 		DRM_ERROR("DMC FW too big (%u bytes)\n", payload_size);
 		return 0;
 	}
-	csr->dmc_fw_size = dmc_header->fw_size;
+	dmc->dmc_fw_size = dmc_header->fw_size;
 
-	csr->dmc_payload = kmalloc(payload_size, GFP_KERNEL);
-	if (!csr->dmc_payload) {
+	dmc->dmc_payload = kmalloc(payload_size, GFP_KERNEL);
+	if (!dmc->dmc_payload) {
 		DRM_ERROR("Memory allocation failed for dmc payload\n");
 		return 0;
 	}
 
 	payload = (u8 *)(dmc_header) + header_len_bytes;
-	memcpy(csr->dmc_payload, payload, payload_size);
+	memcpy(dmc->dmc_payload, payload, payload_size);
 
 	return header_len_bytes + payload_size;
 
@@ -499,7 +499,7 @@ error_truncated:
 }
 
 static u32
-parse_csr_fw_package(struct intel_csr *csr,
+parse_csr_fw_package(struct intel_dmc *dmc,
 		     const struct intel_package_header *package_header,
 		     const struct stepping_info *si,
 		     size_t rem_size)
@@ -558,7 +558,7 @@ error_truncated:
 }
 
 /* Return number of bytes parsed or 0 on error */
-static u32 parse_csr_fw_css(struct intel_csr *csr,
+static u32 parse_csr_fw_css(struct intel_dmc *dmc,
 			    struct intel_css_header *css_header,
 			    size_t rem_size)
 {
@@ -575,18 +575,18 @@ static u32 parse_csr_fw_css(struct intel_csr *csr,
 		return 0;
 	}
 
-	if (csr->required_version &&
-	    css_header->version != csr->required_version) {
+	if (dmc->required_version &&
+	    css_header->version != dmc->required_version) {
 		DRM_INFO("Refusing to load DMC firmware v%u.%u,"
 			 " please use v%u.%u\n",
 			 CSR_VERSION_MAJOR(css_header->version),
 			 CSR_VERSION_MINOR(css_header->version),
-			 CSR_VERSION_MAJOR(csr->required_version),
-			 CSR_VERSION_MINOR(csr->required_version));
+			 CSR_VERSION_MAJOR(dmc->required_version),
+			 CSR_VERSION_MINOR(dmc->required_version));
 		return 0;
 	}
 
-	csr->version = css_header->version;
+	dmc->version = css_header->version;
 
 	return sizeof(struct intel_css_header);
 }
@@ -597,7 +597,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
 	struct intel_dmc_header_base *dmc_header;
-	struct intel_csr *csr = &dev_priv->csr;
+	struct intel_dmc *dmc = &dev_priv->dmc;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
 	u32 readcount = 0;
 	u32 r;
@@ -607,7 +607,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract CSS Header information */
 	css_header = (struct intel_css_header *)fw->data;
-	r = parse_csr_fw_css(csr, css_header, fw->size);
+	r = parse_csr_fw_css(dmc, css_header, fw->size);
 	if (!r)
 		return;
 
@@ -615,7 +615,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract Package Header information */
 	package_header = (struct intel_package_header *)&fw->data[readcount];
-	r = parse_csr_fw_package(csr, package_header, si, fw->size - readcount);
+	r = parse_csr_fw_package(dmc, package_header, si, fw->size - readcount);
 	if (!r)
 		return;
 
@@ -623,20 +623,20 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract dmc_header information */
 	dmc_header = (struct intel_dmc_header_base *)&fw->data[readcount];
-	parse_csr_fw_dmc(csr, dmc_header, fw->size - readcount);
+	parse_csr_fw_dmc(dmc, dmc_header, fw->size - readcount);
 }
 
 static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
-	dev_priv->csr.wakeref =
+	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
+	dev_priv->dmc.wakeref =
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
 
 static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
 	intel_wakeref_t wakeref __maybe_unused =
-		fetch_and_zero(&dev_priv->csr.wakeref);
+		fetch_and_zero(&dev_priv->dmc.wakeref);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 }
@@ -644,28 +644,28 @@ static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
 static void csr_load_work_fn(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_csr *csr;
+	struct intel_dmc *dmc;
 	const struct firmware *fw = NULL;
 
-	dev_priv = container_of(work, typeof(*dev_priv), csr.work);
-	csr = &dev_priv->csr;
+	dev_priv = container_of(work, typeof(*dev_priv), dmc.work);
+	dmc = &dev_priv->dmc;
 
-	request_firmware(&fw, dev_priv->csr.fw_path, dev_priv->drm.dev);
+	request_firmware(&fw, dev_priv->dmc.fw_path, dev_priv->drm.dev);
 	parse_csr_fw(dev_priv, fw);
 
-	if (dev_priv->csr.dmc_payload) {
+	if (dev_priv->dmc.dmc_payload) {
 		intel_csr_load_program(dev_priv);
 		intel_csr_runtime_pm_put(dev_priv);
 
 		drm_info(&dev_priv->drm,
 			 "Finished loading DMC firmware %s (v%u.%u)\n",
-			 dev_priv->csr.fw_path, CSR_VERSION_MAJOR(csr->version),
-			 CSR_VERSION_MINOR(csr->version));
+			 dev_priv->dmc.fw_path, CSR_VERSION_MAJOR(dmc->version),
+			 CSR_VERSION_MINOR(dmc->version));
 	} else {
 		drm_notice(&dev_priv->drm,
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
-			   csr->fw_path);
+			   dmc->fw_path);
 		drm_notice(&dev_priv->drm, "DMC firmware homepage: %s",
 			   INTEL_UC_FIRMWARE_URL);
 	}
@@ -682,9 +682,9 @@ static void csr_load_work_fn(struct work_struct *work)
  */
 void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_csr *csr = &dev_priv->csr;
+	struct intel_dmc *dmc = &dev_priv->dmc;
 
-	INIT_WORK(&dev_priv->csr.work, csr_load_work_fn);
+	INIT_WORK(&dev_priv->dmc.work, csr_load_work_fn);
 
 	if (!HAS_CSR(dev_priv))
 		return;
@@ -700,70 +700,70 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	intel_csr_runtime_pm_get(dev_priv);
 
 	if (IS_ALDERLAKE_S(dev_priv)) {
-		csr->fw_path = ADLS_CSR_PATH;
-		csr->required_version = ADLS_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = ADLS_CSR_PATH;
+		dmc->required_version = ADLS_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
 	} else if (IS_DG1(dev_priv)) {
-		csr->fw_path = DG1_CSR_PATH;
-		csr->required_version = DG1_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = DG1_CSR_PATH;
+		dmc->required_version = DG1_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
 	} else if (IS_ROCKETLAKE(dev_priv)) {
-		csr->fw_path = RKL_CSR_PATH;
-		csr->required_version = RKL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = RKL_CSR_PATH;
+		dmc->required_version = RKL_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		csr->fw_path = TGL_CSR_PATH;
-		csr->required_version = TGL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = TGL_CSR_PATH;
+		dmc->required_version = TGL_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) == 11) {
-		csr->fw_path = ICL_CSR_PATH;
-		csr->required_version = ICL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = ICL_CSR_PATH;
+		dmc->required_version = ICL_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = ICL_CSR_MAX_FW_SIZE;
 	} else if (IS_CANNONLAKE(dev_priv)) {
-		csr->fw_path = CNL_CSR_PATH;
-		csr->required_version = CNL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = CNL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = CNL_CSR_PATH;
+		dmc->required_version = CNL_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = CNL_CSR_MAX_FW_SIZE;
 	} else if (IS_GEMINILAKE(dev_priv)) {
-		csr->fw_path = GLK_CSR_PATH;
-		csr->required_version = GLK_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
+		dmc->fw_path = GLK_CSR_PATH;
+		dmc->required_version = GLK_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = GLK_CSR_MAX_FW_SIZE;
 	} else if (IS_KABYLAKE(dev_priv) ||
 		   IS_COFFEELAKE(dev_priv) ||
 		   IS_COMETLAKE(dev_priv)) {
-		csr->fw_path = KBL_CSR_PATH;
-		csr->required_version = KBL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = KBL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = KBL_CSR_PATH;
+		dmc->required_version = KBL_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = KBL_CSR_MAX_FW_SIZE;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		csr->fw_path = SKL_CSR_PATH;
-		csr->required_version = SKL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = SKL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = SKL_CSR_PATH;
+		dmc->required_version = SKL_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = SKL_CSR_MAX_FW_SIZE;
 	} else if (IS_BROXTON(dev_priv)) {
-		csr->fw_path = BXT_CSR_PATH;
-		csr->required_version = BXT_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
+		dmc->fw_path = BXT_CSR_PATH;
+		dmc->required_version = BXT_CSR_VERSION_REQUIRED;
+		dmc->max_fw_size = BXT_CSR_MAX_FW_SIZE;
 	}
 
 	if (dev_priv->params.dmc_firmware_path) {
 		if (strlen(dev_priv->params.dmc_firmware_path) == 0) {
-			csr->fw_path = NULL;
+			dmc->fw_path = NULL;
 			drm_info(&dev_priv->drm,
-				 "Disabling CSR firmware and runtime PM\n");
+				 "Disabling DMC firmware and runtime PM\n");
 			return;
 		}
 
-		csr->fw_path = dev_priv->params.dmc_firmware_path;
+		dmc->fw_path = dev_priv->params.dmc_firmware_path;
 		/* Bypass version check for firmware override. */
-		csr->required_version = 0;
+		dmc->required_version = 0;
 	}
 
-	if (csr->fw_path == NULL) {
+	if (!dmc->fw_path) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "No known CSR firmware for platform, disabling runtime PM\n");
+			    "No known DMC firmware for platform, disabling runtime PM\n");
 		return;
 	}
 
-	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", csr->fw_path);
-	schedule_work(&dev_priv->csr.work);
+	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", dmc->fw_path);
+	schedule_work(&dev_priv->dmc.work);
 }
 
 /**
@@ -779,10 +779,10 @@ void intel_csr_ucode_suspend(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	flush_work(&dev_priv->csr.work);
+	flush_work(&dev_priv->dmc.work);
 
 	/* Drop the reference held in case DMC isn't loaded. */
-	if (!dev_priv->csr.dmc_payload)
+	if (!dev_priv->dmc.dmc_payload)
 		intel_csr_runtime_pm_put(dev_priv);
 }
 
@@ -802,7 +802,7 @@ void intel_csr_ucode_resume(struct drm_i915_private *dev_priv)
 	 * Reacquire the reference to keep RPM disabled in case DMC isn't
 	 * loaded.
 	 */
-	if (!dev_priv->csr.dmc_payload)
+	if (!dev_priv->dmc.dmc_payload)
 		intel_csr_runtime_pm_get(dev_priv);
 }
 
@@ -819,7 +819,7 @@ void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_csr_ucode_suspend(dev_priv);
-	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
 
-	kfree(dev_priv->csr.dmc_payload);
+	kfree(dev_priv->dmc.dmc_payload);
 }

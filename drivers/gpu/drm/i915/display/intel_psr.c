@@ -669,7 +669,7 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	if (crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	if (!(dev_priv->csr.allowed_dc_mask & DC_STATE_EN_DC3CO))
+	if (!(dev_priv->dmc.allowed_dc_mask & DC_STATE_EN_DC3CO))
 		return;
 
 	/* B.Specs:49196 DC3CO only works with pipeA and DDIA.*/

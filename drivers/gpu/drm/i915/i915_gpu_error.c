@@ -789,13 +789,13 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(m->i915)) {
-		struct intel_csr *csr = &m->i915->csr;
+		struct intel_dmc *dmc = &m->i915->dmc;
 
 		err_printf(m, "DMC loaded: %s\n",
-			   yesno(csr->dmc_payload != NULL));
+			   yesno(dmc->dmc_payload));
 		err_printf(m, "DMC fw version: %d.%d\n",
-			   CSR_VERSION_MAJOR(csr->version),
-			   CSR_VERSION_MINOR(csr->version));
+			   CSR_VERSION_MAJOR(dmc->version),
+			   CSR_VERSION_MINOR(dmc->version));
 	}
 
 	err_printf(m, "RPM wakelock: %s\n", yesno(error->wakelock));

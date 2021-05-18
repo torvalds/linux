@@ -328,7 +328,7 @@ struct drm_i915_display_funcs {
 	void (*read_luts)(struct intel_crtc_state *crtc_state);
 };
 
-struct intel_csr {
+struct intel_dmc {
 	struct work_struct work;
 	const char *fw_path;
 	u32 required_version;
@@ -817,7 +817,7 @@ struct drm_i915_private {
 
 	struct intel_wopcm wopcm;
 
-	struct intel_csr csr;
+	struct intel_dmc dmc;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
 

@@ -532,24 +532,24 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	intel_wakeref_t wakeref;
-	struct intel_csr *csr;
+	struct intel_dmc *dmc;
 	i915_reg_t dc5_reg, dc6_reg = {};
 
 	if (!HAS_CSR(dev_priv))
 		return -ENODEV;
 
-	csr = &dev_priv->csr;
+	dmc = &dev_priv->dmc;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	seq_printf(m, "fw loaded: %s\n", yesno(csr->dmc_payload != NULL));
-	seq_printf(m, "path: %s\n", csr->fw_path);
+	seq_printf(m, "fw loaded: %s\n", yesno(dmc->dmc_payload));
+	seq_printf(m, "path: %s\n", dmc->fw_path);
 
-	if (!csr->dmc_payload)
+	if (!dmc->dmc_payload)
 		goto out;
 
-	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
-		   CSR_VERSION_MINOR(csr->version));
+	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(dmc->version),
+		   CSR_VERSION_MINOR(dmc->version));
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		if (IS_DGFX(dev_priv)) {
