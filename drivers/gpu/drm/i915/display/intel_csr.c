@@ -30,10 +30,9 @@
 #include "intel_de.h"
 
 /**
- * DOC: csr support for dmc
+ * DOC: DMC firmware support
  *
- * Display Context Save and Restore (CSR) firmware support added from gen9
- * onwards to drive newly added DMC (Display microcontroller) in display
+ * From gen9 onwards we have newly added DMC (Display microcontroller) in display
  * engine to save and restore the state of display engine when it enter into
  * low-power state and comes back to normal.
  */
@@ -44,55 +43,55 @@
 	__stringify(major) "_"		 \
 	__stringify(minor) ".bin"
 
-#define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
+#define GEN12_DMC_MAX_FW_SIZE		ICL_DMC_MAX_FW_SIZE
 
-#define ADLS_CSR_PATH			DMC_PATH(adls, 2, 01)
-#define ADLS_CSR_VERSION_REQUIRED	CSR_VERSION(2, 1)
-MODULE_FIRMWARE(ADLS_CSR_PATH);
+#define ADLS_DMC_PATH			DMC_PATH(adls, 2, 01)
+#define ADLS_DMC_VERSION_REQUIRED	DMC_VERSION(2, 1)
+MODULE_FIRMWARE(ADLS_DMC_PATH);
 
-#define DG1_CSR_PATH			DMC_PATH(dg1, 2, 02)
-#define DG1_CSR_VERSION_REQUIRED	CSR_VERSION(2, 2)
-MODULE_FIRMWARE(DG1_CSR_PATH);
+#define DG1_DMC_PATH			DMC_PATH(dg1, 2, 02)
+#define DG1_DMC_VERSION_REQUIRED	DMC_VERSION(2, 2)
+MODULE_FIRMWARE(DG1_DMC_PATH);
 
-#define RKL_CSR_PATH			DMC_PATH(rkl, 2, 02)
-#define RKL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 2)
-MODULE_FIRMWARE(RKL_CSR_PATH);
+#define RKL_DMC_PATH			DMC_PATH(rkl, 2, 02)
+#define RKL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 2)
+MODULE_FIRMWARE(RKL_DMC_PATH);
 
-#define TGL_CSR_PATH			DMC_PATH(tgl, 2, 08)
-#define TGL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 8)
-MODULE_FIRMWARE(TGL_CSR_PATH);
+#define TGL_DMC_PATH			DMC_PATH(tgl, 2, 08)
+#define TGL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 8)
+MODULE_FIRMWARE(TGL_DMC_PATH);
 
-#define ICL_CSR_PATH			DMC_PATH(icl, 1, 09)
-#define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 9)
-#define ICL_CSR_MAX_FW_SIZE		0x6000
-MODULE_FIRMWARE(ICL_CSR_PATH);
+#define ICL_DMC_PATH			DMC_PATH(icl, 1, 09)
+#define ICL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 9)
+#define ICL_DMC_MAX_FW_SIZE		0x6000
+MODULE_FIRMWARE(ICL_DMC_PATH);
 
-#define CNL_CSR_PATH			DMC_PATH(cnl, 1, 07)
-#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-#define CNL_CSR_MAX_FW_SIZE		GLK_CSR_MAX_FW_SIZE
-MODULE_FIRMWARE(CNL_CSR_PATH);
+#define CNL_DMC_PATH			DMC_PATH(cnl, 1, 07)
+#define CNL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 7)
+#define CNL_DMC_MAX_FW_SIZE		GLK_DMC_MAX_FW_SIZE
+MODULE_FIRMWARE(CNL_DMC_PATH);
 
-#define GLK_CSR_PATH			DMC_PATH(glk, 1, 04)
-#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
-#define GLK_CSR_MAX_FW_SIZE		0x4000
-MODULE_FIRMWARE(GLK_CSR_PATH);
+#define GLK_DMC_PATH			DMC_PATH(glk, 1, 04)
+#define GLK_DMC_VERSION_REQUIRED	DMC_VERSION(1, 4)
+#define GLK_DMC_MAX_FW_SIZE		0x4000
+MODULE_FIRMWARE(GLK_DMC_PATH);
 
-#define KBL_CSR_PATH			DMC_PATH(kbl, 1, 04)
-#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
-#define KBL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
-MODULE_FIRMWARE(KBL_CSR_PATH);
+#define KBL_DMC_PATH			DMC_PATH(kbl, 1, 04)
+#define KBL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 4)
+#define KBL_DMC_MAX_FW_SIZE		BXT_DMC_MAX_FW_SIZE
+MODULE_FIRMWARE(KBL_DMC_PATH);
 
-#define SKL_CSR_PATH			DMC_PATH(skl, 1, 27)
-#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
-#define SKL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
-MODULE_FIRMWARE(SKL_CSR_PATH);
+#define SKL_DMC_PATH			DMC_PATH(skl, 1, 27)
+#define SKL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 27)
+#define SKL_DMC_MAX_FW_SIZE		BXT_DMC_MAX_FW_SIZE
+MODULE_FIRMWARE(SKL_DMC_PATH);
 
-#define BXT_CSR_PATH			DMC_PATH(bxt, 1, 07)
-#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-#define BXT_CSR_MAX_FW_SIZE		0x3000
-MODULE_FIRMWARE(BXT_CSR_PATH);
+#define BXT_DMC_PATH			DMC_PATH(bxt, 1, 07)
+#define BXT_DMC_VERSION_REQUIRED	DMC_VERSION(1, 7)
+#define BXT_DMC_MAX_FW_SIZE		0x3000
+MODULE_FIRMWARE(BXT_DMC_PATH);
 
-#define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
+#define DMC_DEFAULT_FW_OFFSET		0xFFFFFFFF
 #define PACKAGE_MAX_FW_INFO_ENTRIES	20
 #define PACKAGE_V2_MAX_FW_INFO_ENTRIES	32
 #define DMC_V1_MAX_MMIO_COUNT		8
@@ -333,7 +332,7 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	preempt_disable();
 
 	for (i = 0; i < fw_size; i++)
-		intel_uncore_write_fw(&dev_priv->uncore, CSR_PROGRAM(i),
+		intel_uncore_write_fw(&dev_priv->uncore, DMC_PROGRAM(i),
 				      payload[i]);
 
 	preempt_enable();
@@ -357,7 +356,7 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 			      const struct stepping_info *si,
 			      u8 package_ver)
 {
-	u32 dmc_offset = CSR_DEFAULT_FW_OFFSET;
+	u32 dmc_offset = DMC_DEFAULT_FW_OFFSET;
 	unsigned int i;
 
 	for (i = 0; i < num_entries; i++) {
@@ -458,8 +457,8 @@ static u32 parse_csr_fw_dmc(struct intel_dmc *dmc,
 	}
 
 	for (i = 0; i < mmio_count; i++) {
-		if (mmioaddr[i] < CSR_MMIO_START_RANGE ||
-		    mmioaddr[i] > CSR_MMIO_END_RANGE) {
+		if (mmioaddr[i] < DMC_MMIO_START_RANGE ||
+		    mmioaddr[i] > DMC_MMIO_END_RANGE) {
 			DRM_ERROR("DMC firmware has wrong mmio address 0x%x\n",
 				  mmioaddr[i]);
 			return 0;
@@ -543,7 +542,7 @@ parse_csr_fw_package(struct intel_dmc *dmc,
 		((u8 *)package_header + sizeof(*package_header));
 	dmc_offset = find_dmc_fw_offset(fw_info, num_entries, si,
 					package_header->header_ver);
-	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
+	if (dmc_offset == DMC_DEFAULT_FW_OFFSET) {
 		DRM_ERROR("DMC firmware not supported for %c stepping\n",
 			  si->stepping);
 		return 0;
@@ -579,10 +578,10 @@ static u32 parse_csr_fw_css(struct intel_dmc *dmc,
 	    css_header->version != dmc->required_version) {
 		DRM_INFO("Refusing to load DMC firmware v%u.%u,"
 			 " please use v%u.%u\n",
-			 CSR_VERSION_MAJOR(css_header->version),
-			 CSR_VERSION_MINOR(css_header->version),
-			 CSR_VERSION_MAJOR(dmc->required_version),
-			 CSR_VERSION_MINOR(dmc->required_version));
+			 DMC_VERSION_MAJOR(css_header->version),
+			 DMC_VERSION_MINOR(css_header->version),
+			 DMC_VERSION_MAJOR(dmc->required_version),
+			 DMC_VERSION_MINOR(dmc->required_version));
 		return 0;
 	}
 
@@ -659,8 +658,8 @@ static void csr_load_work_fn(struct work_struct *work)
 
 		drm_info(&dev_priv->drm,
 			 "Finished loading DMC firmware %s (v%u.%u)\n",
-			 dev_priv->dmc.fw_path, CSR_VERSION_MAJOR(dmc->version),
-			 CSR_VERSION_MINOR(dmc->version));
+			 dev_priv->dmc.fw_path, DMC_VERSION_MAJOR(dmc->version),
+			 DMC_VERSION_MINOR(dmc->version));
 	} else {
 		drm_notice(&dev_priv->drm,
 			   "Failed to load DMC firmware %s."
@@ -690,57 +689,57 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		return;
 
 	/*
-	 * Obtain a runtime pm reference, until CSR is loaded, to avoid entering
+	 * Obtain a runtime pm reference, until DMC is loaded, to avoid entering
 	 * runtime-suspend.
 	 *
 	 * On error, we return with the rpm wakeref held to prevent runtime
-	 * suspend as runtime suspend *requires* a working CSR for whatever
+	 * suspend as runtime suspend *requires* a working DMC for whatever
 	 * reason.
 	 */
 	intel_csr_runtime_pm_get(dev_priv);
 
 	if (IS_ALDERLAKE_S(dev_priv)) {
-		dmc->fw_path = ADLS_CSR_PATH;
-		dmc->required_version = ADLS_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = ADLS_DMC_PATH;
+		dmc->required_version = ADLS_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (IS_DG1(dev_priv)) {
-		dmc->fw_path = DG1_CSR_PATH;
-		dmc->required_version = DG1_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = DG1_DMC_PATH;
+		dmc->required_version = DG1_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (IS_ROCKETLAKE(dev_priv)) {
-		dmc->fw_path = RKL_CSR_PATH;
-		dmc->required_version = RKL_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = RKL_DMC_PATH;
+		dmc->required_version = RKL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		dmc->fw_path = TGL_CSR_PATH;
-		dmc->required_version = TGL_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = TGL_DMC_PATH;
+		dmc->required_version = TGL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) == 11) {
-		dmc->fw_path = ICL_CSR_PATH;
-		dmc->required_version = ICL_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = ICL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = ICL_DMC_PATH;
+		dmc->required_version = ICL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = ICL_DMC_MAX_FW_SIZE;
 	} else if (IS_CANNONLAKE(dev_priv)) {
-		dmc->fw_path = CNL_CSR_PATH;
-		dmc->required_version = CNL_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = CNL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = CNL_DMC_PATH;
+		dmc->required_version = CNL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = CNL_DMC_MAX_FW_SIZE;
 	} else if (IS_GEMINILAKE(dev_priv)) {
-		dmc->fw_path = GLK_CSR_PATH;
-		dmc->required_version = GLK_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = GLK_CSR_MAX_FW_SIZE;
+		dmc->fw_path = GLK_DMC_PATH;
+		dmc->required_version = GLK_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GLK_DMC_MAX_FW_SIZE;
 	} else if (IS_KABYLAKE(dev_priv) ||
 		   IS_COFFEELAKE(dev_priv) ||
 		   IS_COMETLAKE(dev_priv)) {
-		dmc->fw_path = KBL_CSR_PATH;
-		dmc->required_version = KBL_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = KBL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = KBL_DMC_PATH;
+		dmc->required_version = KBL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = KBL_DMC_MAX_FW_SIZE;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		dmc->fw_path = SKL_CSR_PATH;
-		dmc->required_version = SKL_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = SKL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = SKL_DMC_PATH;
+		dmc->required_version = SKL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = SKL_DMC_MAX_FW_SIZE;
 	} else if (IS_BROXTON(dev_priv)) {
-		dmc->fw_path = BXT_CSR_PATH;
-		dmc->required_version = BXT_CSR_VERSION_REQUIRED;
-		dmc->max_fw_size = BXT_CSR_MAX_FW_SIZE;
+		dmc->fw_path = BXT_DMC_PATH;
+		dmc->required_version = BXT_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = BXT_DMC_MAX_FW_SIZE;
 	}
 
 	if (dev_priv->params.dmc_firmware_path) {

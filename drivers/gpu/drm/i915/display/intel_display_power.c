@@ -961,12 +961,12 @@ static void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 static void assert_csr_loaded(struct drm_i915_private *dev_priv)
 {
 	drm_WARN_ONCE(&dev_priv->drm,
-		      !intel_de_read(dev_priv, CSR_PROGRAM(0)),
-		      "CSR program storage start is NULL\n");
-	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, CSR_SSP_BASE),
-		      "CSR SSP Base Not fine\n");
-	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, CSR_HTP_SKL),
-		      "CSR HTP Not fine\n");
+		      !intel_de_read(dev_priv, DMC_PROGRAM(0)),
+		      "DMC program storage start is NULL\n");
+	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, DMC_SSP_BASE),
+		      "DMC SSP Base Not fine\n");
+	drm_WARN_ONCE(&dev_priv->drm, !intel_de_read(dev_priv, DMC_HTP_SKL),
+		      "DMC HTP Not fine\n");
 }
 
 static struct i915_power_well *
@@ -6218,7 +6218,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	/*
 	 * In case of suspend-to-idle (aka S0ix) on a DMC platform without DC9
 	 * support don't manually deinit the power domains. This also means the
-	 * CSR/DMC firmware will stay active, it will power down any HW
+	 * DMC firmware will stay active, it will power down any HW
 	 * resources as required and also enable deeper system power states
 	 * that would be blocked if the firmware was inactive.
 	 */

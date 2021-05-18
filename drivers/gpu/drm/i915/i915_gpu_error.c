@@ -794,8 +794,8 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		err_printf(m, "DMC loaded: %s\n",
 			   yesno(dmc->dmc_payload));
 		err_printf(m, "DMC fw version: %d.%d\n",
-			   CSR_VERSION_MAJOR(dmc->version),
-			   CSR_VERSION_MINOR(dmc->version));
+			   DMC_VERSION_MAJOR(dmc->version),
+			   DMC_VERSION_MINOR(dmc->version));
 	}
 
 	err_printf(m, "RPM wakelock: %s\n", yesno(error->wakelock));

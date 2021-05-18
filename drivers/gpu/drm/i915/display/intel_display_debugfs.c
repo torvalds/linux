@@ -548,8 +548,8 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	if (!dmc->dmc_payload)
 		goto out;
 
-	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(dmc->version),
-		   CSR_VERSION_MINOR(dmc->version));
+	seq_printf(m, "version: %d.%d\n", DMC_VERSION_MAJOR(dmc->version),
+		   DMC_VERSION_MINOR(dmc->version));
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		if (IS_DGFX(dev_priv)) {
@@ -568,10 +568,10 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 		seq_printf(m, "DC3CO count: %d\n",
 			   intel_de_read(dev_priv, DMC_DEBUG3));
 	} else {
-		dc5_reg = IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
-						 SKL_CSR_DC3_DC5_COUNT;
+		dc5_reg = IS_BROXTON(dev_priv) ? BXT_DMC_DC3_DC5_COUNT :
+						 SKL_DMC_DC3_DC5_COUNT;
 		if (!IS_GEMINILAKE(dev_priv) && !IS_BROXTON(dev_priv))
-			dc6_reg = SKL_CSR_DC5_DC6_COUNT;
+			dc6_reg = SKL_DMC_DC5_DC6_COUNT;
 	}
 
 	seq_printf(m, "DC3 -> DC5 count: %d\n",
@@ -582,10 +582,10 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 
 out:
 	seq_printf(m, "program base: 0x%08x\n",
-		   intel_de_read(dev_priv, CSR_PROGRAM(0)));
+		   intel_de_read(dev_priv, DMC_PROGRAM(0)));
 	seq_printf(m, "ssp base: 0x%08x\n",
-		   intel_de_read(dev_priv, CSR_SSP_BASE));
-	seq_printf(m, "htp: 0x%08x\n", intel_de_read(dev_priv, CSR_HTP_SKL));
+		   intel_de_read(dev_priv, DMC_SSP_BASE));
+	seq_printf(m, "htp: 0x%08x\n", intel_de_read(dev_priv, DMC_HTP_SKL));
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
