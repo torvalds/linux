@@ -166,10 +166,31 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 	struct page *page;
 
 	while (index <= end_index) {
+		/*
+		 * For locked page, we will call end_extent_writepage() on it
+		 * in run_delalloc_range() for the error handling.  That
+		 * end_extent_writepage() function will call
+		 * btrfs_mark_ordered_io_finished() to clear page Ordered and
+		 * run the ordered extent accounting.
+		 *
+		 * Here we can't just clear the Ordered bit, or
+		 * btrfs_mark_ordered_io_finished() would skip the accounting
+		 * for the page range, and the ordered extent will never finish.
+		 */
+		if (index == (page_offset(locked_page) >> PAGE_SHIFT)) {
+			index++;
+			continue;
+		}
 		page = find_get_page(inode->vfs_inode.i_mapping, index);
 		index++;
 		if (!page)
 			continue;
+
+		/*
+		 * Here we just clear all Ordered bits for every page in the
+		 * range, then __endio_write_update_ordered() will handle
+		 * the ordered extent accounting for the range.
+		 */
 		ClearPageOrdered(page);
 		put_page(page);
 	}
