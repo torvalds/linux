@@ -956,6 +956,7 @@ struct fw_image_props {
  * @skip_bmc: should BMC be skipped
  * @sram_bar_id: SRAM bar ID
  * @dram_bar_id: DRAM bar ID
+ * @linux_loaded: true if linux was loaded so far
  */
 struct fw_load_mgr {
 	union {
@@ -969,6 +970,7 @@ struct fw_load_mgr {
 	u8 skip_bmc;
 	u8 sram_bar_id;
 	u8 dram_bar_id;
+	u8 linux_loaded;
 };
 
 /**

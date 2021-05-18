@@ -1115,18 +1115,12 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 *                     b. Check whether hard reset is done by fw app
 	 *
 	 * Preboot:
-	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED), if it is set
+	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED). If set, then-
 	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
-	 * Check GIC privileged bit (CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
+	 * If set, then mark GIC controller to be disabled.
 	 */
 	if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_cpu_boot_dev_sts0_valid = 1;
-
-		/* FW security should be derived from PCI ID, we keep this
-		 * check for backward compatibility
-		 */
-		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_SECURITY_EN)
-			prop->fw_security_disabled = false;
 
 		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
@@ -1149,6 +1143,9 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 
 	dev_dbg(hdev->dev, "firmware-level security is %s\n",
 			prop->fw_security_disabled ? "disabled" : "enabled");
+
+	dev_dbg(hdev->dev, "GIC controller is %s\n",
+			prop->gic_interrupts_enable ? "enabled" : "disabled");
 }
 
 static int hl_fw_static_read_preboot_status(struct hl_device *hdev)
@@ -1941,9 +1938,13 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
 }
 
 /**
- * hl_fw_linux_update_state - update internal data structures after loading
- *                            Linux
- *
+ * hl_fw_linux_update_state -	update internal data structures after Linux
+ *				is loaded.
+ *				Note: Linux initialization is comprised mainly
+ *				of two stages - loading kernel (SRAM_AVAIL)
+ *				& loading ARMCP.
+ *				Therefore reading boot device status in any of
+ *				these stages might result in different values.
  *
  * @hdev: pointer to the habanalabs device structure
  * @cpu_boot_dev_sts0_reg: register holding CPU boot dev status 0
@@ -1956,6 +1957,8 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 						u32 cpu_boot_dev_sts1_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	hdev->fw_loader.linux_loaded = true;
 
 	/* Clear reset status since we need to read again from app */
 	prop->hard_reset_done_by_fw = false;

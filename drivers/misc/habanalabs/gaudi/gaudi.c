@@ -689,6 +689,12 @@ static int gaudi_early_init(struct hl_device *hdev)
 	/* If FW security is enabled at this point it means no access to ELBI */
 	if (!hdev->asic_prop.fw_security_disabled) {
 		hdev->asic_prop.iatu_done_by_fw = true;
+
+		/*
+		 * GIC-security-bit can ONLY be set by CPUCP, so in this stage
+		 * decision can only be taken based on PCI ID security.
+		 */
+		hdev->asic_prop.gic_interrupts_enable = false;
 		goto pci_init;
 	}
 
@@ -3829,6 +3835,7 @@ static void gaudi_init_firmware_loader(struct hl_device *hdev)
 	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
 
 	/* fill common fields */
+	fw_loader->linux_loaded = false;
 	fw_loader->boot_fit_img.image_name = GAUDI_BOOT_FIT_FILE;
 	fw_loader->linux_img.image_name = GAUDI_LINUX_FW_FILE;
 	fw_loader->cpu_timeout = GAUDI_CPU_TIMEOUT_USEC;
@@ -4103,11 +4110,13 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	else
 		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
 
-	irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?
-			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
-			le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
+	if (hdev->fw_loader.linux_loaded) {
+		irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?
+				mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
+				le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
 
-	WREG32(irq_handler_offset, GAUDI_EVENT_HALT_MACHINE);
+		WREG32(irq_handler_offset, GAUDI_EVENT_HALT_MACHINE);
+	}
 
 	if (hdev->asic_prop.fw_security_disabled &&
 				!hdev->asic_prop.hard_reset_done_by_fw) {
