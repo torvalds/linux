@@ -433,8 +433,7 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 
 		/* All required opp-tables found, remove from lazy list */
 		if (!lazy) {
-			list_del(&opp_table->lazy);
-			INIT_LIST_HEAD(&opp_table->lazy);
+			list_del_init(&opp_table->lazy);
 
 			list_for_each_entry(opp, &opp_table->opp_list, node)
 				_required_opps_available(opp, opp_table->required_opp_count);
