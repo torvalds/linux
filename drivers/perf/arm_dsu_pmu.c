@@ -687,7 +687,7 @@ static void dsu_pmu_probe_pmu(struct dsu_pmu *dsu_pmu)
 static void dsu_pmu_set_active_cpu(int cpu, struct dsu_pmu *dsu_pmu)
 {
 	cpumask_set_cpu(cpu, &dsu_pmu->active_cpu);
-	if (irq_set_affinity_hint(dsu_pmu->irq, &dsu_pmu->active_cpu))
+	if (irq_set_affinity(dsu_pmu->irq, &dsu_pmu->active_cpu))
 		pr_warn("Failed to set irq affinity to %d\n", cpu);
 }
 
@@ -769,7 +769,6 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	if (rc) {
 		cpuhp_state_remove_instance(dsu_pmu_cpuhp_state,
 						 &dsu_pmu->cpuhp_node);
-		irq_set_affinity_hint(dsu_pmu->irq, NULL);
 	}
 
 	return rc;
@@ -781,7 +780,6 @@ static int dsu_pmu_device_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&dsu_pmu->pmu);
 	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_node);
-	irq_set_affinity_hint(dsu_pmu->irq, NULL);
 
 	return 0;
 }
@@ -840,10 +838,8 @@ static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
 
 	dst = dsu_pmu_get_online_cpu_any_but(dsu_pmu, cpu);
 	/* If there are no active CPUs in the DSU, leave IRQ disabled */
-	if (dst >= nr_cpu_ids) {
-		irq_set_affinity_hint(dsu_pmu->irq, NULL);
+	if (dst >= nr_cpu_ids)
 		return 0;
-	}
 
 	perf_pmu_migrate_context(&dsu_pmu->pmu, cpu, dst);
 	dsu_pmu_set_active_cpu(dst, dsu_pmu);
