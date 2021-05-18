@@ -354,7 +354,6 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 #endif
 1:
 	ldr_l	x4, idmap_ptrs_per_pgd
-	mov	x5, x3				// __pa(__idmap_text_start)
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 
 	map_memory x0, x1, x3, x6, x7, x3, x4, x10, x11, x12, x13, x14
