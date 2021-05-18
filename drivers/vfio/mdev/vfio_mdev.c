@@ -26,19 +26,10 @@ static int vfio_mdev_open(struct vfio_device *core_vdev)
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
 	struct mdev_parent *parent = mdev->type->parent;
 
-	int ret;
-
 	if (unlikely(!parent->ops->open))
 		return -EINVAL;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
-
-	ret = parent->ops->open(mdev);
-	if (ret)
-		module_put(THIS_MODULE);
-
-	return ret;
+	return parent->ops->open(mdev);
 }
 
 static void vfio_mdev_release(struct vfio_device *core_vdev)
@@ -48,8 +39,6 @@ static void vfio_mdev_release(struct vfio_device *core_vdev)
 
 	if (likely(parent->ops->release))
 		parent->ops->release(mdev);
-
-	module_put(THIS_MODULE);
 }
 
 static long vfio_mdev_unlocked_ioctl(struct vfio_device *core_vdev,
