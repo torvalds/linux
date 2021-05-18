@@ -434,30 +434,35 @@ static void zynqmp_disp_avbuf_write(struct zynqmp_disp_avbuf *avbuf,
 	writel(val, avbuf->base + reg);
 }
 
+static bool zynqmp_disp_layer_is_video(const struct zynqmp_disp_layer *layer)
+{
+	return layer->id == ZYNQMP_DISP_LAYER_VID;
+}
+
 /**
  * zynqmp_disp_avbuf_set_format - Set the input format for a layer
  * @avbuf: Audio/video buffer manager
- * @layer: The layer ID
+ * @layer: The layer
  * @fmt: The format information
  *
  * Set the video buffer manager format for @layer to @fmt.
  */
 static void zynqmp_disp_avbuf_set_format(struct zynqmp_disp_avbuf *avbuf,
-					 enum zynqmp_disp_layer_id layer,
+					 struct zynqmp_disp_layer *layer,
 					 const struct zynqmp_disp_format *fmt)
 {
 	unsigned int i;
 	u32 val;
 
 	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_FMT);
-	val &= layer == ZYNQMP_DISP_LAYER_VID
+	val &= zynqmp_disp_layer_is_video(layer)
 	    ? ~ZYNQMP_DISP_AV_BUF_FMT_NL_VID_MASK
 	    : ~ZYNQMP_DISP_AV_BUF_FMT_NL_GFX_MASK;
 	val |= fmt->buf_fmt;
 	zynqmp_disp_avbuf_write(avbuf, ZYNQMP_DISP_AV_BUF_FMT, val);
 
 	for (i = 0; i < ZYNQMP_DISP_AV_BUF_NUM_SF; i++) {
-		unsigned int reg = layer == ZYNQMP_DISP_LAYER_VID
+		unsigned int reg = zynqmp_disp_layer_is_video(layer)
 				 ? ZYNQMP_DISP_AV_BUF_VID_COMP_SF(i)
 				 : ZYNQMP_DISP_AV_BUF_GFX_COMP_SF(i);
 
@@ -573,19 +578,19 @@ static void zynqmp_disp_avbuf_disable_audio(struct zynqmp_disp_avbuf *avbuf)
 /**
  * zynqmp_disp_avbuf_enable_video - Enable a video layer
  * @avbuf: Audio/video buffer manager
- * @layer: The layer ID
+ * @layer: The layer
  * @mode: Operating mode of layer
  *
  * Enable the video/graphics buffer for @layer.
  */
 static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp_avbuf *avbuf,
-					   enum zynqmp_disp_layer_id layer,
+					   struct zynqmp_disp_layer *layer,
 					   enum zynqmp_disp_layer_mode mode)
 {
 	u32 val;
 
 	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT);
-	if (layer == ZYNQMP_DISP_LAYER_VID) {
+	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
 		if (mode == ZYNQMP_DISP_LAYER_NONLIVE)
 			val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MEM;
@@ -605,17 +610,17 @@ static void zynqmp_disp_avbuf_enable_video(struct zynqmp_disp_avbuf *avbuf,
 /**
  * zynqmp_disp_avbuf_disable_video - Disable a video layer
  * @avbuf: Audio/video buffer manager
- * @layer: The layer ID
+ * @layer: The layer
  *
  * Disable the video/graphics buffer for @layer.
  */
 static void zynqmp_disp_avbuf_disable_video(struct zynqmp_disp_avbuf *avbuf,
-					    enum zynqmp_disp_layer_id layer)
+					    struct zynqmp_disp_layer *layer)
 {
 	u32 val;
 
 	val = zynqmp_disp_avbuf_read(avbuf, ZYNQMP_DISP_AV_BUF_OUTPUT);
-	if (layer == ZYNQMP_DISP_LAYER_VID) {
+	if (zynqmp_disp_layer_is_video(layer)) {
 		val &= ~ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_MASK;
 		val |= ZYNQMP_DISP_AV_BUF_OUTPUT_VID1_NONE;
 	} else {
@@ -807,7 +812,7 @@ static void zynqmp_disp_blend_layer_set_csc(struct zynqmp_disp_blend *blend,
 		}
 	}
 
-	if (layer->id == ZYNQMP_DISP_LAYER_VID)
+	if (zynqmp_disp_layer_is_video(layer))
 		reg = ZYNQMP_DISP_V_BLEND_IN1CSC_COEFF(0);
 	else
 		reg = ZYNQMP_DISP_V_BLEND_IN2CSC_COEFF(0);
@@ -818,7 +823,7 @@ static void zynqmp_disp_blend_layer_set_csc(struct zynqmp_disp_blend *blend,
 		zynqmp_disp_blend_write(blend, reg + 8, coeffs[i + swap[2]]);
 	}
 
-	if (layer->id == ZYNQMP_DISP_LAYER_VID)
+	if (zynqmp_disp_layer_is_video(layer))
 		reg = ZYNQMP_DISP_V_BLEND_IN1CSC_OFFSET(0);
 	else
 		reg = ZYNQMP_DISP_V_BLEND_IN2CSC_OFFSET(0);
@@ -1025,7 +1030,7 @@ zynqmp_disp_layer_find_format(struct zynqmp_disp_layer *layer,
  */
 static void zynqmp_disp_layer_enable(struct zynqmp_disp_layer *layer)
 {
-	zynqmp_disp_avbuf_enable_video(&layer->disp->avbuf, layer->id,
+	zynqmp_disp_avbuf_enable_video(&layer->disp->avbuf, layer,
 				       ZYNQMP_DISP_LAYER_NONLIVE);
 	zynqmp_disp_blend_layer_enable(&layer->disp->blend, layer);
 
@@ -1046,7 +1051,7 @@ static void zynqmp_disp_layer_disable(struct zynqmp_disp_layer *layer)
 	for (i = 0; i < layer->drm_fmt->num_planes; i++)
 		dmaengine_terminate_sync(layer->dmas[i].chan);
 
-	zynqmp_disp_avbuf_disable_video(&layer->disp->avbuf, layer->id);
+	zynqmp_disp_avbuf_disable_video(&layer->disp->avbuf, layer);
 	zynqmp_disp_blend_layer_disable(&layer->disp->blend, layer);
 }
 
@@ -1067,7 +1072,7 @@ static void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
 	layer->disp_fmt = zynqmp_disp_layer_find_format(layer, info->format);
 	layer->drm_fmt = info;
 
-	zynqmp_disp_avbuf_set_format(&layer->disp->avbuf, layer->id,
+	zynqmp_disp_avbuf_set_format(&layer->disp->avbuf, layer,
 				     layer->disp_fmt);
 
 	/*
@@ -1244,8 +1249,8 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 			drm_formats[j] = layer->info->formats[j].drm_fmt;
 
 		/* Graphics layer is primary, and video layer is overlay. */
-		type = i == ZYNQMP_DISP_LAYER_GFX
-		     ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
+		type = zynqmp_disp_layer_is_video(layer)
+		     ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
 		ret = drm_universal_plane_init(disp->drm, &layer->plane, 0,
 					       &zynqmp_disp_plane_funcs,
 					       drm_formats,
