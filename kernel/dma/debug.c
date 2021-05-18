@@ -566,11 +566,9 @@ static void add_dma_entry(struct dma_debug_entry *entry)
 	if (rc == -ENOMEM) {
 		pr_err("cacheline tracking ENOMEM, dma-debug disabled\n");
 		global_disable = true;
+	} else if (rc == -EEXIST) {
+		pr_err("cacheline tracking EEXIST, overlapping mappings aren't supported\n");
 	}
-
-	/* TODO: report -EEXIST errors here as overlapping mappings are
-	 * not supported by the DMA API
-	 */
 }
 
 static int dma_debug_create_entries(gfp_t gfp)
