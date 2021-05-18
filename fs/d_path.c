@@ -211,11 +211,6 @@ char *d_absolute_path(const struct path *path,
 	return res;
 }
 
-static int prepend_unreachable(char **buffer, int *buflen)
-{
-	return prepend(buffer, buflen, "(unreachable)", 13);
-}
-
 static void get_fs_root_rcu(struct fs_struct *fs, struct path *root)
 {
 	unsigned seq;
@@ -414,17 +409,13 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 		int buflen = PATH_MAX;
 
 		prepend(&cwd, &buflen, "", 1);
-		error = prepend_path(&pwd, &root, &cwd, &buflen);
+		if (prepend_path(&pwd, &root, &cwd, &buflen) > 0)
+			prepend(&cwd, &buflen, "(unreachable)", 13);
 		rcu_read_unlock();
 
-		if (error < 0)
+		if (buflen < 0) {
+			error = -ENAMETOOLONG;
 			goto out;
-
-		/* Unreachable from current root */
-		if (error > 0) {
-			error = prepend_unreachable(&cwd, &buflen);
-			if (error)
-				goto out;
 		}
 
 		error = -ERANGE;
