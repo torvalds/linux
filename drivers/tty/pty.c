@@ -282,7 +282,7 @@ static void pty_set_termios(struct tty_struct *tty,
 }
 
 /**
- *	pty_do_resize		-	resize event
+ *	pty_resize		-	resize event
  *	@tty: tty being resized
  *	@ws: window size being set.
  *
