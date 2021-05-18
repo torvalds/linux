@@ -718,6 +718,11 @@ void __init init_sigframe_size(void)
 	pr_info("max sigframe size: %lu\n", max_frame_size);
 }
 
+unsigned long get_sigframe_size(void)
+{
+	return max_frame_size;
+}
+
 static inline int is_ia32_compat_frame(struct ksignal *ksig)
 {
 	return IS_ENABLED(CONFIG_IA32_EMULATION) &&
