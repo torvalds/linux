@@ -851,6 +851,14 @@ struct smb2_write_rsp {
 
 #define SMB2_0_IOCTL_IS_FSCTL 0x00000001
 
+struct duplicate_extents_to_file {
+	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
+	__u64 VolatileFileHandle;
+	__le64 SourceFileOffset;
+	__le64 TargetFileOffset;
+	__le64 ByteCount;  /* Bytes to be copied */
+} __packed;
+
 struct smb2_ioctl_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 57 */
