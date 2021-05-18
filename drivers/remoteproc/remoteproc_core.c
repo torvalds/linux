@@ -40,6 +40,7 @@
 #include <linux/virtio_ring.h>
 #include <asm/byteorder.h>
 #include <linux/platform_device.h>
+#include <trace/hooks/remoteproc.h>
 
 #include "remoteproc_internal.h"
 
@@ -1965,6 +1966,8 @@ static void rproc_crash_handler_work(struct work_struct *work)
 
 	if (!rproc->recovery_disabled)
 		rproc_trigger_recovery(rproc);
+
+	trace_android_vh_rproc_recovery(rproc);
 
 	pm_relax(rproc->dev.parent);
 }
