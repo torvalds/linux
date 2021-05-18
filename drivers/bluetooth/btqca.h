@@ -80,7 +80,8 @@ enum qca_tlv_dnld_mode {
 
 enum qca_tlv_type {
 	TLV_TYPE_PATCH = 1,
-	TLV_TYPE_NVM
+	TLV_TYPE_NVM,
+	ELF_TYPE_PATCH,
 };
 
 struct qca_fw_config {
