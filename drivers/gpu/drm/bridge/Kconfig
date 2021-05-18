@@ -50,6 +50,18 @@ config DRM_CHRONTEL_CH7033
 
 	  If in doubt, say "N".
 
+config DRM_CROS_EC_ANX7688
+	tristate "ChromeOS EC ANX7688 bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	help
+	  ChromeOS EC ANX7688 is an ultra-low power
+	  4K Ultra-HD (4096x2160p60) mobile HD transmitter
+	  designed for ChromeOS devices. It converts HDMI
+	  2.0 to DisplayPort 1.3 Ultra-HD. It is connected
+	  to the ChromeOS Embedded Controller.
+
 config DRM_DISPLAY_CONNECTOR
 	tristate "Display connector support"
 	depends on OF
