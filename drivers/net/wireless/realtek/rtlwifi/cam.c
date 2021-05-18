@@ -167,7 +167,7 @@ void rtl_cam_mark_invalid(struct ieee80211_hw *hw, u8 uc_index)
 
 	u32 ul_command;
 	u32 ul_content;
-	u32 ul_enc_algo = rtlpriv->cfg->maps[SEC_CAM_AES];
+	u32 ul_enc_algo;
 
 	switch (rtlpriv->sec.pairwise_enc_algorithm) {
 	case WEP40_ENCRYPTION:
