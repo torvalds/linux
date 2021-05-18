@@ -28,7 +28,6 @@
 
 #include "hd64570.h"
 
-
 static const char* version = "Moxa C101 driver version: 1.15";
 static const char* devname = "C101";
 
@@ -50,7 +49,6 @@ static const char* devname = "C101";
 #define PAGE0_ALWAYS_MAPPED
 
 static char *hw;		/* pointer to hw=xxx command line string */
-
 
 typedef struct card_s {
 	struct net_device *dev;
@@ -79,7 +77,6 @@ typedef card_t port_t;
 static card_t *first_card;
 static card_t **new_card = &first_card;
 
-
 #define sca_in(reg, card)	   readb((card)->win0base + C101_SCA + (reg))
 #define sca_out(value, reg, card)  writeb(value, (card)->win0base + C101_SCA + (reg))
 #define sca_inw(reg, card)	   readw((card)->win0base + C101_SCA + (reg))
@@ -99,7 +96,6 @@ static card_t **new_card = &first_card;
 #define get_port(card, port)	   (card)
 static void sca_msci_intr(port_t *port);
 
-
 static inline u8 sca_get_page(card_t *card)
 {
 	return card->page;
@@ -111,9 +107,7 @@ static inline void openwin(card_t *card, u8 page)
 	writeb(page, card->win0base + C101_PAGE);
 }
 
-
 #include "hd64570.c"
-
 
 static inline void set_carrier(port_t *port)
 {
@@ -122,7 +116,6 @@ static inline void set_carrier(port_t *port)
 	else
 		netif_carrier_off(port_to_dev(port));
 }
-
 
 static void sca_msci_intr(port_t *port)
 {
@@ -144,7 +137,6 @@ static void sca_msci_intr(port_t *port)
 	if (stat & ST1_CDCD)
 		set_carrier(port);
 }
-
 
 static void c101_set_iface(port_t *port)
 {
@@ -179,7 +171,6 @@ static void c101_set_iface(port_t *port)
 	sca_set_port(port);
 }
 
-
 static int c101_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
@@ -206,7 +197,6 @@ static int c101_open(struct net_device *dev)
 	return 0;
 }
 
-
 static int c101_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
@@ -217,7 +207,6 @@ static int c101_close(struct net_device *dev)
 	hdlc_close(dev);
 	return 0;
 }
-
 
 static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -275,8 +264,6 @@ static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return hdlc_ioctl(dev, ifr, cmd);
 	}
 }
-
-
 
 static void c101_destroy_card(card_t *card)
 {
@@ -392,8 +379,6 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	return 0;
 }
 
-
-
 static int __init c101_init(void)
 {
 	if (hw == NULL) {
@@ -425,7 +410,6 @@ static int __init c101_init(void)
 	return first_card ? 0 : -EINVAL;
 }
 
-
 static void __exit c101_cleanup(void)
 {
 	card_t *card = first_card;
@@ -437,7 +421,6 @@ static void __exit c101_cleanup(void)
 		c101_destroy_card(ptr);
 	}
 }
-
 
 module_init(c101_init);
 module_exit(c101_cleanup);
