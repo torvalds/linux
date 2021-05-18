@@ -34,15 +34,15 @@ static void prepend(char **buffer, int *buflen, const char *str, int namelen)
  *
  * Load acquire is needed to make sure that we see that terminating NUL.
  */
-static int prepend_name(char **buffer, int *buflen, const struct qstr *name)
+static bool prepend_name(char **buffer, int *buflen, const struct qstr *name)
 {
 	const char *dname = smp_load_acquire(&name->name); /* ^^^ */
 	u32 dlen = READ_ONCE(name->len);
 	char *p;
 
 	*buflen -= dlen + 1;
-	if (*buflen < 0)
-		return -ENAMETOOLONG;
+	if (unlikely(*buflen < 0))
+		return false;
 	p = *buffer -= dlen + 1;
 	*p++ = '/';
 	while (dlen--) {
@@ -51,7 +51,7 @@ static int prepend_name(char **buffer, int *buflen, const struct qstr *name)
 			break;
 		*p++ = c;
 	}
-	return 0;
+	return true;
 }
 
 /**
@@ -127,7 +127,7 @@ restart:
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
-		if (unlikely(prepend_name(&bptr, &blen, &dentry->d_name) < 0))
+		if (!prepend_name(&bptr, &blen, &dentry->d_name))
 			break;
 
 		dentry = parent;
@@ -305,7 +305,7 @@ restart:
 		const struct dentry *parent = dentry->d_parent;
 
 		prefetch(parent);
-		if (unlikely(prepend_name(&end, &len, &dentry->d_name) < 0))
+		if (!prepend_name(&end, &len, &dentry->d_name))
 			break;
 
 		dentry = parent;
