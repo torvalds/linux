@@ -1010,9 +1010,7 @@ static __init int svm_hardware_setup(void)
 	}
 
 	if (avic) {
-		if (!npt_enabled ||
-		    !boot_cpu_has(X86_FEATURE_AVIC) ||
-		    !IS_ENABLED(CONFIG_X86_LOCAL_APIC)) {
+		if (!npt_enabled || !boot_cpu_has(X86_FEATURE_AVIC)) {
 			avic = false;
 		} else {
 			pr_info("AVIC enabled\n");
