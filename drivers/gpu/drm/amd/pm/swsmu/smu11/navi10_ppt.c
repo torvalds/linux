@@ -1273,6 +1273,8 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_MCLK:
 	case SMU_UCLK:
 	case SMU_FCLK:
+	case SMU_VCLK:
+	case SMU_DCLK:
 	case SMU_DCEFCLK:
 		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
@@ -2694,8 +2696,6 @@ static ssize_t navi10_get_legacy_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v1_3);
-out:
-	return ret;
 }
 
 static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
@@ -2771,8 +2771,6 @@ static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v1_3);
-out:
-	return ret;
 }
 
 static ssize_t navi12_get_legacy_gpu_metrics(struct smu_context *smu,
@@ -2851,8 +2849,6 @@ static ssize_t navi12_get_legacy_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v1_3);
-out:
-	return ret;
 }
 
 static ssize_t navi12_get_gpu_metrics(struct smu_context *smu,
@@ -2933,8 +2929,6 @@ static ssize_t navi12_get_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v1_3);
-out:
-	return ret;
 }
 
 static ssize_t navi1x_get_gpu_metrics(struct smu_context *smu,
