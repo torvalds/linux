@@ -9,6 +9,7 @@
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 add function g_mbus_config
+ * V0.0X01.0X06 set max framerate to strictly 30FPS for cts
  */
 
 #include <linux/clk.h>
@@ -235,11 +236,11 @@ static const struct gc2385_mode supported_modes[] = {
 		.height = 1200,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 304472,
+			.denominator = 300000,
 		},
 		.exp_def = 0x0480,
 		.hts_def = 0x10DC,
-		.vts_def = 0x04E0,
+		.vts_def = 0x04F0,
 		.reg_list = gc2385_1600x1200_regs,
 	},
 };
