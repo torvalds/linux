@@ -74,7 +74,7 @@ u32 rtw_read32(struct adapter *adapter, u32 addr)
 
 }
 
-int _rtw_write8(struct adapter *adapter, u32 addr, u8 val)
+int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
 {
 	/* struct	io_queue	*pio_queue = (struct io_queue *)adapter->pio_queue; */
 	struct io_priv *pio_priv = &adapter->iopriv;
