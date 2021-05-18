@@ -834,7 +834,7 @@ static int check_family_data(struct w1_slave *sl)
 }
 
 /**
- * support_bulk_read() - check if slave support bulk read
+ * bulk_read_support() - check if slave support bulk read
  * @sl: device to check the ability
  *
  * Return: true if bulk read is supported, false if not or error
