@@ -184,7 +184,7 @@ char *__d_path(const struct path *path,
 	char *res = buf + buflen;
 	int error;
 
-	prepend(&res, &buflen, "\0", 1);
+	prepend(&res, &buflen, "", 1);
 	error = prepend_path(path, root, &res, &buflen);
 
 	if (error < 0)
@@ -201,7 +201,7 @@ char *d_absolute_path(const struct path *path,
 	char *res = buf + buflen;
 	int error;
 
-	prepend(&res, &buflen, "\0", 1);
+	prepend(&res, &buflen, "", 1);
 	error = prepend_path(path, &root, &res, &buflen);
 
 	if (error > 1)
@@ -218,7 +218,7 @@ static int path_with_deleted(const struct path *path,
 			     const struct path *root,
 			     char **buf, int *buflen)
 {
-	prepend(buf, buflen, "\0", 1);
+	prepend(buf, buflen, "", 1);
 	if (d_unlinked(path->dentry)) {
 		int error = prepend(buf, buflen, " (deleted)", 10);
 		if (error)
@@ -341,7 +341,7 @@ restart:
 	dentry = d;
 	end = buf + buflen;
 	len = buflen;
-	prepend(&end, &len, "\0", 1);
+	prepend(&end, &len, "", 1);
 	/* Get '/' right */
 	retval = end-1;
 	*retval = '/';
@@ -444,7 +444,7 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 		char *cwd = page + PATH_MAX;
 		int buflen = PATH_MAX;
 
-		prepend(&cwd, &buflen, "\0", 1);
+		prepend(&cwd, &buflen, "", 1);
 		error = prepend_path(&pwd, &root, &cwd, &buflen);
 		rcu_read_unlock();
 
