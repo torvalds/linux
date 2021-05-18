@@ -1121,8 +1121,7 @@ void __init debug_ll_io_init(void)
 }
 #endif
 
-static unsigned long __initdata vmalloc_min =
-	VMALLOC_END - (240 << 20) - VMALLOC_OFFSET;
+static unsigned long __initdata vmalloc_start = VMALLOC_END - (240 << 20);
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
@@ -1140,14 +1139,14 @@ static int __init early_vmalloc(char *arg)
 			vmalloc_reserve >> 20);
 	}
 
-	vmalloc_max = VMALLOC_END - (PAGE_OFFSET + SZ_32M);
+	vmalloc_max = VMALLOC_END - (PAGE_OFFSET + SZ_32M + VMALLOC_OFFSET);
 	if (vmalloc_reserve > vmalloc_max) {
 		vmalloc_reserve = vmalloc_max;
 		pr_warn("vmalloc area is too big, limiting to %luMB\n",
 			vmalloc_reserve >> 20);
 	}
 
-	vmalloc_min = VMALLOC_END - vmalloc_reserve;
+	vmalloc_start = VMALLOC_END - vmalloc_reserve;
 	return 0;
 }
 early_param("vmalloc", early_vmalloc);
@@ -1167,7 +1166,8 @@ void __init adjust_lowmem_bounds(void)
 	 * and may itself be outside the valid range for which phys_addr_t
 	 * and therefore __pa() is defined.
 	 */
-	vmalloc_limit = (u64)vmalloc_min - PAGE_OFFSET + PHYS_OFFSET;
+	vmalloc_limit = (u64)vmalloc_start - VMALLOC_OFFSET -
+			PAGE_OFFSET + PHYS_OFFSET;
 
 	/*
 	 * The first usable region must be PMD aligned. Mark its start
