@@ -8,8 +8,8 @@
 
 #include <linux/module.h>
 #include <linux/parport.h>
-#include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -74,11 +74,7 @@ static void parse_data(struct parport *port, int device, char *str)
 			u = sep + strlen (sep) - 1;
 			while (u >= p && *u == ' ')
 				*u-- = '\0';
-			u = p;
-			while (*u) {
-				*u = toupper(*u);
-				u++;
-			}
+			string_upper(p, p);
 			if (!strcmp(p, "MFG") || !strcmp(p, "MANUFACTURER")) {
 				kfree(info->mfr);
 				info->mfr = kstrdup(sep, GFP_KERNEL);
@@ -90,8 +86,7 @@ static void parse_data(struct parport *port, int device, char *str)
 
 				kfree(info->class_name);
 				info->class_name = kstrdup(sep, GFP_KERNEL);
-				for (u = sep; *u; u++)
-					*u = toupper(*u);
+				string_upper(sep, sep);
 				for (i = 0; classes[i].token; i++) {
 					if (!strcmp(classes[i].token, sep)) {
 						info->class = i;
