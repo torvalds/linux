@@ -632,33 +632,33 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			       const __be32 *ctx_header,
-			       unsigned int *payload_length,
 			       unsigned int *data_blocks,
 			       unsigned int *data_block_counter,
 			       unsigned int *syt, unsigned int packet_index, unsigned int index)
 {
+	unsigned int payload_length;
 	const __be32 *cip_header;
 	unsigned int cip_header_size;
 	int err;
 
-	*payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
+	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
 
 	if (!(s->flags & CIP_NO_HEADER))
 		cip_header_size = 8;
 	else
 		cip_header_size = 0;
 
-	if (*payload_length > cip_header_size + s->ctx_data.tx.max_ctx_payload_length) {
+	if (payload_length > cip_header_size + s->ctx_data.tx.max_ctx_payload_length) {
 		dev_err(&s->unit->device,
 			"Detect jumbo payload: %04x %04x\n",
-			*payload_length, cip_header_size + s->ctx_data.tx.max_ctx_payload_length);
+			payload_length, cip_header_size + s->ctx_data.tx.max_ctx_payload_length);
 		return -EIO;
 	}
 
 	if (cip_header_size > 0) {
-		if (*payload_length >= cip_header_size) {
+		if (payload_length >= cip_header_size) {
 			cip_header = ctx_header + 2;
-			err = check_cip_header(s, cip_header, *payload_length, data_blocks,
+			err = check_cip_header(s, cip_header, payload_length, data_blocks,
 					       data_block_counter, syt);
 			if (err < 0)
 				return err;
@@ -671,15 +671,14 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	} else {
 		cip_header = NULL;
 		err = 0;
-		*data_blocks = *payload_length / sizeof(__be32) /
-			       s->data_block_quadlets;
+		*data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
 		*syt = 0;
 
 		if (*data_block_counter == UINT_MAX)
 			*data_block_counter = 0;
 	}
 
-	trace_amdtp_packet(s, cycle, cip_header, *payload_length, *data_blocks,
+	trace_amdtp_packet(s, cycle, cip_header, payload_length, *data_blocks,
 			   *data_block_counter, packet_index, index);
 
 	return err;
@@ -727,14 +726,13 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
 		unsigned int cycle;
-		unsigned int payload_length;
 		unsigned int data_blocks;
 		unsigned int syt;
 
 		cycle = compute_ohci_cycle_count(ctx_header[1]);
 
-		err = parse_ir_ctx_header(s, cycle, ctx_header, &payload_length,
-					  &data_blocks, &dbc, &syt, packet_index, i);
+		err = parse_ir_ctx_header(s, cycle, ctx_header, &data_blocks, &dbc, &syt,
+					  packet_index, i);
 		if (err < 0)
 			return err;
 
