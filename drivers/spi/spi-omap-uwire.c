@@ -453,7 +453,7 @@ static int uwire_probe(struct platform_device *pdev)
 	struct uwire_spi	*uwire;
 	int			status;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *uwire);
+	master = spi_alloc_master(&pdev->dev, sizeof(*uwire));
 	if (!master)
 		return -ENODEV;
 
