@@ -777,9 +777,9 @@ struct drm_get_cap {
 /**
  * DRM_CLIENT_CAP_STEREO_3D
  *
- * if set to 1, the DRM core will expose the stereo 3D capabilities of the
+ * If set to 1, the DRM core will expose the stereo 3D capabilities of the
  * monitor by advertising the supported 3D layouts in the flags of struct
- * drm_mode_modeinfo.
+ * drm_mode_modeinfo. See ``DRM_MODE_FLAG_3D_*``.
  */
 #define DRM_CLIENT_CAP_STEREO_3D	1
 
@@ -804,6 +804,7 @@ struct drm_get_cap {
  * DRM_CLIENT_CAP_ASPECT_RATIO
  *
  * If set to 1, the DRM core will provide aspect ratio information in modes.
+ * See ``DRM_MODE_FLAG_PIC_AR_*``.
  */
 #define DRM_CLIENT_CAP_ASPECT_RATIO    4
 
