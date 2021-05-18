@@ -1088,4 +1088,6 @@ void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid)
 
 	/* user application will handle SIGBUS signal */
 	send_sig(SIGBUS, p->lead_thread, 0);
+
+	kfd_unref_process(p);
 }
