@@ -14,9 +14,7 @@ int ksmbd_acquire_smb2_tid(struct ida *ida)
 {
 	int id;
 
-	id = __acquire_id(ida, 0, 0);
-	if (id == 0xFFFF)
-		id = __acquire_id(ida, 0, 0);
+	id = __acquire_id(ida, 1, 0xFFFFFFFF);
 
 	return id;
 }
