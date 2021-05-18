@@ -28,9 +28,8 @@
 
 #include "hd64570.h"
 
-
-static const char* version = "Moxa C101 driver version: 1.15";
-static const char* devname = "C101";
+static const char *version = "Moxa C101 driver version: 1.15";
+static const char *devname = "C101";
 
 #undef DEBUG_PKT
 #define DEBUG_RINGS
@@ -50,7 +49,6 @@ static const char* devname = "C101";
 #define PAGE0_ALWAYS_MAPPED
 
 static char *hw;		/* pointer to hw=xxx command line string */
-
 
 typedef struct card_s {
 	struct net_device *dev;
@@ -72,13 +70,12 @@ typedef struct card_s {
 	u8 page;
 
 	struct card_s *next_card;
-}card_t;
+} card_t;
 
 typedef card_t port_t;
 
 static card_t *first_card;
 static card_t **new_card = &first_card;
-
 
 #define sca_in(reg, card)	   readb((card)->win0base + C101_SCA + (reg))
 #define sca_out(value, reg, card)  writeb(value, (card)->win0base + C101_SCA + (reg))
@@ -87,8 +84,8 @@ static card_t **new_card = &first_card;
 /* EDA address register must be set in EDAL, EDAH order - 8 bit ISA bus */
 #define sca_outw(value, reg, card) do { \
 	writeb(value & 0xFF, (card)->win0base + C101_SCA + (reg)); \
-	writeb((value >> 8 ) & 0xFF, (card)->win0base + C101_SCA + (reg + 1));\
-} while(0)
+	writeb((value >> 8) & 0xFF, (card)->win0base + C101_SCA + (reg + 1));\
+} while (0)
 
 #define port_to_card(port)	   (port)
 #define log_node(port)		   (0)
@@ -98,7 +95,6 @@ static card_t **new_card = &first_card;
 #define winbase(card)      	   ((card)->win0base + 0x2000)
 #define get_port(card, port)	   (card)
 static void sca_msci_intr(port_t *port);
-
 
 static inline u8 sca_get_page(card_t *card)
 {
@@ -111,9 +107,7 @@ static inline void openwin(card_t *card, u8 page)
 	writeb(page, card->win0base + C101_PAGE);
 }
 
-
 #include "hd64570.c"
-
 
 static inline void set_carrier(port_t *port)
 {
@@ -122,7 +116,6 @@ static inline void set_carrier(port_t *port)
 	else
 		netif_carrier_off(port_to_dev(port));
 }
-
 
 static void sca_msci_intr(port_t *port)
 {
@@ -145,13 +138,12 @@ static void sca_msci_intr(port_t *port)
 		set_carrier(port);
 }
 
-
 static void c101_set_iface(port_t *port)
 {
 	u8 rxs = port->rxs & CLK_BRG_MASK;
 	u8 txs = port->txs & CLK_BRG_MASK;
 
-	switch(port->settings.clock_type) {
+	switch (port->settings.clock_type) {
 	case CLOCK_INT:
 		rxs |= CLK_BRG_RX; /* TX clock */
 		txs |= CLK_RXCLK_TX; /* BRG output */
@@ -179,7 +171,6 @@ static void c101_set_iface(port_t *port)
 	sca_set_port(port);
 }
 
-
 static int c101_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
@@ -206,7 +197,6 @@ static int c101_open(struct net_device *dev)
 	return 0;
 }
 
-
 static int c101_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
@@ -217,7 +207,6 @@ static int c101_close(struct net_device *dev)
 	hdlc_close(dev);
 	return 0;
 }
-
 
 static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -240,7 +229,7 @@ static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
-	switch(ifr->ifr_settings.type) {
+	switch (ifr->ifr_settings.type) {
 	case IF_GET_IFACE:
 		ifr->ifr_settings.type = IF_IFACE_SYNC_SERIAL;
 		if (ifr->ifr_settings.size < size) {
@@ -252,7 +241,7 @@ static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case IF_IFACE_SYNC_SERIAL:
-		if(!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
 		if (copy_from_user(&new_line, line, size))
@@ -275,8 +264,6 @@ static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return hdlc_ioctl(dev, ifr, cmd);
 	}
 }
-
-
 
 static void c101_destroy_card(card_t *card)
 {
@@ -309,12 +296,12 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	card_t *card;
 	int result;
 
-	if (irq<3 || irq>15 || irq == 6) /* FIXME */ {
+	if (irq < 3 || irq > 15 || irq == 6) /* FIXME */ {
 		pr_err("invalid IRQ value\n");
 		return -ENODEV;
 	}
 
-	if (winbase < 0xC0000 || winbase > 0xDFFFF || (winbase & 0x3FFF) !=0) {
+	if (winbase < 0xC0000 || winbase > 0xDFFFF || (winbase & 0x3FFF) != 0) {
 		pr_err("invalid RAM value\n");
 		return -ENODEV;
 	}
@@ -392,8 +379,6 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	return 0;
 }
 
-
-
 static int __init c101_init(void)
 {
 	if (hw == NULL) {
@@ -419,12 +404,11 @@ static int __init c101_init(void)
 
 		if (*hw == '\x0')
 			return first_card ? 0 : -EINVAL;
-	}while(*hw++ == ':');
+	} while (*hw++ == ':');
 
 	pr_err("invalid hardware parameters\n");
 	return first_card ? 0 : -EINVAL;
 }
-
 
 static void __exit c101_cleanup(void)
 {
@@ -437,7 +421,6 @@ static void __exit c101_cleanup(void)
 		c101_destroy_card(ptr);
 	}
 }
-
 
 module_init(c101_init);
 module_exit(c101_cleanup);
