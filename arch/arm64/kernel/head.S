@@ -550,7 +550,7 @@ SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
 	cmp	w0, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
-1:	str	w0, [x1]			// This CPU has booted in EL1
+1:	str	w0, [x1]			// Save CPU boot mode
 	dmb	sy
 	dc	ivac, x1			// Invalidate potentially stale cache line
 	ret
