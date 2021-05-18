@@ -59,51 +59,74 @@
 #define ST_MAGN_4_OUT_Y_L_ADDR			0x0a
 #define ST_MAGN_4_OUT_Z_L_ADDR			0x0c
 
+static const struct iio_mount_matrix *
+st_magn_get_mount_matrix(const struct iio_dev *indio_dev,
+			 const struct iio_chan_spec *chan)
+{
+	struct st_sensor_data *mdata = iio_priv(indio_dev);
+
+	return &mdata->mount_matrix;
+}
+
+static const struct iio_chan_spec_ext_info st_magn_mount_matrix_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, st_magn_get_mount_matrix),
+	{ }
+};
+
 static const struct iio_chan_spec st_magn_16bit_channels[] = {
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_BE, 16, 16,
-			ST_MAGN_DEFAULT_OUT_X_H_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			ST_MAGN_DEFAULT_OUT_X_H_ADDR,
+			st_magn_mount_matrix_ext_info),
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_BE, 16, 16,
-			ST_MAGN_DEFAULT_OUT_Y_H_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			ST_MAGN_DEFAULT_OUT_Y_H_ADDR,
+			st_magn_mount_matrix_ext_info),
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_BE, 16, 16,
-			ST_MAGN_DEFAULT_OUT_Z_H_ADDR),
+			ST_MAGN_DEFAULT_OUT_Z_H_ADDR,
+			st_magn_mount_matrix_ext_info),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
 static const struct iio_chan_spec st_magn_2_16bit_channels[] = {
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
-			ST_MAGN_2_OUT_X_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			ST_MAGN_2_OUT_X_L_ADDR,
+			st_magn_mount_matrix_ext_info),
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
-			ST_MAGN_2_OUT_Y_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			ST_MAGN_2_OUT_Y_L_ADDR,
+			st_magn_mount_matrix_ext_info),
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
-			ST_MAGN_2_OUT_Z_L_ADDR),
+			ST_MAGN_2_OUT_Z_L_ADDR,
+			st_magn_mount_matrix_ext_info),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
 static const struct iio_chan_spec st_magn_3_16bit_channels[] = {
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
-			ST_MAGN_3_OUT_X_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			ST_MAGN_3_OUT_X_L_ADDR,
+			st_magn_mount_matrix_ext_info),
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
-			ST_MAGN_3_OUT_Y_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			ST_MAGN_3_OUT_Y_L_ADDR,
+			st_magn_mount_matrix_ext_info),
+	ST_SENSORS_LSM_CHANNELS_EXT(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
-			ST_MAGN_3_OUT_Z_L_ADDR),
+			ST_MAGN_3_OUT_Z_L_ADDR,
+			st_magn_mount_matrix_ext_info),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -606,6 +629,10 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	mdata->num_data_channels = ST_MAGN_NUMBER_DATA_CHANNELS;
 	indio_dev->channels = mdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
+
+	err = iio_read_mount_matrix(mdata->dev, &mdata->mount_matrix);
+	if (err)
+		return err;
 
 	mdata->current_fullscale = &mdata->sensor_settings->fs.fs_avl[0];
 	mdata->odr = mdata->sensor_settings->odr.odr_avl[0].hz;
