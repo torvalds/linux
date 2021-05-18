@@ -321,6 +321,7 @@
   device_add_groups
   device_create
   device_create_file
+  device_create_with_groups
   device_destroy
   device_find_child
   device_for_each_child
@@ -729,6 +730,7 @@
   file_path
   filp_close
   filp_open_block
+  find_extend_vma
   find_get_pid
   find_next_bit
   find_next_zero_bit
