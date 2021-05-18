@@ -32,6 +32,12 @@
 #include "../amdtp-am824.h"
 #include "../cmp.h"
 
+enum snd_oxfw_quirk {
+	// Postpone transferring packets during handling asynchronous transaction. As a result,
+	// next isochronous packet includes more events than one packet can include.
+	SND_OXFW_QUIRK_JUMBO_PAYLOAD = 0x01,
+};
+
 /* This is an arbitrary number for convinience. */
 #define	SND_OXFW_STREAM_FORMAT_ENTRIES	10
 struct snd_oxfw {
@@ -43,6 +49,8 @@ struct snd_oxfw {
 	bool registered;
 	struct delayed_work dwork;
 
+	// The combination of snd_oxfw_quirk enumeration-constants.
+	unsigned int quirks;
 	bool wrong_dbs;
 	bool has_output;
 	bool has_input;
