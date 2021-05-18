@@ -26,11 +26,11 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "intel_csr.h"
 #include "intel_de.h"
+#include "intel_dmc.h"
 
 /**
- * DOC: DMC firmware support
+ * DOC: DMC Firmware Support
  *
  * From gen9 onwards we have newly added DMC (Display microcontroller) in display
  * engine to save and restore the state of display engine when it enter into

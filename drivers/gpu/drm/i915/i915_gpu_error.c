@@ -36,7 +36,7 @@
 
 #include <drm/drm_print.h>
 
-#include "display/intel_csr.h"
+#include "display/intel_dmc.h"
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"

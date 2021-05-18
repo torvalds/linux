@@ -3,8 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#ifndef __INTEL_CSR_H__
-#define __INTEL_CSR_H__
+#ifndef __INTEL_DMC_H__
+#define __INTEL_DMC_H__
 
 struct drm_i915_private;
 
@@ -18,4 +18,4 @@ void intel_dmc_ucode_fini(struct drm_i915_private *i915);
 void intel_dmc_ucode_suspend(struct drm_i915_private *i915);
 void intel_dmc_ucode_resume(struct drm_i915_private *i915);
 
-#endif /* __INTEL_CSR_H__ */
+#endif /* __INTEL_DMC_H__ */

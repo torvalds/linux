@@ -210,13 +210,13 @@ DPIO
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpio_phy.c
    :doc: DPIO
 
-CSR firmware support for DMC
-----------------------------
+DMC Firmware Support
+--------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
-   :doc: csr support for dmc
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc.c
+   :doc: DMC Firmware Support
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_csr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc.c
    :internal:
 
 Video BIOS Table (VBT)
@@ -537,7 +537,7 @@ The HuC FW layout is the same as the GuC one, see `GuC Firmware Layout`_
 
 DMC
 ---
-See `CSR firmware support for DMC`_
+See `DMC Firmware Support`_
 
 Tracing
 =======
