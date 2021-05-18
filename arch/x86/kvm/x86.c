@@ -10975,7 +10975,7 @@ static int kvm_alloc_memslot_metadata(struct kvm *kvm,
 	 */
 	memset(&slot->arch, 0, sizeof(slot->arch));
 
-	if (kvm->arch.memslots_have_rmaps) {
+	if (kvm_memslots_have_rmaps(kvm)) {
 		r = memslot_rmap_alloc(slot, npages);
 		if (r)
 			return r;
