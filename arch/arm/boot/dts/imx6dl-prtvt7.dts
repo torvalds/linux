@@ -290,7 +290,6 @@
 };
 
 &ssi1 {
-	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
