@@ -1175,6 +1175,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
  * @thresh_hold: Max number of reply descriptors processed
  *				before updating Host Index
+ * @drv_internal_flags: Bit map internal to driver
  * @drv_support_bitmap: driver's supported feature bit map
  * @use_32bit_dma: Flag to use 32 bit consistent dma mask
  * @scsi_io_cb_idx: shost generated commands
@@ -1370,6 +1371,7 @@ struct MPT3SAS_ADAPTER {
 	bool            msix_load_balance;
 	u16		thresh_hold;
 	u8		high_iops_queues;
+	u32             drv_internal_flags;
 	u32		drv_support_bitmap;
 	u32             dma_mask;
 	bool		enable_sdev_max_qd;
@@ -1615,6 +1617,8 @@ struct mpt3sas_debugfs_buffer {
 #define MPT_DRV_SUPPORT_BITMAP_MEMMOVE 0x00000001
 #define MPT_DRV_SUPPORT_BITMAP_ADDNLQUERY	0x00000002
 
+#define MPT_DRV_INTERNAL_FIRST_PE_ISSUED		0x00000001
+
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 
@@ -1708,6 +1712,9 @@ void mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc);
 
 void mpt3sas_base_update_missing_delay(struct MPT3SAS_ADAPTER *ioc,
 	u16 device_missing_delay, u8 io_missing_delay);
+
+int mpt3sas_base_check_for_fault_and_issue_reset(
+	struct MPT3SAS_ADAPTER *ioc);
 
 int mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc);
 
