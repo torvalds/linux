@@ -1479,7 +1479,7 @@ static void fas216_busservice_intr(FAS216_Info *info, unsigned int stat, unsigne
 
 		if (msgqueue_msglength(&info->scsi.msgs) > 1)
 			fas216_cmd(info, CMD_SETATN);
-		/*FALLTHROUGH*/
+		fallthrough;
 
 	/*
 	 * Any          -> Message Out
