@@ -1040,7 +1040,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 	struct omap2_mcspi_cs	*cs = spi->controller_state;
 
 	if (!cs) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		cs->base = mcspi->base + spi->chip_select * 0x14;
