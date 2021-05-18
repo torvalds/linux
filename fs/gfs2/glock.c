@@ -1457,9 +1457,11 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	    glock_blocked_by_withdraw(gl) &&
 	    gh->gh_gl != sdp->sd_jinode_gl) {
 		sdp->sd_glock_dqs_held++;
+		spin_unlock(&gl->gl_lockref.lock);
 		might_sleep();
 		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY,
 			    TASK_UNINTERRUPTIBLE);
+		spin_lock(&gl->gl_lockref.lock);
 	}
 	if (gh->gh_flags & GL_NOCACHE)
 		handle_callback(gl, LM_ST_UNLOCKED, 0, false);
