@@ -63,14 +63,12 @@ static int xiphera_trng_probe(struct platform_device *pdev)
 	int ret;
 	struct xiphera_trng *trng;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
 	trng = devm_kzalloc(dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	trng->mem = devm_ioremap_resource(dev, res);
+	trng->mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(trng->mem))
 		return PTR_ERR(trng->mem);
 

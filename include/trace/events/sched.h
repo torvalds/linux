@@ -174,7 +174,7 @@ DEFINE_EVENT(sched_wakeup_template, sched_waking,
 	     TP_ARGS(p));
 
 /*
- * Tracepoint called when the task is actually woken; p->state == TASK_RUNNNG.
+ * Tracepoint called when the task is actually woken; p->state == TASK_RUNNING.
  * It is not always called from the waking context.
  */
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup,

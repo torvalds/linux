@@ -115,7 +115,7 @@ static void pdc202xx_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	pdc202xx_configure_dmamode	-	set DMA mode in chip
+ *	pdc202xx_set_dmamode	-	set DMA mode in chip
  *	@ap: ATA interface
  *	@adev: ATA device
  *
@@ -214,7 +214,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 }
 
 /**
- *	pdc2026x_bmdma_end		-	DMA engine stop
+ *	pdc2026x_bmdma_stop		-	DMA engine stop
  *	@qc: ATA command
  *
  *	After a DMA completes we need to put the clock back to 33MHz for

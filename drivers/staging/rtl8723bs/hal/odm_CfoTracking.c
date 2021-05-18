@@ -9,8 +9,8 @@
 
 static void odm_SetCrystalCap(void *pDM_VOID, u8 CrystalCap)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PCFO_TRACKING pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	if (pCfoTrack->CrystalCap == CrystalCap)
 		return;
@@ -39,7 +39,7 @@ static void odm_SetCrystalCap(void *pDM_VOID, u8 CrystalCap)
 
 static u8 odm_GetDefaultCrytaltalCap(void *pDM_VOID)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
@@ -49,8 +49,8 @@ static u8 odm_GetDefaultCrytaltalCap(void *pDM_VOID)
 
 static void odm_SetATCStatus(void *pDM_VOID, bool ATCStatus)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PCFO_TRACKING pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	if (pCfoTrack->bATCStatus == ATCStatus)
 		return;
@@ -67,7 +67,7 @@ static void odm_SetATCStatus(void *pDM_VOID, bool ATCStatus)
 static bool odm_GetATCStatus(void *pDM_VOID)
 {
 	bool ATCStatus;
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	ATCStatus = (bool)PHY_QueryBBReg(
 		pDM_Odm->Adapter,
@@ -79,8 +79,8 @@ static bool odm_GetATCStatus(void *pDM_VOID)
 
 void ODM_CfoTrackingReset(void *pDM_VOID)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PCFO_TRACKING pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	pCfoTrack->DefXCap = odm_GetDefaultCrytaltalCap(pDM_Odm);
 	pCfoTrack->bAdjust = true;
@@ -91,8 +91,8 @@ void ODM_CfoTrackingReset(void *pDM_VOID)
 
 void ODM_CfoTrackingInit(void *pDM_VOID)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PCFO_TRACKING pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	pCfoTrack->DefXCap =
 		pCfoTrack->CrystalCap = odm_GetDefaultCrytaltalCap(pDM_Odm);
@@ -118,8 +118,8 @@ void ODM_CfoTrackingInit(void *pDM_VOID)
 
 void ODM_CfoTracking(void *pDM_VOID)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PCFO_TRACKING pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 	int CFO_kHz_A, CFO_kHz_B, CFO_ave = 0;
 	int CFO_ave_diff;
 	int CrystalCap = (int)pCfoTrack->CrystalCap;
@@ -297,9 +297,9 @@ void ODM_CfoTracking(void *pDM_VOID)
 
 void ODM_ParsingCFO(void *pDM_VOID, void *pPktinfo_VOID, s8 *pcfotail)
 {
-	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct odm_packet_info *pPktinfo = pPktinfo_VOID;
-	PCFO_TRACKING pCfoTrack = &pDM_Odm->DM_CfoTrack;
+	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 	u8 i;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_CFO_TRACKING))

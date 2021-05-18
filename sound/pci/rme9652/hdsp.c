@@ -44,9 +44,6 @@ MODULE_PARM_DESC(enable, "Enable/disable specific Hammerfall DSP soundcards.");
 MODULE_AUTHOR("Paul Davis <paul@linuxaudiosystems.com>, Marcus Andersson, Thomas Charbonnel <thomas@undata.org>");
 MODULE_DESCRIPTION("RME Hammerfall DSP");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
-	        "{RME HDSP-9652},"
-		"{RME HDSP-9632}}");
 MODULE_FIRMWARE("rpm_firmware.bin");
 MODULE_FIRMWARE("multiface_firmware.bin");
 MODULE_FIRMWARE("multiface_firmware_rev11.bin");
@@ -5393,7 +5390,8 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 	if (hdsp->port)
 		pci_release_regions(hdsp->pci);
 
-	pci_disable_device(hdsp->pci);
+	if (pci_is_enabled(hdsp->pci))
+		pci_disable_device(hdsp->pci);
 	return 0;
 }
 

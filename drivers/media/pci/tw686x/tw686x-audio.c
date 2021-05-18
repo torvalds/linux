@@ -300,9 +300,9 @@ static void tw686x_audio_dma_free(struct tw686x_dev *dev,
 	for (pb = 0; pb < 2; pb++) {
 		if (!ac->dma_descs[pb].virt)
 			continue;
-		pci_free_consistent(dev->pci_dev, ac->dma_descs[pb].size,
-				    ac->dma_descs[pb].virt,
-				    ac->dma_descs[pb].phys);
+		dma_free_coherent(&dev->pci_dev->dev, ac->dma_descs[pb].size,
+				  ac->dma_descs[pb].virt,
+				  ac->dma_descs[pb].phys);
 		ac->dma_descs[pb].virt = NULL;
 	}
 }
@@ -313,7 +313,7 @@ static int tw686x_audio_dma_alloc(struct tw686x_dev *dev,
 	int pb;
 
 	/*
-	 * In the memcpy DMA mode we allocate a consistent buffer
+	 * In the memcpy DMA mode we allocate a coherent buffer
 	 * and use it for the DMA capture. Otherwise, DMA
 	 * acts on the ALSA buffers as received in pcm_prepare.
 	 */
@@ -324,8 +324,9 @@ static int tw686x_audio_dma_alloc(struct tw686x_dev *dev,
 		u32 reg = pb ? ADMA_B_ADDR[ac->ch] : ADMA_P_ADDR[ac->ch];
 		void *virt;
 
-		virt = pci_alloc_consistent(dev->pci_dev, AUDIO_DMA_SIZE_MAX,
-					    &ac->dma_descs[pb].phys);
+		virt = dma_alloc_coherent(&dev->pci_dev->dev,
+					  AUDIO_DMA_SIZE_MAX,
+					  &ac->dma_descs[pb].phys, GFP_KERNEL);
 		if (!virt) {
 			dev_err(&dev->pci_dev->dev,
 				"dma%d: unable to allocate audio DMA %s-buffer\n",

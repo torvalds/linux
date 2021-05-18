@@ -426,29 +426,13 @@ struct ethtool_link_usettings {
 int __ethtool_get_link_ksettings(struct net_device *dev,
 				 struct ethtool_link_ksettings *link_ksettings)
 {
-	const struct link_mode_info *link_info;
-	int err;
-
 	ASSERT_RTNL();
 
 	if (!dev->ethtool_ops->get_link_ksettings)
 		return -EOPNOTSUPP;
 
 	memset(link_ksettings, 0, sizeof(*link_ksettings));
-
-	link_ksettings->link_mode = -1;
-	err = dev->ethtool_ops->get_link_ksettings(dev, link_ksettings);
-	if (err)
-		return err;
-
-	if (link_ksettings->link_mode != -1) {
-		link_info = &link_mode_params[link_ksettings->link_mode];
-		link_ksettings->base.speed = link_info->speed;
-		link_ksettings->lanes = link_info->lanes;
-		link_ksettings->base.duplex = link_info->duplex;
-	}
-
-	return 0;
+	return dev->ethtool_ops->get_link_ksettings(dev, link_ksettings);
 }
 EXPORT_SYMBOL(__ethtool_get_link_ksettings);
 
@@ -505,7 +489,7 @@ store_link_ksettings_for_user(void __user *to,
 {
 	struct ethtool_link_usettings link_usettings;
 
-	memcpy(&link_usettings.base, &from->base, sizeof(link_usettings));
+	memcpy(&link_usettings, from, sizeof(link_usettings));
 	bitmap_to_arr32(link_usettings.link_modes.supported,
 			from->link_modes.supported,
 			__ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -1844,6 +1828,18 @@ out:
 	return ret;
 }
 
+__printf(2, 3) void ethtool_sprintf(u8 **data, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(*data, ETH_GSTRING_LEN, fmt, args);
+	va_end(args);
+
+	*data += ETH_GSTRING_LEN;
+}
+EXPORT_SYMBOL(ethtool_sprintf);
+
 static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_value id;
@@ -2192,8 +2188,8 @@ static int ethtool_get_ts_info(struct net_device *dev, void __user *useraddr)
 	return 0;
 }
 
-static int __ethtool_get_module_info(struct net_device *dev,
-				     struct ethtool_modinfo *modinfo)
+int ethtool_get_module_info_call(struct net_device *dev,
+				 struct ethtool_modinfo *modinfo)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
@@ -2219,7 +2215,7 @@ static int ethtool_get_module_info(struct net_device *dev,
 	if (copy_from_user(&modinfo, useraddr, sizeof(modinfo)))
 		return -EFAULT;
 
-	ret = __ethtool_get_module_info(dev, &modinfo);
+	ret = ethtool_get_module_info_call(dev, &modinfo);
 	if (ret)
 		return ret;
 
@@ -2229,8 +2225,8 @@ static int ethtool_get_module_info(struct net_device *dev,
 	return 0;
 }
 
-static int __ethtool_get_module_eeprom(struct net_device *dev,
-				       struct ethtool_eeprom *ee, u8 *data)
+int ethtool_get_module_eeprom_call(struct net_device *dev,
+				   struct ethtool_eeprom *ee, u8 *data)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
@@ -2253,12 +2249,12 @@ static int ethtool_get_module_eeprom(struct net_device *dev,
 	int ret;
 	struct ethtool_modinfo modinfo;
 
-	ret = __ethtool_get_module_info(dev, &modinfo);
+	ret = ethtool_get_module_info_call(dev, &modinfo);
 	if (ret)
 		return ret;
 
 	return ethtool_get_any_eeprom(dev, useraddr,
-				      __ethtool_get_module_eeprom,
+				      ethtool_get_module_eeprom_call,
 				      modinfo.eeprom_len);
 }
 
@@ -2556,6 +2552,9 @@ static int ethtool_get_fecparam(struct net_device *dev, void __user *useraddr)
 	if (rc)
 		return rc;
 
+	if (WARN_ON_ONCE(fecparam.reserved))
+		fecparam.reserved = 0;
+
 	if (copy_to_user(useraddr, &fecparam, sizeof(fecparam)))
 		return -EFAULT;
 	return 0;
@@ -2570,6 +2569,12 @@ static int ethtool_set_fecparam(struct net_device *dev, void __user *useraddr)
 
 	if (copy_from_user(&fecparam, useraddr, sizeof(fecparam)))
 		return -EFAULT;
+
+	if (!fecparam.fec || fecparam.fec & ETHTOOL_FEC_NONE)
+		return -EINVAL;
+
+	fecparam.active_fec = 0;
+	fecparam.reserved = 0;
 
 	return dev->ethtool_ops->set_fecparam(dev, &fecparam);
 }

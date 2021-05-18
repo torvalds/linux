@@ -197,6 +197,9 @@ struct bfq_entity {
 
 	/* flag, set if the entity is counted in groups_with_pending_reqs */
 	bool in_groups_with_pending_reqs;
+
+	/* last child queue of entity created (for non-leaf entities) */
+	struct bfq_queue *last_bfqq_created;
 };
 
 struct bfq_group;
@@ -230,6 +233,8 @@ struct bfq_ttime {
 struct bfq_queue {
 	/* reference counter */
 	int ref;
+	/* counter of references from other queues for delayed stable merge */
+	int stable_ref;
 	/* parent bfq_data */
 	struct bfq_data *bfqd;
 
@@ -365,6 +370,8 @@ struct bfq_queue {
 
 	unsigned long first_IO_time; /* time of first I/O for this queue */
 
+	unsigned long creation_time; /* when this queue is created */
+
 	/* max service rate measured so far */
 	u32 max_service_rate;
 
@@ -454,6 +461,11 @@ struct bfq_io_cq {
 	u64 saved_last_serv_time_ns;
 	unsigned int saved_inject_limit;
 	unsigned long saved_decrease_time_jif;
+
+	/* candidate queue for a stable merge (due to close creation time) */
+	struct bfq_queue *stable_merge_bfqq;
+
+	bool stably_merged;	/* non splittable if true */
 };
 
 /**
@@ -577,6 +589,9 @@ struct bfq_data {
 
 	/* bfqq owning the last completed rq */
 	struct bfq_queue *last_completed_rq_bfqq;
+
+	/* last bfqq created, among those in the root group */
+	struct bfq_queue *last_bfqq_created;
 
 	/* time of last transition from empty to non-empty (ns) */
 	u64 last_empty_occupied_ns;

@@ -42,9 +42,7 @@ void test_snprintf_btf(void)
 	 * and it set expected return values from bpf_trace_printk()s
 	 * and all tests ran.
 	 */
-	if (CHECK(bss->ret <= 0,
-		  "bpf_snprintf_btf: got return value",
-		  "ret <= 0 %ld test %d\n", bss->ret, bss->ran_subtests))
+	if (!ASSERT_GT(bss->ret, 0, "bpf_snprintf_ret"))
 		goto cleanup;
 
 	if (CHECK(bss->ran_subtests == 0, "check if subtests ran",

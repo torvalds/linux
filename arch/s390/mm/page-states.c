@@ -112,7 +112,7 @@ static void mark_kernel_pmd(pud_t *pud, unsigned long addr, unsigned long end)
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(*pmd) || pmd_large(*pmd))
 			continue;
-		page = virt_to_page(pmd_val(*pmd));
+		page = phys_to_page(pmd_val(*pmd));
 		set_bit(PG_arch_1, &page->flags);
 	} while (pmd++, addr = next, addr != end);
 }
@@ -130,7 +130,7 @@ static void mark_kernel_pud(p4d_t *p4d, unsigned long addr, unsigned long end)
 		if (pud_none(*pud) || pud_large(*pud))
 			continue;
 		if (!pud_folded(*pud)) {
-			page = virt_to_page(pud_val(*pud));
+			page = phys_to_page(pud_val(*pud));
 			for (i = 0; i < 3; i++)
 				set_bit(PG_arch_1, &page[i].flags);
 		}
@@ -151,7 +151,7 @@ static void mark_kernel_p4d(pgd_t *pgd, unsigned long addr, unsigned long end)
 		if (p4d_none(*p4d))
 			continue;
 		if (!p4d_folded(*p4d)) {
-			page = virt_to_page(p4d_val(*p4d));
+			page = phys_to_page(p4d_val(*p4d));
 			for (i = 0; i < 3; i++)
 				set_bit(PG_arch_1, &page[i].flags);
 		}
@@ -173,7 +173,7 @@ static void mark_kernel_pgd(void)
 		if (pgd_none(*pgd))
 			continue;
 		if (!pgd_folded(*pgd)) {
-			page = virt_to_page(pgd_val(*pgd));
+			page = phys_to_page(pgd_val(*pgd));
 			for (i = 0; i < 3; i++)
 				set_bit(PG_arch_1, &page[i].flags);
 		}

@@ -675,3 +675,19 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 	 */
 	return ret == 0 ? 0 : -EAGAIN;
 }
+
+BPF_CALL_4(bpf_for_each_map_elem, struct bpf_map *, map, void *, callback_fn,
+	   void *, callback_ctx, u64, flags)
+{
+	return map->ops->map_for_each_callback(map, callback_fn, callback_ctx, flags);
+}
+
+const struct bpf_func_proto bpf_for_each_map_elem_proto = {
+	.func		= bpf_for_each_map_elem,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_PTR_TO_FUNC,
+	.arg3_type	= ARG_PTR_TO_STACK_OR_NULL,
+	.arg4_type	= ARG_ANYTHING,
+};

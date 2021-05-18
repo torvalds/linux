@@ -8,9 +8,28 @@
 #include "dwmac-intel.h"
 #include "dwmac4.h"
 #include "stmmac.h"
+#include "stmmac_ptp.h"
+
+#define INTEL_MGBE_ADHOC_ADDR	0x15
+#define INTEL_MGBE_XPCS_ADDR	0x16
+
+/* Selection for PTP Clock Freq belongs to PSE & PCH GbE */
+#define PSE_PTP_CLK_FREQ_MASK		(GMAC_GPO0 | GMAC_GPO3)
+#define PSE_PTP_CLK_FREQ_19_2MHZ	(GMAC_GPO0)
+#define PSE_PTP_CLK_FREQ_200MHZ		(GMAC_GPO0 | GMAC_GPO3)
+#define PSE_PTP_CLK_FREQ_256MHZ		(0)
+#define PCH_PTP_CLK_FREQ_MASK		(GMAC_GPO0)
+#define PCH_PTP_CLK_FREQ_19_2MHZ	(GMAC_GPO0)
+#define PCH_PTP_CLK_FREQ_200MHZ		(0)
+
+/* Cross-timestamping defines */
+#define ART_CPUID_LEAF		0x15
+#define EHL_PSE_ART_MHZ		19200000
 
 struct intel_priv_data {
 	int mdio_adhoc_addr;	/* mdio address for serdes & etc */
+	unsigned long crossts_adj;
+	bool is_pse;
 };
 
 /* This struct is used to associate PCI Function of MAC controller on a board,
@@ -134,6 +153,11 @@ static int intel_serdes_powerup(struct net_device *ndev, void *priv_data)
 		return data;
 	}
 
+	/* PSE only - ungate SGMII PHY Rx Clock */
+	if (intel_priv->is_pse)
+		mdiobus_modify(priv->mii, serdes_phy_addr, SERDES_GCR0,
+			       0, SERDES_PHY_RX_CLK);
+
 	return 0;
 }
 
@@ -148,6 +172,11 @@ static void intel_serdes_powerdown(struct net_device *ndev, void *intel_data)
 		return;
 
 	serdes_phy_addr = intel_priv->mdio_adhoc_addr;
+
+	/* PSE only - gate SGMII PHY Rx Clock */
+	if (intel_priv->is_pse)
+		mdiobus_modify(priv->mii, serdes_phy_addr, SERDES_GCR0,
+			       SERDES_PHY_RX_CLK, 0);
 
 	/*  move power state to P3 */
 	data = mdiobus_read(priv->mii, serdes_phy_addr, SERDES_GCR0);
@@ -201,6 +230,161 @@ static void intel_serdes_powerdown(struct net_device *ndev, void *intel_data)
 	}
 }
 
+/* Program PTP Clock Frequency for different variant of
+ * Intel mGBE that has slightly different GPO mapping
+ */
+static void intel_mgbe_ptp_clk_freq_config(void *npriv)
+{
+	struct stmmac_priv *priv = (struct stmmac_priv *)npriv;
+	struct intel_priv_data *intel_priv;
+	u32 gpio_value;
+
+	intel_priv = (struct intel_priv_data *)priv->plat->bsp_priv;
+
+	gpio_value = readl(priv->ioaddr + GMAC_GPIO_STATUS);
+
+	if (intel_priv->is_pse) {
+		/* For PSE GbE, use 200MHz */
+		gpio_value &= ~PSE_PTP_CLK_FREQ_MASK;
+		gpio_value |= PSE_PTP_CLK_FREQ_200MHZ;
+	} else {
+		/* For PCH GbE, use 200MHz */
+		gpio_value &= ~PCH_PTP_CLK_FREQ_MASK;
+		gpio_value |= PCH_PTP_CLK_FREQ_200MHZ;
+	}
+
+	writel(gpio_value, priv->ioaddr + GMAC_GPIO_STATUS);
+}
+
+static void get_arttime(struct mii_bus *mii, int intel_adhoc_addr,
+			u64 *art_time)
+{
+	u64 ns;
+
+	ns = mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE3);
+	ns <<= GMAC4_ART_TIME_SHIFT;
+	ns |= mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE2);
+	ns <<= GMAC4_ART_TIME_SHIFT;
+	ns |= mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE1);
+	ns <<= GMAC4_ART_TIME_SHIFT;
+	ns |= mdiobus_read(mii, intel_adhoc_addr, PMC_ART_VALUE0);
+
+	*art_time = ns;
+}
+
+static int intel_crosststamp(ktime_t *device,
+			     struct system_counterval_t *system,
+			     void *ctx)
+{
+	struct intel_priv_data *intel_priv;
+
+	struct stmmac_priv *priv = (struct stmmac_priv *)ctx;
+	void __iomem *ptpaddr = priv->ptpaddr;
+	void __iomem *ioaddr = priv->hw->pcsr;
+	unsigned long flags;
+	u64 art_time = 0;
+	u64 ptp_time = 0;
+	u32 num_snapshot;
+	u32 gpio_value;
+	u32 acr_value;
+	int ret;
+	u32 v;
+	int i;
+
+	if (!boot_cpu_has(X86_FEATURE_ART))
+		return -EOPNOTSUPP;
+
+	intel_priv = priv->plat->bsp_priv;
+
+	/* Both internal crosstimestamping and external triggered event
+	 * timestamping cannot be run concurrently.
+	 */
+	if (priv->plat->ext_snapshot_en)
+		return -EBUSY;
+
+	mutex_lock(&priv->aux_ts_lock);
+	/* Enable Internal snapshot trigger */
+	acr_value = readl(ptpaddr + PTP_ACR);
+	acr_value &= ~PTP_ACR_MASK;
+	switch (priv->plat->int_snapshot_num) {
+	case AUX_SNAPSHOT0:
+		acr_value |= PTP_ACR_ATSEN0;
+		break;
+	case AUX_SNAPSHOT1:
+		acr_value |= PTP_ACR_ATSEN1;
+		break;
+	case AUX_SNAPSHOT2:
+		acr_value |= PTP_ACR_ATSEN2;
+		break;
+	case AUX_SNAPSHOT3:
+		acr_value |= PTP_ACR_ATSEN3;
+		break;
+	default:
+		mutex_unlock(&priv->aux_ts_lock);
+		return -EINVAL;
+	}
+	writel(acr_value, ptpaddr + PTP_ACR);
+
+	/* Clear FIFO */
+	acr_value = readl(ptpaddr + PTP_ACR);
+	acr_value |= PTP_ACR_ATSFC;
+	writel(acr_value, ptpaddr + PTP_ACR);
+	/* Release the mutex */
+	mutex_unlock(&priv->aux_ts_lock);
+
+	/* Trigger Internal snapshot signal
+	 * Create a rising edge by just toggle the GPO1 to low
+	 * and back to high.
+	 */
+	gpio_value = readl(ioaddr + GMAC_GPIO_STATUS);
+	gpio_value &= ~GMAC_GPO1;
+	writel(gpio_value, ioaddr + GMAC_GPIO_STATUS);
+	gpio_value |= GMAC_GPO1;
+	writel(gpio_value, ioaddr + GMAC_GPIO_STATUS);
+
+	/* Poll for time sync operation done */
+	ret = readl_poll_timeout(priv->ioaddr + GMAC_INT_STATUS, v,
+				 (v & GMAC_INT_TSIE), 100, 10000);
+
+	if (ret == -ETIMEDOUT) {
+		pr_err("%s: Wait for time sync operation timeout\n", __func__);
+		return ret;
+	}
+
+	num_snapshot = (readl(ioaddr + GMAC_TIMESTAMP_STATUS) &
+			GMAC_TIMESTAMP_ATSNS_MASK) >>
+			GMAC_TIMESTAMP_ATSNS_SHIFT;
+
+	/* Repeat until the timestamps are from the FIFO last segment */
+	for (i = 0; i < num_snapshot; i++) {
+		spin_lock_irqsave(&priv->ptp_lock, flags);
+		stmmac_get_ptptime(priv, ptpaddr, &ptp_time);
+		*device = ns_to_ktime(ptp_time);
+		spin_unlock_irqrestore(&priv->ptp_lock, flags);
+		get_arttime(priv->mii, intel_priv->mdio_adhoc_addr, &art_time);
+		*system = convert_art_to_tsc(art_time);
+	}
+
+	system->cycles *= intel_priv->crossts_adj;
+
+	return 0;
+}
+
+static void intel_mgbe_pse_crossts_adj(struct intel_priv_data *intel_priv,
+				       int base)
+{
+	if (boot_cpu_has(X86_FEATURE_ART)) {
+		unsigned int art_freq;
+
+		/* On systems that support ART, ART frequency can be obtained
+		 * from ECX register of CPUID leaf (0x15).
+		 */
+		art_freq = cpuid_ecx(ART_CPUID_LEAF);
+		do_div(art_freq, base);
+		intel_priv->crossts_adj = art_freq;
+	}
+}
+
 static void common_default_data(struct plat_stmmacenet_data *plat)
 {
 	plat->clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
@@ -233,6 +417,7 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 static int intel_mgbe_common_data(struct pci_dev *pdev,
 				  struct plat_stmmacenet_data *plat)
 {
+	char clk_name[20];
 	int ret;
 	int i;
 
@@ -262,6 +447,9 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 		/* Disable Priority config by default */
 		plat->tx_queues_cfg[i].use_prio = false;
+		/* Default TX Q0 to use TSO and rest TXQ for TBS */
+		if (i > 0)
+			plat->tx_queues_cfg[i].tbs_en = 1;
 	}
 
 	/* FIFO size is 4096 bytes for 1 tx/rx queue */
@@ -283,6 +471,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->dma_cfg->fixed_burst = 0;
 	plat->dma_cfg->mixed_burst = 0;
 	plat->dma_cfg->aal = 0;
+	plat->dma_cfg->dche = true;
 
 	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi),
 				 GFP_KERNEL);
@@ -301,8 +490,10 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->eee_usecs_rate = plat->clk_ptp_rate;
 
 	/* Set system clock */
+	sprintf(clk_name, "%s-%s", "stmmac", pci_name(pdev));
+
 	plat->stmmac_clk = clk_register_fixed_rate(&pdev->dev,
-						   "stmmac-clk", NULL, 0,
+						   clk_name, NULL, 0,
 						   plat->clk_ptp_rate);
 
 	if (IS_ERR(plat->stmmac_clk)) {
@@ -315,6 +506,8 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 		clk_unregister_fixed_rate(plat->stmmac_clk);
 		return ret;
 	}
+
+	plat->ptp_clk_freq_config = intel_mgbe_ptp_clk_freq_config;
 
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = HASH_TABLE_SIZE;
@@ -329,6 +522,30 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 	/* Use the last Rx queue */
 	plat->vlan_fail_q = plat->rx_queues_to_use - 1;
+
+	/* Intel mgbe SGMII interface uses pcs-xcps */
+	if (plat->phy_interface == PHY_INTERFACE_MODE_SGMII) {
+		plat->mdio_bus_data->has_xpcs = true;
+		plat->mdio_bus_data->xpcs_an_inband = true;
+	}
+
+	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */
+	plat->mdio_bus_data->phy_mask = 1 << INTEL_MGBE_ADHOC_ADDR;
+	plat->mdio_bus_data->phy_mask |= 1 << INTEL_MGBE_XPCS_ADDR;
+
+	plat->int_snapshot_num = AUX_SNAPSHOT1;
+	plat->ext_snapshot_num = AUX_SNAPSHOT0;
+
+	plat->has_crossts = true;
+	plat->crosststamp = intel_crosststamp;
+
+	/* Setup MSI vector offset specific to Intel mGbE controller */
+	plat->msi_mac_vec = 29;
+	plat->msi_lpi_vec = 28;
+	plat->msi_sfty_ce_vec = 27;
+	plat->msi_sfty_ue_vec = 26;
+	plat->msi_rx_base_vec = 0;
+	plat->msi_tx_base_vec = 1;
 
 	return 0;
 }
@@ -375,8 +592,14 @@ static struct stmmac_pci_info ehl_rgmii1g_info = {
 static int ehl_pse0_common_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
+	struct intel_priv_data *intel_priv = plat->bsp_priv;
+
+	intel_priv->is_pse = true;
 	plat->bus_id = 2;
 	plat->addr64 = 32;
+
+	intel_mgbe_pse_crossts_adj(intel_priv, EHL_PSE_ART_MHZ);
+
 	return ehl_common_data(pdev, plat);
 }
 
@@ -407,8 +630,14 @@ static struct stmmac_pci_info ehl_pse0_sgmii1g_info = {
 static int ehl_pse1_common_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
+	struct intel_priv_data *intel_priv = plat->bsp_priv;
+
+	intel_priv->is_pse = true;
 	plat->bus_id = 3;
 	plat->addr64 = 32;
+
+	intel_mgbe_pse_crossts_adj(intel_priv, EHL_PSE_ART_MHZ);
+
 	return ehl_common_data(pdev, plat);
 }
 
@@ -446,8 +675,8 @@ static int tgl_common_data(struct pci_dev *pdev,
 	return intel_mgbe_common_data(pdev, plat);
 }
 
-static int tgl_sgmii_data(struct pci_dev *pdev,
-			  struct plat_stmmacenet_data *plat)
+static int tgl_sgmii_phy0_data(struct pci_dev *pdev,
+			       struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 1;
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
@@ -456,12 +685,26 @@ static int tgl_sgmii_data(struct pci_dev *pdev,
 	return tgl_common_data(pdev, plat);
 }
 
-static struct stmmac_pci_info tgl_sgmii1g_info = {
-	.setup = tgl_sgmii_data,
+static struct stmmac_pci_info tgl_sgmii1g_phy0_info = {
+	.setup = tgl_sgmii_phy0_data,
 };
 
-static int adls_sgmii_data(struct pci_dev *pdev,
-			   struct plat_stmmacenet_data *plat)
+static int tgl_sgmii_phy1_data(struct pci_dev *pdev,
+			       struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 2;
+	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+	plat->serdes_powerup = intel_serdes_powerup;
+	plat->serdes_powerdown = intel_serdes_powerdown;
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info tgl_sgmii1g_phy1_info = {
+	.setup = tgl_sgmii_phy1_data,
+};
+
+static int adls_sgmii_phy0_data(struct pci_dev *pdev,
+				struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 1;
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
@@ -471,10 +714,24 @@ static int adls_sgmii_data(struct pci_dev *pdev,
 	return tgl_common_data(pdev, plat);
 }
 
-static struct stmmac_pci_info adls_sgmii1g_info = {
-	.setup = adls_sgmii_data,
+static struct stmmac_pci_info adls_sgmii1g_phy0_info = {
+	.setup = adls_sgmii_phy0_data,
 };
 
+static int adls_sgmii_phy1_data(struct pci_dev *pdev,
+				struct plat_stmmacenet_data *plat)
+{
+	plat->bus_id = 2;
+	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+
+	/* SerDes power up and power down are done in BIOS for ADL */
+
+	return tgl_common_data(pdev, plat);
+}
+
+static struct stmmac_pci_info adls_sgmii1g_phy1_info = {
+	.setup = adls_sgmii_phy1_data,
+};
 static const struct stmmac_pci_func_data galileo_stmmac_func_data[] = {
 	{
 		.func = 6,
@@ -578,6 +835,79 @@ static const struct stmmac_pci_info quark_info = {
 	.setup = quark_default_data,
 };
 
+static int stmmac_config_single_msi(struct pci_dev *pdev,
+				    struct plat_stmmacenet_data *plat,
+				    struct stmmac_resources *res)
+{
+	int ret;
+
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0) {
+		dev_info(&pdev->dev, "%s: Single IRQ enablement failed\n",
+			 __func__);
+		return ret;
+	}
+
+	res->irq = pci_irq_vector(pdev, 0);
+	res->wol_irq = res->irq;
+	plat->multi_msi_en = 0;
+	dev_info(&pdev->dev, "%s: Single IRQ enablement successful\n",
+		 __func__);
+
+	return 0;
+}
+
+static int stmmac_config_multi_msi(struct pci_dev *pdev,
+				   struct plat_stmmacenet_data *plat,
+				   struct stmmac_resources *res)
+{
+	int ret;
+	int i;
+
+	if (plat->msi_rx_base_vec >= STMMAC_MSI_VEC_MAX ||
+	    plat->msi_tx_base_vec >= STMMAC_MSI_VEC_MAX) {
+		dev_info(&pdev->dev, "%s: Invalid RX & TX vector defined\n",
+			 __func__);
+		return -1;
+	}
+
+	ret = pci_alloc_irq_vectors(pdev, 2, STMMAC_MSI_VEC_MAX,
+				    PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	if (ret < 0) {
+		dev_info(&pdev->dev, "%s: multi MSI enablement failed\n",
+			 __func__);
+		return ret;
+	}
+
+	/* For RX MSI */
+	for (i = 0; i < plat->rx_queues_to_use; i++) {
+		res->rx_irq[i] = pci_irq_vector(pdev,
+						plat->msi_rx_base_vec + i * 2);
+	}
+
+	/* For TX MSI */
+	for (i = 0; i < plat->tx_queues_to_use; i++) {
+		res->tx_irq[i] = pci_irq_vector(pdev,
+						plat->msi_tx_base_vec + i * 2);
+	}
+
+	if (plat->msi_mac_vec < STMMAC_MSI_VEC_MAX)
+		res->irq = pci_irq_vector(pdev, plat->msi_mac_vec);
+	if (plat->msi_wol_vec < STMMAC_MSI_VEC_MAX)
+		res->wol_irq = pci_irq_vector(pdev, plat->msi_wol_vec);
+	if (plat->msi_lpi_vec < STMMAC_MSI_VEC_MAX)
+		res->lpi_irq = pci_irq_vector(pdev, plat->msi_lpi_vec);
+	if (plat->msi_sfty_ce_vec < STMMAC_MSI_VEC_MAX)
+		res->sfty_ce_irq = pci_irq_vector(pdev, plat->msi_sfty_ce_vec);
+	if (plat->msi_sfty_ue_vec < STMMAC_MSI_VEC_MAX)
+		res->sfty_ue_irq = pci_irq_vector(pdev, plat->msi_sfty_ue_vec);
+
+	plat->multi_msi_en = 1;
+	dev_info(&pdev->dev, "%s: multi MSI enablement successful\n", __func__);
+
+	return 0;
+}
+
 /**
  * intel_eth_pci_probe
  *
@@ -619,7 +949,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	/* Enable pci device */
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: ERROR: failed to enable device\n",
 			__func__);
@@ -633,20 +963,27 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	plat->bsp_priv = intel_priv;
-	intel_priv->mdio_adhoc_addr = 0x15;
+	intel_priv->mdio_adhoc_addr = INTEL_MGBE_ADHOC_ADDR;
+	intel_priv->crossts_adj = 1;
+
+	/* Initialize all MSI vectors to invalid so that it can be set
+	 * according to platform data settings below.
+	 * Note: MSI vector takes value from 0 upto 31 (STMMAC_MSI_VEC_MAX)
+	 */
+	plat->msi_mac_vec = STMMAC_MSI_VEC_MAX;
+	plat->msi_wol_vec = STMMAC_MSI_VEC_MAX;
+	plat->msi_lpi_vec = STMMAC_MSI_VEC_MAX;
+	plat->msi_sfty_ce_vec = STMMAC_MSI_VEC_MAX;
+	plat->msi_sfty_ue_vec = STMMAC_MSI_VEC_MAX;
+	plat->msi_rx_base_vec = STMMAC_MSI_VEC_MAX;
+	plat->msi_tx_base_vec = STMMAC_MSI_VEC_MAX;
 
 	ret = info->setup(pdev, plat);
 	if (ret)
 		return ret;
 
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
-	if (ret < 0)
-		return ret;
-
 	memset(&res, 0, sizeof(res));
 	res.addr = pcim_iomap_table(pdev)[0];
-	res.wol_irq = pci_irq_vector(pdev, 0);
-	res.irq = pci_irq_vector(pdev, 0);
 
 	if (plat->eee_usecs_rate > 0) {
 		u32 tx_lpi_usec;
@@ -655,13 +992,28 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 		writel(tx_lpi_usec, res.addr + GMAC_1US_TIC_COUNTER);
 	}
 
-	ret = stmmac_dvr_probe(&pdev->dev, plat, &res);
+	ret = stmmac_config_multi_msi(pdev, plat, &res);
 	if (ret) {
-		pci_free_irq_vectors(pdev);
-		clk_disable_unprepare(plat->stmmac_clk);
-		clk_unregister_fixed_rate(plat->stmmac_clk);
+		ret = stmmac_config_single_msi(pdev, plat, &res);
+		if (ret) {
+			dev_err(&pdev->dev, "%s: ERROR: failed to enable IRQ\n",
+				__func__);
+			goto err_alloc_irq;
+		}
 	}
 
+	ret = stmmac_dvr_probe(&pdev->dev, plat, &res);
+	if (ret) {
+		goto err_dvr_probe;
+	}
+
+	return 0;
+
+err_dvr_probe:
+	pci_free_irq_vectors(pdev);
+err_alloc_irq:
+	clk_disable_unprepare(plat->stmmac_clk);
+	clk_unregister_fixed_rate(plat->stmmac_clk);
 	return ret;
 }
 
@@ -679,13 +1031,9 @@ static void intel_eth_pci_remove(struct pci_dev *pdev)
 
 	stmmac_dvr_remove(&pdev->dev);
 
-	pci_free_irq_vectors(pdev);
-
 	clk_unregister_fixed_rate(priv->plat->stmmac_clk);
 
 	pcim_iounmap_regions(pdev, BIT(0));
-
-	pci_disable_device(pdev);
 }
 
 static int __maybe_unused intel_eth_pci_suspend(struct device *dev)
@@ -701,7 +1049,6 @@ static int __maybe_unused intel_eth_pci_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	pci_disable_device(pdev);
 	pci_wake_from_d3(pdev, true);
 	return 0;
 }
@@ -714,7 +1061,7 @@ static int __maybe_unused intel_eth_pci_resume(struct device *dev)
 	pci_restore_state(pdev);
 	pci_set_power_state(pdev, PCI_D0);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
@@ -726,41 +1073,41 @@ static int __maybe_unused intel_eth_pci_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(intel_eth_pm_ops, intel_eth_pci_suspend,
 			 intel_eth_pci_resume);
 
-#define PCI_DEVICE_ID_INTEL_QUARK_ID			0x0937
-#define PCI_DEVICE_ID_INTEL_EHL_RGMII1G_ID		0x4b30
-#define PCI_DEVICE_ID_INTEL_EHL_SGMII1G_ID		0x4b31
-#define PCI_DEVICE_ID_INTEL_EHL_SGMII2G5_ID		0x4b32
+#define PCI_DEVICE_ID_INTEL_QUARK		0x0937
+#define PCI_DEVICE_ID_INTEL_EHL_RGMII1G		0x4b30
+#define PCI_DEVICE_ID_INTEL_EHL_SGMII1G		0x4b31
+#define PCI_DEVICE_ID_INTEL_EHL_SGMII2G5	0x4b32
 /* Intel(R) Programmable Services Engine (Intel(R) PSE) consist of 2 MAC
  * which are named PSE0 and PSE1
  */
-#define PCI_DEVICE_ID_INTEL_EHL_PSE0_RGMII1G_ID		0x4ba0
-#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII1G_ID		0x4ba1
-#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII2G5_ID	0x4ba2
-#define PCI_DEVICE_ID_INTEL_EHL_PSE1_RGMII1G_ID		0x4bb0
-#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII1G_ID		0x4bb1
-#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII2G5_ID	0x4bb2
-#define PCI_DEVICE_ID_INTEL_TGLH_SGMII1G_0_ID		0x43ac
-#define PCI_DEVICE_ID_INTEL_TGLH_SGMII1G_1_ID		0x43a2
-#define PCI_DEVICE_ID_INTEL_TGL_SGMII1G_ID		0xa0ac
-#define PCI_DEVICE_ID_INTEL_ADLS_SGMII1G_0_ID		0x7aac
-#define PCI_DEVICE_ID_INTEL_ADLS_SGMII1G_1_ID		0x7aad
+#define PCI_DEVICE_ID_INTEL_EHL_PSE0_RGMII1G	0x4ba0
+#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII1G	0x4ba1
+#define PCI_DEVICE_ID_INTEL_EHL_PSE0_SGMII2G5	0x4ba2
+#define PCI_DEVICE_ID_INTEL_EHL_PSE1_RGMII1G	0x4bb0
+#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII1G	0x4bb1
+#define PCI_DEVICE_ID_INTEL_EHL_PSE1_SGMII2G5	0x4bb2
+#define PCI_DEVICE_ID_INTEL_TGLH_SGMII1G_0	0x43ac
+#define PCI_DEVICE_ID_INTEL_TGLH_SGMII1G_1	0x43a2
+#define PCI_DEVICE_ID_INTEL_TGL_SGMII1G		0xa0ac
+#define PCI_DEVICE_ID_INTEL_ADLS_SGMII1G_0	0x7aac
+#define PCI_DEVICE_ID_INTEL_ADLS_SGMII1G_1	0x7aad
 
 static const struct pci_device_id intel_eth_pci_id_table[] = {
-	{ PCI_DEVICE_DATA(INTEL, QUARK_ID, &quark_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_RGMII1G_ID, &ehl_rgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII1G_ID, &ehl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII2G5_ID, &ehl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_RGMII1G_ID, &ehl_pse0_rgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_SGMII1G_ID, &ehl_pse0_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_SGMII2G5_ID, &ehl_pse0_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_RGMII1G_ID, &ehl_pse1_rgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII1G_ID, &ehl_pse1_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII2G5_ID, &ehl_pse1_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, TGL_SGMII1G_ID, &tgl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_0_ID, &tgl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_1_ID, &tgl_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, ADLS_SGMII1G_0_ID, &adls_sgmii1g_info) },
-	{ PCI_DEVICE_DATA(INTEL, ADLS_SGMII1G_1_ID, &adls_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, QUARK, &quark_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_RGMII1G, &ehl_rgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII1G, &ehl_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_SGMII2G5, &ehl_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_RGMII1G, &ehl_pse0_rgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_SGMII1G, &ehl_pse0_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE0_SGMII2G5, &ehl_pse0_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_RGMII1G, &ehl_pse1_rgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII1G, &ehl_pse1_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_PSE1_SGMII2G5, &ehl_pse1_sgmii1g_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGL_SGMII1G, &tgl_sgmii1g_phy0_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_0, &tgl_sgmii1g_phy0_info) },
+	{ PCI_DEVICE_DATA(INTEL, TGLH_SGMII1G_1, &tgl_sgmii1g_phy1_info) },
+	{ PCI_DEVICE_DATA(INTEL, ADLS_SGMII1G_0, &adls_sgmii1g_phy0_info) },
+	{ PCI_DEVICE_DATA(INTEL, ADLS_SGMII1G_1, &adls_sgmii1g_phy1_info) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, intel_eth_pci_id_table);

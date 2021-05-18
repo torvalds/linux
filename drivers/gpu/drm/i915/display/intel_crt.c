@@ -38,6 +38,7 @@
 #include "intel_crt.h"
 #include "intel_ddi.h"
 #include "intel_display_types.h"
+#include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
@@ -141,7 +142,7 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	intel_ddi_get_config(encoder, pipe_config);
+	hsw_ddi_get_config(encoder, pipe_config);
 
 	pipe_config->hw.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
 					      DRM_MODE_FLAG_NHSYNC |
@@ -164,7 +165,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	u32 adpa;
 
-	if (INTEL_GEN(dev_priv) >= 5)
+	if (DISPLAY_VER(dev_priv) >= 5)
 		adpa = ADPA_HOTPLUG_BITS;
 	else
 		adpa = 0;
@@ -355,7 +356,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		 * DAC limit supposedly 355 MHz.
 		 */
 		max_clock = 270000;
-	else if (IS_GEN_RANGE(dev_priv, 3, 4))
+	else if (IS_DISPLAY_RANGE(dev_priv, 3, 4))
 		max_clock = 400000;
 	else
 		max_clock = 350000;
@@ -710,7 +711,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	/* Set the border color to purple. */
 	intel_uncore_write(uncore, bclrpat_reg, 0x500050);
 
-	if (!IS_GEN(dev_priv, 2)) {
+	if (!IS_DISPLAY_VER(dev_priv, 2)) {
 		u32 pipeconf = intel_uncore_read(uncore, pipeconf_reg);
 		intel_uncore_write(uncore,
 				   pipeconf_reg,
@@ -889,7 +890,7 @@ load_detect:
 	if (ret > 0) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
-		else if (INTEL_GEN(dev_priv) < 4)
+		else if (DISPLAY_VER(dev_priv) < 4)
 			status = intel_crt_load_detect(crt,
 				to_intel_crtc(connector->state->crtc)->pipe);
 		else if (dev_priv->params.load_detect_test)
@@ -948,7 +949,7 @@ void intel_crt_reset(struct drm_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_crt *crt = intel_encoder_to_crt(to_intel_encoder(encoder));
 
-	if (INTEL_GEN(dev_priv) >= 5) {
+	if (DISPLAY_VER(dev_priv) >= 5) {
 		u32 adpa;
 
 		adpa = intel_de_read(dev_priv, crt->adpa_reg);
@@ -1046,7 +1047,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	else
 		crt->base.pipe_mask = ~0;
 
-	if (IS_GEN(dev_priv, 2))
+	if (IS_DISPLAY_VER(dev_priv, 2))
 		connector->interlace_allowed = 0;
 	else
 		connector->interlace_allowed = 1;
@@ -1075,6 +1076,9 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.enable = hsw_enable_crt;
 		crt->base.disable = hsw_disable_crt;
 		crt->base.post_disable = hsw_post_disable_crt;
+		crt->base.enable_clock = hsw_ddi_enable_clock;
+		crt->base.disable_clock = hsw_ddi_disable_clock;
+		crt->base.is_clock_enabled = hsw_ddi_is_clock_enabled;
 	} else {
 		if (HAS_PCH_SPLIT(dev_priv)) {
 			crt->base.compute_config = pch_crt_compute_config;

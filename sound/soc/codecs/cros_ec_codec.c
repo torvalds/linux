@@ -94,7 +94,7 @@ static int send_ec_host_command(struct cros_ec_device *ec_dev, uint32_t cmd,
 	if (ret < 0)
 		goto error;
 
-	if (insize)
+	if (in && insize)
 		memcpy(in, msg->data, insize);
 
 	ret = 0;

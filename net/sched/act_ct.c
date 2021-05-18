@@ -732,7 +732,8 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 #endif
 	}
 
-	*qdisc_skb_cb(skb) = cb;
+	if (err != -EINPROGRESS)
+		*qdisc_skb_cb(skb) = cb;
 	skb_clear_hash(skb);
 	skb->ignore_df = 1;
 	return err;
@@ -945,13 +946,14 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&c->tcf_tm);
 
 	if (clear) {
+		qdisc_skb_cb(skb)->post_ct = false;
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct) {
 			nf_conntrack_put(&ct->ct_general);
 			nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		}
 
-		goto out;
+		goto out_clear;
 	}
 
 	family = tcf_ct_skb_nf_family(skb);
@@ -966,7 +968,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	err = tcf_ct_handle_fragments(net, skb, family, p->zone, &defrag);
 	if (err == -EINPROGRESS) {
 		retval = TC_ACT_STOLEN;
-		goto out;
+		goto out_clear;
 	}
 	if (err)
 		goto drop;
@@ -989,9 +991,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			ct = nf_ct_get(skb, &ctinfo);
-			if (skb_nfct(skb))
-				nf_conntrack_put(skb_nfct(skb));
+			nf_conntrack_put(skb_nfct(skb));
 			nf_conntrack_get(&tmpl->ct_general);
 			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
@@ -1029,9 +1029,9 @@ do_nat:
 out_push:
 	skb_push_rcsum(skb, nh_ofs);
 
-out:
-	tcf_action_update_bstats(&c->common, skb);
 	qdisc_skb_cb(skb)->post_ct = true;
+out_clear:
+	tcf_action_update_bstats(&c->common, skb);
 	if (defrag)
 		qdisc_skb_cb(skb)->pkt_len = skb->len;
 	return retval;

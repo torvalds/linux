@@ -80,14 +80,26 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state)
 {
 	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
-	uint32_t raw_state;
+	uint32_t raw_state = 0;
+	uint32_t retry_count = 0;
+	enum dmub_status status;
 
-	// Send gpint command and wait for ack
-	dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
+	do {
+		// Send gpint command and wait for ack
+		status = dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
 
-	dmub_srv_get_gpint_response(srv, &raw_state);
+		if (status == DMUB_STATUS_OK) {
+			// GPINT was executed, get response
+			dmub_srv_get_gpint_response(srv, &raw_state);
+			*state = convert_psr_state(raw_state);
+		} else
+			// Return invalid state when GPINT times out
+			*state = PSR_STATE_INVALID;
 
-	*state = convert_psr_state(raw_state);
+		// Assert if max retry hit
+		if (retry_count >= 1000)
+			ASSERT(0);
+	} while (++retry_count <= 1000 && *state == PSR_STATE_INVALID);
 }
 
 /*
@@ -216,6 +228,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		    res_ctx->pipe_ctx[i].stream->link == link &&
 		    res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
 			pipe_ctx = &res_ctx->pipe_ctx[i];
+			//TODO: refactor for multi edp support
 			break;
 		}
 	}
@@ -269,9 +282,10 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
 	copy_settings_data->init_sdp_deadline			= psr_context->sdpTransmitLineNumDeadline;
 	copy_settings_data->debug.u32All = 0;
-	copy_settings_data->debug.bitfields.visual_confirm	= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR ?
-									true : false;
+	copy_settings_data->debug.bitfields.visual_confirm	= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR;
 	copy_settings_data->debug.bitfields.use_hw_lock_mgr		= 1;
+	copy_settings_data->fec_enable_status = (link->fec_state == dc_link_fec_enabled);
+	copy_settings_data->fec_enable_delay_in100us = link->dc->debug.fec_enable_delay_in100us;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);

@@ -1044,7 +1044,7 @@ static int bma180_probe(struct i2c_client *client,
 	indio_dev->info = &bma180_info;
 
 	if (client->irq > 0) {
-		data->trig = iio_trigger_alloc("%s-dev%d", indio_dev->name,
+		data->trig = iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 			indio_dev->id);
 		if (!data->trig) {
 			ret = -ENOMEM;
@@ -1059,7 +1059,6 @@ static int bma180_probe(struct i2c_client *client,
 			goto err_trigger_free;
 		}
 
-		data->trig->dev.parent = dev;
 		data->trig->ops = &bma180_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);
 		indio_dev->trig = iio_trigger_get(data->trig);

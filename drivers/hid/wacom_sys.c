@@ -1495,7 +1495,7 @@ struct wacom_led *wacom_led_find(struct wacom *wacom, unsigned int group_id,
 	return &group->leds[id];
 }
 
-/**
+/*
  * wacom_led_next: gives the next available led with a wacom trigger.
  *
  * returns the next available struct wacom_led which has its default trigger

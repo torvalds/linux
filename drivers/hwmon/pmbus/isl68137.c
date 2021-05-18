@@ -332,3 +332,4 @@ module_i2c_driver(isl68137_driver);
 MODULE_AUTHOR("Maxim Sloyko <maxims@google.com>");
 MODULE_DESCRIPTION("PMBus driver for Renesas digital multiphase voltage regulators");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

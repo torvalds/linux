@@ -1728,7 +1728,7 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 		return err;
 
 	event_id = mlxsw_reg_mfde_event_id_get(mfde_pl);
-	err = devlink_fmsg_u8_pair_put(fmsg, "id", event_id);
+	err = devlink_fmsg_u32_pair_put(fmsg, "id", event_id);
 	if (err)
 		return err;
 	switch (event_id) {
@@ -1804,6 +1804,10 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 			return err;
 		val = mlxsw_reg_mfde_log_id_get(mfde_pl);
 		err = devlink_fmsg_u8_pair_put(fmsg, "log_irisc_id", val);
+		if (err)
+			return err;
+		val = mlxsw_reg_mfde_log_ip_get(mfde_pl);
+		err = devlink_fmsg_u64_pair_put(fmsg, "log_ip", val);
 		if (err)
 			return err;
 	} else if (event_id == MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP) {

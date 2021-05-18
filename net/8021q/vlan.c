@@ -71,6 +71,9 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 	if (array == NULL)
 		return -ENOBUFS;
 
+	/* paired with smp_rmb() in __vlan_group_get_device() */
+	smp_wmb();
+
 	vg->vlan_devices_arrays[pidx][vidx] = array;
 	return 0;
 }

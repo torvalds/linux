@@ -572,7 +572,7 @@ static void microchip_sgpio_irq_settype(struct irq_data *data,
 	/* Type value spread over 2 registers sets: low, high bit */
 	sgpio_clrsetbits(bank->priv, REG_INT_TRIGGER, addr.bit,
 			 BIT(addr.port), (!!(type & 0x1)) << addr.port);
-	sgpio_clrsetbits(bank->priv, REG_INT_TRIGGER + SGPIO_MAX_BITS, addr.bit,
+	sgpio_clrsetbits(bank->priv, REG_INT_TRIGGER, SGPIO_MAX_BITS + addr.bit,
 			 BIT(addr.port), (!!(type & 0x2)) << addr.port);
 
 	if (type == SGPIO_INT_TRG_LEVEL)

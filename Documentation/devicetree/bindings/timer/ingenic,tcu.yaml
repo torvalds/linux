@@ -20,6 +20,8 @@ select:
         enum:
           - ingenic,jz4740-tcu
           - ingenic,jz4725b-tcu
+          - ingenic,jz4760-tcu
+          - ingenic,jz4760b-tcu
           - ingenic,jz4770-tcu
           - ingenic,jz4780-tcu
           - ingenic,x1000-tcu
@@ -52,12 +54,15 @@ properties:
           - enum:
               - ingenic,jz4740-tcu
               - ingenic,jz4725b-tcu
-              - ingenic,jz4770-tcu
+              - ingenic,jz4760-tcu
               - ingenic,x1000-tcu
           - const: simple-mfd
       - items:
-          - const: ingenic,jz4780-tcu
-          - const: ingenic,jz4770-tcu
+          - enum:
+              - ingenic,jz4780-tcu
+              - ingenic,jz4770-tcu
+              - ingenic,jz4760b-tcu
+          - const: ingenic,jz4760-tcu
           - const: simple-mfd
 
   reg:
@@ -118,6 +123,8 @@ patternProperties:
           - items:
               - enum:
                   - ingenic,jz4770-watchdog
+                  - ingenic,jz4760b-watchdog
+                  - ingenic,jz4760-watchdog
                   - ingenic,jz4725b-watchdog
               - const: ingenic,jz4740-watchdog
 
@@ -147,6 +154,8 @@ patternProperties:
               - ingenic,jz4725b-pwm
           - items:
               - enum:
+                  - ingenic,jz4760-pwm
+                  - ingenic,jz4760b-pwm
                   - ingenic,jz4770-pwm
                   - ingenic,jz4780-pwm
               - const: ingenic,jz4740-pwm
@@ -183,10 +192,15 @@ patternProperties:
         oneOf:
           - enum:
               - ingenic,jz4725b-ost
-              - ingenic,jz4770-ost
+              - ingenic,jz4760b-ost
           - items:
-              - const: ingenic,jz4780-ost
-              - const: ingenic,jz4770-ost
+              - const: ingenic,jz4760-ost
+              - const: ingenic,jz4725b-ost
+          - items:
+              - enum:
+                  - ingenic,jz4780-ost
+                  - ingenic,jz4770-ost
+              - const: ingenic,jz4760b-ost
 
       reg:
         maxItems: 1
@@ -226,7 +240,7 @@ examples:
     #include <dt-bindings/clock/jz4770-cgu.h>
     #include <dt-bindings/clock/ingenic,tcu.h>
     tcu: timer@10002000 {
-      compatible = "ingenic,jz4770-tcu", "simple-mfd";
+      compatible = "ingenic,jz4770-tcu", "ingenic,jz4760-tcu", "simple-mfd";
       reg = <0x10002000 0x1000>;
       #address-cells = <1>;
       #size-cells = <1>;
@@ -272,7 +286,7 @@ examples:
       };
 
       ost: timer@e0 {
-        compatible = "ingenic,jz4770-ost";
+        compatible = "ingenic,jz4770-ost", "ingenic,jz4760b-ost";
         reg = <0xe0 0x20>;
 
         clocks = <&tcu TCU_CLK_OST>;

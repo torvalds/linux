@@ -27,29 +27,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Intel 82801AA,82901AB,i810,i820,i830,i840,i845,MX440; SiS 7012; Ali 5455");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
-		"{Intel,82901AB-ICH0},"
-		"{Intel,82801BA-ICH2},"
-		"{Intel,82801CA-ICH3},"
-		"{Intel,82801DB-ICH4},"
-		"{Intel,ICH5},"
-		"{Intel,ICH6},"
-		"{Intel,ICH7},"
-		"{Intel,6300ESB},"
-		"{Intel,ESB2},"
-		"{Intel,MX440},"
-		"{SiS,SI7012},"
-		"{NVidia,nForce Audio},"
-		"{NVidia,nForce2 Audio},"
-		"{NVidia,nForce3 Audio},"
-		"{NVidia,MCP04},"
-		"{NVidia,MCP501},"
-		"{NVidia,CK804},"
-		"{NVidia,CK8},"
-		"{NVidia,CK8S},"
-		"{AMD,AMD768},"
-		"{AMD,AMD8111},"
-	        "{ALI,M5455}}");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */

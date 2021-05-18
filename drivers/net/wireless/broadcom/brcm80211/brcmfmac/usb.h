@@ -28,7 +28,7 @@ struct brcmf_usbdev {
 	int ntxq, nrxq, rxsize;
 	u32 bus_mtu;
 	int devid;
-	int chiprev; /* chip revsion number */
+	int chiprev; /* chip revision number */
 };
 
 /* IO Request Block (IRB) */

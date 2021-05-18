@@ -174,10 +174,21 @@ enum mptcp_event_attr {
 	MPTCP_ATTR_FLAGS,	/* u16 */
 	MPTCP_ATTR_TIMEOUT,	/* u32 */
 	MPTCP_ATTR_IF_IDX,	/* s32 */
+	MPTCP_ATTR_RESET_REASON,/* u32 */
+	MPTCP_ATTR_RESET_FLAGS, /* u32 */
 
 	__MPTCP_ATTR_AFTER_LAST
 };
 
 #define MPTCP_ATTR_MAX (__MPTCP_ATTR_AFTER_LAST - 1)
+
+/* MPTCP Reset reason codes, rfc8684 */
+#define MPTCP_RST_EUNSPEC	0
+#define MPTCP_RST_EMPTCP	1
+#define MPTCP_RST_ERESOURCE	2
+#define MPTCP_RST_EPROHIBIT	3
+#define MPTCP_RST_EWQ2BIG	4
+#define MPTCP_RST_EBADPERF	5
+#define MPTCP_RST_EMIDDLEBOX	6
 
 #endif /* _UAPI_MPTCP_H */

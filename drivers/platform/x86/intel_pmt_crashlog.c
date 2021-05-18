@@ -23,18 +23,17 @@
 #define CRASH_TYPE_OOBMSM	1
 
 /* Control Flags */
-#define CRASHLOG_FLAG_DISABLE		BIT(27)
+#define CRASHLOG_FLAG_DISABLE		BIT(28)
 
 /*
- * Bits 28 and 29 control the state of bit 31.
+ * Bits 29 and 30 control the state of bit 31.
  *
- * Bit 28 will clear bit 31, if set, allowing a new crashlog to be captured.
- * Bit 29 will immediately trigger a crashlog to be generated, setting bit 31.
- * Bit 30 is read-only and reserved as 0.
+ * Bit 29 will clear bit 31, if set, allowing a new crashlog to be captured.
+ * Bit 30 will immediately trigger a crashlog to be generated, setting bit 31.
  * Bit 31 is the read-only status with a 1 indicating log is complete.
  */
-#define CRASHLOG_FLAG_TRIGGER_CLEAR	BIT(28)
-#define CRASHLOG_FLAG_TRIGGER_EXECUTE	BIT(29)
+#define CRASHLOG_FLAG_TRIGGER_CLEAR	BIT(29)
+#define CRASHLOG_FLAG_TRIGGER_EXECUTE	BIT(30)
 #define CRASHLOG_FLAG_TRIGGER_COMPLETE	BIT(31)
 #define CRASHLOG_FLAG_TRIGGER_MASK	GENMASK(31, 28)
 

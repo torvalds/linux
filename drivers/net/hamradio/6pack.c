@@ -171,11 +171,6 @@ static void sp_encaps(struct sixpack *sp, unsigned char *icp, int len)
 		goto out_drop;
 	}
 
-	if (len > sp->mtu) {	/* sp->mtu = AX25_MTU = max. PACLEN = 256 */
-		msg = "oversized transmit packet!";
-		goto out_drop;
-	}
-
 	if (p[0] > 5) {
 		msg = "invalid KISS command";
 		goto out_drop;
@@ -749,7 +744,6 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 
 static struct tty_ldisc_ops sp_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
 	.name		= "6pack",
 	.open		= sixpack_open,
 	.close		= sixpack_close,

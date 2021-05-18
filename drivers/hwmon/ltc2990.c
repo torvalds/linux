@@ -147,13 +147,13 @@ static ssize_t ltc2990_value_show(struct device *dev,
 	if (unlikely(ret < 0))
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static umode_t ltc2990_attrs_visible(struct kobject *kobj,
 				     struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct ltc2990_data *data = dev_get_drvdata(dev);
 	struct device_attribute *da =
 			container_of(a, struct device_attribute, attr);

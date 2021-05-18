@@ -40,8 +40,6 @@ struct zfcp_diag_header {
 /**
  * struct zfcp_diag_adapter - central storage for all diagnostics concerning an
  *			      adapter.
- * @sysfs_established: flag showing that the associated sysfs-group was created
- *		       during run of zfcp_adapter_enqueue().
  * @max_age: maximum age of data in diagnostic buffers before they need to be
  *	     refreshed (in ms).
  * @port_data: data retrieved using exchange port data.
@@ -52,8 +50,6 @@ struct zfcp_diag_header {
  * @config_data.data: cached QTCB Bottom of command exchange config data.
  */
 struct zfcp_diag_adapter {
-	u64	sysfs_established	:1;
-
 	unsigned long	max_age;
 
 	struct zfcp_diag_adapter_port_data {
@@ -68,9 +64,6 @@ struct zfcp_diag_adapter {
 
 int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter);
 void zfcp_diag_adapter_free(struct zfcp_adapter *const adapter);
-
-int zfcp_diag_sysfs_setup(struct zfcp_adapter *const adapter);
-void zfcp_diag_sysfs_destroy(struct zfcp_adapter *const adapter);
 
 void zfcp_diag_update_xdata(struct zfcp_diag_header *const hdr,
 			    const void *const data, const bool incomplete);

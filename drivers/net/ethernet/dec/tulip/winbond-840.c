@@ -1629,15 +1629,4 @@ static struct pci_driver w840_driver = {
 	.driver.pm	= &w840_pm_ops,
 };
 
-static int __init w840_init(void)
-{
-	return pci_register_driver(&w840_driver);
-}
-
-static void __exit w840_exit(void)
-{
-	pci_unregister_driver(&w840_driver);
-}
-
-module_init(w840_init);
-module_exit(w840_exit);
+module_pci_driver(w840_driver);

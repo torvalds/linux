@@ -24,7 +24,7 @@
 #include "rdev-ops.h"
 
 
-struct ieee80211_rate *
+const struct ieee80211_rate *
 ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
 			    u32 basic_rates, int bitrate)
 {

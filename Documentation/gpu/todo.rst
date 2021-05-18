@@ -459,52 +459,6 @@ Contact: Emil Velikov, respective driver maintainers
 
 Level: Intermediate
 
-Plumb drm_atomic_state all over
--------------------------------
-
-Currently various atomic functions take just a single or a handful of
-object states (eg. plane state). While that single object state can
-suffice for some simple cases, we often have to dig out additional
-object states for dealing with various dependencies between the individual
-objects or the hardware they represent. The process of digging out the
-additional states is rather non-intuitive and error prone.
-
-To fix that most functions should rather take the overall
-drm_atomic_state as one of their parameters. The other parameters
-would generally be the object(s) we mainly want to interact with.
-
-For example, instead of
-
-.. code-block:: c
-
-   int (*atomic_check)(struct drm_plane *plane, struct drm_plane_state *state);
-
-we would have something like
-
-.. code-block:: c
-
-   int (*atomic_check)(struct drm_plane *plane, struct drm_atomic_state *state);
-
-The implementation can then trivially gain access to any required object
-state(s) via drm_atomic_get_plane_state(), drm_atomic_get_new_plane_state(),
-drm_atomic_get_old_plane_state(), and their equivalents for
-other object types.
-
-Additionally many drivers currently access the object->state pointer
-directly in their commit functions. That is not going to work if we
-eg. want to allow deeper commit pipelines as those pointers could
-then point to the states corresponding to a future commit instead of
-the current commit we're trying to process. Also non-blocking commits
-execute locklessly so there are serious concerns with dereferencing
-the object->state pointers without holding the locks that protect them.
-Use of drm_atomic_get_new_plane_state(), drm_atomic_get_old_plane_state(),
-etc. avoids these problems as well since they relate to a specific
-commit via the passed in drm_atomic_state.
-
-Contact: Ville Syrjälä, Daniel Vetter
-
-Level: Intermediate
-
 Use struct dma_buf_map throughout codebase
 ------------------------------------------
 
@@ -596,22 +550,47 @@ Contact: Daniel Vetter
 
 Level: Intermediate
 
-KMS cleanups
-------------
+Object lifetime fixes
+---------------------
 
-Some of these date from the very introduction of KMS in 2008 ...
+There's two related issues here
 
-- Make ->funcs and ->helper_private vtables optional. There's a bunch of empty
-  function tables in drivers, but before we can remove them we need to make sure
-  that all the users in helpers and drivers do correctly check for a NULL
-  vtable.
+- Cleanup up the various ->destroy callbacks, which often are all the same
+  simple code.
 
-- Cleanup up the various ->destroy callbacks. A lot of them just wrapt the
-  drm_*_cleanup implementations and can be removed. Some tack a kfree() at the
-  end, for which we could add drm_*_cleanup_kfree(). And then there's the (for
-  historical reasons) misnamed drm_primary_helper_destroy() function.
+- Lots of drivers erroneously allocate DRM modeset objects using devm_kzalloc,
+  which results in use-after free issues on driver unload. This can be serious
+  trouble even for drivers for hardware integrated on the SoC due to
+  EPROBE_DEFERRED backoff.
+
+Both these problems can be solved by switching over to drmm_kzalloc(), and the
+various convenience wrappers provided, e.g. drmm_crtc_alloc_with_planes(),
+drmm_universal_plane_alloc(), ... and so on.
+
+Contact: Daniel Vetter
 
 Level: Intermediate
+
+Remove automatic page mapping from dma-buf importing
+----------------------------------------------------
+
+When importing dma-bufs, the dma-buf and PRIME frameworks automatically map
+imported pages into the importer's DMA area. drm_gem_prime_fd_to_handle() and
+drm_gem_prime_handle_to_fd() require that importers call dma_buf_attach()
+even if they never do actual device DMA, but only CPU access through
+dma_buf_vmap(). This is a problem for USB devices, which do not support DMA
+operations.
+
+To fix the issue, automatic page mappings should be removed from the
+buffer-sharing code. Fixing this is a bit more involved, since the import/export
+cache is also tied to &drm_gem_object.import_attach. Meanwhile we paper over
+this problem for USB devices by fishing out the USB host controller device, as
+long as that supports DMA. Otherwise importing can still needlessly fail.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>, Daniel Vetter
+
+Level: Advanced
+
 
 Better Testing
 ==============
@@ -644,8 +623,6 @@ Extend virtual test driver (VKMS)
 See the documentation of :ref:`VKMS <vkms>` for more details. This is an ideal
 internship task, since it only requires a virtual machine and can be sized to
 fit the available time.
-
-Contact: Daniel Vetter
 
 Level: See details
 
@@ -700,7 +677,7 @@ Outside DRM
 Convert fbdev drivers to DRM
 ----------------------------
 
-There are plenty of fbdev drivers for older hardware. Some hwardware has
+There are plenty of fbdev drivers for older hardware. Some hardware has
 become obsolete, but some still provides good(-enough) framebuffers. The
 drivers that are still useful should be converted to DRM and afterwards
 removed from fbdev.

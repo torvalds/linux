@@ -70,7 +70,7 @@ xfs_trans_ichgtime(
 	if (flags & XFS_ICHGTIME_CHG)
 		inode->i_ctime = tv;
 	if (flags & XFS_ICHGTIME_CREATE)
-		ip->i_d.di_crtime = tv;
+		ip->i_crtime = tv;
 }
 
 /*
@@ -138,7 +138,7 @@ xfs_trans_log_inode(
 	if ((flags & (XFS_ILOG_CORE | XFS_ILOG_TIMESTAMP)) &&
 	    xfs_sb_version_hasbigtime(&ip->i_mount->m_sb) &&
 	    !xfs_inode_has_bigtime(ip)) {
-		ip->i_d.di_flags2 |= XFS_DIFLAG2_BIGTIME;
+		ip->i_diflags2 |= XFS_DIFLAG2_BIGTIME;
 		flags |= XFS_ILOG_CORE;
 	}
 
@@ -164,8 +164,7 @@ xfs_trans_log_inode(
 		 * here.
 		 */
 		spin_unlock(&iip->ili_lock);
-		error = xfs_imap_to_bp(ip->i_mount, tp, &ip->i_imap, NULL,
-					&bp, 0);
+		error = xfs_imap_to_bp(ip->i_mount, tp, &ip->i_imap, &bp);
 		if (error) {
 			xfs_force_shutdown(ip->i_mount, SHUTDOWN_META_IO_ERROR);
 			return;

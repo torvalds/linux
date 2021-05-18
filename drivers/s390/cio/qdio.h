@@ -181,12 +181,6 @@ struct qdio_input_q {
 struct qdio_output_q {
 	/* PCIs are enabled for the queue */
 	int pci_out_enabled;
-	/* cq: use asynchronous output buffers */
-	int use_cq;
-	/* cq: aobs used for particual SBAL */
-	struct qaob **aobs;
-	/* cq: sbal state related to asynchronous operation */
-	struct qdio_outbuf_state *sbal_state;
 	/* timer to check for more outbound work */
 	struct timer_list timer;
 	/* tasklet to check for completions */
@@ -379,12 +373,8 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
 void qdio_shutdown_irq(struct qdio_irq *irq);
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr);
 void qdio_free_queues(struct qdio_irq *irq_ptr);
-void qdio_free_async_data(struct qdio_irq *irq_ptr);
 int qdio_setup_init(void);
 void qdio_setup_exit(void);
-int qdio_enable_async_operation(struct qdio_output_q *q);
-void qdio_disable_async_operation(struct qdio_output_q *q);
-struct qaob *qdio_allocate_aob(void);
 
 int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 			unsigned char *state);

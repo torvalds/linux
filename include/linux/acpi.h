@@ -222,10 +222,14 @@ void __iomem *__acpi_map_table(unsigned long phys, unsigned long size);
 void __acpi_unmap_table(void __iomem *map, unsigned long size);
 int early_acpi_boot_init(void);
 int acpi_boot_init (void);
+void acpi_boot_table_prepare (void);
 void acpi_boot_table_init (void);
 int acpi_mps_check (void);
 int acpi_numa_init (void);
 
+int acpi_locate_initial_tables (void);
+void acpi_reserve_initial_tables (void);
+void acpi_table_init_complete (void);
 int acpi_table_init (void);
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
@@ -744,6 +748,11 @@ acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 	return NULL;
 }
 
+static inline bool acpi_reduced_hardware(void)
+{
+	return false;
+}
+
 static inline void acpi_dev_put(struct acpi_device *adev) {}
 
 static inline bool is_acpi_node(const struct fwnode_handle *fwnode)
@@ -814,9 +823,12 @@ static inline int acpi_boot_init(void)
 	return 0;
 }
 
+static inline void acpi_boot_table_prepare(void)
+{
+}
+
 static inline void acpi_boot_table_init(void)
 {
-	return;
 }
 
 static inline int acpi_mps_check(void)
@@ -1027,9 +1039,14 @@ static inline void acpi_ec_set_gpe_wake_mask(u8 action) {}
 __printf(3, 4)
 void acpi_handle_printk(const char *level, acpi_handle handle,
 			const char *fmt, ...);
+void acpi_evaluation_failure_warn(acpi_handle handle, const char *name,
+				  acpi_status status);
 #else	/* !CONFIG_ACPI */
 static inline __printf(3, 4) void
 acpi_handle_printk(const char *level, void *handle, const char *fmt, ...) {}
+static inline void acpi_evaluation_failure_warn(acpi_handle handle,
+						const char *name,
+						acpi_status status) {}
 #endif	/* !CONFIG_ACPI */
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_DYNAMIC_DEBUG)
@@ -1079,18 +1096,24 @@ void __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle, const c
 #if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)
 bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 				struct acpi_resource_gpio **agpio);
-int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index);
+int acpi_dev_gpio_irq_get_by(struct acpi_device *adev, const char *name, int index);
 #else
 static inline bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 					      struct acpi_resource_gpio **agpio)
 {
 	return false;
 }
-static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
+static inline int acpi_dev_gpio_irq_get_by(struct acpi_device *adev,
+					   const char *name, int index)
 {
 	return -ENXIO;
 }
 #endif
+
+static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
+{
+	return acpi_dev_gpio_irq_get_by(adev, NULL, index);
+}
 
 /* Device properties */
 

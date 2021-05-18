@@ -63,23 +63,6 @@ static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
 extern u64 idmap_t0sz;
 extern u64 idmap_ptrs_per_pgd;
 
-static inline bool __cpu_uses_extended_idmap(void)
-{
-	if (IS_ENABLED(CONFIG_ARM64_VA_BITS_52))
-		return false;
-
-	return unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS));
-}
-
-/*
- * True if the extended ID map requires an extra level of translation table
- * to be configured.
- */
-static inline bool __cpu_uses_extended_idmap_level(void)
-{
-	return ARM64_HW_PGTABLE_LEVELS(64 - idmap_t0sz) > CONFIG_PGTABLE_LEVELS;
-}
-
 /*
  * Ensure TCR.T0SZ is set to the provided value.
  */
@@ -136,7 +119,7 @@ static inline void cpu_install_idmap(void)
  * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
  * avoiding the possibility of conflicting TLB entries being allocated.
  */
-static inline void cpu_replace_ttbr1(pgd_t *pgdp)
+static inline void __nocfi cpu_replace_ttbr1(pgd_t *pgdp)
 {
 	typedef void (ttbr_replace_func)(phys_addr_t);
 	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
@@ -157,7 +140,7 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp)
 		ttbr1 |= TTBR_CNP_BIT;
 	}
 
-	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
+	replace_phys = (void *)__pa_symbol(function_nocfi(idmap_cpu_replace_ttbr1));
 
 	cpu_install_idmap();
 	replace_phys(ttbr1);

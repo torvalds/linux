@@ -239,37 +239,21 @@ static inline int qe_alive_during_sleep(void)
 #define qe_muram_dma cpm_muram_dma
 #define qe_muram_free_addr cpm_muram_free_addr
 
-#ifdef CONFIG_PPC32
-#define qe_iowrite8(val, addr)     out_8(addr, val)
-#define qe_iowrite16be(val, addr)  out_be16(addr, val)
-#define qe_iowrite32be(val, addr)  out_be32(addr, val)
-#define qe_ioread8(addr)           in_8(addr)
-#define qe_ioread16be(addr)        in_be16(addr)
-#define qe_ioread32be(addr)        in_be32(addr)
-#else
-#define qe_iowrite8(val, addr)     iowrite8(val, addr)
-#define qe_iowrite16be(val, addr)  iowrite16be(val, addr)
-#define qe_iowrite32be(val, addr)  iowrite32be(val, addr)
-#define qe_ioread8(addr)           ioread8(addr)
-#define qe_ioread16be(addr)        ioread16be(addr)
-#define qe_ioread32be(addr)        ioread32be(addr)
-#endif
+#define qe_setbits_be32(_addr, _v) iowrite32be(ioread32be(_addr) |  (_v), (_addr))
+#define qe_clrbits_be32(_addr, _v) iowrite32be(ioread32be(_addr) & ~(_v), (_addr))
 
-#define qe_setbits_be32(_addr, _v) qe_iowrite32be(qe_ioread32be(_addr) |  (_v), (_addr))
-#define qe_clrbits_be32(_addr, _v) qe_iowrite32be(qe_ioread32be(_addr) & ~(_v), (_addr))
+#define qe_setbits_be16(_addr, _v) iowrite16be(ioread16be(_addr) |  (_v), (_addr))
+#define qe_clrbits_be16(_addr, _v) iowrite16be(ioread16be(_addr) & ~(_v), (_addr))
 
-#define qe_setbits_be16(_addr, _v) qe_iowrite16be(qe_ioread16be(_addr) |  (_v), (_addr))
-#define qe_clrbits_be16(_addr, _v) qe_iowrite16be(qe_ioread16be(_addr) & ~(_v), (_addr))
-
-#define qe_setbits_8(_addr, _v) qe_iowrite8(qe_ioread8(_addr) |  (_v), (_addr))
-#define qe_clrbits_8(_addr, _v) qe_iowrite8(qe_ioread8(_addr) & ~(_v), (_addr))
+#define qe_setbits_8(_addr, _v) iowrite8(ioread8(_addr) |  (_v), (_addr))
+#define qe_clrbits_8(_addr, _v) iowrite8(ioread8(_addr) & ~(_v), (_addr))
 
 #define qe_clrsetbits_be32(addr, clear, set) \
-	qe_iowrite32be((qe_ioread32be(addr) & ~(clear)) | (set), (addr))
+	iowrite32be((ioread32be(addr) & ~(clear)) | (set), (addr))
 #define qe_clrsetbits_be16(addr, clear, set) \
-	qe_iowrite16be((qe_ioread16be(addr) & ~(clear)) | (set), (addr))
+	iowrite16be((ioread16be(addr) & ~(clear)) | (set), (addr))
 #define qe_clrsetbits_8(addr, clear, set) \
-	qe_iowrite8((qe_ioread8(addr) & ~(clear)) | (set), (addr))
+	iowrite8((ioread8(addr) & ~(clear)) | (set), (addr))
 
 /* Structure that defines QE firmware binary files.
  *

@@ -175,6 +175,12 @@ enum tpacpi_hkey_event_t {
 						     or port replicator */
 	TP_HKEY_EV_HOTPLUG_UNDOCK	= 0x4011, /* undocked from hotplug
 						     dock or port replicator */
+	/*
+	 * Thinkpad X1 Tablet series devices emit 0x4012 and 0x4013
+	 * when keyboard cover is attached, detached or folded onto the back
+	 */
+	TP_HKEY_EV_KBD_COVER_ATTACH	= 0x4012, /* keyboard cover attached */
+	TP_HKEY_EV_KBD_COVER_DETACH	= 0x4013, /* keyboard cover detached or folded back */
 
 	/* User-interface events */
 	TP_HKEY_EV_LID_CLOSE		= 0x5001, /* laptop lid closed */
@@ -3991,6 +3997,23 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 		pr_info("undocked from hotplug port replicator\n");
 		return true;
 
+	/*
+	 * Deliberately ignore attaching and detaching the keybord cover to avoid
+	 * duplicates from intel-vbtn, which already emits SW_TABLET_MODE events
+	 * to userspace.
+	 *
+	 * Please refer to the following thread for more information and a preliminary
+	 * implementation using the GTOP ("Get Tablet OPtions") interface that could be
+	 * extended to other attachment options of the ThinkPad X1 Tablet series, such as
+	 * the Pico cartridge dock module:
+	 * https://lore.kernel.org/platform-driver-x86/38cb8265-1e30-d547-9e12-b4ae290be737@a-kobel.de/
+	 */
+	case TP_HKEY_EV_KBD_COVER_ATTACH:
+	case TP_HKEY_EV_KBD_COVER_DETACH:
+		*send_acpi_ev = false;
+		*ignore_acpi_ev = true;
+		return true;
+
 	default:
 		return false;
 	}
@@ -4081,9 +4104,15 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 
 	case TP_HKEY_EV_KEY_NUMLOCK:
 	case TP_HKEY_EV_KEY_FN:
-	case TP_HKEY_EV_KEY_FN_ESC:
 		/* key press events, we just ignore them as long as the EC
 		 * is still reporting them in the normal keyboard stream */
+		*send_acpi_ev = false;
+		*ignore_acpi_ev = true;
+		return true;
+
+	case TP_HKEY_EV_KEY_FN_ESC:
+		/* Get the media key status to force the status LED to update */
+		acpi_evalf(hkey_handle, NULL, "GMKS", "v");
 		*send_acpi_ev = false;
 		*ignore_acpi_ev = true;
 		return true;
@@ -6254,6 +6283,7 @@ enum thermal_access_mode {
 enum { /* TPACPI_THERMAL_TPEC_* */
 	TP_EC_THERMAL_TMP0 = 0x78,	/* ACPI EC regs TMP 0..7 */
 	TP_EC_THERMAL_TMP8 = 0xC0,	/* ACPI EC regs TMP 8..15 */
+	TP_EC_FUNCREV      = 0xEF,      /* ACPI EC Functional revision */
 	TP_EC_THERMAL_TMP_NA = -128,	/* ACPI EC sensor not available */
 
 	TPACPI_THERMAL_SENSOR_NA = -128000, /* Sensor not available */
@@ -6266,6 +6296,8 @@ struct ibm_thermal_sensors_struct {
 };
 
 static enum thermal_access_mode thermal_read_mode;
+static const struct attribute_group *thermal_attr_group;
+static bool thermal_use_labels;
 
 /* idx is zero-based */
 static int thermal_get_sensor(int idx, s32 *value)
@@ -6448,11 +6480,33 @@ static const struct attribute_group thermal_temp_input8_group = {
 #undef THERMAL_SENSOR_ATTR_TEMP
 #undef THERMAL_ATTRS
 
+static ssize_t temp1_label_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "CPU\n");
+}
+static DEVICE_ATTR_RO(temp1_label);
+
+static ssize_t temp2_label_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "GPU\n");
+}
+static DEVICE_ATTR_RO(temp2_label);
+
+static struct attribute *temp_label_attributes[] = {
+	&dev_attr_temp1_label.attr,
+	&dev_attr_temp2_label.attr,
+	NULL
+};
+
+static const struct attribute_group temp_label_attr_group = {
+	.attrs = temp_label_attributes,
+};
+
 /* --------------------------------------------------------------------- */
 
 static int __init thermal_init(struct ibm_init_struct *iibm)
 {
-	u8 t, ta1, ta2;
+	u8 t, ta1, ta2, ver = 0;
 	int i;
 	int acpi_tmp7;
 	int res;
@@ -6467,7 +6521,14 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 		 * 0x78-0x7F, 0xC0-0xC7.  Registers return 0x00 for
 		 * non-implemented, thermal sensors return 0x80 when
 		 * not available
+		 * The above rule is unfortunately flawed. This has been seen with
+		 * 0xC2 (power supply ID) causing thermal control problems.
+		 * The EC version can be determined by offset 0xEF and at least for
+		 * version 3 the Lenovo firmware team confirmed that registers 0xC0-0xC7
+		 * are not thermal registers.
 		 */
+		if (!acpi_ec_read(TP_EC_FUNCREV, &ver))
+			pr_warn("Thinkpad ACPI EC unable to access EC version\n");
 
 		ta1 = ta2 = 0;
 		for (i = 0; i < 8; i++) {
@@ -6477,11 +6538,13 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 				ta1 = 0;
 				break;
 			}
-			if (acpi_ec_read(TP_EC_THERMAL_TMP8 + i, &t)) {
-				ta2 |= t;
-			} else {
-				ta1 = 0;
-				break;
+			if (ver < 3) {
+				if (acpi_ec_read(TP_EC_THERMAL_TMP8 + i, &t)) {
+					ta2 |= t;
+				} else {
+					ta1 = 0;
+					break;
+				}
 			}
 		}
 		if (ta1 == 0) {
@@ -6494,9 +6557,14 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 				thermal_read_mode = TPACPI_THERMAL_NONE;
 			}
 		} else {
-			thermal_read_mode =
-			    (ta2 != 0) ?
-			    TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
+			if (ver >= 3) {
+				thermal_read_mode = TPACPI_THERMAL_TPEC_8;
+				thermal_use_labels = true;
+			} else {
+				thermal_read_mode =
+					(ta2 != 0) ?
+					TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
+			}
 		}
 	} else if (acpi_tmp7) {
 		if (tpacpi_is_ibm() &&
@@ -6518,22 +6586,28 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 	switch (thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		res = sysfs_create_group(&tpacpi_hwmon->kobj,
-				&thermal_temp_input16_group);
-		if (res)
-			return res;
+		thermal_attr_group = &thermal_temp_input16_group;
 		break;
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		res = sysfs_create_group(&tpacpi_hwmon->kobj,
-				&thermal_temp_input8_group);
-		if (res)
-			return res;
+		thermal_attr_group = &thermal_temp_input8_group;
 		break;
 	case TPACPI_THERMAL_NONE:
 	default:
 		return 1;
+	}
+
+	res = sysfs_create_group(&tpacpi_hwmon->kobj, thermal_attr_group);
+	if (res)
+		return res;
+
+	if (thermal_use_labels) {
+		res = sysfs_create_group(&tpacpi_hwmon->kobj, &temp_label_attr_group);
+		if (res) {
+			sysfs_remove_group(&tpacpi_hwmon->kobj, thermal_attr_group);
+			return res;
+		}
 	}
 
 	return 0;
@@ -6541,21 +6615,11 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 static void thermal_exit(void)
 {
-	switch (thermal_read_mode) {
-	case TPACPI_THERMAL_TPEC_16:
-		sysfs_remove_group(&tpacpi_hwmon->kobj,
-				   &thermal_temp_input16_group);
-		break;
-	case TPACPI_THERMAL_TPEC_8:
-	case TPACPI_THERMAL_ACPI_TMP07:
-	case TPACPI_THERMAL_ACPI_UPDT:
-		sysfs_remove_group(&tpacpi_hwmon->kobj,
-				   &thermal_temp_input8_group);
-		break;
-	case TPACPI_THERMAL_NONE:
-	default:
-		break;
-	}
+	if (thermal_attr_group)
+		sysfs_remove_group(&tpacpi_hwmon->kobj, thermal_attr_group);
+
+	if (thermal_use_labels)
+		sysfs_remove_group(&tpacpi_hwmon->kobj, &temp_label_attr_group);
 }
 
 static int thermal_read(struct seq_file *m)
@@ -9845,6 +9909,11 @@ static struct ibm_struct lcdshadow_driver_data = {
  * Thinkpad sensor interfaces
  */
 
+#define DYTC_CMD_QUERY        0 /* To get DYTC status - enable/revision */
+#define DYTC_QUERY_ENABLE_BIT 8  /* Bit        8 - 0 = disabled, 1 = enabled */
+#define DYTC_QUERY_SUBREV_BIT 16 /* Bits 16 - 27 - sub revision */
+#define DYTC_QUERY_REV_BIT    28 /* Bits 28 - 31 - revision */
+
 #define DYTC_CMD_GET          2 /* To get current IC function and mode */
 #define DYTC_GET_LAPMODE_BIT 17 /* Set when in lapmode */
 
@@ -9855,6 +9924,7 @@ static bool has_palmsensor;
 static bool has_lapsensor;
 static bool palm_state;
 static bool lap_state;
+static int dytc_version;
 
 static int dytc_command(int command, int *output)
 {
@@ -9866,6 +9936,33 @@ static int dytc_command(int command, int *output)
 	}
 	if (!acpi_evalf(dytc_handle, output, NULL, "dd", command))
 		return -EIO;
+	return 0;
+}
+
+static int dytc_get_version(void)
+{
+	int err, output;
+
+	/* Check if we've been called before - and just return cached value */
+	if (dytc_version)
+		return dytc_version;
+
+	/* Otherwise query DYTC and extract version information */
+	err = dytc_command(DYTC_CMD_QUERY, &output);
+	/*
+	 * If support isn't available (ENODEV) then don't return an error
+	 * and don't create the sysfs group
+	 */
+	if (err == -ENODEV)
+		return 0;
+	/* For all other errors we can flag the failure */
+	if (err)
+		return err;
+
+	/* Check DYTC is enabled and supports mode setting */
+	if (output & BIT(DYTC_QUERY_ENABLE_BIT))
+		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
+
 	return 0;
 }
 
@@ -9974,7 +10071,18 @@ static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 		if (err)
 			return err;
 	}
-	if (has_lapsensor) {
+
+	/* Check if we know the DYTC version, if we don't then get it */
+	if (!dytc_version) {
+		err = dytc_get_version();
+		if (err)
+			return err;
+	}
+	/*
+	 * Platforms before DYTC version 5 claim to have a lap sensor, but it doesn't work, so we
+	 * ignore them
+	 */
+	if (has_lapsensor && (dytc_version >= 5)) {
 		err = sysfs_create_file(&tpacpi_pdev->dev.kobj, &dev_attr_dytc_lapmode.attr);
 		if (err)
 			return err;
@@ -9999,13 +10107,9 @@ static struct ibm_struct proxsensor_driver_data = {
  * DYTC Platform Profile interface
  */
 
-#define DYTC_CMD_QUERY        0 /* To get DYTC status - enable/revision */
 #define DYTC_CMD_SET          1 /* To enable/disable IC function mode */
+#define DYTC_CMD_MMC_GET      8 /* To get current MMC function and mode */
 #define DYTC_CMD_RESET    0x1ff /* To reset back to default */
-
-#define DYTC_QUERY_ENABLE_BIT 8  /* Bit        8 - 0 = disabled, 1 = enabled */
-#define DYTC_QUERY_SUBREV_BIT 16 /* Bits 16 - 27 - sub revision */
-#define DYTC_QUERY_REV_BIT    28 /* Bits 28 - 31 - revision */
 
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
@@ -10021,6 +10125,10 @@ static struct ibm_struct proxsensor_driver_data = {
 #define DYTC_MODE_PERFORM     2  /* High power mode aka performance */
 #define DYTC_MODE_LOWPOWER    3  /* Low power mode */
 #define DYTC_MODE_BALANCE   0xF  /* Default mode aka balanced */
+#define DYTC_MODE_MMC_BALANCE 0  /* Default mode from MMC_GET, aka balanced */
+
+#define DYTC_ERR_MASK       0xF  /* Bits 0-3 in cmd result are the error result */
+#define DYTC_ERR_SUCCESS      1  /* CMD completed successful */
 
 #define DYTC_SET_COMMAND(function, mode, on) \
 	(DYTC_CMD_SET | (function) << DYTC_SET_FUNCTION_BIT | \
@@ -10035,6 +10143,7 @@ static bool dytc_profile_available;
 static enum platform_profile_option dytc_current_profile;
 static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dytc_mutex);
+static bool dytc_mmc_get_available;
 
 static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *profile)
 {
@@ -10043,6 +10152,7 @@ static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *p
 		*profile = PLATFORM_PROFILE_LOW_POWER;
 		break;
 	case DYTC_MODE_BALANCE:
+	case DYTC_MODE_MMC_BALANCE:
 		*profile =  PLATFORM_PROFILE_BALANCED;
 		break;
 	case DYTC_MODE_PERFORM:
@@ -10120,7 +10230,6 @@ static int dytc_cql_command(int command, int *output)
 		if (err)
 			return err;
 	}
-
 	return cmd_err;
 }
 
@@ -10142,8 +10251,13 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 		return err;
 
 	if (profile == PLATFORM_PROFILE_BALANCED) {
-		/* To get back to balanced mode we just issue a reset command */
-		err = dytc_command(DYTC_CMD_RESET, &output);
+		/*
+		 * To get back to balanced mode we need to issue a reset command.
+		 * Note we still need to disable CQL mode before hand and re-enable
+		 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
+		 * stuck at 0 for aprox. 30 minutes.
+		 */
+		err = dytc_cql_command(DYTC_CMD_RESET, &output);
 		if (err)
 			goto unlock;
 	} else {
@@ -10172,7 +10286,10 @@ static void dytc_profile_refresh(void)
 	int perfmode;
 
 	mutex_lock(&dytc_mutex);
-	err = dytc_cql_command(DYTC_CMD_GET, &output);
+	if (dytc_mmc_get_available)
+		err = dytc_command(DYTC_CMD_MMC_GET, &output);
+	else
+		err = dytc_cql_command(DYTC_CMD_GET, &output);
 	mutex_unlock(&dytc_mutex);
 	if (err)
 		return;
@@ -10211,28 +10328,38 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (err)
 		return err;
 
+	/* Check if we know the DYTC version, if we don't then get it */
+	if (!dytc_version) {
+		err = dytc_get_version();
+		if (err)
+			return err;
+	}
 	/* Check DYTC is enabled and supports mode setting */
-	if (output & BIT(DYTC_QUERY_ENABLE_BIT)) {
-		/* Only DYTC v5.0 and later has this feature. */
-		int dytc_version;
-
-		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
-		if (dytc_version >= 5) {
-			dbg_printk(TPACPI_DBG_INIT,
-				   "DYTC version %d: thermal mode available\n", dytc_version);
-			/* Create platform_profile structure and register */
-			err = platform_profile_register(&dytc_profile);
-			/*
-			 * If for some reason platform_profiles aren't enabled
-			 * don't quit terminally.
-			 */
-			if (err)
-				return 0;
-
-			dytc_profile_available = true;
-			/* Ensure initial values are correct */
-			dytc_profile_refresh();
+	if (dytc_version >= 5) {
+		dbg_printk(TPACPI_DBG_INIT,
+				"DYTC version %d: thermal mode available\n", dytc_version);
+		/*
+		 * Check if MMC_GET functionality available
+		 * Version > 6 and return success from MMC_GET command
+		 */
+		dytc_mmc_get_available = false;
+		if (dytc_version >= 6) {
+			err = dytc_command(DYTC_CMD_MMC_GET, &output);
+			if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
+				dytc_mmc_get_available = true;
 		}
+		/* Create platform_profile structure and register */
+		err = platform_profile_register(&dytc_profile);
+		/*
+		 * If for some reason platform_profiles aren't enabled
+		 * don't quit terminally.
+		 */
+		if (err)
+			return 0;
+
+		dytc_profile_available = true;
+		/* Ensure initial values are correct */
+		dytc_profile_refresh();
 	}
 	return 0;
 }
@@ -10421,6 +10548,111 @@ static void kbdlang_exit(void)
 static struct ibm_struct kbdlang_driver_data = {
 	.name = "kbdlang",
 	.exit = kbdlang_exit,
+};
+
+/*************************************************************************
+ * DPRC(Dynamic Power Reduction Control) subdriver, for the Lenovo WWAN
+ * and WLAN feature.
+ */
+#define DPRC_GET_WWAN_ANTENNA_TYPE      0x40000
+#define DPRC_WWAN_ANTENNA_TYPE_A_BIT    BIT(4)
+#define DPRC_WWAN_ANTENNA_TYPE_B_BIT    BIT(8)
+static bool has_antennatype;
+static int wwan_antennatype;
+
+static int dprc_command(int command, int *output)
+{
+	acpi_handle dprc_handle;
+
+	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "DPRC", &dprc_handle))) {
+		/* Platform doesn't support DPRC */
+		return -ENODEV;
+	}
+
+	if (!acpi_evalf(dprc_handle, output, NULL, "dd", command))
+		return -EIO;
+
+	/*
+	 * METHOD_ERR gets returned on devices where few commands are not supported
+	 * for example command to get WWAN Antenna type command is not supported on
+	 * some devices.
+	 */
+	if (*output & METHOD_ERR)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int get_wwan_antenna(int *wwan_antennatype)
+{
+	int output, err;
+
+	/* Get current Antenna type */
+	err = dprc_command(DPRC_GET_WWAN_ANTENNA_TYPE, &output);
+	if (err)
+		return err;
+
+	if (output & DPRC_WWAN_ANTENNA_TYPE_A_BIT)
+		*wwan_antennatype = 1;
+	else if (output & DPRC_WWAN_ANTENNA_TYPE_B_BIT)
+		*wwan_antennatype = 2;
+	else
+		return -ENODEV;
+
+	return 0;
+}
+
+/* sysfs wwan antenna type entry */
+static ssize_t wwan_antenna_type_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	switch (wwan_antennatype) {
+	case 1:
+		return sysfs_emit(buf, "type a\n");
+	case 2:
+		return sysfs_emit(buf, "type b\n");
+	default:
+		return -ENODATA;
+	}
+}
+static DEVICE_ATTR_RO(wwan_antenna_type);
+
+static int tpacpi_dprc_init(struct ibm_init_struct *iibm)
+{
+	int wwanantenna_err, err;
+
+	wwanantenna_err = get_wwan_antenna(&wwan_antennatype);
+	/*
+	 * If support isn't available (ENODEV) then quit, but don't
+	 * return an error.
+	 */
+	if (wwanantenna_err == -ENODEV)
+		return 0;
+
+	/* if there was an error return it */
+	if (wwanantenna_err && (wwanantenna_err != -ENODEV))
+		return wwanantenna_err;
+	else if (!wwanantenna_err)
+		has_antennatype = true;
+
+	if (has_antennatype) {
+		err = sysfs_create_file(&tpacpi_pdev->dev.kobj, &dev_attr_wwan_antenna_type.attr);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static void dprc_exit(void)
+{
+	if (has_antennatype)
+		sysfs_remove_file(&tpacpi_pdev->dev.kobj, &dev_attr_wwan_antenna_type.attr);
+}
+
+static struct ibm_struct dprc_driver_data = {
+	.name = "dprc",
+	.exit = dprc_exit,
 };
 
 /****************************************************************************
@@ -10926,6 +11158,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	{
 		.init = tpacpi_kbdlang_init,
 		.data = &kbdlang_driver_data,
+	},
+	{
+		.init = tpacpi_dprc_init,
+		.data = &dprc_driver_data,
 	},
 };
 

@@ -667,6 +667,7 @@ smb2_is_valid_lease_break(char *buffer)
 				    !memcmp(rsp->LeaseKey,
 					    tcon->crfid.fid->lease_key,
 					    SMB2_LEASE_KEY_SIZE)) {
+					tcon->crfid.time = 0;
 					INIT_WORK(&tcon->crfid.lease_break,
 						  smb2_cached_lease_break);
 					queue_work(cifsiod_wq,
@@ -754,8 +755,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
-	return false;
+	cifs_dbg(FYI, "No file id matched, oplock break ignored\n");
+	return true;
 }
 
 void
@@ -767,7 +768,7 @@ smb2_cancelled_close_fid(struct work_struct *work)
 	int rc;
 
 	if (cancelled->mid)
-		cifs_tcon_dbg(VFS, "Close unmatched open for MID:%llx\n",
+		cifs_tcon_dbg(VFS, "Close unmatched open for MID:%llu\n",
 			      cancelled->mid);
 	else
 		cifs_tcon_dbg(VFS, "Close interrupted close\n");
@@ -844,14 +845,14 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 }
 
 int
-smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
+smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 {
-	struct smb2_sync_hdr *sync_hdr = (struct smb2_sync_hdr *)buffer;
-	struct smb2_create_rsp *rsp = (struct smb2_create_rsp *)buffer;
+	struct smb2_sync_hdr *sync_hdr = mid->resp_buf;
+	struct smb2_create_rsp *rsp = mid->resp_buf;
 	struct cifs_tcon *tcon;
 	int rc;
 
-	if (sync_hdr->Command != SMB2_CREATE ||
+	if ((mid->optype & CIFS_CP_CREATE_CLOSE_OP) || sync_hdr->Command != SMB2_CREATE ||
 	    sync_hdr->Status != STATUS_SUCCESS)
 		return 0;
 

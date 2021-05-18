@@ -81,7 +81,7 @@ static const char mlx4_ib_version[] =
 
 static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init);
 static enum rdma_link_layer mlx4_ib_port_link_layer(struct ib_device *device,
-						    u8 port_num);
+						    u32 port_num);
 
 static struct workqueue_struct *wq;
 
@@ -129,7 +129,8 @@ static int num_ib_ports(struct mlx4_dev *dev)
 	return ib_ports;
 }
 
-static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+static struct net_device *mlx4_ib_get_netdev(struct ib_device *device,
+					     u32 port_num)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(device);
 	struct net_device *dev;
@@ -160,7 +161,7 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_n
 
 static int mlx4_ib_update_gids_v1(struct gid_entry *gids,
 				  struct mlx4_ib_dev *ibdev,
-				  u8 port_num)
+				  u32 port_num)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
@@ -193,7 +194,7 @@ static int mlx4_ib_update_gids_v1(struct gid_entry *gids,
 
 static int mlx4_ib_update_gids_v1_v2(struct gid_entry *gids,
 				     struct mlx4_ib_dev *ibdev,
-				     u8 port_num)
+				     u32 port_num)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
@@ -238,7 +239,7 @@ static int mlx4_ib_update_gids_v1_v2(struct gid_entry *gids,
 
 static int mlx4_ib_update_gids(struct gid_entry *gids,
 			       struct mlx4_ib_dev *ibdev,
-			       u8 port_num)
+			       u32 port_num)
 {
 	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2)
 		return mlx4_ib_update_gids_v1_v2(gids, ibdev, port_num);
@@ -407,7 +408,7 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	int real_index = -EINVAL;
 	int i;
 	unsigned long flags;
-	u8 port_num = attr->port_num;
+	u32 port_num = attr->port_num;
 
 	if (port_num > MLX4_MAX_PORTS)
 		return -EINVAL;
@@ -649,7 +650,7 @@ out:
 }
 
 static enum rdma_link_layer
-mlx4_ib_port_link_layer(struct ib_device *device, u8 port_num)
+mlx4_ib_port_link_layer(struct ib_device *device, u32 port_num)
 {
 	struct mlx4_dev *dev = to_mdev(device)->dev;
 
@@ -657,7 +658,7 @@ mlx4_ib_port_link_layer(struct ib_device *device, u8 port_num)
 		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 }
 
-static int ib_link_query_port(struct ib_device *ibdev, u8 port,
+static int ib_link_query_port(struct ib_device *ibdev, u32 port,
 			      struct ib_port_attr *props, int netw_view)
 {
 	struct ib_smp *in_mad  = NULL;
@@ -753,7 +754,7 @@ static u8 state_to_phys_state(enum ib_port_state state)
 		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
 }
 
-static int eth_link_query_port(struct ib_device *ibdev, u8 port,
+static int eth_link_query_port(struct ib_device *ibdev, u32 port,
 			       struct ib_port_attr *props)
 {
 
@@ -814,7 +815,7 @@ out:
 	return err;
 }
 
-int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
+int __mlx4_ib_query_port(struct ib_device *ibdev, u32 port,
 			 struct ib_port_attr *props, int netw_view)
 {
 	int err;
@@ -828,14 +829,14 @@ int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 	return err;
 }
 
-static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
+static int mlx4_ib_query_port(struct ib_device *ibdev, u32 port,
 			      struct ib_port_attr *props)
 {
 	/* returns host view */
 	return __mlx4_ib_query_port(ibdev, port, props, 0);
 }
 
-int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
+int __mlx4_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 			union ib_gid *gid, int netw_view)
 {
 	struct ib_smp *in_mad  = NULL;
@@ -891,7 +892,7 @@ out:
 	return err;
 }
 
-static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
+static int mlx4_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 			     union ib_gid *gid)
 {
 	if (rdma_protocol_ib(ibdev, port))
@@ -899,7 +900,8 @@ static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
-static int mlx4_ib_query_sl2vl(struct ib_device *ibdev, u8 port, u64 *sl2vl_tbl)
+static int mlx4_ib_query_sl2vl(struct ib_device *ibdev, u32 port,
+			       u64 *sl2vl_tbl)
 {
 	union sl2vl_tbl_to_u64 sl2vl64;
 	struct ib_smp *in_mad  = NULL;
@@ -959,7 +961,7 @@ static void mlx4_init_sl2vl_tbl(struct mlx4_ib_dev *mdev)
 	}
 }
 
-int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int __mlx4_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			 u16 *pkey, int netw_view)
 {
 	struct ib_smp *in_mad  = NULL;
@@ -992,7 +994,8 @@ out:
 	return err;
 }
 
-static int mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
+static int mlx4_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
+			      u16 *pkey)
 {
 	return __mlx4_ib_query_pkey(ibdev, port, index, pkey, 0);
 }
@@ -1033,8 +1036,8 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	return 0;
 }
 
-static int mlx4_ib_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
-			    u32 cap_mask)
+static int mlx4_ib_SET_PORT(struct mlx4_ib_dev *dev, u32 port,
+			    int reset_qkey_viols, u32 cap_mask)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
@@ -1059,7 +1062,7 @@ static int mlx4_ib_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_vio
 	return err;
 }
 
-static int mlx4_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
+static int mlx4_ib_modify_port(struct ib_device *ibdev, u32 port, int mask,
 			       struct ib_port_modify *props)
 {
 	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
@@ -2103,7 +2106,7 @@ static const struct diag_counter diag_device_only[] = {
 };
 
 static struct rdma_hw_stats *mlx4_ib_alloc_hw_stats(struct ib_device *ibdev,
-						    u8 port_num)
+						    u32 port_num)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
@@ -2118,7 +2121,7 @@ static struct rdma_hw_stats *mlx4_ib_alloc_hw_stats(struct ib_device *ibdev,
 
 static int mlx4_ib_get_hw_stats(struct ib_device *ibdev,
 				struct rdma_hw_stats *stats,
-				u8 port, int index)
+				u32 port, int index)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
@@ -2466,7 +2469,7 @@ static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	ibdev->eq_table = NULL;
 }
 
-static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int mlx4_port_immutable(struct ib_device *ibdev, u32 port_num,
 			       struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;

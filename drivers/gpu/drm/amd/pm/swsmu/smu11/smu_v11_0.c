@@ -68,9 +68,6 @@ MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
 
 #define SMU11_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
 
-#define LINK_WIDTH_MAX				6
-#define LINK_SPEED_MAX				3
-
 #define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK 0x00000070L
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT 0x4
@@ -80,9 +77,6 @@ MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
 
 #define mmTHM_BACO_CNTL_ARCT			0xA7
 #define mmTHM_BACO_CNTL_ARCT_BASE_IDX		0
-
-static int link_width[] = {0, 1, 2, 4, 8, 12, 16};
-static int link_speed[] = {25, 50, 80, 160};
 
 int smu_v11_0_init_microcode(struct smu_context *smu)
 {
@@ -567,6 +561,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.firmware_caps = v_3_1->firmware_capability;
 		break;
 	case 3:
+	case 4:
 	default:
 		v_3_3 = (struct atom_firmware_info_v3_3 *)header;
 		smu->smu_table.boot_values.revision = v_3_3->firmware_revision;
@@ -750,8 +745,10 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 	int ret = 0;
 	uint32_t feature_mask[2];
 
-	if (bitmap_empty(feature->allowed, SMU_FEATURE_MAX) || feature->feature_num < 64)
+	if (bitmap_empty(feature->allowed, SMU_FEATURE_MAX) || feature->feature_num < 64) {
+		ret = -EINVAL;
 		goto failed;
+	}
 
 	bitmap_copy((unsigned long *)feature_mask, feature->allowed, 64);
 
@@ -1534,7 +1531,7 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 								      NULL);
 			break;
 		default:
-			if (!ras || !ras->supported) {
+			if (!ras || !ras->supported || adev->gmc.xgmi.pending_reset) {
 				if (adev->asic_type == CHIP_ARCTURUS) {
 					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);
 					data |= 0x80000000;
@@ -1606,6 +1603,16 @@ int smu_v11_0_mode1_reset(struct smu_context *smu)
 
 	return ret;
 }
+
+int smu_v11_0_set_light_sbr(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+
+	ret =  smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_LightSBR, enable ? 1 : 0, NULL);
+
+	return ret;
+}
+
 
 int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 						 uint32_t *min, uint32_t *max)
@@ -2001,7 +2008,7 @@ int smu_v11_0_get_current_pcie_link_width_level(struct smu_context *smu)
 		>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
 }
 
-int smu_v11_0_get_current_pcie_link_width(struct smu_context *smu)
+uint16_t smu_v11_0_get_current_pcie_link_width(struct smu_context *smu)
 {
 	uint32_t width_level;
 
@@ -2021,7 +2028,7 @@ int smu_v11_0_get_current_pcie_link_speed_level(struct smu_context *smu)
 		>> PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
 }
 
-int smu_v11_0_get_current_pcie_link_speed(struct smu_context *smu)
+uint16_t smu_v11_0_get_current_pcie_link_speed(struct smu_context *smu)
 {
 	uint32_t speed_level;
 

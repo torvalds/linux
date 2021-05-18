@@ -280,7 +280,7 @@ ip6t_do_table(struct sk_buff *skb,
 
 	local_bh_disable();
 	addend = xt_write_recseq_begin();
-	private = rcu_access_pointer(table->private);
+	private = READ_ONCE(table->private); /* Address dependency. */
 	cpu        = smp_processor_id();
 	table_base = private->entries;
 	jumpstack  = (struct ip6t_entry **)private->jumpstack[cpu];
@@ -807,7 +807,7 @@ static struct xt_counters *alloc_counters(const struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
-	const struct xt_table_info *private = xt_table_get_private_protected(table);
+	const struct xt_table_info *private = table->private;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	   (other than comefrom, which userspace doesn't care
@@ -831,7 +831,7 @@ copy_entries_to_user(unsigned int total_size,
 	unsigned int off, num;
 	const struct ip6t_entry *e;
 	struct xt_counters *counters;
-	const struct xt_table_info *private = xt_table_get_private_protected(table);
+	const struct xt_table_info *private = table->private;
 	int ret = 0;
 	const void *loc_cpu_entry;
 
@@ -884,7 +884,7 @@ copy_entries_to_user(unsigned int total_size,
 	return ret;
 }
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 static void compat_standard_from_user(void *dst, const void *src)
 {
 	int v = *(compat_int_t *)src;
@@ -973,15 +973,15 @@ static int get_info(struct net *net, void __user *user, const int *len)
 		return -EFAULT;
 
 	name[XT_TABLE_MAXNAMELEN-1] = '\0';
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 	if (in_compat_syscall())
 		xt_compat_lock(AF_INET6);
 #endif
 	t = xt_request_find_table_lock(net, AF_INET6, name);
 	if (!IS_ERR(t)) {
 		struct ip6t_getinfo info;
-		const struct xt_table_info *private = xt_table_get_private_protected(t);
-#ifdef CONFIG_COMPAT
+		const struct xt_table_info *private = t->private;
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 		struct xt_table_info tmp;
 
 		if (in_compat_syscall()) {
@@ -1009,7 +1009,7 @@ static int get_info(struct net *net, void __user *user, const int *len)
 		module_put(t->me);
 	} else
 		ret = PTR_ERR(t);
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 	if (in_compat_syscall())
 		xt_compat_unlock(AF_INET6);
 #endif
@@ -1035,7 +1035,7 @@ get_entries(struct net *net, struct ip6t_get_entries __user *uptr,
 
 	t = xt_find_table_lock(net, AF_INET6, get.name);
 	if (!IS_ERR(t)) {
-		struct xt_table_info *private = xt_table_get_private_protected(t);
+		struct xt_table_info *private = t->private;
 		if (get.size == private->size)
 			ret = copy_entries_to_user(private->size,
 						   t, uptr->entrytable);
@@ -1189,7 +1189,7 @@ do_add_counters(struct net *net, sockptr_t arg, unsigned int len)
 	}
 
 	local_bh_disable();
-	private = xt_table_get_private_protected(t);
+	private = t->private;
 	if (private->number != tmp.num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;
@@ -1215,7 +1215,7 @@ do_add_counters(struct net *net, sockptr_t arg, unsigned int len)
 	return ret;
 }
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 struct compat_ip6t_replace {
 	char			name[XT_TABLE_MAXNAMELEN];
 	u32			valid_hooks;
@@ -1443,6 +1443,8 @@ translate_compat_table(struct net *net,
 	if (!newinfo)
 		goto out_unlock;
 
+	memset(newinfo->entries, 0, size);
+
 	newinfo->number = compatr->num_entries;
 	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		newinfo->hook_entry[i] = compatr->hook_entry[i];
@@ -1552,7 +1554,7 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 			    void __user *userptr)
 {
 	struct xt_counters *counters;
-	const struct xt_table_info *private = xt_table_get_private_protected(table);
+	const struct xt_table_info *private = table->private;
 	void __user *pos;
 	unsigned int size;
 	int ret = 0;
@@ -1598,7 +1600,7 @@ compat_get_entries(struct net *net, struct compat_ip6t_get_entries __user *uptr,
 	xt_compat_lock(AF_INET6);
 	t = xt_find_table_lock(net, AF_INET6, get.name);
 	if (!IS_ERR(t)) {
-		const struct xt_table_info *private = xt_table_get_private_protected(t);
+		const struct xt_table_info *private = t->private;
 		struct xt_table_info info;
 		ret = compat_table_info(private, &info);
 		if (!ret && get.size == info.size)
@@ -1628,7 +1630,7 @@ do_ip6t_set_ctl(struct sock *sk, int cmd, sockptr_t arg, unsigned int len)
 
 	switch (cmd) {
 	case IP6T_SO_SET_REPLACE:
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 		if (in_compat_syscall())
 			ret = compat_do_replace(sock_net(sk), arg, len);
 		else
@@ -1661,7 +1663,7 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		break;
 
 	case IP6T_SO_GET_ENTRIES:
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 		if (in_compat_syscall())
 			ret = compat_get_entries(sock_net(sk), user, len);
 		else
@@ -1723,10 +1725,11 @@ static void __ip6t_unregister_table(struct net *net, struct xt_table *table)
 
 int ip6t_register_table(struct net *net, const struct xt_table *table,
 			const struct ip6t_replace *repl,
-			const struct nf_hook_ops *ops,
-			struct xt_table **res)
+			const struct nf_hook_ops *template_ops)
 {
-	int ret;
+	struct nf_hook_ops *ops;
+	unsigned int num_ops;
+	int ret, i;
 	struct xt_table_info *newinfo;
 	struct xt_table_info bootstrap = {0};
 	void *loc_cpu_entry;
@@ -1740,50 +1743,62 @@ int ip6t_register_table(struct net *net, const struct xt_table *table,
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
 	ret = translate_table(net, newinfo, loc_cpu_entry, repl);
-	if (ret != 0)
-		goto out_free;
+	if (ret != 0) {
+		xt_free_table_info(newinfo);
+		return ret;
+	}
 
 	new_table = xt_register_table(net, table, &bootstrap, newinfo);
 	if (IS_ERR(new_table)) {
-		ret = PTR_ERR(new_table);
+		xt_free_table_info(newinfo);
+		return PTR_ERR(new_table);
+	}
+
+	if (!template_ops)
+		return 0;
+
+	num_ops = hweight32(table->valid_hooks);
+	if (num_ops == 0) {
+		ret = -EINVAL;
 		goto out_free;
 	}
 
-	/* set res now, will see skbs right after nf_register_net_hooks */
-	WRITE_ONCE(*res, new_table);
-	if (!ops)
-		return 0;
-
-	ret = nf_register_net_hooks(net, ops, hweight32(table->valid_hooks));
-	if (ret != 0) {
-		__ip6t_unregister_table(net, new_table);
-		*res = NULL;
+	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
+	if (!ops) {
+		ret = -ENOMEM;
+		goto out_free;
 	}
+
+	for (i = 0; i < num_ops; i++)
+		ops[i].priv = new_table;
+
+	new_table->ops = ops;
+
+	ret = nf_register_net_hooks(net, ops, num_ops);
+	if (ret != 0)
+		goto out_free;
 
 	return ret;
 
 out_free:
-	xt_free_table_info(newinfo);
+	__ip6t_unregister_table(net, new_table);
 	return ret;
 }
 
-void ip6t_unregister_table_pre_exit(struct net *net, struct xt_table *table,
-				    const struct nf_hook_ops *ops)
+void ip6t_unregister_table_pre_exit(struct net *net, const char *name)
 {
-	nf_unregister_net_hooks(net, ops, hweight32(table->valid_hooks));
+	struct xt_table *table = xt_find_table(net, NFPROTO_IPV6, name);
+
+	if (table)
+		nf_unregister_net_hooks(net, table->ops, hweight32(table->valid_hooks));
 }
 
-void ip6t_unregister_table_exit(struct net *net, struct xt_table *table)
+void ip6t_unregister_table_exit(struct net *net, const char *name)
 {
-	__ip6t_unregister_table(net, table);
-}
+	struct xt_table *table = xt_find_table(net, NFPROTO_IPV6, name);
 
-void ip6t_unregister_table(struct net *net, struct xt_table *table,
-			   const struct nf_hook_ops *ops)
-{
-	if (ops)
-		ip6t_unregister_table_pre_exit(net, table, ops);
-	__ip6t_unregister_table(net, table);
+	if (table)
+		__ip6t_unregister_table(net, table);
 }
 
 /* Returns 1 if the type and code is matched by the range, 0 otherwise */
@@ -1838,7 +1853,7 @@ static struct xt_target ip6t_builtin_tg[] __read_mostly = {
 		.name             = XT_STANDARD_TARGET,
 		.targetsize       = sizeof(int),
 		.family           = NFPROTO_IPV6,
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 		.compatsize       = sizeof(compat_int_t),
 		.compat_from_user = compat_standard_from_user,
 		.compat_to_user   = compat_standard_to_user,
@@ -1933,7 +1948,6 @@ static void __exit ip6_tables_fini(void)
 }
 
 EXPORT_SYMBOL(ip6t_register_table);
-EXPORT_SYMBOL(ip6t_unregister_table);
 EXPORT_SYMBOL(ip6t_unregister_table_pre_exit);
 EXPORT_SYMBOL(ip6t_unregister_table_exit);
 EXPORT_SYMBOL(ip6t_do_table);

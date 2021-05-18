@@ -730,8 +730,8 @@ static int lan743x_ethtool_get_eee(struct net_device *netdev,
 static int lan743x_ethtool_set_eee(struct net_device *netdev,
 				   struct ethtool_eee *eee)
 {
-	struct lan743x_adapter *adapter = netdev_priv(netdev);
-	struct phy_device *phydev = NULL;
+	struct lan743x_adapter *adapter;
+	struct phy_device *phydev;
 	u32 buf = 0;
 	int ret = 0;
 

@@ -47,11 +47,12 @@ struct sja1105_tagger_data {
 };
 
 struct sja1105_skb_cb {
+	struct sk_buff *clone;
 	u32 meta_tstamp;
 };
 
 #define SJA1105_SKB_CB(skb) \
-	((struct sja1105_skb_cb *)DSA_SKB_CB_PRIV(skb))
+	((struct sja1105_skb_cb *)((skb)->cb))
 
 struct sja1105_port {
 	u16 subvlan_map[DSA_8021Q_N_SUBVLAN];

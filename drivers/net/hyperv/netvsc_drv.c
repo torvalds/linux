@@ -38,9 +38,6 @@
 #include "hyperv_net.h"
 
 #define RING_SIZE_MIN	64
-#define RETRY_US_LO	5000
-#define RETRY_US_HI	10000
-#define RETRY_MAX	2000	/* >10 sec */
 
 #define LINKCHANGE_INT (2 * HZ)
 #define VF_TAKEOVER_INT (HZ / 10)
@@ -744,7 +741,7 @@ static netdev_tx_t netvsc_start_xmit(struct sk_buff *skb,
  */
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp,
-				void *data)
+				void *data, u32 data_buflen)
 {
 	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
 	struct net_device_context *ndev_ctx = netdev_priv(net);
@@ -765,11 +762,16 @@ void netvsc_linkstatus_callback(struct net_device *net,
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
 
-		/* Validate status_buf_offset */
+		/* Validate status_buf_offset and status_buflen.
+		 *
+		 * Certain (pre-Fe) implementations of Hyper-V's vSwitch didn't account
+		 * for the status buffer field in resp->msg_len; perform the validation
+		 * using data_buflen (>= resp->msg_len).
+		 */
 		if (indicate->status_buflen < sizeof(speed) ||
 		    indicate->status_buf_offset < sizeof(*indicate) ||
-		    resp->msg_len - RNDIS_HEADER_SIZE < indicate->status_buf_offset ||
-		    resp->msg_len - RNDIS_HEADER_SIZE - indicate->status_buf_offset
+		    data_buflen - RNDIS_HEADER_SIZE < indicate->status_buf_offset ||
+		    data_buflen - RNDIS_HEADER_SIZE - indicate->status_buf_offset
 				< indicate->status_buflen) {
 			netdev_err(net, "invalid rndis_indicate_status packet\n");
 			return;
@@ -1607,34 +1609,23 @@ static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_SIZE(netvsc_stats); i++) {
-			memcpy(p, netvsc_stats[i].name, ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < ARRAY_SIZE(netvsc_stats); i++)
+			ethtool_sprintf(&p, netvsc_stats[i].name);
 
-		for (i = 0; i < ARRAY_SIZE(vf_stats); i++) {
-			memcpy(p, vf_stats[i].name, ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < ARRAY_SIZE(vf_stats); i++)
+			ethtool_sprintf(&p, vf_stats[i].name);
 
 		for (i = 0; i < nvdev->num_chn; i++) {
-			sprintf(p, "tx_queue_%u_packets", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_queue_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_packets", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_xdp_drop", i);
-			p += ETH_GSTRING_LEN;
+			ethtool_sprintf(&p, "tx_queue_%u_packets", i);
+			ethtool_sprintf(&p, "tx_queue_%u_bytes", i);
+			ethtool_sprintf(&p, "rx_queue_%u_packets", i);
+			ethtool_sprintf(&p, "rx_queue_%u_bytes", i);
+			ethtool_sprintf(&p, "rx_queue_%u_xdp_drop", i);
 		}
 
 		for_each_present_cpu(cpu) {
-			for (i = 0; i < ARRAY_SIZE(pcpu_stats); i++) {
-				sprintf(p, pcpu_stats[i].name, cpu);
-				p += ETH_GSTRING_LEN;
-			}
+			for (i = 0; i < ARRAY_SIZE(pcpu_stats); i++)
+				ethtool_sprintf(&p, pcpu_stats[i].name, cpu);
 		}
 
 		break;
@@ -2306,6 +2297,7 @@ static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
 {
 	struct device *parent = vf_netdev->dev.parent;
 	struct net_device_context *ndev_ctx;
+	struct net_device *ndev;
 	struct pci_dev *pdev;
 	u32 serial;
 
@@ -2328,8 +2320,17 @@ static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
 		if (!ndev_ctx->vf_alloc)
 			continue;
 
-		if (ndev_ctx->vf_serial == serial)
-			return hv_get_drvdata(ndev_ctx->device_ctx);
+		if (ndev_ctx->vf_serial != serial)
+			continue;
+
+		ndev = hv_get_drvdata(ndev_ctx->device_ctx);
+		if (ndev->addr_len != vf_netdev->addr_len ||
+		    memcmp(ndev->perm_addr, vf_netdev->perm_addr,
+			   ndev->addr_len) != 0)
+			continue;
+
+		return ndev;
+
 	}
 
 	netdev_notice(vf_netdev,
@@ -2408,6 +2409,7 @@ static int netvsc_vf_changed(struct net_device *vf_netdev, unsigned long event)
 	struct netvsc_device *netvsc_dev;
 	struct net_device *ndev;
 	bool vf_is_up = false;
+	int ret;
 
 	if (event != NETDEV_GOING_DOWN)
 		vf_is_up = netif_running(vf_netdev);
@@ -2424,9 +2426,17 @@ static int netvsc_vf_changed(struct net_device *vf_netdev, unsigned long event)
 	if (net_device_ctx->data_path_is_vf == vf_is_up)
 		return NOTIFY_OK;
 
-	netvsc_switch_datapath(ndev, vf_is_up);
-	netdev_info(ndev, "Data path switched %s VF: %s\n",
-		    vf_is_up ? "to" : "from", vf_netdev->name);
+	ret = netvsc_switch_datapath(ndev, vf_is_up);
+
+	if (ret) {
+		netdev_err(ndev,
+			   "Data path failed to switch %s VF: %s, err: %d\n",
+			   vf_is_up ? "to" : "from", vf_netdev->name, ret);
+		return NOTIFY_DONE;
+	} else {
+		netdev_info(ndev, "Data path switched %s VF: %s\n",
+			    vf_is_up ? "to" : "from", vf_netdev->name);
+	}
 
 	return NOTIFY_OK;
 }

@@ -43,14 +43,14 @@ exporting of kernel symbols to the kernel symbol table, variants of these are
 available to export symbols into a certain namespace: EXPORT_SYMBOL_NS() and
 EXPORT_SYMBOL_NS_GPL(). They take one additional argument: the namespace.
 Please note that due to macro expansion that argument needs to be a
-preprocessor symbol. E.g. to export the symbol `usb_stor_suspend` into the
-namespace `USB_STORAGE`, use::
+preprocessor symbol. E.g. to export the symbol ``usb_stor_suspend`` into the
+namespace ``USB_STORAGE``, use::
 
 	EXPORT_SYMBOL_NS(usb_stor_suspend, USB_STORAGE);
 
-The corresponding ksymtab entry struct `kernel_symbol` will have the member
-`namespace` set accordingly. A symbol that is exported without a namespace will
-refer to `NULL`. There is no default namespace if none is defined. `modpost`
+The corresponding ksymtab entry struct ``kernel_symbol`` will have the member
+``namespace`` set accordingly. A symbol that is exported without a namespace will
+refer to ``NULL``. There is no default namespace if none is defined. ``modpost``
 and kernel/module.c make use the namespace at build time or module load time,
 respectively.
 
@@ -64,7 +64,7 @@ and EXPORT_SYMBOL_GPL() macro expansions that do not specify a namespace.
 
 There are multiple ways of specifying this define and it depends on the
 subsystem and the maintainer's preference, which one to use. The first option
-is to define the default namespace in the `Makefile` of the subsystem. E.g. to
+is to define the default namespace in the ``Makefile`` of the subsystem. E.g. to
 export all symbols defined in usb-common into the namespace USB_COMMON, add a
 line like this to drivers/usb/common/Makefile::
 
@@ -96,7 +96,7 @@ using a statement like::
 
 	MODULE_IMPORT_NS(USB_STORAGE);
 
-This will create a `modinfo` tag in the module for each imported namespace.
+This will create a ``modinfo`` tag in the module for each imported namespace.
 This has the side effect, that the imported namespaces of a module can be
 inspected with modinfo::
 
@@ -113,7 +113,7 @@ metadata definitions like MODULE_AUTHOR() or MODULE_LICENSE(). Refer to section
 4. Loading Modules that use namespaced Symbols
 ==============================================
 
-At module loading time (e.g. `insmod`), the kernel will check each symbol
+At module loading time (e.g. ``insmod``), the kernel will check each symbol
 referenced from the module for its availability and whether the namespace it
 might be exported to has been imported by the module. The default behaviour of
 the kernel is to reject loading modules that don't specify sufficient imports.
@@ -138,19 +138,19 @@ missing imports. Fixing missing imports can be done with::
 A typical scenario for module authors would be::
 
 	- write code that depends on a symbol from a not imported namespace
-	- `make`
+	- ``make``
 	- notice the warning of modpost telling about a missing import
-	- run `make nsdeps` to add the import to the correct code location
+	- run ``make nsdeps`` to add the import to the correct code location
 
 For subsystem maintainers introducing a namespace, the steps are very similar.
-Again, `make nsdeps` will eventually add the missing namespace imports for
+Again, ``make nsdeps`` will eventually add the missing namespace imports for
 in-tree modules::
 
 	- move or add symbols to a namespace (e.g. with EXPORT_SYMBOL_NS())
-	- `make` (preferably with an allmodconfig to cover all in-kernel
+	- ``make`` (preferably with an allmodconfig to cover all in-kernel
 	  modules)
 	- notice the warning of modpost telling about a missing import
-	- run `make nsdeps` to add the import to the correct code location
+	- run ``make nsdeps`` to add the import to the correct code location
 
 You can also run nsdeps for external module builds. A typical usage is::
 

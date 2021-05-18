@@ -125,6 +125,7 @@ source "fs/overlayfs/Kconfig"
 
 menu "Caches"
 
+source "fs/netfs/Kconfig"
 source "fs/fscache/Kconfig"
 source "fs/cachefiles/Kconfig"
 
@@ -203,7 +204,7 @@ config TMPFS_XATTR
 
 config TMPFS_INODE64
 	bool "Use 64-bit ino_t by default in tmpfs"
-	depends on TMPFS && 64BIT && !(S390 || ALPHA)
+	depends on TMPFS && 64BIT
 	default n
 	help
 	  tmpfs has historically used only inode numbers as wide as an unsigned
@@ -222,10 +223,13 @@ config TMPFS_INODE64
 
 	  If unsure, say N.
 
+config ARCH_SUPPORTS_HUGETLBFS
+	def_bool n
+
 config HUGETLBFS
 	bool "HugeTLB file system support"
 	depends on X86 || IA64 || SPARC64 || (S390 && 64BIT) || \
-		   SYS_SUPPORTS_HUGETLBFS || BROKEN
+		   ARCH_SUPPORTS_HUGETLBFS || BROKEN
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
@@ -334,8 +338,8 @@ config NFS_COMMON
 	default y
 
 config NFS_V4_2_SSC_HELPER
-	tristate
-	default y if NFS_V4=y || NFS_FS=y
+	bool
+	default y if NFS_V4_2
 
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"

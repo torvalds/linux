@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2019 Intel Corporation
  */
 
@@ -13,8 +12,9 @@
 #include "selftests/igt_spinner.h"
 
 struct live_mocs {
-	struct drm_i915_mocs_table mocs;
-	struct drm_i915_mocs_table l3cc;
+	struct drm_i915_mocs_table table;
+	struct drm_i915_mocs_table *mocs;
+	struct drm_i915_mocs_table *l3cc;
 	struct i915_vma *scratch;
 	void *vaddr;
 };
@@ -59,27 +59,27 @@ static int request_add_spin(struct i915_request *rq, struct igt_spinner *spin)
 
 static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 {
-	struct drm_i915_mocs_table table;
 	unsigned int flags;
 	int err;
 
 	memset(arg, 0, sizeof(*arg));
 
-	flags = get_mocs_settings(gt->i915, &table);
+	flags = get_mocs_settings(gt->i915, &arg->table);
 	if (!flags)
 		return -EINVAL;
 
 	if (flags & HAS_RENDER_L3CC)
-		arg->l3cc = table;
+		arg->l3cc = &arg->table;
 
 	if (flags & (HAS_GLOBAL_MOCS | HAS_ENGINE_MOCS))
-		arg->mocs = table;
+		arg->mocs = &arg->table;
 
-	arg->scratch = __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
+	arg->scratch =
+		__vm_create_scratch_for_read_pinned(&gt->ggtt->vm, PAGE_SIZE);
 	if (IS_ERR(arg->scratch))
 		return PTR_ERR(arg->scratch);
 
-	arg->vaddr = i915_gem_object_pin_map(arg->scratch->obj, I915_MAP_WB);
+	arg->vaddr = i915_gem_object_pin_map_unlocked(arg->scratch->obj, I915_MAP_WB);
 	if (IS_ERR(arg->vaddr)) {
 		err = PTR_ERR(arg->vaddr);
 		goto err_scratch;
@@ -131,6 +131,9 @@ static int read_mocs_table(struct i915_request *rq,
 {
 	u32 addr;
 
+	if (!table)
+		return 0;
+
 	if (HAS_GLOBAL_MOCS_REGISTERS(rq->engine->i915))
 		addr = global_mocs_offset();
 	else
@@ -145,6 +148,9 @@ static int read_l3cc_table(struct i915_request *rq,
 {
 	u32 addr = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
 
+	if (!table)
+		return 0;
+
 	return read_regs(rq, addr, (table->n_entries + 1) / 2, offset);
 }
 
@@ -154,6 +160,9 @@ static int check_mocs_table(struct intel_engine_cs *engine,
 {
 	unsigned int i;
 	u32 expect;
+
+	if (!table)
+		return 0;
 
 	for_each_mocs(expect, table, i) {
 		if (**vaddr != expect) {
@@ -185,6 +194,9 @@ static int check_l3cc_table(struct intel_engine_cs *engine,
 	u32 reg = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
 	unsigned int i;
 	u32 expect;
+
+	if (!table)
+		return 0;
 
 	for_each_l3cc(expect, table, i) {
 		if (!mcr_range(engine->i915, reg) && **vaddr != expect) {
@@ -223,9 +235,9 @@ static int check_mocs_engine(struct live_mocs *arg,
 	/* Read the mocs tables back using SRM */
 	offset = i915_ggtt_offset(vma);
 	if (!err)
-		err = read_mocs_table(rq, &arg->mocs, &offset);
+		err = read_mocs_table(rq, arg->mocs, &offset);
 	if (!err && ce->engine->class == RENDER_CLASS)
-		err = read_l3cc_table(rq, &arg->l3cc, &offset);
+		err = read_l3cc_table(rq, arg->l3cc, &offset);
 	offset -= i915_ggtt_offset(vma);
 	GEM_BUG_ON(offset > PAGE_SIZE);
 
@@ -236,9 +248,9 @@ static int check_mocs_engine(struct live_mocs *arg,
 	/* Compare the results against the expected tables */
 	vaddr = arg->vaddr;
 	if (!err)
-		err = check_mocs_table(ce->engine, &arg->mocs, &vaddr);
+		err = check_mocs_table(ce->engine, arg->mocs, &vaddr);
 	if (!err && ce->engine->class == RENDER_CLASS)
-		err = check_l3cc_table(ce->engine, &arg->l3cc, &vaddr);
+		err = check_l3cc_table(ce->engine, arg->l3cc, &vaddr);
 	if (err)
 		return err;
 

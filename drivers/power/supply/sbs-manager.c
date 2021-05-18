@@ -13,7 +13,7 @@
  * Karl-Heinz Schneider <karl-heinz@schneider-inet.de>
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
@@ -294,10 +294,8 @@ static int sbsm_gpio_setup(struct sbsm_data *data)
 	gc->owner = THIS_MODULE;
 
 	ret = devm_gpiochip_add_data(dev, gc, data);
-	if (ret) {
-		dev_err(dev, "devm_gpiochip_add_data failed: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "devm_gpiochip_add_data failed\n");
 
 	return ret;
 }
@@ -310,6 +308,12 @@ static const struct power_supply_desc sbsm_default_psy_desc = {
 	.set_property = &sbsm_set_property,
 	.property_is_writeable = &sbsm_prop_is_writeable,
 };
+
+static void sbsm_del_mux_adapter(void *data)
+{
+	struct sbsm_data *sbsm = data;
+	i2c_mux_del_adapters(sbsm->muxc);
+}
 
 static int sbsm_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
@@ -343,12 +347,13 @@ static int sbsm_probe(struct i2c_client *client,
 	data->supported_bats = ret & SBSM_MASK_BAT_SUPPORTED;
 	data->muxc = i2c_mux_alloc(adapter, dev, SBSM_MAX_BATS, 0,
 				   I2C_MUX_LOCKED, &sbsm_select, NULL);
-	if (!data->muxc) {
-		dev_err(dev, "failed to alloc i2c mux\n");
-		ret = -ENOMEM;
-		goto err_mux_alloc;
-	}
+	if (!data->muxc)
+		return dev_err_probe(dev, -ENOMEM, "failed to alloc i2c mux\n");
 	data->muxc->priv = data;
+
+	ret = devm_add_action_or_reset(dev, sbsm_del_mux_adapter, data);
+	if (ret)
+		return ret;
 
 	/* register muxed i2c channels. One for each supported battery */
 	for (i = 0; i < SBSM_MAX_BATS; ++i) {
@@ -358,54 +363,28 @@ static int sbsm_probe(struct i2c_client *client,
 				break;
 		}
 	}
-	if (ret) {
-		dev_err(dev, "failed to register i2c mux channel %d\n", i + 1);
-		goto err_mux_register;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register i2c mux channel %d\n", i + 1);
 
-	psy_desc = devm_kmemdup(dev, &sbsm_default_psy_desc,
-				sizeof(struct power_supply_desc),
-				GFP_KERNEL);
-	if (!psy_desc) {
-		ret = -ENOMEM;
-		goto err_psy;
-	}
+	psy_desc = devm_kmemdup(dev, &sbsm_default_psy_desc, sizeof(*psy_desc), GFP_KERNEL);
+	if (!psy_desc)
+		return -ENOMEM;
 
-	psy_desc->name = devm_kasprintf(dev, GFP_KERNEL, "sbsm-%s",
-					dev_name(&client->dev));
-	if (!psy_desc->name) {
-		ret = -ENOMEM;
-		goto err_psy;
-	}
+	psy_desc->name = devm_kasprintf(dev, GFP_KERNEL, "sbsm-%s", dev_name(&client->dev));
+	if (!psy_desc->name)
+		return -ENOMEM;
+
 	ret = sbsm_gpio_setup(data);
 	if (ret < 0)
-		goto err_psy;
+		return ret;
 
 	psy_cfg.drv_data = data;
 	psy_cfg.of_node = dev->of_node;
 	data->psy = devm_power_supply_register(dev, psy_desc, &psy_cfg);
-	if (IS_ERR(data->psy)) {
-		ret = PTR_ERR(data->psy);
-		dev_err(dev, "failed to register power supply %s\n",
-			psy_desc->name);
-		goto err_psy;
-	}
+	if (IS_ERR(data->psy))
+		return dev_err_probe(dev, PTR_ERR(data->psy),
+				     "failed to register power supply %s\n", psy_desc->name);
 
-	return 0;
-
-err_psy:
-err_mux_register:
-	i2c_mux_del_adapters(data->muxc);
-
-err_mux_alloc:
-	return ret;
-}
-
-static int sbsm_remove(struct i2c_client *client)
-{
-	struct sbsm_data *data = i2c_get_clientdata(client);
-
-	i2c_mux_del_adapters(data->muxc);
 	return 0;
 }
 
@@ -431,7 +410,6 @@ static struct i2c_driver sbsm_driver = {
 		.of_match_table = of_match_ptr(sbsm_dt_ids),
 	},
 	.probe		= sbsm_probe,
-	.remove		= sbsm_remove,
 	.alert		= sbsm_alert,
 	.id_table	= sbsm_ids
 };

@@ -13,12 +13,7 @@
 #include <sound/core.h>
 #include "pmac.h"
 
-/*
- * we have to keep a static variable here since i2c attach_adapter
- * callback cannot pass a private data.
- */
 static struct pmac_keywest *keywest_ctx;
-
 static bool keywest_probed;
 
 static int keywest_probe(struct i2c_client *client,

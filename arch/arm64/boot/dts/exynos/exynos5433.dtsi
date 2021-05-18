@@ -564,9 +564,9 @@
 			compatible = "samsung,exynos5433-slim-sss";
 			reg = <0x11140000 0x1000>;
 			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "aclk", "pclk";
-			clocks = <&cmu_imem CLK_ACLK_SLIMSSS>,
-				 <&cmu_imem CLK_PCLK_SLIMSSS>;
+			clock-names = "pclk", "aclk";
+			clocks = <&cmu_imem CLK_PCLK_SLIMSSS>,
+				 <&cmu_imem CLK_ACLK_SLIMSSS>;
 		};
 
 		pd_gscl: power-domain@105c4000 {

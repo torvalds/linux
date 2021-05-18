@@ -1877,6 +1877,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 				    .len = ALTIFNAMSIZ - 1 },
 	[IFLA_PERM_ADDRESS]	= { .type = NLA_REJECT },
 	[IFLA_PROTO_DOWN_REASON] = { .type = NLA_NESTED },
+	[IFLA_NEW_IFINDEX]	= NLA_POLICY_MIN(NLA_S32, 1),
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -2147,7 +2148,7 @@ out:
 out_err:
 	cb->args[1] = idx;
 	cb->args[0] = h;
-	cb->seq = net->dev_base_seq;
+	cb->seq = tgt_net->dev_base_seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 	if (netnsid >= 0)
 		put_net(tgt_net);
@@ -2603,14 +2604,22 @@ static int do_setlink(const struct sk_buff *skb,
 		return err;
 
 	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD] || tb[IFLA_TARGET_NETNSID]) {
-		struct net *net = rtnl_link_get_net_capable(skb, dev_net(dev),
-							    tb, CAP_NET_ADMIN);
+		struct net *net;
+		int new_ifindex;
+
+		net = rtnl_link_get_net_capable(skb, dev_net(dev),
+						tb, CAP_NET_ADMIN);
 		if (IS_ERR(net)) {
 			err = PTR_ERR(net);
 			goto errout;
 		}
 
-		err = dev_change_net_namespace(dev, net, ifname);
+		if (tb[IFLA_NEW_IFINDEX])
+			new_ifindex = nla_get_s32(tb[IFLA_NEW_IFINDEX]);
+		else
+			new_ifindex = 0;
+
+		err = __dev_change_net_namespace(dev, net, ifname, new_ifindex);
 		put_net(net);
 		if (err)
 			goto errout;
@@ -2863,7 +2872,7 @@ static int do_setlink(const struct sk_buff *skb,
 
 			BUG_ON(!(af_ops = rtnl_af_lookup(nla_type(af))));
 
-			err = af_ops->set_link_af(dev, af);
+			err = af_ops->set_link_af(dev, af, extack);
 			if (err < 0) {
 				rcu_read_unlock();
 				goto errout;

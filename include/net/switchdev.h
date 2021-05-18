@@ -68,6 +68,7 @@ enum switchdev_obj_id {
 };
 
 struct switchdev_obj {
+	struct list_head list;
 	struct net_device *orig_dev;
 	enum switchdev_obj_id id;
 	u32 flags;
@@ -208,6 +209,7 @@ struct switchdev_notifier_fdb_info {
 	const unsigned char *addr;
 	u16 vid;
 	u8 added_by_user:1,
+	   is_local:1,
 	   offloaded:1;
 };
 

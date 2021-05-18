@@ -205,17 +205,24 @@
 	};
 };
 
+&cp2_utmi {
+	status = "okay";
+};
+
 &cp2_usb3_0 {
 	status = "okay";
 	usb-phy = <&cp2_usb3_0_phy0>;
+	phys = <&cp2_utmi0>;
 	phy-names = "usb";
+	dr_mode = "host";
 };
 
 /* SLM-1521-V2, CON11 */
 &cp2_usb3_1 {
 	status = "okay";
 	usb-phy = <&cp2_usb3_0_phy1>;
-	phy-names = "usb";
 	/* Generic PHY, providing serdes lanes */
-	phys = <&cp2_comphy3 1>;
+	phys = <&cp2_comphy3 1>, <&cp2_utmi1>;
+	phy-names = "usb", "utmi";
+	dr_mode = "host";
 };

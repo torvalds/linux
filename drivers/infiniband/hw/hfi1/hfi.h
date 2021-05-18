@@ -69,7 +69,6 @@
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
-#include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -717,12 +716,6 @@ static inline void incr_cntr64(u64 *cntr)
 		(*cntr)++;
 }
 
-static inline void incr_cntr32(u32 *cntr)
-{
-	if (*cntr < (u32)-1LL)
-		(*cntr)++;
-}
-
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
 	enum irq_type type;
@@ -864,7 +857,7 @@ struct hfi1_pportdata {
 	u8 rx_pol_inv;
 
 	u8 hw_pidx;     /* physical port index */
-	u8 port;        /* IB port number and index into dd->pports - 1 */
+	u32 port;        /* IB port number and index into dd->pports - 1 */
 	/* type of neighbor node */
 	u8 neighbor_type;
 	u8 neighbor_normal;
@@ -1066,6 +1059,7 @@ struct sdma_vl_map;
 #define SERIAL_MAX 16 /* length of the serial number */
 
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
+struct hfi1_netdev_rx;
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
 	/* pointers to related structs for this device */
@@ -1408,7 +1402,8 @@ struct hfi1_devdata {
 	/* Lock to protect IRQ SRC register access */
 	spinlock_t irq_src_lock;
 	int vnic_num_vports;
-	struct net_device *dummy_netdev;
+	struct hfi1_netdev_rx *netdev_rx;
+	struct hfi1_affinity_node *affinity_entry;
 
 	/* Keeps track of IPoIB RSM rule users */
 	atomic_t ipoib_rsm_usr_num;
@@ -1479,7 +1474,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 			 struct hfi1_ctxtdata **rcd);
 void hfi1_free_ctxt(struct hfi1_ctxtdata *rcd);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
-			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
+			 struct hfi1_devdata *dd, u8 hw_pidx, u32 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
@@ -1975,10 +1970,10 @@ static inline struct hfi1_ibdev *dev_from_rdi(struct rvt_dev_info *rdi)
 	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
-static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
+static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u32 port)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
-	unsigned pidx = port - 1; /* IB number port from 1, hdw from 0 */
+	u32 pidx = port - 1; /* IB number port from 1, hdw from 0 */
 
 	WARN_ON(pidx >= dd->num_pports);
 	return &dd->pport[pidx].ibport_data;
@@ -2197,7 +2192,7 @@ extern const struct attribute_group ib_hfi1_attr_group;
 int hfi1_device_create(struct hfi1_devdata *dd);
 void hfi1_device_remove(struct hfi1_devdata *dd);
 
-int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
+int hfi1_create_port_files(struct ib_device *ibdev, u32 port_num,
 			   struct kobject *kobj);
 int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd);
 void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);

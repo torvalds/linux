@@ -87,18 +87,6 @@ clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 #endif
 
 /*
- * The maximum amount of extra memory compared to the base size.  The
- * main scaling factor is the size of struct page.  At extreme ratios
- * of base:extra, all the base memory can be filled with page
- * structures for the extra memory, leaving no space for anything
- * else.
- *
- * 10x seems like a reasonable balance between scaling flexibility and
- * leaving a practically usable system.
- */
-#define XEN_EXTRA_MEM_RATIO	(10)
-
-/*
  * Helper functions to write or read unsigned long values to/from
  * memory, when the access may fault.
  */

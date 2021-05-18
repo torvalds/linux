@@ -192,6 +192,16 @@
 #define IGC_TSYNCTXCTL	0x0B614  /* Tx Time Sync Control register - RW */
 #define IGC_TSYNCRXCFG	0x05F50  /* Time Sync Rx Configuration - RW */
 #define IGC_TSSDP	0x0003C  /* Time Sync SDP Configuration Register - RW */
+#define IGC_TRGTTIML0	0x0B644 /* Target Time Register 0 Low  - RW */
+#define IGC_TRGTTIMH0	0x0B648 /* Target Time Register 0 High - RW */
+#define IGC_TRGTTIML1	0x0B64C /* Target Time Register 1 Low  - RW */
+#define IGC_TRGTTIMH1	0x0B650 /* Target Time Register 1 High - RW */
+#define IGC_FREQOUT0	0x0B654 /* Frequency Out 0 Control Register - RW */
+#define IGC_FREQOUT1	0x0B658 /* Frequency Out 1 Control Register - RW */
+#define IGC_AUXSTMPL0	0x0B65C /* Auxiliary Time Stamp 0 Register Low  - RO */
+#define IGC_AUXSTMPH0	0x0B660 /* Auxiliary Time Stamp 0 Register High - RO */
+#define IGC_AUXSTMPL1	0x0B664 /* Auxiliary Time Stamp 1 Register Low  - RO */
+#define IGC_AUXSTMPH1	0x0B668 /* Auxiliary Time Stamp 1 Register High - RO */
 
 #define IGC_IMIR(_i)	(0x05A80 + ((_i) * 4))  /* Immediate Interrupt */
 #define IGC_IMIREXT(_i)	(0x05AA0 + ((_i) * 4))  /* Immediate INTR Ext*/

@@ -3,6 +3,7 @@
 #include <linux/path.h>
 #include <linux/slab.h>
 #include <linux/exportfs.h>
+#include <linux/hashtable.h>
 
 extern struct kmem_cache *fanotify_mark_cache;
 extern struct kmem_cache *fanotify_fid_event_cachep;
@@ -115,6 +116,11 @@ static inline void fanotify_info_init(struct fanotify_info *info)
 	info->name_len = 0;
 }
 
+static inline unsigned int fanotify_info_len(struct fanotify_info *info)
+{
+	return info->dir_fh_totlen + info->file_fh_totlen + info->name_len;
+}
+
 static inline void fanotify_info_copy_name(struct fanotify_info *info,
 					   const struct qstr *name)
 {
@@ -135,19 +141,31 @@ enum fanotify_event_type {
 	FANOTIFY_EVENT_TYPE_PATH,
 	FANOTIFY_EVENT_TYPE_PATH_PERM,
 	FANOTIFY_EVENT_TYPE_OVERFLOW, /* struct fanotify_event */
+	__FANOTIFY_EVENT_TYPE_NUM
 };
+
+#define FANOTIFY_EVENT_TYPE_BITS \
+	(ilog2(__FANOTIFY_EVENT_TYPE_NUM - 1) + 1)
+#define FANOTIFY_EVENT_HASH_BITS \
+	(32 - FANOTIFY_EVENT_TYPE_BITS)
 
 struct fanotify_event {
 	struct fsnotify_event fse;
+	struct hlist_node merge_list;	/* List for hashed merge */
 	u32 mask;
-	enum fanotify_event_type type;
+	struct {
+		unsigned int type : FANOTIFY_EVENT_TYPE_BITS;
+		unsigned int hash : FANOTIFY_EVENT_HASH_BITS;
+	};
 	struct pid *pid;
 };
 
 static inline void fanotify_init_event(struct fanotify_event *event,
-				       unsigned long id, u32 mask)
+				       unsigned int hash, u32 mask)
 {
-	fsnotify_init_event(&event->fse, id);
+	fsnotify_init_event(&event->fse);
+	INIT_HLIST_NODE(&event->merge_list);
+	event->hash = hash;
 	event->mask = mask;
 	event->pid = NULL;
 }
@@ -283,4 +301,26 @@ static inline struct path *fanotify_event_path(struct fanotify_event *event)
 		return &FANOTIFY_PERM(event)->path;
 	else
 		return NULL;
+}
+
+/*
+ * Use 128 size hash table to speed up events merge.
+ */
+#define FANOTIFY_HTABLE_BITS	(7)
+#define FANOTIFY_HTABLE_SIZE	(1 << FANOTIFY_HTABLE_BITS)
+#define FANOTIFY_HTABLE_MASK	(FANOTIFY_HTABLE_SIZE - 1)
+
+/*
+ * Permission events and overflow event do not get merged - don't hash them.
+ */
+static inline bool fanotify_is_hashed_event(u32 mask)
+{
+	return !fanotify_is_perm_event(mask) && !(mask & FS_Q_OVERFLOW);
+}
+
+static inline unsigned int fanotify_event_hash_bucket(
+						struct fsnotify_group *group,
+						struct fanotify_event *event)
+{
+	return event->hash & FANOTIFY_HTABLE_MASK;
 }

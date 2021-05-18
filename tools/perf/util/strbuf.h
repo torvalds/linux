@@ -12,7 +12,7 @@
  *    build complex strings/buffers whose final size isn't easily known.
  *
  *    It is NOT legal to copy the ->buf pointer away.
- *    `strbuf_detach' is the operation that detachs a buffer from its shell
+ *    `strbuf_detach' is the operation that detaches a buffer from its shell
  *    while keeping the shell valid wrt its invariants.
  *
  * 2. the ->buf member is a byte array that has at least ->len + 1 bytes

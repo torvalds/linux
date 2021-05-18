@@ -797,6 +797,14 @@ static int pca9450_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	/* Clear PRESET_EN bit in BUCK123_DVS to use DVS registers */
+	ret = regmap_clear_bits(pca9450->regmap, PCA9450_REG_BUCK123_DVS,
+				BUCK123_PRESET_EN);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to clear PRESET_EN bit: %d\n", ret);
+		return ret;
+	}
+
 	/* Set reset behavior on assertion of WDOG_B signal */
 	ret = regmap_update_bits(pca9450->regmap, PCA9450_REG_RESET_CTRL,
 				WDOG_B_CFG_MASK, WDOG_B_CFG_COLD_LDO12);
@@ -814,7 +822,7 @@ static int pca9450_i2c_probe(struct i2c_client *i2c,
 
 	if (IS_ERR(pca9450->sd_vsel_gpio)) {
 		dev_err(&i2c->dev, "Failed to get SD_VSEL GPIO\n");
-		return ret;
+		return PTR_ERR(pca9450->sd_vsel_gpio);
 	}
 
 	dev_info(&i2c->dev, "%s probed.\n",

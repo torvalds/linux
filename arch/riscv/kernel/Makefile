@@ -8,6 +8,11 @@ CFLAGS_REMOVE_ftrace.o	= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_patch.o	= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_sbi.o	= $(CC_FLAGS_FTRACE)
 endif
+CFLAGS_syscall_table.o	+= $(call cc-option,-Wno-override-init,)
+
+ifdef CONFIG_KEXEC
+AFLAGS_kexec_relocate.o := -mcmodel=medany -mno-relax
+endif
 
 extra-y += head.o
 extra-y += vmlinux.lds
@@ -54,6 +59,8 @@ obj-$(CONFIG_SMP) += cpu_ops_sbi.o
 endif
 obj-$(CONFIG_HOTPLUG_CPU)	+= cpu-hotplug.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
+obj-$(CONFIG_KEXEC)		+= kexec_relocate.o crash_save_regs.o machine_kexec.o
+obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 

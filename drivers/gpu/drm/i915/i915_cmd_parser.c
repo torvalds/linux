@@ -940,7 +940,7 @@ static void fini_hash_table(struct intel_engine_cs *engine)
  * struct intel_engine_cs based on whether the platform requires software
  * command parsing.
  */
-void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
+int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 {
 	const struct drm_i915_cmd_table *cmd_tables;
 	int cmd_table_count;
@@ -948,7 +948,7 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 
 	if (!IS_GEN(engine->i915, 7) && !(IS_GEN(engine->i915, 9) &&
 					  engine->class == COPY_ENGINE_CLASS))
-		return;
+		return 0;
 
 	switch (engine->class) {
 	case RENDER_CLASS:
@@ -1013,19 +1013,19 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		break;
 	default:
 		MISSING_CASE(engine->class);
-		return;
+		goto out;
 	}
 
 	if (!validate_cmds_sorted(engine, cmd_tables, cmd_table_count)) {
 		drm_err(&engine->i915->drm,
 			"%s: command descriptions are not sorted\n",
 			engine->name);
-		return;
+		goto out;
 	}
 	if (!validate_regs_sorted(engine)) {
 		drm_err(&engine->i915->drm,
 			"%s: registers are not sorted\n", engine->name);
-		return;
+		goto out;
 	}
 
 	ret = init_hash_table(engine, cmd_tables, cmd_table_count);
@@ -1033,10 +1033,17 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		drm_err(&engine->i915->drm,
 			"%s: initialised failed!\n", engine->name);
 		fini_hash_table(engine);
-		return;
+		goto out;
 	}
 
 	engine->flags |= I915_ENGINE_USING_CMD_PARSER;
+
+out:
+	if (intel_engine_requires_cmd_parser(engine) &&
+	    !intel_engine_using_cmd_parser(engine))
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -1137,38 +1144,20 @@ find_reg(const struct intel_engine_cs *engine, u32 addr)
 /* Returns a vmap'd pointer to dst_obj, which the caller must unmap */
 static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		       struct drm_i915_gem_object *src_obj,
-		       unsigned long offset, unsigned long length)
+		       unsigned long offset, unsigned long length,
+		       void *dst, const void *src)
 {
-	bool needs_clflush;
-	void *dst, *src;
-	int ret;
-
-	dst = i915_gem_object_pin_map(dst_obj, I915_MAP_WB);
-	if (IS_ERR(dst))
-		return dst;
-
-	ret = i915_gem_object_pin_pages(src_obj);
-	if (ret) {
-		i915_gem_object_unpin_map(dst_obj);
-		return ERR_PTR(ret);
-	}
-
-	needs_clflush =
+	bool needs_clflush =
 		!(src_obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ);
 
-	src = ERR_PTR(-ENODEV);
-	if (needs_clflush && i915_has_memcpy_from_wc()) {
-		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
-		if (!IS_ERR(src)) {
-			i915_unaligned_memcpy_from_wc(dst,
-						      src + offset,
-						      length);
-			i915_gem_object_unpin_map(src_obj);
-		}
-	}
-	if (IS_ERR(src)) {
-		unsigned long x, n, remain;
+	if (src) {
+		GEM_BUG_ON(!needs_clflush);
+		i915_unaligned_memcpy_from_wc(dst, src + offset, length);
+	} else {
+		struct scatterlist *sg;
 		void *ptr;
+		unsigned int x, sg_ofs;
+		unsigned long remain;
 
 		/*
 		 * We can avoid clflushing partial cachelines before the write
@@ -1185,22 +1174,30 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 
 		ptr = dst;
 		x = offset_in_page(offset);
-		for (n = offset >> PAGE_SHIFT; remain; n++) {
-			int len = min(remain, PAGE_SIZE - x);
+		sg = i915_gem_object_get_sg(src_obj, offset >> PAGE_SHIFT, &sg_ofs, false);
 
-			src = kmap_atomic(i915_gem_object_get_page(src_obj, n));
-			if (needs_clflush)
-				drm_clflush_virt_range(src + x, len);
-			memcpy(ptr, src + x, len);
-			kunmap_atomic(src);
+		while (remain) {
+			unsigned long sg_max = sg->length >> PAGE_SHIFT;
 
-			ptr += len;
-			remain -= len;
-			x = 0;
+			for (; remain && sg_ofs < sg_max; sg_ofs++) {
+				unsigned long len = min(remain, PAGE_SIZE - x);
+				void *map;
+
+				map = kmap_atomic(nth_page(sg_page(sg), sg_ofs));
+				if (needs_clflush)
+					drm_clflush_virt_range(map + x, len);
+				memcpy(ptr, map + x, len);
+				kunmap_atomic(map);
+
+				ptr += len;
+				remain -= len;
+				x = 0;
+			}
+
+			sg_ofs = 0;
+			sg = sg_next(sg);
 		}
 	}
-
-	i915_gem_object_unpin_pages(src_obj);
 
 	memset32(dst + length, 0, (dst_obj->base.size - length) / sizeof(u32));
 
@@ -1363,9 +1360,6 @@ static int check_bbstart(u32 *cmd, u32 offset, u32 length,
 	if (target_cmd_index == offset)
 		return 0;
 
-	if (IS_ERR(jump_whitelist))
-		return PTR_ERR(jump_whitelist);
-
 	if (!test_bit(target_cmd_index, jump_whitelist)) {
 		DRM_DEBUG("CMD: BB_START to 0x%llx not a previously executed cmd\n",
 			  jump_target);
@@ -1375,9 +1369,13 @@ static int check_bbstart(u32 *cmd, u32 offset, u32 length,
 	return 0;
 }
 
-static unsigned long *alloc_whitelist(u32 batch_length)
+unsigned long *intel_engine_cmd_parser_alloc_jump_whitelist(u32 batch_length,
+							    bool trampoline)
 {
 	unsigned long *jmp;
+
+	if (trampoline)
+		return NULL;
 
 	/*
 	 * We expect batch_length to be less than 256KiB for known users,
@@ -1416,14 +1414,16 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    unsigned long batch_offset,
 			    unsigned long batch_length,
 			    struct i915_vma *shadow,
-			    bool trampoline)
+			    unsigned long *jump_whitelist,
+			    void *shadow_map,
+			    const void *batch_map)
 {
 	u32 *cmd, *batch_end, offset = 0;
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
 	const struct drm_i915_cmd_descriptor *desc = &default_desc;
-	unsigned long *jump_whitelist;
 	u64 batch_addr, shadow_addr;
 	int ret = 0;
+	bool trampoline = !jump_whitelist;
 
 	GEM_BUG_ON(!IS_ALIGNED(batch_offset, sizeof(*cmd)));
 	GEM_BUG_ON(!IS_ALIGNED(batch_length, sizeof(*cmd)));
@@ -1431,16 +1431,8 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 				     batch->size));
 	GEM_BUG_ON(!batch_length);
 
-	cmd = copy_batch(shadow->obj, batch->obj, batch_offset, batch_length);
-	if (IS_ERR(cmd)) {
-		DRM_DEBUG("CMD: Failed to copy batch\n");
-		return PTR_ERR(cmd);
-	}
-
-	jump_whitelist = NULL;
-	if (!trampoline)
-		/* Defer failure until attempted use */
-		jump_whitelist = alloc_whitelist(batch_length);
+	cmd = copy_batch(shadow->obj, batch->obj, batch_offset, batch_length,
+			 shadow_map, batch_map);
 
 	shadow_addr = gen8_canonical_addr(shadow->node.start);
 	batch_addr = gen8_canonical_addr(batch->node.start + batch_offset);
@@ -1541,9 +1533,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 
 	i915_gem_object_flush_map(shadow->obj);
 
-	if (!IS_ERR_OR_NULL(jump_whitelist))
-		kfree(jump_whitelist);
-	i915_gem_object_unpin_map(shadow->obj);
 	return ret;
 }
 

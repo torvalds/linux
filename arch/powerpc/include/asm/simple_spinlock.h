@@ -38,8 +38,7 @@ static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
-	smp_mb();
-	return !arch_spin_value_unlocked(*lock);
+	return !arch_spin_value_unlocked(READ_ONCE(*lock));
 }
 
 /*
@@ -281,8 +280,5 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 #define arch_spin_relax(lock)	spin_yield(lock)
 #define arch_read_relax(lock)	rw_yield(lock)
 #define arch_write_relax(lock)	rw_yield(lock)
-
-/* See include/linux/spinlock.h */
-#define smp_mb__after_spinlock()   smp_mb()
 
 #endif /* _ASM_POWERPC_SIMPLE_SPINLOCK_H */

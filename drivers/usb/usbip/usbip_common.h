@@ -18,6 +18,7 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include <linux/sched/task.h>
+#include <linux/kcov.h>
 #include <uapi/linux/usbip.h>
 
 #undef pr_fmt
@@ -262,6 +263,9 @@ struct usbip_device {
 
 	/* lock for status */
 	spinlock_t lock;
+
+	/* mutex for synchronizing sysfs store paths */
+	struct mutex sysfs_lock;
 
 	int sockfd;
 	struct socket *tcp_socket;

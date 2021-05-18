@@ -34,6 +34,9 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 {
 	struct callback_head *head;
 
+	/* record the work call stack in order to print it in KASAN reports */
+	kasan_record_aux_stack(work);
+
 	do {
 		head = READ_ONCE(task->task_works);
 		if (unlikely(head == &work_exited))
@@ -59,18 +62,17 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 }
 
 /**
- * task_work_cancel - cancel a pending work added by task_work_add()
+ * task_work_cancel_match - cancel a pending work added by task_work_add()
  * @task: the task which should execute the work
- * @func: identifies the work to remove
- *
- * Find the last queued pending work with ->func == @func and remove
- * it from queue.
+ * @match: match function to call
  *
  * RETURNS:
  * The found work or NULL if not found.
  */
 struct callback_head *
-task_work_cancel(struct task_struct *task, task_work_func_t func)
+task_work_cancel_match(struct task_struct *task,
+		       bool (*match)(struct callback_head *, void *data),
+		       void *data)
 {
 	struct callback_head **pprev = &task->task_works;
 	struct callback_head *work;
@@ -86,7 +88,7 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	while ((work = READ_ONCE(*pprev))) {
-		if (work->func != func)
+		if (!match(work, data))
 			pprev = &work->next;
 		else if (cmpxchg(pprev, work, work->next) == work)
 			break;
@@ -94,6 +96,28 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 
 	return work;
+}
+
+static bool task_work_func_match(struct callback_head *cb, void *data)
+{
+	return cb->func == data;
+}
+
+/**
+ * task_work_cancel - cancel a pending work added by task_work_add()
+ * @task: the task which should execute the work
+ * @func: identifies the work to remove
+ *
+ * Find the last queued pending work with ->func == @func and remove
+ * it from queue.
+ *
+ * RETURNS:
+ * The found work or NULL if not found.
+ */
+struct callback_head *
+task_work_cancel(struct task_struct *task, task_work_func_t func)
+{
+	return task_work_cancel_match(task, task_work_func_match, func);
 }
 
 /**

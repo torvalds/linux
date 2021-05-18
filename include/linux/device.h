@@ -49,7 +49,7 @@ struct dev_iommu;
 /**
  * struct subsys_interface - interfaces to device functions
  * @name:       name of the device function
- * @subsys:     subsytem of the devices to attach to
+ * @subsys:     subsystem of the devices to attach to
  * @node:       the list of functions registered at the subsystem
  * @add_dev:    device hookup to device function handler
  * @remove_dev: device hookup to device function handler
@@ -439,6 +439,9 @@ struct dev_links_info {
  * @state_synced: The hardware state of this device has been synced to match
  *		  the software state of this device by calling the driver/bus
  *		  sync_state() callback.
+ * @can_match:	The device has matched with a driver at least once or it is in
+ *		a bus (like AMBA) which can't check for matching drivers until
+ *		other devices probe successfully.
  * @dma_coherent: this particular device is dma coherent, even if the
  *		architecture supports non-coherent devices.
  * @dma_ops_bypass: If set to %true then the dma_ops are bypassed for the
@@ -545,6 +548,7 @@ struct device {
 	bool			offline:1;
 	bool			of_node_reused:1;
 	bool			state_synced:1;
+	bool			can_match:1;
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)

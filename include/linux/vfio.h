@@ -15,6 +15,17 @@
 #include <linux/poll.h>
 #include <uapi/linux/vfio.h>
 
+struct vfio_device {
+	struct device *dev;
+	const struct vfio_device_ops *ops;
+	struct vfio_group *group;
+
+	/* Members below here are private, not for driver use */
+	refcount_t refcount;
+	struct completion comp;
+	struct list_head group_next;
+};
+
 /**
  * struct vfio_device_ops - VFIO bus driver device callbacks
  *
@@ -32,30 +43,28 @@
  */
 struct vfio_device_ops {
 	char	*name;
-	int	(*open)(void *device_data);
-	void	(*release)(void *device_data);
-	ssize_t	(*read)(void *device_data, char __user *buf,
+	int	(*open)(struct vfio_device *vdev);
+	void	(*release)(struct vfio_device *vdev);
+	ssize_t	(*read)(struct vfio_device *vdev, char __user *buf,
 			size_t count, loff_t *ppos);
-	ssize_t	(*write)(void *device_data, const char __user *buf,
+	ssize_t	(*write)(struct vfio_device *vdev, const char __user *buf,
 			 size_t count, loff_t *size);
-	long	(*ioctl)(void *device_data, unsigned int cmd,
+	long	(*ioctl)(struct vfio_device *vdev, unsigned int cmd,
 			 unsigned long arg);
-	int	(*mmap)(void *device_data, struct vm_area_struct *vma);
-	void	(*request)(void *device_data, unsigned int count);
-	int	(*match)(void *device_data, char *buf);
+	int	(*mmap)(struct vfio_device *vdev, struct vm_area_struct *vma);
+	void	(*request)(struct vfio_device *vdev, unsigned int count);
+	int	(*match)(struct vfio_device *vdev, char *buf);
 };
 
 extern struct iommu_group *vfio_iommu_group_get(struct device *dev);
 extern void vfio_iommu_group_put(struct iommu_group *group, struct device *dev);
 
-extern int vfio_add_group_dev(struct device *dev,
-			      const struct vfio_device_ops *ops,
-			      void *device_data);
-
-extern void *vfio_del_group_dev(struct device *dev);
+void vfio_init_group_dev(struct vfio_device *device, struct device *dev,
+			 const struct vfio_device_ops *ops);
+int vfio_register_group_dev(struct vfio_device *device);
+void vfio_unregister_group_dev(struct vfio_device *device);
 extern struct vfio_device *vfio_device_get_from_dev(struct device *dev);
 extern void vfio_device_put(struct vfio_device *device);
-extern void *vfio_device_data(struct vfio_device *device);
 
 /* events for the backend driver notify callback */
 enum vfio_iommu_notify_type {

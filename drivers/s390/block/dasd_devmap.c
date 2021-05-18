@@ -1772,12 +1772,13 @@ static const struct attribute_group ext_pool_attr_group = {
 	.attrs = ext_pool_attrs,
 };
 
-static const struct attribute_group *dasd_attr_groups[] = {
+const struct attribute_group *dasd_dev_groups[] = {
 	&dasd_attr_group,
 	&capacity_attr_group,
 	&ext_pool_attr_group,
 	NULL,
 };
+EXPORT_SYMBOL_GPL(dasd_dev_groups);
 
 /*
  * Return value of the specified feature.
@@ -1894,18 +1895,6 @@ void dasd_path_remove_kobjects(struct dasd_device *device)
 		dasd_path_remove_kobj(device, i);
 }
 EXPORT_SYMBOL(dasd_path_remove_kobjects);
-
-int dasd_add_sysfs_files(struct ccw_device *cdev)
-{
-	return sysfs_create_groups(&cdev->dev.kobj, dasd_attr_groups);
-}
-
-void
-dasd_remove_sysfs_files(struct ccw_device *cdev)
-{
-	sysfs_remove_groups(&cdev->dev.kobj, dasd_attr_groups);
-}
-
 
 int
 dasd_devmap_init(void)

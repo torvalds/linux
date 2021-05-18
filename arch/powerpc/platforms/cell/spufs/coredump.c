@@ -149,8 +149,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 			return -EIO;
 	}
 
-	if (!dump_skip(cprm, roundup(cprm->pos - ret + sz, 4) - cprm->pos))
-		return -EIO;
+	dump_skip_to(cprm, roundup(cprm->pos - ret + sz, 4));
 	return 0;
 }
 

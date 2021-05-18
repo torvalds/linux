@@ -1298,7 +1298,7 @@ DECLARE_EVENT_CLASS(xfs_file_class,
 	TP_fast_assign(
 		__entry->dev = file_inode(iocb->ki_filp)->i_sb->s_dev;
 		__entry->ino = XFS_I(file_inode(iocb->ki_filp))->i_ino;
-		__entry->size = XFS_I(file_inode(iocb->ki_filp))->i_d.di_size;
+		__entry->size = XFS_I(file_inode(iocb->ki_filp))->i_disk_size;
 		__entry->offset = iocb->ki_pos;
 		__entry->count = iov_iter_count(iter);
 	),
@@ -1341,7 +1341,7 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->size = ip->i_disk_size;
 		__entry->offset = offset;
 		__entry->count = count;
 		__entry->whichfork = whichfork;
@@ -1387,7 +1387,7 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
 		__entry->isize = VFS_I(ip)->i_size;
-		__entry->disize = ip->i_d.di_size;
+		__entry->disize = ip->i_disk_size;
 		__entry->offset = offset;
 		__entry->count = count;
 	),
@@ -1425,7 +1425,7 @@ DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->size = ip->i_disk_size;
 		__entry->new_size = new_size;
 	),
 	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx",
@@ -1455,7 +1455,7 @@ TRACE_EVENT(xfs_pagecache_inval,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->size = ip->i_disk_size;
 		__entry->start = start;
 		__entry->finish = finish;
 	),
@@ -1483,7 +1483,7 @@ TRACE_EVENT(xfs_bunmap,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->size = ip->i_disk_size;
 		__entry->bno = bno;
 		__entry->len = len;
 		__entry->caller_ip = caller_ip;
@@ -3145,12 +3145,12 @@ DECLARE_EVENT_CLASS(xfs_double_io_class,
 		__entry->dev = VFS_I(src)->i_sb->s_dev;
 		__entry->src_ino = src->i_ino;
 		__entry->src_isize = VFS_I(src)->i_size;
-		__entry->src_disize = src->i_d.di_size;
+		__entry->src_disize = src->i_disk_size;
 		__entry->src_offset = soffset;
 		__entry->len = len;
 		__entry->dest_ino = dest->i_ino;
 		__entry->dest_isize = VFS_I(dest)->i_size;
-		__entry->dest_disize = dest->i_d.di_size;
+		__entry->dest_disize = dest->i_disk_size;
 		__entry->dest_offset = doffset;
 	),
 	TP_printk("dev %d:%d count %zd "

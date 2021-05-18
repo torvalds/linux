@@ -433,9 +433,8 @@ static int vce_v2_0_sw_init(void *handle)
 	for (i = 0; i < adev->vce.num_rings; i++) {
 		ring = &adev->vce.ring[i];
 		sprintf(ring->name, "vce%d", i);
-		r = amdgpu_ring_init(adev, ring, 512,
-				     &adev->vce.irq, 0,
-				     AMDGPU_RING_PRIO_DEFAULT);
+		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0,
+				     AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
 	}

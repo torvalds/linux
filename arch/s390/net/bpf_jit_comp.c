@@ -1209,21 +1209,67 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	 */
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
 	case BPF_STX | BPF_ATOMIC | BPF_W:
-		if (insn->imm != BPF_ADD) {
+	{
+		bool is32 = BPF_SIZE(insn->code) == BPF_W;
+
+		switch (insn->imm) {
+/* {op32|op64} {%w0|%src},%src,off(%dst) */
+#define EMIT_ATOMIC(op32, op64) do {					\
+	EMIT6_DISP_LH(0xeb000000, is32 ? (op32) : (op64),		\
+		      (insn->imm & BPF_FETCH) ? src_reg : REG_W0,	\
+		      src_reg, dst_reg, off);				\
+	if (is32 && (insn->imm & BPF_FETCH))				\
+		EMIT_ZERO(src_reg);					\
+} while (0)
+		case BPF_ADD:
+		case BPF_ADD | BPF_FETCH:
+			/* {laal|laalg} */
+			EMIT_ATOMIC(0x00fa, 0x00ea);
+			break;
+		case BPF_AND:
+		case BPF_AND | BPF_FETCH:
+			/* {lan|lang} */
+			EMIT_ATOMIC(0x00f4, 0x00e4);
+			break;
+		case BPF_OR:
+		case BPF_OR | BPF_FETCH:
+			/* {lao|laog} */
+			EMIT_ATOMIC(0x00f6, 0x00e6);
+			break;
+		case BPF_XOR:
+		case BPF_XOR | BPF_FETCH:
+			/* {lax|laxg} */
+			EMIT_ATOMIC(0x00f7, 0x00e7);
+			break;
+#undef EMIT_ATOMIC
+		case BPF_XCHG:
+			/* {ly|lg} %w0,off(%dst) */
+			EMIT6_DISP_LH(0xe3000000,
+				      is32 ? 0x0058 : 0x0004, REG_W0, REG_0,
+				      dst_reg, off);
+			/* 0: {csy|csg} %w0,%src,off(%dst) */
+			EMIT6_DISP_LH(0xeb000000, is32 ? 0x0014 : 0x0030,
+				      REG_W0, src_reg, dst_reg, off);
+			/* brc 4,0b */
+			EMIT4_PCREL_RIC(0xa7040000, 4, jit->prg - 6);
+			/* {llgfr|lgr} %src,%w0 */
+			EMIT4(is32 ? 0xb9160000 : 0xb9040000, src_reg, REG_W0);
+			if (is32 && insn_is_zext(&insn[1]))
+				insn_count = 2;
+			break;
+		case BPF_CMPXCHG:
+			/* 0: {csy|csg} %b0,%src,off(%dst) */
+			EMIT6_DISP_LH(0xeb000000, is32 ? 0x0014 : 0x0030,
+				      BPF_REG_0, src_reg, dst_reg, off);
+			break;
+		default:
 			pr_err("Unknown atomic operation %02x\n", insn->imm);
 			return -1;
 		}
 
-		/* *(u32/u64 *)(dst + off) += src
-		 *
-		 * BFW_W:  laal  %w0,%src,off(%dst)
-		 * BPF_DW: laalg %w0,%src,off(%dst)
-		 */
-		EMIT6_DISP_LH(0xeb000000,
-			      BPF_SIZE(insn->code) == BPF_W ? 0x00fa : 0x00ea,
-			      REG_W0, src_reg, dst_reg, off);
 		jit->seen |= SEEN_MEM;
 		break;
+	}
 	/*
 	 * BPF_LDX
 	 */

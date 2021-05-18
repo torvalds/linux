@@ -888,18 +888,10 @@ EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
 
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
 {
-	struct ieee80211_sub_if_data *sdata;
-
 	if (!vif)
 		return NULL;
 
-	sdata = vif_to_sdata(vif);
-
-	if (!ieee80211_sdata_running(sdata) ||
-	    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
-		return NULL;
-
-	return &sdata->wdev;
+	return &vif_to_sdata(vif)->wdev;
 }
 EXPORT_SYMBOL_GPL(ieee80211_vif_to_wdev);
 
@@ -968,7 +960,7 @@ static void ieee80211_parse_extension_element(u32 *crc,
 		break;
 	case WLAN_EID_EXT_HE_OPERATION:
 		if (len >= sizeof(*elems->he_operation) &&
-		    len == ieee80211_he_oper_size(data) - 1) {
+		    len >= ieee80211_he_oper_size(data) - 1) {
 			if (crc)
 				*crc = crc32_be(*crc, (void *)elem,
 						elem->datalen + 2);

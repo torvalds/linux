@@ -1988,7 +1988,7 @@ netif_carrier.
 If use_carrier is 0, then the MII monitor will first query the
 device's (via ioctl) MII registers and check the link state.  If that
 request fails (not just that it returns carrier down), then the MII
-monitor will make an ethtool ETHOOL_GLINK request to attempt to obtain
+monitor will make an ethtool ETHTOOL_GLINK request to attempt to obtain
 the same information.  If both methods fail (i.e., the driver either
 does not support or had some error in processing both the MII register
 and ethtool requests), then the MII monitor will assume the link is

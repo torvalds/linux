@@ -77,9 +77,19 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 
 	qi->num_points = dram_info->num_qgv_points;
 
-	if (IS_GEN(dev_priv, 12))
-		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 16;
-	else if (IS_GEN(dev_priv, 11))
+	if (IS_DISPLAY_VER(dev_priv, 12))
+		switch (dram_info->type) {
+		case INTEL_DRAM_DDR4:
+			qi->t_bl = 4;
+			break;
+		case INTEL_DRAM_DDR5:
+			qi->t_bl = 8;
+			break;
+		default:
+			qi->t_bl = 16;
+			break;
+		}
+	else if (IS_DISPLAY_VER(dev_priv, 11))
 		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 8;
 
 	if (drm_WARN_ON(&dev_priv->drm,
@@ -140,6 +150,12 @@ static const struct intel_sa_info rkl_sa_info = {
 	.deburst = 16,
 	.deprogbwlimit = 20, /* GB/s */
 	.displayrtids = 128,
+};
+
+static const struct intel_sa_info adls_sa_info = {
+	.deburst = 16,
+	.deprogbwlimit = 38, /* GB/s */
+	.displayrtids = 256,
 };
 
 static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel_sa_info *sa)
@@ -251,11 +267,13 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_ROCKETLAKE(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv))
+		icl_get_bw_info(dev_priv, &adls_sa_info);
+	else if (IS_ROCKETLAKE(dev_priv))
 		icl_get_bw_info(dev_priv, &rkl_sa_info);
-	else if (IS_GEN(dev_priv, 12))
+	else if (IS_DISPLAY_VER(dev_priv, 12))
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
-	else if (IS_GEN(dev_priv, 11))
+	else if (IS_DISPLAY_VER(dev_priv, 11))
 		icl_get_bw_info(dev_priv, &icl_sa_info);
 }
 
@@ -515,7 +533,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	u32 mask = (1 << num_qgv_points) - 1;
 
 	/* FIXME earlier gens need some checks too */
-	if (INTEL_GEN(dev_priv) < 11)
+	if (DISPLAY_VER(dev_priv) < 11)
 		return 0;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,

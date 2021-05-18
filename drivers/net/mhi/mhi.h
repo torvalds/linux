@@ -29,6 +29,7 @@ struct mhi_net_dev {
 	struct mhi_net_stats stats;
 	u32 rx_queue_sz;
 	int msg_enable;
+	unsigned int mru;
 };
 
 struct mhi_net_proto {

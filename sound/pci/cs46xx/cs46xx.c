@@ -21,13 +21,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Cirrus Logic Sound Fusion CS46XX");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Cirrus Logic,Sound Fusion (CS4280)},"
-		"{Cirrus Logic,Sound Fusion (CS4610)},"
-		"{Cirrus Logic,Sound Fusion (CS4612)},"
-		"{Cirrus Logic,Sound Fusion (CS4615)},"
-		"{Cirrus Logic,Sound Fusion (CS4622)},"
-		"{Cirrus Logic,Sound Fusion (CS4624)},"
-		"{Cirrus Logic,Sound Fusion (CS4630)}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

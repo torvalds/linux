@@ -181,12 +181,14 @@ int dsa_port_enable_rt(struct dsa_port *dp, struct phy_device *phy);
 int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy);
 void dsa_port_disable_rt(struct dsa_port *dp);
 void dsa_port_disable(struct dsa_port *dp);
-int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
+int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
+			 struct netlink_ext_ack *extack);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
 int dsa_port_lag_change(struct dsa_port *dp,
 			struct netdev_lag_lower_state_info *linfo);
 int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
-		      struct netdev_lag_upper_info *uinfo);
+		      struct netdev_lag_upper_info *uinfo,
+		      struct netlink_ext_ack *extack);
 void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag_dev);
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct netlink_ext_ack *extack);
@@ -230,38 +232,29 @@ int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr);
 void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr);
 extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
 
-static inline bool dsa_port_offloads_netdev(struct dsa_port *dp,
-					    struct net_device *dev)
+static inline bool dsa_port_offloads_bridge_port(struct dsa_port *dp,
+						 struct net_device *dev)
 {
-	/* Switchdev offloading can be configured on: */
+	return dsa_port_to_bridge_port(dp) == dev;
+}
 
-	if (dev == dp->slave)
-		/* DSA ports directly connected to a bridge, and event
-		 * was emitted for the ports themselves.
-		 */
-		return true;
-
-	if (dp->bridge_dev == dev)
-		/* DSA ports connected to a bridge, and event was emitted
-		 * for the bridge.
-		 */
-		return true;
-
-	if (dp->lag_dev == dev)
-		/* DSA ports connected to a bridge via a LAG */
-		return true;
-
-	return false;
+static inline bool dsa_port_offloads_bridge(struct dsa_port *dp,
+					    struct net_device *bridge_dev)
+{
+	/* DSA ports connected to a bridge, and event was emitted
+	 * for the bridge.
+	 */
+	return dp->bridge_dev == bridge_dev;
 }
 
 /* Returns true if any port of this tree offloads the given net_device */
-static inline bool dsa_tree_offloads_netdev(struct dsa_switch_tree *dst,
-					    struct net_device *dev)
+static inline bool dsa_tree_offloads_bridge_port(struct dsa_switch_tree *dst,
+						 struct net_device *dev)
 {
 	struct dsa_port *dp;
 
 	list_for_each_entry(dp, &dst->ports, list)
-		if (dsa_port_offloads_netdev(dp, dev))
+		if (dsa_port_offloads_bridge_port(dp, dev))
 			return true;
 
 	return false;
@@ -269,6 +262,9 @@ static inline bool dsa_tree_offloads_netdev(struct dsa_switch_tree *dst,
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
+extern struct notifier_block dsa_slave_switchdev_notifier;
+extern struct notifier_block dsa_slave_switchdev_blocking_notifier;
+
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
 int dsa_slave_create(struct dsa_port *dp);
 void dsa_slave_destroy(struct net_device *slave_dev);

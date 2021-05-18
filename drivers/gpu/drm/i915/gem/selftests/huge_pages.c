@@ -140,8 +140,7 @@ static void put_huge_pages(struct drm_i915_gem_object *obj,
 
 static const struct drm_i915_gem_object_ops huge_page_ops = {
 	.name = "huge-gem",
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
-		 I915_GEM_OBJECT_IS_SHRINKABLE,
+	.flags = I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = get_huge_pages,
 	.put_pages = put_huge_pages,
 };
@@ -168,7 +167,8 @@ huge_pages_object(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &huge_page_ops, &lock_class);
+	i915_gem_object_init(obj, &huge_page_ops, &lock_class,
+			     I915_BO_ALLOC_STRUCT_PAGE);
 
 	i915_gem_object_set_volatile(obj);
 
@@ -319,9 +319,9 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 
 	if (single)
-		i915_gem_object_init(obj, &fake_ops_single, &lock_class);
+		i915_gem_object_init(obj, &fake_ops_single, &lock_class, 0);
 	else
-		i915_gem_object_init(obj, &fake_ops, &lock_class);
+		i915_gem_object_init(obj, &fake_ops, &lock_class, 0);
 
 	i915_gem_object_set_volatile(obj);
 
@@ -589,7 +589,7 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 			goto out_put;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err)
 			goto out_put;
 
@@ -653,15 +653,19 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 				break;
 		}
 
+		i915_gem_object_lock(obj, NULL);
 		i915_gem_object_unpin_pages(obj);
 		__i915_gem_object_put_pages(obj);
+		i915_gem_object_unlock(obj);
 		i915_gem_object_put(obj);
 	}
 
 	return 0;
 
 out_unpin:
+	i915_gem_object_lock(obj, NULL);
 	i915_gem_object_unpin_pages(obj);
+	i915_gem_object_unlock(obj);
 out_put:
 	i915_gem_object_put(obj);
 
@@ -675,8 +679,10 @@ static void close_object_list(struct list_head *objects,
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
 		list_del(&obj->st_link);
+		i915_gem_object_lock(obj, NULL);
 		i915_gem_object_unpin_pages(obj);
 		__i915_gem_object_put_pages(obj);
+		i915_gem_object_unlock(obj);
 		i915_gem_object_put(obj);
 	}
 }
@@ -713,7 +719,7 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 			break;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			break;
@@ -889,7 +895,7 @@ static int igt_mock_ppgtt_64K(void *arg)
 			if (IS_ERR(obj))
 				return PTR_ERR(obj);
 
-			err = i915_gem_object_pin_pages(obj);
+			err = i915_gem_object_pin_pages_unlocked(obj);
 			if (err)
 				goto out_object_put;
 
@@ -943,8 +949,10 @@ static int igt_mock_ppgtt_64K(void *arg)
 			}
 
 			i915_vma_unpin(vma);
+			i915_gem_object_lock(obj, NULL);
 			i915_gem_object_unpin_pages(obj);
 			__i915_gem_object_put_pages(obj);
+			i915_gem_object_unlock(obj);
 			i915_gem_object_put(obj);
 		}
 	}
@@ -954,7 +962,9 @@ static int igt_mock_ppgtt_64K(void *arg)
 out_vma_unpin:
 	i915_vma_unpin(vma);
 out_object_unpin:
+	i915_gem_object_lock(obj, NULL);
 	i915_gem_object_unpin_pages(obj);
+	i915_gem_object_unlock(obj);
 out_object_put:
 	i915_gem_object_put(obj);
 
@@ -1024,7 +1034,7 @@ static int __cpu_check_vmap(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	if (err)
 		return err;
 
-	ptr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	ptr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
@@ -1304,7 +1314,7 @@ try_again:
 			return err;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			if (err == -ENXIO || err == -E2BIG) {
 				i915_gem_object_put(obj);
@@ -1327,8 +1337,10 @@ try_again:
 			       __func__, size, i);
 		}
 out_unpin:
+		i915_gem_object_lock(obj, NULL);
 		i915_gem_object_unpin_pages(obj);
 		__i915_gem_object_put_pages(obj);
+		i915_gem_object_unlock(obj);
 out_put:
 		i915_gem_object_put(obj);
 
@@ -1402,7 +1414,7 @@ static int igt_ppgtt_sanity_check(void *arg)
 				return err;
 			}
 
-			err = i915_gem_object_pin_pages(obj);
+			err = i915_gem_object_pin_pages_unlocked(obj);
 			if (err) {
 				i915_gem_object_put(obj);
 				goto out;
@@ -1416,8 +1428,10 @@ static int igt_ppgtt_sanity_check(void *arg)
 
 			err = igt_write_huge(ctx, obj);
 
+			i915_gem_object_lock(obj, NULL);
 			i915_gem_object_unpin_pages(obj);
 			__i915_gem_object_put_pages(obj);
+			i915_gem_object_unlock(obj);
 			i915_gem_object_put(obj);
 
 			if (err) {
@@ -1462,7 +1476,7 @@ static int igt_tmpfs_fallback(void *arg)
 		goto out_restore;
 	}
 
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto out_put;

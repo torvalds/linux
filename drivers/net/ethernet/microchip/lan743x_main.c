@@ -885,8 +885,8 @@ static int lan743x_mac_set_mtu(struct lan743x_adapter *adapter, int new_mtu)
 	}
 
 	mac_rx &= ~(MAC_RX_MAX_SIZE_MASK_);
-	mac_rx |= (((new_mtu + ETH_HLEN + 4) << MAC_RX_MAX_SIZE_SHIFT_) &
-		  MAC_RX_MAX_SIZE_MASK_);
+	mac_rx |= (((new_mtu + ETH_HLEN + ETH_FCS_LEN)
+		  << MAC_RX_MAX_SIZE_SHIFT_) & MAC_RX_MAX_SIZE_MASK_);
 	lan743x_csr_write(adapter, MAC_RX, mac_rx);
 
 	if (enabled) {
@@ -1944,7 +1944,7 @@ static int lan743x_rx_init_ring_element(struct lan743x_rx *rx, int index)
 	struct sk_buff *skb;
 	dma_addr_t dma_ptr;
 
-	buffer_length = netdev->mtu + ETH_HLEN + 4 + RX_HEAD_PADDING;
+	buffer_length = netdev->mtu + ETH_HLEN + ETH_FCS_LEN + RX_HEAD_PADDING;
 
 	descriptor = &rx->ring_cpu_ptr[index];
 	buffer_info = &rx->buffer_info[index];
@@ -2040,7 +2040,7 @@ lan743x_rx_trim_skb(struct sk_buff *skb, int frame_length)
 		dev_kfree_skb_irq(skb);
 		return NULL;
 	}
-	frame_length = max_t(int, 0, frame_length - RX_HEAD_PADDING - 2);
+	frame_length = max_t(int, 0, frame_length - ETH_FCS_LEN);
 	if (skb->len > frame_length) {
 		skb->tail -= skb->len - frame_length;
 		skb->len = frame_length;
@@ -2771,7 +2771,6 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 {
 	struct lan743x_adapter *adapter = NULL;
 	struct net_device *netdev = NULL;
-	const void *mac_addr;
 	int ret = -ENODEV;
 
 	netdev = devm_alloc_etherdev(&pdev->dev,
@@ -2788,9 +2787,7 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 			      NETIF_MSG_IFDOWN | NETIF_MSG_TX_QUEUED;
 	netdev->max_mtu = LAN743X_MAX_FRAME_SIZE;
 
-	mac_addr = of_get_mac_address(pdev->dev.of_node);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(adapter->mac_address, mac_addr);
+	of_get_mac_address(pdev->dev.of_node, adapter->mac_address);
 
 	ret = lan743x_pci_init(adapter, pdev);
 	if (ret)
@@ -3004,7 +3001,7 @@ static int lan743x_pm_suspend(struct device *dev)
 		lan743x_pm_set_wol(adapter);
 
 	/* Host sets PME_En, put D3hot */
-	return pci_prepare_to_sleep(pdev);;
+	return pci_prepare_to_sleep(pdev);
 }
 
 static int lan743x_pm_resume(struct device *dev)

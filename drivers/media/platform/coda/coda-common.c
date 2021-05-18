@@ -2062,7 +2062,9 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (q_data_dst->fourcc == V4L2_PIX_FMT_JPEG)
 		ctx->params.gop_size = 1;
 	ctx->gopcounter = ctx->params.gop_size - 1;
-	v4l2_ctrl_s_ctrl(ctx->mb_err_cnt_ctrl, 0);
+	/* Only decoders have this control */
+	if (ctx->mb_err_cnt_ctrl)
+		v4l2_ctrl_s_ctrl(ctx->mb_err_cnt_ctrl, 0);
 
 	ret = ctx->ops->start_streaming(ctx);
 	if (ctx->inst_type == CODA_INST_DECODER) {
@@ -3317,7 +3319,7 @@ static struct platform_driver coda_driver = {
 	.remove	= coda_remove,
 	.driver	= {
 		.name	= CODA_NAME,
-		.of_match_table = of_match_ptr(coda_dt_ids),
+		.of_match_table = coda_dt_ids,
 		.pm	= &coda_pm_ops,
 	},
 };

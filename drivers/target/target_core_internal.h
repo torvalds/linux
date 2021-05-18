@@ -34,6 +34,7 @@ struct target_fabric_configfs {
 	struct config_item_type tf_discovery_cit;
 	struct config_item_type	tf_wwn_cit;
 	struct config_item_type tf_wwn_fabric_stats_cit;
+	struct config_item_type tf_wwn_param_cit;
 	struct config_item_type tf_tpg_cit;
 	struct config_item_type tf_tpg_base_cit;
 	struct config_item_type tf_tpg_lun_cit;
@@ -153,6 +154,7 @@ void	target_qf_do_work(struct work_struct *work);
 bool	target_check_wce(struct se_device *dev);
 bool	target_check_fua(struct se_device *dev);
 void	__target_execute_cmd(struct se_cmd *, bool);
+void	target_queued_submit_work(struct work_struct *work);
 
 /* target_core_stat.c */
 void	target_stat_setup_dev_default_groups(struct se_device *);

@@ -5,8 +5,13 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
+#include <linux/etherdevice.h>
+#include <net/mac80211.h>
+
 #include "data_rx.h"
 #include "wfx.h"
+#include "bh.h"
+#include "sta.h"
 
 static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
 {

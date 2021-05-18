@@ -63,14 +63,9 @@ __visible DEFINE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw) = {
 		 */
 		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
 
-		/*
-		 * .sp1 is cpu_current_top_of_stack.  The init task never
-		 * runs user code, but cpu_current_top_of_stack should still
-		 * be well defined before the first context switch.
-		 */
+#ifdef CONFIG_X86_32
 		.sp1 = TOP_OF_INIT_STACK,
 
-#ifdef CONFIG_X86_32
 		.ss0 = __KERNEL_DS,
 		.ss1 = __KERNEL_CS,
 #endif
@@ -161,7 +156,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 #endif
 
 	/* Kernel thread ? */
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		kthread_frame_init(frame, sp, arg);
 		return 0;
@@ -176,6 +171,23 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 #ifdef CONFIG_X86_32
 	task_user_gs(p) = get_user_gs(current_pt_regs());
 #endif
+
+	if (unlikely(p->flags & PF_IO_WORKER)) {
+		/*
+		 * An IO thread is a user space thread, but it doesn't
+		 * return to ret_after_fork().
+		 *
+		 * In order to indicate that to tools like gdb,
+		 * we reset the stack and instruction pointers.
+		 *
+		 * It does the same kernel frame setup to return to a kernel
+		 * function that a kernel thread does.
+		 */
+		childregs->sp = 0;
+		childregs->ip = 0;
+		kthread_frame_init(frame, sp, arg);
+		return 0;
+	}
 
 	/* Set a new TLS for the child thread? */
 	if (clone_flags & CLONE_SETTLS)
@@ -451,7 +463,7 @@ void speculative_store_bypass_ht_init(void)
 	 * First HT sibling to come up on the core.  Link shared state of
 	 * the first HT sibling to itself. The siblings on the same core
 	 * which come up later will see the shared state pointer and link
-	 * themself to the state of this CPU.
+	 * themselves to the state of this CPU.
 	 */
 	st->shared_state = st;
 }

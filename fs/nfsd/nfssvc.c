@@ -84,7 +84,7 @@ DEFINE_MUTEX(nfsd_mutex);
  * version 4.1 DRC caches.
  * nfsd_drc_pages_used tracks the current version 4.1 DRC memory usage.
  */
-spinlock_t	nfsd_drc_lock;
+DEFINE_SPINLOCK(nfsd_drc_lock);
 unsigned long	nfsd_drc_max_mem;
 unsigned long	nfsd_drc_mem_used;
 
@@ -308,7 +308,7 @@ static int nfsd_init_socks(struct net *net, const struct cred *cred)
 
 static int nfsd_users = 0;
 
-static int nfsd_startup_generic(int nrservs)
+static int nfsd_startup_generic(void)
 {
 	int ret;
 
@@ -374,7 +374,7 @@ void nfsd_reset_boot_verifier(struct nfsd_net *nn)
 	write_sequnlock(&nn->boot_lock);
 }
 
-static int nfsd_startup_net(int nrservs, struct net *net, const struct cred *cred)
+static int nfsd_startup_net(struct net *net, const struct cred *cred)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
@@ -382,7 +382,7 @@ static int nfsd_startup_net(int nrservs, struct net *net, const struct cred *cre
 	if (nn->nfsd_net_up)
 		return 0;
 
-	ret = nfsd_startup_generic(nrservs);
+	ret = nfsd_startup_generic();
 	if (ret)
 		return ret;
 	ret = nfsd_init_socks(net, cred);
@@ -563,7 +563,6 @@ static void set_max_drc(void)
 	nfsd_drc_max_mem = (nr_free_buffer_pages()
 					>> NFSD_DRC_SIZE_SHIFT) * PAGE_SIZE;
 	nfsd_drc_mem_used = 0;
-	spin_lock_init(&nfsd_drc_lock);
 	dprintk("%s nfsd_drc_max_mem %lu \n", __func__, nfsd_drc_max_mem);
 }
 
@@ -596,6 +595,37 @@ static const struct svc_serv_ops nfsd_thread_sv_ops = {
 	.svo_module		= THIS_MODULE,
 };
 
+static void nfsd_complete_shutdown(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	WARN_ON(!mutex_is_locked(&nfsd_mutex));
+
+	nn->nfsd_serv = NULL;
+	complete(&nn->nfsd_shutdown_complete);
+}
+
+void nfsd_shutdown_threads(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv;
+
+	mutex_lock(&nfsd_mutex);
+	serv = nn->nfsd_serv;
+	if (serv == NULL) {
+		mutex_unlock(&nfsd_mutex);
+		return;
+	}
+
+	svc_get(serv);
+	/* Kill outstanding nfsd threads */
+	serv->sv_ops->svo_setup(serv, NULL, 0);
+	nfsd_destroy(net);
+	mutex_unlock(&nfsd_mutex);
+	/* Wait for shutdown of nfsd_serv to complete */
+	wait_for_completion(&nn->nfsd_shutdown_complete);
+}
+
 bool i_am_nfsd(void)
 {
 	return kthread_func(current) == nfsd;
@@ -618,11 +648,13 @@ int nfsd_create_serv(struct net *net)
 						&nfsd_thread_sv_ops);
 	if (nn->nfsd_serv == NULL)
 		return -ENOMEM;
+	init_completion(&nn->nfsd_shutdown_complete);
 
 	nn->nfsd_serv->sv_maxconn = nn->max_connections;
 	error = svc_bind(nn->nfsd_serv, net);
 	if (error < 0) {
 		svc_destroy(nn->nfsd_serv);
+		nfsd_complete_shutdown(net);
 		return error;
 	}
 
@@ -671,7 +703,7 @@ void nfsd_destroy(struct net *net)
 		svc_shutdown_net(nn->nfsd_serv, net);
 	svc_destroy(nn->nfsd_serv);
 	if (destroy)
-		nn->nfsd_serv = NULL;
+		nfsd_complete_shutdown(net);
 }
 
 int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
@@ -758,7 +790,7 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 
 	nfsd_up_before = nn->nfsd_net_up;
 
-	error = nfsd_startup_net(nrservs, net, cred);
+	error = nfsd_startup_net(net, cred);
 	if (error)
 		goto out_destroy;
 	error = nn->nfsd_serv->sv_ops->svo_setup(nn->nfsd_serv,
@@ -997,7 +1029,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * NFSv4 does some encoding while processing
 	 */
 	p = resv->iov_base + resv->iov_len;
-	resv->iov_len += sizeof(__be32);
+	svcxdr_init_encode(rqstp);
 
 	*statp = proc->pc_func(rqstp);
 	if (*statp == rpc_drop_reply || test_bit(RQ_DROPME, &rqstp->rq_flags))
@@ -1052,7 +1084,7 @@ int nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
  */
 int nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
 {
-        return xdr_ressize_check(rqstp, p);
+	return 1;
 }
 
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)

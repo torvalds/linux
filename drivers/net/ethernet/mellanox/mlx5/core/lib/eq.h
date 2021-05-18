@@ -22,15 +22,15 @@ struct mlx5_cq_table {
 };
 
 struct mlx5_eq {
+	struct mlx5_frag_buf_ctrl fbc;
+	struct mlx5_frag_buf    frag_buf;
 	struct mlx5_core_dev    *dev;
 	struct mlx5_cq_table    cq_table;
 	__be32 __iomem	        *doorbell;
 	u32                     cons_index;
-	struct mlx5_frag_buf    buf;
 	unsigned int            vecidx;
 	unsigned int            irqn;
 	u8                      eqn;
-	int                     nent;
 	struct mlx5_rsc_debug   *dbg;
 };
 
@@ -47,16 +47,21 @@ struct mlx5_eq_comp {
 	struct list_head        list;
 };
 
+static inline u32 eq_get_size(struct mlx5_eq *eq)
+{
+	return eq->fbc.sz_m1 + 1;
+}
+
 static inline struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
 {
-	return mlx5_buf_offset(&eq->buf, entry * MLX5_EQE_SIZE);
+	return mlx5_frag_buf_get_wqe(&eq->fbc, entry);
 }
 
 static inline struct mlx5_eqe *next_eqe_sw(struct mlx5_eq *eq)
 {
-	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & (eq->nent - 1));
+	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & eq->fbc.sz_m1);
 
-	return ((eqe->owner & 1) ^ !!(eq->cons_index & eq->nent)) ? NULL : eqe;
+	return (eqe->owner ^ (eq->cons_index >> eq->fbc.log_sz)) & 1 ? NULL : eqe;
 }
 
 static inline void eq_update_ci(struct mlx5_eq *eq, int arm)

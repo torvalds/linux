@@ -20,6 +20,10 @@
 		     "st,stm32mp153";
 };
 
+&cryp1 {
+	status = "okay";
+};
+
 &m_can1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&m_can1_pins_a>;

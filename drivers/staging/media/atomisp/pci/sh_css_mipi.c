@@ -33,17 +33,6 @@
 static u32
 ref_count_mipi_allocation[N_CSI_PORTS]; /* Initialized in mipi_init */
 
-int
-ia_css_mipi_frame_specify(const unsigned int size_mem_words,
-			  const bool contiguous) {
-	int err = 0;
-
-	my_css.size_mem_words = size_mem_words;
-	(void)contiguous;
-
-	return err;
-}
-
 /*
  * Check if a source port or TPG/PRBS ID is valid
  */

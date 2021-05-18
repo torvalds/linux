@@ -12,4 +12,6 @@
 
 #include <asm-generic/irq.h>
 
+extern void __init init_IRQ(void);
+
 #endif /* _ASM_RISCV_IRQ_H */

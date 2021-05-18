@@ -19,7 +19,6 @@
 #define MLXSW_THERMAL_ASIC_TEMP_NORM	75000	/* 75C */
 #define MLXSW_THERMAL_ASIC_TEMP_HIGH	85000	/* 85C */
 #define MLXSW_THERMAL_ASIC_TEMP_HOT	105000	/* 105C */
-#define MLXSW_THERMAL_ASIC_TEMP_CRIT	140000	/* 140C */
 #define MLXSW_THERMAL_HYSTERESIS_TEMP	5000	/* 5C */
 #define MLXSW_THERMAL_MODULE_TEMP_SHIFT	(MLXSW_THERMAL_HYSTERESIS_TEMP * 2)
 #define MLXSW_THERMAL_ZONE_MAX_NAME	16
@@ -45,7 +44,6 @@ enum mlxsw_thermal_trips {
 	MLXSW_THERMAL_TEMP_TRIP_NORM,
 	MLXSW_THERMAL_TEMP_TRIP_HIGH,
 	MLXSW_THERMAL_TEMP_TRIP_HOT,
-	MLXSW_THERMAL_TEMP_TRIP_CRIT,
 };
 
 struct mlxsw_thermal_trip {
@@ -75,16 +73,9 @@ static const struct mlxsw_thermal_trip default_thermal_trips[] = {
 	{	/* Warning */
 		.type		= THERMAL_TRIP_HOT,
 		.temp		= MLXSW_THERMAL_ASIC_TEMP_HOT,
-		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
 		.min_state	= MLXSW_THERMAL_MAX_STATE,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	},
-	{	/* Critical - soft poweroff */
-		.type		= THERMAL_TRIP_CRITICAL,
-		.temp		= MLXSW_THERMAL_ASIC_TEMP_CRIT,
-		.min_state	= MLXSW_THERMAL_MAX_STATE,
-		.max_state	= MLXSW_THERMAL_MAX_STATE,
-	}
 };
 
 #define MLXSW_THERMAL_NUM_TRIPS	ARRAY_SIZE(default_thermal_trips)
@@ -141,7 +132,7 @@ static int mlxsw_get_cooling_device_idx(struct mlxsw_thermal *thermal,
 	/* Allow mlxsw thermal zone binding to an external cooling device */
 	for (i = 0; i < ARRAY_SIZE(mlxsw_thermal_external_allowed_cdev); i++) {
 		if (strnstr(cdev->type, mlxsw_thermal_external_allowed_cdev[i],
-			    sizeof(cdev->type)))
+			    strlen(cdev->type)))
 			return 0;
 	}
 
@@ -154,7 +145,6 @@ mlxsw_thermal_module_trips_reset(struct mlxsw_thermal_module *tz)
 	tz->trips[MLXSW_THERMAL_TEMP_TRIP_NORM].temp = 0;
 	tz->trips[MLXSW_THERMAL_TEMP_TRIP_HIGH].temp = 0;
 	tz->trips[MLXSW_THERMAL_TEMP_TRIP_HOT].temp = 0;
-	tz->trips[MLXSW_THERMAL_TEMP_TRIP_CRIT].temp = 0;
 }
 
 static int
@@ -183,11 +173,10 @@ mlxsw_thermal_module_trips_update(struct device *dev, struct mlxsw_core *core,
 	}
 
 	/* According to the system thermal requirements, the thermal zones are
-	 * defined with four trip points. The critical and emergency
+	 * defined with three trip points. The critical and emergency
 	 * temperature thresholds, provided by QSFP module are set as "active"
-	 * and "hot" trip points, "normal" and "critical" trip points are
-	 * derived from "active" and "hot" by subtracting or adding double
-	 * hysteresis value.
+	 * and "hot" trip points, "normal" trip point is derived from "active"
+	 * by subtracting double hysteresis value.
 	 */
 	if (crit_temp >= MLXSW_THERMAL_MODULE_TEMP_SHIFT)
 		tz->trips[MLXSW_THERMAL_TEMP_TRIP_NORM].temp = crit_temp -
@@ -196,8 +185,6 @@ mlxsw_thermal_module_trips_update(struct device *dev, struct mlxsw_core *core,
 		tz->trips[MLXSW_THERMAL_TEMP_TRIP_NORM].temp = crit_temp;
 	tz->trips[MLXSW_THERMAL_TEMP_TRIP_HIGH].temp = crit_temp;
 	tz->trips[MLXSW_THERMAL_TEMP_TRIP_HOT].temp = emerg_temp;
-	tz->trips[MLXSW_THERMAL_TEMP_TRIP_CRIT].temp = emerg_temp +
-					MLXSW_THERMAL_MODULE_TEMP_SHIFT;
 
 	return 0;
 }
@@ -210,7 +197,7 @@ static void mlxsw_thermal_tz_score_update(struct mlxsw_thermal *thermal,
 	struct mlxsw_thermal_trip *trip = trips;
 	unsigned int score, delta, i, shift = 1;
 
-	/* Calculate thermal zone score, if temperature is above the critical
+	/* Calculate thermal zone score, if temperature is above the hot
 	 * threshold score is set to MLXSW_THERMAL_TEMP_SCORE_MAX.
 	 */
 	score = MLXSW_THERMAL_TEMP_SCORE_MAX;
@@ -333,8 +320,7 @@ static int mlxsw_thermal_set_trip_temp(struct thermal_zone_device *tzdev,
 {
 	struct mlxsw_thermal *thermal = tzdev->devdata;
 
-	if (trip < 0 || trip >= MLXSW_THERMAL_NUM_TRIPS ||
-	    temp > MLXSW_THERMAL_ASIC_TEMP_CRIT)
+	if (trip < 0 || trip >= MLXSW_THERMAL_NUM_TRIPS)
 		return -EINVAL;
 
 	thermal->trips[trip].temp = temp;
@@ -502,8 +488,7 @@ mlxsw_thermal_module_trip_temp_set(struct thermal_zone_device *tzdev,
 {
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 
-	if (trip < 0 || trip >= MLXSW_THERMAL_NUM_TRIPS ||
-	    temp > tz->trips[MLXSW_THERMAL_TEMP_TRIP_CRIT].temp)
+	if (trip < 0 || trip >= MLXSW_THERMAL_NUM_TRIPS)
 		return -EINVAL;
 
 	tz->trips[trip].temp = temp;

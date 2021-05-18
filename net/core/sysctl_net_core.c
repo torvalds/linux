@@ -24,6 +24,7 @@
 
 static int two = 2;
 static int three = 3;
+static int int_3600 = 3600;
 static int min_sndbuf = SOCK_MIN_SNDBUF;
 static int min_rcvbuf = SOCK_MIN_RCVBUF;
 static int max_skb_frags = MAX_SKB_FRAGS;
@@ -569,6 +570,15 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "netdev_unregister_timeout_secs",
+		.data		= &netdev_unregister_timeout_secs,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= &int_3600,
 	},
 	{ }
 };

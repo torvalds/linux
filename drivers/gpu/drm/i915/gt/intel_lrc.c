@@ -3,6 +3,8 @@
  * Copyright © 2014 Intel Corporation
  */
 
+#include "gem/i915_gem_lmem.h"
+
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
@@ -808,7 +810,9 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 		context_size += PAGE_SIZE;
 	}
 
-	obj = i915_gem_object_create_shmem(engine->i915, context_size);
+	obj = i915_gem_object_create_lmem(engine->i915, context_size, 0);
+	if (IS_ERR(obj))
+		obj = i915_gem_object_create_shmem(engine->i915, context_size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
@@ -1417,7 +1421,7 @@ gen10_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 
 #define CTX_WA_BB_SIZE (PAGE_SIZE)
 
-static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
+static int lrc_create_wa_ctx(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
@@ -1433,10 +1437,6 @@ static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
 		goto err;
 	}
 
-	err = i915_ggtt_pin(vma, NULL, 0, PIN_HIGH);
-	if (err)
-		goto err;
-
 	engine->wa_ctx.vma = vma;
 	return 0;
 
@@ -1448,9 +1448,6 @@ err:
 void lrc_fini_wa_ctx(struct intel_engine_cs *engine)
 {
 	i915_vma_unpin_and_release(&engine->wa_ctx.vma, 0);
-
-	/* Called on error unwind, clear all flags to prevent further use */
-	memset(&engine->wa_ctx, 0, sizeof(engine->wa_ctx));
 }
 
 typedef u32 *(*wa_bb_func_t)(struct intel_engine_cs *engine, u32 *batch);
@@ -1462,6 +1459,7 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		&wa_ctx->indirect_ctx, &wa_ctx->per_ctx
 	};
 	wa_bb_func_t wa_bb_fn[ARRAY_SIZE(wa_bb)];
+	struct i915_gem_ww_ctx ww;
 	void *batch, *batch_ptr;
 	unsigned int i;
 	int err;
@@ -1490,7 +1488,7 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		return;
 	}
 
-	err = lrc_setup_wa_ctx(engine);
+	err = lrc_create_wa_ctx(engine);
 	if (err) {
 		/*
 		 * We continue even if we fail to initialize WA batch
@@ -1503,7 +1501,22 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		return;
 	}
 
+	if (!engine->wa_ctx.vma)
+		return;
+
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = i915_gem_object_lock(wa_ctx->vma->obj, &ww);
+	if (!err)
+		err = i915_ggtt_pin(wa_ctx->vma, &ww, 0, PIN_HIGH);
+	if (err)
+		goto err;
+
 	batch = i915_gem_object_pin_map(wa_ctx->vma->obj, I915_MAP_WB);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto err_unpin;
+	}
 
 	/*
 	 * Emit the two workaround batch buffers, recording the offset from the
@@ -1528,8 +1541,26 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 	__i915_gem_object_release_map(wa_ctx->vma->obj);
 
 	/* Verify that we can handle failure to setup the wa_ctx */
-	if (err || i915_inject_probe_error(engine->i915, -ENODEV))
-		lrc_fini_wa_ctx(engine);
+	if (!err)
+		err = i915_inject_probe_error(engine->i915, -ENODEV);
+
+err_unpin:
+	if (err)
+		i915_vma_unpin(wa_ctx->vma);
+err:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	if (err) {
+		i915_vma_put(engine->wa_ctx.vma);
+
+		/* Clear all flags to prevent further use */
+		memset(wa_ctx, 0, sizeof(*wa_ctx));
+	}
 }
 
 static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)

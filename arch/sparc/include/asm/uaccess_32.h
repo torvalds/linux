@@ -13,9 +13,6 @@
 
 #include <asm/processor.h>
 
-#define ARCH_HAS_SORT_EXTABLE
-#define ARCH_HAS_SEARCH_EXTABLE
-
 /* Sparc is not segmented, however we need to be able to fool access_ok()
  * when doing system calls from kernel mode legitimately.
  *
@@ -39,36 +36,6 @@
 #define __kernel_ok (uaccess_kernel())
 #define __access_ok(addr, size) (__user_ok((addr) & get_fs().seg, (size)))
 #define access_ok(addr, size) __access_ok((unsigned long)(addr), size)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- *
- * There is a special way how to put a range of potentially faulting
- * insns (like twenty ldd/std's with now intervening other instructions)
- * You specify address of first in insn and 0 in fixup and in the next
- * exception_table_entry you specify last potentially faulting insn + 1
- * and in fixup the routine which should handle the fault.
- * That fixup code will get
- * (faulting_insn_address - first_insn_in_the_range_address)/4
- * in %g2 (ie. index of the faulting instruction in the range).
- */
-
-struct exception_table_entry
-{
-        unsigned long insn, fixup;
-};
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
 
 /* Uh, these should become the main single-value transfer routines..
  * They automatically use the right size if we just have the right
@@ -252,12 +219,7 @@ static inline unsigned long __clear_user(void __user *addr, unsigned long size)
 	unsigned long ret;
 
 	__asm__ __volatile__ (
-		".section __ex_table,#alloc\n\t"
-		".align 4\n\t"
-		".word 1f,3\n\t"
-		".previous\n\t"
 		"mov %2, %%o1\n"
-		"1:\n\t"
 		"call __bzero\n\t"
 		" mov %1, %%o0\n\t"
 		"mov %%o0, %0\n"

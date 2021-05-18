@@ -54,28 +54,6 @@ EXPORT_SYMBOL_GPL(hyperv_pcpu_output_arg);
 u32 hv_max_vp_index;
 EXPORT_SYMBOL_GPL(hv_max_vp_index);
 
-void *hv_alloc_hyperv_page(void)
-{
-	BUILD_BUG_ON(PAGE_SIZE != HV_HYP_PAGE_SIZE);
-
-	return (void *)__get_free_page(GFP_KERNEL);
-}
-EXPORT_SYMBOL_GPL(hv_alloc_hyperv_page);
-
-void *hv_alloc_hyperv_zeroed_page(void)
-{
-        BUILD_BUG_ON(PAGE_SIZE != HV_HYP_PAGE_SIZE);
-
-        return (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-}
-EXPORT_SYMBOL_GPL(hv_alloc_hyperv_zeroed_page);
-
-void hv_free_hyperv_page(unsigned long addr)
-{
-	free_page(addr);
-}
-EXPORT_SYMBOL_GPL(hv_free_hyperv_page);
-
 static int hv_cpu_init(unsigned int cpu)
 {
 	u64 msr_vp_index;
@@ -97,7 +75,7 @@ static int hv_cpu_init(unsigned int cpu)
 		*output_arg = page_address(pg + 1);
 	}
 
-	hv_get_vp_index(msr_vp_index);
+	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
 
 	hv_vp_index[smp_processor_id()] = msr_vp_index;
 
@@ -162,7 +140,7 @@ EXPORT_SYMBOL_GPL(hyperv_stop_tsc_emulation);
 static inline bool hv_reenlightenment_available(void)
 {
 	/*
-	 * Check for required features and priviliges to make TSC frequency
+	 * Check for required features and privileges to make TSC frequency
 	 * change notifications work.
 	 */
 	return ms_hyperv.features & HV_ACCESS_FREQUENCY_MSRS &&
@@ -292,7 +270,7 @@ static int hv_suspend(void)
 
 	/*
 	 * Reset the hypercall page as it is going to be invalidated
-	 * accross hibernation. Setting hv_hypercall_pg to NULL ensures
+	 * across hibernation. Setting hv_hypercall_pg to NULL ensures
 	 * that any subsequent hypercall operation fails safely instead of
 	 * crashing due to an access of an invalid page. The hypercall page
 	 * pointer is restored on resume.
@@ -349,7 +327,7 @@ static void __init hv_stimer_setup_percpu_clockev(void)
 	 * Ignore any errors in setting up stimer clockevents
 	 * as we can run with the LAPIC timer as a fallback.
 	 */
-	(void)hv_stimer_alloc();
+	(void)hv_stimer_alloc(false);
 
 	/*
 	 * Still register the LAPIC timer, because the direct-mode STIMER is
@@ -369,7 +347,7 @@ static void __init hv_get_partition_id(void)
 	local_irq_save(flags);
 	output_page = *this_cpu_ptr(hyperv_pcpu_output_arg);
 	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, output_page);
-	if ((status & HV_HYPERCALL_RESULT_MASK) != HV_STATUS_SUCCESS) {
+	if (!hv_result_success(status)) {
 		/* No point in proceeding if this failed */
 		pr_err("Failed to get partition ID: %lld\n", status);
 		BUG();
@@ -520,6 +498,8 @@ void __init hyperv_init(void)
 		x86_init.irqs.create_pci_msi_domain = hv_create_pci_msi_domain;
 #endif
 
+	/* Query the VMs extended capability once, so that it can be cached. */
+	hv_query_ext_cap(0);
 	return;
 
 remove_cpuhp_state:
@@ -593,33 +573,6 @@ void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);
 
-/**
- * hyperv_report_panic_msg - report panic message to Hyper-V
- * @pa: physical address of the panic page containing the message
- * @size: size of the message in the page
- */
-void hyperv_report_panic_msg(phys_addr_t pa, size_t size)
-{
-	/*
-	 * P3 to contain the physical address of the panic page & P4 to
-	 * contain the size of the panic data in that page. Rest of the
-	 * registers are no-op when the NOTIFY_MSG flag is set.
-	 */
-	wrmsrl(HV_X64_MSR_CRASH_P0, 0);
-	wrmsrl(HV_X64_MSR_CRASH_P1, 0);
-	wrmsrl(HV_X64_MSR_CRASH_P2, 0);
-	wrmsrl(HV_X64_MSR_CRASH_P3, pa);
-	wrmsrl(HV_X64_MSR_CRASH_P4, size);
-
-	/*
-	 * Let Hyper-V know there is crash data available along with
-	 * the panic message.
-	 */
-	wrmsrl(HV_X64_MSR_CRASH_CTL,
-	       (HV_CRASH_CTL_CRASH_NOTIFY | HV_CRASH_CTL_CRASH_NOTIFY_MSG));
-}
-EXPORT_SYMBOL_GPL(hyperv_report_panic_msg);
-
 bool hv_is_hyperv_initialized(void)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
@@ -650,7 +603,7 @@ EXPORT_SYMBOL_GPL(hv_is_hibernation_supported);
 
 enum hv_isolation_type hv_get_isolation_type(void)
 {
-	if (!(ms_hyperv.features_b & HV_ISOLATION))
+	if (!(ms_hyperv.priv_high & HV_ISOLATION))
 		return HV_ISOLATION_TYPE_NONE;
 	return FIELD_GET(HV_ISOLATION_TYPE, ms_hyperv.isolation_config_b);
 }
@@ -661,3 +614,50 @@ bool hv_is_isolation_supported(void)
 	return hv_get_isolation_type() != HV_ISOLATION_TYPE_NONE;
 }
 EXPORT_SYMBOL_GPL(hv_is_isolation_supported);
+
+/* Bit mask of the extended capability to query: see HV_EXT_CAPABILITY_xxx */
+bool hv_query_ext_cap(u64 cap_query)
+{
+	/*
+	 * The address of the 'hv_extended_cap' variable will be used as an
+	 * output parameter to the hypercall below and so it should be
+	 * compatible with 'virt_to_phys'. Which means, it's address should be
+	 * directly mapped. Use 'static' to keep it compatible; stack variables
+	 * can be virtually mapped, making them imcompatible with
+	 * 'virt_to_phys'.
+	 * Hypercall input/output addresses should also be 8-byte aligned.
+	 */
+	static u64 hv_extended_cap __aligned(8);
+	static bool hv_extended_cap_queried;
+	u64 status;
+
+	/*
+	 * Querying extended capabilities is an extended hypercall. Check if the
+	 * partition supports extended hypercall, first.
+	 */
+	if (!(ms_hyperv.priv_high & HV_ENABLE_EXTENDED_HYPERCALLS))
+		return false;
+
+	/* Extended capabilities do not change at runtime. */
+	if (hv_extended_cap_queried)
+		return hv_extended_cap & cap_query;
+
+	status = hv_do_hypercall(HV_EXT_CALL_QUERY_CAPABILITIES, NULL,
+				 &hv_extended_cap);
+
+	/*
+	 * The query extended capabilities hypercall should not fail under
+	 * any normal circumstances. Avoid repeatedly making the hypercall, on
+	 * error.
+	 */
+	hv_extended_cap_queried = true;
+	status &= HV_HYPERCALL_RESULT_MASK;
+	if (status != HV_STATUS_SUCCESS) {
+		pr_err("Hyper-V: Extended query capabilities hypercall failed 0x%llx\n",
+		       status);
+		return false;
+	}
+
+	return hv_extended_cap & cap_query;
+}
+EXPORT_SYMBOL_GPL(hv_query_ext_cap);

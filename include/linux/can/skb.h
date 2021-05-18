@@ -23,7 +23,8 @@ struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx,
 				   u8 *len_ptr, unsigned int *frame_len_ptr);
 unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx,
 			      unsigned int *frame_len_ptr);
-void can_free_echo_skb(struct net_device *dev, unsigned int idx);
+void can_free_echo_skb(struct net_device *dev, unsigned int idx,
+		       unsigned int *frame_len_ptr);
 struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);
 struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 				struct canfd_frame **cfd);
@@ -65,8 +66,12 @@ static inline void can_skb_reserve(struct sk_buff *skb)
 
 static inline void can_skb_set_owner(struct sk_buff *skb, struct sock *sk)
 {
-	if (sk) {
-		sock_hold(sk);
+	/* If the socket has already been closed by user space, the
+	 * refcount may already be 0 (and the socket will be freed
+	 * after the last TX skb has been freed). So only increase
+	 * socket refcount if the refcount is > 0.
+	 */
+	if (sk && refcount_inc_not_zero(&sk->sk_refcnt)) {
 		skb->destructor = sock_efree;
 		skb->sk = sk;
 	}

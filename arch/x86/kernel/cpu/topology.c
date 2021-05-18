@@ -30,7 +30,7 @@ EXPORT_SYMBOL(__max_die_per_package);
 
 #ifdef CONFIG_SMP
 /*
- * Check if given CPUID extended toplogy "leaf" is implemented
+ * Check if given CPUID extended topology "leaf" is implemented
  */
 static int check_extended_topology_leaf(int leaf)
 {
@@ -44,7 +44,7 @@ static int check_extended_topology_leaf(int leaf)
 	return 0;
 }
 /*
- * Return best CPUID Extended Toplogy Leaf supported
+ * Return best CPUID Extended Topology Leaf supported
  */
 static int detect_extended_topology_leaf(struct cpuinfo_x86 *c)
 {

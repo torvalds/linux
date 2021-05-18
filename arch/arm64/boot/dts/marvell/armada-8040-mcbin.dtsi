@@ -259,13 +259,23 @@
 	vqmmc-supply = <&v_3_3>;
 };
 
+&cp0_utmi {
+	status = "okay";
+};
+
 &cp0_usb3_0 {
 	/* J38? - USB2.0 only */
+	phys = <&cp0_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
 &cp0_usb3_1 {
 	/* J38? - USB2.0 only */
+	phys = <&cp0_utmi1>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -364,9 +374,14 @@
 	};
 };
 
+&cp1_utmi {
+	status = "okay";
+};
+
 &cp1_usb3_0 {
 	/* CPS Lane 2 - CON7 */
-	phys = <&cp1_comphy2 0>;
-	phy-names = "cp1-usb3h0-comphy";
+	phys = <&cp1_comphy2 0>, <&cp1_utmi0>;
+	phy-names = "cp1-usb3h0-comphy", "utmi";
+	dr_mode = "host";
 	status = "okay";
 };

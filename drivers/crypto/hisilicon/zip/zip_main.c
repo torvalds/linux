@@ -18,7 +18,6 @@
 #define PCI_DEVICE_ID_ZIP_VF		0xa251
 
 #define HZIP_QUEUE_NUM_V1		4096
-#define HZIP_QUEUE_NUM_V2		1024
 
 #define HZIP_CLOCK_GATE_CTRL		0x301004
 #define COMP0_ENABLE			BIT(0)
@@ -69,10 +68,10 @@
 #define HZIP_CORE_INT_RAS_CE_ENABLE	0x1
 #define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
 #define HZIP_CORE_INT_RAS_FE_ENB        0x301168
-#define HZIP_CORE_INT_RAS_NFE_ENABLE	0x7FE
+#define HZIP_CORE_INT_RAS_NFE_ENABLE	0x1FFE
 #define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
 #define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
-#define HZIP_CORE_INT_MASK_ALL		GENMASK(10, 0)
+#define HZIP_CORE_INT_MASK_ALL		GENMASK(12, 0)
 #define HZIP_COMP_CORE_NUM		2
 #define HZIP_DECOMP_CORE_NUM		6
 #define HZIP_CORE_NUM			(HZIP_COMP_CORE_NUM + \
@@ -134,17 +133,17 @@ static const struct hisi_zip_hw_error zip_hw_error[] = {
 	{ .int_msk = BIT(8), .msg = "zip_com_inf_err" },
 	{ .int_msk = BIT(9), .msg = "zip_enc_inf_err" },
 	{ .int_msk = BIT(10), .msg = "zip_pre_out_err" },
+	{ .int_msk = BIT(11), .msg = "zip_axi_poison_err" },
+	{ .int_msk = BIT(12), .msg = "zip_sva_err" },
 	{ /* sentinel */ }
 };
 
 enum ctrl_debug_file_index {
-	HZIP_CURRENT_QM,
 	HZIP_CLEAR_ENABLE,
 	HZIP_DEBUG_FILE_NUM,
 };
 
 static const char * const ctrl_debug_file_name[] = {
-	[HZIP_CURRENT_QM]   = "current_qm",
 	[HZIP_CLEAR_ENABLE] = "clear_enable",
 };
 
@@ -363,48 +362,6 @@ static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
 	return &hisi_zip->qm;
 }
 
-static u32 current_qm_read(struct ctrl_debug_file *file)
-{
-	struct hisi_qm *qm = file_to_qm(file);
-
-	return readl(qm->io_base + QM_DFX_MB_CNT_VF);
-}
-
-static int current_qm_write(struct ctrl_debug_file *file, u32 val)
-{
-	struct hisi_qm *qm = file_to_qm(file);
-	u32 vfq_num;
-	u32 tmp;
-
-	if (val > qm->vfs_num)
-		return -EINVAL;
-
-	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
-	if (val == 0) {
-		qm->debug.curr_qm_qp_num = qm->qp_num;
-	} else {
-		vfq_num = (qm->ctrl_qp_num - qm->qp_num) / qm->vfs_num;
-		if (val == qm->vfs_num)
-			qm->debug.curr_qm_qp_num = qm->ctrl_qp_num -
-				qm->qp_num - (qm->vfs_num - 1) * vfq_num;
-		else
-			qm->debug.curr_qm_qp_num = vfq_num;
-	}
-
-	writel(val, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(val, qm->io_base + QM_DFX_DB_CNT_VF);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	return  0;
-}
-
 static u32 clear_enable_read(struct ctrl_debug_file *file)
 {
 	struct hisi_qm *qm = file_to_qm(file);
@@ -438,9 +395,6 @@ static ssize_t hisi_zip_ctrl_debug_read(struct file *filp, char __user *buf,
 
 	spin_lock_irq(&file->lock);
 	switch (file->index) {
-	case HZIP_CURRENT_QM:
-		val = current_qm_read(file);
-		break;
 	case HZIP_CLEAR_ENABLE:
 		val = clear_enable_read(file);
 		break;
@@ -478,11 +432,6 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 
 	spin_lock_irq(&file->lock);
 	switch (file->index) {
-	case HZIP_CURRENT_QM:
-		ret = current_qm_write(file, val);
-		if (ret)
-			goto err_input;
-		break;
 	case HZIP_CLEAR_ENABLE:
 		ret = clear_enable_write(file, val);
 		if (ret)
@@ -580,7 +529,7 @@ static int hisi_zip_ctrl_debug_init(struct hisi_qm *qm)
 	struct hisi_zip *zip = container_of(qm, struct hisi_zip, qm);
 	int i;
 
-	for (i = HZIP_CURRENT_QM; i < HZIP_DEBUG_FILE_NUM; i++) {
+	for (i = HZIP_CLEAR_ENABLE; i < HZIP_DEBUG_FILE_NUM; i++) {
 		spin_lock_init(&zip->ctrl->files[i].lock);
 		zip->ctrl->files[i].ctrl = zip->ctrl;
 		zip->ctrl->files[i].index = i;
@@ -626,10 +575,6 @@ failed_to_create:
 static void hisi_zip_debug_regs_clear(struct hisi_qm *qm)
 {
 	int i, j;
-
-	/* clear current_qm */
-	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
 
 	/* enable register read_clear bit */
 	writel(HZIP_RD_CNT_CLR_CE_EN, qm->io_base + HZIP_SOFT_CTRL_CNT_CLR_CE);
@@ -714,6 +659,22 @@ static void hisi_zip_close_axi_master_ooo(struct hisi_qm *qm)
 	       qm->io_base + HZIP_CORE_INT_SET);
 }
 
+static void hisi_zip_err_info_init(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_info *err_info = &qm->err_info;
+
+	err_info->ce = QM_BASE_CE;
+	err_info->fe = 0;
+	err_info->ecc_2bits_mask = HZIP_CORE_INT_STATUS_M_ECC;
+	err_info->dev_ce_mask = HZIP_CORE_INT_RAS_CE_ENABLE;
+	err_info->msi_wr_port = HZIP_WR_PORT;
+	err_info->acpi_rst = "ZRST";
+	err_info->nfe = QM_BASE_NFE | QM_ACC_WB_NOT_READY_TIMEOUT;
+
+	if (qm->ver >= QM_HW_V3)
+		err_info->nfe |= QM_ACC_DO_TASK_TIMEOUT;
+}
+
 static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.hw_init		= hisi_zip_set_user_domain_and_cache,
 	.hw_err_enable		= hisi_zip_hw_error_enable,
@@ -723,16 +684,7 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.log_dev_hw_err		= hisi_zip_log_hw_error,
 	.open_axi_master_ooo	= hisi_zip_open_axi_master_ooo,
 	.close_axi_master_ooo	= hisi_zip_close_axi_master_ooo,
-	.err_info		= {
-		.ce			= QM_BASE_CE,
-		.nfe			= QM_BASE_NFE |
-					  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe			= 0,
-		.ecc_2bits_mask		= HZIP_CORE_INT_STATUS_M_ECC,
-		.dev_ce_mask		= HZIP_CORE_INT_RAS_CE_ENABLE,
-		.msi_wr_port		= HZIP_WR_PORT,
-		.acpi_rst		= "ZRST",
-	}
+	.err_info_init		= hisi_zip_err_info_init,
 };
 
 static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
@@ -746,13 +698,8 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 	hisi_zip->ctrl = ctrl;
 	ctrl->hisi_zip = hisi_zip;
-
-	if (qm->ver == QM_HW_V1)
-		qm->ctrl_qp_num = HZIP_QUEUE_NUM_V1;
-	else
-		qm->ctrl_qp_num = HZIP_QUEUE_NUM_V2;
-
 	qm->err_ini = &hisi_zip_err_ini;
+	qm->err_ini->err_info_init(qm);
 
 	hisi_zip_set_user_domain_and_cache(qm);
 	hisi_qm_dev_err_init(qm);

@@ -105,7 +105,7 @@ static int fm10k_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
 }
 
 /**
- * fm10k_dcbnl_ieee_getdcbx - get the DCBX configuration for the device
+ * fm10k_dcbnl_getdcbx - get the DCBX configuration for the device
  * @dev: netdev interface for the device
  *
  * Returns that we support only IEEE DCB for this interface
@@ -116,7 +116,7 @@ static u8 fm10k_dcbnl_getdcbx(struct net_device __always_unused *dev)
 }
 
 /**
- * fm10k_dcbnl_ieee_setdcbx - get the DCBX configuration for the device
+ * fm10k_dcbnl_setdcbx - get the DCBX configuration for the device
  * @dev: netdev interface for the device
  * @mode: new mode for this device
  *

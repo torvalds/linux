@@ -91,92 +91,20 @@
 	status = "okay";
 };
 
-&i2c0 {
-	ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&mclk_cam1>;
-		clock-names = "xclk";
-
-		port {
-			ov5640_0: endpoint {
-				bus-width = <8>;
-				data-shift = <2>;
-				bus-type = <6>;
-				pclk-sample = <1>;
-				remote-endpoint = <&vin0ep>;
-			};
-		};
-	};
-};
-
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 
-	status = "okay";
+	/* status set to "okay" when needed by camera configuration below */
 	clock-frequency = <400000>;
-
-	ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&mclk_cam2>;
-		clock-names = "xclk";
-
-		port {
-			ov5640_1: endpoint {
-				bus-width = <8>;
-				data-shift = <2>;
-				bus-type = <6>;
-				pclk-sample = <1>;
-				remote-endpoint = <&vin1ep>;
-			};
-		};
-	};
-};
-
-&i2c2 {
-	ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&mclk_cam3>;
-		clock-names = "xclk";
-
-		port {
-			ov5640_2: endpoint {
-				bus-width = <8>;
-				data-shift = <2>;
-				bus-type = <6>;
-				pclk-sample = <1>;
-				remote-endpoint = <&vin2ep>;
-			};
-		};
-	};
 };
 
 &i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";
 
-	status = "okay";
+	/* status set to "okay" when needed by camera configuration below */
 	clock-frequency = <400000>;
-
-	ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&mclk_cam4>;
-		clock-names = "xclk";
-
-		port {
-			ov5640_3: endpoint {
-				bus-width = <8>;
-				data-shift = <2>;
-				bus-type = <6>;
-				pclk-sample = <1>;
-				remote-endpoint = <&vin3ep>;
-			};
-		};
-	};
 };
 
 &pfc {
@@ -267,6 +195,22 @@
 	cts-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
 };
 
+/*
+ * Below configuration ties VINx endpoints to ov5640/ov7725 camera endpoints
+ *
+ * (un)comment the #include statements to change configuration
+ */
+
+/* 8bit CMOS Camera 1 (J13) */
+#define CAM_PARENT_I2C		i2c0
+#define MCLK_CAM		mclk_cam1
+#define CAM_EP			cam0ep
+#define VIN_EP			vin0ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
 &vin0 {
 	/*
 	 * Set SW2 switch on the SOM to 'ON'
@@ -278,13 +222,29 @@
 
 	port {
 		vin0ep: endpoint {
-			remote-endpoint = <&ov5640_0>;
+			remote-endpoint = <&cam0ep>;
 			bus-width = <8>;
 			bus-type = <6>;
 		};
 	};
 };
+#endif /* CAM_ENABLED */
 
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP
+
+/* 8bit CMOS Camera 2 (J14) */
+#define CAM_PARENT_I2C		i2c1
+#define MCLK_CAM		mclk_cam2
+#define CAM_EP			cam1ep
+#define VIN_EP			vin1ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
 &vin1 {
 	/* Set SW1 switch on the SOM to 'ON' */
 	status = "okay";
@@ -293,13 +253,30 @@
 
 	port {
 		vin1ep: endpoint {
-			remote-endpoint = <&ov5640_1>;
+			remote-endpoint = <&cam1ep>;
 			bus-width = <8>;
 			bus-type = <6>;
 		};
 	};
 };
 
+#endif /* CAM_ENABLED */
+
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP
+
+/* 8bit CMOS Camera 3 (J12) */
+#define CAM_PARENT_I2C		i2c2
+#define MCLK_CAM		mclk_cam3
+#define CAM_EP			cam2ep
+#define VIN_EP			vin2ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
 &vin2 {
 	status = "okay";
 	pinctrl-0 = <&vin2_pins>;
@@ -307,14 +284,30 @@
 
 	port {
 		vin2ep: endpoint {
-			remote-endpoint = <&ov5640_2>;
+			remote-endpoint = <&cam2ep>;
 			bus-width = <8>;
 			data-shift = <8>;
 			bus-type = <6>;
 		};
 	};
 };
+#endif /* CAM_ENABLED */
 
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP
+
+/* 8bit CMOS Camera 4 (J11) */
+#define CAM_PARENT_I2C		i2c3
+#define MCLK_CAM		mclk_cam4
+#define CAM_EP			cam3ep
+#define VIN_EP			vin3ep
+#undef CAM_ENABLED
+#include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
+
+#ifdef CAM_ENABLED
 &vin3 {
 	status = "okay";
 	pinctrl-0 = <&vin3_pins>;
@@ -322,9 +315,15 @@
 
 	port {
 		vin3ep: endpoint {
-			remote-endpoint = <&ov5640_3>;
+			remote-endpoint = <&cam3ep>;
 			bus-width = <8>;
 			bus-type = <6>;
 		};
 	};
 };
+#endif /* CAM_ENABLED */
+
+#undef CAM_PARENT_I2C
+#undef MCLK_CAM
+#undef CAM_EP
+#undef VIN_EP

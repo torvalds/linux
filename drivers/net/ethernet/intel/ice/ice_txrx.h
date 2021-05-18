@@ -192,7 +192,11 @@ struct ice_rxq_stats {
 	u64 non_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buf_failed;
-	u64 gro_dropped; /* GRO returned dropped */
+};
+
+enum ice_ring_state_t {
+	ICE_TX_XPS_INIT_DONE,
+	ICE_TX_NBITS,
 };
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
@@ -219,22 +223,19 @@ enum ice_rx_dtype {
 #define ICE_TX_ITR	ICE_IDX_ITR1
 #define ICE_ITR_8K	124
 #define ICE_ITR_20K	50
-#define ICE_ITR_MAX	8160
-#define ICE_DFLT_TX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
-#define ICE_DFLT_RX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
-#define ICE_ITR_DYNAMIC	0x8000  /* used as flag for itr_setting */
-#define ITR_IS_DYNAMIC(setting) (!!((setting) & ICE_ITR_DYNAMIC))
-#define ITR_TO_REG(setting)	((setting) & ~ICE_ITR_DYNAMIC)
+#define ICE_ITR_MAX	8160 /* 0x1FE0 */
+#define ICE_DFLT_TX_ITR	ICE_ITR_20K
+#define ICE_DFLT_RX_ITR	ICE_ITR_20K
+enum ice_dynamic_itr {
+	ITR_STATIC = 0,
+	ITR_DYNAMIC = 1
+};
+
+#define ITR_IS_DYNAMIC(rc) ((rc)->itr_mode == ITR_DYNAMIC)
 #define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
 #define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
 #define ITR_REG_ALIGN(setting)	((setting) & ICE_ITR_MASK)
-
-#define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
-#define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
-#define ICE_ITR_ADAPTIVE_MAX_USECS	0x00FA
-#define ICE_ITR_ADAPTIVE_LATENCY	0x8000
-#define ICE_ITR_ADAPTIVE_BULK		0x0000
 
 #define ICE_DFLT_INTRL	0
 #define ICE_MAX_INTRL	236
@@ -292,6 +293,7 @@ struct ice_ring {
 	};
 
 	struct rcu_head rcu;		/* to avoid race on free */
+	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
 	struct bpf_prog *xdp_prog;
 	struct xsk_buff_pool *xsk_pool;
 	u16 rx_offset;
@@ -334,23 +336,22 @@ static inline bool ice_ring_is_xdp(struct ice_ring *ring)
 struct ice_ring_container {
 	/* head of linked-list of rings */
 	struct ice_ring *ring;
-	unsigned long next_update;	/* jiffies value of next queue update */
-	unsigned int total_bytes;	/* total bytes processed this int */
-	unsigned int total_pkts;	/* total packets processed this int */
+	struct dim dim;		/* data for net_dim algorithm */
 	u16 itr_idx;		/* index in the interrupt vector */
-	u16 target_itr;		/* value in usecs divided by the hw->itr_gran */
-	u16 current_itr;	/* value in usecs divided by the hw->itr_gran */
-	/* high bit set means dynamic ITR, rest is used to store user
-	 * readable ITR value in usecs and must be converted before programming
-	 * to a register.
+	/* this matches the maximum number of ITR bits, but in usec
+	 * values, so it is shifted left one bit (bit zero is ignored)
 	 */
-	u16 itr_setting;
+	u16 itr_setting:13;
+	u16 itr_reserved:2;
+	u16 itr_mode:1;
 };
 
 struct ice_coalesce_stored {
 	u16 itr_tx;
 	u16 itr_rx;
 	u8 intrl;
+	u8 tx_valid;
+	u8 rx_valid;
 };
 
 /* iterator for handling rings in ring container */

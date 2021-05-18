@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
+#include <linux/sched/mm.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -42,6 +43,8 @@
 #include <drm/ttm/ttm_pool.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_tt.h>
+
+#include "ttm_module.h"
 
 /**
  * struct ttm_pool_dma - Helper object for coherent DMA mappings
@@ -268,13 +271,13 @@ static void ttm_pool_type_init(struct ttm_pool_type *pt, struct ttm_pool *pool,
 /* Remove a pool_type from the global shrinker list and free all pages */
 static void ttm_pool_type_fini(struct ttm_pool_type *pt)
 {
-	struct page *p, *tmp;
+	struct page *p;
 
 	mutex_lock(&shrinker_lock);
 	list_del(&pt->shrinker_list);
 	mutex_unlock(&shrinker_lock);
 
-	list_for_each_entry_safe(p, tmp, &pt->pages, lru)
+	while ((p = ttm_pool_type_take(pt)))
 		ttm_pool_free_page(pt->pool, pt->caching, pt->order, p);
 }
 
@@ -412,16 +415,10 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 			caching = pages + (1 << order);
 		}
 
-		r = ttm_mem_global_alloc_page(&ttm_mem_glob, p,
-					      (1 << order) * PAGE_SIZE,
-					      ctx);
-		if (r)
-			goto error_free_page;
-
 		if (dma_addr) {
 			r = ttm_pool_map(pool, order, p, &dma_addr);
 			if (r)
-				goto error_global_free;
+				goto error_free_page;
 		}
 
 		num_pages -= 1 << order;
@@ -434,9 +431,6 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 		goto error_free_all;
 
 	return 0;
-
-error_global_free:
-	ttm_mem_global_free_page(&ttm_mem_glob, p, (1 << order) * PAGE_SIZE);
 
 error_free_page:
 	ttm_pool_free_page(pool, tt->caching, order, p);
@@ -472,8 +466,6 @@ void ttm_pool_free(struct ttm_pool *pool, struct ttm_tt *tt)
 
 		order = ttm_pool_page_order(pool, p);
 		num_pages = 1ULL << order;
-		ttm_mem_global_free_page(&ttm_mem_glob, p,
-					 num_pages * PAGE_SIZE);
 		if (tt->dma_address)
 			ttm_pool_unmap(pool, tt->dma_address[i], num_pages);
 
@@ -513,10 +505,12 @@ void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
 	pool->use_dma_alloc = use_dma_alloc;
 	pool->use_dma32 = use_dma32;
 
-	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i)
-		for (j = 0; j < MAX_ORDER; ++j)
-			ttm_pool_type_init(&pool->caching[i].orders[j],
-					   pool, i, j);
+	if (use_dma_alloc) {
+		for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i)
+			for (j = 0; j < MAX_ORDER; ++j)
+				ttm_pool_type_init(&pool->caching[i].orders[j],
+						   pool, i, j);
+	}
 }
 
 /**
@@ -531,93 +525,12 @@ void ttm_pool_fini(struct ttm_pool *pool)
 {
 	unsigned int i, j;
 
-	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i)
-		for (j = 0; j < MAX_ORDER; ++j)
-			ttm_pool_type_fini(&pool->caching[i].orders[j]);
-}
-
-#ifdef CONFIG_DEBUG_FS
-/* Count the number of pages available in a pool_type */
-static unsigned int ttm_pool_type_count(struct ttm_pool_type *pt)
-{
-	unsigned int count = 0;
-	struct page *p;
-
-	spin_lock(&pt->lock);
-	/* Only used for debugfs, the overhead doesn't matter */
-	list_for_each_entry(p, &pt->pages, lru)
-		++count;
-	spin_unlock(&pt->lock);
-
-	return count;
-}
-
-/* Dump information about the different pool types */
-static void ttm_pool_debugfs_orders(struct ttm_pool_type *pt,
-				    struct seq_file *m)
-{
-	unsigned int i;
-
-	for (i = 0; i < MAX_ORDER; ++i)
-		seq_printf(m, " %8u", ttm_pool_type_count(&pt[i]));
-	seq_puts(m, "\n");
-}
-
-/**
- * ttm_pool_debugfs - Debugfs dump function for a pool
- *
- * @pool: the pool to dump the information for
- * @m: seq_file to dump to
- *
- * Make a debugfs dump with the per pool and global information.
- */
-int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
-{
-	unsigned int i;
-
-	mutex_lock(&shrinker_lock);
-
-	seq_puts(m, "\t ");
-	for (i = 0; i < MAX_ORDER; ++i)
-		seq_printf(m, " ---%2u---", i);
-	seq_puts(m, "\n");
-
-	seq_puts(m, "wc\t:");
-	ttm_pool_debugfs_orders(global_write_combined, m);
-	seq_puts(m, "uc\t:");
-	ttm_pool_debugfs_orders(global_uncached, m);
-
-	seq_puts(m, "wc 32\t:");
-	ttm_pool_debugfs_orders(global_dma32_write_combined, m);
-	seq_puts(m, "uc 32\t:");
-	ttm_pool_debugfs_orders(global_dma32_uncached, m);
-
-	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
-		seq_puts(m, "DMA ");
-		switch (i) {
-		case ttm_cached:
-			seq_puts(m, "\t:");
-			break;
-		case ttm_write_combined:
-			seq_puts(m, "wc\t:");
-			break;
-		case ttm_uncached:
-			seq_puts(m, "uc\t:");
-			break;
-		}
-		ttm_pool_debugfs_orders(pool->caching[i].orders, m);
+	if (pool->use_dma_alloc) {
+		for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i)
+			for (j = 0; j < MAX_ORDER; ++j)
+				ttm_pool_type_fini(&pool->caching[i].orders[j]);
 	}
-
-	seq_printf(m, "\ntotal\t: %8lu of %8lu\n",
-		   atomic_long_read(&allocated_pages), page_pool_size);
-
-	mutex_unlock(&shrinker_lock);
-
-	return 0;
 }
-EXPORT_SYMBOL(ttm_pool_debugfs);
-
-#endif
 
 /* As long as pages are available make sure to release at least one */
 static unsigned long ttm_pool_shrinker_scan(struct shrinker *shrink,
@@ -640,6 +553,131 @@ static unsigned long ttm_pool_shrinker_count(struct shrinker *shrink,
 
 	return num_pages ? num_pages : SHRINK_EMPTY;
 }
+
+#ifdef CONFIG_DEBUG_FS
+/* Count the number of pages available in a pool_type */
+static unsigned int ttm_pool_type_count(struct ttm_pool_type *pt)
+{
+	unsigned int count = 0;
+	struct page *p;
+
+	spin_lock(&pt->lock);
+	/* Only used for debugfs, the overhead doesn't matter */
+	list_for_each_entry(p, &pt->pages, lru)
+		++count;
+	spin_unlock(&pt->lock);
+
+	return count;
+}
+
+/* Print a nice header for the order */
+static void ttm_pool_debugfs_header(struct seq_file *m)
+{
+	unsigned int i;
+
+	seq_puts(m, "\t ");
+	for (i = 0; i < MAX_ORDER; ++i)
+		seq_printf(m, " ---%2u---", i);
+	seq_puts(m, "\n");
+}
+
+/* Dump information about the different pool types */
+static void ttm_pool_debugfs_orders(struct ttm_pool_type *pt,
+				    struct seq_file *m)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAX_ORDER; ++i)
+		seq_printf(m, " %8u", ttm_pool_type_count(&pt[i]));
+	seq_puts(m, "\n");
+}
+
+/* Dump the total amount of allocated pages */
+static void ttm_pool_debugfs_footer(struct seq_file *m)
+{
+	seq_printf(m, "\ntotal\t: %8lu of %8lu\n",
+		   atomic_long_read(&allocated_pages), page_pool_size);
+}
+
+/* Dump the information for the global pools */
+static int ttm_pool_debugfs_globals_show(struct seq_file *m, void *data)
+{
+	ttm_pool_debugfs_header(m);
+
+	mutex_lock(&shrinker_lock);
+	seq_puts(m, "wc\t:");
+	ttm_pool_debugfs_orders(global_write_combined, m);
+	seq_puts(m, "uc\t:");
+	ttm_pool_debugfs_orders(global_uncached, m);
+	seq_puts(m, "wc 32\t:");
+	ttm_pool_debugfs_orders(global_dma32_write_combined, m);
+	seq_puts(m, "uc 32\t:");
+	ttm_pool_debugfs_orders(global_dma32_uncached, m);
+	mutex_unlock(&shrinker_lock);
+
+	ttm_pool_debugfs_footer(m);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_pool_debugfs_globals);
+
+/**
+ * ttm_pool_debugfs - Debugfs dump function for a pool
+ *
+ * @pool: the pool to dump the information for
+ * @m: seq_file to dump to
+ *
+ * Make a debugfs dump with the per pool and global information.
+ */
+int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
+{
+	unsigned int i;
+
+	if (!pool->use_dma_alloc) {
+		seq_puts(m, "unused\n");
+		return 0;
+	}
+
+	ttm_pool_debugfs_header(m);
+
+	mutex_lock(&shrinker_lock);
+	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
+		seq_puts(m, "DMA ");
+		switch (i) {
+		case ttm_cached:
+			seq_puts(m, "\t:");
+			break;
+		case ttm_write_combined:
+			seq_puts(m, "wc\t:");
+			break;
+		case ttm_uncached:
+			seq_puts(m, "uc\t:");
+			break;
+		}
+		ttm_pool_debugfs_orders(pool->caching[i].orders, m);
+	}
+	mutex_unlock(&shrinker_lock);
+
+	ttm_pool_debugfs_footer(m);
+	return 0;
+}
+EXPORT_SYMBOL(ttm_pool_debugfs);
+
+/* Test the shrinker functions and dump the result */
+static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
+{
+	struct shrink_control sc = { .gfp_mask = GFP_NOFS };
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(&mm_shrinker, &sc),
+		   ttm_pool_shrinker_scan(&mm_shrinker, &sc));
+	fs_reclaim_release(GFP_KERNEL);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_pool_debugfs_shrink);
+
+#endif
 
 /**
  * ttm_pool_mgr_init - Initialize globals
@@ -668,6 +706,13 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 		ttm_pool_type_init(&global_dma32_uncached[i], NULL,
 				   ttm_uncached, i);
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	debugfs_create_file("page_pool", 0444, ttm_debugfs_root, NULL,
+			    &ttm_pool_debugfs_globals_fops);
+	debugfs_create_file("page_pool_shrink", 0400, ttm_debugfs_root, NULL,
+			    &ttm_pool_debugfs_shrink_fops);
+#endif
 
 	mm_shrinker.count_objects = ttm_pool_shrinker_count;
 	mm_shrinker.scan_objects = ttm_pool_shrinker_scan;

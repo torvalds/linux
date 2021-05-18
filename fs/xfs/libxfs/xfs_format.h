@@ -955,9 +955,8 @@ static inline time64_t xfs_bigtime_to_unix(uint64_t ondisk_seconds)
  * attribute use the XFS_DFORK_DPTR, XFS_DFORK_APTR, and XFS_DFORK_PTR macros
  * below.
  *
- * There is a very similar struct icdinode in xfs_inode which matches the
- * layout of the first 96 bytes of this structure, but is kept in native
- * format instead of big endian.
+ * There is a very similar struct xfs_log_dinode which matches the layout of
+ * this structure, but is kept in native format instead of big endian.
  *
  * Note: di_flushiter is only used by v1/2 inodes - it's effectively a zeroed
  * padding field for v3 inodes.

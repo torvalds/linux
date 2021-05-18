@@ -35,16 +35,7 @@ struct mmc_spi_platform_data {
 	void (*setpower)(struct device *, unsigned int maskval);
 };
 
-#ifdef CONFIG_OF
 extern struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi);
 extern void mmc_spi_put_pdata(struct spi_device *spi);
-#else
-static inline struct mmc_spi_platform_data *
-mmc_spi_get_pdata(struct spi_device *spi)
-{
-	return spi->dev.platform_data;
-}
-static inline void mmc_spi_put_pdata(struct spi_device *spi) {}
-#endif /* CONFIG_OF */
 
 #endif /* __LINUX_SPI_MMC_SPI_H */

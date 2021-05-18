@@ -74,7 +74,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 }
 
 /*
- * This itererator needs some explanation.
+ * This iterator needs some explanation.
  * It returns 1 for the header position.
  * This means 2 is cpu 0.
  * In a hotplugged system some CPUs, including cpu 0, may be missing so we have

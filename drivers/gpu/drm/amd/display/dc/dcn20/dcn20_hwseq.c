@@ -1146,6 +1146,12 @@ void dcn20_enable_plane(
 		pipe_ctx->plane_res.hubp->funcs->hubp_set_vm_system_aperture_settings(pipe_ctx->plane_res.hubp, &apt);
 	}
 
+	if (!pipe_ctx->top_pipe
+		&& pipe_ctx->plane_state
+		&& pipe_ctx->plane_state->flip_int_enabled
+		&& pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int)
+			pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int(pipe_ctx->plane_res.hubp);
+
 //	if (dc->debug.sanity_checks) {
 //		dcn10_verify_allow_pstate_change_high(dc);
 //	}
@@ -1501,38 +1507,8 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed
 			|| pipe_ctx->stream->update_flags.bits.gamut_remap
 			|| pipe_ctx->stream->update_flags.bits.out_csc) {
-		struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
-
-		if (mpc->funcs->set_gamut_remap) {
-			int i;
-			int mpcc_id = hubp->inst;
-			struct mpc_grph_gamut_adjustment adjust;
-			bool enable_remap_dpp = false;
-
-			memset(&adjust, 0, sizeof(adjust));
-			adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
-
-			/* save the enablement of gamut remap for dpp */
-			enable_remap_dpp = pipe_ctx->stream->gamut_remap_matrix.enable_remap;
-
-			/* force bypass gamut remap for dpp/cm */
-			pipe_ctx->stream->gamut_remap_matrix.enable_remap = false;
-			dc->hwss.program_gamut_remap(pipe_ctx);
-
-			/* restore gamut remap flag and use this remap into mpc */
-			pipe_ctx->stream->gamut_remap_matrix.enable_remap = enable_remap_dpp;
-
-			/* build remap matrix for top plane if enabled */
-			if (enable_remap_dpp && pipe_ctx->top_pipe == NULL) {
-					adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-					for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
-						adjust.temperature_matrix[i] =
-								pipe_ctx->stream->gamut_remap_matrix.matrix[i];
-			}
-			mpc->funcs->set_gamut_remap(mpc, mpcc_id, &adjust);
-		} else
-			/* dpp/cm gamut remap*/
-			dc->hwss.program_gamut_remap(pipe_ctx);
+		/* dpp/cm gamut remap*/
+		dc->hwss.program_gamut_remap(pipe_ctx);
 
 		/*call the dcn2 method which uses mpc csc*/
 		dc->hwss.program_output_csc(dc,
@@ -1575,8 +1551,8 @@ static void dcn20_update_dchubp_dpp(
 
 
 
-	if (is_pipe_tree_visible(pipe_ctx))
-		dc->hwss.set_hubp_blank(dc, pipe_ctx, false);
+	if (pipe_ctx->update_flags.bits.enable)
+		hubp->funcs->set_blank(hubp, false);
 }
 
 
@@ -1772,10 +1748,19 @@ void dcn20_post_unlock_program_front_end(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *mpcc_pipe;
 
 		if (pipe->vtp_locked) {
-			dc->hwss.set_hubp_blank(dc, pipe, true);
+			dc->hwseq->funcs.wait_for_blank_complete(pipe->stream_res.opp);
+			pipe->plane_res.hubp->funcs->set_blank(pipe->plane_res.hubp, true);
 			pipe->vtp_locked = false;
+
+			for (mpcc_pipe = pipe->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+				mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
+
+			for (i = 0; i < dc->res_pool->pipe_count; i++)
+				if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
+					dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 		}
 	}
 	/* WA to apply WM setting*/

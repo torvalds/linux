@@ -233,20 +233,11 @@ mcp251xfd_regmap_crc_write(void *context,
 }
 
 static int
-mcp251xfd_regmap_crc_read_one(struct mcp251xfd_priv *priv,
-			      struct spi_message *msg, unsigned int data_len)
+mcp251xfd_regmap_crc_read_check_crc(const struct mcp251xfd_map_buf_crc * const buf_rx,
+				    const struct mcp251xfd_map_buf_crc * const buf_tx,
+				    unsigned int data_len)
 {
-	const struct mcp251xfd_map_buf_crc *buf_rx = priv->map_buf_crc_rx;
-	const struct mcp251xfd_map_buf_crc *buf_tx = priv->map_buf_crc_tx;
 	u16 crc_received, crc_calculated;
-	int err;
-
-	BUILD_BUG_ON(sizeof(buf_rx->cmd) != sizeof(__be16) + sizeof(u8));
-	BUILD_BUG_ON(sizeof(buf_tx->cmd) != sizeof(__be16) + sizeof(u8));
-
-	err = spi_sync(priv->spi, msg);
-	if (err)
-		return err;
 
 	crc_received = get_unaligned_be16(buf_rx->data + data_len);
 	crc_calculated = mcp251xfd_crc16_compute2(&buf_tx->cmd,
@@ -257,6 +248,25 @@ mcp251xfd_regmap_crc_read_one(struct mcp251xfd_priv *priv,
 		return -EBADMSG;
 
 	return 0;
+}
+
+
+static int
+mcp251xfd_regmap_crc_read_one(struct mcp251xfd_priv *priv,
+			      struct spi_message *msg, unsigned int data_len)
+{
+	const struct mcp251xfd_map_buf_crc *buf_rx = priv->map_buf_crc_rx;
+	const struct mcp251xfd_map_buf_crc *buf_tx = priv->map_buf_crc_tx;
+	int err;
+
+	BUILD_BUG_ON(sizeof(buf_rx->cmd) != sizeof(__be16) + sizeof(u8));
+	BUILD_BUG_ON(sizeof(buf_tx->cmd) != sizeof(__be16) + sizeof(u8));
+
+	err = spi_sync(priv->spi, msg);
+	if (err)
+		return err;
+
+	return mcp251xfd_regmap_crc_read_check_crc(buf_rx, buf_tx, data_len);
 }
 
 static int
@@ -310,6 +320,40 @@ mcp251xfd_regmap_crc_read(void *context,
 			goto out;
 		if (err != -EBADMSG)
 			return err;
+
+		/* MCP251XFD_REG_TBC is the time base counter
+		 * register. It increments once per SYS clock tick,
+		 * which is 20 or 40 MHz.
+		 *
+		 * Observation shows that if the lowest byte (which is
+		 * transferred first on the SPI bus) of that register
+		 * is 0x00 or 0x80 the calculated CRC doesn't always
+		 * match the transferred one.
+		 *
+		 * If the highest bit in the lowest byte is flipped
+		 * the transferred CRC matches the calculated one. We
+		 * assume for now the CRC calculation in the chip
+		 * works on wrong data and the transferred data is
+		 * correct.
+		 */
+		if (reg == MCP251XFD_REG_TBC &&
+		    (buf_rx->data[0] == 0x0 || buf_rx->data[0] == 0x80)) {
+			/* Flip highest bit in lowest byte of le32 */
+			buf_rx->data[0] ^= 0x80;
+
+			/* re-check CRC */
+			err = mcp251xfd_regmap_crc_read_check_crc(buf_rx,
+								  buf_tx,
+								  val_len);
+			if (!err) {
+				/* If CRC is now correct, assume
+				 * transferred data was OK, flip bit
+				 * back to original value.
+				 */
+				buf_rx->data[0] ^= 0x80;
+				goto out;
+			}
+		}
 
 		/* MCP251XFD_REG_OSC is the first ever reg we read from.
 		 *

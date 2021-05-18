@@ -89,7 +89,7 @@ static const char * const ad5766_dither_scales[] = {
 /**
  * struct ad5766_state - driver instance specific data
  * @spi:		SPI device
- * @lock:		Lock used to restrict concurent access to SPI device
+ * @lock:		Lock used to restrict concurrent access to SPI device
  * @chip_info:		Chip model specific constants
  * @gpio_reset:		Reset GPIO, used to reset the device
  * @crt_range:		Current selected output range

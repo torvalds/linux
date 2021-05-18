@@ -473,7 +473,6 @@ struct hv_pcibus_device {
 	struct list_head dr_list;
 
 	struct msi_domain_info msi_info;
-	struct msi_controller msi_chip;
 	struct irq_domain *irq_domain;
 
 	spinlock_t retarget_msi_interrupt_lock;
@@ -1292,7 +1291,7 @@ exit_unlock:
 	 * resumes, hv_pci_restore_msi_state() is able to correctly restore
 	 * the interrupt with the correct affinity.
 	 */
-	if (res && hbus->state != hv_pcibus_removing)
+	if (!hv_result_success(res) && hbus->state != hv_pcibus_removing)
 		dev_err(&hbus->hdev->device,
 			"%s() failed: %#llx", __func__, res);
 
@@ -1458,7 +1457,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	 * Prevents hv_pci_onchannelcallback() from running concurrently
 	 * in the tasklet.
 	 */
-	tasklet_disable(&channel->callback_event);
+	tasklet_disable_in_atomic(&channel->callback_event);
 
 	/*
 	 * Since this function is called with IRQ locks held, can't
@@ -1865,9 +1864,6 @@ static int create_root_hv_pci_bus(struct hv_pcibus_device *hbus)
 					    &hbus->resources_for_children);
 	if (!hbus->pci_bus)
 		return -ENODEV;
-
-	hbus->pci_bus->msi = &hbus->msi_chip;
-	hbus->pci_bus->msi->dev = &hbus->hdev->device;
 
 	pci_lock_rescan_remove();
 	pci_scan_child_bus(hbus->pci_bus);

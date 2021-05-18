@@ -2079,7 +2079,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 	snd_ctl_notify(dsp->component->card->snd_card,
 		       SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
 

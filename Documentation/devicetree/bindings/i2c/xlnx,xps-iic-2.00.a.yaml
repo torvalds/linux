@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/i2c/xlnx,xps-iic-2.00.a.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: ilinx IIC controller Device Tree Bindings
+title: Xilinx IIC controller Device Tree Bindings
 
 maintainers:
   - info@mocean-labs.com

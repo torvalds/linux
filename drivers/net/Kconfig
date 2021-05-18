@@ -94,7 +94,7 @@ config WIREGUARD
 	select CRYPTO_BLAKE2S_ARM if ARM
 	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
 	select CRYPTO_CHACHA_MIPS if CPU_MIPS32_R2
-	select CRYPTO_POLY1305_MIPS if CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
+	select CRYPTO_POLY1305_MIPS if MIPS
 	help
 	  WireGuard is a secure, fast, and easy to use replacement for IPSec
 	  that uses modern cryptography and clever networking tricks. It's
@@ -502,6 +502,8 @@ source "drivers/net/wan/Kconfig"
 
 source "drivers/net/ieee802154/Kconfig"
 
+source "drivers/net/wwan/Kconfig"
+
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
 	depends on XEN
@@ -579,6 +581,7 @@ config NETDEVSIM
 	depends on DEBUG_FS
 	depends on INET
 	depends on IPV6 || IPV6=n
+	depends on PSAMPLE || PSAMPLE=n
 	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can

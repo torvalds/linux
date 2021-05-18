@@ -718,7 +718,7 @@ bool dpp3_program_blnd_lut(
 		next_mode = LUT_RAM_B;
 
 	dpp3_power_on_blnd_lut(dpp_base, true);
-	dpp3_configure_blnd_lut(dpp_base, next_mode == LUT_RAM_A ? true:false);
+	dpp3_configure_blnd_lut(dpp_base, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		dpp3_program_blnd_luta_settings(dpp_base, params);
@@ -1136,7 +1136,7 @@ bool dpp3_program_shaper(
 	else
 		next_mode = LUT_RAM_A;
 
-	dpp3_configure_shaper_lut(dpp_base, next_mode == LUT_RAM_A ? true:false);
+	dpp3_configure_shaper_lut(dpp_base, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		dpp3_program_shaper_luta_settings(dpp_base, params);

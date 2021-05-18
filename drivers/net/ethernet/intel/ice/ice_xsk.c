@@ -108,9 +108,6 @@ ice_qvec_cfg_msix(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
 
 	ice_cfg_itr(hw, q_vector);
 
-	wr32(hw, GLINT_RATE(reg_idx),
-	     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
-
 	ice_for_each_ring(ring, q_vector->tx)
 		ice_cfg_txq_interrupt(vsi, ring->reg_idx, reg_idx,
 				      q_vector->tx.itr_idx);
@@ -159,7 +156,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 	rx_ring = vsi->rx_rings[q_idx];
 	q_vector = rx_ring->q_vector;
 
-	while (test_and_set_bit(__ICE_CFG_BUSY, vsi->state)) {
+	while (test_and_set_bit(ICE_CFG_BUSY, vsi->state)) {
 		timeout--;
 		if (!timeout)
 			return -EBUSY;
@@ -249,7 +246,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 	if (err)
 		goto free_buf;
 
-	clear_bit(__ICE_CFG_BUSY, vsi->state);
+	clear_bit(ICE_CFG_BUSY, vsi->state);
 	ice_qvec_toggle_napi(vsi, q_vector, true);
 	ice_qvec_ena_irq(vsi, q_vector);
 
@@ -358,18 +355,18 @@ xsk_pool_if_up:
  * This function allocates a number of Rx buffers from the fill ring
  * or the internal recycle mechanism and places them on the Rx ring.
  *
- * Returns false if all allocations were successful, true if any fail.
+ * Returns true if all allocations were successful, false if any fail.
  */
 bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 {
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
 	struct ice_rx_buf *rx_buf;
-	bool ret = false;
+	bool ok = true;
 	dma_addr_t dma;
 
 	if (!count)
-		return false;
+		return true;
 
 	rx_desc = ICE_RX_DESC(rx_ring, ntu);
 	rx_buf = &rx_ring->rx_buf[ntu];
@@ -377,7 +374,7 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 	do {
 		rx_buf->xdp = xsk_buff_alloc(rx_ring->xsk_pool);
 		if (!rx_buf->xdp) {
-			ret = true;
+			ok = false;
 			break;
 		}
 
@@ -402,7 +399,7 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 		ice_release_rx_desc(rx_ring, ntu);
 	}
 
-	return ret;
+	return ok;
 }
 
 /**
@@ -473,16 +470,20 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
+
+	if (likely(act == XDP_REDIRECT)) {
+		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
+		result = !err ? ICE_XDP_REDIR : ICE_XDP_CONSUMED;
+		rcu_read_unlock();
+		return result;
+	}
+
 	switch (act) {
 	case XDP_PASS:
 		break;
 	case XDP_TX:
 		xdp_ring = rx_ring->vsi->xdp_rings[rx_ring->q_index];
 		result = ice_xmit_xdp_buff(xdp, xdp_ring);
-		break;
-	case XDP_REDIRECT:
-		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		result = !err ? ICE_XDP_REDIR : ICE_XDP_CONSUMED;
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
@@ -754,7 +755,7 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_ring *ring;
 
-	if (test_bit(__ICE_DOWN, vsi->state))
+	if (test_bit(ICE_DOWN, vsi->state))
 		return -ENETDOWN;
 
 	if (!ice_is_xdp_ena_vsi(vsi))

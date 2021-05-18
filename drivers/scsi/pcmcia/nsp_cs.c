@@ -55,7 +55,6 @@
 
 MODULE_AUTHOR("YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>");
 MODULE_DESCRIPTION("WorkBit NinjaSCSI-3 / NinjaSCSI-32Bi(16bit) PCMCIA SCSI host adapter module");
-MODULE_SUPPORTED_DEVICE("sd,sr,sg,st");
 MODULE_LICENSE("GPL");
 
 #include "nsp_io.h"

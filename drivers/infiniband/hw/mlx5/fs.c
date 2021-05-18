@@ -879,7 +879,7 @@ static void mlx5_ib_set_rule_source_port(struct mlx5_ib_dev *dev,
 				    misc_parameters_2);
 
 		MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
-			 mlx5_eswitch_get_vport_metadata_for_match(esw,
+			 mlx5_eswitch_get_vport_metadata_for_match(rep->esw,
 								   rep->vport));
 		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 				    misc_parameters_2);
@@ -1528,8 +1528,8 @@ static struct mlx5_ib_flow_handler *raw_fs_rule_add(
 		dst_num++;
 	}
 
-	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher,
-					flow_context, flow_act,
+	handler = _create_raw_flow_rule(dev, ft_prio, dst_num ? dst : NULL,
+					fs_matcher, flow_context, flow_act,
 					cmd_in, inlen, dst_num);
 
 	if (IS_ERR(handler)) {
@@ -1885,8 +1885,9 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 		else
 			*dest_id = mqp->raw_packet_qp.rq.tirn;
 		*dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	} else if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS ||
-		   fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX) {
+	} else if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS ||
+		    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX) &&
+		   !(*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)) {
 		*dest_type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 	}
 

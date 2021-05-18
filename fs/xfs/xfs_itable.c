@@ -60,7 +60,6 @@ xfs_bulkstat_one_int(
 	struct xfs_bstat_chunk	*bc)
 {
 	struct user_namespace	*sb_userns = mp->m_super->s_user_ns;
-	struct xfs_icdinode	*dic;		/* dinode core info pointer */
 	struct xfs_inode	*ip;		/* incore inode pointer */
 	struct inode		*inode;
 	struct xfs_bulkstat	*buf = bc->buf;
@@ -81,16 +80,14 @@ xfs_bulkstat_one_int(
 	ASSERT(ip->i_imap.im_blkno != 0);
 	inode = VFS_I(ip);
 
-	dic = &ip->i_d;
-
 	/* xfs_iget returns the following without needing
 	 * further change.
 	 */
-	buf->bs_projectid = ip->i_d.di_projid;
+	buf->bs_projectid = ip->i_projid;
 	buf->bs_ino = ino;
 	buf->bs_uid = from_kuid(sb_userns, i_uid_into_mnt(mnt_userns, inode));
 	buf->bs_gid = from_kgid(sb_userns, i_gid_into_mnt(mnt_userns, inode));
-	buf->bs_size = dic->di_size;
+	buf->bs_size = ip->i_disk_size;
 
 	buf->bs_nlink = inode->i_nlink;
 	buf->bs_atime = inode->i_atime.tv_sec;
@@ -99,13 +96,11 @@ xfs_bulkstat_one_int(
 	buf->bs_mtime_nsec = inode->i_mtime.tv_nsec;
 	buf->bs_ctime = inode->i_ctime.tv_sec;
 	buf->bs_ctime_nsec = inode->i_ctime.tv_nsec;
-	buf->bs_btime = dic->di_crtime.tv_sec;
-	buf->bs_btime_nsec = dic->di_crtime.tv_nsec;
 	buf->bs_gen = inode->i_generation;
 	buf->bs_mode = inode->i_mode;
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
-	buf->bs_extsize_blks = dic->di_extsize;
+	buf->bs_extsize_blks = ip->i_extsize;
 	buf->bs_extents = xfs_ifork_nextents(&ip->i_df);
 	xfs_bulkstat_health(ip, buf);
 	buf->bs_aextents = xfs_ifork_nextents(ip->i_afp);
@@ -113,8 +108,10 @@ xfs_bulkstat_one_int(
 	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
-		if (dic->di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
-			buf->bs_cowextsize_blks = dic->di_cowextsize;
+		buf->bs_btime = ip->i_crtime.tv_sec;
+		buf->bs_btime_nsec = ip->i_crtime.tv_nsec;
+		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
+			buf->bs_cowextsize_blks = ip->i_cowextsize;
 	}
 
 	switch (ip->i_df.if_format) {
@@ -132,7 +129,7 @@ xfs_bulkstat_one_int(
 	case XFS_DINODE_FMT_BTREE:
 		buf->bs_rdev = 0;
 		buf->bs_blksize = mp->m_sb.sb_blocksize;
-		buf->bs_blocks = dic->di_nblocks + ip->i_delayed_blks;
+		buf->bs_blocks = ip->i_nblocks + ip->i_delayed_blks;
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -167,6 +164,12 @@ xfs_bulkstat_one(
 		.breq		= breq,
 	};
 	int			error;
+
+	if (breq->mnt_userns != &init_user_ns) {
+		xfs_warn_ratelimited(breq->mp,
+			"bulkstat not supported inside of idmapped mounts.");
+		return -EINVAL;
+	}
 
 	ASSERT(breq->icount == 1);
 

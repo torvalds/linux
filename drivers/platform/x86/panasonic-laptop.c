@@ -973,7 +973,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	pcc->mute = pcc->sinf[SINF_MUTE];
 	pcc->ac_brightness = pcc->sinf[SINF_AC_CUR_BRIGHT];
 	pcc->dc_brightness = pcc->sinf[SINF_DC_CUR_BRIGHT];
-	result = pcc->current_brightness = pcc->sinf[SINF_CUR_BRIGHT];
+	pcc->current_brightness = pcc->sinf[SINF_CUR_BRIGHT];
 
 	/* add sysfs attributes */
 	result = sysfs_create_group(&device->dev.kobj, &pcc_attr_group);

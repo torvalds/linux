@@ -210,8 +210,10 @@ static int arm_spe_do_get_packet(const unsigned char *buf, size_t len,
 
 	if ((hdr & SPE_HEADER0_MASK2) == SPE_HEADER0_EXTENDED) {
 		/* 16-bit extended format header */
-		ext_hdr = 1;
+		if (len == 1)
+			return ARM_SPE_BAD_PACKET;
 
+		ext_hdr = 1;
 		hdr = buf[1];
 		if (hdr == SPE_HEADER1_ALIGNMENT)
 			return arm_spe_get_alignment(buf, len, packet);

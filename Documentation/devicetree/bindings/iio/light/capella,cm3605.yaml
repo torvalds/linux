@@ -48,7 +48,6 @@ properties:
   vdd-supply: true
 
   capella,aset-resistance-ohms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [50000, 100000, 300000, 600000]
     description: >
       Sensitivity calibration resistance. Note that calibration curves

@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=============
-DT Changesets
-=============
+=====================
+Devicetree Changesets
+=====================
 
-A DT changeset is a method which allows one to apply changes
+A Devicetree changeset is a method which allows one to apply changes
 in the live tree in such a way that either the full set of changes
 will be applied, or none of them will be. If an error occurs partway
 through applying the changeset, then the tree will be rolled back to the

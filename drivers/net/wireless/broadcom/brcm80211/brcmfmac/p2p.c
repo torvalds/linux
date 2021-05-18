@@ -2439,7 +2439,7 @@ void brcmf_p2p_ifp_removed(struct brcmf_if *ifp, bool locked)
 	vif = ifp->vif;
 	cfg = wdev_to_cfg(&vif->wdev);
 	cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
-	if (locked) {
+	if (!locked) {
 		rtnl_lock();
 		wiphy_lock(cfg->wiphy);
 		cfg80211_unregister_wdev(&vif->wdev);

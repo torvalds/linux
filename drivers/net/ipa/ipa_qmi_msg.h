@@ -24,7 +24,7 @@
  * information for each field.  The qmi_send_*() interfaces require
  * the message size to be provided.
  */
-#define IPA_QMI_INDICATION_REGISTER_REQ_SZ	12	/* -> server handle */
+#define IPA_QMI_INDICATION_REGISTER_REQ_SZ	20	/* -> server handle */
 #define IPA_QMI_INDICATION_REGISTER_RSP_SZ	7	/* <- server handle */
 #define IPA_QMI_INIT_DRIVER_REQ_SZ		162	/* client handle -> */
 #define IPA_QMI_INIT_DRIVER_RSP_SZ		25	/* client handle <- */
@@ -44,6 +44,10 @@ struct ipa_indication_register_req {
 	u8 data_usage_quota_reached;
 	u8 ipa_mhi_ready_ind_valid;
 	u8 ipa_mhi_ready_ind;
+	u8 endpoint_desc_ind_valid;
+	u8 endpoint_desc_ind;
+	u8 bw_change_ind_valid;
+	u8 bw_change_ind;
 };
 
 /* The response to a IPA_QMI_INDICATION_REGISTER request consists only of

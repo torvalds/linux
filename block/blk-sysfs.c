@@ -60,7 +60,7 @@ static ssize_t queue_var_store64(s64 *var, const char *page)
 
 static ssize_t queue_requests_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(q->nr_requests, (page));
+	return queue_var_show(q->nr_requests, page);
 }
 
 static ssize_t
@@ -262,6 +262,11 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 	int max_hw_sectors_kb = queue_max_hw_sectors(q) >> 1;
 
 	return queue_var_show(max_hw_sectors_kb, (page));
+}
+
+static ssize_t queue_virt_boundary_mask_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(q->limits.virt_boundary_mask, (page));
 }
 
 #define QUEUE_SYSFS_BIT_FNS(name, flag, neg)				\
@@ -610,6 +615,7 @@ QUEUE_RO_ENTRY(queue_fua, "fua");
 QUEUE_RO_ENTRY(queue_dax, "dax");
 QUEUE_RW_ENTRY(queue_io_timeout, "io_timeout");
 QUEUE_RW_ENTRY(queue_wb_lat, "wbt_lat_usec");
+QUEUE_RO_ENTRY(queue_virt_boundary_mask, "virt_boundary_mask");
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 QUEUE_RW_ENTRY(blk_throtl_sample_time, "throttle_sample_time");
@@ -670,6 +676,7 @@ static struct attribute *queue_attrs[] = {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	&blk_throtl_sample_time_entry.attr,
 #endif
+	&queue_virt_boundary_mask_entry.attr,
 	NULL,
 };
 

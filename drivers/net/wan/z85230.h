@@ -327,45 +327,6 @@ struct z8530_channel
 	void		*private;	/* For our owner */
 	struct net_device	*netdevice;	/* Network layer device */
 
-	/*
-	 *	Async features
-	 */
-
-	struct tty_struct 	*tty;		/* Attached terminal */
-	int			line;		/* Minor number */
-	wait_queue_head_t	open_wait;	/* Tasks waiting to open */
-	wait_queue_head_t	close_wait;	/* and for close to end */
-	unsigned long		event;		/* Pending events */
-	int			fdcount;    	/* # of fd on device */
-	int			blocked_open;	/* # of blocked opens */
-	int			x_char;		/* XON/XOF char */
-	unsigned char 		*xmit_buf;	/* Transmit pointer */
-	int			xmit_head;	/* Transmit ring */
-	int			xmit_tail;
-	int			xmit_cnt;
-	int			flags;	
-	int			timeout;
-	int			xmit_fifo_size;	/* Transmit FIFO info */
-
-	int			close_delay;	/* Do we wait for drain on close ? */
-	unsigned short		closing_wait;
-
-	/* We need to know the current clock divisor
-	 * to read the bps rate the chip has currently
-	 * loaded.
-	 */
-
-	unsigned char		clk_divisor;  /* May be 1, 16, 32, or 64 */
-	int			zs_baud;
-
-	int			magic;
-	int			baud_base;		/* Baud parameters */
-	int			custom_divisor;
-
-
-	unsigned char		tx_active; /* character is being xmitted */
-	unsigned char		tx_stopped; /* output is suspended */
-
 	spinlock_t		*lock;	  /* Device lock */
 };
 

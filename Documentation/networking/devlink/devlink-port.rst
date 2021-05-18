@@ -151,7 +151,7 @@ representor netdevice.
 -------------
 A subfunction devlink port is created but it is not active yet. That means the
 entities are created on devlink side, the e-switch port representor is created,
-but the subfunction device itself it not created. A user might use e-switch port
+but the subfunction device itself is not created. A user might use e-switch port
 representor to do settings, putting it into bridge, adding TC rules, etc. A user
 might as well configure the hardware address (such as MAC address) of the
 subfunction while subfunction is inactive.
@@ -173,7 +173,7 @@ Terms and Definitions
    * - Term
      - Definitions
    * - ``PCI device``
-     - A physical PCI device having one or more PCI bus consists of one or
+     - A physical PCI device having one or more PCI buses consists of one or
        more PCI controllers.
    * - ``PCI controller``
      -  A controller consists of potentially multiple physical functions,

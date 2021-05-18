@@ -50,7 +50,7 @@
 #define MFD_DEP_LEVEL_HIGH 1
 
 struct irq_domain;
-struct property_entry;
+struct software_node;
 
 /* Matches ACPI PNP id, either _HID or _CID, or ACPI _ADR */
 struct mfd_cell_acpi_match {
@@ -78,8 +78,8 @@ struct mfd_cell {
 	void			*platform_data;
 	size_t			pdata_size;
 
-	/* device properties passed to the sub devices drivers */
-	const struct property_entry *properties;
+	/* Software node for the device. */
+	const struct software_node *swnode;
 
 	/*
 	 * Device Tree compatible string

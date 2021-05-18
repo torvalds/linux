@@ -44,10 +44,6 @@
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("Marvell 88ALP01 CMOS Camera Controller driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("Video");
-
-
-
 
 struct cafe_camera {
 	int registered;			/* Fully initialized? */

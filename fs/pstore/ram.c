@@ -56,7 +56,7 @@ MODULE_PARM_DESC(mem_size,
 static unsigned int mem_type;
 module_param(mem_type, uint, 0400);
 MODULE_PARM_DESC(mem_type,
-		"set to 1 to try to use unbuffered memory (default 0)");
+		"memory type: 0=write-combined (default), 1=unbuffered, 2=cached");
 
 static int ramoops_max_reason = -1;
 module_param_named(max_reason, ramoops_max_reason, int, 0400);
@@ -648,6 +648,10 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 
 	pdata->mem_size = resource_size(res);
 	pdata->mem_address = res->start;
+	/*
+	 * Setting "unbuffered" is deprecated and will be ignored if
+	 * "mem_type" is also specified.
+	 */
 	pdata->mem_type = of_property_read_bool(of_node, "unbuffered");
 	/*
 	 * Setting "no-dump-oops" is deprecated and will be ignored if
@@ -666,6 +670,7 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 		field = value;						\
 	}
 
+	parse_u32("mem-type", pdata->record_size, pdata->mem_type);
 	parse_u32("record-size", pdata->record_size, 0);
 	parse_u32("console-size", pdata->console_size, 0);
 	parse_u32("ftrace-size", pdata->ftrace_size, 0);

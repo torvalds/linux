@@ -242,6 +242,16 @@ config CRYPTO_ECDH
 	help
 	  Generic implementation of the ECDH algorithm
 
+config CRYPTO_ECDSA
+	tristate "ECDSA (NIST P192, P256 etc.) algorithm"
+	select CRYPTO_ECC
+	select CRYPTO_AKCIPHER
+	select ASN1
+	help
+	  Elliptic Curve Digital Signature Algorithm (NIST P192, P256 etc.)
+	  is A NIST cryptographic standard algorithm. Only signature verification
+	  is implemented.
+
 config CRYPTO_ECRDSA
 	tristate "EC-RDSA (GOST 34.10) algorithm"
 	select CRYPTO_ECC
@@ -767,7 +777,7 @@ config CRYPTO_POLY1305_X86_64
 
 config CRYPTO_POLY1305_MIPS
 	tristate "Poly1305 authenticator algorithm (MIPS optimized)"
-	depends on CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
+	depends on MIPS
 	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 
 config CRYPTO_MD4
@@ -1213,7 +1223,6 @@ config CRYPTO_BLOWFISH_X86_64
 
 config CRYPTO_CAMELLIA
 	tristate "Camellia cipher algorithms"
-	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	help
 	  Camellia cipher algorithms module.
@@ -1229,7 +1238,6 @@ config CRYPTO_CAMELLIA
 config CRYPTO_CAMELLIA_X86_64
 	tristate "Camellia cipher algorithm (x86_64)"
 	depends on X86 && 64BIT
-	depends on CRYPTO
 	select CRYPTO_SKCIPHER
 	imply CRYPTO_CTR
 	help
@@ -1246,7 +1254,6 @@ config CRYPTO_CAMELLIA_X86_64
 config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX)"
 	depends on X86 && 64BIT
-	depends on CRYPTO
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_SIMD
@@ -1265,7 +1272,6 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
 	depends on X86 && 64BIT
-	depends on CRYPTO
 	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
@@ -1281,7 +1287,6 @@ config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 config CRYPTO_CAMELLIA_SPARC64
 	tristate "Camellia cipher algorithm (SPARC64)"
 	depends on SPARC64
-	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
 	help

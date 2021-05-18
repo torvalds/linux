@@ -66,7 +66,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 	/* Get thread endianness: extract bit LE from MSR */
 	thread_endianness = MSR_LE & ucp->uc_mcontext.gp_regs[PT_MSR];
 
-	/***
+	/*
 	 * Little-Endian Machine
 	 */
 
@@ -126,7 +126,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 		}
 	}
 
-	/***
+	/*
 	 * Big-Endian Machine
 	 */
 

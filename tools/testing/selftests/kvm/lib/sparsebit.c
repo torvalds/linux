@@ -1890,7 +1890,6 @@ void sparsebit_validate_internal(struct sparsebit *s)
  */
 
 #include <stdlib.h>
-#include <assert.h>
 
 struct range {
 	sparsebit_idx_t first, last;

@@ -16,6 +16,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/sof.h>
 #include <sound/rt5682.h>
 #include <sound/soc-acpi.h>
 #include "../../codecs/rt1015.h"
@@ -45,8 +46,9 @@
 #define SOF_RT1011_SPEAKER_AMP_PRESENT		BIT(13)
 #define SOF_RT1015_SPEAKER_AMP_PRESENT		BIT(14)
 #define SOF_RT1015_SPEAKER_AMP_100FS		BIT(15)
-#define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(16)
-#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(17)
+#define SOF_RT1015P_SPEAKER_AMP_PRESENT		BIT(16)
+#define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(17)
+#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(18)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -267,10 +269,21 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		clk_id = RT5682_PLL1_S_MCLK;
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)
+
+		/* get the tplg configured mclk. */
+		clk_freq = sof_dai_get_mclk(rtd);
+
+		/* mclk from the quirk is the first choice */
+		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ) {
+			if (clk_freq != 24000000)
+				dev_warn(rtd->dev, "configure wrong mclk in tplg, please use 24MHz.\n");
 			clk_freq = 24000000;
-		else
+		} else if (clk_freq == 0) {
+			/* use default mclk if not specified correct in topology */
 			clk_freq = 19200000;
+		} else if (clk_freq < 0) {
+			return clk_freq;
+		}
 	} else {
 		clk_id = RT5682_PLL1_S_BCLK1;
 		clk_freq = params_rate(params) * 50;
@@ -723,6 +736,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			links[id].num_codecs = ARRAY_SIZE(rt1015_components);
 			links[id].init = speaker_codec_init_lr;
 			links[id].ops = &sof_rt1015_ops;
+		} else if (sof_rt5682_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT) {
+			sof_rt1015p_dai_link(&links[id]);
 		} else if (sof_rt5682_quirk &
 				SOF_MAX98373_SPEAKER_AMP_PRESENT) {
 			links[id].codecs = max_98373_components;
@@ -851,6 +866,8 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_max98373_codec_conf(&sof_audio_card_rt5682);
 	else if (sof_rt5682_quirk & SOF_RT1011_SPEAKER_AMP_PRESENT)
 		sof_rt1011_codec_conf(&sof_audio_card_rt5682);
+	else if (sof_rt5682_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT)
+		sof_rt1015p_codec_conf(&sof_audio_card_rt5682);
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, ssp_amp,
 					      dmic_be_num, hdmi_num);
@@ -940,6 +957,15 @@ static const struct platform_device_id board_ids[] = {
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
+	{
+		.name = "jsl_rt5682_rt1015p",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_MCLK_24MHZ |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_RT1015P_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(1)),
+	},
 	{ }
 };
 
@@ -966,3 +992,4 @@ MODULE_ALIAS("platform:tgl_max98373_rt5682");
 MODULE_ALIAS("platform:jsl_rt5682_max98360a");
 MODULE_ALIAS("platform:cml_rt1015_rt5682");
 MODULE_ALIAS("platform:tgl_rt1011_rt5682");
+MODULE_ALIAS("platform:jsl_rt5682_rt1015p");

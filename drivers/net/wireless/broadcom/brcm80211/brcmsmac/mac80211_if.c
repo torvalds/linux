@@ -87,7 +87,6 @@ static int n_adapters_found;
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 /* This needs to be adjusted when brcms_firmwares changes */
 MODULE_FIRMWARE("brcm/bcm43xx-0.fw");

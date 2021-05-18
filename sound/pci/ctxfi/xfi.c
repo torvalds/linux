@@ -18,7 +18,6 @@
 MODULE_AUTHOR("Creative Technology Ltd");
 MODULE_DESCRIPTION("X-Fi driver version 1.03");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{Creative Labs, Sound Blaster X-Fi}");
 
 static unsigned int reference_rate = 48000;
 static unsigned int multiple = 2;

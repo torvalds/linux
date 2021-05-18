@@ -840,19 +840,17 @@ static int __exit dryice_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id dryice_dt_ids[] = {
 	{ .compatible = "fsl,imx25-rtc" },
 	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, dryice_dt_ids);
-#endif
 
 static struct platform_driver dryice_rtc_driver = {
 	.driver = {
 		   .name = "imxdi_rtc",
-		   .of_match_table = of_match_ptr(dryice_dt_ids),
+		   .of_match_table = dryice_dt_ids,
 		   },
 	.remove = __exit_p(dryice_rtc_remove),
 };

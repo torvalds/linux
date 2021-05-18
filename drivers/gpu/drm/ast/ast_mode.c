@@ -37,6 +37,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -535,48 +536,54 @@ static const uint32_t ast_primary_plane_formats[] = {
 };
 
 static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						 struct drm_plane_state *state)
+						 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_crtc_state *crtc_state;
 	struct ast_crtc_state *ast_crtc_state;
 	int ret;
 
-	if (!state->crtc)
+	if (!new_plane_state->crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_new_crtc_state(state,
+						   new_plane_state->crtc);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, true);
 	if (ret)
 		return ret;
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
 	ast_crtc_state = to_ast_crtc_state(crtc_state);
 
-	ast_crtc_state->format = state->fb->format;
+	ast_crtc_state->format = new_plane_state->fb->format;
 
 	return 0;
 }
 
 static void
 ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct drm_device *dev = plane->dev;
 	struct ast_private *ast = to_ast_private(dev);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
 
 	if (!old_fb || (fb->format != old_fb->format)) {
-		struct drm_crtc_state *crtc_state = state->crtc->state;
+		struct drm_crtc_state *crtc_state = new_state->crtc->state;
 		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
@@ -597,7 +604,7 @@ ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 static void
 ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-					struct drm_plane_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 
@@ -621,55 +628,161 @@ static const struct drm_plane_funcs ast_primary_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
+static int ast_primary_plane_init(struct ast_private *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_plane *primary_plane = &ast->primary_plane;
+	int ret;
+
+	ret = drm_universal_plane_init(dev, primary_plane, 0x01,
+				       &ast_primary_plane_funcs,
+				       ast_primary_plane_formats,
+				       ARRAY_SIZE(ast_primary_plane_formats),
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		drm_err(dev, "drm_universal_plane_init() failed: %d\n", ret);
+		return ret;
+	}
+	drm_plane_helper_add(primary_plane, &ast_primary_plane_helper_funcs);
+
+	return 0;
+}
+
 /*
  * Cursor plane
  */
+
+static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int height)
+{
+	union {
+		u32 ul;
+		u8 b[4];
+	} srcdata32[2], data32;
+	union {
+		u16 us;
+		u8 b[2];
+	} data16;
+	u32 csum = 0;
+	s32 alpha_dst_delta, last_alpha_dst_delta;
+	u8 __iomem *dstxor;
+	const u8 *srcxor;
+	int i, j;
+	u32 per_pixel_copy, two_pixel_copy;
+
+	alpha_dst_delta = AST_MAX_HWC_WIDTH << 1;
+	last_alpha_dst_delta = alpha_dst_delta - (width << 1);
+
+	srcxor = src;
+	dstxor = (u8 *)dst + last_alpha_dst_delta + (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
+	per_pixel_copy = width & 1;
+	two_pixel_copy = width >> 1;
+
+	for (j = 0; j < height; j++) {
+		for (i = 0; i < two_pixel_copy; i++) {
+			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
+			srcdata32[1].ul = *((u32 *)(srcxor + 4)) & 0xf0f0f0f0;
+			data32.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
+			data32.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
+			data32.b[2] = srcdata32[1].b[1] | (srcdata32[1].b[0] >> 4);
+			data32.b[3] = srcdata32[1].b[3] | (srcdata32[1].b[2] >> 4);
+
+			writel(data32.ul, dstxor);
+			csum += data32.ul;
+
+			dstxor += 4;
+			srcxor += 8;
+
+		}
+
+		for (i = 0; i < per_pixel_copy; i++) {
+			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
+			data16.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
+			data16.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
+			writew(data16.us, dstxor);
+			csum += (u32)data16.us;
+
+			dstxor += 2;
+			srcxor += 4;
+		}
+		dstxor += last_alpha_dst_delta;
+	}
+
+	/* write checksum + signature */
+	dst += AST_HWC_SIZE;
+	writel(csum, dst);
+	writel(width, dst + AST_HWC_SIGNATURE_SizeX);
+	writel(height, dst + AST_HWC_SIGNATURE_SizeY);
+	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTX);
+	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTY);
+}
+
+static void ast_set_cursor_base(struct ast_private *ast, u64 address)
+{
+	u8 addr0 = (address >> 3) & 0xff;
+	u8 addr1 = (address >> 11) & 0xff;
+	u8 addr2 = (address >> 19) & 0xff;
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, addr0);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, addr1);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, addr2);
+}
+
+static void ast_set_cursor_location(struct ast_private *ast, u16 x, u16 y,
+				    u8 x_offset, u8 y_offset)
+{
+	u8 x0 = (x & 0x00ff);
+	u8 x1 = (x & 0x0f00) >> 8;
+	u8 y0 = (y & 0x00ff);
+	u8 y1 = (y & 0x0700) >> 8;
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc2, x_offset);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc3, y_offset);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc4, x0);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc5, x1);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc6, y0);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, y1);
+}
+
+static void ast_set_cursor_enabled(struct ast_private *ast, bool enabled)
+{
+	static const u8 mask = (u8)~(AST_IO_VGACRCB_HWC_16BPP |
+				     AST_IO_VGACRCB_HWC_ENABLED);
+
+	u8 vgacrcb = AST_IO_VGACRCB_HWC_16BPP;
+
+	if (enabled)
+		vgacrcb |= AST_IO_VGACRCB_HWC_ENABLED;
+
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, mask, vgacrcb);
+}
 
 static const uint32_t ast_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-static int
-ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
-				   struct drm_plane_state *new_state)
-{
-	struct drm_framebuffer *fb = new_state->fb;
-	struct drm_crtc *crtc = new_state->crtc;
-	struct ast_private *ast;
-	int ret;
-
-	if (!crtc || !fb)
-		return 0;
-
-	ast = to_ast_private(plane->dev);
-
-	ret = ast_cursor_blit(ast, fb);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
-						struct drm_plane_state *state)
+						struct drm_atomic_state *state)
 {
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct drm_crtc_state *crtc_state;
 	int ret;
 
-	if (!state->crtc)
+	if (!new_plane_state->crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_new_crtc_state(state,
+						   new_plane_state->crtc);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
 	if (fb->width > AST_MAX_HWC_WIDTH || fb->height > AST_MAX_HWC_HEIGHT)
@@ -680,50 +793,191 @@ static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 
 static void
 ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
+	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
+	struct drm_framebuffer *fb = new_state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
+	struct dma_buf_map dst_map =
+		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].map;
+	u64 dst_off =
+		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].off;
+	struct dma_buf_map src_map = shadow_plane_state->map[0];
 	unsigned int offset_x, offset_y;
+	u16 x, y;
+	u8 x_offset, y_offset;
+	u8 __iomem *dst;
+	u8 __iomem *sig;
+	const u8 *src;
 
-	offset_x = AST_MAX_HWC_WIDTH - fb->width;
-	offset_y = AST_MAX_HWC_WIDTH - fb->height;
+	src = src_map.vaddr; /* TODO: Use mapping abstraction properly */
+	dst = dst_map.vaddr_iomem; /* TODO: Use mapping abstraction properly */
+	sig = dst + AST_HWC_SIZE; /* TODO: Use mapping abstraction properly */
 
-	if (state->fb != old_state->fb) {
-		/* A new cursor image was installed. */
-		ast_cursor_page_flip(ast);
+	/*
+	 * Do data transfer to HW cursor BO. If a new cursor image was installed,
+	 * point the scanout engine to dst_gbo's offset and page-flip the HWC buffers.
+	 */
+
+	ast_update_cursor_image(dst, src, fb->width, fb->height);
+
+	if (new_state->fb != old_state->fb) {
+		ast_set_cursor_base(ast, dst_off);
+
+		++ast_cursor_plane->next_hwc_index;
+		ast_cursor_plane->next_hwc_index %= ARRAY_SIZE(ast_cursor_plane->hwc);
 	}
 
-	ast_cursor_show(ast, state->crtc_x, state->crtc_y,
-			offset_x, offset_y);
+	/*
+	 * Update location in HWC signature and registers.
+	 */
+
+	writel(new_state->crtc_x, sig + AST_HWC_SIGNATURE_X);
+	writel(new_state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
+
+	offset_x = AST_MAX_HWC_WIDTH - fb->width;
+	offset_y = AST_MAX_HWC_HEIGHT - fb->height;
+
+	if (new_state->crtc_x < 0) {
+		x_offset = (-new_state->crtc_x) + offset_x;
+		x = 0;
+	} else {
+		x_offset = offset_x;
+		x = new_state->crtc_x;
+	}
+	if (new_state->crtc_y < 0) {
+		y_offset = (-new_state->crtc_y) + offset_y;
+		y = 0;
+	} else {
+		y_offset = offset_y;
+		y = new_state->crtc_y;
+	}
+
+	ast_set_cursor_location(ast, x, y, x_offset, y_offset);
+
+	/* Dummy write to enable HWC and make the HW pick-up the changes. */
+	ast_set_cursor_enabled(ast, true);
 }
 
 static void
 ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 
-	ast_cursor_hide(ast);
+	ast_set_cursor_enabled(ast, false);
 }
 
 static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
-	.prepare_fb = ast_cursor_plane_helper_prepare_fb,
-	.cleanup_fb = NULL, /* not required for cursor plane */
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 	.atomic_check = ast_cursor_plane_helper_atomic_check,
 	.atomic_update = ast_cursor_plane_helper_atomic_update,
 	.atomic_disable = ast_cursor_plane_helper_atomic_disable,
 };
 
+static void ast_cursor_plane_destroy(struct drm_plane *plane)
+{
+	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
+	size_t i;
+	struct drm_gem_vram_object *gbo;
+	struct dma_buf_map map;
+
+	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
+		gbo = ast_cursor_plane->hwc[i].gbo;
+		map = ast_cursor_plane->hwc[i].map;
+		drm_gem_vram_vunmap(gbo, &map);
+		drm_gem_vram_unpin(gbo);
+		drm_gem_vram_put(gbo);
+	}
+
+	drm_plane_cleanup(plane);
+}
+
 static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = drm_plane_cleanup,
-	.reset = drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.destroy = ast_cursor_plane_destroy,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
+
+static int ast_cursor_plane_init(struct ast_private *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct ast_cursor_plane *ast_cursor_plane = &ast->cursor_plane;
+	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
+	size_t size, i;
+	struct drm_gem_vram_object *gbo;
+	struct dma_buf_map map;
+	int ret;
+	s64 off;
+
+	/*
+	 * Allocate backing storage for cursors. The BOs are permanently
+	 * pinned to the top end of the VRAM.
+	 */
+
+	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
+		gbo = drm_gem_vram_create(dev, size, 0);
+		if (IS_ERR(gbo)) {
+			ret = PTR_ERR(gbo);
+			goto err_hwc;
+		}
+		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
+		if (ret)
+			goto err_drm_gem_vram_put;
+		ret = drm_gem_vram_vmap(gbo, &map);
+		if (ret)
+			goto err_drm_gem_vram_unpin;
+		off = drm_gem_vram_offset(gbo);
+		if (off < 0) {
+			ret = off;
+			goto err_drm_gem_vram_vunmap;
+		}
+		ast_cursor_plane->hwc[i].gbo = gbo;
+		ast_cursor_plane->hwc[i].map = map;
+		ast_cursor_plane->hwc[i].off = off;
+	}
+
+	/*
+	 * Create the cursor plane. The plane's destroy callback will release
+	 * the backing storages' BO memory.
+	 */
+
+	ret = drm_universal_plane_init(dev, cursor_plane, 0x01,
+				       &ast_cursor_plane_funcs,
+				       ast_cursor_plane_formats,
+				       ARRAY_SIZE(ast_cursor_plane_formats),
+				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
+	if (ret) {
+		drm_err(dev, "drm_universal_plane failed(): %d\n", ret);
+		goto err_hwc;
+	}
+	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
+
+	return 0;
+
+err_hwc:
+	while (i) {
+		--i;
+		gbo = ast_cursor_plane->hwc[i].gbo;
+		map = ast_cursor_plane->hwc[i].map;
+err_drm_gem_vram_vunmap:
+		drm_gem_vram_vunmap(gbo, &map);
+err_drm_gem_vram_unpin:
+		drm_gem_vram_unpin(gbo);
+err_drm_gem_vram_put:
+		drm_gem_vram_put(gbo);
+	}
+	return ret;
+}
 
 /*
  * CRTC
@@ -917,7 +1171,7 @@ static int ast_crtc_init(struct drm_device *dev)
 	int ret;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, &ast->primary_plane,
-					&ast->cursor_plane, &ast_crtc_funcs,
+					&ast->cursor_plane.base, &ast_crtc_funcs,
 					NULL);
 	if (ret)
 		return ret;
@@ -1109,10 +1363,6 @@ int ast_mode_config_init(struct ast_private *ast)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
-	ret = ast_cursor_init(ast);
-	if (ret)
-		return ret;
-
 	ret = drmm_mode_config_init(dev);
 	if (ret)
 		return ret;
@@ -1138,30 +1388,14 @@ int ast_mode_config_init(struct ast_private *ast)
 
 	dev->mode_config.helper_private = &ast_mode_config_helper_funcs;
 
-	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
-	ret = drm_universal_plane_init(dev, &ast->primary_plane, 0x01,
-				       &ast_primary_plane_funcs,
-				       ast_primary_plane_formats,
-				       ARRAY_SIZE(ast_primary_plane_formats),
-				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		drm_err(dev, "ast: drm_universal_plane_init() failed: %d\n", ret);
-		return ret;
-	}
-	drm_plane_helper_add(&ast->primary_plane,
-			     &ast_primary_plane_helper_funcs);
 
-	ret = drm_universal_plane_init(dev, &ast->cursor_plane, 0x01,
-				       &ast_cursor_plane_funcs,
-				       ast_cursor_plane_formats,
-				       ARRAY_SIZE(ast_cursor_plane_formats),
-				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
-	if (ret) {
-		drm_err(dev, "drm_universal_plane_failed(): %d\n", ret);
+	ret = ast_primary_plane_init(ast);
+	if (ret)
 		return ret;
-	}
-	drm_plane_helper_add(&ast->cursor_plane,
-			     &ast_cursor_plane_helper_funcs);
+
+	ret = ast_cursor_plane_init(ast);
+	if (ret)
+		return ret;
 
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);

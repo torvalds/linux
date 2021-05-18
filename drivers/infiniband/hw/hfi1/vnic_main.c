@@ -593,7 +593,7 @@ static void hfi1_vnic_free_rn(struct net_device *netdev)
 }
 
 struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
-				      u8 port_num,
+				      u32 port_num,
 				      enum rdma_netdev_t type,
 				      const char *name,
 				      unsigned char name_assign_type,

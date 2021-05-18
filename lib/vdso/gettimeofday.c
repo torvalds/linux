@@ -46,16 +46,18 @@ static inline bool vdso_cycles_ok(u64 cycles)
 #endif
 
 #ifdef CONFIG_TIME_NS
-static int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
-			  struct __kernel_timespec *ts)
+static __always_inline int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
+					  struct __kernel_timespec *ts)
 {
-	const struct vdso_data *vd = __arch_get_timens_vdso_data();
+	const struct vdso_data *vd;
 	const struct timens_offset *offs = &vdns->offset[clk];
 	const struct vdso_timestamp *vdso_ts;
 	u64 cycles, last, ns;
 	u32 seq;
 	s64 sec;
 
+	vd = vdns - (clk == CLOCK_MONOTONIC_RAW ? CS_RAW : CS_HRES_COARSE);
+	vd = __arch_get_timens_vdso_data(vd);
 	if (clk != CLOCK_MONOTONIC_RAW)
 		vd = &vd[CS_HRES_COARSE];
 	else
@@ -92,13 +94,14 @@ static int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
 	return 0;
 }
 #else
-static __always_inline const struct vdso_data *__arch_get_timens_vdso_data(void)
+static __always_inline
+const struct vdso_data *__arch_get_timens_vdso_data(const struct vdso_data *vd)
 {
 	return NULL;
 }
 
-static int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
-			  struct __kernel_timespec *ts)
+static __always_inline int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
+					  struct __kernel_timespec *ts)
 {
 	return -EINVAL;
 }
@@ -159,10 +162,10 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 }
 
 #ifdef CONFIG_TIME_NS
-static int do_coarse_timens(const struct vdso_data *vdns, clockid_t clk,
-			    struct __kernel_timespec *ts)
+static __always_inline int do_coarse_timens(const struct vdso_data *vdns, clockid_t clk,
+					    struct __kernel_timespec *ts)
 {
-	const struct vdso_data *vd = __arch_get_timens_vdso_data();
+	const struct vdso_data *vd = __arch_get_timens_vdso_data(vdns);
 	const struct vdso_timestamp *vdso_ts = &vd->basetime[clk];
 	const struct timens_offset *offs = &vdns->offset[clk];
 	u64 nsec;
@@ -188,8 +191,8 @@ static int do_coarse_timens(const struct vdso_data *vdns, clockid_t clk,
 	return 0;
 }
 #else
-static int do_coarse_timens(const struct vdso_data *vdns, clockid_t clk,
-			    struct __kernel_timespec *ts)
+static __always_inline int do_coarse_timens(const struct vdso_data *vdns, clockid_t clk,
+					    struct __kernel_timespec *ts)
 {
 	return -1;
 }
@@ -310,7 +313,7 @@ __cvdso_gettimeofday_data(const struct vdso_data *vd,
 	if (unlikely(tz != NULL)) {
 		if (IS_ENABLED(CONFIG_TIME_NS) &&
 		    vd->clock_mode == VDSO_CLOCKMODE_TIMENS)
-			vd = __arch_get_timens_vdso_data();
+			vd = __arch_get_timens_vdso_data(vd);
 
 		tz->tz_minuteswest = vd[CS_HRES_COARSE].tz_minuteswest;
 		tz->tz_dsttime = vd[CS_HRES_COARSE].tz_dsttime;
@@ -333,7 +336,7 @@ __cvdso_time_data(const struct vdso_data *vd, __kernel_old_time_t *time)
 
 	if (IS_ENABLED(CONFIG_TIME_NS) &&
 	    vd->clock_mode == VDSO_CLOCKMODE_TIMENS)
-		vd = __arch_get_timens_vdso_data();
+		vd = __arch_get_timens_vdso_data(vd);
 
 	t = READ_ONCE(vd[CS_HRES_COARSE].basetime[CLOCK_REALTIME].sec);
 
@@ -363,7 +366,7 @@ int __cvdso_clock_getres_common(const struct vdso_data *vd, clockid_t clock,
 
 	if (IS_ENABLED(CONFIG_TIME_NS) &&
 	    vd->clock_mode == VDSO_CLOCKMODE_TIMENS)
-		vd = __arch_get_timens_vdso_data();
+		vd = __arch_get_timens_vdso_data(vd);
 
 	/*
 	 * Convert the clockid to a bitmask and use it to check which

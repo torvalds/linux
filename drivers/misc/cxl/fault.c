@@ -200,7 +200,7 @@ static struct mm_struct *get_mem_context(struct cxl_context *ctx)
 	if (ctx->mm == NULL)
 		return NULL;
 
-	if (!atomic_inc_not_zero(&ctx->mm->mm_users))
+	if (!mmget_not_zero(ctx->mm))
 		return NULL;
 
 	return ctx->mm;

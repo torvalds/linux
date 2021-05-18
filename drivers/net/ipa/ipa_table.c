@@ -27,28 +27,38 @@
 /**
  * DOC: IPA Filter and Route Tables
  *
- * The IPA has tables defined in its local shared memory that define filter
- * and routing rules.  Each entry in these tables contains a 64-bit DMA
- * address that refers to DRAM (system memory) containing a rule definition.
+ * The IPA has tables defined in its local (IPA-resident) memory that define
+ * filter and routing rules.  An entry in either of these tables is a little
+ * endian 64-bit "slot" that holds the address of a rule definition.  (The
+ * size of these slots is 64 bits regardless of the host DMA address size.)
+ *
+ * Separate tables (both filter and route) used for IPv4 and IPv6.  There
+ * are normally another set of "hashed" filter and route tables, which are
+ * used with a hash of message metadata.  Hashed operation is not supported
+ * by all IPA hardware (IPA v4.2 doesn't support hashed tables).
+ *
+ * Rules can be in local memory or in DRAM (system memory).  The offset of
+ * an object (such as a route or filter table) in IPA-resident memory must
+ * 128-byte aligned.  An object in system memory (such as a route or filter
+ * rule) must be at an 8-byte aligned address.  We currently only place
+ * route or filter rules in system memory.
+ *
  * A rule consists of a contiguous block of 32-bit values terminated with
  * 32 zero bits.  A special "zero entry" rule consisting of 64 zero bits
  * represents "no filtering" or "no routing," and is the reset value for
- * filter or route table rules.  Separate tables (both filter and route)
- * used for IPv4 and IPv6.  Additionally, there can be hashed filter or
- * route tables, which are used when a hash of message metadata matches.
- * Hashed operation is not supported by all IPA hardware.
+ * filter or route table rules.
  *
  * Each filter rule is associated with an AP or modem TX endpoint, though
- * not all TX endpoints support filtering.  The first 64-bit entry in a
+ * not all TX endpoints support filtering.  The first 64-bit slot in a
  * filter table is a bitmap indicating which endpoints have entries in
  * the table.  The low-order bit (bit 0) in this bitmap represents a
  * special global filter, which applies to all traffic.  This is not
  * used in the current code.  Bit 1, if set, indicates that there is an
- * entry (i.e. a DMA address referring to a rule) for endpoint 0 in the
- * table.  Bit 2, if set, indicates there is an entry for endpoint 1,
- * and so on.  Space is set aside in IPA local memory to hold as many
- * filter table entries as might be required, but typically they are not
- * all used.
+ * entry (i.e. slot containing a system address referring to a rule) for
+ * endpoint 0 in the table.  Bit 3, if set, indicates there is an entry
+ * for endpoint 2, and so on.  Space is set aside in IPA local memory to
+ * hold as many filter table entries as might be required, but typically
+ * they are not all used.
  *
  * The AP initializes all entries in a filter table to refer to a "zero"
  * entry.  Once initialized the modem and AP update the entries for
@@ -96,9 +106,6 @@
  *                 ----------------------
  */
 
-/* IPA hardware constrains filter and route tables alignment */
-#define IPA_TABLE_ALIGN			128	/* Minimum table alignment */
-
 /* Assignment of route table entries to the modem and AP */
 #define IPA_ROUTE_MODEM_MIN		0
 #define IPA_ROUTE_MODEM_COUNT		8
@@ -118,21 +125,14 @@
 /* Check things that can be validated at build time. */
 static void ipa_table_validate_build(void)
 {
-	/* IPA hardware accesses memory 128 bytes at a time.  Addresses
-	 * referred to by entries in filter and route tables must be
-	 * aligned on 128-byte byte boundaries.  The only rule address
-	 * ever use is the "zero rule", and it's aligned at the base
-	 * of a coherent DMA allocation.
+	/* Filter and route tables contain DMA addresses that refer
+	 * to filter or route rules.  But the size of a table entry
+	 * is 64 bits regardless of what the size of an AP DMA address
+	 * is.  A fixed constant defines the size of an entry, and
+	 * code in ipa_table_init() uses a pointer to __le64 to
+	 * initialize tables.
 	 */
-	BUILD_BUG_ON(ARCH_DMA_MINALIGN % IPA_TABLE_ALIGN);
-
-	/* Filter and route tables contain DMA addresses that refer to
-	 * filter or route rules.  We use a fixed constant to represent
-	 * the size of either type of table entry.  Code in ipa_table_init()
-	 * uses a pointer to __le64 to initialize table entriews.
-	 */
-	BUILD_BUG_ON(IPA_TABLE_ENTRY_SIZE != sizeof(dma_addr_t));
-	BUILD_BUG_ON(sizeof(dma_addr_t) != sizeof(__le64));
+	BUILD_BUG_ON(sizeof(dma_addr_t) > sizeof(__le64));
 
 	/* A "zero rule" is used to represent no filtering or no routing.
 	 * It is a 64-bit block of zeroed memory.  Code in ipa_table_init()
@@ -163,7 +163,7 @@ ipa_table_valid_one(struct ipa *ipa, bool route, bool ipv6, bool hashed)
 		else
 			mem = hashed ? &ipa->mem[IPA_MEM_V4_ROUTE_HASHED]
 				     : &ipa->mem[IPA_MEM_V4_ROUTE];
-		size = IPA_ROUTE_COUNT_MAX * IPA_TABLE_ENTRY_SIZE;
+		size = IPA_ROUTE_COUNT_MAX * sizeof(__le64);
 	} else {
 		if (ipv6)
 			mem = hashed ? &ipa->mem[IPA_MEM_V6_FILTER_HASHED]
@@ -171,7 +171,7 @@ ipa_table_valid_one(struct ipa *ipa, bool route, bool ipv6, bool hashed)
 		else
 			mem = hashed ? &ipa->mem[IPA_MEM_V4_FILTER_HASHED]
 				     : &ipa->mem[IPA_MEM_V4_FILTER];
-		size = (1 + IPA_FILTER_COUNT_MAX) * IPA_TABLE_ENTRY_SIZE;
+		size = (1 + IPA_FILTER_COUNT_MAX) * sizeof(__le64);
 	}
 
 	if (!ipa_cmd_table_valid(ipa, mem, route, ipv6, hashed))
@@ -239,11 +239,6 @@ static void ipa_table_validate_build(void)
 
 #endif /* !IPA_VALIDATE */
 
-bool ipa_table_hash_support(struct ipa *ipa)
-{
-	return ipa->version != IPA_VERSION_4_2;
-}
-
 /* Zero entry count means no table, so just return a 0 address */
 static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 {
@@ -275,8 +270,8 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
 	if (filter)
 		first++;	/* skip over bitmap */
 
-	offset = mem->offset + first * IPA_TABLE_ENTRY_SIZE;
-	size = count * IPA_TABLE_ENTRY_SIZE;
+	offset = mem->offset + first * sizeof(__le64);
+	size = count * sizeof(__le64);
 	addr = ipa_table_addr(ipa, false, count);
 
 	ipa_cmd_dma_shared_mem_add(trans, offset, size, addr, true);
@@ -458,11 +453,11 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 		count = hweight32(ipa->filter_map);
 		hash_count = hash_mem->size ? count : 0;
 	} else {
-		count = mem->size / IPA_TABLE_ENTRY_SIZE;
-		hash_count = hash_mem->size / IPA_TABLE_ENTRY_SIZE;
+		count = mem->size / sizeof(__le64);
+		hash_count = hash_mem->size / sizeof(__le64);
 	}
-	size = count * IPA_TABLE_ENTRY_SIZE;
-	hash_size = hash_count * IPA_TABLE_ENTRY_SIZE;
+	size = count * sizeof(__le64);
+	hash_size = hash_count * sizeof(__le64);
 
 	addr = ipa_table_addr(ipa, filter, count);
 	hash_addr = ipa_table_addr(ipa, filter, hash_count);
@@ -502,11 +497,6 @@ int ipa_table_setup(struct ipa *ipa)
 	return 0;
 }
 
-void ipa_table_teardown(struct ipa *ipa)
-{
-	/* Nothing to do */	/* XXX Maybe reset the tables? */
-}
-
 /**
  * ipa_filter_tuple_zero() - Zero an endpoint's hashed filter tuple
  * @endpoint:	Endpoint whose filter hash tuple should be zeroed
@@ -530,6 +520,7 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
+/* Configure a hashed filter table; there is no ipa_filter_deconfig() */
 static void ipa_filter_config(struct ipa *ipa, bool modem)
 {
 	enum gsi_ee_id ee_id = modem ? GSI_EE_MODEM : GSI_EE_AP;
@@ -548,11 +539,6 @@ static void ipa_filter_config(struct ipa *ipa, bool modem)
 		if (endpoint->ee_id == ee_id)
 			ipa_filter_tuple_zero(endpoint);
 	}
-}
-
-static void ipa_filter_deconfig(struct ipa *ipa, bool modem)
-{
-	/* Nothing to do */
 }
 
 static bool ipa_route_id_modem(u32 route_id)
@@ -581,6 +567,7 @@ static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
+/* Configure a hashed route table; there is no ipa_route_deconfig() */
 static void ipa_route_config(struct ipa *ipa, bool modem)
 {
 	u32 route_id;
@@ -593,25 +580,13 @@ static void ipa_route_config(struct ipa *ipa, bool modem)
 			ipa_route_tuple_zero(ipa, route_id);
 }
 
-static void ipa_route_deconfig(struct ipa *ipa, bool modem)
-{
-	/* Nothing to do */
-}
-
+/* Configure a filter and route tables; there is no ipa_table_deconfig() */
 void ipa_table_config(struct ipa *ipa)
 {
 	ipa_filter_config(ipa, false);
 	ipa_filter_config(ipa, true);
 	ipa_route_config(ipa, false);
 	ipa_route_config(ipa, true);
-}
-
-void ipa_table_deconfig(struct ipa *ipa)
-{
-	ipa_route_deconfig(ipa, true);
-	ipa_route_deconfig(ipa, false);
-	ipa_filter_deconfig(ipa, true);
-	ipa_filter_deconfig(ipa, false);
 }
 
 /*
@@ -663,7 +638,13 @@ int ipa_table_init(struct ipa *ipa)
 
 	ipa_table_validate_build();
 
-	size = IPA_ZERO_RULE_SIZE + (1 + count) * IPA_TABLE_ENTRY_SIZE;
+	/* The IPA hardware requires route and filter table rules to be
+	 * aligned on a 128-byte boundary.  We put the "zero rule" at the
+	 * base of the table area allocated here.  The DMA address returned
+	 * by dma_alloc_coherent() is guaranteed to be a power-of-2 number
+	 * of pages, which satisfies the rule alignment requirement.
+	 */
+	size = IPA_ZERO_RULE_SIZE + (1 + count) * sizeof(__le64);
 	virt = dma_alloc_coherent(dev, size, &addr, GFP_KERNEL);
 	if (!virt)
 		return -ENOMEM;
@@ -695,7 +676,7 @@ void ipa_table_exit(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	size_t size;
 
-	size = IPA_ZERO_RULE_SIZE + (1 + count) * IPA_TABLE_ENTRY_SIZE;
+	size = IPA_ZERO_RULE_SIZE + (1 + count) * sizeof(__le64);
 
 	dma_free_coherent(dev, size, ipa->table_virt, ipa->table_addr);
 	ipa->table_addr = 0;

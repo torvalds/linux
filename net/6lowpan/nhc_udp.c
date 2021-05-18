@@ -5,7 +5,7 @@
  *	Authors:
  *	Alexander Aring	<aar@pengutronix.de>
  *
- *	Orignal written by:
+ *	Original written by:
  *	Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  *	Jon Smirl <jonsmirl@gmail.com>
  */
@@ -82,7 +82,7 @@ static int udp_uncompress(struct sk_buff *skb, size_t needed)
 	if (fail)
 		return -EINVAL;
 
-	/* UDP length needs to be infered from the lower layers
+	/* UDP length needs to be inferred from the lower layers
 	 * here, we obtain the hint from the remaining size of the
 	 * frame
 	 */

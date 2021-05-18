@@ -412,12 +412,20 @@ intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm)
 }
 
 /**
- * intel_runtime_pm_get_if_in_use - grab a runtime pm reference if device in use
+ * __intel_runtime_pm_get_if_active - grab a runtime pm reference if device is active
  * @rpm: the intel_runtime_pm structure
+ * @ignore_usecount: get a ref even if dev->power.usage_count is 0
  *
  * This function grabs a device-level runtime pm reference if the device is
- * already in use and ensures that it is powered up. It is illegal to try
- * and access the HW should intel_runtime_pm_get_if_in_use() report failure.
+ * already active and ensures that it is powered up. It is illegal to try
+ * and access the HW should intel_runtime_pm_get_if_active() report failure.
+ *
+ * If @ignore_usecount is true, a reference will be acquired even if there is no
+ * user requiring the device to be powered up (dev->power.usage_count == 0).
+ * If the function returns false in this case then it's guaranteed that the
+ * device's runtime suspend hook has been called already or that it will be
+ * called (and hence it's also guaranteed that the device's runtime resume
+ * hook will be called eventually).
  *
  * Any runtime pm reference obtained by this function must have a symmetric
  * call to intel_runtime_pm_put() to release the reference again.
@@ -425,7 +433,8 @@ intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm)
  * Returns: the wakeref cookie to pass to intel_runtime_pm_put(), evaluates
  * as True if the wakeref was acquired, or False otherwise.
  */
-intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
+static intel_wakeref_t __intel_runtime_pm_get_if_active(struct intel_runtime_pm *rpm,
+							bool ignore_usecount)
 {
 	if (IS_ENABLED(CONFIG_PM)) {
 		/*
@@ -434,13 +443,23 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
-		if (pm_runtime_get_if_in_use(rpm->kdev) <= 0)
+		if (pm_runtime_get_if_active(rpm->kdev, ignore_usecount) <= 0)
 			return 0;
 	}
 
 	intel_runtime_pm_acquire(rpm, true);
 
 	return track_intel_runtime_pm_wakeref(rpm);
+}
+
+intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
+{
+	return __intel_runtime_pm_get_if_active(rpm, false);
+}
+
+intel_wakeref_t intel_runtime_pm_get_if_active(struct intel_runtime_pm *rpm)
+{
+	return __intel_runtime_pm_get_if_active(rpm, true);
 }
 
 /**
@@ -625,7 +644,7 @@ void intel_runtime_pm_init_early(struct intel_runtime_pm *rpm)
 {
 	struct drm_i915_private *i915 =
 			container_of(rpm, struct drm_i915_private, runtime_pm);
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct device *kdev = &pdev->dev;
 
 	rpm->kdev = kdev;

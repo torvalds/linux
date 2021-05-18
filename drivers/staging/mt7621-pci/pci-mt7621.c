@@ -301,18 +301,19 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
 
 	/*
 	 * IO_SPACE_LIMIT for MIPS is 0xffff but this platform uses IO at
-	 * upper address 0x001e160000 so we have to get the resource from
-	 * the DT because when it has been requested it failed and has been
-	 * removed from bridge->dma_ranges and bridge->windows. So parse it
-	 * and remap it manually to make things work.
+	 * upper address 0x001e160000. of_pci_range_to_resource does not work
+	 * well for MIPS platforms that don't define PCI_IOBASE, so set the IO
+	 * resource manually instead.
 	 */
+	pcie->io.name = node->full_name;
+	pcie->io.parent = pcie->io.child = pcie->io.sibling = NULL;
 	for_each_of_pci_range(&parser, &range) {
 		switch (range.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
 			pcie->io_map_base =
 				(unsigned long)ioremap(range.cpu_addr,
 						       range.size);
-			of_pci_range_to_resource(&range, node, &pcie->io);
+			pcie->io.flags = range.flags;
 			pcie->io.start = range.cpu_addr;
 			pcie->io.end = range.cpu_addr + range.size - 1;
 			set_io_port_base(pcie->io_map_base);
@@ -521,7 +522,6 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 
 			if (slot == 1 && tmp && !tmp->enabled)
 				phy_power_off(tmp->phy);
-
 		}
 	}
 }

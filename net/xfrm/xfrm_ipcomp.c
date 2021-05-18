@@ -41,19 +41,16 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	const int plen = skb->len;
 	int dlen = IPCOMP_SCRATCH_SIZE;
 	const u8 *start = skb->data;
-	const int cpu = get_cpu();
-	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
-	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
+	u8 *scratch = *this_cpu_ptr(ipcomp_scratches);
+	struct crypto_comp *tfm = *this_cpu_ptr(ipcd->tfms);
 	int err = crypto_comp_decompress(tfm, start, plen, scratch, &dlen);
 	int len;
 
 	if (err)
-		goto out;
+		return err;
 
-	if (dlen < (plen + sizeof(struct ip_comp_hdr))) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (dlen < (plen + sizeof(struct ip_comp_hdr)))
+		return -EINVAL;
 
 	len = dlen - plen;
 	if (len > skb_tailroom(skb))
@@ -68,16 +65,14 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 		skb_frag_t *frag;
 		struct page *page;
 
-		err = -EMSGSIZE;
 		if (WARN_ON(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS))
-			goto out;
+			return -EMSGSIZE;
 
 		frag = skb_shinfo(skb)->frags + skb_shinfo(skb)->nr_frags;
 		page = alloc_page(GFP_ATOMIC);
 
-		err = -ENOMEM;
 		if (!page)
-			goto out;
+			return -ENOMEM;
 
 		__skb_frag_set_page(frag, page);
 
@@ -96,11 +91,7 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 		skb_shinfo(skb)->nr_frags++;
 	}
 
-	err = 0;
-
-out:
-	put_cpu();
-	return err;
+	return 0;
 }
 
 int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)

@@ -75,7 +75,7 @@ int sctp_tsnmap_check(const struct sctp_tsnmap *map, __u32 tsn)
 		return 1;
 
 	/* Verify that we can hold this TSN and that it will not
-	 * overlfow our map
+	 * overflow our map
 	 */
 	if (!TSN_lt(tsn, map->base_tsn + SCTP_TSN_MAP_SIZE))
 		return -1;

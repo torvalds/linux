@@ -637,7 +637,7 @@ static void DecompressBand23(struct pwc_dec23_private *pdec,
 }
 
 /**
- * Uncompress a pwc23 buffer.
+ * pwc_dec23_decompress - Uncompress a pwc23 buffer.
  * @pdev: pointer to pwc device's internal struct
  * @src: raw data
  * @dst: image output

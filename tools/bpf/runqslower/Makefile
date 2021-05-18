@@ -16,7 +16,10 @@ CFLAGS := -g -Wall
 
 # Try to detect best kernel BTF source
 KERNEL_REL := $(shell uname -r)
-VMLINUX_BTF_PATHS := /sys/kernel/btf/vmlinux /boot/vmlinux-$(KERNEL_REL)
+VMLINUX_BTF_PATHS := $(if $(O),$(O)/vmlinux)		\
+	$(if $(KBUILD_OUTPUT),$(KBUILD_OUTPUT)/vmlinux) \
+	../../../vmlinux /sys/kernel/btf/vmlinux	\
+	/boot/vmlinux-$(KERNEL_REL)
 VMLINUX_BTF_PATH := $(or $(VMLINUX_BTF),$(firstword			       \
 					  $(wildcard $(VMLINUX_BTF_PATHS))))
 
@@ -66,12 +69,16 @@ $(OUTPUT) $(BPFOBJ_OUTPUT) $(BPFTOOL_OUTPUT):
 	$(QUIET_MKDIR)mkdir -p $@
 
 $(OUTPUT)/vmlinux.h: $(VMLINUX_BTF_PATH) | $(OUTPUT) $(BPFTOOL)
+ifeq ($(VMLINUX_H),)
 	$(Q)if [ ! -e "$(VMLINUX_BTF_PATH)" ] ; then \
 		echo "Couldn't find kernel BTF; set VMLINUX_BTF to"	       \
 			"specify its location." >&2;			       \
 		exit 1;\
 	fi
 	$(QUIET_GEN)$(BPFTOOL) btf dump file $(VMLINUX_BTF_PATH) format c > $@
+else
+	$(Q)cp "$(VMLINUX_H)" $@
+endif
 
 $(BPFOBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(BPFOBJ_OUTPUT)
 	$(Q)$(MAKE) $(submake_extras) -C $(LIBBPF_SRC) OUTPUT=$(BPFOBJ_OUTPUT) $@

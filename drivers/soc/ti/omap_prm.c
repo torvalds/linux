@@ -88,6 +88,7 @@ struct omap_reset_data {
 #define OMAP_PRM_HAS_RSTCTRL	BIT(0)
 #define OMAP_PRM_HAS_RSTST	BIT(1)
 #define OMAP_PRM_HAS_NO_CLKDM	BIT(2)
+#define OMAP_PRM_RET_WHEN_IDLE	BIT(3)
 
 #define OMAP_PRM_HAS_RESETS	(OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_RSTST)
 
@@ -174,7 +175,8 @@ static const struct omap_prm_data omap4_prm_data[] = {
 		.name = "core", .base = 0x4a306700,
 		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
 		.rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati",
-		.rstmap = rst_map_012
+		.rstmap = rst_map_012,
+		.flags = OMAP_PRM_RET_WHEN_IDLE,
 	},
 	{
 		.name = "ivahd", .base = 0x4a306f00,
@@ -199,7 +201,8 @@ static const struct omap_prm_data omap4_prm_data[] = {
 	},
 	{
 		.name = "l4per", .base = 0x4a307400,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+		.flags = OMAP_PRM_RET_WHEN_IDLE,
 	},
 	{
 		.name = "cefuse", .base = 0x4a307600,
@@ -332,7 +335,7 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	{
 		.name = "l3init", .base = 0x4ae07300,
 		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
-		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01,
 		.clkdm_name = "pcie"
 	},
 	{
@@ -517,7 +520,7 @@ static int omap_prm_domain_power_on(struct generic_pm_domain *domain)
 {
 	struct omap_prm_domain *prmd;
 	int ret;
-	u32 v;
+	u32 v, mode;
 
 	prmd = genpd_to_prm_domain(domain);
 	if (!prmd->cap)
@@ -530,7 +533,12 @@ static int omap_prm_domain_power_on(struct generic_pm_domain *domain)
 	else
 		v = readl_relaxed(prmd->prm->base + prmd->pwrstctrl);
 
-	writel_relaxed(v | OMAP_PRMD_ON_ACTIVE,
+	if (prmd->prm->data->flags & OMAP_PRM_RET_WHEN_IDLE)
+		mode = OMAP_PRMD_RETENTION;
+	else
+		mode = OMAP_PRMD_ON_ACTIVE;
+
+	writel_relaxed((v & ~PRM_POWERSTATE_MASK) | mode,
 		       prmd->prm->base + prmd->pwrstctrl);
 
 	/* wait for the transition bit to get cleared */
@@ -830,8 +838,12 @@ static int omap_reset_deassert(struct reset_controller_dev *rcdev,
 		       reset->prm->data->name, id);
 
 exit:
-	if (reset->clkdm)
+	if (reset->clkdm) {
+		/* At least dra7 iva needs a delay before clkdm idle */
+		if (has_rstst)
+			udelay(1);
 		pdata->clkdm_allow_idle(reset->clkdm);
+	}
 
 	return ret;
 }

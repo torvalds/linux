@@ -52,10 +52,6 @@
 MODULE_AUTHOR("Jaromir Koutek <miri@punknet.cz>");
 MODULE_DESCRIPTION("ESS Solo-1");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESS,ES1938},"
-                "{ESS,ES1946},"
-                "{ESS,ES1969},"
-		"{TerraTec,128i PCI}}");
 
 #if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1

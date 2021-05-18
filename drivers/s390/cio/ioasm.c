@@ -12,6 +12,7 @@
 #include "ioasm.h"
 #include "orb.h"
 #include "cio.h"
+#include "cio_inject.h"
 
 static inline int __stsch(struct subchannel_id schid, struct schib *addr)
 {
@@ -260,7 +261,7 @@ int xsch(struct subchannel_id schid)
 	return ccode;
 }
 
-int stcrw(struct crw *crw)
+static inline int __stcrw(struct crw *crw)
 {
 	int ccode;
 
@@ -271,6 +272,26 @@ int stcrw(struct crw *crw)
 		: "=d" (ccode), "=m" (*crw)
 		: "a" (crw)
 		: "cc");
+	return ccode;
+}
+
+static inline int _stcrw(struct crw *crw)
+{
+#ifdef CONFIG_CIO_INJECT
+	if (static_branch_unlikely(&cio_inject_enabled)) {
+		if (stcrw_get_injected(crw) == 0)
+			return 0;
+	}
+#endif
+
+	return __stcrw(crw);
+}
+
+int stcrw(struct crw *crw)
+{
+	int ccode;
+
+	ccode = _stcrw(crw);
 	trace_s390_cio_stcrw(crw, ccode);
 
 	return ccode;

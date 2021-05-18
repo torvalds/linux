@@ -143,7 +143,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 					      unsigned int div,
 					      unsigned int offset)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct cpg_z_clk *zclk;
 	struct clk *clk;
 

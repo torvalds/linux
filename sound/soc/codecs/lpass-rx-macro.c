@@ -1620,8 +1620,6 @@ static int rx_macro_set_interpolator_rate(struct snd_soc_dai *dai,
 		return ret;
 
 	ret = rx_macro_set_mix_interpolator_rate(dai, rate_val, sample_rate);
-	if (ret)
-		return ret;
 
 	return ret;
 }
@@ -1767,7 +1765,7 @@ static int rx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
-static struct snd_soc_dai_ops rx_macro_dai_ops = {
+static const struct snd_soc_dai_ops rx_macro_dai_ops = {
 	.hw_params = rx_macro_hw_params,
 	.get_channel_map = rx_macro_get_channel_map,
 	.mute_stream = rx_macro_digital_mute,
@@ -2038,7 +2036,7 @@ static int rx_macro_load_compander_coeff(struct snd_soc_component *component,
 {
 	u16 comp_coeff_lsb_reg, comp_coeff_msb_reg;
 	int i;
-	int hph_pwr_mode = HPH_LOHIFI;
+	int hph_pwr_mode;
 
 	if (!rx->comp_enabled[comp])
 		return 0;
@@ -2895,7 +2893,7 @@ static int rx_macro_enable_echo(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	u16 val, ec_hq_reg;
-	int ec_tx;
+	int ec_tx = -1;
 
 	val = snd_soc_component_read(component,
 			CDC_RX_INP_MUX_RX_MIX_CFG4);
@@ -3551,7 +3549,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 
 	/* set MCLK and NPL rates */
 	clk_set_rate(rx->clks[2].clk, MCLK_FREQ);
-	clk_set_rate(rx->clks[3].clk, MCLK_FREQ);
+	clk_set_rate(rx->clks[3].clk, 2 * MCLK_FREQ);
 
 	ret = clk_bulk_prepare_enable(RX_NUM_CLKS_MAX, rx->clks);
 	if (ret)
@@ -3585,7 +3583,6 @@ static const struct of_device_id rx_macro_dt_match[] = {
 static struct platform_driver rx_macro_driver = {
 	.driver = {
 		.name = "rx_macro",
-		.owner = THIS_MODULE,
 		.of_match_table = rx_macro_dt_match,
 		.suppress_bind_attrs = true,
 	},

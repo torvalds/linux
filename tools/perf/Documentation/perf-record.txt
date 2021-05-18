@@ -695,6 +695,7 @@ measurements:
  wait -n ${perf_pid}
  exit $?
 
+include::intel-hybrid.txt[]
 
 SEE ALSO
 --------

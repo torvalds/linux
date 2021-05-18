@@ -303,7 +303,7 @@ static struct notifier_block usnic_ib_inetaddr_notifier = {
 };
 /* End of inet section*/
 
-static int usnic_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int usnic_port_immutable(struct ib_device *ibdev, u32 port_num,
 			        struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;

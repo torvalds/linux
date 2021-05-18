@@ -828,6 +828,872 @@ static int iavf_set_per_queue_coalesce(struct net_device *netdev, u32 queue,
 }
 
 /**
+ * iavf_fltr_to_ethtool_flow - convert filter type values to ethtool
+ * flow type values
+ * @flow: filter type to be converted
+ *
+ * Returns the corresponding ethtool flow type.
+ */
+static int iavf_fltr_to_ethtool_flow(enum iavf_fdir_flow_type flow)
+{
+	switch (flow) {
+	case IAVF_FDIR_FLOW_IPV4_TCP:
+		return TCP_V4_FLOW;
+	case IAVF_FDIR_FLOW_IPV4_UDP:
+		return UDP_V4_FLOW;
+	case IAVF_FDIR_FLOW_IPV4_SCTP:
+		return SCTP_V4_FLOW;
+	case IAVF_FDIR_FLOW_IPV4_AH:
+		return AH_V4_FLOW;
+	case IAVF_FDIR_FLOW_IPV4_ESP:
+		return ESP_V4_FLOW;
+	case IAVF_FDIR_FLOW_IPV4_OTHER:
+		return IPV4_USER_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_TCP:
+		return TCP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_UDP:
+		return UDP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_SCTP:
+		return SCTP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_AH:
+		return AH_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_ESP:
+		return ESP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_OTHER:
+		return IPV6_USER_FLOW;
+	case IAVF_FDIR_FLOW_NON_IP_L2:
+		return ETHER_FLOW;
+	default:
+		/* 0 is undefined ethtool flow */
+		return 0;
+	}
+}
+
+/**
+ * iavf_ethtool_flow_to_fltr - convert ethtool flow type to filter enum
+ * @eth: Ethtool flow type to be converted
+ *
+ * Returns flow enum
+ */
+static enum iavf_fdir_flow_type iavf_ethtool_flow_to_fltr(int eth)
+{
+	switch (eth) {
+	case TCP_V4_FLOW:
+		return IAVF_FDIR_FLOW_IPV4_TCP;
+	case UDP_V4_FLOW:
+		return IAVF_FDIR_FLOW_IPV4_UDP;
+	case SCTP_V4_FLOW:
+		return IAVF_FDIR_FLOW_IPV4_SCTP;
+	case AH_V4_FLOW:
+		return IAVF_FDIR_FLOW_IPV4_AH;
+	case ESP_V4_FLOW:
+		return IAVF_FDIR_FLOW_IPV4_ESP;
+	case IPV4_USER_FLOW:
+		return IAVF_FDIR_FLOW_IPV4_OTHER;
+	case TCP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_TCP;
+	case UDP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_UDP;
+	case SCTP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_SCTP;
+	case AH_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_AH;
+	case ESP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_ESP;
+	case IPV6_USER_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_OTHER;
+	case ETHER_FLOW:
+		return IAVF_FDIR_FLOW_NON_IP_L2;
+	default:
+		return IAVF_FDIR_FLOW_NONE;
+	}
+}
+
+/**
+ * iavf_is_mask_valid - check mask field set
+ * @mask: full mask to check
+ * @field: field for which mask should be valid
+ *
+ * If the mask is fully set return true. If it is not valid for field return
+ * false.
+ */
+static bool iavf_is_mask_valid(u64 mask, u64 field)
+{
+	return (mask & field) == field;
+}
+
+/**
+ * iavf_parse_rx_flow_user_data - deconstruct user-defined data
+ * @fsp: pointer to ethtool Rx flow specification
+ * @fltr: pointer to Flow Director filter for userdef data storage
+ *
+ * Returns 0 on success, negative error value on failure
+ */
+static int
+iavf_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
+			     struct iavf_fdir_fltr *fltr)
+{
+	struct iavf_flex_word *flex;
+	int i, cnt = 0;
+
+	if (!(fsp->flow_type & FLOW_EXT))
+		return 0;
+
+	for (i = 0; i < IAVF_FLEX_WORD_NUM; i++) {
+#define IAVF_USERDEF_FLEX_WORD_M	GENMASK(15, 0)
+#define IAVF_USERDEF_FLEX_OFFS_S	16
+#define IAVF_USERDEF_FLEX_OFFS_M	GENMASK(31, IAVF_USERDEF_FLEX_OFFS_S)
+#define IAVF_USERDEF_FLEX_FLTR_M	GENMASK(31, 0)
+		u32 value = be32_to_cpu(fsp->h_ext.data[i]);
+		u32 mask = be32_to_cpu(fsp->m_ext.data[i]);
+
+		if (!value || !mask)
+			continue;
+
+		if (!iavf_is_mask_valid(mask, IAVF_USERDEF_FLEX_FLTR_M))
+			return -EINVAL;
+
+		/* 504 is the maximum value for offsets, and offset is measured
+		 * from the start of the MAC address.
+		 */
+#define IAVF_USERDEF_FLEX_MAX_OFFS_VAL 504
+		flex = &fltr->flex_words[cnt++];
+		flex->word = value & IAVF_USERDEF_FLEX_WORD_M;
+		flex->offset = (value & IAVF_USERDEF_FLEX_OFFS_M) >>
+			     IAVF_USERDEF_FLEX_OFFS_S;
+		if (flex->offset > IAVF_USERDEF_FLEX_MAX_OFFS_VAL)
+			return -EINVAL;
+	}
+
+	fltr->flex_cnt = cnt;
+
+	return 0;
+}
+
+/**
+ * iavf_fill_rx_flow_ext_data - fill the additional data
+ * @fsp: pointer to ethtool Rx flow specification
+ * @fltr: pointer to Flow Director filter to get additional data
+ */
+static void
+iavf_fill_rx_flow_ext_data(struct ethtool_rx_flow_spec *fsp,
+			   struct iavf_fdir_fltr *fltr)
+{
+	if (!fltr->ext_mask.usr_def[0] && !fltr->ext_mask.usr_def[1])
+		return;
+
+	fsp->flow_type |= FLOW_EXT;
+
+	memcpy(fsp->h_ext.data, fltr->ext_data.usr_def, sizeof(fsp->h_ext.data));
+	memcpy(fsp->m_ext.data, fltr->ext_mask.usr_def, sizeof(fsp->m_ext.data));
+}
+
+/**
+ * iavf_get_ethtool_fdir_entry - fill ethtool structure with Flow Director filter data
+ * @adapter: the VF adapter structure that contains filter list
+ * @cmd: ethtool command data structure to receive the filter data
+ *
+ * Returns 0 as expected for success by ethtool
+ */
+static int
+iavf_get_ethtool_fdir_entry(struct iavf_adapter *adapter,
+			    struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct iavf_fdir_fltr *rule = NULL;
+	int ret = 0;
+
+	if (!FDIR_FLTR_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+
+	rule = iavf_find_fdir_fltr_by_loc(adapter, fsp->location);
+	if (!rule) {
+		ret = -EINVAL;
+		goto release_lock;
+	}
+
+	fsp->flow_type = iavf_fltr_to_ethtool_flow(rule->flow_type);
+
+	memset(&fsp->m_u, 0, sizeof(fsp->m_u));
+	memset(&fsp->m_ext, 0, sizeof(fsp->m_ext));
+
+	switch (fsp->flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		fsp->h_u.tcp_ip4_spec.ip4src = rule->ip_data.v4_addrs.src_ip;
+		fsp->h_u.tcp_ip4_spec.ip4dst = rule->ip_data.v4_addrs.dst_ip;
+		fsp->h_u.tcp_ip4_spec.psrc = rule->ip_data.src_port;
+		fsp->h_u.tcp_ip4_spec.pdst = rule->ip_data.dst_port;
+		fsp->h_u.tcp_ip4_spec.tos = rule->ip_data.tos;
+		fsp->m_u.tcp_ip4_spec.ip4src = rule->ip_mask.v4_addrs.src_ip;
+		fsp->m_u.tcp_ip4_spec.ip4dst = rule->ip_mask.v4_addrs.dst_ip;
+		fsp->m_u.tcp_ip4_spec.psrc = rule->ip_mask.src_port;
+		fsp->m_u.tcp_ip4_spec.pdst = rule->ip_mask.dst_port;
+		fsp->m_u.tcp_ip4_spec.tos = rule->ip_mask.tos;
+		break;
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+		fsp->h_u.ah_ip4_spec.ip4src = rule->ip_data.v4_addrs.src_ip;
+		fsp->h_u.ah_ip4_spec.ip4dst = rule->ip_data.v4_addrs.dst_ip;
+		fsp->h_u.ah_ip4_spec.spi = rule->ip_data.spi;
+		fsp->h_u.ah_ip4_spec.tos = rule->ip_data.tos;
+		fsp->m_u.ah_ip4_spec.ip4src = rule->ip_mask.v4_addrs.src_ip;
+		fsp->m_u.ah_ip4_spec.ip4dst = rule->ip_mask.v4_addrs.dst_ip;
+		fsp->m_u.ah_ip4_spec.spi = rule->ip_mask.spi;
+		fsp->m_u.ah_ip4_spec.tos = rule->ip_mask.tos;
+		break;
+	case IPV4_USER_FLOW:
+		fsp->h_u.usr_ip4_spec.ip4src = rule->ip_data.v4_addrs.src_ip;
+		fsp->h_u.usr_ip4_spec.ip4dst = rule->ip_data.v4_addrs.dst_ip;
+		fsp->h_u.usr_ip4_spec.l4_4_bytes = rule->ip_data.l4_header;
+		fsp->h_u.usr_ip4_spec.tos = rule->ip_data.tos;
+		fsp->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+		fsp->h_u.usr_ip4_spec.proto = rule->ip_data.proto;
+		fsp->m_u.usr_ip4_spec.ip4src = rule->ip_mask.v4_addrs.src_ip;
+		fsp->m_u.usr_ip4_spec.ip4dst = rule->ip_mask.v4_addrs.dst_ip;
+		fsp->m_u.usr_ip4_spec.l4_4_bytes = rule->ip_mask.l4_header;
+		fsp->m_u.usr_ip4_spec.tos = rule->ip_mask.tos;
+		fsp->m_u.usr_ip4_spec.ip_ver = 0xFF;
+		fsp->m_u.usr_ip4_spec.proto = rule->ip_mask.proto;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		memcpy(fsp->h_u.usr_ip6_spec.ip6src, &rule->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.usr_ip6_spec.ip6dst, &rule->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.tcp_ip6_spec.psrc = rule->ip_data.src_port;
+		fsp->h_u.tcp_ip6_spec.pdst = rule->ip_data.dst_port;
+		fsp->h_u.tcp_ip6_spec.tclass = rule->ip_data.tclass;
+		memcpy(fsp->m_u.usr_ip6_spec.ip6src, &rule->ip_mask.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.usr_ip6_spec.ip6dst, &rule->ip_mask.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.tcp_ip6_spec.psrc = rule->ip_mask.src_port;
+		fsp->m_u.tcp_ip6_spec.pdst = rule->ip_mask.dst_port;
+		fsp->m_u.tcp_ip6_spec.tclass = rule->ip_mask.tclass;
+		break;
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+		memcpy(fsp->h_u.ah_ip6_spec.ip6src, &rule->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.ah_ip6_spec.ip6dst, &rule->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.ah_ip6_spec.spi = rule->ip_data.spi;
+		fsp->h_u.ah_ip6_spec.tclass = rule->ip_data.tclass;
+		memcpy(fsp->m_u.ah_ip6_spec.ip6src, &rule->ip_mask.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.ah_ip6_spec.ip6dst, &rule->ip_mask.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.ah_ip6_spec.spi = rule->ip_mask.spi;
+		fsp->m_u.ah_ip6_spec.tclass = rule->ip_mask.tclass;
+		break;
+	case IPV6_USER_FLOW:
+		memcpy(fsp->h_u.usr_ip6_spec.ip6src, &rule->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.usr_ip6_spec.ip6dst, &rule->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.usr_ip6_spec.l4_4_bytes = rule->ip_data.l4_header;
+		fsp->h_u.usr_ip6_spec.tclass = rule->ip_data.tclass;
+		fsp->h_u.usr_ip6_spec.l4_proto = rule->ip_data.proto;
+		memcpy(fsp->m_u.usr_ip6_spec.ip6src, &rule->ip_mask.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.usr_ip6_spec.ip6dst, &rule->ip_mask.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.usr_ip6_spec.l4_4_bytes = rule->ip_mask.l4_header;
+		fsp->m_u.usr_ip6_spec.tclass = rule->ip_mask.tclass;
+		fsp->m_u.usr_ip6_spec.l4_proto = rule->ip_mask.proto;
+		break;
+	case ETHER_FLOW:
+		fsp->h_u.ether_spec.h_proto = rule->eth_data.etype;
+		fsp->m_u.ether_spec.h_proto = rule->eth_mask.etype;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	iavf_fill_rx_flow_ext_data(fsp, rule);
+
+	if (rule->action == VIRTCHNL_ACTION_DROP)
+		fsp->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fsp->ring_cookie = rule->q_index;
+
+release_lock:
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+	return ret;
+}
+
+/**
+ * iavf_get_fdir_fltr_ids - fill buffer with filter IDs of active filters
+ * @adapter: the VF adapter structure containing the filter list
+ * @cmd: ethtool command data structure
+ * @rule_locs: ethtool array passed in from OS to receive filter IDs
+ *
+ * Returns 0 as expected for success by ethtool
+ */
+static int
+iavf_get_fdir_fltr_ids(struct iavf_adapter *adapter, struct ethtool_rxnfc *cmd,
+		       u32 *rule_locs)
+{
+	struct iavf_fdir_fltr *fltr;
+	unsigned int cnt = 0;
+	int val = 0;
+
+	if (!FDIR_FLTR_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	cmd->data = IAVF_MAX_FDIR_FILTERS;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+
+	list_for_each_entry(fltr, &adapter->fdir_list_head, list) {
+		if (cnt == cmd->rule_cnt) {
+			val = -EMSGSIZE;
+			goto release_lock;
+		}
+		rule_locs[cnt] = fltr->loc;
+		cnt++;
+	}
+
+release_lock:
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+	if (!val)
+		cmd->rule_cnt = cnt;
+
+	return val;
+}
+
+/**
+ * iavf_add_fdir_fltr_info - Set the input set for Flow Director filter
+ * @adapter: pointer to the VF adapter structure
+ * @fsp: pointer to ethtool Rx flow specification
+ * @fltr: filter structure
+ */
+static int
+iavf_add_fdir_fltr_info(struct iavf_adapter *adapter, struct ethtool_rx_flow_spec *fsp,
+			struct iavf_fdir_fltr *fltr)
+{
+	u32 flow_type, q_index = 0;
+	enum virtchnl_action act;
+	int err;
+
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC) {
+		act = VIRTCHNL_ACTION_DROP;
+	} else {
+		q_index = fsp->ring_cookie;
+		if (q_index >= adapter->num_active_queues)
+			return -EINVAL;
+
+		act = VIRTCHNL_ACTION_QUEUE;
+	}
+
+	fltr->action = act;
+	fltr->loc = fsp->location;
+	fltr->q_index = q_index;
+
+	if (fsp->flow_type & FLOW_EXT) {
+		memcpy(fltr->ext_data.usr_def, fsp->h_ext.data,
+		       sizeof(fltr->ext_data.usr_def));
+		memcpy(fltr->ext_mask.usr_def, fsp->m_ext.data,
+		       sizeof(fltr->ext_mask.usr_def));
+	}
+
+	flow_type = fsp->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
+	fltr->flow_type = iavf_ethtool_flow_to_fltr(flow_type);
+
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		fltr->ip_data.v4_addrs.src_ip = fsp->h_u.tcp_ip4_spec.ip4src;
+		fltr->ip_data.v4_addrs.dst_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
+		fltr->ip_data.src_port = fsp->h_u.tcp_ip4_spec.psrc;
+		fltr->ip_data.dst_port = fsp->h_u.tcp_ip4_spec.pdst;
+		fltr->ip_data.tos = fsp->h_u.tcp_ip4_spec.tos;
+		fltr->ip_mask.v4_addrs.src_ip = fsp->m_u.tcp_ip4_spec.ip4src;
+		fltr->ip_mask.v4_addrs.dst_ip = fsp->m_u.tcp_ip4_spec.ip4dst;
+		fltr->ip_mask.src_port = fsp->m_u.tcp_ip4_spec.psrc;
+		fltr->ip_mask.dst_port = fsp->m_u.tcp_ip4_spec.pdst;
+		fltr->ip_mask.tos = fsp->m_u.tcp_ip4_spec.tos;
+		break;
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+		fltr->ip_data.v4_addrs.src_ip = fsp->h_u.ah_ip4_spec.ip4src;
+		fltr->ip_data.v4_addrs.dst_ip = fsp->h_u.ah_ip4_spec.ip4dst;
+		fltr->ip_data.spi = fsp->h_u.ah_ip4_spec.spi;
+		fltr->ip_data.tos = fsp->h_u.ah_ip4_spec.tos;
+		fltr->ip_mask.v4_addrs.src_ip = fsp->m_u.ah_ip4_spec.ip4src;
+		fltr->ip_mask.v4_addrs.dst_ip = fsp->m_u.ah_ip4_spec.ip4dst;
+		fltr->ip_mask.spi = fsp->m_u.ah_ip4_spec.spi;
+		fltr->ip_mask.tos = fsp->m_u.ah_ip4_spec.tos;
+		break;
+	case IPV4_USER_FLOW:
+		fltr->ip_data.v4_addrs.src_ip = fsp->h_u.usr_ip4_spec.ip4src;
+		fltr->ip_data.v4_addrs.dst_ip = fsp->h_u.usr_ip4_spec.ip4dst;
+		fltr->ip_data.l4_header = fsp->h_u.usr_ip4_spec.l4_4_bytes;
+		fltr->ip_data.tos = fsp->h_u.usr_ip4_spec.tos;
+		fltr->ip_data.proto = fsp->h_u.usr_ip4_spec.proto;
+		fltr->ip_mask.v4_addrs.src_ip = fsp->m_u.usr_ip4_spec.ip4src;
+		fltr->ip_mask.v4_addrs.dst_ip = fsp->m_u.usr_ip4_spec.ip4dst;
+		fltr->ip_mask.l4_header = fsp->m_u.usr_ip4_spec.l4_4_bytes;
+		fltr->ip_mask.tos = fsp->m_u.usr_ip4_spec.tos;
+		fltr->ip_mask.proto = fsp->m_u.usr_ip4_spec.proto;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		memcpy(&fltr->ip_data.v6_addrs.src_ip, fsp->h_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_data.v6_addrs.dst_ip, fsp->h_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_data.src_port = fsp->h_u.tcp_ip6_spec.psrc;
+		fltr->ip_data.dst_port = fsp->h_u.tcp_ip6_spec.pdst;
+		fltr->ip_data.tclass = fsp->h_u.tcp_ip6_spec.tclass;
+		memcpy(&fltr->ip_mask.v6_addrs.src_ip, fsp->m_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_mask.v6_addrs.dst_ip, fsp->m_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_mask.src_port = fsp->m_u.tcp_ip6_spec.psrc;
+		fltr->ip_mask.dst_port = fsp->m_u.tcp_ip6_spec.pdst;
+		fltr->ip_mask.tclass = fsp->m_u.tcp_ip6_spec.tclass;
+		break;
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+		memcpy(&fltr->ip_data.v6_addrs.src_ip, fsp->h_u.ah_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_data.v6_addrs.dst_ip, fsp->h_u.ah_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_data.spi = fsp->h_u.ah_ip6_spec.spi;
+		fltr->ip_data.tclass = fsp->h_u.ah_ip6_spec.tclass;
+		memcpy(&fltr->ip_mask.v6_addrs.src_ip, fsp->m_u.ah_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_mask.v6_addrs.dst_ip, fsp->m_u.ah_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_mask.spi = fsp->m_u.ah_ip6_spec.spi;
+		fltr->ip_mask.tclass = fsp->m_u.ah_ip6_spec.tclass;
+		break;
+	case IPV6_USER_FLOW:
+		memcpy(&fltr->ip_data.v6_addrs.src_ip, fsp->h_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_data.v6_addrs.dst_ip, fsp->h_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_data.l4_header = fsp->h_u.usr_ip6_spec.l4_4_bytes;
+		fltr->ip_data.tclass = fsp->h_u.usr_ip6_spec.tclass;
+		fltr->ip_data.proto = fsp->h_u.usr_ip6_spec.l4_proto;
+		memcpy(&fltr->ip_mask.v6_addrs.src_ip, fsp->m_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_mask.v6_addrs.dst_ip, fsp->m_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_mask.l4_header = fsp->m_u.usr_ip6_spec.l4_4_bytes;
+		fltr->ip_mask.tclass = fsp->m_u.usr_ip6_spec.tclass;
+		fltr->ip_mask.proto = fsp->m_u.usr_ip6_spec.l4_proto;
+		break;
+	case ETHER_FLOW:
+		fltr->eth_data.etype = fsp->h_u.ether_spec.h_proto;
+		fltr->eth_mask.etype = fsp->m_u.ether_spec.h_proto;
+		break;
+	default:
+		/* not doing un-parsed flow types */
+		return -EINVAL;
+	}
+
+	if (iavf_fdir_is_dup_fltr(adapter, fltr))
+		return -EEXIST;
+
+	err = iavf_parse_rx_flow_user_data(fsp, fltr);
+	if (err)
+		return err;
+
+	return iavf_fill_fdir_add_msg(adapter, fltr);
+}
+
+/**
+ * iavf_add_fdir_ethtool - add Flow Director filter
+ * @adapter: pointer to the VF adapter structure
+ * @cmd: command to add Flow Director filter
+ *
+ * Returns 0 on success and negative values for failure
+ */
+static int iavf_add_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
+	struct iavf_fdir_fltr *fltr;
+	int count = 50;
+	int err;
+
+	if (!FDIR_FLTR_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	if (fsp->flow_type & FLOW_MAC_EXT)
+		return -EINVAL;
+
+	if (adapter->fdir_active_fltr >= IAVF_MAX_FDIR_FILTERS) {
+		dev_err(&adapter->pdev->dev,
+			"Unable to add Flow Director filter because VF reached the limit of max allowed filters (%u)\n",
+			IAVF_MAX_FDIR_FILTERS);
+		return -ENOSPC;
+	}
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	if (iavf_find_fdir_fltr_by_loc(adapter, fsp->location)) {
+		dev_err(&adapter->pdev->dev, "Failed to add Flow Director filter, it already exists\n");
+		spin_unlock_bh(&adapter->fdir_fltr_lock);
+		return -EEXIST;
+	}
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+
+	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
+	if (!fltr)
+		return -ENOMEM;
+
+	while (test_and_set_bit(__IAVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		if (--count == 0) {
+			kfree(fltr);
+			return -EINVAL;
+		}
+		udelay(1);
+	}
+
+	err = iavf_add_fdir_fltr_info(adapter, fsp, fltr);
+	if (err)
+		goto ret;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	iavf_fdir_list_add_fltr(adapter, fltr);
+	adapter->fdir_active_fltr++;
+	fltr->state = IAVF_FDIR_FLTR_ADD_REQUEST;
+	adapter->aq_required |= IAVF_FLAG_AQ_ADD_FDIR_FILTER;
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+
+	mod_delayed_work(iavf_wq, &adapter->watchdog_task, 0);
+
+ret:
+	if (err && fltr)
+		kfree(fltr);
+
+	clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
+	return err;
+}
+
+/**
+ * iavf_del_fdir_ethtool - delete Flow Director filter
+ * @adapter: pointer to the VF adapter structure
+ * @cmd: command to delete Flow Director filter
+ *
+ * Returns 0 on success and negative values for failure
+ */
+static int iavf_del_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct iavf_fdir_fltr *fltr = NULL;
+	int err = 0;
+
+	if (!FDIR_FLTR_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	fltr = iavf_find_fdir_fltr_by_loc(adapter, fsp->location);
+	if (fltr) {
+		if (fltr->state == IAVF_FDIR_FLTR_ACTIVE) {
+			fltr->state = IAVF_FDIR_FLTR_DEL_REQUEST;
+			adapter->aq_required |= IAVF_FLAG_AQ_DEL_FDIR_FILTER;
+		} else {
+			err = -EBUSY;
+		}
+	} else if (adapter->fdir_active_fltr) {
+		err = -EINVAL;
+	}
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+
+	if (fltr && fltr->state == IAVF_FDIR_FLTR_DEL_REQUEST)
+		mod_delayed_work(iavf_wq, &adapter->watchdog_task, 0);
+
+	return err;
+}
+
+/**
+ * iavf_adv_rss_parse_hdrs - parses headers from RSS hash input
+ * @cmd: ethtool rxnfc command
+ *
+ * This function parses the rxnfc command and returns intended
+ * header types for RSS configuration
+ */
+static u32 iavf_adv_rss_parse_hdrs(struct ethtool_rxnfc *cmd)
+{
+	u32 hdrs = IAVF_ADV_RSS_FLOW_SEG_HDR_NONE;
+
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_TCP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV4;
+		break;
+	case UDP_V4_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_UDP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV4;
+		break;
+	case SCTP_V4_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_SCTP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV4;
+		break;
+	case TCP_V6_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_TCP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV6;
+		break;
+	case UDP_V6_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_UDP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV6;
+		break;
+	case SCTP_V6_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_SCTP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV6;
+		break;
+	default:
+		break;
+	}
+
+	return hdrs;
+}
+
+/**
+ * iavf_adv_rss_parse_hash_flds - parses hash fields from RSS hash input
+ * @cmd: ethtool rxnfc command
+ *
+ * This function parses the rxnfc command and returns intended hash fields for
+ * RSS configuration
+ */
+static u64 iavf_adv_rss_parse_hash_flds(struct ethtool_rxnfc *cmd)
+{
+	u64 hfld = IAVF_ADV_RSS_HASH_INVALID;
+
+	if (cmd->data & RXH_IP_SRC || cmd->data & RXH_IP_DST) {
+		switch (cmd->flow_type) {
+		case TCP_V4_FLOW:
+		case UDP_V4_FLOW:
+		case SCTP_V4_FLOW:
+			if (cmd->data & RXH_IP_SRC)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV4_SA;
+			if (cmd->data & RXH_IP_DST)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV4_DA;
+			break;
+		case TCP_V6_FLOW:
+		case UDP_V6_FLOW:
+		case SCTP_V6_FLOW:
+			if (cmd->data & RXH_IP_SRC)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV6_SA;
+			if (cmd->data & RXH_IP_DST)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV6_DA;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (cmd->data & RXH_L4_B_0_1 || cmd->data & RXH_L4_B_2_3) {
+		switch (cmd->flow_type) {
+		case TCP_V4_FLOW:
+		case TCP_V6_FLOW:
+			if (cmd->data & RXH_L4_B_0_1)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_TCP_SRC_PORT;
+			if (cmd->data & RXH_L4_B_2_3)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_TCP_DST_PORT;
+			break;
+		case UDP_V4_FLOW:
+		case UDP_V6_FLOW:
+			if (cmd->data & RXH_L4_B_0_1)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_UDP_SRC_PORT;
+			if (cmd->data & RXH_L4_B_2_3)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_UDP_DST_PORT;
+			break;
+		case SCTP_V4_FLOW:
+		case SCTP_V6_FLOW:
+			if (cmd->data & RXH_L4_B_0_1)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_SCTP_SRC_PORT;
+			if (cmd->data & RXH_L4_B_2_3)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_SCTP_DST_PORT;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return hfld;
+}
+
+/**
+ * iavf_set_adv_rss_hash_opt - Enable/Disable flow types for RSS hash
+ * @adapter: pointer to the VF adapter structure
+ * @cmd: ethtool rxnfc command
+ *
+ * Returns Success if the flow input set is supported.
+ */
+static int
+iavf_set_adv_rss_hash_opt(struct iavf_adapter *adapter,
+			  struct ethtool_rxnfc *cmd)
+{
+	struct iavf_adv_rss *rss_old, *rss_new;
+	bool rss_new_add = false;
+	int count = 50, err = 0;
+	u64 hash_flds;
+	u32 hdrs;
+
+	if (!ADV_RSS_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	hdrs = iavf_adv_rss_parse_hdrs(cmd);
+	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_NONE)
+		return -EINVAL;
+
+	hash_flds = iavf_adv_rss_parse_hash_flds(cmd);
+	if (hash_flds == IAVF_ADV_RSS_HASH_INVALID)
+		return -EINVAL;
+
+	rss_new = kzalloc(sizeof(*rss_new), GFP_KERNEL);
+	if (!rss_new)
+		return -ENOMEM;
+
+	if (iavf_fill_adv_rss_cfg_msg(&rss_new->cfg_msg, hdrs, hash_flds)) {
+		kfree(rss_new);
+		return -EINVAL;
+	}
+
+	while (test_and_set_bit(__IAVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		if (--count == 0) {
+			kfree(rss_new);
+			return -EINVAL;
+		}
+
+		udelay(1);
+	}
+
+	spin_lock_bh(&adapter->adv_rss_lock);
+	rss_old = iavf_find_adv_rss_cfg_by_hdrs(adapter, hdrs);
+	if (rss_old) {
+		if (rss_old->state != IAVF_ADV_RSS_ACTIVE) {
+			err = -EBUSY;
+		} else if (rss_old->hash_flds != hash_flds) {
+			rss_old->state = IAVF_ADV_RSS_ADD_REQUEST;
+			rss_old->hash_flds = hash_flds;
+			memcpy(&rss_old->cfg_msg, &rss_new->cfg_msg,
+			       sizeof(rss_new->cfg_msg));
+			adapter->aq_required |= IAVF_FLAG_AQ_ADD_ADV_RSS_CFG;
+		} else {
+			err = -EEXIST;
+		}
+	} else {
+		rss_new_add = true;
+		rss_new->state = IAVF_ADV_RSS_ADD_REQUEST;
+		rss_new->packet_hdrs = hdrs;
+		rss_new->hash_flds = hash_flds;
+		list_add_tail(&rss_new->list, &adapter->adv_rss_list_head);
+		adapter->aq_required |= IAVF_FLAG_AQ_ADD_ADV_RSS_CFG;
+	}
+	spin_unlock_bh(&adapter->adv_rss_lock);
+
+	if (!err)
+		mod_delayed_work(iavf_wq, &adapter->watchdog_task, 0);
+
+	clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
+
+	if (!rss_new_add)
+		kfree(rss_new);
+
+	return err;
+}
+
+/**
+ * iavf_get_adv_rss_hash_opt - Retrieve hash fields for a given flow-type
+ * @adapter: pointer to the VF adapter structure
+ * @cmd: ethtool rxnfc command
+ *
+ * Returns Success if the flow input set is supported.
+ */
+static int
+iavf_get_adv_rss_hash_opt(struct iavf_adapter *adapter,
+			  struct ethtool_rxnfc *cmd)
+{
+	struct iavf_adv_rss *rss;
+	u64 hash_flds;
+	u32 hdrs;
+
+	if (!ADV_RSS_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	cmd->data = 0;
+
+	hdrs = iavf_adv_rss_parse_hdrs(cmd);
+	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_NONE)
+		return -EINVAL;
+
+	spin_lock_bh(&adapter->adv_rss_lock);
+	rss = iavf_find_adv_rss_cfg_by_hdrs(adapter, hdrs);
+	if (rss)
+		hash_flds = rss->hash_flds;
+	else
+		hash_flds = IAVF_ADV_RSS_HASH_INVALID;
+	spin_unlock_bh(&adapter->adv_rss_lock);
+
+	if (hash_flds == IAVF_ADV_RSS_HASH_INVALID)
+		return -EINVAL;
+
+	if (hash_flds & (IAVF_ADV_RSS_HASH_FLD_IPV4_SA |
+			 IAVF_ADV_RSS_HASH_FLD_IPV6_SA))
+		cmd->data |= (u64)RXH_IP_SRC;
+
+	if (hash_flds & (IAVF_ADV_RSS_HASH_FLD_IPV4_DA |
+			 IAVF_ADV_RSS_HASH_FLD_IPV6_DA))
+		cmd->data |= (u64)RXH_IP_DST;
+
+	if (hash_flds & (IAVF_ADV_RSS_HASH_FLD_TCP_SRC_PORT |
+			 IAVF_ADV_RSS_HASH_FLD_UDP_SRC_PORT |
+			 IAVF_ADV_RSS_HASH_FLD_SCTP_SRC_PORT))
+		cmd->data |= (u64)RXH_L4_B_0_1;
+
+	if (hash_flds & (IAVF_ADV_RSS_HASH_FLD_TCP_DST_PORT |
+			 IAVF_ADV_RSS_HASH_FLD_UDP_DST_PORT |
+			 IAVF_ADV_RSS_HASH_FLD_SCTP_DST_PORT))
+		cmd->data |= (u64)RXH_L4_B_2_3;
+
+	return 0;
+}
+
+/**
+ * iavf_set_rxnfc - command to set Rx flow rules.
+ * @netdev: network interface device structure
+ * @cmd: ethtool rxnfc command
+ *
+ * Returns 0 for success and negative values for errors
+ */
+static int iavf_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct iavf_adapter *adapter = netdev_priv(netdev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = iavf_add_fdir_ethtool(adapter, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = iavf_del_fdir_ethtool(adapter, cmd);
+		break;
+	case ETHTOOL_SRXFH:
+		ret = iavf_set_adv_rss_hash_opt(adapter, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+/**
  * iavf_get_rxnfc - command to get RX flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
@@ -846,9 +1712,21 @@ static int iavf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		cmd->data = adapter->num_active_queues;
 		ret = 0;
 		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		if (!FDIR_FLTR_SUPPORT(adapter))
+			break;
+		cmd->rule_cnt = adapter->fdir_active_fltr;
+		cmd->data = IAVF_MAX_FDIR_FILTERS;
+		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		ret = iavf_get_ethtool_fdir_entry(adapter, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		ret = iavf_get_fdir_fltr_ids(adapter, cmd, (u32 *)rule_locs);
+		break;
 	case ETHTOOL_GRXFH:
-		netdev_info(netdev,
-			    "RSS hash info is not available to vf, use pf.\n");
+		ret = iavf_get_adv_rss_hash_opt(adapter, cmd);
 		break;
 	default:
 		break;
@@ -1025,6 +1903,7 @@ static const struct ethtool_ops iavf_ethtool_ops = {
 	.set_coalesce		= iavf_set_coalesce,
 	.get_per_queue_coalesce = iavf_get_per_queue_coalesce,
 	.set_per_queue_coalesce = iavf_set_per_queue_coalesce,
+	.set_rxnfc		= iavf_set_rxnfc,
 	.get_rxnfc		= iavf_get_rxnfc,
 	.get_rxfh_indir_size	= iavf_get_rxfh_indir_size,
 	.get_rxfh		= iavf_get_rxfh,

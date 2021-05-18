@@ -427,15 +427,6 @@ static void byt_machine_select(struct snd_sof_dev *sdev)
 	sof_pdata->machine = mach;
 }
 
-static void byt_set_mach_params(const struct snd_soc_acpi_mach *mach,
-				struct device *dev)
-{
-	struct snd_soc_acpi_mach_params *mach_params;
-
-	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
-	mach_params->platform = dev_name(dev);
-}
-
 /* Baytrail DAIs */
 static struct snd_soc_dai_driver byt_dai[] = {
 {
@@ -505,6 +496,19 @@ static struct snd_soc_dai_driver byt_dai[] = {
 	},
 },
 };
+
+static void byt_set_mach_params(const struct snd_soc_acpi_mach *mach,
+				struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = pdata->desc;
+	struct snd_soc_acpi_mach_params *mach_params;
+
+	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
+	mach_params->platform = dev_name(sdev->dev);
+	mach_params->num_dai_drivers = desc->ops->num_drv;
+	mach_params->dai_drivers = desc->ops->drv;
+}
 
 /*
  * Probe and remove.

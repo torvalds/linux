@@ -519,7 +519,6 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &pwm_samsung_ops;
-	chip->chip.base = -1;
 	chip->chip.npwm = SAMSUNG_PWM_NUM;
 	chip->inverter_mask = BIT(SAMSUNG_PWM_NUM) - 1;
 

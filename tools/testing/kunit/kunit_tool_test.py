@@ -251,6 +251,12 @@ class LinuxSourceTreeTest(unittest.TestCase):
 		with tempfile.NamedTemporaryFile('wt') as kunitconfig:
 			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_path=kunitconfig.name)
 
+	def test_dir_kunitconfig(self):
+		with tempfile.TemporaryDirectory('') as dir:
+			with open(os.path.join(dir, '.kunitconfig'), 'w') as f:
+				pass
+			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_path=dir)
+
 	# TODO: add more test cases.
 
 

@@ -131,14 +131,6 @@
 	#define	_MODULE_DEFINE_	_module_efuse_
 #endif
 
-#define RT_TRACE(_Comp, _Level, Fmt) do {} while (0)
-#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do {} while (0)
-
-#define DBG_871X(x, ...) do {} while (0)
-#define MSG_8192C(x, ...) do {} while (0)
-#define DBG_8192C(x, ...) do {} while (0)
-#define DBG_871X_LEVEL(x, ...) do {} while (0)
-
 #undef _dbgdump
 
 #ifndef _RTL871X_DEBUG_C_
@@ -151,18 +143,6 @@
 #define DRIVER_PREFIX "RTL8723BS: "
 
 #if defined(_dbgdump)
-
-/* with driver-defined prefix */
-#undef DBG_871X_LEVEL
-#define DBG_871X_LEVEL(level, fmt, arg...)     \
-	do {\
-		if (level <= GlobalDebugLevel) {\
-			if (level <= _drv_err_ && level > _drv_always_) \
-				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
-			else \
-				_dbgdump(DRIVER_PREFIX fmt, ##arg);\
-		} \
-	} while (0)
 
 /* without driver-defined prefix */
 #undef _DBG_871X_LEVEL
@@ -187,79 +167,7 @@
 			seq_printf(sel, fmt, ##arg);			\
 	} while (0)
 
-/* dump message to selected 'stream' with driver-defined prefix */
-#define DBG_871X_SEL_NL(sel, fmt, arg...)				\
-	do {								\
-		if (sel == RTW_DBGDUMP)					\
-			DBG_871X_LEVEL(_drv_always_, fmt, ##arg);	\
-		else							\
-			seq_printf(sel, fmt, ##arg);			\
-	} while (0)
-
 #endif /* defined(_dbgdump) */
-
-#ifdef DEBUG
-#if	defined(_dbgdump)
-	#undef DBG_871X
-	#define DBG_871X(...)     do {\
-		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	} while (0)
-
-	#undef MSG_8192C
-	#define MSG_8192C(...)     do {\
-		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	} while (0)
-
-	#undef DBG_8192C
-	#define DBG_8192C(...)     do {\
-		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
-	} while (0)
-#endif /* defined(_dbgdump) */
-#endif /* DEBUG */
-
-#ifdef DEBUG_RTL871X
-
-#if	defined(_dbgdump) && defined(_MODULE_DEFINE_)
-
-	#undef RT_TRACE
-	#define RT_TRACE(_Comp, _Level, Fmt)\
-	do {\
-		if ((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
-			_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
-			_dbgdump Fmt;\
-		} \
-	} while (0)
-
-#endif /* defined(_dbgdump) && defined(_MODULE_DEFINE_) */
-
-
-#if	defined(_dbgdump)
-	#undef RT_PRINT_DATA
-	#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen)			\
-		if (((_Comp) & GlobalDebugComponents) && (_Level <= GlobalDebugLevel))	\
-		{									\
-			int __i;								\
-			u8 *ptr = (u8 *)_HexData;				\
-			_dbgdump("%s", DRIVER_PREFIX);						\
-			_dbgdump(_TitleString);						\
-			for (__i = 0; __i < (int)_HexDataLen; __i++)				\
-			{								\
-				_dbgdump("%02X%s", ptr[__i], (((__i + 1) % 4) == 0)?"  ":" ");	\
-				if (((__i + 1) % 16) == 0)	_dbgdump("\n");			\
-			}								\
-			_dbgdump("\n");							\
-		}
-#endif /* defined(_dbgdump) */
-#endif /* DEBUG_RTL871X */
-
-#ifdef CONFIG_DBG_COUNTER
-#define DBG_COUNTER(counter) counter++
-#else
-#define DBG_COUNTER(counter) do {} while (0)
-#endif
-
-void dump_drv_version(void *sel);
-void dump_log_level(void *sel);
 
 void sd_f0_reg_dump(void *sel, struct adapter *adapter);
 

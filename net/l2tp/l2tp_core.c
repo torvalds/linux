@@ -649,9 +649,9 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 	/* Parse and check optional cookie */
 	if (session->peer_cookie_len > 0) {
 		if (memcmp(ptr, &session->peer_cookie[0], session->peer_cookie_len)) {
-			pr_warn_ratelimited("%s: cookie mismatch (%u/%u). Discarding.\n",
-					    tunnel->name, tunnel->tunnel_id,
-					    session->session_id);
+			pr_debug_ratelimited("%s: cookie mismatch (%u/%u). Discarding.\n",
+					     tunnel->name, tunnel->tunnel_id,
+					     session->session_id);
 			atomic_long_inc(&session->stats.rx_cookie_discards);
 			goto discard;
 		}
@@ -702,8 +702,8 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * If user has configured mandatory sequence numbers, discard.
 		 */
 		if (session->recv_seq) {
-			pr_warn_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
-					    session->name);
+			pr_debug_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
+					     session->name);
 			atomic_long_inc(&session->stats.rx_seq_discards);
 			goto discard;
 		}
@@ -718,8 +718,8 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			session->send_seq = 0;
 			l2tp_session_set_header_len(session, tunnel->version);
 		} else if (session->send_seq) {
-			pr_warn_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
-					    session->name);
+			pr_debug_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
+					     session->name);
 			atomic_long_inc(&session->stats.rx_seq_discards);
 			goto discard;
 		}
@@ -802,16 +802,16 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	u16 version;
 	int length;
 
-	/* UDP has verifed checksum */
+	/* UDP has verified checksum */
 
 	/* UDP always verifies the packet length. */
 	__skb_pull(skb, sizeof(struct udphdr));
 
 	/* Short packet? */
 	if (!pskb_may_pull(skb, L2TP_HDR_SIZE_MAX)) {
-		pr_warn_ratelimited("%s: recv short packet (len=%d)\n",
-				    tunnel->name, skb->len);
-		goto error;
+		pr_debug_ratelimited("%s: recv short packet (len=%d)\n",
+				     tunnel->name, skb->len);
+		goto invalid;
 	}
 
 	/* Point to L2TP header */
@@ -824,9 +824,9 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	/* Check protocol version */
 	version = hdrflags & L2TP_HDR_VER_MASK;
 	if (version != tunnel->version) {
-		pr_warn_ratelimited("%s: recv protocol version mismatch: got %d expected %d\n",
-				    tunnel->name, version, tunnel->version);
-		goto error;
+		pr_debug_ratelimited("%s: recv protocol version mismatch: got %d expected %d\n",
+				     tunnel->name, version, tunnel->version);
+		goto invalid;
 	}
 
 	/* Get length of L2TP packet */
@@ -834,7 +834,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 
 	/* If type is control packet, it is handled by userspace. */
 	if (hdrflags & L2TP_HDRFLAG_T)
-		goto error;
+		goto pass;
 
 	/* Skip flags */
 	ptr += 2;
@@ -863,21 +863,24 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 			l2tp_session_dec_refcount(session);
 
 		/* Not found? Pass to userspace to deal with */
-		pr_warn_ratelimited("%s: no session found (%u/%u). Passing up.\n",
-				    tunnel->name, tunnel_id, session_id);
-		goto error;
+		pr_debug_ratelimited("%s: no session found (%u/%u). Passing up.\n",
+				     tunnel->name, tunnel_id, session_id);
+		goto pass;
 	}
 
 	if (tunnel->version == L2TP_HDR_VER_3 &&
 	    l2tp_v3_ensure_opt_in_linear(session, skb, &ptr, &optr))
-		goto error;
+		goto invalid;
 
 	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length);
 	l2tp_session_dec_refcount(session);
 
 	return 0;
 
-error:
+invalid:
+	atomic_long_inc(&tunnel->stats.rx_invalid);
+
+pass:
 	/* Put UDP header back */
 	__skb_push(skb, sizeof(struct udphdr));
 
@@ -1475,21 +1478,21 @@ int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 	tunnel->l2tp_net = net;
 	pn = l2tp_pernet(net);
 
+	sk = sock->sk;
+	sock_hold(sk);
+	tunnel->sock = sk;
+
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_for_each_entry(tunnel_walk, &pn->l2tp_tunnel_list, list) {
 		if (tunnel_walk->tunnel_id == tunnel->tunnel_id) {
 			spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-
+			sock_put(sk);
 			ret = -EEXIST;
 			goto err_sock;
 		}
 	}
 	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-
-	sk = sock->sk;
-	sock_hold(sk);
-	tunnel->sock = sk;
 
 	if (tunnel->encap == L2TP_ENCAPTYPE_UDP) {
 		struct udp_tunnel_sock_cfg udp_cfg = {

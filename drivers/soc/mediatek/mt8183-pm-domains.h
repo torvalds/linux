@@ -12,12 +12,14 @@
 
 static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 	[MT8183_POWER_DOMAIN_AUDIO] = {
+		.name = "audio",
 		.sta_mask = PWR_STATUS_AUDIO,
 		.ctl_offs = 0x0314,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
 	},
 	[MT8183_POWER_DOMAIN_CONN] = {
+		.name = "conn",
 		.sta_mask = PWR_STATUS_CONN,
 		.ctl_offs = 0x032c,
 		.sram_pdn_bits = 0,
@@ -28,12 +30,14 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_MFG_ASYNC] = {
+		.name = "mfg_async",
 		.sta_mask = PWR_STATUS_MFG_ASYNC,
 		.ctl_offs = 0x0334,
 		.sram_pdn_bits = 0,
 		.sram_pdn_ack_bits = 0,
 	},
 	[MT8183_POWER_DOMAIN_MFG] = {
+		.name = "mfg",
 		.sta_mask = PWR_STATUS_MFG,
 		.ctl_offs = 0x0338,
 		.sram_pdn_bits = GENMASK(8, 8),
@@ -41,18 +45,21 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		.caps = MTK_SCPD_DOMAIN_SUPPLY,
 	},
 	[MT8183_POWER_DOMAIN_MFG_CORE0] = {
+		.name = "mfg_core0",
 		.sta_mask = BIT(7),
 		.ctl_offs = 0x034c,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
 	},
 	[MT8183_POWER_DOMAIN_MFG_CORE1] = {
+		.name = "mfg_core1",
 		.sta_mask = BIT(20),
 		.ctl_offs = 0x0310,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
 	},
 	[MT8183_POWER_DOMAIN_MFG_2D] = {
+		.name = "mfg_2d",
 		.sta_mask = PWR_STATUS_MFG_2D,
 		.ctl_offs = 0x0348,
 		.sram_pdn_bits = GENMASK(8, 8),
@@ -65,6 +72,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_DISP] = {
+		.name = "disp",
 		.sta_mask = PWR_STATUS_DISP,
 		.ctl_offs = 0x030c,
 		.sram_pdn_bits = GENMASK(8, 8),
@@ -83,6 +91,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_CAM] = {
+		.name = "cam",
 		.sta_mask = BIT(25),
 		.ctl_offs = 0x0344,
 		.sram_pdn_bits = GENMASK(9, 8),
@@ -105,6 +114,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_ISP] = {
+		.name = "isp",
 		.sta_mask = PWR_STATUS_ISP,
 		.ctl_offs = 0x0308,
 		.sram_pdn_bits = GENMASK(9, 8),
@@ -127,6 +137,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_VDEC] = {
+		.name = "vdec",
 		.sta_mask = BIT(31),
 		.ctl_offs = 0x0300,
 		.sram_pdn_bits = GENMASK(8, 8),
@@ -139,6 +150,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_VENC] = {
+		.name = "venc",
 		.sta_mask = PWR_STATUS_VENC,
 		.ctl_offs = 0x0304,
 		.sram_pdn_bits = GENMASK(11, 8),
@@ -151,6 +163,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_VPU_TOP] = {
+		.name = "vpu_top",
 		.sta_mask = BIT(26),
 		.ctl_offs = 0x0324,
 		.sram_pdn_bits = GENMASK(8, 8),
@@ -177,6 +190,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		},
 	},
 	[MT8183_POWER_DOMAIN_VPU_CORE0] = {
+		.name = "vpu_core0",
 		.sta_mask = BIT(27),
 		.ctl_offs = 0x33c,
 		.sram_pdn_bits = GENMASK(11, 8),
@@ -194,6 +208,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8183[] = {
 		.caps = MTK_SCPD_SRAM_ISO,
 	},
 	[MT8183_POWER_DOMAIN_VPU_CORE1] = {
+		.name = "vpu_core1",
 		.sta_mask = BIT(28),
 		.ctl_offs = 0x0340,
 		.sram_pdn_bits = GENMASK(11, 8),

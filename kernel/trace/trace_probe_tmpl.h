@@ -167,7 +167,7 @@ array:
 	return code->op == FETCH_OP_END ? ret : -EILSEQ;
 }
 
-/* Sum up total data length for dynamic arraies (strings) */
+/* Sum up total data length for dynamic arrays (strings) */
 static nokprobe_inline int
 __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 {

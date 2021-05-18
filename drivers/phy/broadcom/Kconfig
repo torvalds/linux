@@ -94,7 +94,7 @@ config PHY_BRCM_USB
 	depends on ARCH_BCM4908 || ARCH_BRCMSTB || COMPILE_TEST
 	depends on OF
 	select GENERIC_PHY
-	select SOC_BRCMSTB
+	select SOC_BRCMSTB if ARCH_BRCMSTB
 	default ARCH_BCM4908
 	default ARCH_BRCMSTB
 	help

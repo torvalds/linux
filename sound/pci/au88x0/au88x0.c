@@ -41,8 +41,6 @@ MODULE_PARM_DESC(pcifix, "Enable VIA-workaround for " CARD_NAME " soundcard.");
 
 MODULE_DESCRIPTION("Aureal vortex");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Aureal Semiconductor Inc., Aureal Vortex Sound Processor}}");
-
 MODULE_DEVICE_TABLE(pci, snd_vortex_ids);
 
 static void vortex_fix_latency(struct pci_dev *vortex)

@@ -148,16 +148,20 @@ static const struct devlink_health_reporter_ops qlge_reporter_ops = {
 	.dump = qlge_reporter_coredump,
 };
 
-void qlge_health_create_reporters(struct qlge_adapter *priv)
+long qlge_health_create_reporters(struct qlge_adapter *priv)
 {
 	struct devlink *devlink;
+	long err = 0;
 
 	devlink = priv_to_devlink(priv);
 	priv->reporter =
 		devlink_health_reporter_create(devlink, &qlge_reporter_ops,
 					       0, priv);
-	if (IS_ERR(priv->reporter))
+	if (IS_ERR(priv->reporter)) {
+		err = PTR_ERR(priv->reporter);
 		netdev_warn(priv->ndev,
 			    "Failed to create reporter, err = %ld\n",
-			    PTR_ERR(priv->reporter));
+			    err);
+	}
+	return err;
 }

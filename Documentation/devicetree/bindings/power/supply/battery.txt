@@ -1,3 +1,0 @@
-The contents of this file has been moved to battery.yaml
-
-Please note that not all charger drivers respect all of the properties.

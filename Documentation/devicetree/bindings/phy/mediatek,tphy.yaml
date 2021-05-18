@@ -79,6 +79,7 @@ properties:
               - mediatek,mt2712-tphy
               - mediatek,mt7629-tphy
               - mediatek,mt8183-tphy
+              - mediatek,mt8195-tphy
           - const: mediatek,generic-tphy-v2
       - const: mediatek,mt2701-u3phy
         deprecated: true
@@ -117,7 +118,7 @@ properties:
 
 # Required child node:
 patternProperties:
-  "^usb-phy@[0-9a-f]+$":
+  "^(usb|pcie|sata)-phy@[0-9a-f]+$":
     type: object
     description:
       A sub-node is required for each port the controller provides.

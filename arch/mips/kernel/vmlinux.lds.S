@@ -145,6 +145,7 @@ SECTIONS
 	}
 
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
+	STRUCT_ALIGN();
 	.appended_dtb : AT(ADDR(.appended_dtb) - LOAD_OFFSET) {
 		*(.appended_dtb)
 		KEEP(*(.appended_dtb))
@@ -172,6 +173,11 @@ SECTIONS
 #endif
 
 #ifdef CONFIG_MIPS_RAW_APPENDED_DTB
+	.fill : {
+		FILL(0);
+		BYTE(0);
+		STRUCT_ALIGN();
+	}
 	__appended_dtb = .;
 	/* leave space for appended DTB */
 	. += 0x100000;

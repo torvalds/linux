@@ -129,7 +129,6 @@ static int start_pdm_dma(void __iomem *acp_base)
 	enable_pdm_clock(acp_base);
 	rn_writel(pdm_enable, acp_base + ACP_WOV_PDM_ENABLE);
 	rn_writel(pdm_dma_enable, acp_base + ACP_WOV_PDM_DMA_ENABLE);
-	pdm_dma_enable = 0x00;
 	timeout = 0;
 	while (++timeout < ACP_COUNTER) {
 		pdm_dma_enable = rn_readl(acp_base + ACP_WOV_PDM_DMA_ENABLE);
@@ -153,7 +152,6 @@ static int stop_pdm_dma(void __iomem *acp_base)
 	if (pdm_dma_enable & 0x01) {
 		pdm_dma_enable = 0x02;
 		rn_writel(pdm_dma_enable, acp_base + ACP_WOV_PDM_DMA_ENABLE);
-		pdm_dma_enable = 0x00;
 		timeout = 0;
 		while (++timeout < ACP_COUNTER) {
 			pdm_dma_enable = rn_readl(acp_base +
@@ -358,7 +356,7 @@ static int acp_pdm_dai_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_dai_ops acp_pdm_dai_ops = {
+static const struct snd_soc_dai_ops acp_pdm_dai_ops = {
 	.trigger   = acp_pdm_dai_trigger,
 };
 

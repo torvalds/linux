@@ -520,7 +520,7 @@ static int catch_up_echo_skb(struct net_device *dev, int budget, bool echo)
 			can_get_echo_skb(dev, i, NULL);
 		} else {
 			/* For cleanup of untransmitted messages */
-			can_free_echo_skb(dev, i);
+			can_free_echo_skb(dev, i, NULL);
 		}
 
 		priv->eskbp = grcan_ring_add(priv->eskbp, GRCAN_MSG_SIZE,

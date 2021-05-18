@@ -75,8 +75,25 @@ stessa riga:
 	if (condition) do_this;
 	  do_something_everytime;
 
-né mettete più assegnamenti sulla stessa riga.  Lo stile del kernel
+Non usate le virgole per evitare le parentesi:
+
+.. code-block:: c
+
+	if (condition)
+               do_this(), do_that();
+
+Invece, usate sempre le parentesi per racchiudere più istruzioni.
+
+.. code-block:: c
+
+	if (condition) {
+               do_this();
+               do_that();
+       }
+
+Non mettete nemmeno più assegnamenti sulla stessa riga.  Lo stile del kernel
 è ultrasemplice.  Evitate espressioni intricate.
+
 
 Al di fuori dei commenti, della documentazione ed escludendo i Kconfig, gli
 spazi non vengono mai usati per l'indentazione, e l'esempio qui sopra è
@@ -320,8 +337,7 @@ qualcosa di simile, **non** dovreste chiamarla ``cntusr()``.
 
 Codificare il tipo di funzione nel suo nome (quella cosa chiamata notazione
 ungherese) è stupido - il compilatore conosce comunque il tipo e
-può verificarli, e inoltre confonde i programmatori.  Non c'è da
-sorprendersi che MicroSoft faccia programmi bacati.
+può verificarli, e inoltre confonde i programmatori.
 
 Le variabili LOCALI dovrebbero avere nomi corti, e significativi.  Se avete
 un qualsiasi contatore di ciclo, probabilmente sarà chiamato ``i``.

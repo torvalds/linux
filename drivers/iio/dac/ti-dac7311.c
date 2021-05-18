@@ -110,7 +110,7 @@ static ssize_t ti_dac_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct ti_dac_chip *ti_dac = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", ti_dac->powerdown);
+	return sysfs_emit(buf, "%d\n", ti_dac->powerdown);
 }
 
 static ssize_t ti_dac_write_powerdown(struct iio_dev *indio_dev,

@@ -10,6 +10,10 @@
 	model = "Theobroma Systems RK3368-uQ7 Baseboard";
 	compatible = "tsd,rk3368-lion-haikou", "rockchip,rk3368";
 
+	aliases {
+		mmc1 = &sdmmc;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};

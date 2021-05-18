@@ -1549,14 +1549,12 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	 * BCLKs to clock out the samples).
 	 */
 	bclk_div = 0;
-	best_val = ((clk_sys * 10) / bclk_divs[0].ratio) - bclk;
 	i = 1;
 	while (i < ARRAY_SIZE(bclk_divs)) {
 		cur_val = ((clk_sys * 10) / bclk_divs[i].ratio) - bclk;
 		if (cur_val < 0) /* BCLK table is sorted */
 			break;
 		bclk_div = i;
-		best_val = cur_val;
 		i++;
 	}
 

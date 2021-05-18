@@ -17,6 +17,8 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/irq.h>
+#include <linux/lcm.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
@@ -101,6 +103,7 @@ struct adis16475 {
 	u32 clk_freq;
 	bool burst32;
 	unsigned long lsb_flag;
+	u16 sync_mode;
 	/* Alignment needed for the timestamp */
 	__be16 data[ADIS16475_MAX_SCAN_DATA] __aligned(8);
 };
@@ -116,6 +119,11 @@ enum {
 	ADIS16475_SCAN_DIAG_S_FLAGS,
 	ADIS16475_SCAN_CRC_FAILURE,
 };
+
+static bool low_rate_allow;
+module_param(low_rate_allow, bool, 0444);
+MODULE_PARM_DESC(low_rate_allow,
+		 "Allow IMU rates below the minimum advisable when external clk is used in SCALED mode (default: N)");
 
 #ifdef CONFIG_DEBUG_FS
 static ssize_t adis16475_show_firmware_revision(struct file *file,
@@ -253,25 +261,92 @@ static int adis16475_get_freq(struct adis16475 *st, u32 *freq)
 {
 	int ret;
 	u16 dec;
+	u32 sample_rate = st->clk_freq;
 
-	ret = adis_read_reg_16(&st->adis, ADIS16475_REG_DEC_RATE, &dec);
+	adis_dev_lock(&st->adis);
+
+	if (st->sync_mode == ADIS16475_SYNC_SCALED) {
+		u16 sync_scale;
+
+		ret = __adis_read_reg_16(&st->adis, ADIS16475_REG_UP_SCALE, &sync_scale);
+		if (ret)
+			goto error;
+
+		sample_rate = st->clk_freq * sync_scale;
+	}
+
+	ret = __adis_read_reg_16(&st->adis, ADIS16475_REG_DEC_RATE, &dec);
 	if (ret)
-		return -EINVAL;
+		goto error;
 
-	*freq = DIV_ROUND_CLOSEST(st->clk_freq, dec + 1);
+	adis_dev_unlock(&st->adis);
+
+	*freq = DIV_ROUND_CLOSEST(sample_rate, dec + 1);
 
 	return 0;
+error:
+	adis_dev_unlock(&st->adis);
+	return ret;
 }
 
 static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 {
 	u16 dec;
 	int ret;
+	u32 sample_rate = st->clk_freq;
 
 	if (!freq)
 		return -EINVAL;
 
-	dec = DIV_ROUND_CLOSEST(st->clk_freq, freq);
+	adis_dev_lock(&st->adis);
+	/*
+	 * When using sync scaled mode, the input clock needs to be scaled so that we have
+	 * an IMU sample rate between (optimally) 1900 and 2100. After this, we can use the
+	 * decimation filter to lower the sampling rate in order to get what the user wants.
+	 * Optimally, the user sample rate is a multiple of both the IMU sample rate and
+	 * the input clock. Hence, calculating the sync_scale dynamically gives us better
+	 * chances of achieving a perfect/integer value for DEC_RATE. The math here is:
+	 *	1. lcm of the input clock and the desired output rate.
+	 *	2. get the highest multiple of the previous result lower than the adis max rate.
+	 *	3. The last result becomes the IMU sample rate. Use that to calculate SYNC_SCALE
+	 *	   and DEC_RATE (to get the user output rate)
+	 */
+	if (st->sync_mode == ADIS16475_SYNC_SCALED) {
+		unsigned long scaled_rate = lcm(st->clk_freq, freq);
+		int sync_scale;
+
+		/*
+		 * If lcm is bigger than the IMU maximum sampling rate there's no perfect
+		 * solution. In this case, we get the highest multiple of the input clock
+		 * lower than the IMU max sample rate.
+		 */
+		if (scaled_rate > 2100000)
+			scaled_rate = 2100000 / st->clk_freq * st->clk_freq;
+		else
+			scaled_rate = 2100000 / scaled_rate * scaled_rate;
+
+		/*
+		 * This is not an hard requirement but it's not advised to run the IMU
+		 * with a sample rate lower than 4000Hz due to possible undersampling
+		 * issues. However, there are users that might really want to take the risk.
+		 * Hence, we provide a module parameter for them. If set, we allow sample
+		 * rates lower than 4KHz. By default, we won't allow this and we just roundup
+		 * the rate to the next multiple of the input clock bigger than 4KHz. This
+		 * is done like this as in some cases (when DEC_RATE is 0) might give
+		 * us the closest value to the one desired by the user...
+		 */
+		if (scaled_rate < 1900000 && !low_rate_allow)
+			scaled_rate = roundup(1900000, st->clk_freq);
+
+		sync_scale = scaled_rate / st->clk_freq;
+		ret = __adis_write_reg_16(&st->adis, ADIS16475_REG_UP_SCALE, sync_scale);
+		if (ret)
+			goto error;
+
+		sample_rate = scaled_rate;
+	}
+
+	dec = DIV_ROUND_CLOSEST(sample_rate, freq);
 
 	if (dec)
 		dec--;
@@ -281,7 +356,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 
 	ret = adis_write_reg_16(&st->adis, ADIS16475_REG_DEC_RATE, dec);
 	if (ret)
-		return ret;
+		goto error;
 
 	/*
 	 * If decimation is used, then gyro and accel data will have meaningful
@@ -290,6 +365,9 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 	assign_bit(ADIS16475_LSB_DEC_MASK, &st->lsb_flag, dec);
 
 	return 0;
+error:
+	adis_dev_unlock(&st->adis);
+	return ret;
 }
 
 /* The values are approximated. */
@@ -1085,6 +1163,7 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 	}
 
 	sync = &st->info->sync[sync_mode];
+	st->sync_mode = sync->sync_mode;
 
 	/* All the other modes require external input signal */
 	if (sync->sync_mode != ADIS16475_SYNC_OUTPUT) {
@@ -1112,37 +1191,20 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 
 		if (sync->sync_mode == ADIS16475_SYNC_SCALED) {
 			u16 up_scale;
-			u32 scaled_out_freq = 0;
-			/*
-			 * If we are in scaled mode, we must have an up_scale.
-			 * In scaled mode the allowable input clock range is
-			 * 1 Hz to 128 Hz, and the allowable output range is
-			 * 1900 to 2100 Hz. Hence, a scale must be given to
-			 * get the allowable output.
-			 */
-			ret = device_property_read_u32(dev,
-						       "adi,scaled-output-hz",
-						       &scaled_out_freq);
-			if (ret) {
-				dev_err(dev, "adi,scaled-output-hz must be given when in scaled sync mode");
-				return -EINVAL;
-			} else if (scaled_out_freq < 1900 ||
-				   scaled_out_freq > 2100) {
-				dev_err(dev, "Invalid value: %u for adi,scaled-output-hz",
-					scaled_out_freq);
-				return -EINVAL;
-			}
 
-			up_scale = DIV_ROUND_CLOSEST(scaled_out_freq,
-						     st->clk_freq);
+			/*
+			 * In sync scaled mode, the IMU sample rate is the clk_freq * sync_scale.
+			 * Hence, default the IMU sample rate to the highest multiple of the input
+			 * clock lower than the IMU max sample rate. The optimal range is
+			 * 1900-2100 sps...
+			 */
+			up_scale = 2100 / st->clk_freq;
 
 			ret = __adis_write_reg_16(&st->adis,
 						  ADIS16475_REG_UP_SCALE,
 						  up_scale);
 			if (ret)
 				return ret;
-
-			st->clk_freq = scaled_out_freq;
 		}
 
 		st->clk_freq *= 1000;
@@ -1195,6 +1257,9 @@ static int adis16475_config_irq_pin(struct adis16475 *st)
 			irq_type);
 		return -EINVAL;
 	}
+
+	/* We cannot mask the interrupt so ensure it's not enabled at request */
+	st->adis.irq_flag |= IRQF_NO_AUTOEN;
 
 	val = ADIS16475_MSG_CTRL_DR_POL(polarity);
 	ret = __adis_update_bits(&st->adis, ADIS16475_REG_MSG_CTRL,
@@ -1299,8 +1364,6 @@ static int adis16475_probe(struct spi_device *spi)
 						 adis16475_trigger_handler);
 	if (ret)
 		return ret;
-
-	adis16475_enable_irq(&st->adis, false);
 
 	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)

@@ -219,7 +219,7 @@ static bool blk_crypto_split_bio_if_needed(struct bio **bio_ptr)
 
 	bio_for_each_segment(bv, bio, iter) {
 		num_sectors += bv.bv_len >> SECTOR_SHIFT;
-		if (++i == BIO_MAX_PAGES)
+		if (++i == BIO_MAX_VECS)
 			break;
 	}
 	if (num_sectors < bio_sectors(bio)) {

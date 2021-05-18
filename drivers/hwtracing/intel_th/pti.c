@@ -142,7 +142,7 @@ static struct attribute *pti_output_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group pti_output_group = {
+static const struct attribute_group pti_output_group = {
 	.attrs	= pti_output_attrs,
 };
 
@@ -295,7 +295,7 @@ static struct attribute *lpp_output_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lpp_output_group = {
+static const struct attribute_group lpp_output_group = {
 	.attrs	= lpp_output_attrs,
 };
 

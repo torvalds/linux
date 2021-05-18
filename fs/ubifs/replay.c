@@ -223,7 +223,8 @@ static bool inode_still_linked(struct ubifs_info *c, struct replay_entry *rino)
 	 */
 	list_for_each_entry_reverse(r, &c->replay_list, list) {
 		ubifs_assert(c, r->sqnum >= rino->sqnum);
-		if (key_inum(c, &r->key) == key_inum(c, &rino->key))
+		if (key_inum(c, &r->key) == key_inum(c, &rino->key) &&
+		    key_type(c, &r->key) == UBIFS_INO_KEY)
 			return r->deletion == 0;
 
 	}
@@ -298,8 +299,8 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
  * entries @a and @b by comparing their sequence numer.  Returns %1 if @a has
  * greater sequence number and %-1 otherwise.
  */
-static int replay_entries_cmp(void *priv, struct list_head *a,
-			      struct list_head *b)
+static int replay_entries_cmp(void *priv, const struct list_head *a,
+			      const struct list_head *b)
 {
 	struct ubifs_info *c = priv;
 	struct replay_entry *ra, *rb;

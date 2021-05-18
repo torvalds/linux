@@ -52,6 +52,7 @@ i915-y += i915_drv.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
 	  intel_sideband.o \
+	  intel_step.o \
 	  intel_uncore.o \
 	  intel_wakeref.o \
 	  vlv_suspend.o
@@ -139,7 +140,6 @@ gem-y += \
 	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
 	gem/i915_gem_execbuffer.o \
-	gem/i915_gem_fence.o \
 	gem/i915_gem_internal.o \
 	gem/i915_gem_object.o \
 	gem/i915_gem_object_blt.o \
@@ -209,6 +209,7 @@ i915-y += \
 	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
 	display/intel_dsb.o \
+	display/intel_fb.o \
 	display/intel_fbc.o \
 	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
@@ -223,7 +224,9 @@ i915-y += \
 	display/intel_sprite.o \
 	display/intel_tc.o \
 	display/intel_vga.o \
-	display/i9xx_plane.o
+	display/i9xx_plane.o \
+	display/skl_scaler.o \
+	display/skl_universal_plane.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o
@@ -238,9 +241,12 @@ i915-y += \
 	display/dvo_ns2501.o \
 	display/dvo_sil164.o \
 	display/dvo_tfp410.o \
+	display/g4x_dp.o \
+	display/g4x_hdmi.o \
 	display/icl_dsi.o \
 	display/intel_crt.o \
 	display/intel_ddi.o \
+	display/intel_ddi_buf_trans.o \
 	display/intel_dp.o \
 	display/intel_dp_aux.o \
 	display/intel_dp_aux_backlight.o \

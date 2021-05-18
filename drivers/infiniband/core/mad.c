@@ -61,7 +61,7 @@ static void create_mad_addr_info(struct ib_mad_send_wr_private *mad_send_wr,
 {
 	u16 pkey;
 	struct ib_device *dev = qp_info->port_priv->device;
-	u8 pnum = qp_info->port_priv->port_num;
+	u32 pnum = qp_info->port_priv->port_num;
 	struct ib_ud_wr *wr = &mad_send_wr->send_wr;
 	struct rdma_ah_attr attr = {};
 
@@ -118,7 +118,7 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc);
  * Assumes ib_mad_port_list_lock is being held
  */
 static inline struct ib_mad_port_private *
-__ib_get_mad_port(struct ib_device *device, int port_num)
+__ib_get_mad_port(struct ib_device *device, u32 port_num)
 {
 	struct ib_mad_port_private *entry;
 
@@ -134,7 +134,7 @@ __ib_get_mad_port(struct ib_device *device, int port_num)
  * for a device/port
  */
 static inline struct ib_mad_port_private *
-ib_get_mad_port(struct ib_device *device, int port_num)
+ib_get_mad_port(struct ib_device *device, u32 port_num)
 {
 	struct ib_mad_port_private *entry;
 	unsigned long flags;
@@ -155,8 +155,7 @@ static inline u8 convert_mgmt_class(u8 mgmt_class)
 
 static int get_spl_qp_index(enum ib_qp_type qp_type)
 {
-	switch (qp_type)
-	{
+	switch (qp_type) {
 	case IB_QPT_SMI:
 		return 0;
 	case IB_QPT_GSI:
@@ -222,7 +221,7 @@ EXPORT_SYMBOL(ib_response_mad);
  * Context: Process context.
  */
 struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
-					   u8 port_num,
+					   u32 port_num,
 					   enum ib_qp_type qp_type,
 					   struct ib_mad_reg_req *mad_reg_req,
 					   u8 rmpp_version,
@@ -549,7 +548,7 @@ static void dequeue_mad(struct ib_mad_list_head *mad_list)
 }
 
 static void build_smp_wc(struct ib_qp *qp, struct ib_cqe *cqe, u16 slid,
-		u16 pkey_index, u8 port_num, struct ib_wc *wc)
+		u16 pkey_index, u32 port_num, struct ib_wc *wc)
 {
 	memset(wc, 0, sizeof *wc);
 	wc->wr_cqe = cqe;
@@ -608,7 +607,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_mad_port_private *port_priv;
 	struct ib_mad_agent_private *recv_mad_agent = NULL;
 	struct ib_device *device = mad_agent_priv->agent.device;
-	u8 port_num;
+	u32 port_num;
 	struct ib_wc mad_wc;
 	struct ib_ud_wr *send_wr = &mad_send_wr->send_wr;
 	size_t mad_size = port_mad_size(mad_agent_priv->qp_info->port_priv);
@@ -707,8 +706,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 				      (const struct ib_mad *)smp,
 				      (struct ib_mad *)mad_priv->mad, &mad_size,
 				      &out_mad_pkey_index);
-	switch (ret)
-	{
+	switch (ret) {
 	case IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY:
 		if (ib_response_mad((const struct ib_mad_hdr *)mad_priv->mad) &&
 		    mad_agent_priv->agent.recv_handler) {
@@ -807,7 +805,7 @@ static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
 
 	/* Allocate data segments. */
 	for (left = send_buf->data_len + pad; left > 0; left -= seg_size) {
-		seg = kmalloc(sizeof (*seg) + seg_size, gfp_mask);
+		seg = kmalloc(sizeof(*seg) + seg_size, gfp_mask);
 		if (!seg) {
 			free_send_rmpp_list(send_wr);
 			return -ENOMEM;
@@ -837,12 +835,11 @@ int ib_mad_kernel_rmpp_agent(const struct ib_mad_agent *agent)
 }
 EXPORT_SYMBOL(ib_mad_kernel_rmpp_agent);
 
-struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
-					    u32 remote_qpn, u16 pkey_index,
-					    int rmpp_active,
-					    int hdr_len, int data_len,
-					    gfp_t gfp_mask,
-					    u8 base_version)
+struct ib_mad_send_buf *ib_create_send_mad(struct ib_mad_agent *mad_agent,
+					   u32 remote_qpn, u16 pkey_index,
+					   int rmpp_active, int hdr_len,
+					   int data_len, gfp_t gfp_mask,
+					   u8 base_version)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_wr_private *mad_send_wr;
@@ -1275,11 +1272,9 @@ static void remove_methods_mad_agent(struct ib_mad_mgmt_method_table *method,
 	int i;
 
 	/* Remove any methods for this mad agent */
-	for (i = 0; i < IB_MGMT_MAX_METHODS; i++) {
-		if (method->agent[i] == agent) {
+	for (i = 0; i < IB_MGMT_MAX_METHODS; i++)
+		if (method->agent[i] == agent)
 			method->agent[i] = NULL;
-		}
-	}
 }
 
 static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
@@ -1454,9 +1449,8 @@ static void remove_mad_reg_req(struct ib_mad_agent_private *agent_priv)
 	 * Was MAD registration request supplied
 	 * with original registration ?
 	 */
-	if (!agent_priv->reg_req) {
+	if (!agent_priv->reg_req)
 		goto out;
-	}
 
 	port_priv = agent_priv->qp_info->port_priv;
 	mgmt_class = convert_mgmt_class(agent_priv->reg_req->mgmt_class);
@@ -1613,7 +1607,7 @@ out:
 
 	if (mad_agent && !mad_agent->agent.recv_handler) {
 		dev_notice(&port_priv->device->dev,
-			   "No receive handler for client %p on port %d\n",
+			   "No receive handler for client %p on port %u\n",
 			   &mad_agent->agent, port_priv->port_num);
 		deref_mad_agent(mad_agent);
 		mad_agent = NULL;
@@ -1677,15 +1671,16 @@ static inline int rcv_has_same_class(const struct ib_mad_send_wr_private *wr,
 		rwc->recv_buf.mad->mad_hdr.mgmt_class;
 }
 
-static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_priv,
-				   const struct ib_mad_send_wr_private *wr,
-				   const struct ib_mad_recv_wc *rwc )
+static inline int
+rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_priv,
+		 const struct ib_mad_send_wr_private *wr,
+		 const struct ib_mad_recv_wc *rwc)
 {
 	struct rdma_ah_attr attr;
 	u8 send_resp, rcv_resp;
 	union ib_gid sgid;
 	struct ib_device *device = mad_agent_priv->agent.device;
-	u8 port_num = mad_agent_priv->agent.port_num;
+	u32 port_num = mad_agent_priv->agent.port_num;
 	u8 lmc;
 	bool has_grh;
 
@@ -1834,7 +1829,8 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 				deref_mad_agent(mad_agent_priv);
 			} else {
 				/* not user rmpp, revert to normal behavior and
-				 * drop the mad */
+				 * drop the mad
+				 */
 				ib_free_recv_mad(mad_recv_wc);
 				deref_mad_agent(mad_agent_priv);
 				return;
@@ -1860,14 +1856,12 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 						   mad_recv_wc);
 		deref_mad_agent(mad_agent_priv);
 	}
-
-	return;
 }
 
 static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv,
 				     const struct ib_mad_qp_info *qp_info,
 				     const struct ib_wc *wc,
-				     int port_num,
+				     u32 port_num,
 				     struct ib_mad_private *recv,
 				     struct ib_mad_private *response)
 {
@@ -1954,7 +1948,7 @@ static enum smi_action
 handle_opa_smi(struct ib_mad_port_private *port_priv,
 	       struct ib_mad_qp_info *qp_info,
 	       struct ib_wc *wc,
-	       int port_num,
+	       u32 port_num,
 	       struct ib_mad_private *recv,
 	       struct ib_mad_private *response)
 {
@@ -2010,7 +2004,7 @@ static enum smi_action
 handle_smi(struct ib_mad_port_private *port_priv,
 	   struct ib_mad_qp_info *qp_info,
 	   struct ib_wc *wc,
-	   int port_num,
+	   u32 port_num,
 	   struct ib_mad_private *recv,
 	   struct ib_mad_private *response,
 	   bool opa)
@@ -2034,7 +2028,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_mad_private_header *mad_priv_hdr;
 	struct ib_mad_private *recv, *response = NULL;
 	struct ib_mad_agent_private *mad_agent;
-	int port_num;
+	u32 port_num;
 	int ret = IB_MAD_RESULT_SUCCESS;
 	size_t mad_size;
 	u16 resp_mad_pkey_index = 0;
@@ -2202,9 +2196,10 @@ static void wait_for_response(struct ib_mad_send_wr_private *mad_send_wr)
 				       temp_mad_send_wr->timeout))
 				break;
 		}
-	}
-	else
+	} else {
 		list_item = &mad_agent_priv->wait_list;
+	}
+
 	list_add(&mad_send_wr->agent_list, list_item);
 
 	/* Reschedule a work item if we have a shorter timeout */
@@ -2258,7 +2253,7 @@ void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 	adjust_timeout(mad_agent_priv);
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
-	if (mad_send_wr->status != IB_WC_SUCCESS )
+	if (mad_send_wr->status != IB_WC_SUCCESS)
 		mad_send_wc->status = mad_send_wr->status;
 	if (ret == IB_RMPP_RESULT_INTERNAL)
 		ib_rmpp_send_handler(mad_send_wc);
@@ -2947,7 +2942,7 @@ static void destroy_mad_qp(struct ib_mad_qp_info *qp_info)
  * Create the QP, PD, MR, and CQ if needed
  */
 static int ib_mad_port_open(struct ib_device *device,
-			    int port_num)
+			    u32 port_num)
 {
 	int ret, cq_size;
 	struct ib_mad_port_private *port_priv;
@@ -3002,7 +2997,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	if (ret)
 		goto error7;
 
-	snprintf(name, sizeof name, "ib_mad%d", port_num);
+	snprintf(name, sizeof(name), "ib_mad%u", port_num);
 	port_priv->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!port_priv->wq) {
 		ret = -ENOMEM;
@@ -3048,7 +3043,7 @@ error3:
  * If there are no classes using the port, free the port
  * resources (CQ, MR, PD, QP) and remove the port's info structure
  */
-static int ib_mad_port_close(struct ib_device *device, int port_num)
+static int ib_mad_port_close(struct ib_device *device, u32 port_num)
 {
 	struct ib_mad_port_private *port_priv;
 	unsigned long flags;
@@ -3057,7 +3052,7 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 	port_priv = __ib_get_mad_port(device, port_num);
 	if (port_priv == NULL) {
 		spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
-		dev_err(&device->dev, "Port %d not found\n", port_num);
+		dev_err(&device->dev, "Port %u not found\n", port_num);
 		return -ENODEV;
 	}
 	list_del_init(&port_priv->port_list);

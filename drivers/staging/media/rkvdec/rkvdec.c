@@ -55,16 +55,13 @@ static const struct v4l2_ctrl_ops rkvdec_ctrl_ops = {
 
 static const struct rkvdec_ctrl_desc rkvdec_h264_ctrl_descs[] = {
 	{
-		.mandatory = true,
 		.cfg.id = V4L2_CID_STATELESS_H264_DECODE_PARAMS,
 	},
 	{
-		.mandatory = true,
 		.cfg.id = V4L2_CID_STATELESS_H264_SPS,
 		.cfg.ops = &rkvdec_ctrl_ops,
 	},
 	{
-		.mandatory = true,
 		.cfg.id = V4L2_CID_STATELESS_H264_PPS,
 	},
 	{
@@ -585,56 +582,13 @@ static const struct vb2_ops rkvdec_queue_ops = {
 
 static int rkvdec_request_validate(struct media_request *req)
 {
-	struct media_request_object *obj;
-	const struct rkvdec_ctrls *ctrls;
-	struct v4l2_ctrl_handler *hdl;
-	struct rkvdec_ctx *ctx = NULL;
-	unsigned int count, i;
-	int ret;
-
-	list_for_each_entry(obj, &req->objects, list) {
-		if (vb2_request_object_is_buffer(obj)) {
-			struct vb2_buffer *vb;
-
-			vb = container_of(obj, struct vb2_buffer, req_obj);
-			ctx = vb2_get_drv_priv(vb->vb2_queue);
-			break;
-		}
-	}
-
-	if (!ctx)
-		return -EINVAL;
+	unsigned int count;
 
 	count = vb2_request_buffer_cnt(req);
 	if (!count)
 		return -ENOENT;
 	else if (count > 1)
 		return -EINVAL;
-
-	hdl = v4l2_ctrl_request_hdl_find(req, &ctx->ctrl_hdl);
-	if (!hdl)
-		return -ENOENT;
-
-	ret = 0;
-	ctrls = ctx->coded_fmt_desc->ctrls;
-	for (i = 0; ctrls && i < ctrls->num_ctrls; i++) {
-		u32 id = ctrls->ctrls[i].cfg.id;
-		struct v4l2_ctrl *ctrl;
-
-		if (!ctrls->ctrls[i].mandatory)
-			continue;
-
-		ctrl = v4l2_ctrl_request_hdl_ctrl_find(hdl, id);
-		if (!ctrl) {
-			ret = -ENOENT;
-			break;
-		}
-	}
-
-	v4l2_ctrl_request_hdl_put(hdl);
-
-	if (ret)
-		return ret;
 
 	return vb2_request_validate(req);
 }
@@ -1118,7 +1072,7 @@ static struct platform_driver rkvdec_driver = {
 	.remove = rkvdec_remove,
 	.driver = {
 		   .name = "rkvdec",
-		   .of_match_table = of_match_ptr(of_rkvdec_match),
+		   .of_match_table = of_rkvdec_match,
 		   .pm = &rkvdec_pm_ops,
 	},
 };

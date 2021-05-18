@@ -3,32 +3,85 @@
 #
 # Regression tests for the SO_TXTIME interface
 
-# Run in network namespace
-if [[ $# -eq 0 ]]; then
-	if ! ./in_netns.sh $0 __subprocess; then
-		# test is time sensitive, can be flaky
-		echo "test failed: retry once"
-		./in_netns.sh $0 __subprocess
-	fi
-
-	exit $?
-fi
-
 set -e
 
-tc qdisc add dev lo root fq
-./so_txtime -4 -6 -c mono a,-1 a,-1
-./so_txtime -4 -6 -c mono a,0 a,0
-./so_txtime -4 -6 -c mono a,10 a,10
-./so_txtime -4 -6 -c mono a,10,b,20 a,10,b,20
-./so_txtime -4 -6 -c mono a,20,b,10 b,20,a,20
+readonly DEV="veth0"
+readonly BIN="./so_txtime"
 
-if tc qdisc replace dev lo root etf clockid CLOCK_TAI delta 400000; then
-	! ./so_txtime -4 -6 -c tai a,-1 a,-1
-	! ./so_txtime -4 -6 -c tai a,0 a,0
-	./so_txtime -4 -6 -c tai a,10 a,10
-	./so_txtime -4 -6 -c tai a,10,b,20 a,10,b,20
-	./so_txtime -4 -6 -c tai a,20,b,10 b,10,a,20
+readonly RAND="$(mktemp -u XXXXXX)"
+readonly NSPREFIX="ns-${RAND}"
+readonly NS1="${NSPREFIX}1"
+readonly NS2="${NSPREFIX}2"
+
+readonly SADDR4='192.168.1.1'
+readonly DADDR4='192.168.1.2'
+readonly SADDR6='fd::1'
+readonly DADDR6='fd::2'
+
+cleanup() {
+	ip netns del "${NS2}"
+	ip netns del "${NS1}"
+}
+
+trap cleanup EXIT
+
+# Create virtual ethernet pair between network namespaces
+ip netns add "${NS1}"
+ip netns add "${NS2}"
+
+ip link add "${DEV}" netns "${NS1}" type veth \
+  peer name "${DEV}" netns "${NS2}"
+
+# Bring the devices up
+ip -netns "${NS1}" link set "${DEV}" up
+ip -netns "${NS2}" link set "${DEV}" up
+
+# Set fixed MAC addresses on the devices
+ip -netns "${NS1}" link set dev "${DEV}" address 02:02:02:02:02:02
+ip -netns "${NS2}" link set dev "${DEV}" address 06:06:06:06:06:06
+
+# Add fixed IP addresses to the devices
+ip -netns "${NS1}" addr add 192.168.1.1/24 dev "${DEV}"
+ip -netns "${NS2}" addr add 192.168.1.2/24 dev "${DEV}"
+ip -netns "${NS1}" addr add       fd::1/64 dev "${DEV}" nodad
+ip -netns "${NS2}" addr add       fd::2/64 dev "${DEV}" nodad
+
+do_test() {
+	local readonly IP="$1"
+	local readonly CLOCK="$2"
+	local readonly TXARGS="$3"
+	local readonly RXARGS="$4"
+
+	if [[ "${IP}" == "4" ]]; then
+		local readonly SADDR="${SADDR4}"
+		local readonly DADDR="${DADDR4}"
+	elif [[ "${IP}" == "6" ]]; then
+		local readonly SADDR="${SADDR6}"
+		local readonly DADDR="${DADDR6}"
+	else
+		echo "Invalid IP version ${IP}"
+		exit 1
+	fi
+
+	local readonly START="$(date +%s%N --date="+ 0.1 seconds")"
+	ip netns exec "${NS2}" "${BIN}" -"${IP}" -c "${CLOCK}" -t "${START}" -S "${SADDR}" -D "${DADDR}" "${RXARGS}" -r &
+	ip netns exec "${NS1}" "${BIN}" -"${IP}" -c "${CLOCK}" -t "${START}" -S "${SADDR}" -D "${DADDR}" "${TXARGS}"
+	wait "$!"
+}
+
+ip netns exec "${NS1}" tc qdisc add dev "${DEV}" root fq
+do_test 4 mono a,-1 a,-1
+do_test 6 mono a,0 a,0
+do_test 6 mono a,10 a,10
+do_test 4 mono a,10,b,20 a,10,b,20
+do_test 6 mono a,20,b,10 b,20,a,20
+
+if ip netns exec "${NS1}" tc qdisc replace dev "${DEV}" root etf clockid CLOCK_TAI delta 400000; then
+	! do_test 4 tai a,-1 a,-1
+	! do_test 6 tai a,0 a,0
+	do_test 6 tai a,10 a,10
+	do_test 4 tai a,10,b,20 a,10,b,20
+	do_test 6 tai a,20,b,10 b,10,a,20
 else
 	echo "tc ($(tc -V)) does not support qdisc etf. skipping"
 fi

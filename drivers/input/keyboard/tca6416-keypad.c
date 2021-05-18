@@ -274,7 +274,7 @@ static int tca6416_keypad_probe(struct i2c_client *client,
 		error = request_threaded_irq(chip->irqnum, NULL,
 					     tca6416_keys_isr,
 					     IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT,
+					     IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					     "tca6416-keypad", chip);
 		if (error) {
 			dev_dbg(&client->dev,
@@ -282,7 +282,6 @@ static int tca6416_keypad_probe(struct i2c_client *client,
 				chip->irqnum, error);
 			goto fail1;
 		}
-		disable_irq(chip->irqnum);
 	}
 
 	error = input_register_device(input);

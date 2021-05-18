@@ -152,7 +152,7 @@ struct ib_gid_attr {
 	union ib_gid		gid;
 	enum ib_gid_type	gid_type;
 	u16			index;
-	u8			port_num;
+	u32			port_num;
 };
 
 enum {
@@ -736,7 +736,7 @@ struct ib_event {
 		struct ib_qp	*qp;
 		struct ib_srq	*srq;
 		struct ib_wq	*wq;
-		u8		port_num;
+		u32		port_num;
 	} element;
 	enum ib_event_type	event;
 };
@@ -919,7 +919,7 @@ struct rdma_ah_attr {
 	struct ib_global_route	grh;
 	u8			sl;
 	u8			static_rate;
-	u8			port_num;
+	u32			port_num;
 	u8			ah_flags;
 	enum rdma_ah_attr_type type;
 	union {
@@ -1006,7 +1006,7 @@ struct ib_wc {
 	u16			pkey_index;
 	u8			sl;
 	u8			dlid_path_bits;
-	u8			port_num;	/* valid only for DR SMPs on switches */
+	u32 port_num; /* valid only for DR SMPs on switches */
 	u8			smac[ETH_ALEN];
 	u16			vlan_id;
 	u8			network_hdr_type;
@@ -1161,7 +1161,7 @@ struct ib_qp_init_attr {
 	/*
 	 * Only needed for special QP types, or when using the RW API.
 	 */
-	u8			port_num;
+	u32			port_num;
 	struct ib_rwq_ind_table *rwq_ind_tbl;
 	u32			source_qpn;
 };
@@ -1280,11 +1280,11 @@ struct ib_qp_attr {
 	u8			max_rd_atomic;
 	u8			max_dest_rd_atomic;
 	u8			min_rnr_timer;
-	u8			port_num;
+	u32			port_num;
 	u8			timeout;
 	u8			retry_cnt;
 	u8			rnr_retry;
-	u8			alt_port_num;
+	u32			alt_port_num;
 	u8			alt_timeout;
 	u32			rate_limit;
 	struct net_device	*xmit_slave;
@@ -1401,7 +1401,7 @@ struct ib_ud_wr {
 	u32			remote_qpn;
 	u32			remote_qkey;
 	u16			pkey_index; /* valid for GSI only */
-	u8			port_num;   /* valid for DR SMPs on switch only */
+	u32			port_num; /* valid for DR SMPs on switch only */
 };
 
 static inline const struct ib_ud_wr *ud_wr(const struct ib_send_wr *wr)
@@ -1610,6 +1610,11 @@ struct ib_srq {
 			} xrc;
 		};
 	} ext;
+
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct rdma_restrack_entry res;
 };
 
 enum ib_raw_packet_caps {
@@ -1708,7 +1713,7 @@ struct ib_qp_security;
 struct ib_port_pkey {
 	enum port_pkey_state	state;
 	u16			pkey_index;
-	u8			port_num;
+	u32			port_num;
 	struct list_head	qp_list;
 	struct list_head	to_error_list;
 	struct ib_qp_security  *sec;
@@ -1769,7 +1774,7 @@ struct ib_qp {
 	enum ib_qp_type		qp_type;
 	struct ib_rwq_ind_table *rwq_ind_tbl;
 	struct ib_qp_security  *qp_sec;
-	u8			port;
+	u32			port;
 
 	bool			integrity_en;
 	/*
@@ -2065,7 +2070,7 @@ struct ib_flow_attr {
 	u16	     priority;
 	u32	     flags;
 	u8	     num_of_specs;
-	u8	     port;
+	u32	     port;
 	union ib_flow_spec flows[];
 };
 
@@ -2194,7 +2199,7 @@ enum rdma_netdev_t {
 struct rdma_netdev {
 	void              *clnt_priv;
 	struct ib_device  *hca;
-	u8                 port_num;
+	u32		   port_num;
 	int                mtu;
 
 	/*
@@ -2215,6 +2220,8 @@ struct rdma_netdev {
 			    int set_qkey, u32 qkey);
 	int (*detach_mcast)(struct net_device *dev, struct ib_device *hca,
 			    union ib_gid *gid, u16 mlid);
+	/* timeout */
+	void (*tx_timeout)(struct net_device *dev, unsigned int txqueue);
 };
 
 struct rdma_netdev_alloc_params {
@@ -2223,7 +2230,7 @@ struct rdma_netdev_alloc_params {
 	unsigned int rxqs;
 	void *param;
 
-	int (*initialize_rdma_netdev)(struct ib_device *device, u8 port_num,
+	int (*initialize_rdma_netdev)(struct ib_device *device, u32 port_num,
 				      struct net_device *netdev, void *param);
 };
 
@@ -2301,12 +2308,11 @@ struct ib_device_ops {
 	int (*poll_cq)(struct ib_cq *cq, int num_entries, struct ib_wc *wc);
 	int (*peek_cq)(struct ib_cq *cq, int wc_cnt);
 	int (*req_notify_cq)(struct ib_cq *cq, enum ib_cq_notify_flags flags);
-	int (*req_ncomp_notif)(struct ib_cq *cq, int wc_cnt);
 	int (*post_srq_recv)(struct ib_srq *srq,
 			     const struct ib_recv_wr *recv_wr,
 			     const struct ib_recv_wr **bad_recv_wr);
 	int (*process_mad)(struct ib_device *device, int process_mad_flags,
-			   u8 port_num, const struct ib_wc *in_wc,
+			   u32 port_num, const struct ib_wc *in_wc,
 			   const struct ib_grh *in_grh,
 			   const struct ib_mad *in_mad, struct ib_mad *out_mad,
 			   size_t *out_mad_size, u16 *out_mad_pkey_index);
@@ -2318,9 +2324,9 @@ struct ib_device_ops {
 	void (*get_dev_fw_str)(struct ib_device *device, char *str);
 	const struct cpumask *(*get_vector_affinity)(struct ib_device *ibdev,
 						     int comp_vector);
-	int (*query_port)(struct ib_device *device, u8 port_num,
+	int (*query_port)(struct ib_device *device, u32 port_num,
 			  struct ib_port_attr *port_attr);
-	int (*modify_port)(struct ib_device *device, u8 port_num,
+	int (*modify_port)(struct ib_device *device, u32 port_num,
 			   int port_modify_mask,
 			   struct ib_port_modify *port_modify);
 	/**
@@ -2329,10 +2335,10 @@ struct ib_device_ops {
 	 * structure to avoid cache line misses when accessing struct ib_device
 	 * in fast paths.
 	 */
-	int (*get_port_immutable)(struct ib_device *device, u8 port_num,
+	int (*get_port_immutable)(struct ib_device *device, u32 port_num,
 				  struct ib_port_immutable *immutable);
 	enum rdma_link_layer (*get_link_layer)(struct ib_device *device,
-					       u8 port_num);
+					       u32 port_num);
 	/**
 	 * When calling get_netdev, the HW vendor's driver should return the
 	 * net device of device @device at port @port_num or NULL if such
@@ -2341,7 +2347,8 @@ struct ib_device_ops {
 	 * that this function returns NULL before the net device has finished
 	 * NETDEV_UNREGISTER state.
 	 */
-	struct net_device *(*get_netdev)(struct ib_device *device, u8 port_num);
+	struct net_device *(*get_netdev)(struct ib_device *device,
+					 u32 port_num);
 	/**
 	 * rdma netdev operation
 	 *
@@ -2349,11 +2356,11 @@ struct ib_device_ops {
 	 * must return -EOPNOTSUPP if it doesn't support the specified type.
 	 */
 	struct net_device *(*alloc_rdma_netdev)(
-		struct ib_device *device, u8 port_num, enum rdma_netdev_t type,
+		struct ib_device *device, u32 port_num, enum rdma_netdev_t type,
 		const char *name, unsigned char name_assign_type,
 		void (*setup)(struct net_device *));
 
-	int (*rdma_netdev_get_params)(struct ib_device *device, u8 port_num,
+	int (*rdma_netdev_get_params)(struct ib_device *device, u32 port_num,
 				      enum rdma_netdev_t type,
 				      struct rdma_netdev_alloc_params *params);
 	/**
@@ -2361,7 +2368,7 @@ struct ib_device_ops {
 	 * link layer is either IB or iWarp. It is no-op if @port_num port
 	 * is RoCE link layer.
 	 */
-	int (*query_gid)(struct ib_device *device, u8 port_num, int index,
+	int (*query_gid)(struct ib_device *device, u32 port_num, int index,
 			 union ib_gid *gid);
 	/**
 	 * When calling add_gid, the HW vendor's driver should add the gid
@@ -2386,7 +2393,7 @@ struct ib_device_ops {
 	 * This function is only called when roce_gid_table is used.
 	 */
 	int (*del_gid)(const struct ib_gid_attr *attr, void **context);
-	int (*query_pkey)(struct ib_device *device, u8 port_num, u16 index,
+	int (*query_pkey)(struct ib_device *device, u32 port_num, u16 index,
 			  u16 *pkey);
 	int (*alloc_ucontext)(struct ib_ucontext *context,
 			      struct ib_udata *udata);
@@ -2475,16 +2482,16 @@ struct ib_device_ops {
 		struct ib_flow_action *action,
 		const struct ib_flow_action_attrs_esp *attr,
 		struct uverbs_attr_bundle *attrs);
-	int (*set_vf_link_state)(struct ib_device *device, int vf, u8 port,
+	int (*set_vf_link_state)(struct ib_device *device, int vf, u32 port,
 				 int state);
-	int (*get_vf_config)(struct ib_device *device, int vf, u8 port,
+	int (*get_vf_config)(struct ib_device *device, int vf, u32 port,
 			     struct ifla_vf_info *ivf);
-	int (*get_vf_stats)(struct ib_device *device, int vf, u8 port,
+	int (*get_vf_stats)(struct ib_device *device, int vf, u32 port,
 			    struct ifla_vf_stats *stats);
-	int (*get_vf_guid)(struct ib_device *device, int vf, u8 port,
+	int (*get_vf_guid)(struct ib_device *device, int vf, u32 port,
 			    struct ifla_vf_guid *node_guid,
 			    struct ifla_vf_guid *port_guid);
-	int (*set_vf_guid)(struct ib_device *device, int vf, u8 port, u64 guid,
+	int (*set_vf_guid)(struct ib_device *device, int vf, u32 port, u64 guid,
 			   int type);
 	struct ib_wq *(*create_wq)(struct ib_pd *pd,
 				   struct ib_wq_init_attr *init_attr,
@@ -2522,7 +2529,7 @@ struct ib_device_ops {
 	 *   struct tells the core to set a default lifespan.
 	 */
 	struct rdma_hw_stats *(*alloc_hw_stats)(struct ib_device *device,
-						u8 port_num);
+						u32 port_num);
 	/**
 	 * get_hw_stats - Fill in the counter value(s) in the stats struct.
 	 * @index - The index in the value array we wish to have updated, or
@@ -2536,12 +2543,12 @@ struct ib_device_ops {
 	 *   one given in index at their option
 	 */
 	int (*get_hw_stats)(struct ib_device *device,
-			    struct rdma_hw_stats *stats, u8 port, int index);
+			    struct rdma_hw_stats *stats, u32 port, int index);
 	/*
 	 * This function is called once for each port when a ib device is
 	 * registered.
 	 */
-	int (*init_port)(struct ib_device *device, u8 port_num,
+	int (*init_port)(struct ib_device *device, u32 port_num,
 			 struct kobject *port_sysfs);
 	/**
 	 * Allows rdma drivers to add their own restrack attributes.
@@ -2685,7 +2692,7 @@ struct ib_device {
 	/* CQ adaptive moderation (RDMA DIM) */
 	u16                          use_cq_dim:1;
 	u8                           node_type;
-	u8                           phys_port_cnt;
+	u32			     phys_port_cnt;
 	struct ib_device_attr        attrs;
 	struct attribute_group	     *hw_stats_ag;
 	struct rdma_hw_stats         *hw_stats;
@@ -2751,7 +2758,7 @@ struct ib_client {
 	 * netdev. */
 	struct net_device *(*get_net_dev_by_params)(
 			struct ib_device *dev,
-			u8 port,
+			u32 port,
 			u16 pkey,
 			const union ib_gid *gid,
 			const struct sockaddr *addr,
@@ -2932,10 +2939,10 @@ void ib_unregister_event_handler(struct ib_event_handler *event_handler);
 void ib_dispatch_event(const struct ib_event *event);
 
 int ib_query_port(struct ib_device *device,
-		  u8 port_num, struct ib_port_attr *port_attr);
+		  u32 port_num, struct ib_port_attr *port_attr);
 
 enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
-					       u8 port_num);
+					       u32 port_num);
 
 /**
  * rdma_cap_ib_switch - Check if the device is IB switch
@@ -2959,7 +2966,7 @@ static inline bool rdma_cap_ib_switch(const struct ib_device *device)
  *
  * Return start port number
  */
-static inline u8 rdma_start_port(const struct ib_device *device)
+static inline u32 rdma_start_port(const struct ib_device *device)
 {
 	return rdma_cap_ib_switch(device) ? 0 : 1;
 }
@@ -2970,9 +2977,10 @@ static inline u8 rdma_start_port(const struct ib_device *device)
  * @iter - The unsigned int to store the port number
  */
 #define rdma_for_each_port(device, iter)                                       \
-	for (iter = rdma_start_port(device + BUILD_BUG_ON_ZERO(!__same_type(   \
-						     unsigned int, iter)));    \
-	     iter <= rdma_end_port(device); (iter)++)
+	for (iter = rdma_start_port(device +				       \
+				    BUILD_BUG_ON_ZERO(!__same_type(u32,	       \
+								   iter)));    \
+	     iter <= rdma_end_port(device); iter++)
 
 /**
  * rdma_end_port - Return the last valid port number for the device
@@ -2982,7 +2990,7 @@ static inline u8 rdma_start_port(const struct ib_device *device)
  *
  * Return last port number
  */
-static inline u8 rdma_end_port(const struct ib_device *device)
+static inline u32 rdma_end_port(const struct ib_device *device)
 {
 	return rdma_cap_ib_switch(device) ? 0 : device->phys_port_cnt;
 }
@@ -2995,55 +3003,63 @@ static inline int rdma_is_port_valid(const struct ib_device *device,
 }
 
 static inline bool rdma_is_grh_required(const struct ib_device *device,
-					u8 port_num)
+					u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_PORT_IB_GRH_REQUIRED;
 }
 
-static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_ib(const struct ib_device *device,
+				    u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_PROT_IB;
 }
 
-static inline bool rdma_protocol_roce(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_roce(const struct ib_device *device,
+				      u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       (RDMA_CORE_CAP_PROT_ROCE | RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP);
 }
 
-static inline bool rdma_protocol_roce_udp_encap(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_roce_udp_encap(const struct ib_device *device,
+						u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
 }
 
-static inline bool rdma_protocol_roce_eth_encap(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_roce_eth_encap(const struct ib_device *device,
+						u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_PROT_ROCE;
 }
 
-static inline bool rdma_protocol_iwarp(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_iwarp(const struct ib_device *device,
+				       u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_PROT_IWARP;
 }
 
-static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
+static inline bool rdma_ib_or_roce(const struct ib_device *device,
+				   u32 port_num)
 {
 	return rdma_protocol_ib(device, port_num) ||
 		rdma_protocol_roce(device, port_num);
 }
 
-static inline bool rdma_protocol_raw_packet(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_raw_packet(const struct ib_device *device,
+					    u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_PROT_RAW_PACKET;
 }
 
-static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_usnic(const struct ib_device *device,
+				       u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_PROT_USNIC;
@@ -3061,7 +3077,7 @@ static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_n
  *
  * Return: true if the port supports sending/receiving of MAD packets.
  */
-static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_ib_mad(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_IB_MAD;
@@ -3086,7 +3102,7 @@ static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
  *
  * Return: true if the port supports OPA MAD packet formats.
  */
-static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_opa_mad(struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 		RDMA_CORE_CAP_OPA_MAD;
@@ -3112,7 +3128,7 @@ static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
  *
  * Return: true if the port provides an SMI.
  */
-static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_ib_smi(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_IB_SMI;
@@ -3133,7 +3149,7 @@ static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
  * Return: true if the port supports an IB CM (this does not guarantee that
  * a CM is actually running however).
  */
-static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_ib_cm(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_IB_CM;
@@ -3151,7 +3167,7 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
  * Return: true if the port supports an iWARP CM (this does not guarantee that
  * a CM is actually running however).
  */
-static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_iw_cm(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_IW_CM;
@@ -3172,7 +3188,7 @@ static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
  * Administration interface.  This does not imply that the SA service is
  * running locally.
  */
-static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_ib_sa(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_IB_SA;
@@ -3195,7 +3211,8 @@ static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
  * overhead of registering/unregistering with the SM and tracking of the
  * total number of queue pairs attached to the multicast group.
  */
-static inline bool rdma_cap_ib_mcast(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_ib_mcast(const struct ib_device *device,
+				     u32 port_num)
 {
 	return rdma_cap_ib_sa(device, port_num);
 }
@@ -3213,7 +3230,7 @@ static inline bool rdma_cap_ib_mcast(const struct ib_device *device, u8 port_num
  * Return: true if the port uses a GID address to identify devices on the
  * network.
  */
-static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_af_ib(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_AF_IB;
@@ -3235,7 +3252,7 @@ static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
  * addition of a Global Route Header built from our Ethernet Address
  * Handle into our header list for connectionless packets.
  */
-static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_eth_ah(const struct ib_device *device, u32 port_num)
 {
 	return device->port_data[port_num].immutable.core_cap_flags &
 	       RDMA_CORE_CAP_ETH_AH;
@@ -3250,7 +3267,7 @@ static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
  * Return: true if we are running on an OPA device which supports
  * the extended OPA addressing.
  */
-static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
+static inline bool rdma_cap_opa_ah(struct ib_device *device, u32 port_num)
 {
 	return (device->port_data[port_num].immutable.core_cap_flags &
 		RDMA_CORE_CAP_OPA_AH) == RDMA_CORE_CAP_OPA_AH;
@@ -3268,7 +3285,8 @@ static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
  * Return the max MAD size required by the Port.  Will return 0 if the port
  * does not support MADs
  */
-static inline size_t rdma_max_mad_size(const struct ib_device *device, u8 port_num)
+static inline size_t rdma_max_mad_size(const struct ib_device *device,
+				       u32 port_num)
 {
 	return device->port_data[port_num].immutable.max_mad_size;
 }
@@ -3287,7 +3305,7 @@ static inline size_t rdma_max_mad_size(const struct ib_device *device, u8 port_n
  * its GIDs.
  */
 static inline bool rdma_cap_roce_gid_table(const struct ib_device *device,
-					   u8 port_num)
+					   u32 port_num)
 {
 	return rdma_protocol_roce(device, port_num) &&
 		device->ops.add_gid && device->ops.del_gid;
@@ -3328,7 +3346,7 @@ static inline bool rdma_core_cap_opa_port(struct ib_device *device,
  * Return the MTU size supported by the port as an integer value. Will return
  * -1 if enum value of mtu is not supported.
  */
-static inline int rdma_mtu_enum_to_int(struct ib_device *device, u8 port,
+static inline int rdma_mtu_enum_to_int(struct ib_device *device, u32 port,
 				       int mtu)
 {
 	if (rdma_core_cap_opa_port(device, port))
@@ -3345,7 +3363,7 @@ static inline int rdma_mtu_enum_to_int(struct ib_device *device, u8 port,
  *
  * Return the MTU size supported by the port as an integer value.
  */
-static inline int rdma_mtu_from_attr(struct ib_device *device, u8 port,
+static inline int rdma_mtu_from_attr(struct ib_device *device, u32 port,
 				     struct ib_port_attr *attr)
 {
 	if (rdma_core_cap_opa_port(device, port))
@@ -3354,34 +3372,34 @@ static inline int rdma_mtu_from_attr(struct ib_device *device, u8 port,
 		return ib_mtu_enum_to_int(attr->max_mtu);
 }
 
-int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
+int ib_set_vf_link_state(struct ib_device *device, int vf, u32 port,
 			 int state);
-int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+int ib_get_vf_config(struct ib_device *device, int vf, u32 port,
 		     struct ifla_vf_info *info);
-int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
+int ib_get_vf_stats(struct ib_device *device, int vf, u32 port,
 		    struct ifla_vf_stats *stats);
-int ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+int ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
 		    struct ifla_vf_guid *node_guid,
 		    struct ifla_vf_guid *port_guid);
-int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
+int ib_set_vf_guid(struct ib_device *device, int vf, u32 port, u64 guid,
 		   int type);
 
 int ib_query_pkey(struct ib_device *device,
-		  u8 port_num, u16 index, u16 *pkey);
+		  u32 port_num, u16 index, u16 *pkey);
 
 int ib_modify_device(struct ib_device *device,
 		     int device_modify_mask,
 		     struct ib_device_modify *device_modify);
 
 int ib_modify_port(struct ib_device *device,
-		   u8 port_num, int port_modify_mask,
+		   u32 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify);
 
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		u8 *port_num, u16 *index);
+		u32 *port_num, u16 *index);
 
 int ib_find_pkey(struct ib_device *device,
-		 u8 port_num, u16 pkey, u16 *index);
+		 u32 port_num, u16 pkey, u16 *index);
 
 enum ib_pd_flags {
 	/*
@@ -3496,7 +3514,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  * attributes which are initialized using ib_init_ah_attr_from_wc().
  *
  */
-int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
+int ib_init_ah_attr_from_wc(struct ib_device *device, u32 port_num,
 			    const struct ib_wc *wc, const struct ib_grh *grh,
 			    struct rdma_ah_attr *ah_attr);
 
@@ -3513,7 +3531,7 @@ int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
  * in all UD QP post sends.
  */
 struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
-				   const struct ib_grh *grh, u8 port_num);
+				   const struct ib_grh *grh, u32 port_num);
 
 /**
  * rdma_modify_ah - Modifies the address vector associated with an address
@@ -3915,20 +3933,6 @@ struct ib_cq *ib_cq_pool_get(struct ib_device *dev, unsigned int nr_cqe,
 
 void ib_cq_pool_put(struct ib_cq *cq, unsigned int nr_cqe);
 
-/**
- * ib_req_ncomp_notif - Request completion notification when there are
- *   at least the specified number of unreaped completions on the CQ.
- * @cq: The CQ to generate an event for.
- * @wc_cnt: The number of unreaped completions that should be on the
- *   CQ before an event is generated.
- */
-static inline int ib_req_ncomp_notif(struct ib_cq *cq, int wc_cnt)
-{
-	return cq->device->ops.req_ncomp_notif ?
-		cq->device->ops.req_ncomp_notif(cq, wc_cnt) :
-		-ENOSYS;
-}
-
 /*
  * Drivers that don't need a DMA mapping at the RDMA layer, set dma_device to
  * NULL. This causes the ib_dma* helpers to just stash the kernel virtual
@@ -4272,12 +4276,12 @@ struct ib_device *ib_device_get_by_netdev(struct net_device *ndev,
 					  enum rdma_driver_id driver_id);
 struct ib_device *ib_device_get_by_name(const char *name,
 					enum rdma_driver_id driver_id);
-struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
+struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u32 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
 int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 			 unsigned int port);
-struct net_device *ib_device_netdev(struct ib_device *dev, u8 port);
+struct net_device *ib_device_netdev(struct ib_device *dev, u32 port);
 
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *init_attr);
@@ -4311,7 +4315,8 @@ void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
 
-int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u16 *speed, u8 *width);
+int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed,
+		     u8 *width);
 
 static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
 {
@@ -4379,12 +4384,12 @@ static inline bool rdma_ah_get_make_grd(const struct rdma_ah_attr *attr)
 	return false;
 }
 
-static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)
+static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u32 port_num)
 {
 	attr->port_num = port_num;
 }
 
-static inline u8 rdma_ah_get_port_num(const struct rdma_ah_attr *attr)
+static inline u32 rdma_ah_get_port_num(const struct rdma_ah_attr *attr)
 {
 	return attr->port_num;
 }
@@ -4482,7 +4487,7 @@ void rdma_move_ah_attr(struct rdma_ah_attr *dest, struct rdma_ah_attr *src);
  * @port_num: Port number
  */
 static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
-						       u8 port_num)
+						       u32 port_num)
 {
 	if (rdma_protocol_roce(dev, port_num))
 		return RDMA_AH_ATTR_TYPE_ROCE;
@@ -4554,12 +4559,12 @@ struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile);
 
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs);
 
-struct net_device *rdma_alloc_netdev(struct ib_device *device, u8 port_num,
+struct net_device *rdma_alloc_netdev(struct ib_device *device, u32 port_num,
 				     enum rdma_netdev_t type, const char *name,
 				     unsigned char name_assign_type,
 				     void (*setup)(struct net_device *));
 
-int rdma_init_netdev(struct ib_device *device, u8 port_num,
+int rdma_init_netdev(struct ib_device *device, u32 port_num,
 		     enum rdma_netdev_t type, const char *name,
 		     unsigned char name_assign_type,
 		     void (*setup)(struct net_device *),

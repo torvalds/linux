@@ -13,6 +13,19 @@
 struct mlxsw_sp;
 struct mlxsw_sp_port;
 
+/* SPAN session identifiers that correspond to MLXSW_TRAP_ID_MIRROR_SESSION<i>
+ * trap identifiers. The session identifier is an attribute of the SPAN agent,
+ * which determines the trap identifier of packets that are mirrored to the
+ * CPU. Packets that are trapped to the CPU for the same logical reason (e.g.,
+ * buffer drops) should use the same session identifier.
+ */
+enum mlxsw_sp_span_session_id {
+	MLXSW_SP_SPAN_SESSION_ID_BUFFER,
+	MLXSW_SP_SPAN_SESSION_ID_SAMPLING,
+
+	__MLXSW_SP_SPAN_SESSION_ID_MAX = 8,
+};
+
 struct mlxsw_sp_span_parms {
 	struct mlxsw_sp_port *dest_port; /* NULL for unoffloaded SPAN. */
 	unsigned int ttl;
@@ -23,6 +36,7 @@ struct mlxsw_sp_span_parms {
 	u16 vid;
 	u16 policer_id;
 	bool policer_enable;
+	enum mlxsw_sp_span_session_id session_id;
 };
 
 enum mlxsw_sp_span_trigger {
@@ -35,12 +49,14 @@ enum mlxsw_sp_span_trigger {
 
 struct mlxsw_sp_span_trigger_parms {
 	int span_id;
+	u32 probability_rate;
 };
 
 struct mlxsw_sp_span_agent_parms {
 	const struct net_device *to_dev;
 	u16 policer_id;
 	bool policer_enable;
+	enum mlxsw_sp_span_session_id session_id;
 };
 
 struct mlxsw_sp_span_entry_ops;

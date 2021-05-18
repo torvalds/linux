@@ -84,15 +84,6 @@ struct badness_table {
 extern const struct badness_table hda_main_out_badness;
 extern const struct badness_table hda_extra_out_badness;
 
-struct hda_micmute_hook {
-	unsigned int led_mode;
-	unsigned int capture;
-	unsigned int led_value;
-	void (*old_hook)(struct hda_codec *codec,
-			 struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol);
-};
-
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
@@ -229,7 +220,8 @@ struct hda_gen_spec {
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
 	unsigned int keep_eapd_on:1; /* don't turn off EAPD automatically */
-	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
+	unsigned int vmaster_mute_led:1; /* add SPK-LED flag to vmaster mute switch */
+	unsigned int mic_mute_led:1; /* add MIC-LED flag to capture mute switch */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int prefer_hp_amp:1; /* enable HP amp for speaker if any */
 	unsigned int add_stereo_mix_input:2; /* add aamix as a capture src */
@@ -284,9 +276,6 @@ struct hda_gen_spec {
 	void (*cap_sync_hook)(struct hda_codec *codec,
 			      struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
-
-	/* mic mute LED hook; called via cap_sync_hook */
-	struct hda_micmute_hook micmute_led;
 
 	/* PCM hooks */
 	void (*pcm_playback_hook)(struct hda_pcm_stream *hinfo,

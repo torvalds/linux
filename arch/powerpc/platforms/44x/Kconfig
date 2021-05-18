@@ -5,7 +5,7 @@ config PPC_47x
 	select MPIC
 	help
 	  This option enables support for the 47x family of processors and is
-	  not currently compatible with other 44x or 46x varients
+	  not currently compatible with other 44x or 46x variants
 
 config BAMBOO
 	bool "Bamboo"

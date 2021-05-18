@@ -128,6 +128,19 @@ TRACE_EVENT(msm_gem_purge,
 );
 
 
+TRACE_EVENT(msm_gem_evict,
+		TP_PROTO(u32 bytes),
+		TP_ARGS(bytes),
+		TP_STRUCT__entry(
+			__field(u32, bytes)
+			),
+		TP_fast_assign(
+			__entry->bytes = bytes;
+			),
+		TP_printk("Evicting %u bytes", __entry->bytes)
+);
+
+
 TRACE_EVENT(msm_gem_purge_vmaps,
 		TP_PROTO(u32 unmapped),
 		TP_ARGS(unmapped),

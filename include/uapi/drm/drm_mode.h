@@ -388,6 +388,7 @@ enum drm_mode_subconnector {
 #define DRM_MODE_CONNECTOR_DPI		17
 #define DRM_MODE_CONNECTOR_WRITEBACK	18
 #define DRM_MODE_CONNECTOR_SPI		19
+#define DRM_MODE_CONNECTOR_USB		20
 
 /**
  * struct drm_mode_get_connector - Get connector metadata.
@@ -990,7 +991,7 @@ struct drm_format_modifier {
 };
 
 /**
- * struct drm_mode_create_blob - Create New block property
+ * struct drm_mode_create_blob - Create New blob property
  *
  * Create a new 'blob' data property, copying length bytes from data pointer,
  * and returning new blob ID.

@@ -71,7 +71,7 @@ static u64 notrace
 pistachio_clocksource_read_cycles(struct clocksource *cs)
 {
 	struct pistachio_clocksource *pcs = to_pistachio_clocksource(cs);
-	u32 counter, overflw;
+	u32 counter, overflow;
 	unsigned long flags;
 
 	/*
@@ -80,7 +80,7 @@ pistachio_clocksource_read_cycles(struct clocksource *cs)
 	 */
 
 	raw_spin_lock_irqsave(&pcs->lock, flags);
-	overflw = gpt_readl(pcs->base, TIMER_CURRENT_OVERFLOW_VALUE, 0);
+	overflow = gpt_readl(pcs->base, TIMER_CURRENT_OVERFLOW_VALUE, 0);
 	counter = gpt_readl(pcs->base, TIMER_CURRENT_VALUE, 0);
 	raw_spin_unlock_irqrestore(&pcs->lock, flags);
 

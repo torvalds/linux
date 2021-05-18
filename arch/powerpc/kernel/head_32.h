@@ -10,36 +10,39 @@
  * We assume sprg3 has the physical address of the current
  * task's thread_struct.
  */
-.macro EXCEPTION_PROLOG handle_dar_dsisr=0
+.macro EXCEPTION_PROLOG		trapno name handle_dar_dsisr=0
 	EXCEPTION_PROLOG_0	handle_dar_dsisr=\handle_dar_dsisr
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2	handle_dar_dsisr=\handle_dar_dsisr
+	EXCEPTION_PROLOG_2	\trapno \name handle_dar_dsisr=\handle_dar_dsisr
 .endm
 
 .macro EXCEPTION_PROLOG_0 handle_dar_dsisr=0
 	mtspr	SPRN_SPRG_SCRATCH0,r10
 	mtspr	SPRN_SPRG_SCRATCH1,r11
-#ifdef CONFIG_VMAP_STACK
 	mfspr	r10, SPRN_SPRG_THREAD
 	.if	\handle_dar_dsisr
+#ifdef CONFIG_40x
+	mfspr	r11, SPRN_DEAR
+#else
 	mfspr	r11, SPRN_DAR
+#endif
 	stw	r11, DAR(r10)
+#ifdef CONFIG_40x
+	mfspr	r11, SPRN_ESR
+#else
 	mfspr	r11, SPRN_DSISR
+#endif
 	stw	r11, DSISR(r10)
 	.endif
 	mfspr	r11, SPRN_SRR0
 	stw	r11, SRR0(r10)
-#endif
 	mfspr	r11, SPRN_SRR1		/* check whether user or kernel */
-#ifdef CONFIG_VMAP_STACK
 	stw	r11, SRR1(r10)
-#endif
 	mfcr	r10
 	andi.	r11, r11, MSR_PR
 .endm
 
-.macro EXCEPTION_PROLOG_1 for_rtas=0
-#ifdef CONFIG_VMAP_STACK
+.macro EXCEPTION_PROLOG_1
 	mtspr	SPRN_SPRG_SCRATCH2,r1
 	subi	r1, r1, INT_FRAME_SIZE		/* use r1 if kernel */
 	beq	1f
@@ -47,32 +50,33 @@
 	lwz	r1,TASK_STACK-THREAD(r1)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
 1:
+#ifdef CONFIG_VMAP_STACK
 	mtcrf	0x3f, r1
-	bt	32 - THREAD_ALIGN_SHIFT, stack_overflow
-#else
-	subi	r11, r1, INT_FRAME_SIZE		/* use r1 if kernel */
-	beq	1f
-	mfspr	r11,SPRN_SPRG_THREAD
-	lwz	r11,TASK_STACK-THREAD(r11)
-	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
-1:	tophys(r11, r11)
+	bt	32 - THREAD_ALIGN_SHIFT, vmap_stack_overflow
 #endif
 .endm
 
-.macro EXCEPTION_PROLOG_2 handle_dar_dsisr=0
-#ifdef CONFIG_VMAP_STACK
-	li	r11, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
-	mtmsr	r11
-	isync
+.macro EXCEPTION_PROLOG_2 trapno name handle_dar_dsisr=0
+#ifdef CONFIG_PPC_8xx
+	.if	\handle_dar_dsisr
+	li	r11, RPN_PATTERN
+	mtspr	SPRN_DAR, r11	/* Tag DAR, to be used in DTLB Error */
+	.endif
+#endif
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL & ~MSR_RI) /* re-enable MMU */
+	mtspr	SPRN_SRR1, r11
+	lis	r11, 1f@h
+	ori	r11, r11, 1f@l
+	mtspr	SPRN_SRR0, r11
 	mfspr	r11, SPRN_SPRG_SCRATCH2
+	rfi
+
+	.text
+\name\()_virt:
+1:
 	stw	r11,GPR1(r1)
 	stw	r11,0(r1)
 	mr	r11, r1
-#else
-	stw	r1,GPR1(r11)
-	stw	r1,0(r11)
-	tovirt(r1, r11)		/* set new kernel sp */
-#endif
 	stw	r10,_CCR(r11)		/* save registers */
 	stw	r12,GPR12(r11)
 	stw	r9,GPR9(r11)
@@ -82,7 +86,6 @@
 	stw	r12,GPR11(r11)
 	mflr	r10
 	stw	r10,_LINK(r11)
-#ifdef CONFIG_VMAP_STACK
 	mfspr	r12, SPRN_SPRG_THREAD
 	tovirt(r12, r12)
 	.if	\handle_dar_dsisr
@@ -93,26 +96,48 @@
 	.endif
 	lwz	r9, SRR1(r12)
 	lwz	r12, SRR0(r12)
-#else
-	mfspr	r12,SPRN_SRR0
-	mfspr	r9,SPRN_SRR1
-#endif
 #ifdef CONFIG_40x
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
+#elif defined(CONFIG_PPC_8xx)
+	mtspr	SPRN_EID, r2		/* Set MSR_RI */
 #else
-#ifdef CONFIG_VMAP_STACK
-	li	r10, MSR_KERNEL & ~MSR_IR /* can take exceptions */
-#else
-	li	r10,MSR_KERNEL & ~(MSR_IR|MSR_DR) /* can take exceptions */
-#endif
+	li	r10, MSR_KERNEL		/* can take exceptions */
 	mtmsr	r10			/* (except for mach check in rtas) */
 #endif
-	stw	r0,GPR0(r11)
+	COMMON_EXCEPTION_PROLOG_END \trapno
+_ASM_NOKPROBE_SYMBOL(\name\()_virt)
+.endm
+
+.macro COMMON_EXCEPTION_PROLOG_END trapno
+	stw	r0,GPR0(r1)
 	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
 	addi	r10,r10,STACK_FRAME_REGS_MARKER@l
-	stw	r10,8(r11)
-	SAVE_4GPRS(3, r11)
-	SAVE_2GPRS(7, r11)
+	stw	r10,8(r1)
+	li	r10, \trapno
+	stw	r10,_TRAP(r1)
+	SAVE_4GPRS(3, r1)
+	SAVE_2GPRS(7, r1)
+	SAVE_NVGPRS(r1)
+	stw	r2,GPR2(r1)
+	stw	r12,_NIP(r1)
+	stw	r9,_MSR(r1)
+	mfctr	r10
+	mfspr	r2,SPRN_SPRG_THREAD
+	stw	r10,_CTR(r1)
+	tovirt(r2, r2)
+	mfspr	r10,SPRN_XER
+	addi	r2, r2, -THREAD
+	stw	r10,_XER(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+.endm
+
+.macro prepare_transfer_to_handler
+#ifdef CONFIG_PPC_BOOK3S_32
+	andi.	r12,r9,MSR_PR
+	bne	777f
+	bl	prepare_transfer_to_handler
+777:
+#endif
 .endm
 
 .macro SYSCALL_ENTRY trapno
@@ -156,54 +181,6 @@
 	b	transfer_to_syscall		/* jump to handler */
 .endm
 
-.macro save_dar_dsisr_on_stack reg1, reg2, sp
-#ifndef CONFIG_VMAP_STACK
-	mfspr	\reg1, SPRN_DAR
-	mfspr	\reg2, SPRN_DSISR
-	stw	\reg1, _DAR(\sp)
-	stw	\reg2, _DSISR(\sp)
-#endif
-.endm
-
-.macro get_and_save_dar_dsisr_on_stack reg1, reg2, sp
-#ifdef CONFIG_VMAP_STACK
-	lwz	\reg1, _DAR(\sp)
-	lwz	\reg2, _DSISR(\sp)
-#else
-	save_dar_dsisr_on_stack \reg1, \reg2, \sp
-#endif
-.endm
-
-.macro tovirt_vmstack dst, src
-#ifdef CONFIG_VMAP_STACK
-	tovirt(\dst, \src)
-#else
-	.ifnc	\dst, \src
-	mr	\dst, \src
-	.endif
-#endif
-.endm
-
-.macro tovirt_novmstack dst, src
-#ifndef CONFIG_VMAP_STACK
-	tovirt(\dst, \src)
-#else
-	.ifnc	\dst, \src
-	mr	\dst, \src
-	.endif
-#endif
-.endm
-
-.macro tophys_novmstack dst, src
-#ifndef CONFIG_VMAP_STACK
-	tophys(\dst, \src)
-#else
-	.ifnc	\dst, \src
-	mr	\dst, \src
-	.endif
-#endif
-.endm
-
 /*
  * Note: code which follows this uses cr0.eq (set if from kernel),
  * r11, r12 (SRR0), and r9 (SRR1).
@@ -217,41 +194,29 @@
  */
 #ifdef CONFIG_PPC_BOOK3S
 #define	START_EXCEPTION(n, label)		\
+	__HEAD;					\
 	. = n;					\
 	DO_KVM n;				\
 label:
 
 #else
 #define	START_EXCEPTION(n, label)		\
+	__HEAD;					\
 	. = n;					\
 label:
 
 #endif
 
-#define EXCEPTION(n, label, hdlr, xfer)		\
+#define EXCEPTION(n, label, hdlr)		\
 	START_EXCEPTION(n, label)		\
-	EXCEPTION_PROLOG;			\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;	\
-	xfer(n, hdlr)
-
-#define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)		\
-	li	r10,trap;					\
-	stw	r10,_TRAP(r11);					\
-	LOAD_REG_IMMEDIATE(r10, msr);				\
-	bl	tfer;						\
-	.long	hdlr;						\
-	.long	ret
-
-#define EXC_XFER_STD(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, transfer_to_handler_full,	\
-			  ret_from_except_full)
-
-#define EXC_XFER_LITE(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, transfer_to_handler, \
-			  ret_from_except)
+	EXCEPTION_PROLOG n label;		\
+	prepare_transfer_to_handler;		\
+	bl	hdlr;				\
+	b	interrupt_return
 
 .macro vmap_stack_overflow_exception
-#ifdef CONFIG_VMAP_STACK
+	__HEAD
+vmap_stack_overflow:
 #ifdef CONFIG_SMP
 	mfspr	r1, SPRN_SPRG_THREAD
 	lwz	r1, TASK_CPU - THREAD(r1)
@@ -261,16 +226,11 @@ label:
 	lis	r1, emergency_ctx@ha
 #endif
 	lwz	r1, emergency_ctx@l(r1)
-	cmpwi	cr1, r1, 0
-	bne	cr1, 1f
-	lis	r1, init_thread_union@ha
-	addi	r1, r1, init_thread_union@l
-1:	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
-	EXCEPTION_PROLOG_2
-	SAVE_NVGPRS(r11)
-	addi	r3, r1, STACK_FRAME_OVERHEAD
-	EXC_XFER_STD(0, stack_overflow_exception)
-#endif
+	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
+	EXCEPTION_PROLOG_2 0 vmap_stack_overflow
+	prepare_transfer_to_handler
+	bl	stack_overflow_exception
+	b	interrupt_return
 .endm
 
 #endif /* __HEAD_32_H__ */

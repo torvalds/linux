@@ -54,7 +54,7 @@ config B44_PCI
 config BCM4908_ENET
 	tristate "Broadcom BCM4908 internal mac support"
 	depends on ARCH_BCM4908 || COMPILE_TEST
-	default y
+	default y if ARCH_BCM4908
 	help
 	  This driver supports Ethernet controller integrated into Broadcom
 	  BCM4908 family SoCs.

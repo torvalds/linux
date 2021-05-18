@@ -44,7 +44,7 @@ two :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` events with
 the same state). In that case the intermediate state changes were lost but
 it is guaranteed that the state did change in between the two events.
 
-.. tabularcolumns:: |p{1.2cm}|p{2.9cm}|p{13.4cm}|
+.. tabularcolumns:: |p{1.2cm}|p{2.9cm}|p{13.2cm}|
 
 .. c:type:: cec_event_state_change
 
@@ -74,7 +74,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. c:type:: cec_event_lost_msgs
 
-.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.3cm}|
 
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
@@ -93,7 +93,7 @@ it is guaranteed that the state did change in between the two events.
 	replied to within a second according to the CEC specification,
 	this is more than enough.
 
-.. tabularcolumns:: |p{1.0cm}|p{4.4cm}|p{2.5cm}|p{9.6cm}|
+.. tabularcolumns:: |p{1.0cm}|p{4.4cm}|p{2.5cm}|p{9.2cm}|
 
 .. c:type:: cec_event
 
@@ -128,7 +128,7 @@ it is guaranteed that the state did change in between the two events.
     * - }
       -
 
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
 
 .. _cec-events:
 
@@ -201,7 +201,7 @@ it is guaranteed that the state did change in between the two events.
 	if the 5V is high, then an initial event will be generated for that
 	filehandle.
 
-.. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
+.. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.7cm}|
 
 .. _cec-event-flags:
 

@@ -39,7 +39,7 @@ ioctl never fails.
 
 .. c:type:: media_device_info
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct media_device_info
     :header-rows:  0

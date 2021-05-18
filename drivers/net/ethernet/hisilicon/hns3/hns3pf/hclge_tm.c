@@ -631,13 +631,12 @@ static u16 hclge_vport_get_tqp_num(struct hclge_vport *vport)
 	return sum;
 }
 
-static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
+static void hclge_tm_update_kinfo_rss_size(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
 	u16 vport_max_rss_size;
 	u16 max_rss_size;
-	u8 i;
 
 	/* TC configuration is shared by PF/VF in one port, only allow
 	 * one tc for VF for simplicity. VF's vport_id is non zero.
@@ -665,19 +664,18 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 		kinfo->rss_size = kinfo->req_rss_size;
 	} else if (kinfo->rss_size > max_rss_size ||
 		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
-		/* if user not set rss, the rss_size should compare with the
-		 * valid msi numbers to ensure one to one map between tqp and
-		 * irq as default.
-		 */
-		if (!kinfo->req_rss_size)
-			max_rss_size = min_t(u16, max_rss_size,
-					     (hdev->num_nic_msi - 1) /
-					     kinfo->tc_info.num_tc);
-
 		/* Set to the maximum specification value (max_rss_size). */
 		kinfo->rss_size = max_rss_size;
 	}
+}
 
+static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hclge_dev *hdev = vport->back;
+	u8 i;
+
+	hclge_tm_update_kinfo_rss_size(vport);
 	kinfo->num_tqps = hclge_vport_get_tqp_num(vport);
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->alloc_rss_size = kinfo->rss_size;

@@ -262,8 +262,12 @@
 &usdhc1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	vmmc-supply = <&buck4_reg>;
+	vqmmc-supply = <&buck5_reg>;
 	bus-width = <4>;
 	non-removable;
 	cap-power-off-card;

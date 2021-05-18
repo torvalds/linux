@@ -1307,7 +1307,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		 * If the thread does not get on the CPU for whatever
 		 * reason and the process which sets up the region is
 		 * interrupted then this will leave the thread in runnable
-		 * state and once it gets on the CPU it will derefence
+		 * state and once it gets on the CPU it will dereference
 		 * the cleared, but not freed, plr struct resulting in an
 		 * empty pseudo-locking loop.
 		 */
@@ -1391,7 +1391,7 @@ out:
  * group is removed from user space via a "rmdir" from userspace or the
  * unmount of the resctrl filesystem. On removal the resource group does
  * not go back to pseudo-locksetup mode before it is removed, instead it is
- * removed directly. There is thus assymmetry with the creation where the
+ * removed directly. There is thus asymmetry with the creation where the
  * &struct pseudo_lock_region is removed here while it was not created in
  * rdtgroup_pseudo_lock_create().
  *
@@ -1458,7 +1458,7 @@ static int pseudo_lock_dev_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int pseudo_lock_dev_mremap(struct vm_area_struct *area, unsigned long flags)
+static int pseudo_lock_dev_mremap(struct vm_area_struct *area)
 {
 	/* Not supported */
 	return -EINVAL;

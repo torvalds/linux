@@ -189,7 +189,7 @@ kernel aborted a transaction:
  ====================== ================================
 
 These can be checked by the user program's abort handler as TEXASR[0:7].  If
-bit 7 is set, it indicates that the error is consider persistent.  For example
+bit 7 is set, it indicates that the error is considered persistent.  For example
 a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will not.
 
 GDB
@@ -271,4 +271,4 @@ with these lines:
 
 hrfid and mtmsrd have the same quirk.
 
-The Linux kernel uses this quirk in it's early exception handling.
+The Linux kernel uses this quirk in its early exception handling.

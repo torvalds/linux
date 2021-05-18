@@ -54,16 +54,16 @@ void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin, int dir,
 	pin_mask1bit = (u32) (1 << (QE_PIO_PINS - (pin + 1)));
 
 	/* Set open drain, if required */
-	tmp_val = qe_ioread32be(&par_io->cpodr);
+	tmp_val = ioread32be(&par_io->cpodr);
 	if (open_drain)
-		qe_iowrite32be(pin_mask1bit | tmp_val, &par_io->cpodr);
+		iowrite32be(pin_mask1bit | tmp_val, &par_io->cpodr);
 	else
-		qe_iowrite32be(~pin_mask1bit & tmp_val, &par_io->cpodr);
+		iowrite32be(~pin_mask1bit & tmp_val, &par_io->cpodr);
 
 	/* define direction */
 	tmp_val = (pin > (QE_PIO_PINS / 2) - 1) ?
-		qe_ioread32be(&par_io->cpdir2) :
-		qe_ioread32be(&par_io->cpdir1);
+		ioread32be(&par_io->cpdir2) :
+		ioread32be(&par_io->cpdir1);
 
 	/* get all bits mask for 2 bit per port */
 	pin_mask2bits = (u32) (0x3 << (QE_PIO_PINS -
@@ -75,30 +75,30 @@ void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin, int dir,
 
 	/* clear and set 2 bits mask */
 	if (pin > (QE_PIO_PINS / 2) - 1) {
-		qe_iowrite32be(~pin_mask2bits & tmp_val, &par_io->cpdir2);
+		iowrite32be(~pin_mask2bits & tmp_val, &par_io->cpdir2);
 		tmp_val &= ~pin_mask2bits;
-		qe_iowrite32be(new_mask2bits | tmp_val, &par_io->cpdir2);
+		iowrite32be(new_mask2bits | tmp_val, &par_io->cpdir2);
 	} else {
-		qe_iowrite32be(~pin_mask2bits & tmp_val, &par_io->cpdir1);
+		iowrite32be(~pin_mask2bits & tmp_val, &par_io->cpdir1);
 		tmp_val &= ~pin_mask2bits;
-		qe_iowrite32be(new_mask2bits | tmp_val, &par_io->cpdir1);
+		iowrite32be(new_mask2bits | tmp_val, &par_io->cpdir1);
 	}
 	/* define pin assignment */
 	tmp_val = (pin > (QE_PIO_PINS / 2) - 1) ?
-		qe_ioread32be(&par_io->cppar2) :
-		qe_ioread32be(&par_io->cppar1);
+		ioread32be(&par_io->cppar2) :
+		ioread32be(&par_io->cppar1);
 
 	new_mask2bits = (u32) (assignment << (QE_PIO_PINS -
 			(pin % (QE_PIO_PINS / 2) + 1) * 2));
 	/* clear and set 2 bits mask */
 	if (pin > (QE_PIO_PINS / 2) - 1) {
-		qe_iowrite32be(~pin_mask2bits & tmp_val, &par_io->cppar2);
+		iowrite32be(~pin_mask2bits & tmp_val, &par_io->cppar2);
 		tmp_val &= ~pin_mask2bits;
-		qe_iowrite32be(new_mask2bits | tmp_val, &par_io->cppar2);
+		iowrite32be(new_mask2bits | tmp_val, &par_io->cppar2);
 	} else {
-		qe_iowrite32be(~pin_mask2bits & tmp_val, &par_io->cppar1);
+		iowrite32be(~pin_mask2bits & tmp_val, &par_io->cppar1);
 		tmp_val &= ~pin_mask2bits;
-		qe_iowrite32be(new_mask2bits | tmp_val, &par_io->cppar1);
+		iowrite32be(new_mask2bits | tmp_val, &par_io->cppar1);
 	}
 }
 EXPORT_SYMBOL(__par_io_config_pin);
@@ -126,12 +126,12 @@ int par_io_data_set(u8 port, u8 pin, u8 val)
 	/* calculate pin location */
 	pin_mask = (u32) (1 << (QE_PIO_PINS - 1 - pin));
 
-	tmp_val = qe_ioread32be(&par_io[port].cpdata);
+	tmp_val = ioread32be(&par_io[port].cpdata);
 
 	if (val == 0)		/* clear */
-		qe_iowrite32be(~pin_mask & tmp_val, &par_io[port].cpdata);
+		iowrite32be(~pin_mask & tmp_val, &par_io[port].cpdata);
 	else			/* set */
-		qe_iowrite32be(pin_mask | tmp_val, &par_io[port].cpdata);
+		iowrite32be(pin_mask | tmp_val, &par_io[port].cpdata);
 
 	return 0;
 }

@@ -137,7 +137,6 @@
 MODULE_AUTHOR("James Courtier-Dutton <James@superbug.demon.co.uk>");
 MODULE_DESCRIPTION("CA0106");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Creative,SB CA0106 chip}}");
 
 // module parameters (see "Module Parameters")
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;

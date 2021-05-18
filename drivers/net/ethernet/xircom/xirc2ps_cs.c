@@ -798,8 +798,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	    goto config_error;
     }
   port_found:
-    if (err)
-	 goto config_error;
 
     /****************
      * Now allocate an interrupt line.	Note that this does not

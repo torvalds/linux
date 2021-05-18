@@ -201,6 +201,12 @@ config MARVELL_10G_PHY
 	help
 	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
+config MARVELL_88X2222_PHY
+	tristate "Marvell 88X2222 PHY"
+	help
+	  Support for the Marvell 88X2222 Dual-port Multi-speed Ethernet
+	  Transceiver.
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	help
@@ -227,6 +233,12 @@ config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
 	help
 	  Currently supports the DP83865 PHY.
+
+config NXP_C45_TJA11XX_PHY
+	tristate "NXP C45 TJA11XX PHYs"
+	help
+	  Enable support for NXP C45 TJA11XX PHYs.
+	  Currently supports only the TJA1103 PHY.
 
 config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"

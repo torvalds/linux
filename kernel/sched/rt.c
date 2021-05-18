@@ -700,7 +700,7 @@ static void do_balance_runtime(struct rt_rq *rt_rq)
 		/*
 		 * Either all rqs have inf runtime and there's nothing to steal
 		 * or __disable_runtime() below sets a specific rq to inf to
-		 * indicate its been disabled and disalow stealing.
+		 * indicate its been disabled and disallow stealing.
 		 */
 		if (iter->rt_runtime == RUNTIME_INF)
 			goto next;
@@ -1998,7 +1998,7 @@ static void push_rt_tasks(struct rq *rq)
  *
  * Each root domain has its own irq work function that can iterate over
  * all CPUs with RT overloaded tasks. Since all CPUs with overloaded RT
- * tassk must be checked if there's one or many CPUs that are lowering
+ * task must be checked if there's one or many CPUs that are lowering
  * their priority, there's a single irq work iterator that will try to
  * push off RT tasks that are waiting to run.
  *
@@ -2216,7 +2216,7 @@ static void pull_rt_task(struct rq *this_rq)
 			/*
 			 * There's a chance that p is higher in priority
 			 * than what's currently running on its CPU.
-			 * This is just that p is wakeing up and hasn't
+			 * This is just that p is waking up and hasn't
 			 * had a chance to schedule. We only pull
 			 * p if it is lower in priority than the
 			 * current task on the run queue

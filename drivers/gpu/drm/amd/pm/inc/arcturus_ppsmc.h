@@ -120,6 +120,13 @@
 #define PPSMC_MSG_ReadSerialNumTop32		 0x40
 #define PPSMC_MSG_ReadSerialNumBottom32		 0x41
 
+/* paramater for MSG_LightSBR
+ * 1 -- Enable light secondary bus reset, only do nbio respond without further handling,
+ *      leave driver to handle the real reset
+ * 0 -- Disable LightSBR, default behavior, SMU will pass the reset to PSP
+ */
+#define PPSMC_MSG_LightSBR			 0x42
+
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;
 #pragma pack(pop)

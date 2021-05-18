@@ -148,6 +148,7 @@ union imgu_fw_union {
 struct imgu_fw_info {
 	size_t header_size;	/* size of fw header */
 	u32 type __aligned(8);	/* enum imgu_fw_type */
+
 	union imgu_fw_union info;	/* Binary info */
 	struct imgu_abi_blob_info blob;	/* Blob info */
 	/* Dynamic part */

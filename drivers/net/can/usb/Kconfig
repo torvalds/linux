@@ -20,6 +20,16 @@ config CAN_ESD_USB2
 	  This driver supports the CAN-USB/2 interface
 	  from esd electronic system design gmbh (http://www.esd.eu).
 
+config CAN_ETAS_ES58X
+	tristate "ETAS ES58X CAN/USB interfaces"
+	select CRC16
+	help
+	  This driver supports the ES581.4, ES582.1 and ES584.1 interfaces
+	  from ETAS GmbH (https://www.etas.com/en/products/es58x.php).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called etas_es58x.
+
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG interfaces"
 	help
@@ -73,6 +83,7 @@ config CAN_KVASER_USB
 	    - Kvaser Memorator Pro 5xHS
 	    - Kvaser USBcan Light 4xHS
 	    - Kvaser USBcan Pro 2xHS v2
+	    - Kvaser USBcan Pro 4xHS
 	    - Kvaser USBcan Pro 5xHS
 	    - Kvaser U100
 	    - Kvaser U100P

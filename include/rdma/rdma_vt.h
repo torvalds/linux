@@ -92,7 +92,7 @@ struct rvt_ibport {
 	/*
 	 * The pkey table is allocated and maintained by the driver. Drivers
 	 * need to have access to this before registering with rdmav. However
-	 * rdmavt will need access to it so drivers need to proviee this during
+	 * rdmavt will need access to it so drivers need to provide this during
 	 * the attach port API call.
 	 */
 	u16 *pkey_table;
@@ -230,7 +230,7 @@ struct rvt_driver_provided {
 	void (*do_send)(struct rvt_qp *qp);
 
 	/*
-	 * Returns a pointer to the undelying hardware's PCI device. This is
+	 * Returns a pointer to the underlying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
 	 * in an output message
 	 */
@@ -245,7 +245,7 @@ struct rvt_driver_provided {
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
-	 * Init a struture allocated with qp_priv_alloc(). This should be
+	 * Init a structure allocated with qp_priv_alloc(). This should be
 	 * called after all qp fields have been initialized in rdmavt.
 	 */
 	int (*qp_priv_init)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
@@ -257,7 +257,7 @@ struct rvt_driver_provided {
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
-	 * Inform the driver the particular qp in quesiton has been reset so
+	 * Inform the driver the particular qp in question has been reset so
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
@@ -281,7 +281,7 @@ struct rvt_driver_provided {
 	void (*stop_send_queue)(struct rvt_qp *qp);
 
 	/*
-	 * Have the drivr drain any in progress operations
+	 * Have the driver drain any in progress operations
 	 */
 	void (*quiesce_qp)(struct rvt_qp *qp);
 
@@ -309,16 +309,16 @@ struct rvt_driver_provided {
 	/*
 	 * Query driver for the state of the port.
 	 */
-	int (*query_port_state)(struct rvt_dev_info *rdi, u8 port_num,
+	int (*query_port_state)(struct rvt_dev_info *rdi, u32 port_num,
 				struct ib_port_attr *props);
 
 	/*
 	 * Tell driver to shutdown a port
 	 */
-	int (*shut_down_port)(struct rvt_dev_info *rdi, u8 port_num);
+	int (*shut_down_port)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/* Tell driver to send a trap for changed  port capabilities */
-	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u8 port_num);
+	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/*
 	 * The following functions can be safely ignored completely. Any use of
@@ -338,7 +338,7 @@ struct rvt_driver_provided {
 
 	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port_num);
+			 enum ib_qp_type type, u32 port_num);
 
 	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,

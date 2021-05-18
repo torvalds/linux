@@ -65,7 +65,6 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct)
 
 /**
  * gfs2_remove_from_ail - Remove an entry from the ail lists, updating counters
- * @mapping: The associated mapping (maybe NULL)
  * @bd: The gfs2_bufdata to remove
  *
  * The ail lock _must_ be held when calling this function
@@ -82,11 +81,11 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 }
 
 /**
- * gfs2_ail1_start_one - Start I/O on a part of the AIL
- * @sdp: the filesystem
+ * gfs2_ail1_start_one - Start I/O on a transaction
+ * @sdp: The superblock
  * @wbc: The writeback control structure
- * @ai: The ail structure
- *
+ * @tr: The transaction to start I/O on
+ * @plug: The block plug currently active
  */
 
 static int gfs2_ail1_start_one(struct gfs2_sbd *sdp,
@@ -269,7 +268,7 @@ static void gfs2_log_update_head(struct gfs2_sbd *sdp)
 	sdp->sd_log_head = new_head;
 }
 
-/**
+/*
  * gfs2_ail_empty_tr - empty one of the ail lists of a transaction
  */
 
@@ -695,7 +694,7 @@ void log_flush_wait(struct gfs2_sbd *sdp)
 	}
 }
 
-static int ip_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int ip_cmp(void *priv, const struct list_head *a, const struct list_head *b)
 {
 	struct gfs2_inode *ipa, *ipb;
 
@@ -859,7 +858,11 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	if (!list_empty(&jd->extent_list))
 		dblock = gfs2_log_bmap(jd, lblock);
 	else {
-		int ret = gfs2_lblk_to_dblk(jd->jd_inode, lblock, &dblock);
+		unsigned int extlen;
+		int ret;
+
+		extlen = 1;
+		ret = gfs2_get_extent(jd->jd_inode, lblock, &dblock, &extlen);
 		if (gfs2_assert_withdraw(sdp, ret == 0))
 			return;
 	}
@@ -998,19 +1001,23 @@ static void trans_drain(struct gfs2_trans *tr)
 	while (!list_empty(head)) {
 		bd = list_first_entry(head, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
+		if (!list_empty(&bd->bd_ail_st_list))
+			gfs2_remove_from_ail(bd);
 		kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
 	head = &tr->tr_databuf;
 	while (!list_empty(head)) {
 		bd = list_first_entry(head, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
+		if (!list_empty(&bd->bd_ail_st_list))
+			gfs2_remove_from_ail(bd);
 		kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
 }
 
 /**
  * gfs2_log_flush - flush incore transaction(s)
- * @sdp: the filesystem
+ * @sdp: The filesystem
  * @gl: The glock structure to flush.  If NULL, flush the whole incore log
  * @flags: The log header flags: GFS2_LOG_HEAD_FLUSH_* and debug flags
  *
@@ -1032,7 +1039,7 @@ repeat:
 	 * Do this check while holding the log_flush_lock to prevent new
 	 * buffers from being added to the ail via gfs2_pin()
 	 */
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp) || !test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		goto out;
 
 	/* Log might have been flushed while we waited for the flush lock */
@@ -1162,7 +1169,7 @@ out_withdraw:
 
 /**
  * gfs2_merge_trans - Merge a new transaction into a cached transaction
- * @old: Original transaction to be expanded
+ * @sdp: the filesystem
  * @new: New transaction to be merged
  */
 
@@ -1279,7 +1286,7 @@ static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
 
 /**
  * gfs2_logd - Update log tail as Active Items get flushed to in-place blocks
- * @sdp: Pointer to GFS2 superblock
+ * @data: Pointer to GFS2 superblock
  *
  * Also, periodically check to make sure that we're using the most recent
  * journal index.

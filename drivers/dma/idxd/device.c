@@ -19,7 +19,7 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 /* Interrupt control bits */
 void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id)
 {
-	struct irq_data *data = irq_get_irq_data(idxd->msix_entries[vec_id].vector);
+	struct irq_data *data = irq_get_irq_data(idxd->irq_entries[vec_id].vector);
 
 	pci_msi_mask_irq(data);
 }
@@ -36,7 +36,7 @@ void idxd_mask_msix_vectors(struct idxd_device *idxd)
 
 void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id)
 {
-	struct irq_data *data = irq_get_irq_data(idxd->msix_entries[vec_id].vector);
+	struct irq_data *data = irq_get_irq_data(idxd->irq_entries[vec_id].vector);
 
 	pci_msi_unmask_irq(data);
 }
@@ -47,6 +47,7 @@ void idxd_unmask_error_interrupts(struct idxd_device *idxd)
 
 	genctrl.bits = ioread32(idxd->reg_base + IDXD_GENCTRL_OFFSET);
 	genctrl.softerr_int_en = 1;
+	genctrl.halt_int_en = 1;
 	iowrite32(genctrl.bits, idxd->reg_base + IDXD_GENCTRL_OFFSET);
 }
 
@@ -56,6 +57,7 @@ void idxd_mask_error_interrupts(struct idxd_device *idxd)
 
 	genctrl.bits = ioread32(idxd->reg_base + IDXD_GENCTRL_OFFSET);
 	genctrl.softerr_int_en = 0;
+	genctrl.halt_int_en = 0;
 	iowrite32(genctrl.bits, idxd->reg_base + IDXD_GENCTRL_OFFSET);
 }
 
@@ -144,14 +146,8 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (rc < 0)
 		return rc;
 
-	if (idxd->type == IDXD_TYPE_DSA)
-		align = 32;
-	else if (idxd->type == IDXD_TYPE_IAX)
-		align = 64;
-	else
-		return -ENODEV;
-
-	wq->compls_size = num_descs * idxd->compl_size + align;
+	align = idxd->data->align;
+	wq->compls_size = num_descs * idxd->data->compl_size + align;
 	wq->compls_raw = dma_alloc_coherent(dev, wq->compls_size,
 					    &wq->compls_addr_raw, GFP_KERNEL);
 	if (!wq->compls_raw) {
@@ -178,16 +174,14 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 		struct idxd_desc *desc = wq->descs[i];
 
 		desc->hw = wq->hw_descs[i];
-		if (idxd->type == IDXD_TYPE_DSA)
+		if (idxd->data->type == IDXD_TYPE_DSA)
 			desc->completion = &wq->compls[i];
-		else if (idxd->type == IDXD_TYPE_IAX)
+		else if (idxd->data->type == IDXD_TYPE_IAX)
 			desc->iax_completion = &wq->iax_compls[i];
-		desc->compl_dma = wq->compls_addr + idxd->compl_size * i;
+		desc->compl_dma = wq->compls_addr + idxd->data->compl_size * i;
 		desc->id = i;
 		desc->wq = wq;
 		desc->cpu = -1;
-		dma_async_tx_descriptor_init(&desc->txd, &wq->dma_chan);
-		desc->txd.tx_submit = idxd_dma_tx_submit;
 	}
 
 	return 0;
@@ -282,6 +276,22 @@ void idxd_wq_drain(struct idxd_wq *wq)
 	idxd_cmd_exec(idxd, IDXD_CMD_DRAIN_WQ, operand, NULL);
 }
 
+void idxd_wq_reset(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	u32 operand;
+
+	if (wq->state != IDXD_WQ_ENABLED) {
+		dev_dbg(dev, "WQ %d in wrong state: %d\n", wq->id, wq->state);
+		return;
+	}
+
+	operand = BIT(wq->id % 16) | ((wq->id / 16) << 16);
+	idxd_cmd_exec(idxd, IDXD_CMD_RESET_WQ, operand, NULL);
+	wq->state = IDXD_WQ_DISABLED;
+}
+
 int idxd_wq_map_portal(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
@@ -304,6 +314,19 @@ void idxd_wq_unmap_portal(struct idxd_wq *wq)
 	struct device *dev = &wq->idxd->pdev->dev;
 
 	devm_iounmap(dev, wq->portal);
+	wq->portal = NULL;
+}
+
+void idxd_wqs_unmap_portal(struct idxd_device *idxd)
+{
+	int i;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *wq = idxd->wqs[i];
+
+		if (wq->portal)
+			idxd_wq_unmap_portal(wq);
+	}
 }
 
 int idxd_wq_set_pasid(struct idxd_wq *wq, int pasid)
@@ -363,8 +386,6 @@ int idxd_wq_disable_pasid(struct idxd_wq *wq)
 void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
-	struct device *dev = &idxd->pdev->dev;
-	int i, wq_offset;
 
 	lockdep_assert_held(&idxd->dev_lock);
 	memset(wq->wqcfg, 0, idxd->wqcfg_size);
@@ -376,14 +397,32 @@ void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	wq->ats_dis = 0;
 	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
+}
 
-	for (i = 0; i < WQCFG_STRIDES(idxd); i++) {
-		wq_offset = WQCFG_OFFSET(idxd, wq->id, i);
-		iowrite32(0, idxd->reg_base + wq_offset);
-		dev_dbg(dev, "WQ[%d][%d][%#x]: %#x\n",
-			wq->id, i, wq_offset,
-			ioread32(idxd->reg_base + wq_offset));
-	}
+static void idxd_wq_ref_release(struct percpu_ref *ref)
+{
+	struct idxd_wq *wq = container_of(ref, struct idxd_wq, wq_active);
+
+	complete(&wq->wq_dead);
+}
+
+int idxd_wq_init_percpu_ref(struct idxd_wq *wq)
+{
+	int rc;
+
+	memset(&wq->wq_active, 0, sizeof(wq->wq_active));
+	rc = percpu_ref_init(&wq->wq_active, idxd_wq_ref_release, 0, GFP_KERNEL);
+	if (rc < 0)
+		return rc;
+	reinit_completion(&wq->wq_dead);
+	return 0;
+}
+
+void idxd_wq_quiesce(struct idxd_wq *wq)
+{
+	percpu_ref_kill(&wq->wq_active);
+	wait_for_completion(&wq->wq_dead);
+	percpu_ref_exit(&wq->wq_active);
 }
 
 /* Device control bits */
@@ -426,13 +465,13 @@ int idxd_device_init_reset(struct idxd_device *idxd)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = IDXD_CMD_RESET_DEVICE;
 	dev_dbg(dev, "%s: sending reset for init.\n", __func__);
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock_irqsave(&idxd->cmd_lock, flags);
 	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
 
 	while (ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET) &
 	       IDXD_CMDSTS_ACTIVE)
 		cpu_relax();
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
 	return 0;
 }
 
@@ -445,7 +484,8 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 
 	if (idxd_device_is_halted(idxd)) {
 		dev_warn(&idxd->pdev->dev, "Device is HALTED!\n");
-		*status = IDXD_CMDSTS_HW_ERR;
+		if (status)
+			*status = IDXD_CMDSTS_HW_ERR;
 		return;
 	}
 
@@ -454,10 +494,10 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	cmd.operand = operand;
 	cmd.int_req = 1;
 
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock_irqsave(&idxd->cmd_lock, flags);
 	wait_event_lock_irq(idxd->cmd_waitq,
 			    !test_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags),
-			    idxd->dev_lock);
+			    idxd->cmd_lock);
 
 	dev_dbg(&idxd->pdev->dev, "%s: sending cmd: %#x op: %#x\n",
 		__func__, cmd_code, operand);
@@ -471,9 +511,9 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	 * After command submitted, release lock and go to sleep until
 	 * the command completes via interrupt.
 	 */
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
 	wait_for_completion(&done);
-	spin_lock_irqsave(&idxd->dev_lock, flags);
+	spin_lock_irqsave(&idxd->cmd_lock, flags);
 	if (status) {
 		*status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
 		idxd->cmd_status = *status & GENMASK(7, 0);
@@ -482,7 +522,7 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	__clear_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
 	/* Wake up other pending commands */
 	wake_up(&idxd->cmd_waitq);
-	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
 }
 
 int idxd_device_enable(struct idxd_device *idxd)
@@ -515,7 +555,7 @@ void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 	lockdep_assert_held(&idxd->dev_lock);
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+		struct idxd_wq *wq = idxd->wqs[i];
 
 		if (wq->state == IDXD_WQ_ENABLED) {
 			idxd_wq_disable_cleanup(wq);
@@ -573,7 +613,108 @@ void idxd_device_drain_pasid(struct idxd_device *idxd, int pasid)
 	dev_dbg(dev, "pasid %d drained\n", pasid);
 }
 
+int idxd_device_request_int_handle(struct idxd_device *idxd, int idx, int *handle,
+				   enum idxd_interrupt_type irq_type)
+{
+	struct device *dev = &idxd->pdev->dev;
+	u32 operand, status;
+
+	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_REQUEST_INT_HANDLE)))
+		return -EOPNOTSUPP;
+
+	dev_dbg(dev, "get int handle, idx %d\n", idx);
+
+	operand = idx & GENMASK(15, 0);
+	if (irq_type == IDXD_IRQ_IMS)
+		operand |= CMD_INT_HANDLE_IMS;
+
+	dev_dbg(dev, "cmd: %u operand: %#x\n", IDXD_CMD_REQUEST_INT_HANDLE, operand);
+
+	idxd_cmd_exec(idxd, IDXD_CMD_REQUEST_INT_HANDLE, operand, &status);
+
+	if ((status & IDXD_CMDSTS_ERR_MASK) != IDXD_CMDSTS_SUCCESS) {
+		dev_dbg(dev, "request int handle failed: %#x\n", status);
+		return -ENXIO;
+	}
+
+	*handle = (status >> IDXD_CMDSTS_RES_SHIFT) & GENMASK(15, 0);
+
+	dev_dbg(dev, "int handle acquired: %u\n", *handle);
+	return 0;
+}
+
+int idxd_device_release_int_handle(struct idxd_device *idxd, int handle,
+				   enum idxd_interrupt_type irq_type)
+{
+	struct device *dev = &idxd->pdev->dev;
+	u32 operand, status;
+	union idxd_command_reg cmd;
+	unsigned long flags;
+
+	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_RELEASE_INT_HANDLE)))
+		return -EOPNOTSUPP;
+
+	dev_dbg(dev, "release int handle, handle %d\n", handle);
+
+	memset(&cmd, 0, sizeof(cmd));
+	operand = handle & GENMASK(15, 0);
+
+	if (irq_type == IDXD_IRQ_IMS)
+		operand |= CMD_INT_HANDLE_IMS;
+
+	cmd.cmd = IDXD_CMD_RELEASE_INT_HANDLE;
+	cmd.operand = operand;
+
+	dev_dbg(dev, "cmd: %u operand: %#x\n", IDXD_CMD_RELEASE_INT_HANDLE, operand);
+
+	spin_lock_irqsave(&idxd->cmd_lock, flags);
+	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
+
+	while (ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET) & IDXD_CMDSTS_ACTIVE)
+		cpu_relax();
+	status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
+	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
+
+	if ((status & IDXD_CMDSTS_ERR_MASK) != IDXD_CMDSTS_SUCCESS) {
+		dev_dbg(dev, "release int handle failed: %#x\n", status);
+		return -ENXIO;
+	}
+
+	dev_dbg(dev, "int handle released.\n");
+	return 0;
+}
+
 /* Device configuration bits */
+void idxd_msix_perm_setup(struct idxd_device *idxd)
+{
+	union msix_perm mperm;
+	int i, msixcnt;
+
+	msixcnt = pci_msix_vec_count(idxd->pdev);
+	if (msixcnt < 0)
+		return;
+
+	mperm.bits = 0;
+	mperm.pasid = idxd->pasid;
+	mperm.pasid_en = device_pasid_enabled(idxd);
+	for (i = 1; i < msixcnt; i++)
+		iowrite32(mperm.bits, idxd->reg_base + idxd->msix_perm_offset + i * 8);
+}
+
+void idxd_msix_perm_clear(struct idxd_device *idxd)
+{
+	union msix_perm mperm;
+	int i, msixcnt;
+
+	msixcnt = pci_msix_vec_count(idxd->pdev);
+	if (msixcnt < 0)
+		return;
+
+	mperm.bits = 0;
+	for (i = 1; i < msixcnt; i++)
+		iowrite32(mperm.bits, idxd->reg_base + idxd->msix_perm_offset + i * 8);
+}
+
 static void idxd_group_config_write(struct idxd_group *group)
 {
 	struct idxd_device *idxd = group->idxd;
@@ -624,7 +765,7 @@ static int idxd_groups_config_write(struct idxd_device *idxd)
 		ioread32(idxd->reg_base + IDXD_GENCFG_OFFSET));
 
 	for (i = 0; i < idxd->max_groups; i++) {
-		struct idxd_group *group = &idxd->groups[i];
+		struct idxd_group *group = idxd->groups[i];
 
 		idxd_group_config_write(group);
 	}
@@ -642,7 +783,14 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	if (!wq->group)
 		return 0;
 
-	memset(wq->wqcfg, 0, idxd->wqcfg_size);
+	/*
+	 * Instead of memset the entire shadow copy of WQCFG, copy from the hardware after
+	 * wq reset. This will copy back the sticky values that are present on some devices.
+	 */
+	for (i = 0; i < WQCFG_STRIDES(idxd); i++) {
+		wq_offset = WQCFG_OFFSET(idxd, wq->id, i);
+		wq->wqcfg->bits[i] = ioread32(idxd->reg_base + wq_offset);
+	}
 
 	/* byte 0-3 */
 	wq->wqcfg->wq_size = wq->size;
@@ -696,7 +844,7 @@ static int idxd_wqs_config_write(struct idxd_device *idxd)
 	int i, rc;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
+		struct idxd_wq *wq = idxd->wqs[i];
 
 		rc = idxd_wq_config_write(wq);
 		if (rc < 0)
@@ -712,7 +860,7 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 
 	/* TC-A 0 and TC-B 1 should be defaults */
 	for (i = 0; i < idxd->max_groups; i++) {
-		struct idxd_group *group = &idxd->groups[i];
+		struct idxd_group *group = idxd->groups[i];
 
 		if (group->tc_a == -1)
 			group->tc_a = group->grpcfg.flags.tc_a = 0;
@@ -739,12 +887,12 @@ static int idxd_engines_setup(struct idxd_device *idxd)
 	struct idxd_group *group;
 
 	for (i = 0; i < idxd->max_groups; i++) {
-		group = &idxd->groups[i];
+		group = idxd->groups[i];
 		group->grpcfg.engines = 0;
 	}
 
 	for (i = 0; i < idxd->max_engines; i++) {
-		eng = &idxd->engines[i];
+		eng = idxd->engines[i];
 		group = eng->group;
 
 		if (!group)
@@ -768,13 +916,13 @@ static int idxd_wqs_setup(struct idxd_device *idxd)
 	struct device *dev = &idxd->pdev->dev;
 
 	for (i = 0; i < idxd->max_groups; i++) {
-		group = &idxd->groups[i];
+		group = idxd->groups[i];
 		for (j = 0; j < 4; j++)
 			group->grpcfg.wqs[j] = 0;
 	}
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		wq = &idxd->wqs[i];
+		wq = idxd->wqs[i];
 		group = wq->group;
 
 		if (!wq->group)
@@ -819,6 +967,122 @@ int idxd_device_config(struct idxd_device *idxd)
 	rc = idxd_groups_config_write(idxd);
 	if (rc < 0)
 		return rc;
+
+	return 0;
+}
+
+static int idxd_wq_load_config(struct idxd_wq *wq)
+{
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	int wqcfg_offset;
+	int i;
+
+	wqcfg_offset = WQCFG_OFFSET(idxd, wq->id, 0);
+	memcpy_fromio(wq->wqcfg, idxd->reg_base + wqcfg_offset, idxd->wqcfg_size);
+
+	wq->size = wq->wqcfg->wq_size;
+	wq->threshold = wq->wqcfg->wq_thresh;
+	if (wq->wqcfg->priv)
+		wq->type = IDXD_WQT_KERNEL;
+
+	/* The driver does not support shared WQ mode in read-only config yet */
+	if (wq->wqcfg->mode == 0 || wq->wqcfg->pasid_en)
+		return -EOPNOTSUPP;
+
+	set_bit(WQ_FLAG_DEDICATED, &wq->flags);
+
+	wq->priority = wq->wqcfg->priority;
+
+	for (i = 0; i < WQCFG_STRIDES(idxd); i++) {
+		wqcfg_offset = WQCFG_OFFSET(idxd, wq->id, i);
+		dev_dbg(dev, "WQ[%d][%d][%#x]: %#x\n", wq->id, i, wqcfg_offset, wq->wqcfg->bits[i]);
+	}
+
+	return 0;
+}
+
+static void idxd_group_load_config(struct idxd_group *group)
+{
+	struct idxd_device *idxd = group->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	int i, j, grpcfg_offset;
+
+	/*
+	 * Load WQS bit fields
+	 * Iterate through all 256 bits 64 bits at a time
+	 */
+	for (i = 0; i < GRPWQCFG_STRIDES; i++) {
+		struct idxd_wq *wq;
+
+		grpcfg_offset = GRPWQCFG_OFFSET(idxd, group->id, i);
+		group->grpcfg.wqs[i] = ioread64(idxd->reg_base + grpcfg_offset);
+		dev_dbg(dev, "GRPCFG wq[%d:%d: %#x]: %#llx\n",
+			group->id, i, grpcfg_offset, group->grpcfg.wqs[i]);
+
+		if (i * 64 >= idxd->max_wqs)
+			break;
+
+		/* Iterate through all 64 bits and check for wq set */
+		for (j = 0; j < 64; j++) {
+			int id = i * 64 + j;
+
+			/* No need to check beyond max wqs */
+			if (id >= idxd->max_wqs)
+				break;
+
+			/* Set group assignment for wq if wq bit is set */
+			if (group->grpcfg.wqs[i] & BIT(j)) {
+				wq = idxd->wqs[id];
+				wq->group = group;
+			}
+		}
+	}
+
+	grpcfg_offset = GRPENGCFG_OFFSET(idxd, group->id);
+	group->grpcfg.engines = ioread64(idxd->reg_base + grpcfg_offset);
+	dev_dbg(dev, "GRPCFG engs[%d: %#x]: %#llx\n", group->id,
+		grpcfg_offset, group->grpcfg.engines);
+
+	/* Iterate through all 64 bits to check engines set */
+	for (i = 0; i < 64; i++) {
+		if (i >= idxd->max_engines)
+			break;
+
+		if (group->grpcfg.engines & BIT(i)) {
+			struct idxd_engine *engine = idxd->engines[i];
+
+			engine->group = group;
+		}
+	}
+
+	grpcfg_offset = GRPFLGCFG_OFFSET(idxd, group->id);
+	group->grpcfg.flags.bits = ioread32(idxd->reg_base + grpcfg_offset);
+	dev_dbg(dev, "GRPFLAGS flags[%d: %#x]: %#x\n",
+		group->id, grpcfg_offset, group->grpcfg.flags.bits);
+}
+
+int idxd_device_load_config(struct idxd_device *idxd)
+{
+	union gencfg_reg reg;
+	int i, rc;
+
+	reg.bits = ioread32(idxd->reg_base + IDXD_GENCFG_OFFSET);
+	idxd->token_limit = reg.token_limit;
+
+	for (i = 0; i < idxd->max_groups; i++) {
+		struct idxd_group *group = idxd->groups[i];
+
+		idxd_group_load_config(group);
+	}
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *wq = idxd->wqs[i];
+
+		rc = idxd_wq_load_config(wq);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }

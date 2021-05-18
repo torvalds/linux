@@ -739,7 +739,7 @@ void kvm_pmu_set_counter_event_type(struct kvm_vcpu *vcpu, u64 data,
 	kvm_pmu_create_perf_event(vcpu, select_idx);
 }
 
-static int kvm_pmu_probe_pmuver(void)
+int kvm_pmu_probe_pmuver(void)
 {
 	struct perf_event_attr attr = { };
 	struct perf_event *event;
@@ -821,16 +821,6 @@ u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 	}
 
 	return val & mask;
-}
-
-bool kvm_arm_support_pmu_v3(void)
-{
-	/*
-	 * Check if HW_PERF_EVENTS are supported by checking the number of
-	 * hardware performance counters. This could ensure the presence of
-	 * a physical PMU and CONFIG_PERF_EVENT is selected.
-	 */
-	return (perf_num_counters() > 0);
 }
 
 int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)

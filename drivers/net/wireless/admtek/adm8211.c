@@ -28,7 +28,6 @@
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Jouni Malinen <j@w1.fi>");
 MODULE_DESCRIPTION("Driver for IEEE 802.11b wireless cards based on ADMtek ADM8211");
-MODULE_SUPPORTED_DEVICE("ADM8211");
 MODULE_LICENSE("GPL");
 
 static unsigned int tx_ring_size __read_mostly = 16;

@@ -91,8 +91,17 @@ static void dc_link_destruct(struct dc_link *link)
 	if (link->panel_cntl)
 		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 
-	if (link->link_enc)
+	if (link->link_enc) {
+		/* Update link encoder resource tracking variables. These are used for
+		 * the dynamic assignment of link encoders to streams. Virtual links
+		 * are not assigned encoder resources on creation.
+		 */
+		if (link->link_id.id != CONNECTOR_ID_VIRTUAL) {
+			link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = NULL;
+			link->dc->res_pool->dig_link_enc_count--;
+		}
 		link->link_enc->funcs->destroy(&link->link_enc);
+	}
 
 	if (link->local_sink)
 		dc_sink_release(link->local_sink);
@@ -1401,6 +1410,8 @@ static bool dc_link_construct(struct dc_link *link,
 	link->link_id =
 		bios->funcs->get_connector_id(bios, init_params->connector_index);
 
+	link->ep_type = DISPLAY_ENDPOINT_PHY;
+
 	DC_LOG_DC("BIOS object table - link_id: %d", link->link_id.id);
 
 	if (bios->funcs->get_disp_connector_caps_info) {
@@ -1500,10 +1511,12 @@ static bool dc_link_construct(struct dc_link *link,
 		(link->link_id.id == CONNECTOR_ID_EDP ||
 			link->link_id.id == CONNECTOR_ID_LVDS)) {
 		panel_cntl_init_data.ctx = dc_ctx;
-		panel_cntl_init_data.inst = 0;
+		panel_cntl_init_data.inst =
+			panel_cntl_init_data.ctx->dc_edp_id_count;
 		link->panel_cntl =
 			link->dc->res_pool->funcs->panel_cntl_create(
 								&panel_cntl_init_data);
+		panel_cntl_init_data.ctx->dc_edp_id_count++;
 
 		if (link->panel_cntl == NULL) {
 			DC_ERROR("Failed to create link panel_cntl!\n");
@@ -1531,6 +1544,13 @@ static bool dc_link_construct(struct dc_link *link,
 	}
 
 	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
+
+	/* Update link encoder tracking variables. These are used for the dynamic
+	 * assignment of link encoders to streams.
+	 */
+	link->eng_id = link->link_enc->preferred_engine;
+	link->dc->res_pool->link_encoders[link->eng_id - ENGINE_ID_DIGA] = link->link_enc;
+	link->dc->res_pool->dig_link_enc_count++;
 
 	link->link_enc_hw_inst = link->link_enc->transmitter;
 
@@ -1603,6 +1623,7 @@ static bool dc_link_construct(struct dc_link *link,
 	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 
 	DC_LOG_DC("BIOS object table - %s finished successfully.\n", __func__);
+	kfree(info);
 	return true;
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
@@ -1658,21 +1679,27 @@ void link_destroy(struct dc_link **link)
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->link;
-	union down_spread_ctrl old_downspread;
-	union down_spread_ctrl new_downspread;
 
-	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&old_downspread.raw, sizeof(old_downspread));
+	if (pipe_ctx->stream->signal != SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		struct dc_link *link = stream->link;
+		union down_spread_ctrl old_downspread;
+		union down_spread_ctrl new_downspread;
 
-	new_downspread.raw = old_downspread.raw;
+		core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
+				&old_downspread.raw, sizeof(old_downspread));
 
-	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
-			(stream->ignore_msa_timing_param) ? 1 : 0;
+		new_downspread.raw = old_downspread.raw;
 
-	if (new_downspread.raw != old_downspread.raw) {
-		core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&new_downspread.raw, sizeof(new_downspread));
+		new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
+				(stream->ignore_msa_timing_param) ? 1 : 0;
+
+		if (new_downspread.raw != old_downspread.raw) {
+			core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
+				&new_downspread.raw, sizeof(new_downspread));
+		}
+
+	} else {
+		dm_helpers_mst_enable_stream_features(stream);
 	}
 }
 
@@ -2602,7 +2629,6 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			if (pipe_ctx->plane_state == NULL)
 				frame_ramp = 0;
 		} else {
-			ASSERT(false);
 			return false;
 		}
 
@@ -2793,12 +2819,9 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 	psr_context->psr_level.u32all = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/*skip power down the single pipe since it blocks the cstate*/
-	if ((link->ctx->asic_id.chip_family == FAMILY_RV) &&
-	     ASICREV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
+	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
 		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
-#endif
 
 	/* SMU will perform additional powerdown sequence.
 	 * For unsupported ASICs, set psr_level flag to skip PSR
@@ -2871,8 +2894,8 @@ static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 static struct fixed31_32 get_pbn_from_bw_in_kbps(uint64_t kbps)
 {
 	struct fixed31_32 peak_kbps;
-	uint32_t numerator;
-	uint32_t denominator;
+	uint32_t numerator = 0;
+	uint32_t denominator = 1;
 
 	/*
 	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
@@ -3119,50 +3142,6 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	return DC_OK;
 }
 
-enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link)
-{
-	int i;
-	struct pipe_ctx *pipe_ctx;
-
-	// Clear all of MST payload then reallocate
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-
-		/* driver enable split pipe for external monitors
-		 * we have to check pipe_ctx is split pipe or not
-		 * If it's split pipe, driver using top pipe to
-		 * reaallocate.
-		 */
-		if (!pipe_ctx || pipe_ctx->top_pipe)
-			continue;
-
-		if (pipe_ctx->stream && pipe_ctx->stream->link == link &&
-				pipe_ctx->stream->dpms_off == false &&
-				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-			deallocate_mst_payload(pipe_ctx);
-		}
-	}
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx || pipe_ctx->top_pipe)
-			continue;
-
-		if (pipe_ctx->stream && pipe_ctx->stream->link == link &&
-				pipe_ctx->stream->dpms_off == false &&
-				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-			/* enable/disable PHY will clear connection between BE and FE
-			 * need to restore it.
-			 */
-			link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-									pipe_ctx->stream_res.stream_enc->id, true);
-			dc_link_allocate_mst_payload(pipe_ctx);
-		}
-	}
-
-	return DC_OK;
-}
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
@@ -3258,6 +3237,16 @@ void core_link_enable_stream(
 		/* Do not touch link on seamless boot optimization. */
 		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
+
+			/* Still enable stream features & audio on seamless boot for DP external displays */
+			if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
+				enable_stream_features(pipe_ctx);
+				if (pipe_ctx->stream_res.audio != NULL) {
+					pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
+					dc->hwss.enable_audio_stream(pipe_ctx);
+				}
+			}
+
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 			update_psp_stream_config(pipe_ctx, false);
 #endif
@@ -3266,7 +3255,8 @@ void core_link_enable_stream(
 
 		/* eDP lit up by bios already, no need to enable again. */
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
-					apply_edp_fast_boot_optimization) {
+					apply_edp_fast_boot_optimization &&
+					!pipe_ctx->stream->timing.flags.DSC) {
 			pipe_ctx->stream->dpms_off = false;
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 			update_psp_stream_config(pipe_ctx, false);
@@ -3328,8 +3318,10 @@ void core_link_enable_stream(
 		/* Set DPS PPS SDP (AKA "info frames") */
 		if (pipe_ctx->stream->timing.flags.DSC) {
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-					dc_is_virtual_signal(pipe_ctx->stream->signal))
+					dc_is_virtual_signal(pipe_ctx->stream->signal)) {
+				dp_set_dsc_on_rx(pipe_ctx, true);
 				dp_set_dsc_pps_sdp(pipe_ctx, true);
+			}
 		}
 
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
@@ -3481,15 +3473,12 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 {
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
-	struct fixed31_32 link_bw_kbps;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (timing->flags.DSC) {
-		link_bw_kbps = dc_fixpt_from_int(timing->pix_clk_100hz);
-		link_bw_kbps = dc_fixpt_div_int(link_bw_kbps, 160);
-		link_bw_kbps = dc_fixpt_mul_int(link_bw_kbps, timing->dsc_cfg.bits_per_pixel);
-		kbps = dc_fixpt_ceil(link_bw_kbps);
-		return kbps;
+		return dc_dsc_stream_bandwidth_in_kbps(timing->pix_clk_100hz, timing->dsc_cfg.bits_per_pixel);
 	}
+#endif
 
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
@@ -3727,7 +3716,8 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 	if ((link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
 			link->local_sink &&
 			link->local_sink->edid_caps.panel_patch.disable_fec) ||
-			link->connector_signal == SIGNAL_TYPE_EDP) // Disable FEC for eDP
+			(link->connector_signal == SIGNAL_TYPE_EDP &&
+					link->dc->debug.force_enable_edp_fec == false)) // Disable FEC for eDP
 		is_fec_disable = true;
 
 	if (dc_link_is_fec_supported(link) && !link->dc->debug.disable_fec && !is_fec_disable)

@@ -8,7 +8,6 @@ config IRQCHIP
 config ARM_GIC
 	bool
 	select IRQ_DOMAIN_HIERARCHY
-	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config ARM_GIC_PM
@@ -33,7 +32,6 @@ config GIC_NON_BANKED
 
 config ARM_GIC_V3
 	bool
-	select GENERIC_IRQ_MULTI_HANDLER
 	select IRQ_DOMAIN_HIERARCHY
 	select PARTITION_PERCPU
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
@@ -64,7 +62,6 @@ config ARM_NVIC
 config ARM_VIC
 	bool
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 
 config ARM_VIC_NR
 	int
@@ -99,14 +96,12 @@ config ATMEL_AIC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 	select SPARSE_IRQ
 
 config ATMEL_AIC5_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 	select SPARSE_IRQ
 
 config I8259
@@ -153,7 +148,6 @@ config DW_APB_ICTL
 config FARADAY_FTINTC010
 	bool
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 	select SPARSE_IRQ
 
 config HISILICON_IRQ_MBIGEN
@@ -169,7 +163,6 @@ config IMGPDC_IRQ
 config IXP4XX_IRQ
 	bool
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 	select SPARSE_IRQ
 
 config MADERA_IRQ
@@ -186,7 +179,6 @@ config CLPS711X_IRQCHIP
 	bool
 	depends on ARCH_CLPS711X
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 	select SPARSE_IRQ
 	default y
 
@@ -205,7 +197,6 @@ config OMAP_IRQCHIP
 config ORION_IRQCHIP
 	bool
 	select IRQ_DOMAIN
-	select GENERIC_IRQ_MULTI_HANDLER
 
 config PIC32_EVIC
 	bool
@@ -288,8 +279,13 @@ config XTENSA_MX
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config XILINX_INTC
-	bool
+	bool "Xilinx Interrupt Controller IP"
+	depends on MICROBLAZE || ARCH_ZYNQ || ARCH_ZYNQMP
 	select IRQ_DOMAIN
+	help
+	  Support for the Xilinx Interrupt Controller IP core.
+	  This is used as a primary controller with MicroBlaze and can also
+	  be used as a secondary chained controller on other platforms.
 
 config IRQ_CROSSBAR
 	bool
@@ -585,5 +581,24 @@ config MST_IRQ
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Support MStar Interrupt Controller.
+
+config WPCM450_AIC
+	bool "Nuvoton WPCM450 Advanced Interrupt Controller"
+	depends on ARCH_WPCM450
+	help
+	  Support for the interrupt controller in the Nuvoton WPCM450 BMC SoC.
+
+config IRQ_IDT3243X
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config APPLE_AIC
+	bool "Apple Interrupt Controller (AIC)"
+	depends on ARM64
+	default ARCH_APPLE
+	help
+	  Support for the Apple Interrupt Controller found on Apple Silicon SoCs,
+	  such as the M1.
 
 endmenu

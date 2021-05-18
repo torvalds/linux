@@ -24,6 +24,30 @@
         ]
     },
     {
+        "id": "4297",
+        "name": "Add simple action with change command",
+        "category": [
+            "actions",
+            "simple"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action simple",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions change action simple sdata \"Not changed\" index 60",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action simple",
+        "matchPattern": "action order [0-9]*: Simple <Not changed>.*index 60 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action simple"
+        ]
+    },
+    {
         "id": "6d4c",
         "name": "Add simple action with duplicate index",
         "category": [
@@ -147,6 +171,65 @@
         "expExitCode": "255",
         "verifyCmd": "$TC actions list action simple",
         "matchPattern": "action order [0-9]*: Simple <hello>.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action simple"
+        ]
+    },
+    {
+        "id": "8d07",
+        "name": "Verify cleanup of failed actions batch add",
+        "category": [
+            "actions",
+            "simple"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action simple",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action simple sdata \"2\" index 2",
+            [
+                "$TC actions add action simple sdata \"1\" index 1 action simple sdata \"2\" index 2",
+                255
+            ],
+            "$TC actions flush action simple"
+        ],
+        "cmdUnderTest": "$TC actions add action simple sdata \"2\" index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action simple",
+        "matchPattern": "action order [0-9]*: Simple <2>.*index 2 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action simple"
+        ]
+    },
+    {
+        "id": "a68a",
+        "name": "Verify cleanup of failed actions batch change",
+        "category": [
+            "actions",
+            "simple"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action simple",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC actions change action simple sdata \"1\" index 1 action simple sdata \"2\" goto chain 42 index 2",
+                255
+            ],
+            "$TC actions flush action simple"
+        ],
+        "cmdUnderTest": "$TC actions add action simple sdata \"1\" index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action simple",
+        "matchPattern": "action order [0-9]*: Simple <1>.*index 1 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action simple"

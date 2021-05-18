@@ -34,12 +34,12 @@ struct node_header {
 	__le32 max_entries;
 	__le32 value_size;
 	__le32 padding;
-} __packed;
+} __attribute__((packed, aligned(8)));
 
 struct btree_node {
 	struct node_header header;
 	__le64 keys[];
-} __packed;
+} __attribute__((packed, aligned(8)));
 
 
 /*
@@ -83,7 +83,7 @@ struct shadow_spine {
 };
 
 void init_shadow_spine(struct shadow_spine *s, struct dm_btree_info *info);
-int exit_shadow_spine(struct shadow_spine *s);
+void exit_shadow_spine(struct shadow_spine *s);
 
 int shadow_step(struct shadow_spine *s, dm_block_t b,
 		struct dm_btree_value_type *vt);

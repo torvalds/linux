@@ -91,7 +91,7 @@ int tp3780I_DisableDSP(THINKPAD_BD_DATA * pBDData);
 int tp3780I_ResetDSP(THINKPAD_BD_DATA * pBDData);
 int tp3780I_StartDSP(THINKPAD_BD_DATA * pBDData);
 int tp3780I_QueryAbilities(THINKPAD_BD_DATA * pBDData, MW_ABILITIES * pAbilities);
-int tp3780I_Cleanup(THINKPAD_BD_DATA * pBDData);
+void tp3780I_Cleanup(THINKPAD_BD_DATA *pBDData);
 int tp3780I_ReadWriteDspDStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,
                                void __user *pvBuffer, unsigned int uCount,
                                unsigned long ulDSPAddr);

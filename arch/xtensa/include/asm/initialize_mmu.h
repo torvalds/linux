@@ -73,7 +73,7 @@
 	_j	2f
 
 	.align	4
-1:	movi	a2, 0x10000000
+1:
 
 #if CONFIG_KERNEL_LOAD_ADDRESS < 0x40000000ul
 #define TEMP_MAPPING_VADDR 0x40000000

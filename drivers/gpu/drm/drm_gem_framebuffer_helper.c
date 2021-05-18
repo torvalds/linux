@@ -5,13 +5,8 @@
  * Copyright (C) 2017 Noralf Trønnes
  */
 
-#include <linux/dma-buf.h>
-#include <linux/dma-fence.h>
-#include <linux/dma-resv.h>
 #include <linux/slab.h>
 
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
@@ -19,7 +14,6 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #define AFBC_HEADER_SIZE		16
 #define AFBC_TH_LAYOUT_ALIGNMENT	8
@@ -432,60 +426,3 @@ int drm_gem_fb_afbc_init(struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_gem_fb_afbc_init);
-
-/**
- * drm_gem_fb_prepare_fb() - Prepare a GEM backed framebuffer
- * @plane: Plane
- * @state: Plane state the fence will be attached to
- *
- * This function extracts the exclusive fence from &drm_gem_object.resv and
- * attaches it to plane state for the atomic helper to wait on. This is
- * necessary to correctly implement implicit synchronization for any buffers
- * shared as a struct &dma_buf. This function can be used as the
- * &drm_plane_helper_funcs.prepare_fb callback.
- *
- * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
- * gem based framebuffer drivers which have their buffers always pinned in
- * memory.
- *
- * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
- * explicit fencing in atomic modeset updates.
- */
-int drm_gem_fb_prepare_fb(struct drm_plane *plane,
-			  struct drm_plane_state *state)
-{
-	struct drm_gem_object *obj;
-	struct dma_fence *fence;
-
-	if (!state->fb)
-		return 0;
-
-	obj = drm_gem_fb_get_obj(state->fb, 0);
-	fence = dma_resv_get_excl_rcu(obj->resv);
-	drm_atomic_set_fence_for_plane(state, fence);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(drm_gem_fb_prepare_fb);
-
-/**
- * drm_gem_fb_simple_display_pipe_prepare_fb - prepare_fb helper for
- *     &drm_simple_display_pipe
- * @pipe: Simple display pipe
- * @plane_state: Plane state
- *
- * This function uses drm_gem_fb_prepare_fb() to extract the exclusive fence
- * from &drm_gem_object.resv and attaches it to plane state for the atomic
- * helper to wait on. This is necessary to correctly implement implicit
- * synchronization for any buffers shared as a struct &dma_buf. Drivers can use
- * this as their &drm_simple_display_pipe_funcs.prepare_fb callback.
- *
- * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
- * explicit fencing in atomic modeset updates.
- */
-int drm_gem_fb_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-					      struct drm_plane_state *plane_state)
-{
-	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
-}
-EXPORT_SYMBOL(drm_gem_fb_simple_display_pipe_prepare_fb);

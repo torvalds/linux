@@ -83,7 +83,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if ((addr & 3) || (index > PT_FPSCR32))
 			break;
 
-		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
 			ret = ptrace_get_reg(child, index, &tmp);
 			if (ret)
@@ -133,7 +132,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if ((addr & 3) || numReg > PT_FPSCR)
 			break;
 
-		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg >= PT_FPR0) {
 			flush_fp_to_thread(child);
 			/* get 64 bit FPR */
@@ -187,7 +185,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if ((addr & 3) || (index > PT_FPSCR32))
 			break;
 
-		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
 			ret = ptrace_put_reg(child, index, data);
 		} else {
@@ -226,7 +223,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		 */
 		if ((addr & 3) || (numReg > PT_FPSCR))
 			break;
-		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg < PT_FPR0) {
 			unsigned long freg;
 			ret = ptrace_get_reg(child, numReg, &freg);

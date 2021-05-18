@@ -279,7 +279,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 	/*
 	 * These are not hardware clocks, but are needed to handle the special
 	 * case where we have a 'selector bit' that doesn't just change the
-	 * parent for a clock, but also the gate it's suposed to use.
+	 * parent for a clock, but also the gate it's supposed to use.
 	 */
 	{
 		.index = R9A06G032_UART_GROUP_012,
@@ -311,7 +311,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 
 struct r9a06g032_priv {
 	struct clk_onecell_data data;
-	spinlock_t lock; /* protects concurent access to gates */
+	spinlock_t lock; /* protects concurrent access to gates */
 	void __iomem *reg;
 };
 
@@ -504,7 +504,7 @@ r9a06g032_register_gate(struct r9a06g032_priv *clocks,
 {
 	struct clk *clk;
 	struct r9a06g032_clk_gate *g;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	g = kzalloc(sizeof(*g), GFP_KERNEL);
 	if (!g)
@@ -674,7 +674,7 @@ r9a06g032_register_div(struct r9a06g032_priv *clocks,
 {
 	struct r9a06g032_clk_div *div;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned int i;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
@@ -758,7 +758,7 @@ r9a06g032_register_bitsel(struct r9a06g032_priv *clocks,
 {
 	struct clk *clk;
 	struct r9a06g032_clk_bitsel *g;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *names[2];
 
 	/* allocate the gate */
@@ -849,7 +849,7 @@ r9a06g032_register_dualgate(struct r9a06g032_priv *clocks,
 {
 	struct r9a06g032_clk_dualgate *g;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	/* allocate the gate */
 	g = kzalloc(sizeof(*g), GFP_KERNEL);

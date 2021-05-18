@@ -496,7 +496,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 		if (!bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0)) {
 			struct bio *prev = bio;
 
-			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES,
+			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_VECS,
 					       &ppl_conf->bs);
 			bio->bi_opf = prev->bi_opf;
 			bio->bi_write_hint = prev->bi_write_hint;

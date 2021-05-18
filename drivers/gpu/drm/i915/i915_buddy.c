@@ -48,6 +48,8 @@ static struct i915_buddy_block *i915_block_alloc(struct i915_buddy_block *parent
 {
 	struct i915_buddy_block *block;
 
+	GEM_BUG_ON(order > I915_BUDDY_MAX_ORDER);
+
 	block = kmem_cache_zalloc(global.slab_blocks, GFP_KERNEL);
 	if (!block)
 		return NULL;
@@ -56,6 +58,7 @@ static struct i915_buddy_block *i915_block_alloc(struct i915_buddy_block *parent
 	block->header |= order;
 	block->parent = parent;
 
+	GEM_BUG_ON(block->header & I915_BUDDY_HEADER_UNUSED);
 	return block;
 }
 

@@ -2,7 +2,10 @@
 #ifndef _LINUX_FANOTIFY_H
 #define _LINUX_FANOTIFY_H
 
+#include <linux/sysctl.h>
 #include <uapi/linux/fanotify.h>
+
+extern struct ctl_table fanotify_table[]; /* for sysctl */
 
 #define FAN_GROUP_FLAG(group, flag) \
 	((group)->fanotify_data.flags & (flag))
@@ -15,15 +18,38 @@
  * these constant, the programs may break if re-compiled with new uapi headers
  * and then run on an old kernel.
  */
-#define FANOTIFY_CLASS_BITS	(FAN_CLASS_NOTIF | FAN_CLASS_CONTENT | \
+
+/* Group classes where permission events are allowed */
+#define FANOTIFY_PERM_CLASSES	(FAN_CLASS_CONTENT | \
 				 FAN_CLASS_PRE_CONTENT)
+
+#define FANOTIFY_CLASS_BITS	(FAN_CLASS_NOTIF | FANOTIFY_PERM_CLASSES)
 
 #define FANOTIFY_FID_BITS	(FAN_REPORT_FID | FAN_REPORT_DFID_NAME)
 
-#define FANOTIFY_INIT_FLAGS	(FANOTIFY_CLASS_BITS | FANOTIFY_FID_BITS | \
-				 FAN_REPORT_TID | \
-				 FAN_CLOEXEC | FAN_NONBLOCK | \
-				 FAN_UNLIMITED_QUEUE | FAN_UNLIMITED_MARKS)
+/*
+ * fanotify_init() flags that require CAP_SYS_ADMIN.
+ * We do not allow unprivileged groups to request permission events.
+ * We do not allow unprivileged groups to get other process pid in events.
+ * We do not allow unprivileged groups to use unlimited resources.
+ */
+#define FANOTIFY_ADMIN_INIT_FLAGS	(FANOTIFY_PERM_CLASSES | \
+					 FAN_REPORT_TID | \
+					 FAN_UNLIMITED_QUEUE | \
+					 FAN_UNLIMITED_MARKS)
+
+/*
+ * fanotify_init() flags that are allowed for user without CAP_SYS_ADMIN.
+ * FAN_CLASS_NOTIF is the only class we allow for unprivileged group.
+ * We do not allow unprivileged groups to get file descriptors in events,
+ * so one of the flags for reporting file handles is required.
+ */
+#define FANOTIFY_USER_INIT_FLAGS	(FAN_CLASS_NOTIF | \
+					 FANOTIFY_FID_BITS | \
+					 FAN_CLOEXEC | FAN_NONBLOCK)
+
+#define FANOTIFY_INIT_FLAGS	(FANOTIFY_ADMIN_INIT_FLAGS | \
+				 FANOTIFY_USER_INIT_FLAGS)
 
 #define FANOTIFY_MARK_TYPE_BITS	(FAN_MARK_INODE | FAN_MARK_MOUNT | \
 				 FAN_MARK_FILESYSTEM)

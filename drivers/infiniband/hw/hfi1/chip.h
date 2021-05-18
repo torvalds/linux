@@ -822,11 +822,6 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok);
 int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok);
 #define LCB_START DC_LCB_CSRS
 #define LCB_END   DC_8051_CSRS /* next block is 8051 */
-static inline int is_lcb_offset(u32 offset)
-{
-	return (offset >= LCB_START && offset < LCB_END);
-}
-
 extern uint num_vls;
 
 extern uint disable_integrity;
