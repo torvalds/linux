@@ -102,7 +102,7 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 	attr.test.prog_fd = prog_fd;
 	attr.test.ctx_in = (long) opts->ctx;
 	attr.test.ctx_size_in = opts->ctx->sz;
-	err = skel_sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
+	err = skel_sys_bpf(BPF_PROG_RUN, &attr, sizeof(attr));
 	if (err < 0 || (int)attr.test.retval < 0) {
 		opts->errstr = "failed to execute loader prog";
 		if (err < 0)
