@@ -16,6 +16,7 @@ enum auditsc_class_t {
 	AUDITSC_OPENAT,
 	AUDITSC_SOCKETCALL,
 	AUDITSC_EXECVE,
+	AUDITSC_OPENAT2,
 
 	AUDITSC_NVALS /* count */
 };
