@@ -157,16 +157,16 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 				mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
 		break;
 	case 1:
-		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA1, 0,
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, 0,
 				mmSDMA1_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
 		break;
 	case 2:
-		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA2, 0,
-				mmSDMA2_RLC0_RB_CNTL) - mmSDMA2_RLC0_RB_CNTL;
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, 0,
+				mmSDMA2_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
 		break;
 	case 3:
-		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA3, 0,
-				mmSDMA3_RLC0_RB_CNTL) - mmSDMA2_RLC0_RB_CNTL;
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, 0,
+				mmSDMA3_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
 		break;
 	}
 
@@ -451,7 +451,7 @@ static int hqd_sdma_dump_v10_3(struct kgd_dev *kgd,
 			engine_id, queue_id);
 	uint32_t i = 0, reg;
 #undef HQD_N_REGS
-#define HQD_N_REGS (19+6+7+10)
+#define HQD_N_REGS (19+6+7+12)
 
 	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
