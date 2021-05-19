@@ -1043,29 +1043,36 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 }
 
 /* get the total error counts on all IPs */
-unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
-		bool is_ce)
+void amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+				  unsigned long *ce_count,
+				  unsigned long *ue_count)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
-	struct ras_err_data data = {0, 0};
+	unsigned long ce, ue;
 
 	if (!adev->ras_enabled || !con)
-		return 0;
+		return;
 
+	ce = 0;
+	ue = 0;
 	list_for_each_entry(obj, &con->head, node) {
 		struct ras_query_if info = {
 			.head = obj->head,
 		};
 
 		if (amdgpu_ras_query_error_status(adev, &info))
-			return 0;
+			return;
 
-		data.ce_count += info.ce_count;
-		data.ue_count += info.ue_count;
+		ce += info.ce_count;
+		ue += info.ue_count;
 	}
 
-	return is_ce ? data.ce_count : data.ue_count;
+	if (ce_count)
+		*ce_count = ce;
+
+	if (ue_count)
+		*ue_count = ue;
 }
 /* query/inject/cure end */
 
