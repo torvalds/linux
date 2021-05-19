@@ -82,9 +82,9 @@ static int mchp_sparx5_map_io(struct platform_device *pdev, int index,
 	void __iomem *mem;
 
 	mem = devm_platform_get_and_ioremap_resource(pdev, index, &res);
-	if (!mem) {
+	if (IS_ERR(mem)) {
 		dev_err(&pdev->dev, "Could not map resource %d\n", index);
-		return -ENXIO;
+		return PTR_ERR(mem);
 	}
 	sparx5_reset_regmap_config.name = res->name;
 	map = devm_regmap_init_mmio(&pdev->dev, mem, &sparx5_reset_regmap_config);
