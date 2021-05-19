@@ -147,7 +147,6 @@ struct amdtp_stream {
 
 			// To generate constant hardware IRQ.
 			unsigned int event_count;
-			unsigned int events_per_period;
 		} rx;
 	} ctx_data;
 
@@ -172,6 +171,7 @@ struct amdtp_stream {
 	bool callbacked;
 	wait_queue_head_t callback_wait;
 	u32 start_cycle;
+	unsigned int next_cycle;
 
 	/* For backends to process data blocks. */
 	void *protocol;
@@ -288,9 +288,11 @@ struct amdtp_domain {
 
 	struct amdtp_stream *irq_target;
 
-	struct seq_desc *seq_descs;
-	unsigned int seq_size;
-	unsigned int seq_tail;
+	struct {
+		struct seq_desc *descs;
+		unsigned int size;
+		unsigned int tail;
+	} seq;
 
 	unsigned int data_block_state;
 	unsigned int syt_offset_state;

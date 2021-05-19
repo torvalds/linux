@@ -20,7 +20,7 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
-#define OHCI_MAX_SECOND		8
+#define OHCI_SECOND_MODULUS		8
 
 /* Always support Linux tracing subsystem. */
 #define CREATE_TRACE_POINTS
@@ -574,8 +574,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	/* Calculate data blocks */
 	fdf = (cip_header[1] & CIP_FDF_MASK) >> CIP_FDF_SHIFT;
-	if (payload_length < sizeof(__be32) * 2 ||
-	    (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
+	if (payload_length == 0 || (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
 		*data_blocks = 0;
 	} else {
 		unsigned int data_block_quadlets =
@@ -590,8 +589,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 		if (s->flags & CIP_WRONG_DBS)
 			data_block_quadlets = s->data_block_quadlets;
 
-		*data_blocks = (payload_length / sizeof(__be32) - 2) /
-							data_block_quadlets;
+		*data_blocks = payload_length / sizeof(__be32) / data_block_quadlets;
 	}
 
 	/* Check data block counter continuity */
@@ -632,47 +630,53 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			       const __be32 *ctx_header,
-			       unsigned int *payload_length,
 			       unsigned int *data_blocks,
 			       unsigned int *data_block_counter,
 			       unsigned int *syt, unsigned int packet_index, unsigned int index)
 {
+	unsigned int payload_length;
 	const __be32 *cip_header;
 	unsigned int cip_header_size;
 	int err;
 
-	*payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
+	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
 
 	if (!(s->flags & CIP_NO_HEADER))
 		cip_header_size = 8;
 	else
 		cip_header_size = 0;
 
-	if (*payload_length > cip_header_size + s->ctx_data.tx.max_ctx_payload_length) {
+	if (payload_length > cip_header_size + s->ctx_data.tx.max_ctx_payload_length) {
 		dev_err(&s->unit->device,
 			"Detect jumbo payload: %04x %04x\n",
-			*payload_length, cip_header_size + s->ctx_data.tx.max_ctx_payload_length);
+			payload_length, cip_header_size + s->ctx_data.tx.max_ctx_payload_length);
 		return -EIO;
 	}
 
 	if (cip_header_size > 0) {
-		cip_header = ctx_header + 2;
-		err = check_cip_header(s, cip_header, *payload_length,
-				       data_blocks, data_block_counter, syt);
-		if (err < 0)
-			return err;
+		if (payload_length >= cip_header_size) {
+			cip_header = ctx_header + 2;
+			err = check_cip_header(s, cip_header, payload_length - cip_header_size,
+					       data_blocks, data_block_counter, syt);
+			if (err < 0)
+				return err;
+		} else {
+			// Handle the cycle so that empty packet arrives.
+			cip_header = NULL;
+			*data_blocks = 0;
+			*syt = 0;
+		}
 	} else {
 		cip_header = NULL;
 		err = 0;
-		*data_blocks = *payload_length / sizeof(__be32) /
-			       s->data_block_quadlets;
+		*data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
 		*syt = 0;
 
 		if (*data_block_counter == UINT_MAX)
 			*data_block_counter = 0;
 	}
 
-	trace_amdtp_packet(s, cycle, cip_header, *payload_length, *data_blocks,
+	trace_amdtp_packet(s, cycle, cip_header, payload_length, *data_blocks,
 			   *data_block_counter, packet_index, index);
 
 	return err;
@@ -681,53 +685,100 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 // In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
 // the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
 // it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
-static inline u32 compute_cycle_count(__be32 ctx_header_tstamp)
+static inline u32 compute_ohci_cycle_count(__be32 ctx_header_tstamp)
 {
 	u32 tstamp = be32_to_cpu(ctx_header_tstamp) & HEADER_TSTAMP_MASK;
 	return (((tstamp >> 13) & 0x07) * 8000) + (tstamp & 0x1fff);
 }
 
-static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
+static inline u32 increment_ohci_cycle_count(u32 cycle, unsigned int addend)
 {
 	cycle += addend;
-	if (cycle >= OHCI_MAX_SECOND * CYCLES_PER_SECOND)
-		cycle -= OHCI_MAX_SECOND * CYCLES_PER_SECOND;
+	if (cycle >= OHCI_SECOND_MODULUS * CYCLES_PER_SECOND)
+		cycle -= OHCI_SECOND_MODULUS * CYCLES_PER_SECOND;
 	return cycle;
+}
+
+static int compare_ohci_cycle_count(u32 lval, u32 rval)
+{
+	if (lval == rval)
+		return 0;
+	else if (lval < rval && rval - lval < OHCI_SECOND_MODULUS * CYCLES_PER_SECOND / 2)
+		return -1;
+	else
+		return 1;
 }
 
 // Align to actual cycle count for the packet which is going to be scheduled.
 // This module queued the same number of isochronous cycle as the size of queue
 // to kip isochronous cycle, therefore it's OK to just increment the cycle by
 // the size of queue for scheduled cycle.
-static inline u32 compute_it_cycle(const __be32 ctx_header_tstamp,
-				   unsigned int queue_size)
+static inline u32 compute_ohci_it_cycle(const __be32 ctx_header_tstamp,
+					unsigned int queue_size)
 {
-	u32 cycle = compute_cycle_count(ctx_header_tstamp);
-	return increment_cycle_count(cycle, queue_size);
+	u32 cycle = compute_ohci_cycle_count(ctx_header_tstamp);
+	return increment_ohci_cycle_count(cycle, queue_size);
 }
 
 static int generate_device_pkt_descs(struct amdtp_stream *s,
 				     struct pkt_desc *descs,
 				     const __be32 *ctx_header,
-				     unsigned int packets)
+				     unsigned int packets,
+				     unsigned int *desc_count)
 {
+	unsigned int next_cycle = s->next_cycle;
 	unsigned int dbc = s->data_block_counter;
 	unsigned int packet_index = s->packet_index;
 	unsigned int queue_size = s->queue_size;
 	int i;
 	int err;
 
+	*desc_count = 0;
 	for (i = 0; i < packets; ++i) {
-		struct pkt_desc *desc = descs + i;
+		struct pkt_desc *desc = descs + *desc_count;
 		unsigned int cycle;
-		unsigned int payload_length;
+		bool lost;
 		unsigned int data_blocks;
 		unsigned int syt;
 
-		cycle = compute_cycle_count(ctx_header[1]);
+		cycle = compute_ohci_cycle_count(ctx_header[1]);
+		lost = (next_cycle != cycle);
+		if (lost) {
+			if (s->flags & CIP_NO_HEADER) {
+				// Fireface skips transmission just for an isoc cycle corresponding
+				// to empty packet.
+				unsigned int prev_cycle = next_cycle;
 
-		err = parse_ir_ctx_header(s, cycle, ctx_header, &payload_length,
-					  &data_blocks, &dbc, &syt, packet_index, i);
+				next_cycle = increment_ohci_cycle_count(next_cycle, 1);
+				lost = (next_cycle != cycle);
+				if (!lost) {
+					// Prepare a description for the skipped cycle for
+					// sequence replay.
+					desc->cycle = prev_cycle;
+					desc->syt = 0;
+					desc->data_blocks = 0;
+					desc->data_block_counter = dbc;
+					desc->ctx_payload = NULL;
+					++desc;
+					++(*desc_count);
+				}
+			} else if (s->flags & CIP_JUMBO_PAYLOAD) {
+				// OXFW970 skips transmission for several isoc cycles during
+				// asynchronous transaction. The sequence replay is impossible due
+				// to the reason.
+				unsigned int safe_cycle = increment_ohci_cycle_count(next_cycle,
+								IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES);
+				lost = (compare_ohci_cycle_count(safe_cycle, cycle) > 0);
+			}
+			if (lost) {
+				dev_err(&s->unit->device, "Detect discontinuity of cycle: %d %d\n",
+					next_cycle, cycle);
+				return -EIO;
+			}
+		}
+
+		err = parse_ir_ctx_header(s, cycle, ctx_header, &data_blocks, &dbc, &syt,
+					  packet_index, i);
 		if (err < 0)
 			return err;
 
@@ -740,12 +791,13 @@ static int generate_device_pkt_descs(struct amdtp_stream *s,
 		if (!(s->flags & CIP_DBC_IS_END_EVENT))
 			dbc = (dbc + desc->data_blocks) & 0xff;
 
-		ctx_header +=
-			s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
-
+		next_cycle = increment_ohci_cycle_count(next_cycle, 1);
+		++(*desc_count);
+		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
 		packet_index = (packet_index + 1) % queue_size;
 	}
 
+	s->next_cycle = next_cycle;
 	s->data_block_counter = dbc;
 
 	return 0;
@@ -777,7 +829,7 @@ static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
 		const struct seq_desc *seq = seq_descs + seq_index;
 		unsigned int syt;
 
-		desc->cycle = compute_it_cycle(*ctx_header, s->queue_size);
+		desc->cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
 		syt = seq->syt_offset;
 		if (syt != CIP_SYT_NO_INFO) {
@@ -834,7 +886,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	struct amdtp_stream *s = private_data;
 	const struct amdtp_domain *d = s->domain;
 	const __be32 *ctx_header = header;
-	unsigned int events_per_period = s->ctx_data.rx.events_per_period;
+	unsigned int events_per_period = d->events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
 	unsigned int packets;
 	int i;
@@ -845,8 +897,8 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / sizeof(*ctx_header);
 
-	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, d->seq_descs,
-			   d->seq_size);
+	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, d->seq.descs,
+			   d->seq.size);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
 
@@ -892,6 +944,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	struct amdtp_stream *s = private_data;
 	__be32 *ctx_header = header;
 	unsigned int packets;
+	unsigned int desc_count;
 	int i;
 	int err;
 
@@ -901,14 +954,15 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / s->ctx_data.tx.ctx_header_size;
 
-	err = generate_device_pkt_descs(s, s->pkt_descs, ctx_header, packets);
+	desc_count = 0;
+	err = generate_device_pkt_descs(s, s->pkt_descs, ctx_header, packets, &desc_count);
 	if (err < 0) {
 		if (err != -EAGAIN) {
 			cancel_stream(s);
 			return;
 		}
 	} else {
-		process_ctx_payloads(s, s->pkt_descs, packets);
+		process_ctx_payloads(s, s->pkt_descs, desc_count);
 	}
 
 	for (i = 0; i < packets; ++i) {
@@ -924,12 +978,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 {
 	struct amdtp_stream *irq_target = d->irq_target;
-	unsigned int seq_tail = d->seq_tail;
-	unsigned int seq_size = d->seq_size;
+	unsigned int seq_tail = d->seq.tail;
+	unsigned int seq_size = d->seq.size;
 	unsigned int min_avail;
 	struct amdtp_stream *s;
 
-	min_avail = d->seq_size;
+	min_avail = d->seq.size;
 	list_for_each_entry(s, &d->streams, list) {
 		unsigned int seq_index;
 		unsigned int avail;
@@ -938,9 +992,9 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 			continue;
 
 		seq_index = s->ctx_data.rx.seq_index;
-		avail = d->seq_tail;
+		avail = d->seq.tail;
 		if (seq_index > avail)
-			avail += d->seq_size;
+			avail += d->seq.size;
 		avail -= seq_index;
 
 		if (avail < min_avail)
@@ -948,7 +1002,7 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 	}
 
 	while (min_avail < packets) {
-		struct seq_desc *desc = d->seq_descs + seq_tail;
+		struct seq_desc *desc = d->seq.descs + seq_tail;
 
 		desc->syt_offset = calculate_syt_offset(&d->last_syt_offset,
 					&d->syt_offset_state, irq_target->sfc);
@@ -963,7 +1017,7 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 		++min_avail;
 	}
 
-	d->seq_tail = seq_tail;
+	d->seq.tail = seq_tail;
 }
 
 static void irq_target_callback(struct fw_iso_context *context, u32 tstamp,
@@ -1018,11 +1072,12 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	wake_up(&s->callback_wait);
 
 	if (s->direction == AMDTP_IN_STREAM) {
-		cycle = compute_cycle_count(ctx_header[1]);
+		cycle = compute_ohci_cycle_count(ctx_header[1]);
+		s->next_cycle = cycle;
 
 		context->callback.sc = in_stream_callback;
 	} else {
-		cycle = compute_it_cycle(*ctx_header, s->queue_size);
+		cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
 		if (s == s->domain->irq_target)
 			context->callback.sc = irq_target_callback;
@@ -1316,7 +1371,7 @@ int amdtp_domain_init(struct amdtp_domain *d)
 
 	d->events_per_period = 0;
 
-	d->seq_descs = NULL;
+	d->seq.descs = NULL;
 
 	return 0;
 }
@@ -1431,11 +1486,11 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	queue_size = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_buffer,
 				  amdtp_rate_table[d->irq_target->sfc]);
 
-	d->seq_descs = kcalloc(queue_size, sizeof(*d->seq_descs), GFP_KERNEL);
-	if (!d->seq_descs)
+	d->seq.descs = kcalloc(queue_size, sizeof(*d->seq.descs), GFP_KERNEL);
+	if (!d->seq.descs)
 		return -ENOMEM;
-	d->seq_size = queue_size;
-	d->seq_tail = 0;
+	d->seq.size = queue_size;
+	d->seq.tail = 0;
 
 	entry = &initial_state[s->sfc];
 	d->data_block_state = entry->data_block;
@@ -1490,7 +1545,6 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	}
 
 	s = d->irq_target;
-	s->ctx_data.rx.events_per_period = events_per_period;
 	s->ctx_data.rx.event_count = 0;
 	s->ctx_data.rx.seq_index = 0;
 
@@ -1505,8 +1559,8 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 error:
 	list_for_each_entry(s, &d->streams, list)
 		amdtp_stream_stop(s);
-	kfree(d->seq_descs);
-	d->seq_descs = NULL;
+	kfree(d->seq.descs);
+	d->seq.descs = NULL;
 	return err;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_start);
@@ -1532,7 +1586,7 @@ void amdtp_domain_stop(struct amdtp_domain *d)
 	d->events_per_period = 0;
 	d->irq_target = NULL;
 
-	kfree(d->seq_descs);
-	d->seq_descs = NULL;
+	kfree(d->seq.descs);
+	d->seq.descs = NULL;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_stop);
