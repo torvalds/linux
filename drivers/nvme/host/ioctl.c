@@ -419,21 +419,19 @@ long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
 		container_of(cdev, struct nvme_ns_head, cdev);
 	void __user *argp = (void __user *)arg;
 	struct nvme_ns *ns;
-	int srcu_idx, ret;
+	int srcu_idx, ret = -EWOULDBLOCK;
 
 	srcu_idx = srcu_read_lock(&head->srcu);
 	ns = nvme_find_path(head);
-	if (!ns) {
-		srcu_read_unlock(&head->srcu, srcu_idx);
-		return -EWOULDBLOCK;
-	}
+	if (!ns)
+		goto out_unlock;
 
 	if (is_ctrl_ioctl(cmd))
 		return nvme_ns_head_ctrl_ioctl(ns, cmd, argp, head, srcu_idx);
 
 	ret = nvme_ns_ioctl(ns, cmd, argp);
-	nvme_put_ns_from_disk(head, srcu_idx);
-
+out_unlock:
+	srcu_read_unlock(&head->srcu, srcu_idx);
 	return ret;
 }
 #endif /* CONFIG_NVME_MULTIPATH */
