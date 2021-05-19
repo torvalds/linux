@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
  * Author:	Samuel Ortiz <samuel.ortiz@nokia.com> and
- *		Juha Yrj�l� <juha.yrjola@nokia.com>
+ *		Juha Yrjola <juha.yrjola@nokia.com>
  */
 
 #include <linux/kernel.h>
