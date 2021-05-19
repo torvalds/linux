@@ -121,7 +121,7 @@ static void hex_str(char *out, uint32_t value)
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
- * REturn values:
+ * Return values:
  *    = 0 -> pretend success
  *    = 1 -> bad ATAG (may retry with another possible ATAG pointer)
  *    < 0 -> error from libfdt
