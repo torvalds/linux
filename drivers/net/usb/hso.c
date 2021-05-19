@@ -2635,14 +2635,14 @@ static struct hso_device *hso_create_bulk_serial_device(
 		}
 
 		tiocmget->urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (tiocmget->urb) {
-			mutex_init(&tiocmget->mutex);
-			init_waitqueue_head(&tiocmget->waitq);
-		} else
-			hso_free_tiomget(serial);
-	}
-	else
+		if (!tiocmget->urb)
+			goto exit;
+
+		mutex_init(&tiocmget->mutex);
+		init_waitqueue_head(&tiocmget->waitq);
+	} else {
 		num_urbs = 1;
+	}
 
 	if (hso_serial_common_create(serial, num_urbs, BULK_URB_RX_SIZE,
 				     BULK_URB_TX_SIZE))
