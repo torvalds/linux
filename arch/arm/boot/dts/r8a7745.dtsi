@@ -64,7 +64,6 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "renesas,apmu";
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
@@ -73,6 +72,7 @@
 			clock-frequency = <1000000000>;
 			clocks = <&cpg CPG_CORE R8A7745_CLK_Z2>;
 			power-domains = <&sysc R8A7745_PD_CA7_CPU0>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA7>;
 		};
 
@@ -83,6 +83,7 @@
 			clock-frequency = <1000000000>;
 			clocks = <&cpg CPG_CORE R8A7745_CLK_Z2>;
 			power-domains = <&sysc R8A7745_PD_CA7_CPU1>;
+			enable-method = "renesas,apmu";
 			next-level-cache = <&L2_CA7>;
 		};
 
