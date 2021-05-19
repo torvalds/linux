@@ -10531,6 +10531,14 @@ enum skl_power_gate {
 #define DG1_DPLL_ENABLE(pll)    _MMIO_PLL3(pll, DPLL0_ENABLE, DPLL1_ENABLE, \
 					   _MG_PLL1_ENABLE, _MG_PLL2_ENABLE)
 
+/* ADL-P Type C PLL */
+#define PORTTC1_PLL_ENABLE	0x46038
+#define PORTTC2_PLL_ENABLE	0x46040
+
+#define ADLP_PORTTC_PLL_ENABLE(tc_port)		_MMIO_PORT((tc_port), \
+							    PORTTC1_PLL_ENABLE, \
+							    PORTTC2_PLL_ENABLE)
+
 #define _MG_REFCLKIN_CTL_PORT1				0x16892C
 #define _MG_REFCLKIN_CTL_PORT2				0x16992C
 #define _MG_REFCLKIN_CTL_PORT3				0x16A92C
