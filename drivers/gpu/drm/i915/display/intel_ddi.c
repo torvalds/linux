@@ -252,12 +252,18 @@ static u32 icl_pll_to_ddi_clk_sel(struct intel_encoder *encoder,
 static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 				      const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
 
 	intel_dp->DP = dig_port->saved_port_bits |
 		DDI_BUF_CTL_ENABLE | DDI_BUF_TRANS_SELECT(0);
 	intel_dp->DP |= DDI_PORT_WIDTH(crtc_state->lane_count);
+
+	if (IS_ALDERLAKE_P(i915) &&
+	    intel_phy_is_tc(i915, phy) && dig_port->tc_mode != TC_PORT_TBT_ALT)
+		intel_dp->DP |= DDI_BUF_CTL_TC_PHY_OWNERSHIP;
 }
 
 static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
