@@ -26,6 +26,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include "thread-stack.h"
+#include "tsc.h"
 #include "tool.h"
 #include "util/synthetic-events.h"
 
@@ -44,6 +45,8 @@ struct arm_spe {
 	struct perf_session		*session;
 	struct machine			*machine;
 	u32				pmu_type;
+
+	struct perf_tsc_conversion	tc;
 
 	u8				timeless_decoding;
 	u8				data_queued;
@@ -1006,6 +1009,7 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 {
 	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	size_t min_sz = sizeof(u64) * ARM_SPE_AUXTRACE_PRIV_MAX;
+	struct perf_record_time_conv *tc = &session->time_conv;
 	struct arm_spe *spe;
 	int err;
 
@@ -1027,6 +1031,28 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 	spe->pmu_type = auxtrace_info->priv[ARM_SPE_PMU_TYPE];
 
 	spe->timeless_decoding = arm_spe__is_timeless_decoding(spe);
+
+	/*
+	 * The synthesized event PERF_RECORD_TIME_CONV has been handled ahead
+	 * and the parameters for hardware clock are stored in the session
+	 * context.  Passes these parameters to the struct perf_tsc_conversion
+	 * in "spe->tc", which is used for later conversion between clock
+	 * counter and timestamp.
+	 *
+	 * For backward compatibility, copies the fields starting from
+	 * "time_cycles" only if they are contained in the event.
+	 */
+	spe->tc.time_shift = tc->time_shift;
+	spe->tc.time_mult = tc->time_mult;
+	spe->tc.time_zero = tc->time_zero;
+
+	if (event_contains(*tc, time_cycles)) {
+		spe->tc.time_cycles = tc->time_cycles;
+		spe->tc.time_mask = tc->time_mask;
+		spe->tc.cap_user_time_zero = tc->cap_user_time_zero;
+		spe->tc.cap_user_time_short = tc->cap_user_time_short;
+	}
+
 	spe->auxtrace.process_event = arm_spe_process_event;
 	spe->auxtrace.process_auxtrace_event = arm_spe_process_auxtrace_event;
 	spe->auxtrace.flush_events = arm_spe_flush;
