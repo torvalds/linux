@@ -165,6 +165,7 @@ EXPORT_SYMBOL(rproc_va_to_pa);
  * @rproc: handle of a remote processor
  * @da: remoteproc device address to translate
  * @len: length of the memory region @da is pointing to
+ * @is_iomem: optional pointer filled in to indicate if @da is iomapped memory
  *
  * Some remote processors will ask us to allocate them physically contiguous
  * memory regions (which we call "carveouts"), and map them to specific
