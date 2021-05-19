@@ -1679,7 +1679,7 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 					    buffer_size, avail, xruns);
 				if (substream->framing == SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP) {
 					clock_type = substream->clock_type >> SNDRV_RAWMIDI_MODE_CLOCK_SHIFT;
-					if (!snd_BUG_ON(clock_type >= sizeof(clock_names)))
+					if (!snd_BUG_ON(clock_type >= ARRAY_SIZE(clock_names)))
 						snd_iprintf(buffer,
 							    "  Framing      : tstamp\n"
 							    "  Clock type   : %s\n",
