@@ -3154,6 +3154,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 #endif
 		return amdgpu_dc != 0;
 #endif
