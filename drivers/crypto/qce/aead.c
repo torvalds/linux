@@ -280,8 +280,10 @@ qce_aead_ccm_prepare_buf_assoclen(struct aead_request *req)
 
 	if (diff_dst) {
 		sg = qce_aead_prepare_dst_buf(req);
-		if (IS_ERR(sg))
+		if (IS_ERR(sg)) {
+			ret = PTR_ERR(sg);
 			goto err_free;
+		}
 	} else {
 		if (IS_ENCRYPT(rctx->flags))
 			rctx->dst_nents = rctx->src_nents + 1;
@@ -448,13 +450,17 @@ qce_aead_async_req_handle(struct crypto_async_request *async_req)
 	if (ret)
 		return ret;
 	dst_nents = dma_map_sg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst);
-	if (dst_nents < 0)
+	if (dst_nents < 0) {
+		ret = dst_nents;
 		goto error_free;
+	}
 
 	if (diff_dst) {
 		src_nents = dma_map_sg(qce->dev, rctx->src_sg, rctx->src_nents, dir_src);
-		if (src_nents < 0)
+		if (src_nents < 0) {
+			ret = src_nents;
 			goto error_unmap_dst;
+		}
 	} else {
 		if (IS_CCM(rctx->flags) && IS_DECRYPT(rctx->flags))
 			src_nents = dst_nents;
