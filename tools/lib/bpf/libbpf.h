@@ -471,6 +471,7 @@ LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
+LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
 LIBBPF_API bool bpf_map__is_offload_neutral(const struct bpf_map *map);
 LIBBPF_API bool bpf_map__is_internal(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_pin_path(struct bpf_map *map, const char *path);
@@ -799,6 +800,18 @@ LIBBPF_API int bpf_object__load_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API int bpf_object__attach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__detach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s);
+
+struct gen_loader_opts {
+	size_t sz; /* size of this struct, for forward/backward compatiblity */
+	const char *data;
+	const char *insns;
+	__u32 data_sz;
+	__u32 insns_sz;
+};
+
+#define gen_loader_opts__last_field insns_sz
+LIBBPF_API int bpf_object__gen_loader(struct bpf_object *obj,
+				      struct gen_loader_opts *opts);
 
 enum libbpf_tristate {
 	TRI_NO = 0,
