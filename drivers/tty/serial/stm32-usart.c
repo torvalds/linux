@@ -980,7 +980,7 @@ static void stm32_usart_pm(struct uart_port *port, unsigned int state,
 			struct stm32_port, port);
 	const struct stm32_usart_offsets *ofs = &stm32port->info->ofs;
 	const struct stm32_usart_config *cfg = &stm32port->info->cfg;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	switch (state) {
 	case UART_PM_STATE_ON:

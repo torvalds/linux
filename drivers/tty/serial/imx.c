@@ -1975,8 +1975,8 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct imx_port *sport = imx_uart_ports[co->index];
 	struct imx_port_ucrs old_ucr;
+	unsigned long flags;
 	unsigned int ucr1;
-	unsigned long flags = 0;
 	int locked = 1;
 
 	if (sport->port.sysrq)

@@ -497,8 +497,8 @@ static int cdns_uart_clk_notifier_cb(struct notifier_block *nb,
 	struct uart_port *port;
 	int locked = 0;
 	struct clk_notifier_data *ndata = data;
-	unsigned long flags = 0;
 	struct cdns_uart *cdns_uart = to_cdns_uart(nb);
+	unsigned long flags;
 
 	port = cdns_uart->port;
 	if (port->suspended)
@@ -1210,7 +1210,7 @@ static void cdns_uart_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
 	struct uart_port *port = console_port;
-	unsigned long flags = 0;
+	unsigned long flags;
 	unsigned int imr, ctrl;
 	int locked = 1;
 
@@ -1308,7 +1308,7 @@ static int cdns_uart_suspend(struct device *device)
 	may_wake = device_may_wakeup(device);
 
 	if (console_suspend_enabled && uart_console(port) && may_wake) {
-		unsigned long flags = 0;
+		unsigned long flags;
 
 		spin_lock_irqsave(&port->lock, flags);
 		/* Empty the receive FIFO 1st before making changes */
@@ -1339,7 +1339,7 @@ static int cdns_uart_resume(struct device *device)
 {
 	struct uart_port *port = dev_get_drvdata(device);
 	struct cdns_uart *cdns_uart = port->private_data;
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 ctrl_reg;
 	int may_wake;
 
