@@ -5633,7 +5633,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	struct drm_display_mode saved_mode;
 	struct drm_display_mode *freesync_mode = NULL;
 	bool native_mode_found = false;
-	bool recalculate_timing = dm_state ? (dm_state->scaling != RMX_OFF) : false;
+	bool recalculate_timing = false;
+	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
 	int preferred_refresh = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -5696,7 +5697,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		 */
 		DRM_DEBUG_DRIVER("No preferred mode found\n");
 	} else {
-		recalculate_timing |= amdgpu_freesync_vid_mode &&
+		recalculate_timing = amdgpu_freesync_vid_mode &&
 				 is_freesync_video_mode(&mode, aconnector);
 		if (recalculate_timing) {
 			freesync_mode = get_highest_refresh_rate_mode(aconnector, false);
@@ -5704,11 +5705,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			mode = *freesync_mode;
 		} else {
 			decide_crtc_timing_for_drm_display_mode(
-				&mode, preferred_mode,
-				dm_state ? (dm_state->scaling != RMX_OFF) : false);
-		}
+				&mode, preferred_mode, scale);
 
-		preferred_refresh = drm_mode_vrefresh(preferred_mode);
+			preferred_refresh = drm_mode_vrefresh(preferred_mode);
+		}
 	}
 
 	if (recalculate_timing)
@@ -5720,7 +5720,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	* If scaling is enabled and refresh rate didn't change
 	* we copy the vic and polarities of the old timings
 	*/
-	if (!recalculate_timing || mode_refresh != preferred_refresh)
+	if (!scale || mode_refresh != preferred_refresh)
 		fill_stream_properties_from_drm_display_mode(
 			stream, &mode, &aconnector->base, con_state, NULL,
 			requested_bpc);
