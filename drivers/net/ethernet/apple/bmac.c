@@ -477,26 +477,26 @@ static int bmac_suspend(struct macio_dev *mdev, pm_message_t state)
 		config = bmread(dev, RXCFG);
 		bmwrite(dev, RXCFG, (config & ~RxMACEnable));
 		config = bmread(dev, TXCFG);
-       		bmwrite(dev, TXCFG, (config & ~TxMACEnable));
+		bmwrite(dev, TXCFG, (config & ~TxMACEnable));
 		bmwrite(dev, INTDISABLE, DisableAll); /* disable all intrs */
-       		/* disable rx and tx dma */
+		/* disable rx and tx dma */
 		rd->control = cpu_to_le32(DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
 		td->control = cpu_to_le32(DBDMA_CLEAR(RUN|PAUSE|FLUSH|WAKE));	/* clear run bit */
-       		/* free some skb's */
-       		for (i=0; i<N_RX_RING; i++) {
-       			if (bp->rx_bufs[i] != NULL) {
-       				dev_kfree_skb(bp->rx_bufs[i]);
-       				bp->rx_bufs[i] = NULL;
-       			}
-       		}
-       		for (i = 0; i<N_TX_RING; i++) {
+		/* free some skb's */
+		for (i=0; i<N_RX_RING; i++) {
+			if (bp->rx_bufs[i] != NULL) {
+				dev_kfree_skb(bp->rx_bufs[i]);
+				bp->rx_bufs[i] = NULL;
+			}
+		}
+		for (i = 0; i<N_TX_RING; i++) {
 			if (bp->tx_bufs[i] != NULL) {
 		       		dev_kfree_skb(bp->tx_bufs[i]);
 	       			bp->tx_bufs[i] = NULL;
 		       	}
 		}
 	}
-       	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
 	return 0;
 }
 
@@ -510,9 +510,9 @@ static int bmac_resume(struct macio_dev *mdev)
 		bmac_reset_and_enable(dev);
 
 	enable_irq(dev->irq);
-       	enable_irq(bp->tx_dma_intr);
-       	enable_irq(bp->rx_dma_intr);
-       	netif_device_attach(dev);
+	enable_irq(bp->tx_dma_intr);
+	enable_irq(bp->rx_dma_intr);
+	netif_device_attach(dev);
 
 	return 0;
 }
@@ -1599,7 +1599,7 @@ static int bmac_remove(struct macio_dev *mdev)
 
 	unregister_netdev(dev);
 
-       	free_irq(dev->irq, dev);
+	free_irq(dev->irq, dev);
 	free_irq(bp->tx_dma_intr, dev);
 	free_irq(bp->rx_dma_intr, dev);
 
