@@ -1390,6 +1390,13 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 		return -ENXIO;
 	}
 
+	/*
+	 * Devices that have zones with a capacity smaller than the zone size
+	 * (e.g. NVMe zoned namespaces) are not supported.
+	 */
+	if (blkz->capacity != blkz->len)
+		return -ENXIO;
+
 	switch (blkz->type) {
 	case BLK_ZONE_TYPE_CONVENTIONAL:
 		set_bit(DMZ_RND, &zone->flags);
