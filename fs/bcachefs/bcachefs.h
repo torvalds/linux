@@ -191,6 +191,7 @@
 #include <linux/percpu-rwsem.h>
 #include <linux/rhashtable.h>
 #include <linux/rwsem.h>
+#include <linux/semaphore.h>
 #include <linux/seqlock.h>
 #include <linux/shrinker.h>
 #include <linux/srcu.h>
@@ -746,6 +747,7 @@ struct bch_fs {
 	struct rw_semaphore	gc_lock;
 
 	/* IO PATH */
+	struct semaphore	io_in_flight;
 	struct bio_set		bio_read;
 	struct bio_set		bio_read_split;
 	struct bio_set		bio_write;
