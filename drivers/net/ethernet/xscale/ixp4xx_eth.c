@@ -1531,8 +1531,8 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 		phydev = of_phy_get_and_connect(ndev, np, ixp4xx_adjust_link);
 	} else {
 		phydev = mdiobus_get_phy(mdio_bus, plat->phy);
-		if (IS_ERR(phydev)) {
-			err = PTR_ERR(phydev);
+		if (!phydev) {
+			err = -ENODEV;
 			dev_err(dev, "could not connect phydev (%d)\n", err);
 			goto err_free_mem;
 		}
