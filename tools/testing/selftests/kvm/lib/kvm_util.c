@@ -903,6 +903,19 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	vm_userspace_mem_region_gpa_insert(&vm->regions.gpa_tree, region);
 	vm_userspace_mem_region_hva_insert(&vm->regions.hva_tree, region);
 	hash_add(vm->regions.slot_hash, &region->slot_node, slot);
+
+	/* If shared memory, create an alias. */
+	if (region->fd >= 0) {
+		region->mmap_alias = mmap(NULL, region->mmap_size,
+					  PROT_READ | PROT_WRITE,
+					  vm_mem_backing_src_alias(src_type)->flag,
+					  region->fd, 0);
+		TEST_ASSERT(region->mmap_alias != MAP_FAILED,
+			    "mmap of alias failed, errno: %i", errno);
+
+		/* Align host alias address */
+		region->host_alias = align(region->mmap_alias, alignment);
+	}
 }
 
 /*
@@ -1331,6 +1344,42 @@ vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva)
 
 	TEST_FAIL("No mapping to a guest physical address, hva: %p", hva);
 	return -1;
+}
+
+/*
+ * Address VM physical to Host Virtual *alias*.
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   gpa - VM physical address
+ *
+ * Output Args: None
+ *
+ * Return:
+ *   Equivalent address within the host virtual *alias* area, or NULL
+ *   (without failing the test) if the guest memory is not shared (so
+ *   no alias exists).
+ *
+ * When vm_create() and related functions are called with a shared memory
+ * src_type, we also create a writable, shared alias mapping of the
+ * underlying guest memory. This allows the host to manipulate guest memory
+ * without mapping that memory in the guest's address space. And, for
+ * userfaultfd-based demand paging, we can do so without triggering userfaults.
+ */
+void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa)
+{
+	struct userspace_mem_region *region;
+	uintptr_t offset;
+
+	region = userspace_mem_region_find(vm, gpa, gpa);
+	if (!region)
+		return NULL;
+
+	if (!region->host_alias)
+		return NULL;
+
+	offset = gpa - region->region.guest_phys_addr;
+	return (void *) ((uintptr_t) region->host_alias + offset);
 }
 
 /*
