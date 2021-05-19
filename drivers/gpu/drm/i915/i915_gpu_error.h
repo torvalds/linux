@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: MIT
  *
- * Copyright � 2008-2018 Intel Corporation
+ * Copyright © 2008-2018 Intel Corporation
  */
 
 #ifndef _I915_GPU_ERROR_H_
