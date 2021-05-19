@@ -266,9 +266,11 @@ peci_cpupower_set_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 		power_limit_low.bits.pwr_lim_1 = 0u;
 		power_limit_low.bits.pwr_lim_1_en = 0u;
 		power_limit_low.bits.pwr_clmp_lim_1 = 0u;
+		power_limit_low.bits.pwr_lim_1_time = 0u;
 		power_limit_high.bits.pwr_lim_2 = 0u;
 		power_limit_high.bits.pwr_lim_2_en = 0u;
 		power_limit_high.bits.pwr_clmp_lim_2 = 0u;
+		power_limit_high.bits.pwr_lim_2_time = 0u;
 	}
 
 	ret = peci_pcs_write(priv->mgr, PECI_MBX_INDEX_PKG_POWER_LIMIT1,

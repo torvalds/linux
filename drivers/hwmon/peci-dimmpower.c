@@ -223,6 +223,7 @@ peci_dimmpower_set_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 	} else {
 		power_limit.bits.pp_pwr_lim = 0u;
 		power_limit.bits.pwr_lim_ctrl_en = 0u;
+		power_limit.bits.ctrl_time_win = 0u;
 	}
 
 	ret = peci_pcs_write(priv->mgr, PECI_MBX_INDEX_DDR_RAPL_PL1,
