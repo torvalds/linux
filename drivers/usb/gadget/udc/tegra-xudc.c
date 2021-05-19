@@ -3520,8 +3520,8 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 						&xudc->vbus_nb);
 			if (IS_ERR(xudc->usbphy[i])) {
 				err = PTR_ERR(xudc->usbphy[i]);
-				dev_err(xudc->dev, "failed to get usbphy-%d: %d\n",
-					i, err);
+				dev_err_probe(xudc->dev, err,
+					      "failed to get usbphy-%d\n", i);
 				goto clean_up;
 			}
 		} else if (!xudc->utmi_phy[i]) {
