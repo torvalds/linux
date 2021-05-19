@@ -8351,6 +8351,48 @@ enum {
  */
 MLXSW_ITEM_BIT_ARRAY(reg, recr2, outer_header_fields_enable, 0x14, 0x14, 1);
 
+/* reg_recr2_inner_header_enables
+ * Bit mask where each bit enables a specific inner layer to be included in the
+ * hash calculation. Same values as reg_recr2_outer_header_enables.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, recr2, inner_header_enables, 0x2C, 0x04, 1);
+
+enum {
+	/* Inner IPv4 Source IP */
+	MLXSW_REG_RECR2_INNER_IPV4_SIP0			= 3,
+	MLXSW_REG_RECR2_INNER_IPV4_SIP3			= 6,
+	/* Inner IPv4 Destination IP */
+	MLXSW_REG_RECR2_INNER_IPV4_DIP0			= 7,
+	MLXSW_REG_RECR2_INNER_IPV4_DIP3			= 10,
+	/* Inner IP Protocol */
+	MLXSW_REG_RECR2_INNER_IPV4_PROTOCOL		= 11,
+	/* Inner IPv6 Source IP */
+	MLXSW_REG_RECR2_INNER_IPV6_SIP0_7		= 12,
+	MLXSW_REG_RECR2_INNER_IPV6_SIP8			= 20,
+	MLXSW_REG_RECR2_INNER_IPV6_SIP15		= 27,
+	/* Inner IPv6 Destination IP */
+	MLXSW_REG_RECR2_INNER_IPV6_DIP0_7		= 28,
+	MLXSW_REG_RECR2_INNER_IPV6_DIP8			= 36,
+	MLXSW_REG_RECR2_INNER_IPV6_DIP15		= 43,
+	/* Inner IPv6 Next Header */
+	MLXSW_REG_RECR2_INNER_IPV6_NEXT_HEADER		= 44,
+	/* Inner IPv6 Flow Label */
+	MLXSW_REG_RECR2_INNER_IPV6_FLOW_LABEL		= 45,
+	/* Inner TCP/UDP Source Port */
+	MLXSW_REG_RECR2_INNER_TCP_UDP_SPORT		= 46,
+	/* Inner TCP/UDP Destination Port */
+	MLXSW_REG_RECR2_INNER_TCP_UDP_DPORT		= 47,
+
+	__MLXSW_REG_RECR2_INNER_FIELD_CNT,
+};
+
+/* reg_recr2_inner_header_fields_enable
+ * Inner packet fields to enable for ECMP hash subject to inner_header_enables.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, recr2, inner_header_fields_enable, 0x30, 0x08, 1);
+
 static inline void mlxsw_reg_recr2_pack(char *payload, u32 seed)
 {
 	MLXSW_REG_ZERO(recr2, payload);
