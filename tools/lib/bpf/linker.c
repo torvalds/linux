@@ -158,7 +158,9 @@ struct bpf_linker {
 
 static int init_output_elf(struct bpf_linker *linker, const char *file);
 
-static int linker_load_obj_file(struct bpf_linker *linker, const char *filename, struct src_obj *obj);
+static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
+				const struct bpf_linker_file_opts *opts,
+				struct src_obj *obj);
 static int linker_sanity_check_elf(struct src_obj *obj);
 static int linker_sanity_check_elf_symtab(struct src_obj *obj, struct src_sec *sec);
 static int linker_sanity_check_elf_relos(struct src_obj *obj, struct src_sec *sec);
@@ -435,15 +437,19 @@ static int init_output_elf(struct bpf_linker *linker, const char *file)
 	return 0;
 }
 
-int bpf_linker__add_file(struct bpf_linker *linker, const char *filename)
+int bpf_linker__add_file(struct bpf_linker *linker, const char *filename,
+			 const struct bpf_linker_file_opts *opts)
 {
 	struct src_obj obj = {};
 	int err = 0;
 
+	if (!OPTS_VALID(opts, bpf_linker_file_opts))
+		return -EINVAL;
+
 	if (!linker->elf)
 		return -EINVAL;
 
-	err = err ?: linker_load_obj_file(linker, filename, &obj);
+	err = err ?: linker_load_obj_file(linker, filename, opts, &obj);
 	err = err ?: linker_append_sec_data(linker, &obj);
 	err = err ?: linker_append_elf_syms(linker, &obj);
 	err = err ?: linker_append_elf_relos(linker, &obj);
@@ -529,7 +535,9 @@ static struct src_sec *add_src_sec(struct src_obj *obj, const char *sec_name)
 	return sec;
 }
 
-static int linker_load_obj_file(struct bpf_linker *linker, const char *filename, struct src_obj *obj)
+static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
+				const struct bpf_linker_file_opts *opts,
+				struct src_obj *obj)
 {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 	const int host_endianness = ELFDATA2LSB;
@@ -1780,7 +1788,7 @@ static void sym_update_visibility(Elf64_Sym *sym, int sym_vis)
 	/* libelf doesn't provide setters for ST_VISIBILITY,
 	 * but it is stored in the lower 2 bits of st_other
 	 */
-	sym->st_other &= 0x03;
+	sym->st_other &= ~0x03;
 	sym->st_other |= sym_vis;
 }
 

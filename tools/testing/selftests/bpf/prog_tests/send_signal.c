@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include "test_send_signal_kern.skel.h"
 
-static volatile int sigusr1_received = 0;
+int sigusr1_received = 0;
 
 static void sigusr1_handler(int signum)
 {
