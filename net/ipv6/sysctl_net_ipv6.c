@@ -44,6 +44,22 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 	return ret;
 }
 
+static int
+proc_rt6_multipath_hash_fields(struct ctl_table *table, int write, void *buffer,
+			       size_t *lenp, loff_t *ppos)
+{
+	struct net *net;
+	int ret;
+
+	net = container_of(table->data, struct net,
+			   ipv6.sysctl.multipath_hash_fields);
+	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	if (write && ret == 0)
+		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
+
+	return ret;
+}
+
 static struct ctl_table ipv6_table_template[] = {
 	{
 		.procname	= "bindv6only",
@@ -160,7 +176,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.multipath_hash_fields,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.proc_handler	= proc_rt6_multipath_hash_fields,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= &rt6_multipath_hash_fields_all_mask,
 	},
