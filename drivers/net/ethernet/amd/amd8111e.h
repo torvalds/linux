@@ -10,14 +10,14 @@ Module Name:
 
 Abstract:
 
- 	 AMD8111 based 10/100 Ethernet Controller driver definitions.
+	 AMD8111 based 10/100 Ethernet Controller driver definitions.
 
 Environment:
 
 	Kernel Mode
 
 Revision History:
- 	3.0.0
+	3.0.0
 	   Initial Revision.
 	3.0.1
 */
@@ -692,7 +692,7 @@ enum coal_type{
 };
 
 enum coal_mode{
-       	RX_INTR_COAL,
+	RX_INTR_COAL,
 	TX_INTR_COAL,
 	DISABLE_COAL,
 	ENABLE_COAL,
