@@ -666,6 +666,8 @@ void optc1_set_drr(
 	struct timing_generator *optc,
 	const struct drr_params *params);
 
+void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max);
+
 void optc1_set_static_screen_control(
 	struct timing_generator *optc,
 	uint32_t event_triggers,

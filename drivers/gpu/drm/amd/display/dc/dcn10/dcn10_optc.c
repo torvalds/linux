@@ -968,6 +968,17 @@ void optc1_set_drr(
 	}
 }
 
+void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_V_TOTAL_MAX, 0,
+		OTG_V_TOTAL_MAX, vtotal_max);
+
+	REG_SET(OTG_V_TOTAL_MIN, 0,
+		OTG_V_TOTAL_MIN, vtotal_min);
+}
+
 static void optc1_set_test_pattern(
 	struct timing_generator *optc,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
