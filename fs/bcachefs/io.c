@@ -342,9 +342,8 @@ int bch2_extent_update(struct btree_trans *trans,
 		bch2_trans_iter_put(trans, inode_iter);
 	}
 
-	bch2_trans_update(trans, iter, k, 0);
-
-	ret = bch2_trans_commit(trans, disk_res, journal_seq,
+	ret =   bch2_trans_update(trans, iter, k, 0) ?:
+		bch2_trans_commit(trans, disk_res, journal_seq,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL);
 	if (ret)

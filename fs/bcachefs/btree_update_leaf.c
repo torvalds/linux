@@ -1099,9 +1099,30 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		if (i < trans->updates + trans->nr_updates &&
 		    i->btree_id == n.btree_id &&
 		    bkey_cmp(n.k->k.p, bkey_start_pos(&i->k->k)) > 0) {
-			/* We don't handle splitting extents here: */
-			BUG_ON(bkey_cmp(bkey_start_pos(&n.k->k),
-					bkey_start_pos(&i->k->k)) > 0);
+			if (bkey_cmp(bkey_start_pos(&n.k->k),
+				     bkey_start_pos(&i->k->k)) > 0) {
+				struct btree_insert_entry split = *i;
+				int ret;
+
+				BUG_ON(trans->nr_updates + 1 >= BTREE_ITER_MAX);
+
+				split.k = bch2_trans_kmalloc(trans, bkey_bytes(&i->k->k));
+				ret = PTR_ERR_OR_ZERO(split.k);
+				if (ret)
+					return ret;
+
+				bkey_copy(split.k, i->k);
+				bch2_cut_back(bkey_start_pos(&n.k->k), split.k);
+
+				split.iter = bch2_trans_get_iter(trans, split.btree_id,
+								 bkey_start_pos(&split.k->k),
+								 BTREE_ITER_INTENT);
+				split.iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
+				bch2_trans_iter_put(trans, split.iter);
+				array_insert_item(trans->updates, trans->nr_updates,
+						  i - trans->updates, split);
+				i++;
+			}
 
 			/*
 			 * When we have an extent that overwrites the start of another
