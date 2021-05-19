@@ -2073,6 +2073,17 @@ int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 EXPORT_SYMBOL_GPL(nvme_sec_submit);
 #endif /* CONFIG_BLK_SED_OPAL */
 
+#ifdef CONFIG_BLK_DEV_ZONED
+static int nvme_report_zones(struct gendisk *disk, sector_t sector,
+		unsigned int nr_zones, report_zones_cb cb, void *data)
+{
+	return nvme_ns_report_zones(disk->private_data, sector, nr_zones, cb,
+			data);
+}
+#else
+#define nvme_report_zones	NULL
+#endif /* CONFIG_BLK_DEV_ZONED */
+
 static const struct block_device_operations nvme_bdev_ops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
