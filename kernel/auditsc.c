@@ -63,7 +63,7 @@
 #include <linux/fsnotify_backend.h>
 #include <uapi/linux/limits.h>
 #include <uapi/linux/netfilter/nf_tables.h>
-#include <uapi/linux/openat2.h>
+#include <uapi/linux/openat2.h> // struct open_how
 
 #include "audit.h"
 
@@ -1306,6 +1306,12 @@ static void show_special(struct audit_context *context, int *call_panic)
 		audit_log_format(ab, "fd=%d flags=0x%x", context->mmap.fd,
 				 context->mmap.flags);
 		break;
+	case AUDIT_OPENAT2:
+		audit_log_format(ab, "oflag=0%llo mode=0%llo resolve=0x%llx",
+				 context->openat2.flags,
+				 context->openat2.mode,
+				 context->openat2.resolve);
+		break;
 	case AUDIT_EXECVE:
 		audit_log_execve_info(context, &ab);
 		break;
@@ -2534,6 +2540,16 @@ void __audit_mmap_fd(int fd, int flags)
 	context->mmap.fd = fd;
 	context->mmap.flags = flags;
 	context->type = AUDIT_MMAP;
+}
+
+void __audit_openat2_how(struct open_how *how)
+{
+	struct audit_context *context = audit_context();
+
+	context->openat2.flags = how->flags;
+	context->openat2.mode = how->mode;
+	context->openat2.resolve = how->resolve;
+	context->type = AUDIT_OPENAT2;
 }
 
 void __audit_log_kern_module(char *name)
