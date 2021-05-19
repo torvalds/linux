@@ -249,6 +249,31 @@ static u32 icl_pll_to_ddi_clk_sel(struct intel_encoder *encoder,
 	}
 }
 
+static u32 ddi_buf_phy_link_rate(int port_clock)
+{
+	switch (port_clock) {
+	case 162000:
+		return DDI_BUF_PHY_LINK_RATE(0);
+	case 216000:
+		return DDI_BUF_PHY_LINK_RATE(4);
+	case 243000:
+		return DDI_BUF_PHY_LINK_RATE(5);
+	case 270000:
+		return DDI_BUF_PHY_LINK_RATE(1);
+	case 324000:
+		return DDI_BUF_PHY_LINK_RATE(6);
+	case 432000:
+		return DDI_BUF_PHY_LINK_RATE(7);
+	case 540000:
+		return DDI_BUF_PHY_LINK_RATE(2);
+	case 810000:
+		return DDI_BUF_PHY_LINK_RATE(3);
+	default:
+		MISSING_CASE(port_clock);
+		return DDI_BUF_PHY_LINK_RATE(0);
+	}
+}
+
 static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 				      const struct intel_crtc_state *crtc_state)
 {
@@ -261,9 +286,11 @@ static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 		DDI_BUF_CTL_ENABLE | DDI_BUF_TRANS_SELECT(0);
 	intel_dp->DP |= DDI_PORT_WIDTH(crtc_state->lane_count);
 
-	if (IS_ALDERLAKE_P(i915) &&
-	    intel_phy_is_tc(i915, phy) && dig_port->tc_mode != TC_PORT_TBT_ALT)
-		intel_dp->DP |= DDI_BUF_CTL_TC_PHY_OWNERSHIP;
+	if (IS_ALDERLAKE_P(i915) && intel_phy_is_tc(i915, phy)) {
+		intel_dp->DP |= ddi_buf_phy_link_rate(crtc_state->port_clock);
+		if (dig_port->tc_mode != TC_PORT_TBT_ALT)
+			intel_dp->DP |= DDI_BUF_CTL_TC_PHY_OWNERSHIP;
+	}
 }
 
 static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
@@ -3168,6 +3195,9 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	/* In HDMI/DVI mode, the port width, and swing/emphasis values
 	 * are ignored so nothing special needs to be done besides
 	 * enabling the port.
+	 *
+	 * On ADL_P the PHY link rate and lane count must be programmed but
+	 * these are both 0 for HDMI.
 	 */
 	intel_de_write(dev_priv, DDI_BUF_CTL(port),
 		       dig_port->saved_port_bits | DDI_BUF_CTL_ENABLE);
