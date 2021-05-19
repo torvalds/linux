@@ -240,6 +240,7 @@ static void setup_demand_paging(struct kvm_vm *vm,
 struct test_params {
 	bool use_uffd;
 	useconds_t uffd_delay;
+	enum vm_mem_backing_src_type src_type;
 	bool partition_vcpu_memory_access;
 };
 
@@ -257,11 +258,11 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	int r;
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
-				 VM_MEM_SRC_ANONYMOUS);
+				 p->src_type);
 
 	perf_test_args.wr_fract = 1;
 
-	demand_paging_size = get_backing_src_pagesz(VM_MEM_SRC_ANONYMOUS);
+	demand_paging_size = get_backing_src_pagesz(p->src_type);
 
 	guest_data_prototype = malloc(demand_paging_size);
 	TEST_ASSERT(guest_data_prototype,
@@ -377,7 +378,7 @@ static void help(char *name)
 {
 	puts("");
 	printf("usage: %s [-h] [-m mode] [-u] [-d uffd_delay_usec]\n"
-	       "          [-b memory] [-v vcpus] [-o]\n", name);
+	       "          [-b memory] [-t type] [-v vcpus] [-o]\n", name);
 	guest_modes_help();
 	printf(" -u: use User Fault FD to handle vCPU page\n"
 	       "     faults.\n");
@@ -387,6 +388,8 @@ static void help(char *name)
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     demand paged by each vCPU. e.g. 10M or 3G.\n"
 	       "     Default: 1G\n");
+	printf(" -t: The type of backing memory to use. Default: anonymous\n");
+	backing_src_help();
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
@@ -398,13 +401,14 @@ int main(int argc, char *argv[])
 {
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	struct test_params p = {
+		.src_type = VM_MEM_SRC_ANONYMOUS,
 		.partition_vcpu_memory_access = true,
 	};
 	int opt;
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hm:ud:b:v:o")) != -1) {
+	while ((opt = getopt(argc, argv, "hm:ud:b:t:v:o")) != -1) {
 		switch (opt) {
 		case 'm':
 			guest_modes_cmdline(optarg);
@@ -418,6 +422,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
+			break;
+		case 't':
+			p.src_type = parse_backing_src_type(optarg);
 			break;
 		case 'v':
 			nr_vcpus = atoi(optarg);
