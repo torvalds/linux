@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * typec_wcove.c - WhiskeyCove PMIC USB Type-C PHY driver
  *
  * Copyright (C) 2017 Intel Corporation
