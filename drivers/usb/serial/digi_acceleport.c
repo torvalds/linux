@@ -1044,17 +1044,19 @@ static unsigned int digi_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+	unsigned int chars;
 
-	if (priv->dp_write_urb_in_use) {
-		dev_dbg(&port->dev, "digi_chars_in_buffer: port=%d, chars=%d\n",
-			priv->dp_port_num, port->bulk_out_size - 2);
-		return port->bulk_out_size - 2;
-	} else {
-		dev_dbg(&port->dev, "digi_chars_in_buffer: port=%d, chars=%d\n",
-			priv->dp_port_num, priv->dp_out_buf_len);
-		return priv->dp_out_buf_len;
-	}
+	spin_lock_irqsave(&priv->dp_port_lock, flags);
+	if (priv->dp_write_urb_in_use)
+		chars = port->bulk_out_size - 2;
+	else
+		chars = priv->dp_out_buf_len;
+	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
+	dev_dbg(&port->dev, "%s: port=%d, chars=%d\n", __func__,
+			priv->dp_port_num, chars);
+	return chars;
 }
 
 static void digi_dtr_rts(struct usb_serial_port *port, int on)
