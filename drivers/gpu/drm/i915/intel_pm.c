@@ -4057,6 +4057,20 @@ skl_ddb_entry_for_slices(struct drm_i915_private *dev_priv, u8 slice_mask,
 	WARN_ON(ddb->end > INTEL_INFO(dev_priv)->dbuf.size);
 }
 
+static unsigned int mbus_ddb_offset(struct drm_i915_private *i915, u8 slice_mask)
+{
+	struct skl_ddb_entry ddb;
+
+	if (slice_mask & (BIT(DBUF_S1) | BIT(DBUF_S2)))
+		slice_mask = BIT(DBUF_S1);
+	else if (slice_mask & (BIT(DBUF_S3) | BIT(DBUF_S4)))
+		slice_mask = BIT(DBUF_S3);
+
+	skl_ddb_entry_for_slices(i915, slice_mask, &ddb);
+
+	return ddb.start;
+}
+
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 			    const struct skl_ddb_entry *entry)
 {
@@ -4149,6 +4163,7 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	struct intel_crtc_state *crtc_state;
 	struct skl_ddb_entry ddb_slices;
 	enum pipe pipe = crtc->pipe;
+	unsigned int mbus_offset;
 	u32 ddb_range_size;
 	u32 dbuf_slice_mask;
 	u32 start, end;
@@ -4163,6 +4178,7 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	dbuf_slice_mask = new_dbuf_state->slices[pipe];
 
 	skl_ddb_entry_for_slices(dev_priv, dbuf_slice_mask, &ddb_slices);
+	mbus_offset = mbus_ddb_offset(dev_priv, dbuf_slice_mask);
 	ddb_range_size = skl_ddb_entry_size(&ddb_slices);
 
 	intel_crtc_dbuf_weights(new_dbuf_state, pipe,
@@ -4171,11 +4187,11 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	start = ddb_range_size * weight_start / weight_total;
 	end = ddb_range_size * weight_end / weight_total;
 
-	new_dbuf_state->ddb[pipe].start = ddb_slices.start + start;
-	new_dbuf_state->ddb[pipe].end = ddb_slices.start + end;
-
+	new_dbuf_state->ddb[pipe].start = ddb_slices.start - mbus_offset + start;
+	new_dbuf_state->ddb[pipe].end = ddb_slices.start - mbus_offset + end;
 out:
-	if (skl_ddb_entry_equal(&old_dbuf_state->ddb[pipe],
+	if (old_dbuf_state->slices[pipe] == new_dbuf_state->slices[pipe] &&
+	    skl_ddb_entry_equal(&old_dbuf_state->ddb[pipe],
 				&new_dbuf_state->ddb[pipe]))
 		return 0;
 
@@ -4187,7 +4203,12 @@ out:
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	crtc_state->wm.skl.ddb = new_dbuf_state->ddb[pipe];
+	/*
+	 * Used for checking overlaps, so we need absolute
+	 * offsets instead of MBUS relative offsets.
+	 */
+	crtc_state->wm.skl.ddb.start = mbus_offset + new_dbuf_state->ddb[pipe].start;
+	crtc_state->wm.skl.ddb.end = mbus_offset + new_dbuf_state->ddb[pipe].end;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CRTC:%d:%s] dbuf slices 0x%x -> 0x%x, ddb (%d - %d) -> (%d - %d), active pipes 0x%x -> 0x%x\n",
@@ -6416,6 +6437,7 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		enum pipe pipe = crtc->pipe;
+		unsigned int mbus_offset;
 		enum plane_id plane_id;
 
 		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
@@ -6441,7 +6463,13 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 		dbuf_state->weight[pipe] = intel_crtc_ddb_weight(crtc_state);
 
-		crtc_state->wm.skl.ddb = dbuf_state->ddb[pipe];
+		/*
+		 * Used for checking overlaps, so we need absolute
+		 * offsets instead of MBUS relative offsets.
+		 */
+		mbus_offset = mbus_ddb_offset(dev_priv, dbuf_state->slices[pipe]);
+		crtc_state->wm.skl.ddb.start = mbus_offset + dbuf_state->ddb[pipe].start;
+		crtc_state->wm.skl.ddb.end = mbus_offset + dbuf_state->ddb[pipe].end;
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
