@@ -847,10 +847,25 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	if (alignment > 1)
 		region->mmap_size += alignment;
 
+	region->fd = -1;
+	if (src_type == VM_MEM_SRC_SHMEM) {
+		region->fd = memfd_create("kvm_selftest", MFD_CLOEXEC);
+		TEST_ASSERT(region->fd != -1,
+			    "memfd_create failed, errno: %i", errno);
+
+		ret = ftruncate(region->fd, region->mmap_size);
+		TEST_ASSERT(ret == 0, "ftruncate failed, errno: %i", errno);
+
+		ret = fallocate(region->fd,
+				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0,
+				region->mmap_size);
+		TEST_ASSERT(ret == 0, "fallocate failed, errno: %i", errno);
+	}
+
 	region->mmap_start = mmap(NULL, region->mmap_size,
 				  PROT_READ | PROT_WRITE,
 				  vm_mem_backing_src_alias(src_type)->flag,
-				  -1, 0);
+				  region->fd, 0);
 	TEST_ASSERT(region->mmap_start != MAP_FAILED,
 		    "test_malloc failed, mmap_start: %p errno: %i",
 		    region->mmap_start, errno);

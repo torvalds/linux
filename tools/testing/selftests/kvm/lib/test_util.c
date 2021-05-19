@@ -236,6 +236,10 @@ const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
 			.name = "anonymous_hugetlb_16gb",
 			.flag = anon_huge_flags | MAP_HUGE_16GB,
 		},
+		[VM_MEM_SRC_SHMEM] = {
+			.name = "shmem",
+			.flag = MAP_SHARED,
+		},
 	};
 	_Static_assert(ARRAY_SIZE(aliases) == NUM_SRC_TYPES,
 		       "Missing new backing src types?");
@@ -253,6 +257,7 @@ size_t get_backing_src_pagesz(uint32_t i)
 
 	switch (i) {
 	case VM_MEM_SRC_ANONYMOUS:
+	case VM_MEM_SRC_SHMEM:
 		return getpagesize();
 	case VM_MEM_SRC_ANONYMOUS_THP:
 		return get_trans_hugepagesz();
