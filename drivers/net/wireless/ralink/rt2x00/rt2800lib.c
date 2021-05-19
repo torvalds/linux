@@ -1037,7 +1037,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 	 * FIXME: if we do not find matching entry, we tell that frame was
 	 * posted without any retries. We need to find a way to fix that
 	 * and provide retry count.
- 	 */
+	 */
 	if (unlikely((aggr == 1 && ampdu == 0 && real_mcs != mcs)) || !match) {
 		rt2800_rate_from_status(skbdesc, status, rt2x00dev->curr_band);
 		mcs = real_mcs;
