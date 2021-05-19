@@ -1542,36 +1542,6 @@ static void nvme_enable_aen(struct nvme_ctrl *ctrl)
 	queue_work(nvme_wq, &ctrl->async_event_work);
 }
 
-/*
- * Issue ioctl requests on the first available path.  Note that unlike normal
- * block layer requests we will not retry failed request on another controller.
- */
-struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
-		struct nvme_ns_head **head, int *srcu_idx)
-{
-#ifdef CONFIG_NVME_MULTIPATH
-	if (disk->fops == &nvme_ns_head_ops) {
-		struct nvme_ns *ns;
-
-		*head = disk->private_data;
-		*srcu_idx = srcu_read_lock(&(*head)->srcu);
-		ns = nvme_find_path(*head);
-		if (!ns)
-			srcu_read_unlock(&(*head)->srcu, *srcu_idx);
-		return ns;
-	}
-#endif
-	*head = NULL;
-	*srcu_idx = -1;
-	return disk->private_data;
-}
-
-void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx)
-{
-	if (head)
-		srcu_read_unlock(&head->srcu, idx);
-}
-
 static int nvme_ns_open(struct nvme_ns *ns)
 {
 
@@ -1968,30 +1938,46 @@ static char nvme_pr_type(enum pr_type type)
 	}
 };
 
+static int nvme_send_ns_head_pr_command(struct block_device *bdev,
+		struct nvme_command *c, u8 data[16])
+{
+	struct nvme_ns_head *head = bdev->bd_disk->private_data;
+	int srcu_idx = srcu_read_lock(&head->srcu);
+	struct nvme_ns *ns = nvme_find_path(head);
+	int ret = -EWOULDBLOCK;
+
+	if (ns) {
+		c->common.nsid = cpu_to_le32(ns->head->ns_id);
+		ret = nvme_submit_sync_cmd(ns->queue, c, data, 16);
+	}
+	srcu_read_unlock(&head->srcu, srcu_idx);
+	return ret;
+}
+	
+static int nvme_send_ns_pr_command(struct nvme_ns *ns, struct nvme_command *c,
+		u8 data[16])
+{
+	c->common.nsid = cpu_to_le32(ns->head->ns_id);
+	return nvme_submit_sync_cmd(ns->queue, c, data, 16);
+}
+
 static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 				u64 key, u64 sa_key, u8 op)
 {
-	struct nvme_ns_head *head = NULL;
-	struct nvme_ns *ns;
 	struct nvme_command c;
-	int srcu_idx, ret;
 	u8 data[16] = { 0, };
-
-	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
-	if (unlikely(!ns))
-		return -EWOULDBLOCK;
 
 	put_unaligned_le64(key, &data[0]);
 	put_unaligned_le64(sa_key, &data[8]);
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = cpu_to_le32(ns->head->ns_id);
 	c.common.cdw10 = cpu_to_le32(cdw10);
 
-	ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
-	nvme_put_ns_from_disk(head, srcu_idx);
-	return ret;
+	if (IS_ENABLED(CONFIG_NVME_MULTIPATH) &&
+	    bdev->bd_disk->fops == &nvme_ns_head_ops)
+		return nvme_send_ns_head_pr_command(bdev, &c, data);
+	return nvme_send_ns_pr_command(bdev->bd_disk->private_data, &c, data);
 }
 
 static int nvme_pr_register(struct block_device *bdev, u64 old,
