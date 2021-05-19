@@ -302,6 +302,6 @@ VCPU returns from the call.
 References
 ==========
 
-.. [atomic-ops] Documentation/core-api/atomic_ops.rst
+.. [atomic-ops] Documentation/atomic_bitops.txt and Documentation/atomic_t.txt
 .. [memory-barriers] Documentation/memory-barriers.txt
 .. [lwn-mb] https://lwn.net/Articles/573436/
