@@ -11,6 +11,7 @@
 #include "intel_display_types.h"
 #include "intel_dsi.h"
 #include "intel_vdsc.h"
+#include "intel_qp_tables.h"
 
 enum ROW_INDEX_BPP {
 	ROW_INDEX_6BPP = 0,
@@ -384,7 +385,7 @@ calculate_rc_params(struct rc_parameters *rc,
 	int ofs_und12[] = { 2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12 };
 	int ofs_und15[] = { 10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -10, -12, -12, -12 };
 	int qp_bpc_modifier = (bpc - 8) * 2;
-	u32 res, buf_i;
+	u32 res, buf_i, bpp_i;
 
 	if (vdsc_cfg->slice_height >= 8)
 		rc->first_line_bpg_offset =
@@ -411,7 +412,14 @@ calculate_rc_params(struct rc_parameters *rc,
 	rc->rc_quant_incr_limit0 = 11 + qp_bpc_modifier;
 	rc->rc_quant_incr_limit1 = 11 + qp_bpc_modifier;
 
+	bpp_i  = (2 * (bpp - 6));
 	for (buf_i = 0; buf_i < DSC_NUM_BUF_RANGES; buf_i++) {
+		/* Read range_minqp and range_max_qp from qp tables */
+		rc->rc_range_params[buf_i].range_min_qp =
+			intel_lookup_range_min_qp(bpc, buf_i, bpp_i);
+		rc->rc_range_params[buf_i].range_max_qp =
+			intel_lookup_range_max_qp(bpc, buf_i, bpp_i);
+
 		/* Calculate range_bgp_offset */
 		if (bpp <= 6) {
 			rc->rc_range_params[buf_i].range_bpg_offset = ofs_und6[buf_i];
