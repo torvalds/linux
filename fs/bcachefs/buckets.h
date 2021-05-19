@@ -294,6 +294,13 @@ static inline int bch2_disk_reservation_get(struct bch_fs *c,
 	return bch2_disk_reservation_add(c, res, sectors * nr_replicas, flags);
 }
 
+#define RESERVE_FACTOR	6
+
+static inline u64 avail_factor(u64 r)
+{
+	return div_u64(r << RESERVE_FACTOR, (1 << RESERVE_FACTOR) + 1);
+}
+
 int bch2_dev_buckets_resize(struct bch_fs *, struct bch_dev *, u64);
 void bch2_dev_buckets_free(struct bch_dev *);
 int bch2_dev_buckets_alloc(struct bch_fs *, struct bch_dev *);

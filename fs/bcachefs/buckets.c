@@ -261,16 +261,9 @@ void bch2_fs_usage_to_text(struct printbuf *out,
 	}
 }
 
-#define RESERVE_FACTOR	6
-
 static u64 reserve_factor(u64 r)
 {
 	return r + (round_up(r, (1 << RESERVE_FACTOR)) >> RESERVE_FACTOR);
-}
-
-static u64 avail_factor(u64 r)
-{
-	return div_u64(r << RESERVE_FACTOR, (1 << RESERVE_FACTOR) + 1);
 }
 
 u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage_online *fs_usage)
