@@ -6360,7 +6360,7 @@ system fingerprint.  To prevent userspace from circumventing such restrictions
 by running an enclave in a VM, KVM prevents access to privileged attributes by
 default.
 
-See Documentation/x86/sgx/2.Kernel-internals.rst for more details.
+See Documentation/x86/sgx.rst for more details.
 
 8. Other capabilities.
 ======================
