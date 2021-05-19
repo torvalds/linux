@@ -330,8 +330,7 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 
-		/* TODO: Increase frequency after testing */
-		spi-max-frequency = <25000000>;
+		spi-max-frequency = <37500000>;
 		spi-tx-bus-width = <2>;
 		spi-rx-bus-width = <2>;
 	};
