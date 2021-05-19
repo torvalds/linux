@@ -5716,8 +5716,12 @@ static void hsw_set_pipeconf(const struct intel_crtc_state *crtc_state)
 static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	const struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
+
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 val = 0;
+	int i;
 
 	switch (crtc_state->pipe_bpp) {
 	case 18:
@@ -5755,6 +5759,23 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 
 	if (DISPLAY_VER(dev_priv) >= 12)
 		val |= PIPEMISC_PIXEL_ROUNDING_TRUNC;
+
+	if (IS_ALDERLAKE_P(dev_priv)) {
+		bool scaler_in_use = false;
+
+		for (i = 0; i < crtc->num_scalers; i++) {
+			if (!scaler_state->scalers[i].in_use)
+				continue;
+
+			scaler_in_use = true;
+			break;
+		}
+
+		intel_de_rmw(dev_priv, PIPE_MISC2(crtc->pipe),
+			     PIPE_MISC2_UNDERRUN_BUBBLE_COUNTER_MASK,
+			     scaler_in_use ? PIPE_MISC2_BUBBLE_COUNTER_SCALER_EN :
+			     PIPE_MISC2_BUBBLE_COUNTER_SCALER_DIS);
+	}
 
 	intel_de_write(dev_priv, PIPEMISC(crtc->pipe), val);
 }
