@@ -1278,7 +1278,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	struct mlx5_wqe_ctrl_seg *ctrl = NULL;  /* compiler warning */
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx5_core_dev *mdev = dev->mdev;
-	struct mlx5_ib_qp *qp;
+	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_wqe_xrc_seg *xrc;
 	struct mlx5_bf *bf;
 	void *cur_edge;
@@ -1299,10 +1299,9 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		return -EIO;
 	}
 
-	if (unlikely(ibqp->qp_type == IB_QPT_GSI))
+	if (qp->type == IB_QPT_GSI)
 		return mlx5_ib_gsi_post_send(ibqp, wr, bad_wr);
 
-	qp = to_mqp(ibqp);
 	bf = &qp->bf;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
@@ -1347,7 +1346,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			}
 		}
 
-		switch (ibqp->qp_type) {
+		switch (qp->type) {
 		case IB_QPT_XRC_INI:
 			xrc = seg;
 			seg += sizeof(*xrc);
@@ -1476,7 +1475,7 @@ int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		return -EIO;
 	}
 
-	if (unlikely(ibqp->qp_type == IB_QPT_GSI))
+	if (qp->type == IB_QPT_GSI)
 		return mlx5_ib_gsi_post_recv(ibqp, wr, bad_wr);
 
 	spin_lock_irqsave(&qp->rq.lock, flags);

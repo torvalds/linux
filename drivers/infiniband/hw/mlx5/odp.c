@@ -1095,7 +1095,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 	opcode = be32_to_cpu(ctrl->opmod_idx_opcode) &
 		 MLX5_WQE_CTRL_OPCODE_MASK;
 
-	if (qp->ibqp.qp_type == IB_QPT_XRC_INI)
+	if (qp->type == IB_QPT_XRC_INI)
 		*wqe += sizeof(struct mlx5_wqe_xrc_seg);
 
 	if (qp->type == IB_QPT_UD || qp->type == MLX5_IB_QPT_DCI) {

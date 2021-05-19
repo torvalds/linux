@@ -512,7 +512,6 @@ struct mlx5_ib_qp {
 	/*
 	 * IB/core doesn't store low-level QP types, so
 	 * store both MLX and IBTA types in the field below.
-	 * IB_QPT_DRIVER will be break to DCI/DCT subtypes.
 	 */
 	enum ib_qp_type		type;
 	/* A flag to indicate if there's a new counter is configured
