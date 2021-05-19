@@ -3242,8 +3242,8 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 		 * the firmware filters so that all multicast packets are passed
 		 * This is mandatory for MDNS based discovery protocols 
 		 */
- 		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
- 			if (*total & FIF_ALLMULTI) {
+		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+			if (*total & FIF_ALLMULTI) {
 				ret = wl1271_acx_group_address_tbl(wl, wlvif,
 							false,
 							NULL, 0);
