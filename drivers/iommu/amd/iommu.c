@@ -1785,7 +1785,7 @@ static void __init amd_iommu_init_dma_ops(void)
 
 int __init amd_iommu_init_api(void)
 {
-	int err = 0;
+	int err;
 
 	amd_iommu_init_dma_ops();
 
