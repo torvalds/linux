@@ -224,6 +224,26 @@ static inline void store_idt(struct desc_ptr *dtr)
 	asm volatile("sidt %0":"=m" (*dtr));
 }
 
+static inline void native_gdt_invalidate(void)
+{
+	const struct desc_ptr invalid_gdt = {
+		.address = 0,
+		.size = 0
+	};
+
+	native_load_gdt(&invalid_gdt);
+}
+
+static inline void native_idt_invalidate(void)
+{
+	const struct desc_ptr invalid_idt = {
+		.address = 0,
+		.size = 0
+	};
+
+	native_load_idt(&invalid_idt);
+}
+
 /*
  * The LTR instruction marks the TSS GDT entry as busy. On 64-bit, the GDT is
  * a read-only remapping. To prevent a page fault, the GDT is switched to the
