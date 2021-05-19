@@ -2071,7 +2071,10 @@ static int vangogh_mode2_reset(struct smu_context *smu)
 	return vangogh_mode_reset(smu, SMU_RESET_MODE_2);
 }
 
-static int vangogh_get_power_limit(struct smu_context *smu)
+static int vangogh_get_power_limit(struct smu_context *smu,
+				   uint32_t *current_power_limit,
+				   uint32_t *default_power_limit,
+				   uint32_t *max_power_limit)
 {
 	struct smu_11_5_power_context *power_context =
 								smu->smu_power.power_context;
@@ -2087,8 +2090,12 @@ static int vangogh_get_power_limit(struct smu_context *smu)
 		return ret;
 	}
 	/* convert from milliwatt to watt */
-	smu->current_power_limit = smu->default_power_limit = ppt_limit / 1000;
-	smu->max_power_limit = 29;
+	if (current_power_limit)
+		*current_power_limit = ppt_limit / 1000;
+	if (default_power_limit)
+		*default_power_limit = ppt_limit / 1000;
+	if (max_power_limit)
+		*max_power_limit = 29;
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPPTLimit, &ppt_limit);
 	if (ret) {

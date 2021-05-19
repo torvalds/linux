@@ -765,7 +765,10 @@ struct pptable_funcs {
 	/**
 	 * @get_power_limit: Get the device's power limits.
 	 */
-	int (*get_power_limit)(struct smu_context *smu);
+	int (*get_power_limit)(struct smu_context *smu,
+			       uint32_t *current_power_limit,
+			       uint32_t *default_power_limit,
+			       uint32_t *max_power_limit);
 
 	/**
 	 * @get_ppt_limit: Get the device's ppt limits.

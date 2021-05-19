@@ -1146,7 +1146,10 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
-static int aldebaran_get_power_limit(struct smu_context *smu)
+static int aldebaran_get_power_limit(struct smu_context *smu,
+				     uint32_t *current_power_limit,
+				     uint32_t *default_power_limit,
+				     uint32_t *max_power_limit)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	uint32_t power_limit = 0;
@@ -1166,9 +1169,15 @@ static int aldebaran_get_power_limit(struct smu_context *smu)
 		power_limit = pptable->PptLimit;
 	}
 
-	smu->current_power_limit = smu->default_power_limit = power_limit;
-	if (pptable)
-		smu->max_power_limit = pptable->PptLimit;
+	if (current_power_limit)
+		*current_power_limit = power_limit;
+	if (default_power_limit)
+		*default_power_limit = power_limit;
+
+	if (max_power_limit) {
+		if (pptable)
+			*max_power_limit = pptable->PptLimit;
+	}
 
 	return 0;
 }

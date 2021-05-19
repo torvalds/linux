@@ -688,7 +688,10 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	ret = smu_get_asic_power_limits(smu);
+	ret = smu_get_asic_power_limits(smu,
+					&smu->current_power_limit,
+					&smu->default_power_limit,
+					&smu->max_power_limit);
 	if (ret) {
 		dev_err(adev->dev, "Failed to get asic power limits!\n");
 		return ret;
@@ -2238,6 +2241,15 @@ int smu_get_power_limit(void *handle,
 	} else {
 		switch (limit_level) {
 		case SMU_PPT_LIMIT_CURRENT:
+			if ((smu->adev->asic_type == CHIP_ALDEBARAN) ||
+			     (smu->adev->asic_type == CHIP_SIENNA_CICHLID) ||
+			     (smu->adev->asic_type == CHIP_NAVY_FLOUNDER) ||
+			     (smu->adev->asic_type == CHIP_DIMGREY_CAVEFISH) ||
+			     (smu->adev->asic_type == CHIP_BEIGE_GOBY))
+				ret = smu_get_asic_power_limits(smu,
+								&smu->current_power_limit,
+								NULL,
+								NULL);
 			*limit = smu->current_power_limit;
 			break;
 		case SMU_PPT_LIMIT_DEFAULT:
