@@ -1326,6 +1326,9 @@ void dc_hardware_release(struct dc *dc);
 #endif
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+void dc_z10_restore(struct dc *dc);
+#endif
 
 bool dc_enable_dmub_notifications(struct dc *dc);
 

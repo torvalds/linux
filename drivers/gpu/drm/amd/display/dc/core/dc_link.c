@@ -2706,6 +2706,10 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
 		return false;
 
 	link->psr_settings.psr_allow_active = allow_active;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	if (!allow_active)
+		dc_z10_restore(dc);
+#endif
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled) {
 		if (force_static && psr->funcs->psr_force_static)
