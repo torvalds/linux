@@ -617,10 +617,17 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 		goto out;
 	}
 
+	/* assume EQ code doesn't need to check eqe index */
+	hdev->event_queue.check_eqe_index = false;
+
 	/* Read FW application security bits again */
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid)
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid) {
 		hdev->asic_prop.fw_app_cpu_boot_dev_sts0 =
 						RREG32(sts_boot_dev_sts0_reg);
+		if (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+				CPU_BOOT_DEV_STS0_EQ_INDEX_EN)
+			hdev->event_queue.check_eqe_index = true;
+	}
 
 	if (hdev->asic_prop.fw_cpu_boot_dev_sts1_valid)
 		hdev->asic_prop.fw_app_cpu_boot_dev_sts1 =

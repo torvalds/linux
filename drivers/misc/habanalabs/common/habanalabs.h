@@ -780,12 +780,19 @@ struct hl_user_pending_interrupt {
  * @kernel_address: holds the queue's kernel virtual address
  * @bus_address: holds the queue's DMA address
  * @ci: ci inside the queue
+ * @prev_eqe_index: the index of the previous event queue entry. The index of
+ *                  the current entry's index must be +1 of the previous one.
+ * @check_eqe_index: do we need to check the index of the current entry vs. the
+ *                   previous one. This is for backward compatibility with older
+ *                   firmwares
  */
 struct hl_eq {
 	struct hl_device	*hdev;
 	void			*kernel_address;
 	dma_addr_t		bus_address;
 	u32			ci;
+	u32			prev_eqe_index;
+	bool			check_eqe_index;
 };
 
 
