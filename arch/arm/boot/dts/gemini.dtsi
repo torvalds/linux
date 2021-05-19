@@ -410,8 +410,6 @@
 			clock-names = "PCLK", "TVE";
 			pinctrl-names = "default";
 			pinctrl-0 = <&tvc_default_pins>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
