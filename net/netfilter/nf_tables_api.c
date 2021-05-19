@@ -3328,8 +3328,10 @@ static int nf_tables_newrule(struct sk_buff *skb, const struct nfnl_info *info,
 			if (n == NFT_RULE_MAXEXPRS)
 				goto err1;
 			err = nf_tables_expr_parse(&ctx, tmp, &expr_info[n]);
-			if (err < 0)
+			if (err < 0) {
+				NL_SET_BAD_ATTR(extack, tmp);
 				goto err1;
+			}
 			size += expr_info[n].ops->size;
 			n++;
 		}
