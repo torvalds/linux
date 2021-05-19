@@ -26,6 +26,10 @@ RUN apt-get install -y flex
 RUN apt-get install -y gdb
 RUN apt-get install -y asciinema
 
+RUN apt-get install -y libssl-dev
+RUN apt-get install -y git ninja-build pkg-config libglib2.0-dev libpixman-1-dev
+RUN apt-get install -y lzop
+
 RUN apt-get -y clean
 
 RUN rm -rf /var/lib/apt/lists/*
