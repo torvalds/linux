@@ -3508,10 +3508,8 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 		xudc->utmi_phy[i] = devm_phy_optional_get(xudc->dev, phy_name);
 		if (IS_ERR(xudc->utmi_phy[i])) {
 			err = PTR_ERR(xudc->utmi_phy[i]);
-			if (err != -EPROBE_DEFER)
-				dev_err(xudc->dev, "failed to get usb2-%d PHY: %d\n",
-					i, err);
-
+			dev_err_probe(xudc->dev, err,
+				      "failed to get usb2-%d PHY\n", i);
 			goto clean_up;
 		} else if (xudc->utmi_phy[i]) {
 			/* Get usb-phy, if utmi phy is available */
@@ -3538,10 +3536,8 @@ static int tegra_xudc_phy_get(struct tegra_xudc *xudc)
 		xudc->usb3_phy[i] = devm_phy_optional_get(xudc->dev, phy_name);
 		if (IS_ERR(xudc->usb3_phy[i])) {
 			err = PTR_ERR(xudc->usb3_phy[i]);
-			if (err != -EPROBE_DEFER)
-				dev_err(xudc->dev, "failed to get usb3-%d PHY: %d\n",
-					usb3, err);
-
+			dev_err_probe(xudc->dev, err,
+				      "failed to get usb3-%d PHY\n", usb3);
 			goto clean_up;
 		} else if (xudc->usb3_phy[i])
 			dev_dbg(xudc->dev, "usb3-%d PHY registered", usb3);
@@ -3781,9 +3777,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 
 	err = devm_clk_bulk_get(&pdev->dev, xudc->soc->num_clks, xudc->clks);
 	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(xudc->dev, "failed to request clocks: %d\n", err);
-
+		dev_err_probe(xudc->dev, err, "failed to request clocks\n");
 		return err;
 	}
 
@@ -3798,9 +3792,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	err = devm_regulator_bulk_get(&pdev->dev, xudc->soc->num_supplies,
 				      xudc->supplies);
 	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(xudc->dev, "failed to request regulators: %d\n", err);
-
+		dev_err_probe(xudc->dev, err, "failed to request regulators\n");
 		return err;
 	}
 
