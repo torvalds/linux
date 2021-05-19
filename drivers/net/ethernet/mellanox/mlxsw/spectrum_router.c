@@ -9602,6 +9602,8 @@ static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 struct mlxsw_sp_mp_hash_config {
 	DECLARE_BITMAP(headers, __MLXSW_REG_RECR2_HEADER_CNT);
 	DECLARE_BITMAP(fields, __MLXSW_REG_RECR2_FIELD_CNT);
+	DECLARE_BITMAP(inner_headers, __MLXSW_REG_RECR2_HEADER_CNT);
+	DECLARE_BITMAP(inner_fields, __MLXSW_REG_RECR2_INNER_FIELD_CNT);
 };
 
 #define MLXSW_SP_MP_HASH_HEADER_SET(_headers, _header) \
@@ -9612,6 +9614,27 @@ struct mlxsw_sp_mp_hash_config {
 
 #define MLXSW_SP_MP_HASH_FIELD_RANGE_SET(_fields, _field, _nr) \
 	bitmap_set(_fields, MLXSW_REG_RECR2_##_field, _nr)
+
+static void mlxsw_sp_mp_hash_inner_l3(struct mlxsw_sp_mp_hash_config *config)
+{
+	unsigned long *inner_headers = config->inner_headers;
+	unsigned long *inner_fields = config->inner_fields;
+
+	/* IPv4 inner */
+	MLXSW_SP_MP_HASH_HEADER_SET(inner_headers, IPV4_EN_NOT_TCP_NOT_UDP);
+	MLXSW_SP_MP_HASH_HEADER_SET(inner_headers, IPV4_EN_TCP_UDP);
+	MLXSW_SP_MP_HASH_FIELD_RANGE_SET(inner_fields, INNER_IPV4_SIP0, 4);
+	MLXSW_SP_MP_HASH_FIELD_RANGE_SET(inner_fields, INNER_IPV4_DIP0, 4);
+	/* IPv6 inner */
+	MLXSW_SP_MP_HASH_HEADER_SET(inner_headers, IPV6_EN_NOT_TCP_NOT_UDP);
+	MLXSW_SP_MP_HASH_HEADER_SET(inner_headers, IPV6_EN_TCP_UDP);
+	MLXSW_SP_MP_HASH_FIELD_SET(inner_fields, INNER_IPV6_SIP0_7);
+	MLXSW_SP_MP_HASH_FIELD_RANGE_SET(inner_fields, INNER_IPV6_SIP8, 8);
+	MLXSW_SP_MP_HASH_FIELD_SET(inner_fields, INNER_IPV6_DIP0_7);
+	MLXSW_SP_MP_HASH_FIELD_RANGE_SET(inner_fields, INNER_IPV6_DIP8, 8);
+	MLXSW_SP_MP_HASH_FIELD_SET(inner_fields, INNER_IPV6_NEXT_HEADER);
+	MLXSW_SP_MP_HASH_FIELD_SET(inner_fields, INNER_IPV6_FLOW_LABEL);
+}
 
 static void mlxsw_sp_mp4_hash_outer_addr(struct mlxsw_sp_mp_hash_config *config)
 {
@@ -9641,6 +9664,12 @@ static void mlxsw_sp_mp4_hash_init(struct mlxsw_sp *mlxsw_sp,
 		MLXSW_SP_MP_HASH_FIELD_SET(fields, IPV4_PROTOCOL);
 		MLXSW_SP_MP_HASH_FIELD_SET(fields, TCP_UDP_SPORT);
 		MLXSW_SP_MP_HASH_FIELD_SET(fields, TCP_UDP_DPORT);
+		break;
+	case 2:
+		/* Outer */
+		mlxsw_sp_mp4_hash_outer_addr(config);
+		/* Inner */
+		mlxsw_sp_mp_hash_inner_l3(config);
 		break;
 	}
 }
@@ -9677,6 +9706,14 @@ static void mlxsw_sp_mp6_hash_init(struct mlxsw_sp *mlxsw_sp,
 		MLXSW_SP_MP_HASH_FIELD_SET(fields, TCP_UDP_SPORT);
 		MLXSW_SP_MP_HASH_FIELD_SET(fields, TCP_UDP_DPORT);
 		break;
+	case 2:
+		/* Outer */
+		mlxsw_sp_mp6_hash_outer_addr(config);
+		MLXSW_SP_MP_HASH_FIELD_SET(fields, IPV6_NEXT_HEADER);
+		MLXSW_SP_MP_HASH_FIELD_SET(fields, IPV6_FLOW_LABEL);
+		/* Inner */
+		mlxsw_sp_mp_hash_inner_l3(config);
+		break;
 	}
 }
 
@@ -9696,6 +9733,10 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 		mlxsw_reg_recr2_outer_header_enables_set(recr2_pl, bit, 1);
 	for_each_set_bit(bit, config.fields, __MLXSW_REG_RECR2_FIELD_CNT)
 		mlxsw_reg_recr2_outer_header_fields_enable_set(recr2_pl, bit, 1);
+	for_each_set_bit(bit, config.inner_headers, __MLXSW_REG_RECR2_HEADER_CNT)
+		mlxsw_reg_recr2_inner_header_enables_set(recr2_pl, bit, 1);
+	for_each_set_bit(bit, config.inner_fields, __MLXSW_REG_RECR2_INNER_FIELD_CNT)
+		mlxsw_reg_recr2_inner_header_fields_enable_set(recr2_pl, bit, 1);
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(recr2), recr2_pl);
 }
