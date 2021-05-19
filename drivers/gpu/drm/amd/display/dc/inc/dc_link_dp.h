@@ -68,6 +68,10 @@ bool perform_link_training_with_retries(
 	enum signal_type signal,
 	bool do_fallback);
 
+bool hpd_rx_irq_check_link_loss_status(
+	struct dc_link *link,
+	union hpd_irq_data *hpd_irq_dpcd_data);
+
 bool is_mst_supported(struct dc_link *link);
 
 bool detect_dp_sink_caps(struct dc_link *link);

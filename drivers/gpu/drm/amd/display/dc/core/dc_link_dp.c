@@ -2070,7 +2070,7 @@ enum dc_status read_hpd_rx_irq_data(
 	return retval;
 }
 
-static bool hpd_rx_irq_check_link_loss_status(
+bool hpd_rx_irq_check_link_loss_status(
 	struct dc_link *link,
 	union hpd_irq_data *hpd_irq_dpcd_data)
 {
