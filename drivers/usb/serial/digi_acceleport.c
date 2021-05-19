@@ -372,7 +372,7 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 	int len;
 	struct usb_serial_port *oob_port = (struct usb_serial_port *)((struct digi_serial *)(usb_get_serial_data(port->serial)))->ds_oob_port;
 	struct digi_port *oob_priv = usb_get_serial_port_data(oob_port);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(&port->dev,
 		"digi_write_oob_command: TOP: port=%d, count=%d\n",
@@ -430,7 +430,7 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 	int len;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	unsigned char *data = port->write_urb->transfer_buffer;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(&port->dev, "digi_write_inb_command: TOP: port=%d, count=%d\n",
 		priv->dp_port_num, count);
@@ -511,8 +511,7 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	struct usb_serial_port *oob_port = (struct usb_serial_port *) ((struct digi_serial *)(usb_get_serial_data(port->serial)))->ds_oob_port;
 	struct digi_port *oob_priv = usb_get_serial_port_data(oob_port);
 	unsigned char *data = oob_port->write_urb->transfer_buffer;
-	unsigned long flags = 0;
-
+	unsigned long flags;
 
 	dev_dbg(&port->dev,
 		"digi_set_modem_signals: TOP: port=%d, modem_signals=0x%x\n",
@@ -577,7 +576,7 @@ static int digi_transmit_idle(struct usb_serial_port *port,
 	int ret;
 	unsigned char buf[2];
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 	priv->dp_transmit_idle = 0;
@@ -887,7 +886,7 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	int ret, data_len, new_len;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	unsigned char *data = port->write_urb->transfer_buffer;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(&port->dev, "digi_write: TOP: port=%d, count=%d\n",
 		priv->dp_port_num, count);
@@ -1024,8 +1023,8 @@ static unsigned int digi_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
 	unsigned int room;
-	unsigned long flags = 0;
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
