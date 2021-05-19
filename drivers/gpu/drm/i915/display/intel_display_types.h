@@ -1498,7 +1498,7 @@ struct intel_psr {
 	bool sink_not_reliable;
 	bool irq_aux_error;
 	u16 su_x_granularity;
-	bool dc3co_enabled;
+	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
 	struct drm_dp_vsc_sdp vsc;
