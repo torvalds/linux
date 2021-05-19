@@ -235,6 +235,10 @@ struct hw_sequencer_funcs {
 			enum dc_color_depth color_depth,
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	void (*z10_restore)(struct dc *dc);
+#endif
 };
 
 void color_space_to_black_color(

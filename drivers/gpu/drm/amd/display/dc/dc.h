@@ -444,6 +444,7 @@ struct dc_bw_validation_profile {
 
 union mem_low_power_enable_options {
 	struct {
+		bool vga: 1;
 		bool i2c: 1;
 		bool dmcu: 1;
 		bool dscl: 1;
@@ -585,6 +586,9 @@ struct dc_phy_addr_space_config {
 		uint64_t page_table_start_addr;
 		uint64_t page_table_end_addr;
 		uint64_t page_table_base_addr;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+		bool base_addr_is_mc_addr;
+#endif
 	} gart_config;
 
 	bool valid;
