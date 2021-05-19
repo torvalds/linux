@@ -152,7 +152,6 @@ peci_dimmpower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
 	union peci_dram_power_limit power_limit;
-	ulong jif;
 	int ret;
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
@@ -168,16 +167,15 @@ peci_dimmpower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	jif = jiffies;
 	ret = peci_dimmpower_read_dram_power_limit(priv->mgr, &power_limit);
 	if (ret) {
 		dev_dbg(priv->dev, "not able to read power limit\n");
 		return ret;
 	}
 
+	peci_sensor_mark_updated(sensor_data);
 	sensor_data->value = peci_pcs_xn_to_munits(power_limit.bits.pp_pwr_lim,
 						   priv->units.bits.pwr_unit);
-	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw power limit %u, unit %u, power limit %d\n",
 		power_limit.bits.pp_pwr_lim, priv->units.bits.pwr_unit,
@@ -246,7 +244,6 @@ peci_dimmpower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
 	union peci_dram_power_info_low power_info;
-	ulong jif;
 	int ret;
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
@@ -262,7 +259,6 @@ peci_dimmpower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	jif = jiffies;
 	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_DDR_PWR_INFO_LOW,
 			    PECI_PCS_PARAM_ZERO, &power_info.value);
 	if (ret) {
@@ -270,9 +266,9 @@ peci_dimmpower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
+	peci_sensor_mark_updated(sensor_data);
 	sensor_data->value = peci_pcs_xn_to_munits(power_info.bits.tdp,
 						   priv->units.bits.pwr_unit);
-	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw max power %u, unit %u, max power %dmW\n",
 		power_info.bits.tdp, priv->units.bits.pwr_unit,
