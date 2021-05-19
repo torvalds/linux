@@ -1214,7 +1214,6 @@ static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 			ptq->flags = PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL |
 				     PERF_IP_FLAG_ASYNC |
 				     PERF_IP_FLAG_INTERRUPT;
-		ptq->insn_len = 0;
 	} else {
 		if (ptq->state->from_ip)
 			ptq->flags = intel_pt_insn_type(ptq->state->insn_op);
