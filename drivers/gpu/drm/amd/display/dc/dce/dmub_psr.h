@@ -44,7 +44,8 @@ struct dmub_psr_funcs {
 	void (*psr_set_level)(struct dmub_psr *dmub, uint16_t psr_level,
 	uint8_t panel_inst);
 	void (*psr_force_static)(struct dmub_psr *dmub, uint8_t panel_inst);
-	void (*psr_get_residency)(struct dmub_psr *dmub, uint32_t *residency);
+	void (*psr_get_residency)(struct dmub_psr *dmub, uint32_t *residency,
+	uint8_t panel_inst);
 };
 
 struct dmub_psr *dmub_psr_create(struct dc_context *ctx);

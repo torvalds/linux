@@ -327,12 +327,13 @@ static void dmub_psr_force_static(struct dmub_psr *dmub, uint8_t panel_inst)
 /*
  * Get PSR residency from firmware.
  */
-static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency)
+static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency, uint8_t panel_inst)
 {
 	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
+	uint16_t param = (uint16_t)(panel_inst << 8);
 
-	// Send gpint command and wait for ack
-	dmub_srv_send_gpint_command(srv, DMUB_GPINT__PSR_RESIDENCY, 0, 30);
+	/* Send gpint command and wait for ack */
+	dmub_srv_send_gpint_command(srv, DMUB_GPINT__PSR_RESIDENCY, param, 30);
 
 	dmub_srv_get_gpint_response(srv, residency);
 }
