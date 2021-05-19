@@ -4563,7 +4563,7 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, void *, attr, u32, attr_size)
 	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
 }
 
-const struct bpf_func_proto bpf_sys_bpf_proto = {
+static const struct bpf_func_proto bpf_sys_bpf_proto = {
 	.func		= bpf_sys_bpf,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -4588,7 +4588,7 @@ BPF_CALL_1(bpf_sys_close, u32, fd)
 	return close_fd(fd);
 }
 
-const struct bpf_func_proto bpf_sys_close_proto = {
+static const struct bpf_func_proto bpf_sys_close_proto = {
 	.func		= bpf_sys_close,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
