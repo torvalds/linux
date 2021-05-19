@@ -4266,7 +4266,6 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
 				       struct skl_ddb_entry *entry, u32 reg)
 {
-
 	entry->start = reg & DDB_ENTRY_MASK;
 	entry->end = (reg >> DDB_ENTRY_END_SHIFT) & DDB_ENTRY_MASK;
 
@@ -4391,6 +4390,7 @@ skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
 struct dbuf_slice_conf_entry {
 	u8 active_pipes;
 	u8 dbuf_mask[I915_MAX_PIPES];
+	bool join_mbus;
 };
 
 /*
@@ -4583,14 +4583,16 @@ static const struct dbuf_slice_conf_entry adlp_allowed_dbufs[] = {
 	{
 		.active_pipes = BIT(PIPE_A),
 		.dbuf_mask = {
-			[PIPE_A] = BIT(DBUF_S1) | BIT(DBUF_S2),
+			[PIPE_A] = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) | BIT(DBUF_S4),
 		},
+		.join_mbus = true,
 	},
 	{
 		.active_pipes = BIT(PIPE_B),
 		.dbuf_mask = {
-			[PIPE_B] = BIT(DBUF_S3) | BIT(DBUF_S4),
+			[PIPE_B] = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) | BIT(DBUF_S4),
 		},
+		.join_mbus = true,
 	},
 	{
 		.active_pipes = BIT(PIPE_A) | BIT(PIPE_B),
@@ -4690,6 +4692,23 @@ static const struct dbuf_slice_conf_entry adlp_allowed_dbufs[] = {
 	{}
 
 };
+
+static bool check_mbus_joined(u8 active_pipes,
+			      const struct dbuf_slice_conf_entry *dbuf_slices)
+{
+	int i;
+
+	for (i = 0; i < dbuf_slices[i].active_pipes; i++) {
+		if (dbuf_slices[i].active_pipes == active_pipes)
+			return dbuf_slices[i].join_mbus;
+	}
+	return false;
+}
+
+static bool adlp_check_mbus_joined(u8 active_pipes)
+{
+	return check_mbus_joined(active_pipes, adlp_allowed_dbufs);
+}
 
 static u8 compute_dbuf_slices(enum pipe pipe, u8 active_pipes,
 			      const struct dbuf_slice_conf_entry *dbuf_slices)
@@ -5972,16 +5991,29 @@ skl_compute_ddb(struct intel_atomic_state *state)
 
 	new_dbuf_state->enabled_slices = intel_dbuf_enabled_slices(new_dbuf_state);
 
-	if (old_dbuf_state->enabled_slices != new_dbuf_state->enabled_slices) {
+	if (IS_ALDERLAKE_P(dev_priv))
+		new_dbuf_state->joined_mbus = adlp_check_mbus_joined(new_dbuf_state->active_pipes);
+
+	if (old_dbuf_state->enabled_slices != new_dbuf_state->enabled_slices ||
+	    old_dbuf_state->joined_mbus != new_dbuf_state->joined_mbus) {
 		ret = intel_atomic_serialize_global_state(&new_dbuf_state->base);
 		if (ret)
 			return ret;
 
+		if (old_dbuf_state->joined_mbus != new_dbuf_state->joined_mbus) {
+			/* TODO: Implement vblank synchronized MBUS joining changes */
+			ret = intel_modeset_all_pipes(state);
+			if (ret)
+				return ret;
+		}
+
 		drm_dbg_kms(&dev_priv->drm,
-			    "Enabled dbuf slices 0x%x -> 0x%x (total dbuf slices 0x%x)\n",
+			    "Enabled dbuf slices 0x%x -> 0x%x (total dbuf slices 0x%x), mbus joined? %s->%s\n",
 			    old_dbuf_state->enabled_slices,
 			    new_dbuf_state->enabled_slices,
-			    INTEL_INFO(dev_priv)->dbuf.slice_mask);
+			    INTEL_INFO(dev_priv)->dbuf.slice_mask,
+			    yesno(old_dbuf_state->joined_mbus),
+			    yesno(new_dbuf_state->joined_mbus));
 	}
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -6433,6 +6465,9 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		to_intel_dbuf_state(dev_priv->dbuf.obj.state);
 	struct intel_crtc *crtc;
 
+	if (IS_ALDERLAKE_P(dev_priv))
+		dbuf_state->joined_mbus = intel_de_read(dev_priv, MBUS_CTL) & MBUS_JOIN;
+
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
@@ -6472,10 +6507,11 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		crtc_state->wm.skl.ddb.end = mbus_offset + dbuf_state->ddb[pipe].end;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
+			    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x, mbus joined: %s\n",
 			    crtc->base.base.id, crtc->base.name,
 			    dbuf_state->slices[pipe], dbuf_state->ddb[pipe].start,
-			    dbuf_state->ddb[pipe].end, dbuf_state->active_pipes);
+			    dbuf_state->ddb[pipe].end, dbuf_state->active_pipes,
+			    yesno(dbuf_state->joined_mbus));
 	}
 
 	dbuf_state->enabled_slices = dev_priv->dbuf.enabled_slices;
@@ -8009,6 +8045,45 @@ int intel_dbuf_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+/*
+ * Configure MBUS_CTL and all DBUF_CTL_S of each slice to join_mbus state before
+ * update the request state of all DBUS slices.
+ */
+static void update_mbus_pre_enable(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	u32 mbus_ctl, dbuf_min_tracker_val;
+	enum dbuf_slice slice;
+	const struct intel_dbuf_state *dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+
+	if (!IS_ALDERLAKE_P(dev_priv))
+		return;
+
+	/*
+	 * TODO: Implement vblank synchronized MBUS joining changes.
+	 * Must be properly coordinated with dbuf reprogramming.
+	 */
+	if (dbuf_state->joined_mbus) {
+		mbus_ctl = MBUS_HASHING_MODE_1x4 | MBUS_JOIN |
+			MBUS_JOIN_PIPE_SELECT_NONE;
+		dbuf_min_tracker_val = DBUF_MIN_TRACKER_STATE_SERVICE(3);
+	} else {
+		mbus_ctl = MBUS_HASHING_MODE_2x2 |
+			MBUS_JOIN_PIPE_SELECT_NONE;
+		dbuf_min_tracker_val = DBUF_MIN_TRACKER_STATE_SERVICE(1);
+	}
+
+	intel_de_rmw(dev_priv, MBUS_CTL,
+		     MBUS_HASHING_MODE_MASK | MBUS_JOIN |
+		     MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
+
+	for_each_dbuf_slice(dev_priv, slice)
+		intel_de_rmw(dev_priv, DBUF_CTL_S(slice),
+			     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
+			     dbuf_min_tracker_val);
+}
+
 void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -8023,6 +8098,7 @@ void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
+	update_mbus_pre_enable(state);
 	gen9_dbuf_slices_update(dev_priv,
 				old_dbuf_state->enabled_slices |
 				new_dbuf_state->enabled_slices);

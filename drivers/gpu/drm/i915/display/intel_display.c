@@ -9957,6 +9957,9 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
+	if (intel_any_crtc_needs_modeset(state))
+		any_ms = true;
+
 	if (any_ms) {
 		ret = intel_modeset_checks(state);
 		if (ret)
