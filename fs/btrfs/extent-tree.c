@@ -1868,7 +1868,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	trace_run_delayed_ref_head(fs_info, head, 0);
 	btrfs_delayed_ref_unlock(head);
 	btrfs_put_delayed_ref_head(head);
-	return 0;
+	return ret;
 }
 
 static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
