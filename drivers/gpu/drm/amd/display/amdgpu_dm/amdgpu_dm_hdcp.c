@@ -454,6 +454,13 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->dig_fe = config->dig_fe;
 	link->dig_be = config->dig_be;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	display->stream_enc_idx = config->stream_enc_idx;
+	link->link_enc_idx = config->link_enc_idx;
+	link->phy_idx = config->phy_idx;
+	link->hdcp_supported_informational = dc_link_is_hdcp14(aconnector->dc_link,
+			aconnector->dc_sink->sink_signal) ? 1 : 0;
+#endif
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.assr_enabled = config->assr_enabled;
 	link->dp.mst_enabled = config->mst_enabled;
@@ -637,6 +644,12 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
 		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+		if (dc->ctx->dce_version == DCN_VERSION_3_1) {
+			hdcp_work[i].hdcp.config.psp.caps.dtm_v3_supported = 1;
+			hdcp_work[i].hdcp.config.psp.caps.opm_state_query_supported = false;
+		}
+#endif
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
 		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
 		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;

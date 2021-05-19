@@ -44,7 +44,12 @@ enum bgd_security_hdcp2_content_type {
 enum ta_dtm_command {
 	TA_DTM_COMMAND__UNUSED_1 = 1,
 	TA_DTM_COMMAND__TOPOLOGY_UPDATE_V2,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	TA_DTM_COMMAND__TOPOLOGY_ASSR_ENABLE,
+	TA_DTM_COMMAND__TOPOLOGY_UPDATE_V3
+#else
 	TA_DTM_COMMAND__TOPOLOGY_ASSR_ENABLE
+#endif
 };
 
 /* DTM related enumerations */
@@ -86,6 +91,33 @@ struct ta_dtm_topology_update_input_v2 {
 	uint32_t max_hdcp_supported_version;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+/* For security reason/HW may change value, these encoder type enum values are not HW register values */
+/* Security code will check real HW register values and these SW enum values */
+enum ta_dtm_encoder_type {
+	TA_DTM_ENCODER_TYPE__INVALID    = 0,
+	TA_DTM_ENCODER_TYPE__DIG        = 0x10
+};
+
+struct ta_dtm_topology_update_input_v3 {
+	/* display handle is unique across the driver and is used to identify a display */
+	/* for all security interfaces which reference displays such as HDCP */
+	/* link_hdcp_cap means link is HDCP-capable for audio HDCP capable property(informational), not for other logic(e.g. Crossbar) */
+	uint32_t display_handle;
+	uint32_t is_active;
+	uint32_t is_miracast;
+	uint32_t controller;
+	uint32_t ddc_line;
+	uint32_t link_enc;
+	uint32_t stream_enc;
+	uint32_t dp_mst_vcid;
+	uint32_t is_assr;
+	uint32_t max_hdcp_supported_version;
+	enum ta_dtm_encoder_type encoder_type;
+	uint32_t phy_id;
+	uint32_t link_hdcp_cap;
+};
+#endif
 struct ta_dtm_topology_assr_enable {
 	uint32_t display_topology_dig_be_index;
 };
@@ -99,6 +131,9 @@ struct ta_dtm_topology_assr_enable {
 union ta_dtm_cmd_input {
 	struct ta_dtm_topology_update_input_v2 topology_update_v2;
 	struct ta_dtm_topology_assr_enable topology_assr_enable;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	struct ta_dtm_topology_update_input_v3 topology_update_v3;
+#endif
 };
 
 union ta_dtm_cmd_output {
@@ -278,6 +313,9 @@ enum ta_hdcp2_version {
 	TA_HDCP2_VERSION_UNKNOWN = 0,
 	TA_HDCP2_VERSION_2_0 = 20,
 	TA_HDCP2_VERSION_2_1 = 21,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	TA_HDCP2_VERSION_2_3 = 23,
+#endif
 	TA_HDCP2_VERSION_2_2 = 22
 };
 

@@ -32,6 +32,11 @@ struct cp_psp_stream_config {
 	uint8_t otg_inst;
 	uint8_t dig_be;
 	uint8_t dig_fe;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	uint8_t link_enc_idx;
+	uint8_t stream_enc_idx;
+	uint8_t phy_idx;
+#endif
 	uint8_t assr_enabled;
 	uint8_t mst_enabled;
 	void *dm_stream_ctx;
