@@ -39,6 +39,7 @@
 
 static int nr_vcpus = 1;
 static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
+static size_t demand_paging_size;
 static char *guest_data_prototype;
 
 static void *vcpu_worker(void *data)
@@ -84,7 +85,7 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 
 	copy.src = (uint64_t)guest_data_prototype;
 	copy.dst = addr;
-	copy.len = perf_test_args.host_page_size;
+	copy.len = demand_paging_size;
 	copy.mode = 0;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
@@ -101,7 +102,7 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 	PER_PAGE_DEBUG("UFFDIO_COPY %d \t%ld ns\n", tid,
 		       timespec_to_ns(ts_diff));
 	PER_PAGE_DEBUG("Paged in %ld bytes at 0x%lx from thread %d\n",
-		       perf_test_args.host_page_size, addr, tid);
+		       demand_paging_size, addr, tid);
 
 	return 0;
 }
@@ -260,10 +261,12 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	perf_test_args.wr_fract = 1;
 
-	guest_data_prototype = malloc(perf_test_args.host_page_size);
+	demand_paging_size = get_backing_src_pagesz(VM_MEM_SRC_ANONYMOUS);
+
+	guest_data_prototype = malloc(demand_paging_size);
 	TEST_ASSERT(guest_data_prototype,
 		    "Failed to allocate buffer for guest data pattern");
-	memset(guest_data_prototype, 0xAB, perf_test_args.host_page_size);
+	memset(guest_data_prototype, 0xAB, demand_paging_size);
 
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
