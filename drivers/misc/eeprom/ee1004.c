@@ -89,7 +89,7 @@ static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 	return status;
 }
 
-static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
+static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -160,14 +160,14 @@ static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
 	return requested;
 }
 
-static const struct bin_attribute eeprom_attr = {
-	.attr = {
-		.name = "eeprom",
-		.mode = 0444,
-	},
-	.size = EE1004_EEPROM_SIZE,
-	.read = ee1004_read,
+static BIN_ATTR_RO(eeprom, EE1004_EEPROM_SIZE);
+
+static struct bin_attribute *ee1004_attrs[] = {
+	&bin_attr_eeprom,
+	NULL
 };
+
+BIN_ATTRIBUTE_GROUPS(ee1004);
 
 static int ee1004_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -222,11 +222,6 @@ static int ee1004_probe(struct i2c_client *client,
 		ee1004_current_page);
 	mutex_unlock(&ee1004_bus_lock);
 
-	/* Create the sysfs eeprom file */
-	err = sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);
-	if (err)
-		goto err_clients_lock;
-
 	dev_info(&client->dev,
 		 "%u byte EE1004-compliant SPD EEPROM, read-only\n",
 		 EE1004_EEPROM_SIZE);
@@ -237,8 +232,6 @@ static int ee1004_probe(struct i2c_client *client,
 
 	return 0;
 
- err_clients_lock:
-	mutex_lock(&ee1004_bus_lock);
  err_clients:
 	if (--ee1004_dev_count == 0) {
 		for (cnr--; cnr >= 0; cnr--) {
@@ -254,8 +247,6 @@ static int ee1004_probe(struct i2c_client *client,
 static int ee1004_remove(struct i2c_client *client)
 {
 	int i;
-
-	sysfs_remove_bin_file(&client->dev.kobj, &eeprom_attr);
 
 	/* Remove page select clients if this is the last device */
 	mutex_lock(&ee1004_bus_lock);
@@ -275,6 +266,7 @@ static int ee1004_remove(struct i2c_client *client)
 static struct i2c_driver ee1004_driver = {
 	.driver = {
 		.name = "ee1004",
+		.dev_groups = ee1004_groups,
 	},
 	.probe = ee1004_probe,
 	.remove = ee1004_remove,
