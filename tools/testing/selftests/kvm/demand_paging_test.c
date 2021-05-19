@@ -484,8 +484,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	TEST_ASSERT(p.uffd_mode != UFFDIO_REGISTER_MODE_MINOR || p.src_type == VM_MEM_SRC_SHMEM,
-		    "userfaultfd MINOR mode requires shared memory; pick a different -t");
+	if (p.uffd_mode == UFFDIO_REGISTER_MODE_MINOR &&
+	    !backing_src_is_shared(p.src_type)) {
+		TEST_FAIL("userfaultfd MINOR mode requires shared memory; pick a different -t");
+	}
 
 	for_each_guest_mode(run_test, &p);
 

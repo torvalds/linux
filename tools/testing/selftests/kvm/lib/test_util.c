@@ -240,6 +240,16 @@ const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
 			.name = "shmem",
 			.flag = MAP_SHARED,
 		},
+		[VM_MEM_SRC_SHARED_HUGETLB] = {
+			.name = "shared_hugetlb",
+			/*
+			 * No MAP_HUGETLB, we use MFD_HUGETLB instead. Since
+			 * we're using "file backed" memory, we need to specify
+			 * this when the FD is created, not when the area is
+			 * mapped.
+			 */
+			.flag = MAP_SHARED,
+		},
 	};
 	_Static_assert(ARRAY_SIZE(aliases) == NUM_SRC_TYPES,
 		       "Missing new backing src types?");
@@ -262,6 +272,7 @@ size_t get_backing_src_pagesz(uint32_t i)
 	case VM_MEM_SRC_ANONYMOUS_THP:
 		return get_trans_hugepagesz();
 	case VM_MEM_SRC_ANONYMOUS_HUGETLB:
+	case VM_MEM_SRC_SHARED_HUGETLB:
 		return get_def_hugetlb_pagesz();
 	default:
 		return MAP_HUGE_PAGE_SIZE(flag);

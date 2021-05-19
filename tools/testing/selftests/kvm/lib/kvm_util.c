@@ -848,8 +848,13 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 		region->mmap_size += alignment;
 
 	region->fd = -1;
-	if (src_type == VM_MEM_SRC_SHMEM) {
-		region->fd = memfd_create("kvm_selftest", MFD_CLOEXEC);
+	if (backing_src_is_shared(src_type)) {
+		int memfd_flags = MFD_CLOEXEC;
+
+		if (src_type == VM_MEM_SRC_SHARED_HUGETLB)
+			memfd_flags |= MFD_HUGETLB;
+
+		region->fd = memfd_create("kvm_selftest", memfd_flags);
 		TEST_ASSERT(region->fd != -1,
 			    "memfd_create failed, errno: %i", errno);
 
