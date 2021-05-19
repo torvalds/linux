@@ -3934,25 +3934,36 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 static void android_rvh_tick_entry(void *unused, struct rq *rq)
 {
 	u64 wallclock;
-	u32 old_load;
-	struct walt_related_thread_group *grp;
 
+	lockdep_assert_held(&rq->lock);
 	if (unlikely(walt_disabled))
 		return;
+
 	set_window_start(rq);
 	wallclock = sched_ktime_clock();
 
-	old_load = task_load(rq->curr);
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
 
+	if (is_ed_task_present(rq, wallclock, NULL))
+		waltgov_run_callback(rq, WALT_CPUFREQ_EARLY_DET);
+}
+
+static void android_vh_scheduler_tick(void *unused, struct rq *rq)
+{
+	struct walt_related_thread_group *grp;
+	u32 old_load;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	old_load = task_load(rq->curr);
 	rcu_read_lock();
 	grp = task_related_thread_group(rq->curr);
 	if (update_preferred_cluster(grp, rq->curr, old_load, true))
 		set_preferred_cluster(grp);
 	rcu_read_unlock();
 
-	if (is_ed_task_present(rq, wallclock, NULL))
-		waltgov_run_callback(rq, WALT_CPUFREQ_EARLY_DET);
+	walt_lb_tick(rq);
 }
 
 static void android_rvh_schedule(void *unused, struct task_struct *prev,
@@ -4081,6 +4092,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_try_to_wake_up(android_rvh_try_to_wake_up, NULL);
 	register_trace_android_rvh_try_to_wake_up_success(android_rvh_try_to_wake_up_success, NULL);
 	register_trace_android_rvh_tick_entry(android_rvh_tick_entry, NULL);
+	register_trace_android_vh_scheduler_tick(android_vh_scheduler_tick, NULL);
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);
 	register_trace_android_rvh_resume_cpus(android_rvh_resume_cpus, NULL);
 	register_trace_android_rvh_cpu_cgroup_attach(android_rvh_cpu_cgroup_attach, NULL);

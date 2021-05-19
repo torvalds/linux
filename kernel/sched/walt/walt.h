@@ -881,5 +881,6 @@ static inline bool walt_fair_task(struct task_struct *p)
 void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p);
 void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p);
 void walt_cfs_tick(struct rq *rq);
+void walt_lb_tick(struct rq *rq);
 
 #endif /* _WALT_H */

@@ -485,16 +485,13 @@ static int walt_lb_find_busiest_cpu(int dst_cpu, const cpumask_t *src_mask)
 }
 
 static DEFINE_RAW_SPINLOCK(walt_lb_migration_lock);
-static void walt_lb_tick(void *unused, struct rq *rq)
+void walt_lb_tick(struct rq *rq)
 {
 	int prev_cpu = rq->cpu, new_cpu, ret;
 	struct task_struct *p = rq->curr;
 	unsigned long flags;
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	if (unlikely(walt_disabled))
-		return;
 
 	if (!walt_fair_task(p))
 		return;
@@ -842,5 +839,4 @@ void walt_lb_init(void)
 	register_trace_android_rvh_can_migrate_task(walt_can_migrate_task, NULL);
 	register_trace_android_rvh_find_busiest_queue(walt_find_busiest_queue, NULL);
 	register_trace_android_rvh_sched_newidle_balance(walt_newidle_balance, NULL);
-	register_trace_android_vh_scheduler_tick(walt_lb_tick, NULL);
 }
