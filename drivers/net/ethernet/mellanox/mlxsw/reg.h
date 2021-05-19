@@ -8305,6 +8305,8 @@ enum {
 	MLXSW_REG_RECR2_TCP_UDP_EN_IPV4		= 7,
 	/* Enable TCP/UDP header fields if packet is IPv6 */
 	MLXSW_REG_RECR2_TCP_UDP_EN_IPV6		= 8,
+
+	__MLXSW_REG_RECR2_HEADER_CNT,
 };
 
 /* reg_recr2_outer_header_enables
@@ -8339,6 +8341,8 @@ enum {
 	MLXSW_REG_RECR2_TCP_UDP_SPORT			= 74,
 	/* TCP/UDP Destination Port */
 	MLXSW_REG_RECR2_TCP_UDP_DPORT			= 75,
+
+	__MLXSW_REG_RECR2_FIELD_CNT,
 };
 
 /* reg_recr2_outer_header_fields_enable
@@ -8346,48 +8350,6 @@ enum {
  * Access: RW
  */
 MLXSW_ITEM_BIT_ARRAY(reg, recr2, outer_header_fields_enable, 0x14, 0x14, 1);
-
-static inline void mlxsw_reg_recr2_ipv4_sip_enable(char *payload)
-{
-	int i;
-
-	for (i = MLXSW_REG_RECR2_IPV4_SIP0; i <= MLXSW_REG_RECR2_IPV4_SIP3; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
-
-static inline void mlxsw_reg_recr2_ipv4_dip_enable(char *payload)
-{
-	int i;
-
-	for (i = MLXSW_REG_RECR2_IPV4_DIP0; i <= MLXSW_REG_RECR2_IPV4_DIP3; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
-
-static inline void mlxsw_reg_recr2_ipv6_sip_enable(char *payload)
-{
-	int i = MLXSW_REG_RECR2_IPV6_SIP0_7;
-
-	mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i, true);
-
-	i = MLXSW_REG_RECR2_IPV6_SIP8;
-	for (; i <= MLXSW_REG_RECR2_IPV6_SIP15; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
-
-static inline void mlxsw_reg_recr2_ipv6_dip_enable(char *payload)
-{
-	int i = MLXSW_REG_RECR2_IPV6_DIP0_7;
-
-	mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i, true);
-
-	i = MLXSW_REG_RECR2_IPV6_DIP8;
-	for (; i <= MLXSW_REG_RECR2_IPV6_DIP15; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
 
 static inline void mlxsw_reg_recr2_pack(char *payload, u32 seed)
 {
