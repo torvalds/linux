@@ -1905,7 +1905,7 @@ static int nft_chain_parse_netdev(struct net *net,
 static int nft_chain_parse_hook(struct net *net,
 				const struct nlattr * const nla[],
 				struct nft_chain_hook *hook, u8 family,
-				bool autoload)
+				struct netlink_ext_ack *extack, bool autoload)
 {
 	struct nftables_pernet *nft_net = nft_pernet(net);
 	struct nlattr *ha[NFTA_HOOK_MAX + 1];
@@ -1935,8 +1935,10 @@ static int nft_chain_parse_hook(struct net *net,
 	if (nla[NFTA_CHAIN_TYPE]) {
 		type = nf_tables_chain_type_lookup(net, nla[NFTA_CHAIN_TYPE],
 						   family, autoload);
-		if (IS_ERR(type))
+		if (IS_ERR(type)) {
+			NL_SET_BAD_ATTR(extack, nla[NFTA_CHAIN_TYPE]);
 			return PTR_ERR(type);
+		}
 	}
 	if (hook->num >= NFT_MAX_HOOKS || !(type->hook_mask & (1 << hook->num)))
 		return -EOPNOTSUPP;
@@ -1945,8 +1947,11 @@ static int nft_chain_parse_hook(struct net *net,
 	    hook->priority <= NF_IP_PRI_CONNTRACK)
 		return -EOPNOTSUPP;
 
-	if (!try_module_get(type->owner))
+	if (!try_module_get(type->owner)) {
+		if (nla[NFTA_CHAIN_TYPE])
+			NL_SET_BAD_ATTR(extack, nla[NFTA_CHAIN_TYPE]);
 		return -ENOENT;
+	}
 
 	hook->type = type;
 
@@ -2057,7 +2062,8 @@ static int nft_chain_add(struct nft_table *table, struct nft_chain *chain)
 static u64 chain_id;
 
 static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
-			      u8 policy, u32 flags)
+			      u8 policy, u32 flags,
+			      struct netlink_ext_ack *extack)
 {
 	const struct nlattr * const *nla = ctx->nla;
 	struct nft_table *table = ctx->table;
@@ -2079,7 +2085,8 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		if (flags & NFT_CHAIN_BINDING)
 			return -EOPNOTSUPP;
 
-		err = nft_chain_parse_hook(net, nla, &hook, family, true);
+		err = nft_chain_parse_hook(net, nla, &hook, family, extack,
+					   true);
 		if (err < 0)
 			return err;
 
@@ -2234,7 +2241,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 			return -EEXIST;
 		}
 		err = nft_chain_parse_hook(ctx->net, nla, &hook, ctx->family,
-					   false);
+					   extack, false);
 		if (err < 0)
 			return err;
 
@@ -2447,7 +2454,7 @@ static int nf_tables_newchain(struct sk_buff *skb, const struct nfnl_info *info,
 					  extack);
 	}
 
-	return nf_tables_addchain(&ctx, family, genmask, policy, flags);
+	return nf_tables_addchain(&ctx, family, genmask, policy, flags, extack);
 }
 
 static int nf_tables_delchain(struct sk_buff *skb, const struct nfnl_info *info,
