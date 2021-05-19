@@ -2522,7 +2522,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 				 * turn it on. For compatibility with a TBI link
 				 * partner, we will store bad packets. Some
 				 * frames have an additional byte on the end and
-				 * will look like CRC errors to to the hardware.
+				 * will look like CRC errors to the hardware.
 				 */
 				if (!hw->tbi_compatibility_on) {
 					hw->tbi_compatibility_on = true;
@@ -2723,7 +2723,7 @@ static void e1000_shift_out_mdi_bits(struct e1000_hw *hw, u32 data, u16 count)
  * e1000_shift_in_mdi_bits - Shifts data bits in from the PHY
  * @hw: Struct containing variables accessed by shared code
  *
- * Bits are shifted in in MSB to LSB order.
+ * Bits are shifted in MSB to LSB order.
  */
 static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
 {
