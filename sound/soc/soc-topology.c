@@ -1422,7 +1422,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	struct snd_soc_dapm_widget template, *widget;
 	struct snd_soc_tplg_ctl_hdr *control_hdr;
 	struct snd_soc_card *card = tplg->comp->card;
-	unsigned int *kcontrol_type;
+	unsigned int *kcontrol_type = NULL;
 	struct snd_kcontrol_new *kc;
 	int mixer_count = 0;
 	int bytes_count = 0;
