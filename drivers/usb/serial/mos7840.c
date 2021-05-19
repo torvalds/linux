@@ -730,9 +730,6 @@ err:
  *	this function is called by the tty driver when it wants to know how many
  *	bytes of data we currently have outstanding in the port (data that has
  *	been written, but hasn't made it out the port yet)
- *	If successful, we return the number of bytes left to be written in the
- *	system,
- *	Otherwise we return zero.
  *****************************************************************************/
 
 static unsigned int mos7840_chars_in_buffer(struct tty_struct *tty)
@@ -814,8 +811,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
  * mos7840_write_room
  *	this function is called by the tty driver when it wants to know how many
  *	bytes of data we can accept for a specific port.
- *	If successful, we return the amount of room that we have for this port
- *	Otherwise we return a negative error number.
  *****************************************************************************/
 
 static unsigned int mos7840_write_room(struct tty_struct *tty)
