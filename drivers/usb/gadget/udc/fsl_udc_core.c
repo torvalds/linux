@@ -547,7 +547,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	unsigned short max = 0;
 	unsigned char mult = 0, zlt;
 	int retval = -EINVAL;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	ep = container_of(_ep, struct fsl_ep, ep);
 
@@ -631,7 +631,7 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 {
 	struct fsl_udc *udc = NULL;
 	struct fsl_ep *ep = NULL;
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 epctrl;
 	int ep_num;
 
@@ -1001,7 +1001,7 @@ out:	epctrl = fsl_readl(&dr_regs->endptctrl[ep_num]);
 static int fsl_ep_set_halt(struct usb_ep *_ep, int value)
 {
 	struct fsl_ep *ep = NULL;
-	unsigned long flags = 0;
+	unsigned long flags;
 	int status = -EOPNOTSUPP;	/* operation not supported */
 	unsigned char ep_dir = 0, ep_num = 0;
 	struct fsl_udc *udc = NULL;
@@ -1938,7 +1938,7 @@ static int fsl_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
 	int retval = 0;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* lock is needed but whether should use this lock or another */
 	spin_lock_irqsave(&udc_controller->lock, flags);
