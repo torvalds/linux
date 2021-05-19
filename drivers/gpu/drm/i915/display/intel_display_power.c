@@ -5245,6 +5245,9 @@ static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
 {
 	enum dbuf_slice slice;
 
+	if (IS_ALDERLAKE_P(dev_priv))
+		return;
+
 	for_each_dbuf_slice(dev_priv, slice)
 		intel_de_rmw(dev_priv, DBUF_CTL_S(slice),
 			     DBUF_TRACKER_STATE_SERVICE_MASK,
@@ -5255,6 +5258,9 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 {
 	unsigned long abox_regs = INTEL_INFO(dev_priv)->abox_mask;
 	u32 mask, val, i;
+
+	if (IS_ALDERLAKE_P(dev_priv))
+		return;
 
 	mask = MBUS_ABOX_BT_CREDIT_POOL1_MASK |
 		MBUS_ABOX_BT_CREDIT_POOL2_MASK |
