@@ -91,12 +91,16 @@ void mlx5e_update_carrier(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 port_state;
+	bool up;
 
 	port_state = mlx5_query_vport_state(mdev,
 					    MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT,
 					    0);
 
-	if (port_state == VPORT_STATE_UP) {
+	up = port_state == VPORT_STATE_UP;
+	if (up == netif_carrier_ok(priv->netdev))
+		netif_carrier_event(priv->netdev);
+	if (up) {
 		netdev_info(priv->netdev, "Link up\n");
 		netif_carrier_on(priv->netdev);
 	} else {
