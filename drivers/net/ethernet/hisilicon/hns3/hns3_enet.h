@@ -359,6 +359,8 @@ struct ring_stats {
 			u64 tx_l4_proto_err;
 			u64 tx_l2l3l4_err;
 			u64 tx_tso_err;
+			u64 over_max_recursion;
+			u64 hw_limitation;
 		};
 		struct {
 			u64 rx_pkts;

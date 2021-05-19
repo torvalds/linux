@@ -3019,6 +3019,14 @@ static const struct x86_cpu_id hwp_support_ids[] __initconst = {
 	{}
 };
 
+static bool intel_pstate_hwp_is_enabled(void)
+{
+	u64 value;
+
+	rdmsrl(MSR_PM_ENABLE, value);
+	return !!(value & 0x1);
+}
+
 static int __init intel_pstate_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -3037,8 +3045,12 @@ static int __init intel_pstate_init(void)
 		 * Avoid enabling HWP for processors without EPP support,
 		 * because that means incomplete HWP implementation which is a
 		 * corner case and supporting it is generally problematic.
+		 *
+		 * If HWP is enabled already, though, there is no choice but to
+		 * deal with it.
 		 */
-		if (!no_hwp && boot_cpu_has(X86_FEATURE_HWP_EPP)) {
+		if ((!no_hwp && boot_cpu_has(X86_FEATURE_HWP_EPP)) ||
+		    intel_pstate_hwp_is_enabled()) {
 			hwp_active++;
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;

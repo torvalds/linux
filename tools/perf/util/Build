@@ -140,7 +140,14 @@ perf-$(CONFIG_LIBELF) += symbol-elf.o
 perf-$(CONFIG_LIBELF) += probe-file.o
 perf-$(CONFIG_LIBELF) += probe-event.o
 
+ifdef CONFIG_LIBBPF_DYNAMIC
+  hashmap := 1
+endif
 ifndef CONFIG_LIBBPF
+  hashmap := 1
+endif
+
+ifdef hashmap
 perf-y += hashmap.o
 endif
 

@@ -2373,7 +2373,10 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		}
 	}
 
-	pteval = ((phys_addr_t)phys_pfn << VTD_PAGE_SHIFT) | attr;
+	if (!sg) {
+		sg_res = nr_pages;
+		pteval = ((phys_addr_t)phys_pfn << VTD_PAGE_SHIFT) | attr;
+	}
 
 	while (nr_pages > 0) {
 		uint64_t tmp;

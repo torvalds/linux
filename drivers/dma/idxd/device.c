@@ -169,8 +169,6 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 		desc->id = i;
 		desc->wq = wq;
 		desc->cpu = -1;
-		dma_async_tx_descriptor_init(&desc->txd, &wq->dma_chan);
-		desc->txd.tx_submit = idxd_dma_tx_submit;
 	}
 
 	return 0;
@@ -378,7 +376,8 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 
 	if (idxd_device_is_halted(idxd)) {
 		dev_warn(&idxd->pdev->dev, "Device is HALTED!\n");
-		*status = IDXD_CMDSTS_HW_ERR;
+		if (status)
+			*status = IDXD_CMDSTS_HW_ERR;
 		return;
 	}
 

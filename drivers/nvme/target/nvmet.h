@@ -601,4 +601,20 @@ static inline bool nvmet_ns_has_pi(struct nvmet_ns *ns)
 	return ns->pi_type && ns->metadata_size == sizeof(struct t10_pi_tuple);
 }
 
+static inline __le64 nvmet_sect_to_lba(struct nvmet_ns *ns, sector_t sect)
+{
+	return cpu_to_le64(sect >> (ns->blksize_shift - SECTOR_SHIFT));
+}
+
+static inline sector_t nvmet_lba_to_sect(struct nvmet_ns *ns, __le64 lba)
+{
+	return le64_to_cpu(lba) << (ns->blksize_shift - SECTOR_SHIFT);
+}
+
+static inline bool nvmet_use_inline_bvec(struct nvmet_req *req)
+{
+	return req->transfer_len <= NVMET_MAX_INLINE_DATA_LEN &&
+	       req->sg_cnt <= NVMET_MAX_INLINE_BIOVEC;
+}
+
 #endif /* _NVMET_H */

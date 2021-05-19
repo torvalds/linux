@@ -358,8 +358,6 @@ struct kvm_mmu {
 	int (*sync_page)(struct kvm_vcpu *vcpu,
 			 struct kvm_mmu_page *sp);
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa);
-	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
 	gpa_t root_pgd;
 	union kvm_mmu_role mmu_role;
@@ -1019,7 +1017,6 @@ struct kvm_arch {
 struct kvm_vm_stat {
 	ulong mmu_shadow_zapped;
 	ulong mmu_pte_write;
-	ulong mmu_pte_updated;
 	ulong mmu_pde_zapped;
 	ulong mmu_flooded;
 	ulong mmu_recycled;
@@ -1671,6 +1668,7 @@ int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 		    unsigned long icr, int op_64_bit);
 
 void kvm_define_user_return_msr(unsigned index, u32 msr);
+int kvm_probe_user_return_msr(u32 msr);
 int kvm_set_user_return_msr(unsigned index, u64 val, u64 mask);
 
 u64 kvm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc);

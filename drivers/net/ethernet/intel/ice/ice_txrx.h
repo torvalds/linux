@@ -351,6 +351,8 @@ struct ice_coalesce_stored {
 	u16 itr_tx;
 	u16 itr_rx;
 	u8 intrl;
+	u8 tx_valid;
+	u8 rx_valid;
 };
 
 /* iterator for handling rings in ring container */
