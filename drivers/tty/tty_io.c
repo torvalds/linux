@@ -761,6 +761,15 @@ int tty_hung_up_p(struct file *filp)
 }
 EXPORT_SYMBOL(tty_hung_up_p);
 
+void __stop_tty(struct tty_struct *tty)
+{
+	if (tty->flow.stopped)
+		return;
+	tty->flow.stopped = true;
+	if (tty->ops->stop)
+		tty->ops->stop(tty);
+}
+
 /**
  *	stop_tty	-	propagate flow control
  *	@tty: tty to stop
@@ -777,16 +786,6 @@ EXPORT_SYMBOL(tty_hung_up_p);
  *	Locking:
  *		flow.lock
  */
-
-void __stop_tty(struct tty_struct *tty)
-{
-	if (tty->flow.stopped)
-		return;
-	tty->flow.stopped = true;
-	if (tty->ops->stop)
-		tty->ops->stop(tty);
-}
-
 void stop_tty(struct tty_struct *tty)
 {
 	unsigned long flags;
@@ -796,6 +795,16 @@ void stop_tty(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->flow.lock, flags);
 }
 EXPORT_SYMBOL(stop_tty);
+
+void __start_tty(struct tty_struct *tty)
+{
+	if (!tty->flow.stopped || tty->flow.tco_stopped)
+		return;
+	tty->flow.stopped = false;
+	if (tty->ops->start)
+		tty->ops->start(tty);
+	tty_wakeup(tty);
+}
 
 /**
  *	start_tty	-	propagate flow control
@@ -808,17 +817,6 @@ EXPORT_SYMBOL(stop_tty);
  *	Locking:
  *		flow.lock
  */
-
-void __start_tty(struct tty_struct *tty)
-{
-	if (!tty->flow.stopped || tty->flow.tco_stopped)
-		return;
-	tty->flow.stopped = false;
-	if (tty->ops->start)
-		tty->ops->start(tty);
-	tty_wakeup(tty);
-}
-
 void start_tty(struct tty_struct *tty)
 {
 	unsigned long flags;
