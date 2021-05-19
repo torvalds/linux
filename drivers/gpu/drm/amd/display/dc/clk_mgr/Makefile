@@ -136,3 +136,14 @@ AMD_DAL_CLK_MGR_DCN301 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn301/,$(CLK_MGR_
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN301)
 endif
+
+ifdef CONFIG_DRM_AMD_DC_DCN3_1
+###############################################################################
+# DCN31
+###############################################################################
+CLK_MGR_DCN31 = dcn31_smu.o dcn31_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN31 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn31/,$(CLK_MGR_DCN31))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN31)
+endif

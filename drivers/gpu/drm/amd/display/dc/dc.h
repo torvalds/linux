@@ -350,6 +350,13 @@ enum dcn_pwr_state {
 	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+enum dcn_z9_support_state {
+	DCN_Z9_SUPPORT_UNKNOWN,
+	DCN_Z9_SUPPORT_ALLOW,
+	DCN_Z9_SUPPORT_DISALLOW,
+};
+#endif
 /*
  * For any clocks that may differ per pipe
  * only the max is stored in this structure
@@ -367,6 +374,10 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	enum dcn_z9_support_state z9_support;
+	bool dtbclk_en;
+#endif
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
@@ -487,6 +498,9 @@ struct dc_debug_options {
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_mem_low_power;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	bool pstate_enabled;
+#endif
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
