@@ -180,6 +180,9 @@ static int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 	unsigned int nz, i;
 	size_t buflen;
 
+	if (ns->head->ids.csi != NVME_CSI_ZNS)
+		return -EINVAL;
+
 	report = nvme_zns_alloc_report_buffer(ns, nr_zones, &buflen);
 	if (!report)
 		return -ENOMEM;
@@ -237,11 +240,7 @@ int nvme_report_zones(struct gendisk *disk, sector_t sector,
 	ns = nvme_get_ns_from_disk(disk, &head, &srcu_idx);
 	if (unlikely(!ns))
 		return -EWOULDBLOCK;
-
-	if (ns->head->ids.csi == NVME_CSI_ZNS)
-		ret = nvme_ns_report_zones(ns, sector, nr_zones, cb, data);
-	else
-		ret = -EINVAL;
+	ret = nvme_ns_report_zones(ns, sector, nr_zones, cb, data);
 	nvme_put_ns_from_disk(head, srcu_idx);
 
 	return ret;
