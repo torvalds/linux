@@ -427,6 +427,6 @@ static inline void idt_setup_early_pf(void) { }
 static inline void idt_setup_ist_traps(void) { }
 #endif
 
-extern void idt_invalidate(void *addr);
+extern void idt_invalidate(void);
 
 #endif /* _ASM_X86_DESC_H */
