@@ -250,6 +250,71 @@ static int ice_reserve_rdma_qvector(struct ice_pf *pf)
 }
 
 /**
+ * ice_adev_release - function to be mapped to AUX dev's release op
+ * @dev: pointer to device to free
+ */
+static void ice_adev_release(struct device *dev)
+{
+	struct iidc_auxiliary_dev *iadev;
+
+	iadev = container_of(dev, struct iidc_auxiliary_dev, adev.dev);
+	kfree(iadev);
+}
+
+/**
+ * ice_plug_aux_dev - allocate and register AUX device
+ * @pf: pointer to pf struct
+ */
+int ice_plug_aux_dev(struct ice_pf *pf)
+{
+	struct iidc_auxiliary_dev *iadev;
+	struct auxiliary_device *adev;
+	int ret;
+
+	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
+	if (!iadev)
+		return -ENOMEM;
+
+	adev = &iadev->adev;
+	pf->adev = adev;
+	iadev->pf = pf;
+
+	adev->id = pf->aux_idx;
+	adev->dev.release = ice_adev_release;
+	adev->dev.parent = &pf->pdev->dev;
+	adev->name = IIDC_RDMA_ROCE_NAME;
+
+	ret = auxiliary_device_init(adev);
+	if (ret) {
+		pf->adev = NULL;
+		kfree(iadev);
+		return ret;
+	}
+
+	ret = auxiliary_device_add(adev);
+	if (ret) {
+		pf->adev = NULL;
+		auxiliary_device_uninit(adev);
+		return ret;
+	}
+
+	return 0;
+}
+
+/* ice_unplug_aux_dev - unregister and free AUX device
+ * @pf: pointer to pf struct
+ */
+void ice_unplug_aux_dev(struct ice_pf *pf)
+{
+	if (!pf->adev)
+		return;
+
+	auxiliary_device_delete(pf->adev);
+	auxiliary_device_uninit(pf->adev);
+	pf->adev = NULL;
+}
+
+/**
  * ice_init_rdma - initializes PF for RDMA use
  * @pf: ptr to ice_pf
  */
@@ -260,8 +325,10 @@ int ice_init_rdma(struct ice_pf *pf)
 
 	/* Reserve vector resources */
 	ret = ice_reserve_rdma_qvector(pf);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "failed to reserve vectors for RDMA\n");
+		return ret;
+	}
 
-	return ret;
+	return ice_plug_aux_dev(pf);
 }
