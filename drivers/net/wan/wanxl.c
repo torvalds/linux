@@ -639,7 +639,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	card->plx = ioremap(plx_phy, 0x70);
 	if (!card->plx) {
 		pr_err("ioremap() failed\n");
- 		wanxl_pci_remove_one(pdev);
+		wanxl_pci_remove_one(pdev);
 		return -EFAULT;
 	}
 
@@ -707,7 +707,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	mem = ioremap(mem_phy, PDM_OFFSET + sizeof(firmware));
 	if (!mem) {
 		pr_err("ioremap() failed\n");
- 		wanxl_pci_remove_one(pdev);
+		wanxl_pci_remove_one(pdev);
 		return -EFAULT;
 	}
 

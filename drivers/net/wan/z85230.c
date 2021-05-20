@@ -1080,7 +1080,7 @@ int z8530_sync_txdma_open(struct net_device *dev, struct z8530_channel *c)
 	z8530_rx_done(c);
 	z8530_rx_done(c);
 
- 	/*
+	/*
 	 *	Load the DMA interfaces up
 	 */
 
@@ -1092,13 +1092,13 @@ int z8530_sync_txdma_open(struct net_device *dev, struct z8530_channel *c)
 	c->dma_ready=1;
 	c->dma_tx = 1;
 
- 	/*
+	/*
 	 *	Enable DMA control mode
 	 */
 
- 	/*
+	/*
 	 *	TX DMA via DIR/REQ
- 	 */
+	 */
 	c->regs[R14]|= DTRREQ;
 	write_zsreg(c, R14, c->regs[R14]);     
 	

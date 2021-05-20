@@ -276,7 +276,7 @@ static void ax_bump(struct mkiss *ax)
 			 */
 			*ax->rbuff &= ~0x20;
 		}
- 	}
+	}
 
 	count = ax->rcount;
 
@@ -501,7 +501,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		default:
 			count = kiss_esc(p, ax->xbuff, len);
 		}
-  	}
+	}
 	spin_unlock_bh(&ax->buflock);
 
 	set_bit(TTY_DO_WRITE_WAKEUP, &ax->tty->flags);
@@ -815,7 +815,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 	dev = ax->dev;
 
 	switch (cmd) {
- 	case SIOCGIFNAME:
+	case SIOCGIFNAME:
 		err = copy_to_user((void __user *) arg, ax->dev->name,
 		                   strlen(ax->dev->name) + 1) ? -EFAULT : 0;
 		break;
