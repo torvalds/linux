@@ -8,6 +8,7 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/intel_crtc.h"
 #include "display/intel_display_types.h"
 #include "gt/intel_engine.h"
 
@@ -472,6 +473,44 @@ TRACE_EVENT(intel_pipe_update_end,
 	    TP_printk("pipe %c, frame=%u, scanline=%u",
 		      pipe_name(__entry->pipe), __entry->frame,
 		      __entry->scanline)
+);
+
+/* frontbuffer tracking */
+
+TRACE_EVENT(intel_frontbuffer_invalidate,
+	    TP_PROTO(unsigned int frontbuffer_bits, unsigned int origin),
+	    TP_ARGS(frontbuffer_bits, origin),
+
+	    TP_STRUCT__entry(
+			     __field(unsigned int, frontbuffer_bits)
+			     __field(unsigned int, origin)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->frontbuffer_bits = frontbuffer_bits;
+			   __entry->origin = origin;
+			   ),
+
+	    TP_printk("frontbuffer_bits=0x%08x, origin=%u",
+		      __entry->frontbuffer_bits, __entry->origin)
+);
+
+TRACE_EVENT(intel_frontbuffer_flush,
+	    TP_PROTO(unsigned int frontbuffer_bits, unsigned int origin),
+	    TP_ARGS(frontbuffer_bits, origin),
+
+	    TP_STRUCT__entry(
+			     __field(unsigned int, frontbuffer_bits)
+			     __field(unsigned int, origin)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->frontbuffer_bits = frontbuffer_bits;
+			   __entry->origin = origin;
+			   ),
+
+	    TP_printk("frontbuffer_bits=0x%08x, origin=%u",
+		      __entry->frontbuffer_bits, __entry->origin)
 );
 
 /* object tracking */

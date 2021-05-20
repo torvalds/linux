@@ -38,50 +38,56 @@
  * low-power state and comes back to normal.
  */
 
+#define DMC_PATH(platform, major, minor) \
+	"i915/"				 \
+	__stringify(platform) "_dmc_ver" \
+	__stringify(major) "_"		 \
+	__stringify(minor) ".bin"
+
 #define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
 
-#define ADLS_CSR_PATH			"i915/adls_dmc_ver2_01.bin"
+#define ADLS_CSR_PATH			DMC_PATH(adls, 2, 01)
 #define ADLS_CSR_VERSION_REQUIRED	CSR_VERSION(2, 1)
 MODULE_FIRMWARE(ADLS_CSR_PATH);
 
-#define DG1_CSR_PATH			"i915/dg1_dmc_ver2_02.bin"
+#define DG1_CSR_PATH			DMC_PATH(dg1, 2, 02)
 #define DG1_CSR_VERSION_REQUIRED	CSR_VERSION(2, 2)
 MODULE_FIRMWARE(DG1_CSR_PATH);
 
-#define RKL_CSR_PATH			"i915/rkl_dmc_ver2_02.bin"
+#define RKL_CSR_PATH			DMC_PATH(rkl, 2, 02)
 #define RKL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 2)
 MODULE_FIRMWARE(RKL_CSR_PATH);
 
-#define TGL_CSR_PATH			"i915/tgl_dmc_ver2_08.bin"
+#define TGL_CSR_PATH			DMC_PATH(tgl, 2, 08)
 #define TGL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 8)
 MODULE_FIRMWARE(TGL_CSR_PATH);
 
-#define ICL_CSR_PATH			"i915/icl_dmc_ver1_09.bin"
+#define ICL_CSR_PATH			DMC_PATH(icl, 1, 09)
 #define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 9)
 #define ICL_CSR_MAX_FW_SIZE		0x6000
 MODULE_FIRMWARE(ICL_CSR_PATH);
 
-#define CNL_CSR_PATH			"i915/cnl_dmc_ver1_07.bin"
+#define CNL_CSR_PATH			DMC_PATH(cnl, 1, 07)
 #define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 #define CNL_CSR_MAX_FW_SIZE		GLK_CSR_MAX_FW_SIZE
 MODULE_FIRMWARE(CNL_CSR_PATH);
 
-#define GLK_CSR_PATH			"i915/glk_dmc_ver1_04.bin"
+#define GLK_CSR_PATH			DMC_PATH(glk, 1, 04)
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 #define GLK_CSR_MAX_FW_SIZE		0x4000
 MODULE_FIRMWARE(GLK_CSR_PATH);
 
-#define KBL_CSR_PATH			"i915/kbl_dmc_ver1_04.bin"
+#define KBL_CSR_PATH			DMC_PATH(kbl, 1, 04)
 #define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 #define KBL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
 MODULE_FIRMWARE(KBL_CSR_PATH);
 
-#define SKL_CSR_PATH			"i915/skl_dmc_ver1_27.bin"
+#define SKL_CSR_PATH			DMC_PATH(skl, 1, 27)
 #define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
 #define SKL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
 MODULE_FIRMWARE(SKL_CSR_PATH);
 
-#define BXT_CSR_PATH			"i915/bxt_dmc_ver1_07.bin"
+#define BXT_CSR_PATH			DMC_PATH(bxt, 1, 07)
 #define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 #define BXT_CSR_MAX_FW_SIZE		0x3000
 MODULE_FIRMWARE(BXT_CSR_PATH);
@@ -284,7 +290,7 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 
 	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
 
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
@@ -709,7 +715,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->fw_path = TGL_CSR_PATH;
 		csr->required_version = TGL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
-	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		csr->fw_path = ICL_CSR_PATH;
 		csr->required_version = ICL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;

@@ -688,14 +688,14 @@ struct drm_dp_aux;
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
 # define DP_DECOMPRESSION_EN                (1 << 0)
 
-#define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
-# define DP_PSR_ENABLE			    (1 << 0)
-# define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
-# define DP_PSR_CRC_VERIFICATION	    (1 << 2)
-# define DP_PSR_FRAME_CAPTURE		    (1 << 3)
-# define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
-# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
-# define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
+#define DP_PSR_EN_CFG				0x170   /* XXX 1.2? */
+# define DP_PSR_ENABLE				BIT(0)
+# define DP_PSR_MAIN_LINK_ACTIVE		BIT(1)
+# define DP_PSR_CRC_VERIFICATION		BIT(2)
+# define DP_PSR_FRAME_CAPTURE			BIT(3)
+# define DP_PSR_SU_REGION_SCANLINE_CAPTURE	BIT(4) /* eDP 1.4a */
+# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS		BIT(5) /* eDP 1.4a */
+# define DP_PSR_ENABLE_PSR2			BIT(6) /* eDP 1.4a */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)

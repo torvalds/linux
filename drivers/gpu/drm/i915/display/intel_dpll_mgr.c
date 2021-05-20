@@ -21,8 +21,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dpio_phy.h"
+#include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 
 /**
@@ -4441,10 +4443,10 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		dpll_mgr = &icl_pll_mgr;
 	else if (IS_CANNONLAKE(dev_priv))
 		dpll_mgr = &cnl_pll_mgr;
-	else if (IS_GEN9_BC(dev_priv))
-		dpll_mgr = &skl_pll_mgr;
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		dpll_mgr = &bxt_pll_mgr;
+	else if (DISPLAY_VER(dev_priv) == 9)
+		dpll_mgr = &skl_pll_mgr;
 	else if (HAS_DDI(dev_priv))
 		dpll_mgr = &hsw_pll_mgr;
 	else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))

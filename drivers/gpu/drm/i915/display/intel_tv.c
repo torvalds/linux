@@ -36,6 +36,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
 #include "intel_tv.h"
@@ -1165,7 +1166,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 static bool intel_tv_source_too_wide(struct drm_i915_private *dev_priv,
 				     int hdisplay)
 {
-	return IS_DISPLAY_VER(dev_priv, 3) && hdisplay > 1024;
+	return DISPLAY_VER(dev_priv) == 3 && hdisplay > 1024;
 }
 
 static bool intel_tv_vert_scaling(const struct drm_display_mode *tv_mode,
@@ -1789,7 +1790,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 			continue;
 
 		/* no vertical scaling with wide sources on gen3 */
-		if (IS_DISPLAY_VER(dev_priv, 3) && input->w > 1024 &&
+		if (DISPLAY_VER(dev_priv) == 3 && input->w > 1024 &&
 		    input->h > intel_tv_mode_vdisplay(tv_mode))
 			continue;
 
@@ -1978,7 +1979,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		/* 1080p50/1080p60 not supported on gen3 */
-		if (IS_DISPLAY_VER(dev_priv, 3) &&
+		if (DISPLAY_VER(dev_priv) == 3 &&
 		    tv_modes[i].oversample == 1)
 			break;
 

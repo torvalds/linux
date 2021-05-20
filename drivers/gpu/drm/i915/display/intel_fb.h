@@ -19,7 +19,6 @@ struct intel_plane_state;
 bool is_ccs_plane(const struct drm_framebuffer *fb, int plane);
 bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane);
 bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane);
-bool is_aux_plane(const struct drm_framebuffer *fb, int plane);
 bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane);
 
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane);
@@ -46,7 +45,10 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 				       const struct intel_plane_state *state,
 				       int color_plane);
 
-int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb);
+bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb);
+bool intel_fb_supports_90_270_rotation(const struct intel_framebuffer *fb);
+
+int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb);
 void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotation,
 			struct intel_fb_view *view);
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);

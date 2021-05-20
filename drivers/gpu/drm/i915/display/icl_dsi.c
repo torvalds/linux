@@ -31,7 +31,9 @@
 #include "intel_atomic.h"
 #include "intel_combo_phy.h"
 #include "intel_connector.h"
+#include "intel_crtc.h"
 #include "intel_ddi.h"
+#include "intel_de.h"
 #include "intel_dsi.h"
 #include "intel_panel.h"
 #include "intel_vdsc.h"
@@ -592,7 +594,7 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 	 * a value '0' inside TA_PARAM_REGISTERS otherwise
 	 * leave all fields at HW default values.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 11)) {
+	if (DISPLAY_VER(dev_priv) == 11) {
 		if (afe_clk(encoder, crtc_state) <= 800000) {
 			for_each_dsi_port(port, intel_dsi->ports) {
 				tmp = intel_de_read(dev_priv,
@@ -1158,7 +1160,7 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	gen11_dsi_configure_transcoder(encoder, crtc_state);
 
 	/* Step 4l: Gate DDI clocks */
-	if (IS_DISPLAY_VER(dev_priv, 11))
+	if (DISPLAY_VER(dev_priv) == 11)
 		gen11_dsi_gate_clocks(encoder);
 }
 

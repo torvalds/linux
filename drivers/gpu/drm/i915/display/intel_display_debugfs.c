@@ -10,6 +10,7 @@
 #include "intel_csr.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_power.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_fbc.h"
@@ -569,7 +570,7 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	} else {
 		dc5_reg = IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
 						 SKL_CSR_DC3_DC5_COUNT;
-		if (!IS_GEN9_LP(dev_priv))
+		if (!IS_GEMINILAKE(dev_priv) && !IS_BROXTON(dev_priv))
 			dc6_reg = SKL_CSR_DC5_DC6_COUNT;
 	}
 
@@ -1338,6 +1339,12 @@ intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
 static int i915_lpsp_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+
+	if (DISPLAY_VER(i915) >= 13) {
+		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915,
+							   SKL_DISP_PW_2));
+		return 0;
+	}
 
 	switch (DISPLAY_VER(i915)) {
 	case 12:

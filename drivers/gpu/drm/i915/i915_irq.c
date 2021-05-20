@@ -35,6 +35,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_irq.h>
 
+#include "display/intel_de.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fifo_underrun.h"
 #include "display/intel_hotplug.h"
@@ -194,7 +195,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 
 	if (DISPLAY_VER(dev_priv) >= 11)
 		hpd->hpd = hpd_gen11;
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		hpd->hpd = hpd_bxt;
 	else if (DISPLAY_VER(dev_priv) >= 8)
 		hpd->hpd = hpd_bdw;
@@ -806,7 +807,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vtotal /= 2;
 
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
 	else
 		position = intel_de_read_fw(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
@@ -857,7 +858,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	unsigned long irqflags;
 	bool use_scanline_counter = DISPLAY_VER(dev_priv) >= 5 ||
-		IS_G4X(dev_priv) || IS_DISPLAY_VER(dev_priv, 2) ||
+		IS_G4X(dev_priv) || DISPLAY_VER(dev_priv) == 2 ||
 		crtc->mode_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	if (drm_WARN_ON(&dev_priv->drm, !mode->crtc_clock)) {
@@ -2077,7 +2078,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		intel_uncore_write(&dev_priv->uncore, SDEIIR, pch_iir);
 	}
 
-	if (IS_DISPLAY_VER(dev_priv, 5) && de_iir & DE_PCU_EVENT)
+	if (DISPLAY_VER(dev_priv) == 5 && de_iir & DE_PCU_EVENT)
 		gen5_rps_irq_handler(&dev_priv->gt.rps);
 }
 
@@ -2269,7 +2270,17 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 {
 	u32 mask;
 
-	if (DISPLAY_VER(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 13)
+		return TGL_DE_PORT_AUX_DDIA |
+			TGL_DE_PORT_AUX_DDIB |
+			TGL_DE_PORT_AUX_DDIC |
+			XELPD_DE_PORT_AUX_DDID |
+			XELPD_DE_PORT_AUX_DDIE |
+			TGL_DE_PORT_AUX_USBC1 |
+			TGL_DE_PORT_AUX_USBC2 |
+			TGL_DE_PORT_AUX_USBC3 |
+			TGL_DE_PORT_AUX_USBC4;
+	else if (DISPLAY_VER(dev_priv) >= 12)
 		return TGL_DE_PORT_AUX_DDIA |
 			TGL_DE_PORT_AUX_DDIB |
 			TGL_DE_PORT_AUX_DDIC |
@@ -2287,10 +2298,10 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 			GEN9_AUX_CHANNEL_C |
 			GEN9_AUX_CHANNEL_D;
 
-	if (IS_CNL_WITH_PORT_F(dev_priv) || IS_DISPLAY_VER(dev_priv, 11))
+	if (IS_CNL_WITH_PORT_F(dev_priv) || DISPLAY_VER(dev_priv) == 11)
 		mask |= CNL_AUX_CHANNEL_F;
 
-	if (IS_DISPLAY_VER(dev_priv, 11))
+	if (DISPLAY_VER(dev_priv) == 11)
 		mask |= ICL_AUX_CHANNEL_E;
 
 	return mask;
@@ -2298,7 +2309,7 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 
 static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 {
-	if (HAS_D12_PLANE_MINIMIZATION(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 13 || HAS_D12_PLANE_MINIMIZATION(dev_priv))
 		return RKL_DE_PIPE_IRQ_FAULT_ERRORS;
 	else if (DISPLAY_VER(dev_priv) >= 11)
 		return GEN11_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -2421,6 +2432,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	u32 iir;
 	enum pipe pipe;
 
+	drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_DISPLAY(dev_priv));
+
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		iir = intel_uncore_read(&dev_priv->uncore, GEN8_DE_MISC_IIR);
 		if (iir) {
@@ -2458,7 +2471,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 				found = true;
 			}
 
-			if (IS_GEN9_LP(dev_priv)) {
+			if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 				u32 hotplug_trigger = iir & BXT_DE_PORT_HOTPLUG_MASK;
 
 				if (hotplug_trigger) {
@@ -2474,7 +2487,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 				}
 			}
 
-			if (IS_GEN9_LP(dev_priv) && (iir & BXT_DE_PORT_GMBUS)) {
+			if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+			    (iir & BXT_DE_PORT_GMBUS)) {
 				gmbus_irq_handler(dev_priv);
 				found = true;
 			}
@@ -3058,14 +3072,13 @@ static void cnp_display_clock_wa(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void gen8_irq_reset(struct drm_i915_private *dev_priv)
+static void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	enum pipe pipe;
 
-	gen8_master_intr_disable(dev_priv->uncore.regs);
-
-	gen8_gt_irq_reset(&dev_priv->gt);
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
 	intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
@@ -3077,6 +3090,16 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_RESET(uncore, GEN8_DE_PORT_);
 	GEN3_IRQ_RESET(uncore, GEN8_DE_MISC_);
+}
+
+static void gen8_irq_reset(struct drm_i915_private *dev_priv)
+{
+	struct intel_uncore *uncore = &dev_priv->uncore;
+
+	gen8_master_intr_disable(dev_priv->uncore.regs);
+
+	gen8_gt_irq_reset(&dev_priv->gt);
+	gen8_display_irq_reset(dev_priv);
 	GEN3_IRQ_RESET(uncore, GEN8_PCU_);
 
 	if (HAS_PCH_SPLIT(dev_priv))
@@ -3091,6 +3114,9 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	intel_uncore_write(uncore, GEN11_DISPLAY_INT_CTL, 0);
 
@@ -3714,10 +3740,13 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 	enum pipe pipe;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	if (DISPLAY_VER(dev_priv) <= 10)
 		de_misc_masked |= GEN8_DE_MISC_GSE;
 
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		de_port_masked |= BXT_DE_PORT_GMBUS;
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
@@ -3732,7 +3761,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		gen8_de_pipe_flip_done_mask(dev_priv);
 
 	de_port_enables = de_port_masked;
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		de_port_enables |= BXT_DE_PORT_HOTPLUG_MASK;
 	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= BDW_DE_PORT_HOTPLUG_MASK;
@@ -3797,6 +3826,16 @@ static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 	gen8_master_intr_enable(dev_priv->uncore.regs);
 }
 
+static void gen11_de_irq_postinstall(struct drm_i915_private *dev_priv)
+{
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
+	gen8_de_irq_postinstall(dev_priv);
+
+	intel_uncore_write(&dev_priv->uncore, GEN11_DISPLAY_INT_CTL,
+			   GEN11_DISPLAY_IRQ_ENABLE);
+}
 
 static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 {
@@ -3807,11 +3846,9 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 		icp_irq_postinstall(dev_priv);
 
 	gen11_gt_irq_postinstall(&dev_priv->gt);
-	gen8_de_irq_postinstall(dev_priv);
+	gen11_de_irq_postinstall(dev_priv);
 
 	GEN3_IRQ_INIT(uncore, GEN11_GU_MISC_, ~gu_misc_masked, gu_misc_masked);
-
-	intel_uncore_write(&dev_priv->uncore, GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
 	if (HAS_MASTER_UNIT_IRQ(dev_priv)) {
 		dg1_master_intr_enable(uncore->regs);
@@ -4317,7 +4354,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev_priv->display.hpd_irq_setup = dg1_hpd_irq_setup;
 		else if (DISPLAY_VER(dev_priv) >= 11)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
-		else if (IS_GEN9_LP(dev_priv))
+		else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
 		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 			dev_priv->display.hpd_irq_setup = icp_hpd_irq_setup;

@@ -7,6 +7,7 @@
  */
 
 #include "i915_drv.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
 #include "intel_vdsc.h"
@@ -469,13 +470,13 @@ intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 	 * POWER_DOMAIN_TRANSCODER_VDSC_PW2 power domain in two cases:
 	 *
 	 *  - ICL eDP/DSI transcoder
-	 *  - Gen12+ (except RKL) pipe A
+	 *  - Display version 12 (except RKL) pipe A
 	 *
 	 * For any other pipe, VDSC/joining uses the power well associated with
 	 * the pipe in use. Hence another reference on the pipe power domain
 	 * will suffice. (Except no VDSC/joining on ICL pipe A.)
 	 */
-	if (DISPLAY_VER(i915) >= 12 && !IS_ROCKETLAKE(i915) && pipe == PIPE_A)
+	if (DISPLAY_VER(i915) == 12 && !IS_ROCKETLAKE(i915) && pipe == PIPE_A)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 	else if (is_pipe_dsc(crtc_state))
 		return POWER_DOMAIN_PIPE(pipe);
@@ -1020,6 +1021,22 @@ static i915_reg_t dss_ctl2_reg(const struct intel_crtc_state *crtc_state)
 	return is_pipe_dsc(crtc_state) ? ICL_PIPE_DSS_CTL2(pipe) : DSS_CTL2;
 }
 
+void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 dss_ctl1_val = 0;
+
+	if (crtc_state->bigjoiner && !crtc_state->dsc.compression_enable) {
+		if (crtc_state->bigjoiner_slave)
+			dss_ctl1_val |= UNCOMPRESSED_JOINER_SLAVE;
+		else
+			dss_ctl1_val |= UNCOMPRESSED_JOINER_MASTER;
+
+		intel_de_write(dev_priv, dss_ctl1_reg(crtc_state), dss_ctl1_val);
+	}
+}
+
 void intel_dsc_enable(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)
 {
@@ -1059,11 +1076,33 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	if (!old_crtc_state->dsc.compression_enable)
+	if (!(old_crtc_state->dsc.compression_enable &&
+	      old_crtc_state->bigjoiner))
 		return;
 
 	intel_de_write(dev_priv, dss_ctl1_reg(old_crtc_state), 0);
 	intel_de_write(dev_priv, dss_ctl2_reg(old_crtc_state), 0);
+}
+
+void intel_uncompressed_joiner_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 dss_ctl1;
+
+	dss_ctl1 = intel_de_read(dev_priv, dss_ctl1_reg(crtc_state));
+	if (dss_ctl1 & UNCOMPRESSED_JOINER_MASTER) {
+		crtc_state->bigjoiner = true;
+		if (!WARN_ON(INTEL_NUM_PIPES(dev_priv) == crtc->pipe + 1))
+			crtc_state->bigjoiner_linked_crtc =
+				intel_get_crtc_for_pipe(dev_priv, crtc->pipe + 1);
+	} else if (dss_ctl1 & UNCOMPRESSED_JOINER_SLAVE) {
+		crtc_state->bigjoiner = true;
+		crtc_state->bigjoiner_slave = true;
+		if (!WARN_ON(crtc->pipe == PIPE_A))
+			crtc_state->bigjoiner_linked_crtc =
+				intel_get_crtc_for_pipe(dev_priv, crtc->pipe - 1);
+	}
 }
 
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state)

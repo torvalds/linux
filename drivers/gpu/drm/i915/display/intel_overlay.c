@@ -34,6 +34,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
@@ -550,7 +551,7 @@ static u32 calc_swidthsw(struct drm_i915_private *dev_priv, u32 offset, u32 widt
 {
 	u32 sw;
 
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		sw = ALIGN((offset & 31) + width, 32);
 	else
 		sw = ALIGN((offset & 63) + width, 64);
@@ -820,7 +821,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 			oconfig |= OCONF_CC_OUT_8BIT;
 		if (crtc_state->gamma_enable)
 			oconfig |= OCONF_GAMMA2_ENABLE;
-		if (IS_DISPLAY_VER(dev_priv, 4))
+		if (DISPLAY_VER(dev_priv) == 4)
 			oconfig |= OCONF_CSC_MODE_BT709;
 		oconfig |= pipe == 0 ?
 			OCONF_PIPE_A : OCONF_PIPE_B;
@@ -1054,7 +1055,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 
 	if (rec->stride_Y & stride_mask || rec->stride_UV & stride_mask)
 		return -EINVAL;
-	if (IS_DISPLAY_VER(dev_priv, 4) && rec->stride_Y < 512)
+	if (DISPLAY_VER(dev_priv) == 4 && rec->stride_Y < 512)
 		return -EINVAL;
 
 	tmp = (rec->flags & I915_OVERLAY_TYPE_MASK) == I915_OVERLAY_YUV_PLANAR ?
@@ -1281,7 +1282,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 		attrs->contrast   = overlay->contrast;
 		attrs->saturation = overlay->saturation;
 
-		if (!IS_DISPLAY_VER(dev_priv, 2)) {
+		if (DISPLAY_VER(dev_priv) != 2) {
 			attrs->gamma0 = intel_de_read(dev_priv, OGAMC0);
 			attrs->gamma1 = intel_de_read(dev_priv, OGAMC1);
 			attrs->gamma2 = intel_de_read(dev_priv, OGAMC2);
@@ -1305,7 +1306,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 		update_reg_attrs(overlay, overlay->regs);
 
 		if (attrs->flags & I915_OVERLAY_UPDATE_GAMMA) {
-			if (IS_DISPLAY_VER(dev_priv, 2))
+			if (DISPLAY_VER(dev_priv) == 2)
 				goto out_unlock;
 
 			if (overlay->active) {

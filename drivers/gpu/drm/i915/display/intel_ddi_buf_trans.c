@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
@@ -881,7 +882,7 @@ intel_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (IS_GEN9_BC(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
 		const struct ddi_buf_trans *ddi_translations =
 			skl_get_buf_trans_edp(encoder, n_entries);
 		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
@@ -919,7 +920,7 @@ intel_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (IS_GEN9_BC(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
 		return skl_get_buf_trans_hdmi(dev_priv, n_entries);
 	} else if (IS_BROADWELL(dev_priv)) {
 		*n_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
@@ -1361,7 +1362,7 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 		else
 			tgl_get_dkl_buf_trans_hdmi(encoder, crtc_state, &n_entries);
 		*default_entry = n_entries - 1;
-	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		if (intel_phy_is_combo(dev_priv, phy))
 			icl_get_combo_buf_trans_hdmi(encoder, crtc_state, &n_entries);
 		else
@@ -1370,10 +1371,10 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		cnl_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = n_entries - 1;
-	} else if (IS_GEN9_LP(dev_priv)) {
+	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		bxt_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = n_entries - 1;
-	} else if (IS_GEN9_BC(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		intel_ddi_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 8;
 	} else if (IS_BROADWELL(dev_priv)) {
