@@ -94,7 +94,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 		 * save/restore LR unless we call other functions
 		 */
 		if (ctx->seen & SEEN_FUNC) {
-			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
+			EMIT(PPC_RAW_MFLR(_R0));
 			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
 		}
 
