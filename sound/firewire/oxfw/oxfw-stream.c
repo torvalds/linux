@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 
 #define AVC_GENERIC_FRAME_MAXIMUM_BYTES	512
-#define CALLBACK_TIMEOUT	200
+#define READY_TIMEOUT_MS	200
 
 /*
  * According to datasheet of Oxford Semiconductor:
@@ -358,19 +358,9 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 		if (err < 0)
 			goto error;
 
-		// Wait first packet.
-		if (!amdtp_stream_wait_callback(&oxfw->rx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&oxfw->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
-		}
-
-		if (oxfw->has_output) {
-			if (!amdtp_stream_wait_callback(&oxfw->tx_stream,
-							CALLBACK_TIMEOUT)) {
-				err = -ETIMEDOUT;
-				goto error;
-			}
 		}
 	}
 

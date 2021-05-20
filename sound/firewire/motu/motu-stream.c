@@ -7,7 +7,7 @@
 
 #include "motu.h"
 
-#define	CALLBACK_TIMEOUT	200
+#define	READY_TIMEOUT_MS	200
 
 #define ISOC_COMM_CONTROL_OFFSET		0x0b00
 #define  ISOC_COMM_CONTROL_MASK			0xffff0000
@@ -264,10 +264,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		if (err < 0)
 			goto stop_streams;
 
-		if (!amdtp_stream_wait_callback(&motu->tx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&motu->rx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&motu->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto stop_streams;
 		}

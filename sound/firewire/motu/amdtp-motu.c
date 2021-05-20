@@ -377,8 +377,8 @@ static inline void compute_next_elapse_from_start(struct amdtp_motu *p)
 		p->next_seconds -= 128;
 }
 
-static void write_sph(struct amdtp_stream *s, __be32 *buffer,
-		      unsigned int data_blocks)
+static void write_sph(struct amdtp_stream *s, __be32 *buffer, unsigned int data_blocks,
+		      const unsigned int rx_start_cycle)
 {
 	struct amdtp_motu *p = s->protocol;
 	unsigned int next_cycles;
@@ -386,7 +386,7 @@ static void write_sph(struct amdtp_stream *s, __be32 *buffer,
 	u32 sph;
 
 	for (i = 0; i < data_blocks; i++) {
-		next_cycles = (s->start_cycle + p->next_cycles) % 8000;
+		next_cycles = (rx_start_cycle + p->next_cycles) % 8000;
 		sph = ((next_cycles << 12) | p->next_ticks) & 0x01ffffff;
 		*buffer = cpu_to_be32(sph);
 
@@ -401,6 +401,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 					    unsigned int packets,
 					    struct snd_pcm_substream *pcm)
 {
+	const unsigned int rx_start_cycle = s->domain->processing_cycle.rx_start;
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
@@ -423,7 +424,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		// TODO: how to interact control messages between userspace?
 
-		write_sph(s, buf, data_blocks);
+		write_sph(s, buf, data_blocks, rx_start_cycle);
 	}
 
 	// For tracepoints.
