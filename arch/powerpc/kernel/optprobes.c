@@ -55,6 +55,7 @@ static unsigned long can_optimize(struct kprobe *p)
 	struct pt_regs regs;
 	struct instruction_op op;
 	unsigned long nip = 0;
+	unsigned long addr = (unsigned long)p->addr;
 
 	/*
 	 * kprobe placed for kretprobe during boot time
@@ -62,7 +63,7 @@ static unsigned long can_optimize(struct kprobe *p)
 	 * So further checks can be skipped.
 	 */
 	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
-		return (unsigned long)p->addr + sizeof(kprobe_opcode_t);
+		return addr + sizeof(kprobe_opcode_t);
 
 	/*
 	 * We only support optimizing kernel addresses, but not
@@ -70,11 +71,11 @@ static unsigned long can_optimize(struct kprobe *p)
 	 *
 	 * FIXME: Optimize kprobes placed in module addresses.
 	 */
-	if (!is_kernel_addr((unsigned long)p->addr))
+	if (!is_kernel_addr(addr))
 		return 0;
 
 	memset(&regs, 0, sizeof(struct pt_regs));
-	regs.nip = (unsigned long)p->addr;
+	regs.nip = addr;
 	regs.trap = 0x0;
 	regs.msr = MSR_KERNEL;
 
@@ -184,7 +185,8 @@ static void patch_imm_load_insns(unsigned long val, int reg, kprobe_opcode_t *ad
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 {
 	struct ppc_inst branch_op_callback, branch_emulate_step, temp;
-	kprobe_opcode_t *op_callback_addr, *emulate_step_addr, *buff;
+	unsigned long op_callback_addr, emulate_step_addr;
+	kprobe_opcode_t *buff;
 	long b_offset;
 	unsigned long nip, size;
 	int rc, i;
@@ -212,8 +214,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 		goto error;
 
 	/* Check if the return address is also within 32MB range */
-	b_offset = (unsigned long)(buff + TMPL_RET_IDX) -
-			(unsigned long)nip;
+	b_offset = (unsigned long)(buff + TMPL_RET_IDX) - nip;
 	if (!is_offset_in_branch_range(b_offset))
 		goto error;
 
@@ -236,20 +237,18 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	/*
 	 * 2. branch to optimized_callback() and emulate_step()
 	 */
-	op_callback_addr = (kprobe_opcode_t *)ppc_kallsyms_lookup_name("optimized_callback");
-	emulate_step_addr = (kprobe_opcode_t *)ppc_kallsyms_lookup_name("emulate_step");
+	op_callback_addr = ppc_kallsyms_lookup_name("optimized_callback");
+	emulate_step_addr = ppc_kallsyms_lookup_name("emulate_step");
 	if (!op_callback_addr || !emulate_step_addr) {
 		WARN(1, "Unable to lookup optimized_callback()/emulate_step()\n");
 		goto error;
 	}
 
 	rc = create_branch(&branch_op_callback, buff + TMPL_CALL_HDLR_IDX,
-			   (unsigned long)op_callback_addr,
-			   BRANCH_SET_LINK);
+			   op_callback_addr, BRANCH_SET_LINK);
 
 	rc |= create_branch(&branch_emulate_step, buff + TMPL_EMULATE_IDX,
-			    (unsigned long)emulate_step_addr,
-			    BRANCH_SET_LINK);
+			    emulate_step_addr, BRANCH_SET_LINK);
 
 	if (rc)
 		goto error;
