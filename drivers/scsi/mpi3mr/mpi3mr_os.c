@@ -311,6 +311,86 @@ void mpi3mr_cleanup_fwevt_list(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_invalidate_devhandles -Invalidate device handles
+ * @mrioc: Adapter instance reference
+ *
+ * Invalidate the device handles in the target device structures
+ * . Called post reset prior to reinitializing the controller.
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+	struct mpi3mr_stgt_priv_data *tgt_priv;
+
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list) {
+		tgtdev->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+		if (tgtdev->starget && tgtdev->starget->hostdata) {
+			tgt_priv = tgtdev->starget->hostdata;
+			tgt_priv->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+		}
+	}
+}
+
+/**
+ * mpi3mr_flush_scmd - Flush individual SCSI command
+ * @rq: Block request
+ * @data: Adapter instance reference
+ *
+ * Return the SCSI command to the upper layers if it is in LLD
+ * scope.
+ *
+ * Return: true always.
+ */
+
+static bool mpi3mr_flush_scmd(struct request *rq,
+	void *data, bool reserved)
+{
+	struct mpi3mr_ioc *mrioc = (struct mpi3mr_ioc *)data;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct scmd_priv *priv = NULL;
+
+	if (scmd) {
+		priv = scsi_cmd_priv(scmd);
+		if (!priv->in_lld_scope)
+			goto out;
+
+		mpi3mr_clear_scmd_priv(mrioc, scmd);
+		scsi_dma_unmap(scmd);
+		scmd->result = DID_RESET << 16;
+		scsi_print_command(scmd);
+		scmd->scsi_done(scmd);
+		mrioc->flush_io_count++;
+	}
+
+out:
+	return(true);
+}
+
+/**
+ * mpi3mr_flush_host_io -  Flush host I/Os
+ * @mrioc: Adapter instance reference
+ *
+ * Flush all of the pending I/Os by calling
+ * blk_mq_tagset_busy_iter() for each possible tag. This is
+ * executed post controller reset
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_flush_host_io(struct mpi3mr_ioc *mrioc)
+{
+	struct Scsi_Host *shost = mrioc->shost;
+
+	mrioc->flush_io_count = 0;
+	ioc_info(mrioc, "%s :Flushing Host I/O cmds post reset\n", __func__);
+	blk_mq_tagset_busy_iter(&shost->tag_set,
+	    mpi3mr_flush_scmd, (void *)mrioc);
+	ioc_info(mrioc, "%s :Flushed %d Host I/O cmds\n", __func__,
+	    mrioc->flush_io_count);
+}
+
+/**
  * mpi3mr_alloc_tgtdev - target device allocator
  *
  * Allocate target device instance and initialize the reference
@@ -2495,6 +2575,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&mrioc->tgtdev_list);
 	INIT_LIST_HEAD(&mrioc->delayed_rmhs_list);
 
+	mutex_init(&mrioc->reset_mutex);
 	mpi3mr_init_drv_cmd(&mrioc->init_cmds, MPI3MR_HOSTTAG_INITCMDS);
 
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
@@ -2504,6 +2585,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pdev->revision)
 		mrioc->enable_segqueue = true;
 
+	init_waitqueue_head(&mrioc->reset_waitq);
 	mrioc->logging_level = logging_level;
 	mrioc->shost = shost;
 	mrioc->pdev = pdev;
@@ -2528,7 +2610,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	mrioc->is_driver_loading = 1;
-	if (mpi3mr_init_ioc(mrioc)) {
+	if (mpi3mr_init_ioc(mrioc, 0)) {
 		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
 		retval = -ENODEV;
@@ -2551,7 +2633,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return retval;
 
 addhost_failed:
-	mpi3mr_cleanup_ioc(mrioc);
+	mpi3mr_cleanup_ioc(mrioc, 0);
 out_iocinit_failed:
 	destroy_workqueue(mrioc->fwevt_worker_thread);
 out_fwevtthread_failed:
@@ -2600,7 +2682,7 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
 		mpi3mr_tgtdev_put(tgtdev);
 	}
-	mpi3mr_cleanup_ioc(mrioc);
+	mpi3mr_cleanup_ioc(mrioc, 0);
 
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);
@@ -2640,7 +2722,7 @@ static void mpi3mr_shutdown(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
 	if (wq)
 		destroy_workqueue(wq);
-	mpi3mr_cleanup_ioc(mrioc);
+	mpi3mr_cleanup_ioc(mrioc, 0);
 }
 
 static const struct pci_device_id mpi3mr_pci_id_table[] = {
