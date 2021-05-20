@@ -17,6 +17,9 @@ int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 	if (!test_bit(MT76_STATE_PM, &phy->state))
 		return 0;
 
+	if (pm->suspended)
+		return 0;
+
 	queue_work(dev->wq, &pm->wake_work);
 	if (!wait_event_timeout(pm->wait,
 				!test_bit(MT76_STATE_PM, &phy->state),
@@ -38,6 +41,9 @@ void mt76_connac_power_save_sched(struct mt76_phy *phy,
 		return;
 
 	if (!pm->enable)
+		return;
+
+	if (pm->suspended)
 		return;
 
 	pm->last_activity = jiffies;

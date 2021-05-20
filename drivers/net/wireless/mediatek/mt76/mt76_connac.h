@@ -45,6 +45,7 @@ enum {
 
 struct mt76_connac_pm {
 	bool enable;
+	bool suspended;
 
 	spinlock_t txq_lock;
 	struct {

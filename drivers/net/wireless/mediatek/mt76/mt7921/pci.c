@@ -188,21 +188,26 @@ static int mt7921_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt76_connac_pm *pm = &dev->pm;
 	bool hif_suspend;
 	int i, err;
 
-	err = mt76_connac_pm_wake(&dev->mphy, &dev->pm);
+	pm->suspended = true;
+	cancel_delayed_work_sync(&pm->ps_work);
+	cancel_work_sync(&pm->wake_work);
+
+	err = mt7921_mcu_drv_pmctrl(dev);
 	if (err < 0)
-		return err;
+		goto restore_suspend;
 
 	hif_suspend = !test_bit(MT76_STATE_SUSPEND, &dev->mphy.state);
 	if (hif_suspend) {
 		err = mt76_connac_mcu_set_hif_suspend(mdev, true);
 		if (err)
-			return err;
+			goto restore_suspend;
 	}
 
-	if (!dev->pm.enable)
+	if (!pm->enable)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, true);
 
 	napi_disable(&mdev->tx_napi);
@@ -231,26 +236,29 @@ static int mt7921_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	err = mt7921_mcu_fw_pmctrl(dev);
 	if (err)
-		goto restore;
+		goto restore_napi;
 
 	pci_save_state(pdev);
 	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	if (err)
-		goto restore;
+		goto restore_napi;
 
 	return 0;
 
-restore:
+restore_napi:
 	mt76_for_each_q_rx(mdev, i) {
 		napi_enable(&mdev->napi[i]);
 	}
 	napi_enable(&mdev->tx_napi);
 
-	if (!dev->pm.enable)
+	if (!pm->enable)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
 	if (hif_suspend)
 		mt76_connac_mcu_set_hif_suspend(mdev, false);
+
+restore_suspend:
+	pm->suspended = false;
 
 	return err;
 }
@@ -261,6 +269,7 @@ static int mt7921_pci_resume(struct pci_dev *pdev)
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	int i, err;
 
+	dev->pm.suspended = false;
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
 		return err;
