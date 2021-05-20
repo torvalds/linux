@@ -8,8 +8,6 @@
 #include "sja1105.h"
 
 #define SJA1105_SIZE_RESET_CMD		4
-#define SJA1105_SIZE_SPI_MSG_HEADER	4
-#define SJA1105_SIZE_SPI_MSG_MAXLEN	(64 * 4)
 
 struct sja1105_chunk {
 	u8	*buf;
@@ -40,19 +38,19 @@ static int sja1105_xfer(const struct sja1105_private *priv,
 			size_t len, struct ptp_system_timestamp *ptp_sts)
 {
 	u8 hdr_buf[SJA1105_SIZE_SPI_MSG_HEADER] = {0};
-	struct sja1105_chunk chunk = {
-		.len = min_t(size_t, len, SJA1105_SIZE_SPI_MSG_MAXLEN),
-		.reg_addr = reg_addr,
-		.buf = buf,
-	};
 	struct spi_device *spi = priv->spidev;
 	struct spi_transfer xfers[2] = {0};
 	struct spi_transfer *chunk_xfer;
 	struct spi_transfer *hdr_xfer;
+	struct sja1105_chunk chunk;
 	int num_chunks;
 	int rc, i = 0;
 
-	num_chunks = DIV_ROUND_UP(len, SJA1105_SIZE_SPI_MSG_MAXLEN);
+	num_chunks = DIV_ROUND_UP(len, priv->max_xfer_len);
+
+	chunk.reg_addr = reg_addr;
+	chunk.buf = buf;
+	chunk.len = min_t(size_t, len, priv->max_xfer_len);
 
 	hdr_xfer = &xfers[0];
 	chunk_xfer = &xfers[1];
@@ -104,7 +102,7 @@ static int sja1105_xfer(const struct sja1105_private *priv,
 		chunk.buf += chunk.len;
 		chunk.reg_addr += chunk.len / 4;
 		chunk.len = min_t(size_t, (ptrdiff_t)(buf + len - chunk.buf),
-				  SJA1105_SIZE_SPI_MSG_MAXLEN);
+				  priv->max_xfer_len);
 
 		rc = spi_sync_transfer(spi, xfers, 2);
 		if (rc < 0) {

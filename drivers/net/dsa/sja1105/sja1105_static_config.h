@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <asm/types.h>
 
+#define SJA1105_SIZE_SPI_MSG_HEADER			4
+#define SJA1105_SIZE_SPI_MSG_MAXLEN			(64 * 4)
 #define SJA1105_SIZE_DEVICE_ID				4
 #define SJA1105_SIZE_TABLE_HEADER			12
 #define SJA1105_SIZE_SCHEDULE_ENTRY			8
