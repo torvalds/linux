@@ -2272,6 +2272,7 @@ static int bond_release_and_destroy(struct net_device *bond_dev,
 static void bond_info_query(struct net_device *bond_dev, struct ifbond *info)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+
 	bond_fill_ifbond(bond, info);
 }
 
@@ -4849,6 +4850,7 @@ static const struct device_type bond_type = {
 static void bond_destructor(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
 }
