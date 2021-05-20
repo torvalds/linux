@@ -25,6 +25,22 @@ static inline void mpi3mr_writeq(__u64 b, volatile void __iomem *addr)
 }
 #endif
 
+static inline bool
+mpi3mr_check_req_qfull(struct op_req_qinfo *op_req_q)
+{
+	u16 pi, ci, max_entries;
+	bool is_qfull = false;
+
+	pi = op_req_q->pi;
+	ci = READ_ONCE(op_req_q->ci);
+	max_entries = op_req_q->num_requests;
+
+	if ((ci == (pi + 1)) || ((!ci) && (pi == (max_entries - 1))))
+		is_qfull = true;
+
+	return is_qfull;
+}
+
 static void mpi3mr_sync_irqs(struct mpi3mr_ioc *mrioc)
 {
 	u16 i, max_vectors;
@@ -281,6 +297,83 @@ static int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 	mrioc->admin_reply_ephase = exp_phase;
 
 	return num_admin_replies;
+}
+
+/**
+ * mpi3mr_get_reply_desc - get reply descriptor frame corresponding to
+ *	queue's consumer index from operational reply descriptor queue.
+ * @op_reply_q: op_reply_qinfo object
+ * @reply_ci: operational reply descriptor's queue consumer index
+ *
+ * Returns reply descriptor frame address
+ */
+static inline struct mpi3_default_reply_descriptor *
+mpi3mr_get_reply_desc(struct op_reply_qinfo *op_reply_q, u32 reply_ci)
+{
+	void *segment_base_addr;
+	struct segments *segments = op_reply_q->q_segments;
+	struct mpi3_default_reply_descriptor *reply_desc = NULL;
+
+	segment_base_addr =
+	    segments[reply_ci / op_reply_q->segment_qd].segment;
+	reply_desc = (struct mpi3_default_reply_descriptor *)segment_base_addr +
+	    (reply_ci % op_reply_q->segment_qd);
+	return reply_desc;
+}
+
+static int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_intr_info *intr_info)
+{
+	struct op_reply_qinfo *op_reply_q = intr_info->op_reply_q;
+	struct op_req_qinfo *op_req_q;
+	u32 exp_phase;
+	u32 reply_ci;
+	u32 num_op_reply = 0;
+	u64 reply_dma = 0;
+	struct mpi3_default_reply_descriptor *reply_desc;
+	u16 req_q_idx = 0, reply_qidx;
+
+	reply_qidx = op_reply_q->qid - 1;
+
+	exp_phase = op_reply_q->ephase;
+	reply_ci = op_reply_q->ci;
+
+	reply_desc = mpi3mr_get_reply_desc(op_reply_q, reply_ci);
+	if ((le16_to_cpu(reply_desc->reply_flags) &
+	    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase) {
+		return 0;
+	}
+
+	do {
+		req_q_idx = le16_to_cpu(reply_desc->request_queue_id) - 1;
+		op_req_q = &mrioc->req_qinfo[req_q_idx];
+
+		WRITE_ONCE(op_req_q->ci, le16_to_cpu(reply_desc->request_queue_ci));
+		mpi3mr_process_op_reply_desc(mrioc, reply_desc, &reply_dma,
+		    reply_qidx);
+		if (reply_dma)
+			mpi3mr_repost_reply_buf(mrioc, reply_dma);
+		num_op_reply++;
+
+		if (++reply_ci == op_reply_q->num_replies) {
+			reply_ci = 0;
+			exp_phase ^= 1;
+		}
+
+		reply_desc = mpi3mr_get_reply_desc(op_reply_q, reply_ci);
+
+		if ((le16_to_cpu(reply_desc->reply_flags) &
+		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
+			break;
+
+	} while (1);
+
+	writel(reply_ci,
+	    &mrioc->sysif_regs->oper_queue_indexes[reply_qidx].consumer_index);
+	op_reply_q->ci = reply_ci;
+	op_reply_q->ephase = exp_phase;
+
+	return num_op_reply;
 }
 
 static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
@@ -1303,6 +1396,74 @@ out_failed:
 }
 
 /**
+ * mpi3mr_op_request_post - Post request to operational queue
+ * @mrioc: Adapter reference
+ * @op_req_q: Operational request queue info
+ * @req: MPI3 request
+ *
+ * Post the MPI3 request into operational request queue and
+ * inform the controller, if the queue is full return
+ * appropriate error.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_op_request_post(struct mpi3mr_ioc *mrioc,
+	struct op_req_qinfo *op_req_q, u8 *req)
+{
+	u16 pi = 0, max_entries, reply_qidx = 0, midx;
+	int retval = 0;
+	unsigned long flags;
+	u8 *req_entry;
+	void *segment_base_addr;
+	u16 req_sz = mrioc->facts.op_req_sz;
+	struct segments *segments = op_req_q->q_segments;
+
+	reply_qidx = op_req_q->reply_qid - 1;
+
+	if (mrioc->unrecoverable)
+		return -EFAULT;
+
+	spin_lock_irqsave(&op_req_q->q_lock, flags);
+	pi = op_req_q->pi;
+	max_entries = op_req_q->num_requests;
+
+	if (mpi3mr_check_req_qfull(op_req_q)) {
+		midx = REPLY_QUEUE_IDX_TO_MSIX_IDX(
+		    reply_qidx, mrioc->op_reply_q_offset);
+		mpi3mr_process_op_reply_q(mrioc, &mrioc->intr_info[midx]);
+
+		if (mpi3mr_check_req_qfull(op_req_q)) {
+			retval = -EAGAIN;
+			goto out;
+		}
+	}
+
+	if (mrioc->reset_in_progress) {
+		ioc_err(mrioc, "OpReqQ submit reset in progress\n");
+		retval = -EAGAIN;
+		goto out;
+	}
+
+	segment_base_addr = segments[pi / op_req_q->segment_qd].segment;
+	req_entry = (u8 *)segment_base_addr +
+	    ((pi % op_req_q->segment_qd) * req_sz);
+
+	memset(req_entry, 0, req_sz);
+	memcpy(req_entry, req, MPI3MR_ADMIN_REQ_FRAME_SZ);
+
+	if (++pi == max_entries)
+		pi = 0;
+	op_req_q->pi = pi;
+
+	writel(op_req_q->pi,
+	    &mrioc->sysif_regs->oper_queue_indexes[reply_qidx].producer_index);
+
+out:
+	spin_unlock_irqrestore(&op_req_q->q_lock, flags);
+	return retval;
+}
+
+/**
  * mpi3mr_setup_admin_qpair - Setup admin queue pair
  * @mrioc: Adapter instance reference
  *
@@ -1884,6 +2045,89 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_ioc *mrioc)
 	return retval;
 out_failed:
 	retval = -1;
+	return retval;
+}
+
+/**
+ * mpi3mr_port_enable_complete - Mark port enable complete
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * Call back for asynchronous port enable request sets the
+ * driver command to indicate port enable request is complete.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_port_enable_complete(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
+	drv_cmd->callback = NULL;
+	mrioc->scan_failed = drv_cmd->ioc_status;
+	mrioc->scan_started = 0;
+}
+
+/**
+ * mpi3mr_issue_port_enable - Issue Port Enable
+ * @mrioc: Adapter instance reference
+ * @async: Flag to wait for completion or not
+ *
+ * Issue Port Enable MPI request through admin queue and if the
+ * async flag is not set wait for the completion of the port
+ * enable or time out.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+int mpi3mr_issue_port_enable(struct mpi3mr_ioc *mrioc, u8 async)
+{
+	struct mpi3_port_enable_request pe_req;
+	int retval = 0;
+	u32 pe_timeout = MPI3MR_PORTENABLE_TIMEOUT;
+
+	memset(&pe_req, 0, sizeof(pe_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "Issue PortEnable: Init command is in use\n");
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	if (async) {
+		mrioc->init_cmds.is_waiting = 0;
+		mrioc->init_cmds.callback = mpi3mr_port_enable_complete;
+	} else {
+		mrioc->init_cmds.is_waiting = 1;
+		mrioc->init_cmds.callback = NULL;
+		init_completion(&mrioc->init_cmds.done);
+	}
+	pe_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	pe_req.function = MPI3_FUNCTION_PORT_ENABLE;
+
+	retval = mpi3mr_admin_request_post(mrioc, &pe_req, sizeof(pe_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "Issue PortEnable: Admin Post failed\n");
+		goto out_unlock;
+	}
+	if (!async) {
+		wait_for_completion_timeout(&mrioc->init_cmds.done,
+		    (pe_timeout * HZ));
+		if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+			ioc_err(mrioc, "Issue PortEnable: command timed out\n");
+			retval = -1;
+			mrioc->scan_failed = MPI3_IOCSTATUS_INTERNAL_ERROR;
+			mpi3mr_set_diagsave(mrioc);
+			mpi3mr_issue_reset(mrioc,
+			    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
+			    MPI3MR_RESET_FROM_PE_TIMEOUT);
+			mrioc->unrecoverable = 1;
+			goto out_unlock;
+		}
+		mpi3mr_port_enable_complete(mrioc, &mrioc->init_cmds);
+	}
+out_unlock:
+	mutex_unlock(&mrioc->init_cmds.mutex);
+out:
 	return retval;
 }
 

@@ -99,6 +99,7 @@ extern struct list_head mrioc_list;
 
 /* command/controller interaction timeout definitions in seconds */
 #define MPI3MR_INTADMCMD_TIMEOUT		10
+#define MPI3MR_PORTENABLE_TIMEOUT		300
 #define MPI3MR_RESETTM_TIMEOUT			30
 #define MPI3MR_DEFAULT_SHUTDOWN_TIME		120
 
@@ -315,7 +316,43 @@ struct mpi3mr_intr_info {
 	char name[MPI3MR_NAME_LENGTH];
 };
 
+/**
+ * struct mpi3mr_stgt_priv_data - SCSI target private structure
+ *
+ * @starget: Scsi_target pointer
+ * @dev_handle: FW device handle
+ * @perst_id: FW assigned Persistent ID
+ * @num_luns: Number of Logical Units
+ * @block_io: I/O blocked to the device or not
+ * @dev_removed: Device removed in the Firmware
+ * @dev_removedelay: Device is waiting to be removed in FW
+ * @dev_type: Device type
+ * @tgt_dev: Internal target device pointer
+ */
+struct mpi3mr_stgt_priv_data {
+	struct scsi_target *starget;
+	u16 dev_handle;
+	u16 perst_id;
+	u32 num_luns;
+	atomic_t block_io;
+	u8 dev_removed;
+	u8 dev_removedelay;
+	u8 dev_type;
+	struct mpi3mr_tgt_dev *tgt_dev;
+};
 
+/**
+ * struct mpi3mr_stgt_priv_data - SCSI device private structure
+ *
+ * @tgt_priv_data: Scsi_target private data pointer
+ * @lun_id: LUN ID of the device
+ * @ncq_prio_enable: NCQ priority enable for SATA device
+ */
+struct mpi3mr_sdev_priv_data {
+	struct mpi3mr_stgt_priv_data *tgt_priv_data;
+	u32 lun_id;
+	u8 ncq_prio_enable;
+};
 
 /**
  * struct mpi3mr_drv_cmd - Internal command tracker
@@ -445,12 +482,16 @@ struct scmd_priv {
  * @sbq_lock: Sense buffer queue lock
  * @sbq_host_index: Sense buffer queuehost index
  * @is_driver_loading: Is driver still loading
+ * @scan_started: Async scan started
+ * @scan_failed: Asycn scan failed
+ * @stop_drv_processing: Stop all command processing
  * @max_host_ios: Maximum host I/O count
  * @chain_buf_count: Chain buffer count
  * @chain_buf_pool: Chain buffer pool
  * @chain_sgl_list: Chain SGL list
  * @chain_bitmap_sz: Chain buffer allocator bitmap size
  * @chain_bitmap: Chain buffer allocator bitmap
+ * @chain_buf_lock: Chain buffer list lock
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
  * @logging_level: Controller debug logging level
@@ -535,6 +576,9 @@ struct mpi3mr_ioc {
 	u32 sbq_host_index;
 
 	u8 is_driver_loading;
+	u8 scan_started;
+	u16 scan_failed;
+	u8 stop_drv_processing;
 
 	u16 max_host_ios;
 
@@ -543,6 +587,7 @@ struct mpi3mr_ioc {
 	struct chain_element *chain_sgl_list;
 	u16  chain_bitmap_sz;
 	void *chain_bitmap;
+	spinlock_t chain_buf_lock;
 
 	u8 reset_in_progress;
 	u8 unrecoverable;
@@ -559,8 +604,11 @@ int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc);
 void mpi3mr_cleanup_resources(struct mpi3mr_ioc *mrioc);
 int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc);
 void mpi3mr_cleanup_ioc(struct mpi3mr_ioc *mrioc);
+int mpi3mr_issue_port_enable(struct mpi3mr_ioc *mrioc, u8 async);
 int mpi3mr_admin_request_post(struct mpi3mr_ioc *mrioc, void *admin_req,
 u16 admin_req_sz, u8 ignore_reset);
+int mpi3mr_op_request_post(struct mpi3mr_ioc *mrioc,
+			   struct op_req_qinfo *opreqq, u8 *req);
 void mpi3mr_add_sg_single(void *paddr, u8 flags, u32 length,
 			  dma_addr_t dma_addr);
 void mpi3mr_build_zero_len_sge(void *paddr);
@@ -571,6 +619,9 @@ void *mpi3mr_get_reply_virt_addr(struct mpi3mr_ioc *mrioc,
 void mpi3mr_repost_sense_buf(struct mpi3mr_ioc *mrioc,
 				     u64 sense_buf_dma);
 
+void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
+				  struct mpi3_default_reply_descriptor *reply_desc,
+				  u64 *reply_dma, u16 qidx);
 void mpi3mr_start_watchdog(struct mpi3mr_ioc *mrioc);
 void mpi3mr_stop_watchdog(struct mpi3mr_ioc *mrioc);
 
