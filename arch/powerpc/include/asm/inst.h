@@ -60,9 +60,9 @@ static inline int ppc_inst_primary_opcode(struct ppc_inst x)
 	return ppc_inst_val(x) >> 26;
 }
 
-#ifdef CONFIG_PPC64
 #define ppc_inst(x) ((struct ppc_inst){ .val = (x) })
 
+#ifdef CONFIG_PPC64
 #define ppc_inst_prefix(x, y) ((struct ppc_inst){ .val = (x), .suffix = (y) })
 
 static inline u32 ppc_inst_suffix(struct ppc_inst x)
@@ -70,56 +70,33 @@ static inline u32 ppc_inst_suffix(struct ppc_inst x)
 	return x.suffix;
 }
 
-static inline bool ppc_inst_prefixed(struct ppc_inst x)
-{
-	return ppc_inst_primary_opcode(x) == OP_PREFIX;
-}
-
-static inline struct ppc_inst ppc_inst_swab(struct ppc_inst x)
-{
-	return ppc_inst_prefix(swab32(ppc_inst_val(x)), swab32(ppc_inst_suffix(x)));
-}
-
-static inline struct ppc_inst ppc_inst_read(const u32 *ptr)
-{
-	u32 val, suffix;
-
-	val = *ptr;
-	if ((val >> 26) == OP_PREFIX) {
-		suffix = *(ptr + 1);
-		return ppc_inst_prefix(val, suffix);
-	} else {
-		return ppc_inst(val);
-	}
-}
-
 #else
-
-#define ppc_inst(x) ((struct ppc_inst){ .val = x })
-
 #define ppc_inst_prefix(x, y) ppc_inst(x)
-
-static inline bool ppc_inst_prefixed(struct ppc_inst x)
-{
-	return false;
-}
 
 static inline u32 ppc_inst_suffix(struct ppc_inst x)
 {
 	return 0;
 }
 
-static inline struct ppc_inst ppc_inst_swab(struct ppc_inst x)
-{
-	return ppc_inst(swab32(ppc_inst_val(x)));
-}
+#endif /* CONFIG_PPC64 */
 
 static inline struct ppc_inst ppc_inst_read(const u32 *ptr)
 {
-	return ppc_inst(*ptr);
+	if (IS_ENABLED(CONFIG_PPC64) && (*ptr >> 26) == OP_PREFIX)
+		return ppc_inst_prefix(*ptr, *(ptr + 1));
+	else
+		return ppc_inst(*ptr);
 }
 
-#endif /* CONFIG_PPC64 */
+static inline bool ppc_inst_prefixed(struct ppc_inst x)
+{
+	return IS_ENABLED(CONFIG_PPC64) && ppc_inst_primary_opcode(x) == OP_PREFIX;
+}
+
+static inline struct ppc_inst ppc_inst_swab(struct ppc_inst x)
+{
+	return ppc_inst_prefix(swab32(ppc_inst_val(x)), swab32(ppc_inst_suffix(x)));
+}
 
 static inline bool ppc_inst_equal(struct ppc_inst x, struct ppc_inst y)
 {
