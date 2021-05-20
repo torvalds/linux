@@ -1223,8 +1223,6 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
  * @s: the AMDTP stream to start
  * @channel: the isochronous channel on the bus
  * @speed: firewire speed code
- * @start_cycle: the isochronous cycle to start the context. Start immediately
- *		 if negative value is given.
  * @queue_size: The number of packets in the queue.
  * @idle_irq_interval: the interval to queue packet during initial state.
  *
@@ -1233,8 +1231,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
  * device can be started.
  */
 static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
-			      int start_cycle, unsigned int queue_size,
-			      unsigned int idle_irq_interval)
+			      unsigned int queue_size, unsigned int idle_irq_interval)
 {
 	bool is_irq_target = (s == s->domain->irq_target);
 	unsigned int ctx_header_size;
@@ -1298,6 +1295,9 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if (s->direction == AMDTP_IN_STREAM) {
 		s->ctx_data.tx.max_ctx_payload_length = max_ctx_payload_size;
 		s->ctx_data.tx.ctx_header_size = ctx_header_size;
+	} else {
+		s->ctx_data.rx.seq_index = 0;
+		s->ctx_data.rx.event_count = 0;
 	}
 
 	if (s->flags & CIP_NO_HEADER)
@@ -1341,7 +1341,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
 
 	s->callbacked = false;
-	err = fw_iso_context_start(s->context, start_cycle, 0, tag);
+	err = fw_iso_context_start(s->context, -1, 0, tag);
 	if (err < 0)
 		goto err_pkt_descs;
 
@@ -1559,7 +1559,6 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
 	};
 	unsigned int events_per_buffer = d->events_per_buffer;
 	unsigned int events_per_period = d->events_per_period;
-	unsigned int idle_irq_interval;
 	unsigned int queue_size;
 	struct amdtp_stream *s;
 	int err;
@@ -1598,26 +1597,18 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
 	d->last_syt_offset = TICKS_PER_CYCLE;
 
 	list_for_each_entry(s, &d->streams, list) {
-		if (s->direction == AMDTP_OUT_STREAM)
-			s->ctx_data.rx.seq_index = 0;
+		unsigned int idle_irq_interval = 0;
 
-		if (s != d->irq_target) {
-			err = amdtp_stream_start(s, s->channel, s->speed, -1, queue_size, 0);
-			if (err < 0)
-				goto error;
+		if (s->direction == AMDTP_OUT_STREAM && s == d->irq_target) {
+			idle_irq_interval = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
+							 amdtp_rate_table[d->irq_target->sfc]);
 		}
+
+		// Starts immediately but actually DMA context starts several hundred cycles later.
+		err = amdtp_stream_start(s, s->channel, s->speed, queue_size, idle_irq_interval);
+		if (err < 0)
+			goto error;
 	}
-
-	s = d->irq_target;
-	s->ctx_data.rx.event_count = 0;
-	s->ctx_data.rx.seq_index = 0;
-
-	idle_irq_interval = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
-					 amdtp_rate_table[d->irq_target->sfc]);
-	err = amdtp_stream_start(s, s->channel, s->speed, -1, queue_size,
-				 idle_irq_interval);
-	if (err < 0)
-		goto error;
 
 	return 0;
 error:
