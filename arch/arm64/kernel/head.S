@@ -645,11 +645,12 @@ SYM_FUNC_START_LOCAL(__secondary_switched)
 	isb
 
 	adr_l	x0, secondary_data
-	ldr	x1, [x0, #CPU_BOOT_STACK]	// get secondary_data.stack
-	cbz	x1, __secondary_too_slow
-	mov	sp, x1
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	cbz	x2, __secondary_too_slow
+
+	ldr	x1, [x2, #TSK_STACK]
+	add	sp, x1, #THREAD_SIZE
+
 	msr	sp_el0, x2
 	scs_load x2, x3
 	setup_final_frame

@@ -120,7 +120,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 * page tables.
 	 */
 	secondary_data.task = idle;
-	secondary_data.stack = task_stack_page(idle) + THREAD_SIZE;
 	update_cpu_boot_status(CPU_MMU_OFF);
 
 	/* Now bring the CPU into our world */
@@ -141,7 +140,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 
 	pr_crit("CPU%u: failed to come online\n", cpu);
 	secondary_data.task = NULL;
-	secondary_data.stack = NULL;
 	status = READ_ONCE(secondary_data.status);
 	if (status == CPU_MMU_OFF)
 		status = READ_ONCE(__early_cpu_boot_status);
