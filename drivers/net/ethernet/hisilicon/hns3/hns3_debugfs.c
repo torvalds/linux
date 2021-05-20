@@ -773,11 +773,6 @@ static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 	return 0;
 }
 
-static void hns3_dbg_help(struct hnae3_handle *h)
-{
-	dev_info(&h->pdev->dev, "available commands\n");
-}
-
 static void
 hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
@@ -850,97 +845,6 @@ static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
 	hns3_dbg_dev_specs(h, buf, len, &pos);
 
 	return 0;
-}
-
-static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
-				 size_t count, loff_t *ppos)
-{
-	int uncopy_bytes;
-	char *buf;
-	int len;
-
-	if (*ppos != 0)
-		return 0;
-
-	if (count < HNS3_DBG_READ_LEN)
-		return -ENOSPC;
-
-	buf = kzalloc(HNS3_DBG_READ_LEN, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	len = scnprintf(buf, HNS3_DBG_READ_LEN, "%s\n",
-			"Please echo help to cmd to get help information");
-	uncopy_bytes = copy_to_user(buffer, buf, len);
-
-	kfree(buf);
-
-	if (uncopy_bytes)
-		return -EFAULT;
-
-	return (*ppos = len);
-}
-
-static int hns3_dbg_check_cmd(struct hnae3_handle *handle, char *cmd_buf)
-{
-	int ret = 0;
-
-	if (strncmp(cmd_buf, "help", 4) == 0)
-		hns3_dbg_help(handle);
-	else if (handle->ae_algo->ops->dbg_run_cmd)
-		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
-	else
-		ret = -EOPNOTSUPP;
-
-	return ret;
-}
-
-static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
-				  size_t count, loff_t *ppos)
-{
-	struct hnae3_handle *handle = filp->private_data;
-	struct hns3_nic_priv *priv  = handle->priv;
-	char *cmd_buf, *cmd_buf_tmp;
-	int uncopied_bytes;
-	int ret;
-
-	if (*ppos != 0)
-		return 0;
-
-	/* Judge if the instance is being reset. */
-	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
-	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
-		return 0;
-
-	if (count > HNS3_DBG_WRITE_LEN)
-		return -ENOSPC;
-
-	cmd_buf = kzalloc(count + 1, GFP_KERNEL);
-	if (!cmd_buf)
-		return count;
-
-	uncopied_bytes = copy_from_user(cmd_buf, buffer, count);
-	if (uncopied_bytes) {
-		kfree(cmd_buf);
-		return -EFAULT;
-	}
-
-	cmd_buf[count] = '\0';
-
-	cmd_buf_tmp = strchr(cmd_buf, '\n');
-	if (cmd_buf_tmp) {
-		*cmd_buf_tmp = '\0';
-		count = cmd_buf_tmp - cmd_buf + 1;
-	}
-
-	ret = hns3_dbg_check_cmd(handle, cmd_buf);
-	if (ret)
-		hns3_dbg_help(handle);
-
-	kfree(cmd_buf);
-	cmd_buf = NULL;
-
-	return count;
 }
 
 static int hns3_dbg_get_cmd_index(struct hnae3_handle *handle,
@@ -1071,13 +975,6 @@ out:
 	return ret;
 }
 
-static const struct file_operations hns3_dbg_cmd_fops = {
-	.owner = THIS_MODULE,
-	.open  = simple_open,
-	.read  = hns3_dbg_cmd_read,
-	.write = hns3_dbg_cmd_write,
-};
-
 static const struct file_operations hns3_dbg_fops = {
 	.owner = THIS_MODULE,
 	.open  = simple_open,
@@ -1139,9 +1036,6 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 	hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry =
 				debugfs_create_dir(name, hns3_dbgfs_root);
 	handle->hnae3_dbgfs = hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry;
-
-	debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
-			    &hns3_dbg_cmd_fops);
 
 	for (i = 0; i < HNS3_DBG_DENTRY_COMMON; i++)
 		hns3_dbg_dentry[i].dentry =

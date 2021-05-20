@@ -1907,16 +1907,6 @@ static int hclge_dbg_dump_mac_mc(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
-{
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-
-	dev_info(&hdev->pdev->dev, "unknown command\n");
-
-	return -EINVAL;
-}
-
 static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_TM_NODES,
