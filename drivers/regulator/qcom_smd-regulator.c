@@ -449,8 +449,8 @@ static const struct regulator_desc pm8950_pldo = {
 
 static const struct regulator_desc pm8953_lnldo = {
 	.linear_ranges = (struct linear_range[]) {
-		REGULATOR_LINEAR_RANGE(1380000, 8, 15, 120000),
 		REGULATOR_LINEAR_RANGE(690000, 0, 7, 60000),
+		REGULATOR_LINEAR_RANGE(1380000, 8, 15, 120000),
 	},
 	.n_linear_ranges = 2,
 	.n_voltages = 16,
