@@ -702,8 +702,9 @@ xilinx_dpdma_chan_prep_interleaved_dma(struct xilinx_dpdma_chan *chan,
 	size_t stride = hsize + xt->sgl[0].icg;
 
 	if (!IS_ALIGNED(xt->src_start, XILINX_DPDMA_ALIGN_BYTES)) {
-		dev_err(chan->xdev->dev, "buffer should be aligned at %d B\n",
-			XILINX_DPDMA_ALIGN_BYTES);
+		dev_err(chan->xdev->dev,
+			"chan%u: buffer should be aligned at %d B\n",
+			chan->id, XILINX_DPDMA_ALIGN_BYTES);
 		return NULL;
 	}
 
@@ -934,7 +935,9 @@ static int xilinx_dpdma_chan_notify_no_ostand(struct xilinx_dpdma_chan *chan)
 
 	cnt = xilinx_dpdma_chan_ostand(chan);
 	if (cnt) {
-		dev_dbg(chan->xdev->dev, "%d outstanding transactions\n", cnt);
+		dev_dbg(chan->xdev->dev,
+			"chan%u: %d outstanding transactions\n",
+			chan->id, cnt);
 		return -EWOULDBLOCK;
 	}
 
@@ -970,8 +973,8 @@ static int xilinx_dpdma_chan_wait_no_ostand(struct xilinx_dpdma_chan *chan)
 		return 0;
 	}
 
-	dev_err(chan->xdev->dev, "not ready to stop: %d trans\n",
-		xilinx_dpdma_chan_ostand(chan));
+	dev_err(chan->xdev->dev, "chan%u: not ready to stop: %d trans\n",
+		chan->id, xilinx_dpdma_chan_ostand(chan));
 
 	if (ret == 0)
 		return -ETIMEDOUT;
@@ -1005,8 +1008,8 @@ static int xilinx_dpdma_chan_poll_no_ostand(struct xilinx_dpdma_chan *chan)
 		return 0;
 	}
 
-	dev_err(chan->xdev->dev, "not ready to stop: %d trans\n",
-		xilinx_dpdma_chan_ostand(chan));
+	dev_err(chan->xdev->dev, "chan%u: not ready to stop: %d trans\n",
+		chan->id, xilinx_dpdma_chan_ostand(chan));
 
 	return -ETIMEDOUT;
 }
@@ -1060,7 +1063,8 @@ static void xilinx_dpdma_chan_done_irq(struct xilinx_dpdma_chan *chan)
 		vchan_cyclic_callback(&active->vdesc);
 	else
 		dev_warn(chan->xdev->dev,
-			 "DONE IRQ with no active descriptor!\n");
+			 "chan%u: DONE IRQ with no active descriptor!\n",
+			 chan->id);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
@@ -1148,10 +1152,12 @@ static void xilinx_dpdma_chan_handle_err(struct xilinx_dpdma_chan *chan)
 
 	spin_lock_irqsave(&chan->lock, flags);
 
-	dev_dbg(xdev->dev, "cur desc addr = 0x%04x%08x\n",
+	dev_dbg(xdev->dev, "chan%u: cur desc addr = 0x%04x%08x\n",
+		chan->id,
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_DESC_START_ADDRE),
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_DESC_START_ADDR));
-	dev_dbg(xdev->dev, "cur payload addr = 0x%04x%08x\n",
+	dev_dbg(xdev->dev, "chan%u: cur payload addr = 0x%04x%08x\n",
+		chan->id,
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_PYLD_CUR_ADDRE),
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_PYLD_CUR_ADDR));
 
@@ -1167,7 +1173,8 @@ static void xilinx_dpdma_chan_handle_err(struct xilinx_dpdma_chan *chan)
 	xilinx_dpdma_chan_dump_tx_desc(chan, active);
 
 	if (active->error)
-		dev_dbg(xdev->dev, "repeated error on desc\n");
+		dev_dbg(xdev->dev, "chan%u: repeated error on desc\n",
+			chan->id);
 
 	/* Reschedule if there's no new descriptor */
 	if (!chan->desc.pending &&
@@ -1232,7 +1239,8 @@ static int xilinx_dpdma_alloc_chan_resources(struct dma_chan *dchan)
 					  align, 0);
 	if (!chan->desc_pool) {
 		dev_err(chan->xdev->dev,
-			"failed to allocate a descriptor pool\n");
+			"chan%u: failed to allocate a descriptor pool\n",
+			chan->id);
 		return -ENOMEM;
 	}
 
