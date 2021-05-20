@@ -1142,7 +1142,7 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	dev_dbg(hdev->dev, "firmware-level security is %s\n",
-			prop->fw_security_disabled ? "disabled" : "enabled");
+			prop->fw_security_enabled ? "enabled" : "disabled");
 
 	dev_dbg(hdev->dev, "GIC controller is %s\n",
 			prop->gic_interrupts_enable ? "enabled" : "disabled");

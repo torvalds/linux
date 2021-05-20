@@ -308,10 +308,10 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	}
 
 	if (pdev)
-		hdev->asic_prop.fw_security_disabled =
-				!is_asic_secured(hdev->asic_type);
+		hdev->asic_prop.fw_security_enabled =
+					is_asic_secured(hdev->asic_type);
 	else
-		hdev->asic_prop.fw_security_disabled = true;
+		hdev->asic_prop.fw_security_enabled = false;
 
 	/* Assign status description string */
 	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],

@@ -619,7 +619,7 @@ static int goya_early_init(struct hl_device *hdev)
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
 	/* If FW security is enabled at this point it means no access to ELBI */
-	if (!hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_enabled) {
 		hdev->asic_prop.iatu_done_by_fw = true;
 		goto pci_init;
 	}
@@ -726,7 +726,15 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	u16 pll_freq_arr[HL_PLL_NUM_OUTPUTS], freq;
 	int rc;
 
-	if (hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_enabled) {
+		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GOYA_PCI_PLL,
+				pll_freq_arr);
+
+		if (rc)
+			return;
+
+		freq = pll_freq_arr[1];
+	} else {
 		div_fctr = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
 		div_sel = RREG32(mmPSOC_PCI_PLL_DIV_SEL_1);
 		nr = RREG32(mmPSOC_PCI_PLL_NR);
@@ -753,14 +761,6 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 				div_sel);
 			freq = 0;
 		}
-	} else {
-		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GOYA_PCI_PLL,
-				pll_freq_arr);
-
-		if (rc)
-			return;
-
-		freq = pll_freq_arr[1];
 	}
 
 	prop->psoc_timestamp_frequency = freq;

@@ -687,7 +687,7 @@ static int gaudi_early_init(struct hl_device *hdev)
 	prop->dram_pci_bar_size = pci_resource_len(pdev, HBM_BAR_ID);
 
 	/* If FW security is enabled at this point it means no access to ELBI */
-	if (!hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_enabled) {
 		hdev->asic_prop.iatu_done_by_fw = true;
 
 		/*
@@ -763,7 +763,14 @@ static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 	u16 pll_freq_arr[HL_PLL_NUM_OUTPUTS], freq;
 	int rc;
 
-	if (hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_enabled) {
+		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GAUDI_CPU_PLL, pll_freq_arr);
+
+		if (rc)
+			return rc;
+
+		freq = pll_freq_arr[2];
+	} else {
 		/* Backward compatibility */
 		div_fctr = RREG32(mmPSOC_CPU_PLL_DIV_FACTOR_2);
 		div_sel = RREG32(mmPSOC_CPU_PLL_DIV_SEL_2);
@@ -791,13 +798,6 @@ static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 				div_sel);
 			freq = 0;
 		}
-	} else {
-		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GAUDI_CPU_PLL, pll_freq_arr);
-
-		if (rc)
-			return rc;
-
-		freq = pll_freq_arr[2];
 	}
 
 	prop->psoc_timestamp_frequency = freq;
@@ -1525,7 +1525,7 @@ static int gaudi_alloc_cpu_accessible_dma_mem(struct hl_device *hdev)
 	hdev->cpu_pci_msb_addr =
 		GAUDI_CPU_PCI_MSB_ADDR(hdev->cpu_accessible_dma_address);
 
-	if (hdev->asic_prop.fw_security_disabled)
+	if (!hdev->asic_prop.fw_security_enabled)
 		GAUDI_PCI_TO_CPU_ADDR(hdev->cpu_accessible_dma_address);
 
 free_dma_mem_arr:
@@ -1725,7 +1725,7 @@ static int gaudi_sw_init(struct hl_device *hdev)
 free_cpu_accessible_dma_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 free_cpu_dma_mem:
-	if (hdev->asic_prop.fw_security_disabled)
+	if (!hdev->asic_prop.fw_security_enabled)
 		GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
 					hdev->cpu_pci_msb_addr);
 	hdev->asic_funcs->asic_dma_free_coherent(hdev,
@@ -1747,7 +1747,7 @@ static int gaudi_sw_fini(struct hl_device *hdev)
 
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 
-	if (hdev->asic_prop.fw_security_disabled)
+	if (!hdev->asic_prop.fw_security_enabled)
 		GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
 					hdev->cpu_pci_msb_addr);
 
@@ -1967,7 +1967,7 @@ static void gaudi_init_scrambler_sram(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
-	if (!hdev->asic_prop.fw_security_disabled)
+	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
 	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
@@ -2039,7 +2039,7 @@ static void gaudi_init_scrambler_hbm(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
-	if (!hdev->asic_prop.fw_security_disabled)
+	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
 	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
@@ -2109,7 +2109,7 @@ static void gaudi_init_scrambler_hbm(struct hl_device *hdev)
 
 static void gaudi_init_e2e(struct hl_device *hdev)
 {
-	if (!hdev->asic_prop.fw_security_disabled)
+	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
 	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
@@ -2484,7 +2484,7 @@ static void gaudi_init_hbm_cred(struct hl_device *hdev)
 {
 	uint32_t hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
 
-	if (!hdev->asic_prop.fw_security_disabled)
+	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
 	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
@@ -3602,7 +3602,7 @@ static void gaudi_set_clock_gating(struct hl_device *hdev)
 	if (hdev->in_debug)
 		return;
 
-	if (!hdev->asic_prop.fw_security_disabled)
+	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
 	for (i = GAUDI_PCI_DMA_1, qman_offset = 0 ; i < GAUDI_HBM_DMA_1 ; i++) {
@@ -3662,7 +3662,7 @@ static void gaudi_disable_clock_gating(struct hl_device *hdev)
 	u32 qman_offset;
 	int i;
 
-	if (!hdev->asic_prop.fw_security_disabled)
+	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
 	for (i = 0, qman_offset = 0 ; i < DMA_NUMBER_OF_CHANNELS ; i++) {
@@ -3897,7 +3897,7 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 	 * The device CPU works with 40 bits addresses.
 	 * This register sets the extension to 50 bits.
 	 */
-	if (hdev->asic_prop.fw_security_disabled)
+	if (!hdev->asic_prop.fw_security_enabled)
 		WREG32(mmCPU_IF_CPU_MSB_ADDR, hdev->cpu_pci_msb_addr);
 
 	rc = hl_fw_init_cpu(hdev);
@@ -3991,7 +3991,7 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	/* Perform read from the device to make sure device is up */
 	RREG32(mmHW_STATE);
 
-	if (hdev->asic_prop.fw_security_disabled) {
+	if (!hdev->asic_prop.fw_security_enabled) {
 		/* Set the access through PCI bars (Linux driver only) as
 		 * secured
 		 */
@@ -4129,7 +4129,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	/* Set device to handle FLR by H/W as we will put the device CPU to
 	 * halt mode
 	 */
-	if (hdev->asic_prop.fw_security_disabled &&
+	if (!hdev->asic_prop.fw_security_enabled &&
 				!hdev->asic_prop.hard_reset_done_by_fw)
 		WREG32(mmPCIE_AUX_FLR_CTRL, (PCIE_AUX_FLR_CTRL_HW_CTRL_MASK |
 					PCIE_AUX_FLR_CTRL_INT_MASK_MASK));
@@ -4150,7 +4150,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 		WREG32(irq_handler_offset, GAUDI_EVENT_HALT_MACHINE);
 	}
 
-	if (hdev->asic_prop.fw_security_disabled &&
+	if (!hdev->asic_prop.fw_security_enabled &&
 				!hdev->asic_prop.hard_reset_done_by_fw) {
 
 		/* Configure the reset registers. Must be done as early as
@@ -4185,7 +4185,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 		WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);
 
 		/* Restart BTL/BLR upon hard-reset */
-		if (hdev->asic_prop.fw_security_disabled)
+		if (!hdev->asic_prop.fw_security_enabled)
 			WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
 
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
@@ -7570,7 +7570,7 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 		return 0;
 	}
 
-	if (!hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_enabled) {
 		dev_info(hdev->dev, "Cannot access MC regs for ECC data while security is enabled\n");
 		return 0;
 	}

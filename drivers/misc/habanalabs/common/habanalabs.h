@@ -456,8 +456,8 @@ struct hl_mmu_properties {
  * @user_interrupt_count: number of user interrupts.
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
- * @fw_security_disabled: true if security measures are disabled in firmware,
- *                        false otherwise
+ * @fw_security_enabled: true if security measures are enabled in firmware,
+ *                       false otherwise
  * @fw_cpu_boot_dev_sts0_valid: status bits are valid and can be fetched from
  *                              BOOT_DEV_STS0
  * @fw_cpu_boot_dev_sts1_valid: status bits are valid and can be fetched from
@@ -531,7 +531,7 @@ struct asic_fixed_properties {
 	u16				user_interrupt_count;
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
-	u8				fw_security_disabled;
+	u8				fw_security_enabled;
 	u8				fw_cpu_boot_dev_sts0_valid;
 	u8				fw_cpu_boot_dev_sts1_valid;
 	u8				dram_supports_virtual_memory;
