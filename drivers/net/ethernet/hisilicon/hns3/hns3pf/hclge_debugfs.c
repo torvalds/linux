@@ -1053,32 +1053,41 @@ static int hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev, char *buf,
 	return 0;
 }
 
-static void hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev)
+static int hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev, char *buf,
+				      int len)
 {
+#define HCLGE_DBG_TC_MASK		0x0F
+#define HCLGE_DBG_TC_BIT_WIDTH		4
+
 	struct hclge_qos_pri_map_cmd *pri_map;
 	struct hclge_desc desc;
+	int pos = 0;
+	u8 *pri_tc;
+	u8 tc, i;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PRI_TO_TC_MAPPING, true);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"dump qos pri map fail, ret = %d\n", ret);
-		return;
+			"failed to dump qos pri map, ret = %d\n", ret);
+		return ret;
 	}
 
 	pri_map = (struct hclge_qos_pri_map_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "dump qos pri map\n");
-	dev_info(&hdev->pdev->dev, "vlan_to_pri: 0x%x\n", pri_map->vlan_pri);
-	dev_info(&hdev->pdev->dev, "pri_0_to_tc: 0x%x\n", pri_map->pri0_tc);
-	dev_info(&hdev->pdev->dev, "pri_1_to_tc: 0x%x\n", pri_map->pri1_tc);
-	dev_info(&hdev->pdev->dev, "pri_2_to_tc: 0x%x\n", pri_map->pri2_tc);
-	dev_info(&hdev->pdev->dev, "pri_3_to_tc: 0x%x\n", pri_map->pri3_tc);
-	dev_info(&hdev->pdev->dev, "pri_4_to_tc: 0x%x\n", pri_map->pri4_tc);
-	dev_info(&hdev->pdev->dev, "pri_5_to_tc: 0x%x\n", pri_map->pri5_tc);
-	dev_info(&hdev->pdev->dev, "pri_6_to_tc: 0x%x\n", pri_map->pri6_tc);
-	dev_info(&hdev->pdev->dev, "pri_7_to_tc: 0x%x\n", pri_map->pri7_tc);
+
+	pos += scnprintf(buf + pos, len - pos, "vlan_to_pri: 0x%x\n",
+			 pri_map->vlan_pri);
+	pos += scnprintf(buf + pos, len - pos, "PRI  TC\n");
+
+	pri_tc = (u8 *)pri_map;
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		tc = pri_tc[i >> 1] >> ((i & 1) * HCLGE_DBG_TC_BIT_WIDTH);
+		tc &= HCLGE_DBG_TC_MASK;
+		pos += scnprintf(buf + pos, len - pos, "%u     %u\n", i, tc);
+	}
+
+	return 0;
 }
 
 static int hclge_dbg_dump_tx_buf_cfg(struct hclge_dev *hdev)
@@ -1896,9 +1905,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	if (strncmp(cmd_buf, "dump qos pri map", 16) == 0) {
-		hclge_dbg_dump_qos_pri_map(hdev);
-	} else if (strncmp(cmd_buf, "dump qos buf cfg", 16) == 0) {
+	if (strncmp(cmd_buf, "dump qos buf cfg", 16) == 0) {
 		hclge_dbg_dump_qos_buf_cfg(hdev);
 	} else if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
 		hclge_dbg_dump_serv_info(hdev);
@@ -1947,6 +1954,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_QOS_PAUSE_CFG,
 		.dbg_dump = hclge_dbg_dump_qos_pause_cfg,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_QOS_PRI_MAP,
+		.dbg_dump = hclge_dbg_dump_qos_pri_map,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_UC,
