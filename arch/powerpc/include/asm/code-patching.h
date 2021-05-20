@@ -73,9 +73,9 @@ void __patch_exception(int exc, unsigned long addr);
 #endif
 
 #define OP_RT_RA_MASK	0xffff0000UL
-#define LIS_R2		(PPC_INST_ADDIS | __PPC_RT(R2))
-#define ADDIS_R2_R12	(PPC_INST_ADDIS | __PPC_RT(R2) | __PPC_RA(R12))
-#define ADDI_R2_R2	(PPC_INST_ADDI  | __PPC_RT(R2) | __PPC_RA(R2))
+#define LIS_R2		(PPC_RAW_LIS(_R2, 0))
+#define ADDIS_R2_R12	(PPC_RAW_ADDIS(_R2, _R12, 0))
+#define ADDI_R2_R2	(PPC_RAW_ADDI(_R2, _R2, 0))
 
 
 static inline unsigned long ppc_function_entry(void *func)
@@ -180,12 +180,10 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 #define R2_STACK_OFFSET         40
 #endif
 
-#define PPC_INST_LD_TOC		(PPC_INST_LD  | ___PPC_RT(__REG_R2) | \
-				 ___PPC_RA(__REG_R1) | R2_STACK_OFFSET)
+#define PPC_INST_LD_TOC		PPC_RAW_LD(_R2, _R1, R2_STACK_OFFSET)
 
 /* usually preceded by a mflr r0 */
-#define PPC_INST_STD_LR		(PPC_INST_STD | ___PPC_RS(__REG_R0) | \
-				 ___PPC_RA(__REG_R1) | PPC_LR_STKOFF)
+#define PPC_INST_STD_LR		PPC_RAW_STD(_R0, _R1, PPC_LR_STKOFF)
 #endif /* CONFIG_PPC64 */
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */
