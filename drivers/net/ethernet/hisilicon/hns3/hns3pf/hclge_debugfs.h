@@ -740,6 +740,8 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 #define HCLGE_DBG_DATA_STR_LEN			32
 #define HCLGE_DBG_TM_INFO_LEN			256
 
+#define HCLGE_BILLION_NANO_SECONDS	1000000000
+
 struct hclge_dbg_item {
 	char name[HCLGE_DBG_ITEM_NAME_LEN];
 	u16 interval; /* blank numbers after the item */

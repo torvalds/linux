@@ -1590,12 +1590,26 @@ int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-static void hclge_dbg_dump_serv_info(struct hclge_dev *hdev)
+static int hclge_dbg_dump_serv_info(struct hclge_dev *hdev, char *buf, int len)
 {
-	dev_info(&hdev->pdev->dev, "last_serv_processed: %lu\n",
-		 hdev->last_serv_processed);
-	dev_info(&hdev->pdev->dev, "last_serv_cnt: %lu\n",
-		 hdev->serv_processed_cnt);
+	unsigned long rem_nsec;
+	int pos = 0;
+	u64 lc;
+
+	lc = local_clock();
+	rem_nsec = do_div(lc, HCLGE_BILLION_NANO_SECONDS);
+
+	pos += scnprintf(buf + pos, len - pos, "local_clock: [%5lu.%06lu]\n",
+			 (unsigned long)lc, rem_nsec / 1000);
+	pos += scnprintf(buf + pos, len - pos, "delta: %u(ms)\n",
+			 jiffies_to_msecs(jiffies - hdev->last_serv_processed));
+	pos += scnprintf(buf + pos, len - pos,
+			 "last_service_task_processed: %lu(jiffies)\n",
+			 hdev->last_serv_processed);
+	pos += scnprintf(buf + pos, len - pos, "last_service_task_cnt: %lu\n",
+			 hdev->serv_processed_cnt);
+
+	return 0;
 }
 
 static int hclge_dbg_dump_interrupt(struct hclge_dev *hdev, char *buf, int len)
@@ -1810,8 +1824,6 @@ static int hclge_dbg_dump_loopback(struct hclge_dev *hdev, char *buf, int len)
 static int
 hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev, char *buf, int len)
 {
-#define HCLGE_BILLION_NANO_SECONDS 1000000000
-
 	struct hclge_mac_tnl_stats stats;
 	unsigned long rem_nsec;
 	int pos = 0;
@@ -1900,14 +1912,9 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
-		hclge_dbg_dump_serv_info(hdev);
-	} else {
-		dev_info(&hdev->pdev->dev, "unknown command\n");
-		return -EINVAL;
-	}
+	dev_info(&hdev->pdev->dev, "unknown command\n");
 
-	return 0;
+	return -EINVAL;
 }
 
 static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
@@ -2034,6 +2041,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_TNL_STATUS,
 		.dbg_dump = hclge_dbg_dump_mac_tnl_status,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_SERV_INFO,
+		.dbg_dump = hclge_dbg_dump_serv_info,
 	},
 };
 
