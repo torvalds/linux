@@ -364,8 +364,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void wcove_gpio_dbg_show(struct seq_file *s,
-				      struct gpio_chip *chip)
+static void wcove_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	unsigned int ctlo, ctli, irq_mask, irq_status;
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
@@ -374,10 +373,15 @@ static void wcove_gpio_dbg_show(struct seq_file *s,
 	for (gpio = 0; gpio < WCOVE_GPIO_NUM; gpio++) {
 		ret += regmap_read(wg->regmap, to_reg(gpio, CTRL_OUT), &ctlo);
 		ret += regmap_read(wg->regmap, to_reg(gpio, CTRL_IN), &ctli);
+		if (ret) {
+			dev_err(wg->dev, "Failed to read registers: CTRL out/in\n");
+			break;
+		}
+
 		ret += regmap_read(wg->regmap, to_ireg(gpio, IRQ_MASK, &mask), &irq_mask);
 		ret += regmap_read(wg->regmap, to_ireg(gpio, IRQ_STATUS, &mask), &irq_status);
 		if (ret) {
-			pr_err("Failed to read registers: ctrl out/in or irq status/mask\n");
+			dev_err(wg->dev, "Failed to read registers: IRQ status/mask\n");
 			break;
 		}
 
