@@ -61,7 +61,7 @@ static inline int ppc_inst_primary_opcode(struct ppc_inst x)
 }
 
 #ifdef CONFIG_PPC64
-#define ppc_inst(x) ((struct ppc_inst){ .val = (x), .suffix = 0xff })
+#define ppc_inst(x) ((struct ppc_inst){ .val = (x) })
 
 #define ppc_inst_prefix(x, y) ((struct ppc_inst){ .val = (x), .suffix = (y) })
 
@@ -72,7 +72,7 @@ static inline u32 ppc_inst_suffix(struct ppc_inst x)
 
 static inline bool ppc_inst_prefixed(struct ppc_inst x)
 {
-	return ppc_inst_primary_opcode(x) == OP_PREFIX && ppc_inst_suffix(x) != 0xff;
+	return ppc_inst_primary_opcode(x) == OP_PREFIX;
 }
 
 static inline struct ppc_inst ppc_inst_swab(struct ppc_inst x)
@@ -91,11 +91,6 @@ static inline struct ppc_inst ppc_inst_read(const struct ppc_inst *ptr)
 	} else {
 		return ppc_inst(val);
 	}
-}
-
-static inline bool ppc_inst_equal(struct ppc_inst x, struct ppc_inst y)
-{
-	return *(u64 *)&x == *(u64 *)&y;
 }
 
 #else
@@ -124,12 +119,16 @@ static inline struct ppc_inst ppc_inst_read(const struct ppc_inst *ptr)
 	return *ptr;
 }
 
+#endif /* CONFIG_PPC64 */
+
 static inline bool ppc_inst_equal(struct ppc_inst x, struct ppc_inst y)
 {
-	return ppc_inst_val(x) == ppc_inst_val(y);
+	if (ppc_inst_val(x) != ppc_inst_val(y))
+		return false;
+	if (!ppc_inst_prefixed(x))
+		return true;
+	return ppc_inst_suffix(x) == ppc_inst_suffix(y);
 }
-
-#endif /* CONFIG_PPC64 */
 
 static inline int ppc_inst_len(struct ppc_inst x)
 {
