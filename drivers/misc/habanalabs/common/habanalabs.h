@@ -2311,6 +2311,7 @@ struct hl_device {
 	u8				rl_enable;
 	u8				reset_on_preboot_fail;
 	u8				reset_upon_device_release;
+	u8				reset_if_device_not_idle;
 };
 
 
