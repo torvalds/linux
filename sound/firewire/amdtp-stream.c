@@ -958,9 +958,8 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	s->ctx_data.rx.event_count = event_count;
 }
 
-static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
-			       size_t header_length, void *header,
-			       void *private_data)
+static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,
+			       void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
 	__be32 *ctx_header = header;
@@ -993,6 +992,82 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			cancel_stream(s);
 			return;
 		}
+	}
+}
+
+static void drop_tx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,
+			    void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	const __be32 *ctx_header = header;
+	unsigned int packets;
+	unsigned int cycle;
+	int i;
+
+	if (s->packet_index < 0)
+		return;
+
+	packets = header_length / s->ctx_data.tx.ctx_header_size;
+
+	ctx_header += (packets - 1) * s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
+	cycle = compute_ohci_cycle_count(ctx_header[1]);
+	s->next_cycle = increment_ohci_cycle_count(cycle, 1);
+
+	for (i = 0; i < packets; ++i) {
+		struct fw_iso_packet params = {0};
+
+		if (queue_in_packet(s, &params) < 0) {
+			cancel_stream(s);
+			return;
+		}
+	}
+}
+
+static void process_tx_packets_intermediately(struct fw_iso_context *context, u32 tstamp,
+					size_t header_length, void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	__be32 *ctx_header;
+	unsigned int packets;
+	unsigned int offset;
+
+	if (s->packet_index < 0)
+		return;
+
+	packets = header_length / s->ctx_data.tx.ctx_header_size;
+
+	offset = 0;
+	ctx_header = header;
+	while (offset < packets) {
+		unsigned int cycle = compute_ohci_cycle_count(ctx_header[1]);
+
+		if (compare_ohci_cycle_count(cycle, d->processing_cycle.tx_start) >= 0)
+			break;
+
+		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(__be32);
+		++offset;
+	}
+
+	ctx_header = header;
+
+	if (offset > 0) {
+		size_t length = s->ctx_data.tx.ctx_header_size * offset;
+
+		drop_tx_packets(context, tstamp, length, ctx_header, s);
+		if (amdtp_streaming_error(s))
+			return;
+
+		ctx_header += length / sizeof(*ctx_header);
+		header_length -= length;
+	}
+
+	if (offset < packets) {
+		process_tx_packets(context, tstamp, header_length, ctx_header, s);
+		if (amdtp_streaming_error(s))
+			return;
+
+		context->callback.sc = process_tx_packets;
 	}
 }
 
@@ -1082,6 +1157,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
 	const __be32 *ctx_header = header;
 	u32 cycle;
 
@@ -1094,13 +1170,12 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 
 	if (s->direction == AMDTP_IN_STREAM) {
 		cycle = compute_ohci_cycle_count(ctx_header[1]);
-		s->next_cycle = cycle;
 
-		context->callback.sc = in_stream_callback;
+		context->callback.sc = drop_tx_packets;
 	} else {
 		cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
-		if (s == s->domain->irq_target)
+		if (s == d->irq_target)
 			context->callback.sc = irq_target_callback;
 		else
 			context->callback.sc = out_stream_callback;
@@ -1109,6 +1184,34 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	s->start_cycle = cycle;
 
 	context->callback.sc(context, tstamp, header_length, header, s);
+
+	// Decide the cycle count to begin processing content of packet in IR contexts.
+	if (s->direction == AMDTP_IN_STREAM) {
+		unsigned int stream_count = 0;
+		unsigned int callbacked_count = 0;
+
+		list_for_each_entry(s, &d->streams, list) {
+			if (s->direction == AMDTP_IN_STREAM) {
+				++stream_count;
+				if (s->callbacked)
+					++callbacked_count;
+			}
+		}
+
+		if (stream_count == callbacked_count) {
+			list_for_each_entry(s, &d->streams, list) {
+				if (s->direction != AMDTP_IN_STREAM)
+					continue;
+
+				if (compare_ohci_cycle_count(s->next_cycle, cycle) > 0)
+					cycle = s->next_cycle;
+
+				s->context->callback.sc = process_tx_packets_intermediately;
+			}
+
+			d->processing_cycle.tx_start = cycle;
+		}
+	}
 }
 
 /**
