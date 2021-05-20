@@ -26,6 +26,9 @@ static struct hns3_dbg_dentry_info hns3_dbg_dentry[] = {
 	{
 		.name = "reg"
 	},
+	{
+		.name = "queue"
+	},
 	/* keep common at the bottom and add new directory above */
 	{
 		.name = "common"
@@ -209,6 +212,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.name = "dcb",
 		.cmd = HNAE3_DBG_CMD_REG_DCB,
 		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "queue_map",
+		.cmd = HNAE3_DBG_CMD_QUEUE_MAP,
+		.dentry = HNS3_DBG_DENTRY_QUEUE,
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
@@ -403,27 +413,44 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 	return 0;
 }
 
-static int hns3_dbg_queue_map(struct hnae3_handle *h)
+static const struct hns3_dbg_item queue_map_items[] = {
+	{ "local_queue_id", 2 },
+	{ "global_queue_id", 2 },
+	{ "vector_id", 2 },
+};
+
+static int hns3_dbg_queue_map(struct hnae3_handle *h, char *buf, int len)
 {
+	char data_str[ARRAY_SIZE(queue_map_items)][HNS3_DBG_DATA_STR_LEN];
+	char *result[ARRAY_SIZE(queue_map_items)];
 	struct hns3_nic_priv *priv = h->priv;
-	int i;
+	char content[HNS3_DBG_INFO_LEN];
+	int pos = 0;
+	int j;
+	u32 i;
 
 	if (!h->ae_algo->ops->get_global_queue_id)
 		return -EOPNOTSUPP;
 
-	dev_info(&h->pdev->dev, "map info for queue id and vector id\n");
-	dev_info(&h->pdev->dev,
-		 "local queue id | global queue id | vector id\n");
-	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		u16 global_qid;
+	for (i = 0; i < ARRAY_SIZE(queue_map_items); i++)
+		result[i] = &data_str[i][0];
 
-		global_qid = h->ae_algo->ops->get_global_queue_id(h, i);
+	hns3_dbg_fill_content(content, sizeof(content), queue_map_items,
+			      NULL, ARRAY_SIZE(queue_map_items));
+	pos += scnprintf(buf + pos, len - pos, "%s", content);
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		if (!priv->ring || !priv->ring[i].tqp_vector)
 			continue;
-
-		dev_info(&h->pdev->dev,
-			 "      %4d            %4u            %4d\n",
-			 i, global_qid, priv->ring[i].tqp_vector->vector_irq);
+		j = 0;
+		sprintf(result[j++], "%u", i);
+		sprintf(result[j++], "%u",
+			h->ae_algo->ops->get_global_queue_id(h, i));
+		sprintf(result[j++], "%u",
+			priv->ring[i].tqp_vector->vector_irq);
+		hns3_dbg_fill_content(content, sizeof(content), queue_map_items,
+				      (const char **)result,
+				      ARRAY_SIZE(queue_map_items));
+		pos += scnprintf(buf + pos, len - pos, "%s", content);
 	}
 
 	return 0;
@@ -590,7 +617,6 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 {
 	dev_info(&h->pdev->dev, "available commands\n");
 	dev_info(&h->pdev->dev, "queue info <number>\n");
-	dev_info(&h->pdev->dev, "queue map\n");
 
 	if (!hns3_is_phys_func(h->pdev))
 		return;
@@ -717,8 +743,6 @@ static int hns3_dbg_check_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		hns3_dbg_help(handle);
 	else if (strncmp(cmd_buf, "queue info", 10) == 0)
 		ret = hns3_dbg_queue_info(handle, cmd_buf);
-	else if (strncmp(cmd_buf, "queue map", 9) == 0)
-		ret = hns3_dbg_queue_map(handle);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
 	else
@@ -793,6 +817,10 @@ static int hns3_dbg_get_cmd_index(struct hnae3_handle *handle,
 }
 
 static const struct hns3_dbg_func hns3_dbg_cmd_func[] = {
+	{
+		.cmd = HNAE3_DBG_CMD_QUEUE_MAP,
+		.dbg_dump = hns3_dbg_queue_map,
+	},
 	{
 		.cmd = HNAE3_DBG_CMD_DEV_INFO,
 		.dbg_dump = hns3_dbg_dev_info,
