@@ -106,7 +106,7 @@ static u32 smuio_v13_0_get_socket_id(struct amdgpu_device *adev)
 }
 
 /**
- * smuio_v13_0_supports_host_gpu_xgmi - detect xgmi interface between cpu and gpu/s.
+ * smuio_v13_0_is_host_gpu_xgmi_supported - detect xgmi interface between cpu and gpu/s.
  *
  * @adev: amdgpu device pointer
  *
