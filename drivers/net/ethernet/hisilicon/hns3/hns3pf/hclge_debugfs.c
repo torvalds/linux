@@ -1455,13 +1455,17 @@ static int hclge_dbg_dump_mng_table(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
-				  bool sel_x, u32 loc)
+#define HCLGE_DBG_TCAM_BUF_SIZE 256
+
+static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, bool sel_x,
+				  char *tcam_buf,
+				  struct hclge_dbg_tcam_msg tcam_msg)
 {
 	struct hclge_fd_tcam_config_1_cmd *req1;
 	struct hclge_fd_tcam_config_2_cmd *req2;
 	struct hclge_fd_tcam_config_3_cmd *req3;
 	struct hclge_desc desc[3];
+	int pos = 0;
 	int ret, i;
 	u32 *req;
 
@@ -1475,31 +1479,35 @@ static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
 	req2 = (struct hclge_fd_tcam_config_2_cmd *)desc[1].data;
 	req3 = (struct hclge_fd_tcam_config_3_cmd *)desc[2].data;
 
-	req1->stage  = stage;
+	req1->stage  = tcam_msg.stage;
 	req1->xy_sel = sel_x ? 1 : 0;
-	req1->index  = cpu_to_le32(loc);
+	req1->index  = cpu_to_le32(tcam_msg.loc);
 
 	ret = hclge_cmd_send(&hdev->hw, desc, 3);
 	if (ret)
 		return ret;
 
-	dev_info(&hdev->pdev->dev, " read result tcam key %s(%u):\n",
-		 sel_x ? "x" : "y", loc);
+	pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
+			 "read result tcam key %s(%u):\n", sel_x ? "x" : "y",
+			 tcam_msg.loc);
 
 	/* tcam_data0 ~ tcam_data1 */
 	req = (u32 *)req1->tcam_data;
 	for (i = 0; i < 2; i++)
-		dev_info(&hdev->pdev->dev, "%08x\n", *req++);
+		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
+				 "%08x\n", *req++);
 
 	/* tcam_data2 ~ tcam_data7 */
 	req = (u32 *)req2->tcam_data;
 	for (i = 0; i < 6; i++)
-		dev_info(&hdev->pdev->dev, "%08x\n", *req++);
+		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
+				 "%08x\n", *req++);
 
 	/* tcam_data8 ~ tcam_data12 */
 	req = (u32 *)req3->tcam_data;
 	for (i = 0; i < 5; i++)
-		dev_info(&hdev->pdev->dev, "%08x\n", *req++);
+		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
+				 "%08x\n", *req++);
 
 	return ret;
 }
@@ -1517,59 +1525,75 @@ static int hclge_dbg_get_rules_location(struct hclge_dev *hdev, u16 *rule_locs)
 	}
 	spin_unlock_bh(&hdev->fd_rule_lock);
 
-	if (cnt != hdev->hclge_fd_rule_num)
+	if (cnt != hdev->hclge_fd_rule_num || cnt == 0)
 		return -EINVAL;
 
 	return cnt;
 }
 
-static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
+static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 {
+	u32 rule_num = hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1];
+	struct hclge_dbg_tcam_msg tcam_msg;
 	int i, ret, rule_cnt;
 	u16 *rule_locs;
+	char *tcam_buf;
+	int pos = 0;
 
 	if (!hnae3_dev_fd_supported(hdev)) {
 		dev_err(&hdev->pdev->dev,
 			"Only FD-supported dev supports dump fd tcam\n");
-		return;
+		return -EOPNOTSUPP;
 	}
 
-	if (!hdev->hclge_fd_rule_num ||
-	    !hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1])
-		return;
+	if (!hdev->hclge_fd_rule_num || !rule_num)
+		return 0;
 
-	rule_locs = kcalloc(hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1],
-			    sizeof(u16), GFP_KERNEL);
+	rule_locs = kcalloc(rule_num, sizeof(u16), GFP_KERNEL);
 	if (!rule_locs)
-		return;
+		return -ENOMEM;
+
+	tcam_buf = kzalloc(HCLGE_DBG_TCAM_BUF_SIZE, GFP_KERNEL);
+	if (!tcam_buf) {
+		kfree(rule_locs);
+		return -ENOMEM;
+	}
 
 	rule_cnt = hclge_dbg_get_rules_location(hdev, rule_locs);
-	if (rule_cnt <= 0) {
+	if (rule_cnt < 0) {
+		ret = rule_cnt;
 		dev_err(&hdev->pdev->dev,
-			"failed to get rule number, ret = %d\n", rule_cnt);
-		kfree(rule_locs);
-		return;
+			"failed to get rule number, ret = %d\n", ret);
+		goto out;
 	}
 
 	for (i = 0; i < rule_cnt; i++) {
-		ret = hclge_dbg_fd_tcam_read(hdev, 0, true, rule_locs[i]);
+		tcam_msg.stage = HCLGE_FD_STAGE_1;
+		tcam_msg.loc = rule_locs[i];
+
+		ret = hclge_dbg_fd_tcam_read(hdev, true, tcam_buf, tcam_msg);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
 				"failed to get fd tcam key x, ret = %d\n", ret);
-			kfree(rule_locs);
-			return;
+			goto out;
 		}
 
-		ret = hclge_dbg_fd_tcam_read(hdev, 0, false, rule_locs[i]);
+		pos += scnprintf(buf + pos, len - pos, "%s", tcam_buf);
+
+		ret = hclge_dbg_fd_tcam_read(hdev, false, tcam_buf, tcam_msg);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
 				"failed to get fd tcam key y, ret = %d\n", ret);
-			kfree(rule_locs);
-			return;
+			goto out;
 		}
+
+		pos += scnprintf(buf + pos, len - pos, "%s", tcam_buf);
 	}
 
+out:
+	kfree(tcam_buf);
 	kfree(rule_locs);
+	return ret;
 }
 
 int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
@@ -1994,9 +2018,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	if (strncmp(cmd_buf, "dump fd tcam", 12) == 0) {
-		hclge_dbg_fd_tcam(hdev);
-	} else if (strncmp(cmd_buf, "dump tc", 7) == 0) {
+	if (strncmp(cmd_buf, "dump tc", 7) == 0) {
 		hclge_dbg_dump_tc(hdev);
 	} else if (strncmp(cmd_buf, DUMP_TM_MAP, strlen(DUMP_TM_MAP)) == 0) {
 		hclge_dbg_dump_tm_map(hdev, &cmd_buf[sizeof(DUMP_TM_MAP)]);
@@ -2111,6 +2133,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_REG_DCB,
 		.dbg_dump = hclge_dbg_dump_dcb,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_FD_TCAM,
+		.dbg_dump = hclge_dbg_dump_fd_tcam,
 	},
 };
 

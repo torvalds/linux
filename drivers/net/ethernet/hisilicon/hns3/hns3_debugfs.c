@@ -29,6 +29,9 @@ static struct hns3_dbg_dentry_info hns3_dbg_dentry[] = {
 	{
 		.name = "queue"
 	},
+	{
+		.name = "fd"
+	},
 	/* keep common at the bottom and add new directory above */
 	{
 		.name = "common"
@@ -234,6 +237,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.cmd = HNAE3_DBG_CMD_TX_QUEUE_INFO,
 		.dentry = HNS3_DBG_DENTRY_QUEUE,
 		.buf_len = HNS3_DBG_READ_LEN_1MB,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "fd_tcam",
+		.cmd = HNAE3_DBG_CMD_FD_TCAM,
+		.dentry = HNS3_DBG_DENTRY_FD,
+		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
 };
@@ -707,7 +717,6 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	if (!hns3_is_phys_func(h->pdev))
 		return;
 
-	dev_info(&h->pdev->dev, "dump fd tcam\n");
 	dev_info(&h->pdev->dev, "dump tc\n");
 	dev_info(&h->pdev->dev, "dump tm map <q_num>\n");
 	dev_info(&h->pdev->dev, "dump tm\n");
