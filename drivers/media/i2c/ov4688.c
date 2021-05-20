@@ -61,11 +61,13 @@
 
 #define OV4688_REG_GAIN_H		0x3508
 #define OV4688_REG_GAIN_L		0x3509
+#define OV4688_REG_DGAIN_H		0x352A
+#define OV4688_REG_DGAIN_L		0x352B
 #define OV4688_GAIN_H_MASK		0x07
 #define OV4688_GAIN_H_SHIFT		8
 #define OV4688_GAIN_L_MASK		0xff
 #define OV4688_GAIN_MIN			0x80
-#define OV4688_GAIN_MAX			0x7f8
+#define OV4688_GAIN_MAX			0x87f8
 #define OV4688_GAIN_STEP		1
 #define OV4688_GAIN_DEFAULT		0x80
 
@@ -1101,8 +1103,11 @@ static long ov4688_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = ov4688_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1113,8 +1118,11 @@ static long ov4688_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = ov4688_ioctl(sd, cmd, cfg);
+		if (ret) {
+			kfree(cfg);
+			return -EFAULT;
+		}
+		ret = ov4688_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -1125,8 +1133,11 @@ static long ov4688_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = ov4688_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1137,14 +1148,18 @@ static long ov4688_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = copy_from_user(hdr, up, sizeof(*hdr));
-		if (!ret)
-			ret = ov4688_ioctl(sd, cmd, hdr);
+		if (ret) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+		ret = ov4688_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = ov4688_ioctl(sd, cmd, &stream);
+		if (ret)
+			return -EFAULT;
+		ret = ov4688_ioctl(sd, cmd, &stream);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
 		hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
@@ -1154,8 +1169,11 @@ static long ov4688_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
-		if (!ret)
-			ret = ov4688_ioctl(sd, cmd, hdrae);
+		if (ret) {
+			kfree(hdrae);
+			return -EFAULT;
+		}
+		ret = ov4688_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
 	default:
@@ -1488,6 +1506,8 @@ static int ov4688_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 val = 0;
+	u32 again = 0;
+	u32 dgain = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1511,12 +1531,27 @@ static int ov4688_set_ctrl(struct v4l2_ctrl *ctrl)
 				       OV4688_REG_VALUE_24BIT, ctrl->val << 4);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
+		if (ctrl->val > 2040) {
+			again = 2040;
+			dgain = ctrl->val - 2040;
+			if (dgain == 0x8000)
+				dgain = 0x7fff;
+		} else {
+			again = ctrl->val;
+			dgain = 2048;
+		}
 		ret = ov4688_write_reg(ov4688->client, OV4688_REG_GAIN_H,
 				       OV4688_REG_VALUE_08BIT,
-				       (ctrl->val >> OV4688_GAIN_H_SHIFT) & OV4688_GAIN_H_MASK);
+				       (again >> OV4688_GAIN_H_SHIFT) & OV4688_GAIN_H_MASK);
 		ret |= ov4688_write_reg(ov4688->client, OV4688_REG_GAIN_L,
 				       OV4688_REG_VALUE_08BIT,
-				       ctrl->val & OV4688_GAIN_L_MASK);
+				       again & OV4688_GAIN_L_MASK);
+		ret |= ov4688_write_reg(ov4688->client, OV4688_REG_DGAIN_H,
+				       OV4688_REG_VALUE_08BIT,
+				       (dgain >> 8) & 0x7f);
+		ret |= ov4688_write_reg(ov4688->client, OV4688_REG_DGAIN_L,
+				       OV4688_REG_VALUE_08BIT,
+				       dgain & 0xff);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = ov4688_write_reg(ov4688->client, OV4688_REG_VTS,
