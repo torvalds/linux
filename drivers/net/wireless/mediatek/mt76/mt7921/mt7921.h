@@ -156,6 +156,7 @@ struct mt7921_dev {
 	u16 chainmask;
 
 	struct work_struct reset_work;
+	bool hw_full_reset;
 
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
