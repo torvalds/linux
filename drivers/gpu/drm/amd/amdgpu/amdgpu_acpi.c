@@ -230,16 +230,15 @@ static acpi_handle amdgpu_atif_probe_handle(acpi_handle dhandle)
 	/* For PX/HG systems, ATIF and ATPX are in the iGPU's namespace, on dGPU only
 	 * systems, ATIF is in the dGPU's namespace.
 	 */
-	status = acpi_get_handle(dhandle, "ATIF", &handle);
-	if (ACPI_SUCCESS(status))
-		goto out;
-
 	if (amdgpu_has_atpx()) {
 		status = acpi_get_handle(amdgpu_atpx_get_dhandle(), "ATIF",
 					 &handle);
 		if (ACPI_SUCCESS(status))
 			goto out;
 	}
+	status = acpi_get_handle(dhandle, "ATIF", &handle);
+	if (ACPI_SUCCESS(status))
+		goto out;
 
 	DRM_DEBUG_DRIVER("No ATIF handle found\n");
 	return NULL;
@@ -259,16 +258,15 @@ static acpi_handle amdgpu_atcs_probe_handle(acpi_handle dhandle)
 	/* For PX/HG systems, ATCS and ATPX are in the iGPU's namespace, on dGPU only
 	 * systems, ATIF is in the dGPU's namespace.
 	 */
-	status = acpi_get_handle(dhandle, "ATCS", &handle);
-	if (ACPI_SUCCESS(status))
-		goto out;
-
 	if (amdgpu_has_atpx()) {
 		status = acpi_get_handle(amdgpu_atpx_get_dhandle(), "ATCS",
 					 &handle);
 		if (ACPI_SUCCESS(status))
 			goto out;
 	}
+	status = acpi_get_handle(dhandle, "ATCS", &handle);
+	if (ACPI_SUCCESS(status))
+		goto out;
 
 	DRM_DEBUG_DRIVER("No ATCS handle found\n");
 	return NULL;
