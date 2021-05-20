@@ -55,6 +55,7 @@
 #include "ice_switch.h"
 #include "ice_common.h"
 #include "ice_sched.h"
+#include "ice_idc_int.h"
 #include "ice_virtchnl_pf.h"
 #include "ice_sriov.h"
 #include "ice_fdir.h"
@@ -206,9 +207,9 @@ enum ice_pf_state {
 	ICE_NEEDS_RESTART,
 	ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
 	ICE_RESET_OICR_RECV,		/* set by driver after rcv reset OICR */
-	ICE_PFR_REQ,			/* set by driver and peers */
-	ICE_CORER_REQ,		/* set by driver and peers */
-	ICE_GLOBR_REQ,		/* set by driver and peers */
+	ICE_PFR_REQ,		/* set by driver */
+	ICE_CORER_REQ,		/* set by driver */
+	ICE_GLOBR_REQ,		/* set by driver */
 	ICE_CORER_RECV,		/* set by OICR handler */
 	ICE_GLOBR_RECV,		/* set by OICR handler */
 	ICE_EMPR_RECV,		/* set by OICR handler */
@@ -335,6 +336,7 @@ struct ice_vsi {
 	u16 req_rxq;			 /* User requested Rx queues */
 	u16 num_rx_desc;
 	u16 num_tx_desc;
+	u16 qset_handle[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_tc_cfg tc_cfg;
 	struct bpf_prog *xdp_prog;
 	struct ice_ring **xdp_rings;	 /* XDP ring array */

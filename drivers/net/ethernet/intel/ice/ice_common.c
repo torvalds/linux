@@ -2,6 +2,7 @@
 /* Copyright (c) 2018, Intel Corporation. */
 
 #include "ice_common.h"
+#include "ice_lib.h"
 #include "ice_sched.h"
 #include "ice_adminq_cmd.h"
 #include "ice_flow.h"
@@ -3650,6 +3651,52 @@ do_aq:
 	return status;
 }
 
+/**
+ * ice_aq_add_rdma_qsets
+ * @hw: pointer to the hardware structure
+ * @num_qset_grps: Number of RDMA Qset groups
+ * @qset_list: list of Qset groups to be added
+ * @buf_size: size of buffer for indirect command
+ * @cd: pointer to command details structure or NULL
+ *
+ * Add Tx RDMA Qsets (0x0C33)
+ */
+static int
+ice_aq_add_rdma_qsets(struct ice_hw *hw, u8 num_qset_grps,
+		      struct ice_aqc_add_rdma_qset_data *qset_list,
+		      u16 buf_size, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_add_rdma_qset_data *list;
+	struct ice_aqc_add_rdma_qset *cmd;
+	struct ice_aq_desc desc;
+	u16 i, sum_size = 0;
+
+	cmd = &desc.params.add_rdma_qset;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_rdma_qset);
+
+	if (num_qset_grps > ICE_LAN_TXQ_MAX_QGRPS)
+		return -EINVAL;
+
+	for (i = 0, list = qset_list; i < num_qset_grps; i++) {
+		u16 num_qsets = le16_to_cpu(list->num_qsets);
+
+		sum_size += struct_size(list, rdma_qsets, num_qsets);
+		list = (struct ice_aqc_add_rdma_qset_data *)(list->rdma_qsets +
+							     num_qsets);
+	}
+
+	if (buf_size != sum_size)
+		return -EINVAL;
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	cmd->num_qset_grps = num_qset_grps;
+
+	return ice_status_to_errno(ice_aq_send_cmd(hw, &desc, qset_list,
+						   buf_size, cd));
+}
+
 /* End of FW Admin Queue command wrappers */
 
 /**
@@ -4145,6 +4192,162 @@ ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 {
 	return ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap, max_lanqs,
 			      ICE_SCHED_NODE_OWNER_LAN);
+}
+
+/**
+ * ice_cfg_vsi_rdma - configure the VSI RDMA queues
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @tc_bitmap: TC bitmap
+ * @max_rdmaqs: max RDMA queues array per TC
+ *
+ * This function adds/updates the VSI RDMA queues per TC.
+ */
+int
+ice_cfg_vsi_rdma(struct ice_port_info *pi, u16 vsi_handle, u16 tc_bitmap,
+		 u16 *max_rdmaqs)
+{
+	return ice_status_to_errno(ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap,
+						  max_rdmaqs,
+						  ICE_SCHED_NODE_OWNER_RDMA));
+}
+
+/**
+ * ice_ena_vsi_rdma_qset
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @tc: TC number
+ * @rdma_qset: pointer to RDMA Qset
+ * @num_qsets: number of RDMA Qsets
+ * @qset_teid: pointer to Qset node TEIDs
+ *
+ * This function adds RDMA Qset
+ */
+int
+ice_ena_vsi_rdma_qset(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+		      u16 *rdma_qset, u16 num_qsets, u32 *qset_teid)
+{
+	struct ice_aqc_txsched_elem_data node = { 0 };
+	struct ice_aqc_add_rdma_qset_data *buf;
+	struct ice_sched_node *parent;
+	enum ice_status status;
+	struct ice_hw *hw;
+	u16 i, buf_size;
+	int ret;
+
+	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
+		return -EIO;
+	hw = pi->hw;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return -EINVAL;
+
+	buf_size = struct_size(buf, rdma_qsets, num_qsets);
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	mutex_lock(&pi->sched_lock);
+
+	parent = ice_sched_get_free_qparent(pi, vsi_handle, tc,
+					    ICE_SCHED_NODE_OWNER_RDMA);
+	if (!parent) {
+		ret = -EINVAL;
+		goto rdma_error_exit;
+	}
+	buf->parent_teid = parent->info.node_teid;
+	node.parent_teid = parent->info.node_teid;
+
+	buf->num_qsets = cpu_to_le16(num_qsets);
+	for (i = 0; i < num_qsets; i++) {
+		buf->rdma_qsets[i].tx_qset_id = cpu_to_le16(rdma_qset[i]);
+		buf->rdma_qsets[i].info.valid_sections =
+			ICE_AQC_ELEM_VALID_GENERIC | ICE_AQC_ELEM_VALID_CIR |
+			ICE_AQC_ELEM_VALID_EIR;
+		buf->rdma_qsets[i].info.generic = 0;
+		buf->rdma_qsets[i].info.cir_bw.bw_profile_idx =
+			cpu_to_le16(ICE_SCHED_DFLT_RL_PROF_ID);
+		buf->rdma_qsets[i].info.cir_bw.bw_alloc =
+			cpu_to_le16(ICE_SCHED_DFLT_BW_WT);
+		buf->rdma_qsets[i].info.eir_bw.bw_profile_idx =
+			cpu_to_le16(ICE_SCHED_DFLT_RL_PROF_ID);
+		buf->rdma_qsets[i].info.eir_bw.bw_alloc =
+			cpu_to_le16(ICE_SCHED_DFLT_BW_WT);
+	}
+	ret = ice_aq_add_rdma_qsets(hw, 1, buf, buf_size, NULL);
+	if (ret) {
+		ice_debug(hw, ICE_DBG_RDMA, "add RDMA qset failed\n");
+		goto rdma_error_exit;
+	}
+	node.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
+	for (i = 0; i < num_qsets; i++) {
+		node.node_teid = buf->rdma_qsets[i].qset_teid;
+		status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1,
+					    &node);
+		if (status) {
+			ret = ice_status_to_errno(status);
+			break;
+		}
+		qset_teid[i] = le32_to_cpu(node.node_teid);
+	}
+rdma_error_exit:
+	mutex_unlock(&pi->sched_lock);
+	kfree(buf);
+	return ret;
+}
+
+/**
+ * ice_dis_vsi_rdma_qset - free RDMA resources
+ * @pi: port_info struct
+ * @count: number of RDMA Qsets to free
+ * @qset_teid: TEID of Qset node
+ * @q_id: list of queue IDs being disabled
+ */
+int
+ice_dis_vsi_rdma_qset(struct ice_port_info *pi, u16 count, u32 *qset_teid,
+		      u16 *q_id)
+{
+	struct ice_aqc_dis_txq_item *qg_list;
+	enum ice_status status = 0;
+	struct ice_hw *hw;
+	u16 qg_size;
+	int i;
+
+	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
+		return -EIO;
+
+	hw = pi->hw;
+
+	qg_size = struct_size(qg_list, q_id, 1);
+	qg_list = kzalloc(qg_size, GFP_KERNEL);
+	if (!qg_list)
+		return -ENOMEM;
+
+	mutex_lock(&pi->sched_lock);
+
+	for (i = 0; i < count; i++) {
+		struct ice_sched_node *node;
+
+		node = ice_sched_find_node_by_teid(pi->root, qset_teid[i]);
+		if (!node)
+			continue;
+
+		qg_list->parent_teid = node->info.parent_teid;
+		qg_list->num_qs = 1;
+		qg_list->q_id[0] =
+			cpu_to_le16(q_id[i] |
+				    ICE_AQC_Q_DIS_BUF_ELEM_TYPE_RDMA_QSET);
+
+		status = ice_aq_dis_lan_txq(hw, 1, qg_list, qg_size,
+					    ICE_NO_RESET, 0, NULL);
+		if (status)
+			break;
+
+		ice_free_sched_node(pi, node);
+	}
+
+	mutex_unlock(&pi->sched_lock);
+	kfree(qg_list);
+	return ice_status_to_errno(status);
 }
 
 /**

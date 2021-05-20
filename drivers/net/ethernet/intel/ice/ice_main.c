@@ -2610,6 +2610,7 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	       PFINT_OICR_PCI_EXCEPTION_M |
 	       PFINT_OICR_VFLR_M |
 	       PFINT_OICR_HMC_ERR_M |
+	       PFINT_OICR_PE_PUSH_M |
 	       PFINT_OICR_PE_CRITERR_M);
 
 	wr32(hw, PFINT_OICR_ENA, val);
@@ -2680,8 +2681,6 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 
 		/* If a reset cycle isn't already in progress, we set a bit in
 		 * pf->state so that the service task can start a reset/rebuild.
-		 * We also make note of which reset happened so that peer
-		 * devices/drivers can be informed.
 		 */
 		if (!test_and_set_bit(ICE_RESET_OICR_RECV, pf->state)) {
 			if (reset == ICE_RESET_CORER)
@@ -2708,11 +2707,19 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		}
 	}
 
-	if (oicr & PFINT_OICR_HMC_ERR_M) {
-		ena_mask &= ~PFINT_OICR_HMC_ERR_M;
-		dev_dbg(dev, "HMC Error interrupt - info 0x%x, data 0x%x\n",
-			rd32(hw, PFHMC_ERRORINFO),
-			rd32(hw, PFHMC_ERRORDATA));
+#define ICE_AUX_CRIT_ERR (PFINT_OICR_PE_CRITERR_M | PFINT_OICR_HMC_ERR_M | PFINT_OICR_PE_PUSH_M)
+	if (oicr & ICE_AUX_CRIT_ERR) {
+		struct iidc_event *event;
+
+		ena_mask &= ~ICE_AUX_CRIT_ERR;
+		event = kzalloc(sizeof(*event), GFP_KERNEL);
+		if (event) {
+			set_bit(IIDC_EVENT_CRIT_ERR, event->type);
+			/* report the entire OICR value to AUX driver */
+			event->reg = oicr;
+			ice_send_event_to_aux(pf, event);
+			kfree(event);
+		}
 	}
 
 	/* Report any remaining unexpected interrupts */
@@ -2722,8 +2729,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		/* If a critical error is pending there is no choice but to
 		 * reset the device.
 		 */
-		if (oicr & (PFINT_OICR_PE_CRITERR_M |
-			    PFINT_OICR_PCI_EXCEPTION_M |
+		if (oicr & (PFINT_OICR_PCI_EXCEPTION_M |
 			    PFINT_OICR_ECC_ERR_M)) {
 			set_bit(ICE_PFR_REQ, pf->state);
 			ice_service_task_schedule(pf);
@@ -6318,7 +6324,9 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
+	struct iidc_event *event;
 	u8 count = 0;
+	int err = 0;
 
 	if (new_mtu == (int)netdev->mtu) {
 		netdev_warn(netdev, "MTU is already %u\n", netdev->mtu);
@@ -6351,27 +6359,38 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EBUSY;
 	}
 
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
+
+	set_bit(IIDC_EVENT_BEFORE_MTU_CHANGE, event->type);
+	ice_send_event_to_aux(pf, event);
+	clear_bit(IIDC_EVENT_BEFORE_MTU_CHANGE, event->type);
+
 	netdev->mtu = (unsigned int)new_mtu;
 
 	/* if VSI is up, bring it down and then back up */
 	if (!test_and_set_bit(ICE_VSI_DOWN, vsi->state)) {
-		int err;
-
 		err = ice_down(vsi);
 		if (err) {
 			netdev_err(netdev, "change MTU if_down err %d\n", err);
-			return err;
+			goto event_after;
 		}
 
 		err = ice_up(vsi);
 		if (err) {
 			netdev_err(netdev, "change MTU if_up err %d\n", err);
-			return err;
+			goto event_after;
 		}
 	}
 
 	netdev_dbg(netdev, "changed MTU to %d\n", new_mtu);
-	return 0;
+event_after:
+	set_bit(IIDC_EVENT_AFTER_MTU_CHANGE, event->type);
+	ice_send_event_to_aux(pf, event);
+	kfree(event);
+
+	return err;
 }
 
 /**
