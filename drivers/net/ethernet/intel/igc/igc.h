@@ -118,6 +118,7 @@ struct igc_ring {
 	};
 
 	struct xdp_rxq_info xdp_rxq;
+	struct xsk_buff_pool *xsk_pool;
 } ____cacheline_internodealigned_in_smp;
 
 /* Board specific private data structure */
@@ -255,6 +256,11 @@ bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
 void igc_update_stats(struct igc_adapter *adapter);
+void igc_disable_rx_ring(struct igc_ring *ring);
+void igc_enable_rx_ring(struct igc_ring *ring);
+void igc_disable_tx_ring(struct igc_ring *ring);
+void igc_enable_tx_ring(struct igc_ring *ring);
+int igc_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags);
 
 /* igc_dump declarations */
 void igc_rings_dump(struct igc_adapter *adapter);
@@ -390,8 +396,6 @@ enum igc_tx_flags {
 	/* olinfo flags */
 	IGC_TX_FLAGS_IPV4	= 0x10,
 	IGC_TX_FLAGS_CSUM	= 0x20,
-
-	IGC_TX_FLAGS_XDP	= 0x100,
 };
 
 enum igc_boards {
@@ -408,12 +412,19 @@ enum igc_boards {
 #define TXD_USE_COUNT(S)	DIV_ROUND_UP((S), IGC_MAX_DATA_PER_TXD)
 #define DESC_NEEDED	(MAX_SKB_FRAGS + 4)
 
+enum igc_tx_buffer_type {
+	IGC_TX_BUFFER_TYPE_SKB,
+	IGC_TX_BUFFER_TYPE_XDP,
+	IGC_TX_BUFFER_TYPE_XSK,
+};
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
  */
 struct igc_tx_buffer {
 	union igc_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
+	enum igc_tx_buffer_type type;
 	union {
 		struct sk_buff *skb;
 		struct xdp_frame *xdpf;
@@ -428,14 +439,19 @@ struct igc_tx_buffer {
 };
 
 struct igc_rx_buffer {
-	dma_addr_t dma;
-	struct page *page;
+	union {
+		struct {
+			dma_addr_t dma;
+			struct page *page;
 #if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
-	__u32 page_offset;
+			__u32 page_offset;
 #else
-	__u16 page_offset;
+			__u16 page_offset;
 #endif
-	__u16 pagecnt_bias;
+			__u16 pagecnt_bias;
+		};
+		struct xdp_buff *xdp;
+	};
 };
 
 struct igc_q_vector {
@@ -521,7 +537,8 @@ enum igc_ring_flags_t {
 	IGC_RING_FLAG_RX_SCTP_CSUM,
 	IGC_RING_FLAG_RX_LB_VLAN_BSWAP,
 	IGC_RING_FLAG_TX_CTX_IDX,
-	IGC_RING_FLAG_TX_DETECT_HANG
+	IGC_RING_FLAG_TX_DETECT_HANG,
+	IGC_RING_FLAG_AF_XDP_ZC,
 };
 
 #define ring_uses_large_buffer(ring) \
