@@ -1199,12 +1199,16 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 		}
 
 		if (stream_count == callbacked_count) {
+			unsigned int next_cycle;
+
 			list_for_each_entry(s, &d->streams, list) {
 				if (s->direction != AMDTP_IN_STREAM)
 					continue;
 
-				if (compare_ohci_cycle_count(s->next_cycle, cycle) > 0)
-					cycle = s->next_cycle;
+				next_cycle = increment_ohci_cycle_count(s->next_cycle,
+								d->processing_cycle.tx_init_skip);
+				if (compare_ohci_cycle_count(next_cycle, cycle) > 0)
+					cycle = next_cycle;
 
 				s->context->callback.sc = process_tx_packets_intermediately;
 			}
@@ -1533,36 +1537,13 @@ int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
 
-static int get_current_cycle_time(struct fw_card *fw_card, int *cur_cycle)
-{
-	int generation;
-	int rcode;
-	__be32 reg;
-	u32 data;
-
-	// This is a request to local 1394 OHCI controller and expected to
-	// complete without any event waiting.
-	generation = fw_card->generation;
-	smp_rmb();	// node_id vs. generation.
-	rcode = fw_run_transaction(fw_card, TCODE_READ_QUADLET_REQUEST,
-				   fw_card->node_id, generation, SCODE_100,
-				   CSR_REGISTER_BASE + CSR_CYCLE_TIME,
-				   &reg, sizeof(reg));
-	if (rcode != RCODE_COMPLETE)
-		return -EIO;
-
-	data = be32_to_cpu(reg);
-	*cur_cycle = data >> 12;
-
-	return 0;
-}
-
 /**
  * amdtp_domain_start - start sending packets for isoc context in the domain.
  * @d: the AMDTP domain.
- * @ir_delay_cycle: the cycle delay to start all IR contexts.
+ * @tx_init_skip_cycles: the number of cycles to skip processing packets at initial stage of IR
+ *			 contexts.
  */
-int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
 {
 	static const struct {
 		unsigned int data_block;
@@ -1581,7 +1562,6 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	unsigned int idle_irq_interval;
 	unsigned int queue_size;
 	struct amdtp_stream *s;
-	int cycle;
 	int err;
 
 	// Select an IT context as IRQ target.
@@ -1592,6 +1572,8 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	if (!s)
 		return -ENXIO;
 	d->irq_target = s;
+
+	d->processing_cycle.tx_init_skip = tx_init_skip_cycles;
 
 	// This is a case that AMDTP streams in domain run just for MIDI
 	// substream. Use the number of events equivalent to 10 msec as
@@ -1615,48 +1597,12 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 	d->syt_offset_state = entry->syt_offset;
 	d->last_syt_offset = TICKS_PER_CYCLE;
 
-	if (ir_delay_cycle > 0) {
-		struct fw_card *fw_card = fw_parent_device(s->unit)->card;
-
-		err = get_current_cycle_time(fw_card, &cycle);
-		if (err < 0)
-			goto error;
-
-		// No need to care overflow in cycle field because of enough
-		// width.
-		cycle += ir_delay_cycle;
-
-		// Round up to sec field.
-		if ((cycle & 0x00001fff) >= CYCLES_PER_SECOND) {
-			unsigned int sec;
-
-			// The sec field can overflow.
-			sec = (cycle & 0xffffe000) >> 13;
-			cycle = (++sec << 13) |
-				((cycle & 0x00001fff) / CYCLES_PER_SECOND);
-		}
-
-		// In OHCI 1394 specification, lower 2 bits are available for
-		// sec field.
-		cycle &= 0x00007fff;
-	} else {
-		cycle = -1;
-	}
-
 	list_for_each_entry(s, &d->streams, list) {
-		int cycle_match;
-
-		if (s->direction == AMDTP_IN_STREAM) {
-			cycle_match = cycle;
-		} else {
-			// IT context starts immediately.
-			cycle_match = -1;
+		if (s->direction == AMDTP_OUT_STREAM)
 			s->ctx_data.rx.seq_index = 0;
-		}
 
 		if (s != d->irq_target) {
-			err = amdtp_stream_start(s, s->channel, s->speed,
-						 cycle_match, queue_size, 0);
+			err = amdtp_stream_start(s, s->channel, s->speed, -1, queue_size, 0);
 			if (err < 0)
 				goto error;
 		}

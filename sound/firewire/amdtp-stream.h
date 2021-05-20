@@ -289,6 +289,7 @@ struct amdtp_domain {
 	struct amdtp_stream *irq_target;
 
 	struct {
+		unsigned int tx_init_skip;
 		unsigned int tx_start;
 	} processing_cycle;
 
@@ -309,7 +310,7 @@ void amdtp_domain_destroy(struct amdtp_domain *d);
 int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 			    int channel, int speed);
 
-int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle);
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles);
 void amdtp_domain_stop(struct amdtp_domain *d);
 
 static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,
