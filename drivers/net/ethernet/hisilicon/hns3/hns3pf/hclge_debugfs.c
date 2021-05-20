@@ -1090,199 +1090,225 @@ static int hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev, char *buf,
 	return 0;
 }
 
-static int hclge_dbg_dump_tx_buf_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_tx_buf_cfg(struct hclge_dev *hdev, char *buf, int len)
 {
 	struct hclge_tx_buff_alloc_cmd *tx_buf_cmd;
 	struct hclge_desc desc;
+	int pos = 0;
 	int i, ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TX_BUFF_ALLOC, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump tx buf, ret = %d\n", ret);
 		return ret;
+	}
 
-	dev_info(&hdev->pdev->dev, "dump qos buf cfg\n");
 	tx_buf_cmd = (struct hclge_tx_buff_alloc_cmd *)desc.data;
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
-		dev_info(&hdev->pdev->dev, "tx_packet_buf_tc_%d: 0x%x\n", i,
-			 le16_to_cpu(tx_buf_cmd->tx_pkt_buff[i]));
+		pos += scnprintf(buf + pos, len - pos,
+				 "tx_packet_buf_tc_%d: 0x%x\n", i,
+				 le16_to_cpu(tx_buf_cmd->tx_pkt_buff[i]));
 
-	return 0;
+	return pos;
 }
 
-static int hclge_dbg_dump_rx_priv_buf_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_rx_priv_buf_cfg(struct hclge_dev *hdev, char *buf,
+					  int len)
 {
 	struct hclge_rx_priv_buff_cmd *rx_buf_cmd;
 	struct hclge_desc desc;
+	int pos = 0;
 	int i, ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RX_PRIV_BUFF_ALLOC, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump rx priv buf, ret = %d\n", ret);
 		return ret;
+	}
 
-	dev_info(&hdev->pdev->dev, "\n");
+	pos += scnprintf(buf + pos, len - pos, "\n");
+
 	rx_buf_cmd = (struct hclge_rx_priv_buff_cmd *)desc.data;
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
-		dev_info(&hdev->pdev->dev, "rx_packet_buf_tc_%d: 0x%x\n", i,
-			 le16_to_cpu(rx_buf_cmd->buf_num[i]));
+		pos += scnprintf(buf + pos, len - pos,
+				 "rx_packet_buf_tc_%d: 0x%x\n", i,
+				 le16_to_cpu(rx_buf_cmd->buf_num[i]));
 
-	dev_info(&hdev->pdev->dev, "rx_share_buf: 0x%x\n",
-		 le16_to_cpu(rx_buf_cmd->shared_buf));
+	pos += scnprintf(buf + pos, len - pos, "rx_share_buf: 0x%x\n",
+			 le16_to_cpu(rx_buf_cmd->shared_buf));
 
-	return 0;
+	return pos;
 }
 
-static int hclge_dbg_dump_rx_common_wl_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_rx_common_wl_cfg(struct hclge_dev *hdev, char *buf,
+					   int len)
 {
 	struct hclge_rx_com_wl *rx_com_wl;
 	struct hclge_desc desc;
+	int pos = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RX_COM_WL_ALLOC, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump rx common wl, ret = %d\n", ret);
 		return ret;
+	}
 
 	rx_com_wl = (struct hclge_rx_com_wl *)desc.data;
-	dev_info(&hdev->pdev->dev, "\n");
-	dev_info(&hdev->pdev->dev, "rx_com_wl: high: 0x%x, low: 0x%x\n",
-		 le16_to_cpu(rx_com_wl->com_wl.high),
-		 le16_to_cpu(rx_com_wl->com_wl.low));
+	pos += scnprintf(buf + pos, len - pos, "\n");
+	pos += scnprintf(buf + pos, len - pos,
+			 "rx_com_wl: high: 0x%x, low: 0x%x\n",
+			 le16_to_cpu(rx_com_wl->com_wl.high),
+			 le16_to_cpu(rx_com_wl->com_wl.low));
 
-	return 0;
+	return pos;
 }
 
-static int hclge_dbg_dump_rx_global_pkt_cnt(struct hclge_dev *hdev)
+static int hclge_dbg_dump_rx_global_pkt_cnt(struct hclge_dev *hdev, char *buf,
+					    int len)
 {
 	struct hclge_rx_com_wl *rx_packet_cnt;
 	struct hclge_desc desc;
+	int pos = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RX_GBL_PKT_CNT, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump rx global pkt cnt, ret = %d\n", ret);
 		return ret;
+	}
 
 	rx_packet_cnt = (struct hclge_rx_com_wl *)desc.data;
-	dev_info(&hdev->pdev->dev,
-		 "rx_global_packet_cnt: high: 0x%x, low: 0x%x\n",
-		 le16_to_cpu(rx_packet_cnt->com_wl.high),
-		 le16_to_cpu(rx_packet_cnt->com_wl.low));
+	pos += scnprintf(buf + pos, len - pos,
+			 "rx_global_packet_cnt: high: 0x%x, low: 0x%x\n",
+			 le16_to_cpu(rx_packet_cnt->com_wl.high),
+			 le16_to_cpu(rx_packet_cnt->com_wl.low));
 
-	return 0;
+	return pos;
 }
 
-static int hclge_dbg_dump_rx_priv_wl_buf_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_rx_priv_wl_buf_cfg(struct hclge_dev *hdev, char *buf,
+					     int len)
 {
 	struct hclge_rx_priv_wl_buf *rx_priv_wl;
 	struct hclge_desc desc[2];
+	int pos = 0;
 	int i, ret;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_RX_PRIV_WL_ALLOC, true);
 	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_RX_PRIV_WL_ALLOC, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, 2);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump rx priv wl buf, ret = %d\n", ret);
 		return ret;
+	}
 
 	rx_priv_wl = (struct hclge_rx_priv_wl_buf *)desc[0].data;
 	for (i = 0; i < HCLGE_TC_NUM_ONE_DESC; i++)
-		dev_info(&hdev->pdev->dev,
+		pos += scnprintf(buf + pos, len - pos,
 			 "rx_priv_wl_tc_%d: high: 0x%x, low: 0x%x\n", i,
 			 le16_to_cpu(rx_priv_wl->tc_wl[i].high),
 			 le16_to_cpu(rx_priv_wl->tc_wl[i].low));
 
 	rx_priv_wl = (struct hclge_rx_priv_wl_buf *)desc[1].data;
 	for (i = 0; i < HCLGE_TC_NUM_ONE_DESC; i++)
-		dev_info(&hdev->pdev->dev,
+		pos += scnprintf(buf + pos, len - pos,
 			 "rx_priv_wl_tc_%d: high: 0x%x, low: 0x%x\n",
 			 i + HCLGE_TC_NUM_ONE_DESC,
 			 le16_to_cpu(rx_priv_wl->tc_wl[i].high),
 			 le16_to_cpu(rx_priv_wl->tc_wl[i].low));
 
-	return 0;
+	return pos;
 }
 
-static int hclge_dbg_dump_rx_common_threshold_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_rx_common_threshold_cfg(struct hclge_dev *hdev,
+						  char *buf, int len)
 {
 	struct hclge_rx_com_thrd *rx_com_thrd;
 	struct hclge_desc desc[2];
+	int pos = 0;
 	int i, ret;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_RX_COM_THRD_ALLOC, true);
 	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_RX_COM_THRD_ALLOC, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, 2);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump rx common threshold, ret = %d\n", ret);
 		return ret;
+	}
 
-	dev_info(&hdev->pdev->dev, "\n");
+	pos += scnprintf(buf + pos, len - pos, "\n");
 	rx_com_thrd = (struct hclge_rx_com_thrd *)desc[0].data;
 	for (i = 0; i < HCLGE_TC_NUM_ONE_DESC; i++)
-		dev_info(&hdev->pdev->dev,
+		pos += scnprintf(buf + pos, len - pos,
 			 "rx_com_thrd_tc_%d: high: 0x%x, low: 0x%x\n", i,
 			 le16_to_cpu(rx_com_thrd->com_thrd[i].high),
 			 le16_to_cpu(rx_com_thrd->com_thrd[i].low));
 
 	rx_com_thrd = (struct hclge_rx_com_thrd *)desc[1].data;
 	for (i = 0; i < HCLGE_TC_NUM_ONE_DESC; i++)
-		dev_info(&hdev->pdev->dev,
+		pos += scnprintf(buf + pos, len - pos,
 			 "rx_com_thrd_tc_%d: high: 0x%x, low: 0x%x\n",
 			 i + HCLGE_TC_NUM_ONE_DESC,
 			 le16_to_cpu(rx_com_thrd->com_thrd[i].high),
 			 le16_to_cpu(rx_com_thrd->com_thrd[i].low));
 
-	return 0;
+	return pos;
 }
 
-static void hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev, char *buf,
+				      int len)
 {
-	enum hclge_opcode_type cmd;
+	int pos = 0;
 	int ret;
 
-	cmd = HCLGE_OPC_TX_BUFF_ALLOC;
-	ret = hclge_dbg_dump_tx_buf_cfg(hdev);
-	if (ret)
-		goto err_qos_cmd_send;
+	ret = hclge_dbg_dump_tx_buf_cfg(hdev, buf + pos, len - pos);
+	if (ret < 0)
+		return ret;
+	pos += ret;
 
-	cmd = HCLGE_OPC_RX_PRIV_BUFF_ALLOC;
-	ret = hclge_dbg_dump_rx_priv_buf_cfg(hdev);
-	if (ret)
-		goto err_qos_cmd_send;
+	ret = hclge_dbg_dump_rx_priv_buf_cfg(hdev, buf + pos, len - pos);
+	if (ret < 0)
+		return ret;
+	pos += ret;
 
-	cmd = HCLGE_OPC_RX_COM_WL_ALLOC;
-	ret = hclge_dbg_dump_rx_common_wl_cfg(hdev);
-	if (ret)
-		goto err_qos_cmd_send;
+	ret = hclge_dbg_dump_rx_common_wl_cfg(hdev, buf + pos, len - pos);
+	if (ret < 0)
+		return ret;
+	pos += ret;
 
-	cmd = HCLGE_OPC_RX_GBL_PKT_CNT;
-	ret = hclge_dbg_dump_rx_global_pkt_cnt(hdev);
-	if (ret)
-		goto err_qos_cmd_send;
+	ret = hclge_dbg_dump_rx_global_pkt_cnt(hdev, buf + pos, len - pos);
+	if (ret < 0)
+		return ret;
+	pos += ret;
 
-	dev_info(&hdev->pdev->dev, "\n");
-	if (!hnae3_dev_dcb_supported(hdev)) {
-		dev_info(&hdev->pdev->dev,
-			 "Only DCB-supported dev supports rx priv wl\n");
-		return;
-	}
+	pos += scnprintf(buf + pos, len - pos, "\n");
+	if (!hnae3_dev_dcb_supported(hdev))
+		return 0;
 
-	cmd = HCLGE_OPC_RX_PRIV_WL_ALLOC;
-	ret = hclge_dbg_dump_rx_priv_wl_buf_cfg(hdev);
-	if (ret)
-		goto err_qos_cmd_send;
+	ret = hclge_dbg_dump_rx_priv_wl_buf_cfg(hdev, buf + pos, len - pos);
+	if (ret < 0)
+		return ret;
+	pos += ret;
 
-	cmd = HCLGE_OPC_RX_COM_THRD_ALLOC;
-	ret = hclge_dbg_dump_rx_common_threshold_cfg(hdev);
-	if (ret)
-		goto err_qos_cmd_send;
+	ret = hclge_dbg_dump_rx_common_threshold_cfg(hdev, buf + pos,
+						     len - pos);
+	if (ret < 0)
+		return ret;
 
-	return;
-
-err_qos_cmd_send:
-	dev_err(&hdev->pdev->dev,
-		"dump qos buf cfg fail(0x%x), ret = %d\n", cmd, ret);
+	return 0;
 }
 
 static int hclge_dbg_dump_mng_table(struct hclge_dev *hdev, char *buf, int len)
@@ -1905,9 +1931,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	if (strncmp(cmd_buf, "dump qos buf cfg", 16) == 0) {
-		hclge_dbg_dump_qos_buf_cfg(hdev);
-	} else if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
+	if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
 		hclge_dbg_dump_serv_info(hdev);
 	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
 		hclge_dbg_dump_mac_tnl_status(hdev);
@@ -1958,6 +1982,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_QOS_PRI_MAP,
 		.dbg_dump = hclge_dbg_dump_qos_pri_map,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_QOS_BUF_CFG,
+		.dbg_dump = hclge_dbg_dump_qos_buf_cfg,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_UC,
