@@ -313,6 +313,19 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 }
 EXPORT_SYMBOL(amdtp_stream_set_parameters);
 
+// The CIP header is processed in context header apart from context payload.
+static int amdtp_stream_get_max_ctx_payload_size(struct amdtp_stream *s)
+{
+	unsigned int multiplier;
+
+	if (s->flags & CIP_JUMBO_PAYLOAD)
+		multiplier = IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES;
+	else
+		multiplier = 1;
+
+	return s->syt_interval * s->data_block_quadlets * sizeof(__be32) * multiplier;
+}
+
 /**
  * amdtp_stream_get_max_payload - get the stream's packet size
  * @s: the AMDTP stream
@@ -322,16 +335,14 @@ EXPORT_SYMBOL(amdtp_stream_set_parameters);
  */
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 {
-	unsigned int multiplier = 1;
-	unsigned int cip_header_size = 0;
+	unsigned int cip_header_size;
 
-	if (s->flags & CIP_JUMBO_PAYLOAD)
-		multiplier = IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES;
 	if (!(s->flags & CIP_NO_HEADER))
 		cip_header_size = CIP_HEADER_SIZE;
+	else
+		cip_header_size = 0;
 
-	return cip_header_size +
-		s->syt_interval * s->data_block_quadlets * sizeof(__be32) * multiplier;
+	return cip_header_size + amdtp_stream_get_max_ctx_payload_size(s);
 }
 EXPORT_SYMBOL(amdtp_stream_get_max_payload);
 
@@ -1140,27 +1151,21 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	}
 
 	// initialize packet buffer.
-	max_ctx_payload_size = amdtp_stream_get_max_payload(s);
 	if (s->direction == AMDTP_IN_STREAM) {
 		dir = DMA_FROM_DEVICE;
 		type = FW_ISO_CONTEXT_RECEIVE;
-		if (!(s->flags & CIP_NO_HEADER)) {
-			max_ctx_payload_size -= CIP_HEADER_SIZE;
+		if (!(s->flags & CIP_NO_HEADER))
 			ctx_header_size = IR_CTX_HEADER_SIZE_CIP;
-		} else {
+		else
 			ctx_header_size = IR_CTX_HEADER_SIZE_NO_CIP;
-		}
 	} else {
 		dir = DMA_TO_DEVICE;
 		type = FW_ISO_CONTEXT_TRANSMIT;
 		ctx_header_size = 0;	// No effect for IT context.
-
-		if (!(s->flags & CIP_NO_HEADER))
-			max_ctx_payload_size -= IT_PKT_HEADER_SIZE_CIP;
 	}
+	max_ctx_payload_size = amdtp_stream_get_max_ctx_payload_size(s);
 
-	err = iso_packets_buffer_init(&s->buffer, s->unit, queue_size,
-				      max_ctx_payload_size, dir);
+	err = iso_packets_buffer_init(&s->buffer, s->unit, queue_size, max_ctx_payload_size, dir);
 	if (err < 0)
 		goto err_unlock;
 	s->queue_size = queue_size;
