@@ -754,7 +754,7 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 }
 
 /**
- * sdma_v4_0_page_ring_set_wptr - commit the write pointer
+ * sdma_v4_0_ring_set_wptr - commit the write pointer
  *
  * @ring: amdgpu ring pointer
  *
@@ -820,7 +820,7 @@ static uint64_t sdma_v4_0_page_ring_get_wptr(struct amdgpu_ring *ring)
 }
 
 /**
- * sdma_v4_0_ring_set_wptr - commit the write pointer
+ * sdma_v4_0_page_ring_set_wptr - commit the write pointer
  *
  * @ring: amdgpu ring pointer
  *
