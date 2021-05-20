@@ -165,7 +165,7 @@ static int acpi_event_genetlink_init(void)
 
 static int __init acpi_event_init(void)
 {
-	int error = 0;
+	int error;
 
 	if (acpi_disabled)
 		return 0;
