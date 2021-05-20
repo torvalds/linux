@@ -5196,6 +5196,23 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 		conn->dst_type = irk->addr_type;
 	}
 
+	/* When using controller based address resolution, then the new
+	 * address types 0x02 and 0x03 are used. These types need to be
+	 * converted back into either public address or random address type
+	 */
+	if (use_ll_privacy(hdev) &&
+	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
+	    hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION)) {
+		switch (conn->dst_type) {
+		case ADDR_LE_DEV_PUBLIC_RESOLVED:
+			conn->dst_type = ADDR_LE_DEV_PUBLIC;
+			break;
+		case ADDR_LE_DEV_RANDOM_RESOLVED:
+			conn->dst_type = ADDR_LE_DEV_RANDOM;
+			break;
+		}
+	}
+
 	if (status) {
 		hci_le_conn_failed(conn, status);
 		goto unlock;
