@@ -4415,9 +4415,10 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 			ret = fn(data, kallsyms_symbol_name(kallsyms, i),
 				 mod, kallsyms_symbol_value(sym));
 			if (ret != 0)
-				break;
+				goto out;
 		}
 	}
+out:
 	mutex_unlock(&module_mutex);
 	return ret;
 }
