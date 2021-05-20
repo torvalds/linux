@@ -74,6 +74,12 @@ extern struct list_head mrioc_list;
 #define MPI3MR_ADMIN_REQ_FRAME_SZ	128
 #define MPI3MR_ADMIN_REPLY_FRAME_SZ	16
 
+/* Operational queue management definitions */
+#define MPI3MR_OP_REQ_Q_QD		512
+#define MPI3MR_OP_REP_Q_QD		4096
+#define MPI3MR_OP_REQ_Q_SEG_SIZE	4096
+#define MPI3MR_OP_REP_Q_SEG_SIZE	4096
+#define MPI3MR_MAX_SEG_LIST_SIZE	4096
 
 /* Reserved Host Tag definitions */
 #define MPI3MR_HOSTTAG_INVALID		0xFFFF
@@ -134,6 +140,9 @@ extern struct list_head mrioc_list;
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST \
 	(MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE | MPI3_SGE_FLAGS_DLAS_SYSTEM | \
 	MPI3_SGE_FLAGS_END_OF_LIST)
+
+/* MSI Index from Reply Queue Index */
+#define REPLY_QUEUE_IDX_TO_MSIX_IDX(qidx, offset)	(qidx + offset)
 
 /* IOC State definitions */
 enum mpi3mr_iocstate {
@@ -226,14 +235,44 @@ struct mpi3mr_ioc_facts {
 };
 
 /**
+ * struct segments - memory descriptor structure to store
+ * virtual and dma addresses for operational queue segments.
+ *
+ * @segment: virtual address
+ * @segment_dma: dma address
+ */
+struct segments {
+	void *segment;
+	dma_addr_t segment_dma;
+};
+
+/**
  * struct op_req_qinfo -  Operational Request Queue Information
  *
  * @ci: consumer index
  * @pi: producer index
+ * @num_request: Maximum number of entries in the queue
+ * @qid: Queue Id starting from 1
+ * @reply_qid: Associated reply queue Id
+ * @num_segments: Number of discontiguous memory segments
+ * @segment_qd: Depth of each segments
+ * @q_lock: Concurrent queue access lock
+ * @q_segments: Segment descriptor pointer
+ * @q_segment_list: Segment list base virtual address
+ * @q_segment_list_dma: Segment list base DMA address
  */
 struct op_req_qinfo {
 	u16 ci;
 	u16 pi;
+	u16 num_requests;
+	u16 qid;
+	u16 reply_qid;
+	u16 num_segments;
+	u16 segment_qd;
+	spinlock_t q_lock;
+	struct segments *q_segments;
+	void *q_segment_list;
+	dma_addr_t q_segment_list_dma;
 };
 
 /**
@@ -241,10 +280,24 @@ struct op_req_qinfo {
  *
  * @ci: consumer index
  * @qid: Queue Id starting from 1
+ * @num_replies: Maximum number of entries in the queue
+ * @num_segments: Number of discontiguous memory segments
+ * @segment_qd: Depth of each segments
+ * @q_segments: Segment descriptor pointer
+ * @q_segment_list: Segment list base virtual address
+ * @q_segment_list_dma: Segment list base DMA address
+ * @ephase: Expected phased identifier for the reply queue
  */
 struct op_reply_qinfo {
 	u16 ci;
 	u16 qid;
+	u16 num_replies;
+	u16 num_segments;
+	u16 segment_qd;
+	struct segments *q_segments;
+	void *q_segment_list;
+	dma_addr_t q_segment_list_dma;
+	u8 ephase;
 };
 
 /**
@@ -404,6 +457,7 @@ struct scmd_priv {
  * @current_event: Firmware event currently in process
  * @driver_info: Driver, Kernel, OS information to firmware
  * @change_count: Topology change count
+ * @op_reply_q_offset: Operational reply queue offset with MSIx
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -411,6 +465,7 @@ struct mpi3mr_ioc {
 	struct Scsi_Host *shost;
 	u8 id;
 	int cpu_count;
+	bool enable_segqueue;
 
 	char name[MPI3MR_NAME_LENGTH];
 	char driver_name[MPI3MR_NAME_LENGTH];
@@ -497,6 +552,7 @@ struct mpi3mr_ioc {
 	struct mpi3mr_fwevt *current_event;
 	struct mpi3_driver_info_layout driver_info;
 	u16 change_count;
+	u16 op_reply_q_offset;
 };
 
 int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc);

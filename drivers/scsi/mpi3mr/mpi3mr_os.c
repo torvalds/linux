@@ -40,7 +40,7 @@ static int mpi3mr_map_queues(struct Scsi_Host *shost)
 	struct mpi3mr_ioc *mrioc = shost_priv(shost);
 
 	return blk_mq_pci_map_queues(&shost->tag_set.map[HCTX_TYPE_DEFAULT],
-	    mrioc->pdev, 0);
+	    mrioc->pdev, mrioc->op_reply_q_offset);
 }
 
 /**
@@ -218,6 +218,8 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&mrioc->sbq_lock);
 
 	mpi3mr_init_drv_cmd(&mrioc->init_cmds, MPI3MR_HOSTTAG_INITCMDS);
+	if (pdev->revision)
+		mrioc->enable_segqueue = true;
 
 	mrioc->logging_level = logging_level;
 	mrioc->shost = shost;

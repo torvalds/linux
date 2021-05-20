@@ -404,6 +404,7 @@ static int mpi3mr_setup_isr(struct mpi3mr_ioc *mrioc, u8 setup_one)
 
 	irq_flags |= PCI_IRQ_AFFINITY | PCI_IRQ_ALL_TYPES;
 
+	mrioc->op_reply_q_offset = (max_vectors > 1) ? 1 : 0;
 	i = pci_alloc_irq_vectors_affinity(mrioc->pdev,
 	    1, max_vectors, irq_flags, &desc);
 	if (i <= 0) {
@@ -414,6 +415,12 @@ static int mpi3mr_setup_isr(struct mpi3mr_ioc *mrioc, u8 setup_one)
 		ioc_info(mrioc,
 		    "allocated vectors (%d) are less than configured (%d)\n",
 		    i, max_vectors);
+		/*
+		 * If only one MSI-x is allocated, then MSI-x 0 will be shared
+		 * between Admin queue and operational queue
+		 */
+		if (i == 1)
+			mrioc->op_reply_q_offset = 0;
 
 		max_vectors = i;
 	}
@@ -715,6 +722,582 @@ int mpi3mr_admin_request_post(struct mpi3mr_ioc *mrioc, void *admin_req,
 
 out:
 	spin_unlock_irqrestore(&mrioc->admin_req_lock, flags);
+
+	return retval;
+}
+
+/**
+ * mpi3mr_free_op_req_q_segments - free request memory segments
+ * @mrioc: Adapter instance reference
+ * @q_idx: operational request queue index
+ *
+ * Free memory segments allocated for operational request queue
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_free_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
+{
+	u16 j;
+	int size;
+	struct segments *segments;
+
+	segments = mrioc->req_qinfo[q_idx].q_segments;
+	if (!segments)
+		return;
+
+	if (mrioc->enable_segqueue) {
+		size = MPI3MR_OP_REQ_Q_SEG_SIZE;
+		if (mrioc->req_qinfo[q_idx].q_segment_list) {
+			dma_free_coherent(&mrioc->pdev->dev,
+			    MPI3MR_MAX_SEG_LIST_SIZE,
+			    mrioc->req_qinfo[q_idx].q_segment_list,
+			    mrioc->req_qinfo[q_idx].q_segment_list_dma);
+			mrioc->op_reply_qinfo[q_idx].q_segment_list = NULL;
+		}
+	} else
+		size = mrioc->req_qinfo[q_idx].num_requests *
+		    mrioc->facts.op_req_sz;
+
+	for (j = 0; j < mrioc->req_qinfo[q_idx].num_segments; j++) {
+		if (!segments[j].segment)
+			continue;
+		dma_free_coherent(&mrioc->pdev->dev,
+		    size, segments[j].segment, segments[j].segment_dma);
+		segments[j].segment = NULL;
+	}
+	kfree(mrioc->req_qinfo[q_idx].q_segments);
+	mrioc->req_qinfo[q_idx].q_segments = NULL;
+	mrioc->req_qinfo[q_idx].qid = 0;
+}
+
+/**
+ * mpi3mr_free_op_reply_q_segments - free reply memory segments
+ * @mrioc: Adapter instance reference
+ * @q_idx: operational reply queue index
+ *
+ * Free memory segments allocated for operational reply queue
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_free_op_reply_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
+{
+	u16 j;
+	int size;
+	struct segments *segments;
+
+	segments = mrioc->op_reply_qinfo[q_idx].q_segments;
+	if (!segments)
+		return;
+
+	if (mrioc->enable_segqueue) {
+		size = MPI3MR_OP_REP_Q_SEG_SIZE;
+		if (mrioc->op_reply_qinfo[q_idx].q_segment_list) {
+			dma_free_coherent(&mrioc->pdev->dev,
+			    MPI3MR_MAX_SEG_LIST_SIZE,
+			    mrioc->op_reply_qinfo[q_idx].q_segment_list,
+			    mrioc->op_reply_qinfo[q_idx].q_segment_list_dma);
+			mrioc->op_reply_qinfo[q_idx].q_segment_list = NULL;
+		}
+	} else
+		size = mrioc->op_reply_qinfo[q_idx].segment_qd *
+		    mrioc->op_reply_desc_sz;
+
+	for (j = 0; j < mrioc->op_reply_qinfo[q_idx].num_segments; j++) {
+		if (!segments[j].segment)
+			continue;
+		dma_free_coherent(&mrioc->pdev->dev,
+		    size, segments[j].segment, segments[j].segment_dma);
+		segments[j].segment = NULL;
+	}
+
+	kfree(mrioc->op_reply_qinfo[q_idx].q_segments);
+	mrioc->op_reply_qinfo[q_idx].q_segments = NULL;
+	mrioc->op_reply_qinfo[q_idx].qid = 0;
+}
+
+/**
+ * mpi3mr_delete_op_reply_q - delete operational reply queue
+ * @mrioc: Adapter instance reference
+ * @qidx: operational reply queue index
+ *
+ * Delete operatinal reply queue by issuing MPI request
+ * through admin queue.
+ *
+ * Return:  0 on success, non-zero on failure.
+ */
+static int mpi3mr_delete_op_reply_q(struct mpi3mr_ioc *mrioc, u16 qidx)
+{
+	struct mpi3_delete_reply_queue_request delq_req;
+	int retval = 0;
+	u16 reply_qid = 0, midx;
+
+	reply_qid = mrioc->op_reply_qinfo[qidx].qid;
+
+	midx = REPLY_QUEUE_IDX_TO_MSIX_IDX(qidx, mrioc->op_reply_q_offset);
+
+	if (!reply_qid)	{
+		retval = -1;
+		ioc_err(mrioc, "Issue DelRepQ: called with invalid ReqQID\n");
+		goto out;
+	}
+
+	memset(&delq_req, 0, sizeof(delq_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "Issue DelRepQ: Init command is in use\n");
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	delq_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	delq_req.function = MPI3_FUNCTION_DELETE_REPLY_QUEUE;
+	delq_req.queue_id = cpu_to_le16(reply_qid);
+
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &delq_req, sizeof(delq_req),
+	    1);
+	if (retval) {
+		ioc_err(mrioc, "Issue DelRepQ: Admin Post failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		ioc_err(mrioc, "Issue DelRepQ: command timed out\n");
+		mpi3mr_set_diagsave(mrioc);
+		mpi3mr_issue_reset(mrioc,
+		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
+		    MPI3MR_RESET_FROM_DELREPQ_TIMEOUT);
+		mrioc->unrecoverable = 1;
+
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc,
+		    "Issue DelRepQ: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+	mrioc->intr_info[midx].op_reply_q = NULL;
+
+	mpi3mr_free_op_reply_q_segments(mrioc, qidx);
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+out:
+
+	return retval;
+}
+
+/**
+ * mpi3mr_alloc_op_reply_q_segments -Alloc segmented reply pool
+ * @mrioc: Adapter instance reference
+ * @qidx: request queue index
+ *
+ * Allocate segmented memory pools for operational reply
+ * queue.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_alloc_op_reply_q_segments(struct mpi3mr_ioc *mrioc, u16 qidx)
+{
+	struct op_reply_qinfo *op_reply_q = mrioc->op_reply_qinfo + qidx;
+	int i, size;
+	u64 *q_segment_list_entry = NULL;
+	struct segments *segments;
+
+	if (mrioc->enable_segqueue) {
+		op_reply_q->segment_qd =
+		    MPI3MR_OP_REP_Q_SEG_SIZE / mrioc->op_reply_desc_sz;
+
+		size = MPI3MR_OP_REP_Q_SEG_SIZE;
+
+		op_reply_q->q_segment_list = dma_alloc_coherent(&mrioc->pdev->dev,
+		    MPI3MR_MAX_SEG_LIST_SIZE, &op_reply_q->q_segment_list_dma,
+		    GFP_KERNEL);
+		if (!op_reply_q->q_segment_list)
+			return -ENOMEM;
+		q_segment_list_entry = (u64 *)op_reply_q->q_segment_list;
+	} else {
+		op_reply_q->segment_qd = op_reply_q->num_replies;
+		size = op_reply_q->num_replies * mrioc->op_reply_desc_sz;
+	}
+
+	op_reply_q->num_segments = DIV_ROUND_UP(op_reply_q->num_replies,
+	    op_reply_q->segment_qd);
+
+	op_reply_q->q_segments = kcalloc(op_reply_q->num_segments,
+	    sizeof(struct segments), GFP_KERNEL);
+	if (!op_reply_q->q_segments)
+		return -ENOMEM;
+
+	segments = op_reply_q->q_segments;
+	for (i = 0; i < op_reply_q->num_segments; i++) {
+		segments[i].segment =
+		    dma_alloc_coherent(&mrioc->pdev->dev,
+		    size, &segments[i].segment_dma, GFP_KERNEL);
+		if (!segments[i].segment)
+			return -ENOMEM;
+		if (mrioc->enable_segqueue)
+			q_segment_list_entry[i] =
+			    (unsigned long)segments[i].segment_dma;
+	}
+
+	return 0;
+}
+
+/**
+ * mpi3mr_alloc_op_req_q_segments - Alloc segmented req pool.
+ * @mrioc: Adapter instance reference
+ * @qidx: request queue index
+ *
+ * Allocate segmented memory pools for operational request
+ * queue.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_alloc_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 qidx)
+{
+	struct op_req_qinfo *op_req_q = mrioc->req_qinfo + qidx;
+	int i, size;
+	u64 *q_segment_list_entry = NULL;
+	struct segments *segments;
+
+	if (mrioc->enable_segqueue) {
+		op_req_q->segment_qd =
+		    MPI3MR_OP_REQ_Q_SEG_SIZE / mrioc->facts.op_req_sz;
+
+		size = MPI3MR_OP_REQ_Q_SEG_SIZE;
+
+		op_req_q->q_segment_list = dma_alloc_coherent(&mrioc->pdev->dev,
+		    MPI3MR_MAX_SEG_LIST_SIZE, &op_req_q->q_segment_list_dma,
+		    GFP_KERNEL);
+		if (!op_req_q->q_segment_list)
+			return -ENOMEM;
+		q_segment_list_entry = (u64 *)op_req_q->q_segment_list;
+
+	} else {
+		op_req_q->segment_qd = op_req_q->num_requests;
+		size = op_req_q->num_requests * mrioc->facts.op_req_sz;
+	}
+
+	op_req_q->num_segments = DIV_ROUND_UP(op_req_q->num_requests,
+	    op_req_q->segment_qd);
+
+	op_req_q->q_segments = kcalloc(op_req_q->num_segments,
+	    sizeof(struct segments), GFP_KERNEL);
+	if (!op_req_q->q_segments)
+		return -ENOMEM;
+
+	segments = op_req_q->q_segments;
+	for (i = 0; i < op_req_q->num_segments; i++) {
+		segments[i].segment =
+		    dma_alloc_coherent(&mrioc->pdev->dev,
+		    size, &segments[i].segment_dma, GFP_KERNEL);
+		if (!segments[i].segment)
+			return -ENOMEM;
+		if (mrioc->enable_segqueue)
+			q_segment_list_entry[i] =
+			    (unsigned long)segments[i].segment_dma;
+	}
+
+	return 0;
+}
+
+/**
+ * mpi3mr_create_op_reply_q - create operational reply queue
+ * @mrioc: Adapter instance reference
+ * @qidx: operational reply queue index
+ *
+ * Create operatinal reply queue by issuing MPI request
+ * through admin queue.
+ *
+ * Return:  0 on success, non-zero on failure.
+ */
+static int mpi3mr_create_op_reply_q(struct mpi3mr_ioc *mrioc, u16 qidx)
+{
+	struct mpi3_create_reply_queue_request create_req;
+	struct op_reply_qinfo *op_reply_q = mrioc->op_reply_qinfo + qidx;
+	int retval = 0;
+	u16 reply_qid = 0, midx;
+
+	reply_qid = op_reply_q->qid;
+
+	midx = REPLY_QUEUE_IDX_TO_MSIX_IDX(qidx, mrioc->op_reply_q_offset);
+
+	if (reply_qid) {
+		retval = -1;
+		ioc_err(mrioc, "CreateRepQ: called for duplicate qid %d\n",
+		    reply_qid);
+
+		return retval;
+	}
+
+	reply_qid = qidx + 1;
+	op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD;
+	op_reply_q->ci = 0;
+	op_reply_q->ephase = 1;
+
+	if (!op_reply_q->q_segments) {
+		retval = mpi3mr_alloc_op_reply_q_segments(mrioc, qidx);
+		if (retval) {
+			mpi3mr_free_op_reply_q_segments(mrioc, qidx);
+			goto out;
+		}
+	}
+
+	memset(&create_req, 0, sizeof(create_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "CreateRepQ: Init command is in use\n");
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	create_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	create_req.function = MPI3_FUNCTION_CREATE_REPLY_QUEUE;
+	create_req.queue_id = cpu_to_le16(reply_qid);
+	create_req.flags = MPI3_CREATE_REPLY_QUEUE_FLAGS_INT_ENABLE_ENABLE;
+	create_req.msix_index = cpu_to_le16(mrioc->intr_info[midx].msix_index);
+	if (mrioc->enable_segqueue) {
+		create_req.flags |=
+		    MPI3_CREATE_REQUEST_QUEUE_FLAGS_SEGMENTED_SEGMENTED;
+		create_req.base_address = cpu_to_le64(
+		    op_reply_q->q_segment_list_dma);
+	} else
+		create_req.base_address = cpu_to_le64(
+		    op_reply_q->q_segments[0].segment_dma);
+
+	create_req.size = cpu_to_le16(op_reply_q->num_replies);
+
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &create_req,
+	    sizeof(create_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "CreateRepQ: Admin Post failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		ioc_err(mrioc, "CreateRepQ: command timed out\n");
+		mpi3mr_set_diagsave(mrioc);
+		mpi3mr_issue_reset(mrioc,
+		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
+		    MPI3MR_RESET_FROM_CREATEREPQ_TIMEOUT);
+		mrioc->unrecoverable = 1;
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc,
+		    "CreateRepQ: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+	op_reply_q->qid = reply_qid;
+	mrioc->intr_info[midx].op_reply_q = op_reply_q;
+
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+out:
+
+	return retval;
+}
+
+/**
+ * mpi3mr_create_op_req_q - create operational request queue
+ * @mrioc: Adapter instance reference
+ * @idx: operational request queue index
+ * @reply_qid: Reply queue ID
+ *
+ * Create operatinal request queue by issuing MPI request
+ * through admin queue.
+ *
+ * Return:  0 on success, non-zero on failure.
+ */
+static int mpi3mr_create_op_req_q(struct mpi3mr_ioc *mrioc, u16 idx,
+	u16 reply_qid)
+{
+	struct mpi3_create_request_queue_request create_req;
+	struct op_req_qinfo *op_req_q = mrioc->req_qinfo + idx;
+	int retval = 0;
+	u16 req_qid = 0;
+
+	req_qid = op_req_q->qid;
+
+	if (req_qid) {
+		retval = -1;
+		ioc_err(mrioc, "CreateReqQ: called for duplicate qid %d\n",
+		    req_qid);
+
+		return retval;
+	}
+	req_qid = idx + 1;
+
+	op_req_q->num_requests = MPI3MR_OP_REQ_Q_QD;
+	op_req_q->ci = 0;
+	op_req_q->pi = 0;
+	op_req_q->reply_qid = reply_qid;
+	spin_lock_init(&op_req_q->q_lock);
+
+	if (!op_req_q->q_segments) {
+		retval = mpi3mr_alloc_op_req_q_segments(mrioc, idx);
+		if (retval) {
+			mpi3mr_free_op_req_q_segments(mrioc, idx);
+			goto out;
+		}
+	}
+
+	memset(&create_req, 0, sizeof(create_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "CreateReqQ: Init command is in use\n");
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	create_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	create_req.function = MPI3_FUNCTION_CREATE_REQUEST_QUEUE;
+	create_req.queue_id = cpu_to_le16(req_qid);
+	if (mrioc->enable_segqueue) {
+		create_req.flags =
+		    MPI3_CREATE_REQUEST_QUEUE_FLAGS_SEGMENTED_SEGMENTED;
+		create_req.base_address = cpu_to_le64(
+		    op_req_q->q_segment_list_dma);
+	} else
+		create_req.base_address = cpu_to_le64(
+		    op_req_q->q_segments[0].segment_dma);
+	create_req.reply_queue_id = cpu_to_le16(reply_qid);
+	create_req.size = cpu_to_le16(op_req_q->num_requests);
+
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &create_req,
+	    sizeof(create_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "CreateReqQ: Admin Post failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		ioc_err(mrioc, "CreateReqQ: command timed out\n");
+		mpi3mr_set_diagsave(mrioc);
+		if (mpi3mr_issue_reset(mrioc,
+		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
+		    MPI3MR_RESET_FROM_CREATEREQQ_TIMEOUT))
+			mrioc->unrecoverable = 1;
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc,
+		    "CreateReqQ: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+	op_req_q->qid = req_qid;
+
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+out:
+
+	return retval;
+}
+
+/**
+ * mpi3mr_create_op_queues - create operational queue pairs
+ * @mrioc: Adapter instance reference
+ *
+ * Allocate memory for operational queue meta data and call
+ * create request and reply queue functions.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
+{
+	int retval = 0;
+	u16 num_queues = 0, i = 0, msix_count_op_q = 1;
+
+	num_queues = min_t(int, mrioc->facts.max_op_reply_q,
+	    mrioc->facts.max_op_req_q);
+
+	msix_count_op_q =
+	    mrioc->intr_info_count - mrioc->op_reply_q_offset;
+	if (!mrioc->num_queues)
+		mrioc->num_queues = min_t(int, num_queues, msix_count_op_q);
+	num_queues = mrioc->num_queues;
+	ioc_info(mrioc, "Trying to create %d Operational Q pairs\n",
+	    num_queues);
+
+	if (!mrioc->req_qinfo) {
+		mrioc->req_qinfo = kcalloc(num_queues,
+		    sizeof(struct op_req_qinfo), GFP_KERNEL);
+		if (!mrioc->req_qinfo) {
+			retval = -1;
+			goto out_failed;
+		}
+
+		mrioc->op_reply_qinfo = kzalloc(sizeof(struct op_reply_qinfo) *
+		    num_queues, GFP_KERNEL);
+		if (!mrioc->op_reply_qinfo) {
+			retval = -1;
+			goto out_failed;
+		}
+	}
+
+	if (mrioc->enable_segqueue)
+		ioc_info(mrioc,
+		    "allocating operational queues through segmented queues\n");
+
+	for (i = 0; i < num_queues; i++) {
+		if (mpi3mr_create_op_reply_q(mrioc, i)) {
+			ioc_err(mrioc, "Cannot create OP RepQ %d\n", i);
+			break;
+		}
+		if (mpi3mr_create_op_req_q(mrioc, i,
+		    mrioc->op_reply_qinfo[i].qid)) {
+			ioc_err(mrioc, "Cannot create OP ReqQ %d\n", i);
+			mpi3mr_delete_op_reply_q(mrioc, i);
+			break;
+		}
+	}
+
+	if (i == 0) {
+		/* Not even one queue is created successfully*/
+		retval = -1;
+		goto out_failed;
+	}
+	mrioc->num_op_reply_q = mrioc->num_op_req_q = i;
+	ioc_info(mrioc, "Successfully created %d Operational Q pairs\n",
+	    mrioc->num_op_reply_q);
+
+	return retval;
+out_failed:
+	kfree(mrioc->req_qinfo);
+	mrioc->req_qinfo = NULL;
+
+	kfree(mrioc->op_reply_qinfo);
+	mrioc->op_reply_qinfo = NULL;
 
 	return retval;
 }
@@ -1589,6 +2172,13 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc)
 		goto out_failed;
 	}
 
+	retval = mpi3mr_create_op_queues(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "Failed to create OpQueues error %d\n",
+		    retval);
+		goto out_failed;
+	}
+
 	return retval;
 
 out_failed:
@@ -1643,6 +2233,12 @@ static void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 		mrioc->reply_free_q = NULL;
 		mrioc->reply_free_q_pool = NULL;
 	}
+
+	for (i = 0; i < mrioc->num_op_req_q; i++)
+		mpi3mr_free_op_req_q_segments(mrioc, i);
+
+	for (i = 0; i < mrioc->num_op_reply_q; i++)
+		mpi3mr_free_op_reply_q_segments(mrioc, i);
 
 	for (i = 0; i < mrioc->intr_info_count; i++) {
 		intr_info = mrioc->intr_info + i;
