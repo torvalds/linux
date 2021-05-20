@@ -122,27 +122,19 @@ struct ppc64_stub_entry
  * the stub, but it's significantly shorter to put these values at the
  * end of the stub code, and patch the stub address (32-bits relative
  * to the TOC ptr, r2) into the stub.
- *
- * addis   r11,r2, <high>
- * addi    r11,r11, <low>
- * std     r2,R2_STACK_OFFSET(r1)
- * ld      r12,32(r11)
- * ld      r2,40(r11)
- * mtctr   r12
- * bctr
  */
 static u32 ppc64_stub_insns[] = {
-	PPC_INST_ADDIS | __PPC_RT(R11) | __PPC_RA(R2),
-	PPC_INST_ADDI | __PPC_RT(R11) | __PPC_RA(R11),
+	PPC_RAW_ADDIS(_R11, _R2, 0),
+	PPC_RAW_ADDI(_R11, _R11, 0),
 	/* Save current r2 value in magic place on the stack. */
-	PPC_INST_STD | __PPC_RS(R2) | __PPC_RA(R1) | R2_STACK_OFFSET,
-	PPC_INST_LD | __PPC_RT(R12) | __PPC_RA(R11) | 32,
+	PPC_RAW_STD(_R2, _R1, R2_STACK_OFFSET),
+	PPC_RAW_LD(_R12, _R11, 32),
 #ifdef PPC64_ELF_ABI_v1
 	/* Set up new r2 from function descriptor */
-	PPC_INST_LD | __PPC_RT(R2) | __PPC_RA(R11) | 40,
+	PPC_RAW_LD(_R2, _R11, 40),
 #endif
-	PPC_INST_MTCTR | __PPC_RS(R12),
-	PPC_INST_BCTR,
+	PPC_RAW_MTCTR(_R12),
+	PPC_RAW_BCTR(),
 };
 
 /* Count how many different 24-bit relocations (different symbol,
@@ -336,21 +328,12 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 
 #ifdef CONFIG_MPROFILE_KERNEL
 
-#define PACATOC offsetof(struct paca_struct, kernel_toc)
-
-/*
- * ld      r12,PACATOC(r13)
- * addis   r12,r12,<high>
- * addi    r12,r12,<low>
- * mtctr   r12
- * bctr
- */
 static u32 stub_insns[] = {
-	PPC_INST_LD | __PPC_RT(R12) | __PPC_RA(R13) | PACATOC,
-	PPC_INST_ADDIS | __PPC_RT(R12) | __PPC_RA(R12),
-	PPC_INST_ADDI | __PPC_RT(R12) | __PPC_RA(R12),
-	PPC_INST_MTCTR | __PPC_RS(R12),
-	PPC_INST_BCTR,
+	PPC_RAW_LD(_R12, _R13, offsetof(struct paca_struct, kernel_toc)),
+	PPC_RAW_ADDIS(_R12, _R12, 0),
+	PPC_RAW_ADDI(_R12, _R12, 0),
+	PPC_RAW_MTCTR(_R12),
+	PPC_RAW_BCTR(),
 };
 
 /*
@@ -507,7 +490,7 @@ static int restore_r2(const char *name, u32 *instruction, struct module *me)
 	if (!instr_is_relative_link_branch(ppc_inst(*prev_insn)))
 		return 1;
 
-	if (*instruction != PPC_INST_NOP) {
+	if (*instruction != PPC_RAW_NOP()) {
 		pr_err("%s: Expected nop after call, got %08x at %pS\n",
 			me->name, *instruction, instruction);
 		return 0;
@@ -696,21 +679,17 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		         *	ld r2, ...(r12)
 			 *	add r2, r2, r12
 			 */
-			if ((((uint32_t *)location)[0] & ~0xfffc) !=
-			    (PPC_INST_LD | __PPC_RT(R2) | __PPC_RA(R12)))
+			if ((((uint32_t *)location)[0] & ~0xfffc) != PPC_RAW_LD(_R2, _R12, 0))
 				break;
-			if (((uint32_t *)location)[1] !=
-			    (PPC_INST_ADD | __PPC_RT(R2) | __PPC_RA(R2) | __PPC_RB(R12)))
+			if (((uint32_t *)location)[1] != PPC_RAW_ADD(_R2, _R2, _R12))
 				break;
 			/*
 			 * If found, replace it with:
 			 *	addis r2, r12, (.TOC.-func)@ha
 			 *	addi  r2,  r2, (.TOC.-func)@l
 			 */
-			((uint32_t *)location)[0] = PPC_INST_ADDIS | __PPC_RT(R2) |
-						    __PPC_RA(R12) | PPC_HA(value);
-			((uint32_t *)location)[1] = PPC_INST_ADDI | __PPC_RT(R2) |
-						    __PPC_RA(R2) | PPC_LO(value);
+			((uint32_t *)location)[0] = PPC_RAW_ADDIS(_R2, _R12, PPC_HA(value));
+			((uint32_t *)location)[1] = PPC_RAW_ADDI(_R2, _R2, PPC_LO(value));
 			break;
 
 		case R_PPC64_REL16_HA:
