@@ -20,7 +20,7 @@ static int is_ignored(int sig)
 }
 
 /**
- *	tty_check_change	-	check for POSIX terminal changes
+ *	__tty_check_change	-	check for POSIX terminal changes
  *	@tty: tty to check
  *	@sig: signal to send
  *
@@ -85,7 +85,7 @@ void proc_clear_tty(struct task_struct *p)
 }
 
 /**
- * proc_set_tty -  set the controlling terminal
+ * __proc_set_tty -  set the controlling terminal
  *	@tty: tty structure
  *
  * Only callable by the session leader and only if it does not already have
