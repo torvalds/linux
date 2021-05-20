@@ -438,7 +438,7 @@ static void update_branch_cache_flush(void)
 	site = &patch__call_kvm_flush_link_stack;
 	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
 	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
-		patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+		patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 	} else {
 		// Could use HW flush, but that could also flush count cache
 		patch_branch_site(site, (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
@@ -447,11 +447,11 @@ static void update_branch_cache_flush(void)
 
 	// Patch out the bcctr first, then nop the rest
 	site = &patch__call_flush_branch_caches3;
-	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 	site = &patch__call_flush_branch_caches2;
-	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 	site = &patch__call_flush_branch_caches1;
-	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	patch_instruction_site(site, ppc_inst(PPC_RAW_NOP()));
 
 	// This controls the branch from _switch to flush_branch_caches
 	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE &&
@@ -474,12 +474,12 @@ static void update_branch_cache_flush(void)
 		// If we just need to flush the link stack, early return
 		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE) {
 			patch_instruction_site(&patch__flush_link_stack_return,
-					       ppc_inst(PPC_INST_BLR));
+					       ppc_inst(PPC_RAW_BLR()));
 
 		// If we have flush instruction, early return
 		} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW) {
 			patch_instruction_site(&patch__flush_count_cache_return,
-					       ppc_inst(PPC_INST_BLR));
+					       ppc_inst(PPC_RAW_BLR()));
 		}
 	}
 }
