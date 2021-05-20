@@ -1026,6 +1026,94 @@
 			status = "disabled";
 		};
 
+		hs_phy_0: phy@100f8800 {
+			compatible = "qcom,ipq806x-usb-phy-hs";
+			reg = <0x100f8800 0x30>;
+			clocks = <&gcc USB30_0_UTMI_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		ss_phy_0: phy@100f8830 {
+			compatible = "qcom,ipq806x-usb-phy-ss";
+			reg = <0x100f8830 0x30>;
+			clocks = <&gcc USB30_0_MASTER_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		usb3_0: usb3@100f8800 {
+			compatible = "qcom,dwc3", "syscon";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x100f8800 0x8000>;
+			clocks = <&gcc USB30_0_MASTER_CLK>;
+			clock-names = "core";
+
+			ranges;
+
+			resets = <&gcc USB30_0_MASTER_RESET>;
+			reset-names = "master";
+
+			status = "disabled";
+
+			dwc3_0: dwc3@10000000 {
+				compatible = "snps,dwc3";
+				reg = <0x10000000 0xcd00>;
+				interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&hs_phy_0>, <&ss_phy_0>;
+				phy-names = "usb2-phy", "usb3-phy";
+				dr_mode = "host";
+				snps,dis_u3_susphy_quirk;
+			};
+		};
+
+		hs_phy_1: phy@110f8800 {
+			compatible = "qcom,ipq806x-usb-phy-hs";
+			reg = <0x110f8800 0x30>;
+			clocks = <&gcc USB30_1_UTMI_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+		};
+
+		ss_phy_1: phy@110f8830 {
+			compatible = "qcom,ipq806x-usb-phy-ss";
+			reg = <0x110f8830 0x30>;
+			clocks = <&gcc USB30_1_MASTER_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+		};
+
+		usb3_1: usb3@110f8800 {
+			compatible = "qcom,dwc3", "syscon";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x110f8800 0x8000>;
+			clocks = <&gcc USB30_1_MASTER_CLK>;
+			clock-names = "core";
+
+			ranges;
+
+			resets = <&gcc USB30_1_MASTER_RESET>;
+			reset-names = "master";
+
+			status = "disabled";
+
+			dwc3_1: dwc3@11000000 {
+				compatible = "snps,dwc3";
+				reg = <0x11000000 0xcd00>;
+				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&hs_phy_1>, <&ss_phy_1>;
+				phy-names = "usb2-phy", "usb3-phy";
+				dr_mode = "host";
+				snps,dis_u3_susphy_quirk;
+			};
+		};
+
 		vsdcc_fixed: vsdcc-regulator {
 			compatible = "regulator-fixed";
 			regulator-name = "SDCC Power";
