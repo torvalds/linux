@@ -1028,27 +1028,29 @@ static int hclge_dbg_dump_tm_qset(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-static void hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev)
+static int hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev, char *buf,
+					int len)
 {
 	struct hclge_cfg_pause_param_cmd *pause_param;
 	struct hclge_desc desc;
+	int pos = 0;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, true);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(&hdev->pdev->dev, "dump checksum fail, ret = %d\n",
-			ret);
-		return;
+		dev_err(&hdev->pdev->dev,
+			"failed to dump qos pause, ret = %d\n", ret);
+		return ret;
 	}
 
 	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "dump qos pause cfg\n");
-	dev_info(&hdev->pdev->dev, "pause_trans_gap: 0x%x\n",
-		 pause_param->pause_trans_gap);
-	dev_info(&hdev->pdev->dev, "pause_trans_time: 0x%x\n",
-		 le16_to_cpu(pause_param->pause_trans_time));
+
+	pos += scnprintf(buf + pos, len - pos, "pause_trans_gap: 0x%x\n",
+			 pause_param->pause_trans_gap);
+	pos += scnprintf(buf + pos, len - pos, "pause_trans_time: 0x%x\n",
+			 le16_to_cpu(pause_param->pause_trans_time));
+	return 0;
 }
 
 static void hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev)
@@ -1894,9 +1896,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	if (strncmp(cmd_buf, "dump qos pause cfg", 18) == 0) {
-		hclge_dbg_dump_qos_pause_cfg(hdev);
-	} else if (strncmp(cmd_buf, "dump qos pri map", 16) == 0) {
+	if (strncmp(cmd_buf, "dump qos pri map", 16) == 0) {
 		hclge_dbg_dump_qos_pri_map(hdev);
 	} else if (strncmp(cmd_buf, "dump qos buf cfg", 16) == 0) {
 		hclge_dbg_dump_qos_buf_cfg(hdev);
@@ -1943,6 +1943,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_TC_SCH_INFO,
 		.dbg_dump = hclge_dbg_dump_tc,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_QOS_PAUSE_CFG,
+		.dbg_dump = hclge_dbg_dump_qos_pause_cfg,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_UC,
