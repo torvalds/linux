@@ -47,7 +47,7 @@
 #include "gfx_v10_0.h"
 #include "nbio_v2_3.h"
 
-/**
+/*
  * Navi10 has two graphic rings to share each graphic pipe.
  * 1. Primary ring
  * 2. Async ring
