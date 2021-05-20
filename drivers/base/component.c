@@ -307,8 +307,7 @@ static void devm_component_match_release(struct device *dev, void *res)
 	component_match_release(dev, res);
 }
 
-static int component_match_realloc(struct device *dev,
-	struct component_match *match, size_t num)
+static int component_match_realloc(struct component_match *match, size_t num)
 {
 	struct component_match_array *new;
 
@@ -359,7 +358,7 @@ static void __component_match_add(struct device *master,
 		size_t new_size = match->alloc + 16;
 		int ret;
 
-		ret = component_match_realloc(master, match, new_size);
+		ret = component_match_realloc(match, new_size);
 		if (ret) {
 			*matchptr = ERR_PTR(ret);
 			return;
@@ -469,7 +468,7 @@ int component_master_add_with_match(struct device *dev,
 	int ret;
 
 	/* Reallocate the match array for its true size */
-	ret = component_match_realloc(dev, match, match->num);
+	ret = component_match_realloc(match, match->num);
 	if (ret)
 		return ret;
 
