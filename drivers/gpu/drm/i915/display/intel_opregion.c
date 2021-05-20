@@ -1078,6 +1078,9 @@ void intel_opregion_resume(struct drm_i915_private *i915)
 		opregion->asle->ardy = ASLE_ARDY_READY;
 	}
 
+	/* Some platforms abuse the _DSM to enable MUX */
+	intel_dsm_get_bios_data_funcs_supported(i915);
+
 	intel_opregion_notify_adapter(i915, PCI_D0);
 }
 
