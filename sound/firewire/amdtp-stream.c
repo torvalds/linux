@@ -33,7 +33,8 @@
 #define TAG_NO_CIP_HEADER	0
 #define TAG_CIP			1
 
-/* common isochronous packet header parameters */
+// Common Isochronous Packet (CIP) header parameters. Use two quadlets CIP header when supported.
+#define CIP_HEADER_QUADLETS	2
 #define CIP_EOH_SHIFT		31
 #define CIP_EOH			(1u << CIP_EOH_SHIFT)
 #define CIP_EOH_MASK		0x80000000
@@ -51,17 +52,21 @@
 #define CIP_SYT_MASK		0x0000ffff
 #define CIP_SYT_NO_INFO		0xffff
 
+#define CIP_HEADER_SIZE		(sizeof(__be32) * CIP_HEADER_QUADLETS)
+
 /* Audio and Music transfer protocol specific parameters */
 #define CIP_FMT_AM		0x10
 #define AMDTP_FDF_NO_DATA	0xff
 
-// For iso header, tstamp and 2 CIP header.
-#define IR_CTX_HEADER_SIZE_CIP		16
 // For iso header and tstamp.
-#define IR_CTX_HEADER_SIZE_NO_CIP	8
+#define IR_CTX_HEADER_DEFAULT_QUADLETS	2
+// Add nothing.
+#define IR_CTX_HEADER_SIZE_NO_CIP	(sizeof(__be32) * IR_CTX_HEADER_DEFAULT_QUADLETS)
+// Add two quadlets CIP header.
+#define IR_CTX_HEADER_SIZE_CIP		(IR_CTX_HEADER_SIZE_NO_CIP + CIP_HEADER_SIZE)
 #define HEADER_TSTAMP_MASK	0x0000ffff
 
-#define IT_PKT_HEADER_SIZE_CIP		8 // For 2 CIP header.
+#define IT_PKT_HEADER_SIZE_CIP		CIP_HEADER_SIZE
 #define IT_PKT_HEADER_SIZE_NO_CIP	0 // Nothing.
 
 // The initial firmware of OXFW970 can postpone transmission of packet during finishing
@@ -323,7 +328,7 @@ unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 	if (s->flags & CIP_JUMBO_PAYLOAD)
 		multiplier = IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES;
 	if (!(s->flags & CIP_NO_HEADER))
-		cip_header_size = sizeof(__be32) * 2;
+		cip_header_size = CIP_HEADER_SIZE;
 
 	return cip_header_size +
 		s->syt_interval * s->data_block_quadlets * sizeof(__be32) * multiplier;
@@ -642,7 +647,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
 
 	if (!(s->flags & CIP_NO_HEADER))
-		cip_header_size = 8;
+		cip_header_size = CIP_HEADER_SIZE;
 	else
 		cip_header_size = 0;
 
@@ -655,7 +660,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 
 	if (cip_header_size > 0) {
 		if (payload_length >= cip_header_size) {
-			cip_header = ctx_header + 2;
+			cip_header = ctx_header + IR_CTX_HEADER_DEFAULT_QUADLETS;
 			err = check_cip_header(s, cip_header, payload_length - cip_header_size,
 					       data_blocks, data_block_counter, syt);
 			if (err < 0)
@@ -907,7 +912,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		unsigned int syt;
 		struct {
 			struct fw_iso_packet params;
-			__be32 header[IT_PKT_HEADER_SIZE_CIP / sizeof(__be32)];
+			__be32 header[CIP_HEADER_QUADLETS];
 		} template = { {0}, {0} };
 		bool sched_irq = false;
 
@@ -1140,7 +1145,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		dir = DMA_FROM_DEVICE;
 		type = FW_ISO_CONTEXT_RECEIVE;
 		if (!(s->flags & CIP_NO_HEADER)) {
-			max_ctx_payload_size -= 8;
+			max_ctx_payload_size -= CIP_HEADER_SIZE;
 			ctx_header_size = IR_CTX_HEADER_SIZE_CIP;
 		} else {
 			ctx_header_size = IR_CTX_HEADER_SIZE_NO_CIP;
