@@ -11,9 +11,11 @@ static int regmap_mdio_read(void *context, unsigned int reg, unsigned int *val)
 	int ret;
 
 	ret = mdiobus_read(mdio_dev->bus, mdio_dev->addr, reg);
-	*val = ret & 0xffff;
+	if (ret < 0)
+		return ret;
 
-	return ret < 0 ? ret : 0;
+	*val = ret & 0xffff;
+	return 0;
 }
 
 static int regmap_mdio_write(void *context, unsigned int reg, unsigned int val)
