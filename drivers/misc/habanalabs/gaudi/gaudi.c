@@ -1931,6 +1931,38 @@ static void gaudi_disable_msi(struct hl_device *hdev)
 	gaudi->hw_cap_initialized &= ~HW_CAP_MSI;
 }
 
+static void gaudi_fw_hard_reset(struct hl_device *hdev)
+{
+	int rc;
+
+	if (hdev->asic_prop.dynamic_fw_load && !hdev->fw_loader.linux_loaded) {
+		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
+				COMMS_RST_DEV, 0, false,
+				hdev->fw_loader.cpu_timeout);
+		if (rc)
+			dev_warn(hdev->dev, "Failed sending COMMS_RST_DEV\n");
+	} else {
+		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_RST_DEV);
+	}
+}
+
+static void gaudi_fw_halt_cpu(struct hl_device *hdev)
+{
+	int rc;
+
+	/* Stop device CPU to make sure nothing bad happens */
+	if (hdev->asic_prop.dynamic_fw_load && !hdev->fw_loader.linux_loaded) {
+		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
+				COMMS_GOTO_WFE, 0, true,
+				hdev->fw_loader.cpu_timeout);
+		if (rc)
+			dev_warn(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+	} else {
+		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
+		msleep(GAUDI_CPU_RESET_WAIT_MSEC);
+	}
+}
+
 static void gaudi_init_scrambler_sram(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -4106,9 +4138,9 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	 * stopped in any means necessary
 	 */
 	if (hdev->asic_prop.hard_reset_done_by_fw)
-		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_RST_DEV);
+		gaudi_fw_hard_reset(hdev);
 	else
-		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
+		gaudi_fw_halt_cpu(hdev);
 
 	if (hdev->fw_loader.linux_loaded) {
 		irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?

@@ -2574,7 +2574,10 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 				u32 sts_boot_dev_sts0_reg,
 				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
 				u32 boot_err1_reg, u32 timeout);
-
+int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
+				struct fw_load_mgr *fw_loader,
+				enum comms_cmd cmd, unsigned int size,
+				bool wait_ok, u32 timeout);
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);
 int hl_pci_elbi_read(struct hl_device *hdev, u64 addr, u32 *data);

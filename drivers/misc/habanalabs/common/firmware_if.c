@@ -1390,7 +1390,7 @@ static int hl_fw_dynamic_send_clear_cmd(struct hl_device *hdev,
  *             leftovers between command
  * NOOP command: necessary to avoid loop on the clear command by the FW
  */
-static int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
+int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 				struct fw_load_mgr *fw_loader,
 				enum comms_cmd cmd, unsigned int size,
 				bool wait_ok, u32 timeout)
