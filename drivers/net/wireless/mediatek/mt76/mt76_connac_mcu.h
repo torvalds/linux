@@ -575,6 +575,7 @@ enum {
 enum {
 	UNI_BSS_INFO_BASIC = 0,
 	UNI_BSS_INFO_RLM = 2,
+	UNI_BSS_INFO_BSS_COLOR = 4,
 	UNI_BSS_INFO_HE_BASIC = 5,
 	UNI_BSS_INFO_BCN_CONTENT = 7,
 	UNI_BSS_INFO_QBSS = 15,
@@ -787,6 +788,14 @@ struct mt76_connac_sched_scan_done {
 	u8 seq_num;
 	u8 status; /* 0: ssid found */
 	__le16 pad;
+} __packed;
+
+struct bss_info_uni_bss_color {
+	__le16 tag;
+	__le16 len;
+	u8 enable;
+	u8 bss_color;
+	u8 rsv[2];
 } __packed;
 
 struct bss_info_uni_he {
