@@ -1775,7 +1775,7 @@ int hclge_tm_get_pri_weight(struct hclge_dev *hdev, u8 pri_id, u8 *weight)
 
 int hclge_tm_get_pri_shaper(struct hclge_dev *hdev, u8 pri_id,
 			    enum hclge_opcode_type cmd,
-			    struct hclge_pri_shaper_para *para)
+			    struct hclge_tm_shaper_para *para)
 {
 	struct hclge_pri_shapping_cmd *shap_cfg_cmd;
 	struct hclge_desc desc;
@@ -1865,5 +1865,128 @@ int hclge_tm_get_q_to_tc(struct hclge_dev *hdev, u16 q_id, u8 *tc_id)
 	}
 
 	*tc_id = tc->tc_id & HCLGE_TM_TC_MASK;
+	return 0;
+}
+
+int hclge_tm_get_pg_to_pri_map(struct hclge_dev *hdev, u8 pg_id,
+			       u8 *pri_bit_map)
+{
+	struct hclge_pg_to_pri_link_cmd *map;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PG_TO_PRI_LINK, true);
+	map = (struct hclge_pg_to_pri_link_cmd *)desc.data;
+	map->pg_id = pg_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg to pri map, ret = %d\n", ret);
+		return ret;
+	}
+
+	*pri_bit_map = map->pri_bit_map;
+	return 0;
+}
+
+int hclge_tm_get_pg_weight(struct hclge_dev *hdev, u8 pg_id, u8 *weight)
+{
+	struct hclge_pg_weight_cmd *pg_weight_cmd;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PG_WEIGHT, true);
+	pg_weight_cmd = (struct hclge_pg_weight_cmd *)desc.data;
+	pg_weight_cmd->pg_id = pg_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg weight, ret = %d\n", ret);
+		return ret;
+	}
+
+	*weight = pg_weight_cmd->dwrr;
+	return 0;
+}
+
+int hclge_tm_get_pg_sch_mode(struct hclge_dev *hdev, u8 pg_id, u8 *mode)
+{
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PG_SCH_MODE_CFG, true);
+	desc.data[0] = cpu_to_le32(pg_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg sch mode, ret = %d\n", ret);
+		return ret;
+	}
+
+	*mode = (u8)le32_to_cpu(desc.data[1]);
+	return 0;
+}
+
+int hclge_tm_get_pg_shaper(struct hclge_dev *hdev, u8 pg_id,
+			   enum hclge_opcode_type cmd,
+			   struct hclge_tm_shaper_para *para)
+{
+	struct hclge_pg_shapping_cmd *shap_cfg_cmd;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	if (cmd != HCLGE_OPC_TM_PG_C_SHAPPING &&
+	    cmd != HCLGE_OPC_TM_PG_P_SHAPPING)
+		return -EINVAL;
+
+	hclge_cmd_setup_basic_desc(&desc, cmd, true);
+	shap_cfg_cmd = (struct hclge_pg_shapping_cmd *)desc.data;
+	shap_cfg_cmd->pg_id = pg_id;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get pg shaper(%#x), ret = %d\n",
+			cmd, ret);
+		return ret;
+	}
+
+	shapping_para = le32_to_cpu(shap_cfg_cmd->pg_shapping_para);
+	para->ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	para->ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	para->ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	para->bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	para->bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	para->flag = shap_cfg_cmd->flag;
+	para->rate = le32_to_cpu(shap_cfg_cmd->pg_rate);
+	return 0;
+}
+
+int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
+			     struct hclge_tm_shaper_para *para)
+{
+	struct hclge_port_shapping_cmd *port_shap_cfg_cmd;
+	struct hclge_desc desc;
+	u32 shapping_para;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_PORT_SHAPPING, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get port shaper, ret = %d\n", ret);
+		return ret;
+	}
+
+	port_shap_cfg_cmd = (struct hclge_port_shapping_cmd *)desc.data;
+	shapping_para = le32_to_cpu(port_shap_cfg_cmd->port_shapping_para);
+	para->ir_b = hclge_tm_get_field(shapping_para, IR_B);
+	para->ir_u = hclge_tm_get_field(shapping_para, IR_U);
+	para->ir_s = hclge_tm_get_field(shapping_para, IR_S);
+	para->bs_b = hclge_tm_get_field(shapping_para, BS_B);
+	para->bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	para->flag = port_shap_cfg_cmd->flag;
+	para->rate = le32_to_cpu(port_shap_cfg_cmd->port_rate);
+
 	return 0;
 }

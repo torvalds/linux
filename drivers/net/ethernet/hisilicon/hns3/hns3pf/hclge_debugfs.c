@@ -685,224 +685,120 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 		hclge_print_tc_info(hdev, ets_weight->tc_weight[i], i);
 }
 
-static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
+static const struct hclge_dbg_item tm_pg_items[] = {
+	{ "ID", 2 },
+	{ "PRI_MAP", 2 },
+	{ "MODE", 2 },
+	{ "DWRR", 2 },
+	{ "C_IR_B", 2 },
+	{ "C_IR_U", 2 },
+	{ "C_IR_S", 2 },
+	{ "C_BS_B", 2 },
+	{ "C_BS_S", 2 },
+	{ "C_FLAG", 2 },
+	{ "C_RATE(Mbps)", 2 },
+	{ "P_IR_B", 2 },
+	{ "P_IR_U", 2 },
+	{ "P_IR_S", 2 },
+	{ "P_BS_B", 2 },
+	{ "P_BS_S", 2 },
+	{ "P_FLAG", 2 },
+	{ "P_RATE(Mbps)", 0 }
+};
+
+static void hclge_dbg_fill_shaper_content(struct hclge_tm_shaper_para *para,
+					  char **result, u8 *index)
 {
-	struct hclge_port_shapping_cmd *port_shap_cfg_cmd;
-	struct hclge_bp_to_qs_map_cmd *bp_to_qs_map_cmd;
-	struct hclge_pg_shapping_cmd *pg_shap_cfg_cmd;
-	enum hclge_opcode_type cmd;
-	struct hclge_desc desc;
-	int ret;
-
-	cmd = HCLGE_OPC_TM_PG_C_SHAPPING;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	pg_shap_cfg_cmd = (struct hclge_pg_shapping_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PG_C pg_id: %u\n", pg_shap_cfg_cmd->pg_id);
-	dev_info(&hdev->pdev->dev, "PG_C pg_shapping: 0x%x\n",
-		 le32_to_cpu(pg_shap_cfg_cmd->pg_shapping_para));
-
-	cmd = HCLGE_OPC_TM_PG_P_SHAPPING;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	pg_shap_cfg_cmd = (struct hclge_pg_shapping_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PG_P pg_id: %u\n", pg_shap_cfg_cmd->pg_id);
-	dev_info(&hdev->pdev->dev, "PG_P pg_shapping: 0x%x\n",
-		 le32_to_cpu(pg_shap_cfg_cmd->pg_shapping_para));
-	dev_info(&hdev->pdev->dev, "PG_P flag: %#x\n", pg_shap_cfg_cmd->flag);
-	dev_info(&hdev->pdev->dev, "PG_P pg_rate: %u(Mbps)\n",
-		 le32_to_cpu(pg_shap_cfg_cmd->pg_rate));
-
-	cmd = HCLGE_OPC_TM_PORT_SHAPPING;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	port_shap_cfg_cmd = (struct hclge_port_shapping_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PORT port_shapping: 0x%x\n",
-		 le32_to_cpu(port_shap_cfg_cmd->port_shapping_para));
-	dev_info(&hdev->pdev->dev, "PORT flag: %#x\n", port_shap_cfg_cmd->flag);
-	dev_info(&hdev->pdev->dev, "PORT port_rate: %u(Mbps)\n",
-		 le32_to_cpu(port_shap_cfg_cmd->port_rate));
-
-	cmd = HCLGE_OPC_TM_PG_SCH_MODE_CFG;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	dev_info(&hdev->pdev->dev, "PG_SCH pg_id: %u\n",
-		 le32_to_cpu(desc.data[0]));
-
-	cmd = HCLGE_OPC_TM_PRI_SCH_MODE_CFG;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	dev_info(&hdev->pdev->dev, "PRI_SCH pri_id: %u\n",
-		 le32_to_cpu(desc.data[0]));
-
-	cmd = HCLGE_OPC_TM_QS_SCH_MODE_CFG;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	dev_info(&hdev->pdev->dev, "QS_SCH qs_id: %u\n",
-		 le32_to_cpu(desc.data[0]));
-
-	if (!hnae3_dev_dcb_supported(hdev)) {
-		dev_info(&hdev->pdev->dev,
-			 "Only DCB-supported dev supports tm mapping\n");
-		return;
-	}
-
-	cmd = HCLGE_OPC_TM_BP_TO_QSET_MAPPING;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_pg_cmd_send;
-
-	bp_to_qs_map_cmd = (struct hclge_bp_to_qs_map_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "BP_TO_QSET tc_id: %u\n",
-		 bp_to_qs_map_cmd->tc_id);
-	dev_info(&hdev->pdev->dev, "BP_TO_QSET qs_group_id: 0x%x\n",
-		 bp_to_qs_map_cmd->qs_group_id);
-	dev_info(&hdev->pdev->dev, "BP_TO_QSET qs_bit_map: 0x%x\n",
-		 le32_to_cpu(bp_to_qs_map_cmd->qs_bit_map));
-	return;
-
-err_tm_pg_cmd_send:
-	dev_err(&hdev->pdev->dev, "dump tm_pg fail(0x%x), ret = %d\n",
-		cmd, ret);
+	sprintf(result[(*index)++], "%3u", para->ir_b);
+	sprintf(result[(*index)++], "%3u", para->ir_u);
+	sprintf(result[(*index)++], "%3u", para->ir_s);
+	sprintf(result[(*index)++], "%3u", para->bs_b);
+	sprintf(result[(*index)++], "%3u", para->bs_s);
+	sprintf(result[(*index)++], "%3u", para->flag);
+	sprintf(result[(*index)++], "%6u", para->rate);
 }
 
-static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
+static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 {
-	struct hclge_priority_weight_cmd *priority_weight;
-	struct hclge_pg_to_pri_link_cmd *pg_to_pri_map;
-	struct hclge_qs_to_pri_link_cmd *qs_to_pri_map;
-	struct hclge_nq_to_qs_link_cmd *nq_to_qs_map;
-	struct hclge_pri_shapping_cmd *shap_cfg_cmd;
-	struct hclge_pg_weight_cmd *pg_weight;
-	struct hclge_qs_weight_cmd *qs_weight;
-	enum hclge_opcode_type cmd;
-	struct hclge_desc desc;
+	char data_str[ARRAY_SIZE(tm_pg_items)][HCLGE_DBG_DATA_STR_LEN];
+	struct hclge_tm_shaper_para c_shaper_para, p_shaper_para;
+	char *result[ARRAY_SIZE(tm_pg_items)], *sch_mode_str;
+	u8 pg_id, sch_mode, weight, pri_bit_map, i, j;
+	char content[HCLGE_DBG_TM_INFO_LEN];
+	int pos = 0;
 	int ret;
 
-	cmd = HCLGE_OPC_TM_PG_TO_PRI_LINK;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	for (i = 0; i < ARRAY_SIZE(tm_pg_items); i++)
+		result[i] = &data_str[i][0];
+
+	hclge_dbg_fill_content(content, sizeof(content), tm_pg_items,
+			       NULL, ARRAY_SIZE(tm_pg_items));
+	pos += scnprintf(buf + pos, len - pos, "%s", content);
+
+	for (pg_id = 0; pg_id < hdev->tm_info.num_pg; pg_id++) {
+		ret = hclge_tm_get_pg_to_pri_map(hdev, pg_id, &pri_bit_map);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pg_sch_mode(hdev, pg_id, &sch_mode);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pg_weight(hdev, pg_id, &weight);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pg_shaper(hdev, pg_id,
+					     HCLGE_OPC_TM_PG_C_SHAPPING,
+					     &c_shaper_para);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pg_shaper(hdev, pg_id,
+					     HCLGE_OPC_TM_PG_P_SHAPPING,
+					     &p_shaper_para);
+		if (ret)
+			return ret;
+
+		sch_mode_str = sch_mode & HCLGE_TM_TX_SCHD_DWRR_MSK ? "dwrr" :
+				       "sp";
+
+		j = 0;
+		sprintf(result[j++], "%02u", pg_id);
+		sprintf(result[j++], "0x%02x", pri_bit_map);
+		sprintf(result[j++], "%4s", sch_mode_str);
+		sprintf(result[j++], "%3u", weight);
+		hclge_dbg_fill_shaper_content(&c_shaper_para, result, &j);
+		hclge_dbg_fill_shaper_content(&p_shaper_para, result, &j);
+
+		hclge_dbg_fill_content(content, sizeof(content), tm_pg_items,
+				       (const char **)result,
+				       ARRAY_SIZE(tm_pg_items));
+		pos += scnprintf(buf + pos, len - pos, "%s", content);
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_tm_port(struct hclge_dev *hdev,  char *buf, int len)
+{
+	struct hclge_tm_shaper_para shaper_para;
+	int pos = 0;
+	int ret;
+
+	ret = hclge_tm_get_port_shaper(hdev, &shaper_para);
 	if (ret)
-		goto err_tm_cmd_send;
+		return ret;
 
-	pg_to_pri_map = (struct hclge_pg_to_pri_link_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "dump tm\n");
-	dev_info(&hdev->pdev->dev, "PG_TO_PRI gp_id: %u\n",
-		 pg_to_pri_map->pg_id);
-	dev_info(&hdev->pdev->dev, "PG_TO_PRI map: 0x%x\n",
-		 pg_to_pri_map->pri_bit_map);
+	pos += scnprintf(buf + pos, len - pos,
+			 "IR_B  IR_U  IR_S  BS_B  BS_S  FLAG  RATE(Mbps)\n");
+	pos += scnprintf(buf + pos, len - pos,
+			 "%3u   %3u   %3u   %3u   %3u     %1u   %6u\n",
+			 shaper_para.ir_b, shaper_para.ir_u, shaper_para.ir_s,
+			 shaper_para.bs_b, shaper_para.bs_s, shaper_para.flag,
+			 shaper_para.rate);
 
-	cmd = HCLGE_OPC_TM_QS_TO_PRI_LINK;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	qs_to_pri_map = (struct hclge_qs_to_pri_link_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "QS_TO_PRI qs_id: %u\n",
-		 le16_to_cpu(qs_to_pri_map->qs_id));
-	dev_info(&hdev->pdev->dev, "QS_TO_PRI priority: %u\n",
-		 qs_to_pri_map->priority);
-	dev_info(&hdev->pdev->dev, "QS_TO_PRI link_vld: %u\n",
-		 qs_to_pri_map->link_vld);
-
-	cmd = HCLGE_OPC_TM_NQ_TO_QS_LINK;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	nq_to_qs_map = (struct hclge_nq_to_qs_link_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "NQ_TO_QS nq_id: %u\n",
-		 le16_to_cpu(nq_to_qs_map->nq_id));
-	dev_info(&hdev->pdev->dev, "NQ_TO_QS qset_id: 0x%x\n",
-		 le16_to_cpu(nq_to_qs_map->qset_id));
-
-	cmd = HCLGE_OPC_TM_PG_WEIGHT;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	pg_weight = (struct hclge_pg_weight_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PG pg_id: %u\n", pg_weight->pg_id);
-	dev_info(&hdev->pdev->dev, "PG dwrr: %u\n", pg_weight->dwrr);
-
-	cmd = HCLGE_OPC_TM_QS_WEIGHT;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	qs_weight = (struct hclge_qs_weight_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "QS qs_id: %u\n",
-		 le16_to_cpu(qs_weight->qs_id));
-	dev_info(&hdev->pdev->dev, "QS dwrr: %u\n", qs_weight->dwrr);
-
-	cmd = HCLGE_OPC_TM_PRI_WEIGHT;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	priority_weight = (struct hclge_priority_weight_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PRI pri_id: %u\n", priority_weight->pri_id);
-	dev_info(&hdev->pdev->dev, "PRI dwrr: %u\n", priority_weight->dwrr);
-
-	cmd = HCLGE_OPC_TM_PRI_C_SHAPPING;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	shap_cfg_cmd = (struct hclge_pri_shapping_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PRI_C pri_id: %u\n", shap_cfg_cmd->pri_id);
-	dev_info(&hdev->pdev->dev, "PRI_C pri_shapping: 0x%x\n",
-		 le32_to_cpu(shap_cfg_cmd->pri_shapping_para));
-	dev_info(&hdev->pdev->dev, "PRI_C flag: %#x\n", shap_cfg_cmd->flag);
-	dev_info(&hdev->pdev->dev, "PRI_C pri_rate: %u(Mbps)\n",
-		 le32_to_cpu(shap_cfg_cmd->pri_rate));
-
-	cmd = HCLGE_OPC_TM_PRI_P_SHAPPING;
-	hclge_cmd_setup_basic_desc(&desc, cmd, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		goto err_tm_cmd_send;
-
-	shap_cfg_cmd = (struct hclge_pri_shapping_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "PRI_P pri_id: %u\n", shap_cfg_cmd->pri_id);
-	dev_info(&hdev->pdev->dev, "PRI_P pri_shapping: 0x%x\n",
-		 le32_to_cpu(shap_cfg_cmd->pri_shapping_para));
-	dev_info(&hdev->pdev->dev, "PRI_P flag: %#x\n", shap_cfg_cmd->flag);
-	dev_info(&hdev->pdev->dev, "PRI_P pri_rate: %u(Mbps)\n",
-		 le32_to_cpu(shap_cfg_cmd->pri_rate));
-
-	hclge_dbg_dump_tm_pg(hdev);
-
-	return;
-
-err_tm_cmd_send:
-	dev_err(&hdev->pdev->dev, "dump tm fail(0x%x), ret = %d\n",
-		cmd, ret);
+	return 0;
 }
 
 static int hclge_dbg_dump_tm_bp_qset_map(struct hclge_dev *hdev, u8 tc_id,
@@ -1031,8 +927,8 @@ static int hclge_dbg_dump_tm_nodes(struct hclge_dev *hdev, char *buf, int len)
 
 static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 {
-	struct hclge_pri_shaper_para c_shaper_para;
-	struct hclge_pri_shaper_para p_shaper_para;
+	struct hclge_tm_shaper_para c_shaper_para;
+	struct hclge_tm_shaper_para p_shaper_para;
 	u8 pri_num, sch_mode, weight;
 	char *sch_mode_str;
 	int pos = 0;
@@ -1999,8 +1895,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 
 	if (strncmp(cmd_buf, "dump tc", 7) == 0) {
 		hclge_dbg_dump_tc(hdev);
-	} else if (strncmp(cmd_buf, "dump tm", 7) == 0) {
-		hclge_dbg_dump_tm(hdev);
 	} else if (strncmp(cmd_buf, "dump qos pause cfg", 18) == 0) {
 		hclge_dbg_dump_qos_pause_cfg(hdev);
 	} else if (strncmp(cmd_buf, "dump qos pri map", 16) == 0) {
@@ -2038,6 +1932,14 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_TM_MAP,
 		.dbg_dump = hclge_dbg_dump_tm_map,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_TM_PG,
+		.dbg_dump = hclge_dbg_dump_tm_pg,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_TM_PORT,
+		.dbg_dump = hclge_dbg_dump_tm_port,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_UC,
