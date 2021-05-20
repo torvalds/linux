@@ -210,7 +210,7 @@ void gfs2_set_inode_flags(struct inode *inode)
 
 /**
  * do_gfs2_set_flags - set flags on an inode
- * @filp: file pointer
+ * @inode: The inode
  * @reqflags: The flags to set
  * @mask: Indicates which flags are valid
  * @fsflags: The FS_* inode flags passed in
