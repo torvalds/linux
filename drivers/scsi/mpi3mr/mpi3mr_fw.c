@@ -154,6 +154,120 @@ void mpi3mr_repost_sense_buf(struct mpi3mr_ioc *mrioc,
 	spin_unlock(&mrioc->sbq_lock);
 }
 
+static void mpi3mr_print_event_data(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	char *desc = NULL;
+	u16 event;
+
+	event = event_reply->event;
+
+	switch (event) {
+	case MPI3_EVENT_LOG_DATA:
+		desc = "Log Data";
+		break;
+	case MPI3_EVENT_CHANGE:
+		desc = "Event Change";
+		break;
+	case MPI3_EVENT_GPIO_INTERRUPT:
+		desc = "GPIO Interrupt";
+		break;
+	case MPI3_EVENT_TEMP_THRESHOLD:
+		desc = "Temperature Threshold";
+		break;
+	case MPI3_EVENT_CABLE_MGMT:
+		desc = "Cable Management";
+		break;
+	case MPI3_EVENT_ENERGY_PACK_CHANGE:
+		desc = "Energy Pack Change";
+		break;
+	case MPI3_EVENT_DEVICE_ADDED:
+	{
+		struct mpi3_device_page0 *event_data =
+		    (struct mpi3_device_page0 *)event_reply->event_data;
+		ioc_info(mrioc, "Device Added: dev=0x%04x Form=0x%x\n",
+		    event_data->dev_handle, event_data->device_form);
+		return;
+	}
+	case MPI3_EVENT_DEVICE_INFO_CHANGED:
+	{
+		struct mpi3_device_page0 *event_data =
+		    (struct mpi3_device_page0 *)event_reply->event_data;
+		ioc_info(mrioc, "Device Info Changed: dev=0x%04x Form=0x%x\n",
+		    event_data->dev_handle, event_data->device_form);
+		return;
+	}
+	case MPI3_EVENT_DEVICE_STATUS_CHANGE:
+	{
+		struct mpi3_event_data_device_status_change *event_data =
+		    (struct mpi3_event_data_device_status_change *)event_reply->event_data;
+		ioc_info(mrioc, "Device status Change: dev=0x%04x RC=0x%x\n",
+		    event_data->dev_handle, event_data->reason_code);
+		return;
+	}
+	case MPI3_EVENT_SAS_DISCOVERY:
+	{
+		struct mpi3_event_data_sas_discovery *event_data =
+		    (struct mpi3_event_data_sas_discovery *)event_reply->event_data;
+		ioc_info(mrioc, "SAS Discovery: (%s) status (0x%08x)\n",
+		    (event_data->reason_code == MPI3_EVENT_SAS_DISC_RC_STARTED) ?
+		    "start" : "stop",
+		    le32_to_cpu(event_data->discovery_status));
+		return;
+	}
+	case MPI3_EVENT_SAS_BROADCAST_PRIMITIVE:
+		desc = "SAS Broadcast Primitive";
+		break;
+	case MPI3_EVENT_SAS_NOTIFY_PRIMITIVE:
+		desc = "SAS Notify Primitive";
+		break;
+	case MPI3_EVENT_SAS_INIT_DEVICE_STATUS_CHANGE:
+		desc = "SAS Init Device Status Change";
+		break;
+	case MPI3_EVENT_SAS_INIT_TABLE_OVERFLOW:
+		desc = "SAS Init Table Overflow";
+		break;
+	case MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
+		desc = "SAS Topology Change List";
+		break;
+	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
+		desc = "Enclosure Device Status Change";
+		break;
+	case MPI3_EVENT_HARD_RESET_RECEIVED:
+		desc = "Hard Reset Received";
+		break;
+	case MPI3_EVENT_SAS_PHY_COUNTER:
+		desc = "SAS PHY Counter";
+		break;
+	case MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+		desc = "SAS Device Discovery Error";
+		break;
+	case MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
+		desc = "PCIE Topology Change List";
+		break;
+	case MPI3_EVENT_PCIE_ENUMERATION:
+	{
+		struct mpi3_event_data_pcie_enumeration *event_data =
+		    (struct mpi3_event_data_pcie_enumeration *)event_reply->event_data;
+		ioc_info(mrioc, "PCIE Enumeration: (%s)",
+		    (event_data->reason_code ==
+		    MPI3_EVENT_PCIE_ENUM_RC_STARTED) ? "start" : "stop");
+		if (event_data->enumeration_status)
+			ioc_info(mrioc, "enumeration_status(0x%08x)\n",
+			    le32_to_cpu(event_data->enumeration_status));
+		return;
+	}
+	case MPI3_EVENT_PREPARE_FOR_RESET:
+		desc = "Prepare For Reset";
+		break;
+	}
+
+	if (!desc)
+		return;
+
+	ioc_info(mrioc, "%s\n", desc);
+}
+
 static void mpi3mr_handle_events(struct mpi3mr_ioc *mrioc,
 	struct mpi3_default_reply *def_reply)
 {
@@ -161,6 +275,7 @@ static void mpi3mr_handle_events(struct mpi3mr_ioc *mrioc,
 	    (struct mpi3_event_notification_reply *)def_reply;
 
 	mrioc->change_count = le16_to_cpu(event_reply->ioc_change_count);
+	mpi3mr_print_event_data(mrioc, event_reply);
 	mpi3mr_os_handle_events(mrioc, event_reply);
 }
 
