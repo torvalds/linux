@@ -2941,6 +2941,11 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (pos_dst + ret > dst->v.i_size)
 		i_size_write(&dst->v, pos_dst + ret);
 	spin_unlock(&dst->v.i_lock);
+
+	if (((file_dst->f_flags & (__O_SYNC | O_DSYNC)) ||
+	     IS_SYNC(file_inode(file_dst))) &&
+	    !c->opts.journal_flush_disabled)
+		ret = bch2_journal_flush_seq(&c->journal, dst->ei_journal_seq);
 err:
 	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
 
