@@ -162,7 +162,7 @@ __ftrace_make_nop(struct module *mod,
 
 #ifdef CONFIG_MPROFILE_KERNEL
 	/* When using -mkernel_profile there is no load to jump over */
-	pop = ppc_inst(PPC_INST_NOP);
+	pop = ppc_inst(PPC_RAW_NOP());
 
 	if (copy_inst_from_kernel_nofault(&op, (void *)(ip - 4))) {
 		pr_err("Fetching instruction at %lx failed.\n", ip - 4);
@@ -170,7 +170,7 @@ __ftrace_make_nop(struct module *mod,
 	}
 
 	/* We expect either a mflr r0, or a std r0, LRSAVE(r1) */
-	if (!ppc_inst_equal(op, ppc_inst(PPC_INST_MFLR)) &&
+	if (!ppc_inst_equal(op, ppc_inst(PPC_RAW_MFLR(_R0))) &&
 	    !ppc_inst_equal(op, ppc_inst(PPC_INST_STD_LR))) {
 		pr_err("Unexpected instruction %s around bl _mcount\n",
 		       ppc_inst_as_str(op));
@@ -278,7 +278,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-	op = ppc_inst(PPC_INST_NOP);
+	op = ppc_inst(PPC_RAW_NOP());
 
 	if (patch_instruction((struct ppc_inst *)ip, op))
 		return -EPERM;
@@ -424,7 +424,7 @@ static int __ftrace_make_nop_kernel(struct dyn_ftrace *rec, unsigned long addr)
 		}
 	}
 
-	if (patch_instruction((struct ppc_inst *)ip, ppc_inst(PPC_INST_NOP))) {
+	if (patch_instruction((struct ppc_inst *)ip, ppc_inst(PPC_RAW_NOP()))) {
 		pr_err("Patching NOP failed.\n");
 		return -EPERM;
 	}
@@ -446,7 +446,7 @@ int ftrace_make_nop(struct module *mod,
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
 		old = ftrace_call_replace(ip, addr, 1);
-		new = ppc_inst(PPC_INST_NOP);
+		new = ppc_inst(PPC_RAW_NOP());
 		return ftrace_modify_code(ip, old, new);
 	} else if (core_kernel_text(ip))
 		return __ftrace_make_nop_kernel(rec, addr);
@@ -510,7 +510,7 @@ static int
 expected_nop_sequence(void *ip, struct ppc_inst op0, struct ppc_inst op1)
 {
 	/* look for patched "NOP" on ppc64 with -mprofile-kernel */
-	if (!ppc_inst_equal(op0, ppc_inst(PPC_INST_NOP)))
+	if (!ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP())))
 		return 0;
 	return 1;
 }
@@ -596,7 +596,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EFAULT;
 
 	/* It should be pointing to a nop */
-	if (!ppc_inst_equal(op,  ppc_inst(PPC_INST_NOP))) {
+	if (!ppc_inst_equal(op,  ppc_inst(PPC_RAW_NOP()))) {
 		pr_err("Expected NOP but have %s\n", ppc_inst_as_str(op));
 		return -EINVAL;
 	}
@@ -653,7 +653,7 @@ static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
 		return -EFAULT;
 	}
 
-	if (!ppc_inst_equal(op, ppc_inst(PPC_INST_NOP))) {
+	if (!ppc_inst_equal(op, ppc_inst(PPC_RAW_NOP()))) {
 		pr_err("Unexpected call sequence at %p: %s\n", ip, ppc_inst_as_str(op));
 		return -EINVAL;
 	}
@@ -684,7 +684,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 */
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
-		old = ppc_inst(PPC_INST_NOP);
+		old = ppc_inst(PPC_RAW_NOP());
 		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	} else if (core_kernel_text(ip))
