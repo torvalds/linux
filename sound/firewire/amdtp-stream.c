@@ -652,7 +652,6 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	unsigned int payload_length;
 	const __be32 *cip_header;
 	unsigned int cip_header_size;
-	int err;
 
 	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
 
@@ -670,6 +669,8 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 
 	if (cip_header_size > 0) {
 		if (payload_length >= cip_header_size) {
+			int err;
+
 			cip_header = ctx_header + IR_CTX_HEADER_DEFAULT_QUADLETS;
 			err = check_cip_header(s, cip_header, payload_length - cip_header_size,
 					       data_blocks, data_block_counter, syt);
@@ -683,7 +684,6 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 		}
 	} else {
 		cip_header = NULL;
-		err = 0;
 		*data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
 		*syt = 0;
 
@@ -694,7 +694,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	trace_amdtp_packet(s, cycle, cip_header, payload_length, *data_blocks,
 			   *data_block_counter, packet_index, index);
 
-	return err;
+	return 0;
 }
 
 // In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
