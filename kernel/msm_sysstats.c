@@ -15,6 +15,10 @@
 #include <linux/sched/cputime.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
+#include <linux/fdtable.h>
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
+#include <linux/msm_kgsl.h>
 
 struct tgid_iter {
 	unsigned int tgid;
@@ -124,6 +128,73 @@ static struct sighand_struct *sysstats_lock_task_sighand(struct task_struct *tsk
 	return sighand;
 }
 
+static bool is_system_dmabufheap(struct dma_buf *dmabuf)
+{
+	if (!strcmp(dmabuf->exp_name, "qcom,system") ||
+		!strcmp(dmabuf->exp_name, "qcom,system-uncached") ||
+		!strcmp(dmabuf->exp_name, "system-secure") ||
+		!strcmp(dmabuf->exp_name, "qcom,secure-pixel") ||
+		!strcmp(dmabuf->exp_name, "qcom,secure-non-pixel"))
+		return true;
+	return false;
+}
+
+static int get_dma_info(const void *data, struct file *file, unsigned int n)
+{
+	struct dma_buf *dmabuf;
+	unsigned long *size = (unsigned long *)data;
+
+	if (!is_dma_buf_file(file))
+		return 0;
+
+	dmabuf = (struct dma_buf *)file->private_data;
+	if (is_system_dmabufheap(dmabuf))
+		*size += dmabuf->size;
+
+	return 0;
+}
+
+static unsigned long get_task_unreclaimable_info(struct task_struct *task)
+{
+	struct task_struct *thread;
+	struct files_struct *files;
+	struct files_struct *group_leader_files = NULL;
+	unsigned long size = 0;
+	int ret = 0;
+
+	for_each_thread(task, thread) {
+		if (unlikely(!group_leader_files))
+			group_leader_files = task->group_leader->files;
+		files = thread->files;
+		if (files && (group_leader_files != files ||
+			thread == task->group_leader))
+			ret = iterate_fd(files, 0, get_dma_info, &size);
+		if (ret)
+			break;
+	}
+
+	return size >> PAGE_SHIFT;
+}
+
+static unsigned long get_system_unreclaimble_info(void)
+{
+	struct task_struct *task;
+	unsigned long size = 0;
+
+	rcu_read_lock();
+	for_each_process(task) {
+		task_lock(task);
+		size += get_task_unreclaimable_info(task);
+		task_unlock(task);
+	}
+	rcu_read_unlock();
+
+	/* Account the kgsl information. */
+	size += (kgsl_get_stats(-1) >> PAGE_SHIFT);
+
+	return size;
+}
+
 static int sysstats_task_cmd_attr_pid(struct genl_info *info)
 {
 	struct sysstats_task *stats;
@@ -177,6 +248,8 @@ static int sysstats_task_cmd_attr_pid(struct genl_info *info)
 		stats->file_rss = K(get_mm_counter(p->mm, MM_FILEPAGES));
 		stats->shmem_rss = K(get_mm_counter(p->mm, MM_SHMEMPAGES));
 		stats->swap_rss = K(get_mm_counter(p->mm, MM_SWAPENTS));
+		stats->unreclaimable = K(get_task_unreclaimable_info(p)) +
+					(kgsl_get_stats(stats->pid) >> 10);
 #undef K
 		task_unlock(p);
 	}
@@ -318,6 +391,8 @@ static int sysstats_task_foreach(struct sk_buff *skb, struct netlink_callback *c
 				K(get_mm_counter(p->mm, MM_SHMEMPAGES));
 			stats->swap_rss =
 				K(get_mm_counter(p->mm, MM_SWAPENTS));
+			stats->unreclaimable =
+				K(get_task_unreclaimable_info(p));
 			task_unlock(p);
 #undef K
 		}
@@ -410,6 +485,7 @@ static void sysstats_build(struct sysstats_mem *stats)
 	stats->memtotal = K(i.totalram);
 	stats->misc_reclaimable =
 		K(global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
+	stats->unreclaimable = K(get_system_unreclaimble_info());
 	stats->buffer = K(i.bufferram);
 	stats->swap_used = K(i.totalswap - i.freeswap);
 	stats->swap_total = K(i.totalswap);
