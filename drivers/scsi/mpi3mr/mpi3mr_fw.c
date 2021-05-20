@@ -172,6 +172,8 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 	switch (host_tag) {
 	case MPI3MR_HOSTTAG_INITCMDS:
 		return &mrioc->init_cmds;
+	case MPI3MR_HOSTTAG_BLK_TMS:
+		return &mrioc->host_tm_cmds;
 	case MPI3MR_HOSTTAG_INVALID:
 		if (def_reply && def_reply->function ==
 		    MPI3_FUNCTION_EVENT_NOTIFICATION)
@@ -2033,6 +2035,26 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 			goto out_failed;
 	}
 
+	mrioc->host_tm_cmds.reply = kzalloc(mrioc->facts.reply_sz, GFP_KERNEL);
+	if (!mrioc->host_tm_cmds.reply)
+		goto out_failed;
+
+	mrioc->dev_handle_bitmap_sz = mrioc->facts.max_devhandle / 8;
+	if (mrioc->facts.max_devhandle % 8)
+		mrioc->dev_handle_bitmap_sz++;
+	mrioc->removepend_bitmap = kzalloc(mrioc->dev_handle_bitmap_sz,
+	    GFP_KERNEL);
+	if (!mrioc->removepend_bitmap)
+		goto out_failed;
+
+	mrioc->devrem_bitmap_sz = MPI3MR_NUM_DEVRMCMD / 8;
+	if (MPI3MR_NUM_DEVRMCMD % 8)
+		mrioc->devrem_bitmap_sz++;
+	mrioc->devrem_bitmap = kzalloc(mrioc->devrem_bitmap_sz,
+	    GFP_KERNEL);
+	if (!mrioc->devrem_bitmap)
+		goto out_failed;
+
 	mrioc->num_reply_bufs = mrioc->facts.max_reqs + MPI3MR_NUM_EVT_REPLIES;
 	mrioc->reply_free_qsz = mrioc->num_reply_bufs + 1;
 	mrioc->num_sense_bufs = mrioc->facts.max_reqs / MPI3MR_SENSEBUF_FACTOR;
@@ -3046,6 +3068,8 @@ static void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 	memset(mrioc->admin_reply_base, 0, mrioc->admin_reply_q_sz);
 
 	memset(mrioc->init_cmds.reply, 0, sizeof(*mrioc->init_cmds.reply));
+	memset(mrioc->host_tm_cmds.reply, 0,
+	    sizeof(*mrioc->host_tm_cmds.reply));
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
 		memset(mrioc->dev_rmhs_cmds[i].reply, 0,
 		    sizeof(*mrioc->dev_rmhs_cmds[i].reply));
@@ -3138,6 +3162,15 @@ static void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 
 	kfree(mrioc->init_cmds.reply);
 	mrioc->init_cmds.reply = NULL;
+
+	kfree(mrioc->host_tm_cmds.reply);
+	mrioc->host_tm_cmds.reply = NULL;
+
+	kfree(mrioc->removepend_bitmap);
+	mrioc->removepend_bitmap = NULL;
+
+	kfree(mrioc->devrem_bitmap);
+	mrioc->devrem_bitmap = NULL;
 
 	kfree(mrioc->chain_bitmap);
 	mrioc->chain_bitmap = NULL;
@@ -3316,6 +3349,8 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 	u8 i;
 
 	cmdptr = &mrioc->init_cmds;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+	cmdptr = &mrioc->host_tm_cmds;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
