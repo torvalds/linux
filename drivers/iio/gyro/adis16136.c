@@ -223,13 +223,12 @@ static ssize_t adis16136_read_frequency(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
-	struct mutex *slock = &adis16136->adis.state_lock;
 	unsigned int freq;
 	int ret;
 
-	mutex_lock(slock);
+	adis_dev_lock(&adis16136->adis);
 	ret = __adis16136_get_freq(adis16136, &freq);
-	mutex_unlock(slock);
+	adis_dev_unlock(&adis16136->adis);
 	if (ret)
 		return ret;
 
@@ -254,11 +253,10 @@ static const unsigned adis16136_3db_divisors[] = {
 static int adis16136_set_filter(struct iio_dev *indio_dev, int val)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
-	struct mutex *slock = &adis16136->adis.state_lock;
 	unsigned int freq;
 	int i, ret;
 
-	mutex_lock(slock);
+	adis_dev_lock(&adis16136->adis);
 	ret = __adis16136_get_freq(adis16136, &freq);
 	if (ret)
 		goto out_unlock;
@@ -270,7 +268,7 @@ static int adis16136_set_filter(struct iio_dev *indio_dev, int val)
 
 	ret = __adis_write_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT, i);
 out_unlock:
-	mutex_unlock(slock);
+	adis_dev_unlock(&adis16136->adis);
 
 	return ret;
 }
@@ -278,12 +276,11 @@ out_unlock:
 static int adis16136_get_filter(struct iio_dev *indio_dev, int *val)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
-	struct mutex *slock = &adis16136->adis.state_lock;
 	unsigned int freq;
 	uint16_t val16;
 	int ret;
 
-	mutex_lock(slock);
+	adis_dev_lock(&adis16136->adis);
 
 	ret = __adis_read_reg_16(&adis16136->adis, ADIS16136_REG_AVG_CNT,
 				 &val16);
@@ -297,7 +294,7 @@ static int adis16136_get_filter(struct iio_dev *indio_dev, int *val)
 	*val = freq / adis16136_3db_divisors[val16 & 0x07];
 
 err_unlock:
-	mutex_unlock(slock);
+	adis_dev_unlock(&adis16136->adis);
 
 	return ret ? ret : IIO_VAL_INT;
 }
