@@ -2768,6 +2768,26 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 }
 
 /**
+ * mpi3mr_allow_scmd_to_fw - Command is allowed during shutdown
+ * @scmd: SCSI Command reference
+ *
+ * Checks whether a cdb is allowed during shutdown or not.
+ *
+ * Return: TRUE for allowed commands, FALSE otherwise.
+ */
+
+inline bool mpi3mr_allow_scmd_to_fw(struct scsi_cmnd *scmd)
+{
+	switch (scmd->cmnd[0]) {
+	case SYNCHRONIZE_CACHE:
+	case START_STOP:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
  * mpi3mr_qcmd - I/O request despatcher
  * @shost: SCSI Host reference
  * @scmd: SCSI Command reference
@@ -2802,7 +2822,8 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 
-	if (mrioc->stop_drv_processing) {
+	if (mrioc->stop_drv_processing &&
+	    !(mpi3mr_allow_scmd_to_fw(scmd))) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		goto out;
