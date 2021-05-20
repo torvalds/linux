@@ -2,6 +2,7 @@
 #include <linux/clk.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/cpuhotplug.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -630,6 +631,78 @@ err_out_free:
 	return error;
 }
 
+/* Dmtimer as percpu timer. See dra7 ARM architected timer wrap erratum i940 */
+static DEFINE_PER_CPU(struct dmtimer_clockevent, dmtimer_percpu_timer);
+
+static int __init dmtimer_percpu_timer_init(struct device_node *np, int cpu)
+{
+	struct dmtimer_clockevent *clkevt;
+	int error;
+
+	if (!cpu_possible(cpu))
+		return -EINVAL;
+
+	if (!of_property_read_bool(np->parent, "ti,no-reset-on-init") ||
+	    !of_property_read_bool(np->parent, "ti,no-idle"))
+		pr_warn("Incomplete dtb for percpu dmtimer %pOF\n", np->parent);
+
+	clkevt = per_cpu_ptr(&dmtimer_percpu_timer, cpu);
+
+	error = dmtimer_clkevt_init_common(clkevt, np, CLOCK_EVT_FEAT_ONESHOT,
+					   cpumask_of(cpu), "percpu-dmtimer",
+					   500);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+/* See TRM for timer internal resynch latency */
+static int omap_dmtimer_starting_cpu(unsigned int cpu)
+{
+	struct dmtimer_clockevent *clkevt = per_cpu_ptr(&dmtimer_percpu_timer, cpu);
+	struct clock_event_device *dev = &clkevt->dev;
+	struct dmtimer_systimer *t = &clkevt->t;
+
+	clockevents_config_and_register(dev, t->rate, 3, ULONG_MAX);
+	irq_force_affinity(dev->irq, cpumask_of(cpu));
+
+	return 0;
+}
+
+static int __init dmtimer_percpu_timer_startup(void)
+{
+	struct dmtimer_clockevent *clkevt = per_cpu_ptr(&dmtimer_percpu_timer, 0);
+	struct dmtimer_systimer *t = &clkevt->t;
+
+	if (t->sysc) {
+		cpuhp_setup_state(CPUHP_AP_TI_GP_TIMER_STARTING,
+				  "clockevents/omap/gptimer:starting",
+				  omap_dmtimer_starting_cpu, NULL);
+	}
+
+	return 0;
+}
+subsys_initcall(dmtimer_percpu_timer_startup);
+
+static int __init dmtimer_percpu_quirk_init(struct device_node *np, u32 pa)
+{
+	struct device_node *arm_timer;
+
+	arm_timer = of_find_compatible_node(NULL, NULL, "arm,armv7-timer");
+	if (of_device_is_available(arm_timer)) {
+		pr_warn_once("ARM architected timer wrap issue i940 detected\n");
+		return 0;
+	}
+
+	if (pa == 0x48034000)		/* dra7 dmtimer3 */
+		return dmtimer_percpu_timer_init(np, 0);
+	else if (pa == 0x48036000)	/* dra7 dmtimer4 */
+		return dmtimer_percpu_timer_init(np, 1);
+
+	return 0;
+}
+
 /* Clocksource */
 static struct dmtimer_clocksource *
 to_dmtimer_clocksource(struct clocksource *cs)
@@ -762,6 +835,9 @@ static int __init dmtimer_systimer_init(struct device_node *np)
 
 	if (clockevent == pa)
 		return dmtimer_clockevent_init(np);
+
+	if (of_machine_is_compatible("ti,dra7"))
+		return dmtimer_percpu_quirk_init(np, pa);
 
 	return 0;
 }
