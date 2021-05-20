@@ -146,7 +146,7 @@ static void cqhci_dumpregs(struct cqhci_host *cq_host)
 }
 
 /*
- * The allocated descriptor table for task, link & transfer descritors
+ * The allocated descriptor table for task, link & transfer descriptors
  * looks like:
  * |----------|
  * |task desc |  |->|----------|
