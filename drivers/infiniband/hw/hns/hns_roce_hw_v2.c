@@ -1209,8 +1209,6 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 		kfree(ring->desc);
 		ring->desc = NULL;
 
-		dev_err_ratelimited(hr_dev->dev,
-				    "failed to map cmq desc addr.\n");
 		return -ENOMEM;
 	}
 
@@ -1228,44 +1226,32 @@ static void hns_roce_free_cmq_desc(struct hns_roce_dev *hr_dev,
 	kfree(ring->desc);
 }
 
-static int hns_roce_init_cmq_ring(struct hns_roce_dev *hr_dev, bool ring_type)
+static int init_csq(struct hns_roce_dev *hr_dev,
+		    struct hns_roce_v2_cmq_ring *csq)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hns_roce_v2_cmq_ring *ring = (ring_type == TYPE_CSQ) ?
-					    &priv->cmq.csq : &priv->cmq.crq;
+	dma_addr_t dma;
+	int ret;
 
-	ring->flag = ring_type;
-	ring->head = 0;
+	csq->desc_num = CMD_CSQ_DESC_NUM;
+	spin_lock_init(&csq->lock);
+	csq->flag = TYPE_CSQ;
+	csq->head = 0;
 
-	return hns_roce_alloc_cmq_desc(hr_dev, ring);
-}
+	ret = hns_roce_alloc_cmq_desc(hr_dev, csq);
+	if (ret)
+		return ret;
 
-static void hns_roce_cmq_init_regs(struct hns_roce_dev *hr_dev, bool ring_type)
-{
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hns_roce_v2_cmq_ring *ring = (ring_type == TYPE_CSQ) ?
-					    &priv->cmq.csq : &priv->cmq.crq;
-	dma_addr_t dma = ring->desc_dma_addr;
+	dma = csq->desc_dma_addr;
+	roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_L_REG, lower_32_bits(dma));
+	roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_H_REG, upper_32_bits(dma));
+	roce_write(hr_dev, ROCEE_TX_CMQ_DEPTH_REG,
+		   (u32)csq->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
 
-	if (ring_type == TYPE_CSQ) {
-		roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_L_REG, (u32)dma);
-		roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_H_REG,
-			   upper_32_bits(dma));
-		roce_write(hr_dev, ROCEE_TX_CMQ_DEPTH_REG,
-			   (u32)ring->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
+	/* Make sure to write CI first and then PI */
+	roce_write(hr_dev, ROCEE_TX_CMQ_CI_REG, 0);
+	roce_write(hr_dev, ROCEE_TX_CMQ_PI_REG, 0);
 
-		/* Make sure to write tail first and then head */
-		roce_write(hr_dev, ROCEE_TX_CMQ_CI_REG, 0);
-		roce_write(hr_dev, ROCEE_TX_CMQ_PI_REG, 0);
-	} else {
-		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_L_REG, (u32)dma);
-		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_H_REG,
-			   upper_32_bits(dma));
-		roce_write(hr_dev, ROCEE_RX_CMQ_DEPTH_REG,
-			   (u32)ring->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
-		roce_write(hr_dev, ROCEE_RX_CMQ_HEAD_REG, 0);
-		roce_write(hr_dev, ROCEE_RX_CMQ_TAIL_REG, 0);
-	}
+	return 0;
 }
 
 static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
@@ -1273,43 +1259,11 @@ static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	int ret;
 
-	/* Setup the queue entries for command queue */
-	priv->cmq.csq.desc_num = CMD_CSQ_DESC_NUM;
-	priv->cmq.crq.desc_num = CMD_CRQ_DESC_NUM;
-
-	/* Setup the lock for command queue */
-	spin_lock_init(&priv->cmq.csq.lock);
-	spin_lock_init(&priv->cmq.crq.lock);
-
-	/* Setup Tx write back timeout */
 	priv->cmq.tx_timeout = HNS_ROCE_CMQ_TX_TIMEOUT;
 
-	/* Init CSQ */
-	ret = hns_roce_init_cmq_ring(hr_dev, TYPE_CSQ);
-	if (ret) {
-		dev_err_ratelimited(hr_dev->dev,
-				    "failed to init CSQ, ret = %d.\n", ret);
-		return ret;
-	}
-
-	/* Init CRQ */
-	ret = hns_roce_init_cmq_ring(hr_dev, TYPE_CRQ);
-	if (ret) {
-		dev_err_ratelimited(hr_dev->dev,
-				    "failed to init CRQ, ret = %d.\n", ret);
-		goto err_crq;
-	}
-
-	/* Init CSQ REG */
-	hns_roce_cmq_init_regs(hr_dev, TYPE_CSQ);
-
-	/* Init CRQ REG */
-	hns_roce_cmq_init_regs(hr_dev, TYPE_CRQ);
-
-	return 0;
-
-err_crq:
-	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.csq);
+	ret = init_csq(hr_dev, &priv->cmq.csq);
+	if (ret)
+		dev_err(hr_dev->dev, "failed to init CSQ, ret = %d.\n", ret);
 
 	return ret;
 }
@@ -1319,7 +1273,6 @@ static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
 	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.csq);
-	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.crq);
 }
 
 static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,

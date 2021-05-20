@@ -1712,7 +1712,6 @@ struct hns_roce_v2_cmq_ring {
 
 struct hns_roce_v2_cmq {
 	struct hns_roce_v2_cmq_ring csq;
-	struct hns_roce_v2_cmq_ring crq;
 	u16 tx_timeout;
 };
 
