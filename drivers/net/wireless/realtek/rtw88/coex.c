@@ -630,20 +630,16 @@ static bool rtw_coex_get_bt_scan_type(struct rtw_dev *rtwdev, u8 *scan_type)
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_SCAN_TYPE;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*scan_type = GET_COEX_RESP_BT_SCAN_TYPE(payload);
 	dev_kfree_skb_any(skb);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 static bool rtw_coex_set_lna_constrain_level(struct rtw_dev *rtwdev,
@@ -651,19 +647,15 @@ static bool rtw_coex_set_lna_constrain_level(struct rtw_dev *rtwdev,
 {
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_LNA_CONSTRAINT;
 	req.para1 = lna_constrain_level;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	dev_kfree_skb_any(skb);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 #define case_BTSTATUS(src) \
@@ -3533,19 +3525,15 @@ static bool rtw_coex_get_bt_patch_version(struct rtw_dev *rtwdev,
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_PATCH_VER;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*patch_version = GET_COEX_RESP_BT_PATCH_VER(payload);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 static bool rtw_coex_get_bt_supported_version(struct rtw_dev *rtwdev,
@@ -3554,19 +3542,15 @@ static bool rtw_coex_get_bt_supported_version(struct rtw_dev *rtwdev,
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_SUPP_VER;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*supported_version = GET_COEX_RESP_BT_SUPP_VER(payload);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 static bool rtw_coex_get_bt_supported_feature(struct rtw_dev *rtwdev,
@@ -3575,19 +3559,15 @@ static bool rtw_coex_get_bt_supported_feature(struct rtw_dev *rtwdev,
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_SUPP_FEAT;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*supported_feature = GET_COEX_RESP_BT_SUPP_FEAT(payload);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 struct rtw_coex_sta_stat_iter_data {
