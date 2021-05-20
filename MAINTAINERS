@@ -12180,6 +12180,7 @@ F:	drivers/platform/surface/surfacepro3_button.c
 
 MICROSOFT SURFACE SYSTEM AGGREGATOR SUBSYSTEM
 M:	Maximilian Luz <luzmaximilian@gmail.com>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 W:	https://github.com/linux-surface/surface-aggregator-module
 C:	irc://chat.freenode.net/##linux-surface
