@@ -481,6 +481,10 @@ struct scmd_priv {
  * @sense_buf_q_dma: Sense buffer queue DMA address
  * @sbq_lock: Sense buffer queue lock
  * @sbq_host_index: Sense buffer queuehost index
+ * @watchdog_work_q_name: Fault watchdog worker thread name
+ * @watchdog_work_q: Fault watchdog worker thread
+ * @watchdog_work: Fault watchdog work
+ * @watchdog_lock: Fault watchdog lock
  * @is_driver_loading: Is driver still loading
  * @scan_started: Async scan started
  * @scan_failed: Asycn scan failed
@@ -494,6 +498,7 @@ struct scmd_priv {
  * @chain_buf_lock: Chain buffer list lock
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
+ * @diagsave_timeout: Diagnostic information save timeout
  * @logging_level: Controller debug logging level
  * @current_event: Firmware event currently in process
  * @driver_info: Driver, Kernel, OS information to firmware
@@ -575,6 +580,11 @@ struct mpi3mr_ioc {
 	spinlock_t sbq_lock;
 	u32 sbq_host_index;
 
+	char watchdog_work_q_name[20];
+	struct workqueue_struct *watchdog_work_q;
+	struct delayed_work watchdog_work;
+	spinlock_t watchdog_lock;
+
 	u8 is_driver_loading;
 	u8 scan_started;
 	u16 scan_failed;
@@ -592,6 +602,7 @@ struct mpi3mr_ioc {
 	u8 reset_in_progress;
 	u8 unrecoverable;
 
+	u16 diagsave_timeout;
 	int logging_level;
 
 	struct mpi3mr_fwevt *current_event;

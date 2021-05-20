@@ -1464,6 +1464,129 @@ out:
 }
 
 /**
+ * mpi3mr_watchdog_work - watchdog thread to monitor faults
+ * @work: work struct
+ *
+ * Watch dog work periodically executed (1 second interval) to
+ * monitor firmware fault and to issue periodic timer sync to
+ * the firmware.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_watchdog_work(struct work_struct *work)
+{
+	struct mpi3mr_ioc *mrioc =
+	    container_of(work, struct mpi3mr_ioc, watchdog_work.work);
+	unsigned long flags;
+	enum mpi3mr_iocstate ioc_state;
+	u32 fault, host_diagnostic;
+
+	/*Check for fault state every one second and issue Soft reset*/
+	ioc_state = mpi3mr_get_iocstate(mrioc);
+	if (ioc_state == MRIOC_STATE_FAULT) {
+		fault = readl(&mrioc->sysif_regs->fault) &
+		    MPI3_SYSIF_FAULT_CODE_MASK;
+		host_diagnostic = readl(&mrioc->sysif_regs->host_diagnostic);
+		if (host_diagnostic & MPI3_SYSIF_HOST_DIAG_SAVE_IN_PROGRESS) {
+			if (!mrioc->diagsave_timeout) {
+				mpi3mr_print_fault_info(mrioc);
+				ioc_warn(mrioc, "Diag save in progress\n");
+			}
+			if ((mrioc->diagsave_timeout++) <=
+			    MPI3_SYSIF_DIAG_SAVE_TIMEOUT)
+				goto schedule_work;
+		} else
+			mpi3mr_print_fault_info(mrioc);
+		mrioc->diagsave_timeout = 0;
+
+		if (fault == MPI3_SYSIF_FAULT_CODE_FACTORY_RESET) {
+			ioc_info(mrioc,
+			    "Factory Reset fault occurred marking controller as unrecoverable"
+			    );
+			mrioc->unrecoverable = 1;
+			goto out;
+		}
+
+		if ((fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET) ||
+		    (fault == MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS) ||
+		    (mrioc->reset_in_progress))
+			goto out;
+		if (fault == MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET)
+			mpi3mr_soft_reset_handler(mrioc,
+			    MPI3MR_RESET_FROM_CIACTIV_FAULT, 0);
+		else
+			mpi3mr_soft_reset_handler(mrioc,
+			    MPI3MR_RESET_FROM_FAULT_WATCH, 0);
+	}
+
+schedule_work:
+	spin_lock_irqsave(&mrioc->watchdog_lock, flags);
+	if (mrioc->watchdog_work_q)
+		queue_delayed_work(mrioc->watchdog_work_q,
+		    &mrioc->watchdog_work,
+		    msecs_to_jiffies(MPI3MR_WATCHDOG_INTERVAL));
+	spin_unlock_irqrestore(&mrioc->watchdog_lock, flags);
+out:
+	return;
+}
+
+/**
+ * mpi3mr_start_watchdog - Start watchdog
+ * @mrioc: Adapter instance reference
+ *
+ * Create and start the watchdog thread to monitor controller
+ * faults.
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_start_watchdog(struct mpi3mr_ioc *mrioc)
+{
+	if (mrioc->watchdog_work_q)
+		return;
+
+	INIT_DELAYED_WORK(&mrioc->watchdog_work, mpi3mr_watchdog_work);
+	snprintf(mrioc->watchdog_work_q_name,
+	    sizeof(mrioc->watchdog_work_q_name), "watchdog_%s%d", mrioc->name,
+	    mrioc->id);
+	mrioc->watchdog_work_q =
+	    create_singlethread_workqueue(mrioc->watchdog_work_q_name);
+	if (!mrioc->watchdog_work_q) {
+		ioc_err(mrioc, "%s: failed (line=%d)\n", __func__, __LINE__);
+		return;
+	}
+
+	if (mrioc->watchdog_work_q)
+		queue_delayed_work(mrioc->watchdog_work_q,
+		    &mrioc->watchdog_work,
+		    msecs_to_jiffies(MPI3MR_WATCHDOG_INTERVAL));
+}
+
+/**
+ * mpi3mr_stop_watchdog - Stop watchdog
+ * @mrioc: Adapter instance reference
+ *
+ * Stop the watchdog thread created to monitor controller
+ * faults.
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_stop_watchdog(struct mpi3mr_ioc *mrioc)
+{
+	unsigned long flags;
+	struct workqueue_struct *wq;
+
+	spin_lock_irqsave(&mrioc->watchdog_lock, flags);
+	wq = mrioc->watchdog_work_q;
+	mrioc->watchdog_work_q = NULL;
+	spin_unlock_irqrestore(&mrioc->watchdog_lock, flags);
+	if (wq) {
+		if (!cancel_delayed_work_sync(&mrioc->watchdog_work))
+			flush_workqueue(wq);
+		destroy_workqueue(wq);
+	}
+}
+
+/**
  * mpi3mr_setup_admin_qpair - Setup admin queue pair
  * @mrioc: Adapter instance reference
  *
@@ -2608,6 +2731,8 @@ static void mpi3mr_issue_ioc_shutdown(struct mpi3mr_ioc *mrioc)
 void mpi3mr_cleanup_ioc(struct mpi3mr_ioc *mrioc)
 {
 	enum mpi3mr_iocstate ioc_state;
+
+	mpi3mr_stop_watchdog(mrioc);
 
 	mpi3mr_ioc_disable_intr(mrioc);
 
