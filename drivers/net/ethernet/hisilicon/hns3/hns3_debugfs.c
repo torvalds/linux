@@ -205,6 +205,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
+	{
+		.name = "dcb",
+		.cmd = HNAE3_DBG_CMD_REG_DCB,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
 };
 
 static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
@@ -581,10 +588,6 @@ static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 
 static void hns3_dbg_help(struct hnae3_handle *h)
 {
-#define HNS3_DBG_BUF_LEN 256
-
-	char printf_buf[HNS3_DBG_BUF_LEN];
-
 	dev_info(&h->pdev->dev, "available commands\n");
 	dev_info(&h->pdev->dev, "queue info <number>\n");
 	dev_info(&h->pdev->dev, "queue map\n");
@@ -601,13 +604,6 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qos buf cfg\n");
 	dev_info(&h->pdev->dev, "dump mac tnl status\n");
 	dev_info(&h->pdev->dev, "dump qs shaper [qs id]\n");
-
-	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
-	strncat(printf_buf, "dump reg dcb <port_id> <pri_id> <pg_id>",
-		HNS3_DBG_BUF_LEN - 1);
-	strncat(printf_buf + strlen(printf_buf), " <rq_id> <nq_id> <qset_id>\n",
-		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
-	dev_info(&h->pdev->dev, "%s", printf_buf);
 }
 
 static void

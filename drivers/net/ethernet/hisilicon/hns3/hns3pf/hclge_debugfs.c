@@ -388,120 +388,237 @@ static int hclge_dbg_dump_mac(struct hclge_dev *hdev, char *buf, int len)
 	return hclge_dbg_dump_mac_speed_duplex(hdev, buf, len, &pos);
 }
 
-static void hclge_dbg_dump_dcb(struct hclge_dev *hdev, const char *cmd_buf)
+static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
+				   int *pos)
 {
-	struct device *dev = &hdev->pdev->dev;
 	struct hclge_dbg_bitmap_cmd *bitmap;
-	enum hclge_opcode_type cmd;
-	int rq_id, pri_id, qset_id;
-	int port_id, nq_id, pg_id;
-	struct hclge_desc desc[2];
+	struct hclge_desc desc;
+	u16 qset_id, qset_num;
+	int ret;
 
-	int cnt, ret;
+	ret = hclge_tm_get_qset_num(hdev, &qset_num);
+	if (ret)
+		return ret;
 
-	cnt = sscanf(cmd_buf, "%i %i %i %i %i %i",
-		     &port_id, &pri_id, &pg_id, &rq_id, &nq_id, &qset_id);
-	if (cnt != 6) {
-		dev_err(&hdev->pdev->dev,
-			"dump dcb: bad command parameter, cnt=%d\n", cnt);
-		return;
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "qset_id  roce_qset_mask  nic_qset_mask  qset_shaping_pass  qset_bp_status\n");
+	for (qset_id = 0; qset_id < qset_num; qset_id++) {
+		ret = hclge_dbg_cmd_send(hdev, &desc, qset_id, 1,
+					 HCLGE_OPC_QSET_DFX_STS);
+		if (ret)
+			return ret;
+
+		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+
+		*pos += scnprintf(buf + *pos, len - *pos,
+				  "%04u           %#x            %#x             %#x               %#x\n",
+				  qset_id, bitmap->bit0, bitmap->bit1,
+				  bitmap->bit2, bitmap->bit3);
 	}
 
-	cmd = HCLGE_OPC_QSET_DFX_STS;
-	ret = hclge_dbg_cmd_send(hdev, desc, qset_id, 1, cmd);
+	return 0;
+}
+
+static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
+				  int *pos)
+{
+	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_desc desc;
+	u8 pri_id, pri_num;
+	int ret;
+
+	ret = hclge_tm_get_pri_num(hdev, &pri_num);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
-	dev_info(dev, "roce_qset_mask: 0x%x\n", bitmap->bit0);
-	dev_info(dev, "nic_qs_mask: 0x%x\n", bitmap->bit1);
-	dev_info(dev, "qs_shaping_pass: 0x%x\n", bitmap->bit2);
-	dev_info(dev, "qs_bp_sts: 0x%x\n", bitmap->bit3);
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "pri_id  pri_mask  pri_cshaping_pass  pri_pshaping_pass\n");
+	for (pri_id = 0; pri_id < pri_num; pri_id++) {
+		ret = hclge_dbg_cmd_send(hdev, &desc, pri_id, 1,
+					 HCLGE_OPC_PRI_DFX_STS);
+		if (ret)
+			return ret;
 
-	cmd = HCLGE_OPC_PRI_DFX_STS;
-	ret = hclge_dbg_cmd_send(hdev, desc, pri_id, 1, cmd);
+		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+
+		*pos += scnprintf(buf + *pos, len - *pos,
+				  "%03u       %#x           %#x                %#x\n",
+				  pri_id, bitmap->bit0, bitmap->bit1,
+				  bitmap->bit2);
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_dcb_pg(struct hclge_dev *hdev, char *buf, int len,
+				 int *pos)
+{
+	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_desc desc;
+	u8 pg_id;
+	int ret;
+
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "pg_id  pg_mask  pg_cshaping_pass  pg_pshaping_pass\n");
+	for (pg_id = 0; pg_id < hdev->tm_info.num_pg; pg_id++) {
+		ret = hclge_dbg_cmd_send(hdev, &desc, pg_id, 1,
+					 HCLGE_OPC_PG_DFX_STS);
+		if (ret)
+			return ret;
+
+		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+
+		*pos += scnprintf(buf + *pos, len - *pos,
+				  "%03u      %#x           %#x               %#x\n",
+				  pg_id, bitmap->bit0, bitmap->bit1,
+				  bitmap->bit2);
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_dcb_queue(struct hclge_dev *hdev, char *buf, int len,
+				    int *pos)
+{
+	struct hclge_desc desc;
+	u16 nq_id;
+	int ret;
+
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "nq_id  sch_nic_queue_cnt  sch_roce_queue_cnt\n");
+	for (nq_id = 0; nq_id < hdev->num_tqps; nq_id++) {
+		ret = hclge_dbg_cmd_send(hdev, &desc, nq_id, 1,
+					 HCLGE_OPC_SCH_NQ_CNT);
+		if (ret)
+			return ret;
+
+		*pos += scnprintf(buf + *pos, len - *pos, "%04u           %#x",
+				  nq_id, le32_to_cpu(desc.data[1]));
+
+		ret = hclge_dbg_cmd_send(hdev, &desc, nq_id, 1,
+					 HCLGE_OPC_SCH_RQ_CNT);
+		if (ret)
+			return ret;
+
+		*pos += scnprintf(buf + *pos, len - *pos,
+				  "               %#x\n",
+				  le32_to_cpu(desc.data[1]));
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_dcb_port(struct hclge_dev *hdev, char *buf, int len,
+				   int *pos)
+{
+	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_desc desc;
+	u8 port_id = 0;
+	int ret;
+
+	ret = hclge_dbg_cmd_send(hdev, &desc, port_id, 1,
+				 HCLGE_OPC_PORT_DFX_STS);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
-	dev_info(dev, "pri_mask: 0x%x\n", bitmap->bit0);
-	dev_info(dev, "pri_cshaping_pass: 0x%x\n", bitmap->bit1);
-	dev_info(dev, "pri_pshaping_pass: 0x%x\n", bitmap->bit2);
+	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
 
-	cmd = HCLGE_OPC_PG_DFX_STS;
-	ret = hclge_dbg_cmd_send(hdev, desc, pg_id, 1, cmd);
+	*pos += scnprintf(buf + *pos, len - *pos, "port_mask: %#x\n",
+			 bitmap->bit0);
+	*pos += scnprintf(buf + *pos, len - *pos, "port_shaping_pass: %#x\n",
+			 bitmap->bit1);
+
+	return 0;
+}
+
+static int hclge_dbg_dump_dcb_tm(struct hclge_dev *hdev, char *buf, int len,
+				 int *pos)
+{
+	struct hclge_desc desc[2];
+	u8 port_id = 0;
+	int ret;
+
+	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1,
+				 HCLGE_OPC_TM_INTERNAL_CNT);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
-	dev_info(dev, "pg_mask: 0x%x\n", bitmap->bit0);
-	dev_info(dev, "pg_cshaping_pass: 0x%x\n", bitmap->bit1);
-	dev_info(dev, "pg_pshaping_pass: 0x%x\n", bitmap->bit2);
+	*pos += scnprintf(buf + *pos, len - *pos, "SCH_NIC_NUM: %#x\n",
+			  le32_to_cpu(desc[0].data[1]));
+	*pos += scnprintf(buf + *pos, len - *pos, "SCH_ROCE_NUM: %#x\n",
+			  le32_to_cpu(desc[0].data[2]));
 
-	cmd = HCLGE_OPC_PORT_DFX_STS;
-	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1, cmd);
+	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 2,
+				 HCLGE_OPC_TM_INTERNAL_STS);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc[0].data[1];
-	dev_info(dev, "port_mask: 0x%x\n", bitmap->bit0);
-	dev_info(dev, "port_shaping_pass: 0x%x\n", bitmap->bit1);
+	*pos += scnprintf(buf + *pos, len - *pos, "pri_bp: %#x\n",
+			  le32_to_cpu(desc[0].data[1]));
+	*pos += scnprintf(buf + *pos, len - *pos, "fifo_dfx_info: %#x\n",
+			  le32_to_cpu(desc[0].data[2]));
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "sch_roce_fifo_afull_gap: %#x\n",
+			  le32_to_cpu(desc[0].data[3]));
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "tx_private_waterline: %#x\n",
+			  le32_to_cpu(desc[0].data[4]));
+	*pos += scnprintf(buf + *pos, len - *pos, "tm_bypass_en: %#x\n",
+			  le32_to_cpu(desc[0].data[5]));
+	*pos += scnprintf(buf + *pos, len - *pos, "SSU_TM_BYPASS_EN: %#x\n",
+			  le32_to_cpu(desc[1].data[0]));
+	*pos += scnprintf(buf + *pos, len - *pos, "SSU_RESERVE_CFG: %#x\n",
+			  le32_to_cpu(desc[1].data[1]));
 
-	cmd = HCLGE_OPC_SCH_NQ_CNT;
-	ret = hclge_dbg_cmd_send(hdev, desc, nq_id, 1, cmd);
+	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER)
+		return 0;
+
+	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1,
+				 HCLGE_OPC_TM_INTERNAL_STS_1);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	dev_info(dev, "sch_nq_cnt: 0x%x\n", le32_to_cpu(desc[0].data[1]));
+	*pos += scnprintf(buf + *pos, len - *pos, "TC_MAP_SEL: %#x\n",
+			  le32_to_cpu(desc[0].data[1]));
+	*pos += scnprintf(buf + *pos, len - *pos, "IGU_PFC_PRI_EN: %#x\n",
+			  le32_to_cpu(desc[0].data[2]));
+	*pos += scnprintf(buf + *pos, len - *pos, "MAC_PFC_PRI_EN: %#x\n",
+			  le32_to_cpu(desc[0].data[3]));
+	*pos += scnprintf(buf + *pos, len - *pos, "IGU_PRI_MAP_TC_CFG: %#x\n",
+			  le32_to_cpu(desc[0].data[4]));
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "IGU_TX_PRI_MAP_TC_CFG: %#x\n",
+			  le32_to_cpu(desc[0].data[5]));
 
-	cmd = HCLGE_OPC_SCH_RQ_CNT;
-	ret = hclge_dbg_cmd_send(hdev, desc, nq_id, 1, cmd);
+	return 0;
+}
+
+static int hclge_dbg_dump_dcb(struct hclge_dev *hdev, char *buf, int len)
+{
+	int pos = 0;
+	int ret;
+
+	ret = hclge_dbg_dump_dcb_qset(hdev, buf, len, &pos);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	dev_info(dev, "sch_rq_cnt: 0x%x\n", le32_to_cpu(desc[0].data[1]));
-
-	cmd = HCLGE_OPC_TM_INTERNAL_STS;
-	ret = hclge_dbg_cmd_send(hdev, desc, 0, 2, cmd);
+	ret = hclge_dbg_dump_dcb_pri(hdev, buf, len, &pos);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	dev_info(dev, "pri_bp: 0x%x\n", le32_to_cpu(desc[0].data[1]));
-	dev_info(dev, "fifo_dfx_info: 0x%x\n", le32_to_cpu(desc[0].data[2]));
-	dev_info(dev, "sch_roce_fifo_afull_gap: 0x%x\n",
-		 le32_to_cpu(desc[0].data[3]));
-	dev_info(dev, "tx_private_waterline: 0x%x\n",
-		 le32_to_cpu(desc[0].data[4]));
-	dev_info(dev, "tm_bypass_en: 0x%x\n", le32_to_cpu(desc[0].data[5]));
-	dev_info(dev, "SSU_TM_BYPASS_EN: 0x%x\n", le32_to_cpu(desc[1].data[0]));
-	dev_info(dev, "SSU_RESERVE_CFG: 0x%x\n", le32_to_cpu(desc[1].data[1]));
-
-	cmd = HCLGE_OPC_TM_INTERNAL_CNT;
-	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1, cmd);
+	ret = hclge_dbg_dump_dcb_pg(hdev, buf, len, &pos);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	dev_info(dev, "SCH_NIC_NUM: 0x%x\n", le32_to_cpu(desc[0].data[1]));
-	dev_info(dev, "SCH_ROCE_NUM: 0x%x\n", le32_to_cpu(desc[0].data[2]));
-
-	cmd = HCLGE_OPC_TM_INTERNAL_STS_1;
-	ret = hclge_dbg_cmd_send(hdev, desc, port_id, 1, cmd);
+	ret = hclge_dbg_dump_dcb_queue(hdev, buf, len, &pos);
 	if (ret)
-		goto err_dcb_cmd_send;
+		return ret;
 
-	dev_info(dev, "TC_MAP_SEL: 0x%x\n", le32_to_cpu(desc[0].data[1]));
-	dev_info(dev, "IGU_PFC_PRI_EN: 0x%x\n", le32_to_cpu(desc[0].data[2]));
-	dev_info(dev, "MAC_PFC_PRI_EN: 0x%x\n", le32_to_cpu(desc[0].data[3]));
-	dev_info(dev, "IGU_PRI_MAP_TC_CFG: 0x%x\n",
-		 le32_to_cpu(desc[0].data[4]));
-	dev_info(dev, "IGU_TX_PRI_MAP_TC_CFG: 0x%x\n",
-		 le32_to_cpu(desc[0].data[5]));
-	return;
+	ret = hclge_dbg_dump_dcb_port(hdev, buf, len, &pos);
+	if (ret)
+		return ret;
 
-err_dcb_cmd_send:
-	dev_err(&hdev->pdev->dev,
-		"failed to dump dcb dfx, cmd = %#x, ret = %d\n",
-		cmd, ret);
+	return hclge_dbg_dump_dcb_tm(hdev, buf, len, &pos);
 }
 
 static int hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev,
@@ -1872,7 +1989,6 @@ static int hclge_dbg_dump_mac_mc(struct hclge_dev *hdev, char *buf, int len)
 
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 {
-#define DUMP_REG_DCB	"dump reg dcb"
 #define DUMP_TM_MAP	"dump tm map"
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -1892,8 +2008,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_qos_pri_map(hdev);
 	} else if (strncmp(cmd_buf, "dump qos buf cfg", 16) == 0) {
 		hclge_dbg_dump_qos_buf_cfg(hdev);
-	} else if (strncmp(cmd_buf, DUMP_REG_DCB, strlen(DUMP_REG_DCB)) == 0) {
-		hclge_dbg_dump_dcb(hdev, &cmd_buf[sizeof(DUMP_REG_DCB)]);
 	} else if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
 		hclge_dbg_dump_serv_info(hdev);
 	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
@@ -1993,6 +2107,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_REG_MAC,
 		.dbg_dump = hclge_dbg_dump_mac,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_REG_DCB,
+		.dbg_dump = hclge_dbg_dump_dcb,
 	},
 };
 
