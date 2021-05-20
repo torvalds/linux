@@ -206,10 +206,4 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc);
 
 void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits);
 
-void dcn10_update_visual_confirm_color(
-		struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct tg_color *color,
-		int mpcc_id);
-
 #endif /* __DC_HWSS_DCN10_H__ */

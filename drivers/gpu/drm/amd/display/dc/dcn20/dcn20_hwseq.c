@@ -2267,25 +2267,9 @@ void dcn20_get_mpctree_visual_confirm_color(
 	*color = pipe_colors[top_pipe->pipe_idx];
 }
 
-void dcn20_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx, struct tg_color *color, int mpcc_id)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-	struct mpc *mpc = dc->res_pool->mpc;
-
-	/* input to MPCC is always RGB, by default leave black_color at 0 */
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
-		hws->funcs.get_hdr_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
-		hws->funcs.get_surface_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE)
-		dcn20_get_mpctree_visual_confirm_color(pipe_ctx, color);
-
-	if (mpc->funcs->set_bg_color)
-		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
-}
-
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct mpcc_blnd_cfg blnd_cfg = { {0} };
 	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha;
@@ -2293,6 +2277,15 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpcc *new_mpcc;
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
+
+	// input to MPCC is always RGB, by default leave black_color at 0
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
+		hws->funcs.get_hdr_visual_confirm_color(pipe_ctx, &blnd_cfg.black_color);
+	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
+		hws->funcs.get_surface_visual_confirm_color(pipe_ctx, &blnd_cfg.black_color);
+	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE) {
+		dcn20_get_mpctree_visual_confirm_color(pipe_ctx, &blnd_cfg.black_color);
+	}
 
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
@@ -2326,8 +2319,6 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 * which causes a pstate hang for yet unknown reason.
 	 */
 	mpcc_id = hubp->inst;
-
-	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 
 	/* If there is no full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
