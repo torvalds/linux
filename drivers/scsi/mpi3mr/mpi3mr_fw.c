@@ -160,12 +160,15 @@ static void mpi3mr_handle_events(struct mpi3mr_ioc *mrioc,
 	    (struct mpi3_event_notification_reply *)def_reply;
 
 	mrioc->change_count = le16_to_cpu(event_reply->ioc_change_count);
+	mpi3mr_os_handle_events(mrioc, event_reply);
 }
 
 static struct mpi3mr_drv_cmd *
 mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 	struct mpi3_default_reply *def_reply)
 {
+	u16 idx;
+
 	switch (host_tag) {
 	case MPI3MR_HOSTTAG_INITCMDS:
 		return &mrioc->init_cmds;
@@ -176,6 +179,11 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 		return NULL;
 	default:
 		break;
+	}
+	if (host_tag >= MPI3MR_HOSTTAG_DEVRMCMD_MIN &&
+	    host_tag <= MPI3MR_HOSTTAG_DEVRMCMD_MAX) {
+		idx = host_tag - MPI3MR_HOSTTAG_DEVRMCMD_MIN;
+		return &mrioc->dev_rmhs_cmds[idx];
 	}
 
 	return NULL;
@@ -1910,6 +1918,13 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->init_cmds.reply)
 		goto out_failed;
 
+	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
+		mrioc->dev_rmhs_cmds[i].reply = kzalloc(mrioc->facts.reply_sz,
+		    GFP_KERNEL);
+		if (!mrioc->dev_rmhs_cmds[i].reply)
+			goto out_failed;
+	}
+
 	mrioc->num_reply_bufs = mrioc->facts.max_reqs + MPI3MR_NUM_EVT_REPLIES;
 	mrioc->reply_free_qsz = mrioc->num_reply_bufs + 1;
 	mrioc->num_sense_bufs = mrioc->facts.max_reqs / MPI3MR_SENSEBUF_FACTOR;
@@ -2116,6 +2131,163 @@ out:
 		dma_free_coherent(&mrioc->pdev->dev, data_len, drv_info,
 		    data_dma);
 
+	return retval;
+}
+
+/**
+ * mpi3mr_unmask_events - Unmask events in event mask bitmap
+ * @mrioc: Adapter instance reference
+ * @event: MPI event ID
+ *
+ * Un mask the specific event by resetting the event_mask
+ * bitmap.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+static void mpi3mr_unmask_events(struct mpi3mr_ioc *mrioc, u16 event)
+{
+	u32 desired_event;
+	u8 word;
+
+	if (event >= 128)
+		return;
+
+	desired_event = (1 << (event % 32));
+	word = event / 32;
+
+	mrioc->event_masks[word] &= ~desired_event;
+}
+
+/**
+ * mpi3mr_issue_event_notification - Send event notification
+ * @mrioc: Adapter instance reference
+ *
+ * Issue event notification MPI request through admin queue and
+ * wait for the completion of it or time out.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+static int mpi3mr_issue_event_notification(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3_event_notification_request evtnotify_req;
+	int retval = 0;
+	u8 i;
+
+	memset(&evtnotify_req, 0, sizeof(evtnotify_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "Issue EvtNotify: Init command is in use\n");
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	evtnotify_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	evtnotify_req.function = MPI3_FUNCTION_EVENT_NOTIFICATION;
+	for (i = 0; i < MPI3_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
+		evtnotify_req.event_masks[i] =
+		    cpu_to_le32(mrioc->event_masks[i]);
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &evtnotify_req,
+	    sizeof(evtnotify_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "Issue EvtNotify: Admin Post failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		ioc_err(mrioc, "Issue EvtNotify: command timed out\n");
+		mpi3mr_set_diagsave(mrioc);
+		mpi3mr_issue_reset(mrioc,
+		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
+		    MPI3MR_RESET_FROM_EVTNOTIFY_TIMEOUT);
+		mrioc->unrecoverable = 1;
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc,
+		    "Issue EvtNotify: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+out:
+	return retval;
+}
+
+/**
+ * mpi3mr_send_event_ack - Send event acknowledgment
+ * @mrioc: Adapter instance reference
+ * @event: MPI3 event ID
+ * @event_ctx: Event context
+ *
+ * Send event acknowledgment through admin queue and wait for
+ * it to complete.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+int mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
+	u32 event_ctx)
+{
+	struct mpi3_event_ack_request evtack_req;
+	int retval = 0;
+
+	memset(&evtack_req, 0, sizeof(evtack_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "Send EvtAck: Init command is in use\n");
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	evtack_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	evtack_req.function = MPI3_FUNCTION_EVENT_ACK;
+	evtack_req.event = event;
+	evtack_req.event_context = cpu_to_le32(event_ctx);
+
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &evtack_req,
+	    sizeof(evtack_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "Send EvtAck: Admin Post failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		ioc_err(mrioc, "Issue EvtNotify: command timed out\n");
+		mpi3mr_soft_reset_handler(mrioc,
+		    MPI3MR_RESET_FROM_EVTACK_TIMEOUT, 1);
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc,
+		    "Send EvtAck: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+out:
 	return retval;
 }
 
@@ -2396,7 +2568,7 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc)
 	enum mpi3mr_iocstate ioc_state;
 	u64 base_info;
 	u32 timeout;
-	u32 ioc_status, ioc_config;
+	u32 ioc_status, ioc_config, i;
 	struct mpi3_ioc_facts_data facts_data;
 
 	mrioc->change_count = 0;
@@ -2546,6 +2718,24 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc)
 		goto out_failed;
 	}
 
+	for (i = 0; i < MPI3_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
+		mrioc->event_masks[i] = -1;
+
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_ADDED);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_INFO_CHANGED);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_STATUS_CHANGE);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DISCOVERY);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR);
+
+	retval = mpi3mr_issue_event_notification(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "Failed to issue event notification %d\n",
+		    retval);
+		goto out_failed;
+	}
+
 	return retval;
 
 out_failed:
@@ -2626,6 +2816,11 @@ static void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 
 	kfree(mrioc->chain_bitmap);
 	mrioc->chain_bitmap = NULL;
+
+	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
+		kfree(mrioc->dev_rmhs_cmds[i].reply);
+		mrioc->dev_rmhs_cmds[i].reply = NULL;
+	}
 
 	if (mrioc->chain_buf_pool) {
 		for (i = 0; i < mrioc->chain_buf_count; i++) {

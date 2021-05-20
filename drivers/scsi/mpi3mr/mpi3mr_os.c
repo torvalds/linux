@@ -125,6 +125,1268 @@ static void mpi3mr_clear_scmd_priv(struct mpi3mr_ioc *mrioc,
 	}
 }
 
+static void mpi3mr_dev_rmhs_send_tm(struct mpi3mr_ioc *mrioc, u16 handle,
+	struct mpi3mr_drv_cmd *cmdparam, u8 iou_rc);
+static void mpi3mr_fwevt_worker(struct work_struct *work);
+
+/**
+ * mpi3mr_fwevt_free - firmware event memory dealloctor
+ * @r: k reference pointer of the firmware event
+ *
+ * Free firmware event memory when no reference.
+ */
+static void mpi3mr_fwevt_free(struct kref *r)
+{
+	kfree(container_of(r, struct mpi3mr_fwevt, ref_count));
+}
+
+/**
+ * mpi3mr_fwevt_get - k reference incrementor
+ * @fwevt: Firmware event reference
+ *
+ * Increment firmware event reference count.
+ */
+static void mpi3mr_fwevt_get(struct mpi3mr_fwevt *fwevt)
+{
+	kref_get(&fwevt->ref_count);
+}
+
+/**
+ * mpi3mr_fwevt_put - k reference decrementor
+ * @fwevt: Firmware event reference
+ *
+ * decrement firmware event reference count.
+ */
+static void mpi3mr_fwevt_put(struct mpi3mr_fwevt *fwevt)
+{
+	kref_put(&fwevt->ref_count, mpi3mr_fwevt_free);
+}
+
+/**
+ * mpi3mr_alloc_fwevt - Allocate firmware event
+ * @len: length of firmware event data to allocate
+ *
+ * Allocate firmware event with required length and initialize
+ * the reference counter.
+ *
+ * Return: firmware event reference.
+ */
+static struct mpi3mr_fwevt *mpi3mr_alloc_fwevt(int len)
+{
+	struct mpi3mr_fwevt *fwevt;
+
+	fwevt = kzalloc(sizeof(*fwevt) + len, GFP_ATOMIC);
+	if (!fwevt)
+		return NULL;
+
+	kref_init(&fwevt->ref_count);
+	return fwevt;
+}
+
+/**
+ * mpi3mr_fwevt_add_to_list - Add firmware event to the list
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Add the given firmware event to the firmware event list.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_fwevt_add_to_list(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	unsigned long flags;
+
+	if (!mrioc->fwevt_worker_thread)
+		return;
+
+	spin_lock_irqsave(&mrioc->fwevt_lock, flags);
+	/* get fwevt reference count while adding it to fwevt_list */
+	mpi3mr_fwevt_get(fwevt);
+	INIT_LIST_HEAD(&fwevt->list);
+	list_add_tail(&fwevt->list, &mrioc->fwevt_list);
+	INIT_WORK(&fwevt->work, mpi3mr_fwevt_worker);
+	/* get fwevt reference count while enqueueing it to worker queue */
+	mpi3mr_fwevt_get(fwevt);
+	queue_work(mrioc->fwevt_worker_thread, &fwevt->work);
+	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
+}
+
+/**
+ * mpi3mr_fwevt_del_from_list - Delete firmware event from list
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Delete the given firmware event from the firmware event list.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_fwevt_del_from_list(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->fwevt_lock, flags);
+	if (!list_empty(&fwevt->list)) {
+		list_del_init(&fwevt->list);
+		/*
+		 * Put fwevt reference count after
+		 * removing it from fwevt_list
+		 */
+		mpi3mr_fwevt_put(fwevt);
+	}
+	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
+}
+
+/**
+ * mpi3mr_dequeue_fwevt - Dequeue firmware event from the list
+ * @mrioc: Adapter instance reference
+ *
+ * Dequeue a firmware event from the firmware event list.
+ *
+ * Return: firmware event.
+ */
+static struct mpi3mr_fwevt *mpi3mr_dequeue_fwevt(
+	struct mpi3mr_ioc *mrioc)
+{
+	unsigned long flags;
+	struct mpi3mr_fwevt *fwevt = NULL;
+
+	spin_lock_irqsave(&mrioc->fwevt_lock, flags);
+	if (!list_empty(&mrioc->fwevt_list)) {
+		fwevt = list_first_entry(&mrioc->fwevt_list,
+		    struct mpi3mr_fwevt, list);
+		list_del_init(&fwevt->list);
+		/*
+		 * Put fwevt reference count after
+		 * removing it from fwevt_list
+		 */
+		mpi3mr_fwevt_put(fwevt);
+	}
+	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
+
+	return fwevt;
+}
+
+/**
+ * mpi3mr_cleanup_fwevt_list - Cleanup firmware event list
+ * @mrioc: Adapter instance reference
+ *
+ * Flush all pending firmware events from the firmware event
+ * list.
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_cleanup_fwevt_list(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3mr_fwevt *fwevt = NULL;
+
+	if ((list_empty(&mrioc->fwevt_list) && !mrioc->current_event) ||
+	    !mrioc->fwevt_worker_thread)
+		return;
+
+	while ((fwevt = mpi3mr_dequeue_fwevt(mrioc)) ||
+	    (fwevt = mrioc->current_event)) {
+		/*
+		 * Wait on the fwevt to complete. If this returns 1, then
+		 * the event was never executed, and we need a put for the
+		 * reference the work had on the fwevt.
+		 *
+		 * If it did execute, we wait for it to finish, and the put will
+		 * happen from mpi3mr_process_fwevt()
+		 */
+		if (cancel_work_sync(&fwevt->work)) {
+			/*
+			 * Put fwevt reference count after
+			 * dequeuing it from worker queue
+			 */
+			mpi3mr_fwevt_put(fwevt);
+			/*
+			 * Put fwevt reference count to neutralize
+			 * kref_init increment
+			 */
+			mpi3mr_fwevt_put(fwevt);
+		}
+	}
+}
+
+/**
+ * mpi3mr_alloc_tgtdev - target device allocator
+ *
+ * Allocate target device instance and initialize the reference
+ * count
+ *
+ * Return: target device instance.
+ */
+static struct mpi3mr_tgt_dev *mpi3mr_alloc_tgtdev(void)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	tgtdev = kzalloc(sizeof(*tgtdev), GFP_ATOMIC);
+	if (!tgtdev)
+		return NULL;
+	kref_init(&tgtdev->ref_count);
+	return tgtdev;
+}
+
+/**
+ * mpi3mr_tgtdev_add_to_list -Add tgtdevice to the list
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device
+ *
+ * Add the target device to the target device list
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_tgtdev_add_to_list(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	mpi3mr_tgtdev_get(tgtdev);
+	INIT_LIST_HEAD(&tgtdev->list);
+	list_add_tail(&tgtdev->list, &mrioc->tgtdev_list);
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+}
+
+/**
+ * mpi3mr_tgtdev_del_from_list -Delete tgtdevice from the list
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device
+ *
+ * Remove the target device from the target device list
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_tgtdev_del_from_list(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	if (!list_empty(&tgtdev->list)) {
+		list_del_init(&tgtdev->list);
+		mpi3mr_tgtdev_put(tgtdev);
+	}
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+}
+
+/**
+ * __mpi3mr_get_tgtdev_by_handle -Get tgtdev from device handle
+ * @mrioc: Adapter instance reference
+ * @handle: Device handle
+ *
+ * Accessor to retrieve target device from the device handle.
+ * Non Lock version
+ *
+ * Return: Target device reference.
+ */
+static struct mpi3mr_tgt_dev  *__mpi3mr_get_tgtdev_by_handle(
+	struct mpi3mr_ioc *mrioc, u16 handle)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	assert_spin_locked(&mrioc->tgtdev_lock);
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list)
+		if (tgtdev->dev_handle == handle)
+			goto found_tgtdev;
+	return NULL;
+
+found_tgtdev:
+	mpi3mr_tgtdev_get(tgtdev);
+	return tgtdev;
+}
+
+/**
+ * mpi3mr_get_tgtdev_by_handle -Get tgtdev from device handle
+ * @mrioc: Adapter instance reference
+ * @handle: Device handle
+ *
+ * Accessor to retrieve target device from the device handle.
+ * Lock version
+ *
+ * Return: Target device reference.
+ */
+static struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_handle(
+	struct mpi3mr_ioc *mrioc, u16 handle)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgtdev = __mpi3mr_get_tgtdev_by_handle(mrioc, handle);
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+	return tgtdev;
+}
+
+/**
+ * __mpi3mr_get_tgtdev_by_perst_id -Get tgtdev from persist ID
+ * @mrioc: Adapter instance reference
+ * @persist_id: Persistent ID
+ *
+ * Accessor to retrieve target device from the Persistent ID.
+ * Non Lock version
+ *
+ * Return: Target device reference.
+ */
+static struct mpi3mr_tgt_dev  *__mpi3mr_get_tgtdev_by_perst_id(
+	struct mpi3mr_ioc *mrioc, u16 persist_id)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	assert_spin_locked(&mrioc->tgtdev_lock);
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list)
+		if (tgtdev->perst_id == persist_id)
+			goto found_tgtdev;
+	return NULL;
+
+found_tgtdev:
+	mpi3mr_tgtdev_get(tgtdev);
+	return tgtdev;
+}
+
+/**
+ * mpi3mr_get_tgtdev_by_perst_id -Get tgtdev from persistent ID
+ * @mrioc: Adapter instance reference
+ * @persist_id: Persistent ID
+ *
+ * Accessor to retrieve target device from the Persistent ID.
+ * Lock version
+ *
+ * Return: Target device reference.
+ */
+static struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_perst_id(
+	struct mpi3mr_ioc *mrioc, u16 persist_id)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgtdev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, persist_id);
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+	return tgtdev;
+}
+
+/**
+ * __mpi3mr_get_tgtdev_from_tgtpriv -Get tgtdev from tgt private
+ * @mrioc: Adapter instance reference
+ * @tgt_priv: Target private data
+ *
+ * Accessor to return target device from the target private
+ * data. Non Lock version
+ *
+ * Return: Target device reference.
+ */
+static struct mpi3mr_tgt_dev  *__mpi3mr_get_tgtdev_from_tgtpriv(
+	struct mpi3mr_ioc *mrioc, struct mpi3mr_stgt_priv_data *tgt_priv)
+{
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	assert_spin_locked(&mrioc->tgtdev_lock);
+	tgtdev = tgt_priv->tgt_dev;
+	if (tgtdev)
+		mpi3mr_tgtdev_get(tgtdev);
+	return tgtdev;
+}
+
+/**
+ * mpi3mr_remove_tgtdev_from_host - Remove dev from upper layers
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device structure
+ *
+ * Checks whether the device is exposed to upper layers and if it
+ * is then remove the device from upper layers by calling
+ * scsi_remove_target().
+ *
+ * Return: 0 on success, non zero on failure.
+ */
+static void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev)
+{
+	struct mpi3mr_stgt_priv_data *tgt_priv;
+
+	ioc_info(mrioc, "%s :Removing handle(0x%04x), wwid(0x%016llx)\n",
+	    __func__, tgtdev->dev_handle, (unsigned long long)tgtdev->wwid);
+	if (tgtdev->starget && tgtdev->starget->hostdata) {
+		tgt_priv = tgtdev->starget->hostdata;
+		tgt_priv->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+	}
+
+	if (tgtdev->starget) {
+		scsi_remove_target(&tgtdev->starget->dev);
+		tgtdev->host_exposed = 0;
+	}
+	ioc_info(mrioc, "%s :Removed handle(0x%04x), wwid(0x%016llx)\n",
+	    __func__, tgtdev->dev_handle, (unsigned long long)tgtdev->wwid);
+}
+
+/**
+ * mpi3mr_report_tgtdev_to_host - Expose device to upper layers
+ * @mrioc: Adapter instance reference
+ * @perst_id: Persistent ID of the device
+ *
+ * Checks whether the device can be exposed to upper layers and
+ * if it is not then expose the device to upper layers by
+ * calling scsi_scan_target().
+ *
+ * Return: 0 on success, non zero on failure.
+ */
+static int mpi3mr_report_tgtdev_to_host(struct mpi3mr_ioc *mrioc,
+	u16 perst_id)
+{
+	int retval = 0;
+	struct mpi3mr_tgt_dev *tgtdev;
+
+	tgtdev = mpi3mr_get_tgtdev_by_perst_id(mrioc, perst_id);
+	if (!tgtdev) {
+		retval = -1;
+		goto out;
+	}
+	if (tgtdev->is_hidden) {
+		retval = -1;
+		goto out;
+	}
+	if (!tgtdev->host_exposed && !mrioc->reset_in_progress) {
+		tgtdev->host_exposed = 1;
+		scsi_scan_target(&mrioc->shost->shost_gendev, 0,
+		    tgtdev->perst_id,
+		    SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
+		if (!tgtdev->starget)
+			tgtdev->host_exposed = 0;
+	}
+out:
+	if (tgtdev)
+		mpi3mr_tgtdev_put(tgtdev);
+
+	return retval;
+}
+
+/**
+ * mpi3mr_rfresh_tgtdevs - Refresh target device exposure
+ * @mrioc: Adapter instance reference
+ *
+ * This is executed post controller reset to identify any
+ * missing devices during reset and remove from the upper layers
+ * or expose any newly detected device to the upper layers.
+ *
+ * Return: Nothing.
+ */
+
+void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3mr_tgt_dev *tgtdev, *tgtdev_next;
+
+	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
+	    list) {
+		if ((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) &&
+		    tgtdev->host_exposed) {
+			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+			mpi3mr_tgtdev_put(tgtdev);
+		}
+	}
+
+	tgtdev = NULL;
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list) {
+		if ((tgtdev->dev_handle != MPI3MR_INVALID_DEV_HANDLE) &&
+		    !tgtdev->is_hidden && !tgtdev->host_exposed)
+			mpi3mr_report_tgtdev_to_host(mrioc, tgtdev->perst_id);
+	}
+}
+
+/**
+ * mpi3mr_update_tgtdev - DevStatusChange evt bottomhalf
+ * @mrioc: Adapter instance reference
+ * @tgtdev: Target device internal structure
+ * @dev_pg0: New device page0
+ *
+ * Update the information from the device page0 into the driver
+ * cached target device structure.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_tgt_dev *tgtdev, struct mpi3_device_page0 *dev_pg0)
+{
+	u16 flags = 0;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
+
+	tgtdev->perst_id = le16_to_cpu(dev_pg0->persistent_id);
+	tgtdev->dev_handle = le16_to_cpu(dev_pg0->dev_handle);
+	tgtdev->dev_type = dev_pg0->device_form;
+	tgtdev->encl_handle = le16_to_cpu(dev_pg0->enclosure_handle);
+	tgtdev->parent_handle = le16_to_cpu(dev_pg0->parent_dev_handle);
+	tgtdev->slot = le16_to_cpu(dev_pg0->slot);
+	tgtdev->q_depth = le16_to_cpu(dev_pg0->queue_depth);
+	tgtdev->wwid = le64_to_cpu(dev_pg0->wwid);
+
+	flags = le16_to_cpu(dev_pg0->flags);
+	tgtdev->is_hidden = (flags & MPI3_DEVICE0_FLAGS_HIDDEN);
+
+	if (tgtdev->starget && tgtdev->starget->hostdata) {
+		scsi_tgt_priv_data = (struct mpi3mr_stgt_priv_data *)
+		    tgtdev->starget->hostdata;
+		scsi_tgt_priv_data->perst_id = tgtdev->perst_id;
+		scsi_tgt_priv_data->dev_handle = tgtdev->dev_handle;
+		scsi_tgt_priv_data->dev_type = tgtdev->dev_type;
+	}
+
+	switch (tgtdev->dev_type) {
+	case MPI3_DEVICE_DEVFORM_SAS_SATA:
+	{
+		struct mpi3_device0_sas_sata_format *sasinf =
+		    &dev_pg0->device_specific.sas_sata_format;
+		u16 dev_info = le16_to_cpu(sasinf->device_info);
+
+		tgtdev->dev_spec.sas_sata_inf.dev_info = dev_info;
+		tgtdev->dev_spec.sas_sata_inf.sas_address =
+		    le64_to_cpu(sasinf->sas_address);
+		if ((dev_info & MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_MASK) !=
+		    MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_END_DEVICE)
+			tgtdev->is_hidden = 1;
+		else if (!(dev_info & (MPI3_SAS_DEVICE_INFO_STP_SATA_TARGET |
+		    MPI3_SAS_DEVICE_INFO_SSP_TARGET)))
+			tgtdev->is_hidden = 1;
+		break;
+	}
+	case MPI3_DEVICE_DEVFORM_VD:
+	{
+		struct mpi3_device0_vd_format *vdinf =
+		    &dev_pg0->device_specific.vd_format;
+
+		tgtdev->dev_spec.vol_inf.state = vdinf->vd_state;
+		if (vdinf->vd_state == MPI3_DEVICE0_VD_STATE_OFFLINE)
+			tgtdev->is_hidden = 1;
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+/**
+ * mpi3mr_devstatuschg_evt_bh - DevStatusChange evt bottomhalf
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event information.
+ *
+ * Process Device status Change event and based on device's new
+ * information, either expose the device to the upper layers, or
+ * remove the device from upper layers.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_devstatuschg_evt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	u16 dev_handle = 0;
+	u8 uhide = 0, delete = 0, cleanup = 0;
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	struct mpi3_event_data_device_status_change *evtdata =
+	    (struct mpi3_event_data_device_status_change *)fwevt->event_data;
+
+	dev_handle = le16_to_cpu(evtdata->dev_handle);
+	ioc_info(mrioc,
+	    "%s :device status change: handle(0x%04x): reason code(0x%x)\n",
+	    __func__, dev_handle, evtdata->reason_code);
+	switch (evtdata->reason_code) {
+	case MPI3_EVENT_DEV_STAT_RC_HIDDEN:
+		delete = 1;
+		break;
+	case MPI3_EVENT_DEV_STAT_RC_NOT_HIDDEN:
+		uhide = 1;
+		break;
+	case MPI3_EVENT_DEV_STAT_RC_VD_NOT_RESPONDING:
+		delete = 1;
+		cleanup = 1;
+		break;
+	default:
+		ioc_info(mrioc, "%s :Unhandled reason code(0x%x)\n", __func__,
+		    evtdata->reason_code);
+		break;
+	}
+
+	tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, dev_handle);
+	if (!tgtdev)
+		goto out;
+	if (uhide) {
+		tgtdev->is_hidden = 0;
+		if (!tgtdev->host_exposed)
+			mpi3mr_report_tgtdev_to_host(mrioc, tgtdev->perst_id);
+	}
+	if (tgtdev->starget && tgtdev->starget->hostdata) {
+		if (delete)
+			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+	}
+	if (cleanup) {
+		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+		mpi3mr_tgtdev_put(tgtdev);
+	}
+
+out:
+	if (tgtdev)
+		mpi3mr_tgtdev_put(tgtdev);
+}
+
+/**
+ * mpi3mr_devinfochg_evt_bh - DeviceInfoChange evt bottomhalf
+ * @mrioc: Adapter instance reference
+ * @dev_pg0: New device page0
+ *
+ * Process Device Info Change event and based on device's new
+ * information, either expose the device to the upper layers, or
+ * remove the device from upper layers or update the details of
+ * the device.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_devinfochg_evt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3_device_page0 *dev_pg0)
+{
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	u16 dev_handle = 0, perst_id = 0;
+
+	perst_id = le16_to_cpu(dev_pg0->persistent_id);
+	dev_handle = le16_to_cpu(dev_pg0->dev_handle);
+	ioc_info(mrioc,
+	    "%s :Device info change: handle(0x%04x): persist_id(0x%x)\n",
+	    __func__, dev_handle, perst_id);
+	tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, dev_handle);
+	if (!tgtdev)
+		goto out;
+	mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0);
+	if (!tgtdev->is_hidden && !tgtdev->host_exposed)
+		mpi3mr_report_tgtdev_to_host(mrioc, perst_id);
+	if (tgtdev->is_hidden && tgtdev->host_exposed)
+		mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+out:
+	if (tgtdev)
+		mpi3mr_tgtdev_put(tgtdev);
+}
+
+/**
+ * mpi3mr_sastopochg_evt_bh - SASTopologyChange evt bottomhalf
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Prints information about the SAS topology change event and
+ * for "not responding" event code, removes the device from the
+ * upper layers.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	struct mpi3_event_data_sas_topology_change_list *event_data =
+	    (struct mpi3_event_data_sas_topology_change_list *)fwevt->event_data;
+	int i;
+	u16 handle;
+	u8 reason_code;
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+
+	for (i = 0; i < event_data->num_entries; i++) {
+		handle = le16_to_cpu(event_data->phy_entry[i].attached_dev_handle);
+		if (!handle)
+			continue;
+		tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, handle);
+		if (!tgtdev)
+			continue;
+
+		reason_code = event_data->phy_entry[i].status &
+		    MPI3_EVENT_SAS_TOPO_PHY_RC_MASK;
+
+		switch (reason_code) {
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_TARG_NOT_RESPONDING:
+			if (tgtdev->host_exposed)
+				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+			mpi3mr_tgtdev_put(tgtdev);
+			break;
+		default:
+			break;
+		}
+		if (tgtdev)
+			mpi3mr_tgtdev_put(tgtdev);
+	}
+}
+
+/**
+ * mpi3mr_fwevt_bh - Firmware event bottomhalf handler
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Identifies the firmware event and calls corresponding bottomg
+ * half handler and sends event acknowledgment if required.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	mrioc->current_event = fwevt;
+	mpi3mr_fwevt_del_from_list(mrioc, fwevt);
+
+	if (mrioc->stop_drv_processing)
+		goto out;
+
+	if (!fwevt->process_evt)
+		goto evt_ack;
+
+	switch (fwevt->event_id) {
+	case MPI3_EVENT_DEVICE_ADDED:
+	{
+		struct mpi3_device_page0 *dev_pg0 =
+		    (struct mpi3_device_page0 *)fwevt->event_data;
+		mpi3mr_report_tgtdev_to_host(mrioc,
+		    le16_to_cpu(dev_pg0->persistent_id));
+		break;
+	}
+	case MPI3_EVENT_DEVICE_INFO_CHANGED:
+	{
+		mpi3mr_devinfochg_evt_bh(mrioc,
+		    (struct mpi3_device_page0 *)fwevt->event_data);
+		break;
+	}
+	case MPI3_EVENT_DEVICE_STATUS_CHANGE:
+	{
+		mpi3mr_devstatuschg_evt_bh(mrioc, fwevt);
+		break;
+	}
+	case MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
+	{
+		mpi3mr_sastopochg_evt_bh(mrioc, fwevt);
+		break;
+	}
+	default:
+		break;
+	}
+
+evt_ack:
+	if (fwevt->send_ack)
+		mpi3mr_send_event_ack(mrioc, fwevt->event_id,
+		    fwevt->evt_ctx);
+out:
+	/* Put fwevt reference count to neutralize kref_init increment */
+	mpi3mr_fwevt_put(fwevt);
+	mrioc->current_event = NULL;
+}
+
+/**
+ * mpi3mr_fwevt_worker - Firmware event worker
+ * @work: Work struct containing firmware event
+ *
+ * Extracts the firmware event and calls mpi3mr_fwevt_bh.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_fwevt_worker(struct work_struct *work)
+{
+	struct mpi3mr_fwevt *fwevt = container_of(work, struct mpi3mr_fwevt,
+	    work);
+	mpi3mr_fwevt_bh(fwevt->mrioc, fwevt);
+	/*
+	 * Put fwevt reference count after
+	 * dequeuing it from worker queue
+	 */
+	mpi3mr_fwevt_put(fwevt);
+}
+
+/**
+ * mpi3mr_create_tgtdev - Create and add a target device
+ * @mrioc: Adapter instance reference
+ * @dev_pg0: Device Page 0 data
+ *
+ * If the device specified by the device page 0 data is not
+ * present in the driver's internal list, allocate the memory
+ * for the device, populate the data and add to the list, else
+ * update the device data.  The key is persistent ID.
+ *
+ * Return: 0 on success, -ENOMEM on memory allocation failure
+ */
+static int mpi3mr_create_tgtdev(struct mpi3mr_ioc *mrioc,
+	struct mpi3_device_page0 *dev_pg0)
+{
+	int retval = 0;
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	u16 perst_id = 0;
+
+	perst_id = le16_to_cpu(dev_pg0->persistent_id);
+	tgtdev = mpi3mr_get_tgtdev_by_perst_id(mrioc, perst_id);
+	if (tgtdev) {
+		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0);
+		mpi3mr_tgtdev_put(tgtdev);
+	} else {
+		tgtdev = mpi3mr_alloc_tgtdev();
+		if (!tgtdev)
+			return -ENOMEM;
+		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0);
+		mpi3mr_tgtdev_add_to_list(mrioc, tgtdev);
+	}
+
+	return retval;
+}
+
+/**
+ * mpi3mr_flush_delayed_rmhs_list - Flush pending commands
+ * @mrioc: Adapter instance reference
+ *
+ * Flush pending commands in the delayed removal handshake list
+ * due to a controller reset or driver removal as a cleanup.
+ *
+ * Return: Nothing
+ */
+void mpi3mr_flush_delayed_rmhs_list(struct mpi3mr_ioc *mrioc)
+{
+	struct delayed_dev_rmhs_node *_rmhs_node;
+
+	while (!list_empty(&mrioc->delayed_rmhs_list)) {
+		_rmhs_node = list_entry(mrioc->delayed_rmhs_list.next,
+		    struct delayed_dev_rmhs_node, list);
+		list_del(&_rmhs_node->list);
+		kfree(_rmhs_node);
+	}
+}
+
+/**
+ * mpi3mr_dev_rmhs_complete_iou - Device removal IOUC completion
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * Issues a target reset TM to the firmware from the device
+ * removal TM pend list or retry the removal handshake sequence
+ * based on the IOU control request IOC status.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_dev_rmhs_complete_iou(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	u16 cmd_idx = drv_cmd->host_tag - MPI3MR_HOSTTAG_DEVRMCMD_MIN;
+	struct delayed_dev_rmhs_node *delayed_dev_rmhs = NULL;
+
+	ioc_info(mrioc,
+	    "%s :dev_rmhs_iouctrl_complete:handle(0x%04x), ioc_status(0x%04x), loginfo(0x%08x)\n",
+	    __func__, drv_cmd->dev_handle, drv_cmd->ioc_status,
+	    drv_cmd->ioc_loginfo);
+	if (drv_cmd->ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		if (drv_cmd->retry_count < MPI3MR_DEV_RMHS_RETRY_COUNT) {
+			drv_cmd->retry_count++;
+			ioc_info(mrioc,
+			    "%s :dev_rmhs_iouctrl_complete: handle(0x%04x)retrying handshake retry=%d\n",
+			    __func__, drv_cmd->dev_handle,
+			    drv_cmd->retry_count);
+			mpi3mr_dev_rmhs_send_tm(mrioc, drv_cmd->dev_handle,
+			    drv_cmd, drv_cmd->iou_rc);
+			return;
+		}
+		ioc_err(mrioc,
+		    "%s :dev removal handshake failed after all retries: handle(0x%04x)\n",
+		    __func__, drv_cmd->dev_handle);
+	} else {
+		ioc_info(mrioc,
+		    "%s :dev removal handshake completed successfully: handle(0x%04x)\n",
+		    __func__, drv_cmd->dev_handle);
+		clear_bit(drv_cmd->dev_handle, mrioc->removepend_bitmap);
+	}
+
+	if (!list_empty(&mrioc->delayed_rmhs_list)) {
+		delayed_dev_rmhs = list_entry(mrioc->delayed_rmhs_list.next,
+		    struct delayed_dev_rmhs_node, list);
+		drv_cmd->dev_handle = delayed_dev_rmhs->handle;
+		drv_cmd->retry_count = 0;
+		drv_cmd->iou_rc = delayed_dev_rmhs->iou_rc;
+		ioc_info(mrioc,
+		    "%s :dev_rmhs_iouctrl_complete: processing delayed TM: handle(0x%04x)\n",
+		    __func__, drv_cmd->dev_handle);
+		mpi3mr_dev_rmhs_send_tm(mrioc, drv_cmd->dev_handle, drv_cmd,
+		    drv_cmd->iou_rc);
+		list_del(&delayed_dev_rmhs->list);
+		kfree(delayed_dev_rmhs);
+		return;
+	}
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
+	drv_cmd->callback = NULL;
+	drv_cmd->retry_count = 0;
+	drv_cmd->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+	clear_bit(cmd_idx, mrioc->devrem_bitmap);
+}
+
+/**
+ * mpi3mr_dev_rmhs_complete_tm - Device removal TM completion
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * Issues a target reset TM to the firmware from the device
+ * removal TM pend list or issue IO unit control request as
+ * part of device removal or hidden acknowledgment handshake.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_dev_rmhs_complete_tm(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	struct mpi3_iounit_control_request iou_ctrl;
+	u16 cmd_idx = drv_cmd->host_tag - MPI3MR_HOSTTAG_DEVRMCMD_MIN;
+	struct mpi3_scsi_task_mgmt_reply *tm_reply = NULL;
+	int retval;
+
+	if (drv_cmd->state & MPI3MR_CMD_REPLY_VALID)
+		tm_reply = (struct mpi3_scsi_task_mgmt_reply *)drv_cmd->reply;
+
+	if (tm_reply)
+		pr_info(IOCNAME
+		    "dev_rmhs_tr_complete:handle(0x%04x), ioc_status(0x%04x), loginfo(0x%08x), term_count(%d)\n",
+		    mrioc->name, drv_cmd->dev_handle, drv_cmd->ioc_status,
+		    drv_cmd->ioc_loginfo,
+		    le32_to_cpu(tm_reply->termination_count));
+
+	pr_info(IOCNAME "Issuing IOU CTL: handle(0x%04x) dev_rmhs idx(%d)\n",
+	    mrioc->name, drv_cmd->dev_handle, cmd_idx);
+
+	memset(&iou_ctrl, 0, sizeof(iou_ctrl));
+
+	drv_cmd->state = MPI3MR_CMD_PENDING;
+	drv_cmd->is_waiting = 0;
+	drv_cmd->callback = mpi3mr_dev_rmhs_complete_iou;
+	iou_ctrl.operation = drv_cmd->iou_rc;
+	iou_ctrl.param16[0] = cpu_to_le16(drv_cmd->dev_handle);
+	iou_ctrl.host_tag = cpu_to_le16(drv_cmd->host_tag);
+	iou_ctrl.function = MPI3_FUNCTION_IO_UNIT_CONTROL;
+
+	retval = mpi3mr_admin_request_post(mrioc, &iou_ctrl, sizeof(iou_ctrl),
+	    1);
+	if (retval) {
+		pr_err(IOCNAME "Issue DevRmHsTMIOUCTL: Admin post failed\n",
+		    mrioc->name);
+		goto out_failed;
+	}
+
+	return;
+out_failed:
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
+	drv_cmd->callback = NULL;
+	drv_cmd->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+	drv_cmd->retry_count = 0;
+	clear_bit(cmd_idx, mrioc->devrem_bitmap);
+}
+
+/**
+ * mpi3mr_dev_rmhs_send_tm - Issue TM for device removal
+ * @mrioc: Adapter instance reference
+ * @handle: Device handle
+ * @cmdparam: Internal command tracker
+ * @iou_rc: IO unit reason code
+ *
+ * Issues a target reset TM to the firmware or add it to a pend
+ * list as part of device removal or hidden acknowledgment
+ * handshake.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_dev_rmhs_send_tm(struct mpi3mr_ioc *mrioc, u16 handle,
+	struct mpi3mr_drv_cmd *cmdparam, u8 iou_rc)
+{
+	struct mpi3_scsi_task_mgmt_request tm_req;
+	int retval = 0;
+	u16 cmd_idx = MPI3MR_NUM_DEVRMCMD;
+	u8 retrycount = 5;
+	struct mpi3mr_drv_cmd *drv_cmd = cmdparam;
+	struct delayed_dev_rmhs_node *delayed_dev_rmhs = NULL;
+
+	if (drv_cmd)
+		goto issue_cmd;
+	do {
+		cmd_idx = find_first_zero_bit(mrioc->devrem_bitmap,
+		    MPI3MR_NUM_DEVRMCMD);
+		if (cmd_idx < MPI3MR_NUM_DEVRMCMD) {
+			if (!test_and_set_bit(cmd_idx, mrioc->devrem_bitmap))
+				break;
+			cmd_idx = MPI3MR_NUM_DEVRMCMD;
+		}
+	} while (retrycount--);
+
+	if (cmd_idx >= MPI3MR_NUM_DEVRMCMD) {
+		delayed_dev_rmhs = kzalloc(sizeof(*delayed_dev_rmhs),
+		    GFP_ATOMIC);
+		if (!delayed_dev_rmhs)
+			return;
+		INIT_LIST_HEAD(&delayed_dev_rmhs->list);
+		delayed_dev_rmhs->handle = handle;
+		delayed_dev_rmhs->iou_rc = iou_rc;
+		list_add_tail(&delayed_dev_rmhs->list,
+		    &mrioc->delayed_rmhs_list);
+		ioc_info(mrioc, "%s :DevRmHs: tr:handle(0x%04x) is postponed\n",
+		    __func__, handle);
+		return;
+	}
+	drv_cmd = &mrioc->dev_rmhs_cmds[cmd_idx];
+
+issue_cmd:
+	cmd_idx = drv_cmd->host_tag - MPI3MR_HOSTTAG_DEVRMCMD_MIN;
+	ioc_info(mrioc,
+	    "%s :Issuing TR TM: for devhandle 0x%04x with dev_rmhs %d\n",
+	    __func__, handle, cmd_idx);
+
+	memset(&tm_req, 0, sizeof(tm_req));
+	if (drv_cmd->state & MPI3MR_CMD_PENDING) {
+		ioc_err(mrioc, "%s :Issue TM: Command is in use\n", __func__);
+		goto out;
+	}
+	drv_cmd->state = MPI3MR_CMD_PENDING;
+	drv_cmd->is_waiting = 0;
+	drv_cmd->callback = mpi3mr_dev_rmhs_complete_tm;
+	drv_cmd->dev_handle = handle;
+	drv_cmd->iou_rc = iou_rc;
+	tm_req.dev_handle = cpu_to_le16(handle);
+	tm_req.task_type = MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
+	tm_req.host_tag = cpu_to_le16(drv_cmd->host_tag);
+	tm_req.task_host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INVALID);
+	tm_req.function = MPI3_FUNCTION_SCSI_TASK_MGMT;
+
+	set_bit(handle, mrioc->removepend_bitmap);
+	retval = mpi3mr_admin_request_post(mrioc, &tm_req, sizeof(tm_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "%s :Issue DevRmHsTM: Admin Post failed\n",
+		    __func__);
+		goto out_failed;
+	}
+out:
+	return;
+out_failed:
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
+	drv_cmd->callback = NULL;
+	drv_cmd->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+	drv_cmd->retry_count = 0;
+	clear_bit(cmd_idx, mrioc->devrem_bitmap);
+}
+
+/**
+ * mpi3mr_sastopochg_evt_th - SASTopologyChange evt tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Checks for the reason code and based on that either block I/O
+ * to device, or unblock I/O to the device, or start the device
+ * removal handshake with reason as remove with the firmware for
+ * SAS/SATA devices.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_sastopochg_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	struct mpi3_event_data_sas_topology_change_list *topo_evt =
+	    (struct mpi3_event_data_sas_topology_change_list *)event_reply->event_data;
+	int i;
+	u16 handle;
+	u8 reason_code;
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data = NULL;
+
+	for (i = 0; i < topo_evt->num_entries; i++) {
+		handle = le16_to_cpu(topo_evt->phy_entry[i].attached_dev_handle);
+		if (!handle)
+			continue;
+		reason_code = topo_evt->phy_entry[i].status &
+		    MPI3_EVENT_SAS_TOPO_PHY_RC_MASK;
+		scsi_tgt_priv_data =  NULL;
+		tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, handle);
+		if (tgtdev && tgtdev->starget && tgtdev->starget->hostdata)
+			scsi_tgt_priv_data = (struct mpi3mr_stgt_priv_data *)
+			    tgtdev->starget->hostdata;
+		switch (reason_code) {
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_TARG_NOT_RESPONDING:
+			if (scsi_tgt_priv_data) {
+				scsi_tgt_priv_data->dev_removed = 1;
+				scsi_tgt_priv_data->dev_removedelay = 0;
+				atomic_set(&scsi_tgt_priv_data->block_io, 0);
+			}
+			mpi3mr_dev_rmhs_send_tm(mrioc, handle, NULL,
+			    MPI3_CTRL_OP_REMOVE_DEVICE);
+			break;
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_DELAY_NOT_RESPONDING:
+			if (scsi_tgt_priv_data) {
+				scsi_tgt_priv_data->dev_removedelay = 1;
+				atomic_inc(&scsi_tgt_priv_data->block_io);
+			}
+			break;
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_RESPONDING:
+			if (scsi_tgt_priv_data &&
+			    scsi_tgt_priv_data->dev_removedelay) {
+				scsi_tgt_priv_data->dev_removedelay = 0;
+				atomic_dec_if_positive
+				    (&scsi_tgt_priv_data->block_io);
+			}
+		case MPI3_EVENT_SAS_TOPO_PHY_RC_PHY_CHANGED:
+		default:
+			break;
+		}
+		if (tgtdev)
+			mpi3mr_tgtdev_put(tgtdev);
+	}
+}
+
+/**
+ * mpi3mr_devstatuschg_evt_th - DeviceStatusChange evt tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Checks for the reason code and based on that either block I/O
+ * to device, or unblock I/O to the device, or start the device
+ * removal handshake with reason as remove/hide acknowledgment
+ * with the firmware.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_devstatuschg_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	u16 dev_handle = 0;
+	u8 ublock = 0, block = 0, hide = 0, delete = 0, remove = 0;
+	struct mpi3mr_tgt_dev *tgtdev = NULL;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data = NULL;
+	struct mpi3_event_data_device_status_change *evtdata =
+	    (struct mpi3_event_data_device_status_change *)event_reply->event_data;
+
+	if (mrioc->stop_drv_processing)
+		goto out;
+
+	dev_handle = le16_to_cpu(evtdata->dev_handle);
+
+	switch (evtdata->reason_code) {
+	case MPI3_EVENT_DEV_STAT_RC_INT_DEVICE_RESET_STRT:
+	case MPI3_EVENT_DEV_STAT_RC_INT_IT_NEXUS_RESET_STRT:
+		block = 1;
+		break;
+	case MPI3_EVENT_DEV_STAT_RC_HIDDEN:
+		delete = 1;
+		hide = 1;
+		break;
+	case MPI3_EVENT_DEV_STAT_RC_VD_NOT_RESPONDING:
+		delete = 1;
+		remove = 1;
+		break;
+	case MPI3_EVENT_DEV_STAT_RC_INT_DEVICE_RESET_CMP:
+	case MPI3_EVENT_DEV_STAT_RC_INT_IT_NEXUS_RESET_CMP:
+		ublock = 1;
+		break;
+	default:
+		break;
+	}
+
+	tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, dev_handle);
+	if (!tgtdev)
+		goto out;
+	if (hide)
+		tgtdev->is_hidden = hide;
+	if (tgtdev->starget && tgtdev->starget->hostdata) {
+		scsi_tgt_priv_data = (struct mpi3mr_stgt_priv_data *)
+		    tgtdev->starget->hostdata;
+		if (block)
+			atomic_inc(&scsi_tgt_priv_data->block_io);
+		if (delete)
+			scsi_tgt_priv_data->dev_removed = 1;
+		if (ublock)
+			atomic_dec_if_positive(&scsi_tgt_priv_data->block_io);
+	}
+	if (remove)
+		mpi3mr_dev_rmhs_send_tm(mrioc, dev_handle, NULL,
+		    MPI3_CTRL_OP_REMOVE_DEVICE);
+	if (hide)
+		mpi3mr_dev_rmhs_send_tm(mrioc, dev_handle, NULL,
+		    MPI3_CTRL_OP_HIDDEN_ACK);
+
+out:
+	if (tgtdev)
+		mpi3mr_tgtdev_put(tgtdev);
+}
+
+/**
+ * mpi3mr_os_handle_events - Firmware event handler
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Identify whteher the event has to handled and acknowledged
+ * and either process the event in the tophalf and/or schedule a
+ * bottom half through mpi3mr_fwevt_worker.
+ *
+ * Return: Nothing
+ */
+void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	u16 evt_type, sz;
+	struct mpi3mr_fwevt *fwevt = NULL;
+	bool ack_req = 0, process_evt_bh = 0;
+
+	if (mrioc->stop_drv_processing)
+		return;
+
+	if ((event_reply->msg_flags & MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_MASK)
+	    == MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_REQUIRED)
+		ack_req = 1;
+
+	evt_type = event_reply->event;
+
+	switch (evt_type) {
+	case MPI3_EVENT_DEVICE_ADDED:
+	{
+		struct mpi3_device_page0 *dev_pg0 =
+		    (struct mpi3_device_page0 *)event_reply->event_data;
+		if (mpi3mr_create_tgtdev(mrioc, dev_pg0))
+			ioc_err(mrioc,
+			    "%s :Failed to add device in the device add event\n",
+			    __func__);
+		else
+			process_evt_bh = 1;
+		break;
+	}
+	case MPI3_EVENT_DEVICE_STATUS_CHANGE:
+	{
+		process_evt_bh = 1;
+		mpi3mr_devstatuschg_evt_th(mrioc, event_reply);
+		break;
+	}
+	case MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
+	{
+		process_evt_bh = 1;
+		mpi3mr_sastopochg_evt_th(mrioc, event_reply);
+		break;
+	}
+	case MPI3_EVENT_DEVICE_INFO_CHANGED:
+	{
+		process_evt_bh = 1;
+		break;
+	}
+	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
+	case MPI3_EVENT_SAS_DISCOVERY:
+	case MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+		break;
+	default:
+		ioc_info(mrioc, "%s :event 0x%02x is not handled\n",
+		    __func__, evt_type);
+		break;
+	}
+	if (process_evt_bh || ack_req) {
+		sz = event_reply->event_data_length * 4;
+		fwevt = mpi3mr_alloc_fwevt(sz);
+		if (!fwevt) {
+			ioc_info(mrioc, "%s :failure at %s:%d/%s()!\n",
+			    __func__, __FILE__, __LINE__, __func__);
+			return;
+		}
+
+		memcpy(fwevt->event_data, event_reply->event_data, sz);
+		fwevt->mrioc = mrioc;
+		fwevt->event_id = evt_type;
+		fwevt->send_ack = ack_req;
+		fwevt->process_evt = process_evt_bh;
+		fwevt->evt_ctx = le32_to_cpu(event_reply->event_context);
+		mpi3mr_fwevt_add_to_list(mrioc, fwevt);
+	}
+}
+
 /**
  * mpi3mr_process_op_reply_desc - reply descriptor handler
  * @mrioc: Adapter instance reference
@@ -575,6 +1837,33 @@ static int mpi3mr_scan_finished(struct Scsi_Host *shost,
  */
 static void mpi3mr_slave_destroy(struct scsi_device *sdev)
 {
+	struct Scsi_Host *shost;
+	struct mpi3mr_ioc *mrioc;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
+	struct mpi3mr_tgt_dev *tgt_dev;
+	unsigned long flags;
+	struct scsi_target *starget;
+
+	if (!sdev->hostdata)
+		return;
+
+	starget = scsi_target(sdev);
+	shost = dev_to_shost(&starget->dev);
+	mrioc = shost_priv(shost);
+	scsi_tgt_priv_data = starget->hostdata;
+
+	scsi_tgt_priv_data->num_luns--;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	if (tgt_dev && (!scsi_tgt_priv_data->num_luns))
+		tgt_dev->starget = NULL;
+	if (tgt_dev)
+		mpi3mr_tgtdev_put(tgt_dev);
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+
+	kfree(sdev->hostdata);
+	sdev->hostdata = NULL;
 }
 
 /**
@@ -587,6 +1876,34 @@ static void mpi3mr_slave_destroy(struct scsi_device *sdev)
  */
 static void mpi3mr_target_destroy(struct scsi_target *starget)
 {
+	struct Scsi_Host *shost;
+	struct mpi3mr_ioc *mrioc;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
+	struct mpi3mr_tgt_dev *tgt_dev;
+	unsigned long flags;
+
+	if (!starget->hostdata)
+		return;
+
+	shost = dev_to_shost(&starget->dev);
+	mrioc = shost_priv(shost);
+	scsi_tgt_priv_data = starget->hostdata;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgt_dev = __mpi3mr_get_tgtdev_from_tgtpriv(mrioc, scsi_tgt_priv_data);
+	if (tgt_dev && (tgt_dev->starget == starget) &&
+	    (tgt_dev->perst_id == starget->id))
+		tgt_dev->starget = NULL;
+	if (tgt_dev) {
+		scsi_tgt_priv_data->tgt_dev = NULL;
+		scsi_tgt_priv_data->perst_id = 0;
+		mpi3mr_tgtdev_put(tgt_dev);
+		mpi3mr_tgtdev_put(tgt_dev);
+	}
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+
+	kfree(starget->hostdata);
+	starget->hostdata = NULL;
 }
 
 /**
@@ -600,7 +1917,25 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
  */
 static int mpi3mr_slave_configure(struct scsi_device *sdev)
 {
+	struct scsi_target *starget;
+	struct Scsi_Host *shost;
+	struct mpi3mr_ioc *mrioc;
+	struct mpi3mr_tgt_dev *tgt_dev;
+	unsigned long flags;
 	int retval = 0;
+
+	starget = scsi_target(sdev);
+	shost = dev_to_shost(&starget->dev);
+	mrioc = shost_priv(shost);
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+	if (!tgt_dev)
+		return -ENXIO;
+
+	mpi3mr_tgtdev_put(tgt_dev);
+
 	return retval;
 }
 
@@ -614,7 +1949,45 @@ static int mpi3mr_slave_configure(struct scsi_device *sdev)
  */
 static int mpi3mr_slave_alloc(struct scsi_device *sdev)
 {
+	struct Scsi_Host *shost;
+	struct mpi3mr_ioc *mrioc;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
+	struct mpi3mr_tgt_dev *tgt_dev;
+	struct mpi3mr_sdev_priv_data *scsi_dev_priv_data;
+	unsigned long flags;
+	struct scsi_target *starget;
 	int retval = 0;
+
+	starget = scsi_target(sdev);
+	shost = dev_to_shost(&starget->dev);
+	mrioc = shost_priv(shost);
+	scsi_tgt_priv_data = starget->hostdata;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+
+	if (tgt_dev) {
+		if (tgt_dev->starget == NULL)
+			tgt_dev->starget = starget;
+		mpi3mr_tgtdev_put(tgt_dev);
+		retval = 0;
+	} else {
+		spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+		return -ENXIO;
+	}
+
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+
+	scsi_dev_priv_data = kzalloc(sizeof(*scsi_dev_priv_data), GFP_KERNEL);
+	if (!scsi_dev_priv_data)
+		return -ENOMEM;
+
+	scsi_dev_priv_data->lun_id = sdev->lun;
+	scsi_dev_priv_data->tgt_priv_data = scsi_tgt_priv_data;
+	sdev->hostdata = scsi_dev_priv_data;
+
+	scsi_tgt_priv_data->num_luns++;
+
 	return retval;
 }
 
@@ -628,7 +2001,39 @@ static int mpi3mr_slave_alloc(struct scsi_device *sdev)
  */
 static int mpi3mr_target_alloc(struct scsi_target *starget)
 {
-	int retval = -ENODEV;
+	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
+	struct mpi3mr_tgt_dev *tgt_dev;
+	unsigned long flags;
+	int retval = 0;
+
+	scsi_tgt_priv_data = kzalloc(sizeof(*scsi_tgt_priv_data), GFP_KERNEL);
+	if (!scsi_tgt_priv_data)
+		return -ENOMEM;
+
+	starget->hostdata = scsi_tgt_priv_data;
+	scsi_tgt_priv_data->starget = starget;
+	scsi_tgt_priv_data->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
+	if (tgt_dev && !tgt_dev->is_hidden) {
+		starget->hostdata = scsi_tgt_priv_data;
+		scsi_tgt_priv_data->starget = starget;
+		scsi_tgt_priv_data->dev_handle = tgt_dev->dev_handle;
+		scsi_tgt_priv_data->perst_id = tgt_dev->perst_id;
+		scsi_tgt_priv_data->dev_type = tgt_dev->dev_type;
+		scsi_tgt_priv_data->tgt_dev = tgt_dev;
+		tgt_dev->starget = starget;
+		atomic_set(&scsi_tgt_priv_data->block_io, 0);
+		retval = 0;
+	} else {
+		kfree(scsi_tgt_priv_data);
+		retval = -ENXIO;
+	}
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+
 	return retval;
 }
 
@@ -823,7 +2228,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mpi3mr_ioc *mrioc = NULL;
 	struct Scsi_Host *shost = NULL;
-	int retval = 0;
+	int retval = 0, i;
 
 	shost = scsi_host_alloc(&mpi3mr_driver_template,
 	    sizeof(struct mpi3mr_ioc));
@@ -844,10 +2249,20 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&mrioc->admin_req_lock);
 	spin_lock_init(&mrioc->reply_free_queue_lock);
 	spin_lock_init(&mrioc->sbq_lock);
+	spin_lock_init(&mrioc->fwevt_lock);
+	spin_lock_init(&mrioc->tgtdev_lock);
 	spin_lock_init(&mrioc->watchdog_lock);
 	spin_lock_init(&mrioc->chain_buf_lock);
 
+	INIT_LIST_HEAD(&mrioc->fwevt_list);
+	INIT_LIST_HEAD(&mrioc->tgtdev_list);
+	INIT_LIST_HEAD(&mrioc->delayed_rmhs_list);
+
 	mpi3mr_init_drv_cmd(&mrioc->init_cmds, MPI3MR_HOSTTAG_INITCMDS);
+
+	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
+		mpi3mr_init_drv_cmd(&mrioc->dev_rmhs_cmds[i],
+		    MPI3MR_HOSTTAG_DEVRMCMD_MIN + i);
 
 	if (pdev->revision)
 		mrioc->enable_segqueue = true;
@@ -863,6 +2278,17 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	shost->max_channel = 1;
 	shost->max_id = 0xFFFFFFFF;
+
+	snprintf(mrioc->fwevt_worker_name, sizeof(mrioc->fwevt_worker_name),
+	    "%s%d_fwevt_wrkr", mrioc->driver_name, mrioc->id);
+	mrioc->fwevt_worker_thread = alloc_ordered_workqueue(
+	    mrioc->fwevt_worker_name, WQ_MEM_RECLAIM);
+	if (!mrioc->fwevt_worker_thread) {
+		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		retval = -ENODEV;
+		goto out_fwevtthread_failed;
+	}
 
 	mrioc->is_driver_loading = 1;
 	if (mpi3mr_init_ioc(mrioc)) {
@@ -890,6 +2316,8 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 addhost_failed:
 	mpi3mr_cleanup_ioc(mrioc);
 out_iocinit_failed:
+	destroy_workqueue(mrioc->fwevt_worker_thread);
+out_fwevtthread_failed:
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);
 	spin_unlock(&mrioc_list_lock);
@@ -911,14 +2339,30 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct mpi3mr_ioc *mrioc;
+	struct workqueue_struct	*wq;
+	unsigned long flags;
+	struct mpi3mr_tgt_dev *tgtdev, *tgtdev_next;
 
 	mrioc = shost_priv(shost);
 	while (mrioc->reset_in_progress || mrioc->is_driver_loading)
 		ssleep(1);
 
 	mrioc->stop_drv_processing = 1;
+	mpi3mr_cleanup_fwevt_list(mrioc);
+	spin_lock_irqsave(&mrioc->fwevt_lock, flags);
+	wq = mrioc->fwevt_worker_thread;
+	mrioc->fwevt_worker_thread = NULL;
+	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
+	if (wq)
+		destroy_workqueue(wq);
 	scsi_remove_host(shost);
 
+	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
+	    list) {
+		mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
+		mpi3mr_tgtdev_put(tgtdev);
+	}
 	mpi3mr_cleanup_ioc(mrioc);
 
 	spin_lock(&mrioc_list_lock);
@@ -941,6 +2385,8 @@ static void mpi3mr_shutdown(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct mpi3mr_ioc *mrioc;
+	struct workqueue_struct	*wq;
+	unsigned long flags;
 
 	if (!shost)
 		return;
@@ -950,6 +2396,13 @@ static void mpi3mr_shutdown(struct pci_dev *pdev)
 		ssleep(1);
 
 	mrioc->stop_drv_processing = 1;
+	mpi3mr_cleanup_fwevt_list(mrioc);
+	spin_lock_irqsave(&mrioc->fwevt_lock, flags);
+	wq = mrioc->fwevt_worker_thread;
+	mrioc->fwevt_worker_thread = NULL;
+	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
+	if (wq)
+		destroy_workqueue(wq);
 	mpi3mr_cleanup_ioc(mrioc);
 }
 

@@ -40,9 +40,11 @@
 #include <scsi/scsi_tcq.h>
 
 #include "mpi/mpi30_transport.h"
+#include "mpi/mpi30_cnfg.h"
 #include "mpi/mpi30_image.h"
 #include "mpi/mpi30_init.h"
 #include "mpi/mpi30_ioc.h"
+#include "mpi/mpi30_sas.h"
 #include "mpi3mr_debug.h"
 
 /* Global list and lock for storing multiple adapters managed by the driver */
@@ -136,6 +138,10 @@ extern struct list_head mrioc_list;
 #define MPI3MR_RSP_TM_OVERLAPPED_TAG	0x0A
 #define MPI3MR_RSP_IO_QUEUED_ON_IOC \
 			MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC
+
+#define MPI3MR_DEFAULT_MDTS	(128 * 1024)
+/* Command retry count definitions */
+#define MPI3MR_DEV_RMHS_RETRY_COUNT 3
 
 /* SGE Flag definition */
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST \
@@ -317,6 +323,126 @@ struct mpi3mr_intr_info {
 };
 
 /**
+ * struct tgt_dev_sas_sata - SAS/SATA device specific
+ * information cached from firmware given data
+ *
+ * @sas_address: World wide unique SAS address
+ * @dev_info: Device information bits
+ */
+struct tgt_dev_sas_sata {
+	u64 sas_address;
+	u16 dev_info;
+};
+
+/**
+ * struct tgt_dev_pcie - PCIe device specific information cached
+ * from firmware given data
+ *
+ * @mdts: Maximum data transfer size
+ * @capb: Device capabilities
+ * @pgsz: Device page size
+ * @abort_to: Timeout for abort TM
+ * @reset_to: Timeout for Target/LUN reset TM
+ */
+struct tgt_dev_pcie {
+	u32 mdts;
+	u16 capb;
+	u8 pgsz;
+	u8 abort_to;
+	u8 reset_to;
+};
+
+/**
+ * struct tgt_dev_volume - virtual device specific information
+ * cached from firmware given data
+ *
+ * @state: State of the VD
+ */
+struct tgt_dev_volume {
+	u8 state;
+};
+
+/**
+ * union _form_spec_inf - union of device specific information
+ */
+union _form_spec_inf {
+	struct tgt_dev_sas_sata sas_sata_inf;
+	struct tgt_dev_pcie pcie_inf;
+	struct tgt_dev_volume vol_inf;
+};
+
+
+
+/**
+ * struct mpi3mr_tgt_dev - target device data structure
+ *
+ * @list: List pointer
+ * @starget: Scsi_target pointer
+ * @dev_handle: FW device handle
+ * @parent_handle: FW parent device handle
+ * @slot: Slot number
+ * @encl_handle: FW enclosure handle
+ * @perst_id: FW assigned Persistent ID
+ * @dev_type: SAS/SATA/PCIE device type
+ * @is_hidden: Should be exposed to upper layers or not
+ * @host_exposed: Already exposed to host or not
+ * @q_depth: Device specific Queue Depth
+ * @wwid: World wide ID
+ * @dev_spec: Device type specific information
+ * @ref_count: Reference count
+ */
+struct mpi3mr_tgt_dev {
+	struct list_head list;
+	struct scsi_target *starget;
+	u16 dev_handle;
+	u16 parent_handle;
+	u16 slot;
+	u16 encl_handle;
+	u16 perst_id;
+	u8 dev_type;
+	u8 is_hidden;
+	u8 host_exposed;
+	u16 q_depth;
+	u64 wwid;
+	union _form_spec_inf dev_spec;
+	struct kref ref_count;
+};
+
+/**
+ * mpi3mr_tgtdev_get - k reference incrementor
+ * @s: Target device reference
+ *
+ * Increment target device reference count.
+ */
+static inline void mpi3mr_tgtdev_get(struct mpi3mr_tgt_dev *s)
+{
+	kref_get(&s->ref_count);
+}
+
+/**
+ * mpi3mr_free_tgtdev - target device memory dealloctor
+ * @r: k reference pointer of the target device
+ *
+ * Free target device memory when no reference.
+ */
+static inline void mpi3mr_free_tgtdev(struct kref *r)
+{
+	kfree(container_of(r, struct mpi3mr_tgt_dev, ref_count));
+}
+
+/**
+ * mpi3mr_tgtdev_put - k reference decrementor
+ * @s: Target device reference
+ *
+ * Decrement target device reference count.
+ */
+static inline void mpi3mr_tgtdev_put(struct mpi3mr_tgt_dev *s)
+{
+	kref_put(&s->ref_count, mpi3mr_free_tgtdev);
+}
+
+
+/**
  * struct mpi3mr_stgt_priv_data - SCSI target private structure
  *
  * @starget: Scsi_target pointer
@@ -361,6 +487,7 @@ struct mpi3mr_sdev_priv_data {
  * @done: Completeor for wakeup
  * @reply: Firmware reply for internal commands
  * @sensebuf: Sensebuf for SCSI IO commands
+ * @iou_rc: IO Unit control reason code
  * @state: Command State
  * @dev_handle: Firmware handle for device specific commands
  * @ioc_status: IOC status from the firmware
@@ -375,6 +502,7 @@ struct mpi3mr_drv_cmd {
 	struct completion done;
 	void *reply;
 	u8 *sensebuf;
+	u8 iou_rc;
 	u16 state;
 	u16 dev_handle;
 	u16 ioc_status;
@@ -481,6 +609,11 @@ struct scmd_priv {
  * @sense_buf_q_dma: Sense buffer queue DMA address
  * @sbq_lock: Sense buffer queue lock
  * @sbq_host_index: Sense buffer queuehost index
+ * @event_masks: Event mask bitmap
+ * @fwevt_worker_name: Firmware event worker thread name
+ * @fwevt_worker_thread: Firmware event worker thread
+ * @fwevt_lock: Firmware event lock
+ * @fwevt_list: Firmware event list
  * @watchdog_work_q_name: Fault watchdog worker thread name
  * @watchdog_work_q: Fault watchdog worker thread
  * @watchdog_work: Fault watchdog work
@@ -496,6 +629,12 @@ struct scmd_priv {
  * @chain_bitmap_sz: Chain buffer allocator bitmap size
  * @chain_bitmap: Chain buffer allocator bitmap
  * @chain_buf_lock: Chain buffer list lock
+ * @dev_rmhs_cmds: Command tracker for device removal commands
+ * @devrem_bitmap_sz: Device removal bitmap size
+ * @devrem_bitmap: Device removal bitmap
+ * @dev_handle_bitmap_sz: Device handle bitmap size
+ * @removepend_bitmap: Remove pending bitmap
+ * @delayed_rmhs_list: Delayed device removal list
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
  * @diagsave_timeout: Diagnostic information save timeout
@@ -579,6 +718,12 @@ struct mpi3mr_ioc {
 	dma_addr_t sense_buf_q_dma;
 	spinlock_t sbq_lock;
 	u32 sbq_host_index;
+	u32 event_masks[MPI3_EVENT_NOTIFY_EVENTMASK_WORDS];
+
+	char fwevt_worker_name[MPI3MR_NAME_LENGTH];
+	struct workqueue_struct	*fwevt_worker_thread;
+	spinlock_t fwevt_lock;
+	struct list_head fwevt_list;
 
 	char watchdog_work_q_name[20];
 	struct workqueue_struct *watchdog_work_q;
@@ -591,6 +736,8 @@ struct mpi3mr_ioc {
 	u8 stop_drv_processing;
 
 	u16 max_host_ios;
+	spinlock_t tgtdev_lock;
+	struct list_head tgtdev_list;
 
 	u32 chain_buf_count;
 	struct dma_pool *chain_buf_pool;
@@ -598,6 +745,13 @@ struct mpi3mr_ioc {
 	u16  chain_bitmap_sz;
 	void *chain_bitmap;
 	spinlock_t chain_buf_lock;
+
+	struct mpi3mr_drv_cmd dev_rmhs_cmds[MPI3MR_NUM_DEVRMCMD];
+	u16 devrem_bitmap_sz;
+	void *devrem_bitmap;
+	u16 dev_handle_bitmap_sz;
+	void *removepend_bitmap;
+	struct list_head delayed_rmhs_list;
 
 	u8 reset_in_progress;
 	u8 unrecoverable;
@@ -609,6 +763,45 @@ struct mpi3mr_ioc {
 	struct mpi3_driver_info_layout driver_info;
 	u16 change_count;
 	u16 op_reply_q_offset;
+};
+
+/**
+ * struct mpi3mr_fwevt - Firmware event structure.
+ *
+ * @list: list head
+ * @work: Work structure
+ * @mrioc: Adapter instance reference
+ * @event_id: MPI3 firmware event ID
+ * @send_ack: Event acknowledgment required or not
+ * @process_evt: Bottomhalf processing required or not
+ * @evt_ctx: Event context to send in Ack
+ * @ref_count: kref count
+ * @event_data: Actual MPI3 event data
+ */
+struct mpi3mr_fwevt {
+	struct list_head list;
+	struct work_struct work;
+	struct mpi3mr_ioc *mrioc;
+	u16 event_id;
+	bool send_ack;
+	bool process_evt;
+	u32 evt_ctx;
+	struct kref ref_count;
+	char event_data[0] __aligned(4);
+};
+
+
+/**
+ * struct delayed_dev_rmhs_node - Delayed device removal node
+ *
+ * @list: list head
+ * @handle: Device handle
+ * @iou_rc: IO Unit Control Reason Code
+ */
+struct delayed_dev_rmhs_node {
+	struct list_head list;
+	u16 handle;
+	u8 iou_rc;
 };
 
 int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc);
@@ -630,6 +823,8 @@ void *mpi3mr_get_reply_virt_addr(struct mpi3mr_ioc *mrioc,
 void mpi3mr_repost_sense_buf(struct mpi3mr_ioc *mrioc,
 				     u64 sense_buf_dma);
 
+void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
+			     struct mpi3_event_notification_reply *event_reply);
 void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
 				  struct mpi3_default_reply_descriptor *reply_desc,
 				  u64 *reply_dma, u16 qidx);
@@ -642,5 +837,14 @@ void mpi3mr_ioc_disable_intr(struct mpi3mr_ioc *mrioc);
 void mpi3mr_ioc_enable_intr(struct mpi3mr_ioc *mrioc);
 
 enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_ioc *mrioc);
+int mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
+			  u32 event_ctx);
+
+void mpi3mr_wait_for_host_io(struct mpi3mr_ioc *mrioc, u32 timeout);
+void mpi3mr_cleanup_fwevt_list(struct mpi3mr_ioc *mrioc);
+void mpi3mr_flush_host_io(struct mpi3mr_ioc *mrioc);
+void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc);
+void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc);
+void mpi3mr_flush_delayed_rmhs_list(struct mpi3mr_ioc *mrioc);
 
 #endif /*MPI3MR_H_INCLUDED*/
