@@ -334,6 +334,37 @@ void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_print_scmd - print individual SCSI command
+ * @rq: Block request
+ * @data: Adapter instance reference
+ * @reserved: N/A. Currently not used
+ *
+ * Print the SCSI command details if it is in LLD scope.
+ *
+ * Return: true always.
+ */
+static bool mpi3mr_print_scmd(struct request *rq,
+	void *data, bool reserved)
+{
+	struct mpi3mr_ioc *mrioc = (struct mpi3mr_ioc *)data;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct scmd_priv *priv = NULL;
+
+	if (scmd) {
+		priv = scsi_cmd_priv(scmd);
+		if (!priv->in_lld_scope)
+			goto out;
+
+		ioc_info(mrioc, "%s :Host Tag = %d, qid = %d\n",
+		    __func__, priv->host_tag, priv->req_q_idx + 1);
+		scsi_print_command(scmd);
+	}
+
+out:
+	return(true);
+}
+
+/**
  * mpi3mr_flush_scmd - Flush individual SCSI command
  * @rq: Block request
  * @data: Adapter instance reference
@@ -2342,6 +2373,43 @@ static int mpi3mr_map_queues(struct Scsi_Host *shost)
 }
 
 /**
+ * mpi3mr_get_fw_pending_ios - Calculate pending I/O count
+ * @mrioc: Adapter instance reference
+ *
+ * Calculate the pending I/Os for the controller and return.
+ *
+ * Return: Number of pending I/Os
+ */
+static inline int mpi3mr_get_fw_pending_ios(struct mpi3mr_ioc *mrioc)
+{
+	u16 i;
+	uint pend_ios = 0;
+
+	for (i = 0; i < mrioc->num_op_reply_q; i++)
+		pend_ios += atomic_read(&mrioc->op_reply_qinfo[i].pend_ios);
+	return pend_ios;
+}
+
+/**
+ * mpi3mr_print_pending_host_io - print pending I/Os
+ * @mrioc: Adapter instance reference
+ *
+ * Print number of pending I/Os and each I/O details prior to
+ * reset for debug purpose.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_print_pending_host_io(struct mpi3mr_ioc *mrioc)
+{
+	struct Scsi_Host *shost = mrioc->shost;
+
+	ioc_info(mrioc, "%s :Pending commands prior to reset: %d\n",
+	    __func__, mpi3mr_get_fw_pending_ios(mrioc));
+	blk_mq_tagset_busy_iter(&shost->tag_set,
+	    mpi3mr_print_scmd, (void *)mrioc);
+}
+
+/**
  * mpi3mr_eh_host_reset - Host reset error handling callback
  * @scmd: SCSI command reference
  *
@@ -2357,6 +2425,7 @@ static int mpi3mr_eh_host_reset(struct scsi_cmnd *scmd)
 	struct mpi3mr_ioc *mrioc = shost_priv(scmd->device->host);
 	int retval = FAILED, ret;
 
+	mpi3mr_print_pending_host_io(mrioc);
 	ret = mpi3mr_soft_reset_handler(mrioc,
 	    MPI3MR_RESET_FROM_EH_HOS, 1);
 	if (ret)
