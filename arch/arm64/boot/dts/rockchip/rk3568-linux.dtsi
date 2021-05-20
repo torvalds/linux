@@ -53,3 +53,7 @@
 &rng {
 	status = "okay";
 };
+
+&vop {
+	disable-afbc-win;
+};
