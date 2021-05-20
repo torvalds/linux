@@ -402,17 +402,22 @@ SYM_FUNC_END(__create_page_tables)
 	 * its location in the task stack. We reserve the entire pt_regs space
 	 * for consistency with user tasks and kthreads.
 	 */
-	.macro	init_cpu_task tsk, tmp
+	.macro	init_cpu_task tsk, tmp1, tmp2
 	msr	sp_el0, \tsk
 
-	ldr	\tmp, [\tsk, #TSK_STACK]
-	add	sp, \tmp, #THREAD_SIZE
+	ldr	\tmp1, [\tsk, #TSK_STACK]
+	add	sp, \tmp1, #THREAD_SIZE
 	sub	sp, sp, #PT_REGS_SIZE
 
 	stp	xzr, xzr, [sp, #S_STACKFRAME]
 	add	x29, sp, #S_STACKFRAME
 
-	scs_load \tsk, \tmp
+	scs_load \tsk, \tmp1
+
+	adr_l	\tmp1, __per_cpu_offset
+	ldr	w\tmp2, [\tsk, #TSK_CPU]
+	ldr	\tmp1, [\tmp1, \tmp2, lsl #3]
+	set_this_cpu_offset \tmp1
 	.endm
 
 /*
@@ -422,7 +427,7 @@ SYM_FUNC_END(__create_page_tables)
  */
 SYM_FUNC_START_LOCAL(__primary_switched)
 	adr_l	x4, init_task
-	init_cpu_task x4, x5
+	init_cpu_task x4, x5, x6
 
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
@@ -650,7 +655,7 @@ SYM_FUNC_START_LOCAL(__secondary_switched)
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	cbz	x2, __secondary_too_slow
 
-	init_cpu_task x2, x1
+	init_cpu_task x2, x1, x3
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 	ptrauth_keys_init_cpu x2, x3, x4, x5

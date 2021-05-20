@@ -198,10 +198,7 @@ asmlinkage notrace void secondary_start_kernel(void)
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	struct mm_struct *mm = &init_mm;
 	const struct cpu_operations *ops;
-	unsigned int cpu;
-
-	cpu = task_cpu(current);
-	set_my_cpu_offset(per_cpu_offset(cpu));
+	unsigned int cpu = smp_processor_id();
 
 	/*
 	 * All kernel threads share the same mm context; grab a
@@ -448,6 +445,11 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void __init smp_prepare_boot_cpu(void)
 {
+	/*
+	 * The runtime per-cpu areas have been allocated by
+	 * setup_per_cpu_areas(), and CPU0's boot time per-cpu area will be
+	 * freed shortly, so we must move over to the runtime per-cpu area.
+	 */
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 	cpuinfo_store_boot_cpu();
 
