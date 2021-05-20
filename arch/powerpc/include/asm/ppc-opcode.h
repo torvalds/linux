@@ -412,6 +412,8 @@
 #define PPC_RAW_DCBFPS(a, b)		(0x7c0000ac | ___PPC_RA(a) | ___PPC_RB(b) | (4 << 21))
 #define PPC_RAW_DCBSTPS(a, b)		(0x7c0000ac | ___PPC_RA(a) | ___PPC_RB(b) | (6 << 21))
 #define PPC_RAW_SC()			(0x44000002)
+#define PPC_RAW_SYNC()			(0x7c0004ac)
+#define PPC_RAW_ISYNC()			(0x4c00012c)
 
 /*
  * Define what the VSX XX1 form instructions will look like, then add
@@ -564,6 +566,8 @@
 #define PPC_RAW_NEG(d, a)		(0x7c0000d0 | ___PPC_RT(d) | ___PPC_RA(a))
 
 #define PPC_RAW_MFSPR(d, spr)		(0x7c0002a6 | ___PPC_RT(d) | __PPC_SPR(spr))
+#define PPC_RAW_MTSPR(spr, d)		(0x7c0003a6 | ___PPC_RS(d) | __PPC_SPR(spr))
+#define PPC_RAW_EIEIO()			(0x7c0006ac)
 
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_BCCTR_FLUSH		stringify_in_c(.long PPC_INST_BCCTR_FLUSH)

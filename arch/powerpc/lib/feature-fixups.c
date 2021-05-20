@@ -91,7 +91,7 @@ static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 			return 1;
 	}
 
-	nop = ppc_inst(PPC_INST_NOP);
+	nop = ppc_inst(PPC_RAW_NOP());
 	for (; dest < end; dest = ppc_inst_next(dest, &nop))
 		raw_patch_instruction(dest, nop);
 
@@ -128,21 +128,21 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_entry_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK) {
-		instrs[i++] = 0x7d4802a6; /* mflr r10		*/
-		instrs[i++] = 0x60000000; /* branch patched below */
-		instrs[i++] = 0x7d4803a6; /* mtlr r10		*/
+		instrs[i++] = PPC_RAW_MFLR(_R10);
+		instrs[i++] = PPC_RAW_NOP(); /* branch patched below */
+		instrs[i++] = PPC_RAW_MTLR(_R10);
 	} else if (types & STF_BARRIER_EIEIO) {
-		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
 	} else if (types & STF_BARRIER_SYNC_ORI) {
-		instrs[i++] = 0x7c0004ac; /* hwsync		*/
-		instrs[i++] = 0xe94d0000; /* ld r10,0(r13)	*/
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		instrs[i++] = PPC_RAW_SYNC();
+		instrs[i++] = PPC_RAW_LD(_R10, _R13, 0);
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
 	for (i = 0; start < end; start++, i++) {
@@ -180,32 +180,31 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_exit_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
-	instrs[3] = 0x60000000; /* nop */
-	instrs[4] = 0x60000000; /* nop */
-	instrs[5] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
+	instrs[3] = PPC_RAW_NOP();
+	instrs[4] = PPC_RAW_NOP();
+	instrs[5] = PPC_RAW_NOP();
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK || types & STF_BARRIER_SYNC_ORI) {
 		if (cpu_has_feature(CPU_FTR_HVMODE)) {
-			instrs[i++] = 0x7db14ba6; /* mtspr 0x131, r13 (HSPRG1) */
-			instrs[i++] = 0x7db04aa6; /* mfspr r13, 0x130 (HSPRG0) */
+			instrs[i++] = PPC_RAW_MTSPR(SPRN_HSPRG1, _R13);
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_HSPRG0);
 		} else {
-			instrs[i++] = 0x7db243a6; /* mtsprg 2,r13	*/
-			instrs[i++] = 0x7db142a6; /* mfsprg r13,1    */
+			instrs[i++] = PPC_RAW_MTSPR(SPRN_SPRG2, _R13);
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_SPRG1);
 	        }
-		instrs[i++] = 0x7c0004ac; /* hwsync		*/
-		instrs[i++] = 0xe9ad0000; /* ld r13,0(r13)	*/
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		if (cpu_has_feature(CPU_FTR_HVMODE)) {
-			instrs[i++] = 0x7db14aa6; /* mfspr r13, 0x131 (HSPRG1) */
-		} else {
-			instrs[i++] = 0x7db242a6; /* mfsprg r13,2 */
-		}
+		instrs[i++] = PPC_RAW_SYNC();
+		instrs[i++] = PPC_RAW_LD(_R13, _R13, 0);
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		if (cpu_has_feature(CPU_FTR_HVMODE))
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_HSPRG1);
+		else
+			instrs[i++] = PPC_RAW_MFSPR(_R13, SPRN_SPRG2);
 	} else if (types & STF_BARRIER_EIEIO) {
-		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+		instrs[i++] = PPC_RAW_EIEIO() | 0x02000000; /* eieio + bit 6 hint */
 	}
 
 	for (i = 0; start < end; start++, i++) {
@@ -258,24 +257,24 @@ void do_uaccess_flush_fixups(enum l1d_flush_type types)
 	start = PTRRELOC(&__start___uaccess_flush_fixup);
 	end = PTRRELOC(&__stop___uaccess_flush_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
-	instrs[3] = 0x4e800020; /* blr */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
+	instrs[3] = PPC_RAW_BLR();
 
 	i = 0;
 	if (types == L1D_FLUSH_FALLBACK) {
-		instrs[3] = 0x60000000; /* nop */
+		instrs[3] = PPC_RAW_NOP();
 		/* fallthrough to fallback flush */
 	}
 
 	if (types & L1D_FLUSH_ORI) {
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		instrs[i++] = PPC_RAW_ORI(_R30, _R30, 0); /* L1d flush */
 	}
 
 	if (types & L1D_FLUSH_MTTRIG)
-		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
 	for (i = 0; start < end; start++, i++) {
 		dest = (void *)start + *start;
@@ -306,24 +305,24 @@ static int __do_entry_flush_fixups(void *data)
 	long *start, *end;
 	int i;
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
 
 	i = 0;
 	if (types == L1D_FLUSH_FALLBACK) {
-		instrs[i++] = 0x7d4802a6; /* mflr r10		*/
-		instrs[i++] = 0x60000000; /* branch patched below */
-		instrs[i++] = 0x7d4803a6; /* mtlr r10		*/
+		instrs[i++] = PPC_RAW_MFLR(_R10);
+		instrs[i++] = PPC_RAW_NOP(); /* branch patched below */
+		instrs[i++] = PPC_RAW_MTLR(_R10);
 	}
 
 	if (types & L1D_FLUSH_ORI) {
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		instrs[i++] = PPC_RAW_ORI(_R30, _R30, 0); /* L1d flush */
 	}
 
 	if (types & L1D_FLUSH_MTTRIG)
-		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
 	/*
 	 * If we're patching in or out the fallback flush we need to be careful about the
@@ -421,22 +420,22 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 	start = PTRRELOC(&__start___rfi_flush_fixup);
 	end = PTRRELOC(&__stop___rfi_flush_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = PPC_RAW_NOP();
+	instrs[1] = PPC_RAW_NOP();
+	instrs[2] = PPC_RAW_NOP();
 
 	if (types & L1D_FLUSH_FALLBACK)
 		/* b .+16 to fallback flush */
-		instrs[0] = 0x48000010;
+		instrs[0] = PPC_INST_BRANCH | 16;
 
 	i = 0;
 	if (types & L1D_FLUSH_ORI) {
-		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
-		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+		instrs[i++] = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
+		instrs[i++] = PPC_RAW_ORI(_R30, _R30, 0); /* L1d flush */
 	}
 
 	if (types & L1D_FLUSH_MTTRIG)
-		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+		instrs[i++] = PPC_RAW_MTSPR(SPRN_TRIG2, _R0);
 
 	for (i = 0; start < end; start++, i++) {
 		dest = (void *)start + *start;
@@ -467,11 +466,11 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr = 0x60000000; /* nop */
+	instr = PPC_RAW_NOP();
 
 	if (enable) {
 		pr_info("barrier-nospec: using ORI speculation barrier\n");
-		instr = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		instr = PPC_RAW_ORI(_R31, _R31, 0); /* speculation barrier */
 	}
 
 	for (i = 0; start < end; start++, i++) {
@@ -508,13 +507,13 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr[0] = PPC_INST_NOP;
-	instr[1] = PPC_INST_NOP;
+	instr[0] = PPC_RAW_NOP();
+	instr[1] = PPC_RAW_NOP();
 
 	if (enable) {
 		pr_info("barrier-nospec: using isync; sync as speculation barrier\n");
-		instr[0] = PPC_INST_ISYNC;
-		instr[1] = PPC_INST_SYNC;
+		instr[0] = PPC_RAW_ISYNC();
+		instr[1] = PPC_RAW_SYNC();
 	}
 
 	for (i = 0; start < end; start++, i++) {
@@ -536,7 +535,7 @@ static void patch_btb_flush_section(long *curr)
 	end = (void *)curr + *(curr + 1);
 	for (; start < end; start++) {
 		pr_devel("patching dest %lx\n", (unsigned long)start);
-		patch_instruction((struct ppc_inst *)start, ppc_inst(PPC_INST_NOP));
+		patch_instruction((struct ppc_inst *)start, ppc_inst(PPC_RAW_NOP()));
 	}
 }
 
