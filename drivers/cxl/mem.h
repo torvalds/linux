@@ -54,6 +54,8 @@ struct cxl_memdev {
  * @regs: Parsed register blocks
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
+ * @lsa_size: Size of Label Storage Area
+ *                (CXL 2.0 8.2.9.5.1.1 Identify Memory Device)
  * @mbox_mutex: Mutex to synchronize mailbox access.
  * @firmware_version: Firmware version for the memory device.
  * @enabled_cmds: Hardware commands found enabled in CEL.
@@ -68,6 +70,7 @@ struct cxl_mem {
 	struct cxl_regs regs;
 
 	size_t payload_size;
+	size_t lsa_size;
 	struct mutex mbox_mutex; /* Protects device mailbox and firmware */
 	char firmware_version[0x10];
 	unsigned long *enabled_cmds;

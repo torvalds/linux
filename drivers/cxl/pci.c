@@ -1036,6 +1036,16 @@ static ssize_t payload_max_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(payload_max);
 
+static ssize_t label_storage_size_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_mem *cxlm = cxlmd->cxlm;
+
+	return sysfs_emit(buf, "%zu\n", cxlm->lsa_size);
+}
+static DEVICE_ATTR_RO(label_storage_size);
+
 static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -1065,6 +1075,7 @@ static struct device_attribute dev_attr_pmem_size =
 static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_firmware_version.attr,
 	&dev_attr_payload_max.attr,
+	&dev_attr_label_storage_size.attr,
 	NULL,
 };
 
@@ -1397,6 +1408,7 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 	cxlm->pmem_range.end =
 		le64_to_cpu(id.persistent_capacity) * SZ_256M - 1;
 
+	cxlm->lsa_size = le32_to_cpu(id.lsa_size);
 	memcpy(cxlm->firmware_version, id.fw_revision, sizeof(id.fw_revision));
 
 	return 0;
