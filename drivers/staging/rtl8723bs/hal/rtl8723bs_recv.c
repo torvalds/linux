@@ -108,7 +108,7 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 				!pattrib->icv_err && !pattrib->crc_err &&
 				ether_addr_equal(rx_bssid, my_bssid));
 
-	rx_ra = get_ra(wlanhdr);
+	rx_ra = rtl8723bs_get_ra(wlanhdr);
 	my_hwaddr = myid(&padapter->eeprompriv);
 	pkt_info.to_self = pkt_info.bssid_match &&
 		ether_addr_equal(rx_ra, my_hwaddr);
