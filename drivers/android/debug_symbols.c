@@ -15,6 +15,7 @@
 #include "../../mm/slab.h"
 #include <linux/memblock.h>
 #include <linux/page_owner.h>
+#include <linux/swap.h>
 
 struct ads_entry {
 	char *name;
@@ -54,6 +55,9 @@ static const struct ads_entry ads_entries[ADS_END] = {
 #endif
 #ifdef CONFIG_SLUB_DEBUG
 	ADS_ENTRY(ADS_SLUB_DEBUG, &slub_debug),
+#endif
+#ifdef CONFIG_SWAP
+	ADS_ENTRY(ADS_NR_SWAP_PAGES, &nr_swap_pages),
 #endif
 };
 

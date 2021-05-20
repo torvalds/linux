@@ -27,6 +27,9 @@ enum android_debug_symbol {
 #ifdef CONFIG_SLUB_DEBUG
 	ADS_SLUB_DEBUG,
 #endif
+#ifdef CONFIG_SWAP
+	ADS_NR_SWAP_PAGES,
+#endif
 	ADS_END
 };
 
