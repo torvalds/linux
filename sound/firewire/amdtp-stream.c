@@ -526,7 +526,7 @@ static void generate_cip_header(struct amdtp_stream *s, __be32 cip_header[2],
 }
 
 static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
-				struct fw_iso_packet *params,
+				struct fw_iso_packet *params, unsigned int header_length,
 				unsigned int data_blocks,
 				unsigned int data_block_counter,
 				unsigned int syt, unsigned int index)
@@ -537,16 +537,15 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 	payload_length = data_blocks * sizeof(__be32) * s->data_block_quadlets;
 	params->payload_length = payload_length;
 
-	if (!(s->flags & CIP_NO_HEADER)) {
+	if (header_length > 0) {
 		cip_header = (__be32 *)params->header;
 		generate_cip_header(s, cip_header, data_block_counter, syt);
-		params->header_length = 2 * sizeof(__be32);
-		payload_length += params->header_length;
+		params->header_length = header_length;
 	} else {
 		cip_header = NULL;
 	}
 
-	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
+	trace_amdtp_packet(s, cycle, cip_header, payload_length + header_length, data_blocks,
 			   data_block_counter, s->packet_index, index);
 }
 
@@ -904,6 +903,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	const __be32 *ctx_header = header;
 	unsigned int events_per_period = d->events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
+	unsigned int pkt_header_length;
 	unsigned int packets;
 	int i;
 
@@ -917,6 +917,11 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			   d->seq.size);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
+
+	if (!(s->flags & CIP_NO_HEADER))
+		pkt_header_length = IT_PKT_HEADER_SIZE_CIP;
+	else
+		pkt_header_length = 0;
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
@@ -932,7 +937,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		else
 			syt = s->ctx_data.rx.syt_override;
 
-		build_it_pkt_header(s, desc->cycle, &template.params,
+		build_it_pkt_header(s, desc->cycle, &template.params, pkt_header_length,
 				    desc->data_blocks, desc->data_block_counter,
 				    syt, i);
 
