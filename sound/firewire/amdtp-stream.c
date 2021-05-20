@@ -894,14 +894,13 @@ static void process_ctx_payloads(struct amdtp_stream *s,
 		update_pcm_pointers(s, pcm, pcm_frames);
 }
 
-static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
-				size_t header_length, void *header,
-				void *private_data)
+static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,
+			       void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
 	const struct amdtp_domain *d = s->domain;
 	const __be32 *ctx_header = header;
-	unsigned int events_per_period = d->events_per_period;
+	const unsigned int events_per_period = d->events_per_period;
 	unsigned int event_count = s->ctx_data.rx.event_count;
 	unsigned int pkt_header_length;
 	unsigned int packets;
@@ -956,6 +955,89 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	}
 
 	s->ctx_data.rx.event_count = event_count;
+}
+
+static void skip_rx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,
+			    void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	const __be32 *ctx_header = header;
+	unsigned int packets;
+	unsigned int cycle;
+	int i;
+
+	if (s->packet_index < 0)
+		return;
+
+	packets = header_length / sizeof(*ctx_header);
+
+	cycle = compute_ohci_it_cycle(ctx_header[packets - 1], s->queue_size);
+	s->next_cycle = increment_ohci_cycle_count(cycle, 1);
+
+	for (i = 0; i < packets; ++i) {
+		struct fw_iso_packet params = {
+			.header_length = 0,
+			.payload_length = 0,
+		};
+		bool sched_irq = (s == d->irq_target && i == packets - 1);
+
+		if (queue_out_packet(s, &params, sched_irq) < 0) {
+			cancel_stream(s);
+			return;
+		}
+	}
+}
+
+static void irq_target_callback(struct fw_iso_context *context, u32 tstamp, size_t header_length,
+				void *header, void *private_data);
+
+static void process_rx_packets_intermediately(struct fw_iso_context *context, u32 tstamp,
+					size_t header_length, void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	__be32 *ctx_header = header;
+	const unsigned int queue_size = s->queue_size;
+	unsigned int packets;
+	unsigned int offset;
+
+	if (s->packet_index < 0)
+		return;
+
+	packets = header_length / sizeof(*ctx_header);
+
+	offset = 0;
+	while (offset < packets) {
+		unsigned int cycle = compute_ohci_it_cycle(ctx_header[offset], queue_size);
+
+		if (compare_ohci_cycle_count(cycle, d->processing_cycle.rx_start) >= 0)
+			break;
+
+		++offset;
+	}
+
+	if (offset > 0) {
+		unsigned int length = sizeof(*ctx_header) * offset;
+
+		skip_rx_packets(context, tstamp, length, ctx_header, private_data);
+		if (amdtp_streaming_error(s))
+			return;
+
+		ctx_header += offset;
+		header_length -= length;
+	}
+
+	if (offset < packets) {
+		process_rx_packets(context, tstamp, header_length, ctx_header, private_data);
+		if (amdtp_streaming_error(s))
+			return;
+
+		if (s == d->irq_target)
+			s->context->callback.sc = irq_target_callback;
+		else
+			s->context->callback.sc = process_rx_packets;
+	}
 }
 
 static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_t header_length,
@@ -1116,39 +1198,82 @@ static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
 	d->seq.tail = seq_tail;
 }
 
-static void irq_target_callback(struct fw_iso_context *context, u32 tstamp,
-				size_t header_length, void *header,
-				void *private_data)
+static void process_ctxs_in_domain(struct amdtp_domain *d)
 {
-	struct amdtp_stream *irq_target = private_data;
-	struct amdtp_domain *d = irq_target->domain;
-	unsigned int packets = header_length / sizeof(__be32);
 	struct amdtp_stream *s;
 
-	// Record enough entries with extra 3 cycles at least.
-	pool_ideal_seq_descs(d, packets + 3);
-
-	out_stream_callback(context, tstamp, header_length, header, irq_target);
-	if (amdtp_streaming_error(irq_target))
-		goto error;
-
 	list_for_each_entry(s, &d->streams, list) {
-		if (s != irq_target && amdtp_stream_running(s)) {
+		if (s != d->irq_target && amdtp_stream_running(s))
 			fw_iso_context_flush_completions(s->context);
-			if (amdtp_streaming_error(s))
-				goto error;
-		}
+
+		if (amdtp_streaming_error(s))
+			goto error;
 	}
 
 	return;
 error:
-	if (amdtp_stream_running(irq_target))
-		cancel_stream(irq_target);
+	if (amdtp_stream_running(d->irq_target))
+		cancel_stream(d->irq_target);
 
 	list_for_each_entry(s, &d->streams, list) {
 		if (amdtp_stream_running(s))
 			cancel_stream(s);
 	}
+}
+
+static void irq_target_callback(struct fw_iso_context *context, u32 tstamp, size_t header_length,
+				void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	unsigned int packets = header_length / sizeof(__be32);
+
+	pool_ideal_seq_descs(d, packets);
+
+	process_rx_packets(context, tstamp, header_length, header, private_data);
+	process_ctxs_in_domain(d);
+}
+
+static void irq_target_callback_intermediately(struct fw_iso_context *context, u32 tstamp,
+					size_t header_length, void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	unsigned int packets = header_length / sizeof(__be32);
+
+	pool_ideal_seq_descs(d, packets);
+
+	process_rx_packets_intermediately(context, tstamp, header_length, header, private_data);
+	process_ctxs_in_domain(d);
+}
+
+static void irq_target_callback_skip(struct fw_iso_context *context, u32 tstamp,
+				     size_t header_length, void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	unsigned int cycle;
+
+	skip_rx_packets(context, tstamp, header_length, header, private_data);
+	process_ctxs_in_domain(d);
+
+	// Decide the cycle count to begin processing content of packet in IT contexts. All of IT
+	// contexts are expected to start and get callback when reaching here.
+	cycle = s->next_cycle;
+	list_for_each_entry(s, &d->streams, list) {
+		if (s->direction != AMDTP_OUT_STREAM)
+			continue;
+
+		if (compare_ohci_cycle_count(s->next_cycle, cycle) > 0)
+			cycle = s->next_cycle;
+
+		if (s == d->irq_target)
+			s->context->callback.sc = irq_target_callback_intermediately;
+		else
+			s->context->callback.sc = process_rx_packets_intermediately;
+	}
+
+	d->processing_cycle.rx_start = cycle;
 }
 
 // this is executed one time.
@@ -1176,12 +1301,10 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 		cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
 		if (s == d->irq_target)
-			context->callback.sc = irq_target_callback;
+			context->callback.sc = irq_target_callback_skip;
 		else
-			context->callback.sc = out_stream_callback;
+			context->callback.sc = skip_rx_packets;
 	}
-
-	s->start_cycle = cycle;
 
 	context->callback.sc(context, tstamp, header_length, header, s);
 

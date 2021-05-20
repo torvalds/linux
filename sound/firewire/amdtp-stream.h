@@ -170,7 +170,6 @@ struct amdtp_stream {
 	/* To wait for first packet. */
 	bool callbacked;
 	wait_queue_head_t callback_wait;
-	u32 start_cycle;
 	unsigned int next_cycle;
 
 	/* For backends to process data blocks. */
@@ -291,6 +290,7 @@ struct amdtp_domain {
 	struct {
 		unsigned int tx_init_skip;
 		unsigned int tx_start;
+		unsigned int rx_start;
 	} processing_cycle;
 
 	struct {
