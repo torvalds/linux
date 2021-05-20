@@ -945,8 +945,6 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 	dev->mt76.hw->wiphy->wowlan = &mt76_connac_wowlan_support;
 #endif /* CONFIG_PM */
 
-	clear_bit(MT76_STATE_PM, &dev->mphy.state);
-
 	dev_err(dev->mt76.dev, "Firmware init done\n");
 
 	return 0;
