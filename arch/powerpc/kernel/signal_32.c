@@ -828,10 +828,8 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 		tramp = VDSO32_SYMBOL(tsk->mm->context.vdso, sigtramp_rt32);
 	} else {
 		tramp = (unsigned long)mctx->mc_pad;
-		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		unsafe_put_user(PPC_INST_ADDI + __NR_rt_sigreturn, &mctx->mc_pad[0],
-				failed);
-		unsafe_put_user(PPC_INST_SC, &mctx->mc_pad[1], failed);
+		unsafe_put_user(PPC_RAW_LI(_R0, __NR_rt_sigreturn), &mctx->mc_pad[0], failed);
+		unsafe_put_user(PPC_RAW_SC(), &mctx->mc_pad[1], failed);
 		asm("dcbst %y0; sync; icbi %y0; sync" :: "Z" (mctx->mc_pad[0]));
 	}
 	unsafe_put_sigset_t(&frame->uc.uc_sigmask, oldset, failed);
@@ -926,9 +924,8 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		tramp = VDSO32_SYMBOL(tsk->mm->context.vdso, sigtramp32);
 	} else {
 		tramp = (unsigned long)mctx->mc_pad;
-		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		unsafe_put_user(PPC_INST_ADDI + __NR_sigreturn, &mctx->mc_pad[0], failed);
-		unsafe_put_user(PPC_INST_SC, &mctx->mc_pad[1], failed);
+		unsafe_put_user(PPC_RAW_LI(_R0, __NR_sigreturn), &mctx->mc_pad[0], failed);
+		unsafe_put_user(PPC_RAW_SC(), &mctx->mc_pad[1], failed);
 		asm("dcbst %y0; sync; icbi %y0; sync" :: "Z" (mctx->mc_pad[0]));
 	}
 	user_access_end();
