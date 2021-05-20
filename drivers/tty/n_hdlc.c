@@ -411,8 +411,10 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
  * n_hdlc_tty_read - Called to retrieve one frame of data (if available)
  * @tty: pointer to tty instance data
  * @file: pointer to open file object
- * @buf: pointer to returned data buffer
+ * @kbuf: pointer to returned data buffer
  * @nr: size of returned data buffer
+ * @cookie: stored rbuf from previous run
+ * @offset: offset into the data buffer
  *
  * Returns the number of bytes returned or error code.
  */
