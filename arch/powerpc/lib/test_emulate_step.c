@@ -922,7 +922,7 @@ static struct compute_test compute_tests[] = {
 		.subtests = {
 			{
 				.descr = "R0 = LONG_MAX",
-				.instr = ppc_inst(PPC_INST_NOP),
+				.instr = ppc_inst(PPC_RAW_NOP()),
 				.regs = {
 					.gpr[0] = LONG_MAX,
 				}
