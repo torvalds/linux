@@ -77,7 +77,7 @@ struct hclge_dbg_dfx_message {
 
 #define HCLGE_DBG_MAC_REG_TYPE_LEN	32
 struct hclge_dbg_reg_type_info {
-	const char *reg_type;
+	enum hnae3_dbg_cmd cmd;
 	const struct hclge_dbg_dfx_message *dfx_msg;
 	struct hclge_dbg_reg_common_msg reg_msg;
 };
@@ -85,6 +85,8 @@ struct hclge_dbg_reg_type_info {
 struct hclge_dbg_func {
 	enum hnae3_dbg_cmd cmd;
 	int (*dbg_dump)(struct hclge_dev *hdev, char *buf, int len);
+	int (*dbg_dump_reg)(struct hclge_dev *hdev, enum hnae3_dbg_cmd cmd,
+			    char *buf, int len);
 };
 
 static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {

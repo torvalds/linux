@@ -23,6 +23,9 @@ static struct hns3_dbg_dentry_info hns3_dbg_dentry[] = {
 	{
 		.name = "mac_list"
 	},
+	{
+		.name = "reg"
+	},
 	/* keep common at the bottom and add new directory above */
 	{
 		.name = "common"
@@ -130,6 +133,76 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.cmd = HNAE3_DBG_CMD_NCL_CONFIG,
 		.dentry = HNS3_DBG_DENTRY_COMMON,
 		.buf_len = HNS3_DBG_READ_LEN_128KB,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "bios_common",
+		.cmd = HNAE3_DBG_CMD_REG_BIOS_COMMON,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "ssu",
+		.cmd = HNAE3_DBG_CMD_REG_SSU,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "igu_egu",
+		.cmd = HNAE3_DBG_CMD_REG_IGU_EGU,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "rpu",
+		.cmd = HNAE3_DBG_CMD_REG_RPU,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "ncsi",
+		.cmd = HNAE3_DBG_CMD_REG_NCSI,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "rtc",
+		.cmd = HNAE3_DBG_CMD_REG_RTC,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "ppp",
+		.cmd = HNAE3_DBG_CMD_REG_PPP,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "rcb",
+		.cmd = HNAE3_DBG_CMD_REG_RCB,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "tqp",
+		.cmd = HNAE3_DBG_CMD_REG_TQP,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
+	{
+		.name = "mac",
+		.cmd = HNAE3_DBG_CMD_REG_MAC,
+		.dentry = HNS3_DBG_DENTRY_REG,
+		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
 };
@@ -528,17 +601,6 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qos buf cfg\n");
 	dev_info(&h->pdev->dev, "dump mac tnl status\n");
 	dev_info(&h->pdev->dev, "dump qs shaper [qs id]\n");
-
-	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
-	strncat(printf_buf, "dump reg [[bios common] [ssu <port_id>]",
-		HNS3_DBG_BUF_LEN - 1);
-	strncat(printf_buf + strlen(printf_buf),
-		" [igu egu <port_id>] [rpu <tc_queue_num>]",
-		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
-	strncat(printf_buf + strlen(printf_buf),
-		" [rtc] [ppp] [rcb] [tqp <queue_num>] [mac]]\n",
-		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
-	dev_info(&h->pdev->dev, "%s", printf_buf);
 
 	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
 	strncat(printf_buf, "dump reg dcb <port_id> <pri_id> <pg_id>",
