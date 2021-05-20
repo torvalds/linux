@@ -1910,6 +1910,7 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		if ((req->ki_flags & IOCB_DSYNC) &&
 		    !c->opts.journal_flush_disabled)
 			dio->op.flags |= BCH_WRITE_FLUSH;
+		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
 
 		ret = bch2_disk_reservation_get(c, &dio->op.res, bio_sectors(bio),
 						dio->op.opts.data_replicas, 0);
@@ -2725,7 +2726,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 		ret = bch2_extent_update(&trans, iter, &reservation.k_i,
 				&disk_res, &inode->ei_journal_seq,
-				0, &i_sectors_delta);
+				0, &i_sectors_delta, true);
 		i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);

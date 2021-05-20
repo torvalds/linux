@@ -38,11 +38,12 @@ enum bch_write_flags {
 	BCH_WRITE_ONLY_SPECIFIED_DEVS	= (1 << 6),
 	BCH_WRITE_WROTE_DATA_INLINE	= (1 << 7),
 	BCH_WRITE_FROM_INTERNAL		= (1 << 8),
+	BCH_WRITE_CHECK_ENOSPC		= (1 << 9),
 
 	/* Internal: */
-	BCH_WRITE_JOURNAL_SEQ_PTR	= (1 << 9),
-	BCH_WRITE_SKIP_CLOSURE_PUT	= (1 << 10),
-	BCH_WRITE_DONE			= (1 << 11),
+	BCH_WRITE_JOURNAL_SEQ_PTR	= (1 << 10),
+	BCH_WRITE_SKIP_CLOSURE_PUT	= (1 << 11),
+	BCH_WRITE_DONE			= (1 << 12),
 };
 
 static inline u64 *op_journal_seq(struct bch_write_op *op)
@@ -68,7 +69,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *, struct btree_iter *,
 			       struct bkey_i *, bool *, bool *, s64 *, s64 *);
 int bch2_extent_update(struct btree_trans *, struct btree_iter *,
 		       struct bkey_i *, struct disk_reservation *,
-		       u64 *, u64, s64 *);
+		       u64 *, u64, s64 *, bool);
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   struct bpos, u64 *, s64 *);
 int bch2_fpunch(struct bch_fs *c, u64, u64, u64, u64 *, s64 *);

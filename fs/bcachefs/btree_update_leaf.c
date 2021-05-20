@@ -690,6 +690,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		}
 		break;
 	case BTREE_INSERT_ENOSPC:
+		BUG_ON(flags & BTREE_INSERT_NOFAIL);
 		ret = -ENOSPC;
 		break;
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
@@ -742,6 +743,8 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		BUG_ON(ret >= 0);
 		break;
 	}
+
+	BUG_ON(ret == -ENOSPC && (flags & BTREE_INSERT_NOFAIL));
 
 	return ret;
 }

@@ -197,7 +197,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			       struct btree_iter *extent_iter,
 			       struct bkey_i *new,
 			       bool *maybe_extending,
-			       bool *should_check_enospc,
+			       bool *usage_increasing,
 			       s64 *i_sectors_delta,
 			       s64 *disk_sectors_delta)
 {
@@ -209,7 +209,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	int ret = 0;
 
 	*maybe_extending	= true;
-	*should_check_enospc	= false;
+	*usage_increasing	= false;
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
 
@@ -229,10 +229,10 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 			? sectors * bch2_bkey_nr_ptrs_fully_allocated(old)
 			: 0;
 
-		if (!*should_check_enospc &&
+		if (!*usage_increasing &&
 		    (new_replicas > bch2_bkey_replicas(c, old) ||
 		     (!new_compressed && bch2_bkey_sectors_compressed(old))))
-			*should_check_enospc = true;
+			*usage_increasing = true;
 
 		if (bkey_cmp(old.k->p, new->k.p) >= 0) {
 			/*
@@ -267,11 +267,12 @@ int bch2_extent_update(struct btree_trans *trans,
 		       struct disk_reservation *disk_res,
 		       u64 *journal_seq,
 		       u64 new_i_size,
-		       s64 *i_sectors_delta_total)
+		       s64 *i_sectors_delta_total,
+		       bool check_enospc)
 {
 	/* this must live until after bch2_trans_commit(): */
 	struct bkey_inode_buf inode_p;
-	bool extending = false, should_check_enospc;
+	bool extending = false, usage_increasing;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
@@ -281,17 +282,20 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	ret = bch2_sum_sector_overwrites(trans, iter, k,
 			&extending,
-			&should_check_enospc,
+			&usage_increasing,
 			&i_sectors_delta,
 			&disk_sectors_delta);
 	if (ret)
 		return ret;
 
+	if (!usage_increasing)
+		check_enospc = false;
+
 	if (disk_res &&
 	    disk_sectors_delta > (s64) disk_res->sectors) {
 		ret = bch2_disk_reservation_add(trans->c, disk_res,
 					disk_sectors_delta - disk_res->sectors,
-					!should_check_enospc
+					!check_enospc
 					? BCH_DISK_RESERVATION_NOFAIL : 0);
 		if (ret)
 			return ret;
@@ -346,6 +350,7 @@ int bch2_extent_update(struct btree_trans *trans,
 		bch2_trans_commit(trans, disk_res, journal_seq,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL);
+	BUG_ON(ret == -ENOSPC);
 	if (ret)
 		return ret;
 
@@ -384,7 +389,7 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 
 		ret = bch2_extent_update(trans, iter, &delete,
 				&disk_res, journal_seq,
-				0, i_sectors_delta);
+				0, i_sectors_delta, false);
 		bch2_disk_reservation_put(c, &disk_res);
 btree_err:
 		if (ret == -EINTR) {
@@ -457,7 +462,8 @@ int bch2_write_index_default(struct bch_write_op *op)
 
 		ret = bch2_extent_update(&trans, iter, sk.k,
 					 &op->res, op_journal_seq(op),
-					 op->new_i_size, &op->i_sectors_delta);
+					 op->new_i_size, &op->i_sectors_delta,
+					 op->flags & BCH_WRITE_CHECK_ENOSPC);
 		if (ret == -EINTR)
 			continue;
 		if (ret)
