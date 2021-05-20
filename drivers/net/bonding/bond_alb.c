@@ -835,7 +835,7 @@ static void rlb_purge_src_ip(struct bonding *bond, struct arp_pkt *arp)
 
 		if (entry->ip_src == arp->ip_src &&
 		    !ether_addr_equal_64bits(arp->mac_src, entry->mac_src))
-				rlb_delete_table_entry(bond, index);
+			rlb_delete_table_entry(bond, index);
 		index = next_index;
 	}
 	spin_unlock_bh(&bond->mode_lock);
