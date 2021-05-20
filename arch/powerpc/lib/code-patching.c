@@ -18,8 +18,7 @@
 #include <asm/setup.h>
 #include <asm/inst.h>
 
-static int __patch_instruction(struct ppc_inst *exec_addr, struct ppc_inst instr,
-			       struct ppc_inst *patch_addr)
+static int __patch_instruction(u32 *exec_addr, struct ppc_inst instr, u32 *patch_addr)
 {
 	if (!ppc_inst_prefixed(instr)) {
 		u32 val = ppc_inst_val(instr);
@@ -40,7 +39,7 @@ failed:
 	return -EFAULT;
 }
 
-int raw_patch_instruction(struct ppc_inst *addr, struct ppc_inst instr)
+int raw_patch_instruction(u32 *addr, struct ppc_inst instr)
 {
 	return __patch_instruction(addr, instr, addr);
 }
@@ -148,10 +147,10 @@ static inline int unmap_patch_area(unsigned long addr)
 	return 0;
 }
 
-static int do_patch_instruction(struct ppc_inst *addr, struct ppc_inst instr)
+static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
 {
 	int err;
-	struct ppc_inst *patch_addr = NULL;
+	u32 *patch_addr = NULL;
 	unsigned long flags;
 	unsigned long text_poke_addr;
 	unsigned long kaddr = (unsigned long)addr;
@@ -172,7 +171,7 @@ static int do_patch_instruction(struct ppc_inst *addr, struct ppc_inst instr)
 		goto out;
 	}
 
-	patch_addr = (struct ppc_inst *)(text_poke_addr + (kaddr & ~PAGE_MASK));
+	patch_addr = (u32 *)(text_poke_addr + (kaddr & ~PAGE_MASK));
 
 	__patch_instruction(addr, instr, patch_addr);
 
@@ -187,14 +186,14 @@ out:
 }
 #else /* !CONFIG_STRICT_KERNEL_RWX */
 
-static int do_patch_instruction(struct ppc_inst *addr, struct ppc_inst instr)
+static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
 {
 	return raw_patch_instruction(addr, instr);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
-int patch_instruction(struct ppc_inst *addr, struct ppc_inst instr)
+int patch_instruction(u32 *addr, struct ppc_inst instr)
 {
 	/* Make sure we aren't patching a freed init section */
 	if (init_mem_is_free && init_section_contains(addr, 4)) {
@@ -205,7 +204,7 @@ int patch_instruction(struct ppc_inst *addr, struct ppc_inst instr)
 }
 NOKPROBE_SYMBOL(patch_instruction);
 
-int patch_branch(struct ppc_inst *addr, unsigned long target, int flags)
+int patch_branch(u32 *addr, unsigned long target, int flags)
 {
 	struct ppc_inst instr;
 
@@ -257,8 +256,7 @@ bool is_conditional_branch(struct ppc_inst instr)
 }
 NOKPROBE_SYMBOL(is_conditional_branch);
 
-int create_branch(struct ppc_inst *instr,
-		  const struct ppc_inst *addr,
+int create_branch(struct ppc_inst *instr, const u32 *addr,
 		  unsigned long target, int flags)
 {
 	long offset;
@@ -278,7 +276,7 @@ int create_branch(struct ppc_inst *instr,
 	return 0;
 }
 
-int create_cond_branch(struct ppc_inst *instr, const struct ppc_inst *addr,
+int create_cond_branch(struct ppc_inst *instr, const u32 *addr,
 		       unsigned long target, int flags)
 {
 	long offset;
@@ -325,7 +323,7 @@ int instr_is_relative_link_branch(struct ppc_inst instr)
 	return instr_is_relative_branch(instr) && (ppc_inst_val(instr) & BRANCH_SET_LINK);
 }
 
-static unsigned long branch_iform_target(const struct ppc_inst *instr)
+static unsigned long branch_iform_target(const u32 *instr)
 {
 	signed long imm;
 
@@ -341,7 +339,7 @@ static unsigned long branch_iform_target(const struct ppc_inst *instr)
 	return (unsigned long)imm;
 }
 
-static unsigned long branch_bform_target(const struct ppc_inst *instr)
+static unsigned long branch_bform_target(const u32 *instr)
 {
 	signed long imm;
 
@@ -357,7 +355,7 @@ static unsigned long branch_bform_target(const struct ppc_inst *instr)
 	return (unsigned long)imm;
 }
 
-unsigned long branch_target(const struct ppc_inst *instr)
+unsigned long branch_target(const u32 *instr)
 {
 	if (instr_is_branch_iform(ppc_inst_read(instr)))
 		return branch_iform_target(instr);
@@ -367,8 +365,7 @@ unsigned long branch_target(const struct ppc_inst *instr)
 	return 0;
 }
 
-int translate_branch(struct ppc_inst *instr, const struct ppc_inst *dest,
-		     const struct ppc_inst *src)
+int translate_branch(struct ppc_inst *instr, const u32 *dest, const u32 *src)
 {
 	unsigned long target;
 	target = branch_target(src);
@@ -395,13 +392,13 @@ void __patch_exception(int exc, unsigned long addr)
 	 * instruction of the exception, not the first one
 	 */
 
-	patch_branch((struct ppc_inst *)(ibase + (exc / 4) + 1), addr, 0);
+	patch_branch(ibase + (exc / 4) + 1, addr, 0);
 }
 #endif
 
 #ifdef CONFIG_CODE_PATCHING_SELFTEST
 
-static int instr_is_branch_to_addr(const struct ppc_inst *instr, unsigned long addr)
+static int instr_is_branch_to_addr(const u32 *instr, unsigned long addr)
 {
 	if (instr_is_branch_iform(ppc_inst_read(instr)) ||
 	    instr_is_branch_bform(ppc_inst_read(instr)))
@@ -423,7 +420,7 @@ static void __init test_branch_iform(void)
 	int err;
 	struct ppc_inst instr;
 	u32 tmp[2];
-	struct ppc_inst *iptr = (struct ppc_inst *)tmp;
+	u32 *iptr = tmp;
 	unsigned long addr = (unsigned long)tmp;
 
 	/* The simplest case, branch to self, no flags */
@@ -501,12 +498,12 @@ static void __init test_branch_iform(void)
 
 static void __init test_create_function_call(void)
 {
-	struct ppc_inst *iptr;
+	u32 *iptr;
 	unsigned long dest;
 	struct ppc_inst instr;
 
 	/* Check we can create a function call */
-	iptr = (struct ppc_inst *)ppc_function_entry(test_trampoline);
+	iptr = (u32 *)ppc_function_entry(test_trampoline);
 	dest = ppc_function_entry(test_create_function_call);
 	create_branch(&instr, iptr, dest, BRANCH_SET_LINK);
 	patch_instruction(iptr, instr);
@@ -517,11 +514,11 @@ static void __init test_branch_bform(void)
 {
 	int err;
 	unsigned long addr;
-	struct ppc_inst *iptr, instr;
+	struct ppc_inst instr;
 	u32 tmp[2];
+	u32 *iptr = tmp;
 	unsigned int flags;
 
-	iptr = (struct ppc_inst *)tmp;
 	addr = (unsigned long)iptr;
 
 	/* The simplest case, branch to self, no flags */
@@ -726,9 +723,9 @@ static void __init test_prefixed_patching(void)
 	extern unsigned int code_patching_test1_expected[];
 	extern unsigned int end_code_patching_test1[];
 
-	__patch_instruction((struct ppc_inst *)code_patching_test1,
+	__patch_instruction(code_patching_test1,
 			    ppc_inst_prefix(OP_PREFIX << 26, 0x00000000),
-			    (struct ppc_inst *)code_patching_test1);
+			    code_patching_test1);
 
 	check(!memcmp(code_patching_test1,
 		      code_patching_test1_expected,

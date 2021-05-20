@@ -417,11 +417,10 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 
 int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
+	u32 instr, *addr = (u32 *)bpt->bpt_addr;
 	int err;
-	unsigned int instr;
-	struct ppc_inst *addr = (struct ppc_inst *)bpt->bpt_addr;
 
-	err = get_kernel_nofault(instr, (unsigned *) addr);
+	err = get_kernel_nofault(instr, addr);
 	if (err)
 		return err;
 
@@ -429,7 +428,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	if (err)
 		return -EFAULT;
 
-	*(unsigned int *)bpt->saved_instr = instr;
+	*(u32 *)bpt->saved_instr = instr;
 
 	return 0;
 }
@@ -438,7 +437,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 	unsigned int instr = *(unsigned int *)bpt->saved_instr;
-	struct ppc_inst *addr = (struct ppc_inst *)bpt->bpt_addr;
+	u32 *addr = (u32 *)bpt->bpt_addr;
 
 	err = patch_instruction(addr, ppc_inst(instr));
 	if (err)

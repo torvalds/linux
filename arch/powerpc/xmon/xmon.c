@@ -100,7 +100,7 @@ static long *xmon_fault_jmp[NR_CPUS];
 /* Breakpoint stuff */
 struct bpt {
 	unsigned long	address;
-	struct ppc_inst	*instr;
+	u32		*instr;
 	atomic_t	ref_count;
 	int		enabled;
 	unsigned long	pad;
@@ -946,11 +946,11 @@ static void insert_bpts(void)
 		}
 
 		patch_instruction(bp->instr, instr);
-		patch_instruction(ppc_inst_next(bp->instr, &instr),
+		patch_instruction(ppc_inst_next(bp->instr, bp->instr),
 				  ppc_inst(bpinstr));
 		if (bp->enabled & BP_CIABR)
 			continue;
-		if (patch_instruction((struct ppc_inst *)bp->address,
+		if (patch_instruction((u32 *)bp->address,
 				      ppc_inst(bpinstr)) != 0) {
 			printf("Couldn't write instruction at %lx, "
 			       "disabling breakpoint there\n", bp->address);
@@ -992,7 +992,7 @@ static void remove_bpts(void)
 		if (mread_instr(bp->address, &instr)
 		    && ppc_inst_equal(instr, ppc_inst(bpinstr))
 		    && patch_instruction(
-			(struct ppc_inst *)bp->address, ppc_inst_read(bp->instr)) != 0)
+			(u32 *)bp->address, ppc_inst_read(bp->instr)) != 0)
 			printf("Couldn't remove breakpoint at %lx\n",
 			       bp->address);
 	}
@@ -2214,7 +2214,7 @@ mread_instr(unsigned long adrs, struct ppc_inst *instr)
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
 		sync();
-		*instr = ppc_inst_read((struct ppc_inst *)adrs);
+		*instr = ppc_inst_read((u32 *)adrs);
 		sync();
 		/* wait a little while to see if we get a machine check */
 		__delay(200);

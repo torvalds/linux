@@ -107,7 +107,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret = 0;
 	struct kprobe *prev;
-	struct ppc_inst insn = ppc_inst_read((struct ppc_inst *)p->addr);
+	struct ppc_inst insn = ppc_inst_read(p->addr);
 
 	if ((unsigned long)p->addr & 0x03) {
 		printk("Attempt to register kprobe at an unaligned address\n");
@@ -116,15 +116,14 @@ int arch_prepare_kprobe(struct kprobe *p)
 		printk("Cannot register a kprobe on rfi/rfid or mtmsr[d]\n");
 		ret = -EINVAL;
 	} else if ((unsigned long)p->addr & ~PAGE_MASK &&
-		   ppc_inst_prefixed(ppc_inst_read((struct ppc_inst *)(p->addr - 1)))) {
+		   ppc_inst_prefixed(ppc_inst_read(p->addr - 1))) {
 		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
 	preempt_disable();
 	prev = get_kprobe(p->addr - 1);
 	preempt_enable_no_resched();
-	if (prev &&
-	    ppc_inst_prefixed(ppc_inst_read((struct ppc_inst *)prev->ainsn.insn))) {
+	if (prev && ppc_inst_prefixed(ppc_inst_read(prev->ainsn.insn))) {
 		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
@@ -138,7 +137,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	}
 
 	if (!ret) {
-		patch_instruction((struct ppc_inst *)p->ainsn.insn, insn);
+		patch_instruction(p->ainsn.insn, insn);
 		p->opcode = ppc_inst_val(insn);
 	}
 
@@ -149,13 +148,13 @@ NOKPROBE_SYMBOL(arch_prepare_kprobe);
 
 void arch_arm_kprobe(struct kprobe *p)
 {
-	patch_instruction((struct ppc_inst *)p->addr, ppc_inst(BREAKPOINT_INSTRUCTION));
+	patch_instruction(p->addr, ppc_inst(BREAKPOINT_INSTRUCTION));
 }
 NOKPROBE_SYMBOL(arch_arm_kprobe);
 
 void arch_disarm_kprobe(struct kprobe *p)
 {
-	patch_instruction((struct ppc_inst *)p->addr, ppc_inst(p->opcode));
+	patch_instruction(p->addr, ppc_inst(p->opcode));
 }
 NOKPROBE_SYMBOL(arch_disarm_kprobe);
 
@@ -228,7 +227,7 @@ NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
-	struct ppc_inst insn = ppc_inst_read((struct ppc_inst *)p->ainsn.insn);
+	struct ppc_inst insn = ppc_inst_read(p->ainsn.insn);
 
 	/* regs->nip is also adjusted if emulate_step returns 1 */
 	ret = emulate_step(regs, insn);
@@ -439,7 +438,7 @@ int kprobe_post_handler(struct pt_regs *regs)
 	if (!cur || user_mode(regs))
 		return 0;
 
-	len = ppc_inst_len(ppc_inst_read((struct ppc_inst *)cur->ainsn.insn));
+	len = ppc_inst_len(ppc_inst_read(cur->ainsn.insn));
 	/* make sure we got here for instruction we have a kprobe on */
 	if (((unsigned long)cur->ainsn.insn + len) != regs->nip)
 		return 0;
