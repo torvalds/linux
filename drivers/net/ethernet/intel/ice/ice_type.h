@@ -262,6 +262,7 @@ struct ice_hw_common_caps {
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
 
 	u8 dcb;
+	u8 rdma;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;

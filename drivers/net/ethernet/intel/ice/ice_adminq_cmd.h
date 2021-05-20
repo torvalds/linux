@@ -115,6 +115,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_PENDING_OROM_VER			0x004B
 #define ICE_AQC_CAPS_NET_VER				0x004C
 #define ICE_AQC_CAPS_PENDING_NET_VER			0x004D
+#define ICE_AQC_CAPS_RDMA				0x0051
 #define ICE_AQC_CAPS_NVM_MGMT				0x0080
 
 	u8 major_ver;
