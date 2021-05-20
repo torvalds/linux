@@ -432,7 +432,6 @@ struct mlx5e_txqsq {
 	__be32                     mkey_be;
 	unsigned long              state;
 	unsigned int               hw_mtu;
-	struct hwtstamp_config    *tstamp;
 	struct mlx5_clock         *clock;
 	struct net_device         *netdev;
 	struct mlx5_core_dev      *mdev;
