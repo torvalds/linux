@@ -221,7 +221,6 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 	unsigned long i;
 	size_t min_bytes_to_read;
 	int rc;
-	unsigned char uc;
 
 	DEBUGP(2, dev, "-> cm4040_read(%s,%d)\n", current->comm, current->pid);
 
@@ -308,7 +307,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 			return -EIO;
 	}
 
-	uc = xinb(iobase + REG_OFFSET_BULK_IN);
+	xinb(iobase + REG_OFFSET_BULK_IN);
 
 	DEBUGP(2, dev, "<- cm4040_read (successfully)\n");
 	return min_bytes_to_read;
