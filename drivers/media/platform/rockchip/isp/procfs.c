@@ -155,7 +155,7 @@ static void isp21_show(struct rkisp_device *dev, struct seq_file *p)
 		(val & 1) ? "ON" : "OFF", val,
 		effect[(val & CIF_IMG_EFF_CTRL_MODE_MASK) >> 1]);
 	val = rkisp_read(dev, ISP21_DRC_CTRL0, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "HDRTMO", (val & 1) ? "ON" : "OFF", val);
+	seq_printf(p, "%-10s %s(0x%x)\n", "HDRDRC", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP_HDRMGE_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "HDRMGE", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP21_BAYNR_CTRL, false);

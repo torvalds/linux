@@ -9,7 +9,6 @@
 #include <linux/kfifo.h>
 #include "common.h"
 
-//#define RKISP_RD_STATS_FROM_DDR
 #define RKISP_RD_STATS_BUF_SIZE		0x35000
 
 struct rkisp_isp_stats_vdev;
