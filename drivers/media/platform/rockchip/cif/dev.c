@@ -1008,7 +1008,7 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 	notifier->priority = 1;
 	notifier->notifier_call = rkcif_reset_notifier;
 	rkcif_csi2_register_notifier(notifier);
-
+	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
 }
 
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)

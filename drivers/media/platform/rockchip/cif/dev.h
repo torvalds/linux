@@ -363,6 +363,7 @@ struct rkcif_timer {
 	bool			is_buf_stop_update;
 	bool			is_running;
 	bool			is_csi2_err_occurred;
+	bool			has_been_init;
 	enum rkcif_monitor_mode	monitor_mode;
 	enum rkmodule_reset_src	reset_src;
 };
@@ -562,5 +563,5 @@ void rkcif_reset_watchdog_timer_handler(struct timer_list *t);
 void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 					enum rkcif_clk_edge edge);
 void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on);
-
+void rkcif_reset_work(struct work_struct *work);
 #endif

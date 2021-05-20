@@ -4730,8 +4730,10 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	struct rkcif_stream *resume_stream[RKCIF_MAX_STREAM_MIPI] = { NULL };
 	struct rkcif_sensor_info *terminal_sensor = &cif_dev->terminal_sensor;
 	struct rkcif_resume_info *resume_info = &cif_dev->reset_work.resume_info;
+	struct rkcif_timer *timer = &cif_dev->reset_watchdog_timer;
 	int i, j, ret = 0;
 	u32 on, sof_cnt;
+	u64 fps;
 
 	mutex_lock(&cif_dev->stream_lock);
 
@@ -4740,6 +4742,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 	v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev, "do rkcif reset\n");
 
+	fps = div_u64(timer->frame_end_cycle_us, 1000);
 	for (i = 0, j = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 		stream = &cif_dev->stream[i];
 
@@ -4752,7 +4755,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 			ret = wait_event_timeout(stream->wq_stopped,
 						 stream->state != RKCIF_STATE_STREAMING,
-						 msecs_to_jiffies(1000));
+						 msecs_to_jiffies(fps));
 			if (!ret) {
 				rkcif_stream_stop(stream);
 				stream->stopping = false;
@@ -4885,7 +4888,7 @@ unlock_stream:
 	return ret;
 }
 
-static void rkcif_reset_work(struct work_struct *work)
+void rkcif_reset_work(struct work_struct *work)
 {
 	struct rkcif_work_struct *reset_work = container_of(work,
 							    struct rkcif_work_struct,
@@ -4893,12 +4896,14 @@ static void rkcif_reset_work(struct work_struct *work)
 	struct rkcif_device *dev = container_of(reset_work,
 						struct rkcif_device,
 						reset_work);
+	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
 	int ret;
 
 	ret = rkcif_do_reset_work(dev, reset_work->reset_src);
 	if (ret)
 		v4l2_info(&dev->v4l2_dev, "do reset work failed!\n");
 
+	timer->has_been_init = false;
 }
 
 static bool rkcif_is_reduced_frame_rate(struct rkcif_device *dev)
@@ -4970,6 +4975,9 @@ static void rkcif_init_reset_work(struct rkcif_timer *timer)
 						reset_watchdog_timer);
 	unsigned long lock_flags = 0;
 
+	if (timer->has_been_init)
+		return;
+
 	v4l2_info(&dev->v4l2_dev,
 		  "do reset work schedule, run_cnt:%d, reset source:%d\n",
 		  timer->run_cnt, timer->reset_src);
@@ -4985,14 +4993,14 @@ static void rkcif_init_reset_work(struct rkcif_timer *timer)
 	spin_unlock_irqrestore(&timer->timer_lock, lock_flags);
 
 	dev->reset_work.reset_src = timer->reset_src;
-	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
-	if (schedule_work(&dev->reset_work.work))
-		v4l2_err(&dev->v4l2_dev,
+	if (schedule_work(&dev->reset_work.work)) {
+		timer->has_been_init = true;
+		v4l2_info(&dev->v4l2_dev,
 			 "schedule reset work successfully\n");
-	else
-		v4l2_err(&dev->v4l2_dev,
+	} else {
+		v4l2_info(&dev->v4l2_dev,
 			 "schedule reset work failed\n");
-
+	}
 }
 
 void rkcif_reset_watchdog_timer_handler(struct timer_list *t)
@@ -5063,7 +5071,7 @@ void rkcif_reset_watchdog_timer_handler(struct timer_list *t)
 
 		if (is_reset) {
 			rkcif_init_reset_work(timer);
-				return;
+			return;
 		}
 
 		if (timer->monitor_mode == RKCIF_MONITOR_MODE_CONTINUE ||
