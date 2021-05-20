@@ -3892,22 +3892,19 @@ u8 GetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable, v
 		{
 			u8 mac_id = *(u8 *)pval;
 			u32 cmd;
-			u32 ra_info1, ra_info2;
-			u32 rate_mask1, rate_mask2;
 
 			cmd = 0x40000100 | mac_id;
 			rtw_write32(padapter, REG_HMEBOX_DBG_2_8723B, cmd);
 			msleep(10);
-			ra_info1 = rtw_read32(padapter, 0x2F0);
+			rtw_read32(padapter, 0x2F0);	// info 1
 
 			cmd = 0x40000400 | mac_id;
 			rtw_write32(padapter, REG_HMEBOX_DBG_2_8723B, cmd);
 			msleep(10);
-			ra_info1 = rtw_read32(padapter, 0x2F0);
-			ra_info2 = rtw_read32(padapter, 0x2F4);
-			rate_mask1 = rtw_read32(padapter, 0x2F8);
-			rate_mask2 = rtw_read32(padapter, 0x2FC);
-
+			rtw_read32(padapter, 0x2F0);	// info 1
+			rtw_read32(padapter, 0x2F4);	// info 2
+			rtw_read32(padapter, 0x2F8);	// rate mask 1
+			rtw_read32(padapter, 0x2FC);	// rate mask 2
 		}
 		break;
 
