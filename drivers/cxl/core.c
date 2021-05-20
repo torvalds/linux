@@ -60,7 +60,10 @@ void cxl_setup_device_regs(struct device *dev, void __iomem *base,
 			regs->memdev = register_block;
 			break;
 		default:
-			dev_dbg(dev, "Unknown cap ID: %d (0x%x)\n", cap_id, offset);
+			if (cap_id >= 0x8000)
+				dev_dbg(dev, "Vendor cap ID: %#x offset: %#x\n", cap_id, offset);
+			else
+				dev_dbg(dev, "Unknown cap ID: %#x offset: %#x\n", cap_id, offset);
 			break;
 		}
 	}
