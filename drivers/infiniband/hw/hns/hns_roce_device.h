@@ -555,7 +555,6 @@ struct hns_roce_cmd_context {
 
 struct hns_roce_cmdq {
 	struct dma_pool		*pool;
-	struct mutex		hcr_mutex;
 	struct semaphore	poll_sem;
 	/*
 	 * Event mode: cmd register mutex protection,
