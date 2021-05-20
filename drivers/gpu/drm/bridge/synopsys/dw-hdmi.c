@@ -4548,6 +4548,9 @@ static void dw_hdmi_reg_initial(struct dw_hdmi *hdmi)
 {
 	if (hdmi_readb(hdmi, HDMI_IH_MUTE)) {
 		initialize_hdmi_ih_mutes(hdmi);
+		/* unmute cec irq */
+		hdmi_writeb(hdmi, 0x68, HDMI_IH_MUTE_CEC_STAT0);
+
 		hdmi_writeb(hdmi, HDMI_PHY_I2CM_INT_ADDR_DONE_POL,
 			    HDMI_PHY_I2CM_INT_ADDR);
 
