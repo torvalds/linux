@@ -104,6 +104,7 @@ static void __tlb_clear_slave(struct bonding *bond, struct slave *slave,
 		index = SLAVE_TLB_INFO(slave).head;
 		while (index != TLB_NULL_INDEX) {
 			u32 next_index = tx_hash_table[index].next;
+
 			tlb_init_table_entry(&tx_hash_table[index], save_load);
 			index = next_index;
 		}
@@ -628,6 +629,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb,
 
 		if (!client_info->assigned) {
 			u32 prev_tbl_head = bond_info->rx_hashtbl_used_head;
+
 			bond_info->rx_hashtbl_used_head = hash_index;
 			client_info->used_next = prev_tbl_head;
 			if (prev_tbl_head != RLB_NULL_INDEX) {
@@ -830,9 +832,10 @@ static void rlb_purge_src_ip(struct bonding *bond, struct arp_pkt *arp)
 	while (index != RLB_NULL_INDEX) {
 		struct rlb_client_info *entry = &(bond_info->rx_hashtbl[index]);
 		u32 next_index = entry->src_next;
+
 		if (entry->ip_src == arp->ip_src &&
 		    !ether_addr_equal_64bits(arp->mac_src, entry->mac_src))
-				rlb_delete_table_entry(bond, index);
+			rlb_delete_table_entry(bond, index);
 		index = next_index;
 	}
 	spin_unlock_bh(&bond->mode_lock);
