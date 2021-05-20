@@ -7,7 +7,7 @@
 
 #include "digi00x.h"
 
-#define CALLBACK_TIMEOUT 500
+#define READY_TIMEOUT_MS	500
 
 const unsigned int snd_dg00x_stream_rates[SND_DG00X_RATE_COUNT] = {
 	[SND_DG00X_RATE_44100] = 44100,
@@ -379,10 +379,7 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 		if (err < 0)
 			goto error;
 
-		if (!amdtp_stream_wait_callback(&dg00x->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&dg00x->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&dg00x->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}

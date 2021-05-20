@@ -11,7 +11,7 @@
 #define CLOCK_STATUS_MASK      0xffff0000
 #define CLOCK_CONFIG_MASK      0x0000ffff
 
-#define CALLBACK_TIMEOUT 500
+#define READY_TIMEOUT_MS	500
 
 static int get_clock(struct snd_tscm *tscm, u32 *data)
 {
@@ -477,10 +477,7 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		if (err < 0)
 			return err;
 
-		if (!amdtp_stream_wait_callback(&tscm->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&tscm->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&tscm->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}

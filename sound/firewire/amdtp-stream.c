@@ -107,7 +107,7 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	INIT_WORK(&s->period_work, pcm_period_work);
 	s->packet_index = 0;
 
-	init_waitqueue_head(&s->callback_wait);
+	init_waitqueue_head(&s->ready_wait);
 	s->callbacked = false;
 
 	s->fmt = fmt;
@@ -1029,6 +1029,9 @@ static void process_rx_packets_intermediately(struct fw_iso_context *context, u3
 	}
 
 	if (offset < packets) {
+		s->ready_processing = true;
+		wake_up(&s->ready_wait);
+
 		process_rx_packets(context, tstamp, header_length, ctx_header, private_data);
 		if (amdtp_streaming_error(s))
 			return;
@@ -1145,6 +1148,9 @@ static void process_tx_packets_intermediately(struct fw_iso_context *context, u3
 	}
 
 	if (offset < packets) {
+		s->ready_processing = true;
+		wake_up(&s->ready_wait);
+
 		process_tx_packets(context, tstamp, header_length, ctx_header, s);
 		if (amdtp_streaming_error(s))
 			return;
@@ -1286,12 +1292,9 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	const __be32 *ctx_header = header;
 	u32 cycle;
 
-	/*
-	 * For in-stream, first packet has come.
-	 * For out-stream, prepared to transmit first packet
-	 */
+	// For in-stream, first packet has come.
+	// For out-stream, prepared to transmit first packet
 	s->callbacked = true;
-	wake_up(&s->callback_wait);
 
 	if (s->direction == AMDTP_IN_STREAM) {
 		cycle = compute_ohci_cycle_count(ctx_header[1]);
@@ -1464,6 +1467,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
 
 	s->callbacked = false;
+	s->ready_processing = false;
 	err = fw_iso_context_start(s->context, -1, 0, tag);
 	if (err < 0)
 		goto err_pkt_descs;

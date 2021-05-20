@@ -7,8 +7,7 @@
 
 #include "./bebob.h"
 
-#define CALLBACK_TIMEOUT	2500
-#define FW_ISO_RESOURCE_DELAY	1000
+#define READY_TIMEOUT_MS	2500
 
 /*
  * NOTE;
@@ -679,10 +678,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 		// Some devices postpone start of transmission mostly for 1 sec after receives
 		// packets firstly.
-		if (!amdtp_stream_wait_callback(&bebob->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&bebob->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&bebob->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}

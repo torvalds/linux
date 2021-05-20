@@ -167,9 +167,11 @@ struct amdtp_stream {
 	snd_pcm_uframes_t pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
 
-	/* To wait for first packet. */
-	bool callbacked;
-	wait_queue_head_t callback_wait;
+	// To start processing content of packets at the same cycle in several contexts for
+	// each direction.
+	bool callbacked:1;
+	bool ready_processing:1;
+	wait_queue_head_t ready_wait;
 	unsigned int next_cycle;
 
 	/* For backends to process data blocks. */
@@ -259,21 +261,6 @@ static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)
 	return sfc & 1;
 }
 
-/**
- * amdtp_stream_wait_callback - sleep till callbacked or timeout
- * @s: the AMDTP stream
- * @timeout: msec till timeout
- *
- * If this function return false, the AMDTP stream should be stopped.
- */
-static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
-					      unsigned int timeout)
-{
-	return wait_event_timeout(s->callback_wait,
-				  s->callbacked,
-				  msecs_to_jiffies(timeout)) > 0;
-}
-
 struct seq_desc {
 	unsigned int syt_offset;
 	unsigned int data_blocks;
@@ -326,5 +313,26 @@ static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,
 unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 					      struct amdtp_stream *s);
 int amdtp_domain_stream_pcm_ack(struct amdtp_domain *d, struct amdtp_stream *s);
+
+/**
+ * amdtp_domain_wait_ready - sleep till being ready to process packets or timeout
+ * @d: the AMDTP domain
+ * @timeout_ms: msec till timeout
+ *
+ * If this function return false, the AMDTP domain should be stopped.
+ */
+static inline bool amdtp_domain_wait_ready(struct amdtp_domain *d, unsigned int timeout_ms)
+{
+	struct amdtp_stream *s;
+
+	list_for_each_entry(s, &d->streams, list) {
+		unsigned int j = msecs_to_jiffies(timeout_ms);
+
+		if (wait_event_interruptible_timeout(s->ready_wait, s->ready_processing, j) <= 0)
+			return false;
+	}
+
+	return true;
+}
 
 #endif

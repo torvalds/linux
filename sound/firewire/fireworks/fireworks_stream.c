@@ -6,7 +6,7 @@
  */
 #include "./fireworks.h"
 
-#define CALLBACK_TIMEOUT	100
+#define READY_TIMEOUT_MS	100
 
 static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
@@ -276,11 +276,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 		if (err < 0)
 			goto error;
 
-		// Wait first callback.
-		if (!amdtp_stream_wait_callback(&efw->rx_stream,
-						CALLBACK_TIMEOUT) ||
-		    !amdtp_stream_wait_callback(&efw->tx_stream,
-						CALLBACK_TIMEOUT)) {
+		if (!amdtp_domain_wait_ready(&efw->domain, READY_TIMEOUT_MS)) {
 			err = -ETIMEDOUT;
 			goto error;
 		}
