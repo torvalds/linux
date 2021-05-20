@@ -18,18 +18,12 @@
 #include <asm/ppc-opcode.h>
 #include <asm/inst.h>
 
-#define TMPL_CALL_HDLR_IDX	\
-	(optprobe_template_call_handler - optprobe_template_entry)
-#define TMPL_EMULATE_IDX	\
-	(optprobe_template_call_emulate - optprobe_template_entry)
-#define TMPL_RET_IDX		\
-	(optprobe_template_ret - optprobe_template_entry)
-#define TMPL_OP_IDX		\
-	(optprobe_template_op_address - optprobe_template_entry)
-#define TMPL_INSN_IDX		\
-	(optprobe_template_insn - optprobe_template_entry)
-#define TMPL_END_IDX		\
-	(optprobe_template_end - optprobe_template_entry)
+#define TMPL_CALL_HDLR_IDX	(optprobe_template_call_handler - optprobe_template_entry)
+#define TMPL_EMULATE_IDX	(optprobe_template_call_emulate - optprobe_template_entry)
+#define TMPL_RET_IDX		(optprobe_template_ret - optprobe_template_entry)
+#define TMPL_OP_IDX		(optprobe_template_op_address - optprobe_template_entry)
+#define TMPL_INSN_IDX		(optprobe_template_insn - optprobe_template_entry)
+#define TMPL_END_IDX		(optprobe_template_end - optprobe_template_entry)
 
 static bool insn_page_in_use;
 
@@ -267,8 +261,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	 */
 	patch_branch(buff + TMPL_RET_IDX, nip, 0);
 
-	flush_icache_range((unsigned long)buff,
-			   (unsigned long)(&buff[TMPL_END_IDX]));
+	flush_icache_range((unsigned long)buff, (unsigned long)(&buff[TMPL_END_IDX]));
 
 	op->optinsn.insn = buff;
 
@@ -306,10 +299,8 @@ void arch_optimize_kprobes(struct list_head *oplist)
 		 * Backup instructions which will be replaced
 		 * by jump address
 		 */
-		memcpy(op->optinsn.copied_insn, op->kp.addr,
-					       RELATIVEJUMP_SIZE);
-		create_branch(&instr, op->kp.addr,
-			      (unsigned long)op->optinsn.insn, 0);
+		memcpy(op->optinsn.copied_insn, op->kp.addr, RELATIVEJUMP_SIZE);
+		create_branch(&instr, op->kp.addr, (unsigned long)op->optinsn.insn, 0);
 		patch_instruction(op->kp.addr, instr);
 		list_del_init(&op->list);
 	}
@@ -320,8 +311,7 @@ void arch_unoptimize_kprobe(struct optimized_kprobe *op)
 	arch_arm_kprobe(&op->kp);
 }
 
-void arch_unoptimize_kprobes(struct list_head *oplist,
-			     struct list_head *done_list)
+void arch_unoptimize_kprobes(struct list_head *oplist, struct list_head *done_list)
 {
 	struct optimized_kprobe *op;
 	struct optimized_kprobe *tmp;
@@ -332,8 +322,7 @@ void arch_unoptimize_kprobes(struct list_head *oplist,
 	}
 }
 
-int arch_within_optimized_kprobe(struct optimized_kprobe *op,
-				 unsigned long addr)
+int arch_within_optimized_kprobe(struct optimized_kprobe *op, unsigned long addr)
 {
 	return ((unsigned long)op->kp.addr <= addr &&
 		(unsigned long)op->kp.addr + RELATIVEJUMP_SIZE > addr);
