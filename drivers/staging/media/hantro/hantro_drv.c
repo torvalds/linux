@@ -783,8 +783,8 @@ static int hantro_probe(struct platform_device *pdev)
 		 * actual name in the DT bindings.
 		 */
 		vpu->clocks[0].clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(vpu->clocks))
-			return PTR_ERR(vpu->clocks);
+		if (IS_ERR(vpu->clocks[0].clk))
+			return PTR_ERR(vpu->clocks[0].clk);
 	}
 
 	num_bases = vpu->variant->num_regs ?: 1;
