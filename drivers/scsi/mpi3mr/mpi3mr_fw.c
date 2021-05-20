@@ -2534,6 +2534,99 @@ out:
 	return retval;
 }
 
+/* Protocol type to name mapper structure*/
+static const struct {
+	u8 protocol;
+	char *name;
+} mpi3mr_protocols[] = {
+	{ MPI3_IOCFACTS_PROTOCOL_SCSI_INITIATOR, "Initiator" },
+	{ MPI3_IOCFACTS_PROTOCOL_SCSI_TARGET, "Target" },
+	{ MPI3_IOCFACTS_PROTOCOL_NVME, "NVMe attachment" },
+};
+
+/* Capability to name mapper structure*/
+static const struct {
+	u32 capability;
+	char *name;
+} mpi3mr_capabilities[] = {
+	{ MPI3_IOCFACTS_CAPABILITY_RAID_CAPABLE, "RAID" },
+};
+
+/**
+ * mpi3mr_print_ioc_info - Display controller information
+ * @mrioc: Adapter instance reference
+ *
+ * Display controller personalit, capability, supported
+ * protocols etc.
+ *
+ * Return: Nothing
+ */
+static void
+mpi3mr_print_ioc_info(struct mpi3mr_ioc *mrioc)
+{
+	int i = 0, bytes_wrote = 0;
+	char personality[16];
+	char protocol[50] = {0};
+	char capabilities[100] = {0};
+	bool is_string_nonempty = false;
+	struct mpi3mr_compimg_ver *fwver = &mrioc->facts.fw_ver;
+
+	switch (mrioc->facts.personality) {
+	case MPI3_IOCFACTS_FLAGS_PERSONALITY_EHBA:
+		strncpy(personality, "Enhanced HBA", sizeof(personality));
+		break;
+	case MPI3_IOCFACTS_FLAGS_PERSONALITY_RAID_DDR:
+		strncpy(personality, "RAID", sizeof(personality));
+		break;
+	default:
+		strncpy(personality, "Unknown", sizeof(personality));
+		break;
+	}
+
+	ioc_info(mrioc, "Running in %s Personality", personality);
+
+	ioc_info(mrioc, "FW version(%d.%d.%d.%d.%d.%d)\n",
+	    fwver->gen_major, fwver->gen_minor, fwver->ph_major,
+	    fwver->ph_minor, fwver->cust_id, fwver->build_num);
+
+	for (i = 0; i < ARRAY_SIZE(mpi3mr_protocols); i++) {
+		if (mrioc->facts.protocol_flags &
+		    mpi3mr_protocols[i].protocol) {
+			if (is_string_nonempty &&
+			    (bytes_wrote < sizeof(protocol)))
+				bytes_wrote += snprintf(protocol + bytes_wrote,
+				    (sizeof(protocol) - bytes_wrote), ",");
+
+			if (bytes_wrote < sizeof(protocol))
+				bytes_wrote += snprintf(protocol + bytes_wrote,
+				    (sizeof(protocol) - bytes_wrote), "%s",
+				    mpi3mr_protocols[i].name);
+			is_string_nonempty = true;
+		}
+	}
+
+	bytes_wrote = 0;
+	is_string_nonempty = false;
+	for (i = 0; i < ARRAY_SIZE(mpi3mr_capabilities); i++) {
+		if (mrioc->facts.protocol_flags &
+		    mpi3mr_capabilities[i].capability) {
+			if (is_string_nonempty &&
+			    (bytes_wrote < sizeof(capabilities)))
+				bytes_wrote += snprintf(capabilities + bytes_wrote,
+				    (sizeof(capabilities) - bytes_wrote), ",");
+
+			if (bytes_wrote < sizeof(capabilities))
+				bytes_wrote += snprintf(capabilities + bytes_wrote,
+				    (sizeof(capabilities) - bytes_wrote), "%s",
+				    mpi3mr_capabilities[i].name);
+			is_string_nonempty = true;
+		}
+	}
+
+	ioc_info(mrioc, "Protocol=(%s), Capabilities=(%s)\n",
+	    protocol, capabilities);
+}
+
 /**
  * mpi3mr_cleanup_resources - Free PCI resources
  * @mrioc: Adapter instance reference
@@ -2791,6 +2884,8 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 re_init)
 			goto out_failed;
 		}
 	}
+
+	mpi3mr_print_ioc_info(mrioc);
 
 	retval = mpi3mr_alloc_reply_sense_bufs(mrioc);
 	if (retval) {
