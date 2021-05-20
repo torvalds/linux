@@ -4,6 +4,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/kobject.h>
+#include <linux/android_vendor.h>
 
 struct cma_kobject {
 	struct kobject kobj;
@@ -30,6 +31,7 @@ struct cma {
 	/* kobject requires dynamic object */
 	struct cma_kobject *cma_kobj;
 #endif
+	ANDROID_OEM_DATA_ARRAY(1, 4);
 };
 
 extern struct cma cma_areas[MAX_CMA_AREAS];
