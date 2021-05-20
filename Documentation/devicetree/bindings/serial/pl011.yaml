@@ -24,12 +24,9 @@ select:
 
 properties:
   compatible:
-    oneOf:
-      - items:
-          - const: arm,pl011
-          - const: arm,primecell
-      - items:
-          - const: arm,primecell
+    items:
+      - const: arm,pl011
+      - const: arm,primecell
 
   reg:
     maxItems: 1
