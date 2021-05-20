@@ -232,15 +232,23 @@ lr	.req	x30		// link register
 	 * @dst: destination register
 	 */
 #if defined(__KVM_NVHE_HYPERVISOR__) || defined(__KVM_VHE_HYPERVISOR__)
-	.macro	this_cpu_offset, dst
+	.macro	get_this_cpu_offset, dst
 	mrs	\dst, tpidr_el2
 	.endm
 #else
-	.macro	this_cpu_offset, dst
+	.macro	get_this_cpu_offset, dst
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	mrs	\dst, tpidr_el1
 alternative_else
 	mrs	\dst, tpidr_el2
+alternative_endif
+	.endm
+
+	.macro	set_this_cpu_offset, src
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	msr	tpidr_el1, \src
+alternative_else
+	msr	tpidr_el2, \src
 alternative_endif
 	.endm
 #endif
@@ -253,7 +261,7 @@ alternative_endif
 	.macro adr_this_cpu, dst, sym, tmp
 	adrp	\tmp, \sym
 	add	\dst, \tmp, #:lo12:\sym
-	this_cpu_offset \tmp
+	get_this_cpu_offset \tmp
 	add	\dst, \dst, \tmp
 	.endm
 
@@ -264,7 +272,7 @@ alternative_endif
 	 */
 	.macro ldr_this_cpu dst, sym, tmp
 	adr_l	\dst, \sym
-	this_cpu_offset \tmp
+	get_this_cpu_offset \tmp
 	ldr	\dst, [\dst, \tmp]
 	.endm
 
@@ -745,7 +753,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	cbz		\tmp, \lbl
 #endif
 	adr_l		\tmp, irq_stat + IRQ_CPUSTAT_SOFTIRQ_PENDING
-	this_cpu_offset	\tmp2
+	get_this_cpu_offset	\tmp2
 	ldr		w\tmp, [\tmp, \tmp2]
 	cbnz		w\tmp, \lbl	// yield on pending softirq in task context
 .Lnoyield_\@:

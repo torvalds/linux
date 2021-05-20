@@ -83,11 +83,7 @@ SYM_FUNC_START(cpu_do_suspend)
 	mrs	x9, mdscr_el1
 	mrs	x10, oslsr_el1
 	mrs	x11, sctlr_el1
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x12, tpidr_el1
-alternative_else
-	mrs	x12, tpidr_el2
-alternative_endif
+	get_this_cpu_offset x12
 	mrs	x13, sp_el0
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
@@ -145,11 +141,7 @@ SYM_FUNC_START(cpu_do_resume)
 	msr	mdscr_el1, x10
 
 	msr	sctlr_el1, x12
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	msr	tpidr_el1, x13
-alternative_else
-	msr	tpidr_el2, x13
-alternative_endif
+	set_this_cpu_offset x13
 	msr	sp_el0, x14
 	/*
 	 * Restore oslsr_el1 by writing oslar_el1
