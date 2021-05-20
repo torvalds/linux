@@ -332,6 +332,7 @@ struct usb_gadget_ops {
 	void	(*udc_set_speed)(struct usb_gadget *, enum usb_device_speed);
 	void	(*udc_set_ssp_rate)(struct usb_gadget *gadget,
 			enum usb_ssp_rate rate);
+	void	(*udc_async_callbacks)(struct usb_gadget *gadget, bool enable);
 	struct usb_ep *(*match_ep)(struct usb_gadget *,
 			struct usb_endpoint_descriptor *,
 			struct usb_ss_ep_comp_descriptor *);
