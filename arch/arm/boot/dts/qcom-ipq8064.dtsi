@@ -2,6 +2,8 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/mfd/qcom-rpm.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/clock/qcom,gcc-ipq806x.h>
 #include <dt-bindings/clock/qcom,lcc-ipq806x.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -753,9 +755,36 @@
 			};
 		};
 
+		rpm: rpm@108000 {
+			compatible = "qcom,rpm-ipq8064";
+			reg = <0x108000 0x1000>;
+			qcom,ipc = <&l2cc 0x8 2>;
+
+			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ack", "err", "wakeup";
+
+			clocks = <&gcc RPM_MSG_RAM_H_CLK>;
+			clock-names = "ram";
+
+			rpmcc: clock-controller {
+				compatible = "qcom,rpmcc-ipq806x", "qcom,rpmcc";
+				#clock-cells = <1>;
+			};
+		};
+
 		tcsr: syscon@1a400000 {
 			compatible = "qcom,tcsr-ipq8064", "syscon";
 			reg = <0x1a400000 0x100>;
+		};
+
+		l2cc: clock-controller@2011000 {
+			compatible = "qcom,kpss-gcc", "syscon";
+			reg = <0x2011000 0x1000>;
+			clocks = <&gcc PLL8_VOTE>, <&gcc PXO_SRC>;
+			clock-names = "pll8_vote", "pxo";
+			clock-output-names = "acpu_l2_aux";
 		};
 
 		lcc: clock-controller@28000000 {
