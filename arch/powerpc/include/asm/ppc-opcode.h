@@ -76,6 +76,40 @@
 #define	__REGA0_R30	30
 #define	__REGA0_R31	31
 
+/* For use with PPC_RAW_() macros */
+#define	_R0	0
+#define	_R1	1
+#define	_R2	2
+#define	_R3	3
+#define	_R4	4
+#define	_R5	5
+#define	_R6	6
+#define	_R7	7
+#define	_R8	8
+#define	_R9	9
+#define	_R10	10
+#define	_R11	11
+#define	_R12	12
+#define	_R13	13
+#define	_R14	14
+#define	_R15	15
+#define	_R16	16
+#define	_R17	17
+#define	_R18	18
+#define	_R19	19
+#define	_R20	20
+#define	_R21	21
+#define	_R22	22
+#define	_R23	23
+#define	_R24	24
+#define	_R25	25
+#define	_R26	26
+#define	_R27	27
+#define	_R28	28
+#define	_R29	29
+#define	_R30	30
+#define	_R31	31
+
 #define IMM_L(i)               ((uintptr_t)(i) & 0xffff)
 #define IMM_DS(i)              ((uintptr_t)(i) & 0xfffc)
 #define IMM_DQ(i)              ((uintptr_t)(i) & 0xfff0)
