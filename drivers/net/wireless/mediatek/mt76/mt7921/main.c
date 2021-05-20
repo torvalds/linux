@@ -223,54 +223,6 @@ static void mt7921_stop(struct ieee80211_hw *hw)
 	mt7921_mutex_release(dev);
 }
 
-static inline int get_free_idx(u32 mask, u8 start, u8 end)
-{
-	return ffs(~mask & GENMASK(end, start));
-}
-
-static int get_omac_idx(enum nl80211_iftype type, u64 mask)
-{
-	int i;
-
-	switch (type) {
-	case NL80211_IFTYPE_STATION:
-		/* prefer hw bssid slot 1-3 */
-		i = get_free_idx(mask, HW_BSSID_1, HW_BSSID_3);
-		if (i)
-			return i - 1;
-
-		/* next, try to find a free repeater entry for the sta */
-		i = get_free_idx(mask >> REPEATER_BSSID_START, 0,
-				 REPEATER_BSSID_MAX - REPEATER_BSSID_START);
-		if (i)
-			return i + 32 - 1;
-
-		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
-		if (i)
-			return i - 1;
-
-		if (~mask & BIT(HW_BSSID_0))
-			return HW_BSSID_0;
-
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		/* ap uses hw bssid 0 and ext bssid */
-		if (~mask & BIT(HW_BSSID_0))
-			return HW_BSSID_0;
-
-		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
-		if (i)
-			return i - 1;
-
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	return -1;
-}
-
 static int mt7921_add_interface(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif)
 {
@@ -292,12 +244,7 @@ static int mt7921_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	idx = get_omac_idx(vif->type, phy->omac_mask);
-	if (idx < 0) {
-		ret = -ENOSPC;
-		goto out;
-	}
-	mvif->mt76.omac_idx = idx;
+	mvif->mt76.omac_idx = mvif->mt76.idx;
 	mvif->phy = phy;
 	mvif->mt76.band_idx = 0;
 	mvif->mt76.wmm_idx = mvif->mt76.idx % MT7921_MAX_WMM_SETS;
