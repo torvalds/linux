@@ -21,9 +21,6 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
-		mshc0 = &emmc;
-		mshc1 = &mmc0;
-		mshc2 = &mmc1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
