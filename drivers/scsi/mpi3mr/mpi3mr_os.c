@@ -2051,6 +2051,46 @@ static int mpi3mr_build_sg_scmd(struct mpi3mr_ioc *mrioc,
 }
 
 /**
+ * mpi3mr_bios_param - BIOS param callback
+ * @sdev: SCSI device reference
+ * @bdev: Block device reference
+ * @capacity: Capacity in logical sectors
+ * @params: Parameter array
+ *
+ * Just the parameters with heads/secots/cylinders.
+ *
+ * Return: 0 always
+ */
+static int mpi3mr_bios_param(struct scsi_device *sdev,
+	struct block_device *bdev, sector_t capacity, int params[])
+{
+	int heads;
+	int sectors;
+	sector_t cylinders;
+	ulong dummy;
+
+	heads = 64;
+	sectors = 32;
+
+	dummy = heads * sectors;
+	cylinders = capacity;
+	sector_div(cylinders, dummy);
+
+	if ((ulong)capacity >= 0x200000) {
+		heads = 255;
+		sectors = 63;
+		dummy = heads * sectors;
+		cylinders = capacity;
+		sector_div(cylinders, dummy);
+	}
+
+	params[0] = heads;
+	params[1] = sectors;
+	params[2] = cylinders;
+	return 0;
+}
+
+/**
  * mpi3mr_map_queues - Map queues callback handler
  * @shost: SCSI host reference
  *
@@ -2493,6 +2533,7 @@ static struct scsi_host_template mpi3mr_driver_template = {
 	.slave_destroy			= mpi3mr_slave_destroy,
 	.scan_finished			= mpi3mr_scan_finished,
 	.scan_start			= mpi3mr_scan_start,
+	.bios_param			= mpi3mr_bios_param,
 	.map_queues			= mpi3mr_map_queues,
 	.no_write_same			= 1,
 	.can_queue			= 1,
