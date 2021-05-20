@@ -239,19 +239,6 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 }
 EXPORT_SYMBOL_GPL(mlx5_db_free);
 
-void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas)
-{
-	u64 addr;
-	int i;
-
-	for (i = 0; i < buf->npages; i++) {
-		addr = buf->frags->map + (i << buf->page_shift);
-
-		pas[i] = cpu_to_be64(addr);
-	}
-}
-EXPORT_SYMBOL_GPL(mlx5_fill_page_array);
-
 void mlx5_fill_page_frag_array_perm(struct mlx5_frag_buf *buf, __be64 *pas, u8 perm)
 {
 	int i;
