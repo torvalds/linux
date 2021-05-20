@@ -202,7 +202,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * the lm70 driver could verify it, reading the manf ID.
 	 */
 
-	master = spi_alloc_master(p->physport->dev, sizeof *pp);
+	master = spi_alloc_master(p->physport->dev, sizeof(*pp));
 	if (!master) {
 		status = -ENOMEM;
 		goto out_fail;
