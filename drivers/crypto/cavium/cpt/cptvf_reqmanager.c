@@ -9,8 +9,8 @@
 
 /**
  * get_free_pending_entry - get free entry from pending queue
- * @param pqinfo: pending_qinfo structure
- * @param qno: queue number
+ * @q: pending queue
+ * @qlen: queue length
  */
 static struct pending_entry *get_free_pending_entry(struct pending_queue *q,
 						    int qlen)

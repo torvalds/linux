@@ -19,7 +19,7 @@
 #define REQ_BACKLOG    2
 #define REQ_POSTED     3
 
-/**
+/*
  * Response codes from SE microcode
  * 0x00 - Success
  *   Completion with no error
@@ -279,6 +279,7 @@ static inline bool cmdq_full(struct nitrox_cmdq *cmdq, int qlen)
 /**
  * post_se_instr - Post SE instruction to Packet Input ring
  * @sr: Request structure
+ * @cmdq: Command queue structure
  *
  * Returns 0 if successful or a negative error code,
  * if no space in ring.
@@ -372,6 +373,8 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
  * nitrox_process_se_request - Send request to SE core
  * @ndev: NITROX device
  * @req: Crypto request
+ * @callback: Completion callback
+ * @cb_arg: Completion callback arguments
  *
  * Returns 0 on success, or a negative error code.
  */
@@ -526,9 +529,8 @@ static bool sr_completed(struct nitrox_softreq *sr)
 }
 
 /**
- * process_request_list - process completed requests
- * @ndev: N5 device
- * @qno: queue to operate
+ * process_response_list - process completed requests
+ * @cmdq: Command queue structure
  *
  * Returns the number of responses processed.
  */
@@ -578,7 +580,7 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 	}
 }
 
-/**
+/*
  * pkt_slc_resp_tasklet - post processing of SE responses
  */
 void pkt_slc_resp_tasklet(unsigned long data)

@@ -35,7 +35,7 @@ static LIST_HEAD(ndevlist);
 static DEFINE_MUTEX(devlist_lock);
 static unsigned int num_devices;
 
-/**
+/*
  * nitrox_pci_tbl - PCI Device ID Table
  */
 static const struct pci_device_id nitrox_pci_tbl[] = {
@@ -65,7 +65,7 @@ struct ucode {
 	u64 code[];
 };
 
-/**
+/*
  * write_to_ucd_unit - Write Firmware to NITROX UCD unit
  */
 static void write_to_ucd_unit(struct nitrox_device *ndev, u32 ucode_size,
