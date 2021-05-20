@@ -210,6 +210,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 
 	if (mode != BCH_RENAME)
 		*dst_inum = le64_to_cpu(bkey_s_c_to_dirent(old_dst).v->d_inum);
+	if (mode != BCH_RENAME_EXCHANGE)
+		*src_offset = dst_iter->pos.offset;
 
 	/* Lookup src: */
 	src_iter = bch2_hash_lookup(trans, bch2_dirent_hash_desc,
@@ -290,7 +292,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	bch2_trans_update(trans, src_iter, &new_src->k_i, 0);
 	bch2_trans_update(trans, dst_iter, &new_dst->k_i, 0);
 out_set_offset:
-	*src_offset = new_src->k.p.offset;
+	if (mode == BCH_RENAME_EXCHANGE)
+		*src_offset = new_src->k.p.offset;
 	*dst_offset = new_dst->k.p.offset;
 out:
 	bch2_trans_iter_put(trans, src_iter);

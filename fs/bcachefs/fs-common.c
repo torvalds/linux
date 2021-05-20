@@ -289,6 +289,13 @@ int bch2_rename_trans(struct btree_trans *trans,
 			dst_inode_u->bi_dir		= src_dir_u->bi_inum;
 			dst_inode_u->bi_dir_offset	= src_offset;
 		}
+
+		if (mode == BCH_RENAME_OVERWRITE &&
+		    dst_inode_u->bi_dir		== dst_dir_u->bi_inum &&
+		    dst_inode_u->bi_dir_offset	== src_offset) {
+			dst_inode_u->bi_dir		= 0;
+			dst_inode_u->bi_dir_offset	= 0;
+		}
 	}
 
 	if (mode == BCH_RENAME_OVERWRITE) {
