@@ -67,6 +67,7 @@
 #include <asm/kprobes.h>
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
+#include <asm/disassemble.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -537,11 +538,11 @@ static inline int check_io_access(struct pt_regs *regs)
 		 * For the debug message, we look at the preceding
 		 * load or store.
 		 */
-		if (*nip == PPC_INST_NOP)
+		if (*nip == PPC_RAW_NOP())
 			nip -= 2;
-		else if (*nip == PPC_INST_ISYNC)
+		else if (*nip == PPC_RAW_ISYNC())
 			--nip;
-		if (*nip == PPC_INST_SYNC || (*nip >> 26) == OP_TRAP) {
+		if (*nip == PPC_RAW_SYNC() || get_op(*nip) == OP_TRAP) {
 			unsigned int rb;
 
 			--nip;
