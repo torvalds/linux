@@ -826,8 +826,7 @@ static void __init test_plxvp_pstxvp(void)
 	 * XTp = 32xTX + 2xTp
 	 * let RA=3 R=0 D=d0||d1=0 R=0 Tp=1 TX=1
 	 */
-	instr = ppc_inst_prefix(PPC_RAW_PLXVP(34, 0, 3, 0) >> 32,
-			PPC_RAW_PLXVP(34, 0, 3, 0) & 0xffffffff);
+	instr = ppc_inst_prefix(PPC_RAW_PLXVP_P(34, 0, 3, 0), PPC_RAW_PLXVP_S(34, 0, 3, 0));
 
 	stepped = emulate_step(&regs, instr);
 	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
@@ -855,8 +854,7 @@ static void __init test_plxvp_pstxvp(void)
 	 * XSp = 32xSX + 2xSp
 	 * let RA=3 D=d0||d1=0 R=0 Sp=1 SX=1
 	 */
-	instr = ppc_inst_prefix(PPC_RAW_PSTXVP(34, 0, 3, 0) >> 32,
-			PPC_RAW_PSTXVP(34, 0, 3, 0) & 0xffffffff);
+	instr = ppc_inst_prefix(PPC_RAW_PSTXVP_P(34, 0, 3, 0), PPC_RAW_PSTXVP_S(34, 0, 3, 0));
 
 	stepped = emulate_step(&regs, instr);
 
