@@ -109,7 +109,7 @@ static inline int inword(const u32 c)
 }
 
 /**
- *	set loadlut		-	load the LUT table
+ *	sel_loadlut()		-	load the LUT table
  *	@p: user table
  *
  *	Load the LUT table from user space. The caller must hold the console
