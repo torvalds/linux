@@ -254,6 +254,13 @@ enum hnae3_dbg_cmd {
 	HNAE3_DBG_CMD_TM_NODES,
 	HNAE3_DBG_CMD_TM_PRI,
 	HNAE3_DBG_CMD_TM_QSET,
+	HNAE3_DBG_CMD_TM_MAP,
+	HNAE3_DBG_CMD_TM_PG,
+	HNAE3_DBG_CMD_TM_PORT,
+	HNAE3_DBG_CMD_TC_SCH_INFO,
+	HNAE3_DBG_CMD_QOS_PAUSE_CFG,
+	HNAE3_DBG_CMD_QOS_PRI_MAP,
+	HNAE3_DBG_CMD_QOS_BUF_CFG,
 	HNAE3_DBG_CMD_DEV_INFO,
 	HNAE3_DBG_CMD_TX_BD,
 	HNAE3_DBG_CMD_RX_BD,
@@ -265,6 +272,23 @@ enum hnae3_dbg_cmd {
 	HNAE3_DBG_CMD_RESET_INFO,
 	HNAE3_DBG_CMD_IMP_INFO,
 	HNAE3_DBG_CMD_NCL_CONFIG,
+	HNAE3_DBG_CMD_REG_BIOS_COMMON,
+	HNAE3_DBG_CMD_REG_SSU,
+	HNAE3_DBG_CMD_REG_IGU_EGU,
+	HNAE3_DBG_CMD_REG_RPU,
+	HNAE3_DBG_CMD_REG_NCSI,
+	HNAE3_DBG_CMD_REG_RTC,
+	HNAE3_DBG_CMD_REG_PPP,
+	HNAE3_DBG_CMD_REG_RCB,
+	HNAE3_DBG_CMD_REG_TQP,
+	HNAE3_DBG_CMD_REG_MAC,
+	HNAE3_DBG_CMD_REG_DCB,
+	HNAE3_DBG_CMD_QUEUE_MAP,
+	HNAE3_DBG_CMD_RX_QUEUE_INFO,
+	HNAE3_DBG_CMD_TX_QUEUE_INFO,
+	HNAE3_DBG_CMD_FD_TCAM,
+	HNAE3_DBG_CMD_MAC_TNL_STATUS,
+	HNAE3_DBG_CMD_SERV_INFO,
 	HNAE3_DBG_CMD_UNKNOWN,
 };
 
@@ -644,7 +668,6 @@ struct hnae3_ae_ops {
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
-	int (*dbg_run_cmd)(struct hnae3_handle *handle, const char *cmd_buf);
 	int (*dbg_read_cmd)(struct hnae3_handle *handle, enum hnae3_dbg_cmd cmd,
 			    char *buf, int len);
 	pci_ers_result_t (*handle_hw_ras_error)(struct hnae3_ae_dev *ae_dev);

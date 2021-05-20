@@ -69,6 +69,11 @@ struct hclge_dbg_reg_common_msg {
 	enum hclge_opcode_type cmd;
 };
 
+struct hclge_dbg_tcam_msg {
+	u8 stage;
+	u32 loc;
+};
+
 #define	HCLGE_DBG_MAX_DFX_MSG_LEN	60
 struct hclge_dbg_dfx_message {
 	int flag;
@@ -77,7 +82,7 @@ struct hclge_dbg_dfx_message {
 
 #define HCLGE_DBG_MAC_REG_TYPE_LEN	32
 struct hclge_dbg_reg_type_info {
-	const char *reg_type;
+	enum hnae3_dbg_cmd cmd;
 	const struct hclge_dbg_dfx_message *dfx_msg;
 	struct hclge_dbg_reg_common_msg reg_msg;
 };
@@ -85,6 +90,8 @@ struct hclge_dbg_reg_type_info {
 struct hclge_dbg_func {
 	enum hnae3_dbg_cmd cmd;
 	int (*dbg_dump)(struct hclge_dev *hdev, char *buf, int len);
+	int (*dbg_dump_reg)(struct hclge_dev *hdev, enum hnae3_dbg_cmd cmd,
+			    char *buf, int len);
 };
 
 static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
@@ -731,6 +738,10 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 #define HCLGE_DBG_ID_LEN			16
 #define HCLGE_DBG_ITEM_NAME_LEN			32
 #define HCLGE_DBG_DATA_STR_LEN			32
+#define HCLGE_DBG_TM_INFO_LEN			256
+
+#define HCLGE_BILLION_NANO_SECONDS	1000000000
+
 struct hclge_dbg_item {
 	char name[HCLGE_DBG_ITEM_NAME_LEN];
 	u16 interval; /* blank numbers after the item */
