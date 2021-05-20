@@ -1095,8 +1095,12 @@ static void xilinx_dpdma_chan_vsync_irq(struct  xilinx_dpdma_chan *chan)
 	/* If the retrigger raced with vsync, retry at the next frame. */
 	sw_desc = list_first_entry(&pending->descriptors,
 				   struct xilinx_dpdma_sw_desc, node);
-	if (sw_desc->hw.desc_id != desc_id)
+	if (sw_desc->hw.desc_id != desc_id) {
+		dev_dbg(chan->xdev->dev,
+			"chan%u: vsync race lost (%u != %u), retrying\n",
+			chan->id, sw_desc->hw.desc_id, desc_id);
 		goto out;
+	}
 
 	/*
 	 * Complete the active descriptor, if any, promote the pending
