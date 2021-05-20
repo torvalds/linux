@@ -5875,7 +5875,7 @@ M:	Thomas Zimmermann <tzimmermann@suse.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	drivers/gpu/drm/tiny/simplekms.c
+F:	drivers/gpu/drm/tiny/simpledrm.c
 
 DRM DRIVER FOR SIS VIDEO CARDS
 S:	Orphan / Obsolete

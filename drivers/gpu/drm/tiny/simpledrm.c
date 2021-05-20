@@ -72,6 +72,7 @@ simplefb_get_validated_format(struct drm_device *dev, const char *format_name)
 	static const struct simplefb_format formats[] = SIMPLEFB_FORMATS;
 	const struct simplefb_format *fmt = formats;
 	const struct simplefb_format *end = fmt + ARRAY_SIZE(formats);
+	const struct drm_format_info *info;
 
 	if (!format_name) {
 		drm_err(dev, "simplefb: missing framebuffer format\n");
@@ -79,8 +80,12 @@ simplefb_get_validated_format(struct drm_device *dev, const char *format_name)
 	}
 
 	while (fmt < end) {
-		if (!strcmp(format_name, fmt->name))
-			return drm_format_info(fmt->fourcc);
+		if (!strcmp(format_name, fmt->name)) {
+			info = drm_format_info(fmt->fourcc);
+			if (!info)
+				return ERR_PTR(-EINVAL);
+			return info;
+		}
 		++fmt;
 	}
 
@@ -298,6 +303,7 @@ static int simpledrm_device_init_clocks(struct simpledrm_device *sdev)
 			drm_err(dev, "failed to enable clock %u: %d\n",
 				i, ret);
 			clk_put(clock);
+			continue;
 		}
 		sdev->clks[i] = clock;
 	}
@@ -415,6 +421,7 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 			drm_err(dev, "failed to enable regulator %u: %d\n",
 				i, ret);
 			regulator_put(regulator);
+			continue;
 		}
 
 		sdev->regulators[i++] = regulator;
@@ -530,8 +537,8 @@ static int simpledrm_device_init_mm(struct simpledrm_device *sdev)
 
 	ret = devm_aperture_acquire_from_firmware(dev, mem->start, resource_size(mem));
 	if (ret) {
-		drm_err(dev, "could not acquire memory range [0x%llx:0x%llx]: error %d\n",
-			mem->start, mem->end, ret);
+		drm_err(dev, "could not acquire memory range %pr: error %d\n",
+			mem, ret);
 		return ret;
 	}
 

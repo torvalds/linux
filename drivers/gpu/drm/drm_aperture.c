@@ -164,13 +164,17 @@ static int devm_aperture_acquire(struct drm_device *dev,
 
 	list_for_each(pos, &drm_apertures) {
 		ap = container_of(pos, struct drm_aperture, lh);
-		if (overlap(base, end, ap->base, ap->base + ap->size))
+		if (overlap(base, end, ap->base, ap->base + ap->size)) {
+			mutex_unlock(&drm_apertures_lock);
 			return -EBUSY;
+		}
 	}
 
 	ap = devm_kzalloc(dev->dev, sizeof(*ap), GFP_KERNEL);
-	if (!ap)
+	if (!ap) {
+		mutex_unlock(&drm_apertures_lock);
 		return -ENOMEM;
+	}
 
 	ap->dev = dev;
 	ap->base = base;
