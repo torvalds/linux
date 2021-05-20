@@ -1963,7 +1963,6 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			t4_set_wq_in_error(&qhp->wq, 0);
 			set_state(qhp, C4IW_QP_STATE_ERROR);
 			if (!internal) {
-				abort = 1;
 				disconnect = 1;
 				ep = qhp->ep;
 				c4iw_get_ep(&qhp->ep->com);
