@@ -922,11 +922,10 @@ static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev)
 	return cxlm;
 }
 
-static int cxl_mem_map_regblock(struct cxl_mem *cxlm, u32 reg_lo, u32 reg_hi)
+static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm, u32 reg_lo, u32 reg_hi)
 {
 	struct pci_dev *pdev = cxlm->pdev;
 	struct device *dev = &pdev->dev;
-	void __iomem *regs;
 	u64 offset;
 	u8 bar;
 	int rc;
@@ -938,20 +937,18 @@ static int cxl_mem_map_regblock(struct cxl_mem *cxlm, u32 reg_lo, u32 reg_hi)
 	if (pci_resource_len(pdev, bar) < offset) {
 		dev_err(dev, "BAR%d: %pr: too small (offset: %#llx)\n", bar,
 			&pdev->resource[bar], (unsigned long long)offset);
-		return -ENXIO;
+		return IOMEM_ERR_PTR(-ENXIO);
 	}
 
 	rc = pcim_iomap_regions(pdev, BIT(bar), pci_name(pdev));
 	if (rc) {
 		dev_err(dev, "failed to map registers\n");
-		return rc;
+		return IOMEM_ERR_PTR(rc);
 	}
-	regs = pcim_iomap_table(pdev)[bar];
-
-	cxlm->base = regs + offset;
 
 	dev_dbg(dev, "Mapped CXL Memory Device resource\n");
-	return 0;
+
+	return pcim_iomap_table(pdev)[bar] + offset;
 }
 
 static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
@@ -993,7 +990,8 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 	struct pci_dev *pdev = cxlm->pdev;
 	struct device *dev = &pdev->dev;
 	u32 regloc_size, regblocks;
-	int rc, regloc, i;
+	void __iomem *base;
+	int regloc, i;
 
 	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
 	if (!regloc) {
@@ -1019,9 +1017,9 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
 
 		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
-			rc = cxl_mem_map_regblock(cxlm, reg_lo, reg_hi);
-			if (rc)
-				return rc;
+			base = cxl_mem_map_regblock(cxlm, reg_lo, reg_hi);
+			if (IS_ERR(base))
+				return PTR_ERR(base);
 			break;
 		}
 	}
@@ -1031,7 +1029,7 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		return -ENXIO;
 	}
 
-	cxl_setup_device_regs(dev, cxlm->base, &regs->device_regs);
+	cxl_setup_device_regs(dev, base, &regs->device_regs);
 
 	if (!regs->status || !regs->mbox || !regs->memdev) {
 		dev_err(dev, "registers not found: %s%s%s\n",
