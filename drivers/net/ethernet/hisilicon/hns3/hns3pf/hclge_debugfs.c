@@ -991,19 +991,42 @@ static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
+static const struct hclge_dbg_item tm_qset_items[] = {
+	{ "ID", 4 },
+	{ "MAP_PRI", 2 },
+	{ "LINK_VLD", 2 },
+	{ "MODE", 2 },
+	{ "DWRR", 2 },
+	{ "IR_B", 2 },
+	{ "IR_U", 2 },
+	{ "IR_S", 2 },
+	{ "BS_B", 2 },
+	{ "BS_S", 2 },
+	{ "FLAG", 2 },
+	{ "RATE(Mbps)", 0 }
+};
+
 static int hclge_dbg_dump_tm_qset(struct hclge_dev *hdev, char *buf, int len)
 {
+	char data_str[ARRAY_SIZE(tm_qset_items)][HCLGE_DBG_DATA_STR_LEN];
+	char *result[ARRAY_SIZE(tm_qset_items)], *sch_mode_str;
 	u8 priority, link_vld, sch_mode, weight;
-	char *sch_mode_str;
+	struct hclge_tm_shaper_para shaper_para;
+	char content[HCLGE_DBG_TM_INFO_LEN];
+	u16 qset_num, i;
 	int ret, pos;
-	u16 qset_num;
-	u16 i;
+	u8 j;
 
 	ret = hclge_tm_get_qset_num(hdev, &qset_num);
 	if (ret)
 		return ret;
 
-	pos = scnprintf(buf, len, "ID    MAP_PRI  LINK_VLD  MODE  DWRR\n");
+	for (i = 0; i < ARRAY_SIZE(tm_qset_items); i++)
+		result[i] = &data_str[i][0];
+
+	hclge_dbg_fill_content(content, sizeof(content), tm_qset_items,
+			       NULL, ARRAY_SIZE(tm_qset_items));
+	pos = scnprintf(buf, len, "%s", content);
 
 	for (i = 0; i < qset_num; i++) {
 		ret = hclge_tm_get_qset_map_pri(hdev, i, &priority, &link_vld);
@@ -1018,11 +1041,25 @@ static int hclge_dbg_dump_tm_qset(struct hclge_dev *hdev, char *buf, int len)
 		if (ret)
 			return ret;
 
+		ret = hclge_tm_get_qset_shaper(hdev, i, &shaper_para);
+		if (ret)
+			return ret;
+
 		sch_mode_str = sch_mode & HCLGE_TM_TX_SCHD_DWRR_MSK ? "dwrr" :
 			       "sp";
-		pos += scnprintf(buf + pos, len - pos,
-				 "%04u  %4u        %1u      %4s  %3u\n",
-				 i, priority, link_vld, sch_mode_str, weight);
+
+		j = 0;
+		sprintf(result[j++], "%04u", i);
+		sprintf(result[j++], "%4u", priority);
+		sprintf(result[j++], "%4u", link_vld);
+		sprintf(result[j++], "%4s", sch_mode_str);
+		sprintf(result[j++], "%3u", weight);
+		hclge_dbg_fill_shaper_content(&shaper_para, result, &j);
+
+		hclge_dbg_fill_content(content, sizeof(content), tm_qset_items,
+				       (const char **)result,
+				       ARRAY_SIZE(tm_qset_items));
+		pos += scnprintf(buf + pos, len - pos, "%s", content);
 	}
 
 	return 0;
@@ -1787,81 +1824,6 @@ static void hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev)
 	}
 }
 
-static void hclge_dbg_dump_qs_shaper_single(struct hclge_dev *hdev, u16 qsid)
-{
-	struct hclge_qs_shapping_cmd *shap_cfg_cmd;
-	u8 ir_u, ir_b, ir_s, bs_b, bs_s;
-	struct hclge_desc desc;
-	u32 shapping_para;
-	u32 rate;
-	int ret;
-
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG, true);
-
-	shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
-	shap_cfg_cmd->qs_id = cpu_to_le16(qsid);
-
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"qs%u failed to get tx_rate, ret=%d\n",
-			qsid, ret);
-		return;
-	}
-
-	shapping_para = le32_to_cpu(shap_cfg_cmd->qs_shapping_para);
-	ir_b = hclge_tm_get_field(shapping_para, IR_B);
-	ir_u = hclge_tm_get_field(shapping_para, IR_U);
-	ir_s = hclge_tm_get_field(shapping_para, IR_S);
-	bs_b = hclge_tm_get_field(shapping_para, BS_B);
-	bs_s = hclge_tm_get_field(shapping_para, BS_S);
-	rate = le32_to_cpu(shap_cfg_cmd->qs_rate);
-
-	dev_info(&hdev->pdev->dev,
-		 "qs%u ir_b:%u, ir_u:%u, ir_s:%u, bs_b:%u, bs_s:%u, flag:%#x, rate:%u(Mbps)\n",
-		 qsid, ir_b, ir_u, ir_s, bs_b, bs_s, shap_cfg_cmd->flag, rate);
-}
-
-static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
-{
-	struct hnae3_knic_private_info *kinfo;
-	struct hclge_vport *vport;
-	int vport_id, i;
-
-	for (vport_id = 0; vport_id <= pci_num_vf(hdev->pdev); vport_id++) {
-		vport = &hdev->vport[vport_id];
-		kinfo = &vport->nic.kinfo;
-
-		dev_info(&hdev->pdev->dev, "qs cfg of vport%d:\n", vport_id);
-
-		for (i = 0; i < kinfo->tc_info.num_tc; i++) {
-			u16 qsid = vport->qs_offset + i;
-
-			hclge_dbg_dump_qs_shaper_single(hdev, qsid);
-		}
-	}
-}
-
-static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
-				     const char *cmd_buf)
-{
-	u16 qsid;
-	int ret;
-
-	ret = kstrtou16(cmd_buf, 0, &qsid);
-	if (ret) {
-		hclge_dbg_dump_qs_shaper_all(hdev);
-		return;
-	}
-
-	if (qsid >= hdev->ae_dev->dev_specs.max_qset_num) {
-		dev_err(&hdev->pdev->dev, "qsid(%u) out of range[0-%u]\n",
-			qsid, hdev->ae_dev->dev_specs.max_qset_num - 1);
-		return;
-	}
-
-	hclge_dbg_dump_qs_shaper_single(hdev, qsid);
-}
 
 static const struct hclge_dbg_item mac_list_items[] = {
 	{ "FUNC_ID", 2 },
@@ -1935,9 +1897,6 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_serv_info(hdev);
 	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
 		hclge_dbg_dump_mac_tnl_status(hdev);
-	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
-		hclge_dbg_dump_qs_shaper(hdev,
-					 &cmd_buf[sizeof("dump qs shaper")]);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

@@ -767,7 +767,6 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 		return;
 
 	dev_info(&h->pdev->dev, "dump mac tnl status\n");
-	dev_info(&h->pdev->dev, "dump qs shaper [qs id]\n");
 }
 
 static void
