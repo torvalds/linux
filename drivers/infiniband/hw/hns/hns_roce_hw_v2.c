@@ -1255,8 +1255,8 @@ static void hns_roce_cmq_init_regs(struct hns_roce_dev *hr_dev, bool ring_type)
 			   (u32)ring->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
 
 		/* Make sure to write tail first and then head */
-		roce_write(hr_dev, ROCEE_TX_CMQ_TAIL_REG, 0);
-		roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, 0);
+		roce_write(hr_dev, ROCEE_TX_CMQ_CI_REG, 0);
+		roce_write(hr_dev, ROCEE_TX_CMQ_PI_REG, 0);
 	} else {
 		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_L_REG, (u32)dma);
 		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_H_REG,
@@ -1338,7 +1338,7 @@ static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
 
 static int hns_roce_cmq_csq_done(struct hns_roce_dev *hr_dev)
 {
-	u32 tail = roce_read(hr_dev, ROCEE_TX_CMQ_TAIL_REG);
+	u32 tail = roce_read(hr_dev, ROCEE_TX_CMQ_CI_REG);
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
 	return tail == priv->cmq.csq.head;
@@ -1366,7 +1366,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	}
 
 	/* Write to hardware */
-	roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, csq->head);
+	roce_write(hr_dev, ROCEE_TX_CMQ_PI_REG, csq->head);
 
 	/* If the command is sync, wait for the firmware to write back,
 	 * if multi descriptors to be sent, use the first one to check
@@ -1397,7 +1397,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		}
 	} else {
 		/* FW/HW reset or incorrect number of desc */
-		tail = roce_read(hr_dev, ROCEE_TX_CMQ_TAIL_REG);
+		tail = roce_read(hr_dev, ROCEE_TX_CMQ_CI_REG);
 		dev_warn(hr_dev->dev, "CMDQ move tail from %d to %d\n",
 			 csq->head, tail);
 		csq->head = tail;
