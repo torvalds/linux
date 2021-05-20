@@ -674,6 +674,8 @@ cifs_add_pending_open(struct cifs_fid *fid, struct tcon_link *tlink,
 
 /*
  * Critical section which runs after acquiring deferred_lock.
+ * As there is no reference count on cifs_deferred_close, pdclose
+ * should not be used outside deferred_lock.
  */
 bool
 cifs_is_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close **pdclose)
@@ -752,8 +754,14 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 	spin_lock(&tcon->open_file_lock);
 	list_for_each(tmp, &tcon->openFileList) {
 		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
-		if (delayed_work_pending(&cfile->deferred))
-			mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
+		if (delayed_work_pending(&cfile->deferred)) {
+			/*
+			 * If there is no pending work, mod_delayed_work queues new work.
+			 * So, Increase the ref count to avoid use-after-free.
+			 */
+			if (!mod_delayed_work(deferredclose_wq, &cfile->deferred, 0))
+				cifsFileInfo_get(cfile);
+		}
 	}
 	spin_unlock(&tcon->open_file_lock);
 }

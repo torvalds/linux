@@ -874,10 +874,6 @@ void smb2_deferred_work_close(struct work_struct *work)
 			struct cifsFileInfo, deferred.work);
 
 	spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
-	if (!cfile->deferred_close_scheduled) {
-		spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
-		return;
-	}
 	cifs_del_deferred_close(cfile);
 	cfile->deferred_close_scheduled = false;
 	spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
@@ -904,8 +900,13 @@ int cifs_close(struct inode *inode, struct file *file)
 			cifs_add_deferred_close(cfile, dclose);
 			if (cfile->deferred_close_scheduled &&
 			    delayed_work_pending(&cfile->deferred)) {
-				mod_delayed_work(deferredclose_wq,
-						&cfile->deferred, cifs_sb->ctx->acregmax);
+				/*
+				 * If there is no pending work, mod_delayed_work queues new work.
+				 * So, Increase the ref count to avoid use-after-free.
+				 */
+				if (!mod_delayed_work(deferredclose_wq,
+						&cfile->deferred, cifs_sb->ctx->acregmax))
+					cifsFileInfo_get(cfile);
 			} else {
 				/* Deferred close for files */
 				queue_delayed_work(deferredclose_wq,
@@ -4879,7 +4880,12 @@ oplock_break_ack:
 	if (is_deferred &&
 	    cfile->deferred_close_scheduled &&
 	    delayed_work_pending(&cfile->deferred)) {
-		mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
+		/*
+		 * If there is no pending work, mod_delayed_work queues new work.
+		 * So, Increase the ref count to avoid use-after-free.
+		 */
+		if (!mod_delayed_work(deferredclose_wq, &cfile->deferred, 0))
+			cifsFileInfo_get(cfile);
 	}
 	spin_unlock(&CIFS_I(inode)->deferred_lock);
 	_cifsFileInfo_put(cfile, false /* do not wait for ourself */, false);
