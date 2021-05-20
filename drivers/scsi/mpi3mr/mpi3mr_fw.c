@@ -1472,6 +1472,74 @@ out:
 }
 
 /**
+ * mpi3mr_sync_timestamp - Issue time stamp sync request
+ * @mrioc: Adapter reference
+ *
+ * Issue IO unit control MPI request to synchornize firmware
+ * timestamp with host time.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_sync_timestamp(struct mpi3mr_ioc *mrioc)
+{
+	ktime_t current_time;
+	struct mpi3_iounit_control_request iou_ctrl;
+	int retval = 0;
+
+	memset(&iou_ctrl, 0, sizeof(iou_ctrl));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "Issue IOUCTL time_stamp: command is in use\n");
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		goto out;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	iou_ctrl.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	iou_ctrl.function = MPI3_FUNCTION_IO_UNIT_CONTROL;
+	iou_ctrl.operation = MPI3_CTRL_OP_UPDATE_TIMESTAMP;
+	current_time = ktime_get_real();
+	iou_ctrl.param64[0] = cpu_to_le64(ktime_to_ms(current_time));
+
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &iou_ctrl,
+	    sizeof(iou_ctrl), 0);
+	if (retval) {
+		ioc_err(mrioc, "Issue IOUCTL time_stamp: Admin Post failed\n");
+		goto out_unlock;
+	}
+
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		ioc_err(mrioc, "Issue IOUCTL time_stamp: command timed out\n");
+		mrioc->init_cmds.is_waiting = 0;
+		mpi3mr_soft_reset_handler(mrioc,
+		    MPI3MR_RESET_FROM_TSU_TIMEOUT, 1);
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc,
+		    "Issue IOUCTL time_stamp: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+
+out:
+	return retval;
+}
+
+/**
  * mpi3mr_watchdog_work - watchdog thread to monitor faults
  * @work: work struct
  *
@@ -1488,6 +1556,11 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	unsigned long flags;
 	enum mpi3mr_iocstate ioc_state;
 	u32 fault, host_diagnostic;
+
+	if (mrioc->ts_update_counter++ >= MPI3MR_TSUPDATE_INTERVAL) {
+		mrioc->ts_update_counter = 0;
+		mpi3mr_sync_timestamp(mrioc);
+	}
 
 	/*Check for fault state every one second and issue Soft reset*/
 	ioc_state = mpi3mr_get_iocstate(mrioc);
@@ -3293,6 +3366,7 @@ out:
 		mrioc->reset_in_progress = 0;
 		scsi_unblock_requests(mrioc->shost);
 		mpi3mr_rfresh_tgtdevs(mrioc);
+		mrioc->ts_update_counter = 0;
 		spin_lock_irqsave(&mrioc->watchdog_lock, flags);
 		if (mrioc->watchdog_work_q)
 			queue_delayed_work(mrioc->watchdog_work_q,
