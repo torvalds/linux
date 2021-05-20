@@ -1485,6 +1485,35 @@ out:
 }
 
 /**
+ * mpi3mr_energypackchg_evt_th - Energy pack change evt tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Identifies the new shutdown timeout value and update.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_energypackchg_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	struct mpi3_event_data_energy_pack_change *evtdata =
+	    (struct mpi3_event_data_energy_pack_change *)event_reply->event_data;
+	u16 shutdown_timeout = le16_to_cpu(evtdata->shutdown_timeout);
+
+	if (shutdown_timeout <= 0) {
+		ioc_warn(mrioc,
+		    "%s :Invalid Shutdown Timeout received = %d\n",
+		    __func__, shutdown_timeout);
+		return;
+	}
+
+	ioc_info(mrioc,
+	    "%s :Previous Shutdown Timeout Value = %d New Shutdown Timeout Value = %d\n",
+	    __func__, mrioc->facts.shutdown_timeout, shutdown_timeout);
+	mrioc->facts.shutdown_timeout = shutdown_timeout;
+}
+
+/**
  * mpi3mr_os_handle_events - Firmware event handler
  * @mrioc: Adapter instance reference
  * @event_reply: event data
@@ -1547,9 +1576,16 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 		process_evt_bh = 1;
 		break;
 	}
+	case MPI3_EVENT_ENERGY_PACK_CHANGE:
+	{
+		mpi3mr_energypackchg_evt_th(mrioc, event_reply);
+		break;
+	}
 	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI3_EVENT_SAS_DISCOVERY:
+	case MPI3_EVENT_CABLE_MGMT:
 	case MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+	case MPI3_EVENT_SAS_BROADCAST_PRIMITIVE:
 	case MPI3_EVENT_PCIE_ENUMERATION:
 		break;
 	default:
