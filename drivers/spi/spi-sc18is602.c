@@ -174,7 +174,7 @@ static int sc18is602_setup_transfer(struct sc18is602 *hw, u32 hz, u8 mode)
 static int sc18is602_check_transfer(struct spi_device *spi,
 				    struct spi_transfer *t, int tlen)
 {
-	if (t && t->len + tlen > SC18IS602_BUFSIZ)
+	if (t && t->len + tlen > SC18IS602_BUFSIZ + 1)
 		return -EINVAL;
 
 	return 0;
