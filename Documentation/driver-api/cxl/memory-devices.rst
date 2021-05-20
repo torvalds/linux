@@ -29,7 +29,7 @@ CXL Memory Device
    :internal:
 
 CXL Core
--------
+--------
 .. kernel-doc:: drivers/cxl/core.c
    :doc: cxl core
 
