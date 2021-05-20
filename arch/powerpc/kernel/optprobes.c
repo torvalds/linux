@@ -126,10 +126,8 @@ void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
 
 static void patch_imm32_load_insns(unsigned long val, int reg, kprobe_opcode_t *addr)
 {
-	patch_instruction(addr, ppc_inst(PPC_RAW_LIS(reg, IMM_H(val))));
-	addr++;
-
-	patch_instruction(addr, ppc_inst(PPC_RAW_ORI(reg, reg, IMM_L(val))));
+	patch_instruction(addr++, ppc_inst(PPC_RAW_LIS(reg, PPC_HI(val))));
+	patch_instruction(addr, ppc_inst(PPC_RAW_ORI(reg, reg, PPC_LO(val))));
 }
 
 /*
@@ -138,34 +136,11 @@ static void patch_imm32_load_insns(unsigned long val, int reg, kprobe_opcode_t *
  */
 static void patch_imm64_load_insns(unsigned long long val, int reg, kprobe_opcode_t *addr)
 {
-	/* lis reg,(op)@highest */
-	patch_instruction(addr,
-			  ppc_inst(PPC_INST_ADDIS | ___PPC_RT(reg) |
-				   ((val >> 48) & 0xffff)));
-	addr++;
-
-	/* ori reg,reg,(op)@higher */
-	patch_instruction(addr,
-			  ppc_inst(PPC_INST_ORI | ___PPC_RA(reg) |
-				   ___PPC_RS(reg) | ((val >> 32) & 0xffff)));
-	addr++;
-
-	/* rldicr reg,reg,32,31 */
-	patch_instruction(addr,
-			  ppc_inst(PPC_INST_RLDICR | ___PPC_RA(reg) |
-				   ___PPC_RS(reg) | __PPC_SH64(32) | __PPC_ME64(31)));
-	addr++;
-
-	/* oris reg,reg,(op)@h */
-	patch_instruction(addr,
-			  ppc_inst(PPC_INST_ORIS | ___PPC_RA(reg) |
-				   ___PPC_RS(reg) | ((val >> 16) & 0xffff)));
-	addr++;
-
-	/* ori reg,reg,(op)@l */
-	patch_instruction(addr,
-			  ppc_inst(PPC_INST_ORI | ___PPC_RA(reg) |
-				   ___PPC_RS(reg) | (val & 0xffff)));
+	patch_instruction(addr++, ppc_inst(PPC_RAW_LIS(reg, PPC_HIGHEST(val))));
+	patch_instruction(addr++, ppc_inst(PPC_RAW_ORI(reg, reg, PPC_HIGHER(val))));
+	patch_instruction(addr++, ppc_inst(PPC_RAW_SLDI(reg, reg, 32)));
+	patch_instruction(addr++, ppc_inst(PPC_RAW_ORIS(reg, reg, PPC_HI(val))));
+	patch_instruction(addr, ppc_inst(PPC_RAW_ORI(reg, reg, PPC_LO(val))));
 }
 
 static void patch_imm_load_insns(unsigned long val, int reg, kprobe_opcode_t *addr)
