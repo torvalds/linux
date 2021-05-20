@@ -2423,7 +2423,8 @@ static void mtk_dim_rx(struct work_struct *work)
 	val |= cur << MTK_PDMA_DELAY_RX_PINT_SHIFT;
 
 	mtk_w32(eth, val, MTK_PDMA_DELAY_INT);
-	mtk_w32(eth, val, MTK_QDMA_DELAY_INT);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_w32(eth, val, MTK_QDMA_DELAY_INT);
 
 	spin_unlock_bh(&eth->dim_lock);
 
@@ -2452,7 +2453,8 @@ static void mtk_dim_tx(struct work_struct *work)
 	val |= cur << MTK_PDMA_DELAY_TX_PINT_SHIFT;
 
 	mtk_w32(eth, val, MTK_PDMA_DELAY_INT);
-	mtk_w32(eth, val, MTK_QDMA_DELAY_INT);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_w32(eth, val, MTK_QDMA_DELAY_INT);
 
 	spin_unlock_bh(&eth->dim_lock);
 
@@ -2479,6 +2481,10 @@ static int mtk_hw_init(struct mtk_eth *eth)
 			dev_err(eth->dev, "MAC reset failed!\n");
 			goto err_disable_pm;
 		}
+
+		/* set interrupt delays based on current Net DIM sample */
+		mtk_dim_rx(&eth->rx_dim.work);
+		mtk_dim_tx(&eth->tx_dim.work);
 
 		/* disable delay and normal interrupt */
 		mtk_tx_irq_disable(eth, ~0);
