@@ -2114,9 +2114,6 @@ static void halbtc8723b1ant_InitHwConfig(
 	bool bWifiOnly
 )
 {
-	u32 u4Tmp = 0;/*  fwVer; */
-	u8 u1Tmpa = 0, u1Tmpb = 0;
-
 	pBtCoexist->fBtcWrite1ByteBitMask(pBtCoexist, 0x550, 0x8, 0x1);  /* enable TBTT nterrupt */
 
 	/*  0x790[5:0]= 0x5 */
@@ -2136,9 +2133,9 @@ static void halbtc8723b1ant_InitHwConfig(
 	/*  PTA parameter */
 	halbtc8723b1ant_CoexTableWithType(pBtCoexist, FORCE_EXEC, 0);
 
-	u4Tmp = pBtCoexist->fBtcRead4Byte(pBtCoexist, 0x948);
-	u1Tmpa = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x765);
-	u1Tmpb = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x67);
+	pBtCoexist->fBtcRead4Byte(pBtCoexist, 0x948);
+	pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x765);
+	pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x67);
 }
 
 /*  */
