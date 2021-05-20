@@ -93,6 +93,9 @@
 #define HNS_ROCE_V3_SCCC_SZ			64
 #define HNS_ROCE_V3_GMV_ENTRY_SZ		32
 
+#define HNS_ROCE_V2_EXT_LLM_ENTRY_SZ		8
+#define HNS_ROCE_V2_EXT_LLM_MAX_DEPTH		4096
+
 #define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
@@ -234,7 +237,6 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_QUERY_PF_RES			= 0x8400,
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
-	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
 	HNS_ROCE_OPC_QUERY_PF_TIMER_RES			= 0x8406,
 	HNS_ROCE_OPC_QUERY_FUNC_INFO			= 0x8407,
 	HNS_ROCE_OPC_QUERY_PF_CAPS_NUM                  = 0x8408,
@@ -1342,39 +1344,18 @@ struct hns_roce_func_clear {
 #define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL	40
 #define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT	20
 
-struct hns_roce_cfg_llm_a {
-	__le32 base_addr_l;
-	__le32 base_addr_h;
-	__le32 depth_pgsz_init_en;
-	__le32 head_ba_l;
-	__le32 head_ba_h_nxtptr;
-	__le32 head_ptr;
-};
-
-#define CFG_LLM_QUE_DEPTH_S 0
-#define CFG_LLM_QUE_DEPTH_M GENMASK(12, 0)
-
-#define CFG_LLM_QUE_PGSZ_S 16
-#define CFG_LLM_QUE_PGSZ_M GENMASK(19, 16)
-
-#define CFG_LLM_INIT_EN_S 20
-#define CFG_LLM_INIT_EN_M GENMASK(20, 20)
-
-#define CFG_LLM_HEAD_PTR_S 0
-#define CFG_LLM_HEAD_PTR_M GENMASK(11, 0)
-
-struct hns_roce_cfg_llm_b {
-	__le32 tail_ba_l;
-	__le32 tail_ba_h;
-	__le32 tail_ptr;
-	__le32 rsv[3];
-};
-
-#define CFG_LLM_TAIL_BA_H_S 0
-#define CFG_LLM_TAIL_BA_H_M GENMASK(19, 0)
-
-#define CFG_LLM_TAIL_PTR_S 0
-#define CFG_LLM_TAIL_PTR_M GENMASK(11, 0)
+#define CFG_LLM_A_BA_L CMQ_REQ_FIELD_LOC(31, 0)
+#define CFG_LLM_A_BA_H CMQ_REQ_FIELD_LOC(63, 32)
+#define CFG_LLM_A_DEPTH CMQ_REQ_FIELD_LOC(76, 64)
+#define CFG_LLM_A_PGSZ CMQ_REQ_FIELD_LOC(83, 80)
+#define CFG_LLM_A_INIT_EN CMQ_REQ_FIELD_LOC(84, 84)
+#define CFG_LLM_A_HEAD_BA_L CMQ_REQ_FIELD_LOC(127, 96)
+#define CFG_LLM_A_HEAD_BA_H CMQ_REQ_FIELD_LOC(147, 128)
+#define CFG_LLM_A_HEAD_NXTPTR CMQ_REQ_FIELD_LOC(159, 148)
+#define CFG_LLM_A_HEAD_PTR CMQ_REQ_FIELD_LOC(171, 160)
+#define CFG_LLM_B_TAIL_BA_L CMQ_REQ_FIELD_LOC(31, 0)
+#define CFG_LLM_B_TAIL_BA_H CMQ_REQ_FIELD_LOC(63, 32)
+#define CFG_LLM_B_TAIL_PTR CMQ_REQ_FIELD_LOC(75, 64)
 
 /* Fields of HNS_ROCE_OPC_CFG_GLOBAL_PARAM */
 #define CFG_GLOBAL_PARAM_1US_CYCLES CMQ_REQ_FIELD_LOC(9, 0)
@@ -1735,33 +1716,18 @@ struct hns_roce_v2_cmq {
 	u16 tx_timeout;
 };
 
-enum hns_roce_link_table_type {
-	TSQ_LINK_TABLE,
-	TPQ_LINK_TABLE,
-};
-
 struct hns_roce_link_table {
 	struct hns_roce_buf_list table;
-	struct hns_roce_buf_list *pg_list;
-	u32 npages;
-	u32 pg_sz;
+	struct hns_roce_buf *buf;
 };
 
-struct hns_roce_link_table_entry {
-	u32 blk_ba0;
-	u32 blk_ba1_nxt_ptr;
-};
-#define HNS_ROCE_LINK_TABLE_BA1_S 0
-#define HNS_ROCE_LINK_TABLE_BA1_M GENMASK(19, 0)
-
-#define HNS_ROCE_LINK_TABLE_NXT_PTR_S 20
-#define HNS_ROCE_LINK_TABLE_NXT_PTR_M GENMASK(31, 20)
+#define HNS_ROCE_EXT_LLM_ENTRY(addr, id) (((id) << (64 - 12)) | ((addr) >> 12))
+#define HNS_ROCE_EXT_LLM_MIN_PAGES(que_num) ((que_num) * 4 + 2)
 
 struct hns_roce_v2_priv {
 	struct hnae3_handle *handle;
 	struct hns_roce_v2_cmq cmq;
-	struct hns_roce_link_table tsq;
-	struct hns_roce_link_table tpq;
+	struct hns_roce_link_table ext_llm;
 };
 
 struct hns_roce_eq_context {
