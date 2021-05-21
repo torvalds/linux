@@ -4164,10 +4164,11 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 
 	if (dpaa2_eth_is_type_phy(priv)) {
 		err = dpaa2_mac_connect(mac);
-		if (err) {
-			netdev_err(priv->net_dev, "Error connecting to the MAC endpoint\n");
+		if (err && err != -EPROBE_DEFER)
+			netdev_err(priv->net_dev, "Error connecting to the MAC endpoint: %pe",
+				   ERR_PTR(err));
+		if (err)
 			goto err_close_mac;
-		}
 	}
 
 	return 0;
