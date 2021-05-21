@@ -341,7 +341,7 @@ exit:
 /* Check if hw access should be skipped because of hotplug or device error */
 bool amdgpu_device_skip_hw_access(struct amdgpu_device *adev)
 {
-	if (adev->in_pci_err_recovery)
+	if (adev->no_hw_access)
 		return true;
 
 #ifdef CONFIG_LOCKDEP
@@ -5350,9 +5350,9 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 	set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
 
-	adev->in_pci_err_recovery = true;
+	adev->no_hw_access = true;
 	r = amdgpu_device_pre_asic_reset(adev, &reset_context);
-	adev->in_pci_err_recovery = false;
+	adev->no_hw_access = false;
 	if (r)
 		goto out;
 

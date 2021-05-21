@@ -234,7 +234,7 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp->adev->in_pci_err_recovery)
+	if (psp->adev->no_hw_access)
 		return 0;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -263,7 +263,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	bool ras_intr = false;
 	bool skip_unsupport = false;
 
-	if (psp->adev->in_pci_err_recovery)
+	if (psp->adev->no_hw_access)
 		return 0;
 
 	if (!drm_dev_enter(&psp->adev->ddev, &idx))
