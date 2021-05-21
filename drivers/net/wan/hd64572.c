@@ -374,8 +374,9 @@ static void sca_set_port(port_t *port)
 			tmc = 1;
 			br = 0;	/* For baud=CLOCK_BASE we use tmc=1 br=0 */
 			brv = 1;
-		} else if (tmc > 255)
+		} else if (tmc > 255) {
 			tmc = 256; /* tmc=0 means 256 - low baud rates */
+		}
 
 		port->settings.clock_rate = CLOCK_BASE / brv / tmc;
 	} else {
