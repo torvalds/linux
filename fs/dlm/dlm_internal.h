@@ -60,6 +60,8 @@ struct dlm_mhandle;
 
 #define log_print(fmt, args...) \
 	printk(KERN_ERR "dlm: "fmt"\n" , ##args)
+#define log_print_ratelimited(fmt, args...) \
+	printk_ratelimited(KERN_ERR "dlm: "fmt"\n", ##args)
 #define log_error(ls, fmt, args...) \
 	printk(KERN_ERR "dlm: %s: " fmt "\n", (ls)->ls_name , ##args)
 

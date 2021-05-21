@@ -1075,7 +1075,7 @@ static void sctp_connect_to_sock(struct connection *con)
 
 	make_sockaddr(&daddr, dlm_config.ci_tcp_port, &addr_len);
 
-	log_print("connecting to %d", con->nodeid);
+	log_print_ratelimited("connecting to %d", con->nodeid);
 
 	/* Turn off Nagle's algorithm */
 	sctp_sock_set_nodelay(sock->sk);
@@ -1171,7 +1171,7 @@ static void tcp_connect_to_sock(struct connection *con)
 
 	make_sockaddr(&saddr, dlm_config.ci_tcp_port, &addr_len);
 
-	log_print("connecting to %d", con->nodeid);
+	log_print_ratelimited("connecting to %d", con->nodeid);
 
 	/* Turn off Nagle's algorithm */
 	tcp_sock_set_nodelay(sock->sk);
