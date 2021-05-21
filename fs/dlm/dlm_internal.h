@@ -57,6 +57,7 @@ struct dlm_header;
 struct dlm_message;
 struct dlm_rcom;
 struct dlm_mhandle;
+struct dlm_msg;
 
 #define log_print(fmt, args...) \
 	printk(KERN_ERR "dlm: "fmt"\n" , ##args)

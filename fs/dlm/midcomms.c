@@ -31,12 +31,15 @@
 struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 					     gfp_t allocation, char **ppc)
 {
-	return dlm_lowcomms_get_buffer(nodeid, len, allocation, ppc);
+	return (struct dlm_mhandle *)dlm_lowcomms_new_msg(nodeid, len,
+							  allocation, ppc,
+							  NULL, NULL);
 }
 
 void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 {
-	dlm_lowcomms_commit_buffer(mh);
+	dlm_lowcomms_commit_msg((struct dlm_msg *)mh);
+	dlm_lowcomms_put_msg((struct dlm_msg *)mh);
 }
 
 void dlm_midcomms_add_member(int nodeid) { }

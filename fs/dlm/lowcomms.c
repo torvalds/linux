@@ -119,8 +119,19 @@ struct writequeue_entry {
 	int len;
 	int end;
 	int users;
-	int idx; /* get()/commit() idx exchange */
 	struct connection *con;
+	struct list_head msgs;
+	struct kref ref;
+};
+
+struct dlm_msg {
+	struct writequeue_entry *entry;
+	void *ppc;
+	int len;
+	int idx; /* new()/commit() idx exchange */
+
+	struct list_head list;
+	struct kref ref;
 };
 
 struct dlm_node_addr {
@@ -1022,10 +1033,35 @@ accept_err:
 	return result;
 }
 
-static void free_entry(struct writequeue_entry *e)
+static void dlm_page_release(struct kref *kref)
 {
+	struct writequeue_entry *e = container_of(kref, struct writequeue_entry,
+						  ref);
+
 	__free_page(e->page);
 	kfree(e);
+}
+
+static void dlm_msg_release(struct kref *kref)
+{
+	struct dlm_msg *msg = container_of(kref, struct dlm_msg, ref);
+
+	kref_put(&msg->entry->ref, dlm_page_release);
+	kfree(msg);
+}
+
+static void free_entry(struct writequeue_entry *e)
+{
+	struct dlm_msg *msg, *tmp;
+
+	list_for_each_entry_safe(msg, tmp, &e->msgs, list) {
+		list_del(&msg->list);
+		kref_put(&msg->ref, dlm_msg_release);
+	}
+
+	list_del(&e->list);
+	atomic_dec(&e->con->writequeue_cnt);
+	kref_put(&e->ref, dlm_page_release);
 }
 
 /*
@@ -1040,11 +1076,8 @@ static void writequeue_entry_complete(struct writequeue_entry *e, int completed)
 	e->offset += completed;
 	e->len -= completed;
 
-	if (e->len == 0 && e->users == 0) {
-		list_del(&e->list);
-		atomic_dec(&e->con->writequeue_cnt);
+	if (e->len == 0 && e->users == 0)
 		free_entry(e);
-	}
 }
 
 /*
@@ -1410,12 +1443,16 @@ static struct writequeue_entry *new_writequeue_entry(struct connection *con,
 
 	entry->con = con;
 	entry->users = 1;
+	kref_init(&entry->ref);
+	INIT_LIST_HEAD(&entry->msgs);
 
 	return entry;
 }
 
 static struct writequeue_entry *new_wq_entry(struct connection *con, int len,
-					     gfp_t allocation, char **ppc)
+					     gfp_t allocation, char **ppc,
+					     void (*cb)(struct dlm_mhandle *mh),
+					     struct dlm_mhandle *mh)
 {
 	struct writequeue_entry *e;
 
@@ -1423,7 +1460,12 @@ static struct writequeue_entry *new_wq_entry(struct connection *con, int len,
 	if (!list_empty(&con->writequeue)) {
 		e = list_last_entry(&con->writequeue, struct writequeue_entry, list);
 		if (DLM_WQ_REMAIN_BYTES(e) >= len) {
+			kref_get(&e->ref);
+
 			*ppc = page_address(e->page) + e->end;
+			if (cb)
+				cb(mh);
+
 			e->end += len;
 			e->users++;
 			spin_unlock(&con->writequeue_lock);
@@ -1437,21 +1479,28 @@ static struct writequeue_entry *new_wq_entry(struct connection *con, int len,
 	if (!e)
 		return NULL;
 
+	kref_get(&e->ref);
 	*ppc = page_address(e->page);
 	e->end += len;
 	atomic_inc(&con->writequeue_cnt);
 
 	spin_lock(&con->writequeue_lock);
+	if (cb)
+		cb(mh);
+
 	list_add_tail(&e->list, &con->writequeue);
 	spin_unlock(&con->writequeue_lock);
 
 	return e;
 };
 
-void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
+struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
+				     char **ppc, void (*cb)(struct dlm_mhandle *mh),
+				     struct dlm_mhandle *mh)
 {
 	struct writequeue_entry *e;
 	struct connection *con;
+	struct dlm_msg *msg;
 	int idx;
 
 	if (len > DEFAULT_BUFFER_SIZE ||
@@ -1469,25 +1518,41 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 		return NULL;
 	}
 
-	e = new_wq_entry(con, len, allocation, ppc);
-	if (!e) {
+	msg = kzalloc(sizeof(*msg), allocation);
+	if (!msg) {
 		srcu_read_unlock(&connections_srcu, idx);
 		return NULL;
 	}
 
-	/* we assume if successful commit must called */
-	e->idx = idx;
+	kref_init(&msg->ref);
 
-	return e;
+	e = new_wq_entry(con, len, allocation, ppc, cb, mh);
+	if (!e) {
+		srcu_read_unlock(&connections_srcu, idx);
+		kfree(msg);
+		return NULL;
+	}
+
+	msg->ppc = *ppc;
+	msg->len = len;
+	msg->entry = e;
+
+	/* we assume if successful commit must called */
+	msg->idx = idx;
+
+	return msg;
 }
 
-void dlm_lowcomms_commit_buffer(void *mh)
+void dlm_lowcomms_commit_msg(struct dlm_msg *msg)
 {
-	struct writequeue_entry *e = (struct writequeue_entry *)mh;
+	struct writequeue_entry *e = msg->entry;
 	struct connection *con = e->con;
 	int users;
 
 	spin_lock(&con->writequeue_lock);
+	kref_get(&msg->ref);
+	list_add(&msg->list, &e->msgs);
+
 	users = --e->users;
 	if (users)
 		goto out;
@@ -1496,13 +1561,18 @@ void dlm_lowcomms_commit_buffer(void *mh)
 	spin_unlock(&con->writequeue_lock);
 
 	queue_work(send_workqueue, &con->swork);
-	srcu_read_unlock(&connections_srcu, e->idx);
+	srcu_read_unlock(&connections_srcu, msg->idx);
 	return;
 
 out:
 	spin_unlock(&con->writequeue_lock);
-	srcu_read_unlock(&connections_srcu, e->idx);
+	srcu_read_unlock(&connections_srcu, msg->idx);
 	return;
+}
+
+void dlm_lowcomms_put_msg(struct dlm_msg *msg)
+{
+	kref_put(&msg->ref, dlm_msg_release);
 }
 
 /* Send a message */
@@ -1590,7 +1660,6 @@ static void clean_one_writequeue(struct connection *con)
 
 	spin_lock(&con->writequeue_lock);
 	list_for_each_entry_safe(e, safe, &con->writequeue, list) {
-		list_del(&e->list);
 		free_entry(e);
 	}
 	spin_unlock(&con->writequeue_lock);

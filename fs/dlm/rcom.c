@@ -70,21 +70,22 @@ static int create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
 
 static int create_rcom_stateless(struct dlm_ls *ls, int to_nodeid, int type,
 				 int len, struct dlm_rcom **rc_ret,
-				 void **mh_ret)
+				 struct dlm_msg **msg_ret)
 {
 	int mb_len = sizeof(struct dlm_rcom) + len;
-	void *mh;
+	struct dlm_msg *msg;
 	char *mb;
 
-	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_NOFS, &mb);
-	if (!mh) {
+	msg = dlm_lowcomms_new_msg(to_nodeid, mb_len, GFP_NOFS, &mb,
+				   NULL, NULL);
+	if (!msg) {
 		log_print("create_rcom to %d type %d len %d ENOBUFS",
 			  to_nodeid, type, len);
 		return -ENOBUFS;
 	}
 
 	_create_rcom(ls, to_nodeid, type, len, rc_ret, mb, mb_len);
-	*mh_ret = mh;
+	*msg_ret = msg;
 	return 0;
 }
 
@@ -100,11 +101,12 @@ static void send_rcom(struct dlm_ls *ls, struct dlm_mhandle *mh,
 	dlm_midcomms_commit_mhandle(mh);
 }
 
-static void send_rcom_stateless(struct dlm_ls *ls, void *mh,
+static void send_rcom_stateless(struct dlm_ls *ls, struct dlm_msg *msg,
 				struct dlm_rcom *rc)
 {
 	_send_rcom(ls, rc);
-	dlm_lowcomms_commit_buffer(mh);
+	dlm_lowcomms_commit_msg(msg);
+	dlm_lowcomms_put_msg(msg);
 }
 
 static void set_rcom_status(struct dlm_ls *ls, struct rcom_status *rs,
@@ -180,8 +182,8 @@ static void disallow_sync_reply(struct dlm_ls *ls)
 int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags)
 {
 	struct dlm_rcom *rc;
+	struct dlm_msg *msg;
 	int error = 0;
-	void *mh;
 
 	ls->ls_recover_nodeid = nodeid;
 
@@ -193,7 +195,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags)
 
 retry:
 	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_STATUS,
-				      sizeof(struct rcom_status), &rc, &mh);
+				      sizeof(struct rcom_status), &rc, &msg);
 	if (error)
 		goto out;
 
@@ -202,7 +204,7 @@ retry:
 	allow_sync_reply(ls, &rc->rc_id);
 	memset(ls->ls_recover_buf, 0, LOWCOMMS_MAX_TX_BUFFER_LEN);
 
-	send_rcom_stateless(ls, mh, rc);
+	send_rcom_stateless(ls, msg, rc);
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
@@ -234,9 +236,9 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	uint32_t status;
 	int nodeid = rc_in->rc_header.h_nodeid;
 	int len = sizeof(struct rcom_config);
+	struct dlm_msg *msg;
 	int num_slots = 0;
 	int error;
-	void *mh;
 
 	if (!dlm_slots_version(&rc_in->rc_header)) {
 		status = dlm_recover_status(ls);
@@ -258,7 +260,7 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 
  do_create:
 	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_STATUS_REPLY,
-				      len, &rc, &mh);
+				      len, &rc, &msg);
 	if (error)
 		return;
 
@@ -285,7 +287,7 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	spin_unlock(&ls->ls_recover_lock);
 
  do_send:
-	send_rcom_stateless(ls, mh, rc);
+	send_rcom_stateless(ls, msg, rc);
 }
 
 static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
@@ -310,14 +312,14 @@ static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 {
 	struct dlm_rcom *rc;
+	struct dlm_msg *msg;
 	int error = 0;
-	void *mh;
 
 	ls->ls_recover_nodeid = nodeid;
 
 retry:
 	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_NAMES, last_len,
-				      &rc, &mh);
+				      &rc, &msg);
 	if (error)
 		goto out;
 	memcpy(rc->rc_buf, last_name, last_len);
@@ -325,7 +327,7 @@ retry:
 	allow_sync_reply(ls, &rc->rc_id);
 	memset(ls->ls_recover_buf, 0, LOWCOMMS_MAX_TX_BUFFER_LEN);
 
-	send_rcom_stateless(ls, mh, rc);
+	send_rcom_stateless(ls, msg, rc);
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
@@ -339,14 +341,14 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
 	int error, inlen, outlen, nodeid;
-	void *mh;
+	struct dlm_msg *msg;
 
 	nodeid = rc_in->rc_header.h_nodeid;
 	inlen = rc_in->rc_header.h_length - sizeof(struct dlm_rcom);
 	outlen = LOWCOMMS_MAX_TX_BUFFER_LEN - sizeof(struct dlm_rcom);
 
 	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen,
-				      &rc, &mh);
+				      &rc, &msg);
 	if (error)
 		return;
 	rc->rc_id = rc_in->rc_id;
@@ -354,7 +356,7 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 
 	dlm_copy_master_names(ls, rc_in->rc_buf, inlen, rc->rc_buf, outlen,
 			      nodeid);
-	send_rcom_stateless(ls, mh, rc);
+	send_rcom_stateless(ls, msg, rc);
 }
 
 int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid)
