@@ -1202,11 +1202,20 @@ out_unlock:
 	mutex_unlock(&hv->hv_lock);
 }
 
+
+static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
+{
+	return true;
+}
+
 static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			     bool host)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_hv *hv = to_kvm_hv(kvm);
+
+	if (unlikely(!host && !hv_check_msr_access(to_hv_vcpu(vcpu), msr)))
+		return 1;
 
 	switch (msr) {
 	case HV_X64_MSR_GUEST_OS_ID:
@@ -1336,6 +1345,9 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 {
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 
+	if (unlikely(!host && !hv_check_msr_access(hv_vcpu, msr)))
+		return 1;
+
 	switch (msr) {
 	case HV_X64_MSR_VP_INDEX: {
 		struct kvm_hv *hv = to_kvm_hv(vcpu->kvm);
@@ -1450,6 +1462,9 @@ static int kvm_hv_get_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata,
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_hv *hv = to_kvm_hv(kvm);
 
+	if (unlikely(!host && !hv_check_msr_access(to_hv_vcpu(vcpu), msr)))
+		return 1;
+
 	switch (msr) {
 	case HV_X64_MSR_GUEST_OS_ID:
 		data = hv->hv_guest_os_id;
@@ -1498,6 +1513,9 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata,
 {
 	u64 data = 0;
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	if (unlikely(!host && !hv_check_msr_access(hv_vcpu, msr)))
+		return 1;
 
 	switch (msr) {
 	case HV_X64_MSR_VP_INDEX:
