@@ -138,7 +138,7 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return ret;
 
 	sof_pdata->name = pci_name(pci);
-	sof_pdata->desc = (struct sof_dev_desc *)pci_id->driver_data;
+	sof_pdata->desc = desc;
 	sof_pdata->dev = dev;
 	sof_pdata->fw_filename = desc->default_fw_filename;
 
