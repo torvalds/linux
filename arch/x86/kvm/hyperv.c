@@ -1853,6 +1853,27 @@ void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu)
 		vcpu->arch.hyperv_enabled = false;
 }
 
+int kvm_hv_set_enforce_cpuid(struct kvm_vcpu *vcpu, bool enforce)
+{
+	struct kvm_vcpu_hv *hv_vcpu;
+	int ret = 0;
+
+	if (!to_hv_vcpu(vcpu)) {
+		if (enforce) {
+			ret = kvm_hv_vcpu_init(vcpu);
+			if (ret)
+				return ret;
+		} else {
+			return 0;
+		}
+	}
+
+	hv_vcpu = to_hv_vcpu(vcpu);
+	hv_vcpu->enforce_cpuid = enforce;
+
+	return ret;
+}
+
 bool kvm_hv_hypercall_enabled(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.hyperv_enabled && to_kvm_hv(vcpu->kvm)->hv_guest_os_id;
