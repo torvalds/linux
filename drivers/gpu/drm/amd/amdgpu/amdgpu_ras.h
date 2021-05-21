@@ -340,6 +340,11 @@ struct amdgpu_ras {
 
 	/* disable ras error count harvest in recovery */
 	bool disable_ras_err_cnt_harvest;
+
+	/* RAS count errors delayed work */
+	struct delayed_work ras_counte_delay_work;
+	atomic_t ras_ue_count;
+	atomic_t ras_ce_count;
 };
 
 struct ras_fs_data {
