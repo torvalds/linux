@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * tools/testing/selftests/kvm/include/x86_64/hyperv.h
+ *
+ * Copyright (C) 2021, Red Hat, Inc.
+ *
+ */
+
+#ifndef SELFTEST_KVM_HYPERV_H
+#define SELFTEST_KVM_HYPERV_H
+
+#define HV_X64_MSR_GUEST_OS_ID			0x40000000
+#define HV_X64_MSR_TIME_REF_COUNT		0x40000020
+#define HV_X64_MSR_REFERENCE_TSC		0x40000021
+#define HV_X64_MSR_TSC_FREQUENCY		0x40000022
+#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
+#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
+
+#endif /* !SELFTEST_KVM_HYPERV_H */
