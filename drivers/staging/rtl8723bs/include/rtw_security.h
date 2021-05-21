@@ -7,6 +7,7 @@
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
 
+#include <crypto/arc4.h>
 
 #define _NO_PRIVACY_		0x0
 #define _WEP40_				0x1
@@ -127,6 +128,8 @@ struct security_priv {
 	u8 wps_ie[MAX_WPS_IE_LEN];/* added in assoc req */
 	int wps_ie_len;
 
+	struct arc4_ctx xmit_arc4_ctx;
+	struct arc4_ctx recv_arc4_ctx;
 
 	u8 binstallGrpkey;
 	u8 binstallBIPkey;
