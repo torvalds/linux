@@ -1665,7 +1665,7 @@ static inline void cec_ops_report_current_latency(const struct cec_msg *msg,
 	if (*audio_out_compensated == 3 && msg->len >= 7)
 		*audio_out_delay = msg->msg[6];
 	else
-		*audio_out_delay = 0;
+		*audio_out_delay = 1;
 }
 
 static inline void cec_msg_request_current_latency(struct cec_msg *msg,
