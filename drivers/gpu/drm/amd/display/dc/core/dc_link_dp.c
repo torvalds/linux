@@ -1157,7 +1157,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 	return get_cr_failure(lane_count, dpcd_lane_status);
 }
 
-static inline enum link_training_result perform_link_training_int(
+static inline enum link_training_result dp_transition_to_video_idle(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
 	enum link_training_result status)
@@ -1231,7 +1231,7 @@ enum link_training_result dp_check_link_loss_status(
 	return status;
 }
 
-static void initialize_training_settings(
+static inline void decide_8b_10b_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	const struct dc_link_training_overrides *overrides,
@@ -1274,6 +1274,8 @@ static void initialize_training_settings(
 			: LINK_SPREAD_DISABLED;
 	else
 		lt_settings->link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
+
+	lt_settings->lttpr_mode = link->lttpr_mode;
 
 	/* Initialize lane settings overrides */
 	if (overrides->voltage_swing != NULL)
@@ -1327,6 +1329,17 @@ static void initialize_training_settings(
 		lt_settings->enhanced_framing = 1;
 }
 
+static void decide_training_settings(
+		struct dc_link *link,
+		const struct dc_link_settings *link_settings,
+		const struct dc_link_training_overrides *overrides,
+		struct link_training_settings *lt_settings)
+{
+	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		decide_8b_10b_training_settings(link, link_settings, overrides, lt_settings);
+}
+
+
 uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count)
 {
 	switch (lttpr_repeater_count) {
@@ -1356,13 +1369,16 @@ static void configure_lttpr_mode_transparent(struct dc_link *link)
 {
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
+	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
 	core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
 			sizeof(repeater_mode));
 }
 
-static void configure_lttpr_mode_non_transparent(struct dc_link *link)
+static void configure_lttpr_mode_non_transparent(
+		struct dc_link *link,
+		const struct link_training_settings *lt_settings)
 {
 	/* aux timeout is already set to extended */
 	/* RESET/SET lttpr mode to enable non transparent mode */
@@ -1372,11 +1388,16 @@ static void configure_lttpr_mode_non_transparent(struct dc_link *link)
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
-	result = core_link_write_dpcd(link,
-			DP_PHY_REPEATER_MODE,
-			(uint8_t *)&repeater_mode,
-			sizeof(repeater_mode));
+	enum dp_link_encoding encoding = dp_get_link_encoding_format(&lt_settings->link_settings);
+
+	if (encoding == DP_8b_10b_ENCODING) {
+		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
+		result = core_link_write_dpcd(link,
+				DP_PHY_REPEATER_MODE,
+				(uint8_t *)&repeater_mode,
+				sizeof(repeater_mode));
+
+	}
 
 	if (result == DC_OK) {
 		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
@@ -1396,17 +1417,18 @@ static void configure_lttpr_mode_non_transparent(struct dc_link *link)
 			link->dpcd_caps.lttpr_caps.mode = repeater_mode;
 		}
 
-		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
-
-		for (repeater_id = repeater_cnt; repeater_id > 0; repeater_id--) {
-			aux_interval_address = DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1 +
-						((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (repeater_id - 1));
-			core_link_read_dpcd(
-				link,
-				aux_interval_address,
-				(uint8_t *)&link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1],
-				sizeof(link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1]));
-			link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1] &= 0x7F;
+		if (encoding == DP_8b_10b_ENCODING) {
+			repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+			for (repeater_id = repeater_cnt; repeater_id > 0; repeater_id--) {
+				aux_interval_address = DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1 +
+							((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (repeater_id - 1));
+				core_link_read_dpcd(
+					link,
+					aux_interval_address,
+					(uint8_t *)&link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1],
+					sizeof(link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1]));
+				link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1] &= 0x7F;
+			}
 		}
 	}
 }
@@ -1542,7 +1564,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 {
 	struct link_training_settings lt_settings;
 
-	initialize_training_settings(
+	decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1592,7 +1614,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	uint8_t repeater_cnt;
 	uint8_t repeater_id;
 
-	initialize_training_settings(
+	decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1600,7 +1622,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	/* Configure lttpr mode */
 	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		configure_lttpr_mode_non_transparent(link);
+		configure_lttpr_mode_non_transparent(link, &lt_settings);
 	else if (link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
 		configure_lttpr_mode_transparent(link);
 
@@ -1654,7 +1676,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	/* 3. set training not in progress*/
 	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
-		status = perform_link_training_int(link,
+		status = dp_transition_to_video_idle(link,
 				&lt_settings,
 				status);
 	}
@@ -1877,7 +1899,7 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	bool fec_enable = false;
 
-	initialize_training_settings(
+	decide_training_settings(
 		link,
 		link_settings,
 		lt_overrides,
@@ -2573,7 +2595,11 @@ bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *lin
 	struct dc_link_settings current_link_setting;
 	uint32_t link_bw;
 
-	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14 ||
+	/*
+	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
+	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_13 ||
 			link->dpcd_caps.edp_supported_link_rates_count == 0) {
 		*link_setting = link->verified_link_cap;
 		return true;
@@ -2773,9 +2799,10 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	union phy_test_pattern dpcd_test_pattern;
 	union lane_adjust dpcd_lane_adjustment[2];
 	unsigned char dpcd_post_cursor_2_adjustment = 0;
-	unsigned char test_80_bit_pattern[
+	unsigned char test_pattern_buffer[
 			(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
 			DP_TEST_80BIT_CUSTOM_PATTERN_7_0)+1] = {0};
+	unsigned int test_pattern_size = 0;
 	enum dp_test_pattern test_pattern;
 	struct dc_link_training_settings link_settings;
 	union lane_adjust dpcd_lane_adjust;
@@ -2845,12 +2872,15 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	break;
 	}
 
-	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM)
+	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM) {
+		test_pattern_size = (DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
+				DP_TEST_80BIT_CUSTOM_PATTERN_7_0) + 1;
 		core_link_read_dpcd(
 				link,
 				DP_TEST_80BIT_CUSTOM_PATTERN_7_0,
-				test_80_bit_pattern,
-				sizeof(test_80_bit_pattern));
+				test_pattern_buffer,
+				test_pattern_size);
+	}
 
 	/* prepare link training settings */
 	link_settings.link = link->cur_link_settings;
@@ -2888,9 +2918,8 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		test_pattern,
 		DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED,
 		&link_training_settings,
-		test_80_bit_pattern,
-		(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
-		DP_TEST_80BIT_CUSTOM_PATTERN_7_0)+1);
+		test_pattern_buffer,
+		test_pattern_size);
 }
 
 static void dp_test_send_link_test_pattern(struct dc_link *link)
@@ -3993,7 +4022,11 @@ void detect_edp_sink_caps(struct dc_link *link)
 	link->dpcd_caps.edp_supported_link_rates_count = 0;
 	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
-	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
+	/*
+	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
+	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
 			(link->dc->debug.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
@@ -4867,4 +4900,11 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	return false;
 }
 
+enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings)
+{
+	if ((link_settings->link_rate >= LINK_RATE_LOW) &&
+			(link_settings->link_rate <= LINK_RATE_HIGH3))
+		return DP_8b_10b_ENCODING;
+	return DP_UNKNOWN_ENCODING;
+}
 

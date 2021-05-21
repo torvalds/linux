@@ -63,6 +63,8 @@ MODULE_FIRMWARE("amdgpu/vangogh_asd.bin");
 MODULE_FIRMWARE("amdgpu/vangogh_toc.bin");
 MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_sos.bin");
 MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_ta.bin");
+MODULE_FIRMWARE("amdgpu/beige_goby_sos.bin");
+MODULE_FIRMWARE("amdgpu/beige_goby_ta.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -114,6 +116,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		break;
 	case CHIP_DIMGREY_CAVEFISH:
 		chip_name = "dimgrey_cavefish";
+		break;
+	case CHIP_BEIGE_GOBY:
+		chip_name = "beige_goby";
 		break;
 	default:
 		BUG();
@@ -193,6 +198,14 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+		err = psp_init_sos_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_ta_microcode(psp, chip_name);
+		if (err)
+			return err;
+		break;
+	case CHIP_BEIGE_GOBY:
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;

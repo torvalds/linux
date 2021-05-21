@@ -93,6 +93,7 @@ struct link_training_settings {
 
 	bool enhanced_framing;
 	bool allow_invalid_msa_timing_param;
+	enum lttpr_mode lttpr_mode;
 };
 
 /*TODO: Move this enum test harness*/

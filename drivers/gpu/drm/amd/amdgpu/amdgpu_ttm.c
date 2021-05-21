@@ -231,7 +231,7 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	*addr += mm_cur->start & ~PAGE_MASK;
 
 	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
-	num_bytes = num_pages * 8;
+	num_bytes = num_pages * 8 * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 
 	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4 + num_bytes,
 				     AMDGPU_IB_POOL_DELAYED, &job);
@@ -576,10 +576,10 @@ out:
  *
  * Called by ttm_mem_io_reserve() ultimately via ttm_bo_vm_fault()
  */
-static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
+static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev,
+				     struct ttm_resource *mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
-	struct drm_mm_node *mm_node = mem->mm_node;
 	size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
 
 	switch (mem->mem_type) {
@@ -593,12 +593,9 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resourc
 		/* check if it's visible */
 		if ((mem->bus.offset + bus_size) > adev->gmc.visible_vram_size)
 			return -EINVAL;
-		/* Only physically contiguous buffers apply. In a contiguous
-		 * buffer, size of the first mm_node would match the number of
-		 * pages in ttm_resource.
-		 */
+
 		if (adev->mman.aper_base_kaddr &&
-		    (mm_node->size == mem->num_pages))
+		    mem->placement & TTM_PL_FLAG_CONTIGUOUS)
 			mem->bus.addr = (u8 *)adev->mman.aper_base_kaddr +
 					mem->bus.offset;
 
@@ -910,7 +907,23 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 			DRM_ERROR("failed to pin userptr\n");
 			return r;
 		}
+	} else if (ttm->page_flags & TTM_PAGE_FLAG_SG) {
+		if (!ttm->sg) {
+			struct dma_buf_attachment *attach;
+			struct sg_table *sgt;
+
+			attach = gtt->gobj->import_attach;
+			sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+			if (IS_ERR(sgt))
+				return PTR_ERR(sgt);
+
+			ttm->sg = sgt;
+		}
+
+		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+					       ttm->num_pages);
 	}
+
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %u pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
@@ -1035,8 +1048,15 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 	int r;
 
 	/* if the pages have userptr pinning then clear that first */
-	if (gtt->userptr)
+	if (gtt->userptr) {
 		amdgpu_ttm_tt_unpin_userptr(bdev, ttm);
+	} else if (ttm->sg && gtt->gobj->import_attach) {
+		struct dma_buf_attachment *attach;
+
+		attach = gtt->gobj->import_attach;
+		dma_buf_unmap_attachment(attach, ttm->sg, DMA_BIDIRECTIONAL);
+		ttm->sg = NULL;
+	}
 
 	if (!gtt->bound)
 		return;
@@ -1123,23 +1143,8 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 		return 0;
 	}
 
-	if (ttm->page_flags & TTM_PAGE_FLAG_SG) {
-		if (!ttm->sg) {
-			struct dma_buf_attachment *attach;
-			struct sg_table *sgt;
-
-			attach = gtt->gobj->import_attach;
-			sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-			if (IS_ERR(sgt))
-				return PTR_ERR(sgt);
-
-			ttm->sg = sgt;
-		}
-
-		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
-					       ttm->num_pages);
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
 		return 0;
-	}
 
 	return ttm_pool_alloc(&adev->mman.bdev.pool, ttm, ctx);
 }
@@ -1159,16 +1164,8 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 	if (gtt && gtt->userptr) {
 		amdgpu_ttm_tt_set_user_pages(ttm, NULL);
 		kfree(ttm->sg);
-		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
-		return;
-	}
-
-	if (ttm->sg && gtt->gobj->import_attach) {
-		struct dma_buf_attachment *attach;
-
-		attach = gtt->gobj->import_attach;
-		dma_buf_unmap_attachment(attach, ttm->sg, DMA_BIDIRECTIONAL);
 		ttm->sg = NULL;
+		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
 		return;
 	}
 
@@ -1581,11 +1578,8 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	bool mem_train_support = false;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		ret = amdgpu_mem_train_support(adev);
-		if (ret == 1)
+		if (amdgpu_atomfirmware_mem_training_supported(adev))
 			mem_train_support = true;
-		else if (ret == -1)
-			return -EINVAL;
 		else
 			DRM_DEBUG("memory training does not support!\n");
 	}

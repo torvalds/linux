@@ -570,6 +570,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		sienna_cichlid_set_ppt_funcs(smu);
 		break;
 	case CHIP_ALDEBARAN:
@@ -686,7 +687,8 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	smu_get_unique_id(smu);
+	if (!amdgpu_sriov_vf(adev))
+		smu_get_unique_id(smu);
 
 	smu_get_fan_parameters(smu);
 

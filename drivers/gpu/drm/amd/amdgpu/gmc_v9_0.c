@@ -1268,13 +1268,15 @@ static int gmc_v9_0_late_init(void *handle)
 		}
 	}
 
-	if (adev->mmhub.ras_funcs &&
-	    adev->mmhub.ras_funcs->reset_ras_error_count)
-		adev->mmhub.ras_funcs->reset_ras_error_count(adev);
+	if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
+		if (adev->mmhub.ras_funcs &&
+		    adev->mmhub.ras_funcs->reset_ras_error_count)
+			adev->mmhub.ras_funcs->reset_ras_error_count(adev);
 
-	if (adev->hdp.ras_funcs &&
-	    adev->hdp.ras_funcs->reset_ras_error_count)
-		adev->hdp.ras_funcs->reset_ras_error_count(adev);
+		if (adev->hdp.ras_funcs &&
+		    adev->hdp.ras_funcs->reset_ras_error_count)
+			adev->hdp.ras_funcs->reset_ras_error_count(adev);
+	}
 
 	r = amdgpu_gmc_ras_late_init(adev);
 	if (r)

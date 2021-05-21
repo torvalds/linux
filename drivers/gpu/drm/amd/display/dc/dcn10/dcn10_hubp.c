@@ -1226,6 +1226,14 @@ void hubp1_cursor_set_position(
 	/* TODO Handle surface pixel formats other than 4:4:4 */
 }
 
+/**
+ * hubp1_clk_cntl - Disable or enable clocks for DCHUBP
+ *
+ * @hubp: hubp struct reference.
+ * @enable: Set true for enabling gate clock.
+ *
+ * When enabling/disabling DCHUBP clock, we affect dcfclk/dppclk.
+ */
 void hubp1_clk_cntl(struct hubp *hubp, bool enable)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -1257,6 +1265,11 @@ void hubp1_soft_reset(struct hubp *hubp, bool reset)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_DISABLE, reset ? 1 : 0);
 }
 
+/**
+ * hubp1_set_flip_int - Enable surface flip interrupt
+ *
+ * @hubp: hubp struct reference.
+ */
 void hubp1_set_flip_int(struct hubp *hubp)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);

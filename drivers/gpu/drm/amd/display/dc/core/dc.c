@@ -2663,7 +2663,6 @@ static void commit_planes_for_stream(struct dc *dc,
 			dc->hwss.interdependent_update_lock(dc, context, false);
 		else
 			dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
-
 		dc->hwss.post_unlock_program_front_end(dc, context);
 		return;
 	}
@@ -2764,6 +2763,7 @@ static void commit_planes_for_stream(struct dc *dc,
 							plane_state->flip_immediate);
 				}
 			}
+
 		/* Perform requested Updates */
 		for (i = 0; i < surface_count; i++) {
 			struct dc_plane_state *plane_state = srf_updates[i].surface;
@@ -2786,6 +2786,7 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc->hwss.update_plane_addr(dc, pipe_ctx);
 			}
 		}
+
 	}
 
 	if ((update_type != UPDATE_TYPE_FAST) && dc->hwss.interdependent_update_lock)

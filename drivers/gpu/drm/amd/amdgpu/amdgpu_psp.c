@@ -38,6 +38,7 @@
 
 #include "amdgpu_ras.h"
 #include "amdgpu_securedisplay.h"
+#include "amdgpu_atomfirmware.h"
 
 static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
@@ -104,6 +105,7 @@ static int psp_early_init(void *handle)
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
@@ -538,7 +540,7 @@ static int psp_boot_config_set(struct amdgpu_device *adev)
 	struct psp_context *psp = &adev->psp;
 	struct psp_gfx_cmd_resp *cmd = psp->cmd;
 
-	if (adev->asic_type != CHIP_SIENNA_CICHLID || amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev))
 		return 0;
 
 	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
@@ -1931,9 +1933,10 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
-	ret = psp_boot_config_set(adev);
-	if (ret) {
-		DRM_WARN("PSP set boot config@\n");
+	if (amdgpu_atomfirmware_dynamic_boot_config_supported(adev)) {
+		ret = psp_boot_config_set(adev);
+		if (ret)
+			dev_warn(adev->dev, "PSP set boot config failed\n");
 	}
 
 	ret = psp_tmr_init(psp);

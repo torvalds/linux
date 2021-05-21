@@ -29,6 +29,11 @@
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
 
+struct amdgpu_vram_reservation {
+	struct list_head node;
+	struct drm_mm_node mm_node;
+};
+
 static inline struct amdgpu_vram_mgr *
 to_vram_mgr(struct ttm_resource_manager *man)
 {
@@ -446,10 +451,11 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	}
 	spin_unlock(&mgr->lock);
 
+	if (i == 1)
+		mem->placement |= TTM_PL_FLAG_CONTIGUOUS;
+
 	atomic64_add(vis_usage, &mgr->vis_usage);
-
 	mem->mm_node = nodes;
-
 	return 0;
 
 error:

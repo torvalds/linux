@@ -1431,7 +1431,7 @@ const struct mpc_funcs dcn30_mpc_funcs = {
 	.release_rmu = mpcc3_release_rmu,
 	.power_on_mpc_mem_pwr = mpc3_power_on_ogam_lut,
 	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
-
+	.set_bg_color = mpc1_set_bg_color,
 };
 
 void dcn30_mpc_construct(struct dcn30_mpc *mpc30,

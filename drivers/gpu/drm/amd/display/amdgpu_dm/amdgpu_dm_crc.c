@@ -176,7 +176,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 
 	/* Configuration will be deferred to stream enable. */
 	if (!stream_state)
-		return 0;
+		return -EINVAL;
 
 	mutex_lock(&adev->dm.dc_lock);
 
@@ -523,67 +523,6 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 
 cleanup:
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags1);
-}
-
-void amdgpu_dm_crtc_secure_display_resume(struct amdgpu_device *adev)
-{
-	struct drm_crtc *crtc;
-	enum amdgpu_dm_pipe_crc_source cur_crc_src;
-	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
-	struct crc_window_parm cur_crc_window;
-	struct amdgpu_crtc *acrtc = NULL;
-
-	drm_for_each_crtc(crtc, &adev->ddev) {
-		acrtc = to_amdgpu_crtc(crtc);
-
-		spin_lock_irq(&adev_to_drm(adev)->event_lock);
-		cur_crc_src = acrtc->dm_irq_params.crc_src;
-		cur_crc_window = acrtc->dm_irq_params.crc_window;
-		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
-
-		if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
-			amdgpu_dm_crtc_set_crc_source(crtc,
-				pipe_crc_sources[cur_crc_src]);
-			spin_lock_irq(&adev_to_drm(adev)->event_lock);
-			acrtc->dm_irq_params.crc_window = cur_crc_window;
-			if (acrtc->dm_irq_params.crc_window.activated) {
-				acrtc->dm_irq_params.crc_window.update_win = true;
-				acrtc->dm_irq_params.crc_window.skip_frame_cnt = 1;
-				spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
-				crc_rd_wrk->crtc = crtc;
-				spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
-			}
-			spin_unlock_irq(&adev_to_drm(adev)->event_lock);
-		}
-	}
-}
-
-void amdgpu_dm_crtc_secure_display_suspend(struct amdgpu_device *adev)
-{
-	struct drm_crtc *crtc;
-	struct crc_window_parm cur_crc_window;
-	enum amdgpu_dm_pipe_crc_source cur_crc_src;
-	struct amdgpu_crtc *acrtc = NULL;
-
-	drm_for_each_crtc(crtc, &adev->ddev) {
-		acrtc = to_amdgpu_crtc(crtc);
-
-		spin_lock_irq(&adev_to_drm(adev)->event_lock);
-		cur_crc_src = acrtc->dm_irq_params.crc_src;
-		cur_crc_window = acrtc->dm_irq_params.crc_window;
-		cur_crc_window.update_win = false;
-		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
-
-		if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
-			amdgpu_dm_crtc_set_crc_source(crtc, NULL);
-			spin_lock_irq(&adev_to_drm(adev)->event_lock);
-			/* For resume to set back crc source*/
-			acrtc->dm_irq_params.crc_src = cur_crc_src;
-			acrtc->dm_irq_params.crc_window = cur_crc_window;
-			spin_unlock_irq(&adev_to_drm(adev)->event_lock);
-		}
-	}
-
 }
 
 struct crc_rd_work *amdgpu_dm_crtc_secure_display_create_work(void)

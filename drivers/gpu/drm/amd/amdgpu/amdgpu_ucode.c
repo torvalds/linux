@@ -403,6 +403,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_ALDEBARAN:
+	case CHIP_BEIGE_GOBY:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else

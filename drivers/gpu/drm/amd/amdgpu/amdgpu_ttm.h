@@ -37,11 +37,6 @@
 
 #define AMDGPU_POISON	0xd0bed0be
 
-struct amdgpu_vram_reservation {
-	struct list_head node;
-	struct drm_mm_node mm_node;
-};
-
 struct amdgpu_vram_mgr {
 	struct ttm_resource_manager manager;
 	struct drm_mm mm;

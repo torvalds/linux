@@ -653,33 +653,50 @@ static void dpp1_dscl_set_manual_ratio_init(
 	}
 }
 
-
-
-static void dpp1_dscl_set_recout(
-			struct dcn10_dpp *dpp, const struct rect *recout)
+/**
+ * dpp1_dscl_set_recout - Set the first pixel of RECOUT in the OTG active area
+ *
+ * @dpp: DPP data struct
+ * @recount: Rectangle information
+ *
+ * This function sets the MPC RECOUT_START and RECOUT_SIZE registers based on
+ * the values specified in the recount parameter.
+ *
+ * Note: This function only have effect if AutoCal is disabled.
+ */
+static void dpp1_dscl_set_recout(struct dcn10_dpp *dpp,
+				 const struct rect *recout)
 {
 	int visual_confirm_on = 0;
 	if (dpp->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
 		visual_confirm_on = 1;
 
 	REG_SET_2(RECOUT_START, 0,
-		/* First pixel of RECOUT */
-			 RECOUT_START_X, recout->x,
-		/* First line of RECOUT */
-			 RECOUT_START_Y, recout->y);
+		  /* First pixel of RECOUT in the active OTG area */
+		  RECOUT_START_X, recout->x,
+		  /* First line of RECOUT in the active OTG area */
+		  RECOUT_START_Y, recout->y);
 
 	REG_SET_2(RECOUT_SIZE, 0,
-		/* Number of RECOUT horizontal pixels */
-			 RECOUT_WIDTH, recout->width,
-		/* Number of RECOUT vertical lines */
-			 RECOUT_HEIGHT, recout->height
+		  /* Number of RECOUT horizontal pixels */
+		  RECOUT_WIDTH, recout->width,
+		  /* Number of RECOUT vertical lines */
+		  RECOUT_HEIGHT, recout->height
 			 - visual_confirm_on * 2 * (dpp->base.inst + 1));
 }
 
-/* Main function to program scaler and line buffer in manual scaling mode */
-void dpp1_dscl_set_scaler_manual_scale(
-	struct dpp *dpp_base,
-	const struct scaler_data *scl_data)
+/**
+ * dpp1_dscl_set_scaler_manual_scale - Manually program scaler and line buffer
+ *
+ * @dpp_base: High level DPP struct
+ * @scl_data: scalaer_data info
+ *
+ * This is the primary function to program scaler and line buffer in manual
+ * scaling mode. To execute the required operations for manual scale, we need
+ * to disable AutoCal first.
+ */
+void dpp1_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
+				       const struct scaler_data *scl_data)
 {
 	enum lb_memory_config lb_config;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);

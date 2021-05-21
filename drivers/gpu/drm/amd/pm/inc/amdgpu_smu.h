@@ -392,10 +392,18 @@ struct smu_baco_context
 	bool platform_support;
 };
 
+struct smu_freq_info {
+	uint32_t min;
+	uint32_t max;
+	uint32_t freq_level;
+};
+
 struct pstates_clk_freq {
 	uint32_t			min;
 	uint32_t			standard;
 	uint32_t			peak;
+	struct smu_freq_info		custom;
+	struct smu_freq_info		curr;
 };
 
 struct smu_umd_pstate_table {

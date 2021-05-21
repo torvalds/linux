@@ -34,6 +34,7 @@
 #define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0xE
 #define SMU11_DRIVER_IF_VERSION_VANGOGH 0x03
 #define SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish 0xF
+#define SMU11_DRIVER_IF_VERSION_Beige_Goby 0x9
 
 /* MP Apertures */
 #define MP0_Public			0x03800000

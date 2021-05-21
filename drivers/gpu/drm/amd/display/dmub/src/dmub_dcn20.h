@@ -107,7 +107,8 @@ struct dmub_srv;
 	DMUB_SR(MMHUBBUB_SOFT_RESET) \
 	DMUB_SR(DCN_VM_FB_LOCATION_BASE) \
 	DMUB_SR(DCN_VM_FB_OFFSET) \
-	DMUB_SR(DMCUB_INTERRUPT_ACK)
+	DMUB_SR(DMCUB_INTERRUPT_ACK) \
+	DMUB_SR(DMCUB_TIMER_CURRENT)
 
 #define DMUB_COMMON_FIELDS() \
 	DMUB_SF(DMCUB_CNTL, DMCUB_ENABLE) \
@@ -230,5 +231,7 @@ union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub);
 bool dmub_dcn20_use_cached_inbox(struct dmub_srv *dmub);
 
 bool dmub_dcn20_use_cached_trace_buffer(struct dmub_srv *dmub);
+
+uint32_t dmub_dcn20_get_current_time(struct dmub_srv *dmub);
 
 #endif /* _DMUB_DCN20_H_ */

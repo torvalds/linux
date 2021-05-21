@@ -72,6 +72,9 @@
 
 #define GAMMA_HW_POINTS_NUM 256
 
+#define PGFSM_POWER_ON 0
+#define PGFSM_POWER_OFF 2
+
 void print_microsec(struct dc_context *dc_ctx,
 	struct dc_log_buffer_ctx *log_ctx,
 	uint32_t ref_cycle)
@@ -536,13 +539,22 @@ void dcn10_disable_vga(
 	REG_UPDATE(VGA_TEST_CONTROL, VGA_TEST_RENDER_START, 1);
 }
 
+/**
+ * dcn10_dpp_pg_control - DPP power gate control.
+ *
+ * @hws: dce_hwseq reference.
+ * @dpp_inst: DPP instance reference.
+ * @power_on: true if we want to enable power gate, false otherwise.
+ *
+ * Enable or disable power gate in the specific DPP instance.
+ */
 void dcn10_dpp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dpp_inst,
 		bool power_on)
 {
 	uint32_t power_gate = power_on ? 0 : 1;
-	uint32_t pwr_status = power_on ? 0 : 2;
+	uint32_t pwr_status = power_on ? PGFSM_POWER_ON : PGFSM_POWER_OFF;
 
 	if (hws->ctx->dc->debug.disable_dpp_power_gate)
 		return;
@@ -588,13 +600,22 @@ void dcn10_dpp_pg_control(
 	}
 }
 
+/**
+ * dcn10_hubp_pg_control - HUBP power gate control.
+ *
+ * @hws: dce_hwseq reference.
+ * @hubp_inst: DPP instance reference.
+ * @power_on: true if we want to enable power gate, false otherwise.
+ *
+ * Enable or disable power gate in the specific HUBP instance.
+ */
 void dcn10_hubp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int hubp_inst,
 		bool power_on)
 {
 	uint32_t power_gate = power_on ? 0 : 1;
-	uint32_t pwr_status = power_on ? 0 : 2;
+	uint32_t pwr_status = power_on ? PGFSM_POWER_ON : PGFSM_POWER_OFF;
 
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
 		return;
@@ -1078,6 +1099,19 @@ void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		hws->funcs.verify_allow_pstate_change_high(dc);
 }
 
+/**
+ * dcn10_plane_atomic_power_down - Power down plane components.
+ *
+ * @dc: dc struct reference. used for grab hwseq.
+ * @dpp: dpp struct reference.
+ * @hubp: hubp struct reference.
+ *
+ * Keep in mind that this operation requires a power gate configuration;
+ * however, requests for switch power gate are precisely controlled to avoid
+ * problems. For this reason, power gate request is usually disabled. This
+ * function first needs to enable the power gate request before disabling DPP
+ * and HUBP. Finally, it disables the power gate request again.
+ */
 void dcn10_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp)
@@ -2165,129 +2199,6 @@ void dcn10_enable_per_frame_crtc_position_reset(
 	DC_SYNC_INFO("Multi-display sync is complete\n");
 }
 
-/*static void print_rq_dlg_ttu(
-		struct dc *dc,
-		struct pipe_ctx *pipe_ctx)
-{
-	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\n============== DML TTU Output parameters [%d] ==============\n"
-			"qos_level_low_wm: %d, \n"
-			"qos_level_high_wm: %d, \n"
-			"min_ttu_vblank: %d, \n"
-			"qos_level_flip: %d, \n"
-			"refcyc_per_req_delivery_l: %d, \n"
-			"qos_level_fixed_l: %d, \n"
-			"qos_ramp_disable_l: %d, \n"
-			"refcyc_per_req_delivery_pre_l: %d, \n"
-			"refcyc_per_req_delivery_c: %d, \n"
-			"qos_level_fixed_c: %d, \n"
-			"qos_ramp_disable_c: %d, \n"
-			"refcyc_per_req_delivery_pre_c: %d\n"
-			"=============================================================\n",
-			pipe_ctx->pipe_idx,
-			pipe_ctx->ttu_regs.qos_level_low_wm,
-			pipe_ctx->ttu_regs.qos_level_high_wm,
-			pipe_ctx->ttu_regs.min_ttu_vblank,
-			pipe_ctx->ttu_regs.qos_level_flip,
-			pipe_ctx->ttu_regs.refcyc_per_req_delivery_l,
-			pipe_ctx->ttu_regs.qos_level_fixed_l,
-			pipe_ctx->ttu_regs.qos_ramp_disable_l,
-			pipe_ctx->ttu_regs.refcyc_per_req_delivery_pre_l,
-			pipe_ctx->ttu_regs.refcyc_per_req_delivery_c,
-			pipe_ctx->ttu_regs.qos_level_fixed_c,
-			pipe_ctx->ttu_regs.qos_ramp_disable_c,
-			pipe_ctx->ttu_regs.refcyc_per_req_delivery_pre_c
-			);
-
-	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\n============== DML DLG Output parameters [%d] ==============\n"
-			"refcyc_h_blank_end: %d, \n"
-			"dlg_vblank_end: %d, \n"
-			"min_dst_y_next_start: %d, \n"
-			"refcyc_per_htotal: %d, \n"
-			"refcyc_x_after_scaler: %d, \n"
-			"dst_y_after_scaler: %d, \n"
-			"dst_y_prefetch: %d, \n"
-			"dst_y_per_vm_vblank: %d, \n"
-			"dst_y_per_row_vblank: %d, \n"
-			"ref_freq_to_pix_freq: %d, \n"
-			"vratio_prefetch: %d, \n"
-			"refcyc_per_pte_group_vblank_l: %d, \n"
-			"refcyc_per_meta_chunk_vblank_l: %d, \n"
-			"dst_y_per_pte_row_nom_l: %d, \n"
-			"refcyc_per_pte_group_nom_l: %d, \n",
-			pipe_ctx->pipe_idx,
-			pipe_ctx->dlg_regs.refcyc_h_blank_end,
-			pipe_ctx->dlg_regs.dlg_vblank_end,
-			pipe_ctx->dlg_regs.min_dst_y_next_start,
-			pipe_ctx->dlg_regs.refcyc_per_htotal,
-			pipe_ctx->dlg_regs.refcyc_x_after_scaler,
-			pipe_ctx->dlg_regs.dst_y_after_scaler,
-			pipe_ctx->dlg_regs.dst_y_prefetch,
-			pipe_ctx->dlg_regs.dst_y_per_vm_vblank,
-			pipe_ctx->dlg_regs.dst_y_per_row_vblank,
-			pipe_ctx->dlg_regs.ref_freq_to_pix_freq,
-			pipe_ctx->dlg_regs.vratio_prefetch,
-			pipe_ctx->dlg_regs.refcyc_per_pte_group_vblank_l,
-			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_vblank_l,
-			pipe_ctx->dlg_regs.dst_y_per_pte_row_nom_l,
-			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_l
-			);
-
-	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\ndst_y_per_meta_row_nom_l: %d, \n"
-			"refcyc_per_meta_chunk_nom_l: %d, \n"
-			"refcyc_per_line_delivery_pre_l: %d, \n"
-			"refcyc_per_line_delivery_l: %d, \n"
-			"vratio_prefetch_c: %d, \n"
-			"refcyc_per_pte_group_vblank_c: %d, \n"
-			"refcyc_per_meta_chunk_vblank_c: %d, \n"
-			"dst_y_per_pte_row_nom_c: %d, \n"
-			"refcyc_per_pte_group_nom_c: %d, \n"
-			"dst_y_per_meta_row_nom_c: %d, \n"
-			"refcyc_per_meta_chunk_nom_c: %d, \n"
-			"refcyc_per_line_delivery_pre_c: %d, \n"
-			"refcyc_per_line_delivery_c: %d \n"
-			"========================================================\n",
-			pipe_ctx->dlg_regs.dst_y_per_meta_row_nom_l,
-			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_nom_l,
-			pipe_ctx->dlg_regs.refcyc_per_line_delivery_pre_l,
-			pipe_ctx->dlg_regs.refcyc_per_line_delivery_l,
-			pipe_ctx->dlg_regs.vratio_prefetch_c,
-			pipe_ctx->dlg_regs.refcyc_per_pte_group_vblank_c,
-			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_vblank_c,
-			pipe_ctx->dlg_regs.dst_y_per_pte_row_nom_c,
-			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_c,
-			pipe_ctx->dlg_regs.dst_y_per_meta_row_nom_c,
-			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_nom_c,
-			pipe_ctx->dlg_regs.refcyc_per_line_delivery_pre_c,
-			pipe_ctx->dlg_regs.refcyc_per_line_delivery_c
-			);
-
-	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\n============== DML RQ Output parameters [%d] ==============\n"
-			"chunk_size: %d \n"
-			"min_chunk_size: %d \n"
-			"meta_chunk_size: %d \n"
-			"min_meta_chunk_size: %d \n"
-			"dpte_group_size: %d \n"
-			"mpte_group_size: %d \n"
-			"swath_height: %d \n"
-			"pte_row_height_linear: %d \n"
-			"========================================================\n",
-			pipe_ctx->pipe_idx,
-			pipe_ctx->rq_regs.rq_regs_l.chunk_size,
-			pipe_ctx->rq_regs.rq_regs_l.min_chunk_size,
-			pipe_ctx->rq_regs.rq_regs_l.meta_chunk_size,
-			pipe_ctx->rq_regs.rq_regs_l.min_meta_chunk_size,
-			pipe_ctx->rq_regs.rq_regs_l.dpte_group_size,
-			pipe_ctx->rq_regs.rq_regs_l.mpte_group_size,
-			pipe_ctx->rq_regs.rq_regs_l.swath_height,
-			pipe_ctx->rq_regs.rq_regs_l.pte_row_height_linear
-			);
-}
-*/
-
 static void mmhub_read_vm_system_aperture_settings(struct dcn10_hubp *hubp1,
 		struct vm_system_aperture_param *apt,
 		struct dce_hwseq *hws)
@@ -2395,43 +2306,6 @@ static void dcn10_enable_plane(
 			pipe_ctx->stream_res.opp,
 			true);
 
-/* TODO: enable/disable in dm as per update type.
-	if (plane_state) {
-		DC_LOG_DC(dc->ctx->logger,
-				"Pipe:%d 0x%x: addr hi:0x%x, "
-				"addr low:0x%x, "
-				"src: %d, %d, %d,"
-				" %d; dst: %d, %d, %d, %d;\n",
-				pipe_ctx->pipe_idx,
-				plane_state,
-				plane_state->address.grph.addr.high_part,
-				plane_state->address.grph.addr.low_part,
-				plane_state->src_rect.x,
-				plane_state->src_rect.y,
-				plane_state->src_rect.width,
-				plane_state->src_rect.height,
-				plane_state->dst_rect.x,
-				plane_state->dst_rect.y,
-				plane_state->dst_rect.width,
-				plane_state->dst_rect.height);
-
-		DC_LOG_DC(dc->ctx->logger,
-				"Pipe %d: width, height, x, y         format:%d\n"
-				"viewport:%d, %d, %d, %d\n"
-				"recout:  %d, %d, %d, %d\n",
-				pipe_ctx->pipe_idx,
-				plane_state->format,
-				pipe_ctx->plane_res.scl_data.viewport.width,
-				pipe_ctx->plane_res.scl_data.viewport.height,
-				pipe_ctx->plane_res.scl_data.viewport.x,
-				pipe_ctx->plane_res.scl_data.viewport.y,
-				pipe_ctx->plane_res.scl_data.recout.width,
-				pipe_ctx->plane_res.scl_data.recout.height,
-				pipe_ctx->plane_res.scl_data.recout.x,
-				pipe_ctx->plane_res.scl_data.recout.y);
-		print_rq_dlg_ttu(dc, pipe_ctx);
-	}
-*/
 	if (dc->config.gpu_vm_support)
 		dcn10_program_pte_vm(hws, pipe_ctx->plane_res.hubp);
 
@@ -2628,9 +2502,25 @@ static void dcn10_update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 }
 
-void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn10_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx, struct tg_color *color, int mpcc_id)
 {
 	struct dce_hwseq *hws = dc->hwseq;
+	struct mpc *mpc = dc->res_pool->mpc;
+
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
+		hws->funcs.get_hdr_visual_confirm_color(pipe_ctx, color);
+	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
+		hws->funcs.get_surface_visual_confirm_color(pipe_ctx, color);
+	else
+		color_space_to_black_color(
+				dc, pipe_ctx->stream->output_color_space, color);
+
+	if (mpc->funcs->set_bg_color)
+		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
+}
+
+void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct mpcc_blnd_cfg blnd_cfg = {{0}};
 	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
@@ -2638,18 +2528,6 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpcc *new_mpcc;
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
-
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
-		hws->funcs.get_hdr_visual_confirm_color(
-				pipe_ctx, &blnd_cfg.black_color);
-	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
-		hws->funcs.get_surface_visual_confirm_color(
-				pipe_ctx, &blnd_cfg.black_color);
-	} else {
-		color_space_to_black_color(
-				dc, pipe_ctx->stream->output_color_space,
-				&blnd_cfg.black_color);
-	}
 
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
@@ -2681,6 +2559,8 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 * which causes a pstate hang for yet unknown reason.
 	 */
 	mpcc_id = hubp->inst;
+
+	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 
 	/* If there is no full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {

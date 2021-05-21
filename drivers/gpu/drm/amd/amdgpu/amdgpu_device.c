@@ -119,6 +119,7 @@ const char *amdgpu_asic_name[] = {
 	"NAVY_FLOUNDER",
 	"VANGOGH",
 	"DIMGREY_CAVEFISH",
+	"BEIGE_GOBY",
 	"LAST",
 };
 
@@ -1820,6 +1821,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 	default:
 		return 0;
 	case CHIP_VEGA10:
@@ -2033,6 +2035,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case  CHIP_SIENNA_CICHLID:
 	case  CHIP_NAVY_FLOUNDER:
 	case  CHIP_DIMGREY_CAVEFISH:
+	case  CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
 		if (adev->asic_type == CHIP_VANGOGH)
 			adev->family = AMDGPU_FAMILY_VGH;
@@ -3034,7 +3037,7 @@ static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev)) {
 		if (adev->is_atom_fw) {
-			if (amdgpu_atomfirmware_gpu_supports_virtualization(adev))
+			if (amdgpu_atomfirmware_gpu_virtualization_supported(adev))
 				adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
 		} else {
 			if (amdgpu_atombios_has_gpu_virtualization_table(adev))
@@ -3097,6 +3100,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
 #endif
 		return amdgpu_dc != 0;
@@ -4476,7 +4480,6 @@ out:
 			r = amdgpu_ib_ring_tests(tmp_adev);
 			if (r) {
 				dev_err(tmp_adev->dev, "ib ring test failed (%d).\n", r);
-				r = amdgpu_device_ip_suspend(tmp_adev);
 				need_full_reset = true;
 				r = -EAGAIN;
 				goto end;
