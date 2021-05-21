@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
+#include "common.h"
+
 static int ffa_device_match(struct device *dev, struct device_driver *drv)
 {
 	const struct ffa_device_id *id_table;
@@ -187,21 +189,13 @@ void ffa_device_unregister(struct ffa_device *ffa_dev)
 }
 EXPORT_SYMBOL_GPL(ffa_device_unregister);
 
-static int __init arm_ffa_bus_init(void)
+int arm_ffa_bus_init(void)
 {
 	return bus_register(&ffa_bus_type);
 }
-module_init(arm_ffa_bus_init);
 
-static void __exit arm_ffa_bus_exit(void)
+void arm_ffa_bus_exit(void)
 {
 	ffa_devices_unregister();
 	bus_unregister(&ffa_bus_type);
 }
-
-module_exit(arm_ffa_bus_exit);
-
-MODULE_ALIAS("arm-ffa-bus");
-MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
-MODULE_DESCRIPTION("Arm FF-A bus driver");
-MODULE_LICENSE("GPL v2");
