@@ -745,8 +745,3 @@ void intel_guc_submission_init_early(struct intel_guc *guc)
 {
 	guc->submission_selected = __guc_submission_selected(guc);
 }
-
-bool intel_engine_in_guc_submission_mode(const struct intel_engine_cs *engine)
-{
-	return engine->set_default_submission == guc_set_default_submission;
-}
