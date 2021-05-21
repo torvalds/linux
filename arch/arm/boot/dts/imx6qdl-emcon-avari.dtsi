@@ -126,7 +126,7 @@
 		compatible = "nxp,pca8574";
 		reg = <0x3a>;
 		gpio-controller;
-		#gpio-cells = <1>;
+		#gpio-cells = <2>;
 	};
 };
 
