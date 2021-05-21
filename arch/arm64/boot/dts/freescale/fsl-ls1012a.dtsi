@@ -238,35 +238,35 @@
 					     "fsl,sec-v4.0-rtic";
 				#address-cells = <1>;
 				#size-cells = <1>;
-				reg = <0x60000 0x100 0x60e00 0x18>;
+				reg = <0x60000 0x100>, <0x60e00 0x18>;
 				ranges = <0x0 0x60100 0x500>;
 
 				rtic_a: rtic-a@0 {
 					compatible = "fsl,sec-v5.4-rtic-memory",
 						     "fsl,sec-v5.0-rtic-memory",
 						     "fsl,sec-v4.0-rtic-memory";
-					reg = <0x00 0x20 0x100 0x100>;
+					reg = <0x00 0x20>, <0x100 0x100>;
 				};
 
 				rtic_b: rtic-b@20 {
 					compatible = "fsl,sec-v5.4-rtic-memory",
 						     "fsl,sec-v5.0-rtic-memory",
 						     "fsl,sec-v4.0-rtic-memory";
-					reg = <0x20 0x20 0x200 0x100>;
+					reg = <0x20 0x20>, <0x200 0x100>;
 				};
 
 				rtic_c: rtic-c@40 {
 					compatible = "fsl,sec-v5.4-rtic-memory",
 						     "fsl,sec-v5.0-rtic-memory",
 						     "fsl,sec-v4.0-rtic-memory";
-					reg = <0x40 0x20 0x300 0x100>;
+					reg = <0x40 0x20>, <0x300 0x100>;
 				};
 
 				rtic_d: rtic-d@60 {
 					compatible = "fsl,sec-v5.4-rtic-memory",
 						     "fsl,sec-v5.0-rtic-memory",
 						     "fsl,sec-v4.0-rtic-memory";
-					reg = <0x60 0x20 0x400 0x100>;
+					reg = <0x60 0x20>, <0x400 0x100>;
 				};
 			};
 		};
@@ -522,8 +522,8 @@
 
 		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1012a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-			       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 118 0x4>, /* controller interrupt */
 				     <0 117 0x4>; /* PME interrupt */
