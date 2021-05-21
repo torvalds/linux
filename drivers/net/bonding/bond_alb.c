@@ -229,7 +229,7 @@ static struct slave *tlb_choose_channel(struct bonding *bond, u32 hash_index,
 {
 	struct slave *tx_slave;
 
-	/* We don't need to disable softirq here, becase
+	/* We don't need to disable softirq here, because
 	 * tlb_choose_channel() is only called by bond_alb_xmit()
 	 * which already has softirq disabled.
 	 */
@@ -609,7 +609,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb,
 
 		client_info->ip_src = arp->ip_src;
 		client_info->ip_dst = arp->ip_dst;
-		/* arp->mac_dst is broadcast for arp reqeusts.
+		/* arp->mac_dst is broadcast for arp requests.
 		 * will be updated with clients actual unicast mac address
 		 * upon receiving an arp reply.
 		 */
@@ -1271,7 +1271,7 @@ unwind:
 	return res;
 }
 
-/************************ exported alb funcions ************************/
+/************************ exported alb functions ************************/
 
 int bond_alb_initialize(struct bonding *bond, int rlb_enabled)
 {
@@ -1550,7 +1550,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 		bond_for_each_slave_rcu(bond, slave, iter) {
 			/* If updating current_active, use all currently
-			 * user mac addreses (!strict_match).  Otherwise, only
+			 * user mac addresses (!strict_match).  Otherwise, only
 			 * use mac of the slave device.
 			 * In RLB mode, we always use strict matches.
 			 */
