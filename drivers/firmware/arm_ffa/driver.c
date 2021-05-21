@@ -28,6 +28,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/uuid.h>
 
@@ -349,6 +351,192 @@ static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
 	return -EINVAL;
 }
 
+static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
+			      u32 frag_len, u32 len, u64 *handle)
+{
+	ffa_value_t ret;
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = func_id, .a1 = len, .a2 = frag_len,
+		      .a3 = buf, .a4 = buf_sz,
+		      }, &ret);
+
+	while (ret.a0 == FFA_MEM_OP_PAUSE)
+		invoke_ffa_fn((ffa_value_t){
+			      .a0 = FFA_MEM_OP_RESUME,
+			      .a1 = ret.a1, .a2 = ret.a2,
+			      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	if (ret.a0 != FFA_SUCCESS)
+		return -EOPNOTSUPP;
+
+	if (handle)
+		*handle = PACK_HANDLE(ret.a2, ret.a3);
+
+	return frag_len;
+}
+
+static int ffa_mem_next_frag(u64 handle, u32 frag_len)
+{
+	ffa_value_t ret;
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_MEM_FRAG_TX,
+		      .a1 = HANDLE_LOW(handle), .a2 = HANDLE_HIGH(handle),
+		      .a3 = frag_len,
+		      }, &ret);
+
+	while (ret.a0 == FFA_MEM_OP_PAUSE)
+		invoke_ffa_fn((ffa_value_t){
+			      .a0 = FFA_MEM_OP_RESUME,
+			      .a1 = ret.a1, .a2 = ret.a2,
+			      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	if (ret.a0 != FFA_MEM_FRAG_RX)
+		return -EOPNOTSUPP;
+
+	return ret.a3;
+}
+
+static int
+ffa_transmit_fragment(u32 func_id, phys_addr_t buf, u32 buf_sz, u32 frag_len,
+		      u32 len, u64 *handle, bool first)
+{
+	if (!first)
+		return ffa_mem_next_frag(*handle, frag_len);
+
+	return ffa_mem_first_frag(func_id, buf, buf_sz, frag_len, len, handle);
+}
+
+static u32 ffa_get_num_pages_sg(struct scatterlist *sg)
+{
+	u32 num_pages = 0;
+
+	do {
+		num_pages += sg->length / FFA_PAGE_SIZE;
+	} while ((sg = sg_next(sg)));
+
+	return num_pages;
+}
+
+static int
+ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
+		       struct ffa_mem_ops_args *args)
+{
+	int rc = 0;
+	bool first = true;
+	phys_addr_t addr = 0;
+	struct ffa_composite_mem_region *composite;
+	struct ffa_mem_region_addr_range *constituents;
+	struct ffa_mem_region_attributes *ep_mem_access;
+	struct ffa_mem_region *mem_region = buffer;
+	u32 idx, frag_len, length, buf_sz = 0, num_entries = sg_nents(args->sg);
+
+	mem_region->tag = args->tag;
+	mem_region->flags = args->flags;
+	mem_region->sender_id = drv_info->vm_id;
+	mem_region->attributes = FFA_MEM_NORMAL | FFA_MEM_WRITE_BACK |
+				 FFA_MEM_INNER_SHAREABLE;
+	ep_mem_access = &mem_region->ep_mem_access[0];
+
+	for (idx = 0; idx < args->nattrs; idx++, ep_mem_access++) {
+		ep_mem_access->receiver = args->attrs[idx].receiver;
+		ep_mem_access->attrs = args->attrs[idx].attrs;
+		ep_mem_access->composite_off = COMPOSITE_OFFSET(args->nattrs);
+	}
+	mem_region->ep_count = args->nattrs;
+
+	composite = buffer + COMPOSITE_OFFSET(args->nattrs);
+	composite->total_pg_cnt = ffa_get_num_pages_sg(args->sg);
+	composite->addr_range_cnt = num_entries;
+
+	length = COMPOSITE_CONSTITUENTS_OFFSET(args->nattrs, num_entries);
+	frag_len = COMPOSITE_CONSTITUENTS_OFFSET(args->nattrs, 0);
+	if (frag_len > max_fragsize)
+		return -ENXIO;
+
+	if (!args->use_txbuf) {
+		addr = virt_to_phys(buffer);
+		buf_sz = max_fragsize / FFA_PAGE_SIZE;
+	}
+
+	constituents = buffer + frag_len;
+	idx = 0;
+	do {
+		if (frag_len == max_fragsize) {
+			rc = ffa_transmit_fragment(func_id, addr, buf_sz,
+						   frag_len, length,
+						   &args->g_handle, first);
+			if (rc < 0)
+				return -ENXIO;
+
+			first = false;
+			idx = 0;
+			frag_len = 0;
+			constituents = buffer;
+		}
+
+		if ((void *)constituents - buffer > max_fragsize) {
+			pr_err("Memory Region Fragment > Tx Buffer size\n");
+			return -EFAULT;
+		}
+
+		constituents->address = sg_phys(args->sg);
+		constituents->pg_cnt = args->sg->length / FFA_PAGE_SIZE;
+		constituents++;
+		frag_len += sizeof(struct ffa_mem_region_addr_range);
+	} while ((args->sg = sg_next(args->sg)));
+
+	return ffa_transmit_fragment(func_id, addr, buf_sz, frag_len,
+				     length, &args->g_handle, first);
+}
+
+static int ffa_memory_ops(u32 func_id, struct ffa_mem_ops_args *args)
+{
+	int ret;
+	void *buffer;
+
+	if (!args->use_txbuf) {
+		buffer = alloc_pages_exact(RXTX_BUFFER_SIZE, GFP_KERNEL);
+		if (!buffer)
+			return -ENOMEM;
+	} else {
+		buffer = drv_info->tx_buffer;
+		mutex_lock(&drv_info->tx_lock);
+	}
+
+	ret = ffa_setup_and_transmit(func_id, buffer, RXTX_BUFFER_SIZE, args);
+
+	if (args->use_txbuf)
+		mutex_unlock(&drv_info->tx_lock);
+	else
+		free_pages_exact(buffer, RXTX_BUFFER_SIZE);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int ffa_memory_reclaim(u64 g_handle, u32 flags)
+{
+	ffa_value_t ret;
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_MEM_RECLAIM,
+		      .a1 = HANDLE_LOW(g_handle), .a2 = HANDLE_HIGH(g_handle),
+		      .a3 = flags,
+		      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	return 0;
+}
+
 static u32 ffa_api_version_get(void)
 {
 	return drv_info->version;
@@ -387,11 +575,22 @@ static int ffa_sync_send_receive(struct ffa_device *dev,
 				       dev->mode_32bit, data);
 }
 
+static int
+ffa_memory_share(struct ffa_device *dev, struct ffa_mem_ops_args *args)
+{
+	if (dev->mode_32bit)
+		return ffa_memory_ops(FFA_MEM_SHARE, args);
+
+	return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
+}
+
 static const struct ffa_dev_ops ffa_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
 	.mode_32bit_set = ffa_mode_32bit_set,
 	.sync_send_receive = ffa_sync_send_receive,
+	.memory_reclaim = ffa_memory_reclaim,
+	.memory_share = ffa_memory_share,
 };
 
 const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
