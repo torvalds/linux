@@ -7,6 +7,7 @@ mcp251xfd-objs += mcp251xfd-chip-fifo.o
 mcp251xfd-objs += mcp251xfd-core.o
 mcp251xfd-objs += mcp251xfd-crc16.o
 mcp251xfd-objs += mcp251xfd-regmap.o
+mcp251xfd-objs += mcp251xfd-ring.o
 mcp251xfd-objs += mcp251xfd-rx.o
 mcp251xfd-objs += mcp251xfd-tef.o
 mcp251xfd-objs += mcp251xfd-timestamp.o
