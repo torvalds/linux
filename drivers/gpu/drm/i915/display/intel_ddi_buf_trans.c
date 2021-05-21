@@ -1383,7 +1383,7 @@ adlp_get_dkl_buf_trans_dp(struct intel_encoder *encoder,
 {
 	if (crtc_state->port_clock > 270000) {
 		*n_entries = ARRAY_SIZE(adlp_dkl_phy_dp_ddi_trans_hbr2_hbr3);
-		return adlp_dkl_phy_dp_ddi_trans_hbr;
+		return adlp_dkl_phy_dp_ddi_trans_hbr2_hbr3;
 	}
 
 	*n_entries = ARRAY_SIZE(adlp_dkl_phy_dp_ddi_trans_hbr);
