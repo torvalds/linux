@@ -65,6 +65,7 @@ struct rw_semaphore {
 	struct lockdep_map	dep_map;
 #endif
 	ANDROID_VENDOR_DATA(1);
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 };
 
 /* In all implementations count != 0 means locked */
