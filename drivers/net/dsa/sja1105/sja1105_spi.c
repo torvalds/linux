@@ -8,8 +8,6 @@
 #include "sja1105.h"
 
 #define SJA1105_SIZE_RESET_CMD		4
-#define SJA1105_SIZE_SPI_MSG_HEADER	4
-#define SJA1105_SIZE_SPI_MSG_MAXLEN	(64 * 4)
 
 struct sja1105_chunk {
 	u8	*buf;
@@ -29,13 +27,6 @@ sja1105_spi_message_pack(void *buf, const struct sja1105_spi_message *msg)
 	sja1105_pack(buf, &msg->address,    24,  4, size);
 }
 
-#define sja1105_hdr_xfer(xfers, chunk) \
-	((xfers) + 2 * (chunk))
-#define sja1105_chunk_xfer(xfers, chunk) \
-	((xfers) + 2 * (chunk) + 1)
-#define sja1105_hdr_buf(hdr_bufs, chunk) \
-	((hdr_bufs) + (chunk) * SJA1105_SIZE_SPI_MSG_HEADER)
-
 /* If @rw is:
  * - SPI_WRITE: creates and sends an SPI write message at absolute
  *		address reg_addr, taking @len bytes from *buf
@@ -46,41 +37,25 @@ static int sja1105_xfer(const struct sja1105_private *priv,
 			sja1105_spi_rw_mode_t rw, u64 reg_addr, u8 *buf,
 			size_t len, struct ptp_system_timestamp *ptp_sts)
 {
-	struct sja1105_chunk chunk = {
-		.len = min_t(size_t, len, SJA1105_SIZE_SPI_MSG_MAXLEN),
-		.reg_addr = reg_addr,
-		.buf = buf,
-	};
+	u8 hdr_buf[SJA1105_SIZE_SPI_MSG_HEADER] = {0};
 	struct spi_device *spi = priv->spidev;
-	struct spi_transfer *xfers;
+	struct spi_transfer xfers[2] = {0};
+	struct spi_transfer *chunk_xfer;
+	struct spi_transfer *hdr_xfer;
+	struct sja1105_chunk chunk;
 	int num_chunks;
 	int rc, i = 0;
-	u8 *hdr_bufs;
 
-	num_chunks = DIV_ROUND_UP(len, SJA1105_SIZE_SPI_MSG_MAXLEN);
+	num_chunks = DIV_ROUND_UP(len, priv->max_xfer_len);
 
-	/* One transfer for each message header, one for each message
-	 * payload (chunk).
-	 */
-	xfers = kcalloc(2 * num_chunks, sizeof(struct spi_transfer),
-			GFP_KERNEL);
-	if (!xfers)
-		return -ENOMEM;
+	chunk.reg_addr = reg_addr;
+	chunk.buf = buf;
+	chunk.len = min_t(size_t, len, priv->max_xfer_len);
 
-	/* Packed buffers for the num_chunks SPI message headers,
-	 * stored as a contiguous array
-	 */
-	hdr_bufs = kcalloc(num_chunks, SJA1105_SIZE_SPI_MSG_HEADER,
-			   GFP_KERNEL);
-	if (!hdr_bufs) {
-		kfree(xfers);
-		return -ENOMEM;
-	}
+	hdr_xfer = &xfers[0];
+	chunk_xfer = &xfers[1];
 
 	for (i = 0; i < num_chunks; i++) {
-		struct spi_transfer *chunk_xfer = sja1105_chunk_xfer(xfers, i);
-		struct spi_transfer *hdr_xfer = sja1105_hdr_xfer(xfers, i);
-		u8 *hdr_buf = sja1105_hdr_buf(hdr_bufs, i);
 		struct spi_transfer *ptp_sts_xfer;
 		struct sja1105_spi_message msg;
 
@@ -127,21 +102,16 @@ static int sja1105_xfer(const struct sja1105_private *priv,
 		chunk.buf += chunk.len;
 		chunk.reg_addr += chunk.len / 4;
 		chunk.len = min_t(size_t, (ptrdiff_t)(buf + len - chunk.buf),
-				  SJA1105_SIZE_SPI_MSG_MAXLEN);
+				  priv->max_xfer_len);
 
-		/* De-assert the chip select after each chunk. */
-		if (chunk.len)
-			chunk_xfer->cs_change = 1;
+		rc = spi_sync_transfer(spi, xfers, 2);
+		if (rc < 0) {
+			dev_err(&spi->dev, "SPI transfer failed: %d\n", rc);
+			return rc;
+		}
 	}
 
-	rc = spi_sync_transfer(spi, xfers, 2 * num_chunks);
-	if (rc < 0)
-		dev_err(&spi->dev, "SPI transfer failed: %d\n", rc);
-
-	kfree(hdr_bufs);
-	kfree(xfers);
-
-	return rc;
+	return 0;
 }
 
 int sja1105_xfer_buf(const struct sja1105_private *priv,
