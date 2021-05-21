@@ -1145,7 +1145,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		/* if iocharset not set then load_nls_default
 		 * is used by caller
 		 */
-		 cifs_dbg(FYI, "iocharset set to %s\n", ctx->iocharset);
+		cifs_dbg(FYI, "iocharset set to %s\n", ctx->iocharset);
 		break;
 	case Opt_netbiosname:
 		memset(ctx->source_rfc1001_name, 0x20,
