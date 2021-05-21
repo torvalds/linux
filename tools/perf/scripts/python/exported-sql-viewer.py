@@ -91,6 +91,11 @@
 from __future__ import print_function
 
 import sys
+# Only change warnings if the python -W option was not used
+if not sys.warnoptions:
+	import warnings
+	# PySide2 causes deprecation warnings, ignore them.
+	warnings.filterwarnings("ignore", category=DeprecationWarning)
 import argparse
 import weakref
 import threading
