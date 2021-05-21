@@ -30,6 +30,14 @@ typedef enum {
 #include "sja1105_tas.h"
 #include "sja1105_ptp.h"
 
+enum sja1105_stats_area {
+	MAC,
+	HL1,
+	HL2,
+	ETHER,
+	__MAX_SJA1105_STATS_AREA,
+};
+
 /* Keeps the different addresses between E/T and P/Q/R/S */
 struct sja1105_regs {
 	u64 device_id;
@@ -61,11 +69,7 @@ struct sja1105_regs {
 	u64 rgmii_tx_clk[SJA1105_NUM_PORTS];
 	u64 rmii_ref_clk[SJA1105_NUM_PORTS];
 	u64 rmii_ext_tx_clk[SJA1105_NUM_PORTS];
-	u64 mac[SJA1105_NUM_PORTS];
-	u64 mac_hl1[SJA1105_NUM_PORTS];
-	u64 mac_hl2[SJA1105_NUM_PORTS];
-	u64 ether_stats[SJA1105_NUM_PORTS];
-	u64 qlevel[SJA1105_NUM_PORTS];
+	u64 stats[__MAX_SJA1105_STATS_AREA][SJA1105_NUM_PORTS];
 };
 
 struct sja1105_info {
