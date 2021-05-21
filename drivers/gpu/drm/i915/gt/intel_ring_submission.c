@@ -12,6 +12,7 @@
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_gt.h"
+#include "intel_gt_irq.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "shmem_utils.h"
@@ -1017,9 +1018,16 @@ static void ring_release(struct intel_engine_cs *engine)
 	intel_timeline_put(engine->legacy.timeline);
 }
 
+static void irq_handler(struct intel_engine_cs *engine, u16 iir)
+{
+	intel_engine_signal_breadcrumbs(engine);
+}
+
 static void setup_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
+
+	intel_engine_set_irq_handler(engine, irq_handler);
 
 	if (INTEL_GEN(i915) >= 6) {
 		engine->irq_enable = gen6_irq_enable;

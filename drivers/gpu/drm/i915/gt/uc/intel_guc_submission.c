@@ -11,6 +11,7 @@
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_mocs.h"
@@ -262,6 +263,14 @@ static void guc_submission_tasklet(struct tasklet_struct *t)
 	__guc_dequeue(engine);
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
+}
+
+static void cs_irq_handler(struct intel_engine_cs *engine, u16 iir)
+{
+	if (iir & GT_RENDER_USER_INTERRUPT) {
+		intel_engine_signal_breadcrumbs(engine);
+		tasklet_hi_schedule(&engine->execlists.tasklet);
+	}
 }
 
 static void guc_reset_prepare(struct intel_engine_cs *engine)
@@ -645,7 +654,6 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 	}
 	engine->set_default_submission = guc_set_default_submission;
 
-	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 	engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 
 	/*
@@ -681,6 +689,7 @@ static void rcs_submission_override(struct intel_engine_cs *engine)
 static inline void guc_default_irqs(struct intel_engine_cs *engine)
 {
 	engine->irq_keep_mask = GT_RENDER_USER_INTERRUPT;
+	intel_engine_set_irq_handler(engine, cs_irq_handler);
 }
 
 int intel_guc_submission_setup(struct intel_engine_cs *engine)
