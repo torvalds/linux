@@ -49,7 +49,7 @@ properties:
     maxItems: 1
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
       phandle to a node describing reserved memory (System RAM memory)
       The M core can't access all the DDR memory space on some platform,
