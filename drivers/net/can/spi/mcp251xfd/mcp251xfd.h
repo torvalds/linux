@@ -859,6 +859,9 @@ void mcp251xfd_skb_set_timestamp(const struct mcp251xfd_priv *priv,
 void mcp251xfd_timestamp_init(struct mcp251xfd_priv *priv);
 void mcp251xfd_timestamp_stop(struct mcp251xfd_priv *priv);
 
+netdev_tx_t mcp251xfd_start_xmit(struct sk_buff *skb,
+				 struct net_device *ndev);
+
 #if IS_ENABLED(CONFIG_DEV_COREDUMP)
 void mcp251xfd_dump(const struct mcp251xfd_priv *priv);
 #else
