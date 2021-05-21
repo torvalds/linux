@@ -173,9 +173,9 @@ int rockchip_add_system_status_interface(struct device *dev)
 		return -EINVAL;
 	}
 
-	return __compat_only_sysfs_link_entry_to_kobj(&dev->kobj,
-						      system_monitor->kobj,
-						      "system_status");
+	return compat_only_sysfs_link_entry_to_kobj(&dev->kobj,
+						    system_monitor->kobj,
+						    "system_status", NULL);
 }
 EXPORT_SYMBOL(rockchip_add_system_status_interface);
 
