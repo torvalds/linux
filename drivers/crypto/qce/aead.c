@@ -82,7 +82,7 @@ static void qce_aead_done(void *data)
 		ret = memcmp(result_buf->auth_iv, tag, ctx->authsize);
 		if (ret) {
 			pr_err("Bad message error\n");
-			 error = -EBADMSG;
+			error = -EBADMSG;
 		}
 	}
 
