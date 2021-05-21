@@ -1222,6 +1222,9 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 	case HV_X64_MSR_VP_INDEX:
 		return hv_vcpu->cpuid_cache.features_eax &
 			HV_MSR_VP_INDEX_AVAILABLE;
+	case HV_X64_MSR_RESET:
+		return hv_vcpu->cpuid_cache.features_eax &
+			HV_MSR_RESET_AVAILABLE;
 	default:
 		break;
 	}
