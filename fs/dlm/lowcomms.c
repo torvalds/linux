@@ -938,6 +938,7 @@ static int accept_from_sock(struct listen_connection *con)
 			}
 
 			lockdep_set_subclass(&othercon->sock_mutex, 1);
+			set_bit(CF_IS_OTHERCON, &othercon->flags);
 			newcon->othercon = othercon;
 		} else {
 			/* close other sock con if we have something new */
@@ -1600,6 +1601,8 @@ static void process_listen_recv_socket(struct work_struct *work)
 static void process_send_sockets(struct work_struct *work)
 {
 	struct connection *con = container_of(work, struct connection, swork);
+
+	WARN_ON(test_bit(CF_IS_OTHERCON, &con->flags));
 
 	clear_bit(CF_WRITE_PENDING, &con->flags);
 	if (con->sock == NULL) /* not mutex protected so check it inside too */
