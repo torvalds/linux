@@ -116,14 +116,11 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	const struct sof_dev_desc *desc =
 		(const struct sof_dev_desc *)pci_id->driver_data;
 	struct snd_sof_pdata *sof_pdata;
-	const struct snd_sof_dsp_ops *ops;
 	int ret;
 
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
-	/* get ops for platform */
-	ops = desc->ops;
-	if (!ops) {
+	if (!desc->ops) {
 		dev_err(dev, "error: no matching PCI descriptor ops\n");
 		return -ENODEV;
 	}
