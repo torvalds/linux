@@ -2118,6 +2118,10 @@ static bool hv_check_hypercall_access(struct kvm_vcpu_hv *hv_vcpu, u16 code)
 	case HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE:
 		return hv_vcpu->cpuid_cache.enlightenments_eax &
 			HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED;
+	case HVCALL_SEND_IPI_EX:
+	case HVCALL_SEND_IPI:
+		return hv_vcpu->cpuid_cache.enlightenments_eax &
+			HV_X64_CLUSTER_IPI_RECOMMENDED;
 	default:
 		break;
 	}
