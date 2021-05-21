@@ -180,5 +180,5 @@ bool dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_bu
 
 void dc_dmub_trace_event_control(struct dc *dc, bool enable)
 {
-	dm_helpers_dmub_outbox0_interrupt_control(dc->ctx, enable);
+	dm_helpers_dmub_outbox_interrupt_control(dc->ctx, enable);
 }

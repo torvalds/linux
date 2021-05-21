@@ -333,6 +333,17 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 }
 
 /**
+ * amdgpu_gmc_fault_key - get hask key from vm fault address and pasid
+ *
+ * @addr: 48 bit physical address, page aligned (36 significant bits)
+ * @pasid: 16 bit process address space identifier
+ */
+static inline uint64_t amdgpu_gmc_fault_key(uint64_t addr, uint16_t pasid)
+{
+	return addr << 4 | pasid;
+}
+
+/**
  * amdgpu_gmc_filter_faults - filter VM faults
  *
  * @adev: amdgpu device structure
@@ -348,8 +359,7 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
-
-	uint64_t stamp, key = addr << 4 | pasid;
+	uint64_t stamp, key = amdgpu_gmc_fault_key(addr, pasid);
 	struct amdgpu_gmc_fault *fault;
 	uint32_t hash;
 
@@ -365,7 +375,7 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 	while (fault->timestamp >= stamp) {
 		uint64_t tmp;
 
-		if (fault->key == key)
+		if (atomic64_read(&fault->key) == key)
 			return true;
 
 		tmp = fault->timestamp;
@@ -378,13 +388,43 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 
 	/* Add the fault to the ring */
 	fault = &gmc->fault_ring[gmc->last_fault];
-	fault->key = key;
+	atomic64_set(&fault->key, key);
 	fault->timestamp = timestamp;
 
 	/* And update the hash */
 	fault->next = gmc->fault_hash[hash].idx;
 	gmc->fault_hash[hash].idx = gmc->last_fault++;
 	return false;
+}
+
+/**
+ * amdgpu_gmc_filter_faults_remove - remove address from VM faults filter
+ *
+ * @adev: amdgpu device structure
+ * @addr: address of the VM fault
+ * @pasid: PASID of the process causing the fault
+ *
+ * Remove the address from fault filter, then future vm fault on this address
+ * will pass to retry fault handler to recover.
+ */
+void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
+				     uint16_t pasid)
+{
+	struct amdgpu_gmc *gmc = &adev->gmc;
+	uint64_t key = amdgpu_gmc_fault_key(addr, pasid);
+	struct amdgpu_gmc_fault *fault;
+	uint32_t hash;
+	uint64_t tmp;
+
+	hash = hash_64(key, AMDGPU_GMC_FAULT_HASH_ORDER);
+	fault = &gmc->fault_ring[gmc->fault_hash[hash].idx];
+	do {
+		if (atomic64_cmpxchg(&fault->key, key, 0) == key)
+			break;
+
+		tmp = fault->timestamp;
+		fault = &gmc->fault_ring[fault->next];
+	} while (fault->timestamp < tmp);
 }
 
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
@@ -415,6 +455,13 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 			return r;
 	}
 
+	if (adev->hdp.ras_funcs &&
+	    adev->hdp.ras_funcs->ras_late_init) {
+		r = adev->hdp.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
 	return 0;
 }
 
@@ -426,11 +473,15 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 
 	if (adev->mmhub.ras_funcs &&
 	    adev->mmhub.ras_funcs->ras_fini)
-		amdgpu_mmhub_ras_fini(adev);
+		adev->mmhub.ras_funcs->ras_fini(adev);
 
 	if (adev->gmc.xgmi.ras_funcs &&
 	    adev->gmc.xgmi.ras_funcs->ras_fini)
 		adev->gmc.xgmi.ras_funcs->ras_fini(adev);
+
+	if (adev->hdp.ras_funcs &&
+	    adev->hdp.ras_funcs->ras_fini)
+		adev->hdp.ras_funcs->ras_fini(adev);
 }
 
 	/*

@@ -417,31 +417,12 @@ static int psp_tmr_init(struct psp_context *psp)
 	return ret;
 }
 
-static int psp_clear_vf_fw(struct psp_context *psp)
-{
-	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-
-	if (!amdgpu_sriov_vf(psp->adev) || psp->adev->asic_type != CHIP_NAVI12)
-		return 0;
-
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
-	cmd->cmd_id = GFX_CMD_ID_CLEAR_VF_FW;
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
-	kfree(cmd);
-
-	return ret;
-}
-
 static bool psp_skip_tmr(struct psp_context *psp)
 {
 	switch (psp->adev->asic_type) {
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_ALDEBARAN:
 		return true;
 	default:
 		return false;
@@ -1037,6 +1018,13 @@ static int psp_ras_load(struct psp_context *psp)
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 	memcpy(psp->fw_pri_buf, psp->ta_ras_start_addr, psp->ta_ras_ucode_size);
 
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+
+	if (psp->adev->gmc.xgmi.connected_to_cpu)
+		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
+	else
+		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
+
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->ta_ras_ucode_size,
@@ -1045,8 +1033,6 @@ static int psp_ras_load(struct psp_context *psp)
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
-
-	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
 
 	if (!ret) {
 		psp->ras.session_id = cmd->resp.session_id;
@@ -1128,6 +1114,31 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	return ret;
 }
 
+static int psp_ras_status_to_errno(struct amdgpu_device *adev,
+					 enum ta_ras_status ras_status)
+{
+	int ret = -EINVAL;
+
+	switch (ras_status) {
+	case TA_RAS_STATUS__SUCCESS:
+		ret = 0;
+		break;
+	case TA_RAS_STATUS__RESET_NEEDED:
+		ret = -EAGAIN;
+		break;
+	case TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE:
+		dev_warn(adev->dev, "RAS WARN: ras function unavailable\n");
+		break;
+	case TA_RAS_STATUS__ERROR_ASD_READ_WRITE:
+		dev_warn(adev->dev, "RAS WARN: asd read or write failed\n");
+		break;
+	default:
+		dev_err(adev->dev, "RAS ERROR: ras function failed ret 0x%X\n", ret);
+	}
+
+	return ret;
+}
+
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable)
 {
@@ -1151,7 +1162,7 @@ int psp_ras_enable_features(struct psp_context *psp,
 	if (ret)
 		return -EINVAL;
 
-	return ras_cmd->ras_status;
+	return psp_ras_status_to_errno(psp->adev, ras_cmd->ras_status);
 }
 
 static int psp_ras_terminate(struct psp_context *psp)
@@ -1234,7 +1245,7 @@ int psp_ras_trigger_error(struct psp_context *psp,
 	if (amdgpu_ras_intr_triggered())
 		return 0;
 
-	return ras_cmd->ras_status;
+	return psp_ras_status_to_errno(psp->adev, ras_cmd->ras_status);
 }
 // ras end
 
@@ -1920,12 +1931,6 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
-	ret = psp_clear_vf_fw(psp);
-	if (ret) {
-		DRM_ERROR("PSP clear vf fw!\n");
-		return ret;
-	}
-
 	ret = psp_boot_config_set(adev);
 	if (ret) {
 		DRM_WARN("PSP set boot config@\n");
@@ -2166,7 +2171,7 @@ static int psp_load_smu_fw(struct psp_context *psp)
 		return 0;
 
 	if ((amdgpu_in_reset(adev) &&
-	     ras && ras->supported &&
+	     ras && adev->ras_enabled &&
 	     (adev->asic_type == CHIP_ARCTURUS ||
 	      adev->asic_type == CHIP_VEGA20)) ||
 	     (adev->in_runpm &&
@@ -2434,7 +2439,6 @@ static int psp_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
-	int ret;
 
 	if (psp->adev->psp.ta_fw) {
 		psp_ras_terminate(psp);
@@ -2445,11 +2449,6 @@ static int psp_hw_fini(void *handle)
 	}
 
 	psp_asd_unload(psp);
-	ret = psp_clear_vf_fw(psp);
-	if (ret) {
-		DRM_ERROR("PSP clear vf fw!\n");
-		return ret;
-	}
 
 	psp_tmr_terminate(psp);
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);

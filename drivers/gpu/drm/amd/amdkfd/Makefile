@@ -63,3 +63,8 @@ endif
 ifneq ($(CONFIG_DEBUG_FS),)
 AMDKFD_FILES += $(AMDKFD_PATH)/kfd_debugfs.o
 endif
+
+ifneq ($(CONFIG_HSA_AMD_SVM),)
+AMDKFD_FILES += $(AMDKFD_PATH)/kfd_svm.o \
+		$(AMDKFD_PATH)/kfd_migrate.o
+endif

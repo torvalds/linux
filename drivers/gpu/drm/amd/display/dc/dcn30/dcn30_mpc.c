@@ -874,7 +874,7 @@ bool mpc3_program_shaper(
 	else
 		next_mode = LUT_RAM_A;
 
-	mpc3_configure_shaper_lut(mpc, next_mode == LUT_RAM_A ? true:false, rmu_idx);
+	mpc3_configure_shaper_lut(mpc, next_mode == LUT_RAM_A, rmu_idx);
 
 	if (next_mode == LUT_RAM_A)
 		mpc3_program_shaper_luta_settings(mpc, params, rmu_idx);

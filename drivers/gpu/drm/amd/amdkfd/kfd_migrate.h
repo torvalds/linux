@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,21 +21,45 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __AMDGPU_SMUIO_H__
-#define __AMDGPU_SMUIO_H__
 
-struct amdgpu_smuio_funcs {
-	u32 (*get_rom_index_offset)(struct amdgpu_device *adev);
-	u32 (*get_rom_data_offset)(struct amdgpu_device *adev);
-	void (*update_rom_clock_gating)(struct amdgpu_device *adev, bool enable);
-	void (*get_clock_gating_state)(struct amdgpu_device *adev, u32 *flags);
-	u32 (*get_die_id)(struct amdgpu_device *adev);
-	u32 (*get_socket_id)(struct amdgpu_device *adev);
-	bool (*is_host_gpu_xgmi_supported)(struct amdgpu_device *adev);
+#ifndef KFD_MIGRATE_H_
+#define KFD_MIGRATE_H_
+
+#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+
+#include <linux/rwsem.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/sched/mm.h>
+#include <linux/hmm.h>
+#include "kfd_priv.h"
+#include "kfd_svm.h"
+
+enum MIGRATION_COPY_DIR {
+	FROM_RAM_TO_VRAM = 0,
+	FROM_VRAM_TO_RAM
 };
 
-struct amdgpu_smuio {
-	const struct amdgpu_smuio_funcs		*funcs;
-};
+int svm_migrate_to_vram(struct svm_range *prange,  uint32_t best_loc,
+			struct mm_struct *mm);
+int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm);
+unsigned long
+svm_migrate_addr_to_pfn(struct amdgpu_device *adev, unsigned long addr);
 
-#endif /* __AMDGPU_SMUIO_H__ */
+int svm_migrate_init(struct amdgpu_device *adev);
+void svm_migrate_fini(struct amdgpu_device *adev);
+
+#else
+
+static inline int svm_migrate_init(struct amdgpu_device *adev)
+{
+	return 0;
+}
+static inline void svm_migrate_fini(struct amdgpu_device *adev)
+{
+	/* empty */
+}
+
+#endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */
+
+#endif /* KFD_MIGRATE_H_ */

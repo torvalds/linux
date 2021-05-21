@@ -384,7 +384,8 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 					skip_video_pattern,
 					LINK_TRAINING_ATTEMPTS,
 					&pipes[i],
-					SIGNAL_TYPE_DISPLAY_PORT);
+					SIGNAL_TYPE_DISPLAY_PORT,
+					false);
 
 			link->dc->hwss.enable_stream(&pipes[i]);
 

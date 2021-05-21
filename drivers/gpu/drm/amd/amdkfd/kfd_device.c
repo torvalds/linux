@@ -26,10 +26,12 @@
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_vi.h"
+#include "kfd_pm4_headers_aldebaran.h"
 #include "cwsr_trap_handler.h"
 #include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
 #include "kfd_smi_events.h"
+#include "kfd_migrate.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -576,7 +578,7 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 	[CHIP_VEGA20] = {&vega20_device_info, NULL},
 	[CHIP_RENOIR] = {&renoir_device_info, NULL},
 	[CHIP_ARCTURUS] = {&arcturus_device_info, &arcturus_device_info},
-	[CHIP_ALDEBARAN] = {&aldebaran_device_info, NULL},
+	[CHIP_ALDEBARAN] = {&aldebaran_device_info, &aldebaran_device_info},
 	[CHIP_NAVI10] = {&navi10_device_info, NULL},
 	[CHIP_NAVI12] = {&navi12_device_info, &navi12_device_info},
 	[CHIP_NAVI14] = {&navi14_device_info, NULL},
@@ -697,7 +699,9 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 			&& kfd->device_info->asic_family <= CHIP_RAVEN
 			&& kfd->mec2_fw_version >= 0x1b3)
 		|| (kfd->device_info->asic_family == CHIP_ARCTURUS
-			&& kfd->mec2_fw_version >= 0x30))
+			&& kfd->mec2_fw_version >= 0x30)
+		|| (kfd->device_info->asic_family == CHIP_ALDEBARAN
+			&& kfd->mec2_fw_version >= 0x28))
 		ret = amdgpu_amdkfd_alloc_gws(kfd->kgd,
 				amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws);
 
@@ -713,7 +717,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
-	unsigned int size;
+	unsigned int size, map_process_packet_size;
 
 	kfd->ddev = ddev;
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
@@ -748,7 +752,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_mes_map_process) +
+	map_process_packet_size =
+			kfd->device_info->asic_family == CHIP_ALDEBARAN ?
+				sizeof(struct pm4_mes_map_process_aldebaran) :
+					sizeof(struct pm4_mes_map_process);
+	size += (KFD_MAX_NUM_OF_PROCESSES * map_process_packet_size +
 		max_num_of_queues_per_device * sizeof(struct pm4_mes_map_queues)
 		+ sizeof(struct pm4_mes_runlist)) * 2;
 
@@ -814,6 +822,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_cwsr_init(kfd);
 
+	svm_migrate_init((struct amdgpu_device *)kfd->kgd);
+
 	if (kfd_resume(kfd))
 		goto kfd_resume_error;
 
@@ -862,6 +872,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 	if (kfd->init_complete) {
 		kgd2kfd_suspend(kfd, false);
+		svm_migrate_fini((struct amdgpu_device *)kfd->kgd);
 		device_queue_manager_uninit(kfd->dqm);
 		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);

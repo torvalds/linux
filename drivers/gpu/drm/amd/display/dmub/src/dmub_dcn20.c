@@ -385,7 +385,7 @@ union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub)
 	return status;
 }
 
-void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub)
+void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
 	union dmub_fw_boot_options boot_options = {0};
 

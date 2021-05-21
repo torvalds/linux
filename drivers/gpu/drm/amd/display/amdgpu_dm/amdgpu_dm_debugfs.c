@@ -925,6 +925,22 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 	return 0;
 }
 #endif
+
+/*
+ * Returns whether the connected display is internal and not hotpluggable.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/internal_display
+ */
+static int internal_display_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+
+	seq_printf(m, "Internal: %u\n", link->is_internal_display);
+
+	return 0;
+}
+
 /* function description
  *
  * generic SDP message access for testing
@@ -2361,6 +2377,44 @@ unlock:
 	return size;
 }
 
+/*
+ * Backlight at this moment.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/eDP-1/current_backlight
+ */
+static int current_backlight_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(m->private);
+	struct dc_link *link = aconnector->dc_link;
+	unsigned int backlight;
+
+	backlight = dc_link_get_backlight_level(link);
+	seq_printf(m, "0x%x\n", backlight);
+
+	return 0;
+}
+
+/*
+ * Backlight value that is being approached.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/eDP-1/target_backlight
+ */
+static int target_backlight_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(m->private);
+	struct dc_link *link = aconnector->dc_link;
+	unsigned int backlight;
+
+	backlight = dc_link_get_target_backlight_pwm(link);
+	seq_printf(m, "0x%x\n", backlight);
+
+	return 0;
+}
+
 DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
 DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
@@ -2369,6 +2423,7 @@ DEFINE_SHOW_ATTRIBUTE(dp_lttpr_status);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 #endif
+DEFINE_SHOW_ATTRIBUTE(internal_display);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2594,13 +2649,17 @@ DEFINE_DEBUGFS_ATTRIBUTE(dmcub_trace_event_state_fops, dmcub_trace_event_state_g
 
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 
+DEFINE_SHOW_ATTRIBUTE(current_backlight);
+DEFINE_SHOW_ATTRIBUTE(target_backlight);
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
 } connector_debugfs_entries[] = {
 		{"force_yuv420_output", &force_yuv420_output_fops},
 		{"output_bpc", &output_bpc_fops},
-		{"trigger_hotplug", &trigger_hotplug_debugfs_fops}
+		{"trigger_hotplug", &trigger_hotplug_debugfs_fops},
+		{"internal_display", &internal_display_fops}
 };
 
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
@@ -2616,8 +2675,13 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					    dp_debugfs_entries[i].fops);
 		}
 	}
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
+		debugfs_create_file("amdgpu_current_backlight_pwm", 0444, dir, connector,
+				    &current_backlight_fops);
+		debugfs_create_file("amdgpu_target_backlight_pwm", 0444, dir, connector,
+				    &target_backlight_fops);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
 		debugfs_create_file(connector_debugfs_entries[i].name,
@@ -2920,38 +2984,6 @@ static ssize_t dtn_log_write(
 	return size;
 }
 
-/*
- * Backlight at this moment.  Read only.
- * As written to display, taking ABM and backlight lut into account.
- * Ranges from 0x0 to 0x10000 (= 100% PWM)
- */
-static int current_backlight_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct amdgpu_display_manager *dm = &adev->dm;
-
-	unsigned int backlight = dc_link_get_backlight_level(dm->backlight_link);
-
-	seq_printf(m, "0x%x\n", backlight);
-	return 0;
-}
-
-/*
- * Backlight value that is being approached.  Read only.
- * As written to display, taking ABM and backlight lut into account.
- * Ranges from 0x0 to 0x10000 (= 100% PWM)
- */
-static int target_backlight_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct amdgpu_display_manager *dm = &adev->dm;
-
-	unsigned int backlight = dc_link_get_target_backlight_pwm(dm->backlight_link);
-
-	seq_printf(m, "0x%x\n", backlight);
-	return 0;
-}
-
 static int mst_topo_show(struct seq_file *m, void *unused)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
@@ -3134,8 +3166,6 @@ static int visual_confirm_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(current_backlight);
-DEFINE_SHOW_ATTRIBUTE(target_backlight);
 DEFINE_SHOW_ATTRIBUTE(mst_topo);
 DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
 			 visual_confirm_set, "%llu\n");
@@ -3215,10 +3245,6 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
 
-	debugfs_create_file("amdgpu_current_backlight_pwm", 0444,
-			    root, adev, &current_backlight_fops);
-	debugfs_create_file("amdgpu_target_backlight_pwm", 0444,
-			    root, adev, &target_backlight_fops);
 	debugfs_create_file("amdgpu_mst_topology", 0444, root,
 			    adev, &mst_topo_fops);
 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,

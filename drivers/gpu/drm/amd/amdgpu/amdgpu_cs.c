@@ -672,7 +672,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 }
 
 /**
- * cs_parser_fini() - clean parser states
+ * amdgpu_cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
  * @error:	error number
  * @backoff:	indicator to backoff the reservation
@@ -1488,7 +1488,7 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * amdgpu_cs_wait_all_fence - wait on all fences to signal
+ * amdgpu_cs_wait_all_fences - wait on all fences to signal
  *
  * @adev: amdgpu device
  * @filp: file private
@@ -1639,7 +1639,7 @@ err_free_fences:
 }
 
 /**
- * amdgpu_cs_find_bo_va - find bo_va for VM address
+ * amdgpu_cs_find_mapping - find bo_va for VM address
  *
  * @parser: command submission parser context
  * @addr: VM address

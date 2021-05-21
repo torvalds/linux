@@ -434,6 +434,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
  *
  * @ring: ring to init the fence driver on
  * @num_hw_submission: number of entries on the hardware queue
+ * @sched_score: optional score atomic shared with other schedulers
  *
  * Init the fence driver for the requested ring (all asics).
  * Helper function for amdgpu_fence_driver_init().

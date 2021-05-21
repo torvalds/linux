@@ -24,7 +24,8 @@
 
 #include "amdgpu.h"
 
-static inline struct amdgpu_gtt_mgr *to_gtt_mgr(struct ttm_resource_manager *man)
+static inline struct amdgpu_gtt_mgr *
+to_gtt_mgr(struct ttm_resource_manager *man)
 {
 	return container_of(man, struct amdgpu_gtt_mgr, manager);
 }
@@ -43,12 +44,14 @@ struct amdgpu_gtt_node {
  * the GTT block, in bytes
  */
 static ssize_t amdgpu_mem_info_gtt_total_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+					      struct device_attribute *attr,
+					      char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
+	struct ttm_resource_manager *man;
 
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 	return sysfs_emit(buf, "%llu\n", man->size * PAGE_SIZE);
 }
 
@@ -61,12 +64,14 @@ static ssize_t amdgpu_mem_info_gtt_total_show(struct device *dev,
  * size of the GTT block, in bytes
  */
 static ssize_t amdgpu_mem_info_gtt_used_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+					     struct device_attribute *attr,
+					     char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
+	struct ttm_resource_manager *man;
 
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 	return sysfs_emit(buf, "%llu\n", amdgpu_gtt_mgr_usage(man));
 }
 
@@ -74,80 +79,6 @@ static DEVICE_ATTR(mem_info_gtt_total, S_IRUGO,
 	           amdgpu_mem_info_gtt_total_show, NULL);
 static DEVICE_ATTR(mem_info_gtt_used, S_IRUGO,
 	           amdgpu_mem_info_gtt_used_show, NULL);
-
-static const struct ttm_resource_manager_func amdgpu_gtt_mgr_func;
-/**
- * amdgpu_gtt_mgr_init - init GTT manager and DRM MM
- *
- * @adev: amdgpu_device pointer
- * @gtt_size: maximum size of GTT
- *
- * Allocate and initialize the GTT manager.
- */
-int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
-{
-	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
-	struct ttm_resource_manager *man = &mgr->manager;
-	uint64_t start, size;
-	int ret;
-
-	man->use_tt = true;
-	man->func = &amdgpu_gtt_mgr_func;
-
-	ttm_resource_manager_init(man, gtt_size >> PAGE_SHIFT);
-
-	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
-	size = (adev->gmc.gart_size >> PAGE_SHIFT) - start;
-	drm_mm_init(&mgr->mm, start, size);
-	spin_lock_init(&mgr->lock);
-	atomic64_set(&mgr->available, gtt_size >> PAGE_SHIFT);
-
-	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_total);
-	if (ret) {
-		DRM_ERROR("Failed to create device file mem_info_gtt_total\n");
-		return ret;
-	}
-	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_used);
-	if (ret) {
-		DRM_ERROR("Failed to create device file mem_info_gtt_used\n");
-		return ret;
-	}
-
-	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, &mgr->manager);
-	ttm_resource_manager_set_used(man, true);
-	return 0;
-}
-
-/**
- * amdgpu_gtt_mgr_fini - free and destroy GTT manager
- *
- * @adev: amdgpu_device pointer
- *
- * Destroy and free the GTT manager, returns -EBUSY if ranges are still
- * allocated inside it.
- */
-void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
-{
-	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
-	struct ttm_resource_manager *man = &mgr->manager;
-	int ret;
-
-	ttm_resource_manager_set_used(man, false);
-
-	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
-	if (ret)
-		return;
-
-	spin_lock(&mgr->lock);
-	drm_mm_takedown(&mgr->mm);
-	spin_unlock(&mgr->lock);
-
-	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_total);
-	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_used);
-
-	ttm_resource_manager_cleanup(man);
-	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, NULL);
-}
 
 /**
  * amdgpu_gtt_mgr_has_gart_addr - Check if mem has address space
@@ -265,6 +196,13 @@ uint64_t amdgpu_gtt_mgr_usage(struct ttm_resource_manager *man)
 	return (result > 0 ? result : 0) * PAGE_SIZE;
 }
 
+/**
+ * amdgpu_gtt_mgr_recover - re-init gart
+ *
+ * @man: TTM memory type manager
+ *
+ * Re-init the gart for each known BO in the GTT.
+ */
 int amdgpu_gtt_mgr_recover(struct ttm_resource_manager *man)
 {
 	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
@@ -311,3 +249,76 @@ static const struct ttm_resource_manager_func amdgpu_gtt_mgr_func = {
 	.free = amdgpu_gtt_mgr_del,
 	.debug = amdgpu_gtt_mgr_debug
 };
+
+/**
+ * amdgpu_gtt_mgr_init - init GTT manager and DRM MM
+ *
+ * @adev: amdgpu_device pointer
+ * @gtt_size: maximum size of GTT
+ *
+ * Allocate and initialize the GTT manager.
+ */
+int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
+{
+	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
+	uint64_t start, size;
+	int ret;
+
+	man->use_tt = true;
+	man->func = &amdgpu_gtt_mgr_func;
+
+	ttm_resource_manager_init(man, gtt_size >> PAGE_SHIFT);
+
+	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
+	size = (adev->gmc.gart_size >> PAGE_SHIFT) - start;
+	drm_mm_init(&mgr->mm, start, size);
+	spin_lock_init(&mgr->lock);
+	atomic64_set(&mgr->available, gtt_size >> PAGE_SHIFT);
+
+	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_total);
+	if (ret) {
+		DRM_ERROR("Failed to create device file mem_info_gtt_total\n");
+		return ret;
+	}
+	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_used);
+	if (ret) {
+		DRM_ERROR("Failed to create device file mem_info_gtt_used\n");
+		return ret;
+	}
+
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, &mgr->manager);
+	ttm_resource_manager_set_used(man, true);
+	return 0;
+}
+
+/**
+ * amdgpu_gtt_mgr_fini - free and destroy GTT manager
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Destroy and free the GTT manager, returns -EBUSY if ranges are still
+ * allocated inside it.
+ */
+void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
+	int ret;
+
+	ttm_resource_manager_set_used(man, false);
+
+	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
+	if (ret)
+		return;
+
+	spin_lock(&mgr->lock);
+	drm_mm_takedown(&mgr->mm);
+	spin_unlock(&mgr->lock);
+
+	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_total);
+	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_used);
+
+	ttm_resource_manager_cleanup(man);
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, NULL);
+}

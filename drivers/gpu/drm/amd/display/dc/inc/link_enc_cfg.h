@@ -81,6 +81,11 @@ struct dc_link *link_enc_cfg_get_link_using_link_enc(
 /* Return DIG link encoder used by link. NULL if unused. */
 struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
 		struct dc_state *state,
-		struct dc_link *link);
+		const struct dc_link *link);
+
+/* Return next available DIG link encoder. NULL if none available. */
+struct link_encoder *link_enc_cfg_get_next_avail_link_enc(
+	const struct dc *dc,
+	const struct dc_state *state);
 
 #endif /* DC_INC_LINK_ENC_CFG_H_ */

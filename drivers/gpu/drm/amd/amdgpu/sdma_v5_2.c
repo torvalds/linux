@@ -1556,6 +1556,10 @@ static void sdma_v5_2_update_medium_grain_clock_gating(struct amdgpu_device *ade
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
+
+		if (adev->sdma.instance[i].fw_version < 70 && adev->asic_type == CHIP_VANGOGH)
+			adev->cg_flags &= ~AMD_CG_SUPPORT_SDMA_MGCG;
+
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
 			/* Enable sdma clock gating */
 			def = data = RREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_CLK_CTRL));
@@ -1589,6 +1593,10 @@ static void sdma_v5_2_update_medium_grain_light_sleep(struct amdgpu_device *adev
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
+
+		if (adev->sdma.instance[i].fw_version < 70 && adev->asic_type == CHIP_VANGOGH)
+			adev->cg_flags &= ~AMD_CG_SUPPORT_SDMA_LS;
+
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
 			/* Enable sdma mem light sleep */
 			def = data = RREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_POWER_CNTL));
