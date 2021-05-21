@@ -11,7 +11,7 @@ Virtualization
 Lecture objectives:
 ===================
 
-.. slide:: Network Management
+.. slide:: Virtualization
    :inline-contents: True
    :level: 2
 
@@ -128,6 +128,8 @@ MMU virtualization
    * "Fake" VM physical addresses are translated by the host to actual
      physical addresses
 
+   * Guest virtual address -> Guest physical address -> Host Physical Address
+
    * The guest page tables are not directly used by the host hardware
 
    * VM page tables are verified then translated into a new set of page
@@ -192,13 +194,17 @@ Lazy shadow sync
    * To avoid repeated traps, checks and transformations map guest
      page table entries with write access
 
-   * Update the shadow page table when the TLB is flushed
+   * Update the shadow page table when
+
+     * The TLB is flushed
+
+     * In the host page fault handler
 
 
-I/O virtualization
-==================
+I/O emulation
+=============
 
-.. slide:: I/O virtualization
+.. slide:: I/O emulation
    :inline-contents: True
    :level: 2
 
@@ -230,6 +236,14 @@ I/O virtualization
         +-----------------+
         | Physical Device |
         +-----------------+
+
+
+.. slide:: Example: qemu SiFive UART emulation
+   :inline-contents: True
+   :level: 2
+
+   .. literalinclude:: ../res/sifive_uart.c
+      :language: c
 
 
 Paravirtualization
@@ -299,6 +313,24 @@ Virtual Machine Control Structure
    * VMCS can not be accessed directly but certain information can be
      accessed with special instructions
 
+VM entry & exit
+---------------
+
+.. slide:: VM entry & exit
+   :inline-contents: True
+   :level: 2
+
+   * VM entry - new instructions that switches the CPU in non-root
+     mode and loads the VM state from a VMCS; host state is saved in
+     VMCS
+
+   * Allows injecting interrupts and exceptions in the guest
+
+   * VM exit will be automatically triggered based on the VMCS
+     configuration
+
+   * When VM exit occurs host state is loaded from VMCS, guest state
+     is saved in VMCS
 
 VM execution control fields
 ---------------------------
@@ -324,25 +356,6 @@ VM execution control fields
    * MSR bitmaps - selects which RDMSR or WRMSR instructions will
      generate a VM exit
 
-
-VM entry & exit
----------------
-
-.. slide:: VM entry & exit
-   :inline-contents: True
-   :level: 2
-
-   * VM entry - new instructions that switches the CPU in non-root
-     mode and loads the VM state from a VMCS; host state is saved in
-     VMCS
-
-   * Allows injecting interrupts and exceptions in the guest
-
-   * VM exit will be automatically triggered based on the VMCS
-     configuration
-
-   * When VM exit occurs host state is loaded from VMCS, guest state
-     is saved in VMCS
 
 Extend Page Tables
 ==================
@@ -394,33 +407,158 @@ VPID
    * When searching the TLB just the current VPID is used
 
 
-Intel VT-d
-==========
+I/O virtualization
+==================
 
-.. slide:: Intel VT-d
+   * Direct access to hardware from a VM - in a controlled fashion
+
+     * Map the MMIO host directly to the guest
+
+     * Forward interrupts 
+
+.. slide:: I/O virtualization
    :inline-contents: True
    :level: 2
 
-   * Direct access to hardware from a VM - in a controlled was
+   .. ditaa::
 
-   * The physical device must support multiplexing (e.g. SR-IOV)
+      +---------------------+     +---------------------+
+      |     Guest OS        |	  |     Guest OS        |
+      |  +---------------+  |	  |  +---------------+  |
+      |  | Guest Driver  |  |	  |  | Guest Driver  |  |
+      |  +---------------+  |	  |  +---------------+  |
+      |    |           ^    |	  |    |           ^    |
+      |    |           |    |	  |    |           |    |
+      +----+-----------+----+	  +----+-----------+----+
+           | traped    | 	       | mapped    |
+           | access    |	       | access    |
+       +---+-----------+----+	   +---+-----------+-----+     But how do we deal with DMA?
+       |   |   VMM     |    |	   |   |   VMM     |     |
+       |   v           |    |	   |   |           |     |
+       | +----------------+ |	   |   |     +---------+ |
+       | | Virtual Device | |	   |   |     | IRQ     | |
+       | +----------------+ |	   |   |     | Mapping | |
+       |  |            ^    |	   |   |     +---------+ |
+       |  |            |    |	   |   |           |     |
+       +--+------------+----+	   +---+-----------+-----+
+          |            |	       |           |
+          v            |	       v           |
+        +-----------------+	    +-----------------+
+        | Physical Device |	    | Physical Device |
+        +-----------------+    	    +-----------------+
 
-     * I/O assignments
+Instead of trapping MMIO as with emulated devices we can allow the
+guest to access the MMIO directly by mapping through its page tables.
 
-     * IRQ routing
+Interrupts from the device are handled by the host kernel and a signal
+is send to the VMM which injects the interrupt to the guest just as
+for the emulated devices.
 
-   * VT-d protects and translates VM physical addresses using an I/O
-     MMU (DMA remaping)
 
-
-DMA remapping
--------------
-
-.. slide:: DMA remapping
+.. slide:: I/O MMU
    :inline-contents: True
    :level: 2
 
-   .. image::  ../res/dma-remapping.png
+   VT-d protects and translates VM physical addresses using an I/O
+   MMU (DMA remaping)
+
+   .. ditaa::
+
+	 +------+                           +------+
+	 |      |			    |      |
+	 | CPU  |			    | DMA  |
+	 |      |			    |      |
+	 +------+			    +------+
+                                               |
+                                               |
+                                               v
+	 +-----+                            +-----+
+	 | CR3 |                            | EPT |
+	 +-----+                            +-----+
+           |          +------------------+     |         +----------------+
+           |          |                  |     |         |                |
+           +--------> | Guest Page Table |     +-------> | EPT Page Table | --------------->
+                      |                  |               |                |
+        ------------> +------------------+ ------------> +----------------+
+
+        Guest Virtual                     Guest Physical                      Host Physical
+          Address                             Address                           Address
+
+
+.. slide:: Interrupt posting
+   :inline-contents: True
+   :level: 2
+
+   * Messsage Signaled Interrupts (MSI) = DMA writes to the host
+     address range of the IRQ controller (e.g. 0xFEExxxxx)
+
+   * Low bits of the address and the data indicate which interrupt
+     vector to deliver to which CPU
+
+   * Interrupt remapping table points to the virtual CPU (VMCS) that
+     should receive the interrupt
+
+   * I/O MMU will trap the IRQ controller write and look it up in the
+     interrupt remmaping table
+
+     * if that virtual CPU is currently running it will take the
+       interrupt directly
+
+     * otherwise a bit is set in a table (Posted Interrupt Descriptor
+       table) and the interrupt will be inject next time that vCPU is
+       run
+
+
+.. slide:: I/O virtualization
+   :inline-contents: True
+   :level: 2
+
+   .. ditaa::
+
+      +---------------------+     +---------------------+    +---------------------+
+      |     Guest OS        |	  |     Guest OS        |    |     Guest OS        |
+      |  +---------------+  |	  |  +---------------+  |    |  +---------------+  |
+      |  | Guest Driver  |  |	  |  | Guest Driver  |  |    |  | Guest Driver  |  |
+      |  +---------------+  |	  |  +---------------+  |    |  +---------------+  |
+      |    |           ^    |	  |    |           ^    |    |    |           ^    |
+      |    |           |    |	  |    |           |    |    |    |           |    |
+      +----+-----------+----+	  +----+-----------+----+    +----+-----------+----+
+           | traped    | 	       | mapped    |	          | mapped    | interrupt
+           | access    |	       | access    |	          | access    | posting
+       +---+-----------+----+	   +---+-----------+-----+    +---+-----------+-----+
+       |   |   VMM     |    |	   |   |   VMM     |     |    |   |   VMM     |     |
+       |   v           |    |	   |   |           |     |    |   |           |     |
+       | +----------------+ |	   |   |     +---------+ |    |   |           |     |
+       | | Virtual Device | |	   |   |     | IRQ     | |    |   |           |     |
+       | +----------------+ |	   |   |     | Mapping | |    |   |           |     |
+       |  |            ^    |	   |   |     +---------+ |    |   |           |     |
+       |  |            |    |	   |   |           |     |    |   |           |     |
+       +--+------------+----+	   +---+-----------+-----+    +---+-----------+-----+
+          |            |	       |           |	          |           |
+          v            |	       v           |	          v           |
+        +-----------------+	    +-----------------+	       +-----------------+
+        | Physical Device |	    | Physical Device |	       | Physical Device |
+        +-----------------+    	    +-----------------+        +-----------------+
+
+
+
+.. slide:: SR-IOV
+   :inline-contents: True
+   :level: 2
+
+   * Single Root - Input Output Virtualization
+
+   * Physical device with multiple Ethernet ports will be shown as
+     multiple device on the PCI bus
+
+   * Physical Function is used for the control and can be configured
+
+     * to present itself as a new PCI device
+
+     * which VLAN to use
+
+   * The new virtual function is enumerated on the bus and can be
+     assigned to a particular guest
 
 
 qemu
@@ -451,15 +589,6 @@ KVM
    :inline-contents: True
    :level: 2
 
-   * VMM implemented inside the Linux kernel
-
-   * Requires hardware virtualization (e.g. Intel VT-x)
-
-   * Shadow page tables or EPT if present
-
-   * Uses qemu or virtio for I/O virtualization
-
-
    .. ditaa::
 
              VM1 (qemu)                     VM2 (qemu)
@@ -481,6 +610,35 @@ KVM
       +----------------------------------------------------+
       |        Hardware with virtualization support        |
       +----------------------------------------------------+
+
+
+.. slide:: KVM
+   :inline-contents: True
+   :level: 2
+
+   * Linux device driver for hardware virtualization (e.g. Intel VT-x, SVM)
+
+   * IOCTL based interface for managing and running virtual CPUs
+
+   * VMM components implemented inside the Linux kernel
+     (e.g. interrupt controller, timers)
+
+   * Shadow page tables or EPT if present
+
+   * Uses qemu or virtio for I/O virtualization
+
+
+
+Type 1 vs Type 2 Hypervisors
+============================
+
+.. slide:: Xen
+   :inline-contents: True
+   :level: 2
+
+   * Type 1 = Bare Metal Hypervisor
+
+   * Type 2 = Hypervisor embedded in an exist kernel / OS
 
 
 Xen
