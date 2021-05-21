@@ -521,6 +521,8 @@ struct mcp251xfd_tx_ring {
 	unsigned int tail;
 
 	u16 base;
+	u8 nr;
+	u8 fifo_nr;
 	u8 obj_num;
 	u8 obj_size;
 
@@ -779,7 +781,7 @@ mcp251xfd_tx_tail_get_from_chip(const struct mcp251xfd_priv *priv,
 	int err;
 
 	err = regmap_read(priv->map_reg,
-			  MCP251XFD_REG_FIFOSTA(MCP251XFD_TX_FIFO),
+			  MCP251XFD_REG_FIFOSTA(priv->tx->fifo_nr),
 			  &fifo_sta);
 	if (err)
 		return err;

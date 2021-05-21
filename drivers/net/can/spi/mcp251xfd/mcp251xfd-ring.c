@@ -136,9 +136,11 @@ void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	tx_ring->head = 0;
 	tx_ring->tail = 0;
 	tx_ring->base = mcp251xfd_get_tef_obj_addr(tx_ring->obj_num);
+	tx_ring->nr = 0;
+	tx_ring->fifo_nr = MCP251XFD_TX_FIFO;
 
 	/* FIFO request to send */
-	addr = MCP251XFD_REG_FIFOCON(MCP251XFD_TX_FIFO);
+	addr = MCP251XFD_REG_FIFOCON(tx_ring->fifo_nr);
 	val = MCP251XFD_REG_FIFOCON_TXREQ | MCP251XFD_REG_FIFOCON_UINC;
 	len = mcp251xfd_cmd_prepare_write_reg(priv, &tx_ring->rts_buf,
 					      addr, val, val);
