@@ -497,7 +497,6 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
 		}
 	} else {
 		WARN_ON(disk->minors);
-		WARN_ON(!(disk->flags & (GENHD_FL_EXT_DEVT | GENHD_FL_HIDDEN)));
 
 		ret = blk_alloc_ext_minor();
 		if (ret < 0) {
@@ -506,6 +505,7 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
 		}
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = MINOR(ret);
+		disk->flags |= GENHD_FL_EXT_DEVT;
 	}
 
 	disk->flags |= GENHD_FL_UP;

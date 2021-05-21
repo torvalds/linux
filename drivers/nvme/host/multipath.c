@@ -462,7 +462,6 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	head->disk->fops = &nvme_ns_head_ops;
 	head->disk->private_data = head;
 	head->disk->queue = q;
-	head->disk->flags = GENHD_FL_EXT_DEVT;
 	sprintf(head->disk->disk_name, "nvme%dn%d",
 			ctrl->subsys->instance, head->instance);
 	return 0;

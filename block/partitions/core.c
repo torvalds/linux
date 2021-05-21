@@ -326,10 +326,6 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	const char *dname;
 	int err;
 
-	/*
-	 * disk_max_parts() won't be zero, either GENHD_FL_EXT_DEVT is set
-	 * or 'minors' is passed to alloc_disk().
-	 */
 	if (partno >= disk_max_parts(disk))
 		return ERR_PTR(-EINVAL);
 

@@ -1537,7 +1537,6 @@ static int btt_blk_init(struct btt *btt)
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
 	btt->btt_disk->queue = btt->btt_queue;
-	btt->btt_disk->flags = GENHD_FL_EXT_DEVT;
 
 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
 	blk_queue_max_hw_sectors(btt->btt_queue, UINT_MAX);

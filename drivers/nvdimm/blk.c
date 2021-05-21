@@ -267,7 +267,6 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 	disk->first_minor	= 0;
 	disk->fops		= &nd_blk_fops;
 	disk->queue		= q;
-	disk->flags		= GENHD_FL_EXT_DEVT;
 	disk->private_data	= nsblk;
 	nvdimm_namespace_disk_name(&nsblk->common, disk->disk_name);
 
