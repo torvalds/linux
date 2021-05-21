@@ -1762,8 +1762,10 @@ static void process_send_sockets(struct work_struct *work)
 
 	clear_bit(CF_WRITE_PENDING, &con->flags);
 
-	if (test_and_clear_bit(CF_RECONNECT, &con->flags))
+	if (test_and_clear_bit(CF_RECONNECT, &con->flags)) {
 		close_connection(con, false, false, true);
+		dlm_midcomms_unack_msg_resend(con->nodeid);
+	}
 
 	if (con->sock == NULL) { /* not mutex protected so check it inside too */
 		if (test_and_clear_bit(CF_DELAY_CONNECT, &con->flags))

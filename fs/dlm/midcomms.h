@@ -21,6 +21,7 @@ int dlm_midcomms_start(void);
 void dlm_midcomms_shutdown(void);
 void dlm_midcomms_add_member(int nodeid);
 void dlm_midcomms_remove_member(int nodeid);
+void dlm_midcomms_unack_msg_resend(int nodeid);
 
 #endif				/* __MIDCOMMS_DOT_H__ */
 

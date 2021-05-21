@@ -202,7 +202,7 @@ retry:
 	set_rcom_status(ls, (struct rcom_status *)rc->rc_buf, status_flags);
 
 	allow_sync_reply(ls, &rc->rc_id);
-	memset(ls->ls_recover_buf, 0, LOWCOMMS_MAX_TX_BUFFER_LEN);
+	memset(ls->ls_recover_buf, 0, DEFAULT_BUFFER_SIZE);
 
 	send_rcom_stateless(ls, msg, rc);
 
@@ -325,7 +325,7 @@ retry:
 	memcpy(rc->rc_buf, last_name, last_len);
 
 	allow_sync_reply(ls, &rc->rc_id);
-	memset(ls->ls_recover_buf, 0, LOWCOMMS_MAX_TX_BUFFER_LEN);
+	memset(ls->ls_recover_buf, 0, DEFAULT_BUFFER_SIZE);
 
 	send_rcom_stateless(ls, msg, rc);
 
