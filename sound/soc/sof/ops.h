@@ -244,13 +244,13 @@ snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
 static inline void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	if (sof_ops(sdev)->dbg_dump)
-		return sof_ops(sdev)->dbg_dump(sdev, flags);
+		sof_ops(sdev)->dbg_dump(sdev, flags);
 }
 
 static inline void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->ipc_dump)
-		return sof_ops(sdev)->ipc_dump(sdev);
+		sof_ops(sdev)->ipc_dump(sdev);
 }
 
 /* register IO */
