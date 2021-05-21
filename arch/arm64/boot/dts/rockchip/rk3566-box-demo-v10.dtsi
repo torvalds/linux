@@ -371,8 +371,8 @@
 	status = "okay";
 	pmuio1-supply = <&vcc_3v3>;
 	pmuio2-supply = <&vcc_3v3>;
-	vccio1-supply = <&vcc_1v8>;
-	vccio3-supply = <&vccio_sd>;
+	vccio1-supply = <&vcc_3v3>;
+	vccio3-supply = <&vcc_3v3>;
 	vccio4-supply = <&vcc_1v8>;
 	vccio5-supply = <&vcc_3v3>;
 	vccio6-supply = <&vcc_1v8>;
@@ -413,7 +413,7 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	disable-wp;
-	sd-uhs-sdr104;
+	//sd-uhs-sdr104;
 	vmmc-supply = <&vcc3v3_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	pinctrl-names = "default";
