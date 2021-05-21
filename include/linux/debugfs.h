@@ -126,8 +126,8 @@ void debugfs_create_size_t(const char *name, umode_t mode,
 			   struct dentry *parent, size_t *value);
 void debugfs_create_atomic_t(const char *name, umode_t mode,
 			     struct dentry *parent, atomic_t *value);
-struct dentry *debugfs_create_bool(const char *name, umode_t mode,
-				  struct dentry *parent, bool *value);
+void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
+			 bool *value);
 void debugfs_create_str(const char *name, umode_t mode,
 			struct dentry *parent, char **value);
 
@@ -295,12 +295,8 @@ static inline void debugfs_create_atomic_t(const char *name, umode_t mode,
 					   atomic_t *value)
 { }
 
-static inline struct dentry *debugfs_create_bool(const char *name, umode_t mode,
-						 struct dentry *parent,
-						 bool *value)
-{
-	return ERR_PTR(-ENODEV);
-}
+static inline void debugfs_create_bool(const char *name, umode_t mode,
+				       struct dentry *parent, bool *value) { }
 
 static inline void debugfs_create_str(const char *name, umode_t mode,
 				      struct dentry *parent,
