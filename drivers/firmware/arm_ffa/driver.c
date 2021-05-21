@@ -24,9 +24,12 @@
 
 #include <linux/arm_ffa.h>
 #include <linux/bitfield.h>
+#include <linux/device.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/uuid.h>
 
 #include "common.h"
 
@@ -185,6 +188,22 @@ static int ffa_version_check(u32 *version)
 	return 0;
 }
 
+static int ffa_rx_release(void)
+{
+	ffa_value_t ret;
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_RX_RELEASE,
+		      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	/* check for ret.a0 == FFA_RX_RELEASE ? */
+
+	return 0;
+}
+
 static int ffa_rxtx_map(phys_addr_t tx_buf, phys_addr_t rx_buf, u32 pg_cnt)
 {
 	ffa_value_t ret;
@@ -214,6 +233,65 @@ static int ffa_rxtx_unmap(u16 vm_id)
 	return 0;
 }
 
+/* buffer must be sizeof(struct ffa_partition_info) * num_partitions */
+static int
+__ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
+			 struct ffa_partition_info *buffer, int num_partitions)
+{
+	int count;
+	ffa_value_t partition_info;
+
+	mutex_lock(&drv_info->rx_lock);
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_PARTITION_INFO_GET,
+		      .a1 = uuid0, .a2 = uuid1, .a3 = uuid2, .a4 = uuid3,
+		      }, &partition_info);
+
+	if (partition_info.a0 == FFA_ERROR) {
+		mutex_unlock(&drv_info->rx_lock);
+		return ffa_to_linux_errno((int)partition_info.a2);
+	}
+
+	count = partition_info.a2;
+
+	if (buffer && count <= num_partitions)
+		memcpy(buffer, drv_info->rx_buffer, sizeof(*buffer) * count);
+
+	ffa_rx_release();
+
+	mutex_unlock(&drv_info->rx_lock);
+
+	return count;
+}
+
+/* buffer is allocated and caller must free the same if returned count > 0 */
+static int
+ffa_partition_probe(const uuid_t *uuid, struct ffa_partition_info **buffer)
+{
+	int count;
+	u32 uuid0_4[4];
+	struct ffa_partition_info *pbuf;
+
+	export_uuid((u8 *)uuid0_4, uuid);
+	count = __ffa_partition_info_get(uuid0_4[0], uuid0_4[1], uuid0_4[2],
+					 uuid0_4[3], NULL, 0);
+	if (count <= 0)
+		return count;
+
+	pbuf = kcalloc(count, sizeof(*pbuf), GFP_KERNEL);
+	if (!pbuf)
+		return -ENOMEM;
+
+	count = __ffa_partition_info_get(uuid0_4[0], uuid0_4[1], uuid0_4[2],
+					 uuid0_4[3], pbuf, count);
+	if (count <= 0)
+		kfree(pbuf);
+	else
+		*buffer = pbuf;
+
+	return count;
+}
+
 #define VM_ID_MASK	GENMASK(15, 0)
 static int ffa_id_get(u16 *vm_id)
 {
@@ -229,6 +307,147 @@ static int ffa_id_get(u16 *vm_id)
 	*vm_id = FIELD_GET(VM_ID_MASK, (id.a2));
 
 	return 0;
+}
+
+static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
+				   struct ffa_send_direct_data *data)
+{
+	u32 req_id, resp_id, src_dst_ids = PACK_TARGET_INFO(src_id, dst_id);
+	ffa_value_t ret;
+
+	if (mode_32bit) {
+		req_id = FFA_MSG_SEND_DIRECT_REQ;
+		resp_id = FFA_MSG_SEND_DIRECT_RESP;
+	} else {
+		req_id = FFA_FN_NATIVE(MSG_SEND_DIRECT_REQ);
+		resp_id = FFA_FN_NATIVE(MSG_SEND_DIRECT_RESP);
+	}
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = req_id, .a1 = src_dst_ids, .a2 = 0,
+		      .a3 = data->data0, .a4 = data->data1, .a5 = data->data2,
+		      .a6 = data->data3, .a7 = data->data4,
+		      }, &ret);
+
+	while (ret.a0 == FFA_INTERRUPT)
+		invoke_ffa_fn((ffa_value_t){
+			      .a0 = FFA_RUN, .a1 = ret.a1,
+			      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	if (ret.a0 == resp_id) {
+		data->data0 = ret.a3;
+		data->data1 = ret.a4;
+		data->data2 = ret.a5;
+		data->data3 = ret.a6;
+		data->data4 = ret.a7;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static u32 ffa_api_version_get(void)
+{
+	return drv_info->version;
+}
+
+static int ffa_partition_info_get(const char *uuid_str,
+				  struct ffa_partition_info *buffer)
+{
+	int count;
+	uuid_t uuid;
+	struct ffa_partition_info *pbuf;
+
+	if (uuid_parse(uuid_str, &uuid)) {
+		pr_err("invalid uuid (%s)\n", uuid_str);
+		return -ENODEV;
+	}
+
+	count = ffa_partition_probe(&uuid_null, &pbuf);
+	if (count <= 0)
+		return -ENOENT;
+
+	memcpy(buffer, pbuf, sizeof(*pbuf) * count);
+	kfree(pbuf);
+	return 0;
+}
+
+static void ffa_mode_32bit_set(struct ffa_device *dev)
+{
+	dev->mode_32bit = true;
+}
+
+static int ffa_sync_send_receive(struct ffa_device *dev,
+				 struct ffa_send_direct_data *data)
+{
+	return ffa_msg_send_direct_req(drv_info->vm_id, dev->vm_id,
+				       dev->mode_32bit, data);
+}
+
+static const struct ffa_dev_ops ffa_ops = {
+	.api_version_get = ffa_api_version_get,
+	.partition_info_get = ffa_partition_info_get,
+	.mode_32bit_set = ffa_mode_32bit_set,
+	.sync_send_receive = ffa_sync_send_receive,
+};
+
+const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
+{
+	if (ffa_device_is_valid(dev))
+		return &ffa_ops;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ffa_dev_ops_get);
+
+void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
+{
+	int count, idx;
+	struct ffa_partition_info *pbuf, *tpbuf;
+
+	count = ffa_partition_probe(uuid, &pbuf);
+	if (count <= 0)
+		return;
+
+	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++)
+		if (tpbuf->id == ffa_dev->vm_id)
+			uuid_copy(&ffa_dev->uuid, uuid);
+	kfree(pbuf);
+}
+
+static void ffa_setup_partitions(void)
+{
+	int count, idx;
+	struct ffa_device *ffa_dev;
+	struct ffa_partition_info *pbuf, *tpbuf;
+
+	count = ffa_partition_probe(&uuid_null, &pbuf);
+	if (count <= 0) {
+		pr_info("%s: No partitions found, error %d\n", __func__, count);
+		return;
+	}
+
+	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
+		/* Note that the &uuid_null parameter will require
+		 * ffa_device_match() to find the UUID of this partition id
+		 * with help of ffa_device_match_uuid(). Once the FF-A spec
+		 * is updated to provide correct UUID here for each partition
+		 * as part of the discovery API, we need to pass the
+		 * discovered UUID here instead.
+		 */
+		ffa_dev = ffa_device_register(&uuid_null, tpbuf->id);
+		if (!ffa_dev) {
+			pr_err("%s: failed to register partition ID 0x%x\n",
+			       __func__, tpbuf->id);
+			continue;
+		}
+
+		ffa_dev_set_drvdata(ffa_dev, drv_info);
+	}
+	kfree(pbuf);
 }
 
 static int __init ffa_init(void)
@@ -281,6 +500,8 @@ static int __init ffa_init(void)
 
 	mutex_init(&drv_info->rx_lock);
 	mutex_init(&drv_info->tx_lock);
+
+	ffa_setup_partitions();
 
 	return 0;
 free_pages:

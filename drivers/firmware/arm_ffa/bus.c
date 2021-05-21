@@ -24,6 +24,15 @@ static int ffa_device_match(struct device *dev, struct device_driver *drv)
 	ffa_dev = to_ffa_dev(dev);
 
 	while (!uuid_is_null(&id_table->uuid)) {
+		/*
+		 * FF-A v1.0 doesn't provide discovery of UUIDs, just the
+		 * partition IDs, so fetch the partitions IDs for this
+		 * id_table UUID and assign the UUID to the device if the
+		 * partition ID matches
+		 */
+		if (uuid_is_null(&ffa_dev->uuid))
+			ffa_device_match_uuid(ffa_dev, &id_table->uuid);
+
 		if (uuid_equal(&ffa_dev->uuid, &id_table->uuid))
 			return 1;
 		id_table++;

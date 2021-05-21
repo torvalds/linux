@@ -6,7 +6,6 @@
 #ifndef _LINUX_ARM_FFA_H
 #define _LINUX_ARM_FFA_H
 
-#include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -15,6 +14,7 @@
 /* FFA Bus/Device/Driver related */
 struct ffa_device {
 	int vm_id;
+	bool mode_32bit;
 	uuid_t uuid;
 	struct device dev;
 };
@@ -48,6 +48,7 @@ int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 			const char *mod_name);
 void ffa_driver_unregister(struct ffa_driver *driver);
 bool ffa_device_is_valid(struct ffa_device *ffa_dev);
+const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev);
 
 #else
 static inline
@@ -70,6 +71,11 @@ static inline void ffa_driver_unregister(struct ffa_driver *driver) {}
 static inline
 bool ffa_device_is_valid(struct ffa_device *ffa_dev) { return false; }
 
+static inline
+const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
+{
+	return NULL;
+}
 #endif /* CONFIG_ARM_FFA_TRANSPORT */
 
 #define ffa_register(driver) \
@@ -87,5 +93,36 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev) { return false; }
  */
 #define module_ffa_driver(__ffa_driver)	\
 	module_driver(__ffa_driver, ffa_register, ffa_unregister)
+
+/* FFA transport related */
+struct ffa_partition_info {
+	u16 id;
+	u16 exec_ctxt;
+/* partition supports receipt of direct requests */
+#define FFA_PARTITION_DIRECT_RECV	BIT(0)
+/* partition can send direct requests. */
+#define FFA_PARTITION_DIRECT_SEND	BIT(1)
+/* partition can send and receive indirect messages. */
+#define FFA_PARTITION_INDIRECT_MSG	BIT(2)
+	u32 properties;
+};
+
+/* For use with FFA_MSG_SEND_DIRECT_{REQ,RESP} which pass data via registers */
+struct ffa_send_direct_data {
+	unsigned long data0; /* w3/x3 */
+	unsigned long data1; /* w4/x4 */
+	unsigned long data2; /* w5/x5 */
+	unsigned long data3; /* w6/x6 */
+	unsigned long data4; /* w7/x7 */
+};
+
+struct ffa_dev_ops {
+	u32 (*api_version_get)(void);
+	int (*partition_info_get)(const char *uuid_str,
+				  struct ffa_partition_info *buffer);
+	void (*mode_32bit_set)(struct ffa_device *dev);
+	int (*sync_send_receive)(struct ffa_device *dev,
+				 struct ffa_send_direct_data *data);
+};
 
 #endif /* _LINUX_ARM_FFA_H */
