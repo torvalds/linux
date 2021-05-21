@@ -271,7 +271,7 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 		int errval, int offset, struct nvme_command *cmd,
 		struct nvmf_connect_data *data)
 {
-	int err_sctype = errval & (~NVME_SC_DNR);
+	int err_sctype = errval & ~NVME_SC_DNR;
 
 	switch (err_sctype) {
 	case (NVME_SC_CONNECT_INVALID_PARAM):
