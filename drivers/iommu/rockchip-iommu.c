@@ -682,7 +682,6 @@ static u32 *rk_dte_get_page_table(struct rk_iommu_domain *rk_domain,
 	dte = rk_mk_dte(pt_dma);
 	*dte_addr = dte;
 
-	rk_table_flush(rk_domain, pt_dma, NUM_PT_ENTRIES);
 	rk_table_flush(rk_domain,
 		       rk_domain->dt_dma + dte_index * sizeof(u32), 1);
 done:
@@ -1003,8 +1002,6 @@ static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 		dev_err(dma_dev, "DMA map error for DT\n");
 		goto err_free_dt;
 	}
-
-	rk_table_flush(rk_domain, rk_domain->dt_dma, NUM_DT_ENTRIES);
 
 	spin_lock_init(&rk_domain->iommus_lock);
 	spin_lock_init(&rk_domain->dt_lock);
