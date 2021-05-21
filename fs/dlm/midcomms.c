@@ -28,6 +28,36 @@
 #include "lock.h"
 #include "midcomms.h"
 
+struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
+					     gfp_t allocation, char **ppc)
+{
+	return dlm_lowcomms_get_buffer(nodeid, len, allocation, ppc);
+}
+
+void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
+{
+	dlm_lowcomms_commit_buffer(mh);
+}
+
+void dlm_midcomms_add_member(int nodeid) { }
+
+void dlm_midcomms_remove_member(int nodeid) { }
+
+int dlm_midcomms_start(void)
+{
+	return dlm_lowcomms_start();
+}
+
+void dlm_midcomms_shutdown(void)
+{
+	dlm_lowcomms_shutdown();
+}
+
+int dlm_midcomms_close(int nodeid)
+{
+	return dlm_lowcomms_close(nodeid);
+}
+
 /*
  * Called from the low-level comms layer to process a buffer of
  * commands.
@@ -101,4 +131,3 @@ skip:
 
 	return ret;
 }
-

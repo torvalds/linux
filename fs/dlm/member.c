@@ -15,6 +15,7 @@
 #include "recover.h"
 #include "rcom.h"
 #include "config.h"
+#include "midcomms.h"
 #include "lowcomms.h"
 
 int dlm_slots_version(struct dlm_header *h)
@@ -329,6 +330,7 @@ static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 	memb->nodeid = node->nodeid;
 	memb->weight = node->weight;
 	memb->comm_seq = node->comm_seq;
+	dlm_midcomms_add_member(node->nodeid);
 	add_ordered_member(ls, memb);
 	ls->ls_num_nodes++;
 	return 0;
@@ -359,26 +361,34 @@ int dlm_is_removed(struct dlm_ls *ls, int nodeid)
 	return 0;
 }
 
-static void clear_memb_list(struct list_head *head)
+static void clear_memb_list(struct list_head *head,
+			    void (*after_del)(int nodeid))
 {
 	struct dlm_member *memb;
 
 	while (!list_empty(head)) {
 		memb = list_entry(head->next, struct dlm_member, list);
 		list_del(&memb->list);
+		if (after_del)
+			after_del(memb->nodeid);
 		kfree(memb);
 	}
 }
 
+static void clear_members_cb(int nodeid)
+{
+	dlm_midcomms_remove_member(nodeid);
+}
+
 void dlm_clear_members(struct dlm_ls *ls)
 {
-	clear_memb_list(&ls->ls_nodes);
+	clear_memb_list(&ls->ls_nodes, clear_members_cb);
 	ls->ls_num_nodes = 0;
 }
 
 void dlm_clear_members_gone(struct dlm_ls *ls)
 {
-	clear_memb_list(&ls->ls_nodes_gone);
+	clear_memb_list(&ls->ls_nodes_gone, NULL);
 }
 
 static void make_member_array(struct dlm_ls *ls)
@@ -552,6 +562,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 
 		neg++;
 		list_move(&memb->list, &ls->ls_nodes_gone);
+		dlm_midcomms_remove_member(memb->nodeid);
 		ls->ls_num_nodes--;
 		dlm_lsop_recover_slot(ls, memb);
 	}

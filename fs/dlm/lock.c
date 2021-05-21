@@ -59,7 +59,7 @@
 #include "dlm_internal.h"
 #include <linux/dlm_device.h>
 #include "memory.h"
-#include "lowcomms.h"
+#include "midcomms.h"
 #include "requestqueue.h"
 #include "util.h"
 #include "dir.h"
@@ -3534,10 +3534,10 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 	char *mb;
 
 	/* get_buffer gives us a message handle (mh) that we need to
-	   pass into lowcomms_commit and a message buffer (mb) that we
+	   pass into midcomms_commit and a message buffer (mb) that we
 	   write our data into */
 
-	mh = dlm_lowcomms_get_buffer(to_nodeid, mb_len, GFP_NOFS, &mb);
+	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, GFP_NOFS, &mb);
 	if (!mh)
 		return -ENOBUFS;
 
@@ -3589,7 +3589,7 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 static int send_message(struct dlm_mhandle *mh, struct dlm_message *ms)
 {
 	dlm_message_out(ms);
-	dlm_lowcomms_commit_buffer(mh);
+	dlm_midcomms_commit_mhandle(mh);
 	return 0;
 }
 
