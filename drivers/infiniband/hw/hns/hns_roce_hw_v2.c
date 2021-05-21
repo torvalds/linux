@@ -2057,12 +2057,6 @@ static void set_hem_page_size(struct hns_roce_dev *hr_dev)
 	calc_pg_sz(caps->max_cqes, caps->cqe_sz, caps->cqe_hop_num,
 		   1, &caps->cqe_buf_pg_sz, &caps->cqe_ba_pg_sz, HEM_TYPE_CQE);
 
-	if (caps->cqc_timer_entry_sz)
-		calc_pg_sz(caps->num_cqc_timer, caps->cqc_timer_entry_sz,
-			   caps->cqc_timer_hop_num, caps->cqc_timer_bt_num,
-			   &caps->cqc_timer_buf_pg_sz,
-			   &caps->cqc_timer_ba_pg_sz, HEM_TYPE_CQC_TIMER);
-
 	/* SRQ */
 	if (caps->flags & HNS_ROCE_CAP_FLAG_SRQ) {
 		caps->srqc_ba_pg_sz = 0;
