@@ -1262,6 +1262,10 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 	case HV_X64_MSR_TSC_EMULATION_STATUS:
 		return hv_vcpu->cpuid_cache.features_eax &
 			HV_ACCESS_REENLIGHTENMENT;
+	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
+	case HV_X64_MSR_CRASH_CTL:
+		return hv_vcpu->cpuid_cache.features_edx &
+			HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
 	default:
 		break;
 	}
