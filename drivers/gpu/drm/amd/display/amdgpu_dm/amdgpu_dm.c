@@ -3506,7 +3506,7 @@ static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 			rc = dc_link_set_backlight_level_nits(link[i], true, brightness[i],
 				AUX_BL_DEFAULT_TRANSITION_TIME_MS);
 			if (!rc) {
-				DRM_ERROR("DM: Failed to update backlight via AUX on eDP[%d]\n", i);
+				DRM_DEBUG("DM: Failed to update backlight via AUX on eDP[%d]\n", i);
 				break;
 			}
 		}
@@ -3514,7 +3514,7 @@ static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		for (i = 0; i < dm->num_of_edps; i++) {
 			rc = dc_link_set_backlight_level(dm->backlight_link[i], brightness[i], 0);
 			if (!rc) {
-				DRM_ERROR("DM: Failed to update backlight on eDP[%d]\n", i);
+				DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", i);
 				break;
 			}
 		}
