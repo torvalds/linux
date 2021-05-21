@@ -334,6 +334,9 @@ void __page_pinner_mark_migration_failed_pages(struct list_head *page_list)
 	struct page_ext *page_ext;
 
 	list_for_each_entry(page, page_list, lru) {
+		/* The page will be freed by putback_movable_pages soon */
+		if (page_count(page) == 1)
+			continue;
 		page_ext = lookup_page_ext(page);
 		if (unlikely(!page_ext))
 			continue;
