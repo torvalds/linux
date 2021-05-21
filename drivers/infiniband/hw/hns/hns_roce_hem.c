@@ -271,7 +271,6 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 	if (!hem)
 		return NULL;
 
-	hem->refcount = 0;
 	INIT_LIST_HEAD(&hem->chunk_list);
 
 	order = get_order(hem_alloc_size);
@@ -618,7 +617,7 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 
 	mutex_lock(&table->mutex);
 	if (table->hem[index.buf]) {
-		++table->hem[index.buf]->refcount;
+		refcount_inc(&table->hem[index.buf]->refcount);
 		goto out;
 	}
 
@@ -637,7 +636,7 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 		}
 	}
 
-	++table->hem[index.buf]->refcount;
+	refcount_set(&table->hem[index.buf]->refcount, 1);
 	goto out;
 
 err_alloc:
@@ -663,7 +662,7 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 	mutex_lock(&table->mutex);
 
 	if (table->hem[i]) {
-		++table->hem[i]->refcount;
+		refcount_inc(&table->hem[i]->refcount);
 		goto out;
 	}
 
@@ -686,7 +685,7 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 		goto out;
 	}
 
-	++table->hem[i]->refcount;
+	refcount_set(&table->hem[i]->refcount, 1);
 out:
 	mutex_unlock(&table->mutex);
 	return ret;
@@ -753,11 +752,11 @@ static void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
 		return;
 	}
 
-	mutex_lock(&table->mutex);
-	if (check_refcount && (--table->hem[index.buf]->refcount > 0)) {
-		mutex_unlock(&table->mutex);
+	if (!check_refcount)
+		mutex_lock(&table->mutex);
+	else if (!refcount_dec_and_mutex_lock(&table->hem[index.buf]->refcount,
+					      &table->mutex))
 		return;
-	}
 
 	clear_mhop_hem(hr_dev, table, obj, &mhop, &index);
 	free_mhop_hem(hr_dev, table, &mhop, &index);
@@ -779,16 +778,15 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 	i = (obj & (table->num_obj - 1)) /
 	    (table->table_chunk_size / table->obj_size);
 
-	mutex_lock(&table->mutex);
+	if (!refcount_dec_and_mutex_lock(&table->hem[i]->refcount,
+					 &table->mutex))
+		return;
 
-	if (--table->hem[i]->refcount == 0) {
-		/* Clear HEM base address */
-		if (hr_dev->hw->clear_hem(hr_dev, table, obj, 0))
-			dev_warn(dev, "Clear HEM base address failed.\n");
+	if (hr_dev->hw->clear_hem(hr_dev, table, obj, 0))
+		dev_warn(dev, "failed to clear HEM base address.\n");
 
-		hns_roce_free_hem(hr_dev, table->hem[i]);
-		table->hem[i] = NULL;
-	}
+	hns_roce_free_hem(hr_dev, table->hem[i]);
+	table->hem[i] = NULL;
 
 	mutex_unlock(&table->mutex);
 }

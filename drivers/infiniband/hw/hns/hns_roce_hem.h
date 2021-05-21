@@ -88,8 +88,8 @@ struct hns_roce_hem_chunk {
 };
 
 struct hns_roce_hem {
-	struct list_head	 chunk_list;
-	int			 refcount;
+	struct list_head chunk_list;
+	refcount_t refcount;
 };
 
 struct hns_roce_hem_iter {
