@@ -1246,6 +1246,13 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 	case HV_X64_MSR_STIMER3_COUNT:
 		return hv_vcpu->cpuid_cache.features_eax &
 			HV_MSR_SYNTIMER_AVAILABLE;
+	case HV_X64_MSR_EOI:
+	case HV_X64_MSR_ICR:
+	case HV_X64_MSR_TPR:
+	case HV_X64_MSR_VP_ASSIST_PAGE:
+		return hv_vcpu->cpuid_cache.features_eax &
+			HV_MSR_APIC_ACCESS_AVAILABLE;
+		break;
 	default:
 		break;
 	}
