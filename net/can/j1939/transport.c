@@ -776,7 +776,7 @@ static int j1939_session_tx_dpo(struct j1939_session *session)
 static int j1939_session_tx_dat(struct j1939_session *session)
 {
 	struct j1939_priv *priv = session->priv;
-	struct j1939_sk_buff_cb *skcb;
+	struct j1939_sk_buff_cb *se_skcb;
 	int offset, pkt_done, pkt_end;
 	unsigned int len, pdelay;
 	struct sk_buff *se_skb;
@@ -788,7 +788,7 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 	if (!se_skb)
 		return -ENOBUFS;
 
-	skcb = j1939_skb_to_cb(se_skb);
+	se_skcb = j1939_skb_to_cb(se_skb);
 	tpdat = se_skb->data;
 	ret = 0;
 	pkt_done = 0;
@@ -800,7 +800,7 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 
 	while (session->pkt.tx < pkt_end) {
 		dat[0] = session->pkt.tx - session->pkt.dpo + 1;
-		offset = (session->pkt.tx * 7) - skcb->offset;
+		offset = (session->pkt.tx * 7) - se_skcb->offset;
 		len =  se_skb->len - offset;
 		if (len > 7)
 			len = 7;
@@ -808,7 +808,7 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 		if (offset + len > se_skb->len) {
 			netdev_err_once(priv->ndev,
 					"%s: 0x%p: requested data outside of queued buffer: offset %i, len %i, pkt.tx: %i\n",
-					__func__, session, skcb->offset,
+					__func__, session, se_skcb->offset,
 					se_skb->len , session->pkt.tx);
 			ret = -EOVERFLOW;
 			goto out_free;
