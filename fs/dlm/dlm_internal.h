@@ -754,11 +754,15 @@ void dlm_register_debugfs(void);
 void dlm_unregister_debugfs(void);
 void dlm_create_debug_file(struct dlm_ls *ls);
 void dlm_delete_debug_file(struct dlm_ls *ls);
+void *dlm_create_debug_comms_file(int nodeid, void *data);
+void dlm_delete_debug_comms_file(void *ctx);
 #else
 static inline void dlm_register_debugfs(void) { }
 static inline void dlm_unregister_debugfs(void) { }
 static inline void dlm_create_debug_file(struct dlm_ls *ls) { }
 static inline void dlm_delete_debug_file(struct dlm_ls *ls) { }
+static inline void *dlm_create_debug_comms_file(int nodeid, void *data) { return NULL; }
+static inline void dlm_delete_debug_comms_file(void *ctx) { }
 #endif
 
 #endif				/* __DLM_INTERNAL_DOT_H__ */

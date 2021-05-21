@@ -189,6 +189,9 @@ struct midcomms_node {
 	 */
 	int users;
 
+	/* not protected by srcu, node_hash lifetime */
+	void *debugfs;
+
 	struct hlist_node hlist;
 	struct rcu_head rcu;
 };
@@ -242,6 +245,26 @@ static inline const char *dlm_state_str(int state)
 	default:
 		return "UNKNOWN";
 	}
+}
+
+const char *dlm_midcomms_state(struct midcomms_node *node)
+{
+	return dlm_state_str(node->state);
+}
+
+unsigned long dlm_midcomms_flags(struct midcomms_node *node)
+{
+	return node->flags;
+}
+
+int dlm_midcomms_send_queue_cnt(struct midcomms_node *node)
+{
+	return atomic_read(&node->send_queue_cnt);
+}
+
+uint32_t dlm_midcomms_version(struct midcomms_node *node)
+{
+	return node->version;
 }
 
 static struct midcomms_node *__find_node(int nodeid, int r)
@@ -332,6 +355,8 @@ static struct midcomms_node *nodeid2node(int nodeid, gfp_t alloc)
 
 	hlist_add_head_rcu(&node->hlist, &node_hash[r]);
 	spin_unlock(&nodes_lock);
+
+	node->debugfs = dlm_create_debug_comms_file(nodeid, node);
 	return node;
 }
 
@@ -1284,6 +1309,8 @@ void dlm_midcomms_shutdown(void)
 	for (i = 0; i < CONN_HASH_SIZE; i++) {
 		hlist_for_each_entry_rcu(node, &node_hash[i], hlist) {
 			midcomms_shutdown(node);
+
+			dlm_delete_debug_comms_file(node->debugfs);
 
 			spin_lock(&nodes_lock);
 			hlist_del_rcu(&node->hlist);
