@@ -176,6 +176,12 @@ struct nfsd_net {
 	unsigned int             longest_chain_cachesize;
 
 	struct shrinker		nfsd_reply_cache_shrinker;
+
+	/* tracking server-to-server copy mounts */
+	spinlock_t              nfsd_ssc_lock;
+	struct list_head        nfsd_ssc_mount_list;
+	wait_queue_head_t       nfsd_ssc_waitq;
+
 	/* utsname taken from the process that starts the server */
 	char			nfsd_name[UNX_MAXNODENAME+1];
 };
