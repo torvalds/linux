@@ -6061,7 +6061,8 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	 * (since logging them is pointless, a link count of 0 means they
 	 * will never be accessible).
 	 */
-	if (btrfs_inode_in_log(inode, trans->transid) ||
+	if ((btrfs_inode_in_log(inode, trans->transid) &&
+	     list_empty(&ctx->ordered_extents)) ||
 	    inode->vfs_inode.i_nlink == 0) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
@@ -6461,6 +6462,24 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	if (inode->logged_trans < trans->transid &&
 	    (!old_dir || old_dir->logged_trans < trans->transid))
 		return;
+
+	/*
+	 * If we are doing a rename (old_dir is not NULL) from a directory that
+	 * was previously logged, make sure the next log attempt on the directory
+	 * is not skipped and logs the inode again. This is because the log may
+	 * not currently be authoritative for a range including the old
+	 * BTRFS_DIR_ITEM_KEY and BTRFS_DIR_INDEX_KEY keys, so we want to make
+	 * sure after a log replay we do not end up with both the new and old
+	 * dentries around (in case the inode is a directory we would have a
+	 * directory with two hard links and 2 inode references for different
+	 * parents). The next log attempt of old_dir will happen at
+	 * btrfs_log_all_parents(), called through btrfs_log_inode_parent()
+	 * below, because we have previously set inode->last_unlink_trans to the
+	 * current transaction ID, either here or at btrfs_record_unlink_dir() in
+	 * case inode is a directory.
+	 */
+	if (old_dir)
+		old_dir->logged_trans = 0;
 
 	btrfs_init_log_ctx(&ctx, &inode->vfs_inode);
 	ctx.logging_new_name = true;

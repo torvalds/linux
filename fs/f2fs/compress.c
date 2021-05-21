@@ -117,19 +117,6 @@ static void f2fs_unlock_rpages(struct compress_ctx *cc, int len)
 	f2fs_drop_rpages(cc, len, true);
 }
 
-static void f2fs_put_rpages_mapping(struct address_space *mapping,
-				pgoff_t start, int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++) {
-		struct page *page = find_get_page(mapping, start + i);
-
-		put_page(page);
-		put_page(page);
-	}
-}
-
 static void f2fs_put_rpages_wbc(struct compress_ctx *cc,
 		struct writeback_control *wbc, bool redirty, int unlock)
 {
@@ -158,13 +145,14 @@ int f2fs_init_compress_ctx(struct compress_ctx *cc)
 	return cc->rpages ? 0 : -ENOMEM;
 }
 
-void f2fs_destroy_compress_ctx(struct compress_ctx *cc)
+void f2fs_destroy_compress_ctx(struct compress_ctx *cc, bool reuse)
 {
 	page_array_free(cc->inode, cc->rpages, cc->cluster_size);
 	cc->rpages = NULL;
 	cc->nr_rpages = 0;
 	cc->nr_cpages = 0;
-	cc->cluster_idx = NULL_CLUSTER;
+	if (!reuse)
+		cc->cluster_idx = NULL_CLUSTER;
 }
 
 void f2fs_compress_ctx_add_page(struct compress_ctx *cc, struct page *page)
@@ -1036,7 +1024,7 @@ retry:
 		}
 
 		if (PageUptodate(page))
-			unlock_page(page);
+			f2fs_put_page(page, 1);
 		else
 			f2fs_compress_ctx_add_page(cc, page);
 	}
@@ -1046,33 +1034,35 @@ retry:
 
 		ret = f2fs_read_multi_pages(cc, &bio, cc->cluster_size,
 					&last_block_in_bio, false, true);
-		f2fs_destroy_compress_ctx(cc);
+		f2fs_put_rpages(cc);
+		f2fs_destroy_compress_ctx(cc, true);
 		if (ret)
-			goto release_pages;
+			goto out;
 		if (bio)
 			f2fs_submit_bio(sbi, bio, DATA);
 
 		ret = f2fs_init_compress_ctx(cc);
 		if (ret)
-			goto release_pages;
+			goto out;
 	}
 
 	for (i = 0; i < cc->cluster_size; i++) {
 		f2fs_bug_on(sbi, cc->rpages[i]);
 
 		page = find_lock_page(mapping, start_idx + i);
-		f2fs_bug_on(sbi, !page);
+		if (!page) {
+			/* page can be truncated */
+			goto release_and_retry;
+		}
 
 		f2fs_wait_on_page_writeback(page, DATA, true, true);
-
 		f2fs_compress_ctx_add_page(cc, page);
-		f2fs_put_page(page, 0);
 
 		if (!PageUptodate(page)) {
+release_and_retry:
+			f2fs_put_rpages(cc);
 			f2fs_unlock_rpages(cc, i + 1);
-			f2fs_put_rpages_mapping(mapping, start_idx,
-					cc->cluster_size);
-			f2fs_destroy_compress_ctx(cc);
+			f2fs_destroy_compress_ctx(cc, true);
 			goto retry;
 		}
 	}
@@ -1103,10 +1093,10 @@ retry:
 	}
 
 unlock_pages:
+	f2fs_put_rpages(cc);
 	f2fs_unlock_rpages(cc, i);
-release_pages:
-	f2fs_put_rpages_mapping(mapping, start_idx, i);
-	f2fs_destroy_compress_ctx(cc);
+	f2fs_destroy_compress_ctx(cc, true);
+out:
 	return ret;
 }
 
@@ -1141,7 +1131,7 @@ bool f2fs_compress_write_end(struct inode *inode, void *fsdata,
 		set_cluster_dirty(&cc);
 
 	f2fs_put_rpages_wbc(&cc, NULL, false, 1);
-	f2fs_destroy_compress_ctx(&cc);
+	f2fs_destroy_compress_ctx(&cc, false);
 
 	return first_index;
 }
@@ -1361,7 +1351,7 @@ unlock_continue:
 	f2fs_put_rpages(cc);
 	page_array_free(cc->inode, cc->cpages, cc->nr_cpages);
 	cc->cpages = NULL;
-	f2fs_destroy_compress_ctx(cc);
+	f2fs_destroy_compress_ctx(cc, false);
 	return 0;
 
 out_destroy_crypt:
@@ -1372,7 +1362,8 @@ out_destroy_crypt:
 	for (i = 0; i < cc->nr_cpages; i++) {
 		if (!cc->cpages[i])
 			continue;
-		f2fs_put_page(cc->cpages[i], 1);
+		f2fs_compress_free_page(cc->cpages[i]);
+		cc->cpages[i] = NULL;
 	}
 out_put_cic:
 	kmem_cache_free(cic_entry_slab, cic);
@@ -1522,7 +1513,7 @@ write:
 	err = f2fs_write_raw_pages(cc, submitted, wbc, io_type);
 	f2fs_put_rpages_wbc(cc, wbc, false, 0);
 destroy_out:
-	f2fs_destroy_compress_ctx(cc);
+	f2fs_destroy_compress_ctx(cc, false);
 	return err;
 }
 

@@ -140,7 +140,7 @@ is an arbitrary string allowed in a filesystem, e.g.::
 Each function provides its specific set of attributes, with either read-only
 or read-write access. Where applicable they need to be written to as
 appropriate.
-Please refer to Documentation/ABI/*/configfs-usb-gadget* for more information.
+Please refer to Documentation/ABI/testing/configfs-usb-gadget for more information.
 
 4. Associating the functions with their configurations
 ------------------------------------------------------
