@@ -825,11 +825,21 @@
 	}
 
 /*
+ * Keep .eh_frame with CFI.
+ */
+#ifdef CONFIG_CFI_CLANG
+#define EH_FRAME .eh_frame : { *(.eh_frame) }
+#else
+#define EH_FRAME
+#endif
+
+/*
  * DWARF debug sections.
  * Symbols in the DWARF debugging sections are relative to
  * the beginning of the section so we begin them at 0.
  */
 #define DWARF_DEBUG							\
+		EH_FRAME						\
 		/* DWARF 1 */						\
 		.debug          0 : { *(.debug) }			\
 		.line           0 : { *(.line) }			\
