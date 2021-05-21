@@ -1266,6 +1266,10 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 	case HV_X64_MSR_CRASH_CTL:
 		return hv_vcpu->cpuid_cache.features_edx &
 			HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
+	case HV_X64_MSR_SYNDBG_OPTIONS:
+	case HV_X64_MSR_SYNDBG_CONTROL ... HV_X64_MSR_SYNDBG_PENDING_BUFFER:
+		return hv_vcpu->cpuid_cache.features_edx &
+			HV_FEATURE_DEBUG_MSRS_AVAILABLE;
 	default:
 		break;
 	}
