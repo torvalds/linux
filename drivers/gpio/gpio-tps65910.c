@@ -165,16 +165,8 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	}
 
 skip_init:
-	ret = devm_gpiochip_add_data(&pdev->dev, &tps65910_gpio->gpio_chip,
-				     tps65910_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, tps65910_gpio);
-
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &tps65910_gpio->gpio_chip,
+				      tps65910_gpio);
 }
 
 static struct platform_driver tps65910_gpio_driver = {
