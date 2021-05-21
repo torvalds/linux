@@ -286,6 +286,7 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 
 	memset(&b->nr, 0, sizeof(b->nr));
 	b->data->magic = cpu_to_le64(bset_magic(c));
+	memset(&b->data->_ptr, 0, sizeof(b->data->_ptr));
 	b->data->flags = 0;
 	SET_BTREE_NODE_ID(b->data, as->btree_id);
 	SET_BTREE_NODE_LEVEL(b->data, level);
