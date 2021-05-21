@@ -54,7 +54,7 @@
 
 static int sca_poll(struct napi_struct *napi, int budget);
 
-static inline port_t* dev_to_port(struct net_device *dev)
+static inline port_t *dev_to_port(struct net_device *dev)
 {
 	return dev_to_hdlc(dev)->priv;
 }
@@ -186,7 +186,7 @@ static void sca_init_port(port_t *port)
 static inline void sca_msci_intr(port_t *port)
 {
 	u16 msci = get_msci(port);
-	card_t* card = port->card;
+	card_t *card = port->card;
 
 	if (sca_in(msci + ST1, card) & ST1_CDCD) {
 		/* Reset MSCI CDCD status bit */
@@ -286,7 +286,7 @@ static inline int sca_rx_done(port_t *port, int budget)
 static inline void sca_tx_done(port_t *port)
 {
 	struct net_device *dev = port->netdev;
-	card_t* card = port->card;
+	card_t *card = port->card;
 	u8 stat;
 	unsigned count = 0;
 
@@ -366,7 +366,7 @@ static irqreturn_t sca_intr(int irq, void *dev_id)
 
 static void sca_set_port(port_t *port)
 {
-	card_t* card = port->card;
+	card_t *card = port->card;
 	u16 msci = get_msci(port);
 	u8 md2 = sca_in(msci + MD2, card);
 	unsigned int tmc, br = 10, brv = 1024;
@@ -421,7 +421,7 @@ static void sca_set_port(port_t *port)
 static void sca_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
-	card_t* card = port->card;
+	card_t *card = port->card;
 	u16 msci = get_msci(port);
 	u8 md0, md2;
 
