@@ -153,7 +153,20 @@
 				phy1: ethernet-phy@1 {
 					reg = <1>;
 				};
+
+				phy2: ethernet-phy@2 {
+					reg = <2>;
+				};
 			};
+		};
+
+		ethernet@c800c000 {
+			status = "ok";
+			queue-rx = <&qmgr 2>;
+			queue-txready = <&qmgr 19>;
+			phy-mode = "rgmii";
+			phy-handle = <&phy2>;
+			intel,npe-handle = <&npe 0>;
 		};
 	};
 };

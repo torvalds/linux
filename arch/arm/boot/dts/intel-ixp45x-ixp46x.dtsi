@@ -31,17 +31,6 @@
 			status = "disabled";
 		};
 
-		/* This is known as EthA */
-		ethernet@c800c000 {
-			compatible = "intel,ixp4xx-ethernet";
-			reg = <0xc800c000 0x1000>;
-			status = "disabled";
-			intel,npe = <0>;
-			/* Dummy values that depend on firmware */
-			queue-rx = <&qmgr 0>;
-			queue-txready = <&qmgr 0>;
-		};
-
 		/* This is known as EthB1 */
 		ethernet@c800d000 {
 			compatible = "intel,ixp4xx-ethernet";
