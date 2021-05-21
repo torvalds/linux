@@ -1253,6 +1253,10 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 		return hv_vcpu->cpuid_cache.features_eax &
 			HV_MSR_APIC_ACCESS_AVAILABLE;
 		break;
+	case HV_X64_MSR_TSC_FREQUENCY:
+	case HV_X64_MSR_APIC_FREQUENCY:
+		return hv_vcpu->cpuid_cache.features_eax &
+			HV_ACCESS_FREQUENCY_MSRS;
 	default:
 		break;
 	}
