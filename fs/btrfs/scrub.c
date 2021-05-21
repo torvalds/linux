@@ -2486,7 +2486,7 @@ static void drop_csum_range(struct scrub_ctx *sctx, struct btrfs_ordered_sum *su
  * the csum into @csum.
  *
  * The search source is sctx->csum_list, which is a pre-populated list
- * storing bytenr ordered csum ranges.  We're reponsible to cleanup any range
+ * storing bytenr ordered csum ranges.  We're responsible to cleanup any range
  * that is before @logical.
  *
  * Return 0 if there is no csum for the range.

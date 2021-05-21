@@ -2784,7 +2784,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	/*
 	 * If we dropped an inline extent here, we know the range where it is
 	 * was not marked with the EXTENT_DELALLOC_NEW bit, so we update the
-	 * number of bytes only for that range contaning the inline extent.
+	 * number of bytes only for that range containing the inline extent.
 	 * The remaining of the range will be processed when clearning the
 	 * EXTENT_DELALLOC_BIT bit through the ordered extent completion.
 	 */
@@ -4114,7 +4114,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	 * This is a placeholder inode for a subvolume we didn't have a
 	 * reference to at the time of the snapshot creation.  In the meantime
 	 * we could have renamed the real subvol link into our snapshot, so
-	 * depending on btrfs_del_root_ref to return -ENOENT here is incorret.
+	 * depending on btrfs_del_root_ref to return -ENOENT here is incorrect.
 	 * Instead simply lookup the dir_index_item for this entry so we can
 	 * remove it.  Otherwise we know we have a ref to the root and we can
 	 * call btrfs_del_root_ref, and it _shouldn't_ fail.

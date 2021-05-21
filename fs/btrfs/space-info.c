@@ -389,7 +389,7 @@ again:
 
 		ticket = list_first_entry(head, struct reserve_ticket, list);
 
-		/* Check and see if our ticket can be satisified now. */
+		/* Check and see if our ticket can be satisfied now. */
 		if ((used + ticket->bytes <= space_info->total_bytes) ||
 		    btrfs_can_overcommit(fs_info, space_info, ticket->bytes,
 					 flush)) {
@@ -961,7 +961,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		 * if it doesn't feel like the space reclaimed by the commit
 		 * would result in the ticket succeeding.  However if we have a
 		 * smaller ticket in the queue it may be small enough to be
-		 * satisified by committing the transaction, so if any
+		 * satisfied by committing the transaction, so if any
 		 * subsequent ticket is smaller than the first ticket go ahead
 		 * and send us back for another loop through the enospc flushing
 		 * code.

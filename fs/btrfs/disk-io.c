@@ -3471,7 +3471,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 * At this point we know all the devices that make this filesystem,
 	 * including the seed devices but we don't know yet if the replace
 	 * target is required. So free devices that are not part of this
-	 * filesystem but skip the replace traget device which is checked
+	 * filesystem but skip the replace target device which is checked
 	 * below in btrfs_init_dev_replace().
 	 */
 	btrfs_free_extra_devids(fs_devices);

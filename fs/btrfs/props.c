@@ -348,7 +348,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 
 		/*
 		 * This is not strictly necessary as the property should be
-		 * valid, but in case it isn't, don't propagate it futher.
+		 * valid, but in case it isn't, don't propagate it further.
 		 */
 		ret = h->validate(value, strlen(value));
 		if (ret)

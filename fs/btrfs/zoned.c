@@ -81,7 +81,7 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 	 *   *: Special case, no superblock is written
 	 *   0: Use write pointer of zones[0]
 	 *   1: Use write pointer of zones[1]
-	 *   C: Compare super blcoks from zones[0] and zones[1], use the latest
+	 *   C: Compare super blocks from zones[0] and zones[1], use the latest
 	 *      one determined by generation
 	 *   x: Invalid state
 	 */
@@ -433,7 +433,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 		}
 
 		/*
-		 * If zones[0] is conventional, always use the beggining of the
+		 * If zones[0] is conventional, always use the beginning of the
 		 * zone to record superblock. No need to validate in that case.
 		 */
 		if (zone_info->sb_zones[BTRFS_NR_SB_LOG_ZONES * i].type ==

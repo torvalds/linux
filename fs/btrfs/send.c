@@ -6514,7 +6514,7 @@ static int changed_extent(struct send_ctx *sctx,
 	 * updates the inode item, but it only changes the iversion (sequence
 	 * field in the inode item) of the inode, so if a file is deduplicated
 	 * the same amount of times in both the parent and send snapshots, its
-	 * iversion becames the same in both snapshots, whence the inode item is
+	 * iversion becomes the same in both snapshots, whence the inode item is
 	 * the same on both snapshots.
 	 */
 	if (sctx->cur_ino != sctx->cmp_key->objectid)

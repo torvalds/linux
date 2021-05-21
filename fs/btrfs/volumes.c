@@ -717,7 +717,7 @@ static struct btrfs_fs_devices *find_fsid_changed(
 
 	/*
 	 * Handles the case where scanned device is part of an fs that had
-	 * multiple successful changes of FSID but curently device didn't
+	 * multiple successful changes of FSID but currently device didn't
 	 * observe it. Meaning our fsid will be different than theirs. We need
 	 * to handle two subcases :
 	 *  1 - The fs still continues to have different METADATA/FSID uuids.
@@ -1550,7 +1550,7 @@ static bool dev_extent_hole_check(struct btrfs_device *device, u64 *hole_start,
  * check to ensure dev extents are not double allocated.
  * This makes the function safe to allocate dev extents but may not report
  * correct usable device space, as device extent freed in current transaction
- * is not reported as avaiable.
+ * is not reported as available.
  */
 static int find_free_dev_extent_start(struct btrfs_device *device,
 				u64 num_bytes, u64 search_start, u64 *start,
@@ -6152,7 +6152,7 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *em,
 	offset = logical - em->start;
 	/* Len of a stripe in a chunk */
 	stripe_len = map->stripe_len;
-	/* Stripe wher this block falls in */
+	/* Stripe where this block falls in */
 	stripe_nr = div64_u64(offset, stripe_len);
 	/* Offset of stripe in the chunk */
 	stripe_offset = stripe_nr * stripe_len;
@@ -7863,7 +7863,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 		ret = -EUCLEAN;
 	}
 
-	/* Make sure no dev extent is beyond device bondary */
+	/* Make sure no dev extent is beyond device boundary */
 	dev = btrfs_find_device(fs_info->fs_devices, devid, NULL, NULL);
 	if (!dev) {
 		btrfs_err(fs_info, "failed to find devid %llu", devid);

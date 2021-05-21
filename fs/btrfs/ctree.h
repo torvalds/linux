@@ -2757,9 +2757,9 @@ enum btrfs_reserve_flush_enum {
 	/*
 	 * Flush space by above mentioned methods and by:
 	 * - Running delayed iputs
-	 * - Commiting transaction
+	 * - Committing transaction
 	 *
-	 * Can be interruped by fatal signal.
+	 * Can be interrupted by a fatal signal.
 	 */
 	BTRFS_RESERVE_FLUSH_DATA,
 	BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE,
@@ -2769,7 +2769,7 @@ enum btrfs_reserve_flush_enum {
 	 * Pretty much the same as FLUSH_ALL, but can also steal space from
 	 * global rsv.
 	 *
-	 * Can be interruped by fatal signal.
+	 * Can be interrupted by a fatal signal.
 	 */
 	BTRFS_RESERVE_FLUSH_ALL_STEAL,
 };
