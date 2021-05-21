@@ -1257,6 +1257,11 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 	case HV_X64_MSR_APIC_FREQUENCY:
 		return hv_vcpu->cpuid_cache.features_eax &
 			HV_ACCESS_FREQUENCY_MSRS;
+	case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+	case HV_X64_MSR_TSC_EMULATION_CONTROL:
+	case HV_X64_MSR_TSC_EMULATION_STATUS:
+		return hv_vcpu->cpuid_cache.features_eax &
+			HV_ACCESS_REENLIGHTENMENT;
 	default:
 		break;
 	}
