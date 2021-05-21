@@ -1060,12 +1060,16 @@ static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf,
 			(offset & ((1 << buf->trunk_shift) - 1));
 }
 
-static inline dma_addr_t hns_roce_buf_page(struct hns_roce_buf *buf, u32 idx)
+static inline dma_addr_t hns_roce_buf_dma_addr(struct hns_roce_buf *buf,
+					       unsigned int offset)
 {
-	unsigned int offset = idx << buf->page_shift;
-
 	return buf->trunk_list[offset >> buf->trunk_shift].map +
 			(offset & ((1 << buf->trunk_shift) - 1));
+}
+
+static inline dma_addr_t hns_roce_buf_page(struct hns_roce_buf *buf, u32 idx)
+{
+	return hns_roce_buf_dma_addr(buf, idx << buf->page_shift);
 }
 
 #define hr_hw_page_align(x)		ALIGN(x, 1 << HNS_HW_PAGE_SHIFT)
@@ -1204,9 +1208,10 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 					u32 page_shift, u32 flags);
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
-			   int buf_cnt, int start, struct hns_roce_buf *buf);
+			   int buf_cnt, struct hns_roce_buf *buf,
+			   unsigned int page_shift);
 int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
-			   int buf_cnt, int start, struct ib_umem *umem,
+			   int buf_cnt, struct ib_umem *umem,
 			   unsigned int page_shift);
 
 int hns_roce_create_srq(struct ib_srq *srq,

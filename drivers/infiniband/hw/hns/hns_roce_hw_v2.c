@@ -2018,6 +2018,8 @@ static void set_hem_page_size(struct hns_roce_dev *hr_dev)
 	caps->llm_buf_pg_sz = 0;
 
 	/* MR */
+	caps->mpt_ba_pg_sz = 0;
+	caps->mpt_buf_pg_sz = 0;
 	caps->pbl_ba_pg_sz = HNS_ROCE_BA_PG_SZ_SUPPORTED_16K;
 	caps->pbl_buf_pg_sz = 0;
 	calc_pg_sz(caps->num_mtpts, caps->mtpt_entry_sz, caps->mpt_hop_num,
@@ -2025,8 +2027,12 @@ static void set_hem_page_size(struct hns_roce_dev *hr_dev)
 		   HEM_TYPE_MTPT);
 
 	/* QP */
-	caps->qpc_timer_ba_pg_sz  = 0;
+	caps->qpc_ba_pg_sz = 0;
+	caps->qpc_buf_pg_sz = 0;
+	caps->qpc_timer_ba_pg_sz = 0;
 	caps->qpc_timer_buf_pg_sz = 0;
+	caps->sccc_ba_pg_sz = 0;
+	caps->sccc_buf_pg_sz = 0;
 	caps->mtt_ba_pg_sz = 0;
 	caps->mtt_buf_pg_sz = 0;
 	calc_pg_sz(caps->num_qps, caps->qpc_sz, caps->qpc_hop_num,
@@ -2039,6 +2045,12 @@ static void set_hem_page_size(struct hns_roce_dev *hr_dev)
 			   &caps->sccc_ba_pg_sz, HEM_TYPE_SCCC);
 
 	/* CQ */
+	caps->cqc_ba_pg_sz = 0;
+	caps->cqc_buf_pg_sz = 0;
+	caps->cqc_timer_ba_pg_sz = 0;
+	caps->cqc_timer_buf_pg_sz = 0;
+	caps->cqe_ba_pg_sz = HNS_ROCE_BA_PG_SZ_SUPPORTED_256K;
+	caps->cqe_buf_pg_sz = 0;
 	calc_pg_sz(caps->num_cqs, caps->cqc_entry_sz, caps->cqc_hop_num,
 		   caps->cqc_bt_num, &caps->cqc_buf_pg_sz, &caps->cqc_ba_pg_sz,
 		   HEM_TYPE_CQC);
@@ -2053,6 +2065,12 @@ static void set_hem_page_size(struct hns_roce_dev *hr_dev)
 
 	/* SRQ */
 	if (caps->flags & HNS_ROCE_CAP_FLAG_SRQ) {
+		caps->srqc_ba_pg_sz = 0;
+		caps->srqc_buf_pg_sz = 0;
+		caps->srqwqe_ba_pg_sz = 0;
+		caps->srqwqe_buf_pg_sz = 0;
+		caps->idx_ba_pg_sz = 0;
+		caps->idx_buf_pg_sz = 0;
 		calc_pg_sz(caps->num_srqs, caps->srqc_entry_sz,
 			   caps->srqc_hop_num, caps->srqc_bt_num,
 			   &caps->srqc_buf_pg_sz, &caps->srqc_ba_pg_sz,
@@ -6161,14 +6179,14 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 	else
 		eq->hop_num = hr_dev->caps.eqe_hop_num;
 
-	buf_attr.page_shift = hr_dev->caps.eqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
+	buf_attr.page_shift = hr_dev->caps.eqe_buf_pg_sz + PAGE_SHIFT;
 	buf_attr.region[0].size = eq->entries * eq->eqe_size;
 	buf_attr.region[0].hopnum = eq->hop_num;
 	buf_attr.region_count = 1;
 
 	err = hns_roce_mtr_create(hr_dev, &eq->mtr, &buf_attr,
-				  hr_dev->caps.eqe_ba_pg_sz +
-				  HNS_HW_PAGE_SHIFT, NULL, 0);
+				  hr_dev->caps.eqe_ba_pg_sz + PAGE_SHIFT, NULL,
+				  0);
 	if (err)
 		dev_err(hr_dev->dev, "Failed to alloc EQE mtr, err %d\n", err);
 

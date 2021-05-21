@@ -208,10 +208,10 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 
 	/* Calc the trunk size and num by required size and page_shift */
 	if (flags & HNS_ROCE_BUF_DIRECT) {
-		buf->trunk_shift = ilog2(ALIGN(size, PAGE_SIZE));
+		buf->trunk_shift = order_base_2(ALIGN(size, PAGE_SIZE));
 		ntrunk = 1;
 	} else {
-		buf->trunk_shift = ilog2(ALIGN(page_size, PAGE_SIZE));
+		buf->trunk_shift = order_base_2(ALIGN(page_size, PAGE_SIZE));
 		ntrunk = DIV_ROUND_UP(size, 1 << buf->trunk_shift);
 	}
 
@@ -252,50 +252,41 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 }
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
-			   int buf_cnt, int start, struct hns_roce_buf *buf)
+			   int buf_cnt, struct hns_roce_buf *buf,
+			   unsigned int page_shift)
 {
-	int i, end;
-	int total;
+	unsigned int offset, max_size;
+	int total = 0;
+	int i;
 
-	end = start + buf_cnt;
-	if (end > buf->npages) {
-		dev_err(hr_dev->dev,
-			"failed to check kmem bufs, end %d + %d total %u!\n",
-			start, buf_cnt, buf->npages);
+	if (page_shift > buf->trunk_shift) {
+		dev_err(hr_dev->dev, "failed to check kmem buf shift %u > %u\n",
+			page_shift, buf->trunk_shift);
 		return -EINVAL;
 	}
 
-	total = 0;
-	for (i = start; i < end; i++)
-		bufs[total++] = hns_roce_buf_page(buf, i);
+	offset = 0;
+	max_size = buf->ntrunks << buf->trunk_shift;
+	for (i = 0; i < buf_cnt && offset < max_size; i++) {
+		bufs[total++] = hns_roce_buf_dma_addr(buf, offset);
+		offset += (1 << page_shift);
+	}
 
 	return total;
 }
 
 int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
-			   int buf_cnt, int start, struct ib_umem *umem,
+			   int buf_cnt, struct ib_umem *umem,
 			   unsigned int page_shift)
 {
 	struct ib_block_iter biter;
 	int total = 0;
-	int idx = 0;
-	u64 addr;
-
-	if (page_shift < HNS_HW_PAGE_SHIFT) {
-		dev_err(hr_dev->dev, "failed to check umem page shift %u!\n",
-			page_shift);
-		return -EINVAL;
-	}
 
 	/* convert system page cnt to hw page cnt */
 	rdma_umem_for_each_dma_block(umem, &biter, 1 << page_shift) {
-		addr = rdma_block_iter_dma_address(&biter);
-		if (idx >= start) {
-			bufs[total++] = addr;
-			if (total >= buf_cnt)
-				goto done;
-		}
-		idx++;
+		bufs[total++] = rdma_block_iter_dma_address(&biter);
+		if (total >= buf_cnt)
+			goto done;
 	}
 
 done:

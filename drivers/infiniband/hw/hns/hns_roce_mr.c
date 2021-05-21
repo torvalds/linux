@@ -122,7 +122,7 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 	buf_attr.mtt_only = is_fast;
 
 	err = hns_roce_mtr_create(hr_dev, &mr->pbl_mtr, &buf_attr,
-				  hr_dev->caps.pbl_ba_pg_sz + HNS_HW_PAGE_SHIFT,
+				  hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT,
 				  udata, start);
 	if (err)
 		ibdev_err(ibdev, "failed to alloc pbl mtr, ret = %d.\n", err);
@@ -737,11 +737,11 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		return -ENOMEM;
 
 	if (mtr->umem)
-		npage = hns_roce_get_umem_bufs(hr_dev, pages, page_count, 0,
+		npage = hns_roce_get_umem_bufs(hr_dev, pages, page_count,
 					       mtr->umem, page_shift);
 	else
-		npage = hns_roce_get_kmem_bufs(hr_dev, pages, page_count, 0,
-					       mtr->kmem);
+		npage = hns_roce_get_kmem_bufs(hr_dev, pages, page_count,
+					       mtr->kmem, page_shift);
 
 	if (npage != page_count) {
 		ibdev_err(ibdev, "failed to get mtr page %d != %d.\n", npage,
@@ -753,8 +753,8 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	if (mtr->hem_cfg.is_direct && npage > 1) {
 		ret = mtr_check_direct_pages(pages, npage, page_shift);
 		if (ret) {
-			ibdev_err(ibdev, "failed to check %s mtr, idx = %d.\n",
-				  mtr->umem ? "user" : "kernel", ret);
+			ibdev_err(ibdev, "failed to check %s page: %d / %d.\n",
+				  mtr->umem ? "umtr" : "kmtr", ret, npage);
 			ret = -ENOBUFS;
 			goto err_alloc_list;
 		}
@@ -799,7 +799,7 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		if (r->offset + r->count > page_cnt) {
 			ret = -EINVAL;
 			ibdev_err(ibdev,
-				  "failed to check mtr%u end %u + %u, max %u.\n",
+				  "failed to check mtr%u count %u + %u > %u.\n",
 				  i, r->offset, r->count, page_cnt);
 			return ret;
 		}
