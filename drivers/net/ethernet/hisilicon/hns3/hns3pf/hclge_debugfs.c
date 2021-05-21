@@ -1519,6 +1519,7 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 		goto out;
 	}
 
+	ret = 0;
 	for (i = 0; i < rule_cnt; i++) {
 		tcam_msg.stage = HCLGE_FD_STAGE_1;
 		tcam_msg.loc = rule_locs[i];
