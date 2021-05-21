@@ -57,6 +57,7 @@ tools/labs/docs/Dockerfile for dependencies):
    lectures/fs.rst
    lectures/debugging.rst
    lectures/networking.rst
+   lectures/arch.rst
    lectures/virt.rst
 
 .. toctree::

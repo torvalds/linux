@@ -17,7 +17,7 @@ Operating Systems 2
    lec8-filesystems.rst
    lec9-debugging.rst
    lec10-networking.rst
-   lec11-virtualization.rst
+   lec11-arch.rst
    lec12-virtualization.rst
 
 .. toctree::

@@ -12,5 +12,5 @@ SO2 Lecture 10 - Networking
    :inline-contents: False
    :level: 1
 
-.. include:: ../lectures/debugging.rst
+.. include:: ../lectures/networking.rst
    :start-line: 6
