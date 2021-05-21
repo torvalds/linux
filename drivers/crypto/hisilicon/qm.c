@@ -4252,11 +4252,14 @@ static void hisi_qm_controller_reset(struct work_struct *rst_work)
  */
 int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 {
+	struct device *dev = &qm->pdev->dev;
 	int flag = 0;
 	int ret = 0;
-	/* HW V2 not support both use uacce sva mode and hardware crypto algs */
-	if (qm->ver <= QM_HW_V2 && qm->use_sva)
+
+	if (qm->ver <= QM_HW_V2 && qm->use_sva) {
+		dev_info(dev, "HW V2 not both use uacce sva mode and hardware crypto algs.\n");
 		return 0;
+	}
 
 	mutex_lock(&qm_list->lock);
 	if (list_empty(&qm_list->list))
