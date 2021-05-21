@@ -8546,10 +8546,20 @@ static void alloc_contig_dump_pages(struct list_head *page_list)
 
 	if (DYNAMIC_DEBUG_BRANCH(descriptor)) {
 		struct page *page;
+		unsigned long nr_skip = 0;
+		unsigned long nr_pages = 0;
 
 		dump_stack();
-		list_for_each_entry(page, page_list, lru)
+		list_for_each_entry(page, page_list, lru) {
+			nr_pages++;
+			/* The page will be freed by putback_movable_pages soon */
+			if (page_count(page) == 1) {
+				nr_skip++;
+				continue;
+			}
 			dump_page(page, "migration failure");
+		}
+		pr_warn("total dump_pages %u skipping %u\n", nr_pages, nr_skip);
 	}
 }
 #else
