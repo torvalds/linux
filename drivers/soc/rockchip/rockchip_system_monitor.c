@@ -7,6 +7,7 @@
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
+#include <linux/devfreq.h>
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/module.h>
@@ -15,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
 #include <linux/uaccess.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
@@ -25,16 +27,11 @@
 #include <soc/rockchip/rockchip-system-status.h>
 
 #include "../../opp/opp.h"
-#include "../../devfreq/governor.h"
-
 #include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 
 #define CPU_REBOOT_FREQ		816000 /* kHz */
 #define VIDEO_1080P_SIZE	(1920 * 1080)
 #define THERMAL_POLLING_DELAY	200 /* milliseconds */
-
-#define devfreq_nb_to_monitor(nb) container_of(nb, struct monitor_dev_info, \
-					       devfreq_nb)
 
 struct video_info {
 	unsigned int width;
@@ -697,14 +694,14 @@ int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
 	struct device *dev = info->dev;
-	unsigned int cpu = cpumask_any(&info->devp->allowed_cpus);
 
 	if (info->low_limit) {
 		if (is_low)
-			info->wide_temp_limit = info->low_limit;
+			freq_qos_update_request(&info->max_temp_freq_req,
+						info->low_limit / 1000);
 		else
-			info->wide_temp_limit = 0;
-		cpufreq_update_policy(cpu);
+			freq_qos_update_request(&info->max_temp_freq_req,
+						FREQ_QOS_MAX_DEFAULT_VALUE);
 	}
 
 	mutex_lock(&info->volt_adjust_mutex);
@@ -718,53 +715,38 @@ EXPORT_SYMBOL(rockchip_monitor_cpu_low_temp_adjust);
 int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high)
 {
-	unsigned int cpu = cpumask_any(&info->devp->allowed_cpus);
+	if (!info->high_limit)
+		return 0;
 
 	if (info->high_limit_table) {
-		info->wide_temp_limit = info->high_limit;
-		cpufreq_update_policy(cpu);
-	} else {
-		if (info->high_limit) {
-			if (is_high)
-				info->wide_temp_limit = info->high_limit;
-			else
-				info->wide_temp_limit = 0;
-			cpufreq_update_policy(cpu);
-		}
+		freq_qos_update_request(&info->max_temp_freq_req,
+					info->high_limit / 1000);
+		return 0;
 	}
+
+	if (is_high)
+		freq_qos_update_request(&info->max_temp_freq_req,
+					info->high_limit / 1000);
+	else
+		freq_qos_update_request(&info->max_temp_freq_req,
+					FREQ_QOS_MAX_DEFAULT_VALUE);
 
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_monitor_cpu_high_temp_adjust);
 
-static int rockchip_monitor_update_devfreq(struct devfreq *df)
-{
-	int ret = 0;
-
-#ifdef CONFIG_PM_DEVFREQ
-	mutex_lock(&df->lock);
-	ret = update_devfreq(df);
-	mutex_unlock(&df->lock);
-#endif
-	return ret;
-};
-
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
-	struct devfreq *df;
+	if (!info->low_limit)
+		return 0;
 
-	if (info->low_limit) {
-		if (is_low)
-			info->wide_temp_limit = info->low_limit;
-		else
-			info->wide_temp_limit = 0;
-	}
-
-	if (info->devp && info->devp->data) {
-		df = (struct devfreq *)info->devp->data;
-		rockchip_monitor_update_devfreq(df);
-	}
+	if (is_low)
+		dev_pm_qos_update_request(&info->dev_max_freq_req,
+					  info->low_limit / 1000);
+	else
+		dev_pm_qos_update_request(&info->dev_max_freq_req,
+					  PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
 
 	return 0;
 }
@@ -773,26 +755,21 @@ EXPORT_SYMBOL(rockchip_monitor_dev_low_temp_adjust);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high)
 {
-	struct devfreq *df;
+	if (!info->high_limit)
+		return 0;
 
 	if (info->high_limit_table) {
-		info->wide_temp_limit = info->high_limit;
-		if (info->devp && info->devp->data) {
-			df = (struct devfreq *)info->devp->data;
-			rockchip_monitor_update_devfreq(df);
-		}
-	} else {
-		if (info->high_limit) {
-			if (is_high)
-				info->wide_temp_limit = info->high_limit;
-			else
-				info->wide_temp_limit = 0;
-			if (info->devp && info->devp->data) {
-				df = (struct devfreq *)info->devp->data;
-				rockchip_monitor_update_devfreq(df);
-			}
-		}
+		dev_pm_qos_update_request(&info->dev_max_freq_req,
+					  info->high_limit / 1000);
+		return 0;
 	}
+
+	if (is_high)
+		dev_pm_qos_update_request(&info->dev_max_freq_req,
+					  info->high_limit / 1000);
+	else
+		dev_pm_qos_update_request(&info->dev_max_freq_req,
+					  PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
 
 	return 0;
 }
@@ -858,12 +835,14 @@ static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
 	struct monitor_dev_profile *devp = info->devp;
 	int ret = 0;
 
+	if (!devp->high_temp_adjust)
+		return;
+
 	if (info->high_limit_table) {
 		devp->high_temp_adjust(info, is_high);
 	} else {
 		dev_dbg(info->dev, "high_temp %d\n", is_high);
-		if (devp->high_temp_adjust)
-			ret = devp->high_temp_adjust(info, is_high);
+		ret = devp->high_temp_adjust(info, is_high);
 		if (!ret)
 			info->is_high_temp = is_high;
 	}
@@ -948,7 +927,6 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 	if (!info->is_low_temp) {
 		if (info->opp_table)
 			rockchip_adjust_low_temp_opp_volt(info, true);
-		info->wide_temp_limit = info->low_limit;
 		info->is_low_temp = true;
 	}
 
@@ -963,68 +941,101 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 		if (info->opp_table)
 			rockchip_adjust_low_temp_opp_volt(info, false);
 		info->is_low_temp = false;
-
-		info->wide_temp_limit = info->high_limit;
 		info->is_high_temp = true;
 	} else if (temp > (info->low_temp + info->temp_hysteresis)) {
 		if (info->opp_table)
 			rockchip_adjust_low_temp_opp_volt(info, false);
 		info->is_low_temp = false;
-		info->wide_temp_limit = 0;
 	}
 }
 
-static int system_monitor_devfreq_notifier_call(struct notifier_block *nb,
-						unsigned long event,
-						void *data)
+static int
+rockchip_system_monitor_freq_qos_requset(struct monitor_dev_info *info)
 {
-	struct monitor_dev_info *info = devfreq_nb_to_monitor(nb);
-	struct devfreq_policy *policy = data;
+	struct devfreq *devfreq;
+	struct cpufreq_policy *policy;
+	int max_default_value = FREQ_QOS_MAX_DEFAULT_VALUE;
+	int ret;
 
-	if (event != DEVFREQ_ADJUST)
-		return NOTIFY_DONE;
+	if (info->is_low_temp && info->low_limit)
+		max_default_value = info->low_limit / 1000;
+	else if (info->is_high_temp && info->high_limit)
+		max_default_value = info->high_limit / 1000;
 
-	if (info->wide_temp_limit && info->wide_temp_limit < policy->max)
-		devfreq_verify_within_limits(policy, 0, info->wide_temp_limit);
+	if (info->devp->type == MONITOR_TPYE_CPU) {
+		policy = (struct cpufreq_policy *)info->devp->data;
+		ret = freq_qos_add_request(&policy->constraints,
+					   &info->max_temp_freq_req,
+					   FREQ_QOS_MAX,
+					   max_default_value);
+		if (ret < 0) {
+			dev_info(info->dev,
+				 "failed to add temp freq constraint\n");
+			return ret;
+		}
+		ret = freq_qos_add_request(&policy->constraints,
+					   &info->min_sta_freq_req,
+					   FREQ_QOS_MIN,
+					   FREQ_QOS_MIN_DEFAULT_VALUE);
+		if (ret < 0) {
+			dev_info(info->dev,
+				 "failed to add sta freq constraint\n");
+			freq_qos_remove_request(&info->max_temp_freq_req);
+			return ret;
+		}
+		ret = freq_qos_add_request(&policy->constraints,
+					   &info->max_sta_freq_req,
+					   FREQ_QOS_MAX,
+					   FREQ_QOS_MAX_DEFAULT_VALUE);
+		if (ret < 0) {
+			dev_info(info->dev,
+				 "failed to add sta freq constraint\n");
+			freq_qos_remove_request(&info->max_temp_freq_req);
+			freq_qos_remove_request(&info->min_sta_freq_req);
+			return ret;
+		}
+	} else if (info->devp->type == MONITOR_TPYE_DEV) {
+		devfreq = (struct devfreq *)info->devp->data;
+		ret = dev_pm_qos_add_request(devfreq->dev.parent,
+					     &info->dev_max_freq_req,
+					     DEV_PM_QOS_MAX_FREQUENCY,
+					     max_default_value);
+		if (ret < 0) {
+			dev_info(info->dev, "failed to add freq constraint\n");
+			return ret;
+		}
+	}
 
-	return NOTIFY_OK;
+	return 0;
 }
 
 static int monitor_set_freq_table(struct device *dev,
 				  struct monitor_dev_info *info)
 {
-	struct opp_table *opp_table;
 	struct dev_pm_opp *opp;
 	unsigned long *freq_table;
-	int count;
+	unsigned long rate;
+	int i, max_opps;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table)
-		return -ENOMEM;
-
-	/* Initialize the freq_table from OPP table */
-	count = dev_pm_opp_get_opp_count(dev);
-	if (count <= 0)
+	max_opps = dev_pm_opp_get_opp_count(dev);
+	if (max_opps <= 0)
 		return -EINVAL;
 
-	info->max_state = count;
-	freq_table = kcalloc(count, sizeof(*info->freq_table), GFP_KERNEL);
-	if (!freq_table) {
-		info->max_state = 0;
+	freq_table = kcalloc(max_opps, sizeof(*info->freq_table), GFP_KERNEL);
+	if (!freq_table)
 		return -ENOMEM;
-	}
 
-	mutex_lock(&opp_table->lock);
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		if (opp->available) {
-			count--;
-			freq_table[count] = opp->rate;
+	for (i = 0, rate = 0; i < max_opps; i++, rate++) {
+		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
+		if (IS_ERR(opp)) {
+			kfree(freq_table);
+			return PTR_ERR(opp);
 		}
+		freq_table[i] = rate / 1000;
+		dev_pm_opp_put(opp);
 	}
-	mutex_unlock(&opp_table->lock);
 
-	dev_pm_opp_put_opp_table(opp_table);
-
+	info->max_state = max_opps;
 	info->freq_table = freq_table;
 
 	return 0;
@@ -1102,8 +1113,6 @@ rockchip_system_monitor_register(struct device *dev,
 				 struct monitor_dev_profile *devp)
 {
 	struct monitor_dev_info *info;
-	struct devfreq *devfreq;
-	int ret;
 
 	if (!system_monitor)
 		return ERR_PTR(-ENOMEM);
@@ -1114,21 +1123,16 @@ rockchip_system_monitor_register(struct device *dev,
 	info->dev = dev;
 	info->devp = devp;
 
-	ret = monitor_device_parse_dt(dev, info);
-	if (ret)
+	if (monitor_device_parse_dt(dev, info))
 		goto free_info;
 
-	monitor_set_freq_table(dev, info);
-
-	if (info->devp->type == MONITOR_TPYE_DEV) {
-		info->devfreq_nb.notifier_call =
-			system_monitor_devfreq_notifier_call;
-		devfreq = (struct devfreq *)info->devp->data;
-		devm_devfreq_register_notifier(dev, devfreq, &info->devfreq_nb,
-					       DEVFREQ_POLICY_NOTIFIER);
-	}
+	if (monitor_set_freq_table(dev, info))
+		goto free_info;
 
 	rockchip_system_monitor_wide_temp_init(info);
+	if (rockchip_system_monitor_freq_qos_requset(info))
+		goto free_info;
+
 	mutex_init(&info->volt_adjust_mutex);
 
 	down_write(&mdev_list_sem);
@@ -1145,8 +1149,6 @@ EXPORT_SYMBOL(rockchip_system_monitor_register);
 
 void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 {
-	struct devfreq *devfreq;
-
 	if (!info)
 		return;
 
@@ -1154,11 +1156,13 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 	list_del(&info->node);
 	up_write(&mdev_list_sem);
 
-	devfreq = (struct devfreq *)info->devp->data;
-	if (info->devp->type == MONITOR_TPYE_DEV)
-		devm_devfreq_unregister_notifier(info->dev, devfreq,
-						 &info->devfreq_nb,
-						 DEVFREQ_TRANSITION_NOTIFIER);
+	if (info->devp->type == MONITOR_TPYE_CPU) {
+		freq_qos_remove_request(&info->max_temp_freq_req);
+		freq_qos_remove_request(&info->min_sta_freq_req);
+		freq_qos_remove_request(&info->max_sta_freq_req);
+	} else {
+		dev_pm_qos_remove_request(&info->dev_max_freq_req);
+	}
 
 	kfree(info->low_temp_adjust_table);
 	kfree(info->opp_table);
@@ -1302,26 +1306,27 @@ static void rockchip_system_status_cpu_limit_freq(struct monitor_dev_info *info,
 						  unsigned long status)
 {
 	unsigned int target_freq = 0;
-	bool is_freq_fixed = false;
-	int cpu;
 
 	if (status & SYS_STATUS_REBOOT) {
-		info->status_min_limit = info->reboot_freq;
-		info->status_max_limit = info->reboot_freq;
-		info->is_status_freq_fixed = true;
-		goto next;
+		freq_qos_update_request(&info->max_sta_freq_req,
+					info->reboot_freq);
+		freq_qos_update_request(&info->min_sta_freq_req,
+					info->reboot_freq);
+		return;
 	}
 
 	if (info->video_4k_freq && (status & SYS_STATUS_VIDEO_4K))
 		target_freq = info->video_4k_freq;
-	if (target_freq == info->status_max_limit &&
-	    info->is_status_freq_fixed == is_freq_fixed)
+
+	if (target_freq == info->status_max_limit)
 		return;
 	info->status_max_limit = target_freq;
-	info->is_status_freq_fixed = is_freq_fixed;
-next:
-	cpu = cpumask_any(&info->devp->allowed_cpus);
-	cpufreq_update_policy(cpu);
+	if (info->status_max_limit)
+		freq_qos_update_request(&info->max_sta_freq_req,
+					info->status_max_limit);
+	else
+		freq_qos_update_request(&info->max_sta_freq_req,
+					FREQ_QOS_MAX_DEFAULT_VALUE);
 }
 
 static void rockchip_system_status_limit_freq(unsigned long status)
@@ -1388,51 +1393,6 @@ static int monitor_pm_notify(struct notifier_block *nb,
 
 static struct notifier_block monitor_pm_nb = {
 	.notifier_call = monitor_pm_notify,
-};
-
-static int rockchip_monitor_cpufreq_policy_notifier(struct notifier_block *nb,
-						    unsigned long event,
-						    void *data)
-{
-	struct monitor_dev_info *info;
-	struct cpufreq_policy *policy = data;
-	int cpu = policy->cpu;
-	unsigned int limit_freq = UINT_MAX;
-
-	if (event != CPUFREQ_ADJUST)
-		return NOTIFY_OK;
-
-	down_read(&mdev_list_sem);
-	list_for_each_entry(info, &monitor_dev_list, node) {
-		if (info->devp->type != MONITOR_TPYE_CPU)
-			continue;
-		if (!cpumask_test_cpu(cpu, &info->devp->allowed_cpus))
-			continue;
-
-		if (info->wide_temp_limit) {
-			if (limit_freq > info->wide_temp_limit / 1000)
-				limit_freq = info->wide_temp_limit / 1000;
-		}
-		if (info->status_max_limit &&
-		    limit_freq > info->status_max_limit)
-			limit_freq = info->status_max_limit;
-
-		if (info->is_status_freq_fixed) {
-			cpufreq_verify_within_limits(policy, limit_freq,
-						     limit_freq);
-			dev_info(info->dev, "min=%u, max=%u\n", policy->min,
-				 policy->max);
-		} else if (limit_freq < policy->max) {
-			cpufreq_verify_within_limits(policy, 0, limit_freq);
-		}
-	}
-	up_read(&mdev_list_sem);
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rockchip_monitor_cpufreq_policy_nb = {
-	.notifier_call = rockchip_monitor_cpufreq_policy_notifier,
 };
 
 static int rockchip_monitor_reboot_notifier(struct notifier_block *nb,
@@ -1530,9 +1490,6 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 
 	if (register_pm_notifier(&monitor_pm_nb))
 		dev_err(dev, "failed to register suspend notifier\n");
-
-	cpufreq_register_notifier(&rockchip_monitor_cpufreq_policy_nb,
-				  CPUFREQ_POLICY_NOTIFIER);
 
 	register_reboot_notifier(&rockchip_monitor_reboot_nb);
 
