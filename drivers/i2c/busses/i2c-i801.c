@@ -103,7 +103,7 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/wait.h>
+#include <linux/completion.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/itco_wdt.h>
@@ -270,7 +270,7 @@ struct i801_priv {
 	unsigned int features;
 
 	/* isr processing */
-	wait_queue_head_t waitq;
+	struct completion done;
 	u8 status;
 
 	/* Command state used by isr for byte-by-byte block transactions */
@@ -496,24 +496,19 @@ static int i801_wait_byte_done(struct i801_priv *priv)
 static int i801_transaction(struct i801_priv *priv, int xact)
 {
 	int status;
-	int result;
+	unsigned long result;
 	const struct i2c_adapter *adap = &priv->adapter;
 
-	result = i801_check_pre(priv);
-	if (result < 0)
-		return result;
+	status = i801_check_pre(priv);
+	if (status < 0)
+		return status;
 
 	if (priv->features & FEATURE_IRQ) {
+		reinit_completion(&priv->done);
 		outb_p(xact | SMBHSTCNT_INTREN | SMBHSTCNT_START,
 		       SMBHSTCNT(priv));
-		result = wait_event_timeout(priv->waitq,
-					    (status = priv->status),
-					    adap->timeout);
-		if (!result)
-			status = -ETIMEDOUT;
-
-		priv->status = 0;
-		return i801_check_post(priv, status);
+		result = wait_for_completion_timeout(&priv->done, adap->timeout);
+		return i801_check_post(priv, result ? priv->status : -ETIMEDOUT);
 	}
 
 	/* the current contents of SMBHSTCNT can be overwritten, since PEC,
@@ -638,7 +633,7 @@ static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
  *      DEV_ERR - Invalid command, NAK or communication timeout
  *      BUS_ERR - SMI# transaction collision
  *      FAILED - transaction was canceled due to a KILL request
- *    When any of these occur, update ->status and wake up the waitq.
+ *    When any of these occur, update ->status and signal completion.
  *    ->status must be cleared before kicking off the next transaction.
  *
  * 2) For byte-by-byte (I2C read/write) transactions, one BYTE_DONE interrupt
@@ -675,7 +670,7 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 	if (status) {
 		outb_p(status, SMBHSTSTS(priv));
 		priv->status = status;
-		wake_up(&priv->waitq);
+		complete(&priv->done);
 	}
 
 	return IRQ_HANDLED;
@@ -694,15 +689,15 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 	int i, len;
 	int smbcmd;
 	int status;
-	int result;
+	unsigned long result;
 	const struct i2c_adapter *adap = &priv->adapter;
 
 	if (command == I2C_SMBUS_BLOCK_PROC_CALL)
 		return -EOPNOTSUPP;
 
-	result = i801_check_pre(priv);
-	if (result < 0)
-		return result;
+	status = i801_check_pre(priv);
+	if (status < 0)
+		return status;
 
 	len = data->block[0];
 
@@ -726,15 +721,10 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		priv->count = 0;
 		priv->data = &data->block[1];
 
+		reinit_completion(&priv->done);
 		outb_p(priv->cmd | SMBHSTCNT_START, SMBHSTCNT(priv));
-		result = wait_event_timeout(priv->waitq,
-					    (status = priv->status),
-					    adap->timeout);
-		if (!result)
-			status = -ETIMEDOUT;
-
-		priv->status = 0;
-		return i801_check_post(priv, status);
+		result = wait_for_completion_timeout(&priv->done, adap->timeout);
+		return i801_check_post(priv, result ? priv->status : -ETIMEDOUT);
 	}
 
 	for (i = 1; i <= len; i++) {
@@ -1889,7 +1879,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	if (priv->features & FEATURE_IRQ) {
-		init_waitqueue_head(&priv->waitq);
+		init_completion(&priv->done);
 
 		err = devm_request_irq(&dev->dev, dev->irq, i801_isr,
 				       IRQF_SHARED,
