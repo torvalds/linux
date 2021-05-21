@@ -576,12 +576,18 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	*neg_out = neg;
 
 	error = ping_members(ls);
-	if (!error || error == -EPROTO) {
-		/* new_lockspace() may be waiting to know if the config
-		   is good or bad */
-		ls->ls_members_result = error;
-		complete(&ls->ls_members_done);
-	}
+	/* error -EINTR means that a new recovery action is triggered.
+	 * We ignore this recovery action and let run the new one which might
+	 * have new member configuration.
+	 */
+	if (error == -EINTR)
+		error = 0;
+
+	/* new_lockspace() may be waiting to know if the config
+	 * is good or bad
+	 */
+	ls->ls_members_result = error;
+	complete(&ls->ls_members_done);
 
 	log_rinfo(ls, "dlm_recover_members %d nodes", ls->ls_num_nodes);
 	return error;
