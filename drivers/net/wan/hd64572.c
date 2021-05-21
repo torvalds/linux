@@ -380,7 +380,7 @@ static void sca_set_port(port_t *port)
 
 			/* Baud Rate = CLOCK_BASE / TMC / 2^BR */
 			tmc = CLOCK_BASE / brv / port->settings.clock_rate;
-		}while (br > 1 && tmc <= 128);
+		} while (br > 1 && tmc <= 128);
 
 		if (tmc < 1) {
 			tmc = 1;
@@ -425,7 +425,7 @@ static void sca_open(struct net_device *dev)
 	u16 msci = get_msci(port);
 	u8 md0, md2;
 
-	switch(port->encoding) {
+	switch (port->encoding) {
 	case ENCODING_NRZ:	md2 = MD2_NRZ;		break;
 	case ENCODING_NRZI:	md2 = MD2_NRZI;		break;
 	case ENCODING_FM_MARK:	md2 = MD2_FM_MARK;	break;
@@ -436,7 +436,7 @@ static void sca_open(struct net_device *dev)
 	if (port->settings.loopback)
 		md2 |= MD2_LOOPBACK;
 
-	switch(port->parity) {
+	switch (port->parity) {
 	case PARITY_CRC16_PR0:	     md0 = MD0_HDLC | MD0_CRC_16_0;  break;
 	case PARITY_CRC16_PR1:	     md0 = MD0_HDLC | MD0_CRC_16;    break;
 	case PARITY_CRC32_PR1_CCITT: md0 = MD0_HDLC | MD0_CRC_ITU32; break;
