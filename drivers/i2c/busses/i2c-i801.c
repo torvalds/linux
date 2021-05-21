@@ -509,11 +509,9 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 		result = wait_event_timeout(priv->waitq,
 					    (status = priv->status),
 					    adap->timeout);
-		if (!result) {
+		if (!result)
 			status = -ETIMEDOUT;
-			dev_warn(&priv->pci_dev->dev,
-				 "Timeout waiting for interrupt!\n");
-		}
+
 		priv->status = 0;
 		return i801_check_post(priv, status);
 	}
@@ -732,11 +730,9 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		result = wait_event_timeout(priv->waitq,
 					    (status = priv->status),
 					    adap->timeout);
-		if (!result) {
+		if (!result)
 			status = -ETIMEDOUT;
-			dev_warn(&priv->pci_dev->dev,
-				 "Timeout waiting for interrupt!\n");
-		}
+
 		priv->status = 0;
 		return i801_check_post(priv, status);
 	}
