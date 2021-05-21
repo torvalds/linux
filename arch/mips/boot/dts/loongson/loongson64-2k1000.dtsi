@@ -23,7 +23,7 @@
 		};
 	};
 
-	memory {
+	memory@200000 {
 		compatible = "memory";
 		device_type = "memory";
 		reg = <0x00000000 0x00200000 0x00000000 0x0ee00000>, /* 238 MB at 2 MB */
