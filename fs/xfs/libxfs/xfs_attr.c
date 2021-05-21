@@ -612,7 +612,7 @@ xfs_attr_set_iter(
 		error = xfs_attr_node_addname_clear_incomplete(dac);
 		break;
 	default:
-		ASSERT(dac->dela_state != XFS_DAS_RM_SHRINK);
+		ASSERT(0);
 		break;
 	}
 out:
