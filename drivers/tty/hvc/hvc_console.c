@@ -292,7 +292,7 @@ int hvc_instantiate(uint32_t vtermno, int index, const struct hv_ops *ops)
 	if (vtermnos[index] != -1)
 		return -1;
 
-	/* make sure no no tty has been registered in this index */
+	/* make sure no tty has been registered in this index */
 	hp = hvc_get_by_index(index);
 	if (hp) {
 		tty_port_put(&hp->port);
@@ -620,7 +620,7 @@ static u32 timeout = MIN_TIMEOUT;
 /*
  * Maximum number of bytes to get from the console driver if hvc_poll is
  * called from driver (and can't sleep). Any more than this and we break
- * and start polling with khvcd. This value was derived from from an OpenBMC
+ * and start polling with khvcd. This value was derived from an OpenBMC
  * console with the OPAL driver that results in about 0.25ms interrupts off
  * latency.
  */
