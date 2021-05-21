@@ -257,19 +257,15 @@ int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 EXPORT_SYMBOL_GPL(nvmf_reg_write32);
 
 /**
- * nvmf_log_connect_error() - Error-parsing-diagnostic print
- * out function for connect() errors.
- *
- * @ctrl: the specific /dev/nvmeX device that had the error.
- *
- * @errval: Error code to be decoded in a more human-friendly
- *	    printout.
- *
- * @offset: For use with the NVMe error code NVME_SC_CONNECT_INVALID_PARAM.
- *
- * @cmd: This is the SQE portion of a submission capsule.
- *
- * @data: This is the "Data" portion of a submission capsule.
+ * nvmf_log_connect_error() - Error-parsing-diagnostic print out function for
+ * 				connect() errors.
+ * @ctrl:	The specific /dev/nvmeX device that had the error.
+ * @errval:	Error code to be decoded in a more human-friendly
+ * 		printout.
+ * @offset:	For use with the NVMe error code
+ * 		NVME_SC_CONNECT_INVALID_PARAM.
+ * @cmd:	This is the SQE portion of a submission capsule.
+ * @data:	This is the "Data" portion of a submission capsule.
  */
 static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 		int errval, int offset, struct nvme_command *cmd,
