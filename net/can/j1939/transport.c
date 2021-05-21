@@ -1771,7 +1771,7 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 				 struct sk_buff *skb)
 {
 	struct j1939_priv *priv = session->priv;
-	struct j1939_sk_buff_cb *skcb;
+	struct j1939_sk_buff_cb *skcb, *se_skcb;
 	struct sk_buff *se_skb = NULL;
 	const u8 *dat;
 	u8 *tpdat;
@@ -1822,8 +1822,8 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 		goto out_session_cancel;
 	}
 
-	skcb = j1939_skb_to_cb(se_skb);
-	offset = packet * 7 - skcb->offset;
+	se_skcb = j1939_skb_to_cb(se_skb);
+	offset = packet * 7 - se_skcb->offset;
 	nbytes = se_skb->len - offset;
 	if (nbytes > 7)
 		nbytes = 7;
@@ -1851,7 +1851,7 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 	if (packet == session->pkt.rx)
 		session->pkt.rx++;
 
-	if (skcb->addr.type != J1939_ETP &&
+	if (se_skcb->addr.type != J1939_ETP &&
 	    j1939_cb_is_broadcast(&session->skcb)) {
 		if (session->pkt.rx >= session->pkt.total)
 			final = true;
