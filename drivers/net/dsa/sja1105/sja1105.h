@@ -65,7 +65,6 @@ struct sja1105_regs {
 	u64 mac_hl1[SJA1105_NUM_PORTS];
 	u64 mac_hl2[SJA1105_NUM_PORTS];
 	u64 ether_stats[SJA1105_NUM_PORTS];
-	u64 qlevel[SJA1105_NUM_PORTS];
 };
 
 struct sja1105_info {

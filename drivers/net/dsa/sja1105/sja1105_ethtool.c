@@ -6,7 +6,6 @@
 #define SJA1105_SIZE_MAC_AREA		(0x02 * 4)
 #define SJA1105_SIZE_HL1_AREA		(0x10 * 4)
 #define SJA1105_SIZE_HL2_AREA		(0x4 * 4)
-#define SJA1105_SIZE_QLEVEL_AREA	(0x8 * 4) /* 0x4 to 0xB */
 #define SJA1105_SIZE_ETHER_AREA		(0x17 * 4)
 
 struct sja1105_port_status_mac {
@@ -60,8 +59,6 @@ struct sja1105_port_status_hl2 {
 	u64 n_part_drop;
 	u64 n_egr_disabled;
 	u64 n_not_reach;
-	u64 qlevel_hwm[8]; /* Only for P/Q/R/S */
-	u64 qlevel[8];     /* Only for P/Q/R/S */
 };
 
 struct sja1105_port_status_ether {
@@ -173,20 +170,6 @@ sja1105_port_status_hl2_unpack(void *buf,
 }
 
 static void
-sja1105pqrs_port_status_qlevel_unpack(void *buf,
-				      struct sja1105_port_status_hl2 *status)
-{
-	/* Make pointer arithmetic work on 4 bytes */
-	u32 *p = buf;
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		sja1105_unpack(p + i, &status->qlevel_hwm[i], 24, 16, 4);
-		sja1105_unpack(p + i, &status->qlevel[i],      8,  0, 4);
-	}
-}
-
-static void
 sja1105pqrs_port_status_ether_unpack(void *buf,
 				     struct sja1105_port_status_ether *status)
 {
@@ -280,7 +263,7 @@ static int sja1105_port_status_get_hl2(struct sja1105_private *priv,
 				       int port)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
-	u8 packed_buf[SJA1105_SIZE_QLEVEL_AREA] = {0};
+	u8 packed_buf[SJA1105_SIZE_HL2_AREA] = {0};
 	int rc;
 
 	rc = sja1105_xfer_buf(priv, SPI_READ, regs->mac_hl2[port], packed_buf,
@@ -289,18 +272,6 @@ static int sja1105_port_status_get_hl2(struct sja1105_private *priv,
 		return rc;
 
 	sja1105_port_status_hl2_unpack(packed_buf, status);
-
-	/* Code below is strictly P/Q/R/S specific. */
-	if (priv->info->device_id == SJA1105E_DEVICE_ID ||
-	    priv->info->device_id == SJA1105T_DEVICE_ID)
-		return 0;
-
-	rc = sja1105_xfer_buf(priv, SPI_READ, regs->qlevel[port], packed_buf,
-			      SJA1105_SIZE_QLEVEL_AREA);
-	if (rc < 0)
-		return rc;
-
-	sja1105pqrs_port_status_qlevel_unpack(packed_buf, status);
 
 	return 0;
 }
@@ -375,23 +346,6 @@ static char sja1105_port_stats[][ETH_GSTRING_LEN] = {
 };
 
 static char sja1105pqrs_extra_port_stats[][ETH_GSTRING_LEN] = {
-	/* Queue Levels */
-	"qlevel_hwm_0",
-	"qlevel_hwm_1",
-	"qlevel_hwm_2",
-	"qlevel_hwm_3",
-	"qlevel_hwm_4",
-	"qlevel_hwm_5",
-	"qlevel_hwm_6",
-	"qlevel_hwm_7",
-	"qlevel_0",
-	"qlevel_1",
-	"qlevel_2",
-	"qlevel_3",
-	"qlevel_4",
-	"qlevel_5",
-	"qlevel_6",
-	"qlevel_7",
 	/* Ether Stats */
 	"n_drops_nolearn",
 	"n_drops_noroute",
@@ -422,7 +376,7 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_port_status *status;
-	int rc, i, k = 0;
+	int rc, k = 0;
 
 	status = kzalloc(sizeof(*status), GFP_KERNEL);
 	if (!status)
@@ -482,10 +436,6 @@ void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 
 	memset(data + k, 0, ARRAY_SIZE(sja1105pqrs_extra_port_stats) *
 			sizeof(u64));
-	for (i = 0; i < 8; i++) {
-		data[k++] = status->hl2.qlevel_hwm[i];
-		data[k++] = status->hl2.qlevel[i];
-	}
 	data[k++] = status->ether.n_drops_nolearn;
 	data[k++] = status->ether.n_drops_noroute;
 	data[k++] = status->ether.n_drops_ill_dtag;
