@@ -3868,7 +3868,7 @@ def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
 	if with_hdr:
 		model = indexes[0].model()
 		for col in range(min_col, max_col + 1):
-			val = model.headerData(col, Qt.Horizontal)
+			val = model.headerData(col, Qt.Horizontal, Qt.DisplayRole)
 			if as_csv:
 				text += sep + ToCSValue(val)
 				sep = ","
