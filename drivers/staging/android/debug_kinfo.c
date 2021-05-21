@@ -148,7 +148,7 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->_token_index_pa = (u64)__pa_symbol((volatile void *)kallsyms_token_index);
 	info->_markers_pa = (u64)__pa_symbol((volatile void *)kallsyms_markers);
 	info->thread_size = THREAD_SIZE;
-	info->swapper_pg_dir_pa = (u64)virt_to_phys(swapper_pg_dir);
+	info->swapper_pg_dir_pa = (u64)__pa_symbol(swapper_pg_dir);
 	strlcpy(info->last_uts_release, init_utsname()->release, sizeof(info->last_uts_release));
 
 	update_kernel_all_info(all_info);
