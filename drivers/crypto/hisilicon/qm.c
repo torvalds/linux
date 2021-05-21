@@ -4256,16 +4256,16 @@ int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 	int flag = 0;
 	int ret = 0;
 
-	if (qm->ver <= QM_HW_V2 && qm->use_sva) {
-		dev_info(dev, "HW V2 not both use uacce sva mode and hardware crypto algs.\n");
-		return 0;
-	}
-
 	mutex_lock(&qm_list->lock);
 	if (list_empty(&qm_list->list))
 		flag = 1;
 	list_add_tail(&qm->list, &qm_list->list);
 	mutex_unlock(&qm_list->lock);
+
+	if (qm->ver <= QM_HW_V2 && qm->use_sva) {
+		dev_info(dev, "HW V2 not both use uacce sva mode and hardware crypto algs.\n");
+		return 0;
+	}
 
 	if (flag) {
 		ret = qm_list->register_to_crypto(qm);
@@ -4291,12 +4291,12 @@ EXPORT_SYMBOL_GPL(hisi_qm_alg_register);
  */
 void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 {
-	if (qm->ver <= QM_HW_V2 && qm->use_sva)
-		return;
-
 	mutex_lock(&qm_list->lock);
 	list_del(&qm->list);
 	mutex_unlock(&qm_list->lock);
+
+	if (qm->ver <= QM_HW_V2 && qm->use_sva)
+		return;
 
 	if (list_empty(&qm_list->list))
 		qm_list->unregister_from_crypto(qm);
