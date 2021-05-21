@@ -169,7 +169,7 @@
 	 * The touchpad input is connected to a GPIO bit-banged
 	 * I2C bus.
 	 */
-	gpio-i2c {
+	i2c {
 		compatible = "i2c-gpio";
 		/* Collides with ICE */
 		sda-gpios = <&gpio0 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
