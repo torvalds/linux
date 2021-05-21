@@ -41,16 +41,16 @@
 
 #define NAPI_WEIGHT		16
 
-#define get_msci(port)	  (port->chan ?   MSCI1_OFFSET :   MSCI0_OFFSET)
-#define get_dmac_rx(port) (port->chan ? DMAC1RX_OFFSET : DMAC0RX_OFFSET)
-#define get_dmac_tx(port) (port->chan ? DMAC1TX_OFFSET : DMAC0TX_OFFSET)
+#define get_msci(port)	  ((port)->chan ?   MSCI1_OFFSET :   MSCI0_OFFSET)
+#define get_dmac_rx(port) ((port)->chan ? DMAC1RX_OFFSET : DMAC0RX_OFFSET)
+#define get_dmac_tx(port) ((port)->chan ? DMAC1TX_OFFSET : DMAC0TX_OFFSET)
 
-#define sca_in(reg, card)	     readb(card->scabase + (reg))
-#define sca_out(value, reg, card)    writeb(value, card->scabase + (reg))
-#define sca_inw(reg, card)	     readw(card->scabase + (reg))
-#define sca_outw(value, reg, card)   writew(value, card->scabase + (reg))
-#define sca_inl(reg, card)	     readl(card->scabase + (reg))
-#define sca_outl(value, reg, card)   writel(value, card->scabase + (reg))
+#define sca_in(reg, card)	     readb((card)->scabase + (reg))
+#define sca_out(value, reg, card)    writeb(value, (card)->scabase + (reg))
+#define sca_inw(reg, card)	     readw((card)->scabase + (reg))
+#define sca_outw(value, reg, card)   writew(value, (card)->scabase + (reg))
+#define sca_inl(reg, card)	     readl((card)->scabase + (reg))
+#define sca_outl(value, reg, card)   writel(value, (card)->scabase + (reg))
 
 static int sca_poll(struct napi_struct *napi, int budget);
 
