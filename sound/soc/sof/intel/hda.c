@@ -277,10 +277,12 @@ struct hda_dsp_msg_code {
 	const char *msg;
 };
 
-static bool hda_use_msi = IS_ENABLED(CONFIG_PCI);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+static bool hda_use_msi = true;
 module_param_named(use_msi, hda_use_msi, bool, 0444);
 MODULE_PARM_DESC(use_msi, "SOF HDA use PCI MSI mode");
+#else
+#define hda_use_msi	(1)
 #endif
 
 static char *hda_model;
@@ -485,9 +487,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 	/* initialise hdac bus */
 	bus->addr = pci_resource_start(pci, 0);
-#if IS_ENABLED(CONFIG_PCI)
 	bus->remap_addr = pci_ioremap_bar(pci, 0);
-#endif
 	if (!bus->remap_addr) {
 		dev_err(bus->dev, "error: ioremap error\n");
 		return -ENXIO;
@@ -799,9 +799,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		goto hdac_bus_unmap;
 
 	/* DSP base */
-#if IS_ENABLED(CONFIG_PCI)
 	sdev->bar[HDA_DSP_BAR] = pci_ioremap_bar(pci, HDA_DSP_BAR);
-#endif
 	if (!sdev->bar[HDA_DSP_BAR]) {
 		dev_err(sdev->dev, "error: ioremap error\n");
 		ret = -ENXIO;
