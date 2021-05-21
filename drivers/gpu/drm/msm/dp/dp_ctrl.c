@@ -1809,6 +1809,61 @@ end:
 	return ret;
 }
 
+int dp_ctrl_off_link_stream(struct dp_ctrl *dp_ctrl)
+{
+	struct dp_ctrl_private *ctrl;
+	struct dp_io *dp_io;
+	struct phy *phy;
+	int ret;
+
+	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+	dp_io = &ctrl->parser->io;
+	phy = dp_io->phy;
+
+	/* set dongle to D3 (power off) mode */
+	dp_link_psm_config(ctrl->link, &ctrl->panel->link_info, true);
+
+	dp_catalog_ctrl_mainlink_ctrl(ctrl->catalog, false);
+
+	ret = dp_power_clk_enable(ctrl->power, DP_STREAM_PM, false);
+	if (ret) {
+		DRM_ERROR("Failed to disable pixel clocks. ret=%d\n", ret);
+		return ret;
+	}
+
+	ret = dp_power_clk_enable(ctrl->power, DP_CTRL_PM, false);
+	if (ret) {
+		DRM_ERROR("Failed to disable link clocks. ret=%d\n", ret);
+		return ret;
+	}
+
+	phy_power_off(phy);
+
+	/* aux channel down, reinit phy */
+	phy_exit(phy);
+	phy_init(phy);
+
+	DRM_DEBUG_DP("DP off link/stream done\n");
+	return ret;
+}
+
+void dp_ctrl_off_phy(struct dp_ctrl *dp_ctrl)
+{
+	struct dp_ctrl_private *ctrl;
+	struct dp_io *dp_io;
+	struct phy *phy;
+
+	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
+	dp_io = &ctrl->parser->io;
+	phy = dp_io->phy;
+
+	dp_catalog_ctrl_reset(ctrl->catalog);
+
+	phy_exit(phy);
+
+	DRM_DEBUG_DP("DP off phy done\n");
+}
+
 int dp_ctrl_off(struct dp_ctrl *dp_ctrl)
 {
 	struct dp_ctrl_private *ctrl;
