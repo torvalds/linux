@@ -441,7 +441,7 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	int fmt = CIP_FMT_MOTU;
-	int flags = CIP_BLOCKING;
+	unsigned int flags = CIP_BLOCKING | CIP_UNAWARE_SYT;
 	int err;
 
 	if (dir == AMDTP_IN_STREAM) {
@@ -479,8 +479,6 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 	if (dir == AMDTP_OUT_STREAM) {
 		// Use fixed value for FDF field.
 		s->ctx_data.rx.fdf = MOTU_FDF_AM824;
-		// Not used.
-		s->ctx_data.rx.syt_override = 0xffff;
 	}
 
 	return 0;

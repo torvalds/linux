@@ -113,9 +113,6 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->fmt = fmt;
 	s->process_ctx_payloads = process_ctx_payloads;
 
-	if (dir == AMDTP_OUT_STREAM)
-		s->ctx_data.rx.syt_override = -1;
-
 	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_init);
@@ -297,17 +294,11 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	s->syt_interval = amdtp_syt_intervals[sfc];
 
 	// default buffering in the device.
-	if (s->direction == AMDTP_OUT_STREAM) {
-		s->ctx_data.rx.transfer_delay =
-					TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
+	s->transfer_delay = TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
 
-		if (s->flags & CIP_BLOCKING) {
-			// additional buffering needed to adjust for no-data
-			// packets.
-			s->ctx_data.rx.transfer_delay +=
-				TICKS_PER_SECOND * s->syt_interval / rate;
-		}
-	}
+	// additional buffering needed to adjust for no-data packets.
+	if (s->flags & CIP_BLOCKING)
+		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
 
 	return 0;
 }
@@ -360,26 +351,41 @@ void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_prepare);
 
-static unsigned int calculate_data_blocks(unsigned int *data_block_state,
-				bool is_blocking, bool is_no_info,
-				unsigned int syt_interval, enum cip_sfc sfc)
+static void pool_blocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
+				      const unsigned int seq_size, unsigned int seq_tail,
+				      unsigned int count)
 {
-	unsigned int data_blocks;
+	const unsigned int syt_interval = s->syt_interval;
+	int i;
 
-	/* Blocking mode. */
-	if (is_blocking) {
-		/* This module generate empty packet for 'no data'. */
-		if (is_no_info)
-			data_blocks = 0;
+	for (i = 0; i < count; ++i) {
+		struct seq_desc *desc = descs + seq_tail;
+
+		if (desc->syt_offset != CIP_SYT_NO_INFO)
+			desc->data_blocks = syt_interval;
 		else
-			data_blocks = syt_interval;
-	/* Non-blocking mode. */
-	} else {
+			desc->data_blocks = 0;
+
+		seq_tail = (seq_tail + 1) % seq_size;
+	}
+}
+
+static void pool_ideal_nonblocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
+					       const unsigned int seq_size, unsigned int seq_tail,
+					       unsigned int count)
+{
+	const enum cip_sfc sfc = s->sfc;
+	unsigned int state = s->ctx_data.rx.data_block_state;
+	int i;
+
+	for (i = 0; i < count; ++i) {
+		struct seq_desc *desc = descs + seq_tail;
+
 		if (!cip_sfc_is_base_44100(sfc)) {
 			// Sample_rate / 8000 is an integer, and precomputed.
-			data_blocks = *data_block_state;
+			desc->data_blocks = state;
 		} else {
-			unsigned int phase = *data_block_state;
+			unsigned int phase = state;
 
 		/*
 		 * This calculates the number of data blocks per packet so that
@@ -391,18 +397,19 @@ static unsigned int calculate_data_blocks(unsigned int *data_block_state,
 		 */
 			if (sfc == CIP_SFC_44100)
 				/* 6 6 5 6 5 6 5 ... */
-				data_blocks = 5 + ((phase & 1) ^
-						   (phase == 0 || phase >= 40));
+				desc->data_blocks = 5 + ((phase & 1) ^ (phase == 0 || phase >= 40));
 			else
 				/* 12 11 11 11 11 ... or 23 22 22 22 22 ... */
-				data_blocks = 11 * (sfc >> 1) + (phase == 0);
+				desc->data_blocks = 11 * (sfc >> 1) + (phase == 0);
 			if (++phase >= (80 >> (sfc >> 1)))
 				phase = 0;
-			*data_block_state = phase;
+			state = phase;
 		}
+
+		seq_tail = (seq_tail + 1) % seq_size;
 	}
 
-	return data_blocks;
+	s->ctx_data.rx.data_block_state = state;
 }
 
 static unsigned int calculate_syt_offset(unsigned int *last_syt_offset,
@@ -442,6 +449,43 @@ static unsigned int calculate_syt_offset(unsigned int *last_syt_offset,
 		syt_offset = CIP_SYT_NO_INFO;
 
 	return syt_offset;
+}
+
+static void pool_ideal_syt_offsets(struct amdtp_stream *s, struct seq_desc *descs,
+				   const unsigned int seq_size, unsigned int seq_tail,
+				   unsigned int count)
+{
+	const enum cip_sfc sfc = s->sfc;
+	unsigned int last = s->ctx_data.rx.last_syt_offset;
+	unsigned int state = s->ctx_data.rx.syt_offset_state;
+	int i;
+
+	for (i = 0; i < count; ++i) {
+		struct seq_desc *desc = descs + seq_tail;
+
+		desc->syt_offset = calculate_syt_offset(&last, &state, sfc);
+
+		seq_tail = (seq_tail + 1) % seq_size;
+	}
+
+	s->ctx_data.rx.last_syt_offset = last;
+	s->ctx_data.rx.syt_offset_state = state;
+}
+
+static void pool_ideal_seq_descs(struct amdtp_stream *s, unsigned int count)
+{
+	struct seq_desc *descs = s->ctx_data.rx.seq.descs;
+	unsigned int seq_tail = s->ctx_data.rx.seq.tail;
+	const unsigned int seq_size = s->ctx_data.rx.seq.size;
+
+	pool_ideal_syt_offsets(s, descs, seq_size, seq_tail, count);
+
+	if (s->flags & CIP_BLOCKING)
+		pool_blocking_data_blocks(s, descs, seq_size, seq_tail, count);
+	else
+		pool_ideal_nonblocking_data_blocks(s, descs, seq_size, seq_tail, count);
+
+	s->ctx_data.rx.seq.tail = (seq_tail + count) % seq_size;
 }
 
 static void update_pcm_pointers(struct amdtp_stream *s,
@@ -638,7 +682,8 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	*data_block_counter = dbc;
 
-	*syt = cip_header[1] & CIP_SYT_MASK;
+	if (!(s->flags & CIP_UNAWARE_SYT))
+		*syt = cip_header[1] & CIP_SYT_MASK;
 
 	return 0;
 }
@@ -829,29 +874,28 @@ static unsigned int compute_syt(unsigned int syt_offset, unsigned int cycle,
 	return syt & CIP_SYT_MASK;
 }
 
-static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
-			       const __be32 *ctx_header, unsigned int packets,
-			       const struct seq_desc *seq_descs,
-			       unsigned int seq_size)
+static void generate_pkt_descs(struct amdtp_stream *s, const __be32 *ctx_header, unsigned int packets)
 {
+	struct pkt_desc *descs = s->pkt_descs;
+	const struct seq_desc *seq_descs = s->ctx_data.rx.seq.descs;
+	const unsigned int seq_size = s->ctx_data.rx.seq.size;
 	unsigned int dbc = s->data_block_counter;
-	unsigned int seq_index = s->ctx_data.rx.seq_index;
+	unsigned int seq_head = s->ctx_data.rx.seq.head;
+	bool aware_syt = !(s->flags & CIP_UNAWARE_SYT);
 	int i;
 
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
 		unsigned int index = (s->packet_index + i) % s->queue_size;
-		const struct seq_desc *seq = seq_descs + seq_index;
-		unsigned int syt;
+		const struct seq_desc *seq = seq_descs + seq_head;
 
 		desc->cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
-		syt = seq->syt_offset;
-		if (syt != CIP_SYT_NO_INFO) {
-			syt = compute_syt(syt, desc->cycle,
-					  s->ctx_data.rx.transfer_delay);
-		}
-		desc->syt = syt;
+		if (aware_syt && seq->syt_offset != CIP_SYT_NO_INFO)
+			desc->syt = compute_syt(seq->syt_offset, desc->cycle, s->transfer_delay);
+		else
+			desc->syt = CIP_SYT_NO_INFO;
+
 		desc->data_blocks = seq->data_blocks;
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
@@ -864,13 +908,13 @@ static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
 
 		desc->ctx_payload = s->buffer.packets[index].buffer;
 
-		seq_index = (seq_index + 1) % seq_size;
+		seq_head = (seq_head + 1) % seq_size;
 
 		++ctx_header;
 	}
 
 	s->data_block_counter = dbc;
-	s->ctx_data.rx.seq_index = seq_index;
+	s->ctx_data.rx.seq.head = seq_head;
 }
 
 static inline void cancel_stream(struct amdtp_stream *s)
@@ -912,8 +956,9 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / sizeof(*ctx_header);
 
-	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, d->seq.descs,
-			   d->seq.size);
+	pool_ideal_seq_descs(s, packets);
+
+	generate_pkt_descs(s, ctx_header, packets);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
 
@@ -924,21 +969,15 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
-		unsigned int syt;
 		struct {
 			struct fw_iso_packet params;
 			__be32 header[CIP_HEADER_QUADLETS];
 		} template = { {0}, {0} };
 		bool sched_irq = false;
 
-		if (s->ctx_data.rx.syt_override < 0)
-			syt = desc->syt;
-		else
-			syt = s->ctx_data.rx.syt_override;
-
 		build_it_pkt_header(s, desc->cycle, &template.params, pkt_header_length,
 				    desc->data_blocks, desc->data_block_counter,
-				    syt, i);
+				    desc->syt, i);
 
 		if (s == s->domain->irq_target) {
 			event_count += desc->data_blocks;
@@ -1159,51 +1198,6 @@ static void process_tx_packets_intermediately(struct fw_iso_context *context, u3
 	}
 }
 
-static void pool_ideal_seq_descs(struct amdtp_domain *d, unsigned int packets)
-{
-	struct amdtp_stream *irq_target = d->irq_target;
-	unsigned int seq_tail = d->seq.tail;
-	unsigned int seq_size = d->seq.size;
-	unsigned int min_avail;
-	struct amdtp_stream *s;
-
-	min_avail = d->seq.size;
-	list_for_each_entry(s, &d->streams, list) {
-		unsigned int seq_index;
-		unsigned int avail;
-
-		if (s->direction == AMDTP_IN_STREAM)
-			continue;
-
-		seq_index = s->ctx_data.rx.seq_index;
-		avail = d->seq.tail;
-		if (seq_index > avail)
-			avail += d->seq.size;
-		avail -= seq_index;
-
-		if (avail < min_avail)
-			min_avail = avail;
-	}
-
-	while (min_avail < packets) {
-		struct seq_desc *desc = d->seq.descs + seq_tail;
-
-		desc->syt_offset = calculate_syt_offset(&d->last_syt_offset,
-					&d->syt_offset_state, irq_target->sfc);
-		desc->data_blocks = calculate_data_blocks(&d->data_block_state,
-				!!(irq_target->flags & CIP_BLOCKING),
-				desc->syt_offset == CIP_SYT_NO_INFO,
-				irq_target->syt_interval, irq_target->sfc);
-
-		++seq_tail;
-		seq_tail %= seq_size;
-
-		++min_avail;
-	}
-
-	d->seq.tail = seq_tail;
-}
-
 static void process_ctxs_in_domain(struct amdtp_domain *d)
 {
 	struct amdtp_stream *s;
@@ -1232,9 +1226,6 @@ static void irq_target_callback(struct fw_iso_context *context, u32 tstamp, size
 {
 	struct amdtp_stream *s = private_data;
 	struct amdtp_domain *d = s->domain;
-	unsigned int packets = header_length / sizeof(__be32);
-
-	pool_ideal_seq_descs(d, packets);
 
 	process_rx_packets(context, tstamp, header_length, header, private_data);
 	process_ctxs_in_domain(d);
@@ -1245,9 +1236,6 @@ static void irq_target_callback_intermediately(struct fw_iso_context *context, u
 {
 	struct amdtp_stream *s = private_data;
 	struct amdtp_domain *d = s->domain;
-	unsigned int packets = header_length / sizeof(__be32);
-
-	pool_ideal_seq_descs(d, packets);
 
 	process_rx_packets_intermediately(context, tstamp, header_length, header, private_data);
 	process_ctxs_in_domain(d);
@@ -1422,7 +1410,31 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		s->ctx_data.tx.max_ctx_payload_length = max_ctx_payload_size;
 		s->ctx_data.tx.ctx_header_size = ctx_header_size;
 	} else {
-		s->ctx_data.rx.seq_index = 0;
+		static const struct {
+			unsigned int data_block;
+			unsigned int syt_offset;
+		} *entry, initial_state[] = {
+			[CIP_SFC_32000]  = {  4, 3072 },
+			[CIP_SFC_48000]  = {  6, 1024 },
+			[CIP_SFC_96000]  = { 12, 1024 },
+			[CIP_SFC_192000] = { 24, 1024 },
+			[CIP_SFC_44100]  = {  0,   67 },
+			[CIP_SFC_88200]  = {  0,   67 },
+			[CIP_SFC_176400] = {  0,   67 },
+		};
+
+		s->ctx_data.rx.seq.descs = kcalloc(queue_size, sizeof(*s->ctx_data.rx.seq.descs), GFP_KERNEL);
+		if (!s->ctx_data.rx.seq.descs)
+			goto err_context;
+		s->ctx_data.rx.seq.size = queue_size;
+		s->ctx_data.rx.seq.tail = 0;
+		s->ctx_data.rx.seq.head = 0;
+
+		entry = &initial_state[s->sfc];
+		s->ctx_data.rx.data_block_state = entry->data_block;
+		s->ctx_data.rx.syt_offset_state = entry->syt_offset;
+		s->ctx_data.rx.last_syt_offset = TICKS_PER_CYCLE;
+
 		s->ctx_data.rx.event_count = 0;
 	}
 
@@ -1478,6 +1490,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 err_pkt_descs:
 	kfree(s->pkt_descs);
 err_context:
+	if (s->direction == AMDTP_OUT_STREAM)
+		kfree(s->ctx_data.rx.seq.descs);
 	fw_iso_context_destroy(s->context);
 	s->context = ERR_PTR(-1);
 err_buffer:
@@ -1588,7 +1602,8 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
 	iso_packets_buffer_destroy(&s->buffer, s->unit);
 	kfree(s->pkt_descs);
 
-	s->callbacked = false;
+	if (s->direction == AMDTP_OUT_STREAM)
+		kfree(s->ctx_data.rx.seq.descs);
 
 	mutex_unlock(&s->mutex);
 }
@@ -1619,8 +1634,6 @@ int amdtp_domain_init(struct amdtp_domain *d)
 	INIT_LIST_HEAD(&d->streams);
 
 	d->events_per_period = 0;
-
-	d->seq.descs = NULL;
 
 	return 0;
 }
@@ -1672,18 +1685,6 @@ EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
  */
 int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
 {
-	static const struct {
-		unsigned int data_block;
-		unsigned int syt_offset;
-	} *entry, initial_state[] = {
-		[CIP_SFC_32000]  = {  4, 3072 },
-		[CIP_SFC_48000]  = {  6, 1024 },
-		[CIP_SFC_96000]  = { 12, 1024 },
-		[CIP_SFC_192000] = { 24, 1024 },
-		[CIP_SFC_44100]  = {  0,   67 },
-		[CIP_SFC_88200]  = {  0,   67 },
-		[CIP_SFC_176400] = {  0,   67 },
-	};
 	unsigned int events_per_buffer = d->events_per_buffer;
 	unsigned int events_per_period = d->events_per_period;
 	unsigned int queue_size;
@@ -1712,17 +1713,6 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
 	queue_size = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_buffer,
 				  amdtp_rate_table[d->irq_target->sfc]);
 
-	d->seq.descs = kcalloc(queue_size, sizeof(*d->seq.descs), GFP_KERNEL);
-	if (!d->seq.descs)
-		return -ENOMEM;
-	d->seq.size = queue_size;
-	d->seq.tail = 0;
-
-	entry = &initial_state[s->sfc];
-	d->data_block_state = entry->data_block;
-	d->syt_offset_state = entry->syt_offset;
-	d->last_syt_offset = TICKS_PER_CYCLE;
-
 	list_for_each_entry(s, &d->streams, list) {
 		unsigned int idle_irq_interval = 0;
 
@@ -1741,8 +1731,6 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
 error:
 	list_for_each_entry(s, &d->streams, list)
 		amdtp_stream_stop(s);
-	kfree(d->seq.descs);
-	d->seq.descs = NULL;
 	return err;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_start);
@@ -1767,8 +1755,5 @@ void amdtp_domain_stop(struct amdtp_domain *d)
 
 	d->events_per_period = 0;
 	d->irq_target = NULL;
-
-	kfree(d->seq.descs);
-	d->seq.descs = NULL;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_stop);

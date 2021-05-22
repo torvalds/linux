@@ -35,6 +35,8 @@
  * @CIP_NO_HEADERS: a lack of headers in packets
  * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is not alighed to
  *	the value of current SYT_INTERVAL; e.g. initial value is not zero.
+ * @CIP_UNAWARE_SYT: For outgoing packet, the value in SYT field of CIP is 0xffff.
+ *	For incoming packet, the value in SYT field of CIP is not handled.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -48,6 +50,7 @@ enum cip_flags {
 	CIP_HEADER_WITHOUT_EOH	= 0x80,
 	CIP_NO_HEADER		= 0x100,
 	CIP_UNALIGHED_DBC	= 0x200,
+	CIP_UNAWARE_SYT		= 0x400,
 };
 
 /**
@@ -137,16 +140,23 @@ struct amdtp_stream {
 			unsigned int dbc_interval;
 		} tx;
 		struct {
-			// To calculate CIP data blocks and tstamp.
-			unsigned int transfer_delay;
-			unsigned int seq_index;
-
 			// To generate CIP header.
 			unsigned int fdf;
-			int syt_override;
 
 			// To generate constant hardware IRQ.
 			unsigned int event_count;
+
+			// To calculate CIP data blocks and tstamp.
+			struct {
+				struct seq_desc *descs;
+				unsigned int size;
+				unsigned int tail;
+				unsigned int head;
+			} seq;
+
+			unsigned int data_block_state;
+			unsigned int syt_offset_state;
+			unsigned int last_syt_offset;
 		} rx;
 	} ctx_data;
 
@@ -157,7 +167,8 @@ struct amdtp_stream {
 	unsigned int sph;
 	unsigned int fmt;
 
-	/* Internal flags. */
+	// Internal flags.
+	unsigned int transfer_delay;
 	enum cip_sfc sfc;
 	unsigned int syt_interval;
 
@@ -279,16 +290,6 @@ struct amdtp_domain {
 		unsigned int tx_start;
 		unsigned int rx_start;
 	} processing_cycle;
-
-	struct {
-		struct seq_desc *descs;
-		unsigned int size;
-		unsigned int tail;
-	} seq;
-
-	unsigned int data_block_state;
-	unsigned int syt_offset_state;
-	unsigned int last_syt_offset;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
