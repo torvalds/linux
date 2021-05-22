@@ -357,26 +357,41 @@ void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_prepare);
 
-static unsigned int calculate_data_blocks(unsigned int *data_block_state,
-				bool is_blocking, bool is_no_info,
-				unsigned int syt_interval, enum cip_sfc sfc)
+static void pool_blocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
+				      const unsigned int seq_size, unsigned int seq_tail,
+				      unsigned int count)
 {
-	unsigned int data_blocks;
+	const unsigned int syt_interval = s->syt_interval;
+	int i;
 
-	/* Blocking mode. */
-	if (is_blocking) {
-		/* This module generate empty packet for 'no data'. */
-		if (is_no_info)
-			data_blocks = 0;
+	for (i = 0; i < count; ++i) {
+		struct seq_desc *desc = descs + seq_tail;
+
+		if (desc->syt_offset != CIP_SYT_NO_INFO)
+			desc->data_blocks = syt_interval;
 		else
-			data_blocks = syt_interval;
-	/* Non-blocking mode. */
-	} else {
+			desc->data_blocks = 0;
+
+		seq_tail = (seq_tail + 1) % seq_size;
+	}
+}
+
+static void pool_ideal_nonblocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
+					       const unsigned int seq_size, unsigned int seq_tail,
+					       unsigned int count)
+{
+	const enum cip_sfc sfc = s->sfc;
+	unsigned int state = s->ctx_data.rx.data_block_state;
+	int i;
+
+	for (i = 0; i < count; ++i) {
+		struct seq_desc *desc = descs + seq_tail;
+
 		if (!cip_sfc_is_base_44100(sfc)) {
 			// Sample_rate / 8000 is an integer, and precomputed.
-			data_blocks = *data_block_state;
+			desc->data_blocks = state;
 		} else {
-			unsigned int phase = *data_block_state;
+			unsigned int phase = state;
 
 		/*
 		 * This calculates the number of data blocks per packet so that
@@ -388,18 +403,19 @@ static unsigned int calculate_data_blocks(unsigned int *data_block_state,
 		 */
 			if (sfc == CIP_SFC_44100)
 				/* 6 6 5 6 5 6 5 ... */
-				data_blocks = 5 + ((phase & 1) ^
-						   (phase == 0 || phase >= 40));
+				desc->data_blocks = 5 + ((phase & 1) ^ (phase == 0 || phase >= 40));
 			else
 				/* 12 11 11 11 11 ... or 23 22 22 22 22 ... */
-				data_blocks = 11 * (sfc >> 1) + (phase == 0);
+				desc->data_blocks = 11 * (sfc >> 1) + (phase == 0);
 			if (++phase >= (80 >> (sfc >> 1)))
 				phase = 0;
-			*data_block_state = phase;
+			state = phase;
 		}
+
+		seq_tail = (seq_tail + 1) % seq_size;
 	}
 
-	return data_blocks;
+	s->ctx_data.rx.data_block_state = state;
 }
 
 static unsigned int calculate_syt_offset(unsigned int *last_syt_offset,
@@ -467,24 +483,15 @@ static void pool_ideal_seq_descs(struct amdtp_stream *s, unsigned int count)
 	struct seq_desc *descs = s->ctx_data.rx.seq.descs;
 	unsigned int seq_tail = s->ctx_data.rx.seq.tail;
 	const unsigned int seq_size = s->ctx_data.rx.seq.size;
-	const unsigned int syt_interval = s->syt_interval;
-	const enum cip_sfc sfc = s->sfc;
-	const bool is_blocking = !!(s->flags & CIP_BLOCKING);
-	int i;
 
 	pool_ideal_syt_offsets(s, descs, seq_size, seq_tail, count);
 
-	for (i = 0; i < count; ++i) {
-		struct seq_desc *desc = s->ctx_data.rx.seq.descs + seq_tail;
+	if (s->flags & CIP_BLOCKING)
+		pool_blocking_data_blocks(s, descs, seq_size, seq_tail, count);
+	else
+		pool_ideal_nonblocking_data_blocks(s, descs, seq_size, seq_tail, count);
 
-		desc->data_blocks = calculate_data_blocks(&s->ctx_data.rx.data_block_state,
-				is_blocking, desc->syt_offset == CIP_SYT_NO_INFO,
-				syt_interval, sfc);
-
-		seq_tail = (seq_tail + 1) % seq_size;
-	}
-
-	s->ctx_data.rx.seq.tail = seq_tail;
+	s->ctx_data.rx.seq.tail = (seq_tail + count) % seq_size;
 }
 
 static void update_pcm_pointers(struct amdtp_stream *s,
