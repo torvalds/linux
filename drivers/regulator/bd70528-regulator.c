@@ -16,10 +16,6 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/slab.h>
 
-#define BUCK_RAMPRATE_250MV 0
-#define BUCK_RAMPRATE_125MV 1
-#define BUCK_RAMP_MAX 250
-
 static const struct linear_range bd70528_buck1_volts[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0x00, 0x1, 600000),
 	REGULATOR_LINEAR_RANGE(2750000, 0x2, 0xf, 50000),
@@ -47,22 +43,9 @@ static const unsigned int led_volts[] = {
 	20000, 30000
 };
 
-static int bd70528_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	if (ramp_delay > 0 && ramp_delay <= BUCK_RAMP_MAX) {
-		unsigned int ramp_value = BUCK_RAMPRATE_250MV;
-
-		if (ramp_delay <= 125)
-			ramp_value = BUCK_RAMPRATE_125MV;
-
-		return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
-				  BD70528_MASK_BUCK_RAMP,
-				  ramp_value << BD70528_SIFT_BUCK_RAMP);
-	}
-	dev_err(&rdev->dev, "%s: ramp_delay: %d not supported\n",
-		rdev->desc->name, ramp_delay);
-	return -EINVAL;
-}
+static const unsigned int bd70528_buck_ramp_table[] = {
+	250, 125
+};
 
 static int bd70528_led_set_voltage_sel(struct regulator_dev *rdev,
 				       unsigned int sel)
@@ -90,7 +73,7 @@ static const struct regulator_ops bd70528_buck_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay = bd70528_set_ramp_delay,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
 static const struct regulator_ops bd70528_ldo_ops = {
@@ -127,6 +110,10 @@ static const struct regulator_desc bd70528_desc[] = {
 		.enable_mask = BD70528_MASK_RUN_EN,
 		.vsel_reg = BD70528_REG_BUCK1_VOLT,
 		.vsel_mask = BD70528_MASK_BUCK_VOLT,
+		.ramp_reg = BD70528_REG_BUCK1_VOLT,
+		.ramp_mask = BD70528_MASK_BUCK_RAMP,
+		.ramp_delay_table = bd70528_buck_ramp_table,
+		.n_ramp_values = ARRAY_SIZE(bd70528_buck_ramp_table),
 		.owner = THIS_MODULE,
 	},
 	{
@@ -143,6 +130,10 @@ static const struct regulator_desc bd70528_desc[] = {
 		.enable_mask = BD70528_MASK_RUN_EN,
 		.vsel_reg = BD70528_REG_BUCK2_VOLT,
 		.vsel_mask = BD70528_MASK_BUCK_VOLT,
+		.ramp_reg = BD70528_REG_BUCK2_VOLT,
+		.ramp_mask = BD70528_MASK_BUCK_RAMP,
+		.ramp_delay_table = bd70528_buck_ramp_table,
+		.n_ramp_values = ARRAY_SIZE(bd70528_buck_ramp_table),
 		.owner = THIS_MODULE,
 	},
 	{
@@ -159,6 +150,10 @@ static const struct regulator_desc bd70528_desc[] = {
 		.enable_mask = BD70528_MASK_RUN_EN,
 		.vsel_reg = BD70528_REG_BUCK3_VOLT,
 		.vsel_mask = BD70528_MASK_BUCK_VOLT,
+		.ramp_reg = BD70528_REG_BUCK3_VOLT,
+		.ramp_mask = BD70528_MASK_BUCK_RAMP,
+		.ramp_delay_table = bd70528_buck_ramp_table,
+		.n_ramp_values = ARRAY_SIZE(bd70528_buck_ramp_table),
 		.owner = THIS_MODULE,
 	},
 	{
