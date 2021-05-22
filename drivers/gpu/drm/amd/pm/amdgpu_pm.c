@@ -735,6 +735,23 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - a list of valid ranges for sclk, mclk, and voltage curve points
  *   labeled OD_RANGE
  *
+ * < For APUs >
+ *
+ * Reading the file will display:
+ *
+ * - minimum and maximum engine clock labeled OD_SCLK
+ *
+ * - a list of valid ranges for sclk labeled OD_RANGE
+ *
+ * < For VanGogh >
+ *
+ * Reading the file will display:
+ *
+ * - minimum and maximum engine clock labeled OD_SCLK
+ * - minimum and maximum core clocks labeled OD_CCLK
+ *
+ * - a list of valid ranges for sclk and cclk labeled OD_RANGE
+ *
  * To manually adjust these settings:
  *
  * - First select manual using power_dpm_force_performance_level
@@ -743,7 +760,10 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   string that contains "s/m index clock" to the file. The index
  *   should be 0 if to set minimum clock. And 1 if to set maximum
  *   clock. E.g., "s 0 500" will update minimum sclk to be 500 MHz.
- *   "m 1 800" will update maximum mclk to be 800Mhz.
+ *   "m 1 800" will update maximum mclk to be 800Mhz. For core
+ *   clocks on VanGogh, the string contains "p core index clock".
+ *   E.g., "p 2 0 800" would set the minimum core clock on core
+ *   2 to 800Mhz.
  *
  *   For sclk voltage curve, enter the new values by writing a
  *   string that contains "vc point clock voltage" to the file. The
@@ -3534,6 +3554,45 @@ out:
 
 DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_pm_info);
 
+/*
+ * amdgpu_pm_priv_buffer_read - Read memory region allocated to FW
+ *
+ * Reads debug memory region allocated to PMFW
+ */
+static ssize_t amdgpu_pm_prv_buffer_read(struct file *f, char __user *buf,
+					 size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	size_t smu_prv_buf_size;
+	void *smu_prv_buf;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	if (pp_funcs && pp_funcs->get_smu_prv_buf_details)
+		pp_funcs->get_smu_prv_buf_details(pp_handle, &smu_prv_buf,
+						  &smu_prv_buf_size);
+	else
+		return -ENOSYS;
+
+	if (!smu_prv_buf || !smu_prv_buf_size)
+		return -EINVAL;
+
+	return simple_read_from_buffer(buf, size, pos, smu_prv_buf,
+				       smu_prv_buf_size);
+}
+
+static const struct file_operations amdgpu_debugfs_pm_prv_buffer_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = amdgpu_pm_prv_buffer_read,
+	.llseek = default_llseek,
+};
+
 #endif
 
 void amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
@@ -3545,5 +3604,10 @@ void amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
 	debugfs_create_file("amdgpu_pm_info", 0444, root, adev,
 			    &amdgpu_debugfs_pm_info_fops);
 
+	if (adev->pm.smu_prv_buffer_size > 0)
+		debugfs_create_file_size("amdgpu_pm_prv_buffer", 0444, root,
+					 adev,
+					 &amdgpu_debugfs_pm_prv_buffer_fops,
+					 adev->pm.smu_prv_buffer_size);
 #endif
 }

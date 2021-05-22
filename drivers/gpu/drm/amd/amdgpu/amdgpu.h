@@ -1007,6 +1007,7 @@ struct amdgpu_device {
 	struct amdgpu_df                df;
 
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
+	uint32_t		        harvest_ip_mask;
 	int				num_ip_blocks;
 	struct mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
@@ -1074,7 +1075,8 @@ struct amdgpu_device {
 
 	atomic_t			throttling_logging_enabled;
 	struct ratelimit_state		throttling_logging_rs;
-	uint32_t			ras_features;
+	uint32_t                        ras_hw_enabled;
+	uint32_t                        ras_enabled;
 
 	bool                            in_pci_err_recovery;
 	struct pci_saved_state          *pci_state;

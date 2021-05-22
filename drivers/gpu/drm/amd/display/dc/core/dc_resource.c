@@ -57,6 +57,7 @@
 #include "dcn30/dcn30_resource.h"
 #include "dcn301/dcn301_resource.h"
 #include "dcn302/dcn302_resource.h"
+#include "dcn303/dcn303_resource.h"
 #endif
 
 #define DC_LOGGER_INIT(logger)
@@ -130,6 +131,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCN_VERSION_3_0;
 		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_02;
+		if (ASICREV_IS_BEIGE_GOBY_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_03;
 		break;
 
 	case FAMILY_VGH:
@@ -215,6 +218,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_02:
 		res_pool = dcn302_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_03:
+		res_pool = dcn303_create_resource_pool(init_data, dc);
 		break;
 #endif
 	default:
@@ -1706,12 +1712,6 @@ static bool is_timing_changed(struct dc_stream_state *cur_stream,
 	if (cur_stream == NULL)
 		return true;
 
-	/* If sink pointer changed, it means this is a hotplug, we should do
-	 * full hw setting.
-	 */
-	if (cur_stream->sink != new_stream->sink)
-		return true;
-
 	/* If output color space is changed, need to reprogram info frames */
 	if (cur_stream->output_color_space != new_stream->output_color_space)
 		return true;
@@ -2679,6 +2679,7 @@ void dc_resource_state_destruct(struct dc_state *context)
 		dc_stream_release(context->streams[i]);
 		context->streams[i] = NULL;
 	}
+	context->stream_count = 0;
 }
 
 void dc_resource_state_copy_construct(

@@ -45,7 +45,6 @@
 #include <media/cec-notifier.h>
 
 #include "i915_drv.h"
-#include "intel_de.h"
 
 struct drm_printer;
 struct __intel_global_objs_state;
@@ -127,8 +126,12 @@ struct intel_framebuffer {
 
 	/* Params to remap the FB pages and program the plane registers in each view. */
 	struct intel_fb_view normal_view;
-	struct intel_fb_view rotated_view;
-	struct intel_fb_view remapped_view;
+	union {
+		struct intel_fb_view rotated_view;
+		struct intel_fb_view remapped_view;
+	};
+
+	struct i915_address_space *dpt_vm;
 };
 
 struct intel_fbdev {
@@ -611,7 +614,8 @@ struct intel_plane_state {
 		enum drm_scaling_filter scaling_filter;
 	} hw;
 
-	struct i915_vma *vma;
+	struct i915_vma *ggtt_vma;
+	struct i915_vma *dpt_vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
 
@@ -1973,9 +1977,19 @@ intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pip
 		intel_wait_for_vblank(dev_priv, pipe);
 }
 
-static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
+static inline bool intel_modifier_uses_dpt(struct drm_i915_private *i915, u64 modifier)
 {
-	return i915_ggtt_offset(state->vma);
+	return DISPLAY_VER(i915) >= 13 && modifier != DRM_FORMAT_MOD_LINEAR;
+}
+
+static inline bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
+{
+	return fb && intel_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
+}
+
+static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
+{
+	return i915_ggtt_offset(plane_state->ggtt_vma);
 }
 
 static inline struct intel_frontbuffer *

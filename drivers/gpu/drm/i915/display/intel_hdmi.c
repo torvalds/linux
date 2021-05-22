@@ -43,6 +43,7 @@
 #include "intel_atomic.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_gmbus.h"
@@ -531,6 +532,11 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 			       hsw_dip_data_reg(dev_priv, cpu_transcoder, type, i >> 2),
 			       0);
 
+	/* Wa_14013475917 */
+	if (DISPLAY_VER(dev_priv) == 13 && crtc_state->has_psr &&
+	    type == DP_SDP_VSC)
+		return;
+
 	val |= hsw_infoframe_enable(type);
 	intel_de_write(dev_priv, ctl_reg, val);
 	intel_de_posting_read(dev_priv, ctl_reg);
@@ -542,10 +548,8 @@ void hsw_read_infoframe(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 val, *data = frame;
+	u32 *data = frame;
 	int i;
-
-	val = intel_de_read(dev_priv, HSW_TVIDEO_DIP_CTL(cpu_transcoder));
 
 	for (i = 0; i < len; i += 4)
 		*data++ = intel_de_read(dev_priv,
@@ -1840,7 +1844,8 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 		return MODE_CLOCK_RANGE;
 
 	/* BXT/GLK DPLL can't generate 223-240 MHz */
-	if (IS_GEN9_LP(dev_priv) && clock > 223333 && clock < 240000)
+	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    clock > 223333 && clock < 240000)
 		return MODE_CLOCK_RANGE;
 
 	/* CHV DPLL can't generate 216-240 MHz */
@@ -1861,34 +1866,11 @@ static int intel_hdmi_port_clock(int clock, int bpc)
 }
 
 static enum drm_mode_status
-intel_hdmi_mode_valid(struct drm_connector *connector,
-		      struct drm_display_mode *mode)
+intel_hdmi_mode_clock_valid(struct intel_hdmi *hdmi, int clock, bool has_hdmi_sink)
 {
-	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum drm_mode_status status;
-	int clock = mode->clock;
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
-	bool has_hdmi_sink = intel_has_hdmi_sink(hdmi, connector->state);
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
-	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
-		clock *= 2;
-
-	if (clock > max_dotclk)
-		return MODE_CLOCK_HIGH;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
-		if (!has_hdmi_sink)
-			return MODE_CLOCK_LOW;
-		clock *= 2;
-	}
-
-	if (drm_mode_is_420_only(&connector->display_info, mode))
-		clock /= 2;
 
 	/* check if we can do 8bpc */
 	status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 8),
@@ -1905,8 +1887,54 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
 						       true, has_hdmi_sink);
 	}
-	if (status != MODE_OK)
-		return status;
+
+	return status;
+}
+
+static enum drm_mode_status
+intel_hdmi_mode_valid(struct drm_connector *connector,
+		      struct drm_display_mode *mode)
+{
+	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
+	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum drm_mode_status status;
+	int clock = mode->clock;
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	bool has_hdmi_sink = intel_has_hdmi_sink(hdmi, connector->state);
+	bool ycbcr_420_only;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		clock *= 2;
+
+	if (clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
+		if (!has_hdmi_sink)
+			return MODE_CLOCK_LOW;
+		clock *= 2;
+	}
+
+	ycbcr_420_only = drm_mode_is_420_only(&connector->display_info, mode);
+	if (ycbcr_420_only)
+		clock /= 2;
+
+	status = intel_hdmi_mode_clock_valid(hdmi, clock, has_hdmi_sink);
+	if (status != MODE_OK) {
+		if (ycbcr_420_only ||
+		    !connector->ycbcr_420_allowed ||
+		    !drm_mode_is_420_also(&connector->display_info, mode))
+			return status;
+
+		clock /= 2;
+		status = intel_hdmi_mode_clock_valid(hdmi, clock, has_hdmi_sink);
+		if (status != MODE_OK)
+			return status;
+	}
 
 	return intel_mode_valid_max_plane_size(dev_priv, mode, false);
 }
@@ -1976,7 +2004,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 
 	/* Display Wa_1405510057:icl,ehl */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
-	    bpc == 10 && IS_DISPLAY_VER(dev_priv, 11) &&
+	    bpc == 10 && DISPLAY_VER(dev_priv) == 11 &&
 	    (adjusted_mode->crtc_hblank_end -
 	     adjusted_mode->crtc_hblank_start) % 8 == 2)
 		return false;
@@ -1985,29 +2013,6 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 					      crtc_state->has_hdmi_sink,
 					      crtc_state->output_format ==
 					      INTEL_OUTPUT_FORMAT_YCBCR420);
-}
-
-static int
-intel_hdmi_ycbcr420_config(struct intel_crtc_state *crtc_state,
-			   const struct drm_connector_state *conn_state)
-{
-	struct drm_connector *connector = conn_state->connector;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-
-	if (!drm_mode_is_420_only(&connector->display_info, adjusted_mode))
-		return 0;
-
-	if (!connector->ycbcr_420_allowed) {
-		drm_err(&i915->drm,
-			"Platform doesn't support YCBCR420 output\n");
-		return -EINVAL;
-	}
-
-	crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
-
-	return intel_pch_panel_fitting(crtc_state, conn_state);
 }
 
 static int intel_hdmi_compute_bpc(struct intel_encoder *encoder,
@@ -2116,6 +2121,39 @@ static bool intel_hdmi_has_audio(struct intel_encoder *encoder,
 		return intel_conn_state->force_audio == HDMI_AUDIO_ON;
 }
 
+static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
+					    struct intel_crtc_state *crtc_state,
+					    const struct drm_connector_state *conn_state)
+{
+	struct drm_connector *connector = conn_state->connector;
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	int ret;
+	bool ycbcr_420_only;
+
+	ycbcr_420_only = drm_mode_is_420_only(&connector->display_info, adjusted_mode);
+	if (connector->ycbcr_420_allowed && ycbcr_420_only) {
+		crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
+	} else {
+		if (!connector->ycbcr_420_allowed && ycbcr_420_only)
+			drm_dbg_kms(&i915->drm,
+				    "YCbCr 4:2:0 mode but YCbCr 4:2:0 output not possible. Falling back to RGB.\n");
+		crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	}
+
+	ret = intel_hdmi_compute_clock(encoder, crtc_state);
+	if (ret) {
+		if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420 &&
+		    connector->ycbcr_420_allowed &&
+		    drm_mode_is_420_also(&connector->display_info, adjusted_mode)) {
+			crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
+			ret = intel_hdmi_compute_clock(encoder, crtc_state);
+		}
+	}
+
+	return ret;
+}
+
 int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config,
 			      struct drm_connector_state *conn_state)
@@ -2140,22 +2178,24 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
 
-	ret = intel_hdmi_ycbcr420_config(pipe_config, conn_state);
-	if (ret)
-		return ret;
-
-	pipe_config->limited_color_range =
-		intel_hdmi_limited_color_range(pipe_config, conn_state);
-
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_audio =
 		intel_hdmi_has_audio(encoder, pipe_config, conn_state);
 
-	ret = intel_hdmi_compute_clock(encoder, pipe_config);
+	ret = intel_hdmi_compute_output_format(encoder, pipe_config, conn_state);
 	if (ret)
 		return ret;
+
+	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
+		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		if (ret)
+			return ret;
+	}
+
+	pipe_config->limited_color_range =
+		intel_hdmi_limited_color_range(pipe_config, conn_state);
 
 	if (conn_state->picture_aspect_ratio)
 		adjusted_mode->picture_aspect_ratio =
@@ -2706,13 +2746,13 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		return ddc_pin;
 	}
 
-	if (HAS_PCH_ADP(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv))
 		ddc_pin = adls_port_to_ddc_pin(dev_priv, port);
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
 		ddc_pin = dg1_port_to_ddc_pin(dev_priv, port);
 	else if (IS_ROCKETLAKE(dev_priv))
 		ddc_pin = rkl_port_to_ddc_pin(dev_priv, port);
-	else if (IS_GEN9_BC(dev_priv) && HAS_PCH_TGP(dev_priv))
+	else if (DISPLAY_VER(dev_priv) == 9 && HAS_PCH_TGP(dev_priv))
 		ddc_pin = gen9bc_tgp_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_MCC(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
@@ -2720,7 +2760,7 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_CNP(dev_priv))
 		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		ddc_pin = bxt_port_to_ddc_pin(dev_priv, port);
 	else if (IS_CHERRYVIEW(dev_priv))
 		ddc_pin = chv_port_to_ddc_pin(dev_priv, port);

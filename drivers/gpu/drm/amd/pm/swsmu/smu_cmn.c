@@ -104,8 +104,8 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 
 	ret = smu_cmn_wait_for_response(smu);
 	if (ret != 0x1) {
-		dev_err(adev->dev, "Msg issuing pre-check failed and "
-		       "SMU may be not in the right state!\n");
+		dev_err(adev->dev, "Msg issuing pre-check failed(0x%x) and "
+		       "SMU may be not in the right state!\n", ret);
 		if (ret != -ETIME)
 			ret = -EIO;
 		return ret;
@@ -760,6 +760,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 		break;
 	case METRICS_VERSION(1, 1):
 		structure_size = sizeof(struct gpu_metrics_v1_1);
+		break;
+	case METRICS_VERSION(1, 2):
+		structure_size = sizeof(struct gpu_metrics_v1_2);
 		break;
 	case METRICS_VERSION(2, 0):
 		structure_size = sizeof(struct gpu_metrics_v2_0);

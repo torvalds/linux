@@ -37,7 +37,7 @@ intel_dp_dump_link_status(struct drm_device *drm,
 
 static void intel_dp_reset_lttpr_common_caps(struct intel_dp *intel_dp)
 {
-	memset(&intel_dp->lttpr_common_caps, 0, sizeof(intel_dp->lttpr_common_caps));
+	memset(intel_dp->lttpr_common_caps, 0, sizeof(intel_dp->lttpr_common_caps));
 }
 
 static void intel_dp_reset_lttpr_count(struct intel_dp *intel_dp)

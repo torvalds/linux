@@ -93,6 +93,30 @@ static const char *mmhub_client_ids_sienna_cichlid[][2] = {
 	[15][1] = "OSS",
 };
 
+static const char *mmhub_client_ids_beige_goby[][2] = {
+	[3][0] = "DCEDMC",
+	[4][0] = "DCEVGA",
+	[5][0] = "MP0",
+	[6][0] = "MP1",
+	[8][0] = "VMC",
+	[9][0] = "VCNU0",
+	[11][0] = "VCN0",
+	[14][0] = "HDP",
+	[15][0] = "OSS",
+	[0][1] = "DBGU0",
+	[1][1] = "DBGU1",
+	[2][1] = "DCEDWB",
+	[3][1] = "DCEDMC",
+	[4][1] = "DCEVGA",
+	[5][1] = "MP0",
+	[6][1] = "MP1",
+	[7][1] = "XDP",
+	[9][1] = "VCNU0",
+	[11][1] = "VCN0",
+	[14][1] = "HDP",
+	[15][1] = "OSS",
+};
+
 static uint32_t mmhub_v2_0_get_invalidate_req(unsigned int vmid,
 					      uint32_t flush_type)
 {
@@ -138,6 +162,9 @@ mmhub_v2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
 		mmhub_cid = mmhub_client_ids_sienna_cichlid[cid][rw];
+		break;
+	case CHIP_BEIGE_GOBY:
+		mmhub_cid = mmhub_client_ids_beige_goby[cid][rw];
 		break;
 	default:
 		mmhub_cid = NULL;
@@ -544,6 +571,7 @@ static void mmhub_v2_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid);
 		def1 = data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2_Sienna_Cichlid);
 		break;
@@ -578,6 +606,7 @@ static void mmhub_v2_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		if (def != data)
 			WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid, data);
 		if (def1 != data1)
@@ -601,6 +630,7 @@ static void mmhub_v2_0_update_medium_grain_light_sleep(struct amdgpu_device *ade
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid);
 		break;
 	default:
@@ -618,6 +648,7 @@ static void mmhub_v2_0_update_medium_grain_light_sleep(struct amdgpu_device *ade
 		case CHIP_SIENNA_CICHLID:
 		case CHIP_NAVY_FLOUNDER:
 		case CHIP_DIMGREY_CAVEFISH:
+		case CHIP_BEIGE_GOBY:
 			WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid, data);
 			break;
 		default:
@@ -640,6 +671,7 @@ static int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		mmhub_v2_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		mmhub_v2_0_update_medium_grain_light_sleep(adev,
@@ -663,6 +695,7 @@ static void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid);
 		data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2_Sienna_Cichlid);
 		break;

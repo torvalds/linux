@@ -25,7 +25,6 @@
 #include "soc15_int.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_smi_events.h"
-#include "amdgpu.h"
 
 enum SQ_INTERRUPT_WORD_ENCODING {
 	SQ_INTERRUPT_WORD_ENCODING_AUTO = 0x0,
@@ -231,7 +230,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					kfd_signal_hw_exception_event(pasid);
+					kfd_signal_poison_consumed_event(dev, pasid);
 					amdgpu_amdkfd_gpu_reset(dev->kgd);
 					return;
 				}

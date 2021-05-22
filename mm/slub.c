@@ -3828,15 +3828,6 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 
 static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
 {
-#ifdef CONFIG_SLUB_DEBUG
-	/*
-	 * If no slub_debug was enabled globally, the static key is not yet
-	 * enabled by setup_slub_debug(). Enable it if the cache is being
-	 * created with any of the debugging flags passed explicitly.
-	 */
-	if (flags & SLAB_DEBUG_FLAGS)
-		static_branch_enable(&slub_debug_enabled);
-#endif
 	s->flags = kmem_cache_flags(s->size, flags, s->name);
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
 	s->random = get_random_long();

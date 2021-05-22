@@ -48,6 +48,7 @@
 #include "dce/dmub_psr.h"
 #include "dmub/dmub_srv.h"
 #include "inc/hw/panel_cntl.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -247,6 +248,16 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
+	/* Link may not have physical HPD pin. */
+	if (link->ep_type != DISPLAY_ENDPOINT_PHY) {
+		if (link->hpd_status)
+			*type = dc_connection_single;
+		else
+			*type = dc_connection_none;
+
+		return true;
+	}
+
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
 			       link->ctx->gpio_service);
@@ -432,8 +443,18 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 static enum signal_type link_detect_sink(struct dc_link *link,
 					 enum dc_detect_reason reason)
 {
-	enum signal_type result = get_basic_signal_type(link->link_enc->id,
-							link->link_id);
+	enum signal_type result;
+	struct graphics_object_id enc_id;
+
+	if (link->is_dig_mapping_flexible)
+		enc_id = (struct graphics_object_id){.id = ENCODER_ID_UNKNOWN};
+	else
+		enc_id = link->link_enc->id;
+	result = get_basic_signal_type(enc_id, link->link_id);
+
+	/* Use basic signal type for link without physical connector. */
+	if (link->ep_type != DISPLAY_ENDPOINT_PHY)
+		return result;
 
 	/* Internal digital encoder will detect only dongles
 	 * that require digital signal
@@ -762,19 +783,20 @@ static bool detect_dp(struct dc_link *link,
 		}
 
 		if (link->type != dc_connection_mst_branch &&
-		    is_dp_active_dongle(link)) {
-			/* DP active dongles */
-			link->type = dc_connection_active_dongle;
+		    is_dp_branch_device(link)) {
+			/* DP SST branch */
+			link->type = dc_connection_sst_branch;
 			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
 				/*
-				 * active dongle unplug processing for short irq
+				 * SST branch unplug processing for short irq
 				 */
 				link_disconnect_sink(link);
 				return true;
 			}
 
-			if (link->dpcd_caps.dongle_type !=
-			    DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+			if (is_dp_active_dongle(link) &&
+				(link->dpcd_caps.dongle_type !=
+					DISPLAY_DONGLE_DP_HDMI_CONVERTER))
 				*converter_disable_audio = true;
 		}
 	} else {
@@ -954,7 +976,8 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
 			/* wa HPD high coming too early*/
-			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
+			if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+			    link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
 				/* if alt mode times out, return false */
 				if (!wait_for_entering_dp_alt_mode(link))
 					return false;
@@ -974,8 +997,8 @@ static bool dc_link_detect_helper(struct dc_link *link,
 					   sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
-			/* Active dongle downstream unplug*/
-			if (link->type == dc_connection_active_dongle &&
+			/* Active SST downstream branch device unplug*/
+			if (link->type == dc_connection_sst_branch &&
 			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
 				if (prev_sink)
 					/* Downstream unplug */
@@ -1076,6 +1099,24 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			    dc_is_dvi_signal(link->connector_signal)) {
 				if (prev_sink)
 					dc_sink_release(prev_sink);
+				link_disconnect_sink(link);
+
+				return false;
+			}
+			/*
+			 * Abort detection for DP connectors if we have
+			 * no EDID and connector is active converter
+			 * as there are no display downstream
+			 *
+			 */
+			if (dc_is_dp_sst_signal(link->connector_signal) &&
+				(link->dpcd_caps.dongle_type ==
+						DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+				link->dpcd_caps.dongle_type ==
+						DISPLAY_DONGLE_DP_DVI_CONVERTER)) {
+				if (prev_sink)
+					dc_sink_release(prev_sink);
+				link_disconnect_sink(link);
 
 				return false;
 			}
@@ -1206,14 +1247,25 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	const struct dc *dc = link->dc;
 	bool ret;
+	bool can_apply_seamless_boot = false;
+	int i;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		if (dc->current_state->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
+		}
+	}
 
 	/* get out of low power state */
-	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
+	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
+		clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 
 	ret = dc_link_detect_helper(link, reason);
 
 	/* Go back to power optimized state */
-	clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
+	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
+		clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
 
 	return ret;
 }
@@ -1716,6 +1768,8 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	bool apply_seamless_boot_optimization = false;
 	uint32_t bl_oled_enable_delay = 50; // in ms
 	const uint32_t post_oui_delay = 30; // 30ms
+	/* Reduce link bandwidth between failed link training attempts. */
+	bool do_fallback = false;
 
 	// check for seamless boot
 	for (i = 0; i < state->stream_count; i++) {
@@ -1754,7 +1808,8 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 					       skip_video_pattern,
 					       LINK_TRAINING_ATTEMPTS,
 					       pipe_ctx,
-					       pipe_ctx->stream->signal)) {
+					       pipe_ctx->stream->signal,
+					       do_fallback)) {
 		link->cur_link_settings = link_settings;
 		status = DC_OK;
 	} else {
@@ -3475,9 +3530,11 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	uint32_t kbps;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (timing->flags.DSC) {
-		return dc_dsc_stream_bandwidth_in_kbps(timing->pix_clk_100hz, timing->dsc_cfg.bits_per_pixel);
-	}
+	if (timing->flags.DSC)
+		return dc_dsc_stream_bandwidth_in_kbps(timing,
+				timing->dsc_cfg.bits_per_pixel,
+				timing->dsc_cfg.num_slices_h,
+				timing->dsc_cfg.is_dp);
 #endif
 
 	switch (timing->display_color_depth) {
@@ -3537,19 +3594,6 @@ void dc_link_set_drive_settings(struct dc *dc,
 		ASSERT_CRITICAL(false);
 
 	dc_link_dp_set_drive_settings(dc->links[i], lt_settings);
-}
-
-void dc_link_perform_link_training(struct dc *dc,
-				   struct dc_link_settings *link_setting,
-				   bool skip_video_pattern)
-{
-	int i;
-
-	for (i = 0; i < dc->link_count; i++)
-		dc_link_dp_perform_link_training(
-			dc->links[i],
-			link_setting,
-			skip_video_pattern);
 }
 
 void dc_link_set_preferred_link_settings(struct dc *dc,
@@ -3702,8 +3746,22 @@ void dc_link_overwrite_extended_receiver_cap(
 
 bool dc_link_is_fec_supported(const struct dc_link *link)
 {
+	struct link_encoder *link_enc = NULL;
+
+	/* Links supporting dynamically assigned link encoder will be assigned next
+	 * available encoder if one not already assigned.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign) {
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		if (link_enc == NULL)
+			link_enc = link_enc_cfg_get_next_avail_link_enc(link->dc, link->dc->current_state);
+	} else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
+
 	return (dc_is_dp_signal(link->connector_signal) &&
-			link->link_enc->features.fec_supported &&
+			link_enc->features.fec_supported &&
 			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
 			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
 }

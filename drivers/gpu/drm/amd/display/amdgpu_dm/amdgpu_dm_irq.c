@@ -769,6 +769,18 @@ static int amdgpu_dm_set_vline0_irq_state(struct amdgpu_device *adev,
 		__func__);
 }
 
+static int amdgpu_dm_set_dmub_outbox_irq_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned int crtc_id,
+					enum amdgpu_interrupt_state state)
+{
+	enum dc_irq_source irq_source = DC_IRQ_SOURCE_DMCUB_OUTBOX;
+	bool st = (state == AMDGPU_IRQ_STATE_ENABLE);
+
+	dc_interrupt_set(adev->dm.dc, irq_source, st);
+	return 0;
+}
+
 static int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
 					   struct amdgpu_irq_src *source,
 					   unsigned int crtc_id,
@@ -805,6 +817,11 @@ static const struct amdgpu_irq_src_funcs dm_vline0_irq_funcs = {
 	.process = amdgpu_dm_irq_handler,
 };
 
+static const struct amdgpu_irq_src_funcs dm_dmub_outbox_irq_funcs = {
+	.set = amdgpu_dm_set_dmub_outbox_irq_state,
+	.process = amdgpu_dm_irq_handler,
+};
+
 static const struct amdgpu_irq_src_funcs dm_vupdate_irq_funcs = {
 	.set = amdgpu_dm_set_vupdate_irq_state,
 	.process = amdgpu_dm_irq_handler,
@@ -827,12 +844,14 @@ static const struct amdgpu_irq_src_funcs dm_hpd_irq_funcs = {
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 {
-
 	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
 
 	adev->vline0_irq.num_types = adev->mode_info.num_crtc;
 	adev->vline0_irq.funcs = &dm_vline0_irq_funcs;
+
+	adev->dmub_outbox_irq.num_types = 1;
+	adev->dmub_outbox_irq.funcs = &dm_dmub_outbox_irq_funcs;
 
 	adev->vupdate_irq.num_types = adev->mode_info.num_crtc;
 	adev->vupdate_irq.funcs = &dm_vupdate_irq_funcs;
@@ -845,6 +864,12 @@ void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->hpd_irq.num_types = adev->mode_info.num_hpd;
 	adev->hpd_irq.funcs = &dm_hpd_irq_funcs;
+}
+void amdgpu_dm_outbox_init(struct amdgpu_device *adev)
+{
+	dc_interrupt_set(adev->dm.dc,
+		DC_IRQ_SOURCE_DMCUB_OUTBOX,
+		true);
 }
 
 /**

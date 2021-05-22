@@ -35,6 +35,7 @@
 #include "display/intel_atomic.h"
 #include "display/intel_atomic_plane.h"
 #include "display/intel_bw.h"
+#include "display/intel_de.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
 #include "display/intel_sprite.h"
@@ -2339,7 +2340,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 
 	if (IS_I945GM(dev_priv))
 		wm_info = &i945_wm_info;
-	else if (!IS_DISPLAY_VER(dev_priv, 2))
+	else if (DISPLAY_VER(dev_priv) != 2)
 		wm_info = &i915_wm_info;
 	else
 		wm_info = &i830_a_wm_info;
@@ -2353,7 +2354,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			crtc->base.primary->state->fb;
 		int cpp;
 
-		if (IS_DISPLAY_VER(dev_priv, 2))
+		if (DISPLAY_VER(dev_priv) == 2)
 			cpp = 4;
 		else
 			cpp = fb->format->cpp[0];
@@ -2368,7 +2369,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			planea_wm = wm_info->max_wm;
 	}
 
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		wm_info = &i830_bc_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_B);
@@ -2380,7 +2381,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			crtc->base.primary->state->fb;
 		int cpp;
 
-		if (IS_DISPLAY_VER(dev_priv, 2))
+		if (DISPLAY_VER(dev_priv) == 2)
 			cpp = 4;
 		else
 			cpp = fb->format->cpp[0];
@@ -2967,7 +2968,7 @@ static void intel_fixup_spr_wm_latency(struct drm_i915_private *dev_priv,
 				       u16 wm[5])
 {
 	/* ILK sprite LP0 latency is 1300 ns */
-	if (IS_DISPLAY_VER(dev_priv, 5))
+	if (DISPLAY_VER(dev_priv) == 5)
 		wm[0] = 13;
 }
 
@@ -2975,7 +2976,7 @@ static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
 				       u16 wm[5])
 {
 	/* ILK cursor LP0 latency is 1300 ns */
-	if (IS_DISPLAY_VER(dev_priv, 5))
+	if (DISPLAY_VER(dev_priv) == 5)
 		wm[0] = 13;
 }
 
@@ -3105,7 +3106,7 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 
-	if (IS_DISPLAY_VER(dev_priv, 6)) {
+	if (DISPLAY_VER(dev_priv) == 6) {
 		snb_wm_latency_quirk(dev_priv);
 		snb_wm_lp3_irq_quirk(dev_priv);
 	}
@@ -3354,7 +3355,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	 * What we should check here is whether FBC can be
 	 * enabled sometime later.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 5) && !merged->fbc_wm_enabled &&
+	if (DISPLAY_VER(dev_priv) == 5 && !merged->fbc_wm_enabled &&
 	    intel_fbc_is_active(dev_priv)) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
@@ -3636,16 +3637,16 @@ bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
 
 u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
 {
-	int i;
-	int max_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
-	u8 enabled_slices_mask = 0;
+	u8 enabled_slices = 0;
+	enum dbuf_slice slice;
 
-	for (i = 0; i < max_slices; i++) {
-		if (intel_uncore_read(&dev_priv->uncore, DBUF_CTL_S(i)) & DBUF_POWER_STATE)
-			enabled_slices_mask |= BIT(i);
+	for_each_dbuf_slice(dev_priv, slice) {
+		if (intel_uncore_read(&dev_priv->uncore,
+				      DBUF_CTL_S(slice)) & DBUF_POWER_STATE)
+			enabled_slices |= BIT(slice);
 	}
 
-	return enabled_slices_mask;
+	return enabled_slices;
 }
 
 /*
@@ -3654,13 +3655,13 @@ u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
  */
 static bool skl_needs_memory_bw_wa(struct drm_i915_private *dev_priv)
 {
-	return IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv);
+	return DISPLAY_VER(dev_priv) == 9;
 }
 
 static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
-	return (IS_GEN9_BC(dev_priv) || DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) &&
+	return DISPLAY_VER(dev_priv) >= 9 && !IS_LP(dev_priv) &&
 		dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
 }
 
@@ -3680,13 +3681,13 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 		}
 
 		drm_dbg(&dev_priv->drm, "Couldn't read SAGV block time!\n");
-	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		dev_priv->sagv_block_time_us = 10;
 		return;
-	} else if (IS_DISPLAY_VER(dev_priv, 10)) {
+	} else if (DISPLAY_VER(dev_priv) == 10) {
 		dev_priv->sagv_block_time_us = 20;
 		return;
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		dev_priv->sagv_block_time_us = 30;
 		return;
 	} else {
@@ -4028,22 +4029,10 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int intel_dbuf_size(struct drm_i915_private *dev_priv)
-{
-	int ddb_size = INTEL_INFO(dev_priv)->ddb_size;
-
-	drm_WARN_ON(&dev_priv->drm, ddb_size == 0);
-
-	if (DISPLAY_VER(dev_priv) < 11)
-		return ddb_size - 4; /* 4 blocks for bypass path allocation */
-
-	return ddb_size;
-}
-
 static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)
 {
-	return intel_dbuf_size(dev_priv) /
-		INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	return INTEL_INFO(dev_priv)->dbuf.size /
+		hweight8(INTEL_INFO(dev_priv)->dbuf.slice_mask);
 }
 
 static void
@@ -4062,18 +4051,15 @@ skl_ddb_entry_for_slices(struct drm_i915_private *dev_priv, u8 slice_mask,
 	ddb->end = fls(slice_mask) * slice_size;
 
 	WARN_ON(ddb->start >= ddb->end);
-	WARN_ON(ddb->end > intel_dbuf_size(dev_priv));
+	WARN_ON(ddb->end > INTEL_INFO(dev_priv)->dbuf.size);
 }
 
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 			    const struct skl_ddb_entry *entry)
 {
-	u32 slice_mask = 0;
-	u16 ddb_size = intel_dbuf_size(dev_priv);
-	u16 num_supported_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
-	u16 slice_size = ddb_size / num_supported_slices;
-	u16 start_slice;
-	u16 end_slice;
+	int slice_size = intel_dbuf_slice_size(dev_priv);
+	enum dbuf_slice start_slice, end_slice;
+	u8 slice_mask = 0;
 
 	if (!skl_ddb_entry_size(entry))
 		return 0;
@@ -4613,9 +4599,9 @@ static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc, u8 active_pipes)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	if (IS_DISPLAY_VER(dev_priv, 12))
+	if (DISPLAY_VER(dev_priv) == 12)
 		return tgl_compute_dbuf_slices(pipe, active_pipes);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		return icl_compute_dbuf_slices(pipe, active_pipes);
 	/*
 	 * For anything else just return one slice yet.
@@ -4986,7 +4972,7 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 			 * Wa_1408961008:icl, ehl
 			 * Underruns with WM1+ disabled
 			 */
-			if (IS_DISPLAY_VER(dev_priv, 11) &&
+			if (DISPLAY_VER(dev_priv) == 11 &&
 			    level == 1 && wm->wm[0].enable) {
 				wm->wm[level].blocks = wm->wm[0].blocks;
 				wm->wm[level].lines = wm->wm[0].lines;
@@ -5199,6 +5185,14 @@ static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
 	return level > 0;
 }
 
+static int skl_wm_max_lines(struct drm_i915_private *dev_priv)
+{
+	if (DISPLAY_VER(dev_priv) >= 13)
+		return 255;
+	else
+		return 31;
+}
+
 static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 				 int level,
 				 unsigned int latency,
@@ -5245,7 +5239,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1)) {
 			selected_result = method2;
 		} else if (latency >= wp->linetime_us) {
-			if (IS_DISPLAY_VER(dev_priv, 9))
+			if (DISPLAY_VER(dev_priv) == 9)
 				selected_result = min_fixed16(method1, method2);
 			else
 				selected_result = method2;
@@ -5258,7 +5252,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	lines = div_round_up_fixed16(selected_result,
 				     wp->plane_blocks_per_line);
 
-	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) == 9) {
 		/* Display WA #1125: skl,bxt,kbl */
 		if (level == 0 && wp->rc_surface)
 			blocks += fixed16_to_u32_round_up(wp->y_tile_minimum);
@@ -5303,7 +5297,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	if (!skl_wm_has_lines(dev_priv, level))
 		lines = 0;
 
-	if (lines > 31) {
+	if (lines > skl_wm_max_lines(dev_priv)) {
 		/* reject it */
 		result->min_ddb_alloc = U16_MAX;
 		return;
@@ -5375,7 +5369,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
 	 * WaDisableTWM:skl,kbl,cfl,bxt
 	 * Transition WM are not recommended by HW team for GEN9
 	 */
-	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 9)
 		return;
 
 	if (DISPLAY_VER(dev_priv) >= 11)
@@ -5384,7 +5378,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
 		trans_min = 14;
 
 	/* Display WA #1140: glk,cnl */
-	if (IS_DISPLAY_VER(dev_priv, 10))
+	if (DISPLAY_VER(dev_priv) == 10)
 		trans_amount = 0;
 	else
 		trans_amount = 10; /* This is configurable amount */
@@ -5599,7 +5593,7 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 	if (level->ignore_lines)
 		val |= PLANE_WM_IGNORE_LINES;
 	val |= level->blocks;
-	val |= level->lines << PLANE_WM_LINES_SHIFT;
+	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
 	intel_de_write_fw(dev_priv, reg, val);
 }
@@ -5825,10 +5819,10 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "Enabled dbuf slices 0x%x -> 0x%x (out of %d dbuf slices)\n",
+			    "Enabled dbuf slices 0x%x -> 0x%x (total dbuf slices 0x%x)\n",
 			    old_dbuf_state->enabled_slices,
 			    new_dbuf_state->enabled_slices,
-			    INTEL_INFO(dev_priv)->num_supported_dbuf_slices);
+			    INTEL_INFO(dev_priv)->dbuf.slice_mask);
 	}
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -6207,8 +6201,7 @@ static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
 	level->enable = val & PLANE_WM_EN;
 	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
 	level->blocks = val & PLANE_WM_BLOCKS_MASK;
-	level->lines = (val >> PLANE_WM_LINES_SHIFT) &
-		PLANE_WM_LINES_MASK;
+	level->lines = REG_FIELD_GET(PLANE_WM_LINES_MASK, val);
 }
 
 void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
@@ -7141,6 +7134,19 @@ static void gen12lp_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* Wa_14011059788:tgl,rkl,adl_s,dg1 */
 	intel_uncore_rmw(&dev_priv->uncore, GEN10_DFR_RATIO_EN_AND_CHICKEN,
 			 0, DFR_DISABLE);
+
+	/* Wa_14013723622:tgl,rkl,dg1,adl-s */
+	if (DISPLAY_VER(dev_priv) == 12)
+		intel_uncore_rmw(&dev_priv->uncore, CLKREQ_POLICY,
+				 CLKREQ_POLICY_MEM_UP_OVRD, 0);
+}
+
+static void adlp_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	gen12lp_init_clock_gating(dev_priv);
+
+	/* Wa_22011091694:adlp */
+	intel_de_rmw(dev_priv, GEN9_CLKGATE_DIS_5, 0, DPCE_GATING_DIS);
 }
 
 static void dg1_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7620,7 +7626,9 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_DG1(dev_priv))
+	if (IS_ALDERLAKE_P(dev_priv))
+		dev_priv->display.init_clock_gating = adlp_init_clock_gating;
+	else if (IS_DG1(dev_priv))
 		dev_priv->display.init_clock_gating = dg1_init_clock_gating;
 	else if (IS_GEN(dev_priv, 12))
 		dev_priv->display.init_clock_gating = gen12lp_init_clock_gating;
@@ -7689,9 +7697,9 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
 
-		if ((IS_DISPLAY_VER(dev_priv, 5) && dev_priv->wm.pri_latency[1] &&
+		if ((DISPLAY_VER(dev_priv) == 5 && dev_priv->wm.pri_latency[1] &&
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
-		    (!IS_DISPLAY_VER(dev_priv, 5) && dev_priv->wm.pri_latency[0] &&
+		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
 			dev_priv->display.compute_intermediate_wm =
@@ -7734,12 +7742,12 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pnv_update_wm;
-	} else if (IS_DISPLAY_VER(dev_priv, 4)) {
+	} else if (DISPLAY_VER(dev_priv) == 4) {
 		dev_priv->display.update_wm = i965_update_wm;
-	} else if (IS_DISPLAY_VER(dev_priv, 3)) {
+	} else if (DISPLAY_VER(dev_priv) == 3) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
-	} else if (IS_DISPLAY_VER(dev_priv, 2)) {
+	} else if (DISPLAY_VER(dev_priv) == 2) {
 		if (INTEL_NUM_PIPES(dev_priv) == 1) {
 			dev_priv->display.update_wm = i845_update_wm;
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;

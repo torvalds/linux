@@ -328,7 +328,7 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_IB_POOL_MAX; i++) {
 		if (i == AMDGPU_IB_POOL_DIRECT)
-			size = PAGE_SIZE * 2;
+			size = PAGE_SIZE * 6;
 		else
 			size = AMDGPU_IB_POOL_SIZE;
 

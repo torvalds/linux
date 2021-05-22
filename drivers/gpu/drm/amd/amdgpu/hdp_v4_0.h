@@ -27,5 +27,6 @@
 #include "soc15_common.h"
 
 extern const struct amdgpu_hdp_funcs hdp_v4_0_funcs;
+extern const struct amdgpu_hdp_ras_funcs hdp_v4_0_ras_funcs;
 
 #endif

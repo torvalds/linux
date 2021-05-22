@@ -97,7 +97,7 @@ void optc3_lock_doublebuffer_disable(struct timing_generator *optc)
 		MASTER_UPDATE_LOCK_DB_END_Y, 0);
 
 	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 0);
-	REG_UPDATE(OTG_GLOBAL_CONTROL0, MASTER_UPDATE_LOCK_DB_EN, 1);
+	REG_UPDATE(OTG_GLOBAL_CONTROL0, MASTER_UPDATE_LOCK_DB_EN, 0);
 }
 
 void optc3_lock(struct timing_generator *optc)

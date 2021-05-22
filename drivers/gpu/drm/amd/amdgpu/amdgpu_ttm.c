@@ -32,7 +32,6 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
-#include <linux/hmm.h>
 #include <linux/pagemap.h>
 #include <linux/sched/task.h>
 #include <linux/sched/mm.h>
@@ -113,6 +112,20 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 	}
 
 	abo = ttm_to_amdgpu_bo(bo);
+	if (abo->flags & AMDGPU_AMDKFD_CREATE_SVM_BO) {
+		struct dma_fence *fence;
+		struct dma_resv *resv = &bo->base._resv;
+
+		rcu_read_lock();
+		fence = rcu_dereference(resv->fence_excl);
+		if (fence && !fence->ops->signaled)
+			dma_fence_enable_sw_signaling(fence);
+
+		placement->num_placement = 0;
+		placement->num_busy_placement = 0;
+		rcu_read_unlock();
+		return;
+	}
 	switch (bo->mem.mem_type) {
 	case AMDGPU_PL_GDS:
 	case AMDGPU_PL_GWS:
@@ -165,13 +178,6 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
-
-	/*
-	 * Don't verify access for KFD BOs. They don't have a GEM
-	 * object associated with them.
-	 */
-	if (abo->kfd_bo)
-		return 0;
 
 	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
 		return -EPERM;
@@ -226,7 +232,7 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	*addr += mm_cur->start & ~PAGE_MASK;
 
 	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
-	num_bytes = num_pages * 8;
+	num_bytes = num_pages * 8 * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 
 	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4 + num_bytes,
 				     AMDGPU_IB_POOL_DELAYED, &job);
@@ -289,7 +295,7 @@ error_free:
 }
 
 /**
- * amdgpu_copy_ttm_mem_to_mem - Helper function for copy
+ * amdgpu_ttm_copy_mem_to_mem - Helper function for copy
  * @adev: amdgpu device
  * @src: buffer/address where to read from
  * @dst: buffer/address where to write to
@@ -571,10 +577,10 @@ out:
  *
  * Called by ttm_mem_io_reserve() ultimately via ttm_bo_vm_fault()
  */
-static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
+static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev,
+				     struct ttm_resource *mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
-	struct drm_mm_node *mm_node = mem->mm_node;
 	size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
 
 	switch (mem->mem_type) {
@@ -588,12 +594,9 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resourc
 		/* check if it's visible */
 		if ((mem->bus.offset + bus_size) > adev->gmc.visible_vram_size)
 			return -EINVAL;
-		/* Only physically contiguous buffers apply. In a contiguous
-		 * buffer, size of the first mm_node would match the number of
-		 * pages in ttm_resource.
-		 */
+
 		if (adev->mman.aper_base_kaddr &&
-		    (mm_node->size == mem->num_pages))
+		    mem->placement & TTM_PL_FLAG_CONTIGUOUS)
 			mem->bus.addr = (u8 *)adev->mman.aper_base_kaddr +
 					mem->bus.offset;
 
@@ -671,10 +674,8 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	unsigned long start = gtt->userptr;
 	struct vm_area_struct *vma;
-	struct hmm_range *range;
-	unsigned long timeout;
 	struct mm_struct *mm;
-	unsigned long i;
+	bool readonly;
 	int r = 0;
 
 	mm = bo->notifier.mm;
@@ -690,76 +691,26 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
 	if (!mmget_not_zero(mm)) /* Happens during process shutdown */
 		return -ESRCH;
 
-	range = kzalloc(sizeof(*range), GFP_KERNEL);
-	if (unlikely(!range)) {
-		r = -ENOMEM;
-		goto out;
-	}
-	range->notifier = &bo->notifier;
-	range->start = bo->notifier.interval_tree.start;
-	range->end = bo->notifier.interval_tree.last + 1;
-	range->default_flags = HMM_PFN_REQ_FAULT;
-	if (!amdgpu_ttm_tt_is_readonly(ttm))
-		range->default_flags |= HMM_PFN_REQ_WRITE;
-
-	range->hmm_pfns = kvmalloc_array(ttm->num_pages,
-					 sizeof(*range->hmm_pfns), GFP_KERNEL);
-	if (unlikely(!range->hmm_pfns)) {
-		r = -ENOMEM;
-		goto out_free_ranges;
-	}
-
 	mmap_read_lock(mm);
 	vma = find_vma(mm, start);
+	mmap_read_unlock(mm);
 	if (unlikely(!vma || start < vma->vm_start)) {
 		r = -EFAULT;
-		goto out_unlock;
+		goto out_putmm;
 	}
 	if (unlikely((gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) &&
 		vma->vm_file)) {
 		r = -EPERM;
-		goto out_unlock;
-	}
-	mmap_read_unlock(mm);
-	timeout = jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
-
-retry:
-	range->notifier_seq = mmu_interval_read_begin(&bo->notifier);
-
-	mmap_read_lock(mm);
-	r = hmm_range_fault(range);
-	mmap_read_unlock(mm);
-	if (unlikely(r)) {
-		/*
-		 * FIXME: This timeout should encompass the retry from
-		 * mmu_interval_read_retry() as well.
-		 */
-		if (r == -EBUSY && !time_after(jiffies, timeout))
-			goto retry;
-		goto out_free_pfns;
+		goto out_putmm;
 	}
 
-	/*
-	 * Due to default_flags, all pages are HMM_PFN_VALID or
-	 * hmm_range_fault() fails. FIXME: The pages cannot be touched outside
-	 * the notifier_lock, and mmu_interval_read_retry() must be done first.
-	 */
-	for (i = 0; i < ttm->num_pages; i++)
-		pages[i] = hmm_pfn_to_page(range->hmm_pfns[i]);
-
-	gtt->range = range;
+	readonly = amdgpu_ttm_tt_is_readonly(ttm);
+	r = amdgpu_hmm_range_get_pages(&bo->notifier, mm, pages, start,
+				       ttm->num_pages, &gtt->range, readonly,
+				       false);
+out_putmm:
 	mmput(mm);
 
-	return 0;
-
-out_unlock:
-	mmap_read_unlock(mm);
-out_free_pfns:
-	kvfree(range->hmm_pfns);
-out_free_ranges:
-	kfree(range);
-out:
-	mmput(mm);
 	return r;
 }
 
@@ -788,10 +739,7 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 		 * FIXME: Must always hold notifier_lock for this, and must
 		 * not ignore the return code.
 		 */
-		r = mmu_interval_read_retry(gtt->range->notifier,
-					 gtt->range->notifier_seq);
-		kvfree(gtt->range->hmm_pfns);
-		kfree(gtt->range);
+		r = amdgpu_hmm_range_get_pages_done(gtt->range);
 		gtt->range = NULL;
 	}
 
@@ -960,7 +908,23 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 			DRM_ERROR("failed to pin userptr\n");
 			return r;
 		}
+	} else if (ttm->page_flags & TTM_PAGE_FLAG_SG) {
+		if (!ttm->sg) {
+			struct dma_buf_attachment *attach;
+			struct sg_table *sgt;
+
+			attach = gtt->gobj->import_attach;
+			sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+			if (IS_ERR(sgt))
+				return PTR_ERR(sgt);
+
+			ttm->sg = sgt;
+		}
+
+		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+					       ttm->num_pages);
 	}
+
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %u pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
@@ -1085,8 +1049,15 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 	int r;
 
 	/* if the pages have userptr pinning then clear that first */
-	if (gtt->userptr)
+	if (gtt->userptr) {
 		amdgpu_ttm_tt_unpin_userptr(bdev, ttm);
+	} else if (ttm->sg && gtt->gobj->import_attach) {
+		struct dma_buf_attachment *attach;
+
+		attach = gtt->gobj->import_attach;
+		dma_buf_unmap_attachment(attach, ttm->sg, DMA_BIDIRECTIONAL);
+		ttm->sg = NULL;
+	}
 
 	if (!gtt->bound)
 		return;
@@ -1173,23 +1144,8 @@ static int amdgpu_ttm_tt_populate(struct ttm_device *bdev,
 		return 0;
 	}
 
-	if (ttm->page_flags & TTM_PAGE_FLAG_SG) {
-		if (!ttm->sg) {
-			struct dma_buf_attachment *attach;
-			struct sg_table *sgt;
-
-			attach = gtt->gobj->import_attach;
-			sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-			if (IS_ERR(sgt))
-				return PTR_ERR(sgt);
-
-			ttm->sg = sgt;
-		}
-
-		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
-					       ttm->num_pages);
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
 		return 0;
-	}
 
 	return ttm_pool_alloc(&adev->mman.bdev.pool, ttm, ctx);
 }
@@ -1209,16 +1165,8 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
 	if (gtt && gtt->userptr) {
 		amdgpu_ttm_tt_set_user_pages(ttm, NULL);
 		kfree(ttm->sg);
-		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
-		return;
-	}
-
-	if (ttm->sg && gtt->gobj->import_attach) {
-		struct dma_buf_attachment *attach;
-
-		attach = gtt->gobj->import_attach;
-		dma_buf_unmap_attachment(attach, ttm->sg, DMA_BIDIRECTIONAL);
 		ttm->sg = NULL;
+		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
 		return;
 	}
 
@@ -1631,11 +1579,8 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	bool mem_train_support = false;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		ret = amdgpu_mem_train_support(adev);
-		if (ret == 1)
+		if (amdgpu_atomfirmware_mem_training_supported(adev))
 			mem_train_support = true;
-		else if (ret == -1)
-			return -EINVAL;
 		else
 			DRM_DEBUG("memory training does not support!\n");
 	}
