@@ -138,8 +138,15 @@ static int fq_pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	/* Classifies packet into corresponding flow */
 	idx = fq_pie_classify(skb, sch, &ret);
-	sel_flow = &q->flows[idx];
+	if (idx == 0) {
+		if (ret & __NET_XMIT_BYPASS)
+			qdisc_qstats_drop(sch);
+		__qdisc_drop(skb, to_free);
+		return ret;
+	}
+	idx--;
 
+	sel_flow = &q->flows[idx];
 	/* Checks whether adding a new packet would exceed memory limit */
 	get_pie_cb(skb)->mem_usage = skb->truesize;
 	memory_limited = q->memory_usage > q->memory_limit + skb->truesize;
