@@ -3,7 +3,7 @@
 // Device driver for regulators in Hisi IC
 //
 // Copyright (c) 2013 Linaro Ltd.
-// Copyright (c) 2011 Hisilicon.
+// Copyright (c) 2011 HiSilicon Ltd.
 // Copyright (c) 2020-2021 Huawei Technologies Co., Ltd
 //
 // Guodong Xu <guodong.xu@linaro.org>
