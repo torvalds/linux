@@ -2,7 +2,7 @@
 /*
  * HiSilicon SoC HHA uncore Hardware event counters support
  *
- * Copyright (C) 2017 Hisilicon Limited
+ * Copyright (C) 2017 HiSilicon Limited
  * Author: Shaokun Zhang <zhangshaokun@hisilicon.com>
  *         Anurup M <anurup.m@huawei.com>
  *

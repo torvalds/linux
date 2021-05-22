@@ -2,7 +2,7 @@
 /*
  * HiSilicon SLLC uncore Hardware event counters support
  *
- * Copyright (C) 2020 Hisilicon Limited
+ * Copyright (C) 2020 HiSilicon Limited
  * Author: Shaokun Zhang <zhangshaokun@hisilicon.com>
  *
  * This code is based on the uncore PMUs like arm-cci and arm-ccn.
