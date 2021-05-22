@@ -60,22 +60,10 @@ static struct notifier_block pvpanic_panic_nb = {
 	.priority = 1, /* let this called before broken drm_fb_helper */
 };
 
-int pvpanic_probe(struct pvpanic_instance *pi)
-{
-	if (!pi || !pi->base)
-		return -EINVAL;
-
-	spin_lock(&pvpanic_lock);
-	list_add(&pi->list, &pvpanic_list);
-	spin_unlock(&pvpanic_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pvpanic_probe);
-
-void pvpanic_remove(struct pvpanic_instance *pi)
+static void pvpanic_remove(void *param)
 {
 	struct pvpanic_instance *pi_cur, *pi_next;
+	struct pvpanic_instance *pi = param;
 
 	if (!pi)
 		return;
@@ -89,7 +77,19 @@ void pvpanic_remove(struct pvpanic_instance *pi)
 	}
 	spin_unlock(&pvpanic_lock);
 }
-EXPORT_SYMBOL_GPL(pvpanic_remove);
+
+int devm_pvpanic_probe(struct device *dev, struct pvpanic_instance *pi)
+{
+	if (!pi || !pi->base)
+		return -EINVAL;
+
+	spin_lock(&pvpanic_lock);
+	list_add(&pi->list, &pvpanic_list);
+	spin_unlock(&pvpanic_lock);
+
+	return devm_add_action_or_reset(dev, pvpanic_remove, pi);
+}
+EXPORT_SYMBOL_GPL(devm_pvpanic_probe);
 
 static int pvpanic_init(void)
 {

@@ -15,7 +15,6 @@ struct pvpanic_instance {
 	struct list_head list;
 };
 
-int pvpanic_probe(struct pvpanic_instance *pi);
-void pvpanic_remove(struct pvpanic_instance *pi);
+int devm_pvpanic_probe(struct device *dev, struct pvpanic_instance *pi);
 
 #endif /* PVPANIC_H_ */
