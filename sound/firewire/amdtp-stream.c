@@ -851,11 +851,11 @@ static unsigned int compute_syt(unsigned int syt_offset, unsigned int cycle,
 	return syt & CIP_SYT_MASK;
 }
 
-static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
-			       const __be32 *ctx_header, unsigned int packets,
-			       const struct seq_desc *seq_descs,
-			       unsigned int seq_size)
+static void generate_pkt_descs(struct amdtp_stream *s, const __be32 *ctx_header, unsigned int packets)
 {
+	struct pkt_desc *descs = s->pkt_descs;
+	const struct seq_desc *seq_descs = s->ctx_data.rx.seq.descs;
+	const unsigned int seq_size = s->ctx_data.rx.seq.size;
 	unsigned int dbc = s->data_block_counter;
 	unsigned int seq_head = s->ctx_data.rx.seq.head;
 	bool aware_syt = !(s->flags & CIP_UNAWARE_SYT);
@@ -937,8 +937,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 
 	pool_ideal_seq_descs(s, packets);
 
-	generate_pkt_descs(s, s->pkt_descs, ctx_header, packets, s->ctx_data.rx.seq.descs,
-			   s->ctx_data.rx.seq.size);
+	generate_pkt_descs(s, ctx_header, packets);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
 
