@@ -140,15 +140,13 @@ struct amdtp_stream {
 			unsigned int dbc_interval;
 		} tx;
 		struct {
-			// To calculate CIP data blocks and tstamp.
-			unsigned int transfer_delay;
-
 			// To generate CIP header.
 			unsigned int fdf;
 
 			// To generate constant hardware IRQ.
 			unsigned int event_count;
 
+			// To calculate CIP data blocks and tstamp.
 			struct {
 				struct seq_desc *descs;
 				unsigned int size;
@@ -169,7 +167,8 @@ struct amdtp_stream {
 	unsigned int sph;
 	unsigned int fmt;
 
-	/* Internal flags. */
+	// Internal flags.
+	unsigned int transfer_delay;
 	enum cip_sfc sfc;
 	unsigned int syt_interval;
 

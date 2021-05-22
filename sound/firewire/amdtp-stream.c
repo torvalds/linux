@@ -294,17 +294,11 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	s->syt_interval = amdtp_syt_intervals[sfc];
 
 	// default buffering in the device.
-	if (s->direction == AMDTP_OUT_STREAM) {
-		s->ctx_data.rx.transfer_delay =
-					TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
+	s->transfer_delay = TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
 
-		if (s->flags & CIP_BLOCKING) {
-			// additional buffering needed to adjust for no-data
-			// packets.
-			s->ctx_data.rx.transfer_delay +=
-				TICKS_PER_SECOND * s->syt_interval / rate;
-		}
-	}
+	// additional buffering needed to adjust for no-data packets.
+	if (s->flags & CIP_BLOCKING)
+		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
 
 	return 0;
 }
@@ -897,12 +891,10 @@ static void generate_pkt_descs(struct amdtp_stream *s, const __be32 *ctx_header,
 
 		desc->cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
-		if (aware_syt && seq->syt_offset != CIP_SYT_NO_INFO) {
-			desc->syt = compute_syt(seq->syt_offset, desc->cycle,
-						s->ctx_data.rx.transfer_delay);
-		} else {
+		if (aware_syt && seq->syt_offset != CIP_SYT_NO_INFO)
+			desc->syt = compute_syt(seq->syt_offset, desc->cycle, s->transfer_delay);
+		else
 			desc->syt = CIP_SYT_NO_INFO;
-		}
 
 		desc->data_blocks = seq->data_blocks;
 
