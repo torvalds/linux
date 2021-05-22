@@ -161,6 +161,9 @@
 #define QM_PEH_VENDOR_ID		0x1000d8
 #define ACC_VENDOR_ID_VALUE		0x5a5a
 #define QM_PEH_DFX_INFO0		0x1000fc
+#define QM_PEH_DFX_INFO1		0x100100
+#define QM_PEH_DFX_MASK			(BIT(0) | BIT(2))
+#define QM_PEH_MSI_FINISH_MASK		GENMASK(19, 16)
 #define ACC_PEH_SRIOV_CTRL_VF_MSE_SHIFT	3
 #define ACC_PEH_MSI_DISABLE		GENMASK(31, 0)
 #define ACC_MASTER_GLOBAL_CTRL_SHUTDOWN	0x1
@@ -171,6 +174,7 @@
 #define QM_RAS_NFE_MBIT_DISABLE		~QM_ECC_MBIT
 #define ACC_AM_ROB_ECC_INT_STS		0x300104
 #define ACC_ROB_ECC_ERR_MULTPL		BIT(1)
+#define QM_MSI_CAP_ENABLE		BIT(16)
 
 #define QM_DFX_MB_CNT_VF		0x104010
 #define QM_DFX_DB_CNT_VF		0x104020
@@ -352,6 +356,7 @@ struct hisi_qm_hw_ops {
 	void (*hw_error_uninit)(struct hisi_qm *qm);
 	enum acc_err_result (*hw_error_handle)(struct hisi_qm *qm);
 	int (*stop_qp)(struct hisi_qp *qp);
+	int (*set_msi)(struct hisi_qm *qm, bool set);
 };
 
 struct qm_dfx_item {
@@ -1776,10 +1781,98 @@ static int qm_stop_qp(struct hisi_qp *qp)
 	return qm_mb(qp->qm, QM_MB_CMD_STOP_QP, 0, qp->qp_id, 0);
 }
 
+static int qm_set_msi(struct hisi_qm *qm, bool set)
+{
+	struct pci_dev *pdev = qm->pdev;
+
+	if (set) {
+		pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64,
+				       0);
+	} else {
+		pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64,
+				       ACC_PEH_MSI_DISABLE);
+		if (qm->err_status.is_qm_ecc_mbit ||
+		    qm->err_status.is_dev_ecc_mbit)
+			return 0;
+
+		mdelay(1);
+		if (readl(qm->io_base + QM_PEH_DFX_INFO0))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static void qm_wait_msi_finish(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 cmd = ~0;
+	int cnt = 0;
+	u32 val;
+	int ret;
+
+	while (true) {
+		pci_read_config_dword(pdev, pdev->msi_cap +
+				      PCI_MSI_PENDING_64, &cmd);
+		if (!cmd)
+			break;
+
+		if (++cnt > MAX_WAIT_COUNTS) {
+			pci_warn(pdev, "failed to empty MSI PENDING!\n");
+			break;
+		}
+
+		udelay(1);
+	}
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + QM_PEH_DFX_INFO0,
+					 val, !(val & QM_PEH_DFX_MASK),
+					 POLL_PERIOD, POLL_TIMEOUT);
+	if (ret)
+		pci_warn(pdev, "failed to empty PEH MSI!\n");
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + QM_PEH_DFX_INFO1,
+					 val, !(val & QM_PEH_MSI_FINISH_MASK),
+					 POLL_PERIOD, POLL_TIMEOUT);
+	if (ret)
+		pci_warn(pdev, "failed to finish MSI operation!\n");
+}
+
+static int qm_set_msi_v3(struct hisi_qm *qm, bool set)
+{
+	struct pci_dev *pdev = qm->pdev;
+	int ret = -ETIMEDOUT;
+	u32 cmd, i;
+
+	pci_read_config_dword(pdev, pdev->msi_cap, &cmd);
+	if (set)
+		cmd |= QM_MSI_CAP_ENABLE;
+	else
+		cmd &= ~QM_MSI_CAP_ENABLE;
+
+	pci_write_config_dword(pdev, pdev->msi_cap, cmd);
+	if (set) {
+		for (i = 0; i < MAX_WAIT_COUNTS; i++) {
+			pci_read_config_dword(pdev, pdev->msi_cap, &cmd);
+			if (cmd & QM_MSI_CAP_ENABLE)
+				return 0;
+
+			udelay(1);
+		}
+	} else {
+		udelay(WAIT_PERIOD_US_MIN);
+		qm_wait_msi_finish(qm);
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static const struct hisi_qm_hw_ops qm_hw_ops_v1 = {
 	.qm_db = qm_db_v1,
 	.get_irq_num = qm_get_irq_num_v1,
 	.hw_error_init = qm_hw_error_init_v1,
+	.set_msi = qm_set_msi,
 };
 
 static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
@@ -1789,6 +1882,7 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
 	.hw_error_init = qm_hw_error_init_v2,
 	.hw_error_uninit = qm_hw_error_uninit_v2,
 	.hw_error_handle = qm_hw_error_handle_v2,
+	.set_msi = qm_set_msi,
 };
 
 static const struct hisi_qm_hw_ops qm_hw_ops_v3 = {
@@ -1799,6 +1893,7 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v3 = {
 	.hw_error_uninit = qm_hw_error_uninit_v3,
 	.hw_error_handle = qm_hw_error_handle_v2,
 	.stop_qp = qm_stop_qp,
+	.set_msi = qm_set_msi_v3,
 };
 
 static void *qm_get_avail_sqe(struct hisi_qp *qp)
@@ -3586,6 +3681,9 @@ static int qm_check_req_recv(struct hisi_qm *qm)
 	int ret;
 	u32 val;
 
+	if (qm->ver >= QM_HW_V3)
+		return 0;
+
 	writel(ACC_VENDOR_ID_VALUE, qm->io_base + QM_PEH_VENDOR_ID);
 	ret = readl_relaxed_poll_timeout(qm->io_base + QM_PEH_VENDOR_ID, val,
 					 (val == ACC_VENDOR_ID_VALUE),
@@ -3654,28 +3752,6 @@ static int qm_set_vf_mse(struct hisi_qm *qm, bool set)
 	}
 
 	return -ETIMEDOUT;
-}
-
-static int qm_set_msi(struct hisi_qm *qm, bool set)
-{
-	struct pci_dev *pdev = qm->pdev;
-
-	if (set) {
-		pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64,
-				       0);
-	} else {
-		pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64,
-				       ACC_PEH_MSI_DISABLE);
-		if (qm->err_status.is_qm_ecc_mbit ||
-		    qm->err_status.is_dev_ecc_mbit)
-			return 0;
-
-		mdelay(1);
-		if (readl(qm->io_base + QM_PEH_DFX_INFO0))
-			return -EFAULT;
-	}
-
-	return 0;
 }
 
 static int qm_vf_reset_prepare(struct hisi_qm *qm,
@@ -3800,7 +3876,7 @@ static int qm_soft_reset(struct hisi_qm *qm)
 		}
 	}
 
-	ret = qm_set_msi(qm, false);
+	ret = qm->ops->set_msi(qm, false);
 	if (ret) {
 		pci_err(pdev, "Fails to disable PEH MSI bit.\n");
 		return ret;
@@ -3941,7 +4017,7 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 	struct pci_dev *pdev = qm->pdev;
 	int ret;
 
-	ret = qm_set_msi(qm, true);
+	ret = qm->ops->set_msi(qm, true);
 	if (ret) {
 		pci_err(pdev, "Fails to enable PEH MSI bit!\n");
 		return ret;
