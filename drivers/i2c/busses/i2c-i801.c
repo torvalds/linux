@@ -131,8 +131,6 @@
 
 /* PCI Address Constants */
 #define SMBBAR		4
-#define SMBPCICTL	0x004
-#define SMBPCISTS	0x006
 #define SMBHSTCFG	0x040
 #define TCOBASE		0x050
 #define TCOCTL		0x054
@@ -140,12 +138,6 @@
 #define SBREG_BAR		0x10
 #define SBREG_SMBCTRL		0xc6000c
 #define SBREG_SMBCTRL_DNV	0xcf000c
-
-/* Host status bits for SMBPCISTS */
-#define SMBPCISTS_INTS		BIT(3)
-
-/* Control bits for SMBPCICTL */
-#define SMBPCICTL_INTDIS	BIT(10)
 
 /* Host configuration bits for SMBHSTCFG */
 #define SMBHSTCFG_HST_EN	BIT(0)
@@ -648,8 +640,8 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 	u8 status;
 
 	/* Confirm this is our interrupt */
-	pci_read_config_word(priv->pci_dev, SMBPCISTS, &pcists);
-	if (!(pcists & SMBPCISTS_INTS))
+	pci_read_config_word(priv->pci_dev, PCI_STATUS, &pcists);
+	if (!(pcists & PCI_STATUS_INTERRUPT))
 		return IRQ_NONE;
 
 	if (priv->features & FEATURE_HOST_NOTIFY) {
@@ -1866,13 +1858,13 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		u16 pcictl, pcists;
 
 		/* Complain if an interrupt is already pending */
-		pci_read_config_word(priv->pci_dev, SMBPCISTS, &pcists);
-		if (pcists & SMBPCISTS_INTS)
+		pci_read_config_word(priv->pci_dev, PCI_STATUS, &pcists);
+		if (pcists & PCI_STATUS_INTERRUPT)
 			dev_warn(&dev->dev, "An interrupt is pending!\n");
 
 		/* Check if interrupts have been disabled */
-		pci_read_config_word(priv->pci_dev, SMBPCICTL, &pcictl);
-		if (pcictl & SMBPCICTL_INTDIS) {
+		pci_read_config_word(priv->pci_dev, PCI_COMMAND, &pcictl);
+		if (pcictl & PCI_COMMAND_INTX_DISABLE) {
 			dev_info(&dev->dev, "Interrupts are disabled\n");
 			priv->features &= ~FEATURE_IRQ;
 		}
