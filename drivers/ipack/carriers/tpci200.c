@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
- * tpci200.c
- *
+/*
  * driver for the TEWS TPCI-200 device
  *
  * Copyright (C) 2009-2012 CERN (www.cern.ch)
