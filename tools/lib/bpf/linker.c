@@ -892,7 +892,8 @@ static int linker_sanity_check_elf_relos(struct src_obj *obj, struct src_sec *se
 		size_t sym_idx = ELF64_R_SYM(relo->r_info);
 		size_t sym_type = ELF64_R_TYPE(relo->r_info);
 
-		if (sym_type != R_BPF_64_64 && sym_type != R_BPF_64_32) {
+		if (sym_type != R_BPF_64_64 && sym_type != R_BPF_64_32 &&
+		    sym_type != R_BPF_64_ABS64 && sym_type != R_BPF_64_ABS32) {
 			pr_warn("ELF relo #%d in section #%zu has unexpected type %zu in %s\n",
 				i, sec->sec_idx, sym_type, obj->filename);
 			return -EINVAL;
