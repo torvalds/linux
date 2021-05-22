@@ -194,6 +194,20 @@ enum pp_df_cstate {
 	DF_CSTATE_ALLOW,
 };
 
+enum pp_power_limit_level
+{
+	PP_PWR_LIMIT_MIN = -1,
+	PP_PWR_LIMIT_CURRENT,
+	PP_PWR_LIMIT_DEFAULT,
+	PP_PWR_LIMIT_MAX,
+};
+
+enum pp_power_type
+{
+	PP_PWR_TYPE_SUSTAINED,
+	PP_PWR_TYPE_FAST,
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 
