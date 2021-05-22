@@ -1071,7 +1071,8 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	 * power-cycle it in order to put hardware into a predictable lower
 	 * power state.
 	 */
-	if (pm_runtime_resume_and_get(dev) < 0)
+	err = pm_runtime_resume_and_get(dev);
+	if (err)
 		goto err_pm_runtime;
 
 	pm_runtime_put(dev);
