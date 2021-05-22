@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x992f4893d
+#define DMUB_FW_VERSION_GIT_HASH 0xeb3203315
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 66
+#define DMUB_FW_VERSION_REVISION 68
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -116,8 +116,6 @@
 
 /* Maximum number of planes on any ASIC. */
 #define DMUB_MAX_PLANES 6
-
-#define DMUB_MAX_SUBVP_STREAMS 2
 
 /* Trace buffer offset for entry */
 #define TRACE_BUFFER_ENTRY_OFFSET  16
@@ -1420,7 +1418,7 @@ struct dmub_cmd_psr_set_level_data {
 	 * 16-bit value dicated by driver that will enable/disable different functionality.
 	 */
 	uint16_t psr_level;
-	/**
+		/**
 	 * PSR control version.
 	 */
 	uint8_t cmd_version;
@@ -1617,7 +1615,6 @@ enum hw_lock_client {
 	 * Driver is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_DRIVER = 0,
-	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Invalid client.
 	 */
