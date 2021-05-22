@@ -173,6 +173,31 @@ static struct kpp_alg ecdh_nist_p256 = {
 	},
 };
 
+static int ecdh_nist_p384_init_tfm(struct crypto_kpp *tfm)
+{
+	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
+
+	ctx->curve_id = ECC_CURVE_NIST_P384;
+	ctx->ndigits = ECC_CURVE_NIST_P384_DIGITS;
+
+	return 0;
+}
+
+static struct kpp_alg ecdh_nist_p384 = {
+	.set_secret = ecdh_set_secret,
+	.generate_public_key = ecdh_compute_value,
+	.compute_shared_secret = ecdh_compute_value,
+	.max_size = ecdh_max_size,
+	.init = ecdh_nist_p384_init_tfm,
+	.base = {
+		.cra_name = "ecdh-nist-p384",
+		.cra_driver_name = "ecdh-nist-p384-generic",
+		.cra_priority = 100,
+		.cra_module = THIS_MODULE,
+		.cra_ctxsize = sizeof(struct ecdh_ctx),
+	},
+};
+
 static bool ecdh_nist_p192_registered;
 
 static int ecdh_init(void)
@@ -187,7 +212,14 @@ static int ecdh_init(void)
 	if (ret)
 		goto nist_p256_error;
 
+	ret = crypto_register_kpp(&ecdh_nist_p384);
+	if (ret)
+		goto nist_p384_error;
+
 	return 0;
+
+nist_p384_error:
+	crypto_unregister_kpp(&ecdh_nist_p256);
 
 nist_p256_error:
 	if (ecdh_nist_p192_registered)
@@ -200,6 +232,7 @@ static void ecdh_exit(void)
 	if (ecdh_nist_p192_registered)
 		crypto_unregister_kpp(&ecdh_nist_p192);
 	crypto_unregister_kpp(&ecdh_nist_p256);
+	crypto_unregister_kpp(&ecdh_nist_p384);
 }
 
 subsys_initcall(ecdh_init);
