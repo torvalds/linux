@@ -13,6 +13,7 @@ struct bch_fs;
 struct btree_write;
 struct btree;
 struct btree_iter;
+struct btree_node_read_all;
 
 static inline bool btree_node_dirty(struct btree *b)
 {
@@ -33,8 +34,11 @@ static inline void clear_btree_node_dirty(struct bch_fs *c, struct btree *b)
 
 struct btree_read_bio {
 	struct bch_fs		*c;
+	struct btree		*b;
+	struct btree_node_read_all *ra;
 	u64			start_time;
 	unsigned		have_ioref:1;
+	unsigned		idx:7;
 	struct extent_ptr_decoded	pick;
 	struct work_struct	work;
 	struct bio		bio;

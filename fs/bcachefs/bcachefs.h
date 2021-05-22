@@ -264,7 +264,10 @@ do {									\
 	BCH_DEBUG_PARAM(verify_btree_ondisk,				\
 		"Reread btree nodes at various points to verify the "	\
 		"mergesort in the read path against modifications "	\
-		"done in memory")
+		"done in memory")					\
+	BCH_DEBUG_PARAM(verify_all_btree_replicas,			\
+		"When reading btree nodes, read all replicas and "	\
+		"compare them")
 
 /* Parameters that should only be compiled in in debug mode: */
 #define BCH_DEBUG_PARAMS_DEBUG()					\
