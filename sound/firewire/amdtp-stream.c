@@ -441,8 +441,30 @@ static unsigned int calculate_syt_offset(unsigned int *last_syt_offset,
 	return syt_offset;
 }
 
+static void pool_ideal_syt_offsets(struct amdtp_stream *s, struct seq_desc *descs,
+				   const unsigned int seq_size, unsigned int seq_tail,
+				   unsigned int count)
+{
+	const enum cip_sfc sfc = s->sfc;
+	unsigned int last = s->ctx_data.rx.last_syt_offset;
+	unsigned int state = s->ctx_data.rx.syt_offset_state;
+	int i;
+
+	for (i = 0; i < count; ++i) {
+		struct seq_desc *desc = descs + seq_tail;
+
+		desc->syt_offset = calculate_syt_offset(&last, &state, sfc);
+
+		seq_tail = (seq_tail + 1) % seq_size;
+	}
+
+	s->ctx_data.rx.last_syt_offset = last;
+	s->ctx_data.rx.syt_offset_state = state;
+}
+
 static void pool_ideal_seq_descs(struct amdtp_stream *s, unsigned int count)
 {
+	struct seq_desc *descs = s->ctx_data.rx.seq.descs;
 	unsigned int seq_tail = s->ctx_data.rx.seq.tail;
 	const unsigned int seq_size = s->ctx_data.rx.seq.size;
 	const unsigned int syt_interval = s->syt_interval;
@@ -450,11 +472,11 @@ static void pool_ideal_seq_descs(struct amdtp_stream *s, unsigned int count)
 	const bool is_blocking = !!(s->flags & CIP_BLOCKING);
 	int i;
 
+	pool_ideal_syt_offsets(s, descs, seq_size, seq_tail, count);
+
 	for (i = 0; i < count; ++i) {
 		struct seq_desc *desc = s->ctx_data.rx.seq.descs + seq_tail;
 
-		desc->syt_offset = calculate_syt_offset(&s->ctx_data.rx.last_syt_offset,
-					&s->ctx_data.rx.syt_offset_state, sfc);
 		desc->data_blocks = calculate_data_blocks(&s->ctx_data.rx.data_block_state,
 				is_blocking, desc->syt_offset == CIP_SYT_NO_INFO,
 				syt_interval, sfc);
