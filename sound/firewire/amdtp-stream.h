@@ -142,13 +142,23 @@ struct amdtp_stream {
 		struct {
 			// To calculate CIP data blocks and tstamp.
 			unsigned int transfer_delay;
-			unsigned int seq_index;
 
 			// To generate CIP header.
 			unsigned int fdf;
 
 			// To generate constant hardware IRQ.
 			unsigned int event_count;
+
+			struct {
+				struct seq_desc *descs;
+				unsigned int size;
+				unsigned int tail;
+				unsigned int head;
+			} seq;
+
+			unsigned int data_block_state;
+			unsigned int syt_offset_state;
+			unsigned int last_syt_offset;
 		} rx;
 	} ctx_data;
 
@@ -281,16 +291,6 @@ struct amdtp_domain {
 		unsigned int tx_start;
 		unsigned int rx_start;
 	} processing_cycle;
-
-	struct {
-		struct seq_desc *descs;
-		unsigned int size;
-		unsigned int tail;
-	} seq;
-
-	unsigned int data_block_state;
-	unsigned int syt_offset_state;
-	unsigned int last_syt_offset;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
