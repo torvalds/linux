@@ -113,9 +113,6 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->fmt = fmt;
 	s->process_ctx_payloads = process_ctx_payloads;
 
-	if (dir == AMDTP_OUT_STREAM)
-		s->ctx_data.rx.syt_override = -1;
-
 	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_init);
@@ -638,7 +635,8 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	*data_block_counter = dbc;
 
-	*syt = cip_header[1] & CIP_SYT_MASK;
+	if (!(s->flags & CIP_UNAWARE_SYT))
+		*syt = cip_header[1] & CIP_SYT_MASK;
 
 	return 0;
 }
@@ -836,22 +834,23 @@ static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
 {
 	unsigned int dbc = s->data_block_counter;
 	unsigned int seq_index = s->ctx_data.rx.seq_index;
+	bool aware_syt = !(s->flags & CIP_UNAWARE_SYT);
 	int i;
 
 	for (i = 0; i < packets; ++i) {
 		struct pkt_desc *desc = descs + i;
 		unsigned int index = (s->packet_index + i) % s->queue_size;
 		const struct seq_desc *seq = seq_descs + seq_index;
-		unsigned int syt;
 
 		desc->cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
-		syt = seq->syt_offset;
-		if (syt != CIP_SYT_NO_INFO) {
-			syt = compute_syt(syt, desc->cycle,
-					  s->ctx_data.rx.transfer_delay);
+		if (aware_syt && seq->syt_offset != CIP_SYT_NO_INFO) {
+			desc->syt = compute_syt(seq->syt_offset, desc->cycle,
+						s->ctx_data.rx.transfer_delay);
+		} else {
+			desc->syt = CIP_SYT_NO_INFO;
 		}
-		desc->syt = syt;
+
 		desc->data_blocks = seq->data_blocks;
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
@@ -924,21 +923,15 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
-		unsigned int syt;
 		struct {
 			struct fw_iso_packet params;
 			__be32 header[CIP_HEADER_QUADLETS];
 		} template = { {0}, {0} };
 		bool sched_irq = false;
 
-		if (s->ctx_data.rx.syt_override < 0)
-			syt = desc->syt;
-		else
-			syt = s->ctx_data.rx.syt_override;
-
 		build_it_pkt_header(s, desc->cycle, &template.params, pkt_header_length,
 				    desc->data_blocks, desc->data_block_counter,
-				    syt, i);
+				    desc->syt, i);
 
 		if (s == s->domain->irq_target) {
 			event_count += desc->data_blocks;

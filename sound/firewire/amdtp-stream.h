@@ -35,6 +35,8 @@
  * @CIP_NO_HEADERS: a lack of headers in packets
  * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is not alighed to
  *	the value of current SYT_INTERVAL; e.g. initial value is not zero.
+ * @CIP_UNAWARE_SYT: For outgoing packet, the value in SYT field of CIP is 0xffff.
+ *	For incoming packet, the value in SYT field of CIP is not handled.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -48,6 +50,7 @@ enum cip_flags {
 	CIP_HEADER_WITHOUT_EOH	= 0x80,
 	CIP_NO_HEADER		= 0x100,
 	CIP_UNALIGHED_DBC	= 0x200,
+	CIP_UNAWARE_SYT		= 0x400,
 };
 
 /**
@@ -143,7 +146,6 @@ struct amdtp_stream {
 
 			// To generate CIP header.
 			unsigned int fdf;
-			int syt_override;
 
 			// To generate constant hardware IRQ.
 			unsigned int event_count;
