@@ -2603,6 +2603,28 @@ static const struct hda_model_fixup alc882_fixup_models[] = {
 	{}
 };
 
+static const struct snd_hda_pin_quirk alc882_pin_fixup_tbl[] = {
+	SND_HDA_PIN_QUIRK(0x10ec1220, 0x1043, "ASUS", ALC1220_FIXUP_CLEVO_P950,
+		{0x14, 0x01014010},
+		{0x15, 0x01011012},
+		{0x16, 0x01016011},
+		{0x18, 0x01a19040},
+		{0x19, 0x02a19050},
+		{0x1a, 0x0181304f},
+		{0x1b, 0x0221401f},
+		{0x1e, 0x01456130}),
+	SND_HDA_PIN_QUIRK(0x10ec1220, 0x1462, "MS-7C35", ALC1220_FIXUP_CLEVO_P950,
+		{0x14, 0x01015010},
+		{0x15, 0x01011012},
+		{0x16, 0x01011011},
+		{0x18, 0x01a11040},
+		{0x19, 0x02a19050},
+		{0x1a, 0x0181104f},
+		{0x1b, 0x0221401f},
+		{0x1e, 0x01451130}),
+	{}
+};
+
 /*
  * BIOS auto configuration
  */
@@ -2644,6 +2666,7 @@ static int patch_alc882(struct hda_codec *codec)
 
 	snd_hda_pick_fixup(codec, alc882_fixup_models, alc882_fixup_tbl,
 		       alc882_fixups);
+	snd_hda_pick_pin_fixup(codec, alc882_pin_fixup_tbl, alc882_fixups, true);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	alc_auto_parse_customize_define(codec);
