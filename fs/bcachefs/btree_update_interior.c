@@ -908,7 +908,8 @@ void bch2_btree_update_done(struct btree_update *as)
 
 	bch2_btree_reserve_put(as);
 
-	continue_at(&as->cl, btree_update_set_nodes_written, system_freezable_wq);
+	continue_at(&as->cl, btree_update_set_nodes_written,
+		    as->c->btree_interior_update_worker);
 }
 
 struct btree_update *
@@ -1847,7 +1848,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 	a->seq		= b->data->keys.seq;
 
 	INIT_WORK(&a->work, async_btree_node_rewrite_work);
-	queue_work(system_long_wq, &a->work);
+	queue_work(c->btree_interior_update_worker, &a->work);
 }
 
 static void __bch2_btree_node_update_key(struct bch_fs *c,

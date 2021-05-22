@@ -1295,12 +1295,12 @@ static void journal_write_done(struct closure *cl)
 	journal_wake(j);
 
 	if (test_bit(JOURNAL_NEED_WRITE, &j->flags))
-		mod_delayed_work(system_freezable_wq, &j->write_work, 0);
+		mod_delayed_work(c->io_complete_wq, &j->write_work, 0);
 	spin_unlock(&j->lock);
 
 	if (new.unwritten_idx != new.idx &&
 	    !journal_state_count(new, new.unwritten_idx))
-		closure_call(&j->io, bch2_journal_write, system_highpri_wq, NULL);
+		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
 }
 
 static void journal_write_endio(struct bio *bio)
@@ -1367,7 +1367,7 @@ static void do_journal_write(struct closure *cl)
 			le64_to_cpu(w->data->seq);
 	}
 
-	continue_at(cl, journal_write_done, system_highpri_wq);
+	continue_at(cl, journal_write_done, c->io_complete_wq);
 	return;
 }
 
@@ -1506,7 +1506,7 @@ retry_alloc:
 			journal_debug_buf);
 		kfree(journal_debug_buf);
 		bch2_fatal_error(c);
-		continue_at(cl, journal_write_done, system_highpri_wq);
+		continue_at(cl, journal_write_done, c->io_complete_wq);
 		return;
 	}
 
@@ -1537,14 +1537,14 @@ retry_alloc:
 
 	bch2_bucket_seq_cleanup(c);
 
-	continue_at(cl, do_journal_write, system_highpri_wq);
+	continue_at(cl, do_journal_write, c->io_complete_wq);
 	return;
 no_io:
 	bch2_bucket_seq_cleanup(c);
 
-	continue_at(cl, journal_write_done, system_highpri_wq);
+	continue_at(cl, journal_write_done, c->io_complete_wq);
 	return;
 err:
 	bch2_inconsistent_error(c);
-	continue_at(cl, journal_write_done, system_highpri_wq);
+	continue_at(cl, journal_write_done, c->io_complete_wq);
 }

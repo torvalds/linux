@@ -627,6 +627,7 @@ struct bch_fs {
 
 	/* BTREE CACHE */
 	struct bio_set		btree_bio;
+	struct workqueue_struct	*io_complete_wq;
 
 	struct btree_root	btree_roots[BTREE_ID_NR];
 	struct mutex		btree_root_lock;
@@ -664,7 +665,7 @@ struct bch_fs {
 
 	struct btree_key_cache	btree_key_cache;
 
-	struct workqueue_struct	*wq;
+	struct workqueue_struct	*btree_update_wq;
 	/* copygc needs its own workqueue for index updates.. */
 	struct workqueue_struct	*copygc_wq;
 

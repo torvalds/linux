@@ -1440,7 +1440,7 @@ static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 	bch2_migrate_read_done(&op->write, rbio);
 
 	closure_init(cl, NULL);
-	closure_call(&op->write.op.cl, bch2_write, c->wq, cl);
+	closure_call(&op->write.op.cl, bch2_write, c->btree_update_wq, cl);
 	closure_return_with_destructor(cl, promote_done);
 }
 
@@ -1823,6 +1823,13 @@ static void __bch2_read_endio(struct work_struct *work)
 	if (bch2_crc_cmp(csum, rbio->pick.crc.csum) && !c->opts.no_data_io)
 		goto csum_err;
 
+	/*
+	 * XXX
+	 * We need to rework the narrow_crcs path to deliver the read completion
+	 * first, and then punt to a different workqueue, otherwise we're
+	 * holding up reads while doing btree updates which is bad for memory
+	 * reclaim.
+	 */
 	if (unlikely(rbio->narrow_crcs))
 		bch2_rbio_narrow_crcs(rbio);
 

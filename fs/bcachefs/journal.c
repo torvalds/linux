@@ -117,7 +117,9 @@ void bch2_journal_halt(struct journal *j)
 
 void __bch2_journal_buf_put(struct journal *j)
 {
-	closure_call(&j->io, bch2_journal_write, system_highpri_wq, NULL);
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+
+	closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
 }
 
 /*
@@ -303,7 +305,7 @@ static int journal_entry_open(struct journal *j)
 				       j->res_get_blocked_start);
 	j->res_get_blocked_start = 0;
 
-	mod_delayed_work(system_freezable_wq,
+	mod_delayed_work(c->io_complete_wq,
 			 &j->write_work,
 			 msecs_to_jiffies(j->write_delay_ms));
 	journal_wake(j);

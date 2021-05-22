@@ -62,7 +62,7 @@ static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {
 	return op->alloc_reserve == RESERVE_MOVINGGC
 		? op->c->copygc_wq
-		: op->c->wq;
+		: op->c->btree_update_wq;
 }
 
 int bch2_sum_sector_overwrites(struct btree_trans *, struct btree_iter *,
