@@ -290,6 +290,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		pins = GET_VAL(selector, proto, bNrInPins);
 		clock_id = GET_VAL(selector, proto, bClockID);
 		sources = GET_VAL(selector, proto, baCSourceID);
+		cur = 0;
 
 		if (pins == 1) {
 			ret = 1;
@@ -314,7 +315,6 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 
 			if (!chip->autoclock)
 				return -EINVAL;
-			ret = 0;
 			goto find_others;
 		}
 
