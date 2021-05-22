@@ -2002,7 +2002,6 @@ static const struct component_ops abx500_chargalg_component_ops = {
 static int abx500_chargalg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct power_supply_config psy_cfg = {};
 	struct abx500_chargalg *di;
 	int ret = 0;
@@ -2012,12 +2011,6 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	di->bm = &ab8500_bm_data;
-
-	ret = ab8500_bm_of_probe(dev, np, di->bm);
-	if (ret) {
-		dev_err(dev, "failed to get battery information\n");
-		return ret;
-	}
 
 	/* get device struct and parent */
 	di->dev = dev;

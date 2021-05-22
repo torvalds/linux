@@ -983,7 +983,6 @@ static const struct component_ops ab8500_btemp_component_ops = {
 
 static int ab8500_btemp_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct power_supply_config psy_cfg = {};
 	struct device *dev = &pdev->dev;
 	struct ab8500_btemp *di;
@@ -995,12 +994,6 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	di->bm = &ab8500_bm_data;
-
-	ret = ab8500_bm_of_probe(dev, np, di->bm);
-	if (ret) {
-		dev_err(dev, "failed to get battery information\n");
-		return ret;
-	}
 
 	/* get parent data */
 	di->dev = dev;

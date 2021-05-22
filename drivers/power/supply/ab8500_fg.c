@@ -3058,12 +3058,6 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	di->bm = &ab8500_bm_data;
 
-	ret = ab8500_bm_of_probe(dev, np, di->bm);
-	if (ret) {
-		dev_err(dev, "failed to get battery information\n");
-		return ret;
-	}
-
 	mutex_init(&di->cc_lock);
 
 	/* get parent data */
