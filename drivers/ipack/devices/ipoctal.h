@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/**
- * ipoctal.h
- *
+/*
  * driver for the IPOCTAL boards
-
+ *
  * Copyright (C) 2009-2012 CERN (www.cern.ch)
  * Author: Nicolas Serafini, EIC2 SA
  * Author: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
