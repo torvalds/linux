@@ -75,6 +75,11 @@
 #define HPRE_BD_USR_MASK		GENMASK(1, 0)
 #define HPRE_CLUSTER_CORE_MASK_V2	GENMASK(3, 0)
 #define HPRE_CLUSTER_CORE_MASK_V3	GENMASK(7, 0)
+#define HPRE_PREFETCH_CFG		0x301130
+#define HPRE_SVA_PREFTCH_DFX		0x30115C
+#define HPRE_PREFETCH_ENABLE		(~(BIT(0) | BIT(30)))
+#define HPRE_PREFETCH_DISABLE		BIT(30)
+#define HPRE_SVA_DISABLE_READY		(BIT(4) | BIT(8))
 
 #define HPRE_AM_OOO_SHUTDOWN_ENB	0x301044
 #define HPRE_AM_OOO_SHUTDOWN_ENABLE	BIT(0)
@@ -368,6 +373,47 @@ static void disable_flr_of_bme(struct hisi_qm *qm)
 	val |= HPRE_QM_PM_FLR;
 	writel(val, qm->io_base + QM_PEH_AXUSER_CFG);
 	writel(PEH_AXUSER_CFG_ENABLE, qm->io_base + QM_PEH_AXUSER_CFG_ENABLE);
+}
+
+static void hpre_open_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	/* Enable prefetch */
+	val = readl_relaxed(qm->io_base + HPRE_PREFETCH_CFG);
+	val &= HPRE_PREFETCH_ENABLE;
+	writel(val, qm->io_base + HPRE_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HPRE_PREFETCH_CFG,
+					 val, !(val & HPRE_PREFETCH_DISABLE),
+					 HPRE_REG_RD_INTVRL_US,
+					 HPRE_REG_RD_TMOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to open sva prefetch\n");
+}
+
+static void hpre_close_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + HPRE_PREFETCH_CFG);
+	val |= HPRE_PREFETCH_DISABLE;
+	writel(val, qm->io_base + HPRE_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HPRE_SVA_PREFTCH_DFX,
+					 val, !(val & HPRE_SVA_DISABLE_READY),
+					 HPRE_REG_RD_INTVRL_US,
+					 HPRE_REG_RD_TMOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to close sva prefetch\n");
 }
 
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
@@ -876,6 +922,8 @@ static const struct hisi_qm_err_ini hpre_err_ini = {
 	.clear_dev_hw_err_status = hpre_clear_hw_err_status,
 	.log_dev_hw_err		= hpre_log_hw_error,
 	.open_axi_master_ooo	= hpre_open_axi_master_ooo,
+	.open_sva_prefetch	= hpre_open_sva_prefetch,
+	.close_sva_prefetch	= hpre_close_sva_prefetch,
 	.err_info_init		= hpre_err_info_init,
 };
 
@@ -887,6 +935,8 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 	ret = hpre_set_user_domain_and_cache(qm);
 	if (ret)
 		return ret;
+
+	hpre_open_sva_prefetch(qm);
 
 	qm->err_ini = &hpre_err_ini;
 	qm->err_ini->err_info_init(qm);

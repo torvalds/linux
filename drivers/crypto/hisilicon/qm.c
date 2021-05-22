@@ -95,6 +95,7 @@
 #define QM_DOORBELL_SQ_CQ_BASE_V2	0x1000
 #define QM_DOORBELL_EQ_AEQ_BASE_V2	0x2000
 #define QM_QUE_ISO_CFG_V		0x0030
+#define QM_PAGE_SIZE			0x0034
 #define QM_QUE_ISO_EN			0x100154
 #define QM_CAPBILITY			0x100158
 #define QM_QP_NUN_MASK			GENMASK(10, 0)
@@ -794,6 +795,32 @@ static void qm_init_qp_status(struct hisi_qp *qp)
 	qp_status->cq_head = 0;
 	qp_status->cqc_phase = true;
 	atomic_set(&qp_status->used, 0);
+}
+
+static void qm_init_prefetch(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	u32 page_type = 0x0;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	switch (PAGE_SIZE) {
+	case SZ_4K:
+		page_type = 0x0;
+		break;
+	case SZ_16K:
+		page_type = 0x1;
+		break;
+	case SZ_64K:
+		page_type = 0x2;
+		break;
+	default:
+		dev_err(dev, "system page size is not support: %lu, default set to 4KB",
+			PAGE_SIZE);
+	}
+
+	writel(page_type, qm->io_base + QM_PAGE_SIZE);
 }
 
 static void qm_vft_data_cfg(struct hisi_qm *qm, enum vft_type type, u32 base,
@@ -2974,6 +3001,8 @@ static int __hisi_qm_start(struct hisi_qm *qm)
 	if (ret)
 		return ret;
 
+	qm_init_prefetch(qm);
+
 	writel(0x0, qm->io_base + QM_VF_EQ_INT_MASK);
 	writel(0x0, qm->io_base + QM_VF_AEQ_INT_MASK);
 
@@ -3898,6 +3927,9 @@ static int qm_soft_reset(struct hisi_qm *qm)
 		return ret;
 	}
 
+	if (qm->err_ini->close_sva_prefetch)
+		qm->err_ini->close_sva_prefetch(qm);
+
 	ret = qm_set_pf_mse(qm, false);
 	if (ret) {
 		pci_err(pdev, "Fails to disable pf MSE bit.\n");
@@ -3966,6 +3998,9 @@ static int qm_dev_hw_init(struct hisi_qm *qm)
 static void qm_restart_prepare(struct hisi_qm *qm)
 {
 	u32 value;
+
+	if (qm->err_ini->open_sva_prefetch)
+		qm->err_ini->open_sva_prefetch(qm);
 
 	if (qm->ver >= QM_HW_V3)
 		return;

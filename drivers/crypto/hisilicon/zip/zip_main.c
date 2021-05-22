@@ -97,6 +97,14 @@
 #define HZIP_RD_CNT_CLR_CE_EN		(HZIP_CNT_CLR_CE_EN | \
 					 HZIP_RO_CNT_CLR_CE_EN)
 
+#define HZIP_PREFETCH_CFG		0x3011B0
+#define HZIP_SVA_TRANS			0x3011C4
+#define HZIP_PREFETCH_ENABLE		(~(BIT(26) | BIT(17) | BIT(0)))
+#define HZIP_SVA_PREFETCH_DISABLE	BIT(26)
+#define HZIP_SVA_DISABLE_READY		(BIT(26) | BIT(30))
+#define HZIP_DELAY_1_US		1
+#define HZIP_POLL_TIMEOUT_US	1000
+
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
 
@@ -261,6 +269,45 @@ int zip_create_qps(struct hisi_qp **qps, int qp_num, int node)
 		node = cpu_to_node(smp_processor_id());
 
 	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
+}
+
+static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	/* Enable prefetch */
+	val = readl_relaxed(qm->io_base + HZIP_PREFETCH_CFG);
+	val &= HZIP_PREFETCH_ENABLE;
+	writel(val, qm->io_base + HZIP_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_PREFETCH_CFG,
+					 val, !(val & HZIP_SVA_PREFETCH_DISABLE),
+					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to open sva prefetch\n");
+}
+
+static void hisi_zip_close_sva_prefetch(struct hisi_qm *qm)
+{
+	u32 val;
+	int ret;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl_relaxed(qm->io_base + HZIP_PREFETCH_CFG);
+	val |= HZIP_SVA_PREFETCH_DISABLE;
+	writel(val, qm->io_base + HZIP_PREFETCH_CFG);
+
+	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_SVA_TRANS,
+					 val, !(val & HZIP_SVA_DISABLE_READY),
+					 HZIP_DELAY_1_US, HZIP_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to close sva prefetch\n");
 }
 
 static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
@@ -696,6 +743,8 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.log_dev_hw_err		= hisi_zip_log_hw_error,
 	.open_axi_master_ooo	= hisi_zip_open_axi_master_ooo,
 	.close_axi_master_ooo	= hisi_zip_close_axi_master_ooo,
+	.open_sva_prefetch	= hisi_zip_open_sva_prefetch,
+	.close_sva_prefetch	= hisi_zip_close_sva_prefetch,
 	.err_info_init		= hisi_zip_err_info_init,
 };
 
@@ -714,6 +763,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	qm->err_ini->err_info_init(qm);
 
 	hisi_zip_set_user_domain_and_cache(qm);
+	hisi_zip_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(qm);
 
