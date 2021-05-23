@@ -345,7 +345,6 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.set_ramp_delay		= max77802_set_ramp_delay_2bit,
 	.set_suspend_disable	= max77802_set_suspend_disable,
 };
 
