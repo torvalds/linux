@@ -82,10 +82,6 @@
 #define AD7746_CAPDAC_DACEN		BIT(7)
 #define AD7746_CAPDAC_DACP(x)		((x) & 0x7F)
 
-/*
- * struct ad7746_chip_info - chip specific information
- */
-
 struct ad7746_chip_info {
 	struct i2c_client *client;
 	struct mutex lock; /* protect sensor state */
@@ -562,10 +558,10 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		switch (chan->type) {
 		case IIO_TEMP:
-		/*
-		 * temperature in milli degrees Celsius
-		 * T = ((*val / 2048) - 4096) * 1000
-		 */
+			/*
+			 * temperature in milli degrees Celsius
+			 * T = ((*val / 2048) - 4096) * 1000
+			 */
 			*val = (*val * 125) / 256;
 			break;
 		case IIO_VOLTAGE:
@@ -666,10 +662,6 @@ static const struct iio_info ad7746_info = {
 	.read_raw = ad7746_read_raw,
 	.write_raw = ad7746_write_raw,
 };
-
-/*
- * device probe and remove
- */
 
 static int ad7746_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
