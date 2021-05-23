@@ -154,6 +154,7 @@ smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 		if (ses->Suid != ses_id)
 			continue;
+		++ses->ses_count;
 		return ses;
 	}
 
@@ -205,7 +206,14 @@ smb2_find_smb_tcon(struct TCP_Server_Info *server, __u64 ses_id, __u32  tid)
 		return NULL;
 	}
 	tcon = smb2_find_smb_sess_tcon_unlocked(ses, tid);
+	if (!tcon) {
+		cifs_put_smb_ses(ses);
+		spin_unlock(&cifs_tcp_ses_lock);
+		return NULL;
+	}
 	spin_unlock(&cifs_tcp_ses_lock);
+	/* tcon already has a ref to ses, so we don't need ses anymore */
+	cifs_put_smb_ses(ses);
 
 	return tcon;
 }
@@ -239,7 +247,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 		if (rc) {
 			cifs_server_dbg(VFS,
 					"%s: sha256 alloc failed\n", __func__);
-			return rc;
+			goto out;
 		}
 		shash = &sdesc->shash;
 	} else {
@@ -290,6 +298,8 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 out:
 	if (allocate_crypto)
 		cifs_free_hash(&hash, &sdesc);
+	if (ses)
+		cifs_put_smb_ses(ses);
 	return rc;
 }
 
