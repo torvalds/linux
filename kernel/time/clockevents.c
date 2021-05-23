@@ -668,9 +668,9 @@ static struct bus_type clockevents_subsys = {
 static DEFINE_PER_CPU(struct device, tick_percpu_dev);
 static struct tick_device *tick_get_tick_dev(struct device *dev);
 
-static ssize_t sysfs_show_current_tick_dev(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static ssize_t current_device_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
 {
 	struct tick_device *td;
 	ssize_t count = 0;
@@ -682,12 +682,12 @@ static ssize_t sysfs_show_current_tick_dev(struct device *dev,
 	raw_spin_unlock_irq(&clockevents_lock);
 	return count;
 }
-static DEVICE_ATTR(current_device, 0444, sysfs_show_current_tick_dev, NULL);
+static DEVICE_ATTR_RO(current_device);
 
 /* We don't support the abomination of removable broadcast devices */
-static ssize_t sysfs_unbind_tick_dev(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t unbind_device_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	char name[CS_NAME_LEN];
 	ssize_t ret = sysfs_get_uname(buf, name, count);
@@ -714,7 +714,7 @@ static ssize_t sysfs_unbind_tick_dev(struct device *dev,
 	mutex_unlock(&clockevents_mutex);
 	return ret ? ret : count;
 }
-static DEVICE_ATTR(unbind_device, 0200, NULL, sysfs_unbind_tick_dev);
+static DEVICE_ATTR_WO(unbind_device);
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 static struct device tick_bc_dev = {
