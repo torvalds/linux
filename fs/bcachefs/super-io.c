@@ -984,7 +984,7 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-	c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALWAYS;
+	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALWAYS);
 	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
@@ -1001,7 +1001,7 @@ static struct jset_entry *jset_entry_init(struct jset_entry **end, size_t size)
 	 * The u64s field counts from the start of data, ignoring the shared
 	 * fields.
 	 */
-	entry->u64s = u64s - 1;
+	entry->u64s = cpu_to_le16(u64s - 1);
 
 	*end = vstruct_next(*end);
 	return entry;
@@ -1095,7 +1095,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 		clock->entry.type = BCH_JSET_ENTRY_clock;
 		clock->rw	= i;
-		clock->time	= atomic64_read(&c->io_clock[i].now);
+		clock->time	= cpu_to_le64(atomic64_read(&c->io_clock[i].now));
 	}
 }
 
@@ -1112,10 +1112,10 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, true);
 
-	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_alloc_info;
-	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_alloc_metadata;
-	c->disk_sb.sb->features[0] &= ~(1ULL << BCH_FEATURE_extents_above_btree_updates);
-	c->disk_sb.sb->features[0] &= ~(1ULL << BCH_FEATURE_btree_updates_journalled);
+	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_alloc_info);
+	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_alloc_metadata);
+	c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_extents_above_btree_updates));
+	c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_btree_updates_journalled));
 
 	u64s = sizeof(*sb_clean) / sizeof(u64) + c->journal.entry_u64s_reserved;
 

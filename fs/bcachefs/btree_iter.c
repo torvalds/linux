@@ -2268,6 +2268,7 @@ static void bch2_trans_alloc_iters(struct btree_trans *trans, struct bch_fs *c)
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		     unsigned expected_nr_iters,
 		     size_t expected_mem_bytes)
+	__acquires(&c->btree_trans_barrier)
 {
 	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
@@ -2302,6 +2303,7 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 }
 
 int bch2_trans_exit(struct btree_trans *trans)
+	__releases(&c->btree_trans_barrier)
 {
 	struct bch_fs *c = trans->c;
 

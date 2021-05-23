@@ -716,7 +716,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 	case BCH_JSET_ENTRY_dev_usage: {
 		struct jset_entry_dev_usage *u =
 			container_of(entry, struct jset_entry_dev_usage, entry);
-		struct bch_dev *ca = bch_dev_bkey_exists(c, u->dev);
+		struct bch_dev *ca = bch_dev_bkey_exists(c, le32_to_cpu(u->dev));
 		unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
 		unsigned nr_types = (bytes - sizeof(struct jset_entry_dev_usage)) /
 			sizeof(struct jset_entry_dev_usage_type);
@@ -755,7 +755,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		struct jset_entry_clock *clock =
 			container_of(entry, struct jset_entry_clock, entry);
 
-		atomic64_set(&c->io_clock[clock->rw].now, clock->time);
+		atomic64_set(&c->io_clock[clock->rw].now, le64_to_cpu(clock->time));
 	}
 	}
 
@@ -1217,13 +1217,13 @@ use_clean:
 
 	mutex_lock(&c->sb_lock);
 	if (c->opts.version_upgrade) {
-		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
-		c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
+		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		write_sb = true;
 	}
 
 	if (!test_bit(BCH_FS_ERROR, &c->flags)) {
-		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_alloc_info;
+		c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_alloc_info);
 		write_sb = true;
 	}
 
@@ -1278,12 +1278,12 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch_notice(c, "initializing new filesystem");
 
 	mutex_lock(&c->sb_lock);
-	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_extents_above_btree_updates_done;
-	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_bformat_overflow_done;
+	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
+	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_bformat_overflow_done);
 
 	if (c->opts.version_upgrade) {
-		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
-		c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
+		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		bch2_write_super(c);
 	}
 

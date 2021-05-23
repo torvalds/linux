@@ -833,7 +833,7 @@ static void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 	unsigned i;
 
 	for (i = 0; i < j->nr_ptrs; i++) {
-		struct bch_dev *ca = c->devs[j->ptrs[i].dev];
+		struct bch_dev *ca = bch_dev_bkey_exists(c, j->ptrs[i].dev);
 		u64 offset;
 
 		div64_u64_rem(j->ptrs[i].offset, ca->mi.bucket_size, &offset);
@@ -1398,7 +1398,8 @@ void bch2_journal_write(struct closure *cl)
 	    test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags)) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(jset, true);
-		jset->last_seq = w->last_seq = 0;
+		jset->last_seq	= 0;
+		w->last_seq	= 0;
 
 		j->nr_noflush_writes++;
 	} else {

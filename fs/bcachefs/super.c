@@ -1445,7 +1445,7 @@ int bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 
 /* Device add/removal: */
 
-int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
+static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct btree_trans trans;
 	size_t i;

@@ -111,8 +111,7 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 	bl->start[nr].start	= cpu_to_le64(start);
 	bl->start[nr].end	= cpu_to_le64(end);
 out_write_sb:
-	c->disk_sb.sb->features[0] |=
-		1ULL << BCH_FEATURE_journal_seq_blacklist_v3;
+	c->disk_sb.sb->features[0] |= cpu_to_le64(1ULL << BCH_FEATURE_journal_seq_blacklist_v3);
 
 	ret = bch2_write_super(c);
 out:
@@ -298,8 +297,7 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 		BUG_ON(new_nr && !bl);
 
 		if (!new_nr)
-			c->disk_sb.sb->features[0] &=
-				~(1ULL << BCH_FEATURE_journal_seq_blacklist_v3);
+			c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_journal_seq_blacklist_v3));
 
 		bch2_write_super(c);
 	}
