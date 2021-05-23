@@ -35,8 +35,8 @@ static const struct acpi_device_id bmc150_acpi_dual_accel_ids[] = {
  */
 static void bmc150_acpi_dual_accel_probe(struct i2c_client *client)
 {
+	struct bmc150_accel_data *data = iio_priv(i2c_get_clientdata(client));
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
-	struct i2c_client *second_dev;
 	char dev_name[16];
 	struct i2c_board_info board_info = {
 		.type = "bmc150_accel",
@@ -55,16 +55,14 @@ static void bmc150_acpi_dual_accel_probe(struct i2c_client *client)
 
 	board_info.irq = acpi_dev_gpio_irq_get(adev, 1);
 
-	second_dev = i2c_acpi_new_device(&client->dev, 1, &board_info);
-	if (!IS_ERR(second_dev))
-		bmc150_set_second_device(client, second_dev);
+	data->second_device = i2c_acpi_new_device(&client->dev, 1, &board_info);
 }
 
 static void bmc150_acpi_dual_accel_remove(struct i2c_client *client)
 {
-	struct i2c_client *second_dev = bmc150_get_second_device(client);
+	struct bmc150_accel_data *data = iio_priv(i2c_get_clientdata(client));
 
-	i2c_unregister_device(second_dev);
+	i2c_unregister_device(data->second_device);
 }
 #else
 static void bmc150_acpi_dual_accel_probe(struct i2c_client *client) {}
