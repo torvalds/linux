@@ -251,11 +251,13 @@ static void expunge_all(struct msg_queue *msq, int res,
 	struct msg_receiver *msr, *t;
 
 	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
-		get_task_struct(msr->r_tsk);
+		struct task_struct *r_tsk;
+
+		r_tsk = get_task_struct(msr->r_tsk);
 
 		/* see MSG_BARRIER for purpose/pairing */
 		smp_store_release(&msr->r_msg, ERR_PTR(res));
-		wake_q_add_safe(wake_q, msr->r_tsk);
+		wake_q_add_safe(wake_q, r_tsk);
 	}
 }
 
