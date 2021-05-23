@@ -151,7 +151,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	set_bkey_val_bytes(&r_v->k, sizeof(__le64) + bkey_val_bytes(&orig->k));
 
-	refcount	= (void *) &r_v->v;
+	refcount	= bkey_refcount(r_v);
 	*refcount	= 0;
 	memcpy(refcount + 1, &orig->v, bkey_val_bytes(&orig->k));
 

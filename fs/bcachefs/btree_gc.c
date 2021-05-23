@@ -23,6 +23,7 @@
 #include "keylist.h"
 #include "move.h"
 #include "recovery.h"
+#include "reflink.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "trace.h"
@@ -1285,6 +1286,201 @@ static int bch2_gc_start(struct bch_fs *c,
 	return 0;
 }
 
+static int bch2_gc_reflink_done_initial_fn(struct bch_fs *c, struct bkey_s_c k)
+{
+	struct reflink_gc *r;
+	const __le64 *refcount = bkey_refcount_c(k);
+	char buf[200];
+	int ret = 0;
+
+	if (!refcount)
+		return 0;
+
+	r = genradix_ptr(&c->reflink_gc_table, c->reflink_gc_idx++);
+	if (!r)
+		return -ENOMEM;
+
+	if (!r ||
+	    r->offset != k.k->p.offset ||
+	    r->size != k.k->size) {
+		bch_err(c, "unexpected inconsistency walking reflink table at gc finish");
+		return -EINVAL;
+	}
+
+	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount), c,
+			"reflink key has wrong refcount:\n"
+			"  %s\n"
+			"  should be %u",
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+			r->refcount)) {
+		struct bkey_i *new;
+
+		new = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
+		if (!new) {
+			ret = -ENOMEM;
+			goto fsck_err;
+		}
+
+		bkey_reassemble(new, k);
+
+		if (!r->refcount) {
+			new->k.type = KEY_TYPE_deleted;
+			new->k.size = 0;
+		} else {
+			*bkey_refcount(new) = cpu_to_le64(r->refcount);
+		}
+
+		ret = bch2_journal_key_insert(c, BTREE_ID_reflink, 0, new);
+		if (ret)
+			kfree(new);
+	}
+fsck_err:
+	return ret;
+}
+
+static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
+				bool metadata_only)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	struct reflink_gc *r;
+	size_t idx = 0;
+	char buf[200];
+	int ret = 0;
+
+	if (metadata_only)
+		return 0;
+
+	if (initial) {
+		c->reflink_gc_idx = 0;
+
+		ret = bch2_btree_and_journal_walk(c, BTREE_ID_reflink,
+				bch2_gc_reflink_done_initial_fn);
+		goto out;
+	}
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_reflink, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		const __le64 *refcount = bkey_refcount_c(k);
+
+		if (!refcount)
+			continue;
+
+		r = genradix_ptr(&c->reflink_gc_table, idx);
+		if (!r ||
+		    r->offset != k.k->p.offset ||
+		    r->size != k.k->size) {
+			bch_err(c, "unexpected inconsistency walking reflink table at gc finish");
+			ret = -EINVAL;
+			break;
+		}
+
+		if (fsck_err_on(r->refcount != le64_to_cpu(*refcount), c,
+				"reflink key has wrong refcount:\n"
+				"  %s\n"
+				"  should be %u",
+				(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+				r->refcount)) {
+			struct bkey_i *new;
+
+			new = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
+			if (!new) {
+				ret = -ENOMEM;
+				break;
+			}
+
+			bkey_reassemble(new, k);
+
+			if (!r->refcount)
+				new->k.type = KEY_TYPE_deleted;
+			else
+				*bkey_refcount(new) = cpu_to_le64(r->refcount);
+
+			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+					__bch2_btree_insert(&trans, BTREE_ID_reflink, new));
+			kfree(new);
+
+			if (ret)
+				break;
+		}
+	}
+fsck_err:
+	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_exit(&trans);
+out:
+	genradix_free(&c->reflink_gc_table);
+	c->reflink_gc_nr = 0;
+	return ret;
+}
+
+static int bch2_gc_reflink_start_initial_fn(struct bch_fs *c, struct bkey_s_c k)
+{
+
+	struct reflink_gc *r;
+	const __le64 *refcount = bkey_refcount_c(k);
+
+	if (!refcount)
+		return 0;
+
+	r = genradix_ptr_alloc(&c->reflink_gc_table, c->reflink_gc_nr++,
+			       GFP_KERNEL);
+	if (!r)
+		return -ENOMEM;
+
+	r->offset	= k.k->p.offset;
+	r->size		= k.k->size;
+	r->refcount	= 0;
+	return 0;
+}
+
+static int bch2_gc_reflink_start(struct bch_fs *c, bool initial,
+				 bool metadata_only)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	struct reflink_gc *r;
+	int ret;
+
+	if (metadata_only)
+		return 0;
+
+	genradix_free(&c->reflink_gc_table);
+	c->reflink_gc_nr = 0;
+
+	if (initial)
+		return bch2_btree_and_journal_walk(c, BTREE_ID_reflink,
+				bch2_gc_reflink_start_initial_fn);
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_reflink, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		const __le64 *refcount = bkey_refcount_c(k);
+
+		if (!refcount)
+			continue;
+
+		r = genradix_ptr_alloc(&c->reflink_gc_table, c->reflink_gc_nr++,
+				       GFP_KERNEL);
+		if (!r) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		r->offset	= k.k->p.offset;
+		r->size		= k.k->size;
+		r->refcount	= 0;
+	}
+	bch2_trans_iter_put(&trans, iter);
+
+	bch2_trans_exit(&trans);
+	return 0;
+}
+
 /**
  * bch2_gc - walk _all_ references to buckets, and recompute them:
  *
@@ -1319,7 +1515,8 @@ int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
 	closure_wait_event(&c->btree_interior_update_wait,
 			   !bch2_btree_interior_updates_nr_pending(c));
 again:
-	ret = bch2_gc_start(c, metadata_only);
+	ret   = bch2_gc_start(c, metadata_only) ?:
+		bch2_gc_reflink_start(c, initial, metadata_only);
 	if (ret)
 		goto out;
 
@@ -1381,7 +1578,8 @@ out:
 		bch2_journal_block(&c->journal);
 
 		percpu_down_write(&c->mark_lock);
-		ret = bch2_gc_done(c, initial, metadata_only);
+		ret   = bch2_gc_reflink_done(c, initial, metadata_only) ?:
+			bch2_gc_done(c, initial, metadata_only);
 
 		bch2_journal_unblock(&c->journal);
 	} else {

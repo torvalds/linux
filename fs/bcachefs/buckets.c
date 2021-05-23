@@ -14,6 +14,7 @@
 #include "ec.h"
 #include "error.h"
 #include "movinggc.h"
+#include "reflink.h"
 #include "replicas.h"
 #include "trace.h"
 
@@ -1076,6 +1077,124 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	return 0;
 }
 
+static int __reflink_p_frag_references(struct bkey_s_c_reflink_p p,
+				       u64 p_start, u64 p_end,
+				       u64 v_start, u64 v_end)
+{
+	if (p_start == p_end)
+		return false;
+
+	p_start	+= le64_to_cpu(p.v->idx);
+	p_end	+= le64_to_cpu(p.v->idx);
+
+	if (p_end <= v_start)
+		return false;
+	if (p_start >= v_end)
+		return false;
+	return true;
+}
+
+static int reflink_p_frag_references(struct bkey_s_c_reflink_p p,
+				     u64 start, u64 end,
+				     struct bkey_s_c k)
+{
+	return __reflink_p_frag_references(p, start, end,
+					   bkey_start_offset(k.k),
+					   k.k->p.offset);
+}
+
+static int __bch2_mark_reflink_p(struct bch_fs *c,
+			struct bkey_s_c_reflink_p p,
+			u64 idx, unsigned sectors,
+			unsigned front_frag,
+			unsigned back_frag,
+			unsigned flags,
+			size_t *r_idx)
+{
+	struct reflink_gc *r;
+	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	int frags_referenced;
+
+	while (1) {
+		if (*r_idx >= c->reflink_gc_nr)
+			goto not_found;
+		r = genradix_ptr(&c->reflink_gc_table, *r_idx);
+		BUG_ON(!r);
+
+		if (r->offset > idx)
+			break;
+		(*r_idx)++;
+	}
+
+	frags_referenced =
+		__reflink_p_frag_references(p, 0, front_frag,
+					    r->offset - r->size, r->offset) +
+		__reflink_p_frag_references(p, back_frag, p.k->size,
+					    r->offset - r->size, r->offset);
+
+	if (frags_referenced == 2) {
+		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE_SPLIT));
+		add = -add;
+	} else if (frags_referenced == 1) {
+		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE));
+		add = 0;
+	}
+
+	BUG_ON((s64) r->refcount + add < 0);
+
+	r->refcount += add;
+	return min_t(u64, sectors, r->offset - idx);
+not_found:
+	bch2_fs_inconsistent(c,
+		"%llu:%llu len %u points to nonexistent indirect extent %llu",
+		p.k->p.inode, p.k->p.offset, p.k->size, idx);
+	bch2_inconsistent_error(c);
+	return -EIO;
+}
+
+static int bch2_mark_reflink_p(struct bch_fs *c,
+			       struct bkey_s_c_reflink_p p, unsigned offset,
+			       s64 sectors, unsigned flags)
+{
+	u64 idx = le64_to_cpu(p.v->idx) + offset;
+	struct reflink_gc *ref;
+	size_t l, r, m;
+	unsigned front_frag, back_frag;
+	s64 ret = 0;
+
+	if (sectors < 0)
+		sectors = -sectors;
+
+	BUG_ON(offset + sectors > p.k->size);
+
+	front_frag = offset;
+	back_frag = offset + sectors;
+
+	l = 0;
+	r = c->reflink_gc_nr;
+	while (l < r) {
+		m = l + (r - l) / 2;
+
+		ref = genradix_ptr(&c->reflink_gc_table, m);
+		if (ref->offset <= idx)
+			l = m + 1;
+		else
+			r = m;
+	}
+
+	while (sectors) {
+		ret = __bch2_mark_reflink_p(c, p, idx, sectors,
+				front_frag, back_frag, flags, &l);
+		if (ret < 0)
+			return ret;
+
+		idx	+= ret;
+		sectors	-= ret;
+	}
+
+	return 0;
+}
+
 static int bch2_mark_key_locked(struct bch_fs *c,
 		   struct bkey_s_c old,
 		   struct bkey_s_c new,
@@ -1131,6 +1250,10 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 		fs_usage->persistent_reserved[replicas - 1]	+= sectors;
 		break;
 	}
+	case KEY_TYPE_reflink_p:
+		ret = bch2_mark_reflink_p(c, bkey_s_c_to_reflink_p(k),
+					  offset, sectors, flags);
+		break;
 	}
 
 	preempt_enable();
@@ -1691,35 +1814,6 @@ static int bch2_trans_mark_stripe(struct btree_trans *trans,
 	}
 
 	return ret;
-}
-
-static __le64 *bkey_refcount(struct bkey_i *k)
-{
-	switch (k->k.type) {
-	case KEY_TYPE_reflink_v:
-		return &bkey_i_to_reflink_v(k)->v.refcount;
-	case KEY_TYPE_indirect_inline_data:
-		return &bkey_i_to_indirect_inline_data(k)->v.refcount;
-	default:
-		return NULL;
-	}
-}
-
-static bool reflink_p_frag_references(struct bkey_s_c_reflink_p p,
-				      u64 start, u64 end,
-				      struct bkey_s_c k)
-{
-	if (start == end)
-		return false;
-
-	start	+= le64_to_cpu(p.v->idx);
-	end	+= le64_to_cpu(p.v->idx);
-
-	if (end <= bkey_start_offset(k.k))
-		return false;
-	if (start >= k.k->p.offset)
-		return false;
-	return true;
 }
 
 static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,

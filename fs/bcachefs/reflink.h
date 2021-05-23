@@ -34,6 +34,30 @@ void bch2_indirect_inline_data_to_text(struct printbuf *,
 	.val_to_text	= bch2_indirect_inline_data_to_text,	\
 }
 
+static inline const __le64 *bkey_refcount_c(struct bkey_s_c k)
+{
+	switch (k.k->type) {
+	case KEY_TYPE_reflink_v:
+		return &bkey_s_c_to_reflink_v(k).v->refcount;
+	case KEY_TYPE_indirect_inline_data:
+		return &bkey_s_c_to_indirect_inline_data(k).v->refcount;
+	default:
+		return NULL;
+	}
+}
+
+static inline __le64 *bkey_refcount(struct bkey_i *k)
+{
+	switch (k->k.type) {
+	case KEY_TYPE_reflink_v:
+		return &bkey_i_to_reflink_v(k)->v.refcount;
+	case KEY_TYPE_indirect_inline_data:
+		return &bkey_i_to_indirect_inline_data(k)->v.refcount;
+	default:
+		return NULL;
+	}
+}
+
 s64 bch2_remap_range(struct bch_fs *, struct bpos, struct bpos,
 		     u64, u64 *, u64, s64 *);
 

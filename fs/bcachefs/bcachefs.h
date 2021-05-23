@@ -391,6 +391,14 @@ struct gc_pos {
 	unsigned		level;
 };
 
+struct reflink_gc {
+	u64		offset;
+	u32		size;
+	u32		refcount;
+};
+
+typedef GENRADIX(struct reflink_gc) reflink_gc_table;
+
 struct io_count {
 	u64			sectors[2][BCH_DATA_NR];
 };
@@ -806,6 +814,9 @@ mempool_t		bio_bounce_pages;
 
 	/* REFLINK */
 	u64			reflink_hint;
+	reflink_gc_table	reflink_gc_table;
+	size_t			reflink_gc_nr;
+	size_t			reflink_gc_idx;
 
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;
