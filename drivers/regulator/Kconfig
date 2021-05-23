@@ -207,6 +207,7 @@ config REGULATOR_BD70528
 config REGULATOR_BD71815
 	tristate "ROHM BD71815 Power Regulator"
 	depends on MFD_ROHM_BD71828
+	select REGULATOR_ROHM
 	help
 	  This driver supports voltage regulators on ROHM BD71815 PMIC.
 	  This will enable support for the software controllable buck
