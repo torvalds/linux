@@ -9078,6 +9078,9 @@ static void io_uring_cancel_sqpoll(struct io_sq_data *sqd)
 
 	if (!current->io_uring)
 		return;
+	if (tctx->io_wq)
+		io_wq_exit_start(tctx->io_wq);
+
 	WARN_ON_ONCE(!sqd || sqd->thread != current);
 
 	atomic_inc(&tctx->in_idle);
@@ -9111,6 +9114,9 @@ void __io_uring_cancel(struct files_struct *files)
 	struct io_uring_task *tctx = current->io_uring;
 	DEFINE_WAIT(wait);
 	s64 inflight;
+
+	if (tctx->io_wq)
+		io_wq_exit_start(tctx->io_wq);
 
 	/* make sure overflow events are dropped */
 	atomic_inc(&tctx->in_idle);
