@@ -2706,9 +2706,6 @@ void EXhalbtc8723b1ant_ScanNotify(struct btc_coexist *pBtCoexist, u8 type)
 	bool bBtCtrlAggBufSize = false;
 	u8 aggBufSize = 5;
 
-	u8 u1Tmpa, u1Tmpb;
-	u32 u4Tmp;
-
 	if (pBtCoexist->bManualControl || pBtCoexist->bStopCoexDm)
 		return;
 
@@ -2716,9 +2713,9 @@ void EXhalbtc8723b1ant_ScanNotify(struct btc_coexist *pBtCoexist, u8 type)
 		pCoexSta->bWiFiIsHighPriTask = true;
 
 		halbtc8723b1ant_PsTdma(pBtCoexist, FORCE_EXEC, false, 8);  /* Force antenna setup for no scan result issue */
-		u4Tmp = pBtCoexist->fBtcRead4Byte(pBtCoexist, 0x948);
-		u1Tmpa = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x765);
-		u1Tmpb = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x67);
+		pBtCoexist->fBtcRead4Byte(pBtCoexist, 0x948);
+		pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x765);
+		pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x67);
 	} else {
 		pCoexSta->bWiFiIsHighPriTask = false;
 
