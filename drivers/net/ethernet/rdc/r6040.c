@@ -544,7 +544,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		skb_ptr->dev = priv->dev;
 
 		/* Do not count the CRC */
-		skb_put(skb_ptr, descptr->len - 4);
+		skb_put(skb_ptr, descptr->len - ETH_FCS_LEN);
 		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(descptr->buf),
 				 MAX_BUF_SIZE, DMA_FROM_DEVICE);
 		skb_ptr->protocol = eth_type_trans(skb_ptr, priv->dev);
@@ -552,7 +552,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		/* Send to upper layer */
 		netif_receive_skb(skb_ptr);
 		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += descptr->len - 4;
+		dev->stats.rx_bytes += descptr->len - ETH_FCS_LEN;
 
 		/* put new skb into descriptor */
 		descptr->skb_ptr = new_skb;
