@@ -24,6 +24,7 @@
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id bmc150_acpi_dual_accel_ids[] = {
 	{"BOSC0200"},
+	{"DUAL250E"},
 	{ }
 };
 
@@ -36,20 +37,23 @@ static void bmc150_acpi_dual_accel_probe(struct i2c_client *client)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 	struct i2c_client *second_dev;
+	char dev_name[16];
 	struct i2c_board_info board_info = {
 		.type = "bmc150_accel",
-		/*
-		 * The 2nd accel sits in the base of 2-in-1s. Note this name is
-		 * static, as there should never be more then 1 BOSC0200 ACPI
-		 * node with 2 accelerometers in it.
-		 */
-		.dev_name = "BOSC0200:base",
+		.dev_name = dev_name,
 		.fwnode = client->dev.fwnode,
-		.irq = -ENOENT,
 	};
 
 	if (acpi_match_device_ids(adev, bmc150_acpi_dual_accel_ids))
 		return;
+
+	/*
+	 * The 2nd accel sits in the base of 2-in-1s. The suffix is static, as
+	 * there should never be more then 1 ACPI node with 2 accelerometers.
+	 */
+	snprintf(dev_name, sizeof(dev_name), "%s:base", acpi_device_hid(adev));
+
+	board_info.irq = acpi_dev_gpio_irq_get(adev, 1);
 
 	second_dev = i2c_acpi_new_device(&client->dev, 1, &board_info);
 	if (!IS_ERR(second_dev))
@@ -118,6 +122,7 @@ static const struct acpi_device_id bmc150_accel_acpi_match[] = {
 	{"BMA222E",	bma222e},
 	{"BMA0280",	bma280},
 	{"BOSC0200"},
+	{"DUAL250E"},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
