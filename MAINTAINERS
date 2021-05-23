@@ -14735,7 +14735,6 @@ W:	https://wireless.wiki.kernel.org/en/users/Drivers/p54
 F:	drivers/net/wireless/intersil/prism54/
 
 PROC FILESYSTEM
-R:	Alexey Dobriyan <adobriyan@gmail.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
