@@ -209,6 +209,19 @@ static const unsigned char ad7746_cap_filter_rate_table[][2] = {
 	{16, 62 + 1}, {13, 77 + 1}, {11, 92 + 1}, {9, 110 + 1},
 };
 
+static int ad7746_set_capdac(struct ad7746_chip_info *chip, int channel)
+{
+	int ret = i2c_smbus_write_byte_data(chip->client,
+					    AD7746_REG_CAPDACA,
+					    chip->capdac[channel][0]);
+	if (ret < 0)
+		return ret;
+
+	return i2c_smbus_write_byte_data(chip->client,
+					  AD7746_REG_CAPDACB,
+					  chip->capdac[channel][1]);
+}
+
 static int ad7746_select_channel(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan)
 {
@@ -224,17 +237,11 @@ static int ad7746_select_channel(struct iio_dev *indio_dev,
 			AD7746_CONF_CAPFS_SHIFT;
 		delay = ad7746_cap_filter_rate_table[idx][1];
 
+		ret = ad7746_set_capdac(chip, chan->channel);
+		if (ret < 0)
+			return ret;
+
 		if (chip->capdac_set != chan->channel) {
-			ret = i2c_smbus_write_byte_data(chip->client,
-				AD7746_REG_CAPDACA,
-				chip->capdac[chan->channel][0]);
-			if (ret < 0)
-				return ret;
-			ret = i2c_smbus_write_byte_data(chip->client,
-				AD7746_REG_CAPDACB,
-				chip->capdac[chan->channel][1]);
-			if (ret < 0)
-				return ret;
 
 			chip->capdac_set = chan->channel;
 		}
@@ -478,14 +485,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 		chip->capdac[chan->channel][chan->differential] = val > 0 ?
 			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0;
 
-		ret = i2c_smbus_write_byte_data(chip->client,
-						AD7746_REG_CAPDACA,
-						chip->capdac[chan->channel][0]);
-		if (ret < 0)
-			goto out;
-		ret = i2c_smbus_write_byte_data(chip->client,
-						AD7746_REG_CAPDACB,
-						chip->capdac[chan->channel][1]);
+		ret = ad7746_set_capdac(chip, chan->channel);
 		if (ret < 0)
 			goto out;
 
