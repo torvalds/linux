@@ -943,6 +943,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
+	.nway_reset		= phy_ethtool_nway_reset,
 };
 
 static const struct net_device_ops r6040_netdev_ops = {
