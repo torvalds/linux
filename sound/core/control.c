@@ -995,7 +995,10 @@ static int __snd_ctl_elem_info(struct snd_card *card,
 #ifdef CONFIG_SND_DEBUG
 	info->access = 0;
 #endif
-	result = kctl->info(kctl, info);
+	result = snd_power_ref_and_wait(card);
+	if (!result)
+		result = kctl->info(kctl, info);
+	snd_power_unref(card);
 	if (result >= 0) {
 		snd_BUG_ON(info->access);
 		index_offset = snd_ctl_get_ioff(kctl, &info->id);
@@ -1088,7 +1091,10 @@ static int snd_ctl_elem_read(struct snd_card *card,
 
 	if (!snd_ctl_skip_validation(&info))
 		fill_remaining_elem_value(control, &info, pattern);
-	ret = kctl->get(kctl, control);
+	ret = snd_power_ref_and_wait(card);
+	if (!ret)
+		ret = kctl->get(kctl, control);
+	snd_power_unref(card);
 	if (ret < 0)
 		return ret;
 	if (!snd_ctl_skip_validation(&info) &&
@@ -1154,7 +1160,10 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 	}
 
 	snd_ctl_build_ioff(&control->id, kctl, index_offset);
-	result = kctl->put(kctl, control);
+	result = snd_power_ref_and_wait(card);
+	if (!result)
+		result = kctl->put(kctl, control);
+	snd_power_unref(card);
 	if (result < 0) {
 		up_write(&card->controls_rwsem);
 		return result;
@@ -1669,7 +1678,7 @@ static int call_tlv_handler(struct snd_ctl_file *file, int op_flag,
 		{SNDRV_CTL_TLV_OP_CMD,   SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND},
 	};
 	struct snd_kcontrol_volatile *vd = &kctl->vd[snd_ctl_get_ioff(kctl, id)];
-	int i;
+	int i, ret;
 
 	/* Check support of the request for this element. */
 	for (i = 0; i < ARRAY_SIZE(pairs); ++i) {
@@ -1687,7 +1696,11 @@ static int call_tlv_handler(struct snd_ctl_file *file, int op_flag,
 	    vd->owner != NULL && vd->owner != file)
 		return -EPERM;
 
-	return kctl->tlv.c(kctl, op_flag, size, buf);
+	ret = snd_power_ref_and_wait(file->card);
+	if (!ret)
+		ret = kctl->tlv.c(kctl, op_flag, size, buf);
+	snd_power_unref(file->card);
+	return ret;
 }
 
 static int read_tlv_buf(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id,
