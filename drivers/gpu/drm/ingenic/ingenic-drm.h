@@ -184,6 +184,7 @@ struct platform_driver;
 void ingenic_drm_plane_config(struct device *dev,
 			      struct drm_plane *plane, u32 fourcc);
 void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane);
+bool ingenic_drm_map_noncoherent(const struct device *dev);
 
 extern struct platform_driver *ingenic_ipu_driver_ptr;
 
