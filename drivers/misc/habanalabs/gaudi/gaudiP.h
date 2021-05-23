@@ -314,6 +314,10 @@ struct gaudi_internal_qman_info {
  *                  Multi MSI is possible only with IOMMU enabled.
  * @mmu_cache_inv_pi: PI for MMU cache invalidation flow. The H/W expects an
  *                    8-bit value so use u8.
+ * @device_cpu_is_halted: Flag to indicate whether the device CPU was already
+ *                        halted. We can't halt it again because the COMMS
+ *                        protocol will throw an error. Relevant only for
+ *                        cases where Linux was not loaded to device CPU
  */
 struct gaudi_device {
 	int (*cpucp_info_get)(struct hl_device *hdev);
@@ -335,6 +339,7 @@ struct gaudi_device {
 	u32				hw_cap_initialized;
 	u8				multi_msi_mode;
 	u8				mmu_cache_inv_pi;
+	u8				device_cpu_is_halted;
 };
 
 void gaudi_init_security(struct hl_device *hdev);

@@ -1931,11 +1931,11 @@ static void gaudi_disable_msi(struct hl_device *hdev)
 	gaudi->hw_cap_initialized &= ~HW_CAP_MSI;
 }
 
-static void gaudi_fw_hard_reset(struct hl_device *hdev)
+static void gaudi_ask_hard_reset_without_linux(struct hl_device *hdev)
 {
 	int rc;
 
-	if (hdev->asic_prop.dynamic_fw_load && !hdev->fw_loader.linux_loaded) {
+	if (hdev->asic_prop.dynamic_fw_load) {
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
 				COMMS_RST_DEV, 0, false,
 				hdev->fw_loader.cpu_timeout);
@@ -1946,12 +1946,16 @@ static void gaudi_fw_hard_reset(struct hl_device *hdev)
 	}
 }
 
-static void gaudi_fw_halt_cpu(struct hl_device *hdev)
+static void gaudi_ask_halt_machine_without_linux(struct hl_device *hdev)
 {
+	struct gaudi_device *gaudi = hdev->asic_specific;
 	int rc;
 
+	if (gaudi && gaudi->device_cpu_is_halted)
+		return;
+
 	/* Stop device CPU to make sure nothing bad happens */
-	if (hdev->asic_prop.dynamic_fw_load && !hdev->fw_loader.linux_loaded) {
+	if (hdev->asic_prop.dynamic_fw_load) {
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
 				COMMS_GOTO_WFE, 0, true,
 				hdev->fw_loader.cpu_timeout);
@@ -1961,6 +1965,9 @@ static void gaudi_fw_halt_cpu(struct hl_device *hdev)
 		WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
 		msleep(GAUDI_CPU_RESET_WAIT_MSEC);
 	}
+
+	if (gaudi)
+		gaudi->device_cpu_is_halted = true;
 }
 
 static void gaudi_init_scrambler_sram(struct hl_device *hdev)
@@ -4110,8 +4117,9 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 {
 	struct cpu_dyn_regs *dyn_regs =
 			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 status, reset_timeout_ms, cpu_timeout_ms, irq_handler_offset;
+	struct gaudi_device *gaudi = hdev->asic_specific;
+	bool driver_performs_reset;
 
 	if (!hard_reset) {
 		dev_err(hdev->dev, "GAUDI doesn't support soft-reset\n");
@@ -4126,32 +4134,34 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 		cpu_timeout_ms = GAUDI_CPU_RESET_WAIT_MSEC;
 	}
 
+	driver_performs_reset = !!(!hdev->asic_prop.fw_security_enabled &&
+					!hdev->asic_prop.hard_reset_done_by_fw);
+
 	/* Set device to handle FLR by H/W as we will put the device CPU to
 	 * halt mode
 	 */
-	if (!hdev->asic_prop.fw_security_enabled &&
-				!hdev->asic_prop.hard_reset_done_by_fw)
+	if (driver_performs_reset)
 		WREG32(mmPCIE_AUX_FLR_CTRL, (PCIE_AUX_FLR_CTRL_HW_CTRL_MASK |
 					PCIE_AUX_FLR_CTRL_INT_MASK_MASK));
 
-	/* I don't know what is the state of the CPU so make sure it is
-	 * stopped in any means necessary
+	/* If linux is loaded in the device CPU we need to communicate with it
+	 * via the GIC. Otherwise, we need to use COMMS or the MSG_TO_CPU
+	 * registers in case of old F/Ws
 	 */
-	if (hdev->asic_prop.hard_reset_done_by_fw)
-		gaudi_fw_hard_reset(hdev);
-	else
-		gaudi_fw_halt_cpu(hdev);
-
 	if (hdev->fw_loader.linux_loaded) {
 		irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?
 				mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
 				le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
 
 		WREG32(irq_handler_offset, GAUDI_EVENT_HALT_MACHINE);
+	} else {
+		if (hdev->asic_prop.hard_reset_done_by_fw)
+			gaudi_ask_hard_reset_without_linux(hdev);
+		else
+			gaudi_ask_halt_machine_without_linux(hdev);
 	}
 
-	if (!hdev->asic_prop.fw_security_enabled &&
-				!hdev->asic_prop.hard_reset_done_by_fw) {
+	if (driver_performs_reset) {
 
 		/* Configure the reset registers. Must be done as early as
 		 * possible in case we fail during H/W initialization
@@ -4185,8 +4195,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 		WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);
 
 		/* Restart BTL/BLR upon hard-reset */
-		if (!hdev->asic_prop.fw_security_enabled)
-			WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
+		WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
 
 		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
 			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
@@ -4223,6 +4232,8 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 				HW_CAP_CLK_GATE);
 
 		memset(gaudi->events_stat, 0, sizeof(gaudi->events_stat));
+
+		gaudi->device_cpu_is_halted = false;
 	}
 }
 
