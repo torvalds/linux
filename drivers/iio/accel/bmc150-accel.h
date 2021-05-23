@@ -6,6 +6,7 @@
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 #include <linux/regulator/consumer.h>
+#include <linux/workqueue.h>
 
 struct regmap;
 struct i2c_client;
@@ -62,6 +63,8 @@ struct bmc150_accel_data {
 	int64_t timestamp, old_timestamp; /* Only used in hw fifo mode. */
 	const struct bmc150_accel_chip_info *chip_info;
 	struct i2c_client *second_device;
+	void (*resume_callback)(struct device *dev);
+	struct delayed_work resume_work;
 	struct iio_mount_matrix orientation;
 };
 

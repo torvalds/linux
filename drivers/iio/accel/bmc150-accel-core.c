@@ -1798,6 +1798,9 @@ static int bmc150_accel_resume(struct device *dev)
 	bmc150_accel_fifo_set_mode(data);
 	mutex_unlock(&data->mutex);
 
+	if (data->resume_callback)
+		data->resume_callback(dev);
+
 	return 0;
 }
 #endif
