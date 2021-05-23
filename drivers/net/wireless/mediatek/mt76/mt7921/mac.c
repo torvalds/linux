@@ -1354,6 +1354,9 @@ void mt7921_reset(struct mt76_dev *mdev)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
+		return;
+
 	if (!dev->hw_full_reset)
 		queue_work(dev->mt76.wq, &dev->reset_work);
 }
