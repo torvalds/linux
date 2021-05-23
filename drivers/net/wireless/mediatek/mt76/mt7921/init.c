@@ -108,7 +108,7 @@ mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
 	mt76_clear(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN);
 }
 
-void mt7921_mac_init(struct mt7921_dev *dev)
+int mt7921_mac_init(struct mt7921_dev *dev)
 {
 	int i;
 
@@ -124,7 +124,7 @@ void mt7921_mac_init(struct mt7921_dev *dev)
 	for (i = 0; i < 2; i++)
 		mt7921_mac_init_band(dev, i);
 
-	mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b, 0);
+	return mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b, 0);
 }
 
 static int mt7921_init_hardware(struct mt7921_dev *dev)
@@ -164,9 +164,7 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	dev->mt76.global_wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
 
-	mt7921_mac_init(dev);
-
-	return 0;
+	return mt7921_mac_init(dev);
 }
 
 int mt7921_register_device(struct mt7921_dev *dev)

@@ -1298,7 +1298,10 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 	if (err)
 		return err;
 
-	mt7921_mac_init(dev);
+	err = mt7921_mac_init(dev);
+	if (err)
+		return err;
+
 	return __mt7921_start(&dev->phy);
 }
 
