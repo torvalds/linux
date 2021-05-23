@@ -450,6 +450,19 @@ unknown_format:
 	return false;
 }
 
+static bool bmc150_apply_dual250e_acpi_orientation(struct device *dev,
+						   struct iio_mount_matrix *orientation)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	if (strcmp(dev_name(dev), "i2c-DUAL250E:base") == 0)
+		indio_dev->label = "accel-base";
+	else
+		indio_dev->label = "accel-display";
+
+	return false; /* DUAL250E fwnodes have no mount matrix info */
+}
+
 static bool bmc150_apply_acpi_orientation(struct device *dev,
 					  struct iio_mount_matrix *orientation)
 {
@@ -457,6 +470,9 @@ static bool bmc150_apply_acpi_orientation(struct device *dev,
 
 	if (adev && acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
 		return bmc150_apply_bosc0200_acpi_orientation(dev, orientation);
+
+	if (adev && acpi_dev_hid_uid_match(adev, "DUAL250E", NULL))
+		return bmc150_apply_dual250e_acpi_orientation(dev, orientation);
 
 	return false;
 }
