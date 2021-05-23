@@ -3193,7 +3193,7 @@ static int snd_pcm_common_ioctl(struct file *file,
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 
-	res = snd_power_wait(substream->pcm->card, SNDRV_CTL_POWER_D0);
+	res = snd_power_wait(substream->pcm->card);
 	if (res < 0)
 		return res;
 

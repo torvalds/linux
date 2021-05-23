@@ -1050,19 +1050,15 @@ EXPORT_SYMBOL_GPL(snd_power_ref_and_wait);
 /**
  * snd_power_wait - wait until the card gets powered up (old form)
  * @card: soundcard structure
- * @power_state: expected power state
  *
  * Wait until the card gets powered up to SNDRV_CTL_POWER_D0 state.
- * @power_state must be SNDRV_CTL_POWER_D0.
  *
  * Return: Zero if successful, or a negative error code.
  */
-int snd_power_wait(struct snd_card *card, unsigned int power_state)
+int snd_power_wait(struct snd_card *card)
 {
 	int ret;
 
-	if (WARN_ON(power_state != SNDRV_CTL_POWER_D0))
-		return 0;
 	ret = snd_power_ref_and_wait(card);
 	snd_power_unref(card);
 	return ret;

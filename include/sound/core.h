@@ -189,12 +189,12 @@ static inline void snd_power_sync_ref(struct snd_card *card)
 }
 
 /* init.c */
-int snd_power_wait(struct snd_card *card, unsigned int power_state);
+int snd_power_wait(struct snd_card *card);
 int snd_power_ref_and_wait(struct snd_card *card);
 
 #else /* ! CONFIG_PM */
 
-static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
+static inline int snd_power_wait(struct snd_card *card) { return 0; }
 static inline void snd_power_ref(struct snd_card *card) {}
 static inline void snd_power_unref(struct snd_card *card) {}
 static inline int snd_power_ref_and_wait(struct snd_card *card) { return 0; }

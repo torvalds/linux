@@ -379,7 +379,7 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	if (cfg.period_frames < min_period_frames)
 		return -EINVAL;
 
-	snd_power_wait(hw->card, SNDRV_CTL_POWER_D0);
+	snd_power_wait(hw->card);
 
 	mutex_lock(&us122l->mutex);
 	s = us122l->sk.s;
