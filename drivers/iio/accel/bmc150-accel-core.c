@@ -383,8 +383,8 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
  * Onda V80 plus
  * Predia Basic Tablet
  */
-static bool bmc150_apply_acpi_orientation(struct device *dev,
-					  struct iio_mount_matrix *orientation)
+static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
+						   struct iio_mount_matrix *orientation)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -393,9 +393,6 @@ static bool bmc150_apply_acpi_orientation(struct device *dev,
 	union acpi_object *obj, *elements;
 	acpi_status status;
 	int i, j, val[3];
-
-	if (!adev || !acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
-		return false;
 
 	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0) {
 		alt_name = "ROMK";
@@ -450,6 +447,17 @@ static bool bmc150_apply_acpi_orientation(struct device *dev,
 unknown_format:
 	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
 	kfree(buffer.pointer);
+	return false;
+}
+
+static bool bmc150_apply_acpi_orientation(struct device *dev,
+					  struct iio_mount_matrix *orientation)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	if (adev && acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
+		return bmc150_apply_bosc0200_acpi_orientation(dev, orientation);
+
 	return false;
 }
 #else
