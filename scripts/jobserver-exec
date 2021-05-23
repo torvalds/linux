@@ -10,7 +10,7 @@ from __future__ import print_function
 import os, sys, errno
 import subprocess
 
-# Extract and prepare jobserver file descriptors from envirnoment.
+# Extract and prepare jobserver file descriptors from environment.
 claim = 0
 jobs = b""
 try:
