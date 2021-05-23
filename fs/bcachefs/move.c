@@ -522,6 +522,11 @@ static int lookup_inode(struct btree_trans *trans, struct bpos pos,
 	if (ret)
 		goto err;
 
+	if (!k.k || bkey_cmp(k.k->p, pos)) {
+		ret = -ENOENT;
+		goto err;
+	}
+
 	ret = k.k->type == KEY_TYPE_inode ? 0 : -EIO;
 	if (ret)
 		goto err;
