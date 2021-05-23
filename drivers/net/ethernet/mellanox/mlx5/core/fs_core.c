@@ -2191,6 +2191,10 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 		if (steering->fdb_root_ns)
 			return &steering->fdb_root_ns->ns;
 		return NULL;
+	case MLX5_FLOW_NAMESPACE_PORT_SEL:
+		if (steering->port_sel_root_ns)
+			return &steering->port_sel_root_ns->ns;
+		return NULL;
 	case MLX5_FLOW_NAMESPACE_SNIFFER_RX:
 		if (steering->sniffer_rx_root_ns)
 			return &steering->sniffer_rx_root_ns->ns;
@@ -2596,6 +2600,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 	steering->fdb_root_ns = NULL;
 	kfree(steering->fdb_sub_ns);
 	steering->fdb_sub_ns = NULL;
+	cleanup_root_ns(steering->port_sel_root_ns);
 	cleanup_root_ns(steering->sniffer_rx_root_ns);
 	cleanup_root_ns(steering->sniffer_tx_root_ns);
 	cleanup_root_ns(steering->rdma_rx_root_ns);
@@ -2631,6 +2636,21 @@ static int init_sniffer_rx_root_ns(struct mlx5_flow_steering *steering)
 
 	/* Create single prio */
 	prio = fs_create_prio(&steering->sniffer_rx_root_ns->ns, 0, 1);
+	return PTR_ERR_OR_ZERO(prio);
+}
+
+#define PORT_SEL_NUM_LEVELS 3
+static int init_port_sel_root_ns(struct mlx5_flow_steering *steering)
+{
+	struct fs_prio *prio;
+
+	steering->port_sel_root_ns = create_root_ns(steering, FS_FT_PORT_SEL);
+	if (!steering->port_sel_root_ns)
+		return -ENOMEM;
+
+	/* Create single prio */
+	prio = fs_create_prio(&steering->port_sel_root_ns->ns, 0,
+			      PORT_SEL_NUM_LEVELS);
 	return PTR_ERR_OR_ZERO(prio);
 }
 
@@ -3016,6 +3036,12 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_FLOWTABLE_SNIFFER_TX(dev, ft_support)) {
 		err = init_sniffer_tx_root_ns(steering);
+		if (err)
+			goto err;
+	}
+
+	if (MLX5_CAP_FLOWTABLE_PORT_SELECTION(dev, ft_support)) {
+		err = init_port_sel_root_ns(steering);
 		if (err)
 			goto err;
 	}

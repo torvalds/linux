@@ -767,6 +767,18 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         reserved_at_20c0[0x5f40];
 };
 
+struct mlx5_ifc_port_selection_cap_bits {
+	u8         reserved_at_0[0x10];
+	u8         port_select_flow_table[0x1];
+	u8         reserved_at_11[0xf];
+
+	u8         reserved_at_20[0x1e0];
+
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_port_selection;
+
+	u8         reserved_at_400[0x7c00];
+};
+
 enum {
 	MLX5_FDB_TO_VPORT_REG_C_0 = 0x01,
 	MLX5_FDB_TO_VPORT_REG_C_1 = 0x02,
@@ -1515,7 +1527,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         uar_4k[0x1];
 	u8         reserved_at_241[0x9];
 	u8         uar_sz[0x6];
-	u8         reserved_at_248[0x2];
+	u8         port_selection_cap[0x1];
+	u8         reserved_at_248[0x1];
 	u8         umem_uid_0[0x1];
 	u8         reserved_at_250[0x5];
 	u8         log_pg_sz[0x8];
@@ -3164,6 +3177,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_flow_table_nic_cap_bits flow_table_nic_cap;
 	struct mlx5_ifc_flow_table_eswitch_cap_bits flow_table_eswitch_cap;
 	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
+	struct mlx5_ifc_port_selection_cap_bits port_selection_cap;
 	struct mlx5_ifc_vector_calc_cap_bits vector_calc_cap;
 	struct mlx5_ifc_qos_cap_bits qos_cap;
 	struct mlx5_ifc_debug_cap_bits debug_cap;
@@ -10434,9 +10448,16 @@ struct mlx5_ifc_dcbx_param_bits {
 	u8         reserved_at_a0[0x160];
 };
 
+enum {
+	MLX5_LAG_PORT_SELECT_MODE_QUEUE_AFFINITY = 0,
+	MLX5_LAG_PORT_SELECT_MODE_PORT_SELECT_FT,
+};
+
 struct mlx5_ifc_lagc_bits {
 	u8         fdb_selection_mode[0x1];
-	u8         reserved_at_1[0x1c];
+	u8         reserved_at_1[0x14];
+	u8         port_select_mode[0x3];
+	u8         reserved_at_18[0x5];
 	u8         lag_state[0x3];
 
 	u8         reserved_at_20[0x14];
