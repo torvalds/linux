@@ -157,7 +157,7 @@ static int __init unmarshal_devices(struct properties_header *properties)
 		if (!entry[0].name)
 			goto skip_device;
 
-		ret = device_add_properties(dev, entry); /* makes deep copy */
+		ret = device_create_managed_software_node(dev, entry, NULL);
 		if (ret)
 			dev_err(dev, "error %d assigning properties\n", ret);
 
