@@ -200,7 +200,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 	int limit = MAC_DEF_TIMEOUT;
 	u16 cmd;
 
-	iowrite16(MDIO_READ + reg + (phy_addr << 8), ioaddr + MMDIO);
+	iowrite16(MDIO_READ | reg | (phy_addr << 8), ioaddr + MMDIO);
 	/* Wait for the read bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
@@ -224,7 +224,7 @@ static int r6040_phy_write(void __iomem *ioaddr,
 
 	iowrite16(val, ioaddr + MMWD);
 	/* Write the command to the MDIO bus */
-	iowrite16(MDIO_WRITE + reg + (phy_addr << 8), ioaddr + MMDIO);
+	iowrite16(MDIO_WRITE | reg | (phy_addr << 8), ioaddr + MMDIO);
 	/* Wait for the write bit to be cleared */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MMDIO);
