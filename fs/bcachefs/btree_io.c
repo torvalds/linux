@@ -824,6 +824,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	unsigned u64s;
+	unsigned nonblacklisted_written = 0;
 	int ret, retry_read = 0, write = READ;
 
 	b->version_ondisk = U16_MAX;
@@ -943,14 +944,30 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		sort_iter_add(iter,
 			      vstruct_idx(i, whiteout_u64s),
 			      vstruct_last(i));
+
+		nonblacklisted_written = b->written;
 	}
 
 	for (bne = write_block(b);
 	     bset_byte_offset(b, bne) < btree_bytes(c);
 	     bne = (void *) bne + block_bytes(c))
-		btree_err_on(bne->keys.seq == b->data->keys.seq,
+		btree_err_on(bne->keys.seq == b->data->keys.seq &&
+			     !bch2_journal_seq_is_blacklisted(c,
+					le64_to_cpu(bne->keys.journal_seq),
+					true),
 			     BTREE_ERR_WANT_RETRY, c, ca, b, NULL,
 			     "found bset signature after last bset");
+
+	/*
+	 * Blacklisted bsets are those that were written after the most recent
+	 * (flush) journal write. Since there wasn't a flush, they may not have
+	 * made it to all devices - which means we shouldn't write new bsets
+	 * after them, as that could leave a gap and then reads from that device
+	 * wouldn't find all the bsets in that btree node - which means it's
+	 * important that we start writing new bsets after the most recent _non_
+	 * blacklisted bset:
+	 */
+	b->written = nonblacklisted_written;
 
 	sorted = btree_bounce_alloc(c, btree_bytes(c), &used_mempool);
 	sorted->keys.u64s = 0;
