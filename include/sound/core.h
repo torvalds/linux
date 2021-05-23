@@ -142,12 +142,12 @@ struct snd_card {
 #ifdef CONFIG_PM
 static inline unsigned int snd_power_get_state(struct snd_card *card)
 {
-	return card->power_state;
+	return READ_ONCE(card->power_state);
 }
 
 static inline void snd_power_change_state(struct snd_card *card, unsigned int state)
 {
-	card->power_state = state;
+	WRITE_ONCE(card->power_state, state);
 	wake_up(&card->power_sleep);
 }
 
