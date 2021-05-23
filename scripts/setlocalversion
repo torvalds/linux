@@ -88,7 +88,7 @@ scm_version()
 		if {
 			git --no-optional-locks status -uno --porcelain 2>/dev/null ||
 			git diff-index --name-only HEAD
-		} | grep -qvE '^(.. )?scripts/package'; then
+		} | read dummy; then
 			printf '%s' -dirty
 		fi
 	fi
