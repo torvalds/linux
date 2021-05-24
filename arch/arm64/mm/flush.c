@@ -14,28 +14,25 @@
 #include <asm/cache.h>
 #include <asm/tlbflush.h>
 
-void sync_icache_aliases(void *kaddr, unsigned long len)
+void sync_icache_aliases(unsigned long start, unsigned long end)
 {
-	unsigned long addr = (unsigned long)kaddr;
-
 	if (icache_is_aliasing()) {
-		__clean_dcache_area_pou(kaddr, kaddr + len);
+		__clean_dcache_area_pou(start, end);
 		__flush_icache_all();
 	} else {
 		/*
 		 * Don't issue kick_all_cpus_sync() after I-cache invalidation
 		 * for user mappings.
 		 */
-		__flush_icache_range(addr, addr + len);
+		__flush_icache_range(start, end);
 	}
 }
 
-static void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
-				unsigned long uaddr, void *kaddr,
-				unsigned long len)
+static void flush_ptrace_access(struct vm_area_struct *vma, unsigned long start,
+				unsigned long end)
 {
 	if (vma->vm_flags & VM_EXEC)
-		sync_icache_aliases(kaddr, len);
+		sync_icache_aliases(start, end);
 }
 
 /*
@@ -48,7 +45,7 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long len)
 {
 	memcpy(dst, src, len);
-	flush_ptrace_access(vma, page, uaddr, dst, len);
+	flush_ptrace_access(vma, (unsigned long)dst, (unsigned long)dst + len);
 }
 
 void __sync_icache_dcache(pte_t pte)
@@ -56,7 +53,9 @@ void __sync_icache_dcache(pte_t pte)
 	struct page *page = pte_page(pte);
 
 	if (!test_bit(PG_dcache_clean, &page->flags)) {
-		sync_icache_aliases(page_address(page), page_size(page));
+		sync_icache_aliases((unsigned long)page_address(page),
+				    (unsigned long)page_address(page) +
+					    page_size(page));
 		set_bit(PG_dcache_clean, &page->flags);
 	}
 }

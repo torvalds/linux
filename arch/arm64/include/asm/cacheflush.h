@@ -64,7 +64,7 @@ extern void __clean_dcache_area_poc(unsigned long start, unsigned long end);
 extern void __clean_dcache_area_pop(unsigned long start, unsigned long end);
 extern void __clean_dcache_area_pou(unsigned long start, unsigned long end);
 extern long __flush_cache_user_range(unsigned long start, unsigned long end);
-extern void sync_icache_aliases(void *kaddr, unsigned long len);
+extern void sync_icache_aliases(unsigned long start, unsigned long end);
 
 static inline void flush_icache_range(unsigned long start, unsigned long end)
 {
