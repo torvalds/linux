@@ -2140,7 +2140,7 @@ cdns_mhdp_bridge_atomic_reset(struct drm_bridge *bridge)
 	if (!cdns_mhdp_state)
 		return NULL;
 
-	 __drm_atomic_helper_bridge_reset(bridge, &cdns_mhdp_state->base);
+	__drm_atomic_helper_bridge_reset(bridge, &cdns_mhdp_state->base);
 
 	return &cdns_mhdp_state->base;
 }
