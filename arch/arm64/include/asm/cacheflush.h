@@ -30,31 +30,44 @@
  *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
  *	VIPT I-cache.
  *
- *	flush_icache_range(start, end)
+ *	All functions below apply to the interval [start, end)
+ *		- start  - virtual start address (inclusive)
+ *		- end    - virtual end address (exclusive)
  *
- *		Ensure coherency between the I-cache and the D-cache in the
- *		region described by start, end.
- *		- start  - virtual start address
- *		- end    - virtual end address
+ *	__flush_icache_range(start, end)
  *
- *	invalidate_icache_range(start, end)
- *
- *		Invalidate the I-cache in the region described by start, end.
- *		- start  - virtual start address
- *		- end    - virtual end address
+ *		Ensure coherency between the I-cache and the D-cache region to
+ *		the Point of Unification.
  *
  *	__flush_cache_user_range(start, end)
  *
- *		Ensure coherency between the I-cache and the D-cache in the
- *		region described by start, end.
- *		- start  - virtual start address
- *		- end    - virtual end address
+ *		Ensure coherency between the I-cache and the D-cache region to
+ *		the Point of Unification.
+ *		Use only if the region might access user memory.
+ *
+ *	invalidate_icache_range(start, end)
+ *
+ *		Invalidate I-cache region to the Point of Unification.
  *
  *	__flush_dcache_area(start, end)
  *
- *		Ensure that the data held in page is written back.
- *		- start  - virtual start address
- *		- end    - virtual end address
+ *		Clean and invalidate D-cache region to the Point of Coherency.
+ *
+ *	__inval_dcache_area(start, end)
+ *
+ *		Invalidate D-cache region to the Point of Coherency.
+ *
+ *	__clean_dcache_area_poc(start, end)
+ *
+ *		Clean D-cache region to the Point of Coherency.
+ *
+ *	__clean_dcache_area_pop(start, end)
+ *
+ *		Clean D-cache region to the Point of Persistence.
+ *
+ *	__clean_dcache_area_pou(start, end)
+ *
+ *		Clean D-cache region to the Point of Unification.
  */
 extern void __flush_icache_range(unsigned long start, unsigned long end);
 extern void invalidate_icache_range(unsigned long start, unsigned long end);
