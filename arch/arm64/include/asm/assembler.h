@@ -387,6 +387,14 @@ alternative_cb_end
 	bfi	\tcr, \tmp0, \pos, #3
 	.endm
 
+	.macro __dcache_op_workaround_clean_cache, op, addr
+alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
+	dc	\op, \addr
+alternative_else
+	dc	civac, \addr
+alternative_endif
+	.endm
+
 /*
  * Macro to perform a data cache maintenance for the interval
  * [addr, addr + size)
@@ -398,14 +406,6 @@ alternative_cb_end
  * 	fixup:		optional label to branch to on user fault
  * 	Corrupts:	addr, size, tmp1, tmp2
  */
-	.macro __dcache_op_workaround_clean_cache, op, addr
-alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
-	dc	\op, \addr
-alternative_else
-	dc	civac, \addr
-alternative_endif
-	.endm
-
 	.macro dcache_by_line_op op, domain, addr, size, tmp1, tmp2, fixup
 	dcache_line_size \tmp1, \tmp2
 	add	\size, \addr, \size
