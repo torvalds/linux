@@ -207,6 +207,7 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv,
 		default:
 			dev_err(dev, "Unsupported PHY mode %s!\n",
 				phy_modes(ports[i].phy_mode));
+			return -EINVAL;
 		}
 
 		/* Even though the SerDes port is able to drive SGMII autoneg
