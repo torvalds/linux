@@ -111,7 +111,7 @@ static inline void wanxl_cable_intr(struct port *port)
 	int valid = 1;
 	const char *cable, *pm, *dte = "", *dsr = "", *dcd = "";
 
-	switch(value & 0x7) {
+	switch (value & 0x7) {
 	case STATUS_CABLE_V35:
 		cable = "V.35";
 		break;
@@ -131,7 +131,7 @@ static inline void wanxl_cable_intr(struct port *port)
 		cable = "invalid";
 	}
 
-	switch((value >> STATUS_CABLE_PM_SHIFT) & 0x7) {
+	switch ((value >> STATUS_CABLE_PM_SHIFT) & 0x7) {
 	case STATUS_CABLE_V35:
 		pm = "V.35";
 		break;
@@ -484,7 +484,7 @@ static int wanxl_puts_command(struct card *card, u32 cmd)
 			return 0;
 
 		schedule();
-	}while (time_after(timeout, jiffies));
+	} while (time_after(timeout, jiffies));
 
 	return -1;
 }
@@ -654,7 +654,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 			return -ENODEV;
 		}
 
-		switch(stat & 0xC0) {
+		switch (stat & 0xC0) {
 		case 0x00:	/* hmm - PUTS completed with non-zero code? */
 		case 0x80:	/* PUTS still testing the hardware */
 			break;
@@ -733,7 +733,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		if ((stat = readl(card->plx + PLX_MAILBOX_5)) != 0)
 			break;
 		schedule();
-	}while (time_after(timeout, jiffies));
+	} while (time_after(timeout, jiffies));
 
 	if (!stat) {
 		pr_warn("%s: timeout while initializing card firmware\n",
