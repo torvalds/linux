@@ -534,10 +534,8 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 	dest_params =
 		kzalloc(sizeof(struct core_conn_create_dest_spec_params) +
 			sizeof(struct dest_spec_params), GFP_KERNEL);
-	if (dest_params == NULL) {
-		r = -ENOMEM;
-		goto exit;
-	}
+	if (dest_params == NULL)
+		return -ENOMEM;
 
 	dest_params->type = NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE;
 	dest_params->length = sizeof(struct dest_spec_params);
@@ -594,8 +592,6 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 
 free_dest_params:
 	kfree(dest_params);
-
-exit:
 	return r;
 }
 
