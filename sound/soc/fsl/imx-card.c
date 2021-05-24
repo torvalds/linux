@@ -118,7 +118,7 @@ struct imx_card_data {
 	u32 asrc_format;
 };
 
-struct imx_akcodec_fs_mul ak4458_fs_mul[] = {
+static struct imx_akcodec_fs_mul ak4458_fs_mul[] = {
 	/* Normal, < 32kHz */
 	{ .rmin = 8000,   .rmax = 24000,  .wmin = 1024, .wmax = 1024, },
 	/* Normal, 32kHz */
@@ -135,7 +135,7 @@ struct imx_akcodec_fs_mul ak4458_fs_mul[] = {
 	{ .rmin = 705600, .rmax = 768000, .wmin = 16,   .wmax = 64,   },
 };
 
-struct imx_akcodec_tdm_fs_mul ak4458_tdm_fs_mul[] = {
+static struct imx_akcodec_tdm_fs_mul ak4458_tdm_fs_mul[] = {
 	/*
 	 * Table 13	- Audio Interface Format
 	 * For TDM mode, MCLK should is set to
@@ -146,7 +146,7 @@ struct imx_akcodec_tdm_fs_mul ak4458_tdm_fs_mul[] = {
 	{ .min = 512,	.max = 512,	.mul = 1024  }, /* TDM512 */
 };
 
-struct imx_akcodec_fs_mul ak4497_fs_mul[] = {
+static struct imx_akcodec_fs_mul ak4497_fs_mul[] = {
 	/**
 	 * Table 7      - mapping multiplier and speed mode
 	 * Tables 8 & 9 - mapping speed mode and LRCK fs
@@ -163,7 +163,7 @@ struct imx_akcodec_fs_mul ak4497_fs_mul[] = {
  * Auto MCLK selection based on LRCK for Normal Mode
  * (Table 4 from datasheet)
  */
-struct imx_akcodec_fs_mul ak5558_fs_mul[] = {
+static struct imx_akcodec_fs_mul ak5558_fs_mul[] = {
 	{ .rmin = 8000,   .rmax = 32000,  .wmin = 1024, .wmax = 1024, },
 	{ .rmin = 44100,  .rmax = 48000,  .wmin = 512,  .wmax = 512, },
 	{ .rmin = 88200,  .rmax = 96000,  .wmin = 256,  .wmax = 256, },
@@ -177,7 +177,7 @@ struct imx_akcodec_fs_mul ak5558_fs_mul[] = {
  * because of SAI we also add the restriction: MCLK >= 2 * BCLK
  * (Table 9 from datasheet)
  */
-struct imx_akcodec_tdm_fs_mul ak5558_tdm_fs_mul[] = {
+static struct imx_akcodec_tdm_fs_mul ak5558_tdm_fs_mul[] = {
 	{ .min = 128,	.max = 128,	.mul = 256 },
 	{ .min = 256,	.max = 256,	.mul = 512 },
 	{ .min = 512,	.max = 512,	.mul = 1024 },
