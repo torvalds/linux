@@ -4472,15 +4472,25 @@ out:
 #define NEED_TRUNCATE_BLOCK 1
 
 /*
- * this can truncate away extent items, csum items and directory items.
- * It starts at a high offset and removes keys until it can't find
- * any higher than new_size
+ * Remove inode items from a given root.
  *
- * csum items that cross the new i_size are truncated to the new size
- * as well.
+ * @trans:		A transaction handle.
+ * @root:		The root from which to remove items.
+ * @inode:		The inode whose items we want to remove.
+ * @new_size:		The new i_size for the inode. This is only applicable when
+ *			@min_type is BTRFS_EXTENT_DATA_KEY, must be 0 otherwise.
+ * @min_type:		The minimum key type to remove. All keys with a type
+ *			greater than this value are removed and all keys with
+ *			this type are removed only if their offset is >= @new_size.
  *
- * min_type is the minimum key type to truncate down to.  If set to 0, this
- * will kill all the items on this inode, including the INODE_ITEM_KEY.
+ * Remove all keys associated with the inode from the given root that have a key
+ * with a type greater than or equals to @min_type. When @min_type has a value of
+ * BTRFS_EXTENT_DATA_KEY, only remove file extent items that have an offset value
+ * greater than or equals to @new_size. If a file extent item that starts before
+ * @new_size and ends after it is found, its length is adjusted.
+ *
+ * Returns: 0 on success, < 0 on error and NEED_TRUNCATE_BLOCK when @min_type is
+ * BTRFS_EXTENT_DATA_KEY and the caller must truncate the last block.
  */
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
