@@ -556,7 +556,7 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		 * receieved on host_port itself would be dropped, except
 		 * by installing a temporary 'management route'
 		 */
-		.host_port = dsa_upstream_port(priv->ds, 0),
+		.host_port = priv->ds->num_ports,
 		/* Default to an invalid value */
 		.mirr_port = priv->ds->num_ports,
 		/* Link-local traffic received on casc_port will be forwarded
@@ -579,7 +579,16 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.tpid = ETH_P_SJA1105,
 		.tpid2 = ETH_P_SJA1105,
 	};
+	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
+	int port;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_cpu_port(ds, port)) {
+			default_general_params.host_port = port;
+			break;
+		}
+	}
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 
