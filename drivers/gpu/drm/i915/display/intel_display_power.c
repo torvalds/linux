@@ -619,11 +619,9 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	 * or need to enable AUX on a legacy TypeC port as part of the TC-cold
 	 * exit sequence.
 	 */
-	timeout_expected = is_tbt;
-	if (DISPLAY_VER(dev_priv) == 11 && dig_port->tc_legacy_port) {
+	timeout_expected = is_tbt || intel_tc_cold_requires_aux_pw(dig_port);
+	if (DISPLAY_VER(dev_priv) == 11 && dig_port->tc_legacy_port)
 		icl_tc_cold_exit(dev_priv);
-		timeout_expected = true;
-	}
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well, timeout_expected);
 

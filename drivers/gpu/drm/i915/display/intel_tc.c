@@ -26,9 +26,7 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 static enum intel_display_power_domain
 tc_cold_get_power_domain(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	if (DISPLAY_VER(i915) == 11)
+	if (intel_tc_cold_requires_aux_pw(dig_port))
 		return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
 	else
 		return POWER_DOMAIN_TC_COLD_OFF;
@@ -564,7 +562,7 @@ static void intel_tc_port_reset_mode(struct intel_digital_port *dig_port,
 	enum tc_port_mode old_tc_mode = dig_port->tc_mode;
 
 	intel_display_power_flush_work(i915);
-	if (DISPLAY_VER(i915) != 11 || !dig_port->tc_legacy_port) {
+	if (!intel_tc_cold_requires_aux_pw(dig_port)) {
 		enum intel_display_power_domain aux_domain;
 		bool aux_powered;
 
@@ -780,4 +778,12 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	dig_port->tc_legacy_port = is_legacy;
 	dig_port->tc_link_refcount = 0;
 	tc_port_load_fia_params(i915, dig_port);
+}
+
+bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
+	return (DISPLAY_VER(i915) == 11 && dig_port->tc_legacy_port) ||
+		IS_ALDERLAKE_P(i915);
 }
