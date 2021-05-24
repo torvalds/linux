@@ -163,8 +163,7 @@ static struct bin_attribute *ee1004_attrs[] = {
 
 BIN_ATTRIBUTE_GROUPS(ee1004);
 
-static int ee1004_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ee1004_probe(struct i2c_client *client)
 {
 	int err, cnr = 0;
 
@@ -246,7 +245,7 @@ static struct i2c_driver ee1004_driver = {
 		.name = "ee1004",
 		.dev_groups = ee1004_groups,
 	},
-	.probe = ee1004_probe,
+	.probe_new = ee1004_probe,
 	.remove = ee1004_remove,
 	.id_table = ee1004_ids,
 };
