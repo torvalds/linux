@@ -2976,13 +2976,13 @@ static int sja1105_setup(struct dsa_switch *ds)
 	rc = sja1105_static_config_load(priv, ports);
 	if (rc < 0) {
 		dev_err(ds->dev, "Failed to load static config: %d\n", rc);
-		return rc;
+		goto out_ptp_clock_unregister;
 	}
 	/* Configure the CGU (PHY link modes and speeds) */
 	rc = sja1105_clocking_setup(priv);
 	if (rc < 0) {
 		dev_err(ds->dev, "Failed to configure MII clocking: %d\n", rc);
-		return rc;
+		goto out_static_config_free;
 	}
 	/* On SJA1105, VLAN filtering per se is always enabled in hardware.
 	 * The only thing we can do to disable it is lie about what the 802.1Q
@@ -3003,7 +3003,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 
 	rc = sja1105_devlink_setup(ds);
 	if (rc < 0)
-		return rc;
+		goto out_static_config_free;
 
 	/* The DSA/switchdev model brings up switch ports in standalone mode by
 	 * default, and that means vlan_filtering is 0 since they're not under
@@ -3012,6 +3012,17 @@ static int sja1105_setup(struct dsa_switch *ds)
 	rtnl_lock();
 	rc = sja1105_setup_8021q_tagging(ds, true);
 	rtnl_unlock();
+	if (rc)
+		goto out_devlink_teardown;
+
+	return 0;
+
+out_devlink_teardown:
+	sja1105_devlink_teardown(ds);
+out_ptp_clock_unregister:
+	sja1105_ptp_clock_unregister(ds);
+out_static_config_free:
+	sja1105_static_config_free(&priv->static_config);
 
 	return rc;
 }
