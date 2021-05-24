@@ -698,7 +698,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	    kvm_hv_hypercall_enabled(vcpu))
 		return kvm_hv_hypercall(vcpu);
 
-	longmode = is_64_bit_mode(vcpu);
+	longmode = is_64_bit_hypercall(vcpu);
 	if (!longmode) {
 		params[0] = (u32)kvm_rbx_read(vcpu);
 		params[1] = (u32)kvm_rcx_read(vcpu);
