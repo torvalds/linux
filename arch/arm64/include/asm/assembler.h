@@ -397,40 +397,39 @@ alternative_endif
 
 /*
  * Macro to perform a data cache maintenance for the interval
- * [addr, addr + size)
+ * [start, end)
  *
  * 	op:		operation passed to dc instruction
  * 	domain:		domain used in dsb instruciton
- * 	addr:		starting virtual address of the region
- * 	size:		size of the region
+ * 	start:          starting virtual address of the region
+ * 	end:            end virtual address of the region
  * 	fixup:		optional label to branch to on user fault
- * 	Corrupts:	addr, size, tmp1, tmp2
+ * 	Corrupts:       start, end, tmp1, tmp2
  */
-	.macro dcache_by_line_op op, domain, addr, size, tmp1, tmp2, fixup
+	.macro dcache_by_line_op op, domain, start, end, tmp1, tmp2, fixup
 	dcache_line_size \tmp1, \tmp2
-	add	\size, \addr, \size
 	sub	\tmp2, \tmp1, #1
-	bic	\addr, \addr, \tmp2
+	bic	\start, \start, \tmp2
 .Ldcache_op\@:
 	.ifc	\op, cvau
-	__dcache_op_workaround_clean_cache \op, \addr
+	__dcache_op_workaround_clean_cache \op, \start
 	.else
 	.ifc	\op, cvac
-	__dcache_op_workaround_clean_cache \op, \addr
+	__dcache_op_workaround_clean_cache \op, \start
 	.else
 	.ifc	\op, cvap
-	sys	3, c7, c12, 1, \addr	// dc cvap
+	sys	3, c7, c12, 1, \start	// dc cvap
 	.else
 	.ifc	\op, cvadp
-	sys	3, c7, c13, 1, \addr	// dc cvadp
+	sys	3, c7, c13, 1, \start	// dc cvadp
 	.else
-	dc	\op, \addr
+	dc	\op, \start
 	.endif
 	.endif
 	.endif
 	.endif
-	add	\addr, \addr, \tmp1
-	cmp	\addr, \size
+	add	\start, \start, \tmp1
+	cmp	\start, \end
 	b.lo	.Ldcache_op\@
 	dsb	\domain
 

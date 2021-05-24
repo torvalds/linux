@@ -31,7 +31,7 @@ alternative_if ARM64_HAS_CACHE_IDC
 	b       .Ldc_skip_\@
 alternative_else_nop_endif
 	mov     x2, x0
-	sub     x3, x1, x0
+	mov     x3, x1
 	dcache_by_line_op cvau, ish, x2, x3, x4, x5, \fixup
 .Ldc_skip_\@:
 alternative_if ARM64_HAS_CACHE_DIC
@@ -108,6 +108,7 @@ SYM_FUNC_END(invalidate_icache_range)
  *	- size    - size in question
  */
 SYM_FUNC_START_PI(__flush_dcache_area)
+	add	x1, x0, x1
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END_PI(__flush_dcache_area)
@@ -126,6 +127,7 @@ alternative_if ARM64_HAS_CACHE_IDC
 	dsb	ishst
 	ret
 alternative_else_nop_endif
+	add	x1, x0, x1
 	dcache_by_line_op cvau, ish, x0, x1, x2, x3
 	ret
 SYM_FUNC_END(__clean_dcache_area_pou)
@@ -187,6 +189,7 @@ SYM_FUNC_START_PI(__clean_dcache_area_poc)
  *	- start   - virtual start address of region
  *	- size    - size in question
  */
+	add	x1, x0, x1
 	dcache_by_line_op cvac, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END_PI(__clean_dcache_area_poc)
@@ -205,6 +208,7 @@ SYM_FUNC_START_PI(__clean_dcache_area_pop)
 	alternative_if_not ARM64_HAS_DCPOP
 	b	__clean_dcache_area_poc
 	alternative_else_nop_endif
+	add	x1, x0, x1
 	dcache_by_line_op cvap, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END_PI(__clean_dcache_area_pop)
@@ -218,6 +222,7 @@ SYM_FUNC_END_PI(__clean_dcache_area_pop)
  *	- size    - size in question
  */
 SYM_FUNC_START_PI(__dma_flush_area)
+	add	x1, x0, x1
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END_PI(__dma_flush_area)
