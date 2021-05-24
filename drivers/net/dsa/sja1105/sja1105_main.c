@@ -1861,8 +1861,8 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 {
 	struct ptp_system_timestamp ptp_sts_before;
 	struct ptp_system_timestamp ptp_sts_after;
+	int speed_mbps[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_mac_config_entry *mac;
-	int speed_mbps[SJA1105_NUM_PORTS];
 	struct dsa_switch *ds = priv->ds;
 	s64 t1, t2, t3, t4;
 	s64 t12, t34;
@@ -2639,7 +2639,7 @@ out:
 
 static int sja1105_build_vlan_table(struct sja1105_private *priv, bool notify)
 {
-	u16 subvlan_map[SJA1105_NUM_PORTS][DSA_8021Q_N_SUBVLAN];
+	u16 subvlan_map[SJA1105_MAX_NUM_PORTS][DSA_8021Q_N_SUBVLAN];
 	struct sja1105_retagging_entry *new_retagging;
 	struct sja1105_vlan_lookup_entry *new_vlan;
 	struct sja1105_table *table;
@@ -2975,7 +2975,7 @@ static const struct dsa_8021q_ops sja1105_dsa_8021q_ops = {
  */
 static int sja1105_setup(struct dsa_switch *ds)
 {
-	struct sja1105_dt_port ports[SJA1105_NUM_PORTS];
+	struct sja1105_dt_port ports[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_private *priv = ds->priv;
 	int rc;
 
@@ -3668,7 +3668,7 @@ static int sja1105_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ds->dev = dev;
-	ds->num_ports = SJA1105_NUM_PORTS;
+	ds->num_ports = SJA1105_MAX_NUM_PORTS;
 	ds->ops = &sja1105_switch_ops;
 	ds->priv = priv;
 	priv->ds = ds;

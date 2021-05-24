@@ -14,6 +14,7 @@
 #include "sja1105_static_config.h"
 
 #define SJA1105_NUM_PORTS		5
+#define SJA1105_MAX_NUM_PORTS		SJA1105_NUM_PORTS
 #define SJA1105_NUM_TC			8
 #define SJA1105ET_FDB_BIN_SIZE		4
 /* The hardware value is in multiples of 10 ms.
@@ -57,19 +58,19 @@ struct sja1105_regs {
 	u64 ptpclkcorp;
 	u64 ptpsyncts;
 	u64 ptpschtm;
-	u64 ptpegr_ts[SJA1105_NUM_PORTS];
-	u64 pad_mii_tx[SJA1105_NUM_PORTS];
-	u64 pad_mii_rx[SJA1105_NUM_PORTS];
-	u64 pad_mii_id[SJA1105_NUM_PORTS];
-	u64 cgu_idiv[SJA1105_NUM_PORTS];
-	u64 mii_tx_clk[SJA1105_NUM_PORTS];
-	u64 mii_rx_clk[SJA1105_NUM_PORTS];
-	u64 mii_ext_tx_clk[SJA1105_NUM_PORTS];
-	u64 mii_ext_rx_clk[SJA1105_NUM_PORTS];
-	u64 rgmii_tx_clk[SJA1105_NUM_PORTS];
-	u64 rmii_ref_clk[SJA1105_NUM_PORTS];
-	u64 rmii_ext_tx_clk[SJA1105_NUM_PORTS];
-	u64 stats[__MAX_SJA1105_STATS_AREA][SJA1105_NUM_PORTS];
+	u64 ptpegr_ts[SJA1105_MAX_NUM_PORTS];
+	u64 pad_mii_tx[SJA1105_MAX_NUM_PORTS];
+	u64 pad_mii_rx[SJA1105_MAX_NUM_PORTS];
+	u64 pad_mii_id[SJA1105_MAX_NUM_PORTS];
+	u64 cgu_idiv[SJA1105_MAX_NUM_PORTS];
+	u64 mii_tx_clk[SJA1105_MAX_NUM_PORTS];
+	u64 mii_rx_clk[SJA1105_MAX_NUM_PORTS];
+	u64 mii_ext_tx_clk[SJA1105_MAX_NUM_PORTS];
+	u64 mii_ext_rx_clk[SJA1105_MAX_NUM_PORTS];
+	u64 rgmii_tx_clk[SJA1105_MAX_NUM_PORTS];
+	u64 rmii_ref_clk[SJA1105_MAX_NUM_PORTS];
+	u64 rmii_ext_tx_clk[SJA1105_MAX_NUM_PORTS];
+	u64 stats[__MAX_SJA1105_STATS_AREA][SJA1105_MAX_NUM_PORTS];
 };
 
 struct sja1105_info {
@@ -206,8 +207,8 @@ enum sja1105_vlan_state {
 
 struct sja1105_private {
 	struct sja1105_static_config static_config;
-	bool rgmii_rx_delay[SJA1105_NUM_PORTS];
-	bool rgmii_tx_delay[SJA1105_NUM_PORTS];
+	bool rgmii_rx_delay[SJA1105_MAX_NUM_PORTS];
+	bool rgmii_tx_delay[SJA1105_MAX_NUM_PORTS];
 	bool best_effort_vlan_filtering;
 	unsigned long learn_ena;
 	unsigned long ucast_egress_floods;
@@ -220,7 +221,7 @@ struct sja1105_private {
 	struct list_head dsa_8021q_vlans;
 	struct list_head bridge_vlans;
 	struct sja1105_flow_block flow_block;
-	struct sja1105_port ports[SJA1105_NUM_PORTS];
+	struct sja1105_port ports[SJA1105_MAX_NUM_PORTS];
 	/* Serializes transmission of management frames so that
 	 * the switch doesn't confuse them with one another.
 	 */

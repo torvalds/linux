@@ -72,7 +72,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 	/* Make the broadcast policers of all ports attached to this block
 	 * point to the newly allocated policer
 	 */
-	for_each_set_bit(p, &rule->port_mask, SJA1105_NUM_PORTS) {
+	for_each_set_bit(p, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
 		int bcast = (ds->num_ports * SJA1105_NUM_TC) + p;
 
 		policing[bcast].sharindx = rule->bcast_pol.sharindx;
@@ -144,7 +144,7 @@ static int sja1105_setup_tc_policer(struct sja1105_private *priv,
 	/* Make the policers for traffic class @tc of all ports attached to
 	 * this block point to the newly allocated policer
 	 */
-	for_each_set_bit(p, &rule->port_mask, SJA1105_NUM_PORTS) {
+	for_each_set_bit(p, &rule->port_mask, SJA1105_MAX_NUM_PORTS) {
 		int index = (p * SJA1105_NUM_TC) + tc;
 
 		policing[index].sharindx = rule->tc_pol.sharindx;
