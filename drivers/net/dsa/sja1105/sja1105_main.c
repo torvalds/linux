@@ -298,14 +298,22 @@ static int sja1105_init_l2_lookup_params(struct sja1105_private *priv)
 		.drpnolearn = true,
 	};
 	struct dsa_switch *ds = priv->ds;
+	int port, num_used_ports = 0;
 	struct sja1105_table *table;
 	u64 max_fdb_entries;
-	int port;
-
-	max_fdb_entries = SJA1105_MAX_L2_LOOKUP_COUNT / ds->num_ports;
 
 	for (port = 0; port < ds->num_ports; port++)
+		if (!dsa_is_unused_port(ds, port))
+			num_used_ports++;
+
+	max_fdb_entries = SJA1105_MAX_L2_LOOKUP_COUNT / num_used_ports;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
 		default_l2_lookup_params.maxaddrp[port] = max_fdb_entries;
+	}
 
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
 
@@ -419,6 +427,9 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 	for (i = 0; i < ds->num_ports; i++) {
 		unsigned int upstream = dsa_upstream_port(priv->ds, i);
 
+		if (dsa_is_unused_port(ds, i))
+			continue;
+
 		for (j = 0; j < SJA1105_NUM_TC; j++)
 			l2fwd[i].vlan_pmap[j] = j;
 
@@ -440,12 +451,18 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 		l2fwd[upstream].bc_domain |= BIT(i);
 		l2fwd[upstream].fl_domain |= BIT(i);
 	}
+
 	/* Next 8 entries define VLAN PCP mapping from ingress to egress.
 	 * Create a one-to-one mapping.
 	 */
-	for (i = 0; i < SJA1105_NUM_TC; i++)
-		for (j = 0; j < ds->num_ports; j++)
+	for (i = 0; i < SJA1105_NUM_TC; i++) {
+		for (j = 0; j < ds->num_ports; j++) {
+			if (dsa_is_unused_port(ds, j))
+				continue;
+
 			l2fwd[ds->num_ports + i].vlan_pmap[j] = i;
+		}
+	}
 
 	return 0;
 }
