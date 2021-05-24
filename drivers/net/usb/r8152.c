@@ -8107,6 +8107,37 @@ static void r8156b_init(struct r8152 *tp)
 	tp->coalesce = 15000;	/* 15 us */
 }
 
+static bool rtl_check_vendor_ok(struct usb_interface *intf)
+{
+	struct usb_host_interface *alt = intf->cur_altsetting;
+	struct usb_endpoint_descriptor *in, *out, *intr;
+
+	if (usb_find_common_endpoints(alt, &in, &out, &intr, NULL) < 0) {
+		dev_err(&intf->dev, "Expected endpoints are not found\n");
+		return false;
+	}
+
+	/* Check Rx endpoint address */
+	if (usb_endpoint_num(in) != 1) {
+		dev_err(&intf->dev, "Invalid Rx endpoint address\n");
+		return false;
+	}
+
+	/* Check Tx endpoint address */
+	if (usb_endpoint_num(out) != 2) {
+		dev_err(&intf->dev, "Invalid Tx endpoint address\n");
+		return false;
+	}
+
+	/* Check interrupt endpoint address */
+	if (usb_endpoint_num(intr) != 3) {
+		dev_err(&intf->dev, "Invalid interrupt endpoint address\n");
+		return false;
+	}
+
+	return true;
+}
+
 static bool rtl_vendor_mode(struct usb_interface *intf)
 {
 	struct usb_host_interface *alt = intf->cur_altsetting;
@@ -8115,12 +8146,15 @@ static bool rtl_vendor_mode(struct usb_interface *intf)
 	int i, num_configs;
 
 	if (alt->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC)
-		return true;
+		return rtl_check_vendor_ok(intf);
 
 	/* The vendor mode is not always config #1, so to find it out. */
 	udev = interface_to_usbdev(intf);
 	c = udev->config;
 	num_configs = udev->descriptor.bNumConfigurations;
+	if (num_configs < 2)
+		return false;
+
 	for (i = 0; i < num_configs; (i++, c++)) {
 		struct usb_interface_descriptor	*desc = NULL;
 
@@ -8135,7 +8169,8 @@ static bool rtl_vendor_mode(struct usb_interface *intf)
 		}
 	}
 
-	WARN_ON_ONCE(i == num_configs);
+	if (i == num_configs)
+		dev_err(&intf->dev, "Unexpected Device\n");
 
 	return false;
 }
@@ -9379,9 +9414,6 @@ static int rtl8152_probe(struct usb_interface *intf,
 		return -ENODEV;
 
 	if (!rtl_vendor_mode(intf))
-		return -ENODEV;
-
-	if (intf->cur_altsetting->desc.bNumEndpoints < 3)
 		return -ENODEV;
 
 	usb_reset_device(udev);
