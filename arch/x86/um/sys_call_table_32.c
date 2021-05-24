@@ -31,7 +31,7 @@
 #include <asm/syscalls_32.h>
 
 #undef __SYSCALL
-#define __SYSCALL(nr, sym) [ nr ] = sym,
+#define __SYSCALL(nr, sym) sym,
 
 extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 
