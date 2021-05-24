@@ -404,7 +404,9 @@ static int wanxl_open(struct net_device *dev)
 		netdev_err(dev, "port already open\n");
 		return -EIO;
 	}
-	if ((i = hdlc_open(dev)) != 0)
+
+	i = hdlc_open(dev);
+	if (i)
 		return i;
 
 	port->tx_in = port->tx_out = 0;
@@ -730,7 +732,8 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 
 	timeout = jiffies + 5 * HZ;
 	do {
-		if ((stat = readl(card->plx + PLX_MAILBOX_5)) != 0)
+		stat = readl(card->plx + PLX_MAILBOX_5);
+		if (stat)
 			break;
 		schedule();
 	} while (time_after(timeout, jiffies));
