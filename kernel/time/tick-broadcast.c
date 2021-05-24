@@ -33,6 +33,8 @@ static int tick_broadcast_forced;
 static __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(tick_broadcast_lock);
 
 #ifdef CONFIG_TICK_ONESHOT
+static DEFINE_PER_CPU(struct clock_event_device *, tick_oneshot_wakeup_device);
+
 static void tick_broadcast_setup_oneshot(struct clock_event_device *bc);
 static void tick_broadcast_clear_oneshot(int cpu);
 static void tick_resume_broadcast_oneshot(struct clock_event_device *bc);
@@ -88,12 +90,64 @@ static bool tick_check_broadcast_device(struct clock_event_device *curdev,
 	return !curdev || newdev->rating > curdev->rating;
 }
 
+#ifdef CONFIG_TICK_ONESHOT
+static struct clock_event_device *tick_get_oneshot_wakeup_device(int cpu)
+{
+	return per_cpu(tick_oneshot_wakeup_device, cpu);
+}
+
+static bool tick_set_oneshot_wakeup_device(struct clock_event_device *newdev,
+					   int cpu)
+{
+	struct clock_event_device *curdev = tick_get_oneshot_wakeup_device(cpu);
+
+	if (!newdev)
+		goto set_device;
+
+	if ((newdev->features & CLOCK_EVT_FEAT_DUMMY) ||
+	    (newdev->features & CLOCK_EVT_FEAT_C3STOP))
+		 return false;
+
+	if (!(newdev->features & CLOCK_EVT_FEAT_PERCPU) ||
+	    !(newdev->features & CLOCK_EVT_FEAT_ONESHOT))
+		return false;
+
+	if (!cpumask_equal(newdev->cpumask, cpumask_of(cpu)))
+		return false;
+
+	if (curdev && newdev->rating <= curdev->rating)
+		return false;
+
+	if (!try_module_get(newdev->owner))
+		return false;
+
+set_device:
+	clockevents_exchange_device(curdev, newdev);
+	per_cpu(tick_oneshot_wakeup_device, cpu) = newdev;
+	return true;
+}
+#else
+static struct clock_event_device *tick_get_oneshot_wakeup_device(int cpu)
+{
+	return NULL;
+}
+
+static bool tick_set_oneshot_wakeup_device(struct clock_event_device *newdev,
+					   int cpu)
+{
+	return false;
+}
+#endif
+
 /*
  * Conditionally install/replace broadcast device
  */
-void tick_install_broadcast_device(struct clock_event_device *dev)
+void tick_install_broadcast_device(struct clock_event_device *dev, int cpu)
 {
 	struct clock_event_device *cur = tick_broadcast_device.evtdev;
+
+	if (tick_set_oneshot_wakeup_device(dev, cpu))
+		return;
 
 	if (!tick_check_broadcast_device(cur, dev))
 		return;
@@ -996,6 +1050,9 @@ void hotplug_cpu__broadcast_tick_pull(int deadcpu)
  */
 static void tick_broadcast_oneshot_offline(unsigned int cpu)
 {
+	if (tick_get_oneshot_wakeup_device(cpu))
+		tick_set_oneshot_wakeup_device(NULL, cpu);
+
 	/*
 	 * Clear the broadcast masks for the dead cpu, but do not stop
 	 * the broadcast device!
