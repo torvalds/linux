@@ -719,12 +719,16 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 
 	/* Setup shared indices for the matchall policers */
 	for (port = 0; port < ds->num_ports; port++) {
+		int mcast = (ds->num_ports * (SJA1105_NUM_TC + 1)) + port;
 		int bcast = (ds->num_ports * SJA1105_NUM_TC) + port;
 
 		for (tc = 0; tc < SJA1105_NUM_TC; tc++)
 			policing[port * SJA1105_NUM_TC + tc].sharindx = port;
 
 		policing[bcast].sharindx = port;
+		/* Only SJA1110 has multicast policers */
+		if (mcast <= table->ops->max_entry_count)
+			policing[mcast].sharindx = port;
 	}
 
 	/* Setup the matchall policer parameters */
