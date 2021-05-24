@@ -206,7 +206,8 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 	unsigned int freq = policy->cpuinfo.max_freq;
 
 	freq = map_util_freq(util, freq, max);
-	trace_waltgov_next_freq(policy->cpu, util, max, freq);
+	trace_waltgov_next_freq(policy->cpu, util, max, freq, policy->min, policy->max,
+				wg_policy->cached_raw_freq, wg_policy->need_freq_update);
 
 	if (freq == wg_policy->cached_raw_freq && !wg_policy->need_freq_update)
 		return wg_policy->next_freq;
