@@ -98,8 +98,8 @@
 #define IGC_CTRL_RFCE		0x08000000  /* Receive Flow Control enable */
 #define IGC_CTRL_TFCE		0x10000000  /* Transmit flow control enable */
 
-#define IGC_CTRL_SDP0_DIR 0x00400000	/* SDP0 Data direction */
-#define IGC_CTRL_SDP1_DIR 0x00800000	/* SDP1 Data direction */
+#define IGC_CTRL_SDP0_DIR	0x00400000  /* SDP0 Data direction */
+#define IGC_CTRL_SDP1_DIR	0x00800000  /* SDP1 Data direction */
 
 /* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
 #define MAX_JUMBO_FRAME_SIZE	0x2600
