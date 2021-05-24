@@ -96,6 +96,15 @@ static struct clock_event_device *tick_get_oneshot_wakeup_device(int cpu)
 	return per_cpu(tick_oneshot_wakeup_device, cpu);
 }
 
+static void tick_oneshot_wakeup_handler(struct clock_event_device *wd)
+{
+	/*
+	 * If we woke up early and the tick was reprogrammed in the
+	 * meantime then this may be spurious but harmless.
+	 */
+	tick_receive_broadcast();
+}
+
 static bool tick_set_oneshot_wakeup_device(struct clock_event_device *newdev,
 					   int cpu)
 {
@@ -121,6 +130,7 @@ static bool tick_set_oneshot_wakeup_device(struct clock_event_device *newdev,
 	if (!try_module_get(newdev->owner))
 		return false;
 
+	newdev->event_handler = tick_oneshot_wakeup_handler;
 set_device:
 	clockevents_exchange_device(curdev, newdev);
 	per_cpu(tick_oneshot_wakeup_device, cpu) = newdev;
@@ -909,16 +919,48 @@ out:
 	return ret;
 }
 
+static int tick_oneshot_wakeup_control(enum tick_broadcast_state state,
+				       struct tick_device *td,
+				       int cpu)
+{
+	struct clock_event_device *dev, *wd;
+
+	dev = td->evtdev;
+	if (td->mode != TICKDEV_MODE_ONESHOT)
+		return -EINVAL;
+
+	wd = tick_get_oneshot_wakeup_device(cpu);
+	if (!wd)
+		return -ENODEV;
+
+	switch (state) {
+	case TICK_BROADCAST_ENTER:
+		clockevents_switch_state(dev, CLOCK_EVT_STATE_ONESHOT_STOPPED);
+		clockevents_switch_state(wd, CLOCK_EVT_STATE_ONESHOT);
+		clockevents_program_event(wd, dev->next_event, 1);
+		break;
+	case TICK_BROADCAST_EXIT:
+		/* We may have transitioned to oneshot mode while idle */
+		if (clockevent_get_state(wd) != CLOCK_EVT_STATE_ONESHOT)
+			return -ENODEV;
+	}
+
+	return 0;
+}
+
 int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 {
 	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 	int cpu = smp_processor_id();
 
+	if (!tick_oneshot_wakeup_control(state, td, cpu))
+		return 0;
+
 	if (tick_broadcast_device.evtdev)
 		return ___tick_broadcast_oneshot_control(state, td, cpu);
 
 	/*
-	 * If there is no broadcast device, tell the caller not
+	 * If there is no broadcast or wakeup device, tell the caller not
 	 * to go into deep idle.
 	 */
 	return -EBUSY;
