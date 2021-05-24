@@ -174,7 +174,6 @@ struct srp_rdma_ch {
 
 	struct srp_iu	      **tx_ring;
 	struct srp_iu	      **rx_ring;
-	struct srp_request     *req_ring;
 	int			comp_vector;
 
 	u64			tsk_mgmt_tag;
@@ -220,7 +219,6 @@ struct srp_target_port {
 	int			mr_pool_size;
 	int			mr_per_cmd;
 	int			queue_size;
-	int			req_ring_size;
 	int			comp_vector;
 	int			tl_retry_count;
 
