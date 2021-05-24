@@ -159,6 +159,15 @@ static struct bin_attribute *ee1004_attrs[] = {
 
 BIN_ATTRIBUTE_GROUPS(ee1004);
 
+static void ee1004_cleanup(int idx)
+{
+	if (--ee1004_dev_count == 0)
+		while (--idx >= 0) {
+			i2c_unregister_device(ee1004_set_page[idx]);
+			ee1004_set_page[idx] = NULL;
+		}
+}
+
 static int ee1004_probe(struct i2c_client *client)
 {
 	int err, cnr = 0;
@@ -205,12 +214,7 @@ static int ee1004_probe(struct i2c_client *client)
 	return 0;
 
  err_clients:
-	if (--ee1004_dev_count == 0) {
-		for (cnr--; cnr >= 0; cnr--) {
-			i2c_unregister_device(ee1004_set_page[cnr]);
-			ee1004_set_page[cnr] = NULL;
-		}
-	}
+	ee1004_cleanup(cnr);
 	mutex_unlock(&ee1004_bus_lock);
 
 	return err;
@@ -218,16 +222,9 @@ static int ee1004_probe(struct i2c_client *client)
 
 static int ee1004_remove(struct i2c_client *client)
 {
-	int i;
-
 	/* Remove page select clients if this is the last device */
 	mutex_lock(&ee1004_bus_lock);
-	if (--ee1004_dev_count == 0) {
-		for (i = 0; i < EE1004_NUM_PAGES; i++) {
-			i2c_unregister_device(ee1004_set_page[i]);
-			ee1004_set_page[i] = NULL;
-		}
-	}
+	ee1004_cleanup(EE1004_NUM_PAGES);
 	mutex_unlock(&ee1004_bus_lock);
 
 	return 0;
