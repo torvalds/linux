@@ -187,20 +187,19 @@ static int ee1004_probe(struct i2c_client *client)
 			}
 			ee1004_set_page[cnr] = cl;
 		}
+
+		/* Remember current page to avoid unneeded page select */
+		err = ee1004_get_current_page();
+		if (err < 0)
+			goto err_clients;
+		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
+		ee1004_current_page = err;
 	} else if (client->adapter != ee1004_set_page[0]->adapter) {
 		dev_err(&client->dev,
 			"Driver only supports devices on a single I2C bus\n");
 		err = -EOPNOTSUPP;
 		goto err_clients;
 	}
-
-	/* Remember current page to avoid unneeded page select */
-	err = ee1004_get_current_page();
-	if (err < 0)
-		goto err_clients;
-	ee1004_current_page = err;
-	dev_dbg(&client->dev, "Currently selected page: %d\n",
-		ee1004_current_page);
 	mutex_unlock(&ee1004_bus_lock);
 
 	dev_info(&client->dev,
