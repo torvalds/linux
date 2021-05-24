@@ -71,6 +71,32 @@ static int ee1004_get_current_page(void)
 	return 0;
 }
 
+static int ee1004_set_current_page(struct device *dev, int page)
+{
+	int ret;
+
+	if (page == ee1004_current_page)
+		return 0;
+
+	/* Data is ignored */
+	ret = i2c_smbus_write_byte(ee1004_set_page[page], 0x00);
+	/*
+	 * Don't give up just yet. Some memory modules will select the page
+	 * but not ack the command. Check which page is selected now.
+	 */
+	if (ret == -ENXIO && ee1004_get_current_page() == page)
+		ret = 0;
+	if (ret < 0) {
+		dev_err(dev, "Failed to select page %d (%d)\n", page, ret);
+		return ret;
+	}
+
+	dev_dbg(dev, "Selected page %d\n", page);
+	ee1004_current_page = page;
+
+	return 0;
+}
+
 static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 				  unsigned int offset, size_t count)
 {
@@ -110,28 +136,10 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 		int status;
 
 		/* Select page */
-		if (page != ee1004_current_page) {
-			/* Data is ignored */
-			status = i2c_smbus_write_byte(ee1004_set_page[page],
-						      0x00);
-			if (status == -ENXIO) {
-				/*
-				 * Don't give up just yet. Some memory
-				 * modules will select the page but not
-				 * ack the command. Check which page is
-				 * selected now.
-				 */
-				if (ee1004_get_current_page() == page)
-					status = 0;
-			}
-			if (status < 0) {
-				dev_err(dev, "Failed to select page %d (%d)\n",
-					page, status);
-				mutex_unlock(&ee1004_bus_lock);
-				return status;
-			}
-			dev_dbg(dev, "Selected page %d\n", page);
-			ee1004_current_page = page;
+		status = ee1004_set_current_page(dev, page);
+		if (status) {
+			mutex_unlock(&ee1004_bus_lock);
+			return status;
 		}
 
 		status = ee1004_eeprom_read(client, buf, off, count);
