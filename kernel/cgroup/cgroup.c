@@ -468,7 +468,7 @@ static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
  * @cgrp: the cgroup of interest
  * @ss: the subsystem of interest
  *
- * Find and get @cgrp's css assocaited with @ss.  If the css doesn't exist
+ * Find and get @cgrp's css associated with @ss.  If the css doesn't exist
  * or is offline, %NULL is returned.
  */
 static struct cgroup_subsys_state *cgroup_tryget_css(struct cgroup *cgrp,
@@ -1633,7 +1633,7 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 
 /**
  * css_clear_dir - remove subsys files in a cgroup directory
- * @css: taget css
+ * @css: target css
  */
 static void css_clear_dir(struct cgroup_subsys_state *css)
 {
@@ -5350,7 +5350,7 @@ out_unlock:
 /*
  * This is called when the refcnt of a css is confirmed to be killed.
  * css_tryget_online() is now guaranteed to fail.  Tell the subsystem to
- * initate destruction and put the css ref from kill_css().
+ * initiate destruction and put the css ref from kill_css().
  */
 static void css_killed_work_fn(struct work_struct *work)
 {
@@ -6052,7 +6052,7 @@ out_revert:
  * @kargs: the arguments passed to create the child process
  *
  * This calls the cancel_fork() callbacks if a fork failed *after*
- * cgroup_can_fork() succeded and cleans up references we took to
+ * cgroup_can_fork() succeeded and cleans up references we took to
  * prepare a new css_set for the child process in cgroup_can_fork().
  */
 void cgroup_cancel_fork(struct task_struct *child,
