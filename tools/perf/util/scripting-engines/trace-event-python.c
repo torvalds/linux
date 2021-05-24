@@ -1876,6 +1876,7 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 struct scripting_ops python_scripting_ops = {
 	.name			= "Python",
+	.dirname		= "python",
 	.start_script		= python_start_script,
 	.flush_script		= python_flush_script,
 	.stop_script		= python_stop_script,

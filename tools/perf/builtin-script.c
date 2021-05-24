@@ -2665,6 +2665,37 @@ static void list_available_languages(void)
 	fprintf(stderr, "\n");
 }
 
+/* Find script file relative to current directory or exec path */
+static char *find_script(const char *script)
+{
+	char path[PATH_MAX];
+
+	if (!scripting_ops) {
+		const char *ext = strrchr(script, '.');
+
+		if (!ext)
+			return NULL;
+
+		scripting_ops = script_spec__lookup(++ext);
+		if (!scripting_ops)
+			return NULL;
+	}
+
+	if (access(script, R_OK)) {
+		char *exec_path = get_argv_exec_path();
+
+		if (!exec_path)
+			return NULL;
+		snprintf(path, sizeof(path), "%s/scripts/%s/%s",
+			 exec_path, scripting_ops->dirname, script);
+		free(exec_path);
+		script = path;
+		if (access(script, R_OK))
+			return NULL;
+	}
+	return strdup(script);
+}
+
 static int parse_scriptname(const struct option *opt __maybe_unused,
 			    const char *str, int unset __maybe_unused)
 {
@@ -2706,7 +2737,9 @@ static int parse_scriptname(const struct option *opt __maybe_unused,
 		}
 	}
 
-	script_name = strdup(script);
+	script_name = find_script(script);
+	if (!script_name)
+		script_name = strdup(script);
 
 	return 0;
 }
@@ -3718,6 +3751,12 @@ int cmd_script(int argc, const char **argv)
 		rep_script_path = get_script_path(argv[0], REPORT_SUFFIX);
 
 		if (!rec_script_path && !rep_script_path) {
+			script_name = find_script(argv[0]);
+			if (script_name) {
+				argc -= 1;
+				argv += 1;
+				goto script_found;
+			}
 			usage_with_options_msg(script_usage, options,
 				"Couldn't find script `%s'\n\n See perf"
 				" script -l for available scripts.\n", argv[0]);
@@ -3810,7 +3849,7 @@ int cmd_script(int argc, const char **argv)
 		free(__argv);
 		exit(-1);
 	}
-
+script_found:
 	if (rec_script_path)
 		script_path = rec_script_path;
 	if (rep_script_path)

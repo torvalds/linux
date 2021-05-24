@@ -63,6 +63,7 @@ static int python_generate_script_unsupported(struct tep_handle *pevent
 
 struct scripting_ops python_scripting_unsupported_ops = {
 	.name = "Python",
+	.dirname = "python",
 	.start_script = python_start_script_unsupported,
 	.flush_script = flush_script_unsupported,
 	.stop_script = stop_script_unsupported,
@@ -126,6 +127,7 @@ static int perl_generate_script_unsupported(struct tep_handle *pevent
 
 struct scripting_ops perl_scripting_unsupported_ops = {
 	.name = "Perl",
+	.dirname = "perl",
 	.start_script = perl_start_script_unsupported,
 	.flush_script = flush_script_unsupported,
 	.stop_script = stop_script_unsupported,

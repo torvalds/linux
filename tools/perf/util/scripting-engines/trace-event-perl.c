@@ -750,6 +750,7 @@ sub print_backtrace\n\
 
 struct scripting_ops perl_scripting_ops = {
 	.name = "Perl",
+	.dirname = "perl",
 	.start_script = perl_start_script,
 	.flush_script = perl_flush_script,
 	.stop_script = perl_stop_script,

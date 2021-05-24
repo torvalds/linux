@@ -71,6 +71,7 @@ struct perf_stat_config;
 
 struct scripting_ops {
 	const char *name;
+	const char *dirname; /* For script path .../scripts/<dirname>/... */
 	int (*start_script) (const char *script, int argc, const char **argv);
 	int (*flush_script) (void);
 	int (*stop_script) (void);
