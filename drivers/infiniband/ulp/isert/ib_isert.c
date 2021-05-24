@@ -2231,6 +2231,16 @@ isert_setup_id(struct isert_np *isert_np)
 	}
 	isert_dbg("id %p context %p\n", id, id->context);
 
+	/*
+	 * Allow both IPv4 and IPv6 sockets to bind a single port
+	 * at the same time.
+	 */
+	ret = rdma_set_afonly(id, 1);
+	if (ret) {
+		isert_err("rdma_set_afonly() failed: %d\n", ret);
+		goto out_id;
+	}
+
 	ret = rdma_bind_addr(id, sa);
 	if (ret) {
 		isert_err("rdma_bind_addr() failed: %d\n", ret);
