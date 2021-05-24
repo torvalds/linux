@@ -355,8 +355,17 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 	unsigned int height;
 	u32 alignment;
 
-	if (DISPLAY_VER(i915) >= 12 &&
-	    is_semiplanar_uv_plane(fb, color_plane))
+	/*
+	 * All DPT color planes must be 512*4k aligned (the amount mapped by a
+	 * single DPT page). For ADL_P CCS FBs this only works by requiring
+	 * the allocated offsets to be 2MB aligned.  Once supoort to remap
+	 * such FBs is added we can remove this requirement, as then all the
+	 * planes can be remapped to an aligned offset.
+	 */
+	if (IS_ALDERLAKE_P(i915) && is_ccs_modifier(fb->modifier))
+		alignment = 512 * 4096;
+	else if (DISPLAY_VER(i915) >= 12 &&
+		 is_semiplanar_uv_plane(fb, color_plane))
 		alignment = intel_tile_row_size(fb, color_plane);
 	else if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
 		alignment = intel_tile_size(i915);
