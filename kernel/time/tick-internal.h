@@ -62,7 +62,7 @@ extern ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt);
 /* Broadcasting support */
 # ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu);
-extern void tick_install_broadcast_device(struct clock_event_device *dev);
+extern void tick_install_broadcast_device(struct clock_event_device *dev, int cpu);
 extern int tick_is_broadcast_device(struct clock_event_device *dev);
 extern void tick_suspend_broadcast(void);
 extern void tick_resume_broadcast(void);
@@ -73,7 +73,7 @@ extern int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq);
 extern struct tick_device *tick_get_broadcast_device(void);
 extern struct cpumask *tick_get_broadcast_mask(void);
 # else /* !CONFIG_GENERIC_CLOCKEVENTS_BROADCAST: */
-static inline void tick_install_broadcast_device(struct clock_event_device *dev) { }
+static inline void tick_install_broadcast_device(struct clock_event_device *dev, int cpu) { }
 static inline int tick_is_broadcast_device(struct clock_event_device *dev) { return 0; }
 static inline int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu) { return 0; }
 static inline void tick_do_periodic_broadcast(struct clock_event_device *d) { }
