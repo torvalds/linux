@@ -682,7 +682,7 @@ static void utf16_le_to_7bit(const __le16 *in, unsigned int size, u8 *out)
 }
 
 /**
- * efi_partition(struct parsed_partitions *state)
+ * efi_partition - scan for GPT partitions
  * @state: disk parsed partitions
  *
  * Description: called from check.c, if the disk contains GPT
