@@ -32,16 +32,17 @@
  */
 
 #define EE1004_ADDR_SET_PAGE		0x36
-#define EE1004_EEPROM_SIZE		512
+#define EE1004_NUM_PAGES		2
 #define EE1004_PAGE_SIZE		256
 #define EE1004_PAGE_SHIFT		8
+#define EE1004_EEPROM_SIZE		(EE1004_PAGE_SIZE * EE1004_NUM_PAGES)
 
 /*
  * Mutex protects ee1004_set_page and ee1004_dev_count, and must be held
  * from page selection to end of read.
  */
 static DEFINE_MUTEX(ee1004_bus_lock);
-static struct i2c_client *ee1004_set_page[2];
+static struct i2c_client *ee1004_set_page[EE1004_NUM_PAGES];
 static unsigned int ee1004_dev_count;
 static int ee1004_current_page;
 
@@ -172,7 +173,7 @@ static int ee1004_probe(struct i2c_client *client)
 	/* Use 2 dummy devices for page select command */
 	mutex_lock(&ee1004_bus_lock);
 	if (++ee1004_dev_count == 1) {
-		for (cnr = 0; cnr < 2; cnr++) {
+		for (cnr = 0; cnr < EE1004_NUM_PAGES; cnr++) {
 			struct i2c_client *cl;
 
 			cl = i2c_new_dummy_device(client->adapter, EE1004_ADDR_SET_PAGE + cnr);
@@ -222,7 +223,7 @@ static int ee1004_remove(struct i2c_client *client)
 	/* Remove page select clients if this is the last device */
 	mutex_lock(&ee1004_bus_lock);
 	if (--ee1004_dev_count == 0) {
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < EE1004_NUM_PAGES; i++) {
 			i2c_unregister_device(ee1004_set_page[i]);
 			ee1004_set_page[i] = NULL;
 		}
