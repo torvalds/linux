@@ -34,6 +34,7 @@ config IIO_SIMPLE_DUMMY_BUFFER
 	select IIO_BUFFER
 	select IIO_TRIGGER
 	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Add buffered data capture to the simple dummy driver.
 
