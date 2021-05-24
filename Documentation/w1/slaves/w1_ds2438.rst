@@ -53,7 +53,7 @@ from the slave device. If it is correct, the 8 bytes page data are passed
 to userspace, otherwise an I/O error is returned.
 
 "offset"
--------
+--------
 This file controls the 2-byte Offset Register of the chip.
 Writing a 2-byte value will change the Offset Register, which changes the
 current measurement done by the chip. Changing this register to the two's complement
