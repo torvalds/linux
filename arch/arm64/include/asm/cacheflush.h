@@ -34,54 +34,54 @@
  *		- start  - virtual start address (inclusive)
  *		- end    - virtual end address (exclusive)
  *
- *	__flush_icache_range(start, end)
+ *	caches_clean_inval_pou(start, end)
  *
  *		Ensure coherency between the I-cache and the D-cache region to
  *		the Point of Unification.
  *
- *	__flush_cache_user_range(start, end)
+ *	caches_clean_inval_user_pou(start, end)
  *
  *		Ensure coherency between the I-cache and the D-cache region to
  *		the Point of Unification.
  *		Use only if the region might access user memory.
  *
- *	invalidate_icache_range(start, end)
+ *	icache_inval_pou(start, end)
  *
  *		Invalidate I-cache region to the Point of Unification.
  *
- *	__flush_dcache_area(start, end)
+ *	dcache_clean_inval_poc(start, end)
  *
  *		Clean and invalidate D-cache region to the Point of Coherency.
  *
- *	__inval_dcache_area(start, end)
+ *	dcache_inval_poc(start, end)
  *
  *		Invalidate D-cache region to the Point of Coherency.
  *
- *	__clean_dcache_area_poc(start, end)
+ *	dcache_clean_poc(start, end)
  *
  *		Clean D-cache region to the Point of Coherency.
  *
- *	__clean_dcache_area_pop(start, end)
+ *	dcache_clean_pop(start, end)
  *
  *		Clean D-cache region to the Point of Persistence.
  *
- *	__clean_dcache_area_pou(start, end)
+ *	dcache_clean_pou(start, end)
  *
  *		Clean D-cache region to the Point of Unification.
  */
-extern void __flush_icache_range(unsigned long start, unsigned long end);
-extern void invalidate_icache_range(unsigned long start, unsigned long end);
-extern void __flush_dcache_area(unsigned long start, unsigned long end);
-extern void __inval_dcache_area(unsigned long start, unsigned long end);
-extern void __clean_dcache_area_poc(unsigned long start, unsigned long end);
-extern void __clean_dcache_area_pop(unsigned long start, unsigned long end);
-extern void __clean_dcache_area_pou(unsigned long start, unsigned long end);
-extern long __flush_cache_user_range(unsigned long start, unsigned long end);
+extern void caches_clean_inval_pou(unsigned long start, unsigned long end);
+extern void icache_inval_pou(unsigned long start, unsigned long end);
+extern void dcache_clean_inval_poc(unsigned long start, unsigned long end);
+extern void dcache_inval_poc(unsigned long start, unsigned long end);
+extern void dcache_clean_poc(unsigned long start, unsigned long end);
+extern void dcache_clean_pop(unsigned long start, unsigned long end);
+extern void dcache_clean_pou(unsigned long start, unsigned long end);
+extern long caches_clean_inval_user_pou(unsigned long start, unsigned long end);
 extern void sync_icache_aliases(unsigned long start, unsigned long end);
 
 static inline void flush_icache_range(unsigned long start, unsigned long end)
 {
-	__flush_icache_range(start, end);
+	caches_clean_inval_pou(start, end);
 
 	/*
 	 * IPI all online CPUs so that they undergo a context synchronization
@@ -135,7 +135,7 @@ extern void copy_to_user_page(struct vm_area_struct *, struct page *,
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page *);
 
-static __always_inline void __flush_icache_all(void)
+static __always_inline void icache_inval_all_pou(void)
 {
 	if (cpus_have_const_cap(ARM64_HAS_CACHE_DIC))
 		return;

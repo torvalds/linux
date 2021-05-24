@@ -841,7 +841,7 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	if (need_flush) {
 		kvm_pte_t *pte_follow = kvm_pte_follow(pte, mm_ops);
 
-		__flush_dcache_area((unsigned long)pte_follow,
+		dcache_clean_inval_poc((unsigned long)pte_follow,
 				    (unsigned long)pte_follow +
 					    kvm_granule_size(level));
 	}
@@ -997,7 +997,7 @@ static int stage2_flush_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 		return 0;
 
 	pte_follow = kvm_pte_follow(pte, mm_ops);
-	__flush_dcache_area((unsigned long)pte_follow,
+	dcache_clean_inval_poc((unsigned long)pte_follow,
 			    (unsigned long)pte_follow +
 				    kvm_granule_size(level));
 	return 0;

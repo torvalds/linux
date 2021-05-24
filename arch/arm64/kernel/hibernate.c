@@ -210,7 +210,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 		return -ENOMEM;
 
 	memcpy(page, src_start, length);
-	__flush_icache_range((unsigned long)page, (unsigned long)page + length);
+	caches_clean_inval_pou((unsigned long)page, (unsigned long)page + length);
 	rc = trans_pgd_idmap_page(&trans_info, &trans_ttbr0, &t0sz, page);
 	if (rc)
 		return rc;
@@ -381,17 +381,17 @@ int swsusp_arch_suspend(void)
 		ret = swsusp_save();
 	} else {
 		/* Clean kernel core startup/idle code to PoC*/
-		__flush_dcache_area((unsigned long)__mmuoff_data_start,
+		dcache_clean_inval_poc((unsigned long)__mmuoff_data_start,
 				    (unsigned long)__mmuoff_data_end);
-		__flush_dcache_area((unsigned long)__idmap_text_start,
+		dcache_clean_inval_poc((unsigned long)__idmap_text_start,
 				    (unsigned long)__idmap_text_end);
 
 		/* Clean kvm setup code to PoC? */
 		if (el2_reset_needed()) {
-			__flush_dcache_area(
+			dcache_clean_inval_poc(
 				(unsigned long)__hyp_idmap_text_start,
 				(unsigned long)__hyp_idmap_text_end);
-			__flush_dcache_area((unsigned long)__hyp_text_start,
+			dcache_clean_inval_poc((unsigned long)__hyp_text_start,
 					    (unsigned long)__hyp_text_end);
 		}
 
@@ -477,7 +477,7 @@ int swsusp_arch_resume(void)
 	 * The hibernate exit text contains a set of el2 vectors, that will
 	 * be executed at el2 with the mmu off in order to reload hyp-stub.
 	 */
-	__flush_dcache_area((unsigned long)hibernate_exit,
+	dcache_clean_inval_poc((unsigned long)hibernate_exit,
 			    (unsigned long)hibernate_exit + exit_size);
 
 	/*

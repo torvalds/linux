@@ -7,7 +7,7 @@
 #include <asm/assembler.h>
 #include <asm/alternative.h>
 
-SYM_FUNC_START_PI(__flush_dcache_area)
+SYM_FUNC_START_PI(dcache_clean_inval_poc)
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(__flush_dcache_area)
+SYM_FUNC_END_PI(dcache_clean_inval_poc)

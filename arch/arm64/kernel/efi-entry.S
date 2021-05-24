@@ -29,7 +29,7 @@ SYM_CODE_START(efi_enter_kernel)
 	 */
 	ldr	w1, =kernel_size
 	add	x1, x0, x1
-	bl	__clean_dcache_area_poc
+	bl	dcache_clean_poc
 	ic	ialluis
 
 	/*
@@ -38,7 +38,7 @@ SYM_CODE_START(efi_enter_kernel)
 	 */
 	adr	x0, 0f
 	adr	x1, 3f
-	bl	__clean_dcache_area_poc
+	bl	dcache_clean_poc
 0:
 	/* Turn off Dcache and MMU */
 	mrs	x0, CurrentEL

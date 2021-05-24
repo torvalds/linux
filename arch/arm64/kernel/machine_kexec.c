@@ -72,10 +72,10 @@ int machine_kexec_post_load(struct kimage *kimage)
 	 * For execution with the MMU off, reloc_code needs to be cleaned to the
 	 * PoC and invalidated from the I-cache.
 	 */
-	__flush_dcache_area((unsigned long)reloc_code,
+	dcache_clean_inval_poc((unsigned long)reloc_code,
 			    (unsigned long)reloc_code +
 				    arm64_relocate_new_kernel_size);
-	invalidate_icache_range((uintptr_t)reloc_code,
+	icache_inval_pou((uintptr_t)reloc_code,
 				(uintptr_t)reloc_code +
 					arm64_relocate_new_kernel_size);
 
@@ -111,7 +111,7 @@ static void kexec_list_flush(struct kimage *kimage)
 		unsigned long addr;
 
 		/* flush the list entries. */
-		__flush_dcache_area((unsigned long)entry,
+		dcache_clean_inval_poc((unsigned long)entry,
 				    (unsigned long)entry +
 					    sizeof(kimage_entry_t));
 
@@ -128,7 +128,7 @@ static void kexec_list_flush(struct kimage *kimage)
 			break;
 		case IND_SOURCE:
 			/* flush the source pages. */
-			__flush_dcache_area(addr, addr + PAGE_SIZE);
+			dcache_clean_inval_poc(addr, addr + PAGE_SIZE);
 			break;
 		case IND_DESTINATION:
 			break;
@@ -155,7 +155,7 @@ static void kexec_segment_flush(const struct kimage *kimage)
 			kimage->segment[i].memsz,
 			kimage->segment[i].memsz /  PAGE_SIZE);
 
-		__flush_dcache_area(
+		dcache_clean_inval_poc(
 			(unsigned long)phys_to_virt(kimage->segment[i].mem),
 			(unsigned long)phys_to_virt(kimage->segment[i].mem) +
 				kimage->segment[i].memsz);

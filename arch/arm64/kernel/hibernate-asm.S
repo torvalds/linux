@@ -45,7 +45,7 @@
  * Because this code has to be copied to a 'safe' page, it can't call out to
  * other functions by PC-relative address. Also remember that it may be
  * mid-way through over-writing other functions. For this reason it contains
- * code from __flush_icache_range() and uses the copy_page() macro.
+ * code from caches_clean_inval_pou() and uses the copy_page() macro.
  *
  * This 'safe' page is mapped via ttbr0, and executed from there. This function
  * switches to a copy of the linear map in ttbr1, performs the restore, then
@@ -87,7 +87,7 @@ SYM_CODE_START(swsusp_arch_suspend_exit)
 	copy_page	x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 
 	add	x1, x10, #PAGE_SIZE
-	/* Clean the copied page to PoU - based on __flush_icache_range() */
+	/* Clean the copied page to PoU - based on caches_clean_inval_pou() */
 	raw_dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x10, x3

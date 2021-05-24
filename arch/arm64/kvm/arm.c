@@ -1064,7 +1064,7 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 		if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 			stage2_unmap_vm(vcpu->kvm);
 		else
-			__flush_icache_all();
+			icache_inval_all_pou();
 	}
 
 	vcpu_reset_hcr(vcpu);

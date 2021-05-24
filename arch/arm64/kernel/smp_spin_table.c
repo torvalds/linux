@@ -36,7 +36,7 @@ static void write_pen_release(u64 val)
 	unsigned long size = sizeof(secondary_holding_pen_release);
 
 	secondary_holding_pen_release = val;
-	__flush_dcache_area((unsigned long)start, (unsigned long)start + size);
+	dcache_clean_inval_poc((unsigned long)start, (unsigned long)start + size);
 }
 
 
@@ -90,7 +90,7 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 	 * the boot protocol.
 	 */
 	writeq_relaxed(pa_holding_pen, release_addr);
-	__flush_dcache_area((__force unsigned long)release_addr,
+	dcache_clean_inval_poc((__force unsigned long)release_addr,
 			    (__force unsigned long)release_addr +
 				    sizeof(*release_addr));
 
