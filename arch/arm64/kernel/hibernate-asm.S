@@ -91,7 +91,8 @@ SYM_CODE_START(swsusp_arch_suspend_exit)
 	raw_dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x10, x3
-2:	dc	cvau, x4	/* clean D line / unified line */
+2:	/* clean D line / unified line */
+alternative_insn "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
 	add	x4, x4, x2
 	cmp	x4, x1
 	b.lo	2b
