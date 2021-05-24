@@ -210,18 +210,18 @@ static inline void wanxl_rx_intr(struct card *card)
 
 	while (desc = &card->status->rx_descs[card->rx_in],
 	       desc->stat != PACKET_EMPTY) {
-		if ((desc->stat & PACKET_PORT_MASK) > card->n_ports)
+		if ((desc->stat & PACKET_PORT_MASK) > card->n_ports) {
 			pr_crit("%s: received packet for nonexistent port\n",
 				pci_name(card->pdev));
-		else {
+		} else {
 			struct sk_buff *skb = card->rx_skbs[card->rx_in];
 			struct port *port = &card->ports[desc->stat &
 						    PACKET_PORT_MASK];
 			struct net_device *dev = port->dev;
 
-			if (!skb)
+			if (!skb) {
 				dev->stats.rx_dropped++;
-			else {
+			} else {
 				dma_unmap_single(&card->pdev->dev,
 						 desc->address, BUFFER_LENGTH,
 						 DMA_FROM_DEVICE);
