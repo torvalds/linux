@@ -113,20 +113,19 @@ SYM_FUNC_START_PI(__flush_dcache_area)
 SYM_FUNC_END_PI(__flush_dcache_area)
 
 /*
- *	__clean_dcache_area_pou(kaddr, size)
+ *	__clean_dcache_area_pou(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are cleaned to the PoU.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
 SYM_FUNC_START(__clean_dcache_area_pou)
 alternative_if ARM64_HAS_CACHE_IDC
 	dsb	ishst
 	ret
 alternative_else_nop_endif
-	add	x1, x0, x1
 	dcache_by_line_op cvau, ish, x0, x1, x2, x3
 	ret
 SYM_FUNC_END(__clean_dcache_area_pou)
