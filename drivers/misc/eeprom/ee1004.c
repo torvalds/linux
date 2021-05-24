@@ -76,10 +76,8 @@ static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 {
 	int status;
 
-	if (count > I2C_SMBUS_BLOCK_MAX)
-		count = I2C_SMBUS_BLOCK_MAX;
 	/* Can't cross page boundaries */
-	if (unlikely(offset + count > EE1004_PAGE_SIZE))
+	if (offset + count > EE1004_PAGE_SIZE)
 		count = EE1004_PAGE_SIZE - offset;
 
 	status = i2c_smbus_read_i2c_block_data_or_emulated(client, offset,
