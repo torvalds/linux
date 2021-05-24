@@ -68,10 +68,14 @@ int machine_kexec_post_load(struct kimage *kimage)
 	kimage->arch.kern_reloc = __pa(reloc_code);
 	kexec_image_info(kimage);
 
-	/* Flush the reloc_code in preparation for its execution. */
+	/*
+	 * For execution with the MMU off, reloc_code needs to be cleaned to the
+	 * PoC and invalidated from the I-cache.
+	 */
 	__flush_dcache_area(reloc_code, arm64_relocate_new_kernel_size);
-	flush_icache_range((uintptr_t)reloc_code, (uintptr_t)reloc_code +
-			   arm64_relocate_new_kernel_size);
+	invalidate_icache_range((uintptr_t)reloc_code,
+				(uintptr_t)reloc_code +
+					arm64_relocate_new_kernel_size);
 
 	return 0;
 }
