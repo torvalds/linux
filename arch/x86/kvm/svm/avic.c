@@ -28,8 +28,8 @@
 #include "svm.h"
 
 /* enable / disable AVIC */
-int avic;
-module_param(avic, int, S_IRUGO);
+bool avic;
+module_param(avic, bool, S_IRUGO);
 
 #define SVM_AVIC_DOORBELL	0xc001011b
 
