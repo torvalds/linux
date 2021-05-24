@@ -32,7 +32,7 @@
 
 #include "wanxl.h"
 
-static const char* version = "wanXL serial card driver version: 0.48";
+static const char *version = "wanXL serial card driver version: 0.48";
 
 #define PLX_CTL_RESET   0x40000000 /* adapter reset */
 
@@ -227,7 +227,7 @@ static inline void wanxl_rx_intr(struct card *card)
 	}
 }
 
-static irqreturn_t wanxl_intr(int irq, void* dev_id)
+static irqreturn_t wanxl_intr(int irq, void *dev_id)
 {
 	struct card *card = dev_id;
         int i;
@@ -677,7 +677,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	}
 
 	for (i = 0; i < sizeof(firmware); i += 4)
-		writel(ntohl(*(__be32*)(firmware + i)), mem + PDM_OFFSET + i);
+		writel(ntohl(*(__be32 *)(firmware + i)), mem + PDM_OFFSET + i);
 
 	for (i = 0; i < ports; i++)
 		writel(card->status_address +
