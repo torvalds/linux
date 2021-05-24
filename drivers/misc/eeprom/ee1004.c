@@ -100,7 +100,14 @@ static int ee1004_set_current_page(struct device *dev, int page)
 static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 				  unsigned int offset, size_t count)
 {
-	int status;
+	int status, page;
+
+	page = offset >> EE1004_PAGE_SHIFT;
+	offset &= (1 << EE1004_PAGE_SHIFT) - 1;
+
+	status = ee1004_set_current_page(&client->dev, page);
+	if (status)
+		return status;
 
 	/* Can't cross page boundaries */
 	if (offset + count > EE1004_PAGE_SIZE)
@@ -119,12 +126,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 {
 	struct i2c_client *client = kobj_to_i2c_client(kobj);
 	size_t requested = count;
-	int page, ret = 0;
-
-	page = off >> EE1004_PAGE_SHIFT;
-	if (unlikely(page > 1))
-		return 0;
-	off &= (1 << EE1004_PAGE_SHIFT) - 1;
+	int ret = 0;
 
 	/*
 	 * Read data from chip, protecting against concurrent access to
@@ -133,11 +135,6 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	mutex_lock(&ee1004_bus_lock);
 
 	while (count) {
-		/* Select page */
-		ret = ee1004_set_current_page(dev, page);
-		if (ret)
-			goto out;
-
 		ret = ee1004_eeprom_read(client, buf, off, count);
 		if (ret < 0)
 			goto out;
@@ -145,11 +142,6 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 		buf += ret;
 		off += ret;
 		count -= ret;
-
-		if (off == EE1004_PAGE_SIZE) {
-			page++;
-			off = 0;
-		}
 	}
 out:
 	mutex_unlock(&ee1004_bus_lock);
