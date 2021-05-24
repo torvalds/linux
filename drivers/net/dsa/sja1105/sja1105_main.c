@@ -2816,11 +2816,22 @@ static int sja1105_vlan_add_one(struct dsa_switch *ds, int port, u16 vid,
 	bool pvid = flags & BRIDGE_VLAN_INFO_PVID;
 	struct sja1105_bridge_vlan *v;
 
-	list_for_each_entry(v, vlan_list, list)
-		if (v->port == port && v->vid == vid &&
-		    v->untagged == untagged && v->pvid == pvid)
+	list_for_each_entry(v, vlan_list, list) {
+		if (v->port == port && v->vid == vid) {
 			/* Already added */
-			return 0;
+			if (v->untagged == untagged && v->pvid == pvid)
+				/* Nothing changed */
+				return 0;
+
+			/* It's the same VLAN, but some of the flags changed
+			 * and the user did not bother to delete it first.
+			 * Update it and trigger sja1105_build_vlan_table.
+			 */
+			v->untagged = untagged;
+			v->pvid = pvid;
+			return 1;
+		}
+	}
 
 	v = kzalloc(sizeof(*v), GFP_KERNEL);
 	if (!v) {
