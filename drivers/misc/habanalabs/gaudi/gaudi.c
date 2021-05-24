@@ -1000,9 +1000,27 @@ static void gaudi_sob_group_reset_error(struct kref *ref)
 		hw_sob_group->base_sob_id);
 }
 
+static void gaudi_collective_mstr_sob_mask_set(struct gaudi_device *gaudi)
+{
+	struct gaudi_collective_properties *prop;
+	int i;
+
+	prop = &gaudi->collective_props;
+
+	memset(prop->mstr_sob_mask, 0, sizeof(prop->mstr_sob_mask));
+
+	for (i = 0 ; i < NIC_NUMBER_OF_ENGINES ; i++)
+		if (gaudi->hw_cap_initialized & BIT(HW_CAP_NIC_SHIFT + i))
+			prop->mstr_sob_mask[i / HL_MAX_SOBS_PER_MONITOR] |=
+					BIT(i % HL_MAX_SOBS_PER_MONITOR);
+	/* Set collective engine bit */
+	prop->mstr_sob_mask[i / HL_MAX_SOBS_PER_MONITOR] |=
+				BIT(i % HL_MAX_SOBS_PER_MONITOR);
+}
+
 static int gaudi_collective_init(struct hl_device *hdev)
 {
-	u32 i, master_monitor_sobs, sob_id, reserved_sobs_per_group;
+	u32 i, sob_id, reserved_sobs_per_group;
 	struct gaudi_collective_properties *prop;
 	struct gaudi_device *gaudi;
 
@@ -1028,22 +1046,7 @@ static int gaudi_collective_init(struct hl_device *hdev)
 		gaudi_collective_map_sobs(hdev, i);
 	}
 
-	prop->mstr_sob_mask[0] = 0;
-	master_monitor_sobs = HL_MAX_SOBS_PER_MONITOR;
-	for (i = 0 ; i < master_monitor_sobs ; i++)
-		if (gaudi->hw_cap_initialized & BIT(HW_CAP_NIC_SHIFT + i))
-			prop->mstr_sob_mask[0] |= BIT(i);
-
-	prop->mstr_sob_mask[1] = 0;
-	master_monitor_sobs =
-		NIC_NUMBER_OF_ENGINES - HL_MAX_SOBS_PER_MONITOR;
-	for (i = 0 ; i < master_monitor_sobs; i++) {
-		if (gaudi->hw_cap_initialized & BIT(HW_CAP_NIC_SHIFT + i))
-			prop->mstr_sob_mask[1] |= BIT(i);
-	}
-
-	/* Set collective engine bit */
-	prop->mstr_sob_mask[1] |= BIT(i);
+	gaudi_collective_mstr_sob_mask_set(gaudi);
 
 	return 0;
 }
@@ -4272,8 +4275,8 @@ static void gaudi_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
 	u32 db_reg_offset, db_value, dma_qm_offset, q_off, irq_handler_offset;
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	int dma_id;
 	bool invalid_queue = false;
+	int dma_id;
 
 	switch (hw_queue_id) {
 	case GAUDI_QUEUE_ID_DMA_0_0...GAUDI_QUEUE_ID_DMA_0_3:
@@ -4499,164 +4502,84 @@ static void gaudi_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 		db_reg_offset = mmTPC7_QM_PQ_PI_3;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_0_0:
-		db_reg_offset = mmNIC0_QM0_PQ_PI_0;
+	case GAUDI_QUEUE_ID_NIC_0_0...GAUDI_QUEUE_ID_NIC_0_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC0))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC0_QM0_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_0_1:
-		db_reg_offset = mmNIC0_QM0_PQ_PI_1;
+	case GAUDI_QUEUE_ID_NIC_1_0...GAUDI_QUEUE_ID_NIC_1_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC1))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC0_QM1_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_0_2:
-		db_reg_offset = mmNIC0_QM0_PQ_PI_2;
+	case GAUDI_QUEUE_ID_NIC_2_0...GAUDI_QUEUE_ID_NIC_2_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC2))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC1_QM0_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_0_3:
-		db_reg_offset = mmNIC0_QM0_PQ_PI_3;
+	case GAUDI_QUEUE_ID_NIC_3_0...GAUDI_QUEUE_ID_NIC_3_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC3))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC1_QM1_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_1_0:
-		db_reg_offset = mmNIC0_QM1_PQ_PI_0;
+	case GAUDI_QUEUE_ID_NIC_4_0...GAUDI_QUEUE_ID_NIC_4_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC4))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC2_QM0_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_1_1:
-		db_reg_offset = mmNIC0_QM1_PQ_PI_1;
+	case GAUDI_QUEUE_ID_NIC_5_0...GAUDI_QUEUE_ID_NIC_5_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC5))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC2_QM1_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_1_2:
-		db_reg_offset = mmNIC0_QM1_PQ_PI_2;
+	case GAUDI_QUEUE_ID_NIC_6_0...GAUDI_QUEUE_ID_NIC_6_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC6))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC3_QM0_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_1_3:
-		db_reg_offset = mmNIC0_QM1_PQ_PI_3;
+	case GAUDI_QUEUE_ID_NIC_7_0...GAUDI_QUEUE_ID_NIC_7_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC7))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC3_QM1_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_2_0:
-		db_reg_offset = mmNIC1_QM0_PQ_PI_0;
+	case GAUDI_QUEUE_ID_NIC_8_0...GAUDI_QUEUE_ID_NIC_8_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC8))
+			invalid_queue = true;
+
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC4_QM0_PQ_PI_0 + q_off;
 		break;
 
-	case GAUDI_QUEUE_ID_NIC_2_1:
-		db_reg_offset = mmNIC1_QM0_PQ_PI_1;
-		break;
+	case GAUDI_QUEUE_ID_NIC_9_0...GAUDI_QUEUE_ID_NIC_9_3:
+		if (!(gaudi->hw_cap_initialized & HW_CAP_NIC9))
+			invalid_queue = true;
 
-	case GAUDI_QUEUE_ID_NIC_2_2:
-		db_reg_offset = mmNIC1_QM0_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_2_3:
-		db_reg_offset = mmNIC1_QM0_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_3_0:
-		db_reg_offset = mmNIC1_QM1_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_3_1:
-		db_reg_offset = mmNIC1_QM1_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_3_2:
-		db_reg_offset = mmNIC1_QM1_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_3_3:
-		db_reg_offset = mmNIC1_QM1_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_4_0:
-		db_reg_offset = mmNIC2_QM0_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_4_1:
-		db_reg_offset = mmNIC2_QM0_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_4_2:
-		db_reg_offset = mmNIC2_QM0_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_4_3:
-		db_reg_offset = mmNIC2_QM0_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_5_0:
-		db_reg_offset = mmNIC2_QM1_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_5_1:
-		db_reg_offset = mmNIC2_QM1_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_5_2:
-		db_reg_offset = mmNIC2_QM1_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_5_3:
-		db_reg_offset = mmNIC2_QM1_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_6_0:
-		db_reg_offset = mmNIC3_QM0_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_6_1:
-		db_reg_offset = mmNIC3_QM0_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_6_2:
-		db_reg_offset = mmNIC3_QM0_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_6_3:
-		db_reg_offset = mmNIC3_QM0_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_7_0:
-		db_reg_offset = mmNIC3_QM1_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_7_1:
-		db_reg_offset = mmNIC3_QM1_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_7_2:
-		db_reg_offset = mmNIC3_QM1_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_7_3:
-		db_reg_offset = mmNIC3_QM1_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_8_0:
-		db_reg_offset = mmNIC4_QM0_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_8_1:
-		db_reg_offset = mmNIC4_QM0_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_8_2:
-		db_reg_offset = mmNIC4_QM0_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_8_3:
-		db_reg_offset = mmNIC4_QM0_PQ_PI_3;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_9_0:
-		db_reg_offset = mmNIC4_QM1_PQ_PI_0;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_9_1:
-		db_reg_offset = mmNIC4_QM1_PQ_PI_1;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_9_2:
-		db_reg_offset = mmNIC4_QM1_PQ_PI_2;
-		break;
-
-	case GAUDI_QUEUE_ID_NIC_9_3:
-		db_reg_offset = mmNIC4_QM1_PQ_PI_3;
+		q_off = ((hw_queue_id - 1) & 0x3) * 4;
+		db_reg_offset = mmNIC4_QM1_PQ_PI_0 + q_off;
 		break;
 
 	default:
