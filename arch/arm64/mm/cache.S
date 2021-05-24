@@ -43,7 +43,7 @@ alternative_else_nop_endif
 .endm
 
 /*
- *	flush_icache_range(start,end)
+ *	__flush_icache_range(start,end)
  *
  *	Ensure that the I and D caches are coherent within specified region.
  *	This is typically used when code has been written to a memory region,
