@@ -277,6 +277,7 @@ extern unsigned int sysctl_sched_walt_rotate_big_tasks;
 extern unsigned int sysctl_sched_task_unfilter_period;
 extern unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 extern unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
+extern unsigned int sysctl_sched_sync_hint_enable;
 extern struct ctl_table walt_table[];
 extern struct ctl_table walt_base_table[];
 extern void walt_tunables(void);
