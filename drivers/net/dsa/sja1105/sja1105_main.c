@@ -1936,7 +1936,7 @@ out_unlock_ptp:
 	 * For these interfaces there is no dynamic configuration
 	 * needed, since PLLs have same settings at all speeds.
 	 */
-	rc = sja1105_clocking_setup(priv);
+	rc = priv->info->clocking_setup(priv);
 	if (rc < 0)
 		goto out;
 
@@ -3015,7 +3015,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 		return rc;
 	}
 	/* Configure the CGU (PHY link modes and speeds) */
-	rc = sja1105_clocking_setup(priv);
+	rc = priv->info->clocking_setup(priv);
 	if (rc < 0) {
 		dev_err(ds->dev, "Failed to configure MII clocking: %d\n", rc);
 		return rc;

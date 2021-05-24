@@ -129,6 +129,8 @@ enum sja1105_blk_idx {
 #define SJA1105R_PART_NO				0x9A86
 #define SJA1105S_PART_NO				0x9A87
 
+#define SJA1105_RSV_ADDR		0xffffffffffffffffull
+
 struct sja1105_schedule_entry {
 	u64 winstindex;
 	u64 winend;

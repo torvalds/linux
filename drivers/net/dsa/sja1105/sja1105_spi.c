@@ -489,6 +489,7 @@ const struct sja1105_info sja1105e_info = {
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
 	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105E",
 };
@@ -507,6 +508,7 @@ const struct sja1105_info sja1105t_info = {
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
 	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105T",
 };
@@ -526,6 +528,7 @@ const struct sja1105_info sja1105p_info = {
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105P",
 };
@@ -545,6 +548,7 @@ const struct sja1105_info sja1105q_info = {
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105Q",
 };
@@ -564,6 +568,7 @@ const struct sja1105_info sja1105r_info = {
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105R",
 };
@@ -584,5 +589,6 @@ const struct sja1105_info sja1105s_info = {
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.name			= "SJA1105S",
 };
