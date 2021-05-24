@@ -242,7 +242,9 @@ enum hl_cs_type {
 	CS_TYPE_DEFAULT,
 	CS_TYPE_SIGNAL,
 	CS_TYPE_WAIT,
-	CS_TYPE_COLLECTIVE_WAIT
+	CS_TYPE_COLLECTIVE_WAIT,
+	CS_RESERVE_SIGNALS,
+	CS_UNRESERVE_SIGNALS
 };
 
 /*
@@ -287,13 +289,17 @@ enum queue_cb_alloc_flags {
  * @hdev: habanalabs device structure.
  * @kref: refcount of this SOB. The SOB will reset once the refcount is zero.
  * @sob_id: id of this SOB.
+ * @sob_addr: the sob offset from the base address.
  * @q_idx: the H/W queue that uses this SOB.
+ * @need_reset: reset indication set when switching to the other sob.
  */
 struct hl_hw_sob {
 	struct hl_device	*hdev;
 	struct kref		kref;
 	u32			sob_id;
+	u32			sob_addr;
 	u32			q_idx;
+	bool			need_reset;
 };
 
 enum hl_collective_mode {
@@ -608,6 +614,8 @@ struct hl_fence {
  * @type: type of the CS - signal/wait.
  * @sob_val: the SOB value that is used in this signal/wait CS.
  * @sob_group: the SOB group that is used in this collective wait CS.
+ * @encaps_signals: indication whether it's a completion object of cs with
+ * encaps signals or not.
  */
 struct hl_cs_compl {
 	struct work_struct	sob_reset_work;
@@ -619,6 +627,7 @@ struct hl_cs_compl {
 	enum hl_cs_type		type;
 	u16			sob_val;
 	u16			sob_group;
+	bool			encaps_signals;
 };
 
 /*
@@ -728,6 +737,17 @@ struct hl_sync_stream_properties {
 	u16		collective_slave_mon_id;
 	u16		collective_sob_id;
 	u8		curr_sob_offset;
+};
+
+/**
+ * struct hl_encaps_signals_mgr - describes sync stream encapsulated signals
+ * handlers manager
+ * @lock: protects handles.
+ * @handles: an idr to hold all encapsulated signals handles.
+ */
+struct hl_encaps_signals_mgr {
+	spinlock_t		lock;
+	struct idr		handles;
 };
 
 /**
@@ -1135,6 +1155,7 @@ struct fw_load_mgr {
  * @init_firmware_loader: initialize data for FW loader.
  * @init_cpu_scrambler_dram: Enable CPU specific DRAM scrambling
  * @state_dump_init: initialize constants required for state dump
+ * @get_sob_addr: get SOB base address offset.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1261,6 +1282,7 @@ struct hl_asic_funcs {
 	void (*init_firmware_loader)(struct hl_device *hdev);
 	void (*init_cpu_scrambler_dram)(struct hl_device *hdev);
 	void (*state_dump_init)(struct hl_device *hdev);
+	u32 (*get_sob_addr)(struct hl_device *hdev, u32 sob_id);
 };
 
 
@@ -1353,6 +1375,7 @@ struct hl_pending_cb {
  * @cs_counters: context command submission counters.
  * @cb_va_pool: device VA pool for command buffers which are mapped to the
  *              device's MMU.
+ * @sig_mgr: encaps signals handle manager.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
@@ -1392,6 +1415,7 @@ struct hl_ctx {
 	struct list_head		hw_block_mem_list;
 	struct hl_cs_counters_atomic	cs_counters;
 	struct gen_pool			*cb_va_pool;
+	struct hl_encaps_signals_mgr	sig_mgr;
 	u64				cs_sequence;
 	u64				*dram_default_hops;
 	spinlock_t			pending_cb_lock;
@@ -2504,7 +2528,6 @@ struct hl_device {
 
 	struct multi_cs_completion	multi_cs_completion[
 							MULTI_CS_MAX_USER_CTX];
-
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
@@ -2575,6 +2598,29 @@ struct hl_device {
 	u8				reset_if_device_not_idle;
 };
 
+
+/**
+ * struct hl_cs_encaps_sig_handle - encapsulated signals handle structure
+ * @refcount: refcount used to protect removing this id when several
+ *            wait cs are used to wait of the reserved encaps signals.
+ * @hdev: pointer to habanalabs device structure.
+ * @hw_sob: pointer to  H/W SOB used in the reservation.
+ * @cs_seq: staged cs sequence which contains encapsulated signals
+ * @id: idr handler id to be used to fetch the handler info
+ * @q_idx: stream queue index
+ * @pre_sob_val: current SOB value before reservation
+ * @count: signals number
+ */
+struct hl_cs_encaps_sig_handle {
+	struct kref refcount;
+	struct hl_device *hdev;
+	struct hl_hw_sob *hw_sob;
+	u64  cs_seq;
+	u32  id;
+	u32  q_idx;
+	u32  pre_sob_val;
+	u32  count;
+};
 
 /*
  * IOCTLs
@@ -2889,9 +2935,12 @@ int hl_set_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
+void hl_encaps_handle_do_release(struct kref *ref);
+void hw_sob_get(struct hl_hw_sob *hw_sob);
+void hw_sob_put(struct hl_hw_sob *hw_sob);
 void hl_release_pending_user_interrupts(struct hl_device *hdev);
 int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
-			struct hl_hw_sob **hw_sob, u32 count);
+			struct hl_hw_sob **hw_sob, u32 count, bool encaps_sig);
 
 int hl_state_dump(struct hl_device *hdev);
 const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id);

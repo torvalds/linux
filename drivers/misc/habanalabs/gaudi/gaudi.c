@@ -8720,6 +8720,11 @@ static u32 gaudi_get_wait_cb_size(struct hl_device *hdev)
 			sizeof(struct packet_msg_prot) * 2;
 }
 
+static u32 gaudi_get_sob_addr(struct hl_device *hdev, u32 sob_id)
+{
+	return mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_SOB_OBJ_0 + (sob_id * 4);
+}
+
 static u32 gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
 				u32 size, bool eb)
 {
@@ -9424,7 +9429,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.map_pll_idx_to_fw_idx = gaudi_map_pll_idx_to_fw_idx,
 	.init_firmware_loader = gaudi_init_firmware_loader,
 	.init_cpu_scrambler_dram = gaudi_init_scrambler_hbm,
-	.state_dump_init = gaudi_state_dump_init
+	.state_dump_init = gaudi_state_dump_init,
+	.get_sob_addr = gaudi_get_sob_addr
 };
 
 /**

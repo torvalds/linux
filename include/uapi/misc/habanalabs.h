@@ -628,12 +628,21 @@ struct hl_cs_chunk {
 		__u64 cb_handle;
 
 		/* Relevant only when HL_CS_FLAGS_WAIT or
-		 * HL_CS_FLAGS_COLLECTIVE_WAIT is set.
+		 * HL_CS_FLAGS_COLLECTIVE_WAIT is set
 		 * This holds address of array of u64 values that contain
-		 * signal CS sequence numbers. The wait described by this job
-		 * will listen on all those signals (wait event per signal)
+		 * signal CS sequence numbers. The wait described by
+		 * this job will listen on all those signals
+		 * (wait event per signal)
 		 */
 		__u64 signal_seq_arr;
+
+		/*
+		 * Relevant only when HL_CS_FLAGS_WAIT or
+		 * HL_CS_FLAGS_COLLECTIVE_WAIT is set
+		 * along with HL_CS_FLAGS_ENCAP_SIGNALS.
+		 * This is the CS sequence which has the encapsulated signals.
+		 */
+		__u64 encaps_signal_seq;
 	};
 
 	/* Index of queue to put the CB on */
@@ -651,6 +660,17 @@ struct hl_cs_chunk {
 		 * Number of entries in signal_seq_arr
 		 */
 		__u32 num_signal_seq_arr;
+
+		/* Relevant only when HL_CS_FLAGS_WAIT or
+		 * HL_CS_FLAGS_COLLECTIVE_WAIT is set along
+		 * with HL_CS_FLAGS_ENCAP_SIGNALS
+		 * This set the signals range that the user want to wait for
+		 * out of the whole reserved signals range.
+		 * e.g if the signals range is 20, and user don't want
+		 * to wait for signal 8, so he set this offset to 7, then
+		 * he call the API again with 9 and so on till 20.
+		 */
+		__u32 encaps_signal_offset;
 	};
 
 	/* HL_CS_CHUNK_FLAGS_* */
@@ -678,6 +698,28 @@ struct hl_cs_chunk {
 #define HL_CS_FLAGS_CUSTOM_TIMEOUT		0x200
 #define HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT	0x400
 
+/*
+ * The encapsulated signals CS is merged into the existing CS ioctls.
+ * In order to use this feature need to follow the below procedure:
+ * 1. Reserve signals, set the CS type to HL_CS_FLAGS_RESERVE_SIGNALS_ONLY
+ *    the output of this API will be the SOB offset from CFG_BASE.
+ *    this address will be used to patch CB cmds to do the signaling for this
+ *    SOB by incrementing it's value.
+ *    for reverting the reservation use HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY
+ *    CS type, note that this might fail if out-of-sync happened to the SOB
+ *    value, in case other signaling request to the same SOB occurred between
+ *    reserve-unreserve calls.
+ * 2. Use the staged CS to do the encapsulated signaling jobs.
+ *    use HL_CS_FLAGS_STAGED_SUBMISSION and HL_CS_FLAGS_STAGED_SUBMISSION_FIRST
+ *    along with HL_CS_FLAGS_ENCAP_SIGNALS flag, and set encaps_signal_offset
+ *    field. This offset allows app to wait on part of the reserved signals.
+ * 3. Use WAIT/COLLECTIVE WAIT CS along with HL_CS_FLAGS_ENCAP_SIGNALS flag
+ *    to wait for the encapsulated signals.
+ */
+#define HL_CS_FLAGS_ENCAP_SIGNALS		0x800
+#define HL_CS_FLAGS_RESERVE_SIGNALS_ONLY	0x1000
+#define HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY	0x2000
+
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512
@@ -690,10 +732,35 @@ struct hl_cs_in {
 	/* holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
 
-	/* Sequence number of a staged submission CS
-	 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set
-	 */
-	__u64 seq;
+	union {
+		/*
+		 * Sequence number of a staged submission CS
+		 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set and
+		 * HL_CS_FLAGS_STAGED_SUBMISSION_FIRST is unset.
+		 */
+		__u64 seq;
+
+		/*
+		 * Encapsulated signals handle id
+		 * Valid for two flows:
+		 * 1. CS with encapsulated signals:
+		 *    when HL_CS_FLAGS_STAGED_SUBMISSION and
+		 *    HL_CS_FLAGS_STAGED_SUBMISSION_FIRST
+		 *    and HL_CS_FLAGS_ENCAP_SIGNALS are set.
+		 * 2. unreserve signals:
+		 *    valid when HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY is set.
+		 */
+		__u32 encaps_sig_handle_id;
+
+		/* Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY is set */
+		struct {
+			/* Encapsulated signals number */
+			__u32 encaps_signals_count;
+
+			/* Encapsulated signals queue index (stream) */
+			__u32 encaps_signals_q_idx;
+		};
+	};
 
 	/* Number of chunks in restore phase array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
@@ -718,14 +785,31 @@ struct hl_cs_in {
 };
 
 struct hl_cs_out {
-	/*
-	 * seq holds the sequence number of the CS to pass to wait ioctl. All
-	 * values are valid except for 0 and ULLONG_MAX
-	 */
-	__u64 seq;
-	/* HL_CS_STATUS_* */
+	union {
+		/*
+		 * seq holds the sequence number of the CS to pass to wait
+		 * ioctl. All values are valid except for 0 and ULLONG_MAX
+		 */
+		__u64 seq;
+
+		/* Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY is set */
+		struct {
+			/* This is the resereved signal handle id */
+			__u32 handle_id;
+
+			/* This is the signals count */
+			__u32 count;
+		};
+	};
+
+	/* HL_CS_STATUS */
 	__u32 status;
-	__u32 pad;
+
+	/*
+	 * SOB base address offset
+	 * Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY is set
+	 */
+	__u32 sob_base_addr_offset;
 };
 
 union hl_cs_args {

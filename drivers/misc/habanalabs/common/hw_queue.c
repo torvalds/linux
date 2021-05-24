@@ -426,7 +426,8 @@ static int init_signal_cs(struct hl_device *hdev,
 	hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
 				cs_cmpl->hw_sob->sob_id, 0, true);
 
-	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, 1);
+	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, 1,
+								false);
 
 	return rc;
 }
@@ -850,6 +851,8 @@ static void sync_stream_queue_init(struct hl_device *hdev, u32 q_idx)
 		hw_sob = &sync_stream_prop->hw_sob[sob];
 		hw_sob->hdev = hdev;
 		hw_sob->sob_id = sync_stream_prop->base_sob_id + sob;
+		hw_sob->sob_addr =
+			hdev->asic_funcs->get_sob_addr(hdev, hw_sob->sob_id);
 		hw_sob->q_idx = q_idx;
 		kref_init(&hw_sob->kref);
 	}

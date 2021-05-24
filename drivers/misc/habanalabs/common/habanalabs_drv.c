@@ -194,7 +194,6 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
-
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;

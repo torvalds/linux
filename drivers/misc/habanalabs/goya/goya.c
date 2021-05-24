@@ -5575,6 +5575,11 @@ static void goya_state_dump_init(struct hl_device *hdev)
 	hdev->state_dump_specs.funcs = goya_state_dump_funcs;
 }
 
+static u32 goya_get_sob_addr(struct hl_device *hdev, u32 sob_id)
+{
+	return 0;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5662,6 +5667,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.init_firmware_loader = goya_init_firmware_loader,
 	.init_cpu_scrambler_dram = goya_cpu_init_scrambler_dram,
 	.state_dump_init = goya_state_dump_init,
+	.get_sob_addr = &goya_get_sob_addr
 };
 
 /*

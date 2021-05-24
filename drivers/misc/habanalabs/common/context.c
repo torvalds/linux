@@ -9,6 +9,59 @@
 
 #include <linux/slab.h>
 
+void hl_encaps_handle_do_release(struct kref *ref)
+{
+	struct hl_cs_encaps_sig_handle *handle =
+		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
+	struct hl_ctx *ctx = handle->hdev->compute_ctx;
+	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
+
+	idr_remove(&mgr->handles, handle->id);
+	kfree(handle);
+}
+
+static void hl_encaps_handle_do_release_sob(struct kref *ref)
+{
+	struct hl_cs_encaps_sig_handle *handle =
+		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
+	struct hl_ctx *ctx = handle->hdev->compute_ctx;
+	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
+
+	/* if we're here, then there was a signals reservation but cs with
+	 * encaps signals wasn't submitted, so need to put refcount
+	 * to hw_sob taken at the reservation.
+	 */
+	hw_sob_put(handle->hw_sob);
+
+	idr_remove(&mgr->handles, handle->id);
+	kfree(handle);
+}
+
+static void hl_encaps_sig_mgr_init(struct hl_encaps_signals_mgr *mgr)
+{
+	spin_lock_init(&mgr->lock);
+	idr_init(&mgr->handles);
+}
+
+static void hl_encaps_sig_mgr_fini(struct hl_device *hdev,
+			struct hl_encaps_signals_mgr *mgr)
+{
+	struct hl_cs_encaps_sig_handle *handle;
+	struct idr *idp;
+	u32 id;
+
+	idp = &mgr->handles;
+
+	if (!idr_is_empty(idp)) {
+		dev_warn(hdev->dev, "device released while some encaps signals handles are still allocated\n");
+		idr_for_each_entry(idp, handle, id)
+			kref_put(&handle->refcount,
+					hl_encaps_handle_do_release_sob);
+	}
+
+	idr_destroy(&mgr->handles);
+}
+
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -53,6 +106,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		hl_cb_va_pool_fini(ctx);
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
+		hl_encaps_sig_mgr_fini(hdev, &ctx->sig_mgr);
 
 		/* Scrub both SRAM and DRAM */
 		hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
@@ -199,6 +253,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			dev_err(hdev->dev, "ctx_init failed\n");
 			goto err_cb_va_pool_fini;
 		}
+
+		hl_encaps_sig_mgr_init(&ctx->sig_mgr);
 
 		dev_dbg(hdev->dev, "create user context %d\n", ctx->asid);
 	}

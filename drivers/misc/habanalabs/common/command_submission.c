@@ -38,7 +38,11 @@ static void hl_sob_reset(struct kref *ref)
 							kref);
 	struct hl_device *hdev = hw_sob->hdev;
 
+	dev_dbg(hdev->dev, "reset sob id %u\n", hw_sob->sob_id);
+
 	hdev->asic_funcs->reset_sob(hdev, hw_sob);
+
+	hw_sob->need_reset = false;
 }
 
 void hl_sob_reset_error(struct kref *ref)
@@ -52,7 +56,7 @@ void hl_sob_reset_error(struct kref *ref)
 		hw_sob->q_idx, hw_sob->sob_id);
 }
 
-static void hw_sob_put(struct hl_hw_sob *hw_sob)
+void hw_sob_put(struct hl_hw_sob *hw_sob)
 {
 	if (hw_sob)
 		kref_put(&hw_sob->kref, hl_sob_reset);
@@ -64,7 +68,7 @@ static void hw_sob_put_err(struct hl_hw_sob *hw_sob)
 		kref_put(&hw_sob->kref, hl_sob_reset_error);
 }
 
-static void hw_sob_get(struct hl_hw_sob *hw_sob)
+void hw_sob_get(struct hl_hw_sob *hw_sob)
 {
 	if (hw_sob)
 		kref_get(&hw_sob->kref);
@@ -576,7 +580,8 @@ static inline void cs_release_sob_reset_handler(struct hl_device *hdev,
 
 	if ((hl_cs_cmpl->type == CS_TYPE_SIGNAL) ||
 			(hl_cs_cmpl->type == CS_TYPE_WAIT) ||
-			(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT)) {
+			(hl_cs_cmpl->type == CS_TYPE_COLLECTIVE_WAIT) ||
+			(!!hl_cs_cmpl->encaps_signals)) {
 		dev_dbg(hdev->dev,
 				"CS 0x%llx type %d finished, sob_id: %d, sob_val: 0x%x\n",
 				hl_cs_cmpl->cs_seq,
@@ -829,6 +834,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	cs_cmpl->hdev = hdev;
 	cs_cmpl->type = cs->type;
+	cs_cmpl->encaps_signals = false;
 	spin_lock_init(&cs_cmpl->lock);
 	INIT_WORK(&cs_cmpl->sob_reset_work, sob_reset_work);
 	cs->fence = &cs_cmpl->base_fence;
@@ -1115,6 +1121,10 @@ static enum hl_cs_type hl_cs_get_cs_type(u32 cs_type_flags)
 		return CS_TYPE_WAIT;
 	else if (cs_type_flags & HL_CS_FLAGS_COLLECTIVE_WAIT)
 		return CS_TYPE_COLLECTIVE_WAIT;
+	else if (cs_type_flags & HL_CS_FLAGS_RESERVE_SIGNALS_ONLY)
+		return CS_RESERVE_SIGNALS;
+	else if (cs_type_flags & HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY)
+		return CS_UNRESERVE_SIGNALS;
 	else
 		return CS_TYPE_DEFAULT;
 }
@@ -1652,10 +1662,17 @@ out:
  * hl_cs_signal_sob_wraparound_handler: handle SOB value wrapaound case.
  * if the SOB value reaches the max value move to the other SOB reserved
  * to the queue.
+ * @hdev: pointer to device structure
+ * @q_idx: stream queue index
+ * @hw_sob: the H/W SOB used in this signal CS.
+ * @count: signals count
+ * @encaps_sig: tells whether it's reservation for encaps signals or not.
+ *
  * Note that this function must be called while hw_queues_lock is taken.
  */
 int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
-			struct hl_hw_sob **hw_sob, u32 count)
+			struct hl_hw_sob **hw_sob, u32 count, bool encaps_sig)
+
 {
 	struct hl_sync_stream_properties *prop;
 	struct hl_hw_sob *sob = *hw_sob, *other_sob;
@@ -1688,11 +1705,33 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 			return -EINVAL;
 		}
 
-		prop->next_sob_val = 1;
+		prop->next_sob_val = count;
 
 		/* only two SOBs are currently in use */
 		prop->curr_sob_offset = other_sob_offset;
 		*hw_sob = other_sob;
+
+		/*
+		 * check if other_sob needs reset, then do it before using it
+		 * for the reservation or the next signal cs.
+		 * we do it here, and for both encaps and regular signal cs
+		 * cases in order to avoid possible races of two kref_put
+		 * of the sob which can occur at the same time if we move the
+		 * sob reset(kref_put) to cs_do_release function.
+		 * in addition, if we have combination of cs signal and
+		 * encaps, and at the point we need to reset the sob there was
+		 * no more reservations and only signal cs keep coming,
+		 * in such case we need to signal_cs to put the refcount and
+		 * reset the sob.
+		 */
+		if (other_sob->need_reset)
+			kref_put(&other_sob->kref, hl_sob_reset);
+
+		if (encaps_sig) {
+			/* set reset indication for the sob */
+			sob->need_reset = true;
+			hw_sob_get(other_sob);
+		}
 
 		dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
 				prop->curr_sob_offset, q_idx);
@@ -1815,6 +1854,187 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	hl_debugfs_add_job(hdev, job);
 
 	return 0;
+}
+
+static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
+				u32 q_idx, u32 count,
+				u32 *handle_id, u32 *sob_addr,
+				u32 *signals_count)
+{
+	struct hw_queue_properties *hw_queue_prop;
+	struct hl_sync_stream_properties *prop;
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_cs_encaps_sig_handle *handle;
+	struct hl_encaps_signals_mgr *mgr;
+	struct hl_hw_sob *hw_sob;
+	int hdl_id;
+	int rc = 0;
+
+	if (count >= HL_MAX_SOB_VAL) {
+		dev_err(hdev->dev, "signals count(%u) exceeds the max SOB value\n",
+						count);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (q_idx >= hdev->asic_prop.max_queues) {
+		dev_err(hdev->dev, "Queue index %d is invalid\n",
+			q_idx);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
+
+	if (!hw_queue_prop->supports_sync_stream) {
+		dev_err(hdev->dev,
+			"Queue index %d does not support sync stream operations\n",
+									q_idx);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	if (!handle) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	handle->count = count;
+	mgr = &hpriv->ctx->sig_mgr;
+
+	spin_lock(&mgr->lock);
+	hdl_id = idr_alloc(&mgr->handles, handle, 1, 0, GFP_KERNEL);
+	spin_unlock(&mgr->lock);
+
+	if (hdl_id < 0) {
+		dev_err(hdev->dev, "Failed to allocate IDR for a new signal reservation\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	handle->id = hdl_id;
+	handle->q_idx = q_idx;
+	handle->hdev = hdev;
+	kref_init(&handle->refcount);
+
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	hw_sob = &prop->hw_sob[prop->curr_sob_offset];
+
+	/*
+	 * Increment the SOB value by count by user request
+	 * to reserve those signals
+	 * check if the signals amount to reserve is not exceeding the max sob
+	 * value, if yes then switch sob.
+	 */
+	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, count,
+						true);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to switch SOB\n");
+		hdev->asic_funcs->hw_queues_unlock(hdev);
+		rc = -EINVAL;
+		goto remove_idr;
+	}
+
+	/* set the hw_sob to the handle after calling the sob wraparound handler
+	 * since sob could have changed.
+	 */
+	handle->hw_sob = hw_sob;
+
+	/* store the current sob value for unreserve validity check, and
+	 * signal offset support
+	 */
+	handle->pre_sob_val = prop->next_sob_val - handle->count;
+
+	*signals_count = prop->next_sob_val;
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	*sob_addr = handle->hw_sob->sob_addr;
+	*handle_id = hdl_id;
+
+	dev_dbg(hdev->dev,
+		"Signals reserved, sob_id: %d, sob addr: 0x%x, sob val: 0x%x, q_idx: %d, hdl_id: %d\n",
+			hw_sob->sob_id, handle->hw_sob->sob_addr,
+			prop->next_sob_val, q_idx, hdl_id);
+	goto out;
+
+remove_idr:
+	spin_lock(&mgr->lock);
+	idr_remove(&mgr->handles, hdl_id);
+	spin_unlock(&mgr->lock);
+
+	kfree(handle);
+out:
+	return rc;
+}
+
+static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
+{
+	struct hl_cs_encaps_sig_handle *encaps_sig_hdl;
+	struct hl_sync_stream_properties *prop;
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_encaps_signals_mgr *mgr;
+	struct hl_hw_sob *hw_sob;
+	u32 q_idx, sob_addr;
+	int rc = 0;
+
+	mgr = &hpriv->ctx->sig_mgr;
+
+	spin_lock(&mgr->lock);
+	encaps_sig_hdl = idr_find(&mgr->handles, handle_id);
+	if (encaps_sig_hdl) {
+		dev_dbg(hdev->dev, "unreserve signals, handle: %u, SOB:0x%x, count: %u\n",
+				handle_id, encaps_sig_hdl->hw_sob->sob_addr,
+					encaps_sig_hdl->count);
+
+		hdev->asic_funcs->hw_queues_lock(hdev);
+
+		q_idx = encaps_sig_hdl->q_idx;
+		prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+		hw_sob = &prop->hw_sob[prop->curr_sob_offset];
+		sob_addr = hdev->asic_funcs->get_sob_addr(hdev, hw_sob->sob_id);
+
+		/* Check if sob_val got out of sync due to other
+		 * signal submission requests which were handled
+		 * between the reserve-unreserve calls or SOB switch
+		 * upon reaching SOB max value.
+		 */
+		if (encaps_sig_hdl->pre_sob_val + encaps_sig_hdl->count
+				!= prop->next_sob_val ||
+				sob_addr != encaps_sig_hdl->hw_sob->sob_addr) {
+			dev_err(hdev->dev, "Cannot unreserve signals, SOB val ran out of sync, expected: %u, actual val: %u\n",
+				encaps_sig_hdl->pre_sob_val,
+				(prop->next_sob_val - encaps_sig_hdl->count));
+
+			hdev->asic_funcs->hw_queues_unlock(hdev);
+			rc = -EINVAL;
+			goto out;
+		}
+
+		/*
+		 * Decrement the SOB value by count by user request
+		 * to unreserve those signals
+		 */
+		prop->next_sob_val -= encaps_sig_hdl->count;
+
+		hdev->asic_funcs->hw_queues_unlock(hdev);
+
+		hw_sob_put(hw_sob);
+
+		/* Release the id and free allocated memory of the handle */
+		idr_remove(&mgr->handles, handle_id);
+		kfree(encaps_sig_hdl);
+	} else {
+		rc = -EINVAL;
+		dev_err(hdev->dev, "failed to unreserve signals, cannot find handler\n");
+	}
+out:
+	spin_unlock(&mgr->lock);
+
+	return rc;
 }
 
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
@@ -1996,10 +2216,11 @@ out:
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cs_args *args = data;
-	enum hl_cs_type cs_type;
+	enum hl_cs_type cs_type = 0;
 	u64 cs_seq = ULONG_MAX;
 	void __user *chunks;
-	u32 num_chunks, flags, timeout;
+	u32 num_chunks, flags, timeout,
+		signals_count = 0, sob_addr = 0, handle_id = 0;
 	int rc;
 
 	rc = hl_cs_sanity_checks(hpriv, args);
@@ -2036,17 +2257,33 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		rc = cs_ioctl_signal_wait(hpriv, cs_type, chunks, num_chunks,
 					&cs_seq, args->in.cs_flags, timeout);
 		break;
+	case CS_RESERVE_SIGNALS:
+		rc = cs_ioctl_reserve_signals(hpriv,
+					args->in.encaps_signals_q_idx,
+					args->in.encaps_signals_count,
+					&handle_id, &sob_addr, &signals_count);
+		break;
+	case CS_UNRESERVE_SIGNALS:
+		rc = cs_ioctl_unreserve_signals(hpriv,
+					args->in.encaps_sig_handle_id);
+		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
 						args->in.cs_flags, timeout);
 		break;
 	}
-
 out:
 	if (rc != -EAGAIN) {
 		memset(args, 0, sizeof(*args));
+
+		if (cs_type == CS_RESERVE_SIGNALS) {
+			args->out.handle_id = handle_id;
+			args->out.sob_base_addr_offset = sob_addr;
+			args->out.count = signals_count;
+		} else {
+			args->out.seq = cs_seq;
+		}
 		args->out.status = rc;
-		args->out.seq = cs_seq;
 	}
 
 	return rc;
