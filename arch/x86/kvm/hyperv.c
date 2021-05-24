@@ -2022,7 +2022,7 @@ static void kvm_hv_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 {
 	bool longmode;
 
-	longmode = is_64_bit_mode(vcpu);
+	longmode = is_64_bit_hypercall(vcpu);
 	if (longmode)
 		kvm_rax_write(vcpu, result);
 	else {
@@ -2171,7 +2171,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	}
 
 #ifdef CONFIG_X86_64
-	if (is_64_bit_mode(vcpu)) {
+	if (is_64_bit_hypercall(vcpu)) {
 		hc.param = kvm_rcx_read(vcpu);
 		hc.ingpa = kvm_rdx_read(vcpu);
 		hc.outgpa = kvm_r8_read(vcpu);
