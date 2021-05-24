@@ -118,12 +118,12 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(ds->num_ports,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = ds->num_ports;
+	table->entry_count = table->ops->max_entry_count;
 
 	mac = table->entries;
 
@@ -174,13 +174,13 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv,
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_XMII_PARAMS_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
 	/* Override table based on PHYLINK DT bindings */
-	table->entry_count = SJA1105_MAX_XMII_PARAMS_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	mii = table->entries;
 
@@ -322,12 +322,12 @@ static int sja1105_init_l2_lookup_params(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_L2_LOOKUP_PARAMS_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = SJA1105_MAX_L2_LOOKUP_PARAMS_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	/* This table only has a single entry */
 	((struct sja1105_l2_lookup_params_entry *)table->entries)[0] =
@@ -414,12 +414,12 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_L2_FORWARDING_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = SJA1105_MAX_L2_FORWARDING_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	l2fwd = table->entries;
 
@@ -484,12 +484,12 @@ static int sja1105_init_l2_forwarding_params(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	/* This table only has a single entry */
 	((struct sja1105_l2_forwarding_params_entry *)table->entries)[0] =
@@ -597,12 +597,12 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_GENERAL_PARAMS_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = SJA1105_MAX_GENERAL_PARAMS_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	/* This table only has a single entry */
 	((struct sja1105_general_params_entry *)table->entries)[0] =
@@ -624,12 +624,12 @@ static int sja1105_init_avb_params(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_AVB_PARAMS_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = SJA1105_MAX_AVB_PARAMS_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	avb = table->entries;
 
@@ -708,12 +708,12 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 		table->entry_count = 0;
 	}
 
-	table->entries = kcalloc(SJA1105_MAX_L2_POLICING_COUNT,
+	table->entries = kcalloc(table->ops->max_entry_count,
 				 table->ops->unpacked_entry_size, GFP_KERNEL);
 	if (!table->entries)
 		return -ENOMEM;
 
-	table->entry_count = SJA1105_MAX_L2_POLICING_COUNT;
+	table->entry_count = table->ops->max_entry_count;
 
 	policing = table->entries;
 
