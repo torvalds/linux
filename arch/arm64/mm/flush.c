@@ -84,7 +84,7 @@ void arch_wb_cache_pmem(void *addr, size_t size)
 {
 	/* Ensure order against any prior non-cacheable writes */
 	dmb(osh);
-	__clean_dcache_area_pop(addr, size);
+	__clean_dcache_area_pop((unsigned long)addr, (unsigned long)addr + size);
 }
 EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 

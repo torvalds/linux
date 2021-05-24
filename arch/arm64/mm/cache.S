@@ -194,16 +194,15 @@ SYM_FUNC_END_PI(__clean_dcache_area_poc)
 SYM_FUNC_END(__dma_clean_area)
 
 /*
- *	__clean_dcache_area_pop(kaddr, size)
+ *	__clean_dcache_area_pop(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are cleaned to the PoP.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
 SYM_FUNC_START_PI(__clean_dcache_area_pop)
-	add	x1, x0, x1
 	alternative_if_not ARM64_HAS_DCPOP
 	b	__clean_dcache_area_poc
 	alternative_else_nop_endif
