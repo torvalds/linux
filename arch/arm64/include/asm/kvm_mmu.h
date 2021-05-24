@@ -180,7 +180,8 @@ static inline void *__kvm_vector_slot2addr(void *base,
 
 struct kvm;
 
-#define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+#define kvm_flush_dcache_to_poc(a,l)	\
+	__flush_dcache_area((unsigned long)(a), (unsigned long)(a)+(l))
 
 static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {

@@ -99,16 +99,15 @@ alternative_else_nop_endif
 SYM_FUNC_END(invalidate_icache_range)
 
 /*
- *	__flush_dcache_area(kaddr, size)
+ *	__flush_dcache_area(start, end)
  *
- *	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ *	Ensure that any D-cache lines for the interval [start, end)
  *	are cleaned and invalidated to the PoC.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
  */
 SYM_FUNC_START_PI(__flush_dcache_area)
-	add	x1, x0, x1
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
 SYM_FUNC_END_PI(__flush_dcache_area)
