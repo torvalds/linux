@@ -721,9 +721,10 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 
 int sja1105_clocking_setup(struct sja1105_private *priv)
 {
+	struct dsa_switch *ds = priv->ds;
 	int port, rc;
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		rc = sja1105_clocking_setup_port(priv, port);
 		if (rc < 0)
 			return rc;

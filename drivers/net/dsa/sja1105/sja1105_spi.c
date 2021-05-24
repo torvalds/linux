@@ -309,10 +309,10 @@ int static_config_buf_prepare_for_upload(struct sja1105_private *priv,
 
 int sja1105_static_config_upload(struct sja1105_private *priv)
 {
-	unsigned long port_bitmap = GENMASK_ULL(SJA1105_NUM_PORTS - 1, 0);
 	struct sja1105_static_config *config = &priv->static_config;
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct device *dev = &priv->spidev->dev;
+	struct dsa_switch *ds = priv->ds;
 	struct sja1105_status status;
 	int rc, retries = RETRIES;
 	u8 *config_buf;
@@ -333,7 +333,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 	 * Tx on all ports and waiting for current packet to drain.
 	 * Otherwise, the PHY will see an unterminated Ethernet packet.
 	 */
-	rc = sja1105_inhibit_tx(priv, port_bitmap, true);
+	rc = sja1105_inhibit_tx(priv, GENMASK_ULL(ds->num_ports - 1, 0), true);
 	if (rc < 0) {
 		dev_err(dev, "Failed to inhibit Tx on ports\n");
 		rc = -ENXIO;
