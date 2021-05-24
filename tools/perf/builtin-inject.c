@@ -383,8 +383,8 @@ static int perf_event__repipe_buildid_mmap(struct perf_tool *tool,
 	if (dso && !dso->hit) {
 		dso->hit = 1;
 		dso__inject_build_id(dso, tool, machine, sample->cpumode, 0);
-		dso__put(dso);
 	}
+	dso__put(dso);
 
 	return perf_event__repipe(tool, event, sample, machine);
 }
@@ -447,8 +447,8 @@ static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
 		dso->hit = 1;
 		dso__inject_build_id(dso, tool, machine, sample->cpumode,
 				     event->mmap2.flags);
-		dso__put(dso);
 	}
+	dso__put(dso);
 
 	perf_event__repipe(tool, event, sample, machine);
 
