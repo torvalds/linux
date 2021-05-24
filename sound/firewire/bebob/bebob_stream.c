@@ -623,7 +623,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 	if (!amdtp_stream_running(&bebob->rx_stream)) {
 		enum snd_bebob_clock_type src;
-		struct amdtp_stream *master, *slave;
 		unsigned int curr_rate;
 		unsigned int tx_init_skip_cycles;
 
@@ -637,19 +636,11 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		if (err < 0)
 			return err;
 
-		if (src != SND_BEBOB_CLOCK_TYPE_SYT) {
-			master = &bebob->tx_stream;
-			slave = &bebob->rx_stream;
-		} else {
-			master = &bebob->rx_stream;
-			slave = &bebob->tx_stream;
-		}
-
-		err = start_stream(bebob, master);
+		err = start_stream(bebob, &bebob->rx_stream);
 		if (err < 0)
 			goto error;
 
-		err = start_stream(bebob, slave);
+		err = start_stream(bebob, &bebob->tx_stream);
 		if (err < 0)
 			goto error;
 
