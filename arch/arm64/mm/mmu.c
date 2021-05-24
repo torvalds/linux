@@ -1166,16 +1166,17 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	return 0;
 }
 #endif	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
+
+#ifdef CONFIG_MEMORY_HOTPLUG
 void vmemmap_free(unsigned long start, unsigned long end,
 		struct vmem_altmap *altmap)
 {
-#ifdef CONFIG_MEMORY_HOTPLUG
 	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
 
 	unmap_hotplug_range(start, end, true, altmap);
 	free_empty_tables(start, end, VMEMMAP_START, VMEMMAP_END);
-#endif
 }
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 static inline pud_t *fixmap_pud(unsigned long addr)
 {
