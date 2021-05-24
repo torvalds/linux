@@ -274,7 +274,7 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 
-	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM_BUG_ON(view && !i915_is_ggtt_or_dpt(vm));
 	GEM_BUG_ON(!atomic_read(&vm->open));
 
 	spin_lock(&obj->vma.lock);

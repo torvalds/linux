@@ -158,7 +158,7 @@ i915_vma_compare(struct i915_vma *vma,
 {
 	ptrdiff_t cmp;
 
-	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM_BUG_ON(view && !i915_is_ggtt_or_dpt(vm));
 
 	cmp = ptrdiff(vma->vm, vm);
 	if (cmp)

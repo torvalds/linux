@@ -356,6 +356,7 @@ struct i915_ppgtt {
 
 #define i915_is_ggtt(vm) ((vm)->is_ggtt)
 #define i915_is_dpt(vm) ((vm)->is_dpt)
+#define i915_is_ggtt_or_dpt(vm) (i915_is_ggtt(vm) || i915_is_dpt(vm))
 
 int __must_check
 i915_vm_lock_objects(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww);
@@ -390,7 +391,7 @@ static inline struct i915_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
 	BUILD_BUG_ON(offsetof(struct i915_ppgtt, vm));
-	GEM_BUG_ON(i915_is_ggtt(vm));
+	GEM_BUG_ON(i915_is_ggtt_or_dpt(vm));
 	return container_of(vm, struct i915_ppgtt, vm);
 }
 
