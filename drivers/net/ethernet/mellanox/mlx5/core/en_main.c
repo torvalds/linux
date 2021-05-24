@@ -1891,29 +1891,29 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	if (err)
 		goto err_close_icosq;
 
+	err = mlx5e_open_rxq_rq(c, params, &cparam->rq);
+	if (err)
+		goto err_close_sqs;
+
 	if (c->xdp) {
 		err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, NULL,
 				       &c->rq_xdpsq, false);
 		if (err)
-			goto err_close_sqs;
+			goto err_close_rq;
 	}
-
-	err = mlx5e_open_rxq_rq(c, params, &cparam->rq);
-	if (err)
-		goto err_close_xdp_sq;
 
 	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, NULL, &c->xdpsq, true);
 	if (err)
-		goto err_close_rq;
+		goto err_close_xdp_sq;
 
 	return 0;
-
-err_close_rq:
-	mlx5e_close_rq(&c->rq);
 
 err_close_xdp_sq:
 	if (c->xdp)
 		mlx5e_close_xdpsq(&c->rq_xdpsq);
+
+err_close_rq:
+	mlx5e_close_rq(&c->rq);
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
@@ -1949,9 +1949,9 @@ err_close_async_icosq_cq:
 static void mlx5e_close_queues(struct mlx5e_channel *c)
 {
 	mlx5e_close_xdpsq(&c->xdpsq);
-	mlx5e_close_rq(&c->rq);
 	if (c->xdp)
 		mlx5e_close_xdpsq(&c->rq_xdpsq);
+	mlx5e_close_rq(&c->rq);
 	mlx5e_close_sqs(c);
 	mlx5e_close_icosq(&c->icosq);
 	mlx5e_close_icosq(&c->async_icosq);
