@@ -408,8 +408,8 @@ static const char * const hostbyte_table[]={
 
 const char *scsi_hostbyte_string(int result)
 {
+	enum scsi_host_status hb = host_byte(result);
 	const char *hb_string = NULL;
-	int hb = host_byte(result);
 
 	if (hb < ARRAY_SIZE(hostbyte_table))
 		hb_string = hostbyte_table[hb];
