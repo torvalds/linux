@@ -1175,6 +1175,7 @@ static int mipi_csis_async_register(struct csi_state *state)
 		if (vep.bus.mipi_csi2.data_lanes[i] != i + 1) {
 			dev_err(state->dev,
 				"data lanes reordering is not supported");
+			ret = -EINVAL;
 			goto err_parse;
 		}
 	}
