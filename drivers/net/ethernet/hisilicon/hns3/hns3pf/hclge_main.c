@@ -11500,10 +11500,7 @@ static int hclge_set_vf_trust(struct hnae3_handle *handle, int vf, bool enable)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
 	u32 new_trusted = enable ? 1 : 0;
-	bool en_bc_pmc;
-	int ret;
 
 	vport = hclge_get_vf_vport(hdev, vf);
 	if (!vport)
@@ -11512,18 +11509,9 @@ static int hclge_set_vf_trust(struct hnae3_handle *handle, int vf, bool enable)
 	if (vport->vf_info.trusted == new_trusted)
 		return 0;
 
-	/* Disable promisc mode for VF if it is not trusted any more. */
-	if (!enable && vport->vf_info.promisc_enable) {
-		en_bc_pmc = ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2;
-		ret = hclge_set_vport_promisc_mode(vport, false, false,
-						   en_bc_pmc);
-		if (ret)
-			return ret;
-		vport->vf_info.promisc_enable = 0;
-		hclge_inform_vf_promisc_info(vport);
-	}
-
 	vport->vf_info.trusted = new_trusted;
+	set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state);
+	hclge_task_schedule(hdev, 0);
 
 	return 0;
 }
@@ -12417,6 +12405,7 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 	struct hnae3_handle *handle = &vport->nic;
 	u8 tmp_flags;
 	int ret;
+	u16 i;
 
 	if (vport->last_promisc_flags != vport->overflow_promisc_flags) {
 		set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
@@ -12431,6 +12420,32 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 			clear_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
 			hclge_enable_vlan_filter(handle,
 						 tmp_flags & HNAE3_VLAN_FLTR);
+		}
+	}
+
+	for (i = 1; i < hdev->num_alloc_vport; i++) {
+		bool uc_en = false;
+		bool mc_en = false;
+		bool bc_en;
+
+		vport = &hdev->vport[i];
+
+		if (!test_and_clear_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE,
+					&vport->state))
+			continue;
+
+		if (vport->vf_info.trusted) {
+			uc_en = vport->vf_info.request_uc_en > 0;
+			mc_en = vport->vf_info.request_mc_en > 0;
+		}
+		bc_en = vport->vf_info.request_bc_en > 0;
+
+		ret = hclge_cmd_set_promisc_mode(hdev, vport->vport_id, uc_en,
+						 mc_en, bc_en);
+		if (ret) {
+			set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE,
+				&vport->state);
+			return;
 		}
 	}
 }
