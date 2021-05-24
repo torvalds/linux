@@ -110,7 +110,6 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->packet_index = 0;
 
 	init_waitqueue_head(&s->ready_wait);
-	s->callbacked = false;
 
 	s->fmt = fmt;
 	s->process_ctx_payloads = process_ctx_payloads;
@@ -1365,17 +1364,14 @@ static void irq_target_callback_skip(struct fw_iso_context *context, u32 tstamp,
 	d->processing_cycle.rx_start = cycle;
 }
 
-// this is executed one time.
+// This is executed one time. For in-stream, first packet has come. For out-stream, prepared to
+// transmit first packet.
 static void amdtp_stream_first_callback(struct fw_iso_context *context,
 					u32 tstamp, size_t header_length,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
 	struct amdtp_domain *d = s->domain;
-
-	// For in-stream, first packet has come.
-	// For out-stream, prepared to transmit first packet
-	s->callbacked = true;
 
 	if (s->direction == AMDTP_IN_STREAM) {
 		context->callback.sc = drop_tx_packets_initially;
@@ -1536,7 +1532,6 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if ((s->flags & CIP_EMPTY_WITH_TAG0) || (s->flags & CIP_NO_HEADER))
 		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
 
-	s->callbacked = false;
 	s->ready_processing = false;
 	err = fw_iso_context_start(s->context, -1, 0, tag);
 	if (err < 0)
