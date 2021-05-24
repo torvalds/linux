@@ -600,7 +600,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	}
 
 	card = kzalloc(struct_size(card, ports, ports), GFP_KERNEL);
-	if (card == NULL) {
+	if (!card) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;
@@ -612,7 +612,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	card->status = dma_alloc_coherent(&pdev->dev,
 					  sizeof(struct card_status),
 					  &card->status_address, GFP_KERNEL);
-	if (card->status == NULL) {
+	if (!card->status) {
 		wanxl_pci_remove_one(pdev);
 		return -ENOBUFS;
 	}
