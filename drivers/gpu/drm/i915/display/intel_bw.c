@@ -162,7 +162,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 {
 	struct intel_qgv_info qi = {};
 	bool is_y_tile = true; /* assume y tile may be used */
-	int num_channels = dev_priv->dram_info.num_channels;
+	int num_channels = max_t(u8, 1, dev_priv->dram_info.num_channels);
 	int deinterleave;
 	int ipqdepth, ipqdepthpch;
 	int dclk_max;
