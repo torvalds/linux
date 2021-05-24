@@ -97,9 +97,6 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	size_t requested = count;
 	int page;
 
-	if (unlikely(!count))
-		return count;
-
 	page = off >> EE1004_PAGE_SHIFT;
 	if (unlikely(page > 1))
 		return 0;
