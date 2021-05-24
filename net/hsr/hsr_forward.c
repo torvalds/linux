@@ -451,25 +451,31 @@ static void handle_std_frame(struct sk_buff *skb,
 	}
 }
 
-void hsr_fill_frame_info(__be16 proto, struct sk_buff *skb,
-			 struct hsr_frame_info *frame)
+int hsr_fill_frame_info(__be16 proto, struct sk_buff *skb,
+			struct hsr_frame_info *frame)
 {
 	if (proto == htons(ETH_P_PRP) ||
 	    proto == htons(ETH_P_HSR)) {
+		/* Check if skb contains hsr_ethhdr */
+		if (skb->mac_len < sizeof(struct hsr_ethhdr))
+			return -EINVAL;
+
 		/* HSR tagged frame :- Data or Supervision */
 		frame->skb_std = NULL;
 		frame->skb_prp = NULL;
 		frame->skb_hsr = skb;
 		frame->sequence_nr = hsr_get_skb_sequence_nr(skb);
-		return;
+		return 0;
 	}
 
 	/* Standard frame or PRP from master port */
 	handle_std_frame(skb, frame);
+
+	return 0;
 }
 
-void prp_fill_frame_info(__be16 proto, struct sk_buff *skb,
-			 struct hsr_frame_info *frame)
+int prp_fill_frame_info(__be16 proto, struct sk_buff *skb,
+			struct hsr_frame_info *frame)
 {
 	/* Supervision frame */
 	struct prp_rct *rct = skb_get_PRP_rct(skb);
@@ -480,9 +486,11 @@ void prp_fill_frame_info(__be16 proto, struct sk_buff *skb,
 		frame->skb_std = NULL;
 		frame->skb_prp = skb;
 		frame->sequence_nr = prp_get_skb_sequence_nr(rct);
-		return;
+		return 0;
 	}
 	handle_std_frame(skb, frame);
+
+	return 0;
 }
 
 static int fill_frame_info(struct hsr_frame_info *frame,
@@ -492,9 +500,10 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 	struct hsr_vlan_ethhdr *vlan_hdr;
 	struct ethhdr *ethhdr;
 	__be16 proto;
+	int ret;
 
-	/* Check if skb contains hsr_ethhdr */
-	if (skb->mac_len < sizeof(struct hsr_ethhdr))
+	/* Check if skb contains ethhdr */
+	if (skb->mac_len < sizeof(struct ethhdr))
 		return -EINVAL;
 
 	memset(frame, 0, sizeof(*frame));
@@ -521,7 +530,10 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 
 	frame->is_from_san = false;
 	frame->port_rcv = port;
-	hsr->proto_ops->fill_frame_info(proto, skb, frame);
+	ret = hsr->proto_ops->fill_frame_info(proto, skb, frame);
+	if (ret)
+		return ret;
+
 	check_local_dest(port->hsr, skb, frame);
 
 	return 0;
