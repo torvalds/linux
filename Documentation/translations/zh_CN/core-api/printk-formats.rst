@@ -122,6 +122,17 @@ seq_printf()，而不是printk()）由用户空间进程读取，使用下面描
 ``B`` 占位符的结果是带有偏移量的符号名，在打印堆栈回溯时应该使用。占位符将考虑编译器优化
 的影响，当使用尾部调用并使用noreturn GCC属性标记时，可能会发生这种优化。
 
+如果指针在一个模块内，模块名称和可选的构建ID将被打印在符号名称之后，并在说明符的末尾添加
+一个额外的 ``b`` 。
+
+::
+
+	%pS	versatile_init+0x0/0x110 [module_name]
+	%pSb	versatile_init+0x0/0x110 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+	%pSRb	versatile_init+0x9/0x110 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+		(with __builtin_extract_return_addr() translation)
+	%pBb	prev_fn_of_versatile_init+0x88/0x88 [module_name ed5019fdf5e53be37cb1ba7899292d7e143b259e]
+
 来自BPF / tracing追踪的探查指针
 ----------------------------------
 
@@ -483,9 +494,10 @@ Fwnode handles
 ::
 
 	%pt[RT]			YYYY-mm-ddTHH:MM:SS
+	%pt[RT]s		YYYY-mm-dd HH:MM:SS
 	%pt[RT]d		YYYY-mm-dd
 	%pt[RT]t		HH:MM:SS
-	%pt[RT][dt][r]
+	%pt[RT][dt][r][s]
 
 用于打印日期和时间::
 
@@ -496,6 +508,9 @@ Fwnode handles
 
 默认情况下，年将以1900为单位递增，月将以1为单位递增。 使用%pt[RT]r (raw)
 来抑制这种行为。
+
+%pt[RT]s（空格）将覆盖ISO 8601的分隔符，在日期和时间之间使用''（空格）而
+不是'T'（大写T）。当日期或时间被省略时，它不会有任何影响。
 
 通过引用传递。
 
