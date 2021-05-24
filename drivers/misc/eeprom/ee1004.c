@@ -167,23 +167,13 @@ static int ee1004_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int err, cnr = 0;
-	const char *slow = NULL;
 
 	/* Make sure we can operate on this adapter */
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE |
-				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-		if (i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE |
-				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-			slow = "word";
-		else if (i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE |
-				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
-			slow = "byte";
-		else
-			return -EPFNOSUPPORT;
-	}
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_READ_I2C_BLOCK) &&
+	    !i2c_check_functionality(client->adapter,
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_READ_BYTE_DATA))
+		return -EPFNOSUPPORT;
 
 	/* Use 2 dummy devices for page select command */
 	mutex_lock(&ee1004_bus_lock);
@@ -218,10 +208,6 @@ static int ee1004_probe(struct i2c_client *client,
 	dev_info(&client->dev,
 		 "%u byte EE1004-compliant SPD EEPROM, read-only\n",
 		 EE1004_EEPROM_SIZE);
-	if (slow)
-		dev_notice(&client->dev,
-			   "Falling back to %s reads, performance will suffer\n",
-			   slow);
 
 	return 0;
 
