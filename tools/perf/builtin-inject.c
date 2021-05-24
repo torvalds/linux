@@ -399,6 +399,18 @@ static int perf_event__repipe_mmap2(struct perf_tool *tool,
 	err = perf_event__process_mmap2(tool, event, sample, machine);
 	perf_event__repipe(tool, event, sample, machine);
 
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		struct dso *dso;
+
+		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
+				  event->mmap2.filename, NULL, machine);
+		if (dso) {
+			/* mark it not to inject build-id */
+			dso->hit = 1;
+		}
+		dso__put(dso);
+	}
+
 	return err;
 }
 
@@ -439,6 +451,18 @@ static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
 		.ino_generation = event->mmap2.ino_generation,
 	};
 	struct dso *dso;
+
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		/* cannot use dso_id since it'd have invalid info */
+		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
+				  event->mmap2.filename, NULL, machine);
+		if (dso) {
+			/* mark it not to inject build-id */
+			dso->hit = 1;
+		}
+		dso__put(dso);
+		return 0;
+	}
 
 	dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
 			  event->mmap2.filename, &dso_id, machine);
