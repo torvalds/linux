@@ -115,7 +115,7 @@ enum sja1105_blk_idx {
 #define SJA1105PQRS_MAX_CBS_COUNT			16
 
 #define SJA1105_MAX_FRAME_MEMORY			929
-#define SJA1105_MAX_FRAME_MEMORY_RETAGGING		910
+#define SJA1105_FRAME_MEMORY_RETAGGING_OVERHEAD		19
 #define SJA1105_VL_FRAME_MEMORY				100
 
 #define SJA1105E_DEVICE_ID				0x9C00000Cull
@@ -416,7 +416,8 @@ typedef enum {
 extern const char *sja1105_static_config_error_msg[];
 
 sja1105_config_valid_t
-sja1105_static_config_check_valid(const struct sja1105_static_config *config);
+sja1105_static_config_check_valid(const struct sja1105_static_config *config,
+				  int max_mem);
 void
 sja1105_static_config_pack(void *buf, struct sja1105_static_config *config);
 int sja1105_static_config_init(struct sja1105_static_config *config,

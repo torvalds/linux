@@ -90,6 +90,7 @@ struct sja1105_info {
 	 */
 	int ptpegr_ts_bytes;
 	int num_cbs_shapers;
+	int max_frame_mem;
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;

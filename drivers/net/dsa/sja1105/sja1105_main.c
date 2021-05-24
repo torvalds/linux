@@ -469,12 +469,7 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 
 static int sja1105_init_l2_forwarding_params(struct sja1105_private *priv)
 {
-	struct sja1105_l2_forwarding_params_entry default_l2fwd_params = {
-		/* Disallow dynamic reconfiguration of vlan_pmap */
-		.max_dynp = 0,
-		/* Use a single memory partition for all ingress queues */
-		.part_spc = { SJA1105_MAX_FRAME_MEMORY, 0, 0, 0, 0, 0, 0, 0 },
-	};
+	struct sja1105_l2_forwarding_params_entry *l2fwd_params;
 	struct sja1105_table *table;
 
 	table = &priv->static_config.tables[BLK_IDX_L2_FORWARDING_PARAMS];
@@ -492,8 +487,12 @@ static int sja1105_init_l2_forwarding_params(struct sja1105_private *priv)
 	table->entry_count = table->ops->max_entry_count;
 
 	/* This table only has a single entry */
-	((struct sja1105_l2_forwarding_params_entry *)table->entries)[0] =
-				default_l2fwd_params;
+	l2fwd_params = table->entries;
+
+	/* Disallow dynamic reconfiguration of vlan_pmap */
+	l2fwd_params->max_dynp = 0;
+	/* Use a single memory partition for all ingress queues */
+	l2fwd_params->part_spc[0] = priv->info->max_frame_mem;
 
 	return 0;
 }
@@ -502,16 +501,14 @@ void sja1105_frame_memory_partitioning(struct sja1105_private *priv)
 {
 	struct sja1105_l2_forwarding_params_entry *l2_fwd_params;
 	struct sja1105_vl_forwarding_params_entry *vl_fwd_params;
+	int max_mem = priv->info->max_frame_mem;
 	struct sja1105_table *table;
-	int max_mem;
 
 	/* VLAN retagging is implemented using a loopback port that consumes
 	 * frame buffers. That leaves less for us.
 	 */
 	if (priv->vlan_state == SJA1105_VLAN_BEST_EFFORT)
-		max_mem = SJA1105_MAX_FRAME_MEMORY_RETAGGING;
-	else
-		max_mem = SJA1105_MAX_FRAME_MEMORY;
+		max_mem -= SJA1105_FRAME_MEMORY_RETAGGING_OVERHEAD;
 
 	table = &priv->static_config.tables[BLK_IDX_L2_FORWARDING_PARAMS];
 	l2_fwd_params = table->entries;

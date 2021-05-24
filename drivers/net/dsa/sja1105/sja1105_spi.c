@@ -271,7 +271,8 @@ int static_config_buf_prepare_for_upload(struct sja1105_private *priv,
 	char *final_header_ptr;
 	int crc_len;
 
-	valid = sja1105_static_config_check_valid(config);
+	valid = sja1105_static_config_check_valid(config,
+						  priv->info->max_frame_mem);
 	if (valid != SJA1105_CONFIG_OK) {
 		dev_err(&priv->spidev->dev,
 			sja1105_static_config_error_msg[valid]);
@@ -474,6 +475,7 @@ const struct sja1105_info sja1105e_info = {
 	.can_limit_mcast_flood	= false,
 	.ptp_ts_bits		= 24,
 	.ptpegr_ts_bytes	= 4,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105ET_MAX_CBS_COUNT,
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
@@ -493,6 +495,7 @@ const struct sja1105_info sja1105t_info = {
 	.can_limit_mcast_flood	= false,
 	.ptp_ts_bits		= 24,
 	.ptpegr_ts_bytes	= 4,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105ET_MAX_CBS_COUNT,
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
@@ -512,6 +515,7 @@ const struct sja1105_info sja1105p_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
@@ -532,6 +536,7 @@ const struct sja1105_info sja1105q_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
@@ -552,6 +557,7 @@ const struct sja1105_info sja1105r_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
@@ -573,6 +579,7 @@ const struct sja1105_info sja1105s_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
