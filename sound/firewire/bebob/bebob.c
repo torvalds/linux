@@ -64,6 +64,7 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define MODEL_MAUDIO_AUDIOPHILE_BOTH	0x00010060
 #define MODEL_MAUDIO_FW1814		0x00010071
 #define MODEL_MAUDIO_PROJECTMIX		0x00010091
+#define MODEL_MAUDIO_PROFIRELIGHTBRIDGE	0x000100a1
 
 static int
 name_device(struct snd_bebob *bebob)
@@ -209,6 +210,13 @@ do_registration(struct work_struct *work)
 	}
 	if (err < 0)
 		goto error;
+
+	// M-Audio ProFire Lightbridge has a quirk to transfer packets with discontinuous cycle or
+	// data block counter in early stage of packet streaming. The cycle span from the first
+	// packet with event is variable.
+	if (bebob->entry->vendor_id == VEN_MAUDIO1 &&
+	    bebob->entry->model_id == MODEL_MAUDIO_PROFIRELIGHTBRIDGE)
+		bebob->discontinuity_quirk = true;
 
 	err = snd_bebob_stream_init_duplex(bebob);
 	if (err < 0)
@@ -476,7 +484,7 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* M-Audio NRV10 */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010081, &maudio_nrv10_spec),
 	/* M-Audio, ProFireLightbridge */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x000100a1, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROFIRELIGHTBRIDGE, &spec_normal),
 	/* Firewire 1814 */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010070, NULL),	/* bootloader */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_FW1814,

@@ -115,6 +115,7 @@ struct snd_bebob {
 
 	/* For BeBoB version quirk. */
 	unsigned int version;
+	bool discontinuity_quirk;
 
 	struct amdtp_domain domain;
 };
