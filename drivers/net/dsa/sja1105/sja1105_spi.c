@@ -7,8 +7,6 @@
 #include <linux/packing.h>
 #include "sja1105.h"
 
-#define SJA1105_SIZE_RESET_CMD		4
-
 struct sja1105_chunk {
 	u8	*buf;
 	size_t	len;
@@ -179,28 +177,20 @@ static int sja1105et_reset_cmd(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
 	const struct sja1105_regs *regs = priv->info->regs;
-	u8 packed_buf[SJA1105_SIZE_RESET_CMD] = {0};
-	const int size = SJA1105_SIZE_RESET_CMD;
-	u64 cold_rst = 1;
+	u32 cold_reset = BIT(3);
 
-	sja1105_pack(packed_buf, &cold_rst, 3, 3, size);
-
-	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rgu, packed_buf,
-				SJA1105_SIZE_RESET_CMD);
+	/* Cold reset */
+	return sja1105_xfer_u32(priv, SPI_WRITE, regs->rgu, &cold_reset, NULL);
 }
 
 static int sja1105pqrs_reset_cmd(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
 	const struct sja1105_regs *regs = priv->info->regs;
-	u8 packed_buf[SJA1105_SIZE_RESET_CMD] = {0};
-	const int size = SJA1105_SIZE_RESET_CMD;
-	u64 cold_rst = 1;
+	u32 cold_reset = BIT(2);
 
-	sja1105_pack(packed_buf, &cold_rst, 2, 2, size);
-
-	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rgu, packed_buf,
-				SJA1105_SIZE_RESET_CMD);
+	/* Cold reset */
+	return sja1105_xfer_u32(priv, SPI_WRITE, regs->rgu, &cold_reset, NULL);
 }
 
 int sja1105_inhibit_tx(const struct sja1105_private *priv,
@@ -281,7 +271,8 @@ int static_config_buf_prepare_for_upload(struct sja1105_private *priv,
 	char *final_header_ptr;
 	int crc_len;
 
-	valid = sja1105_static_config_check_valid(config);
+	valid = sja1105_static_config_check_valid(config,
+						  priv->info->max_frame_mem);
 	if (valid != SJA1105_CONFIG_OK) {
 		dev_err(&priv->spidev->dev,
 			sja1105_static_config_error_msg[valid]);
@@ -309,10 +300,10 @@ int static_config_buf_prepare_for_upload(struct sja1105_private *priv,
 
 int sja1105_static_config_upload(struct sja1105_private *priv)
 {
-	unsigned long port_bitmap = GENMASK_ULL(SJA1105_NUM_PORTS - 1, 0);
 	struct sja1105_static_config *config = &priv->static_config;
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct device *dev = &priv->spidev->dev;
+	struct dsa_switch *ds = priv->ds;
 	struct sja1105_status status;
 	int rc, retries = RETRIES;
 	u8 *config_buf;
@@ -333,7 +324,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 	 * Tx on all ports and waiting for current packet to drain.
 	 * Otherwise, the PHY will see an unterminated Ethernet packet.
 	 */
-	rc = sja1105_inhibit_tx(priv, port_bitmap, true);
+	rc = sja1105_inhibit_tx(priv, GENMASK_ULL(ds->num_ports - 1, 0), true);
 	if (rc < 0) {
 		dev_err(dev, "Failed to inhibit Tx on ports\n");
 		rc = -ENXIO;
@@ -484,11 +475,13 @@ const struct sja1105_info sja1105e_info = {
 	.can_limit_mcast_flood	= false,
 	.ptp_ts_bits		= 24,
 	.ptpegr_ts_bytes	= 4,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105ET_MAX_CBS_COUNT,
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
 	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105E",
 };
@@ -502,11 +495,13 @@ const struct sja1105_info sja1105t_info = {
 	.can_limit_mcast_flood	= false,
 	.ptp_ts_bits		= 24,
 	.ptpegr_ts_bytes	= 4,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105ET_MAX_CBS_COUNT,
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
 	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105T",
 };
@@ -520,12 +515,14 @@ const struct sja1105_info sja1105p_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105P",
 };
@@ -539,12 +536,14 @@ const struct sja1105_info sja1105q_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105Q",
 };
@@ -558,12 +557,14 @@ const struct sja1105_info sja1105r_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105R",
 };
@@ -578,11 +579,13 @@ const struct sja1105_info sja1105s_info = {
 	.can_limit_mcast_flood	= true,
 	.ptp_ts_bits		= 32,
 	.ptpegr_ts_bytes	= 8,
+	.max_frame_mem		= SJA1105_MAX_FRAME_MEMORY,
 	.num_cbs_shapers	= SJA1105PQRS_MAX_CBS_COUNT,
 	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
+	.clocking_setup		= sja1105_clocking_setup,
 	.name			= "SJA1105S",
 };

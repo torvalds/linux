@@ -110,6 +110,9 @@ static int sja1105_cgu_idiv_config(struct sja1105_private *priv, int port,
 	struct sja1105_cgu_idiv idiv;
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
 
+	if (regs->cgu_idiv[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	if (enabled && factor != 1 && factor != 10) {
 		dev_err(dev, "idiv factor must be 1 or 10\n");
 		return -ERANGE;
@@ -159,6 +162,9 @@ static int sja1105_cgu_mii_tx_clk_config(struct sja1105_private *priv,
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
 	int clksrc;
 
+	if (regs->mii_tx_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	if (role == XMII_MAC)
 		clksrc = mac_clk_sources[port];
 	else
@@ -188,6 +194,9 @@ sja1105_cgu_mii_rx_clk_config(struct sja1105_private *priv, int port)
 		CLKSRC_MII4_RX_CLK,
 	};
 
+	if (regs->mii_rx_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	/* Payload for packed_buf */
 	mii_rx_clk.clksrc    = clk_sources[port];
 	mii_rx_clk.autoblock = 1;  /* Autoblock clk while changing clksrc */
@@ -212,6 +221,9 @@ sja1105_cgu_mii_ext_tx_clk_config(struct sja1105_private *priv, int port)
 		CLKSRC_IDIV4,
 	};
 
+	if (regs->mii_ext_tx_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	/* Payload for packed_buf */
 	mii_ext_tx_clk.clksrc    = clk_sources[port];
 	mii_ext_tx_clk.autoblock = 1; /* Autoblock clk while changing clksrc */
@@ -235,6 +247,9 @@ sja1105_cgu_mii_ext_rx_clk_config(struct sja1105_private *priv, int port)
 		CLKSRC_IDIV3,
 		CLKSRC_IDIV4,
 	};
+
+	if (regs->mii_ext_rx_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
 
 	/* Payload for packed_buf */
 	mii_ext_rx_clk.clksrc    = clk_sources[port];
@@ -320,6 +335,9 @@ static int sja1105_cgu_rgmii_tx_clk_config(struct sja1105_private *priv,
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
 	int clksrc;
 
+	if (regs->rgmii_tx_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	if (speed == SJA1105_SPEED_1000MBPS) {
 		clksrc = CLKSRC_PLL0;
 	} else {
@@ -368,6 +386,9 @@ static int sja1105_rgmii_cfg_pad_tx_config(struct sja1105_private *priv,
 	struct sja1105_cfg_pad_mii pad_mii_tx = {0};
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
 
+	if (regs->pad_mii_tx[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	/* Payload */
 	pad_mii_tx.d32_os    = 3; /* TXD[3:2] output stage: */
 				  /*          high noise/high speed */
@@ -393,6 +414,9 @@ static int sja1105_cfg_pad_rx_config(struct sja1105_private *priv, int port)
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cfg_pad_mii pad_mii_rx = {0};
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
+
+	if (regs->pad_mii_rx[port] == SJA1105_RSV_ADDR)
+		return 0;
 
 	/* Payload */
 	pad_mii_rx.d32_ih    = 0; /* RXD[3:2] input stage hysteresis: */
@@ -572,6 +596,9 @@ static int sja1105_cgu_rmii_ref_clk_config(struct sja1105_private *priv,
 		CLKSRC_MII4_TX_CLK,
 	};
 
+	if (regs->rmii_ref_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
+
 	/* Payload for packed_buf */
 	ref_clk.clksrc    = clk_sources[port];
 	ref_clk.autoblock = 1;      /* Autoblock clk while changing clksrc */
@@ -588,6 +615,9 @@ sja1105_cgu_rmii_ext_tx_clk_config(struct sja1105_private *priv, int port)
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl ext_tx_clk;
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
+
+	if (regs->rmii_ext_tx_clk[port] == SJA1105_RSV_ADDR)
+		return 0;
 
 	/* Payload for packed_buf */
 	ext_tx_clk.clksrc    = CLKSRC_PLL1;
@@ -606,6 +636,9 @@ static int sja1105_cgu_rmii_pll_config(struct sja1105_private *priv)
 	struct sja1105_cgu_pll_ctrl pll = {0};
 	struct device *dev = priv->ds->dev;
 	int rc;
+
+	if (regs->rmii_pll1 == SJA1105_RSV_ADDR)
+		return 0;
 
 	/* PLL1 must be enabled and output 50 Mhz.
 	 * This is done by writing first 0x0A010941 to
@@ -721,9 +754,10 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 
 int sja1105_clocking_setup(struct sja1105_private *priv)
 {
+	struct dsa_switch *ds = priv->ds;
 	int port, rc;
 
-	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		rc = sja1105_clocking_setup_port(priv, port);
 		if (rc < 0)
 			return rc;

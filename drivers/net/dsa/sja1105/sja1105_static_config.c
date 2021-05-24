@@ -657,11 +657,11 @@ const char *sja1105_static_config_error_msg[] = {
 };
 
 static sja1105_config_valid_t
-static_config_check_memory_size(const struct sja1105_table *tables)
+static_config_check_memory_size(const struct sja1105_table *tables, int max_mem)
 {
 	const struct sja1105_l2_forwarding_params_entry *l2_fwd_params;
 	const struct sja1105_vl_forwarding_params_entry *vl_fwd_params;
-	int i, max_mem, mem = 0;
+	int i, mem = 0;
 
 	l2_fwd_params = tables[BLK_IDX_L2_FORWARDING_PARAMS].entries;
 
@@ -675,9 +675,7 @@ static_config_check_memory_size(const struct sja1105_table *tables)
 	}
 
 	if (tables[BLK_IDX_RETAGGING].entry_count)
-		max_mem = SJA1105_MAX_FRAME_MEMORY_RETAGGING;
-	else
-		max_mem = SJA1105_MAX_FRAME_MEMORY;
+		max_mem -= SJA1105_FRAME_MEMORY_RETAGGING_OVERHEAD;
 
 	if (mem > max_mem)
 		return SJA1105_OVERCOMMITTED_FRAME_MEMORY;
@@ -686,7 +684,8 @@ static_config_check_memory_size(const struct sja1105_table *tables)
 }
 
 sja1105_config_valid_t
-sja1105_static_config_check_valid(const struct sja1105_static_config *config)
+sja1105_static_config_check_valid(const struct sja1105_static_config *config,
+				  int max_mem)
 {
 	const struct sja1105_table *tables = config->tables;
 #define IS_FULL(blk_idx) \
@@ -754,7 +753,7 @@ sja1105_static_config_check_valid(const struct sja1105_static_config *config)
 	if (!IS_FULL(BLK_IDX_XMII_PARAMS))
 		return SJA1105_MISSING_XMII_TABLE;
 
-	return static_config_check_memory_size(tables);
+	return static_config_check_memory_size(tables, max_mem);
 #undef IS_FULL
 }
 
