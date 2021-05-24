@@ -2642,10 +2642,9 @@ static void gaudi_init_pci_dma_qman(struct hl_device *hdev, int dma_id,
 
 		/* Configure RAZWI IRQ */
 		dma_qm_err_cfg = PCI_DMA_QMAN_GLBL_ERR_CFG_MSG_EN_MASK;
-		if (hdev->stop_on_err) {
+		if (hdev->stop_on_err)
 			dma_qm_err_cfg |=
 				PCI_DMA_QMAN_GLBL_ERR_CFG_STOP_ON_ERR_EN_MASK;
-		}
 
 		WREG32(mmDMA0_QM_GLBL_ERR_CFG + dma_qm_offset, dma_qm_err_cfg);
 
@@ -2822,10 +2821,10 @@ static void gaudi_init_hbm_dma_qman(struct hl_device *hdev, int dma_id,
 
 		/* Configure RAZWI IRQ */
 		dma_qm_err_cfg = HBM_DMA_QMAN_GLBL_ERR_CFG_MSG_EN_MASK;
-		if (hdev->stop_on_err) {
+		if (hdev->stop_on_err)
 			dma_qm_err_cfg |=
 				HBM_DMA_QMAN_GLBL_ERR_CFG_STOP_ON_ERR_EN_MASK;
-		}
+
 		WREG32(mmDMA0_QM_GLBL_ERR_CFG + dma_qm_offset, dma_qm_err_cfg);
 
 		WREG32(mmDMA0_QM_GLBL_ERR_ADDR_LO + dma_qm_offset,
@@ -2959,10 +2958,10 @@ static void gaudi_init_mme_qman(struct hl_device *hdev, u32 mme_offset,
 				(mmMME1_QM_GLBL_CFG0 - mmMME0_QM_GLBL_CFG0) / 2;
 
 		mme_qm_err_cfg = MME_QMAN_GLBL_ERR_CFG_MSG_EN_MASK;
-		if (hdev->stop_on_err) {
+		if (hdev->stop_on_err)
 			mme_qm_err_cfg |=
 				MME_QMAN_GLBL_ERR_CFG_STOP_ON_ERR_EN_MASK;
-		}
+
 		WREG32(mmMME0_QM_GLBL_ERR_CFG + mme_offset, mme_qm_err_cfg);
 
 		WREG32(mmMME0_QM_GLBL_ERR_ADDR_LO + mme_offset,
@@ -3093,10 +3092,9 @@ static void gaudi_init_tpc_qman(struct hl_device *hdev, u32 tpc_offset,
 
 		/* Configure RAZWI IRQ */
 		tpc_qm_err_cfg = TPC_QMAN_GLBL_ERR_CFG_MSG_EN_MASK;
-		if (hdev->stop_on_err) {
+		if (hdev->stop_on_err)
 			tpc_qm_err_cfg |=
 				TPC_QMAN_GLBL_ERR_CFG_STOP_ON_ERR_EN_MASK;
-		}
 
 		WREG32(mmTPC0_QM_GLBL_ERR_CFG + tpc_offset, tpc_qm_err_cfg);
 
@@ -3245,10 +3243,9 @@ static void gaudi_init_nic_qman(struct hl_device *hdev, u32 nic_offset,
 
 		/* Configure RAZWI IRQ */
 		nic_qm_err_cfg = NIC_QMAN_GLBL_ERR_CFG_MSG_EN_MASK;
-		if (hdev->stop_on_err) {
+		if (hdev->stop_on_err)
 			nic_qm_err_cfg |=
 				NIC_QMAN_GLBL_ERR_CFG_STOP_ON_ERR_EN_MASK;
-		}
 
 		WREG32(mmNIC0_QM0_GLBL_ERR_CFG + nic_offset, nic_qm_err_cfg);
 
