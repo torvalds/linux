@@ -957,9 +957,8 @@ static int cs42l52_beep_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
-static ssize_t cs42l52_beep_set(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t beep_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct cs42l52_private *cs42l52 = dev_get_drvdata(dev);
 	long int time;
@@ -974,7 +973,7 @@ static ssize_t cs42l52_beep_set(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(beep, 0200, NULL, cs42l52_beep_set);
+static DEVICE_ATTR_WO(beep);
 
 static void cs42l52_init_beep(struct snd_soc_component *component)
 {
