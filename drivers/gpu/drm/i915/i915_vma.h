@@ -68,6 +68,11 @@ static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 	return test_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
 }
 
+static inline bool i915_vma_is_dpt(const struct i915_vma *vma)
+{
+	return i915_is_dpt(vma->vm);
+}
+
 static inline bool i915_vma_has_ggtt_write(const struct i915_vma *vma)
 {
 	return test_bit(I915_VMA_GGTT_WRITE_BIT, __i915_vma_flags(vma));

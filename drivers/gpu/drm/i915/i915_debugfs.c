@@ -124,6 +124,17 @@ stringify_page_sizes(unsigned int page_sizes, char *buf, size_t len)
 	}
 }
 
+static const char *stringify_vma_type(const struct i915_vma *vma)
+{
+	if (i915_vma_is_ggtt(vma))
+		return "ggtt";
+
+	if (i915_vma_is_dpt(vma))
+		return "dpt";
+
+	return "ppgtt";
+}
+
 void
 i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
@@ -156,11 +167,11 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		if (i915_vma_is_pinned(vma))
 			pin_count++;
 
-		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx, pages: %s",
-			   i915_vma_is_ggtt(vma) ? "g" : "pp",
+		seq_printf(m, " (%s offset: %08llx, size: %08llx, pages: %s",
+			   stringify_vma_type(vma),
 			   vma->node.start, vma->node.size,
 			   stringify_page_sizes(vma->page_sizes.gtt, NULL, 0));
-		if (i915_vma_is_ggtt(vma)) {
+		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
 			switch (vma->ggtt_view.type) {
 			case I915_GGTT_VIEW_NORMAL:
 				seq_puts(m, ", normal");
