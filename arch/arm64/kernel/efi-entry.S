@@ -28,6 +28,7 @@ SYM_CODE_START(efi_enter_kernel)
 	 * stale icache entries from before relocation.
 	 */
 	ldr	w1, =kernel_size
+	add	x1, x0, x1
 	bl	__clean_dcache_area_poc
 	ic	ialluis
 
@@ -36,7 +37,7 @@ SYM_CODE_START(efi_enter_kernel)
 	 * so that we can safely disable the MMU and caches.
 	 */
 	adr	x0, 0f
-	ldr	w1, 3f
+	adr	x1, 3f
 	bl	__clean_dcache_area_poc
 0:
 	/* Turn off Dcache and MMU */
@@ -64,5 +65,5 @@ SYM_CODE_START(efi_enter_kernel)
 	mov	x2, xzr
 	mov	x3, xzr
 	br	x19
+3:
 SYM_CODE_END(efi_enter_kernel)
-3:	.long	. - 0b

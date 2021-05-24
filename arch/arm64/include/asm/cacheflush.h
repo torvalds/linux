@@ -60,7 +60,7 @@ extern void __flush_icache_range(unsigned long start, unsigned long end);
 extern void invalidate_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(unsigned long start, unsigned long end);
 extern void __inval_dcache_area(unsigned long start, unsigned long end);
-extern void __clean_dcache_area_poc(void *addr, size_t len);
+extern void __clean_dcache_area_poc(unsigned long start, unsigned long end);
 extern void __clean_dcache_area_pop(void *addr, size_t len);
 extern void __clean_dcache_area_pou(void *addr, size_t len);
 extern long __flush_cache_user_range(unsigned long start, unsigned long end);
