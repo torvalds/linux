@@ -646,12 +646,26 @@ static void tgl_disallow_dc3co_on_psr2_exit(struct intel_dp *intel_dp)
 	tgl_psr2_disable_dc3co(intel_dp);
 }
 
+static bool
+dc3co_is_pipe_port_compatible(struct intel_dp *intel_dp,
+			      struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	enum port port = dig_port->base.port;
+
+	if (IS_ALDERLAKE_P(dev_priv))
+		return pipe <= PIPE_B && port <= PORT_B;
+	else
+		return pipe == PIPE_A && port == PORT_A;
+}
+
 static void
 tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *crtc_state)
 {
 	const u32 crtc_vdisplay = crtc_state->uapi.adjusted_mode.crtc_vdisplay;
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 exit_scanlines;
 
@@ -672,9 +686,7 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	if (!(dev_priv->dmc.allowed_dc_mask & DC_STATE_EN_DC3CO))
 		return;
 
-	/* B.Specs:49196 DC3CO only works with pipeA and DDIA.*/
-	if (to_intel_crtc(crtc_state->uapi.crtc)->pipe != PIPE_A ||
-	    dig_port->base.port != PORT_A)
+	if (!dc3co_is_pipe_port_compatible(intel_dp, crtc_state))
 		return;
 
 	/*
