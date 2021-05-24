@@ -4078,10 +4078,13 @@ static int __init srp_init_module(void)
 {
 	int ret;
 
+	BUILD_BUG_ON(sizeof(struct srp_aer_req) != 36);
+	BUILD_BUG_ON(sizeof(struct srp_cmd) != 48);
 	BUILD_BUG_ON(sizeof(struct srp_imm_buf) != 4);
+	BUILD_BUG_ON(sizeof(struct srp_indirect_buf) != 20);
 	BUILD_BUG_ON(sizeof(struct srp_login_req) != 64);
 	BUILD_BUG_ON(sizeof(struct srp_login_req_rdma) != 56);
-	BUILD_BUG_ON(sizeof(struct srp_cmd) != 48);
+	BUILD_BUG_ON(sizeof(struct srp_rsp) != 36);
 
 	if (srp_sg_tablesize) {
 		pr_warn("srp_sg_tablesize is deprecated, please use cmd_sg_entries\n");
