@@ -130,14 +130,26 @@ alternative_endif
 	.endm
 
 /*
- * Emit an entry into the exception table
+ * Create an exception table entry for `insn`, which will branch to `fixup`
+ * when an unhandled fault is taken.
  */
-	.macro		_asm_extable, from, to
+	.macro		_asm_extable, insn, fixup
 	.pushsection	__ex_table, "a"
 	.align		3
-	.long		(\from - .), (\to - .)
+	.long		(\insn - .), (\fixup - .)
 	.popsection
 	.endm
+
+/*
+ * Create an exception table entry for `insn` if `fixup` is provided. Otherwise
+ * do nothing.
+ */
+	.macro		_cond_extable, insn, fixup
+	.ifnc		\fixup,
+	_asm_extable	\insn, \fixup
+	.endif
+	.endm
+
 
 #define USER(l, x...)				\
 9999:	x;					\
@@ -383,6 +395,7 @@ alternative_cb_end
  * 	domain:		domain used in dsb instruciton
  * 	addr:		starting virtual address of the region
  * 	size:		size of the region
+ * 	fixup:		optional label to branch to on user fault
  * 	Corrupts:	addr, size, tmp1, tmp2
  */
 	.macro __dcache_op_workaround_clean_cache, op, addr
@@ -393,12 +406,12 @@ alternative_else
 alternative_endif
 	.endm
 
-	.macro dcache_by_line_op op, domain, addr, size, tmp1, tmp2
+	.macro dcache_by_line_op op, domain, addr, size, tmp1, tmp2, fixup
 	dcache_line_size \tmp1, \tmp2
 	add	\size, \addr, \size
 	sub	\tmp2, \tmp1, #1
 	bic	\addr, \addr, \tmp2
-9998:
+.Ldcache_op\@:
 	.ifc	\op, cvau
 	__dcache_op_workaround_clean_cache \op, \addr
 	.else
@@ -418,8 +431,10 @@ alternative_endif
 	.endif
 	add	\addr, \addr, \tmp1
 	cmp	\addr, \size
-	b.lo	9998b
+	b.lo	.Ldcache_op\@
 	dsb	\domain
+
+	_cond_extable .Ldcache_op\@, \fixup
 	.endm
 
 /*
@@ -427,20 +442,22 @@ alternative_endif
  * [start, end)
  *
  * 	start, end:	virtual addresses describing the region
- *	label:		A label to branch to on user fault.
+ *	fixup:		optional label to branch to on user fault
  * 	Corrupts:	tmp1, tmp2
  */
-	.macro invalidate_icache_by_line start, end, tmp1, tmp2, label
+	.macro invalidate_icache_by_line start, end, tmp1, tmp2, fixup
 	icache_line_size \tmp1, \tmp2
 	sub	\tmp2, \tmp1, #1
 	bic	\tmp2, \start, \tmp2
-9997:
-USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
+.Licache_op\@:
+	ic	ivau, \tmp2			// invalidate I line PoU
 	add	\tmp2, \tmp2, \tmp1
 	cmp	\tmp2, \end
-	b.lo	9997b
+	b.lo	.Licache_op\@
 	dsb	ish
 	isb
+
+	_cond_extable .Licache_op\@, \fixup
 	.endm
 
 /*
