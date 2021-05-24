@@ -15,6 +15,34 @@
 #include <asm/asm-uaccess.h>
 
 /*
+ *	__flush_cache_range(start,end) [fixup]
+ *
+ *	Ensure that the I and D caches are coherent within specified region.
+ *	This is typically used when code has been written to a memory region,
+ *	and will be executed.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ *	- fixup   - optional label to branch to on user fault
+ */
+.macro	__flush_cache_range, fixup
+alternative_if ARM64_HAS_CACHE_IDC
+	dsb     ishst
+	b       .Ldc_skip_\@
+alternative_else_nop_endif
+	mov     x2, x0
+	sub     x3, x1, x0
+	dcache_by_line_op cvau, ish, x2, x3, x4, x5, \fixup
+.Ldc_skip_\@:
+alternative_if ARM64_HAS_CACHE_DIC
+	isb
+	b	.Lic_skip_\@
+alternative_else_nop_endif
+	invalidate_icache_by_line x0, x1, x2, x3, \fixup
+.Lic_skip_\@:
+.endm
+
+/*
  *	flush_icache_range(start,end)
  *
  *	Ensure that the I and D caches are coherent within specified region.
@@ -25,7 +53,9 @@
  *	- end     - virtual end address of region
  */
 SYM_FUNC_START(__flush_icache_range)
-	/* FALLTHROUGH */
+	__flush_cache_range
+	ret
+SYM_FUNC_END(__flush_icache_range)
 
 /*
  *	__flush_cache_user_range(start,end)
@@ -39,34 +69,15 @@ SYM_FUNC_START(__flush_icache_range)
  */
 SYM_FUNC_START(__flush_cache_user_range)
 	uaccess_ttbr0_enable x2, x3, x4
-alternative_if ARM64_HAS_CACHE_IDC
-	dsb	ishst
-	b	7f
-alternative_else_nop_endif
-	dcache_line_size x2, x3
-	sub	x3, x2, #1
-	bic	x4, x0, x3
-1:
-user_alt 9f, "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
-	add	x4, x4, x2
-	cmp	x4, x1
-	b.lo	1b
-	dsb	ish
 
-7:
-alternative_if ARM64_HAS_CACHE_DIC
-	isb
-	b	8f
-alternative_else_nop_endif
-	invalidate_icache_by_line x0, x1, x2, x3, 9f
-8:	mov	x0, #0
+	__flush_cache_range 2f
+	mov	x0, xzr
 1:
 	uaccess_ttbr0_disable x1, x2
 	ret
-9:
+2:
 	mov	x0, #-EFAULT
 	b	1b
-SYM_FUNC_END(__flush_icache_range)
 SYM_FUNC_END(__flush_cache_user_range)
 
 /*
