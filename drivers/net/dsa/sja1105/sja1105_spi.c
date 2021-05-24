@@ -7,8 +7,6 @@
 #include <linux/packing.h>
 #include "sja1105.h"
 
-#define SJA1105_SIZE_RESET_CMD		4
-
 struct sja1105_chunk {
 	u8	*buf;
 	size_t	len;
@@ -179,28 +177,20 @@ static int sja1105et_reset_cmd(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
 	const struct sja1105_regs *regs = priv->info->regs;
-	u8 packed_buf[SJA1105_SIZE_RESET_CMD] = {0};
-	const int size = SJA1105_SIZE_RESET_CMD;
-	u64 cold_rst = 1;
+	u32 cold_reset = BIT(3);
 
-	sja1105_pack(packed_buf, &cold_rst, 3, 3, size);
-
-	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rgu, packed_buf,
-				SJA1105_SIZE_RESET_CMD);
+	/* Cold reset */
+	return sja1105_xfer_u32(priv, SPI_WRITE, regs->rgu, &cold_reset, NULL);
 }
 
 static int sja1105pqrs_reset_cmd(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
 	const struct sja1105_regs *regs = priv->info->regs;
-	u8 packed_buf[SJA1105_SIZE_RESET_CMD] = {0};
-	const int size = SJA1105_SIZE_RESET_CMD;
-	u64 cold_rst = 1;
+	u32 cold_reset = BIT(2);
 
-	sja1105_pack(packed_buf, &cold_rst, 2, 2, size);
-
-	return sja1105_xfer_buf(priv, SPI_WRITE, regs->rgu, packed_buf,
-				SJA1105_SIZE_RESET_CMD);
+	/* Cold reset */
+	return sja1105_xfer_u32(priv, SPI_WRITE, regs->rgu, &cold_reset, NULL);
 }
 
 int sja1105_inhibit_tx(const struct sja1105_private *priv,
