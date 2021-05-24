@@ -39,7 +39,7 @@
 
 		};
 
-		cpu_uart0: serial@1fe001e0 {
+		cpu_uart0: serial@1fe00100 {
 			compatible = "ns16550a";
 			reg = <0 0x1fe00100 0x10>;
 			clock-frequency = <100000000>;
@@ -48,7 +48,7 @@
 			no-loopback-test;
 		};
 
-		cpu_uart1: serial@1fe001e8 {
+		cpu_uart1: serial@1fe00110 {
 			status = "disabled";
 			compatible = "ns16550a";
 			reg = <0 0x1fe00110 0x10>;
