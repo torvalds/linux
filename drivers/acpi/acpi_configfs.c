@@ -13,9 +13,6 @@
 #include <linux/acpi.h>
 #include <linux/security.h>
 
-#include "acpica/accommon.h"
-#include "acpica/actables.h"
-
 static struct config_group *acpi_table_group;
 
 struct acpi_table {
@@ -226,7 +223,7 @@ static void acpi_table_drop_item(struct config_group *group,
 {
 	struct acpi_table *table = container_of(cfg, struct acpi_table, cfg);
 
-	ACPI_INFO(("Host-directed Dynamic ACPI Table Unload"));
+	pr_debug("Host-directed Dynamic ACPI Table Unload\n");
 	acpi_unload_table(table->index);
 	config_item_put(cfg);
 }
