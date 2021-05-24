@@ -49,8 +49,10 @@
 #define CIP_FMT_MASK		0x3f000000
 #define CIP_FDF_MASK		0x00ff0000
 #define CIP_FDF_SHIFT		16
+#define CIP_FDF_NO_DATA		0xff
 #define CIP_SYT_MASK		0x0000ffff
 #define CIP_SYT_NO_INFO		0xffff
+#define CIP_NO_DATA		((CIP_FDF_NO_DATA << CIP_FDF_SHIFT) | CIP_SYT_NO_INFO)
 
 #define CIP_HEADER_SIZE		(sizeof(__be32) * CIP_HEADER_QUADLETS)
 
@@ -1198,6 +1200,99 @@ static void process_tx_packets_intermediately(struct fw_iso_context *context, u3
 	}
 }
 
+static void drop_tx_packets_initially(struct fw_iso_context *context, u32 tstamp,
+				      size_t header_length, void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+	struct amdtp_domain *d = s->domain;
+	__be32 *ctx_header;
+	unsigned int count;
+	unsigned int events;
+	int i;
+
+	if (s->packet_index < 0)
+		return;
+
+	count = header_length / s->ctx_data.tx.ctx_header_size;
+
+	// Attempt to detect any event in the batch of packets.
+	events = 0;
+	ctx_header = header;
+	for (i = 0; i < count; ++i) {
+		unsigned int payload_quads =
+			(be32_to_cpu(*ctx_header) >> ISO_DATA_LENGTH_SHIFT) / sizeof(__be32);
+		unsigned int data_blocks;
+
+		if (s->flags & CIP_NO_HEADER) {
+			data_blocks = payload_quads / s->data_block_quadlets;
+		} else {
+			__be32 *cip_headers = ctx_header + IR_CTX_HEADER_DEFAULT_QUADLETS;
+
+			if (payload_quads < CIP_HEADER_QUADLETS) {
+				data_blocks = 0;
+			} else {
+				payload_quads -= CIP_HEADER_QUADLETS;
+
+				if (s->flags & CIP_UNAWARE_SYT) {
+					data_blocks = payload_quads / s->data_block_quadlets;
+				} else {
+					u32 cip1 = be32_to_cpu(cip_headers[1]);
+
+					// NODATA packet can includes any data blocks but they are
+					// not available as event.
+					if ((cip1 & CIP_NO_DATA) == CIP_NO_DATA)
+						data_blocks = 0;
+					else
+						data_blocks = payload_quads / s->data_block_quadlets;
+				}
+			}
+		}
+
+		events += data_blocks;
+
+		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(__be32);
+	}
+
+	drop_tx_packets(context, tstamp, header_length, header, s);
+
+	if (events > 0)
+		s->ctx_data.tx.event_starts = true;
+
+	// Decide the cycle count to begin processing content of packet in IR contexts.
+	{
+		unsigned int stream_count = 0;
+		unsigned int event_starts_count = 0;
+		unsigned int cycle = UINT_MAX;
+
+		list_for_each_entry(s, &d->streams, list) {
+			if (s->direction == AMDTP_IN_STREAM) {
+				++stream_count;
+				if (s->ctx_data.tx.event_starts)
+					++event_starts_count;
+			}
+		}
+
+		if (stream_count == event_starts_count) {
+			unsigned int next_cycle;
+
+			list_for_each_entry(s, &d->streams, list) {
+				if (s->direction != AMDTP_IN_STREAM)
+					continue;
+
+				next_cycle = increment_ohci_cycle_count(s->next_cycle,
+								d->processing_cycle.tx_init_skip);
+				if (cycle == UINT_MAX ||
+				    compare_ohci_cycle_count(next_cycle, cycle) > 0)
+					cycle = next_cycle;
+
+				s->context->callback.sc = process_tx_packets_intermediately;
+			}
+
+			d->processing_cycle.tx_start = cycle;
+		}
+	}
+}
+
 static void process_ctxs_in_domain(struct amdtp_domain *d)
 {
 	struct amdtp_stream *s;
@@ -1277,20 +1372,14 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 {
 	struct amdtp_stream *s = private_data;
 	struct amdtp_domain *d = s->domain;
-	const __be32 *ctx_header = header;
-	u32 cycle;
 
 	// For in-stream, first packet has come.
 	// For out-stream, prepared to transmit first packet
 	s->callbacked = true;
 
 	if (s->direction == AMDTP_IN_STREAM) {
-		cycle = compute_ohci_cycle_count(ctx_header[1]);
-
-		context->callback.sc = drop_tx_packets;
+		context->callback.sc = drop_tx_packets_initially;
 	} else {
-		cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
-
 		if (s == d->irq_target)
 			context->callback.sc = irq_target_callback_skip;
 		else
@@ -1298,38 +1387,6 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	}
 
 	context->callback.sc(context, tstamp, header_length, header, s);
-
-	// Decide the cycle count to begin processing content of packet in IR contexts.
-	if (s->direction == AMDTP_IN_STREAM) {
-		unsigned int stream_count = 0;
-		unsigned int callbacked_count = 0;
-
-		list_for_each_entry(s, &d->streams, list) {
-			if (s->direction == AMDTP_IN_STREAM) {
-				++stream_count;
-				if (s->callbacked)
-					++callbacked_count;
-			}
-		}
-
-		if (stream_count == callbacked_count) {
-			unsigned int next_cycle;
-
-			list_for_each_entry(s, &d->streams, list) {
-				if (s->direction != AMDTP_IN_STREAM)
-					continue;
-
-				next_cycle = increment_ohci_cycle_count(s->next_cycle,
-								d->processing_cycle.tx_init_skip);
-				if (compare_ohci_cycle_count(next_cycle, cycle) > 0)
-					cycle = next_cycle;
-
-				s->context->callback.sc = process_tx_packets_intermediately;
-			}
-
-			d->processing_cycle.tx_start = cycle;
-		}
-	}
 }
 
 /**
@@ -1409,6 +1466,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if (s->direction == AMDTP_IN_STREAM) {
 		s->ctx_data.tx.max_ctx_payload_length = max_ctx_payload_size;
 		s->ctx_data.tx.ctx_header_size = ctx_header_size;
+		s->ctx_data.tx.event_starts = false;
 	} else {
 		static const struct {
 			unsigned int data_block;

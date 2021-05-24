@@ -138,6 +138,9 @@ struct amdtp_stream {
 			// Fixed interval of dbc between previos/current
 			// packets.
 			unsigned int dbc_interval;
+
+			// The device starts multiplexing events to the packet.
+			bool event_starts;
 		} tx;
 		struct {
 			// To generate CIP header.
