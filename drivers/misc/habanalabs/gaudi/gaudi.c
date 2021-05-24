@@ -7157,13 +7157,157 @@ enable_clk_gate:
 	return rc;
 }
 
+/*
+ * gaudi_queue_idx_dec - decrement queue index (pi/ci) and handle wrap
+ *
+ * @idx: the current pi/ci value
+ * @q_len: the queue length (power of 2)
+ *
+ * @return the cyclically decremented index
+ */
+static inline u32 gaudi_queue_idx_dec(u32 idx, u32 q_len)
+{
+	u32 mask = q_len - 1;
+
+	/*
+	 * modular decrement is equivalent to adding (queue_size -1)
+	 * later we take LSBs to make sure the value is in the
+	 * range [0, queue_len - 1]
+	 */
+	return (idx + q_len - 1) & mask;
+}
+
+/**
+ * gaudi_print_sw_config_stream_data - print SW config stream data
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @stream: the QMAN's stream
+ * @qman_base: base address of QMAN registers block
+ */
+static void gaudi_print_sw_config_stream_data(struct hl_device *hdev, u32 stream,
+						u64 qman_base)
+{
+	u64 cq_ptr_lo, cq_ptr_hi, cq_tsize, cq_ptr;
+	u32 cq_ptr_lo_off, size;
+
+	cq_ptr_lo_off = mmTPC0_QM_CQ_PTR_LO_1 - mmTPC0_QM_CQ_PTR_LO_0;
+
+	cq_ptr_lo = qman_base + (mmTPC0_QM_CQ_PTR_LO_0 - mmTPC0_QM_BASE) +
+						stream * cq_ptr_lo_off;
+	cq_ptr_hi = cq_ptr_lo +
+				(mmTPC0_QM_CQ_PTR_HI_0 - mmTPC0_QM_CQ_PTR_LO_0);
+	cq_tsize = cq_ptr_lo +
+				(mmTPC0_QM_CQ_TSIZE_0 - mmTPC0_QM_CQ_PTR_LO_0);
+
+	cq_ptr = (((u64) RREG32(cq_ptr_hi)) << 32) | RREG32(cq_ptr_lo);
+	size = RREG32(cq_tsize);
+	dev_info(hdev->dev, "stop on err: stream: %u, addr: %#llx, size: %x\n",
+							stream, cq_ptr, size);
+}
+
+/**
+ * gaudi_print_last_pqes_on_err - print last PQEs on error
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @qid_base: first QID of the QMAN (out of 4 streams)
+ * @stream: the QMAN's stream
+ * @qman_base: base address of QMAN registers block
+ * @pr_sw_conf: if true print the SW config stream data (CQ PTR and SIZE)
+ */
+static void gaudi_print_last_pqes_on_err(struct hl_device *hdev, u32 qid_base,
+						u32 stream, u64 qman_base,
+						bool pr_sw_conf)
+{
+	u32 ci, qm_ci_stream_off, queue_len;
+	struct hl_hw_queue *q;
+	u64 pq_ci;
+	int i;
+
+	q = &hdev->kernel_queues[qid_base + stream];
+
+	qm_ci_stream_off = mmTPC0_QM_PQ_CI_1 - mmTPC0_QM_PQ_CI_0;
+	pq_ci = qman_base + (mmTPC0_QM_PQ_CI_0 - mmTPC0_QM_BASE) +
+						stream * qm_ci_stream_off;
+
+	queue_len = (q->queue_type == QUEUE_TYPE_INT) ?
+					q->int_queue_len : HL_QUEUE_LENGTH;
+
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	if (pr_sw_conf)
+		gaudi_print_sw_config_stream_data(hdev, stream, qman_base);
+
+	ci = RREG32(pq_ci);
+
+	/* we should start printing form ci -1 */
+	ci = gaudi_queue_idx_dec(ci, queue_len);
+
+	for (i = 0; i < PQ_FETCHER_CACHE_SIZE; i++) {
+		struct hl_bd *bd;
+		u64 addr;
+		u32 len;
+
+		bd = q->kernel_address;
+		bd += ci;
+
+		len = le32_to_cpu(bd->len);
+		/* len 0 means uninitialized entry- break */
+		if (!len)
+			break;
+
+		addr = le64_to_cpu(bd->ptr);
+
+		dev_info(hdev->dev, "stop on err PQE(stream %u): ci: %u, addr: %#llx, size: %x\n",
+							stream, ci, addr, len);
+
+		/* get previous ci, wrap if needed */
+		ci = gaudi_queue_idx_dec(ci, queue_len);
+	}
+
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+}
+
+/**
+ * print_qman_data_on_err - extract QMAN data on error
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @qid_base: first QID of the QMAN (out of 4 streams)
+ * @stream: the QMAN's stream
+ * @qman_base: base address of QMAN registers block
+ *
+ * This function attempt to exatract as much data as possible on QMAN error.
+ * On upper CP print the SW config stream data and last 8 PQEs.
+ * On lower CP print SW config data and last PQEs of ALL 4 upper CPs
+ */
+static void print_qman_data_on_err(struct hl_device *hdev, u32 qid_base,
+						u32 stream, u64 qman_base)
+{
+	u32 i;
+
+	if (stream != QMAN_STREAMS) {
+		gaudi_print_last_pqes_on_err(hdev, qid_base, stream, qman_base,
+									true);
+		return;
+	}
+
+	gaudi_print_sw_config_stream_data(hdev, stream, qman_base);
+
+	for (i = 0; i < QMAN_STREAMS; i++)
+		gaudi_print_last_pqes_on_err(hdev, qid_base, i, qman_base,
+									false);
+}
+
 static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
 					  const char *qm_name,
-					  u64 glbl_sts_addr,
-					  u64 arb_err_addr)
+					  u64 qman_base,
+					  u32 qid_base)
 {
 	u32 i, j, glbl_sts_val, arb_err_val, glbl_sts_clr_val;
+	u64 glbl_sts_addr, arb_err_addr;
 	char reg_desc[32];
+
+	glbl_sts_addr = qman_base + (mmTPC0_QM_GLBL_STS1_0 - mmTPC0_QM_BASE);
+	arb_err_addr = qman_base + (mmTPC0_QM_ARB_ERR_CAUSE - mmTPC0_QM_BASE);
 
 	/* Iterate through all stream GLBL_STS1 registers + Lower CP */
 	for (i = 0 ; i < QMAN_STREAMS + 1 ; i++) {
@@ -7191,6 +7335,8 @@ static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
 		/* Write 1 clear errors */
 		if (!hdev->stop_on_err)
 			WREG32(glbl_sts_addr + 4 * i, glbl_sts_clr_val);
+		else
+			print_qman_data_on_err(hdev, qid_base, i, qman_base);
 	}
 
 	arb_err_val = RREG32(arb_err_addr);
@@ -7335,90 +7481,88 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 
 static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type)
 {
-	u64 glbl_sts_addr, arb_err_addr;
-	u8 index;
+	u64 qman_base;
 	char desc[32];
+	u32 qid_base;
+	u8 index;
 
 	switch (event_type) {
 	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
 		index = event_type - GAUDI_EVENT_TPC0_QM;
-		glbl_sts_addr =
-			mmTPC0_QM_GLBL_STS1_0 + index * TPC_QMAN_OFFSET;
-		arb_err_addr =
-			mmTPC0_QM_ARB_ERR_CAUSE + index * TPC_QMAN_OFFSET;
+		qid_base = GAUDI_QUEUE_ID_TPC_0_0 + index * QMAN_STREAMS;
+		qman_base = mmTPC0_QM_BASE + index * TPC_QMAN_OFFSET;
 		snprintf(desc, ARRAY_SIZE(desc), "%s%d", "TPC_QM", index);
 		break;
 	case GAUDI_EVENT_MME0_QM ... GAUDI_EVENT_MME2_QM:
 		index = event_type - GAUDI_EVENT_MME0_QM;
-		glbl_sts_addr =
-			mmMME0_QM_GLBL_STS1_0 + index * MME_QMAN_OFFSET;
-		arb_err_addr =
-			mmMME0_QM_ARB_ERR_CAUSE + index * MME_QMAN_OFFSET;
+		qid_base = GAUDI_QUEUE_ID_MME_0_0 + index * QMAN_STREAMS;
+		qman_base = mmMME0_QM_BASE + index * MME_QMAN_OFFSET;
 		snprintf(desc, ARRAY_SIZE(desc), "%s%d", "MME_QM", index);
 		break;
 	case GAUDI_EVENT_DMA0_QM ... GAUDI_EVENT_DMA7_QM:
 		index = event_type - GAUDI_EVENT_DMA0_QM;
-		glbl_sts_addr =
-			mmDMA0_QM_GLBL_STS1_0 + index * DMA_QMAN_OFFSET;
-		arb_err_addr =
-			mmDMA0_QM_ARB_ERR_CAUSE + index * DMA_QMAN_OFFSET;
+		qid_base = GAUDI_QUEUE_ID_DMA_0_0 + index * QMAN_STREAMS;
+		/* skip GAUDI_QUEUE_ID_CPU_PQ if necessary */
+		if (index > 1)
+			qid_base++;
+		qman_base = mmDMA0_QM_BASE + index * DMA_QMAN_OFFSET;
 		snprintf(desc, ARRAY_SIZE(desc), "%s%d", "DMA_QM", index);
 		break;
 	case GAUDI_EVENT_NIC0_QM0:
-		glbl_sts_addr = mmNIC0_QM0_GLBL_STS1_0;
-		arb_err_addr = mmNIC0_QM0_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_0_0;
+		qman_base = mmNIC0_QM0_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC0_QM0");
 		break;
 	case GAUDI_EVENT_NIC0_QM1:
-		glbl_sts_addr = mmNIC0_QM1_GLBL_STS1_0;
-		arb_err_addr = mmNIC0_QM1_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_1_0;
+		qman_base = mmNIC0_QM1_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC0_QM1");
 		break;
 	case GAUDI_EVENT_NIC1_QM0:
-		glbl_sts_addr = mmNIC1_QM0_GLBL_STS1_0;
-		arb_err_addr = mmNIC1_QM0_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_2_0;
+		qman_base = mmNIC1_QM0_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC1_QM0");
 		break;
 	case GAUDI_EVENT_NIC1_QM1:
-		glbl_sts_addr = mmNIC1_QM1_GLBL_STS1_0;
-		arb_err_addr = mmNIC1_QM1_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_3_0;
+		qman_base = mmNIC1_QM1_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC1_QM1");
 		break;
 	case GAUDI_EVENT_NIC2_QM0:
-		glbl_sts_addr = mmNIC2_QM0_GLBL_STS1_0;
-		arb_err_addr = mmNIC2_QM0_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_4_0;
+		qman_base = mmNIC2_QM0_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC2_QM0");
 		break;
 	case GAUDI_EVENT_NIC2_QM1:
-		glbl_sts_addr = mmNIC2_QM1_GLBL_STS1_0;
-		arb_err_addr = mmNIC2_QM1_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_5_0;
+		qman_base = mmNIC2_QM1_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC2_QM1");
 		break;
 	case GAUDI_EVENT_NIC3_QM0:
-		glbl_sts_addr = mmNIC3_QM0_GLBL_STS1_0;
-		arb_err_addr = mmNIC3_QM0_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_6_0;
+		qman_base = mmNIC3_QM0_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC3_QM0");
 		break;
 	case GAUDI_EVENT_NIC3_QM1:
-		glbl_sts_addr = mmNIC3_QM1_GLBL_STS1_0;
-		arb_err_addr = mmNIC3_QM1_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_7_0;
+		qman_base = mmNIC3_QM1_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC3_QM1");
 		break;
 	case GAUDI_EVENT_NIC4_QM0:
-		glbl_sts_addr = mmNIC4_QM0_GLBL_STS1_0;
-		arb_err_addr = mmNIC4_QM0_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_8_0;
+		qman_base = mmNIC4_QM0_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC4_QM0");
 		break;
 	case GAUDI_EVENT_NIC4_QM1:
-		glbl_sts_addr = mmNIC4_QM1_GLBL_STS1_0;
-		arb_err_addr = mmNIC4_QM1_ARB_ERR_CAUSE;
+		qid_base = GAUDI_QUEUE_ID_NIC_9_0;
+		qman_base = mmNIC4_QM1_BASE;
 		snprintf(desc, ARRAY_SIZE(desc), "NIC4_QM1");
 		break;
 	default:
 		return;
 	}
 
-	gaudi_handle_qman_err_generic(hdev, desc, glbl_sts_addr, arb_err_addr);
+	gaudi_handle_qman_err_generic(hdev, desc, qman_base, qid_base);
 }
 
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
