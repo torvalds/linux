@@ -72,6 +72,7 @@ extern void tick_set_periodic_handler(struct clock_event_device *dev, int broadc
 extern int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq);
 extern struct tick_device *tick_get_broadcast_device(void);
 extern struct cpumask *tick_get_broadcast_mask(void);
+extern const struct clock_event_device *tick_get_wakeup_device(int cpu);
 # else /* !CONFIG_GENERIC_CLOCKEVENTS_BROADCAST: */
 static inline void tick_install_broadcast_device(struct clock_event_device *dev, int cpu) { }
 static inline int tick_is_broadcast_device(struct clock_event_device *dev) { return 0; }
