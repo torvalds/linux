@@ -90,21 +90,12 @@ SYM_FUNC_END(__flush_cache_user_range)
  */
 SYM_FUNC_START(invalidate_icache_range)
 alternative_if ARM64_HAS_CACHE_DIC
-	mov	x0, xzr
 	isb
 	ret
 alternative_else_nop_endif
 
-	uaccess_ttbr0_enable x2, x3, x4
-
-	invalidate_icache_by_line x0, x1, x2, x3, 2f
-	mov	x0, xzr
-1:
-	uaccess_ttbr0_disable x1, x2
+	invalidate_icache_by_line x0, x1, x2, x3
 	ret
-2:
-	mov	x0, #-EFAULT
-	b	1b
 SYM_FUNC_END(invalidate_icache_range)
 
 /*
