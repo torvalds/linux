@@ -119,7 +119,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 {
 	struct i2c_client *client = kobj_to_i2c_client(kobj);
 	size_t requested = count;
-	int page;
+	int page, ret = 0;
 
 	page = off >> EE1004_PAGE_SHIFT;
 	if (unlikely(page > 1))
@@ -133,33 +133,28 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	mutex_lock(&ee1004_bus_lock);
 
 	while (count) {
-		int status;
-
 		/* Select page */
-		status = ee1004_set_current_page(dev, page);
-		if (status) {
-			mutex_unlock(&ee1004_bus_lock);
-			return status;
-		}
+		ret = ee1004_set_current_page(dev, page);
+		if (ret)
+			goto out;
 
-		status = ee1004_eeprom_read(client, buf, off, count);
-		if (status < 0) {
-			mutex_unlock(&ee1004_bus_lock);
-			return status;
-		}
-		buf += status;
-		off += status;
-		count -= status;
+		ret = ee1004_eeprom_read(client, buf, off, count);
+		if (ret < 0)
+			goto out;
+
+		buf += ret;
+		off += ret;
+		count -= ret;
 
 		if (off == EE1004_PAGE_SIZE) {
 			page++;
 			off = 0;
 		}
 	}
-
+out:
 	mutex_unlock(&ee1004_bus_lock);
 
-	return requested;
+	return ret < 0 ? ret : requested;
 }
 
 static BIN_ATTR_RO(eeprom, EE1004_EEPROM_SIZE);
