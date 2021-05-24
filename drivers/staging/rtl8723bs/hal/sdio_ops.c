@@ -346,11 +346,6 @@ static s32 sdio_writeN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 	return err;
 }
 
-static u8 sdio_f0_read8(struct intf_hdl *intfhdl, u32 addr)
-{
-	return sd_f0_read8(intfhdl, addr, NULL);
-}
-
 static void sdio_read_mem(
 	struct intf_hdl *intfhdl,
 	u32 addr,
@@ -481,8 +476,6 @@ void sdio_set_intf_ops(struct adapter *adapter, struct _io_ops *ops)
 	ops->_writeN = &sdio_writeN;
 	ops->_write_mem = &sdio_write_mem;
 	ops->_write_port = &sdio_write_port;
-
-	ops->_sd_f0_read8 = sdio_f0_read8;
 }
 
 /*

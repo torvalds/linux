@@ -104,8 +104,6 @@ struct _io_ops {
 
 		void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
 		void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
-
-		u8 (*_sd_f0_read8)(struct intf_hdl *pintfhdl, u32 addr);
 };
 
 struct io_req {
