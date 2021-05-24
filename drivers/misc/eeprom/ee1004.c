@@ -93,8 +93,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_client *client = kobj_to_i2c_client(kobj);
 	size_t requested = count;
 	int page;
 
