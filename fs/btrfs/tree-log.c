@@ -4468,7 +4468,8 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 				ret = btrfs_truncate_inode_items(trans,
 							 root->log_root,
 							 inode, truncate_offset,
-							 BTRFS_EXTENT_DATA_KEY);
+							 BTRFS_EXTENT_DATA_KEY,
+							 NULL);
 			} while (ret == -EAGAIN);
 			if (ret)
 				goto out;
@@ -5416,7 +5417,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 					  &inode->runtime_flags);
 				while(1) {
 					ret = btrfs_truncate_inode_items(trans,
-						log, inode, 0, 0);
+						log, inode, 0, 0, NULL);
 					if (ret != -EAGAIN)
 						break;
 				}
