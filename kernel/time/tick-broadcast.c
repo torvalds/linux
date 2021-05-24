@@ -717,24 +717,16 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 }
 
-int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+static int ___tick_broadcast_oneshot_control(enum tick_broadcast_state state,
+					     struct tick_device *td,
+					     int cpu)
 {
-	struct clock_event_device *bc, *dev;
-	int cpu, ret = 0;
+	struct clock_event_device *bc, *dev = td->evtdev;
+	int ret = 0;
 	ktime_t now;
-
-	/*
-	 * If there is no broadcast device, tell the caller not to go
-	 * into deep idle.
-	 */
-	if (!tick_broadcast_device.evtdev)
-		return -EBUSY;
-
-	dev = this_cpu_ptr(&tick_cpu_device)->evtdev;
 
 	raw_spin_lock(&tick_broadcast_lock);
 	bc = tick_broadcast_device.evtdev;
-	cpu = smp_processor_id();
 
 	if (state == TICK_BROADCAST_ENTER) {
 		/*
@@ -861,6 +853,21 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 out:
 	raw_spin_unlock(&tick_broadcast_lock);
 	return ret;
+}
+
+int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+{
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
+	int cpu = smp_processor_id();
+
+	if (tick_broadcast_device.evtdev)
+		return ___tick_broadcast_oneshot_control(state, td, cpu);
+
+	/*
+	 * If there is no broadcast device, tell the caller not
+	 * to go into deep idle.
+	 */
+	return -EBUSY;
 }
 
 /*
