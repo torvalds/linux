@@ -112,21 +112,45 @@ static inline void wanxl_cable_intr(struct port *port)
 	const char *cable, *pm, *dte = "", *dsr = "", *dcd = "";
 
 	switch(value & 0x7) {
-	case STATUS_CABLE_V35: cable = "V.35"; break;
-	case STATUS_CABLE_X21: cable = "X.21"; break;
-	case STATUS_CABLE_V24: cable = "V.24"; break;
-	case STATUS_CABLE_EIA530: cable = "EIA530"; break;
-	case STATUS_CABLE_NONE: cable = "no"; break;
-	default: cable = "invalid";
+	case STATUS_CABLE_V35:
+		cable = "V.35";
+		break;
+	case STATUS_CABLE_X21:
+		cable = "X.21";
+		break;
+	case STATUS_CABLE_V24:
+		cable = "V.24";
+		break;
+	case STATUS_CABLE_EIA530:
+		cable = "EIA530";
+		break;
+	case STATUS_CABLE_NONE:
+		cable = "no";
+		break;
+	default:
+		cable = "invalid";
 	}
 
 	switch((value >> STATUS_CABLE_PM_SHIFT) & 0x7) {
-	case STATUS_CABLE_V35: pm = "V.35"; break;
-	case STATUS_CABLE_X21: pm = "X.21"; break;
-	case STATUS_CABLE_V24: pm = "V.24"; break;
-	case STATUS_CABLE_EIA530: pm = "EIA530"; break;
-	case STATUS_CABLE_NONE: pm = "no personality"; valid = 0; break;
-	default: pm = "invalid personality"; valid = 0;
+	case STATUS_CABLE_V35:
+		pm = "V.35";
+		break;
+	case STATUS_CABLE_X21:
+		pm = "X.21";
+		break;
+	case STATUS_CABLE_V24:
+		pm = "V.24";
+		break;
+	case STATUS_CABLE_EIA530:
+		pm = "EIA530";
+		break;
+	case STATUS_CABLE_NONE:
+		pm = "no personality";
+		valid = 0;
+		break;
+	default:
+		pm = "invalid personality";
+		valid = 0;
 	}
 
 	if (valid) {
@@ -563,9 +587,14 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	}
 
 	switch (pdev->device) {
-	case PCI_DEVICE_ID_SBE_WANXL100: ports = 1; break;
-	case PCI_DEVICE_ID_SBE_WANXL200: ports = 2; break;
-	default: ports = 4;
+	case PCI_DEVICE_ID_SBE_WANXL100:
+		ports = 1;
+		break;
+	case PCI_DEVICE_ID_SBE_WANXL200:
+		ports = 2;
+		break;
+	default:
+		ports = 4;
 	}
 
 	card = kzalloc(struct_size(card, ports, ports), GFP_KERNEL);
