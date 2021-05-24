@@ -199,8 +199,7 @@ static int ee1004_probe(struct i2c_client *client,
 				goto err_clients;
 			}
 		}
-	} else if (i2c_adapter_id(client->adapter) !=
-		   i2c_adapter_id(ee1004_set_page[0]->adapter)) {
+	} else if (client->adapter != ee1004_set_page[0]->adapter) {
 		dev_err(&client->dev,
 			"Driver only supports devices on a single I2C bus\n");
 		err = -EOPNOTSUPP;
