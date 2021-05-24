@@ -90,7 +90,7 @@ EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
 void arch_invalidate_pmem(void *addr, size_t size)
 {
-	__inval_dcache_area(addr, size);
+	__inval_dcache_area((unsigned long)addr, (unsigned long)addr + size);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
 #endif

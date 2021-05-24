@@ -131,25 +131,24 @@ alternative_else_nop_endif
 SYM_FUNC_END(__clean_dcache_area_pou)
 
 /*
- *	__inval_dcache_area(kaddr, size)
+ *	__inval_dcache_area(start, end)
  *
- * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	Ensure that any D-cache lines for the interval [start, end)
  * 	are invalidated. Any partial lines at the ends of the interval are
  *	also cleaned to PoC to prevent data loss.
  *
- *	- kaddr   - kernel address
- *	- size    - size in question
+ *	- start   - kernel start address of region
+ *	- end     - kernel end address of region
  */
 SYM_FUNC_START_LOCAL(__dma_inv_area)
 SYM_FUNC_START_PI(__inval_dcache_area)
 	/* FALLTHROUGH */
 
 /*
- *	__dma_inv_area(start, size)
+ *	__dma_inv_area(start, end)
  *	- start   - virtual start address of region
- *	- size    - size in question
+ *	- end     - virtual end address of region
  */
-	add	x1, x1, x0
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	tst	x1, x3				// end cache line aligned?
@@ -230,8 +229,10 @@ SYM_FUNC_END_PI(__dma_flush_area)
  *	- dir	- DMA direction
  */
 SYM_FUNC_START_PI(__dma_map_area)
+	add	x1, x0, x1
 	cmp	w2, #DMA_FROM_DEVICE
 	b.eq	__dma_inv_area
+	sub	x1, x1, x0
 	b	__dma_clean_area
 SYM_FUNC_END_PI(__dma_map_area)
 
@@ -242,6 +243,7 @@ SYM_FUNC_END_PI(__dma_map_area)
  *	- dir	- DMA direction
  */
 SYM_FUNC_START_PI(__dma_unmap_area)
+	add	x1, x0, x1
 	cmp	w2, #DMA_TO_DEVICE
 	b.ne	__dma_inv_area
 	ret
