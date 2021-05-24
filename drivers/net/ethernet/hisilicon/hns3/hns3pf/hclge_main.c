@@ -5183,9 +5183,8 @@ static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 static void hclge_request_update_promisc_mode(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
 
-	set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
+	set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state);
 }
 
 static void hclge_sync_fd_state(struct hclge_dev *hdev)
@@ -8050,6 +8049,7 @@ int hclge_vport_start(struct hclge_vport *vport)
 	struct hclge_dev *hdev = vport->back;
 
 	set_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+	set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state);
 	vport->last_active_jiffies = jiffies;
 
 	if (test_bit(vport->vport_id, hdev->vport_config_block)) {
@@ -10048,7 +10048,6 @@ static void hclge_restore_hw_table(struct hclge_dev *hdev)
 
 	hclge_restore_mac_table_common(vport);
 	hclge_restore_vport_vlan_table(vport);
-	set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
 	set_bit(HCLGE_STATE_FD_USER_DEF_CHANGED, &hdev->state);
 	hclge_restore_fd_entries(handle);
 }
@@ -11500,10 +11499,7 @@ static int hclge_set_vf_trust(struct hnae3_handle *handle, int vf, bool enable)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
 	u32 new_trusted = enable ? 1 : 0;
-	bool en_bc_pmc;
-	int ret;
 
 	vport = hclge_get_vf_vport(hdev, vf);
 	if (!vport)
@@ -11512,18 +11508,9 @@ static int hclge_set_vf_trust(struct hnae3_handle *handle, int vf, bool enable)
 	if (vport->vf_info.trusted == new_trusted)
 		return 0;
 
-	/* Disable promisc mode for VF if it is not trusted any more. */
-	if (!enable && vport->vf_info.promisc_enable) {
-		en_bc_pmc = ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2;
-		ret = hclge_set_vport_promisc_mode(vport, false, false,
-						   en_bc_pmc);
-		if (ret)
-			return ret;
-		vport->vf_info.promisc_enable = 0;
-		hclge_inform_vf_promisc_info(vport);
-	}
-
 	vport->vf_info.trusted = new_trusted;
+	set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state);
+	hclge_task_schedule(hdev, 0);
 
 	return 0;
 }
@@ -12417,20 +12404,48 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 	struct hnae3_handle *handle = &vport->nic;
 	u8 tmp_flags;
 	int ret;
+	u16 i;
 
 	if (vport->last_promisc_flags != vport->overflow_promisc_flags) {
-		set_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
+		set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state);
 		vport->last_promisc_flags = vport->overflow_promisc_flags;
 	}
 
-	if (test_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state)) {
+	if (test_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE, &vport->state)) {
 		tmp_flags = handle->netdev_flags | vport->last_promisc_flags;
 		ret = hclge_set_promisc_mode(handle, tmp_flags & HNAE3_UPE,
 					     tmp_flags & HNAE3_MPE);
 		if (!ret) {
-			clear_bit(HCLGE_STATE_PROMISC_CHANGED, &hdev->state);
+			clear_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE,
+				  &vport->state);
 			hclge_enable_vlan_filter(handle,
 						 tmp_flags & HNAE3_VLAN_FLTR);
+		}
+	}
+
+	for (i = 1; i < hdev->num_alloc_vport; i++) {
+		bool uc_en = false;
+		bool mc_en = false;
+		bool bc_en;
+
+		vport = &hdev->vport[i];
+
+		if (!test_and_clear_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE,
+					&vport->state))
+			continue;
+
+		if (vport->vf_info.trusted) {
+			uc_en = vport->vf_info.request_uc_en > 0;
+			mc_en = vport->vf_info.request_mc_en > 0;
+		}
+		bc_en = vport->vf_info.request_bc_en > 0;
+
+		ret = hclge_cmd_set_promisc_mode(hdev, vport->vport_id, uc_en,
+						 mc_en, bc_en);
+		if (ret) {
+			set_bit(HCLGE_VPORT_STATE_PROMISC_CHANGE,
+				&vport->state);
+			return;
 		}
 	}
 }
