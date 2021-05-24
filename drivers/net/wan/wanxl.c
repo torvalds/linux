@@ -93,6 +93,7 @@ static inline dma_addr_t pci_map_single_debug(struct pci_dev *pdev, void *ptr,
 					      size_t size, int direction)
 {
 	dma_addr_t addr = dma_map_single(&pdev->dev, ptr, size, direction);
+
 	if (addr + size > 0x100000000LL)
 		pr_crit("%s: pci_map_single() returned memory at 0x%llx!\n",
 			pci_name(pdev), (unsigned long long)addr);
@@ -150,6 +151,7 @@ static inline void wanxl_cable_intr(struct port *port)
 static inline void wanxl_tx_intr(struct port *port)
 {
 	struct net_device *dev = port->dev;
+
 	while (1) {
                 desc_t *desc = &get_status(port)->tx_descs[port->tx_in];
 		struct sk_buff *skb = port->tx_skbs[port->tx_in];
@@ -181,6 +183,7 @@ static inline void wanxl_tx_intr(struct port *port)
 static inline void wanxl_rx_intr(struct card *card)
 {
 	desc_t *desc;
+
 	while (desc = &card->status->rx_descs[card->rx_in],
 	       desc->stat != PACKET_EMPTY) {
 		if ((desc->stat & PACKET_PORT_MASK) > card->n_ports)
@@ -662,6 +665,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 
 	for (i = 0; i < RX_QUEUE_LENGTH; i++) {
 		struct sk_buff *skb = dev_alloc_skb(BUFFER_LENGTH);
+
 		card->rx_skbs[i] = skb;
 		if (skb)
 			card->status->rx_descs[i].address =
@@ -729,6 +733,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		hdlc_device *hdlc;
 		struct port *port = &card->ports[i];
 		struct net_device *dev = alloc_hdlcdev(port);
+
 		if (!dev) {
 			pr_err("%s: unable to allocate memory\n",
 			       pci_name(pdev));
