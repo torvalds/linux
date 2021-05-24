@@ -3,8 +3,8 @@
 // Helper routines for R-Car sound ADG.
 //
 //  Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
-
 #include <linux/clk-provider.h>
+#include <linux/clkdev.h>
 #include "rsnd.h"
 
 #define CLKA	0
@@ -290,7 +290,6 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
-	struct clk *clk;
 	int i;
 	int sel_table[] = {
 		[CLKA] = 0x1,
@@ -303,10 +302,9 @@ int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate)
 	 * find suitable clock from
 	 * AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC/AUDIO_CLKI.
 	 */
-	for_each_rsnd_clk(clk, adg, i) {
+	for (i = 0; i < CLKMAX; i++)
 		if (rate == adg->clk_rate[i])
 			return sel_table[i];
-	}
 
 	/*
 	 * find divided clock from BRGA/BRGB
@@ -391,6 +389,30 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 	}
 }
 
+#define NULL_CLK "rsnd_adg_null"
+static struct clk *rsnd_adg_null_clk_get(struct rsnd_priv *priv)
+{
+	static struct clk_hw *hw;
+	struct device *dev = rsnd_priv_to_dev(priv);
+
+	if (!hw) {
+		struct clk_hw *_hw;
+		int ret;
+
+		_hw = clk_hw_register_fixed_rate_with_accuracy(dev, NULL_CLK, NULL, 0, 0, 0);
+		if (IS_ERR(_hw))
+			return NULL;
+
+		ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_simple_get, _hw);
+		if (ret < 0)
+			clk_hw_unregister_fixed_rate(_hw);
+
+		hw = _hw;
+	}
+
+	return clk_hw_get_clk(hw, NULL_CLK);
+}
+
 static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 			       struct rsnd_adg *adg)
 {
@@ -400,7 +422,12 @@ static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 	for (i = 0; i < CLKMAX; i++) {
 		struct clk *clk = devm_clk_get(dev, clk_name[i]);
 
-		adg->clk[i] = IS_ERR(clk) ? NULL : clk;
+		if (IS_ERR(clk))
+			clk = rsnd_adg_null_clk_get(priv);
+		if (IS_ERR(clk))
+			dev_err(dev, "no adg clock (%s)\n", clk_name[i]);
+
+		adg->clk[i] = clk;
 	}
 }
 
