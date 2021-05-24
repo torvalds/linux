@@ -2137,6 +2137,11 @@ struct hl_mmu_funcs {
  *                          the error will be ignored by the driver during
  *                          device initialization. Mainly used to debug and
  *                          workaround firmware bugs
+ * @last_successful_open_jif: timestamp (jiffies) of the last successful
+ *                            device open.
+ * @last_open_session_duration_jif: duration (jiffies) of the last device open
+ *                                  session.
+ * @open_counter: number of successful device open operations.
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @card_type: Various ASICs have several card types. This indicates the card
@@ -2259,6 +2264,9 @@ struct hl_device {
 	u64				max_power;
 	u64				clock_gating_mask;
 	u64				boot_error_status_mask;
+	u64				last_successful_open_jif;
+	u64				last_open_session_duration_jif;
+	u64				open_counter;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;

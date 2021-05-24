@@ -132,6 +132,9 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 		dev_warn(hdev->dev,
 			"Device is still in use because there are live CS and/or memory mappings\n");
 
+	hdev->last_open_session_duration_jif =
+		jiffies - hdev->last_successful_open_jif;
+
 	return 0;
 }
 

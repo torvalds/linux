@@ -187,6 +187,9 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_debugfs_add_file(hpriv);
 
+	hdev->open_counter++;
+	hdev->last_successful_open_jif = jiffies;
+
 	return 0;
 
 out_err:
