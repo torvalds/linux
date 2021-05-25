@@ -1234,7 +1234,13 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
 #endif
 
-static void __blkdev_put(struct block_device *bdev, fmode_t mode);
+static void blkdev_flush_mapping(struct block_device *bdev)
+{
+	WARN_ON_ONCE(bdev->bd_holders);
+	sync_blockdev(bdev);
+	kill_bdev(bdev);
+	bdev_write_inode(bdev);
+}
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 {
@@ -1316,6 +1322,14 @@ static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 	return 0;;
 }
 
+static void blkdev_put_whole(struct block_device *bdev, fmode_t mode)
+{
+	if (!--bdev->bd_openers)
+		blkdev_flush_mapping(bdev);
+	if (bdev->bd_disk->fops->release)
+		bdev->bd_disk->fops->release(bdev->bd_disk, mode);
+}
+
 static int blkdev_get_part(struct block_device *part, fmode_t mode)
 {
 	struct gendisk *disk = part->bd_disk;
@@ -1343,10 +1357,22 @@ done:
 	return 0;
 
 out_blkdev_put:
-	__blkdev_put(whole, mode);
+	blkdev_put_whole(whole, mode);
 out_put_whole:
 	bdput(whole);
 	return ret;
+}
+
+static void blkdev_put_part(struct block_device *part, fmode_t mode)
+{
+	struct block_device *whole = bdev_whole(part);
+
+	if (--part->bd_openers)
+		return;
+	blkdev_flush_mapping(part);
+	whole->bd_part_count--;
+	blkdev_put_whole(whole, mode);
+	bdput(whole);
 }
 
 struct block_device *blkdev_get_no_open(dev_t dev)
@@ -1542,29 +1568,6 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-static void __blkdev_put(struct block_device *bdev, fmode_t mode)
-{
-	struct gendisk *disk = bdev->bd_disk;
-	struct block_device *victim = NULL;
-
-	if (!--bdev->bd_openers) {
-		WARN_ON_ONCE(bdev->bd_holders);
-		sync_blockdev(bdev);
-		kill_bdev(bdev);
-		bdev_write_inode(bdev);
-		if (bdev_is_partition(bdev))
-			victim = bdev_whole(bdev);
-	}
-
-	if (!bdev_is_partition(bdev) && disk->fops->release)
-		disk->fops->release(disk, mode);
-	if (victim) {
-		victim->bd_part_count--;
-		__blkdev_put(victim, mode);
-		bdput(victim);
-	}
-}
-
 void blkdev_put(struct block_device *bdev, fmode_t mode)
 {
 	struct gendisk *disk = bdev->bd_disk;
@@ -1618,7 +1621,10 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 	 */
 	disk_flush_events(disk, DISK_EVENT_MEDIA_CHANGE);
 
-	__blkdev_put(bdev, mode);
+	if (bdev_is_partition(bdev))
+		blkdev_put_part(bdev, mode);
+	else
+		blkdev_put_whole(bdev, mode);
 	mutex_unlock(&disk->open_mutex);
 
 	blkdev_put_no_open(bdev);
