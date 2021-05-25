@@ -94,6 +94,7 @@ struct amdgpu_nbio_funcs {
 			    bool enable);
 	void (*program_aspm)(struct amdgpu_device *adev);
 	void (*apply_lc_spc_mode_wa)(struct amdgpu_device *adev);
+	void (*apply_l1_link_width_reconfig_wa)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_nbio {
