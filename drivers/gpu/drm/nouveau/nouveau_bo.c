@@ -1050,15 +1050,6 @@ out_ntfy:
 	return ret;
 }
 
-static int
-nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-
-	return drm_vma_node_verify_access(&nvbo->bo.base.vma_node,
-					  filp->private_data);
-}
-
 static void
 nouveau_ttm_io_mem_free_locked(struct nouveau_drm *drm,
 			       struct ttm_resource *reg)
@@ -1331,7 +1322,6 @@ struct ttm_device_funcs nouveau_bo_driver = {
 	.evict_flags = nouveau_bo_evict_flags,
 	.delete_mem_notify = nouveau_bo_delete_mem_notify,
 	.move = nouveau_bo_move,
-	.verify_access = nouveau_bo_verify_access,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,
 };
