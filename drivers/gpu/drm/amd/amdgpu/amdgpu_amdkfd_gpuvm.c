@@ -624,10 +624,9 @@ kfd_mem_attach_userptr(struct amdgpu_device *adev, struct kgd_mem *mem,
 				       AMDGPU_GEM_CREATE_PREEMPTIBLE,
 				       ttm_bo_type_sg, mem->bo->tbo.base.resv,
 				       &gobj);
+	amdgpu_bo_unreserve(mem->bo);
 	if (ret)
 		return ret;
-
-	amdgpu_bo_unreserve(mem->bo);
 
 	*bo = gem_to_amdgpu_bo(gobj);
 	(*bo)->parent = amdgpu_bo_ref(mem->bo);
