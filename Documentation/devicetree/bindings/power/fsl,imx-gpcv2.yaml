@@ -25,6 +25,7 @@ properties:
   compatible:
     enum:
       - fsl,imx7d-gpc
+      - fsl,imx8mn-gpc
       - fsl,imx8mq-gpc
       - fsl,imx8mm-gpc
 
