@@ -1387,7 +1387,8 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
 	 * on BACO in. Driver involvement is unnecessary.
 	 */
-	if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+	if (((adev->asic_type == CHIP_SIENNA_CICHLID) ||
+	     ((adev->asic_type >= CHIP_NAVI10) && (adev->asic_type <= CHIP_NAVI12))) &&
 	     use_baco)
 		return smu_disable_all_features_with_exception(smu,
 							       true,
