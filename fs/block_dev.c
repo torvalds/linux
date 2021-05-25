@@ -1253,7 +1253,7 @@ int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 		return -ENXIO;
 
 rescan:
-	if (bdev->bd_part_count)
+	if (disk->open_partitions)
 		return -EBUSY;
 	sync_blockdev(bdev);
 	invalidate_bdev(bdev);
@@ -1348,7 +1348,7 @@ static int blkdev_get_part(struct block_device *part, fmode_t mode)
 	if (!bdev_nr_sectors(part))
 		goto out_blkdev_put;
 
-	whole->bd_part_count++;
+	disk->open_partitions++;
 	set_init_blocksize(part);
 	if (part->bd_bdi == &noop_backing_dev_info)
 		part->bd_bdi = bdi_get(disk->queue->backing_dev_info);
@@ -1370,7 +1370,7 @@ static void blkdev_put_part(struct block_device *part, fmode_t mode)
 	if (--part->bd_openers)
 		return;
 	blkdev_flush_mapping(part);
-	whole->bd_part_count--;
+	whole->bd_disk->open_partitions--;
 	blkdev_put_whole(whole, mode);
 	bdput(whole);
 }
