@@ -2441,6 +2441,17 @@
 			status = "disabled";
 		 };
 
+		blsp1_dma: dma@7544000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x07544000 0x2b000>;
+			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "bam_clk";
+			qcom,controlled-remotely;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
 		blsp1_uart2: serial@7570000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x07570000 0x1000>;
@@ -2448,6 +2459,8 @@
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 2>, <&blsp1_dma 3>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -2461,6 +2474,8 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp1_spi1_default>;
 			pinctrl-1 = <&blsp1_spi1_sleep>;
+			dmas = <&blsp1_dma 12>, <&blsp1_dma 13>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -2476,9 +2491,22 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp1_i2c3_default>;
 			pinctrl-1 = <&blsp1_i2c3_sleep>;
+			dmas = <&blsp1_dma 16>, <&blsp1_dma 17>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		blsp2_dma: dma@7584000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x07584000 0x2b000>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "bam_clk";
+			qcom,controlled-remotely;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
 		};
 
 		blsp2_uart2: serial@75b0000 {
@@ -2511,6 +2539,8 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp2_i2c1_default>;
 			pinctrl-1 = <&blsp2_i2c1_sleep>;
+			dmas = <&blsp2_dma 12>, <&blsp2_dma 13>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -2526,6 +2556,8 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp2_i2c2_default>;
 			pinctrl-1 = <&blsp2_i2c2_sleep>;
+			dmas = <&blsp2_dma 14>, <&blsp2_dma 15>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -2540,6 +2572,8 @@
 			clock-names = "iface", "core";
 			pinctrl-names = "default";
 			pinctrl-0 = <&blsp2_i2c5_default>;
+			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -2555,6 +2589,8 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp2_i2c6_default>;
 			pinctrl-1 = <&blsp2_i2c6_sleep>;
+			dmas = <&blsp2_dma 22>, <&blsp2_dma 23>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -2570,6 +2606,8 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp2_spi6_default>;
 			pinctrl-1 = <&blsp2_spi6_sleep>;
+			dmas = <&blsp2_dma 22>, <&blsp2_dma 23>;
+			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
