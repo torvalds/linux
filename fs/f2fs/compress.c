@@ -928,7 +928,8 @@ static int __f2fs_cluster_blocks(struct inode *inode,
 		}
 
 		f2fs_bug_on(F2FS_I_SB(inode),
-			!compr && ret != cluster_size && !IS_IMMUTABLE(inode));
+			!compr && ret != cluster_size &&
+			!is_inode_flag_set(inode, FI_COMPRESS_RELEASED));
 	}
 fail:
 	f2fs_put_dnode(&dn);
