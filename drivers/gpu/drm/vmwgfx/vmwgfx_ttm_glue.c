@@ -67,6 +67,7 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 	};
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct ttm_device *bdev = &dev_priv->bdev;
 	struct ttm_buffer_object *bo;
 	int ret;
@@ -78,11 +79,7 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (unlikely(!bo))
 		return -EINVAL;
 
-	if (unlikely(!bo->bdev->funcs->verify_access)) {
-		ret = -EPERM;
-		goto out_unref;
-	}
-	ret = bo->bdev->funcs->verify_access(bo, filp);
+	ret = vmw_user_bo_verify_access(bo, tfile);
 	if (unlikely(ret != 0))
 		goto out_unref;
 
