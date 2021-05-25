@@ -326,6 +326,8 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	const char *dname;
 	int err;
 
+	lockdep_assert_held(&disk->open_mutex);
+
 	if (partno >= disk_max_parts(disk))
 		return ERR_PTR(-EINVAL);
 
@@ -467,14 +469,13 @@ int bdev_add_partition(struct block_device *bdev, int partno,
 
 int bdev_del_partition(struct block_device *bdev, int partno)
 {
-	struct block_device *part;
-	int ret;
-
-	part = bdget_disk(bdev->bd_disk, partno);
-	if (!part)
-		return -ENXIO;
+	struct block_device *part = NULL;
+	int ret = -ENXIO;
 
 	mutex_lock(&bdev->bd_disk->open_mutex);
+	part = xa_load(&bdev->bd_disk->part_tbl, partno);
+	if (!part)
+		goto out_unlock;
 
 	ret = -EBUSY;
 	if (part->bd_openers)
@@ -484,21 +485,20 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	ret = 0;
 out_unlock:
 	mutex_unlock(&bdev->bd_disk->open_mutex);
-	bdput(part);
 	return ret;
 }
 
 int bdev_resize_partition(struct block_device *bdev, int partno,
 		sector_t start, sector_t length)
 {
-	struct block_device *part;
-	int ret = 0;
-
-	part = bdget_disk(bdev->bd_disk, partno);
-	if (!part)
-		return -ENXIO;
+	struct block_device *part = NULL;
+	int ret = -ENXIO;
 
 	mutex_lock(&bdev->bd_disk->open_mutex);
+	part = xa_load(&bdev->bd_disk->part_tbl, partno);
+	if (!part)
+		goto out_unlock;
+
 	ret = -EINVAL;
 	if (start != part->bd_start_sect)
 		goto out_unlock;
@@ -512,7 +512,6 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 	ret = 0;
 out_unlock:
 	mutex_unlock(&bdev->bd_disk->open_mutex);
-	bdput(part);
 	return ret;
 }
 

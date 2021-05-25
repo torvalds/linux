@@ -676,32 +676,6 @@ void blk_request_module(dev_t devt)
 		request_module("block-major-%d", MAJOR(devt));
 }
 
-/**
- * bdget_disk - do bdget() by gendisk and partition number
- * @disk: gendisk of interest
- * @partno: partition number
- *
- * Find partition @partno from @disk, do bdget() on it.
- *
- * CONTEXT:
- * Don't care.
- *
- * RETURNS:
- * Resulting block_device on success, NULL on failure.
- */
-struct block_device *bdget_disk(struct gendisk *disk, int partno)
-{
-	struct block_device *bdev = NULL;
-
-	rcu_read_lock();
-	bdev = xa_load(&disk->part_tbl, partno);
-	if (bdev && !bdgrab(bdev))
-		bdev = NULL;
-	rcu_read_unlock();
-
-	return bdev;
-}
-
 /*
  * print a full list of all partitions - intended for places where the root
  * filesystem can't be mounted and thus to give the victim some idea of what
@@ -1229,13 +1203,14 @@ module_init(proc_genhd_init);
 
 dev_t part_devt(struct gendisk *disk, u8 partno)
 {
-	struct block_device *part = bdget_disk(disk, partno);
+	struct block_device *part;
 	dev_t devt = 0;
 
-	if (part) {
+	rcu_read_lock();
+	part = xa_load(&disk->part_tbl, partno);
+	if (part)
 		devt = part->bd_dev;
-		bdput(part);
-	}
+	rcu_read_unlock();
 
 	return devt;
 }
