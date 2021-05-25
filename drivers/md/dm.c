@@ -876,7 +876,6 @@ static void clone_endio(struct bio *bio)
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
-	struct bio *orig_bio = io->orig_bio;
 	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 
 	if (unlikely(error == BLK_STS_TARGET)) {
@@ -891,17 +890,8 @@ static void clone_endio(struct bio *bio)
 			disable_write_zeroes(md);
 	}
 
-	/*
-	 * For zone-append bios get offset in zone of the written
-	 * sector and add that to the original bio sector pos.
-	 */
-	if (bio_op(orig_bio) == REQ_OP_ZONE_APPEND) {
-		sector_t written_sector = bio->bi_iter.bi_sector;
-		struct request_queue *q = orig_bio->bi_bdev->bd_disk->queue;
-		u64 mask = (u64)blk_queue_zone_sectors(q) - 1;
-
-		orig_bio->bi_iter.bi_sector += written_sector & mask;
-	}
+	if (blk_queue_is_zoned(q))
+		dm_zone_endio(io, bio);
 
 	if (endio) {
 		int r = endio(tio->ti, bio, &error);
@@ -1213,7 +1203,16 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
 		down(&md->swap_bios_semaphore);
 	}
 
-	r = ti->type->map(ti, clone);
+	/*
+	 * Check if the IO needs a special mapping due to zone append emulation
+	 * on zoned target. In this case, dm_zone_map_bio() calls the target
+	 * map operation.
+	 */
+	if (dm_emulate_zone_append(io->md))
+		r = dm_zone_map_bio(tio);
+	else
+		r = ti->type->map(ti, clone);
+
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
 		break;
@@ -1711,6 +1710,7 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	mutex_destroy(&md->swap_bios_lock);
 
 	dm_mq_cleanup_mapped_device(md);
+	dm_cleanup_zoned_dev(md);
 }
 
 /*
@@ -1956,11 +1956,16 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		goto out;
 	}
 
+	ret = dm_table_set_restrictions(t, q, limits);
+	if (ret) {
+		old_map = ERR_PTR(ret);
+		goto out;
+	}
+
 	old_map = rcu_dereference_protected(md->map, lockdep_is_held(&md->suspend_lock));
 	rcu_assign_pointer(md->map, (void *)t);
 	md->immutable_target_type = dm_table_get_immutable_target_type(t);
 
-	dm_table_set_restrictions(t, q, limits);
 	if (old_map)
 		dm_sync_table(md);
 
@@ -2079,7 +2084,10 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 		DMERR("Cannot calculate initial queue limits");
 		return r;
 	}
-	dm_table_set_restrictions(t, md->queue, &limits);
+	r = dm_table_set_restrictions(t, md->queue, &limits);
+	if (r)
+		return r;
+
 	blk_register_queue(md->disk);
 
 	return 0;
