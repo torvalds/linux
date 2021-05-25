@@ -44,6 +44,7 @@ struct proc_thermal_device {
 	struct intel_soc_dts_sensors *soc_dts;
 	u32 mmio_feature_mask;
 	void __iomem *mmio_base;
+	void *priv_data;
 };
 
 struct rapl_mmio_regs {
