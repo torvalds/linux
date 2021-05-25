@@ -1421,6 +1421,7 @@ struct hl_userptr {
  * @staged_sequence: the sequence of the staged submission this CS is part of,
  *                   relevant only if staged_cs is set.
  * @timeout_jiffies: cs timeout in jiffies.
+ * @submission_time_jiffies: submission time of the cs
  * @type: CS_TYPE_*.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
@@ -1433,6 +1434,8 @@ struct hl_userptr {
  * @staged_first: true if this is the first staged CS and we need to receive
  *                timeout for this CS.
  * @staged_cs: true if this CS is part of a staged submission.
+ * @skip_reset_on_timeout: true if we shall not reset the device in case
+ *                         timeout occurs (debug scenario).
  */
 struct hl_cs {
 	u16			*jobs_in_queue_cnt;
@@ -1450,6 +1453,7 @@ struct hl_cs {
 	u64			sequence;
 	u64			staged_sequence;
 	u64			timeout_jiffies;
+	u64			submission_time_jiffies;
 	enum hl_cs_type		type;
 	u8			submitted;
 	u8			completed;
@@ -1460,6 +1464,7 @@ struct hl_cs {
 	u8			staged_last;
 	u8			staged_first;
 	u8			staged_cs;
+	u8			skip_reset_on_timeout;
 };
 
 /**

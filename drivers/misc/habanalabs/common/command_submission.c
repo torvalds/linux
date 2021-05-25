@@ -556,6 +556,13 @@ out:
 	else if (!cs->submitted)
 		cs->fence->error = -EBUSY;
 
+	if (unlikely(cs->skip_reset_on_timeout)) {
+		dev_err(hdev->dev,
+			"Command submission %llu completed after %llu (s)\n",
+			cs->sequence,
+			div_u64(jiffies - cs->submission_time_jiffies, HZ));
+	}
+
 	if (cs->timestamp)
 		cs->fence->timestamp = ktime_get();
 	complete_all(&cs->fence->completion);
@@ -571,6 +578,8 @@ static void cs_timedout(struct work_struct *work)
 	int rc;
 	struct hl_cs *cs = container_of(work, struct hl_cs,
 						 work_tdr.work);
+	bool skip_reset_on_timeout = cs->skip_reset_on_timeout;
+
 	rc = cs_get_unless_zero(cs);
 	if (!rc)
 		return;
@@ -581,7 +590,8 @@ static void cs_timedout(struct work_struct *work)
 	}
 
 	/* Mark the CS is timed out so we won't try to cancel its TDR */
-	cs->timedout = true;
+	if (likely(!skip_reset_on_timeout))
+		cs->timedout = true;
 
 	hdev = cs->ctx->hdev;
 
@@ -613,10 +623,12 @@ static void cs_timedout(struct work_struct *work)
 
 	cs_put(cs);
 
-	if (hdev->reset_on_lockup)
-		hl_device_reset(hdev, HL_RESET_TDR);
-	else
-		hdev->needs_reset = true;
+	if (likely(!skip_reset_on_timeout)) {
+		if (hdev->reset_on_lockup)
+			hl_device_reset(hdev, HL_RESET_TDR);
+		else
+			hdev->needs_reset = true;
+	}
 }
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
@@ -650,6 +662,9 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->type = cs_type;
 	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
 	cs->timeout_jiffies = timeout;
+	cs->skip_reset_on_timeout =
+		!!(flags & HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT);
+	cs->submission_time_jiffies = jiffies;
 	INIT_LIST_HEAD(&cs->job_list);
 	INIT_DELAYED_WORK(&cs->work_tdr, cs_timedout);
 	kref_init(&cs->refcount);
