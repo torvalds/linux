@@ -2189,10 +2189,19 @@ static int process_sample_event(struct perf_tool *tool,
 	if (filter_cpu(sample))
 		goto out_put;
 
-	if (scripting_ops)
-		scripting_ops->process_event(event, sample, evsel, &al);
-	else
+	if (scripting_ops) {
+		struct addr_location *addr_al_ptr = NULL;
+		struct addr_location addr_al;
+
+		if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
+		    sample_addr_correlates_sym(&evsel->core.attr)) {
+			thread__resolve(al.thread, &addr_al, sample);
+			addr_al_ptr = &addr_al;
+		}
+		scripting_ops->process_event(event, sample, evsel, &al, addr_al_ptr);
+	} else {
 		process_event(scr, sample, evsel, &al, machine);
+	}
 
 out_put:
 	addr_location__put(&al);

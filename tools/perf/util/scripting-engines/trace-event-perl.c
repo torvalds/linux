@@ -456,7 +456,8 @@ static void perl_process_event_generic(union perf_event *event,
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel,
-			       struct addr_location *al)
+			       struct addr_location *al,
+			       struct addr_location *addr_al __maybe_unused)
 {
 	perl_process_tracepoint(sample, evsel, al);
 	perl_process_event_generic(event, sample, evsel);
