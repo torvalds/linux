@@ -2799,6 +2799,10 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	if (snd_BUG_ON(!substream))
 		return -ENXIO;
 	pcm = substream->pcm;
+
+	/* block until the device gets woken up as it may touch the hardware */
+	snd_power_wait(pcm->card);
+
 	mutex_lock(&pcm->open_mutex);
 	snd_pcm_release_substream(substream);
 	kfree(pcm_file);
@@ -3193,7 +3197,7 @@ static int snd_pcm_common_ioctl(struct file *file,
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 
-	res = snd_power_wait(substream->pcm->card, SNDRV_CTL_POWER_D0);
+	res = snd_power_wait(substream->pcm->card);
 	if (res < 0)
 		return res;
 
