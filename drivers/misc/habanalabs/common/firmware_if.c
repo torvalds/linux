@@ -1782,7 +1782,8 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 
 	/* Read boot_cpu status bits */
 	if (prop->fw_cpu_boot_dev_sts0_valid) {
-		prop->fw_bootfit_cpu_boot_dev_sts0 = RREG32(cpu_boot_dev_sts0_reg);
+		prop->fw_bootfit_cpu_boot_dev_sts0 =
+				RREG32(cpu_boot_dev_sts0_reg);
 
 		if (prop->fw_bootfit_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
@@ -1793,7 +1794,8 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 	}
 
 	if (prop->fw_cpu_boot_dev_sts1_valid) {
-		prop->fw_bootfit_cpu_boot_dev_sts1 = RREG32(cpu_boot_dev_sts1_reg);
+		prop->fw_bootfit_cpu_boot_dev_sts1 =
+				RREG32(cpu_boot_dev_sts1_reg);
 
 		dev_dbg(hdev->dev, "Firmware boot CPU status1 %#x\n",
 					prop->fw_bootfit_cpu_boot_dev_sts1);
@@ -1803,6 +1805,24 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
 }
 
+static void hl_fw_dynamic_update_linux_interrupt_if(struct hl_device *hdev)
+{
+	struct cpu_dyn_regs *dyn_regs =
+			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
+
+	/* Check whether all 3 interrupt interfaces are set, if not use a
+	 * single interface
+	 */
+	if (!hdev->asic_prop.gic_interrupts_enable &&
+			!(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+				CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN)) {
+		dyn_regs->gic_host_halt_irq = dyn_regs->gic_host_irq_ctrl;
+		dyn_regs->gic_host_ints_irq = dyn_regs->gic_host_irq_ctrl;
+
+		dev_warn(hdev->dev,
+			"Using a single interrupt interface towards cpucp");
+	}
+}
 /**
  * hl_fw_dynamic_load_image - load FW image using dynamic protocol
  *
@@ -2149,6 +2169,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 
 	hl_fw_linux_update_state(hdev, le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
+
+	hl_fw_dynamic_update_linux_interrupt_if(hdev);
 
 	return 0;
 

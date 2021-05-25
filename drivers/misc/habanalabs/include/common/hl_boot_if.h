@@ -205,6 +205,10 @@
  *					was not served before.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN  Use multiple scratchpad interfaces to
+ *					prevent IRQs overriding each other.
+ *					Initialized in: linux
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -235,6 +239,7 @@
 #define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
 #define CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN		(1 << 20)
 #define CPU_BOOT_DEV_STS0_EQ_INDEX_EN			(1 << 21)
+#define CPU_BOOT_DEV_STS0_MULTI_IRQ_POLL_EN		(1 << 22)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 #define CPU_BOOT_DEV_STS1_ENABLED			(1 << 31)
 
@@ -308,13 +313,18 @@ struct cpu_dyn_regs {
 	__le32 hw_state;
 	__le32 kmd_msg_to_cpu;
 	__le32 cpu_cmd_status_to_host;
-	__le32 gic_host_irq_ctrl;
+	union {
+		__le32 gic_host_irq_ctrl;
+		__le32 gic_host_pi_upd_irq;
+	};
 	__le32 gic_tpc_qm_irq_ctrl;
 	__le32 gic_mme_qm_irq_ctrl;
 	__le32 gic_dma_qm_irq_ctrl;
 	__le32 gic_nic_qm_irq_ctrl;
 	__le32 gic_dma_core_irq_ctrl;
-	__le32 reserved1[26];		/* reserve for future use */
+	__le32 gic_host_halt_irq;
+	__le32 gic_host_ints_irq;
+	__le32 reserved1[24];		/* reserve for future use */
 };
 
 /* TODO: remove the desc magic after the code is updated to use message */

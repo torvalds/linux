@@ -3962,7 +3962,7 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 
 	irq_handler_offset = prop->gic_interrupts_enable ?
 			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
-			le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
+			le32_to_cpu(dyn_regs->gic_host_pi_upd_irq);
 
 	WREG32(irq_handler_offset, GAUDI_EVENT_PI_UPDATE);
 
@@ -4148,7 +4148,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	if (hdev->fw_loader.linux_loaded) {
 		irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?
 				mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
-				le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
+				le32_to_cpu(dyn_regs->gic_host_halt_irq);
 
 		WREG32(irq_handler_offset, GAUDI_EVENT_HALT_MACHINE);
 	} else {
@@ -4681,7 +4681,7 @@ static void gaudi_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 
 		irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?
 				mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
-				le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
+				le32_to_cpu(dyn_regs->gic_host_pi_upd_irq);
 
 		WREG32(irq_handler_offset, GAUDI_EVENT_PI_UPDATE);
 	}
@@ -8909,7 +8909,7 @@ static void gaudi_enable_events_from_fw(struct hl_device *hdev)
 			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
 	u32 irq_handler_offset = hdev->asic_prop.gic_interrupts_enable ?
 			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
-			le32_to_cpu(dyn_regs->gic_host_irq_ctrl);
+			le32_to_cpu(dyn_regs->gic_host_ints_irq);
 
 	WREG32(irq_handler_offset, GAUDI_EVENT_INTS_REGISTER);
 }
