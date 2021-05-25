@@ -7,7 +7,7 @@
 
 #include "./bebob.h"
 
-#define READY_TIMEOUT_MS	2500
+#define READY_TIMEOUT_MS	4000
 
 /*
  * NOTE;
@@ -623,7 +623,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 	if (!amdtp_stream_running(&bebob->rx_stream)) {
 		enum snd_bebob_clock_type src;
-		struct amdtp_stream *master, *slave;
 		unsigned int curr_rate;
 		unsigned int tx_init_skip_cycles;
 
@@ -637,28 +636,22 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		if (err < 0)
 			return err;
 
-		if (src != SND_BEBOB_CLOCK_TYPE_SYT) {
-			master = &bebob->tx_stream;
-			slave = &bebob->rx_stream;
-		} else {
-			master = &bebob->rx_stream;
-			slave = &bebob->tx_stream;
-		}
-
-		err = start_stream(bebob, master);
+		err = start_stream(bebob, &bebob->rx_stream);
 		if (err < 0)
 			goto error;
 
-		err = start_stream(bebob, slave);
+		err = start_stream(bebob, &bebob->tx_stream);
 		if (err < 0)
 			goto error;
 
-		// Some devices transfer isoc packets with discontinuous counter in the beginning
-		// of packet streaming.
-		if (bebob->version < 2)
-			tx_init_skip_cycles = 3200;
+		if (!bebob->discontinuity_quirk)
+			tx_init_skip_cycles = 0;
 		else
 			tx_init_skip_cycles = 16000;
+
+		// MEMO: In the early stage of packet streaming, the device transfers NODATA packets.
+		// After several hundred cycles, it begins to multiplex event into the packet with
+		// syt information.
 		err = amdtp_domain_start(&bebob->domain, tx_init_skip_cycles);
 		if (err < 0)
 			goto error;
