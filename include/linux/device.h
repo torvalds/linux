@@ -579,6 +579,10 @@ struct device_link {
 	u32 flags;
 	refcount_t rpm_active;
 	struct kref kref;
+#ifdef CONFIG_SRCU
+	/* Not currently used, here for potential abi issues in the future */
+	struct rcu_head rcu_head;
+#endif
 	struct work_struct rm_work;
 	bool supplier_preactivated; /* Owned by consumer probe. */
 	ANDROID_KABI_RESERVE(1);
