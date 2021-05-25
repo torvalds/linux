@@ -726,6 +726,22 @@ static void set_regs_in_dict(PyObject *dict,
 			_PyUnicode_FromString(bf));
 }
 
+static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
+			    const char *dso_field, const char *sym_field,
+			    const char *symoff_field)
+{
+	if (al->map) {
+		pydict_set_item_string_decref(dict, dso_field,
+			_PyUnicode_FromString(al->map->dso->name));
+	}
+	if (al->sym) {
+		pydict_set_item_string_decref(dict, sym_field,
+			_PyUnicode_FromString(al->sym->name));
+		pydict_set_item_string_decref(dict, symoff_field,
+			PyLong_FromUnsignedLong(get_offset(al->sym, al)));
+	}
+}
+
 static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 					 struct evsel *evsel,
 					 struct addr_location *al,
@@ -772,14 +788,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
 			_PyUnicode_FromString(thread__comm_str(al->thread)));
-	if (al->map) {
-		pydict_set_item_string_decref(dict, "dso",
-			_PyUnicode_FromString(al->map->dso->name));
-	}
-	if (al->sym) {
-		pydict_set_item_string_decref(dict, "symbol",
-			_PyUnicode_FromString(al->sym->name));
-	}
+	set_sym_in_dict(dict, al, "dso", "symbol", "symoff");
 
 	pydict_set_item_string_decref(dict, "callchain", callchain);
 
