@@ -330,7 +330,9 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 	}
 	spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
 
+#ifdef CONFIG_64BIT
 exit:
+#endif
 	drm_dev_exit(idx);
 }
 
