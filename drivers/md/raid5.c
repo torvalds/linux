@@ -5468,6 +5468,7 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 	sector_t sector = raid_bio->bi_iter.bi_sector;
 	unsigned chunk_sects = mddev->chunk_sectors;
 	unsigned sectors = chunk_sects - (sector & (chunk_sects-1));
+	struct r5conf *conf = mddev->private;
 
 	if (sectors < bio_sectors(raid_bio)) {
 		struct r5conf *conf = mddev->private;
@@ -5476,6 +5477,9 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 		submit_bio_noacct(raid_bio);
 		raid_bio = split;
 	}
+
+	if (raid_bio->bi_pool != &conf->bio_split)
+		md_account_bio(mddev, &raid_bio);
 
 	if (!raid5_read_one_chunk(mddev, raid_bio))
 		return raid_bio;
@@ -5756,6 +5760,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	DEFINE_WAIT(w);
 	bool do_prepare;
 	bool do_flush = false;
+	bool do_clone = false;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
 		int ret = log_handle_flush_request(conf, bi);
@@ -5784,6 +5789,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	if (rw == READ && mddev->degraded == 0 &&
 	    mddev->reshape_position == MaxSector) {
 		bi = chunk_aligned_read(mddev, bi);
+		do_clone = true;
 		if (!bi)
 			return true;
 	}
@@ -5797,6 +5803,9 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	logical_sector = bi->bi_iter.bi_sector & ~((sector_t)RAID5_STRIPE_SECTORS(conf)-1);
 	last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
+
+	if (!do_clone)
+		md_account_bio(mddev, &bi);
 
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
