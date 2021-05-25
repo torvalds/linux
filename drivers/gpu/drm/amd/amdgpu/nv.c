@@ -849,8 +849,13 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+			amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+		} else {
+			amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+			amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+		}
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
