@@ -403,9 +403,6 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
-		return 1;
-
 	if (kcb->kprobe_status & KPROBE_HIT_SS) {
 		resume_execution(cur, regs, kcb);
 		regs->cp0_status |= kcb->kprobe_old_SR;

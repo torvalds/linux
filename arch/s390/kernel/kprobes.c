@@ -453,16 +453,6 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		kprobes_inc_nmissed_count(p);
 
 		/*
-		 * We come here because instructions in the pre/post
-		 * handler caused the page_fault, this could happen
-		 * if handler tries to access user space by
-		 * copy_from_user(), get_user() etc. Let the
-		 * user-specified handler try to fix it first.
-		 */
-		if (p->fault_handler && p->fault_handler(p, regs, trapnr))
-			return 1;
-
-		/*
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
