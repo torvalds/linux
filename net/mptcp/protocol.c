@@ -2424,13 +2424,12 @@ static int __mptcp_init_sock(struct sock *sk)
 	timer_setup(&msk->sk.icsk_retransmit_timer, mptcp_retransmit_timer, 0);
 	timer_setup(&sk->sk_timer, mptcp_timeout_timer, 0);
 
-	tcp_assign_congestion_control(sk);
-
 	return 0;
 }
 
 static int mptcp_init_sock(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct net *net = sock_net(sk);
 	int ret;
 
@@ -2447,6 +2446,16 @@ static int mptcp_init_sock(struct sock *sk)
 	ret = __mptcp_socket_create(mptcp_sk(sk));
 	if (ret)
 		return ret;
+
+	/* fetch the ca name; do it outside __mptcp_init_sock(), so that clone will
+	 * propagate the correct value
+	 */
+	tcp_assign_congestion_control(sk);
+	strcpy(mptcp_sk(sk)->ca_name, icsk->icsk_ca_ops->name);
+
+	/* no need to keep a reference to the ops, the name will suffice */
+	tcp_cleanup_congestion_control(sk);
+	icsk->icsk_ca_ops = NULL;
 
 	sk_sockets_allocated_inc(sk);
 	sk->sk_rcvbuf = sock_net(sk)->ipv4.sysctl_tcp_rmem[1];
@@ -2622,7 +2631,6 @@ static void __mptcp_destroy_sock(struct sock *sk)
 	sk_stream_kill_queues(sk);
 	xfrm_sk_free_policy(sk);
 
-	tcp_cleanup_congestion_control(sk);
 	sk_refcnt_debug_release(sk);
 	mptcp_dispose_initial_subflow(msk);
 	sock_put(sk);
