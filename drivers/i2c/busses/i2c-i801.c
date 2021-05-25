@@ -1289,11 +1289,11 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 		return;
 
 	if (apanel_addr) {
-		struct i2c_board_info info;
+		struct i2c_board_info info = {
+			.addr = apanel_addr,
+			.type = "fujitsu_apanel",
+		};
 
-		memset(&info, 0, sizeof(struct i2c_board_info));
-		info.addr = apanel_addr;
-		strlcpy(info.type, "fujitsu_apanel", I2C_NAME_SIZE);
 		i2c_new_client_device(&priv->adapter, &info);
 	}
 
