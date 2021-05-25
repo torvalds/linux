@@ -47,7 +47,6 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include <drm/amdgpu_drm.h>
-#include <drm/drm_drv.h>
 
 #include "amdgpu.h"
 #include "amdgpu_object.h"
@@ -164,25 +163,6 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		break;
 	}
 	*placement = abo->placement;
-}
-
-/**
- * amdgpu_verify_access - Verify access for a mmap call
- *
- * @bo:	The buffer object to map
- * @filp: The file pointer from the process performing the mmap
- *
- * This is called by ttm_bo_mmap() to verify whether a process
- * has the right to mmap a BO to their process space.
- */
-static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
-
-	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
-		return -EPERM;
-	return drm_vma_node_verify_access(&abo->tbo.base.vma_node,
-					  filp->private_data);
 }
 
 /**
@@ -1476,7 +1456,6 @@ static struct ttm_device_funcs amdgpu_bo_driver = {
 	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,
 	.move = &amdgpu_bo_move,
-	.verify_access = &amdgpu_verify_access,
 	.delete_mem_notify = &amdgpu_bo_delete_mem_notify,
 	.release_notify = &amdgpu_bo_release_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
@@ -1842,60 +1821,6 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		size = adev->gmc.visible_vram_size;
 	man->size = size >> PAGE_SHIFT;
 	adev->mman.buffer_funcs_enabled = enable;
-}
-
-static vm_fault_t amdgpu_ttm_fault(struct vm_fault *vmf)
-{
-	struct ttm_buffer_object *bo = vmf->vma->vm_private_data;
-	struct drm_device *ddev = bo->base.dev;
-	vm_fault_t ret;
-	int idx;
-
-	ret = ttm_bo_vm_reserve(bo, vmf);
-	if (ret)
-		return ret;
-
-	if (drm_dev_enter(ddev, &idx)) {
-		ret = amdgpu_bo_fault_reserve_notify(bo);
-		if (ret) {
-			drm_dev_exit(idx);
-			goto unlock;
-		}
-
-		 ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
-						TTM_BO_VM_NUM_PREFAULT, 1);
-
-		 drm_dev_exit(idx);
-	} else {
-		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
-	}
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
-
-unlock:
-	dma_resv_unlock(bo->base.resv);
-	return ret;
-}
-
-static const struct vm_operations_struct amdgpu_ttm_vm_ops = {
-	.fault = amdgpu_ttm_fault,
-	.open = ttm_bo_vm_open,
-	.close = ttm_bo_vm_close,
-	.access = ttm_bo_vm_access
-};
-
-int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct amdgpu_device *adev = drm_to_adev(file_priv->minor->dev);
-	int r;
-
-	r = ttm_bo_mmap(filp, vma, &adev->mman.bdev);
-	if (unlikely(r != 0))
-		return r;
-
-	vma->vm_ops = &amdgpu_ttm_vm_ops;
-	return 0;
 }
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
