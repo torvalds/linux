@@ -5090,7 +5090,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
 		chain = mapped_obj.chain;
-		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+		tc_skb_ext = tc_skb_ext_alloc(skb);
 		if (WARN_ON(!tc_skb_ext))
 			return false;
 
