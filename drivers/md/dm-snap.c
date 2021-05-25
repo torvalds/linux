@@ -855,11 +855,12 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 static uint32_t __minimum_chunk_size(struct origin *o)
 {
 	struct dm_snapshot *snap;
-	unsigned chunk_size = rounddown_pow_of_two(UINT_MAX);
+	unsigned chunk_size = 0;
 
 	if (o)
 		list_for_each_entry(snap, &o->snapshots, list)
-			chunk_size = min(chunk_size, snap->store->chunk_size);
+			chunk_size = min_not_zero(chunk_size,
+						  snap->store->chunk_size);
 
 	return (uint32_t) chunk_size;
 }
