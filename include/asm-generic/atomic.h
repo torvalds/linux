@@ -143,8 +143,6 @@ ATOMIC_OP(xor, ^)
 
 #define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
-#include <linux/irqflags.h>
-
 static inline void atomic_add(int i, atomic_t *v)
 {
 	atomic_add_return(i, v);
