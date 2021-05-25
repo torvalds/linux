@@ -1478,6 +1478,10 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 				default:
 					break;
 				}
+				snd_soc_jack_report(cs42l42->jack, 0,
+						    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+						    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+
 				dev_dbg(component->dev, "Unplug event\n");
 			}
 			break;
@@ -1489,7 +1493,7 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 	}
 
 	/* Check button detect status */
-	if ((~masks[7]) & irq_params_table[7].mask) {
+	if (cs42l42->plug_state == CS42L42_TS_PLUG && ((~masks[7]) & irq_params_table[7].mask)) {
 		if (!(current_button_status &
 			CS42L42_M_HSBIAS_HIZ_MASK)) {
 
