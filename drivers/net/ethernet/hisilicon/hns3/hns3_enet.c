@@ -368,6 +368,7 @@ static irqreturn_t hns3_irq_handle(int irq, void *vector)
 	struct hns3_enet_tqp_vector *tqp_vector = vector;
 
 	napi_schedule_irqoff(&tqp_vector->napi);
+	tqp_vector->event_cnt++;
 
 	return IRQ_HANDLED;
 }
@@ -471,6 +472,8 @@ static void hns3_vector_disable(struct hns3_enet_tqp_vector *tqp_vector)
 
 	disable_irq(tqp_vector->vector_irq);
 	napi_disable(&tqp_vector->napi);
+	cancel_work_sync(&tqp_vector->rx_group.dim.work);
+	cancel_work_sync(&tqp_vector->tx_group.dim.work);
 }
 
 void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
@@ -3772,139 +3775,30 @@ out:
 	return recv_pkts;
 }
 
-static bool hns3_get_new_flow_lvl(struct hns3_enet_ring_group *ring_group)
-{
-#define HNS3_RX_LOW_BYTE_RATE 10000
-#define HNS3_RX_MID_BYTE_RATE 20000
-#define HNS3_RX_ULTRA_PACKET_RATE 40
-
-	enum hns3_flow_level_range new_flow_level;
-	struct hns3_enet_tqp_vector *tqp_vector;
-	int packets_per_msecs, bytes_per_msecs;
-	u32 time_passed_ms;
-
-	tqp_vector = ring_group->ring->tqp_vector;
-	time_passed_ms =
-		jiffies_to_msecs(jiffies - tqp_vector->last_jiffies);
-	if (!time_passed_ms)
-		return false;
-
-	do_div(ring_group->total_packets, time_passed_ms);
-	packets_per_msecs = ring_group->total_packets;
-
-	do_div(ring_group->total_bytes, time_passed_ms);
-	bytes_per_msecs = ring_group->total_bytes;
-
-	new_flow_level = ring_group->coal.flow_level;
-
-	/* Simple throttlerate management
-	 * 0-10MB/s   lower     (50000 ints/s)
-	 * 10-20MB/s   middle    (20000 ints/s)
-	 * 20-1249MB/s high      (18000 ints/s)
-	 * > 40000pps  ultra     (8000 ints/s)
-	 */
-	switch (new_flow_level) {
-	case HNS3_FLOW_LOW:
-		if (bytes_per_msecs > HNS3_RX_LOW_BYTE_RATE)
-			new_flow_level = HNS3_FLOW_MID;
-		break;
-	case HNS3_FLOW_MID:
-		if (bytes_per_msecs > HNS3_RX_MID_BYTE_RATE)
-			new_flow_level = HNS3_FLOW_HIGH;
-		else if (bytes_per_msecs <= HNS3_RX_LOW_BYTE_RATE)
-			new_flow_level = HNS3_FLOW_LOW;
-		break;
-	case HNS3_FLOW_HIGH:
-	case HNS3_FLOW_ULTRA:
-	default:
-		if (bytes_per_msecs <= HNS3_RX_MID_BYTE_RATE)
-			new_flow_level = HNS3_FLOW_MID;
-		break;
-	}
-
-	if (packets_per_msecs > HNS3_RX_ULTRA_PACKET_RATE &&
-	    &tqp_vector->rx_group == ring_group)
-		new_flow_level = HNS3_FLOW_ULTRA;
-
-	ring_group->total_bytes = 0;
-	ring_group->total_packets = 0;
-	ring_group->coal.flow_level = new_flow_level;
-
-	return true;
-}
-
-static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
-{
-	struct hns3_enet_tqp_vector *tqp_vector;
-	u16 new_int_gl;
-
-	if (!ring_group->ring)
-		return false;
-
-	tqp_vector = ring_group->ring->tqp_vector;
-	if (!tqp_vector->last_jiffies)
-		return false;
-
-	if (ring_group->total_packets == 0) {
-		ring_group->coal.int_gl = HNS3_INT_GL_50K;
-		ring_group->coal.flow_level = HNS3_FLOW_LOW;
-		return true;
-	}
-
-	if (!hns3_get_new_flow_lvl(ring_group))
-		return false;
-
-	new_int_gl = ring_group->coal.int_gl;
-	switch (ring_group->coal.flow_level) {
-	case HNS3_FLOW_LOW:
-		new_int_gl = HNS3_INT_GL_50K;
-		break;
-	case HNS3_FLOW_MID:
-		new_int_gl = HNS3_INT_GL_20K;
-		break;
-	case HNS3_FLOW_HIGH:
-		new_int_gl = HNS3_INT_GL_18K;
-		break;
-	case HNS3_FLOW_ULTRA:
-		new_int_gl = HNS3_INT_GL_8K;
-		break;
-	default:
-		break;
-	}
-
-	if (new_int_gl != ring_group->coal.int_gl) {
-		ring_group->coal.int_gl = new_int_gl;
-		return true;
-	}
-	return false;
-}
-
-static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
+static void hns3_update_rx_int_coalesce(struct hns3_enet_tqp_vector *tqp_vector)
 {
 	struct hns3_enet_ring_group *rx_group = &tqp_vector->rx_group;
-	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
-	bool rx_update, tx_update;
+	struct dim_sample sample = {};
 
-	/* update param every 1000ms */
-	if (time_before(jiffies,
-			tqp_vector->last_jiffies + msecs_to_jiffies(1000)))
+	if (!rx_group->coal.adapt_enable)
 		return;
 
-	if (rx_group->coal.adapt_enable) {
-		rx_update = hns3_get_new_int_gl(rx_group);
-		if (rx_update)
-			hns3_set_vector_coalesce_rx_gl(tqp_vector,
-						       rx_group->coal.int_gl);
-	}
+	dim_update_sample(tqp_vector->event_cnt, rx_group->total_packets,
+			  rx_group->total_bytes, &sample);
+	net_dim(&rx_group->dim, sample);
+}
 
-	if (tx_group->coal.adapt_enable) {
-		tx_update = hns3_get_new_int_gl(tx_group);
-		if (tx_update)
-			hns3_set_vector_coalesce_tx_gl(tqp_vector,
-						       tx_group->coal.int_gl);
-	}
+static void hns3_update_tx_int_coalesce(struct hns3_enet_tqp_vector *tqp_vector)
+{
+	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
+	struct dim_sample sample = {};
 
-	tqp_vector->last_jiffies = jiffies;
+	if (!tx_group->coal.adapt_enable)
+		return;
+
+	dim_update_sample(tqp_vector->event_cnt, tx_group->total_packets,
+			  tx_group->total_bytes, &sample);
+	net_dim(&tx_group->dim, sample);
 }
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
@@ -3949,7 +3843,9 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 
 	if (napi_complete(napi) &&
 	    likely(!test_bit(HNS3_NIC_STATE_DOWN, &priv->state))) {
-		hns3_update_new_int_gl(tqp_vector);
+		hns3_update_rx_int_coalesce(tqp_vector);
+		hns3_update_tx_int_coalesce(tqp_vector);
+
 		hns3_mask_vector_irq(tqp_vector, 1);
 	}
 
@@ -4080,6 +3976,54 @@ static void hns3_nic_set_cpumask(struct hns3_nic_priv *priv)
 	}
 }
 
+static void hns3_rx_dim_work(struct work_struct *work)
+{
+	struct dim *dim = container_of(work, struct dim, work);
+	struct hns3_enet_ring_group *group = container_of(dim,
+		struct hns3_enet_ring_group, dim);
+	struct hns3_enet_tqp_vector *tqp_vector = group->ring->tqp_vector;
+	struct dim_cq_moder cur_moder =
+		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
+
+	hns3_set_vector_coalesce_rx_gl(group->ring->tqp_vector, cur_moder.usec);
+	tqp_vector->rx_group.coal.int_gl = cur_moder.usec;
+
+	if (cur_moder.pkts < tqp_vector->rx_group.coal.int_ql_max) {
+		hns3_set_vector_coalesce_rx_ql(tqp_vector, cur_moder.pkts);
+		tqp_vector->rx_group.coal.int_ql = cur_moder.pkts;
+	}
+
+	dim->state = DIM_START_MEASURE;
+}
+
+static void hns3_tx_dim_work(struct work_struct *work)
+{
+	struct dim *dim = container_of(work, struct dim, work);
+	struct hns3_enet_ring_group *group = container_of(dim,
+		struct hns3_enet_ring_group, dim);
+	struct hns3_enet_tqp_vector *tqp_vector = group->ring->tqp_vector;
+	struct dim_cq_moder cur_moder =
+		net_dim_get_tx_moderation(dim->mode, dim->profile_ix);
+
+	hns3_set_vector_coalesce_tx_gl(tqp_vector, cur_moder.usec);
+	tqp_vector->tx_group.coal.int_gl = cur_moder.usec;
+
+	if (cur_moder.pkts < tqp_vector->tx_group.coal.int_ql_max) {
+		hns3_set_vector_coalesce_tx_ql(tqp_vector, cur_moder.pkts);
+		tqp_vector->tx_group.coal.int_ql = cur_moder.pkts;
+	}
+
+	dim->state = DIM_START_MEASURE;
+}
+
+static void hns3_nic_init_dim(struct hns3_enet_tqp_vector *tqp_vector)
+{
+	INIT_WORK(&tqp_vector->rx_group.dim.work, hns3_rx_dim_work);
+	tqp_vector->rx_group.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	INIT_WORK(&tqp_vector->tx_group.dim.work, hns3_tx_dim_work);
+	tqp_vector->tx_group.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+}
+
 static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
@@ -4093,6 +4037,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 		tqp_vector = &priv->tqp_vector[i];
 		hns3_vector_coalesce_init_hw(tqp_vector, priv);
 		tqp_vector->num_tqps = 0;
+		hns3_nic_init_dim(tqp_vector);
 	}
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {

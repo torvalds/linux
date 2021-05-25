@@ -4,6 +4,7 @@
 #ifndef __HNS3_ENET_H
 #define __HNS3_ENET_H
 
+#include <linux/dim.h>
 #include <linux/if_vlan.h>
 
 #include "hnae3.h"
@@ -482,6 +483,7 @@ struct hns3_enet_ring_group {
 	u64 total_packets;	/* total packets processed this group */
 	u16 count;
 	struct hns3_enet_coalesce coal;
+	struct dim dim;
 };
 
 struct hns3_enet_tqp_vector {
@@ -503,7 +505,7 @@ struct hns3_enet_tqp_vector {
 
 	char name[HNAE3_INT_NAME_LEN];
 
-	unsigned long last_jiffies;
+	u64 event_cnt;
 } ____cacheline_internodealigned_in_smp;
 
 struct hns3_nic_priv {
