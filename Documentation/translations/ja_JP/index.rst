@@ -1,7 +1,8 @@
 .. raw:: latex
 
-        \renewcommand\thesection*
-        \renewcommand\thesubsection*
+	\renewcommand\thesection*
+	\renewcommand\thesubsection*
+	\kerneldocCJKon
 
 Japanese translations
 =====================
