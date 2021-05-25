@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 #include <crypto/ctr.h>
 #include <crypto/internal/des.h>
@@ -71,14 +72,10 @@
 #define MOD_AES256  (0x0a00 | KEYLEN_256)
 
 #define MAX_IVLEN   16
-#define NPE_ID      2  /* NPE C */
 #define NPE_QLEN    16
 /* Space for registering when the first
  * NPE_QLEN crypt_ctl are busy */
 #define NPE_QLEN_TOTAL 64
-
-#define SEND_QID    29
-#define RECV_QID    30
 
 #define CTL_FLAG_UNUSED		0x0000
 #define CTL_FLAG_USED		0x1000
@@ -221,6 +218,9 @@ static const struct ix_hash_algo hash_alg_sha1 = {
 };
 
 static struct npe *npe_c;
+
+static unsigned int send_qid;
+static unsigned int recv_qid;
 static struct dma_pool *buffer_pool;
 static struct dma_pool *ctx_pool;
 
@@ -437,8 +437,7 @@ static void crypto_done_action(unsigned long arg)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		dma_addr_t phys = qmgr_get_entry(RECV_QID);
-
+		dma_addr_t phys = qmgr_get_entry(recv_qid);
 		if (!phys)
 			return;
 		one_packet(phys);
@@ -448,10 +447,52 @@ static void crypto_done_action(unsigned long arg)
 
 static int init_ixp_crypto(struct device *dev)
 {
-	int ret = -ENODEV;
+	struct device_node *np = dev->of_node;
 	u32 msg[2] = { 0, 0 };
+	int ret = -ENODEV;
+	u32 npe_id;
 
-	npe_c = npe_request(NPE_ID);
+	dev_info(dev, "probing...\n");
+
+	/* Locate the NPE and queue manager to use from device tree */
+	if (IS_ENABLED(CONFIG_OF) && np) {
+		struct of_phandle_args queue_spec;
+		struct of_phandle_args npe_spec;
+
+		ret = of_parse_phandle_with_fixed_args(np, "intel,npe-handle",
+						       1, 0, &npe_spec);
+		if (ret) {
+			dev_err(dev, "no NPE engine specified\n");
+			return -ENODEV;
+		}
+		npe_id = npe_spec.args[0];
+
+		ret = of_parse_phandle_with_fixed_args(np, "queue-rx", 1, 0,
+						       &queue_spec);
+		if (ret) {
+			dev_err(dev, "no rx queue phandle\n");
+			return -ENODEV;
+		}
+		recv_qid = queue_spec.args[0];
+
+		ret = of_parse_phandle_with_fixed_args(np, "queue-txready", 1, 0,
+						       &queue_spec);
+		if (ret) {
+			dev_err(dev, "no txready queue phandle\n");
+			return -ENODEV;
+		}
+		send_qid = queue_spec.args[0];
+	} else {
+		/*
+		 * Hardcoded engine when using platform data, this goes away
+		 * when we switch to using DT only.
+		 */
+		npe_id = 2;
+		send_qid = 29;
+		recv_qid = 30;
+	}
+
+	npe_c = npe_request(npe_id);
 	if (!npe_c)
 		return ret;
 
@@ -497,20 +538,20 @@ static int init_ixp_crypto(struct device *dev)
 	if (!ctx_pool)
 		goto err;
 
-	ret = qmgr_request_queue(SEND_QID, NPE_QLEN_TOTAL, 0, 0,
+	ret = qmgr_request_queue(send_qid, NPE_QLEN_TOTAL, 0, 0,
 				 "ixp_crypto:out", NULL);
 	if (ret)
 		goto err;
-	ret = qmgr_request_queue(RECV_QID, NPE_QLEN, 0, 0,
+	ret = qmgr_request_queue(recv_qid, NPE_QLEN, 0, 0,
 				 "ixp_crypto:in", NULL);
 	if (ret) {
-		qmgr_release_queue(SEND_QID);
+		qmgr_release_queue(send_qid);
 		goto err;
 	}
-	qmgr_set_irq(RECV_QID, QUEUE_IRQ_SRC_NOT_EMPTY, irqhandler, NULL);
+	qmgr_set_irq(recv_qid, QUEUE_IRQ_SRC_NOT_EMPTY, irqhandler, NULL);
 	tasklet_init(&crypto_done_tasklet, crypto_done_action, 0);
 
-	qmgr_enable_irq(RECV_QID);
+	qmgr_enable_irq(recv_qid);
 	return 0;
 
 npe_error:
@@ -526,11 +567,11 @@ npe_release:
 
 static void release_ixp_crypto(struct device *dev)
 {
-	qmgr_disable_irq(RECV_QID);
+	qmgr_disable_irq(recv_qid);
 	tasklet_kill(&crypto_done_tasklet);
 
-	qmgr_release_queue(SEND_QID);
-	qmgr_release_queue(RECV_QID);
+	qmgr_release_queue(send_qid);
+	qmgr_release_queue(recv_qid);
 
 	dma_pool_destroy(ctx_pool);
 	dma_pool_destroy(buffer_pool);
@@ -682,8 +723,8 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 	buf->phys_addr = pad_phys;
 
 	atomic_inc(&ctx->configuring);
-	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	qmgr_put_entry(send_qid, crypt_virt2phys(crypt));
+	BUG_ON(qmgr_stat_overflow(send_qid));
 	return 0;
 }
 
@@ -757,8 +798,8 @@ static int gen_rev_aes_key(struct crypto_tfm *tfm)
 	crypt->ctl_flags |= CTL_FLAG_GEN_REVAES;
 
 	atomic_inc(&ctx->configuring);
-	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	qmgr_put_entry(send_qid, crypt_virt2phys(crypt));
+	BUG_ON(qmgr_stat_overflow(send_qid));
 	return 0;
 }
 
@@ -943,7 +984,7 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 	if (sg_nents(req->src) > 1 || sg_nents(req->dst) > 1)
 		return ixp4xx_cipher_fallback(req, encrypt);
 
-	if (qmgr_stat_full(SEND_QID))
+	if (qmgr_stat_full(send_qid))
 		return -EAGAIN;
 	if (atomic_read(&ctx->configuring))
 		return -EAGAIN;
@@ -993,8 +1034,8 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 	req_ctx->src = src_hook.next;
 	crypt->src_buf = src_hook.phys_next;
 	crypt->ctl_flags |= CTL_FLAG_PERFORM_ABLK;
-	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	qmgr_put_entry(send_qid, crypt_virt2phys(crypt));
+	BUG_ON(qmgr_stat_overflow(send_qid));
 	return -EINPROGRESS;
 
 free_buf_src:
@@ -1057,7 +1098,7 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	enum dma_data_direction src_direction = DMA_BIDIRECTIONAL;
 	unsigned int lastlen;
 
-	if (qmgr_stat_full(SEND_QID))
+	if (qmgr_stat_full(send_qid))
 		return -EAGAIN;
 	if (atomic_read(&ctx->configuring))
 		return -EAGAIN;
@@ -1141,8 +1182,8 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	}
 
 	crypt->ctl_flags |= CTL_FLAG_PERFORM_AEAD;
-	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	qmgr_put_entry(send_qid, crypt_virt2phys(crypt));
+	BUG_ON(qmgr_stat_overflow(send_qid));
 	return -EINPROGRESS;
 
 free_buf_dst:
@@ -1436,12 +1477,13 @@ static struct ixp_aead_alg ixp4xx_aeads[] = {
 
 static int ixp_crypto_probe(struct platform_device *_pdev)
 {
+	struct device *dev = &_pdev->dev;
 	int num = ARRAY_SIZE(ixp4xx_algos);
 	int i, err;
 
 	pdev = _pdev;
 
-	err = init_ixp_crypto(&pdev->dev);
+	err = init_ixp_crypto(dev);
 	if (err)
 		return err;
 
@@ -1533,11 +1575,20 @@ static int ixp_crypto_remove(struct platform_device *pdev)
 
 	return 0;
 }
+static const struct of_device_id ixp4xx_crypto_of_match[] = {
+	{
+		.compatible = "intel,ixp4xx-crypto",
+	},
+	{},
+};
 
 static struct platform_driver ixp_crypto_driver = {
 	.probe = ixp_crypto_probe,
 	.remove = ixp_crypto_remove,
-	.driver = { .name = "ixp4xx_crypto" },
+	.driver = {
+		.name = "ixp4xx_crypto",
+		.of_match_table = ixp4xx_crypto_of_match,
+	},
 };
 module_platform_driver(ixp_crypto_driver);
 
