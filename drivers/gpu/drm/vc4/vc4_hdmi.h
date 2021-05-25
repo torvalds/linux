@@ -114,8 +114,7 @@ struct vc4_hdmi_audio {
 	int samplerate;
 	int channels;
 	struct snd_dmaengine_dai_dma_data dma_data;
-	struct snd_pcm_substream *substream;
-
+	struct hdmi_audio_infoframe infoframe;
 	bool streaming;
 };
 
