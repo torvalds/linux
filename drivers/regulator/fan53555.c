@@ -302,6 +302,9 @@ static int fan53526_voltages_setup_fairchild(struct fan53555_device_info *di)
 		return -EINVAL;
 	}
 
+	di->slew_reg = FAN53555_CONTROL;
+	di->slew_mask = CTL_SLEW_MASK;
+	di->slew_shift = CTL_SLEW_SHIFT;
 	di->vsel_count = FAN53526_NVOLTAGES;
 
 	return 0;
