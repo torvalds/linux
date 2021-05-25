@@ -551,6 +551,29 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	return ret;
 }
 
+static int psp_boot_config_get(struct amdgpu_device *adev, uint32_t *boot_cfg)
+{
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+	int ret;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
+	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_GET;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (!ret) {
+		*boot_cfg =
+			(cmd->resp.uresp.boot_cfg.boot_cfg & BOOT_CONFIG_GECC) ? 1 : 0;
+	}
+
+	return ret;
+}
+
 static int psp_boot_config_set(struct amdgpu_device *adev, uint32_t boot_cfg)
 {
 	struct psp_context *psp = &adev->psp;
