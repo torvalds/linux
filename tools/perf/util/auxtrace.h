@@ -703,9 +703,26 @@ int auxtrace_record__options(struct auxtrace_record *itr __maybe_unused,
 	return 0;
 }
 
-#define perf_event__process_auxtrace_info		0
-#define perf_event__process_auxtrace			0
-#define perf_event__process_auxtrace_error		0
+static inline
+int perf_event__process_auxtrace_info(struct perf_session *session __maybe_unused,
+				      union perf_event *event __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+s64 perf_event__process_auxtrace(struct perf_session *session __maybe_unused,
+				 union perf_event *event __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+int perf_event__process_auxtrace_error(struct perf_session *session __maybe_unused,
+				       union perf_event *event __maybe_unused)
+{
+	return 0;
+}
 
 static inline
 void perf_session__auxtrace_error_inc(struct perf_session *session
