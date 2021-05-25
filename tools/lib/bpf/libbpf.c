@@ -151,6 +151,23 @@ static inline __u64 ptr_to_u64(const void *ptr)
 	return (__u64) (unsigned long) ptr;
 }
 
+/* this goes away in libbpf 1.0 */
+enum libbpf_strict_mode libbpf_mode = LIBBPF_STRICT_NONE;
+
+int libbpf_set_strict_mode(enum libbpf_strict_mode mode)
+{
+	/* __LIBBPF_STRICT_LAST is the last power-of-2 value used + 1, so to
+	 * get all possible values we compensate last +1, and then (2*x - 1)
+	 * to get the bit mask
+	 */
+	if (mode != LIBBPF_STRICT_ALL
+	    && (mode & ~((__LIBBPF_STRICT_LAST - 1) * 2 - 1)))
+		return errno = EINVAL, -EINVAL;
+
+	libbpf_mode = mode;
+	return 0;
+}
+
 enum kern_feature_id {
 	/* v4.14: kernel support for program & map names. */
 	FEAT_PROG_NAME,
