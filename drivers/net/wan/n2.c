@@ -32,8 +32,8 @@
 #include <asm/io.h>
 #include "hd64570.h"
 
-static const char* version = "SDL RISCom/N2 driver version: 1.15";
-static const char* devname = "RISCom/N2";
+static const char *version = "SDL RISCom/N2 driver version: 1.15";
+static const char *devname = "RISCom/N2";
 
 #undef DEBUG_PKT
 #define DEBUG_RINGS
