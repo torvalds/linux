@@ -591,10 +591,10 @@ void del_gendisk(struct gendisk *disk)
 	blk_integrity_del(disk);
 	disk_del_events(disk);
 
-	mutex_lock(&disk->part0->bd_mutex);
+	mutex_lock(&disk->open_mutex);
 	disk->flags &= ~GENHD_FL_UP;
 	blk_drop_partitions(disk);
-	mutex_unlock(&disk->part0->bd_mutex);
+	mutex_unlock(&disk->open_mutex);
 
 	fsync_bdev(disk->part0);
 	__invalidate_device(disk->part0, true);
@@ -1273,6 +1273,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 		goto out_free_disk;
 
 	disk->node_id = node_id;
+	mutex_init(&disk->open_mutex);
 	xa_init(&disk->part_tbl);
 	if (xa_insert(&disk->part_tbl, 0, disk->part0, GFP_KERNEL))
 		goto out_destroy_part_tbl;
@@ -1525,7 +1526,7 @@ void disk_unblock_events(struct gendisk *disk)
  * doesn't clear the events from @disk->ev.
  *
  * CONTEXT:
- * If @mask is non-zero must be called with bdev->bd_mutex held.
+ * If @mask is non-zero must be called with disk->open_mutex held.
  */
 void disk_flush_events(struct gendisk *disk, unsigned int mask)
 {

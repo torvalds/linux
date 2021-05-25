@@ -652,9 +652,9 @@ static void loop_reread_partitions(struct loop_device *lo,
 {
 	int rc;
 
-	mutex_lock(&bdev->bd_mutex);
+	mutex_lock(&bdev->bd_disk->open_mutex);
 	rc = bdev_disk_changed(bdev, false);
-	mutex_unlock(&bdev->bd_mutex);
+	mutex_unlock(&bdev->bd_disk->open_mutex);
 	if (rc)
 		pr_warn("%s: partition scan of loop%d (%s) failed (rc=%d)\n",
 			__func__, lo->lo_number, lo->lo_file_name, rc);
@@ -747,7 +747,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 	mutex_unlock(&lo->lo_mutex);
 	/*
 	 * We must drop file reference outside of lo_mutex as dropping
-	 * the file ref can take bd_mutex which creates circular locking
+	 * the file ref can take open_mutex which creates circular locking
 	 * dependency.
 	 */
 	fput(old_file);
@@ -1260,7 +1260,7 @@ out_unlock:
 	mutex_unlock(&lo->lo_mutex);
 	if (partscan) {
 		/*
-		 * bd_mutex has been held already in release path, so don't
+		 * open_mutex has been held already in release path, so don't
 		 * acquire it if this function is called in such case.
 		 *
 		 * If the reread partition isn't from release path, lo_refcnt
@@ -1268,10 +1268,10 @@ out_unlock:
 		 * current holder is released.
 		 */
 		if (!release)
-			mutex_lock(&bdev->bd_mutex);
+			mutex_lock(&bdev->bd_disk->open_mutex);
 		err = bdev_disk_changed(bdev, false);
 		if (!release)
-			mutex_unlock(&bdev->bd_mutex);
+			mutex_unlock(&bdev->bd_disk->open_mutex);
 		if (err)
 			pr_warn("%s: partition scan of loop%d failed (rc=%d)\n",
 				__func__, lo_number, err);
@@ -1298,7 +1298,7 @@ out_unlock:
 	/*
 	 * Need not hold lo_mutex to fput backing file. Calling fput holding
 	 * lo_mutex triggers a circular lock dependency possibility warning as
-	 * fput can take bd_mutex which is usually taken before lo_mutex.
+	 * fput can take open_mutex which is usually taken before lo_mutex.
 	 */
 	if (filp)
 		fput(filp);

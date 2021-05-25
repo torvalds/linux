@@ -2163,7 +2163,7 @@ static void blkfront_closing(struct blkfront_info *info)
 		return;
 	}
 
-	mutex_lock(&bdev->bd_mutex);
+	mutex_lock(&bdev->bd_disk->open_mutex);
 
 	if (bdev->bd_openers) {
 		xenbus_dev_error(xbdev, -EBUSY,
@@ -2174,7 +2174,7 @@ static void blkfront_closing(struct blkfront_info *info)
 		xenbus_frontend_closed(xbdev);
 	}
 
-	mutex_unlock(&bdev->bd_mutex);
+	mutex_unlock(&bdev->bd_disk->open_mutex);
 	bdput(bdev);
 }
 
@@ -2531,7 +2531,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	 * isn't closed yet, we let release take care of it.
 	 */
 
-	mutex_lock(&bdev->bd_mutex);
+	mutex_lock(&disk->open_mutex);
 	info = disk->private_data;
 
 	dev_warn(disk_to_dev(disk),
@@ -2546,7 +2546,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 		mutex_unlock(&blkfront_mutex);
 	}
 
-	mutex_unlock(&bdev->bd_mutex);
+	mutex_unlock(&disk->open_mutex);
 	bdput(bdev);
 
 	return 0;

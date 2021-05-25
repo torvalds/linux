@@ -283,7 +283,7 @@ struct device_type part_type = {
 };
 
 /*
- * Must be called either with bd_mutex held, before a disk can be opened or
+ * Must be called either with open_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
 static void delete_partition(struct block_device *part)
@@ -312,7 +312,7 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
 
 /*
- * Must be called either with bd_mutex held, before a disk can be opened or
+ * Must be called either with open_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
 static struct block_device *add_partition(struct gendisk *disk, int partno,
@@ -453,15 +453,15 @@ int bdev_add_partition(struct block_device *bdev, int partno,
 {
 	struct block_device *part;
 
-	mutex_lock(&bdev->bd_mutex);
+	mutex_lock(&bdev->bd_disk->open_mutex);
 	if (partition_overlaps(bdev->bd_disk, start, length, -1)) {
-		mutex_unlock(&bdev->bd_mutex);
+		mutex_unlock(&bdev->bd_disk->open_mutex);
 		return -EBUSY;
 	}
 
 	part = add_partition(bdev->bd_disk, partno, start, length,
 			ADDPART_FLAG_NONE, NULL);
-	mutex_unlock(&bdev->bd_mutex);
+	mutex_unlock(&bdev->bd_disk->open_mutex);
 	return PTR_ERR_OR_ZERO(part);
 }
 
@@ -474,8 +474,7 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	if (!part)
 		return -ENXIO;
 
-	mutex_lock(&part->bd_mutex);
-	mutex_lock_nested(&bdev->bd_mutex, 1);
+	mutex_lock(&bdev->bd_disk->open_mutex);
 
 	ret = -EBUSY;
 	if (part->bd_openers)
@@ -484,8 +483,7 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	delete_partition(part);
 	ret = 0;
 out_unlock:
-	mutex_unlock(&bdev->bd_mutex);
-	mutex_unlock(&part->bd_mutex);
+	mutex_unlock(&bdev->bd_disk->open_mutex);
 	bdput(part);
 	return ret;
 }
@@ -500,8 +498,7 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 	if (!part)
 		return -ENXIO;
 
-	mutex_lock(&part->bd_mutex);
-	mutex_lock_nested(&bdev->bd_mutex, 1);
+	mutex_lock(&bdev->bd_disk->open_mutex);
 	ret = -EINVAL;
 	if (start != part->bd_start_sect)
 		goto out_unlock;
@@ -514,8 +511,7 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 
 	ret = 0;
 out_unlock:
-	mutex_unlock(&part->bd_mutex);
-	mutex_unlock(&bdev->bd_mutex);
+	mutex_unlock(&bdev->bd_disk->open_mutex);
 	bdput(part);
 	return ret;
 }
@@ -541,7 +537,7 @@ void blk_drop_partitions(struct gendisk *disk)
 	struct block_device *part;
 	unsigned long idx;
 
-	lockdep_assert_held(&disk->part0->bd_mutex);
+	lockdep_assert_held(&disk->open_mutex);
 
 	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
 		if (!bdgrab(part))
