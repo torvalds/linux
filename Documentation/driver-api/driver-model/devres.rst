@@ -314,7 +314,6 @@ IOMAP
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps
   devm_ioremap_resource_wc()
   devm_platform_ioremap_resource() : calls devm_ioremap_resource() for platform device
-  devm_platform_ioremap_resource_wc()
   devm_platform_ioremap_resource_byname()
   devm_platform_get_and_ioremap_resource()
   devm_iounmap()
