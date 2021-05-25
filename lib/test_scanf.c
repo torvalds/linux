@@ -187,8 +187,8 @@ static const unsigned long long numbers[] __initconst = {
 #define value_representable_in_type(T, val)					 \
 (is_signed_type(T)								 \
 	? ((long long)(val) >= type_min(T)) && ((long long)(val) <= type_max(T)) \
-	: ((unsigned long long)(val) >= type_min(T)) &&				 \
-	  ((unsigned long long)(val) <= type_max(T)))
+	: ((unsigned long long)(val) <= type_max(T)))
+
 
 #define test_one_number(T, gen_fmt, scan_fmt, val, fn)			\
 do {									\
@@ -204,12 +204,11 @@ do {									\
 	int i;								\
 									\
 	for (i = 0; i < ARRAY_SIZE(numbers); i++) {			\
-		if (!value_representable_in_type(T, numbers[i]))	\
-			continue;					\
+		if (value_representable_in_type(T, numbers[i]))		\
+			test_one_number(T, gen_fmt, scan_fmt,		\
+					numbers[i], fn);		\
 									\
-		test_one_number(T, gen_fmt, scan_fmt, numbers[i], fn);	\
-									\
-		if (is_signed_type(T))					\
+		if (value_representable_in_type(T, -numbers[i]))	\
 			test_one_number(T, gen_fmt, scan_fmt,		\
 					-numbers[i], fn);		\
 	}								\
