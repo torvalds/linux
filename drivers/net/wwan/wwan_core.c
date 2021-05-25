@@ -63,6 +63,20 @@ struct wwan_port {
 	wait_queue_head_t waitqueue;
 };
 
+static ssize_t index_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct wwan_device *wwan = to_wwan_dev(dev);
+
+	return sprintf(buf, "%d\n", wwan->id);
+}
+static DEVICE_ATTR_RO(index);
+
+static struct attribute *wwan_dev_attrs[] = {
+	&dev_attr_index.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(wwan_dev);
+
 static void wwan_dev_destroy(struct device *dev)
 {
 	struct wwan_device *wwandev = to_wwan_dev(dev);
@@ -74,6 +88,7 @@ static void wwan_dev_destroy(struct device *dev)
 static const struct device_type wwan_dev_type = {
 	.name    = "wwan_dev",
 	.release = wwan_dev_destroy,
+	.groups = wwan_dev_groups,
 };
 
 static int wwan_dev_parent_match(struct device *dev, const void *parent)
