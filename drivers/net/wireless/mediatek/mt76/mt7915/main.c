@@ -139,12 +139,6 @@ static int get_omac_idx(enum nl80211_iftype type, u64 mask)
 		if (type != NL80211_IFTYPE_STATION)
 			break;
 
-		/* next, try to find a free repeater entry for the sta */
-		i = get_free_idx(mask >> REPEATER_BSSID_START, 0,
-				 REPEATER_BSSID_MAX - REPEATER_BSSID_START);
-		if (i)
-			return i + 32 - 1;
-
 		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
 		if (i)
 			return i - 1;
