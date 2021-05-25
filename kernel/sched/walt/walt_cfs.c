@@ -164,8 +164,6 @@ static void walt_find_best_target(struct sched_domain *sd,
 	long target_max_spare_cap = 0;
 	unsigned long best_idle_cuml_util = ULONG_MAX;
 	unsigned int min_exit_latency = UINT_MAX;
-	int best_idle_cpu = -1;
-	int target_cpu = -1;
 	int i, start_cpu;
 	long spare_wake_cap, most_spare_wake_cap = 0;
 	int most_spare_cap_cpu = -1;
@@ -202,13 +200,19 @@ static void walt_find_best_target(struct sched_domain *sd,
 				cpu_active(prev_cpu) && cpu_online(prev_cpu) &&
 				available_idle_cpu(prev_cpu) &&
 				cpumask_test_cpu(prev_cpu, p->cpus_ptr)) {
-		target_cpu = prev_cpu;
 		fbt_env->fastpath = PREV_CPU_FASTPATH;
-		cpumask_set_cpu(target_cpu, candidates);
+		cpumask_set_cpu(prev_cpu, candidates);
 		goto out;
 	}
 
 	for (cluster = 0; cluster < num_sched_clusters; cluster++) {
+		int best_idle_cpu_cluster = -1;
+		int target_cpu_cluster = -1;
+
+		target_max_spare_cap = 0;
+		min_exit_latency = INT_MAX;
+		best_idle_cuml_util = ULONG_MAX;
+
 		cpumask_and(&visit_cpus, &p->cpus_mask,
 				&cpu_array[order_index][cluster]);
 		for_each_cpu(i, &visit_cpus) {
@@ -293,16 +297,20 @@ static void walt_find_best_target(struct sched_domain *sd,
 
 				new_util_cuml = cpu_util_cum(i);
 				if (min_exit_latency == idle_exit_latency &&
-					(best_idle_cpu == prev_cpu ||
+					(best_idle_cpu_cluster == prev_cpu ||
 					(i != prev_cpu &&
 					new_util_cuml > best_idle_cuml_util)))
 					continue;
 
 				min_exit_latency = idle_exit_latency;
 				best_idle_cuml_util = new_util_cuml;
-				best_idle_cpu = i;
+				best_idle_cpu_cluster = i;
 				continue;
 			}
+
+			/* skip visiting any more busy if idle was found */
+			if (best_idle_cpu_cluster != -1)
+				continue;
 
 			if (per_task_boost(cpu_rq(i)->curr) ==
 					TASK_BOOST_STRICT_MAX)
@@ -338,47 +346,40 @@ static void walt_find_best_target(struct sched_domain *sd,
 
 			target_max_spare_cap = spare_cap;
 			target_nr_rtg_high_prio = walt_nr_rtg_high_prio(i);
-			target_cpu = i;
+			target_cpu_cluster = i;
 		}
 
-		if (best_idle_cpu != -1)
-			break;
+		if (best_idle_cpu_cluster != -1)
+			cpumask_set_cpu(best_idle_cpu_cluster, candidates);
+		else if (target_cpu_cluster != -1)
+			cpumask_set_cpu(target_cpu_cluster, candidates);
 
-		if ((cluster >= end_index) && (target_cpu != -1) &&
-			walt_target_ok(target_cpu, order_index))
+		if ((cluster >= end_index) && (!cpumask_empty(candidates)) &&
+			walt_target_ok(target_cpu_cluster, order_index))
 			break;
 
 		if (most_spare_cap_cpu != -1 && cluster >= stop_index)
 			break;
 	}
 
-	if (best_idle_cpu != -1)
-		target_cpu = -1;
 	/*
-	 * We set both idle and target as long as they are valid CPUs.
+	 * We have set idle or target as long as they are valid CPUs.
 	 * If we don't find either, then we fallback to most_spare_cap,
 	 * If we don't find most spare cap, we fallback to prev_cpu,
 	 * provided that the prev_cpu is active.
 	 * If the prev_cpu is not active, we fallback to active_candidate.
 	 */
 
-	if (unlikely(target_cpu == -1)) {
-		if (best_idle_cpu != -1)
-			target_cpu = best_idle_cpu;
-		else if (most_spare_cap_cpu != -1)
-			target_cpu = most_spare_cap_cpu;
+	if (unlikely(cpumask_empty(candidates))) {
+		if (most_spare_cap_cpu != -1)
+			cpumask_set_cpu(most_spare_cap_cpu, candidates);
 		else if (!cpu_active(prev_cpu))
-			target_cpu = active_candidate;
+			cpumask_set_cpu(active_candidate, candidates);
 	}
 
-	if (target_cpu != -1)
-		cpumask_set_cpu(target_cpu, candidates);
-	if (best_idle_cpu != -1 && target_cpu != best_idle_cpu)
-		cpumask_set_cpu(best_idle_cpu, candidates);
 out:
-	trace_sched_find_best_target(p, min_util, start_cpu,
-			     best_idle_cpu, most_spare_cap_cpu,
-			     target_cpu, order_index, end_index,
+	trace_sched_find_best_target(p, min_util, start_cpu, cpumask_bits(candidates)[0],
+			     most_spare_cap_cpu, order_index, end_index,
 			     fbt_env->skip_cpu, task_on_rq_queued(p));
 }
 
@@ -517,6 +518,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	int task_boost = per_task_boost(p);
 	bool uclamp_boost = walt_uclamp_boosted(p);
 	int start_cpu, order_index, end_index;
+	int max_cap_cpu = -1;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, &p->cpus_mask))
@@ -569,28 +571,38 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 
 	/* Bail out if no candidate was found. */
 	weight = cpumask_weight(candidates);
-	if (!weight)
-		goto unlock;
+	if (!weight) {
+		rcu_read_unlock();
+		goto done;
+	}
 
-	/* If there is only one sensible candidate, select it now. */
-	cpu = cpumask_first(candidates);
-	if (weight == 1 && (available_idle_cpu(cpu) || cpu == prev_cpu)) {
-		best_energy_cpu = cpu;
-		goto unlock;
+	max_cap_cpu = cpumask_first(candidates);
+	if (weight == 1) {
+		if (available_idle_cpu(max_cap_cpu) || max_cap_cpu == prev_cpu) {
+			best_energy_cpu = max_cap_cpu;
+			rcu_read_unlock();
+			goto done;
+		}
+	}
+
+	for_each_cpu(cpu, candidates) {
+		if (capacity_orig_of(max_cap_cpu) < capacity_orig_of(cpu))
+			max_cap_cpu = cpu;
+	}
+
+	if (task_placement_boost_enabled(p) ||
+		task_boost || uclamp_boost ||
+		!task_fits_max(p, prev_cpu) || !cpu_active(prev_cpu) ||
+			walt_get_rtg_status(p)) {
+		best_energy_cpu = max_cap_cpu;
+		rcu_read_unlock();
+		goto done;
 	}
 
 	if (p->state == TASK_WAKING)
 		delta = task_util(p);
 
-	if (task_placement_boost_enabled(p) || fbt_env.need_idle ||
-	    uclamp_boost || task_boost || is_rtg ||
-	    __cpu_overutilized(prev_cpu, delta) || !task_fits_max(p, prev_cpu) ||
-	    !cpu_active(prev_cpu)) {
-		best_energy_cpu = cpu;
-		goto unlock;
-	}
-
-	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask))
+	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta))
 		prev_energy = best_energy =
 			walt_compute_energy(p, prev_cpu, pd);
 	else
@@ -617,7 +629,6 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		}
 	}
 
-unlock:
 	rcu_read_unlock();
 
 	/*
