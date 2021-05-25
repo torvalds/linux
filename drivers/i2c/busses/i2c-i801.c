@@ -88,6 +88,8 @@
  * See the file Documentation/i2c/busses/i2c-i801.rst for details.
  */
 
+#define DRV_NAME	"i801_smbus"
+
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -1805,8 +1807,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (i801_acpi_probe(priv))
 		return -ENODEV;
 
-	err = pcim_iomap_regions(dev, 1 << SMBBAR,
-				 dev_driver_string(&dev->dev));
+	err = pcim_iomap_regions(dev, 1 << SMBBAR, DRV_NAME);
 	if (err) {
 		dev_err(&dev->dev,
 			"Failed to request SMBus region 0x%lx-0x%Lx\n",
@@ -1864,8 +1865,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		init_completion(&priv->done);
 
 		err = devm_request_irq(&dev->dev, dev->irq, i801_isr,
-				       IRQF_SHARED,
-				       dev_driver_string(&dev->dev), priv);
+				       IRQF_SHARED, DRV_NAME, priv);
 		if (err) {
 			dev_err(&dev->dev, "Failed to allocate irq %d: %d\n",
 				dev->irq, err);
@@ -1955,7 +1955,7 @@ static int i801_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(i801_pm_ops, i801_suspend, i801_resume);
 
 static struct pci_driver i801_driver = {
-	.name		= "i801_smbus",
+	.name		= DRV_NAME,
 	.id_table	= i801_ids,
 	.probe		= i801_probe,
 	.remove		= i801_remove,
