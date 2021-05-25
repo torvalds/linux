@@ -182,7 +182,7 @@ extern int sched_boost_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 extern int sched_busy_hyst_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
-extern u64 sched_ktime_clock(void);
+extern u64 walt_ktime_get_ns(void);
 extern void clear_walt_request(int cpu);
 extern void walt_init_tg(struct task_group *tg);
 extern void walt_init_topapp_tg(struct task_group *tg);
@@ -365,7 +365,7 @@ static inline void waltgov_run_callback(struct rq *rq, unsigned int flags)
 
 	cb = rcu_dereference_sched(*per_cpu_ptr(&waltgov_cb_data, cpu_of(rq)));
 	if (cb)
-		cb->func(cb, sched_ktime_clock(), flags);
+		cb->func(cb, walt_ktime_get_ns(), flags);
 }
 
 extern unsigned long cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load);

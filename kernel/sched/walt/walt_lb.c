@@ -135,7 +135,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	if (!is_min_capacity_cpu(src_cpu))
 		return;
 
-	wc = sched_ktime_clock();
+	wc = walt_ktime_get_ns();
 
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
@@ -594,7 +594,7 @@ static bool walt_balance_rt(struct rq *this_rq)
 		goto unlock;
 
 	wts = (struct walt_task_struct *) p->android_vendor_data1;
-	if (sched_ktime_clock() - wts->last_wake_ts < WALT_RT_PULL_THRESHOLD_NS)
+	if (walt_ktime_get_ns() - wts->last_wake_ts < WALT_RT_PULL_THRESHOLD_NS)
 		goto unlock;
 
 	pulled = true;

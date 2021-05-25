@@ -50,7 +50,7 @@ const char *migrate_type_names[] = {
 unsigned int sysctl_sched_user_hint;
 
 static ktime_t ktime_last;
-static bool sched_ktime_suspended;
+static bool walt_ktime_suspended;
 
 static bool use_cycle_counter;
 static DEFINE_MUTEX(cluster_lock);
@@ -99,35 +99,29 @@ int set_task_boost(int boost, u64 period)
 }
 EXPORT_SYMBOL(set_task_boost);
 
-u64 sched_ktime_clock(void)
+u64 walt_ktime_get_ns(void)
 {
-	if (unlikely(sched_ktime_suspended))
+	if (unlikely(walt_ktime_suspended))
 		return ktime_to_ns(ktime_last);
 	return ktime_get_ns();
 }
 
-static void sched_resume(void)
+static void walt_resume(void)
 {
-	sched_ktime_suspended = false;
+	walt_ktime_suspended = false;
 }
 
-static int sched_suspend(void)
+static int walt_suspend(void)
 {
 	ktime_last = ktime_get();
-	sched_ktime_suspended = true;
+	walt_ktime_suspended = true;
 	return 0;
 }
 
-static struct syscore_ops sched_syscore_ops = {
-	.resume		= sched_resume,
-	.suspend	= sched_suspend
+static struct syscore_ops walt_syscore_ops = {
+	.resume		= walt_resume,
+	.suspend	= walt_suspend
 };
-
-static int sched_init_ops(void)
-{
-	register_syscore_ops(&sched_syscore_ops);
-	return 0;
-}
 
 static inline void acquire_rq_locks_irqsave(const cpumask_t *cpus,
 				     unsigned long *flags)
@@ -269,7 +263,7 @@ static inline void walt_dump(void)
 	int cpu;
 
 	printk_deferred("============ WALT RQ DUMP START ==============\n");
-	printk_deferred("Sched ktime_get: %llu\n", sched_ktime_clock());
+	printk_deferred("Sched ktime_get: %llu\n", walt_ktime_get_ns());
 	printk_deferred("Time last window changed=%lu\n",
 			sched_ravg_window_change_time);
 	for_each_online_cpu(cpu)
@@ -488,7 +482,7 @@ static void walt_sched_account_irqstart(int cpu, struct task_struct *curr)
 
 	/* We're here without rq->lock held, IRQ disabled */
 	raw_spin_lock(&rq->lock);
-	update_task_cpu_cycles(curr, cpu, sched_ktime_clock());
+	update_task_cpu_cycles(curr, cpu, walt_ktime_get_ns());
 	raw_spin_unlock(&rq->lock);
 }
 
@@ -500,7 +494,7 @@ static void walt_sched_account_irqend(int cpu, struct task_struct *curr, u64 del
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&rq->lock, flags);
-	walt_update_task_ravg(curr, rq, IRQ_UPDATE, sched_ktime_clock(), delta);
+	walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_ktime_get_ns(), delta);
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 
@@ -979,7 +973,7 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 	if (pstate == TASK_WAKING)
 		double_rq_lock(src_rq, dest_rq);
 
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 
 	lockdep_assert_held(&src_rq->lock);
 	lockdep_assert_held(&dest_rq->lock);
@@ -2266,7 +2260,7 @@ static void mark_task_starting(struct task_struct *p)
 	struct rq *rq = task_rq(p);
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 	wts->mark_start = wts->last_wake_ts = wallclock;
 	wts->last_enqueued_ts = wallclock;
 	update_task_cpu_cycles(p, cpu_of(rq), wallclock);
@@ -2615,7 +2609,7 @@ static int cpufreq_notifier_trans(struct notifier_block *nb,
 
 			raw_spin_lock_irqsave(&rq->lock, flags);
 			walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
-					 sched_ktime_clock(), 0);
+					 walt_ktime_get_ns(), 0);
 			raw_spin_unlock_irqrestore(&rq->lock, flags);
 		}
 
@@ -2713,7 +2707,7 @@ static void _set_preferred_cluster(struct walt_related_thread_group *grp)
 		goto out;
 	}
 
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 
 	/*
 	 * wakeup of two or more related tasks could race with each other and
@@ -2778,7 +2772,7 @@ static int update_preferred_cluster(struct walt_related_thread_group *grp,
 	 * has passed since we last updated preference
 	 */
 	if (abs(new_load - old_load) > sched_ravg_window / 4 ||
-		sched_ktime_clock() - grp->last_update > sched_ravg_window)
+		walt_ktime_get_ns() - grp->last_update > sched_ravg_window)
 		return 1;
 
 	return 0;
@@ -3113,7 +3107,7 @@ static void transfer_busy_time(struct rq *rq,
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
 	walt_update_task_ravg(p, rq, TASK_UPDATE, wallclock, 0);
@@ -3353,7 +3347,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 		level++;
 	}
 
-	wc = sched_ktime_clock();
+	wc = walt_ktime_get_ns();
 	walt_load_reported_window = atomic64_read(&walt_irq_work_lastq_ws);
 	for_each_sched_cluster(cluster) {
 		u64 aggr_grp_load = 0;
@@ -3458,7 +3452,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 		wrq = (struct walt_rq *) this_rq()->android_vendor_data1;
 		if ((sched_ravg_window != new_sched_ravg_window) &&
 		    (wc < wrq->window_start + new_sched_ravg_window)) {
-			sched_ravg_window_change_time = sched_ktime_clock();
+			sched_ravg_window_change_time = walt_ktime_get_ns();
 			trace_sched_ravg_window_change(sched_ravg_window,
 					new_sched_ravg_window,
 					sched_ravg_window_change_time);
@@ -3508,7 +3502,7 @@ void walt_fill_ta_data(struct core_ctl_notif_data *data)
 		goto fill_util;
 	}
 
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 
 	list_for_each_entry(wts, &grp->tasks, grp_list) {
 		if (wts->mark_start < wallclock -
@@ -3797,7 +3791,7 @@ static void android_rvh_flush_task(void *unused, struct task_struct *p)
 
 static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_struct *p, int flags)
 {
-	u64 wallclock = sched_ktime_clock();
+	u64 wallclock = walt_ktime_get_ns();
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
@@ -3841,7 +3835,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 
 	wts->prev_on_rq = 2;
 	if (p == wrq->ed_task)
-		is_ed_task_present(rq, sched_ktime_clock(), p);
+		is_ed_task_present(rq, walt_ktime_get_ns(), p);
 
 	sched_update_nr_prod(rq->cpu, -1);
 
@@ -3904,7 +3898,7 @@ static void android_rvh_try_to_wake_up(void *unused, struct task_struct *p)
 		return;
 	rq_lock_irqsave(rq, &rf);
 	old_load = task_load(p);
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
 	walt_update_task_ravg(p, rq, TASK_WAKE, wallclock, 0);
 	note_task_waking(p, wallclock);
@@ -3940,7 +3934,7 @@ static void android_rvh_tick_entry(void *unused, struct rq *rq)
 		return;
 
 	set_window_start(rq);
-	wallclock = sched_ktime_clock();
+	wallclock = walt_ktime_get_ns();
 
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
 
@@ -3969,7 +3963,7 @@ static void android_vh_scheduler_tick(void *unused, struct rq *rq)
 static void android_rvh_schedule(void *unused, struct task_struct *prev,
 		struct task_struct *next, struct rq *rq)
 {
-	u64 wallclock = sched_ktime_clock();
+	u64 wallclock = walt_ktime_get_ns();
 	struct walt_task_struct *wts = (struct walt_task_struct *) prev->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
@@ -4178,7 +4172,7 @@ static void walt_init(void)
 
 	walt_tunables();
 
-	sched_init_ops();
+	register_syscore_ops(&walt_syscore_ops);
 	BUG_ON(alloc_related_thread_groups());
 	walt_init_cycle_counter();
 	init_clusters();
