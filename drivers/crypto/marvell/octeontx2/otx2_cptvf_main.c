@@ -5,6 +5,7 @@
 #include "otx2_cptvf.h"
 #include "otx2_cptlf.h"
 #include "otx2_cptvf_algs.h"
+#include "cn10k_cpt.h"
 #include <rvu_reg.h>
 
 #define OTX2_CPTVF_DRV_NAME "rvu_cptvf"
@@ -364,6 +365,11 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 	cptvf->reg_base = pcim_iomap_table(pdev)[PCI_PF_REG_BAR_NUM];
 
 	otx2_cpt_set_hw_caps(pdev, &cptvf->cap_flag);
+
+	ret = cn10k_cptvf_lmtst_init(cptvf);
+	if (ret)
+		goto clear_drvdata;
+
 	/* Initialize PF<=>VF mailbox */
 	ret = cptvf_pfvf_mbox_init(cptvf);
 	if (ret)

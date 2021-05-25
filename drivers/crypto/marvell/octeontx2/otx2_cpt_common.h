@@ -27,6 +27,7 @@
 
 /* HW capability flags */
 #define CN10K_MBOX  0
+#define CN10K_LMTST 1
 
 #define BAD_OTX2_CPT_ENG_TYPE OTX2_CPT_MAX_ENG_TYPES
 
@@ -131,8 +132,10 @@ static inline bool is_dev_otx2(struct pci_dev *pdev)
 static inline void otx2_cpt_set_hw_caps(struct pci_dev *pdev,
 					unsigned long *cap_flag)
 {
-	if (!is_dev_otx2(pdev))
+	if (!is_dev_otx2(pdev)) {
 		__set_bit(CN10K_MBOX, cap_flag);
+		__set_bit(CN10K_LMTST, cap_flag);
+	}
 }
 
 

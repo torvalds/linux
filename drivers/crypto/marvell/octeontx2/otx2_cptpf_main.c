@@ -6,6 +6,7 @@
 #include "otx2_cpt_common.h"
 #include "otx2_cptpf_ucode.h"
 #include "otx2_cptpf.h"
+#include "cn10k_cpt.h"
 #include "rvu_reg.h"
 
 #define OTX2_CPT_DRV_NAME    "rvu_cptpf"
@@ -676,6 +677,10 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 		goto destroy_afpf_mbox;
 
 	cptpf->max_vfs = pci_sriov_get_totalvfs(pdev);
+
+	err = cn10k_cptpf_lmtst_init(cptpf);
+	if (err)
+		goto unregister_intr;
 
 	/* Initialize CPT PF device */
 	err = cptpf_device_init(cptpf);
