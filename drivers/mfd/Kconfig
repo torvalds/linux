@@ -2117,6 +2117,20 @@ config MFD_ACER_A500_EC
 	  The controller itself is ENE KB930, it is running firmware
 	  customized for the specific needs of the Acer A500 hardware.
 
+config MFD_QCOM_PM8008
+	tristate "QCOM PM8008 Power Management IC"
+	depends on I2C && OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Select this option to get support for the Qualcomm Technologies, Inc.
+	  PM8008 PMIC chip. PM8008 is a dedicated camera PMIC that integrates
+	  all the necessary power management, housekeeping, and interface
+	  support functions into a single IC. This driver provides common
+	  support for accessing the device by instantiating all the child nodes
+	  under it in the device tree. Additional drivers must be enabled in
+	  order to use the functionality of the device.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
