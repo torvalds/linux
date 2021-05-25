@@ -317,6 +317,8 @@ static int bch2_copygc_thread(void *arg)
 	set_freezable();
 
 	while (!kthread_should_stop()) {
+		cond_resched();
+
 		if (kthread_wait_freezable(c->copy_gc_enabled))
 			break;
 
