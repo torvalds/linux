@@ -63,45 +63,66 @@ static void cptpf_disable_vfpf_mbox_intr(struct otx2_cptpf_dev *cptpf,
 	}
 }
 
-static void cptpf_enable_vf_flr_intrs(struct otx2_cptpf_dev *cptpf)
+static void cptpf_enable_vf_flr_me_intrs(struct otx2_cptpf_dev *cptpf,
+					 int num_vfs)
 {
-	/* Clear interrupt if any */
+	/* Clear FLR interrupt if any */
 	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFFLR_INTX(0),
-			~0x0ULL);
-	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFFLR_INTX(1),
-			~0x0ULL);
+			 INTR_MASK(num_vfs));
 
 	/* Enable VF FLR interrupts */
 	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
-			 RVU_PF_VFFLR_INT_ENA_W1SX(0), ~0x0ULL);
+			 RVU_PF_VFFLR_INT_ENA_W1SX(0), INTR_MASK(num_vfs));
+	/* Clear ME interrupt if any */
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFME_INTX(0),
+			 INTR_MASK(num_vfs));
+	/* Enable VF ME interrupts */
 	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
-			 RVU_PF_VFFLR_INT_ENA_W1SX(1), ~0x0ULL);
+			 RVU_PF_VFME_INT_ENA_W1SX(0), INTR_MASK(num_vfs));
+
+	if (num_vfs <= 64)
+		return;
+
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFFLR_INTX(1),
+			 INTR_MASK(num_vfs - 64));
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+			 RVU_PF_VFFLR_INT_ENA_W1SX(1), INTR_MASK(num_vfs - 64));
+
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFME_INTX(1),
+			 INTR_MASK(num_vfs - 64));
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+			 RVU_PF_VFME_INT_ENA_W1SX(1), INTR_MASK(num_vfs - 64));
 }
 
-static void cptpf_disable_vf_flr_intrs(struct otx2_cptpf_dev *cptpf,
+static void cptpf_disable_vf_flr_me_intrs(struct otx2_cptpf_dev *cptpf,
 				       int num_vfs)
 {
 	int vector;
 
 	/* Disable VF FLR interrupts */
 	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
-			 RVU_PF_VFFLR_INT_ENA_W1CX(0), ~0x0ULL);
-	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
-			 RVU_PF_VFFLR_INT_ENA_W1CX(1), ~0x0ULL);
-
-	/* Clear interrupt if any */
-	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFFLR_INTX(0),
-			 ~0x0ULL);
-	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0, RVU_PF_VFFLR_INTX(1),
-			 ~0x0ULL);
-
+			 RVU_PF_VFFLR_INT_ENA_W1CX(0), INTR_MASK(num_vfs));
 	vector = pci_irq_vector(cptpf->pdev, RVU_PF_INT_VEC_VFFLR0);
 	free_irq(vector, cptpf);
 
-	if (num_vfs > 64) {
-		vector = pci_irq_vector(cptpf->pdev, RVU_PF_INT_VEC_VFFLR1);
-		free_irq(vector, cptpf);
-	}
+	/* Disable VF ME interrupts */
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+			 RVU_PF_VFME_INT_ENA_W1CX(0), INTR_MASK(num_vfs));
+	vector = pci_irq_vector(cptpf->pdev, RVU_PF_INT_VEC_VFME0);
+	free_irq(vector, cptpf);
+
+	if (num_vfs <= 64)
+		return;
+
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+			 RVU_PF_VFFLR_INT_ENA_W1CX(1), INTR_MASK(num_vfs - 64));
+	vector = pci_irq_vector(cptpf->pdev, RVU_PF_INT_VEC_VFFLR1);
+	free_irq(vector, cptpf);
+
+	otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+			 RVU_PF_VFME_INT_ENA_W1CX(1), INTR_MASK(num_vfs - 64));
+	vector = pci_irq_vector(cptpf->pdev, RVU_PF_INT_VEC_VFME1);
+	free_irq(vector, cptpf);
 }
 
 static void cptpf_flr_wq_handler(struct work_struct *work)
@@ -173,11 +194,38 @@ static irqreturn_t cptpf_vf_flr_intr(int __always_unused irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t cptpf_vf_me_intr(int __always_unused irq, void *arg)
+{
+	struct otx2_cptpf_dev *cptpf = arg;
+	int reg, vf, num_reg = 1;
+	u64 intr;
+
+	if (cptpf->max_vfs > 64)
+		num_reg = 2;
+
+	for (reg = 0; reg < num_reg; reg++) {
+		intr = otx2_cpt_read64(cptpf->reg_base, BLKADDR_RVUM, 0,
+				       RVU_PF_VFME_INTX(reg));
+		if (!intr)
+			continue;
+		for (vf = 0; vf < 64; vf++) {
+			if (!(intr & BIT_ULL(vf)))
+				continue;
+			otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+					 RVU_PF_VFTRPENDX(reg), BIT_ULL(vf));
+			/* Clear interrupt */
+			otx2_cpt_write64(cptpf->reg_base, BLKADDR_RVUM, 0,
+					 RVU_PF_VFME_INTX(reg), BIT_ULL(vf));
+		}
+	}
+	return IRQ_HANDLED;
+}
+
 static void cptpf_unregister_vfpf_intr(struct otx2_cptpf_dev *cptpf,
 				       int num_vfs)
 {
 	cptpf_disable_vfpf_mbox_intr(cptpf, num_vfs);
-	cptpf_disable_vf_flr_intrs(cptpf, num_vfs);
+	cptpf_disable_vf_flr_me_intrs(cptpf, num_vfs);
 }
 
 static int cptpf_register_vfpf_intr(struct otx2_cptpf_dev *cptpf, int num_vfs)
@@ -203,6 +251,15 @@ static int cptpf_register_vfpf_intr(struct otx2_cptpf_dev *cptpf, int num_vfs)
 			"IRQ registration failed for VFFLR0 irq\n");
 		goto free_mbox0_irq;
 	}
+	vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFME0);
+	/* Register VF ME interrupt handler */
+	ret = request_irq(vector, cptpf_vf_me_intr, 0, "CPTPF ME0", cptpf);
+	if (ret) {
+		dev_err(dev,
+			"IRQ registration failed for PFVF mbox0 irq\n");
+		goto free_flr0_irq;
+	}
+
 	if (num_vfs > 64) {
 		vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFPF_MBOX1);
 		ret = request_irq(vector, otx2_cptpf_vfpf_mbox_intr, 0,
@@ -210,7 +267,7 @@ static int cptpf_register_vfpf_intr(struct otx2_cptpf_dev *cptpf, int num_vfs)
 		if (ret) {
 			dev_err(dev,
 				"IRQ registration failed for PFVF mbox1 irq\n");
-			goto free_flr0_irq;
+			goto free_me0_irq;
 		}
 		vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFFLR1);
 		/* Register VF FLR interrupt handler */
@@ -221,14 +278,29 @@ static int cptpf_register_vfpf_intr(struct otx2_cptpf_dev *cptpf, int num_vfs)
 				"IRQ registration failed for VFFLR1 irq\n");
 			goto free_mbox1_irq;
 		}
+		vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFME1);
+		/* Register VF FLR interrupt handler */
+		ret = request_irq(vector, cptpf_vf_me_intr, 0, "CPTPF ME1",
+				  cptpf);
+		if (ret) {
+			dev_err(dev,
+				"IRQ registration failed for VFFLR1 irq\n");
+			goto free_flr1_irq;
+		}
 	}
 	cptpf_enable_vfpf_mbox_intr(cptpf, num_vfs);
-	cptpf_enable_vf_flr_intrs(cptpf);
+	cptpf_enable_vf_flr_me_intrs(cptpf, num_vfs);
 
 	return 0;
 
+free_flr1_irq:
+	vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFFLR1);
+	free_irq(vector, cptpf);
 free_mbox1_irq:
 	vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFPF_MBOX1);
+	free_irq(vector, cptpf);
+free_me0_irq:
+	vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFME0);
 	free_irq(vector, cptpf);
 free_flr0_irq:
 	vector = pci_irq_vector(pdev, RVU_PF_INT_VEC_VFFLR0);
