@@ -525,19 +525,6 @@ void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct dma_buf_map *map);
 int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_mmap - mmap out of the ttm device address space.
- *
- * @filp:      filp as input from the mmap method.
- * @vma:       vma as input from the mmap method.
- * @bdev:      Pointer to the ttm_device with the address space manager.
- *
- * This function is intended to be called by the device mmap method.
- * if the device address space is to be backed by the bo manager.
- */
-int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
-		struct ttm_device *bdev);
-
-/**
  * ttm_bo_io
  *
  * @bdev:      Pointer to the struct ttm_device.

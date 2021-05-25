@@ -560,30 +560,6 @@ static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.access = ttm_bo_vm_access,
 };
 
-static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_device *bdev,
-						  unsigned long offset,
-						  unsigned long pages)
-{
-	struct drm_vma_offset_node *node;
-	struct ttm_buffer_object *bo = NULL;
-
-	drm_vma_offset_lock_lookup(bdev->vma_manager);
-
-	node = drm_vma_offset_lookup_locked(bdev->vma_manager, offset, pages);
-	if (likely(node)) {
-		bo = container_of(node, struct ttm_buffer_object,
-				  base.vma_node);
-		bo = ttm_bo_get_unless_zero(bo);
-	}
-
-	drm_vma_offset_unlock_lookup(bdev->vma_manager);
-
-	if (!bo)
-		pr_err("Could not find buffer object to map\n");
-
-	return bo;
-}
-
 static void ttm_bo_mmap_vma_setup(struct ttm_buffer_object *bo, struct vm_area_struct *vma)
 {
 	/*
@@ -610,35 +586,6 @@ static void ttm_bo_mmap_vma_setup(struct ttm_buffer_object *bo, struct vm_area_s
 	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 }
-
-int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
-		struct ttm_device *bdev)
-{
-	struct ttm_buffer_object *bo;
-	int ret;
-
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET_START))
-		return -EINVAL;
-
-	bo = ttm_bo_vm_lookup(bdev, vma->vm_pgoff, vma_pages(vma));
-	if (unlikely(!bo))
-		return -EINVAL;
-
-	if (unlikely(!bo->bdev->funcs->verify_access)) {
-		ret = -EPERM;
-		goto out_unref;
-	}
-	ret = bo->bdev->funcs->verify_access(bo, filp);
-	if (unlikely(ret != 0))
-		goto out_unref;
-
-	ttm_bo_mmap_vma_setup(bo, vma);
-	return 0;
-out_unref:
-	ttm_bo_put(bo);
-	return ret;
-}
-EXPORT_SYMBOL(ttm_bo_mmap);
 
 int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 {
