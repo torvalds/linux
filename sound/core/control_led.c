@@ -375,7 +375,7 @@ static void snd_ctl_led_disconnect(struct snd_card *card)
  * sysfs
  */
 
-static ssize_t show_mode(struct device *dev,
+static ssize_t mode_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct snd_ctl_led *led = container_of(dev, struct snd_ctl_led, dev);
@@ -390,7 +390,8 @@ static ssize_t show_mode(struct device *dev,
 	return sprintf(buf, "%s\n", str);
 }
 
-static ssize_t store_mode(struct device *dev, struct device_attribute *attr,
+static ssize_t mode_store(struct device *dev,
+			  struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	struct snd_ctl_led *led = container_of(dev, struct snd_ctl_led, dev);
@@ -419,7 +420,7 @@ static ssize_t store_mode(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_brightness(struct device *dev,
+static ssize_t brightness_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct snd_ctl_led *led = container_of(dev, struct snd_ctl_led, dev);
@@ -427,8 +428,8 @@ static ssize_t show_brightness(struct device *dev,
 	return sprintf(buf, "%u\n", ledtrig_audio_get(led->trigger_type));
 }
 
-static DEVICE_ATTR(mode, 0644, show_mode, store_mode);
-static DEVICE_ATTR(brightness, 0444, show_brightness, NULL);
+static DEVICE_ATTR_RW(mode);
+static DEVICE_ATTR_RO(brightness);
 
 static struct attribute *snd_ctl_led_dev_attrs[] = {
 	&dev_attr_mode.attr,
@@ -562,22 +563,25 @@ static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, si
 	return count;
 }
 
-static ssize_t parse_attach(struct device *dev, struct device_attribute *attr,
+static ssize_t attach_store(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct snd_ctl_led_card *led_card = container_of(dev, struct snd_ctl_led_card, dev);
 	return set_led_id(led_card, buf, count, true);
 }
 
-static ssize_t parse_detach(struct device *dev, struct device_attribute *attr,
+static ssize_t detach_store(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct snd_ctl_led_card *led_card = container_of(dev, struct snd_ctl_led_card, dev);
 	return set_led_id(led_card, buf, count, false);
 }
 
-static ssize_t ctl_reset(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t reset_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct snd_ctl_led_card *led_card = container_of(dev, struct snd_ctl_led_card, dev);
 	int err;
@@ -590,8 +594,8 @@ static ssize_t ctl_reset(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t ctl_list(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t list_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct snd_ctl_led_card *led_card = container_of(dev, struct snd_ctl_led_card, dev);
 	struct snd_card *card;
@@ -624,10 +628,10 @@ static ssize_t ctl_list(struct device *dev,
 	return buf2 - buf;
 }
 
-static DEVICE_ATTR(attach, 0200, NULL, parse_attach);
-static DEVICE_ATTR(detach, 0200, NULL, parse_detach);
-static DEVICE_ATTR(reset, 0200, NULL, ctl_reset);
-static DEVICE_ATTR(list, 0444, ctl_list, NULL);
+static DEVICE_ATTR_WO(attach);
+static DEVICE_ATTR_WO(detach);
+static DEVICE_ATTR_WO(reset);
+static DEVICE_ATTR_RO(list);
 
 static struct attribute *snd_ctl_led_card_attrs[] = {
 	&dev_attr_attach.attr,
