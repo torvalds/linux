@@ -168,18 +168,6 @@ config SOFT_WATCHDOG_PRETIMEOUT
 	  watchdog. Be aware that governors might affect the watchdog because it
 	  is purely software, e.g. the panic governor will stall it!
 
-config BD70528_WATCHDOG
-	tristate "ROHM BD70528 PMIC Watchdog"
-	depends on MFD_ROHM_BD70528
-	select WATCHDOG_CORE
-	help
-	  Support for the watchdog in the ROHM BD70528 PMIC. Watchdog trigger
-	  cause system reset.
-
-	  Say Y here to include support for the ROHM BD70528 watchdog.
-	  Alternatively say M to compile the driver as a module,
-	  which will be called bd70528_wdt.
-
 config BD957XMUF_WATCHDOG
 	tristate "ROHM BD9576MUF and BD9573MUF PMIC Watchdog"
 	depends on MFD_ROHM_BD957XMUF
