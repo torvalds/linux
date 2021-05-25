@@ -808,6 +808,7 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 	u8 HighRSSIThreshForRA = pRA->HighRSSIThresh;
 	u8 LowRSSIThreshForRA = pRA->LowRSSIThresh;
 	u8 RATRState;
+	struct device *dev = dvobj_to_dev(adapter_to_dvobj(pDM_Odm->Adapter));
 
 	/*  Threshold Adjustment: */
 	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high enough. */
@@ -824,7 +825,7 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 		LowRSSIThreshForRA += GoUpGap;
 		break;
 	default:
-		pr_info("%s(): wrong rssi level setting %d!\n", __func__, *pRATRState);
+		dev_err(dev, "%s(): wrong rssi level setting %d!\n", __func__, *pRATRState);
 		break;
 	}
 
