@@ -100,7 +100,7 @@ enum {
 	PERF_IP_FLAG_VMEXIT		= 1ULL << 12,
 };
 
-#define PERF_IP_FLAG_CHARS "bcrosyiABEx"
+#define PERF_IP_FLAG_CHARS "bcrosyiABExgh"
 
 #define PERF_BRANCH_MASK		(\
 	PERF_IP_FLAG_BRANCH		|\
