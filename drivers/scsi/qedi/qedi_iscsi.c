@@ -988,7 +988,6 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 {
 	struct qedi_endpoint *qedi_ep;
 	struct qedi_conn *qedi_conn = NULL;
-	struct iscsi_conn *conn = NULL;
 	struct qedi_ctx *qedi;
 	int ret = 0;
 	int wait_delay;
@@ -1007,8 +1006,6 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 
 	if (qedi_ep->conn) {
 		qedi_conn = qedi_ep->conn;
-		conn = qedi_conn->cls_conn->dd_data;
-		iscsi_suspend_queue(conn);
 		abrt_conn = qedi_conn->abrt_conn;
 
 		while (count--)	{
@@ -1621,8 +1618,11 @@ void qedi_clear_session_ctx(struct iscsi_cls_session *cls_sess)
 	struct iscsi_conn *conn = session->leadconn;
 	struct qedi_conn *qedi_conn = conn->dd_data;
 
-	if (iscsi_is_session_online(cls_sess))
+	if (iscsi_is_session_online(cls_sess)) {
+		if (conn)
+			iscsi_suspend_queue(conn);
 		qedi_ep_disconnect(qedi_conn->iscsi_ep);
+	}
 
 	qedi_conn_destroy(qedi_conn->cls_conn);
 

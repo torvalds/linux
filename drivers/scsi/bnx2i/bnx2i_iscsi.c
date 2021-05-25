@@ -2113,7 +2113,6 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 {
 	struct bnx2i_endpoint *bnx2i_ep;
 	struct bnx2i_conn *bnx2i_conn = NULL;
-	struct iscsi_conn *conn = NULL;
 	struct bnx2i_hba *hba;
 
 	bnx2i_ep = ep->dd_data;
@@ -2126,11 +2125,8 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 		!time_after(jiffies, bnx2i_ep->timestamp + (12 * HZ)))
 		msleep(250);
 
-	if (bnx2i_ep->conn) {
+	if (bnx2i_ep->conn)
 		bnx2i_conn = bnx2i_ep->conn;
-		conn = bnx2i_conn->cls_conn->dd_data;
-		iscsi_suspend_queue(conn);
-	}
 	hba = bnx2i_ep->hba;
 
 	mutex_lock(&hba->net_dev_lock);
