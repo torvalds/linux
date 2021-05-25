@@ -742,6 +742,29 @@ static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
 	}
 }
 
+static void set_sample_flags(PyObject *dict, u32 flags)
+{
+	const char *ch = PERF_IP_FLAG_CHARS;
+	char *p, str[33];
+
+	for (p = str; *ch; ch++, flags >>= 1) {
+		if (flags & 1)
+			*p++ = *ch;
+	}
+	*p = 0;
+	pydict_set_item_string_decref(dict, "flags", _PyUnicode_FromString(str));
+}
+
+static void python_process_sample_flags(struct perf_sample *sample, PyObject *dict_sample)
+{
+	char flags_disp[SAMPLE_FLAGS_BUF_SIZE];
+
+	set_sample_flags(dict_sample, sample->flags);
+	perf_sample__sprintf_flags(sample->flags, flags_disp, sizeof(flags_disp));
+	pydict_set_item_string_decref(dict_sample, "flags_disp",
+		_PyUnicode_FromString(flags_disp));
+}
+
 static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 					 struct evsel *evsel,
 					 struct addr_location *al,
@@ -804,6 +827,9 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			PyBool_FromLong(1));
 		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_symbol", "addr_symoff");
 	}
+
+	if (sample->flags)
+		python_process_sample_flags(sample, dict_sample);
 
 	set_regs_in_dict(dict, sample, evsel);
 
