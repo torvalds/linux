@@ -128,7 +128,6 @@ void dp_catalog_audio_get_header(struct dp_catalog *catalog);
 void dp_catalog_audio_set_header(struct dp_catalog *catalog);
 void dp_catalog_audio_config_acr(struct dp_catalog *catalog);
 void dp_catalog_audio_enable(struct dp_catalog *catalog);
-void dp_catalog_audio_enable(struct dp_catalog *catalog);
 void dp_catalog_audio_config_sdp(struct dp_catalog *catalog);
 void dp_catalog_audio_init(struct dp_catalog *catalog);
 void dp_catalog_audio_sfe_level(struct dp_catalog *catalog);
