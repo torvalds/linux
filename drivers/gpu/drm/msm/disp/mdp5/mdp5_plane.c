@@ -168,7 +168,7 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 					      "(null)");
 	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
-	drm_printf(p, "\talpha=%u\n", pstate->alpha);
+	drm_printf(p, "\talpha=%u\n", pstate->base.alpha);
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
 }
 
@@ -183,7 +183,6 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 	mdp5_state = kzalloc(sizeof(*mdp5_state), GFP_KERNEL);
 
 	/* assign default blend parameters */
-	mdp5_state->alpha = 255;
 	mdp5_state->premultiplied = 0;
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY)

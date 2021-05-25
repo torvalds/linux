@@ -101,7 +101,6 @@ struct mdp5_plane_state {
 	/* aligned with property */
 	uint8_t premultiplied;
 	uint8_t zpos;
-	uint8_t alpha;
 
 	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
