@@ -2,6 +2,7 @@
 config PARISC
 	def_bool y
 	select ARCH_32BIT_OFF_T if !64BIT
+	select ARCH_ATOMIC
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_IDE
 	select HAVE_FUNCTION_TRACER
