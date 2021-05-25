@@ -716,11 +716,11 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 		err = 0;
 		break;
 
-	 case SIOCSIFHWADDR: {
-		char addr[AX25_ADDR_LEN];
+	case SIOCSIFHWADDR: {
+			char addr[AX25_ADDR_LEN];
 
-		if (copy_from_user(&addr,
-		                   (void __user *) arg, AX25_ADDR_LEN)) {
+			if (copy_from_user(&addr,
+					   (void __user *)arg, AX25_ADDR_LEN)) {
 				err = -EFAULT;
 				break;
 			}
@@ -728,11 +728,9 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 			netif_tx_lock_bh(dev);
 			memcpy(dev->dev_addr, &addr, AX25_ADDR_LEN);
 			netif_tx_unlock_bh(dev);
-
 			err = 0;
 			break;
 		}
-
 	default:
 		err = tty_mode_ioctl(tty, file, cmd, arg);
 	}
