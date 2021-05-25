@@ -2492,7 +2492,6 @@ int iscsi_eh_session_reset(struct scsi_cmnd *sc)
 
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
-	conn = session->leadconn;
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
@@ -2507,13 +2506,14 @@ failed:
 		return FAILED;
 	}
 
+	conn = session->leadconn;
+	iscsi_get_conn(conn->cls_conn);
+
 	spin_unlock_bh(&session->frwd_lock);
 	mutex_unlock(&session->eh_mutex);
-	/*
-	 * we drop the lock here but the leadconn cannot be destoyed while
-	 * we are in the scsi eh
-	 */
+
 	iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
+	iscsi_put_conn(conn->cls_conn);
 
 	ISCSI_DBG_EH(session, "wait for relogin\n");
 	wait_event_interruptible(conn->ehwait,
