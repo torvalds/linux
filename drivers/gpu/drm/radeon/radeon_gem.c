@@ -44,6 +44,42 @@ void radeon_gem_prime_unpin(struct drm_gem_object *obj);
 
 const struct drm_gem_object_funcs radeon_gem_object_funcs;
 
+static vm_fault_t radeon_gem_fault(struct vm_fault *vmf)
+{
+	struct ttm_buffer_object *bo = vmf->vma->vm_private_data;
+	struct radeon_device *rdev = radeon_get_rdev(bo->bdev);
+	vm_fault_t ret;
+
+	down_read(&rdev->pm.mclk_lock);
+
+	ret = ttm_bo_vm_reserve(bo, vmf);
+	if (ret)
+		goto unlock_mclk;
+
+	ret = radeon_bo_fault_reserve_notify(bo);
+	if (ret)
+		goto unlock_resv;
+
+	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+				       TTM_BO_VM_NUM_PREFAULT, 1);
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+		goto unlock_mclk;
+
+unlock_resv:
+	dma_resv_unlock(bo->base.resv);
+
+unlock_mclk:
+	up_read(&rdev->pm.mclk_lock);
+	return ret;
+}
+
+static const struct vm_operations_struct radeon_gem_vm_ops = {
+	.fault = radeon_gem_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+	.access = ttm_bo_vm_access
+};
+
 static void radeon_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
@@ -226,6 +262,17 @@ static int radeon_gem_handle_lockup(struct radeon_device *rdev, int r)
 	return r;
 }
 
+static int radeon_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct radeon_bo *bo = gem_to_radeon_bo(obj);
+	struct radeon_device *rdev = radeon_get_rdev(bo->tbo.bdev);
+
+	if (radeon_ttm_tt_has_userptr(rdev, bo->tbo.ttm))
+		return -EPERM;
+
+	return drm_gem_ttm_mmap(obj, vma);
+}
+
 const struct drm_gem_object_funcs radeon_gem_object_funcs = {
 	.free = radeon_gem_object_free,
 	.open = radeon_gem_object_open,
@@ -236,6 +283,8 @@ const struct drm_gem_object_funcs radeon_gem_object_funcs = {
 	.get_sg_table = radeon_gem_prime_get_sg_table,
 	.vmap = drm_gem_ttm_vmap,
 	.vunmap = drm_gem_ttm_vunmap,
+	.mmap = radeon_gem_object_mmap,
+	.vm_ops = &radeon_gem_vm_ops,
 };
 
 /*
