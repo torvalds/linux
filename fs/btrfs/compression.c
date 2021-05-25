@@ -457,7 +457,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	bytes_left = compressed_len;
 	for (pg_index = 0; pg_index < cb->nr_pages; pg_index++) {
 		int submit = 0;
-		int len;
+		int len = 0;
 
 		page = compressed_pages[pg_index];
 		page->mapping = inode->vfs_inode.i_mapping;
@@ -465,10 +465,17 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE, bio,
 							  0);
 
-		if (pg_index == 0 && use_append)
-			len = bio_add_zone_append_page(bio, page, PAGE_SIZE, 0);
-		else
-			len = bio_add_page(bio, page, PAGE_SIZE, 0);
+		/*
+		 * Page can only be added to bio if the current bio fits in
+		 * stripe.
+		 */
+		if (!submit) {
+			if (pg_index == 0 && use_append)
+				len = bio_add_zone_append_page(bio, page,
+							       PAGE_SIZE, 0);
+			else
+				len = bio_add_page(bio, page, PAGE_SIZE, 0);
+		}
 
 		page->mapping = NULL;
 		if (submit || len < PAGE_SIZE) {
