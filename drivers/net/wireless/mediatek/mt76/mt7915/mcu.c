@@ -3676,7 +3676,6 @@ int mt7915_mcu_get_tx_rate(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx)
 
 int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
 {
-#define MT7915_SKU_RATE_NUM		161
 	struct mt7915_dev *dev = phy->dev;
 	struct mt76_phy *mphy = phy->mt76;
 	struct ieee80211_hw *hw = mphy->hw;
@@ -3724,6 +3723,39 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
 	return mt76_mcu_send_msg(&dev->mt76,
 				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
 				 sizeof(req), true);
+}
+
+int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+{
+#define RATE_POWER_INFO	2
+	struct mt7915_dev *dev = phy->dev;
+	struct {
+		u8 format_id;
+		u8 category;
+		u8 band;
+		u8 _rsv;
+	} __packed req = {
+		.format_id = 7,
+		.category = RATE_POWER_INFO,
+		.band = phy != &dev->phy,
+	};
+	s8 res[MT7915_SKU_RATE_NUM][2];
+	struct sk_buff *skb;
+	int ret, i;
+
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
+					MCU_EXT_CMD(TX_POWER_FEATURE_CTRL),
+					&req, sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	memcpy(res, skb->data + 4, sizeof(res));
+	for (i = 0; i < len; i++)
+		txpower[i] = res[i][req.band];
+
+	dev_kfree_skb(skb);
+
+	return 0;
 }
 
 int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,

@@ -295,54 +295,23 @@ mt7915_puts_rate_txpower(struct seq_file *s, struct mt7915_phy *phy)
 		"RU26", "RU52", "RU106", "RU242/SU20",
 		"RU484/SU40", "RU996/SU80", "RU2x996/SU160"
 	};
-	struct mt7915_dev *dev = dev_get_drvdata(s->private);
-	bool ext_phy = phy != &dev->phy;
-	u32 reg_base;
-	int i, idx = 0;
+	s8 txpower[MT7915_SKU_RATE_NUM], *buf;
+	int i;
 
 	if (!phy)
 		return;
 
-	reg_base = MT_TMAC_FP0R0(ext_phy);
-	seq_printf(s, "\nBand %d\n", ext_phy);
+	seq_printf(s, "\nBand %d\n", phy != &phy->dev->phy);
 
-	for (i = 0; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
-		u8 cnt, mcs_num = mt7915_sku_group_len[i];
-		s8 txpower[12];
-		int j;
+	mt7915_mcu_get_txpower_sku(phy, txpower, sizeof(txpower));
+	for (i = 0, buf = txpower; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
+		u8 mcs_num = mt7915_sku_group_len[i];
 
-		if (i == SKU_HT_BW20 || i == SKU_HT_BW40) {
-			mcs_num = 8;
-		} else if (i >= SKU_VHT_BW20 && i <= SKU_VHT_BW160) {
+		if (i >= SKU_VHT_BW20 && i <= SKU_VHT_BW160)
 			mcs_num = 10;
-		} else if (i == SKU_HE_RU26) {
-			reg_base = MT_TMAC_FP0R18(ext_phy);
-			idx = 0;
-		}
 
-		for (j = 0, cnt = 0; j < DIV_ROUND_UP(mcs_num, 4); j++) {
-			u32 val;
-
-			if (i == SKU_VHT_BW160 && idx == 60) {
-				reg_base = MT_TMAC_FP0R15(ext_phy);
-				idx = 0;
-			}
-
-			val = mt76_rr(dev, reg_base + (idx / 4) * 4);
-
-			if (idx && idx % 4)
-				val >>= (idx % 4) * 8;
-
-			while (val > 0 && cnt < mcs_num) {
-				s8 pwr = FIELD_GET(MT_TMAC_FP_MASK, val);
-
-				txpower[cnt++] = pwr;
-				val >>= 8;
-				idx++;
-			}
-		}
-
-		mt76_seq_puts_array(s, sku_group_name[i], txpower, mcs_num);
+		mt76_seq_puts_array(s, sku_group_name[i], buf, mcs_num);
+		buf += mt7915_sku_group_len[i];
 	}
 }
 
