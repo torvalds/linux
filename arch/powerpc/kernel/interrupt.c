@@ -34,9 +34,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	syscall_fn f;
 
 	kuep_lock();
-#ifdef CONFIG_PPC32
-	kuap_save_and_lock(regs);
-#endif
 
 	regs->orig_gpr3 = r3;
 
@@ -427,6 +424,7 @@ again:
 
 	/* Restore user access locks last */
 	kuap_user_restore(regs);
+	kuep_unlock();
 
 	return ret;
 }

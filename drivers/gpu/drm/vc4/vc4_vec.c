@@ -197,12 +197,6 @@ struct vc4_vec_connector {
 	struct drm_encoder *encoder;
 };
 
-static inline struct vc4_vec_connector *
-to_vc4_vec_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_vec_connector, base);
-}
-
 enum vc4_vec_tv_mode_id {
 	VC4_VEC_TV_MODE_NTSC,
 	VC4_VEC_TV_MODE_NTSC_J,
