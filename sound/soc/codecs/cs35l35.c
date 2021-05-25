@@ -368,16 +368,16 @@ static int cs35l35_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_component *component = codec_dai->component;
 	struct cs35l35_private *cs35l35 = snd_soc_component_get_drvdata(component);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 				    CS35L35_MS_MASK, 1 << CS35L35_MS_SHIFT);
-		cs35l35->slave_mode = false;
+		cs35l35->clock_consumer = false;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 				    CS35L35_MS_MASK, 0 << CS35L35_MS_SHIFT);
-		cs35l35->slave_mode = true;
+		cs35l35->clock_consumer = true;
 		break;
 	default:
 		return -EINVAL;
@@ -556,8 +556,8 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 		}
 		sp_sclks = ((cs35l35->sclk / srate) / 4) - 1;
 
-		/* Only certain ratios are supported in I2S Slave Mode */
-		if (cs35l35->slave_mode) {
+		/* Only certain ratios supported when device is a clock consumer */
+		if (cs35l35->clock_consumer) {
 			switch (sp_sclks) {
 			case CS35L35_SP_SCLKS_32FS:
 			case CS35L35_SP_SCLKS_48FS:
@@ -568,7 +568,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 				return -EINVAL;
 			}
 		} else {
-			/* Only certain ratios supported in I2S MASTER Mode */
+			/* Only certain ratios supported when device is a clock provider */
 			switch (sp_sclks) {
 			case CS35L35_SP_SCLKS_32FS:
 			case CS35L35_SP_SCLKS_64FS:

@@ -283,7 +283,7 @@ struct  cs35l35_private {
 	int sclk;
 	bool pdm_mode;
 	bool i2s_mode;
-	bool slave_mode;
+	bool clock_consumer;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
