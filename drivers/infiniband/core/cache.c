@@ -1465,10 +1465,12 @@ err:
 }
 
 static int
-ib_cache_update(struct ib_device *device, u32 port, bool enforce_security)
+ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
+		bool update_pkeys, bool enforce_security)
 {
 	struct ib_port_attr       *tprops = NULL;
-	struct ib_pkey_cache      *pkey_cache = NULL, *old_pkey_cache;
+	struct ib_pkey_cache      *pkey_cache = NULL;
+	struct ib_pkey_cache      *old_pkey_cache = NULL;
 	int                        i;
 	int                        ret;
 
@@ -1485,14 +1487,16 @@ ib_cache_update(struct ib_device *device, u32 port, bool enforce_security)
 		goto err;
 	}
 
-	if (!rdma_protocol_roce(device, port)) {
+	if (!rdma_protocol_roce(device, port) && update_gids) {
 		ret = config_non_roce_gid_cache(device, port,
 						tprops->gid_tbl_len);
 		if (ret)
 			goto err;
 	}
 
-	if (tprops->pkey_tbl_len) {
+	update_pkeys &= !!tprops->pkey_tbl_len;
+
+	if (update_pkeys) {
 		pkey_cache = kmalloc(struct_size(pkey_cache, table,
 						 tprops->pkey_tbl_len),
 				     GFP_KERNEL);
@@ -1517,9 +1521,10 @@ ib_cache_update(struct ib_device *device, u32 port, bool enforce_security)
 
 	write_lock_irq(&device->cache_lock);
 
-	old_pkey_cache = device->port_data[port].cache.pkey;
-
-	device->port_data[port].cache.pkey = pkey_cache;
+	if (update_pkeys) {
+		old_pkey_cache = device->port_data[port].cache.pkey;
+		device->port_data[port].cache.pkey = pkey_cache;
+	}
 	device->port_data[port].cache.lmc = tprops->lmc;
 	device->port_data[port].cache.port_state = tprops->state;
 
@@ -1551,6 +1556,8 @@ static void ib_cache_event_task(struct work_struct *_work)
 	 * the cache.
 	 */
 	ret = ib_cache_update(work->event.device, work->event.element.port_num,
+			      work->event.event == IB_EVENT_GID_CHANGE,
+			      work->event.event == IB_EVENT_PKEY_CHANGE,
 			      work->enforce_security);
 
 	/* GID event is notified already for individual GID entries by
@@ -1624,7 +1631,7 @@ int ib_cache_setup_one(struct ib_device *device)
 		return err;
 
 	rdma_for_each_port (device, p) {
-		err = ib_cache_update(device, p, true);
+		err = ib_cache_update(device, p, true, true, true);
 		if (err)
 			return err;
 	}
