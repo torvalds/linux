@@ -99,7 +99,6 @@ struct mdp5_plane_state {
 	struct mdp5_hw_pipe *r_hwpipe;	/* right hwpipe */
 
 	/* aligned with property */
-	uint8_t premultiplied;
 	uint8_t zpos;
 
 	/* assigned by crtc blender */
