@@ -5427,6 +5427,13 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	atomic_inc(&rdev->nr_pending);
 	rcu_read_unlock();
 
+	if (is_badblock(rdev, sector, bio_sectors(raid_bio), &first_bad,
+			&bad_sectors)) {
+		bio_put(raid_bio);
+		rdev_dec_pending(rdev, mddev);
+		return 0;
+	}
+
 	align_bio = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->bio_set);
 	bio_set_dev(align_bio, rdev->bdev);
 	align_bio->bi_end_io = raid5_align_endio;
@@ -5434,13 +5441,6 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	align_bio->bi_iter.bi_sector = sector;
 
 	raid_bio->bi_next = (void *)rdev;
-
-	if (is_badblock(rdev, sector, bio_sectors(align_bio), &first_bad,
-			&bad_sectors)) {
-		bio_put(align_bio);
-		rdev_dec_pending(rdev, mddev);
-		return 0;
-	}
 
 	/* No reshape active, so we can trust rdev->data_offset */
 	align_bio->bi_iter.bi_sector += rdev->data_offset;
