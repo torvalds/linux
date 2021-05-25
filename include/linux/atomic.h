@@ -77,12 +77,8 @@
 	__ret;								\
 })
 
-#ifdef CONFIG_ARCH_ATOMIC
 #include <linux/atomic-arch-fallback.h>
 #include <asm-generic/atomic-instrumented.h>
-#else
-#include <linux/atomic-fallback.h>
-#endif
 
 #include <asm-generic/atomic-long.h>
 

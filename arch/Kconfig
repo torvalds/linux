@@ -11,9 +11,6 @@ source "arch/$(SRCARCH)/Kconfig"
 
 menu "General architecture-dependent options"
 
-config ARCH_ATOMIC
-	bool
-
 config CRASH_CORE
 	bool
 

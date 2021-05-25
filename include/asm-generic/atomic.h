@@ -12,14 +12,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#ifdef CONFIG_ARCH_ATOMIC
-#define __ga_cmpxchg	arch_cmpxchg
-#define __ga_xchg	arch_xchg
-#else
-#define __ga_cmpxchg	cmpxchg
-#define __ga_xchg	xchg
-#endif
-
 #ifdef CONFIG_SMP
 
 /* we can build all atomic primitives from cmpxchg */
@@ -30,7 +22,7 @@ static inline void generic_atomic_##op(int i, atomic_t *v)		\
 	int c, old;							\
 									\
 	c = v->counter;							\
-	while ((old = __ga_cmpxchg(&v->counter, c, c c_op i)) != c)	\
+	while ((old = arch_cmpxchg(&v->counter, c, c c_op i)) != c)	\
 		c = old;						\
 }
 
@@ -40,7 +32,7 @@ static inline int generic_atomic_##op##_return(int i, atomic_t *v)	\
 	int c, old;							\
 									\
 	c = v->counter;							\
-	while ((old = __ga_cmpxchg(&v->counter, c, c c_op i)) != c)	\
+	while ((old = arch_cmpxchg(&v->counter, c, c c_op i)) != c)	\
 		c = old;						\
 									\
 	return c c_op i;						\
@@ -52,7 +44,7 @@ static inline int generic_atomic_fetch_##op(int i, atomic_t *v)		\
 	int c, old;							\
 									\
 	c = v->counter;							\
-	while ((old = __ga_cmpxchg(&v->counter, c, c c_op i)) != c)	\
+	while ((old = arch_cmpxchg(&v->counter, c, c c_op i)) != c)	\
 		c = old;						\
 									\
 	return c;							\
@@ -120,11 +112,6 @@ ATOMIC_OP(xor, ^)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#undef __ga_cmpxchg
-#undef __ga_xchg
-
-#ifdef CONFIG_ARCH_ATOMIC
-
 #define arch_atomic_add_return			generic_atomic_add_return
 #define arch_atomic_sub_return			generic_atomic_sub_return
 
@@ -145,30 +132,5 @@ ATOMIC_OP(xor, ^)
 
 #define arch_atomic_xchg(ptr, v)		(arch_xchg(&(ptr)->counter, (v)))
 #define arch_atomic_cmpxchg(v, old, new)	(arch_cmpxchg(&((v)->counter), (old), (new)))
-
-#else /* CONFIG_ARCH_ATOMIC */
-
-#define atomic_add_return		generic_atomic_add_return
-#define atomic_sub_return		generic_atomic_sub_return
-
-#define atomic_fetch_add		generic_atomic_fetch_add
-#define atomic_fetch_sub		generic_atomic_fetch_sub
-#define atomic_fetch_and		generic_atomic_fetch_and
-#define atomic_fetch_or			generic_atomic_fetch_or
-#define atomic_fetch_xor		generic_atomic_fetch_xor
-
-#define atomic_add			generic_atomic_add
-#define atomic_sub			generic_atomic_sub
-#define atomic_and			generic_atomic_and
-#define atomic_or			generic_atomic_or
-#define atomic_xor			generic_atomic_xor
-
-#define atomic_read(v)			READ_ONCE((v)->counter)
-#define atomic_set(v, i)		WRITE_ONCE(((v)->counter), (i))
-
-#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
-#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
-
-#endif /* CONFIG_ARCH_ATOMIC */
 
 #endif /* __ASM_GENERIC_ATOMIC_H */

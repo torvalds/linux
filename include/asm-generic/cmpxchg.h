@@ -97,8 +97,6 @@ unsigned long __generic_xchg(unsigned long x, volatile void *ptr, int size)
 	__generic_cmpxchg64_local((ptr), (o), (n))
 
 
-#ifdef CONFIG_ARCH_ATOMIC
-
 #ifndef arch_xchg
 #define arch_xchg		generic_xchg
 #endif
@@ -113,24 +111,5 @@ unsigned long __generic_xchg(unsigned long x, volatile void *ptr, int size)
 
 #define arch_cmpxchg		arch_cmpxchg_local
 #define arch_cmpxchg64		arch_cmpxchg64_local
-
-#else /* CONFIG_ARCH_ATOMIC */
-
-#ifndef xchg
-#define xchg			generic_xchg
-#endif
-
-#ifndef cmpxchg_local
-#define cmpxchg_local		generic_cmpxchg_local
-#endif
-
-#ifndef cmpxchg64_local
-#define cmpxchg64_local		generic_cmpxchg64_local
-#endif
-
-#define cmpxchg			cmpxchg_local
-#define cmpxchg64		cmpxchg64_local
-
-#endif /* CONFIG_ARCH_ATOMIC */
 
 #endif /* __ASM_GENERIC_CMPXCHG_H */

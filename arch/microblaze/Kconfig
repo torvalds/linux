@@ -2,7 +2,6 @@
 config MICROBLAZE
 	def_bool y
 	select ARCH_32BIT_OFF_T
-	select ARCH_ATOMIC
 	select ARCH_NO_SWAP
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_GCOV_PROFILE_ALL

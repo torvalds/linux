@@ -49,8 +49,6 @@ extern s64 generic_atomic64_cmpxchg(atomic64_t *v, s64 o, s64 n);
 extern s64 generic_atomic64_xchg(atomic64_t *v, s64 new);
 extern s64 generic_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u);
 
-#ifdef CONFIG_ARCH_ATOMIC
-
 #define arch_atomic64_read		generic_atomic64_read
 #define arch_atomic64_set		generic_atomic64_set
 #define arch_atomic64_set_release	generic_atomic64_set
@@ -73,32 +71,5 @@ extern s64 generic_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u);
 #define arch_atomic64_cmpxchg		generic_atomic64_cmpxchg
 #define arch_atomic64_xchg		generic_atomic64_xchg
 #define arch_atomic64_fetch_add_unless	generic_atomic64_fetch_add_unless
-
-#else /* CONFIG_ARCH_ATOMIC */
-
-#define atomic64_read			generic_atomic64_read
-#define atomic64_set			generic_atomic64_set
-#define atomic64_set_release		generic_atomic64_set
-
-#define atomic64_add			generic_atomic64_add
-#define atomic64_add_return		generic_atomic64_add_return
-#define atomic64_fetch_add		generic_atomic64_fetch_add
-#define atomic64_sub			generic_atomic64_sub
-#define atomic64_sub_return		generic_atomic64_sub_return
-#define atomic64_fetch_sub		generic_atomic64_fetch_sub
-
-#define atomic64_and			generic_atomic64_and
-#define atomic64_fetch_and		generic_atomic64_fetch_and
-#define atomic64_or			generic_atomic64_or
-#define atomic64_fetch_or		generic_atomic64_fetch_or
-#define atomic64_xor			generic_atomic64_xor
-#define atomic64_fetch_xor		generic_atomic64_fetch_xor
-
-#define atomic64_dec_if_positive	generic_atomic64_dec_if_positive
-#define atomic64_cmpxchg		generic_atomic64_cmpxchg
-#define atomic64_xchg			generic_atomic64_xchg
-#define atomic64_fetch_add_unless	generic_atomic64_fetch_add_unless
-
-#endif /* CONFIG_ARCH_ATOMIC */
 
 #endif  /*  _ASM_GENERIC_ATOMIC64_H  */
