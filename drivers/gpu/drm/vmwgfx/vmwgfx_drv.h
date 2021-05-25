@@ -1295,7 +1295,6 @@ extern struct vmw_cmdbuf_res_manager *
 vmw_context_res_man(struct vmw_resource *ctx);
 extern struct vmw_resource *vmw_context_cotable(struct vmw_resource *ctx,
 						SVGACOTableType cotable_type);
-extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
 struct vmw_ctx_binding_state;
 extern struct vmw_ctx_binding_state *
 vmw_context_binding_state(struct vmw_resource *ctx);
