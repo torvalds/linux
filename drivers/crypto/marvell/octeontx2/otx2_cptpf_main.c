@@ -586,7 +586,7 @@ static int cptpf_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	if (ret)
 		goto disable_intr;
 
-	ret = otx2_cpt_create_eng_grps(cptpf->pdev, &cptpf->eng_grps);
+	ret = otx2_cpt_create_eng_grps(cptpf, &cptpf->eng_grps);
 	if (ret)
 		goto disable_intr;
 

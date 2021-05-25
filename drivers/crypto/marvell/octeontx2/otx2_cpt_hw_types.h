@@ -138,7 +138,7 @@ enum otx2_cpt_comp_e {
 	OTX2_CPT_COMP_E_FAULT = 0x02,
 	OTX2_CPT_COMP_E_HWERR = 0x04,
 	OTX2_CPT_COMP_E_INSTERR = 0x05,
-	OTX2_CPT_COMP_E_LAST_ENTRY = 0x06
+	OTX2_CPT_COMP_E_WARN = 0x06
 };
 
 /*
@@ -269,13 +269,22 @@ union otx2_cpt_inst_s {
 union otx2_cpt_res_s {
 	u64 u[2];
 
-	struct {
+	struct cn9k_cpt_res_s {
 		u64 compcode:8;
 		u64 uc_compcode:8;
 		u64 doneint:1;
 		u64 reserved_17_63:47;
 		u64 reserved_64_127;
 	} s;
+
+	struct cn10k_cpt_res_s {
+		u64 compcode:7;
+		u64 doneint:1;
+		u64 uc_compcode:8;
+		u64 rlen:16;
+		u64 spi:32;
+		u64 esn;
+	} cn10k;
 };
 
 /*
