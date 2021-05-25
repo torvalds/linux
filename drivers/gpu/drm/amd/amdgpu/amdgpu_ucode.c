@@ -115,6 +115,12 @@ void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr)
 			  le32_to_cpu(gfx_hdr->ucode_feature_version));
 		DRM_DEBUG("jt_offset: %u\n", le32_to_cpu(gfx_hdr->jt_offset));
 		DRM_DEBUG("jt_size: %u\n", le32_to_cpu(gfx_hdr->jt_size));
+	} else if (version_major == 2) {
+		const struct gfx_firmware_header_v2_0 *gfx_hdr =
+			container_of(hdr, struct gfx_firmware_header_v2_0, header);
+
+		DRM_DEBUG("ucode_feature_version: %u\n",
+			  le32_to_cpu(gfx_hdr->ucode_feature_version));
 	} else {
 		DRM_ERROR("Unknown GFX ucode version: %u.%u\n", version_major, version_minor);
 	}

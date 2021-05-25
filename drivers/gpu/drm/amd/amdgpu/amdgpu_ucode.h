@@ -170,6 +170,18 @@ struct gfx_firmware_header_v1_0 {
 	uint32_t jt_size;  /* size of jt */
 };
 
+/* version_major=2, version_minor=0 */
+struct gfx_firmware_header_v2_0 {
+	struct common_firmware_header header;
+	uint32_t ucode_feature_version;
+	uint32_t ucode_size_bytes;
+	uint32_t ucode_offset_bytes;
+	uint32_t data_size_bytes;
+	uint32_t data_offset_bytes;
+	uint32_t ucode_start_addr_lo;
+	uint32_t ucode_start_addr_hi;
+};
+
 /* version_major=1, version_minor=0 */
 struct mes_firmware_header_v1_0 {
 	struct common_firmware_header header;
@@ -326,6 +338,7 @@ union amdgpu_firmware_header {
 	struct ta_firmware_header_v1_0 ta;
 	struct ta_firmware_header_v2_0 ta_v2_0;
 	struct gfx_firmware_header_v1_0 gfx;
+	struct gfx_firmware_header_v2_0 gfx_v2_0;
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
 	struct rlc_firmware_header_v2_1 rlc_v2_1;
