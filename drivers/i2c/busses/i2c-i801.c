@@ -156,9 +156,6 @@
 #define SMBAUXCTL_CRC		BIT(0)
 #define SMBAUXCTL_E32B		BIT(1)
 
-/* Other settings */
-#define MAX_RETRIES		400
-
 /* I801 command constants */
 #define I801_QUICK		0x00
 #define I801_BYTE		0x04
@@ -447,42 +444,35 @@ static int i801_check_post(struct i801_priv *priv, int status)
 /* Wait for BUSY being cleared and either INTR or an error flag being set */
 static int i801_wait_intr(struct i801_priv *priv)
 {
-	int timeout = 0;
-	int status;
+	unsigned long timeout = jiffies + priv->adapter.timeout;
+	int status, busy;
 
-	/* We will always wait for a fraction of a second! */
 	do {
 		usleep_range(250, 500);
 		status = inb_p(SMBHSTSTS(priv));
-	} while (((status & SMBHSTSTS_HOST_BUSY) ||
-		  !(status & (STATUS_ERROR_FLAGS | SMBHSTSTS_INTR))) &&
-		 (timeout++ < MAX_RETRIES));
+		busy = status & SMBHSTSTS_HOST_BUSY;
+		status &= STATUS_ERROR_FLAGS | SMBHSTSTS_INTR;
+		if (!busy && status)
+			return status;
+	} while (time_is_after_eq_jiffies(timeout));
 
-	if (timeout > MAX_RETRIES) {
-		dev_dbg(&priv->pci_dev->dev, "INTR Timeout!\n");
-		return -ETIMEDOUT;
-	}
-	return status & (STATUS_ERROR_FLAGS | SMBHSTSTS_INTR);
+	return -ETIMEDOUT;
 }
 
 /* Wait for either BYTE_DONE or an error flag being set */
 static int i801_wait_byte_done(struct i801_priv *priv)
 {
-	int timeout = 0;
+	unsigned long timeout = jiffies + priv->adapter.timeout;
 	int status;
 
-	/* We will always wait for a fraction of a second! */
 	do {
 		usleep_range(250, 500);
 		status = inb_p(SMBHSTSTS(priv));
-	} while (!(status & (STATUS_ERROR_FLAGS | SMBHSTSTS_BYTE_DONE)) &&
-		 (timeout++ < MAX_RETRIES));
+		if (status & (STATUS_ERROR_FLAGS | SMBHSTSTS_BYTE_DONE))
+			return status & STATUS_ERROR_FLAGS;
+	} while (time_is_after_eq_jiffies(timeout));
 
-	if (timeout > MAX_RETRIES) {
-		dev_dbg(&priv->pci_dev->dev, "BYTE_DONE Timeout!\n");
-		return -ETIMEDOUT;
-	}
-	return status & STATUS_ERROR_FLAGS;
+	return -ETIMEDOUT;
 }
 
 static int i801_transaction(struct i801_priv *priv, int xact)
