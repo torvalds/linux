@@ -94,8 +94,8 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	 * Ensure the task is not frozen.
 	 * Also, skip vfork and any other user process that freezer should skip.
 	 */
-	if (unlikely(t->flags & (PF_FROZEN | PF_FREEZER_SKIP)))
-	    return;
+	if (unlikely(frozen_or_skipped(t)))
+		return;
 
 	/*
 	 * When a freshly created task is scheduled once, changes its state to
