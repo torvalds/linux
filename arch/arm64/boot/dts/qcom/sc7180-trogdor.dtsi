@@ -64,11 +64,6 @@
 			no-map;
 		};
 
-		camera_mem: memory@8ec00000 {
-			reg = <0x0 0x8ec00000 0x0 0x500000>;
-			no-map;
-		};
-
 		venus_mem: memory@8f600000 {
 			reg = <0 0x8f600000 0 0x500000>;
 			no-map;
