@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Generic C implementation of atomic counter operations. Usable on
- * UP systems only. Do not include in machine independent code.
+ * Generic C implementation of atomic counter operations. Do not include in
+ * machine independent code.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -11,23 +11,6 @@
 
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
-
-/*
- * atomic_$op() - $op integer to atomic variable
- * @i: integer value to $op
- * @v: pointer to the atomic variable
- *
- * Atomically $ops @i to @v. Does not strictly guarantee a memory-barrier, use
- * smp_mb__{before,after}_atomic().
- */
-
-/*
- * atomic_$op_return() - $op interer to atomic variable and returns the result
- * @i: integer value to $op
- * @v: pointer to the atomic variable
- *
- * Atomically $ops @i to @v. Does imply a full memory barrier.
- */
 
 #ifdef CONFIG_SMP
 
@@ -154,28 +137,10 @@ ATOMIC_OP(xor, ^)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-/*
- * Atomic operations that C can't guarantee us.  Useful for
- * resource counting etc..
- */
-
-/**
- * atomic_read - read atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically reads the value of @v.
- */
 #ifndef atomic_read
 #define atomic_read(v)	READ_ONCE((v)->counter)
 #endif
 
-/**
- * atomic_set - set atomic variable
- * @v: pointer of type atomic_t
- * @i: required value
- *
- * Atomically sets the value of @v to @i.
- */
 #define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #include <linux/irqflags.h>
