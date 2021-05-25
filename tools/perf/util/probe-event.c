@@ -108,7 +108,6 @@ void exit_probe_symbol_maps(void)
 
 static struct ref_reloc_sym *kernel_get_ref_reloc_sym(struct map **pmap)
 {
-	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
 	struct kmap *kmap;
 	struct map *map = machine__kernel_map(host_machine);
 
@@ -819,7 +818,10 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 
 	reloc_sym = kernel_get_ref_reloc_sym(&map);
 	if (!reloc_sym) {
-		pr_warning("Relocated base symbol is not found!\n");
+		pr_warning("Relocated base symbol is not found! "
+			   "Check /proc/sys/kernel/kptr_restrict\n"
+			   "and /proc/sys/kernel/perf_event_paranoid. "
+			   "Or run as privileged perf user.\n\n");
 		return -EINVAL;
 	}
 
@@ -3025,7 +3027,10 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 			(!pp->retprobe || kretprobe_offset_is_supported())) {
 		reloc_sym = kernel_get_ref_reloc_sym(NULL);
 		if (!reloc_sym) {
-			pr_warning("Relocated base symbol is not found!\n");
+			pr_warning("Relocated base symbol is not found! "
+				   "Check /proc/sys/kernel/kptr_restrict\n"
+				   "and /proc/sys/kernel/perf_event_paranoid. "
+				   "Or run as privileged perf user.\n\n");
 			ret = -EINVAL;
 			goto out;
 		}
