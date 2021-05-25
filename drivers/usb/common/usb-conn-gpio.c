@@ -83,11 +83,11 @@ static void usb_conn_detect_cable(struct work_struct *work)
 	else
 		role = USB_ROLE_NONE;
 
-	dev_dbg(info->dev, "role %d/%d, gpios: id %d, vbus %d\n",
-		info->last_role, role, id, vbus);
+	dev_dbg(info->dev, "role %s -> %s, gpios: id %d, vbus %d\n",
+		usb_role_string(info->last_role), usb_role_string(role), id, vbus);
 
 	if (info->last_role == role) {
-		dev_warn(info->dev, "repeated role: %d\n", role);
+		dev_warn(info->dev, "repeated role: %s\n", usb_role_string(role));
 		return;
 	}
 
