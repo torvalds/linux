@@ -795,8 +795,14 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 
 	list_for_each_entry(dp, &dst->ports, list) {
 		err = dsa_port_setup(dp);
-		if (err)
+		if (err) {
+			dsa_port_devlink_teardown(dp);
+			dp->type = DSA_PORT_TYPE_UNUSED;
+			err = dsa_port_devlink_setup(dp);
+			if (err)
+				goto teardown;
 			continue;
+		}
 	}
 
 	return 0;
@@ -1066,6 +1072,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
+	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 
 	tag_protocol = dsa_get_tag_protocol(dp, master);
@@ -1080,14 +1087,16 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 		 * nothing to do here.
 		 */
 	} else {
-		dst->tag_ops = dsa_tag_driver_get(tag_protocol);
-		if (IS_ERR(dst->tag_ops)) {
-			if (PTR_ERR(dst->tag_ops) == -ENOPROTOOPT)
+		tag_ops = dsa_tag_driver_get(tag_protocol);
+		if (IS_ERR(tag_ops)) {
+			if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
 				return -EPROBE_DEFER;
 			dev_warn(ds->dev, "No tagger for this switch\n");
 			dp->master = NULL;
-			return PTR_ERR(dst->tag_ops);
+			return PTR_ERR(tag_ops);
 		}
+
+		dst->tag_ops = tag_ops;
 	}
 
 	dp->master = master;

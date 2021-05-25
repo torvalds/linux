@@ -1130,8 +1130,7 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 		}
 
 		/* If it's any one of the ACE we're replacing, skip! */
-		if (!mode_from_sid &&
-				((compare_sids(&pntace->sid, &sid_unix_NFS_mode) == 0) ||
+		if (((compare_sids(&pntace->sid, &sid_unix_NFS_mode) == 0) ||
 				(compare_sids(&pntace->sid, pownersid) == 0) ||
 				(compare_sids(&pntace->sid, pgrpsid) == 0) ||
 				(compare_sids(&pntace->sid, &sid_everyone) == 0) ||

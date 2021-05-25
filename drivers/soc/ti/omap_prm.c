@@ -332,7 +332,7 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	{
 		.name = "l3init", .base = 0x4ae07300,
 		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
-		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01,
 		.clkdm_name = "pcie"
 	},
 	{
@@ -830,8 +830,12 @@ static int omap_reset_deassert(struct reset_controller_dev *rcdev,
 		       reset->prm->data->name, id);
 
 exit:
-	if (reset->clkdm)
+	if (reset->clkdm) {
+		/* At least dra7 iva needs a delay before clkdm idle */
+		if (has_rstst)
+			udelay(1);
 		pdata->clkdm_allow_idle(reset->clkdm);
+	}
 
 	return ret;
 }

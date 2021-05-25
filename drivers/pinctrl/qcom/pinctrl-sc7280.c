@@ -1439,14 +1439,14 @@ static const struct msm_pingroup sc7280_groups[] = {
 	[172] = PINGROUP(172, qdss, _, _, _, _, _, _, _, _),
 	[173] = PINGROUP(173, qdss, _, _, _, _, _, _, _, _),
 	[174] = PINGROUP(174, qdss, _, _, _, _, _, _, _, _),
-	[175] = UFS_RESET(ufs_reset, 0x1be000),
-	[176] = SDC_QDSD_PINGROUP(sdc1_rclk, 0x1b3000, 15, 0),
-	[177] = SDC_QDSD_PINGROUP(sdc1_clk, 0x1b3000, 13, 6),
-	[178] = SDC_QDSD_PINGROUP(sdc1_cmd, 0x1b3000, 11, 3),
-	[179] = SDC_QDSD_PINGROUP(sdc1_data, 0x1b3000, 9, 0),
-	[180] = SDC_QDSD_PINGROUP(sdc2_clk, 0x1b4000, 14, 6),
-	[181] = SDC_QDSD_PINGROUP(sdc2_cmd, 0x1b4000, 11, 3),
-	[182] = SDC_QDSD_PINGROUP(sdc2_data, 0x1b4000, 9, 0),
+	[175] = UFS_RESET(ufs_reset, 0xbe000),
+	[176] = SDC_QDSD_PINGROUP(sdc1_rclk, 0xb3004, 0, 6),
+	[177] = SDC_QDSD_PINGROUP(sdc1_clk, 0xb3000, 13, 6),
+	[178] = SDC_QDSD_PINGROUP(sdc1_cmd, 0xb3000, 11, 3),
+	[179] = SDC_QDSD_PINGROUP(sdc1_data, 0xb3000, 9, 0),
+	[180] = SDC_QDSD_PINGROUP(sdc2_clk, 0xb4000, 14, 6),
+	[181] = SDC_QDSD_PINGROUP(sdc2_cmd, 0xb4000, 11, 3),
+	[182] = SDC_QDSD_PINGROUP(sdc2_data, 0xb4000, 9, 0),
 };
 
 static const struct msm_pinctrl_soc_data sc7280_pinctrl = {

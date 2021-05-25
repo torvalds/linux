@@ -109,7 +109,7 @@ static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
 	fd = *(int *)key;
 	f = fget_raw(fd);
 	if (!f)
-		return NULL;
+		return ERR_PTR(-EBADF);
 
 	sdata = inode_storage_lookup(f->f_inode, map, true);
 	fput(f);

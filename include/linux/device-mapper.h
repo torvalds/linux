@@ -253,7 +253,11 @@ struct target_type {
 #define dm_target_passes_integrity(type) ((type)->features & DM_TARGET_PASSES_INTEGRITY)
 
 /*
- * Indicates that a target supports host-managed zoned block devices.
+ * Indicates support for zoned block devices:
+ * - DM_TARGET_ZONED_HM: the target also supports host-managed zoned
+ *   block devices but does not support combining different zoned models.
+ * - DM_TARGET_MIXED_ZONED_MODEL: the target supports combining multiple
+ *   devices with different zoned models.
  */
 #ifdef CONFIG_BLK_DEV_ZONED
 #define DM_TARGET_ZONED_HM		0x00000040
@@ -274,6 +278,15 @@ struct target_type {
  */
 #define DM_TARGET_PASSES_CRYPTO		0x00000100
 #define dm_target_passes_crypto(type) ((type)->features & DM_TARGET_PASSES_CRYPTO)
+
+#ifdef CONFIG_BLK_DEV_ZONED
+#define DM_TARGET_MIXED_ZONED_MODEL	0x00000200
+#define dm_target_supports_mixed_zoned_model(type) \
+	((type)->features & DM_TARGET_MIXED_ZONED_MODEL)
+#else
+#define DM_TARGET_MIXED_ZONED_MODEL	0x00000000
+#define dm_target_supports_mixed_zoned_model(type) (false)
+#endif
 
 struct dm_target {
 	struct dm_table *table;

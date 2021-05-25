@@ -567,15 +567,15 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 }
 
 static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
-				  struct in_addr *addr)
+				  struct in_addr *addr, u16 port)
 {
 	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[7];
 
 	msg[0] = addr_id;
 	memcpy(&msg[1], &addr->s_addr, 4);
-	msg[5] = 0;
-	msg[6] = 0;
+	msg[5] = port >> 8;
+	msg[6] = port & 0xFF;
 
 	mptcp_crypto_hmac_sha(key1, key2, msg, 7, hmac);
 
@@ -584,15 +584,15 @@ static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
-				   struct in6_addr *addr)
+				   struct in6_addr *addr, u16 port)
 {
 	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[19];
 
 	msg[0] = addr_id;
 	memcpy(&msg[1], &addr->s6_addr, 16);
-	msg[17] = 0;
-	msg[18] = 0;
+	msg[17] = port >> 8;
+	msg[18] = port & 0xFF;
 
 	mptcp_crypto_hmac_sha(key1, key2, msg, 19, hmac);
 
@@ -646,7 +646,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 			opts->ahmac = add_addr_generate_hmac(msk->local_key,
 							     msk->remote_key,
 							     opts->addr_id,
-							     &opts->addr);
+							     &opts->addr,
+							     opts->port);
 		}
 	}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
@@ -657,7 +658,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 			opts->ahmac = add_addr6_generate_hmac(msk->local_key,
 							      msk->remote_key,
 							      opts->addr_id,
-							      &opts->addr6);
+							      &opts->addr6,
+							      opts->port);
 		}
 	}
 #endif
@@ -962,12 +964,14 @@ static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 	if (mp_opt->family == MPTCP_ADDR_IPVERSION_4)
 		hmac = add_addr_generate_hmac(msk->remote_key,
 					      msk->local_key,
-					      mp_opt->addr_id, &mp_opt->addr);
+					      mp_opt->addr_id, &mp_opt->addr,
+					      mp_opt->port);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else
 		hmac = add_addr6_generate_hmac(msk->remote_key,
 					       msk->local_key,
-					       mp_opt->addr_id, &mp_opt->addr6);
+					       mp_opt->addr_id, &mp_opt->addr6,
+					       mp_opt->port);
 #endif
 
 	pr_debug("msk=%p, ahmac=%llu, mp_opt->ahmac=%llu\n",

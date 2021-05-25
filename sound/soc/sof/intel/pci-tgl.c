@@ -65,7 +65,7 @@ static const struct sof_dev_desc ehl_desc = {
 	.default_tplg_path = "intel/sof-tplg",
 	.default_fw_filename = "sof-ehl.ri",
 	.nocodec_tplg_filename = "sof-ehl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
+	.ops = &sof_tgl_ops,
 };
 
 static const struct sof_dev_desc adls_desc = {

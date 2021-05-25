@@ -48,21 +48,12 @@ static unsigned int rcar_du_encoder_count_ports(struct device_node *node)
 static const struct drm_encoder_funcs rcar_du_encoder_funcs = {
 };
 
-static void rcar_du_encoder_release(struct drm_device *dev, void *res)
-{
-	struct rcar_du_encoder *renc = res;
-
-	drm_encoder_cleanup(&renc->base);
-	kfree(renc);
-}
-
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,
 			 struct device_node *enc_node)
 {
 	struct rcar_du_encoder *renc;
 	struct drm_bridge *bridge;
-	int ret;
 
 	/*
 	 * Locate the DRM bridge from the DT node. For the DPAD outputs, if the
@@ -101,26 +92,16 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			return -ENOLINK;
 	}
 
-	renc = kzalloc(sizeof(*renc), GFP_KERNEL);
-	if (renc == NULL)
-		return -ENOMEM;
-
-	renc->output = output;
-
 	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
 		enc_node, output);
 
-	ret = drm_encoder_init(&rcdu->ddev, &renc->base, &rcar_du_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
-	if (ret < 0) {
-		kfree(renc);
-		return ret;
-	}
+	renc = drmm_encoder_alloc(&rcdu->ddev, struct rcar_du_encoder, base,
+				  &rcar_du_encoder_funcs, DRM_MODE_ENCODER_NONE,
+				  NULL);
+	if (!renc)
+		return -ENOMEM;
 
-	ret = drmm_add_action_or_reset(&rcdu->ddev, rcar_du_encoder_release,
-				       renc);
-	if (ret)
-		return ret;
+	renc->output = output;
 
 	/*
 	 * Attach the bridge to the encoder. The bridge will create the

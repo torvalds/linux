@@ -4081,9 +4081,15 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 
 	case TP_HKEY_EV_KEY_NUMLOCK:
 	case TP_HKEY_EV_KEY_FN:
-	case TP_HKEY_EV_KEY_FN_ESC:
 		/* key press events, we just ignore them as long as the EC
 		 * is still reporting them in the normal keyboard stream */
+		*send_acpi_ev = false;
+		*ignore_acpi_ev = true;
+		return true;
+
+	case TP_HKEY_EV_KEY_FN_ESC:
+		/* Get the media key status to foce the status LED to update */
+		acpi_evalf(hkey_handle, NULL, "GMKS", "v");
 		*send_acpi_ev = false;
 		*ignore_acpi_ev = true;
 		return true;
@@ -9845,6 +9851,11 @@ static struct ibm_struct lcdshadow_driver_data = {
  * Thinkpad sensor interfaces
  */
 
+#define DYTC_CMD_QUERY        0 /* To get DYTC status - enable/revision */
+#define DYTC_QUERY_ENABLE_BIT 8  /* Bit        8 - 0 = disabled, 1 = enabled */
+#define DYTC_QUERY_SUBREV_BIT 16 /* Bits 16 - 27 - sub revision */
+#define DYTC_QUERY_REV_BIT    28 /* Bits 28 - 31 - revision */
+
 #define DYTC_CMD_GET          2 /* To get current IC function and mode */
 #define DYTC_GET_LAPMODE_BIT 17 /* Set when in lapmode */
 
@@ -9855,6 +9866,7 @@ static bool has_palmsensor;
 static bool has_lapsensor;
 static bool palm_state;
 static bool lap_state;
+static int dytc_version;
 
 static int dytc_command(int command, int *output)
 {
@@ -9866,6 +9878,33 @@ static int dytc_command(int command, int *output)
 	}
 	if (!acpi_evalf(dytc_handle, output, NULL, "dd", command))
 		return -EIO;
+	return 0;
+}
+
+static int dytc_get_version(void)
+{
+	int err, output;
+
+	/* Check if we've been called before - and just return cached value */
+	if (dytc_version)
+		return dytc_version;
+
+	/* Otherwise query DYTC and extract version information */
+	err = dytc_command(DYTC_CMD_QUERY, &output);
+	/*
+	 * If support isn't available (ENODEV) then don't return an error
+	 * and don't create the sysfs group
+	 */
+	if (err == -ENODEV)
+		return 0;
+	/* For all other errors we can flag the failure */
+	if (err)
+		return err;
+
+	/* Check DYTC is enabled and supports mode setting */
+	if (output & BIT(DYTC_QUERY_ENABLE_BIT))
+		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
+
 	return 0;
 }
 
@@ -9974,7 +10013,18 @@ static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 		if (err)
 			return err;
 	}
-	if (has_lapsensor) {
+
+	/* Check if we know the DYTC version, if we don't then get it */
+	if (!dytc_version) {
+		err = dytc_get_version();
+		if (err)
+			return err;
+	}
+	/*
+	 * Platforms before DYTC version 5 claim to have a lap sensor, but it doesn't work, so we
+	 * ignore them
+	 */
+	if (has_lapsensor && (dytc_version >= 5)) {
 		err = sysfs_create_file(&tpacpi_pdev->dev.kobj, &dev_attr_dytc_lapmode.attr);
 		if (err)
 			return err;
@@ -9999,13 +10049,8 @@ static struct ibm_struct proxsensor_driver_data = {
  * DYTC Platform Profile interface
  */
 
-#define DYTC_CMD_QUERY        0 /* To get DYTC status - enable/revision */
 #define DYTC_CMD_SET          1 /* To enable/disable IC function mode */
 #define DYTC_CMD_RESET    0x1ff /* To reset back to default */
-
-#define DYTC_QUERY_ENABLE_BIT 8  /* Bit        8 - 0 = disabled, 1 = enabled */
-#define DYTC_QUERY_SUBREV_BIT 16 /* Bits 16 - 27 - sub revision */
-#define DYTC_QUERY_REV_BIT    28 /* Bits 28 - 31 - revision */
 
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
@@ -10142,8 +10187,13 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 		return err;
 
 	if (profile == PLATFORM_PROFILE_BALANCED) {
-		/* To get back to balanced mode we just issue a reset command */
-		err = dytc_command(DYTC_CMD_RESET, &output);
+		/*
+		 * To get back to balanced mode we need to issue a reset command.
+		 * Note we still need to disable CQL mode before hand and re-enable
+		 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
+		 * stuck at 0 for aprox. 30 minutes.
+		 */
+		err = dytc_cql_command(DYTC_CMD_RESET, &output);
 		if (err)
 			goto unlock;
 	} else {
@@ -10211,28 +10261,28 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (err)
 		return err;
 
+	/* Check if we know the DYTC version, if we don't then get it */
+	if (!dytc_version) {
+		err = dytc_get_version();
+		if (err)
+			return err;
+	}
 	/* Check DYTC is enabled and supports mode setting */
-	if (output & BIT(DYTC_QUERY_ENABLE_BIT)) {
-		/* Only DYTC v5.0 and later has this feature. */
-		int dytc_version;
+	if (dytc_version >= 5) {
+		dbg_printk(TPACPI_DBG_INIT,
+				"DYTC version %d: thermal mode available\n", dytc_version);
+		/* Create platform_profile structure and register */
+		err = platform_profile_register(&dytc_profile);
+		/*
+		 * If for some reason platform_profiles aren't enabled
+		 * don't quit terminally.
+		 */
+		if (err)
+			return 0;
 
-		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
-		if (dytc_version >= 5) {
-			dbg_printk(TPACPI_DBG_INIT,
-				   "DYTC version %d: thermal mode available\n", dytc_version);
-			/* Create platform_profile structure and register */
-			err = platform_profile_register(&dytc_profile);
-			/*
-			 * If for some reason platform_profiles aren't enabled
-			 * don't quit terminally.
-			 */
-			if (err)
-				return 0;
-
-			dytc_profile_available = true;
-			/* Ensure initial values are correct */
-			dytc_profile_refresh();
-		}
+		dytc_profile_available = true;
+		/* Ensure initial values are correct */
+		dytc_profile_refresh();
 	}
 	return 0;
 }

@@ -175,5 +175,8 @@ void exit_int_attributes(void)
 			sysfs_remove_group(wmi_priv.integer_data[instance_id].attr_name_kobj,
 								&integer_attr_group);
 	}
+	wmi_priv.integer_instances_count = 0;
+
 	kfree(wmi_priv.integer_data);
+	wmi_priv.integer_data = NULL;
 }

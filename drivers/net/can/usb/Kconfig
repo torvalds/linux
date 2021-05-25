@@ -73,6 +73,7 @@ config CAN_KVASER_USB
 	    - Kvaser Memorator Pro 5xHS
 	    - Kvaser USBcan Light 4xHS
 	    - Kvaser USBcan Pro 2xHS v2
+	    - Kvaser USBcan Pro 4xHS
 	    - Kvaser USBcan Pro 5xHS
 	    - Kvaser U100
 	    - Kvaser U100P

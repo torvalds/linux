@@ -87,7 +87,6 @@ static void cifs_prune_tlinks(struct work_struct *work);
  *
  * This should be called with server->srv_mutex held.
  */
-#ifdef CONFIG_CIFS_DFS_UPCALL
 static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 {
 	int rc;
@@ -124,6 +123,7 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 	return !rc ? -1 : 0;
 }
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
 /* These functions must be called with server->srv_mutex held */
 static void reconn_set_next_dfs_target(struct TCP_Server_Info *server,
 				       struct cifs_sb_info *cifs_sb,
@@ -321,13 +321,28 @@ cifs_reconnect(struct TCP_Server_Info *server)
 #endif
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
+		if (cifs_sb && cifs_sb->origin_fullpath)
 			/*
 			 * Set up next DFS target server (if any) for reconnect. If DFS
 			 * feature is disabled, then we will retry last server we
 			 * connected to before.
 			 */
 			reconn_set_next_dfs_target(server, cifs_sb, &tgt_list, &tgt_it);
+		else {
 #endif
+			/*
+			 * Resolve the hostname again to make sure that IP address is up-to-date.
+			 */
+			rc = reconn_set_ipaddr_from_hostname(server);
+			if (rc) {
+				cifs_dbg(FYI, "%s: failed to resolve hostname: %d\n",
+						__func__, rc);
+			}
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		}
+#endif
+
 
 #ifdef CONFIG_CIFS_SWN_UPCALL
 		}

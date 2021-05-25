@@ -854,6 +854,11 @@ static int map_create(union bpf_attr *attr)
 			err = PTR_ERR(btf);
 			goto free_map;
 		}
+		if (btf_is_kernel(btf)) {
+			btf_put(btf);
+			err = -EACCES;
+			goto free_map;
+		}
 		map->btf = btf;
 
 		if (attr->btf_value_type_id) {

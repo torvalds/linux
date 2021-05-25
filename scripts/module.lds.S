@@ -20,6 +20,7 @@ SECTIONS {
 
 	__patchable_function_entries : { *(__patchable_function_entries) }
 
+#ifdef CONFIG_LTO_CLANG
 	/*
 	 * With CONFIG_LTO_CLANG, LLD always enables -fdata-sections and
 	 * -ffunction-sections, which increases the size of the final module.
@@ -41,6 +42,7 @@ SECTIONS {
 	}
 
 	.text : { *(.text .text.[0-9a-zA-Z_]*) }
+#endif
 }
 
 /* bring in arch-specific sections */

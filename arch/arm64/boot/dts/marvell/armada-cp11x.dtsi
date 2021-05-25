@@ -310,9 +310,11 @@
 		};
 
 		CP11X_LABEL(sata0): sata@540000 {
-			compatible = "marvell,armada-8k-ahci";
+			compatible = "marvell,armada-8k-ahci",
+			"generic-ahci";
 			reg = <0x540000 0x30000>;
 			dma-coherent;
+			interrupts = <107 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&CP11X_LABEL(clk) 1 15>,
 				 <&CP11X_LABEL(clk) 1 16>;
 			#address-cells = <1>;
@@ -320,12 +322,10 @@
 			status = "disabled";
 
 			sata-port@0 {
-				interrupts = <109 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0>;
 			};
 
 			sata-port@1 {
-				interrupts = <107 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <1>;
 			};
 		};

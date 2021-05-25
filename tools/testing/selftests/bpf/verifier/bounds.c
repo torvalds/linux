@@ -261,8 +261,6 @@
 	},
 	.fixup_map_hash_8b = { 3 },
 	/* not actually fully unbounded, but the bound is very high */
-	.errstr_unpriv = "R1 has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root",
-	.result_unpriv = REJECT,
 	.errstr = "value -4294967168 makes map_value pointer be out of bounds",
 	.result = REJECT,
 },
@@ -298,9 +296,6 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	/* not actually fully unbounded, but the bound is very high */
-	.errstr_unpriv = "R1 has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root",
-	.result_unpriv = REJECT,
 	.errstr = "value -4294967168 makes map_value pointer be out of bounds",
 	.result = REJECT,
 },

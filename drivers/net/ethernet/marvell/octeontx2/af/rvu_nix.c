@@ -2629,7 +2629,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 	struct nix_rx_flowkey_alg *field;
 	struct nix_rx_flowkey_alg tmp;
 	u32 key_type, valid_key;
-	int l4_key_offset;
+	int l4_key_offset = 0;
 
 	if (!alg)
 		return -EINVAL;

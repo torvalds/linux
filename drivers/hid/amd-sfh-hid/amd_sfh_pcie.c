@@ -10,6 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/module.h>
@@ -22,8 +23,12 @@
 
 #define ACEL_EN		BIT(0)
 #define GYRO_EN		BIT(1)
-#define MAGNO_EN		BIT(2)
+#define MAGNO_EN	BIT(2)
 #define ALS_EN		BIT(19)
+
+static int sensor_mask_override = -1;
+module_param_named(sensor_mask, sensor_mask_override, int, 0444);
+MODULE_PARM_DESC(sensor_mask, "override the detected sensors mask");
 
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
@@ -73,12 +78,41 @@ void amd_stop_all_sensors(struct amd_mp2_dev *privdata)
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
 }
 
+static const struct dmi_system_id dmi_sensor_mask_overrides[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY x360 Convertible 13-ag0xxx"),
+		},
+		.driver_data = (void *)(ACEL_EN | MAGNO_EN),
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY x360 Convertible 15-cp0xxx"),
+		},
+		.driver_data = (void *)(ACEL_EN | MAGNO_EN),
+	},
+	{ }
+};
+
 int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 {
 	int activestatus, num_of_sensors = 0;
+	const struct dmi_system_id *dmi_id;
+	u32 activecontrolstatus;
 
-	privdata->activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
-	activestatus = privdata->activecontrolstatus >> 4;
+	if (sensor_mask_override == -1) {
+		dmi_id = dmi_first_match(dmi_sensor_mask_overrides);
+		if (dmi_id)
+			sensor_mask_override = (long)dmi_id->driver_data;
+	}
+
+	if (sensor_mask_override >= 0) {
+		activestatus = sensor_mask_override;
+	} else {
+		activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
+		activestatus = activecontrolstatus >> 4;
+	}
+
 	if (ACEL_EN  & activestatus)
 		sensor_id[num_of_sensors++] = accel_idx;
 

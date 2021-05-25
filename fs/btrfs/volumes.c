@@ -7448,6 +7448,9 @@ static int btrfs_device_init_dev_stats(struct btrfs_device *device,
 	int item_size;
 	int i, ret, slot;
 
+	if (!device->fs_info->dev_root)
+		return 0;
+
 	key.objectid = BTRFS_DEV_STATS_OBJECTID;
 	key.type = BTRFS_PERSISTENT_ITEM_KEY;
 	key.offset = device->devid;

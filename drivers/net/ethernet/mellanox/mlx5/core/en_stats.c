@@ -116,7 +116,6 @@ static const struct counter_desc sw_stats_desc[] = {
 #ifdef CONFIG_MLX5_EN_TLS
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_encrypted_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_encrypted_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_ctx) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_ooo) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_dump_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tls_dump_bytes) },
@@ -180,8 +179,6 @@ static const struct counter_desc sw_stats_desc[] = {
 #ifdef CONFIG_MLX5_EN_TLS
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_decrypted_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_decrypted_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_ctx) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_del) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_resync_req_pkt) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_resync_req_start) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_tls_resync_req_end) },
@@ -342,8 +339,6 @@ static void mlx5e_stats_grp_sw_update_stats_rq_stats(struct mlx5e_sw_stats *s,
 #ifdef CONFIG_MLX5_EN_TLS
 	s->rx_tls_decrypted_packets   += rq_stats->tls_decrypted_packets;
 	s->rx_tls_decrypted_bytes     += rq_stats->tls_decrypted_bytes;
-	s->rx_tls_ctx                 += rq_stats->tls_ctx;
-	s->rx_tls_del                 += rq_stats->tls_del;
 	s->rx_tls_resync_req_pkt      += rq_stats->tls_resync_req_pkt;
 	s->rx_tls_resync_req_start    += rq_stats->tls_resync_req_start;
 	s->rx_tls_resync_req_end      += rq_stats->tls_resync_req_end;
@@ -390,7 +385,6 @@ static void mlx5e_stats_grp_sw_update_stats_sq(struct mlx5e_sw_stats *s,
 #ifdef CONFIG_MLX5_EN_TLS
 	s->tx_tls_encrypted_packets += sq_stats->tls_encrypted_packets;
 	s->tx_tls_encrypted_bytes   += sq_stats->tls_encrypted_bytes;
-	s->tx_tls_ctx               += sq_stats->tls_ctx;
 	s->tx_tls_ooo               += sq_stats->tls_ooo;
 	s->tx_tls_dump_bytes        += sq_stats->tls_dump_bytes;
 	s->tx_tls_dump_packets      += sq_stats->tls_dump_packets;
@@ -1622,8 +1616,6 @@ static const struct counter_desc rq_stats_desc[] = {
 #ifdef CONFIG_MLX5_EN_TLS
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_decrypted_packets) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_decrypted_bytes) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_ctx) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_del) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_resync_req_pkt) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_resync_req_start) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, tls_resync_req_end) },
@@ -1650,7 +1642,6 @@ static const struct counter_desc sq_stats_desc[] = {
 #ifdef CONFIG_MLX5_EN_TLS
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_encrypted_packets) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_encrypted_bytes) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_ctx) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_ooo) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_dump_packets) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tls_dump_bytes) },
@@ -1776,7 +1767,6 @@ static const struct counter_desc qos_sq_stats_desc[] = {
 #ifdef CONFIG_MLX5_EN_TLS
 	{ MLX5E_DECLARE_QOS_TX_STAT(struct mlx5e_sq_stats, tls_encrypted_packets) },
 	{ MLX5E_DECLARE_QOS_TX_STAT(struct mlx5e_sq_stats, tls_encrypted_bytes) },
-	{ MLX5E_DECLARE_QOS_TX_STAT(struct mlx5e_sq_stats, tls_ctx) },
 	{ MLX5E_DECLARE_QOS_TX_STAT(struct mlx5e_sq_stats, tls_ooo) },
 	{ MLX5E_DECLARE_QOS_TX_STAT(struct mlx5e_sq_stats, tls_dump_packets) },
 	{ MLX5E_DECLARE_QOS_TX_STAT(struct mlx5e_sq_stats, tls_dump_bytes) },

@@ -58,6 +58,7 @@
 #define SMB2_HMACSHA256_SIZE (32)
 #define SMB2_CMACAES_SIZE (16)
 #define SMB3_SIGNKEY_SIZE (16)
+#define SMB3_GCM128_CRYPTKEY_SIZE (16)
 #define SMB3_GCM256_CRYPTKEY_SIZE (32)
 
 /* Maximum buffer size value we can send with 1 credit */

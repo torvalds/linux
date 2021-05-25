@@ -410,6 +410,7 @@ static inline struct fib_nh *fib_info_nh(struct fib_info *fi, int nhsel)
 int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 		       struct netlink_ext_ack *extack);
 
+/* Caller should either hold rcu_read_lock(), or RTNL. */
 static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
 {
 	struct nh_info *nhi;
@@ -424,6 +425,29 @@ static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
 	}
 
 	nhi = rcu_dereference_rtnl(nh->nh_info);
+	if (nhi->family == AF_INET6)
+		return &nhi->fib6_nh;
+
+	return NULL;
+}
+
+/* Variant of nexthop_fib6_nh().
+ * Caller should either hold rcu_read_lock_bh(), or RTNL.
+ */
+static inline struct fib6_nh *nexthop_fib6_nh_bh(struct nexthop *nh)
+{
+	struct nh_info *nhi;
+
+	if (nh->is_group) {
+		struct nh_group *nh_grp;
+
+		nh_grp = rcu_dereference_bh_rtnl(nh->nh_grp);
+		nh = nexthop_mpath_select(nh_grp, 0);
+		if (!nh)
+			return NULL;
+	}
+
+	nhi = rcu_dereference_bh_rtnl(nh->nh_info);
 	if (nhi->family == AF_INET6)
 		return &nhi->fib6_nh;
 

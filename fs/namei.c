@@ -579,6 +579,8 @@ static void set_nameidata(struct nameidata *p, int dfd, struct filename *name)
 	p->stack = p->internal;
 	p->dfd = dfd;
 	p->name = name;
+	p->path.mnt = NULL;
+	p->path.dentry = NULL;
 	p->total_link_count = old ? old->total_link_count : 0;
 	p->saved = old;
 	current->nameidata = p;
@@ -652,6 +654,8 @@ static void terminate_walk(struct nameidata *nd)
 		rcu_read_unlock();
 	}
 	nd->depth = 0;
+	nd->path.mnt = NULL;
+	nd->path.dentry = NULL;
 }
 
 /* path_put is needed afterwards regardless of success or failure */
@@ -2322,8 +2326,6 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	}
 
 	nd->root.mnt = NULL;
-	nd->path.mnt = NULL;
-	nd->path.dentry = NULL;
 
 	/* Absolute pathname -- fetch the root (LOOKUP_IN_ROOT uses nd->dfd). */
 	if (*s == '/' && !(flags & LOOKUP_IN_ROOT)) {
@@ -2419,16 +2421,16 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 	while (!(err = link_path_walk(s, nd)) &&
 	       (s = lookup_last(nd)) != NULL)
 		;
+	if (!err && unlikely(nd->flags & LOOKUP_MOUNTPOINT)) {
+		err = handle_lookup_down(nd);
+		nd->flags &= ~LOOKUP_JUMPED; // no d_weak_revalidate(), please...
+	}
 	if (!err)
 		err = complete_walk(nd);
 
 	if (!err && nd->flags & LOOKUP_DIRECTORY)
 		if (!d_can_lookup(nd->path.dentry))
 			err = -ENOTDIR;
-	if (!err && unlikely(nd->flags & LOOKUP_MOUNTPOINT)) {
-		err = handle_lookup_down(nd);
-		nd->flags &= ~LOOKUP_JUMPED; // no d_weak_revalidate(), please...
-	}
 	if (!err) {
 		*path = nd->path;
 		nd->path.mnt = NULL;

@@ -399,7 +399,13 @@ int snd_sof_device_shutdown(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 
-	return snd_sof_shutdown(sdev);
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
+		cancel_work_sync(&sdev->probe_work);
+
+	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
+		return snd_sof_shutdown(sdev);
+
+	return 0;
 }
 EXPORT_SYMBOL(snd_sof_device_shutdown);
 

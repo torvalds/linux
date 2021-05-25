@@ -460,7 +460,5 @@ void geni_icc_set_tag(struct geni_se *se, u32 tag);
 int geni_icc_enable(struct geni_se *se);
 
 int geni_icc_disable(struct geni_se *se);
-
-void geni_remove_earlycon_icc_vote(void);
 #endif
 #endif

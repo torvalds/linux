@@ -316,7 +316,18 @@ void i915_vma_revoke_fence(struct i915_vma *vma)
 	WRITE_ONCE(fence->vma, NULL);
 	vma->fence = NULL;
 
-	with_intel_runtime_pm_if_in_use(fence_to_uncore(fence)->rpm, wakeref)
+	/*
+	 * Skip the write to HW if and only if the device is currently
+	 * suspended.
+	 *
+	 * If the driver does not currently hold a wakeref (if_in_use == 0),
+	 * the device may currently be runtime suspended, or it may be woken
+	 * up before the suspend takes place. If the device is not suspended
+	 * (powered down) and we skip clearing the fence register, the HW is
+	 * left in an undefined state where we may end up with multiple
+	 * registers overlapping.
+	 */
+	with_intel_runtime_pm_if_active(fence_to_uncore(fence)->rpm, wakeref)
 		fence_write(fence);
 }
 

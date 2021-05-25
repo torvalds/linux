@@ -32,7 +32,7 @@ Optional node properties:
 - "#thermal-sensor-cells" Used to expose itself to thermal fw.
 
 Read more about iio bindings at
-	Documentation/devicetree/bindings/iio/iio-bindings.txt
+	https://github.com/devicetree-org/dt-schema/blob/master/schemas/iio/
 
 Example:
 	ncp15wb473@0 {

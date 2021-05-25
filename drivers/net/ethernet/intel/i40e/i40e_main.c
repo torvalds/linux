@@ -2560,8 +2560,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				 i40e_stat_str(hw, aq_ret),
 				 i40e_aq_str(hw, hw->aq.asq_last_status));
 		} else {
-			dev_info(&pf->pdev->dev, "%s is %s allmulti mode.\n",
-				 vsi->netdev->name,
+			dev_info(&pf->pdev->dev, "%s allmulti mode.\n",
 				 cur_multipromisc ? "entering" : "leaving");
 		}
 	}
@@ -3259,6 +3258,17 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 }
 
 /**
+ * i40e_rx_offset - Return expected offset into page to access data
+ * @rx_ring: Ring we are requesting offset of
+ *
+ * Returns the offset value for ring into the data buffer.
+ */
+static unsigned int i40e_rx_offset(struct i40e_ring *rx_ring)
+{
+	return ring_uses_build_skb(rx_ring) ? I40E_SKB_PAD : 0;
+}
+
+/**
  * i40e_configure_rx_ring - Configure a receive ring context
  * @ring: The Rx ring to configure
  *
@@ -3368,6 +3378,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		clear_ring_build_skb_enabled(ring);
 	else
 		set_ring_build_skb_enabled(ring);
+
+	ring->rx_offset = i40e_rx_offset(ring);
 
 	/* cache tail for quicker writes, and clear the reg before use */
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
@@ -6725,9 +6737,9 @@ out:
 			set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
 			set_bit(__I40E_CLIENT_L2_CHANGE, pf->state);
 		}
-	/* registers are set, lets apply */
-	if (pf->hw_features & I40E_HW_USE_SET_LLDP_MIB)
-		ret = i40e_hw_set_dcb_config(pf, new_cfg);
+		/* registers are set, lets apply */
+		if (pf->hw_features & I40E_HW_USE_SET_LLDP_MIB)
+			ret = i40e_hw_set_dcb_config(pf, new_cfg);
 	}
 
 err:
@@ -10560,12 +10572,6 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 		goto end_core_reset;
 	}
 
-	if (!lock_acquired)
-		rtnl_lock();
-	ret = i40e_setup_pf_switch(pf, reinit);
-	if (ret)
-		goto end_unlock;
-
 #ifdef CONFIG_I40E_DCB
 	/* Enable FW to write a default DCB config on link-up
 	 * unless I40E_FLAG_TC_MQPRIO was enabled or DCB
@@ -10580,7 +10586,7 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 			i40e_aq_set_dcb_parameters(hw, false, NULL);
 			dev_warn(&pf->pdev->dev,
 				 "DCB is not supported for X710-T*L 2.5/5G speeds\n");
-				 pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
+			pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
 		} else {
 			i40e_aq_set_dcb_parameters(hw, true, NULL);
 			ret = i40e_init_pf_dcb(pf);
@@ -10594,6 +10600,11 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	}
 
 #endif /* CONFIG_I40E_DCB */
+	if (!lock_acquired)
+		rtnl_lock();
+	ret = i40e_setup_pf_switch(pf, reinit);
+	if (ret)
+		goto end_unlock;
 
 	/* The driver only wants link up/down and module qualification
 	 * reports from firmware.  Note the negative logic.
@@ -12346,6 +12357,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 {
 	int err = 0;
 	int size;
+	u16 pow;
 
 	/* Set default capability flags */
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
@@ -12364,6 +12376,11 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	pf->rss_table_size = pf->hw.func_caps.rss_table_size;
 	pf->rss_size_max = min_t(int, pf->rss_size_max,
 				 pf->hw.func_caps.num_tx_qp);
+
+	/* find the next higher power-of-2 of num cpus */
+	pow = roundup_pow_of_two(num_online_cpus());
+	pf->rss_size_max = min_t(int, pf->rss_size_max, pow);
+
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
 		pf->alloc_rss_size = min_t(int, pf->rss_size_max,
@@ -15127,12 +15144,16 @@ static int i40e_init_recovery_mode(struct i40e_pf *pf, struct i40e_hw *hw)
 	 * in order to register the netdev
 	 */
 	v_idx = i40e_vsi_mem_alloc(pf, I40E_VSI_MAIN);
-	if (v_idx < 0)
+	if (v_idx < 0) {
+		err = v_idx;
 		goto err_switch_setup;
+	}
 	pf->lan_vsi = v_idx;
 	vsi = pf->vsi[v_idx];
-	if (!vsi)
+	if (!vsi) {
+		err = -EFAULT;
 		goto err_switch_setup;
+	}
 	vsi->alloc_queue_pairs = 1;
 	err = i40e_config_netdev(vsi);
 	if (err)
