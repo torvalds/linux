@@ -208,10 +208,6 @@ static int dp_display_bind(struct device *dev, struct device *master,
 
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
-	if (!dp) {
-		DRM_ERROR("DP driver bind failed. Invalid driver data\n");
-		return -EINVAL;
-	}
 
 	dp->dp_display.drm_dev = drm;
 	priv = drm->dev_private;
@@ -252,10 +248,6 @@ static void dp_display_unbind(struct device *dev, struct device *master,
 
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
-	if (!dp) {
-		DRM_ERROR("Invalid DP driver data\n");
-		return;
-	}
 
 	dp_power_client_deinit(dp->power);
 	dp_aux_unregister(dp->aux);
@@ -412,11 +404,6 @@ static int dp_display_usbpd_configure_cb(struct device *dev)
 
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
-	if (!dp) {
-		DRM_ERROR("no driver data found\n");
-		rc = -ENODEV;
-		goto end;
-	}
 
 	dp_display_host_init(dp, false);
 
@@ -438,11 +425,6 @@ static int dp_display_usbpd_disconnect_cb(struct device *dev)
 
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
-	if (!dp) {
-		DRM_ERROR("no driver data found\n");
-		rc = -ENODEV;
-		return rc;
-	}
 
 	dp_add_event(dp, EV_USER_NOTIFICATION, false, 0);
 
@@ -511,10 +493,6 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
-	if (!dp) {
-		DRM_ERROR("no driver data found\n");
-		return -ENODEV;
-	}
 
 	/* check for any test request issued by sink */
 	rc = dp_link_process_request(dp->link);
