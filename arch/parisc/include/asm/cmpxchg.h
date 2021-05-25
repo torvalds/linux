@@ -98,7 +98,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 #endif
 	case 4:	return __cmpxchg_u32(ptr, old, new_);
 	default:
-		return __cmpxchg_local_generic(ptr, old, new_, size);
+		return __generic_cmpxchg_local(ptr, old, new_, size);
 	}
 }
 
@@ -116,7 +116,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 	cmpxchg_local((ptr), (o), (n));					\
 })
 #else
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+#define cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
 #endif
 
 #define cmpxchg64(ptr, o, n) __cmpxchg_u64(ptr, o, n)

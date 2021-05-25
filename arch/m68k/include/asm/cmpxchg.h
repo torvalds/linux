@@ -80,7 +80,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #include <asm-generic/cmpxchg-local.h>
 
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+#define cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
 
 extern unsigned long __invalid_cmpxchg_size(volatile void *,
 					    unsigned long, unsigned long, int);

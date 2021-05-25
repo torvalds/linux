@@ -189,7 +189,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 	case 4:
 	case 8:	return __cmpxchg(ptr, old, new, size);
 	default:
-		return __cmpxchg_local_generic(ptr, old, new, size);
+		return __generic_cmpxchg_local(ptr, old, new, size);
 	}
 
 	return old;
