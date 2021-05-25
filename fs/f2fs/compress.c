@@ -952,8 +952,6 @@ static bool cluster_may_compress(struct compress_ctx *cc)
 		return false;
 	if (f2fs_is_atomic_file(cc->inode))
 		return false;
-	if (f2fs_is_mmap_file(cc->inode))
-		return false;
 	if (!f2fs_cluster_is_full(cc))
 		return false;
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(cc->inode))))
