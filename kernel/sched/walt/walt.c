@@ -16,6 +16,7 @@
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/cpufreq.h>
+#include <trace/hooks/topology.h>
 #include <trace/events/power.h>
 
 #include "walt.h"
@@ -4214,38 +4215,9 @@ static void walt_init(void)
 	}
 }
 
-static bool are_cpufreq_policies_available(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		if (!cpufreq_cpu_get_raw(cpu))
-			return false;
-	}
-
-	return true;
-}
-
-struct work_struct walt_cpufreq_policy_work;
-
-static int walt_cpufreq_notifier_cb(struct notifier_block *nb,
-				    unsigned long action,
-				    void *data)
-{
-	if (are_cpufreq_policies_available())
-		schedule_work(&walt_cpufreq_policy_work);
-
-	return 0;
-}
-
-static struct notifier_block walt_cpufreq_notifier_block = {
-	.notifier_call  = walt_cpufreq_notifier_cb
-};
-
-static void walt_wq_cpufreq_policy_update(struct work_struct *work)
+static void android_vh_update_topology_flags_workfn(void *unused, void *unused2)
 {
 	walt_init();
-	cpufreq_unregister_notifier(&walt_cpufreq_notifier_block, CPUFREQ_POLICY_NOTIFIER);
 }
 
 #define WALT_VENDOR_DATA_SIZE_TEST(wstruct, kstruct)		\
@@ -4259,11 +4231,10 @@ static int walt_module_init(void)
 	WALT_VENDOR_DATA_SIZE_TEST(struct walt_rq, struct rq);
 	WALT_VENDOR_DATA_SIZE_TEST(struct walt_task_group, struct task_group);
 
-	INIT_WORK(&walt_cpufreq_policy_work, walt_wq_cpufreq_policy_update);
-	cpufreq_register_notifier(&walt_cpufreq_notifier_block,
-					CPUFREQ_POLICY_NOTIFIER);
+	register_trace_android_vh_update_topology_flags_workfn(
+			android_vh_update_topology_flags_workfn, NULL);
 
-	if (are_cpufreq_policies_available())
+	if (topology_update_done)
 		walt_init();
 
 	return 0;
