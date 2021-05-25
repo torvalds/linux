@@ -1669,7 +1669,7 @@ static void apic_timer_expired(struct kvm_lapic *apic, bool from_timer_fn)
 	}
 
 	atomic_inc(&apic->lapic_timer.pending);
-	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+	kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
 	if (from_timer_fn)
 		kvm_vcpu_kick(vcpu);
 }
