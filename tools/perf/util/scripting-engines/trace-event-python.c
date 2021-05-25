@@ -1019,6 +1019,11 @@ static int tuple_set_s32(PyObject *t, unsigned int pos, s32 val)
 	return PyTuple_SetItem(t, pos, _PyLong_FromLong(val));
 }
 
+static int tuple_set_bool(PyObject *t, unsigned int pos, bool val)
+{
+	return PyTuple_SetItem(t, pos, PyBool_FromLong(val));
+}
+
 static int tuple_set_string(PyObject *t, unsigned int pos, const char *s)
 {
 	return PyTuple_SetItem(t, pos, _PyUnicode_FromString(s));
@@ -1406,6 +1411,44 @@ static void python_process_event(union perf_event *event,
 	}
 }
 
+static void python_do_process_switch(union perf_event *event,
+				     struct perf_sample *sample,
+				     struct machine *machine)
+{
+	const char *handler_name = "context_switch";
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+	bool out_preempt = out && (event->header.misc & PERF_RECORD_MISC_SWITCH_OUT_PREEMPT);
+	pid_t np_pid = -1, np_tid = -1;
+	PyObject *handler, *t;
+
+	handler = get_handler(handler_name);
+	if (!handler)
+		return;
+
+	if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE) {
+		np_pid = event->context_switch.next_prev_pid;
+		np_tid = event->context_switch.next_prev_tid;
+	}
+
+	t = tuple_new(9);
+	if (!t)
+		return;
+
+	tuple_set_u64(t, 0, sample->time);
+	tuple_set_s32(t, 1, sample->cpu);
+	tuple_set_s32(t, 2, sample->pid);
+	tuple_set_s32(t, 3, sample->tid);
+	tuple_set_s32(t, 4, np_pid);
+	tuple_set_s32(t, 5, np_tid);
+	tuple_set_s32(t, 6, machine->pid);
+	tuple_set_bool(t, 7, out);
+	tuple_set_bool(t, 8, out_preempt);
+
+	call_object(handler, t, handler_name);
+
+	Py_DECREF(t);
+}
+
 static void python_process_switch(union perf_event *event,
 				  struct perf_sample *sample,
 				  struct machine *machine)
@@ -1414,6 +1457,8 @@ static void python_process_switch(union perf_event *event,
 
 	if (tables->db_export_mode)
 		db_export__switch(&tables->dbe, event, sample, machine);
+	else
+		python_do_process_switch(event, sample, machine);
 }
 
 static void get_handler_name(char *str, size_t size,
