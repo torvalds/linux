@@ -2188,10 +2188,7 @@ static int psp_load_smu_fw(struct psp_context *psp)
 	if ((amdgpu_in_reset(adev) &&
 	     ras && adev->ras_enabled &&
 	     (adev->asic_type == CHIP_ARCTURUS ||
-	      adev->asic_type == CHIP_VEGA20)) ||
-	     (adev->in_runpm &&
-	      adev->asic_type >= CHIP_NAVI10 &&
-	      adev->asic_type <= CHIP_NAVI12)) {
+	      adev->asic_type == CHIP_VEGA20))) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
