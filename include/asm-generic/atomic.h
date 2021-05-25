@@ -93,65 +93,27 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 
 #endif /* CONFIG_SMP */
 
-#ifndef atomic_add_return
 ATOMIC_OP_RETURN(add, +)
-#endif
-
-#ifndef atomic_sub_return
 ATOMIC_OP_RETURN(sub, -)
-#endif
 
-#ifndef atomic_fetch_add
 ATOMIC_FETCH_OP(add, +)
-#endif
-
-#ifndef atomic_fetch_sub
 ATOMIC_FETCH_OP(sub, -)
-#endif
-
-#ifndef atomic_fetch_and
 ATOMIC_FETCH_OP(and, &)
-#endif
-
-#ifndef atomic_fetch_or
 ATOMIC_FETCH_OP(or, |)
-#endif
-
-#ifndef atomic_fetch_xor
 ATOMIC_FETCH_OP(xor, ^)
-#endif
 
-#ifndef atomic_and
+ATOMIC_OP(add, +)
+ATOMIC_OP(sub, -)
 ATOMIC_OP(and, &)
-#endif
-
-#ifndef atomic_or
 ATOMIC_OP(or, |)
-#endif
-
-#ifndef atomic_xor
 ATOMIC_OP(xor, ^)
-#endif
 
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#ifndef atomic_read
-#define atomic_read(v)	READ_ONCE((v)->counter)
-#endif
-
-#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
-
-static inline void atomic_add(int i, atomic_t *v)
-{
-	atomic_add_return(i, v);
-}
-
-static inline void atomic_sub(int i, atomic_t *v)
-{
-	atomic_sub_return(i, v);
-}
+#define atomic_read(v)			READ_ONCE((v)->counter)
+#define atomic_set(v, i)		WRITE_ONCE(((v)->counter), (i))
 
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
