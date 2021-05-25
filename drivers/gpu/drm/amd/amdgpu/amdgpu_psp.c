@@ -551,7 +551,7 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	return ret;
 }
 
-static int psp_boot_config_set(struct amdgpu_device *adev)
+static int psp_boot_config_set(struct amdgpu_device *adev, uint32_t boot_cfg)
 {
 	struct psp_context *psp = &adev->psp;
 	struct psp_gfx_cmd_resp *cmd = psp->cmd;
@@ -563,8 +563,8 @@ static int psp_boot_config_set(struct amdgpu_device *adev)
 
 	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
 	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_SET;
-	cmd->cmd.boot_cfg.boot_config = BOOT_CONFIG_GECC;
-	cmd->cmd.boot_cfg.boot_config_valid = BOOT_CONFIG_GECC;
+	cmd->cmd.boot_cfg.boot_config = boot_cfg;
+	cmd->cmd.boot_cfg.boot_config_valid = boot_cfg;
 
 	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 }
@@ -1946,7 +1946,7 @@ static int psp_hw_start(struct psp_context *psp)
 	}
 
 	if (amdgpu_atomfirmware_dynamic_boot_config_supported(adev)) {
-		ret = psp_boot_config_set(adev);
+		ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
 		if (ret)
 			dev_warn(adev->dev, "PSP set boot config failed\n");
 	}
