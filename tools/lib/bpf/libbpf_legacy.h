@@ -33,6 +33,18 @@ enum libbpf_strict_mode {
 	 * code so that it handles LIBBPF_STRICT_ALL mode before libbpf v1.0.
 	 */
 	LIBBPF_STRICT_NONE = 0x00,
+	/*
+	 * Return NULL pointers on error, not ERR_PTR(err).
+	 * Additionally, libbpf also always sets errno to corresponding Exx
+	 * (positive) error code.
+	 */
+	LIBBPF_STRICT_CLEAN_PTRS = 0x01,
+	/*
+	 * Return actual error codes from low-level APIs directly, not just -1.
+	 * Additionally, libbpf also always sets errno to corresponding Exx
+	 * (positive) error code.
+	 */
+	LIBBPF_STRICT_DIRECT_ERRS = 0x02,
 
 	__LIBBPF_STRICT_LAST,
 };

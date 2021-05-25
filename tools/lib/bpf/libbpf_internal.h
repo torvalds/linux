@@ -11,6 +11,9 @@
 
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
+#include <linux/err.h>
+#include "libbpf_legacy.h"
 
 /* make sure libbpf doesn't use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
@@ -435,5 +438,28 @@ int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ct
 int btf_type_visit_str_offs(struct btf_type *t, str_off_visit_fn visit, void *ctx);
 int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
 int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
+
+extern enum libbpf_strict_mode libbpf_mode;
+
+/* handle direct returned errors */
+static inline int libbpf_err(int ret)
+{
+	if (ret < 0)
+		errno = -ret;
+	return ret;
+}
+
+/* handle errno-based (e.g., syscall or libc) errors according to libbpf's
+ * strict mode settings
+ */
+static inline int libbpf_err_errno(int ret)
+{
+	if (libbpf_mode & LIBBPF_STRICT_DIRECT_ERRS)
+		/* errno is already assumed to be set on error */
+		return ret < 0 ? -errno : ret;
+
+	/* legacy: on error return -1 directly and don't touch errno */
+	return ret;
+}
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */
