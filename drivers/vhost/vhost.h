@@ -20,9 +20,9 @@ typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 
 #define VHOST_WORK_QUEUED 1
 struct vhost_work {
-	struct llist_node	  node;
-	vhost_work_fn_t		  fn;
-	unsigned long		  flags;
+	struct llist_node	node;
+	vhost_work_fn_t		fn;
+	unsigned long		flags;
 };
 
 /* Poll a file (eventfd or socket) */
