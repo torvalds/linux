@@ -101,7 +101,7 @@ typedef struct port_s {
 	u8 rxs, txs, tmc;	/* SCA registers */
 	u8 phy_node;		/* physical port # - 0 or 1 */
 	u8 log_node;		/* logical port # */
-}port_t;
+} port_t;
 
 typedef struct card_s {
 	u8 __iomem *winbase;		/* ISA window base address */
@@ -115,7 +115,7 @@ typedef struct card_s {
 
 	port_t ports[2];
 	struct card_s *next_card;
-}card_t;
+} card_t;
 
 static card_t *first_card;
 static card_t **new_card = &first_card;
@@ -158,7 +158,7 @@ static void n2_set_iface(port_t *port)
 	u8 rxs = port->rxs & CLK_BRG_MASK;
 	u8 txs = port->txs & CLK_BRG_MASK;
 
-	switch(port->settings.clock_type) {
+	switch (port->settings.clock_type) {
 	case CLOCK_INT:
 		mcr |= port->phy_node ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
 		rxs |= CLK_BRG_RX; /* BRG output */
@@ -241,7 +241,7 @@ static int n2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
-	switch(ifr->ifr_settings.type) {
+	switch (ifr->ifr_settings.type) {
 	case IF_GET_IFACE:
 		ifr->ifr_settings.type = IF_IFACE_SYNC_SERIAL;
 		if (ifr->ifr_settings.size < size) {
@@ -253,7 +253,7 @@ static int n2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case IF_IFACE_SYNC_SERIAL:
-		if(!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
 		if (copy_from_user(&new_line, line, size))
@@ -494,7 +494,7 @@ static int __init n2_init(void)
 
 		if (*hw++ != ',')
 			break;
-		while(1) {
+		while (1) {
 			if (*hw == '0' && !valid[0])
 				valid[0] = 1; /* Port 0 enabled */
 			else if (*hw == '1' && !valid[1])
@@ -512,7 +512,7 @@ static int __init n2_init(void)
 
 		if (*hw == '\x0')
 			return first_card ? 0 : -EINVAL;
-	}while(*hw++ == ':');
+	} while (*hw++ == ':');
 
 	pr_err("invalid hardware parameters\n");
 	return first_card ? 0 : -EINVAL;
