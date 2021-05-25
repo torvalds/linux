@@ -105,4 +105,7 @@ int common_pc(struct scripting_context *context);
 int common_flags(struct scripting_context *context);
 int common_lock_depth(struct scripting_context *context);
 
+#define SAMPLE_FLAGS_BUF_SIZE 64
+int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz);
+
 #endif /* _PERF_UTIL_TRACE_EVENT_H */

@@ -1553,41 +1553,49 @@ static const char *sample_flags_to_name(u32 flags)
 	return NULL;
 }
 
-static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
+int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz)
 {
 	const char *chars = PERF_IP_FLAG_CHARS;
-	const int n = strlen(PERF_IP_FLAG_CHARS);
+	const size_t n = strlen(PERF_IP_FLAG_CHARS);
 	bool in_tx = flags & PERF_IP_FLAG_IN_TX;
 	const char *name = NULL;
-	char str[33];
-	int i, pos = 0;
+	size_t i, pos = 0;
 
 	name = sample_flags_to_name(flags & ~PERF_IP_FLAG_IN_TX);
 	if (name)
-		return fprintf(fp, "  %-15s%4s ", name, in_tx ? "(x)" : "");
+		return snprintf(str, sz, "%-15s%4s", name, in_tx ? "(x)" : "");
 
 	if (flags & PERF_IP_FLAG_TRACE_BEGIN) {
 		name = sample_flags_to_name(flags & ~(PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_TRACE_BEGIN));
 		if (name)
-			return fprintf(fp, "  tr strt %-7s%4s ", name, in_tx ? "(x)" : "");
+			return snprintf(str, sz, "tr strt %-7s%4s", name, in_tx ? "(x)" : "");
 	}
 
 	if (flags & PERF_IP_FLAG_TRACE_END) {
 		name = sample_flags_to_name(flags & ~(PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_TRACE_END));
 		if (name)
-			return fprintf(fp, "  tr end  %-7s%4s ", name, in_tx ? "(x)" : "");
+			return snprintf(str, sz, "tr end  %-7s%4s", name, in_tx ? "(x)" : "");
 	}
 
 	for (i = 0; i < n; i++, flags >>= 1) {
-		if (flags & 1)
+		if ((flags & 1) && pos < sz)
 			str[pos++] = chars[i];
 	}
 	for (; i < 32; i++, flags >>= 1) {
-		if (flags & 1)
+		if ((flags & 1) && pos < sz)
 			str[pos++] = '?';
 	}
-	str[pos] = 0;
+	if (pos < sz)
+		str[pos] = 0;
 
+	return pos;
+}
+
+static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
+{
+	char str[SAMPLE_FLAGS_BUF_SIZE];
+
+	perf_sample__sprintf_flags(flags, str, sizeof(str));
 	return fprintf(fp, "  %-19s ", str);
 }
 
