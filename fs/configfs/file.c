@@ -77,25 +77,6 @@ static int fill_read_buffer(struct file *file, struct configfs_buffer *buffer)
 	return 0;
 }
 
-/**
- *	configfs_read_file - read an attribute.
- *	@file:	file pointer.
- *	@buf:	buffer to fill.
- *	@count:	number of bytes to read.
- *	@ppos:	starting offset in file.
- *
- *	Userspace wants to read an attribute file. The attribute descriptor
- *	is in the file's ->d_fsdata. The target item is in the directory's
- *	->d_fsdata.
- *
- *	We call fill_read_buffer() to allocate and fill the buffer from the
- *	item's show() method exactly once (if the read is happening from
- *	the beginning of the file). That should fill the entire buffer with
- *	all the data the item has to offer for that attribute.
- *	We then call flush_read_buffer() to copy the buffer to userspace
- *	in the increments specified.
- */
-
 static ssize_t
 configfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
@@ -116,26 +97,6 @@ out:
 	mutex_unlock(&buffer->mutex);
 	return retval;
 }
-
-/**
- *	configfs_read_bin_file - read a binary attribute.
- *	@file:	file pointer.
- *	@buf:	buffer to fill.
- *	@count:	number of bytes to read.
- *	@ppos:	starting offset in file.
- *
- *	Userspace wants to read a binary attribute file. The attribute
- *	descriptor is in the file's ->d_fsdata. The target item is in the
- *	directory's ->d_fsdata.
- *
- *	We check whether we need to refill the buffer. If so we will
- *	call the attributes' attr->read() twice. The first time we
- *	will pass a NULL as a buffer pointer, which the attributes' method
- *	will use to return the size of the buffer required. If no error
- *	occurs we will allocate the buffer using vmalloc and call
- *	attr->read() again passing that buffer as an argument.
- *	Then we just copy to user-space using simple_read_from_buffer.
- */
 
 static ssize_t
 configfs_read_bin_file(struct file *file, char __user *buf,
@@ -207,17 +168,6 @@ out:
 	return retval;
 }
 
-
-/**
- *	fill_write_buffer - copy buffer from userspace.
- *	@buffer:	data buffer for file.
- *	@buf:		data from user.
- *	@count:		number of bytes in @userbuf.
- *
- *	Allocate @buffer->page if it hasn't been already, then
- *	copy the user-supplied buffer into it.
- */
-
 static int
 fill_write_buffer(struct configfs_buffer * buffer, const char __user * buf, size_t count)
 {
@@ -252,23 +202,13 @@ flush_write_buffer(struct file *file, struct configfs_buffer *buffer, size_t cou
 }
 
 
-/**
- *	configfs_write_file - write an attribute.
- *	@file:	file pointer
- *	@buf:	data to write
- *	@count:	number of bytes
- *	@ppos:	starting offset
- *
- *	Similar to configfs_read_file(), though working in the opposite direction.
- *	We allocate and fill the data from the user in fill_write_buffer(),
- *	then push it to the config_item in flush_write_buffer().
- *	There is no easy way for us to know if userspace is only doing a partial
- *	write, so we don't support them. We expect the entire buffer to come
- *	on the first write.
- *	Hint: if you're writing a value, first read the file, modify only
- *	the value you're changing, then write entire buffer back.
+/*
+ * There is no easy way for us to know if userspace is only doing a partial
+ * write, so we don't support them. We expect the entire buffer to come on the
+ * first write.
+ * Hint: if you're writing a value, first read the file, modify only the value
+ * you're changing, then write entire buffer back.
  */
-
 static ssize_t
 configfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
@@ -284,19 +224,6 @@ configfs_write_file(struct file *file, const char __user *buf, size_t count, lof
 	mutex_unlock(&buffer->mutex);
 	return len;
 }
-
-/**
- *	configfs_write_bin_file - write a binary attribute.
- *	@file:	file pointer
- *	@buf:	data to write
- *	@count:	number of bytes
- *	@ppos:	starting offset
- *
- *	Writing to a binary attribute file is similar to a normal read.
- *	We buffer the consecutive writes (binary attribute files do not
- *	support lseek) in a continuously growing buffer, but we don't
- *	commit until the close of the file.
- */
 
 static ssize_t
 configfs_write_bin_file(struct file *file, const char __user *buf,
