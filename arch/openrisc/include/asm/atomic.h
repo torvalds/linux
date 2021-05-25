@@ -121,6 +121,12 @@ static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 }
 #define atomic_fetch_add_unless	atomic_fetch_add_unless
 
-#include <asm-generic/atomic.h>
+#define atomic_read(v)			READ_ONCE((v)->counter)
+#define atomic_set(v,i)			WRITE_ONCE((v)->counter, (i))
+
+#include <asm/cmpxchg.h>
+
+#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
+#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
 
 #endif /* __ASM_OPENRISC_ATOMIC_H */
