@@ -573,6 +573,11 @@ static bool cleanup_queued_task(struct iscsi_task *task)
 			__iscsi_put_task(task);
 	}
 
+	if (conn->session->running_aborted_task == task) {
+		conn->session->running_aborted_task = NULL;
+		__iscsi_put_task(task);
+	}
+
 	if (conn->task == task) {
 		conn->task = NULL;
 		__iscsi_put_task(task);
@@ -2334,6 +2339,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		iscsi_start_tx(conn);
 		goto success_unlocked;
 	case TMF_TIMEDOUT:
+		session->running_aborted_task = task;
 		spin_unlock_bh(&session->frwd_lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
 		goto failed_unlocked;
@@ -2367,7 +2373,14 @@ failed:
 failed_unlocked:
 	ISCSI_DBG_EH(session, "abort failed [sc %p itt 0x%x]\n", sc,
 		     task ? task->itt : 0);
-	iscsi_put_task(task);
+	/*
+	 * The driver might be accessing the task so hold the ref. The conn
+	 * stop cleanup will drop the ref after ep_disconnect so we know the
+	 * driver's no longer touching the task.
+	 */
+	if (!session->running_aborted_task)
+		iscsi_put_task(task);
+
 	iscsi_put_conn(conn->cls_conn);
 	mutex_unlock(&session->eh_mutex);
 	return FAILED;

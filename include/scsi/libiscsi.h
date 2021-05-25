@@ -276,6 +276,7 @@ struct iscsi_session {
 	struct iscsi_tm		tmhdr;
 	struct timer_list	tmf_timer;
 	int			tmf_state;	/* see TMF_INITIAL, etc.*/
+	struct iscsi_task	*running_aborted_task;
 
 	/* iSCSI session-wide sequencing */
 	uint32_t		cmdsn;
