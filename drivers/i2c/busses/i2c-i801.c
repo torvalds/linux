@@ -1684,19 +1684,17 @@ static inline int i801_acpi_probe(struct i801_priv *priv) { return 0; }
 static inline void i801_acpi_remove(struct i801_priv *priv) { }
 #endif
 
-static unsigned char i801_setup_hstcfg(struct i801_priv *priv)
+static void i801_setup_hstcfg(struct i801_priv *priv)
 {
 	unsigned char hstcfg = priv->original_hstcfg;
 
 	hstcfg &= ~SMBHSTCFG_I2C_EN;	/* SMBus timing */
 	hstcfg |= SMBHSTCFG_HST_EN;
 	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hstcfg);
-	return hstcfg;
 }
 
 static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	unsigned char temp;
 	int err, i;
 	struct i801_priv *priv;
 
@@ -1818,16 +1816,16 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	pci_read_config_byte(priv->pci_dev, SMBHSTCFG, &priv->original_hstcfg);
-	temp = i801_setup_hstcfg(priv);
+	i801_setup_hstcfg(priv);
 	if (!(priv->original_hstcfg & SMBHSTCFG_HST_EN))
 		dev_info(&dev->dev, "Enabling SMBus device\n");
 
-	if (temp & SMBHSTCFG_SMB_SMI_EN) {
+	if (priv->original_hstcfg & SMBHSTCFG_SMB_SMI_EN) {
 		dev_dbg(&dev->dev, "SMBus using interrupt SMI#\n");
 		/* Disable SMBus interrupt feature if SMBus using SMI# */
 		priv->features &= ~FEATURE_IRQ;
 	}
-	if (temp & SMBHSTCFG_SPD_WD)
+	if (priv->original_hstcfg & SMBHSTCFG_SPD_WD)
 		dev_info(&dev->dev, "SPD Write Disable is set\n");
 
 	/* Clear special mode bits */
