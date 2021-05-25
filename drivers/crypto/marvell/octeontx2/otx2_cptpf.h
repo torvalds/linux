@@ -47,6 +47,7 @@ struct otx2_cptpf_dev {
 	struct workqueue_struct	*flr_wq;
 	struct cptpf_flr_work   *flr_work;
 
+	unsigned long cap_flag;
 	u8 pf_id;               /* RVU PF number */
 	u8 max_vfs;		/* Maximum number of VFs supported by CPT */
 	u8 enabled_vfs;		/* Number of enabled VFs */

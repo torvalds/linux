@@ -10,6 +10,8 @@
 /* Device IDs */
 #define OTX2_CPT_PCI_PF_DEVICE_ID 0xA0FD
 #define OTX2_CPT_PCI_VF_DEVICE_ID 0xA0FE
+#define CN10K_CPT_PCI_PF_DEVICE_ID 0xA0F2
+#define CN10K_CPT_PCI_VF_DEVICE_ID 0xA0F3
 
 /* Mailbox interrupts offset */
 #define OTX2_CPT_PF_MBOX_INT	6
@@ -25,6 +27,7 @@
  */
 #define OTX2_CPT_VF_MSIX_VECTORS 1
 #define OTX2_CPT_VF_INTR_MBOX_MASK BIT(0)
+#define CN10K_CPT_VF_MBOX_REGION  (0xC0000)
 
 /* CPT LF MSIX vectors */
 #define OTX2_CPT_LF_MSIX_VECTORS 2
