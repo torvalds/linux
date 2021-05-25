@@ -269,6 +269,4 @@ static __always_inline int arch_atomic_fetch_xor(int i, atomic_t *v)
 # include <asm/atomic64_64.h>
 #endif
 
-#define ARCH_ATOMIC
-
 #endif /* _ASM_X86_ATOMIC_H */
