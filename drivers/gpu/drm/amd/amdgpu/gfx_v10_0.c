@@ -5086,47 +5086,44 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 		4 + /* RMI */
 		1); /* SQG */
 
-	if (adev->asic_type == CHIP_NAVI10 ||
-	    adev->asic_type == CHIP_NAVI14 ||
-	    adev->asic_type == CHIP_NAVI12) {
-		mutex_lock(&adev->grbm_idx_mutex);
-		for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-			for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-				gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff);
-				wgp_active_bitmap = gfx_v10_0_get_wgp_active_bitmap_per_sh(adev);
-				/*
-				 * Set corresponding TCP bits for the inactive WGPs in
-				 * GCRD_SA_TARGETS_DISABLE
-				 */
-				gcrd_targets_disable_tcp = 0;
-				/* Set TCP & SQC bits in UTCL1_UTCL0_INVREQ_DISABLE */
-				utcl_invreq_disable = 0;
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff);
+			wgp_active_bitmap = gfx_v10_0_get_wgp_active_bitmap_per_sh(adev);
+			/*
+			 * Set corresponding TCP bits for the inactive WGPs in
+			 * GCRD_SA_TARGETS_DISABLE
+			 */
+			gcrd_targets_disable_tcp = 0;
+			/* Set TCP & SQC bits in UTCL1_UTCL0_INVREQ_DISABLE */
+			utcl_invreq_disable = 0;
 
-				for (k = 0; k < max_wgp_per_sh; k++) {
-					if (!(wgp_active_bitmap & (1 << k))) {
-						gcrd_targets_disable_tcp |= 3 << (2 * k);
-						utcl_invreq_disable |= (3 << (2 * k)) |
-							(3 << (2 * (max_wgp_per_sh + k)));
-					}
+			for (k = 0; k < max_wgp_per_sh; k++) {
+				if (!(wgp_active_bitmap & (1 << k))) {
+					gcrd_targets_disable_tcp |= 3 << (2 * k);
+					gcrd_targets_disable_tcp |= 1 << (k + (max_wgp_per_sh * 2));
+					utcl_invreq_disable |= (3 << (2 * k)) |
+						(3 << (2 * (max_wgp_per_sh + k)));
 				}
-
-				tmp = RREG32_SOC15(GC, 0, mmUTCL1_UTCL0_INVREQ_DISABLE);
-				/* only override TCP & SQC bits */
-				tmp &= 0xffffffff << (4 * max_wgp_per_sh);
-				tmp |= (utcl_invreq_disable & utcl_invreq_disable_mask);
-				WREG32_SOC15(GC, 0, mmUTCL1_UTCL0_INVREQ_DISABLE, tmp);
-
-				tmp = RREG32_SOC15(GC, 0, mmGCRD_SA_TARGETS_DISABLE);
-				/* only override TCP bits */
-				tmp &= 0xffffffff << (2 * max_wgp_per_sh);
-				tmp |= (gcrd_targets_disable_tcp & gcrd_targets_disable_mask);
-				WREG32_SOC15(GC, 0, mmGCRD_SA_TARGETS_DISABLE, tmp);
 			}
-		}
 
-		gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-		mutex_unlock(&adev->grbm_idx_mutex);
+			tmp = RREG32_SOC15(GC, 0, mmUTCL1_UTCL0_INVREQ_DISABLE);
+			/* only override TCP & SQC bits */
+			tmp &= (0xffffffffU << (4 * max_wgp_per_sh));
+			tmp |= (utcl_invreq_disable & utcl_invreq_disable_mask);
+			WREG32_SOC15(GC, 0, mmUTCL1_UTCL0_INVREQ_DISABLE, tmp);
+
+			tmp = RREG32_SOC15(GC, 0, mmGCRD_SA_TARGETS_DISABLE);
+			/* only override TCP & SQC bits */
+			tmp &= (0xffffffffU << (3 * max_wgp_per_sh));
+			tmp |= (gcrd_targets_disable_tcp & gcrd_targets_disable_mask);
+			WREG32_SOC15(GC, 0, mmGCRD_SA_TARGETS_DISABLE, tmp);
+		}
 	}
+
+	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 static void gfx_v10_0_get_tcc_info(struct amdgpu_device *adev)
@@ -7404,7 +7401,10 @@ static int gfx_v10_0_hw_init(void *handle)
 	 * init golden registers and rlc resume may override some registers,
 	 * reconfig them here
 	 */
-	gfx_v10_0_tcp_harvest(adev);
+	if (adev->asic_type == CHIP_NAVI10 ||
+	    adev->asic_type == CHIP_NAVI14 ||
+	    adev->asic_type == CHIP_NAVI12)
+		gfx_v10_0_tcp_harvest(adev);
 
 	r = gfx_v10_0_cp_resume(adev);
 	if (r)
@@ -9324,17 +9324,22 @@ static void gfx_v10_0_set_user_wgp_inactive_bitmap_per_sh(struct amdgpu_device *
 
 static u32 gfx_v10_0_get_wgp_active_bitmap_per_sh(struct amdgpu_device *adev)
 {
-	u32 data, wgp_bitmask;
-	data = RREG32_SOC15(GC, 0, mmCC_GC_SHADER_ARRAY_CONFIG);
-	data |= RREG32_SOC15(GC, 0, mmGC_USER_SHADER_ARRAY_CONFIG);
+	u32 disabled_mask =
+		~amdgpu_gfx_create_bitmask(adev->gfx.config.max_cu_per_sh >> 1);
+	u32 efuse_setting = 0;
+	u32 vbios_setting = 0;
 
-	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_WGPS_MASK;
-	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_WGPS__SHIFT;
+	efuse_setting = RREG32_SOC15(GC, 0, mmCC_GC_SHADER_ARRAY_CONFIG);
+	efuse_setting &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_WGPS_MASK;
+	efuse_setting >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_WGPS__SHIFT;
 
-	wgp_bitmask =
-		amdgpu_gfx_create_bitmask(adev->gfx.config.max_cu_per_sh >> 1);
+	vbios_setting = RREG32_SOC15(GC, 0, mmGC_USER_SHADER_ARRAY_CONFIG);
+	vbios_setting &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_WGPS_MASK;
+	vbios_setting >>= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_WGPS__SHIFT;
 
-	return (~data) & wgp_bitmask;
+	disabled_mask |= efuse_setting | vbios_setting;
+
+	return (~disabled_mask);
 }
 
 static u32 gfx_v10_0_get_cu_active_bitmap_per_sh(struct amdgpu_device *adev)
