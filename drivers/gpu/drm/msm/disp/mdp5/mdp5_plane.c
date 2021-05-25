@@ -91,6 +91,11 @@ static void mdp5_plane_install_properties(struct drm_plane *plane,
 	INSTALL_RANGE_PROPERTY(zpos, ZPOS, 1, 255, 1);
 
 	mdp5_plane_install_rotation_property(dev, plane);
+	drm_plane_create_alpha_property(plane);
+	drm_plane_create_blend_mode_property(plane,
+			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PREMULTI) |
+			BIT(DRM_MODE_BLEND_COVERAGE));
 
 #undef INSTALL_RANGE_PROPERTY
 #undef INSTALL_ENUM_PROPERTY
