@@ -159,6 +159,15 @@ out_free_parts:
 	return ret;
 }
 
+static void parse_qcomsmem_cleanup(const struct mtd_partition *pparts,
+				   int nr_parts)
+{
+	int i;
+
+	for (i = 0; i < nr_parts; i++)
+		kfree(pparts[i].name);
+}
+
 static const struct of_device_id qcomsmem_of_match_table[] = {
 	{ .compatible = "qcom,smem-part" },
 	{},
@@ -167,6 +176,7 @@ MODULE_DEVICE_TABLE(of, qcomsmem_of_match_table);
 
 static struct mtd_part_parser mtd_parser_qcomsmem = {
 	.parse_fn = parse_qcomsmem_part,
+	.cleanup = parse_qcomsmem_cleanup,
 	.name = "qcomsmem",
 	.of_match_table = qcomsmem_of_match_table,
 };
