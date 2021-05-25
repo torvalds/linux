@@ -1,5 +1,6 @@
-# intel-pt-events.py: Print Intel PT Power Events and PTWRITE
-# Copyright (c) 2017, Intel Corporation.
+# SPDX-License-Identifier: GPL-2.0
+# intel-pt-events.py: Print Intel PT Events including Power Events and PTWRITE
+# Copyright (c) 2017-2021, Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -23,8 +24,36 @@ sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 #from perf_trace_context import *
 #from Core import *
 
+try:
+	broken_pipe_exception = BrokenPipeError
+except:
+	broken_pipe_exception = IOError
+
+glb_switch_str = None
+glb_switch_printed = True
+
+def get_optional_null(perf_dict, field):
+	if field in perf_dict:
+		return perf_dict[field]
+	return ""
+
+def get_optional_zero(perf_dict, field):
+	if field in perf_dict:
+		return perf_dict[field]
+	return 0
+
+def get_optional(perf_dict, field):
+	if field in perf_dict:
+		return perf_dict[field]
+	return "[unknown]"
+
+def get_offset(perf_dict, field):
+	if field in perf_dict:
+		return "+%#x" % perf_dict[field]
+	return ""
+
 def trace_begin():
-	print("Intel PT Power Events and PTWRITE")
+	print("Intel PT Branch Trace, Power Events and PTWRITE")
 
 def trace_end():
 	print("End")
@@ -77,58 +106,110 @@ def print_pwrx(raw_buf):
 	print("deepest cstate: %u last cstate: %u wake reason: %#x" %
 		(deepest_cstate, last_cstate, wake_reason), end=' ')
 
+def print_psb(raw_buf):
+	data = struct.unpack_from("<IQ", raw_buf)
+	offset = data[1]
+	print("offset: %#x" % (offset), end=' ')
+
 def print_common_start(comm, sample, name):
 	ts = sample["time"]
 	cpu = sample["cpu"]
 	pid = sample["pid"]
 	tid = sample["tid"]
-	print("%16s %5u/%-5u [%03u] %9u.%09u %7s:" %
-		(comm, pid, tid, cpu, ts / 1000000000, ts %1000000000, name),
+	flags_disp = get_optional_null(sample, "flags_disp")
+	# Unused fields:
+	# period      = sample["period"]
+	# phys_addr   = sample["phys_addr"]
+	# weight      = sample["weight"]
+	# transaction = sample["transaction"]
+	# cpumode     = get_optional_zero(sample, "cpumode")
+	print("%16s %5u/%-5u [%03u] %9u.%09u  %7s  %19s" %
+		(comm, pid, tid, cpu, ts / 1000000000, ts %1000000000, name, flags_disp),
 		end=' ')
 
-def print_common_ip(sample, symbol, dso):
-	ip = sample["ip"]
-	print("%16x %s (%s)" % (ip, symbol, dso))
+def print_common_ip(param_dict, sample, symbol, dso):
+	ip   = sample["ip"]
+	offs = get_offset(param_dict, "symoff")
+	print("%16x %s%s (%s)" % (ip, symbol, offs, dso), end=' ')
+	if "addr_correlates_sym" in sample:
+		addr   = sample["addr"]
+		dso    = get_optional(sample, "addr_dso")
+		symbol = get_optional(sample, "addr_symbol")
+		offs   = get_offset(sample, "addr_symoff")
+		print("=> %x %s%s (%s)" % (addr, symbol, offs, dso))
+	else:
+		print()
 
-def process_event(param_dict):
+def do_process_event(param_dict):
+	global glb_switch_printed
+	if not glb_switch_printed:
+		print(glb_switch_str)
+		glb_switch_printed = True
 	event_attr = param_dict["attr"]
-	sample	 = param_dict["sample"]
-	raw_buf	= param_dict["raw_buf"]
+	sample	   = param_dict["sample"]
+	raw_buf	   = param_dict["raw_buf"]
 	comm	   = param_dict["comm"]
 	name	   = param_dict["ev_name"]
+	# Unused fields:
+	# callchain  = param_dict["callchain"]
+	# brstack    = param_dict["brstack"]
+	# brstacksym = param_dict["brstacksym"]
 
 	# Symbol and dso info are not always resolved
-	if "dso" in param_dict:
-		dso = param_dict["dso"]
-	else:
-		dso = "[unknown]"
+	dso    = get_optional(param_dict, "dso")
+	symbol = get_optional(param_dict, "symbol")
 
-	if "symbol" in param_dict:
-		symbol = param_dict["symbol"]
-	else:
-		symbol = "[unknown]"
+	print_common_start(comm, sample, name)
 
 	if name == "ptwrite":
-		print_common_start(comm, sample, name)
 		print_ptwrite(raw_buf)
-		print_common_ip(sample, symbol, dso)
 	elif name == "cbr":
-		print_common_start(comm, sample, name)
 		print_cbr(raw_buf)
-		print_common_ip(sample, symbol, dso)
 	elif name == "mwait":
-		print_common_start(comm, sample, name)
 		print_mwait(raw_buf)
-		print_common_ip(sample, symbol, dso)
 	elif name == "pwre":
-		print_common_start(comm, sample, name)
 		print_pwre(raw_buf)
-		print_common_ip(sample, symbol, dso)
 	elif name == "exstop":
-		print_common_start(comm, sample, name)
 		print_exstop(raw_buf)
-		print_common_ip(sample, symbol, dso)
 	elif name == "pwrx":
-		print_common_start(comm, sample, name)
 		print_pwrx(raw_buf)
-		print_common_ip(sample, symbol, dso)
+	elif name == "psb":
+		print_psb(raw_buf)
+
+	print_common_ip(param_dict, sample, symbol, dso)
+
+def process_event(param_dict):
+	try:
+		do_process_event(param_dict)
+	except broken_pipe_exception:
+		# Stop python printing broken pipe errors and traceback
+		sys.stdout = open(os.devnull, 'w')
+		sys.exit(1)
+
+def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
+	try:
+		print("%16s %5u/%-5u [%03u] %9u.%09u  error type %u code %u: %s ip 0x%16x" %
+			("Trace error", pid, tid, cpu, ts / 1000000000, ts %1000000000, typ, code, msg, ip))
+	except broken_pipe_exception:
+		# Stop python printing broken pipe errors and traceback
+		sys.stdout = open(os.devnull, 'w')
+		sys.exit(1)
+
+def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_preempt, *x):
+	global glb_switch_printed
+	global glb_switch_str
+	if out:
+		out_str = "Switch out "
+	else:
+		out_str = "Switch In  "
+	if out_preempt:
+		preempt_str = "preempt"
+	else:
+		preempt_str = ""
+	if machine_pid == -1:
+		machine_str = ""
+	else:
+		machine_str = "machine PID %d" % machine_pid
+	glb_switch_str = "%16s %5d/%-5d [%03u] %9u.%09u %5d/%-5d %s %s" % \
+		(out_str, pid, tid, cpu, ts / 1000000000, ts %1000000000, np_pid, np_tid, machine_str, preempt_str)
+	glb_switch_printed = False
