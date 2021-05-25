@@ -1186,7 +1186,7 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 		return;
 
 	/* kprobes don't want to hook the spurious faults: */
-	if (kprobe_page_fault(regs, X86_TRAP_PF))
+	if (WARN_ON_ONCE(kprobe_page_fault(regs, X86_TRAP_PF)))
 		return;
 
 	/*
@@ -1239,7 +1239,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	}
 
 	/* kprobes don't want to hook the spurious faults: */
-	if (unlikely(kprobe_page_fault(regs, X86_TRAP_PF)))
+	if (WARN_ON_ONCE(kprobe_page_fault(regs, X86_TRAP_PF)))
 		return;
 
 	/*
