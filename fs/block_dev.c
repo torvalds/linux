@@ -1290,78 +1290,68 @@ rescan:
  */
 EXPORT_SYMBOL_GPL(bdev_disk_changed);
 
-/*
- * bd_mutex locking:
- *
- *  mutex_lock(part->bd_mutex)
- *    mutex_lock_nested(whole->bd_mutex, 1)
- */
-static int __blkdev_get(struct block_device *bdev, fmode_t mode)
+static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	int ret = 0;
 
-	if (!(disk->flags & GENHD_FL_UP))
-		return -ENXIO;
-
-	if (!bdev->bd_openers) {
-		if (!bdev_is_partition(bdev)) {
-			ret = 0;
-			if (disk->fops->open)
-				ret = disk->fops->open(bdev, mode);
-
-			if (!ret)
-				set_init_blocksize(bdev);
-
-			/*
-			 * If the device is invalidated, rescan partition
-			 * if open succeeded or failed with -ENOMEDIUM.
-			 * The latter is necessary to prevent ghost
-			 * partitions on a removed medium.
-			 */
-			if (test_bit(GD_NEED_PART_SCAN, &disk->state) &&
-			    (!ret || ret == -ENOMEDIUM))
-				bdev_disk_changed(bdev, ret == -ENOMEDIUM);
-
-			if (ret)
-				return ret;
-		} else {
-			struct block_device *whole = bdgrab(disk->part0);
-
-			mutex_lock_nested(&whole->bd_mutex, 1);
-			ret = __blkdev_get(whole, mode);
-			if (ret) {
-				mutex_unlock(&whole->bd_mutex);
-				bdput(whole);
-				return ret;
-			}
-			whole->bd_part_count++;
-			mutex_unlock(&whole->bd_mutex);
-
-			if (!bdev_nr_sectors(bdev)) {
-				__blkdev_put(whole, mode, 1);
-				bdput(whole);
-				return -ENXIO;
-			}
-			set_init_blocksize(bdev);
-		}
-
-		if (bdev->bd_bdi == &noop_backing_dev_info)
-			bdev->bd_bdi = bdi_get(disk->queue->backing_dev_info);
-	} else {
-		if (!bdev_is_partition(bdev)) {
-			if (bdev->bd_disk->fops->open)
-				ret = bdev->bd_disk->fops->open(bdev, mode);
-			/* the same as first opener case, read comment there */
-			if (test_bit(GD_NEED_PART_SCAN, &disk->state) &&
-			    (!ret || ret == -ENOMEDIUM))
-				bdev_disk_changed(bdev, ret == -ENOMEDIUM);
-			if (ret)
-				return ret;
+	if (disk->fops->open) {
+		ret = disk->fops->open(bdev, mode);
+		if (ret) {
+			/* avoid ghost partitions on a removed medium */
+			if (ret == -ENOMEDIUM &&
+			     test_bit(GD_NEED_PART_SCAN, &disk->state))
+				bdev_disk_changed(bdev, true);
+			return ret;
 		}
 	}
+
+	if (!bdev->bd_openers) {
+		set_init_blocksize(bdev);
+		if (bdev->bd_bdi == &noop_backing_dev_info)
+			bdev->bd_bdi = bdi_get(disk->queue->backing_dev_info);
+	}
+	if (test_bit(GD_NEED_PART_SCAN, &disk->state))
+		bdev_disk_changed(bdev, false);
 	bdev->bd_openers++;
+	return 0;;
+}
+
+static int blkdev_get_part(struct block_device *part, fmode_t mode)
+{
+	struct gendisk *disk = part->bd_disk;
+	struct block_device *whole;
+	int ret;
+
+	if (part->bd_openers)
+		goto done;
+
+	whole = bdgrab(disk->part0);
+	mutex_lock_nested(&whole->bd_mutex, 1);
+	ret = blkdev_get_whole(whole, mode);
+	if (ret) {
+		mutex_unlock(&whole->bd_mutex);
+		goto out_put_whole;
+	}
+	whole->bd_part_count++;
+	mutex_unlock(&whole->bd_mutex);
+
+	ret = -ENXIO;
+	if (!bdev_nr_sectors(part))
+		goto out_blkdev_put;
+
+	set_init_blocksize(part);
+	if (part->bd_bdi == &noop_backing_dev_info)
+		part->bd_bdi = bdi_get(disk->queue->backing_dev_info);
+done:
+	part->bd_openers++;
 	return 0;
+
+out_blkdev_put:
+	__blkdev_put(whole, mode, 1);
+out_put_whole:
+	bdput(whole);
+	return ret;
 }
 
 struct block_device *blkdev_get_no_open(dev_t dev)
@@ -1448,7 +1438,13 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 	disk_block_events(disk);
 
 	mutex_lock(&bdev->bd_mutex);
-	ret =__blkdev_get(bdev, mode);
+	ret = -ENXIO;
+	if (!(disk->flags & GENHD_FL_UP))
+		goto abort_claiming;
+	if (bdev_is_partition(bdev))
+		ret = blkdev_get_part(bdev, mode);
+	else
+		ret = blkdev_get_whole(bdev, mode);
 	if (ret)
 		goto abort_claiming;
 	if (mode & FMODE_EXCL) {
