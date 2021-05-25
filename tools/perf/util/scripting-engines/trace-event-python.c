@@ -822,6 +822,9 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	brstacksym = python_process_brstacksym(sample, al->thread);
 	pydict_set_item_string_decref(dict, "brstacksym", brstacksym);
 
+	pydict_set_item_string_decref(dict_sample, "cpumode",
+			_PyLong_FromLong((unsigned long)sample->cpumode));
+
 	if (addr_al) {
 		pydict_set_item_string_decref(dict_sample, "addr_correlates_sym",
 			PyBool_FromLong(1));
