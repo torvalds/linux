@@ -98,9 +98,6 @@ struct mdp5_plane_state {
 	struct mdp5_hw_pipe *hwpipe;
 	struct mdp5_hw_pipe *r_hwpipe;	/* right hwpipe */
 
-	/* aligned with property */
-	uint8_t zpos;
-
 	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
 };

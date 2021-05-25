@@ -650,7 +650,7 @@ static int pstate_cmp(const void *a, const void *b)
 {
 	struct plane_state *pa = (struct plane_state *)a;
 	struct plane_state *pb = (struct plane_state *)b;
-	return pa->state->zpos - pb->state->zpos;
+	return pa->state->base.normalized_zpos - pb->state->base.normalized_zpos;
 }
 
 /* is there a helper for this? */
