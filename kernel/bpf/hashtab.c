@@ -46,12 +46,12 @@
  * events, kprobes and tracing to be invoked before the prior invocation
  * from one of these contexts completed. sys_bpf() uses the same mechanism
  * by pinning the task to the current CPU and incrementing the recursion
- * protection accross the map operation.
+ * protection across the map operation.
  *
  * This has subtle implications on PREEMPT_RT. PREEMPT_RT forbids certain
  * operations like memory allocations (even with GFP_ATOMIC) from atomic
  * contexts. This is required because even with GFP_ATOMIC the memory
- * allocator calls into code pathes which acquire locks with long held lock
+ * allocator calls into code paths which acquire locks with long held lock
  * sections. To ensure the deterministic behaviour these locks are regular
  * spinlocks, which are converted to 'sleepable' spinlocks on RT. The only
  * true atomic contexts on an RT kernel are the low level hardware

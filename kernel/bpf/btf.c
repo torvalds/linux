@@ -51,7 +51,7 @@
  * The BTF type section contains a list of 'struct btf_type' objects.
  * Each one describes a C type.  Recall from the above section
  * that a 'struct btf_type' object could be immediately followed by extra
- * data in order to desribe some particular C types.
+ * data in order to describe some particular C types.
  *
  * type_id:
  * ~~~~~~~
@@ -1143,7 +1143,7 @@ static void *btf_show_obj_safe(struct btf_show *show,
 
 	/*
 	 * We need a new copy to our safe object, either because we haven't
-	 * yet copied and are intializing safe data, or because the data
+	 * yet copied and are initializing safe data, or because the data
 	 * we want falls outside the boundaries of the safe object.
 	 */
 	if (!safe) {
@@ -3417,7 +3417,7 @@ static struct btf_kind_operations func_proto_ops = {
 	 * BTF_KIND_FUNC_PROTO cannot be directly referred by
 	 * a struct's member.
 	 *
-	 * It should be a funciton pointer instead.
+	 * It should be a function pointer instead.
 	 * (i.e. struct's member -> BTF_KIND_PTR -> BTF_KIND_FUNC_PROTO)
 	 *
 	 * Hence, there is no btf_func_check_member().

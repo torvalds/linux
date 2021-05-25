@@ -382,8 +382,8 @@ void __dev_flush(void)
 }
 
 /* rcu_read_lock (from syscall and BPF contexts) ensures that if a delete and/or
- * update happens in parallel here a dev_put wont happen until after reading the
- * ifindex.
+ * update happens in parallel here a dev_put won't happen until after reading
+ * the ifindex.
  */
 static void *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 {
