@@ -541,7 +541,7 @@ static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
 		return;
 
 	link = bpf_program__attach_netns(skel->progs._dissect, net_fd);
-	if (CHECK(IS_ERR(link), "attach_netns", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_netns"))
 		goto out_close;
 
 	run_tests_skb_less(tap_fd, skel->maps.last_dissection);

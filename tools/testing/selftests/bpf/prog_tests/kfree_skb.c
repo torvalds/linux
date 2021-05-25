@@ -97,15 +97,13 @@ void test_kfree_skb(void)
 		goto close_prog;
 
 	link = bpf_program__attach_raw_tracepoint(prog, NULL);
-	if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto close_prog;
 	link_fentry = bpf_program__attach_trace(fentry);
-	if (CHECK(IS_ERR(link_fentry), "attach fentry", "err %ld\n",
-		  PTR_ERR(link_fentry)))
+	if (!ASSERT_OK_PTR(link_fentry, "attach fentry"))
 		goto close_prog;
 	link_fexit = bpf_program__attach_trace(fexit);
-	if (CHECK(IS_ERR(link_fexit), "attach fexit", "err %ld\n",
-		  PTR_ERR(link_fexit)))
+	if (!ASSERT_OK_PTR(link_fexit, "attach fexit"))
 		goto close_prog;
 
 	perf_buf_map = bpf_object__find_map_by_name(obj2, "perf_buf_map");
@@ -116,7 +114,7 @@ void test_kfree_skb(void)
 	pb_opts.sample_cb = on_sample;
 	pb_opts.ctx = &passed;
 	pb = perf_buffer__new(bpf_map__fd(perf_buf_map), 1, &pb_opts);
-	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
+	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto close_prog;
 
 	memcpy(skb.cb, &cb, sizeof(cb));
@@ -144,12 +142,9 @@ void test_kfree_skb(void)
 	CHECK_FAIL(!test_ok[0] || !test_ok[1]);
 close_prog:
 	perf_buffer__free(pb);
-	if (!IS_ERR_OR_NULL(link))
-		bpf_link__destroy(link);
-	if (!IS_ERR_OR_NULL(link_fentry))
-		bpf_link__destroy(link_fentry);
-	if (!IS_ERR_OR_NULL(link_fexit))
-		bpf_link__destroy(link_fexit);
+	bpf_link__destroy(link);
+	bpf_link__destroy(link_fentry);
+	bpf_link__destroy(link_fexit);
 	bpf_object__close(obj);
 	bpf_object__close(obj2);
 }

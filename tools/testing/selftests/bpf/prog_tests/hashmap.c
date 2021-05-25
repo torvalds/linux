@@ -48,8 +48,7 @@ static void test_hashmap_generic(void)
 	struct hashmap *map;
 
 	map = hashmap__new(hash_fn, equal_fn, NULL);
-	if (CHECK(IS_ERR(map), "hashmap__new",
-		  "failed to create map: %ld\n", PTR_ERR(map)))
+	if (!ASSERT_OK_PTR(map, "hashmap__new"))
 		return;
 
 	for (i = 0; i < ELEM_CNT; i++) {
@@ -267,8 +266,7 @@ static void test_hashmap_multimap(void)
 
 	/* force collisions */
 	map = hashmap__new(collision_hash_fn, equal_fn, NULL);
-	if (CHECK(IS_ERR(map), "hashmap__new",
-		  "failed to create map: %ld\n", PTR_ERR(map)))
+	if (!ASSERT_OK_PTR(map, "hashmap__new"))
 		return;
 
 	/* set up multimap:
@@ -339,8 +337,7 @@ static void test_hashmap_empty()
 
 	/* force collisions */
 	map = hashmap__new(hash_fn, equal_fn, NULL);
-	if (CHECK(IS_ERR(map), "hashmap__new",
-		  "failed to create map: %ld\n", PTR_ERR(map)))
+	if (!ASSERT_OK_PTR(map, "hashmap__new"))
 		goto cleanup;
 
 	if (CHECK(hashmap__size(map) != 0, "hashmap__size",
