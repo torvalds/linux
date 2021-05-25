@@ -532,7 +532,7 @@ int configfs_create_file(struct config_item * item, const struct configfs_attrib
 /**
  *	configfs_create_bin_file - create a binary attribute file for an item.
  *	@item:	item we're creating for.
- *	@attr:	atrribute descriptor.
+ *	@bin_attr: atrribute descriptor.
  */
 
 int configfs_create_bin_file(struct config_item *item,
