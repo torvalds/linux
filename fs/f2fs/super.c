@@ -1869,17 +1869,15 @@ static int f2fs_enable_quotas(struct super_block *sb);
 
 static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 {
-	unsigned int s_flags = sbi->sb->s_flags;
 	struct cp_control cpc;
 	int err = 0;
 	int ret;
 	block_t unusable;
 
-	if (s_flags & SB_RDONLY) {
+	if (sbi->sb->s_flags & SB_RDONLY) {
 		f2fs_err(sbi, "checkpoint=disable on readonly fs");
 		return -EINVAL;
 	}
-	sbi->sb->s_flags |= SB_ACTIVE;
 
 	f2fs_update_time(sbi, DISABLE_TIME);
 
@@ -1897,13 +1895,13 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 	ret = sync_filesystem(sbi->sb);
 	if (ret || err) {
 		err = ret ? ret : err;
-		goto restore_flag;
+		goto out;
 	}
 
 	unusable = f2fs_get_unusable_blocks(sbi);
 	if (f2fs_disable_cp_again(sbi, unusable)) {
 		err = -EAGAIN;
-		goto restore_flag;
+		goto out;
 	}
 
 	down_write(&sbi->gc_lock);
@@ -1919,8 +1917,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 
 out_unlock:
 	up_write(&sbi->gc_lock);
-restore_flag:
-	sbi->sb->s_flags = s_flags;	/* Restore SB_RDONLY status */
+out:
 	return err;
 }
 
