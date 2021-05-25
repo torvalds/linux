@@ -169,8 +169,7 @@ static unsigned int __read_mostly sysctl_sched_init_task_load_pct = 15;
 static const unsigned int top_tasks_bitmap_size =
 		BITS_TO_LONGS(NUM_LOAD_INDICES + 1) * sizeof(unsigned long);
 
-static __read_mostly unsigned int walt_scale_demand_divisor;
-#define scale_demand(d) ((d)/walt_scale_demand_divisor)
+__read_mostly unsigned int walt_scale_demand_divisor;
 
 #define SCHED_PRINT(arg)	printk_deferred("%s=%llu", #arg, arg)
 #define STRG(arg)		#arg

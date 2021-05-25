@@ -50,6 +50,7 @@ struct find_best_target_env {
 	int	end_index;
 	bool	strict_max;
 	int	skip_cpu;
+	u64	prs[8];
 };
 
 /*
@@ -220,8 +221,11 @@ static void walt_find_best_target(struct sched_domain *sd,
 			unsigned long wake_util, new_util, new_util_cuml;
 			long spare_cap;
 			unsigned int idle_exit_latency = UINT_MAX;
+			struct walt_rq *wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
 
 			trace_sched_cpu_util(i);
+			/* record the prss as we visit cpus in a cluster */
+			fbt_env->prs[i] = wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
 
 			if (!cpu_active(i))
 				continue;
@@ -383,46 +387,28 @@ out:
 			     fbt_env->skip_cpu, task_on_rq_queued(p));
 }
 
-static inline unsigned long
-cpu_util_next_walt(int cpu, struct task_struct *p, int dst_cpu)
+static inline u64
+cpu_util_next_walt_prs(int cpu, struct task_struct *p, int dst_cpu, bool prev_dst_same_cluster,
+											u64 *prs)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
-	unsigned long util = wrq->walt_stats.cumulative_runnable_avg_scaled;
-	bool queued = task_on_rq_queued(p);
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	long util = prs[cpu];
 
-	/*
-	 * When task is queued,
-	 * (a) The evaluating CPU (cpu) is task's current CPU. If the
-	 * task is migrating, discount the task contribution from the
-	 * evaluation cpu.
-	 * (b) The evaluating CPU (cpu) is task's current CPU. If the
-	 * task is NOT migrating, nothing to do. The contribution is
-	 * already present on the evaluation CPU.
-	 * (c) The evaluating CPU (cpu) is not task's current CPU. But
-	 * the task is migrating to the evaluating CPU. So add the
-	 * task contribution to it.
-	 * (d) The evaluating CPU (cpu) is neither the current CPU nor
-	 * the destination CPU. don't care.
-	 *
-	 * When task is NOT queued i.e waking. Task contribution is not
-	 * present on any CPU.
-	 *
-	 * (a) If the evaluating CPU is the destination CPU, add the task
-	 * contribution.
-	 * (b) The evaluation CPU is not the destination CPU, don't care.
-	 */
-	if (unlikely(queued)) {
-		if (task_cpu(p) == cpu) {
-			if (dst_cpu != cpu)
-				util = max_t(long, util - task_util(p), 0);
-		} else if (dst_cpu == cpu) {
-			util += task_util(p);
+	if (wts->prev_window) {
+		if (!prev_dst_same_cluster) {
+			/* intercluster migration of non rtg task - mimic fixups */
+			util -= wts->prev_window_cpu[cpu];
+			if (util < 0)
+				util = 0;
+			if (cpu == dst_cpu)
+				util += wts->prev_window;
 		}
-	} else if (dst_cpu == cpu) {
-		util += task_util(p);
+	} else {
+		if (cpu == dst_cpu)
+			util += wts->demand;
 	}
 
-	return min_t(unsigned long, util, capacity_orig_of(cpu));
+	return util;
 }
 
 /**
@@ -522,12 +508,16 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
  * task.
  */
 static long
-walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
+walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, u64 *prs)
 {
 	struct cpumask *pd_mask = perf_domain_span(pd);
 	unsigned long max_util = 0, sum_util = 0;
 	int cpu;
 	unsigned long cpu_util;
+	bool prev_dst_same_cluster = false;
+
+	if (same_cluster(task_cpu(p), dst_cpu))
+		prev_dst_same_cluster = true;
 
 	/*
 	 * The capacity state of CPUs of the current rd can be driven by CPUs
@@ -539,17 +529,19 @@ walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *p
 	 * its pd list and will not be accounted by compute_energy().
 	 */
 	for_each_cpu_and(cpu, pd_mask, cpu_online_mask) {
-		cpu_util = cpu_util_next_walt(cpu, p, dst_cpu);
+		cpu_util = cpu_util_next_walt_prs(cpu, p, dst_cpu, prev_dst_same_cluster, prs);
 		sum_util += cpu_util;
 		max_util = max(max_util, cpu_util);
 	}
 
+	max_util = scale_demand(max_util);
+	sum_util = scale_demand(sum_util);
 	return walt_em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
 static inline long
 walt_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd,
-								cpumask_t *candidates)
+			cpumask_t *candidates, u64 *prs)
 {
 	long energy = 0;
 
@@ -558,7 +550,7 @@ walt_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd,
 
 		if (cpumask_intersects(candidates, pd_mask)
 				|| cpumask_test_cpu(task_cpu(p), pd_mask))
-			energy += walt_pd_compute_energy(p, dst_cpu, pd);
+			energy += walt_pd_compute_energy(p, dst_cpu, pd, prs);
 	}
 
 	return energy;
@@ -699,7 +691,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 
 	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta))
 		prev_energy = best_energy =
-			walt_compute_energy(p, prev_cpu, pd, candidates);
+			walt_compute_energy(p, prev_cpu, pd, candidates, fbt_env.prs);
 	else
 		prev_energy = best_energy = ULONG_MAX;
 
@@ -708,7 +700,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		if (cpu == prev_cpu)
 			continue;
 
-		cur_energy = walt_compute_energy(p, cpu, pd, candidates);
+		cur_energy = walt_compute_energy(p, cpu, pd, candidates, fbt_env.prs);
 		trace_sched_compute_energy(p, cpu, cur_energy,
 			prev_energy, best_energy, best_energy_cpu);
 

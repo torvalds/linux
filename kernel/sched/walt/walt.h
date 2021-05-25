@@ -890,4 +890,7 @@ void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p);
 void walt_cfs_tick(struct rq *rq);
 void walt_lb_tick(struct rq *rq);
 
+extern __read_mostly unsigned int walt_scale_demand_divisor;
+#define scale_demand(d) ((d)/walt_scale_demand_divisor)
+
 #endif /* _WALT_H */
