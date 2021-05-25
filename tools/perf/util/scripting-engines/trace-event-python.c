@@ -831,6 +831,14 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	if (sample->flags)
 		python_process_sample_flags(sample, dict_sample);
 
+	/* Instructions per cycle (IPC) */
+	if (sample->insn_cnt && sample->cyc_cnt) {
+		pydict_set_item_string_decref(dict_sample, "insn_cnt",
+			PyLong_FromUnsignedLongLong(sample->insn_cnt));
+		pydict_set_item_string_decref(dict_sample, "cyc_cnt",
+			PyLong_FromUnsignedLongLong(sample->cyc_cnt));
+	}
+
 	set_regs_in_dict(dict, sample, evsel);
 
 	return dict;
