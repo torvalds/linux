@@ -2593,6 +2593,7 @@
 			assigned-clock-rates = <19200000>, <60000000>;
 
 			power-domains = <&gcc USB30_GDSC>;
+			qcom,select-utmi-as-pipe-clk;
 			status = "disabled";
 
 			dwc3@7600000 {
@@ -2601,6 +2602,7 @@
 				interrupts = <0 138 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy2>;
 				phy-names = "usb2-phy";
+				maximum-speed = "high-speed";
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
 			};
