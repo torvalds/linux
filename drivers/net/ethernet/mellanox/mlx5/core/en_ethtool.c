@@ -1618,12 +1618,13 @@ static int mlx5e_set_fecparam(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	unsigned long fec_bitmap;
 	u16 fec_policy = 0;
 	int mode;
 	int err;
 
-	if (bitmap_weight((unsigned long *)&fecparam->fec,
-			  ETHTOOL_FEC_LLRS_BIT + 1) > 1)
+	bitmap_from_arr32(&fec_bitmap, &fecparam->fec, sizeof(fecparam->fec) * BITS_PER_BYTE);
+	if (bitmap_weight(&fec_bitmap, ETHTOOL_FEC_LLRS_BIT + 1) > 1)
 		return -EOPNOTSUPP;
 
 	for (mode = 0; mode < ARRAY_SIZE(pplm_fec_2_ethtool); mode++) {
