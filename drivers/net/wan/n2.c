@@ -143,6 +143,7 @@ static __inline__ u8 sca_get_page(card_t *card)
 static __inline__ void openwin(card_t *card, u8 page)
 {
 	u8 psr = inb(card->io + N2_PSR);
+
 	outb((psr & ~PSR_PAGEBITS) | page, card->io + N2_PSR);
 }
 
@@ -283,6 +284,7 @@ static void n2_destroy_card(card_t *card)
 	for (cnt = 0; cnt < 2; cnt++)
 		if (card->ports[cnt].card) {
 			struct net_device *dev = port_to_dev(&card->ports[cnt]);
+
 			unregister_hdlc_device(dev);
 		}
 
@@ -522,6 +524,7 @@ static void __exit n2_cleanup(void)
 
 	while (card) {
 		card_t *ptr = card;
+
 		card = card->next_card;
 		n2_destroy_card(ptr);
 	}
