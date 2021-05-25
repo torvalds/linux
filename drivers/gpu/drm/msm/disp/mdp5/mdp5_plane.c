@@ -176,8 +176,8 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *mdp5_state;
 
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_put(plane->state->fb);
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
 
 	kfree(to_mdp5_plane_state(plane->state));
 	mdp5_state = kzalloc(sizeof(*mdp5_state), GFP_KERNEL);
@@ -191,9 +191,7 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 	else
 		mdp5_state->zpos = STAGE0 + drm_plane_index(plane);
 
-	mdp5_state->base.plane = plane;
-
-	plane->state = &mdp5_state->base;
+	__drm_atomic_helper_plane_reset(plane, &mdp5_state->base);
 }
 
 static struct drm_plane_state *
