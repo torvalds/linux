@@ -27,6 +27,8 @@ properties:
       - description: x
       - description: y
       - description: pressure (optional)
+      - description: z1 (optional)
+      - description: z2 (optional)
 
   io-channel-names:
     oneOf:
@@ -37,6 +39,11 @@ properties:
           - enum: [x, y, pressure]
           - enum: [x, y, pressure]
           - enum: [x, y, pressure]
+      - items:
+          - enum: [x, y, z1, z2]
+          - enum: [x, y, z1, z2]
+          - enum: [x, y, z1, z2]
+          - enum: [x, y, z1, z2]
 
   touchscreen-size-x: true
   touchscreen-size-y: true
@@ -46,6 +53,7 @@ properties:
   touchscreen-inverted-y: true
   touchscreen-swapped-x-y: true
   touchscreen-min-pressure: true
+  touchscreen-x-plate-ohms: true
 
 additionalProperties: false
 
@@ -67,4 +75,12 @@ examples:
       touchscreen-min-pressure = <50000>;
       io-channels = <&adc 24>, <&adc 25>, <&adc 26>;
       io-channel-names = "y", "pressure", "x";
+    };
+  - |
+    touchscreen {
+      compatible = "resistive-adc-touch";
+      touchscreen-min-pressure = <50000>;
+      io-channels = <&adc 1>, <&adc 2>, <&adc 3>, <&adc 4>;
+      io-channel-names = "x", "z1", "z2", "y";
+      touchscreen-x-plate-ohms = <800>;
     };
