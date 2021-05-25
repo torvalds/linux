@@ -6712,7 +6712,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 	gaudi_mmu_prepare_reg(hdev, mmMME2_ACC_WBC, asid);
 	gaudi_mmu_prepare_reg(hdev, mmMME3_ACC_WBC, asid);
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC0) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC0) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC0_QM0_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC0_QM0_GLBL_NON_SECURE_PROPS_1,
@@ -6725,7 +6725,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC1) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC1) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC0_QM1_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC0_QM1_GLBL_NON_SECURE_PROPS_1,
@@ -6738,7 +6738,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC2) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC2) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC1_QM0_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC1_QM0_GLBL_NON_SECURE_PROPS_1,
@@ -6751,7 +6751,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC3) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC3) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC1_QM1_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC1_QM1_GLBL_NON_SECURE_PROPS_1,
@@ -6764,7 +6764,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC4) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC4) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC2_QM0_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC2_QM0_GLBL_NON_SECURE_PROPS_1,
@@ -6777,7 +6777,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC5) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC5) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC2_QM1_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC2_QM1_GLBL_NON_SECURE_PROPS_1,
@@ -6790,7 +6790,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC6) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC6) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC3_QM0_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC3_QM0_GLBL_NON_SECURE_PROPS_1,
@@ -6803,7 +6803,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC7) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC7) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC3_QM1_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC3_QM1_GLBL_NON_SECURE_PROPS_1,
@@ -6816,7 +6816,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC8) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC8) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC4_QM0_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC4_QM0_GLBL_NON_SECURE_PROPS_1,
@@ -6829,7 +6829,7 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 				asid);
 	}
 
-	if (hdev->nic_ports_mask & GAUDI_NIC_MASK_NIC9) {
+	if (gaudi->hw_cap_initialized & HW_CAP_NIC9) {
 		gaudi_mmu_prepare_reg(hdev, mmNIC4_QM1_GLBL_NON_SECURE_PROPS_0,
 				asid);
 		gaudi_mmu_prepare_reg(hdev, mmNIC4_QM1_GLBL_NON_SECURE_PROPS_1,
@@ -8236,7 +8236,7 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	for (i = 0 ; i < (NIC_NUMBER_OF_ENGINES / 2) ; i++) {
 		offset = i * NIC_MACRO_QMAN_OFFSET;
 		port = 2 * i;
-		if (hdev->nic_ports_mask & BIT(port)) {
+		if (gaudi->hw_cap_initialized & BIT(HW_CAP_NIC_SHIFT + port)) {
 			qm_glbl_sts0 = RREG32(mmNIC0_QM0_GLBL_STS0 + offset);
 			qm_cgm_sts = RREG32(mmNIC0_QM0_CGM_STS + offset);
 			is_eng_idle = IS_QM_IDLE(qm_glbl_sts0, qm_cgm_sts);
@@ -8251,7 +8251,7 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 		}
 
 		port = 2 * i + 1;
-		if (hdev->nic_ports_mask & BIT(port)) {
+		if (gaudi->hw_cap_initialized & BIT(HW_CAP_NIC_SHIFT + port)) {
 			qm_glbl_sts0 = RREG32(mmNIC0_QM1_GLBL_STS0 + offset);
 			qm_cgm_sts = RREG32(mmNIC0_QM1_CGM_STS + offset);
 			is_eng_idle = IS_QM_IDLE(qm_glbl_sts0, qm_cgm_sts);
