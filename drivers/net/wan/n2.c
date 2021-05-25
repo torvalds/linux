@@ -335,7 +335,7 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	}
 
 	card = kzalloc(sizeof(card_t), GFP_KERNEL);
-	if (card == NULL)
+	if (!card)
 		return -ENOBUFS;
 
 	card->ports[0].dev = alloc_hdlcdev(&card->ports[0]);
@@ -469,7 +469,7 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 
 static int __init n2_init(void)
 {
-	if (hw==NULL) {
+	if (!hw) {
 #ifdef MODULE
 		pr_info("no card initialized\n");
 #endif
