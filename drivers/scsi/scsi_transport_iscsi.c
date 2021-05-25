@@ -1979,6 +1979,8 @@ static void __iscsi_unblock_session(struct work_struct *work)
  */
 void iscsi_unblock_session(struct iscsi_cls_session *session)
 {
+	flush_work(&session->block_work);
+
 	queue_work(iscsi_eh_timer_workq, &session->unblock_work);
 	/*
 	 * Blocking the session can be done from any context so we only
