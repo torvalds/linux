@@ -5364,11 +5364,13 @@ static struct bio *remove_bio_from_retry(struct r5conf *conf,
  */
 static void raid5_align_endio(struct bio *bi)
 {
-	struct bio* raid_bi  = bi->bi_private;
+	struct md_io_acct *md_io_acct = bi->bi_private;
+	struct bio *raid_bi = md_io_acct->orig_bio;
 	struct mddev *mddev;
 	struct r5conf *conf;
 	struct md_rdev *rdev;
 	blk_status_t error = bi->bi_status;
+	unsigned long start_time = md_io_acct->start_time;
 
 	bio_put(bi);
 
@@ -5380,6 +5382,8 @@ static void raid5_align_endio(struct bio *bi)
 	rdev_dec_pending(rdev, conf->mddev);
 
 	if (!error) {
+		if (blk_queue_io_stat(raid_bi->bi_bdev->bd_disk->queue))
+			bio_end_io_acct(raid_bi, start_time);
 		bio_endio(raid_bi);
 		if (atomic_dec_and_test(&conf->active_aligned_reads))
 			wake_up(&conf->wait_for_quiescent);
@@ -5398,6 +5402,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	struct md_rdev *rdev;
 	sector_t sector, end_sector, first_bad;
 	int bad_sectors, dd_idx;
+	struct md_io_acct *md_io_acct;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
 		pr_debug("%s: non aligned\n", __func__);
@@ -5434,13 +5439,17 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 		return 0;
 	}
 
-	align_bio = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->bio_set);
+	align_bio = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->io_acct_set);
+	md_io_acct = container_of(align_bio, struct md_io_acct, bio_clone);
+	raid_bio->bi_next = (void *)rdev;
+	if (blk_queue_io_stat(raid_bio->bi_bdev->bd_disk->queue))
+		md_io_acct->start_time = bio_start_io_acct(raid_bio);
+	md_io_acct->orig_bio = raid_bio;
+
 	bio_set_dev(align_bio, rdev->bdev);
 	align_bio->bi_end_io = raid5_align_endio;
-	align_bio->bi_private = raid_bio;
+	align_bio->bi_private = md_io_acct;
 	align_bio->bi_iter.bi_sector = sector;
-
-	raid_bio->bi_next = (void *)rdev;
 
 	/* No reshape active, so we can trust rdev->data_offset */
 	align_bio->bi_iter.bi_sector += rdev->data_offset;
@@ -5468,7 +5477,6 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 	sector_t sector = raid_bio->bi_iter.bi_sector;
 	unsigned chunk_sects = mddev->chunk_sectors;
 	unsigned sectors = chunk_sects - (sector & (chunk_sects-1));
-	struct r5conf *conf = mddev->private;
 
 	if (sectors < bio_sectors(raid_bio)) {
 		struct r5conf *conf = mddev->private;
@@ -5477,9 +5485,6 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 		submit_bio_noacct(raid_bio);
 		raid_bio = split;
 	}
-
-	if (raid_bio->bi_pool != &conf->bio_split)
-		md_account_bio(mddev, &raid_bio);
 
 	if (!raid5_read_one_chunk(mddev, raid_bio))
 		return raid_bio;
@@ -5760,7 +5765,6 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	DEFINE_WAIT(w);
 	bool do_prepare;
 	bool do_flush = false;
-	bool do_clone = false;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
 		int ret = log_handle_flush_request(conf, bi);
@@ -5789,7 +5793,6 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	if (rw == READ && mddev->degraded == 0 &&
 	    mddev->reshape_position == MaxSector) {
 		bi = chunk_aligned_read(mddev, bi);
-		do_clone = true;
 		if (!bi)
 			return true;
 	}
@@ -5804,9 +5807,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
 
-	if (!do_clone)
-		md_account_bio(mddev, &bi);
-
+	md_account_bio(mddev, &bi);
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
 		int previous;
