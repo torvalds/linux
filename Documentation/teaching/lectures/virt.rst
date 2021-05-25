@@ -19,7 +19,7 @@ Lecture objectives:
 
    * Virtualization basics
 
-   * Paravitualization basics
+   * Paravirtualization basics
 
    * Hardware support for virtualization
 
@@ -414,7 +414,7 @@ I/O virtualization
 
      * Map the MMIO host directly to the guest
 
-     * Forward interrupts 
+     * Forward interrupts
 
 .. slide:: I/O virtualization
    :inline-contents: True
@@ -649,5 +649,3 @@ Xen
    :level: 2
 
    .. image::  ../res/xen-overview.png
-
-
