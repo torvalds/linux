@@ -154,6 +154,46 @@ static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 	msm_framebuffer_cleanup(fb, kms->aspace);
 }
 
+/* based on _dpu_plane_calc_bw */
+static void mdp5_plane_calc_bw(struct drm_plane_state *state, struct drm_crtc_state *crtc_state)
+{
+	struct drm_framebuffer *fb = state->fb;
+	struct mdp5_plane_state *pstate = to_mdp5_plane_state(state);
+	struct drm_display_mode *mode = &crtc_state->mode;
+	int bpp;
+	int src_width, src_height, dst_height, fps;
+	u64 plane_bw;
+	u32 hw_latency_lines;
+	u32 prefill_div;
+	u64 scale_factor;
+	int vbp, vpw, vfp;
+
+	src_width = drm_rect_width(&state->src) >> 16;
+	src_height = drm_rect_height(&state->src) >> 16;
+	dst_height = drm_rect_height(&state->dst);
+	fps = drm_mode_vrefresh(mode);
+	vbp = mode->vtotal - mode->vsync_end;
+	vpw = mode->vsync_end - mode->vsync_start;
+	vfp = mode->vsync_start - mode->vdisplay;
+	scale_factor = src_height > dst_height ?
+		mult_frac(src_height, 1, dst_height) : 1;
+
+	bpp = to_mdp_format(msm_framebuffer_format(fb))->cpp;
+
+	plane_bw = src_width * mode->vtotal * fps * bpp * scale_factor;
+
+	hw_latency_lines = 21; /* or 24? */
+	prefill_div = hw_latency_lines;
+	if (vbp + vpw > hw_latency_lines)
+		prefill_div = vbp + vpw;
+#if 0
+	else if (vbp + vpw + vfp < hw_latency_lines)
+		prefill_div = vbp + vpw + vfp;
+#endif
+
+	pstate->plane_bw = max(plane_bw, mult_frac(plane_bw, hw_latency_lines, prefill_div));
+}
+
 static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 					      struct drm_plane_state *state)
 {
@@ -297,6 +337,8 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			mdp5_pipe_release(state->state, old_hwpipe);
 			mdp5_pipe_release(state->state, old_right_hwpipe);
 		}
+
+		mdp5_plane_calc_bw(state, crtc_state);
 	} else {
 		mdp5_pipe_release(state->state, mdp5_state->hwpipe);
 		mdp5_pipe_release(state->state, mdp5_state->r_hwpipe);

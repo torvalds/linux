@@ -43,6 +43,9 @@ struct mdp5_crtc {
 	/* for unref'ing cursor bo's after scanout completes: */
 	struct drm_flip_work unref_cursor_work;
 
+	/* for lowering down the bandwidth after previous frame is complete */
+	struct drm_flip_work lower_bw_work;
+
 	struct mdp_irq vblank;
 	struct mdp_irq err;
 	struct mdp_irq pp_done;
@@ -171,12 +174,28 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	drm_gem_object_put(val);
 }
 
+static void lower_bw_worker(struct drm_flip_work *work, void *val)
+{
+	struct mdp5_crtc *mdp5_crtc =
+		container_of(work, struct mdp5_crtc, lower_bw_work);
+	struct drm_crtc *crtc = &mdp5_crtc->base;
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
+	struct mdp5_kms *mdp5_kms = get_kms(&mdp5_crtc->base);
+
+	if (mdp5_cstate->old_crtc_bw > mdp5_cstate->new_crtc_bw) {
+		DBG("DOWN BW to %lld\n", mdp5_cstate->new_crtc_bw);
+		mdp5_kms_set_bandwidth(mdp5_kms);
+		mdp5_cstate->old_crtc_bw = mdp5_cstate->new_crtc_bw;
+	}
+}
+
 static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 
 	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&mdp5_crtc->unref_cursor_work);
+	drm_flip_work_cleanup(&mdp5_crtc->lower_bw_work);
 
 	kfree(mdp5_crtc);
 }
@@ -691,6 +710,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc_state);
 	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
 	struct plane_state pstates[STAGE_MAX + 1];
@@ -701,6 +721,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	bool need_right_mixer = false;
 	int cnt = 0, i;
 	int ret;
+	u64 crtc_bw = 0;
 	enum mdp_mixer_stage_id start;
 
 	DBG("%s: check", crtc->name);
@@ -718,6 +739,9 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		 */
 		if (pstates[cnt].state->r_hwpipe)
 			need_right_mixer = true;
+
+		crtc_bw += pstates[cnt].state->plane_bw;
+
 		cnt++;
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -729,6 +753,10 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		return 0;
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+
+	if (hw_cfg->perf.ab_inefficiency)
+		crtc_bw = mult_frac(crtc_bw, hw_cfg->perf.ab_inefficiency, 100);
+	mdp5_cstate->new_crtc_bw = crtc_bw;
 
 	/*
 	 * we need a right hwmixer if the mode's width is greater than a single
@@ -785,6 +813,7 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
+	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
@@ -807,6 +836,12 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 		return;
 
 	blend_setup(crtc);
+
+	if (mdp5_cstate->old_crtc_bw < mdp5_cstate->new_crtc_bw) {
+		DBG("UP BW to %lld\n", mdp5_cstate->new_crtc_bw);
+		mdp5_kms_set_bandwidth(mdp5_kms);
+		mdp5_cstate->old_crtc_bw = mdp5_cstate->new_crtc_bw;
+	}
 
 	/* PP_DONE irq is only used by command mode for now.
 	 * It is better to request pending before FLUSH and START trigger
@@ -1155,12 +1190,18 @@ static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 {
 	struct mdp5_crtc *mdp5_crtc = container_of(irq, struct mdp5_crtc, vblank);
 	struct drm_crtc *crtc = &mdp5_crtc->base;
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct msm_drm_private *priv = crtc->dev->dev_private;
 	unsigned pending;
 
 	mdp_irq_unregister(&get_kms(crtc)->base, &mdp5_crtc->vblank);
 
 	pending = atomic_xchg(&mdp5_crtc->pending, 0);
+
+	if (mdp5_cstate->old_crtc_bw > mdp5_cstate->new_crtc_bw) {
+		drm_flip_work_queue(&mdp5_crtc->lower_bw_work, NULL);
+		drm_flip_work_commit(&mdp5_crtc->lower_bw_work, priv->wq);
+	}
 
 	if (pending & PENDING_FLIP) {
 		complete_flip(crtc, NULL);
@@ -1317,6 +1358,9 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
+
+	drm_flip_work_init(&mdp5_crtc->lower_bw_work,
+			"lower bw", lower_bw_worker);
 
 	drm_crtc_helper_add(crtc, &mdp5_crtc_helper_funcs);
 
