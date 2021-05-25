@@ -195,7 +195,8 @@ static int n2_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
 	int io = port->card->io;
-	u8 mcr = inb(io + N2_MCR) | (port->phy_node ? TX422_PORT1:TX422_PORT0);
+	u8 mcr = inb(io + N2_MCR) |
+		(port->phy_node ? TX422_PORT1 : TX422_PORT0);
 	int result;
 
 	result = hdlc_open(dev);
@@ -216,7 +217,8 @@ static int n2_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
 	int io = port->card->io;
-	u8 mcr = inb(io+N2_MCR) | (port->phy_node ? TX422_PORT1 : TX422_PORT0);
+	u8 mcr = inb(io + N2_MCR) |
+		(port->phy_node ? TX422_PORT1 : TX422_PORT0);
 
 	sca_close(dev);
 	mcr |= port->phy_node ? DTR_PORT1 : DTR_PORT0; /* set DTR OFF */
