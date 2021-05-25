@@ -83,6 +83,8 @@ struct scripting_ops {
 	void (*process_switch)(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine);
+	void (*process_auxtrace_error)(struct perf_session *session,
+				       union perf_event *event);
 	void (*process_stat)(struct perf_stat_config *config,
 			     struct evsel *evsel, u64 tstamp);
 	void (*process_stat_interval)(u64 tstamp);

@@ -1014,6 +1014,11 @@ static int tuple_set_u64(PyObject *t, unsigned int pos, u64 val)
 #endif
 }
 
+static int tuple_set_u32(PyObject *t, unsigned int pos, u32 val)
+{
+	return PyTuple_SetItem(t, pos, PyLong_FromUnsignedLong(val));
+}
+
 static int tuple_set_s32(PyObject *t, unsigned int pos, s32 val)
 {
 	return PyTuple_SetItem(t, pos, _PyLong_FromLong(val));
@@ -1459,6 +1464,42 @@ static void python_process_switch(union perf_event *event,
 		db_export__switch(&tables->dbe, event, sample, machine);
 	else
 		python_do_process_switch(event, sample, machine);
+}
+
+static void python_process_auxtrace_error(struct perf_session *session __maybe_unused,
+					  union perf_event *event)
+{
+	struct perf_record_auxtrace_error *e = &event->auxtrace_error;
+	u8 cpumode = e->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	const char *handler_name = "auxtrace_error";
+	unsigned long long tm = e->time;
+	const char *msg = e->msg;
+	PyObject *handler, *t;
+
+	handler = get_handler(handler_name);
+	if (!handler)
+		return;
+
+	if (!e->fmt) {
+		tm = 0;
+		msg = (const char *)&e->time;
+	}
+
+	t = tuple_new(9);
+
+	tuple_set_u32(t, 0, e->type);
+	tuple_set_u32(t, 1, e->code);
+	tuple_set_s32(t, 2, e->cpu);
+	tuple_set_s32(t, 3, e->pid);
+	tuple_set_s32(t, 4, e->tid);
+	tuple_set_u64(t, 5, e->ip);
+	tuple_set_u64(t, 6, tm);
+	tuple_set_string(t, 7, msg);
+	tuple_set_u32(t, 8, cpumode);
+
+	call_object(handler, t, handler_name);
+
+	Py_DECREF(t);
 }
 
 static void get_handler_name(char *str, size_t size,
@@ -1999,6 +2040,7 @@ struct scripting_ops python_scripting_ops = {
 	.stop_script		= python_stop_script,
 	.process_event		= python_process_event,
 	.process_switch		= python_process_switch,
+	.process_auxtrace_error	= python_process_auxtrace_error,
 	.process_stat		= python_process_stat,
 	.process_stat_interval	= python_process_stat_interval,
 	.generate_script	= python_generate_script,

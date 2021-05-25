@@ -2432,6 +2432,17 @@ static int process_switch_event(struct perf_tool *tool,
 			   sample->tid);
 }
 
+static int process_auxtrace_error(struct perf_session *session,
+				  union perf_event *event)
+{
+	if (scripting_ops && scripting_ops->process_auxtrace_error) {
+		scripting_ops->process_auxtrace_error(session, event);
+		return 0;
+	}
+
+	return perf_event__process_auxtrace_error(session, event);
+}
+
 static int
 process_lost_event(struct perf_tool *tool,
 		   union perf_event *event,
@@ -2571,6 +2582,8 @@ static int __cmd_script(struct perf_script *script)
 	}
 	if (script->show_switch_events || (scripting_ops && scripting_ops->process_switch))
 		script->tool.context_switch = process_switch_event;
+	if (scripting_ops && scripting_ops->process_auxtrace_error)
+		script->tool.auxtrace_error = process_auxtrace_error;
 	if (script->show_namespace_events)
 		script->tool.namespaces = process_namespaces_event;
 	if (script->show_cgroup_events)
