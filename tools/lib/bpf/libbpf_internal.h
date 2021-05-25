@@ -462,4 +462,31 @@ static inline int libbpf_err_errno(int ret)
 	return ret;
 }
 
+/* handle error for pointer-returning APIs, err is assumed to be < 0 always */
+static inline void *libbpf_err_ptr(int err)
+{
+	/* set errno on error, this doesn't break anything */
+	errno = -err;
+
+	if (libbpf_mode & LIBBPF_STRICT_CLEAN_PTRS)
+		return NULL;
+
+	/* legacy: encode err as ptr */
+	return ERR_PTR(err);
+}
+
+/* handle pointer-returning APIs' error handling */
+static inline void *libbpf_ptr(void *ret)
+{
+	/* set errno on error, this doesn't break anything */
+	if (IS_ERR(ret))
+		errno = -PTR_ERR(ret);
+
+	if (libbpf_mode & LIBBPF_STRICT_CLEAN_PTRS)
+		return IS_ERR(ret) ? NULL : ret;
+
+	/* legacy: pass-through original pointer */
+	return ret;
+}
+
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

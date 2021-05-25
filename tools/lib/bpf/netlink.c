@@ -225,22 +225,26 @@ static int __bpf_set_link_xdp_fd_replace(int ifindex, int fd, int old_fd,
 int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
 			     const struct bpf_xdp_set_link_opts *opts)
 {
-	int old_fd = -1;
+	int old_fd = -1, ret;
 
 	if (!OPTS_VALID(opts, bpf_xdp_set_link_opts))
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	if (OPTS_HAS(opts, old_fd)) {
 		old_fd = OPTS_GET(opts, old_fd, -1);
 		flags |= XDP_FLAGS_REPLACE;
 	}
 
-	return __bpf_set_link_xdp_fd_replace(ifindex, fd, old_fd, flags);
+	ret = __bpf_set_link_xdp_fd_replace(ifindex, fd, old_fd, flags);
+	return libbpf_err(ret);
 }
 
 int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 {
-	return __bpf_set_link_xdp_fd_replace(ifindex, fd, 0, flags);
+	int ret;
+
+	ret = __bpf_set_link_xdp_fd_replace(ifindex, fd, 0, flags);
+	return libbpf_err(ret);
 }
 
 static int __dump_link_nlmsg(struct nlmsghdr *nlh,
@@ -321,13 +325,13 @@ int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 	};
 
 	if (flags & ~XDP_FLAGS_MASK || !info_size)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	/* Check whether the single {HW,DRV,SKB} mode is set */
 	flags &= (XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE);
 	mask = flags - 1;
 	if (flags && flags & mask)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	xdp_id.ifindex = ifindex;
 	xdp_id.flags = flags;
@@ -341,7 +345,7 @@ int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 		memset((void *) info + sz, 0, info_size - sz);
 	}
 
-	return ret;
+	return libbpf_err(ret);
 }
 
 static __u32 get_xdp_id(struct xdp_link_info *info, __u32 flags)
@@ -369,7 +373,7 @@ int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags)
 	if (!ret)
 		*prog_id = get_xdp_id(&info, flags);
 
-	return ret;
+	return libbpf_err(ret);
 }
 
 typedef int (*qdisc_config_t)(struct nlmsghdr *nh, struct tcmsg *t,
@@ -463,11 +467,14 @@ static int tc_qdisc_delete(struct bpf_tc_hook *hook)
 
 int bpf_tc_hook_create(struct bpf_tc_hook *hook)
 {
+	int ret;
+
 	if (!hook || !OPTS_VALID(hook, bpf_tc_hook) ||
 	    OPTS_GET(hook, ifindex, 0) <= 0)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
-	return tc_qdisc_create_excl(hook);
+	ret = tc_qdisc_create_excl(hook);
+	return libbpf_err(ret);
 }
 
 static int __bpf_tc_detach(const struct bpf_tc_hook *hook,
@@ -478,18 +485,18 @@ int bpf_tc_hook_destroy(struct bpf_tc_hook *hook)
 {
 	if (!hook || !OPTS_VALID(hook, bpf_tc_hook) ||
 	    OPTS_GET(hook, ifindex, 0) <= 0)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	switch (OPTS_GET(hook, attach_point, 0)) {
 	case BPF_TC_INGRESS:
 	case BPF_TC_EGRESS:
-		return __bpf_tc_detach(hook, NULL, true);
+		return libbpf_err(__bpf_tc_detach(hook, NULL, true));
 	case BPF_TC_INGRESS | BPF_TC_EGRESS:
-		return tc_qdisc_delete(hook);
+		return libbpf_err(tc_qdisc_delete(hook));
 	case BPF_TC_CUSTOM:
-		return -EOPNOTSUPP;
+		return libbpf_err(-EOPNOTSUPP);
 	default:
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 	}
 }
 
@@ -574,7 +581,7 @@ int bpf_tc_attach(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 	if (!hook || !opts ||
 	    !OPTS_VALID(hook, bpf_tc_hook) ||
 	    !OPTS_VALID(opts, bpf_tc_opts))
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	ifindex      = OPTS_GET(hook, ifindex, 0);
 	parent       = OPTS_GET(hook, parent, 0);
@@ -587,11 +594,11 @@ int bpf_tc_attach(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 	flags        = OPTS_GET(opts, flags, 0);
 
 	if (ifindex <= 0 || !prog_fd || prog_id)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 	if (priority > UINT16_MAX)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 	if (flags & ~BPF_TC_F_REPLACE)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	flags = (flags & BPF_TC_F_REPLACE) ? NLM_F_REPLACE : NLM_F_EXCL;
 	protocol = ETH_P_ALL;
@@ -608,32 +615,32 @@ int bpf_tc_attach(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 
 	ret = tc_get_tcm_parent(attach_point, &parent);
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	req.tc.tcm_parent = parent;
 
 	ret = nlattr_add(&req.nh, sizeof(req), TCA_KIND, "bpf", sizeof("bpf"));
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	nla = nlattr_begin_nested(&req.nh, sizeof(req), TCA_OPTIONS);
 	if (!nla)
-		return -EMSGSIZE;
+		return libbpf_err(-EMSGSIZE);
 	ret = tc_add_fd_and_name(&req.nh, sizeof(req), prog_fd);
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	bpf_flags = TCA_BPF_FLAG_ACT_DIRECT;
 	ret = nlattr_add(&req.nh, sizeof(req), TCA_BPF_FLAGS, &bpf_flags,
 			 sizeof(bpf_flags));
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	nlattr_end_nested(&req.nh, nla);
 
 	info.opts = opts;
 
 	ret = libbpf_netlink_send_recv(&req.nh, get_tc_info, NULL, &info);
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	if (!info.processed)
-		return -ENOENT;
+		return libbpf_err(-ENOENT);
 	return ret;
 }
 
@@ -708,7 +715,13 @@ static int __bpf_tc_detach(const struct bpf_tc_hook *hook,
 int bpf_tc_detach(const struct bpf_tc_hook *hook,
 		  const struct bpf_tc_opts *opts)
 {
-	return !opts ? -EINVAL : __bpf_tc_detach(hook, opts, false);
+	int ret;
+
+	if (!opts)
+		return libbpf_err(-EINVAL);
+
+	ret = __bpf_tc_detach(hook, opts, false);
+	return libbpf_err(ret);
 }
 
 int bpf_tc_query(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
@@ -725,7 +738,7 @@ int bpf_tc_query(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 	if (!hook || !opts ||
 	    !OPTS_VALID(hook, bpf_tc_hook) ||
 	    !OPTS_VALID(opts, bpf_tc_opts))
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	ifindex      = OPTS_GET(hook, ifindex, 0);
 	parent       = OPTS_GET(hook, parent, 0);
@@ -739,9 +752,9 @@ int bpf_tc_query(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 
 	if (ifindex <= 0 || flags || prog_fd || prog_id ||
 	    !handle || !priority)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 	if (priority > UINT16_MAX)
-		return -EINVAL;
+		return libbpf_err(-EINVAL);
 
 	protocol = ETH_P_ALL;
 
@@ -756,19 +769,19 @@ int bpf_tc_query(const struct bpf_tc_hook *hook, struct bpf_tc_opts *opts)
 
 	ret = tc_get_tcm_parent(attach_point, &parent);
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	req.tc.tcm_parent = parent;
 
 	ret = nlattr_add(&req.nh, sizeof(req), TCA_KIND, "bpf", sizeof("bpf"));
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 
 	info.opts = opts;
 
 	ret = libbpf_netlink_send_recv(&req.nh, get_tc_info, NULL, &info);
 	if (ret < 0)
-		return ret;
+		return libbpf_err(ret);
 	if (!info.processed)
-		return -ENOENT;
+		return libbpf_err(-ENOENT);
 	return ret;
 }
