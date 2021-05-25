@@ -933,14 +933,18 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 			continue;
 		}
 		/*
-		 * If ring stopped on the TD we need to cancel, then we have to
+		 * If a ring stopped on the TD we need to cancel then we have to
 		 * move the xHC endpoint ring dequeue pointer past this TD.
+		 * Rings halted due to STALL may show hw_deq is past the stalled
+		 * TD, but still require a set TR Deq command to flush xHC cache.
 		 */
 		hw_deq = xhci_get_hw_deq(xhci, ep->vdev, ep->ep_index,
 					 td->urb->stream_id);
 		hw_deq &= ~0xf;
 
-		if (trb_in_td(xhci, td->start_seg, td->first_trb,
+		if (td->cancel_status == TD_HALTED) {
+			cached_td = td;
+		} else if (trb_in_td(xhci, td->start_seg, td->first_trb,
 			      td->last_trb, hw_deq, false)) {
 			switch (td->cancel_status) {
 			case TD_CLEARED: /* TD is already no-op */
