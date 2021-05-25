@@ -1449,6 +1449,7 @@ struct regmap_irq_sub_irq_map {
  * @not_fixed_stride: Used when chip peripherals are not laid out with fixed
  * 		      stride. Must be used with sub_reg_offsets containing the
  * 		      offsets to each peripheral.
+ * @status_invert: Inverted status register: cleared bits are active interrupts.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -1501,6 +1502,7 @@ struct regmap_irq_chip {
 	bool type_in_mask:1;
 	bool clear_on_unmask:1;
 	bool not_fixed_stride:1;
+	bool status_invert:1;
 
 	int num_regs;
 
