@@ -2824,11 +2824,8 @@ move_to_confirmed(struct nfs4_client *clp)
 	list_move(&clp->cl_idhash, &nn->conf_id_hashtbl[idhashval]);
 	rb_erase(&clp->cl_namenode, &nn->unconf_name_tree);
 	add_clp_to_name_tree(clp, &nn->conf_name_tree);
-	if (!test_and_set_bit(NFSD4_CLIENT_CONFIRMED, &clp->cl_flags)) {
-		trace_nfsd_clid_confirmed(&clp->cl_clientid);
-		if (clp->cl_nfsd_dentry && clp->cl_nfsd_info_dentry)
-			fsnotify_dentry(clp->cl_nfsd_info_dentry, FS_MODIFY);
-	}
+	set_bit(NFSD4_CLIENT_CONFIRMED, &clp->cl_flags);
+	trace_nfsd_clid_confirmed(&clp->cl_clientid);
 	renew_client_locked(clp);
 }
 
@@ -3487,6 +3484,8 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	/* cache solo and embedded create sessions under the client_lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
 	spin_unlock(&nn->client_lock);
+	if (conf == unconf)
+		fsnotify_dentry(conf->cl_nfsd_info_dentry, FS_MODIFY);
 	/* init connection and backchannel */
 	nfsd4_init_conn(rqstp, conn, new);
 	nfsd4_put_session(new);
@@ -4095,6 +4094,8 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	}
 	get_client_locked(conf);
 	spin_unlock(&nn->client_lock);
+	if (conf == unconf)
+		fsnotify_dentry(conf->cl_nfsd_info_dentry, FS_MODIFY);
 	nfsd4_probe_callback(conf);
 	spin_lock(&nn->client_lock);
 	put_client_renew_locked(conf);
