@@ -1875,7 +1875,7 @@ bool virtqueue_kick(struct virtqueue *vq)
 EXPORT_SYMBOL_GPL(virtqueue_kick);
 
 /**
- * virtqueue_get_buf - get the next used buffer
+ * virtqueue_get_buf_ctx - get the next used buffer
  * @_vq: the struct virtqueue we're talking about.
  * @len: the length written into the buffer
  * @ctx: extra context for the token
