@@ -2250,7 +2250,6 @@ static int smb2_create_sd_buffer(struct ksmbd_work *work,
 	return rc;
 }
 
-
 static void ksmbd_acls_fattr(struct smb_fattr *fattr, struct inode *inode)
 {
 	fattr->cf_uid = inode->i_uid;
