@@ -12592,7 +12592,7 @@ S:	Orphan
 F:	drivers/net/ethernet/natsemi/natsemi.c
 
 NCR 5380 SCSI DRIVERS
-M:	Finn Thain <fthain@telegraphics.com.au>
+M:	Finn Thain <fthain@linux-m68k.org>
 M:	Michael Schmitz <schmitzmic@gmail.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
@@ -13064,7 +13064,7 @@ F:	Documentation/filesystems/ntfs.rst
 F:	fs/ntfs/
 
 NUBUS SUBSYSTEM
-M:	Finn Thain <fthain@telegraphics.com.au>
+M:	Finn Thain <fthain@linux-m68k.org>
 L:	linux-m68k@lists.linux-m68k.org
 S:	Maintained
 F:	arch/*/include/asm/nubus.h
