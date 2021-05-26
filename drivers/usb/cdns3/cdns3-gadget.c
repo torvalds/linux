@@ -155,7 +155,7 @@ static struct cdns3_request *cdns3_next_priv_request(struct list_head *list)
 }
 
 /**
- * select_ep - selects endpoint
+ * cdns3_select_ep - selects endpoint
  * @priv_dev:  extended gadget object
  * @ep: endpoint address
  */
@@ -1835,7 +1835,7 @@ __must_hold(&priv_dev->lock)
 }
 
 /**
- * cdns3_device_irq_handler- interrupt handler for device part of controller
+ * cdns3_device_irq_handler - interrupt handler for device part of controller
  *
  * @irq: irq number for cdns3 core device
  * @data: structure of cdns3
@@ -1879,7 +1879,7 @@ static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
 }
 
 /**
- * cdns3_device_thread_irq_handler- interrupt handler for device part
+ * cdns3_device_thread_irq_handler - interrupt handler for device part
  * of controller
  *
  * @irq: irq number for cdns3 core device
@@ -2022,7 +2022,7 @@ static void cdns3_configure_dmult(struct cdns3_device *priv_dev,
 }
 
 /**
- * cdns3_ep_config Configure hardware endpoint
+ * cdns3_ep_config - Configure hardware endpoint
  * @priv_ep: extended endpoint object
  * @enable: set EP_CFG_ENABLE bit in ep_cfg register.
  */
@@ -2223,7 +2223,7 @@ usb_ep *cdns3_gadget_match_ep(struct usb_gadget *gadget,
 }
 
 /**
- * cdns3_gadget_ep_alloc_request Allocates request
+ * cdns3_gadget_ep_alloc_request - Allocates request
  * @ep: endpoint object associated with request
  * @gfp_flags: gfp flags
  *
@@ -2246,7 +2246,7 @@ struct usb_request *cdns3_gadget_ep_alloc_request(struct usb_ep *ep,
 }
 
 /**
- * cdns3_gadget_ep_free_request Free memory occupied by request
+ * cdns3_gadget_ep_free_request - Free memory occupied by request
  * @ep: endpoint object associated with request
  * @request: request to free memory
  */
@@ -2263,7 +2263,7 @@ void cdns3_gadget_ep_free_request(struct usb_ep *ep,
 }
 
 /**
- * cdns3_gadget_ep_enable Enable endpoint
+ * cdns3_gadget_ep_enable - Enable endpoint
  * @ep: endpoint object
  * @desc: endpoint descriptor
  *
@@ -2398,7 +2398,7 @@ exit:
 }
 
 /**
- * cdns3_gadget_ep_disable Disable endpoint
+ * cdns3_gadget_ep_disable - Disable endpoint
  * @ep: endpoint object
  *
  * Returns 0 on success, error code elsewhere
@@ -2488,7 +2488,7 @@ static int cdns3_gadget_ep_disable(struct usb_ep *ep)
 }
 
 /**
- * cdns3_gadget_ep_queue Transfer data on endpoint
+ * cdns3_gadget_ep_queue - Transfer data on endpoint
  * @ep: endpoint object
  * @request: request object
  * @gfp_flags: gfp flags
@@ -2588,7 +2588,7 @@ static int cdns3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 }
 
 /**
- * cdns3_gadget_ep_dequeue Remove request from transfer queue
+ * cdns3_gadget_ep_dequeue - Remove request from transfer queue
  * @ep: endpoint object associated with request
  * @request: request object
  *
@@ -2655,7 +2655,7 @@ not_found:
 }
 
 /**
- * __cdns3_gadget_ep_set_halt Sets stall on selected endpoint
+ * __cdns3_gadget_ep_set_halt - Sets stall on selected endpoint
  * Should be called after acquiring spin_lock and selecting ep
  * @priv_ep: endpoint object to set stall on.
  */
@@ -2676,7 +2676,7 @@ void __cdns3_gadget_ep_set_halt(struct cdns3_endpoint *priv_ep)
 }
 
 /**
- * __cdns3_gadget_ep_clear_halt Clears stall on selected endpoint
+ * __cdns3_gadget_ep_clear_halt - Clears stall on selected endpoint
  * Should be called after acquiring spin_lock and selecting ep
  * @priv_ep: endpoint object to clear stall on
  */
@@ -2721,7 +2721,7 @@ int __cdns3_gadget_ep_clear_halt(struct cdns3_endpoint *priv_ep)
 }
 
 /**
- * cdns3_gadget_ep_set_halt Sets/clears stall on selected endpoint
+ * cdns3_gadget_ep_set_halt - Sets/clears stall on selected endpoint
  * @ep: endpoint object to set/clear stall on
  * @value: 1 for set stall, 0 for clear stall
  *
@@ -2767,7 +2767,7 @@ static const struct usb_ep_ops cdns3_gadget_ep_ops = {
 };
 
 /**
- * cdns3_gadget_get_frame Returns number of actual ITP frame
+ * cdns3_gadget_get_frame - Returns number of actual ITP frame
  * @gadget: gadget object
  *
  * Returns number of actual ITP frame
@@ -2876,7 +2876,7 @@ static void cdns3_gadget_config(struct cdns3_device *priv_dev)
 }
 
 /**
- * cdns3_gadget_udc_start Gadget start
+ * cdns3_gadget_udc_start - Gadget start
  * @gadget: gadget object
  * @driver: driver which operates on this gadget
  *
@@ -2922,7 +2922,7 @@ static int cdns3_gadget_udc_start(struct usb_gadget *gadget,
 }
 
 /**
- * cdns3_gadget_udc_stop Stops gadget
+ * cdns3_gadget_udc_stop - Stops gadget
  * @gadget: gadget object
  *
  * Returns 0
@@ -2985,7 +2985,7 @@ static void cdns3_free_all_eps(struct cdns3_device *priv_dev)
 }
 
 /**
- * cdns3_init_eps Initializes software endpoints of gadget
+ * cdns3_init_eps - Initializes software endpoints of gadget
  * @priv_dev: extended gadget object
  *
  * Returns 0 on success, error code elsewhere
