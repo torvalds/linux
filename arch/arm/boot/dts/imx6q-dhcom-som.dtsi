@@ -12,10 +12,20 @@
 
 / {
 	aliases {
+		i2c0 = &i2c2;
+		i2c1 = &i2c1;
+		i2c2 = &i2c3;
 		mmc0 = &usdhc2;
 		mmc1 = &usdhc3;
 		mmc2 = &usdhc4;
 		mmc3 = &usdhc1;
+		rtc0 = &rtc_i2c;
+		rtc1 = &snvs_rtc;
+		serial0 = &uart1;
+		serial1 = &uart5;
+		serial2 = &uart4;
+		serial3 = &uart2;
+		serial4 = &uart3;
 	};
 
 	memory@10000000 {
@@ -213,7 +223,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@56 {
+	rtc_i2c: rtc@56 {
 		compatible = "microcrystal,rv3029";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rtc_hw300>;
