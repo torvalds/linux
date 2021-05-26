@@ -430,7 +430,8 @@ int ksmbd_auth_ntlmv2(struct ksmbd_session *sess, struct ntlmv2_resp *ntlmv2,
 		goto out;
 	}
 
-	rc = memcmp(ntlmv2->ntlmv2_hash, ntlmv2_rsp, CIFS_HMAC_MD5_HASH_SIZE);
+	if (memcmp(ntlmv2->ntlmv2_hash, ntlmv2_rsp, CIFS_HMAC_MD5_HASH_SIZE) != 0)
+		rc = -EINVAL;
 out:
 	ksmbd_release_crypto_ctx(ctx);
 	kfree(construct);
@@ -469,7 +470,8 @@ static int __ksmbd_auth_ntlmv2(struct ksmbd_session *sess, char *client_nonce,
 		goto out;
 	}
 
-	rc = memcmp(ntlm_resp, key, CIFS_AUTH_RESP_SIZE);
+	if (memcmp(ntlm_resp, key, CIFS_AUTH_RESP_SIZE) != 0)
+		rc = -EINVAL;
 out:
 	return rc;
 }
