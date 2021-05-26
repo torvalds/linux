@@ -2268,18 +2268,18 @@ void ipoib_intf_free(struct net_device *dev)
 	kfree(priv);
 }
 
-static ssize_t show_pkey(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t pkey_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct net_device *ndev = to_net_dev(dev);
 	struct ipoib_dev_priv *priv = ipoib_priv(ndev);
 
 	return sysfs_emit(buf, "0x%04x\n", priv->pkey);
 }
-static DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
+static DEVICE_ATTR_RO(pkey);
 
-static ssize_t show_umcast(struct device *dev,
-			   struct device_attribute *attr, char *buf)
+static ssize_t umcast_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct net_device *ndev = to_net_dev(dev);
 	struct ipoib_dev_priv *priv = ipoib_priv(ndev);
@@ -2300,9 +2300,8 @@ void ipoib_set_umcast(struct net_device *ndev, int umcast_val)
 		clear_bit(IPOIB_FLAG_UMCAST, &priv->flags);
 }
 
-static ssize_t set_umcast(struct device *dev,
-			  struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t umcast_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	unsigned long umcast_val = simple_strtoul(buf, NULL, 0);
 
@@ -2310,7 +2309,7 @@ static ssize_t set_umcast(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(umcast, S_IWUSR | S_IRUGO, show_umcast, set_umcast);
+static DEVICE_ATTR_RW(umcast);
 
 int ipoib_add_umcast_attr(struct net_device *dev)
 {
@@ -2381,9 +2380,9 @@ static int ipoib_set_mac(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static ssize_t create_child(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t create_child_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int pkey;
 	int ret;
@@ -2398,11 +2397,11 @@ static ssize_t create_child(struct device *dev,
 
 	return ret ? ret : count;
 }
-static DEVICE_ATTR(create_child, S_IWUSR, NULL, create_child);
+static DEVICE_ATTR_WO(create_child);
 
-static ssize_t delete_child(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t delete_child_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int pkey;
 	int ret;
@@ -2418,7 +2417,7 @@ static ssize_t delete_child(struct device *dev,
 	return ret ? ret : count;
 
 }
-static DEVICE_ATTR(delete_child, S_IWUSR, NULL, delete_child);
+static DEVICE_ATTR_WO(delete_child);
 
 int ipoib_add_pkey_attr(struct net_device *dev)
 {
