@@ -67,7 +67,6 @@ struct sec_pmic_dev {
 	struct i2c_client *i2c;
 
 	unsigned long device_type;
-	int irq_base;
 	int irq;
 	struct regmap_irq_chip_data *irq_data;
 
@@ -82,8 +81,6 @@ struct sec_platform_data {
 	struct sec_regulator_data	*regulators;
 	struct sec_opmode_data		*opmode;
 	int				num_regulators;
-
-	int				irq_base;
 
 	bool				wakeup;
 	bool				buck_voltage_lock;
