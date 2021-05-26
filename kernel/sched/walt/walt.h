@@ -228,6 +228,9 @@ extern unsigned int sysctl_sched_many_wakeup_threshold;
 extern unsigned int sysctl_walt_rtg_cfs_boost_prio;
 extern __read_mostly unsigned int sysctl_sched_force_lb_enable;
 extern const int sched_user_hint_max;
+extern unsigned int sysctl_sched_dynamic_tp_enable;
+extern int sched_dynamic_tp_handler(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos);
 
 extern struct list_head cluster_head;
 #define for_each_sched_cluster(cluster) \

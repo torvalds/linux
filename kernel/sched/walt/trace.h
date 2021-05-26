@@ -1186,6 +1186,28 @@ DEFINE_EVENT(walt_cfs_mvp_task_template, walt_cfs_mvp_wakeup_preempt,
 	     TP_PROTO(struct task_struct *p, struct walt_task_struct *wts, unsigned int limit),
 	     TP_ARGS(p, wts, limit));
 
+#define SPAN_SIZE	(NR_CPUS/4)
+
+TRACE_EVENT(sched_overutilized,
+
+	TP_PROTO(int overutilized, char *span),
+
+	TP_ARGS(overutilized, span),
+
+	TP_STRUCT__entry(
+	__field(int,	overutilized)
+	__array(char,	span,	SPAN_SIZE)
+	),
+
+	TP_fast_assign(
+	__entry->overutilized	= overutilized;
+	strscpy(__entry->span, span, SPAN_SIZE);
+	),
+
+	TP_printk("overutilized=%d span=0x%s",
+	 __entry->overutilized, __entry->span)
+);
+
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH

@@ -773,6 +773,15 @@ struct ctl_table walt_table[] = {
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_INT_MAX,
 	},
+	{
+		.procname	= "sched_enable_tp",
+		.data		= &sysctl_sched_dynamic_tp_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= sched_dynamic_tp_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
 	{ }
 };
 
