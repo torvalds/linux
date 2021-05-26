@@ -976,7 +976,7 @@ static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 				break;
 
 			ctxt_size = decode_compress_ctxt(conn,
-				(struct smb2_compression_ctx *) pneg_ctxt);
+				(struct smb2_compression_ctx *)pneg_ctxt);
 			pneg_ctxt += DIV_ROUND_UP(ctxt_size, 8) * 8;
 		} else if (*ContextType == SMB2_NETNAME_NEGOTIATE_CONTEXT_ID) {
 			ksmbd_debug(SMB,
