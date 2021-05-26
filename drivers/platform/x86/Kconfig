@@ -821,7 +821,7 @@ config INTEL_HID_EVENT
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
-	depends on GPIOLIB && ACPI
+	depends on GPIOLIB && ACPI && PM_SLEEP
 	select GPIOLIB_IRQCHIP
 	help
 	  Some peripherals on Bay Trail and Cherry Trail platforms signal a
