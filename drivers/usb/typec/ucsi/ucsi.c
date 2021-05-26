@@ -1279,7 +1279,7 @@ void *ucsi_get_drvdata(struct ucsi *ucsi)
 EXPORT_SYMBOL_GPL(ucsi_get_drvdata);
 
 /**
- * ucsi_get_drvdata - Assign private driver data pointer
+ * ucsi_set_drvdata - Assign private driver data pointer
  * @ucsi: UCSI interface
  * @data: Private data pointer
  */
