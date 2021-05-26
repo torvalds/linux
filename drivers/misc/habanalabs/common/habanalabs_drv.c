@@ -574,7 +574,11 @@ static struct pci_driver hl_pci_driver = {
 	.probe = hl_pci_probe,
 	.remove = hl_pci_remove,
 	.shutdown = hl_pci_remove,
-	.driver.pm = &hl_pm_ops,
+	.driver = {
+		.name = HL_NAME,
+		.pm = &hl_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 	.err_handler = &hl_pci_err_handler,
 };
 
