@@ -737,6 +737,22 @@ retry:
 }
 
 /**
+ * amdgpu_bo_add_to_shadow_list - add a BO to the shadow list
+ *
+ * @bo: BO that will be inserted into the shadow list
+ *
+ * Insert a BO to the shadow list.
+ */
+void amdgpu_bo_add_to_shadow_list(struct amdgpu_bo *bo)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+
+	mutex_lock(&adev->shadow_list_lock);
+	list_add_tail(&bo->shadow_list, &adev->shadow_list);
+	mutex_unlock(&adev->shadow_list_lock);
+}
+
+/**
  * amdgpu_bo_restore_shadow - restore an &amdgpu_bo shadow
  *
  * @shadow: &amdgpu_bo shadow to be restored
