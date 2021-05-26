@@ -74,11 +74,8 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 
 	optr = *oid;
 
-	if (!asn1_subid_decode(&iptr, end, &subid)) {
-		kfree(*oid);
-		*oid = NULL;
-		return false;
-	}
+	if (!asn1_subid_decode(&iptr, end, &subid))
+		goto fail;
 
 	if (subid < 40) {
 		optr[0] = 0;
@@ -95,19 +92,18 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 	optr += 2;
 
 	while (iptr < end) {
-		if (++(*oidlen) > vlen) {
-			kfree(*oid);
-			*oid = NULL;
-			return false;
-		}
+		if (++(*oidlen) > vlen)
+			goto fail;
 
-		if (!asn1_subid_decode(&iptr, end, optr++)) {
-			kfree(*oid);
-			*oid = NULL;
-			return false;
-		}
+		if (!asn1_subid_decode(&iptr, end, optr++))
+			goto fail;
 	}
 	return true;
+
+fail:
+	kfree(*oid);
+	*oid = NULL;
+	return false;
 }
 
 static bool
