@@ -246,7 +246,7 @@ static struct kobj_type cpuregs_kobj_type = {
 		struct cpuinfo_arm64 *info = kobj_to_cpuinfo(kobj);		\
 										\
 		if (info->reg_midr)						\
-			return sprintf(buf, "0x%016x\n", info->reg_##_field);	\
+			return sprintf(buf, "0x%016llx\n", info->reg_##_field);	\
 		else								\
 			return 0;						\
 	}									\
