@@ -75,7 +75,7 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
 		return -ENOENT;
 
-	if (fp & 0xf)
+	if (fp & 0x7)
 		return -EINVAL;
 
 	if (!on_accessible_stack(tsk, fp, 16, &info))
