@@ -7598,7 +7598,7 @@ static void ca0132_alt_free_active_dma_channels(struct hda_codec *codec)
  */
 static void ca0132_alt_start_dsp_audio_streams(struct hda_codec *codec)
 {
-	const unsigned int dsp_dma_stream_ids[] = { 0x0c, 0x03, 0x04 };
+	static const unsigned int dsp_dma_stream_ids[] = { 0x0c, 0x03, 0x04 };
 	struct ca0132_spec *spec = codec->spec;
 	unsigned int i, tmp;
 
