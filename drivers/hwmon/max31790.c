@@ -40,6 +40,8 @@
 #define FAN_RPM_MIN			120
 #define FAN_RPM_MAX			7864320
 
+#define FAN_COUNT_REG_MAX		0xffe0
+
 #define RPM_FROM_REG(reg, sr)		(((reg) >> 4) ? \
 					 ((60 * (sr) * 8192) / ((reg) >> 4)) : \
 					 FAN_RPM_MAX)
@@ -172,7 +174,10 @@ static int max31790_read_fan(struct device *dev, u32 attr, int channel,
 	switch (attr) {
 	case hwmon_fan_input:
 		sr = get_tach_period(data->fan_dynamics[channel % NR_CHANNEL]);
-		rpm = RPM_FROM_REG(data->tach[channel], sr);
+		if (data->tach[channel] == FAN_COUNT_REG_MAX)
+			rpm = 0;
+		else
+			rpm = RPM_FROM_REG(data->tach[channel], sr);
 		*val = rpm;
 		return 0;
 	case hwmon_fan_target:
