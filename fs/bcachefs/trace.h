@@ -528,6 +528,27 @@ TRACE_EVENT(copygc,
 		__entry->buckets_moved, __entry->buckets_not_moved)
 );
 
+TRACE_EVENT(copygc_wait,
+	TP_PROTO(struct bch_fs *c,
+		 u64 wait_amount, u64 until),
+	TP_ARGS(c, wait_amount, until),
+
+	TP_STRUCT__entry(
+		__array(char,		uuid,	16		)
+		__field(u64,		wait_amount		)
+		__field(u64,		until			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->wait_amount	= wait_amount;
+		__entry->until		= until;
+	),
+
+	TP_printk("%pU waiting for %llu sectors until %llu",
+		__entry->uuid, __entry->wait_amount, __entry->until)
+);
+
 TRACE_EVENT(trans_get_iter,
 	TP_PROTO(unsigned long caller, unsigned long ip,
 		 enum btree_id btree_id,
