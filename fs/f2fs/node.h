@@ -38,6 +38,9 @@
 /* return value for read_node_page */
 #define LOCKED_PAGE	1
 
+/* check pinned file's alignment status of physical blocks */
+#define FILE_NOT_ALIGNED	1
+
 /* For flag in struct node_info */
 enum {
 	IS_CHECKPOINTED,	/* is it checkpointed before? */
