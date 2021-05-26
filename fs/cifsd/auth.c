@@ -1063,14 +1063,13 @@ int ksmbd_gen_preauth_integrity_hash(struct ksmbd_conn *conn, char *buf,
 	int msg_size = be32_to_cpu(rcv_hdr->smb2_buf_length);
 	struct ksmbd_crypto_ctx *ctx = NULL;
 
-	if (conn->preauth_info->Preauth_HashId ==
-	    SMB2_PREAUTH_INTEGRITY_SHA512) {
-		ctx = ksmbd_crypto_ctx_find_sha512();
-		if (!ctx) {
-			ksmbd_debug(AUTH, "could not alloc sha512 rc %d\n", rc);
-			goto out;
-		}
-	} else {
+	if (conn->preauth_info->Preauth_HashId !=
+	    SMB2_PREAUTH_INTEGRITY_SHA512)
+		return -EINVAL;
+
+	ctx = ksmbd_crypto_ctx_find_sha512();
+	if (!ctx) {
+		ksmbd_debug(AUTH, "could not alloc sha512 rc %d\n", rc);
 		goto out;
 	}
 
