@@ -2860,7 +2860,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	struct gpio_desc *rx_int;
 	struct regulator *reg_vdd, *reg_xceiver;
 	struct clk *clk;
-	u32 freq;
+	u32 freq = 0;
 	int err;
 
 	if (!spi->irq)
@@ -2887,11 +2887,19 @@ static int mcp251xfd_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, PTR_ERR(reg_xceiver),
 				     "Failed to get Transceiver regulator!\n");
 
-	clk = devm_clk_get(&spi->dev, NULL);
+	clk = devm_clk_get_optional(&spi->dev, NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(&spi->dev, PTR_ERR(clk),
 				     "Failed to get Oscillator (clock)!\n");
-	freq = clk_get_rate(clk);
+	if (clk) {
+		freq = clk_get_rate(clk);
+	} else {
+		err = device_property_read_u32(&spi->dev, "clock-frequency",
+					       &freq);
+		if (err)
+			return dev_err_probe(&spi->dev, err,
+					     "Failed to get clock-frequency!\n");
+	}
 
 	/* Sanity check */
 	if (freq < MCP251XFD_SYSCLOCK_HZ_MIN ||
