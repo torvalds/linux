@@ -1159,7 +1159,7 @@
 			ranges = <0x0 0x20000 0x1000>;
 
 			uart3: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1562,7 +1562,7 @@
 			ranges = <0x0 0x66000 0x1000>;
 
 			uart5: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1594,7 +1594,7 @@
 			ranges = <0x0 0x68000 0x1000>;
 
 			uart6: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1626,7 +1626,7 @@
 			ranges = <0x0 0x6a000 0x1000>;
 
 			uart1: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1658,7 +1658,7 @@
 			ranges = <0x0 0x6c000 0x1000>;
 
 			uart2: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -1690,7 +1690,7 @@
 			ranges = <0x0 0x6e000 0x1000>;
 
 			uart4: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2424,7 +2424,7 @@
 			ranges = <0x0 0x20000 0x1000>;
 
 			uart7: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2454,7 +2454,7 @@
 			ranges = <0x0 0x22000 0x1000>;
 
 			uart8: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -2484,7 +2484,7 @@
 			ranges = <0x0 0x24000 0x1000>;
 
 			uart9: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
@@ -4530,7 +4530,7 @@
 			ranges = <0x0 0xb000 0x1000>;
 
 			uart10: serial@0 {
-				compatible = "ti,dra742-uart", "ti,omap4-uart";
+				compatible = "ti,dra742-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
