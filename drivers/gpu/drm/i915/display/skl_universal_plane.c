@@ -850,6 +850,29 @@ static u32 cnl_plane_ctl_flip(unsigned int reflect)
 	return 0;
 }
 
+static u32 adlp_plane_ctl_arb_slots(const struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+
+	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier)) {
+		switch (fb->format->cpp[0]) {
+		case 2:
+			return PLANE_CTL_ARB_SLOTS(1);
+		default:
+			return PLANE_CTL_ARB_SLOTS(0);
+		}
+	} else {
+		switch (fb->format->cpp[0]) {
+		case 8:
+			return PLANE_CTL_ARB_SLOTS(3);
+		case 4:
+			return PLANE_CTL_ARB_SLOTS(1);
+		default:
+			return PLANE_CTL_ARB_SLOTS(0);
+		}
+	}
+}
+
 static u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
@@ -902,6 +925,10 @@ static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
 	else if (key->flags & I915_SET_COLORKEY_SOURCE)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
+
+	/* Wa_22012358565:adlp */
+	if (DISPLAY_VER(dev_priv) == 13)
+		plane_ctl |= adlp_plane_ctl_arb_slots(plane_state);
 
 	return plane_ctl;
 }

@@ -975,6 +975,11 @@ void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
 
+	/* Wa_22012358565:adlp */
+	if (DISPLAY_VER(dev_priv) == 13)
+		intel_de_rmw(dev_priv, PIPE_ARB_CTL(pipe),
+			     0, PIPE_ARB_USE_PROG_SLOTS);
+
 	reg = PIPECONF(cpu_transcoder);
 	val = intel_de_read(dev_priv, reg);
 	if (val & PIPECONF_ENABLE) {

@@ -6140,6 +6140,10 @@ enum {
 #define  _PIPEBGCMAX           0x71010
 #define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(pipe, _PIPEAGCMAX + (i) * 4)
 
+#define _PIPE_ARB_CTL_A			0x70028 /* icl+ */
+#define PIPE_ARB_CTL(pipe)		_MMIO_PIPE2(pipe, _PIPE_ARB_CTL_A)
+#define   PIPE_ARB_USE_PROG_SLOTS	REG_BIT(13)
+
 #define _PIPE_MISC_A			0x70030
 #define _PIPE_MISC_B			0x71030
 #define   PIPEMISC_YUV420_ENABLE	(1 << 27) /* glk+ */
@@ -6604,6 +6608,8 @@ enum {
 #define   MCURSOR_MODE_128_ARGB_AX ((1 << 5) | MCURSOR_MODE_128_32B_AX)
 #define   MCURSOR_MODE_256_ARGB_AX ((1 << 5) | MCURSOR_MODE_256_32B_AX)
 #define   MCURSOR_MODE_64_ARGB_AX ((1 << 5) | MCURSOR_MODE_64_32B_AX)
+#define   MCURSOR_ARB_SLOTS_MASK	REG_GENMASK(30, 28) /* icl+ */
+#define   MCURSOR_ARB_SLOTS(x)		REG_FIELD_PREP(MCURSOR_ARB_SLOTS_MASK, (x)) /* icl+ */
 #define   MCURSOR_PIPE_SELECT_MASK	(0x3 << 28)
 #define   MCURSOR_PIPE_SELECT_SHIFT	28
 #define   MCURSOR_PIPE_SELECT(pipe)	((pipe) << 28)
@@ -7055,6 +7061,8 @@ enum {
 #define _PLANE_CTL_2_A				0x70280
 #define _PLANE_CTL_3_A				0x70380
 #define   PLANE_CTL_ENABLE			(1 << 31)
+#define   PLANE_CTL_ARB_SLOTS_MASK		REG_GENMASK(30, 28) /* icl+ */
+#define   PLANE_CTL_ARB_SLOTS(x)		REG_FIELD_PREP(PLANE_CTL_ARB_SLOTS_MASK, (x)) /* icl+ */
 #define   PLANE_CTL_PIPE_GAMMA_ENABLE		(1 << 30)   /* Pre-GLK */
 #define   PLANE_CTL_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 /*
