@@ -2378,6 +2378,7 @@
   time64_to_tm
   timer_unstable_counter_workaround
   topology_set_thermal_pressure
+  topology_update_done
   _totalram_pages
   total_swapcache_pages
   trace_array_get_by_name
@@ -2467,6 +2468,7 @@
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_timer_calc_index
+  __traceiter_android_vh_update_topology_flags_workfn
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency
   __traceiter_cpu_frequency_limits
@@ -2558,6 +2560,7 @@
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_update_topology_flags_workfn
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency
   __tracepoint_cpu_frequency_limits
