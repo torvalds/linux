@@ -63,7 +63,7 @@ static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 	 * have vmcs12 if it is true.
 	 */
 	return is_guest_mode(vcpu) || vmx->nested.current_vmptr != -1ull ||
-		vmx->nested.hv_evmcs;
+		evmptr_is_valid(vmx->nested.hv_evmcs_vmptr);
 }
 
 static inline u16 nested_get_vpid02(struct kvm_vcpu *vcpu)
