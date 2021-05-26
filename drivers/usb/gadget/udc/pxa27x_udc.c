@@ -1728,7 +1728,7 @@ static void udc_enable(struct pxa_udc *udc)
 }
 
 /**
- * pxa27x_start - Register gadget driver
+ * pxa27x_udc_start - Register gadget driver
  * @g: gadget
  * @driver: gadget driver
  *
