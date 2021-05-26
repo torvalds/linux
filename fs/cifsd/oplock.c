@@ -1262,7 +1262,7 @@ void smb_break_all_levII_oplock(struct ksmbd_work *work, struct ksmbd_file *fp,
 
 		/* Skip oplock being break to none */
 		if (brk_op->is_lease &&
-		    (brk_op->o_lease->new_state == SMB2_LEASE_NONE_LE) &&
+		    brk_op->o_lease->new_state == SMB2_LEASE_NONE_LE &&
 		    atomic_read(&brk_op->breaking_cnt))
 			goto next;
 
