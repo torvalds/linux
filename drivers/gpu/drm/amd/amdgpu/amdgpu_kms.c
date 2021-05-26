@@ -91,6 +91,9 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 		pm_runtime_forbid(dev->dev);
 	}
 
+	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_UNLOAD))
+		DRM_WARN("smart shift update failed\n");
+
 	amdgpu_acpi_fini(adev);
 	amdgpu_device_fini(adev);
 }
@@ -213,6 +216,9 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put_autosuspend(dev->dev);
 	}
+
+	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_LOAD))
+		DRM_WARN("smart shift update failed\n");
 
 out:
 	if (r) {

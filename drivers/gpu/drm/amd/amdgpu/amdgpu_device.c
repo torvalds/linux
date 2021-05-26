@@ -263,6 +263,21 @@ bool amdgpu_device_supports_baco(struct drm_device *dev)
 	return amdgpu_asic_supports_baco(adev);
 }
 
+/**
+ * amdgpu_device_supports_smart_shift - Is the device dGPU with
+ * smart shift support
+ *
+ * @dev: drm_device pointer
+ *
+ * Returns true if the device is a dGPU with Smart Shift support,
+ * otherwise returns false.
+ */
+bool amdgpu_device_supports_smart_shift(struct drm_device *dev)
+{
+	return (amdgpu_device_supports_boco(dev) &&
+		amdgpu_acpi_is_power_shift_control_supported());
+}
+
 /*
  * VRAM access helper functions
  */
@@ -3750,6 +3765,10 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 		return 0;
 
 	adev->in_suspend = true;
+
+	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D3))
+		DRM_WARN("smart shift update failed\n");
+
 	drm_kms_helper_poll_disable(dev);
 
 	if (fbcon)
@@ -3858,6 +3877,9 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	dev->dev->power.disable_depth--;
 #endif
 	adev->in_suspend = false;
+
+	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D0))
+		DRM_WARN("smart shift update failed\n");
 
 	return 0;
 }
@@ -4938,6 +4960,8 @@ skip_hw_reset:
 			amdgpu_vf_error_put(tmp_adev, AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
 		} else {
 			dev_info(tmp_adev->dev, "GPU reset(%d) succeeded!\n", atomic_read(&tmp_adev->gpu_reset_counter));
+			if (amdgpu_acpi_smart_shift_update(adev_to_drm(tmp_adev), AMDGPU_SS_DEV_D0))
+				DRM_WARN("smart shift update failed\n");
 		}
 	}
 

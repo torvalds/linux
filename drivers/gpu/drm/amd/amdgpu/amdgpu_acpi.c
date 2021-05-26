@@ -755,6 +755,55 @@ int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_acpi_smart_shift_update - update dGPU device state to SBIOS
+ *
+ * @dev: drm_device pointer
+ * @ss_state: current smart shift event
+ *
+ * returns 0 on success,
+ * otherwise return error number.
+ */
+int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_state)
+{
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	int r;
+
+	if (!amdgpu_device_supports_smart_shift(dev))
+		return 0;
+
+	switch (ss_state) {
+	/* SBIOS trigger “stop”, “enable” and “start” at D0, Driver Operational.
+	 * SBIOS trigger “stop” at D3, Driver Not Operational.
+	 * SBIOS trigger “stop” and “disable” at D0, Driver NOT operational.
+	 */
+	case AMDGPU_SS_DRV_LOAD:
+		r = amdgpu_acpi_power_shift_control(adev,
+						    AMDGPU_ATCS_PSC_DEV_STATE_D0,
+						    AMDGPU_ATCS_PSC_DRV_STATE_OPR);
+		break;
+	case AMDGPU_SS_DEV_D0:
+		r = amdgpu_acpi_power_shift_control(adev,
+						    AMDGPU_ATCS_PSC_DEV_STATE_D0,
+						    AMDGPU_ATCS_PSC_DRV_STATE_OPR);
+		break;
+	case AMDGPU_SS_DEV_D3:
+		r = amdgpu_acpi_power_shift_control(adev,
+						    AMDGPU_ATCS_PSC_DEV_STATE_D3_HOT,
+						    AMDGPU_ATCS_PSC_DRV_STATE_NOT_OPR);
+		break;
+	case AMDGPU_SS_DRV_UNLOAD:
+		r = amdgpu_acpi_power_shift_control(adev,
+						    AMDGPU_ATCS_PSC_DEV_STATE_D0,
+						    AMDGPU_ATCS_PSC_DRV_STATE_NOT_OPR);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return r;
+}
+
+/**
  * amdgpu_acpi_event - handle notify events
  *
  * @nb: notifier block
