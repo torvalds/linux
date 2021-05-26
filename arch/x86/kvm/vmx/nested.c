@@ -1979,8 +1979,10 @@ static enum nested_evmptrld_status nested_vmx_handle_enlightened_vmptrld(
 	if (likely(!vmx->nested.enlightened_vmcs_enabled))
 		return EVMPTRLD_DISABLED;
 
-	if (!nested_enlightened_vmentry(vcpu, &evmcs_gpa))
+	if (!nested_enlightened_vmentry(vcpu, &evmcs_gpa)) {
+		nested_release_evmcs(vcpu);
 		return EVMPTRLD_DISABLED;
+	}
 
 	if (unlikely(evmcs_gpa != vmx->nested.hv_evmcs_vmptr)) {
 		vmx->nested.current_vmptr = -1ull;
