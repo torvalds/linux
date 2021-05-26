@@ -246,7 +246,7 @@ out:
 static int calc_ntlmv2_hash(struct ksmbd_session *sess, char *ntlmv2_hash,
 		char *dname)
 {
-	int ret, len;
+	int ret, len, conv_len;
 	wchar_t *domain = NULL;
 	__le16 *uniname = NULL;
 	struct ksmbd_crypto_ctx *ctx;
@@ -279,15 +279,17 @@ static int calc_ntlmv2_hash(struct ksmbd_session *sess, char *ntlmv2_hash,
 		goto out;
 	}
 
-	if (len) {
-		len = smb_strtoUTF16(uniname, user_name(sess->user), len,
+	conv_len = smb_strtoUTF16(uniname, user_name(sess->user), len,
 			sess->conn->local_nls);
-		UniStrupr(uniname);
+	if (conv_len < 0 || conv_len > len) {
+		ret = -EINVAL;
+		goto out;
 	}
+	UniStrupr(uniname);
 
 	ret = crypto_shash_update(CRYPTO_HMACMD5(ctx),
 				  (char *)uniname,
-				  UNICODE_LEN(len));
+				  UNICODE_LEN(conv_len));
 	if (ret) {
 		ksmbd_debug(AUTH, "Could not update with user\n");
 		goto out;
@@ -301,12 +303,16 @@ static int calc_ntlmv2_hash(struct ksmbd_session *sess, char *ntlmv2_hash,
 		goto out;
 	}
 
-	len = smb_strtoUTF16((__le16 *)domain, dname, len,
+	conv_len = smb_strtoUTF16((__le16 *)domain, dname, len,
 			     sess->conn->local_nls);
+	if (conv_len < 0 || conv_len > len) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = crypto_shash_update(CRYPTO_HMACMD5(ctx),
 				  (char *)domain,
-				  UNICODE_LEN(len));
+				  UNICODE_LEN(conv_len));
 	if (ret) {
 		ksmbd_debug(AUTH, "Could not update with domain\n");
 		goto out;
@@ -584,6 +590,7 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 	wchar_t *name;
 	__u8 *target_name;
 	unsigned int len, flags, blob_off, blob_len, type, target_info_len = 0;
+	unsigned int uni_len, conv_len;
 	int cflags = sess->ntlmssp.client_flags;
 
 	memcpy(chgblob->Signature, NTLMSSP_SIGNATURE, 8);
@@ -611,19 +618,24 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 
 	chgblob->NegotiateFlags = cpu_to_le32(flags);
 	len = strlen(ksmbd_netbios_name());
-	name = kmalloc(2 + (len * 2), GFP_KERNEL);
+	name = kmalloc(2 + UNICODE_LEN(len), GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
 
-	len = smb_strtoUTF16((__le16 *)name, ksmbd_netbios_name(), len,
+	conv_len = smb_strtoUTF16((__le16 *)name, ksmbd_netbios_name(), len,
 			sess->conn->local_nls);
-	len = UNICODE_LEN(len);
+	if (conv_len < 0 || conv_len > len) {
+		kfree(name);
+		return -EINVAL;
+	}
+
+	uni_len = UNICODE_LEN(conv_len);
 
 	blob_off = sizeof(struct challenge_message);
-	blob_len = blob_off + len;
+	blob_len = blob_off + uni_len;
 
-	chgblob->TargetName.Length = cpu_to_le16(len);
-	chgblob->TargetName.MaximumLength = cpu_to_le16(len);
+	chgblob->TargetName.Length = cpu_to_le16(uni_len);
+	chgblob->TargetName.MaximumLength = cpu_to_le16(uni_len);
 	chgblob->TargetName.BufferOffset = cpu_to_le32(blob_off);
 
 	/* Initialize random conn challenge */
@@ -635,18 +647,18 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 	chgblob->TargetInfoArray.BufferOffset = cpu_to_le32(blob_len);
 
 	target_name = (__u8 *)chgblob + blob_off;
-	memcpy(target_name, name, len);
-	tinfo = (struct target_info *)(target_name + len);
+	memcpy(target_name, name, uni_len);
+	tinfo = (struct target_info *)(target_name + uni_len);
 
 	chgblob->TargetInfoArray.Length = 0;
 	/* Add target info list for NetBIOS/DNS settings */
 	for (type = NTLMSSP_AV_NB_COMPUTER_NAME;
 	     type <= NTLMSSP_AV_DNS_DOMAIN_NAME; type++) {
 		tinfo->Type = cpu_to_le16(type);
-		tinfo->Length = cpu_to_le16(len);
-		memcpy(tinfo->Content, name, len);
-		tinfo = (struct target_info *)((char *)tinfo + 4 + len);
-		target_info_len += 4 + len;
+		tinfo->Length = cpu_to_le16(uni_len);
+		memcpy(tinfo->Content, name, uni_len);
+		tinfo = (struct target_info *)((char *)tinfo + 4 + uni_len);
+		target_info_len += 4 + uni_len;
 	}
 
 	/* Add terminator subblock */
