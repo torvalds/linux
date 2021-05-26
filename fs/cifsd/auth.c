@@ -311,9 +311,9 @@ static int calc_ntlmv2_hash(struct ksmbd_session *sess, char *ntlmv2_hash,
 	}
 
 	ret = crypto_shash_final(CRYPTO_HMACMD5(ctx), ntlmv2_hash);
-out:
 	if (ret)
 		ksmbd_debug(AUTH, "Could not generate md5 hash\n");
+out:
 	kfree(uniname);
 	kfree(domain);
 	ksmbd_release_crypto_ctx(ctx);
