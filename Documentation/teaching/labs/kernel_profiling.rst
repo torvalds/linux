@@ -432,3 +432,42 @@ or is it a scheduling issue?
     Try to trace the I/O operations using ``perf``, or use the
     ``iosnoop.sh`` script in order to inspect what I/O is happening at a
     certain point.
+
+5. Bad ELF
+----------
+
+.. note::
+
+    This is a bonus exercise that has been tested on a native Linux system.
+    It may run under the QEMU virtual machine, but the behavior was weird in our testing.
+    We recommend you used a native (or VirtualBox or VMware) Linux system.
+
+We managed to build (as part of a `Unikraft <https://github.com/unikraft/unikraft>`__ build) an ELF file that is valid when doing static analysis, but that can't be executed.
+The file is ``bad_elf``, located in the ``5-bad-elf/`` folder.
+
+Running it triggers a *segmentation fault* message.
+Running it using ``strace`` show an error with ``execve()``.
+
+.. code::
+
+    ... skels/kernel_profiling/5-bad-elf$ ./bad_elf
+    Segmentation fault
+
+    ... skels/kernel_profiling/5-bad-elf$ strace ./bad_elf
+    execve("./bad_elf", ["./bad_elf"], 0x7ffc3349ba50 /* 70 vars \*/) = -1 EINVAL (Invalid argument)
+    --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=NULL} ---
+    +++ killed by SIGSEGV +++
+    Segmentation fault (core dumped)
+
+The ELF file itself is valid:
+
+.. code::
+
+    ... skels/kernel_profiling/5-bad-elf$ readelf -a bad_elf
+
+The issue is to be detected in the kernel.
+
+Use either ``perf``, or, better yet `ftrace <https://jvns.ca/blog/2017/03/19/getting-started-with-ftrace/>`__ to inspect the kernel function calls done by the program.
+Identify the function call that sends out the ``SIGSEGV`` signal.
+Identify the cause of the issue.
+Find that cause in the `manual page elf(5) <https://linux.die.net/man/5/elf>`__.
