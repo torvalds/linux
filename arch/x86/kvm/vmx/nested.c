@@ -3102,7 +3102,7 @@ static bool nested_get_evmcs_page(struct kvm_vcpu *vcpu)
 	 * properly reflected.
 	 */
 	if (vmx->nested.enlightened_vmcs_enabled &&
-	    !evmptr_is_valid(vmx->nested.hv_evmcs_vmptr)) {
+	    vmx->nested.hv_evmcs_vmptr == EVMPTR_MAP_PENDING) {
 		enum nested_evmptrld_status evmptrld_status =
 			nested_vmx_handle_enlightened_vmptrld(vcpu, false);
 
@@ -6095,7 +6095,8 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 		if (vmx_has_valid_vmcs12(vcpu)) {
 			kvm_state.size += sizeof(user_vmx_nested_state->vmcs12);
 
-			if (evmptr_is_valid(vmx->nested.hv_evmcs_vmptr))
+			/* 'hv_evmcs_vmptr' can also be EVMPTR_MAP_PENDING here */
+			if (vmx->nested.hv_evmcs_vmptr != EVMPTR_INVALID)
 				kvm_state.flags |= KVM_STATE_NESTED_EVMCS;
 
 			if (is_guest_mode(vcpu) &&
@@ -6294,6 +6295,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		 * restored yet. EVMCS will be mapped from
 		 * nested_get_vmcs12_pages().
 		 */
+		vmx->nested.hv_evmcs_vmptr = EVMPTR_MAP_PENDING;
 		kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	} else {
 		return -EINVAL;
