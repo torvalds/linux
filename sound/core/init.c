@@ -665,17 +665,15 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
 }
 EXPORT_SYMBOL(snd_card_set_id);
 
-static ssize_t
-card_id_show_attr(struct device *dev,
-		  struct device_attribute *attr, char *buf)
+static ssize_t id_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	return scnprintf(buf, PAGE_SIZE, "%s\n", card->id);
 }
 
-static ssize_t
-card_id_store_attr(struct device *dev, struct device_attribute *attr,
-		   const char *buf, size_t count)
+static ssize_t id_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	char buf1[sizeof(card->id)];
@@ -703,17 +701,16 @@ card_id_store_attr(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(id, 0644, card_id_show_attr, card_id_store_attr);
+static DEVICE_ATTR_RW(id);
 
-static ssize_t
-card_number_show_attr(struct device *dev,
-		     struct device_attribute *attr, char *buf)
+static ssize_t number_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	return scnprintf(buf, PAGE_SIZE, "%i\n", card->number);
 }
 
-static DEVICE_ATTR(number, 0444, card_number_show_attr, NULL);
+static DEVICE_ATTR_RO(number);
 
 static struct attribute *card_dev_attrs[] = {
 	&dev_attr_id.attr,
