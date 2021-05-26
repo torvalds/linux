@@ -1690,7 +1690,8 @@ initial_plane_vma(struct drm_i915_private *i915,
 	 * important and we should probably use that space with FBC or other
 	 * features.
 	 */
-	if (size * 2 > i915->stolen_usable_size)
+	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
+	    size * 2 > i915->stolen_usable_size)
 		return NULL;
 
 	obj = i915_gem_object_create_stolen_for_preallocated(i915, base, size);
