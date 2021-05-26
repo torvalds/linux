@@ -2924,13 +2924,16 @@ static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 		return r;
 	}
 
-	if (pp_funcs && pp_funcs->get_power_limit) {
-		pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
-					  pp_limit_level, power_type);
+	if (pp_funcs && pp_funcs->get_power_limit)
+		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+					      pp_limit_level, power_type);
+	else
+		r = -ENODATA;
+
+	if (!r)
 		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else {
+	else
 		size = snprintf(buf, PAGE_SIZE, "\n");
-	}
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -2961,13 +2964,16 @@ static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
 		return r;
 	}
 
-	if (pp_funcs && pp_funcs->get_power_limit) {
-		pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
-					  pp_limit_level, power_type);
+	if (pp_funcs && pp_funcs->get_power_limit)
+		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+					      pp_limit_level, power_type);
+	else
+		r = -ENODATA;
+
+	if (!r)
 		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else {
+	else
 		size = snprintf(buf, PAGE_SIZE, "\n");
-	}
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -2998,13 +3004,16 @@ static ssize_t amdgpu_hwmon_show_power_cap_default(struct device *dev,
 		return r;
 	}
 
-	if (pp_funcs && pp_funcs->get_power_limit) {
-		pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
-					  pp_limit_level, power_type);
+	if (pp_funcs && pp_funcs->get_power_limit)
+		r = pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit,
+					      pp_limit_level, power_type);
+	else
+		r = -ENODATA;
+
+	if (!r)
 		size = snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
-	} else {
+	else
 		size = snprintf(buf, PAGE_SIZE, "\n");
-	}
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
