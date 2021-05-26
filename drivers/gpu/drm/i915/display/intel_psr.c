@@ -990,11 +990,10 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	intel_dp->psr.active = true;
 }
 
-static void intel_psr_enable_source(struct intel_dp *intel_dp,
-				    const struct intel_crtc_state *crtc_state)
+static void intel_psr_enable_source(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	u32 mask;
 
 	/* Only HSW and BDW have PSR AUX registers that need to be setup. SKL+
@@ -1112,7 +1111,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 				     &intel_dp->psr.vsc);
 	intel_write_dp_vsc_sdp(encoder, crtc_state, &intel_dp->psr.vsc);
 	intel_psr_enable_sink(intel_dp);
-	intel_psr_enable_source(intel_dp, crtc_state);
+	intel_psr_enable_source(intel_dp);
 	intel_dp->psr.enabled = true;
 
 	intel_psr_activate(intel_dp);
