@@ -193,7 +193,7 @@ int is_smb2_rsp(struct ksmbd_work *work)
  *
  * Return:      smb2 request command value
  */
-uint16_t get_smb2_cmd_val(struct ksmbd_work *work)
+u16 get_smb2_cmd_val(struct ksmbd_work *work)
 {
 	struct smb2_hdr *rcv_hdr;
 

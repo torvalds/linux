@@ -106,10 +106,10 @@ static inline int check_conn_state(struct ksmbd_work *work)
 #define TCP_HANDLER_ABORT	1
 
 static int __process_request(struct ksmbd_work *work, struct ksmbd_conn *conn,
-			     uint16_t *cmd)
+			     u16 *cmd)
 {
 	struct smb_version_cmds *cmds;
-	uint16_t command;
+	u16 command;
 	int ret;
 
 	if (check_conn_state(work))
