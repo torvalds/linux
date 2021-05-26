@@ -1172,6 +1172,9 @@ static struct scatterlist *ksmbd_init_sg(struct kvec *iov, unsigned int nvec,
 	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
 	int i, nr_entries[3] = {0}, total_entries = 0, sg_idx = 0;
 
+	if (!nvec)
+		return NULL;
+
 	for (i = 0; i < nvec - 1; i++) {
 		unsigned long kaddr = (unsigned long)iov[i + 1].iov_base;
 
