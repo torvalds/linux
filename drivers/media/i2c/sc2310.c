@@ -369,7 +369,8 @@ static const struct regval sc2310_linear10bit_1920x1080_regs[] = {
  * Xclk 24Mhz hdr 2to1 STAGGER 1920*1080 30fps 760Mbps/lane
  */
 static __maybe_unused const struct regval sc2310_hdr10bit_1920x1080_regs[] = {
-	{0x0103, 0x01},
+	//{0x0103, 0x01},
+	{0x303f, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0xa6},
 	{0x36f9, 0x85},
@@ -386,7 +387,6 @@ static __maybe_unused const struct regval sc2310_hdr10bit_1920x1080_regs[] = {
 	{0x3031, 0x0a},
 	{0x3001, 0xfe},
 	{0x4603, 0x00},
-	{0x303f, 0x01},
 	{0x3640, 0x00},
 	{0x3907, 0x01},
 	{0x3908, 0x01},
@@ -1180,8 +1180,12 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc2310_ioctl(sd, cmd, inf);
-		if (!ret)
-			ret = copy_to_user(up, inf, sizeof(*inf));
+		if (!ret) {
+			if (copy_to_user(up, inf, sizeof(*inf))) {
+				kfree(inf);
+				return -EFAULT;
+			}
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1191,9 +1195,11 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = sc2310_ioctl(sd, cmd, cfg);
+		if (copy_from_user(cfg, up, sizeof(*cfg))) {
+			kfree(cfg);
+			return -EFAULT;
+		}
+		ret = sc2310_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -1204,8 +1210,12 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc2310_ioctl(sd, cmd, hdr);
-		if (!ret)
-			ret = copy_to_user(up, hdr, sizeof(*hdr));
+		if (!ret) {
+			if (copy_to_user(up, hdr, sizeof(*hdr))) {
+				kfree(hdr);
+				return -EFAULT;
+			}
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1215,9 +1225,11 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdr, up, sizeof(*hdr));
-		if (!ret)
-			ret = sc2310_ioctl(sd, cmd, hdr);
+		if (copy_from_user(hdr, up, sizeof(*hdr))) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+		ret = sc2310_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1227,20 +1239,22 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
-		if (!ret)
-			ret = sc2310_ioctl(sd, cmd, hdrae);
+		if (copy_from_user(hdrae, up, sizeof(*hdrae))) {
+			kfree(hdrae);
+			return -EFAULT;
+		}
+		ret = sc2310_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
-		ret = copy_from_user(&cg, up, sizeof(cg));
-		if (!ret)
-			ret = sc2310_ioctl(sd, cmd, &cg);
+		if (copy_from_user(&cg, up, sizeof(cg)))
+			return -EFAULT;
+		ret = sc2310_ioctl(sd, cmd, &cg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = sc2310_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+		ret = sc2310_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1346,6 +1360,10 @@ static int sc2310_s_power(struct v4l2_subdev *sd, int on)
 			SC2310_REG_VALUE_08BIT,
 			0x01);
 		usleep_range(100, 200);
+		ret |= sc2310_write_reg(sc2310->client,
+			0x303f,
+			SC2310_REG_VALUE_08BIT,
+			0x01);
 
 		sc2310->power_on = true;
 	} else {
@@ -1550,7 +1568,7 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (sc2310->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto out_ctrl;
 		val = ctrl->val << 1;
 		ret = sc2310_write_reg(sc2310->client,
 					SC2310_REG_EXP_LONG_L,
@@ -1569,7 +1587,7 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (sc2310->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto out_ctrl;
 		sc2310_get_gain_reg(ctrl->val, &again, &again_fine, &dgain, &dgain_fine);
 		dev_dbg(&client->dev, "recv:%d set again 0x%x, again_fine 0x%x, set dgain 0x%x, dgain_fine 0x%x\n",
 			ctrl->val, again, again_fine, dgain, dgain_fine);
@@ -1631,6 +1649,7 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+out_ctrl:
 	pm_runtime_put(&client->dev);
 
 	return ret;
