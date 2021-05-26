@@ -202,3 +202,22 @@ generate valid BTF information for weak variables. Please make sure you use
 Clang that contains the fix.
 
 __ https://reviews.llvm.org/D100362
+
+Clang relocation changes
+========================
+
+Clang 13 patch `clang reloc patch`_  made some changes on relocations such
+that existing relocation types are broken into more types and
+each new type corresponds to only one way to resolve relocation.
+See `kernel llvm reloc`_ for more explanation and some examples.
+Using clang 13 to compile old libbpf which has static linker support,
+there will be a compilation failure::
+
+  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_nogpl.o
+
+Here, ``type 2`` refers to new relocation type ``R_BPF_64_ABS64``.
+To fix this issue, user newer libbpf.
+
+.. Links
+.. _clang reloc patch: https://reviews.llvm.org/D102712
+.. _kernel llvm reloc: /Documentation/bpf/llvm_reloc.rst
