@@ -1236,7 +1236,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 	struct smb2_transform_hdr *tr_hdr =
 		(struct smb2_transform_hdr *)iov[0].iov_base;
 	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
-	int rc = 0;
+	int rc;
 	struct scatterlist *sg;
 	u8 sign[SMB2_SIGNATURE_SIZE] = {};
 	u8 key[SMB3_ENC_DEC_KEY_SIZE];
