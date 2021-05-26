@@ -5,6 +5,8 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/mt6358/core.h>
 #include <linux/mfd/mt6358/registers.h>
+#include <linux/mfd/mt6359/core.h>
+#include <linux/mfd/mt6359/registers.h>
 #include <linux/mfd/mt6397/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -26,11 +28,29 @@ static const struct irq_top_t mt6358_ints[] = {
 	MT6358_TOP_GEN(MISC),
 };
 
+static const struct irq_top_t mt6359_ints[] = {
+	MT6359_TOP_GEN(BUCK),
+	MT6359_TOP_GEN(LDO),
+	MT6359_TOP_GEN(PSC),
+	MT6359_TOP_GEN(SCK),
+	MT6359_TOP_GEN(BM),
+	MT6359_TOP_GEN(HK),
+	MT6359_TOP_GEN(AUD),
+	MT6359_TOP_GEN(MISC),
+};
+
 static struct pmic_irq_data mt6358_irqd = {
 	.num_top = ARRAY_SIZE(mt6358_ints),
 	.num_pmic_irqs = MT6358_IRQ_NR,
 	.top_int_status_reg = MT6358_TOP_INT_STATUS0,
 	.pmic_ints = mt6358_ints,
+};
+
+static struct pmic_irq_data mt6359_irqd = {
+	.num_top = ARRAY_SIZE(mt6359_ints),
+	.num_pmic_irqs = MT6359_IRQ_NR,
+	.top_int_status_reg = MT6359_TOP_INT_STATUS0,
+	.pmic_ints = mt6359_ints,
 };
 
 static void pmic_irq_enable(struct irq_data *data)
@@ -193,6 +213,10 @@ int mt6358_irq_init(struct mt6397_chip *chip)
 	switch (chip->chip_id) {
 	case MT6358_CHIP_ID:
 		chip->irq_data = &mt6358_irqd;
+		break;
+
+	case MT6359_CHIP_ID:
+		chip->irq_data = &mt6359_irqd;
 		break;
 
 	default:
