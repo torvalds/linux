@@ -926,10 +926,8 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 	int len_data_to_tag = 0;
 
 	skb_resp = nfc_alloc_recv_skb(MAX_RESPONSE_BUFFER_SIZE, GFP_KERNEL);
-	if (!skb_resp) {
-		rc = -ENOMEM;
-		goto error;
-	}
+	if (!skb_resp)
+		return -ENOMEM;
 
 	switch (stcontext->current_rf_tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
@@ -986,7 +984,6 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 
 free_skb_resp:
 	kfree_skb(skb_resp);
-error:
 	return rc;
 }
 
