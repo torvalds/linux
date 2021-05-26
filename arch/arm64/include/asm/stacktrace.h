@@ -69,14 +69,14 @@ extern void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 
 DECLARE_PER_CPU(unsigned long *, irq_stack_ptr);
 
-static inline bool on_stack(unsigned long sp, unsigned long low,
-				unsigned long high, enum stack_type type,
-				struct stack_info *info)
+static inline bool on_stack(unsigned long sp, unsigned long size,
+			    unsigned long low, unsigned long high,
+			    enum stack_type type, struct stack_info *info)
 {
 	if (!low)
 		return false;
 
-	if (sp < low || sp >= high)
+	if (sp < low || sp + size < sp || sp + size > high)
 		return false;
 
 	if (info) {
@@ -87,38 +87,38 @@ static inline bool on_stack(unsigned long sp, unsigned long low,
 	return true;
 }
 
-static inline bool on_irq_stack(unsigned long sp,
+static inline bool on_irq_stack(unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
 	unsigned long low = (unsigned long)raw_cpu_read(irq_stack_ptr);
 	unsigned long high = low + IRQ_STACK_SIZE;
 
-	return on_stack(sp, low, high, STACK_TYPE_IRQ, info);
+	return on_stack(sp, size, low, high, STACK_TYPE_IRQ, info);
 }
 
 static inline bool on_task_stack(const struct task_struct *tsk,
-				 unsigned long sp,
+				 unsigned long sp, unsigned long size,
 				 struct stack_info *info)
 {
 	unsigned long low = (unsigned long)task_stack_page(tsk);
 	unsigned long high = low + THREAD_SIZE;
 
-	return on_stack(sp, low, high, STACK_TYPE_TASK, info);
+	return on_stack(sp, size, low, high, STACK_TYPE_TASK, info);
 }
 
 #ifdef CONFIG_VMAP_STACK
 DECLARE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack);
 
-static inline bool on_overflow_stack(unsigned long sp,
+static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
 	unsigned long low = (unsigned long)raw_cpu_ptr(overflow_stack);
 	unsigned long high = low + OVERFLOW_STACK_SIZE;
 
-	return on_stack(sp, low, high, STACK_TYPE_OVERFLOW, info);
+	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
 }
 #else
-static inline bool on_overflow_stack(unsigned long sp,
+static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
 			struct stack_info *info) { return false; }
 #endif
 
@@ -128,21 +128,21 @@ static inline bool on_overflow_stack(unsigned long sp,
  * context.
  */
 static inline bool on_accessible_stack(const struct task_struct *tsk,
-				       unsigned long sp,
+				       unsigned long sp, unsigned long size,
 				       struct stack_info *info)
 {
 	if (info)
 		info->type = STACK_TYPE_UNKNOWN;
 
-	if (on_task_stack(tsk, sp, info))
+	if (on_task_stack(tsk, sp, size, info))
 		return true;
 	if (tsk != current || preemptible())
 		return false;
-	if (on_irq_stack(sp, info))
+	if (on_irq_stack(sp, size, info))
 		return true;
-	if (on_overflow_stack(sp, info))
+	if (on_overflow_stack(sp, size, info))
 		return true;
-	if (on_sdei_stack(sp, info))
+	if (on_sdei_stack(sp, size, info))
 		return true;
 
 	return false;
