@@ -887,6 +887,47 @@ unlock:
 	return res;
 }
 
+/*
+ * Example usage:
+ * Disable dsc passthrough, i.e.,: have dsc decoding at converver, not external RX
+ *   echo 1 /sys/kernel/debug/dri/0/DP-1/dsc_disable_passthrough
+ * Enable dsc passthrough, i.e.,: have dsc passthrough to external RX
+ *   echo 0 /sys/kernel/debug/dri/0/DP-1/dsc_disable_passthrough
+ */
+static ssize_t dp_dsc_passthrough_set(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param;
+	uint8_t param_nums = 0;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+					   &param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	aconnector->dsc_settings.dsc_force_disable_passthrough = param;
+
+	kfree(wr_buf);
+	return 0;
+}
+
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 /*
  * Returns the HDCP capability of the Display (1.4 for now).
@@ -2535,6 +2576,12 @@ static const struct file_operations dp_max_bpc_debugfs_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations dp_dsc_disable_passthrough_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_dsc_passthrough_set,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -2559,7 +2606,8 @@ static const struct {
 		{"dsc_chunk_size", &dp_dsc_chunk_size_debugfs_fops},
 		{"dsc_slice_bpg", &dp_dsc_slice_bpg_offset_debugfs_fops},
 		{"dp_dsc_fec_support", &dp_dsc_fec_support_fops},
-		{"max_bpc", &dp_max_bpc_debugfs_fops}
+		{"max_bpc", &dp_max_bpc_debugfs_fops},
+		{"dsc_disable_passthrough", &dp_dsc_disable_passthrough_debugfs_fops},
 };
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP
