@@ -80,7 +80,7 @@ static struct max31790_data *max31790_update_device(struct device *dev)
 				MAX31790_REG_FAN_FAULT_STATUS1);
 		if (rv < 0)
 			goto abort;
-		data->fault_status = rv & 0x3F;
+		data->fault_status |= rv & 0x3F;
 
 		rv = i2c_smbus_read_byte_data(client,
 				MAX31790_REG_FAN_FAULT_STATUS2);
@@ -181,7 +181,21 @@ static int max31790_read_fan(struct device *dev, u32 attr, int channel,
 		*val = rpm;
 		return 0;
 	case hwmon_fan_fault:
+		mutex_lock(&data->update_lock);
 		*val = !!(data->fault_status & (1 << channel));
+		data->fault_status &= ~(1 << channel);
+		/*
+		 * If a fault bit is set, we need to write into one of the fan
+		 * configuration registers to clear it. Note that this also
+		 * clears the fault for the companion channel if enabled.
+		 */
+		if (*val) {
+			int reg = MAX31790_REG_TARGET_COUNT(channel % NR_CHANNEL);
+
+			i2c_smbus_write_byte_data(data->client, reg,
+						  data->target_count[channel % NR_CHANNEL] >> 8);
+		}
+		mutex_unlock(&data->update_lock);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
