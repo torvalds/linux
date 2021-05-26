@@ -522,8 +522,7 @@ static const struct regmap_config mcp16502_regmap_config = {
 	.wr_table	= &mcp16502_yes_reg_table,
 };
 
-static int mcp16502_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mcp16502_probe(struct i2c_client *client)
 {
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
@@ -606,7 +605,7 @@ static const struct i2c_device_id mcp16502_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, mcp16502_i2c_id);
 
 static struct i2c_driver mcp16502_drv = {
-	.probe		= mcp16502_probe,
+	.probe_new	= mcp16502_probe,
 	.driver		= {
 		.name	= "mcp16502-regulator",
 		.of_match_table	= of_match_ptr(mcp16502_ids),
