@@ -601,6 +601,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 /**
  * dm_dcn_vertical_interrupt0_high_irq() - Handles OTG Vertical interrupt0 for
  * DCN generation ASICs
@@ -608,7 +609,6 @@ static void dm_crtc_high_irq(void *interrupt_params)
  *
  * Used to set crc window/read out crc value at vertical line 0 position
  */
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 static void dm_dcn_vertical_interrupt0_high_irq(void *interrupt_params)
 {
 	struct common_irq_params *irq_params = interrupt_params;
