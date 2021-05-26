@@ -29,6 +29,7 @@
 /x86_64/vmx_preemption_timer_test
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test
+/x86_64/vmx_nested_tsc_scaling_test
 /x86_64/xapic_ipi_test
 /x86_64/xen_shinfo_test
 /x86_64/xen_vmcall_test
