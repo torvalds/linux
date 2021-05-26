@@ -986,7 +986,7 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		if (!ras)
 			return -EINVAL;
-		ras_mask = (uint64_t)ras->supported << 32 | ras->features;
+		ras_mask = (uint64_t)adev->ras_enabled << 32 | ras->features;
 
 		return copy_to_user(out, &ras_mask,
 				min_t(u64, size, sizeof(ras_mask))) ?
@@ -1114,7 +1114,8 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		dev_warn(adev->dev, "No more PASIDs available!");
 		pasid = 0;
 	}
-	r = amdgpu_vm_init(adev, &fpriv->vm, AMDGPU_VM_CONTEXT_GFX, pasid);
+
+	r = amdgpu_vm_init(adev, &fpriv->vm, pasid);
 	if (r)
 		goto error_pasid;
 

@@ -4803,7 +4803,7 @@ KVM_PV_VM_VERIFY
 4.126 KVM_X86_SET_MSR_FILTER
 ----------------------------
 
-:Capability: KVM_X86_SET_MSR_FILTER
+:Capability: KVM_CAP_X86_MSR_FILTER
 :Architectures: x86
 :Type: vm ioctl
 :Parameters: struct kvm_msr_filter
@@ -6715,7 +6715,7 @@ accesses that would usually trigger a #GP by KVM into the guest will
 instead get bounced to user space through the KVM_EXIT_X86_RDMSR and
 KVM_EXIT_X86_WRMSR exit notifications.
 
-8.27 KVM_X86_SET_MSR_FILTER
+8.27 KVM_CAP_X86_MSR_FILTER
 ---------------------------
 
 :Architectures: x86

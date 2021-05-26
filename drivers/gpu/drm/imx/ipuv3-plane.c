@@ -30,12 +30,17 @@ to_ipu_plane_state(struct drm_plane_state *p)
 	return container_of(p, struct ipu_plane_state, base);
 }
 
+static unsigned int ipu_src_rect_width(const struct drm_plane_state *state)
+{
+	return ALIGN(drm_rect_width(&state->src) >> 16, 8);
+}
+
 static inline struct ipu_plane *to_ipu_plane(struct drm_plane *p)
 {
 	return container_of(p, struct ipu_plane, base);
 }
 
-static const uint32_t ipu_plane_formats[] = {
+static const uint32_t ipu_plane_all_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_ABGR1555,
@@ -63,6 +68,31 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_YVU444,
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_NV16,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB565_A8,
+	DRM_FORMAT_BGR565_A8,
+	DRM_FORMAT_RGB888_A8,
+	DRM_FORMAT_BGR888_A8,
+	DRM_FORMAT_RGBX8888_A8,
+	DRM_FORMAT_BGRX8888_A8,
+};
+
+static const uint32_t ipu_plane_rgb_formats[] = {
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRX8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB565_A8,
 	DRM_FORMAT_BGR565_A8,
@@ -264,7 +294,6 @@ void ipu_plane_disable_deferred(struct drm_plane *plane)
 		ipu_plane_disable(ipu_plane, false);
 	}
 }
-EXPORT_SYMBOL_GPL(ipu_plane_disable_deferred);
 
 static void ipu_plane_state_reset(struct drm_plane *plane)
 {
@@ -284,6 +313,8 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
 		ipu_state->base.zpos = zpos;
 		ipu_state->base.normalized_zpos = zpos;
+		ipu_state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
+		ipu_state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
 }
 
@@ -320,10 +351,11 @@ static bool ipu_plane_format_mod_supported(struct drm_plane *plane,
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
 
-	/* without a PRG there are no supported modifiers */
-	if (!ipu_prg_present(ipu))
-		return false;
-
+	/*
+	 * Without a PRG the possible modifiers list only includes the linear
+	 * modifier, so we always take the early return from this function and
+	 * only end up here if the PRG is present.
+	 */
 	return ipu_prg_format_supported(ipu, format, modifier);
 }
 
@@ -414,6 +446,12 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 
 	if (old_fb && fb->pitches[0] != old_fb->pitches[0])
 		crtc_state->mode_changed = true;
+
+	if (ALIGN(fb->width, 8) * fb->format->cpp[0] >
+	    fb->pitches[0] + fb->offsets[0]) {
+		dev_warn(dev, "pitch is not big enough for 8 pixels alignment");
+		return -EINVAL;
+	}
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_YUV420:
@@ -590,10 +628,29 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	if (ipu_state->use_pre) {
 		axi_id = ipu_chan_assign_axi_id(ipu_plane->dma);
 		ipu_prg_channel_configure(ipu_plane->ipu_ch, axi_id,
-					  drm_rect_width(&new_state->src) >> 16,
+					  ipu_src_rect_width(new_state),
 					  drm_rect_height(&new_state->src) >> 16,
 					  fb->pitches[0], fb->format->format,
 					  fb->modifier, &eba);
+	}
+
+	if (!old_state->fb ||
+	    old_state->fb->format->format != fb->format->format ||
+	    old_state->color_encoding != new_state->color_encoding ||
+	    old_state->color_range != new_state->color_range) {
+		ics = ipu_drm_fourcc_to_colorspace(fb->format->format);
+		switch (ipu_plane->dp_flow) {
+		case IPU_DP_FLOW_SYNC_BG:
+			ipu_dp_setup_channel(ipu_plane->dp, new_state->color_encoding,
+					     new_state->color_range, ics,
+					     IPUV3_COLORSPACE_RGB);
+			break;
+		case IPU_DP_FLOW_SYNC_FG:
+			ipu_dp_setup_channel(ipu_plane->dp, new_state->color_encoding,
+					     new_state->color_range, ics,
+					     IPUV3_COLORSPACE_UNKNOWN);
+			break;
+		}
 	}
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
@@ -615,17 +672,20 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ics = ipu_drm_fourcc_to_colorspace(fb->format->format);
 	switch (ipu_plane->dp_flow) {
 	case IPU_DP_FLOW_SYNC_BG:
-		ipu_dp_setup_channel(ipu_plane->dp, ics, IPUV3_COLORSPACE_RGB);
+		ipu_dp_setup_channel(ipu_plane->dp, DRM_COLOR_YCBCR_BT601,
+				     DRM_COLOR_YCBCR_LIMITED_RANGE, ics,
+				     IPUV3_COLORSPACE_RGB);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
-		ipu_dp_setup_channel(ipu_plane->dp, ics,
-					IPUV3_COLORSPACE_UNKNOWN);
+		ipu_dp_setup_channel(ipu_plane->dp, DRM_COLOR_YCBCR_BT601,
+				     DRM_COLOR_YCBCR_LIMITED_RANGE, ics,
+				     IPUV3_COLORSPACE_UNKNOWN);
 		break;
 	}
 
 	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(dst));
 
-	width = drm_rect_width(&new_state->src) >> 16;
+	width = ipu_src_rect_width(new_state);
 	height = drm_rect_height(&new_state->src) >> 16;
 	info = drm_format_info(fb->format->format);
 	ipu_calculate_bursts(width, info->cpp[0], fb->pitches[0],
@@ -690,7 +750,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 		ipu_cpmem_zero(ipu_plane->alpha_ch);
 		ipu_cpmem_set_resolution(ipu_plane->alpha_ch,
-					 drm_rect_width(&new_state->src) >> 16,
+					 ipu_src_rect_width(new_state),
 					 drm_rect_height(&new_state->src) >> 16);
 		ipu_cpmem_set_format_passthrough(ipu_plane->alpha_ch, 8);
 		ipu_cpmem_set_high_priority(ipu_plane->alpha_ch);
@@ -821,7 +881,6 @@ int ipu_planes_assign_pre(struct drm_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ipu_planes_assign_pre);
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,
@@ -830,16 +889,28 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	struct ipu_plane *ipu_plane;
 	const uint64_t *modifiers = ipu_format_modifiers;
 	unsigned int zpos = (type == DRM_PLANE_TYPE_PRIMARY) ? 0 : 1;
+	unsigned int format_count;
+	const uint32_t *formats;
 	int ret;
 
 	DRM_DEBUG_KMS("channel %d, dp flow %d, possible_crtcs=0x%x\n",
 		      dma, dp, possible_crtcs);
 
+	if (dp == IPU_DP_FLOW_SYNC_BG || dp == IPU_DP_FLOW_SYNC_FG) {
+		formats = ipu_plane_all_formats;
+		format_count = ARRAY_SIZE(ipu_plane_all_formats);
+	} else {
+		formats = ipu_plane_rgb_formats;
+		format_count = ARRAY_SIZE(ipu_plane_rgb_formats);
+	}
+
+	if (ipu_prg_present(ipu))
+		modifiers = pre_format_modifiers;
+
 	ipu_plane = drmm_universal_plane_alloc(dev, struct ipu_plane, base,
 					       possible_crtcs, &ipu_plane_funcs,
-					       ipu_plane_formats,
-					       ARRAY_SIZE(ipu_plane_formats),
-					       modifiers, type, NULL);
+					       formats, format_count, modifiers,
+					       type, NULL);
 	if (IS_ERR(ipu_plane)) {
 		DRM_ERROR("failed to allocate and initialize %s plane\n",
 			  zpos ? "overlay" : "primary");
@@ -850,9 +921,6 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	ipu_plane->dma = dma;
 	ipu_plane->dp_flow = dp;
 
-	if (ipu_prg_present(ipu))
-		modifiers = pre_format_modifiers;
-
 	drm_plane_helper_add(&ipu_plane->base, &ipu_plane_helper_funcs);
 
 	if (dp == IPU_DP_FLOW_SYNC_BG || dp == IPU_DP_FLOW_SYNC_FG)
@@ -861,6 +929,15 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	else
 		ret = drm_plane_create_zpos_immutable_property(&ipu_plane->base,
 							       0);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = drm_plane_create_color_properties(&ipu_plane->base,
+			BIT(DRM_COLOR_YCBCR_BT601) |
+			BIT(DRM_COLOR_YCBCR_BT709),
+			BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+			DRM_COLOR_YCBCR_BT601,
+			DRM_COLOR_YCBCR_LIMITED_RANGE);
 	if (ret)
 		return ERR_PTR(ret);
 

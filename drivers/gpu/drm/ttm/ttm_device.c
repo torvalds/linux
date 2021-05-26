@@ -36,11 +36,11 @@
 
 #include "ttm_module.h"
 
-/**
+/*
  * ttm_global_mutex - protecting the global state
  */
-DEFINE_MUTEX(ttm_global_mutex);
-unsigned ttm_glob_use_count;
+static DEFINE_MUTEX(ttm_global_mutex);
+static unsigned ttm_glob_use_count;
 struct ttm_global ttm_glob;
 EXPORT_SYMBOL(ttm_glob);
 
@@ -104,7 +104,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * A buffer object shrink method that tries to swap out the first
  * buffer object on the global::swap_lru list.
  */
@@ -165,21 +165,6 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 }
 EXPORT_SYMBOL(ttm_device_swapout);
 
-static void ttm_init_sysman(struct ttm_device *bdev)
-{
-	struct ttm_resource_manager *man = &bdev->sysman;
-
-	/*
-	 * Initialize the system memory buffer type.
-	 * Other types need to be driver / IOCTL initialized.
-	 */
-	man->use_tt = true;
-
-	ttm_resource_manager_init(man, 0);
-	ttm_set_driver_manager(bdev, TTM_PL_SYSTEM, man);
-	ttm_resource_manager_set_used(man, true);
-}
-
 static void ttm_device_delayed_workqueue(struct work_struct *work)
 {
 	struct ttm_device *bdev =
@@ -222,7 +207,7 @@ int ttm_device_init(struct ttm_device *bdev, struct ttm_device_funcs *funcs,
 
 	bdev->funcs = funcs;
 
-	ttm_init_sysman(bdev);
+	ttm_sys_man_init(bdev);
 	ttm_pool_init(&bdev->pool, dev, use_dma_alloc, use_dma32);
 
 	bdev->vma_manager = vma_manager;

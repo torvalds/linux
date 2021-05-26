@@ -299,7 +299,7 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.MaxDCHUBToPSCLThroughput = ip->max_dchub_pscl_bw_pix_per_clk;
 	mode_lib->vba.MaxPSCLToLBThroughput = ip->max_pscl_lb_bw_pix_per_clk;
 	mode_lib->vba.ROBBufferSizeInKByte = ip->rob_buffer_size_kbytes;
-	mode_lib->vba.DETBufferSizeInKByte = ip->det_buffer_size_kbytes;
+	mode_lib->vba.DETBufferSizeInKByte[0] = ip->det_buffer_size_kbytes;
 
 	mode_lib->vba.PixelChunkSizeInKByte = ip->pixel_chunk_size_kbytes;
 	mode_lib->vba.MetaChunkSize = ip->meta_chunk_size_kbytes;

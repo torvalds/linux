@@ -78,8 +78,8 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 		drm_mode_convert_to_umode(&umode, mode);
 		state->mode_blob =
 			drm_property_create_blob(state->crtc->dev,
-		                                 sizeof(umode),
-		                                 &umode);
+						 sizeof(umode),
+						 &umode);
 		if (IS_ERR(state->mode_blob))
 			return PTR_ERR(state->mode_blob);
 
@@ -114,7 +114,7 @@ EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
  * Zero on success, error code on failure. Cannot return -EDEADLK.
  */
 int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
-                                      struct drm_property_blob *blob)
+				      struct drm_property_blob *blob)
 {
 	struct drm_crtc *crtc = state->crtc;
 

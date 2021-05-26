@@ -2968,7 +2968,7 @@ static void dml20v2_DisplayPipeConfiguration(struct display_mode_lib *mode_lib)
 			RoundedUpMaxSwathSizeBytesC = 0.0;
 
 		if (RoundedUpMaxSwathSizeBytesY + RoundedUpMaxSwathSizeBytesC
-				<= mode_lib->vba.DETBufferSizeInKByte * 1024.0 / 2.0) {
+				<= mode_lib->vba.DETBufferSizeInKByte[0] * 1024.0 / 2.0) {
 			mode_lib->vba.SwathHeightY[k] = MaximumSwathHeightY;
 			mode_lib->vba.SwathHeightC[k] = MaximumSwathHeightC;
 		} else {
@@ -2977,17 +2977,17 @@ static void dml20v2_DisplayPipeConfiguration(struct display_mode_lib *mode_lib)
 		}
 
 		if (mode_lib->vba.SwathHeightC[k] == 0) {
-			mode_lib->vba.DETBufferSizeY[k] = mode_lib->vba.DETBufferSizeInKByte * 1024;
+			mode_lib->vba.DETBufferSizeY[k] = mode_lib->vba.DETBufferSizeInKByte[0] * 1024;
 			mode_lib->vba.DETBufferSizeC[k] = 0;
 		} else if (mode_lib->vba.SwathHeightY[k] <= mode_lib->vba.SwathHeightC[k]) {
-			mode_lib->vba.DETBufferSizeY[k] = mode_lib->vba.DETBufferSizeInKByte
+			mode_lib->vba.DETBufferSizeY[k] = mode_lib->vba.DETBufferSizeInKByte[0]
 					* 1024.0 / 2;
-			mode_lib->vba.DETBufferSizeC[k] = mode_lib->vba.DETBufferSizeInKByte
+			mode_lib->vba.DETBufferSizeC[k] = mode_lib->vba.DETBufferSizeInKByte[0]
 					* 1024.0 / 2;
 		} else {
-			mode_lib->vba.DETBufferSizeY[k] = mode_lib->vba.DETBufferSizeInKByte
+			mode_lib->vba.DETBufferSizeY[k] = mode_lib->vba.DETBufferSizeInKByte[0]
 					* 1024.0 * 2 / 3;
-			mode_lib->vba.DETBufferSizeC[k] = mode_lib->vba.DETBufferSizeInKByte
+			mode_lib->vba.DETBufferSizeC[k] = mode_lib->vba.DETBufferSizeInKByte[0]
 					* 1024.0 / 3;
 		}
 	}
@@ -3926,7 +3926,7 @@ void dml20v2_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode
 		mode_lib->vba.MaximumSwathWidthInDETBuffer =
 				dml_min(
 						mode_lib->vba.MaximumSwathWidthSupport,
-						mode_lib->vba.DETBufferSizeInKByte * 1024.0 / 2.0
+						mode_lib->vba.DETBufferSizeInKByte[0] * 1024.0 / 2.0
 								/ (locals->BytePerPixelInDETY[k]
 										* locals->MinSwathHeightY[k]
 										+ locals->BytePerPixelInDETC[k]
@@ -4443,7 +4443,7 @@ void dml20v2_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode
 					locals->RoundedUpMaxSwathSizeBytesC = 0;
 				}
 
-				if (locals->RoundedUpMaxSwathSizeBytesY + locals->RoundedUpMaxSwathSizeBytesC <= locals->DETBufferSizeInKByte * 1024 / 2) {
+				if (locals->RoundedUpMaxSwathSizeBytesY + locals->RoundedUpMaxSwathSizeBytesC <= locals->DETBufferSizeInKByte[0] * 1024 / 2) {
 					locals->SwathHeightYPerState[i][j][k] = locals->MaxSwathHeightY[k];
 					locals->SwathHeightCPerState[i][j][k] = locals->MaxSwathHeightC[k];
 				} else {
@@ -4452,15 +4452,15 @@ void dml20v2_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode
 				}
 
 				if (locals->BytePerPixelInDETC[k] == 0) {
-					locals->LinesInDETLuma = locals->DETBufferSizeInKByte * 1024 / locals->BytePerPixelInDETY[k] / locals->SwathWidthYPerState[i][j][k];
+					locals->LinesInDETLuma = locals->DETBufferSizeInKByte[0] * 1024 / locals->BytePerPixelInDETY[k] / locals->SwathWidthYPerState[i][j][k];
 					locals->LinesInDETChroma = 0;
 				} else if (locals->SwathHeightYPerState[i][j][k] <= locals->SwathHeightCPerState[i][j][k]) {
-					locals->LinesInDETLuma = locals->DETBufferSizeInKByte * 1024 / 2 / locals->BytePerPixelInDETY[k] /
+					locals->LinesInDETLuma = locals->DETBufferSizeInKByte[0] * 1024 / 2 / locals->BytePerPixelInDETY[k] /
 							locals->SwathWidthYPerState[i][j][k];
-					locals->LinesInDETChroma = locals->DETBufferSizeInKByte * 1024 / 2 / locals->BytePerPixelInDETC[k] / (locals->SwathWidthYPerState[i][j][k] / 2);
+					locals->LinesInDETChroma = locals->DETBufferSizeInKByte[0] * 1024 / 2 / locals->BytePerPixelInDETC[k] / (locals->SwathWidthYPerState[i][j][k] / 2);
 				} else {
-					locals->LinesInDETLuma = locals->DETBufferSizeInKByte * 1024 * 2 / 3 / locals->BytePerPixelInDETY[k] / locals->SwathWidthYPerState[i][j][k];
-					locals->LinesInDETChroma = locals->DETBufferSizeInKByte * 1024 / 3 / locals->BytePerPixelInDETY[k] / (locals->SwathWidthYPerState[i][j][k] / 2);
+					locals->LinesInDETLuma = locals->DETBufferSizeInKByte[0] * 1024 * 2 / 3 / locals->BytePerPixelInDETY[k] / locals->SwathWidthYPerState[i][j][k];
+					locals->LinesInDETChroma = locals->DETBufferSizeInKByte[0] * 1024 / 3 / locals->BytePerPixelInDETY[k] / (locals->SwathWidthYPerState[i][j][k] / 2);
 				}
 
 				locals->EffectiveLBLatencyHidingSourceLinesLuma = dml_min(locals->MaxLineBufferLines,

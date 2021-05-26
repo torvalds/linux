@@ -93,6 +93,7 @@ enum dmub_asic {
 	DMUB_ASIC_DCN30,
 	DMUB_ASIC_DCN301,
 	DMUB_ASIC_DCN302,
+	DMUB_ASIC_DCN303,
 	DMUB_ASIC_MAX,
 };
 
@@ -216,6 +217,23 @@ struct dmub_srv_fb_info {
 	struct dmub_fb fb[DMUB_WINDOW_TOTAL];
 };
 
+/*
+ * struct dmub_srv_hw_params - params for dmub hardware initialization
+ * @fb: framebuffer info for each region
+ * @fb_base: base of the framebuffer aperture
+ * @fb_offset: offset of the framebuffer aperture
+ * @psp_version: psp version to pass for DMCU init
+ * @load_inst_const: true if DMUB should load inst const fw
+ */
+struct dmub_srv_hw_params {
+	struct dmub_fb *fb[DMUB_WINDOW_TOTAL];
+	uint64_t fb_base;
+	uint64_t fb_offset;
+	uint32_t psp_version;
+	bool load_inst_const;
+	bool skip_panel_power_sequence;
+};
+
 /**
  * struct dmub_srv_base_funcs - Driver specific base callbacks
  */
@@ -290,7 +308,8 @@ struct dmub_srv_hw_funcs {
 	bool (*is_hw_init)(struct dmub_srv *dmub);
 
 	bool (*is_phy_init)(struct dmub_srv *dmub);
-	void (*enable_dmub_boot_options)(struct dmub_srv *dmub);
+	void (*enable_dmub_boot_options)(struct dmub_srv *dmub,
+				const struct dmub_srv_hw_params *params);
 
 	void (*skip_dmub_panel_power_sequence)(struct dmub_srv *dmub, bool skip);
 
@@ -305,6 +324,7 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*get_gpint_response)(struct dmub_srv *dmub);
 
+	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 };
 
 /**
@@ -323,23 +343,6 @@ struct dmub_srv_create_params {
 	enum dmub_asic asic;
 	uint32_t fw_version;
 	bool is_virtual;
-};
-
-/*
- * struct dmub_srv_hw_params - params for dmub hardware initialization
- * @fb: framebuffer info for each region
- * @fb_base: base of the framebuffer aperture
- * @fb_offset: offset of the framebuffer aperture
- * @psp_version: psp version to pass for DMCU init
- * @load_inst_const: true if DMUB should load inst const fw
- */
-struct dmub_srv_hw_params {
-	struct dmub_fb *fb[DMUB_WINDOW_TOTAL];
-	uint64_t fb_base;
-	uint64_t fb_offset;
-	uint32_t psp_version;
-	bool load_inst_const;
-	bool skip_panel_power_sequence;
 };
 
 /**

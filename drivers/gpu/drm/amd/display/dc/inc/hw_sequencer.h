@@ -235,6 +235,10 @@ struct hw_sequencer_funcs {
 			enum dc_color_depth color_depth,
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
+	void (*update_visual_confirm_color)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct tg_color *color,
+			int mpcc_id);
 };
 
 void color_space_to_black_color(

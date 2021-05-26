@@ -22,6 +22,7 @@
  */
 #include "amdgpu.h"
 #include "soc15.h"
+#include "soc15d.h"
 
 #include "gc/gc_9_4_2_offset.h"
 #include "gc/gc_9_4_2_sh_mask.h"
@@ -30,6 +31,11 @@
 #include "gfx_v9_4_2.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_gfx.h"
+
+#define SE_ID_MAX 8
+#define CU_ID_MAX 16
+#define SIMD_ID_MAX 4
+#define WAVE_ID_MAX 10
 
 enum gfx_v9_4_2_utc_type {
 	VML2_MEM,
@@ -78,6 +84,634 @@ static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_UTCL1_CNTL1, 0xffffffff, 0x30800400),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCI_CNTL_3, 0xff, 0x20),
 };
+
+/**
+ * This shader is used to clear VGPRS and LDS, and also write the input
+ * pattern into the write back buffer, which will be used by driver to
+ * check whether all SIMDs have been covered.
+*/
+static const u32 vgpr_init_compute_shader_aldebaran[] = {
+	0xb8840904, 0xb8851a04, 0xb8861344, 0xb8831804, 0x9208ff06, 0x00000280,
+	0x9209a805, 0x920a8a04, 0x81080908, 0x81080a08, 0x81080308, 0x8e078208,
+	0x81078407, 0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8a0000, 0xd3d94000,
+	0x18000080, 0xd3d94001, 0x18000080, 0xd3d94002, 0x18000080, 0xd3d94003,
+	0x18000080, 0xd3d94004, 0x18000080, 0xd3d94005, 0x18000080, 0xd3d94006,
+	0x18000080, 0xd3d94007, 0x18000080, 0xd3d94008, 0x18000080, 0xd3d94009,
+	0x18000080, 0xd3d9400a, 0x18000080, 0xd3d9400b, 0x18000080, 0xd3d9400c,
+	0x18000080, 0xd3d9400d, 0x18000080, 0xd3d9400e, 0x18000080, 0xd3d9400f,
+	0x18000080, 0xd3d94010, 0x18000080, 0xd3d94011, 0x18000080, 0xd3d94012,
+	0x18000080, 0xd3d94013, 0x18000080, 0xd3d94014, 0x18000080, 0xd3d94015,
+	0x18000080, 0xd3d94016, 0x18000080, 0xd3d94017, 0x18000080, 0xd3d94018,
+	0x18000080, 0xd3d94019, 0x18000080, 0xd3d9401a, 0x18000080, 0xd3d9401b,
+	0x18000080, 0xd3d9401c, 0x18000080, 0xd3d9401d, 0x18000080, 0xd3d9401e,
+	0x18000080, 0xd3d9401f, 0x18000080, 0xd3d94020, 0x18000080, 0xd3d94021,
+	0x18000080, 0xd3d94022, 0x18000080, 0xd3d94023, 0x18000080, 0xd3d94024,
+	0x18000080, 0xd3d94025, 0x18000080, 0xd3d94026, 0x18000080, 0xd3d94027,
+	0x18000080, 0xd3d94028, 0x18000080, 0xd3d94029, 0x18000080, 0xd3d9402a,
+	0x18000080, 0xd3d9402b, 0x18000080, 0xd3d9402c, 0x18000080, 0xd3d9402d,
+	0x18000080, 0xd3d9402e, 0x18000080, 0xd3d9402f, 0x18000080, 0xd3d94030,
+	0x18000080, 0xd3d94031, 0x18000080, 0xd3d94032, 0x18000080, 0xd3d94033,
+	0x18000080, 0xd3d94034, 0x18000080, 0xd3d94035, 0x18000080, 0xd3d94036,
+	0x18000080, 0xd3d94037, 0x18000080, 0xd3d94038, 0x18000080, 0xd3d94039,
+	0x18000080, 0xd3d9403a, 0x18000080, 0xd3d9403b, 0x18000080, 0xd3d9403c,
+	0x18000080, 0xd3d9403d, 0x18000080, 0xd3d9403e, 0x18000080, 0xd3d9403f,
+	0x18000080, 0xd3d94040, 0x18000080, 0xd3d94041, 0x18000080, 0xd3d94042,
+	0x18000080, 0xd3d94043, 0x18000080, 0xd3d94044, 0x18000080, 0xd3d94045,
+	0x18000080, 0xd3d94046, 0x18000080, 0xd3d94047, 0x18000080, 0xd3d94048,
+	0x18000080, 0xd3d94049, 0x18000080, 0xd3d9404a, 0x18000080, 0xd3d9404b,
+	0x18000080, 0xd3d9404c, 0x18000080, 0xd3d9404d, 0x18000080, 0xd3d9404e,
+	0x18000080, 0xd3d9404f, 0x18000080, 0xd3d94050, 0x18000080, 0xd3d94051,
+	0x18000080, 0xd3d94052, 0x18000080, 0xd3d94053, 0x18000080, 0xd3d94054,
+	0x18000080, 0xd3d94055, 0x18000080, 0xd3d94056, 0x18000080, 0xd3d94057,
+	0x18000080, 0xd3d94058, 0x18000080, 0xd3d94059, 0x18000080, 0xd3d9405a,
+	0x18000080, 0xd3d9405b, 0x18000080, 0xd3d9405c, 0x18000080, 0xd3d9405d,
+	0x18000080, 0xd3d9405e, 0x18000080, 0xd3d9405f, 0x18000080, 0xd3d94060,
+	0x18000080, 0xd3d94061, 0x18000080, 0xd3d94062, 0x18000080, 0xd3d94063,
+	0x18000080, 0xd3d94064, 0x18000080, 0xd3d94065, 0x18000080, 0xd3d94066,
+	0x18000080, 0xd3d94067, 0x18000080, 0xd3d94068, 0x18000080, 0xd3d94069,
+	0x18000080, 0xd3d9406a, 0x18000080, 0xd3d9406b, 0x18000080, 0xd3d9406c,
+	0x18000080, 0xd3d9406d, 0x18000080, 0xd3d9406e, 0x18000080, 0xd3d9406f,
+	0x18000080, 0xd3d94070, 0x18000080, 0xd3d94071, 0x18000080, 0xd3d94072,
+	0x18000080, 0xd3d94073, 0x18000080, 0xd3d94074, 0x18000080, 0xd3d94075,
+	0x18000080, 0xd3d94076, 0x18000080, 0xd3d94077, 0x18000080, 0xd3d94078,
+	0x18000080, 0xd3d94079, 0x18000080, 0xd3d9407a, 0x18000080, 0xd3d9407b,
+	0x18000080, 0xd3d9407c, 0x18000080, 0xd3d9407d, 0x18000080, 0xd3d9407e,
+	0x18000080, 0xd3d9407f, 0x18000080, 0xd3d94080, 0x18000080, 0xd3d94081,
+	0x18000080, 0xd3d94082, 0x18000080, 0xd3d94083, 0x18000080, 0xd3d94084,
+	0x18000080, 0xd3d94085, 0x18000080, 0xd3d94086, 0x18000080, 0xd3d94087,
+	0x18000080, 0xd3d94088, 0x18000080, 0xd3d94089, 0x18000080, 0xd3d9408a,
+	0x18000080, 0xd3d9408b, 0x18000080, 0xd3d9408c, 0x18000080, 0xd3d9408d,
+	0x18000080, 0xd3d9408e, 0x18000080, 0xd3d9408f, 0x18000080, 0xd3d94090,
+	0x18000080, 0xd3d94091, 0x18000080, 0xd3d94092, 0x18000080, 0xd3d94093,
+	0x18000080, 0xd3d94094, 0x18000080, 0xd3d94095, 0x18000080, 0xd3d94096,
+	0x18000080, 0xd3d94097, 0x18000080, 0xd3d94098, 0x18000080, 0xd3d94099,
+	0x18000080, 0xd3d9409a, 0x18000080, 0xd3d9409b, 0x18000080, 0xd3d9409c,
+	0x18000080, 0xd3d9409d, 0x18000080, 0xd3d9409e, 0x18000080, 0xd3d9409f,
+	0x18000080, 0xd3d940a0, 0x18000080, 0xd3d940a1, 0x18000080, 0xd3d940a2,
+	0x18000080, 0xd3d940a3, 0x18000080, 0xd3d940a4, 0x18000080, 0xd3d940a5,
+	0x18000080, 0xd3d940a6, 0x18000080, 0xd3d940a7, 0x18000080, 0xd3d940a8,
+	0x18000080, 0xd3d940a9, 0x18000080, 0xd3d940aa, 0x18000080, 0xd3d940ab,
+	0x18000080, 0xd3d940ac, 0x18000080, 0xd3d940ad, 0x18000080, 0xd3d940ae,
+	0x18000080, 0xd3d940af, 0x18000080, 0xd3d940b0, 0x18000080, 0xd3d940b1,
+	0x18000080, 0xd3d940b2, 0x18000080, 0xd3d940b3, 0x18000080, 0xd3d940b4,
+	0x18000080, 0xd3d940b5, 0x18000080, 0xd3d940b6, 0x18000080, 0xd3d940b7,
+	0x18000080, 0xd3d940b8, 0x18000080, 0xd3d940b9, 0x18000080, 0xd3d940ba,
+	0x18000080, 0xd3d940bb, 0x18000080, 0xd3d940bc, 0x18000080, 0xd3d940bd,
+	0x18000080, 0xd3d940be, 0x18000080, 0xd3d940bf, 0x18000080, 0xd3d940c0,
+	0x18000080, 0xd3d940c1, 0x18000080, 0xd3d940c2, 0x18000080, 0xd3d940c3,
+	0x18000080, 0xd3d940c4, 0x18000080, 0xd3d940c5, 0x18000080, 0xd3d940c6,
+	0x18000080, 0xd3d940c7, 0x18000080, 0xd3d940c8, 0x18000080, 0xd3d940c9,
+	0x18000080, 0xd3d940ca, 0x18000080, 0xd3d940cb, 0x18000080, 0xd3d940cc,
+	0x18000080, 0xd3d940cd, 0x18000080, 0xd3d940ce, 0x18000080, 0xd3d940cf,
+	0x18000080, 0xd3d940d0, 0x18000080, 0xd3d940d1, 0x18000080, 0xd3d940d2,
+	0x18000080, 0xd3d940d3, 0x18000080, 0xd3d940d4, 0x18000080, 0xd3d940d5,
+	0x18000080, 0xd3d940d6, 0x18000080, 0xd3d940d7, 0x18000080, 0xd3d940d8,
+	0x18000080, 0xd3d940d9, 0x18000080, 0xd3d940da, 0x18000080, 0xd3d940db,
+	0x18000080, 0xd3d940dc, 0x18000080, 0xd3d940dd, 0x18000080, 0xd3d940de,
+	0x18000080, 0xd3d940df, 0x18000080, 0xd3d940e0, 0x18000080, 0xd3d940e1,
+	0x18000080, 0xd3d940e2, 0x18000080, 0xd3d940e3, 0x18000080, 0xd3d940e4,
+	0x18000080, 0xd3d940e5, 0x18000080, 0xd3d940e6, 0x18000080, 0xd3d940e7,
+	0x18000080, 0xd3d940e8, 0x18000080, 0xd3d940e9, 0x18000080, 0xd3d940ea,
+	0x18000080, 0xd3d940eb, 0x18000080, 0xd3d940ec, 0x18000080, 0xd3d940ed,
+	0x18000080, 0xd3d940ee, 0x18000080, 0xd3d940ef, 0x18000080, 0xd3d940f0,
+	0x18000080, 0xd3d940f1, 0x18000080, 0xd3d940f2, 0x18000080, 0xd3d940f3,
+	0x18000080, 0xd3d940f4, 0x18000080, 0xd3d940f5, 0x18000080, 0xd3d940f6,
+	0x18000080, 0xd3d940f7, 0x18000080, 0xd3d940f8, 0x18000080, 0xd3d940f9,
+	0x18000080, 0xd3d940fa, 0x18000080, 0xd3d940fb, 0x18000080, 0xd3d940fc,
+	0x18000080, 0xd3d940fd, 0x18000080, 0xd3d940fe, 0x18000080, 0xd3d940ff,
+	0x18000080, 0xb07c0000, 0xbe8a00ff, 0x000000f8, 0xbf11080a, 0x7e000280,
+	0x7e020280, 0x7e040280, 0x7e060280, 0x7e080280, 0x7e0a0280, 0x7e0c0280,
+	0x7e0e0280, 0x808a880a, 0xbe80320a, 0xbf84fff5, 0xbf9c0000, 0xd28c0001,
+	0x0001007f, 0xd28d0001, 0x0002027e, 0x10020288, 0xbe8b0004, 0xb78b4000,
+	0xd1196a01, 0x00001701, 0xbe8a0087, 0xbefc00c1, 0xd89c4000, 0x00020201,
+	0xd89cc080, 0x00040401, 0x320202ff, 0x00000800, 0x808a810a, 0xbf84fff8,
+	0xbf810000,
+};
+
+const struct soc15_reg_entry vgpr_init_regs_aldebaran[] = {
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_RESOURCE_LIMITS), 0x0000000 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_X), 0x40 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Y), 4 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Z), 1 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC1), 0xbf },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC2), 0x400006 },  /* 64KB LDS */
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC3), 0x3F }, /*  63 - accum-offset = 256 */
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE0), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE1), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE2), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE3), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE4), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE5), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE6), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE7), 0xffffffff },
+};
+
+/**
+ * The below shaders are used to clear SGPRS, and also write the input
+ * pattern into the write back buffer. The first two dispatch should be
+ * scheduled simultaneously which make sure that all SGPRS could be
+ * allocated, so the dispatch 1 need check write back buffer before scheduled,
+ * make sure that waves of dispatch 0 are all dispacthed to all simds
+ * balanced. both dispatch 0 and dispatch 1 should be halted until all waves
+ * are dispatched, and then driver write a pattern to the shared memory to make
+ * all waves continue.
+*/
+static const u32 sgpr112_init_compute_shader_aldebaran[] = {
+	0xb8840904, 0xb8851a04, 0xb8861344, 0xb8831804, 0x9208ff06, 0x00000280,
+	0x9209a805, 0x920a8a04, 0x81080908, 0x81080a08, 0x81080308, 0x8e078208,
+	0x81078407, 0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8e003f, 0xc0030200,
+	0x00000000, 0xbf8c0000, 0xbf06ff08, 0xdeadbeaf, 0xbf84fff9, 0x81028102,
+	0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8a0000, 0xbefc0080, 0xbeea0080,
+	0xbeeb0080, 0xbf00f280, 0xbee60080, 0xbee70080, 0xbee80080, 0xbee90080,
+	0xbefe0080, 0xbeff0080, 0xbe880080, 0xbe890080, 0xbe8a0080, 0xbe8b0080,
+	0xbe8c0080, 0xbe8d0080, 0xbe8e0080, 0xbe8f0080, 0xbe900080, 0xbe910080,
+	0xbe920080, 0xbe930080, 0xbe940080, 0xbe950080, 0xbe960080, 0xbe970080,
+	0xbe980080, 0xbe990080, 0xbe9a0080, 0xbe9b0080, 0xbe9c0080, 0xbe9d0080,
+	0xbe9e0080, 0xbe9f0080, 0xbea00080, 0xbea10080, 0xbea20080, 0xbea30080,
+	0xbea40080, 0xbea50080, 0xbea60080, 0xbea70080, 0xbea80080, 0xbea90080,
+	0xbeaa0080, 0xbeab0080, 0xbeac0080, 0xbead0080, 0xbeae0080, 0xbeaf0080,
+	0xbeb00080, 0xbeb10080, 0xbeb20080, 0xbeb30080, 0xbeb40080, 0xbeb50080,
+	0xbeb60080, 0xbeb70080, 0xbeb80080, 0xbeb90080, 0xbeba0080, 0xbebb0080,
+	0xbebc0080, 0xbebd0080, 0xbebe0080, 0xbebf0080, 0xbec00080, 0xbec10080,
+	0xbec20080, 0xbec30080, 0xbec40080, 0xbec50080, 0xbec60080, 0xbec70080,
+	0xbec80080, 0xbec90080, 0xbeca0080, 0xbecb0080, 0xbecc0080, 0xbecd0080,
+	0xbece0080, 0xbecf0080, 0xbed00080, 0xbed10080, 0xbed20080, 0xbed30080,
+	0xbed40080, 0xbed50080, 0xbed60080, 0xbed70080, 0xbed80080, 0xbed90080,
+	0xbeda0080, 0xbedb0080, 0xbedc0080, 0xbedd0080, 0xbede0080, 0xbedf0080,
+	0xbee00080, 0xbee10080, 0xbee20080, 0xbee30080, 0xbee40080, 0xbee50080,
+	0xbf810000
+};
+
+const struct soc15_reg_entry sgpr112_init_regs_aldebaran[] = {
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_RESOURCE_LIMITS), 0x0000000 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_X), 0x40 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Y), 8 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Z), 1 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC1), 0x340 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC2), 0x6 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC3), 0x0 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE0), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE1), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE2), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE3), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE4), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE5), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE6), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE7), 0xffffffff },
+};
+
+static const u32 sgpr96_init_compute_shader_aldebaran[] = {
+	0xb8840904, 0xb8851a04, 0xb8861344, 0xb8831804, 0x9208ff06, 0x00000280,
+	0x9209a805, 0x920a8a04, 0x81080908, 0x81080a08, 0x81080308, 0x8e078208,
+	0x81078407, 0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8e003f, 0xc0030200,
+	0x00000000, 0xbf8c0000, 0xbf06ff08, 0xdeadbeaf, 0xbf84fff9, 0x81028102,
+	0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8a0000, 0xbefc0080, 0xbeea0080,
+	0xbeeb0080, 0xbf00f280, 0xbee60080, 0xbee70080, 0xbee80080, 0xbee90080,
+	0xbefe0080, 0xbeff0080, 0xbe880080, 0xbe890080, 0xbe8a0080, 0xbe8b0080,
+	0xbe8c0080, 0xbe8d0080, 0xbe8e0080, 0xbe8f0080, 0xbe900080, 0xbe910080,
+	0xbe920080, 0xbe930080, 0xbe940080, 0xbe950080, 0xbe960080, 0xbe970080,
+	0xbe980080, 0xbe990080, 0xbe9a0080, 0xbe9b0080, 0xbe9c0080, 0xbe9d0080,
+	0xbe9e0080, 0xbe9f0080, 0xbea00080, 0xbea10080, 0xbea20080, 0xbea30080,
+	0xbea40080, 0xbea50080, 0xbea60080, 0xbea70080, 0xbea80080, 0xbea90080,
+	0xbeaa0080, 0xbeab0080, 0xbeac0080, 0xbead0080, 0xbeae0080, 0xbeaf0080,
+	0xbeb00080, 0xbeb10080, 0xbeb20080, 0xbeb30080, 0xbeb40080, 0xbeb50080,
+	0xbeb60080, 0xbeb70080, 0xbeb80080, 0xbeb90080, 0xbeba0080, 0xbebb0080,
+	0xbebc0080, 0xbebd0080, 0xbebe0080, 0xbebf0080, 0xbec00080, 0xbec10080,
+	0xbec20080, 0xbec30080, 0xbec40080, 0xbec50080, 0xbec60080, 0xbec70080,
+	0xbec80080, 0xbec90080, 0xbeca0080, 0xbecb0080, 0xbecc0080, 0xbecd0080,
+	0xbece0080, 0xbecf0080, 0xbed00080, 0xbed10080, 0xbed20080, 0xbed30080,
+	0xbed40080, 0xbed50080, 0xbed60080, 0xbed70080, 0xbed80080, 0xbed90080,
+	0xbf810000,
+};
+
+const struct soc15_reg_entry sgpr96_init_regs_aldebaran[] = {
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_RESOURCE_LIMITS), 0x0000000 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_X), 0x40 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Y), 0xc },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Z), 1 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC1), 0x2c0 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC2), 0x6 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC3), 0x0 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE0), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE1), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE2), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE3), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE4), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE5), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE6), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE7), 0xffffffff },
+};
+
+/**
+ * This shader is used to clear the uninitiated sgprs after the above
+ * two dispatches, because of hardware feature, dispath 0 couldn't clear
+ * top hole sgprs. Therefore need 4 waves per SIMD to cover these sgprs
+*/
+static const u32 sgpr64_init_compute_shader_aldebaran[] = {
+	0xb8840904, 0xb8851a04, 0xb8861344, 0xb8831804, 0x9208ff06, 0x00000280,
+	0x9209a805, 0x920a8a04, 0x81080908, 0x81080a08, 0x81080308, 0x8e078208,
+	0x81078407, 0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8e003f, 0xc0030200,
+	0x00000000, 0xbf8c0000, 0xbf06ff08, 0xdeadbeaf, 0xbf84fff9, 0x81028102,
+	0xc0410080, 0x00000007, 0xbf8c0000, 0xbf8a0000, 0xbefc0080, 0xbeea0080,
+	0xbeeb0080, 0xbf00f280, 0xbee60080, 0xbee70080, 0xbee80080, 0xbee90080,
+	0xbefe0080, 0xbeff0080, 0xbe880080, 0xbe890080, 0xbe8a0080, 0xbe8b0080,
+	0xbe8c0080, 0xbe8d0080, 0xbe8e0080, 0xbe8f0080, 0xbe900080, 0xbe910080,
+	0xbe920080, 0xbe930080, 0xbe940080, 0xbe950080, 0xbe960080, 0xbe970080,
+	0xbe980080, 0xbe990080, 0xbe9a0080, 0xbe9b0080, 0xbe9c0080, 0xbe9d0080,
+	0xbe9e0080, 0xbe9f0080, 0xbea00080, 0xbea10080, 0xbea20080, 0xbea30080,
+	0xbea40080, 0xbea50080, 0xbea60080, 0xbea70080, 0xbea80080, 0xbea90080,
+	0xbeaa0080, 0xbeab0080, 0xbeac0080, 0xbead0080, 0xbeae0080, 0xbeaf0080,
+	0xbeb00080, 0xbeb10080, 0xbeb20080, 0xbeb30080, 0xbeb40080, 0xbeb50080,
+	0xbeb60080, 0xbeb70080, 0xbeb80080, 0xbeb90080, 0xbf810000,
+};
+
+const struct soc15_reg_entry sgpr64_init_regs_aldebaran[] = {
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_RESOURCE_LIMITS), 0x0000000 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_X), 0x40 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Y), 0x10 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_NUM_THREAD_Z), 1 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC1), 0x1c0 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC2), 0x6 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_PGM_RSRC3), 0x0 },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE0), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE1), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE2), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE3), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE4), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE5), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE6), 0xffffffff },
+	{ SOC15_REG_ENTRY(GC, 0, regCOMPUTE_STATIC_THREAD_MGMT_SE7), 0xffffffff },
+};
+
+static int gfx_v9_4_2_run_shader(struct amdgpu_device *adev,
+				 struct amdgpu_ring *ring,
+				 struct amdgpu_ib *ib,
+				 const u32 *shader_ptr, u32 shader_size,
+				 const struct soc15_reg_entry *init_regs, u32 regs_size,
+				 u32 compute_dim_x, u64 wb_gpu_addr, u32 pattern,
+				 struct dma_fence **fence_ptr)
+{
+	int r, i;
+	uint32_t total_size, shader_offset;
+	u64 gpu_addr;
+
+	total_size = (regs_size * 3 + 4 + 5 + 5) * 4;
+	total_size = ALIGN(total_size, 256);
+	shader_offset = total_size;
+	total_size += ALIGN(shader_size, 256);
+
+	/* allocate an indirect buffer to put the commands in */
+	memset(ib, 0, sizeof(*ib));
+	r = amdgpu_ib_get(adev, NULL, total_size,
+					AMDGPU_IB_POOL_DIRECT, ib);
+	if (r) {
+		dev_err(adev->dev, "failed to get ib (%d).\n", r);
+		return r;
+	}
+
+	/* load the compute shaders */
+	for (i = 0; i < shader_size/sizeof(u32); i++)
+		ib->ptr[i + (shader_offset / 4)] = shader_ptr[i];
+
+	/* init the ib length to 0 */
+	ib->length_dw = 0;
+
+	/* write the register state for the compute dispatch */
+	for (i = 0; i < regs_size; i++) {
+		ib->ptr[ib->length_dw++] = PACKET3(PACKET3_SET_SH_REG, 1);
+		ib->ptr[ib->length_dw++] = SOC15_REG_ENTRY_OFFSET(init_regs[i])
+								- PACKET3_SET_SH_REG_START;
+		ib->ptr[ib->length_dw++] = init_regs[i].reg_value;
+	}
+
+	/* write the shader start address: mmCOMPUTE_PGM_LO, mmCOMPUTE_PGM_HI */
+	gpu_addr = (ib->gpu_addr + (u64)shader_offset) >> 8;
+	ib->ptr[ib->length_dw++] = PACKET3(PACKET3_SET_SH_REG, 2);
+	ib->ptr[ib->length_dw++] = SOC15_REG_OFFSET(GC, 0, regCOMPUTE_PGM_LO)
+							- PACKET3_SET_SH_REG_START;
+	ib->ptr[ib->length_dw++] = lower_32_bits(gpu_addr);
+	ib->ptr[ib->length_dw++] = upper_32_bits(gpu_addr);
+
+	/* write the wb buffer address */
+	ib->ptr[ib->length_dw++] = PACKET3(PACKET3_SET_SH_REG, 3);
+	ib->ptr[ib->length_dw++] = SOC15_REG_OFFSET(GC, 0, regCOMPUTE_USER_DATA_0)
+							- PACKET3_SET_SH_REG_START;
+	ib->ptr[ib->length_dw++] = lower_32_bits(wb_gpu_addr);
+	ib->ptr[ib->length_dw++] = upper_32_bits(wb_gpu_addr);
+	ib->ptr[ib->length_dw++] = pattern;
+
+	/* write dispatch packet */
+	ib->ptr[ib->length_dw++] = PACKET3(PACKET3_DISPATCH_DIRECT, 3);
+	ib->ptr[ib->length_dw++] = compute_dim_x; /* x */
+	ib->ptr[ib->length_dw++] = 1; /* y */
+	ib->ptr[ib->length_dw++] = 1; /* z */
+	ib->ptr[ib->length_dw++] =
+		REG_SET_FIELD(0, COMPUTE_DISPATCH_INITIATOR, COMPUTE_SHADER_EN, 1);
+
+	/* shedule the ib on the ring */
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, fence_ptr);
+	if (r) {
+		dev_err(adev->dev, "ib submit failed (%d).\n", r);
+		amdgpu_ib_free(adev, ib, NULL);
+	}
+	return r;
+}
+
+static void gfx_v9_4_2_log_wave_assignment(struct amdgpu_device *adev, uint32_t *wb_ptr)
+{
+	uint32_t se, cu, simd, wave;
+	uint32_t offset = 0;
+	char *str;
+	int size;
+
+	str = kmalloc(256, GFP_KERNEL);
+	if (!str)
+		return;
+
+	dev_dbg(adev->dev, "wave assignment:\n");
+
+	for (se = 0; se < adev->gfx.config.max_shader_engines; se++) {
+		for (cu = 0; cu < CU_ID_MAX; cu++) {
+			memset(str, 0, 256);
+			size = sprintf(str, "SE[%02d]CU[%02d]: ", se, cu);
+			for (simd = 0; simd < SIMD_ID_MAX; simd++) {
+				size += sprintf(str + size, "[");
+				for (wave = 0; wave < WAVE_ID_MAX; wave++) {
+					size += sprintf(str + size, "%x", wb_ptr[offset]);
+					offset++;
+				}
+				size += sprintf(str + size, "]  ");
+			}
+			dev_dbg(adev->dev, "%s\n", str);
+		}
+	}
+
+	kfree(str);
+}
+
+static int gfx_v9_4_2_wait_for_waves_assigned(struct amdgpu_device *adev,
+					      uint32_t *wb_ptr, uint32_t mask,
+					      uint32_t pattern, uint32_t num_wave, bool wait)
+{
+	uint32_t se, cu, simd, wave;
+	uint32_t loop = 0;
+	uint32_t wave_cnt;
+	uint32_t offset;
+
+	do {
+		wave_cnt = 0;
+		offset = 0;
+
+		for (se = 0; se < adev->gfx.config.max_shader_engines; se++)
+			for (cu = 0; cu < CU_ID_MAX; cu++)
+				for (simd = 0; simd < SIMD_ID_MAX; simd++)
+					for (wave = 0; wave < WAVE_ID_MAX; wave++) {
+						if (((1 << wave) & mask) &&
+						    (wb_ptr[offset] == pattern))
+							wave_cnt++;
+
+						offset++;
+					}
+
+		if (wave_cnt == num_wave)
+			return 0;
+
+		mdelay(1);
+	} while (++loop < 2000 && wait);
+
+	dev_err(adev->dev, "actual wave num: %d, expected wave num: %d\n",
+		wave_cnt, num_wave);
+
+	gfx_v9_4_2_log_wave_assignment(adev, wb_ptr);
+
+	return -EBADSLT;
+}
+
+static int gfx_v9_4_2_do_sgprs_init(struct amdgpu_device *adev)
+{
+	int r;
+	int wb_size = adev->gfx.config.max_shader_engines *
+			 CU_ID_MAX * SIMD_ID_MAX * WAVE_ID_MAX;
+	struct amdgpu_ib wb_ib;
+	struct amdgpu_ib disp_ibs[3];
+	struct dma_fence *fences[3];
+	u32 pattern[3] = { 0x1, 0x5, 0xa };
+
+	/* bail if the compute ring is not ready */
+	if (!adev->gfx.compute_ring[0].sched.ready ||
+		 !adev->gfx.compute_ring[1].sched.ready)
+		return 0;
+
+	/* allocate the write-back buffer from IB */
+	memset(&wb_ib, 0, sizeof(wb_ib));
+	r = amdgpu_ib_get(adev, NULL, (1 + wb_size) * sizeof(uint32_t),
+			  AMDGPU_IB_POOL_DIRECT, &wb_ib);
+	if (r) {
+		dev_err(adev->dev, "failed to get ib (%d) for wb\n", r);
+		return r;
+	}
+	memset(wb_ib.ptr, 0, (1 + wb_size) * sizeof(uint32_t));
+
+	r = gfx_v9_4_2_run_shader(adev,
+			&adev->gfx.compute_ring[0],
+			&disp_ibs[0],
+			sgpr112_init_compute_shader_aldebaran,
+			sizeof(sgpr112_init_compute_shader_aldebaran),
+			sgpr112_init_regs_aldebaran,
+			ARRAY_SIZE(sgpr112_init_regs_aldebaran),
+			adev->gfx.cu_info.number,
+			wb_ib.gpu_addr, pattern[0], &fences[0]);
+	if (r) {
+		dev_err(adev->dev, "failed to clear first 224 sgprs\n");
+		goto pro_end;
+	}
+
+	r = gfx_v9_4_2_wait_for_waves_assigned(adev,
+			&wb_ib.ptr[1], 0b11,
+			pattern[0],
+			adev->gfx.cu_info.number * SIMD_ID_MAX * 2,
+			true);
+	if (r) {
+		dev_err(adev->dev, "wave coverage failed when clear first 224 sgprs\n");
+		wb_ib.ptr[0] = 0xdeadbeaf; /* stop waves */
+		goto disp0_failed;
+	}
+
+	r = gfx_v9_4_2_run_shader(adev,
+			&adev->gfx.compute_ring[1],
+			&disp_ibs[1],
+			sgpr96_init_compute_shader_aldebaran,
+			sizeof(sgpr96_init_compute_shader_aldebaran),
+			sgpr96_init_regs_aldebaran,
+			ARRAY_SIZE(sgpr96_init_regs_aldebaran),
+			adev->gfx.cu_info.number * 2,
+			wb_ib.gpu_addr, pattern[1], &fences[1]);
+	if (r) {
+		dev_err(adev->dev, "failed to clear next 576 sgprs\n");
+		goto disp0_failed;
+	}
+
+	r = gfx_v9_4_2_wait_for_waves_assigned(adev,
+			&wb_ib.ptr[1], 0b11111100,
+			pattern[1], adev->gfx.cu_info.number * SIMD_ID_MAX * 6,
+			true);
+	if (r) {
+		dev_err(adev->dev, "wave coverage failed when clear first 576 sgprs\n");
+		wb_ib.ptr[0] = 0xdeadbeaf; /* stop waves */
+		goto disp1_failed;
+	}
+
+	wb_ib.ptr[0] = 0xdeadbeaf; /* stop waves */
+
+	/* wait for the GPU to finish processing the IB */
+	r = dma_fence_wait(fences[0], false);
+	if (r) {
+		dev_err(adev->dev, "timeout to clear first 224 sgprs\n");
+		goto disp1_failed;
+	}
+
+	r = dma_fence_wait(fences[1], false);
+	if (r) {
+		dev_err(adev->dev, "timeout to clear first 576 sgprs\n");
+		goto disp1_failed;
+	}
+
+	memset(wb_ib.ptr, 0, (1 + wb_size) * sizeof(uint32_t));
+	r = gfx_v9_4_2_run_shader(adev,
+			&adev->gfx.compute_ring[0],
+			&disp_ibs[2],
+			sgpr64_init_compute_shader_aldebaran,
+			sizeof(sgpr64_init_compute_shader_aldebaran),
+			sgpr64_init_regs_aldebaran,
+			ARRAY_SIZE(sgpr64_init_regs_aldebaran),
+			adev->gfx.cu_info.number,
+			wb_ib.gpu_addr, pattern[2], &fences[2]);
+	if (r) {
+		dev_err(adev->dev, "failed to clear first 256 sgprs\n");
+		goto disp1_failed;
+	}
+
+	r = gfx_v9_4_2_wait_for_waves_assigned(adev,
+			&wb_ib.ptr[1], 0b1111,
+			pattern[2],
+			adev->gfx.cu_info.number * SIMD_ID_MAX * 4,
+			true);
+	if (r) {
+		dev_err(adev->dev, "wave coverage failed when clear first 256 sgprs\n");
+		wb_ib.ptr[0] = 0xdeadbeaf; /* stop waves */
+		goto disp2_failed;
+	}
+
+	wb_ib.ptr[0] = 0xdeadbeaf; /* stop waves */
+
+	r = dma_fence_wait(fences[2], false);
+	if (r) {
+		dev_err(adev->dev, "timeout to clear first 256 sgprs\n");
+		goto disp2_failed;
+	}
+
+disp2_failed:
+	amdgpu_ib_free(adev, &disp_ibs[2], NULL);
+	dma_fence_put(fences[2]);
+disp1_failed:
+	amdgpu_ib_free(adev, &disp_ibs[1], NULL);
+	dma_fence_put(fences[1]);
+disp0_failed:
+	amdgpu_ib_free(adev, &disp_ibs[0], NULL);
+	dma_fence_put(fences[0]);
+pro_end:
+	amdgpu_ib_free(adev, &wb_ib, NULL);
+
+	if (r)
+		dev_info(adev->dev, "Init SGPRS Failed\n");
+	else
+		dev_info(adev->dev, "Init SGPRS Successfully\n");
+
+	return r;
+}
+
+static int gfx_v9_4_2_do_vgprs_init(struct amdgpu_device *adev)
+{
+	int r;
+	/* CU_ID: 0~15, SIMD_ID: 0~3, WAVE_ID: 0 ~ 9 */
+	int wb_size = adev->gfx.config.max_shader_engines *
+			 CU_ID_MAX * SIMD_ID_MAX * WAVE_ID_MAX;
+	struct amdgpu_ib wb_ib;
+	struct amdgpu_ib disp_ib;
+	struct dma_fence *fence;
+	u32 pattern = 0xa;
+
+	/* bail if the compute ring is not ready */
+	if (!adev->gfx.compute_ring[0].sched.ready)
+		return 0;
+
+	/* allocate the write-back buffer from IB */
+	memset(&wb_ib, 0, sizeof(wb_ib));
+	r = amdgpu_ib_get(adev, NULL, (1 + wb_size) * sizeof(uint32_t),
+			  AMDGPU_IB_POOL_DIRECT, &wb_ib);
+	if (r) {
+		dev_err(adev->dev, "failed to get ib (%d) for wb.\n", r);
+		return r;
+	}
+	memset(wb_ib.ptr, 0, (1 + wb_size) * sizeof(uint32_t));
+
+	r = gfx_v9_4_2_run_shader(adev,
+			&adev->gfx.compute_ring[0],
+			&disp_ib,
+			vgpr_init_compute_shader_aldebaran,
+			sizeof(vgpr_init_compute_shader_aldebaran),
+			vgpr_init_regs_aldebaran,
+			ARRAY_SIZE(vgpr_init_regs_aldebaran),
+			adev->gfx.cu_info.number,
+			wb_ib.gpu_addr, pattern, &fence);
+	if (r) {
+		dev_err(adev->dev, "failed to clear vgprs\n");
+		goto pro_end;
+	}
+
+	/* wait for the GPU to finish processing the IB */
+	r = dma_fence_wait(fence, false);
+	if (r) {
+		dev_err(adev->dev, "timeout to clear vgprs\n");
+		goto disp_failed;
+	}
+
+	r = gfx_v9_4_2_wait_for_waves_assigned(adev,
+			&wb_ib.ptr[1], 0b1,
+			pattern,
+			adev->gfx.cu_info.number * SIMD_ID_MAX,
+			false);
+	if (r) {
+		dev_err(adev->dev, "failed to cover all simds when clearing vgprs\n");
+		goto disp_failed;
+	}
+
+disp_failed:
+	amdgpu_ib_free(adev, &disp_ib, NULL);
+	dma_fence_put(fence);
+pro_end:
+	amdgpu_ib_free(adev, &wb_ib, NULL);
+
+	if (r)
+		dev_info(adev->dev, "Init VGPRS Failed\n");
+	else
+		dev_info(adev->dev, "Init VGPRS Successfully\n");
+
+	return r;
+}
+
+int gfx_v9_4_2_do_edc_gpr_workarounds(struct amdgpu_device *adev)
+{
+	/* only support when RAS is enabled */
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return 0;
+
+	gfx_v9_4_2_do_sgprs_init(adev);
+
+	gfx_v9_4_2_do_vgprs_init(adev);
+
+	return 0;
+}
 
 static void gfx_v9_4_2_query_sq_timeout_status(struct amdgpu_device *adev);
 static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev);
@@ -808,8 +1442,9 @@ static struct gfx_v9_4_2_utc_block gfx_v9_4_2_utc_blocks[] = {
 	  REG_SET_FIELD(0, ATC_L2_CACHE_4K_DSM_CNTL, WRITE_COUNTERS, 1) },
 };
 
-static const struct soc15_reg_entry gfx_v9_4_2_ea_err_status_regs =
-	{ SOC15_REG_ENTRY(GC, 0, regGCEA_ERR_STATUS), 0, 1, 16 };
+static const struct soc15_reg_entry gfx_v9_4_2_ea_err_status_regs = {
+	SOC15_REG_ENTRY(GC, 0, regGCEA_ERR_STATUS), 0, 1, 16
+};
 
 static int gfx_v9_4_2_get_reg_error_count(struct amdgpu_device *adev,
 					  const struct soc15_reg_entry *reg,
@@ -1039,13 +1674,16 @@ static void gfx_v9_4_2_reset_utc_err_status(struct amdgpu_device *adev)
 static void gfx_v9_4_2_reset_ea_err_status(struct amdgpu_device *adev)
 {
 	uint32_t i, j;
+	uint32_t value;
+
+	value = REG_SET_FIELD(0, GCEA_ERR_STATUS, CLEAR_ERROR_STATUS, 0x1);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < gfx_v9_4_2_ea_err_status_regs.se_num; i++) {
 		for (j = 0; j < gfx_v9_4_2_ea_err_status_regs.instance;
 		     j++) {
 			gfx_v9_4_2_select_se_sh(adev, i, 0, j);
-			WREG32(SOC15_REG_ENTRY_OFFSET(gfx_v9_4_2_ea_err_status_regs), 0x10);
+			WREG32(SOC15_REG_ENTRY_OFFSET(gfx_v9_4_2_ea_err_status_regs), value);
 		}
 	}
 	gfx_v9_4_2_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);

@@ -385,7 +385,8 @@ static int drm_atomic_crtc_check(const struct drm_crtc_state *old_crtc_state,
 
 	/* The state->enable vs. state->mode_blob checks can be WARN_ON,
 	 * as this is a kernel-internal detail that userspace should never
-	 * be able to trigger. */
+	 * be able to trigger.
+	 */
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
 	    WARN_ON(new_crtc_state->enable && !new_crtc_state->mode_blob)) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] enabled without mode blob\n",
@@ -1302,8 +1303,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
-	unsigned requested_crtc = 0;
-	unsigned affected_crtc = 0;
+	unsigned int requested_crtc = 0;
+	unsigned int affected_crtc = 0;
 	int i, ret = 0;
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);

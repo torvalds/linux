@@ -67,8 +67,8 @@ static int qxl_map_ioctl(struct drm_device *dev, void *data,
 	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_map *qxl_map = data;
 
-	return qxl_mode_dumb_mmap(file_priv, &qdev->ddev, qxl_map->handle,
-				  &qxl_map->offset);
+	return drm_gem_ttm_dumb_map_offset(file_priv, &qdev->ddev, qxl_map->handle,
+					   &qxl_map->offset);
 }
 
 struct qxl_reloc_info {

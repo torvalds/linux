@@ -22,7 +22,7 @@ to SEV::
 		  [ecx]:
 			Bits[31:0]  Number of encrypted guests supported simultaneously
 
-If support for SEV is present, MSR 0xc001_0010 (MSR_K8_SYSCFG) and MSR 0xc001_0015
+If support for SEV is present, MSR 0xc001_0010 (MSR_AMD64_SYSCFG) and MSR 0xc001_0015
 (MSR_K7_HWCR) can be used to determine if it can be enabled::
 
 	0xc001_0010:

@@ -63,6 +63,7 @@ MODULE_FIRMWARE("amdgpu/navi12_smc.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_smc.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_smc.bin");
 MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
+MODULE_FIRMWARE("amdgpu/beige_goby_smc.bin");
 
 #define SMU11_VOLTAGE_SCALE 4
 
@@ -114,6 +115,9 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 		break;
 	case CHIP_DIMGREY_CAVEFISH:
 		chip_name = "dimgrey_cavefish";
+		break;
+	case CHIP_BEIGE_GOBY:
+		chip_name = "beige_goby";
 		break;
 	default:
 		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
@@ -258,6 +262,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		break;
 	case CHIP_DIMGREY_CAVEFISH:
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish;
+		break;
+	case CHIP_BEIGE_GOBY:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Beige_Goby;
 		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
@@ -729,7 +736,7 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	 * display num currently
 	 */
 	if (adev->asic_type >= CHIP_NAVY_FLOUNDER &&
-	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
+	    adev->asic_type <= CHIP_BEIGE_GOBY)
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
@@ -1121,6 +1128,7 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
@@ -1531,7 +1539,8 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 								      NULL);
 			break;
 		default:
-			if (!ras || !ras->supported || adev->gmc.xgmi.pending_reset) {
+			if (!ras || !adev->ras_enabled ||
+			    adev->gmc.xgmi.pending_reset) {
 				if (adev->asic_type == CHIP_ARCTURUS) {
 					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);
 					data |= 0x80000000;

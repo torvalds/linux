@@ -1871,9 +1871,16 @@ static void smart_init(struct nfit_test *t)
 	}
 }
 
+static size_t sizeof_spa(struct acpi_nfit_system_address *spa)
+{
+	/* until spa location cookie support is added... */
+	return sizeof(*spa) - 8;
+}
+
 static int nfit_test0_alloc(struct nfit_test *t)
 {
-	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * NUM_SPA
+	struct acpi_nfit_system_address *spa = NULL;
+	size_t nfit_size = sizeof_spa(spa) * NUM_SPA
 			+ sizeof(struct acpi_nfit_memory_map) * NUM_MEM
 			+ sizeof(struct acpi_nfit_control_region) * NUM_DCR
 			+ offsetof(struct acpi_nfit_control_region,
@@ -1937,7 +1944,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 
 static int nfit_test1_alloc(struct nfit_test *t)
 {
-	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * 2
+	struct acpi_nfit_system_address *spa = NULL;
+	size_t nfit_size = sizeof_spa(spa) * 2
 		+ sizeof(struct acpi_nfit_memory_map) * 2
 		+ offsetof(struct acpi_nfit_control_region, window_size) * 2;
 	int i;
@@ -2000,7 +2008,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	 */
 	spa = nfit_buf;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_PM), 16);
 	spa->range_index = 0+1;
 	spa->address = t->spa_set_dma[0];
@@ -2014,7 +2022,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_PM), 16);
 	spa->range_index = 1+1;
 	spa->address = t->spa_set_dma[1];
@@ -2024,7 +2032,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa2 (dcr0) dimm0 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_DCR), 16);
 	spa->range_index = 2+1;
 	spa->address = t->dcr_dma[0];
@@ -2034,7 +2042,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa3 (dcr1) dimm1 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_DCR), 16);
 	spa->range_index = 3+1;
 	spa->address = t->dcr_dma[1];
@@ -2044,7 +2052,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa4 (dcr2) dimm2 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_DCR), 16);
 	spa->range_index = 4+1;
 	spa->address = t->dcr_dma[2];
@@ -2054,7 +2062,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa5 (dcr3) dimm3 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_DCR), 16);
 	spa->range_index = 5+1;
 	spa->address = t->dcr_dma[3];
@@ -2064,7 +2072,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa6 (bdw for dcr0) dimm0 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_BDW), 16);
 	spa->range_index = 6+1;
 	spa->address = t->dimm_dma[0];
@@ -2074,7 +2082,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa7 (bdw for dcr1) dimm1 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_BDW), 16);
 	spa->range_index = 7+1;
 	spa->address = t->dimm_dma[1];
@@ -2084,7 +2092,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa8 (bdw for dcr2) dimm2 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_BDW), 16);
 	spa->range_index = 8+1;
 	spa->address = t->dimm_dma[2];
@@ -2094,7 +2102,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	/* spa9 (bdw for dcr3) dimm3 */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_BDW), 16);
 	spa->range_index = 9+1;
 	spa->address = t->dimm_dma[3];
@@ -2581,7 +2589,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 		/* spa10 (dcr4) dimm4 */
 		spa = nfit_buf + offset;
 		spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-		spa->header.length = sizeof(*spa);
+		spa->header.length = sizeof_spa(spa);
 		memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_DCR), 16);
 		spa->range_index = 10+1;
 		spa->address = t->dcr_dma[4];
@@ -2595,7 +2603,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 		 */
 		spa = nfit_buf + offset;
 		spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-		spa->header.length = sizeof(*spa);
+		spa->header.length = sizeof_spa(spa);
 		memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_PM), 16);
 		spa->range_index = 11+1;
 		spa->address = t->spa_set_dma[2];
@@ -2605,7 +2613,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 		/* spa12 (bdw for dcr4) dimm4 */
 		spa = nfit_buf + offset;
 		spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-		spa->header.length = sizeof(*spa);
+		spa->header.length = sizeof_spa(spa);
 		memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_BDW), 16);
 		spa->range_index = 12+1;
 		spa->address = t->dimm_dma[4];
@@ -2739,7 +2747,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	/* spa0 (flat range with no bdw aliasing) */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_PM), 16);
 	spa->range_index = 0+1;
 	spa->address = t->spa_set_dma[0];
@@ -2749,7 +2757,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	/* virtual cd region */
 	spa = nfit_buf + offset;
 	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
-	spa->header.length = sizeof(*spa);
+	spa->header.length = sizeof_spa(spa);
 	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_VCD), 16);
 	spa->range_index = 0;
 	spa->address = t->spa_set_dma[1];

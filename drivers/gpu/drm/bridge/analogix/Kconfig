@@ -6,7 +6,7 @@ config DRM_ANALOGIX_ANX6345
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	help
-	  ANX6345 is an ultra-low Full-HD DisplayPort/eDP
+	  ANX6345 is an ultra-low power Full-HD DisplayPort/eDP
 	  transmitter designed for portable devices. The
 	  ANX6345 transforms the LVTTL RGB output of an
 	  application processor to eDP or DisplayPort.

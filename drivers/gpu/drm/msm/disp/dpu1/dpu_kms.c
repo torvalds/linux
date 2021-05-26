@@ -1020,11 +1020,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 			dpu_kms->catalog->caps->max_mixer_width * 2;
 	dev->mode_config.max_height = 4096;
 
-	/*
-	 * Support format modifiers for compression etc.
-	 */
-	dev->mode_config.allow_fb_modifiers = true;
-
 	dev->max_vblank_count = 0xffffffff;
 	/* Disable vblank irqs aggressively for power-saving */
 	dev->vblank_disable_immediate = true;

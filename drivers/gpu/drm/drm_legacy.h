@@ -148,6 +148,30 @@ struct drm_agp_mem {
 	struct list_head head;
 };
 
+/* drm_agpsupport.c */
+#if IS_ENABLED(CONFIG_DRM_LEGACY) && IS_ENABLED(CONFIG_AGP)
+void drm_legacy_agp_clear(struct drm_device *dev);
+
+int drm_legacy_agp_acquire_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+int drm_legacy_agp_release_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+int drm_legacy_agp_enable_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+int drm_legacy_agp_info_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int drm_legacy_agp_alloc_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv);
+int drm_legacy_agp_free_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int drm_legacy_agp_unbind_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+int drm_legacy_agp_bind_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+#else
+static inline void drm_legacy_agp_clear(struct drm_device *dev) {}
+#endif
+
 /* drm_lock.c */
 #if IS_ENABLED(CONFIG_DRM_LEGACY)
 int drm_legacy_lock(struct drm_device *d, void *v, struct drm_file *f);
@@ -209,6 +233,12 @@ static inline void drm_legacy_lock_master_cleanup(struct drm_device *dev, struct
 void drm_master_legacy_init(struct drm_master *master);
 #else
 static inline void drm_master_legacy_init(struct drm_master *master) {}
+#endif
+
+#if IS_ENABLED(CONFIG_DRM_LEGACY) && IS_ENABLED(CONFIG_PCI)
+void drm_legacy_pci_agp_destroy(struct drm_device *dev);
+#else
+static inline void drm_legacy_pci_agp_destroy(struct drm_device *dev) {}
 #endif
 
 #endif /* __DRM_LEGACY_H__ */

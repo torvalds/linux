@@ -119,7 +119,7 @@ static inline unsigned radeon_bo_ngpu_pages(struct radeon_bo *bo)
 
 static inline unsigned radeon_bo_gpu_page_alignment(struct radeon_bo *bo)
 {
-	return (bo->tbo.mem.page_alignment << PAGE_SHIFT) / RADEON_GPU_PAGE_SIZE;
+	return (bo->tbo.page_alignment << PAGE_SHIFT) / RADEON_GPU_PAGE_SIZE;
 }
 
 /**

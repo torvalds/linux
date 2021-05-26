@@ -14,6 +14,7 @@
 #include "dpcd_defs.h"
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
+#include "inc/link_enc_cfg.h"
 
 /*Travis*/
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
@@ -107,10 +108,50 @@ static void wait_for_training_aux_rd_interval(
 		wait_in_micro_secs);
 }
 
+static enum dpcd_training_patterns
+	dc_dp_training_pattern_to_dpcd_training_pattern(
+	struct dc_link *link,
+	enum dc_dp_training_pattern pattern)
+{
+	enum dpcd_training_patterns dpcd_tr_pattern =
+	DPCD_TRAINING_PATTERN_VIDEOIDLE;
+
+	switch (pattern) {
+	case DP_TRAINING_PATTERN_SEQUENCE_1:
+		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_1;
+		break;
+	case DP_TRAINING_PATTERN_SEQUENCE_2:
+		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_2;
+		break;
+	case DP_TRAINING_PATTERN_SEQUENCE_3:
+		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_3;
+		break;
+	case DP_TRAINING_PATTERN_SEQUENCE_4:
+		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_4;
+		break;
+	case DP_TRAINING_PATTERN_VIDEOIDLE:
+		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_VIDEOIDLE;
+		break;
+	default:
+		ASSERT(0);
+		DC_LOG_HW_LINK_TRAINING("%s: Invalid HW Training pattern: %d\n",
+			__func__, pattern);
+		break;
+	}
+
+	return dpcd_tr_pattern;
+}
+
 static void dpcd_set_training_pattern(
 	struct dc_link *link,
-	union dpcd_training_pattern dpcd_pattern)
+	enum dc_dp_training_pattern training_pattern)
 {
+	union dpcd_training_pattern dpcd_pattern = { {0} };
+
+	dpcd_pattern.v1_4.TRAINING_PATTERN_SET =
+			dc_dp_training_pattern_to_dpcd_training_pattern(
+					link, training_pattern);
+
 	core_link_write_dpcd(
 		link,
 		DP_TRAINING_PATTERN_SET,
@@ -132,9 +173,21 @@ static enum dc_dp_training_pattern decide_cr_training_pattern(
 static enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *link,
 		const struct dc_link_settings *link_settings)
 {
+	struct link_encoder *link_enc;
 	enum dc_dp_training_pattern highest_tp = DP_TRAINING_PATTERN_SEQUENCE_2;
-	struct encoder_feature_support *features = &link->link_enc->features;
+	struct encoder_feature_support *features;
 	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
+
+	/* Access link encoder capability based on whether it is statically
+	 * or dynamically assigned to a link.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+	else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
+	features = &link_enc->features;
 
 	if (features->flags.bits.IS_TPS3_CAPABLE)
 		highest_tp = DP_TRAINING_PATTERN_SEQUENCE_3;
@@ -225,37 +278,6 @@ static void dpcd_set_link_settings(
 			DP_DOWNSPREAD_CTRL,
 			lt_settings->link_settings.link_spread);
 	}
-}
-
-static enum dpcd_training_patterns
-	dc_dp_training_pattern_to_dpcd_training_pattern(
-	struct dc_link *link,
-	enum dc_dp_training_pattern pattern)
-{
-	enum dpcd_training_patterns dpcd_tr_pattern =
-	DPCD_TRAINING_PATTERN_VIDEOIDLE;
-
-	switch (pattern) {
-	case DP_TRAINING_PATTERN_SEQUENCE_1:
-		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_1;
-		break;
-	case DP_TRAINING_PATTERN_SEQUENCE_2:
-		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_2;
-		break;
-	case DP_TRAINING_PATTERN_SEQUENCE_3:
-		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_3;
-		break;
-	case DP_TRAINING_PATTERN_SEQUENCE_4:
-		dpcd_tr_pattern = DPCD_TRAINING_PATTERN_4;
-		break;
-	default:
-		ASSERT(0);
-		DC_LOG_HW_LINK_TRAINING("%s: Invalid HW Training pattern: %d\n",
-			__func__, pattern);
-		break;
-	}
-
-	return dpcd_tr_pattern;
 }
 
 static uint8_t dc_dp_initialize_scrambling_data_symbols(
@@ -420,20 +442,30 @@ static bool is_cr_done(enum dc_lane_count ln_count,
 }
 
 static bool is_ch_eq_done(enum dc_lane_count ln_count,
-	union lane_status *dpcd_lane_status,
-	union lane_align_status_updated *lane_status_updated)
+		union lane_status *dpcd_lane_status)
 {
+	bool done = true;
 	uint32_t lane;
-	if (!lane_status_updated->bits.INTERLANE_ALIGN_DONE)
-		return false;
-	else {
-		for (lane = 0; lane < (uint32_t)(ln_count); lane++) {
-			if (!dpcd_lane_status[lane].bits.SYMBOL_LOCKED_0 ||
-				!dpcd_lane_status[lane].bits.CHANNEL_EQ_DONE_0)
-				return false;
-		}
-	}
-	return true;
+	for (lane = 0; lane < (uint32_t)(ln_count); lane++)
+		if (!dpcd_lane_status[lane].bits.CHANNEL_EQ_DONE_0)
+			done = false;
+	return done;
+}
+
+static bool is_symbol_locked(enum dc_lane_count ln_count,
+		union lane_status *dpcd_lane_status)
+{
+	bool locked = true;
+	uint32_t lane;
+	for (lane = 0; lane < (uint32_t)(ln_count); lane++)
+		if (!dpcd_lane_status[lane].bits.SYMBOL_LOCKED_0)
+			locked = false;
+	return locked;
+}
+
+static inline bool is_interlane_aligned(union lane_align_status_updated align_status)
+{
+	return align_status.bits.INTERLANE_ALIGN_DONE == 1;
 }
 
 static void update_drive_settings(
@@ -835,10 +867,9 @@ static bool perform_post_lt_adj_req_sequence(
 			if (!is_cr_done(lane_count, dpcd_lane_status))
 				return false;
 
-			if (!is_ch_eq_done(
-				lane_count,
-				dpcd_lane_status,
-				&dpcd_lane_status_updated))
+			if (!is_ch_eq_done(lane_count, dpcd_lane_status) ||
+					!is_symbol_locked(lane_count, dpcd_lane_status) ||
+					!is_interlane_aligned(dpcd_lane_status_updated))
 				return false;
 
 			for (lane = 0; lane < (uint32_t)(lane_count); lane++) {
@@ -992,9 +1023,9 @@ static enum link_training_result perform_channel_equalization_sequence(
 			return LINK_TRAINING_EQ_FAIL_CR;
 
 		/* 6. check CHEQ done*/
-		if (is_ch_eq_done(lane_count,
-			dpcd_lane_status,
-			&dpcd_lane_status_updated))
+		if (is_ch_eq_done(lane_count, dpcd_lane_status) &&
+				is_symbol_locked(lane_count, dpcd_lane_status) &&
+				is_interlane_aligned(dpcd_lane_status_updated))
 			return LINK_TRAINING_SUCCESS;
 
 		/* 7. update VS/PE/PC2 in lt_settings*/
@@ -1126,7 +1157,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 	return get_cr_failure(lane_count, dpcd_lane_status);
 }
 
-static inline enum link_training_result perform_link_training_int(
+static inline enum link_training_result dp_transition_to_video_idle(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
 	enum link_training_result status)
@@ -1162,7 +1193,7 @@ static inline enum link_training_result perform_link_training_int(
 	return status;
 }
 
-static enum link_training_result check_link_loss_status(
+enum link_training_result dp_check_link_loss_status(
 	struct dc_link *link,
 	const struct link_training_settings *link_training_setting)
 {
@@ -1200,7 +1231,7 @@ static enum link_training_result check_link_loss_status(
 	return status;
 }
 
-static void initialize_training_settings(
+static inline void decide_8b_10b_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	const struct dc_link_training_overrides *overrides,
@@ -1243,6 +1274,8 @@ static void initialize_training_settings(
 			: LINK_SPREAD_DISABLED;
 	else
 		lt_settings->link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
+
+	lt_settings->lttpr_mode = link->lttpr_mode;
 
 	/* Initialize lane settings overrides */
 	if (overrides->voltage_swing != NULL)
@@ -1296,7 +1329,18 @@ static void initialize_training_settings(
 		lt_settings->enhanced_framing = 1;
 }
 
-static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
+static void decide_training_settings(
+		struct dc_link *link,
+		const struct dc_link_settings *link_settings,
+		const struct dc_link_training_overrides *overrides,
+		struct link_training_settings *lt_settings)
+{
+	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		decide_8b_10b_training_settings(link, link_settings, overrides, lt_settings);
+}
+
+
+uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count)
 {
 	switch (lttpr_repeater_count) {
 	case 0x80: // 1 lttpr repeater
@@ -1325,13 +1369,16 @@ static void configure_lttpr_mode_transparent(struct dc_link *link)
 {
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
+	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
 	core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
 			sizeof(repeater_mode));
 }
 
-static void configure_lttpr_mode_non_transparent(struct dc_link *link)
+static void configure_lttpr_mode_non_transparent(
+		struct dc_link *link,
+		const struct link_training_settings *lt_settings)
 {
 	/* aux timeout is already set to extended */
 	/* RESET/SET lttpr mode to enable non transparent mode */
@@ -1341,11 +1388,16 @@ static void configure_lttpr_mode_non_transparent(struct dc_link *link)
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
-	result = core_link_write_dpcd(link,
-			DP_PHY_REPEATER_MODE,
-			(uint8_t *)&repeater_mode,
-			sizeof(repeater_mode));
+	enum dp_link_encoding encoding = dp_get_link_encoding_format(&lt_settings->link_settings);
+
+	if (encoding == DP_8b_10b_ENCODING) {
+		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
+		result = core_link_write_dpcd(link,
+				DP_PHY_REPEATER_MODE,
+				(uint8_t *)&repeater_mode,
+				sizeof(repeater_mode));
+
+	}
 
 	if (result == DC_OK) {
 		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
@@ -1365,16 +1417,18 @@ static void configure_lttpr_mode_non_transparent(struct dc_link *link)
 			link->dpcd_caps.lttpr_caps.mode = repeater_mode;
 		}
 
-		repeater_cnt = convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
-		for (repeater_id = repeater_cnt; repeater_id > 0; repeater_id--) {
-			aux_interval_address = DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1 +
-						((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (repeater_id - 1));
-			core_link_read_dpcd(
-				link,
-				aux_interval_address,
-				(uint8_t *)&link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1],
-				sizeof(link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1]));
-			link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1] &= 0x7F;
+		if (encoding == DP_8b_10b_ENCODING) {
+			repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+			for (repeater_id = repeater_cnt; repeater_id > 0; repeater_id--) {
+				aux_interval_address = DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1 +
+							((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (repeater_id - 1));
+				core_link_read_dpcd(
+					link,
+					aux_interval_address,
+					(uint8_t *)&link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1],
+					sizeof(link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1]));
+				link->dpcd_caps.lttpr_caps.aux_rd_interval[repeater_id - 1] &= 0x7F;
+			}
 		}
 	}
 }
@@ -1510,7 +1564,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 {
 	struct link_training_settings lt_settings;
 
-	initialize_training_settings(
+	decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1555,13 +1609,12 @@ enum link_training_result dc_link_dp_perform_link_training(
 {
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct link_training_settings lt_settings;
-	union dpcd_training_pattern dpcd_pattern = { { 0 } };
 
 	bool fec_enable;
 	uint8_t repeater_cnt;
 	uint8_t repeater_id;
 
-	initialize_training_settings(
+	decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1569,7 +1622,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	/* Configure lttpr mode */
 	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		configure_lttpr_mode_non_transparent(link);
+		configure_lttpr_mode_non_transparent(link, &lt_settings);
 	else if (link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
 		configure_lttpr_mode_transparent(link);
 
@@ -1591,7 +1644,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
 		 */
-		repeater_cnt = convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
 		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
 				repeater_id--) {
@@ -1621,10 +1674,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 	}
 
 	/* 3. set training not in progress*/
-	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
-	dpcd_set_training_pattern(link, dpcd_pattern);
+	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
-		status = perform_link_training_int(link,
+		status = dp_transition_to_video_idle(link,
 				&lt_settings,
 				status);
 	}
@@ -1634,7 +1686,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	 */
 	if (link->connector_signal != SIGNAL_TYPE_EDP && status == LINK_TRAINING_SUCCESS) {
 		msleep(5);
-		status = check_link_loss_status(link, &lt_settings);
+		status = dp_check_link_loss_status(link, &lt_settings);
 	}
 
 	/* 6. print status message*/
@@ -1687,18 +1739,31 @@ bool perform_link_training_with_retries(
 	bool skip_video_pattern,
 	int attempts,
 	struct pipe_ctx *pipe_ctx,
-	enum signal_type signal)
+	enum signal_type signal,
+	bool do_fallback)
 {
 	uint8_t j;
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	enum dp_panel_mode panel_mode;
+	struct link_encoder *link_enc;
+	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
+	struct dc_link_settings currnet_setting = *link_setting;
+
+	/* Dynamically assigned link encoders associated with stream rather than
+	 * link.
+	 */
+	if (link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = stream->link_enc;
+	else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
 
 	/* We need to do this before the link training to ensure the idle pattern in SST
 	 * mode will be sent right after the link training
 	 */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+	link_enc->funcs->connect_dig_be_to_fe(link_enc,
 							pipe_ctx->stream_res.stream_enc->id, true);
 
 	for (j = 0; j < attempts; ++j) {
@@ -1710,7 +1775,7 @@ bool perform_link_training_with_retries(
 			link,
 			signal,
 			pipe_ctx->clock_source->id,
-			link_setting);
+			&currnet_setting);
 
 		if (stream->sink_patches.dppowerup_delay > 0) {
 			int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
@@ -1725,14 +1790,12 @@ bool perform_link_training_with_retries(
 			 panel_mode != DP_PANEL_MODE_DEFAULT);
 
 		if (link->aux_access_disabled) {
-			dc_link_dp_perform_link_training_skip_aux(link, link_setting);
+			dc_link_dp_perform_link_training_skip_aux(link, &currnet_setting);
 			return true;
 		} else {
-			enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
-
 				status = dc_link_dp_perform_link_training(
 										link,
-										link_setting,
+										&currnet_setting,
 										skip_video_pattern);
 			if (status == LINK_TRAINING_SUCCESS)
 				return true;
@@ -1740,13 +1803,26 @@ bool perform_link_training_with_retries(
 
 		/* latest link training still fail, skip delay and keep PHY on
 		 */
-		if (j == (attempts - 1))
+		if (j == (attempts - 1) && link->ep_type == DISPLAY_ENDPOINT_PHY)
 			break;
 
 		DC_LOG_WARNING("%s: Link training attempt %u of %d failed\n",
 			__func__, (unsigned int)j + 1, attempts);
 
 		dp_disable_link_phy(link, signal);
+
+		/* Abort link training if failure due to sink being unplugged. */
+		if (status == LINK_TRAINING_ABORT)
+			break;
+		else if (do_fallback) {
+			decide_fallback_link_setting(*link_setting, &currnet_setting, status);
+			/* Fail link training if reduced link bandwidth no longer meets
+			 * stream requirements.
+			 */
+			if (dc_bandwidth_in_kbps_from_timing(&stream->timing) <
+					dc_link_bandwidth_kbps(link, &currnet_setting))
+				break;
+		}
 
 		msleep(delay_between_attempts);
 
@@ -1823,7 +1899,7 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	bool fec_enable = false;
 
-	initialize_training_settings(
+	decide_training_settings(
 		link,
 		link_settings,
 		lt_overrides,
@@ -1891,6 +1967,24 @@ bool dc_link_dp_sync_lt_end(struct dc_link *link, bool link_down)
 
 	link->sync_lt_in_progress = false;
 	return true;
+}
+
+bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
+{
+	if (!max_link_enc_cap) {
+		DC_LOG_ERROR("%s: Could not return max link encoder caps", __func__);
+		return false;
+	}
+
+	if (link->link_enc->funcs->get_max_link_cap) {
+		link->link_enc->funcs->get_max_link_cap(link->link_enc, max_link_enc_cap);
+		return true;
+	}
+
+	DC_LOG_ERROR("%s: Max link encoder caps unknown", __func__);
+	max_link_enc_cap->lane_count = 1;
+	max_link_enc_cap->link_rate = 6;
+	return false;
 }
 
 static struct dc_link_settings get_max_link_cap(struct dc_link *link)
@@ -2411,6 +2505,12 @@ bool dp_validate_mode_timing(
 
 	const struct dc_link_settings *link_setting;
 
+	/* According to spec, VSC SDP should be used if pixel format is YCbCr420 */
+	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 &&
+			!link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED &&
+			dal_graphics_object_id_get_connector_id(link->link_id) != CONNECTOR_ID_VIRTUAL)
+		return false;
+
 	/*always DP fail safe mode*/
 	if ((timing->pix_clk_100hz / 10) == (uint32_t) 25175 &&
 		timing->h_addressable == (uint32_t) 640 &&
@@ -2495,7 +2595,11 @@ bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *lin
 	struct dc_link_settings current_link_setting;
 	uint32_t link_bw;
 
-	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14 ||
+	/*
+	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
+	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_13 ||
 			link->dpcd_caps.edp_supported_link_rates_count == 0) {
 		*link_setting = link->verified_link_cap;
 		return true;
@@ -2593,13 +2697,11 @@ static bool allow_hpd_rx_irq(const struct dc_link *link)
 	/*
 	 * Don't handle RX IRQ unless one of following is met:
 	 * 1) The link is established (cur_link_settings != unknown)
-	 * 2) We kicked off MST detection
-	 * 3) We know we're dealing with an active dongle
+	 * 2) We know we're dealing with a branch device, SST or MST
 	 */
 
 	if ((link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
-		(link->type == dc_connection_mst_branch) ||
-		is_dp_active_dongle(link))
+		is_dp_branch_device(link))
 		return true;
 
 	return false;
@@ -2697,9 +2799,10 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	union phy_test_pattern dpcd_test_pattern;
 	union lane_adjust dpcd_lane_adjustment[2];
 	unsigned char dpcd_post_cursor_2_adjustment = 0;
-	unsigned char test_80_bit_pattern[
+	unsigned char test_pattern_buffer[
 			(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
 			DP_TEST_80BIT_CUSTOM_PATTERN_7_0)+1] = {0};
+	unsigned int test_pattern_size = 0;
 	enum dp_test_pattern test_pattern;
 	struct dc_link_training_settings link_settings;
 	union lane_adjust dpcd_lane_adjust;
@@ -2769,12 +2872,15 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	break;
 	}
 
-	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM)
+	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM) {
+		test_pattern_size = (DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
+				DP_TEST_80BIT_CUSTOM_PATTERN_7_0) + 1;
 		core_link_read_dpcd(
 				link,
 				DP_TEST_80BIT_CUSTOM_PATTERN_7_0,
-				test_80_bit_pattern,
-				sizeof(test_80_bit_pattern));
+				test_pattern_buffer,
+				test_pattern_size);
+	}
 
 	/* prepare link training settings */
 	link_settings.link = link->cur_link_settings;
@@ -2812,9 +2918,8 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		test_pattern,
 		DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED,
 		&link_training_settings,
-		test_80_bit_pattern,
-		(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
-		DP_TEST_80BIT_CUSTOM_PATTERN_7_0)+1);
+		test_pattern_buffer,
+		test_pattern_size);
 }
 
 static void dp_test_send_link_test_pattern(struct dc_link *link)
@@ -2899,6 +3004,22 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 		break;
 	}
 
+	switch (dpcd_test_params.bits.CLR_FORMAT) {
+	case 0:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
+		break;
+	case 1:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_YCBCR422;
+		break;
+	case 2:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_YCBCR444;
+		break;
+	default:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
+		break;
+	}
+
+
 	if (requestColorDepth != COLOR_DEPTH_UNDEFINED
 			&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth) {
 		DC_LOG_DEBUG("%s: original bpc %d, changing to %d\n",
@@ -2906,8 +3027,9 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 				pipe_ctx->stream->timing.display_color_depth,
 				requestColorDepth);
 		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
-		dp_update_dsc_config(pipe_ctx);
 	}
+
+	dp_update_dsc_config(pipe_ctx);
 
 	dc_link_dp_set_test_pattern(
 			link,
@@ -3164,7 +3286,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 			*out_link_loss = true;
 	}
 
-	if (link->type == dc_connection_active_dongle &&
+	if (link->type == dc_connection_sst_branch &&
 		hpd_irq_dpcd_data.bytes.sink_cnt.bits.SINK_COUNT
 			!= link->dpcd_sink_count)
 		status = true;
@@ -3214,6 +3336,12 @@ bool is_mst_supported(struct dc_link *link)
 }
 
 bool is_dp_active_dongle(const struct dc_link *link)
+{
+	return (link->dpcd_caps.dongle_type >= DISPLAY_DONGLE_DP_VGA_CONVERTER) &&
+				(link->dpcd_caps.dongle_type <= DISPLAY_DONGLE_DP_HDMI_CONVERTER);
+}
+
+bool is_dp_branch_device(const struct dc_link *link)
 {
 	return link->dpcd_caps.is_branch_dev;
 }
@@ -3575,7 +3703,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 				lttpr_dpcd_data[DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT -
 								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
 
+		/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
 		is_lttpr_present = (link->dpcd_caps.lttpr_caps.phy_repeater_cnt > 0 &&
+				link->dpcd_caps.lttpr_caps.phy_repeater_cnt < 0xff &&
 				link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
 				link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
 				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
@@ -3892,7 +4022,11 @@ void detect_edp_sink_caps(struct dc_link *link)
 	link->dpcd_caps.edp_supported_link_rates_count = 0;
 	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
-	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
+	/*
+	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
+	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
 			(link->dc->debug.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
@@ -4766,4 +4900,11 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	return false;
 }
 
+enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings)
+{
+	if ((link_settings->link_rate >= LINK_RATE_LOW) &&
+			(link_settings->link_rate <= LINK_RATE_HIGH3))
+		return DP_8b_10b_ENCODING;
+	return DP_UNKNOWN_ENCODING;
+}
 

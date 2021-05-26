@@ -570,6 +570,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		sienna_cichlid_set_ppt_funcs(smu);
 		break;
 	case CHIP_ALDEBARAN:
@@ -686,7 +687,8 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	smu_get_unique_id(smu);
+	if (!amdgpu_sriov_vf(adev))
+		smu_get_unique_id(smu);
 
 	smu_get_fan_parameters(smu);
 
@@ -2933,6 +2935,26 @@ int smu_set_light_sbr(struct smu_context *smu, bool enable)
 	return ret;
 }
 
+static int smu_get_prv_buffer_details(void *handle, void **addr, size_t *size)
+{
+	struct smu_context *smu = handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *memory_pool = &smu_table->memory_pool;
+
+	if (!addr || !size)
+		return -EINVAL;
+
+	*addr = NULL;
+	*size = 0;
+	mutex_lock(&smu->mutex);
+	if (memory_pool->bo) {
+		*addr = memory_pool->cpu_addr;
+		*size = memory_pool->size;
+	}
+	mutex_unlock(&smu->mutex);
+
+	return 0;
+}
 
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
@@ -2984,6 +3006,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
 	.load_firmware           = smu_load_microcode,
 	.gfx_state_change_set    = smu_gfx_state_change_set,
+	.get_smu_prv_buf_details = smu_get_prv_buffer_details,
 };
 
 int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,

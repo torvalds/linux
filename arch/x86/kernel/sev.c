@@ -22,7 +22,7 @@
 
 #include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
-#include <asm/sev-es.h>
+#include <asm/sev.h>
 #include <asm/insn-eval.h>
 #include <asm/fpu/internal.h>
 #include <asm/processor.h>
@@ -459,7 +459,7 @@ static enum es_result vc_slow_virt_to_phys(struct ghcb *ghcb, struct es_em_ctxt 
 }
 
 /* Include code shared with pre-decompression boot stage */
-#include "sev-es-shared.c"
+#include "sev-shared.c"
 
 void noinstr __sev_es_nmi_complete(void)
 {

@@ -161,7 +161,6 @@ struct ttm_bus_placement {
  * @mm_node: Memory manager node.
  * @size: Requested size of memory region.
  * @num_pages: Actual size of memory region in pages.
- * @page_alignment: Page alignment.
  * @placement: Placement flags.
  * @bus: Placement on io bus accessible to the CPU
  *
@@ -172,7 +171,6 @@ struct ttm_resource {
 	void *mm_node;
 	unsigned long start;
 	unsigned long num_pages;
-	uint32_t page_alignment;
 	uint32_t mem_type;
 	uint32_t placement;
 	struct ttm_bus_placement bus;

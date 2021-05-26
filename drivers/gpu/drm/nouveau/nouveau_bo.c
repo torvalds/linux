@@ -302,7 +302,6 @@ nouveau_bo_init(struct nouveau_bo *nvbo, u64 size, int align, u32 domain,
 	int type = sg ? ttm_bo_type_sg : ttm_bo_type_device;
 	int ret;
 
-	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, domain, 0);
 	INIT_LIST_HEAD(&nvbo->io_reserve_lru);
 
@@ -364,12 +363,12 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t domain)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	u32 vram_pages = drm->client.device.info.ram_size >> PAGE_SHIFT;
+	u64 vram_size = drm->client.device.info.ram_size;
 	unsigned i, fpfn, lpfn;
 
 	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 	    nvbo->mode && (domain & NOUVEAU_GEM_DOMAIN_VRAM) &&
-	    nvbo->bo.mem.num_pages < vram_pages / 4) {
+	    nvbo->bo.base.size < vram_size / 4) {
 		/*
 		 * Make sure that the color and depth buffers are handled
 		 * by independent memory controller units. Up to a 9x
@@ -377,11 +376,11 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t domain)
 		 * at the same time.
 		 */
 		if (nvbo->zeta) {
-			fpfn = vram_pages / 2;
+			fpfn = (vram_size / 2) >> PAGE_SHIFT;
 			lpfn = ~0;
 		} else {
 			fpfn = 0;
-			lpfn = vram_pages / 2;
+			lpfn = (vram_size / 2) >> PAGE_SHIFT;
 		}
 		for (i = 0; i < nvbo->placement.num_placement; ++i) {
 			nvbo->placements[i].fpfn = fpfn;

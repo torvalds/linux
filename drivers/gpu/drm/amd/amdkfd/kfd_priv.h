@@ -322,6 +322,9 @@ struct kfd_dev {
 	unsigned int max_doorbell_slices;
 
 	int noretry;
+
+	/* HMM page migration MEMORY_DEVICE_PRIVATE mapping */
+	struct dev_pagemap pgmap;
 };
 
 enum kfd_mempool {
@@ -669,7 +672,7 @@ struct kfd_process_device {
 
 	/* VM context for GPUVM allocations */
 	struct file *drm_file;
-	void *vm;
+	void *drm_priv;
 
 	/* GPUVM allocations storage */
 	struct idr alloc_idr;
@@ -730,6 +733,17 @@ struct kfd_process_device {
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
+
+struct svm_range_list {
+	struct mutex			lock;
+	struct rb_root_cached		objects;
+	struct list_head		list;
+	struct work_struct		deferred_list_work;
+	struct list_head		deferred_range_list;
+	spinlock_t			deferred_list_lock;
+	atomic_t			evicted_ranges;
+	struct delayed_work		restore_work;
+};
 
 /* Process data */
 struct kfd_process {
@@ -809,6 +823,12 @@ struct kfd_process {
 	struct kobject *kobj;
 	struct kobject *kobj_queues;
 	struct attribute attr_pasid;
+
+	/* shared virtual memory registered by this process */
+	struct svm_range_list svms;
+	bool svm_disabled;
+
+	bool xnack_enabled;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -842,6 +862,20 @@ struct kfd_process *kfd_create_process(struct file *filep);
 struct kfd_process *kfd_get_process(const struct task_struct *);
 struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
+
+int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
+int kfd_process_gpuid_from_kgd(struct kfd_process *p,
+			       struct amdgpu_device *adev, uint32_t *gpuid,
+			       uint32_t *gpuidx);
+static inline int kfd_process_gpuid_from_gpuidx(struct kfd_process *p,
+				uint32_t gpuidx, uint32_t *gpuid) {
+	return gpuidx < p->n_pdds ? p->pdds[gpuidx]->dev->id : -EINVAL;
+}
+static inline struct kfd_process_device *kfd_process_device_from_gpuidx(
+				struct kfd_process *p, uint32_t gpuidx) {
+	return gpuidx < p->n_pdds ? p->pdds[gpuidx] : NULL;
+}
+
 void kfd_unref_process(struct kfd_process *p);
 int kfd_process_evict_queues(struct kfd_process *p);
 int kfd_process_restore_queues(struct kfd_process *p);
@@ -856,6 +890,8 @@ struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
+
+bool kfd_process_xnack_mode(struct kfd_process *p, bool supported);
 
 int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma);
@@ -1052,6 +1088,7 @@ struct packet_manager_funcs {
 
 extern const struct packet_manager_funcs kfd_vi_pm_funcs;
 extern const struct packet_manager_funcs kfd_v9_pm_funcs;
+extern const struct packet_manager_funcs kfd_aldebaran_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
 void pm_uninit(struct packet_manager *pm, bool hanging);
@@ -1106,6 +1143,8 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 				struct kfd_vm_fault_info *info);
 
 void kfd_signal_reset_event(struct kfd_dev *dev);
+
+void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid);
 
 void kfd_flush_tlb(struct kfd_process_device *pdd);
 

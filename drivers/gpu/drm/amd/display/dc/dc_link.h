@@ -36,12 +36,6 @@ enum dc_link_fec_state {
 	dc_link_fec_enabled
 };
 
-enum lttpr_mode {
-	LTTPR_MODE_NON_LTTPR,
-	LTTPR_MODE_TRANSPARENT,
-	LTTPR_MODE_NON_TRANSPARENT,
-};
-
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -113,6 +107,7 @@ struct dc_link {
 	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
 	 * DIG encoder. */
 	bool is_dig_mapping_flexible;
+	bool hpd_status; /* HPD status of link without physical HPD pin. */
 
 	bool edp_sink_present;
 
@@ -345,6 +340,8 @@ bool dc_link_dp_set_test_pattern(
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
 
+bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap);
+
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 bool dc_link_is_dp_sink_present(struct dc_link *link);
@@ -361,9 +358,6 @@ bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
 				const struct dc_link *link);
-void dc_link_perform_link_training(struct dc *dc,
-				   struct dc_link_settings *link_setting,
-				   bool skip_video_pattern);
 void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link);

@@ -31,7 +31,7 @@ endif
 
 
 ifdef CONFIG_ARC_CURR_IN_REG
-# For a global register defintion, make sure it gets passed to every file
+# For a global register definition, make sure it gets passed to every file
 # We had a customer reported bug where some code built in kernel was NOT using
 # any kernel headers, and missing the r25 global register
 # Can't do unconditionally because of recursive include issues

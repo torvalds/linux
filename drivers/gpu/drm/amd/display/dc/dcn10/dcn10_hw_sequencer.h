@@ -80,11 +80,6 @@ void dcn10_lock_all_pipes(
 		struct dc *dc,
 		struct dc_state *context,
 		bool lock);
-void dcn10_apply_ctx_for_surface(
-		struct dc *dc,
-		const struct dc_stream_state *stream,
-		int num_planes,
-		struct dc_state *context);
 void dcn10_post_unlock_program_front_end(
 		struct dc *dc,
 		struct dc_state *context);
@@ -210,5 +205,11 @@ void dcn10_set_hdr_multiplier(struct pipe_ctx *pipe_ctx);
 void dcn10_verify_allow_pstate_change_high(struct dc *dc);
 
 void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits);
+
+void dcn10_update_visual_confirm_color(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color,
+		int mpcc_id);
 
 #endif /* __DC_HWSS_DCN10_H__ */

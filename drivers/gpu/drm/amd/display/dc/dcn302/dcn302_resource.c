@@ -284,10 +284,11 @@ static const struct dc_plane_cap plane_cap = {
 				.nv12 = 16000,
 				.fp16 = 16000
 		},
+		/* 6:1 downscaling ratio: 1000/6 = 166.666 */
 		.max_downscale_factor = {
-				.argb8888 = 600,
-				.nv12 = 600,
-				.fp16 = 600
+				.argb8888 = 167,
+				.nv12 = 167,
+				.fp16 = 167
 		},
 		16,
 		16
@@ -1093,7 +1094,7 @@ static bool init_soc_bounding_box(struct dc *dc,  struct resource_pool *pool)
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!is_soc_bounding_box_valid(dc)) {
-		DC_LOG_ERROR("%s: not valid soc bounding box/n", __func__);
+		DC_LOG_ERROR("%s: not valid soc bounding box\n", __func__);
 		return false;
 	}
 

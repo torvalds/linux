@@ -24,6 +24,7 @@
 #include "kfd_kernel_queue.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_ai.h"
+#include "kfd_pm4_headers_aldebaran.h"
 #include "kfd_pm4_opcodes.h"
 #include "gc/gc_10_1_0_sh_mask.h"
 
@@ -35,7 +36,6 @@ static int pm_map_process_v9(struct packet_manager *pm,
 
 	packet = (struct pm4_mes_map_process *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_mes_map_process));
-
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
 					sizeof(struct pm4_mes_map_process));
 	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
@@ -58,6 +58,45 @@ static int pm_map_process_v9(struct packet_manager *pm,
 		packet->sq_shader_tba_hi = upper_32_bits(qpd->tba_addr >> 8)
 				| 1 << SQ_SHADER_TBA_HI__TRAP_EN__SHIFT;
 
+		packet->sq_shader_tma_lo = lower_32_bits(qpd->tma_addr >> 8);
+		packet->sq_shader_tma_hi = upper_32_bits(qpd->tma_addr >> 8);
+	}
+
+	packet->gds_addr_lo = lower_32_bits(qpd->gds_context_area);
+	packet->gds_addr_hi = upper_32_bits(qpd->gds_context_area);
+
+	packet->vm_context_page_table_base_addr_lo32 =
+			lower_32_bits(vm_page_table_base_addr);
+	packet->vm_context_page_table_base_addr_hi32 =
+			upper_32_bits(vm_page_table_base_addr);
+
+	return 0;
+}
+
+static int pm_map_process_aldebaran(struct packet_manager *pm,
+		uint32_t *buffer, struct qcm_process_device *qpd)
+{
+	struct pm4_mes_map_process_aldebaran *packet;
+	uint64_t vm_page_table_base_addr = qpd->page_table_base;
+
+	packet = (struct pm4_mes_map_process_aldebaran *)buffer;
+	memset(buffer, 0, sizeof(struct pm4_mes_map_process_aldebaran));
+	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
+			sizeof(struct pm4_mes_map_process_aldebaran));
+	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
+	packet->bitfields2.process_quantum = 10;
+	packet->bitfields2.pasid = qpd->pqm->process->pasid;
+	packet->bitfields14.gds_size = qpd->gds_size & 0x3F;
+	packet->bitfields14.gds_size_hi = (qpd->gds_size >> 6) & 0xF;
+	packet->bitfields14.num_gws = (qpd->mapped_gws_queue) ? qpd->num_gws : 0;
+	packet->bitfields14.num_oac = qpd->num_oac;
+	packet->bitfields14.sdma_enable = 1;
+	packet->bitfields14.num_queues = (qpd->is_debug) ? 0 : qpd->queue_count;
+
+	packet->sh_mem_config = qpd->sh_mem_config;
+	packet->sh_mem_bases = qpd->sh_mem_bases;
+	if (qpd->tba_addr) {
+		packet->sq_shader_tba_lo = lower_32_bits(qpd->tba_addr >> 8);
 		packet->sq_shader_tma_lo = lower_32_bits(qpd->tma_addr >> 8);
 		packet->sq_shader_tma_hi = upper_32_bits(qpd->tma_addr >> 8);
 	}
@@ -317,6 +356,23 @@ const struct packet_manager_funcs kfd_v9_pm_funcs = {
 	.query_status		= pm_query_status_v9,
 	.release_mem		= NULL,
 	.map_process_size	= sizeof(struct pm4_mes_map_process),
+	.runlist_size		= sizeof(struct pm4_mes_runlist),
+	.set_resources_size	= sizeof(struct pm4_mes_set_resources),
+	.map_queues_size	= sizeof(struct pm4_mes_map_queues),
+	.unmap_queues_size	= sizeof(struct pm4_mes_unmap_queues),
+	.query_status_size	= sizeof(struct pm4_mes_query_status),
+	.release_mem_size	= 0,
+};
+
+const struct packet_manager_funcs kfd_aldebaran_pm_funcs = {
+	.map_process		= pm_map_process_aldebaran,
+	.runlist		= pm_runlist_v9,
+	.set_resources		= pm_set_resources_v9,
+	.map_queues		= pm_map_queues_v9,
+	.unmap_queues		= pm_unmap_queues_v9,
+	.query_status		= pm_query_status_v9,
+	.release_mem		= NULL,
+	.map_process_size	= sizeof(struct pm4_mes_map_process_aldebaran),
 	.runlist_size		= sizeof(struct pm4_mes_runlist),
 	.set_resources_size	= sizeof(struct pm4_mes_set_resources),
 	.map_queues_size	= sizeof(struct pm4_mes_map_queues),

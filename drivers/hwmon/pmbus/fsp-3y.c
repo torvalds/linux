@@ -57,7 +57,7 @@ static int page_log_to_page_real(int page_log, enum chips chip)
 		case YH5151E_PAGE_12V_LOG:
 			return YH5151E_PAGE_12V_REAL;
 		case YH5151E_PAGE_5V_LOG:
-			return YH5151E_PAGE_5V_LOG;
+			return YH5151E_PAGE_5V_REAL;
 		case YH5151E_PAGE_3V3_LOG:
 			return YH5151E_PAGE_3V3_REAL;
 		}
@@ -103,7 +103,17 @@ static int set_page(struct i2c_client *client, int page_log)
 
 static int fsp3y_read_byte_data(struct i2c_client *client, int page, int reg)
 {
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct fsp3y_data *data = to_fsp3y_data(info);
 	int rv;
+
+	/*
+	 * YH5151-E outputs vout in linear11. The conversion is done when
+	 * reading. Here, we have to inject pmbus_core with the correct
+	 * exponent (it is -6).
+	 */
+	if (data->chip == yh5151e && reg == PMBUS_VOUT_MODE)
+		return 0x1A;
 
 	rv = set_page(client, page);
 	if (rv < 0)
@@ -114,6 +124,8 @@ static int fsp3y_read_byte_data(struct i2c_client *client, int page, int reg)
 
 static int fsp3y_read_word_data(struct i2c_client *client, int page, int phase, int reg)
 {
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct fsp3y_data *data = to_fsp3y_data(info);
 	int rv;
 
 	/*
@@ -144,7 +156,18 @@ static int fsp3y_read_word_data(struct i2c_client *client, int page, int phase, 
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_read_word_data(client, reg);
+	rv = i2c_smbus_read_word_data(client, reg);
+	if (rv < 0)
+		return rv;
+
+	/*
+	 * YH-5151E is non-compliant and outputs output voltages in linear11
+	 * instead of linear16.
+	 */
+	if (data->chip == yh5151e && reg == PMBUS_READ_VOUT)
+		rv = sign_extend32(rv, 10) & 0xffff;
+
+	return rv;
 }
 
 static struct pmbus_driver_info fsp3y_info[] = {
