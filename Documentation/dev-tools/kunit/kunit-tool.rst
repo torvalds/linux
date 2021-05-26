@@ -145,6 +145,54 @@ to run KUnit resource tests, you could use:
 
 This uses the standard glob format for wildcards.
 
+Running Tests on QEMU
+=====================
+
+kunit_tool supports running tests on QEMU as well as via UML (as mentioned
+elsewhere). The default way of running tests on QEMU requires two flags:
+
+``--arch``
+	Selects a collection of configs (Kconfig as well as QEMU configs
+	options, etc) that allow KUnit tests to be run on the specified
+	architecture in a minimal way; this is usually not much slower than
+	using UML. The architecture argument is the same as the name of the
+	option passed to the ``ARCH`` variable used by Kbuild. Not all
+	architectures are currently supported by this flag, but can be handled
+	by the ``--qemu_config`` discussed later. If ``um`` is passed (or this
+	this flag is ignored) the tests will run via UML. Non-UML architectures,
+	e.g. i386, x86_64, arm, um, etc. Non-UML run on QEMU.
+
+``--cross_compile``
+	Specifies the use of a toolchain by Kbuild. The argument passed here is
+	the same passed to the ``CROSS_COMPILE`` variable used by Kbuild. As a
+	reminder this will be the prefix for the toolchain binaries such as gcc
+	for example ``sparc64-linux-gnu-`` if you have the sparc toolchain
+	installed on your system, or
+	``$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux-``
+	if you have downloaded the microblaze toolchain from the 0-day website
+	to a directory in your home directory called ``toolchains``.
+
+In many cases it is likely that you may want to run an architecture which is
+not supported by the ``--arch`` flag, or you may want to just run KUnit tests
+on QEMU using a non-default configuration. For this use case, you can write
+your own QemuConfig. These QemuConfigs are written in Python. They must have an
+import line ``from ..qemu_config import QemuArchParams`` at the top of the file
+and the file must contain a variable called ``QEMU_ARCH`` that has an instance
+of ``QemuArchParams`` assigned to it. An example can be seen in
+``tools/testing/kunit/qemu_configs/x86_64.py``.
+
+Once you have a QemuConfig you can pass it into kunit_tool using the
+``--qemu_config`` flag; when used this flag replaces the ``--arch`` flag. If we
+were to do this with the ``x86_64.py`` example from above, the invocation would
+look something like this:
+
+.. code-block:: bash
+
+	./tools/testing/kunit/kunit.py run \
+		--timeout=60 \
+		--jobs=12 \
+		--qemu_config=./tools/testing/kunit/qemu_configs/x86_64.py
+
 Other Useful Options
 ====================
 
