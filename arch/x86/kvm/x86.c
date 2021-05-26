@@ -10120,8 +10120,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	kvm_update_dr7(vcpu);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		vcpu->arch.singlestep_rip = kvm_rip_read(vcpu) +
-			get_segment_base(vcpu, VCPU_SREG_CS);
+		vcpu->arch.singlestep_rip = kvm_get_linear_rip(vcpu);
 
 	/*
 	 * Trigger an rflags update that will inject or remove the trace
