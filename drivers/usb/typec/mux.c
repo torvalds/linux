@@ -30,9 +30,6 @@ static void *typec_switch_match(struct fwnode_handle *fwnode, const char *id,
 {
 	struct device *dev;
 
-	if (id && !fwnode_property_present(fwnode, id))
-		return NULL;
-
 	dev = class_find_device(&typec_mux_class, NULL, fwnode,
 				switch_fwnode_match);
 
