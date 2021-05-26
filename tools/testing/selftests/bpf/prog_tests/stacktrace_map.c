@@ -21,7 +21,7 @@ void test_stacktrace_map(void)
 		goto close_prog;
 
 	link = bpf_program__attach_tracepoint(prog, "sched", "sched_switch");
-	if (CHECK(IS_ERR(link), "attach_tp", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_tp"))
 		goto close_prog;
 
 	/* find map fds */

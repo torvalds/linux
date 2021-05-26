@@ -249,16 +249,17 @@ extern int test__join_cgroup(const char *path);
 #define ASSERT_OK_PTR(ptr, name) ({					\
 	static int duration = 0;					\
 	const void *___res = (ptr);					\
-	bool ___ok = !IS_ERR_OR_NULL(___res);				\
-	CHECK(!___ok, (name),						\
-	      "unexpected error: %ld\n", PTR_ERR(___res));		\
+	int ___err = libbpf_get_error(___res);				\
+	bool ___ok = ___err == 0;					\
+	CHECK(!___ok, (name), "unexpected error: %d\n", ___err);	\
 	___ok;								\
 })
 
 #define ASSERT_ERR_PTR(ptr, name) ({					\
 	static int duration = 0;					\
 	const void *___res = (ptr);					\
-	bool ___ok = IS_ERR(___res);					\
+	int ___err = libbpf_get_error(___res);				\
+	bool ___ok = ___err != 0;					\
 	CHECK(!___ok, (name), "unexpected pointer: %p\n", ___res);	\
 	___ok;								\
 })

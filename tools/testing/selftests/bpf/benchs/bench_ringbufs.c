@@ -181,7 +181,7 @@ static void ringbuf_libbpf_setup()
 	}
 
 	link = bpf_program__attach(ctx->skel->progs.bench_ringbuf);
-	if (IS_ERR(link)) {
+	if (!link) {
 		fprintf(stderr, "failed to attach program!\n");
 		exit(1);
 	}
@@ -271,7 +271,7 @@ static void ringbuf_custom_setup()
 	}
 
 	link = bpf_program__attach(ctx->skel->progs.bench_ringbuf);
-	if (IS_ERR(link)) {
+	if (!link) {
 		fprintf(stderr, "failed to attach program\n");
 		exit(1);
 	}
@@ -430,7 +430,7 @@ static void perfbuf_libbpf_setup()
 	}
 
 	link = bpf_program__attach(ctx->skel->progs.bench_perfbuf);
-	if (IS_ERR(link)) {
+	if (!link) {
 		fprintf(stderr, "failed to attach program\n");
 		exit(1);
 	}

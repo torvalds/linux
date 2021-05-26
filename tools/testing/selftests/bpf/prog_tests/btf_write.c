@@ -4,8 +4,6 @@
 #include <bpf/btf.h>
 #include "btf_helpers.h"
 
-static int duration = 0;
-
 void test_btf_write() {
 	const struct btf_var_secinfo *vi;
 	const struct btf_type *t;
@@ -16,7 +14,7 @@ void test_btf_write() {
 	int id, err, str_off;
 
 	btf = btf__new_empty();
-	if (CHECK(IS_ERR(btf), "new_empty", "failed: %ld\n", PTR_ERR(btf)))
+	if (!ASSERT_OK_PTR(btf, "new_empty"))
 		return;
 
 	str_off = btf__find_str(btf, "int");

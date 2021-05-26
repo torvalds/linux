@@ -139,7 +139,7 @@
 #define xbpf_map_delete_elem(fd, key)                                          \
 	({                                                                     \
 		int __ret = bpf_map_delete_elem((fd), (key));                  \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("map_delete");                              \
 		__ret;                                                         \
 	})
@@ -147,7 +147,7 @@
 #define xbpf_map_lookup_elem(fd, key, val)                                     \
 	({                                                                     \
 		int __ret = bpf_map_lookup_elem((fd), (key), (val));           \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("map_lookup");                              \
 		__ret;                                                         \
 	})
@@ -155,7 +155,7 @@
 #define xbpf_map_update_elem(fd, key, val, flags)                              \
 	({                                                                     \
 		int __ret = bpf_map_update_elem((fd), (key), (val), (flags));  \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("map_update");                              \
 		__ret;                                                         \
 	})
@@ -164,7 +164,7 @@
 	({                                                                     \
 		int __ret =                                                    \
 			bpf_prog_attach((prog), (target), (type), (flags));    \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("prog_attach(" #type ")");                  \
 		__ret;                                                         \
 	})
@@ -172,7 +172,7 @@
 #define xbpf_prog_detach2(prog, target, type)                                  \
 	({                                                                     \
 		int __ret = bpf_prog_detach2((prog), (target), (type));        \
-		if (__ret == -1)                                               \
+		if (__ret < 0)                                               \
 			FAIL_ERRNO("prog_detach2(" #type ")");                 \
 		__ret;                                                         \
 	})

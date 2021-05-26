@@ -80,7 +80,7 @@ void test_perf_buffer(void)
 	pb_opts.sample_cb = on_sample;
 	pb_opts.ctx = &cpu_seen;
 	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1, &pb_opts);
-	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
+	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto out_close;
 
 	CHECK(perf_buffer__epoll_fd(pb) < 0, "epoll_fd",
