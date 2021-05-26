@@ -410,8 +410,7 @@ int ksmbd_auth_ntlmv2(struct ksmbd_session *sess, struct ntlmv2_resp *ntlmv2,
 	}
 
 	memcpy(construct, sess->ntlmssp.cryptkey, CIFS_CRYPTO_KEY_SIZE);
-	memcpy(construct + CIFS_CRYPTO_KEY_SIZE,
-		(char *)(&ntlmv2->blob_signature), blen);
+	memcpy(construct + CIFS_CRYPTO_KEY_SIZE, &ntlmv2->blob_signature, blen);
 
 	rc = crypto_shash_update(CRYPTO_HMACMD5(ctx), construct, len);
 	if (rc) {
