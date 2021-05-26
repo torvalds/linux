@@ -1207,7 +1207,7 @@ static struct scatterlist *ksmbd_init_sg(struct kvec *iov, unsigned int nvec,
 			for (j = 0; j < nr_entries[i]; j++) {
 				unsigned int bytes = PAGE_SIZE - offset;
 
-				if (len <= 0)
+				if (!len)
 					break;
 
 				if (bytes > len)
