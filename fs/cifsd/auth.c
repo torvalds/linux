@@ -1331,9 +1331,13 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 		rc = crypto_aead_encrypt(req);
 	else
 		rc = crypto_aead_decrypt(req);
-	if (!rc && enc)
+	if (rc)
+		goto free_iv;
+
+	if (enc)
 		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);
 
+free_iv:
 	kfree(iv);
 free_sg:
 	kfree(sg);
