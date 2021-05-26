@@ -69,7 +69,7 @@ static void __init imx7d_init_late(void)
 static void __init imx7d_init_irq(void)
 {
 	imx_init_revision_from_anatop();
-	imx_src_init();
+	imx7_src_init();
 	irqchip_init();
 }
 
@@ -80,6 +80,7 @@ static const char *const imx7d_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
+	.smp            = smp_ops(imx7_smp_ops),
 	.init_irq	= imx7d_init_irq,
 	.init_machine	= imx7d_init_machine,
 	.init_late      = imx7d_init_late,
