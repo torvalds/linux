@@ -1144,7 +1144,7 @@ static int ksmbd_get_encryption_key(struct ksmbd_conn *conn, __u64 ses_id,
 
 	sess = ksmbd_session_lookup(conn, ses_id);
 	if (!sess)
-		return 1;
+		return -EINVAL;
 
 	ses_enc_key = enc ? sess->smb3encryptionkey :
 		sess->smb3decryptionkey;
