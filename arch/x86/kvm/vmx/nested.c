@@ -2021,7 +2021,6 @@ static enum nested_evmptrld_status nested_vmx_handle_enlightened_vmptrld(
 			return EVMPTRLD_VMFAIL;
 		}
 
-		vmx->nested.dirty_vmcs12 = true;
 		vmx->nested.hv_evmcs_vmptr = evmcs_gpa;
 
 		evmcs_gpa_changed = true;
