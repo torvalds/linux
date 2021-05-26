@@ -804,6 +804,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
 		return;
 
+	trace_spi_set_cs(spi, activate);
+
 	spi->controller->last_cs_enable = enable;
 	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
@@ -3440,6 +3442,8 @@ int spi_setup(struct spi_device *spi)
 		spi->controller->rt = true;
 		spi_set_thread_rt(spi->controller);
 	}
+
+	trace_spi_setup(spi, status);
 
 	dev_dbg(&spi->dev, "setup mode %lu, %s%s%s%s%u bits/w, %u Hz max --> %d\n",
 			spi->mode & SPI_MODE_X_MASK,
