@@ -291,8 +291,7 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
 #define ICL_TBT_AUX_PW_TO_CH(pw_idx)	\
 	((pw_idx) - ICL_PW_CTL_IDX_AUX_TBT1 + AUX_CH_C)
 
-static enum aux_ch icl_tc_phy_aux_ch(struct drm_i915_private *dev_priv,
-				     struct i915_power_well *power_well)
+static enum aux_ch icl_aux_pw_to_ch(const struct i915_power_well *power_well)
 {
 	int pw_idx = power_well->desc->hsw.idx;
 
@@ -325,6 +324,15 @@ aux_ch_to_digital_port(struct drm_i915_private *dev_priv,
 	}
 
 	return dig_port;
+}
+
+static enum phy icl_aux_pw_to_phy(struct drm_i915_private *i915,
+				  const struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
+	struct intel_digital_port *dig_port = aux_ch_to_digital_port(i915, aux_ch);
+
+	return intel_port_to_phy(i915, dig_port->base.port);
 }
 
 static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
@@ -468,15 +476,13 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
-#define ICL_AUX_PW_TO_PHY(pw_idx)	((pw_idx) - ICL_PW_CTL_IDX_AUX_A)
-
 static void
 icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well)
 {
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
 	int pw_idx = power_well->desc->hsw.idx;
-	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);
+	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 	u32 val;
 
 	drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
@@ -508,7 +514,7 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
 	int pw_idx = power_well->desc->hsw.idx;
-	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);
+	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 	u32 val;
 
 	drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
@@ -595,7 +601,7 @@ static void
 icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				 struct i915_power_well *power_well)
 {
-	enum aux_ch aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
+	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
 	struct intel_digital_port *dig_port = aux_ch_to_digital_port(dev_priv, aux_ch);
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
 	bool is_tbt = power_well->desc->hsw.is_tc_tbt;
@@ -643,7 +649,7 @@ static void
 icl_tc_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 				  struct i915_power_well *power_well)
 {
-	enum aux_ch aux_ch = icl_tc_phy_aux_ch(dev_priv, power_well);
+	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
 	struct intel_digital_port *dig_port = aux_ch_to_digital_port(dev_priv, aux_ch);
 
 	icl_tc_port_assert_ref_held(dev_priv, power_well, dig_port);
@@ -655,11 +661,9 @@ static void
 icl_aux_power_well_enable(struct drm_i915_private *dev_priv,
 			  struct i915_power_well *power_well)
 {
-	int pw_idx = power_well->desc->hsw.idx;
-	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);  /* non-TBT only */
-	bool is_tbt = power_well->desc->hsw.is_tc_tbt;
+	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
-	if (is_tbt || intel_phy_is_tc(dev_priv, phy))
+	if (intel_phy_is_tc(dev_priv, phy))
 		return icl_tc_phy_aux_power_well_enable(dev_priv, power_well);
 	else if (IS_ICELAKE(dev_priv))
 		return icl_combo_phy_aux_power_well_enable(dev_priv,
@@ -672,11 +676,9 @@ static void
 icl_aux_power_well_disable(struct drm_i915_private *dev_priv,
 			   struct i915_power_well *power_well)
 {
-	int pw_idx = power_well->desc->hsw.idx;
-	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);  /* non-TBT only */
-	bool is_tbt = power_well->desc->hsw.is_tc_tbt;
+	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
-	if (is_tbt || intel_phy_is_tc(dev_priv, phy))
+	if (intel_phy_is_tc(dev_priv, phy))
 		return icl_tc_phy_aux_power_well_disable(dev_priv, power_well);
 	else if (IS_ICELAKE(dev_priv))
 		return icl_combo_phy_aux_power_well_disable(dev_priv,
