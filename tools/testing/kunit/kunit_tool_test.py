@@ -11,6 +11,7 @@ from unittest import mock
 
 import tempfile, shutil # Handling test_tmpdir
 
+import itertools
 import json
 import signal
 import os
@@ -92,17 +93,18 @@ class KconfigTest(unittest.TestCase):
 
 class KUnitParserTest(unittest.TestCase):
 
-	def assertContains(self, needle, haystack):
-		for line in haystack:
+	def assertContains(self, needle: str, haystack: kunit_parser.LineStream):
+		# Clone the iterator so we can print the contents on failure.
+		copy, backup = itertools.tee(haystack)
+		for line in copy:
 			if needle in line:
 				return
-		raise AssertionError('"' +
-			str(needle) + '" not found in "' + str(haystack) + '"!')
+		raise AssertionError(f'"{needle}" not found in {list(backup)}!')
 
 	def test_output_isolated_correctly(self):
 		log_path = test_data_path('test_output_isolated_correctly.log')
 		with open(log_path) as file:
-			result = kunit_parser.isolate_kunit_output(file.readlines())
+			result = kunit_parser.extract_tap_lines(file.readlines())
 		self.assertContains('TAP version 14', result)
 		self.assertContains('	# Subtest: example', result)
 		self.assertContains('	1..2', result)
@@ -113,7 +115,7 @@ class KUnitParserTest(unittest.TestCase):
 	def test_output_with_prefix_isolated_correctly(self):
 		log_path = test_data_path('test_pound_sign.log')
 		with open(log_path) as file:
-			result = kunit_parser.isolate_kunit_output(file.readlines())
+			result = kunit_parser.extract_tap_lines(file.readlines())
 		self.assertContains('TAP version 14', result)
 		self.assertContains('	# Subtest: kunit-resource-test', result)
 		self.assertContains('	1..5', result)
@@ -159,7 +161,7 @@ class KUnitParserTest(unittest.TestCase):
 		empty_log = test_data_path('test_is_test_passed-no_tests_run.log')
 		with open(empty_log) as file:
 			result = kunit_parser.parse_run_tests(
-				kunit_parser.isolate_kunit_output(file.readlines()))
+				kunit_parser.extract_tap_lines(file.readlines()))
 		self.assertEqual(0, len(result.suites))
 		self.assertEqual(
 			kunit_parser.TestStatus.NO_TESTS,
@@ -170,7 +172,7 @@ class KUnitParserTest(unittest.TestCase):
 		print_mock = mock.patch('builtins.print').start()
 		with open(crash_log) as file:
 			result = kunit_parser.parse_run_tests(
-				kunit_parser.isolate_kunit_output(file.readlines()))
+				kunit_parser.extract_tap_lines(file.readlines()))
 		print_mock.assert_any_call(StrContains('no tests run!'))
 		print_mock.stop()
 		file.close()
