@@ -115,8 +115,7 @@ static int ksmbd_enc_p24(unsigned char *p21, const unsigned char *c8, unsigned c
 	rc = smbhash(p24 + 8, c8, p21 + 7);
 	if (rc)
 		return rc;
-	rc = smbhash(p24 + 16, c8, p21 + 14);
-	return rc;
+	return smbhash(p24 + 16, c8, p21 + 14);
 }
 
 /* produce a md4 message digest from data of length n bytes */
