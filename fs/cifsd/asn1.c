@@ -110,16 +110,10 @@ static bool
 oid_eq(unsigned long *oid1, unsigned int oid1len,
 		unsigned long *oid2, unsigned int oid2len)
 {
-	unsigned int i;
-
 	if (oid1len != oid2len)
 		return false;
 
-	for (i = 0; i < oid1len; i++) {
-		if (oid1[i] != oid2[i])
-			return false;
-	}
-	return true;
+	return memcmp(oid1, oid2, oid1len) == 0;
 }
 
 int
