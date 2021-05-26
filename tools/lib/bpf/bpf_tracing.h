@@ -295,13 +295,19 @@ struct pt_regs;
 			  (void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
 #endif
 
+#ifndef ___bpf_concat
 #define ___bpf_concat(a, b) a ## b
+#endif
+#ifndef ___bpf_apply
 #define ___bpf_apply(fn, n) ___bpf_concat(fn, n)
+#endif
+#ifndef ___bpf_nth
 #define ___bpf_nth(_, _1, _2, _3, _4, _5, _6, _7, _8, _9, _a, _b, _c, N, ...) N
+#endif
+#ifndef ___bpf_narg
 #define ___bpf_narg(...) \
 	___bpf_nth(_, ##__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define ___bpf_empty(...) \
-	___bpf_nth(_, ##__VA_ARGS__, N, N, N, N, N, N, N, N, N, N, 0)
+#endif
 
 #define ___bpf_ctx_cast0() ctx
 #define ___bpf_ctx_cast1(x) ___bpf_ctx_cast0(), (void *)ctx[0]
@@ -412,57 +418,5 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 	_Pragma("GCC diagnostic pop")					    \
 }									    \
 static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
-
-#define ___bpf_fill0(arr, p, x) do {} while (0)
-#define ___bpf_fill1(arr, p, x) arr[p] = x
-#define ___bpf_fill2(arr, p, x, args...) arr[p] = x; ___bpf_fill1(arr, p + 1, args)
-#define ___bpf_fill3(arr, p, x, args...) arr[p] = x; ___bpf_fill2(arr, p + 1, args)
-#define ___bpf_fill4(arr, p, x, args...) arr[p] = x; ___bpf_fill3(arr, p + 1, args)
-#define ___bpf_fill5(arr, p, x, args...) arr[p] = x; ___bpf_fill4(arr, p + 1, args)
-#define ___bpf_fill6(arr, p, x, args...) arr[p] = x; ___bpf_fill5(arr, p + 1, args)
-#define ___bpf_fill7(arr, p, x, args...) arr[p] = x; ___bpf_fill6(arr, p + 1, args)
-#define ___bpf_fill8(arr, p, x, args...) arr[p] = x; ___bpf_fill7(arr, p + 1, args)
-#define ___bpf_fill9(arr, p, x, args...) arr[p] = x; ___bpf_fill8(arr, p + 1, args)
-#define ___bpf_fill10(arr, p, x, args...) arr[p] = x; ___bpf_fill9(arr, p + 1, args)
-#define ___bpf_fill11(arr, p, x, args...) arr[p] = x; ___bpf_fill10(arr, p + 1, args)
-#define ___bpf_fill12(arr, p, x, args...) arr[p] = x; ___bpf_fill11(arr, p + 1, args)
-#define ___bpf_fill(arr, args...) \
-	___bpf_apply(___bpf_fill, ___bpf_narg(args))(arr, 0, args)
-
-/*
- * BPF_SEQ_PRINTF to wrap bpf_seq_printf to-be-printed values
- * in a structure.
- */
-#define BPF_SEQ_PRINTF(seq, fmt, args...)			\
-({								\
-	static const char ___fmt[] = fmt;			\
-	unsigned long long ___param[___bpf_narg(args)];		\
-								\
-	_Pragma("GCC diagnostic push")				\
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	\
-	___bpf_fill(___param, args);				\
-	_Pragma("GCC diagnostic pop")				\
-								\
-	bpf_seq_printf(seq, ___fmt, sizeof(___fmt),		\
-		       ___param, sizeof(___param));		\
-})
-
-/*
- * BPF_SNPRINTF wraps the bpf_snprintf helper with variadic arguments instead of
- * an array of u64.
- */
-#define BPF_SNPRINTF(out, out_size, fmt, args...)		\
-({								\
-	static const char ___fmt[] = fmt;			\
-	unsigned long long ___param[___bpf_narg(args)];		\
-								\
-	_Pragma("GCC diagnostic push")				\
-	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	\
-	___bpf_fill(___param, args);				\
-	_Pragma("GCC diagnostic pop")				\
-								\
-	bpf_snprintf(out, out_size, ___fmt,			\
-		     ___param, sizeof(___param));		\
-})
 
 #endif
