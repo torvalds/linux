@@ -237,6 +237,11 @@ struct stepping_info {
 	char substepping;
 };
 
+bool intel_dmc_has_payload(struct drm_i915_private *i915)
+{
+	return i915->dmc.dmc_payload;
+}
+
 static const struct stepping_info skl_stepping_info[] = {
 	{'A', '0'}, {'B', '0'}, {'C', '0'},
 	{'D', '0'}, {'E', '0'}, {'F', '0'},
@@ -320,7 +325,7 @@ void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	if (!dev_priv->dmc.dmc_payload) {
+	if (!intel_dmc_has_payload(dev_priv)) {
 		drm_err(&dev_priv->drm,
 			"Tried to program CSR with empty payload\n");
 		return;
@@ -654,7 +659,7 @@ static void dmc_load_work_fn(struct work_struct *work)
 	request_firmware(&fw, dev_priv->dmc.fw_path, dev_priv->drm.dev);
 	parse_dmc_fw(dev_priv, fw);
 
-	if (dev_priv->dmc.dmc_payload) {
+	if (intel_dmc_has_payload(dev_priv)) {
 		intel_dmc_load_program(dev_priv);
 		intel_dmc_runtime_pm_put(dev_priv);
 
@@ -783,7 +788,7 @@ void intel_dmc_ucode_suspend(struct drm_i915_private *dev_priv)
 	flush_work(&dev_priv->dmc.work);
 
 	/* Drop the reference held in case DMC isn't loaded. */
-	if (!dev_priv->dmc.dmc_payload)
+	if (!intel_dmc_has_payload(dev_priv))
 		intel_dmc_runtime_pm_put(dev_priv);
 }
 
@@ -803,7 +808,7 @@ void intel_dmc_ucode_resume(struct drm_i915_private *dev_priv)
 	 * Reacquire the reference to keep RPM disabled in case DMC isn't
 	 * loaded.
 	 */
-	if (!dev_priv->dmc.dmc_payload)
+	if (!intel_dmc_has_payload(dev_priv))
 		intel_dmc_runtime_pm_get(dev_priv);
 }
 
