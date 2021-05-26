@@ -1124,10 +1124,6 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 		if (type == s2cr[idx].type && cbndx == s2cr[idx].cbndx)
 			continue;
 
-		/* Don't bypasss pinned streams; leave them as they are */
-		if (type == S2CR_TYPE_BYPASS && s2cr[idx].pinned)
-			continue;
-
 		s2cr[idx].type = type;
 		s2cr[idx].privcfg = S2CR_PRIVCFG_DEFAULT;
 		s2cr[idx].cbndx = cbndx;
