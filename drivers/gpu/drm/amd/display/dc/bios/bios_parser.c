@@ -979,7 +979,7 @@ static enum bp_result get_ss_info_from_internal_ss_info_tbl_V2_1(
 	struct spread_spectrum_info *info);
 
 /**
- * get_ss_info_from_table
+ * get_ss_info_from_tbl
  * Get spread sprectrum information from the ASIC_InternalSS_Info Ver 2.1 or
  * SS_Info table from the VBIOS
  * There can not be more than 1 entry for  ASIC_InternalSS_Info Ver 2.1 or
@@ -1548,7 +1548,7 @@ static uint32_t get_ss_entry_number_from_ss_info_tbl(
 	uint32_t id);
 
 /**
- * BiosParserObject::GetNumberofSpreadSpectrumEntry
+ * bios_parser_get_ss_entry_number
  * Get Number of SpreadSpectrum Entry from the ASIC_InternalSS_Info table from
  * the VBIOS that match the SSid (to be converted from signal)
  *
@@ -1725,7 +1725,7 @@ static uint32_t get_ss_entry_number_from_internal_ss_info_tbl_v2_1(
 	return 0;
 }
 /**
- * get_ss_entry_number_from_internal_ss_info_table_V3_1
+ * get_ss_entry_number_from_internal_ss_info_tbl_V3_1
  * Get Number of SpreadSpectrum Entry from the ASIC_InternalSS_Info table of
  * the VBIOS that matches id
  *
