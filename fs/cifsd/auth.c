@@ -351,12 +351,11 @@ int ksmbd_auth_ntlm(struct ksmbd_session *sess, char *pw_buf)
 
 	if (strncmp(pw_buf, key, CIFS_AUTH_RESP_SIZE) != 0) {
 		ksmbd_debug(AUTH, "ntlmv1 authentication failed\n");
-		rc = -EINVAL;
-	} else {
-		ksmbd_debug(AUTH, "ntlmv1 authentication pass\n");
+		return -EINVAL;
 	}
 
-	return rc;
+	ksmbd_debug(AUTH, "ntlmv1 authentication pass\n");
+	return 0;
 }
 
 /**
