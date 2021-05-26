@@ -284,14 +284,10 @@ int neg_token_init_mech_type(void *context, size_t hdrlen,
 	unsigned long *oid;
 	size_t oidlen;
 	int mech_type;
+	char buf[50];
 
-	if (!asn1_oid_decode(value, vlen, &oid, &oidlen)) {
-		char buf[50];
-
-		sprint_oid(value, vlen, buf, sizeof(buf));
-		ksmbd_debug(AUTH, "Unexpected OID: %s\n", buf);
-		return -EBADMSG;
-	}
+	if (!asn1_oid_decode(value, vlen, &oid, &oidlen))
+		goto fail;
 
 	if (oid_eq(oid, oidlen, NTLMSSP_OID, NTLMSSP_OID_LEN))
 		mech_type = KSMBD_AUTH_NTLMSSP;
@@ -302,15 +298,20 @@ int neg_token_init_mech_type(void *context, size_t hdrlen,
 	else if (oid_eq(oid, oidlen, KRB5U2U_OID, KRB5U2U_OID_LEN))
 		mech_type = KSMBD_AUTH_KRB5U2U;
 	else
-		goto out;
+		goto fail;
 
 	conn->auth_mechs |= mech_type;
 	if (conn->preferred_auth_mech == 0)
 		conn->preferred_auth_mech = mech_type;
 
-out:
 	kfree(oid);
 	return 0;
+
+fail:
+	kfree(oid);
+	sprint_oid(value, vlen, buf, sizeof(buf));
+	ksmbd_debug(AUTH, "Unexpected OID: %s\n", buf);
+	return -EBADMSG;
 }
 
 int neg_token_init_mech_token(void *context, size_t hdrlen,
