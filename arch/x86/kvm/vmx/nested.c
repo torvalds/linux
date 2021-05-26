@@ -3120,6 +3120,12 @@ static bool nested_get_evmcs_page(struct kvm_vcpu *vcpu)
 		if (evmptrld_status == EVMPTRLD_VMFAIL ||
 		    evmptrld_status == EVMPTRLD_ERROR)
 			return false;
+
+		/*
+		 * Post migration VMCS12 always provides the most actual
+		 * information, copy it to eVMCS upon entry.
+		 */
+		vmx->nested.need_vmcs12_to_shadow_sync = true;
 	}
 
 	return true;
