@@ -943,7 +943,7 @@ static int generate_smb3signingkey(struct ksmbd_session *sess,
 			SMB2_NTLMV2_SESSKEY_SIZE, sess->sess_key);
 	ksmbd_debug(AUTH, "Signing Key   %*ph\n",
 			SMB3_SIGN_KEY_SIZE, key);
-	return rc;
+	return 0;
 }
 
 int ksmbd_gen_smb30_signingkey(struct ksmbd_session *sess)
@@ -1011,7 +1011,7 @@ static int generate_smb3encryptionkey(struct ksmbd_session *sess,
 		ksmbd_debug(AUTH, "ServerOut Key %*ph\n",
 			SMB3_GCM128_CRYPTKEY_SIZE, sess->smb3decryptionkey);
 	}
-	return rc;
+	return 0;
 }
 
 int ksmbd_gen_smb30_encryptionkey(struct ksmbd_session *sess)
