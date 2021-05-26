@@ -2209,6 +2209,21 @@ static void icl_set_pipe_chicken(struct intel_crtc *crtc)
 	 * across pipe
 	 */
 	tmp |= PIXEL_ROUNDING_TRUNC_FB_PASSTHRU;
+
+	/*
+	 * "The underrun recovery mechanism should be disabled
+	 *  when the following is enabled for this pipe:
+	 *  WiDi
+	 *  Downscaling (this includes YUV420 fullblend)
+	 *  COG
+	 *  DSC
+	 *  PSR2"
+	 *
+	 * FIXME: enable whenever possible...
+	 */
+	if (IS_ALDERLAKE_P(dev_priv))
+		tmp |= UNDERRUN_RECOVERY_DISABLE;
+
 	intel_de_write(dev_priv, PIPE_CHICKEN(pipe), tmp);
 }
 
