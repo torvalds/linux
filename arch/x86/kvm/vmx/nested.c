@@ -1586,7 +1586,7 @@ static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 	vmcs_load(vmx->loaded_vmcs->vmcs);
 }
 
-static int copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
+static void copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
 {
 	struct vmcs12 *vmcs12 = vmx->nested.cached_vmcs12;
 	struct hv_enlightened_vmcs *evmcs = vmx->nested.hv_evmcs;
@@ -1799,10 +1799,10 @@ static int copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
 	 * vmcs12->exit_io_instruction_eip = evmcs->exit_io_instruction_eip;
 	 */
 
-	return 0;
+	return;
 }
 
-static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
+static void copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
 {
 	struct vmcs12 *vmcs12 = vmx->nested.cached_vmcs12;
 	struct hv_enlightened_vmcs *evmcs = vmx->nested.hv_evmcs;
@@ -1962,7 +1962,7 @@ static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
 
 	evmcs->guest_bndcfgs = vmcs12->guest_bndcfgs;
 
-	return 0;
+	return;
 }
 
 /*
