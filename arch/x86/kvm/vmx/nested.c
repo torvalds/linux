@@ -173,9 +173,13 @@ static int nested_vmx_failValid(struct kvm_vcpu *vcpu,
 			| X86_EFLAGS_ZF);
 	get_vmcs12(vcpu)->vm_instruction_error = vm_instruction_error;
 	/*
-	 * We don't need to force a shadow sync because
-	 * VM_INSTRUCTION_ERROR is not shadowed
+	 * We don't need to force sync to shadow VMCS because
+	 * VM_INSTRUCTION_ERROR is not shadowed. Enlightened VMCS 'shadows' all
+	 * fields and thus must be synced.
 	 */
+	if (to_vmx(vcpu)->nested.hv_evmcs_vmptr != EVMPTR_INVALID)
+		to_vmx(vcpu)->nested.need_vmcs12_to_shadow_sync = true;
+
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
