@@ -400,6 +400,11 @@ static const struct arm64_ftr_bits ftr_dczid[] = {
 	ARM64_FTR_END,
 };
 
+static const struct arm64_ftr_bits ftr_gmid[] = {
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, SYS_GMID_EL1_BS_SHIFT, 4, 0),
+	ARM64_FTR_END,
+};
+
 static const struct arm64_ftr_bits ftr_id_isar0[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_ISAR0_DIVIDE_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_ISAR0_DEBUG_SHIFT, 4, 0),
@@ -616,6 +621,9 @@ static const struct __ftr_reg_entry {
 
 	/* Op1 = 0, CRn = 1, CRm = 2 */
 	ARM64_FTR_REG(SYS_ZCR_EL1, ftr_zcr),
+
+	/* Op1 = 1, CRn = 0, CRm = 0 */
+	ARM64_FTR_REG(SYS_GMID_EL1, ftr_gmid),
 
 	/* Op1 = 3, CRn = 0, CRm = 0 */
 	{ SYS_CTR_EL0, &arm64_ftr_reg_ctrel0 },
@@ -911,6 +919,9 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 		sve_init_vq_map();
 	}
 
+	if (id_aa64pfr1_mte(info->reg_id_aa64pfr1))
+		init_cpu_ftr_reg(SYS_GMID_EL1, info->reg_gmid);
+
 	/*
 	 * Initialize the indirect array of CPU hwcaps capabilities pointers
 	 * before we handle the boot CPU below.
@@ -1133,6 +1144,16 @@ void update_cpu_features(int cpu,
 		    !system_capabilities_finalized())
 			sve_update_vq_map();
 	}
+
+	/*
+	 * The kernel uses the LDGM/STGM instructions and the number of tags
+	 * they read/write depends on the GMID_EL1.BS field. Check that the
+	 * value is the same on all CPUs.
+	 */
+	if (IS_ENABLED(CONFIG_ARM64_MTE) &&
+	    id_aa64pfr1_mte(info->reg_id_aa64pfr1))
+		taint |= check_update_ftr_reg(SYS_GMID_EL1, cpu,
+					      info->reg_gmid, boot->reg_gmid);
 
 	/*
 	 * This relies on a sanitised view of the AArch64 ID registers
