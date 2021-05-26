@@ -22,10 +22,10 @@ This section covers the driver infrastructure for a CXL memory device.
 CXL Memory Device
 -----------------
 
-.. kernel-doc:: drivers/cxl/mem.c
-   :doc: cxl mem
+.. kernel-doc:: drivers/cxl/pci.c
+   :doc: cxl pci
 
-.. kernel-doc:: drivers/cxl/mem.c
+.. kernel-doc:: drivers/cxl/pci.c
    :internal:
 
 CXL Core

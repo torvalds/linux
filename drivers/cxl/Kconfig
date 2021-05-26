@@ -21,15 +21,10 @@ config CXL_MEM
 	  as if the memory was attached to the typical CPU memory
 	  controller.
 
-	  Say 'y/m' to enable a driver (named "cxl_mem.ko" when built as
-	  a module) that will attach to CXL.mem devices for
-	  configuration, provisioning, and health monitoring. This
-	  driver is required for dynamic provisioning of CXL.mem
-	  attached memory which is a prerequisite for persistent memory
-	  support. Typically volatile memory is mapped by platform
-	  firmware and included in the platform memory map, but in some
-	  cases the OS is responsible for mapping that memory. See
-	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification.
+	  Say 'y/m' to enable a driver that will attach to CXL.mem devices for
+	  configuration and management primarily via the mailbox interface. See
+	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification for more
+	  details.
 
 	  If unsure say 'm'.
 
