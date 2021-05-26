@@ -1253,7 +1253,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 				      key);
 	if (rc) {
 		ksmbd_err("Could not get %scryption key\n", enc ? "en" : "de");
-		return 0;
+		return rc;
 	}
 
 	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
