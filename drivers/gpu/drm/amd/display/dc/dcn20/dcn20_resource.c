@@ -2789,7 +2789,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				split[i] = 0;
 			} else if (get_num_odm_splits(pipe)) {
 				/* ODM -> MPC transition */
-				ASSERT(0); /* NOT expected yet */
 				if (pipe->prev_odm_pipe) {
 					split[i] = 0;
 					merge[i] = true;
