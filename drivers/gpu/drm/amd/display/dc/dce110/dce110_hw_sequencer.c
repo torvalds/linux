@@ -64,6 +64,7 @@
 #include "atomfirmware.h"
 
 #include "dce110_hw_sequencer.h"
+#include "dcn10/dcn10_hw_sequencer.h"
 
 #define GAMMA_HW_POINTS_NUM 256
 
