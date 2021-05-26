@@ -160,9 +160,9 @@ static void encode_asn_tag(char *buf,
 	/* insert tag */
 	buf[index++] = tag;
 
-	if (!hdr_len)
+	if (!hdr_len) {
 		buf[index++] = len;
-	else {
+	} else {
 		buf[index++] = 0x80 | hdr_len;
 		for (i = hdr_len - 1; i >= 0; i--)
 			buf[index++] = (len >> (i * 8)) & 0xFF;
@@ -172,9 +172,9 @@ static void encode_asn_tag(char *buf,
 	len = len - (index - *ofs);
 	buf[index++] = seq;
 
-	if (!hdr_len)
+	if (!hdr_len) {
 		buf[index++] = len;
-	else {
+	} else {
 		buf[index++] = 0x80 | hdr_len;
 		for (i = hdr_len - 1; i >= 0; i--)
 			buf[index++] = (len >> (i * 8)) & 0xFF;

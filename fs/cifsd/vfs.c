@@ -212,9 +212,9 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 
 	mode |= S_IFDIR;
 	err = vfs_mkdir(&init_user_ns, d_inode(path.dentry), dentry, mode);
-	if (err)
+	if (err) {
 		goto out;
-	else if (d_unhashed(dentry)) {
+	} else if (d_unhashed(dentry)) {
 		struct dentry *d;
 
 		d = lookup_one_len(dentry->d_name.name,
