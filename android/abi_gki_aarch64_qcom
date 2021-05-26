@@ -382,6 +382,7 @@
   devfreq_add_device
   devfreq_add_governor
   devfreq_cooling_unregister
+  devfreq_get_devfreq_by_node
   devfreq_remove_device
   devfreq_remove_governor
   devfreq_resume_device
