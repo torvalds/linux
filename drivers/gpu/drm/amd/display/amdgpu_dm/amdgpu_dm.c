@@ -605,7 +605,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 /**
  * dm_dcn_vertical_interrupt0_high_irq() - Handles OTG Vertical interrupt0 for
  * DCN generation ASICs
- * @interrupt params - interrupt parameters
+ * @interrupt_params: interrupt parameters
  *
  * Used to set crc window/read out crc value at vertical line 0 position
  */
