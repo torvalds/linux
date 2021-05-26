@@ -137,6 +137,7 @@ static void __isp1760_udc_select_ep(struct isp1760_udc *udc,
 /**
  * isp1760_udc_select_ep - Select an endpoint for register access
  * @ep: The endpoint
+ * @udc: Reference to the device controller
  *
  * The ISP1761 endpoint registers are banked. This function selects the target
  * endpoint for banked register access. The selection remains valid until the
