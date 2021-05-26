@@ -42,8 +42,9 @@ unsigned long sdei_arch_get_entry_point(int conduit);
 
 struct stack_info;
 
-bool _on_sdei_stack(unsigned long sp, struct stack_info *info);
-static inline bool on_sdei_stack(unsigned long sp,
+bool _on_sdei_stack(unsigned long sp, unsigned long size,
+		    struct stack_info *info);
+static inline bool on_sdei_stack(unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
 	if (!IS_ENABLED(CONFIG_VMAP_STACK))
@@ -51,7 +52,7 @@ static inline bool on_sdei_stack(unsigned long sp,
 	if (!IS_ENABLED(CONFIG_ARM_SDE_INTERFACE))
 		return false;
 	if (in_nmi())
-		return _on_sdei_stack(sp, info);
+		return _on_sdei_stack(sp, size, info);
 
 	return false;
 }

@@ -435,6 +435,11 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	}
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 	p->thread.cpu_context.sp = (unsigned long)childregs;
+	/*
+	 * For the benefit of the unwinder, set up childregs->stackframe
+	 * as the final frame for the new task.
+	 */
+	p->thread.cpu_context.fp = (unsigned long)childregs->stackframe;
 
 	ptrace_hw_copy_thread(p);
 
