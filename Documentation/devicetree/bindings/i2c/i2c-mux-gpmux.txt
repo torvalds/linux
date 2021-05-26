@@ -25,7 +25,7 @@ Required properties:
   mux.
 * Standard I2C mux properties. See i2c-mux.txt in this directory.
 * I2C child bus nodes. See i2c-mux.txt in this directory. The sub-bus number
-  is also the mux-controller state described in ../mux/mux-controller.txt
+  is also the mux-controller state described in ../mux/mux-controller.yaml
 
 Optional properties:
 - mux-locked: If present, explicitly allow unrelated I2C transactions on the

@@ -13,7 +13,7 @@ Optional properties:
 - mux-controls : phandle to the multiplexer that controls selection of
 		 HBMC vs OSPI inside Flash SubSystem (FSS). Default is OSPI,
 		 if property is absent.
-		 See Documentation/devicetree/bindings/mux/reg-mux.txt
+		 See Documentation/devicetree/bindings/mux/reg-mux.yaml
 		 for mmio-mux binding details
 
 Example:

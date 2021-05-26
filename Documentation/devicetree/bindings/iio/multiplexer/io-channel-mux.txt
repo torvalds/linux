@@ -17,7 +17,7 @@ For each non-empty string in the channels property, an io-channel will
 be created. The number of this io-channel is the same as the index into
 the list of strings in the channels property, and also matches the mux
 controller state. The mux controller state is described in
-../mux/mux-controller.txt
+../mux/mux-controller.yaml
 
 Example:
 	mux: mux-controller {

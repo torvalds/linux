@@ -14,7 +14,7 @@ each child node of mdio bus multiplexer consumer device represent a mdio
 bus.
 
 for more information please refer
-Documentation/devicetree/bindings/mux/mux-controller.txt
+Documentation/devicetree/bindings/mux/mux-controller.yaml
 and Documentation/devicetree/bindings/net/mdio-mux.txt
 
 Example:
