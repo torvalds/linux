@@ -88,6 +88,8 @@ static struct shash_desc *alloc_shash_desc(int id)
 	case CRYPTO_SHASH_MD5:
 		tfm = crypto_alloc_shash("md5", 0, 0);
 		break;
+	default:
+		return NULL;
 	}
 
 	if (IS_ERR(tfm))
