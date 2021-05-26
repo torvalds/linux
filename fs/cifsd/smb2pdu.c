@@ -2388,7 +2388,6 @@ int smb2_open(struct ksmbd_work *work)
 		rc = -EINVAL;
 		goto err_out1;
 	} else {
-
 		if (req->CreateOptions & FILE_SEQUENTIAL_ONLY_LE &&
 		    req->CreateOptions & FILE_RANDOM_ACCESS_LE)
 			req->CreateOptions = ~(FILE_SEQUENTIAL_ONLY_LE);
