@@ -182,7 +182,7 @@ static int bma023_scale_table[] = { 2452, 4903, 9709, };
 static int bma180_bw_table[] = { 10, 20, 40, 75, 150, 300 }; /* Hz */
 static int bma180_scale_table[] = { 1275, 1863, 2452, 3727, 4903, 9709, 19417 };
 
-static int bma25x_bw_table[] = { 8, 16, 31, 63, 125, 250 }; /* Hz */
+static int bma25x_bw_table[] = { 8, 16, 31, 63, 125, 250, 500, 1000 }; /* Hz */
 static int bma25x_scale_table[] = { 0, 0, 0, 38344, 0, 76590, 0, 0, 153180, 0,
 	0, 0, 306458 };
 
