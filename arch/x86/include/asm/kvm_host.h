@@ -1313,8 +1313,7 @@ struct kvm_x86_ops {
 
 	u64 (*get_l2_tsc_offset)(struct kvm_vcpu *vcpu);
 	u64 (*get_l2_tsc_multiplier)(struct kvm_vcpu *vcpu);
-	/* Returns actual tsc_offset set in active VMCS */
-	u64 (*write_l1_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
+	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	/*
 	 * Retrieve somewhat arbitrary exit information.  Intended to be used
