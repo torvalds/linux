@@ -227,6 +227,61 @@ struct arm_smccc_res {
 	unsigned long a3;
 };
 
+#ifdef CONFIG_ARM64
+/**
+ * struct arm_smccc_1_2_regs - Arguments for or Results from SMC/HVC call
+ * @a0-a17 argument values from registers 0 to 17
+ */
+struct arm_smccc_1_2_regs {
+	unsigned long a0;
+	unsigned long a1;
+	unsigned long a2;
+	unsigned long a3;
+	unsigned long a4;
+	unsigned long a5;
+	unsigned long a6;
+	unsigned long a7;
+	unsigned long a8;
+	unsigned long a9;
+	unsigned long a10;
+	unsigned long a11;
+	unsigned long a12;
+	unsigned long a13;
+	unsigned long a14;
+	unsigned long a15;
+	unsigned long a16;
+	unsigned long a17;
+};
+
+/**
+ * arm_smccc_1_2_hvc() - make HVC calls
+ * @args: arguments passed via struct arm_smccc_1_2_regs
+ * @res: result values via struct arm_smccc_1_2_regs
+ *
+ * This function is used to make HVC calls following SMC Calling Convention
+ * v1.2 or above. The content of the supplied param are copied from the
+ * structure to registers prior to the HVC instruction. The return values
+ * are updated with the content from registers on return from the HVC
+ * instruction.
+ */
+asmlinkage void arm_smccc_1_2_hvc(const struct arm_smccc_1_2_regs *args,
+				  struct arm_smccc_1_2_regs *res);
+
+/**
+ * arm_smccc_1_2_smc() - make SMC calls
+ * @args: arguments passed via struct arm_smccc_1_2_regs
+ * @res: result values via struct arm_smccc_1_2_regs
+ *
+ * This function is used to make SMC calls following SMC Calling Convention
+ * v1.2 or above. The content of the supplied param are copied from the
+ * structure to registers prior to the SMC instruction. The return values
+ * are updated with the content from registers on return from the SMC
+ * instruction.
+ */
+asmlinkage void arm_smccc_1_2_smc(const struct arm_smccc_1_2_regs *args,
+				  struct arm_smccc_1_2_regs *res);
+#endif
+
 /**
  * struct arm_smccc_quirk - Contains quirk information
  * @id: quirk identification
