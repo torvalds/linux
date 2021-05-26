@@ -596,7 +596,7 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 	if (cflags & NTLMSSP_NEGOTIATE_SIGN) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
 		flags |= cflags & (NTLMSSP_NEGOTIATE_128 |
-			NTLMSSP_NEGOTIATE_56);
+				   NTLMSSP_NEGOTIATE_56);
 	}
 
 	if (cflags & NTLMSSP_NEGOTIATE_ALWAYS_SIGN)
@@ -641,7 +641,7 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 	chgblob->TargetInfoArray.Length = 0;
 	/* Add target info list for NetBIOS/DNS settings */
 	for (type = NTLMSSP_AV_NB_COMPUTER_NAME;
-		type <= NTLMSSP_AV_DNS_DOMAIN_NAME; type++) {
+	     type <= NTLMSSP_AV_DNS_DOMAIN_NAME; type++) {
 		tinfo->Type = cpu_to_le16(type);
 		tinfo->Length = cpu_to_le16(len);
 		memcpy(tinfo->Content, name, len);
