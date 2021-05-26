@@ -1035,6 +1035,8 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 	timer->csi2_err_cnt_odd = 0;
 	timer->csi2_err_fs_fe_cnt = 0;
 	timer->csi2_err_fs_fe_detect_cnt = 0;
+	timer->csi2_err_triggered_cnt = 0;
+	timer->csi2_first_err_timestamp = 0;
 
 	timer_setup(&timer->timer, rkcif_reset_watchdog_timer_handler, 0);
 

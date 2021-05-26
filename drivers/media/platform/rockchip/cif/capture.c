@@ -4214,19 +4214,49 @@ static bool rkcif_is_csi2_err_trigger_reset(struct rkcif_timer *timer)
 						struct rkcif_device,
 						reset_watchdog_timer);
 	struct rkcif_stream *stream = &dev->stream[RKCIF_STREAM_MIPI_ID0];
-
-	bool is_triggered = false;
+	bool is_triggered = false, is_assign_triggered = false, is_first_err = false;
 	unsigned long flags;
+	u64 cur_time, diff_time;
 
 	spin_lock_irqsave(&timer->csi2_err_lock, flags);
 
 	if (timer->csi2_err_cnt_even != 0 &&
 	    timer->csi2_err_cnt_odd != 0) {
-		is_triggered = true;
 		timer->csi2_err_cnt_odd = 0;
 		timer->csi2_err_cnt_even = 0;
 		timer->reset_src = RKCIF_RESET_SRC_ERR_CSI2;
-		v4l2_info(&dev->v4l2_dev, "do csi2 err reset\n");
+		timer->csi2_err_triggered_cnt++;
+		if (timer->csi2_err_triggered_cnt == 1) {
+			is_first_err = true;
+			timer->csi2_first_err_timestamp = ktime_get_ns();
+		}
+
+		is_assign_triggered = true;
+
+		v4l2_info(&dev->v4l2_dev,
+			  "find csi2 err cnt is:%d\n",
+			  timer->csi2_err_triggered_cnt);
+	}
+
+	if (!is_first_err) {
+		if (timer->csi2_err_triggered_cnt >= 1) {
+			cur_time = ktime_get_ns();
+			diff_time = cur_time - timer->csi2_first_err_timestamp;
+			diff_time = div_u64(diff_time, 1000000);
+			if (diff_time >= timer->err_time_interval) {
+				is_triggered = true;
+				v4l2_info(&dev->v4l2_dev, "trigger reset for time out of csi err\n");
+				goto end_judge;
+			}
+
+			if (!is_assign_triggered &&
+			   (timer->csi2_err_cnt_odd == 0 ||
+			    timer->csi2_err_cnt_even == 0)) {
+				is_triggered = true;
+				v4l2_info(&dev->v4l2_dev, "trigger reset for csi err\n");
+				goto end_judge;
+			}
+		}
 	}
 
 	/*
@@ -4238,7 +4268,7 @@ static bool rkcif_is_csi2_err_trigger_reset(struct rkcif_timer *timer)
 		is_triggered = true;
 		v4l2_info(&dev->v4l2_dev, "reset for fs & fe not paired\n");
 	}
-
+end_judge:
 	spin_unlock_irqrestore(&timer->csi2_err_lock, flags);
 
 	return is_triggered;
@@ -4999,6 +5029,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	rkcif_start_luma(&cif_dev->luma_vdev,
 			 cif_dev->stream[RKCIF_STREAM_MIPI_ID0].cif_fmt_in);
 
+	timer->csi2_err_triggered_cnt = 0;
 	rkcif_monitor_reset_event(cif_dev);
 
 	v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev, "do rkcif reset successfully!\n");

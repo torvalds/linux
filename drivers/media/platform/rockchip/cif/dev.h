@@ -370,8 +370,10 @@ struct rkcif_timer {
 	unsigned int		raw_height;
 	/* unit: ms */
 	unsigned int		err_time_interval;
-	unsigned long		frame_end_cycle_us;
+	unsigned int		csi2_err_triggered_cnt;
 	unsigned int		notifer_called_cnt;
+	unsigned long		frame_end_cycle_us;
+	u64			csi2_first_err_timestamp;
 	bool			is_triggered;
 	bool			is_buf_stop_update;
 	bool			is_running;
