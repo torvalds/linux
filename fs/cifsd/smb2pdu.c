@@ -4583,8 +4583,12 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 	struct path path;
 	int rc = 0, len;
 	int fs_infoclass_size = 0;
+	int lookup_flags = 0;
 
-	rc = ksmbd_vfs_kern_path(share->path, LOOKUP_FOLLOW, &path, 0);
+	if (test_share_config_flag(share, KSMBD_SHARE_FLAG_FOLLOW_SYMLINKS))
+		lookup_flags = LOOKUP_FOLLOW;
+
+	rc = ksmbd_vfs_kern_path(share->path, lookup_flags, &path, 0);
 	if (rc) {
 		ksmbd_err("cannot create vfs path\n");
 		return -EIO;
