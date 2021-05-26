@@ -3549,6 +3549,35 @@ out:
 	return err;
 }
 
+static int set_feature_hw_gro(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_params new_params;
+	bool reset = true;
+	int err = 0;
+
+	mutex_lock(&priv->state_lock);
+	new_params = priv->channels.params;
+
+	if (enable) {
+		new_params.packet_merge.type = MLX5E_PACKET_MERGE_SHAMPO;
+		new_params.packet_merge.shampo.match_criteria_type =
+			MLX5_RQC_SHAMPO_MATCH_CRITERIA_TYPE_EXTENDED;
+		new_params.packet_merge.shampo.alignment_granularity =
+			MLX5_RQC_SHAMPO_NO_MATCH_ALIGNMENT_GRANULARITY_STRIDE;
+	} else if (new_params.packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) {
+		new_params.packet_merge.type = MLX5E_PACKET_MERGE_NONE;
+	} else {
+		goto out;
+	}
+
+	err = mlx5e_safe_switch_params(priv, &new_params,
+				       mlx5e_modify_tirs_packet_merge_ctx, NULL, reset);
+out:
+	mutex_unlock(&priv->state_lock);
+	return err;
+}
+
 static int set_feature_cvlan_filter(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -3722,6 +3751,7 @@ int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 	mlx5e_handle_feature(netdev, &oper_features, features, feature, handler)
 
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_LRO, set_feature_lro);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_GRO_HW, set_feature_hw_gro);
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_VLAN_CTAG_FILTER,
 				    set_feature_cvlan_filter);
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_TC, set_feature_hw_tc);
@@ -3781,6 +3811,10 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 		if (features & NETIF_F_LRO) {
 			netdev_warn(netdev, "Disabling LRO, not supported in legacy RQ\n");
 			features &= ~NETIF_F_LRO;
+		}
+		if (features & NETIF_F_GRO_HW) {
+			netdev_warn(netdev, "Disabling HW-GRO, not supported in legacy RQ\n");
+			features &= ~NETIF_F_GRO_HW;
 		}
 	}
 
@@ -4723,6 +4757,10 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
 
+	if (!!MLX5_CAP_GEN(mdev, shampo) &&
+	    mlx5e_check_fragmented_striding_rq_cap(mdev))
+		netdev->hw_features    |= NETIF_F_GRO_HW;
+
 	if (mlx5e_tunnel_any_tx_proto_supported(mdev)) {
 		netdev->hw_enc_features |= NETIF_F_HW_CSUM;
 		netdev->hw_enc_features |= NETIF_F_TSO;
@@ -4773,6 +4811,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	if (fcs_enabled)
 		netdev->features  &= ~NETIF_F_RXALL;
 	netdev->features  &= ~NETIF_F_LRO;
+	netdev->features  &= ~NETIF_F_GRO_HW;
 	netdev->features  &= ~NETIF_F_RXFCS;
 
 #define FT_CAP(f) MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.f)
