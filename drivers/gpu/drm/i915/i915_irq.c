@@ -2425,6 +2425,17 @@ static u32 gen8_de_pipe_flip_done_mask(struct drm_i915_private *i915)
 		return GEN8_PIPE_PRIMARY_FLIP_DONE;
 }
 
+u32 gen8_de_pipe_underrun_mask(struct drm_i915_private *dev_priv)
+{
+	u32 mask = GEN8_PIPE_FIFO_UNDERRUN;
+
+	if (DISPLAY_VER(dev_priv) >= 13)
+		mask |= XELPD_PIPE_SOFT_UNDERRUN |
+			XELPD_PIPE_HARD_UNDERRUN;
+
+	return mask;
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2536,7 +2547,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
 			hsw_pipe_crc_irq_handler(dev_priv, pipe);
 
-		if (iir & GEN8_PIPE_FIFO_UNDERRUN)
+		if (iir & gen8_de_pipe_underrun_mask(dev_priv))
 			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
 
 		fault_errors = iir & gen8_de_pipe_fault_mask(dev_priv);
@@ -3173,7 +3184,8 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
-	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |
+	u32 extra_ier = GEN8_PIPE_VBLANK |
+		gen8_de_pipe_underrun_mask(dev_priv) |
 		gen8_de_pipe_flip_done_mask(dev_priv);
 	enum pipe pipe;
 
@@ -3757,7 +3769,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	}
 
 	de_pipe_enables = de_pipe_masked |
-		GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |
+		GEN8_PIPE_VBLANK |
+		gen8_de_pipe_underrun_mask(dev_priv) |
 		gen8_de_pipe_flip_done_mask(dev_priv);
 
 	de_port_enables = de_port_masked;
