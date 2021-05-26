@@ -178,19 +178,19 @@ static char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 	 */
 	if (*off > 4096) {
 		ksmbd_debug(SMB, "offset %d too large, data area ignored\n",
-			*off);
+			    *off);
 		*len = 0;
 		*off = 0;
 	} else if (*off < 0) {
 		ksmbd_debug(SMB,
-			"negative offset %d to data invalid ignore data area\n",
-			*off);
+			    "negative offset %d to data invalid ignore data area\n",
+			    *off);
 		*off = 0;
 		*len = 0;
 	} else if (*len < 0) {
 		ksmbd_debug(SMB,
-			"negative data length %d invalid, data area ignored\n",
-			*len);
+			    "negative data length %d invalid, data area ignored\n",
+			    *len);
 		*len = 0;
 	} else if (*len > 128 * 1024) {
 		ksmbd_debug(SMB, "data area larger than 128K: %d\n", *len);
@@ -228,7 +228,7 @@ static unsigned int smb2_calc_size(void *buf)
 
 	smb2_get_data_area_len(&offset, &data_length, hdr);
 	ksmbd_debug(SMB, "SMB2 data length %d offset %d\n", data_length,
-		offset);
+		    offset);
 
 	if (data_length > 0) {
 		/*
@@ -239,8 +239,8 @@ static unsigned int smb2_calc_size(void *buf)
 		 */
 		if (offset + 1 < len)
 			ksmbd_debug(SMB,
-				"data area offset %d overlaps SMB2 header %d\n",
-					offset + 1, len);
+				    "data area offset %d overlaps SMB2 header %d\n",
+				    offset + 1, len);
 		else
 			len = offset + data_length;
 	}
@@ -321,11 +321,11 @@ static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
 	calc_credit_num = DIV_ROUND_UP(max_len, SMB2_MAX_BUFFER_SIZE);
 	if (!credit_charge && max_len > SMB2_MAX_BUFFER_SIZE) {
 		ksmbd_err("credit charge is zero and payload size(%d) is bigger than 64K\n",
-			max_len);
+			  max_len);
 		return 1;
 	} else if (credit_charge < calc_credit_num) {
 		ksmbd_err("credit charge : %d, calc_credit_num : %d\n",
-			credit_charge, calc_credit_num);
+			  credit_charge, calc_credit_num);
 		return 1;
 	}
 
@@ -357,7 +357,7 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 
 	if (hdr->StructureSize != SMB2_HEADER_STRUCTURE_SIZE) {
 		ksmbd_debug(SMB, "Illegal structure size %u\n",
-			le16_to_cpu(hdr->StructureSize));
+			    le16_to_cpu(hdr->StructureSize));
 		return 1;
 	}
 
@@ -372,8 +372,8 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		    (hdr->Status == 0 || pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE)) {
 			/* error packets have 9 byte structure size */
 			ksmbd_debug(SMB,
-				"Illegal request size %u for command %d\n",
-				le16_to_cpu(pdu->StructureSize2), command);
+				    "Illegal request size %u for command %d\n",
+				    le16_to_cpu(pdu->StructureSize2), command);
 			return 1;
 		} else if (command == SMB2_OPLOCK_BREAK_HE &&
 			   hdr->Status == 0 &&
@@ -381,8 +381,8 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 			   le16_to_cpu(pdu->StructureSize2) != OP_BREAK_STRUCT_SIZE_21) {
 			/* special case for SMB2.1 lease break message */
 			ksmbd_debug(SMB,
-				"Illegal request size %d for oplock break\n",
-				le16_to_cpu(pdu->StructureSize2));
+				    "Illegal request size %d for oplock break\n",
+				    le16_to_cpu(pdu->StructureSize2));
 			return 1;
 		}
 	}
@@ -408,9 +408,9 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		 */
 		if (clc_len < len) {
 			ksmbd_debug(SMB,
-				"cli req padded more than expected. Length %d not %d for cmd:%d mid:%llu\n",
-					len, clc_len, command,
-					le64_to_cpu(hdr->MessageId));
+				    "cli req padded more than expected. Length %d not %d for cmd:%d mid:%llu\n",
+				    len, clc_len, command,
+				    le64_to_cpu(hdr->MessageId));
 			return 0;
 		}
 
@@ -418,9 +418,9 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 			return 0;
 
 		ksmbd_debug(SMB,
-			"cli req too short, len %d not %d. cmd:%d mid:%llu\n",
-				len, clc_len, command,
-				le64_to_cpu(hdr->MessageId));
+			    "cli req too short, len %d not %d. cmd:%d mid:%llu\n",
+			    len, clc_len, command,
+			    le64_to_cpu(hdr->MessageId));
 
 		return 1;
 	}

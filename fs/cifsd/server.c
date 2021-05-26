@@ -106,7 +106,7 @@ static inline int check_conn_state(struct ksmbd_work *work)
 #define TCP_HANDLER_ABORT	1
 
 static int __process_request(struct ksmbd_work *work, struct ksmbd_conn *conn,
-		uint16_t *cmd)
+			     uint16_t *cmd)
 {
 	struct smb_version_cmds *cmds;
 	uint16_t command;
@@ -159,7 +159,7 @@ andx_again:
 }
 
 static void __handle_ksmbd_work(struct ksmbd_work *work,
-		struct ksmbd_conn *conn)
+				struct ksmbd_conn *conn)
 {
 	u16 command = 0;
 	int rc;
@@ -222,8 +222,8 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 			}
 		}
 
-		if (work->sess && (work->sess->sign ||
-		    smb3_11_final_sess_setup_resp(work) ||
+		if (work->sess &&
+		    (work->sess->sign || smb3_11_final_sess_setup_resp(work) ||
 		     conn->ops->is_sign_req(work, command)))
 			conn->ops->set_sign_rsp(work);
 	} while (is_chained_smb2_message(work));
@@ -416,7 +416,7 @@ int server_queue_ctrl_reset_work(void)
 }
 
 static ssize_t stats_show(struct class *class, struct class_attribute *attr,
-		char *buf)
+			  char *buf)
 {
 	/*
 	 * Inc this each time you change stats output format,
@@ -430,19 +430,15 @@ static ssize_t stats_show(struct class *class, struct class_attribute *attr,
 		"shutdown"
 	};
 
-	ssize_t sz = scnprintf(buf,
-				PAGE_SIZE,
-				"%d %s %d %lu\n",
-				stats_version,
-				state[server_conf.state],
-				server_conf.tcp_port,
-				server_conf.ipc_last_active / HZ);
+	ssize_t sz = scnprintf(buf, PAGE_SIZE, "%d %s %d %lu\n", stats_version,
+			       state[server_conf.state], server_conf.tcp_port,
+			       server_conf.ipc_last_active / HZ);
 	return sz;
 }
 
 static ssize_t kill_server_store(struct class *class,
-		struct class_attribute *attr, const char *buf,
-		size_t len)
+				 struct class_attribute *attr, const char *buf,
+				 size_t len)
 {
 	if (!sysfs_streq(buf, "hard"))
 		return len;
@@ -458,11 +454,11 @@ static ssize_t kill_server_store(struct class *class,
 }
 
 static const char * const debug_type_strings[] = {"smb", "auth", "vfs",
-						"oplock", "ipc", "conn",
-						"rdma"};
+						  "oplock", "ipc", "conn",
+						  "rdma"};
 
 static ssize_t debug_show(struct class *class, struct class_attribute *attr,
-		char *buf)
+			  char *buf)
 {
 	ssize_t sz = 0;
 	int i, pos = 0;
@@ -486,7 +482,7 @@ static ssize_t debug_show(struct class *class, struct class_attribute *attr,
 }
 
 static ssize_t debug_store(struct class *class, struct class_attribute *attr,
-		const char *buf, size_t len)
+			   const char *buf, size_t len)
 {
 	int i;
 

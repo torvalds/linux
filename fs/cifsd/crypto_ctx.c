@@ -123,8 +123,8 @@ static struct ksmbd_crypto_ctx *ksmbd_find_crypto_ctx(void)
 		spin_lock(&ctx_list.ctx_lock);
 		if (!list_empty(&ctx_list.idle_ctx)) {
 			ctx = list_entry(ctx_list.idle_ctx.next,
-					  struct ksmbd_crypto_ctx,
-					  list);
+					 struct ksmbd_crypto_ctx,
+					 list);
 			list_del(&ctx->list);
 			spin_unlock(&ctx_list.ctx_lock);
 			return ctx;

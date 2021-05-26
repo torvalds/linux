@@ -59,7 +59,6 @@ struct ksmbd_crypto_ctx {
 #define CRYPTO_CCM(c)		((c)->ccmaes[CRYPTO_AEAD_AES_CCM])
 
 void ksmbd_release_crypto_ctx(struct ksmbd_crypto_ctx *ctx);
-
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_hmacmd5(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_hmacsha256(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_cmacaes(void);
@@ -67,10 +66,8 @@ struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha512(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha256(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_md4(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_md5(void);
-
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_gcm(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_ccm(void);
-
 void ksmbd_crypto_destroy(void);
 int ksmbd_crypto_create(void);
 

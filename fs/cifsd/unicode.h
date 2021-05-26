@@ -63,11 +63,12 @@ extern const struct UniCaseRange CifsUniLowerRange[];
 
 #ifdef __KERNEL__
 int smb_strtoUTF16(__le16 *to, const char *from, int len,
-		const struct nls_table *codepage);
+		   const struct nls_table *codepage);
 char *smb_strndup_from_utf16(const char *src, const int maxlen,
-		const bool is_unicode, const struct nls_table *codepage);
+			     const bool is_unicode,
+			     const struct nls_table *codepage);
 int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
-		const struct nls_table *cp, int mapchars);
+		      const struct nls_table *cp, int mapchars);
 char *ksmbd_extract_sharename(char *treename);
 #endif
 
@@ -198,7 +199,7 @@ static inline int UniStrncmp(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 /*
  * UniStrncmp_le:  Compare length limited string - native to little-endian
  */
-	static inline int
+static inline int
 UniStrncmp_le(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	if (!n)
