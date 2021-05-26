@@ -1079,6 +1079,11 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(queue_types); i++) {
+		/* On sienna cichlid+, fw hasn't supported to map sdma queue. */
+		if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+		    i == AMDGPU_RING_TYPE_SDMA)
+			continue;
+
 		r = amdgpu_mes_test_create_gang_and_queues(adev, pasid,
 							   &gang_ids[i],
 							   queue_types[i][0],
