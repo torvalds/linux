@@ -479,7 +479,6 @@ unsigned int ia_css_csi2_calculate_input_system_alignment(
 void ia_css_isys_rx_configure(const rx_cfg_t *config,
 			      const enum ia_css_input_mode input_mode)
 {
-	bool port_enabled[N_MIPI_PORT_ID];
 	bool any_port_enabled = false;
 	enum mipi_port_id port;
 
@@ -515,8 +514,6 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 		receiver_port_reg_store(RX0_ID, port,
 					_HRT_CSS_RECEIVER_2400_RX_COUNT_REG_IDX,
 					config->rxcount);
-
-		port_enabled[port] = true;
 
 		if (input_mode != IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 			/* MW: A bit of a hack, straight wiring of the capture
