@@ -3338,7 +3338,7 @@ static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 
 static int dwc2_hsotg_ep_disable(struct usb_ep *ep);
 /**
- * dwc2_hsotg_core_init - issue softreset to the core
+ * dwc2_hsotg_core_init_disconnected - issue softreset to the core
  * @hsotg: The device state
  * @is_usb_reset: Usb resetting flag
  *
