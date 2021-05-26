@@ -56,7 +56,8 @@ u32 cdnsp_port_state_to_neutral(u32 state)
 }
 
 /**
- * Find the offset of the extended capabilities with capability ID id.
+ * cdnsp_find_next_ext_cap - Find the offset of the extended capabilities
+ *                           with capability ID id.
  * @base: PCI MMIO registers base address.
  * @start: Address at which to start looking, (0 or HCC_PARAMS to start at
  *         beginning of list)
