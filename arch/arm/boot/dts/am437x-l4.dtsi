@@ -194,7 +194,7 @@
 			ranges = <0x0 0x9000 0x1000>;
 
 			uart0: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 			};
@@ -712,7 +712,7 @@
 			ranges = <0x0 0x22000 0x1000>;
 
 			uart1: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -740,7 +740,7 @@
 			ranges = <0x0 0x24000 0x1000>;
 
 			uart2: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1399,7 +1399,7 @@
 			ranges = <0x0 0xa6000 0x1000>;
 
 			uart3: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1427,7 +1427,7 @@
 			ranges = <0x0 0xa8000 0x1000>;
 
 			uart4: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1455,7 +1455,7 @@
 			ranges = <0x0 0xaa000 0x1000>;
 
 			uart5: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
