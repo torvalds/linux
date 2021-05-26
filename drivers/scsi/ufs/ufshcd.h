@@ -1340,6 +1340,4 @@ static inline int ufshcd_update_ee_usr_mask(struct ufs_hba *hba,
 					&hba->ee_drv_mask, set, clr);
 }
 
-int ufshcd_uic_hibern8_enter(struct ufs_hba *hba);
-int ufshcd_uic_hibern8_exit(struct ufs_hba *hba);
 #endif /* End of Header */
