@@ -289,7 +289,6 @@ int pwmchip_add(struct pwm_chip *chip)
 		pwm->chip = chip;
 		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
-		pwm->state.output_type = PWM_OUTPUT_FIXED;
 
 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
