@@ -1942,7 +1942,7 @@ static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 
 	BUG_ON(!attr);
 
-	attr_update = attr->attr_update ? attr_update : default_attr_update;
+	attr_update = attr->attr_update ? attr->attr_update : default_attr_update;
 
 	ret = attr_update(adev, attr, mask, &attr_states);
 	if (ret) {
