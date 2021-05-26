@@ -92,14 +92,13 @@ smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
 	unsigned char key2[8];
 	struct des_ctx ctx;
 
-	str_to_key(key, key2);
-
 	if (fips_enabled) {
 		ksmbd_debug(AUTH,
 			"FIPS compliance enabled: DES not permitted\n");
 		return -ENOENT;
 	}
 
+	str_to_key(key, key2);
 	des_expand_key(&ctx, key2, DES_KEY_SIZE);
 	des_encrypt(&ctx, out, in);
 	memzero_explicit(&ctx, sizeof(ctx));
