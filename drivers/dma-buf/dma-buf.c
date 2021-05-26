@@ -1399,18 +1399,6 @@ int dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags)
 }
 EXPORT_SYMBOL_GPL(dma_buf_get_flags);
 
-int dma_buf_get_uuid(struct dma_buf *dmabuf, uuid_t *uuid)
-{
-	if (WARN_ON(!dmabuf) || !uuid)
-		return -EINVAL;
-
-	if (!dmabuf->ops->get_uuid)
-		return -ENODEV;
-
-	return dmabuf->ops->get_uuid(dmabuf, uuid);
-}
-EXPORT_SYMBOL_GPL(dma_buf_get_uuid);
-
 #ifdef CONFIG_DEBUG_FS
 static int dma_buf_debug_show(struct seq_file *s, void *unused)
 {
