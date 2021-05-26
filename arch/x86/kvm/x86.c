@@ -2334,6 +2334,31 @@ u64 kvm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 }
 EXPORT_SYMBOL_GPL(kvm_read_l1_tsc);
 
+u64 kvm_calc_nested_tsc_offset(u64 l1_offset, u64 l2_offset, u64 l2_multiplier)
+{
+	u64 nested_offset;
+
+	if (l2_multiplier == kvm_default_tsc_scaling_ratio)
+		nested_offset = l1_offset;
+	else
+		nested_offset = mul_s64_u64_shr((s64) l1_offset, l2_multiplier,
+						kvm_tsc_scaling_ratio_frac_bits);
+
+	nested_offset += l2_offset;
+	return nested_offset;
+}
+EXPORT_SYMBOL_GPL(kvm_calc_nested_tsc_offset);
+
+u64 kvm_calc_nested_tsc_multiplier(u64 l1_multiplier, u64 l2_multiplier)
+{
+	if (l2_multiplier != kvm_default_tsc_scaling_ratio)
+		return mul_u64_u64_shr(l1_multiplier, l2_multiplier,
+				       kvm_tsc_scaling_ratio_frac_bits);
+
+	return l1_multiplier;
+}
+EXPORT_SYMBOL_GPL(kvm_calc_nested_tsc_multiplier);
+
 static void kvm_vcpu_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	vcpu->arch.l1_tsc_offset = offset;
