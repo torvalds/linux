@@ -584,11 +584,13 @@ loop:
 						printk("%02x ",ltdmacbuf[i]);
 					printk("\n");
 				}
+
 				handlecommand(dev);
-					if(0xfa==inb_p(base+6)) {
-						/* we timed out, so return */
-						goto done;
-					} 
+
+				if (0xfa == inb_p(base + 6)) {
+					/* we timed out, so return */
+					goto done;
+				}
 			} else {
 				/* we don't seem to have a command */
 				if (!mboxinuse[0]) {
