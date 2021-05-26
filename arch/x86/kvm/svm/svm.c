@@ -1080,6 +1080,18 @@ static void init_sys_seg(struct vmcb_seg *seg, uint32_t type)
 	seg->base = 0;
 }
 
+static u64 svm_get_l2_tsc_offset(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	return svm->nested.ctl.tsc_offset;
+}
+
+static u64 svm_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu)
+{
+	return kvm_default_tsc_scaling_ratio;
+}
+
 static u64 svm_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4524,6 +4536,8 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 
 	.has_wbinvd_exit = svm_has_wbinvd_exit,
 
+	.get_l2_tsc_offset = svm_get_l2_tsc_offset,
+	.get_l2_tsc_multiplier = svm_get_l2_tsc_multiplier,
 	.write_l1_tsc_offset = svm_write_l1_tsc_offset,
 
 	.load_mmu_pgd = svm_load_mmu_pgd,
