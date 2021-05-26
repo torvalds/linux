@@ -1528,7 +1528,7 @@
 	};
 
 	rkisp_mmu: iommu@fdff1a00 {
-		compatible = "rockchip,iommu";
+		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdff1a00 0x0 0x100>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "isp_mmu";
