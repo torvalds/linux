@@ -416,6 +416,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN11_VECS_SFC_USAGE(engine)		_MMIO((engine)->mmio_base + 0x2014)
 #define   GEN11_VECS_SFC_USAGE_BIT		(1 << 0)
 
+#define GEN12_HCP_SFC_FORCED_LOCK(engine)	_MMIO((engine)->mmio_base + 0x2910)
+#define   GEN12_HCP_SFC_FORCED_LOCK_BIT		REG_BIT(0)
+#define GEN12_HCP_SFC_LOCK_STATUS(engine)	_MMIO((engine)->mmio_base + 0x2914)
+#define   GEN12_HCP_SFC_LOCK_ACK_BIT		REG_BIT(1)
+#define   GEN12_HCP_SFC_USAGE_BIT			REG_BIT(0)
+
 #define GEN12_SFC_DONE(n)		_MMIO(0x1cc00 + (n) * 0x100)
 #define GEN12_SFC_DONE_MAX		4
 
