@@ -71,7 +71,7 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 	}
 	amdgpu_bo_unref(&bo->parent);
 
-	if (bo->tbo.type == ttm_bo_type_device) {
+	if (bo->tbo.type != ttm_bo_type_kernel) {
 		ubo = to_amdgpu_bo_user(bo);
 		kfree(ubo->metadata);
 	}
