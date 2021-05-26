@@ -36,3 +36,17 @@ config XILLYBUS_OF
 	  system, say M. The module will be called xillybus_of.
 
 endif # if XILLYBUS
+
+# XILLYUSB doesn't depend on XILLYBUS
+
+config XILLYUSB
+	tristate "XillyUSB: Xillybus generic FPGA interface for USB"
+	depends on USB
+	select CRC32
+	select XILLYBUS_CLASS
+	help
+	  XillyUSB is the Xillybus variant which uses USB for communicating
+	  with the FPGA.
+
+	  Set to M if you want Xillybus to use USB for communicating with
+	  the FPGA. The module will be called xillyusb.
