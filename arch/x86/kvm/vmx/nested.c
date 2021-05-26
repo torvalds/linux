@@ -5026,6 +5026,8 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 				     vmptr + offsetof(struct vmcs12,
 						      launch_state),
 				     &zero, sizeof(zero));
+	} else if (vmx->nested.hv_evmcs && vmptr == vmx->nested.hv_evmcs_vmptr) {
+		nested_release_evmcs(vcpu);
 	}
 
 	return nested_vmx_succeed(vcpu);
