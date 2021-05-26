@@ -65,7 +65,7 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 	unsigned long subid;
 
 	vlen += 1;
-	if (vlen < 2 || vlen > UINT_MAX/sizeof(unsigned long))
+	if (vlen < 2 || vlen > UINT_MAX / sizeof(unsigned long))
 		return false;
 
 	*oid = kmalloc(vlen * sizeof(unsigned long), GFP_KERNEL);
