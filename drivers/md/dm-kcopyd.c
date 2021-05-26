@@ -437,9 +437,8 @@ static struct kcopyd_job *pop(struct list_head *jobs,
 			      struct dm_kcopyd_client *kc)
 {
 	struct kcopyd_job *job = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&kc->job_lock, flags);
+	spin_lock_irq(&kc->job_lock);
 
 	if (!list_empty(jobs)) {
 		if (jobs == &kc->io_jobs)
@@ -449,7 +448,7 @@ static struct kcopyd_job *pop(struct list_head *jobs,
 			list_del(&job->list);
 		}
 	}
-	spin_unlock_irqrestore(&kc->job_lock, flags);
+	spin_unlock_irq(&kc->job_lock);
 
 	return job;
 }
@@ -467,12 +466,11 @@ static void push(struct list_head *jobs, struct kcopyd_job *job)
 
 static void push_head(struct list_head *jobs, struct kcopyd_job *job)
 {
-	unsigned long flags;
 	struct dm_kcopyd_client *kc = job->kc;
 
-	spin_lock_irqsave(&kc->job_lock, flags);
+	spin_lock_irq(&kc->job_lock);
 	list_add(&job->list, jobs);
-	spin_unlock_irqrestore(&kc->job_lock, flags);
+	spin_unlock_irq(&kc->job_lock);
 }
 
 /*
@@ -648,7 +646,6 @@ static void do_work(struct work_struct *work)
 	struct dm_kcopyd_client *kc = container_of(work,
 					struct dm_kcopyd_client, kcopyd_work);
 	struct blk_plug plug;
-	unsigned long flags;
 
 	/*
 	 * The order that these are called is *very* important.
@@ -657,9 +654,9 @@ static void do_work(struct work_struct *work)
 	 * list.  io jobs call wake when they complete and it all
 	 * starts again.
 	 */
-	spin_lock_irqsave(&kc->job_lock, flags);
+	spin_lock_irq(&kc->job_lock);
 	list_splice_tail_init(&kc->callback_jobs, &kc->complete_jobs);
-	spin_unlock_irqrestore(&kc->job_lock, flags);
+	spin_unlock_irq(&kc->job_lock);
 
 	blk_start_plug(&plug);
 	process_jobs(&kc->complete_jobs, kc, run_complete_job);
