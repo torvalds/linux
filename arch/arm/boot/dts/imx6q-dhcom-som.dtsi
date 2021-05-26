@@ -33,6 +33,19 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
+	reg_eth_vio: regulator-eth-vio {
+		compatible = "regulator-fixed";
+		gpio = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&pinctrl_enet_vio>;
+		pinctrl-names = "default";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "eth_vio";
+		vin-supply = <&sw2_reg>;
+	};
+
 	reg_usb_otg_vbus: regulator-usb-otg-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg_vbus";
@@ -280,6 +293,11 @@
 			MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
 			MX6QDL_PAD_EIM_WAIT__GPIO5_IO00		0x000b0
 			MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x000b1
+		>;
+	};
+
+	pinctrl_enet_vio: enet-vio-grp {
+		fsl,pins = <
 			MX6QDL_PAD_GPIO_7__GPIO1_IO07		0x120b0
 		>;
 	};
