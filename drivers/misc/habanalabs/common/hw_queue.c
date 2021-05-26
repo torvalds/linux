@@ -416,7 +416,7 @@ static int init_signal_cs(struct hl_device *hdev,
 	cs_cmpl->sob_val = prop->next_sob_val;
 
 	dev_dbg(hdev->dev,
-		"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d, seq: %llu\n",
+		"generate signal CB, sob_id: %d, sob val: %u, q_idx: %d, seq: %llu\n",
 		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val, q_idx,
 		cs_cmpl->cs_seq);
 
@@ -432,12 +432,31 @@ static int init_signal_cs(struct hl_device *hdev,
 	return rc;
 }
 
+void hl_hw_queue_encaps_sig_set_sob_info(struct hl_device *hdev,
+			struct hl_cs *cs, struct hl_cs_job *job,
+			struct hl_cs_compl *cs_cmpl)
+{
+	struct hl_cs_encaps_sig_handle *handle = cs->encaps_sig_hdl;
+
+	cs_cmpl->hw_sob = handle->hw_sob;
+
+	/* Note that encaps_sig_wait_offset was validated earlier in the flow
+	 * for offset value which exceeds the max reserved signal count.
+	 * always decrement 1 of the offset since when the user
+	 * set offset 1 for example he mean to wait only for the first
+	 * signal only, which will be pre_sob_val, and if he set offset 2
+	 * then the value required is (pre_sob_val + 1) and so on...
+	 */
+	cs_cmpl->sob_val = handle->pre_sob_val +
+			(job->encaps_sig_wait_offset - 1);
+}
+
 static int init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
 		struct hl_cs_job *job, struct hl_cs_compl *cs_cmpl)
 {
-	struct hl_cs_compl *signal_cs_cmpl;
-	struct hl_sync_stream_properties *prop;
 	struct hl_gen_wait_properties wait_prop;
+	struct hl_sync_stream_properties *prop;
+	struct hl_cs_compl *signal_cs_cmpl;
 	u32 q_idx;
 
 	q_idx = job->hw_queue_id;
@@ -447,9 +466,23 @@ static int init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
 					struct hl_cs_compl,
 					base_fence);
 
-	/* copy the SOB id and value of the signal CS */
-	cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
-	cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+	if (cs->encaps_signals) {
+		/* use the encaps signal handle stored earlier in the flow
+		 * and set the SOB information from the encaps
+		 * signals handle
+		 */
+		hl_hw_queue_encaps_sig_set_sob_info(hdev, cs, job, cs_cmpl);
+
+		dev_dbg(hdev->dev, "Wait for encaps signals handle, qidx(%u), CS sequence(%llu), sob val: 0x%x, offset: %u\n",
+				cs->encaps_sig_hdl->q_idx,
+				cs->encaps_sig_hdl->cs_seq,
+				cs_cmpl->sob_val,
+				job->encaps_sig_wait_offset);
+	} else {
+		/* Copy the SOB id and value of the signal CS */
+		cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
+		cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+	}
 
 	/* check again if the signal cs already completed.
 	 * if yes then don't send any wait cs since the hw_sob
@@ -519,6 +552,59 @@ static int init_signal_wait_cs(struct hl_cs *cs)
 		rc = init_signal_cs(hdev, job, cs_cmpl);
 	else if (cs->type & CS_TYPE_WAIT)
 		rc = init_wait_cs(hdev, cs, job, cs_cmpl);
+
+	return rc;
+}
+
+static int encaps_sig_first_staged_cs_handler
+			(struct hl_device *hdev, struct hl_cs *cs)
+{
+	struct hl_cs_compl *cs_cmpl =
+			container_of(cs->fence,
+					struct hl_cs_compl, base_fence);
+	struct hl_cs_encaps_sig_handle *encaps_sig_hdl;
+	struct hl_encaps_signals_mgr *mgr;
+	int rc = 0;
+
+	mgr = &hdev->compute_ctx->sig_mgr;
+
+	spin_lock(&mgr->lock);
+	encaps_sig_hdl = idr_find(&mgr->handles, cs->encaps_sig_hdl_id);
+	if (encaps_sig_hdl) {
+		/*
+		 * Set handler CS sequence,
+		 * the CS which contains the encapsulated signals.
+		 */
+		encaps_sig_hdl->cs_seq = cs->sequence;
+		/* store the handle and set encaps signal indication,
+		 * to be used later in cs_do_release to put the last
+		 * reference to encaps signals handlers.
+		 */
+		cs_cmpl->encaps_signals = true;
+		cs_cmpl->encaps_sig_hdl = encaps_sig_hdl;
+
+		/* set hw_sob pointer in completion object
+		 * since it's used in cs_do_release flow to put
+		 * refcount to sob
+		 */
+		cs_cmpl->hw_sob = encaps_sig_hdl->hw_sob;
+		cs_cmpl->sob_val = encaps_sig_hdl->pre_sob_val +
+						encaps_sig_hdl->count;
+
+		dev_dbg(hdev->dev, "CS seq (%llu) added to encaps signal handler id (%u), count(%u), qidx(%u), sob(%u), val(%u)\n",
+				cs->sequence, encaps_sig_hdl->id,
+				encaps_sig_hdl->count,
+				encaps_sig_hdl->q_idx,
+				cs_cmpl->hw_sob->sob_id,
+				cs_cmpl->sob_val);
+
+	} else {
+		dev_err(hdev->dev, "encaps handle id(%u) wasn't found!\n",
+				cs->encaps_sig_hdl_id);
+		rc = -EINVAL;
+	}
+
+	spin_unlock(&mgr->lock);
 
 	return rc;
 }
@@ -601,6 +687,12 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 			goto unroll_cq_resv;
 	}
 
+
+	if (cs->encaps_signals && cs->staged_first) {
+		rc = encaps_sig_first_staged_cs_handler(hdev, cs);
+		if (rc)
+			goto unroll_cq_resv;
+	}
 
 	spin_lock(&hdev->cs_mirror_lock);
 

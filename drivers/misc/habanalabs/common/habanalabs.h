@@ -605,11 +605,11 @@ struct hl_fence {
 
 /**
  * struct hl_cs_compl - command submission completion object.
- * @sob_reset_work: workqueue object to run SOB reset flow.
  * @base_fence: hl fence object.
  * @lock: spinlock to protect fence.
  * @hdev: habanalabs device structure.
  * @hw_sob: the H/W SOB used in this signal/wait CS.
+ * @encaps_sig_hdl: encaps signals hanlder.
  * @cs_seq: command submission sequence number.
  * @type: type of the CS - signal/wait.
  * @sob_val: the SOB value that is used in this signal/wait CS.
@@ -618,11 +618,11 @@ struct hl_fence {
  * encaps signals or not.
  */
 struct hl_cs_compl {
-	struct work_struct	sob_reset_work;
 	struct hl_fence		base_fence;
 	spinlock_t		lock;
 	struct hl_device	*hdev;
 	struct hl_hw_sob	*hw_sob;
+	struct hl_cs_encaps_sig_handle *encaps_sig_hdl;
 	u64			cs_seq;
 	enum hl_cs_type		type;
 	u16			sob_val;
@@ -1267,8 +1267,9 @@ struct hl_asic_funcs {
 	u64 (*get_device_time)(struct hl_device *hdev);
 	int (*collective_wait_init_cs)(struct hl_cs *cs);
 	int (*collective_wait_create_jobs)(struct hl_device *hdev,
-			struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
-			u32 collective_engine_id);
+			struct hl_ctx *ctx, struct hl_cs *cs,
+			u32 wait_queue_id, u32 collective_engine_id,
+			u32 encaps_signal_offset);
 	u64 (*scramble_addr)(struct hl_device *hdev, u64 addr);
 	u64 (*descramble_addr)(struct hl_device *hdev, u64 addr);
 	void (*ack_protection_bits_errors)(struct hl_device *hdev);
@@ -1340,20 +1341,6 @@ struct hl_cs_counters_atomic {
 };
 
 /**
- * struct hl_pending_cb - pending command buffer structure
- * @cb_node: cb node in pending cb list
- * @cb: command buffer to send in next submission
- * @cb_size: command buffer size
- * @hw_queue_id: destination queue id
- */
-struct hl_pending_cb {
-	struct list_head	cb_node;
-	struct hl_cb		*cb;
-	u32			cb_size;
-	u32			hw_queue_id;
-};
-
-/**
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
@@ -1369,8 +1356,6 @@ struct hl_pending_cb {
  *            MMU hash or walking the PGT requires talking this lock.
  * @hw_block_list_lock: protects the HW block memory list.
  * @debugfs_list: node in debugfs list of contexts.
- * pending_cb_list: list of pending command buffers waiting to be sent upon
- *                  next user command submission context.
  * @hw_block_mem_list: list of HW block virtual mapped addresses.
  * @cs_counters: context command submission counters.
  * @cb_va_pool: device VA pool for command buffers which are mapped to the
@@ -1381,17 +1366,11 @@ struct hl_pending_cb {
  *			index to cs_pending array.
  * @dram_default_hops: array that holds all hops addresses needed for default
  *                     DRAM mapping.
- * @pending_cb_lock: spinlock to protect pending cb list
  * @cs_lock: spinlock to protect cs_sequence.
  * @dram_phys_mem: amount of used physical DRAM memory by this context.
  * @thread_ctx_switch_token: token to prevent multiple threads of the same
  *				context	from running the context switch phase.
  *				Only a single thread should run it.
- * @thread_pending_cb_token: token to prevent multiple threads from processing
- *				the pending CB list. Only a single thread should
- *				process the list since it is protected by a
- *				spinlock and we don't want to halt the entire
- *				command submission sequence.
  * @thread_ctx_switch_wait_token: token to prevent the threads that didn't run
  *				the context switch phase from moving to their
  *				execution phase before the context switch phase
@@ -1411,18 +1390,15 @@ struct hl_ctx {
 	struct mutex			mmu_lock;
 	struct mutex			hw_block_list_lock;
 	struct list_head		debugfs_list;
-	struct list_head		pending_cb_list;
 	struct list_head		hw_block_mem_list;
 	struct hl_cs_counters_atomic	cs_counters;
 	struct gen_pool			*cb_va_pool;
 	struct hl_encaps_signals_mgr	sig_mgr;
 	u64				cs_sequence;
 	u64				*dram_default_hops;
-	spinlock_t			pending_cb_lock;
 	spinlock_t			cs_lock;
 	atomic64_t			dram_phys_mem;
 	atomic_t			thread_ctx_switch_token;
-	atomic_t			thread_pending_cb_token;
 	u32				thread_ctx_switch_wait_token;
 	u32				asid;
 	u32				handle;
@@ -1485,12 +1461,14 @@ struct hl_userptr {
  * @mirror_node : node in device mirror list of command submissions.
  * @staged_cs_node: node in the staged cs list.
  * @debugfs_list: node in debugfs list of command submissions.
+ * @encaps_sig_hdl: holds the encaps signals handle.
  * @sequence: the sequence number of this CS.
  * @staged_sequence: the sequence of the staged submission this CS is part of,
  *                   relevant only if staged_cs is set.
  * @timeout_jiffies: cs timeout in jiffies.
  * @submission_time_jiffies: submission time of the cs
  * @type: CS_TYPE_*.
+ * @encaps_sig_hdl_id: encaps signals handle id, set for the first staged cs.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
  * @timedout : true if CS was timedout.
@@ -1504,6 +1482,7 @@ struct hl_userptr {
  * @staged_cs: true if this CS is part of a staged submission.
  * @skip_reset_on_timeout: true if we shall not reset the device in case
  *                         timeout occurs (debug scenario).
+ * @encaps_signals: true if this CS has encaps reserved signals.
  */
 struct hl_cs {
 	u16			*jobs_in_queue_cnt;
@@ -1518,11 +1497,13 @@ struct hl_cs {
 	struct list_head	mirror_node;
 	struct list_head	staged_cs_node;
 	struct list_head	debugfs_list;
+	struct hl_cs_encaps_sig_handle *encaps_sig_hdl;
 	u64			sequence;
 	u64			staged_sequence;
 	u64			timeout_jiffies;
 	u64			submission_time_jiffies;
 	enum hl_cs_type		type;
+	u32			encaps_sig_hdl_id;
 	u8			submitted;
 	u8			completed;
 	u8			timedout;
@@ -1533,6 +1514,7 @@ struct hl_cs {
 	u8			staged_first;
 	u8			staged_cs;
 	u8			skip_reset_on_timeout;
+	u8			encaps_signals;
 };
 
 /**
@@ -1552,6 +1534,8 @@ struct hl_cs {
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
  * @job_cb_size: the actual size of the CB that we put on the queue.
+ * @encaps_sig_wait_offset: encapsulated signals offset, which allow user
+ *                          to wait on part of the reserved signals.
  * @is_kernel_allocated_cb: true if the CB handle we got from the user holds a
  *                          handle to a kernel-allocated CB object, false
  *                          otherwise (SRAM/DRAM/host address).
@@ -1576,6 +1560,7 @@ struct hl_cs_job {
 	u32			hw_queue_id;
 	u32			user_cb_size;
 	u32			job_cb_size;
+	u32			encaps_sig_wait_offset;
 	u8			is_kernel_allocated_cb;
 	u8			contains_dma_pkt;
 };
@@ -2794,7 +2779,6 @@ int hl_cb_va_pool_init(struct hl_ctx *ctx);
 void hl_cb_va_pool_fini(struct hl_ctx *ctx);
 
 void hl_cs_rollback_all(struct hl_device *hdev);
-void hl_pending_cb_list_flush(struct hl_ctx *ctx);
 struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
 void hl_sob_reset_error(struct kref *ref);
@@ -2935,9 +2919,12 @@ int hl_set_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
-void hl_encaps_handle_do_release(struct kref *ref);
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
+void hl_encaps_handle_do_release(struct kref *ref);
+void hl_hw_queue_encaps_sig_set_sob_info(struct hl_device *hdev,
+			struct hl_cs *cs, struct hl_cs_job *job,
+			struct hl_cs_compl *cs_cmpl);
 void hl_release_pending_user_interrupts(struct hl_device *hdev);
 int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 			struct hl_hw_sob **hw_sob, u32 count, bool encaps_sig);

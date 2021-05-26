@@ -16,7 +16,10 @@ void hl_encaps_handle_do_release(struct kref *ref)
 	struct hl_ctx *ctx = handle->hdev->compute_ctx;
 	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
 
+	spin_lock(&mgr->lock);
 	idr_remove(&mgr->handles, handle->id);
+	spin_unlock(&mgr->lock);
+
 	kfree(handle);
 }
 
@@ -33,7 +36,10 @@ static void hl_encaps_handle_do_release_sob(struct kref *ref)
 	 */
 	hw_sob_put(handle->hw_sob);
 
+	spin_lock(&mgr->lock);
 	idr_remove(&mgr->handles, handle->id);
+	spin_unlock(&mgr->lock);
+
 	kfree(handle);
 }
 
@@ -66,11 +72,6 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 	int i;
-
-	/* Release all allocated pending cb's, those cb's were never
-	 * scheduled so it is safe to release them here
-	 */
-	hl_pending_cb_list_flush(ctx);
 
 	/* Release all allocated HW block mapped list entries and destroy
 	 * the mutex.
@@ -198,11 +199,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	kref_init(&ctx->refcount);
 
 	ctx->cs_sequence = 1;
-	INIT_LIST_HEAD(&ctx->pending_cb_list);
-	spin_lock_init(&ctx->pending_cb_lock);
 	spin_lock_init(&ctx->cs_lock);
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
-	atomic_set(&ctx->thread_pending_cb_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
 	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
 				sizeof(struct hl_fence *),

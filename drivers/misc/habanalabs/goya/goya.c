@@ -5487,7 +5487,7 @@ static int goya_collective_wait_init_cs(struct hl_cs *cs)
 
 static int goya_collective_wait_create_jobs(struct hl_device *hdev,
 		struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
-		u32 collective_engine_id)
+		u32 collective_engine_id, u32 encaps_signal_offset)
 {
 	return -EINVAL;
 }

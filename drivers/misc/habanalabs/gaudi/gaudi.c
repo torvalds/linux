@@ -456,8 +456,6 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 					u32 size, u64 val);
 static int gaudi_memset_registers(struct hl_device *hdev, u64 reg_base,
 					u32 num_regs, u32 val);
-static int gaudi_schedule_register_memset(struct hl_device *hdev,
-		u32 hw_queue_id, u64 reg_base, u32 num_regs, u32 val);
 static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 				u32 tpc_id);
 static int gaudi_mmu_clear_pgt_range(struct hl_device *hdev);
@@ -468,7 +466,6 @@ static u32 gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
 				u32 size, bool eb);
 static u32 gaudi_gen_wait_cb(struct hl_device *hdev,
 				struct hl_gen_wait_properties *prop);
-
 static inline enum hl_collective_mode
 get_collective_mode(struct hl_device *hdev, u32 queue_id)
 {
@@ -1068,17 +1065,11 @@ static void gaudi_sob_group_hw_reset(struct kref *ref)
 	struct gaudi_hw_sob_group *hw_sob_group =
 		container_of(ref, struct gaudi_hw_sob_group, kref);
 	struct hl_device *hdev = hw_sob_group->hdev;
-	u64 base_addr;
-	int rc;
+	int i;
 
-	base_addr = CFG_BASE + mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_SOB_OBJ_0 +
-			hw_sob_group->base_sob_id * 4;
-	rc = gaudi_schedule_register_memset(hdev, hw_sob_group->queue_id,
-			base_addr, NUMBER_OF_SOBS_IN_GRP, 0);
-	if (rc)
-		dev_err(hdev->dev,
-			"failed resetting sob group - sob base %u, count %u",
-			hw_sob_group->base_sob_id, NUMBER_OF_SOBS_IN_GRP);
+	for (i = 0 ; i < NUMBER_OF_SOBS_IN_GRP ; i++)
+		WREG32((mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_SOB_OBJ_0 +
+			(hw_sob_group->base_sob_id * 4) + (i * 4)), 0);
 
 	kref_init(&hw_sob_group->kref);
 }
@@ -1215,6 +1206,20 @@ static void gaudi_collective_slave_init_job(struct hl_device *hdev,
 	queue_id = job->hw_queue_id;
 	prop = &hdev->kernel_queues[queue_id].sync_stream_prop;
 
+	if (job->cs->encaps_signals) {
+		/* use the encaps signal handle store earlier in the flow
+		 * and set the SOB information from the encaps
+		 * signals handle
+		 */
+		hl_hw_queue_encaps_sig_set_sob_info(hdev, job->cs, job,
+						cs_cmpl);
+
+		dev_dbg(hdev->dev, "collective wait: Sequence %llu found, sob_id: %u,  wait for sob_val: %u\n",
+				job->cs->sequence,
+				cs_cmpl->hw_sob->sob_id,
+				cs_cmpl->sob_val);
+	}
+
 	/* Add to wait CBs using slave monitor */
 	wait_prop.data = (void *) job->user_cb;
 	wait_prop.sob_base = cs_cmpl->hw_sob->sob_id;
@@ -1225,7 +1230,7 @@ static void gaudi_collective_slave_init_job(struct hl_device *hdev,
 	wait_prop.size = cb_size;
 
 	dev_dbg(hdev->dev,
-		"Generate slave wait CB, sob %d, val:0x%x, mon %d, q %d\n",
+		"Generate slave wait CB, sob %d, val:%x, mon %d, q %d\n",
 		cs_cmpl->hw_sob->sob_id, cs_cmpl->sob_val,
 		prop->collective_slave_mon_id, queue_id);
 
@@ -1257,9 +1262,14 @@ static int gaudi_collective_wait_init_cs(struct hl_cs *cs)
 	gaudi = hdev->asic_specific;
 	cprop = &gaudi->collective_props;
 
-	/* copy the SOB id and value of the signal CS */
-	cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
-	cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+	/* In encaps signals case the SOB info will be retrieved from
+	 * the handle in gaudi_collective_slave_init_job.
+	 */
+	if (!cs->encaps_signals) {
+		/* copy the SOB id and value of the signal CS */
+		cs_cmpl->hw_sob = signal_cs_cmpl->hw_sob;
+		cs_cmpl->sob_val = signal_cs_cmpl->sob_val;
+	}
 
 	/* check again if the signal cs already completed.
 	 * if yes then don't send any wait cs since the hw_sob
@@ -1336,7 +1346,8 @@ static int gaudi_collective_wait_init_cs(struct hl_cs *cs)
 
 static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 		struct hl_ctx *ctx, struct hl_cs *cs,
-		enum hl_collective_mode mode, u32 queue_id, u32 wait_queue_id)
+		enum hl_collective_mode mode, u32 queue_id, u32 wait_queue_id,
+		u32 encaps_signal_offset)
 {
 	struct hw_queue_properties *hw_queue_prop;
 	struct hl_cs_counters_atomic *cntr;
@@ -1396,6 +1407,13 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = queue_id;
 
+	/* since its guaranteed to have only one chunk in the collective wait
+	 * cs, we can use this chunk to set the encapsulated signal offset
+	 * in the jobs.
+	 */
+	if (cs->encaps_signals)
+		job->encaps_sig_wait_offset = encaps_signal_offset;
+
 	/*
 	 * No need in parsing, user CB is the patched CB.
 	 * We call hl_cb_destroy() out of two reasons - we don't need
@@ -1424,8 +1442,9 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 }
 
 static int gaudi_collective_wait_create_jobs(struct hl_device *hdev,
-		struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
-		u32 collective_engine_id)
+		struct hl_ctx *ctx, struct hl_cs *cs,
+		u32 wait_queue_id, u32 collective_engine_id,
+		u32 encaps_signal_offset)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	struct hw_queue_properties *hw_queue_prop;
@@ -1475,7 +1494,8 @@ static int gaudi_collective_wait_create_jobs(struct hl_device *hdev,
 		if (i == 0) {
 			queue_id = wait_queue_id;
 			rc = gaudi_collective_wait_create_job(hdev, ctx, cs,
-				HL_COLLECTIVE_MASTER, queue_id, wait_queue_id);
+				HL_COLLECTIVE_MASTER, queue_id,
+				wait_queue_id, encaps_signal_offset);
 		} else {
 			if (nic_idx < NIC_NUMBER_OF_ENGINES) {
 				if (gaudi->hw_cap_initialized &
@@ -1495,7 +1515,8 @@ static int gaudi_collective_wait_create_jobs(struct hl_device *hdev,
 			}
 
 			rc = gaudi_collective_wait_create_job(hdev, ctx, cs,
-				HL_COLLECTIVE_SLAVE, queue_id, wait_queue_id);
+				HL_COLLECTIVE_SLAVE, queue_id,
+				wait_queue_id, encaps_signal_offset);
 		}
 
 		if (rc)
@@ -5909,78 +5930,6 @@ release_cb:
 	return rc;
 }
 
-static int gaudi_schedule_register_memset(struct hl_device *hdev,
-		u32 hw_queue_id, u64 reg_base, u32 num_regs, u32 val)
-{
-	struct hl_ctx *ctx;
-	struct hl_pending_cb *pending_cb;
-	struct packet_msg_long *pkt;
-	u32 cb_size, ctl;
-	struct hl_cb *cb;
-	int i, rc;
-
-	mutex_lock(&hdev->fpriv_list_lock);
-	ctx = hdev->compute_ctx;
-
-	/* If no compute context available or context is going down
-	 * memset registers directly
-	 */
-	if (!ctx || kref_read(&ctx->refcount) == 0) {
-		rc = gaudi_memset_registers(hdev, reg_base, num_regs, val);
-		mutex_unlock(&hdev->fpriv_list_lock);
-		return rc;
-	}
-
-	mutex_unlock(&hdev->fpriv_list_lock);
-
-	cb_size = (sizeof(*pkt) * num_regs) +
-			sizeof(struct packet_msg_prot) * 2;
-
-	if (cb_size > SZ_2M) {
-		dev_err(hdev->dev, "CB size must be smaller than %uMB", SZ_2M);
-		return -ENOMEM;
-	}
-
-	pending_cb = kzalloc(sizeof(*pending_cb), GFP_KERNEL);
-	if (!pending_cb)
-		return -ENOMEM;
-
-	cb = hl_cb_kernel_create(hdev, cb_size, false);
-	if (!cb) {
-		kfree(pending_cb);
-		return -EFAULT;
-	}
-
-	pkt = cb->kernel_address;
-
-	ctl = FIELD_PREP(GAUDI_PKT_LONG_CTL_OP_MASK, 0); /* write the value */
-	ctl |= FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_LONG);
-	ctl |= FIELD_PREP(GAUDI_PKT_CTL_EB_MASK, 1);
-	ctl |= FIELD_PREP(GAUDI_PKT_CTL_RB_MASK, 1);
-	ctl |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
-
-	for (i = 0; i < num_regs ; i++, pkt++) {
-		pkt->ctl = cpu_to_le32(ctl);
-		pkt->value = cpu_to_le32(val);
-		pkt->addr = cpu_to_le64(reg_base + (i * 4));
-	}
-
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
-
-	pending_cb->cb = cb;
-	pending_cb->cb_size = cb_size;
-	/* The queue ID MUST be an external queue ID. Otherwise, we will
-	 * have undefined behavior
-	 */
-	pending_cb->hw_queue_id = hw_queue_id;
-
-	spin_lock(&ctx->pending_cb_lock);
-	list_add_tail(&pending_cb->cb_node, &ctx->pending_cb_list);
-	spin_unlock(&ctx->pending_cb_lock);
-
-	return 0;
-}
-
 static int gaudi_restore_sm_registers(struct hl_device *hdev)
 {
 	u64 base_addr;
@@ -9031,16 +8980,12 @@ static u32 gaudi_gen_wait_cb(struct hl_device *hdev,
 static void gaudi_reset_sob(struct hl_device *hdev, void *data)
 {
 	struct hl_hw_sob *hw_sob = (struct hl_hw_sob *) data;
-	int rc;
 
 	dev_dbg(hdev->dev, "reset SOB, q_idx: %d, sob_id: %d\n", hw_sob->q_idx,
 		hw_sob->sob_id);
 
-	rc = gaudi_schedule_register_memset(hdev, hw_sob->q_idx,
-			CFG_BASE + mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_SOB_OBJ_0 +
-			hw_sob->sob_id * 4, 1, 0);
-	if (rc)
-		dev_err(hdev->dev, "failed resetting sob %u", hw_sob->sob_id);
+	WREG32(mmSYNC_MNGR_W_S_SYNC_MNGR_OBJS_SOB_OBJ_0 +
+			hw_sob->sob_id * 4, 0);
 
 	kref_init(&hw_sob->kref);
 }
