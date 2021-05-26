@@ -992,7 +992,7 @@ int main(int argc, char *argv[])
 		.tlast = NTESTS - 1,
 		.nslots = -1,
 		.seconds = 5,
-		.runs = 20,
+		.runs = 1,
 	};
 	struct test_result rbestslottime;
 	int tctr;
