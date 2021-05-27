@@ -198,6 +198,7 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 {
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
+#endif /* CONFIG_PCI */
 
 int of_pci_address_to_resource(struct device_node *dev, int bar,
 			       struct resource *r)
@@ -205,6 +206,9 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 	const __be32	*addrp;
 	u64		size;
 	unsigned int	flags;
+
+	if (!IS_ENABLED(CONFIG_PCI))
+		return -ENOSYS;
 
 	addrp = of_get_pci_address(dev, bar, &size, &flags);
 	if (addrp == NULL)
@@ -236,6 +240,9 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 	res->parent = res->child = res->sibling = NULL;
 	res->name = np->full_name;
 
+	if (!IS_ENABLED(CONFIG_PCI))
+		return -ENOSYS;
+
 	if (res->flags & IORESOURCE_IO) {
 		unsigned long port;
 		err = pci_register_io_range(&np->fwnode, range->cpu_addr,
@@ -266,7 +273,6 @@ invalid_range:
 	return err;
 }
 EXPORT_SYMBOL(of_pci_range_to_resource);
-#endif /* CONFIG_PCI */
 
 /*
  * ISA bus specific translator
