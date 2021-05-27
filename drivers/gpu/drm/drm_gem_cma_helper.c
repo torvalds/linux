@@ -514,13 +514,16 @@ int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 
 	cma_obj = to_drm_gem_cma_obj(obj);
 
-	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	if (!cma_obj->map_noncoherent)
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	if (cma_obj->map_noncoherent) {
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
-	ret = dma_mmap_pages(cma_obj->base.dev->dev,
-			     vma, vma->vm_end - vma->vm_start,
-			     virt_to_page(cma_obj->vaddr));
+		ret = dma_mmap_pages(cma_obj->base.dev->dev,
+				     vma, vma->vm_end - vma->vm_start,
+				     virt_to_page(cma_obj->vaddr));
+	} else {
+		ret = dma_mmap_wc(cma_obj->base.dev->dev, vma, cma_obj->vaddr,
+				  cma_obj->paddr, vma->vm_end - vma->vm_start);
+	}
 	if (ret)
 		drm_gem_vm_close(vma);
 
