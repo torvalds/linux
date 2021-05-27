@@ -2714,6 +2714,12 @@ int cmd_record(int argc, const char **argv)
 		rec->no_buildid = true;
 	}
 
+	if (rec->opts.record_cgroup && !perf_can_record_cgroup()) {
+		pr_err("Kernel has no cgroup sampling support.\n");
+		err = -EINVAL;
+		goto out_opts;
+	}
+
 	if (rec->opts.kcore)
 		rec->data.is_dir = true;
 
