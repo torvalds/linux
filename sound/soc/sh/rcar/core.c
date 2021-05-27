@@ -543,7 +543,7 @@ static int rsnd_status_update(u32 *status,
 	int func_call	= (val == timing);
 
 	if (next_val == 0xF) /* underflow case */
-		func_call = 0;
+		func_call = -1;
 	else
 		*status = (*status & ~mask) + (next_val << shift);
 
@@ -567,11 +567,12 @@ static int rsnd_status_update(u32 *status,
 		rsnd_dbg_dai_call(dev, "%s\t0x%08x %s\n",		\
 			rsnd_mod_name(mod), *status,	\
 			(func_call && (mod)->ops->fn) ? #fn : "");	\
-		if (func_call && (mod)->ops->fn)			\
+		if (func_call > 0 && (mod)->ops->fn)			\
 			tmp = (mod)->ops->fn(mod, io, param);		\
-		if (tmp && (tmp != -EPROBE_DEFER))			\
-			dev_err(dev, "%s : %s error %d\n",		\
-				rsnd_mod_name(mod), #fn, tmp);		\
+		if (unlikely(func_call < 0) ||				\
+		    unlikely(tmp && (tmp != -EPROBE_DEFER)))		\
+			dev_err(dev, "%s : %s error (%d, %d)\n",	\
+				rsnd_mod_name(mod), #fn, tmp, func_call);\
 		ret |= tmp;						\
 	}								\
 	ret;								\
