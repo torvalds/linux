@@ -472,7 +472,7 @@ Handling the final component
 ``nd->last_type`` to refer to the final component of the path.  It does
 not call ``walk_component()`` that last time.  Handling that final
 component remains for the caller to sort out. Those callers are
-``path_lookupat()``, ``path_parentat()``, ``path_mountpoint()`` and
+``path_lookupat()``, ``path_parentat()`` and
 ``path_openat()`` each of which handles the differing requirements of
 different system calls.
 
@@ -488,12 +488,10 @@ perform their operation.
 object is wanted such as by ``stat()`` or ``chmod()``.  It essentially just
 calls ``walk_component()`` on the final component through a call to
 ``lookup_last()``.  ``path_lookupat()`` returns just the final dentry.
-
-``path_mountpoint()`` handles the special case of unmounting which must
-not try to revalidate the mounted filesystem.  It effectively
-contains, through a call to ``mountpoint_last()``, an alternate
-implementation of ``lookup_slow()`` which skips that step.  This is
-important when unmounting a filesystem that is inaccessible, such as
+It is worth noting that when flag ``LOOKUP_MOUNTPOINT`` is set,
+``path_lookupat()`` will unset LOOKUP_JUMPED in nameidata so that in the
+subsequent path traversal ``d_weak_revalidate()`` won't be called.
+This is important when unmounting a filesystem that is inaccessible, such as
 one provided by a dead NFS server.
 
 Finally ``path_openat()`` is used for the ``open()`` system call; it
