@@ -193,17 +193,6 @@ config REGULATOR_BCM590XX
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
 
-config REGULATOR_BD70528
-	tristate "ROHM BD70528 Power Regulator"
-	depends on MFD_ROHM_BD70528
-	help
-	  This driver supports voltage regulators on ROHM BD70528 PMIC.
-	  This will enable support for the software controllable buck
-	  and LDO regulators.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called bd70528-regulator.
-
 config REGULATOR_BD71815
 	tristate "ROHM BD71815 Power Regulator"
 	depends on MFD_ROHM_BD71828
