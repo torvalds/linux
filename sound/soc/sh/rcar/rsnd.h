@@ -635,6 +635,7 @@ struct rsnd_priv {
 	 * below value will be filled on rsnd_adg_probe()
 	 */
 	void *adg;
+	struct clk_hw *null_hw;
 
 	/*
 	 * below value will be filled on rsnd_dma_probe()

@@ -392,10 +392,9 @@ void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 #define NULL_CLK "rsnd_adg_null"
 static struct clk *rsnd_adg_null_clk_get(struct rsnd_priv *priv)
 {
-	static struct clk_hw *hw;
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	if (!hw) {
+	if (!priv->null_hw) {
 		struct clk_hw *_hw;
 		int ret;
 
@@ -407,10 +406,10 @@ static struct clk *rsnd_adg_null_clk_get(struct rsnd_priv *priv)
 		if (ret < 0)
 			clk_hw_unregister_fixed_rate(_hw);
 
-		hw = _hw;
+		priv->null_hw = _hw;
 	}
 
-	return clk_hw_get_clk(hw, NULL_CLK);
+	return clk_hw_get_clk(priv->null_hw, NULL_CLK);
 }
 
 static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
@@ -649,6 +648,8 @@ void rsnd_adg_remove(struct rsnd_priv *priv)
 	for_each_rsnd_clkout(clk, adg, i)
 		if (adg->clkout[i])
 			clk_unregister_fixed_rate(adg->clkout[i]);
+	if (priv->null_hw)
+		clk_hw_unregister_fixed_rate(priv->null_hw);
 
 	of_clk_del_provider(np);
 
