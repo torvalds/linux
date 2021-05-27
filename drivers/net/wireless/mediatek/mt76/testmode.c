@@ -158,8 +158,11 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 			frag_len = MT_TXP_MAX_LEN;
 
 		frag = alloc_skb(frag_len, GFP_KERNEL);
-		if (!frag)
+		if (!frag) {
+			mt76_testmode_free_skb(phy);
+			dev_kfree_skb(head);
 			return -ENOMEM;
+		}
 
 		__skb_put_zero(frag, frag_len);
 		head->len += frag->len;
