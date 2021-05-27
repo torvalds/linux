@@ -135,7 +135,7 @@ int parse_stream_name(char *filename, char **stream_name, int *s_type)
 		}
 
 		ksmbd_debug(SMB, "stream name : %s, stream type : %s\n", s_name,
-				stream_type);
+			    stream_type);
 		if (!strncasecmp("$data", stream_type, 5))
 			*s_type = DATA_STREAM;
 		else if (!strncasecmp("$index_allocation", stream_type, 17))
@@ -267,7 +267,8 @@ char *convert_to_unix_name(struct ksmbd_share_config *share, char *name)
 }
 
 char *ksmbd_convert_dir_info_name(struct ksmbd_dir_info *d_info,
-		const struct nls_table *local_nls, int *conv_len)
+				  const struct nls_table *local_nls,
+				  int *conv_len)
 {
 	char *conv;
 	int  sz = min(4 * d_info->name_len, PATH_MAX);
@@ -280,11 +281,8 @@ char *ksmbd_convert_dir_info_name(struct ksmbd_dir_info *d_info,
 		return NULL;
 
 	/* XXX */
-	*conv_len = smbConvertToUTF16((__le16 *)conv,
-					d_info->name,
-					d_info->name_len,
-					local_nls,
-					0);
+	*conv_len = smbConvertToUTF16((__le16 *)conv, d_info->name,
+				      d_info->name_len, local_nls, 0);
 	*conv_len *= 2;
 
 	/* We allocate buffer twice bigger than needed. */

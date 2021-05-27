@@ -9,8 +9,6 @@
  * Copyright (C) Paul Ashton                  1998-2000
  */
 
-
-
 #ifndef _NTERR_H
 #define _NTERR_H
 

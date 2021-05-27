@@ -201,30 +201,30 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 }
 
 int ksmbd_conn_rdma_read(struct ksmbd_conn *conn, void *buf,
-		unsigned int buflen, u32 remote_key, u64 remote_offset,
-		u32 remote_len)
+			 unsigned int buflen, u32 remote_key, u64 remote_offset,
+			 u32 remote_len)
 {
 	int ret = -EINVAL;
 
 	if (conn->transport->ops->rdma_read)
 		ret = conn->transport->ops->rdma_read(conn->transport,
-						buf, buflen,
-						remote_key, remote_offset,
-						remote_len);
+						      buf, buflen,
+						      remote_key, remote_offset,
+						      remote_len);
 	return ret;
 }
 
 int ksmbd_conn_rdma_write(struct ksmbd_conn *conn, void *buf,
-		unsigned int buflen, u32 remote_key, u64 remote_offset,
-		u32 remote_len)
+			  unsigned int buflen, u32 remote_key,
+			  u64 remote_offset, u32 remote_len)
 {
 	int ret = -EINVAL;
 
 	if (conn->transport->ops->rdma_write)
 		ret = conn->transport->ops->rdma_write(conn->transport,
-						buf, buflen,
-						remote_key, remote_offset,
-						remote_len);
+						       buf, buflen,
+						       remote_key, remote_offset,
+						       remote_len);
 	return ret;
 }
 
@@ -250,7 +250,7 @@ bool ksmbd_conn_alive(struct ksmbd_conn *conn)
 	if (server_conf.deadtime > 0 &&
 	    time_after(jiffies, conn->last_active + server_conf.deadtime)) {
 		ksmbd_debug(CONN, "No response from client in %lu minutes\n",
-			server_conf.deadtime / SMB_ECHO_INTERVAL);
+			    server_conf.deadtime / SMB_ECHO_INTERVAL);
 		return false;
 	}
 	return true;
@@ -390,7 +390,7 @@ again:
 		task = conn->transport->handler;
 		if (task)
 			ksmbd_debug(CONN, "Stop session handler %s/%d\n",
-				  task->comm, task_pid_nr(task));
+				    task->comm, task_pid_nr(task));
 		conn->status = KSMBD_SESS_EXITING;
 	}
 	read_unlock(&conn_list_lock);

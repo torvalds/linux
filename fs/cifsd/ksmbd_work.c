@@ -39,13 +39,13 @@ void ksmbd_free_work_struct(struct ksmbd_work *work)
 {
 	WARN_ON(work->saved_cred != NULL);
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_TBUF &&
-			work->set_trans_buf)
+	    work->set_trans_buf)
 		ksmbd_release_buffer(work->response_buf);
 	else
 		kvfree(work->response_buf);
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF &&
-			work->set_read_buf)
+	    work->set_read_buf)
 		ksmbd_release_buffer(work->aux_payload_buf);
 	else
 		kvfree(work->aux_payload_buf);
@@ -65,8 +65,8 @@ void ksmbd_work_pool_destroy(void)
 int ksmbd_work_pool_init(void)
 {
 	work_cache = kmem_cache_create("ksmbd_work_cache",
-					sizeof(struct ksmbd_work), 0,
-					SLAB_HWCACHE_ALIGN, NULL);
+				       sizeof(struct ksmbd_work), 0,
+				       SLAB_HWCACHE_ALIGN, NULL);
 	if (!work_cache)
 		return -ENOMEM;
 	return 0;

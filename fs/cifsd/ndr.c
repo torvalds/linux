@@ -185,7 +185,7 @@ int ndr_decode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 	version2 = ndr_read_int32(n);
 	if (da->version != version2) {
 		ksmbd_err("ndr version mismatched(version: %d, version2: %d)\n",
-				da->version, version2);
+			  da->version, version2);
 		return -EINVAL;
 	}
 
@@ -235,7 +235,8 @@ static int ndr_encode_posix_acl_entry(struct ndr *n, struct xattr_smb_acl *acl)
 }
 
 int ndr_encode_posix_acl(struct ndr *n, struct inode *inode,
-		struct xattr_smb_acl *acl, struct xattr_smb_acl *def_acl)
+			 struct xattr_smb_acl *acl,
+			 struct xattr_smb_acl *def_acl)
 {
 	int ref_id = 0x00020000;
 
@@ -315,7 +316,7 @@ int ndr_decode_v4_ntacl(struct ndr *n, struct xattr_ntacl *acl)
 	version2 = ndr_read_int32(n);
 	if (acl->version != version2) {
 		ksmbd_err("ndr version mismatched(version: %d, version2: %d)\n",
-				acl->version, version2);
+			  acl->version, version2);
 		return -EINVAL;
 	}
 

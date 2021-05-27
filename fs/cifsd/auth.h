@@ -35,56 +35,31 @@ struct ksmbd_session;
 struct ksmbd_conn;
 struct kvec;
 
-int ksmbd_crypt_message(struct ksmbd_conn *conn,
-			struct kvec *iov,
-			unsigned int nvec,
-			int enc);
-
+int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
+			unsigned int nvec, int enc);
 void ksmbd_copy_gss_neg_header(void *buf);
-
-int ksmbd_auth_ntlm(struct ksmbd_session *sess,
-		    char *pw_buf);
-
-int ksmbd_auth_ntlmv2(struct ksmbd_session *sess,
-		      struct ntlmv2_resp *ntlmv2,
-		      int blen,
-		      char *domain_name);
-
+int ksmbd_auth_ntlm(struct ksmbd_session *sess, char *pw_buf);
+int ksmbd_auth_ntlmv2(struct ksmbd_session *sess, struct ntlmv2_resp *ntlmv2,
+		      int blen, char *domain_name);
 int ksmbd_decode_ntlmssp_auth_blob(struct authenticate_message *authblob,
-				   int blob_len,
-				   struct ksmbd_session *sess);
-
+				   int blob_len, struct ksmbd_session *sess);
 int ksmbd_decode_ntlmssp_neg_blob(struct negotiate_message *negblob,
-				  int blob_len,
-				  struct ksmbd_session *sess);
-
+				  int blob_len, struct ksmbd_session *sess);
 unsigned int
 ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
-		struct ksmbd_session *sess);
-
-int ksmbd_krb5_authenticate(struct ksmbd_session *sess,
-			char *in_blob, int in_len,
-			char *out_blob, int *out_len);
-
-int ksmbd_sign_smb2_pdu(struct ksmbd_conn *conn,
-			char *key,
-			struct kvec *iov,
-			int n_vec,
-			char *sig);
-int ksmbd_sign_smb3_pdu(struct ksmbd_conn *conn,
-			char *key,
-			struct kvec *iov,
-			int n_vec,
-			char *sig);
-
+				   struct ksmbd_session *sess);
+int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
+			    int in_len,	char *out_blob, int *out_len);
+int ksmbd_sign_smb2_pdu(struct ksmbd_conn *conn, char *key, struct kvec *iov,
+			int n_vec, char *sig);
+int ksmbd_sign_smb3_pdu(struct ksmbd_conn *conn, char *key, struct kvec *iov,
+			int n_vec, char *sig);
 int ksmbd_gen_smb30_signingkey(struct ksmbd_session *sess);
 int ksmbd_gen_smb311_signingkey(struct ksmbd_session *sess);
 int ksmbd_gen_smb30_encryptionkey(struct ksmbd_session *sess);
 int ksmbd_gen_smb311_encryptionkey(struct ksmbd_session *sess);
-
-int ksmbd_gen_preauth_integrity_hash(struct ksmbd_conn *conn,
-				     char *buf,
+int ksmbd_gen_preauth_integrity_hash(struct ksmbd_conn *conn, char *buf,
 				     __u8 *pi_hash);
 int ksmbd_gen_sd_hash(struct ksmbd_conn *conn, char *sd_buf, int len,
-		__u8 *pi_hash);
+		      __u8 *pi_hash);
 #endif

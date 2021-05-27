@@ -37,7 +37,7 @@ static char NTLMSSP_OID_STR[NTLMSSP_OID_LEN] = { 0x2b, 0x06, 0x01, 0x04, 0x01,
 
 static bool
 asn1_subid_decode(const unsigned char **begin, const unsigned char *end,
-		unsigned long *subid)
+		  unsigned long *subid)
 {
 	const unsigned char *ptr = *begin;
 	unsigned char ch;
@@ -58,14 +58,14 @@ asn1_subid_decode(const unsigned char **begin, const unsigned char *end,
 }
 
 static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
-		unsigned long **oid, size_t *oidlen)
+			    unsigned long **oid, size_t *oidlen)
 {
 	const unsigned char *iptr = value, *end = value + vlen;
 	unsigned long *optr;
 	unsigned long subid;
 
 	vlen += 1;
-	if (vlen < 2 || vlen > UINT_MAX/sizeof(unsigned long))
+	if (vlen < 2 || vlen > UINT_MAX / sizeof(unsigned long))
 		return false;
 
 	*oid = kmalloc(vlen * sizeof(unsigned long), GFP_KERNEL);
@@ -74,11 +74,8 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 
 	optr = *oid;
 
-	if (!asn1_subid_decode(&iptr, end, &subid)) {
-		kfree(*oid);
-		*oid = NULL;
-		return false;
-	}
+	if (!asn1_subid_decode(&iptr, end, &subid))
+		goto fail;
 
 	if (subid < 40) {
 		optr[0] = 0;
@@ -95,40 +92,32 @@ static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
 	optr += 2;
 
 	while (iptr < end) {
-		if (++(*oidlen) > vlen) {
-			kfree(*oid);
-			*oid = NULL;
-			return false;
-		}
+		if (++(*oidlen) > vlen)
+			goto fail;
 
-		if (!asn1_subid_decode(&iptr, end, optr++)) {
-			kfree(*oid);
-			*oid = NULL;
-			return false;
-		}
+		if (!asn1_subid_decode(&iptr, end, optr++))
+			goto fail;
 	}
 	return true;
+
+fail:
+	kfree(*oid);
+	*oid = NULL;
+	return false;
 }
 
-static bool
-oid_eq(unsigned long *oid1, unsigned int oid1len,
-		unsigned long *oid2, unsigned int oid2len)
+static bool oid_eq(unsigned long *oid1, unsigned int oid1len,
+		   unsigned long *oid2, unsigned int oid2len)
 {
-	unsigned int i;
-
 	if (oid1len != oid2len)
 		return false;
 
-	for (i = 0; i < oid1len; i++) {
-		if (oid1[i] != oid2[i])
-			return false;
-	}
-	return true;
+	return memcmp(oid1, oid2, oid1len) == 0;
 }
 
 int
 ksmbd_decode_negTokenInit(unsigned char *security_blob, int length,
-		struct ksmbd_conn *conn)
+			  struct ksmbd_conn *conn)
 {
 	return asn1_ber_decoder(&spnego_negtokeninit_decoder, conn,
 				security_blob, length);
@@ -136,7 +125,7 @@ ksmbd_decode_negTokenInit(unsigned char *security_blob, int length,
 
 int
 ksmbd_decode_negTokenTarg(unsigned char *security_blob, int length,
-		struct ksmbd_conn *conn)
+			  struct ksmbd_conn *conn)
 {
 	return asn1_ber_decoder(&spnego_negtokentarg_decoder, conn,
 				security_blob, length);
@@ -156,10 +145,7 @@ static int compute_asn_hdr_len_bytes(int len)
 		return 0;
 }
 
-static void encode_asn_tag(char *buf,
-			   unsigned int *ofs,
-			   char tag,
-			   char seq,
+static void encode_asn_tag(char *buf, unsigned int *ofs, char tag, char seq,
 			   int length)
 {
 	int i;
@@ -170,9 +156,9 @@ static void encode_asn_tag(char *buf,
 	/* insert tag */
 	buf[index++] = tag;
 
-	if (!hdr_len)
+	if (!hdr_len) {
 		buf[index++] = len;
-	else {
+	} else {
 		buf[index++] = 0x80 | hdr_len;
 		for (i = hdr_len - 1; i >= 0; i--)
 			buf[index++] = (len >> (i * 8)) & 0xFF;
@@ -182,9 +168,9 @@ static void encode_asn_tag(char *buf,
 	len = len - (index - *ofs);
 	buf[index++] = seq;
 
-	if (!hdr_len)
+	if (!hdr_len) {
 		buf[index++] = len;
-	else {
+	} else {
 		buf[index++] = 0x80 | hdr_len;
 		for (i = hdr_len - 1; i >= 0; i--)
 			buf[index++] = (len >> (i * 8)) & 0xFF;
@@ -194,7 +180,7 @@ static void encode_asn_tag(char *buf,
 }
 
 int build_spnego_ntlmssp_neg_blob(unsigned char **pbuffer, u16 *buflen,
-		char *ntlm_blob, int ntlm_blob_len)
+				  char *ntlm_blob, int ntlm_blob_len)
 {
 	char *buf;
 	unsigned int ofs = 0;
@@ -235,7 +221,7 @@ int build_spnego_ntlmssp_neg_blob(unsigned char **pbuffer, u16 *buflen,
 }
 
 int build_spnego_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
-		int neg_result)
+				   int neg_result)
 {
 	char *buf;
 	unsigned int ofs = 0;
@@ -262,8 +248,8 @@ int build_spnego_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 	return 0;
 }
 
-int gssapi_this_mech(void *context, size_t hdrlen,
-		unsigned char tag, const void *value, size_t vlen)
+int gssapi_this_mech(void *context, size_t hdrlen, unsigned char tag,
+		     const void *value, size_t vlen)
 {
 	unsigned long *oid;
 	size_t oidlen;
@@ -287,21 +273,17 @@ out:
 	return err;
 }
 
-int neg_token_init_mech_type(void *context, size_t hdrlen,
-		unsigned char tag, const void *value, size_t vlen)
+int neg_token_init_mech_type(void *context, size_t hdrlen, unsigned char tag,
+			     const void *value, size_t vlen)
 {
 	struct ksmbd_conn *conn = context;
 	unsigned long *oid;
 	size_t oidlen;
 	int mech_type;
+	char buf[50];
 
-	if (!asn1_oid_decode(value, vlen, &oid, &oidlen)) {
-		char buf[50];
-
-		sprint_oid(value, vlen, buf, sizeof(buf));
-		ksmbd_debug(AUTH, "Unexpected OID: %s\n", buf);
-		return -EBADMSG;
-	}
+	if (!asn1_oid_decode(value, vlen, &oid, &oidlen))
+		goto fail;
 
 	if (oid_eq(oid, oidlen, NTLMSSP_OID, NTLMSSP_OID_LEN))
 		mech_type = KSMBD_AUTH_NTLMSSP;
@@ -312,19 +294,24 @@ int neg_token_init_mech_type(void *context, size_t hdrlen,
 	else if (oid_eq(oid, oidlen, KRB5U2U_OID, KRB5U2U_OID_LEN))
 		mech_type = KSMBD_AUTH_KRB5U2U;
 	else
-		goto out;
+		goto fail;
 
 	conn->auth_mechs |= mech_type;
 	if (conn->preferred_auth_mech == 0)
 		conn->preferred_auth_mech = mech_type;
 
-out:
 	kfree(oid);
 	return 0;
+
+fail:
+	kfree(oid);
+	sprint_oid(value, vlen, buf, sizeof(buf));
+	ksmbd_debug(AUTH, "Unexpected OID: %s\n", buf);
+	return -EBADMSG;
 }
 
-int neg_token_init_mech_token(void *context, size_t hdrlen,
-		unsigned char tag, const void *value, size_t vlen)
+int neg_token_init_mech_token(void *context, size_t hdrlen, unsigned char tag,
+			      const void *value, size_t vlen)
 {
 	struct ksmbd_conn *conn = context;
 
@@ -337,8 +324,8 @@ int neg_token_init_mech_token(void *context, size_t hdrlen,
 	return 0;
 }
 
-int neg_token_targ_resp_token(void *context, size_t hdrlen,
-		unsigned char tag, const void *value, size_t vlen)
+int neg_token_targ_resp_token(void *context, size_t hdrlen, unsigned char tag,
+			      const void *value, size_t vlen)
 {
 	struct ksmbd_conn *conn = context;
 
