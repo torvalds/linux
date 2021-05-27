@@ -11,8 +11,13 @@ static bool mem_loads_name__init;
 
 bool is_mem_loads_aux_event(struct evsel *leader)
 {
-	if (!pmu_have_event("cpu", "mem-loads-aux"))
-		return false;
+	if (perf_pmu__find("cpu")) {
+		if (!pmu_have_event("cpu", "mem-loads-aux"))
+			return false;
+	} else if (perf_pmu__find("cpu_core")) {
+		if (!pmu_have_event("cpu_core", "mem-loads-aux"))
+			return false;
+	}
 
 	return leader->core.attr.config == MEM_LOADS_AUX;
 }
