@@ -2607,6 +2607,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	WARN_ON(vp->event);
 	vop2_lock(vop2);
+	DRM_DEV_INFO(vop2->dev, "Crtc atomic disable vp%d\n", vp->id);
 	drm_crtc_vblank_off(crtc);
 	vop2_disable_all_planes_for_crtc(crtc);
 
@@ -2901,6 +2902,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	uint32_t lb_mode;
 	uint32_t stride;
 	uint32_t transform_offset;
+	struct drm_format_name_buf format_name;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	bool AFBC_flag = false;
@@ -2956,14 +2958,14 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	actual_h = drm_rect_height(src) >> 16;
 	dsp_w = drm_rect_width(dest);
 	if (dest->x1 + dsp_w > adjusted_mode->hdisplay) {
-		DRM_ERROR("%s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
-			  win->name, dest->x1, dsp_w, adjusted_mode->hdisplay);
+		DRM_ERROR("vp%d %s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
+			  vp->id, win->name, dest->x1, dsp_w, adjusted_mode->hdisplay);
 		dsp_w = adjusted_mode->hdisplay - dest->x1;
 	}
 	dsp_h = drm_rect_height(dest);
 	if (dest->y1 + dsp_h > adjusted_mode->vdisplay) {
-		DRM_ERROR("%s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
-			  win->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
+		DRM_ERROR("vp%d %s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
+			  vp->id, win->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
 		dsp_h = adjusted_mode->vdisplay - dest->y1;
 	}
 
@@ -2973,14 +2975,14 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	 */
 	if (!(win->feature & WIN_FEATURE_AFBDC)) {
 		if (actual_w > dsp_w && (actual_w & 0xf) == 1) {
-			DRM_WARN("%s act_w[%d] MODE 16 == 1\n", win->name, actual_w);
+			DRM_WARN("vp%d %s act_w[%d] MODE 16 == 1\n", vp->id, win->name, actual_w);
 			actual_w -= 1;
 		}
 	}
 
 	if (vpstate->afbc_en && actual_w % 4) {
-		DRM_ERROR("%s actual_w[%d] should align as 4 pixel when enable afbc\n",
-			  win->name, actual_w);
+		DRM_ERROR("vp%d %s actual_w[%d] should align as 4 pixel when enable afbc\n",
+			  vp->id, win->name, actual_w);
 		actual_w = ALIGN_DOWN(actual_w, 4);
 	}
 
@@ -2996,6 +2998,11 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	vop2_setup_csc_mode(vp, vpstate);
 
 	spin_lock(&vop2->reg_lock);
+	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@%dx%d] fmt[%.4s_%s] addr[%pad]\n",
+		      vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
+		      dsp_stx, dsp_sty,
+		      drm_get_format_name(fb->format->format, &format_name),
+		      vpstate->afbc_en ? "AFBC" : "", &vpstate->yrgb_mst);
 
 	if (vpstate->afbc_en) {
 		/* the afbc superblock is 16 x 16 */
@@ -3010,8 +3017,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		stride = (fb->pitches[0] << 3) / bpp;
 		if ((stride & 0x3f) &&
 		    (vpstate->xmirror_en || vpstate->rotate_90_en || vpstate->rotate_270_en))
-			DRM_ERROR("%s stride[%d] must align as 64 pixel when enable xmirror/rotate_90/rotate_270[0x%x]\n",
-				  win->name, stride, pstate->rotation);
+			DRM_ERROR("vp%d %s stride[%d] must align as 64 pixel when enable xmirror/rotate_90/rotate_270[0x%x]\n",
+				  vp->id, win->name, stride, pstate->rotation);
 
 		rb_swap = vop2_afbc_rb_swap(fb->format->format);
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
@@ -4872,8 +4879,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		main_win->two_win_mode = true;
 		vop2_setup_cluster_alpha(vop2, &cluster);
 		if (abs(main_win->base.state->zpos - win->base.state->zpos) != 1)
-			DRM_ERROR("Cluster%d win0[zpos:%d] must next to win1[zpos:%d]\n",
-				  cluster.main->phys_id,
+			DRM_ERROR("vp%d Cluster%d win0[zpos:%d] must next to win1[zpos:%d]\n",
+				  vp->id, cluster.main->phys_id,
 				  main_win->base.state->zpos, win->base.state->zpos);
 	}
 
@@ -5068,7 +5075,7 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 		if (ret) {
 			vop2->is_iommu_enabled = false;
 			vop2_disable_all_planes_for_crtc(crtc);
-			DRM_DEV_ERROR(vop2->dev, "failed to attach dma mapping, %d\n", ret);
+			DRM_DEV_ERROR(vop2->dev, "vp%d failed to attach dma mapping, %d\n", vp->id, ret);
 		} else {
 			vop2->is_iommu_enabled = true;
 			VOP_CTRL_SET(vop2, dma_stop, 0);
