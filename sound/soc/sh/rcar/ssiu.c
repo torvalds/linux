@@ -50,8 +50,8 @@ static const int gen3_id[] = { 0, 8, 16, 24, 32, 40, 41, 42, 43, 44 };
 #define rsnd_ssiu_busif_err_irq_disable(mod) rsnd_ssiu_busif_err_irq_ctrl(mod, 0)
 static void rsnd_ssiu_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
 {
-	u32 sys_int_enable = 0;
 	int id = rsnd_mod_id(mod);
+	int shift, offset;
 	int i;
 
 	switch (id) {
@@ -60,29 +60,25 @@ static void rsnd_ssiu_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
 	case 2:
 	case 3:
 	case 4:
-		for (i = 0; i < 4; i++) {
-			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE(i * 2));
-			if (enable)
-				sys_int_enable |= 0xf << (id * 4);
-			else
-				sys_int_enable &= ~(0xf << (id * 4));
-			rsnd_mod_write(mod,
-				       SSI_SYS_INT_ENABLE(i * 2),
-				       sys_int_enable);
-		}
+		shift  = id;
+		offset = 0;
 		break;
 	case 9:
-		for (i = 0; i < 4; i++) {
-			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE((i * 2) + 1));
-			if (enable)
-				sys_int_enable |= 0xf << 4;
-			else
-				sys_int_enable &= ~(0xf << 4);
-			rsnd_mod_write(mod,
-				       SSI_SYS_INT_ENABLE((i * 2) + 1),
-				       sys_int_enable);
-		}
+		shift  = 1;
+		offset = 1;
 		break;
+	}
+
+	for (i = 0; i < 4; i++) {
+		enum rsnd_reg reg = SSI_SYS_INT_ENABLE((i * 2) + offset);
+		u32 val = 0xf << (shift * 4);
+		u32 sys_int_enable = rsnd_mod_read(mod, reg);
+
+		if (enable)
+			sys_int_enable |= val;
+		else
+			sys_int_enable &= ~val;
+		rsnd_mod_write(mod, reg, sys_int_enable);
 	}
 }
 
