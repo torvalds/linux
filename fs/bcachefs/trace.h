@@ -49,14 +49,14 @@ DECLARE_EVENT_CLASS(bch_fs,
 	TP_ARGS(c),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16 )
+		__field(dev_t,		dev			)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev		= c->dev;
 	),
 
-	TP_printk("%pU", __entry->uuid)
+	TP_printk("%d,%d", MAJOR(__entry->dev), MINOR(__entry->dev))
 );
 
 DECLARE_EVENT_CLASS(bio,
@@ -131,7 +131,7 @@ TRACE_EVENT(journal_reclaim_start,
 		btree_key_cache_dirty, btree_key_cache_total),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16		)
+		__field(dev_t,		dev			)
 		__field(u64,		min_nr			)
 		__field(u64,		prereserved		)
 		__field(u64,		prereserved_total	)
@@ -142,7 +142,7 @@ TRACE_EVENT(journal_reclaim_start,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev			= c->dev;
 		__entry->min_nr			= min_nr;
 		__entry->prereserved		= prereserved;
 		__entry->prereserved_total	= prereserved_total;
@@ -152,8 +152,8 @@ TRACE_EVENT(journal_reclaim_start,
 		__entry->btree_key_cache_total	= btree_key_cache_total;
 	),
 
-	TP_printk("%pU min %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
-		  __entry->uuid,
+	TP_printk("%d,%d min %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->min_nr,
 		  __entry->prereserved,
 		  __entry->prereserved_total,
@@ -168,16 +168,18 @@ TRACE_EVENT(journal_reclaim_finish,
 	TP_ARGS(c, nr_flushed),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16 )
-		__field(u64,		nr_flushed )
+		__field(dev_t,		dev			)
+		__field(u64,		nr_flushed		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
-		__entry->nr_flushed = nr_flushed;
+		__entry->dev		= c->dev;
+		__entry->nr_flushed	= nr_flushed;
 	),
 
-	TP_printk("%pU flushed %llu", __entry->uuid, __entry->nr_flushed)
+	TP_printk("%d%d flushed %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->nr_flushed)
 );
 
 /* bset.c: */
@@ -194,7 +196,7 @@ DECLARE_EVENT_CLASS(btree_node,
 	TP_ARGS(c, b),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,		16	)
+		__field(dev_t,		dev			)
 		__field(u8,		level			)
 		__field(u8,		id			)
 		__field(u64,		inode			)
@@ -202,15 +204,16 @@ DECLARE_EVENT_CLASS(btree_node,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev		= c->dev;
 		__entry->level		= b->c.level;
 		__entry->id		= b->c.btree_id;
 		__entry->inode		= b->key.k.p.inode;
 		__entry->offset		= b->key.k.p.offset;
 	),
 
-	TP_printk("%pU  %u id %u %llu:%llu",
-		  __entry->uuid, __entry->level, __entry->id,
+	TP_printk("%d,%d  %u id %u %llu:%llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->level, __entry->id,
 		  __entry->inode, __entry->offset)
 );
 
@@ -254,32 +257,17 @@ DEFINE_EVENT(btree_node, btree_node_reap,
 	TP_ARGS(c, b)
 );
 
-DECLARE_EVENT_CLASS(btree_node_cannibalize_lock,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c),
-
-	TP_STRUCT__entry(
-		__array(char,			uuid,	16	)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
-	),
-
-	TP_printk("%pU", __entry->uuid)
-);
-
-DEFINE_EVENT(btree_node_cannibalize_lock, btree_node_cannibalize_lock_fail,
+DEFINE_EVENT(bch_fs, btree_node_cannibalize_lock_fail,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(btree_node_cannibalize_lock, btree_node_cannibalize_lock,
+DEFINE_EVENT(bch_fs, btree_node_cannibalize_lock,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(btree_node_cannibalize_lock, btree_node_cannibalize,
+DEFINE_EVENT(bch_fs, btree_node_cannibalize,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );
@@ -294,18 +282,19 @@ TRACE_EVENT(btree_reserve_get_fail,
 	TP_ARGS(c, required, cl),
 
 	TP_STRUCT__entry(
-		__array(char,			uuid,	16	)
+		__field(dev_t,		dev			)
 		__field(size_t,			required	)
 		__field(struct closure *,	cl		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev		= c->dev;
 		__entry->required = required;
 		__entry->cl = cl;
 	),
 
-	TP_printk("%pU required %zu by %p", __entry->uuid,
+	TP_printk("%d,%d required %zu by %p",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->required, __entry->cl)
 );
 
@@ -483,19 +472,20 @@ TRACE_EVENT(move_data,
 	TP_ARGS(c, sectors_moved, keys_moved),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16	)
+		__field(dev_t,		dev			)
 		__field(u64,		sectors_moved	)
 		__field(u64,		keys_moved	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev			= c->dev;
 		__entry->sectors_moved = sectors_moved;
 		__entry->keys_moved = keys_moved;
 	),
 
-	TP_printk("%pU sectors_moved %llu keys_moved %llu",
-		__entry->uuid, __entry->sectors_moved, __entry->keys_moved)
+	TP_printk("%d,%d sectors_moved %llu keys_moved %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->sectors_moved, __entry->keys_moved)
 );
 
 TRACE_EVENT(copygc,
@@ -507,7 +497,7 @@ TRACE_EVENT(copygc,
 		buckets_moved, buckets_not_moved),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16		)
+		__field(dev_t,		dev			)
 		__field(u64,		sectors_moved		)
 		__field(u64,		sectors_not_moved	)
 		__field(u64,		buckets_moved		)
@@ -515,17 +505,17 @@ TRACE_EVENT(copygc,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev			= c->dev;
 		__entry->sectors_moved		= sectors_moved;
 		__entry->sectors_not_moved	= sectors_not_moved;
 		__entry->buckets_moved		= buckets_moved;
 		__entry->buckets_not_moved = buckets_moved;
 	),
 
-	TP_printk("%pU sectors moved %llu remain %llu buckets moved %llu remain %llu",
-		__entry->uuid,
-		__entry->sectors_moved, __entry->sectors_not_moved,
-		__entry->buckets_moved, __entry->buckets_not_moved)
+	TP_printk("%d,%d sectors moved %llu remain %llu buckets moved %llu remain %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->sectors_moved, __entry->sectors_not_moved,
+		  __entry->buckets_moved, __entry->buckets_not_moved)
 );
 
 TRACE_EVENT(copygc_wait,
@@ -534,19 +524,20 @@ TRACE_EVENT(copygc_wait,
 	TP_ARGS(c, wait_amount, until),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16		)
+		__field(dev_t,		dev			)
 		__field(u64,		wait_amount		)
 		__field(u64,		until			)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->dev		= c->dev;
 		__entry->wait_amount	= wait_amount;
 		__entry->until		= until;
 	),
 
-	TP_printk("%pU waiting for %llu sectors until %llu",
-		__entry->uuid, __entry->wait_amount, __entry->until)
+	TP_printk("%d,%u waiting for %llu sectors until %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->wait_amount, __entry->until)
 );
 
 TRACE_EVENT(trans_get_iter,

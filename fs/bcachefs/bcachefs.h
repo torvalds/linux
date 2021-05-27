@@ -568,6 +568,7 @@ struct bch_fs {
 	int			minor;
 	struct device		*chardev;
 	struct super_block	*vfs_sb;
+	dev_t			dev;
 	char			name[40];
 
 	/* ro/rw, add/remove/resize devices: */

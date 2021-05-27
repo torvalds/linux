@@ -1591,6 +1591,8 @@ got_sb:
 		break;
 	}
 
+	c->dev = sb->s_dev;
+
 #ifdef CONFIG_BCACHEFS_POSIX_ACL
 	if (c->opts.acl)
 		sb->s_flags	|= SB_POSIXACL;
