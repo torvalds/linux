@@ -442,6 +442,7 @@ struct rvu {
 	struct rvu_fwdata	*fwdata;
 	void			*kpu_fwdata;
 	size_t			kpu_fwdata_sz;
+	void __iomem		*kpu_prfl_addr;
 
 	/* NPC KPU data */
 	struct npc_kpu_profile_adapter kpu;
