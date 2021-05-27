@@ -1486,7 +1486,7 @@ struct ext4_sb_info {
 	unsigned int s_inode_goal;
 	u32 s_hash_seed[4];
 	int s_def_hash_version;
-	int s_hash_unsigned;	/* 3 if hash should be signed, 0 if not */
+	int s_hash_unsigned;	/* 3 if hash should be unsigned, 0 if not */
 	struct percpu_counter s_freeclusters_counter;
 	struct percpu_counter s_freeinodes_counter;
 	struct percpu_counter s_dirs_counter;
