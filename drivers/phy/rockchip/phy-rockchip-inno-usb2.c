@@ -2304,7 +2304,7 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 			continue;
 
 		if (rport->port_id == USB2PHY_PORT_OTG &&
-		    rport->id_irq > 0) {
+		    (rport->id_irq > 0 || rphy->irq > 0)) {
 			mutex_lock(&rport->mutex);
 			rport->prev_iddig = property_enabled(rphy->grf,
 						&rport->port_cfg->utmi_iddig);
@@ -2362,7 +2362,7 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 			continue;
 
 		if (rport->port_id == USB2PHY_PORT_OTG &&
-		    rport->id_irq > 0) {
+		    (rport->id_irq > 0 || rphy->irq > 0)) {
 			mutex_lock(&rport->mutex);
 			iddig = property_enabled(rphy->grf,
 						 &rport->port_cfg->utmi_iddig);
