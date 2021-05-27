@@ -1444,7 +1444,9 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (err)
 		return err;
 
-	err = devlink_info_version_fixed_put(req, "fw.psid", fw_info_psid);
+	err = devlink_info_version_fixed_put(req,
+					     DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
+					     fw_info_psid);
 	if (err)
 		return err;
 
@@ -1453,7 +1455,9 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (err)
 		return err;
 
-	return 0;
+	return devlink_info_version_running_put(req,
+						DEVLINK_INFO_VERSION_GENERIC_FW,
+						buf);
 }
 
 static int
