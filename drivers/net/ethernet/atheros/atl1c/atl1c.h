@@ -500,21 +500,23 @@ struct atl1c_rfd_ring {
 
 /* receive return descriptor (rrd) ring */
 struct atl1c_rrd_ring {
+	struct atl1c_adapter *adapter;
 	void *desc;		/* descriptor ring virtual address */
 	dma_addr_t dma;		/* descriptor ring physical address */
+	u16 num;
 	u16 size;		/* descriptor ring length in bytes */
 	u16 count;		/* number of descriptors in the ring */
 	u16 next_to_use;
 	u16 next_to_clean;
+	struct napi_struct napi;
+	struct page *rx_page;
+	unsigned int rx_page_offset;
 };
 
 /* board specific private data structure */
 struct atl1c_adapter {
 	struct net_device   *netdev;
 	struct pci_dev      *pdev;
-	struct napi_struct  napi;
-	struct page         *rx_page;
-	unsigned int	    rx_page_offset;
 	unsigned int	    rx_frag_size;
 	struct atl1c_hw        hw;
 	struct atl1c_hw_stats  hw_stats;
@@ -545,8 +547,8 @@ struct atl1c_adapter {
 	/* All Descriptor memory */
 	struct atl1c_ring_header ring_header;
 	struct atl1c_tpd_ring tpd_ring[AT_MAX_TRANSMIT_QUEUE];
-	struct atl1c_rfd_ring rfd_ring;
-	struct atl1c_rrd_ring rrd_ring;
+	struct atl1c_rfd_ring rfd_ring[AT_MAX_RECEIVE_QUEUE];
+	struct atl1c_rrd_ring rrd_ring[AT_MAX_RECEIVE_QUEUE];
 	u32 bd_number;     /* board number;*/
 };
 

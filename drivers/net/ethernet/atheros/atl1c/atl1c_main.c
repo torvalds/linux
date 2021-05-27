@@ -40,8 +40,6 @@ static int atl1c_stop_mac(struct atl1c_hw *hw);
 static void atl1c_disable_l0s_l1(struct atl1c_hw *hw);
 static void atl1c_set_aspm(struct atl1c_hw *hw, u16 link_speed);
 static void atl1c_start_mac(struct atl1c_adapter *adapter);
-static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter,
-		   int *work_done, int work_to_do);
 static int atl1c_up(struct atl1c_adapter *adapter);
 static void atl1c_down(struct atl1c_adapter *adapter);
 static int atl1c_reset_mac(struct atl1c_hw *hw);
@@ -770,7 +768,7 @@ static int atl1c_sw_init(struct atl1c_adapter *adapter)
 	adapter->link_speed = SPEED_0;
 	adapter->link_duplex = FULL_DUPLEX;
 	adapter->tpd_ring[0].count = 1024;
-	adapter->rfd_ring.count = 512;
+	adapter->rfd_ring[0].count = 512;
 
 	hw->vendor_id = pdev->vendor;
 	hw->device_id = pdev->device;
@@ -878,8 +876,8 @@ static void atl1c_clean_tx_ring(struct atl1c_adapter *adapter,
  */
 static void atl1c_clean_rx_ring(struct atl1c_adapter *adapter)
 {
-	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
-	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
+	struct atl1c_rfd_ring *rfd_ring = adapter->rfd_ring;
+	struct atl1c_rrd_ring *rrd_ring = adapter->rrd_ring;
 	struct atl1c_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
 	int j;
@@ -902,8 +900,8 @@ static void atl1c_clean_rx_ring(struct atl1c_adapter *adapter)
 static void atl1c_init_ring_ptrs(struct atl1c_adapter *adapter)
 {
 	struct atl1c_tpd_ring *tpd_ring = adapter->tpd_ring;
-	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
-	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
+	struct atl1c_rfd_ring *rfd_ring = adapter->rfd_ring;
+	struct atl1c_rrd_ring *rrd_ring = adapter->rrd_ring;
 	struct atl1c_buffer *buffer_info;
 	int i, j;
 
@@ -945,9 +943,9 @@ static void atl1c_free_ring_resources(struct atl1c_adapter *adapter)
 		kfree(adapter->tpd_ring[0].buffer_info);
 		adapter->tpd_ring[0].buffer_info = NULL;
 	}
-	if (adapter->rx_page) {
-		put_page(adapter->rx_page);
-		adapter->rx_page = NULL;
+	if (adapter->rrd_ring[0].rx_page) {
+		put_page(adapter->rrd_ring[0].rx_page);
+		adapter->rrd_ring[0].rx_page = NULL;
 	}
 }
 
@@ -961,8 +959,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct atl1c_tpd_ring *tpd_ring = adapter->tpd_ring;
-	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
-	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
+	struct atl1c_rfd_ring *rfd_ring = adapter->rfd_ring;
+	struct atl1c_rrd_ring *rrd_ring = adapter->rrd_ring;
 	struct atl1c_ring_header *ring_header = &adapter->ring_header;
 	int size;
 	int i;
@@ -1030,6 +1028,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 	offset += roundup(rfd_ring->size, 8);
 
 	/* init RRD ring */
+	rrd_ring->adapter = adapter;
+	rrd_ring->num = 0;
 	rrd_ring->dma = ring_header->dma + offset;
 	rrd_ring->desc = (u8 *) ring_header->desc + offset;
 	rrd_ring->size = sizeof(struct atl1c_recv_ret_status) *
@@ -1046,10 +1046,9 @@ err_nomem:
 static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 {
 	struct atl1c_hw *hw = &adapter->hw;
-	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
-	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
-	struct atl1c_tpd_ring *tpd_ring = (struct atl1c_tpd_ring *)
-				adapter->tpd_ring;
+	struct atl1c_rfd_ring *rfd_ring = adapter->rfd_ring;
+	struct atl1c_rrd_ring *rrd_ring = adapter->rrd_ring;
+	struct atl1c_tpd_ring *tpd_ring = adapter->tpd_ring;
 
 	/* TPD */
 	AT_WRITE_REG(hw, REG_TX_BASE_ADDR_HI,
@@ -1608,12 +1607,12 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 		/* Ack ISR */
 		AT_WRITE_REG(hw, REG_ISR, status | ISR_DIS_INT);
 		if (status & ISR_RX_PKT) {
-			if (likely(napi_schedule_prep(&adapter->napi))) {
+			if (napi_schedule_prep(&adapter->rrd_ring[0].napi)) {
 				spin_lock(&hw->intr_mask_lock);
 				hw->intr_mask &= ~ISR_RX_PKT;
 				AT_WRITE_REG(hw, REG_IMR, hw->intr_mask);
 				spin_unlock(&hw->intr_mask_lock);
-				__napi_schedule(&adapter->napi);
+				__napi_schedule(&adapter->rrd_ring[0].napi);
 			}
 		}
 		if (status & ISR_TX_PKT) {
@@ -1677,33 +1676,35 @@ static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter,
 				       bool napi_mode)
 {
+	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring[0];
 	struct sk_buff *skb;
 	struct page *page;
 
 	if (adapter->rx_frag_size > PAGE_SIZE) {
 		if (likely(napi_mode))
-			return napi_alloc_skb(&adapter->napi,
+			return napi_alloc_skb(&rrd_ring->napi,
 					      adapter->rx_buffer_len);
 		else
 			return netdev_alloc_skb_ip_align(adapter->netdev,
 							 adapter->rx_buffer_len);
 	}
 
-	page = adapter->rx_page;
+	page = rrd_ring->rx_page;
 	if (!page) {
-		adapter->rx_page = page = alloc_page(GFP_ATOMIC);
+		page = alloc_page(GFP_ATOMIC);
 		if (unlikely(!page))
 			return NULL;
-		adapter->rx_page_offset = 0;
+		rrd_ring->rx_page = page;
+		rrd_ring->rx_page_offset = 0;
 	}
 
-	skb = build_skb(page_address(page) + adapter->rx_page_offset,
+	skb = build_skb(page_address(page) + rrd_ring->rx_page_offset,
 			adapter->rx_frag_size);
 	if (likely(skb)) {
 		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
-		adapter->rx_page_offset += adapter->rx_frag_size;
-		if (adapter->rx_page_offset >= PAGE_SIZE)
-			adapter->rx_page = NULL;
+		rrd_ring->rx_page_offset += adapter->rx_frag_size;
+		if (rrd_ring->rx_page_offset >= PAGE_SIZE)
+			rrd_ring->rx_page = NULL;
 		else
 			get_page(page);
 	}
@@ -1712,7 +1713,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter,
 
 static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, bool napi_mode)
 {
-	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
+	struct atl1c_rfd_ring *rfd_ring = adapter->rfd_ring;
 	struct pci_dev *pdev = adapter->pdev;
 	struct atl1c_buffer *buffer_info, *next_info;
 	struct sk_buff *skb;
@@ -1812,22 +1813,34 @@ static void atl1c_clean_rfd(struct atl1c_rfd_ring *rfd_ring,
 	rfd_ring->next_to_clean = rfd_index;
 }
 
-static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter,
-		   int *work_done, int work_to_do)
+/**
+ * atl1c_clean_rx - NAPI Rx polling callback
+ * @napi: napi info
+ * @budget: limit of packets to clean
+ */
+static int atl1c_clean_rx(struct napi_struct *napi, int budget)
 {
+	struct atl1c_rrd_ring *rrd_ring =
+		container_of(napi, struct atl1c_rrd_ring, napi);
+	struct atl1c_adapter *adapter = rrd_ring->adapter;
 	u16 rfd_num, rfd_index;
 	u16 count = 0;
 	u16 length;
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev  = adapter->netdev;
-	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring;
-	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
+	struct atl1c_rfd_ring *rfd_ring = &adapter->rfd_ring[rrd_ring->num];
 	struct sk_buff *skb;
 	struct atl1c_recv_ret_status *rrs;
 	struct atl1c_buffer *buffer_info;
+	int work_done = 0;
+	unsigned long flags;
+
+	/* Keep link state information with original netdev */
+	if (!netif_carrier_ok(adapter->netdev))
+		goto quit_polling;
 
 	while (1) {
-		if (*work_done >= work_to_do)
+		if (work_done >= budget)
 			break;
 		rrs = ATL1C_RRD_DESC(rrd_ring, rrd_ring->next_to_clean);
 		if (likely(RRS_RXD_IS_VALID(rrs->word3))) {
@@ -1881,32 +1894,13 @@ rrs_checked:
 			vlan = le16_to_cpu(vlan);
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
 		}
-		napi_gro_receive(&adapter->napi, skb);
+		napi_gro_receive(napi, skb);
 
-		(*work_done)++;
+		work_done++;
 		count++;
 	}
 	if (count)
 		atl1c_alloc_rx_buffer(adapter, true);
-}
-
-/**
- * atl1c_clean - NAPI Rx polling callback
- * @napi: napi info
- * @budget: limit of packets to clean
- */
-static int atl1c_clean(struct napi_struct *napi, int budget)
-{
-	struct atl1c_adapter *adapter =
-			container_of(napi, struct atl1c_adapter, napi);
-	int work_done = 0;
-	unsigned long flags;
-
-	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(adapter->netdev))
-		goto quit_polling;
-	/* just enable one RXQ */
-	atl1c_clean_rx_irq(adapter, &work_done, budget);
 
 	if (work_done < budget) {
 quit_polling:
@@ -2355,7 +2349,7 @@ static int atl1c_up(struct atl1c_adapter *adapter)
 
 	atl1c_check_link_status(adapter);
 	clear_bit(__AT_DOWN, &adapter->flags);
-	napi_enable(&adapter->napi);
+	napi_enable(&adapter->rrd_ring[0].napi);
 	napi_enable(&adapter->tpd_ring[0].napi);
 	atl1c_irq_enable(adapter);
 	netif_start_queue(netdev);
@@ -2376,7 +2370,7 @@ static void atl1c_down(struct atl1c_adapter *adapter)
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
 	netif_carrier_off(netdev);
-	napi_disable(&adapter->napi);
+	napi_disable(&adapter->rrd_ring[0].napi);
 	napi_disable(&adapter->tpd_ring[0].napi);
 	atl1c_irq_disable(adapter);
 	atl1c_free_irq(adapter);
@@ -2633,7 +2627,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->mii.phy_id_mask = 0x1f;
 	adapter->mii.reg_num_mask = MDIO_CTRL_REG_MASK;
 	dev_set_threaded(netdev, true);
-	netif_napi_add(netdev, &adapter->napi, atl1c_clean, 64);
+	netif_napi_add(netdev, &adapter->rrd_ring[0].napi, atl1c_clean_rx, 64);
 	netif_napi_add(netdev, &adapter->tpd_ring[0].napi, atl1c_clean_tx, 64);
 	timer_setup(&adapter->phy_config_timer, atl1c_phy_config, 0);
 	/* setup the private structure */
