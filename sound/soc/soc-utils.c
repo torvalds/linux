@@ -97,6 +97,34 @@ static const struct snd_soc_component_driver dummy_codec = {
 			SNDRV_PCM_FMTBIT_S32_LE | \
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
+
+/*
+ * Select these from Sound Card Manually
+ *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFP
+ *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFC
+ *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFP
+ *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFC
+ */
+static u64 dummy_dai_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_AC97	|
+	SND_SOC_POSSIBLE_DAIFMT_PDM	|
+	SND_SOC_POSSIBLE_DAIFMT_GATED	|
+	SND_SOC_POSSIBLE_DAIFMT_CONT	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
+static const struct snd_soc_dai_ops dummy_dai_ops = {
+	.auto_selectable_formats	= &dummy_dai_formats,
+	.num_auto_selectable_formats	= 1,
+};
+
 /*
  * The dummy CODEC is only meant to be used in situations where there is no
  * actual hardware.
@@ -122,6 +150,7 @@ static struct snd_soc_dai_driver dummy_dai = {
 		.rates = STUB_RATES,
 		.formats = STUB_FORMATS,
 	 },
+	.ops = &dummy_dai_ops,
 };
 
 int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)

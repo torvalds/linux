@@ -1054,6 +1054,169 @@ _err_defer:
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
+static void snd_soc_runtime_get_dai_fmt(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
+	struct snd_soc_dai *dai, *not_used;
+	struct device *dev = rtd->dev;
+	u64 pos, possible_fmt;
+	unsigned int mask = 0, dai_fmt = 0;
+	int i, j, priority, pri, until;
+
+	/*
+	 * Get selectable format from each DAIs.
+	 *
+	 ****************************
+	 *            NOTE
+	 * Using .auto_selectable_formats is not mandatory,
+	 * we can select format manually from Sound Card.
+	 * When use it, driver should list well tested format only.
+	 ****************************
+	 *
+	 * ex)
+	 *	auto_selectable_formats (= SND_SOC_POSSIBLE_xxx)
+	 *		 (A)	 (B)	 (C)
+	 *	DAI0_: { 0x000F, 0x00F0, 0x0F00 };
+	 *	DAI1 : { 0xF000, 0x0F00 };
+	 *		 (X)	 (Y)
+	 *
+	 * "until" will be 3 in this case (MAX array size from DAI0 and DAI1)
+	 * Here is dev_dbg() message and comments
+	 *
+	 * priority = 1
+	 * DAI0: (pri, fmt) = (1, 000000000000000F) // 1st check (A) DAI1 is not selected
+	 * DAI1: (pri, fmt) = (0, 0000000000000000) //               Necessary Waste
+	 * DAI0: (pri, fmt) = (1, 000000000000000F) // 2nd check (A)
+	 * DAI1: (pri, fmt) = (1, 000000000000F000) //           (X)
+	 * priority = 2
+	 * DAI0: (pri, fmt) = (2, 00000000000000FF) // 3rd check (A) + (B)
+	 * DAI1: (pri, fmt) = (1, 000000000000F000) //           (X)
+	 * DAI0: (pri, fmt) = (2, 00000000000000FF) // 4th check (A) + (B)
+	 * DAI1: (pri, fmt) = (2, 000000000000FF00) //           (X) + (Y)
+	 * priority = 3
+	 * DAI0: (pri, fmt) = (3, 0000000000000FFF) // 5th check (A) + (B) + (C)
+	 * DAI1: (pri, fmt) = (2, 000000000000FF00) //           (X) + (Y)
+	 * found auto selected format: 0000000000000F00
+	 */
+	until = snd_soc_dai_get_fmt_max_priority(rtd);
+	for (priority = 1; priority <= until; priority++) {
+
+		dev_dbg(dev, "priority = %d\n", priority);
+		for_each_rtd_dais(rtd, j, not_used) {
+
+			possible_fmt = ULLONG_MAX;
+			for_each_rtd_dais(rtd, i, dai) {
+				u64 fmt = 0;
+
+				pri = (j >= i) ? priority : priority - 1;
+				fmt = snd_soc_dai_get_fmt(dai, pri);
+				dev_dbg(dev, "%s: (pri, fmt) = (%d, %016llX)\n", dai->name, pri, fmt);
+				possible_fmt &= fmt;
+			}
+			if (possible_fmt)
+				goto found;
+		}
+	}
+	/* Not Found */
+	return;
+found:
+	dev_dbg(dev, "found auto selected format: %016llX\n", possible_fmt);
+
+	/*
+	 * convert POSSIBLE_DAIFMT to DAIFMT
+	 *
+	 * Some basic/default settings on each is defined as 0.
+	 * see
+	 *	SND_SOC_DAIFMT_NB_NF
+	 *	SND_SOC_DAIFMT_GATED
+	 *
+	 * SND_SOC_DAIFMT_xxx_MASK can't notice it if Sound Card specify
+	 * these value, and will be overwrite to auto selected value.
+	 *
+	 * To avoid such issue, loop from 63 to 0 here.
+	 * Small number of SND_SOC_POSSIBLE_xxx will be Hi priority.
+	 * Basic/Default settings of each part and aboves are defined
+	 * as Hi priority (= small number) of SND_SOC_POSSIBLE_xxx.
+	 */
+	for (i = 63; i >= 0; i--) {
+		pos = 1ULL << i;
+		switch (possible_fmt & pos) {
+		/*
+		 * for format
+		 */
+		case SND_SOC_POSSIBLE_DAIFMT_I2S:
+		case SND_SOC_POSSIBLE_DAIFMT_RIGHT_J:
+		case SND_SOC_POSSIBLE_DAIFMT_LEFT_J:
+		case SND_SOC_POSSIBLE_DAIFMT_DSP_A:
+		case SND_SOC_POSSIBLE_DAIFMT_DSP_B:
+		case SND_SOC_POSSIBLE_DAIFMT_AC97:
+		case SND_SOC_POSSIBLE_DAIFMT_PDM:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_FORMAT_MASK) | i;
+			break;
+		/*
+		 * for clock
+		 */
+		case SND_SOC_POSSIBLE_DAIFMT_CONT:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_CLOCK_MASK) | SND_SOC_DAIFMT_CONT;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_GATED:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_CLOCK_MASK) | SND_SOC_DAIFMT_GATED;
+			break;
+		/*
+		 * for clock invert
+		 */
+		case SND_SOC_POSSIBLE_DAIFMT_NB_NF:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_INV_MASK) | SND_SOC_DAIFMT_NB_NF;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_NB_IF:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_INV_MASK) | SND_SOC_DAIFMT_NB_IF;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_IB_NF:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_INV_MASK) | SND_SOC_DAIFMT_IB_NF;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_IB_IF:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_INV_MASK) | SND_SOC_DAIFMT_IB_IF;
+			break;
+		/*
+		 * for clock provider / consumer
+		 */
+		case SND_SOC_POSSIBLE_DAIFMT_CBP_CFP:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) | SND_SOC_DAIFMT_CBP_CFP;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_CBC_CFP:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) | SND_SOC_DAIFMT_CBC_CFP;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_CBP_CFC:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) | SND_SOC_DAIFMT_CBP_CFC;
+			break;
+		case SND_SOC_POSSIBLE_DAIFMT_CBC_CFC:
+			dai_fmt = (dai_fmt & ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) | SND_SOC_DAIFMT_CBC_CFC;
+			break;
+		}
+	}
+
+	/*
+	 * Some driver might have very complex limitation.
+	 * In such case, user want to auto-select non-limitation part,
+	 * and want to manually specify complex part.
+	 *
+	 * Or for example, if both CPU and Codec can be clock provider,
+	 * but because of its quality, user want to specify it manually.
+	 *
+	 * Use manually specified settings if sound card did.
+	 */
+	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK))
+		mask |= SND_SOC_DAIFMT_FORMAT_MASK;
+	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_CLOCK_MASK))
+		mask |= SND_SOC_DAIFMT_CLOCK_MASK;
+	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_INV_MASK))
+		mask |= SND_SOC_DAIFMT_INV_MASK;
+	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK))
+		mask |= SND_SOC_DAIFMT_MASTER_MASK;
+
+	dai_link->dai_fmt |= (dai_fmt & mask);
+}
+
 /**
  * snd_soc_runtime_set_dai_fmt() - Change DAI link format for a ASoC runtime
  * @rtd: The runtime for which the DAI link format should be changed
@@ -1132,6 +1295,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	if (ret < 0)
 		return ret;
 
+	snd_soc_runtime_get_dai_fmt(rtd);
 	if (dai_link->dai_fmt) {
 		ret = snd_soc_runtime_set_dai_fmt(rtd, dai_link->dai_fmt);
 		if (ret)
