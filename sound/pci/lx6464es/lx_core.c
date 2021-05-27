@@ -674,10 +674,6 @@ int lx_stream_set_format(struct lx6464es *chip, struct snd_pcm_runtime *runtime,
 	u32 pipe_cmd = PIPE_INFO_TO_CMD(is_capture, pipe);
 	u32 channels = runtime->channels;
 
-	if (runtime->channels != channels)
-		dev_err(chip->card->dev, "channel count mismatch: %d vs %d",
-			   runtime->channels, channels);
-
 	mutex_lock(&chip->msg_lock);
 	lx_message_init(&chip->rmh, CMD_0C_DEF_STREAM);
 
