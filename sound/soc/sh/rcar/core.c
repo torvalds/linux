@@ -267,8 +267,9 @@ int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,
 	 */
 	if (params)
 		return params_channels(params);
-	else
+	else if (runtime)
 		return runtime->channels;
+	return 0;
 }
 
 int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
