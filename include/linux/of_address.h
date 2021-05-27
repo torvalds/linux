@@ -51,8 +51,8 @@ void __iomem *of_io_request_and_map(struct device_node *device,
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index
  */
-extern const __be32 *of_get_address(struct device_node *dev, int index,
-			   u64 *size, unsigned int *flags);
+extern const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
+				      u64 *size, unsigned int *flags);
 
 extern int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node);
@@ -75,8 +75,8 @@ static inline u64 of_translate_address(struct device_node *np,
 	return OF_BAD_ADDR;
 }
 
-static inline const __be32 *of_get_address(struct device_node *dev, int index,
-					u64 *size, unsigned int *flags)
+static inline const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
+					     u64 *size, unsigned int *flags)
 {
 	return NULL;
 }
@@ -125,8 +125,6 @@ static inline void __iomem *of_iomap(struct device_node *device, int index)
 #define of_range_parser_init of_pci_range_parser_init
 
 #if defined(CONFIG_OF_ADDRESS) && defined(CONFIG_PCI)
-extern const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,
-			       u64 *size, unsigned int *flags);
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
 extern int of_pci_range_to_resource(struct of_pci_range *range,
@@ -139,11 +137,6 @@ static inline int of_pci_address_to_resource(struct device_node *dev, int bar,
 	return -ENOSYS;
 }
 
-static inline const __be32 *of_get_pci_address(struct device_node *dev,
-		int bar_no, u64 *size, unsigned int *flags)
-{
-	return NULL;
-}
 static inline int of_pci_range_to_resource(struct of_pci_range *range,
 					   struct device_node *np,
 					   struct resource *res)
@@ -151,5 +144,17 @@ static inline int of_pci_range_to_resource(struct of_pci_range *range,
 	return -ENOSYS;
 }
 #endif /* CONFIG_OF_ADDRESS && CONFIG_PCI */
+
+static inline const __be32 *of_get_address(struct device_node *dev, int index,
+					   u64 *size, unsigned int *flags)
+{
+	return __of_get_address(dev, index, -1, size, flags);
+}
+
+static inline const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,
+					       u64 *size, unsigned int *flags)
+{
+	return __of_get_address(dev, -1, bar_no, size, flags);
+}
 
 #endif /* __OF_ADDRESS_H */

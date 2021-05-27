@@ -199,50 +199,6 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
-const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
-			unsigned int *flags)
-{
-	const __be32 *prop;
-	unsigned int psize;
-	struct device_node *parent;
-	struct of_bus *bus;
-	int onesize, i, na, ns;
-
-	/* Get parent & match bus type */
-	parent = of_get_parent(dev);
-	if (parent == NULL)
-		return NULL;
-	bus = of_match_bus(parent);
-	if (strcmp(bus->name, "pci")) {
-		of_node_put(parent);
-		return NULL;
-	}
-	bus->count_cells(dev, &na, &ns);
-	of_node_put(parent);
-	if (!OF_CHECK_ADDR_COUNT(na))
-		return NULL;
-
-	/* Get "reg" or "assigned-addresses" property */
-	prop = of_get_property(dev, bus->addresses, &psize);
-	if (prop == NULL)
-		return NULL;
-	psize /= 4;
-
-	onesize = na + ns;
-	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++) {
-		u32 val = be32_to_cpu(prop[0]);
-		if ((val & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
-			if (size)
-				*size = of_read_number(prop + na, ns);
-			if (flags)
-				*flags = bus->get_flags(prop);
-			return prop;
-		}
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(of_get_pci_address);
-
 int of_pci_address_to_resource(struct device_node *dev, int bar,
 			       struct resource *r)
 {
@@ -675,8 +631,8 @@ u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 }
 EXPORT_SYMBOL(of_translate_dma_address);
 
-const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
-		    unsigned int *flags)
+const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
+			       u64 *size, unsigned int *flags)
 {
 	const __be32 *prop;
 	unsigned int psize;
@@ -689,6 +645,10 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 	if (parent == NULL)
 		return NULL;
 	bus = of_match_bus(parent);
+	if (strcmp(bus->name, "pci") && (bar_no >= 0)) {
+		of_node_put(parent);
+		return NULL;
+	}
 	bus->count_cells(dev, &na, &ns);
 	of_node_put(parent);
 	if (!OF_CHECK_ADDR_COUNT(na))
@@ -701,17 +661,21 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 	psize /= 4;
 
 	onesize = na + ns;
-	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
-		if (i == index) {
+	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++) {
+		u32 val = be32_to_cpu(prop[0]);
+		/* PCI bus matches on BAR number instead of index */
+		if (((bar_no >= 0) && ((val & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0))) ||
+		    ((index >= 0) && (i == index))) {
 			if (size)
 				*size = of_read_number(prop + na, ns);
 			if (flags)
 				*flags = bus->get_flags(prop);
 			return prop;
 		}
+	}
 	return NULL;
 }
-EXPORT_SYMBOL(of_get_address);
+EXPORT_SYMBOL(__of_get_address);
 
 static int parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node, const char *name)
