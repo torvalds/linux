@@ -72,6 +72,15 @@
 
 #define FLASH_STS_REG			0x28
 
+#define TIMING_REG			0x2C
+#define   TCCS_TIME_500NS		0
+#define   TCCS_TIME_300NS		3
+#define   TCCS_TIME_200NS		2
+#define   TCCS_TIME_100NS		1
+#define   FAST_TCAD			BIT(2)
+#define   DQS_BUFF_SEL_IN(x)		FIELD_PREP(GENMASK(6, 3), (x))
+#define   DQS_BUFF_SEL_OUT(x)		FIELD_PREP(GENMASK(18, 15), (x))
+
 #define DATA_PORT_REG			0x30
 
 #define ECC_CONF_REG			0x34
@@ -145,6 +154,7 @@ struct anfc_op {
  * @page_sz:		Register value of the page_sz field to use
  * @clk:		Expected clock frequency to use
  * @data_iface:		Data interface timing mode to use
+ * @timings:		NV-DDR specific timings to use
  * @ecc_conf:		Hardware ECC configuration value
  * @strength:		Register value of the ECC strength
  * @raddr_cycles:	Row address cycle information
@@ -165,6 +175,7 @@ struct anand {
 	unsigned int page_sz;
 	unsigned long clk;
 	u32 data_iface;
+	u32 timings;
 	u32 ecc_conf;
 	u32 strength;
 	u16 raddr_cycles;
@@ -332,6 +343,7 @@ static int anfc_select_target(struct nand_chip *chip, int target)
 
 	/* Update the controller timings and the potential ECC configuration */
 	writel_relaxed(anand->data_iface, nfc->base + DATA_INTERFACE_REG);
+	writel_relaxed(anand->timings, nfc->base + TIMING_REG);
 
 	/* Update clock frequency */
 	if (nfc->cur_clk != anand->clk) {
@@ -955,6 +967,7 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 	struct device_node *np = nfc->dev->of_node;
 	const struct nand_sdr_timings *sdr;
 	const struct nand_nvddr_timings *nvddr;
+	unsigned int tccs_min, dqs_mode, fast_tcad;
 
 	if (nand_interface_is_nvddr(conf)) {
 		nvddr = nand_get_nvddr_timings(conf);
@@ -969,12 +982,51 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 	if (target < 0)
 		return 0;
 
-	if (nand_interface_is_sdr(conf))
+	if (nand_interface_is_sdr(conf)) {
 		anand->data_iface = DIFACE_SDR |
 				    DIFACE_SDR_MODE(conf->timings.mode);
-	else
+		anand->timings = 0;
+	} else {
 		anand->data_iface = DIFACE_NVDDR |
 				    DIFACE_DDR_MODE(conf->timings.mode);
+
+		if (conf->timings.nvddr.tCCS_min <= 100000)
+			tccs_min = TCCS_TIME_100NS;
+		else if (conf->timings.nvddr.tCCS_min <= 200000)
+			tccs_min = TCCS_TIME_200NS;
+		else if (conf->timings.nvddr.tCCS_min <= 300000)
+			tccs_min = TCCS_TIME_300NS;
+		else
+			tccs_min = TCCS_TIME_500NS;
+
+		fast_tcad = 0;
+		if (conf->timings.nvddr.tCAD_min < 45000)
+			fast_tcad = FAST_TCAD;
+
+		switch (conf->timings.mode) {
+		case 5:
+		case 4:
+			dqs_mode = 2;
+			break;
+		case 3:
+			dqs_mode = 3;
+			break;
+		case 2:
+			dqs_mode = 4;
+			break;
+		case 1:
+			dqs_mode = 5;
+			break;
+		case 0:
+		default:
+			dqs_mode = 6;
+			break;
+		}
+
+		anand->timings = tccs_min | fast_tcad |
+				 DQS_BUFF_SEL_IN(dqs_mode) |
+				 DQS_BUFF_SEL_OUT(dqs_mode);
+	}
 
 	anand->clk = ANFC_XLNX_SDR_DFLT_CORE_CLK;
 
