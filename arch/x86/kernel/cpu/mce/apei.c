@@ -36,7 +36,8 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 	mce_setup(&m);
 	m.bank = -1;
 	/* Fake a memory read error with unknown channel */
-	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | 0x9f;
+	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | MCI_STATUS_MISCV | 0x9f;
+	m.misc = (MCI_MISC_ADDR_PHYS << 6) | PAGE_SHIFT;
 
 	if (severity >= GHES_SEV_RECOVERABLE)
 		m.status |= MCI_STATUS_UC;
