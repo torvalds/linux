@@ -12,6 +12,8 @@
 #include "mem-events.h"
 #include "debug.h"
 #include "symbol.h"
+#include "pmu.h"
+#include "pmu-hybrid.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
@@ -100,6 +102,15 @@ int perf_mem_events__parse(const char *str)
 	return -1;
 }
 
+static bool perf_mem_event__supported(const char *mnt, char *sysfs_name)
+{
+	char path[PATH_MAX];
+	struct stat st;
+
+	scnprintf(path, PATH_MAX, "%s/devices/%s", mnt, sysfs_name);
+	return !stat(path, &st);
+}
+
 int perf_mem_events__init(void)
 {
 	const char *mnt = sysfs__mount();
@@ -110,9 +121,9 @@ int perf_mem_events__init(void)
 		return -ENOENT;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		char path[PATH_MAX];
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
-		struct stat st;
+		struct perf_pmu *pmu;
+		char sysfs_name[100];
 
 		/*
 		 * If the event entry isn't valid, skip initialization
@@ -121,11 +132,20 @@ int perf_mem_events__init(void)
 		if (!e->tag)
 			continue;
 
-		scnprintf(path, PATH_MAX, "%s/devices/%s",
-			  mnt, e->sysfs_name);
+		if (!perf_pmu__has_hybrid()) {
+			scnprintf(sysfs_name, sizeof(sysfs_name),
+				  e->sysfs_name, "cpu");
+			e->supported = perf_mem_event__supported(mnt, sysfs_name);
+		} else {
+			perf_pmu__for_each_hybrid_pmu(pmu) {
+				scnprintf(sysfs_name, sizeof(sysfs_name),
+					  e->sysfs_name, pmu->name);
+				e->supported |= perf_mem_event__supported(mnt, sysfs_name);
+			}
+		}
 
-		if (!stat(path, &st))
-			e->supported = found = true;
+		if (e->supported)
+			found = true;
 	}
 
 	return found ? 0 : -ENOENT;
