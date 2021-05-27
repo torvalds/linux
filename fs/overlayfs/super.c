@@ -1600,7 +1600,7 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 	 * lower inode of non-dir upper.
 	 */
 	if (!ofs->config.index && !ofs->config.metacopy &&
-	    ofs->config.xino != OVL_XINO_ON &&
+	    !ofs->config.redirect_dir && ofs->config.xino != OVL_XINO_ON &&
 	    uuid_is_null(uuid))
 		return false;
 
