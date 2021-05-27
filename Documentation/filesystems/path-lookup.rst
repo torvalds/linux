@@ -453,11 +453,12 @@ to find a definitive answer.
 As the last step of ``walk_component()``, ``step_into()`` will be called either
 directly from walk_component() or from handle_dots().  It calls
 ``handle_mounts()``, to check and handle mount points, in which a new
-``struct path`` containing a counted reference to the new dentry and a
-reference to the new ``vfsmount`` which is only counted if it is
-different from the previous ``vfsmount``.  It then calls
-``path_to_nameidata()`` to install the new ``struct path`` in the
-``struct nameidata`` and drop the unneeded references.
+``struct path`` is created containing a counted reference to the new dentry and
+a reference to the new ``vfsmount`` which is only counted if it is
+different from the previous ``vfsmount``. Then if there is
+a symbolic link, ``step_into()`` calls ``pick_link()`` to deal with it,
+otherwise it installs the new ``struct path`` in the ``struct nameidata``, and
+drops the unneeded references.
 
 This "hand-over-hand" sequencing of getting a reference to the new
 dentry before dropping the reference to the previous dentry may
