@@ -33,7 +33,6 @@
 #include <net/mptcp.h>
 #include "protocol.h"
 
-#define TOKEN_MAX_RETRIES	4
 #define TOKEN_MAX_CHAIN_LEN	4
 
 struct token_bucket {
@@ -153,7 +152,7 @@ int mptcp_token_new_connect(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
-	int retries = TOKEN_MAX_RETRIES;
+	int retries = MPTCP_TOKEN_MAX_RETRIES;
 	struct token_bucket *bucket;
 
 again:

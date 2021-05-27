@@ -627,6 +627,8 @@ static inline void mptcp_write_space(struct sock *sk)
 
 void mptcp_destroy_common(struct mptcp_sock *msk);
 
+#define MPTCP_TOKEN_MAX_RETRIES	4
+
 void __init mptcp_token_init(void);
 static inline void mptcp_token_init_request(struct request_sock *req)
 {
