@@ -1136,10 +1136,10 @@ Symlinks with no final component
 
 A pair of special-case symlinks deserve a little further explanation.
 Both result in a new ``struct path`` (with mount and dentry) being set
-up in the ``nameidata``, and result in ``get_link()`` returning ``NULL``.
+up in the ``nameidata``, and result in ``pick_link()`` returning ``NULL``.
 
 The more obvious case is a symlink to "``/``".  All symlinks starting
-with "``/``" are detected in ``get_link()`` which resets the ``nameidata``
+with "``/``" are detected in ``pick_link()`` which resets the ``nameidata``
 to point to the effective filesystem root.  If the symlink only
 contains "``/``" then there is nothing more to do, no components at all,
 so ``NULL`` is returned to indicate that the symlink can be released and
@@ -1156,12 +1156,11 @@ something that looks like a symlink.  It is really a reference to the
 target file, not just the name of it.  When you ``readlink`` these
 objects you get a name that might refer to the same file - unless it
 has been unlinked or mounted over.  When ``walk_component()`` follows
-one of these, the ``->follow_link()`` method in "procfs" doesn't return
+one of these, the ``->get_link()`` method in "procfs" doesn't return
 a string name, but instead calls ``nd_jump_link()`` which updates the
-``nameidata`` in place to point to that target.  ``->follow_link()`` then
-returns ``NULL``.  Again there is no final component and ``get_link()``
-reports this by leaving the ``last_type`` field of ``nameidata`` as
-``LAST_BIND``.
+``nameidata`` in place to point to that target.  ``->get_link()`` then
+returns ``NULL``.  Again there is no final component and ``pick_link()``
+returns ``NULL``.
 
 Following the symlink in the final component
 --------------------------------------------
