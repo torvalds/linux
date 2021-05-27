@@ -52,6 +52,7 @@
 #define CIP_FDF_NO_DATA		0xff
 #define CIP_SYT_MASK		0x0000ffff
 #define CIP_SYT_NO_INFO		0xffff
+#define CIP_SYT_CYCLE_MODULUS	16
 #define CIP_NO_DATA		((CIP_FDF_NO_DATA << CIP_FDF_SHIFT) | CIP_SYT_NO_INFO)
 
 #define CIP_HEADER_SIZE		(sizeof(__be32) * CIP_HEADER_QUADLETS)
@@ -471,6 +472,52 @@ static void pool_ideal_syt_offsets(struct amdtp_stream *s, struct seq_desc *desc
 
 	s->ctx_data.rx.last_syt_offset = last;
 	s->ctx_data.rx.syt_offset_state = state;
+}
+
+static unsigned int compute_syt_offset(unsigned int syt, unsigned int cycle,
+				       unsigned int transfer_delay)
+{
+	unsigned int cycle_lo = (cycle % CYCLES_PER_SECOND) & 0x0f;
+	unsigned int syt_cycle_lo = (syt & 0xf000) >> 12;
+	unsigned int syt_offset;
+
+	// Round up.
+	if (syt_cycle_lo < cycle_lo)
+		syt_cycle_lo += CIP_SYT_CYCLE_MODULUS;
+	syt_cycle_lo -= cycle_lo;
+
+	// Subtract transfer delay so that the synchronization offset is not so large
+	// at transmission.
+	syt_offset = syt_cycle_lo * TICKS_PER_CYCLE + (syt & 0x0fff);
+	if (syt_offset < transfer_delay)
+		syt_offset += CIP_SYT_CYCLE_MODULUS * TICKS_PER_CYCLE;
+
+	return syt_offset - transfer_delay;
+}
+
+static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsigned int desc_count)
+{
+	const unsigned int transfer_delay = s->transfer_delay;
+	const unsigned int cache_size = s->ctx_data.tx.cache.size;
+	struct seq_desc *cache = s->ctx_data.tx.cache.descs;
+	unsigned int cache_tail = s->ctx_data.tx.cache.tail;
+	bool aware_syt = !(s->flags & CIP_UNAWARE_SYT);
+	int i;
+
+	for (i = 0; i < desc_count; ++i) {
+		struct seq_desc *dst = cache + cache_tail;
+		const struct pkt_desc *src = descs + i;
+
+		if (aware_syt && src->syt != CIP_SYT_NO_INFO)
+			dst->syt_offset = compute_syt_offset(src->syt, src->cycle, transfer_delay);
+		else
+			dst->syt_offset = CIP_SYT_NO_INFO;
+		dst->data_blocks = src->data_blocks;
+
+		cache_tail = (cache_tail + 1) % cache_size;
+	}
+
+	s->ctx_data.tx.cache.tail = cache_tail;
 }
 
 static void pool_ideal_seq_descs(struct amdtp_stream *s, unsigned int count)
@@ -1107,7 +1154,12 @@ static void process_tx_packets(struct fw_iso_context *context, u32 tstamp, size_
 			return;
 		}
 	} else {
+		struct amdtp_domain *d = s->domain;
+
 		process_ctx_payloads(s, s->pkt_descs, desc_count);
+
+		if (d->replay.enable)
+			cache_seq(s, s->pkt_descs, desc_count);
 	}
 
 	for (i = 0; i < packets; ++i) {
@@ -1463,6 +1515,18 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		s->ctx_data.tx.max_ctx_payload_length = max_ctx_payload_size;
 		s->ctx_data.tx.ctx_header_size = ctx_header_size;
 		s->ctx_data.tx.event_starts = false;
+
+		if (s->domain->replay.enable) {
+			// struct fw_iso_context.drop_overflow_headers is false therefore it's
+			// possible to cache much unexpectedly.
+			s->ctx_data.tx.cache.size = max_t(unsigned int, s->syt_interval * 2,
+							  queue_size * 3 / 2);
+			s->ctx_data.tx.cache.tail = 0;
+			s->ctx_data.tx.cache.descs = kcalloc(s->ctx_data.tx.cache.size,
+						sizeof(*s->ctx_data.tx.cache.descs), GFP_KERNEL);
+			if (!s->ctx_data.tx.cache.descs)
+				goto err_context;
+		}
 	} else {
 		static const struct {
 			unsigned int data_block;
@@ -1543,8 +1607,12 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 err_pkt_descs:
 	kfree(s->pkt_descs);
 err_context:
-	if (s->direction == AMDTP_OUT_STREAM)
+	if (s->direction == AMDTP_OUT_STREAM) {
 		kfree(s->ctx_data.rx.seq.descs);
+	} else {
+		if (s->domain->replay.enable)
+			kfree(s->ctx_data.tx.cache.descs);
+	}
 	fw_iso_context_destroy(s->context);
 	s->context = ERR_PTR(-1);
 err_buffer:
@@ -1655,8 +1723,12 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
 	iso_packets_buffer_destroy(&s->buffer, s->unit);
 	kfree(s->pkt_descs);
 
-	if (s->direction == AMDTP_OUT_STREAM)
+	if (s->direction == AMDTP_OUT_STREAM) {
 		kfree(s->ctx_data.rx.seq.descs);
+	} else {
+		if (s->domain->replay.enable)
+			kfree(s->ctx_data.tx.cache.descs);
+	}
 
 	mutex_unlock(&s->mutex);
 }
@@ -1735,14 +1807,18 @@ EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
  * @d: the AMDTP domain.
  * @tx_init_skip_cycles: the number of cycles to skip processing packets at initial stage of IR
  *			 contexts.
+ * @replay_seq: whether to replay the sequence of packet in IR context for the sequence of packet in
+ *		IT context.
  */
-int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles)
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq)
 {
 	unsigned int events_per_buffer = d->events_per_buffer;
 	unsigned int events_per_period = d->events_per_period;
 	unsigned int queue_size;
 	struct amdtp_stream *s;
 	int err;
+
+	d->replay.enable = replay_seq;
 
 	// Select an IT context as IRQ target.
 	list_for_each_entry(s, &d->streams, list) {

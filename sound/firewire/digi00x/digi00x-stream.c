@@ -375,7 +375,7 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&dg00x->domain, 0);
+		err = amdtp_domain_start(&dg00x->domain, 0, false);
 		if (err < 0)
 			goto error;
 

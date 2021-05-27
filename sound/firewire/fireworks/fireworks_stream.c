@@ -272,7 +272,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&efw->domain, 0);
+		err = amdtp_domain_start(&efw->domain, 0, false);
 		if (err < 0)
 			goto error;
 

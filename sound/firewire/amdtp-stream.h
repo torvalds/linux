@@ -141,6 +141,12 @@ struct amdtp_stream {
 
 			// The device starts multiplexing events to the packet.
 			bool event_starts;
+
+			struct {
+				struct seq_desc *descs;
+				unsigned int size;
+				unsigned int tail;
+			} cache;
 		} tx;
 		struct {
 			// To generate CIP header.
@@ -292,6 +298,10 @@ struct amdtp_domain {
 		unsigned int tx_start;
 		unsigned int rx_start;
 	} processing_cycle;
+
+	struct {
+		bool enable;
+	} replay;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
@@ -300,7 +310,7 @@ void amdtp_domain_destroy(struct amdtp_domain *d);
 int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 			    int channel, int speed);
 
-int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles);
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq);
 void amdtp_domain_stop(struct amdtp_domain *d);
 
 static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,

@@ -199,7 +199,7 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&ff->domain, 0);
+		err = amdtp_domain_start(&ff->domain, 0, false);
 		if (err < 0)
 			goto error;
 
