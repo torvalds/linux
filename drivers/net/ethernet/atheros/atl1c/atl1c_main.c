@@ -646,33 +646,26 @@ static int atl1c_alloc_queues(struct atl1c_adapter *adapter)
 	return 0;
 }
 
-static void atl1c_set_mac_type(struct atl1c_hw *hw)
+static enum atl1c_nic_type atl1c_get_mac_type(struct pci_dev *pdev,
+					      u8 __iomem *hw_addr)
 {
-	u32 magic;
-	switch (hw->device_id) {
+	switch (pdev->device) {
 	case PCI_DEVICE_ID_ATTANSIC_L2C:
-		hw->nic_type = athr_l2c;
-		break;
+		return athr_l2c;
 	case PCI_DEVICE_ID_ATTANSIC_L1C:
-		hw->nic_type = athr_l1c;
-		break;
+		return athr_l1c;
 	case PCI_DEVICE_ID_ATHEROS_L2C_B:
-		hw->nic_type = athr_l2c_b;
-		break;
+		return athr_l2c_b;
 	case PCI_DEVICE_ID_ATHEROS_L2C_B2:
-		hw->nic_type = athr_l2c_b2;
-		break;
+		return athr_l2c_b2;
 	case PCI_DEVICE_ID_ATHEROS_L1D:
-		hw->nic_type = athr_l1d;
-		break;
+		return athr_l1d;
 	case PCI_DEVICE_ID_ATHEROS_L1D_2_0:
-		hw->nic_type = athr_l1d_2;
-		AT_READ_REG(hw, REG_MT_MAGIC, &magic);
-		if (magic == MT_MAGIC)
-			hw->nic_type = athr_mt;
-		break;
+		if (readl(hw_addr + REG_MT_MAGIC) == MT_MAGIC)
+			return athr_mt;
+		return athr_l1d_2;
 	default:
-		break;
+		return athr_l1c;
 	}
 }
 
@@ -680,7 +673,6 @@ static int atl1c_setup_mac_funcs(struct atl1c_hw *hw)
 {
 	u32 link_ctrl_data;
 
-	atl1c_set_mac_type(hw);
 	AT_READ_REG(hw, REG_LINK_CTRL, &link_ctrl_data);
 
 	hw->ctrl_flags = ATL1C_INTR_MODRT_ENABLE  |
@@ -2568,7 +2560,8 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev;
 	struct atl1c_adapter *adapter;
 	static int cards_found;
-
+	u8 __iomem *hw_addr;
+	enum atl1c_nic_type nic_type;
 	int err = 0;
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
@@ -2602,6 +2595,15 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
+	hw_addr = pci_ioremap_bar(pdev, 0);
+	if (!hw_addr) {
+		err = -EIO;
+		dev_err(&pdev->dev, "cannot map device registers\n");
+		goto err_ioremap;
+	}
+
+	nic_type = atl1c_get_mac_type(pdev, hw_addr);
+
 	netdev = alloc_etherdev(sizeof(struct atl1c_adapter));
 	if (netdev == NULL) {
 		err = -ENOMEM;
@@ -2618,13 +2620,9 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.adapter = adapter;
+	adapter->hw.nic_type = nic_type;
 	adapter->msg_enable = netif_msg_init(-1, atl1c_default_msg);
-	adapter->hw.hw_addr = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
-	if (!adapter->hw.hw_addr) {
-		err = -EIO;
-		dev_err(&pdev->dev, "cannot map device registers\n");
-		goto err_ioremap;
-	}
+	adapter->hw.hw_addr = hw_addr;
 
 	/* init mii data */
 	adapter->mii.dev = netdev;
@@ -2687,11 +2685,11 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_reset:
 err_register:
 err_sw_init:
-	iounmap(adapter->hw.hw_addr);
 err_init_netdev:
-err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
+	iounmap(hw_addr);
+err_ioremap:
 	pci_release_regions(pdev);
 err_pci_reg:
 err_dma:
