@@ -880,31 +880,28 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	synchronize_irq(vop2->irq);
 }
 
-static bool vop2_fs_raw_status_pending(struct vop2_video_port *vp)
+static bool vop2_vp_done_bit_status(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
-	uint32_t offset = vp->id * 0x10;
-
-	return vop2_readl(vop2, RK3568_VP0_INT_RAW_STATUS + offset) & 0x20;
-
-}
-
-static void vop2_wait_for_fs_by_raw_status(struct vop2_video_port *vp)
-{
-	struct vop2 *vop2 = vp->vop2;
-	bool pending;
-	int ret;
+	u32 done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & BIT(vp->id);
 
 	/*
-	 * Spin until frame start interrupt raw status bit goes high,
-	 * which means the configuration before the previous config done
-	 * has take effect.
+	 * When done bit is 0, indicate current frame is take effect.
 	 */
-	ret = readx_poll_timeout_atomic(vop2_fs_raw_status_pending, vp, pending,
-					pending, 0, 50 * 1000);
-	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait vp%d raw fs statu timeout\n", vp->id);
+	return done_bits == 0 ? true : false;
+}
 
+static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	bool done_bit;
+	int ret;
+
+	ret = readx_poll_timeout_atomic(vop2_vp_done_bit_status, vp, done_bit,
+					done_bit, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait vp%d done bit status timeout, vcnt: %d\n",
+			      vp->id, vop2_read_vcnt(vp));
 }
 
 static uint16_t vop2_read_port_mux(struct vop2 *vop2)
@@ -963,7 +960,7 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 			vcnt >>= 1;
 		/* if close to the last 1/8 frame, wait to next frame */
 		if (vcnt > (adjusted_mode->crtc_vtotal * 7 >> 3)) {
-			vop2_wait_for_fs_by_raw_status(done_vp);
+			vop2_wait_for_fs_by_done_bit_status(done_vp);
 			done_bits = 0;
 		}
 	} else { /* exist the other two vp done bit */
@@ -1009,13 +1006,13 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 		else
 			wait_vp = second_done_vp;
 
-		vop2_wait_for_fs_by_raw_status(wait_vp);
+		vop2_wait_for_fs_by_done_bit_status(wait_vp);
 
 		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
 		if (done_bits) {
 			vp_id = ffs(done_bits) - 1;
 			done_vp = &vop2->vps[vp_id];
-			vop2_wait_for_fs_by_raw_status(done_vp);
+			vop2_wait_for_fs_by_done_bit_status(done_vp);
 		}
 		done_bits = 0;
 	}
