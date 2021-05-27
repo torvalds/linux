@@ -88,17 +88,8 @@ static void
 mt76_testmode_free_skb(struct mt76_phy *phy)
 {
 	struct mt76_testmode_data *td = &phy->test;
-	struct sk_buff *skb = td->tx_skb;
 
-	if (!skb)
-		return;
-
-	if (skb_has_frag_list(skb)) {
-		kfree_skb_list(skb_shinfo(skb)->frag_list);
-		skb_shinfo(skb)->frag_list = NULL;
-	}
-
-	dev_kfree_skb(skb);
+	dev_kfree_skb(td->tx_skb);
 	td->tx_skb = NULL;
 }
 
