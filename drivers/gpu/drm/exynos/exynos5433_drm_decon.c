@@ -815,10 +815,8 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ctx->addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ctx->addr)) {
-		dev_err(dev, "ioremap failed\n");
+	if (IS_ERR(ctx->addr))
 		return PTR_ERR(ctx->addr);
-	}
 
 	ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0);
 	if (ret < 0)

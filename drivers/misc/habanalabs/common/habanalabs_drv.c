@@ -30,6 +30,7 @@ static DEFINE_MUTEX(hl_devs_idr_lock);
 static int timeout_locked = 30;
 static int reset_on_lockup = 1;
 static int memory_scrub = 1;
+static ulong boot_error_status_mask = ULONG_MAX;
 
 module_param(timeout_locked, int, 0444);
 MODULE_PARM_DESC(timeout_locked,
@@ -42,6 +43,10 @@ MODULE_PARM_DESC(reset_on_lockup,
 module_param(memory_scrub, int, 0444);
 MODULE_PARM_DESC(memory_scrub,
 	"Scrub device memory in various states (0 = no, 1 = yes, default yes)");
+
+module_param(boot_error_status_mask, ulong, 0444);
+MODULE_PARM_DESC(boot_error_status_mask,
+	"Mask of the error status during device CPU boot (If bitX is cleared then error X is masked. Default all 1's)");
 
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
@@ -319,6 +324,8 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	hdev->major = hl_major;
 	hdev->reset_on_lockup = reset_on_lockup;
 	hdev->memory_scrub = memory_scrub;
+	hdev->boot_error_status_mask = boot_error_status_mask;
+
 	hdev->pldm = 0;
 
 	set_driver_behavior_per_device(hdev);
