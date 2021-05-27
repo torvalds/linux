@@ -66,12 +66,22 @@ static inline int queue_empty(struct rxe_queue *q)
 	u32 prod;
 	u32 cons;
 
-	/* make sure all changes to queue complete before
-	 * testing queue empty
-	 */
-	prod = smp_load_acquire(&q->buf->producer_index);
-	/* same */
-	cons = smp_load_acquire(&q->buf->consumer_index);
+	switch (q->type) {
+	case QUEUE_TYPE_FROM_USER:
+		/* protect user space index */
+		prod = smp_load_acquire(&q->buf->producer_index);
+		cons = q->buf->consumer_index;
+		break;
+	case QUEUE_TYPE_TO_USER:
+		prod = q->buf->producer_index;
+		/* protect user space index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
+		break;
+	case QUEUE_TYPE_KERNEL:
+		prod = q->buf->producer_index;
+		cons = q->buf->consumer_index;
+		break;
+	}
 
 	return ((prod - cons) & q->index_mask) == 0;
 }
@@ -81,95 +91,151 @@ static inline int queue_full(struct rxe_queue *q)
 	u32 prod;
 	u32 cons;
 
-	/* make sure all changes to queue complete before
-	 * testing queue full
-	 */
-	prod = smp_load_acquire(&q->buf->producer_index);
-	/* same */
-	cons = smp_load_acquire(&q->buf->consumer_index);
+	switch (q->type) {
+	case QUEUE_TYPE_FROM_USER:
+		/* protect user space index */
+		prod = smp_load_acquire(&q->buf->producer_index);
+		cons = q->buf->consumer_index;
+		break;
+	case QUEUE_TYPE_TO_USER:
+		prod = q->buf->producer_index;
+		/* protect user space index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
+		break;
+	case QUEUE_TYPE_KERNEL:
+		prod = q->buf->producer_index;
+		cons = q->buf->consumer_index;
+		break;
+	}
 
 	return ((prod + 1 - cons) & q->index_mask) == 0;
+}
+
+static inline unsigned int queue_count(const struct rxe_queue *q)
+{
+	u32 prod;
+	u32 cons;
+
+	switch (q->type) {
+	case QUEUE_TYPE_FROM_USER:
+		/* protect user space index */
+		prod = smp_load_acquire(&q->buf->producer_index);
+		cons = q->buf->consumer_index;
+		break;
+	case QUEUE_TYPE_TO_USER:
+		prod = q->buf->producer_index;
+		/* protect user space index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
+		break;
+	case QUEUE_TYPE_KERNEL:
+		prod = q->buf->producer_index;
+		cons = q->buf->consumer_index;
+		break;
+	}
+
+	return (prod - cons) & q->index_mask;
 }
 
 static inline void advance_producer(struct rxe_queue *q)
 {
 	u32 prod;
 
-	prod = (q->buf->producer_index + 1) & q->index_mask;
-
-	/* make sure all changes to queue complete before
-	 * changing producer index
-	 */
-	smp_store_release(&q->buf->producer_index, prod);
+	if (q->type == QUEUE_TYPE_FROM_USER) {
+		/* protect user space index */
+		prod = smp_load_acquire(&q->buf->producer_index);
+		prod = (prod + 1) & q->index_mask;
+		/* same */
+		smp_store_release(&q->buf->producer_index, prod);
+	} else {
+		prod = q->buf->producer_index;
+		q->buf->producer_index = (prod + 1) & q->index_mask;
+	}
 }
 
 static inline void advance_consumer(struct rxe_queue *q)
 {
 	u32 cons;
 
-	cons = (q->buf->consumer_index + 1) & q->index_mask;
-
-	/* make sure all changes to queue complete before
-	 * changing consumer index
-	 */
-	smp_store_release(&q->buf->consumer_index, cons);
+	if (q->type == QUEUE_TYPE_TO_USER) {
+		/* protect user space index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
+		cons = (cons + 1) & q->index_mask;
+		/* same */
+		smp_store_release(&q->buf->consumer_index, cons);
+	} else {
+		cons = q->buf->consumer_index;
+		q->buf->consumer_index = (cons + 1) & q->index_mask;
+	}
 }
 
 static inline void *producer_addr(struct rxe_queue *q)
 {
-	return q->buf->data + ((q->buf->producer_index & q->index_mask)
-				<< q->log2_elem_size);
+	u32 prod;
+
+	if (q->type == QUEUE_TYPE_FROM_USER)
+		/* protect user space index */
+		prod = smp_load_acquire(&q->buf->producer_index);
+	else
+		prod = q->buf->producer_index;
+
+	return q->buf->data + ((prod & q->index_mask) << q->log2_elem_size);
 }
 
 static inline void *consumer_addr(struct rxe_queue *q)
 {
-	return q->buf->data + ((q->buf->consumer_index & q->index_mask)
-				<< q->log2_elem_size);
+	u32 cons;
+
+	if (q->type == QUEUE_TYPE_TO_USER)
+		/* protect user space index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
+	else
+		cons = q->buf->consumer_index;
+
+	return q->buf->data + ((cons & q->index_mask) << q->log2_elem_size);
 }
 
 static inline unsigned int producer_index(struct rxe_queue *q)
 {
-	u32 index;
+	u32 prod;
 
-	/* make sure all changes to queue
-	 * complete before getting producer index
-	 */
-	index = smp_load_acquire(&q->buf->producer_index);
-	index &= q->index_mask;
+	if (q->type == QUEUE_TYPE_FROM_USER)
+		/* protect user space index */
+		prod = smp_load_acquire(&q->buf->producer_index);
+	else
+		prod = q->buf->producer_index;
 
-	return index;
+	prod &= q->index_mask;
+
+	return prod;
 }
 
 static inline unsigned int consumer_index(struct rxe_queue *q)
 {
-	u32 index;
+	u32 cons;
 
-	/* make sure all changes to queue
-	 * complete before getting consumer index
-	 */
-	index = smp_load_acquire(&q->buf->consumer_index);
-	index &= q->index_mask;
+	if (q->type == QUEUE_TYPE_TO_USER)
+		/* protect user space index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
+	else
+		cons = q->buf->consumer_index;
 
-	return index;
+	cons &= q->index_mask;
+
+	return cons;
 }
 
-static inline void *addr_from_index(struct rxe_queue *q, unsigned int index)
+static inline void *addr_from_index(struct rxe_queue *q,
+				unsigned int index)
 {
 	return q->buf->data + ((index & q->index_mask)
 				<< q->buf->log2_elem_size);
 }
 
 static inline unsigned int index_from_addr(const struct rxe_queue *q,
-					   const void *addr)
+				const void *addr)
 {
 	return (((u8 *)addr - q->buf->data) >> q->log2_elem_size)
-		& q->index_mask;
-}
-
-static inline unsigned int queue_count(const struct rxe_queue *q)
-{
-	return (q->buf->producer_index - q->buf->consumer_index)
-		& q->index_mask;
+				& q->index_mask;
 }
 
 static inline void *queue_head(struct rxe_queue *q)
