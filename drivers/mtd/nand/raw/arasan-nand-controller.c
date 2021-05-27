@@ -144,7 +144,7 @@ struct anfc_op {
  * @rb:			Ready-busy line
  * @page_sz:		Register value of the page_sz field to use
  * @clk:		Expected clock frequency to use
- * @timings:		Data interface timing mode to use
+ * @data_iface:		Data interface timing mode to use
  * @ecc_conf:		Hardware ECC configuration value
  * @strength:		Register value of the ECC strength
  * @raddr_cycles:	Row address cycle information
@@ -164,7 +164,7 @@ struct anand {
 	unsigned int rb;
 	unsigned int page_sz;
 	unsigned long clk;
-	u32 timings;
+	u32 data_iface;
 	u32 ecc_conf;
 	u32 strength;
 	u16 raddr_cycles;
@@ -331,7 +331,7 @@ static int anfc_select_target(struct nand_chip *chip, int target)
 	anfc_assert_cs(nfc, nfc_cs_idx);
 
 	/* Update the controller timings and the potential ECC configuration */
-	writel_relaxed(anand->timings, nfc->base + DATA_INTERFACE_REG);
+	writel_relaxed(anand->data_iface, nfc->base + DATA_INTERFACE_REG);
 
 	/* Update clock frequency */
 	if (nfc->cur_clk != anand->clk) {
@@ -970,11 +970,11 @@ static int anfc_setup_interface(struct nand_chip *chip, int target,
 		return 0;
 
 	if (nand_interface_is_sdr(conf))
-		anand->timings = DIFACE_SDR |
-				 DIFACE_SDR_MODE(conf->timings.mode);
+		anand->data_iface = DIFACE_SDR |
+				    DIFACE_SDR_MODE(conf->timings.mode);
 	else
-		anand->timings = DIFACE_NVDDR |
-				 DIFACE_DDR_MODE(conf->timings.mode);
+		anand->data_iface = DIFACE_NVDDR |
+				    DIFACE_DDR_MODE(conf->timings.mode);
 
 	anand->clk = ANFC_XLNX_SDR_DFLT_CORE_CLK;
 
