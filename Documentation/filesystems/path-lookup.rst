@@ -495,11 +495,11 @@ This is important when unmounting a filesystem that is inaccessible, such as
 one provided by a dead NFS server.
 
 Finally ``path_openat()`` is used for the ``open()`` system call; it
-contains, in support functions starting with "``do_last()``", all the
+contains, in support functions starting with "``open_last_lookups()``", all the
 complexity needed to handle the different subtleties of O_CREAT (with
 or without O_EXCL), final "``/``" characters, and trailing symbolic
 links.  We will revisit this in the final part of this series, which
-focuses on those symbolic links.  "``do_last()``" will sometimes, but
+focuses on those symbolic links.  "``open_last_lookups()``" will sometimes, but
 not always, take ``i_rwsem``, depending on what it finds.
 
 Each of these, or the functions which call them, need to be alert to
@@ -1196,29 +1196,26 @@ potentially need to call ``link_path_walk()`` again and again on
 successive symlinks until one is found that doesn't point to another
 symlink.
 
-This case is handled by the relevant caller of ``link_path_walk()``, such as
-``path_lookupat()`` using a loop that calls ``link_path_walk()``, and then
-handles the final component.  If the final component is a symlink
-that needs to be followed, then ``trailing_symlink()`` is called to set
-things up properly and the loop repeats, calling ``link_path_walk()``
-again.  This could loop as many as 40 times if the last component of
-each symlink is another symlink.
+This case is handled by relevant callers of ``link_path_walk()``, such as
+``path_lookupat()``, ``path_openat()`` using a loop that calls ``link_path_walk()``,
+and then handles the final component by calling ``open_last_lookups()`` or
+``lookup_last()``. If it is a symlink that needs to be followed,
+``open_last_lookups()`` or ``lookup_last()`` will set things up properly and
+return the path so that the loop repeats, calling
+``link_path_walk()`` again.  This could loop as many as 40 times if the last
+component of each symlink is another symlink.
 
-The various functions that examine the final component and possibly
-report that it is a symlink are ``lookup_last()``, ``mountpoint_last()``
-and ``do_last()``, each of which use the same convention as
-``walk_component()`` of returning ``1`` if a symlink was found that needs
-to be followed.
+Of the various functions that examine the final component, 
+``open_last_lookups()`` is the most interesting as it works in tandem
+with ``do_open()`` for opening a file.  Part of ``open_last_lookups()`` runs
+with ``i_rwsem`` held and this part is in a separate function: ``lookup_open()``.
 
-Of these, ``do_last()`` is the most interesting as it is used for
-opening a file.  Part of ``do_last()`` runs with ``i_rwsem`` held and this
-part is in a separate function: ``lookup_open()``.
+Explaining ``open_last_lookups()`` and ``do_open()`` completely is beyond the scope
+of this article, but a few highlights should help those interested in exploring
+the code.
 
-Explaining ``do_last()`` completely is beyond the scope of this article,
-but a few highlights should help those interested in exploring the
-code.
-
-1. Rather than just finding the target file, ``do_last()`` needs to open
+1. Rather than just finding the target file, ``do_open()`` is used after
+   ``open_last_lookup()`` to open
    it.  If the file was found in the dcache, then ``vfs_open()`` is used for
    this.  If not, then ``lookup_open()`` will either call ``atomic_open()`` (if
    the filesystem provides it) to combine the final lookup with the open, or
