@@ -45,6 +45,92 @@ struct rsnd_ssiu {
 static const int gen2_id[] = { 0, 4,  8, 12, 13, 14, 15, 16, 17, 18 };
 static const int gen3_id[] = { 0, 8, 16, 24, 32, 40, 41, 42, 43, 44 };
 
+/* enable busif buffer over/under run interrupt. */
+#define rsnd_ssiu_busif_err_irq_enable(mod)  rsnd_ssiu_busif_err_irq_ctrl(mod, 1)
+#define rsnd_ssiu_busif_err_irq_disable(mod) rsnd_ssiu_busif_err_irq_ctrl(mod, 0)
+static void rsnd_ssiu_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
+{
+	u32 sys_int_enable = 0;
+	int id = rsnd_mod_id(mod);
+	int i;
+
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		for (i = 0; i < 4; i++) {
+			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE(i * 2));
+			if (enable)
+				sys_int_enable |= 0xf << (id * 4);
+			else
+				sys_int_enable &= ~(0xf << (id * 4));
+			rsnd_mod_write(mod,
+				       SSI_SYS_INT_ENABLE(i * 2),
+				       sys_int_enable);
+		}
+		break;
+	case 9:
+		for (i = 0; i < 4; i++) {
+			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE((i * 2) + 1));
+			if (enable)
+				sys_int_enable |= 0xf << 4;
+			else
+				sys_int_enable &= ~(0xf << 4);
+			rsnd_mod_write(mod,
+				       SSI_SYS_INT_ENABLE((i * 2) + 1),
+				       sys_int_enable);
+		}
+		break;
+	}
+}
+
+bool rsnd_ssiu_busif_err_status_clear(struct rsnd_mod *mod)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 status;
+	bool error = false;
+	int id = rsnd_mod_id(mod);
+	int i;
+
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		for (i = 0; i < 4; i++) {
+			status = rsnd_mod_read(mod, SSI_SYS_STATUS(i * 2));
+			status &= 0xf << (id * 4);
+
+			if (status) {
+				rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+						      rsnd_mod_name(mod), status);
+				error = true;
+			}
+			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
+		}
+		break;
+	case 9:
+		for (i = 0; i < 4; i++) {
+			status = rsnd_mod_read(mod, SSI_SYS_STATUS((i * 2) + 1));
+			status &= 0xf << 4;
+
+			if (status) {
+				rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+						      rsnd_mod_name(mod), status);
+				error = true;
+			}
+			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
+		}
+		break;
+	}
+
+	return error;
+}
+
 static u32 *rsnd_ssiu_get_status(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io,
 				 enum rsnd_mod_type type)
@@ -65,23 +151,9 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	int id = rsnd_mod_id(mod);
 	int is_clk_master = rsnd_rdai_is_clk_master(rdai);
 	u32 val1, val2;
-	int i;
 
 	/* clear status */
-	switch (id) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
-		break;
-	case 9:
-		for (i = 0; i < 4; i++)
-			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
-		break;
-	}
+	rsnd_ssiu_busif_err_status_clear(mod);
 
 	/*
 	 * SSI_MODE0
@@ -137,12 +209,31 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	rsnd_mod_bset(mod, SSI_MODE1, 0x0013001f, val1);
 	rsnd_mod_bset(mod, SSI_MODE2, 0x00000017, val2);
 
+	/*
+	 * Enable busif buffer over/under run interrupt.
+	 * It will be handled from ssi.c
+	 * see
+	 *	__rsnd_ssi_interrupt()
+	 */
+	rsnd_ssiu_busif_err_irq_enable(mod);
+
+	return 0;
+}
+
+static int rsnd_ssiu_quit(struct rsnd_mod *mod,
+			  struct rsnd_dai_stream *io,
+			  struct rsnd_priv *priv)
+{
+	/* disable busif buffer over/under run interrupt. */
+	rsnd_ssiu_busif_err_irq_disable(mod);
+
 	return 0;
 }
 
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen1 = {
 	.name		= SSIU_NAME,
 	.init		= rsnd_ssiu_init,
+	.quit		= rsnd_ssiu_quit,
 	.get_status	= rsnd_ssiu_get_status,
 };
 

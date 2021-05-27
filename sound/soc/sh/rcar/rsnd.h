@@ -810,6 +810,7 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 			     struct device_node *playback,
 			     struct device_node *capture);
 #define rsnd_ssiu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSIU)
+bool rsnd_ssiu_busif_err_status_clear(struct rsnd_mod *mod);
 
 /*
  *	R-Car SRC
