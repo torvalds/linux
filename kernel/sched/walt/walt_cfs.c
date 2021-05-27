@@ -830,6 +830,16 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 
 	lockdep_assert_held(&rq->lock);
 
+	/*
+	 * RQ clock update happens in tick path in the scheduler.
+	 * Since we drop the lock in the scheduler before calling
+	 * into vendor hook, it is possible that update flags are
+	 * reset by another rq lock and unlock. Do the update here
+	 * if required.
+	 */
+	if (!(rq->clock_update_flags & RQCF_UPDATED))
+		update_rq_clock(rq);
+
 	/* sum_exec_snapshot can be ahead. See below increment */
 	delta = curr->se.sum_exec_runtime - wts->sum_exec_snapshot;
 	if (delta < 0)
