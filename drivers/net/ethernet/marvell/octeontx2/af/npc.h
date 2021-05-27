@@ -468,6 +468,29 @@ struct npc_lt_def_ipsec {
 	u8	spi_nz;
 };
 
+struct npc_lt_def_apad {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	valid;
+} __packed;
+
+struct npc_lt_def_color {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	noffset;
+	u8	offset;
+} __packed;
+
+struct npc_lt_def_et {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	valid;
+	u8	offset;
+} __packed;
+
 struct npc_lt_def_cfg {
 	struct npc_lt_def	rx_ol2;
 	struct npc_lt_def	rx_oip4;
@@ -485,7 +508,14 @@ struct npc_lt_def_cfg {
 	struct npc_lt_def	pck_oip4;
 	struct npc_lt_def	pck_oip6;
 	struct npc_lt_def	pck_iip4;
-};
+	struct npc_lt_def_apad	rx_apad0;
+	struct npc_lt_def_apad	rx_apad1;
+	struct npc_lt_def_color	rx_ovlan;
+	struct npc_lt_def_color	rx_ivlan;
+	struct npc_lt_def_color	rx_gen0_color;
+	struct npc_lt_def_color	rx_gen1_color;
+	struct npc_lt_def_et	rx_et[2];
+} __packed;
 
 /* Loadable KPU profile firmware data */
 struct npc_kpu_profile_fwdata {

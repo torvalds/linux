@@ -1365,6 +1365,19 @@ static int npc_apply_custom_kpu(struct rvu *rvu,
 			 NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER));
 		return -EINVAL;
 	}
+	/* Verify if profile is aligned with the required kernel changes */
+	if (NPC_KPU_VER_MIN(profile->version) <
+	    NPC_KPU_VER_MIN(NPC_KPU_PROFILE_VER)) {
+		dev_warn(rvu->dev,
+			 "Invalid KPU profile version: %d.%d.%d expected vesion <= %d.%d.%d\n",
+			 NPC_KPU_VER_MAJ(profile->version),
+			 NPC_KPU_VER_MIN(profile->version),
+			 NPC_KPU_VER_PATCH(profile->version),
+			 NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER),
+			 NPC_KPU_VER_MIN(NPC_KPU_PROFILE_VER),
+			 NPC_KPU_VER_PATCH(NPC_KPU_PROFILE_VER));
+		return -EINVAL;
+	}
 	/* Verify if profile fits the HW */
 	if (fw->kpus > profile->kpus) {
 		dev_warn(rvu->dev, "Not enough KPUs: %d > %ld\n", fw->kpus,
@@ -1443,6 +1456,7 @@ static void npc_load_kpu_profile(struct rvu *rvu)
 	struct npc_kpu_profile_adapter *profile = &rvu->kpu;
 	const char *kpu_profile = rvu->kpu_pfl_name;
 	const struct firmware *fw = NULL;
+	bool retry_fwdb = false;
 
 	/* If user not specified profile customization */
 	if (!strncmp(kpu_profile, def_pfl_name, KPU_NAME_LEN))
@@ -1464,6 +1478,7 @@ static void npc_load_kpu_profile(struct rvu *rvu)
 			rvu->kpu_fwdata_sz = fw->size;
 		}
 		release_firmware(fw);
+		retry_fwdb = true;
 		goto program_kpu;
 	}
 
@@ -1488,7 +1503,10 @@ program_kpu:
 			}
 			rvu->kpu_fwdata = NULL;
 			rvu->kpu_fwdata_sz = 0;
-			goto load_image_fwdb;
+			if (retry_fwdb) {
+				retry_fwdb = false;
+				goto load_image_fwdb;
+			}
 		}
 
 		dev_warn(rvu->dev,

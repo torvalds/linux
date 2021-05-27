@@ -3523,6 +3523,40 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 			    (ltdefs->rx_isctp.lid << 8) | (ltdefs->rx_isctp.ltype_match << 4) |
 			    ltdefs->rx_isctp.ltype_mask);
 
+		if (!is_rvu_otx2(rvu)) {
+			/* Enable APAD calculation for other protocols
+			 * matching APAD0 and APAD1 lt def registers.
+			 */
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_CST_APAD0,
+				    (ltdefs->rx_apad0.valid << 11) |
+				    (ltdefs->rx_apad0.lid << 8) |
+				    (ltdefs->rx_apad0.ltype_match << 4) |
+				    ltdefs->rx_apad0.ltype_mask);
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_CST_APAD1,
+				    (ltdefs->rx_apad1.valid << 11) |
+				    (ltdefs->rx_apad1.lid << 8) |
+				    (ltdefs->rx_apad1.ltype_match << 4) |
+				    ltdefs->rx_apad1.ltype_mask);
+
+			/* Receive ethertype defination register defines layer
+			 * information in NPC_RESULT_S to identify the Ethertype
+			 * location in L2 header. Used for Ethertype overwriting
+			 * in inline IPsec flow.
+			 */
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ET(0),
+				    (ltdefs->rx_et[0].offset << 12) |
+				    (ltdefs->rx_et[0].valid << 11) |
+				    (ltdefs->rx_et[0].lid << 8) |
+				    (ltdefs->rx_et[0].ltype_match << 4) |
+				    ltdefs->rx_et[0].ltype_mask);
+			rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ET(1),
+				    (ltdefs->rx_et[1].offset << 12) |
+				    (ltdefs->rx_et[1].valid << 11) |
+				    (ltdefs->rx_et[1].lid << 8) |
+				    (ltdefs->rx_et[1].ltype_match << 4) |
+				    ltdefs->rx_et[1].ltype_mask);
+		}
+
 		err = nix_rx_flowkey_alg_cfg(rvu, blkaddr);
 		if (err)
 			return err;

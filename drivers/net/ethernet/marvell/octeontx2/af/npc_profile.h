@@ -11,7 +11,7 @@
 #ifndef NPC_PROFILE_H
 #define NPC_PROFILE_H
 
-#define NPC_KPU_PROFILE_VER	0x0000000100050000
+#define NPC_KPU_PROFILE_VER	0x0000000100060000
 #define NPC_KPU_VER_MAJ(ver)	((u16)(((ver) >> 32) & 0xFFFF))
 #define NPC_KPU_VER_MIN(ver)	((u16)(((ver) >> 16) & 0xFFFF))
 #define NPC_KPU_VER_PATCH(ver)	((u16)((ver) & 0xFFFF))
@@ -13479,6 +13479,30 @@ static const struct npc_lt_def_cfg npc_lt_defaults = {
 			.lid = NPC_LID_LG,
 			.ltype_match = NPC_LT_LG_TU_IP,
 			.ltype_mask = 0x0F,
+	},
+	.rx_apad0 = {
+		.valid = 0,
+		.lid = NPC_LID_LC,
+		.ltype_match = NPC_LT_LC_IP6,
+		.ltype_mask = 0x0F,
+	},
+	.rx_apad1 = {
+		.valid = 0,
+		.lid = NPC_LID_LC,
+		.ltype_match = NPC_LT_LC_IP6,
+		.ltype_mask = 0x0F,
+	},
+	.rx_et = {
+		{
+			.lid = NPC_LID_LB,
+			.ltype_match = NPC_LT_NA,
+			.ltype_mask = 0x0,
+		},
+		{
+			.lid = NPC_LID_LB,
+			.ltype_match = NPC_LT_NA,
+			.ltype_mask = 0x0,
+		},
 	},
 };
 
