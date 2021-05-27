@@ -260,7 +260,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		if (err < 0)
 			goto stop_streams;
 
-		err = amdtp_domain_start(&motu->domain, 0, false);
+		err = amdtp_domain_start(&motu->domain, 0, false, false);
 		if (err < 0)
 			goto stop_streams;
 

@@ -354,7 +354,7 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 			}
 		}
 
-		err = amdtp_domain_start(&oxfw->domain, 0, false);
+		err = amdtp_domain_start(&oxfw->domain, 0, false, false);
 		if (err < 0)
 			goto error;
 

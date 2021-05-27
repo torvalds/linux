@@ -577,10 +577,23 @@ static void pool_seq_descs(struct amdtp_stream *s, unsigned int count)
 {
 	struct amdtp_domain *d = s->domain;
 
-	if (!d->replay.enable || !s->ctx_data.rx.replay_target)
+	if (!d->replay.enable || !s->ctx_data.rx.replay_target) {
 		pool_ideal_seq_descs(s, count);
-	else
-		pool_replayed_seq(s, count);
+	} else {
+		if (!d->replay.on_the_fly) {
+			pool_replayed_seq(s, count);
+		} else {
+			struct amdtp_stream *tx = s->ctx_data.rx.replay_target;
+			const unsigned int cache_size = tx->ctx_data.tx.cache.size;
+			const unsigned int cache_head = s->ctx_data.rx.cache_head;
+			unsigned int cached_cycles = calculate_cached_cycle_count(tx, cache_head);
+
+			if (cached_cycles > count && cached_cycles > cache_size / 2)
+				pool_replayed_seq(s, count);
+			else
+				pool_ideal_seq_descs(s, count);
+		}
+	}
 }
 
 static void update_pcm_pointers(struct amdtp_stream *s,
@@ -1444,7 +1457,7 @@ static void irq_target_callback_skip(struct fw_iso_context *context, u32 tstamp,
 	skip_rx_packets(context, tstamp, header_length, header, private_data);
 	process_ctxs_in_domain(d);
 
-	if (d->replay.enable) {
+	if (d->replay.enable && !d->replay.on_the_fly) {
 		unsigned int rx_count = 0;
 		unsigned int rx_ready_count = 0;
 		struct amdtp_stream *rx;
@@ -1929,8 +1942,11 @@ static int make_association(struct amdtp_domain *d)
  *			 contexts.
  * @replay_seq: whether to replay the sequence of packet in IR context for the sequence of packet in
  *		IT context.
+ * @replay_on_the_fly: transfer rx packets according to nominal frequency, then begin to replay
+ *		       according to arrival of events in tx packets.
  */
-int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq)
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq,
+		       bool replay_on_the_fly)
 {
 	unsigned int events_per_buffer = d->events_per_buffer;
 	unsigned int events_per_period = d->events_per_period;
@@ -1944,6 +1960,7 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles,
 			return err;
 	}
 	d->replay.enable = replay_seq;
+	d->replay.on_the_fly = replay_on_the_fly;
 
 	// Select an IT context as IRQ target.
 	list_for_each_entry(s, &d->streams, list) {

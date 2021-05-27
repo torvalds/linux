@@ -473,7 +473,7 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&tscm->domain, 0, false);
+		err = amdtp_domain_start(&tscm->domain, 0, false, false);
 		if (err < 0)
 			return err;
 

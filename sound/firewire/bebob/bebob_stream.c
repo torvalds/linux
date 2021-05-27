@@ -652,7 +652,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		// MEMO: In the early stage of packet streaming, the device transfers NODATA packets.
 		// After several hundred cycles, it begins to multiplex event into the packet with
 		// syt information.
-		err = amdtp_domain_start(&bebob->domain, tx_init_skip_cycles, false);
+		err = amdtp_domain_start(&bebob->domain, tx_init_skip_cycles, false, false);
 		if (err < 0)
 			goto error;
 

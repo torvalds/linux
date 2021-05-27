@@ -303,7 +303,8 @@ struct amdtp_domain {
 	} processing_cycle;
 
 	struct {
-		bool enable;
+		bool enable:1;
+		bool on_the_fly:1;
 	} replay;
 };
 
@@ -313,7 +314,8 @@ void amdtp_domain_destroy(struct amdtp_domain *d);
 int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 			    int channel, int speed);
 
-int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq);
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq,
+		       bool replay_on_the_fly);
 void amdtp_domain_stop(struct amdtp_domain *d);
 
 static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,
