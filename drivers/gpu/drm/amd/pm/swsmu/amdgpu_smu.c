@@ -2173,6 +2173,16 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 	return ret;
 }
 
+/**
+ * smu_get_power_limit - Request one of the SMU Power Limits
+ *
+ * @handle: pointer to smu context
+ * @limit: requested limit is written back to this variable
+ * @pp_limit_level: &pp_power_limit_level which limit of the power to return
+ * @pp_power_type: &pp_power_type type of power
+ * Return:  0 on success, <0 on error
+ *
+ */
 int smu_get_power_limit(void *handle,
 			uint32_t *limit,
 			enum pp_power_limit_level pp_limit_level,

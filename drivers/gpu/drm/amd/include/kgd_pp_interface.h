@@ -194,6 +194,26 @@ enum pp_df_cstate {
 	DF_CSTATE_ALLOW,
 };
 
+/**
+ * DOC: amdgpu_pp_power
+ *
+ * APU power is managed to system-level requirements through the PPT
+ * (package power tracking) feature. PPT is intended to limit power to the
+ * requirements of the power source and could be dynamically updated to
+ * maximize APU performance within the system power budget.
+ *
+ * Two types of power measurement can be requested, where supported, with
+ * :c:type:`enum pp_power_type <pp_power_type>`.
+ */
+
+/**
+ * enum pp_power_limit_level - Used to query the power limits
+ *
+ * @PP_PWR_LIMIT_MIN: Minimum Power Limit
+ * @PP_PWR_LIMIT_CURRENT: Current Power Limit
+ * @PP_PWR_LIMIT_DEFAULT: Default Power Limit
+ * @PP_PWR_LIMIT_MAX: Maximum Power Limit
+ */
 enum pp_power_limit_level
 {
 	PP_PWR_LIMIT_MIN = -1,
@@ -202,6 +222,14 @@ enum pp_power_limit_level
 	PP_PWR_LIMIT_MAX,
 };
 
+/**
+ * enum pp_power_type - Used to specify the type of the requested power
+ *
+ * @PP_PWR_TYPE_SUSTAINED: manages the configurable, thermally significant
+ * moving average of APU power (default ~5000 ms).
+ * @PP_PWR_TYPE_FAST: manages the ~10 ms moving average of APU power,
+ * where supported.
+ */
 enum pp_power_type
 {
 	PP_PWR_TYPE_SUSTAINED,
