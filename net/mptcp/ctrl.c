@@ -4,7 +4,9 @@
  * Copyright (c) 2019, Tessares SA.
  */
 
+#ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
+#endif
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -15,7 +17,9 @@
 
 static int mptcp_pernet_id;
 struct mptcp_pernet {
+#ifdef CONFIG_SYSCTL
 	struct ctl_table_header *ctl_table_hdr;
+#endif
 
 	int mptcp_enabled;
 	unsigned int add_addr_timeout;
@@ -36,6 +40,13 @@ unsigned int mptcp_get_add_addr_timeout(struct net *net)
 	return mptcp_get_pernet(net)->add_addr_timeout;
 }
 
+static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
+{
+	pernet->mptcp_enabled = 1;
+	pernet->add_addr_timeout = TCP_RTO_MAX;
+}
+
+#ifdef CONFIG_SYSCTL
 static struct ctl_table mptcp_sysctl_table[] = {
 	{
 		.procname = "enabled",
@@ -54,12 +65,6 @@ static struct ctl_table mptcp_sysctl_table[] = {
 	},
 	{}
 };
-
-static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
-{
-	pernet->mptcp_enabled = 1;
-	pernet->add_addr_timeout = TCP_RTO_MAX;
-}
 
 static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 {
@@ -99,6 +104,17 @@ static void mptcp_pernet_del_table(struct mptcp_pernet *pernet)
 
 	kfree(table);
 }
+
+#else
+
+static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
+{
+	return 0;
+}
+
+static void mptcp_pernet_del_table(struct mptcp_pernet *pernet) {}
+
+#endif /* CONFIG_SYSCTL */
 
 static int __net_init mptcp_net_init(struct net *net)
 {
