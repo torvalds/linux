@@ -412,7 +412,7 @@ SYM_FUNC_END(__create_page_tables)
 	stp	xzr, xzr, [sp, #S_STACKFRAME]
 	add	x29, sp, #S_STACKFRAME
 
-	scs_load \tsk, \tmp1
+	scs_load \tsk
 
 	adr_l	\tmp1, __per_cpu_offset
 	ldr	w\tmp2, [\tsk, #TSK_CPU]
