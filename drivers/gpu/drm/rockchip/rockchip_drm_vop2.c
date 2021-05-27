@@ -415,6 +415,7 @@ struct vop2_video_port {
 	struct vop2 *vop2;
 	struct clk *dclk;
 	uint8_t id;
+	bool layer_sel_update;
 	const struct vop2_video_port_regs *regs;
 
 	struct completion dsp_hold_completion;
@@ -1033,6 +1034,9 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 	struct vop2 *vop2 = vp->vop2;
 	uint32_t done_bits;
 	uint32_t val;
+	u32 old_layer_sel_val, cfg_layer_sel_val;
+	struct vop2_layer *layer = &vop2->layers[0];
+	u32 layer_sel_offset = layer->regs->layer_sel.offset;
 
 	/*
 	 * This is a workaround, the config done bits of VP0,
@@ -1052,7 +1056,23 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 	 */
 	done_bits = vop2_pending_done_bits(vp);
 	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | done_bits;
+	old_layer_sel_val = vop2_readl(vop2, layer_sel_offset);
+	cfg_layer_sel_val = vop2->regsbak[layer_sel_offset >> 2];
+	/**
+	 * This is rather low probability for miss some done bit.
+	 */
+	val |= vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
 	vop2_writel(vop2, 0, val);
+
+	/**
+	 * Make sure the layer sel is take effect when it's updated.
+	 */
+	if (old_layer_sel_val != cfg_layer_sel_val) {
+		vp->layer_sel_update = true;
+		vop2_wait_for_fs_by_done_bit_status(vp);
+		DRM_DEV_DEBUG(vop2->dev, "vp%d need to wait fs as old layer_sel val[0x%x] != new val[0x%x]\n",
+			      vp->id, old_layer_sel_val, cfg_layer_sel_val);
+	}
 }
 
 static inline void vop2_wb_cfg_done(struct vop2_video_port *vp)
@@ -5290,6 +5310,12 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 	 */
 	vop2_wait_for_irq_handler(crtc);
 
+	/**
+	 * move here is to make sure current fs call function is complete,
+	 * so when layer_sel_update is true, we can skip current vblank correctly.
+	 */
+	vp->layer_sel_update = false;
+
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
@@ -5750,8 +5776,10 @@ static irqreturn_t vop2_isr(int irq, void *data)
 
 		if (active_irqs & FS_FIELD_INTR) {
 			vop2_wb_handler(vp);
-			drm_crtc_handle_vblank(crtc);
-			vop2_handle_vblank(vop2, crtc);
+			if (vp->layer_sel_update == false) {
+				drm_crtc_handle_vblank(crtc);
+				vop2_handle_vblank(vop2, crtc);
+			}
 			active_irqs &= ~FS_FIELD_INTR;
 			ret = IRQ_HANDLED;
 		}

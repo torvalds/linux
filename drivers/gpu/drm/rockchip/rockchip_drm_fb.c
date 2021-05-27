@@ -144,6 +144,7 @@ static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
 static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
+	struct rockchip_drm_private *prv = dev->dev_private;
 	struct dmcfreq_vop_info vop_info;
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
@@ -154,7 +155,9 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 
 	rockchip_dmcfreq_vop_bandwidth_update(&vop_info);
 
+	mutex_lock(&prv->commit_lock);
 	drm_atomic_helper_commit_planes(dev, old_state, DRM_PLANE_COMMIT_ACTIVE_ONLY);
+	mutex_unlock(&prv->commit_lock);
 
 	drm_atomic_helper_fake_vblank(old_state);
 

@@ -592,6 +592,7 @@ static int rockchip_drm_bind(struct device *dev)
 
 	INIT_LIST_HEAD(&private->psr_list);
 	mutex_init(&private->psr_list_lock);
+	mutex_init(&private->commit_lock);
 
 	ret = rockchip_drm_init_iommu(drm_dev);
 	if (ret)

@@ -170,6 +170,7 @@ struct rockchip_drm_private {
 	struct drm_mm mm;
 	struct list_head psr_list;
 	struct mutex psr_list_lock;
+	struct mutex commit_lock;
 
 	struct drm_property *eotf_prop;
 	struct drm_property *color_space_prop;
