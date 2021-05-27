@@ -326,8 +326,6 @@ enum blk_bounce {
 };
 
 struct queue_limits {
-	unsigned int		bio_max_bytes;
-
 	enum blk_bounce		bounce;
 	unsigned long		seg_boundary_mask;
 	unsigned long		virt_boundary_mask;
@@ -677,11 +675,6 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
-
-static inline bool blk_account_rq(struct request *rq)
-{
-	return (rq->rq_flags & RQF_STARTED) && !blk_rq_is_passthrough(rq);
-}
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 

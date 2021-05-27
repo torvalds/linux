@@ -28,6 +28,7 @@
 #include "compression.h"
 #include "extent_io.h"
 #include "extent_map.h"
+#include "zoned.h"
 
 static const char* const btrfs_compress_types[] = { "", "zlib", "lzo", "zstd" };
 
@@ -349,6 +350,7 @@ static void end_compressed_bio_write(struct bio *bio)
 	 */
 	inode = cb->inode;
 	cb->compressed_pages[0]->mapping = cb->inode->i_mapping;
+	btrfs_record_physical_zoned(inode, cb->start, bio);
 	btrfs_writepage_endio_finish_ordered(cb->compressed_pages[0],
 			cb->start, cb->start + cb->len - 1,
 			bio->bi_status == BLK_STS_OK);
@@ -401,6 +403,8 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	u64 first_byte = disk_start;
 	blk_status_t ret;
 	int skip_sum = inode->flags & BTRFS_INODE_NODATASUM;
+	const bool use_append = btrfs_use_zone_append(inode, disk_start);
+	const unsigned int bio_op = use_append ? REQ_OP_ZONE_APPEND : REQ_OP_WRITE;
 
 	WARN_ON(!PAGE_ALIGNED(start));
 	cb = kmalloc(compressed_bio_size(fs_info, compressed_len), GFP_NOFS);
@@ -418,9 +422,30 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->nr_pages = nr_pages;
 
 	bio = btrfs_bio_alloc(first_byte);
-	bio->bi_opf = REQ_OP_WRITE | write_flags;
+	bio->bi_opf = bio_op | write_flags;
 	bio->bi_private = cb;
 	bio->bi_end_io = end_compressed_bio_write;
+
+	if (use_append) {
+		struct extent_map *em;
+		struct map_lookup *map;
+		struct block_device *bdev;
+
+		em = btrfs_get_chunk_map(fs_info, disk_start, PAGE_SIZE);
+		if (IS_ERR(em)) {
+			kfree(cb);
+			bio_put(bio);
+			return BLK_STS_NOTSUPP;
+		}
+
+		map = em->map_lookup;
+		/* We only support single profile for now */
+		ASSERT(map->num_stripes == 1);
+		bdev = map->stripes[0].dev->bdev;
+
+		bio_set_dev(bio, bdev);
+		free_extent_map(em);
+	}
 
 	if (blkcg_css) {
 		bio->bi_opf |= REQ_CGROUP_PUNT;
@@ -432,6 +457,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	bytes_left = compressed_len;
 	for (pg_index = 0; pg_index < cb->nr_pages; pg_index++) {
 		int submit = 0;
+		int len;
 
 		page = compressed_pages[pg_index];
 		page->mapping = inode->vfs_inode.i_mapping;
@@ -439,9 +465,13 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE, bio,
 							  0);
 
+		if (pg_index == 0 && use_append)
+			len = bio_add_zone_append_page(bio, page, PAGE_SIZE, 0);
+		else
+			len = bio_add_page(bio, page, PAGE_SIZE, 0);
+
 		page->mapping = NULL;
-		if (submit || bio_add_page(bio, page, PAGE_SIZE, 0) <
-		    PAGE_SIZE) {
+		if (submit || len < PAGE_SIZE) {
 			/*
 			 * inc the count before we submit the bio so
 			 * we know the end IO handler won't happen before
@@ -465,11 +495,15 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 			}
 
 			bio = btrfs_bio_alloc(first_byte);
-			bio->bi_opf = REQ_OP_WRITE | write_flags;
+			bio->bi_opf = bio_op | write_flags;
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
 			if (blkcg_css)
 				bio->bi_opf |= REQ_CGROUP_PUNT;
+			/*
+			 * Use bio_add_page() to ensure the bio has at least one
+			 * page.
+			 */
 			bio_add_page(bio, page, PAGE_SIZE, 0);
 		}
 		if (bytes_left < PAGE_SIZE) {

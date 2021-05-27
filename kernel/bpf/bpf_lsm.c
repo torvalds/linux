@@ -107,10 +107,12 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_inode_storage_get_proto;
 	case BPF_FUNC_inode_storage_delete:
 		return &bpf_inode_storage_delete_proto;
+#ifdef CONFIG_NET
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+#endif /* CONFIG_NET */
 	case BPF_FUNC_spin_lock:
 		return &bpf_spin_lock_proto;
 	case BPF_FUNC_spin_unlock:

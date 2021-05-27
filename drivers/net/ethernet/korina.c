@@ -1315,23 +1315,23 @@ static int korina_probe(struct platform_device *pdev)
 	lp->tx_irq = platform_get_irq_byname(pdev, "tx");
 
 	p = devm_platform_ioremap_resource_byname(pdev, "emac");
-	if (!p) {
+	if (IS_ERR(p)) {
 		printk(KERN_ERR DRV_NAME ": cannot remap registers\n");
-		return -ENOMEM;
+		return PTR_ERR(p);
 	}
 	lp->eth_regs = p;
 
 	p = devm_platform_ioremap_resource_byname(pdev, "dma_rx");
-	if (!p) {
+	if (IS_ERR(p)) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Rx DMA registers\n");
-		return -ENOMEM;
+		return PTR_ERR(p);
 	}
 	lp->rx_dma_regs = p;
 
 	p = devm_platform_ioremap_resource_byname(pdev, "dma_tx");
-	if (!p) {
+	if (IS_ERR(p)) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Tx DMA registers\n");
-		return -ENOMEM;
+		return PTR_ERR(p);
 	}
 	lp->tx_dma_regs = p;
 

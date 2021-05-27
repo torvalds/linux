@@ -1851,8 +1851,8 @@ static inline void setup_getcpu(int cpu)
 	unsigned long cpudata = vdso_encode_cpunode(cpu, early_cpu_to_node(cpu));
 	struct desc_struct d = { };
 
-	if (boot_cpu_has(X86_FEATURE_RDTSCP))
-		write_rdtscp_aux(cpudata);
+	if (boot_cpu_has(X86_FEATURE_RDTSCP) || boot_cpu_has(X86_FEATURE_RDPID))
+		wrmsr(MSR_TSC_AUX, cpudata, 0);
 
 	/* Store CPU and node number in limit. */
 	d.limit0 = cpudata;

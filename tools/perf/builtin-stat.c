@@ -572,7 +572,8 @@ static int enable_counters(void)
 	 * - we have initial delay configured
 	 */
 	if (!target__none(&target) || stat_config.initial_delay) {
-		evlist__enable(evsel_list);
+		if (!all_counters_use_bpf)
+			evlist__enable(evsel_list);
 		if (stat_config.initial_delay > 0)
 			pr_info(EVLIST_ENABLED_MSG);
 	}
@@ -581,13 +582,19 @@ static int enable_counters(void)
 
 static void disable_counters(void)
 {
+	struct evsel *counter;
+
 	/*
 	 * If we don't have tracee (attaching to task or cpu), counters may
 	 * still be running. To get accurate group ratios, we must stop groups
 	 * from counting before reading their constituent counters.
 	 */
-	if (!target__none(&target))
-		evlist__disable(evsel_list);
+	if (!target__none(&target)) {
+		evlist__for_each_entry(evsel_list, counter)
+			bpf_counter__disable(counter);
+		if (!all_counters_use_bpf)
+			evlist__disable(evsel_list);
+	}
 }
 
 static volatile int workload_exec_errno;

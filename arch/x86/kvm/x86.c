@@ -184,11 +184,6 @@ module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
  */
 #define KVM_MAX_NR_USER_RETURN_MSRS 16
 
-struct kvm_user_return_msrs_global {
-	int nr;
-	u32 msrs[KVM_MAX_NR_USER_RETURN_MSRS];
-};
-
 struct kvm_user_return_msrs {
 	struct user_return_notifier urn;
 	bool registered;
@@ -198,7 +193,9 @@ struct kvm_user_return_msrs {
 	} values[KVM_MAX_NR_USER_RETURN_MSRS];
 };
 
-static struct kvm_user_return_msrs_global __read_mostly user_return_msrs_global;
+u32 __read_mostly kvm_nr_uret_msrs;
+EXPORT_SYMBOL_GPL(kvm_nr_uret_msrs);
+static u32 __read_mostly kvm_uret_msrs_list[KVM_MAX_NR_USER_RETURN_MSRS];
 static struct kvm_user_return_msrs __percpu *user_return_msrs;
 
 #define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
@@ -330,23 +327,53 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 		user_return_notifier_unregister(urn);
 	}
 	local_irq_restore(flags);
-	for (slot = 0; slot < user_return_msrs_global.nr; ++slot) {
+	for (slot = 0; slot < kvm_nr_uret_msrs; ++slot) {
 		values = &msrs->values[slot];
 		if (values->host != values->curr) {
-			wrmsrl(user_return_msrs_global.msrs[slot], values->host);
+			wrmsrl(kvm_uret_msrs_list[slot], values->host);
 			values->curr = values->host;
 		}
 	}
 }
 
-void kvm_define_user_return_msr(unsigned slot, u32 msr)
+static int kvm_probe_user_return_msr(u32 msr)
 {
-	BUG_ON(slot >= KVM_MAX_NR_USER_RETURN_MSRS);
-	user_return_msrs_global.msrs[slot] = msr;
-	if (slot >= user_return_msrs_global.nr)
-		user_return_msrs_global.nr = slot + 1;
+	u64 val;
+	int ret;
+
+	preempt_disable();
+	ret = rdmsrl_safe(msr, &val);
+	if (ret)
+		goto out;
+	ret = wrmsrl_safe(msr, val);
+out:
+	preempt_enable();
+	return ret;
 }
-EXPORT_SYMBOL_GPL(kvm_define_user_return_msr);
+
+int kvm_add_user_return_msr(u32 msr)
+{
+	BUG_ON(kvm_nr_uret_msrs >= KVM_MAX_NR_USER_RETURN_MSRS);
+
+	if (kvm_probe_user_return_msr(msr))
+		return -1;
+
+	kvm_uret_msrs_list[kvm_nr_uret_msrs] = msr;
+	return kvm_nr_uret_msrs++;
+}
+EXPORT_SYMBOL_GPL(kvm_add_user_return_msr);
+
+int kvm_find_user_return_msr(u32 msr)
+{
+	int i;
+
+	for (i = 0; i < kvm_nr_uret_msrs; ++i) {
+		if (kvm_uret_msrs_list[i] == msr)
+			return i;
+	}
+	return -1;
+}
+EXPORT_SYMBOL_GPL(kvm_find_user_return_msr);
 
 static void kvm_user_return_msr_cpu_online(void)
 {
@@ -355,8 +382,8 @@ static void kvm_user_return_msr_cpu_online(void)
 	u64 value;
 	int i;
 
-	for (i = 0; i < user_return_msrs_global.nr; ++i) {
-		rdmsrl_safe(user_return_msrs_global.msrs[i], &value);
+	for (i = 0; i < kvm_nr_uret_msrs; ++i) {
+		rdmsrl_safe(kvm_uret_msrs_list[i], &value);
 		msrs->values[i].host = value;
 		msrs->values[i].curr = value;
 	}
@@ -371,7 +398,7 @@ int kvm_set_user_return_msr(unsigned slot, u64 value, u64 mask)
 	value = (value & mask) | (msrs->values[slot].host & ~mask);
 	if (value == msrs->values[slot].curr)
 		return 0;
-	err = wrmsrl_safe(user_return_msrs_global.msrs[slot], value);
+	err = wrmsrl_safe(kvm_uret_msrs_list[slot], value);
 	if (err)
 		return 1;
 
@@ -1149,6 +1176,9 @@ static u64 kvm_dr6_fixed(struct kvm_vcpu *vcpu)
 
 	if (!guest_cpuid_has(vcpu, X86_FEATURE_RTM))
 		fixed |= DR6_RTM;
+
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_BUS_LOCK_DETECT))
+		fixed |= DR6_BUS_LOCK;
 	return fixed;
 }
 
@@ -1615,6 +1645,30 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 		 * invokes 64-bit SYSENTER.
 		 */
 		data = get_canonical(data, vcpu_virt_addr_bits(vcpu));
+		break;
+	case MSR_TSC_AUX:
+		if (!kvm_is_supported_user_return_msr(MSR_TSC_AUX))
+			return 1;
+
+		if (!host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP) &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_RDPID))
+			return 1;
+
+		/*
+		 * Per Intel's SDM, bits 63:32 are reserved, but AMD's APM has
+		 * incomplete and conflicting architectural behavior.  Current
+		 * AMD CPUs completely ignore bits 63:32, i.e. they aren't
+		 * reserved and always read as zeros.  Enforce Intel's reserved
+		 * bits check if and only if the guest CPU is Intel, and clear
+		 * the bits in all other cases.  This ensures cross-vendor
+		 * migration will provide consistent behavior for the guest.
+		 */
+		if (guest_cpuid_is_intel(vcpu) && (data >> 32) != 0)
+			return 1;
+
+		data = (u32)data;
+		break;
 	}
 
 	msr.data = data;
@@ -1650,6 +1704,18 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 
 	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
 		return KVM_MSR_RET_FILTERED;
+
+	switch (index) {
+	case MSR_TSC_AUX:
+		if (!kvm_is_supported_user_return_msr(MSR_TSC_AUX))
+			return 1;
+
+		if (!host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP) &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_RDPID))
+			return 1;
+		break;
+	}
 
 	msr.index = index;
 	msr.host_initiated = host_initiated;
@@ -3402,7 +3468,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_LASTBRANCHTOIP:
 	case MSR_IA32_LASTINTFROMIP:
 	case MSR_IA32_LASTINTTOIP:
-	case MSR_K8_SYSCFG:
+	case MSR_AMD64_SYSCFG:
 	case MSR_K8_TSEG_ADDR:
 	case MSR_K8_TSEG_MASK:
 	case MSR_VM_HSAVE_PA:
@@ -5468,13 +5534,17 @@ static void kvm_free_msr_filter(struct kvm_x86_msr_filter *msr_filter)
 static int kvm_add_msr_filter(struct kvm_x86_msr_filter *msr_filter,
 			      struct kvm_msr_filter_range *user_range)
 {
-	struct msr_bitmap_range range;
 	unsigned long *bitmap = NULL;
 	size_t bitmap_size;
-	int r;
 
 	if (!user_range->nmsrs)
 		return 0;
+
+	if (user_range->flags & ~(KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE))
+		return -EINVAL;
+
+	if (!user_range->flags)
+		return -EINVAL;
 
 	bitmap_size = BITS_TO_LONGS(user_range->nmsrs) * sizeof(long);
 	if (!bitmap_size || bitmap_size > KVM_MSR_FILTER_MAX_BITMAP_SIZE)
@@ -5484,31 +5554,15 @@ static int kvm_add_msr_filter(struct kvm_x86_msr_filter *msr_filter,
 	if (IS_ERR(bitmap))
 		return PTR_ERR(bitmap);
 
-	range = (struct msr_bitmap_range) {
+	msr_filter->ranges[msr_filter->count] = (struct msr_bitmap_range) {
 		.flags = user_range->flags,
 		.base = user_range->base,
 		.nmsrs = user_range->nmsrs,
 		.bitmap = bitmap,
 	};
 
-	if (range.flags & ~(KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE)) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	if (!range.flags) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	/* Everything ok, add this range identifier. */
-	msr_filter->ranges[msr_filter->count] = range;
 	msr_filter->count++;
-
 	return 0;
-err:
-	kfree(bitmap);
-	return r;
 }
 
 static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm, void __user *argp)
@@ -5937,7 +5991,8 @@ static void kvm_init_msr_list(void)
 				continue;
 			break;
 		case MSR_TSC_AUX:
-			if (!kvm_cpu_cap_has(X86_FEATURE_RDTSCP))
+			if (!kvm_cpu_cap_has(X86_FEATURE_RDTSCP) &&
+			    !kvm_cpu_cap_has(X86_FEATURE_RDPID))
 				continue;
 			break;
 		case MSR_IA32_UMWAIT_CONTROL:
@@ -8040,6 +8095,18 @@ static void pvclock_gtod_update_fn(struct work_struct *work)
 static DECLARE_WORK(pvclock_gtod_work, pvclock_gtod_update_fn);
 
 /*
+ * Indirection to move queue_work() out of the tk_core.seq write held
+ * region to prevent possible deadlocks against time accessors which
+ * are invoked with work related locks held.
+ */
+static void pvclock_irq_work_fn(struct irq_work *w)
+{
+	queue_work(system_long_wq, &pvclock_gtod_work);
+}
+
+static DEFINE_IRQ_WORK(pvclock_irq_work, pvclock_irq_work_fn);
+
+/*
  * Notification about pvclock gtod data update.
  */
 static int pvclock_gtod_notify(struct notifier_block *nb, unsigned long unused,
@@ -8050,13 +8117,14 @@ static int pvclock_gtod_notify(struct notifier_block *nb, unsigned long unused,
 
 	update_pvclock_gtod(tk);
 
-	/* disable master clock if host does not trust, or does not
-	 * use, TSC based clocksource.
+	/*
+	 * Disable master clock if host does not trust, or does not use,
+	 * TSC based clocksource. Delegate queue_work() to irq_work as
+	 * this is invoked with tk_core.seq write held.
 	 */
 	if (!gtod_is_based_on_tsc(gtod->clock.vclock_mode) &&
 	    atomic_read(&kvm_guest_has_master_clock) != 0)
-		queue_work(system_long_wq, &pvclock_gtod_work);
-
+		irq_work_queue(&pvclock_irq_work);
 	return 0;
 }
 
@@ -8118,6 +8186,7 @@ int kvm_arch_init(void *opaque)
 		printk(KERN_ERR "kvm: failed to allocate percpu kvm_user_return_msrs\n");
 		goto out_free_x86_emulator_cache;
 	}
+	kvm_nr_uret_msrs = 0;
 
 	r = kvm_mmu_module_init();
 	if (r)
@@ -8168,6 +8237,8 @@ void kvm_arch_exit(void)
 	cpuhp_remove_state_nocalls(CPUHP_AP_X86_KVM_CLK_ONLINE);
 #ifdef CONFIG_X86_64
 	pvclock_gtod_unregister_notifier(&pvclock_gtod_notifier);
+	irq_work_sync(&pvclock_irq_work);
+	cancel_work_sync(&pvclock_gtod_work);
 #endif
 	kvm_x86_ops.hardware_enable = NULL;
 	kvm_mmu_module_exit();
@@ -9314,6 +9385,15 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	++vcpu->stat.exits;
 	local_irq_disable();
 	kvm_after_interrupt(vcpu);
+
+	/*
+	 * Wait until after servicing IRQs to account guest time so that any
+	 * ticks that occurred while running the guest are properly accounted
+	 * to the guest.  Waiting until IRQs are enabled degrades the accuracy
+	 * of accounting via context tracking, but the loss of accuracy is
+	 * acceptable for all known use cases.
+	 */
+	vtime_account_guest_exit();
 
 	if (lapic_in_kernel(vcpu)) {
 		s64 delta = vcpu->arch.apic->lapic_timer.advance_expire_delta;

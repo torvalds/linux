@@ -84,7 +84,7 @@ unsigned int resctrl_cqm_threshold;
 static const struct mbm_correction_factor_table {
 	u32 rmidthreshold;
 	u64 cf;
-} mbm_cf_table[] __initdata = {
+} mbm_cf_table[] __initconst = {
 	{7,	CF(1.000000)},
 	{15,	CF(1.000000)},
 	{15,	CF(0.969650)},
