@@ -345,6 +345,11 @@ struct rsnd_mod_ops {
 	int (*id)(struct rsnd_mod *mod);
 	int (*id_sub)(struct rsnd_mod *mod);
 	int (*id_cmd)(struct rsnd_mod *mod);
+
+#ifdef CONFIG_DEBUG_FS
+	void (*debug_info)(struct seq_file *m,
+			   struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+#endif
 };
 
 struct rsnd_dai_stream;
@@ -592,6 +597,9 @@ void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
 phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id);
+#ifdef CONFIG_DEBUG_FS
+void __iomem *rsnd_gen_get_base_addr(struct rsnd_priv *priv, int reg_id);
+#endif
 
 /*
  *	R-Car ADG
@@ -610,6 +618,7 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *cmd_mod,
 #define rsnd_adg_clk_enable(priv)	rsnd_adg_clk_control(priv, 1)
 #define rsnd_adg_clk_disable(priv)	rsnd_adg_clk_control(priv, 0)
 void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable);
+void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct seq_file *m);
 
 /*
  *	R-Car sound priv
@@ -896,4 +905,15 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 	if (!IS_BUILTIN(RSND_DEBUG_NO_DAI_CALL))	\
 		dev_dbg(dev, param)
 
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+int rsnd_debugfs_probe(struct snd_soc_component *component);
+void rsnd_debugfs_reg_show(struct seq_file *m, phys_addr_t _addr,
+			   void __iomem *base, int offset, int size);
+void rsnd_debugfs_mod_reg_show(struct seq_file *m, struct rsnd_mod *mod,
+			       int reg_id, int offset, int size);
+
+#else
+#define rsnd_debugfs_probe  NULL
 #endif

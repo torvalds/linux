@@ -583,32 +583,49 @@ rsnd_adg_get_clkout_end:
 	adg->rbgb = rbgb;
 }
 
-#ifdef DEBUG
-static void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct rsnd_adg *adg)
+#if defined(DEBUG) || defined(CONFIG_DEBUG_FS)
+static void dbg_msg(struct device *dev, struct seq_file *m,
+				   const char *fmt, ...)
 {
+	char msg[128];
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(msg, sizeof(msg), fmt, args);
+	va_end(args);
+
+	if (m)
+		seq_puts(m, msg);
+	else
+		dev_dbg(dev, "%s", msg);
+}
+
+void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct seq_file *m)
+{
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
 	int i;
 
 	for_each_rsnd_clk(clk, adg, i)
-		dev_dbg(dev, "%s    : %pa : %ld\n",
+		dbg_msg(dev, m, "%s    : %pa : %ld\n",
 			clk_name[i], clk, clk_get_rate(clk));
 
-	dev_dbg(dev, "BRGCKR = 0x%08x, BRRA/BRRB = 0x%x/0x%x\n",
+	dbg_msg(dev, m, "BRGCKR = 0x%08x, BRRA/BRRB = 0x%x/0x%x\n",
 		adg->ckr, adg->rbga, adg->rbgb);
-	dev_dbg(dev, "BRGA (for 44100 base) = %d\n", adg->rbga_rate_for_441khz);
-	dev_dbg(dev, "BRGB (for 48000 base) = %d\n", adg->rbgb_rate_for_48khz);
+	dbg_msg(dev, m, "BRGA (for 44100 base) = %d\n", adg->rbga_rate_for_441khz);
+	dbg_msg(dev, m, "BRGB (for 48000 base) = %d\n", adg->rbgb_rate_for_48khz);
 
 	/*
 	 * Actual CLKOUT will be exchanged in rsnd_adg_ssi_clk_try_start()
 	 * by BRGCKR::BRGCKR_31
 	 */
 	for_each_rsnd_clkout(clk, adg, i)
-		dev_dbg(dev, "clkout %d : %pa : %ld\n", i,
+		dbg_msg(dev, m, "clkout %d : %pa : %ld\n", i,
 			clk, clk_get_rate(clk));
 }
 #else
-#define rsnd_adg_clk_dbg_info(priv, adg)
+#define rsnd_adg_clk_dbg_info(priv, m)
 #endif
 
 int rsnd_adg_probe(struct rsnd_priv *priv)
@@ -628,11 +645,11 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 	rsnd_adg_get_clkin(priv, adg);
 	rsnd_adg_get_clkout(priv, adg);
-	rsnd_adg_clk_dbg_info(priv, adg);
 
 	priv->adg = adg;
 
 	rsnd_adg_clk_enable(priv);
+	rsnd_adg_clk_dbg_info(priv, NULL);
 
 	return 0;
 }

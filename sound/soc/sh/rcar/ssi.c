@@ -1118,6 +1118,34 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 					mod, name);
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_ssi_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	seq_printf(m, "clock:           %s\n",		rsnd_rdai_is_clk_master(rdai) ?
+								"provider" : "consumer");
+	seq_printf(m, "bit_clk_inv:     %d\n",		rdai->bit_clk_inv);
+	seq_printf(m, "frm_clk_inv:     %d\n",		rdai->frm_clk_inv);
+	seq_printf(m, "pin share:       %d\n",		__rsnd_ssi_is_pin_sharing(mod));
+	seq_printf(m, "can out clk:     %d\n",		rsnd_ssi_can_output_clk(mod));
+	seq_printf(m, "multi secondary: %d\n",		rsnd_ssi_is_multi_secondary(mod, io));
+	seq_printf(m, "tdm:             %d, %d\n",	rsnd_runtime_is_tdm(io),
+							rsnd_runtime_is_tdm_split(io));
+	seq_printf(m, "chan:            %d\n",		ssi->chan);
+	seq_printf(m, "user:            %d\n",		ssi->usrcnt);
+
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SSI,
+				  rsnd_mod_id(mod) * 0x40, 0x40);
+}
+#define DEBUG_INFO .debug_info = rsnd_ssi_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.name		= SSI_NAME,
 	.dma_req	= rsnd_ssi_dma_req,
@@ -1132,6 +1160,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.fallback	= rsnd_ssi_fallback,
 	.hw_params	= rsnd_ssi_hw_params,
 	.get_status	= rsnd_ssi_get_status,
+	DEBUG_INFO
 };
 
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)

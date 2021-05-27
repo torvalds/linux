@@ -314,6 +314,19 @@ static struct dma_chan *rsnd_ssiu_dma_req(struct rsnd_dai_stream *io,
 					mod, name);
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_ssiu_debug_info(struct seq_file *m,
+				 struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SSIU,
+				  rsnd_mod_id(mod) * 0x80, 0x80);
+}
+#define DEBUG_INFO .debug_info = rsnd_ssiu_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
 	.name		= SSIU_NAME,
 	.dma_req	= rsnd_ssiu_dma_req,
@@ -321,6 +334,7 @@ static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
 	.start		= rsnd_ssiu_start_gen2,
 	.stop		= rsnd_ssiu_stop_gen2,
 	.get_status	= rsnd_ssiu_get_status,
+	DEBUG_INFO
 };
 
 static struct rsnd_mod *rsnd_ssiu_mod_get(struct rsnd_priv *priv, int id)
