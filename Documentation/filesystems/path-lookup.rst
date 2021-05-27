@@ -1200,16 +1200,15 @@ the code.
    it.  If the file was found in the dcache, then ``vfs_open()`` is used for
    this.  If not, then ``lookup_open()`` will either call ``atomic_open()`` (if
    the filesystem provides it) to combine the final lookup with the open, or
-   will perform the separate ``lookup_real()`` and ``vfs_create()`` steps
+   will perform the separate ``i_op->lookup()`` and ``i_op->create()`` steps
    directly.  In the later case the actual "open" of this newly found or
    created file will be performed by ``vfs_open()``, just as if the name
    were found in the dcache.
 
 2. ``vfs_open()`` can fail with ``-EOPENSTALE`` if the cached information
-   wasn't quite current enough.  Rather than restarting the lookup from
-   the top with ``LOOKUP_REVAL`` set, ``lookup_open()`` is called instead,
-   giving the filesystem a chance to resolve small inconsistencies.
-   If that doesn't work, only then is the lookup restarted from the top.
+   wasn't quite current enough.  If it's in RCU-walk ``-ECHILD`` will be returned
+   otherwise ``-ESTALE`` is returned.  When ``-ESTALE`` is returned, the caller may
+   retry with ``LOOKUP_REVAL`` flag set.
 
 3. An open with O_CREAT **does** follow a symlink in the final component,
    unlike other creation system calls (like ``mkdir``).  So the sequence::
@@ -1219,8 +1218,8 @@ the code.
 
    will create a file called ``/tmp/bar``.  This is not permitted if
    ``O_EXCL`` is set but otherwise is handled for an O_CREAT open much
-   like for a non-creating open: ``should_follow_link()`` returns ``1``, and
-   so does ``do_last()`` so that ``trailing_symlink()`` gets called and the
+   like for a non-creating open: ``lookup_last()`` or ``open_last_lookup()``
+   returns a non ``NULL`` value, and ``link_path_walk()`` gets called and the
    open process continues on the symlink that was found.
 
 Updating the access time
