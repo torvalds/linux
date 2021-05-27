@@ -8093,7 +8093,8 @@ void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_old_dbuf_state(state);
 
 	if (!new_dbuf_state ||
-	    new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    ((new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    && (new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus)))
 		return;
 
 	WARN_ON(!new_dbuf_state->base.changed);
@@ -8113,7 +8114,8 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_old_dbuf_state(state);
 
 	if (!new_dbuf_state ||
-	    new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    ((new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    && (new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus)))
 		return;
 
 	WARN_ON(!new_dbuf_state->base.changed);
