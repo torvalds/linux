@@ -166,6 +166,9 @@ struct amdtp_stream {
 			unsigned int data_block_state;
 			unsigned int syt_offset_state;
 			unsigned int last_syt_offset;
+
+			struct amdtp_stream *replay_target;
+			unsigned int cache_head;
 		} rx;
 	} ctx_data;
 

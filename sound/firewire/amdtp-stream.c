@@ -495,6 +495,22 @@ static unsigned int compute_syt_offset(unsigned int syt, unsigned int cycle,
 	return syt_offset - transfer_delay;
 }
 
+// Both of the producer and consumer of the queue runs in the same clock of IEEE 1394 bus.
+// Additionally, the sequence of tx packets is severely checked against any discontinuity
+// before filling entries in the queue. The calculation is safe even if it looks fragile by
+// overrun.
+static unsigned int calculate_cached_cycle_count(struct amdtp_stream *s, unsigned int head)
+{
+	const unsigned int cache_size = s->ctx_data.tx.cache.size;
+	unsigned int cycles = s->ctx_data.tx.cache.tail;
+
+	if (cycles < head)
+		cycles += cache_size;
+	cycles -= head;
+
+	return cycles;
+}
+
 static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *descs, unsigned int desc_count)
 {
 	const unsigned int transfer_delay = s->transfer_delay;
@@ -534,6 +550,37 @@ static void pool_ideal_seq_descs(struct amdtp_stream *s, unsigned int count)
 		pool_ideal_nonblocking_data_blocks(s, descs, seq_size, seq_tail, count);
 
 	s->ctx_data.rx.seq.tail = (seq_tail + count) % seq_size;
+}
+
+static void pool_replayed_seq(struct amdtp_stream *s, unsigned int count)
+{
+	struct amdtp_stream *target = s->ctx_data.rx.replay_target;
+	const struct seq_desc *cache = target->ctx_data.tx.cache.descs;
+	const unsigned int cache_size = target->ctx_data.tx.cache.size;
+	unsigned int cache_head = s->ctx_data.rx.cache_head;
+	struct seq_desc *descs = s->ctx_data.rx.seq.descs;
+	const unsigned int seq_size = s->ctx_data.rx.seq.size;
+	unsigned int seq_tail = s->ctx_data.rx.seq.tail;
+	int i;
+
+	for (i = 0; i < count; ++i) {
+		descs[seq_tail] = cache[cache_head];
+		seq_tail = (seq_tail + 1) % seq_size;
+		cache_head = (cache_head + 1) % cache_size;
+	}
+
+	s->ctx_data.rx.seq.tail = seq_tail;
+	s->ctx_data.rx.cache_head = cache_head;
+}
+
+static void pool_seq_descs(struct amdtp_stream *s, unsigned int count)
+{
+	struct amdtp_domain *d = s->domain;
+
+	if (!d->replay.enable || !s->ctx_data.rx.replay_target)
+		pool_ideal_seq_descs(s, count);
+	else
+		pool_replayed_seq(s, count);
 }
 
 static void update_pcm_pointers(struct amdtp_stream *s,
@@ -1004,7 +1051,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	// Calculate the number of packets in buffer and check XRUN.
 	packets = header_length / sizeof(*ctx_header);
 
-	pool_ideal_seq_descs(s, packets);
+	pool_seq_descs(s, packets);
 
 	generate_pkt_descs(s, ctx_header, packets);
 
@@ -1392,28 +1439,54 @@ static void irq_target_callback_skip(struct fw_iso_context *context, u32 tstamp,
 {
 	struct amdtp_stream *s = private_data;
 	struct amdtp_domain *d = s->domain;
-	unsigned int cycle;
+	bool ready_to_start;
 
 	skip_rx_packets(context, tstamp, header_length, header, private_data);
 	process_ctxs_in_domain(d);
 
-	// Decide the cycle count to begin processing content of packet in IT contexts. All of IT
-	// contexts are expected to start and get callback when reaching here.
-	cycle = s->next_cycle;
-	list_for_each_entry(s, &d->streams, list) {
-		if (s->direction != AMDTP_OUT_STREAM)
-			continue;
+	if (d->replay.enable) {
+		unsigned int rx_count = 0;
+		unsigned int rx_ready_count = 0;
+		struct amdtp_stream *rx;
 
-		if (compare_ohci_cycle_count(s->next_cycle, cycle) > 0)
-			cycle = s->next_cycle;
+		list_for_each_entry(rx, &d->streams, list) {
+			struct amdtp_stream *tx;
+			unsigned int cached_cycles;
 
-		if (s == d->irq_target)
-			s->context->callback.sc = irq_target_callback_intermediately;
-		else
-			s->context->callback.sc = process_rx_packets_intermediately;
+			if (rx->direction != AMDTP_OUT_STREAM)
+				continue;
+			++rx_count;
+
+			tx = rx->ctx_data.rx.replay_target;
+			cached_cycles = calculate_cached_cycle_count(tx, 0);
+			if (cached_cycles > tx->ctx_data.tx.cache.size / 2)
+				++rx_ready_count;
+		}
+
+		ready_to_start = (rx_count == rx_ready_count);
+	} else {
+		ready_to_start = true;
 	}
 
-	d->processing_cycle.rx_start = cycle;
+	// Decide the cycle count to begin processing content of packet in IT contexts. All of IT
+	// contexts are expected to start and get callback when reaching here.
+	if (ready_to_start) {
+		unsigned int cycle = s->next_cycle;
+		list_for_each_entry(s, &d->streams, list) {
+			if (s->direction != AMDTP_OUT_STREAM)
+				continue;
+
+			if (compare_ohci_cycle_count(s->next_cycle, cycle) > 0)
+				cycle = s->next_cycle;
+
+			if (s == d->irq_target)
+				s->context->callback.sc = irq_target_callback_intermediately;
+			else
+				s->context->callback.sc = process_rx_packets_intermediately;
+		}
+
+		d->processing_cycle.rx_start = cycle;
+	}
 }
 
 // This is executed one time. For in-stream, first packet has come. For out-stream, prepared to
@@ -1802,6 +1875,53 @@ int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
 
+// Make the reference from rx stream to tx stream for sequence replay. When the number of tx streams
+// is less than the number of rx streams, the first tx stream is selected.
+static int make_association(struct amdtp_domain *d)
+{
+	unsigned int dst_index = 0;
+	struct amdtp_stream *rx;
+
+	// Make association to replay target.
+	list_for_each_entry(rx, &d->streams, list) {
+		if (rx->direction == AMDTP_OUT_STREAM) {
+			unsigned int src_index = 0;
+			struct amdtp_stream *tx = NULL;
+			struct amdtp_stream *s;
+
+			list_for_each_entry(s, &d->streams, list) {
+				if (s->direction == AMDTP_IN_STREAM) {
+					if (dst_index == src_index) {
+						tx = s;
+						break;
+					}
+
+					++src_index;
+				}
+			}
+			if (!tx) {
+				// Select the first entry.
+				list_for_each_entry(s, &d->streams, list) {
+					if (s->direction == AMDTP_IN_STREAM) {
+						tx = s;
+						break;
+					}
+				}
+				// No target is available to replay sequence.
+				if (!tx)
+					return -EINVAL;
+			}
+
+			rx->ctx_data.rx.replay_target = tx;
+			rx->ctx_data.rx.cache_head = 0;
+
+			++dst_index;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * amdtp_domain_start - start sending packets for isoc context in the domain.
  * @d: the AMDTP domain.
@@ -1818,6 +1938,11 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles,
 	struct amdtp_stream *s;
 	int err;
 
+	if (replay_seq) {
+		err = make_association(d);
+		if (err < 0)
+			return err;
+	}
 	d->replay.enable = replay_seq;
 
 	// Select an IT context as IRQ target.
