@@ -159,12 +159,8 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 		head->len += frag->len;
 		head->data_len += frag->len;
 
-		if (*frag_tail) {
-			(*frag_tail)->next = frag;
-			frag_tail = &frag;
-		} else {
-			*frag_tail = frag;
-		}
+		*frag_tail = frag;
+		frag_tail = &(*frag_tail)->next;
 	}
 
 	mt76_testmode_free_skb(phy);
