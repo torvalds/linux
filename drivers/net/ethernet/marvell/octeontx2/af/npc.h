@@ -33,6 +33,10 @@ enum npc_kpu_la_ltype {
 	NPC_LT_LA_IH_2_ETHER,
 	NPC_LT_LA_HIGIG2_ETHER,
 	NPC_LT_LA_IH_NIX_HIGIG2_ETHER,
+	NPC_LT_LA_CUSTOM_L2_90B_ETHER,
+	NPC_LT_LA_CH_LEN_90B_ETHER,
+	NPC_LT_LA_CPT_HDR,
+	NPC_LT_LA_CUSTOM_L2_24B_ETHER,
 	NPC_LT_LA_CUSTOM0 = 0xE,
 	NPC_LT_LA_CUSTOM1 = 0xF,
 };
@@ -42,7 +46,7 @@ enum npc_kpu_lb_ltype {
 	NPC_LT_LB_CTAG,
 	NPC_LT_LB_STAG_QINQ,
 	NPC_LT_LB_BTAG,
-	NPC_LT_LB_ITAG,
+	NPC_LT_LB_PPPOE,
 	NPC_LT_LB_DSA,
 	NPC_LT_LB_DSA_VLAN,
 	NPC_LT_LB_EDSA,
@@ -50,6 +54,7 @@ enum npc_kpu_lb_ltype {
 	NPC_LT_LB_EXDSA,
 	NPC_LT_LB_EXDSA_VLAN,
 	NPC_LT_LB_FDSA,
+	NPC_LT_LB_VLAN_EXDSA,
 	NPC_LT_LB_CUSTOM0 = 0xE,
 	NPC_LT_LB_CUSTOM1 = 0xF,
 };
@@ -65,6 +70,7 @@ enum npc_kpu_lc_ltype {
 	NPC_LT_LC_NSH,
 	NPC_LT_LC_PTP,
 	NPC_LT_LC_FCOE,
+	NPC_LT_LC_NGIO,
 	NPC_LT_LC_CUSTOM0 = 0xE,
 	NPC_LT_LC_CUSTOM1 = 0xF,
 };
@@ -146,7 +152,14 @@ enum npc_kpu_lh_ltype {
  * Ethernet interfaces, LBK interfaces, etc.
  */
 enum npc_pkind_type {
-	NPC_TX_DEF_PKIND = 63ULL,	/* NIX-TX PKIND */
+	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
+	NPC_RX_CHLEN24B_PKIND = 57ULL,
+	NPC_RX_CPT_HDR_PKIND,
+	NPC_RX_CHLEN90B_PKIND,
+	NPC_TX_HIGIG_PKIND,
+	NPC_RX_HIGIG_PKIND,
+	NPC_RX_EDSA_PKIND,
+	NPC_TX_DEF_PKIND,	/* NIX-TX PKIND */
 };
 
 /* list of known and supported fields in packet header and
@@ -521,8 +534,8 @@ struct npc_lt_def_cfg {
 	struct npc_lt_def	pck_iip4;
 	struct npc_lt_def_apad	rx_apad0;
 	struct npc_lt_def_apad	rx_apad1;
-	struct npc_lt_def_color	rx_ovlan;
-	struct npc_lt_def_color	rx_ivlan;
+	struct npc_lt_def_color	ovlan;
+	struct npc_lt_def_color	ivlan;
 	struct npc_lt_def_color	rx_gen0_color;
 	struct npc_lt_def_color	rx_gen1_color;
 	struct npc_lt_def_et	rx_et[2];
