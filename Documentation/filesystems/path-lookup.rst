@@ -1123,13 +1123,13 @@ stack in ``walk_component()`` immediately when the symlink is found;
 old symlink as it walks that last component.  So it is quite
 convenient for ``walk_component()`` to release the old symlink and pop
 the references just before pushing the reference information for the
-new symlink.  It is guided in this by two flags; ``WALK_GET``, which
-gives it permission to follow a symlink if it finds one, and
-``WALK_PUT``, which tells it to release the current symlink after it has been
-followed.  ``WALK_PUT`` is tested first, leading to a call to
-``put_link()``.  ``WALK_GET`` is tested subsequently (by
-``should_follow_link()``) leading to a call to ``pick_link()`` which sets
-up the stack frame.
+new symlink.  It is guided in this by three flags: ``WALK_NOFOLLOW`` which
+forbids it from following a symlink if it finds one, ``WALK_MORE``
+which indicates that it is yet too early to release the
+current symlink, and ``WALK_TRAILING`` which indicates that it is on the final
+component of the lookup, so we will check userspace flag ``LOOKUP_FOLLOW`` to
+decide whether follow it when it is a symlink and call ``may_follow_link()`` to
+check if we have privilege to follow it.
 
 Symlinks with no final component
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
