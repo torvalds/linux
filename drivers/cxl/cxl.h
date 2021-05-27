@@ -295,18 +295,43 @@ struct cxl_root_decoder {
 	struct cxl_switch_decoder cxlsd;
 };
 
+/*
+ * enum cxl_config_state - State machine for region configuration
+ * @CXL_CONFIG_IDLE: Any sysfs attribute can be written freely
+ * @CXL_CONFIG_ACTIVE: All targets have been added the region is now
+ * active
+ */
+enum cxl_config_state {
+	CXL_CONFIG_IDLE,
+	CXL_CONFIG_ACTIVE,
+};
+
+/**
+ * struct cxl_region_params - region settings
+ * @state: allow the driver to lockdown further parameter changes
+ * @uuid: unique id for persistent regions
+ *
+ * State transitions are protected by the cxl_region_rwsem
+ */
+struct cxl_region_params {
+	enum cxl_config_state state;
+	uuid_t uuid;
+};
+
 /**
  * struct cxl_region - CXL region
  * @dev: This region's device
  * @id: This region's id. Id is globally unique across all regions
  * @mode: Endpoint decoder allocation / access mode
  * @type: Endpoint decoder target type
+ * @params: active + config params for the region
  */
 struct cxl_region {
 	struct device dev;
 	int id;
 	enum cxl_decoder_mode mode;
 	enum cxl_decoder_type type;
+	struct cxl_region_params params;
 };
 
 /**

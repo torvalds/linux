@@ -5,6 +5,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/uuid.h>
 #include <linux/idr.h>
 #include <cxl.h>
 #include "core.h"
@@ -17,9 +18,125 @@
  * Memory ranges, Regions represent the active mapped capacity by the HDM
  * Decoder Capability structures throughout the Host Bridges, Switches, and
  * Endpoints in the topology.
+ *
+ * Region configuration has ordering constraints. UUID may be set at any time
+ * but is only visible for persistent regions.
  */
 
+/*
+ * All changes to the interleave configuration occur with this lock held
+ * for write.
+ */
+static DECLARE_RWSEM(cxl_region_rwsem);
+
 static struct cxl_region *to_cxl_region(struct device *dev);
+
+static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	rc = sysfs_emit(buf, "%pUb\n", &p->uuid);
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+
+static int is_dup(struct device *match, void *data)
+{
+	struct cxl_region_params *p;
+	struct cxl_region *cxlr;
+	uuid_t *uuid = data;
+
+	if (!is_cxl_region(match))
+		return 0;
+
+	lockdep_assert_held(&cxl_region_rwsem);
+	cxlr = to_cxl_region(match);
+	p = &cxlr->params;
+
+	if (uuid_equal(&p->uuid, uuid)) {
+		dev_dbg(match, "already has uuid: %pUb\n", uuid);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static ssize_t uuid_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t len)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	uuid_t temp;
+	ssize_t rc;
+
+	if (len != UUID_STRING_LEN + 1)
+		return -EINVAL;
+
+	rc = uuid_parse(buf, &temp);
+	if (rc)
+		return rc;
+
+	if (uuid_is_null(&temp))
+		return -EINVAL;
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	if (uuid_equal(&p->uuid, &temp))
+		goto out;
+
+	rc = -EBUSY;
+	if (p->state >= CXL_CONFIG_ACTIVE)
+		goto out;
+
+	rc = bus_for_each_dev(&cxl_bus_type, NULL, &temp, is_dup);
+	if (rc < 0)
+		goto out;
+
+	uuid_copy(&p->uuid, &temp);
+out:
+	up_write(&cxl_region_rwsem);
+
+	if (rc)
+		return rc;
+	return len;
+}
+static DEVICE_ATTR_RW(uuid);
+
+static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
+				  int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_region *cxlr = to_cxl_region(dev);
+
+	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_DECODER_PMEM)
+		return 0;
+	return a->mode;
+}
+
+static struct attribute *cxl_region_attrs[] = {
+	&dev_attr_uuid.attr,
+	NULL,
+};
+
+static const struct attribute_group cxl_region_group = {
+	.attrs = cxl_region_attrs,
+	.is_visible = cxl_region_visible,
+};
+
+static const struct attribute_group *region_groups[] = {
+	&cxl_base_attribute_group,
+	&cxl_region_group,
+	NULL,
+};
 
 static void cxl_region_release(struct device *dev)
 {
@@ -32,6 +149,7 @@ static void cxl_region_release(struct device *dev)
 static const struct device_type cxl_region_type = {
 	.name = "cxl_region",
 	.release = cxl_region_release,
+	.groups = region_groups
 };
 
 bool is_cxl_region(struct device *dev)
