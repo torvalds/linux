@@ -3678,10 +3678,8 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 				 bool return_data)
 {
 	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);
-	union {
-		struct ixgbe_hic_hdr hdr;
-		u32 u32arr[1];
-	} *bp = buffer;
+	struct ixgbe_hic_hdr *hdr = buffer;
+	u32 *u32arr = buffer;
 	u16 buf_len, dword_len;
 	s32 status;
 	u32 bi;
@@ -3707,12 +3705,12 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 
 	/* first pull in the header so we know the buffer length */
 	for (bi = 0; bi < dword_len; bi++) {
-		bp->u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
-		le32_to_cpus(&bp->u32arr[bi]);
+		u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
+		le32_to_cpus(&u32arr[bi]);
 	}
 
 	/* If there is any thing in data position pull it in */
-	buf_len = bp->hdr.buf_len;
+	buf_len = hdr->buf_len;
 	if (!buf_len)
 		goto rel_out;
 
@@ -3727,8 +3725,8 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 
 	/* Pull in the rest of the buffer (bi is where we left off) */
 	for (; bi <= dword_len; bi++) {
-		bp->u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
-		le32_to_cpus(&bp->u32arr[bi]);
+		u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
+		le32_to_cpus(&u32arr[bi]);
 	}
 
 rel_out:
