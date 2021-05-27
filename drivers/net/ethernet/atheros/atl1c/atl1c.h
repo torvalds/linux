@@ -63,7 +63,7 @@
 
 #define AT_MAX_RECEIVE_QUEUE    4
 #define AT_DEF_RECEIVE_QUEUE	1
-#define AT_MAX_TRANSMIT_QUEUE	2
+#define AT_MAX_TRANSMIT_QUEUE  4
 
 #define AT_DMA_HI_ADDR_MASK     0xffffffff00000000ULL
 #define AT_DMA_LO_ADDR_MASK     0x00000000ffffffffULL
@@ -294,11 +294,6 @@ enum atl1c_nic_type {
 	athr_mt,
 };
 
-enum atl1c_trans_queue {
-	atl1c_trans_normal = 0,
-	atl1c_trans_high = 1
-};
-
 struct atl1c_hw_stats {
 	/* rx */
 	unsigned long rx_ok;		/* The number of good packet received. */
@@ -522,6 +517,8 @@ struct atl1c_adapter {
 	struct atl1c_hw_stats  hw_stats;
 	struct mii_if_info  mii;    /* MII interface info */
 	u16 rx_buffer_len;
+	unsigned int tx_queue_count;
+	unsigned int rx_queue_count;
 
 	unsigned long flags;
 #define __AT_TESTING        0x0001
