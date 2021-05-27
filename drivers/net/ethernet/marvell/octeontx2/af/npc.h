@@ -427,6 +427,17 @@ struct nix_tx_action {
 #define NIXLF_BCAST_ENTRY	1
 #define NIXLF_PROMISC_ENTRY	2
 
+struct npc_coalesced_kpu_prfl {
+#define NPC_SIGN	0x00666f727063706e
+#define NPC_PRFL_NAME   "npc_prfls_array"
+#define NPC_NAME_LEN	32
+	__le64 signature; /* "npcprof\0" (8 bytes/ASCII characters) */
+	u8 name[NPC_NAME_LEN]; /* KPU Profile name */
+	u64 version; /* KPU firmware/profile version */
+	u8 num_prfl; /* No of NPC profiles. */
+	u16 prfl_sz[0];
+};
+
 struct npc_mcam_kex {
 	/* MKEX Profle Header */
 	u64 mkex_sign; /* "mcam-kex-profile" (8 bytes/ASCII characters) */
