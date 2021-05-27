@@ -703,7 +703,6 @@
 /* MAIR_ELx memory attributes (used by Linux) */
 #define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)
 #define MAIR_ATTR_DEVICE_nGnRE		UL(0x04)
-#define MAIR_ATTR_DEVICE_GRE		UL(0x0c)
 #define MAIR_ATTR_NORMAL_NC		UL(0x44)
 #define MAIR_ATTR_NORMAL_WT		UL(0xbb)
 #define MAIR_ATTR_NORMAL_TAGGED		UL(0xf0)
