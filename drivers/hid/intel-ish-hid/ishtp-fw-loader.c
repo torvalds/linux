@@ -455,7 +455,7 @@ static void loader_cl_event_cb(struct ishtp_cl_device *cl_device)
 /**
  * ish_query_loader_prop() -  Query ISH Shim firmware loader
  * @client_data:	Client data instance
- * @fw:			Poiner to firmware data struct in host memory
+ * @fw:			Pointer to firmware data struct in host memory
  * @fw_info:		Loader firmware properties
  *
  * This function queries the ISH Shim firmware loader for capabilities.
