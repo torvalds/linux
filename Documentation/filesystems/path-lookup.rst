@@ -448,10 +448,11 @@ described.  If it finds a ``LAST_NORM`` component it first calls
 filesystem to revalidate the result if it is that sort of filesystem.
 If that doesn't get a good result, it calls "``lookup_slow()``" which
 takes ``i_rwsem``, rechecks the cache, and then asks the filesystem
-to find a definitive answer.  Each of these will call
-``follow_managed()`` (as described below) to handle any mount points.
+to find a definitive answer.
 
-In the absence of symbolic links, ``walk_component()`` creates a new
+As the last step of ``walk_component()``, ``step_into()`` will be called either
+directly from walk_component() or from handle_dots().  It calls
+``handle_mounts()``, to check and handle mount points, in which a new
 ``struct path`` containing a counted reference to the new dentry and a
 reference to the new ``vfsmount`` which is only counted if it is
 different from the previous ``vfsmount``.  It then calls
@@ -535,8 +536,7 @@ covered in greater detail in autofs.txt in the Linux documentation
 tree, but a few notes specifically related to path lookup are in order
 here.
 
-The Linux VFS has a concept of "managed" dentries which is reflected
-in function names such as "``follow_managed()``".  There are three
+The Linux VFS has a concept of "managed" dentries.  There are three
 potentially interesting things about these dentries corresponding
 to three different flags that might be set in ``dentry->d_flags``:
 
