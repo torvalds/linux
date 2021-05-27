@@ -55,7 +55,7 @@
 
 extern bool itlb_multihit_kvm_mitigation;
 
-static int __read_mostly nx_huge_pages = -1;
+int __read_mostly nx_huge_pages = -1;
 #ifdef CONFIG_PREEMPT_RT
 /* Recovery can cause latency spikes, disable it for PREEMPT_RT.  */
 static uint __read_mostly nx_huge_pages_recovery_ratio = 0;
@@ -206,11 +206,6 @@ void kvm_flush_remote_tlbs_with_address(struct kvm *kvm,
 	range.pages = pages;
 
 	kvm_flush_remote_tlbs_with_range(kvm, &range);
-}
-
-bool is_nx_huge_page_enabled(void)
-{
-	return READ_ONCE(nx_huge_pages);
 }
 
 static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,

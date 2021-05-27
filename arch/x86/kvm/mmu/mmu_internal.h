@@ -116,7 +116,12 @@ static inline bool kvm_vcpu_ad_need_write_protect(struct kvm_vcpu *vcpu)
 	       kvm_x86_ops.cpu_dirty_log_size;
 }
 
-bool is_nx_huge_page_enabled(void);
+extern int nx_huge_pages;
+static inline bool is_nx_huge_page_enabled(void)
+{
+	return READ_ONCE(nx_huge_pages);
+}
+
 bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 			    bool can_unsync);
 
@@ -157,8 +162,6 @@ int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 			    bool huge_page_disallowed, int *req_level);
 void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
 				kvm_pfn_t *pfnp, int *goal_levelp);
-
-bool is_nx_huge_page_enabled(void);
 
 void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc);
 
