@@ -348,7 +348,6 @@ void Hal_SetCarrierSuppressionTx(struct adapter *padapter, u8 bStart);
 void Hal_SetSingleToneTx(struct adapter *padapter, u8 bStart);
 void Hal_SetSingleCarrierTx(struct adapter *padapter, u8 bStart);
 void Hal_SetContinuousTx(struct adapter *padapter, u8 bStart);
-void Hal_SetBandwidth(struct adapter *padapter);
 
 void Hal_SetDataRate(struct adapter *padapter);
 void Hal_SetChannel(struct adapter *padapter);
