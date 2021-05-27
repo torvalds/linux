@@ -22,6 +22,8 @@
 #include <linux/slab.h>
 #include <linux/memblock.h>
 
+#include "of_private.h"
+
 #define MAX_RESERVED_REGIONS	64
 static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
 static int reserved_mem_count;
