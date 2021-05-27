@@ -696,6 +696,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WINBUF_START_ADDR_HI			0x80d
 
+#define DC_WINBUF_START_ADDR_HI_U		0x80f
+#define DC_WINBUF_START_ADDR_HI_V		0x811
+
 #define DC_WINBUF_CDE_CONTROL			0x82f
 #define  ENABLE_SURFACE (1 << 0)
 
@@ -719,6 +722,10 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WIN_PLANAR_STORAGE			0x709
 #define PITCH(x) (((x) >> 6) & 0x1fff)
+
+#define DC_WIN_PLANAR_STORAGE_UV		0x70a
+#define  PITCH_U(x) ((((x) >> 6) & 0x1fff) <<  0)
+#define  PITCH_V(x) ((((x) >> 6) & 0x1fff) << 16)
 
 #define DC_WIN_SET_PARAMS			0x70d
 #define  CLAMP_BEFORE_BLEND (1 << 15)

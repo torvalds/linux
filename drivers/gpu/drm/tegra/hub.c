@@ -454,7 +454,9 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	unsigned int zpos = new_state->normalized_zpos;
 	struct drm_framebuffer *fb = new_state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
-	dma_addr_t base;
+	dma_addr_t base, addr_flag = 0;
+	unsigned int bpc;
+	bool yuv, planar;
 	u32 value;
 	int err;
 
@@ -472,6 +474,8 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		dev_err(dc->dev, "failed to resume: %d\n", err);
 		return;
 	}
+
+	yuv = tegra_plane_format_is_yuv(tegra_plane_state->format, &planar, &bpc);
 
 	tegra_dc_assign_shared_plane(dc, p);
 
@@ -501,8 +505,6 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	/* disable compression */
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
-	base = tegra_plane_state->iova[0] + fb->offsets[0];
-
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	/*
 	 * Physical address bit 39 in Tegra194 is used as a switch for special
@@ -510,8 +512,11 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	 * dGPU sector layout.
 	 */
 	if (tegra_plane_state->tiling.sector_layout == TEGRA_BO_SECTOR_LAYOUT_GPU)
-		base |= BIT_ULL(39);
+		addr_flag = BIT_ULL(39);
 #endif
+
+	base = tegra_plane_state->iova[0] + fb->offsets[0];
+	base |= addr_flag;
 
 	tegra_plane_writel(p, tegra_plane_state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);
@@ -535,7 +540,44 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = PITCH(fb->pitches[0]);
 	tegra_plane_writel(p, value, DC_WIN_PLANAR_STORAGE);
 
-	value = CLAMP_BEFORE_BLEND | DEGAMMA_SRGB | INPUT_RANGE_FULL;
+	if (yuv && planar) {
+		base = tegra_plane_state->iova[1] + fb->offsets[1];
+		base |= addr_flag;
+
+		tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_U);
+		tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_U);
+
+		base = tegra_plane_state->iova[2] + fb->offsets[2];
+		base |= addr_flag;
+
+		tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_V);
+		tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_V);
+
+		value = PITCH_U(fb->pitches[2]) | PITCH_V(fb->pitches[2]);
+		tegra_plane_writel(p, value, DC_WIN_PLANAR_STORAGE_UV);
+	} else {
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_U);
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_HI_U);
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_V);
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_HI_V);
+		tegra_plane_writel(p, 0, DC_WIN_PLANAR_STORAGE_UV);
+	}
+
+	value = CLAMP_BEFORE_BLEND | INPUT_RANGE_FULL;
+
+	if (yuv) {
+		if (bpc < 12)
+			value |= DEGAMMA_YUV8_10;
+		else
+			value |= DEGAMMA_YUV12;
+
+		/* XXX parameterize */
+		value |= COLOR_SPACE_YUV_2020;
+	} else {
+		if (!tegra_plane_format_is_indexed(tegra_plane_state->format))
+			value |= DEGAMMA_SRGB;
+	}
+
 	tegra_plane_writel(p, value, DC_WIN_SET_PARAMS);
 
 	value = OFFSET_X(new_state->src_y >> 16) |
