@@ -19,6 +19,13 @@
  * of the queue is one less than the number of element slots
  */
 
+/* type of queue */
+enum queue_type {
+	QUEUE_TYPE_KERNEL,
+	QUEUE_TYPE_TO_USER,
+	QUEUE_TYPE_FROM_USER,
+};
+
 struct rxe_queue {
 	struct rxe_dev		*rxe;
 	struct rxe_queue_buf	*buf;
@@ -27,6 +34,7 @@ struct rxe_queue {
 	size_t			elem_size;
 	unsigned int		log2_elem_size;
 	u32			index_mask;
+	enum queue_type		type;
 };
 
 int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
@@ -35,9 +43,8 @@ int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
 
 void rxe_queue_reset(struct rxe_queue *q);
 
-struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
-				 int *num_elem,
-				 unsigned int elem_size);
+struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe, int *num_elem,
+			unsigned int elem_size, enum queue_type type);
 
 int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 		     unsigned int elem_size, struct ib_udata *udata,
