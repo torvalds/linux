@@ -240,8 +240,6 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ret = mt7615_mcu_add_dev_info(phy, vif, true);
-	if (ret)
-		goto out;
 out:
 	mt7615_mutex_release(dev);
 
