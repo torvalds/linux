@@ -1068,7 +1068,8 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			if (seq == 0 && !nf_conntrack_tcp_established(ct))
 				break;
 
-			if (before(seq, ct->proto.tcp.seen[!dir].td_maxack)) {
+			if (before(seq, ct->proto.tcp.seen[!dir].td_maxack) &&
+			    !tn->tcp_ignore_invalid_rst) {
 				/* Invalid RST  */
 				spin_unlock_bh(&ct->lock);
 				nf_ct_l4proto_log_invalid(skb, ct, state, "invalid rst");
@@ -1465,6 +1466,9 @@ void nf_conntrack_tcp_init_net(struct net *net)
 	 * If it's non-zero, we mark only out of window RST segments as INVALID.
 	 */
 	tn->tcp_be_liberal = 0;
+
+	/* If it's non-zero, we turn off RST sequence number check */
+	tn->tcp_ignore_invalid_rst = 0;
 
 	/* Max number of the retransmitted packets without receiving an (acceptable)
 	 * ACK from the destination. If this number is reached, a shorter timer
