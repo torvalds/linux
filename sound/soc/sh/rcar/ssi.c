@@ -117,8 +117,6 @@ struct rsnd_ssi {
 	(rsnd_ssi_run_mods(io) & (1 << rsnd_mod_id(mod)))
 #define rsnd_ssi_can_output_clk(mod) (!__rsnd_ssi_is_pin_sharing(mod))
 
-static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
-
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
@@ -1147,7 +1145,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.get_status	= rsnd_ssi_get_status,
 };
 
-static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
+int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
 {
 	return mod->ops == &rsnd_ssi_dma_ops;
 }

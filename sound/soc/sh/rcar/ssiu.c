@@ -336,16 +336,20 @@ static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
 {
 	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_ssiu *ssiu;
+	int is_dma_mode;
 	int i;
 
 	if (!ssi_mod)
 		return;
 
+	is_dma_mode = rsnd_ssi_is_dma_mode(ssi_mod);
+
 	/* select BUSIF0 */
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		struct rsnd_mod *mod = rsnd_mod_get(ssiu);
 
-		if ((rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
+		if (is_dma_mode &&
+		    (rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
 		    (rsnd_mod_id_sub(mod) == 0)) {
 			rsnd_dai_connect(mod, io, mod->type);
 			return;
