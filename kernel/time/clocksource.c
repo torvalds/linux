@@ -199,8 +199,9 @@ void clocksource_mark_unstable(struct clocksource *cs)
 	spin_unlock_irqrestore(&watchdog_lock, flags);
 }
 
-static ulong max_cswd_read_retries = 3;
+ulong max_cswd_read_retries = 3;
 module_param(max_cswd_read_retries, ulong, 0644);
+EXPORT_SYMBOL_GPL(max_cswd_read_retries);
 static int verify_n_cpus = 8;
 module_param(verify_n_cpus, int, 0644);
 
@@ -294,7 +295,7 @@ static void clocksource_verify_one_cpu(void *csin)
 	csnow_mid = cs->read(cs);
 }
 
-static void clocksource_verify_percpu(struct clocksource *cs)
+void clocksource_verify_percpu(struct clocksource *cs)
 {
 	int64_t cs_nsec, cs_nsec_max = 0, cs_nsec_min = LLONG_MAX;
 	u64 csnow_begin, csnow_end;
@@ -347,6 +348,7 @@ static void clocksource_verify_percpu(struct clocksource *cs)
 		pr_warn("        CPU %d check durations %lldns - %lldns for clocksource %s.\n",
 			testcpu, cs_nsec_min, cs_nsec_max, cs->name);
 }
+EXPORT_SYMBOL_GPL(clocksource_verify_percpu);
 
 static void clocksource_watchdog(struct timer_list *unused)
 {

@@ -291,4 +291,7 @@ static inline void timer_probe(void) {}
 #define TIMER_ACPI_DECLARE(name, table_id, fn)		\
 	ACPI_DECLARE_PROBE_ENTRY(timer, name, table_id, 0, NULL, 0, fn)
 
+extern ulong max_cswd_read_retries;
+void clocksource_verify_percpu(struct clocksource *cs);
+
 #endif /* _LINUX_CLOCKSOURCE_H */
