@@ -535,8 +535,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	}
 
 	/* enable busif buffer over/under run interrupt. */
-	if (is_tdm || is_tdm_split)
-		rsnd_ssi_busif_err_irq_enable(mod);
+	rsnd_ssi_busif_err_irq_enable(mod);
 
 init_end:
 	ssi->cr_own	= cr_own;
@@ -592,10 +591,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int is_tdm, is_tdm_split;
-
-	is_tdm		= rsnd_runtime_is_tdm(io);
-	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
@@ -618,8 +613,7 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	}
 
 	/* disable busif buffer over/under run interrupt. */
-	if (is_tdm || is_tdm_split)
-		rsnd_ssi_busif_err_irq_disable(mod);
+	rsnd_ssi_busif_err_irq_disable(mod);
 
 	return 0;
 }
@@ -773,10 +767,6 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	u32 status;
 	bool elapsed = false;
 	bool stop = false;
-	int is_tdm, is_tdm_split;
-
-	is_tdm		= rsnd_runtime_is_tdm(io);
-	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
 
 	spin_lock(&priv->lock);
 
@@ -798,8 +788,7 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 		stop = true;
 	}
 
-	if (is_tdm || is_tdm_split)
-		stop |= rsnd_ssi_busif_err_status_clear(mod);
+	stop |= rsnd_ssi_busif_err_status_clear(mod);
 
 	rsnd_ssi_status_clear(mod);
 rsnd_ssi_interrupt_out:
