@@ -44,6 +44,7 @@
 #include <asm/pci-direct.h>
 #include <asm/prom.h>
 #include <asm/proto.h>
+#include <asm/thermal.h>
 #include <asm/unwind.h>
 #include <asm/vsyscall.h>
 #include <linux/vmalloc.h>
@@ -1225,6 +1226,14 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.oem.banner();
 
 	x86_init.timers.wallclock_init();
+
+	/*
+	 * This needs to run before setup_local_APIC() which soft-disables the
+	 * local APIC temporarily and that masks the thermal LVT interrupt,
+	 * leading to softlockups on machines which have configured SMI
+	 * interrupt delivery.
+	 */
+	therm_lvt_init();
 
 	mcheck_init();
 
