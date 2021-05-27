@@ -9,7 +9,8 @@
 
 struct hyp_page {
 	unsigned short refcount;
-	unsigned short order;
+	u8 order;
+	u8 flags;
 };
 
 extern u64 __hyp_vmemmap;
