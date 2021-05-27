@@ -397,12 +397,12 @@ struct rsnd_mod {
 #define __rsnd_mod_add_remove		0
 #define __rsnd_mod_add_prepare		0
 #define __rsnd_mod_add_cleanup		0
-#define __rsnd_mod_add_init		 1
-#define __rsnd_mod_add_quit		-1
-#define __rsnd_mod_add_start		 1
-#define __rsnd_mod_add_stop		-1
-#define __rsnd_mod_add_hw_params	1
-#define __rsnd_mod_add_hw_free		-1
+#define __rsnd_mod_add_init		 1 /* needs protect */
+#define __rsnd_mod_add_quit		-1 /* needs protect */
+#define __rsnd_mod_add_start		 1 /* needs protect */
+#define __rsnd_mod_add_stop		-1 /* needs protect */
+#define __rsnd_mod_add_hw_params	 1 /* needs protect */
+#define __rsnd_mod_add_hw_free		-1 /* needs protect */
 #define __rsnd_mod_add_irq		0
 #define __rsnd_mod_add_pcm_new		0
 #define __rsnd_mod_add_fallback		0

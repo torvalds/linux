@@ -90,14 +90,6 @@
  *
  */
 
-/*
- * you can enable below define if you don't need
- * DAI status debug message when debugging
- * see rsnd_dbg_dai_call()
- *
- * #define RSND_DEBUG_NO_DAI_CALL 1
- */
-
 #include <linux/pm_runtime.h>
 #include "rsnd.h"
 
@@ -534,13 +526,19 @@ static enum rsnd_mod_type rsnd_mod_sequence[][RSND_MOD_MAX] = {
 	},
 };
 
-static int rsnd_status_update(u32 *status,
+static int rsnd_status_update(struct rsnd_dai_stream *io,
+			      struct rsnd_mod *mod, enum rsnd_mod_type type,
 			      int shift, int add, int timing)
 {
+	u32 *status	= mod->ops->get_status(mod, io, type);
 	u32 mask	= 0xF << shift;
 	u8 val		= (*status >> shift) & 0xF;
 	u8 next_val	= (val + add) & 0xF;
 	int func_call	= (val == timing);
+
+	/* no status update */
+	if (add == 0 || shift == 28)
+		return 1;
 
 	if (next_val == 0xF) /* underflow case */
 		func_call = -1;
@@ -559,14 +557,10 @@ static int rsnd_status_update(u32 *status,
 	enum rsnd_mod_type *types = rsnd_mod_sequence[is_play];		\
 	for_each_rsnd_mod_arrays(i, mod, io, types, RSND_MOD_MAX) {	\
 		int tmp = 0;						\
-		u32 *status = mod->ops->get_status(mod, io, types[i]);	\
-		int func_call = rsnd_status_update(status,		\
+		int func_call = rsnd_status_update(io, mod, types[i],	\
 						__rsnd_mod_shift_##fn,	\
 						__rsnd_mod_add_##fn,	\
 						__rsnd_mod_call_##fn);	\
-		rsnd_dbg_dai_call(dev, "%s\t0x%08x %s\n",		\
-			rsnd_mod_name(mod), *status,	\
-			(func_call && (mod)->ops->fn) ? #fn : "");	\
 		if (func_call > 0 && (mod)->ops->fn)			\
 			tmp = (mod)->ops->fn(mod, io, param);		\
 		if (unlikely(func_call < 0) ||				\
@@ -1390,6 +1384,26 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 /*
  *		pcm ops
  */
+static int rsnd_hw_update(struct snd_pcm_substream *substream,
+			  struct snd_pcm_hw_params *hw_params)
+{
+	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (hw_params)
+		ret = rsnd_dai_call(hw_params, io, substream, hw_params);
+	else
+		ret = rsnd_dai_call(hw_free, io, substream);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return ret;
+}
+
 static int rsnd_hw_params(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *hw_params)
@@ -1497,17 +1511,13 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 		}
 	}
 
-	return rsnd_dai_call(hw_params, io, substream, hw_params);
+	return rsnd_hw_update(substream, hw_params);
 }
 
 static int rsnd_hw_free(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
-	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-
-	return rsnd_dai_call(hw_free, io, substream);
+	return rsnd_hw_update(substream, NULL);
 }
 
 static snd_pcm_uframes_t rsnd_pointer(struct snd_soc_component *component,
