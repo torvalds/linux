@@ -475,13 +475,16 @@ struct atl1c_buffer {
 
 /* transimit packet descriptor (tpd) ring */
 struct atl1c_tpd_ring {
+	struct atl1c_adapter *adapter;
 	void *desc;		/* descriptor ring virtual address */
 	dma_addr_t dma;		/* descriptor ring physical address */
+	u16 num;
 	u16 size;		/* descriptor ring length in bytes */
 	u16 count;		/* number of descriptors in the ring */
 	u16 next_to_use;
 	atomic_t next_to_clean;
 	struct atl1c_buffer *buffer_info;
+	struct napi_struct napi;
 };
 
 /* receive free descriptor (rfd) ring */
@@ -510,7 +513,6 @@ struct atl1c_adapter {
 	struct net_device   *netdev;
 	struct pci_dev      *pdev;
 	struct napi_struct  napi;
-	struct napi_struct  tx_napi;
 	struct page         *rx_page;
 	unsigned int	    rx_page_offset;
 	unsigned int	    rx_frag_size;

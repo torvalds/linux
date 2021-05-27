@@ -983,6 +983,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		goto err_nomem;
 
 	for (i = 0; i < AT_MAX_TRANSMIT_QUEUE; i++) {
+		tpd_ring[i].adapter = adapter;
+		tpd_ring[i].num = i;
 		tpd_ring[i].buffer_info =
 			(tpd_ring->buffer_info + count);
 		count += tpd_ring[i].count;
@@ -1533,9 +1535,9 @@ static inline void atl1c_clear_phy_int(struct atl1c_adapter *adapter)
 
 static int atl1c_clean_tx(struct napi_struct *napi, int budget)
 {
-	struct atl1c_adapter *adapter =
-		container_of(napi, struct atl1c_adapter, tx_napi);
-	struct atl1c_tpd_ring *tpd_ring = &adapter->tpd_ring[atl1c_trans_normal];
+	struct atl1c_tpd_ring *tpd_ring =
+		container_of(napi, struct atl1c_tpd_ring, napi);
+	struct atl1c_adapter *adapter = tpd_ring->adapter;
 	struct atl1c_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
@@ -1615,12 +1617,12 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 			}
 		}
 		if (status & ISR_TX_PKT) {
-			if (napi_schedule_prep(&adapter->tx_napi)) {
+			if (napi_schedule_prep(&adapter->tpd_ring[0].napi)) {
 				spin_lock(&hw->intr_mask_lock);
 				hw->intr_mask &= ~ISR_TX_PKT;
 				AT_WRITE_REG(hw, REG_IMR, hw->intr_mask);
 				spin_unlock(&hw->intr_mask_lock);
-				__napi_schedule(&adapter->tx_napi);
+				__napi_schedule(&adapter->tpd_ring[0].napi);
 			}
 		}
 
@@ -2354,7 +2356,7 @@ static int atl1c_up(struct atl1c_adapter *adapter)
 	atl1c_check_link_status(adapter);
 	clear_bit(__AT_DOWN, &adapter->flags);
 	napi_enable(&adapter->napi);
-	napi_enable(&adapter->tx_napi);
+	napi_enable(&adapter->tpd_ring[0].napi);
 	atl1c_irq_enable(adapter);
 	netif_start_queue(netdev);
 	return err;
@@ -2375,7 +2377,7 @@ static void atl1c_down(struct atl1c_adapter *adapter)
 	set_bit(__AT_DOWN, &adapter->flags);
 	netif_carrier_off(netdev);
 	napi_disable(&adapter->napi);
-	napi_disable(&adapter->tx_napi);
+	napi_disable(&adapter->tpd_ring[0].napi);
 	atl1c_irq_disable(adapter);
 	atl1c_free_irq(adapter);
 	/* disable ASPM if device inactive */
@@ -2632,7 +2634,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->mii.reg_num_mask = MDIO_CTRL_REG_MASK;
 	dev_set_threaded(netdev, true);
 	netif_napi_add(netdev, &adapter->napi, atl1c_clean, 64);
-	netif_napi_add(netdev, &adapter->tx_napi, atl1c_clean_tx, 64);
+	netif_napi_add(netdev, &adapter->tpd_ring[0].napi, atl1c_clean_tx, 64);
 	timer_setup(&adapter->phy_config_timer, atl1c_phy_config, 0);
 	/* setup the private structure */
 	err = atl1c_sw_init(adapter);
