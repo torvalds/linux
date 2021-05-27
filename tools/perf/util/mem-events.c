@@ -37,7 +37,7 @@ struct perf_mem_event * __weak perf_mem_events__ptr(int i)
 	return &perf_mem_events[i];
 }
 
-char * __weak perf_mem_events__name(int i)
+char * __weak perf_mem_events__name(int i, char *pmu_name  __maybe_unused)
 {
 	struct perf_mem_event *e = perf_mem_events__ptr(i);
 
@@ -141,7 +141,7 @@ void perf_mem_events__list(void)
 		fprintf(stderr, "%-13s%-*s%s\n",
 			e->tag ?: "",
 			verbose > 0 ? 25 : 0,
-			verbose > 0 ? perf_mem_events__name(j) : "",
+			verbose > 0 ? perf_mem_events__name(j, NULL) : "",
 			e->supported ? ": available" : "");
 	}
 }

@@ -135,13 +135,13 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 		if (!e->supported) {
 			pr_err("failed: event '%s' not supported\n",
-			       perf_mem_events__name(j));
+			       perf_mem_events__name(j, NULL));
 			free(rec_argv);
 			return -1;
 		}
 
 		rec_argv[i++] = "-e";
-		rec_argv[i++] = perf_mem_events__name(j);
+		rec_argv[i++] = perf_mem_events__name(j, NULL);
 	}
 
 	if (all_user)

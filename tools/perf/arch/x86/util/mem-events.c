@@ -7,7 +7,23 @@ static char mem_loads_name[100];
 static bool mem_loads_name__init;
 
 #define MEM_LOADS_AUX		0x8203
-#define MEM_LOADS_AUX_NAME	"{cpu/mem-loads-aux/,cpu/mem-loads,ldlat=%u/pp}:S"
+#define MEM_LOADS_AUX_NAME     "{%s/mem-loads-aux/,%s/mem-loads,ldlat=%u/}:P"
+
+#define E(t, n, s) { .tag = t, .name = n, .sysfs_name = s }
+
+static struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
+	E("ldlat-loads",	"%s/mem-loads,ldlat=%u/P",	"%s/events/mem-loads"),
+	E("ldlat-stores",	"cpu/mem-stores/P",		"cpu/events/mem-stores"),
+	E(NULL,			NULL,				NULL),
+};
+
+struct perf_mem_event *perf_mem_events__ptr(int i)
+{
+	if (i >= PERF_MEM_EVENTS__MAX)
+		return NULL;
+
+	return &perf_mem_events[i];
+}
 
 bool is_mem_loads_aux_event(struct evsel *leader)
 {
@@ -22,7 +38,7 @@ bool is_mem_loads_aux_event(struct evsel *leader)
 	return leader->core.attr.config == MEM_LOADS_AUX;
 }
 
-char *perf_mem_events__name(int i)
+char *perf_mem_events__name(int i, char *pmu_name)
 {
 	struct perf_mem_event *e = perf_mem_events__ptr(i);
 
@@ -30,17 +46,22 @@ char *perf_mem_events__name(int i)
 		return NULL;
 
 	if (i == PERF_MEM_EVENTS__LOAD) {
-		if (mem_loads_name__init)
+		if (mem_loads_name__init && !pmu_name)
 			return mem_loads_name;
 
-		mem_loads_name__init = true;
+		if (!pmu_name) {
+			mem_loads_name__init = true;
+			pmu_name = (char *)"cpu";
+		}
 
-		if (pmu_have_event("cpu", "mem-loads-aux")) {
+		if (pmu_have_event(pmu_name, "mem-loads-aux")) {
 			scnprintf(mem_loads_name, sizeof(mem_loads_name),
-				  MEM_LOADS_AUX_NAME, perf_mem_events__loads_ldlat);
+				  MEM_LOADS_AUX_NAME, pmu_name, pmu_name,
+				  perf_mem_events__loads_ldlat);
 		} else {
 			scnprintf(mem_loads_name, sizeof(mem_loads_name),
-				  e->name, perf_mem_events__loads_ldlat);
+				  e->name, pmu_name,
+				  perf_mem_events__loads_ldlat);
 		}
 		return mem_loads_name;
 	}
