@@ -572,6 +572,12 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_BROKEN_UIC_CMD			= 1 << 15,
 
 	/*
+	 * This quirk needs to be enabled if the host controller cannot
+	 * support interface configuration.
+	 */
+	UFSHCD_QUIRK_SKIP_INTERFACE_CONFIGURATION	= 1 << 16,
+
+	/*
 	 * This quirk needs to be enabled if the host controller supports inline
 	 * encryption, but it needs to initialize the crypto capabilities in a
 	 * nonstandard way and/or it needs to override blk_ksm_ll_ops.  If
