@@ -88,11 +88,9 @@ static void rsnd_ssiu_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
 
 bool rsnd_ssiu_busif_err_status_clear(struct rsnd_mod *mod)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 status;
 	bool error = false;
 	int id = rsnd_mod_id(mod);
+	int shift, offset;
 	int i;
 
 	switch (id) {
@@ -101,31 +99,30 @@ bool rsnd_ssiu_busif_err_status_clear(struct rsnd_mod *mod)
 	case 2:
 	case 3:
 	case 4:
-		for (i = 0; i < 4; i++) {
-			status = rsnd_mod_read(mod, SSI_SYS_STATUS(i * 2));
-			status &= 0xf << (id * 4);
-
-			if (status) {
-				rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
-						      rsnd_mod_name(mod), status);
-				error = true;
-			}
-			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
-		}
+		shift  = id;
+		offset = 0;
 		break;
 	case 9:
-		for (i = 0; i < 4; i++) {
-			status = rsnd_mod_read(mod, SSI_SYS_STATUS((i * 2) + 1));
-			status &= 0xf << 4;
-
-			if (status) {
-				rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
-						      rsnd_mod_name(mod), status);
-				error = true;
-			}
-			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << 4);
-		}
+		shift  = 1;
+		offset = 1;
 		break;
+	}
+
+	for (i = 0; i < 4; i++) {
+		u32 reg = SSI_SYS_STATUS(i * 2) + offset;
+		u32 status = rsnd_mod_read(mod, reg);
+		u32 val = 0xf << (shift * 4);
+
+		status &= val;
+		if (status) {
+			struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+			struct device *dev = rsnd_priv_to_dev(priv);
+
+			rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+					      rsnd_mod_name(mod), status);
+			error = true;
+		}
+		rsnd_mod_write(mod, reg, val);
 	}
 
 	return error;
