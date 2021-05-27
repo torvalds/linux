@@ -111,14 +111,15 @@ err1:
 static int resize_finish(struct rxe_queue *q, struct rxe_queue *new_q,
 			 unsigned int num_elem)
 {
-	if (!queue_empty(q) && (num_elem < queue_count(q)))
+	if (!queue_empty(q, q->type) && (num_elem < queue_count(q, q->type)))
 		return -EINVAL;
 
-	while (!queue_empty(q)) {
-		memcpy(producer_addr(new_q), consumer_addr(q),
-		       new_q->elem_size);
-		advance_producer(new_q);
-		advance_consumer(q);
+	while (!queue_empty(q, q->type)) {
+		memcpy(producer_addr(new_q, new_q->type),
+					consumer_addr(q, q->type),
+					new_q->elem_size);
+		advance_producer(new_q, new_q->type);
+		advance_consumer(q, q->type);
 	}
 
 	swap(*q, *new_q);

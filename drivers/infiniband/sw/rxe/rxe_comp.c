@@ -141,7 +141,10 @@ static inline enum comp_state get_wqe(struct rxe_qp *qp,
 	/* we come here whether or not we found a response packet to see if
 	 * there are any posted WQEs
 	 */
-	wqe = queue_head(qp->sq.queue);
+	if (qp->is_user)
+		wqe = queue_head(qp->sq.queue, QUEUE_TYPE_FROM_USER);
+	else
+		wqe = queue_head(qp->sq.queue, QUEUE_TYPE_KERNEL);
 	*wqe_p = wqe;
 
 	/* no WQE or requester has not started it yet */
@@ -414,16 +417,23 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	struct rxe_cqe cqe;
+	bool post;
 
-	if ((qp->sq_sig_type == IB_SIGNAL_ALL_WR) ||
-	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-	    wqe->status != IB_WC_SUCCESS) {
+	/* do we need to post a completion */
+	post = ((qp->sq_sig_type == IB_SIGNAL_ALL_WR) ||
+			(wqe->wr.send_flags & IB_SEND_SIGNALED) ||
+			wqe->status != IB_WC_SUCCESS);
+
+	if (post)
 		make_send_cqe(qp, wqe, &cqe);
-		advance_consumer(qp->sq.queue);
+
+	if (qp->is_user)
+		advance_consumer(qp->sq.queue, QUEUE_TYPE_FROM_USER);
+	else
+		advance_consumer(qp->sq.queue, QUEUE_TYPE_KERNEL);
+
+	if (post)
 		rxe_cq_post(qp->scq, &cqe, 0);
-	} else {
-		advance_consumer(qp->sq.queue);
-	}
 
 	if (wqe->wr.opcode == IB_WR_SEND ||
 	    wqe->wr.opcode == IB_WR_SEND_WITH_IMM ||
@@ -511,6 +521,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 {
 	struct sk_buff *skb;
 	struct rxe_send_wqe *wqe;
+	struct rxe_queue *q = qp->sq.queue;
 
 	while ((skb = skb_dequeue(&qp->resp_pkts))) {
 		rxe_drop_ref(qp);
@@ -518,12 +529,12 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 		ib_device_put(qp->ibqp.device);
 	}
 
-	while ((wqe = queue_head(qp->sq.queue))) {
+	while ((wqe = queue_head(q, q->type))) {
 		if (notify) {
 			wqe->status = IB_WC_WR_FLUSH_ERR;
 			do_complete(qp, wqe);
 		} else {
-			advance_consumer(qp->sq.queue);
+			advance_consumer(q, q->type);
 		}
 	}
 }

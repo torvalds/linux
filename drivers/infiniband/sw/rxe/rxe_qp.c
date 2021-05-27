@@ -248,7 +248,13 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 		return err;
 	}
 
-	qp->req.wqe_index	= producer_index(qp->sq.queue);
+	if (qp->is_user)
+		qp->req.wqe_index = producer_index(qp->sq.queue,
+						QUEUE_TYPE_FROM_USER);
+	else
+		qp->req.wqe_index = producer_index(qp->sq.queue,
+						QUEUE_TYPE_KERNEL);
+
 	qp->req.state		= QP_STATE_RESET;
 	qp->req.opcode		= -1;
 	qp->comp.opcode		= -1;
@@ -305,6 +311,8 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	spin_lock_init(&qp->rq.producer_lock);
 	spin_lock_init(&qp->rq.consumer_lock);
+
+	qp->rq.is_user = qp->is_user;
 
 	skb_queue_head_init(&qp->resp_pkts);
 

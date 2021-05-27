@@ -45,14 +45,24 @@ static void req_retry(struct rxe_qp *qp)
 	unsigned int mask;
 	int npsn;
 	int first = 1;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int cons;
+	unsigned int prod;
 
-	qp->req.wqe_index	= consumer_index(qp->sq.queue);
+	if (qp->is_user) {
+		cons = consumer_index(q, QUEUE_TYPE_FROM_USER);
+		prod = producer_index(q, QUEUE_TYPE_FROM_USER);
+	} else {
+		cons = consumer_index(q, QUEUE_TYPE_KERNEL);
+		prod = producer_index(q, QUEUE_TYPE_KERNEL);
+	}
+
+	qp->req.wqe_index	= cons;
 	qp->req.psn		= qp->comp.psn;
 	qp->req.opcode		= -1;
 
-	for (wqe_index = consumer_index(qp->sq.queue);
-		wqe_index != producer_index(qp->sq.queue);
-		wqe_index = next_index(qp->sq.queue, wqe_index)) {
+	for (wqe_index = cons; wqe_index != prod;
+			wqe_index = next_index(q, wqe_index)) {
 		wqe = addr_from_index(qp->sq.queue, wqe_index);
 		mask = wr_opcode_mask(wqe->wr.opcode, qp);
 
@@ -104,8 +114,22 @@ void rnr_nak_timer(struct timer_list *t)
 
 static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 {
-	struct rxe_send_wqe *wqe = queue_head(qp->sq.queue);
+	struct rxe_send_wqe *wqe;
 	unsigned long flags;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int index = qp->req.wqe_index;
+	unsigned int cons;
+	unsigned int prod;
+
+	if (qp->is_user) {
+		wqe = queue_head(q, QUEUE_TYPE_FROM_USER);
+		cons = consumer_index(q, QUEUE_TYPE_FROM_USER);
+		prod = producer_index(q, QUEUE_TYPE_FROM_USER);
+	} else {
+		wqe = queue_head(q, QUEUE_TYPE_KERNEL);
+		cons = consumer_index(q, QUEUE_TYPE_KERNEL);
+		prod = producer_index(q, QUEUE_TYPE_KERNEL);
+	}
 
 	if (unlikely(qp->req.state == QP_STATE_DRAIN)) {
 		/* check to see if we are drained;
@@ -120,8 +144,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 				break;
 			}
 
-			if (wqe && ((qp->req.wqe_index !=
-				consumer_index(qp->sq.queue)) ||
+			if (wqe && ((index != cons) ||
 				(wqe->state != wqe_state_posted))) {
 				/* comp not done yet */
 				spin_unlock_irqrestore(&qp->state_lock,
@@ -144,10 +167,10 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		} while (0);
 	}
 
-	if (qp->req.wqe_index == producer_index(qp->sq.queue))
+	if (index == prod)
 		return NULL;
 
-	wqe = addr_from_index(qp->sq.queue, qp->req.wqe_index);
+	wqe = addr_from_index(q, index);
 
 	if (unlikely((qp->req.state == QP_STATE_DRAIN ||
 		      qp->req.state == QP_STATE_DRAINED) &&
@@ -155,7 +178,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		return NULL;
 
 	if (unlikely((wqe->wr.send_flags & IB_SEND_FENCE) &&
-		     (qp->req.wqe_index != consumer_index(qp->sq.queue)))) {
+						     (index != cons))) {
 		qp->req.wait_fence = 1;
 		return NULL;
 	}
@@ -568,6 +591,7 @@ int rxe_requester(void *arg)
 	int ret;
 	struct rxe_send_wqe rollback_wqe;
 	u32 rollback_psn;
+	struct rxe_queue *q = qp->sq.queue;
 
 	rxe_add_ref(qp);
 
@@ -576,7 +600,7 @@ next_wqe:
 		goto exit;
 
 	if (unlikely(qp->req.state == QP_STATE_RESET)) {
-		qp->req.wqe_index = consumer_index(qp->sq.queue);
+		qp->req.wqe_index = consumer_index(q, q->type);
 		qp->req.opcode = -1;
 		qp->req.need_rd_atomic = 0;
 		qp->req.wait_psn = 0;
