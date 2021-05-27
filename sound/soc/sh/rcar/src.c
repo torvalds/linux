@@ -17,7 +17,7 @@
 /*
  * you can enable below define if you don't need
  * SSI interrupt status debug message when debugging
- * see rsnd_dbg_irq_status()
+ * see rsnd_print_irq_status()
  *
  * #define RSND_DEBUG_NO_IRQ_STATUS 1
  */
@@ -421,8 +421,8 @@ static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 	status0 = rsnd_mod_read(mod, SCU_SYS_STATUS0);
 	status1 = rsnd_mod_read(mod, SCU_SYS_STATUS1);
 	if ((status0 & val0) || (status1 & val1)) {
-		rsnd_dbg_irq_status(dev, "%s err status : 0x%08x, 0x%08x\n",
-			rsnd_mod_name(mod), status0, status1);
+		rsnd_print_irq_status(dev, "%s err status : 0x%08x, 0x%08x\n",
+				      rsnd_mod_name(mod), status0, status1);
 
 		ret = true;
 	}

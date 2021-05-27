@@ -11,7 +11,7 @@
 /*
  * you can enable below define if you don't need
  * SSI interrupt status debug message when debugging
- * see rsnd_dbg_irq_status()
+ * see rsnd_print_irq_status()
  *
  * #define RSND_DEBUG_NO_IRQ_STATUS 1
  */
@@ -418,8 +418,8 @@ static bool rsnd_ssi_busif_err_status_clear(struct rsnd_mod *mod)
 			status &= 0xf << (id * 4);
 
 			if (status) {
-				rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
-						    rsnd_mod_name(mod), status);
+				rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+						      rsnd_mod_name(mod), status);
 				rsnd_mod_write(mod,
 					       SSI_SYS_STATUS(i * 2),
 					       0xf << (id * 4));
@@ -433,8 +433,8 @@ static bool rsnd_ssi_busif_err_status_clear(struct rsnd_mod *mod)
 			status &= 0xf << 4;
 
 			if (status) {
-				rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
-						    rsnd_mod_name(mod), status);
+				rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+						      rsnd_mod_name(mod), status);
 				rsnd_mod_write(mod,
 					       SSI_SYS_STATUS((i * 2) + 1),
 					       0xf << 4);
@@ -782,8 +782,8 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 
 	/* DMA only */
 	if (is_dma && (status & (UIRQ | OIRQ))) {
-		rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
-			rsnd_mod_name(mod), status);
+		rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+				      rsnd_mod_name(mod), status);
 
 		stop = true;
 	}

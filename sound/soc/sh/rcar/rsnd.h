@@ -881,9 +881,10 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
  *
  * #define RSND_DEBUG_NO_IRQ_STATUS 1
  */
-#define rsnd_dbg_irq_status(dev, param...)		\
+#define rsnd_print_irq_status(dev, param...) do {	\
 	if (!IS_BUILTIN(RSND_DEBUG_NO_IRQ_STATUS))	\
-		dev_dbg(dev, param)
+		dev_info(dev, param);			\
+} while (0)
 
 /*
  * If you don't need rsnd_dai_call debug message,
