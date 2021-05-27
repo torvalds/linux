@@ -315,10 +315,8 @@ get_crtc_by_otg_inst(struct amdgpu_device *adev,
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
 
-	if (otg_inst == -1) {
-		WARN_ON(1);
+	if (WARN_ON(otg_inst == -1))
 		return adev->mode_info.crtcs[0];
-	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		amdgpu_crtc = to_amdgpu_crtc(crtc);
@@ -397,8 +395,7 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	e = amdgpu_crtc->event;
 	amdgpu_crtc->event = NULL;
 
-	if (!e)
-		WARN_ON(1);
+	WARN_ON(!e);
 
 	vrr_active = amdgpu_dm_vrr_active_irq(amdgpu_crtc);
 
@@ -6600,9 +6597,8 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 
 	dm_update_crtc_active_planes(crtc, crtc_state);
 
-	if (unlikely(!dm_crtc_state->stream &&
-		     modeset_required(crtc_state, NULL, dm_crtc_state->stream))) {
-		WARN_ON(1);
+	if (WARN_ON(unlikely(!dm_crtc_state->stream &&
+		     modeset_required(crtc_state, NULL, dm_crtc_state->stream)))) {
 		return ret;
 	}
 
