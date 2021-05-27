@@ -192,14 +192,13 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	unsigned int maximum_usec_per_period;
 	int err;
 
-	hw->info = SNDRV_PCM_INFO_BATCH |
-		   SNDRV_PCM_INFO_BLOCK_TRANSFER |
+	hw->info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		   SNDRV_PCM_INFO_INTERLEAVED |
 		   SNDRV_PCM_INFO_JOINT_DUPLEX |
 		   SNDRV_PCM_INFO_MMAP |
-		   SNDRV_PCM_INFO_MMAP_VALID;
+		   SNDRV_PCM_INFO_MMAP_VALID |
+		   SNDRV_PCM_INFO_NO_PERIOD_WAKEUP;
 
-	/* SNDRV_PCM_INFO_BATCH */
 	hw->periods_min = 2;
 	hw->periods_max = UINT_MAX;
 
@@ -610,7 +609,12 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 	s->pcm_period_pointer += frames;
 	if (s->pcm_period_pointer >= pcm->runtime->period_size) {
 		s->pcm_period_pointer -= pcm->runtime->period_size;
-		queue_work(system_highpri_wq, &s->period_work);
+
+		// The program in user process should periodically check the status of intermediate
+		// buffer associated to PCM substream to process PCM frames in the buffer, instead
+		// of receiving notification of period elapsed by poll wait.
+		if (!pcm->runtime->no_period_wakeup)
+			queue_work(system_highpri_wq, &s->period_work);
 	}
 }
 
@@ -1056,6 +1060,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	unsigned int event_count = s->ctx_data.rx.event_count;
 	unsigned int pkt_header_length;
 	unsigned int packets;
+	bool need_hw_irq;
 	int i;
 
 	if (s->packet_index < 0)
@@ -1075,6 +1080,16 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	else
 		pkt_header_length = 0;
 
+	if (s == d->irq_target) {
+		// At NO_PERIOD_WAKEUP mode, the packets for all IT/IR contexts are processed by
+		// the tasks of user process operating ALSA PCM character device by calling ioctl(2)
+		// with some requests, instead of scheduled hardware IRQ of an IT context.
+		struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
+		need_hw_irq = !pcm || !pcm->runtime->no_period_wakeup;
+	} else {
+		need_hw_irq = false;
+	}
+
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
 		struct {
@@ -1091,7 +1106,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 			event_count += desc->data_blocks;
 			if (event_count >= events_per_period) {
 				event_count -= events_per_period;
-				sched_irq = true;
+				sched_irq = need_hw_irq;
 			}
 		}
 
