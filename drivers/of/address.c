@@ -23,9 +23,8 @@
 #define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
 
 static struct of_bus *of_match_bus(struct device_node *np);
-static int __of_address_to_resource(struct device_node *dev,
-		const __be32 *addrp, u64 size, unsigned int flags,
-		const char *name, struct resource *r);
+static int __of_address_to_resource(struct device_node *dev, int index,
+		int bar_no, struct resource *r);
 static bool of_mmio_is_nonposted(struct device_node *np);
 
 /* Debug utility */
@@ -203,17 +202,11 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 int of_pci_address_to_resource(struct device_node *dev, int bar,
 			       struct resource *r)
 {
-	const __be32	*addrp;
-	u64		size;
-	unsigned int	flags;
 
 	if (!IS_ENABLED(CONFIG_PCI))
 		return -ENOSYS;
 
-	addrp = of_get_pci_address(dev, bar, &size, &flags);
-	if (addrp == NULL)
-		return -EINVAL;
-	return __of_address_to_resource(dev, addrp, size, flags, NULL, r);
+	return __of_address_to_resource(dev, -1, bar, r);
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
@@ -804,11 +797,22 @@ static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
 	return port;
 }
 
-static int __of_address_to_resource(struct device_node *dev,
-		const __be32 *addrp, u64 size, unsigned int flags,
-		const char *name, struct resource *r)
+static int __of_address_to_resource(struct device_node *dev, int index, int bar_no,
+		struct resource *r)
 {
 	u64 taddr;
+	const __be32	*addrp;
+	u64		size;
+	unsigned int	flags;
+	const char	*name = NULL;
+
+	addrp = __of_get_address(dev, index, bar_no, &size, &flags);
+	if (addrp == NULL)
+		return -EINVAL;
+
+	/* Get optional "reg-names" property to add a name to a resource */
+	if (index >= 0)
+		of_property_read_string_index(dev, "reg-names",	index, &name);
 
 	if (flags & IORESOURCE_MEM)
 		taddr = of_translate_address(dev, addrp);
@@ -846,19 +850,7 @@ static int __of_address_to_resource(struct device_node *dev,
 int of_address_to_resource(struct device_node *dev, int index,
 			   struct resource *r)
 {
-	const __be32	*addrp;
-	u64		size;
-	unsigned int	flags;
-	const char	*name = NULL;
-
-	addrp = of_get_address(dev, index, &size, &flags);
-	if (addrp == NULL)
-		return -EINVAL;
-
-	/* Get optional "reg-names" property to add a name to a resource */
-	of_property_read_string_index(dev, "reg-names",	index, &name);
-
-	return __of_address_to_resource(dev, addrp, size, flags, name, r);
+	return __of_address_to_resource(dev, index, -1, r);
 }
 EXPORT_SYMBOL_GPL(of_address_to_resource);
 
