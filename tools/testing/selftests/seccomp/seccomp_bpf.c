@@ -3954,7 +3954,7 @@ TEST(user_notification_addfd)
 {
 	pid_t pid;
 	long ret;
-	int status, listener, memfd, fd;
+	int status, listener, memfd, fd, nextfd;
 	struct seccomp_notif_addfd addfd = {};
 	struct seccomp_notif_addfd_small small = {};
 	struct seccomp_notif_addfd_big big = {};
@@ -3963,18 +3963,21 @@ TEST(user_notification_addfd)
 	/* 100 ms */
 	struct timespec delay = { .tv_nsec = 100000000 };
 
+	/* There may be arbitrary already-open fds at test start. */
 	memfd = memfd_create("test", 0);
 	ASSERT_GE(memfd, 0);
+	nextfd = memfd + 1;
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
 	}
 
+	/* fd: 4 */
 	/* Check that the basic notification machinery works */
 	listener = user_notif_syscall(__NR_getppid,
 				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
-	ASSERT_GE(listener, 0);
+	ASSERT_EQ(listener, nextfd++);
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
@@ -4029,14 +4032,14 @@ TEST(user_notification_addfd)
 
 	/* Verify we can set an arbitrary remote fd */
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
-	EXPECT_GE(fd, 0);
+	EXPECT_EQ(fd, nextfd++);
 	EXPECT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/* Verify we can set an arbitrary remote fd with large size */
 	memset(&big, 0x0, sizeof(big));
 	big.addfd = addfd;
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD_BIG, &big);
-	EXPECT_GE(fd, 0);
+	EXPECT_EQ(fd, nextfd++);
 
 	/* Verify we can set a specific remote fd */
 	addfd.newfd = 42;
@@ -4070,9 +4073,11 @@ TEST(user_notification_addfd)
 	addfd.newfd = 0;
 	addfd.flags = SECCOMP_ADDFD_FLAG_SEND;
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
-
-	/* Child has fds 0-6 and 42 used, we expect the lower fd available: 7 */
-	EXPECT_EQ(fd, 7);
+	/*
+	 * Child has earlier "low" fds and now 42, so we expect the next
+	 * lowest available fd to be assigned here.
+	 */
+	EXPECT_EQ(fd, nextfd++);
 	EXPECT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/*
