@@ -143,6 +143,8 @@ int main(int argc, char *argv[])
 	unsigned long long native, filter1, filter2, bitmap1, bitmap2;
 	unsigned long long entry, per_filter1, per_filter2;
 
+	setbuf(stdout, NULL);
+
 	printf("Current BPF sysctl settings:\n");
 	system("sysctl net.core.bpf_jit_enable");
 	system("sysctl net.core.bpf_jit_harden");
