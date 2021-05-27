@@ -25,6 +25,9 @@ config ATARI
 	  this kernel on an Atari, say Y here and browse the material
 	  available in <file:Documentation/m68k>; otherwise say N.
 
+config ATARI_KBD_CORE
+	bool
+
 config MAC
 	bool "Macintosh support"
 	depends on MMU
