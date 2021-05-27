@@ -3,7 +3,6 @@
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
 #include <asm/cacheflush.h>
-#include <linux/bootmem.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -196,4 +195,4 @@ static int __init rknandc_driver_init(void)
 
 module_init(rknandc_driver_init);
 module_exit(rknandc_driver_exit);
-MODULE_ALIAS(DRIVER_NAME);
+MODULE_ALIAS("rknandc");
