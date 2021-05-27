@@ -23,7 +23,6 @@
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_iommu.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/pci-ats.h>

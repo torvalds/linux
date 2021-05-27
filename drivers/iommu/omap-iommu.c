@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
-#include <linux/of_iommu.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
