@@ -27,7 +27,6 @@
 #include <linux/devcoredump.h>
 #include <stdarg.h>
 #include "msm_kms.h"
-#include "dsi.h"
 
 #define MSM_DISP_SNAPSHOT_MAX_BLKS		10
 
