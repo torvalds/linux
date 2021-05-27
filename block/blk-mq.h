@@ -35,6 +35,8 @@ struct blk_mq_ctx {
 	struct request_queue	*queue;
 	struct blk_mq_ctxs      *ctxs;
 	struct kobject		kobj;
+
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 } ____cacheline_aligned_in_smp;
 
 void blk_mq_exit_queue(struct request_queue *q);
