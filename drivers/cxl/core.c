@@ -14,6 +14,78 @@
  */
 
 /**
+ * cxl_probe_component_regs() - Detect CXL Component register blocks
+ * @dev: Host device of the @base mapping
+ * @base: Mapping containing the HDM Decoder Capability Header
+ * @map: Map object describing the register block information found
+ *
+ * See CXL 2.0 8.2.4 Component Register Layout and Definition
+ * See CXL 2.0 8.2.5.5 CXL Device Register Interface
+ *
+ * Probe for component register information and return it in map object.
+ */
+void cxl_probe_component_regs(struct device *dev, void __iomem *base,
+			      struct cxl_component_reg_map *map)
+{
+	int cap, cap_count;
+	u64 cap_array;
+
+	*map = (struct cxl_component_reg_map) { 0 };
+
+	/*
+	 * CXL.cache and CXL.mem registers are at offset 0x1000 as defined in
+	 * CXL 2.0 8.2.4 Table 141.
+	 */
+	base += CXL_CM_OFFSET;
+
+	cap_array = readq(base + CXL_CM_CAP_HDR_OFFSET);
+
+	if (FIELD_GET(CXL_CM_CAP_HDR_ID_MASK, cap_array) != CM_CAP_HDR_CAP_ID) {
+		dev_err(dev,
+			"Couldn't locate the CXL.cache and CXL.mem capability array header./n");
+		return;
+	}
+
+	/* It's assumed that future versions will be backward compatible */
+	cap_count = FIELD_GET(CXL_CM_CAP_HDR_ARRAY_SIZE_MASK, cap_array);
+
+	for (cap = 1; cap <= cap_count; cap++) {
+		void __iomem *register_block;
+		u32 hdr;
+		int decoder_cnt;
+		u16 cap_id, offset;
+		u32 length;
+
+		hdr = readl(base + cap * 0x4);
+
+		cap_id = FIELD_GET(CXL_CM_CAP_HDR_ID_MASK, hdr);
+		offset = FIELD_GET(CXL_CM_CAP_PTR_MASK, hdr);
+		register_block = base + offset;
+
+		switch (cap_id) {
+		case CXL_CM_CAP_CAP_ID_HDM:
+			dev_dbg(dev, "found HDM decoder capability (0x%x)\n",
+				offset);
+
+			hdr = readl(register_block);
+
+			decoder_cnt = FIELD_GET(CXL_HDM_DECODER_COUNT_MASK, hdr);
+			length = 0x20 * decoder_cnt + 0x10;
+
+			map->hdm_decoder.valid = true;
+			map->hdm_decoder.offset = offset;
+			map->hdm_decoder.size = length;
+			break;
+		default:
+			dev_dbg(dev, "Unknown CM cap ID: %d (0x%x)\n", cap_id,
+				offset);
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(cxl_probe_component_regs);
+
+/**
  * cxl_probe_device_regs() - Detect CXL Device register blocks
  * @dev: Host device of the @base mapping
  * @base: Mapping of CXL 2.0 8.2.8 CXL Device Register Interface
@@ -101,6 +173,26 @@ static void __iomem *devm_cxl_iomap_block(struct pci_dev *pdev,
 
 	return ret_val;
 }
+
+int cxl_map_component_regs(struct pci_dev *pdev,
+			   struct cxl_component_regs *regs,
+			   struct cxl_register_map *map)
+{
+	resource_size_t phys_addr;
+	resource_size_t length;
+
+	phys_addr = pci_resource_start(pdev, map->barno);
+	phys_addr += map->block_offset;
+
+	phys_addr += map->component_map.hdm_decoder.offset;
+	length = map->component_map.hdm_decoder.size;
+	regs->hdm_decoder = devm_cxl_iomap_block(pdev, phys_addr, length);
+	if (!regs->hdm_decoder)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cxl_map_component_regs);
 
 int cxl_map_device_regs(struct pci_dev *pdev,
 			struct cxl_device_regs *regs,

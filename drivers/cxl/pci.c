@@ -982,9 +982,20 @@ static int cxl_probe_regs(struct cxl_mem *cxlm, void __iomem *base,
 {
 	struct pci_dev *pdev = cxlm->pdev;
 	struct device *dev = &pdev->dev;
+	struct cxl_component_reg_map *comp_map;
 	struct cxl_device_reg_map *dev_map;
 
 	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_COMPONENT:
+		comp_map = &map->component_map;
+		cxl_probe_component_regs(dev, base, comp_map);
+		if (!comp_map->hdm_decoder.valid) {
+			dev_err(dev, "HDM decoder registers not found\n");
+			return -ENXIO;
+		}
+
+		dev_dbg(dev, "Set up component registers\n");
+		break;
 	case CXL_REGLOC_RBI_MEMDEV:
 		dev_map = &map->device_map;
 		cxl_probe_device_regs(dev, base, dev_map);
@@ -1012,6 +1023,10 @@ static int cxl_map_regs(struct cxl_mem *cxlm, struct cxl_register_map *map)
 	struct device *dev = &pdev->dev;
 
 	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_COMPONENT:
+		cxl_map_component_regs(pdev, &cxlm->regs.component, map);
+		dev_dbg(dev, "Mapping component registers...\n");
+		break;
 	case CXL_REGLOC_RBI_MEMDEV:
 		cxl_map_device_regs(pdev, &cxlm->regs.device_regs, map);
 		dev_dbg(dev, "Probing device registers...\n");
