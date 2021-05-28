@@ -1808,6 +1808,22 @@ int force_sig_ptrace_errno_trap(int errno, void __user *addr)
 	return force_sig_info(&info);
 }
 
+/* For the rare architectures that include trap information using
+ * si_trapno.
+ */
+int force_sig_fault_trapno(int sig, int code, void __user *addr, int trapno)
+{
+	struct kernel_siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_code  = code;
+	info.si_addr  = addr;
+	info.si_trapno = trapno;
+	return force_sig_info(&info);
+}
+
 int kill_pgrp(struct pid *pid, int sig, int priv)
 {
 	int ret;
@@ -3243,6 +3259,9 @@ enum siginfo_layout siginfo_layout(unsigned sig, int si_code)
 #endif
 			else if ((sig == SIGTRAP) && (si_code == TRAP_PERF))
 				layout = SIL_PERF_EVENT;
+			else if (IS_ENABLED(CONFIG_SPARC) &&
+				 (sig == SIGILL) && (si_code == ILL_ILLTRP))
+				layout = SIL_FAULT_TRAPNO;
 #ifdef __ARCH_SI_TRAPNO
 			else if (layout == SIL_FAULT)
 				layout = SIL_FAULT_TRAPNO;
