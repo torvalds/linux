@@ -57,6 +57,7 @@ static LIST_HEAD(adc_tm_device_list);
 #define ADC5_GEN3_CHAN_CONV_REQ			BIT(7)
 
 #define ADC5_GEN3_TIMER_SEL			0x51
+#define ADC5_GEN3_TIME_IMMEDIATE		0x1
 
 #define ADC5_GEN3_DIG_PARAM			0x52
 #define ADC5_GEN3_DIG_PARAM_CAL_SEL_MASK	GENMASK(5, 4)
@@ -380,7 +381,7 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 	 */
 	buf[1] = ADC5_GEN3_CHAN_CONV_REQ | 0;
 
-	buf[2] = prop->timer;
+	buf[2] = ADC5_GEN3_TIME_IMMEDIATE;
 
 	/* Digital param selection */
 	adc5_gen3_update_dig_param(adc, prop, &buf[3]);
@@ -576,7 +577,7 @@ static void tm_handler_work(struct work_struct *work)
 	struct adc5_chip *adc = container_of(work, struct adc5_chip,
 						tm_handler_work);
 	struct adc5_channel_prop *chan_prop;
-	u8 tm_status[2], buf[14], val;
+	u8 tm_status[2], buf[16], val;
 	int ret, i;
 
 	mutex_lock(&adc->lock);
@@ -604,7 +605,7 @@ static void tm_handler_work(struct work_struct *work)
 		goto work_unlock;
 	}
 
-	ret = adc5_read(adc, ADC5_GEN3_CH1_DATA0, buf, sizeof(buf));
+	ret = adc5_read(adc, ADC5_GEN3_CH0_DATA0, buf, sizeof(buf));
 	if (ret < 0) {
 		pr_err("adc read data failed with %d\n", ret);
 		goto work_unlock;
@@ -616,28 +617,27 @@ static void tm_handler_work(struct work_struct *work)
 		bool upper_set = false, lower_set = false;
 		u8 data_low = 0, data_high = 0;
 		u16 code = 0;
-		int temp;
+		int temp, offset;
 
 		chan_prop = &adc->chan_props[i];
+		offset = chan_prop->tm_chan_index;
 		if (!chan_prop->adc_tm)
 			continue;
 
 		mutex_lock(&adc->lock);
-		if ((tm_status[0] & 0x1) && (chan_prop->high_thr_en))
+		if ((tm_status[0] & BIT(offset)) && (chan_prop->high_thr_en))
 			upper_set = true;
 
-		if ((tm_status[1] & 0x1) && (chan_prop->low_thr_en))
+		if ((tm_status[1] & BIT(offset)) && (chan_prop->low_thr_en))
 			lower_set = true;
 
-		tm_status[0] >>= 1;
-		tm_status[1] >>= 1;
 		mutex_unlock(&adc->lock);
 
 		if (!(upper_set || lower_set))
 			continue;
 
-		data_low = buf[2 * i];
-		data_high = buf[2 * i + 1];
+		data_low = buf[2 * offset];
+		data_high = buf[2 * offset + 1];
 		code = ((data_high << 8) | data_low);
 		pr_debug("ADC_TM threshold code:0x%x\n", code);
 
