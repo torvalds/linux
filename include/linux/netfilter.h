@@ -65,8 +65,8 @@ struct nf_hook_ops;
 struct sock;
 
 struct nf_hook_state {
-	unsigned int hook;
-	u_int8_t pf;
+	u8 hook;
+	u8 pf;
 	struct net_device *in;
 	struct net_device *out;
 	struct sock *sk;
