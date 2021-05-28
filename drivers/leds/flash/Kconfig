@@ -2,6 +2,15 @@
 
 if LEDS_CLASS_FLASH
 
+config LEDS_AAT1290
+	tristate "LED support for the AAT1290"
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on GPIOLIB || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	help
+	  This option enables support for the LEDs on the AAT1290.
+
 config LEDS_RT4505
 	tristate "LED support for RT4505 flashlight controller"
 	depends on I2C && OF
