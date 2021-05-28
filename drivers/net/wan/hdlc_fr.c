@@ -789,8 +789,8 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 		}
 		i++;
 
-		new = !! (skb->data[i + 2] & 0x08);
-		active = !! (skb->data[i + 2] & 0x02);
+		new = !!(skb->data[i + 2] & 0x08);
+		active = !!(skb->data[i + 2] & 0x02);
 		if (lmi == LMI_CISCO) {
 			dlci = (skb->data[i] << 8) | skb->data[i + 1];
 			bw = (skb->data[i + 3] << 16) |
