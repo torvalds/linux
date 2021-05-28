@@ -21,8 +21,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.714.04.00-rc1"
-#define MEGASAS_RELDATE				"Apr 14, 2020"
+#define MEGASAS_VERSION				"07.717.02.00-rc1"
+#define MEGASAS_RELDATE				"May 19, 2021"
 
 #define MEGASAS_MSIX_NAME_LEN			32
 
