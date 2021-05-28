@@ -3804,9 +3804,6 @@ static int gaudi_load_firmware_to_device(struct hl_device *hdev)
 {
 	void __iomem *dst;
 
-	/* HBM scrambler must be initialized before pushing F/W to HBM */
-	gaudi_init_scrambler_hbm(hdev);
-
 	dst = hdev->pcie_bar[HBM_BAR_ID] + LINUX_FW_OFFSET;
 
 	return hl_fw_load_fw_to_device(hdev, GAUDI_LINUX_FW_FILE, dst, 0, 0);
@@ -8949,6 +8946,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.enable_events_from_fw = gaudi_enable_events_from_fw,
 	.map_pll_idx_to_fw_idx = gaudi_map_pll_idx_to_fw_idx,
 	.init_firmware_loader = gaudi_init_firmware_loader,
+	.init_cpu_scrambler_dram = gaudi_init_scrambler_hbm
 };
 
 /**

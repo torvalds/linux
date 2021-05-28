@@ -5402,6 +5402,11 @@ static int goya_get_eeprom_data(struct hl_device *hdev, void *data,
 	return hl_fw_get_eeprom_data(hdev, data, max_size);
 }
 
+static void goya_cpu_init_scrambler_dram(struct hl_device *hdev)
+{
+
+}
+
 static int goya_ctx_init(struct hl_ctx *ctx)
 {
 	if (ctx->asid != HL_KERNEL_ASID_ID)
@@ -5601,7 +5606,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.hw_block_mmap = goya_block_mmap,
 	.enable_events_from_fw = goya_enable_events_from_fw,
 	.map_pll_idx_to_fw_idx = goya_map_pll_idx_to_fw_idx,
-	.init_firmware_loader = goya_init_firmware_loader
+	.init_firmware_loader = goya_init_firmware_loader,
+	.init_cpu_scrambler_dram = goya_cpu_init_scrambler_dram
 };
 
 /*

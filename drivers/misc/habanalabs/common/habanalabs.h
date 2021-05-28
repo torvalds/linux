@@ -1092,7 +1092,8 @@ struct fw_load_mgr {
  * @get_msi_info: Retrieve asic-specific MSI ID of the f/w async event
  * @map_pll_idx_to_fw_idx: convert driver specific per asic PLL index to
  *                         generic f/w compatible PLL Indexes
- *@init_firmware_loader: initialize data for FW loader.
+ * @init_firmware_loader: initialize data for FW loader.
+ * @init_cpu_scrambler_dram: Enable CPU specific DRAM scrambling
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1217,6 +1218,7 @@ struct hl_asic_funcs {
 	void (*get_msi_info)(__le32 *table);
 	int (*map_pll_idx_to_fw_idx)(u32 pll_idx);
 	void (*init_firmware_loader)(struct hl_device *hdev);
+	void (*init_cpu_scrambler_dram)(struct hl_device *hdev);
 };
 
 
