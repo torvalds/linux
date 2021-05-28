@@ -110,7 +110,7 @@ void nft_payload_eval(const struct nft_expr *expr,
 	case NFT_PAYLOAD_TRANSPORT_HEADER:
 		if (!pkt->tprot_set)
 			goto err;
-		offset = pkt->xt.thoff;
+		offset = nft_thoff(pkt);
 		break;
 	default:
 		BUG();
@@ -510,7 +510,7 @@ static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,
 		*l4csum_offset = offsetof(struct tcphdr, check);
 		break;
 	case IPPROTO_UDP:
-		if (!nft_payload_udp_checksum(skb, pkt->xt.thoff))
+		if (!nft_payload_udp_checksum(skb, nft_thoff(pkt)))
 			return -1;
 		fallthrough;
 	case IPPROTO_UDPLITE:
@@ -523,7 +523,7 @@ static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,
 		return -1;
 	}
 
-	*l4csum_offset += pkt->xt.thoff;
+	*l4csum_offset += nft_thoff(pkt);
 	return 0;
 }
 
@@ -615,7 +615,7 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 	case NFT_PAYLOAD_TRANSPORT_HEADER:
 		if (!pkt->tprot_set)
 			goto err;
-		offset = pkt->xt.thoff;
+		offset = nft_thoff(pkt);
 		break;
 	default:
 		BUG();
@@ -646,7 +646,7 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 	if (priv->csum_type == NFT_PAYLOAD_CSUM_SCTP &&
 	    pkt->tprot == IPPROTO_SCTP &&
 	    skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (nft_payload_csum_sctp(skb, pkt->xt.thoff))
+		if (nft_payload_csum_sctp(skb, nft_thoff(pkt)))
 			goto err;
 	}
 
