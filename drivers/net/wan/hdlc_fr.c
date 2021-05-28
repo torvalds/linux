@@ -613,10 +613,10 @@ static void fr_timer(struct timer_list *t)
 		fr_set_link_state(reliable, dev);
 	}
 
-	if (state(hdlc)->settings.dce)
+	if (state(hdlc)->settings.dce) {
 		state(hdlc)->timer.expires = jiffies +
 			state(hdlc)->settings.t392 * HZ;
-	else {
+	} else {
 		if (state(hdlc)->n391cnt)
 			state(hdlc)->n391cnt--;
 
@@ -671,8 +671,9 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 			return 1;
 		}
 		i = 7;
-	} else
+	} else {
 		i = 6;
+	}
 
 	if (skb->data[i] != (lmi == LMI_CCITT ? LMI_CCITT_REPTYPE :
 			     LMI_ANSI_CISCO_REPTYPE)) {
@@ -1013,8 +1014,9 @@ static void fr_start(struct net_device *dev)
 		/* First poll after 1 s */
 		state(hdlc)->timer.expires = jiffies + HZ;
 		add_timer(&state(hdlc)->timer);
-	} else
+	} else {
 		fr_set_link_state(1, dev);
+	}
 }
 
 static void fr_stop(struct net_device *dev)
