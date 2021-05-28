@@ -21,6 +21,7 @@ struct journal_buf {
 	struct jset		*data;
 
 	__BKEY_PADDED(key, BCH_REPLICAS_MAX);
+	struct bch_devs_list	devs_written;
 
 	struct closure_waitlist	wait;
 	u64			last_seq;	/* copy of data->last_seq */

@@ -1232,8 +1232,6 @@ static void journal_write_done(struct closure *cl)
 	struct journal *j = container_of(cl, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *w = journal_last_unwritten_buf(j);
-	struct bch_devs_list devs =
-		bch2_bkey_devs(bkey_i_to_s_c(&w->key));
 	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
 	u64 v, seq;
@@ -1241,11 +1239,12 @@ static void journal_write_done(struct closure *cl)
 
 	bch2_time_stats_update(j->write_time, j->write_start_time);
 
-	if (!devs.nr) {
+	if (!w->devs_written.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
 		err = -EIO;
 	} else {
-		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal, devs);
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
+					 w->devs_written);
 		if (bch2_mark_replicas(c, &replicas.e))
 			err = -EIO;
 	}
@@ -1257,7 +1256,7 @@ static void journal_write_done(struct closure *cl)
 	seq = le64_to_cpu(w->data->seq);
 
 	if (seq >= j->pin.front)
-		journal_seq_pin(j, seq)->devs = devs;
+		journal_seq_pin(j, seq)->devs = w->devs_written;
 
 	j->seq_ondisk		= seq;
 	if (err && (!j->err_seq || seq < j->err_seq))
@@ -1307,15 +1306,15 @@ static void journal_write_endio(struct bio *bio)
 {
 	struct bch_dev *ca = bio->bi_private;
 	struct journal *j = &ca->fs->journal;
+	struct journal_buf *w = journal_last_unwritten_buf(j);
+	unsigned long flags;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "journal write error: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca, "error writing journal entry %llu: %s",
+			       le64_to_cpu(w->data->seq),
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("journal")) {
-		struct journal_buf *w = journal_last_unwritten_buf(j);
-		unsigned long flags;
-
 		spin_lock_irqsave(&j->err_lock, flags);
-		bch2_bkey_drop_device(bkey_i_to_s(&w->key), ca->dev_idx);
+		bch2_dev_list_drop_dev(&w->devs_written, ca->dev_idx);
 		spin_unlock_irqrestore(&j->err_lock, flags);
 	}
 
@@ -1510,10 +1509,8 @@ retry_alloc:
 		return;
 	}
 
-	/*
-	 * XXX: we really should just disable the entire journal in nochanges
-	 * mode
-	 */
+	w->devs_written = bch2_bkey_devs(bkey_i_to_s_c(&w->key));
+
 	if (c->opts.nochanges)
 		goto no_io;
 
