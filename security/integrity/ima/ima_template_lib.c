@@ -551,3 +551,48 @@ int ima_eventevmsig_init(struct ima_event_data *event_data,
 	kfree(xattr_data);
 	return rc;
 }
+
+static int ima_eventinodedac_init_common(struct ima_event_data *event_data,
+					 struct ima_field_data *field_data,
+					 bool get_uid)
+{
+	unsigned int id;
+
+	if (!event_data->file)
+		return 0;
+
+	if (get_uid)
+		id = i_uid_read(file_inode(event_data->file));
+	else
+		id = i_gid_read(file_inode(event_data->file));
+
+	if (ima_canonical_fmt) {
+		if (sizeof(id) == sizeof(u16))
+			id = cpu_to_le16(id);
+		else
+			id = cpu_to_le32(id);
+	}
+
+	return ima_write_template_field_data((void *)&id, sizeof(id),
+					     DATA_FMT_UINT, field_data);
+}
+
+/*
+ *  ima_eventinodeuid_init - include the inode UID as part of the template
+ *  data
+ */
+int ima_eventinodeuid_init(struct ima_event_data *event_data,
+			   struct ima_field_data *field_data)
+{
+	return ima_eventinodedac_init_common(event_data, field_data, true);
+}
+
+/*
+ *  ima_eventinodegid_init - include the inode GID as part of the template
+ *  data
+ */
+int ima_eventinodegid_init(struct ima_event_data *event_data,
+			   struct ima_field_data *field_data)
+{
+	return ima_eventinodedac_init_common(event_data, field_data, false);
+}

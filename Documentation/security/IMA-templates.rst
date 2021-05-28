@@ -75,6 +75,8 @@ descriptors by adding their identifier to the format string
  - 'modsig' the appended file signature;
  - 'buf': the buffer data that was used to generate the hash without size limitations;
  - 'evmsig': the EVM portable signature;
+ - 'iuid': the inode UID;
+ - 'igid': the inode GID;
 
 
 Below, there is the list of defined template descriptors:

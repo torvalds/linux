@@ -47,6 +47,10 @@ static const struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_sig},
 	{.field_id = "evmsig", .field_init = ima_eventevmsig_init,
 	 .field_show = ima_show_template_sig},
+	{.field_id = "iuid", .field_init = ima_eventinodeuid_init,
+	 .field_show = ima_show_template_uint},
+	{.field_id = "igid", .field_init = ima_eventinodegid_init,
+	 .field_show = ima_show_template_uint},
 };
 
 /*
