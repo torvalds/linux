@@ -639,7 +639,7 @@ struct hns_roce_qp {
 
 	u32			xrcdn;
 
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct completion	free;
 
 	struct hns_roce_sge	sge;
