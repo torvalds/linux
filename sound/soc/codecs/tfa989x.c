@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <sound/soc.h>
 
 #define TFA989X_STATUSREG		0x00
@@ -49,6 +50,10 @@
 struct tfa989x_rev {
 	unsigned int rev;
 	int (*init)(struct regmap *regmap);
+};
+
+struct tfa989x {
+	struct regulator *vddd_supply;
 };
 
 static bool tfa989x_writeable_reg(struct device *dev, unsigned int reg)
@@ -242,10 +247,18 @@ static int tfa989x_dsp_bypass(struct regmap *regmap)
 				 BIT(TFA989X_SYS_CTRL_AMPC));
 }
 
+static void tfa989x_regulator_disable(void *data)
+{
+	struct tfa989x *tfa989x = data;
+
+	regulator_disable(tfa989x->vddd_supply);
+}
+
 static int tfa989x_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	const struct tfa989x_rev *rev;
+	struct tfa989x *tfa989x;
 	struct regmap *regmap;
 	unsigned int val;
 	int ret;
@@ -256,9 +269,30 @@ static int tfa989x_i2c_probe(struct i2c_client *i2c)
 		return -ENODEV;
 	}
 
+	tfa989x = devm_kzalloc(dev, sizeof(*tfa989x), GFP_KERNEL);
+	if (!tfa989x)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, tfa989x);
+
+	tfa989x->vddd_supply = devm_regulator_get(dev, "vddd");
+	if (IS_ERR(tfa989x->vddd_supply))
+		return dev_err_probe(dev, PTR_ERR(tfa989x->vddd_supply),
+				     "Failed to get vddd regulator\n");
+
 	regmap = devm_regmap_init_i2c(i2c, &tfa989x_regmap);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	ret = regulator_enable(tfa989x->vddd_supply);
+	if (ret) {
+		dev_err(dev, "Failed to enable vddd regulator: %d\n", ret);
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, tfa989x_regulator_disable, tfa989x);
+	if (ret)
+		return ret;
 
 	/* Bypass regcache for reset and init sequence */
 	regcache_cache_bypass(regmap, true);
