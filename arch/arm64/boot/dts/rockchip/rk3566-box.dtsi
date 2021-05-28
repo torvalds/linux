@@ -158,7 +158,7 @@
 		pwms = <&pwm1 0 5000 1>;
 		regulator-name = "vdd_logic";
 		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <1200000>;
+		regulator-max-microvolt = <1100000>;
 		regulator-init-microvolt = <950000>;
 		regulator-always-on;
 		regulator-boot-on;
