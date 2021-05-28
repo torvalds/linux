@@ -130,9 +130,6 @@ static inline bool nesting_enabled(struct kvm *kvm)
 	return kvm->arch.nested_enable && kvm_is_radix(kvm);
 }
 
-/* If set, the threads on each CPU core have to be in the same MMU mode */
-static bool no_mixing_hpt_and_radix __read_mostly;
-
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
 /*
@@ -3133,9 +3130,6 @@ static void prepare_threads(struct kvmppc_vcore *vc)
 	for_each_runnable_thread(i, vcpu, vc) {
 		if (signal_pending(vcpu->arch.run_task))
 			vcpu->arch.ret = -EINTR;
-		else if (no_mixing_hpt_and_radix &&
-			 kvm_is_radix(vc->kvm) != radix_enabled())
-			vcpu->arch.ret = -EINVAL;
 		else if (vcpu->arch.vpa.update_pending ||
 			 vcpu->arch.slb_shadow.update_pending ||
 			 vcpu->arch.dtl.update_pending)
@@ -3342,6 +3336,9 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int trap;
 	bool is_power8;
 
+	if (WARN_ON_ONCE(cpu_has_feature(CPU_FTR_ARCH_300)))
+		return;
+
 	/*
 	 * Remove from the list any threads that have a signal pending
 	 * or need a VPA update done
@@ -3369,9 +3366,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * Make sure we are running on primary threads, and that secondary
 	 * threads are offline.  Also check if the number of threads in this
 	 * guest are greater than the current system threads per guest.
-	 * On POWER9, we need to be not in independent-threads mode if
-	 * this is a HPT guest on a radix host machine where the
-	 * CPU threads may not be in different MMU modes.
 	 */
 	if ((controlled_threads > 1) &&
 	    ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) {
@@ -3394,18 +3388,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		target_threads = target_smt_mode;
 	if (vc->num_threads < target_threads)
 		collect_piggybacks(&core_info, target_threads);
-
-	/*
-	 * On radix, arrange for TLB flushing if necessary.
-	 * This has to be done before disabling interrupts since
-	 * it uses smp_call_function().
-	 */
-	pcpu = smp_processor_id();
-	if (kvm_is_radix(vc->kvm)) {
-		for (sub = 0; sub < core_info.n_subcores; ++sub)
-			for_each_runnable_thread(i, vcpu, core_info.vc[sub])
-				kvmppc_prepare_radix_vcpu(vcpu, pcpu);
-	}
 
 	/*
 	 * Hard-disable interrupts, and check resched flag and signals.
@@ -3439,8 +3421,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	cmd_bit = stat_bit = 0;
 	split = core_info.n_subcores;
 	sip = NULL;
-	is_power8 = cpu_has_feature(CPU_FTR_ARCH_207S)
-		&& !cpu_has_feature(CPU_FTR_ARCH_300);
+	is_power8 = cpu_has_feature(CPU_FTR_ARCH_207S);
 
 	if (split > 1) {
 		sip = &split_info;
@@ -3738,8 +3719,7 @@ static inline bool hcall_is_xics(unsigned long req)
 }
 
 /*
- * Virtual-mode guest entry for POWER9 and later when the host and
- * guest are both using the radix MMU.  The LPIDR has already been set.
+ * Guest entry for POWER9 and later CPUs.
  */
 static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 			 unsigned long lpcr)
@@ -5762,11 +5742,25 @@ static int kvmhv_enable_dawr1(struct kvm *kvm)
 
 static bool kvmppc_hash_v3_possible(void)
 {
-	if (radix_enabled() && no_mixing_hpt_and_radix)
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		return false;
 
-	return cpu_has_feature(CPU_FTR_ARCH_300) &&
-		cpu_has_feature(CPU_FTR_HVMODE);
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
+		return false;
+
+	/*
+	 * POWER9 chips before version 2.02 can't have some threads in
+	 * HPT mode and some in radix mode on the same core.
+	 */
+	if (radix_enabled()) {
+		unsigned int pvr = mfspr(SPRN_PVR);
+		if ((pvr >> 16) == PVR_POWER9 &&
+		    (((pvr & 0xe000) == 0 && (pvr & 0xfff) < 0x202) ||
+		     ((pvr & 0xe000) == 0x2000 && (pvr & 0xfff) < 0x101)))
+			return false;
+	}
+
+	return true;
 }
 
 static struct kvmppc_ops kvm_ops_hv = {
@@ -5909,18 +5903,6 @@ static int kvmppc_book3s_init_hv(void)
 
 	if (kvmppc_radix_possible())
 		r = kvmppc_radix_init();
-
-	/*
-	 * POWER9 chips before version 2.02 can't have some threads in
-	 * HPT mode and some in radix mode on the same core.
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		unsigned int pvr = mfspr(SPRN_PVR);
-		if ((pvr >> 16) == PVR_POWER9 &&
-		    (((pvr & 0xe000) == 0 && (pvr & 0xfff) < 0x202) ||
-		     ((pvr & 0xe000) == 0x2000 && (pvr & 0xfff) < 0x101)))
-			no_mixing_hpt_and_radix = true;
-	}
 
 	r = kvmppc_uvmem_init();
 	if (r < 0)
