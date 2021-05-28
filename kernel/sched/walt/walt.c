@@ -184,6 +184,8 @@ static inline void walt_task_dump(struct task_struct *p)
 	bool is_32bit_thread = is_compat_thread(task_thread_info(p));
 
 	printk_deferred("Task: %.16s-%d\n", p->comm, p->pid);
+	SCHED_PRINT(p->state);
+	SCHED_PRINT(p->cpu);
 	SCHED_PRINT(p->policy);
 	SCHED_PRINT(p->prio);
 	SCHED_PRINT(wts->mark_start);
@@ -299,23 +301,25 @@ fixup_cumulative_runnable_avg(struct rq *rq,
 	lockdep_assert_held(&rq->lock);
 
 	if (task_rq(p) != rq) {
-		printk_deferred("WALT-BUG task not on rq: task_cpu=%d new_cpu=%d\n",
-				task_cpu(p), cpu_of(rq));
+		printk_deferred("WALT-BUG on CPU %d task %s(%d) not on rq %d",
+				raw_smp_processor_id(), p->comm, p->pid, rq->cpu);
 		walt_task_dump(p);
 		SCHED_BUG_ON(1);
 	}
 
 	if (cumulative_runnable_avg_scaled < 0) {
-		printk_deferred("WALT-BUG task ds=%llu is higher than cra=%llu\n",
-				wts->demand_scaled, stats->cumulative_runnable_avg_scaled);
+		printk_deferred("WALT-BUG on CPU %d task ds=%llu is higher than cra=%llu\n",
+				raw_smp_processor_id(), wts->demand_scaled,
+				stats->cumulative_runnable_avg_scaled);
 		walt_task_dump(p);
 		SCHED_BUG_ON(1);
 	}
 	stats->cumulative_runnable_avg_scaled = (u64)cumulative_runnable_avg_scaled;
 
 	if (pred_demands_sum_scaled < 0) {
-		printk_deferred("WALT-BUG task pds=%llu is higher than pds_sum=%llu\n",
-				wts->pred_demand_scaled, stats->pred_demands_sum_scaled);
+		printk_deferred("WALT-BUG on CPU %d task pds=%llu is higher than pds_sum=%llu\n",
+				raw_smp_processor_id(), wts->pred_demand_scaled,
+				stats->pred_demands_sum_scaled);
 		walt_task_dump(p);
 		SCHED_BUG_ON(1);
 	}
@@ -978,6 +982,12 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 
 	lockdep_assert_held(&src_rq->lock);
 	lockdep_assert_held(&dest_rq->lock);
+
+	if (task_rq(p) != src_rq) {
+		printk_deferred("WALT-BUG on CPU %d task %s(%d) not on src_rq %d",
+				raw_smp_processor_id(), p->comm, p->pid, src_rq->cpu);
+		SCHED_BUG_ON(1);
+	}
 
 	walt_update_task_ravg(task_rq(p)->curr, task_rq(p),
 			 TASK_UPDATE,
