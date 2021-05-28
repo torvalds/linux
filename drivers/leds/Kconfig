@@ -680,17 +680,6 @@ config LEDS_MAX77650
 	help
 	  LEDs driver for MAX77650 family of PMICs from Maxim Integrated.
 
-config LEDS_MAX77693
-	tristate "LED support for MAX77693 Flash"
-	depends on LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	depends on MFD_MAX77693
-	depends on OF
-	help
-	  This option enables support for the flash part of the MAX77693
-	  multifunction device. It has build in control for two leds in flash
-	  and torch mode.
-
 config LEDS_MAX8997
 	tristate "LED support for MAX8997 PMIC"
 	depends on LEDS_CLASS && MFD_MAX8997
