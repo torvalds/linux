@@ -1618,7 +1618,7 @@ static void btree_node_write_work(struct work_struct *work)
 		bio_list_add(&c->btree_write_error_list, &wbio->wbio.bio);
 		spin_unlock_irqrestore(&c->btree_write_error_lock, flags);
 
-		queue_work(c->btree_update_wq, &c->btree_write_error_work);
+		queue_work(c->btree_error_wq, &c->btree_write_error_work);
 		return;
 	}
 
