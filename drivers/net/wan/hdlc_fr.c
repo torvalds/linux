@@ -937,7 +937,8 @@ static int fr_rx(struct sk_buff *skb)
 		pvc->state.becn ^= 1;
 	}
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb) {
 		frad->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
@@ -1064,7 +1065,8 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	struct net_device *dev;
 	int used;
 
-	if ((pvc = add_pvc(frad, dlci)) == NULL) {
+	pvc = add_pvc(frad, dlci);
+	if (!pvc) {
 		netdev_warn(frad, "Memory squeeze on fr_add_pvc()\n");
 		return -ENOBUFS;
 	}
@@ -1121,10 +1123,12 @@ static int fr_del_pvc(hdlc_device *hdlc, unsigned int dlci, int type)
 	struct pvc_device *pvc;
 	struct net_device *dev;
 
-	if ((pvc = find_pvc(hdlc, dlci)) == NULL)
+	pvc = find_pvc(hdlc, dlci);
+	if (!pvc)
 		return -ENOENT;
 
-	if ((dev = *get_dev_p(pvc, type)) == NULL)
+	dev = *get_dev_p(pvc, type);
+	if (!dev)
 		return -ENOENT;
 
 	if (dev->flags & IFF_UP)
