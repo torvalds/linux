@@ -97,6 +97,10 @@ struct sec_cipher_ctx {
 	u8 c_mode;
 	u8 c_alg;
 	u8 c_key_len;
+
+	/* add software support */
+	bool fallback;
+	struct crypto_sync_skcipher *fbtfm;
 };
 
 /* SEC queue context which defines queue's relatives */
