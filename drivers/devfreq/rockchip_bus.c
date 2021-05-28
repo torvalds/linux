@@ -17,6 +17,7 @@
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 
 #define CLUSTER0	0
 #define CLUSTER1	1
@@ -163,7 +164,7 @@ static int rockchip_bus_power_control_init(struct rockchip_bus *bus)
 		return PTR_ERR(bus->regulator);
 	}
 
-	ret = dev_pm_opp_of_add_table(dev);
+	ret = rockchip_init_opp_table(dev, NULL, "leakage", "pvtm");
 	if (ret < 0) {
 		dev_err(dev, "failed to get OPP table\n");
 		return ret;
@@ -446,6 +447,7 @@ static const struct of_device_id rockchip_busfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3288-bus", },
 	{ .compatible = "rockchip,rk3368-bus", },
 	{ .compatible = "rockchip,rk3399-bus", },
+	{ .compatible = "rockchip,rk3568-bus", },
 	{ .compatible = "rockchip,rv1126-bus", },
 	{ },
 };
