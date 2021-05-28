@@ -3,16 +3,18 @@
 
 #include "eswitch.h"
 #include "esw/qos.h"
+#include "en/port.h"
 
 /* Minimum supported BW share value by the HW is 1 Mbit/sec */
 #define MLX5_MIN_BW_SHARE 1
 
 #define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \
-	min_t(u32, max_t(u32, (rate) / (divider), MLX5_MIN_BW_SHARE), limit)
+	min_t(u32, max_t(u32, DIV_ROUND_UP(rate, divider), MLX5_MIN_BW_SHARE), limit)
 
 static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 				struct mlx5_vport *vport,
-				u32 max_rate, u32 bw_share)
+				u32 max_rate, u32 bw_share,
+				struct netlink_ext_ack *extack)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -45,6 +47,7 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 	if (err) {
 		esw_warn(esw->dev, "E-Switch modify TSAR vport element failed (vport=%d,err=%d)\n",
 			 vport->vport, err);
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify TSAR vport element failed");
 		return err;
 	}
 
@@ -69,7 +72,8 @@ static u32 calculate_vports_min_rate_divider(struct mlx5_eswitch *esw)
 	return 0;
 }
 
-static int normalize_vports_min_rate(struct mlx5_eswitch *esw)
+static int
+esw_qos_normalize_vports_min_rate(struct mlx5_eswitch *esw, struct netlink_ext_ack *extack)
 {
 	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
 	u32 divider = calculate_vports_min_rate_divider(esw);
@@ -95,8 +99,7 @@ static int normalize_vports_min_rate(struct mlx5_eswitch *esw)
 		if (bw_share == evport->qos.bw_share)
 			continue;
 
-		err = esw_qos_vport_config(esw, evport, vport_max_rate,
-					   bw_share);
+		err = esw_qos_vport_config(esw, evport, vport_max_rate, bw_share, extack);
 		if (!err)
 			evport->qos.bw_share = bw_share;
 		else
@@ -106,42 +109,50 @@ static int normalize_vports_min_rate(struct mlx5_eswitch *esw)
 	return 0;
 }
 
-int mlx5_esw_qos_set_vport_rate(struct mlx5_eswitch *esw, struct mlx5_vport *evport,
-				u32 max_rate, u32 min_rate)
+int mlx5_esw_qos_set_vport_min_rate(struct mlx5_eswitch *esw,
+				    struct mlx5_vport *evport,
+				    u32 min_rate,
+				    struct netlink_ext_ack *extack)
 {
+	u32 fw_max_bw_share, previous_min_rate;
 	bool min_rate_supported;
-	bool max_rate_supported;
-	u32 previous_min_rate;
-	u32 fw_max_bw_share;
 	int err;
 
+	lockdep_assert_held(&esw->state_lock);
 	fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
 	min_rate_supported = MLX5_CAP_QOS(esw->dev, esw_bw_share) &&
 				fw_max_bw_share >= MLX5_MIN_BW_SHARE;
-	max_rate_supported = MLX5_CAP_QOS(esw->dev, esw_rate_limit);
-
-	if (!esw->qos.enabled || !evport->enabled || !evport->qos.enabled)
+	if (min_rate && !min_rate_supported)
 		return -EOPNOTSUPP;
-
-	if ((min_rate && !min_rate_supported) || (max_rate && !max_rate_supported))
-		return -EOPNOTSUPP;
-
 	if (min_rate == evport->qos.min_rate)
-		goto set_max_rate;
+		return 0;
 
 	previous_min_rate = evport->qos.min_rate;
 	evport->qos.min_rate = min_rate;
-	err = normalize_vports_min_rate(esw);
-	if (err) {
+	err = esw_qos_normalize_vports_min_rate(esw, extack);
+	if (err)
 		evport->qos.min_rate = previous_min_rate;
-		return err;
-	}
 
-set_max_rate:
+	return err;
+}
+
+int mlx5_esw_qos_set_vport_max_rate(struct mlx5_eswitch *esw,
+				    struct mlx5_vport *evport,
+				    u32 max_rate,
+				    struct netlink_ext_ack *extack)
+{
+	bool max_rate_supported;
+	int err;
+
+	lockdep_assert_held(&esw->state_lock);
+	max_rate_supported = MLX5_CAP_QOS(esw->dev, esw_rate_limit);
+
+	if (max_rate && !max_rate_supported)
+		return -EOPNOTSUPP;
 	if (max_rate == evport->qos.max_rate)
 		return 0;
 
-	err = esw_qos_vport_config(esw, evport, max_rate, evport->qos.bw_share);
+	err = esw_qos_vport_config(esw, evport, max_rate, evport->qos.bw_share, extack);
 	if (!err)
 		evport->qos.max_rate = max_rate;
 
@@ -292,4 +303,86 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 						  ctx,
 						  vport->qos.esw_tsar_ix,
 						  bitmask);
+}
+
+#define MLX5_LINKSPEED_UNIT 125000 /* 1Mbps in Bps */
+
+/* Converts bytes per second value passed in a pointer into megabits per
+ * second, rewriting last. If converted rate exceed link speed or is not a
+ * fraction of Mbps - returns error.
+ */
+static int esw_qos_devlink_rate_to_mbps(struct mlx5_core_dev *mdev, const char *name,
+					u64 *rate, struct netlink_ext_ack *extack)
+{
+	u32 link_speed_max, reminder;
+	u64 value;
+	int err;
+
+	err = mlx5e_port_max_linkspeed(mdev, &link_speed_max);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to get link maximum speed");
+		return err;
+	}
+
+	value = div_u64_rem(*rate, MLX5_LINKSPEED_UNIT, &reminder);
+	if (reminder) {
+		pr_err("%s rate value %lluBps not in link speed units of 1Mbps.\n",
+		       name, *rate);
+		NL_SET_ERR_MSG_MOD(extack, "TX rate value not in link speed units of 1Mbps");
+		return -EINVAL;
+	}
+
+	if (value > link_speed_max) {
+		pr_err("%s rate value %lluMbps exceed link maximum speed %u.\n",
+		       name, value, link_speed_max);
+		NL_SET_ERR_MSG_MOD(extack, "TX rate value exceed link maximum speed");
+		return -EINVAL;
+	}
+
+	*rate = value;
+	return 0;
+}
+
+/* Eswitch devlink rate API */
+
+int mlx5_esw_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void *priv,
+					    u64 tx_share, struct netlink_ext_ack *extack)
+{
+	struct mlx5_vport *vport = priv;
+	struct mlx5_eswitch *esw;
+	int err;
+
+	esw = vport->dev->priv.eswitch;
+	if (!mlx5_esw_allowed(esw))
+		return -EPERM;
+
+	err = esw_qos_devlink_rate_to_mbps(vport->dev, "tx_share", &tx_share, extack);
+	if (err)
+		return err;
+
+	mutex_lock(&esw->state_lock);
+	err = mlx5_esw_qos_set_vport_min_rate(esw, vport, tx_share, extack);
+	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_esw_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *priv,
+					  u64 tx_max, struct netlink_ext_ack *extack)
+{
+	struct mlx5_vport *vport = priv;
+	struct mlx5_eswitch *esw;
+	int err;
+
+	esw = vport->dev->priv.eswitch;
+	if (!mlx5_esw_allowed(esw))
+		return -EPERM;
+
+	err = esw_qos_devlink_rate_to_mbps(vport->dev, "tx_max", &tx_max, extack);
+	if (err)
+		return err;
+
+	mutex_lock(&esw->state_lock);
+	err = mlx5_esw_qos_set_vport_max_rate(esw, vport, tx_max, extack);
+	mutex_unlock(&esw->state_lock);
+	return err;
 }
