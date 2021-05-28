@@ -94,15 +94,6 @@ config LEDS_ARIEL
 
 	  Say Y to if your machine is a Dell Wyse 3020 thin client.
 
-config LEDS_AS3645A
-	tristate "AS3645A and LM3555 LED flash controllers support"
-	depends on I2C && LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	help
-	  Enable LED flash class support for AS3645A LED flash
-	  controller. V4L2 flash API is provided as well if
-	  CONFIG_V4L2_FLASH_API is enabled.
-
 config LEDS_AW2013
 	tristate "LED support for Awinic AW2013"
 	depends on LEDS_CLASS && I2C && OF
