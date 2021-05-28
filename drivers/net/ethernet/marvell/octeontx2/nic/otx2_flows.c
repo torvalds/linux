@@ -551,6 +551,7 @@ static int otx2_prepare_ipv6_flow(struct ethtool_rx_flow_spec *fsp,
 			req->features |= BIT_ULL(NPC_IPPROTO_AH);
 		else
 			req->features |= BIT_ULL(NPC_IPPROTO_ESP);
+		break;
 	default:
 		break;
 	}
