@@ -18,7 +18,6 @@
 
 MODULE_DESCRIPTION("Driver for Xillybus class");
 MODULE_AUTHOR("Eli Billauer, Xillybus Ltd.");
-MODULE_VERSION("1.0");
 MODULE_ALIAS("xillybus_class");
 MODULE_LICENSE("GPL v2");
 

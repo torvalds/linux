@@ -33,7 +33,6 @@
 
 MODULE_DESCRIPTION("Driver for XillyUSB FPGA IP Core");
 MODULE_AUTHOR("Eli Billauer, Xillybus Ltd.");
-MODULE_VERSION("1.1");
 MODULE_ALIAS("xillyusb");
 MODULE_LICENSE("GPL v2");
 

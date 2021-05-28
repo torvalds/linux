@@ -33,7 +33,6 @@
 
 MODULE_DESCRIPTION("Xillybus core functions");
 MODULE_AUTHOR("Eli Billauer, Xillybus Ltd.");
-MODULE_VERSION("1.10");
 MODULE_ALIAS("xillybus_core");
 MODULE_LICENSE("GPL v2");
 
