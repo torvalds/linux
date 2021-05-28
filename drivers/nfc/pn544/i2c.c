@@ -50,7 +50,7 @@ static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
 
 MODULE_DEVICE_TABLE(i2c, pn544_hci_i2c_id_table);
 
-static const struct acpi_device_id pn544_hci_i2c_acpi_match[] = {
+static const struct acpi_device_id pn544_hci_i2c_acpi_match[] __maybe_unused = {
 	{"NXP5440", 0},
 	{}
 };
@@ -951,7 +951,7 @@ static int pn544_hci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct of_device_id of_pn544_i2c_match[] = {
+static const struct of_device_id of_pn544_i2c_match[] __maybe_unused = {
 	{ .compatible = "nxp,pn544-i2c", },
 	{},
 };
