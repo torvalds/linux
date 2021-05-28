@@ -12,8 +12,8 @@ static inline void nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt)
 	ip = ip_hdr(pkt->skb);
 	pkt->tprot_set = true;
 	pkt->tprot = ip->protocol;
-	pkt->xt.thoff = ip_hdrlen(pkt->skb);
-	pkt->xt.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
+	pkt->thoff = ip_hdrlen(pkt->skb);
+	pkt->fragoff = ntohs(ip->frag_off) & IP_OFFSET;
 }
 
 static inline int __nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt)
@@ -38,8 +38,8 @@ static inline int __nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt)
 
 	pkt->tprot_set = true;
 	pkt->tprot = iph->protocol;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = ntohs(iph->frag_off) & IP_OFFSET;
+	pkt->thoff = thoff;
+	pkt->fragoff = ntohs(iph->frag_off) & IP_OFFSET;
 
 	return 0;
 }
@@ -73,8 +73,8 @@ static inline int nft_set_pktinfo_ipv4_ingress(struct nft_pktinfo *pkt)
 
 	pkt->tprot_set = true;
 	pkt->tprot = iph->protocol;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = ntohs(iph->frag_off) & IP_OFFSET;
+	pkt->thoff = thoff;
+	pkt->fragoff = ntohs(iph->frag_off) & IP_OFFSET;
 
 	return 0;
 

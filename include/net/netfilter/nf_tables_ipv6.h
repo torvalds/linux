@@ -20,8 +20,8 @@ static inline void nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt)
 
 	pkt->tprot_set = true;
 	pkt->tprot = protohdr;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = frag_off;
+	pkt->thoff = thoff;
+	pkt->fragoff = frag_off;
 }
 
 static inline int __nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt)
@@ -52,8 +52,8 @@ static inline int __nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt)
 
 	pkt->tprot_set = true;
 	pkt->tprot = protohdr;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = frag_off;
+	pkt->thoff = thoff;
+	pkt->fragoff = frag_off;
 
 	return 0;
 #else
@@ -98,8 +98,8 @@ static inline int nft_set_pktinfo_ipv6_ingress(struct nft_pktinfo *pkt)
 
 	pkt->tprot_set = true;
 	pkt->tprot = protohdr;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = frag_off;
+	pkt->thoff = thoff;
+	pkt->fragoff = frag_off;
 
 	return 0;
 
