@@ -1294,6 +1294,7 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
 
+	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
@@ -1309,18 +1310,12 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 	mt7921_tx_token_put(dev);
 	idr_init(&dev->mt76.token);
 
-	err = mt7921_wpdma_reset(dev, true);
-	if (err)
-		return err;
+	mt7921_wpdma_reset(dev, true);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}
-
-	napi_enable(&dev->mt76.tx_napi);
-	napi_schedule(&dev->mt76.tx_napi);
-	mt76_worker_enable(&dev->mt76.tx_worker);
 
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 
@@ -1331,17 +1326,25 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 
 	err = mt7921_run_firmware(dev);
 	if (err)
-		return err;
+		goto out;
 
 	err = mt7921_mcu_set_eeprom(dev);
 	if (err)
-		return err;
+		goto out;
 
 	err = mt7921_mac_init(dev);
 	if (err)
-		return err;
+		goto out;
 
-	return __mt7921_start(&dev->phy);
+	err = __mt7921_start(&dev->phy);
+out:
+	clear_bit(MT76_RESET, &dev->mphy.state);
+
+	napi_enable(&dev->mt76.tx_napi);
+	napi_schedule(&dev->mt76.tx_napi);
+	mt76_worker_enable(&dev->mt76.tx_worker);
+
+	return err;
 }
 
 /* system error recovery */
