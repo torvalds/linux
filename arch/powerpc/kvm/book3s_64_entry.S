@@ -184,8 +184,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
  * void kvmppc_p9_enter_guest(struct vcpu *vcpu);
  *
  * Enter the guest on a ISAv3.0 or later system where we have exactly
- * one vcpu per vcore, and both the host and guest are radix, and threads
- * are set to "indepdent mode".
+ * one vcpu per vcore, and both the host and guest are radix.
  */
 .balign	IFETCH_ALIGN_BYTES
 _GLOBAL(kvmppc_p9_enter_guest)
