@@ -780,7 +780,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	rwr = kcalloc(sess->mrs_num, sizeof(*rwr), GFP_KERNEL);
 	if (unlikely(!rwr))
 		return -ENOMEM;
-	strlcpy(sess->s.sessname, msg->sessname, sizeof(sess->s.sessname));
+	strscpy(sess->s.sessname, msg->sessname, sizeof(sess->s.sessname));
 
 	tx_sz  = sizeof(*rsp);
 	tx_sz += sizeof(rsp->desc[0]) * sess->mrs_num;
@@ -1261,7 +1261,7 @@ int rtrs_srv_get_sess_name(struct rtrs_srv *srv, char *sessname, size_t len)
 	list_for_each_entry(sess, &srv->paths_list, s.entry) {
 		if (sess->state != RTRS_SRV_CONNECTED)
 			continue;
-		strlcpy(sessname, sess->s.sessname,
+		strscpy(sessname, sess->s.sessname,
 		       min_t(size_t, sizeof(sess->s.sessname), len));
 		err = 0;
 		break;
@@ -1715,7 +1715,7 @@ static struct rtrs_srv_sess *__alloc_sess(struct rtrs_srv *srv,
 	path.src = &sess->s.src_addr;
 	path.dst = &sess->s.dst_addr;
 	rtrs_addr_to_str(&path, str, sizeof(str));
-	strlcpy(sess->s.sessname, str, sizeof(sess->s.sessname));
+	strscpy(sess->s.sessname, str, sizeof(sess->s.sessname));
 
 	sess->s.con_num = con_num;
 	sess->s.recon_cnt = recon_cnt;
