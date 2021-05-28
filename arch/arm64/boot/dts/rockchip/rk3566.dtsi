@@ -34,6 +34,8 @@
 	opp-1056000000 {
 		opp-hz = /bits/ 64 <1056000000>;
 		opp-microvolt = <900000>;
+		opp-microvolt-L0 = <900000>;
+		opp-microvolt-L1 = <850000>;
 	};
 	/delete-node/ opp-1560000000;
 };
