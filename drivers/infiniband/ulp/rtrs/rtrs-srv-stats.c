@@ -28,7 +28,7 @@ ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats,
 {
 	struct rtrs_srv_stats_rdma_stats *r = &stats->rdma_stats;
 
-	return scnprintf(page, len, "%lld %lld %lld %lldn %u\n",
+	return sysfs_emit(page, "%lld %lld %lld %lldn %u\n",
 			  (s64)atomic64_read(&r->dir[READ].cnt),
 			  (s64)atomic64_read(&r->dir[READ].size_total),
 			  (s64)atomic64_read(&r->dir[WRITE].cnt),
