@@ -883,14 +883,6 @@ config LEDS_IP30
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-ip30.
 
-config LEDS_SGM3140
-	tristate "LED support for the SGM3140"
-	depends on LEDS_CLASS_FLASH
-	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
-	help
-	  This option enables support for the SGM3140 500mA Buck/Boost Charge
-	  Pump LED Driver.
-
 config LEDS_ACER_A500
 	tristate "Power button LED support for Acer Iconia Tab A500"
 	depends on LEDS_CLASS && MFD_ACER_A500_EC
