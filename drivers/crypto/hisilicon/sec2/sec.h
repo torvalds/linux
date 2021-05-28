@@ -38,7 +38,10 @@ struct sec_aead_req {
 
 /* SEC request of Crypto */
 struct sec_req {
-	struct sec_sqe sec_sqe;
+	union {
+		struct sec_sqe sec_sqe;
+		struct sec_sqe3 sec_sqe3;
+	};
 	struct sec_ctx *ctx;
 	struct sec_qp_ctx *qp_ctx;
 
