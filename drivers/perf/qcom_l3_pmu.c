@@ -670,15 +670,15 @@ static const struct attribute_group qcom_l3_cache_pmu_events_group = {
 
 /* cpumask */
 
-static ssize_t qcom_l3_cache_pmu_cpumask_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
+static ssize_t cpumask_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct l3cache_pmu *l3pmu = to_l3cache_pmu(dev_get_drvdata(dev));
 
 	return cpumap_print_to_pagebuf(true, buf, &l3pmu->cpumask);
 }
 
-static DEVICE_ATTR(cpumask, 0444, qcom_l3_cache_pmu_cpumask_show, NULL);
+static DEVICE_ATTR_RO(cpumask);
 
 static struct attribute *qcom_l3_cache_pmu_cpumask_attrs[] = {
 	&dev_attr_cpumask.attr,
