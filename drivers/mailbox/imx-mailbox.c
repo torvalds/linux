@@ -76,8 +76,8 @@ struct imx_mu_dcfg {
 	int (*tx)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp, void *data);
 	int (*rx)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp);
 	void (*init)(struct imx_mu_priv *priv);
-	u32	xTR[4];		/* Transmit Registers */
-	u32	xRR[4];		/* Receive Registers */
+	u32	xTR;		/* Transmit Register0 */
+	u32	xRR;		/* Receive Register0 */
 	u32	xSR;		/* Status Register */
 	u32	xCR;		/* Control Register */
 };
@@ -120,7 +120,7 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
-		imx_mu_write(priv, *arg, priv->dcfg->xTR[cp->idx]);
+		imx_mu_write(priv, *arg, priv->dcfg->xTR + cp->idx * 4);
 		imx_mu_xcr_rmw(priv, IMX_MU_xCR_TIEn(cp->idx), 0);
 		break;
 	case IMX_MU_TYPE_TXDB:
@@ -140,7 +140,7 @@ static int imx_mu_generic_rx(struct imx_mu_priv *priv,
 {
 	u32 dat;
 
-	dat = imx_mu_read(priv, priv->dcfg->xRR[cp->idx]);
+	dat = imx_mu_read(priv, priv->dcfg->xRR + (cp->idx) * 4);
 	mbox_chan_received_data(cp->chan, (void *)&dat);
 
 	return 0;
@@ -172,7 +172,7 @@ static int imx_mu_scu_tx(struct imx_mu_priv *priv,
 		}
 
 		for (i = 0; i < 4 && i < msg->hdr.size; i++)
-			imx_mu_write(priv, *arg++, priv->dcfg->xTR[i % 4]);
+			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % 4) * 4);
 		for (; i < msg->hdr.size; i++) {
 			ret = readl_poll_timeout(priv->base + priv->dcfg->xSR,
 						 xsr,
@@ -182,7 +182,7 @@ static int imx_mu_scu_tx(struct imx_mu_priv *priv,
 				dev_err(priv->dev, "Send data index: %d timeout\n", i);
 				return ret;
 			}
-			imx_mu_write(priv, *arg++, priv->dcfg->xTR[i % 4]);
+			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % 4) * 4);
 		}
 
 		imx_mu_xcr_rmw(priv, IMX_MU_xCR_TIEn(cp->idx), 0);
@@ -204,7 +204,7 @@ static int imx_mu_scu_rx(struct imx_mu_priv *priv,
 	u32 xsr;
 
 	imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_RIEn(0));
-	*data++ = imx_mu_read(priv, priv->dcfg->xRR[0]);
+	*data++ = imx_mu_read(priv, priv->dcfg->xRR);
 
 	if (msg.hdr.size > sizeof(msg) / 4) {
 		dev_err(priv->dev, "Maximal message size (%zu bytes) exceeded on RX; got: %i bytes\n", sizeof(msg), msg.hdr.size << 2);
@@ -218,7 +218,7 @@ static int imx_mu_scu_rx(struct imx_mu_priv *priv,
 			dev_err(priv->dev, "timeout read idx %d\n", i);
 			return ret;
 		}
-		*data++ = imx_mu_read(priv, priv->dcfg->xRR[i % 4]);
+		*data++ = imx_mu_read(priv, priv->dcfg->xRR + (i % 4) * 4);
 	}
 
 	imx_mu_xcr_rmw(priv, IMX_MU_xCR_RIEn(0), 0);
@@ -564,8 +564,8 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx6sx = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
 	.init	= imx_mu_init_generic,
-	.xTR	= {0x0, 0x4, 0x8, 0xc},
-	.xRR	= {0x10, 0x14, 0x18, 0x1c},
+	.xTR	= 0x0,
+	.xRR	= 0x10,
 	.xSR	= 0x20,
 	.xCR	= 0x24,
 };
@@ -574,8 +574,8 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx7ulp = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
 	.init	= imx_mu_init_generic,
-	.xTR	= {0x20, 0x24, 0x28, 0x2c},
-	.xRR	= {0x40, 0x44, 0x48, 0x4c},
+	.xTR	= 0x20,
+	.xRR	= 0x40,
 	.xSR	= 0x60,
 	.xCR	= 0x64,
 };
@@ -584,8 +584,8 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8_scu = {
 	.tx	= imx_mu_scu_tx,
 	.rx	= imx_mu_scu_rx,
 	.init	= imx_mu_init_scu,
-	.xTR	= {0x0, 0x4, 0x8, 0xc},
-	.xRR	= {0x10, 0x14, 0x18, 0x1c},
+	.xTR	= 0x0
+	.xRR	= 0x10
 	.xSR	= 0x20,
 	.xCR	= 0x24,
 };
