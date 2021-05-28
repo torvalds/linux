@@ -1735,6 +1735,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct bkey_i *n;
 	__le64 *refcount;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	int frags_referenced;
 	s64 ret;
 
 	ret = trans_get_key(trans, BTREE_ID_reflink,
@@ -1742,17 +1743,19 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	if (ret < 0)
 		return ret;
 
-	if (reflink_p_frag_references(p, 0, front_frag, k) &&
-	    reflink_p_frag_references(p, back_frag, p.k->size, k)) {
+	sectors = min_t(u64, sectors, k.k->p.offset - idx);
+
+	frags_referenced =
+		reflink_p_frag_references(p, 0, front_frag, k) +
+		reflink_p_frag_references(p, back_frag, p.k->size, k);
+
+	if (frags_referenced == 2) {
 		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE_SPLIT));
 		add = -add;
-	} else if (reflink_p_frag_references(p, 0, front_frag, k) ||
-		   reflink_p_frag_references(p, back_frag, p.k->size, k)) {
+	} else if (frags_referenced == 1) {
 		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE));
 		goto out;
 	}
-
-	sectors = min_t(u64, sectors, k.k->p.offset - idx);
 
 	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 	ret = PTR_ERR_OR_ZERO(n);
@@ -1808,14 +1811,13 @@ static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		ret = __bch2_trans_mark_reflink_p(trans, p, idx, sectors,
 					front_frag, back_frag, flags);
 		if (ret < 0)
-			break;
+			return ret;
 
-		idx += ret;
-		sectors = max_t(s64, 0LL, sectors - ret);
-		ret = 0;
+		idx	+= ret;
+		sectors	-= ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int bch2_trans_mark_key(struct btree_trans *trans,
