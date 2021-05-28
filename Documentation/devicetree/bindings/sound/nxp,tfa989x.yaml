@@ -27,6 +27,9 @@ properties:
       Used as prefix for sink/source names of the component. Must be a
       unique string among multiple instances of the same component.
 
+  vddd-supply:
+    description: regulator phandle for the VDDD power supply.
+
 required:
   - compatible
   - reg
