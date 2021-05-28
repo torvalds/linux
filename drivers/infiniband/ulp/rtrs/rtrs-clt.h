@@ -202,7 +202,7 @@ static inline struct rtrs_permit *get_permit(struct rtrs_clt *clt, int idx)
 }
 
 int rtrs_clt_reconnect_from_sysfs(struct rtrs_clt_sess *sess);
-int rtrs_clt_disconnect_from_sysfs(struct rtrs_clt_sess *sess);
+void rtrs_clt_close_conns(struct rtrs_clt_sess *sess, bool wait);
 int rtrs_clt_create_path_from_sysfs(struct rtrs_clt *clt,
 				     struct rtrs_addr *addr);
 int rtrs_clt_remove_path_from_sysfs(struct rtrs_clt_sess *sess,

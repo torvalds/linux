@@ -1859,7 +1859,7 @@ static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 	return -ECONNRESET;
 }
 
-static void rtrs_clt_close_conns(struct rtrs_clt_sess *sess, bool wait)
+void rtrs_clt_close_conns(struct rtrs_clt_sess *sess, bool wait)
 {
 	if (rtrs_clt_change_state_get_old(sess, RTRS_CLT_CLOSING, NULL))
 		queue_work(rtrs_wq, &sess->close_work);
@@ -2829,13 +2829,6 @@ int rtrs_clt_reconnect_from_sysfs(struct rtrs_clt_sess *sess)
 	}
 
 	return err;
-}
-
-int rtrs_clt_disconnect_from_sysfs(struct rtrs_clt_sess *sess)
-{
-	rtrs_clt_close_conns(sess, true);
-
-	return 0;
 }
 
 int rtrs_clt_remove_path_from_sysfs(struct rtrs_clt_sess *sess,
