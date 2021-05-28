@@ -709,8 +709,8 @@ isci_task_request_complete(struct isci_host *ihost,
 		tmf->status = completion_status;
 
 		if (tmf->proto == SAS_PROTOCOL_SSP) {
-			memcpy(&tmf->resp.resp_iu,
-			       &ireq->ssp.rsp,
+			memcpy(tmf->resp.rsp_buf,
+			       ireq->ssp.rsp_buf,
 			       SSP_RESP_IU_MAX_SIZE);
 		} else if (tmf->proto == SAS_PROTOCOL_SATA) {
 			memcpy(&tmf->resp.d2h_fis,
