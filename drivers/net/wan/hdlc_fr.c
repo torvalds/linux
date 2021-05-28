@@ -159,7 +159,7 @@ static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 	hdr[1] = ((dlci << 4) & 0xF0) | 0x01;
 }
 
-static inline struct frad_state* state(hdlc_device *hdlc)
+static inline struct frad_state *state(hdlc_device *hdlc)
 {
 	return(struct frad_state *)(hdlc->state);
 }
@@ -1090,7 +1090,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		eth_hw_addr_random(dev);
 	} else {
-		*(__be16*)dev->dev_addr = htons(dlci);
+		*(__be16 *)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
 	dev->netdev_ops = &pvc_ops;
