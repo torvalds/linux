@@ -198,6 +198,7 @@ static int mfd_add_device(struct device *parent, int id,
 			if (of_device_is_compatible(np, cell->of_compatible)) {
 				/* Ignore 'disabled' devices error free */
 				if (!of_device_is_available(np)) {
+					of_node_put(np);
 					ret = 0;
 					goto fail_alias;
 				}
@@ -205,6 +206,7 @@ static int mfd_add_device(struct device *parent, int id,
 				ret = mfd_match_of_node_to_dev(pdev, np, cell);
 				if (ret == -EAGAIN)
 					continue;
+				of_node_put(np);
 				if (ret)
 					goto fail_alias;
 
