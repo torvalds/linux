@@ -604,15 +604,15 @@ static const struct attribute_group mc_pmu_v3_events_attr_group = {
 /*
  * sysfs cpumask attributes
  */
-static ssize_t xgene_pmu_cpumask_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t cpumask_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct xgene_pmu_dev *pmu_dev = to_pmu_dev(dev_get_drvdata(dev));
 
 	return cpumap_print_to_pagebuf(true, buf, &pmu_dev->parent->cpu);
 }
 
-static DEVICE_ATTR(cpumask, S_IRUGO, xgene_pmu_cpumask_show, NULL);
+static DEVICE_ATTR_RO(cpumask);
 
 static struct attribute *xgene_pmu_cpumask_attrs[] = {
 	&dev_attr_cpumask.attr,
