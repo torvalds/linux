@@ -34,24 +34,44 @@ static const char * const integrity_status_msg[] = {
 int evm_hmac_attrs;
 
 static struct xattr_list evm_config_default_xattrnames[] = {
+	{.name = XATTR_NAME_SELINUX,
 #ifdef CONFIG_SECURITY_SELINUX
-	{.name = XATTR_NAME_SELINUX},
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_SMACK,
 #ifdef CONFIG_SECURITY_SMACK
-	{.name = XATTR_NAME_SMACK},
+	 .enabled = true
+#endif
+	},
+	{.name = XATTR_NAME_SMACKEXEC,
 #ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	{.name = XATTR_NAME_SMACKEXEC},
-	{.name = XATTR_NAME_SMACKTRANSMUTE},
-	{.name = XATTR_NAME_SMACKMMAP},
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_SMACKTRANSMUTE,
+#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_SMACKMMAP,
+#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
+	 .enabled = true
+#endif
+	},
+	{.name = XATTR_NAME_APPARMOR,
 #ifdef CONFIG_SECURITY_APPARMOR
-	{.name = XATTR_NAME_APPARMOR},
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_IMA,
 #ifdef CONFIG_IMA_APPRAISE
-	{.name = XATTR_NAME_IMA},
+	 .enabled = true
 #endif
-	{.name = XATTR_NAME_CAPS},
+	},
+	{.name = XATTR_NAME_CAPS,
+	 .enabled = true
+	},
 };
 
 LIST_HEAD(evm_config_xattrnames);
@@ -76,7 +96,9 @@ static void __init evm_init_config(void)
 
 	pr_info("Initialising EVM extended attributes:\n");
 	for (i = 0; i < xattrs; i++) {
-		pr_info("%s\n", evm_config_default_xattrnames[i].name);
+		pr_info("%s%s\n", evm_config_default_xattrnames[i].name,
+			!evm_config_default_xattrnames[i].enabled ?
+			" (disabled)" : "");
 		list_add_tail(&evm_config_default_xattrnames[i].list,
 			      &evm_config_xattrnames);
 	}
@@ -257,7 +279,8 @@ out:
 	return evm_status;
 }
 
-static int evm_protected_xattr(const char *req_xattr_name)
+static int evm_protected_xattr_common(const char *req_xattr_name,
+				      bool all_xattrs)
 {
 	int namelen;
 	int found = 0;
@@ -265,6 +288,9 @@ static int evm_protected_xattr(const char *req_xattr_name)
 
 	namelen = strlen(req_xattr_name);
 	list_for_each_entry_lockless(xattr, &evm_config_xattrnames, list) {
+		if (!all_xattrs && !xattr->enabled)
+			continue;
+
 		if ((strlen(xattr->name) == namelen)
 		    && (strncmp(req_xattr_name, xattr->name, namelen) == 0)) {
 			found = 1;
@@ -279,6 +305,16 @@ static int evm_protected_xattr(const char *req_xattr_name)
 	}
 
 	return found;
+}
+
+static int evm_protected_xattr(const char *req_xattr_name)
+{
+	return evm_protected_xattr_common(req_xattr_name, false);
+}
+
+int evm_protected_xattr_if_enabled(const char *req_xattr_name)
+{
+	return evm_protected_xattr_common(req_xattr_name, true);
 }
 
 /**
