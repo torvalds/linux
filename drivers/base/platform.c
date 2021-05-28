@@ -1335,7 +1335,7 @@ static umode_t platform_dev_attrs_visible(struct kobject *kobj, struct attribute
 	return a->mode;
 }
 
-static struct attribute_group platform_dev_group = {
+static const struct attribute_group platform_dev_group = {
 	.attrs = platform_dev_attrs,
 	.is_visible = platform_dev_attrs_visible,
 };
