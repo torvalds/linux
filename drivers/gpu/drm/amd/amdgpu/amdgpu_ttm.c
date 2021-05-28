@@ -1012,6 +1012,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 			return r;
 		}
 
+		amdgpu_gart_invalidate_tlb(adev);
 		ttm_resource_free(bo, &bo->mem);
 		bo->mem = tmp;
 	}

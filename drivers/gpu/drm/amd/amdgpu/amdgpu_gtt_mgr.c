@@ -206,10 +206,12 @@ uint64_t amdgpu_gtt_mgr_usage(struct ttm_resource_manager *man)
 int amdgpu_gtt_mgr_recover(struct ttm_resource_manager *man)
 {
 	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
+	struct amdgpu_device *adev;
 	struct amdgpu_gtt_node *node;
 	struct drm_mm_node *mm_node;
 	int r = 0;
 
+	adev = container_of(mgr, typeof(*adev), mman.gtt_mgr);
 	spin_lock(&mgr->lock);
 	drm_mm_for_each_node(mm_node, &mgr->mm) {
 		node = container_of(mm_node, struct amdgpu_gtt_node, node);
@@ -218,6 +220,8 @@ int amdgpu_gtt_mgr_recover(struct ttm_resource_manager *man)
 			break;
 	}
 	spin_unlock(&mgr->lock);
+
+	amdgpu_gart_invalidate_tlb(adev);
 
 	return r;
 }
