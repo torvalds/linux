@@ -12082,6 +12082,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				ioc->multipath_on_hba = 1;
 			else
 				ioc->multipath_on_hba = 0;
+			break;
 		default:
 			break;
 		}
