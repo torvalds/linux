@@ -4511,7 +4511,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 
 	do {
-		if (radix_enabled())
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
 			r = kvmhv_run_single_vcpu(vcpu, ~(u64)0,
 						  vcpu->arch.vcore->lpcr);
 		else
@@ -5598,6 +5598,8 @@ static int kvmhv_enable_nested(struct kvm *kvm)
 	if (!nested)
 		return -EPERM;
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -ENODEV;
+	if (!radix_enabled())
 		return -ENODEV;
 
 	/* kvm == NULL means the caller is testing if the capability exists */

@@ -36,7 +36,7 @@
 kvmppc_hcall:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	lbz	r10,HSTATE_IN_GUEST(r13)
-	cmpwi	r10,KVM_GUEST_MODE_HV_FAST
+	cmpwi	r10,KVM_GUEST_MODE_HV_P9
 	beq	kvmppc_p9_exit_hcall
 #endif
 	ld	r10,PACA_EXGEN+EX_R13(r13)
@@ -68,7 +68,7 @@ kvmppc_interrupt:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	std	r10,HSTATE_SCRATCH0(r13)
 	lbz	r10,HSTATE_IN_GUEST(r13)
-	cmpwi	r10,KVM_GUEST_MODE_HV_FAST
+	cmpwi	r10,KVM_GUEST_MODE_HV_P9
 	beq	kvmppc_p9_exit_interrupt
 	ld	r10,HSTATE_SCRATCH0(r13)
 #endif
@@ -183,8 +183,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 /*
  * void kvmppc_p9_enter_guest(struct vcpu *vcpu);
  *
- * Enter the guest on a ISAv3.0 or later system where we have exactly
- * one vcpu per vcore, and the host is radix.
+ * Enter the guest on a ISAv3.0 or later system.
  */
 .balign	IFETCH_ALIGN_BYTES
 _GLOBAL(kvmppc_p9_enter_guest)
@@ -284,7 +283,7 @@ kvmppc_p9_exit_hcall:
 .balign	IFETCH_ALIGN_BYTES
 kvmppc_p9_exit_interrupt:
 	/*
-	 * If set to KVM_GUEST_MODE_HV_FAST but we're still in the
+	 * If set to KVM_GUEST_MODE_HV_P9 but we're still in the
 	 * hypervisor, that means we can't return from the entry stack.
 	 */
 	rldicl. r10,r12,64-MSR_HV_LG,63
@@ -358,6 +357,12 @@ kvmppc_p9_exit_interrupt:
  * effort for a small bit of code. Lots of other things to do first.
  */
 kvmppc_p9_bad_interrupt:
+BEGIN_MMU_FTR_SECTION
+	/*
+	 * Hash host doesn't try to recover MMU (requires host SLB reload)
+	 */
+	b	.
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	/*
 	 * Clean up guest registers to give host a chance to run.
 	 */
