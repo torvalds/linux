@@ -53,11 +53,13 @@ mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
 # Core extra
 #
 mlx5_core-$(CONFIG_MLX5_ESWITCH)   += eswitch.o eswitch_offloads.o eswitch_offloads_termtbl.o \
-				      ecpf.o rdma.o esw/legacy.o
+				      ecpf.o rdma.o esw/legacy.o \
+				      esw/devlink_port.o esw/vporttbl.o esw/qos.o
+
 mlx5_core-$(CONFIG_MLX5_ESWITCH)   += esw/acl/helper.o \
 				      esw/acl/egress_lgcy.o esw/acl/egress_ofld.o \
-				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o \
-				      esw/devlink_port.o esw/vporttbl.o
+				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o
+
 mlx5_core-$(CONFIG_MLX5_BRIDGE)    += esw/bridge.o en/rep/bridge.o
 
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o
