@@ -56,6 +56,7 @@ enum {
 	 * somewhere between 1 and 65536 and it depends on the system.
 	 */
 	MAX_SESS_QUEUE_DEPTH = 65536,
+	MIN_CHUNK_SIZE = 8192,
 
 	RTRS_HB_INTERVAL_MS = 5000,
 	RTRS_HB_MISSED_MAX = 5,
