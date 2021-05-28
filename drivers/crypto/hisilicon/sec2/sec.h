@@ -140,6 +140,7 @@ struct sec_ctx {
 	bool pbuf_supported;
 	struct sec_cipher_ctx c_ctx;
 	struct sec_auth_ctx a_ctx;
+	u8 type_supported;
 	struct device *dev;
 };
 

@@ -64,6 +64,13 @@ enum sec_addr_type {
 	SEC_PRP  = 0x2,
 };
 
+struct bd_status {
+	u64 tag;
+	u8 done;
+	u8 err_type;
+	u16 flag;
+};
+
 enum {
 	AUTHPAD_PAD,
 	AUTHPAD_NOPAD,
