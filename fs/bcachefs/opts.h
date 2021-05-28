@@ -165,8 +165,13 @@ enum opt_type {
 	x(inodes_32bit,			u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
 	  OPT_BOOL(),							\
-	  BCH_SB_INODE_32BIT,		false,				\
+	  BCH_SB_INODE_32BIT,		true,				\
 	  NULL,		"Constrain inode numbers to 32 bits")		\
+	x(shard_inode_numbers,		u8,				\
+	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_BOOL(),							\
+	  BCH_SB_SHARD_INUMS,		false,				\
+	  NULL,		"Shard new inode numbers by CPU id")		\
 	x(gc_reserve_percent,		u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
 	  OPT_UINT(5, 21),						\
