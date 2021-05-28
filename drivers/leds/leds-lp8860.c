@@ -85,14 +85,14 @@
 #define LP8860_NAME			"lp8860"
 
 /**
- * struct lp8860_led -
- * @lock - Lock for reading/writing the device
- * @client - Pointer to the I2C client
- * @led_dev - led class device pointer
- * @regmap - Devices register map
- * @eeprom_regmap - EEPROM register map
- * @enable_gpio - VDDIO/EN gpio to enable communication interface
- * @regulator - LED supply regulator pointer
+ * struct lp8860_led
+ * @lock: Lock for reading/writing the device
+ * @client: Pointer to the I2C client
+ * @led_dev: led class device pointer
+ * @regmap: Devices register map
+ * @eeprom_regmap: EEPROM register map
+ * @enable_gpio: VDDIO/EN gpio to enable communication interface
+ * @regulator: LED supply regulator pointer
  */
 struct lp8860_led {
 	struct mutex lock;
