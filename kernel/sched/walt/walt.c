@@ -299,7 +299,8 @@ fixup_cumulative_runnable_avg(struct rq *rq,
 	lockdep_assert_held(&rq->lock);
 
 	if (task_rq(p) != rq) {
-		printk_deferred("WALT-BUG task not on rq\n");
+		printk_deferred("WALT-BUG task not on rq: task_cpu=%d new_cpu=%d\n",
+				task_cpu(p), cpu_of(rq));
 		walt_task_dump(p);
 		SCHED_BUG_ON(1);
 	}
@@ -3799,7 +3800,8 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 
 	/* catch double enqueue */
 	if (wts->prev_on_rq == 1) {
-		printk_deferred("WALT-BUG double enqueue detected\n");
+		printk_deferred("WALT-BUG double enqueue detected: task_cpu=%d new_cpu=%d\n",
+				task_cpu(p), cpu_of(rq));
 		walt_task_dump(p);
 		SCHED_BUG_ON(1);
 	}
@@ -3828,7 +3830,8 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 
 	/* catch double deq */
 	if (wts->prev_on_rq == 2) {
-		printk_deferred("WALT-BUG double dequeue detected\n");
+		printk_deferred("WALT-BUG double dequeue detected: task_cpu=%d new_cpu=%d\n",
+				task_cpu(p), cpu_of(rq));
 		walt_task_dump(p);
 		SCHED_BUG_ON(1);
 	}
