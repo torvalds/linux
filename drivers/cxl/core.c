@@ -151,15 +151,14 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 }
 EXPORT_SYMBOL_GPL(cxl_probe_device_regs);
 
-static void __iomem *devm_cxl_iomap_block(struct pci_dev *pdev,
+static void __iomem *devm_cxl_iomap_block(struct device *dev,
 					  resource_size_t addr,
 					  resource_size_t length)
 {
-	struct device *dev = &pdev->dev;
 	void __iomem *ret_val;
 	struct resource *res;
 
-	res = devm_request_mem_region(dev, addr, length, pci_name(pdev));
+	res = devm_request_mem_region(dev, addr, length, dev_name(dev));
 	if (!res) {
 		resource_size_t end = addr + length - 1;
 
@@ -178,6 +177,7 @@ int cxl_map_component_regs(struct pci_dev *pdev,
 			   struct cxl_component_regs *regs,
 			   struct cxl_register_map *map)
 {
+	struct device *dev = &pdev->dev;
 	resource_size_t phys_addr;
 	resource_size_t length;
 
@@ -186,7 +186,7 @@ int cxl_map_component_regs(struct pci_dev *pdev,
 
 	phys_addr += map->component_map.hdm_decoder.offset;
 	length = map->component_map.hdm_decoder.size;
-	regs->hdm_decoder = devm_cxl_iomap_block(pdev, phys_addr, length);
+	regs->hdm_decoder = devm_cxl_iomap_block(dev, phys_addr, length);
 	if (!regs->hdm_decoder)
 		return -ENOMEM;
 
@@ -198,6 +198,7 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 			struct cxl_device_regs *regs,
 			struct cxl_register_map *map)
 {
+	struct device *dev = &pdev->dev;
 	resource_size_t phys_addr;
 
 	phys_addr = pci_resource_start(pdev, map->barno);
@@ -209,7 +210,7 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 
 		addr = phys_addr + map->device_map.status.offset;
 		length = map->device_map.status.size;
-		regs->status = devm_cxl_iomap_block(pdev, addr, length);
+		regs->status = devm_cxl_iomap_block(dev, addr, length);
 		if (!regs->status)
 			return -ENOMEM;
 	}
@@ -220,7 +221,7 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 
 		addr = phys_addr + map->device_map.mbox.offset;
 		length = map->device_map.mbox.size;
-		regs->mbox = devm_cxl_iomap_block(pdev, addr, length);
+		regs->mbox = devm_cxl_iomap_block(dev, addr, length);
 		if (!regs->mbox)
 			return -ENOMEM;
 	}
@@ -231,7 +232,7 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 
 		addr = phys_addr + map->device_map.memdev.offset;
 		length = map->device_map.memdev.size;
-		regs->memdev = devm_cxl_iomap_block(pdev, addr, length);
+		regs->memdev = devm_cxl_iomap_block(dev, addr, length);
 		if (!regs->memdev)
 			return -ENOMEM;
 	}
