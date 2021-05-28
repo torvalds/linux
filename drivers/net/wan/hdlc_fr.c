@@ -474,10 +474,9 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	}
 
 	skb = dev_alloc_skb(len);
-	if (!skb) {
-		netdev_warn(dev, "Memory squeeze on fr_lmi_send()\n");
+	if (!skb)
 		return;
-	}
+
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
 	if (lmi == LMI_CISCO)
