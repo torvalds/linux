@@ -81,6 +81,7 @@ enum {
 	MCU_EVENT_REG_ACCESS = 0x05,
 	MCU_EVENT_LP_INFO = 0x07,
 	MCU_EVENT_SCAN_DONE = 0x0d,
+	MCU_EVENT_TX_DONE = 0x0f,
 	MCU_EVENT_BSS_ABSENCE  = 0x11,
 	MCU_EVENT_BSS_BEACON_LOSS = 0x13,
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
@@ -407,4 +408,31 @@ struct mt7921_txpwr_event {
 	struct mt7921_txpwr txpwr;
 } __packed;
 
+struct mt7921_mcu_tx_done_event {
+	u8 pid;
+	u8 status;
+	u16 seq;
+
+	u8 wlan_idx;
+	u8 tx_cnt;
+	u16 tx_rate;
+
+	u8 flag;
+	u8 tid;
+	u8 rsp_rate;
+	u8 mcs;
+
+	u8 bw;
+	u8 tx_pwr;
+	u8 reason;
+	u8 rsv0[1];
+
+	u32 delay;
+	u32 timestamp;
+	u32 applied_flag;
+
+	u8 txs[28];
+
+	u8 rsv1[32];
+} __packed;
 #endif

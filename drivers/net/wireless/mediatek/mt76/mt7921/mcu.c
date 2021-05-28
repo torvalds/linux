@@ -535,6 +535,49 @@ mt7921_mcu_low_power_event(struct mt7921_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
+{
+	struct mt7921_mcu_tx_done_event *event;
+	struct mt7921_sta *msta;
+	struct mt7921_phy *mphy = &dev->phy;
+	struct mt7921_mcu_peer_cap peer;
+	struct ieee80211_sta *sta;
+	LIST_HEAD(list);
+
+	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	event = (struct mt7921_mcu_tx_done_event *)skb->data;
+
+	spin_lock_bh(&dev->sta_poll_lock);
+	list_splice_init(&mphy->stats_list, &list);
+
+	while (!list_empty(&list)) {
+		msta = list_first_entry(&list, struct mt7921_sta, stats_list);
+		list_del_init(&msta->stats_list);
+
+		if (msta->wcid.idx != event->wlan_idx)
+			continue;
+
+		spin_unlock_bh(&dev->sta_poll_lock);
+
+		sta = wcid_to_sta(&msta->wcid);
+
+		/* peer config based on IEEE SPEC */
+		memset(&peer, 0x0, sizeof(peer));
+		peer.bw = event->bw;
+		peer.g2 = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
+		peer.g4 = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+		peer.g8 = !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
+		peer.g16 = !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
+		mt7921_mcu_tx_rate_parse(mphy->mt76, &peer,
+					 &msta->stats.tx_rate, event->tx_rate);
+
+		spin_lock_bh(&dev->sta_poll_lock);
+		break;
+	}
+	spin_unlock_bh(&dev->sta_poll_lock);
+}
+
+static void
 mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
@@ -560,6 +603,9 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	case MCU_EVENT_LP_INFO:
 		mt7921_mcu_low_power_event(dev, skb);
 		break;
+	case MCU_EVENT_TX_DONE:
+		mt7921_mcu_tx_done_event(dev, skb);
+		break;
 	default:
 		break;
 	}
@@ -580,6 +626,7 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	    rxd->eid == MCU_EVENT_SCHED_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_BSS_ABSENCE ||
 	    rxd->eid == MCU_EVENT_SCAN_DONE ||
+	    rxd->eid == MCU_EVENT_TX_DONE ||
 	    rxd->eid == MCU_EVENT_DBG_MSG ||
 	    rxd->eid == MCU_EVENT_COREDUMP ||
 	    rxd->eid == MCU_EVENT_LP_INFO ||

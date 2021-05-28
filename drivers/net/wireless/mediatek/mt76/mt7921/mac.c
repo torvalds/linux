@@ -13,6 +13,36 @@
 #define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
 						 IEEE80211_RADIOTAP_HE_##f)
 
+static u8
+mt7921_next_pid(struct mt7921_dev *dev, struct mt76_wcid *wcid)
+{
+	wcid->packet_id = (wcid->packet_id + 1) & MT_PACKET_ID_MASK;
+	if (wcid->packet_id == MT_PACKET_ID_NO_ACK ||
+	    wcid->packet_id == MT_PACKET_ID_NO_SKB)
+		wcid->packet_id = MT_PACKET_ID_FIRST;
+	return wcid->packet_id;
+}
+
+static unsigned long
+mt7921_next_txs_set(struct mt7921_dev *dev, struct mt76_wcid *wcid,
+		    u32 timeout)
+{
+	struct mt7921_sta *msta;
+
+	msta = container_of(wcid, struct mt7921_sta, wcid);
+	msta->next_txs_ts = jiffies + msecs_to_jiffies(timeout);
+	return msta->next_txs_ts;
+}
+
+static bool
+mt7921_next_txs_timeout(struct mt7921_dev *dev, struct mt76_wcid *wcid)
+{
+	struct mt7921_sta *msta;
+
+	msta = container_of(wcid, struct mt7921_sta, wcid);
+	return time_is_before_jiffies(msta->next_txs_ts);
+}
+
 static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
 					    u16 idx, bool unicast)
 {
@@ -726,7 +756,7 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_phy *mphy = &dev->mphy;
-	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
+	u8 pid, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	u16 tx_count = 15;
 	u32 val;
@@ -794,6 +824,15 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 		      FIELD_PREP(MT_TXD6_TX_RATE, rate);
 		txwi[6] |= cpu_to_le32(val);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
+	}
+
+	if ((FIELD_GET(MT_TXD2_FRAME_TYPE, txwi[2]) &
+		(IEEE80211_FTYPE_DATA >> 2)) &&
+		mt7921_next_txs_timeout(dev, wcid)) {
+		mt7921_next_txs_set(dev, wcid, 250);
+		pid = mt7921_next_pid(dev, wcid);
+		val = MT_TXD5_TX_STATUS_MCU | FIELD_PREP(MT_TXD5_PID, pid);
+		txwi[5] |= cpu_to_le32(val);
 	}
 }
 
@@ -1392,30 +1431,6 @@ mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 	}
 }
 
-static void
-mt7921_mac_sta_stats_work(struct mt7921_phy *phy)
-{
-	struct mt7921_dev *dev = phy->dev;
-	struct mt7921_sta *msta;
-	LIST_HEAD(list);
-
-	spin_lock_bh(&dev->sta_poll_lock);
-	list_splice_init(&phy->stats_list, &list);
-
-	while (!list_empty(&list)) {
-		msta = list_first_entry(&list, struct mt7921_sta, stats_list);
-		list_del_init(&msta->stats_list);
-		spin_unlock_bh(&dev->sta_poll_lock);
-
-		/* query wtbl info to report tx rate for further devices */
-		mt7921_get_wtbl_info(dev, msta->wcid.idx);
-
-		spin_lock_bh(&dev->sta_poll_lock);
-	}
-
-	spin_unlock_bh(&dev->sta_poll_lock);
-}
-
 void mt7921_mac_work(struct work_struct *work)
 {
 	struct mt7921_phy *phy;
@@ -1432,10 +1447,6 @@ void mt7921_mac_work(struct work_struct *work)
 		mphy->mac_work_count = 0;
 
 		mt7921_mac_update_mib_stats(phy);
-	}
-	if (++phy->sta_work_count == 4) {
-		phy->sta_work_count = 0;
-		mt7921_mac_sta_stats_work(phy);
 	}
 
 	mt7921_mutex_release(phy->dev);
