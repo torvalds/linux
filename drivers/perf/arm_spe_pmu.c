@@ -231,15 +231,14 @@ static const struct attribute_group arm_spe_pmu_format_group = {
 	.attrs	= arm_spe_pmu_formats_attr,
 };
 
-static ssize_t arm_spe_pmu_get_attr_cpumask(struct device *dev,
-					    struct device_attribute *attr,
-					    char *buf)
+static ssize_t cpumask_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct arm_spe_pmu *spe_pmu = dev_get_drvdata(dev);
 
 	return cpumap_print_to_pagebuf(true, buf, &spe_pmu->supported_cpus);
 }
-static DEVICE_ATTR(cpumask, S_IRUGO, arm_spe_pmu_get_attr_cpumask, NULL);
+static DEVICE_ATTR_RO(cpumask);
 
 static struct attribute *arm_spe_pmu_attrs[] = {
 	&dev_attr_cpumask.attr,
