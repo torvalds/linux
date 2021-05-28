@@ -72,6 +72,8 @@ if [ -n "$DST_PORT" ]; then
     pg_set $DEV "udp_dst_max $UDP_DST_MAX"
 fi
 
+[ ! -z "$UDP_CSUM" ] && pg_set $dev "flag UDPCSUM"
+
 # Setup random UDP port src range
 pg_set $DEV "flag UDPSRC_RND"
 pg_set $DEV "udp_src_min $UDP_SRC_MIN"
