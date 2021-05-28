@@ -37,6 +37,11 @@
 #define CHG_STATE_NO_BAT2	13
 #define CHG_STATE_CHG_READY_VUSB	14
 
+#define GCHGDET_TYPE_MASK 0x30
+#define GCHGDET_TYPE_SDP 0x00
+#define GCHGDET_TYPE_CDP 0x10
+#define GCHGDET_TYPE_DCP 0x20
+
 #define FG_ENABLE 1
 
 struct rn5t618_power_info {
@@ -48,8 +53,16 @@ struct rn5t618_power_info {
 	int irq;
 };
 
+static enum power_supply_usb_type rn5t618_usb_types[] = {
+	POWER_SUPPLY_USB_TYPE_SDP,
+	POWER_SUPPLY_USB_TYPE_DCP,
+	POWER_SUPPLY_USB_TYPE_CDP,
+	POWER_SUPPLY_USB_TYPE_UNKNOWN
+};
+
 static enum power_supply_property rn5t618_usb_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
@@ -372,6 +385,33 @@ static int rn5t618_adp_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int rc5t619_usb_get_type(struct rn5t618_power_info *info,
+				union power_supply_propval *val)
+{
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_read(info->rn5t618->regmap, RN5T618_GCHGDET, &regval);
+	if (ret < 0)
+		return ret;
+
+	switch (regval & GCHGDET_TYPE_MASK) {
+	case GCHGDET_TYPE_SDP:
+		val->intval = POWER_SUPPLY_USB_TYPE_SDP;
+		break;
+	case GCHGDET_TYPE_CDP:
+		val->intval = POWER_SUPPLY_USB_TYPE_CDP;
+		break;
+	case GCHGDET_TYPE_DCP:
+		val->intval = POWER_SUPPLY_USB_TYPE_DCP;
+		break;
+	default:
+		val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+	}
+
+	return 0;
+}
+
 static int rn5t618_usb_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val)
@@ -401,6 +441,11 @@ static int rn5t618_usb_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
 		break;
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		if (!online || (info->rn5t618->variant != RC5T619))
+			return -ENODATA;
+
+		return rc5t619_usb_get_type(info, val);
 	default:
 		return -EINVAL;
 	}
@@ -427,6 +472,8 @@ static const struct power_supply_desc rn5t618_adp_desc = {
 static const struct power_supply_desc rn5t618_usb_desc = {
 	.name                   = "rn5t618-usb",
 	.type                   = POWER_SUPPLY_TYPE_USB,
+	.usb_types		= rn5t618_usb_types,
+	.num_usb_types		= ARRAY_SIZE(rn5t618_usb_types),
 	.properties             = rn5t618_usb_props,
 	.num_properties         = ARRAY_SIZE(rn5t618_usb_props),
 	.get_property           = rn5t618_usb_get_property,
