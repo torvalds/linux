@@ -6,16 +6,16 @@
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  *
 
-            Theory of PVC state
+	Theory of PVC state
 
  DCE mode:
 
  (exist,new) -> 0,0 when "PVC create" or if "link unreliable"
-         0,x -> 1,1 if "link reliable" when sending FULL STATUS
-         1,1 -> 1,0 if received FULL STATUS ACK
+	 0,x -> 1,1 if "link reliable" when sending FULL STATUS
+	 1,1 -> 1,0 if received FULL STATUS ACK
 
  (active)    -> 0 when "ifconfig PVC down" or "link unreliable" or "PVC create"
-             -> 1 when "PVC up" and (exist,new) = 1,0
+	     -> 1 when "PVC up" and (exist,new) = 1,0
 
  DTE mode:
  (exist,new,active) = FULL STATUS if "link reliable"
