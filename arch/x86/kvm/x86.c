@@ -7568,9 +7568,7 @@ int x86_decode_emulated_instruction(struct kvm_vcpu *vcpu, int emulation_type,
 	    kvm_vcpu_check_breakpoint(vcpu, &r))
 		return r;
 
-	ctxt->ud = emulation_type & EMULTYPE_TRAP_UD;
-
-	r = x86_decode_insn(ctxt, insn, insn_len);
+	r = x86_decode_insn(ctxt, insn, insn_len, emulation_type);
 
 	trace_kvm_emulate_insn_start(vcpu);
 	++vcpu->stat.insn_emulation;
