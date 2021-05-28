@@ -370,8 +370,8 @@ static int dev_map_bpf_prog_run(struct bpf_prog *xdp_prog,
 static void bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 {
 	struct net_device *dev = bq->dev;
-	int sent = 0, drops = 0, err = 0;
 	unsigned int cnt = bq->count;
+	int sent = 0, err = 0;
 	int to_send = cnt;
 	int i;
 
@@ -388,8 +388,6 @@ static void bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 		to_send = dev_map_bpf_prog_run(bq->xdp_prog, bq->q, cnt, dev);
 		if (!to_send)
 			goto out;
-
-		drops = cnt - to_send;
 	}
 
 	sent = dev->netdev_ops->ndo_xdp_xmit(dev, to_send, bq->q, flags);
@@ -408,9 +406,8 @@ static void bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 		xdp_return_frame_rx_napi(bq->q[i]);
 
 out:
-	drops = cnt - sent;
 	bq->count = 0;
-	trace_xdp_devmap_xmit(bq->dev_rx, dev, sent, drops, err);
+	trace_xdp_devmap_xmit(bq->dev_rx, dev, sent, cnt - sent, err);
 }
 
 /* __dev_flush is called from xdp_do_flush() which _must_ be signaled
