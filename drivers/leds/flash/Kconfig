@@ -20,6 +20,14 @@ config LEDS_AS3645A
 	  controller. V4L2 flash API is provided as well if
 	  CONFIG_V4L2_FLASH_API is enabled.
 
+config LEDS_LM3601X
+	tristate "LED support for LM3601x Chips"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for the TI LM3601x family
+	  of flash, torch and indicator classes.
+
 config LEDS_MAX77693
 	tristate "LED support for MAX77693 Flash"
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
