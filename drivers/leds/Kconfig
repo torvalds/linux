@@ -702,16 +702,6 @@ config LEDS_MENF21BMC
 	  This driver can also be built as a module. If so the module
 	  will be called leds-menf21bmc.
 
-config LEDS_KTD2692
-	tristate "LED support for KTD2692 flash LED controller"
-	depends on LEDS_CLASS_FLASH && OF
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  This option enables support for KTD2692 LED flash connected
-	  through ExpressWire interface.
-
-	  Say Y to enable this driver.
-
 config LEDS_IS31FL319X
 	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
 	depends on LEDS_CLASS && I2C && OF

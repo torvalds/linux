@@ -20,6 +20,16 @@ config LEDS_AS3645A
 	  controller. V4L2 flash API is provided as well if
 	  CONFIG_V4L2_FLASH_API is enabled.
 
+config LEDS_KTD2692
+	tristate "LED support for Kinetic KTD2692 flash LED controller"
+	depends on OF
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This option enables support for Kinetic KTD2692 LED flash connected
+	  through ExpressWire interface.
+
+	  Say Y to enable this driver.
+
 config LEDS_LM3601X
 	tristate "LED support for LM3601x Chips"
 	depends on LEDS_CLASS && I2C
