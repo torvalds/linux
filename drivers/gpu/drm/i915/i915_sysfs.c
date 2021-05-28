@@ -58,8 +58,8 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
 
-static ssize_t
-show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
+static ssize_t rc6_enable_show(struct device *kdev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	unsigned int mask;
@@ -75,43 +75,43 @@ show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 	return sysfs_emit(buf, "%x\n", mask);
 }
 
-static ssize_t
-show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
+static ssize_t rc6_residency_ms_show(struct device *kdev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	u32 rc6_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6);
 	return sysfs_emit(buf, "%u\n", rc6_residency);
 }
 
-static ssize_t
-show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
+static ssize_t rc6p_residency_ms_show(struct device *kdev,
+				      struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	u32 rc6p_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6p);
 	return sysfs_emit(buf, "%u\n", rc6p_residency);
 }
 
-static ssize_t
-show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
+static ssize_t rc6pp_residency_ms_show(struct device *kdev,
+				       struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	u32 rc6pp_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6pp);
 	return sysfs_emit(buf, "%u\n", rc6pp_residency);
 }
 
-static ssize_t
-show_media_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
+static ssize_t media_rc6_residency_ms_show(struct device *kdev,
+					   struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	u32 rc6_residency = calc_residency(dev_priv, VLV_GT_MEDIA_RC6);
 	return sysfs_emit(buf, "%u\n", rc6_residency);
 }
 
-static DEVICE_ATTR(rc6_enable, S_IRUGO, show_rc6_mask, NULL);
-static DEVICE_ATTR(rc6_residency_ms, S_IRUGO, show_rc6_ms, NULL);
-static DEVICE_ATTR(rc6p_residency_ms, S_IRUGO, show_rc6p_ms, NULL);
-static DEVICE_ATTR(rc6pp_residency_ms, S_IRUGO, show_rc6pp_ms, NULL);
-static DEVICE_ATTR(media_rc6_residency_ms, S_IRUGO, show_media_rc6_ms, NULL);
+static DEVICE_ATTR_RO(rc6_enable);
+static DEVICE_ATTR_RO(rc6_residency_ms);
+static DEVICE_ATTR_RO(rc6p_residency_ms);
+static DEVICE_ATTR_RO(rc6pp_residency_ms);
+static DEVICE_ATTR_RO(media_rc6_residency_ms);
 
 static struct attribute *rc6_attrs[] = {
 	&dev_attr_rc6_enable.attr,
