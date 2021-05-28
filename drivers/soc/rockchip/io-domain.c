@@ -14,6 +14,12 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/regulator/of_regulator.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
+#include "../../regulator/internal.h"
 
 #define MAX_SUPPLIES		16
 
@@ -632,6 +638,77 @@ static const struct of_device_id rockchip_iodomain_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_iodomain_match);
 
+static const char *rdev_get_name(struct regulator_dev *rdev)
+{
+	if (rdev->constraints && rdev->constraints->name)
+		return rdev->constraints->name;
+	else if (rdev->desc->name)
+		return rdev->desc->name;
+	else
+		return "";
+}
+
+static struct device_node *of_get_child_regulator(struct device_node *parent,
+						  const char *prop_name)
+{
+	struct device_node *regnode = NULL;
+	struct device_node *child = NULL;
+
+	for_each_child_of_node(parent, child) {
+		regnode = of_parse_phandle(child, prop_name, 0);
+
+		if (!regnode) {
+			regnode = of_get_child_regulator(child, prop_name);
+			if (regnode)
+				return regnode;
+		} else {
+			return regnode;
+		}
+	}
+	return NULL;
+}
+
+static struct device_node *of_get_regulator(struct device *dev, const char *supply)
+{
+	struct device_node *regnode = NULL;
+	char prop_name[256];
+
+	dev_dbg(dev, "Looking up %s-supply from device tree\n", supply);
+
+	snprintf(prop_name, sizeof(prop_name), "%s-supply", supply);
+	regnode = of_parse_phandle(dev->of_node, prop_name, 0);
+
+	if (!regnode) {
+		regnode = of_get_child_regulator(dev->of_node, prop_name);
+		if (regnode)
+			return regnode;
+
+		dev_dbg(dev, "Looking up %s property in node %pOF failed\n",
+				prop_name, dev->of_node);
+		return NULL;
+	}
+	return regnode;
+}
+
+static void rockchip_iodomain_dump(const struct platform_device *pdev,
+				   struct rockchip_iodomain_supply *supply)
+{
+	struct rockchip_iodomain *iod = supply->iod;
+	const char *name = iod->soc_data->supply_names[supply->idx];
+	struct device *dev = iod->dev;
+	struct device_node *node;
+	struct regulator_dev *r = NULL;
+
+	node = of_get_regulator(dev, name);
+	if (node) {
+		r = of_find_regulator_by_node(node);
+		if (!IS_ERR_OR_NULL(r))
+			dev_info(&pdev->dev, "%s(%d uV) supplied by %s\n",
+				name, regulator_get_voltage(supply->reg),
+				rdev_get_name(r));
+	}
+}
+
 static int rv1126_iodomain_notify(struct notifier_block *nb,
 				  unsigned long event,
 				  void *data)
@@ -783,6 +860,8 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 			supply->reg = NULL;
 			goto unreg_notify;
 		}
+
+		rockchip_iodomain_dump(pdev, supply);
 	}
 
 	if (iod->soc_data->init)
