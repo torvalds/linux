@@ -185,7 +185,7 @@ static int as3645a_read(struct as3645a *flash, u8 addr)
  */
 
 /**
- * as3645a_set_config - Set flash configuration registers
+ * as3645a_set_current - Set flash configuration registers
  * @flash: The flash
  *
  * Configure the hardware with flash, assist and indicator currents, as well as
