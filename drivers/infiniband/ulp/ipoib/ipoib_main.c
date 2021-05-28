@@ -1287,7 +1287,7 @@ struct ipoib_neigh *ipoib_neigh_get(struct net_device *dev, u8 *daddr)
 	     neigh = rcu_dereference_bh(neigh->hnext)) {
 		if (memcmp(daddr, neigh->daddr, INFINIBAND_ALEN) == 0) {
 			/* found, take one ref on behalf of the caller */
-			if (!atomic_inc_not_zero(&neigh->refcnt)) {
+			if (!refcount_inc_not_zero(&neigh->refcnt)) {
 				/* deleted */
 				neigh = NULL;
 				goto out_unlock;
@@ -1382,7 +1382,7 @@ static struct ipoib_neigh *ipoib_neigh_ctor(u8 *daddr,
 	INIT_LIST_HEAD(&neigh->list);
 	ipoib_cm_set(neigh, NULL);
 	/* one ref on behalf of the caller */
-	atomic_set(&neigh->refcnt, 1);
+	refcount_set(&neigh->refcnt, 1);
 
 	return neigh;
 }
@@ -1414,7 +1414,7 @@ struct ipoib_neigh *ipoib_neigh_alloc(u8 *daddr,
 					       lockdep_is_held(&priv->lock))) {
 		if (memcmp(daddr, neigh->daddr, INFINIBAND_ALEN) == 0) {
 			/* found, take one ref on behalf of the caller */
-			if (!atomic_inc_not_zero(&neigh->refcnt)) {
+			if (!refcount_inc_not_zero(&neigh->refcnt)) {
 				/* deleted */
 				neigh = NULL;
 				break;
@@ -1429,7 +1429,7 @@ struct ipoib_neigh *ipoib_neigh_alloc(u8 *daddr,
 		goto out_unlock;
 
 	/* one ref on behalf of the hash table */
-	atomic_inc(&neigh->refcnt);
+	refcount_inc(&neigh->refcnt);
 	neigh->alive = jiffies;
 	/* put in hash */
 	rcu_assign_pointer(neigh->hnext,
