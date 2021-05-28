@@ -49,11 +49,6 @@ static int nfcmrvl_i2c_read(struct nfcmrvl_i2c_drv_data *drv_data,
 		return -EBADMSG;
 	}
 
-	if (nci_hdr.plen > NCI_MAX_PAYLOAD_SIZE) {
-		nfc_err(&drv_data->i2c->dev, "invalid packet payload size\n");
-		return -EBADMSG;
-	}
-
 	*skb = nci_skb_alloc(drv_data->priv->ndev,
 			     nci_hdr.plen + NCI_CTRL_HDR_SIZE, GFP_KERNEL);
 	if (!*skb)
