@@ -167,7 +167,7 @@ nft_tcp_header_pointer(const struct nft_pktinfo *pkt,
 	if (!pkt->tprot_set || pkt->tprot != IPPROTO_TCP)
 		return NULL;
 
-	tcph = skb_header_pointer(pkt->skb, pkt->xt.thoff, sizeof(*tcph), buffer);
+	tcph = skb_header_pointer(pkt->skb, nft_thoff(pkt), sizeof(*tcph), buffer);
 	if (!tcph)
 		return NULL;
 
@@ -175,7 +175,7 @@ nft_tcp_header_pointer(const struct nft_pktinfo *pkt,
 	if (*tcphdr_len < sizeof(*tcph) || *tcphdr_len > len)
 		return NULL;
 
-	return skb_header_pointer(pkt->skb, pkt->xt.thoff, *tcphdr_len, buffer);
+	return skb_header_pointer(pkt->skb, nft_thoff(pkt), *tcphdr_len, buffer);
 }
 
 static void nft_exthdr_tcp_eval(const struct nft_expr *expr,
@@ -251,7 +251,7 @@ static void nft_exthdr_tcp_set_eval(const struct nft_expr *expr,
 			return;
 
 		if (skb_ensure_writable(pkt->skb,
-					pkt->xt.thoff + i + priv->len))
+					nft_thoff(pkt) + i + priv->len))
 			return;
 
 		tcph = nft_tcp_header_pointer(pkt, sizeof(buff), buff,
@@ -306,7 +306,7 @@ static void nft_exthdr_sctp_eval(const struct nft_expr *expr,
 				 struct nft_regs *regs,
 				 const struct nft_pktinfo *pkt)
 {
-	unsigned int offset = pkt->xt.thoff + sizeof(struct sctphdr);
+	unsigned int offset = nft_thoff(pkt) + sizeof(struct sctphdr);
 	struct nft_exthdr *priv = nft_expr_priv(expr);
 	u32 *dest = &regs->data[priv->dreg];
 	const struct sctp_chunkhdr *sch;

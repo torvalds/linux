@@ -34,6 +34,11 @@ static inline struct sock *nft_sk(const struct nft_pktinfo *pkt)
 	return pkt->xt.state->sk;
 }
 
+static inline unsigned int nft_thoff(const struct nft_pktinfo *pkt)
+{
+	return pkt->xt.thoff;
+}
+
 static inline struct net *nft_net(const struct nft_pktinfo *pkt)
 {
 	return pkt->xt.state->net;
