@@ -1252,7 +1252,6 @@ struct mlx5dr_send_ring {
 	u32 tx_head;
 	void *buf;
 	u32 buf_size;
-	struct ib_wc wc[MAX_SEND_CQE];
 	u8 sync_buff[MIN_READ_SYNC];
 	struct mlx5dr_mr *sync_mr;
 	spinlock_t lock; /* Protect the data path of the send ring */

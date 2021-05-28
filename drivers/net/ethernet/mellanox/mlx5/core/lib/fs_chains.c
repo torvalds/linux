@@ -6,6 +6,7 @@
 #include <linux/mlx5/fs.h>
 
 #include "lib/fs_chains.h"
+#include "fs_ft_pool.h"
 #include "en/mapping.h"
 #include "fs_core.h"
 #include "en_tc.h"
@@ -13,25 +14,10 @@
 #define chains_lock(chains) ((chains)->lock)
 #define chains_ht(chains) ((chains)->chains_ht)
 #define prios_ht(chains) ((chains)->prios_ht)
-#define ft_pool_left(chains) ((chains)->ft_left)
 #define tc_default_ft(chains) ((chains)->tc_default_ft)
 #define tc_end_ft(chains) ((chains)->tc_end_ft)
 #define ns_to_chains_fs_prio(ns) ((ns) == MLX5_FLOW_NAMESPACE_FDB ? \
 				  FDB_TC_OFFLOAD : MLX5E_TC_PRIO)
-
-/* Firmware currently has 4 pool of 4 sizes that it supports (FT_POOLS),
- * and a virtual memory region of 16M (MLX5_FT_SIZE), this region is duplicated
- * for each flow table pool. We can allocate up to 16M of each pool,
- * and we keep track of how much we used via get_next_avail_sz_from_pool.
- * Firmware doesn't report any of this for now.
- * ESW_POOL is expected to be sorted from large to small and match firmware
- * pools.
- */
-#define FT_SIZE (16 * 1024 * 1024)
-static const unsigned int FT_POOLS[] = { 4 * 1024 * 1024,
-					  1 * 1024 * 1024,
-					  64 * 1024,
-					  128 };
 #define FT_TBL_SZ (64 * 1024)
 
 struct mlx5_fs_chains {
@@ -49,8 +35,6 @@ struct mlx5_fs_chains {
 	enum mlx5_flow_namespace_type ns;
 	u32 group_num;
 	u32 flags;
-
-	int ft_left[ARRAY_SIZE(FT_POOLS)];
 };
 
 struct fs_chain {
@@ -160,54 +144,6 @@ mlx5_chains_set_end_ft(struct mlx5_fs_chains *chains,
 	tc_end_ft(chains) = ft;
 }
 
-#define POOL_NEXT_SIZE 0
-static int
-mlx5_chains_get_avail_sz_from_pool(struct mlx5_fs_chains *chains,
-				   int desired_size)
-{
-	int i, found_i = -1;
-
-	for (i = ARRAY_SIZE(FT_POOLS) - 1; i >= 0; i--) {
-		if (ft_pool_left(chains)[i] && FT_POOLS[i] > desired_size) {
-			found_i = i;
-			if (desired_size != POOL_NEXT_SIZE)
-				break;
-		}
-	}
-
-	if (found_i != -1) {
-		--ft_pool_left(chains)[found_i];
-		return FT_POOLS[found_i];
-	}
-
-	return 0;
-}
-
-static void
-mlx5_chains_put_sz_to_pool(struct mlx5_fs_chains *chains, int sz)
-{
-	int i;
-
-	for (i = ARRAY_SIZE(FT_POOLS) - 1; i >= 0; i--) {
-		if (sz == FT_POOLS[i]) {
-			++ft_pool_left(chains)[i];
-			return;
-		}
-	}
-
-	WARN_ONCE(1, "Couldn't find size %d in flow table size pool", sz);
-}
-
-static void
-mlx5_chains_init_sz_pool(struct mlx5_fs_chains *chains, u32 ft_max)
-{
-	int i;
-
-	for (i = ARRAY_SIZE(FT_POOLS) - 1; i >= 0; i--)
-		ft_pool_left(chains)[i] =
-			FT_POOLS[i] <= ft_max ? FT_SIZE / FT_POOLS[i] : 0;
-}
-
 static struct mlx5_flow_table *
 mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 			 u32 chain, u32 prio, u32 level)
@@ -221,11 +157,7 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 		ft_attr.flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 				  MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	sz = (chain == mlx5_chains_get_nf_ft_chain(chains)) ?
-	     mlx5_chains_get_avail_sz_from_pool(chains, FT_TBL_SZ) :
-	     mlx5_chains_get_avail_sz_from_pool(chains, POOL_NEXT_SIZE);
-	if (!sz)
-		return ERR_PTR(-ENOSPC);
+	sz = (chain == mlx5_chains_get_nf_ft_chain(chains)) ? FT_TBL_SZ : POOL_NEXT_SIZE;
 	ft_attr.max_fte = sz;
 
 	/* We use tc_default_ft(chains) as the table's next_ft till
@@ -266,19 +198,10 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 	if (IS_ERR(ft)) {
 		mlx5_core_warn(chains->dev, "Failed to create chains table err %d (chain: %d, prio: %d, level: %d, size: %d)\n",
 			       (int)PTR_ERR(ft), chain, prio, level, sz);
-		mlx5_chains_put_sz_to_pool(chains, sz);
 		return ft;
 	}
 
 	return ft;
-}
-
-static void
-mlx5_chains_destroy_table(struct mlx5_fs_chains *chains,
-			  struct mlx5_flow_table *ft)
-{
-	mlx5_chains_put_sz_to_pool(chains, ft->max_fte);
-	mlx5_destroy_flow_table(ft);
 }
 
 static int
@@ -336,9 +259,10 @@ create_chain_restore(struct fs_chain *chain)
 	MLX5_SET(set_action_in, modact, field,
 		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mfield);
 	MLX5_SET(set_action_in, modact, offset,
-		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].moffset * 8);
+		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].moffset);
 	MLX5_SET(set_action_in, modact, length,
-		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mlen * 8);
+		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mlen == 32 ?
+		 0 : mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mlen);
 	MLX5_SET(set_action_in, modact, data, chain->id);
 	mod_hdr = mlx5_modify_header_alloc(chains->dev, chains->ns,
 					   1, modact);
@@ -636,7 +560,7 @@ err_insert:
 err_miss_rule:
 	mlx5_destroy_flow_group(miss_group);
 err_group:
-	mlx5_chains_destroy_table(chains, ft);
+	mlx5_destroy_flow_table(ft);
 err_create:
 err_alloc:
 	kvfree(prio_s);
@@ -659,7 +583,7 @@ mlx5_chains_destroy_prio(struct mlx5_fs_chains *chains,
 			       prio_params);
 	mlx5_del_flow_rules(prio->miss_rule);
 	mlx5_destroy_flow_group(prio->miss_group);
-	mlx5_chains_destroy_table(chains, prio->ft);
+	mlx5_destroy_flow_table(prio->ft);
 	mlx5_chains_put_chain(chain);
 	kvfree(prio);
 }
@@ -784,7 +708,7 @@ void
 mlx5_chains_destroy_global_table(struct mlx5_fs_chains *chains,
 				 struct mlx5_flow_table *ft)
 {
-	mlx5_chains_destroy_table(chains, ft);
+	mlx5_destroy_flow_table(ft);
 }
 
 static struct mlx5_fs_chains *
@@ -815,8 +739,6 @@ mlx5_chains_init(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)
 	mlx5_core_info(dev, "Supported tc offload range - chains: %u, prios: %u\n",
 		       mlx5_chains_get_chain_range(chains_priv),
 		       mlx5_chains_get_prio_range(chains_priv));
-
-	mlx5_chains_init_sz_pool(chains_priv, attr->max_ft_sz);
 
 	err = rhashtable_init(&chains_ht(chains_priv), &chain_params);
 	if (err)

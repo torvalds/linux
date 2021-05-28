@@ -118,17 +118,24 @@ static bool __mlx5_lag_is_sriov(struct mlx5_lag *ldev)
 static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 					   u8 *port1, u8 *port2)
 {
+	bool p1en;
+	bool p2en;
+
+	p1en = tracker->netdev_state[MLX5_LAG_P1].tx_enabled &&
+	       tracker->netdev_state[MLX5_LAG_P1].link_up;
+
+	p2en = tracker->netdev_state[MLX5_LAG_P2].tx_enabled &&
+	       tracker->netdev_state[MLX5_LAG_P2].link_up;
+
 	*port1 = 1;
 	*port2 = 2;
-	if (!tracker->netdev_state[MLX5_LAG_P1].tx_enabled ||
-	    !tracker->netdev_state[MLX5_LAG_P1].link_up) {
-		*port1 = 2;
+	if ((!p1en && !p2en) || (p1en && p2en))
 		return;
-	}
 
-	if (!tracker->netdev_state[MLX5_LAG_P2].tx_enabled ||
-	    !tracker->netdev_state[MLX5_LAG_P2].link_up)
+	if (p1en)
 		*port2 = 1;
+	else
+		*port1 = 2;
 }
 
 void mlx5_modify_lag(struct mlx5_lag *ldev,
@@ -280,9 +287,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	if (!mlx5_lag_is_ready(ldev))
 		return;
 
-	spin_lock(&lag_lock);
 	tracker = ldev->tracker;
-	spin_unlock(&lag_lock);
 
 	do_bond = tracker.is_bonded && mlx5_lag_check_prereq(ldev);
 
@@ -291,8 +296,9 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 			   !mlx5_sriov_is_enabled(dev1);
 
 #ifdef CONFIG_MLX5_ESWITCH
-		roce_lag &= dev0->priv.eswitch->mode == MLX5_ESWITCH_NONE &&
-			    dev1->priv.eswitch->mode == MLX5_ESWITCH_NONE;
+		roce_lag = roce_lag &&
+			   dev0->priv.eswitch->mode == MLX5_ESWITCH_NONE &&
+			   dev1->priv.eswitch->mode == MLX5_ESWITCH_NONE;
 #endif
 
 		if (roce_lag)
@@ -481,9 +487,7 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 		break;
 	}
 
-	spin_lock(&lag_lock);
 	ldev->tracker = tracker;
-	spin_unlock(&lag_lock);
 
 	if (changed)
 		mlx5_queue_bond_work(ldev, 0);

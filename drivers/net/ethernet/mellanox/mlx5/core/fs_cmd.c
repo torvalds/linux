@@ -36,6 +36,7 @@
 
 #include "fs_core.h"
 #include "fs_cmd.h"
+#include "fs_ft_pool.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
 
@@ -49,9 +50,11 @@ static int mlx5_cmd_stub_update_root_ft(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_stub_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					   struct mlx5_flow_table *ft,
-					   unsigned int log_size,
+					   unsigned int size,
 					   struct mlx5_flow_table *next_ft)
 {
+	ft->max_fte = size ? roundup_pow_of_two(size) : 1;
+
 	return 0;
 }
 
@@ -181,7 +184,7 @@ static int mlx5_cmd_update_root_ft(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 				      struct mlx5_flow_table *ft,
-				      unsigned int log_size,
+				      unsigned int size,
 				      struct mlx5_flow_table *next_ft)
 {
 	int en_encap = !!(ft->flags & MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT);
@@ -192,12 +195,18 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	struct mlx5_core_dev *dev = ns->dev;
 	int err;
 
+	if (size != POOL_NEXT_SIZE)
+		size = roundup_pow_of_two(size);
+	size = mlx5_ft_pool_get_avail_sz(dev, ft->type, size);
+	if (!size)
+		return -ENOSPC;
+
 	MLX5_SET(create_flow_table_in, in, opcode,
 		 MLX5_CMD_OP_CREATE_FLOW_TABLE);
 
 	MLX5_SET(create_flow_table_in, in, table_type, ft->type);
 	MLX5_SET(create_flow_table_in, in, flow_table_context.level, ft->level);
-	MLX5_SET(create_flow_table_in, in, flow_table_context.log_size, log_size);
+	MLX5_SET(create_flow_table_in, in, flow_table_context.log_size, size ? ilog2(size) : 0);
 	MLX5_SET(create_flow_table_in, in, vport_number, ft->vport);
 	MLX5_SET(create_flow_table_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
@@ -234,9 +243,14 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	}
 
 	err = mlx5_cmd_exec_inout(dev, create_flow_table, in, out);
-	if (!err)
+	if (!err) {
 		ft->id = MLX5_GET(create_flow_table_out, out,
 				  table_id);
+		ft->max_fte = size;
+	} else {
+		mlx5_ft_pool_put_sz(ns->dev, size);
+	}
+
 	return err;
 }
 
@@ -245,6 +259,7 @@ static int mlx5_cmd_destroy_flow_table(struct mlx5_flow_root_namespace *ns,
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_flow_table_in)] = {};
 	struct mlx5_core_dev *dev = ns->dev;
+	int err;
 
 	MLX5_SET(destroy_flow_table_in, in, opcode,
 		 MLX5_CMD_OP_DESTROY_FLOW_TABLE);
@@ -254,7 +269,11 @@ static int mlx5_cmd_destroy_flow_table(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(destroy_flow_table_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
 
-	return mlx5_cmd_exec_in(dev, destroy_flow_table, in);
+	err = mlx5_cmd_exec_in(dev, destroy_flow_table, in);
+	if (!err)
+		mlx5_ft_pool_put_sz(ns->dev, ft->max_fte);
+
+	return err;
 }
 
 static int mlx5_cmd_modify_flow_table(struct mlx5_flow_root_namespace *ns,
