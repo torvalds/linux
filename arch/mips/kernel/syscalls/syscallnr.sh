@@ -5,7 +5,6 @@ in="$1"
 out="$2"
 my_abis=`echo "($3)" | tr ',' '|'`
 prefix="$4"
-offset="$5"
 
 fileguard=_UAPI_ASM_MIPS_`basename "$out" | sed \
 	-e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
@@ -20,7 +19,6 @@ grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | (
 		nxt=$((nr+1))
 	done
 
-	printf "#define __NR_%s_Linux\t%s\n" "${prefix}" "${offset}"
 	printf "#define __NR_%s_Linux_syscalls\t%s\n" "${prefix}" "${nxt}"
 	printf "\n"
 	printf "#endif /* %s */" "${fileguard}"
