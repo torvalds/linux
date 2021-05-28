@@ -1356,8 +1356,10 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 	 * If this request is not the first connection request from the
 	 * client for this session then fail and return error.
 	 */
-	if (!first_conn)
+	if (!first_conn) {
+		pr_err_ratelimited("Error: Not the first connection request for this session\n");
 		return ERR_PTR(-ENXIO);
+	}
 
 	/* need to allocate a new srv */
 	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
@@ -1812,6 +1814,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	srv = get_or_create_srv(ctx, &msg->paths_uuid, msg->first_conn);
 	if (IS_ERR(srv)) {
 		err = PTR_ERR(srv);
+		pr_err("get_or_create_srv(), error %d\n", err);
 		goto reject_w_err;
 	}
 	mutex_lock(&srv->paths_mutex);
@@ -1850,11 +1853,13 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 			mutex_unlock(&srv->paths_mutex);
 			put_srv(srv);
 			err = PTR_ERR(sess);
+			pr_err("RTRS server session allocation failed: %d\n", err);
 			goto reject_w_err;
 		}
 	}
 	err = create_con(sess, cm_id, cid);
 	if (err) {
+		rtrs_err((&sess->s), "create_con(), error %d\n", err);
 		(void)rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since session has other connections we follow normal way
@@ -1865,6 +1870,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	}
 	err = rtrs_rdma_do_accept(sess, cm_id);
 	if (err) {
+		rtrs_err((&sess->s), "rtrs_rdma_do_accept(), error %d\n", err);
 		(void)rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since current connection was successfully added to the
