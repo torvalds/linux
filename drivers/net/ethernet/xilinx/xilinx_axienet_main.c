@@ -1543,6 +1543,7 @@ static void axienet_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_MII:
 		phylink_set(mask, 100baseT_Full);
 		phylink_set(mask, 10baseT_Full);
+		fallthrough;
 	default:
 		break;
 	}
