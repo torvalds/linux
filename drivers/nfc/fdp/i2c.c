@@ -368,7 +368,7 @@ MODULE_DEVICE_TABLE(acpi, fdp_nci_i2c_acpi_match);
 static struct i2c_driver fdp_nci_i2c_driver = {
 	.driver = {
 		   .name = FDP_I2C_DRIVER_NAME,
-		   .acpi_match_table = ACPI_PTR(fdp_nci_i2c_acpi_match),
+		   .acpi_match_table = fdp_nci_i2c_acpi_match,
 		  },
 	.probe_new = fdp_nci_i2c_probe,
 	.remove = fdp_nci_i2c_remove,
