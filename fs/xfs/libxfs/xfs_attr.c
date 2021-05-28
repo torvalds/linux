@@ -63,8 +63,8 @@ STATIC int xfs_attr_fillstate(xfs_da_state_t *state);
 STATIC int xfs_attr_refillstate(xfs_da_state_t *state);
 STATIC int xfs_attr_set_iter(struct xfs_delattr_context *dac,
 			     struct xfs_buf **leaf_bp);
-STATIC int xfs_attr_node_remove_name(struct xfs_da_args *args,
-				     struct xfs_da_state *state);
+STATIC int xfs_attr_node_removename(struct xfs_da_args *args,
+				    struct xfs_da_state *state);
 
 int
 xfs_inode_hasattr(
@@ -298,7 +298,7 @@ xfs_attr_set_args(
 }
 
 STATIC int
-xfs_attr_set_fmt(
+xfs_attr_sf_addname(
 	struct xfs_delattr_context	*dac,
 	struct xfs_buf			**leaf_bp)
 {
@@ -367,7 +367,7 @@ xfs_attr_set_iter(
 		 * release the hold once we return with a clean transaction.
 		 */
 		if (xfs_attr_is_shortform(dp))
-			return xfs_attr_set_fmt(dac, leaf_bp);
+			return xfs_attr_sf_addname(dac, leaf_bp);
 		if (*leaf_bp != NULL) {
 			xfs_trans_bhold_release(args->trans, *leaf_bp);
 			*leaf_bp = NULL;
@@ -840,7 +840,7 @@ xfs_attr_shortform_addname(xfs_da_args_t *args)
 	if (retval == -EEXIST) {
 		if (args->attr_flags & XATTR_CREATE)
 			return retval;
-		retval = xfs_attr_shortform_remove(args);
+		retval = xfs_attr_sf_removename(args);
 		if (retval)
 			return retval;
 		/*
@@ -1223,7 +1223,7 @@ xfs_attr_node_addname_clear_incomplete(
 	if (error)
 		goto out;
 
-	error = xfs_attr_node_remove_name(args, state);
+	error = xfs_attr_node_removename(args, state);
 
 	/*
 	 * Check to see if the tree needs to be collapsed.
@@ -1339,7 +1339,7 @@ out:
 }
 
 STATIC int
-xfs_attr_node_remove_name(
+xfs_attr_node_removename(
 	struct xfs_da_args	*args,
 	struct xfs_da_state	*state)
 {
@@ -1390,7 +1390,7 @@ xfs_attr_remove_iter(
 		 * thus state transitions. Call the right helper and return.
 		 */
 		if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
-			return xfs_attr_shortform_remove(args);
+			return xfs_attr_sf_removename(args);
 
 		if (xfs_attr_is_leaf(dp))
 			return xfs_attr_leaf_removename(args);
@@ -1453,7 +1453,7 @@ xfs_attr_remove_iter(
 				goto out;
 		}
 
-		retval = xfs_attr_node_remove_name(args, state);
+		retval = xfs_attr_node_removename(args, state);
 
 		/*
 		 * Check to see if the tree needs to be collapsed. If so, roll
