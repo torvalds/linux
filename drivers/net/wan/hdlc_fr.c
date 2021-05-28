@@ -125,7 +125,7 @@ struct pvc_device {
 		unsigned int fecn: 1;
 		unsigned int becn: 1;
 		unsigned int bandwidth;	/* Cisco LMI reporting only */
-	}state;
+	} state;
 };
 
 struct frad_state {
@@ -161,7 +161,7 @@ static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 
 static inline struct frad_state *state(hdlc_device *hdlc)
 {
-	return(struct frad_state *)(hdlc->state);
+	return (struct frad_state *)(hdlc->state);
 }
 
 static inline struct pvc_device *find_pvc(hdlc_device *hdlc, u16 dlci)
@@ -1223,7 +1223,8 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		     new_settings.dce != 1))
 			return -EINVAL;
 
-		result=hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result = hdlc->attach(dev, ENCODING_NRZ,
+				      PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
