@@ -480,11 +480,11 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	}
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
-	if (lmi == LMI_CISCO) {
+	if (lmi == LMI_CISCO)
 		fr_hard_header(skb, LMI_CISCO_DLCI);
-	} else {
+	else
 		fr_hard_header(skb, LMI_CCITT_ANSI_DLCI);
-	}
+
 	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
 	data[i++] = dce ? LMI_STATUS : LMI_STATUS_ENQUIRY;
