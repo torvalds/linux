@@ -584,8 +584,8 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 	struct target_info *tinfo;
 	wchar_t *name;
 	__u8 *target_name;
-	unsigned int len, flags, blob_off, blob_len, type, target_info_len = 0;
-	unsigned int uni_len, conv_len;
+	unsigned int flags, blob_off, blob_len, type, target_info_len = 0;
+	int len, uni_len, conv_len;
 	int cflags = sess->ntlmssp.client_flags;
 
 	memcpy(chgblob->Signature, NTLMSSP_SIGNATURE, 8);
