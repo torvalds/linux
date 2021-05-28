@@ -432,16 +432,19 @@ device_initcall(stf_barrier_debugfs_init);
 
 static void update_branch_cache_flush(void)
 {
-	u32 *site;
+	u32 *site, __maybe_unused *site2;
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	site = &patch__call_kvm_flush_link_stack;
+	site2 = &patch__call_kvm_flush_link_stack_p9;
 	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
 	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
 		patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+		patch_instruction_site(site2, ppc_inst(PPC_INST_NOP));
 	} else {
 		// Could use HW flush, but that could also flush count cache
 		patch_branch_site(site, (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
+		patch_branch_site(site2, (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
 	}
 #endif
 

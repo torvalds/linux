@@ -683,7 +683,12 @@ struct kvm_vcpu_arch {
 	ulong fault_dar;
 	u32 fault_dsisr;
 	unsigned long intr_msr;
-	ulong fault_gpa;	/* guest real address of page fault (POWER9) */
+	/*
+	 * POWER9 and later: fault_gpa contains the guest real address of page
+	 * fault for a radix guest, or segment descriptor (equivalent to result
+	 * from slbmfev of SLB entry that translated the EA) for hash guests.
+	 */
+	ulong fault_gpa;
 #endif
 
 #ifdef CONFIG_BOOKE
