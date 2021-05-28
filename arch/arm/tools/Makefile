@@ -33,8 +33,7 @@ _dummy := $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)') \
           $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')
 
 quiet_cmd_gen_mach = GEN     $@
-      cmd_gen_mach = mkdir -p $(dir $@) && \
-		     $(AWK) -f $(filter-out $(PHONY),$^) > $@
+      cmd_gen_mach = $(AWK) -f $(real-prereqs) > $@
 
 $(kapi)/mach-types.h: $(src)/gen-mach-types $(src)/mach-types FORCE
 	$(call if_changed,gen_mach)
