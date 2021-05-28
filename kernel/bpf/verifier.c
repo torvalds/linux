@@ -5740,6 +5740,27 @@ struct bpf_sanitize_info {
 	bool mask_to_left;
 };
 
+static struct bpf_verifier_state *
+sanitize_speculative_path(struct bpf_verifier_env *env,
+			  const struct bpf_insn *insn,
+			  u32 next_idx, u32 curr_idx)
+{
+	struct bpf_verifier_state *branch;
+	struct bpf_reg_state *regs;
+
+	branch = push_stack(env, next_idx, curr_idx, true);
+	if (branch && insn) {
+		regs = branch->frame[branch->curframe]->regs;
+		if (BPF_SRC(insn->code) == BPF_K) {
+			mark_reg_unknown(env, regs, insn->dst_reg);
+		} else if (BPF_SRC(insn->code) == BPF_X) {
+			mark_reg_unknown(env, regs, insn->dst_reg);
+			mark_reg_unknown(env, regs, insn->src_reg);
+		}
+	}
+	return branch;
+}
+
 static int sanitize_ptr_alu(struct bpf_verifier_env *env,
 			    struct bpf_insn *insn,
 			    const struct bpf_reg_state *ptr_reg,
@@ -5823,7 +5844,8 @@ do_sim:
 		tmp = *dst_reg;
 		*dst_reg = *ptr_reg;
 	}
-	ret = push_stack(env, env->insn_idx + 1, env->insn_idx, true);
+	ret = sanitize_speculative_path(env, NULL, env->insn_idx + 1,
+					env->insn_idx);
 	if (!ptr_is_dst_reg && ret)
 		*dst_reg = tmp;
 	return !ret ? REASON_STACK : 0;
@@ -7974,14 +7996,28 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		if (err)
 			return err;
 	}
+
 	if (pred == 1) {
-		/* only follow the goto, ignore fall-through */
+		/* Only follow the goto, ignore fall-through. If needed, push
+		 * the fall-through branch for simulation under speculative
+		 * execution.
+		 */
+		if (!env->bypass_spec_v1 &&
+		    !sanitize_speculative_path(env, insn, *insn_idx + 1,
+					       *insn_idx))
+			return -EFAULT;
 		*insn_idx += insn->off;
 		return 0;
 	} else if (pred == 0) {
-		/* only follow fall-through branch, since
-		 * that's where the program will go
+		/* Only follow the fall-through branch, since that's where the
+		 * program will go. If needed, push the goto branch for
+		 * simulation under speculative execution.
 		 */
+		if (!env->bypass_spec_v1 &&
+		    !sanitize_speculative_path(env, insn,
+					       *insn_idx + insn->off + 1,
+					       *insn_idx))
+			return -EFAULT;
 		return 0;
 	}
 
