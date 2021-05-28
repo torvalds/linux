@@ -45,6 +45,24 @@
 	status = "okay";
 };
 
+&blsp_i2c4 {
+	status = "okay";
+
+	touchscreen@26 {
+		compatible = "mstar,msg2638";
+		reg = <0x26>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&msmgpio 100 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_reset_default>;
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
+		touchscreen-size-x = <2048>;
+		touchscreen-size-y = <2048>;
+	};
+};
+
 &blsp_i2c5 {
 	status = "okay";
 
@@ -279,6 +297,14 @@
 
 		drive-strength = <6>;
 		bias-pull-up;
+	};
+
+	ts_int_reset_default: ts-int-reset-default {
+		pins = "gpio13", "gpio100";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	usb_id_default: usb-id-default {
