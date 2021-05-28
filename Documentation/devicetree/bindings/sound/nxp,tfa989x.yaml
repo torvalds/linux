@@ -13,6 +13,7 @@ properties:
   compatible:
     enum:
       - nxp,tfa9895
+      - nxp,tfa9897
 
   reg:
     maxItems: 1
