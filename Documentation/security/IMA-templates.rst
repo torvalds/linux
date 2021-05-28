@@ -77,6 +77,7 @@ descriptors by adding their identifier to the format string
  - 'evmsig': the EVM portable signature;
  - 'iuid': the inode UID;
  - 'igid': the inode GID;
+ - 'imode': the inode mode;
 
 
 Below, there is the list of defined template descriptors:
