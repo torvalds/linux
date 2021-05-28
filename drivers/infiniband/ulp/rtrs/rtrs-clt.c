@@ -655,7 +655,6 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 			rtrs_err(con->c.sess, "rtrs_post_recv_empty(): %d\n",
 				  err);
 			rtrs_rdma_error_recovery(con);
-			break;
 		}
 		break;
 	case IB_WC_RECV:
