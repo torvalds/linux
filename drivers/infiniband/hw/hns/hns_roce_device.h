@@ -471,7 +471,7 @@ struct hns_roce_srq {
 	u32			xrcdn;
 	void __iomem		*db_reg;
 
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct completion	free;
 
 	struct hns_roce_mtr	buf_mtr;
