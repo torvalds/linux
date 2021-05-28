@@ -302,8 +302,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	if (!otg_sx->role_sw_used && of_property_read_bool(node, "extcon")) {
 		otg_sx->edev = extcon_get_edev_by_phandle(ssusb->dev, 0);
 		if (IS_ERR(otg_sx->edev)) {
-			dev_err(ssusb->dev, "couldn't get extcon device\n");
-			return PTR_ERR(otg_sx->edev);
+			return dev_err_probe(dev, PTR_ERR(otg_sx->edev),
+					     "couldn't get extcon device\n");
 		}
 	}
 
