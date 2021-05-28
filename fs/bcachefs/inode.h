@@ -70,7 +70,7 @@ void bch2_inode_init(struct bch_fs *, struct bch_inode_unpacked *,
 		     struct bch_inode_unpacked *);
 
 struct btree_iter *bch2_inode_create(struct btree_trans *,
-				     struct bch_inode_unpacked *, u32);
+				     struct bch_inode_unpacked *, u32, u64);
 
 int bch2_inode_rm(struct bch_fs *, u64, bool);
 

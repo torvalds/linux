@@ -23,6 +23,7 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 	struct btree_iter *inode_iter = NULL;
 	struct bch_hash_info hash = bch2_hash_info_init(c, new_inode);
 	u64 now = bch2_current_time(c);
+	u64 cpu = raw_smp_processor_id();
 	u64 dir_offset = 0;
 	int ret;
 
@@ -36,7 +37,7 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 	if (!name)
 		new_inode->bi_flags |= BCH_INODE_UNLINKED;
 
-	inode_iter = bch2_inode_create(trans, new_inode, U32_MAX);
+	inode_iter = bch2_inode_create(trans, new_inode, U32_MAX, cpu);
 	ret = PTR_ERR_OR_ZERO(inode_iter);
 	if (ret)
 		goto err;
