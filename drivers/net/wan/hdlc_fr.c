@@ -60,7 +60,6 @@
 #define NLPID_CCITT_ANSI_LMI	0x08
 #define NLPID_CISCO_LMI		0x09
 
-
 #define LMI_CCITT_ANSI_DLCI	   0 /* LMI DLCI */
 #define LMI_CISCO_DLCI		1023
 
@@ -86,7 +85,6 @@
 #define LMI_CCITT_CISCO_LENGTH	  13 /* LMI frame lengths */
 #define LMI_ANSI_LENGTH		  14
 
-
 struct fr_hdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	unsigned ea1:	1;
@@ -110,7 +108,6 @@ struct fr_hdr {
 	unsigned ea2:	1;
 #endif
 } __packed;
-
 
 struct pvc_device {
 	struct net_device *frad;
@@ -149,15 +146,12 @@ struct frad_state {
 	u8 rxseq; /* RX sequence number */
 };
 
-
 static int fr_ioctl(struct net_device *dev, struct ifreq *ifr);
-
 
 static inline u16 q922_to_dlci(u8 *hdr)
 {
 	return ((hdr[0] & 0xFC) << 2) | ((hdr[1] & 0xF0) >> 4);
 }
-
 
 static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 {
@@ -165,12 +159,10 @@ static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 	hdr[1] = ((dlci << 4) & 0xF0) | 0x01;
 }
 
-
 static inline struct frad_state* state(hdlc_device *hdlc)
 {
 	return(struct frad_state *)(hdlc->state);
 }
-
 
 static inline struct pvc_device *find_pvc(hdlc_device *hdlc, u16 dlci)
 {
@@ -186,7 +178,6 @@ static inline struct pvc_device *find_pvc(hdlc_device *hdlc, u16 dlci)
 
 	return NULL;
 }
-
 
 static struct pvc_device *add_pvc(struct net_device *dev, u16 dlci)
 {
@@ -215,12 +206,10 @@ static struct pvc_device *add_pvc(struct net_device *dev, u16 dlci)
 	return pvc;
 }
 
-
 static inline int pvc_is_used(struct pvc_device *pvc)
 {
 	return pvc->main || pvc->ether;
 }
-
 
 static inline void pvc_carrier(int on, struct pvc_device *pvc)
 {
@@ -241,7 +230,6 @@ static inline void pvc_carrier(int on, struct pvc_device *pvc)
 	}
 }
 
-
 static inline void delete_unused_pvcs(hdlc_device *hdlc)
 {
 	struct pvc_device **pvc_p = &state(hdlc)->first_pvc;
@@ -260,7 +248,6 @@ static inline void delete_unused_pvcs(hdlc_device *hdlc)
 	}
 }
 
-
 static inline struct net_device **get_dev_p(struct pvc_device *pvc,
 					    int type)
 {
@@ -269,7 +256,6 @@ static inline struct net_device **get_dev_p(struct pvc_device *pvc,
 	else
 		return &pvc->main;
 }
-
 
 static int fr_hard_header(struct sk_buff *skb, u16 dlci)
 {
@@ -334,8 +320,6 @@ static int fr_hard_header(struct sk_buff *skb, u16 dlci)
 	return 0;
 }
 
-
-
 static int pvc_open(struct net_device *dev)
 {
 	struct pvc_device *pvc = dev->ml_priv;
@@ -354,8 +338,6 @@ static int pvc_open(struct net_device *dev)
 	return 0;
 }
 
-
-
 static int pvc_close(struct net_device *dev)
 {
 	struct pvc_device *pvc = dev->ml_priv;
@@ -372,8 +354,6 @@ static int pvc_close(struct net_device *dev)
 	}
 	return 0;
 }
-
-
 
 static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -465,14 +445,11 @@ static inline void fr_log_dlci_active(struct pvc_device *pvc)
 		    pvc->state.active ? "active" : "inactive");
 }
 
-
-
 static inline u8 fr_lmi_nextseq(u8 x)
 {
 	x++;
 	return x ? x : 1;
 }
-
 
 static void fr_lmi_send(struct net_device *dev, int fullrep)
 {
@@ -569,8 +546,6 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	dev_queue_xmit(skb);
 }
 
-
-
 static void fr_set_link_state(int reliable, struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -602,7 +577,6 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 		}
 	}
 }
-
 
 static void fr_timer(struct timer_list *t)
 {
@@ -654,7 +628,6 @@ static void fr_timer(struct timer_list *t)
 
 	add_timer(&state(hdlc)->timer);
 }
-
 
 static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 {
@@ -962,7 +935,6 @@ static int fr_rx(struct sk_buff *skb)
 		pvc->state.becn ^= 1;
 	}
 
-
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
 		frad->stats.rx_dropped++;
 		return NET_RX_DROP;
@@ -1018,8 +990,6 @@ rx_drop:
 	return NET_RX_DROP;
 }
 
-
-
 static void fr_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -1044,7 +1014,6 @@ static void fr_start(struct net_device *dev)
 		fr_set_link_state(1, dev);
 }
 
-
 static void fr_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -1055,7 +1024,6 @@ static void fr_stop(struct net_device *dev)
 		del_timer_sync(&state(hdlc)->timer);
 	fr_set_link_state(0, dev);
 }
-
 
 static void fr_close(struct net_device *dev)
 {
@@ -1070,7 +1038,6 @@ static void fr_close(struct net_device *dev)
 		pvc = pvc->next;
 	}
 }
-
 
 static void pvc_setup(struct net_device *dev)
 {
@@ -1147,8 +1114,6 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	return 0;
 }
 
-
-
 static int fr_del_pvc(hdlc_device *hdlc, unsigned int dlci, int type)
 {
 	struct pvc_device *pvc;
@@ -1174,8 +1139,6 @@ static int fr_del_pvc(hdlc_device *hdlc, unsigned int dlci, int type)
 	return 0;
 }
 
-
-
 static void fr_destroy(struct net_device *frad)
 {
 	hdlc_device *hdlc = dev_to_hdlc(frad);
@@ -1198,7 +1161,6 @@ static void fr_destroy(struct net_device *frad)
 	}
 }
 
-
 static struct hdlc_proto proto = {
 	.close		= fr_close,
 	.start		= fr_start,
@@ -1208,7 +1170,6 @@ static struct hdlc_proto proto = {
 	.netif_rx	= fr_rx,
 	.module		= THIS_MODULE,
 };
-
 
 static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
@@ -1309,19 +1270,16 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
 static int __init mod_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-
 static void __exit mod_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
-
 
 module_init(mod_init);
 module_exit(mod_exit);
