@@ -96,15 +96,15 @@
 #define LM3692X_FAULT_FLAG_OPEN BIT(4)
 
 /**
- * struct lm3692x_led -
- * @lock - Lock for reading/writing the device
- * @client - Pointer to the I2C client
- * @led_dev - LED class device pointer
- * @regmap - Devices register map
- * @enable_gpio - VDDIO/EN gpio to enable communication interface
- * @regulator - LED supply regulator pointer
- * @led_enable - LED sync to be enabled
- * @model_id - Current device model ID enumerated
+ * struct lm3692x_led
+ * @lock: Lock for reading/writing the device
+ * @client: Pointer to the I2C client
+ * @led_dev: LED class device pointer
+ * @regmap: Devices register map
+ * @enable_gpio: VDDIO/EN gpio to enable communication interface
+ * @regulator: LED supply regulator pointer
+ * @led_enable: LED sync to be enabled
+ * @model_id: Current device model ID enumerated
  */
 struct lm3692x_led {
 	struct mutex lock;
