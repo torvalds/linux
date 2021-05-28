@@ -927,7 +927,7 @@ static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
 {
 	struct pci_dev *pdev = cxlm->pdev;
 	struct device *dev = &pdev->dev;
-	int rc;
+	void __iomem *addr;
 
 	/* Basic sanity check that BAR is big enough */
 	if (pci_resource_len(pdev, bar) < offset) {
@@ -936,13 +936,14 @@ static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
 		return IOMEM_ERR_PTR(-ENXIO);
 	}
 
-	rc = pcim_iomap_regions(pdev, BIT(bar), pci_name(pdev));
-	if (rc) {
+	addr = pcim_iomap(pdev, bar, 0);
+	if (!addr) {
 		dev_err(dev, "failed to map registers\n");
-		return IOMEM_ERR_PTR(rc);
+		return addr;
 	}
 
-	dev_dbg(dev, "Mapped CXL Memory Device resource\n");
+	dev_dbg(dev, "Mapped CXL Memory Device resource bar %u @ %#llx\n",
+		bar, offset);
 
 	return pcim_iomap_table(pdev)[bar] + offset;
 }
@@ -1003,6 +1004,9 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		return -ENXIO;
 	}
 
+	if (pci_request_mem_regions(pdev, pci_name(pdev)))
+		return -ENODEV;
+
 	/* Get the size of the Register Locator DVSEC */
 	pci_read_config_dword(pdev, regloc + PCI_DVSEC_HEADER1, &regloc_size);
 	regloc_size = FIELD_GET(PCI_DVSEC_HEADER1_LENGTH_MASK, regloc_size);
@@ -1028,8 +1032,8 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 
 		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
 			base = cxl_mem_map_regblock(cxlm, bar, offset);
-			if (IS_ERR(base))
-				return PTR_ERR(base);
+			if (!base)
+				return -ENOMEM;
 			break;
 		}
 	}
