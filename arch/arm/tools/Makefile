@@ -46,8 +46,7 @@ quiet_cmd_systbl = SYSTBL  $@
       cmd_systbl = $(CONFIG_SHELL) $(systbl) --abis $(abis) $< $@
 
 quiet_cmd_sysnr  = SYSNR   $@
-      cmd_sysnr  = $(CONFIG_SHELL) '$(sysnr)' '$<' '$@' \
-		   '$(syshdr_abi_$(basetarget))'
+      cmd_sysnr  = $(CONFIG_SHELL) $(sysnr) $< $@
 
 $(uapi)/unistd-oabi.h: abis := common,oabi
 $(uapi)/unistd-oabi.h: $(syscall) $(syshdr) FORCE
@@ -57,7 +56,6 @@ $(uapi)/unistd-eabi.h: abis := common,eabi
 $(uapi)/unistd-eabi.h: $(syscall) $(syshdr) FORCE
 	$(call if_changed,syshdr)
 
-sysnr_abi_unistd-nr := common,oabi,eabi,compat
 $(kapi)/unistd-nr.h: $(syscall) $(sysnr) FORCE
 	$(call if_changed,sysnr)
 
