@@ -216,9 +216,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	if (prop->fw_cpu_boot_dev_sts0_valid &&
-				(prop->fw_app_cpu_boot_dev_sts0 &
-					CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN))
+	if (prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
 		expected_ack_val = queue->pi;
 	else
 		expected_ack_val = CPUCP_PACKET_FENCE_VAL;
@@ -838,8 +836,8 @@ int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 	bool dynamic_pll;
 	int fw_pll_idx;
 
-	dynamic_pll = prop->fw_cpu_boot_dev_sts0_valid &&
-		(prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_DYN_PLL_EN);
+	dynamic_pll = !!(prop->fw_app_cpu_boot_dev_sts0 &
+						CPU_BOOT_DEV_STS0_DYN_PLL_EN);
 
 	if (!dynamic_pll) {
 		/*
@@ -988,7 +986,7 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 					u32 timeout)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 status;
+	u32 status, reg_val;
 	int rc;
 
 	/* Need to check two possible scenarios:
@@ -1026,14 +1024,30 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		return -EIO;
 	}
 
-	prop->fw_preboot_cpu_boot_dev_sts0 = RREG32(sts_boot_dev_sts0_reg);
-	prop->fw_preboot_cpu_boot_dev_sts1 = RREG32(sts_boot_dev_sts1_reg);
+	/*
+	 * the registers DEV_STS* contain FW capabilities/features.
+	 * We can rely on this registers only if bit CPU_BOOT_DEV_STS*_ENABLED
+	 * is set.
+	 * In the first read of this register we store the value of this
+	 * register ONLY if the register is enabled (which will be propagated
+	 * to next stages) and also mark the register as valid.
+	 * In case it is not enabled the stored value will be left 0- all
+	 * caps/features are off
+	 */
+	reg_val = RREG32(sts_boot_dev_sts0_reg);
+	if (reg_val & CPU_BOOT_DEV_STS0_ENABLED) {
+		prop->fw_cpu_boot_dev_sts0_valid = true;
+		prop->fw_preboot_cpu_boot_dev_sts0 = reg_val;
+	}
 
-	if (prop->fw_preboot_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED)
-		prop->dynamic_fw_load = !!(prop->fw_preboot_cpu_boot_dev_sts0 &
+	reg_val = RREG32(sts_boot_dev_sts1_reg);
+	if (reg_val & CPU_BOOT_DEV_STS1_ENABLED) {
+		prop->fw_cpu_boot_dev_sts1_valid = true;
+		prop->fw_preboot_cpu_boot_dev_sts1 = reg_val;
+	}
+
+	prop->dynamic_fw_load = !!(prop->fw_preboot_cpu_boot_dev_sts0 &
 						CPU_BOOT_DEV_STS0_FW_LD_COM_EN);
-	else
-		prop->dynamic_fw_load = 0;
 
 	/* initialize FW loader once we know what load protocol is used */
 	hdev->asic_funcs->init_firmware_loader(hdev);
@@ -1105,7 +1119,7 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	cpu_boot_dev_sts0 = prop->fw_preboot_cpu_boot_dev_sts0;
 	cpu_boot_dev_sts1 = prop->fw_preboot_cpu_boot_dev_sts1;
 
-	/* We read security status multiple times during boot:
+	/* We read boot_dev_sts registers multiple times during boot:
 	 * 1. preboot - a. Check whether the security status bits are valid
 	 *              b. Check whether fw security is enabled
 	 *              c. Check whether hard reset is done by preboot
@@ -1119,18 +1133,8 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
 	 * If set, then mark GIC controller to be disabled.
 	 */
-	if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
-		prop->fw_cpu_boot_dev_sts0_valid = 1;
-
-		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			prop->hard_reset_done_by_fw = true;
-	} else {
-		prop->fw_cpu_boot_dev_sts0_valid = 0;
-	}
-
-	/* place holder for STS1 as no statuses are defined yet */
-	prop->fw_cpu_boot_dev_sts1_valid =
-			!!(cpu_boot_dev_sts1 & CPU_BOOT_DEV_STS1_ENABLED);
+	prop->hard_reset_done_by_fw =
+		!!(cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN);
 
 	dev_dbg(hdev->dev, "Firmware preboot boot device status0 %#x\n",
 							cpu_boot_dev_sts0);
@@ -1781,7 +1785,7 @@ static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
 	prop->hard_reset_done_by_fw = false;
 
 	/* Read boot_cpu status bits */
-	if (prop->fw_cpu_boot_dev_sts0_valid) {
+	if (prop->fw_preboot_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_bootfit_cpu_boot_dev_sts0 =
 				RREG32(cpu_boot_dev_sts0_reg);
 

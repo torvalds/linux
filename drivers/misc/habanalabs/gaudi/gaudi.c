@@ -1980,9 +1980,8 @@ static void gaudi_init_scrambler_sram(struct hl_device *hdev)
 	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
-			(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
-					CPU_BOOT_DEV_STS0_SRAM_SCR_EN))
+	if (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+						CPU_BOOT_DEV_STS0_SRAM_SCR_EN)
 		return;
 
 	if (gaudi->hw_cap_initialized & HW_CAP_SRAM_SCRAMBLER)
@@ -2052,9 +2051,8 @@ static void gaudi_init_scrambler_hbm(struct hl_device *hdev)
 	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
-			(hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
-					CPU_BOOT_DEV_STS0_DRAM_SCR_EN))
+	if (hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
+					CPU_BOOT_DEV_STS0_DRAM_SCR_EN)
 		return;
 
 	if (gaudi->hw_cap_initialized & HW_CAP_HBM_SCRAMBLER)
@@ -2122,9 +2120,8 @@ static void gaudi_init_e2e(struct hl_device *hdev)
 	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
-			(hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
-					CPU_BOOT_DEV_STS0_E2E_CRED_EN))
+	if (hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
+					CPU_BOOT_DEV_STS0_E2E_CRED_EN)
 		return;
 
 	WREG32(mmSIF_RTR_CTRL_0_E2E_HBM_WR_SIZE, 247 >> 3);
@@ -2497,9 +2494,8 @@ static void gaudi_init_hbm_cred(struct hl_device *hdev)
 	if (hdev->asic_prop.fw_security_enabled)
 		return;
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
-			(hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
-					CPU_BOOT_DEV_STS0_HBM_CRED_EN))
+	if (hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
+						CPU_BOOT_DEV_STS0_HBM_CRED_EN)
 		return;
 
 	hbm0_wr = 0x33333333;
@@ -7477,9 +7473,8 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 	u32 base, val, val2, wr_par, rd_par, ca_par, derr, serr, type, ch;
 	int err = 0;
 
-	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
-			(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
-				CPU_BOOT_DEV_STS0_HBM_ECC_EN)) {
+	if (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
+					CPU_BOOT_DEV_STS0_HBM_ECC_EN) {
 		if (!hbm_ecc_data) {
 			dev_err(hdev->dev, "No FW ECC data");
 			return 0;
