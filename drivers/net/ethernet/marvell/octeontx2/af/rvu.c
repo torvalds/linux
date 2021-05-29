@@ -57,6 +57,10 @@ static char *mkex_profile; /* MKEX profile name */
 module_param(mkex_profile, charp, 0000);
 MODULE_PARM_DESC(mkex_profile, "MKEX profile name string");
 
+static char *kpu_profile; /* KPU profile name */
+module_param(kpu_profile, charp, 0000);
+MODULE_PARM_DESC(kpu_profile, "KPU profile name string");
+
 static void rvu_setup_hw_capabilities(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -2842,6 +2846,8 @@ static void rvu_update_module_params(struct rvu *rvu)
 
 	strscpy(rvu->mkex_pfl_name,
 		mkex_profile ? mkex_profile : default_pfl_name, MKEX_NAME_LEN);
+	strscpy(rvu->kpu_pfl_name,
+		kpu_profile ? kpu_profile : default_pfl_name, KPU_NAME_LEN);
 }
 
 static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
