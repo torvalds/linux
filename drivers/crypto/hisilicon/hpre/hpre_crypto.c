@@ -5,6 +5,7 @@
 #include <crypto/dh.h>
 #include <crypto/ecc_curve.h>
 #include <crypto/ecdh.h>
+#include <crypto/rng.h>
 #include <crypto/internal/akcipher.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/internal/rsa.h>
@@ -37,6 +38,9 @@ struct hpre_ctx;
 
 #define HPRE_DFX_SEC_TO_US	1000000
 #define HPRE_DFX_US_TO_NS	1000
+
+/* due to nist p521  */
+#define HPRE_ECC_MAX_KSZ	66
 
 /* size in bytes of the n prime */
 #define HPRE_ECC_NIST_P192_N_SIZE	24
@@ -1333,11 +1337,32 @@ static bool hpre_key_is_zero(char *key, unsigned short key_sz)
 	return true;
 }
 
+static int ecdh_gen_privkey(struct hpre_ctx *ctx, struct ecdh *params)
+{
+	struct device *dev = ctx->dev;
+	int ret;
+
+	ret = crypto_get_default_rng();
+	if (ret) {
+		dev_err(dev, "failed to get default rng, ret = %d!\n", ret);
+		return ret;
+	}
+
+	ret = crypto_rng_get_bytes(crypto_default_rng, (u8 *)params->key,
+				   params->key_size);
+	crypto_put_default_rng();
+	if (ret)
+		dev_err(dev, "failed to get rng, ret = %d!\n", ret);
+
+	return ret;
+}
+
 static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 				unsigned int len)
 {
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
 	struct device *dev = ctx->dev;
+	char key[HPRE_ECC_MAX_KSZ];
 	unsigned int sz, sz_shift;
 	struct ecdh params;
 	int ret;
@@ -1345,6 +1370,15 @@ static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	if (crypto_ecdh_decode_key(buf, len, &params) < 0) {
 		dev_err(dev, "failed to decode ecdh key!\n");
 		return -EINVAL;
+	}
+
+	/* Use stdrng to generate private key */
+	if (!params.key || !params.key_size) {
+		params.key = key;
+		params.key_size = hpre_ecdh_get_curvesz(ctx->curve_id);
+		ret = ecdh_gen_privkey(ctx, &params);
+		if (ret)
+			return ret;
 	}
 
 	if (hpre_key_is_zero(params.key, params.key_size)) {
