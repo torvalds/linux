@@ -353,6 +353,8 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     'preamble': '''
+	% Prevent column squeezing of tabulary.
+	\\setlength{\\tymin}{20em}
         % Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
         \\setsansfont{DejaVu Sans}
