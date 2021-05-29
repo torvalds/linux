@@ -213,19 +213,6 @@ return dev->dma.tx_ring1;
 	return ring;
 }
 
-/* Bcm4301-ring to mac80211-queue mapping */
-static inline int txring_to_priority(struct b43legacy_dmaring *ring)
-{
-	static const u8 idx_to_prio[] =
-		{ 3, 2, 1, 0, 4, 5, };
-
-/*FIXME: have only one queue, for now */
-return 0;
-
-	return idx_to_prio[ring->index];
-}
-
-
 static u16 b43legacy_dmacontroller_base(enum b43legacy_dmatype type,
 					int controller_idx)
 {
