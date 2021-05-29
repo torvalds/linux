@@ -50,8 +50,8 @@ static int yt8511_write_page(struct phy_device *phydev, int page)
 
 static int yt8511_config_init(struct phy_device *phydev)
 {
+	int oldpage, ret = 0;
 	unsigned int ge, fe;
-	int ret, oldpage;
 
 	/* set clock mode to 125mhz */
 	oldpage = phy_select_page(phydev, YT8511_EXT_CLK_GATE);
