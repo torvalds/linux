@@ -1,6 +1,6 @@
 [
   {
-    "EventCode": "4016E",
+    "EventCode": "0x4016E",
     "EventName": "PM_THRESH_NOT_MET",
     "BriefDescription": "Threshold counter did not meet threshold."
   }
