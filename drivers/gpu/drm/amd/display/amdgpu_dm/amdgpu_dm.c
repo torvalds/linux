@@ -10055,11 +10055,11 @@ static int validate_overlay(struct drm_atomic_state *state)
 {
 	int i;
 	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct drm_plane_state *new_plane_state;
 	struct drm_plane_state *primary_state, *cursor_state, *overlay_state = NULL;
 
 	/* Check if primary plane is contained inside overlay */
-	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
+	for_each_new_plane_in_state_reverse(state, plane, new_plane_state, i) {
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
 			if (drm_atomic_plane_disabling(plane->state, new_plane_state))
 				return 0;
