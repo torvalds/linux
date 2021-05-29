@@ -31,6 +31,7 @@
 #define MT7915_ROM_PATCH		"mediatek/mt7915_rom_patch.bin"
 
 #define MT7915_EEPROM_SIZE		3584
+#define MT7915_EEPROM_BLOCK_SIZE	16
 #define MT7915_TOKEN_SIZE		8192
 
 #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */

@@ -4,22 +4,12 @@
 #include "mt7915.h"
 #include "eeprom.h"
 
-static u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
-{
-	u8 *data = dev->mt76.eeprom.data;
-
-	if (data[offset] == 0xff && !dev->flash_mode)
-		mt7915_mcu_get_eeprom(dev, offset);
-
-	return data[offset];
-}
-
 static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
-	u32 val;
+	u8 *eeprom = mdev->eeprom.data;
+	u32 val = eeprom[MT_EE_DO_PRE_CAL];
 
-	val = mt7915_eeprom_read(dev, MT_EE_DO_PRE_CAL);
 	if (val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP))
 		return 0;
 
@@ -43,7 +33,13 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 		dev->flash_mode = true;
 		ret = mt7915_eeprom_load_precal(dev);
 	} else {
-		memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
+		u32 block_num, i;
+
+		block_num = DIV_ROUND_UP(MT7915_EEPROM_SIZE,
+					 MT7915_EEPROM_BLOCK_SIZE);
+		for (i = 0; i < block_num; i++)
+			mt7915_mcu_get_eeprom(dev,
+					      i * MT7915_EEPROM_BLOCK_SIZE);
 	}
 
 	return ret;
@@ -52,10 +48,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
-	u16 val;
-
-	mt7915_eeprom_read(dev, MT_EE_CHIP_ID);
-	val = get_unaligned_le16(eeprom);
+	u16 val = get_unaligned_le16(eeprom);
 
 	switch (val) {
 	case 0x7915:
@@ -69,9 +62,10 @@ void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
+	u8 *eeprom = dev->mt76.eeprom.data;
 	u32 val;
 
-	val = mt7915_eeprom_read(dev, MT_EE_WIFI_CONF + ext_phy);
+	val = eeprom[MT_EE_WIFI_CONF + ext_phy];
 	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
 	if (val == MT_EE_BAND_SEL_DEFAULT && dev->dbdc_support)
 		val = ext_phy ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
@@ -143,6 +137,7 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 				   struct ieee80211_channel *chan,
 				   u8 chain_idx)
 {
+	u8 *eeprom = dev->mt76.eeprom.data;
 	int index, target_power;
 	bool tssi_on;
 
@@ -153,18 +148,18 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 
 	if (chan->band == NL80211_BAND_2GHZ) {
 		index = MT_EE_TX0_POWER_2G + chain_idx * 3;
-		target_power = mt7915_eeprom_read(dev, index);
+		target_power = eeprom[index];
 
 		if (!tssi_on)
-			target_power += mt7915_eeprom_read(dev, index + 1);
+			target_power += eeprom[index + 1];
 	} else {
 		int group = mt7915_get_channel_group(chan->hw_value);
 
 		index = MT_EE_TX0_POWER_5G + chain_idx * 12;
-		target_power = mt7915_eeprom_read(dev, index + group);
+		target_power = eeprom[index + group];
 
 		if (!tssi_on)
-			target_power += mt7915_eeprom_read(dev, index + 8);
+			target_power += eeprom[index + 8];
 	}
 
 	return target_power;
@@ -172,13 +167,14 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 
 s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band)
 {
+	u8 *eeprom = dev->mt76.eeprom.data;
 	u32 val;
 	s8 delta;
 
 	if (band == NL80211_BAND_2GHZ)
-		val = mt7915_eeprom_read(dev, MT_EE_RATE_DELTA_2G);
+		val = eeprom[MT_EE_RATE_DELTA_2G];
 	else
-		val = mt7915_eeprom_read(dev, MT_EE_RATE_DELTA_5G);
+		val = eeprom[MT_EE_RATE_DELTA_5G];
 
 	if (!(val & MT_EE_RATE_DELTA_EN))
 		return 0;
