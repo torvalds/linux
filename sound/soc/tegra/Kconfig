@@ -117,9 +117,13 @@ config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	  few things for Tegra audio. Most of the code is re-used from
 	  audio graph driver and the same DT bindings are used.
 
+config SND_SOC_TEGRA_MACHINE_DRV
+	tristate
+
 config SND_SOC_TEGRA_RT5640
 	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_RT5640
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -128,6 +132,7 @@ config SND_SOC_TEGRA_RT5640
 config SND_SOC_TEGRA_WM8753
 	tristate "SoC Audio support for Tegra boards using a WM8753 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_WM8753
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -136,6 +141,7 @@ config SND_SOC_TEGRA_WM8753
 config SND_SOC_TEGRA_WM8903
 	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_WM8903
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -145,6 +151,7 @@ config SND_SOC_TEGRA_WM8903
 config SND_SOC_TEGRA_WM9712
 	tristate "SoC Audio support for Tegra boards using a WM9712 codec"
 	depends on GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_TEGRA20_AC97
 	select SND_SOC_WM9712
 	help
@@ -154,6 +161,7 @@ config SND_SOC_TEGRA_WM9712
 config SND_SOC_TEGRA_TRIMSLICE
 	tristate "SoC Audio support for TrimSlice board"
 	depends on I2C
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_TLV320AIC23_I2C
 	help
 	  Say Y or M here if you want to add support for SoC audio on the
@@ -162,6 +170,7 @@ config SND_SOC_TEGRA_TRIMSLICE
 config SND_SOC_TEGRA_ALC5632
 	tristate "SoC Audio support for Tegra boards using an ALC5632 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_ALC5632
 	help
 	  Say Y or M here if you want to add support for SoC audio on the
@@ -170,6 +179,7 @@ config SND_SOC_TEGRA_ALC5632
 config SND_SOC_TEGRA_MAX98090
 	tristate "SoC Audio support for Tegra boards using a MAX98090 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_MAX98090
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -178,6 +188,7 @@ config SND_SOC_TEGRA_MAX98090
 config SND_SOC_TEGRA_RT5677
 	tristate "SoC Audio support for Tegra boards using a RT5677 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_RT5677
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -186,6 +197,7 @@ config SND_SOC_TEGRA_RT5677
 config SND_SOC_TEGRA_SGTL5000
 	tristate "SoC Audio support for Tegra boards using a SGTL5000 codec"
 	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
 	select SND_SOC_SGTL5000
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
