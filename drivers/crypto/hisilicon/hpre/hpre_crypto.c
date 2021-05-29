@@ -1841,8 +1841,12 @@ static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 	 * When src_data equals (2^255 - 19) ~  (2^255 - 1), it is out of p,
 	 * we get its modulus to p, and then use it.
 	 */
-	if (memcmp(ptr, p, ctx->key_sz) >= 0)
+	if (memcmp(ptr, p, ctx->key_sz) == 0) {
+		dev_err(dev, "gx is p!\n");
+		return -EINVAL;
+	} else if (memcmp(ptr, p, ctx->key_sz) > 0) {
 		hpre_curve25519_src_modulo_p(ptr);
+	}
 
 	hpre_req->src = ptr;
 	msg->in = cpu_to_le64(dma);
