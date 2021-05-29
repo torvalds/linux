@@ -480,7 +480,7 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
-extern int avic;
+extern bool avic;
 
 static inline void avic_update_vapic_bar(struct vcpu_svm *svm, u64 data)
 {
