@@ -91,10 +91,10 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      struct bio *bio);
 
 blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
-				  unsigned long len, u64 disk_start,
-				  unsigned long compressed_len,
+				  unsigned int len, u64 disk_start,
+				  unsigned int compressed_len,
 				  struct page **compressed_pages,
-				  unsigned long nr_pages,
+				  unsigned int nr_pages,
 				  unsigned int write_flags,
 				  struct cgroup_subsys_state *blkcg_css);
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
