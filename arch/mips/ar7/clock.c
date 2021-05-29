@@ -13,6 +13,7 @@
 #include <linux/gcd.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/clkdev.h>
 #include <linux/clk.h>
 
 #include <asm/addrspace.h>
@@ -424,27 +425,15 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	if (!strcmp(id, "bus"))
-		return &bus_clk;
+static struct clk_lookup ar7_clkdev_table[] = {
+	CLKDEV_INIT(NULL, "bus", &bus_clk),
 	/* cpmac and vbus share the same rate */
-	if (!strcmp(id, "cpmac"))
-		return &vbus_clk;
-	if (!strcmp(id, "cpu"))
-		return &cpu_clk;
-	if (!strcmp(id, "dsp"))
-		return &dsp_clk;
-	if (!strcmp(id, "vbus"))
-		return &vbus_clk;
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
+	CLKDEV_INIT("cpmac.0", "cpmac", &vbus_clk),
+	CLKDEV_INIT("cpmac.1", "cpmac", &vbus_clk),
+	CLKDEV_INIT(NULL, "cpu", &cpu_clk),
+	CLKDEV_INIT(NULL, "dsp", &dsp_clk),
+	CLKDEV_INIT(NULL, "vbus", &vbus_clk),
+};
 
 void __init ar7_init_clocks(void)
 {
@@ -462,6 +451,8 @@ void __init ar7_init_clocks(void)
 	}
 	/* adjust vbus clock rate */
 	vbus_clk.rate = bus_clk.rate / 2;
+
+	clkdev_add_table(ar7_clkdev_table, ARRAY_SIZE(ar7_clkdev_table));
 }
 
 /* dummy functions, should not be called */
