@@ -1194,9 +1194,6 @@ static unsigned int btrfs_compress_set_level(int type, unsigned level)
  *
  * @total_out is an in/out parameter, must be set to the input length and will
  * be also used to return the total number of compressed bytes
- *
- * @max_out tells us the max number of bytes that we're allowed to
- * stuff into pages
  */
 int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 u64 start, struct page **pages,
