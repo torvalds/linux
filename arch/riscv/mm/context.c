@@ -243,8 +243,7 @@ static int __init asids_init(void)
 	if (num_asids > (2 * num_possible_cpus())) {
 		atomic_long_set(&current_version, num_asids);
 
-		context_asid_map = kcalloc(BITS_TO_LONGS(num_asids),
-				   sizeof(*context_asid_map), GFP_KERNEL);
+		context_asid_map = bitmap_zalloc(num_asids, GFP_KERNEL);
 		if (!context_asid_map)
 			panic("Failed to allocate bitmap for %lu ASIDs\n",
 			      num_asids);
