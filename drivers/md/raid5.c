@@ -6940,7 +6940,7 @@ static struct attribute *raid5_attrs[] =  {
 	&ppl_write_hint.attr,
 	NULL,
 };
-static struct attribute_group raid5_attrs_group = {
+static const struct attribute_group raid5_attrs_group = {
 	.name = NULL,
 	.attrs = raid5_attrs,
 };
