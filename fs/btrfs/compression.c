@@ -149,7 +149,7 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	const u32 csum_size = fs_info->csum_size;
 	const u32 sectorsize = fs_info->sectorsize;
 	struct page *page;
-	unsigned long i;
+	unsigned int i;
 	char *kaddr;
 	u8 csum[BTRFS_CSUM_SIZE];
 	struct compressed_bio *cb = bio->bi_private;
@@ -208,7 +208,7 @@ static void end_compressed_bio_read(struct bio *bio)
 	struct compressed_bio *cb = bio->bi_private;
 	struct inode *inode;
 	struct page *page;
-	unsigned long index;
+	unsigned int index;
 	unsigned int mirror = btrfs_io_bio(bio)->mirror_num;
 	int ret = 0;
 
@@ -334,7 +334,7 @@ static void end_compressed_bio_write(struct bio *bio)
 	struct compressed_bio *cb = bio->bi_private;
 	struct inode *inode;
 	struct page *page;
-	unsigned long index;
+	unsigned int index;
 
 	if (bio->bi_status)
 		cb->errors = 1;
