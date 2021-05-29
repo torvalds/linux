@@ -3107,6 +3107,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	if (ctrl->ctrl.icdoff) {
 		dev_err(ctrl->ctrl.device, "icdoff %d is not supported!\n",
 				ctrl->ctrl.icdoff);
+		ret = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto out_disconnect_admin_queue;
 	}
 
@@ -3114,6 +3115,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	if (!(ctrl->ctrl.sgls & ((1 << 0) | (1 << 1)))) {
 		dev_err(ctrl->ctrl.device,
 			"Mandatory sgls are not supported!\n");
+		ret = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto out_disconnect_admin_queue;
 	}
 
@@ -3280,11 +3282,13 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING)
 		return;
 
-	if (portptr->port_state == FC_OBJSTATE_ONLINE)
+	if (portptr->port_state == FC_OBJSTATE_ONLINE) {
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: reset: Reconnect attempt failed (%d)\n",
 			ctrl->cnum, status);
-	else if (time_after_eq(jiffies, rport->dev_loss_end))
+		if (status > 0 && (status & NVME_SC_DNR))
+			recon = false;
+	} else if (time_after_eq(jiffies, rport->dev_loss_end))
 		recon = false;
 
 	if (recon && nvmf_should_reconnect(&ctrl->ctrl)) {
@@ -3298,12 +3302,17 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 
 		queue_delayed_work(nvme_wq, &ctrl->connect_work, recon_delay);
 	} else {
-		if (portptr->port_state == FC_OBJSTATE_ONLINE)
-			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: Max reconnect attempts (%d) "
-				"reached.\n",
-				ctrl->cnum, ctrl->ctrl.nr_reconnects);
-		else
+		if (portptr->port_state == FC_OBJSTATE_ONLINE) {
+			if (status > 0 && (status & NVME_SC_DNR))
+				dev_warn(ctrl->ctrl.device,
+					 "NVME-FC{%d}: reconnect failure\n",
+					 ctrl->cnum);
+			else
+				dev_warn(ctrl->ctrl.device,
+					 "NVME-FC{%d}: Max reconnect attempts "
+					 "(%d) reached.\n",
+					 ctrl->cnum, ctrl->ctrl.nr_reconnects);
+		} else
 			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: dev_loss_tmo (%d) expired "
 				"while waiting for remoteport connectivity.\n",
