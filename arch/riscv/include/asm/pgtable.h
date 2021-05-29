@@ -623,11 +623,6 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 {
 	return __pmd(atomic_long_xchg((atomic_long_t *)pmdp, pmd_val(pmd)));
 }
-
-#define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
-void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
-			unsigned long end);
-
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
