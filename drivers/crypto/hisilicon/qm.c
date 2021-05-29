@@ -1796,6 +1796,11 @@ static int qm_check_dev_error(struct hisi_qm *qm)
 	       (dev_val & (~qm->err_info.dev_ce_mask));
 }
 
+static int qm_wait_vf_prepare_finish(struct hisi_qm *qm)
+{
+	return 0;
+}
+
 static int qm_stop_qp(struct hisi_qp *qp)
 {
 	return qm_mb(qp->qm, QM_MB_CMD_STOP_QP, 0, qp->qp_id, 0);
@@ -3806,20 +3811,49 @@ stop_fail:
 	return ret;
 }
 
-static int qm_reset_prepare_ready(struct hisi_qm *qm)
+static int qm_try_stop_vfs(struct hisi_qm *qm, enum qm_stop_reason stop_reason)
 {
 	struct pci_dev *pdev = qm->pdev;
-	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+	int ret;
+
+	if (!qm->vfs_num)
+		return 0;
+
+	ret = qm_vf_reset_prepare(qm, stop_reason);
+	if (ret)
+		pci_err(pdev, "failed to prepare reset, ret = %d.\n", ret);
+
+	return ret;
+}
+
+static int qm_wait_reset_finish(struct hisi_qm *qm)
+{
 	int delay = 0;
 
 	/* All reset requests need to be queued for processing */
-	while (test_and_set_bit(QM_RESETTING, &pf_qm->misc_ctl)) {
+	while (test_and_set_bit(QM_RESETTING, &qm->misc_ctl)) {
 		msleep(++delay);
 		if (delay > QM_RESET_WAIT_TIMEOUT)
 			return -EBUSY;
 	}
 
 	return 0;
+}
+
+static int qm_reset_prepare_ready(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+
+	return qm_wait_reset_finish(pf_qm);
+}
+
+static void qm_reset_bit_clear(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+
+	clear_bit(QM_RESETTING, &pf_qm->misc_ctl);
 }
 
 static int qm_controller_reset_prepare(struct hisi_qm *qm)
@@ -3833,21 +3867,20 @@ static int qm_controller_reset_prepare(struct hisi_qm *qm)
 		return ret;
 	}
 
-	if (qm->vfs_num) {
-		ret = qm_vf_reset_prepare(qm, QM_SOFT_RESET);
-		if (ret) {
-			pci_err(pdev, "Fails to stop VFs!\n");
-			clear_bit(QM_RESETTING, &qm->misc_ctl);
-			return ret;
-		}
-	}
+	ret = qm_try_stop_vfs(qm, QM_SOFT_RESET);
+	if (ret)
+		pci_err(pdev, "failed to stop vfs by pf in soft reset.\n");
 
 	ret = hisi_qm_stop(qm, QM_SOFT_RESET);
 	if (ret) {
 		pci_err(pdev, "Fails to stop QM!\n");
-		clear_bit(QM_RESETTING, &qm->misc_ctl);
+		qm_reset_bit_clear(qm);
 		return ret;
 	}
+
+	ret = qm_wait_vf_prepare_finish(qm);
+	if (ret)
+		pci_err(pdev, "failed to stop by vfs in soft reset!\n");
 
 	clear_bit(QM_RST_SCHED, &qm->misc_ctl);
 
@@ -3983,6 +4016,27 @@ restart_fail:
 	return ret;
 }
 
+static int qm_try_start_vfs(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	int ret;
+
+	if (!qm->vfs_num)
+		return 0;
+
+	ret = qm_vf_q_assign(qm, qm->vfs_num);
+	if (ret) {
+		pci_err(pdev, "failed to assign VFs, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = qm_vf_reset_done(qm);
+	if (ret)
+		pci_warn(pdev, "failed to start vfs, ret = %d.\n", ret);
+
+	return ret;
+}
+
 static int qm_dev_hw_init(struct hisi_qm *qm)
 {
 	return qm->err_ini->hw_init(qm);
@@ -4082,23 +4136,17 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 		return ret;
 	}
 
-	if (qm->vfs_num) {
-		ret = qm_vf_q_assign(qm, qm->vfs_num);
-		if (ret) {
-			pci_err(pdev, "Failed to assign queue!\n");
-			return ret;
-		}
-	}
+	ret = qm_try_start_vfs(qm);
+	if (ret)
+		pci_err(pdev, "failed to start vfs by pf in soft reset.\n");
 
-	ret = qm_vf_reset_done(qm);
-	if (ret) {
-		pci_err(pdev, "Failed to start VFs!\n");
-		return -EPERM;
-	}
+	ret = qm_wait_vf_prepare_finish(qm);
+	if (ret)
+		pci_err(pdev, "failed to start by vfs in soft reset!\n");
 
 	qm_restart_done(qm);
 
-	clear_bit(QM_RESETTING, &qm->misc_ctl);
+	qm_reset_bit_clear(qm);
 
 	return 0;
 }
@@ -4119,13 +4167,13 @@ static int qm_controller_reset(struct hisi_qm *qm)
 	ret = qm_soft_reset(qm);
 	if (ret) {
 		pci_err(pdev, "Controller reset failed (%d)\n", ret);
-		clear_bit(QM_RESETTING, &qm->misc_ctl);
+		qm_reset_bit_clear(qm);
 		return ret;
 	}
 
 	ret = qm_controller_reset_done(qm);
 	if (ret) {
-		clear_bit(QM_RESETTING, &qm->misc_ctl);
+		qm_reset_bit_clear(qm);
 		return ret;
 	}
 
@@ -4187,20 +4235,19 @@ void hisi_qm_reset_prepare(struct pci_dev *pdev)
 		return;
 	}
 
-	if (qm->vfs_num) {
-		ret = qm_vf_reset_prepare(qm, QM_FLR);
-		if (ret) {
-			pci_err(pdev, "Failed to prepare reset, ret = %d.\n",
-				ret);
-			return;
-		}
-	}
+	ret = qm_try_stop_vfs(qm, QM_SOFT_RESET);
+	if (ret)
+		pci_err(pdev, "failed to stop vfs by pf in FLR.\n");
 
 	ret = hisi_qm_stop(qm, QM_FLR);
 	if (ret) {
 		pci_err(pdev, "Failed to stop QM, ret = %d.\n", ret);
 		return;
 	}
+
+	ret = qm_wait_vf_prepare_finish(qm);
+	if (ret)
+		pci_err(pdev, "failed to stop by vfs in FLR!\n");
 
 	pci_info(pdev, "FLR resetting...\n");
 }
@@ -4243,28 +4290,19 @@ void hisi_qm_reset_done(struct pci_dev *pdev)
 		goto flr_done;
 	}
 
-	if (qm->fun_type == QM_HW_PF) {
-		if (!qm->vfs_num)
-			goto flr_done;
+	ret = qm_try_start_vfs(qm);
+	if (ret)
+		pci_err(pdev, "failed to start vfs by pf in FLR.\n");
 
-		ret = qm_vf_q_assign(qm, qm->vfs_num);
-		if (ret) {
-			pci_err(pdev, "Failed to assign VFs, ret = %d.\n", ret);
-			goto flr_done;
-		}
-
-		ret = qm_vf_reset_done(qm);
-		if (ret) {
-			pci_err(pdev, "Failed to start VFs, ret = %d.\n", ret);
-			goto flr_done;
-		}
-	}
+	ret = qm_wait_vf_prepare_finish(qm);
+	if (ret)
+		pci_err(pdev, "failed to start by vfs in FLR!\n");
 
 flr_done:
 	if (qm_flr_reset_complete(pdev))
 		pci_info(pdev, "FLR reset complete\n");
 
-	clear_bit(QM_RESETTING, &pf_qm->misc_ctl);
+	qm_reset_bit_clear(qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_reset_done);
 
