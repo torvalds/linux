@@ -934,8 +934,8 @@ ssize_t ksmbd_vfs_getxattr(struct dentry *dentry, char *xattr_name,
 	if (!buf)
 		return -ENOMEM;
 
-	xattr_len = vfs_getxattr(&init_user_ns, dentry, xattr_name, (void *)buf,
-			xattr_len);
+	xattr_len = vfs_getxattr(&init_user_ns, dentry, xattr_name,
+				 (void *)buf, xattr_len);
 	if (xattr_len > 0)
 		*xattr_buf = buf;
 	else

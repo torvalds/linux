@@ -180,22 +180,23 @@ struct posix_acl_state {
 };
 
 int parse_sec_desc(struct smb_ntsd *pntsd, int acl_len,
-		struct smb_fattr *fattr);
+		   struct smb_fattr *fattr);
 int build_sec_desc(struct smb_ntsd *pntsd, struct smb_ntsd *ppntsd,
-		int addition_info, __u32 *secdesclen, struct smb_fattr *fattr);
+		   int addition_info, __u32 *secdesclen,
+		   struct smb_fattr *fattr);
 int init_acl_state(struct posix_acl_state *state, int cnt);
 void free_acl_state(struct posix_acl_state *state);
 void posix_state_to_acl(struct posix_acl_state *state,
-		struct posix_acl_entry *pace);
+			struct posix_acl_entry *pace);
 int compare_sids(const struct smb_sid *ctsid, const struct smb_sid *cwsid);
 bool smb_inherit_flags(int flags, bool is_dir);
 int smb_inherit_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
-		unsigned int uid, unsigned int gid);
+		     unsigned int uid, unsigned int gid);
 int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
-		__le32 *pdaccess, int uid);
+			__le32 *pdaccess, int uid);
 int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
-		struct dentry *dentry, struct smb_ntsd *pntsd, int ntsd_len,
-		bool type_check);
+		 struct dentry *dentry, struct smb_ntsd *pntsd, int ntsd_len,
+		 bool type_check);
 void id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid);
 void ksmbd_init_domain(u32 *sub_auth);
 #endif /* _SMBACL_H */

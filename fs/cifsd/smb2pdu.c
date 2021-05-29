@@ -560,7 +560,7 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 		sz = large_sz;
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_TBUF &&
-			work->set_trans_buf)
+	    work->set_trans_buf)
 		work->response_buf = ksmbd_find_buffer(sz);
 	else
 		work->response_buf = kvmalloc(sz, GFP_KERNEL | __GFP_ZERO);

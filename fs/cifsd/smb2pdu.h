@@ -1623,10 +1623,10 @@ void smb2_set_sign_rsp(struct ksmbd_work *work);
 int smb3_check_sign_req(struct ksmbd_work *work);
 void smb3_set_sign_rsp(struct ksmbd_work *work);
 int find_matching_smb2_dialect(int start_index, __le16 *cli_dialects,
-		__le16 dialects_count);
+			       __le16 dialects_count);
 struct file_lock *smb_flock_init(struct file *f);
 int setup_async_work(struct ksmbd_work *work, void (*fn)(void **),
-		void **arg);
+		     void **arg);
 void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status);
 struct channel *lookup_chann_list(struct ksmbd_session *sess);
 void smb3_preauth_hash_rsp(struct ksmbd_work *work);
