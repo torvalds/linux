@@ -3,8 +3,7 @@
 #ifndef __TEGRA_ASOC_MACHINE_H__
 #define __TEGRA_ASOC_MACHINE_H__
 
-#include "tegra_asoc_utils.h"
-
+struct clk;
 struct gpio_desc;
 struct snd_soc_card;
 struct snd_soc_jack;
@@ -27,7 +26,11 @@ struct tegra_asoc_data {
 };
 
 struct tegra_machine {
-	struct tegra_asoc_utils_data util_data;
+	struct clk *clk_pll_a_out0;
+	struct clk *clk_pll_a;
+	struct clk *clk_cdev1;
+	unsigned int set_baseclock;
+	unsigned int set_mclk;
 	const struct tegra_asoc_data *asoc;
 	struct gpio_desc *gpiod_ext_mic_en;
 	struct gpio_desc *gpiod_int_mic_en;
