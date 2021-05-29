@@ -1416,7 +1416,7 @@ void __target_init_cmd(
 	cmd->orig_fe_lun = unpacked_lun;
 
 	if (!(cmd->se_cmd_flags & SCF_USE_CPUID))
-		cmd->cpuid = smp_processor_id();
+		cmd->cpuid = raw_smp_processor_id();
 
 	cmd->state_active = false;
 }
