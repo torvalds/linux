@@ -45,9 +45,11 @@ struct hpre_ctx;
 /* size in bytes of the n prime */
 #define HPRE_ECC_NIST_P192_N_SIZE	24
 #define HPRE_ECC_NIST_P256_N_SIZE	32
+#define HPRE_ECC_NIST_P384_N_SIZE	48
 
 /* size in bytes */
 #define HPRE_ECC_HW256_KSZ_B	32
+#define HPRE_ECC_HW384_KSZ_B	48
 
 typedef void (*hpre_cb)(struct hpre_ctx *ctx, void *sqe);
 
@@ -1211,12 +1213,21 @@ static void hpre_ecc_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all,
 	hpre_ctx_clear(ctx, is_clear_all);
 }
 
+/*
+ * The bits of 192/224/256/384/521 are supported by HPRE,
+ * and convert the bits like:
+ * bits<=256, bits=256; 256<bits<=384, bits=384; 384<bits<=576, bits=576;
+ * If the parameter bit width is insufficient, then we fill in the
+ * high-order zeros by soft, so TASK_LENGTH1 is 0x3/0x5/0x8;
+ */
 static unsigned int hpre_ecdh_supported_curve(unsigned short id)
 {
 	switch (id) {
 	case ECC_CURVE_NIST_P192:
 	case ECC_CURVE_NIST_P256:
 		return HPRE_ECC_HW256_KSZ_B;
+	case ECC_CURVE_NIST_P384:
+		return HPRE_ECC_HW384_KSZ_B;
 	default:
 		break;
 	}
@@ -1281,6 +1292,8 @@ static unsigned int hpre_ecdh_get_curvesz(unsigned short id)
 		return HPRE_ECC_NIST_P192_N_SIZE;
 	case ECC_CURVE_NIST_P256:
 		return HPRE_ECC_NIST_P256_N_SIZE;
+	case ECC_CURVE_NIST_P384:
+		return HPRE_ECC_NIST_P384_N_SIZE;
 	default:
 		break;
 	}
@@ -1609,6 +1622,15 @@ static int hpre_ecdh_nist_p256_init_tfm(struct crypto_kpp *tfm)
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
 
 	ctx->curve_id = ECC_CURVE_NIST_P256;
+
+	return hpre_ctx_init(ctx, HPRE_V3_ECC_ALG_TYPE);
+}
+
+static int hpre_ecdh_nist_p384_init_tfm(struct crypto_kpp *tfm)
+{
+	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
+
+	ctx->curve_id = ECC_CURVE_NIST_P384;
 
 	return hpre_ctx_init(ctx, HPRE_V3_ECC_ALG_TYPE);
 }
@@ -2017,6 +2039,23 @@ static struct kpp_alg ecdh_nist_p256 = {
 	},
 };
 
+static struct kpp_alg ecdh_nist_p384 = {
+	.set_secret = hpre_ecdh_set_secret,
+	.generate_public_key = hpre_ecdh_compute_value,
+	.compute_shared_secret = hpre_ecdh_compute_value,
+	.max_size = hpre_ecdh_max_size,
+	.init = hpre_ecdh_nist_p384_init_tfm,
+	.exit = hpre_ecdh_exit_tfm,
+	.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
+	.base = {
+		.cra_ctxsize = sizeof(struct hpre_ctx),
+		.cra_priority = HPRE_CRYPTO_ALG_PRI,
+		.cra_name = "ecdh-nist-p384",
+		.cra_driver_name = "hpre-ecdh-nist-p384",
+		.cra_module = THIS_MODULE,
+	},
+};
+
 static struct kpp_alg curve25519_alg = {
 	.set_secret = hpre_curve25519_set_secret,
 	.generate_public_key = hpre_curve25519_compute_value,
@@ -2044,16 +2083,25 @@ static int hpre_register_ecdh(void)
 		return ret;
 
 	ret = crypto_register_kpp(&ecdh_nist_p256);
-	if (ret) {
-		crypto_unregister_kpp(&ecdh_nist_p192);
-		return ret;
-	}
+	if (ret)
+		goto unregister_ecdh_p192;
+
+	ret = crypto_register_kpp(&ecdh_nist_p384);
+	if (ret)
+		goto unregister_ecdh_p256;
 
 	return 0;
+
+unregister_ecdh_p256:
+	crypto_unregister_kpp(&ecdh_nist_p256);
+unregister_ecdh_p192:
+	crypto_unregister_kpp(&ecdh_nist_p192);
+	return ret;
 }
 
 static void hpre_unregister_ecdh(void)
 {
+	crypto_unregister_kpp(&ecdh_nist_p384);
 	crypto_unregister_kpp(&ecdh_nist_p256);
 	crypto_unregister_kpp(&ecdh_nist_p192);
 }
