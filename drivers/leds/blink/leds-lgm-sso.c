@@ -611,9 +611,6 @@ static void sso_led_shutdown(struct sso_led *led)
 	if (led->desc.hw_trig)
 		regmap_update_bits(priv->mmap, SSO_CON3, BIT(led->desc.pin), 0);
 
-	if (led->gpiod)
-		devm_gpiod_put(priv->dev, led->gpiod);
-
 	led->priv = NULL;
 }
 
