@@ -142,7 +142,6 @@ static void nft_pipapo_avx2_fill(unsigned long *data, int start, int len)
  * @map:	Bitmap to be scanned for set bits
  * @dst:	Destination bitmap
  * @mt:		Mapping table containing bit set specifiers
- * @len:	Length of bitmap in longs
  * @last:	Return index of first set bit, if this is the last field
  *
  * This is an alternative implementation of pipapo_refill() suitable for usage
@@ -1109,7 +1108,7 @@ bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
  * nft_pipapo_avx2_lookup() - Lookup function for AVX2 implementation
  * @net:	Network namespace
  * @set:	nftables API set representation
- * @elem:	nftables API element representation containing key data
+ * @key:	nftables API element representation containing key data
  * @ext:	nftables API extension pointer, filled with matching reference
  *
  * For more details, see DOC: Theory of Operation in nft_set_pipapo.c.
