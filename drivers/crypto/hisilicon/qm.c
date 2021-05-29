@@ -25,9 +25,11 @@
 #define QM_IRQ_NUM_V1			1
 #define QM_IRQ_NUM_PF_V2		4
 #define QM_IRQ_NUM_VF_V2		2
+#define QM_IRQ_NUM_VF_V3		3
 
 #define QM_EQ_EVENT_IRQ_VECTOR		0
 #define QM_AEQ_EVENT_IRQ_VECTOR		1
+#define QM_CMD_EVENT_IRQ_VECTOR		2
 #define QM_ABNORMAL_EVENT_IRQ_VECTOR	3
 
 /* mailbox */
@@ -176,6 +178,16 @@
 #define ACC_AM_ROB_ECC_INT_STS		0x300104
 #define ACC_ROB_ECC_ERR_MULTPL		BIT(1)
 #define QM_MSI_CAP_ENABLE		BIT(16)
+
+/* interfunction communication */
+#define QM_IFC_INT_SOURCE_P		0x100138
+#define QM_IFC_INT_SOURCE_V		0x0020
+#define QM_IFC_INT_MASK			0x0024
+#define QM_IFC_INT_STATUS		0x0028
+#define QM_IFC_INT_SOURCE_CLR		GENMASK(63, 0)
+#define QM_IFC_INT_SOURCE_MASK		BIT(0)
+#define QM_IFC_INT_DISABLE		BIT(0)
+#define QM_IFC_INT_STATUS_MASK		BIT(0)
 
 #define QM_DFX_MB_CNT_VF		0x104010
 #define QM_DFX_DB_CNT_VF		0x104020
@@ -633,6 +645,14 @@ static u32 qm_get_irq_num_v2(struct hisi_qm *qm)
 		return QM_IRQ_NUM_VF_V2;
 }
 
+static u32 qm_get_irq_num_v3(struct hisi_qm *qm)
+{
+	if (qm->fun_type == QM_HW_PF)
+		return QM_IRQ_NUM_PF_V2;
+
+	return QM_IRQ_NUM_VF_V3;
+}
+
 static struct hisi_qp *qm_to_hisi_qp(struct hisi_qm *qm, struct qm_eqe *eqe)
 {
 	u16 cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
@@ -737,6 +757,21 @@ static irqreturn_t qm_irq(int irq, void *data)
 	return IRQ_NONE;
 }
 
+static irqreturn_t qm_mb_cmd_irq(int irq, void *data)
+{
+	struct hisi_qm *qm = data;
+	u32 val;
+
+	val = readl(qm->io_base + QM_IFC_INT_STATUS);
+	val &= QM_IFC_INT_STATUS_MASK;
+	if (!val)
+		return IRQ_NONE;
+
+	schedule_work(&qm->cmd_process);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t qm_aeq_irq(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
@@ -777,14 +812,16 @@ static void qm_irq_unregister(struct hisi_qm *qm)
 
 	free_irq(pci_irq_vector(pdev, QM_EQ_EVENT_IRQ_VECTOR), qm);
 
-	if (qm->ver == QM_HW_V1)
-		return;
+	if (qm->ver > QM_HW_V1) {
+		free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
 
-	free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
+		if (qm->fun_type == QM_HW_PF)
+			free_irq(pci_irq_vector(pdev,
+				 QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
+	}
 
-	if (qm->fun_type == QM_HW_PF)
-		free_irq(pci_irq_vector(pdev,
-			 QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
+	if (qm->ver > QM_HW_V2)
+		free_irq(pci_irq_vector(pdev, QM_CMD_EVENT_IRQ_VECTOR), qm);
 }
 
 static void qm_init_qp_status(struct hisi_qp *qp)
@@ -1796,6 +1833,18 @@ static int qm_check_dev_error(struct hisi_qm *qm)
 	       (dev_val & (~qm->err_info.dev_ce_mask));
 }
 
+static void qm_clear_cmd_interrupt(struct hisi_qm *qm, u64 vf_mask)
+{
+	u32 val;
+
+	if (qm->fun_type == QM_HW_PF)
+		writeq(vf_mask, qm->io_base + QM_IFC_INT_SOURCE_P);
+
+	val = readl(qm->io_base + QM_IFC_INT_SOURCE_V);
+	val |= QM_IFC_INT_SOURCE_MASK;
+	writel(val, qm->io_base + QM_IFC_INT_SOURCE_V);
+}
+
 static int qm_wait_vf_prepare_finish(struct hisi_qm *qm)
 {
 	return 0;
@@ -1913,7 +1962,7 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
 static const struct hisi_qm_hw_ops qm_hw_ops_v3 = {
 	.get_vft = qm_get_vft_v2,
 	.qm_db = qm_db_v2,
-	.get_irq_num = qm_get_irq_num_v2,
+	.get_irq_num = qm_get_irq_num_v3,
 	.hw_error_init = qm_hw_error_init_v3,
 	.hw_error_uninit = qm_hw_error_uninit_v3,
 	.hw_error_handle = qm_hw_error_handle_v2,
@@ -2777,6 +2826,34 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 	qm->misc_ctl = false;
 }
 
+static void qm_cmd_uninit(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl(qm->io_base + QM_IFC_INT_MASK);
+	val |= QM_IFC_INT_DISABLE;
+	writel(val, qm->io_base + QM_IFC_INT_MASK);
+}
+
+static void qm_cmd_init(struct hisi_qm *qm)
+{
+	u32 val;
+
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	/* Clear communication interrupt source */
+	qm_clear_cmd_interrupt(qm, QM_IFC_INT_SOURCE_CLR);
+
+	/* Enable pf to vf communication reg. */
+	val = readl(qm->io_base + QM_IFC_INT_MASK);
+	val &= ~QM_IFC_INT_DISABLE;
+	writel(val, qm->io_base + QM_IFC_INT_MASK);
+}
+
 static void qm_put_pci_res(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -2808,6 +2885,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	struct pci_dev *pdev = qm->pdev;
 	struct device *dev = &pdev->dev;
 
+	qm_cmd_uninit(qm);
 	down_write(&qm->qps_lock);
 
 	if (!qm_avail_state(qm, QM_CLOSE)) {
@@ -4331,7 +4409,7 @@ static int qm_irq_register(struct hisi_qm *qm)
 	if (ret)
 		return ret;
 
-	if (qm->ver != QM_HW_V1) {
+	if (qm->ver > QM_HW_V1) {
 		ret = request_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR),
 				  qm_aeq_irq, 0, qm->dev_name, qm);
 		if (ret)
@@ -4346,8 +4424,18 @@ static int qm_irq_register(struct hisi_qm *qm)
 		}
 	}
 
+	if (qm->ver > QM_HW_V2) {
+		ret = request_irq(pci_irq_vector(pdev, QM_CMD_EVENT_IRQ_VECTOR),
+				qm_mb_cmd_irq, 0, qm->dev_name, qm);
+		if (ret)
+			goto err_mb_cmd_irq;
+	}
+
 	return 0;
 
+err_mb_cmd_irq:
+	if (qm->fun_type == QM_HW_PF)
+		free_irq(pci_irq_vector(pdev, QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
 err_abonormal_irq:
 	free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
 err_aeq_irq:
@@ -4382,6 +4470,11 @@ static void hisi_qm_controller_reset(struct work_struct *rst_work)
 	if (ret)
 		dev_err(&qm->pdev->dev, "controller reset failed (%d)\n", ret);
 
+}
+
+static void qm_cmd_process(struct work_struct *cmd_process)
+{
+	/* handling messages sent by communication source */
 }
 
 /**
@@ -4615,6 +4708,10 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (qm->fun_type == QM_HW_PF)
 		INIT_WORK(&qm->rst_work, hisi_qm_controller_reset);
 
+	if (qm->ver >= QM_HW_V3)
+		INIT_WORK(&qm->cmd_process, qm_cmd_process);
+
+	qm_cmd_init(qm);
 	atomic_set(&qm->status.flags, QM_INIT);
 
 	return 0;

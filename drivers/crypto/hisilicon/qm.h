@@ -250,6 +250,7 @@ struct hisi_qm {
 	struct workqueue_struct *wq;
 	struct work_struct work;
 	struct work_struct rst_work;
+	struct work_struct cmd_process;
 
 	const char *algs;
 	bool use_sva;
