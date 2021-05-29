@@ -1619,9 +1619,12 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			 * completely covered by the range and so potentially still in use.
 			 */
 			while (cursor.pfn < frag_start) {
-				amdgpu_vm_free_pts(adev, params->vm, &cursor);
+				/* Make sure previous mapping is freed */
+				if (cursor.entry->base.bo) {
+					params->table_freed = true;
+					amdgpu_vm_free_pts(adev, params->vm, &cursor);
+				}
 				amdgpu_vm_pt_next(adev, &cursor);
-				params->table_freed = true;
 			}
 
 		} else if (frag >= shift) {
