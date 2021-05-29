@@ -67,7 +67,7 @@ struct sht4x_data {
 /**
  * sht4x_read_values() - read and parse the raw data from the SHT4X
  * @sht4x_data: the struct sht4x_data to use for the lock
- * Return: 0 if succesfull, 1 if not
+ * Return: 0 if successful, -ERRNO if not
  */
 static int sht4x_read_values(struct sht4x_data *data)
 {
@@ -75,50 +75,52 @@ static int sht4x_read_values(struct sht4x_data *data)
 	u16 t_ticks, rh_ticks;
 	unsigned long next_update;
 	struct i2c_client *client = data->client;
-	u8 crc, raw_data[SHT4X_RESPONSE_LENGTH],
-	cmd[] = {SHT4X_CMD_MEASURE_HPM};
+	u8 crc;
+	u8 cmd[SHT4X_CMD_LEN] = {SHT4X_CMD_MEASURE_HPM};
+	u8 raw_data[SHT4X_RESPONSE_LENGTH];
 
 	mutex_lock(&data->lock);
 	next_update = data->last_updated +
 		      msecs_to_jiffies(data->update_interval);
-	if (!data->valid || time_after(jiffies, next_update)) {
-		ret = i2c_master_send(client, cmd, SHT4X_CMD_LEN);
-		if (ret < 0)
-			goto unlock;
 
-		usleep_range(SHT4X_MEAS_DELAY,
-			     SHT4X_MEAS_DELAY + SHT4X_DELAY_EXTRA);
+	if (data->valid && time_before_eq(jiffies, next_update))
+		goto unlock;
 
-		ret = i2c_master_recv(client, raw_data, SHT4X_RESPONSE_LENGTH);
-		if (ret != SHT4X_RESPONSE_LENGTH) {
-			if (ret >= 0)
-				ret = -ENODATA;
+	ret = i2c_master_send(client, cmd, SHT4X_CMD_LEN);
+	if (ret < 0)
+		goto unlock;
 
-			goto unlock;
-		}
+	usleep_range(SHT4X_MEAS_DELAY, SHT4X_MEAS_DELAY + SHT4X_DELAY_EXTRA);
 
-		t_ticks = raw_data[0] << 8 | raw_data[1];
-		rh_ticks = raw_data[3] << 8 | raw_data[4];
-
-		crc = crc8(sht4x_crc8_table, &raw_data[0], SHT4X_WORD_LEN, CRC8_INIT_VALUE);
-		if (crc != raw_data[2]) {
-			dev_err(&client->dev, "data integrity check failed\n");
-			ret = -EIO;
-			goto unlock;
-		}
-
-		crc = crc8(sht4x_crc8_table, &raw_data[3], SHT4X_WORD_LEN, CRC8_INIT_VALUE);
-		if (crc != raw_data[5]) {
-			dev_err(&client->dev, "data integrity check failed\n");
-			ret = -EIO;
-			goto unlock;
-		}
-
-		data->temperature = ((21875 * (int32_t)t_ticks) >> 13) - 45000;
-		data->humidity = ((15625 * (int32_t)rh_ticks) >> 13) - 6000;
-		data->last_updated = jiffies;
-		data->valid = true;
+	ret = i2c_master_recv(client, raw_data, SHT4X_RESPONSE_LENGTH);
+	if (ret != SHT4X_RESPONSE_LENGTH) {
+		if (ret >= 0)
+			ret = -ENODATA;
+		goto unlock;
 	}
+
+	t_ticks = raw_data[0] << 8 | raw_data[1];
+	rh_ticks = raw_data[3] << 8 | raw_data[4];
+
+	crc = crc8(sht4x_crc8_table, &raw_data[0], SHT4X_WORD_LEN, CRC8_INIT_VALUE);
+	if (crc != raw_data[2]) {
+		dev_err(&client->dev, "data integrity check failed\n");
+		ret = -EIO;
+		goto unlock;
+	}
+
+	crc = crc8(sht4x_crc8_table, &raw_data[3], SHT4X_WORD_LEN, CRC8_INIT_VALUE);
+	if (crc != raw_data[5]) {
+		dev_err(&client->dev, "data integrity check failed\n");
+		ret = -EIO;
+		goto unlock;
+	}
+
+	data->temperature = ((21875 * (int32_t)t_ticks) >> 13) - 45000;
+	data->humidity = ((15625 * (int32_t)rh_ticks) >> 13) - 6000;
+	data->last_updated = jiffies;
+	data->valid = true;
+	ret = 0;
 
 unlock:
 	mutex_unlock(&data->lock);
@@ -132,19 +134,14 @@ static ssize_t sht4x_interval_write(struct sht4x_data *data, long val)
 	return 0;
 }
 
-/**
- * sht4x_interval_read() - read the minimum poll interval
- *			   in milliseconds
- */
+/* sht4x_interval_read() - read the minimum poll interval in milliseconds */
 static size_t sht4x_interval_read(struct sht4x_data *data, long *val)
 {
 	*val = data->update_interval;
 	return 0;
 }
 
-/**
- * sht4x_temperature1_read() - read the temperature in millidegrees
- */
+/* sht4x_temperature1_read() - read the temperature in millidegrees */
 static int sht4x_temperature1_read(struct sht4x_data *data, long *val)
 {
 	int ret;
@@ -158,9 +155,7 @@ static int sht4x_temperature1_read(struct sht4x_data *data, long *val)
 	return 0;
 }
 
-/**
- * sht4x_humidity1_read() - read a relative humidity in millipercent
- */
+/* sht4x_humidity1_read() - read a relative humidity in millipercent */
 static int sht4x_humidity1_read(struct sht4x_data *data, long *val)
 {
 	int ret;
