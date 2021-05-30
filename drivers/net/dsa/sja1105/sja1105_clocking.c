@@ -566,13 +566,8 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
 		dev_err(dev, "Failed to configure Tx pad registers\n");
 		return rc;
 	}
+
 	if (!priv->info->setup_rgmii_delay)
-		return 0;
-	/* The role has no hardware effect for RGMII. However we use it as
-	 * a proxy for this interface being a MAC-to-MAC connection, with
-	 * the RGMII internal delays needing to be applied by us.
-	 */
-	if (role == XMII_MAC)
 		return 0;
 
 	return priv->info->setup_rgmii_delay(priv, port);

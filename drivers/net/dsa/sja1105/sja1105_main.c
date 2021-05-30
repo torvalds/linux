@@ -218,8 +218,14 @@ unsupported:
 		/* Even though the SerDes port is able to drive SGMII autoneg
 		 * like a PHY would, from the perspective of the XMII tables,
 		 * the SGMII port should always be put in MAC mode.
+		 * Similarly, RGMII is a symmetric protocol electrically
+		 * speaking, and the 'RGMII PHY' role does not mean anything to
+		 * hardware. Just keep the 'PHY role' notation relevant to the
+		 * driver to mean 'the switch port should apply RGMII delays',
+		 * but unconditionally put the port in the MAC role.
 		 */
-		if (ports[i].phy_mode == PHY_INTERFACE_MODE_SGMII)
+		if (ports[i].phy_mode == PHY_INTERFACE_MODE_SGMII ||
+		    phy_interface_mode_is_rgmii(ports[i].phy_mode))
 			mii->phy_mac[i] = XMII_MAC;
 		else
 			mii->phy_mac[i] = ports[i].role;
