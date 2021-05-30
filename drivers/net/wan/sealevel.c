@@ -105,9 +105,6 @@ static int sealevel_open(struct net_device *d)
 
 	slvl->chan->rx_function = sealevel_input;
 
-	/*
-	 *	Go go go
-	 */
 	netif_start_queue(d);
 	return 0;
 }
