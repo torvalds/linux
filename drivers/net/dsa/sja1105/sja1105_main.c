@@ -143,21 +143,6 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 	return 0;
 }
 
-static bool sja1105_supports_sgmii(struct sja1105_private *priv, int port)
-{
-	if (priv->info->part_no != SJA1105R_PART_NO &&
-	    priv->info->part_no != SJA1105S_PART_NO)
-		return false;
-
-	if (port != SJA1105_SGMII_PORT)
-		return false;
-
-	if (dsa_is_unused_port(priv->ds, port))
-		return false;
-
-	return true;
-}
-
 static int sja1105_init_mii_settings(struct sja1105_private *priv,
 				     struct sja1105_dt_port *ports)
 {
@@ -191,25 +176,42 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv,
 
 		switch (ports[i].phy_mode) {
 		case PHY_INTERFACE_MODE_MII:
+			if (!priv->info->supports_mii[i])
+				goto unsupported;
+
 			mii->xmii_mode[i] = XMII_MODE_MII;
 			break;
 		case PHY_INTERFACE_MODE_RMII:
+			if (!priv->info->supports_rmii[i])
+				goto unsupported;
+
 			mii->xmii_mode[i] = XMII_MODE_RMII;
 			break;
 		case PHY_INTERFACE_MODE_RGMII:
 		case PHY_INTERFACE_MODE_RGMII_ID:
 		case PHY_INTERFACE_MODE_RGMII_RXID:
 		case PHY_INTERFACE_MODE_RGMII_TXID:
+			if (!priv->info->supports_rgmii[i])
+				goto unsupported;
+
 			mii->xmii_mode[i] = XMII_MODE_RGMII;
 			break;
 		case PHY_INTERFACE_MODE_SGMII:
-			if (!sja1105_supports_sgmii(priv, i))
-				return -EINVAL;
+			if (!priv->info->supports_sgmii[i])
+				goto unsupported;
+
 			mii->xmii_mode[i] = XMII_MODE_SGMII;
 			break;
+		case PHY_INTERFACE_MODE_2500BASEX:
+			if (!priv->info->supports_2500basex[i])
+				goto unsupported;
+
+			mii->xmii_mode[i] = XMII_MODE_SGMII;
+			break;
+unsupported:
 		default:
-			dev_err(dev, "Unsupported PHY mode %s!\n",
-				phy_modes(ports[i].phy_mode));
+			dev_err(dev, "Unsupported PHY mode %s on port %d!\n",
+				phy_modes(ports[i].phy_mode), i);
 			return -EINVAL;
 		}
 
@@ -999,10 +1001,8 @@ static int sja1105_speed[] = {
 static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 				      int speed_mbps)
 {
-	struct sja1105_xmii_params_entry *mii;
 	struct sja1105_mac_config_entry *mac;
 	struct device *dev = priv->ds->dev;
-	sja1105_phy_interface_t phy_mode;
 	sja1105_speed_t speed;
 	int rc;
 
@@ -1013,7 +1013,6 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * reasonable approximation for both E/T and P/Q/R/S.
 	 */
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
-	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
 
 	switch (speed_mbps) {
 	case SPEED_UNKNOWN:
@@ -1047,7 +1046,7 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * Actually for the SGMII port, the MAC is fixed at 1 Gbps and
 	 * we need to configure the PCS only (if even that).
 	 */
-	if (sja1105_supports_sgmii(priv, port))
+	if (priv->phy_mode[port] == PHY_INTERFACE_MODE_SGMII)
 		mac[port].speed = SJA1105_SPEED_1000MBPS;
 	else
 		mac[port].speed = speed;
@@ -1066,8 +1065,7 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * the clock setup does interrupt the clock signal for a certain time
 	 * which causes trouble for all PHYs relying on this signal.
 	 */
-	phy_mode = mii->xmii_mode[port];
-	if (phy_mode != XMII_MODE_RGMII)
+	if (!phy_interface_mode_is_rgmii(priv->phy_mode[port]))
 		return 0;
 
 	return sja1105_clocking_setup_port(priv, port);
@@ -1091,7 +1089,9 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 			       const struct phylink_link_state *state)
 {
 	struct sja1105_private *priv = ds->priv;
-	bool is_sgmii = sja1105_supports_sgmii(priv, port);
+	bool is_sgmii;
+
+	is_sgmii = (state->interface == PHY_INTERFACE_MODE_SGMII);
 
 	if (sja1105_phy_mode_mismatch(priv, port, state->interface)) {
 		dev_err(ds->dev, "Changing PHY mode to %s not supported!\n",
@@ -1128,7 +1128,8 @@ static void sja1105_mac_link_up(struct dsa_switch *ds, int port,
 
 	sja1105_adjust_port_config(priv, port, speed);
 
-	if (sja1105_supports_sgmii(priv, port) && !phylink_autoneg_inband(mode))
+	if (priv->phy_mode[port] == PHY_INTERFACE_MODE_SGMII &&
+	    !phylink_autoneg_inband(mode))
 		sja1105_sgmii_pcs_force_speed(priv, port, speed);
 
 	sja1105_inhibit_tx(priv, BIT(port), false);
@@ -1885,7 +1886,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 		speed_mbps[i] = sja1105_speed[mac[i].speed];
 		mac[i].speed = SJA1105_SPEED_AUTO;
 
-		if (sja1105_supports_sgmii(priv, i))
+		if (priv->phy_mode[i] == PHY_INTERFACE_MODE_SGMII)
 			bmcr[i] = sja1105_sgmii_read(priv, i,
 						     MDIO_MMD_VEND2,
 						     MDIO_CTRL1);
@@ -1942,7 +1943,7 @@ out_unlock_ptp:
 		if (rc < 0)
 			goto out;
 
-		if (!sja1105_supports_sgmii(priv, i))
+		if (priv->phy_mode[i] != PHY_INTERFACE_MODE_SGMII)
 			continue;
 
 		an_enabled = !!(bmcr[i] & BMCR_ANENABLE);
