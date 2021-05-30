@@ -174,7 +174,11 @@ Refer to script export-to-sqlite.py or export-to-postgresql.py for more details,
 and to script exported-sql-viewer.py for an example of using the database.
 
 There is also script intel-pt-events.py which provides an example of how to
-unpack the raw data for power events and PTWRITE.
+unpack the raw data for power events and PTWRITE. The script also displays
+branches, and supports 2 additional modes selected by option:
+
+ --insn-trace - instruction trace
+ --src-trace - source trace
 
 As mentioned above, it is easy to capture too much data.  One way to limit the
 data captured is to use 'snapshot' mode which is explained further below.
