@@ -79,12 +79,12 @@ static int sealevel_open(struct net_device *d)
 	 */
 
 	switch (unit) {
-		case 0:
-			err = z8530_sync_dma_open(d, slvl->chan);
-			break;
-		case 1:
-			err = z8530_sync_open(d, slvl->chan);
-			break;
+	case 0:
+		err = z8530_sync_dma_open(d, slvl->chan);
+		break;
+	case 1:
+		err = z8530_sync_open(d, slvl->chan);
+		break;
 	}
 
 	if (err)
@@ -93,12 +93,12 @@ static int sealevel_open(struct net_device *d)
 	err = hdlc_open(d);
 	if (err) {
 		switch (unit) {
-			case 0:
-				z8530_sync_dma_close(d, slvl->chan);
-				break;
-			case 1:
-				z8530_sync_close(d, slvl->chan);
-				break;
+		case 0:
+			z8530_sync_dma_close(d, slvl->chan);
+			break;
+		case 1:
+			z8530_sync_close(d, slvl->chan);
+			break;
 		}
 		return err;
 	}
@@ -127,12 +127,12 @@ static int sealevel_close(struct net_device *d)
 	netif_stop_queue(d);
 
 	switch (unit) {
-		case 0:
-			z8530_sync_dma_close(d, slvl->chan);
-			break;
-		case 1:
-			z8530_sync_close(d, slvl->chan);
-			break;
+	case 0:
+		z8530_sync_dma_close(d, slvl->chan);
+		break;
+	case 1:
+		z8530_sync_close(d, slvl->chan);
+		break;
 	}
 	return 0;
 }
