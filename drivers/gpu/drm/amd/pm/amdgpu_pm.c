@@ -1903,6 +1903,67 @@ out:
 	return r;
 }
 
+/**
+ * DOC: smartshift_bias
+ *
+ * The amdgpu driver provides a sysfs API for reporting the
+ * smartshift(SS2.0) bias level. The value ranges from -100 to 100
+ * and the default is 0. -100 sets maximum preference to APU
+ * and 100 sets max perference to dGPU.
+ */
+
+static ssize_t amdgpu_get_smartshift_bias(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	int r = 0;
+
+	r = sysfs_emit(buf, "%d\n", amdgpu_smartshift_bias);
+
+	return r;
+}
+
+static ssize_t amdgpu_set_smartshift_bias(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int r = 0;
+	int bias = 0;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(ddev->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return r;
+	}
+
+	r = kstrtoint(buf, 10, &bias);
+	if (r)
+		goto out;
+
+	if (bias > AMDGPU_SMARTSHIFT_MAX_BIAS)
+		bias = AMDGPU_SMARTSHIFT_MAX_BIAS;
+	else if (bias < AMDGPU_SMARTSHIFT_MIN_BIAS)
+		bias = AMDGPU_SMARTSHIFT_MIN_BIAS;
+
+	amdgpu_smartshift_bias = bias;
+	r = count;
+
+	/* TODO: upadte bias level with SMU message */
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+	return r;
+}
+
+
 static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 				uint32_t mask, enum amdgpu_device_attr_states *states)
 {
@@ -1912,6 +1973,23 @@ static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device
 		*states = ATTR_STATE_UNSUPPORTED;
 	else if ((adev->flags & AMD_IS_PX) &&
 		 !amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	return 0;
+}
+
+static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+			       uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	uint32_t ss_power, size;
+
+	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
 		*states = ATTR_STATE_UNSUPPORTED;
 	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
 		 (void *)&ss_power, &size))
@@ -1953,6 +2031,8 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 			      .attr_update = ss_power_attr_update),
 	AMDGPU_DEVICE_ATTR_RO(smartshift_dgpu_power,			ATTR_FLAG_BASIC,
 			      .attr_update = ss_power_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(smartshift_bias,				ATTR_FLAG_BASIC,
+			      .attr_update = ss_bias_attr_update),
 };
 
 static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,

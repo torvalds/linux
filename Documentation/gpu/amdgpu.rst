@@ -316,3 +316,9 @@ smartshift_dgpu_power
 
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: smartshift_dgpu_power
+
+smartshift_bias
+---------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
+   :doc: smartshift_bias
