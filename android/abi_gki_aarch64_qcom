@@ -1226,6 +1226,7 @@
   isolate_and_split_free_page
   isolate_anon_lru_page
   is_vmalloc_addr
+  iterate_fd
   jiffies
   jiffies_to_msecs
   jiffies_to_usecs
