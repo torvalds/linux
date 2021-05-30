@@ -39,10 +39,10 @@
  *               their encoded values in the PLL control register, or -1 for
  *               unsupported values
  * @bypass_reg: the offset of the bypass control register within the CGU
- * @bypass_bit: the index of the bypass bit in the PLL control register
+ * @bypass_bit: the index of the bypass bit in the PLL control register, or
+ *              -1 if there is no bypass bit
  * @enable_bit: the index of the enable bit in the PLL control register
  * @stable_bit: the index of the stable bit in the PLL control register
- * @no_bypass_bit: if set, the PLL has no bypass functionality
  */
 struct ingenic_cgu_pll_info {
 	unsigned reg;
@@ -52,10 +52,9 @@ struct ingenic_cgu_pll_info {
 	u8 n_shift, n_bits, n_offset;
 	u8 od_shift, od_bits, od_max;
 	unsigned bypass_reg;
-	u8 bypass_bit;
+	s8 bypass_bit;
 	u8 enable_bit;
 	u8 stable_bit;
-	bool no_bypass_bit;
 };
 
 /**
