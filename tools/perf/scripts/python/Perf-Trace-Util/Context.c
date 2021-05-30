@@ -22,7 +22,7 @@ PyMODINIT_FUNC PyInit_perf_trace_context(void);
 
 static PyObject *perf_trace_context_common_pc(PyObject *obj, PyObject *args)
 {
-	static struct scripting_context *scripting_context;
+	struct scripting_context *scripting_context;
 	PyObject *context;
 	int retval;
 
@@ -38,7 +38,7 @@ static PyObject *perf_trace_context_common_pc(PyObject *obj, PyObject *args)
 static PyObject *perf_trace_context_common_flags(PyObject *obj,
 						 PyObject *args)
 {
-	static struct scripting_context *scripting_context;
+	struct scripting_context *scripting_context;
 	PyObject *context;
 	int retval;
 
@@ -54,7 +54,7 @@ static PyObject *perf_trace_context_common_flags(PyObject *obj,
 static PyObject *perf_trace_context_common_lock_depth(PyObject *obj,
 						      PyObject *args)
 {
-	static struct scripting_context *scripting_context;
+	struct scripting_context *scripting_context;
 	PyObject *context;
 	int retval;
 
