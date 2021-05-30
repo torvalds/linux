@@ -46,7 +46,7 @@ struct slvl_board
  *	Network driver support routines
  */
 
-static inline struct slvl_device* dev_to_chan(struct net_device *dev)
+static inline struct slvl_device *dev_to_chan(struct net_device *dev)
 {
 	return (struct slvl_device *)dev_to_hdlc(dev)->priv;
 }
