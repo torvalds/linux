@@ -517,7 +517,7 @@ static inline int align_pitch(int width, int bpp)
 /* for the generated headers: */
 #define INVALID_IDX(idx) ({BUG(); 0;})
 #define fui(x)                ({BUG(); 0;})
-#define util_float_to_half(x) ({BUG(); 0;})
+#define _mesa_float_to_half(x) ({BUG(); 0;})
 
 
 #define FIELD(val, name) (((val) & name ## __MASK) >> name ## __SHIFT)

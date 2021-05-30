@@ -149,7 +149,7 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 
 	a6xx_set_pagetable(a6xx_gpu, ring, submit->queue->ctx);
 
-	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
+	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP(0),
 		rbmemptr_stats(ring, index, cpcycles_start));
 
 	/*
@@ -185,7 +185,7 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		}
 	}
 
-	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
+	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP(0),
 		rbmemptr_stats(ring, index, cpcycles_end));
 	get_stats_counter(ring, REG_A6XX_CP_ALWAYS_ON_COUNTER_LO,
 		rbmemptr_stats(ring, index, alwayson_end));
@@ -727,8 +727,8 @@ static int a6xx_ucode_init(struct msm_gpu *gpu)
 		}
 	}
 
-	gpu_write64(gpu, REG_A6XX_CP_SQE_INSTR_BASE_LO,
-		REG_A6XX_CP_SQE_INSTR_BASE_HI, a6xx_gpu->sqe_iova);
+	gpu_write64(gpu, REG_A6XX_CP_SQE_INSTR_BASE,
+		REG_A6XX_CP_SQE_INSTR_BASE+1, a6xx_gpu->sqe_iova);
 
 	return 0;
 }
@@ -859,7 +859,7 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A6XX_RBBM_PERFCTR_CNTL, 0x1);
 
 	/* Select CP0 to always count cycles */
-	gpu_write(gpu, REG_A6XX_CP_PERFCTR_CP_SEL_0, PERF_CP_ALWAYS_COUNT);
+	gpu_write(gpu, REG_A6XX_CP_PERFCTR_CP_SEL(0), PERF_CP_ALWAYS_COUNT);
 
 	a6xx_set_ubwc_config(gpu);
 

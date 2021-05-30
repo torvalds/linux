@@ -9,6 +9,7 @@
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
+#include "dsi_phy_7nm.xml.h"
 
 /*
  * DSI PLL 7nm - clock diagram (eg: DSI0): TODO: updated CPHY diagram
