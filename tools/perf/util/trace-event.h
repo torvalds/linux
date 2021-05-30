@@ -97,6 +97,9 @@ extern unsigned int scripting_max_stack;
 
 int script_spec_register(const char *spec, struct scripting_ops *ops);
 
+void script_fetch_insn(struct perf_sample *sample, struct thread *thread,
+		       struct machine *machine);
+
 void setup_perl_scripting(void);
 void setup_python_scripting(void);
 
