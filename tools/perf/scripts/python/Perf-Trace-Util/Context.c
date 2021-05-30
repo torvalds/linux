@@ -11,12 +11,16 @@
 #include "../../../util/symbol.h"
 #include "../../../util/thread.h"
 #include "../../../util/maps.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/session.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyCapsule_GetPointer(arg1, arg2) \
   PyCObject_AsVoidPtr(arg1)
 #define _PyBytes_FromStringAndSize(arg1, arg2) \
   PyString_FromStringAndSize((arg1), (arg2))
+#define _PyUnicode_AsUTF8(arg) \
+  PyString_AsString(arg)
 
 PyMODINIT_FUNC initperf_trace_context(void);
 #else
@@ -24,18 +28,26 @@ PyMODINIT_FUNC initperf_trace_context(void);
   PyCapsule_GetPointer((arg1), (arg2))
 #define _PyBytes_FromStringAndSize(arg1, arg2) \
   PyBytes_FromStringAndSize((arg1), (arg2))
+#define _PyUnicode_AsUTF8(arg) \
+  PyUnicode_AsUTF8(arg)
 
 PyMODINIT_FUNC PyInit_perf_trace_context(void);
 #endif
 
-static struct scripting_context *get_scripting_context(PyObject *args)
+static struct scripting_context *get_args(PyObject *args, const char *name, PyObject **arg2)
 {
+	int cnt = 1 + !!arg2;
 	PyObject *context;
 
-	if (!PyArg_ParseTuple(args, "O", &context))
+	if (!PyArg_UnpackTuple(args, name, 1, cnt, &context, arg2))
 		return NULL;
 
 	return _PyCapsule_GetPointer(context, NULL);
+}
+
+static struct scripting_context *get_scripting_context(PyObject *args)
+{
+	return get_args(args, "context", NULL);
 }
 
 static PyObject *perf_trace_context_common_pc(PyObject *obj, PyObject *args)
@@ -87,6 +99,32 @@ static PyObject *perf_sample_insn(PyObject *obj, PyObject *args)
 	return _PyBytes_FromStringAndSize(c->sample->insn, c->sample->insn_len);
 }
 
+static PyObject *perf_set_itrace_options(PyObject *obj, PyObject *args)
+{
+	struct scripting_context *c;
+	const char *itrace_options;
+	int retval = -1;
+	PyObject *str;
+
+	c = get_args(args, "itrace_options", &str);
+	if (!c)
+		return NULL;
+
+	if (!c->session || !c->session->itrace_synth_opts)
+		goto out;
+
+	if (c->session->itrace_synth_opts->set) {
+		retval = 1;
+		goto out;
+	}
+
+	itrace_options = _PyUnicode_AsUTF8(str);
+
+	retval = itrace_do_parse_synth_opts(c->session->itrace_synth_opts, itrace_options, 0);
+out:
+	return Py_BuildValue("i", retval);
+}
+
 static PyMethodDef ContextMethods[] = {
 	{ "common_pc", perf_trace_context_common_pc, METH_VARARGS,
 	  "Get the common preempt count event field value."},
@@ -96,6 +134,8 @@ static PyMethodDef ContextMethods[] = {
 	  METH_VARARGS,	"Get the common lock depth event field value."},
 	{ "perf_sample_insn", perf_sample_insn,
 	  METH_VARARGS,	"Get the machine code instruction."},
+	{ "perf_set_itrace_options", perf_set_itrace_options,
+	  METH_VARARGS,	"Set --itrace options."},
 	{ NULL, NULL, 0, NULL}
 };
 
