@@ -347,10 +347,10 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 	kfree(b);
 }
 
-static int io=0x238;
-static int txdma=1;
-static int rxdma=3;
-static int irq=5;
+static int io = 0x238;
+static int txdma = 1;
+static int rxdma = 3;
+static int irq = 5;
 static bool slow=false;
 
 module_param_hw(io, int, ioport, 0);
