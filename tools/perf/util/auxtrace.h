@@ -607,6 +607,8 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 				 union perf_event *event);
 int perf_event__process_auxtrace_error(struct perf_session *session,
 				       union perf_event *event);
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
+			       const char *str, int unset);
 int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			    int unset);
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
@@ -736,6 +738,14 @@ static inline
 void events_stats__auxtrace_error_warn(const struct events_stats *stats
 				       __maybe_unused)
 {
+}
+
+static inline
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts __maybe_unused,
+			       const char *str __maybe_unused, int unset __maybe_unused)
+{
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
 }
 
 static inline
