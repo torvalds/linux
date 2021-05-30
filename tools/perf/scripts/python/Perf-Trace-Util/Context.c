@@ -91,6 +91,12 @@ PyMODINIT_FUNC PyInit_perf_trace_context(void)
 		NULL,			/* m_clear */
 		NULL,			/* m_free */
 	};
-	return PyModule_Create(&moduledef);
+	PyObject *mod;
+
+	mod = PyModule_Create(&moduledef);
+	/* Add perf_script_context to the module so it can be imported */
+	PyObject_SetAttrString(mod, "perf_script_context", Py_None);
+
+	return mod;
 }
 #endif

@@ -1599,6 +1599,31 @@ static void python_process_stat_interval(u64 tstamp)
 	Py_DECREF(t);
 }
 
+static int perf_script_context_init(void)
+{
+	PyObject *perf_script_context;
+	PyObject *perf_trace_context;
+	PyObject *dict;
+	int ret;
+
+	perf_trace_context = PyImport_AddModule("perf_trace_context");
+	if (!perf_trace_context)
+		return -1;
+	dict = PyModule_GetDict(perf_trace_context);
+	if (!dict)
+		return -1;
+
+	perf_script_context = _PyCapsule_New(scripting_context, NULL, NULL);
+	if (!perf_script_context)
+		return -1;
+
+	ret = PyDict_SetItemString(dict, "perf_script_context", perf_script_context);
+	if (!ret)
+		ret = PyDict_SetItemString(main_dict, "perf_script_context", perf_script_context);
+	Py_DECREF(perf_script_context);
+	return ret;
+}
+
 static int run_start_sub(void)
 {
 	main_module = PyImport_AddModule("__main__");
@@ -1610,6 +1635,9 @@ static int run_start_sub(void)
 	if (main_dict == NULL)
 		goto error;
 	Py_INCREF(main_dict);
+
+	if (perf_script_context_init())
+		goto error;
 
 	try_call_object("trace_begin", NULL);
 
