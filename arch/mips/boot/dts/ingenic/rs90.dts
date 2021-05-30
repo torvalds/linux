@@ -16,6 +16,18 @@
 		reg = <0x0 0x2000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		vmem: video-memory@1f00000 {
+			compatible = "shared-dma-pool";
+			reg = <0x1f00000 0x100000>;
+			reusable;
+		};
+	};
+
 	vcc: regulator {
 		compatible = "regulator-fixed";
 
@@ -300,6 +312,8 @@
 };
 
 &lcd {
+	memory-region = <&vmem>;
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_lcd>;
 };
