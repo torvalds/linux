@@ -157,6 +157,13 @@ Rebooting
      Don't stop other CPUs on reboot. This can make reboot more reliable
      in some cases.
 
+   reboot=default
+     There are some built-in platform specific "quirks" - you may see:
+     "reboot: <name> series board detected. Selecting <type> for reboots."
+     In the case where you think the quirk is in error (e.g. you have
+     newer BIOS, or newer board) using this option will ignore the built-in
+     quirk table, and use the generic default reboot actions.
+
 Non Executable Mappings
 =======================
 
