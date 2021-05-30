@@ -29,14 +29,12 @@
 #include <asm/byteorder.h>
 #include "z85230.h"
 
-struct slvl_device
-{
+struct slvl_device {
 	struct z8530_channel *chan;
 	int channel;
 };
 
-struct slvl_board
-{
+struct slvl_board {
 	struct slvl_device dev[2];
 	struct z8530_dev board;
 	int iobase;
