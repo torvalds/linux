@@ -29,13 +29,11 @@
 #include <asm/byteorder.h>
 #include "z85230.h"
 
-
 struct slvl_device
 {
 	struct z8530_channel *chan;
 	int channel;
 };
-
 
 struct slvl_board
 {
@@ -195,7 +193,6 @@ static int slvl_setup(struct slvl_device *sv, int iobase, int irq)
 	return 0;
 }
 
-
 /*
  *	Allocate and setup Sealevel board.
  */
@@ -255,7 +252,6 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	 */
 
 	outb(3 | (1 << 7), b->iobase + 4);
-
 
 	/* We want a fast IRQ for this device. Actually we'd like an even faster
 	   IRQ ;) - This is one driver RtLinux is made for */
@@ -350,7 +346,6 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 	release_region(b->iobase, 8);
 	kfree(b);
 }
-
 
 static int io=0x238;
 static int txdma=1;
