@@ -99,13 +99,14 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	od_enc = ctl >> pll_info->od_shift;
 	od_enc &= GENMASK(pll_info->od_bits - 1, 0);
 
-	ctl = readl(cgu->base + pll_info->bypass_reg);
+	if (!pll_info->no_bypass_bit) {
+		ctl = readl(cgu->base + pll_info->bypass_reg);
 
-	bypass = !pll_info->no_bypass_bit &&
-		 !!(ctl & BIT(pll_info->bypass_bit));
+		bypass = !!(ctl & BIT(pll_info->bypass_bit));
 
-	if (bypass)
-		return parent_rate;
+		if (bypass)
+			return parent_rate;
+	}
 
 	for (od = 0; od < pll_info->od_max; od++) {
 		if (pll_info->od_encoding[od] == od_enc)
@@ -225,11 +226,13 @@ static int ingenic_pll_enable(struct clk_hw *hw)
 	u32 ctl;
 
 	spin_lock_irqsave(&cgu->lock, flags);
-	ctl = readl(cgu->base + pll_info->bypass_reg);
+	if (!pll_info->no_bypass_bit) {
+		ctl = readl(cgu->base + pll_info->bypass_reg);
 
-	ctl &= ~BIT(pll_info->bypass_bit);
+		ctl &= ~BIT(pll_info->bypass_bit);
 
-	writel(ctl, cgu->base + pll_info->bypass_reg);
+		writel(ctl, cgu->base + pll_info->bypass_reg);
+	}
 
 	ctl = readl(cgu->base + pll_info->reg);
 
