@@ -871,6 +871,8 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 			ports[index].role = XMII_MAC;
 		else if (of_property_read_bool(child, "sja1105,role-phy"))
 			ports[index].role = XMII_PHY;
+
+		priv->phy_mode[index] = phy_mode;
 	}
 
 	return 0;
@@ -1081,27 +1083,7 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 static bool sja1105_phy_mode_mismatch(struct sja1105_private *priv, int port,
 				      phy_interface_t interface)
 {
-	struct sja1105_xmii_params_entry *mii;
-	sja1105_phy_interface_t phy_mode;
-
-	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
-	phy_mode = mii->xmii_mode[port];
-
-	switch (interface) {
-	case PHY_INTERFACE_MODE_MII:
-		return (phy_mode != XMII_MODE_MII);
-	case PHY_INTERFACE_MODE_RMII:
-		return (phy_mode != XMII_MODE_RMII);
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		return (phy_mode != XMII_MODE_RGMII);
-	case PHY_INTERFACE_MODE_SGMII:
-		return (phy_mode != XMII_MODE_SGMII);
-	default:
-		return true;
-	}
+	return priv->phy_mode[port] != interface;
 }
 
 static void sja1105_mac_config(struct dsa_switch *ds, int port,
