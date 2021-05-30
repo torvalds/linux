@@ -102,6 +102,14 @@ config DEBUG_ZBOOT
 	  to reduce the kernel image size and speed up the booting procedure a
 	  little.
 
+config ZBOOT_INGENIC_UART
+	int "UART to use for compressed kernel debugging"
+	depends on DEBUG_ZBOOT && MACH_INGENIC_SOC
+	default 0
+	range 0 4
+	help
+	  Specify the UART that should be used for compressed kernel debugging.
+
 config SPINLOCK_TEST
 	bool "Enable spinlock timing tests in debugfs"
 	depends on DEBUG_FS
