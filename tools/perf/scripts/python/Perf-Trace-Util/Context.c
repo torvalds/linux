@@ -20,51 +20,46 @@ PyMODINIT_FUNC initperf_trace_context(void);
 PyMODINIT_FUNC PyInit_perf_trace_context(void);
 #endif
 
-static PyObject *perf_trace_context_common_pc(PyObject *obj, PyObject *args)
+static struct scripting_context *get_scripting_context(PyObject *args)
 {
-	struct scripting_context *scripting_context;
 	PyObject *context;
-	int retval;
 
 	if (!PyArg_ParseTuple(args, "O", &context))
 		return NULL;
 
-	scripting_context = _PyCapsule_GetPointer(context, NULL);
-	retval = common_pc(scripting_context);
+	return _PyCapsule_GetPointer(context, NULL);
+}
 
-	return Py_BuildValue("i", retval);
+static PyObject *perf_trace_context_common_pc(PyObject *obj, PyObject *args)
+{
+	struct scripting_context *c = get_scripting_context(args);
+
+	if (!c)
+		return NULL;
+
+	return Py_BuildValue("i", common_pc(c));
 }
 
 static PyObject *perf_trace_context_common_flags(PyObject *obj,
 						 PyObject *args)
 {
-	struct scripting_context *scripting_context;
-	PyObject *context;
-	int retval;
+	struct scripting_context *c = get_scripting_context(args);
 
-	if (!PyArg_ParseTuple(args, "O", &context))
+	if (!c)
 		return NULL;
 
-	scripting_context = _PyCapsule_GetPointer(context, NULL);
-	retval = common_flags(scripting_context);
-
-	return Py_BuildValue("i", retval);
+	return Py_BuildValue("i", common_flags(c));
 }
 
 static PyObject *perf_trace_context_common_lock_depth(PyObject *obj,
 						      PyObject *args)
 {
-	struct scripting_context *scripting_context;
-	PyObject *context;
-	int retval;
+	struct scripting_context *c = get_scripting_context(args);
 
-	if (!PyArg_ParseTuple(args, "O", &context))
+	if (!c)
 		return NULL;
 
-	scripting_context = _PyCapsule_GetPointer(context, NULL);
-	retval = common_lock_depth(scripting_context);
-
-	return Py_BuildValue("i", retval);
+	return Py_BuildValue("i", common_lock_depth(c));
 }
 
 static PyMethodDef ContextMethods[] = {
