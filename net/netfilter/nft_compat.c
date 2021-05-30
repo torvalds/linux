@@ -625,7 +625,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 			       const struct nfnl_info *info,
 			       const struct nlattr * const tb[])
 {
-	struct nfgenmsg *nfmsg;
+	u8 family = info->nfmsg->nfgen_family;
 	const char *name, *fmt;
 	struct sk_buff *skb2;
 	int ret = 0, target;
@@ -640,9 +640,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 	rev = ntohl(nla_get_be32(tb[NFTA_COMPAT_REV]));
 	target = ntohl(nla_get_be32(tb[NFTA_COMPAT_TYPE]));
 
-	nfmsg = nlmsg_data(info->nlh);
-
-	switch(nfmsg->nfgen_family) {
+	switch(family) {
 	case AF_INET:
 		fmt = "ipt_%s";
 		break;
@@ -656,8 +654,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 		fmt = "arpt_%s";
 		break;
 	default:
-		pr_err("nft_compat: unsupported protocol %d\n",
-			nfmsg->nfgen_family);
+		pr_err("nft_compat: unsupported protocol %d\n", family);
 		return -EINVAL;
 	}
 
@@ -665,9 +662,8 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 		return -EINVAL;
 
 	rcu_read_unlock();
-	try_then_request_module(xt_find_revision(nfmsg->nfgen_family, name,
-						 rev, target, &ret),
-						 fmt, name);
+	try_then_request_module(xt_find_revision(family, name, rev, target, &ret),
+				fmt, name);
 	if (ret < 0)
 		goto out_put;
 
@@ -682,8 +678,7 @@ static int nfnl_compat_get_rcu(struct sk_buff *skb,
 				  info->nlh->nlmsg_seq,
 				  NFNL_MSG_TYPE(info->nlh->nlmsg_type),
 				  NFNL_MSG_COMPAT_GET,
-				  nfmsg->nfgen_family,
-				  name, ret, target) <= 0) {
+				  family, name, ret, target) <= 0) {
 		kfree_skb(skb2);
 		goto out_put;
 	}

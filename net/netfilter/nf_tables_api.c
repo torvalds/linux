@@ -861,10 +861,9 @@ static int nft_netlink_dump_start_rcu(struct sock *nlsk, struct sk_buff *skb,
 static int nf_tables_gettable(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nft_table *table;
 	struct net *net = info->net;
 	struct sk_buff *skb2;
@@ -1059,10 +1058,9 @@ static int nf_tables_newtable(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nla[])
 {
 	struct nftables_pernet *nft_net = nft_pernet(info->net);
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct net *net = info->net;
 	const struct nlattr *attr;
 	struct nft_table *table;
@@ -1254,10 +1252,9 @@ out:
 static int nf_tables_deltable(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct net *net = info->net;
 	const struct nlattr *attr;
 	struct nft_table *table;
@@ -1627,10 +1624,9 @@ done:
 static int nf_tables_getchain(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nft_chain *chain;
 	struct net *net = info->net;
 	struct nft_table *table;
@@ -2355,10 +2351,9 @@ static int nf_tables_newchain(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nla[])
 {
 	struct nftables_pernet *nft_net = nft_pernet(info->net);
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct nft_chain *chain = NULL;
 	struct net *net = info->net;
 	const struct nlattr *attr;
@@ -2453,10 +2448,9 @@ static int nf_tables_newchain(struct sk_buff *skb, const struct nfnl_info *info,
 static int nf_tables_delchain(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct net *net = info->net;
 	const struct nlattr *attr;
 	struct nft_table *table;
@@ -3080,10 +3074,9 @@ static int nf_tables_dump_rules_done(struct netlink_callback *cb)
 static int nf_tables_getrule(struct sk_buff *skb, const struct nfnl_info *info,
 			     const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nft_chain *chain;
 	const struct nft_rule *rule;
 	struct net *net = info->net;
@@ -3221,13 +3214,12 @@ static int nf_tables_newrule(struct sk_buff *skb, const struct nfnl_info *info,
 			     const struct nlattr * const nla[])
 {
 	struct nftables_pernet *nft_net = nft_pernet(info->net);
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	unsigned int size, i, n, ulen = 0, usize = 0;
 	u8 genmask = nft_genmask_next(info->net);
 	struct nft_rule *rule, *old_rule = NULL;
 	struct nft_expr_info *expr_info = NULL;
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct net *net = info->net;
 	struct nft_flow_rule *flow;
 	struct nft_userdata *udata;
@@ -3459,15 +3451,15 @@ static struct nft_rule *nft_rule_lookup_byid(const struct net *net,
 static int nf_tables_delrule(struct sk_buff *skb, const struct nfnl_info *info,
 			     const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
-	int family = nfmsg->nfgen_family, err = 0;
 	u8 genmask = nft_genmask_next(info->net);
+	u8 family = info->nfmsg->nfgen_family;
 	struct nft_chain *chain = NULL;
 	struct net *net = info->net;
 	struct nft_table *table;
 	struct nft_rule *rule;
 	struct nft_ctx ctx;
+	int err = 0;
 
 	table = nft_table_lookup(net, nla[NFTA_RULE_TABLE], family, genmask,
 				 NETLINK_CB(skb).portid);
@@ -4050,7 +4042,6 @@ static int nf_tables_dump_sets_done(struct netlink_callback *cb)
 static int nf_tables_getset(struct sk_buff *skb, const struct nfnl_info *info,
 			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
 	struct net *net = info->net;
@@ -4078,7 +4069,7 @@ static int nf_tables_getset(struct sk_buff *skb, const struct nfnl_info *info,
 	}
 
 	/* Only accept unspec with dump */
-	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
+	if (info->nfmsg->nfgen_family == NFPROTO_UNSPEC)
 		return -EAFNOSUPPORT;
 	if (!nla[NFTA_SET_TABLE])
 		return -EINVAL;
@@ -4171,11 +4162,10 @@ static int nf_tables_set_desc_parse(struct nft_set_desc *desc,
 static int nf_tables_newset(struct sk_buff *skb, const struct nfnl_info *info,
 			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	u32 ktype, dtype, flags, policy, gc_int, objtype;
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nft_set_ops *ops;
 	struct nft_expr *expr = NULL;
 	struct net *net = info->net;
@@ -4475,7 +4465,6 @@ static void nft_set_destroy(const struct nft_ctx *ctx, struct nft_set *set)
 static int nf_tables_delset(struct sk_buff *skb, const struct nfnl_info *info,
 			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
 	struct net *net = info->net;
@@ -4484,7 +4473,7 @@ static int nf_tables_delset(struct sk_buff *skb, const struct nfnl_info *info,
 	struct nft_ctx ctx;
 	int err;
 
-	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
+	if (info->nfmsg->nfgen_family == NFPROTO_UNSPEC)
 		return -EAFNOSUPPORT;
 	if (nla[NFTA_SET_TABLE] == NULL)
 		return -EINVAL;
@@ -6527,11 +6516,10 @@ err_free_trans:
 static int nf_tables_newobj(struct sk_buff *skb, const struct nfnl_info *info,
 			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nft_object_type *type;
-	int family = nfmsg->nfgen_family;
 	struct net *net = info->net;
 	struct nft_table *table;
 	struct nft_object *obj;
@@ -6783,10 +6771,9 @@ static int nf_tables_dump_obj_done(struct netlink_callback *cb)
 static int nf_tables_getobj(struct sk_buff *skb, const struct nfnl_info *info,
 			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nft_table *table;
 	struct net *net = info->net;
 	struct nft_object *obj;
@@ -6873,10 +6860,9 @@ static void nft_obj_destroy(const struct nft_ctx *ctx, struct nft_object *obj)
 static int nf_tables_delobj(struct sk_buff *skb, const struct nfnl_info *info,
 			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct net *net = info->net;
 	const struct nlattr *attr;
 	struct nft_table *table;
@@ -7304,12 +7290,11 @@ static int nf_tables_newflowtable(struct sk_buff *skb,
 				  const struct nfnl_info *info,
 				  const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	struct nft_flowtable_hook flowtable_hook;
 	u8 genmask = nft_genmask_next(info->net);
+	u8 family = info->nfmsg->nfgen_family;
 	const struct nf_flowtable_type *type;
-	int family = nfmsg->nfgen_family;
 	struct nft_flowtable *flowtable;
 	struct nft_hook *hook, *next;
 	struct net *net = info->net;
@@ -7493,10 +7478,9 @@ static int nf_tables_delflowtable(struct sk_buff *skb,
 				  const struct nfnl_info *info,
 				  const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_next(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct nft_flowtable *flowtable;
 	struct net *net = info->net;
 	const struct nlattr *attr;
@@ -7688,9 +7672,8 @@ static int nf_tables_getflowtable(struct sk_buff *skb,
 				  const struct nfnl_info *info,
 				  const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	u8 genmask = nft_genmask_cur(info->net);
-	int family = nfmsg->nfgen_family;
+	u8 family = info->nfmsg->nfgen_family;
 	struct nft_flowtable *flowtable;
 	const struct nft_table *table;
 	struct net *net = info->net;

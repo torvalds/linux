@@ -256,6 +256,7 @@ replay:
 			.net	= net,
 			.sk	= nfnlnet->nfnl,
 			.nlh	= nlh,
+			.nfmsg	= nlmsg_data(nlh),
 			.extack	= extack,
 		};
 
@@ -491,6 +492,7 @@ replay_abort:
 				.net	= net,
 				.sk	= nfnlnet->nfnl,
 				.nlh	= nlh,
+				.nfmsg	= nlmsg_data(nlh),
 				.extack	= &extack,
 			};
 
