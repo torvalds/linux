@@ -126,7 +126,7 @@ Idle loop
 Rebooting
 =========
 
-   reboot=b[ios] | t[riple] | k[bd] | a[cpi] | e[fi] [, [w]arm | [c]old]
+   reboot=b[ios] | t[riple] | k[bd] | a[cpi] | e[fi] | p[ci] [, [w]arm | [c]old]
       bios
         Use the CPU reboot vector for warm reset
       warm
@@ -145,6 +145,8 @@ Rebooting
         Use efi reset_system runtime service. If EFI is not configured or
         the EFI reset does not work, the reboot path attempts the reset using
         the keyboard controller.
+      pci
+        Use a write to the PCI config space register 0xcf9 to trigger reboot.
 
    Using warm reset will be much faster especially on big memory
    systems because the BIOS will not go through the memory check.
