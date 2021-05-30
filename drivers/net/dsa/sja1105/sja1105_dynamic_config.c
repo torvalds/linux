@@ -78,6 +78,9 @@
  *		   on its ENTRY portion, as a result of a SPI write command.
  *		   Only the TCAM-based FDB table on SJA1105 P/Q/R/S supports
  *		   this.
+ *	OP_VALID_ANYWAY: Reading some tables through the dynamic config
+ *			 interface is possible even if the VALIDENT bit is not
+ *			 set in the writeback. So don't error out in that case.
  * - .max_entry_count: The number of entries, counting from zero, that can be
  *		       reconfigured through the dynamic interface. If a static
  *		       table can be reconfigured at all dynamically, this
@@ -651,6 +654,7 @@ static size_t sja1105pqrs_cbs_entry_packing(void *buf, void *entry_ptr,
 #define OP_WRITE	BIT(1)
 #define OP_DEL		BIT(2)
 #define OP_SEARCH	BIT(3)
+#define OP_VALID_ANYWAY	BIT(4)
 
 /* SJA1105E/T: First generation */
 const struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
@@ -673,7 +677,7 @@ const struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_MGMT_ROUTE] = {
 		.entry_packing = sja1105et_mgmt_route_entry_packing,
 		.cmd_packing = sja1105et_mgmt_route_cmd_packing,
-		.access = (OP_READ | OP_WRITE),
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
 		.max_entry_count = SJA1105_NUM_PORTS,
 		.packed_size = SJA1105ET_SIZE_L2_LOOKUP_DYN_CMD,
 		.addr = 0x20,
@@ -757,7 +761,7 @@ const struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_MGMT_ROUTE] = {
 		.entry_packing = sja1105pqrs_mgmt_route_entry_packing,
 		.cmd_packing = sja1105pqrs_mgmt_route_cmd_packing,
-		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
+		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH | OP_VALID_ANYWAY),
 		.max_entry_count = SJA1105_NUM_PORTS,
 		.packed_size = SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD,
 		.addr = 0x24,
@@ -911,11 +915,8 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 
 		cmd = (struct sja1105_dyn_cmd) {0};
 		ops->cmd_packing(packed_buf, &cmd, UNPACK);
-		/* UM10944: [valident] will always be found cleared
-		 * during a read access with MGMTROUTE set.
-		 * So don't error out in that case.
-		 */
-		if (!cmd.valident && blk_idx != BLK_IDX_MGMT_ROUTE)
+
+		if (!cmd.valident && !(ops->access & OP_VALID_ANYWAY))
 			return -ENOENT;
 		cpu_relax();
 	} while (cmd.valid && --retries);
