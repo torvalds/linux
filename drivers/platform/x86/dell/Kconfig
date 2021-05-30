@@ -206,6 +206,7 @@ config DELL_WMI_SYSMAN
 	depends on ACPI_WMI
 	depends on DMI
 	select NLS
+	select FW_ATTR_CLASS
 	help
 	  This driver allows changing BIOS settings on many Dell machines from
 	  2018 and newer without the use of any additional software.
