@@ -898,36 +898,43 @@ static int sja1105_parse_dt(struct sja1105_private *priv,
 	return rc;
 }
 
-static int sja1105_sgmii_read(struct sja1105_private *priv, int pcs_reg)
+static int sja1105_sgmii_read(struct sja1105_private *priv, int port,
+			      int pcs_reg)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	u32 val;
 	int rc;
 
-	rc = sja1105_xfer_u32(priv, SPI_READ, regs->sgmii + pcs_reg, &val,
-			      NULL);
+	if (port != SJA1105_SGMII_PORT)
+		return -ENODEV;
+
+	rc = sja1105_xfer_u32(priv, SPI_READ, regs->sgmii + pcs_reg,
+			      &val, NULL);
 	if (rc < 0)
 		return rc;
 
 	return val;
 }
 
-static int sja1105_sgmii_write(struct sja1105_private *priv, int pcs_reg,
-			       u16 pcs_val)
+static int sja1105_sgmii_write(struct sja1105_private *priv, int port,
+			       int pcs_reg, u16 pcs_val)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	u32 val = pcs_val;
 	int rc;
 
-	rc = sja1105_xfer_u32(priv, SPI_WRITE, regs->sgmii + pcs_reg, &val,
-			      NULL);
+	if (port != SJA1105_SGMII_PORT)
+		return -ENODEV;
+
+	rc = sja1105_xfer_u32(priv, SPI_WRITE, regs->sgmii + pcs_reg,
+			      &val, NULL);
 	if (rc < 0)
 		return rc;
 
 	return val;
 }
 
-static void sja1105_sgmii_pcs_config(struct sja1105_private *priv,
+static void sja1105_sgmii_pcs_config(struct sja1105_private *priv, int port,
 				     bool an_enabled, bool an_master)
 {
 	u16 ac = SJA1105_AC_AUTONEG_MODE_SGMII;
@@ -936,27 +943,29 @@ static void sja1105_sgmii_pcs_config(struct sja1105_private *priv,
 	 * stop the clock during LPI mode, make the MAC reconfigure
 	 * autonomously after PCS autoneg is done, flush the internal FIFOs.
 	 */
-	sja1105_sgmii_write(priv, SJA1105_DC1, SJA1105_DC1_EN_VSMMD1 |
-					       SJA1105_DC1_CLOCK_STOP_EN |
-					       SJA1105_DC1_MAC_AUTO_SW |
-					       SJA1105_DC1_INIT);
+	sja1105_sgmii_write(priv, port, SJA1105_DC1,
+			    SJA1105_DC1_EN_VSMMD1 |
+			    SJA1105_DC1_CLOCK_STOP_EN |
+			    SJA1105_DC1_MAC_AUTO_SW |
+			    SJA1105_DC1_INIT);
 	/* DIGITAL_CONTROL_2: No polarity inversion for TX and RX lanes */
-	sja1105_sgmii_write(priv, SJA1105_DC2, SJA1105_DC2_TX_POL_INV_DISABLE);
+	sja1105_sgmii_write(priv, port, SJA1105_DC2,
+			    SJA1105_DC2_TX_POL_INV_DISABLE);
 	/* AUTONEG_CONTROL: Use SGMII autoneg */
 	if (an_master)
 		ac |= SJA1105_AC_PHY_MODE | SJA1105_AC_SGMII_LINK;
-	sja1105_sgmii_write(priv, SJA1105_AC, ac);
+	sja1105_sgmii_write(priv, port, SJA1105_AC, ac);
 	/* BASIC_CONTROL: enable in-band AN now, if requested. Otherwise,
 	 * sja1105_sgmii_pcs_force_speed must be called later for the link
 	 * to become operational.
 	 */
 	if (an_enabled)
-		sja1105_sgmii_write(priv, MII_BMCR,
+		sja1105_sgmii_write(priv, port, MII_BMCR,
 				    BMCR_ANENABLE | BMCR_ANRESTART);
 }
 
 static void sja1105_sgmii_pcs_force_speed(struct sja1105_private *priv,
-					  int speed)
+					  int port, int speed)
 {
 	int pcs_speed;
 
@@ -974,7 +983,7 @@ static void sja1105_sgmii_pcs_force_speed(struct sja1105_private *priv,
 		dev_err(priv->ds->dev, "Invalid speed %d\n", speed);
 		return;
 	}
-	sja1105_sgmii_write(priv, MII_BMCR, pcs_speed | BMCR_FULLDPLX);
+	sja1105_sgmii_write(priv, port, MII_BMCR, pcs_speed | BMCR_FULLDPLX);
 }
 
 /* Convert link speed from SJA1105 to ethtool encoding */
@@ -1115,7 +1124,8 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 	}
 
 	if (is_sgmii)
-		sja1105_sgmii_pcs_config(priv, phylink_autoneg_inband(mode),
+		sja1105_sgmii_pcs_config(priv, port,
+					 phylink_autoneg_inband(mode),
 					 false);
 }
 
@@ -1138,7 +1148,7 @@ static void sja1105_mac_link_up(struct dsa_switch *ds, int port,
 	sja1105_adjust_port_config(priv, port, speed);
 
 	if (sja1105_supports_sgmii(priv, port) && !phylink_autoneg_inband(mode))
-		sja1105_sgmii_pcs_force_speed(priv, speed);
+		sja1105_sgmii_pcs_force_speed(priv, port, speed);
 
 	sja1105_inhibit_tx(priv, BIT(port), false);
 }
@@ -1191,7 +1201,7 @@ static int sja1105_mac_pcs_get_state(struct dsa_switch *ds, int port,
 	int ais;
 
 	/* Read the vendor-specific AUTONEG_INTR_STATUS register */
-	ais = sja1105_sgmii_read(priv, SJA1105_AIS);
+	ais = sja1105_sgmii_read(priv, port, SJA1105_AIS);
 	if (ais < 0)
 		return ais;
 
@@ -1873,11 +1883,11 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	struct ptp_system_timestamp ptp_sts_before;
 	struct ptp_system_timestamp ptp_sts_after;
 	int speed_mbps[SJA1105_MAX_NUM_PORTS];
+	u16 bmcr[SJA1105_MAX_NUM_PORTS] = {0};
 	struct sja1105_mac_config_entry *mac;
 	struct dsa_switch *ds = priv->ds;
 	s64 t1, t2, t3, t4;
 	s64 t12, t34;
-	u16 bmcr = 0;
 	int rc, i;
 	s64 now;
 
@@ -1893,10 +1903,10 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	for (i = 0; i < ds->num_ports; i++) {
 		speed_mbps[i] = sja1105_speed[mac[i].speed];
 		mac[i].speed = SJA1105_SPEED_AUTO;
-	}
 
-	if (sja1105_supports_sgmii(priv, SJA1105_SGMII_PORT))
-		bmcr = sja1105_sgmii_read(priv, MII_BMCR);
+		if (sja1105_supports_sgmii(priv, i))
+			bmcr[i] = sja1105_sgmii_read(priv, i, MII_BMCR);
+	}
 
 	/* No PTP operations can run right now */
 	mutex_lock(&priv->ptp_data.lock);
@@ -1943,27 +1953,30 @@ out_unlock_ptp:
 		goto out;
 
 	for (i = 0; i < ds->num_ports; i++) {
+		bool an_enabled;
+
 		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i]);
 		if (rc < 0)
 			goto out;
-	}
 
-	if (sja1105_supports_sgmii(priv, SJA1105_SGMII_PORT)) {
-		bool an_enabled = !!(bmcr & BMCR_ANENABLE);
+		if (!sja1105_supports_sgmii(priv, i))
+			continue;
 
-		sja1105_sgmii_pcs_config(priv, an_enabled, false);
+		an_enabled = !!(bmcr[i] & BMCR_ANENABLE);
+
+		sja1105_sgmii_pcs_config(priv, i, an_enabled, false);
 
 		if (!an_enabled) {
 			int speed = SPEED_UNKNOWN;
 
-			if (bmcr & BMCR_SPEED1000)
+			if (bmcr[i] & BMCR_SPEED1000)
 				speed = SPEED_1000;
-			else if (bmcr & BMCR_SPEED100)
+			else if (bmcr[i] & BMCR_SPEED100)
 				speed = SPEED_100;
 			else
 				speed = SPEED_10;
 
-			sja1105_sgmii_pcs_force_speed(priv, speed);
+			sja1105_sgmii_pcs_force_speed(priv, i, speed);
 		}
 	}
 
