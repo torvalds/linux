@@ -369,18 +369,23 @@ ingenic_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
 	unsigned long rate = parent_rate;
 	u32 div_reg, div;
+	u8 parent;
 
 	if (clk_info->type & CGU_CLK_DIV) {
-		div_reg = readl(cgu->base + clk_info->div.reg);
-		div = (div_reg >> clk_info->div.shift) &
-		      GENMASK(clk_info->div.bits - 1, 0);
+		parent = ingenic_clk_get_parent(hw);
 
-		if (clk_info->div.div_table)
-			div = clk_info->div.div_table[div];
-		else
-			div = (div + 1) * clk_info->div.div;
+		if (!(clk_info->div.bypass_mask & BIT(parent))) {
+			div_reg = readl(cgu->base + clk_info->div.reg);
+			div = (div_reg >> clk_info->div.shift) &
+			      GENMASK(clk_info->div.bits - 1, 0);
 
-		rate /= div;
+			if (clk_info->div.div_table)
+				div = clk_info->div.div_table[div];
+			else
+				div = (div + 1) * clk_info->div.div;
+
+			rate /= div;
+		}
 	} else if (clk_info->type & CGU_CLK_FIXDIV) {
 		rate /= clk_info->fixdiv.div;
 	}
@@ -410,10 +415,16 @@ ingenic_clk_calc_hw_div(const struct ingenic_cgu_clk_info *clk_info,
 }
 
 static unsigned
-ingenic_clk_calc_div(const struct ingenic_cgu_clk_info *clk_info,
+ingenic_clk_calc_div(struct clk_hw *hw,
+		     const struct ingenic_cgu_clk_info *clk_info,
 		     unsigned long parent_rate, unsigned long req_rate)
 {
 	unsigned int div, hw_div;
+	u8 parent;
+
+	parent = ingenic_clk_get_parent(hw);
+	if (clk_info->div.bypass_mask & BIT(parent))
+		return 1;
 
 	/* calculate the divide */
 	div = DIV_ROUND_UP(parent_rate, req_rate);
@@ -448,7 +459,7 @@ ingenic_clk_round_rate(struct clk_hw *hw, unsigned long req_rate,
 	unsigned int div = 1;
 
 	if (clk_info->type & CGU_CLK_DIV)
-		div = ingenic_clk_calc_div(clk_info, *parent_rate, req_rate);
+		div = ingenic_clk_calc_div(hw, clk_info, *parent_rate, req_rate);
 	else if (clk_info->type & CGU_CLK_FIXDIV)
 		div = clk_info->fixdiv.div;
 	else if (clk_hw_can_set_rate_parent(hw))
@@ -480,7 +491,7 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	int ret = 0;
 
 	if (clk_info->type & CGU_CLK_DIV) {
-		div = ingenic_clk_calc_div(clk_info, parent_rate, req_rate);
+		div = ingenic_clk_calc_div(hw, clk_info, parent_rate, req_rate);
 		rate = DIV_ROUND_UP(parent_rate, div);
 
 		if (rate != req_rate)
