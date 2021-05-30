@@ -72,6 +72,15 @@ struct sja1105_regs {
 	u64 stats[__MAX_SJA1105_STATS_AREA][SJA1105_MAX_NUM_PORTS];
 };
 
+enum {
+	SJA1105_SPEED_AUTO,
+	SJA1105_SPEED_10MBPS,
+	SJA1105_SPEED_100MBPS,
+	SJA1105_SPEED_1000MBPS,
+	SJA1105_SPEED_2500MBPS,
+	SJA1105_SPEED_MAX,
+};
+
 struct sja1105_info {
 	u64 device_id;
 	/* Needed for distinction between P and R, and between Q and S
@@ -116,6 +125,7 @@ struct sja1105_info {
 	bool supports_rgmii[SJA1105_MAX_NUM_PORTS];
 	bool supports_sgmii[SJA1105_MAX_NUM_PORTS];
 	bool supports_2500basex[SJA1105_MAX_NUM_PORTS];
+	const u64 port_speed[SJA1105_SPEED_MAX];
 };
 
 enum sja1105_key_type {
@@ -313,13 +323,6 @@ typedef enum {
 	XMII_MODE_RGMII		= 2,
 	XMII_MODE_SGMII		= 3,
 } sja1105_phy_interface_t;
-
-typedef enum {
-	SJA1105_SPEED_10MBPS	= 3,
-	SJA1105_SPEED_100MBPS	= 2,
-	SJA1105_SPEED_1000MBPS	= 1,
-	SJA1105_SPEED_AUTO	= 0,
-} sja1105_speed_t;
 
 int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port);
 int sja1105_clocking_setup_port(struct sja1105_private *priv, int port);

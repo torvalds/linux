@@ -80,7 +80,7 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		/* Always put the MAC speed in automatic mode, where it can be
 		 * adjusted at runtime by PHYLINK.
 		 */
-		.speed = SJA1105_SPEED_AUTO,
+		.speed = priv->info->port_speed[SJA1105_SPEED_AUTO],
 		/* No static correction for 1-step 1588 events */
 		.tp_delin = 0,
 		.tp_delout = 0,
@@ -990,12 +990,19 @@ static void sja1105_sgmii_pcs_force_speed(struct sja1105_private *priv,
 }
 
 /* Convert link speed from SJA1105 to ethtool encoding */
-static int sja1105_speed[] = {
-	[SJA1105_SPEED_AUTO]		= SPEED_UNKNOWN,
-	[SJA1105_SPEED_10MBPS]		= SPEED_10,
-	[SJA1105_SPEED_100MBPS]		= SPEED_100,
-	[SJA1105_SPEED_1000MBPS]	= SPEED_1000,
-};
+static int sja1105_port_speed_to_ethtool(struct sja1105_private *priv,
+					 u64 speed)
+{
+	if (speed == priv->info->port_speed[SJA1105_SPEED_10MBPS])
+		return SPEED_10;
+	if (speed == priv->info->port_speed[SJA1105_SPEED_100MBPS])
+		return SPEED_100;
+	if (speed == priv->info->port_speed[SJA1105_SPEED_1000MBPS])
+		return SPEED_1000;
+	if (speed == priv->info->port_speed[SJA1105_SPEED_2500MBPS])
+		return SPEED_2500;
+	return SPEED_UNKNOWN;
+}
 
 /* Set link speed in the MAC configuration for a specific port. */
 static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
@@ -1003,7 +1010,7 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 {
 	struct sja1105_mac_config_entry *mac;
 	struct device *dev = priv->ds->dev;
-	sja1105_speed_t speed;
+	u64 speed;
 	int rc;
 
 	/* On P/Q/R/S, one can read from the device via the MAC reconfiguration
@@ -1023,16 +1030,16 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 		 * ok for power consumption in case AN will never complete -
 		 * otherwise PHYLINK should come back with a new update.
 		 */
-		speed = SJA1105_SPEED_AUTO;
+		speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
 		break;
 	case SPEED_10:
-		speed = SJA1105_SPEED_10MBPS;
+		speed = priv->info->port_speed[SJA1105_SPEED_10MBPS];
 		break;
 	case SPEED_100:
-		speed = SJA1105_SPEED_100MBPS;
+		speed = priv->info->port_speed[SJA1105_SPEED_100MBPS];
 		break;
 	case SPEED_1000:
-		speed = SJA1105_SPEED_1000MBPS;
+		speed = priv->info->port_speed[SJA1105_SPEED_1000MBPS];
 		break;
 	default:
 		dev_err(dev, "Invalid speed %iMbps\n", speed_mbps);
@@ -1047,7 +1054,7 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * we need to configure the PCS only (if even that).
 	 */
 	if (priv->phy_mode[port] == PHY_INTERFACE_MODE_SGMII)
-		mac[port].speed = SJA1105_SPEED_1000MBPS;
+		mac[port].speed = priv->info->port_speed[SJA1105_SPEED_1000MBPS];
 	else
 		mac[port].speed = speed;
 
@@ -1883,8 +1890,9 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	 * change it through the dynamic interface later.
 	 */
 	for (i = 0; i < ds->num_ports; i++) {
-		speed_mbps[i] = sja1105_speed[mac[i].speed];
-		mac[i].speed = SJA1105_SPEED_AUTO;
+		speed_mbps[i] = sja1105_port_speed_to_ethtool(priv,
+							      mac[i].speed);
+		mac[i].speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
 
 		if (priv->phy_mode[i] == PHY_INTERFACE_MODE_SGMII)
 			bmcr[i] = sja1105_sgmii_read(priv, i,
