@@ -371,9 +371,6 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	s = nsecs / NSEC_PER_SEC;
 	ns = nsecs - s * NSEC_PER_SEC;
 
-	scripting_context->event_data = data;
-	scripting_context->pevent = evsel->tp_format->tep;
-
 	ENTER;
 	SAVETMPS;
 	PUSHMARK(SP);
@@ -457,8 +454,9 @@ static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel,
 			       struct addr_location *al,
-			       struct addr_location *addr_al __maybe_unused)
+			       struct addr_location *addr_al)
 {
+	scripting_context__update(scripting_context, event, sample, evsel, al, addr_al);
 	perl_process_tracepoint(sample, evsel, al);
 	perl_process_event_generic(event, sample, evsel);
 }

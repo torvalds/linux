@@ -11,6 +11,7 @@ union perf_event;
 struct perf_tool;
 struct thread;
 struct tep_plugin_list;
+struct evsel;
 
 struct trace_event {
 	struct tep_handle	*pevent;
@@ -101,7 +102,19 @@ void setup_python_scripting(void);
 struct scripting_context {
 	struct tep_handle *pevent;
 	void *event_data;
+	union perf_event *event;
+	struct perf_sample *sample;
+	struct evsel *evsel;
+	struct addr_location *al;
+	struct addr_location *addr_al;
 };
+
+void scripting_context__update(struct scripting_context *scripting_context,
+			       union perf_event *event,
+			       struct perf_sample *sample,
+			       struct evsel *evsel,
+			       struct addr_location *al,
+			       struct addr_location *addr_al);
 
 int common_pc(struct scripting_context *context);
 int common_flags(struct scripting_context *context);

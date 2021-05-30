@@ -897,9 +897,6 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	s = nsecs / NSEC_PER_SEC;
 	ns = nsecs - s * NSEC_PER_SEC;
 
-	scripting_context->event_data = data;
-	scripting_context->pevent = evsel->tp_format->tep;
-
 	context = _PyCapsule_New(scripting_context, NULL, NULL);
 
 	PyTuple_SetItem(t, n++, _PyUnicode_FromString(handler_name));
@@ -1402,6 +1399,8 @@ static void python_process_event(union perf_event *event,
 				 struct addr_location *addr_al)
 {
 	struct tables *tables = &tables_global;
+
+	scripting_context__update(scripting_context, event, sample, evsel, al, addr_al);
 
 	switch (evsel->core.attr.type) {
 	case PERF_TYPE_TRACEPOINT:

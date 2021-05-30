@@ -12,9 +12,30 @@
 
 #include "debug.h"
 #include "trace-event.h"
+#include "event.h"
+#include "evsel.h"
 #include <linux/zalloc.h>
 
 struct scripting_context *scripting_context;
+
+void scripting_context__update(struct scripting_context *c,
+			       union perf_event *event,
+			       struct perf_sample *sample,
+			       struct evsel *evsel,
+			       struct addr_location *al,
+			       struct addr_location *addr_al)
+{
+	c->event_data = sample->raw_data;
+	if (evsel->tp_format)
+		c->pevent = evsel->tp_format->tep;
+	else
+		c->pevent = NULL;
+	c->event = event;
+	c->sample = sample;
+	c->evsel = evsel;
+	c->al = al;
+	c->addr_al = addr_al;
+}
 
 static int flush_script_unsupported(void)
 {
