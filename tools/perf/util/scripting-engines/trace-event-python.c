@@ -1746,7 +1746,8 @@ static void _free_command_line(wchar_t **command_line, int num)
 /*
  * Start trace script
  */
-static int python_start_script(const char *script, int argc, const char **argv)
+static int python_start_script(const char *script, int argc, const char **argv,
+			       struct perf_session *session)
 {
 	struct tables *tables = &tables_global;
 #if PY_MAJOR_VERSION < 3
@@ -1762,6 +1763,7 @@ static int python_start_script(const char *script, int argc, const char **argv)
 	int i, err = 0;
 	FILE *fp;
 
+	scripting_context->session = session;
 #if PY_MAJOR_VERSION < 3
 	command_line = malloc((argc + 1) * sizeof(const char *));
 	command_line[0] = script;

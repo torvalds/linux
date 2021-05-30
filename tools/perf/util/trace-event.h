@@ -73,7 +73,8 @@ struct perf_stat_config;
 struct scripting_ops {
 	const char *name;
 	const char *dirname; /* For script path .../scripts/<dirname>/... */
-	int (*start_script) (const char *script, int argc, const char **argv);
+	int (*start_script)(const char *script, int argc, const char **argv,
+			    struct perf_session *session);
 	int (*flush_script) (void);
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
@@ -107,6 +108,7 @@ struct scripting_context {
 	struct evsel *evsel;
 	struct addr_location *al;
 	struct addr_location *addr_al;
+	struct perf_session *session;
 };
 
 void scripting_context__update(struct scripting_context *scripting_context,

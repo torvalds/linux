@@ -66,7 +66,8 @@ static void print_python_unsupported_msg(void)
 
 static int python_start_script_unsupported(const char *script __maybe_unused,
 					   int argc __maybe_unused,
-					   const char **argv __maybe_unused)
+					   const char **argv __maybe_unused,
+					   struct perf_session *session __maybe_unused)
 {
 	print_python_unsupported_msg();
 
@@ -131,7 +132,8 @@ static void print_perl_unsupported_msg(void)
 
 static int perl_start_script_unsupported(const char *script __maybe_unused,
 					 int argc __maybe_unused,
-					 const char **argv __maybe_unused)
+					 const char **argv __maybe_unused,
+					 struct perf_session *session __maybe_unused)
 {
 	print_perl_unsupported_msg();
 

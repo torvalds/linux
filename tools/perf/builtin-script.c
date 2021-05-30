@@ -4017,7 +4017,7 @@ script_found:
 	}
 
 	if (script_name) {
-		err = scripting_ops->start_script(script_name, argc, argv);
+		err = scripting_ops->start_script(script_name, argc, argv, session);
 		if (err)
 			goto out_delete;
 		pr_debug("perf script started with script %s\n\n", script_name);

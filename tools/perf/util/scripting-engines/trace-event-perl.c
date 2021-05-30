@@ -473,10 +473,13 @@ static void run_start_sub(void)
 /*
  * Start trace script
  */
-static int perl_start_script(const char *script, int argc, const char **argv)
+static int perl_start_script(const char *script, int argc, const char **argv,
+			     struct perf_session *session)
 {
 	const char **command_line;
 	int i, err = 0;
+
+	scripting_context->session = session;
 
 	command_line = malloc((argc + 2) * sizeof(const char *));
 	command_line[0] = "";
