@@ -174,6 +174,7 @@ static const struct net_device_ops sealevel_ops = {
 static int slvl_setup(struct slvl_device *sv, int iobase, int irq)
 {
 	struct net_device *dev = alloc_hdlcdev(sv);
+
 	if (!dev)
 		return -1;
 
@@ -334,6 +335,7 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 
 	for (u = 0; u < 2; u++) {
 		struct net_device *d = b->dev[u].chan->netdevice;
+
 		unregister_hdlc_device(d);
 		free_netdev(d);
 	}
