@@ -48,7 +48,6 @@ struct sja1105_regs {
 	u64 rgu;
 	u64 vl_status;
 	u64 config;
-	u64 sgmii;
 	u64 rmii_pll1;
 	u64 ptppinst;
 	u64 ptppindur;
