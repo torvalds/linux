@@ -351,7 +351,7 @@ static int io = 0x238;
 static int txdma = 1;
 static int rxdma = 3;
 static int irq = 5;
-static bool slow=false;
+static bool slow;
 
 module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "The I/O base of the Sealevel card");
