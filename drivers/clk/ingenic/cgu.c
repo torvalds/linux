@@ -119,28 +119,42 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		n * od);
 }
 
-static unsigned long
-ingenic_pll_calc(const struct ingenic_cgu_clk_info *clk_info,
-		 unsigned long rate, unsigned long parent_rate,
-		 unsigned *pm, unsigned *pn, unsigned *pod)
+static void
+ingenic_pll_calc_m_n_od(const struct ingenic_cgu_pll_info *pll_info,
+			unsigned long rate, unsigned long parent_rate,
+			unsigned int *pm, unsigned int *pn, unsigned int *pod)
 {
-	const struct ingenic_cgu_pll_info *pll_info;
-	unsigned m, n, od;
-
-	pll_info = &clk_info->pll;
-	od = 1;
+	unsigned int m, n, od = 1;
 
 	/*
 	 * The frequency after the input divider must be between 10 and 50 MHz.
 	 * The highest divider yields the best resolution.
 	 */
 	n = parent_rate / (10 * MHZ);
-	n = min_t(unsigned, n, 1 << clk_info->pll.n_bits);
-	n = max_t(unsigned, n, pll_info->n_offset);
+	n = min_t(unsigned int, n, 1 << pll_info->n_bits);
+	n = max_t(unsigned int, n, pll_info->n_offset);
 
 	m = (rate / MHZ) * od * n / (parent_rate / MHZ);
-	m = min_t(unsigned, m, 1 << clk_info->pll.m_bits);
-	m = max_t(unsigned, m, pll_info->m_offset);
+	m = min_t(unsigned int, m, 1 << pll_info->m_bits);
+	m = max_t(unsigned int, m, pll_info->m_offset);
+
+	*pm = m;
+	*pn = n;
+	*pod = od;
+}
+
+static unsigned long
+ingenic_pll_calc(const struct ingenic_cgu_clk_info *clk_info,
+		 unsigned long rate, unsigned long parent_rate,
+		 unsigned int *pm, unsigned int *pn, unsigned int *pod)
+{
+	const struct ingenic_cgu_pll_info *pll_info = &clk_info->pll;
+	unsigned int m, n, od;
+
+	if (pll_info->calc_m_n_od)
+		(*pll_info->calc_m_n_od)(pll_info, rate, parent_rate, &m, &n, &od);
+	else
+		ingenic_pll_calc_m_n_od(pll_info, rate, parent_rate, &m, &n, &od);
 
 	if (pm)
 		*pm = m;

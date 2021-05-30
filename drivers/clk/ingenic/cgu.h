@@ -55,6 +55,9 @@ struct ingenic_cgu_pll_info {
 	s8 bypass_bit;
 	u8 enable_bit;
 	u8 stable_bit;
+	void (*calc_m_n_od)(const struct ingenic_cgu_pll_info *pll_info,
+			    unsigned long rate, unsigned long parent_rate,
+			    unsigned int *m, unsigned int *n, unsigned int *od);
 };
 
 /**
