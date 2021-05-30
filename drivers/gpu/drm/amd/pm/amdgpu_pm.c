@@ -1817,6 +1817,112 @@ out:
 	return size;
 }
 
+/**
+ * DOC: smartshift_apu_power
+ *
+ * The amdgpu driver provides a sysfs API for reporting APU power
+ * share if it supports smartshift. The value is expressed as
+ * the proportion of stapm limit where stapm limit is the total APU
+ * power limit. The result is in percentage. If APU power is 130% of
+ * STAPM, then APU is using 30% of the dGPU's headroom.
+ */
+
+static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device_attribute *attr,
+					       char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	uint32_t ss_power, size;
+	int r = 0;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(ddev->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return r;
+	}
+
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+				   (void *)&ss_power, &size);
+	if (r)
+		goto out;
+
+	r = sysfs_emit(buf, "%u%%\n", ss_power);
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+	return r;
+}
+
+/**
+ * DOC: smartshift_dgpu_power
+ *
+ * The amdgpu driver provides a sysfs API for reporting the dGPU power
+ * share if the device is in HG and supports smartshift. The value
+ * is expressed as the proportion of stapm limit where stapm limit
+ * is the total APU power limit. The value is in percentage. If dGPU
+ * power is 20% higher than STAPM power(120%), it's using 20% of the
+ * APU's power headroom.
+ */
+
+static ssize_t amdgpu_get_smartshift_dgpu_power(struct device *dev, struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	uint32_t ss_power, size;
+	int r = 0;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(ddev->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return r;
+	}
+
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+				   (void *)&ss_power, &size);
+
+	if (r)
+		goto out;
+
+	r = sysfs_emit(buf, "%u%%\n", ss_power);
+
+out:
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+	return r;
+}
+
+static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+				uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	uint32_t ss_power, size;
+
+	if (!amdgpu_acpi_is_power_shift_control_supported())
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if ((adev->flags & AMD_IS_PX) &&
+		 !amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+		 (void *)&ss_power, &size))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	return 0;
+}
+
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_force_performance_level,	ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -1843,6 +1949,10 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RO(unique_id,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(thermal_throttling_logging,		ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RO(gpu_metrics,				ATTR_FLAG_BASIC),
+	AMDGPU_DEVICE_ATTR_RO(smartshift_apu_power,			ATTR_FLAG_BASIC,
+			      .attr_update = ss_power_attr_update),
+	AMDGPU_DEVICE_ATTR_RO(smartshift_dgpu_power,			ATTR_FLAG_BASIC,
+			      .attr_update = ss_power_attr_update),
 };
 
 static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,

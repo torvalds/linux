@@ -1218,6 +1218,8 @@ typedef enum {
 	METRICS_CURR_FANSPEED,
 	METRICS_VOLTAGE_VDDSOC,
 	METRICS_VOLTAGE_VDDGFX,
+	METRICS_SS_APU_SHARE,
+	METRICS_SS_DGPU_SHARE,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
