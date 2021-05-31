@@ -378,35 +378,33 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba, unsigned int tag,
 	struct scsi_cmnd *cmd = lrbp->cmd;
 	int transfer_len = -1;
 
+	if (!cmd)
+		return;
+
 	if (!trace_ufshcd_command_enabled()) {
 		/* trace UPIU W/O tracing command */
-		if (cmd)
-			ufshcd_add_cmd_upiu_trace(hba, tag, str_t);
+		ufshcd_add_cmd_upiu_trace(hba, tag, str_t);
 		return;
 	}
 
-	if (cmd) { /* data phase exists */
-		/* trace UPIU also */
-		ufshcd_add_cmd_upiu_trace(hba, tag, str_t);
-		opcode = cmd->cmnd[0];
-		lba = sectors_to_logical(cmd->device, blk_rq_pos(cmd->request));
+	/* trace UPIU also */
+	ufshcd_add_cmd_upiu_trace(hba, tag, str_t);
+	opcode = cmd->cmnd[0];
+	lba = sectors_to_logical(cmd->device, blk_rq_pos(cmd->request));
 
-		if ((opcode == READ_10) || (opcode == WRITE_10)) {
-			/*
-			 * Currently we only fully trace read(10) and write(10)
-			 * commands
-			 */
-			transfer_len = be32_to_cpu(
-				lrbp->ucd_req_ptr->sc.exp_data_transfer_len);
-			if (opcode == WRITE_10)
-				group_id = lrbp->cmd->cmnd[6];
-		} else if (opcode == UNMAP) {
-			/*
-			 * The number of Bytes to be unmapped beginning with the
-			 * lba.
-			 */
-			transfer_len = blk_rq_bytes(cmd->request);
-		}
+	if (opcode == READ_10 || opcode == WRITE_10) {
+		/*
+		 * Currently we only fully trace read(10) and write(10) commands
+		 */
+		transfer_len =
+		       be32_to_cpu(lrbp->ucd_req_ptr->sc.exp_data_transfer_len);
+		if (opcode == WRITE_10)
+			group_id = lrbp->cmd->cmnd[6];
+	} else if (opcode == UNMAP) {
+		/*
+		 * The number of Bytes to be unmapped beginning with the lba.
+		 */
+		transfer_len = blk_rq_bytes(cmd->request);
 	}
 
 	intr = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
