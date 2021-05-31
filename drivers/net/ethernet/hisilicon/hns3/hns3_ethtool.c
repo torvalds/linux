@@ -88,7 +88,6 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	bool vlan_filter_enable;
 	int ret;
 
 	if (!h->ae_algo->ops->set_loopback ||
@@ -110,14 +109,11 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 	if (ret || ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
 		return ret;
 
-	if (en) {
+	if (en)
 		h->ae_algo->ops->set_promisc_mode(h, true, true);
-	} else {
+	else
 		/* recover promisc mode before loopback test */
 		hns3_request_update_promisc_mode(h);
-		vlan_filter_enable = ndev->flags & IFF_PROMISC ? false : true;
-		hns3_enable_vlan_filter(ndev, vlan_filter_enable);
-	}
 
 	return ret;
 }

@@ -345,7 +345,13 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support rxd advanced layout",
 		.cap_bit = HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
-	},
+	}, {
+		.name = "support port vlan bypass",
+		.cap_bit = HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
+	}, {
+		.name = "support modify vlan filter state",
+		.cap_bit = HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B,
+	}
 };
 
 static void hns3_dbg_fill_content(char *content, u16 len,

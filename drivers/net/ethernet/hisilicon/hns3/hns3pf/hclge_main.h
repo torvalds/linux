@@ -321,6 +321,10 @@ enum hclge_fc_mode {
 	HCLGE_FC_DEFAULT
 };
 
+enum hclge_vlan_fltr_cap {
+	HCLGE_VLAN_FLTR_DEF,
+	HCLGE_VLAN_FLTR_CAN_MDF,
+};
 enum hclge_link_fail_code {
 	HCLGE_LF_NORMAL,
 	HCLGE_LF_REF_CLOCK_LOST,
@@ -351,6 +355,7 @@ struct hclge_tc_info {
 
 struct hclge_cfg {
 	u8 tc_num;
+	u8 vlan_fliter_cap;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
 	u16 vf_rss_size_max;
@@ -957,6 +962,7 @@ enum HCLGE_VPORT_STATE {
 	HCLGE_VPORT_STATE_ALIVE,
 	HCLGE_VPORT_STATE_MAC_TBL_CHANGE,
 	HCLGE_VPORT_STATE_PROMISC_CHANGE,
+	HCLGE_VPORT_STATE_VLAN_FLTR_CHANGE,
 	HCLGE_VPORT_STATE_MAX
 };
 
@@ -998,6 +1004,8 @@ struct hclge_vport {
 	u32 bw_limit;		/* VSI BW Limit (0 = disabled) */
 	u8  dwrr;
 
+	bool req_vlan_fltr_en;
+	bool cur_vlan_fltr_en;
 	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
 	struct hclge_port_base_vlan_config port_base_vlan_cfg;
 	struct hclge_tx_vtag_cfg  txvlan_cfg;
