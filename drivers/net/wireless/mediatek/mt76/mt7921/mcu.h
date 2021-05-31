@@ -255,86 +255,6 @@ struct mt7921_mcu_reg_event {
 	__le32 val;
 } __packed;
 
-struct mt7921_mcu_tx_config {
-	u8 peer_addr[ETH_ALEN];
-	u8 sw;
-	u8 dis_rx_hdr_tran;
-
-	u8 aad_om;
-	u8 pfmu_idx;
-	__le16 partial_aid;
-
-	u8 ibf;
-	u8 ebf;
-	u8 is_ht;
-	u8 is_vht;
-
-	u8 mesh;
-	u8 baf_en;
-	u8 cf_ack;
-	u8 rdg_ba;
-
-	u8 rdg;
-	u8 pm;
-	u8 rts;
-	u8 smps;
-
-	u8 txop_ps;
-	u8 not_update_ipsm;
-	u8 skip_tx;
-	u8 ldpc;
-
-	u8 qos;
-	u8 from_ds;
-	u8 to_ds;
-	u8 dyn_bw;
-
-	u8 amdsu_cross_lg;
-	u8 check_per;
-	u8 gid_63;
-	u8 he;
-
-	u8 vht_ibf;
-	u8 vht_ebf;
-	u8 vht_ldpc;
-	u8 he_ldpc;
-} __packed;
-
-struct mt7921_mcu_sec_config {
-	u8 wpi_flag;
-	u8 rv;
-	u8 ikv;
-	u8 rkv;
-
-	u8 rcid;
-	u8 rca1;
-	u8 rca2;
-	u8 even_pn;
-
-	u8 key_id;
-	u8 muar_idx;
-	u8 cipher_suit;
-	u8 rsv[1];
-} __packed;
-
-struct mt7921_mcu_key_config {
-	u8 key[32];
-} __packed;
-
-struct mt7921_mcu_rate_info {
-	u8 mpdu_fail;
-	u8 mpdu_tx;
-	u8 rate_idx;
-	u8 rsv[1];
-	__le16 rate[8];
-} __packed;
-
-struct mt7921_mcu_ba_config {
-	u8 ba_en;
-	u8 rsv[3];
-	__le32 ba_winsize;
-} __packed;
-
 struct mt7921_mcu_ant_id_config {
 	u8 ant_id[4];
 } __packed;
@@ -356,41 +276,6 @@ struct mt7921_mcu_peer_cap {
 	u8 mmss;
 	u8 ampdu_factor;
 	u8 rsv[1];
-} __packed;
-
-struct mt7921_mcu_rx_cnt {
-	u8 rx_rcpi[4];
-	u8 rx_cc[4];
-	u8 rx_cc_sel;
-	u8 ce_rmsd;
-	u8 rsv[2];
-} __packed;
-
-struct mt7921_mcu_tx_cnt {
-	__le16 rate1_cnt;
-	__le16 rate1_fail_cnt;
-	__le16 rate2_cnt;
-	__le16 rate3_cnt;
-	__le16 cur_bw_tx_cnt;
-	__le16 cur_bw_tx_fail_cnt;
-	__le16 other_bw_tx_cnt;
-	__le16 other_bw_tx_fail_cnt;
-} __packed;
-
-struct mt7921_mcu_wlan_info_event {
-	struct mt7921_mcu_tx_config tx_config;
-	struct mt7921_mcu_sec_config sec_config;
-	struct mt7921_mcu_key_config key_config;
-	struct mt7921_mcu_rate_info rate_info;
-	struct mt7921_mcu_ba_config ba_config;
-	struct mt7921_mcu_peer_cap peer_cap;
-	struct mt7921_mcu_rx_cnt rx_cnt;
-	struct mt7921_mcu_tx_cnt tx_cnt;
-} __packed;
-
-struct mt7921_mcu_wlan_info {
-	__le32 wlan_idx;
-	struct mt7921_mcu_wlan_info_event event;
 } __packed;
 
 struct mt7921_txpwr_req {

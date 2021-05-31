@@ -399,43 +399,6 @@ mt7921_mcu_tx_rate_parse(struct mt76_phy *mphy,
 }
 
 static void
-mt7921_mcu_tx_rate_report(struct mt7921_dev *dev, struct sk_buff *skb,
-			  u16 wlan_idx)
-{
-	struct mt7921_mcu_wlan_info_event *wtbl_info;
-	struct mt76_phy *mphy = &dev->mphy;
-	struct mt7921_sta_stats *stats;
-	struct rate_info rate = {};
-	struct mt7921_sta *msta;
-	struct mt76_wcid *wcid;
-	u8 idx;
-
-	if (wlan_idx >= MT76_N_WCIDS)
-		return;
-
-	wtbl_info = (struct mt7921_mcu_wlan_info_event *)skb->data;
-	idx = wtbl_info->rate_info.rate_idx;
-	if (idx >= ARRAY_SIZE(wtbl_info->rate_info.rate))
-		return;
-
-	rcu_read_lock();
-
-	wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
-	if (!wcid)
-		goto out;
-
-	msta = container_of(wcid, struct mt7921_sta, wcid);
-	stats = &msta->stats;
-
-	/* current rate */
-	mt7921_mcu_tx_rate_parse(mphy, &wtbl_info->peer_cap, &rate,
-				 le16_to_cpu(wtbl_info->rate_info.rate[idx]));
-	stats->tx_rate = rate;
-out:
-	rcu_read_unlock();
-}
-
-static void
 mt7921_mcu_scan_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -1187,26 +1150,6 @@ int mt7921_mcu_get_eeprom(struct mt7921_dev *dev, u32 offset)
 	res = (struct mt7921_mcu_eeprom_info *)skb->data;
 	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
 	memcpy(buf, res->data, 16);
-	dev_kfree_skb(skb);
-
-	return 0;
-}
-
-u32 mt7921_get_wtbl_info(struct mt7921_dev *dev, u32 wlan_idx)
-{
-	struct mt7921_mcu_wlan_info wtbl_info = {
-		.wlan_idx = cpu_to_le32(wlan_idx),
-	};
-	struct sk_buff *skb;
-	int ret;
-
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_CMD_GET_WTBL,
-					&wtbl_info, sizeof(wtbl_info), true,
-					&skb);
-	if (ret)
-		return ret;
-
-	mt7921_mcu_tx_rate_report(dev, skb, wlan_idx);
 	dev_kfree_skb(skb);
 
 	return 0;
