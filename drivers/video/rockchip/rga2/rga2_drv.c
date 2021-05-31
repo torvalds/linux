@@ -871,7 +871,7 @@ static struct rga2_reg * rga2_reg_init(rga2_session *session, struct rga2_req *r
         }
     }
 
-    if(RGA2_gen_reg_info((uint8_t *)reg->cmd_reg, req) == -1) {
+    if (RGA2_gen_reg_info((uint8_t *)reg->cmd_reg, (uint8_t *)reg->csc_reg, req) == -1) {
         printk("gen reg info error\n");
         free_page((unsigned long)reg);
 
@@ -934,6 +934,7 @@ static void rga2_service_session_clear(rga2_session *session)
 /* Caller must hold rga_service.lock */
 static void rga2_try_set_reg(void)
 {
+	int i;
 	struct rga2_reg *reg ;
 
 	if (list_empty(&rga2_service.running))
@@ -958,13 +959,26 @@ static void rga2_try_set_reg(void)
 			/* CMD buff */
 			rga2_write(virt_to_phys(reg->cmd_reg), RGA2_CMD_BASE);
 
+			/* full csc reg */
+			for (i = 0; i < 12; i++) {
+				rga2_write(reg->csc_reg[i], RGA2_CSC_COE_BASE + i * 4);
+			}
+
 #if RGA2_DEBUGFS
 			if (RGA2_TEST_REG) {
 				if (rga2_flag) {
-					int32_t i, *p;
+					int32_t *p;
+
 					p = rga2_service.cmd_buff;
 					INFO("CMD_REG\n");
 					for (i=0; i<8; i++)
+						INFO("%.8x %.8x %.8x %.8x\n",
+						     p[0 + i * 4], p[1 + i * 4],
+						     p[2 + i * 4], p[3 + i * 4]);
+
+					p = reg->csc_reg;
+					INFO("CSC_REG\n");
+					for (i = 0; i < 3; i++)
 						INFO("%.8x %.8x %.8x %.8x\n",
 						     p[0 + i * 4], p[1 + i * 4],
 						     p[2 + i * 4], p[3 + i * 4]);
@@ -989,7 +1003,6 @@ static void rga2_try_set_reg(void)
 #if RGA2_DEBUGFS
 			if (RGA2_TEST_REG) {
 				if (rga2_flag) {
-					uint32_t i;
 					INFO("CMD_READ_BACK_REG\n");
 					for (i=0; i<8; i++)
 						INFO("%.8x %.8x %.8x %.8x\n",
@@ -997,6 +1010,14 @@ static void rga2_try_set_reg(void)
 						     rga2_read(0x100 + i * 16 + 4),
 						     rga2_read(0x100 + i * 16 + 8),
 						     rga2_read(0x100 + i * 16 + 12));
+
+					INFO("CSC_READ_BACK_REG\n");
+					for (i = 0; i < 3; i++)
+						INFO("%.8x %.8x %.8x %.8x\n",
+						     rga2_read(RGA2_CSC_COE_BASE + i * 16 + 0),
+						     rga2_read(RGA2_CSC_COE_BASE + i * 16 + 4),
+						     rga2_read(RGA2_CSC_COE_BASE + i * 16 + 8),
+						     rga2_read(RGA2_CSC_COE_BASE + i * 16 + 12));
 				}
 
 			}

@@ -476,6 +476,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DITHER_MODE)) | (s_RGA2_DST_INFO_SW_DITHER_MODE(msg->dither_mode)));
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_CSC_MODE)) | (s_RGA2_DST_INFO_SW_DST_CSC_MODE(msg->yuv2rgb_mode >> 2)));
     reg = ((reg & (~m_RGA2_DST_INFO_SW_CSC_CLIP_MODE)) | (s_RGA2_DST_INFO_SW_CSC_CLIP_MODE(msg->yuv2rgb_mode >> 4)));
+    /* full csc enable */
+    reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_CSC_MODE_2)) | (s_RGA2_DST_INFO_SW_DST_CSC_MODE_2(msg->full_csc.flag)));
     /* Some older chips do not support src1 csc mode, they do not have these two registers. */
     reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_CSC_MODE)) | (s_RGA2_DST_INFO_SW_SRC1_CSC_MODE(msg->yuv2rgb_mode >> 5)));
     reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE)) | (s_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE(msg->yuv2rgb_mode >> 7)));
@@ -790,6 +792,56 @@ static void RGA2_set_reg_rop_info(u8 *base, struct rga2_req *msg)
 
 }
 
+static void RGA2_set_reg_full_csc(u8 *base, struct rga2_req *msg)
+{
+	RK_U32 *bRGA2_DST_CSC_00;
+	RK_U32 *bRGA2_DST_CSC_01;
+	RK_U32 *bRGA2_DST_CSC_02;
+	RK_U32 *bRGA2_DST_CSC_OFF0;
+
+	RK_U32 *bRGA2_DST_CSC_10;
+	RK_U32 *bRGA2_DST_CSC_11;
+	RK_U32 *bRGA2_DST_CSC_12;
+	RK_U32 *bRGA2_DST_CSC_OFF1;
+
+	RK_U32 *bRGA2_DST_CSC_20;
+	RK_U32 *bRGA2_DST_CSC_21;
+	RK_U32 *bRGA2_DST_CSC_22;
+	RK_U32 *bRGA2_DST_CSC_OFF2;
+
+	bRGA2_DST_CSC_00 = (RK_U32 *)(base + RGA2_DST_CSC_00_OFFSET);
+	bRGA2_DST_CSC_01 = (RK_U32 *)(base + RGA2_DST_CSC_01_OFFSET);
+	bRGA2_DST_CSC_02 = (RK_U32 *)(base + RGA2_DST_CSC_02_OFFSET);
+	bRGA2_DST_CSC_OFF0 = (RK_U32 *)(base + RGA2_DST_CSC_OFF0_OFFSET);
+
+	bRGA2_DST_CSC_10 = (RK_U32 *)(base + RGA2_DST_CSC_10_OFFSET);
+	bRGA2_DST_CSC_11 = (RK_U32 *)(base + RGA2_DST_CSC_11_OFFSET);
+	bRGA2_DST_CSC_12 = (RK_U32 *)(base + RGA2_DST_CSC_12_OFFSET);
+	bRGA2_DST_CSC_OFF1 = (RK_U32 *)(base + RGA2_DST_CSC_OFF1_OFFSET);
+
+	bRGA2_DST_CSC_20 = (RK_U32 *)(base + RGA2_DST_CSC_20_OFFSET);
+	bRGA2_DST_CSC_21 = (RK_U32 *)(base + RGA2_DST_CSC_21_OFFSET);
+	bRGA2_DST_CSC_22 = (RK_U32 *)(base + RGA2_DST_CSC_22_OFFSET);
+	bRGA2_DST_CSC_OFF2 = (RK_U32 *)(base + RGA2_DST_CSC_OFF2_OFFSET);
+
+	/* full csc coefficient */
+	/* Y coefficient */
+	*bRGA2_DST_CSC_00 = msg->full_csc.coe_y.r_v;
+	*bRGA2_DST_CSC_01 = msg->full_csc.coe_y.g_y;
+	*bRGA2_DST_CSC_02 = msg->full_csc.coe_y.b_u;
+	*bRGA2_DST_CSC_OFF0 = msg->full_csc.coe_y.off;
+	/* U coefficient */
+	*bRGA2_DST_CSC_10 = msg->full_csc.coe_u.r_v;
+	*bRGA2_DST_CSC_11 = msg->full_csc.coe_u.g_y;
+	*bRGA2_DST_CSC_12 = msg->full_csc.coe_u.b_u;
+	*bRGA2_DST_CSC_OFF1 = msg->full_csc.coe_u.off;
+	/* V coefficient */
+	*bRGA2_DST_CSC_20 = msg->full_csc.coe_v.r_v;
+	*bRGA2_DST_CSC_21 = msg->full_csc.coe_v.g_y;
+	*bRGA2_DST_CSC_22 = msg->full_csc.coe_v.b_u;
+	*bRGA2_DST_CSC_OFF2 = msg->full_csc.coe_v.off;
+}
+
 static void RGA2_set_reg_color_palette(RK_U8 *base, struct rga2_req *msg)
 {
     RK_U32 *bRGA_SRC_BASE0, *bRGA_SRC_INFO, *bRGA_SRC_VIR_INFO, *bRGA_SRC_ACT_INFO, *bRGA_SRC_FG_COLOR, *bRGA_SRC_BG_COLOR;
@@ -989,9 +1041,8 @@ static void RGA2_set_mmu_info(RK_U8 *base, struct rga2_req *msg)
     *bRGA_MMU_ELS_BASE  = (RK_U32)(msg->mmu_info.els_base_addr)  >> 4;
 }
 
-
 int
-RGA2_gen_reg_info(RK_U8 *base , struct rga2_req *msg)
+RGA2_gen_reg_info(RK_U8 *base, RK_U8 *csc_base, struct rga2_req *msg)
 {
 	RK_U8 dst_nn_quantize_en = 0;
 
@@ -1010,6 +1061,10 @@ RGA2_gen_reg_info(RK_U8 *base , struct rga2_req *msg)
 					RGA2_set_reg_alpha_info(base, msg);
 					RGA2_set_reg_rop_info(base, msg);
 				}
+			}
+
+			if (msg->full_csc.flag) {
+				RGA2_set_reg_full_csc(csc_base, msg);
 			}
             break;
         case color_fill_mode :
@@ -1195,6 +1250,7 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     req->fg_color = req_rga->fg_color;
     req->bg_color = req_rga->bg_color;
     memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
+    memcpy(&req->full_csc, &req_rga->full_csc, sizeof(req_rga->full_csc));
 
     req->palette_mode = req_rga->palette_mode;
     req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
@@ -1455,6 +1511,8 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->fg_color = req_rga->fg_color;
     req->bg_color = req_rga->bg_color;
     memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
+    memcpy(&req->full_csc, &req_rga->full_csc, sizeof(req_rga->full_csc));
+
     req->palette_mode = req_rga->palette_mode;
     req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
     req->endian_mode = req_rga->endian_mode;
