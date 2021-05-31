@@ -1816,10 +1816,16 @@ out:
  * Return -EGAIN if the we need to try again.
  * (For PAGE_LOCK case but got dirty page or page not belong to mapping)
  */
-static int process_one_page(struct address_space *mapping,
+static int process_one_page(struct btrfs_fs_info *fs_info,
+			    struct address_space *mapping,
 			    struct page *page, struct page *locked_page,
-			    unsigned long page_ops)
+			    unsigned long page_ops, u64 start, u64 end)
 {
+	u32 len;
+
+	ASSERT(end + 1 - start != 0 && end + 1 - start < U32_MAX);
+	len = end + 1 - start;
+
 	if (page_ops & PAGE_SET_ORDERED)
 		SetPageOrdered(page);
 
@@ -1827,13 +1833,13 @@ static int process_one_page(struct address_space *mapping,
 		return 1;
 
 	if (page_ops & PAGE_SET_ERROR)
-		SetPageError(page);
+		btrfs_page_clamp_set_error(fs_info, page, start, len);
 	if (page_ops & PAGE_START_WRITEBACK) {
-		clear_page_dirty_for_io(page);
-		set_page_writeback(page);
+		btrfs_page_clamp_clear_dirty(fs_info, page, start, len);
+		btrfs_page_clamp_set_writeback(fs_info, page, start, len);
 	}
 	if (page_ops & PAGE_END_WRITEBACK)
-		end_page_writeback(page);
+		btrfs_page_clamp_clear_writeback(fs_info, page, start, len);
 	if (page_ops & PAGE_LOCK) {
 		lock_page(page);
 		if (!PageDirty(page) || page->mapping != mapping) {
@@ -1851,6 +1857,7 @@ static int __process_pages_contig(struct address_space *mapping,
 				  u64 start, u64 end, unsigned long page_ops,
 				  u64 *processed_end)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(mapping->host->i_sb);
 	pgoff_t start_index = start >> PAGE_SHIFT;
 	pgoff_t end_index = end >> PAGE_SHIFT;
 	pgoff_t index = start_index;
@@ -1887,8 +1894,9 @@ static int __process_pages_contig(struct address_space *mapping,
 		for (i = 0; i < found_pages; i++) {
 			int process_ret;
 
-			process_ret = process_one_page(mapping, pages[i],
-					locked_page, page_ops);
+			process_ret = process_one_page(fs_info, mapping,
+					pages[i], locked_page, page_ops,
+					start, end);
 			if (process_ret < 0) {
 				for (; i < found_pages; i++)
 					put_page(pages[i]);
