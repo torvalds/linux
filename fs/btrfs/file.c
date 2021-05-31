@@ -28,6 +28,7 @@
 #include "compression.h"
 #include "delalloc-space.h"
 #include "reflink.h"
+#include "subpage.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*
@@ -482,6 +483,7 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 	start_pos = round_down(pos, fs_info->sectorsize);
 	num_bytes = round_up(write_bytes + pos - start_pos,
 			     fs_info->sectorsize);
+	ASSERT(num_bytes <= U32_MAX);
 
 	end_of_last_block = start_pos + num_bytes - 1;
 
@@ -500,9 +502,10 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
-		SetPageUptodate(p);
+
+		btrfs_page_clamp_set_uptodate(fs_info, p, start_pos, num_bytes);
 		ClearPageChecked(p);
-		set_page_dirty(p);
+		btrfs_page_clamp_set_dirty(fs_info, p, start_pos, num_bytes);
 	}
 
 	/*
