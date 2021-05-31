@@ -811,7 +811,7 @@ out_unlock:
 }
 
 /* Drop this inode's dquots. */
-static int
+static void
 xfs_dqrele_inode(
 	struct xfs_inode	*ip,
 	void			*priv)
@@ -835,7 +835,7 @@ xfs_dqrele_inode(
 		ip->i_pdquot = NULL;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return 0;
+	xfs_irele(ip);
 }
 
 /*
@@ -861,7 +861,7 @@ xfs_dqrele_all_inodes(
 }
 #else
 # define xfs_dqrele_igrab(ip)		(false)
-# define xfs_dqrele_inode(ip, priv)	(0)
+# define xfs_dqrele_inode(ip, priv)	((void)0)
 #endif /* CONFIG_XFS_QUOTA */
 
 /*
@@ -1592,6 +1592,7 @@ xfs_blockgc_scan_inode(
 unlock:
 	if (lockflags)
 		xfs_iunlock(ip, lockflags);
+	xfs_irele(ip);
 	return error;
 }
 
@@ -1698,8 +1699,7 @@ xfs_blockgc_free_quota(
 
 /*
  * Decide if we want to grab this inode in anticipation of doing work towards
- * the goal.  If selected, the VFS must hold a reference to this inode, which
- * will be released after processing.
+ * the goal.
  */
 static inline bool
 xfs_icwalk_igrab(
@@ -1716,24 +1716,26 @@ xfs_icwalk_igrab(
 	}
 }
 
-/* Process an inode and release it.  Return -EAGAIN to skip an inode. */
+/*
+ * Process an inode.  Each processing function must handle any state changes
+ * made by the icwalk igrab function.  Return -EAGAIN to skip an inode.
+ */
 static inline int
 xfs_icwalk_process_inode(
 	enum xfs_icwalk_goal	goal,
 	struct xfs_inode	*ip,
 	void			*args)
 {
-	int			error;
+	int			error = 0;
 
 	switch (goal) {
 	case XFS_ICWALK_DQRELE:
-		error = xfs_dqrele_inode(ip, args);
+		xfs_dqrele_inode(ip, args);
 		break;
 	case XFS_ICWALK_BLOCKGC:
 		error = xfs_blockgc_scan_inode(ip, args);
 		break;
 	}
-	xfs_irele(ip);
 	return error;
 }
 
