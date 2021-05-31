@@ -11,7 +11,7 @@
 #define CLOCK_STATUS_MASK      0xffff0000
 #define CLOCK_CONFIG_MASK      0x0000ffff
 
-#define READY_TIMEOUT_MS	500
+#define READY_TIMEOUT_MS	4000
 
 static int get_clock(struct snd_tscm *tscm, u32 *data)
 {
@@ -423,6 +423,8 @@ int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate,
 			fw_iso_resources_free(&tscm->rx_resources);
 			return err;
 		}
+
+		tscm->need_long_tx_init_skip = (rate != curr_rate);
 	}
 
 	return 0;
@@ -454,6 +456,7 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 
 	if (!amdtp_stream_running(&tscm->rx_stream)) {
 		int spd = fw_parent_device(tscm->unit)->max_speed;
+		unsigned int tx_init_skip_cycles;
 
 		err = set_stream_formats(tscm, rate);
 		if (err < 0)
@@ -473,7 +476,19 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&tscm->domain, 0, false, false);
+		if (tscm->need_long_tx_init_skip)
+			tx_init_skip_cycles = 16000;
+		else
+			tx_init_skip_cycles = 0;
+
+		// MEMO: Just after starting packet streaming, it transfers packets without any
+		// event. Enough after receiving the sequence of packets, it multiplexes events into
+		// the packet. However, just after changing sampling transfer frequency, it stops
+		// multiplexing during packet transmission. Enough after, it restarts multiplexing
+		// again. The device ignores presentation time expressed by the value of syt field
+		// of CIP header in received packets. The sequence of the number of data blocks per
+		// packet is important for media clock recovery.
+		err = amdtp_domain_start(&tscm->domain, tx_init_skip_cycles, true, true);
 		if (err < 0)
 			return err;
 
@@ -499,6 +514,8 @@ void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm)
 
 		fw_iso_resources_free(&tscm->tx_resources);
 		fw_iso_resources_free(&tscm->rx_resources);
+
+		tscm->need_long_tx_init_skip = false;
 	}
 }
 
