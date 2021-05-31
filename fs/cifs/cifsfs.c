@@ -133,7 +133,7 @@ struct workqueue_struct	*cifsiod_wq;
 struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*fileinfo_put_wq;
 struct workqueue_struct	*cifsoplockd_wq;
-struct workqueue_struct *deferredclose_wq;
+struct workqueue_struct	*deferredclose_wq;
 __u32 cifs_lock_secret;
 
 /*

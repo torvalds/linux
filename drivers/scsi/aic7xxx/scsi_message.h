@@ -3,6 +3,17 @@
  * $FreeBSD: src/sys/cam/scsi/scsi_message.h,v 1.2 2000/05/01 20:21:29 peter Exp $
  */
 
+/* Messages (1 byte) */		     /* I/T (M)andatory or (O)ptional */
+#define MSG_SAVEDATAPOINTER	0x02 /* O/O */
+#define MSG_RESTOREPOINTERS	0x03 /* O/O */
+#define MSG_DISCONNECT		0x04 /* O/O */
+#define MSG_MESSAGE_REJECT	0x07 /* M/M */
+#define MSG_NOOP		0x08 /* M/M */
+
+/* Messages (2 byte) */
+#define MSG_SIMPLE_Q_TAG	0x20 /* O/O */
+#define MSG_IGN_WIDE_RESIDUE	0x23 /* O/O */
+
 /* Identify message */		     /* M/M */	
 #define MSG_IDENTIFYFLAG	0x80 
 #define MSG_IDENTIFY_DISCFLAG	0x40 

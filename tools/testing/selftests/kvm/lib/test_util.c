@@ -168,70 +168,87 @@ size_t get_def_hugetlb_pagesz(void)
 
 const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
 {
+	static const int anon_flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	static const int anon_huge_flags = anon_flags | MAP_HUGETLB;
+
 	static const struct vm_mem_backing_src_alias aliases[] = {
 		[VM_MEM_SRC_ANONYMOUS] = {
 			.name = "anonymous",
-			.flag = 0,
+			.flag = anon_flags,
 		},
 		[VM_MEM_SRC_ANONYMOUS_THP] = {
 			.name = "anonymous_thp",
-			.flag = 0,
+			.flag = anon_flags,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB] = {
 			.name = "anonymous_hugetlb",
-			.flag = MAP_HUGETLB,
+			.flag = anon_huge_flags,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_16KB] = {
 			.name = "anonymous_hugetlb_16kb",
-			.flag = MAP_HUGETLB | MAP_HUGE_16KB,
+			.flag = anon_huge_flags | MAP_HUGE_16KB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_64KB] = {
 			.name = "anonymous_hugetlb_64kb",
-			.flag = MAP_HUGETLB | MAP_HUGE_64KB,
+			.flag = anon_huge_flags | MAP_HUGE_64KB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_512KB] = {
 			.name = "anonymous_hugetlb_512kb",
-			.flag = MAP_HUGETLB | MAP_HUGE_512KB,
+			.flag = anon_huge_flags | MAP_HUGE_512KB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_1MB] = {
 			.name = "anonymous_hugetlb_1mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_1MB,
+			.flag = anon_huge_flags | MAP_HUGE_1MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_2MB] = {
 			.name = "anonymous_hugetlb_2mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_2MB,
+			.flag = anon_huge_flags | MAP_HUGE_2MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_8MB] = {
 			.name = "anonymous_hugetlb_8mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_8MB,
+			.flag = anon_huge_flags | MAP_HUGE_8MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_16MB] = {
 			.name = "anonymous_hugetlb_16mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_16MB,
+			.flag = anon_huge_flags | MAP_HUGE_16MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_32MB] = {
 			.name = "anonymous_hugetlb_32mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_32MB,
+			.flag = anon_huge_flags | MAP_HUGE_32MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_256MB] = {
 			.name = "anonymous_hugetlb_256mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_256MB,
+			.flag = anon_huge_flags | MAP_HUGE_256MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_512MB] = {
 			.name = "anonymous_hugetlb_512mb",
-			.flag = MAP_HUGETLB | MAP_HUGE_512MB,
+			.flag = anon_huge_flags | MAP_HUGE_512MB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_1GB] = {
 			.name = "anonymous_hugetlb_1gb",
-			.flag = MAP_HUGETLB | MAP_HUGE_1GB,
+			.flag = anon_huge_flags | MAP_HUGE_1GB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_2GB] = {
 			.name = "anonymous_hugetlb_2gb",
-			.flag = MAP_HUGETLB | MAP_HUGE_2GB,
+			.flag = anon_huge_flags | MAP_HUGE_2GB,
 		},
 		[VM_MEM_SRC_ANONYMOUS_HUGETLB_16GB] = {
 			.name = "anonymous_hugetlb_16gb",
-			.flag = MAP_HUGETLB | MAP_HUGE_16GB,
+			.flag = anon_huge_flags | MAP_HUGE_16GB,
+		},
+		[VM_MEM_SRC_SHMEM] = {
+			.name = "shmem",
+			.flag = MAP_SHARED,
+		},
+		[VM_MEM_SRC_SHARED_HUGETLB] = {
+			.name = "shared_hugetlb",
+			/*
+			 * No MAP_HUGETLB, we use MFD_HUGETLB instead. Since
+			 * we're using "file backed" memory, we need to specify
+			 * this when the FD is created, not when the area is
+			 * mapped.
+			 */
+			.flag = MAP_SHARED,
 		},
 	};
 	_Static_assert(ARRAY_SIZE(aliases) == NUM_SRC_TYPES,
@@ -250,10 +267,12 @@ size_t get_backing_src_pagesz(uint32_t i)
 
 	switch (i) {
 	case VM_MEM_SRC_ANONYMOUS:
+	case VM_MEM_SRC_SHMEM:
 		return getpagesize();
 	case VM_MEM_SRC_ANONYMOUS_THP:
 		return get_trans_hugepagesz();
 	case VM_MEM_SRC_ANONYMOUS_HUGETLB:
+	case VM_MEM_SRC_SHARED_HUGETLB:
 		return get_def_hugetlb_pagesz();
 	default:
 		return MAP_HUGE_PAGE_SIZE(flag);
