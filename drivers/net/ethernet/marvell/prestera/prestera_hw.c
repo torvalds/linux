@@ -2,6 +2,7 @@
 /* Copyright (c) 2019-2020 Marvell International Ltd. All rights reserved */
 
 #include <linux/etherdevice.h>
+#include <linux/if_bridge.h>
 #include <linux/ethtool.h>
 #include <linux/list.h>
 
@@ -83,6 +84,11 @@ enum {
 	PRESTERA_PORT_TP_MDI,
 	PRESTERA_PORT_TP_MDIX,
 	PRESTERA_PORT_TP_AUTO,
+};
+
+enum {
+	PRESTERA_PORT_FLOOD_TYPE_UC = 0,
+	PRESTERA_PORT_FLOOD_TYPE_MC = 1,
 };
 
 enum {
@@ -188,6 +194,11 @@ struct prestera_msg_port_mdix_param {
 	u8 admin_mode;
 };
 
+struct prestera_msg_port_flood_param {
+	u8 type;
+	u8 enable;
+};
+
 union prestera_msg_port_param {
 	u8  admin_state;
 	u8  oper_state;
@@ -205,6 +216,7 @@ union prestera_msg_port_param {
 	struct prestera_msg_port_mdix_param mdix;
 	struct prestera_msg_port_autoneg_param autoneg;
 	struct prestera_msg_port_cap_param cap;
+	struct prestera_msg_port_flood_param flood_ext;
 };
 
 struct prestera_msg_port_attr_req {
@@ -988,7 +1000,43 @@ int prestera_hw_port_learning_set(struct prestera_port *port, bool enable)
 			    &req.cmd, sizeof(req));
 }
 
-int prestera_hw_port_flood_set(struct prestera_port *port, bool flood)
+static int prestera_hw_port_uc_flood_set(struct prestera_port *port, bool flood)
+{
+	struct prestera_msg_port_attr_req req = {
+		.attr = PRESTERA_CMD_PORT_ATTR_FLOOD,
+		.port = port->hw_id,
+		.dev = port->dev_id,
+		.param = {
+			.flood_ext = {
+				.type = PRESTERA_PORT_FLOOD_TYPE_UC,
+				.enable = flood,
+			}
+		}
+	};
+
+	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_PORT_ATTR_SET,
+			    &req.cmd, sizeof(req));
+}
+
+static int prestera_hw_port_mc_flood_set(struct prestera_port *port, bool flood)
+{
+	struct prestera_msg_port_attr_req req = {
+		.attr = PRESTERA_CMD_PORT_ATTR_FLOOD,
+		.port = port->hw_id,
+		.dev = port->dev_id,
+		.param = {
+			.flood_ext = {
+				.type = PRESTERA_PORT_FLOOD_TYPE_MC,
+				.enable = flood,
+			}
+		}
+	};
+
+	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_PORT_ATTR_SET,
+			    &req.cmd, sizeof(req));
+}
+
+static int prestera_hw_port_flood_set_v2(struct prestera_port *port, bool flood)
 {
 	struct prestera_msg_port_attr_req req = {
 		.attr = PRESTERA_CMD_PORT_ATTR_FLOOD,
@@ -1001,6 +1049,41 @@ int prestera_hw_port_flood_set(struct prestera_port *port, bool flood)
 
 	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_PORT_ATTR_SET,
 			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_port_flood_set(struct prestera_port *port, unsigned long mask,
+			       unsigned long val)
+{
+	int err;
+
+	if (port->sw->dev->fw_rev.maj <= 2) {
+		if (!(mask & BR_FLOOD))
+			return 0;
+
+		return prestera_hw_port_flood_set_v2(port, val & BR_FLOOD);
+	}
+
+	if (mask & BR_FLOOD) {
+		err = prestera_hw_port_uc_flood_set(port, val & BR_FLOOD);
+		if (err)
+			goto err_uc_flood;
+	}
+
+	if (mask & BR_MCAST_FLOOD) {
+		err = prestera_hw_port_mc_flood_set(port, val & BR_MCAST_FLOOD);
+		if (err)
+			goto err_mc_flood;
+	}
+
+	return 0;
+
+err_mc_flood:
+	prestera_hw_port_mc_flood_set(port, 0);
+err_uc_flood:
+	if (mask & BR_FLOOD)
+		prestera_hw_port_uc_flood_set(port, 0);
+
+	return err;
 }
 
 int prestera_hw_vlan_create(struct prestera_switch *sw, u16 vid)
