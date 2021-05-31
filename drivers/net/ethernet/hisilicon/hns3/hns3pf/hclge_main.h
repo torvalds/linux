@@ -759,9 +759,14 @@ struct hclge_mac_tnl_stats {
 struct hclge_vf_vlan_cfg {
 	u8 mbx_cmd;
 	u8 subcode;
-	u8 is_kill;
-	u16 vlan;
-	u16 proto;
+	union {
+		struct {
+			u8 is_kill;
+			u16 vlan;
+			u16 proto;
+		};
+		u8 enable;
+	};
 };
 
 #pragma pack()

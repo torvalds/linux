@@ -341,40 +341,33 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 #define HCLGE_MBX_VLAN_STATE_OFFSET	0
 #define HCLGE_MBX_VLAN_INFO_OFFSET	2
 
+	struct hnae3_handle *handle = &vport->nic;
+	struct hclge_dev *hdev = vport->back;
 	struct hclge_vf_vlan_cfg *msg_cmd;
-	int status = 0;
 
 	msg_cmd = (struct hclge_vf_vlan_cfg *)&mbx_req->msg;
-	if (msg_cmd->subcode == HCLGE_MBX_VLAN_FILTER) {
-		struct hnae3_handle *handle = &vport->nic;
-		u16 vlan, proto;
-		bool is_kill;
-
-		is_kill = !!msg_cmd->is_kill;
-		vlan =  msg_cmd->vlan;
-		proto =  msg_cmd->proto;
-		status = hclge_set_vlan_filter(handle, cpu_to_be16(proto),
-					       vlan, is_kill);
-	} else if (msg_cmd->subcode == HCLGE_MBX_VLAN_RX_OFF_CFG) {
-		struct hnae3_handle *handle = &vport->nic;
-		bool en = msg_cmd->is_kill ? true : false;
-
-		status = hclge_en_hw_strip_rxvtag(handle, en);
-	} else if (msg_cmd->subcode == HCLGE_MBX_GET_PORT_BASE_VLAN_STATE) {
-		struct hnae3_ae_dev *ae_dev = pci_get_drvdata(vport->nic.pdev);
+	switch (msg_cmd->subcode) {
+	case HCLGE_MBX_VLAN_FILTER:
+		return hclge_set_vlan_filter(handle,
+					     cpu_to_be16(msg_cmd->proto),
+					     msg_cmd->vlan, msg_cmd->is_kill);
+	case HCLGE_MBX_VLAN_RX_OFF_CFG:
+		return hclge_en_hw_strip_rxvtag(handle, msg_cmd->enable);
+	case HCLGE_MBX_GET_PORT_BASE_VLAN_STATE:
 		/* vf does not need to know about the port based VLAN state
 		 * on device HNAE3_DEVICE_VERSION_V3. So always return disable
 		 * on device HNAE3_DEVICE_VERSION_V3 if vf queries the port
 		 * based VLAN state.
 		 */
 		resp_msg->data[0] =
-			ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3 ?
+			hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3 ?
 			HNAE3_PORT_BASE_VLAN_DISABLE :
 			vport->port_base_vlan_cfg.state;
 		resp_msg->len = sizeof(u8);
+		return 0;
+	default:
+		return 0;
 	}
-
-	return status;
 }
 
 static int hclge_set_vf_alive(struct hclge_vport *vport,
