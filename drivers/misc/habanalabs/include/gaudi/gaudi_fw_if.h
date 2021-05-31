@@ -20,6 +20,9 @@
 #define UBOOT_FW_OFFSET			0x100000	/* 1MB in SRAM */
 #define LINUX_FW_OFFSET			0x800000	/* 8MB in HBM */
 
+/* HBM thermal delta in [Deg] added to composite (CTemp) */
+#define HBM_TEMP_ADJUST_COEFF		6
+
 enum gaudi_nic_axi_error {
 	RXB,
 	RXE,
@@ -56,6 +59,8 @@ struct eq_nic_sei_event {
  * @pcs_link: has PCS link.
  * @phy_ready: is PHY ready.
  * @auto_neg: is Autoneg enabled.
+ * @timeout_retransmission_cnt: timeout retransmission events
+ * @high_ber_cnt: high ber events
  */
 struct gaudi_nic_status {
 	__u32 port;
@@ -69,6 +74,8 @@ struct gaudi_nic_status {
 	__u8 pcs_link;
 	__u8 phy_ready;
 	__u8 auto_neg;
+	__u32 timeout_retransmission_cnt;
+	__u32 high_ber_cnt;
 };
 
 struct gaudi_flops_2_data {

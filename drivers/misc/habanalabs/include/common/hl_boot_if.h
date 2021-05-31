@@ -333,24 +333,41 @@ struct cpu_dyn_regs {
 #define HL_COMMS_DESC_VER	1
 
 /* HCMv - Habana Communications Message + header version */
-#define HL_COMMS_MSG_MAGIC_VER(ver)	(0x48434D00 | ((ver) & 0xff))
+#define HL_COMMS_MSG_MAGIC_VALUE	0x48434D00
+#define HL_COMMS_MSG_MAGIC_MASK		0xFFFFFF00
+#define HL_COMMS_MSG_MAGIC_VER_MASK	0xFF
+
+#define HL_COMMS_MSG_MAGIC_VER(ver)	(HL_COMMS_MSG_MAGIC_VALUE |	\
+					((ver) & HL_COMMS_MSG_MAGIC_VER_MASK))
 #define HL_COMMS_MSG_MAGIC_V0		HL_COMMS_DESC_MAGIC
 #define HL_COMMS_MSG_MAGIC_V1		HL_COMMS_MSG_MAGIC_VER(1)
 
 #define HL_COMMS_MSG_MAGIC		HL_COMMS_MSG_MAGIC_V1
+
+#define HL_COMMS_MSG_MAGIC_VALIDATE_MAGIC(magic)			\
+		(((magic) & HL_COMMS_MSG_MAGIC_MASK) ==			\
+		HL_COMMS_MSG_MAGIC_VALUE)
+
+#define HL_COMMS_MSG_MAGIC_VALIDATE_VERSION(magic, ver)			\
+		(((magic) & HL_COMMS_MSG_MAGIC_VER_MASK) >=		\
+		((ver) & HL_COMMS_MSG_MAGIC_VER_MASK))
+
+#define HL_COMMS_MSG_MAGIC_VALIDATE(magic, ver)				\
+		(HL_COMMS_MSG_MAGIC_VALIDATE_MAGIC((magic)) &&		\
+		HL_COMMS_MSG_MAGIC_VALIDATE_VERSION((magic), (ver)))
 
 enum comms_msg_type {
 	HL_COMMS_DESC_TYPE = 0,
 	HL_COMMS_RESET_CAUSE_TYPE = 1,
 };
 
-/* TODO: remove this struct after the code is updated to use comms_msg_header */
+/* TODO: remove this struct after the code is updated to use message */
 /* this is the comms descriptor header - meta data */
 struct comms_desc_header {
 	__le32 magic;		/* magic for validation */
 	__le32 crc32;		/* CRC32 of the descriptor w/o header */
 	__le16 size;		/* size of the descriptor w/o header */
-	__u8 version;		/* descriptor version */
+	__u8 version;	/* descriptor version */
 	__u8 reserved[5];	/* pad to 64 bit */
 };
 
@@ -359,7 +376,7 @@ struct comms_msg_header {
 	__le32 magic;		/* magic for validation */
 	__le32 crc32;		/* CRC32 of the message w/o header */
 	__le16 size;		/* size of the message w/o header */
-	__u8 version;		/* message payload version */
+	__u8 version;	/* message payload version */
 	__u8 type;		/* message type */
 	__u8 reserved[4];	/* pad to 64 bit */
 };
@@ -372,8 +389,7 @@ struct lkd_fw_comms_desc {
 	char cur_fw_ver[VERSION_MAX_LEN];
 	/* can be used for 1 more version w/o ABI change */
 	char reserved0[VERSION_MAX_LEN];
-	/* address for next FW component load */
-	__le64 img_addr;
+	__le64 img_addr;	/* address for next FW component load */
 };
 
 enum comms_reset_cause {
@@ -382,10 +398,11 @@ enum comms_reset_cause {
 	HL_RESET_CAUSE_TDR = 2,
 };
 
-#define RESET_CAUSE_PADDING	7
+/* TODO: remove define after struct name is aligned on all projects */
+#define lkd_msg_comms lkd_fw_comms_msg
 
 /* this is the comms message descriptor */
-struct lkd_msg_comms {
+struct lkd_fw_comms_msg {
 	struct comms_msg_header header;
 	/* union for future expantions of new messages */
 	union {
@@ -400,7 +417,6 @@ struct lkd_msg_comms {
 		};
 		struct {
 			__u8 reset_cause;
-			__u8 reserved[RESET_CAUSE_PADDING]; /* 64 bit pad */
 		};
 	};
 };
@@ -474,7 +490,7 @@ enum comms_cmd {
 struct comms_command {
 	union {		/* bit fields are only for FW use */
 		struct {
-			u32 size :25;			/* 32MB max. */
+			u32 size :25;		/* 32MB max. */
 			u32 reserved :2;
 			enum comms_cmd cmd :5;		/* 32 commands */
 		};
