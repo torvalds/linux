@@ -34,6 +34,9 @@ struct btrfs_subpage {
 		struct {
 			atomic_t readers;
 			atomic_t writers;
+
+			/* Tracke pending ordered extent in this sector */
+			u16 ordered_bitmap;
 		};
 	};
 };
@@ -111,6 +114,7 @@ DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
 DECLARE_BTRFS_SUBPAGE_OPS(error);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);
 DECLARE_BTRFS_SUBPAGE_OPS(writeback);
+DECLARE_BTRFS_SUBPAGE_OPS(ordered);
 
 bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len);
