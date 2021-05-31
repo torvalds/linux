@@ -1087,6 +1087,8 @@ patternProperties:
       (formerly part of MStar Semiconductor, Inc.)
   "^st,.*":
     description: STMicroelectronics
+  "^starfive,.*":
+    description: StarFive Technology Co. Ltd.
   "^starry,.*":
     description: Starry Electronic Technology (ShenZhen) Co., LTD
   "^startek,.*":
