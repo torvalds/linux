@@ -318,5 +318,6 @@ struct ath11k_hw_regs {
 extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
+extern const struct ath11k_hw_regs wcn6855_regs;
 
 #endif
