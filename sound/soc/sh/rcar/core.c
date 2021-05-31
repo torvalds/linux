@@ -1125,7 +1125,7 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 	of_node_put(remote_node);
 }
 
-void rsnd_parse_connect_common(struct rsnd_dai *rdai,
+void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
 		struct device_node *node,
 		struct device_node *playback,
