@@ -9724,7 +9724,7 @@ static int hclge_set_vlan_rx_offload_cfg(struct hclge_vport *vport)
 
 static int hclge_vlan_offload_cfg(struct hclge_vport *vport,
 				  u16 port_base_vlan_state,
-				  u16 vlan_tag)
+				  u16 vlan_tag, u8 qos)
 {
 	int ret;
 
@@ -9738,7 +9738,8 @@ static int hclge_vlan_offload_cfg(struct hclge_vport *vport,
 		vport->txvlan_cfg.accept_tag1 =
 			ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3;
 		vport->txvlan_cfg.insert_tag1_en = true;
-		vport->txvlan_cfg.default_tag1 = vlan_tag;
+		vport->txvlan_cfg.default_tag1 = (qos << VLAN_PRIO_SHIFT) |
+						 vlan_tag;
 	}
 
 	vport->txvlan_cfg.accept_untag1 = true;
@@ -9867,13 +9868,15 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 
 	for (i = 0; i < hdev->num_alloc_vport; i++) {
 		u16 vlan_tag;
+		u8 qos;
 
 		vport = &hdev->vport[i];
 		vlan_tag = vport->port_base_vlan_cfg.vlan_info.vlan_tag;
+		qos = vport->port_base_vlan_cfg.vlan_info.qos;
 
 		ret = hclge_vlan_offload_cfg(vport,
 					     vport->port_base_vlan_cfg.state,
-					     vlan_tag);
+					     vlan_tag, qos);
 		if (ret)
 			return ret;
 	}
@@ -10084,12 +10087,21 @@ static int hclge_update_vlan_filter_entries(struct hclge_vport *vport,
 
 	if (port_base_vlan_state == HNAE3_PORT_BASE_VLAN_ENABLE) {
 		hclge_rm_vport_all_vlan_table(vport, false);
+		/* force clear VLAN 0 */
+		ret = hclge_set_vf_vlan_common(hdev, vport->vport_id, true, 0);
+		if (ret)
+			return ret;
 		return hclge_set_vlan_filter_hw(hdev,
 						 htons(new_info->vlan_proto),
 						 vport->vport_id,
 						 new_info->vlan_tag,
 						 false);
 	}
+
+	/* force add VLAN 0 */
+	ret = hclge_set_vf_vlan_common(hdev, vport->vport_id, false, 0);
+	if (ret)
+		return ret;
 
 	ret = hclge_set_vlan_filter_hw(hdev, htons(old_info->vlan_proto),
 				       vport->vport_id, old_info->vlan_tag,
@@ -10098,6 +10110,18 @@ static int hclge_update_vlan_filter_entries(struct hclge_vport *vport,
 		return ret;
 
 	return hclge_add_vport_all_vlan_table(vport);
+}
+
+static bool hclge_need_update_vlan_filter(const struct hclge_vlan_info *new_cfg,
+					  const struct hclge_vlan_info *old_cfg)
+{
+	if (new_cfg->vlan_tag != old_cfg->vlan_tag)
+		return true;
+
+	if (new_cfg->vlan_tag == 0 && (new_cfg->qos == 0 || old_cfg->qos == 0))
+		return true;
+
+	return false;
 }
 
 int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
@@ -10110,9 +10134,13 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 
 	old_vlan_info = &vport->port_base_vlan_cfg.vlan_info;
 
-	ret = hclge_vlan_offload_cfg(vport, state, vlan_info->vlan_tag);
+	ret = hclge_vlan_offload_cfg(vport, state, vlan_info->vlan_tag,
+				     vlan_info->qos);
 	if (ret)
 		return ret;
+
+	if (!hclge_need_update_vlan_filter(vlan_info, old_vlan_info))
+		goto out;
 
 	if (state == HNAE3_PORT_BASE_VLAN_MODIFY) {
 		/* add new VLAN tag */
@@ -10125,15 +10153,23 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 			return ret;
 
 		/* remove old VLAN tag */
-		ret = hclge_set_vlan_filter_hw(hdev,
-					       htons(old_vlan_info->vlan_proto),
-					       vport->vport_id,
-					       old_vlan_info->vlan_tag,
-					       true);
-		if (ret)
+		if (old_vlan_info->vlan_tag == 0)
+			ret = hclge_set_vf_vlan_common(hdev, vport->vport_id,
+						       true, 0);
+		else
+			ret = hclge_set_vlan_filter_hw(hdev,
+						       htons(ETH_P_8021Q),
+						       vport->vport_id,
+						       old_vlan_info->vlan_tag,
+						       true);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to clear vport%u port base vlan %u, ret = %d.\n",
+				vport->vport_id, old_vlan_info->vlan_tag, ret);
 			return ret;
+		}
 
-		goto update;
+		goto out;
 	}
 
 	ret = hclge_update_vlan_filter_entries(vport, state, vlan_info,
@@ -10141,38 +10177,37 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 	if (ret)
 		return ret;
 
-	/* update state only when disable/enable port based VLAN */
+out:
 	vport->port_base_vlan_cfg.state = state;
 	if (state == HNAE3_PORT_BASE_VLAN_DISABLE)
 		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_DISABLE;
 	else
 		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_ENABLE;
 
-update:
-	vport->port_base_vlan_cfg.vlan_info.vlan_tag = vlan_info->vlan_tag;
-	vport->port_base_vlan_cfg.vlan_info.qos = vlan_info->qos;
-	vport->port_base_vlan_cfg.vlan_info.vlan_proto = vlan_info->vlan_proto;
+	vport->port_base_vlan_cfg.vlan_info = *vlan_info;
 
 	return 0;
 }
 
 static u16 hclge_get_port_base_vlan_state(struct hclge_vport *vport,
 					  enum hnae3_port_base_vlan_state state,
-					  u16 vlan)
+					  u16 vlan, u8 qos)
 {
 	if (state == HNAE3_PORT_BASE_VLAN_DISABLE) {
-		if (!vlan)
+		if (!vlan && !qos)
 			return HNAE3_PORT_BASE_VLAN_NOCHANGE;
-		else
-			return HNAE3_PORT_BASE_VLAN_ENABLE;
-	} else {
-		if (!vlan)
-			return HNAE3_PORT_BASE_VLAN_DISABLE;
-		else if (vport->port_base_vlan_cfg.vlan_info.vlan_tag == vlan)
-			return HNAE3_PORT_BASE_VLAN_NOCHANGE;
-		else
-			return HNAE3_PORT_BASE_VLAN_MODIFY;
+
+		return HNAE3_PORT_BASE_VLAN_ENABLE;
 	}
+
+	if (!vlan && !qos)
+		return HNAE3_PORT_BASE_VLAN_DISABLE;
+
+	if (vport->port_base_vlan_cfg.vlan_info.vlan_tag == vlan &&
+	    vport->port_base_vlan_cfg.vlan_info.qos == qos)
+		return HNAE3_PORT_BASE_VLAN_NOCHANGE;
+
+	return HNAE3_PORT_BASE_VLAN_MODIFY;
 }
 
 static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
@@ -10200,7 +10235,7 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 
 	state = hclge_get_port_base_vlan_state(vport,
 					       vport->port_base_vlan_cfg.state,
-					       vlan);
+					       vlan, qos);
 	if (state == HNAE3_PORT_BASE_VLAN_NOCHANGE)
 		return 0;
 
