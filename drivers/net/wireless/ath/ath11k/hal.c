@@ -382,6 +382,16 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 	val = FIELD_PREP(HAL_REO1_RING_ID_ENTRY_SIZE, srng->entry_size);
 	ath11k_hif_write32(ab, reg_base + HAL_TCL1_RING_ID_OFFSET(ab), val);
 
+	if (srng->ring_id == HAL_SRNG_RING_ID_WBM_IDLE_LINK) {
+		ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+		val = FIELD_PREP(HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
+				 ((u64)srng->ring_base_paddr >>
+				 HAL_ADDR_MSB_REG_SHIFT)) |
+			FIELD_PREP(HAL_TCL1_RING_BASE_MSB_RING_SIZE,
+				   (srng->entry_size * srng->num_entries));
+		ath11k_hif_write32(ab, reg_base + HAL_TCL1_RING_BASE_MSB_OFFSET(ab), val);
+	}
+
 	/* interrupt setup */
 	/* NOTE: IPQ8074 v2 requires the interrupt timer threshold in the
 	 * unit of 8 usecs instead of 1 usec (as required by v1).
