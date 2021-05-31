@@ -630,6 +630,7 @@ config MACH_NINTENDO64
 config RALINK
 	bool "Ralink based machines"
 	select CEVT_R4K
+	select COMMON_CLK
 	select CSRC_R4K
 	select BOOT_RAW
 	select DMA_NONCOHERENT
