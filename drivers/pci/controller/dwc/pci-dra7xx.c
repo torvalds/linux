@@ -15,6 +15,7 @@
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_pci.h>
@@ -607,6 +608,7 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_dra7xx_pcie_match);
 
 /*
  * dra7xx_pcie_unaligned_memaccess: workaround for AM572x/AM571x Errata i870
@@ -943,4 +945,8 @@ static struct platform_driver dra7xx_pcie_driver = {
 	},
 	.shutdown = dra7xx_pcie_shutdown,
 };
-builtin_platform_driver(dra7xx_pcie_driver);
+module_platform_driver(dra7xx_pcie_driver);
+
+MODULE_AUTHOR("Kishon Vijay Abraham I <kishon@ti.com>");
+MODULE_DESCRIPTION("PCIe controller driver for TI DRA7xx SoCs");
+MODULE_LICENSE("GPL v2");

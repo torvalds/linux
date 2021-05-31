@@ -17,10 +17,10 @@ config PCIE_DW_EP
 	select PCIE_DW
 
 config PCI_DRA7XX
-	bool
+	tristate
 
 config PCI_DRA7XX_HOST
-	bool "TI DRA7xx PCIe controller Host Mode"
+	tristate "TI DRA7xx PCIe controller Host Mode"
 	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	depends on OF && HAS_IOMEM && TI_PIPE3
@@ -36,7 +36,7 @@ config PCI_DRA7XX_HOST
 	  This uses the DesignWare core.
 
 config PCI_DRA7XX_EP
-	bool "TI DRA7xx PCIe controller Endpoint Mode"
+	tristate "TI DRA7xx PCIe controller Endpoint Mode"
 	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on PCI_ENDPOINT
 	depends on OF && HAS_IOMEM && TI_PIPE3
