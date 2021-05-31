@@ -42,6 +42,12 @@ static const char *const usb_chger_type[] = {
 	[ACA_TYPE]			= "USB_CHARGER_ACA_TYPE",
 };
 
+static const char *const usb_chger_state[] = {
+	[USB_CHARGER_DEFAULT]	= "USB_CHARGER_DEFAULT",
+	[USB_CHARGER_PRESENT]	= "USB_CHARGER_PRESENT",
+	[USB_CHARGER_ABSENT]	= "USB_CHARGER_ABSENT",
+};
+
 static struct usb_phy *__usb_find_phy(struct list_head *list,
 	enum usb_phy_type type)
 {
@@ -72,6 +78,18 @@ static struct usb_phy *__of_usb_find_phy(struct device_node *node)
 	}
 
 	return ERR_PTR(-EPROBE_DEFER);
+}
+
+static struct usb_phy *__device_to_usb_phy(struct device *dev)
+{
+	struct usb_phy *usb_phy;
+
+	list_for_each_entry(usb_phy, &phy_list, head) {
+		if (usb_phy->dev == dev)
+			break;
+	}
+
+	return usb_phy;
 }
 
 static void usb_phy_set_default_current(struct usb_phy *usb_phy)
@@ -105,9 +123,6 @@ static void usb_phy_set_default_current(struct usb_phy *usb_phy)
 static void usb_phy_notify_charger_work(struct work_struct *work)
 {
 	struct usb_phy *usb_phy = container_of(work, struct usb_phy, chg_work);
-	char uchger_state[50] = { 0 };
-	char uchger_type[50] = { 0 };
-	char *envp[] = { uchger_state, uchger_type, NULL };
 	unsigned int min, max;
 
 	switch (usb_phy->chg_state) {
@@ -115,15 +130,11 @@ static void usb_phy_notify_charger_work(struct work_struct *work)
 		usb_phy_get_charger_current(usb_phy, &min, &max);
 
 		atomic_notifier_call_chain(&usb_phy->notifier, max, usb_phy);
-		snprintf(uchger_state, ARRAY_SIZE(uchger_state),
-			 "USB_CHARGER_STATE=%s", "USB_CHARGER_PRESENT");
 		break;
 	case USB_CHARGER_ABSENT:
 		usb_phy_set_default_current(usb_phy);
 
 		atomic_notifier_call_chain(&usb_phy->notifier, 0, usb_phy);
-		snprintf(uchger_state, ARRAY_SIZE(uchger_state),
-			 "USB_CHARGER_STATE=%s", "USB_CHARGER_ABSENT");
 		break;
 	default:
 		dev_warn(usb_phy->dev, "Unknown USB charger state: %d\n",
@@ -131,9 +142,30 @@ static void usb_phy_notify_charger_work(struct work_struct *work)
 		return;
 	}
 
+	kobject_uevent(&usb_phy->dev->kobj, KOBJ_CHANGE);
+}
+
+static int usb_phy_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct usb_phy *usb_phy;
+	char uchger_state[50] = { 0 };
+	char uchger_type[50] = { 0 };
+
+	usb_phy = __device_to_usb_phy(dev);
+
+	snprintf(uchger_state, ARRAY_SIZE(uchger_state),
+		 "USB_CHARGER_STATE=%s", usb_chger_state[usb_phy->chg_state]);
+
 	snprintf(uchger_type, ARRAY_SIZE(uchger_type),
 		 "USB_CHARGER_TYPE=%s", usb_chger_type[usb_phy->chg_type]);
-	kobject_uevent_env(&usb_phy->dev->kobj, KOBJ_CHANGE, envp);
+
+	if (add_uevent_var(env, uchger_state))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, uchger_type))
+		return -ENOMEM;
+
+	return 0;
 }
 
 static void __usb_phy_get_charger_type(struct usb_phy *usb_phy)
@@ -661,6 +693,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(usb_add_phy);
 
+static struct device_type usb_phy_dev_type = {
+	.name = "usb_phy",
+	.uevent = usb_phy_uevent,
+};
+
 /**
  * usb_add_phy_dev - declare the USB PHY
  * @x: the USB phy to be used; or NULL
@@ -683,6 +720,8 @@ int usb_add_phy_dev(struct usb_phy *x)
 	ret = usb_add_extcon(x);
 	if (ret)
 		return ret;
+
+	x->dev->type = &usb_phy_dev_type;
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&x->notifier);
 
