@@ -1827,7 +1827,7 @@ static int process_one_page(struct btrfs_fs_info *fs_info,
 	len = end + 1 - start;
 
 	if (page_ops & PAGE_SET_ORDERED)
-		SetPageOrdered(page);
+		btrfs_page_clamp_set_ordered(fs_info, page, start, len);
 
 	if (page == locked_page)
 		return 1;

@@ -16,6 +16,7 @@
 #include "compression.h"
 #include "delalloc-space.h"
 #include "qgroup.h"
+#include "subpage.h"
 
 static struct kmem_cache *btrfs_ordered_extent_cache;
 
@@ -395,11 +396,11 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 			 *
 			 * If there's no such bit, we need to skip to next range.
 			 */
-			if (!PageOrdered(page)) {
+			if (!btrfs_page_test_ordered(fs_info, page, cur, len)) {
 				cur += len;
 				continue;
 			}
-			ClearPageOrdered(page);
+			btrfs_page_clear_ordered(fs_info, page, cur, len);
 		}
 
 		/* Now we're fine to update the accounting */
