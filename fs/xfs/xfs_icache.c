@@ -774,6 +774,44 @@ xfs_icache_inode_is_allocated(
 #define XFS_LOOKUP_BATCH	32
 
 #ifdef CONFIG_XFS_QUOTA
+/* Decide if we want to grab this inode to drop its dquots. */
+static bool
+xfs_dqrele_igrab(
+	struct xfs_inode	*ip)
+{
+	bool			ret = false;
+
+	ASSERT(rcu_read_lock_held());
+
+	/* Check for stale RCU freed inode */
+	spin_lock(&ip->i_flags_lock);
+	if (!ip->i_ino)
+		goto out_unlock;
+
+	/*
+	 * Skip inodes that are anywhere in the reclaim machinery because we
+	 * drop dquots before tagging an inode for reclamation.
+	 */
+	if (ip->i_flags & (XFS_IRECLAIM | XFS_IRECLAIMABLE))
+		goto out_unlock;
+
+	/*
+	 * The inode looks alive; try to grab a VFS reference so that it won't
+	 * get destroyed.  If we got the reference, return true to say that
+	 * we grabbed the inode.
+	 *
+	 * If we can't get the reference, then we know the inode had its VFS
+	 * state torn down and hasn't yet entered the reclaim machinery.  Since
+	 * we also know that dquots are detached from an inode before it enters
+	 * reclaim, we can skip the inode.
+	 */
+	ret = igrab(VFS_I(ip)) != NULL;
+
+out_unlock:
+	spin_unlock(&ip->i_flags_lock);
+	return ret;
+}
+
 /* Drop this inode's dquots. */
 static int
 xfs_dqrele_inode(
@@ -821,6 +859,8 @@ xfs_dqrele_all_inodes(
 	return xfs_icwalk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
 			&eofb, XFS_ICWALK_DQRELE);
 }
+#else
+# define xfs_dqrele_igrab(ip)		(false)
 #endif /* CONFIG_XFS_QUOTA */
 
 /*
@@ -1493,12 +1533,12 @@ xfs_blockgc_start(
 }
 
 /*
- * Decide if the given @ip is eligible to be a part of the inode walk, and
- * grab it if so.  Returns true if it's ready to go or false if we should just
- * ignore it.
+ * Decide if the given @ip is eligible for garbage collection of speculative
+ * preallocations, and grab it if so.  Returns true if it's ready to go or
+ * false if we should just ignore it.
  */
 static bool
-xfs_inode_walk_ag_grab(
+xfs_blockgc_igrab(
 	struct xfs_inode	*ip,
 	int			flags)
 {
@@ -1658,6 +1698,27 @@ xfs_blockgc_free_quota(
 /* XFS Inode Cache Walking Code */
 
 /*
+ * Decide if we want to grab this inode in anticipation of doing work towards
+ * the goal.  If selected, the VFS must hold a reference to this inode, which
+ * will be released after processing.
+ */
+static inline bool
+xfs_icwalk_igrab(
+	enum xfs_icwalk_goal	goal,
+	struct xfs_inode	*ip,
+	int			iter_flags)
+{
+	switch (goal) {
+	case XFS_ICWALK_DQRELE:
+		return xfs_dqrele_igrab(ip);
+	case XFS_ICWALK_BLOCKGC:
+		return xfs_blockgc_igrab(ip, iter_flags);
+	default:
+		return false;
+	}
+}
+
+/*
  * For a given per-AG structure @pag, grab, @execute, and rele all incore
  * inodes with the given radix tree @tag.
  */
@@ -1711,7 +1772,7 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			struct xfs_inode *ip = batch[i];
 
-			if (done || !xfs_inode_walk_ag_grab(ip, iter_flags))
+			if (done || !xfs_icwalk_igrab(goal, ip, iter_flags))
 				batch[i] = NULL;
 
 			/*
