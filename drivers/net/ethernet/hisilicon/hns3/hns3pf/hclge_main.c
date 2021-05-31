@@ -10258,8 +10258,7 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	    test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state))
 		hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
 						  vport->vport_id, state,
-						  vlan, qos,
-						  ntohs(proto));
+						  &vlan_info);
 
 	return 0;
 }
