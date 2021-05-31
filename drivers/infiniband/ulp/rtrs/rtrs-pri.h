@@ -53,9 +53,9 @@ enum {
 	 * But mempool_create, create_qp and ib_post_send fail with
 	 * "cannot allocate memory" error if sess_queue_depth is too big.
 	 * Therefore the pratical max value of sess_queue_depth is
-	 * somewhere between 1 and 65536 and it depends on the system.
+	 * somewhere between 1 and 65534 and it depends on the system.
 	 */
-	MAX_SESS_QUEUE_DEPTH = 65536,
+	MAX_SESS_QUEUE_DEPTH = 65535,
 	MIN_CHUNK_SIZE = 8192,
 
 	RTRS_HB_INTERVAL_MS = 5000,
