@@ -904,9 +904,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	if (dc_is_virtual_signal(link->connector_signal))
 		return false;
 
-	if ((link->connector_signal == SIGNAL_TYPE_LVDS ||
-	     link->connector_signal == SIGNAL_TYPE_EDP) &&
-	    link->local_sink) {
+	if (((link->connector_signal == SIGNAL_TYPE_LVDS ||
+		link->connector_signal == SIGNAL_TYPE_EDP) &&
+		(!link->dc->config.allow_edp_hotplug_detection)) &&
+		link->local_sink) {
 		// need to re-write OUI and brightness in resume case
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
 			dpcd_set_source_specific_data(link);
@@ -1501,7 +1502,8 @@ static bool dc_link_construct(struct dc_link *link,
 		link->connector_signal = SIGNAL_TYPE_EDP;
 
 		if (link->hpd_gpio) {
-			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			if (!link->dc->config.allow_edp_hotplug_detection)
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(link->hpd_gpio);
 		}
