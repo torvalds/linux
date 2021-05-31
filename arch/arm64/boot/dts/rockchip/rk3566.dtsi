@@ -15,31 +15,6 @@
 	/delete-node/ opp-1992000000;
 };
 
-&dmc {
-	system-status-freq = <
-		/*system status         freq(KHz)*/
-		SYS_STATUS_NORMAL       780000
-		SYS_STATUS_REBOOT       1056000
-		SYS_STATUS_SUSPEND      324000
-		SYS_STATUS_VIDEO_4K     780000
-		SYS_STATUS_VIDEO_4K_10B 780000
-		SYS_STATUS_BOOST        1056000
-		SYS_STATUS_ISP          1056000
-		SYS_STATUS_PERFORMANCE  1056000
-		SYS_STATUS_DUALVIEW     1056000
-	>;
-};
-
-&dmc_opp_table {
-	opp-1056000000 {
-		opp-hz = /bits/ 64 <1056000000>;
-		opp-microvolt = <900000>;
-		opp-microvolt-L0 = <900000>;
-		opp-microvolt-L1 = <850000>;
-	};
-	/delete-node/ opp-1560000000;
-};
-
 &power {
 	pd_pipe@RK3568_PD_PIPE {
 		reg = <RK3568_PD_PIPE>;

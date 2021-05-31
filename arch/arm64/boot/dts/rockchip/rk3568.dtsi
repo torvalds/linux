@@ -2139,17 +2139,17 @@
 		>;
 		upthreshold = <40>;
 		downdifferential = <20>;
-		system-status-freq = <
-			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       780000
-			SYS_STATUS_REBOOT       1560000
-			SYS_STATUS_SUSPEND      324000
-			SYS_STATUS_VIDEO_4K     780000
-			SYS_STATUS_VIDEO_4K_10B 780000
-			SYS_STATUS_BOOST        1560000
-			SYS_STATUS_ISP          1560000
-			SYS_STATUS_PERFORMANCE  1560000
-			SYS_STATUS_DUALVIEW     1560000
+		system-status-level = <
+			/*system status         freq level*/
+			SYS_STATUS_NORMAL       DMC_FREQ_LEVEL_MID_HIGH
+			SYS_STATUS_REBOOT       DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_SUSPEND      DMC_FREQ_LEVEL_LOW
+			SYS_STATUS_VIDEO_4K     DMC_FREQ_LEVEL_MID_HIGH
+			SYS_STATUS_VIDEO_4K_10B DMC_FREQ_LEVEL_MID_HIGH
+			SYS_STATUS_BOOST        DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_ISP          DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_PERFORMANCE  DMC_FREQ_LEVEL_HIGH
+			SYS_STATUS_DUALVIEW     DMC_FREQ_LEVEL_HIGH
 		>;
 		auto-min-freq = <324000>;
 		auto-freq-en = <1>;
@@ -2174,31 +2174,6 @@
 			81  254   1
 		>;
 
-		opp-324000000 {
-			opp-hz = /bits/ 64 <324000000>;
-			opp-microvolt = <900000>;
-			opp-microvolt-L0 = <900000>;
-			opp-microvolt-L1 = <850000>;
-		};
-		opp-528000000 {
-			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <900000>;
-			opp-microvolt-L0 = <900000>;
-			opp-microvolt-L1 = <850000>;
-		};
-		opp-780000000 {
-			opp-hz = /bits/ 64 <780000000>;
-			opp-microvolt = <900000>;
-			opp-microvolt-L0 = <900000>;
-			opp-microvolt-L1 = <850000>;
-		};
-		opp-920000000 {
-			opp-hz = /bits/ 64 <920000000>;
-			opp-microvolt = <900000>;
-			opp-microvolt-L0 = <900000>;
-			opp-microvolt-L1 = <850000>;
-			status = "disabled";
-		};
 		opp-1560000000 {
 			opp-hz = /bits/ 64 <1560000000>;
 			opp-microvolt = <900000>;

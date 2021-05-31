@@ -46,12 +46,6 @@
 };
 
 &dmc {
-	system-status-freq = <
-		/*system status         freq(KHz)*/
-		SYS_STATUS_NORMAL       528000
-		SYS_STATUS_REBOOT       528000
-		SYS_STATUS_SUSPEND      324000
-	>;
 	center-supply = <&vdd_logic>;
 	auto-freq-en = <0>;
 	status = "okay";
@@ -59,19 +53,12 @@
 
 &dmc_opp_table {
 	opp-324000000 {
+		opp-hz = /bits/ 64 <324000000>;
 		opp-microvolt = <875000>;
 	};
 	opp-528000000 {
+		opp-hz = /bits/ 64 <528000000>;
 		opp-microvolt = <875000>;
-	};
-	opp-780000000 {
-		status = "disabled";
-	};
-	opp-920000000 {
-		status = "disabled";
-	};
-	opp-1056000000 {
-		status = "disabled";
 	};
 };
 
