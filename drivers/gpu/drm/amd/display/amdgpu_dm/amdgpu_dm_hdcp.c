@@ -222,9 +222,22 @@ static void hdcp_remove_display(struct hdcp_workqueue *hdcp_work,
 			 struct amdgpu_dm_connector *aconnector)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
+	struct drm_connector_state *conn_state = aconnector->base.state;
 
 	mutex_lock(&hdcp_w->mutex);
 	hdcp_w->aconnector = aconnector;
+
+	/* the removal of display will invoke auth reset -> hdcp destroy and
+	 * we'd expect the Content Protection (CP) property changed back to
+	 * DESIRED if at the time ENABLED. CP property change should occur
+	 * before the element removed from linked list.
+	 */
+	if (conn_state && conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
+		conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+
+		DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP 2 -> 1, type %u, DPMS %u\n",
+			 aconnector->base.index, conn_state->hdcp_content_type, aconnector->base.dpms);
+	}
 
 	mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
 
@@ -469,7 +482,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->adjust.hdcp1.disable = 0;
 	conn_state = aconnector->base.state;
 
-	pr_debug("[HDCP_DM] display %d, CP %d, type %d\n", aconnector->base.index,
+	DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP %d, type %d\n", aconnector->base.index,
 			(!!aconnector->base.state) ? aconnector->base.state->content_protection : -1,
 			(!!aconnector->base.state) ? aconnector->base.state->hdcp_content_type : -1);
 
