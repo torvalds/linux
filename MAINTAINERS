@@ -10860,6 +10860,7 @@ S:	Maintained
 F:	drivers/mailbox/
 F:	include/linux/mailbox_client.h
 F:	include/linux/mailbox_controller.h
+F:	include/dt-bindings/mailbox/
 F:	Documentation/devicetree/bindings/mailbox/
 
 MAILBOX ARM MHUv2
