@@ -245,6 +245,8 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *nam
 	int i = 0;
 
 	for_each_child_of_node(of_node, np) {
+		i = rsnd_node_fixed_index(np, name, i);
+
 		if (i == rsnd_mod_id_raw(mod) && (!chan))
 			chan = of_dma_request_slave_channel(np, x);
 		i++;

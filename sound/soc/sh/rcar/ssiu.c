@@ -472,6 +472,8 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 		for_each_child_of_node(node, np) {
 			struct rsnd_mod *mod;
 
+			i = rsnd_node_fixed_index(np, SSIU_NAME, i);
+
 			mod = rsnd_ssiu_mod_get(priv, i);
 
 			if (np == playback)
@@ -509,7 +511,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	 */
 	node = rsnd_ssiu_of_node(priv);
 	if (node)
-		nr = of_get_child_count(node);
+		nr = rsnd_node_count(priv, node, SSIU_NAME);
 	else
 		nr = priv->ssi_nr;
 

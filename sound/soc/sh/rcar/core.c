@@ -1142,6 +1142,8 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 	for_each_child_of_node(node, np) {
 		struct rsnd_mod *mod;
 
+		i = rsnd_node_fixed_index(np, name, i);
+
 		mod = mod_get(priv, i);
 
 		if (np == playback)
@@ -1152,6 +1154,56 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 	}
 
 	of_node_put(node);
+}
+
+int rsnd_node_fixed_index(struct device_node *node, char *name, int idx)
+{
+	char node_name[16];
+
+	/*
+	 * rsnd is assuming each device nodes are sequential numbering,
+	 * but some of them are not.
+	 * This function adjusts index for it.
+	 *
+	 * ex)
+	 * Normal case,		special case
+	 *	ssi-0
+	 *	ssi-1
+	 *	ssi-2
+	 *	ssi-3		ssi-3
+	 *	ssi-4		ssi-4
+	 *	...
+	 *
+	 * assume Max 64 node
+	 */
+	for (; idx < 64; idx++) {
+		snprintf(node_name, sizeof(node_name), "%s-%d", name, idx);
+
+		if (strncmp(node_name, of_node_full_name(node), sizeof(node_name)) == 0)
+			return idx;
+	}
+
+	return -EINVAL;
+}
+
+int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np;
+	int i;
+
+	i = 0;
+	for_each_child_of_node(node, np) {
+		i = rsnd_node_fixed_index(np, name, i);
+		if (i < 0) {
+			dev_err(dev, "strange node numbering (%s)",
+				of_node_full_name(node));
+			return 0;
+		}
+		i++;
+	}
+
+	return i;
 }
 
 static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
