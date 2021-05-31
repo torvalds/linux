@@ -35,6 +35,9 @@ properties:
   powerdown-gpios:
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
