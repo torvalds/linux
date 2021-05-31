@@ -1810,8 +1810,8 @@ out:
 
 static int __process_pages_contig(struct address_space *mapping,
 				  struct page *locked_page,
-				  pgoff_t start_index, pgoff_t end_index,
-				  unsigned long page_ops, pgoff_t *index_ret);
+				  u64 start, u64 end, unsigned long page_ops,
+				  u64 *processed_end);
 
 static noinline void __unlock_for_delalloc(struct inode *inode,
 					   struct page *locked_page,
@@ -1824,7 +1824,7 @@ static noinline void __unlock_for_delalloc(struct inode *inode,
 	if (index == locked_page->index && end_index == index)
 		return;
 
-	__process_pages_contig(inode->i_mapping, locked_page, index, end_index,
+	__process_pages_contig(inode->i_mapping, locked_page, start, end,
 			       PAGE_UNLOCK, NULL);
 }
 
@@ -1834,19 +1834,19 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 					u64 delalloc_end)
 {
 	unsigned long index = delalloc_start >> PAGE_SHIFT;
-	unsigned long index_ret = index;
 	unsigned long end_index = delalloc_end >> PAGE_SHIFT;
+	u64 processed_end = delalloc_start;
 	int ret;
 
 	ASSERT(locked_page);
 	if (index == locked_page->index && index == end_index)
 		return 0;
 
-	ret = __process_pages_contig(inode->i_mapping, locked_page, index,
-				     end_index, PAGE_LOCK, &index_ret);
-	if (ret == -EAGAIN)
+	ret = __process_pages_contig(inode->i_mapping, locked_page, delalloc_start,
+				     delalloc_end, PAGE_LOCK, &processed_end);
+	if (ret == -EAGAIN && processed_end > delalloc_start)
 		__unlock_for_delalloc(inode, locked_page, delalloc_start,
-				      (u64)index_ret << PAGE_SHIFT);
+				      processed_end);
 	return ret;
 }
 
@@ -1941,12 +1941,14 @@ out_failed:
 
 static int __process_pages_contig(struct address_space *mapping,
 				  struct page *locked_page,
-				  pgoff_t start_index, pgoff_t end_index,
-				  unsigned long page_ops, pgoff_t *index_ret)
+				  u64 start, u64 end, unsigned long page_ops,
+				  u64 *processed_end)
 {
+	pgoff_t start_index = start >> PAGE_SHIFT;
+	pgoff_t end_index = end >> PAGE_SHIFT;
+	pgoff_t index = start_index;
 	unsigned long nr_pages = end_index - start_index + 1;
 	unsigned long pages_processed = 0;
-	pgoff_t index = start_index;
 	struct page *pages[16];
 	unsigned ret;
 	int err = 0;
@@ -1954,17 +1956,19 @@ static int __process_pages_contig(struct address_space *mapping,
 
 	if (page_ops & PAGE_LOCK) {
 		ASSERT(page_ops == PAGE_LOCK);
-		ASSERT(index_ret && *index_ret == start_index);
+		ASSERT(processed_end && *processed_end == start);
 	}
 
 	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
 		mapping_set_error(mapping, -EIO);
 
 	while (nr_pages > 0) {
-		ret = find_get_pages_contig(mapping, index,
+		int found_pages;
+
+		found_pages = find_get_pages_contig(mapping, index,
 				     min_t(unsigned long,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
-		if (ret == 0) {
+		if (found_pages == 0) {
 			/*
 			 * Only if we're going to lock these pages,
 			 * can we find nothing at @index.
@@ -2007,13 +2011,27 @@ static int __process_pages_contig(struct address_space *mapping,
 			put_page(pages[i]);
 			pages_processed++;
 		}
-		nr_pages -= ret;
-		index += ret;
+		nr_pages -= found_pages;
+		index += found_pages;
 		cond_resched();
 	}
 out:
-	if (err && index_ret)
-		*index_ret = start_index + pages_processed - 1;
+	if (err && processed_end) {
+		/*
+		 * Update @processed_end. I know this is awful since it has
+		 * two different return value patterns (inclusive vs exclusive).
+		 *
+		 * But the exclusive pattern is necessary if @start is 0, or we
+		 * underflow and check against processed_end won't work as
+		 * expected.
+		 */
+		if (pages_processed)
+			*processed_end = min(end,
+			((u64)(start_index + pages_processed) << PAGE_SHIFT) - 1);
+		else
+			*processed_end = start;
+
+	}
 	return err;
 }
 
@@ -2024,8 +2042,7 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 	clear_extent_bit(&inode->io_tree, start, end, clear_bits, 1, 0, NULL);
 
 	__process_pages_contig(inode->vfs_inode.i_mapping, locked_page,
-			       start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-			       page_ops, NULL);
+			       start, end, page_ops, NULL);
 }
 
 /*
