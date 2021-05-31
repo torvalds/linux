@@ -671,7 +671,7 @@ void qla_nvme_unregister_remote_port(struct fc_port *fcport)
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return;
 
-	ql_log(ql_log_warn, NULL, 0x2112,
+	ql_log(ql_log_warn, fcport->vha, 0x2112,
 	    "%s: unregister remoteport on %p %8phN\n",
 	    __func__, fcport, fcport->port_name);
 
