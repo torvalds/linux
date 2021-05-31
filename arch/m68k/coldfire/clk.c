@@ -71,27 +71,6 @@ struct clk_ops clk_ops1 = {
 	.disable	= __clk_disable1,
 };
 #endif /* MCFPM_PPMCR1 */
-
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	const char *clk_name = dev ? dev_name(dev) : id ? id : NULL;
-	struct clk *clk;
-	unsigned i;
-
-	for (i = 0; (clk = mcf_clks[i]) != NULL; ++i)
-		if (!strcmp(clk->name, clk_name))
-			return clk;
-	pr_warn("clk_get: didn't find clock %s\n", clk_name);
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-	if (clk->enabled != 0)
-		pr_warn("clk_put %s still enabled\n", clk->name);
-}
-EXPORT_SYMBOL(clk_put);
 #endif /* MCFPM_PPMCR0 */
 
 int clk_enable(struct clk *clk)
