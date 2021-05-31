@@ -1091,12 +1091,9 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 		break;
 	}
 	case HAL_RX_MPDU_START: {
-		struct hal_rx_mpdu_info *mpdu_info =
-			(struct hal_rx_mpdu_info *)tlv_data;
 		u16 peer_id;
 
-		peer_id = FIELD_GET(HAL_RX_MPDU_INFO_INFO0_PEERID,
-				    __le32_to_cpu(mpdu_info->info0));
+		peer_id = ab->hw_params.hw_ops->mpdu_info_get_peerid(tlv_data);
 		if (peer_id)
 			ppdu_info->peer_id = peer_id;
 		break;
