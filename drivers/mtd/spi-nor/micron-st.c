@@ -13,6 +13,7 @@
 #define SPINOR_OP_MT_WR_ANY_REG	0x81	/* Write volatile register */
 #define SPINOR_REG_MT_CFR0V	0x00	/* For setting octal DTR mode */
 #define SPINOR_REG_MT_CFR1V	0x01	/* For setting dummy cycles */
+#define SPINOR_REG_MT_CFR1V_DEF	0x1f	/* Default dummy cycles */
 #define SPINOR_MT_OCT_DTR	0xe7	/* Enable Octal DTR. */
 #define SPINOR_MT_EXSPI		0xff	/* Enable Extended SPI (default) */
 
@@ -48,17 +49,28 @@ static int spi_nor_micron_octal_dtr_enable(struct spi_nor *nor, bool enable)
 	if (ret)
 		return ret;
 
-	if (enable)
-		*buf = SPINOR_MT_OCT_DTR;
-	else
-		*buf = SPINOR_MT_EXSPI;
+	if (enable) {
+		buf[0] = SPINOR_MT_OCT_DTR;
+	} else {
+		/*
+		 * The register is 1-byte wide, but 1-byte transactions are not
+		 * allowed in 8D-8D-8D mode. The next register is the dummy
+		 * cycle configuration register. Since the transaction needs to
+		 * be at least 2 bytes wide, set the next register to its
+		 * default value. This also makes sense because the value was
+		 * changed when enabling 8D-8D-8D mode, it should be reset when
+		 * disabling.
+		 */
+		buf[0] = SPINOR_MT_EXSPI;
+		buf[1] = SPINOR_REG_MT_CFR1V_DEF;
+	}
 
 	op = (struct spi_mem_op)
 		SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_MT_WR_ANY_REG, 1),
 			   SPI_MEM_OP_ADDR(enable ? 3 : 4,
 					   SPINOR_REG_MT_CFR0V, 1),
 			   SPI_MEM_OP_NO_DUMMY,
-			   SPI_MEM_OP_DATA_OUT(1, buf, 1));
+			   SPI_MEM_OP_DATA_OUT(enable ? 1 : 2, buf, 1));
 
 	if (!enable)
 		spi_nor_spimem_setup_op(nor, &op, SNOR_PROTO_8_8_8_DTR);
