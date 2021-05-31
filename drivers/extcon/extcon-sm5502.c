@@ -562,8 +562,7 @@ static void sm5502_init_dev_type(struct sm5502_muic_info *info)
 	}
 }
 
-static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
+static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 {
 	struct device_node *np = i2c->dev.of_node;
 	struct sm5502_muic_info *info;
@@ -703,7 +702,7 @@ static struct i2c_driver sm5502_muic_i2c_driver = {
 		.pm	= &sm5502_muic_pm_ops,
 		.of_match_table = sm5502_dt_match,
 	},
-	.probe	= sm5022_muic_i2c_probe,
+	.probe_new = sm5022_muic_i2c_probe,
 	.id_table = sm5502_i2c_id,
 };
 
