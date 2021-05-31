@@ -199,6 +199,7 @@ struct ath11k_hw_ops {
 	void (*rx_desc_set_msdu_len)(struct hal_rx_desc *desc, u16 len);
 	struct rx_attention *(*rx_desc_get_attention)(struct hal_rx_desc *desc);
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
+	void (*reo_setup)(struct ath11k_base *ab);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
