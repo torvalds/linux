@@ -434,7 +434,8 @@ static void ath11k_pci_sw_reset(struct ath11k_base *ab, bool power_on)
 		ath11k_pci_enable_ltssm(ab);
 		ath11k_pci_clear_all_intrs(ab);
 		ath11k_pci_set_wlaon_pwr_ctrl(ab);
-		ath11k_pci_fix_l1ss(ab);
+		if (ab->hw_params.fix_l1ss)
+			ath11k_pci_fix_l1ss(ab);
 	}
 
 	ath11k_mhi_clear_vector(ab);
