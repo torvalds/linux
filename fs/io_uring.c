@@ -5073,7 +5073,7 @@ static void io_async_task_func(struct callback_head *cb)
 	struct async_poll *apoll = req->apoll;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	trace_io_uring_task_run(req->ctx, req->opcode, req->user_data);
+	trace_io_uring_task_run(req->ctx, req, req->opcode, req->user_data);
 
 	if (io_poll_rewait(req, &apoll->poll)) {
 		spin_unlock_irq(&ctx->completion_lock);
@@ -5206,8 +5206,8 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 		return false;
 	}
 	spin_unlock_irq(&ctx->completion_lock);
-	trace_io_uring_poll_arm(ctx, req->opcode, req->user_data, mask,
-					apoll->poll.events);
+	trace_io_uring_poll_arm(ctx, req, req->opcode, req->user_data,
+				mask, apoll->poll.events);
 	return true;
 }
 
@@ -6604,8 +6604,9 @@ fail_req:
 		goto fail_req;
 
 	/* don't need @sqe from now on */
-	trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
-				true, ctx->flags & IORING_SETUP_SQPOLL);
+	trace_io_uring_submit_sqe(ctx, req, req->opcode, req->user_data,
+				  req->flags, true,
+				  ctx->flags & IORING_SETUP_SQPOLL);
 
 	/*
 	 * If we already have a head request, queue this one for async
