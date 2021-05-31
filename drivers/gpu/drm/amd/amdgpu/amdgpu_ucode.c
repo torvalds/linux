@@ -428,8 +428,8 @@ bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 {
 	if ((hdr->common.header_version_major == hdr_major) &&
 		(hdr->common.header_version_minor == hdr_minor))
-		return false;
-	return true;
+		return true;
+	return false;
 }
 
 enum amdgpu_firmware_load_type
