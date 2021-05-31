@@ -892,10 +892,8 @@ static int stm32_exti_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host_data->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(host_data->base)) {
-		dev_err(dev, "Unable to map registers\n");
+	if (IS_ERR(host_data->base))
 		return PTR_ERR(host_data->base);
-	}
 
 	for (i = 0; i < drv_data->bank_nr; i++)
 		stm32_exti_chip_init(host_data, i, np);

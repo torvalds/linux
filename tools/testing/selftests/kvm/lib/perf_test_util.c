@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2020, Google LLC.
  */
+#include <inttypes.h>
 
 #include "kvm_util.h"
 #include "perf_test_util.h"
@@ -80,7 +81,8 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 	 */
 	TEST_ASSERT(guest_num_pages < vm_get_max_gfn(vm),
 		    "Requested more guest memory than address space allows.\n"
-		    "    guest pages: %lx max gfn: %x vcpus: %d wss: %lx]\n",
+		    "    guest pages: %" PRIx64 " max gfn: %" PRIx64
+		    " vcpus: %d wss: %" PRIx64 "]\n",
 		    guest_num_pages, vm_get_max_gfn(vm), vcpus,
 		    vcpu_memory_bytes);
 

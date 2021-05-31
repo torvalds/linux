@@ -443,6 +443,8 @@ int main(int argc, const char **argv)
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
 
+	perf_debug_setup();
+
 	/* libsubcmd init */
 	exec_cmd_init("perf", PREFIX, PERF_EXEC_PATH, EXEC_PATH_ENVIRONMENT);
 	pager_init(PERF_PAGER_ENVIRONMENT);
@@ -530,8 +532,6 @@ int main(int argc, const char **argv)
 	 * forever while the signal goes to some other non interested thread.
 	 */
 	pthread__block_sigwinch();
-
-	perf_debug_setup();
 
 	while (1) {
 		static int done_help;
