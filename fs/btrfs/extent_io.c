@@ -3784,6 +3784,54 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 }
 
 /*
+ * Find the first byte we need to write.
+ *
+ * For subpage, one page can contain several sectors, and
+ * __extent_writepage_io() will just grab all extent maps in the page
+ * range and try to submit all non-inline/non-compressed extents.
+ *
+ * This is a big problem for subpage, we shouldn't re-submit already written
+ * data at all.
+ * This function will lookup subpage dirty bit to find which range we really
+ * need to submit.
+ *
+ * Return the next dirty range in [@start, @end).
+ * If no dirty range is found, @start will be page_offset(page) + PAGE_SIZE.
+ */
+static void find_next_dirty_byte(struct btrfs_fs_info *fs_info,
+				 struct page *page, u64 *start, u64 *end)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	u64 orig_start = *start;
+	/* Declare as unsigned long so we can use bitmap ops */
+	unsigned long dirty_bitmap;
+	unsigned long flags;
+	int nbits = (orig_start - page_offset(page)) >> fs_info->sectorsize_bits;
+	int range_start_bit = nbits;
+	int range_end_bit;
+
+	/*
+	 * For regular sector size == page size case, since one page only
+	 * contains one sector, we return the page offset directly.
+	 */
+	if (fs_info->sectorsize == PAGE_SIZE) {
+		*start = page_offset(page);
+		*end = page_offset(page) + PAGE_SIZE;
+		return;
+	}
+
+	/* We should have the page locked, but just in case */
+	spin_lock_irqsave(&subpage->lock, flags);
+	dirty_bitmap = subpage->dirty_bitmap;
+	spin_unlock_irqrestore(&subpage->lock, flags);
+
+	bitmap_next_set_region(&dirty_bitmap, &range_start_bit, &range_end_bit,
+			       BTRFS_SUBPAGE_BITMAP_SIZE);
+	*start = page_offset(page) + range_start_bit * fs_info->sectorsize;
+	*end = page_offset(page) + range_end_bit * fs_info->sectorsize;
+}
+
+/*
  * helper for __extent_writepage.  This calls the writepage start hooks,
  * and does the loop to map the page into extents and bios.
  *
@@ -3830,6 +3878,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 	while (cur <= end) {
 		u64 disk_bytenr;
 		u64 em_end;
+		u64 dirty_range_start = cur;
+		u64 dirty_range_end;
 		u32 iosize;
 
 		if (cur >= i_size) {
@@ -3837,9 +3887,17 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 							     end, 1);
 			break;
 		}
+
+		find_next_dirty_byte(fs_info, page, &dirty_range_start,
+				     &dirty_range_end);
+		if (cur < dirty_range_start) {
+			cur = dirty_range_start;
+			continue;
+		}
+
 		em = btrfs_get_extent(inode, NULL, 0, cur, end - cur + 1);
 		if (IS_ERR_OR_NULL(em)) {
-			SetPageError(page);
+			btrfs_page_set_error(fs_info, page, cur, end - cur + 1);
 			ret = PTR_ERR_OR_ZERO(em);
 			break;
 		}
@@ -3854,8 +3912,11 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		disk_bytenr = em->block_start + extent_offset;
 
-		/* Note that em_end from extent_map_end() is exclusive */
-		iosize = min(em_end, end + 1) - cur;
+		/*
+		 * Note that em_end from extent_map_end() and dirty_range_end from
+		 * find_next_dirty_byte() are all exclusive
+		 */
+		iosize = min(min(em_end, end + 1), dirty_range_end) - cur;
 
 		if (btrfs_use_zone_append(inode, em->block_start))
 			opf = REQ_OP_ZONE_APPEND;
@@ -3885,6 +3946,14 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 			       page->index, cur, end);
 		}
 
+		/*
+		 * Although the PageDirty bit is cleared before entering this
+		 * function, subpage dirty bit is not cleared.
+		 * So clear subpage dirty bit here so next time we won't submit
+		 * page for range already written to disk.
+		 */
+		btrfs_page_clear_dirty(fs_info, page, cur, iosize);
+
 		ret = submit_extent_page(opf | write_flags, wbc,
 					 &epd->bio_ctrl, page,
 					 disk_bytenr, iosize,
@@ -3892,9 +3961,10 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 					 end_bio_extent_writepage,
 					 0, 0, false);
 		if (ret) {
-			SetPageError(page);
+			btrfs_page_set_error(fs_info, page, cur, iosize);
 			if (PageWriteback(page))
-				end_page_writeback(page);
+				btrfs_page_clear_writeback(fs_info, page, cur,
+							   iosize);
 		}
 
 		cur += iosize;
