@@ -3700,7 +3700,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_unsupported;
 
 	if (!ath10k_pci_chip_is_supported(pdev->device, bus_params.chip_id))
-		goto err_free_irq;
+		goto err_unsupported;
 
 	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
