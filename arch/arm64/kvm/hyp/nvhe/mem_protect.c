@@ -23,8 +23,8 @@
 extern unsigned long hyp_nr_cpus;
 struct host_kvm host_kvm;
 
-struct hyp_pool host_s2_mem;
-struct hyp_pool host_s2_dev;
+static struct hyp_pool host_s2_mem;
+static struct hyp_pool host_s2_dev;
 
 /*
  * Copies of the host's CPU features registers holding sanitized values.

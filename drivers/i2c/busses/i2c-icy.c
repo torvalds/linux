@@ -123,7 +123,6 @@ static int icy_probe(struct zorro_dev *z,
 {
 	struct icy_i2c *i2c;
 	struct i2c_algo_pcf_data *algo_data;
-	struct fwnode_handle *new_fwnode;
 	struct i2c_board_info ltc2990_info = {
 		.type		= "ltc2990",
 		.swnode		= &icy_ltc2990_node,

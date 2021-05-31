@@ -436,7 +436,7 @@ static bool check_valid_altsetting_v2v3(struct snd_usb_audio *chip, int iface,
 	if (snd_BUG_ON(altsetting >= 64 - 8))
 		return false;
 
-	err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_AS_VAL_ALT_SETTINGS << 8,
 			      iface, &raw_data, sizeof(raw_data));

@@ -979,12 +979,15 @@ static bool io_task_work_match(struct callback_head *cb, void *data)
 	return cwd->wqe->wq == data;
 }
 
+void io_wq_exit_start(struct io_wq *wq)
+{
+	set_bit(IO_WQ_BIT_EXIT, &wq->state);
+}
+
 static void io_wq_exit_workers(struct io_wq *wq)
 {
 	struct callback_head *cb;
 	int node;
-
-	set_bit(IO_WQ_BIT_EXIT, &wq->state);
 
 	if (!wq->task)
 		return;
@@ -1003,13 +1006,16 @@ static void io_wq_exit_workers(struct io_wq *wq)
 		struct io_wqe *wqe = wq->wqes[node];
 
 		io_wq_for_each_worker(wqe, io_wq_worker_wake, NULL);
-		spin_lock_irq(&wq->hash->wait.lock);
-		list_del_init(&wq->wqes[node]->wait.entry);
-		spin_unlock_irq(&wq->hash->wait.lock);
 	}
 	rcu_read_unlock();
 	io_worker_ref_put(wq);
 	wait_for_completion(&wq->worker_done);
+
+	for_each_node(node) {
+		spin_lock_irq(&wq->hash->wait.lock);
+		list_del_init(&wq->wqes[node]->wait.entry);
+		spin_unlock_irq(&wq->hash->wait.lock);
+	}
 	put_task_struct(wq->task);
 	wq->task = NULL;
 }
@@ -1019,8 +1025,6 @@ static void io_wq_destroy(struct io_wq *wq)
 	int node;
 
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
-
-	io_wq_exit_workers(wq);
 
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
@@ -1036,16 +1040,13 @@ static void io_wq_destroy(struct io_wq *wq)
 	kfree(wq);
 }
 
-void io_wq_put(struct io_wq *wq)
-{
-	if (refcount_dec_and_test(&wq->refs))
-		io_wq_destroy(wq);
-}
-
 void io_wq_put_and_exit(struct io_wq *wq)
 {
+	WARN_ON_ONCE(!test_bit(IO_WQ_BIT_EXIT, &wq->state));
+
 	io_wq_exit_workers(wq);
-	io_wq_put(wq);
+	if (refcount_dec_and_test(&wq->refs))
+		io_wq_destroy(wq);
 }
 
 static bool io_wq_worker_affinity(struct io_worker *worker, void *data)

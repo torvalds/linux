@@ -72,15 +72,28 @@ struct smb3_key_debug_info {
 } __packed;
 
 /*
- * Dump full key (32 byte encrypt/decrypt keys instead of 16 bytes)
- * is needed if GCM256 (stronger encryption) negotiated
+ * Dump variable-sized keys
  */
 struct smb3_full_key_debug_info {
-	__u64	Suid;
+	/* INPUT: size of userspace buffer */
+	__u32   in_size;
+
+	/*
+	 * INPUT: 0 for current user, otherwise session to dump
+	 * OUTPUT: session id that was dumped
+	 */
+	__u64	session_id;
 	__u16	cipher_type;
-	__u8	auth_key[16]; /* SMB2_NTLMV2_SESSKEY_SIZE */
-	__u8	smb3encryptionkey[32]; /* SMB3_ENC_DEC_KEY_SIZE */
-	__u8	smb3decryptionkey[32]; /* SMB3_ENC_DEC_KEY_SIZE */
+	__u8    session_key_length;
+	__u8    server_in_key_length;
+	__u8    server_out_key_length;
+	__u8    data[];
+	/*
+	 * return this struct with the keys appended at the end:
+	 * __u8 session_key[session_key_length];
+	 * __u8 server_in_key[server_in_key_length];
+	 * __u8 server_out_key[server_out_key_length];
+	 */
 } __packed;
 
 struct smb3_notify {

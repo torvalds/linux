@@ -845,6 +845,7 @@ enum htt_security_types {
 
 #define ATH10K_HTT_TXRX_PEER_SECURITY_MAX 2
 #define ATH10K_TXRX_NUM_EXT_TIDS 19
+#define ATH10K_TXRX_NON_QOS_TID 16
 
 enum htt_security_flags {
 #define HTT_SECURITY_TYPE_MASK 0x7F
