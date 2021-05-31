@@ -470,8 +470,6 @@ int st_nci_disable_se(struct nci_dev *ndev, u32 se_idx)
 {
 	int r;
 
-	pr_debug("st_nci_disable_se\n");
-
 	/*
 	 * According to upper layer, se_idx == NFC_SE_UICC when
 	 * info->se_info.se_status->is_uicc_enable is true should never happen
@@ -495,8 +493,6 @@ EXPORT_SYMBOL_GPL(st_nci_disable_se);
 int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 {
 	int r;
-
-	pr_debug("st_nci_enable_se\n");
 
 	/*
 	 * According to upper layer, se_idx == NFC_SE_UICC when
@@ -601,8 +597,6 @@ int st_nci_discover_se(struct nci_dev *ndev)
 	int r, wl_size = 0;
 	int se_count = 0;
 	struct st_nci_info *info = nci_get_drvdata(ndev);
-
-	pr_debug("st_nci_discover_se\n");
 
 	r = st_nci_hci_network_init(ndev);
 	if (r != 0)
