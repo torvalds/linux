@@ -1369,8 +1369,7 @@ static bool elants_acpi_is_hid_device(struct device *dev)
 }
 #endif
 
-static int elants_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int elants_i2c_probe(struct i2c_client *client)
 {
 	union i2c_smbus_data dummy;
 	struct elants_data *ts;
@@ -1644,7 +1643,7 @@ MODULE_DEVICE_TABLE(of, elants_of_match);
 #endif
 
 static struct i2c_driver elants_i2c_driver = {
-	.probe = elants_i2c_probe,
+	.probe_new = elants_i2c_probe,
 	.id_table = elants_i2c_id,
 	.driver = {
 		.name = DEVICE_NAME,
