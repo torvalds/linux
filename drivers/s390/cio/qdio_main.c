@@ -1025,6 +1025,33 @@ static void qdio_shutdown_queues(struct qdio_irq *irq_ptr)
 	}
 }
 
+static int qdio_cancel_ccw(struct qdio_irq *irq, int how)
+{
+	struct ccw_device *cdev = irq->cdev;
+	int rc;
+
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	qdio_set_state(irq, QDIO_IRQ_STATE_CLEANUP);
+	if (how & QDIO_FLAG_CLEANUP_USING_CLEAR)
+		rc = ccw_device_clear(cdev, QDIO_DOING_CLEANUP);
+	else
+		/* default behaviour is halt */
+		rc = ccw_device_halt(cdev, QDIO_DOING_CLEANUP);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+	if (rc) {
+		DBF_ERROR("%4x SHUTD ERR", irq->schid.sch_no);
+		DBF_ERROR("rc:%4d", rc);
+		return rc;
+	}
+
+	wait_event_interruptible_timeout(cdev->private->wait_q,
+					 irq->state == QDIO_IRQ_STATE_INACTIVE ||
+					 irq->state == QDIO_IRQ_STATE_ERR,
+					 10 * HZ);
+
+	return 0;
+}
+
 /**
  * qdio_shutdown - shut down a qdio subchannel
  * @cdev: associated ccw device
@@ -1063,27 +1090,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	qdio_shutdown_queues(irq_ptr);
 	qdio_shutdown_debug_entries(irq_ptr);
 
-	/* cleanup subchannel */
-	spin_lock_irq(get_ccwdev_lock(cdev));
-	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_CLEANUP);
-	if (how & QDIO_FLAG_CLEANUP_USING_CLEAR)
-		rc = ccw_device_clear(cdev, QDIO_DOING_CLEANUP);
-	else
-		/* default behaviour is halt */
-		rc = ccw_device_halt(cdev, QDIO_DOING_CLEANUP);
-	spin_unlock_irq(get_ccwdev_lock(cdev));
-	if (rc) {
-		DBF_ERROR("%4x SHUTD ERR", irq_ptr->schid.sch_no);
-		DBF_ERROR("rc:%4d", rc);
-		goto no_cleanup;
-	}
-
-	wait_event_interruptible_timeout(cdev->private->wait_q,
-		irq_ptr->state == QDIO_IRQ_STATE_INACTIVE ||
-		irq_ptr->state == QDIO_IRQ_STATE_ERR,
-		10 * HZ);
-
-no_cleanup:
+	rc = qdio_cancel_ccw(irq_ptr, how);
 	qdio_shutdown_thinint(irq_ptr);
 	qdio_shutdown_irq(irq_ptr);
 
@@ -1316,10 +1323,12 @@ int qdio_establish(struct ccw_device *cdev,
 	return 0;
 
 err_ccw_timeout:
+	qdio_cancel_ccw(irq_ptr, QDIO_FLAG_CLEANUP_USING_CLEAR);
 err_ccw_start:
 	qdio_shutdown_thinint(irq_ptr);
 err_thinint:
 	qdio_shutdown_irq(irq_ptr);
+	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	mutex_unlock(&irq_ptr->setup_mutex);
 	return rc;
 }
