@@ -61,7 +61,7 @@ struct xfs_perag *
 xfs_perag_get_tag(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		first,
-	int			tag)
+	unsigned int		tag)
 {
 	struct xfs_perag	*pag;
 	int			found;
