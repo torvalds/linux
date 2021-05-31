@@ -3336,7 +3336,7 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
 	rcu_read_unlock();
 	spin_unlock_irqrestore(&callback_lock, flags);
 }
-
+EXPORT_SYMBOL_GPL(cpuset_cpus_allowed);
 /**
  * cpuset_cpus_allowed_fallback - final fallback before complete catastrophe.
  * @tsk: pointer to task_struct with which the scheduler is struggling
