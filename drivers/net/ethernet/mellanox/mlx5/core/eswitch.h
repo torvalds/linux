@@ -306,6 +306,7 @@ struct mlx5_eswitch {
 	struct {
 		bool            enabled;
 		u32             root_tsar_ix;
+		struct mlx5_esw_rate_group *group0;
 	} qos;
 
 	struct mlx5_esw_bridge_offloads *br_offloads;

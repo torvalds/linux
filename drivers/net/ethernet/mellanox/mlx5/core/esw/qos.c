@@ -11,6 +11,13 @@
 #define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \
 	min_t(u32, max_t(u32, DIV_ROUND_UP(rate, divider), MLX5_MIN_BW_SHARE), limit)
 
+struct mlx5_esw_rate_group {
+	u32 tsar_ix;
+	u32 max_rate;
+	u32 min_rate;
+	u32 bw_share;
+};
+
 static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 				struct mlx5_vport *vport,
 				u32 max_rate, u32 bw_share,
@@ -159,6 +166,54 @@ int mlx5_esw_qos_set_vport_max_rate(struct mlx5_eswitch *esw,
 	return err;
 }
 
+static struct mlx5_esw_rate_group *
+esw_qos_create_rate_group(struct mlx5_eswitch *esw, struct netlink_ext_ack *extack)
+{
+	u32 tsar_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
+	struct mlx5_esw_rate_group *group;
+	int err;
+
+	if (!MLX5_CAP_QOS(esw->dev, log_esw_max_sched_depth))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	if (!group)
+		return ERR_PTR(-ENOMEM);
+
+	MLX5_SET(scheduling_context, tsar_ctx, parent_element_id,
+		 esw->qos.root_tsar_ix);
+	err = mlx5_create_scheduling_element_cmd(esw->dev,
+						 SCHEDULING_HIERARCHY_E_SWITCH,
+						 tsar_ctx,
+						 &group->tsar_ix);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch create TSAR for group failed");
+		goto err_sched_elem;
+	}
+
+	return group;
+
+err_sched_elem:
+	kfree(group);
+	return ERR_PTR(err);
+}
+
+static int esw_qos_destroy_rate_group(struct mlx5_eswitch *esw,
+				      struct mlx5_esw_rate_group *group,
+				      struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  group->tsar_ix);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy TSAR_ID failed");
+
+	kfree(group);
+	return err;
+}
+
 static bool esw_qos_element_type_supported(struct mlx5_core_dev *dev, int type)
 {
 	switch (type) {
@@ -191,8 +246,9 @@ void mlx5_esw_qos_create(struct mlx5_eswitch *esw)
 	if (!esw_qos_element_type_supported(dev, SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR))
 		return;
 
+	mutex_lock(&esw->state_lock);
 	if (esw->qos.enabled)
-		return;
+		goto unlock;
 
 	MLX5_SET(scheduling_context, tsar_ctx, element_type,
 		 SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR);
@@ -205,27 +261,54 @@ void mlx5_esw_qos_create(struct mlx5_eswitch *esw)
 						 tsar_ctx,
 						 &esw->qos.root_tsar_ix);
 	if (err) {
-		esw_warn(dev, "E-Switch create TSAR failed (%d)\n", err);
-		return;
+		esw_warn(dev, "E-Switch create root TSAR failed (%d)\n", err);
+		goto unlock;
 	}
 
+	if (MLX5_CAP_QOS(dev, log_esw_max_sched_depth)) {
+		esw->qos.group0 = esw_qos_create_rate_group(esw, NULL);
+		if (IS_ERR(esw->qos.group0)) {
+			esw_warn(dev, "E-Switch create rate group 0 failed (%ld)\n",
+				 PTR_ERR(esw->qos.group0));
+			goto err_group0;
+		}
+	}
 	esw->qos.enabled = true;
+unlock:
+	mutex_unlock(&esw->state_lock);
+	return;
+
+err_group0:
+	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  esw->qos.root_tsar_ix);
+	if (err)
+		esw_warn(esw->dev, "E-Switch destroy root TSAR failed (%d)\n", err);
+	mutex_unlock(&esw->state_lock);
 }
 
 void mlx5_esw_qos_destroy(struct mlx5_eswitch *esw)
 {
+	struct devlink *devlink = priv_to_devlink(esw->dev);
 	int err;
 
+	devlink_rate_nodes_destroy(devlink);
+	mutex_lock(&esw->state_lock);
 	if (!esw->qos.enabled)
-		return;
+		goto unlock;
+
+	if (esw->qos.group0)
+		esw_qos_destroy_rate_group(esw, esw->qos.group0, NULL);
 
 	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
 						  SCHEDULING_HIERARCHY_E_SWITCH,
 						  esw->qos.root_tsar_ix);
 	if (err)
-		esw_warn(esw->dev, "E-Switch destroy TSAR failed (%d)\n", err);
+		esw_warn(esw->dev, "E-Switch destroy root TSAR failed (%d)\n", err);
 
 	esw->qos.enabled = false;
+unlock:
+	mutex_unlock(&esw->state_lock);
 }
 
 int mlx5_esw_qos_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
@@ -383,6 +466,54 @@ int mlx5_esw_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *
 
 	mutex_lock(&esw->state_lock);
 	err = mlx5_esw_qos_set_vport_max_rate(esw, vport, tx_max, extack);
+	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_esw_devlink_rate_node_new(struct devlink_rate *rate_node, void **priv,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlx5_esw_rate_group *group;
+	struct mlx5_eswitch *esw;
+	int err = 0;
+
+	esw = mlx5_devlink_eswitch_get(rate_node->devlink);
+	if (IS_ERR(esw))
+		return PTR_ERR(esw);
+
+	mutex_lock(&esw->state_lock);
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Rate node creation supported only in switchdev mode");
+		err = -EOPNOTSUPP;
+		goto unlock;
+	}
+
+	group = esw_qos_create_rate_group(esw, extack);
+	if (IS_ERR(group)) {
+		err = PTR_ERR(group);
+		goto unlock;
+	}
+
+	*priv = group;
+unlock:
+	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_esw_devlink_rate_node_del(struct devlink_rate *rate_node, void *priv,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlx5_esw_rate_group *group = priv;
+	struct mlx5_eswitch *esw;
+	int err;
+
+	esw = mlx5_devlink_eswitch_get(rate_node->devlink);
+	if (IS_ERR(esw))
+		return PTR_ERR(esw);
+
+	mutex_lock(&esw->state_lock);
+	err = esw_qos_destroy_rate_group(esw, group, extack);
 	mutex_unlock(&esw->state_lock);
 	return err;
 }

@@ -295,6 +295,8 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.port_function_hw_addr_set = mlx5_devlink_port_function_hw_addr_set,
 	.rate_leaf_tx_share_set = mlx5_esw_devlink_rate_leaf_tx_share_set,
 	.rate_leaf_tx_max_set = mlx5_esw_devlink_rate_leaf_tx_max_set,
+	.rate_node_new = mlx5_esw_devlink_rate_node_new,
+	.rate_node_del = mlx5_esw_devlink_rate_node_del,
 #endif
 #ifdef CONFIG_MLX5_SF_MANAGER
 	.port_new = mlx5_devlink_sf_port_new,
