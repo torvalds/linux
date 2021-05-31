@@ -599,8 +599,8 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 
 	/* Support irq domain for SM5502 MUIC device */
 	irq_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_SHARED;
-	ret = regmap_add_irq_chip(info->regmap, info->irq, irq_flags, 0,
-				  &sm5502_muic_irq_chip, &info->irq_data);
+	ret = devm_regmap_add_irq_chip(info->dev, info->regmap, info->irq, irq_flags,
+				       0, &sm5502_muic_irq_chip, &info->irq_data);
 	if (ret != 0) {
 		dev_err(info->dev, "failed to request IRQ %d: %d\n",
 				    info->irq, ret);
@@ -660,15 +660,6 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int sm5502_muic_i2c_remove(struct i2c_client *i2c)
-{
-	struct sm5502_muic_info *info = i2c_get_clientdata(i2c);
-
-	regmap_del_irq_chip(info->irq, info->irq_data);
-
-	return 0;
-}
-
 static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic" },
 	{ },
@@ -713,7 +704,6 @@ static struct i2c_driver sm5502_muic_i2c_driver = {
 		.of_match_table = sm5502_dt_match,
 	},
 	.probe	= sm5022_muic_i2c_probe,
-	.remove	= sm5502_muic_i2c_remove,
 	.id_table = sm5502_i2c_id,
 };
 
