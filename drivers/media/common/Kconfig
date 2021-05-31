@@ -13,6 +13,10 @@ config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
 
+config TTPCI_EEPROM
+        tristate
+        depends on I2C
+
 config CYPRESS_FIRMWARE
 	tristate
 	depends on USB

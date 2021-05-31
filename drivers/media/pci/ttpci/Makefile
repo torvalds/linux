@@ -10,7 +10,6 @@ ifdef CONFIG_DVB_AV7110_IR
 dvb-ttpci-objs += av7110_ir.o
 endif
 
-obj-$(CONFIG_TTPCI_EEPROM) += ttpci-eeprom.o
 obj-$(CONFIG_DVB_BUDGET_CORE) += budget-core.o
 obj-$(CONFIG_DVB_BUDGET) += budget.o
 obj-$(CONFIG_DVB_BUDGET_AV) += budget-av.o
@@ -20,3 +19,4 @@ obj-$(CONFIG_DVB_AV7110) += dvb-ttpci.o
 
 ccflags-y += -I $(srctree)/drivers/media/dvb-frontends/
 ccflags-y += -I $(srctree)/drivers/media/tuners
+ccflags-y += -I $(srctree)/drivers/media/common
