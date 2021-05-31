@@ -7,6 +7,7 @@
  * Authors: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -90,6 +91,7 @@ struct dra7xx_pcie {
 	int			phy_count;	/* DT phy-names count */
 	struct phy		**phy;
 	struct irq_domain	*irq_domain;
+	struct clk              *clk;
 	enum dw_pcie_device_mode mode;
 };
 
@@ -741,6 +743,15 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 	if (!link)
 		return -ENOMEM;
 
+	dra7xx->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(dra7xx->clk))
+		return dev_err_probe(dev, PTR_ERR(dra7xx->clk),
+				     "clock request failed");
+
+	ret = clk_prepare_enable(dra7xx->clk);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < phy_count; i++) {
 		snprintf(name, sizeof(name), "pcie-phy%d", i);
 		phy[i] = devm_phy_get(dev, name);
@@ -926,6 +937,8 @@ static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	dra7xx_pcie_disable_phy(dra7xx);
+
+	clk_disable_unprepare(dra7xx->clk);
 }
 
 static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
