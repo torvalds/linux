@@ -1115,7 +1115,9 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		struct rsnd_mod *mod = rsnd_ssi_mod_get(priv, i);
+		struct rsnd_mod *mod;
+
+		mod = rsnd_ssi_mod_get(priv, i);
 
 		if (np == playback)
 			rsnd_ssi_connect(mod, &rdai->playback);
