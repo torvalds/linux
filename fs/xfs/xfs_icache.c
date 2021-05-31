@@ -820,6 +820,9 @@ xfs_dqrele_inode(
 {
 	struct xfs_eofblocks	*eofb = priv;
 
+	if (xfs_iflags_test(ip, XFS_INEW))
+		xfs_inew_wait(ip);
+
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (eofb->eof_flags & XFS_ICWALK_FLAG_DROP_UDQUOT) {
 		xfs_qm_dqrele(ip->i_udquot);
@@ -856,8 +859,7 @@ xfs_dqrele_all_inodes(
 	if (qflags & XFS_PQUOTA_ACCT)
 		eofb.eof_flags |= XFS_ICWALK_FLAG_DROP_PDQUOT;
 
-	return xfs_icwalk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
-			&eofb, XFS_ICWALK_DQRELE);
+	return xfs_icwalk(mp, 0, xfs_dqrele_inode, &eofb, XFS_ICWALK_DQRELE);
 }
 #else
 # define xfs_dqrele_igrab(ip)		(false)
