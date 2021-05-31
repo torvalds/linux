@@ -35,16 +35,18 @@ enum grts_ch_type {
 
 /**
  * struct grts_state - generic resistive touch screen information struct
+ * @x_plate_ohms:	resistance of the X plate
  * @pressure_min:	number representing the minimum for the pressure
  * @pressure:		are we getting pressure info or not
  * @iio_chans:		list of channels acquired
  * @iio_cb:		iio_callback buffer for the data
  * @input:		the input device structure that we register
  * @prop:		touchscreen properties struct
+ * @ch:			channels that are defined for the touchscreen
  */
 struct grts_state {
-	u32				pressure_min;
 	u32				x_plate_ohms;
+	u32				pressure_min;
 	bool				pressure;
 	struct iio_channel		*iio_chans;
 	struct iio_cb_buffer		*iio_cb;
