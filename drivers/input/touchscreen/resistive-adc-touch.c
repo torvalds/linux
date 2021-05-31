@@ -13,10 +13,10 @@
 #include <linux/input/touchscreen.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #define DRIVER_NAME					"resistive-adc-touch"
 #define GRTS_DEFAULT_PRESSURE_MIN			50000
@@ -307,7 +307,7 @@ static struct platform_driver grts_driver = {
 	.probe = grts_probe,
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = of_match_ptr(grts_of_match),
+		.of_match_table = grts_of_match,
 	},
 };
 
