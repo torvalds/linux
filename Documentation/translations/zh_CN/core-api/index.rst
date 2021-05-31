@@ -65,10 +65,10 @@ Linux如何让一切同时发生。 详情请参阅
    irq/index
    refcount-vs-atomic
    local_ops
+   padata
 
 Todolist:
 
-   padata
    ../RCU/index
 
 低级硬件管理
