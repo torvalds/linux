@@ -237,8 +237,8 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
-					  struct rsnd_mod *mod, char *name)
+struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *name,
+					  struct rsnd_mod *mod, char *x)
 {
 	struct dma_chan *chan = NULL;
 	struct device_node *np;
@@ -246,7 +246,7 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
 
 	for_each_child_of_node(of_node, np) {
 		if (i == rsnd_mod_id_raw(mod) && (!chan))
-			chan = of_dma_request_slave_channel(np, name);
+			chan = of_dma_request_slave_channel(np, x);
 		i++;
 	}
 

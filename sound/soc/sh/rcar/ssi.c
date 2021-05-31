@@ -1019,7 +1019,7 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 		name = is_play ? "rx" : "tx";
 
 	return rsnd_dma_request_channel(rsnd_ssi_of_node(priv),
-					mod, name);
+					SSI_NAME, mod, name);
 }
 
 #ifdef CONFIG_DEBUG_FS

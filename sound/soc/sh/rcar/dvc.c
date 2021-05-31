@@ -282,7 +282,7 @@ static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 
 	return rsnd_dma_request_channel(rsnd_dvc_of_node(priv),
-					mod, "tx");
+					DVC_NAME, mod, "tx");
 }
 
 #ifdef CONFIG_DEBUG_FS
