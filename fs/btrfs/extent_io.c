@@ -1808,10 +1808,118 @@ out:
 	return found;
 }
 
+/*
+ * Process one page for __process_pages_contig().
+ *
+ * Return >0 if we hit @page == @locked_page.
+ * Return 0 if we updated the page status.
+ * Return -EGAIN if the we need to try again.
+ * (For PAGE_LOCK case but got dirty page or page not belong to mapping)
+ */
+static int process_one_page(struct address_space *mapping,
+			    struct page *page, struct page *locked_page,
+			    unsigned long page_ops)
+{
+	if (page_ops & PAGE_SET_ORDERED)
+		SetPageOrdered(page);
+
+	if (page == locked_page)
+		return 1;
+
+	if (page_ops & PAGE_SET_ERROR)
+		SetPageError(page);
+	if (page_ops & PAGE_START_WRITEBACK) {
+		clear_page_dirty_for_io(page);
+		set_page_writeback(page);
+	}
+	if (page_ops & PAGE_END_WRITEBACK)
+		end_page_writeback(page);
+	if (page_ops & PAGE_LOCK) {
+		lock_page(page);
+		if (!PageDirty(page) || page->mapping != mapping) {
+			unlock_page(page);
+			return -EAGAIN;
+		}
+	}
+	if (page_ops & PAGE_UNLOCK)
+		unlock_page(page);
+	return 0;
+}
+
 static int __process_pages_contig(struct address_space *mapping,
 				  struct page *locked_page,
 				  u64 start, u64 end, unsigned long page_ops,
-				  u64 *processed_end);
+				  u64 *processed_end)
+{
+	pgoff_t start_index = start >> PAGE_SHIFT;
+	pgoff_t end_index = end >> PAGE_SHIFT;
+	pgoff_t index = start_index;
+	unsigned long nr_pages = end_index - start_index + 1;
+	unsigned long pages_processed = 0;
+	struct page *pages[16];
+	int err = 0;
+	int i;
+
+	if (page_ops & PAGE_LOCK) {
+		ASSERT(page_ops == PAGE_LOCK);
+		ASSERT(processed_end && *processed_end == start);
+	}
+
+	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
+		mapping_set_error(mapping, -EIO);
+
+	while (nr_pages > 0) {
+		int found_pages;
+
+		found_pages = find_get_pages_contig(mapping, index,
+				     min_t(unsigned long,
+				     nr_pages, ARRAY_SIZE(pages)), pages);
+		if (found_pages == 0) {
+			/*
+			 * Only if we're going to lock these pages, we can find
+			 * nothing at @index.
+			 */
+			ASSERT(page_ops & PAGE_LOCK);
+			err = -EAGAIN;
+			goto out;
+		}
+
+		for (i = 0; i < found_pages; i++) {
+			int process_ret;
+
+			process_ret = process_one_page(mapping, pages[i],
+					locked_page, page_ops);
+			if (process_ret < 0) {
+				for (; i < found_pages; i++)
+					put_page(pages[i]);
+				err = -EAGAIN;
+				goto out;
+			}
+			put_page(pages[i]);
+			pages_processed++;
+		}
+		nr_pages -= found_pages;
+		index += found_pages;
+		cond_resched();
+	}
+out:
+	if (err && processed_end) {
+		/*
+		 * Update @processed_end. I know this is awful since it has
+		 * two different return value patterns (inclusive vs exclusive).
+		 *
+		 * But the exclusive pattern is necessary if @start is 0, or we
+		 * underflow and check against processed_end won't work as
+		 * expected.
+		 */
+		if (pages_processed)
+			*processed_end = min(end,
+			((u64)(start_index + pages_processed) << PAGE_SHIFT) - 1);
+		else
+			*processed_end = start;
+	}
+	return err;
+}
 
 static noinline void __unlock_for_delalloc(struct inode *inode,
 					   struct page *locked_page,
@@ -1937,102 +2045,6 @@ again:
 	*end = delalloc_end;
 out_failed:
 	return found;
-}
-
-static int __process_pages_contig(struct address_space *mapping,
-				  struct page *locked_page,
-				  u64 start, u64 end, unsigned long page_ops,
-				  u64 *processed_end)
-{
-	pgoff_t start_index = start >> PAGE_SHIFT;
-	pgoff_t end_index = end >> PAGE_SHIFT;
-	pgoff_t index = start_index;
-	unsigned long nr_pages = end_index - start_index + 1;
-	unsigned long pages_processed = 0;
-	struct page *pages[16];
-	unsigned ret;
-	int err = 0;
-	int i;
-
-	if (page_ops & PAGE_LOCK) {
-		ASSERT(page_ops == PAGE_LOCK);
-		ASSERT(processed_end && *processed_end == start);
-	}
-
-	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
-		mapping_set_error(mapping, -EIO);
-
-	while (nr_pages > 0) {
-		int found_pages;
-
-		found_pages = find_get_pages_contig(mapping, index,
-				     min_t(unsigned long,
-				     nr_pages, ARRAY_SIZE(pages)), pages);
-		if (found_pages == 0) {
-			/*
-			 * Only if we're going to lock these pages,
-			 * can we find nothing at @index.
-			 */
-			ASSERT(page_ops & PAGE_LOCK);
-			err = -EAGAIN;
-			goto out;
-		}
-
-		for (i = 0; i < ret; i++) {
-			if (page_ops & PAGE_SET_ORDERED)
-				SetPageOrdered(pages[i]);
-
-			if (locked_page && pages[i] == locked_page) {
-				put_page(pages[i]);
-				pages_processed++;
-				continue;
-			}
-			if (page_ops & PAGE_START_WRITEBACK) {
-				clear_page_dirty_for_io(pages[i]);
-				set_page_writeback(pages[i]);
-			}
-			if (page_ops & PAGE_SET_ERROR)
-				SetPageError(pages[i]);
-			if (page_ops & PAGE_END_WRITEBACK)
-				end_page_writeback(pages[i]);
-			if (page_ops & PAGE_UNLOCK)
-				unlock_page(pages[i]);
-			if (page_ops & PAGE_LOCK) {
-				lock_page(pages[i]);
-				if (!PageDirty(pages[i]) ||
-				    pages[i]->mapping != mapping) {
-					unlock_page(pages[i]);
-					for (; i < ret; i++)
-						put_page(pages[i]);
-					err = -EAGAIN;
-					goto out;
-				}
-			}
-			put_page(pages[i]);
-			pages_processed++;
-		}
-		nr_pages -= found_pages;
-		index += found_pages;
-		cond_resched();
-	}
-out:
-	if (err && processed_end) {
-		/*
-		 * Update @processed_end. I know this is awful since it has
-		 * two different return value patterns (inclusive vs exclusive).
-		 *
-		 * But the exclusive pattern is necessary if @start is 0, or we
-		 * underflow and check against processed_end won't work as
-		 * expected.
-		 */
-		if (pages_processed)
-			*processed_end = min(end,
-			((u64)(start_index + pages_processed) << PAGE_SHIFT) - 1);
-		else
-			*processed_end = start;
-
-	}
-	return err;
 }
 
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
