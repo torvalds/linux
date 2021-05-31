@@ -202,7 +202,7 @@ struct mgmt_cp_load_link_keys {
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
 	__u8	type;
-	__u8	master;
+	__u8	initiator;
 	__u8	enc_size;
 	__le16	ediv;
 	__le64	rand;
