@@ -332,7 +332,6 @@ config BCM63XX
 	select SWAP_IO_SPACE
 	select GPIOLIB
 	select MIPS_L1_CACHE_SHIFT_4
-	select CLKDEV_LOOKUP
 	select HAVE_LEGACY_CLK
 	help
 	  Support for BCM63XX based boards
@@ -446,7 +445,6 @@ config LANTIQ
 	select GPIOLIB
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select CLKDEV_LOOKUP
 	select HAVE_LEGACY_CLK
 	select USE_OF
 	select PINCTRL
@@ -643,7 +641,6 @@ config RALINK
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_HAS_EARLY_PRINTK
-	select CLKDEV_LOOKUP
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
 
