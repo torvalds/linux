@@ -10,6 +10,9 @@
  * V0.0X01.0X04 add enum_frame_interval function.
  * V0.0X01.0X05 add quick stream on/off.
  * V0.0X01.0X06 fix set vflip/hflip failed bug.
+ * V0.0X01.0X07
+ * 1. fix set double times exposue value failed issue.
+ * 2. add some debug info.
  */
 
 #include <linux/clk.h>
@@ -31,7 +34,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1471,6 +1474,7 @@ static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 val = 0;
+	s32 temp = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1489,28 +1493,31 @@ static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
+		dev_dbg(&client->dev, "set exposure value 0x%x\n", ctrl->val);
 		if (sc200ai->cur_mode->hdr_mode == NO_HDR) {
-			ctrl->val = ctrl->val * 2;
+			temp = ctrl->val * 2;
 			/* 4 least significant bits of expsoure are fractional part */
 			ret = sc200ai_write_reg(sc200ai->client,
 						SC200AI_REG_EXPOSURE_H,
 						SC200AI_REG_VALUE_08BIT,
-						SC200AI_FETCH_EXP_H(ctrl->val));
+						SC200AI_FETCH_EXP_H(temp));
 			ret |= sc200ai_write_reg(sc200ai->client,
 						 SC200AI_REG_EXPOSURE_M,
 						 SC200AI_REG_VALUE_08BIT,
-						 SC200AI_FETCH_EXP_M(ctrl->val));
+						 SC200AI_FETCH_EXP_M(temp));
 			ret |= sc200ai_write_reg(sc200ai->client,
 						 SC200AI_REG_EXPOSURE_L,
 						 SC200AI_REG_VALUE_08BIT,
-						 SC200AI_FETCH_EXP_L(ctrl->val));
+						 SC200AI_FETCH_EXP_L(temp));
 		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
+		dev_dbg(&client->dev, "set gain value 0x%x\n", ctrl->val);
 		if (sc200ai->cur_mode->hdr_mode == NO_HDR)
 			ret = sc200ai_set_gain_reg(sc200ai, ctrl->val, SC200AI_LGAIN);
 		break;
 	case V4L2_CID_VBLANK:
+		dev_dbg(&client->dev, "set blank value 0x%x\n", ctrl->val);
 		ret = sc200ai_write_reg(sc200ai->client,
 					SC200AI_REG_VTS_H,
 					SC200AI_REG_VALUE_08BIT,
