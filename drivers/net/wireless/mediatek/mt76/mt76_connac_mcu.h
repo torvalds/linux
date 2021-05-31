@@ -779,7 +779,9 @@ struct mt76_connac_sched_scan_req {
 		} mt7663;
 		struct {
 			u8 bss_idx;
-			u8 pad2[63];
+			u8 pad2[19];
+			u8 random_mac[ETH_ALEN];
+			u8 pad3[38];
 		} mt7921;
 	};
 } __packed;
