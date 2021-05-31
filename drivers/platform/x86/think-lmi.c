@@ -819,7 +819,6 @@ static int tlmi_analyze(void)
 		ret = -ENOMEM;
 		goto fail_clear_attr;
 	}
-	strscpy(tlmi_priv.pwd_admin->display_name, "admin", TLMI_PWDTYPE_MAXLEN);
 	strscpy(tlmi_priv.pwd_admin->kbdlang, "us", TLMI_LANG_MAXLEN);
 	tlmi_priv.pwd_admin->encoding = TLMI_ENCODING_ASCII;
 	tlmi_priv.pwd_admin->pwd_type = "pap";
@@ -836,7 +835,6 @@ static int tlmi_analyze(void)
 		ret = -ENOMEM;
 		goto fail_clear_attr;
 	}
-	strscpy(tlmi_priv.pwd_power->display_name, "power-on", TLMI_PWDTYPE_MAXLEN);
 	strscpy(tlmi_priv.pwd_power->kbdlang, "us", TLMI_LANG_MAXLEN);
 	tlmi_priv.pwd_power->encoding = TLMI_ENCODING_ASCII;
 	tlmi_priv.pwd_power->pwd_type = "pop";

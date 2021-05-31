@@ -8,15 +8,7 @@
 #define TLMI_SETTINGS_COUNT  256
 #define TLMI_SETTINGS_MAXLEN 512
 #define TLMI_PWD_BUFSIZE     129
-#define TLMI_PWDTYPE_MAXLEN   64
-#define TLMI_ENC_MAXLEN       64
 #define TLMI_LANG_MAXLEN       4
-#define TLMI_PWDTYPE_LEN       4
-/*
- * Longest string should be in the set command: allow size of BIOS
- * option and choice
- */
-#define TLMI_GETSET_MAXLEN (TLMI_SETTINGS_MAXLEN + TLMI_SETTINGS_MAXLEN)
 
 /* Possible error values */
 struct tlmi_err_codes {
@@ -43,7 +35,6 @@ struct tlmi_pwdcfg {
 struct tlmi_pwd_setting {
 	struct kobject kobj;
 	bool valid;
-	char display_name[TLMI_PWDTYPE_MAXLEN];
 	char password[TLMI_PWD_BUFSIZE];
 	const char *pwd_type;
 	const char *role;
