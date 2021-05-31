@@ -16,7 +16,46 @@ struct mlx5_esw_rate_group {
 	u32 max_rate;
 	u32 min_rate;
 	u32 bw_share;
+	struct list_head list;
 };
+
+static int esw_qos_tsar_config(struct mlx5_core_dev *dev, u32 *sched_ctx,
+			       u32 parent_ix, u32 tsar_ix,
+			       u32 max_rate, u32 bw_share)
+{
+	u32 bitmask = 0;
+
+	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
+		return -EOPNOTSUPP;
+
+	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, parent_ix);
+	MLX5_SET(scheduling_context, sched_ctx, max_average_bw, max_rate);
+	MLX5_SET(scheduling_context, sched_ctx, bw_share, bw_share);
+	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
+	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_BW_SHARE;
+
+	return mlx5_modify_scheduling_element_cmd(dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  sched_ctx,
+						  tsar_ix,
+						  bitmask);
+}
+
+static int esw_qos_group_config(struct mlx5_eswitch *esw, struct mlx5_esw_rate_group *group,
+				u32 max_rate, u32 bw_share, struct netlink_ext_ack *extack)
+{
+	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
+	struct mlx5_core_dev *dev = esw->dev;
+	int err;
+
+	err = esw_qos_tsar_config(dev, sched_ctx,
+				  esw->qos.root_tsar_ix, group->tsar_ix,
+				  max_rate, bw_share);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify group TSAR element failed");
+
+	return err;
+}
 
 static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 				struct mlx5_vport *vport,
@@ -26,11 +65,7 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	void *vport_elem;
-	u32 bitmask = 0;
 	int err;
-
-	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
-		return -EOPNOTSUPP;
 
 	if (!vport->qos.enabled)
 		return -EIO;
@@ -40,19 +75,12 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 	vport_elem = MLX5_ADDR_OF(scheduling_context, sched_ctx,
 				  element_attributes);
 	MLX5_SET(vport_element, vport_elem, vport_number, vport->vport);
-	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, esw->qos.root_tsar_ix);
-	MLX5_SET(scheduling_context, sched_ctx, max_average_bw, max_rate);
-	MLX5_SET(scheduling_context, sched_ctx, bw_share, bw_share);
-	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
-	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_BW_SHARE;
 
-	err = mlx5_modify_scheduling_element_cmd(dev,
-						 SCHEDULING_HIERARCHY_E_SWITCH,
-						 sched_ctx,
-						 vport->qos.esw_tsar_ix,
-						 bitmask);
+	err = esw_qos_tsar_config(dev, sched_ctx, esw->qos.root_tsar_ix, vport->qos.esw_tsar_ix,
+				  max_rate, bw_share);
 	if (err) {
-		esw_warn(esw->dev, "E-Switch modify TSAR vport element failed (vport=%d,err=%d)\n",
+		esw_warn(esw->dev,
+			 "E-Switch modify TSAR vport element failed (vport=%d,err=%d)\n",
 			 vport->vport, err);
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify TSAR vport element failed");
 		return err;
@@ -61,17 +89,30 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 	return 0;
 }
 
-static u32 calculate_vports_min_rate_divider(struct mlx5_eswitch *esw)
+static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw,
+					      struct mlx5_esw_rate_group *group,
+					      bool group_level)
 {
 	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
 	struct mlx5_vport *evport;
 	u32 max_guarantee = 0;
 	unsigned long i;
 
-	mlx5_esw_for_each_vport(esw, i, evport) {
-		if (!evport->enabled || evport->qos.min_rate < max_guarantee)
-			continue;
-		max_guarantee = evport->qos.min_rate;
+	if (group_level) {
+		struct mlx5_esw_rate_group *group;
+
+		list_for_each_entry(group, &esw->qos.groups, list) {
+			if (group->min_rate < max_guarantee)
+				continue;
+			max_guarantee = group->min_rate;
+		}
+	} else {
+		mlx5_esw_for_each_vport(esw, i, evport) {
+			if (!evport->enabled || !evport->qos.enabled ||
+			    evport->qos.min_rate < max_guarantee)
+				continue;
+			max_guarantee = evport->qos.min_rate;
+		}
 	}
 
 	if (max_guarantee)
@@ -79,38 +120,62 @@ static u32 calculate_vports_min_rate_divider(struct mlx5_eswitch *esw)
 	return 0;
 }
 
-static int
-esw_qos_normalize_vports_min_rate(struct mlx5_eswitch *esw, struct netlink_ext_ack *extack)
+static u32 esw_qos_calc_bw_share(u32 min_rate, u32 divider, u32 fw_max)
+{
+	if (divider)
+		return MLX5_RATE_TO_BW_SHARE(min_rate, divider, fw_max);
+
+	return 0;
+}
+
+static int esw_qos_normalize_vports_min_rate(struct mlx5_eswitch *esw,
+					     struct mlx5_esw_rate_group *group,
+					     struct netlink_ext_ack *extack)
 {
 	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
-	u32 divider = calculate_vports_min_rate_divider(esw);
+	u32 divider = esw_qos_calculate_min_rate_divider(esw, group, false);
 	struct mlx5_vport *evport;
-	u32 vport_max_rate;
-	u32 vport_min_rate;
 	unsigned long i;
 	u32 bw_share;
 	int err;
 
 	mlx5_esw_for_each_vport(esw, i, evport) {
-		if (!evport->enabled)
+		if (!evport->enabled || !evport->qos.enabled)
 			continue;
-		vport_min_rate = evport->qos.min_rate;
-		vport_max_rate = evport->qos.max_rate;
-		bw_share = 0;
-
-		if (divider)
-			bw_share = MLX5_RATE_TO_BW_SHARE(vport_min_rate,
-							 divider,
-							 fw_max_bw_share);
+		bw_share = esw_qos_calc_bw_share(evport->qos.min_rate, divider, fw_max_bw_share);
 
 		if (bw_share == evport->qos.bw_share)
 			continue;
 
-		err = esw_qos_vport_config(esw, evport, vport_max_rate, bw_share, extack);
-		if (!err)
-			evport->qos.bw_share = bw_share;
-		else
+		err = esw_qos_vport_config(esw, evport, evport->qos.max_rate, bw_share, extack);
+		if (err)
 			return err;
+
+		evport->qos.bw_share = bw_share;
+	}
+
+	return 0;
+}
+
+static int esw_qos_normalize_groups_min_rate(struct mlx5_eswitch *esw, u32 divider,
+					     struct netlink_ext_ack *extack)
+{
+	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
+	struct mlx5_esw_rate_group *group;
+	u32 bw_share;
+	int err;
+
+	list_for_each_entry(group, &esw->qos.groups, list) {
+		bw_share = esw_qos_calc_bw_share(group->min_rate, divider, fw_max_bw_share);
+
+		if (bw_share == group->bw_share)
+			continue;
+
+		err = esw_qos_group_config(esw, group, group->max_rate, bw_share, extack);
+		if (err)
+			return err;
+
+		group->bw_share = bw_share;
 	}
 
 	return 0;
@@ -136,7 +201,7 @@ int mlx5_esw_qos_set_vport_min_rate(struct mlx5_eswitch *esw,
 
 	previous_min_rate = evport->qos.min_rate;
 	evport->qos.min_rate = min_rate;
-	err = esw_qos_normalize_vports_min_rate(esw, extack);
+	err = esw_qos_normalize_vports_min_rate(esw, NULL, extack);
 	if (err)
 		evport->qos.min_rate = previous_min_rate;
 
@@ -160,8 +225,58 @@ int mlx5_esw_qos_set_vport_max_rate(struct mlx5_eswitch *esw,
 		return 0;
 
 	err = esw_qos_vport_config(esw, evport, max_rate, evport->qos.bw_share, extack);
+
 	if (!err)
 		evport->qos.max_rate = max_rate;
+
+	return err;
+}
+
+static int esw_qos_set_group_min_rate(struct mlx5_eswitch *esw, struct mlx5_esw_rate_group *group,
+				      u32 min_rate, struct netlink_ext_ack *extack)
+{
+	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
+	struct mlx5_core_dev *dev = esw->dev;
+	u32 previous_min_rate, divider;
+	int err;
+
+	if (!(MLX5_CAP_QOS(dev, esw_bw_share) && fw_max_bw_share >= MLX5_MIN_BW_SHARE))
+		return -EOPNOTSUPP;
+
+	if (min_rate == group->min_rate)
+		return 0;
+
+	previous_min_rate = group->min_rate;
+	group->min_rate = min_rate;
+	divider = esw_qos_calculate_min_rate_divider(esw, group, true);
+	err = esw_qos_normalize_groups_min_rate(esw, divider, extack);
+	if (err) {
+		group->min_rate = previous_min_rate;
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch group min rate setting failed");
+
+		/* Attempt restoring previous configuration */
+		divider = esw_qos_calculate_min_rate_divider(esw, group, true);
+		if (esw_qos_normalize_groups_min_rate(esw, divider, extack))
+			NL_SET_ERR_MSG_MOD(extack, "E-Switch BW share restore failed");
+	}
+
+	return err;
+}
+
+static int esw_qos_set_group_max_rate(struct mlx5_eswitch *esw,
+				      struct mlx5_esw_rate_group *group,
+				      u32 max_rate, struct netlink_ext_ack *extack)
+{
+	int err;
+
+	if (group->max_rate == max_rate)
+		return 0;
+
+	err = esw_qos_group_config(esw, group, max_rate, group->bw_share, extack);
+	if (err)
+		return err;
+
+	group->max_rate = max_rate;
 
 	return err;
 }
@@ -171,6 +286,7 @@ esw_qos_create_rate_group(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 {
 	u32 tsar_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_esw_rate_group *group;
+	u32 divider;
 	int err;
 
 	if (!MLX5_CAP_QOS(esw->dev, log_esw_max_sched_depth))
@@ -191,8 +307,26 @@ esw_qos_create_rate_group(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 		goto err_sched_elem;
 	}
 
+	list_add_tail(&group->list, &esw->qos.groups);
+
+	divider = esw_qos_calculate_min_rate_divider(esw, group, true);
+	if (divider) {
+		err = esw_qos_normalize_groups_min_rate(esw, divider, extack);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "E-Switch groups normalization failed");
+			goto err_min_rate;
+		}
+	}
+
 	return group;
 
+err_min_rate:
+	list_del(&group->list);
+	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  group->tsar_ix);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy TSAR for group failed");
 err_sched_elem:
 	kfree(group);
 	return ERR_PTR(err);
@@ -202,7 +336,15 @@ static int esw_qos_destroy_rate_group(struct mlx5_eswitch *esw,
 				      struct mlx5_esw_rate_group *group,
 				      struct netlink_ext_ack *extack)
 {
+	u32 divider;
 	int err;
+
+	list_del(&group->list);
+
+	divider = esw_qos_calculate_min_rate_divider(esw, NULL, true);
+	err = esw_qos_normalize_groups_min_rate(esw, divider, extack);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch groups' normalization failed");
 
 	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
 						  SCHEDULING_HIERARCHY_E_SWITCH,
@@ -265,6 +407,7 @@ void mlx5_esw_qos_create(struct mlx5_eswitch *esw)
 		goto unlock;
 	}
 
+	INIT_LIST_HEAD(&esw->qos.groups);
 	if (MLX5_CAP_QOS(dev, log_esw_max_sched_depth)) {
 		esw->qos.group0 = esw_qos_create_rate_group(esw, NULL);
 		if (IS_ERR(esw->qos.group0)) {
@@ -466,6 +609,42 @@ int mlx5_esw_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *
 
 	mutex_lock(&esw->state_lock);
 	err = mlx5_esw_qos_set_vport_max_rate(esw, vport, tx_max, extack);
+	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_esw_devlink_rate_node_tx_share_set(struct devlink_rate *rate_node, void *priv,
+					    u64 tx_share, struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(rate_node->devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	struct mlx5_esw_rate_group *group = priv;
+	int err;
+
+	err = esw_qos_devlink_rate_to_mbps(dev, "tx_share", &tx_share, extack);
+	if (err)
+		return err;
+
+	mutex_lock(&esw->state_lock);
+	err = esw_qos_set_group_min_rate(esw, group, tx_share, extack);
+	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_esw_devlink_rate_node_tx_max_set(struct devlink_rate *rate_node, void *priv,
+					  u64 tx_max, struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(rate_node->devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	struct mlx5_esw_rate_group *group = priv;
+	int err;
+
+	err = esw_qos_devlink_rate_to_mbps(dev, "tx_max", &tx_max, extack);
+	if (err)
+		return err;
+
+	mutex_lock(&esw->state_lock);
+	err = esw_qos_set_group_max_rate(esw, group, tx_max, extack);
 	mutex_unlock(&esw->state_lock);
 	return err;
 }
