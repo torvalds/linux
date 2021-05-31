@@ -147,6 +147,9 @@ enum HNAE3_DEV_CAP_BITS {
 #define hnae3_ae_dev_rxd_adv_layout_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B, (ae_dev)->caps)
 
+enum HNAE3_PF_CAP_BITS {
+	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
+};
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
 #define ring_ptr_move_bw(ring, p) \

@@ -243,23 +243,31 @@ static void hclgevf_build_send_msg(struct hclge_vf_to_pf_msg *msg, u8 code,
 	}
 }
 
-static int hclgevf_get_tc_info(struct hclgevf_dev *hdev)
+static int hclgevf_get_basic_info(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	u8 resp_msg[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+	struct hclge_basic_info *basic_info;
 	struct hclge_vf_to_pf_msg send_msg;
-	u8 resp_msg;
+	unsigned long caps;
 	int status;
 
-	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_GET_TCINFO, 0);
-	status = hclgevf_send_mbx_msg(hdev, &send_msg, true, &resp_msg,
+	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_GET_BASIC_INFO, 0);
+	status = hclgevf_send_mbx_msg(hdev, &send_msg, true, resp_msg,
 				      sizeof(resp_msg));
 	if (status) {
 		dev_err(&hdev->pdev->dev,
-			"VF request to get TC info from PF failed %d",
-			status);
+			"failed to get basic info from pf, ret = %d", status);
 		return status;
 	}
 
-	hdev->hw_tc_map = resp_msg;
+	basic_info = (struct hclge_basic_info *)resp_msg;
+
+	hdev->hw_tc_map = basic_info->hw_tc_map;
+	hdev->mbx_api_version = basic_info->mbx_api_version;
+	caps = basic_info->pf_caps;
+	if (test_bit(HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, &caps))
+		set_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps);
 
 	return 0;
 }
@@ -2466,6 +2474,10 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 {
 	int ret;
 
+	ret = hclgevf_get_basic_info(hdev);
+	if (ret)
+		return ret;
+
 	/* get current port based vlan state from PF */
 	ret = hclgevf_get_port_base_vlan_filter_state(hdev);
 	if (ret)
@@ -2481,12 +2493,7 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclgevf_get_pf_media_type(hdev);
-	if (ret)
-		return ret;
-
-	/* get tc configuration from PF */
-	return hclgevf_get_tc_info(hdev);
+	return hclgevf_get_pf_media_type(hdev);
 }
 
 static int hclgevf_alloc_hdev(struct hnae3_ae_dev *ae_dev)

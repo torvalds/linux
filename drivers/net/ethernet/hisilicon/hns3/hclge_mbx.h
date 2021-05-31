@@ -20,7 +20,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_API_NEGOTIATE,	/* (VF -> PF) negotiate API version */
 	HCLGE_MBX_GET_QINFO,		/* (VF -> PF) get queue config */
 	HCLGE_MBX_GET_QDEPTH,		/* (VF -> PF) get queue depth */
-	HCLGE_MBX_GET_TCINFO,		/* (VF -> PF) get TC config */
+	HCLGE_MBX_GET_BASIC_INFO,	/* (VF -> PF) get basic info */
 	HCLGE_MBX_GET_RETA,		/* (VF -> PF) get RETA */
 	HCLGE_MBX_GET_RSS_KEY,		/* (VF -> PF) get RSS key */
 	HCLGE_MBX_GET_MAC_ADDR,		/* (VF -> PF) get MAC addr */
@@ -83,6 +83,13 @@ struct hclge_ring_chain_param {
 	u8 ring_type;
 	u8 tqp_index;
 	u8 int_gl_index;
+};
+
+struct hclge_basic_info {
+	u8 hw_tc_map;
+	u8 rsv;
+	u16 mbx_api_version;
+	u32 pf_caps;
 };
 
 struct hclgevf_mbx_resp_status {

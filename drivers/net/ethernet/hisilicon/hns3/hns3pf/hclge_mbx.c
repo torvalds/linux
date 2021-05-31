@@ -384,16 +384,23 @@ static int hclge_set_vf_alive(struct hclge_vport *vport,
 	return ret;
 }
 
-static void hclge_get_vf_tcinfo(struct hclge_vport *vport,
-				struct hclge_respond_to_vf_msg *resp_msg)
+static void hclge_get_basic_info(struct hclge_vport *vport,
+				 struct hclge_respond_to_vf_msg *resp_msg)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hnae3_ae_dev *ae_dev = vport->back->ae_dev;
+	struct hclge_basic_info *basic_info;
 	unsigned int i;
 
+	basic_info = (struct hclge_basic_info *)resp_msg->data;
 	for (i = 0; i < kinfo->tc_info.num_tc; i++)
-		resp_msg->data[0] |= BIT(i);
+		basic_info->hw_tc_map |= BIT(i);
 
-	resp_msg->len = sizeof(u8);
+	if (test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+		hnae3_set_bit(basic_info->pf_caps,
+			      HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, 1);
+
+	resp_msg->len = HCLGE_MBX_MAX_RESP_DATA_SIZE;
 }
 
 static void hclge_get_vf_queue_info(struct hclge_vport *vport,
@@ -752,8 +759,8 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		case HCLGE_MBX_GET_QDEPTH:
 			hclge_get_vf_queue_depth(vport, &resp_msg);
 			break;
-		case HCLGE_MBX_GET_TCINFO:
-			hclge_get_vf_tcinfo(vport, &resp_msg);
+		case HCLGE_MBX_GET_BASIC_INFO:
+			hclge_get_basic_info(vport, &resp_msg);
 			break;
 		case HCLGE_MBX_GET_LINK_STATUS:
 			ret = hclge_push_vf_link_status(vport);
