@@ -15,6 +15,7 @@ struct xfs_eofblocks {
 	kgid_t		eof_gid;
 	prid_t		eof_prid;
 	__u64		eof_min_file_size;
+	int		icw_scan_limit;
 };
 
 /*
