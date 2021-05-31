@@ -1,4 +1,4 @@
-/**
+/*
  * Marvell NFC driver: Firmware downloader
  *
  * Copyright (C) 2015, Marvell International Ltd.

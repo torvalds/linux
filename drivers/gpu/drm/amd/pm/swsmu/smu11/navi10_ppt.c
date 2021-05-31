@@ -2925,11 +2925,20 @@ static ssize_t navi1x_get_gpu_metrics(struct smu_context *smu,
 
 static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t param = 0;
 
 	/* Navi12 does not support this */
 	if (adev->asic_type == CHIP_NAVI12)
+		return 0;
+
+	/*
+	 * Skip the MGpuFanBoost setting for those ASICs
+	 * which do not support it
+	 */
+	if (!smc_pptable->MGpuFanBoostLimitRpm)
 		return 0;
 
 	/* Workaround for WS SKU */

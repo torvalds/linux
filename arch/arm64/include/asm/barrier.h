@@ -74,7 +74,7 @@ static inline unsigned long array_index_mask_nospec(unsigned long idx,
  * This insanity brought to you by speculative system register reads,
  * out-of-order memory accesses, sequence locks and Thomas Gleixner.
  *
- * http://lists.infradead.org/pipermail/linux-arm-kernel/2019-February/631195.html
+ * https://lore.kernel.org/r/alpine.DEB.2.21.1902081950260.1662@nanos.tec.linutronix.de/
  */
 #define arch_counter_enforce_ordering(val) do {				\
 	u64 tmp, _val = (val);						\
