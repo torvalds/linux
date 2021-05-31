@@ -33,6 +33,7 @@ struct btrfs_subpage {
 		/* Structures only used by data */
 		struct {
 			atomic_t readers;
+			atomic_t writers;
 		};
 	};
 };
@@ -61,6 +62,15 @@ void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
 void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len);
 void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len);
+
+void btrfs_subpage_start_writer(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len);
+bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len);
+int btrfs_page_start_writer_lock(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len);
+void btrfs_page_end_writer_lock(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len);
 
 /*

@@ -1841,14 +1841,18 @@ static int process_one_page(struct btrfs_fs_info *fs_info,
 	if (page_ops & PAGE_END_WRITEBACK)
 		btrfs_page_clamp_clear_writeback(fs_info, page, start, len);
 	if (page_ops & PAGE_LOCK) {
-		lock_page(page);
+		int ret;
+
+		ret = btrfs_page_start_writer_lock(fs_info, page, start, len);
+		if (ret)
+			return ret;
 		if (!PageDirty(page) || page->mapping != mapping) {
-			unlock_page(page);
+			btrfs_page_end_writer_lock(fs_info, page, start, len);
 			return -EAGAIN;
 		}
 	}
 	if (page_ops & PAGE_UNLOCK)
-		unlock_page(page);
+		btrfs_page_end_writer_lock(fs_info, page, start, len);
 	return 0;
 }
 
