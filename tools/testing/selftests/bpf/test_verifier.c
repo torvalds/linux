@@ -1147,7 +1147,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		}
 	}
 
-	if (test->insn_processed) {
+	if (!unpriv && test->insn_processed) {
 		uint32_t insn_processed;
 		char *proc;
 
