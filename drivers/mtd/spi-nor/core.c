@@ -2141,7 +2141,7 @@ static int spi_nor_spimem_check_readop(struct spi_nor *nor,
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(read->opcode, 0),
 					  SPI_MEM_OP_ADDR(3, 0, 0),
 					  SPI_MEM_OP_DUMMY(1, 0),
-					  SPI_MEM_OP_DATA_IN(1, NULL, 0));
+					  SPI_MEM_OP_DATA_IN(2, NULL, 0));
 
 	spi_nor_spimem_setup_op(nor, &op, read->proto);
 
@@ -2167,7 +2167,7 @@ static int spi_nor_spimem_check_pp(struct spi_nor *nor,
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(pp->opcode, 0),
 					  SPI_MEM_OP_ADDR(3, 0, 0),
 					  SPI_MEM_OP_NO_DUMMY,
-					  SPI_MEM_OP_DATA_OUT(1, NULL, 0));
+					  SPI_MEM_OP_DATA_OUT(2, NULL, 0));
 
 	spi_nor_spimem_setup_op(nor, &op, pp->proto);
 
