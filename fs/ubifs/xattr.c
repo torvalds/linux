@@ -285,6 +285,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 	if (!xent)
 		return -ENOMEM;
 
+	down_write(&ubifs_inode(host)->xattr_sem);
 	/*
 	 * The extended attribute entries are stored in LNC, so multiple
 	 * look-ups do not involve reading the flash.
@@ -319,6 +320,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 	iput(inode);
 
 out_free:
+	up_write(&ubifs_inode(host)->xattr_sem);
 	kfree(xent);
 	return err;
 }
@@ -341,18 +343,19 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 	if (!xent)
 		return -ENOMEM;
 
+	down_read(&ubifs_inode(host)->xattr_sem);
 	xent_key_init(c, &key, host->i_ino, &nm);
 	err = ubifs_tnc_lookup_nm(c, &key, xent, &nm);
 	if (err) {
 		if (err == -ENOENT)
 			err = -ENODATA;
-		goto out_unlock;
+		goto out_cleanup;
 	}
 
 	inode = iget_xattr(c, le64_to_cpu(xent->inum));
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		goto out_unlock;
+		goto out_cleanup;
 	}
 
 	ui = ubifs_inode(inode);
@@ -374,7 +377,8 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 out_iput:
 	mutex_unlock(&ui->ui_mutex);
 	iput(inode);
-out_unlock:
+out_cleanup:
+	up_read(&ubifs_inode(host)->xattr_sem);
 	kfree(xent);
 	return err;
 }
@@ -406,16 +410,21 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	dbg_gen("ino %lu ('%pd'), buffer size %zd", host->i_ino,
 		dentry, size);
 
+	down_read(&host_ui->xattr_sem);
 	len = host_ui->xattr_names + host_ui->xattr_cnt;
-	if (!buffer)
+	if (!buffer) {
 		/*
 		 * We should return the minimum buffer size which will fit a
 		 * null-terminated list of all the extended attribute names.
 		 */
-		return len;
+		err = len;
+		goto out_err;
+	}
 
-	if (len > size)
-		return -ERANGE;
+	if (len > size) {
+		err = -ERANGE;
+		goto out_err;
+	}
 
 	lowest_xent_key(c, &key, host->i_ino);
 	while (1) {
@@ -437,8 +446,9 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		pxent = xent;
 		key_read(c, &xent->key, &key);
 	}
-
 	kfree(pxent);
+	up_read(&host_ui->xattr_sem);
+
 	if (err != -ENOENT) {
 		ubifs_err(c, "cannot find next direntry, error %d", err);
 		return err;
@@ -446,6 +456,10 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	ubifs_assert(c, written <= size);
 	return written;
+
+out_err:
+	up_read(&host_ui->xattr_sem);
+	return err;
 }
 
 static int remove_xattr(struct ubifs_info *c, struct inode *host,
@@ -504,6 +518,7 @@ int ubifs_purge_xattrs(struct inode *host)
 	ubifs_warn(c, "inode %lu has too many xattrs, doing a non-atomic deletion",
 		   host->i_ino);
 
+	down_write(&ubifs_inode(host)->xattr_sem);
 	lowest_xent_key(c, &key, host->i_ino);
 	while (1) {
 		xent = ubifs_tnc_next_ent(c, &key, &nm);
@@ -523,7 +538,7 @@ int ubifs_purge_xattrs(struct inode *host)
 			ubifs_ro_mode(c, err);
 			kfree(pxent);
 			kfree(xent);
-			return err;
+			goto out_err;
 		}
 
 		ubifs_assert(c, ubifs_inode(xino)->xattr);
@@ -535,7 +550,7 @@ int ubifs_purge_xattrs(struct inode *host)
 			kfree(xent);
 			iput(xino);
 			ubifs_err(c, "cannot remove xattr, error %d", err);
-			return err;
+			goto out_err;
 		}
 
 		iput(xino);
@@ -544,14 +559,19 @@ int ubifs_purge_xattrs(struct inode *host)
 		pxent = xent;
 		key_read(c, &xent->key, &key);
 	}
-
 	kfree(pxent);
+	up_write(&ubifs_inode(host)->xattr_sem);
+
 	if (err != -ENOENT) {
 		ubifs_err(c, "cannot find next direntry, error %d", err);
 		return err;
 	}
 
 	return 0;
+
+out_err:
+	up_write(&ubifs_inode(host)->xattr_sem);
+	return err;
 }
 
 /**
@@ -594,6 +614,7 @@ static int ubifs_xattr_remove(struct inode *host, const char *name)
 	if (!xent)
 		return -ENOMEM;
 
+	down_write(&ubifs_inode(host)->xattr_sem);
 	xent_key_init(c, &key, host->i_ino, &nm);
 	err = ubifs_tnc_lookup_nm(c, &key, xent, &nm);
 	if (err) {
@@ -618,6 +639,7 @@ static int ubifs_xattr_remove(struct inode *host, const char *name)
 	iput(inode);
 
 out_free:
+	up_write(&ubifs_inode(host)->xattr_sem);
 	kfree(xent);
 	return err;
 }
