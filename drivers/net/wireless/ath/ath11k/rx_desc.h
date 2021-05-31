@@ -368,6 +368,7 @@ struct rx_attention {
 #define RX_MPDU_START_INFO2_BSSID_HIT		BIT(9)
 #define RX_MPDU_START_INFO2_BSSID_NUM		GENMASK(13, 10)
 #define RX_MPDU_START_INFO2_TID			GENMASK(17, 14)
+#define RX_MPDU_START_INFO2_TID_WCN6855		GENMASK(18, 15)
 
 #define RX_MPDU_START_INFO3_REO_DEST_IND		GENMASK(4, 0)
 #define RX_MPDU_START_INFO3_FLOW_ID_TOEPLITZ		BIT(7)
@@ -535,6 +536,31 @@ struct rx_mpdu_start_qcn9074 {
 	__le32 info11;
 	__le32 info12;
 	__le32 info13;
+	__le16 frame_ctrl;
+	__le16 duration;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	__le16 qos_ctrl;
+	__le32 ht_ctrl;
+} __packed;
+
+struct rx_mpdu_start_wcn6855 {
+	__le32 info3;
+	__le32 reo_queue_desc_lo;
+	__le32 info4;
+	__le32 pn[4];
+	__le32 info2;
+	__le32 peer_meta_data;
+	__le16 info0;
+	__le16 phy_ppdu_id;
+	__le16 ast_index;
+	__le16 sw_peer_id;
+	__le32 info1;
+	__le32 info5;
+	__le32 info6;
 	__le16 frame_ctrl;
 	__le16 duration;
 	u8 addr1[ETH_ALEN];
@@ -804,6 +830,20 @@ struct rx_msdu_start_qcn9074 {
 	__le16 vlan_stag_c1;
 } __packed;
 
+struct rx_msdu_start_wcn6855 {
+	__le16 info0;
+	__le16 phy_ppdu_id;
+	__le32 info1;
+	__le32 info2;
+	__le32 toeplitz_hash;
+	__le32 flow_id_toeplitz;
+	__le32 info3;
+	__le32 ppdu_start_timestamp;
+	__le32 phy_meta_data;
+	__le16 vlan_ctag_ci;
+	__le16 vlan_stag_ci;
+} __packed;
+
 /* rx_msdu_start
  *
  * rxpcu_mpdu_filter_in_category
@@ -988,7 +1028,9 @@ struct rx_msdu_start_qcn9074 {
 
 #define RX_MSDU_END_INFO2_REPORTED_MPDU_LEN	GENMASK(13, 0)
 #define RX_MSDU_END_INFO2_FIRST_MSDU		BIT(14)
+#define RX_MSDU_END_INFO2_FIRST_MSDU_WCN6855	BIT(28)
 #define RX_MSDU_END_INFO2_LAST_MSDU		BIT(15)
+#define RX_MSDU_END_INFO2_LAST_MSDU_WCN6855	BIT(29)
 #define RX_MSDU_END_INFO2_SA_IDX_TIMEOUT	BIT(16)
 #define RX_MSDU_END_INFO2_DA_IDX_TIMEOUT	BIT(17)
 #define RX_MSDU_END_INFO2_MSDU_LIMIT_ERR	BIT(18)
@@ -1035,6 +1077,31 @@ struct rx_msdu_end_ipq8074 {
 	__le32 fse_metadata;
 	__le16 cce_metadata;
 	__le16 sa_sw_peer_id;
+} __packed;
+
+struct rx_msdu_end_wcn6855 {
+	__le16 info0;
+	__le16 phy_ppdu_id;
+	__le16 ip_hdr_cksum;
+	__le16 reported_mpdu_len;
+	__le32 info1;
+	__le32 ext_wapi_pn[2];
+	__le32 info4;
+	__le32 ipv6_options_crc;
+	__le32 tcp_seq_num;
+	__le32 tcp_ack_num;
+	__le16 info3;
+	__le16 window_size;
+	__le32 info2;
+	__le16 sa_idx;
+	__le16 da_idx;
+	__le32 info5;
+	__le32 fse_metadata;
+	__le16 cce_metadata;
+	__le16 sa_sw_peer_id;
+	__le32 rule_indication[2];
+	__le32 info6;
+	__le32 info7;
 } __packed;
 
 #define RX_MSDU_END_MPDU_LENGTH_INFO		GENMASK(13, 0)
@@ -1400,10 +1467,30 @@ struct hal_rx_desc_qcn9074 {
 	u8 msdu_payload[0];
 } __packed;
 
+struct hal_rx_desc_wcn6855 {
+	__le32 msdu_end_tag;
+	struct rx_msdu_end_wcn6855 msdu_end;
+	__le32 rx_attn_tag;
+	struct rx_attention attention;
+	__le32 msdu_start_tag;
+	struct rx_msdu_start_wcn6855 msdu_start;
+	u8 rx_padding0[HAL_RX_DESC_PADDING0_BYTES];
+	__le32 mpdu_start_tag;
+	struct rx_mpdu_start_wcn6855 mpdu_start;
+	__le32 mpdu_end_tag;
+	struct rx_mpdu_end mpdu_end;
+	u8 rx_padding1[HAL_RX_DESC_PADDING1_BYTES];
+	__le32 hdr_status_tag;
+	__le32 phy_ppdu_id;
+	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
+	u8 msdu_payload[0];
+} __packed;
+
 struct hal_rx_desc {
 	union {
 		struct hal_rx_desc_ipq8074 ipq8074;
 		struct hal_rx_desc_qcn9074 qcn9074;
+		struct hal_rx_desc_wcn6855 wcn6855;
 	} u;
 } __packed;
 
