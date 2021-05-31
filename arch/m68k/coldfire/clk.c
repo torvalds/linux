@@ -71,7 +71,6 @@ struct clk_ops clk_ops1 = {
 	.disable	= __clk_disable1,
 };
 #endif /* MCFPM_PPMCR1 */
-#endif /* MCFPM_PPMCR0 */
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
@@ -86,6 +85,14 @@ struct clk *clk_get(struct device *dev, const char *id)
 	return ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL(clk_get);
+
+void clk_put(struct clk *clk)
+{
+	if (clk->enabled != 0)
+		pr_warn("clk_put %s still enabled\n", clk->name);
+}
+EXPORT_SYMBOL(clk_put);
+#endif /* MCFPM_PPMCR0 */
 
 int clk_enable(struct clk *clk)
 {
@@ -116,13 +123,6 @@ void clk_disable(struct clk *clk)
 	spin_unlock_irqrestore(&clk_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
-
-void clk_put(struct clk *clk)
-{
-	if (clk->enabled != 0)
-		pr_warn("clk_put %s still enabled\n", clk->name);
-}
-EXPORT_SYMBOL(clk_put);
 
 unsigned long clk_get_rate(struct clk *clk)
 {

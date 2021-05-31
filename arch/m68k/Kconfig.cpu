@@ -328,6 +328,10 @@ config COLDFIRE_SLTIMERS
 	bool
 	select LEGACY_TIMER_TICK
 
+config COLDFIRE_CLKDEV_LOOKUP
+	def_bool !(M5206 || M5206e || M53xx || M5441x)
+	select CLKDEV_LOOKUP
+
 endif # COLDFIRE
 
 
