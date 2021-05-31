@@ -1650,6 +1650,22 @@ static void hclgevf_uninit_mac_list(struct hclgevf_dev *hdev)
 	spin_unlock_bh(&hdev->mac_table.mac_list_lock);
 }
 
+static int hclgevf_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	struct hclge_vf_to_pf_msg send_msg;
+
+	if (!test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+		return -EOPNOTSUPP;
+
+	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_VLAN,
+			       HCLGE_MBX_ENABLE_VLAN_FILTER);
+	send_msg.data[0] = enable ? 1 : 0;
+
+	return hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
+}
+
 static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 				   __be16 proto, u16 vlan_id,
 				   bool is_kill)
@@ -3808,6 +3824,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.enable_vlan_filter = hclgevf_enable_vlan_filter,
 	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
 	.set_default_reset_request = hclgevf_set_def_reset_request,

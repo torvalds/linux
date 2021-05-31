@@ -9515,8 +9515,7 @@ static bool hclge_need_enable_vport_vlan_filter(struct hclge_vport *vport)
 	return false;
 }
 
-static int hclge_enable_vport_vlan_filter(struct hclge_vport *vport,
-					  bool request_en)
+int hclge_enable_vport_vlan_filter(struct hclge_vport *vport, bool request_en)
 {
 	struct hclge_dev *hdev = vport->back;
 	bool need_en;

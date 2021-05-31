@@ -69,6 +69,7 @@ enum hclge_mbx_vlan_cfg_subcode {
 	HCLGE_MBX_VLAN_RX_OFF_CFG,	/* set rx side vlan offload */
 	HCLGE_MBX_PORT_BASE_VLAN_CFG,	/* set port based vlan configuration */
 	HCLGE_MBX_GET_PORT_BASE_VLAN_STATE,	/* get port based vlan state */
+	HCLGE_MBX_ENABLE_VLAN_FILTER,
 };
 
 enum hclge_mbx_tbl_cfg_subcode {
