@@ -16,7 +16,8 @@ TEST_GEN_FILES := \
 	futex_requeue_pi_mismatched_ops \
 	futex_wait_uninitialized_heap \
 	futex_wait_private_mapped_file \
-	futex_wait
+	futex_wait \
+	futex_requeue
 
 TEST_PROGS := run.sh
 
