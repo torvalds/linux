@@ -12,11 +12,11 @@ struct io_wq_work;
 /**
  * io_uring_create - called after a new io_uring context was prepared
  *
- * @fd:			corresponding file descriptor
- * @ctx:		pointer to a ring context structure
+ * @fd:		corresponding file descriptor
+ * @ctx:	pointer to a ring context structure
  * @sq_entries:	actual SQ size
  * @cq_entries:	actual CQ size
- * @flags:		SQ ring flags, provided to io_uring_setup(2)
+ * @flags:	SQ ring flags, provided to io_uring_setup(2)
  *
  * Allows to trace io_uring creation and provide pointer to a context, that can
  * be used later to find correlated events.
@@ -52,12 +52,12 @@ TRACE_EVENT(io_uring_create,
  * io_uring_register - called after a buffer/file/eventfd was successfully
  * 					   registered for a ring
  *
- * @ctx:			pointer to a ring context structure
- * @opcode:			describes which operation to perform
+ * @ctx:		pointer to a ring context structure
+ * @opcode:		describes which operation to perform
  * @nr_user_files:	number of registered files
  * @nr_user_bufs:	number of registered buffers
  * @cq_ev_fd:		whether eventfs registered or not
- * @ret:			return code
+ * @ret:		return code
  *
  * Allows to trace fixed files/buffers/eventfds, that could be registered to
  * avoid an overhead of getting references to them for every operation. This
@@ -142,16 +142,16 @@ TRACE_EVENT(io_uring_queue_async_work,
 	TP_ARGS(ctx, rw, req, work, flags),
 
 	TP_STRUCT__entry (
-		__field(  void *,				ctx		)
-		__field(  int,					rw		)
-		__field(  void *,				req		)
+		__field(  void *,			ctx	)
+		__field(  int,				rw	)
+		__field(  void *,			req	)
 		__field(  struct io_wq_work *,		work	)
 		__field(  unsigned int,			flags	)
 	),
 
 	TP_fast_assign(
 		__entry->ctx	= ctx;
-		__entry->rw		= rw;
+		__entry->rw	= rw;
 		__entry->req	= req;
 		__entry->work	= work;
 		__entry->flags	= flags;
@@ -196,10 +196,10 @@ TRACE_EVENT(io_uring_defer,
 
 /**
  * io_uring_link - called before the io_uring request added into link_list of
- * 				   another request
+ * 		   another request
  *
- * @ctx:			pointer to a ring context structure
- * @req:			pointer to a linked request
+ * @ctx:		pointer to a ring context structure
+ * @req:		pointer to a linked request
  * @target_req:		pointer to a previous request, that would contain @req
  *
  * Allows to track linked requests, to understand dependencies between requests
@@ -212,8 +212,8 @@ TRACE_EVENT(io_uring_link,
 	TP_ARGS(ctx, req, target_req),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx			)
-		__field(  void *,	req			)
+		__field(  void *,	ctx		)
+		__field(  void *,	req		)
 		__field(  void *,	target_req	)
 	),
 
@@ -244,7 +244,7 @@ TRACE_EVENT(io_uring_cqring_wait,
 	TP_ARGS(ctx, min_events),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx			)
+		__field(  void *,	ctx		)
 		__field(  int,		min_events	)
 	),
 
@@ -272,7 +272,7 @@ TRACE_EVENT(io_uring_fail_link,
 	TP_ARGS(req, link),
 
 	TP_STRUCT__entry (
-		__field(  void *,	req		)
+		__field(  void *,	req	)
 		__field(  void *,	link	)
 	),
 
@@ -317,7 +317,6 @@ TRACE_EVENT(io_uring_complete,
 			  __entry->ctx, (unsigned long long)__entry->user_data,
 			  __entry->res, __entry->cflags)
 );
-
 
 /**
  * io_uring_submit_sqe - called before submitting one SQE
