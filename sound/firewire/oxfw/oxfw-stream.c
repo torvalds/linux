@@ -153,13 +153,13 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
 	enum amdtp_stream_direction s_dir;
-	unsigned int flags;
+	unsigned int flags = CIP_UNAWARE_SYT;
 	int err;
 
 	if (!(oxfw->quirks & SND_OXFW_QUIRK_BLOCKING_TRANSMISSION))
-		flags = CIP_NONBLOCKING;
+		flags |= CIP_NONBLOCKING;
 	else
-		flags = CIP_BLOCKING;
+		flags |= CIP_BLOCKING;
 
 	if (stream == &oxfw->tx_stream) {
 		conn = &oxfw->out_conn;
@@ -337,6 +337,9 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 	}
 
 	if (!amdtp_stream_running(&oxfw->rx_stream)) {
+		unsigned int tx_init_skip_cycles = 0;
+		bool replay_seq = false;
+
 		err = start_stream(oxfw, &oxfw->rx_stream);
 		if (err < 0) {
 			dev_err(&oxfw->unit->device,
@@ -352,9 +355,20 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 					"fail to prepare tx stream: %d\n", err);
 				goto error;
 			}
+
+			if (oxfw->quirks & SND_OXFW_QUIRK_JUMBO_PAYLOAD) {
+				// Just after changing sampling transfer frequency, many cycles are
+				// skipped for packet transmission.
+				tx_init_skip_cycles = 400;
+			} else {
+				replay_seq = true;
+			}
 		}
 
-		err = amdtp_domain_start(&oxfw->domain, 0, false, false);
+		// NOTE: The device ignores presentation time expressed by the value of syt field
+		// of CIP header in received packets. The sequence of the number of data blocks per
+		// packet is important for media clock recovery.
+		err = amdtp_domain_start(&oxfw->domain, tx_init_skip_cycles, replay_seq, false);
 		if (err < 0)
 			goto error;
 
