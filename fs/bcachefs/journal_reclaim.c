@@ -93,6 +93,10 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 	 * until we write it out - thus, account for it here:
 	 */
 	while ((unwritten = get_unwritten_sectors(j, &idx))) {
+		/* entry won't fit on this device, skip: */
+		if (unwritten > ca->mi.bucket_size)
+			continue;
+
 		if (unwritten >= sectors) {
 			if (!buckets) {
 				sectors = 0;
