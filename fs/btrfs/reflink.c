@@ -7,6 +7,7 @@
 #include "delalloc-space.h"
 #include "reflink.h"
 #include "transaction.h"
+#include "subpage.h"
 
 #define BTRFS_MAX_DEDUPE_LEN	SZ_16M
 
@@ -52,7 +53,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 			       const u64 datal,
 			       const u8 comp_type)
 {
-	const u64 block_size = btrfs_inode_sectorsize(inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 block_size = fs_info->sectorsize;
 	const u64 range_end = file_offset + block_size - 1;
 	const size_t inline_size = size - btrfs_file_extent_calc_inline_size(0);
 	char *data_start = inline_data + btrfs_file_extent_calc_inline_size(0);
@@ -106,10 +108,12 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	set_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &inode->runtime_flags);
 
 	if (comp_type == BTRFS_COMPRESS_NONE) {
-		memcpy_to_page(page, 0, data_start, datal);
+		memcpy_to_page(page, offset_in_page(file_offset), data_start,
+			       datal);
 		flush_dcache_page(page);
 	} else {
-		ret = btrfs_decompress(comp_type, data_start, page, 0,
+		ret = btrfs_decompress(comp_type, data_start, page,
+				       offset_in_page(file_offset),
 				       inline_size, datal);
 		if (ret)
 			goto out_unlock;
@@ -133,9 +137,9 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 		flush_dcache_page(page);
 	}
 
-	SetPageUptodate(page);
+	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
 	ClearPageChecked(page);
-	set_page_dirty(page);
+	btrfs_page_set_dirty(fs_info, page, file_offset, block_size);
 out_unlock:
 	if (page) {
 		unlock_page(page);
