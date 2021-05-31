@@ -68,9 +68,11 @@ void xfs_inode_clear_cowblocks_tag(struct xfs_inode *ip);
 
 void xfs_blockgc_worker(struct work_struct *work);
 
-int xfs_inode_walk(struct xfs_mount *mp, int iter_flags,
-	int (*execute)(struct xfs_inode *ip, void *args),
-	void *args, int tag);
+#ifdef CONFIG_XFS_QUOTA
+int xfs_dqrele_all_inodes(struct xfs_mount *mp, unsigned int qflags);
+#else
+# define xfs_dqrele_all_inodes(mp, qflags)	(0)
+#endif
 
 int xfs_icache_inode_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
 				  xfs_ino_t ino, bool *inuse);
