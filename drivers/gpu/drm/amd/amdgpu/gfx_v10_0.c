@@ -3931,7 +3931,7 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
 	char fw_name[40];
-	char wks[10];
+	char *wks = "";
 	int err;
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
@@ -3944,7 +3944,6 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 
 	DRM_DEBUG("\n");
 
-	memset(wks, 0, sizeof(wks));
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 		chip_name = "navi10";
@@ -3953,7 +3952,7 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "navi14";
 		if (!(adev->pdev->device == 0x7340 &&
 		      adev->pdev->revision != 0x00))
-			snprintf(wks, sizeof(wks), "_wks");
+			wks = "_wks";
 		break;
 	case CHIP_NAVI12:
 		chip_name = "navi12";
