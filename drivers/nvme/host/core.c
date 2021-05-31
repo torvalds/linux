@@ -2901,7 +2901,7 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 		ctrl->hmmaxd = le16_to_cpu(id->hmmaxd);
 	}
 
-	ret = nvme_mpath_init(ctrl, id);
+	ret = nvme_mpath_init_identify(ctrl, id);
 	if (ret < 0)
 		goto out_free;
 
@@ -3485,8 +3485,10 @@ int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 	cdev_init(cdev, fops);
 	cdev->owner = owner;
 	ret = cdev_device_add(cdev, cdev_device);
-	if (ret)
+	if (ret) {
+		put_device(cdev_device);
 		ida_simple_remove(&nvme_ns_chr_minor_ida, minor);
+	}
 	return ret;
 }
 
@@ -4364,6 +4366,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		min(default_ps_max_latency_us, (unsigned long)S32_MAX));
 
 	nvme_fault_inject_init(&ctrl->fault_inject, dev_name(ctrl->device));
+	nvme_mpath_init_ctrl(ctrl);
 
 	return 0;
 out_free_name:

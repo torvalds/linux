@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/sched/stat.h>
 #include <linux/bug.h>
 #include <linux/minmax.h>
 #include <linux/mm.h>
@@ -146,7 +147,7 @@ static inline bool is_error_page(struct page *page)
  */
 #define KVM_REQ_TLB_FLUSH         (0 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_MMU_RELOAD        (1 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_PENDING_TIMER     2
+#define KVM_REQ_UNBLOCK           2
 #define KVM_REQ_UNHALT            3
 #define KVM_REQUEST_ARCH_BASE     8
 
@@ -263,6 +264,11 @@ struct kvm_host_map {
 static inline bool kvm_vcpu_mapped(struct kvm_host_map *map)
 {
 	return !!map->hva;
+}
+
+static inline bool kvm_vcpu_can_poll(ktime_t cur, ktime_t stop)
+{
+	return single_task_running() && !need_resched() && ktime_before(cur, stop);
 }
 
 /*

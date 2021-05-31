@@ -984,7 +984,7 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 
 	if (pre)
 		ret = clone_ordered_extent(ordered, 0, pre);
-	if (post)
+	if (ret == 0 && post)
 		ret = clone_ordered_extent(ordered, pre + ordered->disk_num_bytes,
 					   post);
 

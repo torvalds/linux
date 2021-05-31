@@ -828,14 +828,10 @@ static void xhci_giveback_invalidated_tds(struct xhci_virt_ep *ep)
 	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list,
 				 cancelled_td_list) {
 
-		/*
-		 * Doesn't matter what we pass for status, since the core will
-		 * just overwrite it (because the URB has been unlinked).
-		 */
 		ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
 
 		if (td->cancel_status == TD_CLEARED)
-			xhci_td_cleanup(ep->xhci, td, ring, 0);
+			xhci_td_cleanup(ep->xhci, td, ring, td->status);
 
 		if (ep->xhci->xhc_state & XHCI_STATE_DYING)
 			return;
@@ -862,7 +858,7 @@ done:
 	return ret;
 }
 
-static void xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
+static int xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 				struct xhci_virt_ep *ep, unsigned int stream_id,
 				struct xhci_td *td,
 				enum xhci_ep_reset_type reset_type)
@@ -875,7 +871,7 @@ static void xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 	 * Device will be reset soon to recover the link so don't do anything
 	 */
 	if (ep->vdev->flags & VDEV_PORT_ERROR)
-		return;
+		return -ENODEV;
 
 	/* add td to cancelled list and let reset ep handler take care of it */
 	if (reset_type == EP_HARD_RESET) {
@@ -888,16 +884,18 @@ static void xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 
 	if (ep->ep_state & EP_HALTED) {
 		xhci_dbg(xhci, "Reset ep command already pending\n");
-		return;
+		return 0;
 	}
 
 	err = xhci_reset_halted_ep(xhci, slot_id, ep->ep_index, reset_type);
 	if (err)
-		return;
+		return err;
 
 	ep->ep_state |= EP_HALTED;
 
 	xhci_ring_cmd_db(xhci);
+
+	return 0;
 }
 
 /*
@@ -935,14 +933,18 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 			continue;
 		}
 		/*
-		 * If ring stopped on the TD we need to cancel, then we have to
+		 * If a ring stopped on the TD we need to cancel then we have to
 		 * move the xHC endpoint ring dequeue pointer past this TD.
+		 * Rings halted due to STALL may show hw_deq is past the stalled
+		 * TD, but still require a set TR Deq command to flush xHC cache.
 		 */
 		hw_deq = xhci_get_hw_deq(xhci, ep->vdev, ep->ep_index,
 					 td->urb->stream_id);
 		hw_deq &= ~0xf;
 
-		if (trb_in_td(xhci, td->start_seg, td->first_trb,
+		if (td->cancel_status == TD_HALTED) {
+			cached_td = td;
+		} else if (trb_in_td(xhci, td->start_seg, td->first_trb,
 			      td->last_trb, hw_deq, false)) {
 			switch (td->cancel_status) {
 			case TD_CLEARED: /* TD is already no-op */
@@ -1014,6 +1016,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_td *td = NULL;
 	enum xhci_ep_reset_type reset_type;
 	struct xhci_command *command;
+	int err;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
 		if (!xhci->devs[slot_id])
@@ -1058,7 +1061,10 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 					td->status = -EPROTO;
 			}
 			/* reset ep, reset handler cleans up cancelled tds */
-			xhci_handle_halted_endpoint(xhci, ep, 0, td, reset_type);
+			err = xhci_handle_halted_endpoint(xhci, ep, 0, td,
+							  reset_type);
+			if (err)
+				break;
 			xhci_stop_watchdog_timer_in_irq(xhci, ep);
 			return;
 		case EP_STATE_RUNNING:
