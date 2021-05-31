@@ -9444,18 +9444,6 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 	return ret;
 }
 
-#define HCLGE_FILTER_TYPE_VF		0
-#define HCLGE_FILTER_TYPE_PORT		1
-#define HCLGE_FILTER_FE_EGRESS_V1_B	BIT(0)
-#define HCLGE_FILTER_FE_NIC_INGRESS_B	BIT(0)
-#define HCLGE_FILTER_FE_NIC_EGRESS_B	BIT(1)
-#define HCLGE_FILTER_FE_ROCE_INGRESS_B	BIT(2)
-#define HCLGE_FILTER_FE_ROCE_EGRESS_B	BIT(3)
-#define HCLGE_FILTER_FE_EGRESS		(HCLGE_FILTER_FE_NIC_EGRESS_B \
-					| HCLGE_FILTER_FE_ROCE_EGRESS_B)
-#define HCLGE_FILTER_FE_INGRESS		(HCLGE_FILTER_FE_NIC_INGRESS_B \
-					| HCLGE_FILTER_FE_ROCE_INGRESS_B)
-
 static int hclge_set_vport_vlan_filter(struct hclge_vport *vport, bool enable)
 {
 	struct hclge_dev *hdev = vport->back;

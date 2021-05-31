@@ -1894,6 +1894,285 @@ static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
 	}
 }
 
+static int hclge_get_vlan_rx_offload_cfg(struct hclge_dev *hdev, u8 vf_id,
+					 struct hclge_dbg_vlan_cfg *vlan_cfg)
+{
+	struct hclge_vport_vtag_rx_cfg_cmd *req;
+	struct hclge_desc desc;
+	u16 bmap_index;
+	u8 rx_cfg;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_VLAN_PORT_RX_CFG, true);
+
+	req = (struct hclge_vport_vtag_rx_cfg_cmd *)desc.data;
+	req->vf_offset = vf_id / HCLGE_VF_NUM_PER_CMD;
+	bmap_index = vf_id % HCLGE_VF_NUM_PER_CMD / HCLGE_VF_NUM_PER_BYTE;
+	req->vf_bitmap[bmap_index] = 1U << (vf_id % HCLGE_VF_NUM_PER_BYTE);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get vport%u rxvlan cfg, ret = %d\n",
+			vf_id, ret);
+		return ret;
+	}
+
+	rx_cfg = req->vport_vlan_cfg;
+	vlan_cfg->strip_tag1 = hnae3_get_bit(rx_cfg, HCLGE_REM_TAG1_EN_B);
+	vlan_cfg->strip_tag2 = hnae3_get_bit(rx_cfg, HCLGE_REM_TAG2_EN_B);
+	vlan_cfg->drop_tag1 = hnae3_get_bit(rx_cfg, HCLGE_DISCARD_TAG1_EN_B);
+	vlan_cfg->drop_tag2 = hnae3_get_bit(rx_cfg, HCLGE_DISCARD_TAG2_EN_B);
+	vlan_cfg->pri_only1 = hnae3_get_bit(rx_cfg, HCLGE_SHOW_TAG1_EN_B);
+	vlan_cfg->pri_only2 = hnae3_get_bit(rx_cfg, HCLGE_SHOW_TAG2_EN_B);
+
+	return 0;
+}
+
+static int hclge_get_vlan_tx_offload_cfg(struct hclge_dev *hdev, u8 vf_id,
+					 struct hclge_dbg_vlan_cfg *vlan_cfg)
+{
+	struct hclge_vport_vtag_tx_cfg_cmd *req;
+	struct hclge_desc desc;
+	u16 bmap_index;
+	u8 tx_cfg;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_VLAN_PORT_TX_CFG, true);
+	req = (struct hclge_vport_vtag_tx_cfg_cmd *)desc.data;
+	req->vf_offset = vf_id / HCLGE_VF_NUM_PER_CMD;
+	bmap_index = vf_id % HCLGE_VF_NUM_PER_CMD / HCLGE_VF_NUM_PER_BYTE;
+	req->vf_bitmap[bmap_index] = 1U << (vf_id % HCLGE_VF_NUM_PER_BYTE);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get vport%u txvlan cfg, ret = %d\n",
+			vf_id, ret);
+		return ret;
+	}
+
+	tx_cfg = req->vport_vlan_cfg;
+	vlan_cfg->pvid = le16_to_cpu(req->def_vlan_tag1);
+
+	vlan_cfg->accept_tag1 = hnae3_get_bit(tx_cfg, HCLGE_ACCEPT_TAG1_B);
+	vlan_cfg->accept_tag2 = hnae3_get_bit(tx_cfg, HCLGE_ACCEPT_TAG2_B);
+	vlan_cfg->accept_untag1 = hnae3_get_bit(tx_cfg, HCLGE_ACCEPT_UNTAG1_B);
+	vlan_cfg->accept_untag2 = hnae3_get_bit(tx_cfg, HCLGE_ACCEPT_UNTAG2_B);
+	vlan_cfg->insert_tag1 = hnae3_get_bit(tx_cfg, HCLGE_PORT_INS_TAG1_EN_B);
+	vlan_cfg->insert_tag2 = hnae3_get_bit(tx_cfg, HCLGE_PORT_INS_TAG2_EN_B);
+	vlan_cfg->shift_tag = hnae3_get_bit(tx_cfg, HCLGE_TAG_SHIFT_MODE_EN_B);
+
+	return 0;
+}
+
+static int hclge_get_vlan_filter_config_cmd(struct hclge_dev *hdev,
+					    u8 vlan_type, u8 vf_id,
+					    struct hclge_desc *desc)
+{
+	struct hclge_vlan_filter_ctrl_cmd *req;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(desc, HCLGE_OPC_VLAN_FILTER_CTRL, true);
+	req = (struct hclge_vlan_filter_ctrl_cmd *)desc->data;
+	req->vlan_type = vlan_type;
+	req->vf_id = vf_id;
+
+	ret = hclge_cmd_send(&hdev->hw, desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"failed to get vport%u vlan filter config, ret = %d.\n",
+			vf_id, ret);
+
+	return ret;
+}
+
+static int hclge_get_vlan_filter_state(struct hclge_dev *hdev, u8 vlan_type,
+				       u8 vf_id, u8 *vlan_fe)
+{
+	struct hclge_vlan_filter_ctrl_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	ret = hclge_get_vlan_filter_config_cmd(hdev, vlan_type, vf_id, &desc);
+	if (ret)
+		return ret;
+
+	req = (struct hclge_vlan_filter_ctrl_cmd *)desc.data;
+	*vlan_fe = req->vlan_fe;
+
+	return 0;
+}
+
+static int hclge_get_port_vlan_filter_bypass_state(struct hclge_dev *hdev,
+						   u8 vf_id, u8 *bypass_en)
+{
+	struct hclge_port_vlan_filter_bypass_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	if (!test_bit(HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B, hdev->ae_dev->caps))
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PORT_VLAN_BYPASS, true);
+	req = (struct hclge_port_vlan_filter_bypass_cmd *)desc.data;
+	req->vf_id = vf_id;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get vport%u port vlan filter bypass state, ret = %d.\n",
+			vf_id, ret);
+		return ret;
+	}
+
+	*bypass_en = hnae3_get_bit(req->bypass_state, HCLGE_INGRESS_BYPASS_B);
+
+	return 0;
+}
+
+static const struct hclge_dbg_item vlan_filter_items[] = {
+	{ "FUNC_ID", 2 },
+	{ "I_VF_VLAN_FILTER", 2 },
+	{ "E_VF_VLAN_FILTER", 2 },
+	{ "PORT_VLAN_FILTER_BYPASS", 0 }
+};
+
+static const struct hclge_dbg_item vlan_offload_items[] = {
+	{ "FUNC_ID", 2 },
+	{ "PVID", 4 },
+	{ "ACCEPT_TAG1", 2 },
+	{ "ACCEPT_TAG2", 2 },
+	{ "ACCEPT_UNTAG1", 2 },
+	{ "ACCEPT_UNTAG2", 2 },
+	{ "INSERT_TAG1", 2 },
+	{ "INSERT_TAG2", 2 },
+	{ "SHIFT_TAG", 2 },
+	{ "STRIP_TAG1", 2 },
+	{ "STRIP_TAG2", 2 },
+	{ "DROP_TAG1", 2 },
+	{ "DROP_TAG2", 2 },
+	{ "PRI_ONLY_TAG1", 2 },
+	{ "PRI_ONLY_TAG2", 0 }
+};
+
+static int hclge_dbg_dump_vlan_filter_config(struct hclge_dev *hdev, char *buf,
+					     int len, int *pos)
+{
+	char content[HCLGE_DBG_VLAN_FLTR_INFO_LEN], str_id[HCLGE_DBG_ID_LEN];
+	const char *result[ARRAY_SIZE(vlan_filter_items)];
+	u8 i, j, vlan_fe, bypass, ingress, egress;
+	u8 func_num = pci_num_vf(hdev->pdev) + 1; /* pf and enabled vf num */
+	int ret;
+
+	ret = hclge_get_vlan_filter_state(hdev, HCLGE_FILTER_TYPE_PORT, 0,
+					  &vlan_fe);
+	if (ret)
+		return ret;
+	ingress = vlan_fe & HCLGE_FILTER_FE_NIC_INGRESS_B;
+	egress = vlan_fe & HCLGE_FILTER_FE_NIC_EGRESS_B ? 1 : 0;
+
+	*pos += scnprintf(buf, len, "I_PORT_VLAN_FILTER: %s\n",
+			  state_str[ingress]);
+	*pos += scnprintf(buf + *pos, len - *pos, "E_PORT_VLAN_FILTER: %s\n",
+			  state_str[egress]);
+
+	hclge_dbg_fill_content(content, sizeof(content), vlan_filter_items,
+			       NULL, ARRAY_SIZE(vlan_filter_items));
+	*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+
+	for (i = 0; i < func_num; i++) {
+		ret = hclge_get_vlan_filter_state(hdev, HCLGE_FILTER_TYPE_VF, i,
+						  &vlan_fe);
+		if (ret)
+			return ret;
+
+		ingress = vlan_fe & HCLGE_FILTER_FE_NIC_INGRESS_B;
+		egress = vlan_fe & HCLGE_FILTER_FE_NIC_EGRESS_B ? 1 : 0;
+		ret = hclge_get_port_vlan_filter_bypass_state(hdev, i, &bypass);
+		if (ret)
+			return ret;
+		j = 0;
+		result[j++] = hclge_dbg_get_func_id_str(str_id, i);
+		result[j++] = state_str[ingress];
+		result[j++] = state_str[egress];
+		result[j++] =
+			test_bit(HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
+				 hdev->ae_dev->caps) ? state_str[bypass] : "NA";
+		hclge_dbg_fill_content(content, sizeof(content),
+				       vlan_filter_items, result,
+				       ARRAY_SIZE(vlan_filter_items));
+		*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+	}
+	*pos += scnprintf(buf + *pos, len - *pos, "\n");
+
+	return 0;
+}
+
+static int hclge_dbg_dump_vlan_offload_config(struct hclge_dev *hdev, char *buf,
+					      int len, int *pos)
+{
+	char str_id[HCLGE_DBG_ID_LEN], str_pvid[HCLGE_DBG_ID_LEN];
+	const char *result[ARRAY_SIZE(vlan_offload_items)];
+	char content[HCLGE_DBG_VLAN_OFFLOAD_INFO_LEN];
+	u8 func_num = pci_num_vf(hdev->pdev) + 1; /* pf and enabled vf num */
+	struct hclge_dbg_vlan_cfg vlan_cfg;
+	int ret;
+	u8 i, j;
+
+	hclge_dbg_fill_content(content, sizeof(content), vlan_offload_items,
+			       NULL, ARRAY_SIZE(vlan_offload_items));
+	*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+
+	for (i = 0; i < func_num; i++) {
+		ret = hclge_get_vlan_tx_offload_cfg(hdev, i, &vlan_cfg);
+		if (ret)
+			return ret;
+
+		ret = hclge_get_vlan_rx_offload_cfg(hdev, i, &vlan_cfg);
+		if (ret)
+			return ret;
+
+		sprintf(str_pvid, "%u", vlan_cfg.pvid);
+		j = 0;
+		result[j++] = hclge_dbg_get_func_id_str(str_id, i);
+		result[j++] = str_pvid;
+		result[j++] = state_str[vlan_cfg.accept_tag1];
+		result[j++] = state_str[vlan_cfg.accept_tag2];
+		result[j++] = state_str[vlan_cfg.accept_untag1];
+		result[j++] = state_str[vlan_cfg.accept_untag2];
+		result[j++] = state_str[vlan_cfg.insert_tag1];
+		result[j++] = state_str[vlan_cfg.insert_tag2];
+		result[j++] = state_str[vlan_cfg.shift_tag];
+		result[j++] = state_str[vlan_cfg.strip_tag1];
+		result[j++] = state_str[vlan_cfg.strip_tag2];
+		result[j++] = state_str[vlan_cfg.drop_tag1];
+		result[j++] = state_str[vlan_cfg.drop_tag2];
+		result[j++] = state_str[vlan_cfg.pri_only1];
+		result[j++] = state_str[vlan_cfg.pri_only2];
+
+		hclge_dbg_fill_content(content, sizeof(content),
+				       vlan_offload_items, result,
+				       ARRAY_SIZE(vlan_offload_items));
+		*pos += scnprintf(buf + *pos, len - *pos, "%s", content);
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_vlan_config(struct hclge_dev *hdev, char *buf,
+				      int len)
+{
+	int pos = 0;
+	int ret;
+
+	ret = hclge_dbg_dump_vlan_filter_config(hdev, buf, len, &pos);
+	if (ret)
+		return ret;
+
+	return hclge_dbg_dump_vlan_offload_config(hdev, buf, len, &pos);
+}
+
 static int hclge_dbg_dump_mac_uc(struct hclge_dev *hdev, char *buf, int len)
 {
 	hclge_dbg_dump_mac_list(hdev, buf, len, true);
@@ -2036,6 +2315,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_SERV_INFO,
 		.dbg_dump = hclge_dbg_dump_serv_info,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_VLAN_CONFIG,
+		.dbg_dump = hclge_dbg_dump_vlan_config,
 	},
 };
 

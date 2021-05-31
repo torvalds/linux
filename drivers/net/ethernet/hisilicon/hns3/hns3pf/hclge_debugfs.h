@@ -735,6 +735,8 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 };
 
 #define HCLGE_DBG_INFO_LEN			256
+#define HCLGE_DBG_VLAN_FLTR_INFO_LEN		256
+#define HCLGE_DBG_VLAN_OFFLOAD_INFO_LEN		512
 #define HCLGE_DBG_ID_LEN			16
 #define HCLGE_DBG_ITEM_NAME_LEN			32
 #define HCLGE_DBG_DATA_STR_LEN			32
@@ -745,6 +747,23 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 struct hclge_dbg_item {
 	char name[HCLGE_DBG_ITEM_NAME_LEN];
 	u16 interval; /* blank numbers after the item */
+};
+
+struct hclge_dbg_vlan_cfg {
+	u16 pvid;
+	u8 accept_tag1;
+	u8 accept_tag2;
+	u8 accept_untag1;
+	u8 accept_untag2;
+	u8 insert_tag1;
+	u8 insert_tag2;
+	u8 shift_tag;
+	u8 strip_tag1;
+	u8 strip_tag2;
+	u8 drop_tag1;
+	u8 drop_tag2;
+	u8 pri_only1;
+	u8 pri_only2;
 };
 
 #endif
