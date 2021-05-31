@@ -586,6 +586,7 @@ static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 	char tmpbuffer[LOG_BUFFER_ENTRY_SIZE];
 	u64 ts_nsec = local_clock();
 	unsigned long rem_nsec;
+	bool bypass_log = false;
 
 	mutex_lock(&port->logbuffer_lock);
 	if (!port->logbuffer[port->logbuffer_head]) {
@@ -598,6 +599,9 @@ static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 	}
 
 	vsnprintf(tmpbuffer, sizeof(tmpbuffer), fmt, args);
+	trace_android_vh_typec_tcpm_log(tmpbuffer, &bypass_log);
+	if (bypass_log)
+		goto abort;
 
 	if (tcpm_log_full(port)) {
 		port->logbuffer_head = max(port->logbuffer_head - 1, 0);
