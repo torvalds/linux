@@ -1148,9 +1148,8 @@ int qdio_establish(struct ccw_device *cdev,
 	}
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ESTABLISHED) {
-		mutex_unlock(&irq_ptr->setup_mutex);
-		qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
-		return -EIO;
+		rc = -EIO;
+		goto err_ccw_error;
 	}
 
 	qdio_setup_ssqd_info(irq_ptr);
@@ -1165,6 +1164,7 @@ int qdio_establish(struct ccw_device *cdev,
 
 err_ccw_timeout:
 	qdio_cancel_ccw(irq_ptr, QDIO_FLAG_CLEANUP_USING_CLEAR);
+err_ccw_error:
 err_ccw_start:
 	qdio_shutdown_thinint(irq_ptr);
 err_thinint:
