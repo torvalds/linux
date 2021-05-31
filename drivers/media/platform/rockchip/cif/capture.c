@@ -5208,7 +5208,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 			if (detect_stream->fs_cnt_in_single_frame >= 1)
 				v4l2_warn(&cif_dev->v4l2_dev,
-					  "%s:warn: fs has been incread:%d(frm0)\n",
+					  "%s:warn: fs has been incread:%u(frm0)\n",
 					  __func__, detect_stream->fs_cnt_in_single_frame);
 			detect_stream->fs_cnt_in_single_frame++;
 		}
@@ -5220,7 +5220,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 				rkcif_lvds_event_inc_sof(cif_dev);
 
 			if (detect_stream->fs_cnt_in_single_frame >= 1)
-				v4l2_warn(&cif_dev->v4l2_dev, "%s:warn: fs has been incread:%d(frm1)\n",
+				v4l2_warn(&cif_dev->v4l2_dev, "%s:warn: fs has been incread:%u(frm1)\n",
 				 __func__, detect_stream->fs_cnt_in_single_frame);
 			detect_stream->fs_cnt_in_single_frame++;
 		}
@@ -5272,18 +5272,19 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 			rkcif_update_stream(cif_dev, stream, mipi_id);
 			rkcif_monitor_reset_event(cif_dev);
-			if (stream->id == RKCIF_STREAM_MIPI_ID0 &&
-			    (intstat & (CSI_FRAME1_START_ID0 | CSI_FRAME0_START_ID0)) == 0 &&
-			     detect_stream->fs_cnt_in_single_frame > 1) {
-				v4l2_err(&cif_dev->v4l2_dev,
-					 "%s ERR: multi fs in oneframe, bak_int:0x%x, fs_num:%d\n",
-					 __func__,
-					 bak_intstat,
-					 detect_stream->fs_cnt_in_single_frame);
-				detect_stream->is_fs_fe_not_paired = true;
-				detect_stream->fs_cnt_in_single_frame = 0;
-			} else {
-				detect_stream->fs_cnt_in_single_frame--;
+			if (mipi_id == RKCIF_STREAM_MIPI_ID0) {
+				if ((intstat & (CSI_FRAME1_START_ID0 | CSI_FRAME0_START_ID0)) == 0 &&
+				    detect_stream->fs_cnt_in_single_frame > 1) {
+					v4l2_err(&cif_dev->v4l2_dev,
+						 "%s ERR: multi fs in oneframe, bak_int:0x%x, fs_num:%u\n",
+						 __func__,
+						 bak_intstat,
+						 detect_stream->fs_cnt_in_single_frame);
+					detect_stream->is_fs_fe_not_paired = true;
+					detect_stream->fs_cnt_in_single_frame = 0;
+				} else {
+					detect_stream->fs_cnt_in_single_frame--;
+				}
 			}
 		}
 		cif_dev->irq_stats.all_frm_end_cnt++;
