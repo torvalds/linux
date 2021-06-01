@@ -26,12 +26,40 @@
 
 #include <linux/iversion.h>
 
+/* Radix tree tags for incore inode tree. */
+
+/* inode is to be reclaimed */
+#define XFS_ICI_RECLAIM_TAG	0
+/* Inode has speculative preallocations (posteof or cow) to clean. */
+#define XFS_ICI_BLOCKGC_TAG	1
+
+/*
+ * The goal for walking incore inodes.  These can correspond with incore inode
+ * radix tree tags when convenient.  Avoid existing XFS_IWALK namespace.
+ */
+enum xfs_icwalk_goal {
+	/* Goals that are not related to tags; these must be < 0. */
+	XFS_ICWALK_DQRELE	= -1,
+
+	/* Goals directly associated with tagged inodes. */
+	XFS_ICWALK_BLOCKGC	= XFS_ICI_BLOCKGC_TAG,
+};
+
+#define XFS_ICWALK_NULL_TAG	(-1U)
+
+/* Compute the inode radix tree tag for this goal. */
+static inline unsigned int
+xfs_icwalk_tag(enum xfs_icwalk_goal goal)
+{
+	return goal < 0 ? XFS_ICWALK_NULL_TAG : goal;
+}
+
 static int xfs_icwalk(struct xfs_mount *mp, int iter_flags,
 		int (*execute)(struct xfs_inode *ip, void *args),
-		void *args, int tag);
+		void *args, enum xfs_icwalk_goal goal);
 static int xfs_icwalk_ag(struct xfs_perag *pag, int iter_flags,
 		int (*execute)(struct xfs_inode *ip, void *args),
-		void *args, int tag);
+		void *args, enum xfs_icwalk_goal goal);
 
 /*
  * Private inode cache walk flags for struct xfs_eofblocks.  Must not coincide
@@ -791,7 +819,7 @@ xfs_dqrele_all_inodes(
 		eofb.eof_flags |= XFS_ICWALK_FLAG_DROP_PDQUOT;
 
 	return xfs_icwalk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
-			&eofb, XFS_ICI_NO_TAG);
+			&eofb, XFS_ICWALK_DQRELE);
 }
 #endif /* CONFIG_XFS_QUOTA */
 
@@ -1539,7 +1567,7 @@ xfs_blockgc_worker(
 	if (!sb_start_write_trylock(mp->m_super))
 		return;
 	error = xfs_icwalk_ag(pag, 0, xfs_blockgc_scan_inode, NULL,
-			XFS_ICI_BLOCKGC_TAG);
+			XFS_ICWALK_BLOCKGC);
 	if (error)
 		xfs_info(mp, "AG %u preallocation gc worker failed, err=%d",
 				pag->pag_agno, error);
@@ -1558,7 +1586,7 @@ xfs_blockgc_free_space(
 	trace_xfs_blockgc_free_space(mp, eofb, _RET_IP_);
 
 	return xfs_icwalk(mp, 0, xfs_blockgc_scan_inode, eofb,
-			XFS_ICI_BLOCKGC_TAG);
+			XFS_ICWALK_BLOCKGC);
 }
 
 /*
@@ -1639,7 +1667,7 @@ xfs_icwalk_ag(
 	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, void *args),
 	void			*args,
-	int			tag)
+	enum xfs_icwalk_goal	goal)
 {
 	struct xfs_mount	*mp = pag->pag_mount;
 	uint32_t		first_index;
@@ -1655,12 +1683,13 @@ restart:
 	nr_found = 0;
 	do {
 		struct xfs_inode *batch[XFS_LOOKUP_BATCH];
+		unsigned int	tag = xfs_icwalk_tag(goal);
 		int		error = 0;
 		int		i;
 
 		rcu_read_lock();
 
-		if (tag == XFS_ICI_NO_TAG)
+		if (tag == XFS_ICWALK_NULL_TAG)
 			nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
 					(void **)batch, first_index,
 					XFS_LOOKUP_BATCH);
@@ -1743,9 +1772,11 @@ static inline struct xfs_perag *
 xfs_icwalk_get_perag(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
-	int			tag)
+	enum xfs_icwalk_goal	goal)
 {
-	if (tag == XFS_ICI_NO_TAG)
+	unsigned int		tag = xfs_icwalk_tag(goal);
+
+	if (tag == XFS_ICWALK_NULL_TAG)
 		return xfs_perag_get(mp, agno);
 	return xfs_perag_get_tag(mp, agno, tag);
 }
@@ -1760,16 +1791,16 @@ xfs_icwalk(
 	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, void *args),
 	void			*args,
-	int			tag)
+	enum xfs_icwalk_goal	goal)
 {
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			last_error = 0;
 	xfs_agnumber_t		agno = 0;
 
-	while ((pag = xfs_icwalk_get_perag(mp, agno, tag))) {
+	while ((pag = xfs_icwalk_get_perag(mp, agno, goal))) {
 		agno = pag->pag_agno + 1;
-		error = xfs_icwalk_ag(pag, iter_flags, execute, args, tag);
+		error = xfs_icwalk_ag(pag, iter_flags, execute, args, goal);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
