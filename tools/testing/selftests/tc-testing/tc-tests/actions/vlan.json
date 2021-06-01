@@ -463,7 +463,7 @@
         "cmdUnderTest": "$TC actions add action vlan modify protocol 802.1Q id 5 index 100",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action vlan index 100",
-        "matchPattern": "action order [0-9]+: vlan.*modify id 100 protocol 802.1Q priority 0 pipe.*index 100 ref",
+        "matchPattern": "action order [0-9]+: vlan.*modify id 100 protocol 802.1Q pipe.*index 100 ref",
         "matchCount": "0",
         "teardown": [
             "$TC actions flush action vlan"
@@ -487,7 +487,7 @@
         "cmdUnderTest": "$TC actions add action vlan modify protocol 802.1ad id 500 reclassify index 12",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action vlan index 12",
-        "matchPattern": "action order [0-9]+: vlan.*modify id 500 protocol 802.1ad priority 0 reclassify.*index 12 ref",
+        "matchPattern": "action order [0-9]+: vlan.*modify id 500 protocol 802.1ad reclassify.*index 12 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action vlan"
