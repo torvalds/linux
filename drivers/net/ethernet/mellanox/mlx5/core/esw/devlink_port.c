@@ -116,8 +116,10 @@ void mlx5_esw_offloads_devlink_port_unregister(struct mlx5_eswitch *esw, u16 vpo
 	if (IS_ERR(vport))
 		return;
 
-	if (vport->dl_port->devlink_rate)
+	if (vport->dl_port->devlink_rate) {
+		mlx5_esw_qos_vport_update_group(esw, vport, NULL, NULL);
 		devlink_rate_leaf_destroy(vport->dl_port);
+	}
 
 	devlink_port_unregister(vport->dl_port);
 	mlx5_esw_dl_port_free(vport->dl_port);
@@ -178,8 +180,10 @@ void mlx5_esw_devlink_sf_port_unregister(struct mlx5_eswitch *esw, u16 vport_num
 	if (IS_ERR(vport))
 		return;
 
-	if (vport->dl_port->devlink_rate)
+	if (vport->dl_port->devlink_rate) {
+		mlx5_esw_qos_vport_update_group(esw, vport, NULL, NULL);
 		devlink_rate_leaf_destroy(vport->dl_port);
+	}
 
 	devlink_port_unregister(vport->dl_port);
 	vport->dl_port = NULL;
