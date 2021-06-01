@@ -2872,7 +2872,7 @@ static void vop2_plane_setup_color_key(struct drm_plane *plane)
 		break;
 	}
 
-	color_key = (r << 20) || (g << 10) || b;
+	color_key = (r << 20) | (g << 10) | b;
 	VOP_WIN_SET(vop2, win, color_key_en, color_key_en);
 	VOP_WIN_SET(vop2, win, color_key, color_key);
 }
