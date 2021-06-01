@@ -31,6 +31,7 @@ properties:
               - rockchip,rk3308-core-grf
               - rockchip,rk3308-detect-grf
               - rockchip,rk3308-grf
+              - rockchip,rk3308-usb2phy-grf
               - rockchip,rk3328-grf
               - rockchip,rk3328-usb2phy-grf
               - rockchip,rk3368-grf
@@ -174,6 +175,7 @@ allOf:
             enum:
               - rockchip,px30-usb2phy-grf
               - rockchip,rk3228-grf
+              - rockchip,rk3308-usb2phy-grf
               - rockchip,rk3328-usb2phy-grf
               - rockchip,rk3399-grf
               - rockchip,rv1108-grf
