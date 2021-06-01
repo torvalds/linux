@@ -613,11 +613,6 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->last_frame_number = 0;
 	runtime->delay = 0;
 
-	/* for playback, submit the URBs now; otherwise, the first hwptr_done
-	 * updates for all URBs would happen at the same time when starting */
-	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = start_endpoints(subs);
-
  unlock:
 	snd_usb_unlock_shutdown(chip);
 	return ret;
@@ -1430,6 +1425,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 					      int cmd)
 {
 	struct snd_usb_substream *subs = substream->runtime->private_data;
+	int err;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1440,6 +1436,14 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 					      prepare_playback_urb,
 					      retire_playback_urb,
 					      subs);
+		if (cmd == SNDRV_PCM_TRIGGER_START) {
+			err = start_endpoints(subs);
+			if (err < 0) {
+				snd_usb_endpoint_set_callback(subs->data_endpoint,
+							      NULL, NULL, NULL);
+				return err;
+			}
+		}
 		subs->running = 1;
 		dev_dbg(&subs->dev->dev, "%d:%d Start Playback PCM\n",
 			subs->cur_audiofmt->iface,
