@@ -1996,8 +1996,7 @@
 				ranges = <0 0 0x1000>;
 
 				ecap0: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -2056,8 +2055,7 @@
 				ranges = <0 0 0x1000>;
 
 				ecap1: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -2116,8 +2114,7 @@
 				ranges = <0 0 0x1000>;
 
 				ecap2: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
