@@ -908,13 +908,10 @@ static u8 hns3_get_netdev_flags(struct net_device *netdev)
 {
 	u8 flags = 0;
 
-	if (netdev->flags & IFF_PROMISC) {
+	if (netdev->flags & IFF_PROMISC)
 		flags = HNAE3_USER_UPE | HNAE3_USER_MPE | HNAE3_BPE;
-	} else {
-		flags |= HNAE3_VLAN_FLTR;
-		if (netdev->flags & IFF_ALLMULTI)
-			flags |= HNAE3_USER_MPE;
-	}
+	else if (netdev->flags & IFF_ALLMULTI)
+		flags = HNAE3_USER_MPE;
 
 	return flags;
 }
@@ -942,25 +939,6 @@ void hns3_request_update_promisc_mode(struct hnae3_handle *handle)
 
 	if (ops->request_update_promisc_mode)
 		ops->request_update_promisc_mode(handle);
-}
-
-void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	bool last_state;
-
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2 &&
-	    h->ae_algo->ops->enable_vlan_filter) {
-		last_state = h->netdev_flags & HNAE3_VLAN_FLTR ? true : false;
-		if (enable != last_state) {
-			netdev_info(netdev,
-				    "%s vlan filter\n",
-				    enable ? "enable" : "disable");
-			h->ae_algo->ops->enable_vlan_filter(h, enable);
-		}
-	}
 }
 
 static int hns3_set_tso(struct sk_buff *skb, u32 *paylen_fdop_ol4cs,
@@ -1980,6 +1958,14 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		return -EINVAL;
 	}
 
+	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    h->ae_algo->ops->enable_vlan_filter) {
+		enable = !!(features & NETIF_F_HW_VLAN_CTAG_FILTER);
+		ret = h->ae_algo->ops->enable_vlan_filter(h, enable);
+		if (ret)
+			return ret;
+	}
+
 	netdev->features = features;
 	return 0;
 }
@@ -2825,6 +2811,9 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		netdev->hw_features |= NETIF_F_HW_TC;
 		netdev->features |= NETIF_F_HW_TC;
 	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,

@@ -309,6 +309,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
+	{
+		.name = "vlan_config",
+		.cmd = HNAE3_DBG_CMD_VLAN_CONFIG,
+		.dentry = HNS3_DBG_DENTRY_COMMON,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
 };
 
 static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
@@ -345,7 +352,13 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support rxd advanced layout",
 		.cap_bit = HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
-	},
+	}, {
+		.name = "support port vlan bypass",
+		.cap_bit = HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
+	}, {
+		.name = "support modify vlan filter state",
+		.cap_bit = HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B,
+	}
 };
 
 static void hns3_dbg_fill_content(char *content, u16 len,
