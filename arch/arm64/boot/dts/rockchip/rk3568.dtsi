@@ -1420,6 +1420,7 @@
 		rockchip,sram = <&rkvdec_sram>;
 		/* rcb_iova: start and size */
 		rockchip,rcb-iova = <0x10000000 65536>;
+		rockchip,rcb-min-width = <512>;
 		status = "disabled";
 	};
 
