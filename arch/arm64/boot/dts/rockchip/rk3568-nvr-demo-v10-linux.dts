@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "rk3568-nvr-demo-v10.dtsi"
-#include "rk3568-linux.dtsi"
+#include "rk3568-nvr-linux.dtsi"
 
 / {
 	model = "Rockchip RK3568 NVR DEMO DDR4 V10 Linux Board";
