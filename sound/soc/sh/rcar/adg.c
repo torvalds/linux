@@ -28,6 +28,7 @@ static struct rsnd_mod_ops adg_ops = {
 struct rsnd_adg {
 	struct clk *clk[CLKMAX];
 	struct clk *clkout[CLKOUTMAX];
+	struct clk *null_clk;
 	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
 	int clk_rate[CLKMAX];
@@ -363,53 +364,52 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
 	int i;
 
 	for_each_rsnd_clk(clk, adg, i) {
 		if (enable) {
-			int ret = clk_prepare_enable(clk);
+			clk_prepare_enable(clk);
 
 			/*
 			 * We shouldn't use clk_get_rate() under
 			 * atomic context. Let's keep it when
 			 * rsnd_adg_clk_enable() was called
 			 */
-			adg->clk_rate[i] = 0;
-			if (ret < 0)
-				dev_warn(dev, "can't use clk %d\n", i);
-			else
-				adg->clk_rate[i] = clk_get_rate(clk);
+			adg->clk_rate[i] = clk_get_rate(clk);
 		} else {
-			if (adg->clk_rate[i])
-				clk_disable_unprepare(clk);
-			adg->clk_rate[i] = 0;
+			clk_disable_unprepare(clk);
 		}
 	}
 }
 
-#define NULL_CLK "rsnd_adg_null"
-static struct clk *rsnd_adg_null_clk_get(struct rsnd_priv *priv)
+static struct clk *rsnd_adg_create_null_clk(struct rsnd_priv *priv,
+					    const char * const name,
+					    const char *parent)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct clk *clk;
 
-	if (!priv->null_hw) {
-		struct clk_hw *_hw;
-		int ret;
-
-		_hw = clk_hw_register_fixed_rate_with_accuracy(dev, NULL_CLK, NULL, 0, 0, 0);
-		if (IS_ERR(_hw))
-			return NULL;
-
-		ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_simple_get, _hw);
-		if (ret < 0)
-			clk_hw_unregister_fixed_rate(_hw);
-
-		priv->null_hw = _hw;
+	clk = clk_register_fixed_rate(dev, name, parent, 0, 0);
+	if (IS_ERR(clk)) {
+		dev_err(dev, "create null clk error\n");
+		return NULL;
 	}
 
-	return clk_hw_get_clk(priv->null_hw, NULL_CLK);
+	return clk;
+}
+
+static struct clk *rsnd_adg_null_clk_get(struct rsnd_priv *priv)
+{
+	struct rsnd_adg *adg = priv->adg;
+
+	if (!adg->null_clk) {
+		static const char * const name = "rsnd_adg_null";
+
+		adg->null_clk = rsnd_adg_create_null_clk(priv, name, NULL);
+	}
+
+	return adg->null_clk;
 }
 
 static void rsnd_adg_get_clkin(struct rsnd_priv *priv)
@@ -666,10 +666,12 @@ void rsnd_adg_remove(struct rsnd_priv *priv)
 	for_each_rsnd_clkout(clk, adg, i)
 		if (adg->clkout[i])
 			clk_unregister_fixed_rate(adg->clkout[i]);
-	if (priv->null_hw)
-		clk_hw_unregister_fixed_rate(priv->null_hw);
 
 	of_clk_del_provider(np);
 
 	rsnd_adg_clk_disable(priv);
+
+	/* It should be called after rsnd_adg_clk_disable() */
+	if (adg->null_clk)
+		clk_unregister_fixed_rate(adg->null_clk);
 }
