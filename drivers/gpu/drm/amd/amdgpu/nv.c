@@ -685,7 +685,10 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->flags & AMD_IS_APU) {
+	if (adev->asic_type == CHIP_CYAN_SKILLFISH) {
+		adev->nbio.funcs = &nbio_v2_3_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
+	} else if (adev->flags & AMD_IS_APU) {
 		adev->nbio.funcs = &nbio_v7_2_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_2_hdp_flush_reg;
 	} else {
