@@ -190,6 +190,9 @@ static int convert_variable_location(Dwarf_Die *vr_die, Dwarf_Addr addr,
 	    immediate_value_is_supported()) {
 		Dwarf_Sword snum;
 
+		if (!tvar)
+			return 0;
+
 		dwarf_formsdata(&attr, &snum);
 		ret = asprintf(&tvar->value, "\\%ld", (long)snum);
 
