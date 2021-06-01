@@ -584,6 +584,7 @@ rsnd_adg_get_clkout_end:
 }
 
 #if defined(DEBUG) || defined(CONFIG_DEBUG_FS)
+__printf(3, 4)
 static void dbg_msg(struct device *dev, struct seq_file *m,
 				   const char *fmt, ...)
 {
