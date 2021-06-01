@@ -479,8 +479,7 @@ static int hns_roce_v1_set_hem(struct hns_roce_dev *hr_dev,
 	long end;
 
 	/* Find the HEM(Hardware Entry Memory) entry */
-	unsigned long i = (obj & (table->num_obj - 1)) /
-			  (table->table_chunk_size / table->obj_size);
+	unsigned long i = obj / (table->table_chunk_size / table->obj_size);
 
 	switch (table->type) {
 	case HEM_TYPE_QPC:

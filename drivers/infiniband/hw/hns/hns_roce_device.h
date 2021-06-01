@@ -262,8 +262,6 @@ struct hns_roce_hem_table {
 	u32		type;
 	/* HEM array elment num */
 	unsigned long	num_hem;
-	/* HEM entry record obj total num */
-	unsigned long	num_obj;
 	/* Single obj size */
 	unsigned long	obj_size;
 	unsigned long	table_chunk_size;
@@ -742,6 +740,7 @@ struct hns_roce_caps {
 	u32		max_rq_sg;
 	u32		max_extend_sg;
 	u32		num_qps;
+	u32		num_pi_qps;
 	u32		reserved_qps;
 	int		num_qpc_timer;
 	int		num_cqc_timer;
@@ -1048,7 +1047,7 @@ static inline void hns_roce_write64_k(__le32 val[2], void __iomem *dest)
 static inline struct hns_roce_qp
 	*__hns_roce_qp_lookup(struct hns_roce_dev *hr_dev, u32 qpn)
 {
-	return xa_load(&hr_dev->qp_table_xa, qpn & (hr_dev->caps.num_qps - 1));
+	return xa_load(&hr_dev->qp_table_xa, qpn);
 }
 
 static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf,

@@ -1675,6 +1675,29 @@ static int load_func_res_caps(struct hns_roce_dev *hr_dev, bool is_vf)
 	return 0;
 }
 
+static int load_ext_cfg_caps(struct hns_roce_dev *hr_dev, bool is_vf)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
+	struct hns_roce_caps *caps = &hr_dev->caps;
+	u32 func_num, qp_num;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_EXT_CFG, true);
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	func_num = is_vf ? 1 : max_t(u32, 1, hr_dev->func_num);
+	qp_num = hr_reg_read(req, EXT_CFG_QP_PI_NUM) / func_num;
+	caps->num_pi_qps = round_down(qp_num, HNS_ROCE_QP_BANK_NUM);
+
+	qp_num = hr_reg_read(req, EXT_CFG_QP_NUM) / func_num;
+	caps->num_qps = round_down(qp_num, HNS_ROCE_QP_BANK_NUM);
+
+	return 0;
+}
+
 static int load_pf_timer_res_caps(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmq_desc desc;
@@ -1695,27 +1718,48 @@ static int load_pf_timer_res_caps(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int query_func_resource_caps(struct hns_roce_dev *hr_dev, bool is_vf)
+{
+	struct device *dev = hr_dev->dev;
+	int ret;
+
+	ret = load_func_res_caps(hr_dev, is_vf);
+	if (ret) {
+		dev_err(dev, "failed to load res caps, ret = %d (%s).\n", ret,
+			is_vf ? "vf" : "pf");
+		return ret;
+	}
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
+		ret = load_ext_cfg_caps(hr_dev, is_vf);
+		if (ret)
+			dev_err(dev, "failed to load ext cfg, ret = %d (%s).\n",
+				ret, is_vf ? "vf" : "pf");
+	}
+
+	return ret;
+}
+
 static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 {
 	struct device *dev = hr_dev->dev;
 	int ret;
 
-	ret = load_func_res_caps(hr_dev, false);
-	if (ret) {
-		dev_err(dev, "failed to load func caps, ret = %d.\n", ret);
+	ret = query_func_resource_caps(hr_dev, false);
+	if (ret)
 		return ret;
-	}
 
 	ret = load_pf_timer_res_caps(hr_dev);
 	if (ret)
-		dev_err(dev, "failed to load timer res, ret = %d.\n", ret);
+		dev_err(dev, "failed to load pf timer resource, ret = %d.\n",
+			ret);
 
 	return ret;
 }
 
 static int hns_roce_query_vf_resource(struct hns_roce_dev *hr_dev)
 {
-	return load_func_res_caps(hr_dev, true);
+	return query_func_resource_caps(hr_dev, true);
 }
 
 static int __hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev,
@@ -1802,6 +1846,24 @@ static int config_vf_hem_resource(struct hns_roce_dev *hr_dev, int vf_id)
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
 
+static int config_vf_ext_resource(struct hns_roce_dev *hr_dev, u32 vf_id)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
+	struct hns_roce_caps *caps = &hr_dev->caps;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_EXT_CFG, false);
+
+	hr_reg_write(req, EXT_CFG_VF_ID, vf_id);
+
+	hr_reg_write(req, EXT_CFG_QP_PI_NUM, caps->num_pi_qps);
+	hr_reg_write(req, EXT_CFG_QP_PI_IDX, vf_id * caps->num_pi_qps);
+	hr_reg_write(req, EXT_CFG_QP_NUM, caps->num_qps);
+	hr_reg_write(req, EXT_CFG_QP_IDX, vf_id * caps->num_qps);
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
 static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 {
 	u32 func_num = max_t(u32, 1, hr_dev->func_num);
@@ -1810,8 +1872,22 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 
 	for (vf_id = 0; vf_id < func_num; vf_id++) {
 		ret = config_vf_hem_resource(hr_dev, vf_id);
-		if (ret)
+		if (ret) {
+			dev_err(hr_dev->dev,
+				"failed to config vf-%u hem res, ret = %d.\n",
+				vf_id, ret);
 			return ret;
+		}
+
+		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
+			ret = config_vf_ext_resource(hr_dev, vf_id);
+			if (ret) {
+				dev_err(hr_dev->dev,
+					"failed to config vf-%u ext res, ret = %d.\n",
+					vf_id, ret);
+				return ret;
+			}
+		}
 	}
 
 	return 0;

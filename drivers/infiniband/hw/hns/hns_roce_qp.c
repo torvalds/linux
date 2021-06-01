@@ -379,7 +379,7 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		list_del(&hr_qp->rq_node);
 
 	xa_lock_irqsave(xa, flags);
-	__xa_erase(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1));
+	__xa_erase(xa, hr_qp->qpn);
 	xa_unlock_irqrestore(xa, flags);
 }
 

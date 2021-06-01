@@ -224,8 +224,7 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 	chunk_ba_num = mhop->bt_chunk_size / BA_BYTE_LEN;
 	chunk_size = table->type < HEM_TYPE_MTT ? mhop->buf_chunk_size :
 			      mhop->bt_chunk_size;
-	table_idx = (*obj & (table->num_obj - 1)) /
-		     (chunk_size / table->obj_size);
+	table_idx = *obj / (chunk_size / table->obj_size);
 	switch (bt_num) {
 	case 3:
 		mhop->l2_idx = table_idx & (chunk_ba_num - 1);
@@ -578,8 +577,7 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 	if (hns_roce_check_whether_mhop(hr_dev, table->type))
 		return hns_roce_table_mhop_get(hr_dev, table, obj);
 
-	i = (obj & (table->num_obj - 1)) / (table->table_chunk_size /
-	     table->obj_size);
+	i = obj / (table->table_chunk_size / table->obj_size);
 
 	mutex_lock(&table->mutex);
 
@@ -697,8 +695,7 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 		return;
 	}
 
-	i = (obj & (table->num_obj - 1)) /
-	    (table->table_chunk_size / table->obj_size);
+	i = obj / (table->table_chunk_size / table->obj_size);
 
 	if (!refcount_dec_and_mutex_lock(&table->hem[i]->refcount,
 					 &table->mutex))
@@ -736,8 +733,8 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type)) {
 		obj_per_chunk = table->table_chunk_size / table->obj_size;
-		hem = table->hem[(obj & (table->num_obj - 1)) / obj_per_chunk];
-		idx_offset = (obj & (table->num_obj - 1)) % obj_per_chunk;
+		hem = table->hem[obj / obj_per_chunk];
+		idx_offset = obj % obj_per_chunk;
 		dma_offset = offset = idx_offset * table->obj_size;
 	} else {
 		u32 seg_size = 64; /* 8 bytes per BA and 8 BA per segment */
@@ -754,8 +751,7 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 			hem_idx = i;
 
 		hem = table->hem[hem_idx];
-		dma_offset = offset = (obj & (table->num_obj - 1)) * seg_size %
-				       mhop.bt_chunk_size;
+		dma_offset = offset = obj * seg_size % mhop.bt_chunk_size;
 		if (mhop.hop_num == 2)
 			dma_offset = offset = 0;
 	}
@@ -797,7 +793,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 	if (!hns_roce_check_whether_mhop(hr_dev, type)) {
 		table->table_chunk_size = hr_dev->caps.chunk_sz;
 		obj_per_chunk = table->table_chunk_size / obj_size;
-		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
+		num_hem = DIV_ROUND_UP(nobj, obj_per_chunk);
 
 		table->hem = kcalloc(num_hem, sizeof(*table->hem), GFP_KERNEL);
 		if (!table->hem)
@@ -819,8 +815,9 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		hop_num = mhop.hop_num;
 
 		obj_per_chunk = buf_chunk_size / obj_size;
-		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
+		num_hem = DIV_ROUND_UP(nobj, obj_per_chunk);
 		bt_chunk_num = bt_chunk_size / BA_BYTE_LEN;
+
 		if (type >= HEM_TYPE_MTT)
 			num_bt_l0 = bt_chunk_num;
 
@@ -832,8 +829,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		if (check_whether_bt_num_3(type, hop_num)) {
 			unsigned long num_bt_l1;
 
-			num_bt_l1 = (num_hem + bt_chunk_num - 1) /
-					     bt_chunk_num;
+			num_bt_l1 = DIV_ROUND_UP(num_hem, bt_chunk_num);
 			table->bt_l1 = kcalloc(num_bt_l1,
 					       sizeof(*table->bt_l1),
 					       GFP_KERNEL);
@@ -865,7 +861,6 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 
 	table->type = type;
 	table->num_hem = num_hem;
-	table->num_obj = nobj;
 	table->obj_size = obj_size;
 	table->lowmem = use_lowmem;
 	mutex_init(&table->mutex);
