@@ -266,6 +266,25 @@ config CRYPTO_DEV_NIAGARA2
 	  Group, which can perform encryption, decryption, hashing,
 	  checksumming, and raw copies.
 
+config CRYPTO_DEV_SL3516
+	tristate "Stormlink SL3516 crypto offloader"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ENGINE
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select HW_RANDOM
+	help
+	  This option allows you to have support for SL3516 crypto offloader.
+
+config CRYPTO_DEV_SL3516_DEBUG
+	bool "Enable SL3516 stats"
+	depends on CRYPTO_DEV_SL3516
+	depends on DEBUG_FS
+	help
+	  Say y to enable SL3516 debug stats.
+	  This will create /sys/kernel/debug/sl3516/stats for displaying
+	  the number of requests per algorithm and other internal stats.
+
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
 	select CRYPTO_LIB_DES
