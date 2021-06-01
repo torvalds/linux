@@ -995,6 +995,7 @@ void acpi_resume_power_resources(void)
 
 	mutex_unlock(&power_resource_list_lock);
 }
+#endif
 
 void acpi_turn_off_unused_power_resources(void)
 {
@@ -1015,4 +1016,3 @@ void acpi_turn_off_unused_power_resources(void)
 
 	mutex_unlock(&power_resource_list_lock);
 }
-#endif

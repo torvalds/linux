@@ -47,7 +47,7 @@
 #include <asm/realmode.h>
 #include <asm/time.h>
 #include <asm/pgalloc.h>
-#include <asm/sev-es.h>
+#include <asm/sev.h>
 
 /*
  * We allocate runtime services regions top-down, starting from -4G, i.e.

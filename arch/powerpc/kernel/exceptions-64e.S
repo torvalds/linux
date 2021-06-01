@@ -340,6 +340,12 @@ ret_from_mc_except:
 	andi.	r10,r10,IRQS_DISABLED;	/* yes -> go out of line */ \
 	bne	masked_interrupt_book3e_##n
 
+/*
+ * Additional regs must be re-loaded from paca before EXCEPTION_COMMON* is
+ * called, because that does SAVE_NVGPRS which must see the original register
+ * values, otherwise the scratch values might be restored when exiting the
+ * interrupt.
+ */
 #define PROLOG_ADDITION_2REGS_GEN(n)					    \
 	std	r14,PACA_EXGEN+EX_R14(r13);				    \
 	std	r15,PACA_EXGEN+EX_R15(r13)
@@ -535,6 +541,10 @@ __end_interrupts:
 				PROLOG_ADDITION_2REGS)
 	mfspr	r14,SPRN_DEAR
 	mfspr	r15,SPRN_ESR
+	std	r14,_DAR(r1)
+	std	r15,_DSISR(r1)
+	ld	r14,PACA_EXGEN+EX_R14(r13)
+	ld	r15,PACA_EXGEN+EX_R15(r13)
 	EXCEPTION_COMMON(0x300)
 	b	storage_fault_common
 
@@ -544,6 +554,10 @@ __end_interrupts:
 				PROLOG_ADDITION_2REGS)
 	li	r15,0
 	mr	r14,r10
+	std	r14,_DAR(r1)
+	std	r15,_DSISR(r1)
+	ld	r14,PACA_EXGEN+EX_R14(r13)
+	ld	r15,PACA_EXGEN+EX_R15(r13)
 	EXCEPTION_COMMON(0x400)
 	b	storage_fault_common
 
@@ -557,6 +571,10 @@ __end_interrupts:
 				PROLOG_ADDITION_2REGS)
 	mfspr	r14,SPRN_DEAR
 	mfspr	r15,SPRN_ESR
+	std	r14,_DAR(r1)
+	std	r15,_DSISR(r1)
+	ld	r14,PACA_EXGEN+EX_R14(r13)
+	ld	r15,PACA_EXGEN+EX_R15(r13)
 	EXCEPTION_COMMON(0x600)
 	b	alignment_more	/* no room, go out of line */
 
@@ -565,10 +583,10 @@ __end_interrupts:
 	NORMAL_EXCEPTION_PROLOG(0x700, BOOKE_INTERRUPT_PROGRAM,
 				PROLOG_ADDITION_1REG)
 	mfspr	r14,SPRN_ESR
-	EXCEPTION_COMMON(0x700)
 	std	r14,_DSISR(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXGEN+EX_R14(r13)
+	EXCEPTION_COMMON(0x700)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	program_check_exception
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -725,11 +743,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	 * normal exception
 	 */
 	mfspr	r14,SPRN_DBSR
-	EXCEPTION_COMMON_CRIT(0xd00)
 	std	r14,_DSISR(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXCRIT+EX_R14(r13)
 	ld	r15,PACA_EXCRIT+EX_R15(r13)
+	EXCEPTION_COMMON_CRIT(0xd00)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	DebugException
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -796,11 +814,11 @@ kernel_dbg_exc:
 	 * normal exception
 	 */
 	mfspr	r14,SPRN_DBSR
-	EXCEPTION_COMMON_DBG(0xd08)
 	std	r14,_DSISR(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXDBG+EX_R14(r13)
 	ld	r15,PACA_EXDBG+EX_R15(r13)
+	EXCEPTION_COMMON_DBG(0xd08)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	DebugException
 	REST_NVGPRS(r1)
 	b	interrupt_return
@@ -931,11 +949,7 @@ masked_interrupt_book3e_0x2c0:
  * original values stashed away in the PACA
  */
 storage_fault_common:
-	std	r14,_DAR(r1)
-	std	r15,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ld	r14,PACA_EXGEN+EX_R14(r13)
-	ld	r15,PACA_EXGEN+EX_R15(r13)
 	bl	do_page_fault
 	b	interrupt_return
 
@@ -944,11 +958,7 @@ storage_fault_common:
  * continues here.
  */
 alignment_more:
-	std	r14,_DAR(r1)
-	std	r15,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ld	r14,PACA_EXGEN+EX_R14(r13)
-	ld	r15,PACA_EXGEN+EX_R15(r13)
 	bl	alignment_exception
 	REST_NVGPRS(r1)
 	b	interrupt_return

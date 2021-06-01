@@ -2979,6 +2979,9 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		    (rdev->pdev->device == 0x6605)) {
 			max_sclk = 75000;
 		}
+
+		if (rdev->pm.dpm.high_pixelclock_count > 1)
+			disable_sclk_switching = true;
 	}
 
 	if (rps->vce_active) {
@@ -4350,70 +4353,70 @@ static int si_populate_smc_initial_state(struct radeon_device *rdev,
 	u32 reg;
 	int ret;
 
-	table->initialState.levels[0].mclk.vDLL_CNTL =
+	table->initialState.level.mclk.vDLL_CNTL =
 		cpu_to_be32(si_pi->clock_registers.dll_cntl);
-	table->initialState.levels[0].mclk.vMCLK_PWRMGT_CNTL =
+	table->initialState.level.mclk.vMCLK_PWRMGT_CNTL =
 		cpu_to_be32(si_pi->clock_registers.mclk_pwrmgt_cntl);
-	table->initialState.levels[0].mclk.vMPLL_AD_FUNC_CNTL =
+	table->initialState.level.mclk.vMPLL_AD_FUNC_CNTL =
 		cpu_to_be32(si_pi->clock_registers.mpll_ad_func_cntl);
-	table->initialState.levels[0].mclk.vMPLL_DQ_FUNC_CNTL =
+	table->initialState.level.mclk.vMPLL_DQ_FUNC_CNTL =
 		cpu_to_be32(si_pi->clock_registers.mpll_dq_func_cntl);
-	table->initialState.levels[0].mclk.vMPLL_FUNC_CNTL =
+	table->initialState.level.mclk.vMPLL_FUNC_CNTL =
 		cpu_to_be32(si_pi->clock_registers.mpll_func_cntl);
-	table->initialState.levels[0].mclk.vMPLL_FUNC_CNTL_1 =
+	table->initialState.level.mclk.vMPLL_FUNC_CNTL_1 =
 		cpu_to_be32(si_pi->clock_registers.mpll_func_cntl_1);
-	table->initialState.levels[0].mclk.vMPLL_FUNC_CNTL_2 =
+	table->initialState.level.mclk.vMPLL_FUNC_CNTL_2 =
 		cpu_to_be32(si_pi->clock_registers.mpll_func_cntl_2);
-	table->initialState.levels[0].mclk.vMPLL_SS =
+	table->initialState.level.mclk.vMPLL_SS =
 		cpu_to_be32(si_pi->clock_registers.mpll_ss1);
-	table->initialState.levels[0].mclk.vMPLL_SS2 =
+	table->initialState.level.mclk.vMPLL_SS2 =
 		cpu_to_be32(si_pi->clock_registers.mpll_ss2);
 
-	table->initialState.levels[0].mclk.mclk_value =
+	table->initialState.level.mclk.mclk_value =
 		cpu_to_be32(initial_state->performance_levels[0].mclk);
 
-	table->initialState.levels[0].sclk.vCG_SPLL_FUNC_CNTL =
+	table->initialState.level.sclk.vCG_SPLL_FUNC_CNTL =
 		cpu_to_be32(si_pi->clock_registers.cg_spll_func_cntl);
-	table->initialState.levels[0].sclk.vCG_SPLL_FUNC_CNTL_2 =
+	table->initialState.level.sclk.vCG_SPLL_FUNC_CNTL_2 =
 		cpu_to_be32(si_pi->clock_registers.cg_spll_func_cntl_2);
-	table->initialState.levels[0].sclk.vCG_SPLL_FUNC_CNTL_3 =
+	table->initialState.level.sclk.vCG_SPLL_FUNC_CNTL_3 =
 		cpu_to_be32(si_pi->clock_registers.cg_spll_func_cntl_3);
-	table->initialState.levels[0].sclk.vCG_SPLL_FUNC_CNTL_4 =
+	table->initialState.level.sclk.vCG_SPLL_FUNC_CNTL_4 =
 		cpu_to_be32(si_pi->clock_registers.cg_spll_func_cntl_4);
-	table->initialState.levels[0].sclk.vCG_SPLL_SPREAD_SPECTRUM =
+	table->initialState.level.sclk.vCG_SPLL_SPREAD_SPECTRUM =
 		cpu_to_be32(si_pi->clock_registers.cg_spll_spread_spectrum);
-	table->initialState.levels[0].sclk.vCG_SPLL_SPREAD_SPECTRUM_2  =
+	table->initialState.level.sclk.vCG_SPLL_SPREAD_SPECTRUM_2  =
 		cpu_to_be32(si_pi->clock_registers.cg_spll_spread_spectrum_2);
 
-	table->initialState.levels[0].sclk.sclk_value =
+	table->initialState.level.sclk.sclk_value =
 		cpu_to_be32(initial_state->performance_levels[0].sclk);
 
-	table->initialState.levels[0].arbRefreshState =
+	table->initialState.level.arbRefreshState =
 		SISLANDS_INITIAL_STATE_ARB_INDEX;
 
-	table->initialState.levels[0].ACIndex = 0;
+	table->initialState.level.ACIndex = 0;
 
 	ret = si_populate_voltage_value(rdev, &eg_pi->vddc_voltage_table,
 					initial_state->performance_levels[0].vddc,
-					&table->initialState.levels[0].vddc);
+					&table->initialState.level.vddc);
 
 	if (!ret) {
 		u16 std_vddc;
 
 		ret = si_get_std_voltage_value(rdev,
-					       &table->initialState.levels[0].vddc,
+					       &table->initialState.level.vddc,
 					       &std_vddc);
 		if (!ret)
 			si_populate_std_voltage_value(rdev, std_vddc,
-						      table->initialState.levels[0].vddc.index,
-						      &table->initialState.levels[0].std_vddc);
+						      table->initialState.level.vddc.index,
+						      &table->initialState.level.std_vddc);
 	}
 
 	if (eg_pi->vddci_control)
 		si_populate_voltage_value(rdev,
 					  &eg_pi->vddci_voltage_table,
 					  initial_state->performance_levels[0].vddci,
-					  &table->initialState.levels[0].vddci);
+					  &table->initialState.level.vddci);
 
 	if (si_pi->vddc_phase_shed_control)
 		si_populate_phase_shedding_value(rdev,
@@ -4421,43 +4424,43 @@ static int si_populate_smc_initial_state(struct radeon_device *rdev,
 						 initial_state->performance_levels[0].vddc,
 						 initial_state->performance_levels[0].sclk,
 						 initial_state->performance_levels[0].mclk,
-						 &table->initialState.levels[0].vddc);
+						 &table->initialState.level.vddc);
 
-	si_populate_initial_mvdd_value(rdev, &table->initialState.levels[0].mvdd);
+	si_populate_initial_mvdd_value(rdev, &table->initialState.level.mvdd);
 
 	reg = CG_R(0xffff) | CG_L(0);
-	table->initialState.levels[0].aT = cpu_to_be32(reg);
+	table->initialState.level.aT = cpu_to_be32(reg);
 
-	table->initialState.levels[0].bSP = cpu_to_be32(pi->dsp);
+	table->initialState.level.bSP = cpu_to_be32(pi->dsp);
 
-	table->initialState.levels[0].gen2PCIE = (u8)si_pi->boot_pcie_gen;
+	table->initialState.level.gen2PCIE = (u8)si_pi->boot_pcie_gen;
 
 	if (pi->mem_gddr5) {
-		table->initialState.levels[0].strobeMode =
+		table->initialState.level.strobeMode =
 			si_get_strobe_mode_settings(rdev,
 						    initial_state->performance_levels[0].mclk);
 
 		if (initial_state->performance_levels[0].mclk > pi->mclk_edc_enable_threshold)
-			table->initialState.levels[0].mcFlags = SISLANDS_SMC_MC_EDC_RD_FLAG | SISLANDS_SMC_MC_EDC_WR_FLAG;
+			table->initialState.level.mcFlags = SISLANDS_SMC_MC_EDC_RD_FLAG | SISLANDS_SMC_MC_EDC_WR_FLAG;
 		else
-			table->initialState.levels[0].mcFlags =  0;
+			table->initialState.level.mcFlags =  0;
 	}
 
 	table->initialState.levelCount = 1;
 
 	table->initialState.flags |= PPSMC_SWSTATE_FLAG_DC;
 
-	table->initialState.levels[0].dpm2.MaxPS = 0;
-	table->initialState.levels[0].dpm2.NearTDPDec = 0;
-	table->initialState.levels[0].dpm2.AboveSafeInc = 0;
-	table->initialState.levels[0].dpm2.BelowSafeInc = 0;
-	table->initialState.levels[0].dpm2.PwrEfficiencyRatio = 0;
+	table->initialState.level.dpm2.MaxPS = 0;
+	table->initialState.level.dpm2.NearTDPDec = 0;
+	table->initialState.level.dpm2.AboveSafeInc = 0;
+	table->initialState.level.dpm2.BelowSafeInc = 0;
+	table->initialState.level.dpm2.PwrEfficiencyRatio = 0;
 
 	reg = MIN_POWER_MASK | MAX_POWER_MASK;
-	table->initialState.levels[0].SQPowerThrottle = cpu_to_be32(reg);
+	table->initialState.level.SQPowerThrottle = cpu_to_be32(reg);
 
 	reg = MAX_POWER_DELTA_MASK | STI_SIZE_MASK | LTI_RATIO_MASK;
-	table->initialState.levels[0].SQPowerThrottle_2 = cpu_to_be32(reg);
+	table->initialState.level.SQPowerThrottle_2 = cpu_to_be32(reg);
 
 	return 0;
 }
@@ -4488,18 +4491,18 @@ static int si_populate_smc_acpi_state(struct radeon_device *rdev,
 
 	if (pi->acpi_vddc) {
 		ret = si_populate_voltage_value(rdev, &eg_pi->vddc_voltage_table,
-						pi->acpi_vddc, &table->ACPIState.levels[0].vddc);
+						pi->acpi_vddc, &table->ACPIState.level.vddc);
 		if (!ret) {
 			u16 std_vddc;
 
 			ret = si_get_std_voltage_value(rdev,
-						       &table->ACPIState.levels[0].vddc, &std_vddc);
+						       &table->ACPIState.level.vddc, &std_vddc);
 			if (!ret)
 				si_populate_std_voltage_value(rdev, std_vddc,
-							      table->ACPIState.levels[0].vddc.index,
-							      &table->ACPIState.levels[0].std_vddc);
+							      table->ACPIState.level.vddc.index,
+							      &table->ACPIState.level.std_vddc);
 		}
-		table->ACPIState.levels[0].gen2PCIE = si_pi->acpi_pcie_gen;
+		table->ACPIState.level.gen2PCIE = si_pi->acpi_pcie_gen;
 
 		if (si_pi->vddc_phase_shed_control) {
 			si_populate_phase_shedding_value(rdev,
@@ -4507,23 +4510,23 @@ static int si_populate_smc_acpi_state(struct radeon_device *rdev,
 							 pi->acpi_vddc,
 							 0,
 							 0,
-							 &table->ACPIState.levels[0].vddc);
+							 &table->ACPIState.level.vddc);
 		}
 	} else {
 		ret = si_populate_voltage_value(rdev, &eg_pi->vddc_voltage_table,
-						pi->min_vddc_in_table, &table->ACPIState.levels[0].vddc);
+						pi->min_vddc_in_table, &table->ACPIState.level.vddc);
 		if (!ret) {
 			u16 std_vddc;
 
 			ret = si_get_std_voltage_value(rdev,
-						       &table->ACPIState.levels[0].vddc, &std_vddc);
+						       &table->ACPIState.level.vddc, &std_vddc);
 
 			if (!ret)
 				si_populate_std_voltage_value(rdev, std_vddc,
-							      table->ACPIState.levels[0].vddc.index,
-							      &table->ACPIState.levels[0].std_vddc);
+							      table->ACPIState.level.vddc.index,
+							      &table->ACPIState.level.std_vddc);
 		}
-		table->ACPIState.levels[0].gen2PCIE = (u8)r600_get_pcie_gen_support(rdev,
+		table->ACPIState.level.gen2PCIE = (u8)r600_get_pcie_gen_support(rdev,
 										    si_pi->sys_pcie_mask,
 										    si_pi->boot_pcie_gen,
 										    RADEON_PCIE_GEN1);
@@ -4534,14 +4537,14 @@ static int si_populate_smc_acpi_state(struct radeon_device *rdev,
 							 pi->min_vddc_in_table,
 							 0,
 							 0,
-							 &table->ACPIState.levels[0].vddc);
+							 &table->ACPIState.level.vddc);
 	}
 
 	if (pi->acpi_vddc) {
 		if (eg_pi->acpi_vddci)
 			si_populate_voltage_value(rdev, &eg_pi->vddci_voltage_table,
 						  eg_pi->acpi_vddci,
-						  &table->ACPIState.levels[0].vddci);
+						  &table->ACPIState.level.vddci);
 	}
 
 	mclk_pwrmgt_cntl |= MRDCK0_RESET | MRDCK1_RESET;
@@ -4552,59 +4555,59 @@ static int si_populate_smc_acpi_state(struct radeon_device *rdev,
 	spll_func_cntl_2 &= ~SCLK_MUX_SEL_MASK;
 	spll_func_cntl_2 |= SCLK_MUX_SEL(4);
 
-	table->ACPIState.levels[0].mclk.vDLL_CNTL =
+	table->ACPIState.level.mclk.vDLL_CNTL =
 		cpu_to_be32(dll_cntl);
-	table->ACPIState.levels[0].mclk.vMCLK_PWRMGT_CNTL =
+	table->ACPIState.level.mclk.vMCLK_PWRMGT_CNTL =
 		cpu_to_be32(mclk_pwrmgt_cntl);
-	table->ACPIState.levels[0].mclk.vMPLL_AD_FUNC_CNTL =
+	table->ACPIState.level.mclk.vMPLL_AD_FUNC_CNTL =
 		cpu_to_be32(mpll_ad_func_cntl);
-	table->ACPIState.levels[0].mclk.vMPLL_DQ_FUNC_CNTL =
+	table->ACPIState.level.mclk.vMPLL_DQ_FUNC_CNTL =
 		cpu_to_be32(mpll_dq_func_cntl);
-	table->ACPIState.levels[0].mclk.vMPLL_FUNC_CNTL =
+	table->ACPIState.level.mclk.vMPLL_FUNC_CNTL =
 		cpu_to_be32(mpll_func_cntl);
-	table->ACPIState.levels[0].mclk.vMPLL_FUNC_CNTL_1 =
+	table->ACPIState.level.mclk.vMPLL_FUNC_CNTL_1 =
 		cpu_to_be32(mpll_func_cntl_1);
-	table->ACPIState.levels[0].mclk.vMPLL_FUNC_CNTL_2 =
+	table->ACPIState.level.mclk.vMPLL_FUNC_CNTL_2 =
 		cpu_to_be32(mpll_func_cntl_2);
-	table->ACPIState.levels[0].mclk.vMPLL_SS =
+	table->ACPIState.level.mclk.vMPLL_SS =
 		cpu_to_be32(si_pi->clock_registers.mpll_ss1);
-	table->ACPIState.levels[0].mclk.vMPLL_SS2 =
+	table->ACPIState.level.mclk.vMPLL_SS2 =
 		cpu_to_be32(si_pi->clock_registers.mpll_ss2);
 
-	table->ACPIState.levels[0].sclk.vCG_SPLL_FUNC_CNTL =
+	table->ACPIState.level.sclk.vCG_SPLL_FUNC_CNTL =
 		cpu_to_be32(spll_func_cntl);
-	table->ACPIState.levels[0].sclk.vCG_SPLL_FUNC_CNTL_2 =
+	table->ACPIState.level.sclk.vCG_SPLL_FUNC_CNTL_2 =
 		cpu_to_be32(spll_func_cntl_2);
-	table->ACPIState.levels[0].sclk.vCG_SPLL_FUNC_CNTL_3 =
+	table->ACPIState.level.sclk.vCG_SPLL_FUNC_CNTL_3 =
 		cpu_to_be32(spll_func_cntl_3);
-	table->ACPIState.levels[0].sclk.vCG_SPLL_FUNC_CNTL_4 =
+	table->ACPIState.level.sclk.vCG_SPLL_FUNC_CNTL_4 =
 		cpu_to_be32(spll_func_cntl_4);
 
-	table->ACPIState.levels[0].mclk.mclk_value = 0;
-	table->ACPIState.levels[0].sclk.sclk_value = 0;
+	table->ACPIState.level.mclk.mclk_value = 0;
+	table->ACPIState.level.sclk.sclk_value = 0;
 
-	si_populate_mvdd_value(rdev, 0, &table->ACPIState.levels[0].mvdd);
+	si_populate_mvdd_value(rdev, 0, &table->ACPIState.level.mvdd);
 
 	if (eg_pi->dynamic_ac_timing)
-		table->ACPIState.levels[0].ACIndex = 0;
+		table->ACPIState.level.ACIndex = 0;
 
-	table->ACPIState.levels[0].dpm2.MaxPS = 0;
-	table->ACPIState.levels[0].dpm2.NearTDPDec = 0;
-	table->ACPIState.levels[0].dpm2.AboveSafeInc = 0;
-	table->ACPIState.levels[0].dpm2.BelowSafeInc = 0;
-	table->ACPIState.levels[0].dpm2.PwrEfficiencyRatio = 0;
+	table->ACPIState.level.dpm2.MaxPS = 0;
+	table->ACPIState.level.dpm2.NearTDPDec = 0;
+	table->ACPIState.level.dpm2.AboveSafeInc = 0;
+	table->ACPIState.level.dpm2.BelowSafeInc = 0;
+	table->ACPIState.level.dpm2.PwrEfficiencyRatio = 0;
 
 	reg = MIN_POWER_MASK | MAX_POWER_MASK;
-	table->ACPIState.levels[0].SQPowerThrottle = cpu_to_be32(reg);
+	table->ACPIState.level.SQPowerThrottle = cpu_to_be32(reg);
 
 	reg = MAX_POWER_DELTA_MASK | STI_SIZE_MASK | LTI_RATIO_MASK;
-	table->ACPIState.levels[0].SQPowerThrottle_2 = cpu_to_be32(reg);
+	table->ACPIState.level.SQPowerThrottle_2 = cpu_to_be32(reg);
 
 	return 0;
 }
 
 static int si_populate_ulv_state(struct radeon_device *rdev,
-				 SISLANDS_SMC_SWSTATE *state)
+				 struct SISLANDS_SMC_SWSTATE_SINGLE *state)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct si_power_info *si_pi = si_get_pi(rdev);
@@ -4613,19 +4616,19 @@ static int si_populate_ulv_state(struct radeon_device *rdev,
 	int ret;
 
 	ret = si_convert_power_level_to_smc(rdev, &ulv->pl,
-					    &state->levels[0]);
+					    &state->level);
 	if (!ret) {
 		if (eg_pi->sclk_deep_sleep) {
 			if (sclk_in_sr <= SCLK_MIN_DEEPSLEEP_FREQ)
-				state->levels[0].stateFlags |= PPSMC_STATEFLAG_DEEPSLEEP_BYPASS;
+				state->level.stateFlags |= PPSMC_STATEFLAG_DEEPSLEEP_BYPASS;
 			else
-				state->levels[0].stateFlags |= PPSMC_STATEFLAG_DEEPSLEEP_THROTTLE;
+				state->level.stateFlags |= PPSMC_STATEFLAG_DEEPSLEEP_THROTTLE;
 		}
 		if (ulv->one_pcie_lane_in_ulv)
 			state->flags |= PPSMC_SWSTATE_FLAG_PCIE_X1;
-		state->levels[0].arbRefreshState = (u8)(SISLANDS_ULV_STATE_ARB_INDEX);
-		state->levels[0].ACIndex = 1;
-		state->levels[0].std_vddc = state->levels[0].vddc;
+		state->level.arbRefreshState = (u8)(SISLANDS_ULV_STATE_ARB_INDEX);
+		state->level.ACIndex = 1;
+		state->level.std_vddc = state->level.vddc;
 		state->levelCount = 1;
 
 		state->flags |= PPSMC_SWSTATE_FLAG_DC;
@@ -4725,7 +4728,9 @@ static int si_init_smc_table(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
-	table->driverState = table->initialState;
+	table->driverState.flags = table->initialState.flags;
+	table->driverState.levelCount = table->initialState.levelCount;
+	table->driverState.levels[0] = table->initialState.level;
 
 	ret = si_do_program_memory_timing_parameters(rdev, radeon_boot_state,
 						     SISLANDS_INITIAL_STATE_ARB_INDEX);
@@ -5275,8 +5280,8 @@ static int si_upload_ulv_state(struct radeon_device *rdev)
 	if (ulv->supported && ulv->pl.vddc) {
 		u32 address = si_pi->state_table_start +
 			offsetof(SISLANDS_SMC_STATETABLE, ULVState);
-		SISLANDS_SMC_SWSTATE *smc_state = &si_pi->smc_statetable.ULVState;
-		u32 state_size = sizeof(SISLANDS_SMC_SWSTATE);
+		struct SISLANDS_SMC_SWSTATE_SINGLE *smc_state = &si_pi->smc_statetable.ULVState;
+		u32 state_size = sizeof(struct SISLANDS_SMC_SWSTATE_SINGLE);
 
 		memset(smc_state, 0, state_size);
 

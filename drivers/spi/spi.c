@@ -714,8 +714,6 @@ void spi_unregister_device(struct spi_device *spi)
 	if (!spi)
 		return;
 
-	spi_cleanup(spi);
-
 	if (spi->dev.of_node) {
 		of_node_clear_flag(spi->dev.of_node, OF_POPULATED);
 		of_node_put(spi->dev.of_node);
@@ -723,7 +721,9 @@ void spi_unregister_device(struct spi_device *spi)
 	if (ACPI_COMPANION(&spi->dev))
 		acpi_device_clear_enumerated(ACPI_COMPANION(&spi->dev));
 	device_remove_software_node(&spi->dev);
-	device_unregister(&spi->dev);
+	device_del(&spi->dev);
+	spi_cleanup(spi);
+	put_device(&spi->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_device);
 
@@ -822,15 +822,29 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 
 	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio)) {
 		if (!(spi->mode & SPI_NO_CS)) {
-			if (spi->cs_gpiod)
-				/* polarity handled by gpiolib */
-				gpiod_set_value_cansleep(spi->cs_gpiod, activate);
-			else
+			if (spi->cs_gpiod) {
+				/*
+				 * Historically ACPI has no means of the GPIO polarity and
+				 * thus the SPISerialBus() resource defines it on the per-chip
+				 * basis. In order to avoid a chain of negations, the GPIO
+				 * polarity is considered being Active High. Even for the cases
+				 * when _DSD() is involved (in the updated versions of ACPI)
+				 * the GPIO CS polarity must be defined Active High to avoid
+				 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
+				 * into account.
+				 */
+				if (has_acpi_companion(&spi->dev))
+					gpiod_set_value_cansleep(spi->cs_gpiod, !enable);
+				else
+					/* Polarity handled by GPIO library */
+					gpiod_set_value_cansleep(spi->cs_gpiod, activate);
+			} else {
 				/*
 				 * invert the enable line, as active low is
 				 * default for SPI.
 				 */
 				gpio_set_value_cansleep(spi->cs_gpio, !enable);
+			}
 		}
 		/* Some SPI masters need both GPIO CS & slave_select */
 		if ((spi->controller->flags & SPI_MASTER_GPIO_SS) &&
@@ -3476,9 +3490,12 @@ int spi_set_cs_timing(struct spi_device *spi, struct spi_delay *setup,
 
 	if (spi->controller->set_cs_timing &&
 	    !(spi->cs_gpiod || gpio_is_valid(spi->cs_gpio))) {
+		mutex_lock(&spi->controller->io_mutex);
+
 		if (spi->controller->auto_runtime_pm) {
 			status = pm_runtime_get_sync(parent);
 			if (status < 0) {
+				mutex_unlock(&spi->controller->io_mutex);
 				pm_runtime_put_noidle(parent);
 				dev_err(&spi->controller->dev, "Failed to power device: %d\n",
 					status);
@@ -3489,11 +3506,13 @@ int spi_set_cs_timing(struct spi_device *spi, struct spi_delay *setup,
 								hold, inactive);
 			pm_runtime_mark_last_busy(parent);
 			pm_runtime_put_autosuspend(parent);
-			return status;
 		} else {
-			return spi->controller->set_cs_timing(spi, setup, hold,
+			status = spi->controller->set_cs_timing(spi, setup, hold,
 							      inactive);
 		}
+
+		mutex_unlock(&spi->controller->io_mutex);
+		return status;
 	}
 
 	if ((setup && setup->unit == SPI_DELAY_UNIT_SCK) ||

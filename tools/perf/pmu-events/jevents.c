@@ -1123,8 +1123,10 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 			mapfile = strdup(fpath);
 			return 0;
 		}
-
-		pr_info("%s: Ignoring file %s\n", prog, fpath);
+		if (is_json_file(bname))
+			pr_debug("%s: ArchStd json is preprocessed %s\n", prog, fpath);
+		else
+			pr_info("%s: Ignoring file %s\n", prog, fpath);
 		return 0;
 	}
 

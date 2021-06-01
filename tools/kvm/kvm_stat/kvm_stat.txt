@@ -111,7 +111,7 @@ OPTIONS
 --tracepoints::
         retrieve statistics from tracepoints
 
-*z*::
+-z::
 --skip-zero-records::
         omit records with all zeros in logging mode
 
