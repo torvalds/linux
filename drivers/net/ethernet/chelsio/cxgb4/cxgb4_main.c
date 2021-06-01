@@ -3894,7 +3894,6 @@ static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
 	.ndo_set_vf_vlan        = cxgb4_mgmt_set_vf_vlan,
 	.ndo_set_vf_link_state	= cxgb4_mgmt_set_vf_link_state,
 };
-#endif
 
 static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
 				   struct ethtool_drvinfo *info)
@@ -3909,6 +3908,7 @@ static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
 static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 	.get_drvinfo       = cxgb4_mgmt_get_drvinfo,
 };
+#endif
 
 static void notify_fatal_err(struct work_struct *work)
 {
