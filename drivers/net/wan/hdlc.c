@@ -148,7 +148,7 @@ int hdlc_open(struct net_device *dev)
 	       hdlc->carrier, hdlc->open);
 #endif
 
-	if (hdlc->proto == NULL)
+	if (!hdlc->proto)
 		return -ENOSYS;	/* no protocol attached */
 
 	if (hdlc->proto->open) {
@@ -284,7 +284,7 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 
 	if (size) {
 		dev_to_hdlc(dev)->state = kmalloc(size, GFP_KERNEL);
-		if (dev_to_hdlc(dev)->state == NULL) {
+		if (!dev_to_hdlc(dev)->state) {
 			module_put(proto->module);
 			return -ENOBUFS;
 		}
