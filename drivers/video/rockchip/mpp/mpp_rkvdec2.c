@@ -188,6 +188,7 @@ struct rkvdec2_dev {
 	u32 rcb_size;
 	dma_addr_t rcb_iova;
 	struct page *rcb_page;
+	u32 rcb_min_width;
 };
 
 /*
@@ -338,6 +339,10 @@ static int mpp_set_rcbbuf(struct mpp_dev *mpp,
 		int i;
 		u32 reg_idx, rcb_size, rcb_offset;
 		struct rkvdec2_rcb_info *rcb_inf = &priv->rcb_inf;
+		u32 width = priv->codec_info[DEC_INFO_WIDTH].val;
+
+		if (width < dec->rcb_min_width)
+			goto done;
 
 		rcb_offset = 0;
 		for (i = 0; i < rcb_inf->cnt; i++) {
@@ -353,7 +358,7 @@ static int mpp_set_rcbbuf(struct mpp_dev *mpp,
 			rcb_offset += rcb_size;
 		}
 	}
-
+done:
 	mpp_debug_leave();
 
 	return 0;
@@ -1070,9 +1075,14 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 	dec->sram_size = sram_size;
 	dec->rcb_size = rcb_size;
 	dec->rcb_iova = iova;
+	dev_info(dev, "sram_start %pa\n", &sram_start);
+	dev_info(dev, "rcb_iova %pad\n", &dec->rcb_iova);
+	dev_info(dev, "sram_size %u\n", dec->sram_size);
+	dev_info(dev, "rcb_size %u\n", dec->rcb_size);
 
-	dev_info(dev, "sram_start %pa, rcb_iova %pad, sram_size %u, rcb_size=%u\n",
-		 &sram_start, &dec->rcb_iova, dec->sram_size, dec->rcb_size);
+	ret = of_property_read_u32(dev->of_node, "rockchip,rcb-min-width", &dec->rcb_min_width);
+	if (!ret && dec->rcb_min_width)
+		dev_info(dev, "min_width %u\n", dec->rcb_min_width);
 
 	return 0;
 
