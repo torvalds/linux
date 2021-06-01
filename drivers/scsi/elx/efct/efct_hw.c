@@ -3329,3 +3329,254 @@ efct_hw_firmware_write(struct efct_hw *hw, struct efc_dma *dma, u32 size,
 
 	return rc;
 }
+
+static int
+efct_hw_cb_port_control(struct efct_hw *hw, int status, u8 *mqe,
+			void  *arg)
+{
+	return 0;
+}
+
+int
+efct_hw_port_control(struct efct_hw *hw, enum efct_hw_port ctrl,
+		     uintptr_t value,
+		     void (*cb)(int status, uintptr_t value, void *arg),
+		     void *arg)
+{
+	int rc = -EIO;
+	u8 link[SLI4_BMBX_SIZE];
+	u32 speed = 0;
+	u8 reset_alpa = 0;
+
+	switch (ctrl) {
+	case EFCT_HW_PORT_INIT:
+		if (!sli_cmd_config_link(&hw->sli, link))
+			rc = efct_hw_command(hw, link, EFCT_CMD_NOWAIT,
+					     efct_hw_cb_port_control, NULL);
+
+		if (rc != 0) {
+			efc_log_err(hw->os, "CONFIG_LINK failed\n");
+			break;
+		}
+		speed = hw->config.speed;
+		reset_alpa = (u8)(value & 0xff);
+
+		rc = -EIO;
+		if (!sli_cmd_init_link(&hw->sli, link, speed, reset_alpa))
+			rc = efct_hw_command(hw, link, EFCT_CMD_NOWAIT,
+					     efct_hw_cb_port_control, NULL);
+		/* Free buffer on error, since no callback is coming */
+		if (rc)
+			efc_log_err(hw->os, "INIT_LINK failed\n");
+		break;
+
+	case EFCT_HW_PORT_SHUTDOWN:
+		if (!sli_cmd_down_link(&hw->sli, link))
+			rc = efct_hw_command(hw, link, EFCT_CMD_NOWAIT,
+					     efct_hw_cb_port_control, NULL);
+		/* Free buffer on error, since no callback is coming */
+		if (rc)
+			efc_log_err(hw->os, "DOWN_LINK failed\n");
+		break;
+
+	default:
+		efc_log_debug(hw->os, "unhandled control %#x\n", ctrl);
+		break;
+	}
+
+	return rc;
+}
+
+void
+efct_hw_teardown(struct efct_hw *hw)
+{
+	u32 i = 0;
+	u32 destroy_queues;
+	u32 free_memory;
+	struct efc_dma *dma;
+	struct efct *efct = hw->os;
+
+	destroy_queues = (hw->state == EFCT_HW_STATE_ACTIVE);
+	free_memory = (hw->state != EFCT_HW_STATE_UNINITIALIZED);
+
+	/* Cancel Sliport Healthcheck */
+	if (hw->sliport_healthcheck) {
+		hw->sliport_healthcheck = 0;
+		efct_hw_config_sli_port_health_check(hw, 0, 0);
+	}
+
+	if (hw->state != EFCT_HW_STATE_QUEUES_ALLOCATED) {
+		hw->state = EFCT_HW_STATE_TEARDOWN_IN_PROGRESS;
+
+		efct_hw_flush(hw);
+
+		if (list_empty(&hw->cmd_head))
+			efc_log_debug(hw->os,
+				      "All commands completed on MQ queue\n");
+		else
+			efc_log_debug(hw->os,
+				      "Some cmds still pending on MQ queue\n");
+
+		/* Cancel any remaining commands */
+		efct_hw_command_cancel(hw);
+	} else {
+		hw->state = EFCT_HW_STATE_TEARDOWN_IN_PROGRESS;
+	}
+
+	dma_free_coherent(&efct->pci->dev,
+			  hw->rnode_mem.size, hw->rnode_mem.virt,
+			  hw->rnode_mem.phys);
+	memset(&hw->rnode_mem, 0, sizeof(struct efc_dma));
+
+	if (hw->io) {
+		for (i = 0; i < hw->config.n_io; i++) {
+			if (hw->io[i] && hw->io[i]->sgl &&
+			    hw->io[i]->sgl->virt) {
+				dma_free_coherent(&efct->pci->dev,
+						  hw->io[i]->sgl->size,
+						  hw->io[i]->sgl->virt,
+						  hw->io[i]->sgl->phys);
+			}
+			kfree(hw->io[i]);
+			hw->io[i] = NULL;
+		}
+		kfree(hw->io);
+		hw->io = NULL;
+		kfree(hw->wqe_buffs);
+		hw->wqe_buffs = NULL;
+	}
+
+	dma = &hw->xfer_rdy;
+	dma_free_coherent(&efct->pci->dev,
+			  dma->size, dma->virt, dma->phys);
+	memset(dma, 0, sizeof(struct efc_dma));
+
+	dma = &hw->loop_map;
+	dma_free_coherent(&efct->pci->dev,
+			  dma->size, dma->virt, dma->phys);
+	memset(dma, 0, sizeof(struct efc_dma));
+
+	for (i = 0; i < hw->wq_count; i++)
+		sli_queue_free(&hw->sli, &hw->wq[i], destroy_queues,
+			       free_memory);
+
+	for (i = 0; i < hw->rq_count; i++)
+		sli_queue_free(&hw->sli, &hw->rq[i], destroy_queues,
+			       free_memory);
+
+	for (i = 0; i < hw->mq_count; i++)
+		sli_queue_free(&hw->sli, &hw->mq[i], destroy_queues,
+			       free_memory);
+
+	for (i = 0; i < hw->cq_count; i++)
+		sli_queue_free(&hw->sli, &hw->cq[i], destroy_queues,
+			       free_memory);
+
+	for (i = 0; i < hw->eq_count; i++)
+		sli_queue_free(&hw->sli, &hw->eq[i], destroy_queues,
+			       free_memory);
+
+	/* Free rq buffers */
+	efct_hw_rx_free(hw);
+
+	efct_hw_queue_teardown(hw);
+
+	kfree(hw->wq_cpu_array);
+
+	sli_teardown(&hw->sli);
+
+	/* record the fact that the queues are non-functional */
+	hw->state = EFCT_HW_STATE_UNINITIALIZED;
+
+	/* free sequence free pool */
+	kfree(hw->seq_pool);
+	hw->seq_pool = NULL;
+
+	/* free hw_wq_callback pool */
+	efct_hw_reqtag_pool_free(hw);
+
+	mempool_destroy(hw->cmd_ctx_pool);
+	mempool_destroy(hw->mbox_rqst_pool);
+
+	/* Mark HW setup as not having been called */
+	hw->hw_setup_called = false;
+}
+
+static int
+efct_hw_sli_reset(struct efct_hw *hw, enum efct_hw_reset reset,
+		  enum efct_hw_state prev_state)
+{
+	int rc = 0;
+
+	switch (reset) {
+	case EFCT_HW_RESET_FUNCTION:
+		efc_log_debug(hw->os, "issuing function level reset\n");
+		if (sli_reset(&hw->sli)) {
+			efc_log_err(hw->os, "sli_reset failed\n");
+			rc = -EIO;
+		}
+		break;
+	case EFCT_HW_RESET_FIRMWARE:
+		efc_log_debug(hw->os, "issuing firmware reset\n");
+		if (sli_fw_reset(&hw->sli)) {
+			efc_log_err(hw->os, "sli_soft_reset failed\n");
+			rc = -EIO;
+		}
+		/*
+		 * Because the FW reset leaves the FW in a non-running state,
+		 * follow that with a regular reset.
+		 */
+		efc_log_debug(hw->os, "issuing function level reset\n");
+		if (sli_reset(&hw->sli)) {
+			efc_log_err(hw->os, "sli_reset failed\n");
+			rc = -EIO;
+		}
+		break;
+	default:
+		efc_log_err(hw->os, "unknown type - no reset performed\n");
+		hw->state = prev_state;
+		rc = -EINVAL;
+		break;
+	}
+
+	return rc;
+}
+
+int
+efct_hw_reset(struct efct_hw *hw, enum efct_hw_reset reset)
+{
+	int rc = 0;
+	enum efct_hw_state prev_state = hw->state;
+
+	if (hw->state != EFCT_HW_STATE_ACTIVE)
+		efc_log_debug(hw->os,
+			      "HW state %d is not active\n", hw->state);
+
+	hw->state = EFCT_HW_STATE_RESET_IN_PROGRESS;
+
+	/*
+	 * If the prev_state is already reset/teardown in progress,
+	 * don't continue further
+	 */
+	if (prev_state == EFCT_HW_STATE_RESET_IN_PROGRESS ||
+	    prev_state == EFCT_HW_STATE_TEARDOWN_IN_PROGRESS)
+		return efct_hw_sli_reset(hw, reset, prev_state);
+
+	if (prev_state != EFCT_HW_STATE_UNINITIALIZED) {
+		efct_hw_flush(hw);
+
+		if (list_empty(&hw->cmd_head))
+			efc_log_debug(hw->os,
+				      "All commands completed on MQ queue\n");
+		else
+			efc_log_err(hw->os,
+				    "Some commands still pending on MQ queue\n");
+	}
+
+	/* Reset the chip */
+	rc = efct_hw_sli_reset(hw, reset, prev_state);
+	if (rc == -EINVAL)
+		return -EIO;
+
+	return rc;
+}

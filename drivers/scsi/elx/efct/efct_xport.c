@@ -498,3 +498,181 @@ efct_scsi_release_fc_transport(void)
 
 	efct_vport_fc_tt = NULL;
 }
+
+void
+efct_xport_detach(struct efct_xport *xport)
+{
+	struct efct *efct = xport->efct;
+
+	/* free resources associated with target-server and initiator-client */
+	efct_scsi_tgt_del_device(efct);
+
+	efct_scsi_del_device(efct);
+
+	/*Shutdown FC Statistics timer*/
+	if (timer_pending(&xport->stats_timer))
+		del_timer(&xport->stats_timer);
+
+	efct_hw_teardown(&efct->hw);
+
+	efct_xport_delete_debugfs(efct);
+}
+
+static void
+efct_xport_domain_free_cb(struct efc *efc, void *arg)
+{
+	struct completion *done = arg;
+
+	complete(done);
+}
+
+int
+efct_xport_control(struct efct_xport *xport, enum efct_xport_ctrl cmd, ...)
+{
+	u32 rc = 0;
+	struct efct *efct = NULL;
+	va_list argp;
+
+	efct = xport->efct;
+
+	switch (cmd) {
+	case EFCT_XPORT_PORT_ONLINE: {
+		/* Bring the port on-line */
+		rc = efct_hw_port_control(&efct->hw, EFCT_HW_PORT_INIT, 0,
+					  NULL, NULL);
+		if (rc)
+			efc_log_err(efct,
+				    "%s: Can't init port\n", efct->desc);
+		else
+			xport->configured_link_state = cmd;
+		break;
+	}
+	case EFCT_XPORT_PORT_OFFLINE: {
+		if (efct_hw_port_control(&efct->hw, EFCT_HW_PORT_SHUTDOWN, 0,
+					 NULL, NULL))
+			efc_log_err(efct, "port shutdown failed\n");
+		else
+			xport->configured_link_state = cmd;
+		break;
+	}
+
+	case EFCT_XPORT_SHUTDOWN: {
+		struct completion done;
+		unsigned long timeout;
+
+		/* if a PHYSDEV reset was performed (e.g. hw dump), will affect
+		 * all PCI functions; orderly shutdown won't work,
+		 * just force free
+		 */
+		if (sli_reset_required(&efct->hw.sli)) {
+			struct efc_domain *domain = efct->efcport->domain;
+
+			if (domain)
+				efc_domain_cb(efct->efcport, EFC_HW_DOMAIN_LOST,
+					      domain);
+		} else {
+			efct_hw_port_control(&efct->hw, EFCT_HW_PORT_SHUTDOWN,
+					     0, NULL, NULL);
+		}
+
+		init_completion(&done);
+
+		efc_register_domain_free_cb(efct->efcport,
+					    efct_xport_domain_free_cb, &done);
+
+		efc_log_debug(efct, "Waiting %d seconds for domain shutdown\n",
+			      (EFC_SHUTDOWN_TIMEOUT_USEC / 1000000));
+
+		timeout = usecs_to_jiffies(EFC_SHUTDOWN_TIMEOUT_USEC);
+		if (!wait_for_completion_timeout(&done, timeout)) {
+			efc_log_err(efct, "Domain shutdown timed out!!\n");
+			WARN_ON(1);
+		}
+
+		efc_register_domain_free_cb(efct->efcport, NULL, NULL);
+
+		/* Free up any saved virtual ports */
+		efc_vport_del_all(efct->efcport);
+		break;
+	}
+
+	/*
+	 * Set wwnn for the port. This will be used instead of the default
+	 * provided by FW.
+	 */
+	case EFCT_XPORT_WWNN_SET: {
+		u64 wwnn;
+
+		/* Retrieve arguments */
+		va_start(argp, cmd);
+		wwnn = va_arg(argp, uint64_t);
+		va_end(argp);
+
+		efc_log_debug(efct, " WWNN %016llx\n", wwnn);
+		xport->req_wwnn = wwnn;
+
+		break;
+	}
+	/*
+	 * Set wwpn for the port. This will be used instead of the default
+	 * provided by FW.
+	 */
+	case EFCT_XPORT_WWPN_SET: {
+		u64 wwpn;
+
+		/* Retrieve arguments */
+		va_start(argp, cmd);
+		wwpn = va_arg(argp, uint64_t);
+		va_end(argp);
+
+		efc_log_debug(efct, " WWPN %016llx\n", wwpn);
+		xport->req_wwpn = wwpn;
+
+		break;
+	}
+
+	default:
+		break;
+	}
+	return rc;
+}
+
+void
+efct_xport_free(struct efct_xport *xport)
+{
+	if (xport) {
+		efct_io_pool_free(xport->io_pool);
+
+		kfree(xport);
+	}
+}
+
+void
+efct_release_fc_transport(struct scsi_transport_template *transport_template)
+{
+	if (transport_template)
+		pr_err("releasing transport layer\n");
+
+	/* Releasing FC transport */
+	fc_release_transport(transport_template);
+}
+
+static void
+efct_xport_remove_host(struct Scsi_Host *shost)
+{
+	fc_remove_host(shost);
+}
+
+void
+efct_scsi_del_device(struct efct *efct)
+{
+	if (!efct->shost)
+		return;
+
+	efc_log_debug(efct, "Unregistering with Transport Layer\n");
+	efct_xport_remove_host(efct->shost);
+	efc_log_debug(efct, "Unregistering with SCSI Midlayer\n");
+	scsi_remove_host(efct->shost);
+	scsi_host_put(efct->shost);
+	efct->shost = NULL;
+}

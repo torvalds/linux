@@ -734,4 +734,31 @@ typedef void (*efct_hw_async_cb_t)(struct efct_hw *hw, int status,
 int
 efct_hw_async_call(struct efct_hw *hw, efct_hw_async_cb_t callback, void *arg);
 
+struct hw_eq *efct_hw_new_eq(struct efct_hw *hw, u32 entry_count);
+struct hw_cq *efct_hw_new_cq(struct hw_eq *eq, u32 entry_count);
+u32
+efct_hw_new_cq_set(struct hw_eq *eqs[], struct hw_cq *cqs[],
+		   u32 num_cqs, u32 entry_count);
+struct hw_mq *efct_hw_new_mq(struct hw_cq *cq, u32 entry_count);
+struct hw_wq
+*efct_hw_new_wq(struct hw_cq *cq, u32 entry_count);
+u32
+efct_hw_new_rq_set(struct hw_cq *cqs[], struct hw_rq *rqs[],
+		   u32 num_rq_pairs, u32 entry_count);
+void efct_hw_del_eq(struct hw_eq *eq);
+void efct_hw_del_cq(struct hw_cq *cq);
+void efct_hw_del_mq(struct hw_mq *mq);
+void efct_hw_del_wq(struct hw_wq *wq);
+void efct_hw_del_rq(struct hw_rq *rq);
+void efct_hw_queue_teardown(struct efct_hw *hw);
+void efct_hw_teardown(struct efct_hw *hw);
+int
+efct_hw_reset(struct efct_hw *hw, enum efct_hw_reset reset);
+
+int
+efct_hw_port_control(struct efct_hw *hw, enum efct_hw_port ctrl,
+		     uintptr_t value,
+		void (*cb)(int status, uintptr_t value, void *arg),
+		void *arg);
+
 #endif /* __EFCT_H__ */
