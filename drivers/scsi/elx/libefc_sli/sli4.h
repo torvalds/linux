@@ -3727,4 +3727,406 @@ sli_cmd_fill_hdr(struct sli4_rqst_hdr *hdr, u8 opc, u8 sub, u32 ver, __le32 len)
 	hdr->request_length = len;
 }
 
+/**
+ * Get / set parameter functions
+ */
+
+static inline u32
+sli_get_max_sge(struct sli4 *sli4)
+{
+	return sli4->sge_supported_length;
+}
+
+static inline u32
+sli_get_max_sgl(struct sli4 *sli4)
+{
+	if (sli4->sgl_page_sizes != 1) {
+		efc_log_err(sli4, "unsupported SGL page sizes %#x\n",
+			    sli4->sgl_page_sizes);
+		return 0;
+	}
+
+	return (sli4->max_sgl_pages * SLI_PAGE_SIZE) / sizeof(struct sli4_sge);
+}
+
+static inline enum sli4_link_medium
+sli_get_medium(struct sli4 *sli4)
+{
+	switch (sli4->topology) {
+	case SLI4_READ_CFG_TOPO_FC:
+	case SLI4_READ_CFG_TOPO_FC_AL:
+	case SLI4_READ_CFG_TOPO_NON_FC_AL:
+		return SLI4_LINK_MEDIUM_FC;
+	default:
+		return SLI4_LINK_MEDIUM_MAX;
+	}
+}
+
+static inline u32
+sli_get_lmt(struct sli4 *sli4)
+{
+	return sli4->link_module_type;
+}
+
+static inline int
+sli_set_topology(struct sli4 *sli4, u32 value)
+{
+	int	rc = 0;
+
+	switch (value) {
+	case SLI4_READ_CFG_TOPO_FC:
+	case SLI4_READ_CFG_TOPO_FC_AL:
+	case SLI4_READ_CFG_TOPO_NON_FC_AL:
+		sli4->topology = value;
+		break;
+	default:
+		efc_log_err(sli4, "unsupported topology %#x\n", value);
+		rc = -1;
+	}
+
+	return rc;
+}
+
+static inline u32
+sli_convert_mask_to_count(u32 method, u32 mask)
+{
+	u32 count = 0;
+
+	if (method) {
+		count = 1 << (31 - __builtin_clz(mask));
+		count *= 16;
+	} else {
+		count = mask;
+	}
+
+	return count;
+}
+
+static inline u32
+sli_reg_read_status(struct sli4 *sli)
+{
+	return readl(sli->reg[0] + SLI4_PORT_STATUS_REGOFF);
+}
+
+static inline int
+sli_fw_error_status(struct sli4 *sli4)
+{
+	return (sli_reg_read_status(sli4) & SLI4_PORT_STATUS_ERR) ? 1 : 0;
+}
+
+static inline u32
+sli_reg_read_err1(struct sli4 *sli)
+{
+	return readl(sli->reg[0] + SLI4_PORT_ERROR1);
+}
+
+static inline u32
+sli_reg_read_err2(struct sli4 *sli)
+{
+	return readl(sli->reg[0] + SLI4_PORT_ERROR2);
+}
+
+static inline int
+sli_fc_rqe_length(struct sli4 *sli4, void *cqe, u32 *len_hdr,
+		  u32 *len_data)
+{
+	struct sli4_fc_async_rcqe	*rcqe = cqe;
+
+	*len_hdr = *len_data = 0;
+
+	if (rcqe->status == SLI4_FC_ASYNC_RQ_SUCCESS) {
+		*len_hdr  = rcqe->hdpl_byte & SLI4_RACQE_HDPL;
+		*len_data = le16_to_cpu(rcqe->data_placement_length);
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+static inline u8
+sli_fc_rqe_fcfi(struct sli4 *sli4, void *cqe)
+{
+	u8 code = ((u8 *)cqe)[SLI4_CQE_CODE_OFFSET];
+	u8 fcfi = U8_MAX;
+
+	switch (code) {
+	case SLI4_CQE_CODE_RQ_ASYNC: {
+		struct sli4_fc_async_rcqe *rcqe = cqe;
+
+		fcfi = le16_to_cpu(rcqe->fcfi_rq_id_word) & SLI4_RACQE_FCFI;
+		break;
+	}
+	case SLI4_CQE_CODE_RQ_ASYNC_V1: {
+		struct sli4_fc_async_rcqe_v1 *rcqev1 = cqe;
+
+		fcfi = rcqev1->fcfi_byte & SLI4_RACQE_FCFI;
+		break;
+	}
+	case SLI4_CQE_CODE_OPTIMIZED_WRITE_CMD: {
+		struct sli4_fc_optimized_write_cmd_cqe *opt_wr = cqe;
+
+		fcfi = opt_wr->flags0 & SLI4_OCQE_FCFI;
+		break;
+	}
+	}
+
+	return fcfi;
+}
+
+/****************************************************************************
+ * Function prototypes
+ */
+int
+sli_cmd_config_link(struct sli4 *sli4, void *buf);
+int
+sli_cmd_down_link(struct sli4 *sli4, void *buf);
+int
+sli_cmd_dump_type4(struct sli4 *sli4, void *buf, u16 wki);
+int
+sli_cmd_common_read_transceiver_data(struct sli4 *sli4, void *buf,
+				     u32 page_num, struct efc_dma *dma);
+int
+sli_cmd_read_link_stats(struct sli4 *sli4, void *buf, u8 req_stats,
+			u8 clear_overflow_flags, u8 clear_all_counters);
+int
+sli_cmd_read_status(struct sli4 *sli4, void *buf, u8 clear);
+int
+sli_cmd_init_link(struct sli4 *sli4, void *buf, u32 speed,
+		  u8 reset_alpa);
+int
+sli_cmd_init_vfi(struct sli4 *sli4, void *buf, u16 vfi, u16 fcfi,
+		 u16 vpi);
+int
+sli_cmd_init_vpi(struct sli4 *sli4, void *buf, u16 vpi, u16 vfi);
+int
+sli_cmd_post_xri(struct sli4 *sli4, void *buf, u16 base, u16 cnt);
+int
+sli_cmd_release_xri(struct sli4 *sli4, void *buf, u8 num_xri);
+int
+sli_cmd_read_sparm64(struct sli4 *sli4, void *buf,
+		     struct efc_dma *dma, u16 vpi);
+int
+sli_cmd_read_topology(struct sli4 *sli4, void *buf, struct efc_dma *dma);
+int
+sli_cmd_read_nvparms(struct sli4 *sli4, void *buf);
+int
+sli_cmd_write_nvparms(struct sli4 *sli4, void *buf, u8 *wwpn,
+		      u8 *wwnn, u8 hard_alpa, u32 preferred_d_id);
+int
+sli_cmd_reg_fcfi(struct sli4 *sli4, void *buf, u16 index,
+		 struct sli4_cmd_rq_cfg *rq_cfg);
+int
+sli_cmd_reg_fcfi_mrq(struct sli4 *sli4, void *buf, u8 mode, u16 index,
+		     u8 rq_selection_policy, u8 mrq_bit_mask, u16 num_mrqs,
+		     struct sli4_cmd_rq_cfg *rq_cfg);
+int
+sli_cmd_reg_rpi(struct sli4 *sli4, void *buf, u32 rpi, u32 vpi, u32 fc_id,
+		struct efc_dma *dma, u8 update, u8 enable_t10_pi);
+int
+sli_cmd_unreg_fcfi(struct sli4 *sli4, void *buf, u16 indicator);
+int
+sli_cmd_unreg_rpi(struct sli4 *sli4, void *buf, u16 indicator,
+		  enum sli4_resource which, u32 fc_id);
+int
+sli_cmd_reg_vpi(struct sli4 *sli4, void *buf, u32 fc_id,
+		__be64 sli_wwpn, u16 vpi, u16 vfi, bool update);
+int
+sli_cmd_reg_vfi(struct sli4 *sli4, void *buf, size_t size,
+		u16 vfi, u16 fcfi, struct efc_dma dma,
+		u16 vpi, __be64 sli_wwpn, u32 fc_id);
+int
+sli_cmd_unreg_vpi(struct sli4 *sli4, void *buf, u16 id, u32 type);
+int
+sli_cmd_unreg_vfi(struct sli4 *sli4, void *buf, u16 idx, u32 type);
+int
+sli_cmd_common_nop(struct sli4 *sli4, void *buf, uint64_t context);
+int
+sli_cmd_common_get_resource_extent_info(struct sli4 *sli4, void *buf,
+					u16 rtype);
+int
+sli_cmd_common_get_sli4_parameters(struct sli4 *sli4, void *buf);
+int
+sli_cmd_common_write_object(struct sli4 *sli4, void *buf, u16 noc,
+		u16 eof, u32 len, u32 offset, char *name, struct efc_dma *dma);
+int
+sli_cmd_common_delete_object(struct sli4 *sli4, void *buf, char *object_name);
+int
+sli_cmd_common_read_object(struct sli4 *sli4, void *buf,
+		u32 length, u32 offset, char *name, struct efc_dma *dma);
+int
+sli_cmd_dmtf_exec_clp_cmd(struct sli4 *sli4, void *buf,
+		struct efc_dma *cmd, struct efc_dma *resp);
+int
+sli_cmd_common_set_dump_location(struct sli4 *sli4, void *buf,
+		bool query, bool is_buffer_list, struct efc_dma *dma, u8 fdb);
+int
+sli_cmd_common_set_features(struct sli4 *sli4, void *buf,
+			    u32 feature, u32 param_len, void *parameter);
+
+int sli_cqe_mq(struct sli4 *sli4, void *buf);
+int sli_cqe_async(struct sli4 *sli4, void *buf);
+
+int
+sli_setup(struct sli4 *sli4, void *os, struct pci_dev *pdev, void __iomem *r[]);
+void sli_calc_max_qentries(struct sli4 *sli4);
+int sli_init(struct sli4 *sli4);
+int sli_reset(struct sli4 *sli4);
+int sli_fw_reset(struct sli4 *sli4);
+void sli_teardown(struct sli4 *sli4);
+int
+sli_callback(struct sli4 *sli4, enum sli4_callback cb, void *func, void *arg);
+int
+sli_bmbx_command(struct sli4 *sli4);
+int
+__sli_queue_init(struct sli4 *sli4, struct sli4_queue *q, u32 qtype,
+		 size_t size, u32 n_entries, u32 align);
+int
+__sli_create_queue(struct sli4 *sli4, struct sli4_queue *q);
+int
+sli_eq_modify_delay(struct sli4 *sli4, struct sli4_queue *eq, u32 num_eq,
+		    u32 shift, u32 delay_mult);
+int
+sli_queue_alloc(struct sli4 *sli4, u32 qtype, struct sli4_queue *q,
+		u32 n_entries, struct sli4_queue *assoc);
+int
+sli_cq_alloc_set(struct sli4 *sli4, struct sli4_queue *qs[], u32 num_cqs,
+		 u32 n_entries, struct sli4_queue *eqs[]);
+int
+sli_get_queue_entry_size(struct sli4 *sli4, u32 qtype);
+int
+sli_queue_free(struct sli4 *sli4, struct sli4_queue *q, u32 destroy_queues,
+	       u32 free_memory);
+int
+sli_queue_eq_arm(struct sli4 *sli4, struct sli4_queue *q, bool arm);
+int
+sli_queue_arm(struct sli4 *sli4, struct sli4_queue *q, bool arm);
+
+int
+sli_wq_write(struct sli4 *sli4, struct sli4_queue *q, u8 *entry);
+int
+sli_mq_write(struct sli4 *sli4, struct sli4_queue *q, u8 *entry);
+int
+sli_rq_write(struct sli4 *sli4, struct sli4_queue *q, u8 *entry);
+int
+sli_eq_read(struct sli4 *sli4, struct sli4_queue *q, u8 *entry);
+int
+sli_cq_read(struct sli4 *sli4, struct sli4_queue *q, u8 *entry);
+int
+sli_mq_read(struct sli4 *sli4, struct sli4_queue *q, u8 *entry);
+int
+sli_resource_alloc(struct sli4 *sli4, enum sli4_resource rtype, u32 *rid,
+		   u32 *index);
+int
+sli_resource_free(struct sli4 *sli4, enum sli4_resource rtype, u32 rid);
+int
+sli_resource_reset(struct sli4 *sli4, enum sli4_resource rtype);
+int
+sli_eq_parse(struct sli4 *sli4, u8 *buf, u16 *cq_id);
+int
+sli_cq_parse(struct sli4 *sli4, struct sli4_queue *cq, u8 *cqe,
+	     enum sli4_qentry *etype, u16 *q_id);
+
+int sli_raise_ue(struct sli4 *sli4, u8 dump);
+int sli_dump_is_ready(struct sli4 *sli4);
+bool sli_reset_required(struct sli4 *sli4);
+bool sli_fw_ready(struct sli4 *sli4);
+
+int
+sli_fc_process_link_attention(struct sli4 *sli4, void *acqe);
+int
+sli_fc_cqe_parse(struct sli4 *sli4, struct sli4_queue *cq,
+		 u8 *cqe, enum sli4_qentry *etype,
+		 u16 *rid);
+u32 sli_fc_response_length(struct sli4 *sli4, u8 *cqe);
+u32 sli_fc_io_length(struct sli4 *sli4, u8 *cqe);
+int sli_fc_els_did(struct sli4 *sli4, u8 *cqe, u32 *d_id);
+u32 sli_fc_ext_status(struct sli4 *sli4, u8 *cqe);
+int
+sli_fc_rqe_rqid_and_index(struct sli4 *sli4, u8 *cqe, u16 *rq_id, u32 *index);
+int
+sli_cmd_wq_create(struct sli4 *sli4, void *buf,
+		  struct efc_dma *qmem, u16 cq_id);
+int sli_cmd_post_sgl_pages(struct sli4 *sli4, void *buf, u16 xri,
+		u32 xri_count, struct efc_dma *page0[], struct efc_dma *page1[],
+		struct efc_dma *dma);
+int
+sli_cmd_post_hdr_templates(struct sli4 *sli4, void *buf,
+		struct efc_dma *dma, u16 rpi, struct efc_dma *payload_dma);
+int
+sli_fc_rq_alloc(struct sli4 *sli4, struct sli4_queue *q, u32 n_entries,
+		u32 buffer_size, struct sli4_queue *cq, bool is_hdr);
+int
+sli_fc_rq_set_alloc(struct sli4 *sli4, u32 num_rq_pairs, struct sli4_queue *q[],
+		u32 base_cq_id, u32 num, u32 hdr_buf_size, u32 data_buf_size);
+u32 sli_fc_get_rpi_requirements(struct sli4 *sli4, u32 n_rpi);
+int
+sli_abort_wqe(struct sli4 *sli4, void *buf, enum sli4_abort_type type,
+	      bool send_abts, u32 ids, u32 mask, u16 tag, u16 cq_id);
+
+int
+sli_send_frame_wqe(struct sli4 *sli4, void *buf, u8 sof, u8 eof,
+		   u32 *hdr, struct efc_dma *payload, u32 req_len, u8 timeout,
+		   u16 xri, u16 req_tag);
+
+int
+sli_xmit_els_rsp64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *rsp,
+		       struct sli_els_params *params);
+
+int
+sli_els_request64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
+		      struct sli_els_params *params);
+
+int
+sli_fcp_icmnd64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl, u16 xri,
+		    u16 tag, u16 cq_id, u32 rpi, u32 rnode_fcid, u8 timeout);
+
+int
+sli_fcp_iread64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
+		    u32 first_data_sge, u32 xfer_len, u16 xri,
+		    u16 tag, u16 cq_id, u32 rpi, u32 rnode_fcid, u8 dif, u8 bs,
+		    u8 timeout);
+
+int
+sli_fcp_iwrite64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
+		     u32 first_data_sge, u32 xfer_len,
+		     u32 first_burst, u16 xri, u16 tag, u16 cq_id, u32 rpi,
+		     u32 rnode_fcid, u8 dif, u8 bs, u8 timeout);
+
+int
+sli_fcp_treceive64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
+		       u32 first_data_sge, u16 cq_id, u8 dif, u8 bs,
+		       struct sli_fcp_tgt_params *params);
+int
+sli_fcp_cont_treceive64_wqe(struct sli4 *sli, void *buf, struct efc_dma *sgl,
+			    u32 first_data_sge, u16 sec_xri, u16 cq_id, u8 dif,
+			    u8 bs, struct sli_fcp_tgt_params *params);
+
+int
+sli_fcp_trsp64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
+		   u16 cq_id, u8 port_owned, struct sli_fcp_tgt_params *params);
+
+int
+sli_fcp_tsend64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
+		    u32 first_data_sge, u16 cq_id, u8 dif, u8 bs,
+		    struct sli_fcp_tgt_params *params);
+int
+sli_gen_request64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *sgl,
+		      struct sli_ct_params *params);
+
+int
+sli_xmit_bls_rsp64_wqe(struct sli4 *sli4, void *buf,
+		struct sli_bls_payload *payload, struct sli_bls_params *params);
+
+int
+sli_xmit_sequence64_wqe(struct sli4 *sli4, void *buf, struct efc_dma *payload,
+			struct sli_ct_params *params);
+
+int
+sli_requeue_xri_wqe(struct sli4 *sli4, void *buf, u16 xri, u16 tag, u16 cq_id);
+void
+sli4_cmd_lowlevel_set_watchdog(struct sli4 *sli4, void *buf, size_t size,
+			       u16 timeout);
+
+const char *sli_fc_get_status_string(u32 status);
+
 #endif /* !_SLI4_H */
