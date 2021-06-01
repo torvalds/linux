@@ -328,7 +328,7 @@ sja1105_cgu_pll_control_packing(void *buf, struct sja1105_cgu_pll_ctrl *cmd,
 }
 
 static int sja1105_cgu_rgmii_tx_clk_config(struct sja1105_private *priv,
-					   int port, sja1105_speed_t speed)
+					   int port, u64 speed)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl txc;
@@ -338,7 +338,7 @@ static int sja1105_cgu_rgmii_tx_clk_config(struct sja1105_private *priv,
 	if (regs->rgmii_tx_clk[port] == SJA1105_RSV_ADDR)
 		return 0;
 
-	if (speed == SJA1105_SPEED_1000MBPS) {
+	if (speed == priv->info->port_speed[SJA1105_SPEED_1000MBPS]) {
 		clksrc = CLKSRC_PLL0;
 	} else {
 		int clk_sources[] = {CLKSRC_IDIV0, CLKSRC_IDIV1, CLKSRC_IDIV2,
@@ -524,35 +524,31 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
 {
 	struct device *dev = priv->ds->dev;
 	struct sja1105_mac_config_entry *mac;
-	sja1105_speed_t speed;
+	u64 speed;
 	int rc;
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 	speed = mac[port].speed;
 
-	dev_dbg(dev, "Configuring port %d RGMII at speed %dMbps\n",
+	dev_dbg(dev, "Configuring port %d RGMII at speed %lldMbps\n",
 		port, speed);
 
-	switch (speed) {
-	case SJA1105_SPEED_1000MBPS:
+	if (speed == priv->info->port_speed[SJA1105_SPEED_1000MBPS]) {
 		/* 1000Mbps, IDIV disabled (125 MHz) */
 		rc = sja1105_cgu_idiv_config(priv, port, false, 1);
-		break;
-	case SJA1105_SPEED_100MBPS:
+	} else if (speed == priv->info->port_speed[SJA1105_SPEED_100MBPS]) {
 		/* 100Mbps, IDIV enabled, divide by 1 (25 MHz) */
 		rc = sja1105_cgu_idiv_config(priv, port, true, 1);
-		break;
-	case SJA1105_SPEED_10MBPS:
+	} else if (speed == priv->info->port_speed[SJA1105_SPEED_10MBPS]) {
 		/* 10Mbps, IDIV enabled, divide by 10 (2.5 MHz) */
 		rc = sja1105_cgu_idiv_config(priv, port, true, 10);
-		break;
-	case SJA1105_SPEED_AUTO:
+	} else if (speed == priv->info->port_speed[SJA1105_SPEED_AUTO]) {
 		/* Skip CGU configuration if there is no speed available
 		 * (e.g. link is not established yet)
 		 */
 		dev_dbg(dev, "Speed not available, skipping CGU config\n");
 		return 0;
-	default:
+	} else {
 		rc = -EINVAL;
 	}
 
@@ -570,13 +566,8 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
 		dev_err(dev, "Failed to configure Tx pad registers\n");
 		return rc;
 	}
+
 	if (!priv->info->setup_rgmii_delay)
-		return 0;
-	/* The role has no hardware effect for RGMII. However we use it as
-	 * a proxy for this interface being a MAC-to-MAC connection, with
-	 * the RGMII internal delays needing to be applied by us.
-	 */
-	if (role == XMII_MAC)
 		return 0;
 
 	return priv->info->setup_rgmii_delay(priv, port);

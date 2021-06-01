@@ -440,7 +440,6 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.pad_mii_tx = {0x100800, 0x100802, 0x100804, 0x100806, 0x100808},
 	.pad_mii_rx = {0x100801, 0x100803, 0x100805, 0x100807, 0x100809},
 	.pad_mii_id = {0x100810, 0x100811, 0x100812, 0x100813, 0x100814},
-	.sgmii = 0x1F0000,
 	.rmii_pll1 = 0x10000A,
 	.cgu_idiv = {0x10000B, 0x10000C, 0x10000D, 0x10000E, 0x10000F},
 	.stats[MAC] = {0x200, 0x202, 0x204, 0x206, 0x208},
@@ -483,6 +482,16 @@ const struct sja1105_info sja1105e_info = {
 	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
 	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105et_regs,
+	.port_speed		= {
+		[SJA1105_SPEED_AUTO] = 0,
+		[SJA1105_SPEED_10MBPS] = 3,
+		[SJA1105_SPEED_100MBPS] = 2,
+		[SJA1105_SPEED_1000MBPS] = 1,
+		[SJA1105_SPEED_2500MBPS] = 0, /* Not supported */
+	},
+	.supports_mii		= {true, true, true, true, true},
+	.supports_rmii		= {true, true, true, true, true},
+	.supports_rgmii		= {true, true, true, true, true},
 	.name			= "SJA1105E",
 };
 
@@ -503,6 +512,16 @@ const struct sja1105_info sja1105t_info = {
 	.ptp_cmd_packing	= sja1105et_ptp_cmd_packing,
 	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105et_regs,
+	.port_speed		= {
+		[SJA1105_SPEED_AUTO] = 0,
+		[SJA1105_SPEED_10MBPS] = 3,
+		[SJA1105_SPEED_100MBPS] = 2,
+		[SJA1105_SPEED_1000MBPS] = 1,
+		[SJA1105_SPEED_2500MBPS] = 0, /* Not supported */
+	},
+	.supports_mii		= {true, true, true, true, true},
+	.supports_rmii		= {true, true, true, true, true},
+	.supports_rgmii		= {true, true, true, true, true},
 	.name			= "SJA1105T",
 };
 
@@ -524,6 +543,16 @@ const struct sja1105_info sja1105p_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
+	.port_speed		= {
+		[SJA1105_SPEED_AUTO] = 0,
+		[SJA1105_SPEED_10MBPS] = 3,
+		[SJA1105_SPEED_100MBPS] = 2,
+		[SJA1105_SPEED_1000MBPS] = 1,
+		[SJA1105_SPEED_2500MBPS] = 0, /* Not supported */
+	},
+	.supports_mii		= {true, true, true, true, true},
+	.supports_rmii		= {true, true, true, true, true},
+	.supports_rgmii		= {true, true, true, true, true},
 	.name			= "SJA1105P",
 };
 
@@ -545,6 +574,16 @@ const struct sja1105_info sja1105q_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
+	.port_speed		= {
+		[SJA1105_SPEED_AUTO] = 0,
+		[SJA1105_SPEED_10MBPS] = 3,
+		[SJA1105_SPEED_100MBPS] = 2,
+		[SJA1105_SPEED_1000MBPS] = 1,
+		[SJA1105_SPEED_2500MBPS] = 0, /* Not supported */
+	},
+	.supports_mii		= {true, true, true, true, true},
+	.supports_rmii		= {true, true, true, true, true},
+	.supports_rgmii		= {true, true, true, true, true},
 	.name			= "SJA1105Q",
 };
 
@@ -566,6 +605,17 @@ const struct sja1105_info sja1105r_info = {
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.clocking_setup		= sja1105_clocking_setup,
 	.regs			= &sja1105pqrs_regs,
+	.port_speed		= {
+		[SJA1105_SPEED_AUTO] = 0,
+		[SJA1105_SPEED_10MBPS] = 3,
+		[SJA1105_SPEED_100MBPS] = 2,
+		[SJA1105_SPEED_1000MBPS] = 1,
+		[SJA1105_SPEED_2500MBPS] = 0, /* Not supported */
+	},
+	.supports_mii		= {true, true, true, true, true},
+	.supports_rmii		= {true, true, true, true, true},
+	.supports_rgmii		= {true, true, true, true, true},
+	.supports_sgmii		= {false, false, false, false, true},
 	.name			= "SJA1105R",
 };
 
@@ -587,5 +637,16 @@ const struct sja1105_info sja1105s_info = {
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
 	.ptp_cmd_packing	= sja1105pqrs_ptp_cmd_packing,
 	.clocking_setup		= sja1105_clocking_setup,
+	.port_speed		= {
+		[SJA1105_SPEED_AUTO] = 0,
+		[SJA1105_SPEED_10MBPS] = 3,
+		[SJA1105_SPEED_100MBPS] = 2,
+		[SJA1105_SPEED_1000MBPS] = 1,
+		[SJA1105_SPEED_2500MBPS] = 0, /* Not supported */
+	},
+	.supports_mii		= {true, true, true, true, true},
+	.supports_rmii		= {true, true, true, true, true},
+	.supports_rgmii		= {true, true, true, true, true},
+	.supports_sgmii		= {false, false, false, false, true},
 	.name			= "SJA1105S",
 };
