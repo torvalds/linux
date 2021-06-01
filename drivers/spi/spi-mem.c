@@ -896,7 +896,7 @@ int spi_mem_driver_register_with_owner(struct spi_mem_driver *memdrv,
 EXPORT_SYMBOL_GPL(spi_mem_driver_register_with_owner);
 
 /**
- * spi_mem_driver_unregister_with_owner() - Unregister a SPI memory driver
+ * spi_mem_driver_unregister() - Unregister a SPI memory driver
  * @memdrv: the SPI memory driver to unregister
  *
  * Unregisters a SPI memory driver.
