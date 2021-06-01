@@ -23,6 +23,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-budget-ci-old.o \
 			rc-cinergy-1400.o \
 			rc-cinergy.o \
+			rc-ct-90405.o \
 			rc-d680-dmb.o \
 			rc-delock-61959.o \
 			rc-dib0700-nec.o \

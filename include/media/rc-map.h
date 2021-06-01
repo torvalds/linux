@@ -231,6 +231,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_CEC                       "rc-cec"
 #define RC_MAP_CINERGY                   "rc-cinergy"
 #define RC_MAP_CINERGY_1400              "rc-cinergy-1400"
+#define RC_MAP_CT_90405                  "rc-ct-90405"
 #define RC_MAP_D680_DMB                  "rc-d680-dmb"
 #define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
