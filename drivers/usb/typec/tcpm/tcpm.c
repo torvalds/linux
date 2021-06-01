@@ -1603,7 +1603,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 				svdm_version = PD_VDO_SVDM_VER(p[0]);
 			}
 
-			tcpm_ams_start(port, DISCOVER_IDENTITY);
+			port->ams = DISCOVER_IDENTITY;
 			/*
 			 * PD2.0 Spec 6.10.3: respond with NAK as DFP (data host)
 			 * PD3.1 Spec 6.4.4.2.5.1: respond with NAK if "invalid field" or
@@ -1626,19 +1626,18 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			}
 			break;
 		case CMD_DISCOVER_SVID:
-			tcpm_ams_start(port, DISCOVER_SVIDS);
+			port->ams = DISCOVER_SVIDS;
 			break;
 		case CMD_DISCOVER_MODES:
-			tcpm_ams_start(port, DISCOVER_MODES);
+			port->ams = DISCOVER_MODES;
 			break;
 		case CMD_ENTER_MODE:
-			tcpm_ams_start(port, DFP_TO_UFP_ENTER_MODE);
+			port->ams = DFP_TO_UFP_ENTER_MODE;
 			break;
 		case CMD_EXIT_MODE:
-			tcpm_ams_start(port, DFP_TO_UFP_EXIT_MODE);
+			port->ams = DFP_TO_UFP_EXIT_MODE;
 			break;
 		case CMD_ATTENTION:
-			tcpm_ams_start(port, ATTENTION);
 			/* Attention command does not have response */
 			*adev_action = ADEV_ATTENTION;
 			return 0;
