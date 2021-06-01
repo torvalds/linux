@@ -3050,19 +3050,18 @@ static int add_falloc_range(struct list_head *head, u64 start, u64 len)
 {
 	struct falloc_range *range = NULL;
 
-	if (list_empty(head))
-		goto insert;
-
-	/*
-	 * As fallocate iterate by bytenr order, we only need to check
-	 * the last range.
-	 */
-	range = list_last_entry(head, struct falloc_range, list);
-	if (range->start + range->len == start) {
-		range->len += len;
-		return 0;
+	if (!list_empty(head)) {
+		/*
+		 * As fallocate iterates by bytenr order, we only need to check
+		 * the last range.
+		 */
+		range = list_last_entry(head, struct falloc_range, list);
+		if (range->start + range->len == start) {
+			range->len += len;
+			return 0;
+		}
 	}
-insert:
+
 	range = kmalloc(sizeof(*range), GFP_KERNEL);
 	if (!range)
 		return -ENOMEM;
