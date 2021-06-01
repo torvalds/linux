@@ -444,7 +444,11 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice)
 			goto error;
 		}
 
-		err = amdtp_domain_start(&dice->domain, 0, false, false);
+		// MEMO: The device immediately starts packet transmission when enabled. Some
+		// devices are strictly to generate any discontinuity in the sequence of tx packet
+		// when they receives invalid sequence of presentation time in CIP header. The
+		// sequence replay for media clock recovery can suppress the behaviour.
+		err = amdtp_domain_start(&dice->domain, 0, true, false);
 		if (err < 0)
 			goto error;
 
