@@ -574,8 +574,7 @@
 			status = "disabled";
 		};
 		ehrpwm0: pwm@300000 {
-			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm",
-				     "ti,am33xx-ehrpwm";
+			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm";
 			#pwm-cells = <3>;
 			reg = <0x300000 0x2000>;
 			clocks = <&psc1 17>, <&ehrpwm_tbclk>;
@@ -584,8 +583,7 @@
 			status = "disabled";
 		};
 		ehrpwm1: pwm@302000 {
-			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm",
-				     "ti,am33xx-ehrpwm";
+			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm";
 			#pwm-cells = <3>;
 			reg = <0x302000 0x2000>;
 			clocks = <&psc1 17>, <&ehrpwm_tbclk>;
