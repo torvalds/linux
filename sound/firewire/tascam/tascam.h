@@ -99,6 +99,7 @@ struct snd_tscm {
 	unsigned int push_pos;
 
 	struct amdtp_domain domain;
+	bool need_long_tx_init_skip;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
