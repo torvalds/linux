@@ -1608,14 +1608,18 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 	mt76_set(dev, MT_WFDMA1_GLO_CFG,
-		 MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN);
+		 MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN |
+		 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
+		 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
 	if (dev->hif2) {
 		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
 			(MT_WFDMA0_GLO_CFG_TX_DMA_EN |
 			 MT_WFDMA0_GLO_CFG_RX_DMA_EN));
 		mt76_set(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
 			(MT_WFDMA1_GLO_CFG_TX_DMA_EN |
-			 MT_WFDMA1_GLO_CFG_RX_DMA_EN));
+			 MT_WFDMA1_GLO_CFG_RX_DMA_EN |
+			 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
+			 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO));
 	}
 }
 
@@ -1659,11 +1663,6 @@ void mt7915_mac_reset_work(struct work_struct *work)
 		set_bit(MT76_RESET, &phy2->mt76->state);
 		cancel_delayed_work_sync(&phy2->mt76->mac_work);
 	}
-	/* lock/unlock all queues to ensure that no tx is pending */
-	mt76_txq_schedule_all(&dev->mphy);
-	if (ext_phy)
-		mt76_txq_schedule_all(ext_phy);
-
 	mt76_worker_disable(&dev->mt76.tx_worker);
 	napi_disable(&dev->mt76.napi[0]);
 	napi_disable(&dev->mt76.napi[1]);
@@ -1689,10 +1688,6 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	if (phy2)
 		clear_bit(MT76_RESET, &phy2->mt76->state);
 
-	mt76_worker_enable(&dev->mt76.tx_worker);
-	napi_enable(&dev->mt76.tx_napi);
-	napi_schedule(&dev->mt76.tx_napi);
-
 	napi_enable(&dev->mt76.napi[0]);
 	napi_schedule(&dev->mt76.napi[0]);
 
@@ -1701,13 +1696,19 @@ void mt7915_mac_reset_work(struct work_struct *work)
 
 	napi_enable(&dev->mt76.napi[2]);
 	napi_schedule(&dev->mt76.napi[2]);
+	tasklet_schedule(&dev->irq_tasklet);
+
+	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
+	mt7915_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
+
+	mt76_worker_enable(&dev->mt76.tx_worker);
+
+	napi_enable(&dev->mt76.tx_napi);
+	napi_schedule(&dev->mt76.tx_napi);
 
 	ieee80211_wake_queues(mt76_hw(dev));
 	if (ext_phy)
 		ieee80211_wake_queues(ext_phy->hw);
-
-	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
-	mt7915_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
 	mutex_unlock(&dev->mt76.mutex);
 
