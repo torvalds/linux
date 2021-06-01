@@ -29,8 +29,8 @@
 #define SUBSTREAM_FLAG_SYNC_EP_STARTED	1
 
 /* return the estimated delay based on USB frame counters */
-snd_pcm_uframes_t snd_usb_pcm_delay(struct snd_usb_substream *subs,
-				    unsigned int rate)
+static snd_pcm_uframes_t snd_usb_pcm_delay(struct snd_usb_substream *subs,
+					   unsigned int rate)
 {
 	int current_frame_number;
 	int frame_diff;
