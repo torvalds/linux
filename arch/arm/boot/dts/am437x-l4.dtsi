@@ -1747,7 +1747,7 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap0: ecap@100 {
+				ecap0: pwm@100 {
 					compatible = "ti,am4372-ecap",
 						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
@@ -1797,7 +1797,7 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap1: ecap@100 {
+				ecap1: pwm@100 {
 					compatible = "ti,am4372-ecap",
 						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
@@ -1847,7 +1847,7 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap2: ecap@100 {
+				ecap2: pwm@100 {
 					compatible = "ti,am4372-ecap",
 						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
