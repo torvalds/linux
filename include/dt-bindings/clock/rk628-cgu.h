@@ -45,6 +45,7 @@
 #define CGU_MCLK_I2S_8CH	35
 #define CGU_I2S_MCLKOUT		36
 #define CGU_BT1120DEC		37
-#define CGU_NR_CLKS		38
+#define CGU_CLK_TESTOUT		38
+#define CGU_NR_CLKS		39
 
 #endif

@@ -86,6 +86,14 @@ PNAME(mux_mclk_i2s_8ch_p) = { CNAME("clk_i2s_8ch_src"),
 			      CNAME("clk_i2s_8ch_frac"), CNAME("i2s_mclkin"),
 			      CNAME("xin_osc0_half") };
 PNAME(mux_i2s_mclkout_p) = { CNAME("mclk_i2s_8ch"), CNAME("xin_osc0_half") };
+PNAME(mux_clk_testout_p) = { CNAME("xin_osc0_func"), CNAME("xin_osc0_half"),
+			     CNAME("clk_gpll"), CNAME("clk_gpll_mux"),
+			     CNAME("clk_cpll"), CNAME("clk_gpll_mux"),
+			     CNAME("pclk_logic"), CNAME("sclk_vop"),
+			     CNAME("mclk_i2s_8ch"), CNAME("i2s_mclkout"),
+			     CNAME("dummy"), CNAME("clk_hdmirx_aud"),
+			     CNAME("clk_hdmirx_cec"), CNAME("clk_imodet"),
+			     CNAME("clk_txesc"), CNAME("clk_gpio_db0") };
 
 static const struct clk_pll_data rk628_clk_plls[] = {
 	RK628_PLL(CGU_CLK_CPLL, CNAME("clk_cpll"), CNAME("xin_osc0_func"),
@@ -247,6 +255,11 @@ static const struct clk_composite_data rk628_clk_composites[] = {
 		  CRU_CLKSEL_CON02, 7, 1,
 		  CRU_CLKSEL_CON02, 0, 5,
 		  CRU_GATE_CON00, 12,
+		  0),
+	COMPOSITE(CGU_CLK_TESTOUT, CNAME("clk_testout"), mux_clk_testout_p,
+		  CRU_CLKSEL_CON06, 0, 4,
+		  CRU_CLKSEL_CON06, 8, 6,
+		  CRU_GATE_CON04, 7,
 		  0),
 };
 
