@@ -559,10 +559,6 @@
 			#size-cells = <0>;
 		};
 
-		pdupdate {
-			compatible = "google,cros-ec-pd-update";
-		};
-
 		typec {
 			compatible = "google,cros-ec-typec";
 			#address-cells = <1>;
