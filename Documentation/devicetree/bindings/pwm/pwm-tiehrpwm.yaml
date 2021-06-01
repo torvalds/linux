@@ -22,6 +22,7 @@ properties:
               - ti,am4372-ehrpwm
               - ti,dra746-ehrpwm
               - ti,am654-ehrpwm
+              - ti,am64-epwm
           - const: ti,am3352-ehrpwm
 
   reg:
