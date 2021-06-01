@@ -528,17 +528,13 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
 			  struct dwapb_port_property *pp)
 {
-	struct device_node *np = NULL;
-	int irq = -ENXIO, j;
-
-	if (fwnode_property_read_bool(fwnode, "interrupt-controller"))
-		np = to_of_node(fwnode);
+	int irq, j;
 
 	for (j = 0; j < pp->ngpio; j++) {
-		if (np)
-			irq = of_irq_get(np, j);
-		else if (has_acpi_companion(dev))
+		if (has_acpi_companion(dev))
 			irq = platform_get_irq_optional(to_platform_device(dev), j);
+		else
+			irq = fwnode_irq_get(fwnode, j);
 		if (irq > 0)
 			pp->irq[j] = irq;
 	}
