@@ -705,4 +705,33 @@ int
 efct_hw_bls_send(struct efct *efct, u32 type, struct sli_bls_params *bls_params,
 		 void *cb, void *arg);
 
+/* Function for retrieving link statistics */
+int
+efct_hw_get_link_stats(struct efct_hw *hw,
+		       u8 req_ext_counters,
+		       u8 clear_overflow_flags,
+		       u8 clear_all_counters,
+		       void (*efct_hw_link_stat_cb_t)(int status,
+						      u32 num_counters,
+		       struct efct_hw_link_stat_counts *counters, void *arg),
+		       void *arg);
+/* Function for retrieving host statistics */
+int
+efct_hw_get_host_stats(struct efct_hw *hw,
+		       u8 cc,
+		       void (*efct_hw_host_stat_cb_t)(int status,
+						      u32 num_counters,
+		       struct efct_hw_host_stat_counts *counters, void *arg),
+		       void *arg);
+int
+efct_hw_firmware_write(struct efct_hw *hw, struct efc_dma *dma,
+		       u32 size, u32 offset, int last,
+		       void (*cb)(int status, u32 bytes_written,
+				  u32 change_status, void *arg),
+		       void *arg);
+typedef void (*efct_hw_async_cb_t)(struct efct_hw *hw, int status,
+				  u8 *mqe, void *arg);
+int
+efct_hw_async_call(struct efct_hw *hw, efct_hw_async_cb_t callback, void *arg);
+
 #endif /* __EFCT_H__ */
