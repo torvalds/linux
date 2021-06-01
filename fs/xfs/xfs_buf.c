@@ -347,65 +347,55 @@ xfs_buf_free(
 	kmem_cache_free(xfs_buf_zone, bp);
 }
 
-/*
- * Allocates all the pages for buffer in question and builds it's page list.
- */
-STATIC int
-xfs_buf_allocate_memory(
-	struct xfs_buf		*bp,
-	uint			flags)
+static int
+xfs_buf_alloc_kmem(
+	struct xfs_buf	*bp,
+	size_t		size,
+	xfs_buf_flags_t	flags)
 {
-	size_t			size;
-	size_t			nbytes, offset;
-	gfp_t			gfp_mask = xb_to_gfp(flags);
-	unsigned short		page_count, i;
-	xfs_off_t		start, end;
-	int			error;
-	xfs_km_flags_t		kmflag_mask = 0;
+	int		align_mask = xfs_buftarg_dma_alignment(bp->b_target);
+	xfs_km_flags_t	kmflag_mask = KM_NOFS;
 
-	/*
-	 * assure zeroed buffer for non-read cases.
-	 */
-	if (!(flags & XBF_READ)) {
+	/* Assure zeroed buffer for non-read cases. */
+	if (!(flags & XBF_READ))
 		kmflag_mask |= KM_ZERO;
+
+	bp->b_addr = kmem_alloc_io(size, align_mask, kmflag_mask);
+	if (!bp->b_addr)
+		return -ENOMEM;
+
+	if (((unsigned long)(bp->b_addr + size - 1) & PAGE_MASK) !=
+	    ((unsigned long)bp->b_addr & PAGE_MASK)) {
+		/* b_addr spans two pages - use alloc_page instead */
+		kmem_free(bp->b_addr);
+		bp->b_addr = NULL;
+		return -ENOMEM;
+	}
+	bp->b_offset = offset_in_page(bp->b_addr);
+	bp->b_pages = bp->b_page_array;
+	bp->b_pages[0] = kmem_to_page(bp->b_addr);
+	bp->b_page_count = 1;
+	bp->b_flags |= _XBF_KMEM;
+	return 0;
+}
+
+static int
+xfs_buf_alloc_pages(
+	struct xfs_buf	*bp,
+	uint		page_count,
+	xfs_buf_flags_t	flags)
+{
+	gfp_t		gfp_mask = xb_to_gfp(flags);
+	size_t		size;
+	size_t		offset;
+	size_t		nbytes;
+	int		i;
+	int		error;
+
+	/* Assure zeroed buffer for non-read cases. */
+	if (!(flags & XBF_READ))
 		gfp_mask |= __GFP_ZERO;
-	}
 
-	/*
-	 * for buffers that are contained within a single page, just allocate
-	 * the memory from the heap - there's no need for the complexity of
-	 * page arrays to keep allocation down to order 0.
-	 */
-	size = BBTOB(bp->b_length);
-	if (size < PAGE_SIZE) {
-		int align_mask = xfs_buftarg_dma_alignment(bp->b_target);
-		bp->b_addr = kmem_alloc_io(size, align_mask,
-					   KM_NOFS | kmflag_mask);
-		if (!bp->b_addr) {
-			/* low memory - use alloc_page loop instead */
-			goto use_alloc_page;
-		}
-
-		if (((unsigned long)(bp->b_addr + size - 1) & PAGE_MASK) !=
-		    ((unsigned long)bp->b_addr & PAGE_MASK)) {
-			/* b_addr spans two pages - use alloc_page instead */
-			kmem_free(bp->b_addr);
-			bp->b_addr = NULL;
-			goto use_alloc_page;
-		}
-		bp->b_offset = offset_in_page(bp->b_addr);
-		bp->b_pages = bp->b_page_array;
-		bp->b_pages[0] = kmem_to_page(bp->b_addr);
-		bp->b_page_count = 1;
-		bp->b_flags |= _XBF_KMEM;
-		return 0;
-	}
-
-use_alloc_page:
-	start = BBTOB(bp->b_maps[0].bm_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
-								>> PAGE_SHIFT;
-	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count);
 	if (unlikely(error))
 		return error;
@@ -456,6 +446,38 @@ out_free_pages:
 		__free_page(bp->b_pages[i]);
 	bp->b_flags &= ~_XBF_PAGES;
 	return error;
+}
+
+
+/*
+ * Allocates all the pages for buffer in question and builds it's page list.
+ */
+static int
+xfs_buf_allocate_memory(
+	struct xfs_buf		*bp,
+	uint			flags)
+{
+	size_t			size;
+	xfs_off_t		start, end;
+	int			error;
+
+	/*
+	 * For buffers that fit entirely within a single page, first attempt to
+	 * allocate the memory from the heap to minimise memory usage. If we
+	 * can't get heap memory for these small buffers, we fall back to using
+	 * the page allocator.
+	 */
+	size = BBTOB(bp->b_length);
+	if (size < PAGE_SIZE) {
+		error = xfs_buf_alloc_kmem(bp, size, flags);
+		if (!error)
+			return 0;
+	}
+
+	start = BBTOB(bp->b_maps[0].bm_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
+								>> PAGE_SHIFT;
+	return xfs_buf_alloc_pages(bp, end - start, flags);
 }
 
 /*
