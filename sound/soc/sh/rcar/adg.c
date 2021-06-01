@@ -412,9 +412,9 @@ static struct clk *rsnd_adg_null_clk_get(struct rsnd_priv *priv)
 	return clk_hw_get_clk(priv->null_hw, NULL_CLK);
 }
 
-static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
-			       struct rsnd_adg *adg)
+static void rsnd_adg_get_clkin(struct rsnd_priv *priv)
 {
+	struct rsnd_adg *adg = priv->adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int i;
 
@@ -430,9 +430,9 @@ static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 	}
 }
 
-static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
-				struct rsnd_adg *adg)
+static void rsnd_adg_get_clkout(struct rsnd_priv *priv)
 {
+	struct rsnd_adg *adg = priv->adg;
 	struct clk *clk;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
@@ -644,10 +644,10 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 	if (ret)
 		return ret;
 
-	rsnd_adg_get_clkin(priv, adg);
-	rsnd_adg_get_clkout(priv, adg);
-
 	priv->adg = adg;
+
+	rsnd_adg_get_clkin(priv);
+	rsnd_adg_get_clkout(priv);
 
 	rsnd_adg_clk_enable(priv);
 	rsnd_adg_clk_dbg_info(priv, NULL);
