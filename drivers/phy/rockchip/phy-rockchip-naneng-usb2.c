@@ -659,7 +659,8 @@ static int rockchip_set_vbus_power(struct rockchip_usb2phy_port *rport,
 	return ret;
 }
 
-static int rockchip_usb2phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int rockchip_usb2phy_set_mode(struct phy *phy,
+				     enum phy_mode mode, int submode)
 {
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(phy->dev.parent);
@@ -1077,7 +1078,7 @@ static ssize_t otg_mode_store(struct device *device,
 		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
 		extcon_sync(rphy->edev, EXTCON_USB);
 		extcon_sync(rphy->edev, EXTCON_USB_HOST);
-		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST);
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST, 0);
 		property_enable(rphy->grf, &rport->port_cfg->idpullup,
 				false);
 		property_enable(rphy->grf, &rport->port_cfg->iddig_output,
@@ -1086,7 +1087,7 @@ static ssize_t otg_mode_store(struct device *device,
 				true);
 		break;
 	case USB_DR_MODE_PERIPHERAL:
-		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_DEVICE);
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_DEVICE, 0);
 		property_enable(rphy->grf, &rport->port_cfg->idpullup,
 				true);
 		property_enable(rphy->grf, &rport->port_cfg->iddig_output,
@@ -1095,7 +1096,7 @@ static ssize_t otg_mode_store(struct device *device,
 				true);
 		break;
 	case USB_DR_MODE_OTG:
-		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_OTG);
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_OTG, 0);
 		property_enable(rphy->grf, &rport->port_cfg->iddig_output,
 				false);
 		property_enable(rphy->grf, &rport->port_cfg->iddig_en,
@@ -1266,7 +1267,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
 		}
-		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST);
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST, 0);
 		/*
 		 * Here set iddig to 0 by disable idpullup, the otg_suspendm
 		 * will be set to 1 to enable the disconnect detection module,
