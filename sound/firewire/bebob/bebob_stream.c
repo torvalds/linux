@@ -649,10 +649,15 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		else
 			tx_init_skip_cycles = 16000;
 
-		// MEMO: In the early stage of packet streaming, the device transfers NODATA packets.
-		// After several hundred cycles, it begins to multiplex event into the packet with
-		// syt information.
-		err = amdtp_domain_start(&bebob->domain, tx_init_skip_cycles, false, false);
+		// MEMO: Some devices start packet transmission long enough after establishment of
+		// CMP connection. In the early stage of packet streaming, any device transfers
+		// NODATA packets. After several hundred cycles, it begins to multiplex event into
+		// the packet with adequate value of syt field in CIP header. Some devices are
+		// strictly to generate any discontinuity in the sequence of tx packet when they
+		// receives inadequate sequence of value in syt field of CIP header. In the case,
+		// the request to break CMP connection is often corrupted, then any transaction
+		// results in unrecoverable error, sometimes generate bus-reset.
+		err = amdtp_domain_start(&bebob->domain, tx_init_skip_cycles, true, false);
 		if (err < 0)
 			goto error;
 
