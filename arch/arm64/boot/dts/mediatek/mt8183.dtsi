@@ -1263,13 +1263,14 @@
 		};
 
 		smi_common: smi@14019000 {
-			compatible = "mediatek,mt8183-smi-common", "syscon";
+			compatible = "mediatek,mt8183-smi-common";
 			reg = <0 0x14019000 0 0x1000>;
 			clocks = <&mmsys CLK_MM_SMI_COMMON>,
 				 <&mmsys CLK_MM_SMI_COMMON>,
 				 <&mmsys CLK_MM_GALS_COMM0>,
 				 <&mmsys CLK_MM_GALS_COMM1>;
 			clock-names = "apb", "smi", "gals0", "gals1";
+			power-domains = <&spm MT8183_POWER_DOMAIN_DISP>;
 		};
 
 		imgsys: syscon@15020000 {
