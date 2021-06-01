@@ -13,7 +13,7 @@
 #include "ops.h"
 #include "probe.h"
 
-struct snd_compress_ops sof_probe_compressed_ops = {
+const struct snd_compress_ops sof_probe_compressed_ops = {
 	.copy		= sof_probe_compr_copy,
 };
 EXPORT_SYMBOL(sof_probe_compressed_ops);

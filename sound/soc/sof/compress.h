@@ -13,7 +13,7 @@
 
 #include <sound/compress_driver.h>
 
-extern struct snd_compress_ops sof_probe_compressed_ops;
+extern const struct snd_compress_ops sof_probe_compressed_ops;
 
 int sof_probe_compr_open(struct snd_compr_stream *cstream,
 		struct snd_soc_dai *dai);
