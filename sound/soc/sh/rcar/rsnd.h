@@ -364,19 +364,13 @@ struct rsnd_mod {
 /*
  * status
  *
- * 0xH0000CB0
+ * 0xH000DCB0
  *
  * B	0: init		1: quit
  * C	0: start	1: stop
  * D	0: hw_params	1: hw_free
  *
  * H is always called (see __rsnd_mod_call)
- * H	0: probe	1: remove
- * H	0: pcm_new
- * H	0: fallback
- * H	0: pointer
- * H	0: prepare
- * H	0: cleanup
  */
 #define __rsnd_mod_shift_init		4
 #define __rsnd_mod_shift_quit		4
@@ -412,16 +406,16 @@ struct rsnd_mod {
 #define __rsnd_mod_call_remove		0
 #define __rsnd_mod_call_prepare		0
 #define __rsnd_mod_call_cleanup		0
-#define __rsnd_mod_call_init		0
-#define __rsnd_mod_call_quit		1
-#define __rsnd_mod_call_start		0
-#define __rsnd_mod_call_stop		1
+#define __rsnd_mod_call_init		0 /* needs protect */
+#define __rsnd_mod_call_quit		1 /* needs protect */
+#define __rsnd_mod_call_start		0 /* needs protect */
+#define __rsnd_mod_call_stop		1 /* needs protect */
+#define __rsnd_mod_call_hw_params	0 /* needs protect */
+#define __rsnd_mod_call_hw_free		1 /* needs protect */
 #define __rsnd_mod_call_irq		0
 #define __rsnd_mod_call_pcm_new		0
 #define __rsnd_mod_call_fallback	0
-#define __rsnd_mod_call_hw_params	0
 #define __rsnd_mod_call_pointer		0
-#define __rsnd_mod_call_hw_free		1
 
 #define rsnd_mod_to_priv(mod)	((mod)->priv)
 #define rsnd_mod_power_on(mod)	clk_enable((mod)->clk)
