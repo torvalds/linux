@@ -415,12 +415,11 @@ static int rk817_probe(struct snd_soc_component *component)
 {
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	struct rk808 *rk808 = dev_get_drvdata(component->dev->parent);
-	int ret;
 
 	snd_soc_component_init_regmap(component, rk808->regmap);
 	rk817->component = component;
 
-	ret = snd_soc_component_write(component, RK817_CODEC_DTOP_LPT_SRST, 0x40);
+	snd_soc_component_write(component, RK817_CODEC_DTOP_LPT_SRST, 0x40);
 
 	rk817_init(component);
 
