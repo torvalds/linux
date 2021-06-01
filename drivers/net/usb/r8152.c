@@ -2445,7 +2445,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 			unsigned int pkt_len, rx_frag_head_sz;
 			struct sk_buff *skb;
 
-			/* limite the skb numbers for rx_queue */
+			/* limit the skb numbers for rx_queue */
 			if (unlikely(skb_queue_len(&tp->rx_queue) >= 1000))
 				break;
 
@@ -8211,7 +8211,7 @@ static int rtl8152_post_reset(struct usb_interface *intf)
 	if (!tp)
 		return 0;
 
-	/* reset the MAC adddress in case of policy change */
+	/* reset the MAC address in case of policy change */
 	if (determine_ethernet_addr(tp, &sa) >= 0) {
 		rtnl_lock();
 		dev_set_mac_address (tp->netdev, &sa, NULL);

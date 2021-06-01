@@ -61,7 +61,7 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 	int need_tail = 0;
 	__le16 *len;
 
-	/* if packet and our header is smaler than 64 pad to 64 (+ ZLP) */
+	/* if packet and our header is smaller than 64 pad to 64 (+ ZLP) */
 	if ((pack_with_header_len) < dev->maxpacket)
 		need_tail = dev->maxpacket - pack_with_header_len + 1;
 	/*
