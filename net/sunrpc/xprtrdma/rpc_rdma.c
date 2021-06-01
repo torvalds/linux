@@ -628,8 +628,9 @@ out_mapping_err:
 	return false;
 }
 
-/* The tail iovec might not reside in the same page as the
- * head iovec.
+/* The tail iovec may include an XDR pad for the page list,
+ * as well as additional content, and may not reside in the
+ * same page as the head iovec.
  */
 static bool rpcrdma_prepare_tail_iov(struct rpcrdma_req *req,
 				     struct xdr_buf *xdr,
@@ -747,19 +748,27 @@ static bool rpcrdma_prepare_readch(struct rpcrdma_xprt *r_xprt,
 				   struct rpcrdma_req *req,
 				   struct xdr_buf *xdr)
 {
-	struct kvec *tail = &xdr->tail[0];
-
 	if (!rpcrdma_prepare_head_iov(r_xprt, req, xdr->head[0].iov_len))
 		return false;
 
-	/* If there is a Read chunk, the page list is handled
+	/* If there is a Read chunk, the page list is being handled
 	 * via explicit RDMA, and thus is skipped here.
 	 */
 
-	if (tail->iov_len) {
-		if (!rpcrdma_prepare_tail_iov(req, xdr,
-					      offset_in_page(tail->iov_base),
-					      tail->iov_len))
+	/* Do not include the tail if it is only an XDR pad */
+	if (xdr->tail[0].iov_len > 3) {
+		unsigned int page_base, len;
+
+		/* If the content in the page list is an odd length,
+		 * xdr_write_pages() adds a pad at the beginning of
+		 * the tail iovec. Force the tail's non-pad content to
+		 * land at the next XDR position in the Send message.
+		 */
+		page_base = offset_in_page(xdr->tail[0].iov_base);
+		len = xdr->tail[0].iov_len;
+		page_base += len & 3;
+		len -= len & 3;
+		if (!rpcrdma_prepare_tail_iov(req, xdr, page_base, len))
 			return false;
 		kref_get(&req->rl_kref);
 	}

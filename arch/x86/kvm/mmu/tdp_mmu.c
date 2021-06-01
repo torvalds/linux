@@ -1192,9 +1192,9 @@ bool kvm_tdp_mmu_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 }
 
 /*
- * Remove write access from all the SPTEs mapping GFNs [start, end). If
- * skip_4k is set, SPTEs that map 4k pages, will not be write-protected.
- * Returns true if an SPTE has been changed and the TLBs need to be flushed.
+ * Remove write access from all SPTEs at or above min_level that map GFNs
+ * [start, end). Returns true if an SPTE has been changed and the TLBs need to
+ * be flushed.
  */
 static bool wrprot_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 			     gfn_t start, gfn_t end, int min_level)

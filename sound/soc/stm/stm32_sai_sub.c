@@ -484,10 +484,7 @@ static int stm32_sai_add_mclk_provider(struct stm32_sai_sub_data *sai)
 		dev_err(dev, "mclk register returned %d\n", ret);
 		return ret;
 	}
-
-	sai->sai_mclk = devm_clk_hw_get_clk(dev, hw, NULL);
-	if (IS_ERR(sai->sai_mclk))
-		return PTR_ERR(sai->sai_mclk);
+	sai->sai_mclk = hw->clk;
 
 	/* register mclk provider */
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, hw);

@@ -95,9 +95,10 @@ int mlx5_get_default_msix_vec_count(struct mlx5_core_dev *dev, int num_vfs)
 int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 			    int msix_vec_count)
 {
-	int sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	int query_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
+	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	void *hca_cap = NULL, *query_cap = NULL, *cap;
 	int num_vf_msix, min_msix, max_msix;
-	void *hca_cap, *cap;
 	int ret;
 
 	num_vf_msix = MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix);
@@ -116,11 +117,20 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 	if (msix_vec_count > max_msix)
 		return -EOVERFLOW;
 
-	hca_cap = kzalloc(sz, GFP_KERNEL);
-	if (!hca_cap)
-		return -ENOMEM;
+	query_cap = kzalloc(query_sz, GFP_KERNEL);
+	hca_cap = kzalloc(set_sz, GFP_KERNEL);
+	if (!hca_cap || !query_cap) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = mlx5_vport_get_other_func_cap(dev, function_id, query_cap);
+	if (ret)
+		goto out;
 
 	cap = MLX5_ADDR_OF(set_hca_cap_in, hca_cap, capability);
+	memcpy(cap, MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability),
+	       MLX5_UN_SZ_BYTES(hca_cap_union));
 	MLX5_SET(cmd_hca_cap, cap, dynamic_msix_table_size, msix_vec_count);
 
 	MLX5_SET(set_hca_cap_in, hca_cap, opcode, MLX5_CMD_OP_SET_HCA_CAP);
@@ -130,7 +140,9 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 	MLX5_SET(set_hca_cap_in, hca_cap, op_mod,
 		 MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE << 1);
 	ret = mlx5_cmd_exec_in(dev, set_hca_cap, hca_cap);
+out:
 	kfree(hca_cap);
+	kfree(query_cap);
 	return ret;
 }
 
