@@ -274,7 +274,7 @@ vrf_map_register_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 	int res;
 
 	/* we pre-allocate elements used in the spin-locked section (so that we
-	 * keep the spinlock as short as possibile).
+	 * keep the spinlock as short as possible).
 	 */
 	new_me = vrf_map_elem_alloc(GFP_KERNEL);
 	if (!new_me)
