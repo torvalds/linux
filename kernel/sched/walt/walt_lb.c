@@ -505,6 +505,9 @@ void walt_lb_tick(struct rq *rq)
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
+	if (available_idle_cpu(prev_cpu) && is_reserved(prev_cpu))
+		clear_reserved(prev_cpu);
+
 	if (!walt_fair_task(p))
 		return;
 
