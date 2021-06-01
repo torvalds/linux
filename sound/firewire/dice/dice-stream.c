@@ -9,7 +9,7 @@
 #include "dice.h"
 
 #define	READY_TIMEOUT_MS	200
-#define NOTIFICATION_TIMEOUT_MS	(2 * MSEC_PER_SEC)
+#define NOTIFICATION_TIMEOUT_MS	100
 
 struct reg_params {
 	unsigned int count;
@@ -57,13 +57,9 @@ int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
 	return -EINVAL;
 }
 
-/*
- * This operation has an effect to synchronize GLOBAL_STATUS/GLOBAL_SAMPLE_RATE
- * to GLOBAL_STATUS. Especially, just after powering on, these are different.
- */
-static int ensure_phase_lock(struct snd_dice *dice, unsigned int rate)
+static int select_clock(struct snd_dice *dice, unsigned int rate)
 {
-	__be32 reg, nominal;
+	__be32 reg;
 	u32 data;
 	int i;
 	int err;
@@ -94,19 +90,8 @@ static int ensure_phase_lock(struct snd_dice *dice, unsigned int rate)
 		return err;
 
 	if (wait_for_completion_timeout(&dice->clock_accepted,
-			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
-		/*
-		 * Old versions of Dice firmware transfer no notification when
-		 * the same clock status as current one is set. In this case,
-		 * just check current clock status.
-		 */
-		err = snd_dice_transaction_read_global(dice, GLOBAL_STATUS,
-						&nominal, sizeof(nominal));
-		if (err < 0)
-			return err;
-		if (!(be32_to_cpu(nominal) & STATUS_SOURCE_LOCKED))
-			return -ETIMEDOUT;
-	}
+			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0)
+		return -ETIMEDOUT;
 
 	return 0;
 }
@@ -304,7 +289,7 @@ int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate,
 		// Just after owning the unit (GLOBAL_OWNER), the unit can
 		// return invalid stream formats. Selecting clock parameters
 		// have an effect for the unit to refine it.
-		err = ensure_phase_lock(dice, rate);
+		err = select_clock(dice, rate);
 		if (err < 0)
 			return err;
 
@@ -646,7 +631,7 @@ int snd_dice_stream_detect_current_formats(struct snd_dice *dice)
 	 * invalid stream formats. Selecting clock parameters have an effect
 	 * for the unit to refine it.
 	 */
-	err = ensure_phase_lock(dice, rate);
+	err = select_clock(dice, rate);
 	if (err < 0)
 		return err;
 
