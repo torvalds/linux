@@ -1497,6 +1497,61 @@ out:
 	return rc;
 }
 
+/*
+ * hl_cs_signal_sob_wraparound_handler: handle SOB value wrapaound case.
+ * if the SOB value reaches the max value move to the other SOB reserved
+ * to the queue.
+ * Note that this function must be called while hw_queues_lock is taken.
+ */
+int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
+			struct hl_hw_sob **hw_sob, u32 count)
+{
+	struct hl_sync_stream_properties *prop;
+	struct hl_hw_sob *sob = *hw_sob, *other_sob;
+	u8 other_sob_offset;
+
+	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
+
+	kref_get(&sob->kref);
+
+	/* check for wraparound */
+	if (prop->next_sob_val + count >= HL_MAX_SOB_VAL) {
+		/*
+		 * Decrement as we reached the max value.
+		 * The release function won't be called here as we've
+		 * just incremented the refcount right before calling this
+		 * function.
+		 */
+		kref_put(&sob->kref, hl_sob_reset_error);
+
+		/*
+		 * check the other sob value, if it still in use then fail
+		 * otherwise make the switch
+		 */
+		other_sob_offset = (prop->curr_sob_offset + 1) % HL_RSVD_SOBS;
+		other_sob = &prop->hw_sob[other_sob_offset];
+
+		if (kref_read(&other_sob->kref) != 1) {
+			dev_err(hdev->dev, "error: Cannot switch SOBs q_idx: %d\n",
+								q_idx);
+			return -EINVAL;
+		}
+
+		prop->next_sob_val = 1;
+
+		/* only two SOBs are currently in use */
+		prop->curr_sob_offset = other_sob_offset;
+		*hw_sob = other_sob;
+
+		dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
+				prop->curr_sob_offset, q_idx);
+	} else {
+		prop->next_sob_val += count;
+	}
+
+	return 0;
+}
+
 static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 		struct hl_cs_chunk *chunk, u64 *signal_seq, struct hl_ctx *ctx)
 {

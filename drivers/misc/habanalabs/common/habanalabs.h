@@ -2642,6 +2642,8 @@ int hl_set_voltage(struct hl_device *hdev,
 int hl_set_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 void hl_release_pending_user_interrupts(struct hl_device *hdev);
+int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
+			struct hl_hw_sob **hw_sob, u32 count);
 
 #ifdef CONFIG_DEBUG_FS
 
