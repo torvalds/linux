@@ -359,12 +359,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		 * at arbitrary times while the data is mmap'ed.
 		 * See vmf_insert_mixed_prot() for a discussion.
 		 */
-		if (vma->vm_flags & VM_MIXEDMAP)
-			ret = vmf_insert_mixed_prot(vma, address,
-						    __pfn_to_pfn_t(pfn, PFN_DEV),
-						    prot);
-		else
-			ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
+		ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
 
 		/* Never error on prefaulted PTEs */
 		if (unlikely((ret & VM_FAULT_ERROR))) {
@@ -411,15 +406,9 @@ vm_fault_t ttm_bo_vm_dummy_page(struct vm_fault *vmf, pgprot_t prot)
 	pfn = page_to_pfn(page);
 
 	/* Prefault the entire VMA range right away to avoid further faults */
-	for (address = vma->vm_start; address < vma->vm_end; address += PAGE_SIZE) {
-
-		if (vma->vm_flags & VM_MIXEDMAP)
-			ret = vmf_insert_mixed_prot(vma, address,
-						    __pfn_to_pfn_t(pfn, PFN_DEV),
-						    prot);
-		else
-			ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
-	}
+	for (address = vma->vm_start; address < vma->vm_end;
+	     address += PAGE_SIZE)
+		ret = vmf_insert_pfn_prot(vma, address, pfn, prot);
 
 	return ret;
 }
@@ -560,8 +549,14 @@ static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.access = ttm_bo_vm_access,
 };
 
-static void ttm_bo_mmap_vma_setup(struct ttm_buffer_object *bo, struct vm_area_struct *vma)
+int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 {
+	/* Enforce no COW since would have really strange behavior with it. */
+	if (is_cow_mapping(vma->vm_flags))
+		return -EINVAL;
+
+	ttm_bo_get(bo);
+
 	/*
 	 * Drivers may want to override the vm_ops field. Otherwise we
 	 * use TTM's default callbacks.
@@ -576,21 +571,8 @@ static void ttm_bo_mmap_vma_setup(struct ttm_buffer_object *bo, struct vm_area_s
 
 	vma->vm_private_data = bo;
 
-	/*
-	 * We'd like to use VM_PFNMAP on shared mappings, where
-	 * (vma->vm_flags & VM_SHARED) != 0, for performance reasons,
-	 * but for some reason VM_PFNMAP + x86 PAT + write-combine is very
-	 * bad for performance. Until that has been sorted out, use
-	 * VM_MIXEDMAP on all mappings. See freedesktop.org bug #75719
-	 */
-	vma->vm_flags |= VM_MIXEDMAP;
+	vma->vm_flags |= VM_PFNMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-}
-
-int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
-{
-	ttm_bo_get(bo);
-	ttm_bo_mmap_vma_setup(bo, vma);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_mmap_obj);
