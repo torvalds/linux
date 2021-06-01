@@ -9,11 +9,12 @@
 #include <linux/input.h>
 #include <linux/time.h>
 
-#include <linux/dvb/video.h>
-#include <linux/dvb/audio.h>
+#include "video.h"
+#include "audio.h"
+#include "osd.h"
+
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/ca.h>
-#include <linux/dvb/osd.h>
 #include <linux/dvb/net.h>
 #include <linux/mutex.h>
 
