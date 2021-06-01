@@ -4,6 +4,8 @@
 #include "eswitch.h"
 #include "esw/qos.h"
 #include "en/port.h"
+#define CREATE_TRACE_POINTS
+#include "diag/qos_tracepoint.h"
 
 /* Minimum supported BW share value by the HW is 1 Mbit/sec */
 #define MLX5_MIN_BW_SHARE 1
@@ -54,6 +56,8 @@ static int esw_qos_group_config(struct mlx5_eswitch *esw, struct mlx5_esw_rate_g
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify group TSAR element failed");
 
+	trace_mlx5_esw_group_qos_config(dev, group, group->tsar_ix, bw_share, max_rate);
+
 	return err;
 }
 
@@ -88,6 +92,8 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify TSAR vport element failed");
 		return err;
 	}
+
+	trace_mlx5_esw_vport_qos_config(vport, bw_share, max_rate);
 
 	return 0;
 }
@@ -461,6 +467,7 @@ esw_qos_create_rate_group(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 			goto err_min_rate;
 		}
 	}
+	trace_mlx5_esw_group_qos_create(esw->dev, group, group->tsar_ix);
 
 	return group;
 
@@ -496,6 +503,7 @@ static int esw_qos_destroy_rate_group(struct mlx5_eswitch *esw,
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy TSAR_ID failed");
 
+	trace_mlx5_esw_group_qos_destroy(esw->dev, group, group->tsar_ix);
 	kfree(group);
 	return err;
 }
@@ -613,8 +621,10 @@ int mlx5_esw_qos_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 	vport->qos.group = esw->qos.group0;
 
 	err = esw_qos_vport_create_sched_element(esw, vport, max_rate, bw_share);
-	if (!err)
+	if (!err) {
 		vport->qos.enabled = true;
+		trace_mlx5_esw_vport_qos_create(vport, bw_share, max_rate);
+	}
 
 	return err;
 }
@@ -637,6 +647,7 @@ void mlx5_esw_qos_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vpo
 			 vport->vport, err);
 
 	vport->qos.enabled = false;
+	trace_mlx5_esw_vport_qos_destroy(vport);
 }
 
 int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 rate_mbps)
