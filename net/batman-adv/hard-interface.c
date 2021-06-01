@@ -705,16 +705,15 @@ static int batadv_master_del_slave(struct batadv_hard_iface *slave,
 /**
  * batadv_hardif_enable_interface() - Enslave hard interface to soft interface
  * @hard_iface: hard interface to add to soft interface
- * @net: the applicable net namespace
- * @iface_name: name of the soft interface
+ * @soft_iface: netdev struct of the mesh interface
  *
  * Return: 0 on success or negative error number in case of failure
  */
 int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
-				   struct net *net, const char *iface_name)
+				   struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv;
-	struct net_device *soft_iface, *master;
+	struct net_device *master;
 	__be16 ethertype = htons(ETH_P_BATMAN);
 	int max_header_len = batadv_max_header_len();
 	int ret;
@@ -724,11 +723,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 
 	kref_get(&hard_iface->refcount);
 
-	soft_iface = dev_get_by_name(net, iface_name);
-	if (!soft_iface) {
-		ret = -EINVAL;
-		goto err;
-	}
+	dev_hold(soft_iface);
 
 	if (!batadv_softif_is_valid(soft_iface)) {
 		pr_err("Can't create batman mesh interface %s: already exists as regular interface\n",
@@ -802,7 +797,6 @@ err_upper:
 err_dev:
 	hard_iface->soft_iface = NULL;
 	dev_put(soft_iface);
-err:
 	batadv_hardif_put(hard_iface);
 	return ret;
 }
