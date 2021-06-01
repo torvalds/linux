@@ -836,6 +836,11 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 	while (!ret &&
 	       !fifo_full(&ca->free_inc) &&
 	       ca->alloc_heap.used) {
+		if (kthread_should_stop()) {
+			ret = 1;
+			break;
+		}
+
 		ret = bch2_invalidate_one_bucket(c, ca, &journal_seq,
 				(!fifo_empty(&ca->free_inc)
 				 ? BTREE_INSERT_NOWAIT : 0));
