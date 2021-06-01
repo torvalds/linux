@@ -65,7 +65,7 @@ static void mdio_mux_iproc_config(struct iproc_mdiomux_desc *md)
 	writel(val, md->base + MDIO_SCAN_CTRL_OFFSET);
 
 	if (md->core_clk) {
-		/* use rate adjust regs to derrive the mdio's operating
+		/* use rate adjust regs to derive the mdio's operating
 		 * frequency from the specified core clock
 		 */
 		divisor = clk_get_rate(md->core_clk) / MDIO_OPERATING_FREQUENCY;
