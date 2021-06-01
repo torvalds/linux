@@ -39,6 +39,9 @@ extern int evm_inode_init_security(struct inode *inode,
 				   struct xattr *evm);
 extern bool evm_revalidate_status(const char *xattr_name);
 extern int evm_protected_xattr_if_enabled(const char *req_xattr_name);
+extern int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
+				     int buffer_size, char type,
+				     bool canonical_fmt);
 #ifdef CONFIG_FS_POSIX_ACL
 extern int posix_xattr_acl(const char *xattrname);
 #else
@@ -118,6 +121,13 @@ static inline bool evm_revalidate_status(const char *xattr_name)
 static inline int evm_protected_xattr_if_enabled(const char *req_xattr_name)
 {
 	return false;
+}
+
+static inline int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
+					    int buffer_size, char type,
+					    bool canonical_fmt)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif /* CONFIG_EVM */

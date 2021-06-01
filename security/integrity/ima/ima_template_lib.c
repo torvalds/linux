@@ -11,6 +11,7 @@
 
 #include "ima_template_lib.h"
 #include <linux/xattr.h>
+#include <linux/evm.h>
 
 static bool ima_template_hash_algo_allowed(u8 algo)
 {
@@ -617,4 +618,67 @@ int ima_eventinodemode_init(struct ima_event_data *event_data,
 
 	return ima_write_template_field_data((char *)&mode, sizeof(mode),
 					     DATA_FMT_UINT, field_data);
+}
+
+static int ima_eventinodexattrs_init_common(struct ima_event_data *event_data,
+					    struct ima_field_data *field_data,
+					    char type)
+{
+	u8 *buffer = NULL;
+	int rc;
+
+	if (!event_data->file)
+		return 0;
+
+	rc = evm_read_protected_xattrs(file_dentry(event_data->file), NULL, 0,
+				       type, ima_canonical_fmt);
+	if (rc < 0)
+		return 0;
+
+	buffer = kmalloc(rc, GFP_KERNEL);
+	if (!buffer)
+		return 0;
+
+	rc = evm_read_protected_xattrs(file_dentry(event_data->file), buffer,
+				       rc, type, ima_canonical_fmt);
+	if (rc < 0) {
+		rc = 0;
+		goto out;
+	}
+
+	rc = ima_write_template_field_data((char *)buffer, rc, DATA_FMT_HEX,
+					   field_data);
+out:
+	kfree(buffer);
+	return rc;
+}
+
+/*
+ *  ima_eventinodexattrnames_init - include a list of xattr names as part of the
+ *  template data
+ */
+int ima_eventinodexattrnames_init(struct ima_event_data *event_data,
+				  struct ima_field_data *field_data)
+{
+	return ima_eventinodexattrs_init_common(event_data, field_data, 'n');
+}
+
+/*
+ *  ima_eventinodexattrlengths_init - include a list of xattr lengths as part of
+ *  the template data
+ */
+int ima_eventinodexattrlengths_init(struct ima_event_data *event_data,
+				    struct ima_field_data *field_data)
+{
+	return ima_eventinodexattrs_init_common(event_data, field_data, 'l');
+}
+
+/*
+ *  ima_eventinodexattrvalues_init - include a list of xattr values as part of
+ *  the template data
+ */
+int ima_eventinodexattrvalues_init(struct ima_event_data *event_data,
+				   struct ima_field_data *field_data)
+{
+	return ima_eventinodexattrs_init_common(event_data, field_data, 'v');
 }

@@ -78,6 +78,10 @@ descriptors by adding their identifier to the format string
  - 'iuid': the inode UID;
  - 'igid': the inode GID;
  - 'imode': the inode mode;
+ - 'xattrnames': a list of xattr names (separated by |), only if the xattr is
+    present;
+ - 'xattrlengths': a list of xattr lengths (u32), only if the xattr is present;
+ - 'xattrvalues': a list of xattr values;
 
 
 Below, there is the list of defined template descriptors:
