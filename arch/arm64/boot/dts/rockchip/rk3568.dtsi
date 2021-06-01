@@ -1258,7 +1258,7 @@
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_JDEC>, <&cru HCLK_JDEC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
-		rockchip,normal-rates = <297000000>, <0>;
+		rockchip,disable-auto-freq;
 		resets = <&cru SRST_A_JDEC>, <&cru SRST_H_JDEC>;
 		reset-names = "video_a", "video_h";
 		iommus = <&jpegd_mmu>;
@@ -1287,7 +1287,7 @@
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_JENC>, <&cru HCLK_JENC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
-		rockchip,normal-rates = <297000000>, <0>;
+		rockchip,disable-auto-freq;
 		resets = <&cru SRST_A_JENC>, <&cru SRST_H_JENC>;
 		reset-names = "video_a", "video_h";
 		iommus = <&vepu_mmu>;
