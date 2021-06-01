@@ -25,12 +25,12 @@
 #define GRTS_MAX_CHANNELS				4
 
 enum grts_ch_type {
-	GRTS_CH_NONE = 0,
 	GRTS_CH_X,
 	GRTS_CH_Y,
 	GRTS_CH_PRESSURE,
 	GRTS_CH_Z1,
 	GRTS_CH_Z2,
+	GRTS_CH_MAX = GRTS_CH_Z2 + 1
 };
 
 /**
@@ -42,7 +42,7 @@ enum grts_ch_type {
  * @iio_cb:		iio_callback buffer for the data
  * @input:		the input device structure that we register
  * @prop:		touchscreen properties struct
- * @ch:			channels that are defined for the touchscreen
+ * @ch_map:		map of channels that are defined for the touchscreen
  */
 struct grts_state {
 	u32				x_plate_ohms;
@@ -52,37 +52,25 @@ struct grts_state {
 	struct iio_cb_buffer		*iio_cb;
 	struct input_dev		*input;
 	struct touchscreen_properties	prop;
-	u8				ch[GRTS_MAX_CHANNELS];
+	u8				ch_map[GRTS_CH_MAX];
 };
 
 static int grts_cb(const void *data, void *private)
 {
 	const u16 *touch_info = data;
 	struct grts_state *st = private;
-	unsigned int x, y, press = 0, z1 = 0, z2;
-	unsigned int Rt, i;
+	unsigned int x, y, press;
 
-	for (i = 0; i < ARRAY_SIZE(st->ch) && st->ch[i] != GRTS_CH_NONE; i++) {
-		switch (st->ch[i]) {
-		case GRTS_CH_X:
-			x = touch_info[i];
-			break;
-		case GRTS_CH_Y:
-			y = touch_info[i];
-			break;
-		case GRTS_CH_PRESSURE:
-			press = touch_info[i];
-			break;
-		case GRTS_CH_Z1:
-			z1 = touch_info[i];
-			break;
-		case GRTS_CH_Z2:
-			z2 = touch_info[i];
-			break;
-		}
-	}
+	x = touch_info[st->ch_map[GRTS_CH_X]];
+	y = touch_info[st->ch_map[GRTS_CH_Y]];
 
-	if (z1) {
+	if (st->ch_map[GRTS_CH_PRESSURE] < GRTS_MAX_CHANNELS) {
+		press = touch_info[st->ch_map[GRTS_CH_PRESSURE]];
+	} else if (st->ch_map[GRTS_CH_Z1] < GRTS_MAX_CHANNELS) {
+		unsigned int z1 = touch_info[st->ch_map[GRTS_CH_Z1]];
+		unsigned int z2 = touch_info[st->ch_map[GRTS_CH_Z2]];
+		unsigned int Rt;
+
 		Rt = z2;
 		Rt -= z1;
 		Rt *= st->x_plate_ohms;
@@ -142,60 +130,59 @@ static void grts_disable(void *data)
 	iio_channel_release_all_cb(data);
 }
 
+static int grts_map_channel(struct grts_state *st, struct device *dev,
+			    enum grts_ch_type type, const char *name,
+			    bool optional)
+{
+	int idx;
+
+	idx = device_property_match_string(dev, "io-channel-names", name);
+	if (idx < 0) {
+		if (!optional)
+			return idx;
+		idx = GRTS_MAX_CHANNELS;
+	} else if (idx >= GRTS_MAX_CHANNELS) {
+		return -EOVERFLOW;
+	}
+
+	st->ch_map[type] = idx;
+	return 0;
+}
+
 static int grts_get_properties(struct grts_state *st, struct device *dev)
 {
-	int idx, error;
+	int error;
 
-	idx = device_property_match_string(dev, "io-channel-names", "x");
-	if (idx < 0)
-		return idx;
+	error = grts_map_channel(st, dev, GRTS_CH_X, "x", false);
+	if (error)
+		return error;
 
-	if (idx >= ARRAY_SIZE(st->ch))
-		return -EOVERFLOW;
-
-	st->ch[idx] = GRTS_CH_X;
-
-	idx = device_property_match_string(dev, "io-channel-names", "y");
-	if (idx < 0)
-		return idx;
-
-	if (idx >= ARRAY_SIZE(st->ch))
-		return -EOVERFLOW;
-
-	st->ch[idx] = GRTS_CH_Y;
+	error = grts_map_channel(st, dev, GRTS_CH_Y, "y", false);
+	if (error)
+		return error;
 
 	/* pressure is optional */
-	idx = device_property_match_string(dev, "io-channel-names", "pressure");
-	if (idx >= 0) {
-		if (idx >= ARRAY_SIZE(st->ch))
-			return -EOVERFLOW;
+	error = grts_map_channel(st, dev, GRTS_CH_PRESSURE, "pressure", true);
+	if (error)
+		return error;
 
-		st->ch[idx] = GRTS_CH_PRESSURE;
+	if (st->ch_map[GRTS_CH_PRESSURE] < GRTS_MAX_CHANNELS) {
 		st->pressure = true;
-
 		return 0;
 	}
 
 	/* if no pressure is defined, try optional z1 + z2 */
-	idx = device_property_match_string(dev, "io-channel-names", "z1");
-	if (idx < 0)
+	error = grts_map_channel(st, dev, GRTS_CH_Z1, "z1", true);
+	if (error)
+		return error;
+
+	if (st->ch_map[GRTS_CH_Z1] >= GRTS_MAX_CHANNELS)
 		return 0;
 
-	if (idx >= ARRAY_SIZE(st->ch))
-		return -EOVERFLOW;
-
-	st->ch[idx] = GRTS_CH_Z1;
-
 	/* if z1 is provided z2 is not optional */
-	idx = device_property_match_string(dev, "io-channel-names", "z2");
-	if (idx < 0)
-		return idx;
-
-	if (idx >= ARRAY_SIZE(st->ch))
-		return -EOVERFLOW;
-
-	st->ch[idx] = GRTS_CH_Z2;
-	st->pressure = true;
+	error = grts_map_channel(st, dev, GRTS_CH_Z2, "z2", true);
+	if (error)
+		return error;
 
 	error = device_property_read_u32(dev,
 					 "touchscreen-x-plate-ohms",
@@ -205,6 +192,7 @@ static int grts_get_properties(struct grts_state *st, struct device *dev)
 		return error;
 	}
 
+	st->pressure = true;
 	return 0;
 }
 
