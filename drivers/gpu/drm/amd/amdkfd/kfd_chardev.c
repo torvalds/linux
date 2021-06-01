@@ -1563,6 +1563,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 			       i, args->n_devices);
 			goto unmap_memory_from_gpu_failed;
 		}
+		kfd_flush_tlb(peer_pdd, TLB_FLUSH_HEAVYWEIGHT);
 		args->n_success = i+1;
 	}
 	kfree(devices_arr);
