@@ -157,7 +157,7 @@ static struct ksmbd_share_config *share_config_request(char *name)
 			ret = kern_path(share->path, 0, &share->vfs_path);
 			if (ret) {
 				ksmbd_debug(SMB, "failed to access '%s'\n",
-					share->path);
+					    share->path);
 				/* Avoid put_path() */
 				kfree(share->path);
 				share->path = NULL;

@@ -62,7 +62,7 @@ ksmbd_tree_conn_connect(struct ksmbd_session *sess, char *share_name)
 	status.tree_conn = tree_conn;
 
 	ret = xa_err(xa_store(&sess->tree_conns, tree_conn->id, tree_conn,
-			GFP_KERNEL));
+			      GFP_KERNEL));
 	if (ret) {
 		status.ret = -ENOMEM;
 		goto out_error;

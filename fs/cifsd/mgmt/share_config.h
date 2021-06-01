@@ -34,7 +34,7 @@ struct ksmbd_share_config {
 #define KSMBD_SHARE_INVALID_GID	((__u16)-1)
 
 static inline int share_config_create_mode(struct ksmbd_share_config *share,
-	umode_t posix_mode)
+					   umode_t posix_mode)
 {
 	if (!share->force_create_mode) {
 		if (!posix_mode)
@@ -46,7 +46,7 @@ static inline int share_config_create_mode(struct ksmbd_share_config *share,
 }
 
 static inline int share_config_directory_mode(struct ksmbd_share_config *share,
-	umode_t posix_mode)
+					      umode_t posix_mode)
 {
 	if (!share->force_directory_mode) {
 		if (!posix_mode)
@@ -64,7 +64,7 @@ static inline int test_share_config_flag(struct ksmbd_share_config *share,
 	return share->flags & flag;
 }
 
-extern void __ksmbd_share_config_put(struct ksmbd_share_config *share);
+void __ksmbd_share_config_put(struct ksmbd_share_config *share);
 
 static inline void ksmbd_share_config_put(struct ksmbd_share_config *share)
 {
