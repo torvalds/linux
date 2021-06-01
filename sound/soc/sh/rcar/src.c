@@ -82,7 +82,7 @@ static struct dma_chan *rsnd_src_dma_req(struct rsnd_dai_stream *io,
 	int is_play = rsnd_io_is_play(io);
 
 	return rsnd_dma_request_channel(rsnd_src_of_node(priv),
-					mod,
+					SRC_NAME, mod,
 					is_play ? "rx" : "tx");
 }
 
@@ -656,7 +656,7 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 	if (!node)
 		return 0; /* not used is not error */
 
-	nr = of_get_child_count(node);
+	nr = rsnd_node_count(priv, node, SRC_NAME);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_src_probe_done;
@@ -675,6 +675,8 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 	for_each_child_of_node(node, np) {
 		if (!of_device_is_available(np))
 			goto skip;
+
+		i = rsnd_node_fixed_index(np, SRC_NAME, i);
 
 		src = rsnd_src_get(priv, i);
 

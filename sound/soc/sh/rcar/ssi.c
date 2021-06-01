@@ -1019,7 +1019,7 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 		name = is_play ? "rx" : "tx";
 
 	return rsnd_dma_request_channel(rsnd_ssi_of_node(priv),
-					mod, name);
+					SSI_NAME, mod, name);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1115,7 +1115,11 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		struct rsnd_mod *mod = rsnd_ssi_mod_get(priv, i);
+		struct rsnd_mod *mod;
+
+		i = rsnd_node_fixed_index(np, SSI_NAME, i);
+
+		mod = rsnd_ssi_mod_get(priv, i);
 
 		if (np == playback)
 			rsnd_ssi_connect(mod, &rdai->playback);
@@ -1158,7 +1162,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	if (!node)
 		return -EINVAL;
 
-	nr = of_get_child_count(node);
+	nr = rsnd_node_count(priv, node, SSI_NAME);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_ssi_probe_done;
@@ -1177,6 +1181,8 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	for_each_child_of_node(node, np) {
 		if (!of_device_is_available(np))
 			goto skip;
+
+		i = rsnd_node_fixed_index(np, SSI_NAME, i);
 
 		ssi = rsnd_ssi_get(priv, i);
 

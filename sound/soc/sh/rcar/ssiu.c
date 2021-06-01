@@ -395,7 +395,7 @@ static struct dma_chan *rsnd_ssiu_dma_req(struct rsnd_dai_stream *io,
 	name = is_play ? "rx" : "tx";
 
 	return rsnd_dma_request_channel(rsnd_ssiu_of_node(priv),
-					mod, name);
+					SSIU_NAME, mod, name);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -470,7 +470,11 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 		int i = 0;
 
 		for_each_child_of_node(node, np) {
-			struct rsnd_mod *mod = rsnd_ssiu_mod_get(priv, i);
+			struct rsnd_mod *mod;
+
+			i = rsnd_node_fixed_index(np, SSIU_NAME, i);
+
+			mod = rsnd_ssiu_mod_get(priv, i);
 
 			if (np == playback)
 				rsnd_dai_connect(mod, io_p, mod->type);
@@ -507,7 +511,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	 */
 	node = rsnd_ssiu_of_node(priv);
 	if (node)
-		nr = of_get_child_count(node);
+		nr = rsnd_node_count(priv, node, SSIU_NAME);
 	else
 		nr = priv->ssi_nr;
 

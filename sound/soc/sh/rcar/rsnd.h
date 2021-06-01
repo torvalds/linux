@@ -269,8 +269,8 @@ u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 int rsnd_dma_attach(struct rsnd_dai_stream *io,
 		    struct rsnd_mod *mod, struct rsnd_mod **dma_mod);
 int rsnd_dma_probe(struct rsnd_priv *priv);
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
-					  struct rsnd_mod *mod, char *name);
+struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *name,
+					  struct rsnd_mod *mod, char *x);
 
 /*
  *	R-Car sound mod
@@ -460,11 +460,13 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 #define for_each_rsnd_mod_array(iterator, pos, io, array)		\
 	for_each_rsnd_mod_arrays(iterator, pos, io, array, ARRAY_SIZE(array))
 
-void rsnd_parse_connect_common(struct rsnd_dai *rdai,
+void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
 		struct device_node *node,
 		struct device_node *playback,
 		struct device_node *capture);
+int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name);
+int rsnd_node_fixed_index(struct device_node *node, char *name, int idx);
 
 int rsnd_channel_normalization(int chan);
 #define rsnd_runtime_channel_original(io) \
@@ -827,7 +829,7 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 
 #define rsnd_src_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SRC)
 #define rsnd_parse_connect_src(rdai, playback, capture)			\
-	rsnd_parse_connect_common(rdai, rsnd_src_mod_get,		\
+	rsnd_parse_connect_common(rdai, "src", rsnd_src_mod_get,	\
 				  rsnd_src_of_node(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
@@ -839,7 +841,7 @@ void rsnd_ctu_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_ctu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_CTU)
 #define rsnd_parse_connect_ctu(rdai, playback, capture)			\
-	rsnd_parse_connect_common(rdai, rsnd_ctu_mod_get,		\
+	rsnd_parse_connect_common(rdai, "ctu", rsnd_ctu_mod_get,	\
 				  rsnd_ctu_of_node(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
@@ -851,7 +853,7 @@ void rsnd_mix_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_mix_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_MIX)
 #define rsnd_parse_connect_mix(rdai, playback, capture)			\
-	rsnd_parse_connect_common(rdai, rsnd_mix_mod_get,		\
+	rsnd_parse_connect_common(rdai, "mix", rsnd_mix_mod_get,	\
 				  rsnd_mix_of_node(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
@@ -863,7 +865,7 @@ void rsnd_dvc_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_dvc_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DVC)
 #define rsnd_parse_connect_dvc(rdai, playback, capture)			\
-	rsnd_parse_connect_common(rdai, rsnd_dvc_mod_get,		\
+	rsnd_parse_connect_common(rdai, "dvc", rsnd_dvc_mod_get,	\
 				  rsnd_dvc_of_node(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
