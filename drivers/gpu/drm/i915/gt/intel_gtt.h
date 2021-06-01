@@ -245,7 +245,9 @@ struct i915_address_space {
 	atomic_t open;
 
 	struct mutex mutex; /* protects vma and our lists */
-	struct dma_resv resv; /* reservation lock for all pd objects, and buffer pool */
+
+	struct kref resv_ref; /* kref to keep the reservation lock alive. */
+	struct dma_resv _resv; /* reservation lock for all pd objects, and buffer pool */
 #define VM_CLASS_GGTT 0
 #define VM_CLASS_PPGTT 1
 
@@ -399,11 +401,34 @@ i915_vm_get(struct i915_address_space *vm)
 	return vm;
 }
 
+/**
+ * i915_vm_resv_get - Obtain a reference on the vm's reservation lock
+ * @vm: The vm whose reservation lock we want to share.
+ *
+ * Return: A pointer to the vm's reservation lock.
+ */
+static inline struct dma_resv *i915_vm_resv_get(struct i915_address_space *vm)
+{
+	kref_get(&vm->resv_ref);
+	return &vm->_resv;
+}
+
 void i915_vm_release(struct kref *kref);
+
+void i915_vm_resv_release(struct kref *kref);
 
 static inline void i915_vm_put(struct i915_address_space *vm)
 {
 	kref_put(&vm->ref, i915_vm_release);
+}
+
+/**
+ * i915_vm_resv_put - Release a reference on the vm's reservation lock
+ * @resv: Pointer to a reservation lock obtained from i915_vm_resv_get()
+ */
+static inline void i915_vm_resv_put(struct i915_address_space *vm)
+{
+	kref_put(&vm->resv_ref, i915_vm_resv_release);
 }
 
 static inline struct i915_address_space *
@@ -501,6 +526,7 @@ void i915_ggtt_enable_guc(struct i915_ggtt *ggtt);
 void i915_ggtt_disable_guc(struct i915_ggtt *ggtt);
 int i915_init_ggtt(struct drm_i915_private *i915);
 void i915_ggtt_driver_release(struct drm_i915_private *i915);
+void i915_ggtt_driver_late_release(struct drm_i915_private *i915);
 
 static inline bool i915_ggtt_has_aperture(const struct i915_ggtt *ggtt)
 {

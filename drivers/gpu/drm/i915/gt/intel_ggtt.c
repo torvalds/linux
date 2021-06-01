@@ -745,7 +745,6 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 	mutex_unlock(&ggtt->vm.mutex);
 	i915_address_space_fini(&ggtt->vm);
-	dma_resv_fini(&ggtt->vm.resv);
 
 	arch_phys_wc_del(ggtt->mtrr);
 
@@ -765,6 +764,19 @@ void i915_ggtt_driver_release(struct drm_i915_private *i915)
 
 	intel_ggtt_fini_fences(ggtt);
 	ggtt_cleanup_hw(ggtt);
+}
+
+/**
+ * i915_ggtt_driver_late_release - Cleanup of GGTT that needs to be done after
+ * all free objects have been drained.
+ * @i915: i915 device
+ */
+void i915_ggtt_driver_late_release(struct drm_i915_private *i915)
+{
+	struct i915_ggtt *ggtt = &i915->ggtt;
+
+	GEM_WARN_ON(kref_read(&ggtt->vm.resv_ref) != 1);
+	dma_resv_fini(&ggtt->vm._resv);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -828,6 +840,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 		return -ENOMEM;
 	}
 
+	kref_init(&ggtt->vm.resv_ref);
 	ret = setup_scratch_page(&ggtt->vm);
 	if (ret) {
 		drm_err(&i915->drm, "Scratch setup failed\n");
@@ -1134,7 +1147,7 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 	ggtt->vm.gt = gt;
 	ggtt->vm.i915 = i915;
 	ggtt->vm.dma = i915->drm.dev;
-	dma_resv_init(&ggtt->vm.resv);
+	dma_resv_init(&ggtt->vm._resv);
 
 	if (INTEL_GEN(i915) <= 5)
 		ret = i915_gmch_probe(ggtt);
@@ -1143,7 +1156,7 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 	else
 		ret = gen8_gmch_probe(ggtt);
 	if (ret) {
-		dma_resv_fini(&ggtt->vm.resv);
+		dma_resv_fini(&ggtt->vm._resv);
 		return ret;
 	}
 

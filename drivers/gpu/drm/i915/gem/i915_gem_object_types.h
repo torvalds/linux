@@ -149,6 +149,10 @@ struct drm_i915_gem_object {
 	 * when i915_gem_ww_ctx_backoff() or i915_gem_ww_ctx_fini() are called.
 	 */
 	struct list_head obj_link;
+	/**
+	 * @shared_resv_from: The object shares the resv from this vm.
+	 */
+	struct i915_address_space *shares_resv_from;
 
 	union {
 		struct rcu_head rcu;
