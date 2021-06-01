@@ -273,41 +273,15 @@ _xfs_buf_alloc(
 }
 
 /*
- *	Allocate a page array capable of holding a specified number
- *	of pages, and point the page buf at it.
- */
-STATIC int
-_xfs_buf_get_pages(
-	struct xfs_buf		*bp,
-	int			page_count)
-{
-	/* Make sure that we have a page list */
-	if (bp->b_pages == NULL) {
-		bp->b_page_count = page_count;
-		if (page_count <= XB_PAGES) {
-			bp->b_pages = bp->b_page_array;
-		} else {
-			bp->b_pages = kmem_alloc(sizeof(struct page *) *
-						 page_count, KM_NOFS);
-			if (bp->b_pages == NULL)
-				return -ENOMEM;
-		}
-		memset(bp->b_pages, 0, sizeof(struct page *) * page_count);
-	}
-	return 0;
-}
-
-/*
  *	Frees b_pages if it was allocated.
  */
 STATIC void
 _xfs_buf_free_pages(
 	struct xfs_buf	*bp)
 {
-	if (bp->b_pages != bp->b_page_array) {
+	if (bp->b_pages != bp->b_page_array)
 		kmem_free(bp->b_pages);
-		bp->b_pages = NULL;
-	}
+	bp->b_pages = NULL;
 }
 
 /*
@@ -389,15 +363,21 @@ xfs_buf_alloc_pages(
 	long		filled = 0;
 	int		error;
 
+	/* Make sure that we have a page list */
+	bp->b_page_count = page_count;
+	if (bp->b_page_count <= XB_PAGES) {
+		bp->b_pages = bp->b_page_array;
+	} else {
+		bp->b_pages = kzalloc(sizeof(struct page *) * bp->b_page_count,
+					gfp_mask);
+		if (!bp->b_pages)
+			return -ENOMEM;
+	}
+	bp->b_flags |= _XBF_PAGES;
+
 	/* Assure zeroed buffer for non-read cases. */
 	if (!(flags & XBF_READ))
 		gfp_mask |= __GFP_ZERO;
-
-	error = _xfs_buf_get_pages(bp, page_count);
-	if (unlikely(error))
-		return error;
-
-	bp->b_flags |= _XBF_PAGES;
 
 	/*
 	 * Bulk filling of pages can take multiple calls. Not filling the entire
