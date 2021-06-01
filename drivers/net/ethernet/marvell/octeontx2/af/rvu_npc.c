@@ -1371,7 +1371,7 @@ static int npc_apply_custom_kpu(struct rvu *rvu,
 	if (NPC_KPU_VER_MIN(profile->version) <
 	    NPC_KPU_VER_MIN(NPC_KPU_PROFILE_VER)) {
 		dev_warn(rvu->dev,
-			 "Invalid KPU profile version: %d.%d.%d expected vesion <= %d.%d.%d\n",
+			 "Invalid KPU profile version: %d.%d.%d expected version <= %d.%d.%d\n",
 			 NPC_KPU_VER_MAJ(profile->version),
 			 NPC_KPU_VER_MIN(profile->version),
 			 NPC_KPU_VER_PATCH(profile->version),
