@@ -4,6 +4,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/blk-mq.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
@@ -69,42 +70,11 @@ static char *mtd_read_temp_buffer;
 #define ENABLE_READ _IO('V', 3)
 
 static DECLARE_WAIT_QUEUE_HEAD(rkflash_thread_wait);
-static unsigned long rkflash_req_jiffies;
 static unsigned int rknand_req_do;
 
 /* For rkflash dev private data, including mtd dev and block dev */
-static int rkflash_dev_initialised = 0;
+static int rkflash_dev_initialised;
 static DEFINE_MUTEX(g_flash_ops_mutex);
-
-static int rkflash_flash_gc(void)
-{
-	int ret;
-
-	if (g_boot_ops->gc) {
-		mutex_lock(&g_flash_ops_mutex);
-		ret = g_boot_ops->gc();
-		mutex_unlock(&g_flash_ops_mutex);
-	} else {
-		ret = -EPERM;
-	}
-
-	return ret;
-}
-
-static int rkflash_blk_discard(u32 sec, u32 n_sec)
-{
-	int ret;
-
-	if (g_boot_ops->discard) {
-		mutex_lock(&g_flash_ops_mutex);
-		ret = g_boot_ops->discard(sec, n_sec);
-		mutex_unlock(&g_flash_ops_mutex);
-	} else {
-		ret = -EPERM;
-	}
-
-	return ret;
-};
 
 static unsigned int rk_partition_init(struct flash_part *part)
 {
@@ -172,12 +142,11 @@ static int rkflash_blk_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, rkflash_blk_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations rkflash_blk_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rkflash_blk_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops rkflash_blk_proc_fops = {
+	.proc_open		= rkflash_blk_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int rkflash_blk_create_procfs(void)
@@ -192,12 +161,23 @@ static int rkflash_blk_create_procfs(void)
 	return 0;
 }
 
+static int rkflash_blk_discard(u32 sec, u32 n_sec)
+{
+	int ret;
+
+	if (g_boot_ops->discard)
+		ret = g_boot_ops->discard(sec, n_sec);
+	else
+		ret = -EPERM;
+
+	return ret;
+};
+
 static int rkflash_blk_xfer(struct flash_blk_dev *dev,
 			    unsigned long start,
 			    unsigned long nsector,
 			    char *buf,
-			    int cmd,
-			    int totle_nsec)
+			    int cmd)
 {
 	int ret;
 
@@ -213,11 +193,9 @@ static int rkflash_blk_xfer(struct flash_blk_dev *dev,
 	case READ:
 		totle_read_data += nsector;
 		totle_read_count++;
-		mutex_lock(&g_flash_ops_mutex);
 		rkflash_print_bio("rkflash r sec= %lx, n_sec= %lx\n",
 				  start, nsector);
 		ret = g_boot_ops->read(start, nsector, buf);
-		mutex_unlock(&g_flash_ops_mutex);
 		if (ret)
 			ret = -EIO;
 		break;
@@ -225,11 +203,9 @@ static int rkflash_blk_xfer(struct flash_blk_dev *dev,
 	case WRITE:
 		totle_write_data += nsector;
 		totle_write_count++;
-		mutex_lock(&g_flash_ops_mutex);
 		rkflash_print_bio("rkflash w sec= %lx, n_sec= %lx\n",
 				  start, nsector);
 		ret = g_boot_ops->write(start, nsector, buf);
-		mutex_unlock(&g_flash_ops_mutex);
 		if (ret)
 			ret = -EIO;
 		break;
@@ -264,149 +240,160 @@ static int rkflash_blk_check_buffer_align(struct request *req, char **pbuf)
 	return 1;
 }
 
-static int rkflash_blktrans_thread(void *arg)
+static blk_status_t do_blktrans_all_request(struct flash_blk_ops *tr,
+			       struct flash_blk_dev *dev,
+			       struct request *req)
 {
-	struct flash_blk_ops *blk_ops = arg;
-	struct request_queue *rq = blk_ops->rq;
-	struct request *req = NULL;
-	char *buf;
+	unsigned long block, nsect;
+	char *buf = NULL;
 	struct req_iterator rq_iter;
 	struct bio_vec bvec;
-	unsigned long long sector_index = ULLONG_MAX;
+	int ret;
 	unsigned long totle_nsect;
 	unsigned long rq_len = 0;
-	int rw_flag = 0;
 
-	spin_lock_irq(rq->queue_lock);
-	while (!blk_ops->quit) {
-		int res;
-		struct flash_blk_dev *dev;
-		DECLARE_WAITQUEUE(wait, current);
+	block = blk_rq_pos(req);
+	nsect = blk_rq_cur_bytes(req) >> 9;
+	totle_nsect = (req->__data_len) >> 9;
 
-		if (!req)
-			req = blk_fetch_request(rq);
-		if (!req) {
-			add_wait_queue(&blk_ops->thread_wq, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_irq(rq->queue_lock);
-			rkflash_req_jiffies = HZ / 10;
-			rkflash_flash_gc();
-			wait_event_timeout(blk_ops->thread_wq,
-					   blk_ops->quit || rknand_req_do,
-					   rkflash_req_jiffies);
-			rknand_req_do = 0;
-			spin_lock_irq(rq->queue_lock);
-			remove_wait_queue(&blk_ops->thread_wq, &wait);
-			continue;
-		} else {
-			rkflash_req_jiffies = 1 * HZ;
-		}
+	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
+	    get_capacity(req->rq_disk))
+		return BLK_STS_IOERR;
 
-		dev = req->rq_disk->private_data;
-		totle_nsect = (req->__data_len) >> 9;
-		sector_index = blk_rq_pos(req);
-		rq_len = 0;
-		buf = 0;
-		res = 0;
-		rw_flag = req_op(req);
-		if (rw_flag == REQ_OP_DISCARD) {
-			spin_unlock_irq(rq->queue_lock);
-			if (rkflash_blk_discard(blk_rq_pos(req) +
-						dev->off_size, totle_nsect))
-				res = -EIO;
-			spin_lock_irq(rq->queue_lock);
-			if (!__blk_end_request_cur(req, res))
-				req = NULL;
-			continue;
-		} else if (rw_flag == REQ_OP_FLUSH) {
-			if (!__blk_end_request_cur(req, res))
-				req = NULL;
-			continue;
-		} else if (rw_flag == REQ_OP_READ && mtd_read_temp_buffer) {
-			buf = mtd_read_temp_buffer;
-			rkflash_blk_check_buffer_align(req, &buf);
-			spin_unlock_irq(rq->queue_lock);
-			res = rkflash_blk_xfer(dev,
-					       sector_index,
-					       totle_nsect,
-					       buf,
-					       rw_flag,
-					       totle_nsect);
-			spin_lock_irq(rq->queue_lock);
-			if (buf == mtd_read_temp_buffer) {
-				char *p = buf;
+	switch (req_op(req)) {
+	case REQ_OP_DISCARD:
+		rkflash_print_bio("%s discard\n", __func__);
+		if (rkflash_blk_discard(block, nsect))
+			return BLK_STS_IOERR;
+		return BLK_STS_OK;
+	case REQ_OP_READ:
+		rkflash_print_bio("%s read block=%lx nsec=%lx\n", __func__, block, totle_nsect);
+		buf = mtd_read_temp_buffer;
+		rkflash_blk_check_buffer_align(req, &buf);
+		ret = rkflash_blk_xfer(dev,
+				       block,
+				       totle_nsect,
+				       buf,
+				       REQ_OP_READ);
+		if (buf == mtd_read_temp_buffer) {
+			char *p = buf;
 
-				rq_for_each_segment(bvec, req, rq_iter) {
-					memcpy(page_address(bvec.bv_page) +
-					       bvec.bv_offset,
-					       p,
-					       bvec.bv_len);
-					p += bvec.bv_len;
-				}
-			}
-		} else if (rw_flag == REQ_OP_WRITE){
 			rq_for_each_segment(bvec, req, rq_iter) {
-				if ((page_address(bvec.bv_page)
-					+ bvec.bv_offset)
-					== (buf + rq_len)) {
-					rq_len += bvec.bv_len;
-				} else {
-					if (rq_len) {
-						spin_unlock_irq(rq->queue_lock);
-						res = rkflash_blk_xfer(dev,
-								       sector_index,
-								       rq_len >> 9,
-								       buf,
-								       rw_flag,
-								       totle_nsect);
-						spin_lock_irq(rq->queue_lock);
-					}
-					sector_index += rq_len >> 9;
-					buf = (page_address(bvec.bv_page) +
-						bvec.bv_offset);
-					rq_len = bvec.bv_len;
-				}
+				memcpy(page_address(bvec.bv_page) +
+					bvec.bv_offset,
+					p,
+					bvec.bv_len);
+				p += bvec.bv_len;
 			}
-			if (rq_len) {
-				spin_unlock_irq(rq->queue_lock);
-				res = rkflash_blk_xfer(dev,
-						       sector_index,
-						       rq_len >> 9,
-						       buf,
-						       rw_flag,
-						       totle_nsect);
-				spin_lock_irq(rq->queue_lock);
-			}
-		} else {
-			pr_err("%s error req flag\n", __func__);
 		}
-		__blk_end_request_all(req, res);
-		req = NULL;
+
+		if (ret)
+			return BLK_STS_IOERR;
+		else
+			return BLK_STS_OK;
+	case REQ_OP_WRITE:
+		rkflash_print_bio("%s write block=%lx nsec=%lx\n", __func__, block, totle_nsect);
+
+		rq_for_each_segment(bvec, req, rq_iter) {
+			if ((page_address(bvec.bv_page) + bvec.bv_offset) == (buf + rq_len)) {
+				rq_len += bvec.bv_len;
+			} else {
+				if (rq_len) {
+					ret = rkflash_blk_xfer(dev,
+							       block,
+							       rq_len >> 9,
+							       buf,
+							       REQ_OP_WRITE);
+				}
+				block += rq_len >> 9;
+				buf = (page_address(bvec.bv_page) + bvec.bv_offset);
+				rq_len = bvec.bv_len;
+			}
+		}
+
+		if (rq_len) {
+			ret = rkflash_blk_xfer(dev,
+					       block,
+					       rq_len >> 9,
+					       buf,
+					       REQ_OP_WRITE);
+		}
+
+		if (ret)
+			return BLK_STS_IOERR;
+		else
+			return BLK_STS_OK;
+	default:
+		return BLK_STS_IOERR;
 	}
-	pr_info("flash th quited\n");
-	blk_ops->flash_th_quited = 1;
-	if (req)
-		__blk_end_request_all(req, -EIO);
-	while ((req = blk_fetch_request(rq)) != NULL)
-		__blk_end_request_all(req, -ENODEV);
-	spin_unlock_irq(rq->queue_lock);
-	complete_and_exit(&blk_ops->thread_exit, 0);
-	return 0;
 }
 
-static void rkflash_blk_request(struct request_queue *rq)
+static struct request *rkflash_next_request(struct flash_blk_dev *dev)
 {
-	struct flash_blk_ops *blk_ops = rq->queuedata;
+	struct request *rq;
+	struct flash_blk_ops *tr = dev->blk_ops;
+
+	rq = list_first_entry_or_null(&tr->rq_list, struct request, queuelist);
+	if (rq) {
+		list_del_init(&rq->queuelist);
+		blk_mq_start_request(rq);
+		return rq;
+	}
+
+	return NULL;
+}
+
+static void rkflash_blktrans_work(struct flash_blk_dev *dev)
+	__releases(&dev->blk_ops->queue_lock)
+	__acquires(&dev->blk_ops->queue_lock)
+{
+	struct flash_blk_ops *tr = dev->blk_ops;
 	struct request *req = NULL;
 
-	if (blk_ops->flash_th_quited) {
-		while ((req = blk_fetch_request(rq)) != NULL)
-			__blk_end_request_all(req, -ENODEV);
-		return;
+	while (1) {
+		blk_status_t res;
+
+		req = rkflash_next_request(dev);
+		if (!req)
+			break;
+
+		spin_unlock_irq(&dev->blk_ops->queue_lock);
+
+		mutex_lock(&g_flash_ops_mutex);
+		res = do_blktrans_all_request(tr, dev, req);
+		mutex_unlock(&g_flash_ops_mutex);
+
+		if (!blk_update_request(req, res, req->__data_len)) {
+			__blk_mq_end_request(req, res);
+			req = NULL;
+		}
+
+		spin_lock_irq(&dev->blk_ops->queue_lock);
 	}
-	rknand_req_do = 1;
-	wake_up(&blk_ops->thread_wq);
 }
+
+static blk_status_t rkflash_queue_rq(struct blk_mq_hw_ctx *hctx,
+				     const struct blk_mq_queue_data *bd)
+{
+	struct flash_blk_dev *dev;
+
+	dev = hctx->queue->queuedata;
+	if (!dev) {
+		blk_mq_start_request(bd->rq);
+		return BLK_STS_IOERR;
+	}
+
+	spin_lock_irq(&dev->blk_ops->queue_lock);
+	list_add_tail(&bd->rq->queuelist, &dev->blk_ops->rq_list);
+	rkflash_blktrans_work(dev);
+	spin_unlock_irq(&dev->blk_ops->queue_lock);
+
+	return BLK_STS_OK;
+}
+
+static const struct blk_mq_ops rkflash_mq_ops = {
+	.queue_rq	= rkflash_queue_rq,
+};
 
 static int rkflash_blk_open(struct block_device *bdev, fmode_t mode)
 {
@@ -462,18 +449,14 @@ static struct flash_blk_ops mytr = {
 	.owner = THIS_MODULE,
 };
 
-static int rkflash_blk_add_dev(struct flash_blk_ops *blk_ops,
-			   struct flash_part *part)
+static int rkflash_blk_add_dev(struct flash_blk_dev *dev,
+			       struct flash_blk_ops *blk_ops,
+			       struct flash_part *part)
 {
-	struct flash_blk_dev *dev;
 	struct gendisk *gd;
 
 	if (part->size == 0)
 		return -1;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
 
 	gd = alloc_disk(1 << blk_ops->minorbits);
 	if (!gd) {
@@ -512,7 +495,6 @@ static int rkflash_blk_add_dev(struct flash_blk_ops *blk_ops,
 	gd->private_data = dev;
 	dev->blkcore_priv = gd;
 	gd->queue = blk_ops->rq;
-	gd->queue->bypass_depth = 1;
 
 	if (part->type == PART_NO_ACCESS)
 		dev->disable_access = 1;
@@ -548,6 +530,11 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 {
 	int i, ret;
 	u64 offset;
+	struct flash_blk_dev *dev;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
 
 	rknand_req_do = 0;
 	blk_ops->quit = 0;
@@ -557,28 +544,41 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 				       GFP_KERNEL | GFP_DMA);
 
 	ret = register_blkdev(blk_ops->major, blk_ops->name);
-	if (ret)
-		return -1;
+	if (ret) {
+		kfree(dev);
 
-	spin_lock_init(&blk_ops->queue_lock);
+		return -1;
+	}
+
 	init_completion(&blk_ops->thread_exit);
 	init_waitqueue_head(&blk_ops->thread_wq);
 
-	blk_ops->rq = blk_init_queue(rkflash_blk_request, &blk_ops->queue_lock);
-	if (!blk_ops->rq) {
-		unregister_blkdev(blk_ops->major, blk_ops->name);
-		return  -1;
+	/* Create the request queue */
+	spin_lock_init(&blk_ops->queue_lock);
+	INIT_LIST_HEAD(&blk_ops->rq_list);
+
+	blk_ops->tag_set = kzalloc(sizeof(*blk_ops->tag_set), GFP_KERNEL);
+	if (!blk_ops->tag_set)
+		goto error1;
+
+	blk_ops->rq = blk_mq_init_sq_queue(blk_ops->tag_set, &rkflash_mq_ops, 1,
+					   BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+	if (IS_ERR(blk_ops->rq)) {
+		ret = PTR_ERR(blk_ops->rq);
+		blk_ops->rq = NULL;
+		goto error2;
 	}
+
+	blk_ops->rq->queuedata = dev;
 
 	blk_queue_max_hw_sectors(blk_ops->rq, MTD_RW_SECTORS);
 	blk_queue_max_segments(blk_ops->rq, MTD_RW_SECTORS);
 
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, blk_ops->rq);
 	blk_queue_max_discard_sectors(blk_ops->rq, UINT_MAX >> 9);
+	blk_ops->rq->limits.discard_granularity = 64 << 9;
 
-	blk_ops->rq->queuedata = blk_ops;
 	INIT_LIST_HEAD(&blk_ops->devs);
-	kthread_run(rkflash_blktrans_thread, (void *)blk_ops, "rkflash");
 	g_max_part_num = rk_partition_init(disk_array);
 	if (g_max_part_num) {
 		/* partition 0 is save vendor data, need hidden */
@@ -590,9 +590,9 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 				offset * 512,
 				(u64)(offset + disk_array[i].size) * 512,
 				(u64)disk_array[i].size / 2048);
-			rkflash_blk_add_dev(blk_ops, &disk_array[i]);
+			rkflash_blk_add_dev(dev, blk_ops, &disk_array[i]);
 		}
-		rkflash_blk_add_dev(blk_ops, &fw_header_p);
+		rkflash_blk_add_dev(dev, blk_ops, &fw_header_p);
 	} else {
 		struct flash_part part;
 
@@ -600,11 +600,19 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 		part.size = g_boot_ops->get_capacity();
 		part.type = 0;
 		part.name[0] = 0;
-		rkflash_blk_add_dev(&mytr, &part);
+		rkflash_blk_add_dev(dev, blk_ops, &part);
 	}
 	rkflash_blk_create_procfs();
 
 	return 0;
+
+error2:
+	kfree(blk_ops->tag_set);
+error1:
+	unregister_blkdev(blk_ops->major, blk_ops->name);
+	kfree(dev);
+
+	return ret;
 }
 
 static void rkflash_blk_unregister(struct flash_blk_ops *blk_ops)
