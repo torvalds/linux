@@ -12,7 +12,7 @@
 #include "../smb_common.h"
 #include "../ntlmssp.h"
 
-#define CIFDS_SESSION_FLAG_SMB2		(1 << 1)
+#define CIFDS_SESSION_FLAG_SMB2		BIT(1)
 
 #define PREAUTH_HASHVALUE_SIZE		64
 
@@ -53,8 +53,6 @@ struct ksmbd_session {
 	struct xarray			tree_conns;
 	struct ida			tree_conn_ida;
 	struct list_head		rpc_handle_list;
-
-
 
 	__u8				smb3encryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8				smb3decryptionkey[SMB3_ENC_DEC_KEY_SIZE];
