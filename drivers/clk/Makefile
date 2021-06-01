@@ -109,6 +109,7 @@ obj-y					+= socfpga/
 obj-$(CONFIG_PLAT_SPEAR)		+= spear/
 obj-y					+= sprd/
 obj-$(CONFIG_ARCH_STI)			+= st/
+obj-$(CONFIG_SOC_STARFIVE)		+= starfive/
 obj-$(CONFIG_ARCH_SUNXI)		+= sunxi/
 obj-$(CONFIG_SUNXI_CCU)			+= sunxi-ng/
 obj-$(CONFIG_ARCH_TEGRA)		+= tegra/
