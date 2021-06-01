@@ -73,6 +73,7 @@ netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return hdlc->xmit(skb, dev); /* call hardware driver directly */
 }
+EXPORT_SYMBOL(hdlc_start_xmit);
 
 static inline void hdlc_proto_start(struct net_device *dev)
 {
@@ -170,6 +171,7 @@ int hdlc_open(struct net_device *dev)
 	spin_unlock_irq(&hdlc->state_lock);
 	return 0;
 }
+EXPORT_SYMBOL(hdlc_open);
 
 /* Must be called by hardware driver when HDLC device is being closed */
 void hdlc_close(struct net_device *dev)
@@ -191,6 +193,7 @@ void hdlc_close(struct net_device *dev)
 	if (hdlc->proto->close)
 		hdlc->proto->close(dev);
 }
+EXPORT_SYMBOL(hdlc_close);
 
 int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -215,6 +218,7 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 	return -EINVAL;
 }
+EXPORT_SYMBOL(hdlc_ioctl);
 
 static const struct header_ops hdlc_null_ops;
 
@@ -255,6 +259,7 @@ struct net_device *alloc_hdlcdev(void *priv)
 		dev_to_hdlc(dev)->priv = priv;
 	return dev;
 }
+EXPORT_SYMBOL(alloc_hdlcdev);
 
 void unregister_hdlc_device(struct net_device *dev)
 {
@@ -263,6 +268,7 @@ void unregister_hdlc_device(struct net_device *dev)
 	unregister_netdevice(dev);
 	rtnl_unlock();
 }
+EXPORT_SYMBOL(unregister_hdlc_device);
 
 int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 			 size_t size)
@@ -287,6 +293,7 @@ int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 
 	return 0;
 }
+EXPORT_SYMBOL(attach_hdlc_protocol);
 
 int detach_hdlc_protocol(struct net_device *dev)
 {
@@ -312,6 +319,7 @@ int detach_hdlc_protocol(struct net_device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(detach_hdlc_protocol);
 
 void register_hdlc_protocol(struct hdlc_proto *proto)
 {
@@ -320,6 +328,7 @@ void register_hdlc_protocol(struct hdlc_proto *proto)
 	first_proto = proto;
 	rtnl_unlock();
 }
+EXPORT_SYMBOL(register_hdlc_protocol);
 
 void unregister_hdlc_protocol(struct hdlc_proto *proto)
 {
@@ -334,21 +343,11 @@ void unregister_hdlc_protocol(struct hdlc_proto *proto)
 	*p = proto->next;
 	rtnl_unlock();
 }
+EXPORT_SYMBOL(unregister_hdlc_protocol);
 
 MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("HDLC support module");
 MODULE_LICENSE("GPL v2");
-
-EXPORT_SYMBOL(hdlc_start_xmit);
-EXPORT_SYMBOL(hdlc_open);
-EXPORT_SYMBOL(hdlc_close);
-EXPORT_SYMBOL(hdlc_ioctl);
-EXPORT_SYMBOL(alloc_hdlcdev);
-EXPORT_SYMBOL(unregister_hdlc_device);
-EXPORT_SYMBOL(register_hdlc_protocol);
-EXPORT_SYMBOL(unregister_hdlc_protocol);
-EXPORT_SYMBOL(attach_hdlc_protocol);
-EXPORT_SYMBOL(detach_hdlc_protocol);
 
 static struct packet_type hdlc_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_HDLC),
