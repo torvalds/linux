@@ -1250,6 +1250,24 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 	urb_ctx_queue_advance(subs, urb, queued);
 }
 
+/* copy bit-reversed bytes onto transfer buffer */
+static void fill_playback_urb_dsd_bitrev(struct snd_usb_substream *subs,
+					 struct urb *urb, unsigned int bytes)
+{
+	struct snd_pcm_runtime *runtime = subs->pcm_substream->runtime;
+	const u8 *src = runtime->dma_area;
+	u8 *buf = urb->transfer_buffer;
+	int i, ofs = subs->hwptr_done;
+
+	for (i = 0; i < bytes; i++) {
+		*buf++ = bitrev8(src[ofs]);
+		if (++ofs >= subs->buffer_bytes)
+			ofs = 0;
+	}
+
+	urb_ctx_queue_advance(subs, urb, bytes);
+}
+
 static void copy_to_urb(struct snd_usb_substream *subs, struct urb *urb,
 			int offset, int stride, unsigned int bytes)
 {
@@ -1360,15 +1378,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 		fill_playback_urb_dsd_dop(subs, urb, bytes);
 	} else if (unlikely(ep->cur_format == SNDRV_PCM_FORMAT_DSD_U8 &&
 			   subs->cur_audiofmt->dsd_bitrev)) {
-		/* bit-reverse the bytes */
-		u8 *buf = urb->transfer_buffer;
-		for (i = 0; i < bytes; i++) {
-			int idx = (subs->hwptr_done + i) % subs->buffer_bytes;
-
-			buf[i] = bitrev8(runtime->dma_area[idx]);
-		}
-
-		urb_ctx_queue_advance(subs, urb, bytes);
+		fill_playback_urb_dsd_bitrev(subs, urb, bytes);
 	} else {
 		/* usual PCM */
 		if (!subs->tx_length_quirk)
