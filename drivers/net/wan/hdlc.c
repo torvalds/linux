@@ -77,6 +77,7 @@ netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static inline void hdlc_proto_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
+
 	if (hdlc->proto->start)
 		hdlc->proto->start(dev);
 }
@@ -84,6 +85,7 @@ static inline void hdlc_proto_start(struct net_device *dev)
 static inline void hdlc_proto_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
+
 	if (hdlc->proto->stop)
 		hdlc->proto->stop(dev);
 }
@@ -150,6 +152,7 @@ int hdlc_open(struct net_device *dev)
 
 	if (hdlc->proto->open) {
 		int result = hdlc->proto->open(dev);
+
 		if (result)
 			return result;
 	}
@@ -245,6 +248,7 @@ static void hdlc_setup(struct net_device *dev)
 struct net_device *alloc_hdlcdev(void *priv)
 {
 	struct net_device *dev;
+
 	dev = alloc_netdev(sizeof(struct hdlc_device), "hdlc%d",
 			   NET_NAME_UNKNOWN, hdlc_setup);
 	if (dev)
