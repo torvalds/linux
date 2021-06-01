@@ -802,7 +802,7 @@ hp_i2c: &i2c9 {
 	};
 };
 
-&pm6150_pwrkey {
+&pm6150_pon {
 	status = "disabled";
 };
 
