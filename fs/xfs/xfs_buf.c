@@ -272,25 +272,30 @@ _xfs_buf_alloc(
 	return 0;
 }
 
-/*
- *	Frees b_pages if it was allocated.
- */
-STATIC void
-_xfs_buf_free_pages(
+static void
+xfs_buf_free_pages(
 	struct xfs_buf	*bp)
 {
+	uint		i;
+
+	ASSERT(bp->b_flags & _XBF_PAGES);
+
+	if (xfs_buf_is_vmapped(bp))
+		vm_unmap_ram(bp->b_addr - bp->b_offset, bp->b_page_count);
+
+	for (i = 0; i < bp->b_page_count; i++) {
+		if (bp->b_pages[i])
+			__free_page(bp->b_pages[i]);
+	}
+	if (current->reclaim_state)
+		current->reclaim_state->reclaimed_slab += bp->b_page_count;
+
 	if (bp->b_pages != bp->b_page_array)
 		kmem_free(bp->b_pages);
 	bp->b_pages = NULL;
+	bp->b_flags &= ~_XBF_PAGES;
 }
 
-/*
- *	Releases the specified buffer.
- *
- * 	The modification state of any associated pages is left unchanged.
- * 	The buffer must not be on any hash - use xfs_buf_rele instead for
- * 	hashed and refcounted buffers
- */
 static void
 xfs_buf_free(
 	struct xfs_buf		*bp)
@@ -299,24 +304,11 @@ xfs_buf_free(
 
 	ASSERT(list_empty(&bp->b_lru));
 
-	if (bp->b_flags & _XBF_PAGES) {
-		uint		i;
-
-		if (xfs_buf_is_vmapped(bp))
-			vm_unmap_ram(bp->b_addr - bp->b_offset,
-					bp->b_page_count);
-
-		for (i = 0; i < bp->b_page_count; i++) {
-			struct page	*page = bp->b_pages[i];
-
-			__free_page(page);
-		}
-		if (current->reclaim_state)
-			current->reclaim_state->reclaimed_slab +=
-							bp->b_page_count;
-	} else if (bp->b_flags & _XBF_KMEM)
+	if (bp->b_flags & _XBF_PAGES)
+		xfs_buf_free_pages(bp);
+	else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
-	_xfs_buf_free_pages(bp);
+
 	xfs_buf_free_maps(bp);
 	kmem_cache_free(xfs_buf_zone, bp);
 }
@@ -361,7 +353,6 @@ xfs_buf_alloc_pages(
 {
 	gfp_t		gfp_mask = xb_to_gfp(flags);
 	long		filled = 0;
-	int		error;
 
 	/* Make sure that we have a page list */
 	bp->b_page_count = page_count;
@@ -398,20 +389,14 @@ xfs_buf_alloc_pages(
 			continue;
 
 		if (flags & XBF_READ_AHEAD) {
-			error = -ENOMEM;
-			goto out_free_pages;
+			xfs_buf_free_pages(bp);
+			return -ENOMEM;
 		}
 
 		XFS_STATS_INC(bp->b_mount, xb_page_retries);
 		congestion_wait(BLK_RW_ASYNC, HZ / 50);
 	}
 	return 0;
-
-out_free_pages:
-	while (--filled >= 0)
-		__free_page(bp->b_pages[filled]);
-	bp->b_flags &= ~_XBF_PAGES;
-	return error;
 }
 
 
