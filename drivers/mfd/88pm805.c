@@ -54,27 +54,14 @@ enum {
 };
 
 static struct resource codec_resources[] = {
-	{
-	 /* Headset microphone insertion or removal */
-	 .name = "micin",
-	 .start = PM805_IRQ_MIC_DET,
-	 .end = PM805_IRQ_MIC_DET,
-	 .flags = IORESOURCE_IRQ,
-	 },
-	{
-	 /* Audio short HP1 */
-	 .name = "audio-short1",
-	 .start = PM805_IRQ_HP1_SHRT,
-	 .end = PM805_IRQ_HP1_SHRT,
-	 .flags = IORESOURCE_IRQ,
-	 },
-	{
-	 /* Audio short HP2 */
-	 .name = "audio-short2",
-	 .start = PM805_IRQ_HP2_SHRT,
-	 .end = PM805_IRQ_HP2_SHRT,
-	 .flags = IORESOURCE_IRQ,
-	 },
+	/* Headset microphone insertion or removal */
+	DEFINE_RES_IRQ_NAMED(PM805_IRQ_MIC_DET, "micin"),
+
+	/* Audio short HP1 */
+	DEFINE_RES_IRQ_NAMED(PM805_IRQ_HP1_SHRT, "audio-short1"),
+
+	/* Audio short HP2 */
+	DEFINE_RES_IRQ_NAMED(PM805_IRQ_HP2_SHRT, "audio-short2"),
 };
 
 static const struct mfd_cell codec_devs[] = {
