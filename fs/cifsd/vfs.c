@@ -274,7 +274,6 @@ static int ksmbd_vfs_stream_read(struct ksmbd_file *fp, char *buf, loff_t *pos,
 {
 	ssize_t v_len;
 	char *stream_buf = NULL;
-	int err;
 
 	ksmbd_debug(VFS, "read stream data pos : %llu, count : %zd\n",
 		    *pos, count);
@@ -283,14 +282,22 @@ static int ksmbd_vfs_stream_read(struct ksmbd_file *fp, char *buf, loff_t *pos,
 				       fp->stream.name,
 				       fp->stream.size,
 				       &stream_buf);
-	if (v_len == -ENOENT) {
-		ksmbd_err("not found stream in xattr : %zd\n", v_len);
-		err = -ENOENT;
-		return err;
+	if ((int)v_len <= 0)
+		return (int)v_len;
+
+	if (v_len <= *pos) {
+		count = -EINVAL;
+		goto free_buf;
 	}
 
+	if (v_len - *pos < count)
+		count = v_len - *pos;
+
 	memcpy(buf, &stream_buf[*pos], count);
-	return v_len > count ? count : v_len;
+
+free_buf:
+	kvfree(stream_buf);
+	return count;
 }
 
 /**
@@ -414,9 +421,9 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 				       fp->stream.name,
 				       fp->stream.size,
 				       &stream_buf);
-	if (v_len == -ENOENT) {
+	if ((int)v_len < 0) {
 		ksmbd_err("not found stream in xattr : %zd\n", v_len);
-		err = -ENOENT;
+		err = (int)v_len;
 		goto out;
 	}
 
@@ -429,6 +436,7 @@ static int ksmbd_vfs_stream_write(struct ksmbd_file *fp, char *buf, loff_t *pos,
 
 		if (v_len > 0)
 			memcpy(wbuf, stream_buf, v_len);
+		kvfree(stream_buf);
 		stream_buf = wbuf;
 	}
 
@@ -934,8 +942,8 @@ ssize_t ksmbd_vfs_getxattr(struct dentry *dentry, char *xattr_name,
 	if (!buf)
 		return -ENOMEM;
 
-	xattr_len = vfs_getxattr(&init_user_ns, dentry, xattr_name, (void *)buf,
-			xattr_len);
+	xattr_len = vfs_getxattr(&init_user_ns, dentry, xattr_name,
+				 (void *)buf, xattr_len);
 	if (xattr_len > 0)
 		*xattr_buf = buf;
 	else
