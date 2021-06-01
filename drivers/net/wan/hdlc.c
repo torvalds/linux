@@ -36,7 +36,7 @@
 #include <linux/slab.h>
 #include <net/net_namespace.h>
 
-static const char* version = "HDLC support module revision 1.22";
+static const char *version = "HDLC support module revision 1.22";
 
 #undef DEBUG_LINK
 
