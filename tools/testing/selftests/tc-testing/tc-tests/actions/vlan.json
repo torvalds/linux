@@ -446,6 +446,30 @@
         "teardown": []
     },
     {
+        "id": "ba5b",
+        "name": "Add vlan modify action for protocol 802.1Q setting priority 0",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan modify protocol 802.1Q id 5 priority 0 index 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 100",
+        "matchPattern": "action order [0-9]+: vlan.*modify id 100 priority 0 protocol 802.1Q pipe.*index 100 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
         "id": "6812",
         "name": "Add vlan modify action for protocol 802.1Q",
         "category": [
