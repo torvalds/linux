@@ -1487,12 +1487,7 @@ EXPORT_SYMBOL(acpi_check_resource_conflict);
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name)
 {
-	struct resource res = {
-		.start = start,
-		.end   = start + n - 1,
-		.name  = name,
-		.flags = IORESOURCE_IO,
-	};
+	struct resource res = DEFINE_RES_IO_NAMED(start, n, name);
 
 	return acpi_check_resource_conflict(&res);
 }
