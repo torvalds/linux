@@ -95,9 +95,10 @@
  * - 3.39.0 - DMABUF implicit sync does a full pipeline sync
  * - 3.40.0 - Add AMDGPU_IDS_FLAGS_TMZ
  * - 3.41.0 - Add video codec query
+ * - 3.42.0 - Add 16bpc fixed point display support
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	41
+#define KMS_DRIVER_MINOR	42
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit;
