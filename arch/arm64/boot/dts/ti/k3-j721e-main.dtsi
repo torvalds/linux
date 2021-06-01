@@ -1794,6 +1794,16 @@
 			reg-names = "iram", "control", "debug";
 			firmware-name = "j7-txpru0_1-fw";
 		};
+
+		icssg0_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			clocks = <&k3_clks 119 1>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus_freq = <1000000>;
+		};
 	};
 
 	icssg1: icssg@b100000 {
@@ -1924,6 +1934,16 @@
 			      <0x25c00 0x100>;
 			reg-names = "iram", "control", "debug";
 			firmware-name = "j7-txpru1_1-fw";
+		};
+
+		icssg1_mdio: mdio@32400 {
+			compatible = "ti,davinci_mdio";
+			reg = <0x32400 0x100>;
+			clocks = <&k3_clks 120 4>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus_freq = <1000000>;
 		};
 	};
 };
