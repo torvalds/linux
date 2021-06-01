@@ -1381,7 +1381,7 @@ static int dcbnl_notify(struct net_device *dev, int event, int cmd,
 
 	skb = dcbnl_newmsg(event, cmd, portid, seq, 0, &nlh);
 	if (!skb)
-		return -ENOBUFS;
+		return -ENOMEM;
 
 	if (dcbx_ver == DCB_CAP_DCBX_VER_IEEE)
 		err = dcbnl_ieee_fill(skb, dev);
@@ -1781,7 +1781,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	reply_skb = dcbnl_newmsg(fn->type, dcb->cmd, portid, nlh->nlmsg_seq,
 				 nlh->nlmsg_flags, &reply_nlh);
 	if (!reply_skb)
-		return -ENOBUFS;
+		return -ENOMEM;
 
 	ret = fn->cb(netdev, nlh, nlh->nlmsg_seq, tb, reply_skb);
 	if (ret < 0) {
