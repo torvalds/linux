@@ -3718,4 +3718,13 @@ struct sli4 {
 	struct efc_dma		vpd_data;
 };
 
+static inline void
+sli_cmd_fill_hdr(struct sli4_rqst_hdr *hdr, u8 opc, u8 sub, u32 ver, __le32 len)
+{
+	hdr->opcode = opc;
+	hdr->subsystem = sub;
+	hdr->dw3_version = cpu_to_le32(ver);
+	hdr->request_length = len;
+}
+
 #endif /* !_SLI4_H */
