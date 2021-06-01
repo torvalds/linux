@@ -1677,14 +1677,18 @@ static void icm_icl_rtd3_veto(struct tb *tb, const struct icm_pkg_header *hdr)
 
 static bool icm_tgl_is_supported(struct tb *tb)
 {
-	u32 val;
+	unsigned long end = jiffies + msecs_to_jiffies(10);
 
-	/*
-	 * If the firmware is not running use software CM. This platform
-	 * should fully support both.
-	 */
-	val = ioread32(tb->nhi->iobase + REG_FW_STS);
-	return !!(val & REG_FW_STS_NVM_AUTH_DONE);
+	do {
+		u32 val;
+
+		val = ioread32(tb->nhi->iobase + REG_FW_STS);
+		if (val & REG_FW_STS_NVM_AUTH_DONE)
+			return true;
+		usleep_range(100, 500);
+	} while (time_before(jiffies, end));
+
+	return false;
 }
 
 static void icm_handle_notification(struct work_struct *work)
