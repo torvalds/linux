@@ -163,8 +163,9 @@ int hdlc_open(struct net_device *dev)
 	if (hdlc->carrier) {
 		netdev_info(dev, "Carrier detected\n");
 		hdlc_proto_start(dev);
-	} else
+	} else {
 		netdev_info(dev, "No carrier\n");
+	}
 
 	hdlc->open = 1;
 
