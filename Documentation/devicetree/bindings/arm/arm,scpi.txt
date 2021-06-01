@@ -56,21 +56,6 @@ Other required properties for all clocks(all from common clock binding):
 	node. It can be non linear and hence provide the mapping of identifiers
 	into the clock-output-names array.
 
-SRAM and Shared Memory for SCPI
--------------------------------
-
-A small area of SRAM is reserved for SCPI communication between application
-processors and SCP.
-
-The properties should follow the generic mmio-sram description found in [3]
-
-Each sub-node represents the reserved area for SCPI.
-
-Required sub-node properties:
-- reg : The base offset and size of the reserved area with the SRAM
-- compatible : should be "arm,scp-shmem" for Non-secure SRAM based
-	       shared memory
-
 Sensor bindings for the sensors based on SCPI Message Protocol
 --------------------------------------------------------------
 SCPI provides an API to access the various sensors on the SoC.
