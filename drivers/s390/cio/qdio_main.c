@@ -893,6 +893,7 @@ static void qdio_shutdown_queues(struct qdio_irq *irq_ptr)
 static int qdio_cancel_ccw(struct qdio_irq *irq, int how)
 {
 	struct ccw_device *cdev = irq->cdev;
+	long timeout;
 	int rc;
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
@@ -909,12 +910,14 @@ static int qdio_cancel_ccw(struct qdio_irq *irq, int how)
 		return rc;
 	}
 
-	wait_event_interruptible_timeout(cdev->private->wait_q,
-					 irq->state == QDIO_IRQ_STATE_INACTIVE ||
-					 irq->state == QDIO_IRQ_STATE_ERR,
-					 10 * HZ);
+	timeout = wait_event_interruptible_timeout(cdev->private->wait_q,
+						   irq->state == QDIO_IRQ_STATE_INACTIVE ||
+						   irq->state == QDIO_IRQ_STATE_ERR,
+						   10 * HZ);
+	if (timeout <= 0)
+		rc = (timeout == -ERESTARTSYS) ? -EINTR : -ETIME;
 
-	return 0;
+	return rc;
 }
 
 /**
