@@ -999,7 +999,7 @@ resume_leftovers:
 			return -EIO; /* We got really unexpected data */
 
 		if (bytes != fifo_write(fifo, p, bytes, xilly_memcpy)) {
-			dev_err(dev, "Misbehaving FPGA overflew an upstream FIFO!\n");
+			dev_err(dev, "Misbehaving FPGA overflowed an upstream FIFO!\n");
 			return -EIO;
 		}
 
