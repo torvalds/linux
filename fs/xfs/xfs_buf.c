@@ -386,10 +386,7 @@ xfs_buf_alloc_pages(
 	xfs_buf_flags_t	flags)
 {
 	gfp_t		gfp_mask = xb_to_gfp(flags);
-	size_t		size;
-	size_t		offset;
-	size_t		nbytes;
-	int		i;
+	long		filled = 0;
 	int		error;
 
 	/* Assure zeroed buffer for non-read cases. */
@@ -400,50 +397,39 @@ xfs_buf_alloc_pages(
 	if (unlikely(error))
 		return error;
 
-	offset = bp->b_offset;
 	bp->b_flags |= _XBF_PAGES;
 
-	for (i = 0; i < bp->b_page_count; i++) {
-		struct page	*page;
-		uint		retries = 0;
-retry:
-		page = alloc_page(gfp_mask);
-		if (unlikely(page == NULL)) {
-			if (flags & XBF_READ_AHEAD) {
-				bp->b_page_count = i;
-				error = -ENOMEM;
-				goto out_free_pages;
-			}
+	/*
+	 * Bulk filling of pages can take multiple calls. Not filling the entire
+	 * array is not an allocation failure, so don't back off if we get at
+	 * least one extra page.
+	 */
+	for (;;) {
+		long	last = filled;
 
-			/*
-			 * This could deadlock.
-			 *
-			 * But until all the XFS lowlevel code is revamped to
-			 * handle buffer allocation failures we can't do much.
-			 */
-			if (!(++retries % 100))
-				xfs_err(NULL,
-		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
-					current->comm, current->pid,
-					__func__, gfp_mask);
-
-			XFS_STATS_INC(bp->b_mount, xb_page_retries);
-			congestion_wait(BLK_RW_ASYNC, HZ/50);
-			goto retry;
+		filled = alloc_pages_bulk_array(gfp_mask, bp->b_page_count,
+						bp->b_pages);
+		if (filled == bp->b_page_count) {
+			XFS_STATS_INC(bp->b_mount, xb_page_found);
+			break;
 		}
 
-		XFS_STATS_INC(bp->b_mount, xb_page_found);
+		if (filled != last)
+			continue;
 
-		nbytes = min_t(size_t, size, PAGE_SIZE - offset);
-		size -= nbytes;
-		bp->b_pages[i] = page;
-		offset = 0;
+		if (flags & XBF_READ_AHEAD) {
+			error = -ENOMEM;
+			goto out_free_pages;
+		}
+
+		XFS_STATS_INC(bp->b_mount, xb_page_retries);
+		congestion_wait(BLK_RW_ASYNC, HZ / 50);
 	}
 	return 0;
 
 out_free_pages:
-	for (i = 0; i < bp->b_page_count; i++)
-		__free_page(bp->b_pages[i]);
+	while (--filled >= 0)
+		__free_page(bp->b_pages[filled]);
 	bp->b_flags &= ~_XBF_PAGES;
 	return error;
 }
