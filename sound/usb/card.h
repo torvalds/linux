@@ -158,6 +158,7 @@ struct snd_usb_substream {
 
 	unsigned int running: 1;	/* running status */
 
+	unsigned int buffer_bytes;	/* buffer size in bytes */
 	unsigned int hwptr_done;	/* processed byte position in the buffer */
 	unsigned int transfer_done;		/* processed frames since last period update */
 	unsigned int frame_limit;	/* limits number of packets in URB */
