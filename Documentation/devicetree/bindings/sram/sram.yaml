@@ -28,6 +28,7 @@ properties:
     contains:
       enum:
         - mmio-sram
+        - amlogic,meson-gxbb-sram
         - arm,juno-sram-ns
         - atmel,sama5d2-securam
         - rockchip,rk3288-pmu-sram
