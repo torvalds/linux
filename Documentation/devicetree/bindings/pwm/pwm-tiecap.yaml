@@ -23,6 +23,7 @@ properties:
               - ti,dra746-ecap
               - ti,k2g-ecap
               - ti,am654-ecap
+              - ti,am64-ecap
           - const: ti,am3352-ecap
 
   reg:
