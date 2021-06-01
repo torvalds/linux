@@ -70,9 +70,11 @@ descriptors by adding their identifier to the format string
    prefix is shown only if the hash algorithm is not SHA1 or MD5);
  - 'd-modsig': the digest of the event without the appended modsig;
  - 'n-ng': the name of the event, without size limitations;
- - 'sig': the file signature;
+ - 'sig': the file signature, or the EVM portable signature if the file
+   signature is not found;
  - 'modsig' the appended file signature;
  - 'buf': the buffer data that was used to generate the hash without size limitations;
+ - 'evmsig': the EVM portable signature;
 
 
 Below, there is the list of defined template descriptors:

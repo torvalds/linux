@@ -81,12 +81,12 @@ static ssize_t evm_write_key(struct file *file, const char __user *buf,
 	if (!i || (i & ~EVM_INIT_MASK) != 0)
 		return -EINVAL;
 
-	/* Don't allow a request to freshly enable metadata writes if
-	 * keys are loaded.
+	/*
+	 * Don't allow a request to enable metadata writes if
+	 * an HMAC key is loaded.
 	 */
 	if ((i & EVM_ALLOW_METADATA_WRITES) &&
-	    ((evm_initialized & EVM_KEY_MASK) != 0) &&
-	    !(evm_initialized & EVM_ALLOW_METADATA_WRITES))
+	    (evm_initialized & EVM_INIT_HMAC) != 0)
 		return -EPERM;
 
 	if (i & EVM_INIT_HMAC) {

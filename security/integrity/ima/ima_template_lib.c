@@ -10,6 +10,7 @@
  */
 
 #include "ima_template_lib.h"
+#include <linux/xattr.h>
 
 static bool ima_template_hash_algo_allowed(u8 algo)
 {
@@ -438,7 +439,7 @@ int ima_eventsig_init(struct ima_event_data *event_data,
 	struct evm_ima_xattr_data *xattr_value = event_data->xattr_value;
 
 	if ((!xattr_value) || (xattr_value->type != EVM_IMA_XATTR_DIGSIG))
-		return 0;
+		return ima_eventevmsig_init(event_data, field_data);
 
 	return ima_write_template_field_data(xattr_value, event_data->xattr_len,
 					     DATA_FMT_HEX, field_data);
@@ -483,4 +484,34 @@ int ima_eventmodsig_init(struct ima_event_data *event_data,
 
 	return ima_write_template_field_data(data, data_len, DATA_FMT_HEX,
 					     field_data);
+}
+
+/*
+ *  ima_eventevmsig_init - include the EVM portable signature as part of the
+ *  template data
+ */
+int ima_eventevmsig_init(struct ima_event_data *event_data,
+			 struct ima_field_data *field_data)
+{
+	struct evm_ima_xattr_data *xattr_data = NULL;
+	int rc = 0;
+
+	if (!event_data->file)
+		return 0;
+
+	rc = vfs_getxattr_alloc(&init_user_ns, file_dentry(event_data->file),
+				XATTR_NAME_EVM, (char **)&xattr_data, 0,
+				GFP_NOFS);
+	if (rc <= 0)
+		return 0;
+
+	if (xattr_data->type != EVM_XATTR_PORTABLE_DIGSIG) {
+		kfree(xattr_data);
+		return 0;
+	}
+
+	rc = ima_write_template_field_data((char *)xattr_data, rc, DATA_FMT_HEX,
+					   field_data);
+	kfree(xattr_data);
+	return rc;
 }
