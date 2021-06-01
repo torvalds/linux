@@ -63,6 +63,9 @@ properties:
       Should contain freqs and voltages and opp-supported-hw property, which
       is a bitfield indicating SoC speedo ID mask.
 
+  "#cooling-cells":
+    const: 2
+
 required:
   - compatible
   - reg
@@ -74,6 +77,7 @@ required:
   - interconnects
   - interconnect-names
   - operating-points-v2
+  - "#cooling-cells"
 
 additionalProperties: false
 
@@ -118,4 +122,5 @@ examples:
         operating-points-v2 = <&dvfs_opp_table>;
         interconnects = <&mc TEGRA30_MC_MPCORER &emc>;
         interconnect-names = "cpu-read";
+        #cooling-cells = <2>;
     };
