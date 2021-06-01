@@ -349,7 +349,7 @@
 	};
 
 	pcf_lcd: pcf8757@20 {
-		compatible = "ti,pcf8575", "nxp,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -360,7 +360,7 @@
 	};
 
 	pcf_gpio_21: pcf8757@21 {
-		compatible = "ti,pcf8575", "nxp,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x21>;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -371,7 +371,7 @@
 	};
 
 	pcf_hdmi: pcf8575@26 {
-		compatible = "ti,pcf8575", "nxp,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x26>;
 		gpio-controller;
 		#gpio-cells = <2>;
