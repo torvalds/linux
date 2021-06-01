@@ -20,6 +20,8 @@
 #include <linux/input.h>
 #include <linux/spi/spi.h>
 
+#define CY_SPI_NAME		"cyttsp-spi"
+
 #define CY_SPI_WR_OP		0x00 /* r/~w */
 #define CY_SPI_RD_OP		0x01
 #define CY_SPI_CMD_BYTES	4

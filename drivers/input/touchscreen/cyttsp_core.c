@@ -46,8 +46,15 @@
 #define CY_MAXZ				255
 #define CY_DELAY_DFLT			20 /* ms */
 #define CY_DELAY_MAX			500
-#define CY_ACT_DIST_DFLT		0xF8
+/* Active distance in pixels for a gesture to be reported */
+#define CY_ACT_DIST_DFLT		0xF8 /* pixels */
 #define CY_ACT_DIST_MASK		0x0F
+/* Active Power state scanning/processing refresh interval */
+#define CY_ACT_INTRVL_DFLT		0x00 /* ms */
+/* Low Power state scanning/processing refresh interval */
+#define CY_LP_INTRVL_DFLT		0x0A /* ms */
+/* touch timeout for the Active power */
+#define CY_TCH_TMOUT_DFLT		0xFF /* ms */
 #define CY_HNDSHK_BIT			0x80
 /* device mode bits */
 #define CY_OPERATE_MODE			0x00

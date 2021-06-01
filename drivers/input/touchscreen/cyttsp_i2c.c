@@ -18,6 +18,8 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 
+#define CY_I2C_NAME		"cyttsp-i2c"
+
 #define CY_I2C_DATA_SIZE	128
 
 static const struct cyttsp_bus_ops cyttsp_i2c_bus_ops = {

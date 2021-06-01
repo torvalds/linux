@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/input/cyttsp.h>
 #include <linux/regulator/consumer.h>
 
 #define CY_NUM_RETRY		16 /* max number of retries for read ops */
