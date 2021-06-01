@@ -678,31 +678,6 @@ batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_master_del_slave() - remove hard_iface from the current master iface
- * @slave: the interface enslaved in another master
- * @master: the master from which slave has to be removed
- *
- * Invoke ndo_del_slave on master passing slave as argument. In this way the
- * slave is free'd and the master can correctly change its internal state.
- *
- * Return: 0 on success, a negative value representing the error otherwise
- */
-static int batadv_master_del_slave(struct batadv_hard_iface *slave,
-				   struct net_device *master)
-{
-	int ret;
-
-	if (!master)
-		return 0;
-
-	ret = -EBUSY;
-	if (master->netdev_ops->ndo_del_slave)
-		ret = master->netdev_ops->ndo_del_slave(master, slave->net_dev);
-
-	return ret;
-}
-
-/**
  * batadv_hardif_enable_interface() - Enslave hard interface to soft interface
  * @hard_iface: hard interface to add to soft interface
  * @soft_iface: netdev struct of the mesh interface
@@ -713,7 +688,6 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 				   struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv;
-	struct net_device *master;
 	__be16 ethertype = htons(ETH_P_BATMAN);
 	int max_header_len = batadv_max_header_len();
 	int ret;
@@ -731,14 +705,6 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 		ret = -EINVAL;
 		goto err_dev;
 	}
-
-	/* check if the interface is enslaved in another virtual one and
-	 * in that case unlink it first
-	 */
-	master = netdev_master_upper_dev_get(hard_iface->net_dev);
-	ret = batadv_master_del_slave(hard_iface, master);
-	if (ret)
-		goto err_dev;
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
