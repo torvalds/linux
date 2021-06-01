@@ -177,6 +177,12 @@
 	};
 };
 
+&bus_npu {
+	bus-supply = <&vdd_logic>;
+	pvtm-supply = <&vdd_cpu>;
+	status = "okay";
+};
+
 &combphy0_us {
 	status = "okay";
 };
