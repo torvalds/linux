@@ -348,7 +348,8 @@ struct stmmac_ops {
 	void (*pcs_rane)(void __iomem *ioaddr, bool restart);
 	void (*pcs_get_adv_lp)(void __iomem *ioaddr, struct rgmii_adv *adv);
 	/* Safety Features */
-	int (*safety_feat_config)(void __iomem *ioaddr, unsigned int asp);
+	int (*safety_feat_config)(void __iomem *ioaddr, unsigned int asp,
+				  struct stmmac_safety_feature_cfg *safety_cfg);
 	int (*safety_feat_irq_status)(struct net_device *ndev,
 			void __iomem *ioaddr, unsigned int asp,
 			struct stmmac_safety_stats *stats);

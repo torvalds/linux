@@ -137,7 +137,8 @@
 
 #define GMAC_INT_FPE_EN			BIT(17)
 
-int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
+int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp,
+			      struct stmmac_safety_feature_cfg *safety_cfg);
 int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
 		struct stmmac_safety_stats *stats);

@@ -172,6 +172,18 @@ struct stmmac_fpe_cfg {
 	enum stmmac_fpe_state lo_fpe_state;	/* Local station FPE state */
 };
 
+struct stmmac_safety_feature_cfg {
+	u32 tsoee;
+	u32 mrxpee;
+	u32 mestee;
+	u32 mrxee;
+	u32 mtxee;
+	u32 epsi;
+	u32 edpp;
+	u32 prtyen;
+	u32 tmouten;
+};
+
 struct plat_stmmacenet_data {
 	int bus_id;
 	int phy_addr;
@@ -184,6 +196,7 @@ struct plat_stmmacenet_data {
 	struct stmmac_dma_cfg *dma_cfg;
 	struct stmmac_est *est;
 	struct stmmac_fpe_cfg *fpe_cfg;
+	struct stmmac_safety_feature_cfg *safety_feat_cfg;
 	int clk_csr;
 	int has_gmac;
 	int enh_desc;
