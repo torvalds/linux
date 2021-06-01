@@ -25,6 +25,9 @@ DECLARE_HOOK(android_vh_tune_inactive_ratio,
 DECLARE_HOOK(android_vh_do_shrink_slab,
 	TP_PROTO(struct shrinker *shrinker, struct shrink_control *shrinkctl, int priority),
 	TP_ARGS(shrinker, shrinkctl, priority));
+DECLARE_RESTRICTED_HOOK(android_rvh_set_balance_anon_file_reclaim,
+			TP_PROTO(bool *balance_anon_file_reclaim),
+			TP_ARGS(balance_anon_file_reclaim), 1);
 #endif /* _TRACE_HOOK_VMSCAN_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

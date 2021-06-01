@@ -314,3 +314,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_scmi_timeout_sync);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_new_ilb);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_force_compatible_pre);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_force_compatible_post);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_balance_anon_file_reclaim);
