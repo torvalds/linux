@@ -28,6 +28,7 @@ properties:
     contains:
       enum:
         - mmio-sram
+        - arm,juno-sram-ns
         - atmel,sama5d2-securam
         - rockchip,rk3288-pmu-sram
 
@@ -80,6 +81,7 @@ patternProperties:
             - amlogic,meson8b-smp-sram
             - amlogic,meson-gxbb-scp-shmem
             - amlogic,meson-axg-scp-shmem
+            - arm,juno-scp-shmem
             - arm,scmi-shmem
             - arm,scp-shmem
             - renesas,smp-sram
