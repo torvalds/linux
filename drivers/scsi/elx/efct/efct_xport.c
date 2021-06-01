@@ -1,0 +1,500 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2021 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+ */
+
+#include "efct_driver.h"
+#include "efct_unsol.h"
+
+static struct dentry *efct_debugfs_root;
+static atomic_t efct_debugfs_count;
+
+static struct scsi_host_template efct_template = {
+	.module			= THIS_MODULE,
+	.name			= EFCT_DRIVER_NAME,
+	.supported_mode		= MODE_TARGET,
+};
+
+/* globals */
+static struct fc_function_template efct_xport_functions;
+static struct fc_function_template efct_vport_functions;
+
+static struct scsi_transport_template *efct_xport_fc_tt;
+static struct scsi_transport_template *efct_vport_fc_tt;
+
+struct efct_xport *
+efct_xport_alloc(struct efct *efct)
+{
+	struct efct_xport *xport;
+
+	xport = kzalloc(sizeof(*xport), GFP_KERNEL);
+	if (!xport)
+		return xport;
+
+	xport->efct = efct;
+	return xport;
+}
+
+static int
+efct_xport_init_debugfs(struct efct *efct)
+{
+	/* Setup efct debugfs root directory */
+	if (!efct_debugfs_root) {
+		efct_debugfs_root = debugfs_create_dir("efct", NULL);
+		atomic_set(&efct_debugfs_count, 0);
+		if (!efct_debugfs_root) {
+			efc_log_err(efct, "failed to create debugfs entry\n");
+			goto debugfs_fail;
+		}
+	}
+
+	/* Create a directory for sessions in root */
+	if (!efct->sess_debugfs_dir) {
+		efct->sess_debugfs_dir = debugfs_create_dir("sessions", NULL);
+		if (!efct->sess_debugfs_dir) {
+			efc_log_err(efct,
+				    "failed to create debugfs entry for sessions\n");
+			goto debugfs_fail;
+		}
+		atomic_inc(&efct_debugfs_count);
+	}
+
+	return 0;
+
+debugfs_fail:
+	return -EIO;
+}
+
+static void efct_xport_delete_debugfs(struct efct *efct)
+{
+	/* Remove session debugfs directory */
+	debugfs_remove(efct->sess_debugfs_dir);
+	efct->sess_debugfs_dir = NULL;
+	atomic_dec(&efct_debugfs_count);
+
+	if (atomic_read(&efct_debugfs_count) == 0) {
+		/* remove root debugfs directory */
+		debugfs_remove(efct_debugfs_root);
+		efct_debugfs_root = NULL;
+	}
+}
+
+int
+efct_xport_attach(struct efct_xport *xport)
+{
+	struct efct *efct = xport->efct;
+	int rc;
+
+	rc = efct_hw_setup(&efct->hw, efct, efct->pci);
+	if (rc) {
+		efc_log_err(efct, "%s: Can't setup hardware\n", efct->desc);
+		return rc;
+	}
+
+	efct_hw_parse_filter(&efct->hw, (void *)efct->filter_def);
+
+	xport->io_pool = efct_io_pool_create(efct, efct->hw.config.n_sgl);
+	if (!xport->io_pool) {
+		efc_log_err(efct, "Can't allocate IO pool\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void
+efct_xport_link_stats_cb(int status, u32 num_counters,
+			 struct efct_hw_link_stat_counts *counters, void *arg)
+{
+	union efct_xport_stats_u *result = arg;
+
+	result->stats.link_stats.link_failure_error_count =
+		counters[EFCT_HW_LINK_STAT_LINK_FAILURE_COUNT].counter;
+	result->stats.link_stats.loss_of_sync_error_count =
+		counters[EFCT_HW_LINK_STAT_LOSS_OF_SYNC_COUNT].counter;
+	result->stats.link_stats.primitive_sequence_error_count =
+		counters[EFCT_HW_LINK_STAT_PRIMITIVE_SEQ_COUNT].counter;
+	result->stats.link_stats.invalid_transmission_word_error_count =
+		counters[EFCT_HW_LINK_STAT_INVALID_XMIT_WORD_COUNT].counter;
+	result->stats.link_stats.crc_error_count =
+		counters[EFCT_HW_LINK_STAT_CRC_COUNT].counter;
+
+	complete(&result->stats.done);
+}
+
+static void
+efct_xport_host_stats_cb(int status, u32 num_counters,
+			 struct efct_hw_host_stat_counts *counters, void *arg)
+{
+	union efct_xport_stats_u *result = arg;
+
+	result->stats.host_stats.transmit_kbyte_count =
+		counters[EFCT_HW_HOST_STAT_TX_KBYTE_COUNT].counter;
+	result->stats.host_stats.receive_kbyte_count =
+		counters[EFCT_HW_HOST_STAT_RX_KBYTE_COUNT].counter;
+	result->stats.host_stats.transmit_frame_count =
+		counters[EFCT_HW_HOST_STAT_TX_FRAME_COUNT].counter;
+	result->stats.host_stats.receive_frame_count =
+		counters[EFCT_HW_HOST_STAT_RX_FRAME_COUNT].counter;
+
+	complete(&result->stats.done);
+}
+
+static void
+efct_xport_async_link_stats_cb(int status, u32 num_counters,
+			       struct efct_hw_link_stat_counts *counters,
+			       void *arg)
+{
+	union efct_xport_stats_u *result = arg;
+
+	result->stats.link_stats.link_failure_error_count =
+		counters[EFCT_HW_LINK_STAT_LINK_FAILURE_COUNT].counter;
+	result->stats.link_stats.loss_of_sync_error_count =
+		counters[EFCT_HW_LINK_STAT_LOSS_OF_SYNC_COUNT].counter;
+	result->stats.link_stats.primitive_sequence_error_count =
+		counters[EFCT_HW_LINK_STAT_PRIMITIVE_SEQ_COUNT].counter;
+	result->stats.link_stats.invalid_transmission_word_error_count =
+		counters[EFCT_HW_LINK_STAT_INVALID_XMIT_WORD_COUNT].counter;
+	result->stats.link_stats.crc_error_count =
+		counters[EFCT_HW_LINK_STAT_CRC_COUNT].counter;
+}
+
+static void
+efct_xport_async_host_stats_cb(int status, u32 num_counters,
+			       struct efct_hw_host_stat_counts *counters,
+			       void *arg)
+{
+	union efct_xport_stats_u *result = arg;
+
+	result->stats.host_stats.transmit_kbyte_count =
+		counters[EFCT_HW_HOST_STAT_TX_KBYTE_COUNT].counter;
+	result->stats.host_stats.receive_kbyte_count =
+		counters[EFCT_HW_HOST_STAT_RX_KBYTE_COUNT].counter;
+	result->stats.host_stats.transmit_frame_count =
+		counters[EFCT_HW_HOST_STAT_TX_FRAME_COUNT].counter;
+	result->stats.host_stats.receive_frame_count =
+		counters[EFCT_HW_HOST_STAT_RX_FRAME_COUNT].counter;
+}
+
+static void
+efct_xport_config_stats_timer(struct efct *efct);
+
+static void
+efct_xport_stats_timer_cb(struct timer_list *t)
+{
+	struct efct_xport *xport = from_timer(xport, t, stats_timer);
+	struct efct *efct = xport->efct;
+
+	efct_xport_config_stats_timer(efct);
+}
+
+static void
+efct_xport_config_stats_timer(struct efct *efct)
+{
+	u32 timeout = 3 * 1000;
+	struct efct_xport *xport = NULL;
+
+	if (!efct) {
+		pr_err("%s: failed to locate EFCT device\n", __func__);
+		return;
+	}
+
+	xport = efct->xport;
+	efct_hw_get_link_stats(&efct->hw, 0, 0, 0,
+			       efct_xport_async_link_stats_cb,
+			       &xport->fc_xport_stats);
+	efct_hw_get_host_stats(&efct->hw, 0, efct_xport_async_host_stats_cb,
+			       &xport->fc_xport_stats);
+
+	timer_setup(&xport->stats_timer,
+		    &efct_xport_stats_timer_cb, 0);
+	mod_timer(&xport->stats_timer,
+		  jiffies + msecs_to_jiffies(timeout));
+}
+
+int
+efct_xport_initialize(struct efct_xport *xport)
+{
+	struct efct *efct = xport->efct;
+	int rc = 0;
+
+	/* Initialize io lists */
+	spin_lock_init(&xport->io_pending_lock);
+	INIT_LIST_HEAD(&xport->io_pending_list);
+	atomic_set(&xport->io_active_count, 0);
+	atomic_set(&xport->io_pending_count, 0);
+	atomic_set(&xport->io_total_free, 0);
+	atomic_set(&xport->io_total_pending, 0);
+	atomic_set(&xport->io_alloc_failed_count, 0);
+	atomic_set(&xport->io_pending_recursing, 0);
+
+	rc = efct_hw_init(&efct->hw);
+	if (rc) {
+		efc_log_err(efct, "efct_hw_init failure\n");
+		goto out;
+	}
+
+	rc = efct_scsi_tgt_new_device(efct);
+	if (rc) {
+		efc_log_err(efct, "failed to initialize target\n");
+		goto hw_init_out;
+	}
+
+	rc = efct_scsi_new_device(efct);
+	if (rc) {
+		efc_log_err(efct, "failed to initialize initiator\n");
+		goto tgt_dev_out;
+	}
+
+	/* Get FC link and host statistics perodically*/
+	efct_xport_config_stats_timer(efct);
+
+	efct_xport_init_debugfs(efct);
+
+	return rc;
+
+tgt_dev_out:
+	efct_scsi_tgt_del_device(efct);
+
+hw_init_out:
+	efct_hw_teardown(&efct->hw);
+out:
+	return rc;
+}
+
+int
+efct_xport_status(struct efct_xport *xport, enum efct_xport_status cmd,
+		  union efct_xport_stats_u *result)
+{
+	int rc = 0;
+	struct efct *efct = NULL;
+	union efct_xport_stats_u value;
+
+	efct = xport->efct;
+
+	switch (cmd) {
+	case EFCT_XPORT_CONFIG_PORT_STATUS:
+		if (xport->configured_link_state == 0) {
+			/*
+			 * Initial state is offline. configured_link_state is
+			 * set to online explicitly when port is brought online
+			 */
+			xport->configured_link_state = EFCT_XPORT_PORT_OFFLINE;
+		}
+		result->value = xport->configured_link_state;
+		break;
+
+	case EFCT_XPORT_PORT_STATUS:
+		/* Determine port status based on link speed. */
+		value.value = efct_hw_get_link_speed(&efct->hw);
+		if (value.value == 0)
+			result->value = EFCT_XPORT_PORT_OFFLINE;
+		else
+			result->value = EFCT_XPORT_PORT_ONLINE;
+		break;
+
+	case EFCT_XPORT_LINK_SPEED:
+		result->value = efct_hw_get_link_speed(&efct->hw);
+		break;
+
+	case EFCT_XPORT_LINK_STATISTICS:
+		memcpy((void *)result, &efct->xport->fc_xport_stats,
+		       sizeof(union efct_xport_stats_u));
+		break;
+	case EFCT_XPORT_LINK_STAT_RESET: {
+		/* Create a completion to synchronize the stat reset process */
+		init_completion(&result->stats.done);
+
+		/* First reset the link stats */
+		rc = efct_hw_get_link_stats(&efct->hw, 0, 1, 1,
+					    efct_xport_link_stats_cb, result);
+		if (rc)
+			break;
+
+		/* Wait for completion to be signaled when the cmd completes */
+		if (wait_for_completion_interruptible(&result->stats.done)) {
+			/* Undefined failure */
+			efc_log_debug(efct, "sem wait failed\n");
+			rc = -EIO;
+			break;
+		}
+
+		/* Next reset the host stats */
+		rc = efct_hw_get_host_stats(&efct->hw, 1,
+					    efct_xport_host_stats_cb, result);
+
+		if (rc)
+			break;
+
+		/* Wait for completion to be signaled when the cmd completes */
+		if (wait_for_completion_interruptible(&result->stats.done)) {
+			/* Undefined failure */
+			efc_log_debug(efct, "sem wait failed\n");
+			rc = -EIO;
+			break;
+		}
+		break;
+	}
+	default:
+		rc = -EIO;
+		break;
+	}
+
+	return rc;
+}
+
+static int
+efct_get_link_supported_speeds(struct efct *efct)
+{
+	u32 supported_speeds = 0;
+	u32 link_module_type, i;
+	struct {
+		u32 lmt_speed;
+		u32 speed;
+	} supported_speed_list[] = {
+		{SLI4_LINK_MODULE_TYPE_1GB, FC_PORTSPEED_1GBIT},
+		{SLI4_LINK_MODULE_TYPE_2GB, FC_PORTSPEED_2GBIT},
+		{SLI4_LINK_MODULE_TYPE_4GB, FC_PORTSPEED_4GBIT},
+		{SLI4_LINK_MODULE_TYPE_8GB, FC_PORTSPEED_8GBIT},
+		{SLI4_LINK_MODULE_TYPE_16GB, FC_PORTSPEED_16GBIT},
+		{SLI4_LINK_MODULE_TYPE_32GB, FC_PORTSPEED_32GBIT},
+		{SLI4_LINK_MODULE_TYPE_64GB, FC_PORTSPEED_64GBIT},
+		{SLI4_LINK_MODULE_TYPE_128GB, FC_PORTSPEED_128GBIT},
+	};
+
+	link_module_type = sli_get_lmt(&efct->hw.sli);
+
+	/* populate link supported speeds */
+	for (i = 0; i < ARRAY_SIZE(supported_speed_list); i++) {
+		if (link_module_type & supported_speed_list[i].lmt_speed)
+			supported_speeds |= supported_speed_list[i].speed;
+	}
+
+	return supported_speeds;
+}
+
+int
+efct_scsi_new_device(struct efct *efct)
+{
+	struct Scsi_Host *shost = NULL;
+	int error = 0;
+	struct efct_vport *vport = NULL;
+
+	shost = scsi_host_alloc(&efct_template, sizeof(*vport));
+	if (!shost) {
+		efc_log_err(efct, "failed to allocate Scsi_Host struct\n");
+		return -ENOMEM;
+	}
+
+	/* save shost to initiator-client context */
+	efct->shost = shost;
+
+	/* save efct information to shost LLD-specific space */
+	vport = (struct efct_vport *)shost->hostdata;
+	vport->efct = efct;
+
+	/*
+	 * Set initial can_queue value to the max SCSI IOs. This is the maximum
+	 * global queue depth (as opposed to the per-LUN queue depth --
+	 * .cmd_per_lun This may need to be adjusted for I+T mode.
+	 */
+	shost->can_queue = efct->hw.config.n_io;
+	shost->max_cmd_len = 16; /* 16-byte CDBs */
+	shost->max_id = 0xffff;
+	shost->max_lun = 0xffffffff;
+
+	/*
+	 * can only accept (from mid-layer) as many SGEs as we've
+	 * pre-registered
+	 */
+	shost->sg_tablesize = sli_get_max_sgl(&efct->hw.sli);
+
+	/* attach FC Transport template to shost */
+	shost->transportt = efct_xport_fc_tt;
+	efc_log_debug(efct, "transport template=%p\n", efct_xport_fc_tt);
+
+	/* get pci_dev structure and add host to SCSI ML */
+	error = scsi_add_host_with_dma(shost, &efct->pci->dev,
+				       &efct->pci->dev);
+	if (error) {
+		efc_log_debug(efct, "failed scsi_add_host_with_dma\n");
+		return -EIO;
+	}
+
+	/* Set symbolic name for host port */
+	snprintf(fc_host_symbolic_name(shost),
+		 sizeof(fc_host_symbolic_name(shost)),
+		     "Emulex %s FV%s DV%s", efct->model,
+		     efct->hw.sli.fw_name[0], EFCT_DRIVER_VERSION);
+
+	/* Set host port supported classes */
+	fc_host_supported_classes(shost) = FC_COS_CLASS3;
+
+	fc_host_supported_speeds(shost) = efct_get_link_supported_speeds(efct);
+
+	fc_host_node_name(shost) = efct_get_wwnn(&efct->hw);
+	fc_host_port_name(shost) = efct_get_wwpn(&efct->hw);
+	fc_host_max_npiv_vports(shost) = 128;
+
+	return 0;
+}
+
+struct scsi_transport_template *
+efct_attach_fc_transport(void)
+{
+	struct scsi_transport_template *efct_fc_template = NULL;
+
+	efct_fc_template = fc_attach_transport(&efct_xport_functions);
+
+	if (!efct_fc_template)
+		pr_err("failed to attach EFCT with fc transport\n");
+
+	return efct_fc_template;
+}
+
+struct scsi_transport_template *
+efct_attach_vport_fc_transport(void)
+{
+	struct scsi_transport_template *efct_fc_template = NULL;
+
+	efct_fc_template = fc_attach_transport(&efct_vport_functions);
+
+	if (!efct_fc_template)
+		pr_err("failed to attach EFCT with fc transport\n");
+
+	return efct_fc_template;
+}
+
+int
+efct_scsi_reg_fc_transport(void)
+{
+	/* attach to appropriate scsi_tranport_* module */
+	efct_xport_fc_tt = efct_attach_fc_transport();
+	if (!efct_xport_fc_tt) {
+		pr_err("%s: failed to attach to scsi_transport_*", __func__);
+		return -EIO;
+	}
+
+	efct_vport_fc_tt = efct_attach_vport_fc_transport();
+	if (!efct_vport_fc_tt) {
+		pr_err("%s: failed to attach to scsi_transport_*", __func__);
+		efct_release_fc_transport(efct_xport_fc_tt);
+		efct_xport_fc_tt = NULL;
+		return -EIO;
+	}
+
+	return 0;
+}
+
+void
+efct_scsi_release_fc_transport(void)
+{
+	/* detach from scsi_transport_* */
+	efct_release_fc_transport(efct_xport_fc_tt);
+	efct_xport_fc_tt = NULL;
+	if (efct_vport_fc_tt)
+		efct_release_fc_transport(efct_vport_fc_tt);
+
+	efct_vport_fc_tt = NULL;
+}

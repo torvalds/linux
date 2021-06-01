@@ -583,4 +583,19 @@ struct efct_hw_grp_hdr {
 	u8			revision[32];
 };
 
+static inline int
+efct_hw_get_link_speed(struct efct_hw *hw) {
+	return hw->link.speed;
+}
+
+int
+efct_hw_setup(struct efct_hw *hw, void *os, struct pci_dev *pdev);
+int efct_hw_init(struct efct_hw *hw);
+int
+efct_hw_parse_filter(struct efct_hw *hw, void *value);
+uint64_t
+efct_get_wwnn(struct efct_hw *hw);
+uint64_t
+efct_get_wwpn(struct efct_hw *hw);
+
 #endif /* __EFCT_H__ */
