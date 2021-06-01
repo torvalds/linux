@@ -1475,7 +1475,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 		peer_pdd = kfd_get_process_device_data(peer, p);
 		if (WARN_ON_ONCE(!peer_pdd))
 			continue;
-		kfd_flush_tlb(peer_pdd);
+		kfd_flush_tlb(peer_pdd, TLB_FLUSH_LEGACY);
 	}
 
 	kfree(devices_arr);
