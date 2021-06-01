@@ -174,6 +174,7 @@ static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Checksum skipped on ip fragment",
 	"Checksum skipped",
 	"Checksum computed in software",
+	"Checksum computed in hardware",
 };
 
 static void rmnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
