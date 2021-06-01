@@ -212,7 +212,8 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	/* Not handled by currently attached protocol (if any) */
 
 	while (proto) {
-		if ((result = proto->ioctl(dev, ifr)) != -EINVAL)
+		result = proto->ioctl(dev, ifr);
+		if (result != -EINVAL)
 			return result;
 		proto = proto->next;
 	}
@@ -363,7 +364,8 @@ static int __init hdlc_module_init(void)
 	int result;
 
 	pr_info("%s\n", version);
-	if ((result = register_netdevice_notifier(&hdlc_notifier)) != 0)
+	result = register_netdevice_notifier(&hdlc_notifier);
+	if (result)
 		return result;
 	dev_add_pack(&hdlc_packet_type);
 	return 0;
