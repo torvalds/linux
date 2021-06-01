@@ -425,9 +425,6 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name)
 	if (affinity__setup(&affinity) < 0)
 		return;
 
-	evlist__for_each_entry(evlist, pos)
-		bpf_counter__disable(pos);
-
 	/* Disable 'immediate' events last */
 	for (imm = 0; imm <= 1; imm++) {
 		evlist__for_each_cpu(evlist, i, cpu) {

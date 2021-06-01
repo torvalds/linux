@@ -993,6 +993,14 @@ enum mvpp22_ptp_packet_format {
 
 #define MVPP2_DESC_DMA_MASK	DMA_BIT_MASK(40)
 
+/* Buffer header info bits */
+#define MVPP2_B_HDR_INFO_MC_ID_MASK	0xfff
+#define MVPP2_B_HDR_INFO_MC_ID(info)	((info) & MVPP2_B_HDR_INFO_MC_ID_MASK)
+#define MVPP2_B_HDR_INFO_LAST_OFFS	12
+#define MVPP2_B_HDR_INFO_LAST_MASK	BIT(12)
+#define MVPP2_B_HDR_INFO_IS_LAST(info) \
+	   (((info) & MVPP2_B_HDR_INFO_LAST_MASK) >> MVPP2_B_HDR_INFO_LAST_OFFS)
+
 struct mvpp2_tai;
 
 /* Definitions */
@@ -1000,6 +1008,20 @@ struct mvpp2_dbgfs_entries;
 
 struct mvpp2_rss_table {
 	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
+};
+
+struct mvpp2_buff_hdr {
+	__le32 next_phys_addr;
+	__le32 next_dma_addr;
+	__le16 byte_count;
+	__le16 info;
+	__le16 reserved1;	/* bm_qset (for future use, BM) */
+	u8 next_phys_addr_high;
+	u8 next_dma_addr_high;
+	__le16 reserved2;
+	__le16 reserved3;
+	__le16 reserved4;
+	__le16 reserved5;
 };
 
 /* Shared Packet Processor resources */
