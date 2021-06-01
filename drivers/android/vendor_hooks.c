@@ -312,3 +312,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_fill_ext_fmtdesc);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_mask_adjust);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_scmi_timeout_sync);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_new_ilb);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_force_compatible_pre);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_force_compatible_post);
