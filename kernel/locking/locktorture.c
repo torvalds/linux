@@ -59,7 +59,7 @@ static struct task_struct **writer_tasks;
 static struct task_struct **reader_tasks;
 
 static bool lock_is_write_held;
-static bool lock_is_read_held;
+static atomic_t lock_is_read_held;
 static unsigned long last_lock_release;
 
 struct lock_stress_stats {
@@ -682,7 +682,7 @@ static int lock_torture_writer(void *arg)
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lwsp->n_lock_fail++;
 		lock_is_write_held = true;
-		if (WARN_ON_ONCE(lock_is_read_held))
+		if (WARN_ON_ONCE(atomic_read(&lock_is_read_held)))
 			lwsp->n_lock_fail++; /* rare, but... */
 
 		lwsp->n_lock_acquired++;
@@ -717,13 +717,13 @@ static int lock_torture_reader(void *arg)
 			schedule_timeout_uninterruptible(1);
 
 		cxt.cur_ops->readlock(tid);
-		lock_is_read_held = true;
+		atomic_inc(&lock_is_read_held);
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lrsp->n_lock_fail++; /* rare, but... */
 
 		lrsp->n_lock_acquired++;
 		cxt.cur_ops->read_delay(&rand);
-		lock_is_read_held = false;
+		atomic_dec(&lock_is_read_held);
 		cxt.cur_ops->readunlock(tid);
 
 		stutter_wait("lock_torture_reader");
@@ -998,7 +998,6 @@ static int __init lock_torture_init(void)
 		}
 
 		if (nreaders_stress) {
-			lock_is_read_held = false;
 			cxt.lrsa = kmalloc_array(cxt.nrealreaders_stress,
 						 sizeof(*cxt.lrsa),
 						 GFP_KERNEL);
