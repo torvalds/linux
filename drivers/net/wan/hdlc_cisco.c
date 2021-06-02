@@ -28,13 +28,11 @@
 #define CISCO_ADDR_REPLY	1	/* Cisco address reply */
 #define CISCO_KEEPALIVE_REQ	2	/* Cisco keepalive request */
 
-
 struct hdlc_header {
 	u8 address;
 	u8 control;
 	__be16 protocol;
 }__packed;
-
 
 struct cisco_packet {
 	__be32 type;		/* code */
@@ -45,7 +43,6 @@ struct cisco_packet {
 }__packed;
 #define	CISCO_PACKET_LEN	18
 #define	CISCO_BIG_PACKET_LEN	20
-
 
 struct cisco_state {
 	cisco_proto settings;
@@ -59,15 +56,12 @@ struct cisco_state {
 	u32 rxseq; /* RX sequence number */
 };
 
-
 static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr);
-
 
 static inline struct cisco_state* state(hdlc_device *hdlc)
 {
 	return (struct cisco_state *)hdlc->state;
 }
-
 
 static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 			     u16 type, const void *daddr, const void *saddr,
@@ -89,8 +83,6 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	return sizeof(struct hdlc_header);
 }
-
-
 
 static void cisco_keepalive_send(struct net_device *dev, u32 type,
 				 __be32 par1, __be32 par2)
@@ -124,8 +116,6 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	dev_queue_xmit(skb);
 }
 
-
-
 static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hdlc_header *data = (struct hdlc_header*)skb->data;
@@ -147,7 +137,6 @@ static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 		return cpu_to_be16(ETH_P_HDLC);
 	}
 }
-
 
 static int cisco_rx(struct sk_buff *skb)
 {
@@ -253,8 +242,6 @@ rx_error:
 	return NET_RX_DROP;
 }
 
-
-
 static void cisco_timer(struct timer_list *t)
 {
 	struct cisco_state *st = from_timer(st, t, timer);
@@ -276,8 +263,6 @@ static void cisco_timer(struct timer_list *t)
 	add_timer(&st->timer);
 }
 
-
-
 static void cisco_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -294,8 +279,6 @@ static void cisco_start(struct net_device *dev)
 	add_timer(&st->timer);
 }
 
-
-
 static void cisco_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -309,7 +292,6 @@ static void cisco_stop(struct net_device *dev)
 	st->up = st->txseq = 0;
 	spin_unlock_irqrestore(&st->lock, flags);
 }
-
 
 static struct hdlc_proto proto = {
 	.start		= cisco_start,
@@ -381,20 +363,16 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
 static int __init mod_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-
-
 static void __exit mod_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
-
 
 module_init(mod_init);
 module_exit(mod_exit);
