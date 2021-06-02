@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2017-2021 NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/io.h>
@@ -45,6 +45,24 @@ static void tegra186_mc_program_sid(struct tegra_mc *mc)
 	}
 }
 
+static int tegra186_mc_probe(struct tegra_mc *mc)
+{
+	int err;
+
+	err = of_platform_populate(mc->dev->of_node, NULL, NULL, mc->dev);
+	if (err < 0)
+		return err;
+
+	tegra186_mc_program_sid(mc);
+
+	return 0;
+}
+
+static void tegra186_mc_remove(struct tegra_mc *mc)
+{
+	of_platform_depopulate(mc->dev);
+}
+
 static int tegra186_mc_resume(struct tegra_mc *mc)
 {
 	tegra186_mc_program_sid(mc);
@@ -53,6 +71,8 @@ static int tegra186_mc_resume(struct tegra_mc *mc)
 }
 
 static const struct tegra_mc_ops tegra186_mc_ops = {
+	.probe = tegra186_mc_probe,
+	.remove = tegra186_mc_remove,
 	.resume = tegra186_mc_resume,
 };
 
@@ -709,9 +729,10 @@ static const struct tegra_mc_client tegra186_mc_clients[] = {
 	},
 };
 
-static const struct tegra_mc_soc tegra186_mc_soc = {
+const struct tegra_mc_soc tegra186_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra186_mc_clients),
 	.clients = tegra186_mc_clients,
+	.num_address_bits = 40,
 	.ops = &tegra186_mc_ops,
 };
 #endif
@@ -1918,98 +1939,10 @@ static const struct tegra_mc_client tegra194_mc_clients[] = {
 	},
 };
 
-static const struct tegra_mc_soc tegra194_mc_soc = {
+const struct tegra_mc_soc tegra194_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra194_mc_clients),
 	.clients = tegra194_mc_clients,
+	.num_address_bits = 40,
 	.ops = &tegra186_mc_ops,
 };
 #endif
-
-static int tegra186_mc_probe(struct platform_device *pdev)
-{
-	struct resource *res;
-	struct tegra_mc *mc;
-	int err;
-
-	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
-	if (!mc)
-		return -ENOMEM;
-
-	mc->soc = of_device_get_match_data(&pdev->dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mc->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mc->regs))
-		return PTR_ERR(mc->regs);
-
-	mc->dev = &pdev->dev;
-
-	err = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
-	if (err < 0)
-		return err;
-
-	platform_set_drvdata(pdev, mc);
-	tegra186_mc_program_sid(mc);
-
-	return 0;
-}
-
-static int tegra186_mc_remove(struct platform_device *pdev)
-{
-	struct tegra_mc *mc = platform_get_drvdata(pdev);
-
-	of_platform_depopulate(mc->dev);
-
-	return 0;
-}
-
-static const struct of_device_id tegra186_mc_of_match[] = {
-#if defined(CONFIG_ARCH_TEGRA_186_SOC)
-	{ .compatible = "nvidia,tegra186-mc", .data = &tegra186_mc_soc },
-#endif
-#if defined(CONFIG_ARCH_TEGRA_194_SOC)
-	{ .compatible = "nvidia,tegra194-mc", .data = &tegra194_mc_soc },
-#endif
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, tegra186_mc_of_match);
-
-static int __maybe_unused tegra_mc_suspend(struct device *dev)
-{
-	struct tegra_mc *mc = dev_get_drvdata(dev);
-
-	if (mc->soc->ops && mc->soc->ops->suspend)
-		return mc->soc->ops->suspend(mc);
-
-	return 0;
-}
-
-static int __maybe_unused tegra_mc_resume(struct device *dev)
-{
-	struct tegra_mc *mc = dev_get_drvdata(dev);
-
-	if (mc->soc->ops && mc->soc->ops->resume)
-		return mc->soc->ops->resume(mc);
-
-	return 0;
-}
-
-static const struct dev_pm_ops tegra186_mc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tegra_mc_suspend, tegra_mc_resume)
-};
-
-static struct platform_driver tegra186_mc_driver = {
-	.driver = {
-		.name = "tegra186-mc",
-		.of_match_table = tegra186_mc_of_match,
-		.pm = &tegra186_mc_pm_ops,
-		.suppress_bind_attrs = true,
-	},
-	.probe = tegra186_mc_probe,
-	.remove = tegra186_mc_remove,
-};
-module_platform_driver(tegra186_mc_driver);
-
-MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
-MODULE_DESCRIPTION("NVIDIA Tegra186 Memory Controller driver");
-MODULE_LICENSE("GPL v2");
