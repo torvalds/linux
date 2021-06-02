@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config INFINIBAND_IRDMA
+	tristate "Intel(R) Ethernet Protocol Driver for RDMA"
+	depends on INET
+	depends on IPV6 || !IPV6
+	depends on PCI
+	depends on ICE && I40E
+	select GENERIC_ALLOCATOR
+	select CONFIG_AUXILIARY_BUS
+	help
+	  This is an Intel(R) Ethernet Protocol Driver for RDMA driver
+	  that support E810 (iWARP/RoCE) and X722 (iWARP) network devices.
