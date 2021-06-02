@@ -1135,7 +1135,7 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
  */
 static int virtio_mem_fake_offline(unsigned long pfn, unsigned long nr_pages)
 {
-	const bool is_movable = zone_idx(page_zone(pfn_to_page(pfn))) ==
+	const bool is_movable = page_zonenum(pfn_to_page(pfn)) ==
 				ZONE_MOVABLE;
 	int rc, retry_count;
 
