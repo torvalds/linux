@@ -750,20 +750,22 @@ static int tegra_mc_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	mc->irq = platform_get_irq(pdev, 0);
-	if (mc->irq < 0)
-		return mc->irq;
+	if (mc->soc->ops && mc->soc->ops->handle_irq) {
+		mc->irq = platform_get_irq(pdev, 0);
+		if (mc->irq < 0)
+			return mc->irq;
 
-	WARN(!mc->soc->client_id_mask, "missing client ID mask for this SoC\n");
+		WARN(!mc->soc->client_id_mask, "missing client ID mask for this SoC\n");
 
-	mc_writel(mc, mc->soc->intmask, MC_INTMASK);
+		mc_writel(mc, mc->soc->intmask, MC_INTMASK);
 
-	err = devm_request_irq(&pdev->dev, mc->irq, mc->soc->ops->handle_irq, 0,
-			       dev_name(&pdev->dev), mc);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
-			err);
-		return err;
+		err = devm_request_irq(&pdev->dev, mc->irq, mc->soc->ops->handle_irq, 0,
+				       dev_name(&pdev->dev), mc);
+		if (err < 0) {
+			dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
+				err);
+			return err;
+		}
 	}
 
 	err = tegra_mc_reset_setup(mc);
