@@ -693,7 +693,7 @@ static void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,
 	msta->n_rates = i;
 	if (mt76_connac_pm_ref(phy->mt76, &dev->pm)) {
 		mt7615_mac_set_rates(phy, msta, NULL, msta->rates);
-		mt76_connac_pm_unref(&dev->pm);
+		mt76_connac_pm_unref(phy->mt76, &dev->pm);
 	}
 	spin_unlock_bh(&dev->mt76.lock);
 }
@@ -709,7 +709,7 @@ void mt7615_tx_worker(struct mt76_worker *w)
 	}
 
 	mt76_tx_worker_run(&dev->mt76);
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 }
 
 static void mt7615_tx(struct ieee80211_hw *hw,
@@ -739,7 +739,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 
 	if (mt76_connac_pm_ref(mphy, &dev->pm)) {
 		mt76_tx(mphy, control->sta, wcid, skb);
-		mt76_connac_pm_unref(&dev->pm);
+		mt76_connac_pm_unref(mphy, &dev->pm);
 		return;
 	}
 

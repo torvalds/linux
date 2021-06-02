@@ -679,7 +679,7 @@ void mt7921_tx_worker(struct mt76_worker *w)
 	}
 
 	mt76_txq_schedule_all(&dev->mphy);
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 }
 
 static void mt7921_tx(struct ieee80211_hw *hw,
@@ -709,7 +709,7 @@ static void mt7921_tx(struct ieee80211_hw *hw,
 
 	if (mt76_connac_pm_ref(mphy, &dev->pm)) {
 		mt76_tx(mphy, control->sta, wcid, skb);
-		mt76_connac_pm_unref(&dev->pm);
+		mt76_connac_pm_unref(mphy, &dev->pm);
 		return;
 	}
 

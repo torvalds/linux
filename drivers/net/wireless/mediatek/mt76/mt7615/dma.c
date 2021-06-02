@@ -81,7 +81,7 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 	if (napi_complete(napi))
 		mt7615_irq_enable(dev, mt7615_tx_mcu_int_mask(dev));
 
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 
 	return 0;
 }
@@ -99,7 +99,7 @@ static int mt7615_poll_rx(struct napi_struct *napi, int budget)
 		return 0;
 	}
 	done = mt76_dma_rx_poll(napi, budget);
-	mt76_connac_pm_unref(&dev->pm);
+	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 
 	return done;
 }

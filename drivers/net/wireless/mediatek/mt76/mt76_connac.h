@@ -117,11 +117,15 @@ out:
 }
 
 static inline void
-mt76_connac_pm_unref(struct mt76_connac_pm *pm)
+mt76_connac_pm_unref(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 {
 	spin_lock_bh(&pm->wake.lock);
-	pm->wake.count--;
+
 	pm->last_activity = jiffies;
+	if (--pm->wake.count == 0 &&
+	    test_bit(MT76_STATE_MCU_RUNNING, &phy->state))
+		mt76_connac_power_save_sched(phy, pm);
+
 	spin_unlock_bh(&pm->wake.lock);
 }
 
