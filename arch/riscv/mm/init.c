@@ -11,6 +11,7 @@
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/swap.h>
+#include <linux/swiotlb.h>
 #include <linux/sizes.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
@@ -109,6 +110,13 @@ void __init mem_init(void)
 	BUG_ON(!mem_map);
 #endif /* CONFIG_FLATMEM */
 
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_force == SWIOTLB_FORCE ||
+	    max_pfn > PFN_DOWN(dma32_phys_limit))
+		swiotlb_init(1);
+	else
+		swiotlb_force = SWIOTLB_NO_FORCE;
+#endif
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
 	memblock_free_all();
 

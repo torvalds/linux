@@ -17,7 +17,6 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/sched/task.h>
-#include <linux/swiotlb.h>
 #include <linux/smp.h>
 #include <linux/efi.h>
 #include <linux/crash_dump.h>
@@ -294,10 +293,6 @@ void __init setup_arch(char **cmdline_p)
 		protect_kernel_text_data();
 		protect_kernel_linear_mapping_text_rodata();
 	}
-
-#ifdef CONFIG_SWIOTLB
-	swiotlb_init(1);
-#endif
 
 #ifdef CONFIG_KASAN
 	kasan_init();
