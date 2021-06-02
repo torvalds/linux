@@ -572,7 +572,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	 * not having out of bounds issues. However on sending side 3.2
 	 * might send less.
 	 */
-	ls->ls_recover_buf = kmalloc(DEFAULT_BUFFER_SIZE, GFP_NOFS);
+	ls->ls_recover_buf = kmalloc(DLM_MAX_SOCKET_BUFSIZE, GFP_NOFS);
 	if (!ls->ls_recover_buf)
 		goto out_lkbidr;
 

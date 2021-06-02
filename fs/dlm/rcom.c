@@ -202,7 +202,7 @@ retry:
 	set_rcom_status(ls, (struct rcom_status *)rc->rc_buf, status_flags);
 
 	allow_sync_reply(ls, &rc->rc_id);
-	memset(ls->ls_recover_buf, 0, DEFAULT_BUFFER_SIZE);
+	memset(ls->ls_recover_buf, 0, DLM_MAX_SOCKET_BUFSIZE);
 
 	send_rcom_stateless(ls, msg, rc);
 
@@ -325,7 +325,7 @@ retry:
 	memcpy(rc->rc_buf, last_name, last_len);
 
 	allow_sync_reply(ls, &rc->rc_id);
-	memset(ls->ls_recover_buf, 0, DEFAULT_BUFFER_SIZE);
+	memset(ls->ls_recover_buf, 0, DLM_MAX_SOCKET_BUFSIZE);
 
 	send_rcom_stateless(ls, msg, rc);
 
@@ -345,7 +345,7 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 
 	nodeid = rc_in->rc_header.h_nodeid;
 	inlen = rc_in->rc_header.h_length - sizeof(struct dlm_rcom);
-	outlen = LOWCOMMS_MAX_TX_BUFFER_LEN - sizeof(struct dlm_rcom);
+	outlen = DLM_MAX_APP_BUFSIZE - sizeof(struct dlm_rcom);
 
 	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen,
 				      &rc, &msg);

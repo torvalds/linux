@@ -1556,9 +1556,9 @@ struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
 	struct dlm_msg *msg;
 	int idx;
 
-	if (len > DEFAULT_BUFFER_SIZE ||
+	if (len > DLM_MAX_SOCKET_BUFSIZE ||
 	    len < sizeof(struct dlm_header)) {
-		BUILD_BUG_ON(PAGE_SIZE < DEFAULT_BUFFER_SIZE);
+		BUILD_BUG_ON(PAGE_SIZE < DLM_MAX_SOCKET_BUFSIZE);
 		log_print("failed to allocate a buffer of size %d", len);
 		WARN_ON(1);
 		return NULL;

@@ -865,7 +865,7 @@ int dlm_process_incoming_buffer(int nodeid, unsigned char *buf, int len)
 	while (len >= sizeof(struct dlm_header)) {
 		hd = (struct dlm_header *)ptr;
 
-		/* no message should be more than DEFAULT_BUFFER_SIZE or
+		/* no message should be more than DLM_MAX_SOCKET_BUFSIZE or
 		 * less than dlm_header size.
 		 *
 		 * Some messages does not have a 8 byte length boundary yet
@@ -877,7 +877,7 @@ int dlm_process_incoming_buffer(int nodeid, unsigned char *buf, int len)
 		 * the next major version bump.
 		 */
 		msglen = le16_to_cpu(hd->h_length);
-		if (msglen > DEFAULT_BUFFER_SIZE ||
+		if (msglen > DLM_MAX_SOCKET_BUFSIZE ||
 		    msglen < sizeof(struct dlm_header)) {
 			log_print("received invalid length header: %u from node %d, will abort message parsing",
 				  msglen, nodeid);

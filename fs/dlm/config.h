@@ -12,7 +12,7 @@
 #ifndef __CONFIG_DOT_H__
 #define __CONFIG_DOT_H__
 
-#define DEFAULT_BUFFER_SIZE     4096
+#define DLM_MAX_SOCKET_BUFSIZE	4096
 
 struct dlm_config_node {
 	int nodeid;

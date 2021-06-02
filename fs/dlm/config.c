@@ -208,7 +208,7 @@ static int dlm_check_zero(unsigned int x)
 
 static int dlm_check_buffer_size(unsigned int x)
 {
-	if (x < DEFAULT_BUFFER_SIZE)
+	if (x < DLM_MAX_SOCKET_BUFSIZE)
 		return -EINVAL;
 
 	return 0;
@@ -962,7 +962,7 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 
 struct dlm_config_info dlm_config = {
 	.ci_tcp_port = DEFAULT_TCP_PORT,
-	.ci_buffer_size = DEFAULT_BUFFER_SIZE,
+	.ci_buffer_size = DLM_MAX_SOCKET_BUFSIZE,
 	.ci_rsbtbl_size = DEFAULT_RSBTBL_SIZE,
 	.ci_recover_timer = DEFAULT_RECOVER_TIMER,
 	.ci_toss_secs = DEFAULT_TOSS_SECS,
