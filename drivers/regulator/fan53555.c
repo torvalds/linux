@@ -92,6 +92,10 @@ enum {
 	TCS4525_CHIP_ID_12 = 12,
 };
 
+enum {
+	TCS4526_CHIP_ID_00 = 0,
+};
+
 /* IC mask revision */
 enum {
 	FAN53555_CHIP_REV_00 = 0x3,
@@ -381,6 +385,7 @@ static int fan53526_voltages_setup_tcs(struct fan53555_device_info *di)
 {
 	switch (di->chip_id) {
 	case TCS4525_CHIP_ID_12:
+	case TCS4526_CHIP_ID_00:
 		di->slew_reg = TCS4525_TIME;
 		di->slew_mask = TCS_SLEW_MASK;
 		di->slew_shift = TCS_SLEW_SHIFT;
@@ -571,6 +576,9 @@ static const struct of_device_id __maybe_unused fan53555_dt_ids[] = {
 	}, {
 		.compatible = "tcs,tcs4525",
 		.data = (void *)FAN53526_VENDOR_TCS
+	}, {
+		.compatible = "tcs,tcs4526",
+		.data = (void *)FAN53526_VENDOR_TCS
 	},
 	{ }
 };
@@ -680,6 +688,9 @@ static const struct i2c_device_id fan53555_id[] = {
 		.driver_data = FAN53555_VENDOR_SILERGY
 	}, {
 		.name = "tcs4525",
+		.driver_data = FAN53526_VENDOR_TCS
+	}, {
+		.name = "tcs4526",
 		.driver_data = FAN53526_VENDOR_TCS
 	},
 	{ },
