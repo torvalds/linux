@@ -9,6 +9,7 @@
 #define NFP_FL_CT_NO_TUN	0xff
 
 extern const struct rhashtable_params nfp_zone_table_params;
+extern const struct rhashtable_params nfp_ct_map_params;
 
 /**
  * struct nfp_fl_ct_zone_entry - Zone entry containing conntrack flow information
@@ -67,6 +68,18 @@ struct nfp_fl_ct_flow_entry {
 	struct flow_rule *rule;
 	struct flow_stats stats;
 	u8 tun_offset;		// Set to NFP_FL_CT_NO_TUN if no tun
+};
+
+/**
+ * struct nfp_fl_ct_map_entry - Map between flow cookie and specific ct_flow
+ * @cookie:	Flow cookie, same as original TC flow, used as key
+ * @hash_node:	Used by the hashtable
+ * @ct_entry:	Pointer to corresponding ct_entry
+ */
+struct nfp_fl_ct_map_entry {
+	unsigned long cookie;
+	struct rhash_head hash_node;
+	struct nfp_fl_ct_flow_entry *ct_entry;
 };
 
 bool is_pre_ct_flow(struct flow_cls_offload *flow);

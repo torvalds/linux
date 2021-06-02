@@ -195,6 +195,7 @@ struct nfp_fl_internal_ports {
  * @merge_table:	Hash table to store merged flows
  * @ct_zone_table:	Hash table used to store the different zones
  * @ct_zone_wc:		Special zone entry for wildcarded zone matches
+ * @ct_map_table:	Hash table used to referennce ct flows
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -231,6 +232,7 @@ struct nfp_flower_priv {
 	struct rhashtable merge_table;
 	struct rhashtable ct_zone_table;
 	struct nfp_fl_ct_zone_entry *ct_zone_wc;
+	struct rhashtable ct_map_table;
 };
 
 /**

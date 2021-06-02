@@ -107,9 +107,11 @@ err_zone_insert:
 static struct
 nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
 					 struct net_device *netdev,
-					 struct flow_cls_offload *flow)
+					 struct flow_cls_offload *flow,
+					 struct netlink_ext_ack *extack)
 {
 	struct nfp_fl_ct_flow_entry *entry;
+	struct nfp_fl_ct_map_entry *map;
 	struct flow_action_entry *act;
 	int err, i;
 
@@ -160,12 +162,33 @@ nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
 
 	INIT_LIST_HEAD(&entry->children);
 
-	/* Creation of a ct_map_entry and adding it to a hashtable
-	 * will happen here in follow up patches.
-	 */
+	/* Now add a ct map entry to flower-priv */
+	map = get_hashentry(&zt->priv->ct_map_table, &flow->cookie,
+			    nfp_ct_map_params, sizeof(*map));
+	if (IS_ERR(map)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "offload error: ct map entry creation failed");
+		err = -ENOMEM;
+		goto err_ct_flow_insert;
+	}
+	map->cookie = flow->cookie;
+	map->ct_entry = entry;
+	err = rhashtable_insert_fast(&zt->priv->ct_map_table,
+				     &map->hash_node,
+				     nfp_ct_map_params);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "offload error: ct map entry table add failed");
+		goto err_map_insert;
+	}
 
 	return entry;
 
+err_map_insert:
+	kfree(map);
+err_ct_flow_insert:
+	if (entry->tun_offset != NFP_FL_CT_NO_TUN)
+		kfree(entry->rule->action.entries[entry->tun_offset].tunnel);
 err_pre_ct_tun_cp:
 	kfree(entry->rule);
 err_pre_ct_act:
@@ -245,7 +268,7 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 		zt->nft = ct_act->ct.flow_table;
 
 	/* Add entry to pre_ct_list */
-	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow);
+	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, extack);
 	if (IS_ERR(ct_entry))
 		return PTR_ERR(ct_entry);
 	ct_entry->type = CT_TYPE_PRE_CT;
@@ -286,7 +309,7 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 	}
 
 	/* Add entry to post_ct_list */
-	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow);
+	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow, extack);
 	if (IS_ERR(ct_entry))
 		return PTR_ERR(ct_entry);
 
