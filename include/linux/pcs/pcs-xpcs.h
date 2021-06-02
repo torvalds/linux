@@ -14,11 +14,12 @@
 #define DW_AN_C73			1
 #define DW_AN_C37_SGMII			2
 
+struct xpcs_id;
+
 struct mdio_xpcs_args {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 	struct mii_bus *bus;
+	const struct xpcs_id *id;
 	int addr;
-	int an_mode;
 };
 
 struct mdio_xpcs_ops {
@@ -36,6 +37,7 @@ struct mdio_xpcs_ops {
 			  int enable);
 };
 
+int xpcs_get_an_mode(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
 struct mdio_xpcs_ops *mdio_xpcs_get_ops(void);
 
 #endif /* __LINUX_PCS_XPCS_H */
