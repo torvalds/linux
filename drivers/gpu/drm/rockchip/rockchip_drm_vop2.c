@@ -4356,6 +4356,9 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	bool sdr2hdr_tf = 0;
 	bool hdr2sdr_tf_update = 1;
 	bool sdr2hdr_tf_update = 1;
+	unsigned long win_mask = vp->win_mask;
+	int phys_id;
+	bool have_sdr_layer = false;
 
 	/*
 	 * Check whether this video port support hdr or not
@@ -4381,13 +4384,27 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	 */
 	if (vp->hdr_in && !vp->hdr_out)
 		hdr2sdr_en = 1;
-
-	if (!vp->hdr_in && vp->hdr_out)
-		sdr2hdr_en = 1;
-
-	vp->sdr2hdr_en = sdr2hdr_en;
 	vpstate->hdr_in = hdr_en;
 	vpstate->hdr2sdr_en = hdr2sdr_en;
+
+	/*
+	 * To confirm whether need to enable sdr2hdr.
+	 */
+	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
+		win = vop2_find_win_by_phys_id(vop2, phys_id);
+		plane = &win->base;
+		pstate = plane->state;
+		vpstate = to_vop2_plane_state(pstate);
+
+		if (vpstate->eotf != HDMI_EOTF_SMPTE_ST2084) {
+			have_sdr_layer = true;
+			break;
+		}
+	}
+
+	if (have_sdr_layer && vp->hdr_out)
+		sdr2hdr_en = 1;
+	vp->sdr2hdr_en = sdr2hdr_en;
 
 	if (sdr2hdr_en) {
 		sdr2hdr_r2r_mode = BT709_TO_BT2020;
@@ -4916,8 +4933,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 
 		sort(vop2_zpos, nr_layers, sizeof(vop2_zpos[0]), vop2_zpos_cmp, NULL);
 
-		vop2_setup_hdr10(vp, vop2_zpos[0].win_phys_id);
 		vop2_setup_layer_mixer_for_vp(vp, vop2_zpos);
+		vop2_setup_hdr10(vp, vop2_zpos[0].win_phys_id);
 		vop2_setup_alpha(vp, vop2_zpos);
 		vop2_setup_dly_for_vp(vp);
 		vop2_setup_dly_for_window(vp, vop2_zpos);
