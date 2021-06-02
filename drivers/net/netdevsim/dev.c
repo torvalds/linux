@@ -1182,6 +1182,12 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 	if (devlink_is_reload_failed(devlink))
 		return;
 	debugfs_remove(nsim_dev->take_snapshot);
+
+	mutex_lock(&nsim_dev->nsim_bus_dev->vfs_lock);
+	if (nsim_dev->nsim_bus_dev->num_vfs)
+		nsim_bus_dev_vfs_disable(nsim_dev->nsim_bus_dev);
+	mutex_unlock(&nsim_dev->nsim_bus_dev->vfs_lock);
+
 	nsim_dev_port_del_all(nsim_dev);
 	nsim_dev_psample_exit(nsim_dev);
 	nsim_dev_health_exit(nsim_dev);

@@ -37,7 +37,7 @@ static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 	return 0;
 }
 
-static void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev)
+void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev)
 {
 	nsim_bus_dev->num_vfs = 0;
 }
@@ -233,9 +233,6 @@ static const struct attribute_group *nsim_bus_dev_attr_groups[] = {
 
 static void nsim_bus_dev_release(struct device *dev)
 {
-	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
-
-	nsim_bus_dev_vfs_disable(nsim_bus_dev);
 }
 
 static struct device_type nsim_bus_dev_type = {
