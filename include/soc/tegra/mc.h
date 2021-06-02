@@ -171,6 +171,8 @@ struct tegra_mc_icc_ops {
 
 struct tegra_mc_ops {
 	int (*init)(struct tegra_mc *mc);
+	int (*suspend)(struct tegra_mc *mc);
+	int (*resume)(struct tegra_mc *mc);
 };
 
 struct tegra_mc_soc {

@@ -45,6 +45,17 @@ static void tegra186_mc_program_sid(struct tegra_mc *mc)
 	}
 }
 
+static int tegra186_mc_resume(struct tegra_mc *mc)
+{
+	tegra186_mc_program_sid(mc);
+
+	return 0;
+}
+
+static const struct tegra_mc_ops tegra186_mc_ops = {
+	.resume = tegra186_mc_resume,
+};
+
 #if defined(CONFIG_ARCH_TEGRA_186_SOC)
 static const struct tegra_mc_client tegra186_mc_clients[] = {
 	{
@@ -701,6 +712,7 @@ static const struct tegra_mc_client tegra186_mc_clients[] = {
 static const struct tegra_mc_soc tegra186_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra186_mc_clients),
 	.clients = tegra186_mc_clients,
+	.ops = &tegra186_mc_ops,
 };
 #endif
 
@@ -1909,6 +1921,7 @@ static const struct tegra_mc_client tegra194_mc_clients[] = {
 static const struct tegra_mc_soc tegra194_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra194_mc_clients),
 	.clients = tegra194_mc_clients,
+	.ops = &tegra186_mc_ops,
 };
 #endif
 
@@ -1961,22 +1974,28 @@ static const struct of_device_id tegra186_mc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra186_mc_of_match);
 
-static int __maybe_unused tegra186_mc_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int __maybe_unused tegra186_mc_resume(struct device *dev)
+static int __maybe_unused tegra_mc_suspend(struct device *dev)
 {
 	struct tegra_mc *mc = dev_get_drvdata(dev);
 
-	tegra186_mc_program_sid(mc);
+	if (mc->soc->ops && mc->soc->ops->suspend)
+		return mc->soc->ops->suspend(mc);
+
+	return 0;
+}
+
+static int __maybe_unused tegra_mc_resume(struct device *dev)
+{
+	struct tegra_mc *mc = dev_get_drvdata(dev);
+
+	if (mc->soc->ops && mc->soc->ops->resume)
+		return mc->soc->ops->resume(mc);
 
 	return 0;
 }
 
 static const struct dev_pm_ops tegra186_mc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tegra186_mc_suspend, tegra186_mc_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_mc_suspend, tegra_mc_resume)
 };
 
 static struct platform_driver tegra186_mc_driver = {
