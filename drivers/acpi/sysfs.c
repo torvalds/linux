@@ -359,8 +359,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	}
 	table_attr->instance++;
 	if (table_attr->instance > ACPI_MAX_TABLE_INSTANCES) {
-		pr_warn("%4.4s: too many table instances\n",
-			table_attr->name);
+		pr_warn("%4.4s: too many table instances\n", table_attr->name);
 		return -ERANGE;
 	}
 
@@ -737,8 +736,7 @@ static ssize_t counter_set(struct kobject *kobj,
 		goto end;
 
 	if (!(status & ACPI_EVENT_FLAG_HAS_HANDLER)) {
-		printk(KERN_WARNING PREFIX
-		       "Can not change Invalid GPE/Fixed Event status\n");
+		pr_warn("Can not change Invalid GPE/Fixed Event status\n");
 		return -EINVAL;
 	}
 
@@ -983,7 +981,7 @@ void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 	return;
 
  err_out:
-	pr_err(PREFIX "Unable to add hotplug profile '%s'\n", name);
+	pr_err("Unable to add hotplug profile '%s'\n", name);
 }
 
 static ssize_t force_remove_show(struct kobject *kobj,
