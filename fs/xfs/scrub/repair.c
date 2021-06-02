@@ -304,7 +304,7 @@ xrep_alloc_ag_block(
 			return error;
 		if (bno == NULLAGBLOCK)
 			return -ENOSPC;
-		xfs_extent_busy_reuse(sc->mp, sc->sa.agno, bno,
+		xfs_extent_busy_reuse(sc->mp, sc->sa.pag, bno,
 				1, false);
 		*fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.agno, bno);
 		if (resv == XFS_AG_RESV_RMAPBT)
@@ -519,7 +519,7 @@ xrep_put_freelist(
 			agbno, 0);
 	if (error)
 		return error;
-	xfs_extent_busy_insert(sc->tp, sc->sa.agno, agbno, 1,
+	xfs_extent_busy_insert(sc->tp, sc->sa.pag, agbno, 1,
 			XFS_EXTENT_BUSY_SKIP_DISCARD);
 
 	return 0;

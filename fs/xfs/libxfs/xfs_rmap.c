@@ -11,6 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
+#include "xfs_sb.h"
 #include "xfs_defer.h"
 #include "xfs_btree.h"
 #include "xfs_trans.h"
@@ -2363,31 +2364,32 @@ xfs_rmap_finish_one(
 	struct xfs_btree_cur		**pcur)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_perag		*pag;
 	struct xfs_btree_cur		*rcur;
 	struct xfs_buf			*agbp = NULL;
 	int				error = 0;
-	xfs_agnumber_t			agno;
 	struct xfs_owner_info		oinfo;
 	xfs_agblock_t			bno;
 	bool				unwritten;
 
-	agno = XFS_FSB_TO_AGNO(mp, startblock);
-	ASSERT(agno != NULLAGNUMBER);
+	pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, startblock));
 	bno = XFS_FSB_TO_AGBNO(mp, startblock);
 
-	trace_xfs_rmap_deferred(mp, agno, type, bno, owner, whichfork,
+	trace_xfs_rmap_deferred(mp, pag->pag_agno, type, bno, owner, whichfork,
 			startoff, blockcount, state);
 
-	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_RMAP_FINISH_ONE))
-		return -EIO;
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_RMAP_FINISH_ONE)) {
+		error = -EIO;
+		goto out_drop;
+	}
+
 
 	/*
 	 * If we haven't gotten a cursor or the cursor AG doesn't match
 	 * the startblock, get one now.
 	 */
 	rcur = *pcur;
-	if (rcur != NULL && rcur->bc_ag.agno != agno) {
+	if (rcur != NULL && rcur->bc_ag.agno != pag->pag_agno) {
 		xfs_rmap_finish_one_cleanup(tp, rcur, 0);
 		rcur = NULL;
 		*pcur = NULL;
@@ -2398,13 +2400,15 @@ xfs_rmap_finish_one(
 		 * rmapbt, because a shape change could cause us to
 		 * allocate blocks.
 		 */
-		error = xfs_free_extent_fix_freelist(tp, agno, &agbp);
+		error = xfs_free_extent_fix_freelist(tp, pag, &agbp);
 		if (error)
-			return error;
-		if (XFS_IS_CORRUPT(tp->t_mountp, !agbp))
-			return -EFSCORRUPTED;
+			goto out_drop;
+		if (XFS_IS_CORRUPT(tp->t_mountp, !agbp)) {
+			error = -EFSCORRUPTED;
+			goto out_drop;
+		}
 
-		rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
+		rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag->pag_agno);
 	}
 	*pcur = rcur;
 
@@ -2442,6 +2446,8 @@ xfs_rmap_finish_one(
 		ASSERT(0);
 		error = -EFSCORRUPTED;
 	}
+out_drop:
+	xfs_perag_put(pag);
 	return error;
 }
 

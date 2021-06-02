@@ -1063,7 +1063,7 @@ xfs_alloc_ag_vextent_small(
 	if (fbno == NULLAGBLOCK)
 		goto out;
 
-	xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
+	xfs_extent_busy_reuse(args->mp, args->pag, fbno, 1,
 			      (args->datatype & XFS_ALLOC_NOBUSY));
 
 	if (args->datatype & XFS_ALLOC_USERDATA) {
@@ -1178,7 +1178,7 @@ xfs_alloc_ag_vextent(
 		if (error)
 			return error;
 
-		ASSERT(!xfs_extent_busy_search(args->mp, args->agno,
+		ASSERT(!xfs_extent_busy_search(args->mp, args->pag,
 					      args->agbno, args->len));
 	}
 
@@ -3292,7 +3292,7 @@ error0:
 int
 xfs_free_extent_fix_freelist(
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	struct xfs_buf		**agbp)
 {
 	struct xfs_alloc_arg	args;
@@ -3301,7 +3301,8 @@ xfs_free_extent_fix_freelist(
 	memset(&args, 0, sizeof(struct xfs_alloc_arg));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
-	args.agno = agno;
+	args.agno = pag->pag_agno;
+	args.pag = pag;
 
 	/*
 	 * validate that the block number is legal - the enables us to detect
@@ -3310,17 +3311,12 @@ xfs_free_extent_fix_freelist(
 	if (args.agno >= args.mp->m_sb.sb_agcount)
 		return -EFSCORRUPTED;
 
-	args.pag = xfs_perag_get(args.mp, args.agno);
-	ASSERT(args.pag);
-
 	error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING);
 	if (error)
-		goto out;
+		return error;
 
 	*agbp = args.agbp;
-out:
-	xfs_perag_put(args.pag);
-	return error;
+	return 0;
 }
 
 /*
@@ -3344,6 +3340,7 @@ __xfs_free_extent(
 	struct xfs_agf			*agf;
 	int				error;
 	unsigned int			busy_flags = 0;
+	struct xfs_perag		*pag;
 
 	ASSERT(len != 0);
 	ASSERT(type != XFS_AG_RESV_AGFL);
@@ -3352,33 +3349,37 @@ __xfs_free_extent(
 			XFS_ERRTAG_FREE_EXTENT))
 		return -EIO;
 
-	error = xfs_free_extent_fix_freelist(tp, agno, &agbp);
+	pag = xfs_perag_get(mp, agno);
+	error = xfs_free_extent_fix_freelist(tp, pag, &agbp);
 	if (error)
-		return error;
+		goto err;
 	agf = agbp->b_addr;
 
 	if (XFS_IS_CORRUPT(mp, agbno >= mp->m_sb.sb_agblocks)) {
 		error = -EFSCORRUPTED;
-		goto err;
+		goto err_release;
 	}
 
 	/* validate the extent size is legal now we have the agf locked */
 	if (XFS_IS_CORRUPT(mp, agbno + len > be32_to_cpu(agf->agf_length))) {
 		error = -EFSCORRUPTED;
-		goto err;
+		goto err_release;
 	}
 
 	error = xfs_free_ag_extent(tp, agbp, agno, agbno, len, oinfo, type);
 	if (error)
-		goto err;
+		goto err_release;
 
 	if (skip_discard)
 		busy_flags |= XFS_EXTENT_BUSY_SKIP_DISCARD;
-	xfs_extent_busy_insert(tp, agno, agbno, len, busy_flags);
+	xfs_extent_busy_insert(tp, pag, agbno, len, busy_flags);
+	xfs_perag_put(pag);
 	return 0;
 
-err:
+err_release:
 	xfs_trans_brelse(tp, agbp);
+err:
+	xfs_perag_put(pag);
 	return error;
 }
 

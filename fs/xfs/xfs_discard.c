@@ -108,7 +108,7 @@ xfs_trim_extents(
 		 * If any blocks in the range are still busy, skip the
 		 * discard and try again the next time.
 		 */
-		if (xfs_extent_busy_search(mp, agno, fbno, flen)) {
+		if (xfs_extent_busy_search(mp, pag, fbno, flen)) {
 			trace_xfs_discard_busy(mp, agno, fbno, flen);
 			goto next_extent;
 		}
