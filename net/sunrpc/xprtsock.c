@@ -1010,6 +1010,8 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 			kernel_sock_shutdown(transport->sock, SHUT_RDWR);
 		return -ENOTCONN;
 	}
+	if (!transport->inet)
+		return -ENOTCONN;
 
 	xs_pktdump("packet data:",
 				req->rq_svec->iov_base,

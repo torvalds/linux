@@ -71,7 +71,7 @@ struct kvm_reg_events_ops kvm_reg_events_ops[] = {
 		.name	= "vmexit",
 		.ops	= &exit_events,
 	},
-	{ NULL },
+	{ NULL, NULL },
 };
 
 const char * const kvm_skip_events[] = {

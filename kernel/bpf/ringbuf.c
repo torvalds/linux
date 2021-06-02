@@ -221,25 +221,20 @@ static int ringbuf_map_get_next_key(struct bpf_map *map, void *key,
 	return -ENOTSUPP;
 }
 
-static size_t bpf_ringbuf_mmap_page_cnt(const struct bpf_ringbuf *rb)
-{
-	size_t data_pages = (rb->mask + 1) >> PAGE_SHIFT;
-
-	/* consumer page + producer page + 2 x data pages */
-	return RINGBUF_POS_PAGES + 2 * data_pages;
-}
-
 static int ringbuf_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
 {
 	struct bpf_ringbuf_map *rb_map;
-	size_t mmap_sz;
 
 	rb_map = container_of(map, struct bpf_ringbuf_map, map);
-	mmap_sz = bpf_ringbuf_mmap_page_cnt(rb_map->rb) << PAGE_SHIFT;
 
-	if (vma->vm_pgoff * PAGE_SIZE + (vma->vm_end - vma->vm_start) > mmap_sz)
-		return -EINVAL;
-
+	if (vma->vm_flags & VM_WRITE) {
+		/* allow writable mapping for the consumer_pos only */
+		if (vma->vm_pgoff != 0 || vma->vm_end - vma->vm_start != PAGE_SIZE)
+			return -EPERM;
+	} else {
+		vma->vm_flags &= ~VM_MAYWRITE;
+	}
+	/* remap_vmalloc_range() checks size and offset constraints */
 	return remap_vmalloc_range(vma, rb_map->rb,
 				   vma->vm_pgoff + RINGBUF_PGOFF);
 }
@@ -315,6 +310,9 @@ static void *__bpf_ringbuf_reserve(struct bpf_ringbuf *rb, u64 size)
 		return NULL;
 
 	len = round_up(size + BPF_RINGBUF_HDR_SZ, 8);
+	if (len > rb->mask + 1)
+		return NULL;
+
 	cons_pos = smp_load_acquire(&rb->consumer_pos);
 
 	if (in_nmi()) {

@@ -301,6 +301,7 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 	if (!debug_pagealloc_enabled_static())
 		return get_freepointer(s, object);
 
+	object = kasan_reset_tag(object);
 	freepointer_addr = (unsigned long)object + s->offset;
 	copy_from_kernel_nofault(&p, (void **)freepointer_addr, sizeof(p));
 	return freelist_ptr(s, p, freepointer_addr);
@@ -3828,15 +3829,6 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 
 static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
 {
-#ifdef CONFIG_SLUB_DEBUG
-	/*
-	 * If no slub_debug was enabled globally, the static key is not yet
-	 * enabled by setup_slub_debug(). Enable it if the cache is being
-	 * created with any of the debugging flags passed explicitly.
-	 */
-	if (flags & SLAB_DEBUG_FLAGS)
-		static_branch_enable(&slub_debug_enabled);
-#endif
 	s->flags = kmem_cache_flags(s->size, flags, s->name);
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
 	s->random = get_random_long();

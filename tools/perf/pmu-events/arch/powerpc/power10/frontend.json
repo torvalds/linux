@@ -1,216 +1,246 @@
 [
   {
-    "EventCode": "10004",
+    "EventCode": "0x10004",
     "EventName": "PM_EXEC_STALL_TRANSLATION",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline suffered a TLB miss or ERAT miss and waited for it to resolve."
   },
   {
-    "EventCode": "10010",
+    "EventCode": "0x10006",
+    "EventName": "PM_DISP_STALL_HELD_OTHER_CYC",
+    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch for any other reason."
+  },
+  {
+    "EventCode": "0x10010",
     "EventName": "PM_PMC4_OVERFLOW",
     "BriefDescription": "The event selected for PMC4 caused the event counter to overflow."
   },
   {
-    "EventCode": "10020",
+    "EventCode": "0x10020",
     "EventName": "PM_PMC4_REWIND",
     "BriefDescription": "The speculative event selected for PMC4 rewinds and the counter for PMC4 is not charged."
   },
   {
-    "EventCode": "10038",
+    "EventCode": "0x10038",
     "EventName": "PM_DISP_STALL_TRANSLATION",
     "BriefDescription": "Cycles when dispatch was stalled for this thread because the MMU was handling a translation miss."
   },
   {
-    "EventCode": "1003A",
+    "EventCode": "0x1003A",
     "EventName": "PM_DISP_STALL_BR_MPRED_IC_L2",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L2 after suffering a branch mispredict."
   },
   {
-    "EventCode": "1E050",
+    "EventCode": "0x1D05E",
+    "EventName": "PM_DISP_STALL_HELD_HALT_CYC",
+    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because of power management."
+  },
+  {
+    "EventCode": "0x1E050",
     "EventName": "PM_DISP_STALL_HELD_STF_MAPPER_CYC",
     "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because the STF mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR."
   },
   {
-    "EventCode": "1F054",
+    "EventCode": "0x1F054",
     "EventName": "PM_DTLB_HIT",
     "BriefDescription": "The PTE required by the instruction was resident in the TLB (data TLB access). When MMCR1[16]=0 this event counts only demand hits. When MMCR1[16]=1 this event includes demand and prefetch. Applies to both HPT and RPT."
   },
   {
-    "EventCode": "101E8",
+    "EventCode": "0x10064",
+    "EventName": "PM_DISP_STALL_IC_L2",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L2."
+  },
+  {
+    "EventCode": "0x101E8",
     "EventName": "PM_THRESH_EXC_256",
     "BriefDescription": "Threshold counter exceeded a count of 256."
   },
   {
-    "EventCode": "101EC",
+    "EventCode": "0x101EC",
     "EventName": "PM_THRESH_MET",
     "BriefDescription": "Threshold exceeded."
   },
   {
-    "EventCode": "100F2",
+    "EventCode": "0x100F2",
     "EventName": "PM_1PLUS_PPC_CMPL",
     "BriefDescription": "Cycles in which at least one instruction is completed by this thread."
   },
   {
-    "EventCode": "100F6",
+    "EventCode": "0x100F6",
     "EventName": "PM_IERAT_MISS",
     "BriefDescription": "IERAT Reloaded to satisfy an IERAT miss. All page sizes are counted by this event."
   },
   {
-    "EventCode": "100F8",
+    "EventCode": "0x100F8",
     "EventName": "PM_DISP_STALL_CYC",
     "BriefDescription": "Cycles the ICT has no itags assigned to this thread (no instructions were dispatched during these cycles)."
   },
   {
-    "EventCode": "20114",
+    "EventCode": "0x20006",
+    "EventName": "PM_DISP_STALL_HELD_ISSQ_FULL_CYC",
+    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch due to Issue queue full. Includes issue queue and branch queue."
+  },
+  {
+    "EventCode": "0x20114",
     "EventName": "PM_MRK_L2_RC_DISP",
     "BriefDescription": "Marked instruction RC dispatched in L2."
   },
   {
-    "EventCode": "2C010",
+    "EventCode": "0x2C010",
     "EventName": "PM_EXEC_STALL_LSU",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was executing in the Load Store Unit. This does not include simple fixed point instructions."
   },
   {
-    "EventCode": "2C016",
+    "EventCode": "0x2C016",
     "EventName": "PM_DISP_STALL_IERAT_ONLY_MISS",
     "BriefDescription": "Cycles when dispatch was stalled while waiting to resolve an instruction ERAT miss."
   },
   {
-    "EventCode": "2C01E",
+    "EventCode": "0x2C01E",
     "EventName": "PM_DISP_STALL_BR_MPRED_IC_L3",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L3 after suffering a branch mispredict."
   },
   {
-    "EventCode": "2D01A",
+    "EventCode": "0x2D01A",
     "EventName": "PM_DISP_STALL_IC_MISS",
     "BriefDescription": "Cycles when dispatch was stalled for this thread due to an Icache Miss."
   },
   {
-    "EventCode": "2D01C",
-    "EventName": "PM_CMPL_STALL_STCX",
-    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a stcx waiting for resolution from the nest before completing."
-  },
-  {
-    "EventCode": "2E018",
+    "EventCode": "0x2E018",
     "EventName": "PM_DISP_STALL_FETCH",
     "BriefDescription": "Cycles when dispatch was stalled for this thread because Fetch was being held."
   },
   {
-    "EventCode": "2E01A",
+    "EventCode": "0x2E01A",
     "EventName": "PM_DISP_STALL_HELD_XVFC_MAPPER_CYC",
     "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because the XVFC mapper/SRB was full."
   },
   {
-    "EventCode": "2C142",
+    "EventCode": "0x2C142",
     "EventName": "PM_MRK_XFER_FROM_SRC_PMC2",
     "BriefDescription": "For a marked data transfer instruction, the processor's L1 data cache was reloaded from the source specified in MMCR3[15:27]. If MMCR1[16|17] is 0 (default), this count includes only lines that were reloaded to satisfy a demand miss. If MMCR1[16|17] is 1, this count includes both demand misses and prefetch reloads."
   },
   {
-    "EventCode": "24050",
+    "EventCode": "0x24050",
     "EventName": "PM_IOPS_DISP",
     "BriefDescription": "Internal Operations dispatched. PM_IOPS_DISP / PM_INST_DISP will show the average number of internal operations per PowerPC instruction."
   },
   {
-    "EventCode": "2405E",
+    "EventCode": "0x2405E",
     "EventName": "PM_ISSUE_CANCEL",
     "BriefDescription": "An instruction issued and the issue was later cancelled. Only one cancel per PowerPC instruction."
   },
   {
-    "EventCode": "200FA",
+    "EventCode": "0x200FA",
     "EventName": "PM_BR_TAKEN_CMPL",
     "BriefDescription": "Branch Taken instruction completed."
   },
   {
-    "EventCode": "30012",
+    "EventCode": "0x30004",
+    "EventName": "PM_DISP_STALL_FLUSH",
+    "BriefDescription": "Cycles when dispatch was stalled because of a flush that happened to an instruction(s) that was not yet NTC. PM_EXEC_STALL_NTC_FLUSH only includes instructions that were flushed after becoming NTC."
+  },
+  {
+    "EventCode": "0x3000A",
+    "EventName": "PM_DISP_STALL_ITLB_MISS",
+    "BriefDescription": "Cycles when dispatch was stalled while waiting to resolve an instruction TLB miss."
+  },
+  {
+    "EventCode": "0x30012",
     "EventName": "PM_FLUSH_COMPLETION",
     "BriefDescription": "The instruction that was next to complete (oldest in the pipeline) did not complete because it suffered a flush."
   },
   {
-    "EventCode": "30014",
+    "EventCode": "0x30014",
     "EventName": "PM_EXEC_STALL_STORE",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a store instruction executing in the Load Store Unit."
   },
   {
-    "EventCode": "30018",
+    "EventCode": "0x30018",
     "EventName": "PM_DISP_STALL_HELD_SCOREBOARD_CYC",
     "BriefDescription": "Cycles in which the NTC instruction is held at dispatch while waiting on the Scoreboard. This event combines VSCR and FPSCR together."
   },
   {
-    "EventCode": "30026",
+    "EventCode": "0x30026",
     "EventName": "PM_EXEC_STALL_STORE_MISS",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a store whose cache line was not resident in the L1 and was waiting for allocation of the missing line into the L1."
   },
   {
-    "EventCode": "3012A",
+    "EventCode": "0x3012A",
     "EventName": "PM_MRK_L2_RC_DONE",
     "BriefDescription": "L2 RC machine completed the transaction for the marked instruction."
   },
   {
-    "EventCode": "3F046",
+    "EventCode": "0x3F046",
     "EventName": "PM_ITLB_HIT_1G",
     "BriefDescription": "Instruction TLB hit (IERAT reload) page size 1G, which implies Radix Page Table translation is in use. When MMCR1[17]=0 this event counts only for demand misses. When MMCR1[17]=1 this event includes demand misses and prefetches."
   },
   {
-    "EventCode": "34058",
+    "EventCode": "0x34058",
     "EventName": "PM_DISP_STALL_BR_MPRED_ICMISS",
     "BriefDescription": "Cycles when dispatch was stalled after a mispredicted branch resulted in an instruction cache miss."
   },
   {
-    "EventCode": "3D05C",
+    "EventCode": "0x3D05C",
     "EventName": "PM_DISP_STALL_HELD_RENAME_CYC",
     "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because the mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR and XVFC."
   },
   {
-    "EventCode": "3E052",
+    "EventCode": "0x3E052",
     "EventName": "PM_DISP_STALL_IC_L3",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L3."
   },
   {
-    "EventCode": "3E054",
+    "EventCode": "0x3E054",
     "EventName": "PM_LD_MISS_L1",
     "BriefDescription": "Load Missed L1, counted at execution time (can be greater than loads finished). LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
   },
   {
-    "EventCode": "301EA",
+    "EventCode": "0x301EA",
     "EventName": "PM_THRESH_EXC_1024",
     "BriefDescription": "Threshold counter exceeded a value of 1024."
   },
   {
-    "EventCode": "300FA",
+    "EventCode": "0x300FA",
     "EventName": "PM_INST_FROM_L3MISS",
     "BriefDescription": "The processor's instruction cache was reloaded from a source other than the local core's L1, L2, or L3 due to a demand miss."
   },
   {
-    "EventCode": "40006",
+    "EventCode": "0x40006",
     "EventName": "PM_ISSUE_KILL",
     "BriefDescription": "Cycles in which an instruction or group of instructions were cancelled after being issued. This event increments once per occurrence, regardless of how many instructions are included in the issue group."
   },
   {
-    "EventCode": "40116",
+    "EventCode": "0x40116",
     "EventName": "PM_MRK_LARX_FIN",
     "BriefDescription": "Marked load and reserve instruction (LARX) finished. LARX and STCX are instructions used to acquire a lock."
   },
   {
-    "EventCode": "4C010",
+    "EventCode": "0x4C010",
     "EventName": "PM_DISP_STALL_BR_MPRED_IC_L3MISS",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from sources beyond the local L3 after suffering a mispredicted branch."
   },
   {
-    "EventCode": "4D01E",
+    "EventCode": "0x4D01E",
     "EventName": "PM_DISP_STALL_BR_MPRED",
     "BriefDescription": "Cycles when dispatch was stalled for this thread due to a mispredicted branch."
   },
   {
-    "EventCode": "4E010",
+    "EventCode": "0x4E010",
     "EventName": "PM_DISP_STALL_IC_L3MISS",
     "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from any source beyond the local L3."
   },
   {
-    "EventCode": "4E01A",
+    "EventCode": "0x4E01A",
     "EventName": "PM_DISP_STALL_HELD_CYC",
     "BriefDescription": "Cycles in which the NTC instruction is held at dispatch for any reason."
   },
   {
-    "EventCode": "44056",
+    "EventCode": "0x4003C",
+    "EventName": "PM_DISP_STALL_HELD_SYNC_CYC",
+    "BriefDescription": "Cycles in which the NTC instruction is held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch."
+  },
+  {
+    "EventCode": "0x44056",
     "EventName": "PM_VECTOR_ST_CMPL",
     "BriefDescription": "Vector store instructions completed."
   }

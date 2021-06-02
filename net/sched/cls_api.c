@@ -1624,7 +1624,7 @@ int tcf_classify_ingress(struct sk_buff *skb,
 
 	/* If we missed on some chain */
 	if (ret == TC_ACT_UNSPEC && last_executed_chain) {
-		ext = skb_ext_add(skb, TC_SKB_EXT);
+		ext = tc_skb_ext_alloc(skb);
 		if (WARN_ON_ONCE(!ext))
 			return TC_ACT_SHOT;
 		ext->chain = last_executed_chain;

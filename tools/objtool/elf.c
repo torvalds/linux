@@ -762,6 +762,7 @@ struct symbol *elf_create_undef_symbol(struct elf *elf, const char *name)
 	data->d_buf = &sym->sym;
 	data->d_size = sizeof(sym->sym);
 	data->d_align = 1;
+	data->d_type = ELF_T_SYM;
 
 	sym->idx = symtab->len / sizeof(sym->sym);
 
