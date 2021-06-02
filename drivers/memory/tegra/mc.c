@@ -768,10 +768,11 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = tegra_mc_reset_setup(mc);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to register reset controller: %d\n",
-			err);
+	if (mc->soc->reset_ops) {
+		err = tegra_mc_reset_setup(mc);
+		if (err < 0)
+			dev_err(&pdev->dev, "failed to register reset controller: %d\n", err);
+	}
 
 	err = tegra_mc_interconnect_setup(mc);
 	if (err < 0)
