@@ -85,6 +85,7 @@ struct reset_bulk_data	{
 #define PCIE_CAP_LINK_CONTROL2_LINK_STATUS	0xa0
 
 #define PCIE_CLIENT_INTR_STATUS_LEGACY	0x08
+#define PCIE_CLIENT_INTR_STATUS_MISC	0x10
 #define PCIE_CLIENT_INTR_MASK_LEGACY	0x1c
 #define UNMASK_ALL_LEGACY_INT		0xffff0000
 #define PCIE_CLIENT_INTR_MASK		0x24
@@ -690,6 +691,9 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	rk_pcie_link_status_clear(rk_pcie);
 	rk_pcie_enable_debug(rk_pcie);
 
+	/* Enable client reset or link down interrupt */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0x40000);
+
 	/* Enable LTSSM */
 	rk_pcie_enable_ltssm(rk_pcie);
 
@@ -1256,6 +1260,7 @@ static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 	u32 chn = 0;
 	union int_status status;
 	union int_clear clears;
+	u32 reg, val;
 
 	status.asdword = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 					   PCIE_DMA_WR_INT_STATUS);
@@ -1276,6 +1281,18 @@ static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 				   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
 	}
+
+	reg = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MISC);
+	if (reg & BIT(2)) {
+		/* Setup command register */
+		val = dw_pcie_readl_dbi(rk_pcie->pci, PCI_COMMAND);
+		val &= 0xffff0000;
+		val |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
+		       PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
+		dw_pcie_writel_dbi(rk_pcie->pci, PCI_COMMAND, val);
+	}
+
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MISC, reg);
 
 	return IRQ_HANDLED;
 }
