@@ -46,7 +46,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_core_dev *dev;
 	const struct net_device *netdev;
 	struct mod_hdr_tbl *mod_hdr_tbl;
-	struct idr fte_ids;
+	struct xarray fte_ids;
 	struct xarray tuple_ids;
 	struct rhashtable zone_ht;
 	struct rhashtable ct_tuples_ht;
@@ -1773,12 +1773,12 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 	}
 	ct_flow->ft = ft;
 
-	err = idr_alloc_u32(&ct_priv->fte_ids, ct_flow, &fte_id,
-			    MLX5_FTE_ID_MAX, GFP_KERNEL);
+	err = xa_alloc(&ct_priv->fte_ids, &fte_id, ct_flow,
+		       XA_LIMIT(1, MLX5_FTE_ID_MAX), GFP_KERNEL);
 	if (err) {
 		netdev_warn(priv->netdev,
 			    "Failed to allocate fte id, err: %d\n", err);
-		goto err_idr;
+		goto err_xarray;
 	}
 	ct_flow->fte_id = fte_id;
 
@@ -1914,8 +1914,8 @@ err_get_chain:
 err_alloc_post:
 	kfree(ct_flow->pre_ct_attr);
 err_alloc_pre:
-	idr_remove(&ct_priv->fte_ids, fte_id);
-err_idr:
+	xa_erase(&ct_priv->fte_ids, fte_id);
+err_xarray:
 	mlx5_tc_ct_del_ft_cb(ct_priv, ft);
 err_ft:
 	kvfree(post_ct_spec);
@@ -2033,7 +2033,7 @@ __mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *ct_priv,
 		mlx5_tc_rule_delete(priv, ct_flow->post_ct_rule,
 				    ct_flow->post_ct_attr);
 		mlx5_chains_put_chain_mapping(ct_priv->chains, ct_flow->chain_mapping);
-		idr_remove(&ct_priv->fte_ids, ct_flow->fte_id);
+		xa_erase(&ct_priv->fte_ids, ct_flow->fte_id);
 		mlx5_tc_ct_del_ft_cb(ct_priv, ct_flow->ft);
 	}
 
@@ -2203,7 +2203,7 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 		goto err_post_ct_tbl;
 	}
 
-	idr_init(&ct_priv->fte_ids);
+	xa_init_flags(&ct_priv->fte_ids, XA_FLAGS_ALLOC1);
 	mutex_init(&ct_priv->control_lock);
 	rhashtable_init(&ct_priv->zone_ht, &zone_params);
 	rhashtable_init(&ct_priv->ct_tuples_ht, &tuples_ht_params);
@@ -2247,7 +2247,7 @@ mlx5_tc_ct_clean(struct mlx5_tc_ct_priv *ct_priv)
 	rhashtable_destroy(&ct_priv->ct_tuples_nat_ht);
 	rhashtable_destroy(&ct_priv->zone_ht);
 	mutex_destroy(&ct_priv->control_lock);
-	idr_destroy(&ct_priv->fte_ids);
+	xa_destroy(&ct_priv->fte_ids);
 	kfree(ct_priv);
 }
 
