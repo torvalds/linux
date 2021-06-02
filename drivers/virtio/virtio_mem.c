@@ -75,10 +75,14 @@ enum virtio_mem_sbm_mb_state {
 	VIRTIO_MEM_SBM_MB_OFFLINE,
 	/* Partially plugged, fully added to Linux, offline. */
 	VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL,
-	/* Fully plugged, fully added to Linux, online. */
-	VIRTIO_MEM_SBM_MB_ONLINE,
-	/* Partially plugged, fully added to Linux, online. */
-	VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL,
+	/* Fully plugged, fully added to Linux, onlined to a kernel zone. */
+	VIRTIO_MEM_SBM_MB_KERNEL,
+	/* Partially plugged, fully added to Linux, online to a kernel zone */
+	VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL,
+	/* Fully plugged, fully added to Linux, onlined to ZONE_MOVABLE. */
+	VIRTIO_MEM_SBM_MB_MOVABLE,
+	/* Partially plugged, fully added to Linux, onlined to ZONE_MOVABLE. */
+	VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL,
 	VIRTIO_MEM_SBM_MB_COUNT
 };
 
@@ -832,11 +836,13 @@ static void virtio_mem_sbm_notify_offline(struct virtio_mem *vm,
 					  unsigned long mb_id)
 {
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
-	case VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL:
+	case VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL:
+	case VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL:
 		virtio_mem_sbm_set_mb_state(vm, mb_id,
 					    VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL);
 		break;
-	case VIRTIO_MEM_SBM_MB_ONLINE:
+	case VIRTIO_MEM_SBM_MB_KERNEL:
+	case VIRTIO_MEM_SBM_MB_MOVABLE:
 		virtio_mem_sbm_set_mb_state(vm, mb_id,
 					    VIRTIO_MEM_SBM_MB_OFFLINE);
 		break;
@@ -847,21 +853,29 @@ static void virtio_mem_sbm_notify_offline(struct virtio_mem *vm,
 }
 
 static void virtio_mem_sbm_notify_online(struct virtio_mem *vm,
-					 unsigned long mb_id)
+					 unsigned long mb_id,
+					 unsigned long start_pfn)
 {
+	const bool is_movable = page_zonenum(pfn_to_page(start_pfn)) ==
+				ZONE_MOVABLE;
+	int new_state;
+
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
 	case VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL:
-		virtio_mem_sbm_set_mb_state(vm, mb_id,
-					VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL);
+		new_state = VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL;
+		if (is_movable)
+			new_state = VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL;
 		break;
 	case VIRTIO_MEM_SBM_MB_OFFLINE:
-		virtio_mem_sbm_set_mb_state(vm, mb_id,
-					    VIRTIO_MEM_SBM_MB_ONLINE);
+		new_state = VIRTIO_MEM_SBM_MB_KERNEL;
+		if (is_movable)
+			new_state = VIRTIO_MEM_SBM_MB_MOVABLE;
 		break;
 	default:
 		BUG();
 		break;
 	}
+	virtio_mem_sbm_set_mb_state(vm, mb_id, new_state);
 }
 
 static void virtio_mem_sbm_notify_going_offline(struct virtio_mem *vm,
@@ -1015,7 +1029,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		break;
 	case MEM_ONLINE:
 		if (vm->in_sbm)
-			virtio_mem_sbm_notify_online(vm, id);
+			virtio_mem_sbm_notify_online(vm, id, mhp->start_pfn);
 
 		atomic64_sub(size, &vm->offline_size);
 		/*
@@ -1626,7 +1640,8 @@ static int virtio_mem_sbm_plug_any_sb(struct virtio_mem *vm,
 static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 {
 	const int mb_states[] = {
-		VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL,
+		VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL,
+		VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL,
 		VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL,
 	};
 	uint64_t nb_sb = diff / vm->sbm.sb_size;
@@ -1843,6 +1858,7 @@ static int virtio_mem_sbm_unplug_sb_online(struct virtio_mem *vm,
 					   int count)
 {
 	const unsigned long nr_pages = PFN_DOWN(vm->sbm.sb_size) * count;
+	const int old_state = virtio_mem_sbm_get_mb_state(vm, mb_id);
 	unsigned long start_pfn;
 	int rc;
 
@@ -1861,8 +1877,17 @@ static int virtio_mem_sbm_unplug_sb_online(struct virtio_mem *vm,
 		return rc;
 	}
 
-	virtio_mem_sbm_set_mb_state(vm, mb_id,
-				    VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL);
+	switch (old_state) {
+	case VIRTIO_MEM_SBM_MB_KERNEL:
+		virtio_mem_sbm_set_mb_state(vm, mb_id,
+					    VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL);
+		break;
+	case VIRTIO_MEM_SBM_MB_MOVABLE:
+		virtio_mem_sbm_set_mb_state(vm, mb_id,
+					    VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL);
+		break;
+	}
+
 	return 0;
 }
 
@@ -1948,8 +1973,10 @@ static int virtio_mem_sbm_unplug_any_sb(struct virtio_mem *vm,
 	const int old_state = virtio_mem_sbm_get_mb_state(vm, mb_id);
 
 	switch (old_state) {
-	case VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL:
-	case VIRTIO_MEM_SBM_MB_ONLINE:
+	case VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL:
+	case VIRTIO_MEM_SBM_MB_KERNEL:
+	case VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL:
+	case VIRTIO_MEM_SBM_MB_MOVABLE:
 		return virtio_mem_sbm_unplug_any_sb_online(vm, mb_id, nb_sb);
 	case VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL:
 	case VIRTIO_MEM_SBM_MB_OFFLINE:
@@ -1963,8 +1990,10 @@ static int virtio_mem_sbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 	const int mb_states[] = {
 		VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL,
 		VIRTIO_MEM_SBM_MB_OFFLINE,
-		VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL,
-		VIRTIO_MEM_SBM_MB_ONLINE,
+		VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL,
+		VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL,
+		VIRTIO_MEM_SBM_MB_MOVABLE,
+		VIRTIO_MEM_SBM_MB_KERNEL,
 	};
 	uint64_t nb_sb = diff / vm->sbm.sb_size;
 	unsigned long mb_id;
@@ -1982,7 +2011,10 @@ static int virtio_mem_sbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 
 	/*
 	 * We try unplug from partially plugged blocks first, to try removing
-	 * whole memory blocks along with metadata.
+	 * whole memory blocks along with metadata. We prioritize ZONE_MOVABLE
+	 * as it's more reliable to unplug memory and remove whole memory
+	 * blocks, and we don't want to trigger a zone imbalances by
+	 * accidentially removing too much kernel memory.
 	 */
 	for (i = 0; i < ARRAY_SIZE(mb_states); i++) {
 		virtio_mem_sbm_for_each_mb_rev(vm, mb_id, mb_states[i]) {
