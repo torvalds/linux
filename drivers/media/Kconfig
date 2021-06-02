@@ -87,7 +87,7 @@ config MEDIA_ANALOG_TV_SUPPORT
 		will disable support for them.
 
 config MEDIA_DIGITAL_TV_SUPPORT
-	bool "Digital TV"
+	tristate "Digital TV"
 	default y if !MEDIA_SUPPORT_FILTER
 	help
 	  Enable digital TV support.
