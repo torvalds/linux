@@ -556,7 +556,7 @@ xchk_bmap_check_ag_rmaps(
 	if (error)
 		return error;
 
-	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, agno, NULL);
+	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, sc->sa.pag);
 
 	sbcri.sc = sc;
 	sbcri.whichfork = whichfork;

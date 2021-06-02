@@ -493,7 +493,7 @@ xchk_ag_btcur_init(
 	if (sa->agf_bp && xfs_sb_version_hasrmapbt(&mp->m_sb) &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
 		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				agno, sa->pag);
+				sa->pag);
 	}
 
 	/* Set up a refcountbt cursor for cross-referencing. */
