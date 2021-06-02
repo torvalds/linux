@@ -1028,7 +1028,7 @@ xfs_bmap_add_attrfork_local(
 /*
  * Set an inode attr fork offset based on the format of the data fork.
  */
-int
+static int
 xfs_bmap_set_attrforkoff(
 	struct xfs_inode	*ip,
 	int			size,
