@@ -174,7 +174,7 @@ static int cisco_rx(struct sk_buff *skb)
 		cisco_data = (struct cisco_packet *)(skb->data + sizeof
 						    (struct hdlc_header));
 
-		switch (ntohl (cisco_data->type)) {
+		switch (ntohl(cisco_data->type)) {
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
 			rcu_read_lock();
 			in_dev = __in_dev_get_rcu(dev);
