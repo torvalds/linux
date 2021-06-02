@@ -5687,8 +5687,19 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	unsigned int max_width, max_height;
 	int ret;
 
+	/*
+	 * Some userspace software don't want use afbc plane
+	 */
 	if (win->feature & WIN_FEATURE_AFBDC) {
 		if (vop2->disable_afbc_win)
+			return -EACCES;
+	}
+
+	/*
+	 * Some userspace software don't want cluster sub plane
+	 */
+	if (!vop2->support_multi_area) {
+		if (win->feature & WIN_FEATURE_CLUSTER_SUB)
 			return -EACCES;
 	}
 
