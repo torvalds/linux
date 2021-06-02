@@ -1533,6 +1533,10 @@ xfs_blockgc_start(
 		xfs_blockgc_queue(pag);
 }
 
+/* Don't try to run block gc on an inode that's in any of these states. */
+#define XFS_BLOCKGC_NOGRAB_IFLAGS	(XFS_INEW | \
+					 XFS_IRECLAIMABLE | \
+					 XFS_IRECLAIM)
 /*
  * Decide if the given @ip is eligible for garbage collection of speculative
  * preallocations, and grab it if so.  Returns true if it's ready to go or
@@ -1551,8 +1555,7 @@ xfs_blockgc_igrab(
 	if (!ip->i_ino)
 		goto out_unlock_noent;
 
-	/* avoid new or reclaimable inodes. Leave for reclaim code to flush */
-	if (__xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIMABLE | XFS_IRECLAIM))
+	if (ip->i_flags & XFS_BLOCKGC_NOGRAB_IFLAGS)
 		goto out_unlock_noent;
 	spin_unlock(&ip->i_flags_lock);
 
