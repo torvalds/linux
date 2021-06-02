@@ -738,20 +738,22 @@ static int lock_torture_reader(void *arg)
 static void __torture_print_stats(char *page,
 				  struct lock_stress_stats *statp, bool write)
 {
+	long cur;
 	bool fail = false;
 	int i, n_stress;
-	long max = 0, min = statp ? statp[0].n_lock_acquired : 0;
+	long max = 0, min = statp ? data_race(statp[0].n_lock_acquired) : 0;
 	long long sum = 0;
 
 	n_stress = write ? cxt.nrealwriters_stress : cxt.nrealreaders_stress;
 	for (i = 0; i < n_stress; i++) {
-		if (statp[i].n_lock_fail)
+		if (data_race(statp[i].n_lock_fail))
 			fail = true;
-		sum += statp[i].n_lock_acquired;
-		if (max < statp[i].n_lock_acquired)
-			max = statp[i].n_lock_acquired;
-		if (min > statp[i].n_lock_acquired)
-			min = statp[i].n_lock_acquired;
+		cur = data_race(statp[i].n_lock_acquired);
+		sum += cur;
+		if (max < cur)
+			max = cur;
+		if (min > cur)
+			min = cur;
 	}
 	page += sprintf(page,
 			"%s:  Total: %lld  Max/Min: %ld/%ld %s  Fail: %d %s\n",
