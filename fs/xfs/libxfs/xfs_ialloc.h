@@ -39,17 +39,8 @@ xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
 int xfs_dialloc(struct xfs_trans **tpp, xfs_ino_t parent, umode_t mode,
 		xfs_ino_t *new_ino);
 
-/*
- * Free disk inode.  Carefully avoids touching the incore inode, all
- * manipulations incore are the caller's responsibility.
- * The on-disk inode is not changed by this operation, only the
- * btree (free inode mask) is changed.
- */
-int					/* error */
-xfs_difree(
-	struct xfs_trans *tp,		/* transaction pointer */
-	xfs_ino_t	inode,		/* inode to be freed */
-	struct xfs_icluster *ifree);	/* cluster info if deleted */
+int xfs_difree(struct xfs_trans *tp, struct xfs_perag *pag,
+		xfs_ino_t ino, struct xfs_icluster *ifree);
 
 /*
  * Return the location of the inode in imap, for mapping it into a buffer.

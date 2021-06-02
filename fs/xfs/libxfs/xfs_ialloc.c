@@ -2134,35 +2134,33 @@ error:
  */
 int
 xfs_difree(
-	struct xfs_trans	*tp,		/* transaction pointer */
-	xfs_ino_t		inode,		/* inode to be freed */
-	struct xfs_icluster	*xic)	/* cluster info if deleted */
+	struct xfs_trans	*tp,
+	struct xfs_perag	*pag,
+	xfs_ino_t		inode,
+	struct xfs_icluster	*xic)
 {
 	/* REFERENCED */
 	xfs_agblock_t		agbno;	/* block number containing inode */
 	struct xfs_buf		*agbp;	/* buffer for allocation group header */
 	xfs_agino_t		agino;	/* allocation group inode number */
-	xfs_agnumber_t		agno;	/* allocation group number */
 	int			error;	/* error return value */
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_inobt_rec_incore rec;/* btree record */
-	struct xfs_perag	*pag;
 
 	/*
 	 * Break up inode number into its components.
 	 */
-	agno = XFS_INO_TO_AGNO(mp, inode);
-	if (agno >= mp->m_sb.sb_agcount) {
-		xfs_warn(mp, "%s: agno >= mp->m_sb.sb_agcount (%d >= %d).",
-			__func__, agno, mp->m_sb.sb_agcount);
+	if (pag->pag_agno != XFS_INO_TO_AGNO(mp, inode)) {
+		xfs_warn(mp, "%s: agno != pag->pag_agno (%d != %d).",
+			__func__, XFS_INO_TO_AGNO(mp, inode), pag->pag_agno);
 		ASSERT(0);
 		return -EINVAL;
 	}
 	agino = XFS_INO_TO_AGINO(mp, inode);
-	if (inode != XFS_AGINO_TO_INO(mp, agno, agino))  {
+	if (inode != XFS_AGINO_TO_INO(mp, pag->pag_agno, agino))  {
 		xfs_warn(mp, "%s: inode != XFS_AGINO_TO_INO() (%llu != %llu).",
 			__func__, (unsigned long long)inode,
-			(unsigned long long)XFS_AGINO_TO_INO(mp, agno, agino));
+			(unsigned long long)XFS_AGINO_TO_INO(mp, pag->pag_agno, agino));
 		ASSERT(0);
 		return -EINVAL;
 	}
@@ -2176,7 +2174,7 @@ xfs_difree(
 	/*
 	 * Get the allocation group header.
 	 */
-	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
+	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, &agbp);
 	if (error) {
 		xfs_warn(mp, "%s: xfs_ialloc_read_agi() returned error %d.",
 			__func__, error);
@@ -2186,7 +2184,6 @@ xfs_difree(
 	/*
 	 * Fix up the inode allocation btree.
 	 */
-	pag = agbp->b_pag;
 	error = xfs_difree_inobt(mp, tp, agbp, pag, agino, xic, &rec);
 	if (error)
 		goto error0;
