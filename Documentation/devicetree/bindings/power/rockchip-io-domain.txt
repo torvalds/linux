@@ -41,6 +41,7 @@ Required properties:
   - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
   - "rockchip,rk3399-io-voltage-domain" for rk3399
   - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
+  - "rockchip,rk3568-pmu-io-voltage-domain" for rk3568 pmu-domains
   - "rockchip,rv1108-io-voltage-domain" for rv1108
   - "rockchip,rv1108-pmu-io-voltage-domain" for rv1108 pmu-domains
   - "rockchip,rv1126-pmu-io-voltage-domain" for rv1126 pmu-domains
@@ -113,10 +114,21 @@ Possible supplies for rk3399:
 - bt656-supply:  The supply connected to APIO2_VDD.
 - audio-supply:  The supply connected to APIO5_VDD.
 - sdmmc-supply:  The supply connected to SDMMC0_VDD.
-- gpio1830       The supply connected to APIO4_VDD.
+- gpio1830-supply:  The supply connected to APIO4_VDD.
 
 Possible supplies for rk3399 pmu-domains:
 - pmu1830-supply:The supply connected to PMUIO2_VDD.
+
+Possible supplies for rk3568 pmu-domains:
+- vccio1-supply:The supply connected to VCCIO1.
+- vccio2-supply:The supply connected to VCCIO2, can be reserved since ignored by driver.
+- vccio3-supply:The supply connected to VCCIO3.
+- vccio4-supply:The supply connected to VCCIO4.
+- vccio5-supply:The supply connected to VCCIO5.
+- vccio6-supply:The supply connected to VCCIO6.
+- vccio7-supply:The supply connected to VCCIO7.
+- pmuio1-supply:The supply connected to PMUIO1, 3.3v only can be reserved
+- pmuio2-supply:The supply connected to PMUIO2.
 
 Possible supplies for rv1126 pmu-domains:
 - vccio1-supply:The supply connected to VCCIO1_VDD.
