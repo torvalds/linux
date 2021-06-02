@@ -3,6 +3,14 @@
 
 #include "conntrack.h"
 
+const struct rhashtable_params nfp_tc_ct_merge_params = {
+	.head_offset		= offsetof(struct nfp_fl_ct_tc_merge,
+					   hash_node),
+	.key_len		= sizeof(unsigned long) * 2,
+	.key_offset		= offsetof(struct nfp_fl_ct_tc_merge, cookie),
+	.automatic_shrinking	= true,
+};
+
 /**
  * get_hashentry() - Wrapper around hashtable lookup.
  * @ht:		hashtable where entry could be found
@@ -87,6 +95,10 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	INIT_LIST_HEAD(&zt->pre_ct_list);
 	INIT_LIST_HEAD(&zt->post_ct_list);
 
+	err = rhashtable_init(&zt->tc_merge_tb, &nfp_tc_ct_merge_params);
+	if (err)
+		goto err_tc_merge_tb_init;
+
 	if (wildcarded) {
 		priv->ct_zone_wc = zt;
 	} else {
@@ -100,6 +112,8 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	return zt;
 
 err_zone_insert:
+	rhashtable_destroy(&zt->tc_merge_tb);
+err_tc_merge_tb_init:
 	kfree(zt);
 	return ERR_PTR(err);
 }

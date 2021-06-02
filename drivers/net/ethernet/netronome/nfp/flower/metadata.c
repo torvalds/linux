@@ -638,6 +638,10 @@ static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
 			kfree(map);
 		}
 	}
+
+	rhashtable_free_and_destroy(&zt->tc_merge_tb,
+				    nfp_check_rhashtable_empty, NULL);
+
 	kfree(zt);
 }
 

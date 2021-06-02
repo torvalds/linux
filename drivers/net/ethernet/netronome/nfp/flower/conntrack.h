@@ -10,6 +10,7 @@
 
 extern const struct rhashtable_params nfp_zone_table_params;
 extern const struct rhashtable_params nfp_ct_map_params;
+extern const struct rhashtable_params nfp_tc_ct_merge_params;
 
 /**
  * struct nfp_fl_ct_zone_entry - Zone entry containing conntrack flow information
@@ -23,6 +24,9 @@ extern const struct rhashtable_params nfp_ct_map_params;
  *
  * @post_ct_list:	The post_ct_list of nfp_fl_ct_flow_entry entries
  * @post_ct_count:	Keep count of the number of post_ct entries
+ *
+ * @tc_merge_tb:	The table of merged tc flows
+ * @tc_merge_count:	Keep count of the number of merged tc entries
  */
 struct nfp_fl_ct_zone_entry {
 	u16 zone;
@@ -36,6 +40,9 @@ struct nfp_fl_ct_zone_entry {
 
 	struct list_head post_ct_list;
 	unsigned int post_ct_count;
+
+	struct rhashtable tc_merge_tb;
+	unsigned int tc_merge_count;
 };
 
 enum ct_entry_type {
@@ -68,6 +75,28 @@ struct nfp_fl_ct_flow_entry {
 	struct flow_rule *rule;
 	struct flow_stats stats;
 	u8 tun_offset;		// Set to NFP_FL_CT_NO_TUN if no tun
+};
+
+/**
+ * struct nfp_fl_ct_tc_merge - Merge of two flows from tc
+ * @cookie:		Flow cookie, combination of pre and post ct cookies
+ * @hash_node:		Used by the hashtable
+ * @pre_ct_list:	This entry is part of a pre_ct_list
+ * @post_ct_list:	This entry is part of a post_ct_list
+ * @zt:			Reference to the zone table this belongs to
+ * @pre_ct_parent:	The pre_ct_parent
+ * @post_ct_parent:	The post_ct_parent
+ * @children:		List of nft merged entries
+ */
+struct nfp_fl_ct_tc_merge {
+	unsigned long cookie[2];
+	struct rhash_head hash_node;
+	struct list_head pre_ct_list;
+	struct list_head post_ct_list;
+	struct nfp_fl_ct_zone_entry *zt;
+	struct nfp_fl_ct_flow_entry *pre_ct_parent;
+	struct nfp_fl_ct_flow_entry *post_ct_parent;
+	struct list_head children;
 };
 
 /**
