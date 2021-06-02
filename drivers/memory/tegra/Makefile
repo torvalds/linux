@@ -8,7 +8,7 @@ tegra-mc-$(CONFIG_ARCH_TEGRA_124_SOC) += tegra124.o
 tegra-mc-$(CONFIG_ARCH_TEGRA_132_SOC) += tegra124.o
 tegra-mc-$(CONFIG_ARCH_TEGRA_210_SOC) += tegra210.o
 tegra-mc-$(CONFIG_ARCH_TEGRA_186_SOC) += tegra186.o
-tegra-mc-$(CONFIG_ARCH_TEGRA_194_SOC) += tegra186.o
+tegra-mc-$(CONFIG_ARCH_TEGRA_194_SOC) += tegra186.o tegra194.o
 
 obj-$(CONFIG_TEGRA_MC) += tegra-mc.o
 

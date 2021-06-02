@@ -146,6 +146,11 @@ int tegra30_mc_probe(struct tegra_mc *mc);
 extern const struct tegra_mc_ops tegra30_mc_ops;
 #endif
 
+#if defined(CONFIG_ARCH_TEGRA_186_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_194_SOC)
+extern const struct tegra_mc_ops tegra186_mc_ops;
+#endif
+
 extern const char * const tegra_mc_status_names[32];
 extern const char * const tegra_mc_error_names[8];
 
