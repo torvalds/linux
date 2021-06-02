@@ -1583,9 +1583,9 @@ static int virtio_mem_sbm_plug_and_add_mb(struct virtio_mem *vm,
  * Note: Can fail after some subblocks were successfully plugged.
  */
 static int virtio_mem_sbm_plug_any_sb(struct virtio_mem *vm,
-				      unsigned long mb_id, uint64_t *nb_sb,
-				      bool online)
+				      unsigned long mb_id, uint64_t *nb_sb)
 {
+	const int old_state = virtio_mem_sbm_get_mb_state(vm, mb_id);
 	unsigned long pfn, nr_pages;
 	int sb_id, count;
 	int rc;
@@ -1607,7 +1607,7 @@ static int virtio_mem_sbm_plug_any_sb(struct virtio_mem *vm,
 		if (rc)
 			return rc;
 		*nb_sb -= count;
-		if (!online)
+		if (old_state == VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL)
 			continue;
 
 		/* fake-online the pages if the memory block is online */
@@ -1617,23 +1617,21 @@ static int virtio_mem_sbm_plug_any_sb(struct virtio_mem *vm,
 		virtio_mem_fake_online(pfn, nr_pages);
 	}
 
-	if (virtio_mem_sbm_test_sb_plugged(vm, mb_id, 0, vm->sbm.sbs_per_mb)) {
-		if (online)
-			virtio_mem_sbm_set_mb_state(vm, mb_id,
-						    VIRTIO_MEM_SBM_MB_ONLINE);
-		else
-			virtio_mem_sbm_set_mb_state(vm, mb_id,
-						    VIRTIO_MEM_SBM_MB_OFFLINE);
-	}
+	if (virtio_mem_sbm_test_sb_plugged(vm, mb_id, 0, vm->sbm.sbs_per_mb))
+		virtio_mem_sbm_set_mb_state(vm, mb_id, old_state - 1);
 
 	return 0;
 }
 
 static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 {
+	const int mb_states[] = {
+		VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL,
+		VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL,
+	};
 	uint64_t nb_sb = diff / vm->sbm.sb_size;
 	unsigned long mb_id;
-	int rc;
+	int rc, i;
 
 	if (!nb_sb)
 		return 0;
@@ -1641,22 +1639,13 @@ static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 	/* Don't race with onlining/offlining */
 	mutex_lock(&vm->hotplug_mutex);
 
-	/* Try to plug subblocks of partially plugged online blocks. */
-	virtio_mem_sbm_for_each_mb(vm, mb_id,
-				   VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL) {
-		rc = virtio_mem_sbm_plug_any_sb(vm, mb_id, &nb_sb, true);
-		if (rc || !nb_sb)
-			goto out_unlock;
-		cond_resched();
-	}
-
-	/* Try to plug subblocks of partially plugged offline blocks. */
-	virtio_mem_sbm_for_each_mb(vm, mb_id,
-				   VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL) {
-		rc = virtio_mem_sbm_plug_any_sb(vm, mb_id, &nb_sb, false);
-		if (rc || !nb_sb)
-			goto out_unlock;
-		cond_resched();
+	for (i = 0; i < ARRAY_SIZE(mb_states); i++) {
+		virtio_mem_sbm_for_each_mb(vm, mb_id, mb_states[i]) {
+			rc = virtio_mem_sbm_plug_any_sb(vm, mb_id, &nb_sb);
+			if (rc || !nb_sb)
+				goto out_unlock;
+			cond_resched();
+		}
 	}
 
 	/*
