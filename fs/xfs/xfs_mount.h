@@ -338,6 +338,16 @@ typedef struct xfs_perag {
 	xfs_agino_t	pagl_leftrec;
 	xfs_agino_t	pagl_rightrec;
 
+	int		pagb_count;	/* pagb slots in use */
+	uint8_t		pagf_refcount_level; /* recount btree height */
+
+	/* Blocks reserved for all kinds of metadata. */
+	struct xfs_ag_resv	pag_meta_resv;
+	/* Blocks reserved for the reverse mapping btree. */
+	struct xfs_ag_resv	pag_rmapbt_resv;
+
+	/* -- kernel only structures below this line -- */
+
 	/*
 	 * Bitsets of per-ag metadata that have been checked and/or are sick.
 	 * Callers should hold pag_state_lock before accessing this field.
@@ -364,18 +374,9 @@ typedef struct xfs_perag {
 
 	/* for rcu-safe freeing */
 	struct rcu_head	rcu_head;
-	int		pagb_count;	/* pagb slots in use */
-
-	/* Blocks reserved for all kinds of metadata. */
-	struct xfs_ag_resv	pag_meta_resv;
-	/* Blocks reserved for the reverse mapping btree. */
-	struct xfs_ag_resv	pag_rmapbt_resv;
 
 	/* background prealloc block trimming */
 	struct delayed_work	pag_blockgc_work;
-
-	/* reference count */
-	uint8_t			pagf_refcount_level;
 
 	/*
 	 * Unlinked inode information.  This incore information reflects

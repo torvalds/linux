@@ -148,9 +148,11 @@ xfs_free_perag(
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+
 		cancel_delayed_work_sync(&pag->pag_blockgc_work);
 		xfs_iunlink_destroy(pag);
 		xfs_buf_hash_destroy(pag);
+
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -175,14 +177,14 @@ xfs_sb_validate_fsb_count(
 
 int
 xfs_initialize_perag(
-	xfs_mount_t	*mp,
-	xfs_agnumber_t	agcount,
-	xfs_agnumber_t	*maxagi)
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agcount,
+	xfs_agnumber_t		*maxagi)
 {
-	xfs_agnumber_t	index;
-	xfs_agnumber_t	first_initialised = NULLAGNUMBER;
-	xfs_perag_t	*pag;
-	int		error = -ENOMEM;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		index;
+	xfs_agnumber_t		first_initialised = NULLAGNUMBER;
+	int			error;
 
 	/*
 	 * Walk the current per-ag tree so we don't try to initialise AGs
@@ -203,21 +205,10 @@ xfs_initialize_perag(
 		}
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
-		spin_lock_init(&pag->pag_ici_lock);
-		INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
-		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-
-		error = xfs_buf_hash_init(pag);
-		if (error)
-			goto out_free_pag;
-		init_waitqueue_head(&pag->pagb_wait);
-		spin_lock_init(&pag->pagb_lock);
-		pag->pagb_count = 0;
-		pag->pagb_tree = RB_ROOT;
 
 		error = radix_tree_preload(GFP_NOFS);
 		if (error)
-			goto out_hash_destroy;
+			goto out_free_pag;
 
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
@@ -225,17 +216,32 @@ xfs_initialize_perag(
 			spin_unlock(&mp->m_perag_lock);
 			radix_tree_preload_end();
 			error = -EEXIST;
-			goto out_hash_destroy;
+			goto out_free_pag;
 		}
 		spin_unlock(&mp->m_perag_lock);
 		radix_tree_preload_end();
-		/* first new pag is fully initialized */
-		if (first_initialised == NULLAGNUMBER)
-			first_initialised = index;
+
+		/* Place kernel structure only init below this point. */
+		spin_lock_init(&pag->pag_ici_lock);
+		spin_lock_init(&pag->pagb_lock);
+		spin_lock_init(&pag->pag_state_lock);
+		INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
+		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
+		init_waitqueue_head(&pag->pagb_wait);
+		pag->pagb_count = 0;
+		pag->pagb_tree = RB_ROOT;
+
+		error = xfs_buf_hash_init(pag);
+		if (error)
+			goto out_remove_pag;
+
 		error = xfs_iunlink_init(pag);
 		if (error)
 			goto out_hash_destroy;
-		spin_lock_init(&pag->pag_state_lock);
+
+		/* first new pag is fully initialized */
+		if (first_initialised == NULLAGNUMBER)
+			first_initialised = index;
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -248,6 +254,8 @@ xfs_initialize_perag(
 
 out_hash_destroy:
 	xfs_buf_hash_destroy(pag);
+out_remove_pag:
+	radix_tree_delete(&mp->m_perag_tree, index);
 out_free_pag:
 	kmem_free(pag);
 out_unwind_new_pags:
