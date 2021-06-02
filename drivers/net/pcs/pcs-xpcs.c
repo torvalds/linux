@@ -12,10 +12,7 @@
 #include <linux/phylink.h>
 #include <linux/workqueue.h>
 
-#define SYNOPSYS_XPCS_USXGMII_ID	0x7996ced0
-#define SYNOPSYS_XPCS_10GKR_ID		0x7996ced0
-#define SYNOPSYS_XPCS_XLGMII_ID		0x7996ced0
-#define SYNOPSYS_XPCS_SGMII_ID		0x7996ced0
+#define SYNOPSYS_XPCS_ID		0x7996ced0
 #define SYNOPSYS_XPCS_MASK		0xffffffff
 
 /* Vendor regs access */
@@ -163,56 +160,39 @@ static const int xpcs_sgmii_features[] = {
 
 static const phy_interface_t xpcs_usxgmii_interfaces[] = {
 	PHY_INTERFACE_MODE_USXGMII,
-	PHY_INTERFACE_MODE_MAX,
 };
 
 static const phy_interface_t xpcs_10gkr_interfaces[] = {
 	PHY_INTERFACE_MODE_10GKR,
-	PHY_INTERFACE_MODE_MAX,
 };
 
 static const phy_interface_t xpcs_xlgmii_interfaces[] = {
 	PHY_INTERFACE_MODE_XLGMII,
-	PHY_INTERFACE_MODE_MAX,
 };
 
 static const phy_interface_t xpcs_sgmii_interfaces[] = {
 	PHY_INTERFACE_MODE_SGMII,
-	PHY_INTERFACE_MODE_MAX,
 };
 
-static struct xpcs_id {
-	u32 id;
-	u32 mask;
+enum {
+	DW_XPCS_USXGMII,
+	DW_XPCS_10GKR,
+	DW_XPCS_XLGMII,
+	DW_XPCS_SGMII,
+	DW_XPCS_INTERFACE_MAX,
+};
+
+struct xpcs_compat {
 	const int *supported;
 	const phy_interface_t *interface;
+	int num_interfaces;
 	int an_mode;
-} xpcs_id_list[] = {
-	{
-		.id = SYNOPSYS_XPCS_USXGMII_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
-		.supported = xpcs_usxgmii_features,
-		.interface = xpcs_usxgmii_interfaces,
-		.an_mode = DW_AN_C73,
-	}, {
-		.id = SYNOPSYS_XPCS_10GKR_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
-		.supported = xpcs_10gkr_features,
-		.interface = xpcs_10gkr_interfaces,
-		.an_mode = DW_AN_C73,
-	}, {
-		.id = SYNOPSYS_XPCS_XLGMII_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
-		.supported = xpcs_xlgmii_features,
-		.interface = xpcs_xlgmii_interfaces,
-		.an_mode = DW_AN_C73,
-	}, {
-		.id = SYNOPSYS_XPCS_SGMII_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
-		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.an_mode = DW_AN_C37_SGMII,
-	},
+};
+
+struct xpcs_id {
+	u32 id;
+	u32 mask;
+	const struct xpcs_compat *compat;
 };
 
 static int xpcs_read(struct mdio_xpcs_args *xpcs, int dev, u32 reg)
@@ -911,35 +891,82 @@ static u32 xpcs_get_id(struct mdio_xpcs_args *xpcs)
 }
 
 static bool xpcs_check_features(struct mdio_xpcs_args *xpcs,
-				struct xpcs_id *match,
+				const struct xpcs_id *match,
 				phy_interface_t interface)
 {
-	int i;
+	int i, j;
 
-	for (i = 0; match->interface[i] != PHY_INTERFACE_MODE_MAX; i++) {
-		if (match->interface[i] == interface)
-			break;
+	for (i = 0; i < DW_XPCS_INTERFACE_MAX; i++) {
+		const struct xpcs_compat *compat = &match->compat[i];
+		bool supports_interface = false;
+
+		for (j = 0; j < compat->num_interfaces; j++) {
+			if (compat->interface[j] == interface) {
+				supports_interface = true;
+				break;
+			}
+		}
+
+		if (!supports_interface)
+			continue;
+
+		/* Populate the supported link modes for this
+		 * PHY interface type
+		 */
+		for (j = 0; compat->supported[j] != __ETHTOOL_LINK_MODE_MASK_NBITS; j++)
+			set_bit(compat->supported[j], xpcs->supported);
+
+		xpcs->an_mode = compat->an_mode;
+
+		return true;
 	}
 
-	if (match->interface[i] == PHY_INTERFACE_MODE_MAX)
-		return false;
-
-	for (i = 0; match->supported[i] != __ETHTOOL_LINK_MODE_MASK_NBITS; i++)
-		set_bit(match->supported[i], xpcs->supported);
-
-	xpcs->an_mode = match->an_mode;
-
-	return true;
+	return false;
 }
+
+static const struct xpcs_compat synopsys_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
+	[DW_XPCS_USXGMII] = {
+		.supported = xpcs_usxgmii_features,
+		.interface = xpcs_usxgmii_interfaces,
+		.num_interfaces = ARRAY_SIZE(xpcs_usxgmii_interfaces),
+		.an_mode = DW_AN_C73,
+	},
+	[DW_XPCS_10GKR] = {
+		.supported = xpcs_10gkr_features,
+		.interface = xpcs_10gkr_interfaces,
+		.num_interfaces = ARRAY_SIZE(xpcs_10gkr_interfaces),
+		.an_mode = DW_AN_C73,
+	},
+	[DW_XPCS_XLGMII] = {
+		.supported = xpcs_xlgmii_features,
+		.interface = xpcs_xlgmii_interfaces,
+		.num_interfaces = ARRAY_SIZE(xpcs_xlgmii_interfaces),
+		.an_mode = DW_AN_C73,
+	},
+	[DW_XPCS_SGMII] = {
+		.supported = xpcs_sgmii_features,
+		.interface = xpcs_sgmii_interfaces,
+		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
+		.an_mode = DW_AN_C37_SGMII,
+	},
+};
+
+static const struct xpcs_id xpcs_id_list[] = {
+	{
+		.id = SYNOPSYS_XPCS_ID,
+		.mask = SYNOPSYS_XPCS_MASK,
+		.compat = synopsys_xpcs_compat,
+	},
+};
 
 static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 {
+	const struct xpcs_id *match = NULL;
 	u32 xpcs_id = xpcs_get_id(xpcs);
-	struct xpcs_id *match = NULL;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(xpcs_id_list); i++) {
-		struct xpcs_id *entry = &xpcs_id_list[i];
+		const struct xpcs_id *entry = &xpcs_id_list[i];
 
 		if ((xpcs_id & entry->mask) == entry->id) {
 			match = entry;
