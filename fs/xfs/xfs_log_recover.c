@@ -2742,21 +2742,17 @@ STATIC void
 xlog_recover_process_iunlinks(
 	struct xlog	*log)
 {
-	xfs_mount_t	*mp;
-	xfs_agnumber_t	agno;
-	xfs_agi_t	*agi;
-	struct xfs_buf	*agibp;
-	xfs_agino_t	agino;
-	int		bucket;
-	int		error;
+	struct xfs_mount	*mp = log->l_mp;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno;
+	struct xfs_agi		*agi;
+	struct xfs_buf		*agibp;
+	xfs_agino_t		agino;
+	int			bucket;
+	int			error;
 
-	mp = log->l_mp;
-
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		/*
-		 * Find the agi for this ag.
-		 */
-		error = xfs_read_agi(mp, NULL, agno, &agibp);
+	for_each_perag(mp, agno, pag) {
+		error = xfs_read_agi(mp, NULL, pag->pag_agno, &agibp);
 		if (error) {
 			/*
 			 * AGI is b0rked. Don't process it.
@@ -2782,7 +2778,7 @@ xlog_recover_process_iunlinks(
 			agino = be32_to_cpu(agi->agi_unlinked[bucket]);
 			while (agino != NULLAGINO) {
 				agino = xlog_recover_process_one_iunlink(mp,
-							agno, agino, bucket);
+						pag->pag_agno, agino, bucket);
 				cond_resched();
 			}
 		}
@@ -3494,27 +3490,28 @@ xlog_recover_cancel(
  */
 STATIC void
 xlog_recover_check_summary(
-	struct xlog	*log)
+	struct xlog		*log)
 {
-	xfs_mount_t	*mp;
-	struct xfs_buf	*agfbp;
-	struct xfs_buf	*agibp;
-	xfs_agnumber_t	agno;
-	uint64_t	freeblks;
-	uint64_t	itotal;
-	uint64_t	ifree;
-	int		error;
+	struct xfs_mount	*mp = log->l_mp;
+	struct xfs_perag	*pag;
+	struct xfs_buf		*agfbp;
+	struct xfs_buf		*agibp;
+	xfs_agnumber_t		agno;
+	uint64_t		freeblks;
+	uint64_t		itotal;
+	uint64_t		ifree;
+	int			error;
 
 	mp = log->l_mp;
 
 	freeblks = 0LL;
 	itotal = 0LL;
 	ifree = 0LL;
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		error = xfs_read_agf(mp, NULL, agno, 0, &agfbp);
+	for_each_perag(mp, agno, pag) {
+		error = xfs_read_agf(mp, NULL, pag->pag_agno, 0, &agfbp);
 		if (error) {
 			xfs_alert(mp, "%s agf read failed agno %d error %d",
-						__func__, agno, error);
+						__func__, pag->pag_agno, error);
 		} else {
 			struct xfs_agf	*agfp = agfbp->b_addr;
 
@@ -3523,10 +3520,10 @@ xlog_recover_check_summary(
 			xfs_buf_relse(agfbp);
 		}
 
-		error = xfs_read_agi(mp, NULL, agno, &agibp);
+		error = xfs_read_agi(mp, NULL, pag->pag_agno, &agibp);
 		if (error) {
 			xfs_alert(mp, "%s agi read failed agno %d error %d",
-						__func__, agno, error);
+						__func__, pag->pag_agno, error);
 		} else {
 			struct xfs_agi	*agi = agibp->b_addr;
 

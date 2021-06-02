@@ -22,6 +22,7 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "xfs_ag.h"
 
 /* Set us up with an inode's bmap. */
 int
@@ -575,6 +576,7 @@ xchk_bmap_check_rmaps(
 	int			whichfork)
 {
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, whichfork);
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	bool			zero_size;
 	int			error;
@@ -607,15 +609,16 @@ xchk_bmap_check_rmaps(
 	    (zero_size || ifp->if_nextents > 0))
 		return 0;
 
-	for (agno = 0; agno < sc->mp->m_sb.sb_agcount; agno++) {
-		error = xchk_bmap_check_ag_rmaps(sc, whichfork, agno);
+	for_each_perag(sc->mp, agno, pag) {
+		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag->pag_agno);
 		if (error)
-			return error;
+			break;
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			break;
 	}
-
-	return 0;
+	if (pag)
+		xfs_perag_put(pag);
+	return error;
 }
 
 /*
