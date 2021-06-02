@@ -195,7 +195,7 @@ struct svc_i3c_master {
 };
 
 /**
- * struct svc_i3c_i3c_dev_data - Device specific data
+ * struct svc_i3c_i2c_dev_data - Device specific data
  * @index: Index in the master tables corresponding to this device
  * @ibi: IBI slot index in the master structure
  * @ibi_pool: IBI pool associated to this device
