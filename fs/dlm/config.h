@@ -23,6 +23,9 @@ struct dlm_config_node {
 
 #define DLM_MAX_ADDR_COUNT 3
 
+#define DLM_PROTO_TCP	0
+#define DLM_PROTO_SCTP	1
+
 struct dlm_config_info {
 	int ci_tcp_port;
 	int ci_buffer_size;

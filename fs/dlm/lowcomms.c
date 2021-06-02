@@ -208,12 +208,18 @@ static int dlm_con_init(struct connection *con, int nodeid)
 	INIT_WORK(&con->rwork, process_recv_sockets);
 	init_waitqueue_head(&con->shutdown_wait);
 
-	if (dlm_config.ci_protocol == 0) {
+	switch (dlm_config.ci_protocol) {
+	case DLM_PROTO_TCP:
 		con->connect_action = tcp_connect_to_sock;
 		con->shutdown_action = dlm_tcp_shutdown;
 		con->eof_condition = tcp_eof_condition;
-	} else {
+		break;
+	case DLM_PROTO_SCTP:
 		con->connect_action = sctp_connect_to_sock;
+		break;
+	default:
+		kfree(con->rx_buf);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1968,10 +1974,19 @@ int dlm_lowcomms_start(void)
 	dlm_allow_conn = 1;
 
 	/* Start listening */
-	if (dlm_config.ci_protocol == 0)
+	switch (dlm_config.ci_protocol) {
+	case DLM_PROTO_TCP:
 		error = tcp_listen_for_all();
-	else
+		break;
+	case DLM_PROTO_SCTP:
 		error = sctp_listen_for_all(&listen_con);
+		break;
+	default:
+		log_print("Invalid protocol identifier %d set",
+			  dlm_config.ci_protocol);
+		error = -EINVAL;
+		break;
+	}
 	if (error)
 		goto fail_unlisten;
 
