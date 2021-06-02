@@ -37,6 +37,7 @@
 #include "qed_sriov.h"
 #include "qed_vf.h"
 #include "qed_rdma.h"
+#include "qed_nvmetcp.h"
 
 static DEFINE_SPINLOCK(qm_lock);
 
@@ -667,7 +668,8 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	/* Storage PF is bound to a single engine while L2 PF uses both */
-	if (QED_IS_FCOE_PERSONALITY(p_hwfn) || QED_IS_ISCSI_PERSONALITY(p_hwfn))
+	if (QED_IS_FCOE_PERSONALITY(p_hwfn) || QED_IS_ISCSI_PERSONALITY(p_hwfn) ||
+	    QED_IS_NVMETCP_PERSONALITY(p_hwfn))
 		eng = cdev->fir_affin ? QED_ENG1 : QED_ENG0;
 	else			/* L2_PERSONALITY */
 		eng = QED_BOTH_ENG;
@@ -1164,6 +1166,9 @@ void qed_llh_remove_mac_filter(struct qed_dev *cdev,
 	if (!test_bit(QED_MF_LLH_MAC_CLSS, &cdev->mf_bits))
 		goto out;
 
+	if (QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		return;
+
 	ether_addr_copy(filter.mac.addr, mac_addr);
 	rc = qed_llh_shadow_remove_filter(cdev, ppfid, &filter, &filter_idx,
 					  &ref_cnt);
@@ -1381,6 +1386,11 @@ void qed_resc_free(struct qed_dev *cdev)
 			qed_ooo_free(p_hwfn);
 		}
 
+		if (p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
+			qed_nvmetcp_free(p_hwfn);
+			qed_ooo_free(p_hwfn);
+		}
+
 		if (QED_IS_RDMA_PERSONALITY(p_hwfn) && rdma_info) {
 			qed_spq_unregister_async_cb(p_hwfn, rdma_info->proto);
 			qed_rdma_info_free(p_hwfn);
@@ -1423,6 +1433,7 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 		flags |= PQ_FLAGS_OFLD;
 		break;
 	case QED_PCI_ISCSI:
+	case QED_PCI_NVMETCP:
 		flags |= PQ_FLAGS_ACK | PQ_FLAGS_OOO | PQ_FLAGS_OFLD;
 		break;
 	case QED_PCI_ETH_ROCE:
@@ -2263,7 +2274,8 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			 * at the same time
 			 */
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB + n_srq;
-		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI ||
+			   p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
 			num_cons =
 			    qed_cxt_get_proto_cid_count(p_hwfn,
 							PROTOCOLID_TCP_ULP,
@@ -2306,6 +2318,15 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			rc = qed_iscsi_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+			rc = qed_ooo_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+		}
+
+		if (p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
+			rc = qed_nvmetcp_alloc(p_hwfn);
 			if (rc)
 				goto alloc_err;
 			rc = qed_ooo_alloc(p_hwfn);
@@ -2391,6 +2412,11 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			qed_iscsi_setup(p_hwfn);
+			qed_ooo_setup(p_hwfn);
+		}
+
+		if (p_hwfn->hw_info.personality == QED_PCI_NVMETCP) {
+			qed_nvmetcp_setup(p_hwfn);
 			qed_ooo_setup(p_hwfn);
 		}
 	}
@@ -2854,7 +2880,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Protocol Configuration */
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
-		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
+		     ((p_hwfn->hw_info.personality == QED_PCI_ISCSI) ||
+			 (p_hwfn->hw_info.personality == QED_PCI_NVMETCP)) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET,
 		     (p_hwfn->hw_info.personality == QED_PCI_FCOE) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
@@ -3535,14 +3562,21 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		feat_num[QED_ISCSI_CQ] = min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
+
+	if (QED_IS_NVMETCP_PERSONALITY(p_hwfn))
+		feat_num[QED_NVMETCP_CQ] = min_t(u32, sb_cnt.cnt,
+						 RESC_NUM(p_hwfn,
+							  QED_CMDQS_CQS));
+
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
-		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d FCOE_CQ=%d ISCSI_CQ=%d #SBS=%d\n",
+		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d FCOE_CQ=%d ISCSI_CQ=%d NVMETCP_CQ=%d #SBS=%d\n",
 		   (int)FEAT_NUM(p_hwfn, QED_PF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_VF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_RDMA_CNQ),
 		   (int)FEAT_NUM(p_hwfn, QED_FCOE_CQ),
 		   (int)FEAT_NUM(p_hwfn, QED_ISCSI_CQ),
+		   (int)FEAT_NUM(p_hwfn, QED_NVMETCP_CQ),
 		   (int)sb_cnt.cnt);
 }
 
@@ -3734,7 +3768,8 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 		break;
 	case QED_BDQ:
 		if (p_hwfn->hw_info.personality != QED_PCI_ISCSI &&
-		    p_hwfn->hw_info.personality != QED_PCI_FCOE)
+		    p_hwfn->hw_info.personality != QED_PCI_FCOE &&
+			p_hwfn->hw_info.personality != QED_PCI_NVMETCP)
 			*p_resc_num = 0;
 		else
 			*p_resc_num = 1;
@@ -3755,7 +3790,8 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 			*p_resc_start = 0;
 		else if (p_hwfn->cdev->num_ports_in_engine == 4)
 			*p_resc_start = p_hwfn->port_id;
-		else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
+		else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI ||
+			 p_hwfn->hw_info.personality == QED_PCI_NVMETCP)
 			*p_resc_start = p_hwfn->port_id;
 		else if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
 			*p_resc_start = p_hwfn->port_id + 2;

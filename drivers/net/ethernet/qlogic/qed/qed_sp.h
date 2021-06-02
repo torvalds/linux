@@ -100,6 +100,8 @@ union ramrod_data {
 	struct iscsi_spe_conn_mac_update iscsi_conn_mac_update;
 	struct iscsi_spe_conn_termination iscsi_conn_terminate;
 
+	struct nvmetcp_init_ramrod_params nvmetcp_init;
+
 	struct vf_start_ramrod_data vf_start;
 	struct vf_stop_ramrod_data vf_stop;
 };
