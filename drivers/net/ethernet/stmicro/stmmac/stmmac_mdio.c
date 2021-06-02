@@ -521,7 +521,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		for (addr = 0; addr < max_addr; addr++) {
 			xpcs->addr = addr;
 
-			ret = stmmac_xpcs_probe(priv, xpcs, mode);
+			ret = xpcs_probe(xpcs, mode);
 			if (!ret) {
 				found = 1;
 				break;

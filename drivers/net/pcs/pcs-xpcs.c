@@ -1005,7 +1005,7 @@ static const struct xpcs_id xpcs_id_list[] = {
 	},
 };
 
-static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
+int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 {
 	u32 xpcs_id = xpcs_get_id(xpcs);
 	int i;
@@ -1028,12 +1028,12 @@ static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(xpcs_probe);
 
 static struct mdio_xpcs_ops xpcs_ops = {
 	.config = xpcs_config,
 	.get_state = xpcs_get_state,
 	.link_up = xpcs_link_up,
-	.probe = xpcs_probe,
 };
 
 struct mdio_xpcs_ops *mdio_xpcs_get_ops(void)

@@ -29,7 +29,6 @@ struct mdio_xpcs_ops {
 			 struct phylink_link_state *state);
 	int (*link_up)(struct mdio_xpcs_args *xpcs, int speed,
 		       phy_interface_t interface);
-	int (*probe)(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
 };
 
 int xpcs_get_an_mode(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
@@ -38,5 +37,6 @@ void xpcs_validate(struct mdio_xpcs_args *xpcs, unsigned long *supported,
 		   struct phylink_link_state *state);
 int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
 		    int enable);
+int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
 
 #endif /* __LINUX_PCS_XPCS_H */
