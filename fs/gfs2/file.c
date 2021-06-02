@@ -540,11 +540,9 @@ static vm_fault_t gfs2_fault(struct vm_fault *vmf)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	vm_fault_t ret;
-	u16 state;
 	int err;
 
-	state = (vmf->flags & FAULT_FLAG_WRITE) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	gfs2_holder_init(ip->i_gl, state, 0, &gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
 	err = gfs2_glock_nq(&gh);
 	if (err) {
 		ret = block_page_mkwrite_return(err);
