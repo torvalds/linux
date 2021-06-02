@@ -500,7 +500,7 @@ xchk_ag_btcur_init(
 	if (sa->agf_bp && xfs_sb_version_hasreflink(&mp->m_sb) &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
-				sa->agf_bp, agno, sa->pag);
+				sa->agf_bp, sa->pag);
 	}
 }
 

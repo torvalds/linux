@@ -210,8 +210,7 @@ xfs_getfsmap_is_shared(
 
 	/* Are there any shared blocks here? */
 	flen = 0;
-	cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp,
-			info->pag->pag_agno, info->pag);
+	cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp, info->pag);
 
 	error = xfs_refcount_find_shared(cur, rec->rm_startblock,
 			rec->rm_blockcount, &fbno, &flen, false);

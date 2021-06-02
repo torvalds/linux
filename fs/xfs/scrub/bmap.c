@@ -545,18 +545,18 @@ STATIC int
 xchk_bmap_check_ag_rmaps(
 	struct xfs_scrub		*sc,
 	int				whichfork,
-	xfs_agnumber_t			agno)
+	struct xfs_perag		*pag)
 {
 	struct xchk_bmap_check_rmap_info	sbcri;
 	struct xfs_btree_cur		*cur;
 	struct xfs_buf			*agf;
 	int				error;
 
-	error = xfs_alloc_read_agf(sc->mp, sc->tp, agno, 0, &agf);
+	error = xfs_alloc_read_agf(sc->mp, sc->tp, pag->pag_agno, 0, &agf);
 	if (error)
 		return error;
 
-	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, sc->sa.pag);
+	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf, pag);
 
 	sbcri.sc = sc;
 	sbcri.whichfork = whichfork;
@@ -610,7 +610,7 @@ xchk_bmap_check_rmaps(
 		return 0;
 
 	for_each_perag(sc->mp, agno, pag) {
-		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag->pag_agno);
+		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag);
 		if (error)
 			break;
 		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)

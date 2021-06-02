@@ -144,7 +144,7 @@ xfs_reflink_find_shared(
 	if (error)
 		return error;
 
-	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno, NULL);
+	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agbp->b_pag);
 
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);
@@ -763,7 +763,7 @@ xfs_reflink_recover_cow(
 		return 0;
 
 	for_each_perag(mp, agno, pag) {
-		error = xfs_refcount_recover_cow_leftovers(mp, pag->pag_agno);
+		error = xfs_refcount_recover_cow_leftovers(mp, pag);
 		if (error) {
 			xfs_perag_put(pag);
 			break;

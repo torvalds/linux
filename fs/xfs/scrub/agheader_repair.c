@@ -282,7 +282,7 @@ xrep_agf_calc_from_btrees(
 	/* Update the AGF counters from the refcountbt. */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 		cur = xfs_refcountbt_init_cursor(mp, sc->tp, agf_bp,
-				sc->sa.agno, sc->sa.pag);
+				sc->sa.pag);
 		error = xfs_btree_count_blocks(cur, &blocks);
 		if (error)
 			goto err;
