@@ -27,6 +27,9 @@ static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 				   unsigned int num_vfs)
 {
+	struct nsim_dev *nsim_dev;
+	int err = 0;
+
 	if (nsim_bus_dev->max_vfs < num_vfs)
 		return -ENOMEM;
 
@@ -34,12 +37,24 @@ static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 		return -ENOMEM;
 	nsim_bus_dev->num_vfs = num_vfs;
 
-	return 0;
+	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
+	if (nsim_esw_mode_is_switchdev(nsim_dev)) {
+		err = nsim_esw_switchdev_enable(nsim_dev, NULL);
+		if (err)
+			nsim_bus_dev->num_vfs = 0;
+	}
+
+	return err;
 }
 
 void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev)
 {
+	struct nsim_dev *nsim_dev;
+
 	nsim_bus_dev->num_vfs = 0;
+	nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
+	if (nsim_esw_mode_is_switchdev(nsim_dev))
+		nsim_esw_legacy_enable(nsim_dev, NULL);
 }
 
 static ssize_t

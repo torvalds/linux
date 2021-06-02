@@ -439,6 +439,72 @@ static void nsim_dev_dummy_region_exit(struct nsim_dev *nsim_dev)
 	devlink_region_destroy(nsim_dev->dummy_region);
 }
 
+static void __nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port);
+int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack)
+{
+	struct nsim_dev_port *nsim_dev_port, *tmp;
+
+	mutex_lock(&nsim_dev->port_list_lock);
+	list_for_each_entry_safe(nsim_dev_port, tmp, &nsim_dev->port_list, list)
+		if (nsim_dev_port_is_vf(nsim_dev_port))
+			__nsim_dev_port_del(nsim_dev_port);
+	mutex_unlock(&nsim_dev->port_list_lock);
+	nsim_dev->esw_mode = DEVLINK_ESWITCH_MODE_LEGACY;
+	return 0;
+}
+
+int nsim_esw_switchdev_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack)
+{
+	struct nsim_bus_dev *nsim_bus_dev = nsim_dev->nsim_bus_dev;
+	int i, err;
+
+	for (i = 0; i < nsim_bus_dev->num_vfs; i++) {
+		err = nsim_dev_port_add(nsim_bus_dev, NSIM_DEV_PORT_TYPE_VF, i);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to initialize VFs' netdevsim ports");
+			pr_err("Failed to initialize VF id=%d. %d.\n", i, err);
+			goto err_port_add_vfs;
+		}
+	}
+	nsim_dev->esw_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
+	return 0;
+
+err_port_add_vfs:
+	for (i--; i >= 0; i--)
+		nsim_dev_port_del(nsim_bus_dev, NSIM_DEV_PORT_TYPE_VF, i);
+	return err;
+}
+
+static int nsim_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
+					 struct netlink_ext_ack *extack)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+	int err = 0;
+
+	mutex_lock(&nsim_dev->nsim_bus_dev->vfs_lock);
+	if (mode == nsim_dev->esw_mode)
+		goto unlock;
+
+	if (mode == DEVLINK_ESWITCH_MODE_LEGACY)
+		err = nsim_esw_legacy_enable(nsim_dev, extack);
+	else if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		err = nsim_esw_switchdev_enable(nsim_dev, extack);
+	else
+		err = -EINVAL;
+
+unlock:
+	mutex_unlock(&nsim_dev->nsim_bus_dev->vfs_lock);
+	return err;
+}
+
+static int nsim_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+
+	*mode = nsim_dev->esw_mode;
+	return 0;
+}
+
 struct nsim_trap_item {
 	void *trap_ctx;
 	enum devlink_trap_action action;
@@ -925,6 +991,8 @@ nsim_dev_devlink_trap_policer_counter_get(struct devlink *devlink,
 }
 
 static const struct devlink_ops nsim_dev_devlink_ops = {
+	.eswitch_mode_set = nsim_devlink_eswitch_mode_set,
+	.eswitch_mode_get = nsim_devlink_eswitch_mode_get,
 	.supported_flash_update_params = DEVLINK_SUPPORT_FLASH_UPDATE_COMPONENT |
 					 DEVLINK_SUPPORT_FLASH_UPDATE_OVERWRITE_MASK,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
@@ -1177,6 +1245,7 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 
 	devlink_params_publish(devlink);
 	devlink_reload_enable(devlink);
+	nsim_dev->esw_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 	return 0;
 
 err_psample_exit:
