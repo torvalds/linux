@@ -2127,8 +2127,7 @@ static void mpi3mr_map_eedp_error(struct scsi_cmnd *scmd,
 
 	mpi3mr_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 	    0x10, ascq);
-	scmd->result = DRIVER_SENSE << 24 | (DID_ABORT << 16) |
-	    SAM_STAT_CHECK_CONDITION;
+	scmd->result = (DID_ABORT << 16) | SAM_STAT_CHECK_CONDITION;
 }
 
 /**
@@ -3354,8 +3353,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		    "%s: cdb received with invalid param_len: %d\n",
 		    __func__, param_len);
 		scsi_print_command(scmd);
-		scmd->result = (DRIVER_SENSE << 24) |
-		    SAM_STAT_CHECK_CONDITION;
+		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x1A, 0);
 		scmd->scsi_done(scmd);
@@ -3366,8 +3364,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		    "%s: cdb received with param_len: %d bufflen: %d\n",
 		    __func__, param_len, scsi_bufflen(scmd));
 		scsi_print_command(scmd);
-		scmd->result = (DRIVER_SENSE << 24) |
-		    SAM_STAT_CHECK_CONDITION;
+		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x1A, 0);
 		scmd->scsi_done(scmd);
@@ -3376,8 +3373,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 	buf = kzalloc(scsi_bufflen(scmd), GFP_ATOMIC);
 	if (!buf) {
 		scsi_print_command(scmd);
-		scmd->result = (DRIVER_SENSE << 24) |
-		    SAM_STAT_CHECK_CONDITION;
+		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x55, 0x03);
 		scmd->scsi_done(scmd);
@@ -3391,8 +3387,7 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 		    "%s: Invalid descriptor length in param list: %d\n",
 		    __func__, desc_len);
 		scsi_print_command(scmd);
-		scmd->result = (DRIVER_SENSE << 24) |
-		    SAM_STAT_CHECK_CONDITION;
+		scmd->result = SAM_STAT_CHECK_CONDITION;
 		scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST,
 		    0x26, 0);
 		scmd->scsi_done(scmd);

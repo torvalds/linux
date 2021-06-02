@@ -62,6 +62,21 @@ static inline int scsi_is_wlun(u64 lun)
 	return (lun & 0xff00) == SCSI_W_LUN_BASE;
 }
 
+/**
+ * scsi_status_is_check_condition - check the status return.
+ *
+ * @status: the status passed up from the driver (including host and
+ *          driver components)
+ *
+ * This returns true if the status code is SAM_STAT_CHECK_CONDITION.
+ */
+static inline int scsi_status_is_check_condition(int status)
+{
+	if (status < 0)
+		return false;
+	status &= 0xfe;
+	return status == SAM_STAT_CHECK_CONDITION;
+}
 
 /*
  *  MESSAGE CODES
@@ -138,20 +153,6 @@ static inline int scsi_is_wlun(u64 lun)
 #define DRIVER_OK       0x00	/* Driver status                           */
 
 /*
- *  These indicate the error that occurred, and what is available.
- */
-
-#define DRIVER_BUSY         0x01
-#define DRIVER_SOFT         0x02
-#define DRIVER_MEDIA        0x03
-#define DRIVER_ERROR        0x04
-
-#define DRIVER_INVALID      0x05
-#define DRIVER_TIMEOUT      0x06
-#define DRIVER_HARD         0x07
-#define DRIVER_SENSE	    0x08
-
-/*
  * Internal return values.
  */
 enum scsi_disposition {
@@ -180,14 +181,10 @@ enum scsi_disposition {
  *  These are set by:
  *
  *      status byte = set from target device
- *      msg_byte    = return status from host adapter itself.
+ *      msg_byte    (unused)
  *      host_byte   = set by low-level driver to indicate status.
- *      driver_byte = set by mid-level.
  */
-#define status_byte(result) (((result) >> 1) & 0x7f)
-#define msg_byte(result)    (((result) >> 8) & 0xff)
 #define host_byte(result)   (((result) >> 16) & 0xff)
-#define driver_byte(result) (((result) >> 24) & 0xff)
 
 #define sense_class(sense)  (((sense) >> 4) & 0x7)
 #define sense_error(sense)  ((sense) & 0xf)
@@ -259,10 +256,13 @@ enum scsi_disposition {
  * This returns true for known good conditions that may be treated as
  * command completed normally
  */
-static inline int scsi_status_is_good(int status)
+static inline bool scsi_status_is_good(int status)
 {
+	if (status < 0)
+		return false;
+
 	if (host_byte(status) == DID_NO_CONNECT)
-		return 0;
+		return false;
 
 	/*
 	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
