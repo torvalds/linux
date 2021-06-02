@@ -244,7 +244,7 @@ output larger bayer frame for further YUV processing than "VIDEO" mode to get
 high quality images. Besides, "STILL" mode need XNR3 to do noise reduction,
 hence "STILL" mode will need more power and memory bandwidth than "VIDEO" mode.
 TNR will be enabled in "VIDEO" mode and bypassed by "STILL" mode. ImgU is
-running at “VIDEO” mode by default, the user can use v4l2 control
+running at "VIDEO" mode by default, the user can use v4l2 control
 V4L2_CID_INTEL_IPU3_MODE (currently defined in
 drivers/staging/media/ipu3/include/uapi/intel-ipu3.h) to query and set the
 running mode. For user, there is no difference for buffer queueing between the
