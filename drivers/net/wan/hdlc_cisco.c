@@ -92,10 +92,9 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 
 	skb = dev_alloc_skb(sizeof(struct hdlc_header) +
 			    sizeof(struct cisco_packet));
-	if (!skb) {
-		netdev_warn(dev, "Memory squeeze on %s()\n", __func__);
+	if (!skb)
 		return;
-	}
+
 	skb_reserve(skb, 4);
 	cisco_hard_header(skb, dev, CISCO_KEEPALIVE, NULL, NULL, 0);
 	data = (struct cisco_packet *)(skb->data + 4);
