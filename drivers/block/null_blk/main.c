@@ -1856,7 +1856,7 @@ static int null_add_dev(struct nullb_device *dev)
 			goto out_cleanup_tags;
 		nullb->disk = alloc_disk_node(1, nullb->dev->home_node);
 		if (!nullb->disk)
-			goto out_cleanup_disk;
+			goto out_cleanup_tags;
 		nullb->disk->queue = nullb->q;
 	} else if (dev->queue_mode == NULL_Q_BIO) {
 		rv = -ENOMEM;
