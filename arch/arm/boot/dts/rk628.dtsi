@@ -368,9 +368,12 @@
 			 <&rk628_cru CGU_CLK_HDMIRX_CEC>,
 			 <&rk628_cru CGU_SCLK_VOP>,
 			 <&rk628_cru CGU_CLK_RX_READ>,
-			 <&rk628_cru CGU_PCLK_CSI>;
+			 <&rk628_cru CGU_PCLK_CSI>,
+			 <&rk628_cru CGU_CLK_TESTOUT>;
 		clock-names = "hdmirx", "imodet", "hdmirx_aud", "hdmirx_cec",
-			      "vop", "rx_read", "csi0";
+			      "vop", "rx_read", "csi0", "i2s_mclk";
+		assigned-clocks = <&rk628_cru CGU_CLK_TESTOUT>;
+		assigned-clock-parents = <&rk628_cru CGU_CLK_HDMIRX_AUD>;
 		resets = <&rk628_cru RGU_HDMIRX>,
 			 <&rk628_cru RGU_HDMIRX_PON>,
 			 <&rk628_cru RGU_DECODER>,
@@ -382,7 +385,7 @@
 		phys = <&rk628_combrxphy>, <&rk628_combtxphy>;
 		phy-names = "combrxphy", "combtxphy";
 		pinctrl-names = "default";
-		pinctrl-0 = <&rk628_hpdm0_out_pins &rk628_ddcm0_rx_pins>;
+		pinctrl-0 = <&rk628_hpdm0_out_pins &rk628_ddcm0_rx_pins &rk628_i2sm0_pins &rk628_test_clkout_pins>;
 		status = "disabled";
 	};
 };
