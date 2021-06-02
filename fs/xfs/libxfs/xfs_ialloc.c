@@ -899,139 +899,6 @@ sparse_alloc:
 	return 0;
 }
 
-STATIC xfs_agnumber_t
-xfs_ialloc_next_ag(
-	xfs_mount_t	*mp)
-{
-	xfs_agnumber_t	agno;
-
-	spin_lock(&mp->m_agirotor_lock);
-	agno = mp->m_agirotor;
-	if (++mp->m_agirotor >= mp->m_maxagi)
-		mp->m_agirotor = 0;
-	spin_unlock(&mp->m_agirotor_lock);
-
-	return agno;
-}
-
-/*
- * Select an allocation group to look for a free inode in, based on the parent
- * inode and the mode.  Return the allocation group buffer.
- */
-STATIC xfs_agnumber_t
-xfs_ialloc_ag_select(
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_ino_t	parent,		/* parent directory inode number */
-	umode_t		mode)		/* bits set to indicate file type */
-{
-	xfs_agnumber_t	agcount;	/* number of ag's in the filesystem */
-	xfs_agnumber_t	agno;		/* current ag number */
-	int		flags;		/* alloc buffer locking flags */
-	xfs_extlen_t	ineed;		/* blocks needed for inode allocation */
-	xfs_extlen_t	longest = 0;	/* longest extent available */
-	xfs_mount_t	*mp;		/* mount point structure */
-	int		needspace;	/* file mode implies space allocated */
-	xfs_perag_t	*pag;		/* per allocation group data */
-	xfs_agnumber_t	pagno;		/* parent (starting) ag number */
-	int		error;
-
-	/*
-	 * Files of these types need at least one block if length > 0
-	 * (and they won't fit in the inode, but that's hard to figure out).
-	 */
-	needspace = S_ISDIR(mode) || S_ISREG(mode) || S_ISLNK(mode);
-	mp = tp->t_mountp;
-	agcount = mp->m_maxagi;
-	if (S_ISDIR(mode))
-		pagno = xfs_ialloc_next_ag(mp);
-	else {
-		pagno = XFS_INO_TO_AGNO(mp, parent);
-		if (pagno >= agcount)
-			pagno = 0;
-	}
-
-	ASSERT(pagno < agcount);
-
-	/*
-	 * Loop through allocation groups, looking for one with a little
-	 * free space in it.  Note we don't look for free inodes, exactly.
-	 * Instead, we include whether there is a need to allocate inodes
-	 * to mean that blocks must be allocated for them,
-	 * if none are currently free.
-	 */
-	agno = pagno;
-	flags = XFS_ALLOC_FLAG_TRYLOCK;
-	for (;;) {
-		pag = xfs_perag_get(mp, agno);
-		if (!pag->pagi_inodeok) {
-			xfs_ialloc_next_ag(mp);
-			goto nextag;
-		}
-
-		if (!pag->pagi_init) {
-			error = xfs_ialloc_pagi_init(mp, tp, agno);
-			if (error)
-				goto nextag;
-		}
-
-		if (pag->pagi_freecount) {
-			xfs_perag_put(pag);
-			return agno;
-		}
-
-		if (!pag->pagf_init) {
-			error = xfs_alloc_pagf_init(mp, tp, agno, flags);
-			if (error)
-				goto nextag;
-		}
-
-		/*
-		 * Check that there is enough free space for the file plus a
-		 * chunk of inodes if we need to allocate some. If this is the
-		 * first pass across the AGs, take into account the potential
-		 * space needed for alignment of inode chunks when checking the
-		 * longest contiguous free space in the AG - this prevents us
-		 * from getting ENOSPC because we have free space larger than
-		 * ialloc_blks but alignment constraints prevent us from using
-		 * it.
-		 *
-		 * If we can't find an AG with space for full alignment slack to
-		 * be taken into account, we must be near ENOSPC in all AGs.
-		 * Hence we don't include alignment for the second pass and so
-		 * if we fail allocation due to alignment issues then it is most
-		 * likely a real ENOSPC condition.
-		 */
-		ineed = M_IGEO(mp)->ialloc_min_blks;
-		if (flags && ineed > 1)
-			ineed += M_IGEO(mp)->cluster_align;
-		longest = pag->pagf_longest;
-		if (!longest)
-			longest = pag->pagf_flcount > 0;
-
-		if (pag->pagf_freeblks >= needspace + ineed &&
-		    longest >= ineed) {
-			xfs_perag_put(pag);
-			return agno;
-		}
-nextag:
-		xfs_perag_put(pag);
-		/*
-		 * No point in iterating over the rest, if we're shutting
-		 * down.
-		 */
-		if (XFS_FORCED_SHUTDOWN(mp))
-			return NULLAGNUMBER;
-		agno++;
-		if (agno >= agcount)
-			agno = 0;
-		if (agno == pagno) {
-			if (flags == 0)
-				return NULLAGNUMBER;
-			flags = 0;
-		}
-	}
-}
-
 /*
  * Try to retrieve the next record to the left/right from the current one.
  */
@@ -1708,6 +1575,21 @@ xfs_dialloc_roll(
 	return 0;
 }
 
+STATIC xfs_agnumber_t
+xfs_ialloc_next_ag(
+	xfs_mount_t	*mp)
+{
+	xfs_agnumber_t	agno;
+
+	spin_lock(&mp->m_agirotor_lock);
+	agno = mp->m_agirotor;
+	if (++mp->m_agirotor >= mp->m_maxagi)
+		mp->m_agirotor = 0;
+	spin_unlock(&mp->m_agirotor_lock);
+
+	return agno;
+}
+
 /*
  * Select and prepare an AG for inode allocation.
  *
@@ -1734,16 +1616,24 @@ xfs_dialloc_select_ag(
 	struct xfs_perag	*pag;
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	bool			okalloc = true;
+	int			needspace;
+	int			flags;
 
 	*IO_agbp = NULL;
 
 	/*
-	 * We do not have an agbp, so select an initial allocation
-	 * group for inode allocation.
+	 * Directories, symlinks, and regular files frequently allocate at least
+	 * one block, so factor that potential expansion when we examine whether
+	 * an AG has enough space for file creation.
 	 */
-	start_agno = xfs_ialloc_ag_select(*tpp, parent, mode);
-	if (start_agno == NULLAGNUMBER)
-		return -ENOSPC;
+	needspace = S_ISDIR(mode) || S_ISREG(mode) || S_ISLNK(mode);
+	if (S_ISDIR(mode))
+		start_agno = xfs_ialloc_next_ag(mp);
+	else {
+		start_agno = XFS_INO_TO_AGNO(mp, parent);
+		if (start_agno >= mp->m_maxagi)
+			start_agno = 0;
+	}
 
 	/*
 	 * If we have already hit the ceiling of inode blocks then clear
@@ -1765,12 +1655,14 @@ xfs_dialloc_select_ag(
 	 * allocation groups upward, wrapping at the end.
 	 */
 	agno = start_agno;
+	flags = XFS_ALLOC_FLAG_TRYLOCK;
 	for (;;) {
+		xfs_extlen_t	ineed;
+		xfs_extlen_t	longest = 0;
+
 		pag = xfs_perag_get(mp, agno);
-		if (!pag->pagi_inodeok) {
-			xfs_ialloc_next_ag(mp);
+		if (!pag->pagi_inodeok)
 			goto nextag;
-		}
 
 		if (!pag->pagi_init) {
 			error = xfs_ialloc_pagi_init(mp, *tpp, agno);
@@ -1778,11 +1670,43 @@ xfs_dialloc_select_ag(
 				break;
 		}
 
-		/*
-		 * Do a first racy fast path check if this AG is usable.
-		 */
 		if (!pag->pagi_freecount && !okalloc)
 			goto nextag;
+
+		if (!pag->pagf_init) {
+			error = xfs_alloc_pagf_init(mp, *tpp, agno, flags);
+			if (error)
+				goto nextag;
+		}
+
+		/*
+		 * Check that there is enough free space for the file plus a
+		 * chunk of inodes if we need to allocate some. If this is the
+		 * first pass across the AGs, take into account the potential
+		 * space needed for alignment of inode chunks when checking the
+		 * longest contiguous free space in the AG - this prevents us
+		 * from getting ENOSPC because we have free space larger than
+		 * ialloc_blks but alignment constraints prevent us from using
+		 * it.
+		 *
+		 * If we can't find an AG with space for full alignment slack to
+		 * be taken into account, we must be near ENOSPC in all AGs.
+		 * Hence we don't include alignment for the second pass and so
+		 * if we fail allocation due to alignment issues then it is most
+		 * likely a real ENOSPC condition.
+		 */
+		if (!pag->pagi_freecount) {
+			ineed = M_IGEO(mp)->ialloc_min_blks;
+			if (flags && ineed > 1)
+				ineed += M_IGEO(mp)->cluster_align;
+			longest = pag->pagf_longest;
+			if (!longest)
+				longest = pag->pagf_flcount > 0;
+
+			if (pag->pagf_freeblks < needspace + ineed ||
+			    longest < ineed)
+				goto nextag;
+		}
 
 		/*
 		 * Then read in the AGI buffer and recheck with the AGI buffer
@@ -1823,10 +1747,17 @@ xfs_dialloc_select_ag(
 nextag_relse_buffer:
 		xfs_trans_brelse(*tpp, agbp);
 nextag:
-		if (++agno == mp->m_sb.sb_agcount)
-			agno = 0;
-		if (agno == start_agno)
+		if (XFS_FORCED_SHUTDOWN(mp)) {
+			error = -EFSCORRUPTED;
 			break;
+		}
+		if (++agno == mp->m_maxagi)
+			agno = 0;
+		if (agno == start_agno) {
+			if (!flags)
+				break;
+			flags = 0;
+		}
 		xfs_perag_put(pag);
 	}
 
