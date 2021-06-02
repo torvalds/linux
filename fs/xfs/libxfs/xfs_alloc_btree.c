@@ -497,7 +497,6 @@ xfs_allocbt_init_common(
 	/* take a reference for the cursor */
 	atomic_inc(&pag->pag_ref);
 	cur->bc_ag.pag = pag;
-	cur->bc_ag.agno = pag->pag_agno;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;

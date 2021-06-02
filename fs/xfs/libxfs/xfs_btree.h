@@ -181,7 +181,6 @@ union xfs_btree_irec {
 
 /* Per-AG btree information. */
 struct xfs_btree_cur_ag {
-	xfs_agnumber_t		agno;
 	struct xfs_perag	*pag;
 	union {
 		struct xfs_buf		*agbp;
