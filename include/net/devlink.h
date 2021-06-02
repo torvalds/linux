@@ -139,6 +139,8 @@ struct devlink_rate {
 	enum devlink_rate_type type;
 	struct devlink *devlink;
 	void *priv;
+	u64 tx_share;
+	u64 tx_max;
 
 	struct devlink_port *devlink_port;
 };
@@ -1465,6 +1467,14 @@ struct devlink_ops {
 				 struct devlink_port *port,
 				 enum devlink_port_fn_state state,
 				 struct netlink_ext_ack *extack);
+
+	/**
+	 * Rate control callbacks.
+	 */
+	int (*rate_leaf_tx_share_set)(struct devlink_rate *devlink_rate, void *priv,
+				      u64 tx_share, struct netlink_ext_ack *extack);
+	int (*rate_leaf_tx_max_set)(struct devlink_rate *devlink_rate, void *priv,
+				    u64 tx_max, struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)

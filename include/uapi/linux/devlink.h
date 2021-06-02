@@ -545,6 +545,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_PORT_PCI_SF_NUMBER,	/* u32 */
 
 	DEVLINK_ATTR_RATE_TYPE,			/* u16 */
+	DEVLINK_ATTR_RATE_TX_SHARE,		/* u64 */
+	DEVLINK_ATTR_RATE_TX_MAX,		/* u64 */
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,
