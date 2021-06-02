@@ -617,6 +617,17 @@ bool ice_is_safe_mode(struct ice_pf *pf)
 }
 
 /**
+ * ice_is_aux_ena
+ * @pf: pointer to the PF struct
+ *
+ * returns true if AUX devices/drivers are supported, false otherwise
+ */
+bool ice_is_aux_ena(struct ice_pf *pf)
+{
+	return test_bit(ICE_FLAG_AUX_ENA, pf->flags);
+}
+
+/**
  * ice_vsi_clean_rss_flow_fld - Delete RSS configuration
  * @vsi: the VSI being cleaned up
  *

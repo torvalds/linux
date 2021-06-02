@@ -9130,6 +9130,15 @@ F:	Documentation/networking/device_drivers/ethernet/intel/
 F:	drivers/net/ethernet/intel/
 F:	drivers/net/ethernet/intel/*/
 F:	include/linux/avf/virtchnl.h
+F:	include/linux/net/intel/iidc.h
+
+INTEL ETHERNET PROTOCOL DRIVER FOR RDMA
+M:	Mustafa Ismail <mustafa.ismail@intel.com>
+M:	Shiraz Saleem <shiraz.saleem@intel.com>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+F:	drivers/infiniband/hw/irdma/
+F:	include/uapi/rdma/irdma-abi.h
 
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
 M:	Maik Broemme <mbroemme@libmpq.org>
@@ -9363,14 +9372,6 @@ M:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/cpufreq/intel_pstate.c
-
-INTEL RDMA RNIC DRIVER
-M:	Faisal Latif <faisal.latif@intel.com>
-M:	Shiraz Saleem <shiraz.saleem@intel.com>
-L:	linux-rdma@vger.kernel.org
-S:	Supported
-F:	drivers/infiniband/hw/i40iw/
-F:	include/uapi/rdma/i40iw-abi.h
 
 INTEL SCU DRIVERS
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
