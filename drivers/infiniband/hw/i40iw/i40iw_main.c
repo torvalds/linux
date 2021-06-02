@@ -1423,7 +1423,7 @@ static enum i40iw_status_code i40iw_save_msix_info(struct i40iw_device *iwdev,
 	struct i40e_qv_info *iw_qvinfo;
 	u32 ceq_idx;
 	u32 i;
-	u32 size;
+	size_t size;
 
 	if (!ldev->msix_count) {
 		i40iw_pr_err("No MSI-X vectors\n");
@@ -1433,8 +1433,7 @@ static enum i40iw_status_code i40iw_save_msix_info(struct i40iw_device *iwdev,
 	iwdev->msix_count = ldev->msix_count;
 
 	size = sizeof(struct i40iw_msix_vector) * iwdev->msix_count;
-	size += sizeof(struct i40e_qvlist_info);
-	size +=  sizeof(struct i40e_qv_info) * iwdev->msix_count - 1;
+	size += struct_size(iw_qvlist, qv_info, iwdev->msix_count);
 	iwdev->iw_msixtbl = kzalloc(size, GFP_KERNEL);
 
 	if (!iwdev->iw_msixtbl)
