@@ -27,9 +27,11 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/dma-buf-map.h>
 #include <linux/dma-fence.h>
 #include <drm/drm_print.h>
 #include <drm/ttm/ttm_caching.h>
+#include <drm/ttm/ttm_kmap_iter.h>
 
 #define TTM_MAX_BO_PRIORITY	4U
 
@@ -38,6 +40,10 @@ struct ttm_resource_manager;
 struct ttm_resource;
 struct ttm_place;
 struct ttm_buffer_object;
+struct dma_buf_map;
+struct io_mapping;
+struct sg_table;
+struct scatterlist;
 
 struct ttm_resource_manager_func {
 	/**
@@ -168,6 +174,45 @@ struct ttm_resource {
 };
 
 /**
+ * struct ttm_kmap_iter_iomap - Specialization for a struct io_mapping +
+ * struct sg_table backed struct ttm_resource.
+ * @base: Embedded struct ttm_kmap_iter providing the usage interface.
+ * @iomap: struct io_mapping representing the underlying linear io_memory.
+ * @st: sg_table into @iomap, representing the memory of the struct ttm_resource.
+ * @start: Offset that needs to be subtracted from @st to make
+ * sg_dma_address(st->sgl) - @start == 0 for @iomap start.
+ * @cache: Scatterlist traversal cache for fast lookups.
+ * @cache.sg: Pointer to the currently cached scatterlist segment.
+ * @cache.i: First index of @sg. PAGE_SIZE granularity.
+ * @cache.end: Last index + 1 of @sg. PAGE_SIZE granularity.
+ * @cache.offs: First offset into @iomap of @sg. PAGE_SIZE granularity.
+ */
+struct ttm_kmap_iter_iomap {
+	struct ttm_kmap_iter base;
+	struct io_mapping *iomap;
+	struct sg_table *st;
+	resource_size_t start;
+	struct {
+		struct scatterlist *sg;
+		pgoff_t i;
+		pgoff_t end;
+		pgoff_t offs;
+	} cache;
+};
+
+/**
+ * struct ttm_kmap_iter_linear_io - Iterator specialization for linear io
+ * @base: The base iterator
+ * @dmap: Points to the starting address of the region
+ * @needs_unmap: Whether we need to unmap on fini
+ */
+struct ttm_kmap_iter_linear_io {
+	struct ttm_kmap_iter base;
+	struct dma_buf_map dmap;
+	bool needs_unmap;
+};
+
+/**
  * ttm_resource_manager_set_used
  *
  * @man: A memory manager object.
@@ -231,4 +276,20 @@ int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 				struct drm_printer *p);
 
+struct ttm_kmap_iter *
+ttm_kmap_iter_iomap_init(struct ttm_kmap_iter_iomap *iter_io,
+			 struct io_mapping *iomap,
+			 struct sg_table *st,
+			 resource_size_t start);
+
+struct ttm_kmap_iter_linear_io;
+
+struct ttm_kmap_iter *
+ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
+			     struct ttm_device *bdev,
+			     struct ttm_resource *mem);
+
+void ttm_kmap_iter_linear_io_fini(struct ttm_kmap_iter_linear_io *iter_io,
+				  struct ttm_device *bdev,
+				  struct ttm_resource *mem);
 #endif

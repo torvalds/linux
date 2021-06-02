@@ -40,6 +40,7 @@
 #include <drm/ttm/ttm_device.h>
 
 #include "ttm_bo_api.h"
+#include "ttm_kmap_iter.h"
 #include "ttm_placement.h"
 #include "ttm_tt.h"
 #include "ttm_pool.h"
@@ -271,6 +272,23 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct ttm_resource *new_mem);
 
 /**
+ * ttm_bo_move_accel_cleanup.
+ *
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @new_mem: struct ttm_resource indicating where to move.
+ *
+ * Special case of ttm_bo_move_accel_cleanup where the bo is guaranteed
+ * by the caller to be idle. Typically used after memcpy buffer moves.
+ */
+static inline void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
+					    struct ttm_resource *new_mem)
+{
+	int ret = ttm_bo_move_accel_cleanup(bo, NULL, true, false, new_mem);
+
+	WARN_ON(ret);
+}
+
+/**
  * ttm_bo_pipeline_gutting.
  *
  * @bo: A pointer to a struct ttm_buffer_object.
@@ -304,4 +322,14 @@ int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem);
  */
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo);
 
+void ttm_move_memcpy(struct ttm_buffer_object *bo,
+		     u32 num_pages,
+		     struct ttm_kmap_iter *dst_iter,
+		     struct ttm_kmap_iter *src_iter);
+
+struct ttm_kmap_iter *
+ttm_kmap_iter_iomap_init(struct ttm_kmap_iter_iomap *iter_io,
+			 struct io_mapping *iomap,
+			 struct sg_table *st,
+			 resource_size_t start);
 #endif
