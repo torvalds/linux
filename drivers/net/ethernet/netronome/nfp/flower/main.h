@@ -193,6 +193,7 @@ struct nfp_fl_internal_ports {
  * @qos_stats_lock:	Lock on qos stats updates
  * @pre_tun_rule_cnt:	Number of pre-tunnel rules offloaded
  * @merge_table:	Hash table to store merged flows
+ * @ct_zone_table:	Hash table used to store the different zones
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -227,6 +228,7 @@ struct nfp_flower_priv {
 	spinlock_t qos_stats_lock; /* Protect the qos stats */
 	int pre_tun_rule_cnt;
 	struct rhashtable merge_table;
+	struct rhashtable ct_zone_table;
 };
 
 /**

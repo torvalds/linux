@@ -6,6 +6,23 @@
 
 #include "main.h"
 
+extern const struct rhashtable_params nfp_zone_table_params;
+
+/**
+ * struct nfp_fl_ct_zone_entry - Zone entry containing conntrack flow information
+ * @zone:	The zone number, used as lookup key in hashtable
+ * @hash_node:	Used by the hashtable
+ * @priv:	Pointer to nfp_flower_priv data
+ * @nft:	Pointer to nf_flowtable for this zone
+ */
+struct nfp_fl_ct_zone_entry {
+	u16 zone;
+	struct rhash_head hash_node;
+
+	struct nfp_flower_priv *priv;
+	struct nf_flowtable *nft;
+};
+
 bool is_pre_ct_flow(struct flow_cls_offload *flow);
 bool is_post_ct_flow(struct flow_cls_offload *flow);
 
