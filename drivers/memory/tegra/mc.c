@@ -316,13 +316,13 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 
 	/* write latency allowance defaults */
 	for (i = 0; i < mc->soc->num_clients; i++) {
-		const struct tegra_mc_la *la = &mc->soc->clients[i].la;
+		const struct tegra_mc_client *client = &mc->soc->clients[i];
 		u32 value;
 
-		value = mc_readl(mc, la->reg);
-		value &= ~(la->mask << la->shift);
-		value |= (la->def & la->mask) << la->shift;
-		mc_writel(mc, value, la->reg);
+		value = mc_readl(mc, client->regs.la.reg);
+		value &= ~(client->regs.la.mask << client->regs.la.shift);
+		value |= (client->regs.la.def & client->regs.la.mask) << client->regs.la.shift;
+		mc_writel(mc, value, client->regs.la.reg);
 	}
 
 	/* latch new values */

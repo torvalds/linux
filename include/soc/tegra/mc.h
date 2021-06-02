@@ -17,23 +17,10 @@ struct clk;
 struct device;
 struct page;
 
-struct tegra_smmu_enable {
-	unsigned int reg;
-	unsigned int bit;
-};
-
 struct tegra_mc_timing {
 	unsigned long rate;
 
 	u32 *emem_data;
-};
-
-/* latency allowance */
-struct tegra_mc_la {
-	unsigned int reg;
-	unsigned int shift;
-	unsigned int mask;
-	unsigned int def;
 };
 
 struct tegra_mc_client {
@@ -43,8 +30,21 @@ struct tegra_mc_client {
 
 	unsigned int fifo_size;
 
-	struct tegra_smmu_enable smmu;
-	struct tegra_mc_la la;
+	struct {
+		/* Tegra SMMU enable */
+		struct {
+			unsigned int reg;
+			unsigned int bit;
+		} smmu;
+
+		/* latency allowance */
+		struct {
+			unsigned int reg;
+			unsigned int shift;
+			unsigned int mask;
+			unsigned int def;
+		} la;
+	} regs;
 };
 
 struct tegra_smmu_swgroup {
