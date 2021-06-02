@@ -1325,10 +1325,8 @@ static int __init acpi_init(void)
 	}
 
 	acpi_kobj = kobject_create_and_add("acpi", firmware_kobj);
-	if (!acpi_kobj) {
+	if (!acpi_kobj)
 		pr_debug("%s: kset create error\n", __func__);
-		acpi_kobj = NULL;
-	}
 
 	result = acpi_bus_init();
 	if (result) {
