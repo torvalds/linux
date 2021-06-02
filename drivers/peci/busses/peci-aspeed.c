@@ -203,9 +203,6 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 	ret = aspeed_peci_check_idle(priv);
 	if (ret) {
 		dev_warn(priv->dev, "Check idle timeout!\n");
-		reset_control_assert(priv->rst);
-		reset_control_deassert(priv->rst);
-		aspeed_peci_init_ctrl(priv);
 		return ret;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
@@ -246,19 +243,23 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 
 	writel(0, priv->base + ASPEED_PECI_CMD);
 
-	if (err <= 0 || priv->status != ASPEED_PECI_INT_CMD_DONE) {
-		if (err < 0) { /* -ERESTARTSYS */
-			ret = (int)err;
-			goto err_irqrestore;
-		} else if (err == 0) {
-			dev_warn(priv->dev, "Xfer timeout!\n");
-			reset_control_assert(priv->rst);
-			reset_control_deassert(priv->rst);
-			aspeed_peci_init_ctrl(priv);
+	/*
+	 * If peci transfer doesn't complete, whether it is timeout or
+	 * system termination, we need to reset peci controller to avoid
+	 * peci fsm hang in an unstable state.
+	 */
+	if (err <= 0) {
+		reset_control_assert(priv->rst);
+		reset_control_deassert(priv->rst);
+		aspeed_peci_init_ctrl(priv);
+		if (err == 0) {
 			ret = -ETIMEDOUT;
 			goto err_irqrestore;
 		}
-
+		ret = (int)err; /* -ERESTARTSYS */
+		goto err_irqrestore;
+	}
+	if (priv->status != ASPEED_PECI_INT_CMD_DONE) {
 		if (priv->status & ASPEED_PECI_INT_W_FCS_ABORT) {
 			dev_err(priv->dev, "FCS Abort\n");
 			ret = -EOPNOTSUPP;
