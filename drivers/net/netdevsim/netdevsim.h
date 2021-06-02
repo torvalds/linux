@@ -211,6 +211,8 @@ struct nsim_dev_port {
 	unsigned int port_index;
 	enum nsim_dev_port_type port_type;
 	struct dentry *ddir;
+	struct dentry *rate_parent;
+	char *parent_name;
 	struct netdevsim *ns;
 };
 

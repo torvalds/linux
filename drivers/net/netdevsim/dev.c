@@ -222,6 +222,7 @@ static const struct file_operations nsim_dev_max_vfs_fops = {
 static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 {
 	char dev_ddir_name[sizeof(DRV_NAME) + 10];
+	int err;
 
 	sprintf(dev_ddir_name, DRV_NAME "%u", nsim_dev->nsim_bus_dev->dev.id);
 	nsim_dev->ddir = debugfs_create_dir(dev_ddir_name, nsim_dev_ddir);
@@ -264,10 +265,17 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 						nsim_dev->nsim_bus_dev,
 						&nsim_dev_max_vfs_fops);
 	nsim_dev->nodes_ddir = debugfs_create_dir("rate_nodes", nsim_dev->ddir);
-	if (IS_ERR(nsim_dev->nodes_ddir))
-		return PTR_ERR(nsim_dev->nodes_ddir);
+	if (IS_ERR(nsim_dev->nodes_ddir)) {
+		err = PTR_ERR(nsim_dev->nodes_ddir);
+		goto err_out;
+	}
 	nsim_udp_tunnels_debugfs_create(nsim_dev);
 	return 0;
+
+err_out:
+	debugfs_remove_recursive(nsim_dev->ports_ddir);
+	debugfs_remove_recursive(nsim_dev->ddir);
+	return err;
 }
 
 static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
@@ -276,6 +284,27 @@ static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
 	debugfs_remove_recursive(nsim_dev->ports_ddir);
 	debugfs_remove_recursive(nsim_dev->ddir);
 }
+
+static ssize_t nsim_dev_rate_parent_read(struct file *file,
+					 char __user *data,
+					 size_t count, loff_t *ppos)
+{
+	char **name_ptr = file->private_data;
+	size_t len;
+
+	if (!*name_ptr)
+		return 0;
+
+	len = strlen(*name_ptr);
+	return simple_read_from_buffer(data, count, ppos, *name_ptr, len);
+}
+
+static const struct file_operations nsim_dev_rate_parent_fops = {
+	.open = simple_open,
+	.read = nsim_dev_rate_parent_read,
+	.llseek = generic_file_llseek,
+	.owner = THIS_MODULE,
+};
 
 static int nsim_dev_port_debugfs_init(struct nsim_dev *nsim_dev,
 				      struct nsim_dev_port *nsim_dev_port)
@@ -299,6 +328,11 @@ static int nsim_dev_port_debugfs_init(struct nsim_dev *nsim_dev,
 				   &nsim_bus_dev->vfconfigs[vf_id].min_tx_rate);
 		debugfs_create_u16("tx_max", 0400, nsim_dev_port->ddir,
 				   &nsim_bus_dev->vfconfigs[vf_id].max_tx_rate);
+		nsim_dev_port->rate_parent = debugfs_create_file("rate_parent",
+								 0400,
+								 nsim_dev_port->ddir,
+								 &nsim_dev_port->parent_name,
+								 &nsim_dev_rate_parent_fops);
 	}
 	debugfs_create_symlink("dev", nsim_dev_port->ddir, dev_link_name);
 
@@ -1068,6 +1102,8 @@ static int nsim_leaf_tx_max_set(struct devlink_rate *devlink_rate, void *priv,
 
 struct nsim_rate_node {
 	struct dentry *ddir;
+	struct dentry *rate_parent;
+	char *parent_name;
 	u16 tx_share;
 	u16 tx_max;
 };
@@ -1105,6 +1141,7 @@ static int nsim_rate_node_new(struct devlink_rate *node, void **priv,
 {
 	struct nsim_dev *nsim_dev = devlink_priv(node->devlink);
 	struct nsim_rate_node *nsim_node;
+	int err;
 
 	if (!nsim_esw_mode_is_switchdev(nsim_dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Node creation allowed only in switchdev mode.");
@@ -1117,13 +1154,28 @@ static int nsim_rate_node_new(struct devlink_rate *node, void **priv,
 
 	nsim_node->ddir = debugfs_create_dir(node->name, nsim_dev->nodes_ddir);
 	if (!nsim_node->ddir) {
-		kfree(nsim_node);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_node;
 	}
 	debugfs_create_u16("tx_share", 0400, nsim_node->ddir, &nsim_node->tx_share);
 	debugfs_create_u16("tx_max", 0400, nsim_node->ddir, &nsim_node->tx_max);
+	nsim_node->rate_parent = debugfs_create_file("rate_parent", 0400,
+						     nsim_node->ddir,
+						     &nsim_node->parent_name,
+						     &nsim_dev_rate_parent_fops);
+	if (IS_ERR(nsim_node->rate_parent)) {
+		err = PTR_ERR(nsim_node->rate_parent);
+		goto err_ddir;
+	}
+
 	*priv = nsim_node;
 	return 0;
+
+err_ddir:
+	debugfs_remove_recursive(nsim_node->ddir);
+err_node:
+	kfree(nsim_node);
+	return err;
 }
 
 static int nsim_rate_node_del(struct devlink_rate *node, void *priv,
@@ -1131,8 +1183,37 @@ static int nsim_rate_node_del(struct devlink_rate *node, void *priv,
 {
 	struct nsim_rate_node *nsim_node = priv;
 
+	debugfs_remove(nsim_node->rate_parent);
 	debugfs_remove_recursive(nsim_node->ddir);
 	kfree(nsim_node);
+	return 0;
+}
+
+static int nsim_rate_leaf_parent_set(struct devlink_rate *child,
+				     struct devlink_rate *parent,
+				     void *priv_child, void *priv_parent,
+				     struct netlink_ext_ack *extack)
+{
+	struct nsim_dev_port *nsim_dev_port = priv_child;
+
+	if (parent)
+		nsim_dev_port->parent_name = parent->name;
+	else
+		nsim_dev_port->parent_name = NULL;
+	return 0;
+}
+
+static int nsim_rate_node_parent_set(struct devlink_rate *child,
+				     struct devlink_rate *parent,
+				     void *priv_child, void *priv_parent,
+				     struct netlink_ext_ack *extack)
+{
+	struct nsim_rate_node *nsim_node = priv_child;
+
+	if (parent)
+		nsim_node->parent_name = parent->name;
+	else
+		nsim_node->parent_name = NULL;
 	return 0;
 }
 
@@ -1157,6 +1238,8 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.rate_node_tx_max_set = nsim_node_tx_max_set,
 	.rate_node_new = nsim_rate_node_new,
 	.rate_node_del = nsim_rate_node_del,
+	.rate_leaf_parent_set = nsim_rate_leaf_parent_set,
+	.rate_node_parent_set = nsim_rate_node_parent_set,
 };
 
 #define NSIM_DEV_MAX_MACS_DEFAULT 32
