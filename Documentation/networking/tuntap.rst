@@ -107,7 +107,7 @@ Note that the character pointer becomes overwritten with the real device name
        */
       ifr.ifr_flags = IFF_TUN;
       if( *dev )
-	 strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+	 strscpy_pad(ifr.ifr_name, dev, IFNAMSIZ);
 
       if( (err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ){
 	 close(fd);
