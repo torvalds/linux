@@ -956,7 +956,6 @@ static int gmc_v10_0_sw_init(void *handle)
 static void gmc_v10_0_gart_fini(struct amdgpu_device *adev)
 {
 	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
 }
 
 static int gmc_v10_0_sw_fini(void *handle)

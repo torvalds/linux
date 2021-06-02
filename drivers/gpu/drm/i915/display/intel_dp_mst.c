@@ -963,8 +963,8 @@ intel_dp_mst_encoder_init(struct intel_digital_port *dig_port, int conn_base_id)
 	intel_dp_create_fake_mst_encoders(dig_port);
 	ret = drm_dp_mst_topology_mgr_init(&intel_dp->mst_mgr, &i915->drm,
 					   &intel_dp->aux, 16, 3,
-					   (u8)dig_port->max_lanes,
-					   drm_dp_link_rate_to_bw_code(max_source_rate),
+					   dig_port->max_lanes,
+					   max_source_rate,
 					   conn_base_id);
 	if (ret)
 		return ret;

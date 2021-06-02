@@ -235,9 +235,17 @@ void drm_master_legacy_init(struct drm_master *master);
 static inline void drm_master_legacy_init(struct drm_master *master) {}
 #endif
 
+/* drm_pci.c */
 #if IS_ENABLED(CONFIG_DRM_LEGACY) && IS_ENABLED(CONFIG_PCI)
+int drm_legacy_irq_by_busid(struct drm_device *dev, void *data, struct drm_file *file_priv);
 void drm_legacy_pci_agp_destroy(struct drm_device *dev);
 #else
+static inline int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
+					  struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
+
 static inline void drm_legacy_pci_agp_destroy(struct drm_device *dev) {}
 #endif
 

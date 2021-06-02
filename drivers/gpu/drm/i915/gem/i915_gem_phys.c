@@ -8,7 +8,6 @@
 #include <linux/shmem_fs.h>
 #include <linux/swap.h>
 
-#include <drm/drm.h> /* for drm_legacy.h! */
 #include <drm/drm_cache.h>
 
 #include "gt/intel_gt.h"

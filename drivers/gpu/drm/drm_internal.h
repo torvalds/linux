@@ -54,17 +54,9 @@ void drm_lastclose(struct drm_device *dev);
 #ifdef CONFIG_PCI
 
 /* drm_pci.c */
-int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
 int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
 
 #else
-
-static inline int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
-					  struct drm_file *file_priv)
-{
-	return -EINVAL;
-}
 
 static inline int drm_pci_set_busid(struct drm_device *dev,
 				    struct drm_master *master)

@@ -1615,7 +1615,6 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_unref(&adev->gmc.pdb0_bo);
 	amdgpu_bo_fini(adev);
-	amdgpu_gart_fini(adev);
 
 	return 0;
 }

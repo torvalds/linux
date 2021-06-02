@@ -72,7 +72,9 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 	return 0;
 }
 
-static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
+#ifdef CONFIG_DRM_LEGACY
+
+static int drm_legacy_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -115,10 +117,8 @@ int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EOPNOTSUPP;
 
-	return drm_pci_irq_by_busid(dev, p);
+	return drm_legacy_pci_irq_by_busid(dev, p);
 }
-
-#ifdef CONFIG_DRM_LEGACY
 
 void drm_legacy_pci_agp_destroy(struct drm_device *dev)
 {
@@ -164,9 +164,6 @@ static int drm_legacy_get_pci_dev(struct pci_dev *pdev,
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		pci_set_drvdata(pdev, dev);
 
 	drm_legacy_pci_agp_init(dev);
 

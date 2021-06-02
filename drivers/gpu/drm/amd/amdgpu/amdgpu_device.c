@@ -71,6 +71,8 @@
 #include <drm/task_barrier.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_drv.h>
+
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
@@ -282,7 +284,10 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 	unsigned long flags;
 	uint32_t hi = ~0;
 	uint64_t last;
+	int idx;
 
+	if (!drm_dev_enter(&adev->ddev, &idx))
+		return;
 
 #ifdef CONFIG_64BIT
 	last = min(pos + size, adev->gmc.visible_vram_size);
@@ -301,7 +306,7 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 		}
 
 		if (count == size)
-			return;
+			goto exit;
 
 		pos += count;
 		buf += count / 4;
@@ -324,6 +329,11 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 			*buf++ = RREG32_NO_KIQ(mmMM_DATA);
 	}
 	spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+
+#ifdef CONFIG_64BIT
+exit:
+#endif
+	drm_dev_exit(idx);
 }
 
 /*
@@ -333,7 +343,7 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 /* Check if hw access should be skipped because of hotplug or device error */
 bool amdgpu_device_skip_hw_access(struct amdgpu_device *adev)
 {
-	if (adev->in_pci_err_recovery)
+	if (adev->no_hw_access)
 		return true;
 
 #ifdef CONFIG_LOCKDEP
@@ -2574,33 +2584,25 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-/**
- * amdgpu_device_ip_fini - run fini for hardware IPs
- *
- * @adev: amdgpu_device pointer
- *
- * Main teardown pass for hardware IPs.  The list of all the hardware
- * IPs that make up the asic is walked and the hw_fini and sw_fini callbacks
- * are run.  hw_fini tears down the hardware associated with each IP
- * and sw_fini tears down any software state associated with each IP.
- * Returns 0 on success, negative error code on failure.
- */
-static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
+static int amdgpu_device_ip_fini_early(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	if (amdgpu_sriov_vf(adev) && adev->virt.ras_init_done)
-		amdgpu_virt_release_ras_err_handler_data(adev);
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].version->funcs->early_fini)
+			continue;
 
-	amdgpu_ras_pre_fini(adev);
+		r = adev->ip_blocks[i].version->funcs->early_fini((void *)adev);
+		if (r) {
+			DRM_DEBUG("early_fini of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
+		}
+	}
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1)
-		amdgpu_xgmi_remove_device(adev);
+	amdgpu_amdkfd_suspend(adev, false);
 
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
-
-	amdgpu_amdkfd_device_fini(adev);
 
 	/* need to disable SMC first */
 	for (i = 0; i < adev->num_ip_blocks; i++) {
@@ -2632,6 +2634,33 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.hw = false;
 	}
 
+	return 0;
+}
+
+/**
+ * amdgpu_device_ip_fini - run fini for hardware IPs
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main teardown pass for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked and the hw_fini and sw_fini callbacks
+ * are run.  hw_fini tears down the hardware associated with each IP
+ * and sw_fini tears down any software state associated with each IP.
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	if (amdgpu_sriov_vf(adev) && adev->virt.ras_init_done)
+		amdgpu_virt_release_ras_err_handler_data(adev);
+
+	amdgpu_ras_pre_fini(adev);
+
+	if (adev->gmc.xgmi.num_physical_nodes > 1)
+		amdgpu_xgmi_remove_device(adev);
+
+	amdgpu_amdkfd_device_fini_sw(adev);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.sw)
@@ -3251,7 +3280,6 @@ static const struct attribute *amdgpu_dev_attributes[] = {
 	NULL
 };
 
-
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -3653,6 +3681,27 @@ failed_unmap:
 	return r;
 }
 
+static void amdgpu_device_unmap_mmio(struct amdgpu_device *adev)
+{
+	/* Clear all CPU mappings pointing to this device */
+	unmap_mapping_range(adev->ddev.anon_inode->i_mapping, 0, 0, 1);
+
+	/* Unmap all mapped bars - Doorbell, registers and VRAM */
+	amdgpu_device_doorbell_fini(adev);
+
+	iounmap(adev->rmmio);
+	adev->rmmio = NULL;
+	if (adev->mman.aper_base_kaddr)
+		iounmap(adev->mman.aper_base_kaddr);
+	adev->mman.aper_base_kaddr = NULL;
+
+	/* Memory manager related */
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		arch_phys_wc_del(adev->gmc.vram_mtrr);
+		arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
+	}
+}
+
 /**
  * amdgpu_device_fini - tear down the driver
  *
@@ -3661,14 +3710,12 @@ failed_unmap:
  * Tear down the driver info (all asics).
  * Called at driver shutdown.
  */
-void amdgpu_device_fini(struct amdgpu_device *adev)
+void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 {
 	dev_info(adev->dev, "amdgpu: finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
 	ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
 	adev->shutdown = true;
-
-	kfree(adev->pci_state);
 
 	/* make sure IB test finished before entering exclusive mode
 	 * to avoid preemption on IB test
@@ -3686,11 +3733,29 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		else
 			drm_atomic_helper_shutdown(adev_to_drm(adev));
 	}
-	amdgpu_fence_driver_fini(adev);
+	amdgpu_fence_driver_fini_hw(adev);
+
 	if (adev->pm_sysfs_en)
 		amdgpu_pm_sysfs_fini(adev);
+	if (adev->ucode_sysfs_en)
+		amdgpu_ucode_sysfs_fini(adev);
+	sysfs_remove_files(&adev->dev->kobj, amdgpu_dev_attributes);
+
 	amdgpu_fbdev_fini(adev);
+
+	amdgpu_irq_fini_hw(adev);
+
+	amdgpu_device_ip_fini_early(adev);
+
+	amdgpu_gart_dummy_page_fini(adev);
+
+	amdgpu_device_unmap_mmio(adev);
+}
+
+void amdgpu_device_fini_sw(struct amdgpu_device *adev)
+{
 	amdgpu_device_ip_fini(adev);
+	amdgpu_fence_driver_fini_sw(adev);
 	release_firmware(adev->firmware.gpu_info_fw);
 	adev->firmware.gpu_info_fw = NULL;
 	adev->accel_working = false;
@@ -3712,18 +3777,14 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	}
 	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
 		vga_client_register(adev->pdev, NULL, NULL, NULL);
-	iounmap(adev->rmmio);
-	adev->rmmio = NULL;
-	amdgpu_device_doorbell_fini(adev);
 
-	if (adev->ucode_sysfs_en)
-		amdgpu_ucode_sysfs_fini(adev);
-
-	sysfs_remove_files(&adev->dev->kobj, amdgpu_dev_attributes);
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		amdgpu_pmu_fini(adev);
 	if (adev->mman.discovery_bin)
 		amdgpu_discovery_fini(adev);
+
+	kfree(adev->pci_state);
+
 }
 
 
@@ -5291,9 +5352,9 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 	set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
 
-	adev->in_pci_err_recovery = true;
+	adev->no_hw_access = true;
 	r = amdgpu_device_pre_asic_reset(adev, &reset_context);
-	adev->in_pci_err_recovery = false;
+	adev->no_hw_access = false;
 	if (r)
 		goto out;
 

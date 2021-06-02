@@ -25,6 +25,7 @@
 
 #include <linux/firmware.h>
 #include <linux/dma-mapping.h>
+#include <drm/drm_drv.h>
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
@@ -39,6 +40,8 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_securedisplay.h"
 #include "amdgpu_atomfirmware.h"
+
+#include <drm/drm_drv.h>
 
 static int psp_sysfs_init(struct amdgpu_device *adev);
 static void psp_sysfs_fini(struct amdgpu_device *adev);
@@ -231,7 +234,7 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp->adev->in_pci_err_recovery)
+	if (psp->adev->no_hw_access)
 		return 0;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -255,12 +258,15 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		   struct psp_gfx_cmd_resp *cmd, uint64_t fence_mc_addr)
 {
 	int ret;
-	int index;
+	int index, idx;
 	int timeout = 20000;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
 
-	if (psp->adev->in_pci_err_recovery)
+	if (psp->adev->no_hw_access)
+		return 0;
+
+	if (!drm_dev_enter(&psp->adev->ddev, &idx))
 		return 0;
 
 	mutex_lock(&psp->mutex);
@@ -273,8 +279,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	ret = psp_ring_cmd_submit(psp, psp->cmd_buf_mc_addr, fence_mc_addr, index);
 	if (ret) {
 		atomic_dec(&psp->fence_value);
-		mutex_unlock(&psp->mutex);
-		return ret;
+		goto exit;
 	}
 
 	amdgpu_asic_invalidate_hdp(psp->adev, NULL);
@@ -314,8 +319,8 @@ psp_cmd_submit_buf(struct psp_context *psp,
 			 psp->cmd_buf_mem->cmd_id,
 			 psp->cmd_buf_mem->resp.status);
 		if (!timeout) {
-			mutex_unlock(&psp->mutex);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto exit;
 		}
 	}
 
@@ -323,8 +328,10 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
 		ucode->tmr_mc_addr_hi = psp->cmd_buf_mem->resp.fw_addr_hi;
 	}
-	mutex_unlock(&psp->mutex);
 
+exit:
+	mutex_unlock(&psp->mutex);
+	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -368,8 +375,7 @@ static int psp_load_toc(struct psp_context *psp,
 	if (!cmd)
 		return -ENOMEM;
 	/* Copy toc to psp firmware private buffer */
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->toc_start_addr, psp->toc_bin_size);
+	psp_copy_fw(psp, psp->toc_start_addr, psp->toc_bin_size);
 
 	psp_prep_load_toc_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->toc_bin_size);
 
@@ -604,8 +610,7 @@ static int psp_asd_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->asd_start_addr, psp->asd_ucode_size);
+	psp_copy_fw(psp, psp->asd_start_addr, psp->asd_ucode_size);
 
 	psp_prep_asd_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
 				  psp->asd_ucode_size);
@@ -760,8 +765,7 @@ static int psp_xgmi_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->ta_xgmi_start_addr, psp->ta_xgmi_ucode_size);
+	psp_copy_fw(psp, psp->ta_xgmi_start_addr, psp->ta_xgmi_ucode_size);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1017,8 +1021,7 @@ static int psp_ras_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->ta_ras_start_addr, psp->ta_ras_ucode_size);
+	psp_copy_fw(psp, psp->ta_ras_start_addr, psp->ta_ras_ucode_size);
 
 	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
 
@@ -1284,9 +1287,8 @@ static int psp_hdcp_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->ta_hdcp_start_addr,
-	       psp->ta_hdcp_ucode_size);
+	psp_copy_fw(psp, psp->ta_hdcp_start_addr,
+		    psp->ta_hdcp_ucode_size);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1436,8 +1438,7 @@ static int psp_dtm_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->ta_dtm_start_addr, psp->ta_dtm_ucode_size);
+	psp_copy_fw(psp, psp->ta_dtm_start_addr, psp->ta_dtm_ucode_size);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -1582,8 +1583,7 @@ static int psp_rap_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
-	memcpy(psp->fw_pri_buf, psp->ta_rap_start_addr, psp->ta_rap_ucode_size);
+	psp_copy_fw(psp, psp->ta_rap_start_addr, psp->ta_rap_ucode_size);
 
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
@@ -3020,7 +3020,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	void *cpu_addr;
 	dma_addr_t dma_addr;
-	int ret;
+	int ret, idx;
 	char fw_name[100];
 	const struct firmware *usbc_pd_fw;
 
@@ -3028,6 +3028,9 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 		DRM_INFO("PSP block is not ready yet.");
 		return -EBUSY;
 	}
+
+	if (!drm_dev_enter(ddev, &idx))
+		return -ENODEV;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s", buf);
 	ret = request_firmware(&usbc_pd_fw, fw_name, adev->dev);
@@ -3060,14 +3063,27 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 rel_buf:
 	dma_free_coherent(adev->dev, usbc_pd_fw->size, cpu_addr, dma_addr);
 	release_firmware(usbc_pd_fw);
-
 fail:
 	if (ret) {
 		DRM_ERROR("Failed to load USBC PD FW, err = %d", ret);
-		return ret;
+		count = ret;
 	}
 
+	drm_dev_exit(idx);
 	return count;
+}
+
+void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size)
+{
+	int idx;
+
+	if (!drm_dev_enter(&psp->adev->ddev, &idx))
+		return;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, start_addr, bin_size);
+
+	drm_dev_exit(idx);
 }
 
 static DEVICE_ATTR(usbc_pd_fw, S_IRUGO | S_IWUSR,

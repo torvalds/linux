@@ -135,17 +135,6 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	*placement = rbo->placement;
 }
 
-static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
-	struct radeon_device *rdev = radeon_get_rdev(bo->bdev);
-
-	if (radeon_ttm_tt_has_userptr(rdev, bo->ttm))
-		return -EPERM;
-	return drm_vma_node_verify_access(&rbo->tbo.base.vma_node,
-					  filp->private_data);
-}
-
 static int radeon_move_blit(struct ttm_buffer_object *bo,
 			bool evict,
 			struct ttm_resource *new_mem,
@@ -703,7 +692,6 @@ static struct ttm_device_funcs radeon_bo_driver = {
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &radeon_evict_flags,
 	.move = &radeon_bo_move,
-	.verify_access = &radeon_verify_access,
 	.delete_mem_notify = &radeon_bo_delete_mem_notify,
 	.io_mem_reserve = &radeon_ttm_io_mem_reserve,
 };
@@ -798,59 +786,6 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 	man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
 	man->size = size >> PAGE_SHIFT;
-}
-
-static vm_fault_t radeon_ttm_fault(struct vm_fault *vmf)
-{
-	struct ttm_buffer_object *bo = vmf->vma->vm_private_data;
-	struct radeon_device *rdev = radeon_get_rdev(bo->bdev);
-	vm_fault_t ret;
-
-	down_read(&rdev->pm.mclk_lock);
-
-	ret = ttm_bo_vm_reserve(bo, vmf);
-	if (ret)
-		goto unlock_mclk;
-
-	ret = radeon_bo_fault_reserve_notify(bo);
-	if (ret)
-		goto unlock_resv;
-
-	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
-				       TTM_BO_VM_NUM_PREFAULT, 1);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		goto unlock_mclk;
-
-unlock_resv:
-	dma_resv_unlock(bo->base.resv);
-
-unlock_mclk:
-	up_read(&rdev->pm.mclk_lock);
-	return ret;
-}
-
-static const struct vm_operations_struct radeon_ttm_vm_ops = {
-	.fault = radeon_ttm_fault,
-	.open = ttm_bo_vm_open,
-	.close = ttm_bo_vm_close,
-	.access = ttm_bo_vm_access
-};
-
-int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int r;
-	struct drm_file *file_priv = filp->private_data;
-	struct radeon_device *rdev = file_priv->minor->dev->dev_private;
-
-	if (rdev == NULL)
-		return -EINVAL;
-
-	r = ttm_bo_mmap(filp, vma, &rdev->mman.bdev);
-	if (unlikely(r != 0))
-		return r;
-
-	vma->vm_ops = &radeon_ttm_vm_ops;
-	return 0;
 }
 
 #if defined(CONFIG_DEBUG_FS)

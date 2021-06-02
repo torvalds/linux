@@ -31,8 +31,6 @@
 #include "nouveau_mem.h"
 #include "nouveau_ttm.h"
 
-#include <drm/drm_legacy.h>
-
 #include <core/tegra.h>
 
 static void
@@ -126,55 +124,6 @@ const struct ttm_resource_manager_func nv04_gart_manager = {
 	.alloc = nv04_gart_manager_new,
 	.free = nouveau_manager_del,
 };
-
-static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
-{
-	struct vm_area_struct *vma = vmf->vma;
-	struct ttm_buffer_object *bo = vma->vm_private_data;
-	pgprot_t prot;
-	vm_fault_t ret;
-
-	ret = ttm_bo_vm_reserve(bo, vmf);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ttm_fault_reserve_notify(bo);
-	if (ret)
-		goto error_unlock;
-
-	nouveau_bo_del_io_reserve_lru(bo);
-	prot = vm_get_page_prot(vma->vm_flags);
-	ret = ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT, 1);
-	nouveau_bo_add_io_reserve_lru(bo);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
-
-error_unlock:
-	dma_resv_unlock(bo->base.resv);
-	return ret;
-}
-
-static const struct vm_operations_struct nouveau_ttm_vm_ops = {
-	.fault = nouveau_ttm_fault,
-	.open = ttm_bo_vm_open,
-	.close = ttm_bo_vm_close,
-	.access = ttm_bo_vm_access
-};
-
-int
-nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
-	int ret;
-
-	ret = ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
-	if (ret)
-		return ret;
-
-	vma->vm_ops = &nouveau_ttm_vm_ops;
-	return 0;
-}
 
 static int
 nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)

@@ -115,9 +115,11 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
  */
 void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 {
+
+	if (!ih->ring)
+		return;
+
 	if (ih->use_bus_addr) {
-		if (!ih->ring)
-			return;
 
 		/* add 8 bytes for the rptr/wptr shadows and
 		 * add them to the end of the ring allocation.

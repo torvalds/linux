@@ -99,7 +99,6 @@ config DRM_FBDEV_EMULATION
 	bool "Enable legacy fbdev support for your modesetting driver"
 	depends on DRM
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA

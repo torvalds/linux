@@ -154,9 +154,14 @@
 #define VEC_DAC_MISC_DAC_RST_N		BIT(0)
 
 
+struct vc4_vec_variant {
+	u32 dac_config;
+};
+
 /* General VEC hardware state. */
 struct vc4_vec {
 	struct platform_device *pdev;
+	const struct vc4_vec_variant *variant;
 
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -445,10 +450,7 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
 	VEC_WRITE(VEC_CONFIG2,
 		  VEC_CONFIG2_UV_DIG_DIS | VEC_CONFIG2_RGB_DIG_DIS);
 	VEC_WRITE(VEC_CONFIG3, VEC_CONFIG3_HORIZ_LEN_STD);
-	VEC_WRITE(VEC_DAC_CONFIG,
-		  VEC_DAC_CONFIG_DAC_CTRL(0xc) |
-		  VEC_DAC_CONFIG_DRIVER_CTRL(0xc) |
-		  VEC_DAC_CONFIG_LDO_BIAS_CTRL(0x46));
+	VEC_WRITE(VEC_DAC_CONFIG, vec->variant->dac_config);
 
 	/* Mask all interrupts. */
 	VEC_WRITE(VEC_MASK0, 0);
@@ -501,8 +503,21 @@ static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
 	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
 };
 
+static const struct vc4_vec_variant bcm2835_vec_variant = {
+	.dac_config = VEC_DAC_CONFIG_DAC_CTRL(0xc) |
+		      VEC_DAC_CONFIG_DRIVER_CTRL(0xc) |
+		      VEC_DAC_CONFIG_LDO_BIAS_CTRL(0x46)
+};
+
+static const struct vc4_vec_variant bcm2711_vec_variant = {
+	.dac_config = VEC_DAC_CONFIG_DAC_CTRL(0x0) |
+		      VEC_DAC_CONFIG_DRIVER_CTRL(0x80) |
+		      VEC_DAC_CONFIG_LDO_BIAS_CTRL(0x61)
+};
+
 static const struct of_device_id vc4_vec_dt_match[] = {
-	{ .compatible = "brcm,bcm2835-vec", .data = NULL },
+	{ .compatible = "brcm,bcm2835-vec", .data = &bcm2835_vec_variant },
+	{ .compatible = "brcm,bcm2711-vec", .data = &bcm2711_vec_variant },
 	{ /* sentinel */ },
 };
 
@@ -540,6 +555,8 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	vec->encoder = &vc4_vec_encoder->base.base;
 
 	vec->pdev = pdev;
+	vec->variant = (const struct vc4_vec_variant *)
+		of_device_get_match_data(dev);
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);

@@ -129,6 +129,8 @@ struct vc4_hdmi {
 	struct vc4_hdmi_encoder encoder;
 	struct drm_connector connector;
 
+	struct delayed_work scrambling_work;
+
 	struct i2c_adapter *ddc;
 	void __iomem *hdmicore_regs;
 	void __iomem *hd_regs;
@@ -156,6 +158,14 @@ struct vc4_hdmi {
 	 * has a wifi adapter?
 	 */
 	bool disable_wifi_frequencies;
+
+	/*
+	 * Even if HDMI0 on the RPi4 can output modes requiring a pixel
+	 * rate higher than 297MHz, it needs some adjustments in the
+	 * config.txt file to be able to do so and thus won't always be
+	 * available.
+	 */
+	bool disable_4kp60;
 
 	struct cec_adapter *cec_adap;
 	struct cec_msg cec_rx_msg;
