@@ -16,7 +16,7 @@ stream, not its presentation on the TV or computer screen. On PCs this
 is typically handled by an associated video4linux device, e.g.
 **/dev/video**, which allows scaling and defining output windows.
 
-Some Digital TV cards don’t have their own MPEG decoder, which results in the
+Some Digital TV cards don't have their own MPEG decoder, which results in the
 omission of the audio and video device as well as the video4linux
 device.
 
