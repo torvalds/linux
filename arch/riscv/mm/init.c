@@ -123,19 +123,40 @@ void __init mem_init(void)
 	print_vm_layout();
 }
 
+/*
+ * The default maximal physical memory size is -PAGE_OFFSET,
+ * limit the memory size via mem.
+ */
+static phys_addr_t memory_limit = -PAGE_OFFSET;
+
+static int __init early_mem(char *p)
+{
+	u64 size;
+
+	if (!p)
+		return 1;
+
+	size = memparse(p, &p) & PAGE_MASK;
+	memory_limit = min_t(u64, size, memory_limit);
+
+	pr_notice("Memory limited to %lldMB\n", (u64)memory_limit >> 20);
+
+	return 0;
+}
+early_param("mem", early_mem);
+
 static void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
-	phys_addr_t dram_end = memblock_end_of_DRAM();
 	phys_addr_t max_mapped_addr = __pa(~(ulong)0);
+	phys_addr_t dram_end;
 
 #ifdef CONFIG_XIP_KERNEL
 	vmlinux_start = __pa_symbol(&_sdata);
 #endif
 
-	/* The maximal physical memory size is -PAGE_OFFSET. */
-	memblock_enforce_memory_limit(-PAGE_OFFSET);
+	memblock_enforce_memory_limit(memory_limit);
 
 	/*
 	 * Reserve from the start of the kernel to the end of the kernel
@@ -150,6 +171,7 @@ static void __init setup_bootmem(void)
 #endif
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
+	dram_end = memblock_end_of_DRAM();
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
 	 * the addressable memory can not be mapped because of IS_ERR_VALUE
