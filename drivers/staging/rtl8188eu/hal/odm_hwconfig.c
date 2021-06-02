@@ -385,14 +385,13 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 }
 
 /*  Endianness before calling this API */
-void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
-			struct odm_phy_status_info *pPhyInfo,
-			u8 *pPhyStatus, struct odm_per_pkt_info *pPktinfo)
+void odm_phy_status_query(struct odm_dm_struct *dm_odm,
+			  struct odm_phy_status_info *phy_info,
+			  u8 *phy_status, struct odm_per_pkt_info *pkt_info)
 {
-	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus,
-					 pPktinfo);
+	odm_RxPhyStatus92CSeries_Parsing(dm_odm, phy_info, phy_status, pkt_info);
 	if (dm_odm->RSSI_test)
 		;/*  Select the packets to do RSSI checking for antenna switching. */
 	else
-		odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
+		odm_Process_RSSIForDM(dm_odm, phy_info, pkt_info);
 }

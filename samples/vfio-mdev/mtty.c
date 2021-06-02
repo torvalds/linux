@@ -708,26 +708,10 @@ accessfailed:
 	return ret;
 }
 
-static int mtty_create(struct kobject *kobj, struct mdev_device *mdev)
+static int mtty_create(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state;
-	char name[MTTY_STRING_LEN];
-	int nr_ports = 0, i;
-
-	if (!mdev)
-		return -EINVAL;
-
-	for (i = 0; i < 2; i++) {
-		snprintf(name, MTTY_STRING_LEN, "%s-%d",
-			dev_driver_string(mdev_parent_dev(mdev)), i + 1);
-		if (!strcmp(kobj->name, name)) {
-			nr_ports = i + 1;
-			break;
-		}
-	}
-
-	if (!nr_ports)
-		return -EINVAL;
+	int nr_ports = mdev_get_type_group_id(mdev) + 1;
 
 	mdev_state = kzalloc(sizeof(struct mdev_state), GFP_KERNEL);
 	if (mdev_state == NULL)
@@ -1308,44 +1292,25 @@ static const struct attribute_group *mdev_dev_groups[] = {
 	NULL,
 };
 
-static ssize_t
-name_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t name_show(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, char *buf)
 {
-	char name[MTTY_STRING_LEN];
-	int i;
-	const char *name_str[2] = {"Single port serial", "Dual port serial"};
+	static const char *name_str[2] = { "Single port serial",
+					   "Dual port serial" };
 
-	for (i = 0; i < 2; i++) {
-		snprintf(name, MTTY_STRING_LEN, "%s-%d",
-			 dev_driver_string(dev), i + 1);
-		if (!strcmp(kobj->name, name))
-			return sprintf(buf, "%s\n", name_str[i]);
-	}
-
-	return -EINVAL;
+	return sysfs_emit(buf, "%s\n",
+			  name_str[mtype_get_type_group_id(mtype)]);
 }
 
 static MDEV_TYPE_ATTR_RO(name);
 
-static ssize_t
-available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t available_instances_show(struct mdev_type *mtype,
+					struct mdev_type_attribute *attr,
+					char *buf)
 {
-	char name[MTTY_STRING_LEN];
-	int i;
 	struct mdev_state *mds;
-	int ports = 0, used = 0;
-
-	for (i = 0; i < 2; i++) {
-		snprintf(name, MTTY_STRING_LEN, "%s-%d",
-			 dev_driver_string(dev), i + 1);
-		if (!strcmp(kobj->name, name)) {
-			ports = i + 1;
-			break;
-		}
-	}
-
-	if (!ports)
-		return -EINVAL;
+	unsigned int ports = mtype_get_type_group_id(mtype) + 1;
+	int used = 0;
 
 	list_for_each_entry(mds, &mdev_devices_list, next)
 		used += mds->nr_ports;
@@ -1355,9 +1320,8 @@ available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
 
 static MDEV_TYPE_ATTR_RO(available_instances);
 
-
-static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
-			       char *buf)
+static ssize_t device_api_show(struct mdev_type *mtype,
+			       struct mdev_type_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }

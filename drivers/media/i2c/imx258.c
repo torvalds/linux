@@ -61,6 +61,15 @@
 #define IMX258_DGTL_GAIN_DEFAULT	1024
 #define IMX258_DGTL_GAIN_STEP		1
 
+/* HDR control */
+#define IMX258_REG_HDR			0x0220
+#define IMX258_HDR_ON			BIT(0)
+#define IMX258_REG_HDR_RATIO		0x0222
+#define IMX258_HDR_RATIO_MIN		0
+#define IMX258_HDR_RATIO_MAX		5
+#define IMX258_HDR_RATIO_STEP		1
+#define IMX258_HDR_RATIO_DEFAULT	0x0
+
 /* Test Pattern Control */
 #define IMX258_REG_TEST_PATTERN		0x0600
 
@@ -777,6 +786,22 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 				!ctrl->val ? REG_CONFIG_MIRROR_FLIP :
 				REG_CONFIG_FLIP_TEST_PATTERN);
 		break;
+	case V4L2_CID_WIDE_DYNAMIC_RANGE:
+		if (!ctrl->val) {
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_HDR_RATIO_MIN);
+		} else {
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_HDR_ON);
+			if (ret)
+				break;
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR_RATIO,
+					       IMX258_REG_VALUE_08BIT,
+					       BIT(IMX258_HDR_RATIO_MAX));
+		}
+		break;
 	default:
 		dev_info(&client->dev,
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
@@ -1193,6 +1218,9 @@ static int imx258_init_controls(struct imx258 *imx258)
 				IMX258_DGTL_GAIN_STEP,
 				IMX258_DGTL_GAIN_DEFAULT);
 
+	v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops, V4L2_CID_WIDE_DYNAMIC_RANGE,
+				0, 1, 1, IMX258_HDR_RATIO_DEFAULT);
+
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &imx258_ctrl_ops,
 				V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(imx258_test_pattern_menu) - 1,
@@ -1289,7 +1317,7 @@ static int imx258_probe(struct i2c_client *client)
 	if (ret)
 		goto error_handler_free;
 
-	ret = v4l2_async_register_subdev_sensor_common(&imx258->sd);
+	ret = v4l2_async_register_subdev_sensor(&imx258->sd);
 	if (ret < 0)
 		goto error_media_entity;
 

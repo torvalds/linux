@@ -277,7 +277,7 @@ static int init_hw(struct nmk_i2c_dev *dev)
 		goto exit;
 
 	/* disable the controller */
-	i2c_clr_bit(dev->virtbase + I2C_CR , I2C_CR_PE);
+	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 
 	disable_all_interrupts(dev);
 
@@ -525,7 +525,7 @@ static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 			dev->virtbase + I2C_CR);
 
 	/* enable the controller */
-	i2c_set_bit(dev->virtbase + I2C_CR , I2C_CR_PE);
+	i2c_set_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 
 	init_completion(&dev->xfer_complete);
 

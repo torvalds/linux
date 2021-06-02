@@ -61,7 +61,7 @@ examples:
         #size-cells = <0>;
 
         cw2015@62 {
-            compatible = "cellwise,cw201x";
+            compatible = "cellwise,cw2015";
             reg = <0x62>;
             cellwise,battery-profile = /bits/ 8 <
                 0x17 0x67 0x80 0x73 0x6E 0x6C 0x6B 0x63

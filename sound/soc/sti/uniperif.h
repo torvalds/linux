@@ -1372,12 +1372,12 @@ static __maybe_unused const struct snd_pcm_hardware uni_tdm_hw = {
 
 /* uniperiph player*/
 int uni_player_init(struct platform_device *pdev,
-		    struct uniperif *uni_player);
+		    struct uniperif *player);
 int uni_player_resume(struct uniperif *player);
 
 /* uniperiph reader */
 int uni_reader_init(struct platform_device *pdev,
-		    struct uniperif *uni_reader);
+		    struct uniperif *reader);
 
 /* common */
 int sti_uniperiph_dai_set_fmt(struct snd_soc_dai *dai,

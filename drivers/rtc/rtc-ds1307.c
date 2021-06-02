@@ -169,9 +169,6 @@ enum ds_type {
 
 struct ds1307 {
 	enum ds_type		type;
-	unsigned long		flags;
-#define HAS_NVRAM	0		/* bit 0 == sysfs file active */
-#define HAS_ALARM	1		/* bit 1 == irq claimed */
 	struct device		*dev;
 	struct regmap		*regmap;
 	const char		*name;
@@ -296,7 +293,11 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	t->tm_min = bcd2bin(regs[DS1307_REG_MIN] & 0x7f);
 	tmp = regs[DS1307_REG_HOUR] & 0x3f;
 	t->tm_hour = bcd2bin(tmp);
-	t->tm_wday = bcd2bin(regs[DS1307_REG_WDAY] & 0x07) - 1;
+	/* rx8130 is bit position, not BCD */
+	if (ds1307->type == rx_8130)
+		t->tm_wday = fls(regs[DS1307_REG_WDAY] & 0x7f);
+	else
+		t->tm_wday = bcd2bin(regs[DS1307_REG_WDAY] & 0x07) - 1;
 	t->tm_mday = bcd2bin(regs[DS1307_REG_MDAY] & 0x3f);
 	tmp = regs[DS1307_REG_MONTH] & 0x1f;
 	t->tm_mon = bcd2bin(tmp) - 1;
@@ -343,7 +344,11 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	regs[DS1307_REG_SECS] = bin2bcd(t->tm_sec);
 	regs[DS1307_REG_MIN] = bin2bcd(t->tm_min);
 	regs[DS1307_REG_HOUR] = bin2bcd(t->tm_hour);
-	regs[DS1307_REG_WDAY] = bin2bcd(t->tm_wday + 1);
+	/* rx8130 is bit position, not BCD */
+	if (ds1307->type == rx_8130)
+		regs[DS1307_REG_WDAY] = 1 << t->tm_wday;
+	else
+		regs[DS1307_REG_WDAY] = bin2bcd(t->tm_wday + 1);
 	regs[DS1307_REG_MDAY] = bin2bcd(t->tm_mday);
 	regs[DS1307_REG_MONTH] = bin2bcd(t->tm_mon + 1);
 
@@ -411,9 +416,6 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	int			ret;
 	u8			regs[9];
 
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
-
 	/* read all ALARM1, ALARM2, and status registers at once */
 	ret = regmap_bulk_read(ds1307->regmap, DS1339_REG_ALARM1_SECS,
 			       regs, sizeof(regs));
@@ -453,9 +455,6 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	unsigned char		regs[9];
 	u8			control, status;
 	int			ret;
-
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, enabled=%d, pending=%d\n",
@@ -511,9 +510,6 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 static int ds1307_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1307		*ds1307 = dev_get_drvdata(dev);
-
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -ENOTTY;
 
 	return regmap_update_bits(ds1307->regmap, DS1337_REG_CONTROL,
 				  DS1337_BIT_A1IE,
@@ -592,9 +588,6 @@ static int rx8130_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	u8 ald[3], ctl[3];
 	int ret;
 
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
-
 	/* Read alarm registers. */
 	ret = regmap_bulk_read(ds1307->regmap, RX8130_REG_ALARM_MIN, ald,
 			       sizeof(ald));
@@ -633,9 +626,6 @@ static int rx8130_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
 	u8 ald[3], ctl[3];
 	int ret;
-
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
 
 	dev_dbg(dev, "%s, sec=%d min=%d hour=%d wday=%d mday=%d mon=%d "
 		"enabled=%d pending=%d\n", __func__,
@@ -680,9 +670,6 @@ static int rx8130_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
 	int ret, reg;
-
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
 
 	ret = regmap_read(ds1307->regmap, RX8130_REG_CONTROL0, &reg);
 	if (ret < 0)
@@ -734,9 +721,6 @@ static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
 	u8 regs[10];
 	int ret;
-
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
 
 	/* Read control and alarm 0 registers. */
 	ret = regmap_bulk_read(ds1307->regmap, MCP794XX_REG_CONTROL, regs,
@@ -793,9 +777,6 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	unsigned char regs[10];
 	int wday, ret;
 
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
-
 	wday = mcp794xx_alm_weekday(dev, &t->time);
 	if (wday < 0)
 		return wday;
@@ -841,9 +822,6 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 static int mcp794xx_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
-
-	if (!test_bit(HAS_ALARM, &ds1307->flags))
-		return -EINVAL;
 
 	return regmap_update_bits(ds1307->regmap, MCP794XX_REG_CONTROL,
 				  MCP794XX_BIT_ALM0_EN,
@@ -1641,7 +1619,7 @@ static int ds3231_clks_register(struct ds1307 *ds1307)
 		 * Interrupt signal due to alarm conditions and square-wave
 		 * output share same pin, so don't initialize both.
 		 */
-		if (i == DS3231_CLK_SQW && test_bit(HAS_ALARM, &ds1307->flags))
+		if (i == DS3231_CLK_SQW && test_bit(RTC_FEATURE_ALARM, ds1307->rtc->features))
 			continue;
 
 		init.name = ds3231_clks_names[i];
@@ -1964,14 +1942,14 @@ static int ds1307_probe(struct i2c_client *client,
 			     bin2bcd(tmp));
 	}
 
-	if (want_irq || ds1307_can_wakeup_device) {
-		device_set_wakeup_capable(ds1307->dev, true);
-		set_bit(HAS_ALARM, &ds1307->flags);
-	}
-
 	ds1307->rtc = devm_rtc_allocate_device(ds1307->dev);
 	if (IS_ERR(ds1307->rtc))
 		return PTR_ERR(ds1307->rtc);
+
+	if (want_irq || ds1307_can_wakeup_device)
+		device_set_wakeup_capable(ds1307->dev, true);
+	else
+		clear_bit(RTC_FEATURE_ALARM, ds1307->rtc->features);
 
 	if (ds1307_can_wakeup_device && !want_irq) {
 		dev_info(ds1307->dev,
@@ -1988,7 +1966,7 @@ static int ds1307_probe(struct i2c_client *client,
 		if (err) {
 			client->irq = 0;
 			device_set_wakeup_capable(ds1307->dev, false);
-			clear_bit(HAS_ALARM, &ds1307->flags);
+			clear_bit(RTC_FEATURE_ALARM, ds1307->rtc->features);
 			dev_err(ds1307->dev, "unable to request IRQ!\n");
 		} else {
 			dev_dbg(ds1307->dev, "got IRQ %d\n", client->irq);

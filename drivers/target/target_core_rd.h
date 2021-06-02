@@ -28,6 +28,7 @@ struct rd_dev_sg_table {
 
 #define RDF_HAS_PAGE_COUNT	0x01
 #define RDF_NULLIO		0x02
+#define RDF_DUMMY		0x04
 
 struct rd_dev {
 	struct se_device dev;

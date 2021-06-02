@@ -507,10 +507,8 @@ static int plx_dma_create(struct pci_dev *pdev)
 
 	rc = request_irq(pci_irq_vector(pdev, 0), plx_dma_isr, 0,
 			 KBUILD_MODNAME, plxdev);
-	if (rc) {
-		kfree(plxdev);
-		return rc;
-	}
+	if (rc)
+		goto free_plx;
 
 	spin_lock_init(&plxdev->ring_lock);
 	tasklet_setup(&plxdev->desc_task, plx_dma_desc_task);
@@ -540,14 +538,20 @@ static int plx_dma_create(struct pci_dev *pdev)
 	rc = dma_async_device_register(dma);
 	if (rc) {
 		pci_err(pdev, "Failed to register dma device: %d\n", rc);
-		free_irq(pci_irq_vector(pdev, 0),  plxdev);
-		kfree(plxdev);
-		return rc;
+		goto put_device;
 	}
 
 	pci_set_drvdata(pdev, plxdev);
 
 	return 0;
+
+put_device:
+	put_device(&pdev->dev);
+	free_irq(pci_irq_vector(pdev, 0),  plxdev);
+free_plx:
+	kfree(plxdev);
+
+	return rc;
 }
 
 static int plx_dma_probe(struct pci_dev *pdev,

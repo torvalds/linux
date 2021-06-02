@@ -82,7 +82,7 @@
 #define  SDIO_SD_REV_1_01	0	/* SD Physical Spec Version 1.01 */
 #define  SDIO_SD_REV_1_10	1	/* SD Physical Spec Version 1.10 */
 #define  SDIO_SD_REV_2_00	2	/* SD Physical Spec Version 2.00 */
-#define  SDIO_SD_REV_3_00	3	/* SD Physical Spev Version 3.00 */
+#define  SDIO_SD_REV_3_00	3	/* SD Physical Spec Version 3.00 */
 
 #define SDIO_CCCR_IOEx		0x02
 #define SDIO_CCCR_IORx		0x03

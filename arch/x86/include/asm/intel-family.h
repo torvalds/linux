@@ -32,7 +32,9 @@
  *		_EP	- 2 socket server parts
  *		_EX	- 4+ socket server parts
  *
- * The #define line may optionally include a comment including platform names.
+ * The #define line may optionally include a comment including platform or core
+ * names. An exception is made for skylake/kabylake where steppings seem to have gotten
+ * their own names :-(
  */
 
 /* Wildcard match for FAM6 so X86_MATCH_INTEL_FAM6_MODEL(ANY) works */
@@ -69,35 +71,41 @@
 #define INTEL_FAM6_BROADWELL_X		0x4F
 #define INTEL_FAM6_BROADWELL_D		0x56
 
-#define INTEL_FAM6_SKYLAKE_L		0x4E
-#define INTEL_FAM6_SKYLAKE		0x5E
-#define INTEL_FAM6_SKYLAKE_X		0x55
-#define INTEL_FAM6_KABYLAKE_L		0x8E
-#define INTEL_FAM6_KABYLAKE		0x9E
+#define INTEL_FAM6_SKYLAKE_L		0x4E	/* Sky Lake             */
+#define INTEL_FAM6_SKYLAKE		0x5E	/* Sky Lake             */
+#define INTEL_FAM6_SKYLAKE_X		0x55	/* Sky Lake             */
+/*                 CASCADELAKE_X	0x55	   Sky Lake -- s: 7     */
+/*                 COOPERLAKE_X		0x55	   Sky Lake -- s: 11    */
 
-#define INTEL_FAM6_CANNONLAKE_L		0x66
+#define INTEL_FAM6_KABYLAKE_L		0x8E	/* Sky Lake             */
+/*                 AMBERLAKE_L		0x8E	   Sky Lake -- s: 9     */
+/*                 COFFEELAKE_L		0x8E	   Sky Lake -- s: 10    */
+/*                 WHISKEYLAKE_L	0x8E       Sky Lake -- s: 11,12 */
 
-#define INTEL_FAM6_ICELAKE_X		0x6A
-#define INTEL_FAM6_ICELAKE_D		0x6C
-#define INTEL_FAM6_ICELAKE		0x7D
-#define INTEL_FAM6_ICELAKE_L		0x7E
-#define INTEL_FAM6_ICELAKE_NNPI		0x9D
+#define INTEL_FAM6_KABYLAKE		0x9E	/* Sky Lake             */
+/*                 COFFEELAKE		0x9E	   Sky Lake -- s: 10-13 */
 
-#define INTEL_FAM6_TIGERLAKE_L		0x8C
-#define INTEL_FAM6_TIGERLAKE		0x8D
+#define INTEL_FAM6_COMETLAKE		0xA5	/* Sky Lake             */
+#define INTEL_FAM6_COMETLAKE_L		0xA6	/* Sky Lake             */
 
-#define INTEL_FAM6_COMETLAKE		0xA5
-#define INTEL_FAM6_COMETLAKE_L		0xA6
+#define INTEL_FAM6_CANNONLAKE_L		0x66	/* Palm Cove */
 
-#define INTEL_FAM6_ROCKETLAKE		0xA7
+#define INTEL_FAM6_ICELAKE_X		0x6A	/* Sunny Cove */
+#define INTEL_FAM6_ICELAKE_D		0x6C	/* Sunny Cove */
+#define INTEL_FAM6_ICELAKE		0x7D	/* Sunny Cove */
+#define INTEL_FAM6_ICELAKE_L		0x7E	/* Sunny Cove */
+#define INTEL_FAM6_ICELAKE_NNPI		0x9D	/* Sunny Cove */
 
-#define INTEL_FAM6_SAPPHIRERAPIDS_X	0x8F
+#define INTEL_FAM6_LAKEFIELD		0x8A	/* Sunny Cove / Tremont */
 
-/* Hybrid Core/Atom Processors */
+#define INTEL_FAM6_ROCKETLAKE		0xA7	/* Cypress Cove */
 
-#define	INTEL_FAM6_LAKEFIELD		0x8A
-#define INTEL_FAM6_ALDERLAKE		0x97
-#define INTEL_FAM6_ALDERLAKE_L		0x9A
+#define INTEL_FAM6_TIGERLAKE_L		0x8C	/* Willow Cove */
+#define INTEL_FAM6_TIGERLAKE		0x8D	/* Willow Cove */
+#define INTEL_FAM6_SAPPHIRERAPIDS_X	0x8F	/* Willow Cove */
+
+#define INTEL_FAM6_ALDERLAKE		0x97	/* Golden Cove / Gracemont */
+#define INTEL_FAM6_ALDERLAKE_L		0x9A	/* Golden Cove / Gracemont */
 
 /* "Small Core" Processors (Atom) */
 

@@ -22,7 +22,6 @@ void mx35_map_io(void);
 void imx21_init_early(void);
 void imx31_init_early(void);
 void imx35_init_early(void);
-void mxc_init_irq(void __iomem *);
 void mx31_init_irq(void);
 void mx35_init_irq(void);
 void mxc_set_cpu_type(unsigned int type);

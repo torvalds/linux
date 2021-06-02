@@ -105,4 +105,15 @@ static inline ktime_t mlx5_real_time_cyc2time(struct mlx5_clock *clock,
 }
 #endif
 
+static inline cqe_ts_to_ns mlx5_rq_ts_translator(struct mlx5_core_dev *mdev)
+{
+	return mlx5_is_real_time_rq(mdev) ? mlx5_real_time_cyc2time :
+					    mlx5_timecounter_cyc2time;
+}
+
+static inline cqe_ts_to_ns mlx5_sq_ts_translator(struct mlx5_core_dev *mdev)
+{
+	return mlx5_is_real_time_sq(mdev) ? mlx5_real_time_cyc2time :
+					    mlx5_timecounter_cyc2time;
+}
 #endif

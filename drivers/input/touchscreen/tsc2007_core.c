@@ -19,11 +19,12 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/platform_data/tsc2007.h>
 #include "tsc2007.h"
 
@@ -220,71 +221,58 @@ static void tsc2007_close(struct input_dev *input_dev)
 	tsc2007_stop(ts);
 }
 
-#ifdef CONFIG_OF
 static int tsc2007_get_pendown_state_gpio(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct tsc2007 *ts = i2c_get_clientdata(client);
 
-	return !gpio_get_value(ts->gpio);
+	return gpiod_get_value(ts->gpiod);
 }
 
-static int tsc2007_probe_dt(struct i2c_client *client, struct tsc2007 *ts)
+static int tsc2007_probe_properties(struct device *dev, struct tsc2007 *ts)
 {
-	struct device_node *np = client->dev.of_node;
 	u32 val32;
 	u64 val64;
 
-	if (!np) {
-		dev_err(&client->dev, "missing device tree data\n");
-		return -EINVAL;
-	}
-
-	if (!of_property_read_u32(np, "ti,max-rt", &val32))
+	if (!device_property_read_u32(dev, "ti,max-rt", &val32))
 		ts->max_rt = val32;
 	else
 		ts->max_rt = MAX_12BIT;
 
-	if (!of_property_read_u32(np, "ti,fuzzx", &val32))
+	if (!device_property_read_u32(dev, "ti,fuzzx", &val32))
 		ts->fuzzx = val32;
 
-	if (!of_property_read_u32(np, "ti,fuzzy", &val32))
+	if (!device_property_read_u32(dev, "ti,fuzzy", &val32))
 		ts->fuzzy = val32;
 
-	if (!of_property_read_u32(np, "ti,fuzzz", &val32))
+	if (!device_property_read_u32(dev, "ti,fuzzz", &val32))
 		ts->fuzzz = val32;
 
-	if (!of_property_read_u64(np, "ti,poll-period", &val64))
+	if (!device_property_read_u64(dev, "ti,poll-period", &val64))
 		ts->poll_period = msecs_to_jiffies(val64);
 	else
 		ts->poll_period = msecs_to_jiffies(1);
 
-	if (!of_property_read_u32(np, "ti,x-plate-ohms", &val32)) {
+	if (!device_property_read_u32(dev, "ti,x-plate-ohms", &val32)) {
 		ts->x_plate_ohms = val32;
 	} else {
-		dev_err(&client->dev, "missing ti,x-plate-ohms devicetree property.");
+		dev_err(dev, "Missing ti,x-plate-ohms device property\n");
 		return -EINVAL;
 	}
 
-	ts->gpio = of_get_gpio(np, 0);
-	if (gpio_is_valid(ts->gpio))
+	ts->gpiod = devm_gpiod_get_optional(dev, NULL, GPIOD_IN);
+	if (IS_ERR(ts->gpiod))
+		return PTR_ERR(ts->gpiod);
+
+	if (ts->gpiod)
 		ts->get_pendown_state = tsc2007_get_pendown_state_gpio;
 	else
-		dev_warn(&client->dev,
-			 "GPIO not specified in DT (of_get_gpio returned %d)\n",
-			 ts->gpio);
+		dev_warn(dev, "Pen down GPIO is not specified in properties\n");
 
 	return 0;
 }
-#else
-static int tsc2007_probe_dt(struct i2c_client *client, struct tsc2007 *ts)
-{
-	dev_err(&client->dev, "platform data is required!\n");
-	return -EINVAL;
-}
-#endif
 
-static int tsc2007_probe_pdev(struct i2c_client *client, struct tsc2007 *ts,
+static int tsc2007_probe_pdev(struct device *dev, struct tsc2007 *ts,
 			      const struct tsc2007_platform_data *pdata,
 			      const struct i2c_device_id *id)
 {
@@ -299,7 +287,7 @@ static int tsc2007_probe_pdev(struct i2c_client *client, struct tsc2007 *ts,
 	ts->fuzzz             = pdata->fuzzz;
 
 	if (pdata->x_plate_ohms == 0) {
-		dev_err(&client->dev, "x_plate_ohms is not set up in platform data");
+		dev_err(dev, "x_plate_ohms is not set up in platform data\n");
 		return -EINVAL;
 	}
 
@@ -332,9 +320,9 @@ static int tsc2007_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	if (pdata)
-		err = tsc2007_probe_pdev(client, ts, pdata, id);
+		err = tsc2007_probe_pdev(&client->dev, ts, pdata, id);
 	else
-		err = tsc2007_probe_dt(client, ts);
+		err = tsc2007_probe_properties(&client->dev, ts);
 	if (err)
 		return err;
 
@@ -431,18 +419,16 @@ static const struct i2c_device_id tsc2007_idtable[] = {
 
 MODULE_DEVICE_TABLE(i2c, tsc2007_idtable);
 
-#ifdef CONFIG_OF
 static const struct of_device_id tsc2007_of_match[] = {
 	{ .compatible = "ti,tsc2007" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tsc2007_of_match);
-#endif
 
 static struct i2c_driver tsc2007_driver = {
 	.driver = {
 		.name	= "tsc2007",
-		.of_match_table = of_match_ptr(tsc2007_of_match),
+		.of_match_table = tsc2007_of_match,
 	},
 	.id_table	= tsc2007_idtable,
 	.probe		= tsc2007_probe,

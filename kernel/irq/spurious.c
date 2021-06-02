@@ -403,6 +403,10 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 			desc->irqs_unhandled -= ok;
 	}
 
+	if (likely(!desc->irqs_unhandled))
+		return;
+
+	/* Now getting into unhandled irq detection */
 	desc->irq_count++;
 	if (likely(desc->irq_count < 100000))
 		return;

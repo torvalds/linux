@@ -10,6 +10,8 @@
 
 #include <linux/types.h>
 
+struct amd_iommu;
+
 /*
  * This is mainly used to communicate information back-and-forth
  * between SVM and IOMMU for setting up and tearing down posted
@@ -31,24 +33,6 @@ struct pci_dev;
 
 extern int amd_iommu_detect(void);
 extern int amd_iommu_init_hardware(void);
-
-/**
- * amd_iommu_enable_device_erratum() - Enable erratum workaround for device
- *				       in the IOMMUv2 driver
- * @pdev: The PCI device the workaround is necessary for
- * @erratum: The erratum workaround to enable
- *
- * The function needs to be called before amd_iommu_init_device().
- * Possible values for the erratum number are for now:
- * - AMD_PRI_DEV_ERRATUM_ENABLE_RESET - Reset PRI capability when PRI
- *					is enabled
- * - AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE - Limit number of outstanding PRI
- *					 requests to one
- */
-#define AMD_PRI_DEV_ERRATUM_ENABLE_RESET		0
-#define AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE		1
-
-extern void amd_iommu_enable_device_erratum(struct pci_dev *pdev, u32 erratum);
 
 /**
  * amd_iommu_init_device() - Init device for use with IOMMUv2 driver
@@ -211,5 +195,15 @@ static inline int amd_iommu_deactivate_guest_mode(void *data)
 	return 0;
 }
 #endif /* defined(CONFIG_AMD_IOMMU) && defined(CONFIG_IRQ_REMAP) */
+
+int amd_iommu_get_num_iommus(void);
+bool amd_iommu_pc_supported(void);
+u8 amd_iommu_pc_get_max_banks(unsigned int idx);
+u8 amd_iommu_pc_get_max_counters(unsigned int idx);
+int amd_iommu_pc_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr, u8 fxn,
+		u64 *value);
+int amd_iommu_pc_get_reg(struct amd_iommu *iommu, u8 bank, u8 cntr, u8 fxn,
+		u64 *value);
+struct amd_iommu *get_amd_iommu(unsigned int idx);
 
 #endif /* _ASM_X86_AMD_IOMMU_H */

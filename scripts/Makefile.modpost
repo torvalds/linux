@@ -32,8 +32,6 @@
 # Step 4 is solely used to allow module versioning in external modules,
 # where the CRC of each module is retrieved from the Module.symvers file.
 
-# KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined
-# symbols in the final module linking stage
 # KBUILD_MODPOST_NOFINAL can be set to skip the final link of modules.
 # This is solely useful to speed up test compiles
 
@@ -41,16 +39,15 @@ PHONY := __modpost
 __modpost:
 
 include include/config/auto.conf
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 # for ld_flags
-include scripts/Makefile.lib
+include $(srctree)/scripts/Makefile.lib
 
 MODPOST = scripts/mod/modpost								\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
 	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\
-	$(if $(KBUILD_MODPOST_WARN),-w) \
 	-o $@
 
 ifdef MODPOST_VMLINUX
@@ -68,7 +65,20 @@ else
 ifeq ($(KBUILD_EXTMOD),)
 
 input-symdump := vmlinux.symvers
-output-symdump := Module.symvers
+output-symdump := modules-only.symvers
+
+quiet_cmd_cat = GEN     $@
+      cmd_cat = cat $(real-prereqs) > $@
+
+ifneq ($(wildcard vmlinux.symvers),)
+
+__modpost: Module.symvers
+Module.symvers: vmlinux.symvers modules-only.symvers FORCE
+	$(call if_changed,cat)
+
+targets += Module.symvers
+
+endif
 
 else
 
@@ -88,9 +98,11 @@ output-symdump := $(KBUILD_EXTMOD)/Module.symvers
 
 endif
 
+existing-input-symdump := $(wildcard $(input-symdump))
+
 # modpost options for modules (both in-kernel and external)
 MODPOST += \
-	$(addprefix -i ,$(wildcard $(input-symdump))) \
+	$(addprefix -i ,$(existing-input-symdump)) \
 	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS)) \
 	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)
 
@@ -104,6 +116,7 @@ VPATH :=
 $(input-symdump):
 	@echo >&2 'WARNING: Symbol version dump "$@" is missing.'
 	@echo >&2 '         Modules may not have dependencies or modversions.'
+	@echo >&2 '         You may get many unresolved symbol warnings.'
 
 ifdef CONFIG_LTO_CLANG
 # With CONFIG_LTO_CLANG, .o files might be LLVM bitcode, so we need to run
@@ -122,6 +135,11 @@ cmd_cc_lto_link_modules =						\
 endif
 
 modules := $(sort $(shell cat $(MODORDER)))
+
+# KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined symbols
+ifneq ($(KBUILD_MODPOST_WARN)$(filter-out $(existing-input-symdump), $(input-symdump)),)
+MODPOST += -w
+endif
 
 # Read out modules.order to pass in modpost.
 # Otherwise, allmodconfig would fail with "Argument list too long".

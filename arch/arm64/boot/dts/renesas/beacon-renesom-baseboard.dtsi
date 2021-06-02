@@ -615,7 +615,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 
 	/* Single DAI */
@@ -639,7 +639,7 @@
 				bitclock-master = <&rsnd_endpoint0>;
 				frame-master = <&rsnd_endpoint0>;
 
-				playback = <&ssi1 &dvc1 &src1>;
+				playback = <&ssi1>, <&dvc1>, <&src1>;
 				capture = <&ssi0>;
 			};
 		};

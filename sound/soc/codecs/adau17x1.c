@@ -553,6 +553,7 @@ static int adau17x1_set_dai_fmt(struct snd_soc_dai *dai,
 {
 	struct adau *adau = snd_soc_component_get_drvdata(dai->component);
 	unsigned int ctrl0, ctrl1;
+	unsigned int ctrl0_mask;
 	int lrclk_pol;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -612,8 +613,16 @@ static int adau17x1_set_dai_fmt(struct snd_soc_dai *dai,
 	if (lrclk_pol)
 		ctrl0 |= ADAU17X1_SERIAL_PORT0_LRCLK_POL;
 
-	regmap_write(adau->regmap, ADAU17X1_SERIAL_PORT0, ctrl0);
-	regmap_write(adau->regmap, ADAU17X1_SERIAL_PORT1, ctrl1);
+	/* Set the mask to update all relevant bits in ADAU17X1_SERIAL_PORT0 */
+	ctrl0_mask = ADAU17X1_SERIAL_PORT0_MASTER |
+		     ADAU17X1_SERIAL_PORT0_LRCLK_POL |
+		     ADAU17X1_SERIAL_PORT0_BCLK_POL |
+		     ADAU17X1_SERIAL_PORT0_PULSE_MODE;
+
+	regmap_update_bits(adau->regmap, ADAU17X1_SERIAL_PORT0, ctrl0_mask,
+			   ctrl0);
+	regmap_update_bits(adau->regmap, ADAU17X1_SERIAL_PORT1,
+			   ADAU17X1_SERIAL_PORT1_DELAY_MASK, ctrl1);
 
 	adau->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 

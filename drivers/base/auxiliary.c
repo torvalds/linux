@@ -265,8 +265,3 @@ void __init auxiliary_bus_init(void)
 {
 	WARN_ON(bus_register(&auxiliary_bus_type));
 }
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Auxiliary Bus");
-MODULE_AUTHOR("David Ertman <david.m.ertman@intel.com>");
-MODULE_AUTHOR("Kiran Patil <kiran.patil@intel.com>");

@@ -1673,16 +1673,16 @@ static void set_dai_flags(struct snd_soc_dai_driver *dai_drv,
 {
 	if (flag_mask & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES)
 		dai_drv->symmetric_rate =
-			flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES ? 1 : 0;
+			(flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES) ? 1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_CHANNELS)
 		dai_drv->symmetric_channels =
-			flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_CHANNELS ?
+			(flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_CHANNELS) ?
 			1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS)
 		dai_drv->symmetric_sample_bits =
-			flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS ?
+			(flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS) ?
 			1 : 0;
 }
 
@@ -1765,22 +1765,22 @@ static void set_link_flags(struct snd_soc_dai_link *link,
 {
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES)
 		link->symmetric_rate =
-			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES ? 1 : 0;
+			(flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES) ? 1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS)
 		link->symmetric_channels =
-			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS ?
+			(flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS) ?
 			1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS)
 		link->symmetric_sample_bits =
-			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS ?
+			(flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS) ?
 			1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP)
 		link->ignore_suspend =
-		flags & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP ?
-		1 : 0;
+			(flags & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP) ?
+			1 : 0;
 }
 
 /* create the FE DAI link */

@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share

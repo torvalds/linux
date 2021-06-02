@@ -38,7 +38,7 @@ int rtw_hal_init_recv_priv(struct adapter *padapter)
 	precvbuf = precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf);
+		res = rtw_os_recvbuf_resource_alloc(precvbuf);
 		if (res == _FAIL)
 			break;
 		precvbuf->adapter = padapter;

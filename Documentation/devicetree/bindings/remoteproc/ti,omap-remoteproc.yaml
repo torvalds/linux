@@ -93,7 +93,7 @@ properties:
 # The following are the optional properties:
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description: |
       phandle to the reserved memory node to be associated
       with the remoteproc device. The reserved memory node

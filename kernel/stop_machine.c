@@ -409,6 +409,7 @@ static bool queue_stop_cpus_work(const struct cpumask *cpumask,
 		work->fn = fn;
 		work->arg = arg;
 		work->done = done;
+		work->caller = _RET_IP_;
 		if (cpu_stop_queue_work(cpu, work))
 			queued = true;
 	}

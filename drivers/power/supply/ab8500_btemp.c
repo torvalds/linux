@@ -25,8 +25,9 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/iio/consumer.h>
+
+#include "ab8500-bm.h"
 
 #define VTVOUT_V			1800
 
@@ -118,16 +119,6 @@ static enum power_supply_property ab8500_btemp_props[] = {
 };
 
 static LIST_HEAD(ab8500_btemp_list);
-
-/**
- * ab8500_btemp_get() - returns a reference to the primary AB8500 BTEMP
- * (i.e. the first BTEMP in the instance list)
- */
-struct ab8500_btemp *ab8500_btemp_get(void)
-{
-	return list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, node);
-}
-EXPORT_SYMBOL(ab8500_btemp_get);
 
 /**
  * ab8500_btemp_batctrl_volt_to_res() - convert batctrl voltage to resistance
@@ -754,7 +745,7 @@ static void ab8500_btemp_periodic(struct ab8500_btemp *di,
  *
  * Returns battery temperature
  */
-int ab8500_btemp_get_temp(struct ab8500_btemp *di)
+static int ab8500_btemp_get_temp(struct ab8500_btemp *di)
 {
 	int temp = 0;
 
@@ -790,19 +781,6 @@ int ab8500_btemp_get_temp(struct ab8500_btemp *di)
 	}
 	return temp;
 }
-EXPORT_SYMBOL(ab8500_btemp_get_temp);
-
-/**
- * ab8500_btemp_get_batctrl_temp() - get the temperature
- * @btemp:      pointer to the btemp structure
- *
- * Returns the batctrl temperature in millidegrees
- */
-int ab8500_btemp_get_batctrl_temp(struct ab8500_btemp *btemp)
-{
-	return btemp->bat_temp * 1000;
-}
-EXPORT_SYMBOL(ab8500_btemp_get_batctrl_temp);
 
 /**
  * ab8500_btemp_get_property() - get the btemp properties
@@ -991,7 +969,6 @@ static const struct power_supply_desc ab8500_btemp_desc = {
 static int ab8500_btemp_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct abx500_bm_data *plat = pdev->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
 	struct device *dev = &pdev->dev;
 	struct ab8500_btemp *di;
@@ -1002,18 +979,12 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	if (!di)
 		return -ENOMEM;
 
-	if (!plat) {
-		dev_err(dev, "no battery management data supplied\n");
-		return -EINVAL;
-	}
-	di->bm = plat;
+	di->bm = &ab8500_bm_data;
 
-	if (np) {
-		ret = ab8500_bm_of_probe(dev, np, di->bm);
-		if (ret) {
-			dev_err(dev, "failed to get battery information\n");
-			return ret;
-		}
+	ret = ab8500_bm_of_probe(dev, np, di->bm);
+	if (ret) {
+		dev_err(dev, "failed to get battery information\n");
+		return ret;
 	}
 
 	/* get parent data */

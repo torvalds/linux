@@ -44,20 +44,6 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 }
 #define queued_spin_lock queued_spin_lock
 
-#define smp_mb__after_spinlock()   smp_mb()
-
-static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
-{
-	/*
-	 * This barrier was added to simple spinlocks by commit 51d7d5205d338,
-	 * but it should now be possible to remove it, asm arm64 has done with
-	 * commit c6f5d02b6a0f.
-	 */
-	smp_mb();
-	return atomic_read(&lock->val);
-}
-#define queued_spin_is_locked queued_spin_is_locked
-
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 #define SPIN_THRESHOLD (1<<15) /* not tuned */
 
@@ -85,6 +71,13 @@ static inline void pv_spinlocks_init(void)
 }
 
 #endif
+
+/*
+ * Queued spinlocks rely heavily on smp_cond_load_relaxed() to busy-wait,
+ * which was found to have performance problems if implemented with
+ * the preferred spin_begin()/spin_end() SMT priority pattern. Use the
+ * generic version instead.
+ */
 
 #include <asm-generic/qspinlock.h>
 

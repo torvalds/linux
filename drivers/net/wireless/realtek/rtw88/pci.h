@@ -211,6 +211,7 @@ struct rtw_pci {
 	spinlock_t irq_lock;
 	u32 irq_mask[4];
 	bool irq_enabled;
+	bool running;
 
 	/* napi structure */
 	struct net_device netdev;

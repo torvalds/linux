@@ -58,6 +58,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
@@ -86,6 +87,8 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 
 	if (!frontbuffer_bits)
 		return;
+
+	trace_intel_frontbuffer_flush(frontbuffer_bits, origin);
 
 	might_sleep();
 	intel_edp_drrs_flush(i915, frontbuffer_bits);
@@ -172,6 +175,8 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 		i915->fb_tracking.flip_bits &= ~frontbuffer_bits;
 		spin_unlock(&i915->fb_tracking.lock);
 	}
+
+	trace_intel_frontbuffer_invalidate(frontbuffer_bits, origin);
 
 	might_sleep();
 	intel_psr_invalidate(i915, frontbuffer_bits, origin);

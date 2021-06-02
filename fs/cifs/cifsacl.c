@@ -1094,11 +1094,9 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 	struct cifs_ace *pnntace = NULL;
 	char *nacl_base = NULL;
 	u32 num_aces = 0;
-	__u64 nmode;
 	bool new_aces_set = false;
 
 	/* Assuming that pndacl and pnmode are never NULL */
-	nmode = *pnmode;
 	nacl_base = (char *)pndacl;
 	nsize = sizeof(struct cifs_acl);
 
@@ -1118,7 +1116,6 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 	/* Retain old ACEs which we can retain */
 	for (i = 0; i < src_num_aces; ++i) {
 		pntace = (struct cifs_ace *) (acl_base + size);
-		pnntace = (struct cifs_ace *) (nacl_base + nsize);
 
 		if (!new_aces_set && (pntace->flags & INHERITED_ACE)) {
 			/* Place the new ACEs in between existing explicit and inherited */
@@ -1131,13 +1128,16 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 		}
 
 		/* If it's any one of the ACE we're replacing, skip! */
-		if ((compare_sids(&pntace->sid, &sid_unix_NFS_mode) == 0) ||
+		if (((compare_sids(&pntace->sid, &sid_unix_NFS_mode) == 0) ||
 				(compare_sids(&pntace->sid, pownersid) == 0) ||
 				(compare_sids(&pntace->sid, pgrpsid) == 0) ||
 				(compare_sids(&pntace->sid, &sid_everyone) == 0) ||
-				(compare_sids(&pntace->sid, &sid_authusers) == 0)) {
+				(compare_sids(&pntace->sid, &sid_authusers) == 0))) {
 			goto next_ace;
 		}
+
+		/* update the pointer to the next ACE to populate*/
+		pnntace = (struct cifs_ace *) (nacl_base + nsize);
 
 		nsize += cifs_copy_ace(pnntace, pntace, NULL);
 		num_aces++;
@@ -1649,7 +1649,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 	 * Add three ACEs for owner, group, everyone getting rid of other ACEs
 	 * as chmod disables ACEs and set the security descriptor. Allocate
 	 * memory for the smb header, set security descriptor request security
-	 * descriptor parameters, and secuirty descriptor itself
+	 * descriptor parameters, and security descriptor itself
 	 */
 	nsecdesclen = max_t(u32, nsecdesclen, DEFAULT_SEC_DESC_LEN);
 	pnntsd = kmalloc(nsecdesclen, GFP_KERNEL);

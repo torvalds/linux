@@ -41,14 +41,15 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto remap_err;
 	}
 
-	err = mlx5_load_one(mdev, true);
+	err = mlx5_init_one(mdev);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_load_one err=%d\n", err);
-		goto load_one_err;
+		mlx5_core_warn(mdev, "mlx5_init_one err=%d\n", err);
+		goto init_one_err;
 	}
+	devlink_reload_enable(devlink);
 	return 0;
 
-load_one_err:
+init_one_err:
 	iounmap(mdev->iseg);
 remap_err:
 	mlx5_mdev_uninit(mdev);
@@ -63,7 +64,8 @@ static void mlx5_sf_dev_remove(struct auxiliary_device *adev)
 	struct devlink *devlink;
 
 	devlink = priv_to_devlink(sf_dev->mdev);
-	mlx5_unload_one(sf_dev->mdev, true);
+	devlink_reload_disable(devlink);
+	mlx5_uninit_one(sf_dev->mdev);
 	iounmap(sf_dev->mdev->iseg);
 	mlx5_mdev_uninit(sf_dev->mdev);
 	mlx5_devlink_free(devlink);
@@ -73,7 +75,7 @@ static void mlx5_sf_dev_shutdown(struct auxiliary_device *adev)
 {
 	struct mlx5_sf_dev *sf_dev = container_of(adev, struct mlx5_sf_dev, adev);
 
-	mlx5_unload_one(sf_dev->mdev, false);
+	mlx5_unload_one(sf_dev->mdev);
 }
 
 static const struct auxiliary_device_id mlx5_sf_dev_id_table[] = {

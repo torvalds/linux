@@ -244,7 +244,7 @@ csio_t5_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
  *
  * Reads/writes an [almost] arbitrary memory region in the firmware: the
  * firmware memory address, length and host buffer must be aligned on
- * 32-bit boudaries.  The memory is transferred as a raw byte sequence
+ * 32-bit boundaries.  The memory is transferred as a raw byte sequence
  * from/to the firmware's memory.  If this memory contains data
  * structures which contain multi-byte integers, it's the callers
  * responsibility to perform appropriate byte order conversions.

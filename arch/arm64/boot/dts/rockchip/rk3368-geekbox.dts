@@ -11,6 +11,10 @@
 	model = "GeekBox";
 	compatible = "geekbuying,geekbox", "rockchip,rk3368";
 
+	aliases {
+		mmc0 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};

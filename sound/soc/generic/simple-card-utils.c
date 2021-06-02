@@ -32,8 +32,7 @@ void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
 
-void asoc_simple_parse_convert(struct device *dev,
-			       struct device_node *np,
+void asoc_simple_parse_convert(struct device_node *np,
 			       char *prefix,
 			       struct asoc_simple_data *data)
 {
@@ -172,15 +171,16 @@ int asoc_simple_parse_clk(struct device *dev,
 	 *  or device's module clock.
 	 */
 	clk = devm_get_clk_from_child(dev, node, NULL);
-	if (IS_ERR(clk))
-		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
-
 	if (!IS_ERR(clk)) {
-		simple_dai->clk = clk;
 		simple_dai->sysclk = clk_get_rate(clk);
-	} else if (!of_property_read_u32(node, "system-clock-frequency",
-					 &val)) {
+
+		simple_dai->clk = clk;
+	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
+	} else {
+		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
+		if (!IS_ERR(clk))
+			simple_dai->sysclk = clk_get_rate(clk);
 	}
 
 	if (of_property_read_bool(node, "system-clock-direction-out"))
@@ -194,17 +194,37 @@ int asoc_simple_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
+	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
+	struct asoc_simple_dai *dai;
+	int i1, i2, i;
 	int ret;
 
-	ret = asoc_simple_clk_enable(dai_props->cpu_dai);
-	if (ret)
-		return ret;
+	for_each_prop_dai_cpu(props, i1, dai) {
+		ret = asoc_simple_clk_enable(dai);
+		if (ret)
+			goto cpu_err;
+	}
 
-	ret = asoc_simple_clk_enable(dai_props->codec_dai);
-	if (ret)
-		asoc_simple_clk_disable(dai_props->cpu_dai);
+	for_each_prop_dai_codec(props, i2, dai) {
+		ret = asoc_simple_clk_enable(dai);
+		if (ret)
+			goto codec_err;
+	}
 
+	return 0;
+
+codec_err:
+	for_each_prop_dai_codec(props, i, dai) {
+		if (i >= i2)
+			break;
+		asoc_simple_clk_disable(dai);
+	}
+cpu_err:
+	for_each_prop_dai_cpu(props, i, dai) {
+		if (i >= i1)
+			break;
+		asoc_simple_clk_disable(dai);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_startup);
@@ -215,17 +235,19 @@ void asoc_simple_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props =
-		simple_priv_to_props(priv, rtd->num);
+	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
+	struct asoc_simple_dai *dai;
+	int i;
 
-	if (dai_props->mclk_fs) {
+	if (props->mclk_fs) {
 		snd_soc_dai_set_sysclk(codec_dai, 0, 0, SND_SOC_CLOCK_IN);
 		snd_soc_dai_set_sysclk(cpu_dai, 0, 0, SND_SOC_CLOCK_OUT);
 	}
 
-	asoc_simple_clk_disable(dai_props->cpu_dai);
-
-	asoc_simple_clk_disable(dai_props->codec_dai);
+	for_each_prop_dai_cpu(props, i, dai)
+		asoc_simple_clk_disable(dai);
+	for_each_prop_dai_codec(props, i, dai)
+		asoc_simple_clk_disable(dai);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_shutdown);
 
@@ -248,41 +270,41 @@ int asoc_simple_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct asoc_simple_dai *pdai;
+	struct snd_soc_dai *sdai;
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props =
-		simple_priv_to_props(priv, rtd->num);
+	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
 	unsigned int mclk, mclk_fs = 0;
-	int ret = 0;
+	int i, ret;
 
-	if (dai_props->mclk_fs)
-		mclk_fs = dai_props->mclk_fs;
+	if (props->mclk_fs)
+		mclk_fs = props->mclk_fs;
 
 	if (mclk_fs) {
 		mclk = params_rate(params) * mclk_fs;
 
-		ret = asoc_simple_set_clk_rate(dai_props->codec_dai, mclk);
-		if (ret < 0)
-			return ret;
-
-		ret = asoc_simple_set_clk_rate(dai_props->cpu_dai, mclk);
-		if (ret < 0)
-			return ret;
-
-		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
-					     SND_SOC_CLOCK_IN);
-		if (ret && ret != -ENOTSUPP)
-			goto err;
-
-		ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
-					     SND_SOC_CLOCK_OUT);
-		if (ret && ret != -ENOTSUPP)
-			goto err;
+		for_each_prop_dai_codec(props, i, pdai) {
+			ret = asoc_simple_set_clk_rate(pdai, mclk);
+			if (ret < 0)
+				return ret;
+		}
+		for_each_prop_dai_cpu(props, i, pdai) {
+			ret = asoc_simple_set_clk_rate(pdai, mclk);
+			if (ret < 0)
+				return ret;
+		}
+		for_each_rtd_codec_dais(rtd, i, sdai) {
+			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_IN);
+			if (ret && ret != -ENOTSUPP)
+				return ret;
+		}
+		for_each_rtd_cpu_dais(rtd, i, sdai) {
+			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_OUT);
+			if (ret && ret != -ENOTSUPP)
+				return ret;
+		}
 	}
 	return 0;
-err:
-	return ret;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_hw_params);
 
@@ -377,20 +399,22 @@ static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
 int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
-	int ret;
+	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
+	struct asoc_simple_dai *dai;
+	int i, ret;
 
-	ret = asoc_simple_init_dai(asoc_rtd_to_codec(rtd, 0),
-				   dai_props->codec_dai);
-	if (ret < 0)
-		return ret;
+	for_each_prop_dai_codec(props, i, dai) {
+		ret = asoc_simple_init_dai(asoc_rtd_to_codec(rtd, i), dai);
+		if (ret < 0)
+			return ret;
+	}
+	for_each_prop_dai_cpu(props, i, dai) {
+		ret = asoc_simple_init_dai(asoc_rtd_to_cpu(rtd, i), dai);
+		if (ret < 0)
+			return ret;
+	}
 
-	ret = asoc_simple_init_dai(asoc_rtd_to_cpu(rtd, 0),
-				   dai_props->cpu_dai);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_init_dai_link_params(rtd, dai_props);
+	ret = asoc_simple_init_dai_link_params(rtd, props);
 	if (ret < 0)
 		return ret;
 
@@ -398,22 +422,16 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 
-void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
+void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
+				       struct snd_soc_dai_link_component *cpus)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platforms->of_node)
-		dai_link->platforms->of_node = dai_link->cpus->of_node;
-
-	/*
-	 * DPCM BE can be no platform.
-	 * Alloced memory will be waste, but not leak.
-	 */
-	if (!dai_link->platforms->of_node)
-		dai_link->num_platforms = 0;
+	if (!platforms->of_node)
+		platforms->of_node = cpus->of_node;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
-void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
+void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links)
 {
 	/*
@@ -426,18 +444,22 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 	 *	fmt_multiple_name()
 	 */
 	if (is_single_links)
-		dai_link->cpus->dai_name = NULL;
+		cpus->dai_name = NULL;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 
 int asoc_simple_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
-	int i;
+	struct snd_soc_dai_link_component *cpu;
+	struct snd_soc_dai_link_component *codec;
+	int i, j;
 
 	for_each_card_prelinks(card, i, dai_link) {
-		of_node_put(dai_link->cpus->of_node);
-		of_node_put(dai_link->codecs->of_node);
+		for_each_link_cpus(dai_link, j, cpu)
+			of_node_put(cpu->of_node);
+		for_each_link_codecs(dai_link, j, codec)
+			of_node_put(codec->of_node);
 	}
 	return 0;
 }
@@ -601,53 +623,147 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link;
 	struct simple_dai_props *dai_props;
 	struct asoc_simple_dai *dais;
+	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
-	int i;
+	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
-	dais      = devm_kcalloc(dev, li->dais, sizeof(*dais),      GFP_KERNEL);
-	if (!dai_props || !dai_link || !dais)
+	if (!dai_props || !dai_link)
 		return -ENOMEM;
 
-	if (li->conf) {
-		cconf = devm_kcalloc(dev, li->conf, sizeof(*cconf), GFP_KERNEL);
+	/*
+	 * dais (= CPU+Codec)
+	 * dlcs (= CPU+Codec+Platform)
+	 */
+	for (i = 0; i < li->link; i++) {
+		int cc = li->num[i].cpus + li->num[i].codecs;
+
+		dai_num += cc;
+		dlc_num += cc + li->num[i].platforms;
+
+		if (!li->num[i].cpus)
+			cnf_num += li->num[i].codecs;
+	}
+
+	dais = devm_kcalloc(dev, dai_num, sizeof(*dais),      GFP_KERNEL);
+	dlcs = devm_kcalloc(dev, dlc_num, sizeof(*dai_props), GFP_KERNEL);
+	if (!dais || !dlcs)
+		return -ENOMEM;
+
+	if (cnf_num) {
+		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
 			return -ENOMEM;
 	}
 
-	/*
-	 * Use snd_soc_dai_link_component instead of legacy style
-	 * It is codec only. but cpu/platform will be supported in the future.
-	 * see
-	 *	soc-core.c :: snd_soc_init_multicodec()
-	 *
-	 * "platform" might be removed
-	 * see
-	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
-	 */
-	for (i = 0; i < li->link; i++) {
-		dai_link[i].cpus		= &dai_props[i].cpus;
-		dai_link[i].num_cpus		= 1;
-		dai_link[i].codecs		= &dai_props[i].codecs;
-		dai_link[i].num_codecs		= 1;
-		dai_link[i].platforms		= &dai_props[i].platforms;
-		dai_link[i].num_platforms	= 1;
-	}
+	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
+		li->link, dai_num, cnf_num);
+
+	/* dummy CPU/Codec */
+	priv->dummy.of_node	= NULL;
+	priv->dummy.dai_name	= "snd-soc-dummy-dai";
+	priv->dummy.name	= "snd-soc-dummy";
 
 	priv->dai_props		= dai_props;
 	priv->dai_link		= dai_link;
 	priv->dais		= dais;
+	priv->dlcs		= dlcs;
 	priv->codec_conf	= cconf;
 
 	card->dai_link		= priv->dai_link;
 	card->num_links		= li->link;
 	card->codec_conf	= cconf;
-	card->num_configs	= li->conf;
+	card->num_configs	= cnf_num;
+
+	for (i = 0; i < li->link; i++) {
+		if (li->num[i].cpus) {
+			/* Normal CPU */
+			dai_props[i].cpus	=
+			dai_link[i].cpus	= dlcs;
+			dai_props[i].num.cpus	=
+			dai_link[i].num_cpus	= li->num[i].cpus;
+			dai_props[i].cpu_dai	= dais;
+
+			dlcs += li->num[i].cpus;
+			dais += li->num[i].cpus;
+		} else {
+			/* DPCM Be's CPU = dummy */
+			dai_props[i].cpus	=
+			dai_link[i].cpus	= &priv->dummy;
+			dai_props[i].num.cpus	=
+			dai_link[i].num_cpus	= 1;
+		}
+
+		if (li->num[i].codecs) {
+			/* Normal Codec */
+			dai_props[i].codecs	=
+			dai_link[i].codecs	= dlcs;
+			dai_props[i].num.codecs	=
+			dai_link[i].num_codecs	= li->num[i].codecs;
+			dai_props[i].codec_dai	= dais;
+
+			dlcs += li->num[i].codecs;
+			dais += li->num[i].codecs;
+
+			if (!li->num[i].cpus) {
+				/* DPCM Be's Codec */
+				dai_props[i].codec_conf = cconf;
+				cconf += li->num[i].codecs;
+			}
+		} else {
+			/* DPCM Fe's Codec = dummy */
+			dai_props[i].codecs	=
+			dai_link[i].codecs	= &priv->dummy;
+			dai_props[i].num.codecs	=
+			dai_link[i].num_codecs	= 1;
+		}
+
+		if (li->num[i].platforms) {
+			/* Have Platform */
+			dai_props[i].platforms		=
+			dai_link[i].platforms		= dlcs;
+			dai_props[i].num.platforms	=
+			dai_link[i].num_platforms	= li->num[i].platforms;
+
+			dlcs += li->num[i].platforms;
+		} else {
+			/* Doesn't have Platform */
+			dai_props[i].platforms		=
+			dai_link[i].platforms		= NULL;
+			dai_props[i].num.platforms	=
+			dai_link[i].num_platforms	= 0;
+		}
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_init_priv);
+
+int asoc_simple_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	return asoc_simple_clean_reference(card);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_remove);
+
+int asoc_graph_card_probe(struct snd_soc_card *card)
+{
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
+	int ret;
+
+	ret = asoc_simple_init_hp(card, &priv->hp_jack, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_init_mic(card, &priv->mic_jack, NULL);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_graph_card_probe);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

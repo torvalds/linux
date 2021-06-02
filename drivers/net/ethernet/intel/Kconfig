@@ -294,6 +294,7 @@ config ICE
 	tristate "Intel(R) Ethernet Connection E800 Series Support"
 	default n
 	depends on PCI_MSI
+	select DIMLIB
 	select NET_DEVLINK
 	select PLDMFW
 	help

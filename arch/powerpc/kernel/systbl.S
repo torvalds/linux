@@ -21,6 +21,7 @@
 #define __SYSCALL(nr, entry)	.long entry
 #endif
 
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
 .globl sys_call_table
 sys_call_table:
 #ifdef CONFIG_PPC64
@@ -30,8 +31,10 @@ sys_call_table:
 #endif
 
 #ifdef CONFIG_COMPAT
+#undef __SYSCALL_WITH_COMPAT
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
 .globl compat_sys_call_table
 compat_sys_call_table:
 #define compat_sys_sigsuspend	sys_sigsuspend
-#include <asm/syscall_table_c32.h>
+#include <asm/syscall_table_32.h>
 #endif

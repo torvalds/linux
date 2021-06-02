@@ -373,6 +373,36 @@ int phy_set_mode_ext(struct phy *phy, enum phy_mode mode, int submode)
 }
 EXPORT_SYMBOL_GPL(phy_set_mode_ext);
 
+int phy_set_media(struct phy *phy, enum phy_media media)
+{
+	int ret;
+
+	if (!phy || !phy->ops->set_media)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->set_media(phy, media);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_set_media);
+
+int phy_set_speed(struct phy *phy, int speed)
+{
+	int ret;
+
+	if (!phy || !phy->ops->set_speed)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->set_speed(phy, speed);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_set_speed);
+
 int phy_reset(struct phy *phy)
 {
 	int ret;

@@ -55,6 +55,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/gpio/consumer.h>
 #include <linux/reboot.h>
+#include <linux/property.h>
 
 struct ltc2952_poweroff {
 	struct hrtimer timer_trigger;
@@ -172,9 +173,16 @@ static void ltc2952_poweroff_default(struct ltc2952_poweroff *data)
 static int ltc2952_poweroff_init(struct platform_device *pdev)
 {
 	int ret;
+	u32 trigger_delay_ms;
 	struct ltc2952_poweroff *data = platform_get_drvdata(pdev);
 
 	ltc2952_poweroff_default(data);
+
+	if (!device_property_read_u32(&pdev->dev, "trigger-delay-ms",
+				      &trigger_delay_ms)) {
+		data->trigger_delay = ktime_set(trigger_delay_ms / MSEC_PER_SEC,
+			(trigger_delay_ms % MSEC_PER_SEC) * NSEC_PER_MSEC);
+	}
 
 	data->gpio_watchdog = devm_gpiod_get(&pdev->dev, "watchdog",
 					     GPIOD_OUT_LOW);

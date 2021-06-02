@@ -101,7 +101,7 @@ static const u16 pci_ext_cap_length[PCI_EXT_CAP_ID_MAX + 1] = {
 /*
  * Read/Write Permission Bits - one bit for each bit in capability
  * Any field can be read if it exists, but what is read depends on
- * whether the field is 'virtualized', or just pass thru to the
+ * whether the field is 'virtualized', or just pass through to the
  * hardware.  Any virtualized field is also virtualized for writes.
  * Writes are only permitted if they have a 1 bit here.
  */

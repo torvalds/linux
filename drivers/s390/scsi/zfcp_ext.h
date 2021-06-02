@@ -11,6 +11,7 @@
 #define ZFCP_EXT_H
 
 #include <linux/types.h>
+#include <linux/sysfs.h>
 #include <scsi/fc/fc_els.h>
 #include "zfcp_def.h"
 #include "zfcp_fc.h"
@@ -179,13 +180,12 @@ extern void zfcp_scsi_shost_update_port_data(
 	const struct fsf_qtcb_bottom_port *const bottom);
 
 /* zfcp_sysfs.c */
+extern const struct attribute_group *zfcp_sysfs_adapter_attr_groups[];
 extern const struct attribute_group *zfcp_unit_attr_groups[];
-extern struct attribute_group zfcp_sysfs_adapter_attrs;
 extern const struct attribute_group *zfcp_port_attr_groups[];
 extern struct mutex zfcp_sysfs_port_units_mutex;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];
-extern const struct attribute_group zfcp_sysfs_diag_attr_group;
 bool zfcp_sysfs_port_is_removing(const struct zfcp_port *const port);
 
 /* zfcp_unit.c */

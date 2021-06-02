@@ -3,14 +3,14 @@
  * Copyright 2016 Broadcom
  */
 #include <linux/clk.h>
-#include <linux/platform_device.h>
-#include <linux/device.h>
-#include <linux/of_mdio.h>
-#include <linux/module.h>
-#include <linux/phy.h>
-#include <linux/mdio-mux.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/iopoll.h>
+#include <linux/mdio-mux.h>
+#include <linux/module.h>
+#include <linux/of_mdio.h>
+#include <linux/phy.h>
+#include <linux/platform_device.h>
 
 #define MDIO_RATE_ADJ_EXT_OFFSET	0x000
 #define MDIO_RATE_ADJ_INT_OFFSET	0x004
@@ -197,10 +197,8 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 		res->end = res->start + MDIO_REG_ADDR_SPACE_SIZE - 1;
 	}
 	md->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(md->base)) {
-		dev_err(&pdev->dev, "failed to ioremap register\n");
+	if (IS_ERR(md->base))
 		return PTR_ERR(md->base);
-	}
 
 	md->mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!md->mii_bus) {

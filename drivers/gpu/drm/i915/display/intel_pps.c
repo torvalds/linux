@@ -5,6 +5,7 @@
 
 #include "g4x_dp.h"
 #include "i915_drv.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpll.h"
@@ -314,6 +315,9 @@ void intel_pps_reset_all(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 
 	if (drm_WARN_ON(&dev_priv->drm, !IS_LP(dev_priv)))
+		return;
+
+	if (!HAS_DISPLAY(dev_priv))
 		return;
 
 	/*
@@ -1376,7 +1380,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	int pps_num;
 	int pps_idx;
 
-	if (HAS_DDI(dev_priv))
+	if (!HAS_DISPLAY(dev_priv) || HAS_DDI(dev_priv))
 		return;
 	/*
 	 * This w/a is needed at least on CPT/PPT, but to be sure apply it

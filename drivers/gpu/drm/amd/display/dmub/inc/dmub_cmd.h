@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xc29b1734b
+#define DMUB_FW_VERSION_GIT_HASH 0x992f4893d
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 56
+#define DMUB_FW_VERSION_REVISION 66
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -117,8 +117,20 @@
 /* Maximum number of planes on any ASIC. */
 #define DMUB_MAX_PLANES 6
 
+#define DMUB_MAX_SUBVP_STREAMS 2
+
 /* Trace buffer offset for entry */
 #define TRACE_BUFFER_ENTRY_OFFSET  16
+
+/**
+ * ABM control version legacy
+ */
+#define DMUB_CMD_ABM_CONTROL_VERSION_UNKNOWN 0x0
+
+/**
+ * ABM control version with multi edp support
+ */
+#define DMUB_CMD_ABM_CONTROL_VERSION_1 0x1
 
 /**
  * Physical framebuffer address location, 64-bit.
@@ -151,6 +163,13 @@ extern "C" {
 #ifndef dmub_udelay
 #define dmub_udelay(microseconds) udelay(microseconds)
 #endif
+
+/**
+ * Number of nanoseconds per DMUB tick.
+ * DMCUB_TIMER_CURRENT increments in DMUB ticks, which are 10ns by default.
+ * If DMCUB_TIMER_WINDOW is non-zero this will no longer be true.
+ */
+#define NS_PER_DMUB_TICK 10
 
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
@@ -202,12 +221,7 @@ struct dmub_feature_caps {
 	 * Max PSR version supported by FW.
 	 */
 	uint8_t psr;
-#ifndef TRIM_FAMS
-	uint8_t fw_assisted_mclk_switch;
-	uint8_t reserved[6];
-#else
 	uint8_t reserved[7];
-#endif
 };
 
 #if defined(__cplusplus)
@@ -323,7 +337,8 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_access : 1; /**< 1 if PHY access should be skipped */
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
-		uint32_t reserved : 26; /**< reserved */
+		uint32_t reserved_unreleased: 1; /**< reserved for an unreleased feature */
+		uint32_t reserved : 25; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -447,6 +462,61 @@ enum dmub_gpint_command {
 	DMUB_GPINT__PSR_RESIDENCY = 9,
 };
 
+/**
+ * INBOX0 generic command definition
+ */
+union dmub_inbox0_cmd_common {
+	struct {
+		uint32_t command_code: 8; /**< INBOX0 command code */
+		uint32_t param: 24; /**< 24-bit parameter */
+	} bits;
+	uint32_t all;
+};
+
+/**
+ * INBOX0 hw_lock command definition
+ */
+union dmub_inbox0_cmd_lock_hw {
+	struct {
+		uint32_t command_code: 8;
+
+		/* NOTE: Must be have enough bits to match: enum hw_lock_client */
+		uint32_t hw_lock_client: 1;
+
+		/* NOTE: Below fields must match with: struct dmub_hw_lock_inst_flags */
+		uint32_t otg_inst: 3;
+		uint32_t opp_inst: 3;
+		uint32_t dig_inst: 3;
+
+		/* NOTE: Below fields must match with: union dmub_hw_lock_flags */
+		uint32_t lock_pipe: 1;
+		uint32_t lock_cursor: 1;
+		uint32_t lock_dig: 1;
+		uint32_t triple_buffer_lock: 1;
+
+		uint32_t lock: 1;				/**< Lock */
+		uint32_t should_release: 1;		/**< Release */
+		uint32_t reserved: 8; 			/**< Reserved for extending more clients, HW, etc. */
+	} bits;
+	uint32_t all;
+};
+
+union dmub_inbox0_data_register {
+	union dmub_inbox0_cmd_common inbox0_cmd_common;
+	union dmub_inbox0_cmd_lock_hw inbox0_cmd_lock_hw;
+};
+
+enum dmub_inbox0_command {
+	/**
+	 * DESC: Invalid command, ignored.
+	 */
+	DMUB_INBOX0_CMD__INVALID_COMMAND = 0,
+	/**
+	 * DESC: Notification to acquire/release HW lock
+	 * ARGS:
+	 */
+	DMUB_INBOX0_CMD__HW_LOCK = 1,
+};
 //==============================================================================
 //</DMUB_GPINT>=================================================================
 //==============================================================================
@@ -532,10 +602,6 @@ enum dmub_cmd_type {
 	 * Command type used for OUTBOX1 notification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
-#ifndef TRIM_FAMS
-	DMUB_CMD__FW_ASSISTED_MCLK_SWITCH = 76,
-#endif
-
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
@@ -569,7 +635,8 @@ struct dmub_cmd_header {
 	unsigned int type : 8; /**< command type */
 	unsigned int sub_type : 8; /**< command sub type */
 	unsigned int ret_status : 1; /**< 1 if returned data, 0 otherwise */
-	unsigned int reserved0 : 7; /**< reserved bits */
+	unsigned int multi_cmd_pending : 1; /**< 1 if multiple commands chained together */
+	unsigned int reserved0 : 6; /**< reserved bits */
 	unsigned int payload_bytes : 6;  /* payload excluding header - up to 60 bytes */
 	unsigned int reserved1 : 2; /**< reserved bits */
 };
@@ -1115,13 +1182,6 @@ enum dmub_cmd_psr_type {
 	DMUB_CMD__PSR_FORCE_STATIC		= 5,
 };
 
-#ifndef TRIM_FAMS
-enum dmub_cmd_fams_type {
-	DMUB_CMD__FAMS_SETUP_FW_CTRL	= 0,
-	DMUB_CMD__FAMS_DRR_UPDATE		= 1,
-};
-#endif
-
 /**
  * PSR versions.
  */
@@ -1245,6 +1305,19 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Length of each horizontal line in us.
 	 */
 	uint32_t line_time_in_us;
+	/**
+	 * FEC enable status in driver
+	 */
+	uint8_t fec_enable_status;
+	/**
+	 * FEC re-enable delay when PSR exit.
+	 * unit is 100us, range form 0~255(0xFF).
+	 */
+	uint8_t fec_enable_delay_in100us;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad3[2];
 };
 
 /**
@@ -1336,6 +1409,9 @@ struct dmub_rb_cmd_psr_force_static {
 
 /**
  * Set of HW components that can be locked.
+ *
+ * Note: If updating with more HW components, fields
+ * in dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 union dmub_hw_lock_flags {
 	/**
@@ -1368,6 +1444,9 @@ union dmub_hw_lock_flags {
 
 /**
  * Instances of HW to be locked.
+ *
+ * Note: If updating with more HW components, fields
+ * in dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 struct dmub_hw_lock_inst_flags {
 	/**
@@ -1391,16 +1470,16 @@ struct dmub_hw_lock_inst_flags {
 
 /**
  * Clients that can acquire the HW Lock Manager.
+ *
+ * Note: If updating with more clients, fields in
+ * dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 enum hw_lock_client {
 	/**
 	 * Driver is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_DRIVER = 0,
-	/**
-	 * FW is the client of HW Lock Manager.
-	 */
-	HW_LOCK_CLIENT_FW,
+	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Invalid client.
 	 */
@@ -1628,6 +1707,23 @@ struct dmub_cmd_abm_set_backlight_data {
 	 * Requested backlight level from user.
 	 */
 	uint32_t backlight_user_level;
+
+	/**
+	 * ABM control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1653,6 +1749,23 @@ struct dmub_cmd_abm_set_level_data {
 	 * Set current ABM operating/aggression level.
 	 */
 	uint32_t level;
+
+	/**
+	 * ABM control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1678,6 +1791,23 @@ struct dmub_cmd_abm_set_ambient_level_data {
 	 * Ambient light sensor reading from OS.
 	 */
 	uint32_t ambient_lux;
+
+	/**
+	 * ABM control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1704,6 +1834,23 @@ struct dmub_cmd_abm_set_pwm_frac_data {
 	 * TODO: Convert to uint8_t.
 	 */
 	uint32_t fractional_pwm;
+
+	/**
+	 * ABM control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1734,6 +1881,24 @@ struct dmub_cmd_abm_init_config_data {
 	 * Indirect buffer length.
 	 */
 	uint16_t bytes;
+
+
+	/**
+	 * ABM control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1790,24 +1955,6 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_cmd_header header;
 		struct dmub_optc_state dmub_optc_state_req;
 };
-
-#ifndef TRIM_FAMS
-struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
-	uint32_t pix_clk_100hz;
-	uint32_t min_refresh_in_uhz;
-	uint32_t max_ramp_step;
-};
-
-struct dmub_cmd_fw_assisted_mclk_switch_config {
-	uint32_t fams_enabled;
-	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_STREAMS];
-};
-
-struct dmub_rb_cmd_fw_assisted_mclk_switch {
-	struct dmub_cmd_header header;
-	struct dmub_cmd_fw_assisted_mclk_switch_config config_data;
-};
-#endif
 
 /**
  * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
@@ -1951,9 +2098,6 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_query_feature_caps query_feature_caps;
 	struct dmub_rb_cmd_drr_update drr_update;
-#ifndef TRIM_FAMS
-	struct dmub_rb_cmd_fw_assisted_mclk_switch fw_assisted_mclk_switch;
-#endif
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
@@ -2114,6 +2258,46 @@ static inline bool dmub_rb_front(struct dmub_rb *rb,
 				 union dmub_rb_cmd  **cmd)
 {
 	uint8_t *rb_cmd = (uint8_t *)(rb->base_address) + rb->rptr;
+
+	if (dmub_rb_empty(rb))
+		return false;
+
+	*cmd = (union dmub_rb_cmd *)rb_cmd;
+
+	return true;
+}
+
+/**
+ * @brief Determines the next ringbuffer offset.
+ *
+ * @param rb DMUB inbox ringbuffer
+ * @param num_cmds Number of commands
+ * @param next_rptr The next offset in the ringbuffer
+ */
+static inline void dmub_rb_get_rptr_with_offset(struct dmub_rb *rb,
+				  uint32_t num_cmds,
+				  uint32_t *next_rptr)
+{
+	*next_rptr = rb->rptr + DMUB_RB_CMD_SIZE * num_cmds;
+
+	if (*next_rptr >= rb->capacity)
+		*next_rptr %= rb->capacity;
+}
+
+/**
+ * @brief Returns a pointer to a command in the inbox.
+ *
+ * @param rb DMUB inbox ringbuffer
+ * @param cmd The inbox command to return
+ * @param rptr The ringbuffer offset
+ * @return true if not empty
+ * @return false otherwise
+ */
+static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
+				 union dmub_rb_cmd  **cmd,
+				 uint32_t rptr)
+{
+	uint8_t *rb_cmd = (uint8_t *)(rb->base_address) + rptr;
 
 	if (dmub_rb_empty(rb))
 		return false;

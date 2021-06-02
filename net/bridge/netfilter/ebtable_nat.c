@@ -58,35 +58,27 @@ static const struct ebt_table frame_nat = {
 	.me		= THIS_MODULE,
 };
 
-static unsigned int
-ebt_nat_in(void *priv, struct sk_buff *skb,
-	   const struct nf_hook_state *state)
+static unsigned int ebt_nat_hook(void *priv, struct sk_buff *skb,
+				 const struct nf_hook_state *state)
 {
-	return ebt_do_table(skb, state, state->net->xt.frame_nat);
-}
-
-static unsigned int
-ebt_nat_out(void *priv, struct sk_buff *skb,
-	    const struct nf_hook_state *state)
-{
-	return ebt_do_table(skb, state, state->net->xt.frame_nat);
+	return ebt_do_table(skb, state, priv);
 }
 
 static const struct nf_hook_ops ebt_ops_nat[] = {
 	{
-		.hook		= ebt_nat_out,
+		.hook		= ebt_nat_hook,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_LOCAL_OUT,
 		.priority	= NF_BR_PRI_NAT_DST_OTHER,
 	},
 	{
-		.hook		= ebt_nat_out,
+		.hook		= ebt_nat_hook,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_POST_ROUTING,
 		.priority	= NF_BR_PRI_NAT_SRC,
 	},
 	{
-		.hook		= ebt_nat_in,
+		.hook		= ebt_nat_hook,
 		.pf		= NFPROTO_BRIDGE,
 		.hooknum	= NF_BR_PRE_ROUTING,
 		.priority	= NF_BR_PRI_NAT_DST_BRIDGED,
@@ -95,18 +87,23 @@ static const struct nf_hook_ops ebt_ops_nat[] = {
 
 static int __net_init frame_nat_net_init(struct net *net)
 {
-	return ebt_register_table(net, &frame_nat, ebt_ops_nat,
-				  &net->xt.frame_nat);
+	return ebt_register_table(net, &frame_nat, ebt_ops_nat);
+}
+
+static void __net_exit frame_nat_net_pre_exit(struct net *net)
+{
+	ebt_unregister_table_pre_exit(net, "nat");
 }
 
 static void __net_exit frame_nat_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.frame_nat, ebt_ops_nat);
+	ebt_unregister_table(net, "nat");
 }
 
 static struct pernet_operations frame_nat_net_ops = {
 	.init = frame_nat_net_init,
 	.exit = frame_nat_net_exit,
+	.pre_exit = frame_nat_net_pre_exit,
 };
 
 static int __init ebtable_nat_init(void)

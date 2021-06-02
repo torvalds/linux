@@ -34,6 +34,9 @@ Description:	Multipath policy specifies which path should be selected on each IO
 		min-inflight (1):
 		    select path with minimum inflights.
 
+		min-latency (2):
+		    select path with minimum latency.
+
 What:		/sys/class/rtrs-client/<session-name>/paths/
 Date:		Feb 2020
 KernelVersion:	5.7
@@ -94,6 +97,15 @@ Date:		Feb 2020
 KernelVersion:	5.7
 Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
 Description:	RO, Contains the destination address of the path
+
+What:		/sys/class/rtrs-client/<session-name>/paths/<src@dst>/cur_latency
+Date:		Feb 2020
+KernelVersion:	5.7
+Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
+Description:	RO, Contains the latency time calculated by the heart-beat messages.
+		Whenever the client sends heart-beat message, it checks the time gap
+		between sending the heart-beat message and receiving the ACK.
+		This value can be changed regularly.
 
 What:		/sys/class/rtrs-client/<session-name>/paths/<src@dst>/stats/reset_all
 Date:		Feb 2020

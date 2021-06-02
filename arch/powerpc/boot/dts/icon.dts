@@ -197,13 +197,6 @@
 						reg = <0x00fa0000 0x00060000>;
 					};
 				};
-
-				SysACE_CompactFlash: sysace@1,0 {
-					compatible = "xlnx,sysace";
-					interrupt-parent = <&UIC2>;
-					interrupts = <24 0x4>;
-					reg = <0x00000001 0x00000000 0x10000>;
-				};
 			};
 
 			UART0: serial@f0000200 {

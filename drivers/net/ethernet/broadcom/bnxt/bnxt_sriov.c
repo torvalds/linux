@@ -49,10 +49,6 @@ static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
 
 static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 {
-	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
-		netdev_err(bp->dev, "vf ndo called though PF is down\n");
-		return -EINVAL;
-	}
 	if (!bp->pf.active_vfs) {
 		netdev_err(bp->dev, "vf ndo called though sriov is disabled\n");
 		return -EINVAL;
@@ -113,7 +109,7 @@ static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
 	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
-	req.fid = cpu_to_le16(vf->fw_fid);
+	req.fid = cpu_to_le16(BNXT_PF(bp) ? vf->fw_fid : 0xffff);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc) {
@@ -125,9 +121,9 @@ static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
 	return 0;
 }
 
-static bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
+bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
 {
-	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+	if (BNXT_PF(bp) && !(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
 		return !!(vf->flags & BNXT_VF_TRUST);
 
 	bnxt_hwrm_func_qcfg_flags(bp, vf);
@@ -1120,35 +1116,6 @@ void bnxt_hwrm_exec_fwd_req(struct bnxt *bp)
 	}
 }
 
-void bnxt_update_vf_mac(struct bnxt *bp)
-{
-	struct hwrm_func_qcaps_input req = {0};
-	struct hwrm_func_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
-
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCAPS, -1, -1);
-	req.fid = cpu_to_le16(0xffff);
-
-	mutex_lock(&bp->hwrm_cmd_lock);
-	if (_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
-		goto update_vf_mac_exit;
-
-	/* Store MAC address from the firmware.  There are 2 cases:
-	 * 1. MAC address is valid.  It is assigned from the PF and we
-	 *    need to override the current VF MAC address with it.
-	 * 2. MAC address is zero.  The VF will use a random MAC address by
-	 *    default but the stored zero MAC will allow the VF user to change
-	 *    the random MAC address using ndo_set_mac_address() if he wants.
-	 */
-	if (!ether_addr_equal(resp->mac_address, bp->vf.mac_addr))
-		memcpy(bp->vf.mac_addr, resp->mac_address, ETH_ALEN);
-
-	/* overwrite netdev dev_addr with admin VF MAC */
-	if (is_valid_ether_addr(bp->vf.mac_addr))
-		memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
-update_vf_mac_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
-}
-
 int bnxt_approve_mac(struct bnxt *bp, u8 *mac, bool strict)
 {
 	struct hwrm_func_vf_cfg_input req = {0};
@@ -1175,6 +1142,45 @@ mac_done:
 	}
 	return 0;
 }
+
+void bnxt_update_vf_mac(struct bnxt *bp)
+{
+	struct hwrm_func_qcaps_input req = {0};
+	struct hwrm_func_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	bool inform_pf = false;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCAPS, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	if (_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
+		goto update_vf_mac_exit;
+
+	/* Store MAC address from the firmware.  There are 2 cases:
+	 * 1. MAC address is valid.  It is assigned from the PF and we
+	 *    need to override the current VF MAC address with it.
+	 * 2. MAC address is zero.  The VF will use a random MAC address by
+	 *    default but the stored zero MAC will allow the VF user to change
+	 *    the random MAC address using ndo_set_mac_address() if he wants.
+	 */
+	if (!ether_addr_equal(resp->mac_address, bp->vf.mac_addr)) {
+		memcpy(bp->vf.mac_addr, resp->mac_address, ETH_ALEN);
+		/* This means we are now using our own MAC address, let
+		 * the PF know about this MAC address.
+		 */
+		if (!is_valid_ether_addr(bp->vf.mac_addr))
+			inform_pf = true;
+	}
+
+	/* overwrite netdev dev_addr with admin VF MAC */
+	if (is_valid_ether_addr(bp->vf.mac_addr))
+		memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
+update_vf_mac_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (inform_pf)
+		bnxt_approve_mac(bp, bp->dev->dev_addr, false);
+}
+
 #else
 
 int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)

@@ -22,10 +22,9 @@
 /* Set us up to scrub directories. */
 int
 xchk_setup_directory(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
-	return xchk_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_inode_contents(sc, 0);
 }
 
 /* Directories */
@@ -538,7 +537,7 @@ xchk_directory_leaf1_bestfree(
 	 * There should be as many bestfree slots as there are dir data
 	 * blocks that can fit under i_size.
 	 */
-	if (bestcount != xfs_dir2_byte_to_db(geo, sc->ip->i_d.di_size)) {
+	if (bestcount != xfs_dir2_byte_to_db(geo, sc->ip->i_disk_size)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
@@ -694,15 +693,6 @@ xchk_directory_blocks(
 	/* Iterate all the data extents in the directory... */
 	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	while (found && !(sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
-		/* Block directories only have a single block at offset 0. */
-		if (is_block &&
-		    (got.br_startoff > 0 ||
-		     got.br_blockcount != args.geo->fsbcount)) {
-			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
-					got.br_startoff);
-			break;
-		}
-
 		/* No more data blocks... */
 		if (got.br_startoff >= leaf_lblk)
 			break;
@@ -817,7 +807,7 @@ xchk_directory(
 		return -ENOENT;
 
 	/* Plausible size? */
-	if (sc->ip->i_d.di_size < xfs_dir2_sf_hdr_size(0)) {
+	if (sc->ip->i_disk_size < xfs_dir2_sf_hdr_size(0)) {
 		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 		goto out;
 	}
@@ -843,7 +833,7 @@ xchk_directory(
 	 * Userspace usually asks for a 32k buffer, so we will too.
 	 */
 	bufsize = (size_t)min_t(loff_t, XFS_READDIR_BUFSIZE,
-			sc->ip->i_d.di_size);
+			sc->ip->i_disk_size);
 
 	/*
 	 * Look up every name in this directory by hash.

@@ -3634,12 +3634,6 @@ flash_conf_addr(struct ql82xx_hw_data *hw, uint32_t faddr)
 	return hw->flash_conf_off | faddr;
 }
 
-static inline uint32_t
-flash_data_addr(struct ql82xx_hw_data *hw, uint32_t faddr)
-{
-	return hw->flash_data_off | faddr;
-}
-
 static uint32_t *
 qla4_82xx_read_flash_data(struct scsi_qla_host *ha, uint32_t *dwptr,
     uint32_t faddr, uint32_t length)

@@ -47,9 +47,6 @@
 
 #include <linux/delay.h>
 
-
-#define VERSION_STRING DRIVER_DESC " 2.1d"
-
 /* Default debug printout level */
 #define NOZOMI_DEBUG_LEVEL 0x00
 static int debug = NOZOMI_DEBUG_LEVEL;
@@ -89,7 +86,6 @@ do {							\
 /*    Defines */
 #define NOZOMI_NAME		"nozomi"
 #define NOZOMI_NAME_TTY		"nozomi_tty"
-#define DRIVER_DESC		"Nozomi driver"
 
 #define NTTY_TTY_MAXMINORS	256
 #define NTTY_FIFO_BUFFER_SIZE	8192
@@ -358,12 +354,6 @@ struct nozomi {
 	enum card_state state;
 	u32 open_ttys;
 };
-
-/* This is a data packet that is read or written to/from card */
-struct buffer {
-	u32 size;		/* size is the length of the data buffer */
-	u8 *data;
-} __attribute__ ((packed));
 
 /* Global variables */
 static const struct pci_device_id nozomi_pci_tbl[] = {
@@ -787,7 +777,6 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	int i, ret;
 
 	size = __le32_to_cpu(readl(addr));
-	/*  DBG1( "%d bytes port: %d", size, index); */
 
 	if (tty && tty_throttled(tty)) {
 		DBG1("No room in tty, don't read data, don't ack interrupt, "
@@ -1318,8 +1307,6 @@ static int nozomi_card_init(struct pci_dev *pdev,
 	int ndev_idx;
 	int i;
 
-	dev_dbg(&pdev->dev, "Init, new card found\n");
-
 	for (ndev_idx = 0; ndev_idx < ARRAY_SIZE(ndevs); ndev_idx++)
 		if (!ndevs[ndev_idx])
 			break;
@@ -1452,8 +1439,6 @@ err:
 static void tty_exit(struct nozomi *dc)
 {
 	unsigned int i;
-
-	DBG1(" ");
 
 	for (i = 0; i < MAX_PORT; ++i)
 		tty_port_tty_hangup(&dc->port[i].port, false);
@@ -1619,8 +1604,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	struct port *port = tty->driver_data;
 	unsigned long flags;
 
-	/* DBG1( "WRITEx: %d, index = %d", count, index); */
-
 	if (!dc || !port)
 		return -ENODEV;
 
@@ -1746,8 +1729,6 @@ static int ntty_ioctl(struct tty_struct *tty,
 	struct port *port = tty->driver_data;
 	int rval = -ENOIOCTLCMD;
 
-	DBG1("******** IOCTL, cmd: %d", cmd);
-
 	switch (cmd) {
 	case TIOCMIWAIT: {
 		struct async_icount cprev = port->tty_icount;
@@ -1773,7 +1754,6 @@ static void ntty_unthrottle(struct tty_struct *tty)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	DBG1("UNTHROTTLE");
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	enable_transmit_dl(tty->index % MAX_PORT, dc);
 	set_rts(tty, 1);
@@ -1790,7 +1770,6 @@ static void ntty_throttle(struct tty_struct *tty)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	DBG1("THROTTLE");
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	set_rts(tty, 0);
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
@@ -1847,8 +1826,6 @@ static __init int nozomi_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Initializing %s\n", VERSION_STRING);
-
 	ntty_driver = alloc_tty_driver(NTTY_TTY_MAXMINORS);
 	if (!ntty_driver)
 		return -ENOMEM;
@@ -1888,7 +1865,6 @@ free_tty:
 
 static __exit void nozomi_exit(void)
 {
-	printk(KERN_INFO "Unloading %s\n", DRIVER_DESC);
 	pci_unregister_driver(&nozomi_driver);
 	tty_unregister_driver(ntty_driver);
 	put_tty_driver(ntty_driver);
@@ -1898,4 +1874,4 @@ module_init(nozomi_init);
 module_exit(nozomi_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_DESCRIPTION("Nozomi driver");

@@ -64,13 +64,13 @@ static const char * const clk_name[] = {
 
 static u32 rsnd_adg_calculate_rbgx(unsigned long div)
 {
-	int i, ratio;
+	int i;
 
 	if (!div)
 		return 0;
 
 	for (i = 3; i >= 0; i--) {
-		ratio = 2 << (i * 2);
+		int ratio = 2 << (i * 2);
 		if (0 == (div % ratio))
 			return (u32)((i << 8) | ((div / ratio) - 1));
 	}
@@ -111,7 +111,7 @@ static void __rsnd_adg_get_timesel_ratio(struct rsnd_priv *priv,
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int idx, sel, div, step;
+	int sel;
 	unsigned int val, en;
 	unsigned int min, diff;
 	unsigned int sel_rate[] = {
@@ -126,8 +126,9 @@ static void __rsnd_adg_get_timesel_ratio(struct rsnd_priv *priv,
 	val = 0;
 	en = 0;
 	for (sel = 0; sel < ARRAY_SIZE(sel_rate); sel++) {
-		idx = 0;
-		step = 2;
+		int idx = 0;
+		int step = 2;
+		int div;
 
 		if (!sel_rate[sel])
 			continue;
@@ -394,11 +395,11 @@ static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 			       struct rsnd_adg *adg)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct clk *clk;
 	int i;
 
 	for (i = 0; i < CLKMAX; i++) {
-		clk = devm_clk_get(dev, clk_name[i]);
+		struct clk *clk = devm_clk_get(dev, clk_name[i]);
+
 		adg->clk[i] = IS_ERR(clk) ? NULL : clk;
 	}
 }

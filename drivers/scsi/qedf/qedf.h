@@ -11,8 +11,6 @@
 #include <scsi/fc/fc_fip.h>
 #include <scsi/fc/fc_fc2.h>
 #include <scsi/scsi_tcq.h>
-#include <linux/version.h>
-
 
 /* qedf_hsi.h needs to before included any qed includes */
 #include "qedf_hsi.h"
@@ -335,6 +333,7 @@ struct qedf_ctx {
 	unsigned int curr_conn_id;
 	struct workqueue_struct *ll2_recv_wq;
 	struct workqueue_struct *link_update_wq;
+	struct devlink *devlink;
 	struct delayed_work link_update;
 	struct delayed_work link_recovery;
 	struct completion flogi_compl;

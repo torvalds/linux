@@ -15,13 +15,20 @@
 
 #include <subcmd/parse-options.h>
 #include <string.h>
+#include <stdlib.h>
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
 
-bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats, validate_dup, vmlinux, mcount, noinstr;
+bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
+     validate_dup, vmlinux, mcount, noinstr, backup;
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
+	NULL,
+};
+
+static const char * const env_usage[] = {
+	"OBJTOOL_ARGS=\"<options>\"",
 	NULL,
 };
 
@@ -37,8 +44,36 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('n', "noinstr", &noinstr, "noinstr validation for vmlinux.o"),
 	OPT_BOOLEAN('l', "vmlinux", &vmlinux, "vmlinux.o validation"),
 	OPT_BOOLEAN('M', "mcount", &mcount, "generate __mcount_loc"),
+	OPT_BOOLEAN('B', "backup", &backup, "create .orig files before modification"),
 	OPT_END(),
 };
+
+int cmd_parse_options(int argc, const char **argv, const char * const usage[])
+{
+	const char *envv[16] = { };
+	char *env;
+	int envc;
+
+	env = getenv("OBJTOOL_ARGS");
+	if (env) {
+		envv[0] = "OBJTOOL_ARGS";
+		for (envc = 1; envc < ARRAY_SIZE(envv); ) {
+			envv[envc++] = env;
+			env = strchr(env, ' ');
+			if (!env)
+				break;
+			*env = '\0';
+			env++;
+		}
+
+		parse_options(envc, envv, check_options, env_usage, 0);
+	}
+
+	argc = parse_options(argc, argv, check_options, usage, 0);
+	if (argc != 1)
+		usage_with_options(usage, check_options);
+	return argc;
+}
 
 int cmd_check(int argc, const char **argv)
 {
@@ -46,11 +81,7 @@ int cmd_check(int argc, const char **argv)
 	struct objtool_file *file;
 	int ret;
 
-	argc = parse_options(argc, argv, check_options, check_usage, 0);
-
-	if (argc != 1)
-		usage_with_options(check_usage, check_options);
-
+	argc = cmd_parse_options(argc, argv, check_usage);
 	objname = argv[0];
 
 	file = objtool_open_read(objname);

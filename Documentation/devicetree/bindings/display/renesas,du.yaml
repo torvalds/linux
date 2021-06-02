@@ -51,6 +51,9 @@ properties:
   resets: true
   reset-names: true
 
+  power-domains:
+    maxItems: 1
+
   ports:
     $ref: /schemas/graph.yaml#/properties/port
     description: |

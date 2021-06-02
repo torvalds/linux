@@ -509,7 +509,7 @@ error:
 /* SysFS structs							     */
 /*****************************************************************************/
 
-/* Temprature sensors */
+/* Temperature sensors */
 static SENSOR_DEVICE_ATTR_RO(temp1_input, temp_value, 0);
 static SENSOR_DEVICE_ATTR_RO(temp2_input, temp_value, 1);
 static SENSOR_DEVICE_ATTR_RO(temp3_input, temp_value, 2);
@@ -713,7 +713,7 @@ static int fts_detect(struct i2c_client *client,
 {
 	int val;
 
-	/* detection works with revsion greater or equal to 0x2b */
+	/* detection works with revision greater or equal to 0x2b */
 	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_REVISION_REG);
 	if (val < 0x2b)
 		return -ENODEV;

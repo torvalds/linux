@@ -9,15 +9,12 @@
 #include <linux/ktime.h>
 
 struct devfreq;
-struct opp_table;
 struct thermal_cooling_device;
 
 struct lima_device;
 
 struct lima_devfreq {
 	struct devfreq *devfreq;
-	struct opp_table *clkname_opp_table;
-	struct opp_table *regulators_opp_table;
 	struct thermal_cooling_device *cooling;
 	struct devfreq_simple_ondemand_data gov_data;
 

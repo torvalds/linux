@@ -10,8 +10,7 @@ fi
 linux_mount=${linux_header_dir}/mount.h
 
 printf "static const char *fsconfig_cmds[] = {\n"
-regex='^[[:space:]]*+FSCONFIG_([[:alnum:]_]+)[[:space:]]*=[[:space:]]*([[:digit:]]+)[[:space:]]*,[[:space:]]*.*'
-egrep $regex ${linux_mount} | \
-	sed -r "s/$regex/\2 \1/g"	| \
-	xargs printf "\t[%s] = \"%s\",\n"
+ms='[[:space:]]*'
+sed -nr "s/^${ms}FSCONFIG_([[:alnum:]_]+)${ms}=${ms}([[:digit:]]+)${ms},.*/\t[\2] = \"\1\",/p" \
+	${linux_mount}
 printf "};\n"

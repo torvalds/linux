@@ -18,7 +18,7 @@ static bool is_thinkpad(struct hda_codec *codec)
 static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PROBE) {
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		if (!is_thinkpad(codec))
 			return;
 		snd_hda_gen_add_mute_led_cdev(codec, NULL);

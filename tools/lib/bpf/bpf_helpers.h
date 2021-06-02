@@ -25,13 +25,21 @@
 /*
  * Helper macro to place programs, maps, license in
  * different sections in elf_bpf file. Section names
- * are interpreted by elf_bpf loader
+ * are interpreted by libbpf depending on the context (BPF programs, BPF maps,
+ * extern variables, etc).
+ * To allow use of SEC() with externs (e.g., for extern .maps declarations),
+ * make sure __attribute__((unused)) doesn't trigger compilation warning.
  */
-#define SEC(NAME) __attribute__((section(NAME), used))
+#define SEC(name) \
+	_Pragma("GCC diagnostic push")					    \
+	_Pragma("GCC diagnostic ignored \"-Wignored-attributes\"")	    \
+	__attribute__((section(name), used))				    \
+	_Pragma("GCC diagnostic pop")					    \
 
-#ifndef __always_inline
+/* Avoid 'linux/stddef.h' definition of '__always_inline'. */
+#undef __always_inline
 #define __always_inline inline __attribute__((always_inline))
-#endif
+
 #ifndef __noinline
 #define __noinline __attribute__((noinline))
 #endif
@@ -40,7 +48,29 @@
 #endif
 
 /*
- * Helper macro to manipulate data structures
+ * Use __hidden attribute to mark a non-static BPF subprogram effectively
+ * static for BPF verifier's verification algorithm purposes, allowing more
+ * extensive and permissive BPF verification process, taking into account
+ * subprogram's caller context.
+ */
+#define __hidden __attribute__((visibility("hidden")))
+
+/* When utilizing vmlinux.h with BPF CO-RE, user BPF programs can't include
+ * any system-level headers (such as stddef.h, linux/version.h, etc), and
+ * commonly-used macros like NULL and KERNEL_VERSION aren't available through
+ * vmlinux.h. This just adds unnecessary hurdles and forces users to re-define
+ * them on their own. So as a convenience, provide such definitions here.
+ */
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
+#ifndef KERNEL_VERSION
+#define KERNEL_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + ((c) > 255 ? 255 : (c)))
+#endif
+
+/*
+ * Helper macros to manipulate data structures
  */
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER)	((unsigned long)&((TYPE *)0)->MEMBER)

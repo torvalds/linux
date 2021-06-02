@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2020 Marvell. */
 
+#include <linux/bitfield.h>
 #include <linux/pci.h>
 #include "rvu_struct.h"
 #include "rvu_reg.h"
@@ -9,6 +10,28 @@
 
 /* CPT PF device id */
 #define	PCI_DEVID_OTX2_CPT_PF	0xA0FD
+#define	PCI_DEVID_OTX2_CPT10K_PF 0xA0F2
+
+/* Length of initial context fetch in 128 byte words */
+#define CPT_CTX_ILEN    2
+
+#define cpt_get_eng_sts(e_min, e_max, rsp, etype)                   \
+({                                                                  \
+	u64 free_sts = 0, busy_sts = 0;                             \
+	typeof(rsp) _rsp = rsp;                                     \
+	u32 e, i;                                                   \
+								    \
+	for (e = (e_min), i = 0; e < (e_max); e++, i++) {           \
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_STS(e)); \
+		if (reg & 0x1)                                      \
+			busy_sts |= 1ULL << i;                      \
+								    \
+		if (reg & 0x2)                                      \
+			free_sts |= 1ULL << i;                      \
+	}                                                           \
+	(_rsp)->busy_sts_##etype = busy_sts;                        \
+	(_rsp)->free_sts_##etype = free_sts;                        \
+})
 
 static int get_cpt_pf_num(struct rvu *rvu)
 {
@@ -21,7 +44,8 @@ static int get_cpt_pf_num(struct rvu *rvu)
 		if (!pdev)
 			continue;
 
-		if (pdev->device == PCI_DEVID_OTX2_CPT_PF) {
+		if (pdev->device == PCI_DEVID_OTX2_CPT_PF ||
+		    pdev->device == PCI_DEVID_OTX2_CPT10K_PF) {
 			cpt_pf_num = i;
 			put_device(&pdev->dev);
 			break;
@@ -55,6 +79,17 @@ static bool is_cpt_vf(struct rvu *rvu, u16 pcifunc)
 	return true;
 }
 
+static int validate_and_get_cpt_blkaddr(int req_blkaddr)
+{
+	int blkaddr;
+
+	blkaddr = req_blkaddr ? req_blkaddr : BLKADDR_CPT0;
+	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
+		return -EINVAL;
+
+	return blkaddr;
+}
+
 int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 				  struct cpt_lf_alloc_req_msg *req,
 				  struct msg_rsp *rsp)
@@ -65,9 +100,9 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 	int num_lfs, slot;
 	u64 val;
 
-	blkaddr = req->blkaddr ? req->blkaddr : BLKADDR_CPT0;
-	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
-		return -ENODEV;
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
 
 	if (req->eng_grpmsk == 0x0)
 		return CPT_AF_ERR_GRP_INVALID;
@@ -103,6 +138,9 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 
 		/* Set CPT LF group and priority */
 		val = (u64)req->eng_grpmsk << 48 | 1;
+		if (!is_rvu_otx2(rvu))
+			val |= (CPT_CTX_ILEN << 17);
+
 		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), val);
 
 		/* Set CPT LF NIX_PF_FUNC and SSO_PF_FUNC */
@@ -162,7 +200,9 @@ static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
 	struct rvu_block *block;
 	struct rvu_pfvf *pfvf;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
 
 	/* Registers that can be accessed from PF/VF */
 	if ((offset & 0xFF000) ==  CPT_AF_LFX_CTL(0) ||
@@ -192,6 +232,7 @@ static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
 		case CPT_AF_PF_FUNC:
 		case CPT_AF_BLK_RST:
 		case CPT_AF_CONSTANTS1:
+		case CPT_AF_CTX_FLUSH_TIMER:
 			return true;
 		}
 
@@ -217,9 +258,9 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 {
 	int blkaddr;
 
-	blkaddr = req->blkaddr ? req->blkaddr : BLKADDR_CPT0;
-	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
-		return -ENODEV;
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
 
 	/* This message is accepted only if sent from CPT PF/VF */
 	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
@@ -237,6 +278,141 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 		rvu_write64(rvu, blkaddr, req->reg_offset, req->val);
 	else
 		rsp->val = rvu_read64(rvu, blkaddr, req->reg_offset);
+
+	return 0;
+}
+
+static void get_ctx_pc(struct rvu *rvu, struct cpt_sts_rsp *rsp, int blkaddr)
+{
+	if (is_rvu_otx2(rvu))
+		return;
+
+	rsp->ctx_mis_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_MIS_PC);
+	rsp->ctx_hit_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_HIT_PC);
+	rsp->ctx_aop_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_AOP_PC);
+	rsp->ctx_aop_lat_pc = rvu_read64(rvu, blkaddr,
+					 CPT_AF_CTX_AOP_LATENCY_PC);
+	rsp->ctx_ifetch_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_IFETCH_PC);
+	rsp->ctx_ifetch_lat_pc = rvu_read64(rvu, blkaddr,
+					    CPT_AF_CTX_IFETCH_LATENCY_PC);
+	rsp->ctx_ffetch_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FFETCH_PC);
+	rsp->ctx_ffetch_lat_pc = rvu_read64(rvu, blkaddr,
+					    CPT_AF_CTX_FFETCH_LATENCY_PC);
+	rsp->ctx_wback_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FFETCH_PC);
+	rsp->ctx_wback_lat_pc = rvu_read64(rvu, blkaddr,
+					   CPT_AF_CTX_FFETCH_LATENCY_PC);
+	rsp->ctx_psh_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FFETCH_PC);
+	rsp->ctx_psh_lat_pc = rvu_read64(rvu, blkaddr,
+					 CPT_AF_CTX_FFETCH_LATENCY_PC);
+	rsp->ctx_err = rvu_read64(rvu, blkaddr, CPT_AF_CTX_ERR);
+	rsp->ctx_enc_id = rvu_read64(rvu, blkaddr, CPT_AF_CTX_ENC_ID);
+	rsp->ctx_flush_timer = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FLUSH_TIMER);
+
+	rsp->rxc_time = rvu_read64(rvu, blkaddr, CPT_AF_RXC_TIME);
+	rsp->rxc_time_cfg = rvu_read64(rvu, blkaddr, CPT_AF_RXC_TIME_CFG);
+	rsp->rxc_active_sts = rvu_read64(rvu, blkaddr, CPT_AF_RXC_ACTIVE_STS);
+	rsp->rxc_zombie_sts = rvu_read64(rvu, blkaddr, CPT_AF_RXC_ZOMBIE_STS);
+	rsp->rxc_dfrg = rvu_read64(rvu, blkaddr, CPT_AF_RXC_DFRG);
+	rsp->x2p_link_cfg0 = rvu_read64(rvu, blkaddr, CPT_AF_X2PX_LINK_CFG(0));
+	rsp->x2p_link_cfg1 = rvu_read64(rvu, blkaddr, CPT_AF_X2PX_LINK_CFG(1));
+}
+
+static void get_eng_sts(struct rvu *rvu, struct cpt_sts_rsp *rsp, int blkaddr)
+{
+	u16 max_ses, max_ies, max_aes;
+	u32 e_min = 0, e_max = 0;
+	u64 reg;
+
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
+	max_ses = reg & 0xffff;
+	max_ies = (reg >> 16) & 0xffff;
+	max_aes = (reg >> 32) & 0xffff;
+
+	/* Get AE status */
+	e_min = max_ses + max_ies;
+	e_max = max_ses + max_ies + max_aes;
+	cpt_get_eng_sts(e_min, e_max, rsp, ae);
+	/* Get SE status */
+	e_min = 0;
+	e_max = max_ses;
+	cpt_get_eng_sts(e_min, e_max, rsp, se);
+	/* Get IE status */
+	e_min = max_ses;
+	e_max = max_ses + max_ies;
+	cpt_get_eng_sts(e_min, e_max, rsp, ie);
+}
+
+int rvu_mbox_handler_cpt_sts(struct rvu *rvu, struct cpt_sts_req *req,
+			     struct cpt_sts_rsp *rsp)
+{
+	int blkaddr;
+
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
+
+	/* This message is accepted only if sent from CPT PF/VF */
+	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
+	    !is_cpt_vf(rvu, req->hdr.pcifunc))
+		return CPT_AF_ERR_ACCESS_DENIED;
+
+	get_ctx_pc(rvu, rsp, blkaddr);
+
+	/* Get CPT engines status */
+	get_eng_sts(rvu, rsp, blkaddr);
+
+	/* Read CPT instruction PC registers */
+	rsp->inst_req_pc = rvu_read64(rvu, blkaddr, CPT_AF_INST_REQ_PC);
+	rsp->inst_lat_pc = rvu_read64(rvu, blkaddr, CPT_AF_INST_LATENCY_PC);
+	rsp->rd_req_pc = rvu_read64(rvu, blkaddr, CPT_AF_RD_REQ_PC);
+	rsp->rd_lat_pc = rvu_read64(rvu, blkaddr, CPT_AF_RD_LATENCY_PC);
+	rsp->rd_uc_pc = rvu_read64(rvu, blkaddr, CPT_AF_RD_UC_PC);
+	rsp->active_cycles_pc = rvu_read64(rvu, blkaddr,
+					   CPT_AF_ACTIVE_CYCLES_PC);
+	rsp->exe_err_info = rvu_read64(rvu, blkaddr, CPT_AF_EXE_ERR_INFO);
+	rsp->cptclk_cnt = rvu_read64(rvu, blkaddr, CPT_AF_CPTCLK_CNT);
+	rsp->diag = rvu_read64(rvu, blkaddr, CPT_AF_DIAG);
+
+	return 0;
+}
+
+#define RXC_ZOMBIE_THRES  GENMASK_ULL(59, 48)
+#define RXC_ZOMBIE_LIMIT  GENMASK_ULL(43, 32)
+#define RXC_ACTIVE_THRES  GENMASK_ULL(27, 16)
+#define RXC_ACTIVE_LIMIT  GENMASK_ULL(11, 0)
+#define RXC_ACTIVE_COUNT  GENMASK_ULL(60, 48)
+#define RXC_ZOMBIE_COUNT  GENMASK_ULL(60, 48)
+
+static void cpt_rxc_time_cfg(struct rvu *rvu, struct cpt_rxc_time_cfg_req *req,
+			     int blkaddr)
+{
+	u64 dfrg_reg;
+
+	dfrg_reg = FIELD_PREP(RXC_ZOMBIE_THRES, req->zombie_thres);
+	dfrg_reg |= FIELD_PREP(RXC_ZOMBIE_LIMIT, req->zombie_limit);
+	dfrg_reg |= FIELD_PREP(RXC_ACTIVE_THRES, req->active_thres);
+	dfrg_reg |= FIELD_PREP(RXC_ACTIVE_LIMIT, req->active_limit);
+
+	rvu_write64(rvu, blkaddr, CPT_AF_RXC_TIME_CFG, req->step);
+	rvu_write64(rvu, blkaddr, CPT_AF_RXC_DFRG, dfrg_reg);
+}
+
+int rvu_mbox_handler_cpt_rxc_time_cfg(struct rvu *rvu,
+				      struct cpt_rxc_time_cfg_req *req,
+				      struct msg_rsp *rsp)
+{
+	int blkaddr;
+
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
+
+	/* This message is accepted only if sent from CPT PF/VF */
+	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
+	    !is_cpt_vf(rvu, req->hdr.pcifunc))
+		return CPT_AF_ERR_ACCESS_DENIED;
+
+	cpt_rxc_time_cfg(rvu, req, blkaddr);
 
 	return 0;
 }

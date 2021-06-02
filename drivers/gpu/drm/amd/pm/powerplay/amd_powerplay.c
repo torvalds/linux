@@ -1651,6 +1651,26 @@ static int pp_gfx_state_change_set(void *handle, uint32_t state)
 	return 0;
 }
 
+static int pp_get_prv_buffer_details(void *handle, void **addr, size_t *size)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	if (!addr || !size)
+		return -EINVAL;
+
+	*addr = NULL;
+	*size = 0;
+	mutex_lock(&hwmgr->smu_lock);
+	if (adev->pm.smu_prv_buffer) {
+		amdgpu_bo_kmap(adev->pm.smu_prv_buffer, addr);
+		*size = adev->pm.smu_prv_buffer_size;
+	}
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1714,4 +1734,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_xgmi_pstate = pp_set_xgmi_pstate,
 	.get_gpu_metrics = pp_get_gpu_metrics,
 	.gfx_state_change_set = pp_gfx_state_change_set,
+	.get_smu_prv_buf_details = pp_get_prv_buffer_details,
 };

@@ -68,6 +68,14 @@ enum link_training_result {
 	LINK_TRAINING_LQA_FAIL,
 	/* one of the CR,EQ or symbol lock is dropped */
 	LINK_TRAINING_LINK_LOSS,
+	/* Abort link training (because sink unplugged) */
+	LINK_TRAINING_ABORT,
+};
+
+enum lttpr_mode {
+	LTTPR_MODE_NON_LTTPR,
+	LTTPR_MODE_TRANSPARENT,
+	LTTPR_MODE_NON_TRANSPARENT,
 };
 
 struct link_training_settings {
@@ -85,6 +93,7 @@ struct link_training_settings {
 
 	bool enhanced_framing;
 	bool allow_invalid_msa_timing_param;
+	enum lttpr_mode lttpr_mode;
 };
 
 /*TODO: Move this enum test harness*/

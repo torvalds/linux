@@ -126,7 +126,8 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(SetExecuteDMATest,		     PPSMC_MSG_SetExecuteDMATest,		0),
 	MSG_MAP(EnableDeterminism,		     PPSMC_MSG_EnableDeterminism,		0),
 	MSG_MAP(DisableDeterminism,		     PPSMC_MSG_DisableDeterminism,		0),
-	MSG_MAP(SetUclkDpmMode,				 PPSMC_MSG_SetUclkDpmMode,		0),
+	MSG_MAP(SetUclkDpmMode,			     PPSMC_MSG_SetUclkDpmMode,			0),
+	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
 };
 
 static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
@@ -206,7 +207,7 @@ static int aldebaran_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_1);
+	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_2);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table) {
 		kfree(smu_table->metrics_table);
@@ -404,6 +405,9 @@ static int aldebaran_setup_pptable(struct smu_context *smu)
 {
 	int ret = 0;
 
+	/* VBIOS pptable is the first choice */
+	smu->smu_table.boot_values.pp_table_id = 0;
+
 	ret = smu_v13_0_setup_pptable(smu);
 	if (ret)
 		return ret;
@@ -449,12 +453,18 @@ static int aldebaran_populate_umd_state_clk(struct smu_context *smu)
 
 	pstate_table->gfxclk_pstate.min = gfx_table->min;
 	pstate_table->gfxclk_pstate.peak = gfx_table->max;
+	pstate_table->gfxclk_pstate.curr.min = gfx_table->min;
+	pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
 
 	pstate_table->uclk_pstate.min = mem_table->min;
 	pstate_table->uclk_pstate.peak = mem_table->max;
+	pstate_table->uclk_pstate.curr.min = mem_table->min;
+	pstate_table->uclk_pstate.curr.max = mem_table->max;
 
 	pstate_table->socclk_pstate.min = soc_table->min;
 	pstate_table->socclk_pstate.peak = soc_table->max;
+	pstate_table->socclk_pstate.curr.min = soc_table->min;
+	pstate_table->socclk_pstate.curr.max = soc_table->max;
 
 	if (gfx_table->count > ALDEBARAN_UMD_PSTATE_GFXCLK_LEVEL &&
 	    mem_table->count > ALDEBARAN_UMD_PSTATE_MCLK_LEVEL &&
@@ -663,12 +673,14 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 {
 	int i, now, size = 0;
 	int ret = 0;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	struct pp_clock_levels_with_latency clocks;
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
 	uint32_t display_levels;
 	uint32_t freq_values[3] = {0};
+	uint32_t min_clk, max_clk;
 
 	if (amdgpu_ras_intr_triggered())
 		return snprintf(buf, PAGE_SIZE, "unavailable\n");
@@ -696,12 +708,16 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 
 		display_levels = clocks.num_levels;
 
+		min_clk = pstate_table->gfxclk_pstate.curr.min;
+		max_clk = pstate_table->gfxclk_pstate.curr.max;
+
+		freq_values[0] = min_clk;
+		freq_values[1] = max_clk;
+
 		/* fine-grained dpm has only 2 levels */
-		if (now > single_dpm_table->dpm_levels[0].value &&
-				now < single_dpm_table->dpm_levels[1].value) {
+		if (now > min_clk && now < max_clk) {
 			display_levels = clocks.num_levels + 1;
-			freq_values[0] = single_dpm_table->dpm_levels[0].value;
-			freq_values[2] = single_dpm_table->dpm_levels[1].value;
+			freq_values[2] = max_clk;
 			freq_values[1] = now;
 		}
 
@@ -711,12 +727,15 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		 */
 		if (display_levels == clocks.num_levels) {
 			for (i = 0; i < clocks.num_levels; i++)
-				size += sprintf(buf + size, "%d: %uMhz %s\n", i,
-						clocks.data[i].clocks_in_khz / 1000,
-						(clocks.num_levels == 1) ? "*" :
+				size += sprintf(
+					buf + size, "%d: %uMhz %s\n", i,
+					freq_values[i],
+					(clocks.num_levels == 1) ?
+						"*" :
 						(aldebaran_freqs_in_same_level(
-								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+							 freq_values[i], now) ?
+							 "*" :
+							 ""));
 		} else {
 			for (i = 0; i < display_levels; i++)
 				size += sprintf(buf + size, "%d: %uMhz %s\n", i,
@@ -1110,12 +1129,17 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 					   enum amd_dpm_forced_level level)
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
+	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct smu_13_0_dpm_table *gfx_table =
+		&dpm_context->dpm_tables.gfx_table;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 
 	/* Disable determinism if switching to another mode */
-	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
-			&& (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
+	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) &&
+	    (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)) {
 		smu_cmn_send_smc_msg(smu, SMU_MSG_DisableDeterminism, NULL);
-
+		pstate_table->gfxclk_pstate.curr.max = gfx_table->max;
+	}
 
 	switch (level) {
 
@@ -1142,6 +1166,7 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t min_clk;
 	uint32_t max_clk;
@@ -1155,9 +1180,24 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 		return -EINVAL;
 
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-		min_clk = max(min, dpm_context->dpm_tables.gfx_table.min);
-		max_clk = min(max, dpm_context->dpm_tables.gfx_table.max);
-		return smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+		if (min >= max) {
+			dev_err(smu->adev->dev,
+				"Minimum GFX clk should be less than the maximum allowed clock\n");
+			return -EINVAL;
+		}
+
+		if ((min == pstate_table->gfxclk_pstate.curr.min) &&
+		    (max == pstate_table->gfxclk_pstate.curr.max))
+			return 0;
+
+		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK,
+							    min, max);
+		if (!ret) {
+			pstate_table->gfxclk_pstate.curr.min = min;
+			pstate_table->gfxclk_pstate.curr.max = max;
+		}
+
+		return ret;
 	}
 
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
@@ -1177,9 +1217,13 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 			ret = smu_cmn_send_smc_msg_with_param(smu,
 					SMU_MSG_EnableDeterminism,
 					max, NULL);
-			if (ret)
+			if (ret) {
 				dev_err(adev->dev,
 						"Failed to enable determinism at GFX clock %d MHz\n", max);
+			} else {
+				pstate_table->gfxclk_pstate.curr.min = min_clk;
+				pstate_table->gfxclk_pstate.curr.max = max;
+			}
 		}
 	}
 
@@ -1191,6 +1235,7 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	uint32_t min_clk;
 	uint32_t max_clk;
 	int ret = 0;
@@ -1211,16 +1256,22 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			if (input[1] < dpm_context->dpm_tables.gfx_table.min) {
 				dev_warn(smu->adev->dev, "Minimum GFX clk (%ld) MHz specified is less than the minimum allowed (%d) MHz\n",
 					input[1], dpm_context->dpm_tables.gfx_table.min);
+				pstate_table->gfxclk_pstate.custom.min =
+					pstate_table->gfxclk_pstate.curr.min;
 				return -EINVAL;
 			}
-			smu->gfx_actual_hard_min_freq = input[1];
+
+			pstate_table->gfxclk_pstate.custom.min = input[1];
 		} else if (input[0] == 1) {
 			if (input[1] > dpm_context->dpm_tables.gfx_table.max) {
 				dev_warn(smu->adev->dev, "Maximum GFX clk (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
 					input[1], dpm_context->dpm_tables.gfx_table.max);
+				pstate_table->gfxclk_pstate.custom.max =
+					pstate_table->gfxclk_pstate.curr.max;
 				return -EINVAL;
 			}
-			smu->gfx_actual_soft_max_freq = input[1];
+
+			pstate_table->gfxclk_pstate.custom.max = input[1];
 		} else {
 			return -EINVAL;
 		}
@@ -1242,8 +1293,17 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 			dev_err(smu->adev->dev, "Input parameter number not correct\n");
 			return -EINVAL;
 		} else {
-			min_clk = smu->gfx_actual_hard_min_freq;
-			max_clk = smu->gfx_actual_soft_max_freq;
+			if (!pstate_table->gfxclk_pstate.custom.min)
+				pstate_table->gfxclk_pstate.custom.min =
+					pstate_table->gfxclk_pstate.curr.min;
+
+			if (!pstate_table->gfxclk_pstate.custom.max)
+				pstate_table->gfxclk_pstate.custom.max =
+					pstate_table->gfxclk_pstate.curr.max;
+
+			min_clk = pstate_table->gfxclk_pstate.custom.min;
+			max_clk = pstate_table->gfxclk_pstate.custom.max;
+
 			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
 		}
 		break;
@@ -1263,6 +1323,233 @@ static bool aldebaran_is_dpm_running(struct smu_context *smu)
 	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
 					  ((uint64_t)feature_mask[1] << 32));
 	return !!(feature_enabled & SMC_DPM_FEATURE);
+}
+
+static void aldebaran_fill_i2c_req(SwI2cRequest_t  *req, bool write,
+				  uint8_t address, uint32_t numbytes,
+				  uint8_t *data)
+{
+	int i;
+
+	req->I2CcontrollerPort = 0;
+	req->I2CSpeed = 2;
+	req->SlaveAddress = address;
+	req->NumCmds = numbytes;
+
+	for (i = 0; i < numbytes; i++) {
+		SwI2cCmd_t *cmd =  &req->SwI2cCmds[i];
+
+		/* First 2 bytes are always write for lower 2b EEPROM address */
+		if (i < 2)
+			cmd->CmdConfig = CMDCONFIG_READWRITE_MASK;
+		else
+			cmd->CmdConfig = write ? CMDCONFIG_READWRITE_MASK : 0;
+
+
+		/* Add RESTART for read  after address filled */
+		cmd->CmdConfig |= (i == 2 && !write) ? CMDCONFIG_RESTART_MASK : 0;
+
+		/* Add STOP in the end */
+		cmd->CmdConfig |= (i == (numbytes - 1)) ? CMDCONFIG_STOP_MASK : 0;
+
+		/* Fill with data regardless if read or write to simplify code */
+		cmd->ReadWriteData = data[i];
+	}
+}
+
+static int aldebaran_i2c_read_data(struct i2c_adapter *control,
+					       uint8_t address,
+					       uint8_t *data,
+					       uint32_t numbytes)
+{
+	uint32_t  i, ret = 0;
+	SwI2cRequest_t req;
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct smu_table_context *smu_table = &adev->smu.smu_table;
+	struct smu_table *table = &smu_table->driver_table;
+
+	if (numbytes > MAX_SW_I2C_COMMANDS) {
+		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
+			numbytes, MAX_SW_I2C_COMMANDS);
+		return -EINVAL;
+	}
+
+	memset(&req, 0, sizeof(req));
+	aldebaran_fill_i2c_req(&req, false, address, numbytes, data);
+
+	mutex_lock(&adev->smu.mutex);
+	/* Now read data starting with that address */
+	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req,
+					true);
+	mutex_unlock(&adev->smu.mutex);
+
+	if (!ret) {
+		SwI2cRequest_t *res = (SwI2cRequest_t *)table->cpu_addr;
+
+		/* Assume SMU  fills res.SwI2cCmds[i].Data with read bytes */
+		for (i = 0; i < numbytes; i++)
+			data[i] = res->SwI2cCmds[i].ReadWriteData;
+
+		dev_dbg(adev->dev, "aldebaran_i2c_read_data, address = %x, bytes = %d, data :",
+				  (uint16_t)address, numbytes);
+
+		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
+			       8, 1, data, numbytes, false);
+	} else
+		dev_err(adev->dev, "aldebaran_i2c_read_data - error occurred :%x", ret);
+
+	return ret;
+}
+
+static int aldebaran_i2c_write_data(struct i2c_adapter *control,
+						uint8_t address,
+						uint8_t *data,
+						uint32_t numbytes)
+{
+	uint32_t ret;
+	SwI2cRequest_t req;
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+
+	if (numbytes > MAX_SW_I2C_COMMANDS) {
+		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
+			numbytes, MAX_SW_I2C_COMMANDS);
+		return -EINVAL;
+	}
+
+	memset(&req, 0, sizeof(req));
+	aldebaran_fill_i2c_req(&req, true, address, numbytes, data);
+
+	mutex_lock(&adev->smu.mutex);
+	ret = smu_cmn_update_table(&adev->smu, SMU_TABLE_I2C_COMMANDS, 0, &req, true);
+	mutex_unlock(&adev->smu.mutex);
+
+	if (!ret) {
+		dev_dbg(adev->dev, "aldebaran_i2c_write(), address = %x, bytes = %d , data: ",
+					 (uint16_t)address, numbytes);
+
+		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
+			       8, 1, data, numbytes, false);
+		/*
+		 * According to EEPROM spec there is a MAX of 10 ms required for
+		 * EEPROM to flush internal RX buffer after STOP was issued at the
+		 * end of write transaction. During this time the EEPROM will not be
+		 * responsive to any more commands - so wait a bit more.
+		 */
+		msleep(10);
+
+	} else
+		dev_err(adev->dev, "aldebaran_i2c_write- error occurred :%x", ret);
+
+	return ret;
+}
+
+static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
+			      struct i2c_msg *msgs, int num)
+{
+	uint32_t  i, j, ret, data_size, data_chunk_size, next_eeprom_addr = 0;
+	uint8_t *data_ptr, data_chunk[MAX_SW_I2C_COMMANDS] = { 0 };
+
+	for (i = 0; i < num; i++) {
+		/*
+		 * SMU interface allows at most MAX_SW_I2C_COMMANDS bytes of data at
+		 * once and hence the data needs to be spliced into chunks and sent each
+		 * chunk separately
+		 */
+		data_size = msgs[i].len - 2;
+		data_chunk_size = MAX_SW_I2C_COMMANDS - 2;
+		next_eeprom_addr = (msgs[i].buf[0] << 8 & 0xff00) | (msgs[i].buf[1] & 0xff);
+		data_ptr = msgs[i].buf + 2;
+
+		for (j = 0; j < data_size / data_chunk_size; j++) {
+			/* Insert the EEPROM dest addess, bits 0-15 */
+			data_chunk[0] = ((next_eeprom_addr >> 8) & 0xff);
+			data_chunk[1] = (next_eeprom_addr & 0xff);
+
+			if (msgs[i].flags & I2C_M_RD) {
+				ret = aldebaran_i2c_read_data(i2c_adap,
+							     (uint8_t)msgs[i].addr,
+							     data_chunk, MAX_SW_I2C_COMMANDS);
+
+				memcpy(data_ptr, data_chunk + 2, data_chunk_size);
+			} else {
+
+				memcpy(data_chunk + 2, data_ptr, data_chunk_size);
+
+				ret = aldebaran_i2c_write_data(i2c_adap,
+							      (uint8_t)msgs[i].addr,
+							      data_chunk, MAX_SW_I2C_COMMANDS);
+			}
+
+			if (ret) {
+				num = -EIO;
+				goto fail;
+			}
+
+			next_eeprom_addr += data_chunk_size;
+			data_ptr += data_chunk_size;
+		}
+
+		if (data_size % data_chunk_size) {
+			data_chunk[0] = ((next_eeprom_addr >> 8) & 0xff);
+			data_chunk[1] = (next_eeprom_addr & 0xff);
+
+			if (msgs[i].flags & I2C_M_RD) {
+				ret = aldebaran_i2c_read_data(i2c_adap,
+							     (uint8_t)msgs[i].addr,
+							     data_chunk, (data_size % data_chunk_size) + 2);
+
+				memcpy(data_ptr, data_chunk + 2, data_size % data_chunk_size);
+			} else {
+				memcpy(data_chunk + 2, data_ptr, data_size % data_chunk_size);
+
+				ret = aldebaran_i2c_write_data(i2c_adap,
+							      (uint8_t)msgs[i].addr,
+							      data_chunk, (data_size % data_chunk_size) + 2);
+			}
+
+			if (ret) {
+				num = -EIO;
+				goto fail;
+			}
+		}
+	}
+
+fail:
+	return num;
+}
+
+static u32 aldebaran_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+
+static const struct i2c_algorithm aldebaran_i2c_algo = {
+	.master_xfer = aldebaran_i2c_xfer,
+	.functionality = aldebaran_i2c_func,
+};
+
+static int aldebaran_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	int res;
+
+	control->owner = THIS_MODULE;
+	control->class = I2C_CLASS_SPD;
+	control->dev.parent = &adev->pdev->dev;
+	control->algo = &aldebaran_i2c_algo;
+	snprintf(control->name, sizeof(control->name), "AMDGPU SMU");
+
+	res = i2c_add_adapter(control);
+	if (res)
+		DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
+
+	return res;
+}
+
+static void aldebaran_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
+{
+	i2c_del_adapter(control);
 }
 
 static void aldebaran_get_unique_id(struct smu_context *smu)
@@ -1371,8 +1658,8 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 					 void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_1 *gpu_metrics =
-		(struct gpu_metrics_v1_1 *)smu_table->gpu_metrics_table;
+	struct gpu_metrics_v1_2 *gpu_metrics =
+		(struct gpu_metrics_v1_2 *)smu_table->gpu_metrics_table;
 	SmuMetrics_t metrics;
 	int i, ret = 0;
 
@@ -1382,7 +1669,7 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 1);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 2);
 
 	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
 	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
@@ -1396,7 +1683,9 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_mm_activity = 0;
 
 	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
-	gpu_metrics->energy_accumulator = 0;
+	gpu_metrics->energy_accumulator =
+			(uint64_t)metrics.EnergyAcc64bitHigh << 32 |
+			metrics.EnergyAcc64bitLow;
 
 	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
@@ -1427,9 +1716,63 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	for (i = 0; i < NUM_HBM_INSTANCES; i++)
 		gpu_metrics->temperature_hbm[i] = metrics.TemperatureAllHBM[i];
 
+	gpu_metrics->firmware_timestamp = ((uint64_t)metrics.TimeStampHigh << 32) |
+					metrics.TimeStampLow;
+
 	*table = (void *)gpu_metrics;
 
-	return sizeof(struct gpu_metrics_v1_1);
+	return sizeof(struct gpu_metrics_v1_2);
+}
+
+static int aldebaran_mode2_reset(struct smu_context *smu)
+{
+	u32 smu_version;
+	int ret = 0, index;
+	struct amdgpu_device *adev = smu->adev;
+	int timeout = 10;
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+
+	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
+						SMU_MSG_GfxDeviceDriverReset);
+
+	mutex_lock(&smu->message_lock);
+	if (smu_version >= 0x00441400) {
+		ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, SMU_RESET_MODE_2);
+		/* This is similar to FLR, wait till max FLR timeout */
+		msleep(100);
+		dev_dbg(smu->adev->dev, "restore config space...\n");
+		/* Restore the config space saved during init */
+		amdgpu_device_load_pci_state(adev->pdev);
+
+		dev_dbg(smu->adev->dev, "wait for reset ack\n");
+		while (ret == -ETIME && timeout)  {
+			ret = smu_cmn_wait_for_response(smu);
+			/* Wait a bit more time for getting ACK */
+			if (ret == -ETIME) {
+				--timeout;
+				usleep_range(500, 1000);
+				continue;
+			}
+
+			if (ret != 1) {
+				dev_err(adev->dev, "failed to send mode2 message \tparam: 0x%08x response %#x\n",
+						SMU_RESET_MODE_2, ret);
+				goto out;
+			}
+		}
+
+	} else {
+		dev_err(adev->dev, "smu fw 0x%x does not support MSG_GfxDeviceDriverReset MSG\n",
+				smu_version);
+	}
+
+	if (ret == 1)
+		ret = 0;
+out:
+	mutex_unlock(&smu->message_lock);
+
+	return ret;
 }
 
 static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
@@ -1458,6 +1801,19 @@ static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 static bool aldebaran_is_mode2_reset_supported(struct smu_context *smu)
 {
 	return true;
+}
+
+static int aldebaran_set_mp1_state(struct smu_context *smu,
+				   enum pp_mp1_state mp1_state)
+{
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		return smu_cmn_set_mp1_state(smu, mp1_state);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static const struct pptable_funcs aldebaran_ppt_funcs = {
@@ -1517,7 +1873,11 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
 	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
 	.mode1_reset = smu_v13_0_mode1_reset,
-	.mode2_reset = smu_v13_0_mode2_reset,
+	.set_mp1_state = aldebaran_set_mp1_state,
+	.mode2_reset = aldebaran_mode2_reset,
+	.wait_for_event = smu_v13_0_wait_for_event,
+	.i2c_init = aldebaran_i2c_control_init,
+	.i2c_fini = aldebaran_i2c_control_fini,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

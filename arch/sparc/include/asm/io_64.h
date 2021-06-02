@@ -409,6 +409,10 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 #define ioremap_uc(X,Y)			ioremap((X),(Y))
 #define ioremap_wc(X,Y)			ioremap((X),(Y))
 #define ioremap_wt(X,Y)			ioremap((X),(Y))
+static inline void __iomem *ioremap_np(unsigned long offset, unsigned long size)
+{
+	return NULL;
+}
 
 static inline void iounmap(volatile void __iomem *addr)
 {
@@ -449,11 +453,6 @@ void sbus_set_sbus64(struct device *, int);
  * access
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
-
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
 
 #endif
 

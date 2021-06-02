@@ -19,3 +19,13 @@ SYM_FUNC_START(__fpsimd_restore_state)
 	fpsimd_restore	x0, 1
 	ret
 SYM_FUNC_END(__fpsimd_restore_state)
+
+SYM_FUNC_START(__sve_restore_state)
+	__sve_load 0, x1, 2
+	ret
+SYM_FUNC_END(__sve_restore_state)
+
+SYM_FUNC_START(__sve_save_state)
+	sve_save 0, x1, 2
+	ret
+SYM_FUNC_END(__sve_save_state)

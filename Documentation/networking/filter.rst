@@ -327,7 +327,7 @@ Examples for low-level BPF:
   ret #-1
   drop: ret #0
 
-**icmp random packet sampling, 1 in 4**:
+**icmp random packet sampling, 1 in 4**::
 
   ldh [12]
   jne #0x800, drop

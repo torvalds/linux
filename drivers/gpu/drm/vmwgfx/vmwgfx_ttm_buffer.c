@@ -200,7 +200,8 @@ struct vmw_ttm_tt {
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
 
 /**
- * Helper functions to advance a struct vmw_piter iterator.
+ * __vmw_piter_non_sg_next: Helper functions to advance
+ * a struct vmw_piter iterator.
  *
  * @viter: Pointer to the iterator.
  *
@@ -222,7 +223,8 @@ static bool __vmw_piter_sg_next(struct vmw_piter *viter)
 
 
 /**
- * Helper functions to return a pointer to the current page.
+ * __vmw_piter_non_sg_page: Helper functions to return a pointer
+ * to the current page.
  *
  * @viter: Pointer to the iterator
  *
@@ -236,7 +238,8 @@ static struct page *__vmw_piter_non_sg_page(struct vmw_piter *viter)
 }
 
 /**
- * Helper functions to return the DMA address of the current page.
+ * __vmw_piter_phys_addr: Helper functions to return the DMA
+ * address of the current page.
  *
  * @viter: Pointer to the iterator
  *
@@ -658,14 +661,6 @@ static void vmw_evict_flags(struct ttm_buffer_object *bo,
 	*placement = vmw_sys_placement;
 }
 
-static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct ttm_object_file *tfile =
-		vmw_fpriv((struct drm_file *)filp->private_data)->tfile;
-
-	return vmw_user_bo_verify_access(bo, tfile);
-}
-
 static int vmw_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
@@ -768,7 +763,6 @@ struct ttm_device_funcs vmw_bo_driver = {
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,
 	.move = vmw_move,
-	.verify_access = vmw_verify_access,
 	.swap_notify = vmw_swap_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 };

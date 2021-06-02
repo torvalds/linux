@@ -185,13 +185,13 @@ ldx
 	| OP_LDXB number '*' '(' '[' number ']' '&' number ')' {
 		if ($2 != 4 || $9 != 0xf) {
 			fprintf(stderr, "ldxb offset not supported!\n");
-			exit(0);
+			exit(1);
 		} else {
 			bpf_set_curr_instr(BPF_LDX | BPF_MSH | BPF_B, 0, 0, $6); } }
 	| OP_LDX number '*' '(' '[' number ']' '&' number ')' {
 		if ($2 != 4 || $9 != 0xf) {
 			fprintf(stderr, "ldxb offset not supported!\n");
-			exit(0);
+			exit(1);
 		} else {
 			bpf_set_curr_instr(BPF_LDX | BPF_MSH | BPF_B, 0, 0, $6); } }
 	;
@@ -472,7 +472,7 @@ static void bpf_assert_max(void)
 {
 	if (curr_instr >= BPF_MAXINSNS) {
 		fprintf(stderr, "only max %u insns allowed!\n", BPF_MAXINSNS);
-		exit(0);
+		exit(1);
 	}
 }
 
@@ -522,7 +522,7 @@ static int bpf_find_insns_offset(const char *label)
 
 	if (ret == -ENOENT) {
 		fprintf(stderr, "no such label \'%s\'!\n", label);
-		exit(0);
+		exit(1);
 	}
 
 	return ret;
@@ -549,9 +549,11 @@ static uint8_t bpf_encode_jt_jf_offset(int off, int i)
 {
 	int delta = off - i - 1;
 
-	if (delta < 0 || delta > 255)
-		fprintf(stderr, "warning: insn #%d jumps to insn #%d, "
+	if (delta < 0 || delta > 255) {
+		fprintf(stderr, "error: insn #%d jumps to insn #%d, "
 				"which is out of range\n", i, off);
+		exit(1);
+	}
 	return (uint8_t) delta;
 }
 

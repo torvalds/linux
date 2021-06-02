@@ -23,27 +23,6 @@
 #include <asm/sysinfo.h>
 #include <asm/unwind.h>
 
-const char *perf_pmu_name(void)
-{
-	if (cpum_cf_avail() || cpum_sf_avail())
-		return "CPU-Measurement Facilities (CPU-MF)";
-	return "pmu";
-}
-EXPORT_SYMBOL(perf_pmu_name);
-
-int perf_num_counters(void)
-{
-	int num = 0;
-
-	if (cpum_cf_avail())
-		num += PERF_CPUM_CF_MAX_CTR;
-	if (cpum_sf_avail())
-		num += PERF_CPUM_SF_MAX_CTR;
-
-	return num;
-}
-EXPORT_SYMBOL(perf_num_counters);
-
 static struct kvm_s390_sie_block *sie_block(struct pt_regs *regs)
 {
 	struct stack_frame *stack = (struct stack_frame *) regs->gprs[15];

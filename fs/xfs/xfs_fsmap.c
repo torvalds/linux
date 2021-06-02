@@ -904,14 +904,6 @@ xfs_getfsmap(
 	info.fsmap_recs = fsmap_recs;
 	info.head = head;
 
-	/*
-	 * If fsmap runs concurrently with a scrub, the freeze can be delayed
-	 * indefinitely as we walk the rmapbt and iterate over metadata
-	 * buffers.  Freeze quiesces the log (which waits for the buffer LRU to
-	 * be emptied) and that won't happen while we're reading buffers.
-	 */
-	sb_start_write(mp->m_super);
-
 	/* For each device we support... */
 	for (i = 0; i < XFS_GETFSMAP_DEVS; i++) {
 		/* Is this device within the range the user asked for? */
@@ -934,6 +926,11 @@ xfs_getfsmap(
 		if (handlers[i].dev > head->fmh_keys[0].fmr_device)
 			memset(&dkeys[0], 0, sizeof(struct xfs_fsmap));
 
+		/*
+		 * Grab an empty transaction so that we can use its recursive
+		 * buffer locking abilities to detect cycles in the rmapbt
+		 * without deadlocking.
+		 */
 		error = xfs_trans_alloc_empty(mp, &tp);
 		if (error)
 			break;
@@ -951,7 +948,6 @@ xfs_getfsmap(
 
 	if (tp)
 		xfs_trans_cancel(tp);
-	sb_end_write(mp->m_super);
 	head->fmh_oflags = FMH_OF_DEV_T;
 	return error;
 }

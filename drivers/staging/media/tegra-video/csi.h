@@ -139,7 +139,7 @@ struct tegra_csi_soc {
  * @clks: clock for CSI and CIL
  * @soc: pointer to SoC data structure
  * @ops: csi operations
- * @channels: list head for CSI channels
+ * @csi_chans: list head for CSI channels
  */
 struct tegra_csi {
 	struct device *dev;

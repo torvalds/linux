@@ -38,22 +38,6 @@ config DEFXX
 	  To compile this driver as a module, choose M here: the module
 	  will be called defxx.  If unsure, say N.
 
-config DEFXX_MMIO
-	bool
-	prompt "Use MMIO instead of PIO" if PCI || EISA
-	depends on DEFXX
-	default n if PCI || EISA
-	default y
-	help
-	  This instructs the driver to use EISA or PCI memory-mapped I/O
-	  (MMIO) as appropriate instead of programmed I/O ports (PIO).
-	  Enabling this gives an improvement in processing time in parts
-	  of the driver, but it may cause problems with EISA (DEFEA)
-	  adapters.  TURBOchannel does not have the concept of I/O ports,
-	  so MMIO is always used for these (DEFTA) adapters.
-
-	  If unsure, say N.
-
 config SKFP
 	tristate "SysKonnect FDDI PCI support"
 	depends on FDDI && PCI

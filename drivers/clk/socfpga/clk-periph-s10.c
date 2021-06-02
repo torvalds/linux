@@ -93,14 +93,15 @@ static const struct clk_ops peri_cnt_clk_ops = {
 	.get_parent = clk_periclk_get_parent,
 };
 
-struct clk *s10_register_periph(const struct stratix10_perip_c_clock *clks,
+struct clk_hw *s10_register_periph(const struct stratix10_perip_c_clock *clks,
 				void __iomem *reg)
 {
-	struct clk *clk;
+	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
 	struct clk_init_data init;
 	const char *name = clks->name;
 	const char *parent_name = clks->parent_name;
+	int ret;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -118,23 +119,25 @@ struct clk *s10_register_periph(const struct stratix10_perip_c_clock *clks,
 		init.parent_data = clks->parent_data;
 
 	periph_clk->hw.hw.init = &init;
+	hw_clk = &periph_clk->hw.hw;
 
-	clk = clk_register(NULL, &periph_clk->hw.hw);
-	if (WARN_ON(IS_ERR(clk))) {
+	ret = clk_hw_register(NULL, hw_clk);
+	if (ret) {
 		kfree(periph_clk);
-		return NULL;
+		return ERR_PTR(ret);
 	}
-	return clk;
+	return hw_clk;
 }
 
-struct clk *n5x_register_periph(const struct n5x_perip_c_clock *clks,
+struct clk_hw *n5x_register_periph(const struct n5x_perip_c_clock *clks,
 				void __iomem *regbase)
 {
-	struct clk *clk;
+	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
 	struct clk_init_data init;
 	const char *name = clks->name;
 	const char *parent_name = clks->parent_name;
+	int ret;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -151,23 +154,25 @@ struct clk *n5x_register_periph(const struct n5x_perip_c_clock *clks,
 	init.parent_names = parent_name ? &parent_name : NULL;
 
 	periph_clk->hw.hw.init = &init;
+	hw_clk = &periph_clk->hw.hw;
 
-	clk = clk_register(NULL, &periph_clk->hw.hw);
-	if (WARN_ON(IS_ERR(clk))) {
+	ret = clk_hw_register(NULL, hw_clk);
+	if (ret) {
 		kfree(periph_clk);
-		return NULL;
+		return ERR_PTR(ret);
 	}
-	return clk;
+	return hw_clk;
 }
 
-struct clk *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *clks,
+struct clk_hw *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *clks,
 				    void __iomem *regbase)
 {
-	struct clk *clk;
+	struct clk_hw *hw_clk;
 	struct socfpga_periph_clk *periph_clk;
 	struct clk_init_data init;
 	const char *name = clks->name;
 	const char *parent_name = clks->parent_name;
+	int ret;
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -195,11 +200,12 @@ struct clk *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *clks
 		init.parent_data = clks->parent_data;
 
 	periph_clk->hw.hw.init = &init;
+	hw_clk = &periph_clk->hw.hw;
 
-	clk = clk_register(NULL, &periph_clk->hw.hw);
-	if (WARN_ON(IS_ERR(clk))) {
+	ret = clk_hw_register(NULL, hw_clk);
+	if (ret) {
 		kfree(periph_clk);
-		return NULL;
+		return ERR_PTR(ret);
 	}
-	return clk;
+	return hw_clk;
 }

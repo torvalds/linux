@@ -711,7 +711,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_rebind_dx_query - Rebind DX query associated with the context
+ * vmw_rebind_all_dx_query - Rebind DX query associated with the context
  *
  * @ctx_res: context the query belongs to
  *
@@ -1140,7 +1140,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_translate_mob_pointer - Prepare to translate a user-space buffer handle
+ * vmw_translate_mob_ptr - Prepare to translate a user-space buffer handle
  * to a MOB id.
  *
  * @dev_priv: Pointer to a device private structure.
@@ -1195,7 +1195,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_translate_guest_pointer - Prepare to translate a user-space buffer handle
+ * vmw_translate_guest_ptr - Prepare to translate a user-space buffer handle
  * to a valid SVGAGuestPtr
  *
  * @dev_priv: Pointer to a device private structure.
@@ -2308,7 +2308,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_cmd_dx_ia_set_vertex_buffers - Validate
+ * vmw_cmd_dx_set_index_buffer - Validate
  * SVGA_3D_CMD_DX_IA_SET_INDEX_BUFFER command.
  *
  * @dev_priv: Pointer to a device private struct.
@@ -2347,7 +2347,7 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_cmd_dx_set_rendertarget - Validate SVGA_3D_CMD_DX_SET_RENDERTARGETS
+ * vmw_cmd_dx_set_rendertargets - Validate SVGA_3D_CMD_DX_SET_RENDERTARGETS
  * command
  *
  * @dev_priv: Pointer to a device private struct.
@@ -2402,7 +2402,7 @@ static int vmw_cmd_dx_clear_rendertarget_view(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_cmd_dx_clear_rendertarget_view - Validate
+ * vmw_cmd_dx_clear_depthstencil_view - Validate
  * SVGA_3D_CMD_DX_CLEAR_DEPTHSTENCIL_VIEW command
  *
  * @dev_priv: Pointer to a device private struct.
@@ -2513,7 +2513,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 
 		binding.bi.ctx = ctx_node->ctx;
 		binding.bi.res = res;
-		binding.bi.bt = vmw_ctx_binding_so_target,
+		binding.bi.bt = vmw_ctx_binding_so_target;
 		binding.offset = cmd->targets[i].offset;
 		binding.size = cmd->targets[i].sizeInBytes;
 		binding.slot = i;
@@ -2763,12 +2763,24 @@ static int vmw_cmd_dx_genmips(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXGenMips) =
 		container_of(header, typeof(*cmd), header);
-	struct vmw_resource *ret;
+	struct vmw_resource *view;
+	struct vmw_res_cache_entry *rcache;
 
-	ret = vmw_view_id_val_add(sw_context, vmw_view_sr,
-				  cmd->body.shaderResourceViewId);
+	view = vmw_view_id_val_add(sw_context, vmw_view_sr,
+				   cmd->body.shaderResourceViewId);
+	if (IS_ERR(view))
+		return PTR_ERR(view);
 
-	return PTR_ERR_OR_ZERO(ret);
+	/*
+	 * Normally the shader-resource view is not gpu-dirtying, but for
+	 * this particular command it is...
+	 * So mark the last looked-up surface, which is the surface
+	 * the view points to, gpu-dirty.
+	 */
+	rcache = &sw_context->res_cache[vmw_res_surface];
+	vmw_validation_res_set_dirty(sw_context->ctx, rcache->private,
+				     VMW_RES_DIRTY_SET);
+	return 0;
 }
 
 /**
@@ -3829,7 +3841,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 
 		fence_rep.handle = fence_handle;
 		fence_rep.seqno = fence->base.seqno;
-		vmw_update_seqno(dev_priv, &dev_priv->fifo);
+		vmw_update_seqno(dev_priv);
 		fence_rep.passed_seqno = dev_priv->last_read_seqno;
 	}
 
@@ -4431,10 +4443,6 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 			goto out;
 	}
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	ret = vmw_execbuf_process(file_priv, dev_priv,
 				  (void __user *)(unsigned long)arg->commands,
 				  NULL, arg->command_size, arg->throttle_us,
@@ -4442,7 +4450,6 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 				  (void __user *)(unsigned long)arg->fence_rep,
 				  NULL, arg->flags);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (unlikely(ret != 0))
 		goto out;
 

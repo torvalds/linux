@@ -64,7 +64,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 	BUG_ON(start + size > res->num_pages << PAGE_SHIFT);
 
 	node = res->mm_node;
-	while (start > node->size << PAGE_SHIFT)
+	while (start >= node->size << PAGE_SHIFT)
 		start -= node++->size << PAGE_SHIFT;
 
 	cur->start = (node->start << PAGE_SHIFT) + start;

@@ -53,11 +53,6 @@ prevent the page from being split by anyone.
    of handling GUP on hugetlbfs will also work fine on transparent
    hugepage backed mappings.
 
-In case you can't handle compound pages if they're returned by
-follow_page, the FOLL_SPLIT bit can be specified as a parameter to
-follow_page, so that it will split the hugepages before returning
-them.
-
 Graceful fallback
 =================
 

@@ -54,9 +54,9 @@ enum osd_win_layer {
  * @PIXFMT_4BPP: 4-bits-per-pixel bitmap
  * @PIXFMT_8BPP: 8-bits-per-pixel bitmap
  * @PIXFMT_RGB565: 16-bits-per-pixel RGB565
- * @PIXFMT_YCbCrI: YUV 4:2:2
+ * @PIXFMT_YCBCRI: YUV 4:2:2
  * @PIXFMT_RGB888: 24-bits-per-pixel RGB888
- * @PIXFMT_YCrCbI: YUV 4:2:2 with chroma swap
+ * @PIXFMT_YCRCBI: YUV 4:2:2 with chroma swap
  * @PIXFMT_NV12: YUV 4:2:0 planar
  * @PIXFMT_OSD_ATTR: OSD Attribute Window pixel format (4bpp)
  *
@@ -210,7 +210,7 @@ enum osd_cursor_h_width {
 };
 
 /**
- * enum davinci_cursor_v_width
+ * enum osd_cursor_v_width
  * @V_WIDTH_1: vertical line width is 1 line
  * @V_WIDTH_2: vertical line width is 2 lines
  * @V_WIDTH_4: vertical line width is 4 lines

@@ -18,7 +18,6 @@ struct netdev_bpf;
 struct netlink_ext_ack;
 struct pci_dev;
 struct sk_buff;
-struct sk_buff;
 struct nfp_app;
 struct nfp_cpp;
 struct nfp_pf;

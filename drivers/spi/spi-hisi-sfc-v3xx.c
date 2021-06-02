@@ -5,13 +5,13 @@
 // Copyright (c) 2019 HiSilicon Technologies Co., Ltd.
 // Author: John Garry <john.garry@huawei.com>
 
-#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -342,6 +342,7 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 			ret = 0;
 
 		hisi_sfc_v3xx_disable_int(host);
+		synchronize_irq(host->irq);
 		host->completion = NULL;
 	} else {
 		ret = hisi_sfc_v3xx_wait_cmd_idle(host);
@@ -507,18 +508,16 @@ err_put_master:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_ACPI)
 static const struct acpi_device_id hisi_sfc_v3xx_acpi_ids[] = {
 	{"HISI0341", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, hisi_sfc_v3xx_acpi_ids);
-#endif
 
 static struct platform_driver hisi_sfc_v3xx_spi_driver = {
 	.driver = {
 		.name	= "hisi-sfc-v3xx",
-		.acpi_match_table = ACPI_PTR(hisi_sfc_v3xx_acpi_ids),
+		.acpi_match_table = hisi_sfc_v3xx_acpi_ids,
 	},
 	.probe	= hisi_sfc_v3xx_probe,
 };

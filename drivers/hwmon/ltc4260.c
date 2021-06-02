@@ -79,7 +79,7 @@ static ssize_t ltc4260_value_show(struct device *dev,
 	value = ltc4260_get_value(dev, attr->index);
 	if (value < 0)
 		return value;
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t ltc4260_bool_show(struct device *dev,
@@ -98,7 +98,7 @@ static ssize_t ltc4260_bool_show(struct device *dev,
 	if (fault)		/* Clear reported faults in chip register */
 		regmap_update_bits(regmap, LTC4260_FAULT, attr->index, 0);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!fault);
+	return sysfs_emit(buf, "%d\n", !!fault);
 }
 
 /* Voltages */

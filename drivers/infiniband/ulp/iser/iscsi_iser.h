@@ -297,7 +297,6 @@ struct iser_login_desc {
 
 struct iser_conn;
 struct ib_conn;
-struct iscsi_iser_task;
 
 /**
  * struct iser_device - iSER device handle

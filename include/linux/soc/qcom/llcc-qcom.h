@@ -35,7 +35,7 @@
 #define LLCC_WRCACHE     31
 
 /**
- * llcc_slice_desc - Cache slice descriptor
+ * struct llcc_slice_desc - Cache slice descriptor
  * @slice_id: llcc slice id
  * @slice_size: Size allocated for the llcc slice
  */
@@ -45,7 +45,7 @@ struct llcc_slice_desc {
 };
 
 /**
- * llcc_edac_reg_data - llcc edac registers data for each error type
+ * struct llcc_edac_reg_data - llcc edac registers data for each error type
  * @name: Name of the error
  * @synd_reg: Syndrome register address
  * @count_status_reg: Status register address to read the error count
@@ -69,7 +69,7 @@ struct llcc_edac_reg_data {
 };
 
 /**
- * llcc_drv_data - Data associated with the llcc driver
+ * struct llcc_drv_data - Data associated with the llcc driver
  * @regmap: regmap associated with the llcc device
  * @bcast_regmap: regmap associated with llcc broadcast offset
  * @cfg: pointer to the data structure for slice configuration

@@ -313,9 +313,6 @@ struct ras_common_if {
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
-	uint32_t hw_supported;
-	/* for IP to check its ras ability. */
-	uint32_t supported;
 	uint32_t features;
 	struct list_head head;
 	/* sysfs */
@@ -478,7 +475,7 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 
 	if (block >= AMDGPU_RAS_BLOCK_COUNT)
 		return 0;
-	return ras && (ras->supported & (1 << block));
+	return ras && (adev->ras_enabled & (1 << block));
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
@@ -628,4 +625,7 @@ void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready);
 bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev);
 
 void amdgpu_release_ras_context(struct amdgpu_device *adev);
+
+int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev);
+
 #endif

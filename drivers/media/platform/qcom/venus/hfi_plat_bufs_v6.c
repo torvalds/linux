@@ -40,7 +40,8 @@
 
 #define MAX_TILE_COLUMNS				32 /* 8K/256 */
 
-#define NUM_HW_PIC_BUF					10
+#define VPP_CMD_MAX_SIZE				BIT(20)
+#define NUM_HW_PIC_BUF					32
 #define BIN_BUFFER_THRESHOLD				(1280 * 736)
 #define H264D_MAX_SLICE					1800
 /* sizeof(h264d_buftab_t) aligned to 256 */
@@ -90,6 +91,7 @@
 #define SIZE_SLIST_BUF_H264		512
 #define LCU_MAX_SIZE_PELS		64
 #define LCU_MIN_SIZE_PELS		16
+#define SIZE_SEI_USERDATA		4096
 
 #define H265D_MAX_SLICE			600
 #define SIZE_H265D_HW_PIC_T		SIZE_H264D_HW_PIC_T
@@ -199,7 +201,7 @@ static inline u32 size_vpxd_lb_se_left_ctrl(u32 width, u32 height)
 #define VPX_DECODER_FRAME_BIN_RES_BUDGET_RATIO_DEN	2
 
 #define VP8_NUM_FRAME_INFO_BUF			(5 + 1)
-#define VP9_NUM_FRAME_INFO_BUF			(8 + 2 + 1 + 8)
+#define VP9_NUM_FRAME_INFO_BUF			32
 #define VP8_NUM_PROBABILITY_TABLE_BUF		VP8_NUM_FRAME_INFO_BUF
 #define VP9_NUM_PROBABILITY_TABLE_BUF		(VP9_NUM_FRAME_INFO_BUF + 4)
 #define VP8_PROB_TABLE_SIZE			3840
@@ -211,7 +213,7 @@ static inline u32 size_vpxd_lb_se_left_ctrl(u32 width, u32 height)
 
 #define QMATRIX_SIZE				(sizeof(u32) * 128 + 256)
 #define MP2D_QPDUMP_SIZE			115200
-#define HFI_IRIS2_ENC_PERSIST_SIZE		102400
+#define HFI_IRIS2_ENC_PERSIST_SIZE		204800
 #define HFI_MAX_COL_FRAME			6
 #define HFI_VENUS_VENC_TRE_WB_BUFF_SIZE		(65 << 4) /* in Bytes */
 #define HFI_VENUS_VENC_DB_LINE_BUFF_PER_MB	512
@@ -467,7 +469,7 @@ static u32 hfi_iris2_h264d_comv_size(u32 width, u32 height,
 {
 	u32 frame_width_in_mbs = ((width + 15) >> 4);
 	u32 frame_height_in_mbs = ((height + 15) >> 4);
-	u32 col_mv_aligned_width = (frame_width_in_mbs << 6);
+	u32 col_mv_aligned_width = (frame_width_in_mbs << 7);
 	u32 col_zero_aligned_width = (frame_width_in_mbs << 2);
 	u32 col_zero_size = 0, size_colloc = 0, comv_size = 0;
 
@@ -500,9 +502,14 @@ static u32 size_h264d_bse_cmd_buf(u32 height)
 static u32 size_h264d_vpp_cmd_buf(u32 height)
 {
 	u32 aligned_height = ALIGN(height, 32);
+	u32 size;
 
-	return min_t(u32, (((aligned_height + 15) >> 4) * 3 * 4),
+	size = min_t(u32, (((aligned_height + 15) >> 4) * 3 * 4),
 		     H264D_MAX_SLICE) * SIZE_H264D_VPP_CMD_PER_BUF;
+	if (size > VPP_CMD_MAX_SIZE)
+		size = VPP_CMD_MAX_SIZE;
+
+	return size;
 }
 
 static u32 hfi_iris2_h264d_non_comv_size(u32 width, u32 height,
@@ -559,8 +566,11 @@ static u32 size_h265d_vpp_cmd_buf(u32 width, u32 height)
 	size = min_t(u32, size, H265D_MAX_SLICE + 1);
 	size = ALIGN(size, 4);
 	size = 2 * size * SIZE_H265D_VPP_CMD_PER_BUF;
+	size = ALIGN(size, HFI_DMA_ALIGNMENT);
+	if (size > VPP_CMD_MAX_SIZE)
+		size = VPP_CMD_MAX_SIZE;
 
-	return ALIGN(size, HFI_DMA_ALIGNMENT);
+	return size;
 }
 
 static u32 hfi_iris2_h265d_comv_size(u32 width, u32 height,
@@ -1004,8 +1014,8 @@ static u32 enc_persist_size(void)
 
 static u32 h264d_persist1_size(void)
 {
-	return ALIGN((SIZE_SLIST_BUF_H264 * NUM_SLIST_BUF_H264),
-		     HFI_DMA_ALIGNMENT);
+	return ALIGN((SIZE_SLIST_BUF_H264 * NUM_SLIST_BUF_H264
+		     + NUM_HW_PIC_BUF * SIZE_SEI_USERDATA), HFI_DMA_ALIGNMENT);
 }
 
 static u32 h265d_persist1_size(void)
@@ -1159,7 +1169,7 @@ static int output_buffer_count(u32 session_type, u32 codec)
 		case V4L2_PIX_FMT_H264:
 		case V4L2_PIX_FMT_HEVC:
 		default:
-			output_min_count = 8;
+			output_min_count = 18;
 			break;
 		}
 	} else {
@@ -1233,7 +1243,7 @@ static int bufreq_dec(struct hfi_plat_buffers_params *params, u32 buftype,
 	} else if (buftype == HFI_BUFFER_INTERNAL_PERSIST_1) {
 		bufreq->size = dec_ops->persist1();
 	} else {
-		return -EINVAL;
+		bufreq->size = 0;
 	}
 
 	return 0;
@@ -1301,7 +1311,7 @@ static int bufreq_enc(struct hfi_plat_buffers_params *params, u32 buftype,
 	} else if (buftype == HFI_BUFFER_INTERNAL_PERSIST) {
 		bufreq->size = enc_ops->persist();
 	} else {
-		return -EINVAL;
+		bufreq->size = 0;
 	}
 
 	return 0;

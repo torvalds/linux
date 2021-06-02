@@ -421,7 +421,7 @@ static int vmw_bo_cpu_blit_line(struct vmw_bo_blit_line_data *d,
 }
 
 /**
- * ttm_bo_cpu_blit - in-kernel cpu blit.
+ * vmw_bo_cpu_blit - in-kernel cpu blit.
  *
  * @dst: Destination buffer object.
  * @dst_offset: Destination offset of blit start in bytes.

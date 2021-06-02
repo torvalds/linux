@@ -9,7 +9,7 @@
 #ifndef INTEL_SPI_H
 #define INTEL_SPI_H
 
-#include <linux/platform_data/intel-spi.h>
+#include <linux/platform_data/x86/intel-spi.h>
 
 struct intel_spi;
 struct resource;

@@ -51,6 +51,7 @@ struct he_stat {
 	u64			period_guest_us;
 	u64			weight;
 	u64			ins_lat;
+	u64			p_stage_cyc;
 	u32			nr_events;
 };
 
@@ -234,6 +235,7 @@ enum sort_type {
 	SORT_CODE_PAGE_SIZE,
 	SORT_LOCAL_INS_LAT,
 	SORT_GLOBAL_INS_LAT,
+	SORT_PIPELINE_STAGE_CYC,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,

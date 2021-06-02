@@ -17,13 +17,24 @@ enum mt7915_eeprom_field {
 	MT_EE_MAC_ADDR =	0x004,
 	MT_EE_MAC_ADDR2 =	0x00a,
 	MT_EE_DDIE_FT_VERSION =	0x050,
+	MT_EE_DO_PRE_CAL =	0x062,
 	MT_EE_WIFI_CONF =	0x190,
+	MT_EE_RATE_DELTA_2G =	0x252,
+	MT_EE_RATE_DELTA_5G =	0x29d,
 	MT_EE_TX0_POWER_2G =	0x2fc,
 	MT_EE_TX0_POWER_5G =	0x34b,
 	MT_EE_ADIE_FT_VERSION =	0x9a0,
 
-	__MT_EE_MAX =		0xe00
+	__MT_EE_MAX =		0xe00,
+	/* 0xe10 ~ 0x5780 used to save group cal data */
+	MT_EE_PRECAL =		0xe10
 };
+
+#define MT_EE_WIFI_CAL_GROUP			BIT(0)
+#define MT_EE_WIFI_CAL_DPD			GENMASK(2, 1)
+#define MT_EE_CAL_UNIT				1024
+#define MT_EE_CAL_GROUP_SIZE			(44 * MT_EE_CAL_UNIT)
+#define MT_EE_CAL_DPD_SIZE			(54 * MT_EE_CAL_UNIT)
 
 #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
 #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
@@ -34,37 +45,15 @@ enum mt7915_eeprom_field {
 #define MT_EE_WIFI_CONF7_TSSI0_5G		BIT(2)
 #define MT_EE_WIFI_CONF7_TSSI1_5G		BIT(4)
 
+#define MT_EE_RATE_DELTA_MASK			GENMASK(5, 0)
+#define MT_EE_RATE_DELTA_SIGN			BIT(6)
+#define MT_EE_RATE_DELTA_EN			BIT(7)
+
 enum mt7915_eeprom_band {
 	MT_EE_BAND_SEL_DEFAULT,
 	MT_EE_BAND_SEL_5GHZ,
 	MT_EE_BAND_SEL_2GHZ,
 	MT_EE_BAND_SEL_DUAL,
-};
-
-#define SKU_DELTA_VAL		GENMASK(5, 0)
-#define SKU_DELTA_ADD		BIT(6)
-#define SKU_DELTA_EN		BIT(7)
-
-enum mt7915_sku_delta_group {
-	SKU_CCK_GROUP0,
-	SKU_CCK_GROUP1,
-
-	SKU_OFDM_GROUP0 = 0,
-	SKU_OFDM_GROUP1,
-	SKU_OFDM_GROUP2,
-	SKU_OFDM_GROUP3,
-	SKU_OFDM_GROUP4,
-
-	SKU_MCS_GROUP0 = 0,
-	SKU_MCS_GROUP1,
-	SKU_MCS_GROUP2,
-	SKU_MCS_GROUP3,
-	SKU_MCS_GROUP4,
-	SKU_MCS_GROUP5,
-	SKU_MCS_GROUP6,
-	SKU_MCS_GROUP7,
-	SKU_MCS_GROUP8,
-	SKU_MCS_GROUP9,
 };
 
 enum mt7915_sku_rate_group {
@@ -84,12 +73,6 @@ enum mt7915_sku_rate_group {
 	SKU_HE_RU996,
 	SKU_HE_RU2x996,
 	MAX_SKU_RATE_GROUP_NUM,
-};
-
-struct sku_group {
-	u8 len;
-	u16 offset[2];
-	const u8 *delta_map;
 };
 
 static inline int
@@ -124,6 +107,6 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
 		return eep[MT_EE_WIFI_CONF + 7] & MT_EE_WIFI_CONF7_TSSI0_2G;
 }
 
-extern const struct sku_group mt7915_sku_groups[];
+extern const u8 mt7915_sku_group_len[MAX_SKU_RATE_GROUP_NUM];
 
 #endif

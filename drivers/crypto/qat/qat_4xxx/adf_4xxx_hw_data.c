@@ -224,6 +224,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->uof_get_name = uof_get_name;
 	hw_data->uof_get_ae_mask = uof_get_ae_mask;
 	hw_data->set_msix_rttable = set_msix_default_rttable;
+	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
 
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 }

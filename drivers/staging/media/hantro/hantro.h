@@ -214,6 +214,7 @@ struct hantro_dev {
  *
  * @codec_ops:		Set of operations related to codec mode.
  * @postproc:		Post-processing context.
+ * @h264_dec:		H.264-decoding context.
  * @jpeg_enc:		JPEG-encoding context.
  * @mpeg2_dec:		MPEG-2-decoding context.
  * @vp8_dec:		VP8-decoding context.
@@ -293,7 +294,7 @@ struct hantro_postproc_regs {
 /* Logging helpers */
 
 /**
- * debug - Module parameter to control level of debugging messages.
+ * DOC: hantro_debug: Module parameter to control level of debugging messages.
  *
  * Level of debugging messages can be controlled by bits of
  * module parameter called "debug". Meaning of particular

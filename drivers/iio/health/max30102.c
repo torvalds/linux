@@ -506,7 +506,6 @@ static int max30102_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct max30102_data *data;
-	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
 	int ret;
 	unsigned int reg;
@@ -515,16 +514,9 @@ static int max30102_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	buffer = devm_iio_kfifo_allocate(&client->dev);
-	if (!buffer)
-		return -ENOMEM;
-
-	iio_device_attach_buffer(indio_dev, buffer);
-
 	indio_dev->name = MAX30102_DRV_NAME;
 	indio_dev->info = &max30102_info;
-	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
-	indio_dev->setup_ops = &max30102_buffer_setup_ops;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	data = iio_priv(indio_dev);
 	data->indio_dev = indio_dev;
@@ -548,6 +540,12 @@ static int max30102_probe(struct i2c_client *client,
 	default:
 		return -ENODEV;
 	}
+
+	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
+					  INDIO_BUFFER_SOFTWARE,
+					  &max30102_buffer_setup_ops);
+	if (ret)
+		return ret;
 
 	data->regmap = devm_regmap_init_i2c(client, &max30102_regmap_config);
 	if (IS_ERR(data->regmap)) {

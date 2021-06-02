@@ -1222,7 +1222,7 @@ static void vmw_sou_bo_clip(struct vmw_kms_dirty *dirty)
 }
 
 /**
- * vmw_kms_do_bo_dirty - Dirty part of a buffer-object backed framebuffer
+ * vmw_kms_sou_do_bo_dirty - Dirty part of a buffer-object backed framebuffer
  *
  * @dev_priv: Pointer to the device private structure.
  * @framebuffer: Pointer to the buffer-object backed framebuffer.

@@ -213,7 +213,7 @@ void mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *sk
 		if (phy->test.tx_queued == phy->test.tx_done)
 			wake_up(&dev->tx_wait);
 
-		ieee80211_free_txskb(hw, skb);
+		dev_kfree_skb_any(skb);
 		return;
 	}
 #endif
@@ -422,8 +422,7 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
 		return idx;
 
 	do {
-		if (test_bit(MT76_STATE_PM, &phy->state) ||
-		    test_bit(MT76_RESET, &phy->state))
+		if (test_bit(MT76_RESET, &phy->state))
 			return -EBUSY;
 
 		if (stop || mt76_txq_stopped(q))
@@ -461,11 +460,10 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 	int ret = 0;
 
 	while (1) {
-		if (test_bit(MT76_STATE_PM, &phy->state) ||
-		    test_bit(MT76_RESET, &phy->state)) {
-			ret = -EBUSY;
-			break;
-		}
+		int n_frames = 0;
+
+		if (test_bit(MT76_RESET, &phy->state))
+			return -EBUSY;
 
 		if (dev->queue_ops->tx_cleanup &&
 		    q->queued + 2 * MT_TXQ_FREE_THR >= q->ndesc) {
@@ -497,11 +495,16 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 		}
 
 		if (!mt76_txq_stopped(q))
-			ret += mt76_txq_send_burst(phy, q, mtxq);
+			n_frames = mt76_txq_send_burst(phy, q, mtxq);
 
 		spin_unlock_bh(&q->lock);
 
 		ieee80211_return_txq(phy->hw, txq, false);
+
+		if (unlikely(n_frames < 0))
+			return n_frames;
+
+		ret += n_frames;
 	}
 
 	return ret;
@@ -535,10 +538,8 @@ void mt76_txq_schedule_all(struct mt76_phy *phy)
 }
 EXPORT_SYMBOL_GPL(mt76_txq_schedule_all);
 
-void mt76_tx_worker(struct mt76_worker *w)
+void mt76_tx_worker_run(struct mt76_dev *dev)
 {
-	struct mt76_dev *dev = container_of(w, struct mt76_dev, tx_worker);
-
 	mt76_txq_schedule_all(&dev->phy);
 	if (dev->phy2)
 		mt76_txq_schedule_all(dev->phy2);
@@ -549,6 +550,14 @@ void mt76_tx_worker(struct mt76_worker *w)
 	if (dev->phy2 && dev->phy2->test.tx_pending)
 		mt76_testmode_tx_pending(dev->phy2);
 #endif
+}
+EXPORT_SYMBOL_GPL(mt76_tx_worker_run);
+
+void mt76_tx_worker(struct mt76_worker *w)
+{
+	struct mt76_dev *dev = container_of(w, struct mt76_dev, tx_worker);
+
+	mt76_tx_worker_run(dev);
 }
 
 void mt76_stop_tx_queues(struct mt76_phy *phy, struct ieee80211_sta *sta,
@@ -639,3 +648,64 @@ void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 	spin_unlock_bh(&q->lock);
 }
 EXPORT_SYMBOL_GPL(mt76_queue_tx_complete);
+
+void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
+{
+	struct mt76_phy *phy = &dev->phy, *phy2 = dev->phy2;
+	struct mt76_queue *q, *q2 = NULL;
+
+	q = phy->q_tx[0];
+	if (blocked == q->blocked)
+		return;
+
+	q->blocked = blocked;
+	if (phy2) {
+		q2 = phy2->q_tx[0];
+		q2->blocked = blocked;
+	}
+
+	if (!blocked)
+		mt76_worker_schedule(&dev->tx_worker);
+}
+EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
+
+int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
+{
+	int token;
+
+	spin_lock_bh(&dev->token_lock);
+
+	token = idr_alloc(&dev->token, *ptxwi, 0, dev->drv->token_size,
+			  GFP_ATOMIC);
+	if (token >= 0)
+		dev->token_count++;
+
+	if (dev->token_count >= dev->drv->token_size - MT76_TOKEN_FREE_THR)
+		__mt76_set_tx_blocked(dev, true);
+
+	spin_unlock_bh(&dev->token_lock);
+
+	return token;
+}
+EXPORT_SYMBOL_GPL(mt76_token_consume);
+
+struct mt76_txwi_cache *
+mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
+{
+	struct mt76_txwi_cache *txwi;
+
+	spin_lock_bh(&dev->token_lock);
+
+	txwi = idr_remove(&dev->token, token);
+	if (txwi)
+		dev->token_count--;
+
+	if (dev->token_count < dev->drv->token_size - MT76_TOKEN_FREE_THR &&
+	    dev->phy.q_tx[0]->blocked)
+		*wake = true;
+
+	spin_unlock_bh(&dev->token_lock);
+
+	return txwi;
+}
+EXPORT_SYMBOL_GPL(mt76_token_release);

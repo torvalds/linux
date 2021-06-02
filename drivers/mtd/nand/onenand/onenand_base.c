@@ -3167,9 +3167,10 @@ static int onenand_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
  * Write user OTP area.
  */
 static int onenand_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
-			size_t len, size_t *retlen, u_char *buf)
+			size_t len, size_t *retlen, const u_char *buf)
 {
-	return onenand_otp_walk(mtd, from, len, retlen, buf, do_otp_write, MTD_OTP_USER);
+	return onenand_otp_walk(mtd, from, len, retlen, (u_char *)buf,
+				do_otp_write, MTD_OTP_USER);
 }
 
 /**

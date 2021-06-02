@@ -91,6 +91,41 @@ struct arizona_priv {
 	unsigned int dvfs_reqs;
 	struct mutex dvfs_lock;
 	bool dvfs_cached;
+
+	/* Variables used by arizona-jack.c code */
+	struct mutex lock;
+	struct delayed_work hpdet_work;
+	struct delayed_work micd_detect_work;
+	struct delayed_work micd_timeout_work;
+	struct snd_soc_jack *jack;
+	struct regulator *micvdd;
+	struct gpio_desc *micd_pol_gpio;
+
+	u16 last_jackdet;
+
+	int micd_mode;
+	const struct arizona_micd_config *micd_modes;
+	int micd_num_modes;
+
+	int micd_button_mask;
+	const struct arizona_micd_range *micd_ranges;
+	int num_micd_ranges;
+
+	bool micd_reva;
+	bool micd_clamp;
+
+	bool hpdet_active;
+	bool hpdet_done;
+	bool hpdet_retried;
+
+	bool mic;
+	bool detecting;
+
+	int num_hpdet_res;
+	unsigned int hpdet_res[3];
+
+	int jack_flips;
+	int hpdet_ip_version;
 };
 
 struct arizona_voice_trigger_info {
@@ -222,6 +257,9 @@ extern unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 #define ARIZONA_RATE_ENUM_SIZE 4
 #define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
 
+/* SND_JACK_* mask for supported cable/switch types */
+#define ARIZONA_JACK_MASK  (SND_JACK_HEADSET | SND_JACK_LINEOUT | SND_JACK_MECHANICAL)
+
 extern const char * const arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const unsigned int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
 extern const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
@@ -317,7 +355,7 @@ int arizona_init_vol_limit(struct arizona *arizona);
 int arizona_init_spk_irqs(struct arizona *arizona);
 int arizona_free_spk_irqs(struct arizona *arizona);
 
-int arizona_init_dai(struct arizona_priv *priv, int dai);
+int arizona_init_dai(struct arizona_priv *priv, int id);
 
 int arizona_set_output_mode(struct snd_soc_component *component, int output,
 			    bool diff);
@@ -350,5 +388,11 @@ static inline int arizona_unregister_notifier(struct snd_soc_component *componen
 }
 
 int arizona_of_get_audio_pdata(struct arizona *arizona);
+
+int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev);
+int arizona_jack_codec_dev_remove(struct arizona_priv *info);
+
+int arizona_jack_set_jack(struct snd_soc_component *component,
+			  struct snd_soc_jack *jack, void *data);
 
 #endif

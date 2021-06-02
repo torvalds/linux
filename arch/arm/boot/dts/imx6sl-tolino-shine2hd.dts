@@ -97,8 +97,11 @@
 	pinctrl-1 = <&pinctrl_i2c1_sleep>;
 	status = "okay";
 
-	/* TODO: embedded controller at 0x43 (driver missing) */
-
+	ec: embedded-controller@43 {
+		compatible = "netronix,ntxec";
+		reg = <0x43>;
+		#pwm-cells = <2>;
+	};
 };
 
 &i2c2 {

@@ -34,10 +34,7 @@ int cmd_orc(int argc, const char **argv)
 		struct objtool_file *file;
 		int ret;
 
-		argc = parse_options(argc, argv, check_options, orc_usage, 0);
-		if (argc != 1)
-			usage_with_options(orc_usage, check_options);
-
+		argc = cmd_parse_options(argc, argv, orc_usage);
 		objname = argv[0];
 
 		file = objtool_open_read(objname);

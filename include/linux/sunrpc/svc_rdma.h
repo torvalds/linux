@@ -94,6 +94,8 @@ struct svcxprt_rdma {
 	spinlock_t	     sc_rw_ctxt_lock;
 	struct list_head     sc_rw_ctxts;
 
+	u32		     sc_pending_recvs;
+	u32		     sc_recv_batch;
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
 	struct ib_qp         *sc_qp;
@@ -104,8 +106,6 @@ struct svcxprt_rdma {
 
 	wait_queue_head_t    sc_send_wait;	/* SQ exhaustion waitlist */
 	unsigned long	     sc_flags;
-	u32		     sc_pending_recvs;
-	struct list_head     sc_read_complete_q;
 	struct work_struct   sc_work;
 
 	struct llist_head    sc_recv_ctxts;
@@ -134,12 +134,10 @@ struct svc_rdma_recv_ctxt {
 	struct rpc_rdma_cid	rc_cid;
 	struct ib_sge		rc_recv_sge;
 	void			*rc_recv_buf;
-	struct xdr_buf		rc_arg;
 	struct xdr_stream	rc_stream;
 	bool			rc_temp;
 	u32			rc_byte_len;
 	unsigned int		rc_page_count;
-	unsigned int		rc_hdr_count;
 	u32			rc_inv_rkey;
 	__be32			rc_msgtype;
 
@@ -149,8 +147,6 @@ struct svc_rdma_recv_ctxt {
 	struct svc_rdma_chunk	*rc_cur_result_payload;
 	struct svc_rdma_pcl	rc_write_pcl;
 	struct svc_rdma_pcl	rc_reply_pcl;
-
-	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
 struct svc_rdma_send_ctxt {
@@ -159,12 +155,12 @@ struct svc_rdma_send_ctxt {
 
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
+	struct completion	sc_done;
 	struct xdr_buf		sc_hdrbuf;
 	struct xdr_stream	sc_stream;
 	void			*sc_xprt_buf;
-	int			sc_page_count;
 	int			sc_cur_sge_no;
-	struct page		*sc_pages[RPCSVC_MAXPAGES];
+
 	struct ib_sge		sc_sges[];
 };
 

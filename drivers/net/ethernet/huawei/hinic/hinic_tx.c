@@ -377,6 +377,7 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 		} else if (ip.v4->version == 6) {
 			unsigned char *exthdr;
 			__be16 frag_off;
+
 			l3_type = IPV6_PKT;
 			tunnel_type = TUNNEL_UDP_CSUM;
 			exthdr = ip.hdr + sizeof(*ip.v6);

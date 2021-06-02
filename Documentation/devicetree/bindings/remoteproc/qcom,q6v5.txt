@@ -9,6 +9,7 @@ on the Qualcomm Hexagon core.
 	Definition: must be one of:
 		    "qcom,q6v5-pil",
 		    "qcom,ipq8074-wcss-pil"
+		    "qcom,qcs404-wcss-pil"
 		    "qcom,msm8916-mss-pil",
 		    "qcom,msm8974-mss-pil"
 		    "qcom,msm8996-mss-pil"
@@ -39,6 +40,7 @@ on the Qualcomm Hexagon core.
 		    string:
 	qcom,q6v5-pil:
 	qcom,ipq8074-wcss-pil:
+	qcom,qcs404-wcss-pil:
 	qcom,msm8916-mss-pil:
 	qcom,msm8974-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
@@ -67,6 +69,11 @@ on the Qualcomm Hexagon core.
 	Definition: The clocks needed depend on the compatible string:
 	qcom,ipq8074-wcss-pil:
 		    no clock names required
+	qcom,qcs404-wcss-pil:
+		    must be "xo", "gcc_abhs_cbcr", "gcc_abhs_cbcr",
+		    "gcc_axim_cbcr", "lcc_ahbfabric_cbc", "tcsr_lcc_cbc",
+		    "lcc_abhs_cbc", "lcc_tcm_slave_cbc", "lcc_abhm_cbc",
+		    "lcc_axim_cbc", "lcc_bcr_sleep"
 	qcom,q6v5-pil:
 	qcom,msm8916-mss-pil:
 	qcom,msm8974-mss-pil:
@@ -127,6 +134,14 @@ For the compatible string below the following supplies are required:
 - mss-supply:
 - mx-supply: (deprecated, use power domain instead)
 - pll-supply:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the regulators to be held on behalf of the
+		    booting of the Hexagon core
+
+For the compatible string below the following supplies are required:
+  "qcom,qcs404-wcss-pil"
+- cx-supply:
 	Usage: required
 	Value type: <phandle>
 	Definition: reference to the regulators to be held on behalf of the

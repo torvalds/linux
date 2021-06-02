@@ -2559,7 +2559,7 @@ static int ov5648_probe(struct i2c_client *client)
 
 	/* V4L2 subdev register */
 
-	ret = v4l2_async_register_subdev_sensor_common(subdev);
+	ret = v4l2_async_register_subdev_sensor(subdev);
 	if (ret)
 		goto error_pm;
 

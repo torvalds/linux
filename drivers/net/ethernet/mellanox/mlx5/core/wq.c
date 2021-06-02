@@ -34,11 +34,6 @@
 #include "wq.h"
 #include "mlx5_core.h"
 
-static u32 wq_get_byte_sz(u8 log_sz, u8 log_stride)
-{
-	return ((u32)1 << log_sz) << log_stride;
-}
-
 int mlx5_wq_cyc_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		       void *wqc, struct mlx5_wq_cyc *wq,
 		       struct mlx5_wq_ctrl *wq_ctrl)

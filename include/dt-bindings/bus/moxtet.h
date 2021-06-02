@@ -2,7 +2,7 @@
 /*
  * Constant for device tree bindings for Turris Mox module configuration bus
  *
- * Copyright (C) 2019 Marek Behun <marek.behun@nic.cz>
+ * Copyright (C) 2019 Marek Behún <kabel@kernel.org>
  */
 
 #ifndef _DT_BINDINGS_BUS_MOXTET_H

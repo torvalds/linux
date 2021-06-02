@@ -87,6 +87,7 @@ struct autofs_wait_queue {
 	autofs_wqt_t wait_queue_token;
 	/* We use the following to see what we are waiting for */
 	struct qstr name;
+	u32 offset;
 	u32 dev;
 	u64 ino;
 	kuid_t uid;

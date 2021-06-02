@@ -43,6 +43,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
@@ -736,11 +737,11 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fence_y_offset = intel_plane_fence_y_offset(plane_state);
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->flags & PLANE_HAS_FENCE &&
-		    !plane_state->vma->fence);
+		    !plane_state->ggtt_vma->fence);
 
 	if (plane_state->flags & PLANE_HAS_FENCE &&
-	    plane_state->vma->fence)
-		cache->fence_id = plane_state->vma->fence->id;
+	    plane_state->ggtt_vma->fence)
+		cache->fence_id = plane_state->ggtt_vma->fence->id;
 	else
 		cache->fence_id = -1;
 

@@ -25,7 +25,7 @@
 #define	EFUSE_WIFI				0
 #define	EFUSE_BT				1
 
-enum _EFUSE_DEF_TYPE {
+enum {
 	TYPE_EFUSE_MAX_SECTION				= 0,
 	TYPE_EFUSE_REAL_CONTENT_LEN			= 1,
 	TYPE_AVAILABLE_EFUSE_BYTES_BANK		= 2,
@@ -57,15 +57,15 @@ enum _EFUSE_DEF_TYPE {
 #define		EFUSE_MAX_WORD_UNIT			4
 
 /*------------------------------Define structure----------------------------*/
-typedef struct PG_PKT_STRUCT_A {
+struct pgpkt_struct {
 	u8 offset;
 	u8 word_en;
 	u8 data[8];
 	u8 word_cnts;
-} PGPKT_STRUCT, *PPGPKT_STRUCT;
+};
 
 /*------------------------------Define structure----------------------------*/
-typedef struct _EFUSE_HAL {
+struct efuse_hal {
 	u8 fakeEfuseBank;
 	u32 fakeEfuseUsedBytes;
 	u8 fakeEfuseContent[EFUSE_MAX_HW_SIZE];
@@ -82,7 +82,7 @@ typedef struct _EFUSE_HAL {
 	u8 fakeBTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
 	u8 fakeBTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN];
 	u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN];
-} EFUSE_HAL, *PEFUSE_HAL;
+};
 
 
 /*------------------------Export global variable----------------------------*/

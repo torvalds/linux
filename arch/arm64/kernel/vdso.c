@@ -86,7 +86,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	return 0;
 }
 
-static int __vdso_init(enum vdso_abi abi)
+static int __init __vdso_init(enum vdso_abi abi)
 {
 	int i;
 	struct page **vdso_pagelist;
@@ -271,6 +271,14 @@ enum aarch32_map {
 static struct page *aarch32_vectors_page __ro_after_init;
 static struct page *aarch32_sig_page __ro_after_init;
 
+static int aarch32_sigpage_mremap(const struct vm_special_mapping *sm,
+				  struct vm_area_struct *new_vma)
+{
+	current->mm->context.sigpage = (void *)new_vma->vm_start;
+
+	return 0;
+}
+
 static struct vm_special_mapping aarch32_vdso_maps[] = {
 	[AA32_MAP_VECTORS] = {
 		.name	= "[vectors]", /* ABI */
@@ -279,6 +287,7 @@ static struct vm_special_mapping aarch32_vdso_maps[] = {
 	[AA32_MAP_SIGPAGE] = {
 		.name	= "[sigpage]", /* ABI */
 		.pages	= &aarch32_sig_page,
+		.mremap	= aarch32_sigpage_mremap,
 	},
 	[AA32_MAP_VVAR] = {
 		.name = "[vvar]",
@@ -299,34 +308,35 @@ static int aarch32_alloc_kuser_vdso_page(void)
 	if (!IS_ENABLED(CONFIG_KUSER_HELPERS))
 		return 0;
 
-	vdso_page = get_zeroed_page(GFP_ATOMIC);
+	vdso_page = get_zeroed_page(GFP_KERNEL);
 	if (!vdso_page)
 		return -ENOMEM;
 
 	memcpy((void *)(vdso_page + 0x1000 - kuser_sz), __kuser_helper_start,
 	       kuser_sz);
 	aarch32_vectors_page = virt_to_page(vdso_page);
-	flush_dcache_page(aarch32_vectors_page);
 	return 0;
 }
 
+#define COMPAT_SIGPAGE_POISON_WORD	0xe7fddef1
 static int aarch32_alloc_sigpage(void)
 {
 	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
 	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
-	unsigned long sigpage;
+	__le32 poison = cpu_to_le32(COMPAT_SIGPAGE_POISON_WORD);
+	void *sigpage;
 
-	sigpage = get_zeroed_page(GFP_ATOMIC);
+	sigpage = (void *)__get_free_page(GFP_KERNEL);
 	if (!sigpage)
 		return -ENOMEM;
 
-	memcpy((void *)sigpage, __aarch32_sigret_code_start, sigret_sz);
+	memset32(sigpage, (__force u32)poison, PAGE_SIZE / sizeof(poison));
+	memcpy(sigpage, __aarch32_sigret_code_start, sigret_sz);
 	aarch32_sig_page = virt_to_page(sigpage);
-	flush_dcache_page(aarch32_sig_page);
 	return 0;
 }
 
-static int __aarch32_alloc_vdso_pages(void)
+static int __init __aarch32_alloc_vdso_pages(void)
 {
 
 	if (!IS_ENABLED(CONFIG_COMPAT_VDSO))

@@ -28,7 +28,8 @@
 #define MVPP2_PRS_IPV4_MC		0xe0
 #define MVPP2_PRS_IPV4_MC_MASK		0xf0
 #define MVPP2_PRS_IPV4_BC_MASK		0xff
-#define MVPP2_PRS_IPV4_IHL		0x5
+#define MVPP2_PRS_IPV4_IHL_MIN		0x5
+#define MVPP2_PRS_IPV4_IHL_MAX		0xf
 #define MVPP2_PRS_IPV4_IHL_MASK		0xf
 #define MVPP2_PRS_IPV6_MC		0xff
 #define MVPP2_PRS_IPV6_MC_MASK		0xff

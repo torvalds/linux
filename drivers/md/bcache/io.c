@@ -36,7 +36,7 @@ void __bch_submit_bbio(struct bio *bio, struct cache_set *c)
 	struct bbio *b = container_of(bio, struct bbio, bio);
 
 	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
-	bio_set_dev(bio, PTR_CACHE(c, &b->key, 0)->bdev);
+	bio_set_dev(bio, c->cache->bdev);
 
 	b->submit_time_us = local_clock_us();
 	closure_bio_submit(c, bio, bio->bi_private);
@@ -137,7 +137,7 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 			      blk_status_t error, const char *m)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
-	struct cache *ca = PTR_CACHE(c, &b->key, 0);
+	struct cache *ca = c->cache;
 	int is_read = (bio_data_dir(bio) == READ ? 1 : 0);
 
 	unsigned int threshold = op_is_write(bio_op(bio))

@@ -48,7 +48,8 @@ struct ttm_range_manager {
 	spinlock_t lock;
 };
 
-static inline struct ttm_range_manager *to_range_manager(struct ttm_resource_manager *man)
+static inline struct ttm_range_manager *
+to_range_manager(struct ttm_resource_manager *man)
 {
 	return container_of(man, struct ttm_range_manager, manager);
 }
@@ -78,9 +79,8 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 		mode = DRM_MM_INSERT_HIGH;
 
 	spin_lock(&rman->lock);
-	ret = drm_mm_insert_node_in_range(mm, node,
-					  mem->num_pages,
-					  mem->page_alignment, 0,
+	ret = drm_mm_insert_node_in_range(mm, node, mem->num_pages,
+					  bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
@@ -109,7 +109,21 @@ static void ttm_range_man_free(struct ttm_resource_manager *man,
 	}
 }
 
-static const struct ttm_resource_manager_func ttm_range_manager_func;
+static void ttm_range_man_debug(struct ttm_resource_manager *man,
+				struct drm_printer *printer)
+{
+	struct ttm_range_manager *rman = to_range_manager(man);
+
+	spin_lock(&rman->lock);
+	drm_mm_print(&rman->mm, printer);
+	spin_unlock(&rman->lock);
+}
+
+static const struct ttm_resource_manager_func ttm_range_manager_func = {
+	.alloc = ttm_range_man_alloc,
+	.free = ttm_range_man_free,
+	.debug = ttm_range_man_debug
+};
 
 int ttm_range_man_init(struct ttm_device *bdev,
 		       unsigned type, bool use_tt,
@@ -163,19 +177,3 @@ int ttm_range_man_fini(struct ttm_device *bdev,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_range_man_fini);
-
-static void ttm_range_man_debug(struct ttm_resource_manager *man,
-				struct drm_printer *printer)
-{
-	struct ttm_range_manager *rman = to_range_manager(man);
-
-	spin_lock(&rman->lock);
-	drm_mm_print(&rman->mm, printer);
-	spin_unlock(&rman->lock);
-}
-
-static const struct ttm_resource_manager_func ttm_range_manager_func = {
-	.alloc = ttm_range_man_alloc,
-	.free = ttm_range_man_free,
-	.debug = ttm_range_man_debug
-};

@@ -79,3 +79,4 @@ static void __exit nflog_tg_exit(void)
 
 module_init(nflog_tg_init);
 module_exit(nflog_tg_exit);
+MODULE_SOFTDEP("pre: nfnetlink_log");

@@ -165,8 +165,8 @@ In-flight parent objects
 
 Sometimes it may not be convenient or possible to allocate shadow
 variables alongside their parent objects.  Or a livepatch fix may
-require shadow varibles to only a subset of parent object instances.  In
-these cases, the klp_shadow_get_or_alloc() call can be used to attach
+require shadow variables for only a subset of parent object instances.
+In these cases, the klp_shadow_get_or_alloc() call can be used to attach
 shadow variables to parents already in-flight.
 
 For commit 1d147bfa6429, a good spot to allocate a shadow spinlock is

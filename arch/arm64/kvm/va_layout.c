@@ -288,3 +288,10 @@ void kvm_get_kimage_voffset(struct alt_instr *alt,
 {
 	generate_mov_q(kimage_voffset, origptr, updptr, nr_inst);
 }
+
+void kvm_compute_final_ctr_el0(struct alt_instr *alt,
+			       __le32 *origptr, __le32 *updptr, int nr_inst)
+{
+	generate_mov_q(read_sanitised_ftr_reg(SYS_CTR_EL0),
+		       origptr, updptr, nr_inst);
+}

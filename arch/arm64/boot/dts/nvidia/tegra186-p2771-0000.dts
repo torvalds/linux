@@ -10,7 +10,7 @@
 	model = "NVIDIA Jetson TX2 Developer Kit";
 	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
 
-	aconnect {
+	aconnect@2900000 {
 		status = "okay";
 
 		dma-controller@2930000 {

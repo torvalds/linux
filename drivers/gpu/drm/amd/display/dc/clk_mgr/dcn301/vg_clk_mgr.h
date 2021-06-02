@@ -25,29 +25,25 @@
 
 #ifndef __VG_CLK_MGR_H__
 #define __VG_CLK_MGR_H__
+#include "clk_mgr_internal.h"
 
-int vg_get_active_display_cnt_wa(
-		struct dc *dc,
-		struct dc_state *context);
+struct watermarks;
 
-void vg_enable_pme_wa(struct clk_mgr *clk_mgr_base);
+struct smu_watermark_set {
+	struct watermarks *wm_set;
+	union large_integer mc_address;
+};
+
+struct clk_mgr_vgh {
+	struct clk_mgr_internal base;
+	struct smu_watermark_set smu_wm_set;
+};
 
 void vg_clk_mgr_construct(struct dc_context *ctx,
-		struct clk_mgr_internal *clk_mgr,
+		struct clk_mgr_vgh *clk_mgr,
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg);
 
 void vg_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr);
-
-#include "dcn301_smu.h"
-void vg_notify_wm_ranges(struct clk_mgr *clk_mgr_base);
-
-void vg_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
-		struct smu_dpm_clks *smu_dpm_clks);
-
-void vg_clk_mgr_helper_populate_bw_params(
-		struct clk_mgr_internal *clk_mgr,
-		struct integrated_info *bios_info,
-		const struct vg_dpm_clocks *clock_table);
 
 #endif //__VG_CLK_MGR_H__

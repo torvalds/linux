@@ -195,7 +195,7 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 	add		v10.2d, v10.2d, v2.2d
 	add		v11.2d, v11.2d, v3.2d
 
-	cond_yield	3f, x4
+	cond_yield	3f, x4, x5
 	/* handled all input blocks? */
 	cbnz		w2, 0b
 

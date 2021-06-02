@@ -158,13 +158,15 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  * @irq_src: interrupt source to use for this ring
  * @irq_type: interrupt type to use for this ring
  * @hw_prio: ring priority (NORMAL/HIGH)
+ * @sched_score: optional score atomic shared with other schedulers
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned int max_dw, struct amdgpu_irq_src *irq_src,
-		     unsigned int irq_type, unsigned int hw_prio)
+		     unsigned int irq_type, unsigned int hw_prio,
+		     atomic_t *sched_score)
 {
 	int r;
 	int sched_hw_submission = amdgpu_sched_hw_submission;
@@ -189,7 +191,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission);
+		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission,
+						  sched_score);
 		if (r)
 			return r;
 	}

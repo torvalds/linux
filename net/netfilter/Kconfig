@@ -71,12 +71,17 @@ config NF_CONNTRACK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NF_LOG_COMMON
-	tristate
-
-config NF_LOG_NETDEV
-	tristate "Netdev packet logging"
-	select NF_LOG_COMMON
+config NF_LOG_SYSLOG
+	tristate "Syslog packet logging"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This option enable support for packet logging via syslog.
+	  It supports IPv4, IPV6, ARP and common transport protocols such
+	  as TCP and UDP.
+	  This is a simpler but less flexible logging method compared to
+	  CONFIG_NETFILTER_NETLINK_LOG.
+	  If both are enabled the backend to use can be configured at run-time
+	  by means of per-address-family sysctl tunables.
 
 if NF_CONNTRACK
 config NETFILTER_CONNCOUNT
@@ -723,6 +728,16 @@ config NETFILTER_XTABLES
 
 if NETFILTER_XTABLES
 
+config NETFILTER_XTABLES_COMPAT
+	bool "Netfilter Xtables 32bit support"
+	depends on COMPAT
+	default y
+	help
+	   This option provides a translation layer to run 32bit arp,ip(6),ebtables
+	   binaries on 64bit kernels.
+
+	   If unsure, say N.
+
 comment "Xtables combined modules"
 
 config NETFILTER_XT_MARK
@@ -922,8 +937,7 @@ config NETFILTER_XT_TARGET_LED
 
 config NETFILTER_XT_TARGET_LOG
 	tristate "LOG target support"
-	select NF_LOG_COMMON
-	select NF_LOG_IPV4
+	select NF_LOG_SYSLOG
 	select NF_LOG_IPV6 if IP6_NF_IPTABLES
 	default m if NETFILTER_ADVANCED=n
 	help

@@ -12,7 +12,7 @@
 #include <dt-bindings/sound/meson-g12a-tohdmitx.h>
 
 / {
-	compatible = "azw,gsking-x", "amlogic,g12b";
+	compatible = "azw,gsking-x", "amlogic,s922x", "amlogic,g12b";
 	model = "Beelink GS-King X";
 
 	aliases {

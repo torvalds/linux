@@ -173,6 +173,7 @@ static int ktd253_backlight_probe(struct platform_device *pdev)
 
 static const struct of_device_id ktd253_backlight_of_match[] = {
 	{ .compatible = "kinetic,ktd253" },
+	{ .compatible = "kinetic,ktd259" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ktd253_backlight_of_match);

@@ -14,7 +14,7 @@
 
 #include <asm/stacktrace.h>
 
-register const unsigned long sp_in_global __asm__("sp");
+register unsigned long sp_in_global __asm__("sp");
 
 #ifdef CONFIG_FRAME_POINTER
 

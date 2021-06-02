@@ -1731,7 +1731,6 @@
 			interrupts = <GIC_SPI 150 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkc CLKID_VAPB>;
 			resets = <&reset RESET_GE2D>;
-			reset-names = "core";
 		};
 
 		gic: interrupt-controller@ffc01000 {

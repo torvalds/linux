@@ -103,7 +103,7 @@ static const struct zpa2326_frequency *zpa2326_highest_frequency(void)
 }
 
 /**
- * struct zpa_private - Per-device internal private state
+ * struct zpa2326_private - Per-device internal private state
  * @timestamp:  Buffered samples ready datum.
  * @regmap:     Underlying I2C / SPI bus adapter used to abstract slave register
  *              accesses.
@@ -1382,7 +1382,7 @@ static const struct iio_trigger_ops zpa2326_trigger_ops = {
 };
 
 /**
- * zpa2326_init_trigger() - Create an interrupt driven / hardware trigger
+ * zpa2326_init_managed_trigger() - Create interrupt driven / hardware trigger
  *                          allowing to notify external devices a new sample is
  *                          ready.
  * @parent:    Hardware sampling device @indio_dev is a child of.
@@ -1413,7 +1413,6 @@ static int zpa2326_init_managed_trigger(struct device          *parent,
 		return -ENOMEM;
 
 	/* Basic setup. */
-	trigger->dev.parent = parent;
 	trigger->ops = &zpa2326_trigger_ops;
 
 	private->trigger = trigger;

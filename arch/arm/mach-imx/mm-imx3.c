@@ -109,18 +109,6 @@ void __init imx31_init_early(void)
 	mx3_ccm_base = of_iomap(np, 0);
 	BUG_ON(!mx3_ccm_base);
 }
-
-void __init mx31_init_irq(void)
-{
-	void __iomem *avic_base;
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-avic");
-	avic_base = of_iomap(np, 0);
-	BUG_ON(!avic_base);
-
-	mxc_init_irq(avic_base);
-}
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
 #ifdef CONFIG_SOC_IMX35
@@ -157,17 +145,5 @@ void __init imx35_init_early(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-ccm");
 	mx3_ccm_base = of_iomap(np, 0);
 	BUG_ON(!mx3_ccm_base);
-}
-
-void __init mx35_init_irq(void)
-{
-	void __iomem *avic_base;
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx35-avic");
-	avic_base = of_iomap(np, 0);
-	BUG_ON(!avic_base);
-
-	mxc_init_irq(avic_base);
 }
 #endif /* ifdef CONFIG_SOC_IMX35 */

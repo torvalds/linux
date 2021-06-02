@@ -9,12 +9,14 @@
  *  Copyright (C) 2012 Red Hat
  */
 
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 
 /**
@@ -97,3 +99,47 @@ dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 	return paddr;
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_addr);
+
+/**
+ * drm_fb_cma_sync_non_coherent - Sync GEM object to non-coherent backing
+ *	memory
+ * @drm: DRM device
+ * @old_state: Old plane state
+ * @state: New plane state
+ *
+ * This function can be used by drivers that use damage clips and have
+ * CMA GEM objects backed by non-coherent memory. Calling this function
+ * in a plane's .atomic_update ensures that all the data in the backing
+ * memory have been written to RAM.
+ */
+void drm_fb_cma_sync_non_coherent(struct drm_device *drm,
+				  struct drm_plane_state *old_state,
+				  struct drm_plane_state *state)
+{
+	const struct drm_format_info *finfo = state->fb->format;
+	struct drm_atomic_helper_damage_iter iter;
+	const struct drm_gem_cma_object *cma_obj;
+	unsigned int offset, i;
+	struct drm_rect clip;
+	dma_addr_t daddr;
+	size_t nb_bytes;
+
+	for (i = 0; i < finfo->num_planes; i++) {
+		cma_obj = drm_fb_cma_get_gem_obj(state->fb, i);
+		if (!cma_obj->map_noncoherent)
+			continue;
+
+		daddr = drm_fb_cma_get_gem_addr(state->fb, state, i);
+		drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+
+		drm_atomic_for_each_plane_damage(&iter, &clip) {
+			/* Ignore x1/x2 values, invalidate complete lines */
+			offset = clip.y1 * state->fb->pitches[i];
+
+			nb_bytes = (clip.y2 - clip.y1) * state->fb->pitches[i];
+			dma_sync_single_for_device(drm->dev, daddr + offset,
+						   nb_bytes, DMA_TO_DEVICE);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_sync_non_coherent);

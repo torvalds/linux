@@ -850,8 +850,8 @@ static int rt1305_set_component_pll(struct snd_soc_component *component,
 		pll_code.n_code, pll_code.k_code);
 
 	snd_soc_component_write(component, RT1305_PLL1_1,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT1305_PLL_1_M_SFT |
-		pll_code.m_bp << RT1305_PLL_1_M_BYPASS_SFT |
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT1305_PLL_1_M_SFT) |
+		(pll_code.m_bp << RT1305_PLL_1_M_BYPASS_SFT) |
 		pll_code.n_code);
 	snd_soc_component_write(component, RT1305_PLL1_2,
 		pll_code.k_code);
@@ -975,7 +975,7 @@ MODULE_DEVICE_TABLE(of, rt1305_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt1305_acpi_match[] = {
+static const struct acpi_device_id rt1305_acpi_match[] = {
 	{"10EC1305", 0,},
 	{"10EC1306", 0,},
 	{},

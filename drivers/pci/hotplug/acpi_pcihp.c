@@ -157,7 +157,7 @@ static int pcihp_is_ejectable(acpi_handle handle)
 }
 
 /**
- * acpi_pcihp_check_ejectable - check if handle is ejectable ACPI PCI slot
+ * acpi_pci_check_ejectable - check if handle is ejectable ACPI PCI slot
  * @pbus: the PCI bus of the PCI slot corresponding to 'handle'
  * @handle: ACPI handle to check
  *

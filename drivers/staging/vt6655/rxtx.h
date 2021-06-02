@@ -150,7 +150,7 @@ struct vnt_cts {
 	u16 reserved;
 	struct ieee80211_cts data;
 	u16 reserved2;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_cts_fb {
 	struct vnt_phy_field b;
@@ -160,7 +160,7 @@ struct vnt_cts_fb {
 	__le16 cts_duration_ba_f1;
 	struct ieee80211_cts data;
 	u16 reserved2;
-} __packed;
+} __packed __aligned(2);
 
 struct vnt_tx_fifo_head {
 	u8 tx_key[WLAN_KEY_LEN_CCMP];

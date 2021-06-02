@@ -890,7 +890,7 @@ void i40iw_terminate_done(struct i40iw_sc_qp *qp, int timeout_occurred)
 }
 
 /**
- * i40iw_terminate_imeout - timeout happened
+ * i40iw_terminate_timeout - timeout happened
  * @t: points to iwarp qp
  */
 static void i40iw_terminate_timeout(struct timer_list *t)

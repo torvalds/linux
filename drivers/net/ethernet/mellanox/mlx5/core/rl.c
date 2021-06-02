@@ -117,6 +117,9 @@ static struct mlx5_rl_entry *find_rl_entry(struct mlx5_rl_table *table,
 	bool empty_found = false;
 	int i;
 
+	lockdep_assert_held(&table->rl_lock);
+	WARN_ON(!table->rl_entry);
+
 	for (i = 0; i < table->max_size; i++) {
 		if (dedicated) {
 			if (!table->rl_entry[i].refcount)
@@ -172,38 +175,103 @@ bool mlx5_rl_are_equal(struct mlx5_rate_limit *rl_0,
 }
 EXPORT_SYMBOL(mlx5_rl_are_equal);
 
+static int mlx5_rl_table_get(struct mlx5_rl_table *table)
+{
+	int i;
+
+	lockdep_assert_held(&table->rl_lock);
+
+	if (table->rl_entry) {
+		table->refcount++;
+		return 0;
+	}
+
+	table->rl_entry = kcalloc(table->max_size, sizeof(struct mlx5_rl_entry),
+				  GFP_KERNEL);
+	if (!table->rl_entry)
+		return -ENOMEM;
+
+	/* The index represents the index in HW rate limit table
+	 * Index 0 is reserved for unlimited rate
+	 */
+	for (i = 0; i < table->max_size; i++)
+		table->rl_entry[i].index = i + 1;
+
+	table->refcount++;
+	return 0;
+}
+
+static void mlx5_rl_table_put(struct mlx5_rl_table *table)
+{
+	lockdep_assert_held(&table->rl_lock);
+	if (--table->refcount)
+		return;
+
+	kfree(table->rl_entry);
+	table->rl_entry = NULL;
+}
+
+static void mlx5_rl_table_free(struct mlx5_core_dev *dev, struct mlx5_rl_table *table)
+{
+	int i;
+
+	if (!table->rl_entry)
+		return;
+
+	/* Clear all configured rates */
+	for (i = 0; i < table->max_size; i++)
+		if (table->rl_entry[i].refcount)
+			mlx5_set_pp_rate_limit_cmd(dev, &table->rl_entry[i], false);
+	kfree(table->rl_entry);
+}
+
+static void mlx5_rl_entry_get(struct mlx5_rl_entry *entry)
+{
+	entry->refcount++;
+}
+
+static void
+mlx5_rl_entry_put(struct mlx5_core_dev *dev, struct mlx5_rl_entry *entry)
+{
+	entry->refcount--;
+	if (!entry->refcount)
+		mlx5_set_pp_rate_limit_cmd(dev, entry, false);
+}
+
 int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 			 bool dedicated_entry, u16 *index)
 {
 	struct mlx5_rl_table *table = &dev->priv.rl_table;
 	struct mlx5_rl_entry *entry;
-	int err = 0;
 	u32 rate;
+	int err;
+
+	if (!table->max_size)
+		return -EOPNOTSUPP;
 
 	rate = MLX5_GET(set_pp_rate_limit_context, rl_in, rate_limit);
-	mutex_lock(&table->rl_lock);
-
 	if (!rate || !mlx5_rl_is_in_range(dev, rate)) {
 		mlx5_core_err(dev, "Invalid rate: %u, should be %u to %u\n",
 			      rate, table->min_rate, table->max_rate);
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
+
+	mutex_lock(&table->rl_lock);
+	err = mlx5_rl_table_get(table);
+	if (err)
+		goto out;
 
 	entry = find_rl_entry(table, rl_in, uid, dedicated_entry);
 	if (!entry) {
 		mlx5_core_err(dev, "Max number of %u rates reached\n",
 			      table->max_size);
 		err = -ENOSPC;
-		goto out;
+		goto rl_err;
 	}
-	if (entry->refcount) {
-		/* rate already configured */
-		entry->refcount++;
-	} else {
+	if (!entry->refcount) {
+		/* new rate limit */
 		memcpy(entry->rl_raw, rl_in, sizeof(entry->rl_raw));
 		entry->uid = uid;
-		/* new rate limit */
 		err = mlx5_set_pp_rate_limit_cmd(dev, entry, true);
 		if (err) {
 			mlx5_core_err(
@@ -214,14 +282,18 @@ int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 					 burst_upper_bound),
 				MLX5_GET(set_pp_rate_limit_context, rl_in,
 					 typical_packet_size));
-			goto out;
+			goto rl_err;
 		}
 
-		entry->refcount = 1;
 		entry->dedicated = dedicated_entry;
 	}
+	mlx5_rl_entry_get(entry);
 	*index = entry->index;
+	mutex_unlock(&table->rl_lock);
+	return 0;
 
+rl_err:
+	mlx5_rl_table_put(table);
 out:
 	mutex_unlock(&table->rl_lock);
 	return err;
@@ -235,10 +307,8 @@ void mlx5_rl_remove_rate_raw(struct mlx5_core_dev *dev, u16 index)
 
 	mutex_lock(&table->rl_lock);
 	entry = &table->rl_entry[index - 1];
-	entry->refcount--;
-	if (!entry->refcount)
-		/* need to remove rate */
-		mlx5_set_pp_rate_limit_cmd(dev, entry, false);
+	mlx5_rl_entry_put(dev, entry);
+	mlx5_rl_table_put(table);
 	mutex_unlock(&table->rl_lock);
 }
 EXPORT_SYMBOL(mlx5_rl_remove_rate_raw);
@@ -286,12 +356,8 @@ void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl)
 			       rl->rate, rl->max_burst_sz, rl->typical_pkt_sz);
 		goto out;
 	}
-
-	entry->refcount--;
-	if (!entry->refcount)
-		/* need to remove rate */
-		mlx5_set_pp_rate_limit_cmd(dev, entry, false);
-
+	mlx5_rl_entry_put(dev, entry);
+	mlx5_rl_table_put(table);
 out:
 	mutex_unlock(&table->rl_lock);
 }
@@ -300,31 +366,19 @@ EXPORT_SYMBOL(mlx5_rl_remove_rate);
 int mlx5_init_rl_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_rl_table *table = &dev->priv.rl_table;
-	int i;
 
-	mutex_init(&table->rl_lock);
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, packet_pacing)) {
 		table->max_size = 0;
 		return 0;
 	}
+
+	mutex_init(&table->rl_lock);
 
 	/* First entry is reserved for unlimited rate */
 	table->max_size = MLX5_CAP_QOS(dev, packet_pacing_rate_table_size) - 1;
 	table->max_rate = MLX5_CAP_QOS(dev, packet_pacing_max_rate);
 	table->min_rate = MLX5_CAP_QOS(dev, packet_pacing_min_rate);
 
-	table->rl_entry = kcalloc(table->max_size, sizeof(struct mlx5_rl_entry),
-				  GFP_KERNEL);
-	if (!table->rl_entry)
-		return -ENOMEM;
-
-	/* The index represents the index in HW rate limit table
-	 * Index 0 is reserved for unlimited rate
-	 */
-	for (i = 0; i < table->max_size; i++)
-		table->rl_entry[i].index = i + 1;
-
-	/* Index 0 is reserved */
 	mlx5_core_info(dev, "Rate limit: %u rates are supported, range: %uMbps to %uMbps\n",
 		       table->max_size,
 		       table->min_rate >> 10,
@@ -336,13 +390,10 @@ int mlx5_init_rl_table(struct mlx5_core_dev *dev)
 void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_rl_table *table = &dev->priv.rl_table;
-	int i;
 
-	/* Clear all configured rates */
-	for (i = 0; i < table->max_size; i++)
-		if (table->rl_entry[i].refcount)
-			mlx5_set_pp_rate_limit_cmd(dev, &table->rl_entry[i],
-						   false);
+	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, packet_pacing))
+		return;
 
-	kfree(dev->priv.rl_table.rl_entry);
+	mlx5_rl_table_free(dev, table);
+	mutex_destroy(&table->rl_lock);
 }

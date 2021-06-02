@@ -39,7 +39,8 @@ static void mdev_detach_iommu(struct mdev_device *mdev)
 
 static int mdev_probe(struct device *dev)
 {
-	struct mdev_driver *drv = to_mdev_driver(dev->driver);
+	struct mdev_driver *drv =
+		container_of(dev->driver, struct mdev_driver, driver);
 	struct mdev_device *mdev = to_mdev_device(dev);
 	int ret;
 
@@ -47,8 +48,8 @@ static int mdev_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (drv && drv->probe) {
-		ret = drv->probe(dev);
+	if (drv->probe) {
+		ret = drv->probe(mdev);
 		if (ret)
 			mdev_detach_iommu(mdev);
 	}
@@ -58,11 +59,12 @@ static int mdev_probe(struct device *dev)
 
 static int mdev_remove(struct device *dev)
 {
-	struct mdev_driver *drv = to_mdev_driver(dev->driver);
+	struct mdev_driver *drv =
+		container_of(dev->driver, struct mdev_driver, driver);
 	struct mdev_device *mdev = to_mdev_device(dev);
 
-	if (drv && drv->remove)
-		drv->remove(dev);
+	if (drv->remove)
+		drv->remove(mdev);
 
 	mdev_detach_iommu(mdev);
 
@@ -79,16 +81,13 @@ EXPORT_SYMBOL_GPL(mdev_bus_type);
 /**
  * mdev_register_driver - register a new MDEV driver
  * @drv: the driver to register
- * @owner: module owner of driver to be registered
  *
  * Returns a negative value on error, otherwise 0.
  **/
-int mdev_register_driver(struct mdev_driver *drv, struct module *owner)
+int mdev_register_driver(struct mdev_driver *drv)
 {
 	/* initialize common driver fields */
-	drv->driver.name = drv->name;
 	drv->driver.bus = &mdev_bus_type;
-	drv->driver.owner = owner;
 
 	/* register with core */
 	return driver_register(&drv->driver);

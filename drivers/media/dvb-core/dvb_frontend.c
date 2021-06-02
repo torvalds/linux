@@ -481,6 +481,10 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
 
+	if (fepriv->max_drift)
+		dev_warn_once(fe->dvb->device,
+			      "Frontend requested software zigzag, but didn't set the frequency step size\n");
+
 	/* if we've got no parameters, just keep idling */
 	if (fepriv->state & FESTATE_IDLE) {
 		fepriv->delay = 3 * HZ;
@@ -1791,6 +1795,53 @@ static int dvbv3_set_delivery_system(struct dvb_frontend *fe)
 	return emulate_delivery_system(fe, delsys);
 }
 
+static void prepare_tuning_algo_parameters(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_frontend_tune_settings fetunesettings = { 0 };
+
+	/* get frontend-specific tuning settings */
+	if (fe->ops.get_tune_settings && (fe->ops.get_tune_settings(fe, &fetunesettings) == 0)) {
+		fepriv->min_delay = (fetunesettings.min_delay_ms * HZ) / 1000;
+		fepriv->max_drift = fetunesettings.max_drift;
+		fepriv->step_size = fetunesettings.step_size;
+	} else {
+		/* default values */
+		switch (c->delivery_system) {
+		case SYS_DVBS:
+		case SYS_DVBS2:
+		case SYS_ISDBS:
+		case SYS_TURBO:
+		case SYS_DVBC_ANNEX_A:
+		case SYS_DVBC_ANNEX_C:
+			fepriv->min_delay = HZ / 20;
+			fepriv->step_size = c->symbol_rate / 16000;
+			fepriv->max_drift = c->symbol_rate / 2000;
+			break;
+		case SYS_DVBT:
+		case SYS_DVBT2:
+		case SYS_ISDBT:
+		case SYS_DTMB:
+			fepriv->min_delay = HZ / 20;
+			fepriv->step_size = dvb_frontend_get_stepsize(fe) * 2;
+			fepriv->max_drift = fepriv->step_size + 1;
+			break;
+		default:
+			/*
+			 * FIXME: This sounds wrong! if freqency_stepsize is
+			 * defined by the frontend, why not use it???
+			 */
+			fepriv->min_delay = HZ / 20;
+			fepriv->step_size = 0; /* no zigzag */
+			fepriv->max_drift = 0;
+			break;
+		}
+	}
+	if (dvb_override_tune_delay > 0)
+		fepriv->min_delay = (dvb_override_tune_delay * HZ) / 1000;
+}
+
 /**
  * dtv_property_process_set -  Sets a single DTV property
  * @fe:		Pointer to &struct dvb_frontend
@@ -2183,7 +2234,6 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 {
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct dvb_frontend_tune_settings fetunesettings;
 	u32 rolloff = 0;
 
 	if (dvb_frontend_check_parameters(fe) < 0)
@@ -2261,46 +2311,7 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 	if (c->hierarchy == HIERARCHY_NONE && c->code_rate_LP == FEC_NONE)
 		c->code_rate_LP = FEC_AUTO;
 
-	/* get frontend-specific tuning settings */
-	memset(&fetunesettings, 0, sizeof(struct dvb_frontend_tune_settings));
-	if (fe->ops.get_tune_settings && (fe->ops.get_tune_settings(fe, &fetunesettings) == 0)) {
-		fepriv->min_delay = (fetunesettings.min_delay_ms * HZ) / 1000;
-		fepriv->max_drift = fetunesettings.max_drift;
-		fepriv->step_size = fetunesettings.step_size;
-	} else {
-		/* default values */
-		switch (c->delivery_system) {
-		case SYS_DVBS:
-		case SYS_DVBS2:
-		case SYS_ISDBS:
-		case SYS_TURBO:
-		case SYS_DVBC_ANNEX_A:
-		case SYS_DVBC_ANNEX_C:
-			fepriv->min_delay = HZ / 20;
-			fepriv->step_size = c->symbol_rate / 16000;
-			fepriv->max_drift = c->symbol_rate / 2000;
-			break;
-		case SYS_DVBT:
-		case SYS_DVBT2:
-		case SYS_ISDBT:
-		case SYS_DTMB:
-			fepriv->min_delay = HZ / 20;
-			fepriv->step_size = dvb_frontend_get_stepsize(fe) * 2;
-			fepriv->max_drift = (dvb_frontend_get_stepsize(fe) * 2) + 1;
-			break;
-		default:
-			/*
-			 * FIXME: This sounds wrong! if freqency_stepsize is
-			 * defined by the frontend, why not use it???
-			 */
-			fepriv->min_delay = HZ / 20;
-			fepriv->step_size = 0; /* no zigzag */
-			fepriv->max_drift = 0;
-			break;
-		}
-	}
-	if (dvb_override_tune_delay > 0)
-		fepriv->min_delay = (dvb_override_tune_delay * HZ) / 1000;
+	prepare_tuning_algo_parameters(fe);
 
 	fepriv->state = FESTATE_RETUNE;
 

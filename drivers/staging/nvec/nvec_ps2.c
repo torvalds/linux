@@ -28,7 +28,7 @@
 	print_hex_dump(KERN_DEBUG, str, DUMP_PREFIX_NONE, \
 			16, 1, buf, len, false)
 #else
-#define NVEC_PHD(str, buf, len)
+#define NVEC_PHD(str, buf, len) do { } while (0)
 #endif
 
 enum ps2_subcmds {

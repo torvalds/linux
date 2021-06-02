@@ -91,14 +91,10 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
 bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc);
 void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc);
 struct crc_rd_work *amdgpu_dm_crtc_secure_display_create_work(void);
-void amdgpu_dm_crtc_secure_display_resume(struct amdgpu_device *adev);
-void amdgpu_dm_crtc_secure_display_suspend(struct amdgpu_device *adev);
 #else
 #define amdgpu_dm_crc_window_is_activated(x)
 #define amdgpu_dm_crtc_handle_crc_window_irq(x)
 #define amdgpu_dm_crtc_secure_display_create_work()
-#define amdgpu_dm_crtc_secure_display_resume(x)
-#define amdgpu_dm_crtc_secure_display_suspend(x)
 #endif
 
 #endif /* AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_ */

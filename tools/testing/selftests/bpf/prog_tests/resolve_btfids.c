@@ -160,11 +160,8 @@ int test_resolve_btfids(void)
 			break;
 
 		if (i > 0) {
-			ret = CHECK(test_set.ids[i - 1] > test_set.ids[i],
-				    "sort_check",
-				    "test_set is not sorted\n");
-			if (ret)
-				break;
+			if (!ASSERT_LE(test_set.ids[i - 1], test_set.ids[i], "sort_check"))
+				return -1;
 		}
 	}
 

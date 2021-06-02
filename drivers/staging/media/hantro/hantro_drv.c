@@ -299,7 +299,7 @@ static const struct hantro_ctrl controls[] = {
 	}, {
 		.codec = HANTRO_VP8_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER,
+			.id = V4L2_CID_STATELESS_VP8_FRAME,
 		},
 	}, {
 		.codec = HANTRO_H264_DECODER,

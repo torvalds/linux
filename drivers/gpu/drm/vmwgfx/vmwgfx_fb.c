@@ -195,7 +195,6 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	if (!cur_fb)
 		goto out_unlock;
 
-	(void) ttm_read_lock(&vmw_priv->reservation_sem, false);
 	(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
 	virtual = vmw_bo_map_and_cache(vbo);
 	if (!virtual)
@@ -254,7 +253,6 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 
 out_unreserve:
 	ttm_bo_unreserve(&vbo->base);
-	ttm_read_unlock(&vmw_priv->reservation_sem);
 	if (w && h) {
 		WARN_ON_ONCE(par->set_fb->funcs->dirty(cur_fb, NULL, 0, 0,
 						       &clip, 1));
@@ -396,8 +394,6 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 	struct vmw_buffer_object *vmw_bo;
 	int ret;
 
-	(void) ttm_write_lock(&vmw_priv->reservation_sem, false);
-
 	vmw_bo = kmalloc(sizeof(*vmw_bo), GFP_KERNEL);
 	if (!vmw_bo) {
 		ret = -ENOMEM;
@@ -412,12 +408,8 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 		goto err_unlock; /* init frees the buffer on failure */
 
 	*out = vmw_bo;
-	ttm_write_unlock(&vmw_priv->reservation_sem);
-
-	return 0;
 
 err_unlock:
-	ttm_write_unlock(&vmw_priv->reservation_sem);
 	return ret;
 }
 

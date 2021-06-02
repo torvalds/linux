@@ -317,16 +317,21 @@ int ttm_tt_populate(struct ttm_device *bdev,
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	atomic_long_add(ttm->num_pages, &ttm_pages_allocated);
-	if (bdev->pool.use_dma32)
-		atomic_long_add(ttm->num_pages, &ttm_dma32_pages_allocated);
+	if (!(ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		atomic_long_add(ttm->num_pages, &ttm_pages_allocated);
+		if (bdev->pool.use_dma32)
+			atomic_long_add(ttm->num_pages,
+					&ttm_dma32_pages_allocated);
+	}
 
 	while (atomic_long_read(&ttm_pages_allocated) > ttm_pages_limit ||
 	       atomic_long_read(&ttm_dma32_pages_allocated) >
 	       ttm_dma32_pages_limit) {
 
 		ret = ttm_global_swapout(ctx, GFP_KERNEL);
-		if (ret)
+		if (ret == 0)
+			break;
+		if (ret < 0)
 			goto error;
 	}
 
@@ -350,9 +355,12 @@ int ttm_tt_populate(struct ttm_device *bdev,
 	return 0;
 
 error:
-	atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
-	if (bdev->pool.use_dma32)
-		atomic_long_sub(ttm->num_pages, &ttm_dma32_pages_allocated);
+	if (!(ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
+		if (bdev->pool.use_dma32)
+			atomic_long_sub(ttm->num_pages,
+					&ttm_dma32_pages_allocated);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(ttm_tt_populate);
@@ -382,12 +390,30 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 	else
 		ttm_pool_free(&bdev->pool, ttm);
 
-	atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
-	if (bdev->pool.use_dma32)
-		atomic_long_sub(ttm->num_pages, &ttm_dma32_pages_allocated);
+	if (!(ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
+		if (bdev->pool.use_dma32)
+			atomic_long_sub(ttm->num_pages,
+					&ttm_dma32_pages_allocated);
+	}
 
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+/* Test the shrinker functions and dump the result */
+static int ttm_tt_debugfs_shrink_show(struct seq_file *m, void *data)
+{
+	struct ttm_operation_ctx ctx = { false, false };
+
+	seq_printf(m, "%d\n", ttm_global_swapout(&ctx, GFP_KERNEL));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_tt_debugfs_shrink);
+
+#endif
+
 
 /**
  * ttm_tt_mgr_init - register with the MM shrinker
@@ -396,6 +422,11 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
  */
 void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages)
 {
+#ifdef CONFIG_DEBUG_FS
+	debugfs_create_file("tt_shrink", 0400, ttm_debugfs_root, NULL,
+			    &ttm_tt_debugfs_shrink_fops);
+#endif
+
 	if (!ttm_pages_limit)
 		ttm_pages_limit = num_pages;
 

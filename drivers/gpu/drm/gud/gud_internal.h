@@ -86,7 +86,7 @@ static inline u8 gud_from_fourcc(u32 fourcc)
 		return GUD_PIXEL_FORMAT_XRGB8888;
 	case DRM_FORMAT_ARGB8888:
 		return GUD_PIXEL_FORMAT_ARGB8888;
-	};
+	}
 
 	return 0;
 }
@@ -104,7 +104,7 @@ static inline u32 gud_to_fourcc(u8 format)
 		return DRM_FORMAT_XRGB8888;
 	case GUD_PIXEL_FORMAT_ARGB8888:
 		return DRM_FORMAT_ARGB8888;
-	};
+	}
 
 	return 0;
 }

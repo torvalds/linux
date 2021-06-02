@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -549,8 +549,6 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 		       IWLAGN_RTC_DATA_LOWER_BOUND);
 	return 0;
 }
-
-#define FW_ADDR_CACHE_CONTROL 0xC0000000
 
 static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				const struct firmware *ucode_raw,

@@ -272,22 +272,4 @@ xlate_dev_mem_ptr(phys_addr_t p)
 	return ptr;
 }
 
-/*
- * Convert a virtual cached kernel memory pointer to an uncached pointer
- */
-static __inline__ void *
-xlate_dev_kmem_ptr(void *p)
-{
-	struct page *page;
-	void *ptr;
-
-	page = virt_to_page((unsigned long)p);
-	if (PageUncached(page))
-		ptr = (void *)__pa(p) + __IA64_UNCACHED_OFFSET;
-	else
-		ptr = p;
-
-	return ptr;
-}
-
 #endif /* _ASM_IA64_UACCESS_H */

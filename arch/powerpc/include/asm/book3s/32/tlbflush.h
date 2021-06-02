@@ -79,4 +79,4 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 	flush_tlb_mm(mm);
 }
 
-#endif /* _ASM_POWERPC_TLBFLUSH_H */
+#endif /* _ASM_POWERPC_BOOK3S_32_TLBFLUSH_H */

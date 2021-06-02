@@ -7,6 +7,7 @@
 
 #include <linux/bits.h>
 #include <linux/delay.h>
+#include <linux/devm-helpers.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -1123,11 +1124,9 @@ static int sbs_probe(struct i2c_client *client)
 
 	chip->gpio_detect = devm_gpiod_get_optional(&client->dev,
 			"sbs,battery-detect", GPIOD_IN);
-	if (IS_ERR(chip->gpio_detect)) {
-		dev_err(&client->dev, "Failed to get gpio: %ld\n",
-			PTR_ERR(chip->gpio_detect));
-		return PTR_ERR(chip->gpio_detect);
-	}
+	if (IS_ERR(chip->gpio_detect))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->gpio_detect),
+				     "Failed to get gpio\n");
 
 	i2c_set_clientdata(client, chip);
 
@@ -1158,38 +1157,24 @@ skip_gpio:
 
 		rc = sbs_get_battery_presence_and_health(
 				client, POWER_SUPPLY_PROP_PRESENT, &val);
-		if (rc < 0 || !val.intval) {
-			dev_err(&client->dev, "Failed to get present status\n");
-			rc = -ENODEV;
-			goto exit_psupply;
-		}
+		if (rc < 0 || !val.intval)
+			return dev_err_probe(&client->dev, -ENODEV,
+					     "Failed to get present status\n");
 	}
 
-	INIT_DELAYED_WORK(&chip->work, sbs_delayed_work);
+	rc = devm_delayed_work_autocancel(&client->dev, &chip->work,
+					  sbs_delayed_work);
+	if (rc)
+		return rc;
 
 	chip->power_supply = devm_power_supply_register(&client->dev, sbs_desc,
 						   &psy_cfg);
-	if (IS_ERR(chip->power_supply)) {
-		dev_err(&client->dev,
-			"%s: Failed to register power supply\n", __func__);
-		rc = PTR_ERR(chip->power_supply);
-		goto exit_psupply;
-	}
+	if (IS_ERR(chip->power_supply))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->power_supply),
+				     "Failed to register power supply\n");
 
 	dev_info(&client->dev,
 		"%s: battery gas gauge device registered\n", client->name);
-
-	return 0;
-
-exit_psupply:
-	return rc;
-}
-
-static int sbs_remove(struct i2c_client *client)
-{
-	struct sbs_info *chip = i2c_get_clientdata(client);
-
-	cancel_delayed_work_sync(&chip->work);
 
 	return 0;
 }
@@ -1248,7 +1233,6 @@ MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 
 static struct i2c_driver sbs_battery_driver = {
 	.probe_new	= sbs_probe,
-	.remove		= sbs_remove,
 	.alert		= sbs_alert,
 	.id_table	= sbs_id,
 	.driver = {

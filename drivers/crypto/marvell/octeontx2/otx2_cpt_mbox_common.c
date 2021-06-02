@@ -43,7 +43,7 @@ int otx2_cpt_send_af_reg_requests(struct otx2_mbox *mbox, struct pci_dev *pdev)
 }
 
 int otx2_cpt_add_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			     u64 reg, u64 *val)
+			     u64 reg, u64 *val, int blkaddr)
 {
 	struct cpt_rd_wr_reg_msg *reg_msg;
 
@@ -62,12 +62,13 @@ int otx2_cpt_add_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
 	reg_msg->is_write = 0;
 	reg_msg->reg_offset = reg;
 	reg_msg->ret_val = val;
+	reg_msg->blkaddr = blkaddr;
 
 	return 0;
 }
 
 int otx2_cpt_add_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			      u64 reg, u64 val)
+			      u64 reg, u64 val, int blkaddr)
 {
 	struct cpt_rd_wr_reg_msg *reg_msg;
 
@@ -86,16 +87,17 @@ int otx2_cpt_add_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
 	reg_msg->is_write = 1;
 	reg_msg->reg_offset = reg;
 	reg_msg->val = val;
+	reg_msg->blkaddr = blkaddr;
 
 	return 0;
 }
 
 int otx2_cpt_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			 u64 reg, u64 *val)
+			 u64 reg, u64 *val, int blkaddr)
 {
 	int ret;
 
-	ret = otx2_cpt_add_read_af_reg(mbox, pdev, reg, val);
+	ret = otx2_cpt_add_read_af_reg(mbox, pdev, reg, val, blkaddr);
 	if (ret)
 		return ret;
 
@@ -103,11 +105,11 @@ int otx2_cpt_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
 }
 
 int otx2_cpt_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			  u64 reg, u64 val)
+			  u64 reg, u64 val, int blkaddr)
 {
 	int ret;
 
-	ret = otx2_cpt_add_write_af_reg(mbox, pdev, reg, val);
+	ret = otx2_cpt_add_write_af_reg(mbox, pdev, reg, val, blkaddr);
 	if (ret)
 		return ret;
 

@@ -113,7 +113,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
 void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
 			enum pci_epc_interface_type type)
 {
-	struct device *dev = epf->epc->dev.parent;
+	struct device *dev;
 	struct pci_epf_bar *epf_bar;
 	struct pci_epc *epc;
 

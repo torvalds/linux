@@ -942,7 +942,7 @@ static void hermite_spline_eetf(struct fixed31_32 input_x,
 static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 		uint32_t hw_points_num,
 		const struct hw_x_point *coordinate_x,
-		const struct freesync_hdr_tf_params *fs_params,
+		const struct hdr_tm_params *fs_params,
 		struct calculate_buffer *cal_buffer)
 {
 	uint32_t i;
@@ -2027,7 +2027,7 @@ rgb_user_alloc_fail:
 static bool calculate_curve(enum dc_transfer_func_predefined trans,
 				struct dc_transfer_func_distributed_points *points,
 				struct pwl_float_data_ex *rgb_regamma,
-				const struct freesync_hdr_tf_params *fs_params,
+				const struct hdr_tm_params *fs_params,
 				uint32_t sdr_ref_white_level,
 				struct calculate_buffer *cal_buffer)
 {
@@ -2106,7 +2106,7 @@ static bool calculate_curve(enum dc_transfer_func_predefined trans,
 
 bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed,
-		const struct freesync_hdr_tf_params *fs_params,
+		const struct hdr_tm_params *fs_params,
 		struct calculate_buffer *cal_buffer)
 {
 	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;

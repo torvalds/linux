@@ -360,7 +360,7 @@ void syscall_exit_to_user_mode_work(struct pt_regs *regs);
  *
  * This is a combination of syscall_exit_to_user_mode_work() (1,2) and
  * exit_to_user_mode(). This function is preferred unless there is a
- * compelling architectural reason to use the seperate functions.
+ * compelling architectural reason to use the separate functions.
  */
 void syscall_exit_to_user_mode(struct pt_regs *regs);
 
@@ -381,7 +381,7 @@ void irqentry_enter_from_user_mode(struct pt_regs *regs);
  * irqentry_exit_to_user_mode - Interrupt exit work
  * @regs:	Pointer to current's pt_regs
  *
- * Invoked with interrupts disbled and fully valid regs. Returns with all
+ * Invoked with interrupts disabled and fully valid regs. Returns with all
  * work handled, interrupts disabled such that the caller can immediately
  * switch to user mode. Called from architecture specific interrupt
  * handling code.

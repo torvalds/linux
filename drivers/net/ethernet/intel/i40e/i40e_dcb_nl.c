@@ -392,7 +392,7 @@ static void i40e_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 }
 
 /**
- * i40e_dcbnl_set_pg_tc_cfg_tx - Set CEE PG Tx BW config
+ * i40e_dcbnl_set_pg_bwg_cfg_tx - Set CEE PG Tx BW config
  * @netdev: the corresponding netdev
  * @pgid: the corresponding traffic class
  * @bw_pct: the BW percentage for the specified traffic class

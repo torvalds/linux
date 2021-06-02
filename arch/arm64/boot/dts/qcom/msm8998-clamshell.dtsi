@@ -281,6 +281,10 @@
 	};
 };
 
+&remoteproc_mss {
+	status = "okay";
+};
+
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 

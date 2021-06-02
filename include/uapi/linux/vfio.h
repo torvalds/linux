@@ -335,6 +335,8 @@ struct vfio_region_info_cap_type {
 /* 10de vendor PCI sub-types */
 /*
  * NVIDIA GPU NVlink2 RAM is coherent RAM mapped onto the host address space.
+ *
+ * Deprecated, region no longer provided
  */
 #define VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM	(1)
 
@@ -342,6 +344,8 @@ struct vfio_region_info_cap_type {
 /*
  * IBM NPU NVlink2 ATSD (Address Translation Shootdown) register of NPU
  * to do TLB invalidation on a GPU.
+ *
+ * Deprecated, region no longer provided
  */
 #define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
 
@@ -641,6 +645,8 @@ struct vfio_device_migration_info {
  * Capability with compressed real address (aka SSA - small system address)
  * where GPU RAM is mapped on a system bus. Used by a GPU for DMA routing
  * and by the userspace to associate a NVLink bridge with a GPU.
+ *
+ * Deprecated, capability no longer provided
  */
 #define VFIO_REGION_INFO_CAP_NVLINK2_SSATGT	4
 
@@ -655,6 +661,8 @@ struct vfio_region_info_cap_nvlink2_ssatgt {
  * property in the device tree. The value is fixed in the hardware
  * and failing to provide the correct value results in the link
  * not working with no indication from the driver why.
+ *
+ * Deprecated, capability no longer provided
  */
 #define VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD	5
 

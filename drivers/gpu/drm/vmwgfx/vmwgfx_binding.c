@@ -788,7 +788,7 @@ static void vmw_collect_dirty_view_ids(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
- * vmw_binding_emit_set_sr - Issue delayed DX shader resource binding commands
+ * vmw_emit_set_sr - Issue delayed DX shader resource binding commands
  *
  * @cbs: Pointer to the context's struct vmw_ctx_binding_state
  * @shader_slot: The shader slot of the binding.
@@ -832,7 +832,7 @@ static int vmw_emit_set_sr(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
- * vmw_binding_emit_set_rt - Issue delayed DX rendertarget binding commands
+ * vmw_emit_set_rt - Issue delayed DX rendertarget binding commands
  *
  * @cbs: Pointer to the context's struct vmw_ctx_binding_state
  */
@@ -1024,7 +1024,7 @@ static void vmw_collect_dirty_vbs(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
- * vmw_binding_emit_set_vb - Issue delayed vertex buffer binding commands
+ * vmw_emit_set_vb - Issue delayed vertex buffer binding commands
  *
  * @cbs: Pointer to the context's struct vmw_ctx_binding_state
  *
@@ -1394,7 +1394,7 @@ struct list_head *vmw_binding_state_list(struct vmw_ctx_binding_state *cbs)
 }
 
 /**
- * vmwgfx_binding_state_reset - clear a struct vmw_ctx_binding_state
+ * vmw_binding_state_reset - clear a struct vmw_ctx_binding_state
  *
  * @cbs: Pointer to the struct vmw_ctx_binding_state to be cleared
  *

@@ -20,6 +20,10 @@ struct ionic_lif;
 
 #define DEVCMD_TIMEOUT  10
 
+#define IONIC_PHC_UPDATE_NS	10000000000	    /* 10s in nanoseconds */
+#define NORMAL_PPB		1000000000	    /* one billion parts per billion */
+#define SCALED_PPM		(1000000ull << 16)  /* 2^16 million parts per 2^16 million */
+
 struct ionic_vf {
 	u16	 index;
 	u8	 macaddr[6];
@@ -64,6 +68,8 @@ struct ionic_admin_ctx {
 	union ionic_adminq_comp comp;
 };
 
+int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx);
+int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int err);
 int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx);
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_wait);
 int ionic_set_dma_mask(struct ionic *ionic);

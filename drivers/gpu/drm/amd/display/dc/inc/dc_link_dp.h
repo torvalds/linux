@@ -52,6 +52,10 @@ bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing);
 
+bool decide_edp_link_settings(struct dc_link *link,
+		struct dc_link_settings *link_setting,
+		uint32_t req_bw);
+
 void decide_link_settings(
 	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
@@ -61,7 +65,8 @@ bool perform_link_training_with_retries(
 	bool skip_video_pattern,
 	int attempts,
 	struct pipe_ctx *pipe_ctx,
-	enum signal_type signal);
+	enum signal_type signal,
+	bool do_fallback);
 
 bool is_mst_supported(struct dc_link *link);
 
@@ -70,6 +75,10 @@ bool detect_dp_sink_caps(struct dc_link *link);
 void detect_edp_sink_caps(struct dc_link *link);
 
 bool is_dp_active_dongle(const struct dc_link *link);
+
+bool is_dp_branch_device(const struct dc_link *link);
+
+bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timing *crtc_timing);
 
 void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
 
@@ -86,5 +95,15 @@ bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable);
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
+bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
 
+/* Convert PHY repeater count read from DPCD uint8_t. */
+uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count);
+
+/* Check DPCD training status registers to detect link loss. */
+enum link_training_result dp_check_link_loss_status(
+		struct dc_link *link,
+		const struct link_training_settings *link_training_setting);
+
+enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
 #endif /* __DC_LINK_DP_H__ */

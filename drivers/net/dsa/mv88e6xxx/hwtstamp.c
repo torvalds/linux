@@ -468,30 +468,38 @@ long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp)
 	return restart ? 1 : -1;
 }
 
-bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
-			     struct sk_buff *clone, unsigned int type)
+void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
+			     struct sk_buff *skb)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
 	struct ptp_header *hdr;
+	struct sk_buff *clone;
+	unsigned int type;
 
-	if (!(skb_shinfo(clone)->tx_flags & SKBTX_HW_TSTAMP))
-		return false;
+	type = ptp_classify_raw(skb);
+	if (type == PTP_CLASS_NONE)
+		return;
 
-	hdr = mv88e6xxx_should_tstamp(chip, port, clone, type);
+	hdr = mv88e6xxx_should_tstamp(chip, port, skb, type);
 	if (!hdr)
-		return false;
+		return;
+
+	clone = skb_clone_sk(skb);
+	if (!clone)
+		return;
 
 	if (test_and_set_bit_lock(MV88E6XXX_HWTSTAMP_TX_IN_PROGRESS,
-				  &ps->state))
-		return false;
+				  &ps->state)) {
+		kfree_skb(clone);
+		return;
+	}
 
 	ps->tx_skb = clone;
 	ps->tx_tstamp_start = jiffies;
 	ps->tx_seq_id = be16_to_cpu(hdr->sequence_id);
 
 	ptp_schedule_worker(chip->ptp_clock, 0);
-	return true;
 }
 
 int mv88e6165_global_disable(struct mv88e6xxx_chip *chip)

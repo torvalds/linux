@@ -109,7 +109,7 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 
 	spin_lock_irqsave(&qe_lock, flags);
 	if (cmd == QE_RESET) {
-		qe_iowrite32be((u32)(cmd | QE_CR_FLG), &qe_immr->cp.cecr);
+		iowrite32be((u32)(cmd | QE_CR_FLG), &qe_immr->cp.cecr);
 	} else {
 		if (cmd == QE_ASSIGN_PAGE) {
 			/* Here device is the SNUM, not sub-block */
@@ -126,13 +126,13 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 				mcn_shift = QE_CR_MCN_NORMAL_SHIFT;
 		}
 
-		qe_iowrite32be(cmd_input, &qe_immr->cp.cecdr);
-		qe_iowrite32be((cmd | QE_CR_FLG | ((u32)device << dev_shift) | (u32)mcn_protocol << mcn_shift),
+		iowrite32be(cmd_input, &qe_immr->cp.cecdr);
+		iowrite32be((cmd | QE_CR_FLG | ((u32)device << dev_shift) | (u32)mcn_protocol << mcn_shift),
 			       &qe_immr->cp.cecr);
 	}
 
 	/* wait for the QE_CR_FLG to clear */
-	ret = readx_poll_timeout_atomic(qe_ioread32be, &qe_immr->cp.cecr, val,
+	ret = readx_poll_timeout_atomic(ioread32be, &qe_immr->cp.cecr, val,
 					(val & QE_CR_FLG) == 0, 0, 100);
 	/* On timeout, ret is -ETIMEDOUT, otherwise it will be 0. */
 	spin_unlock_irqrestore(&qe_lock, flags);
@@ -231,7 +231,7 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 	tempval = ((divisor - 1) << QE_BRGC_DIVISOR_SHIFT) |
 		QE_BRGC_ENABLE | div16;
 
-	qe_iowrite32be(tempval, &qe_immr->brg.brgc[brg - QE_BRG1]);
+	iowrite32be(tempval, &qe_immr->brg.brgc[brg - QE_BRG1]);
 
 	return 0;
 }
@@ -375,9 +375,9 @@ static int qe_sdma_init(void)
 			return -ENOMEM;
 	}
 
-	qe_iowrite32be((u32)sdma_buf_offset & QE_SDEBCR_BA_MASK,
+	iowrite32be((u32)sdma_buf_offset & QE_SDEBCR_BA_MASK,
 		       &sdma->sdebcr);
-	qe_iowrite32be((QE_SDMR_GLB_1_MSK | (0x1 << QE_SDMR_CEN_SHIFT)),
+	iowrite32be((QE_SDMR_GLB_1_MSK | (0x1 << QE_SDMR_CEN_SHIFT)),
 		       &sdma->sdmr);
 
 	return 0;
@@ -416,14 +416,14 @@ static void qe_upload_microcode(const void *base,
 			"uploading microcode '%s'\n", ucode->id);
 
 	/* Use auto-increment */
-	qe_iowrite32be(be32_to_cpu(ucode->iram_offset) | QE_IRAM_IADD_AIE | QE_IRAM_IADD_BADDR,
+	iowrite32be(be32_to_cpu(ucode->iram_offset) | QE_IRAM_IADD_AIE | QE_IRAM_IADD_BADDR,
 		       &qe_immr->iram.iadd);
 
 	for (i = 0; i < be32_to_cpu(ucode->count); i++)
-		qe_iowrite32be(be32_to_cpu(code[i]), &qe_immr->iram.idata);
+		iowrite32be(be32_to_cpu(code[i]), &qe_immr->iram.idata);
 	
 	/* Set I-RAM Ready Register */
-	qe_iowrite32be(QE_IRAM_READY, &qe_immr->iram.iready);
+	iowrite32be(QE_IRAM_READY, &qe_immr->iram.iready);
 }
 
 /*
@@ -542,12 +542,12 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 			u32 trap = be32_to_cpu(ucode->traps[j]);
 
 			if (trap)
-				qe_iowrite32be(trap,
+				iowrite32be(trap,
 					       &qe_immr->rsp[i].tibcr[j]);
 		}
 
 		/* Enable traps */
-		qe_iowrite32be(be32_to_cpu(ucode->eccr),
+		iowrite32be(be32_to_cpu(ucode->eccr),
 			       &qe_immr->rsp[i].eccr);
 	}
 

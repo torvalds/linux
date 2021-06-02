@@ -521,17 +521,6 @@ config RC_XBOX_DVD
 	   To compile this driver as a module, choose M here: the module will be
 	   called xbox_remote.
 
-config IR_ZX
-	tristate "ZTE ZX IR remote control"
-	depends on RC_CORE
-	depends on ARCH_ZX || COMPILE_TEST
-	help
-	   Say Y if you want to use the IR remote control available
-	   on ZTE ZX family SoCs.
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called zx-irdec.
-
 config IR_TOY
 	tristate "Infrared Toy and IR Droid"
 	depends on RC_CORE

@@ -27,7 +27,7 @@ static bool				lid_wake_on_close;
  * wake-on-close. This is implemented as standard by the XO-1.5 DSDT.
  *
  * We provide here a sysfs attribute that will additionally enable
- * wake-on-close behavior. This is useful (e.g.) when we oportunistically
+ * wake-on-close behavior. This is useful (e.g.) when we opportunistically
  * suspend with the display running; if the lid is then closed, we want to
  * wake up to turn the display off.
  *

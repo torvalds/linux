@@ -95,6 +95,7 @@ struct otx2_cptlfs_info {
 	u8 kcrypto_eng_grp_num;	/* Kernel crypto engine group number */
 	u8 kvf_limits;          /* Kernel crypto limits */
 	atomic_t state;         /* LF's state. started/reset */
+	int blkaddr;            /* CPT blkaddr: BLKADDR_CPT0/BLKADDR_CPT1 */
 };
 
 static inline void otx2_cpt_free_instruction_queues(

@@ -12,5 +12,5 @@
 # Adds per-version torture-module parameters to kernels supporting them.
 per_version_boot_params () {
 	echo $1 rcuscale.shutdown=1 \
-		rcuscale.verbose=1
+		rcuscale.verbose=0
 }

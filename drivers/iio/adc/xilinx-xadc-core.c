@@ -747,7 +747,6 @@ static struct iio_trigger *xadc_alloc_trigger(struct iio_dev *indio_dev,
 	if (trig == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	trig->dev.parent = indio_dev->dev.parent;
 	trig->ops = &xadc_trigger_ops;
 	iio_trigger_set_drvdata(trig, iio_priv(indio_dev));
 

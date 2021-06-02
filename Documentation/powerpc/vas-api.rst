@@ -254,7 +254,7 @@ using this window. the signal will be issued to the thread group leader
 signals.
 
 NX-GZIP User's Manual:
-https://github.com/libnxz/power-gzip/blob/master/power_nx_gzip_um.pdf
+https://github.com/libnxz/power-gzip/blob/master/doc/power_nx_gzip_um.pdf
 
 Simple example
 ==============
@@ -301,5 +301,5 @@ Simple example
 			close(fd) or window can be closed upon process exit
 		}
 
-	Refer https://github.com/abalib/power-gzip for tests or more
+	Refer https://github.com/libnxz/power-gzip for tests or more
 	use cases.

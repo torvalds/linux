@@ -6657,7 +6657,7 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 
 /**
  * s2io_set_link - Set the LInk status
- * @work: work struct containing a pointer to device private structue
+ * @work: work struct containing a pointer to device private structure
  * Description: Sets the link status for the adapter
  */
 

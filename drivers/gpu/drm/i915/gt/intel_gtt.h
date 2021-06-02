@@ -250,6 +250,7 @@ struct i915_address_space {
 	struct dma_resv _resv; /* reservation lock for all pd objects, and buffer pool */
 #define VM_CLASS_GGTT 0
 #define VM_CLASS_PPGTT 1
+#define VM_CLASS_DPT 2
 
 	struct drm_i915_gem_object *scratch[4];
 	/**
@@ -259,6 +260,9 @@ struct i915_address_space {
 
 	/* Global GTT */
 	bool is_ggtt:1;
+
+	/* Display page table */
+	bool is_dpt:1;
 
 	/* Some systems support read-only mappings for GGTT and/or PPGTT */
 	bool has_read_only:1;
@@ -356,6 +360,7 @@ struct i915_ppgtt {
 };
 
 #define i915_is_ggtt(vm) ((vm)->is_ggtt)
+#define i915_is_dpt(vm) ((vm)->is_dpt)
 
 int __must_check
 i915_vm_lock_objects(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww);

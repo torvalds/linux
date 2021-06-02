@@ -81,16 +81,6 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 				num_pgs, total_size);
 			return -ENOMEM;
 		}
-
-		if (hdev->memory_scrub) {
-			rc = hdev->asic_funcs->scrub_device_mem(hdev, paddr,
-					total_size);
-			if (rc) {
-				dev_err(hdev->dev,
-					"Failed to scrub contiguous device memory\n");
-				goto pages_pack_err;
-			}
-		}
 	}
 
 	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
@@ -128,24 +118,13 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 				goto page_err;
 			}
 
-			if (hdev->memory_scrub) {
-				rc = hdev->asic_funcs->scrub_device_mem(hdev,
-						phys_pg_pack->pages[i],
-						page_size);
-				if (rc) {
-					dev_err(hdev->dev,
-						"Failed to scrub device memory\n");
-					goto page_err;
-				}
-			}
-
 			num_curr_pgs++;
 		}
 	}
 
 	spin_lock(&vm->idr_lock);
 	handle = idr_alloc(&vm->phys_pg_pack_handles, phys_pg_pack, 1, 0,
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	spin_unlock(&vm->idr_lock);
 
 	if (handle < 0) {
@@ -280,37 +259,67 @@ static void dram_pg_pool_do_release(struct kref *ref)
  * @phys_pg_pack: physical page pack to free.
  *
  * This function does the following:
- * - For DRAM memory only, iterate over the pack and free each physical block
- *   structure by returning it to the general pool.
+ * - For DRAM memory only
+ *   - iterate over the pack, scrub and free each physical block structure by
+ *     returning it to the general pool.
+ *     In case of error during scrubbing, initiate hard reset.
+ *     Once hard reset is triggered, scrubbing is bypassed while freeing the
+ *     memory continues.
  * - Free the hl_vm_phys_pg_pack structure.
  */
-static void free_phys_pg_pack(struct hl_device *hdev,
+static int free_phys_pg_pack(struct hl_device *hdev,
 				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_vm *vm = &hdev->vm;
 	u64 i;
+	int rc = 0;
 
-	if (!phys_pg_pack->created_from_userptr) {
-		if (phys_pg_pack->contiguous) {
-			gen_pool_free(vm->dram_pg_pool, phys_pg_pack->pages[0],
+	if (phys_pg_pack->created_from_userptr)
+		goto end;
+
+	if (phys_pg_pack->contiguous) {
+		if (hdev->memory_scrub && !hdev->disabled) {
+			rc = hdev->asic_funcs->scrub_device_mem(hdev,
+					phys_pg_pack->pages[0],
 					phys_pg_pack->total_size);
+			if (rc)
+				dev_err(hdev->dev,
+					"Failed to scrub contiguous device memory\n");
+		}
 
-			for (i = 0; i < phys_pg_pack->npages ; i++)
-				kref_put(&vm->dram_pg_pool_refcount,
-					dram_pg_pool_do_release);
-		} else {
-			for (i = 0 ; i < phys_pg_pack->npages ; i++) {
-				gen_pool_free(vm->dram_pg_pool,
+		gen_pool_free(vm->dram_pg_pool, phys_pg_pack->pages[0],
+			phys_pg_pack->total_size);
+
+		for (i = 0; i < phys_pg_pack->npages ; i++)
+			kref_put(&vm->dram_pg_pool_refcount,
+				dram_pg_pool_do_release);
+	} else {
+		for (i = 0 ; i < phys_pg_pack->npages ; i++) {
+			if (hdev->memory_scrub && !hdev->disabled && rc == 0) {
+				rc = hdev->asic_funcs->scrub_device_mem(
+						hdev,
 						phys_pg_pack->pages[i],
 						phys_pg_pack->page_size);
-				kref_put(&vm->dram_pg_pool_refcount,
-					dram_pg_pool_do_release);
+				if (rc)
+					dev_err(hdev->dev,
+						"Failed to scrub device memory\n");
 			}
+			gen_pool_free(vm->dram_pg_pool,
+				phys_pg_pack->pages[i],
+				phys_pg_pack->page_size);
+			kref_put(&vm->dram_pg_pool_refcount,
+				dram_pg_pool_do_release);
 		}
 	}
 
+	if (rc && !hdev->disabled)
+		hl_device_reset(hdev, HL_RESET_HARD);
+
+end:
 	kvfree(phys_pg_pack->pages);
 	kfree(phys_pg_pack);
+
+	return rc;
 }
 
 /**
@@ -349,7 +358,7 @@ static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 		atomic64_sub(phys_pg_pack->total_size, &ctx->dram_phys_mem);
 		atomic64_sub(phys_pg_pack->total_size, &hdev->dram_used_mem);
 
-		free_phys_pg_pack(hdev, phys_pg_pack);
+		return free_phys_pg_pack(hdev, phys_pg_pack);
 	} else {
 		spin_unlock(&vm->idr_lock);
 		dev_err(hdev->dev,
@@ -857,6 +866,7 @@ static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 	u64 next_vaddr = vaddr, paddr, mapped_pg_cnt = 0, i;
 	u32 page_size = phys_pg_pack->page_size;
 	int rc = 0;
+	bool is_host_addr;
 
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
 		paddr = phys_pg_pack->pages[i];
@@ -878,6 +888,8 @@ static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 	return 0;
 
 err:
+	is_host_addr = !hl_is_dram_va(hdev, vaddr);
+
 	next_vaddr = vaddr;
 	for (i = 0 ; i < mapped_pg_cnt ; i++) {
 		if (hl_mmu_unmap_page(ctx, next_vaddr, page_size,
@@ -888,6 +900,17 @@ err:
 					phys_pg_pack->pages[i], page_size);
 
 		next_vaddr += page_size;
+
+		/*
+		 * unmapping on Palladium can be really long, so avoid a CPU
+		 * soft lockup bug by sleeping a little between unmapping pages
+		 *
+		 * In addition, on host num of pages could be huge,
+		 * because page size could be 4KB, so when unmapping host
+		 * pages sleep every 32K pages to avoid soft lockup
+		 */
+		if (hdev->pldm || (is_host_addr && (i & 0x7FFF) == 0))
+			usleep_range(50, 200);
 	}
 
 	return rc;
@@ -921,9 +944,9 @@ static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 		 * unmapping on Palladium can be really long, so avoid a CPU
 		 * soft lockup bug by sleeping a little between unmapping pages
 		 *
-		 * In addition, when unmapping host memory we pass through
-		 * the Linux kernel to unpin the pages and that takes a long
-		 * time. Therefore, sleep every 32K pages to avoid soft lockup
+		 * In addition, on host num of pages could be huge,
+		 * because page size could be 4KB, so when unmapping host
+		 * pages sleep every 32K pages to avoid soft lockup
 		 */
 		if (hdev->pldm || (is_host_addr && (i & 0x7FFF) == 0))
 			usleep_range(50, 200);
@@ -1117,9 +1140,9 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	*device_addr = ret_vaddr;
 
 	if (is_userptr)
-		free_phys_pg_pack(hdev, phys_pg_pack);
+		rc = free_phys_pg_pack(hdev, phys_pg_pack);
 
-	return 0;
+	return rc;
 
 map_err:
 	if (add_va_block(hdev, va_range, ret_vaddr,
@@ -1272,7 +1295,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	kfree(hnode);
 
 	if (is_userptr) {
-		free_phys_pg_pack(hdev, phys_pg_pack);
+		rc = free_phys_pg_pack(hdev, phys_pg_pack);
 		dma_unmap_host_va(hdev, userptr);
 	}
 
@@ -1305,9 +1328,15 @@ static int map_block(struct hl_device *hdev, u64 address, u64 *handle,
 
 static void hw_block_vm_close(struct vm_area_struct *vma)
 {
-	struct hl_ctx *ctx = (struct hl_ctx *) vma->vm_private_data;
+	struct hl_vm_hw_block_list_node *lnode =
+		(struct hl_vm_hw_block_list_node *) vma->vm_private_data;
+	struct hl_ctx *ctx = lnode->ctx;
 
+	mutex_lock(&ctx->hw_block_list_lock);
+	list_del(&lnode->node);
+	mutex_unlock(&ctx->hw_block_list_lock);
 	hl_ctx_put(ctx);
+	kfree(lnode);
 	vma->vm_private_data = NULL;
 }
 
@@ -1325,7 +1354,9 @@ static const struct vm_operations_struct hw_block_vm_ops = {
  */
 int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 {
+	struct hl_vm_hw_block_list_node *lnode;
 	struct hl_device *hdev = hpriv->hdev;
+	struct hl_ctx *ctx = hpriv->ctx;
 	u32 block_id, block_size;
 	int rc;
 
@@ -1351,16 +1382,30 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	vma->vm_ops = &hw_block_vm_ops;
-	vma->vm_private_data = hpriv->ctx;
+	lnode = kzalloc(sizeof(*lnode), GFP_KERNEL);
+	if (!lnode)
+		return -ENOMEM;
 
-	hl_ctx_get(hdev, hpriv->ctx);
+	vma->vm_ops = &hw_block_vm_ops;
+	vma->vm_private_data = lnode;
+
+	hl_ctx_get(hdev, ctx);
 
 	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
 	if (rc) {
-		hl_ctx_put(hpriv->ctx);
+		hl_ctx_put(ctx);
+		kfree(lnode);
 		return rc;
 	}
+
+	lnode->ctx = ctx;
+	lnode->vaddr = vma->vm_start;
+	lnode->size = block_size;
+	lnode->id = block_id;
+
+	mutex_lock(&ctx->hw_block_list_lock);
+	list_add_tail(&lnode->node, &ctx->hw_block_mem_list);
+	mutex_unlock(&ctx->hw_block_list_lock);
 
 	vma->vm_pgoff = block_id;
 
@@ -1574,7 +1619,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	rc = sg_alloc_table_from_pages(userptr->sgt,
 				       userptr->pages,
-				       npages, offset, size, GFP_ATOMIC);
+				       npages, offset, size, GFP_KERNEL);
 	if (rc < 0) {
 		dev_err(hdev->dev, "failed to create SG table from pages\n");
 		goto put_pages;
@@ -1624,11 +1669,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 		return -EINVAL;
 	}
 
-	/*
-	 * This function can be called also from data path, hence use atomic
-	 * always as it is not a big allocation.
-	 */
-	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
+	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_KERNEL);
 	if (!userptr->sgt)
 		return -ENOMEM;
 
@@ -2121,4 +2162,39 @@ void hl_vm_fini(struct hl_device *hdev)
 				__func__);
 
 	vm->init_done = false;
+}
+
+/**
+ * hl_hw_block_mem_init() - HW block memory initialization.
+ * @ctx: pointer to the habanalabs context structure.
+ *
+ * This function initializes the HW block virtual mapped addresses list and
+ * it's lock.
+ */
+void hl_hw_block_mem_init(struct hl_ctx *ctx)
+{
+	mutex_init(&ctx->hw_block_list_lock);
+	INIT_LIST_HEAD(&ctx->hw_block_mem_list);
+}
+
+/**
+ * hl_hw_block_mem_fini() - HW block memory teardown.
+ * @ctx: pointer to the habanalabs context structure.
+ *
+ * This function clears the HW block virtual mapped addresses list and destroys
+ * it's lock.
+ */
+void hl_hw_block_mem_fini(struct hl_ctx *ctx)
+{
+	struct hl_vm_hw_block_list_node *lnode, *tmp;
+
+	if (!list_empty(&ctx->hw_block_mem_list))
+		dev_crit(ctx->hdev->dev, "HW block mem list isn't empty\n");
+
+	list_for_each_entry_safe(lnode, tmp, &ctx->hw_block_mem_list, node) {
+		list_del(&lnode->node);
+		kfree(lnode);
+	}
+
+	mutex_destroy(&ctx->hw_block_list_lock);
 }

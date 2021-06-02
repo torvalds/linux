@@ -34,26 +34,6 @@ struct pmt_telem_priv {
 	struct intel_pmt_entry		entry[];
 };
 
-/*
- * Early implementations of PMT on client platforms have some
- * differences from the server platforms (which use the Out Of Band
- * Management Services Module OOBMSM). This list tracks those
- * platforms as needed to handle those differences. Newer client
- * platforms are expected to be fully compatible with server.
- */
-static const struct pci_device_id pmt_telem_early_client_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, 0x9a0d) }, /* TGL */
-	{ PCI_VDEVICE(INTEL, 0x467d) }, /* ADL */
-	{ }
-};
-
-static bool intel_pmt_is_early_client_hw(struct device *dev)
-{
-	struct pci_dev *parent = to_pci_dev(dev->parent);
-
-	return !!pci_match_id(pmt_telem_early_client_pci_ids, parent);
-}
-
 static bool pmt_telem_region_overlaps(struct intel_pmt_entry *entry,
 				      struct device *dev)
 {

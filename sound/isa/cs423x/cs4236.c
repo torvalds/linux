@@ -18,40 +18,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic CS4232-9");
-MODULE_SUPPORTED_DEVICE("{{Turtle Beach,TBS-2000},"
-		"{Turtle Beach,Tropez Plus},"
-		"{SIC CrystalWave 32},"
-		"{Hewlett Packard,Omnibook 5500},"
-		"{TerraTec,Maestro 32/96},"
-		"{Philips,PCA70PS}},"
-		"{{Crystal Semiconductors,CS4235},"
-		"{Crystal Semiconductors,CS4236},"
-		"{Crystal Semiconductors,CS4237},"
-		"{Crystal Semiconductors,CS4238},"
-		"{Crystal Semiconductors,CS4239},"
-		"{Acer,AW37},"
-		"{Acer,AW35/Pro},"
-		"{Crystal,3D},"
-		"{Crystal Computer,TidalWave128},"
-		"{Dell,Optiplex GX1},"
-		"{Dell,Workstation 400 sound},"
-		"{EliteGroup,P5TX-LA sound},"
-		"{Gallant,SC-70P},"
-		"{Gateway,E1000 Onboard CS4236B},"
-		"{Genius,Sound Maker 3DJ},"
-		"{Hewlett Packard,HP6330 sound},"
-		"{IBM,PC 300PL sound},"
-		"{IBM,Aptiva 2137 E24},"
-		"{IBM,IntelliStation M Pro},"
-		"{Intel,Marlin Spike Mobo CS4235},"
-		"{Intel PR440FX Onboard},"
-		"{Guillemot,MaxiSound 16 PnP},"
-		"{NewClear,3D},"
-		"{TerraTec,AudioSystem EWS64L/XL},"
-		"{Typhoon Soundsystem,CS4236B},"
-		"{Turtle Beach,Malibu},"
-		"{Unknown,Digital PC 5000 Onboard}}");
-
 MODULE_ALIAS("snd_cs4232");
 
 #define IDENT "CS4232+"

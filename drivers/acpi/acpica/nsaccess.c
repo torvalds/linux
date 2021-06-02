@@ -99,13 +99,12 @@ acpi_status acpi_ns_root_initialize(void)
 		 * just create and link the new node(s) here.
 		 */
 		new_node =
-		    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_namespace_node));
+		    acpi_ns_create_node(*ACPI_CAST_PTR(u32, init_val->name));
 		if (!new_node) {
 			status = AE_NO_MEMORY;
 			goto unlock_and_exit;
 		}
 
-		ACPI_COPY_NAMESEG(new_node->name.ascii, init_val->name);
 		new_node->descriptor_type = ACPI_DESC_TYPE_NAMED;
 		new_node->type = init_val->type;
 

@@ -709,7 +709,6 @@ struct bman_pool *bman_new_pool(void)
 	return pool;
 err:
 	bm_release_bpid(bpid);
-	kfree(pool);
 	return NULL;
 }
 EXPORT_SYMBOL(bman_new_pool);

@@ -135,7 +135,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	 */
 
 	/*
-	 * Wait to acquire the lock or cancelation. Note that need_resched()
+	 * Wait to acquire the lock or cancellation. Note that need_resched()
 	 * will come with an IPI, which will wake smp_cond_load_relaxed() if it
 	 * is implemented with a monitor-wait. vcpu_is_preempted() relies on
 	 * polling, be careful.
@@ -164,7 +164,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 
 		/*
 		 * We can only fail the cmpxchg() racing against an unlock(),
-		 * in which case we should observe @node->locked becomming
+		 * in which case we should observe @node->locked becoming
 		 * true.
 		 */
 		if (smp_load_acquire(&node->locked))

@@ -441,7 +441,7 @@ out_no_read:
 }
 
 /**
- *  e1000_init_mbx_params_pf - set initial values for pf mailbox
+ *  igb_init_mbx_params_pf - set initial values for pf mailbox
  *  @hw: pointer to the HW structure
  *
  *  Initializes the hw->mbx struct to correct values for pf mailbox

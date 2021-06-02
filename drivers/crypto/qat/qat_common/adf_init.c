@@ -162,6 +162,10 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
+	/* Set ssm watch dog timer */
+	if (hw_data->set_ssm_wdtimer)
+		hw_data->set_ssm_wdtimer(accel_dev);
+
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
 		if (service->event_hld(accel_dev, ADF_EVENT_START)) {

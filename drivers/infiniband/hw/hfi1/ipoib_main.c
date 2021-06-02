@@ -101,14 +101,6 @@ static const struct net_device_ops hfi1_ipoib_netdev_ops = {
 	.ndo_get_stats64  = dev_get_tstats64,
 };
 
-static int hfi1_ipoib_send(struct net_device *dev,
-			   struct sk_buff *skb,
-			   struct ib_ah *address,
-			   u32 dqpn)
-{
-	return hfi1_ipoib_send_dma(dev, skb, address, dqpn);
-}
-
 static int hfi1_ipoib_mcast_attach(struct net_device *dev,
 				   struct ib_device *device,
 				   union ib_gid *mgid,
@@ -194,7 +186,7 @@ static void hfi1_ipoib_set_id(struct net_device *dev, int id)
 }
 
 static int hfi1_ipoib_setup_rn(struct ib_device *device,
-			       u8 port_num,
+			       u32 port_num,
 			       struct net_device *netdev,
 			       void *param)
 {
@@ -204,6 +196,7 @@ static int hfi1_ipoib_setup_rn(struct ib_device *device,
 	int rc;
 
 	rn->send = hfi1_ipoib_send;
+	rn->tx_timeout = hfi1_ipoib_tx_timeout;
 	rn->attach_mcast = hfi1_ipoib_mcast_attach;
 	rn->detach_mcast = hfi1_ipoib_mcast_detach;
 	rn->set_id = hfi1_ipoib_set_id;
@@ -243,7 +236,7 @@ static int hfi1_ipoib_setup_rn(struct ib_device *device,
 }
 
 int hfi1_ipoib_rn_get_params(struct ib_device *device,
-			     u8 port_num,
+			     u32 port_num,
 			     enum rdma_netdev_t type,
 			     struct rdma_netdev_alloc_params *params)
 {

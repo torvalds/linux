@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/supply/x-powers,axp20x-battery-power-supply.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: AXP20x Battery power-supply
+
+description: |
+  The supported devices can read the battery voltage, charge and discharge
+  currents of the battery by reading ADC channels from the ADC.
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - x-powers,axp209-battery-power-supply
+      - x-powers,axp221-battery-power-supply
+      - x-powers,axp813-battery-power-supply
+
+required:
+  - compatible
+
+additionalProperties: false

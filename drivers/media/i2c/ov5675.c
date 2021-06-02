@@ -1193,7 +1193,7 @@ static int ov5675_probe(struct i2c_client *client)
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor_common(&ov5675->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov5675->sd);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
 			ret);

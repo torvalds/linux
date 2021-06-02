@@ -72,7 +72,7 @@ void cedrus_device_run(void *priv)
 
 	case V4L2_PIX_FMT_VP8_FRAME:
 		run.vp8.frame_params = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER);
+			V4L2_CID_STATELESS_VP8_FRAME);
 		break;
 
 	default:

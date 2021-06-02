@@ -448,7 +448,7 @@ compare_and_write_do_cmp(struct scatterlist *read_sgl, unsigned int read_nents,
 	sense_reason_t ret;
 	unsigned int offset;
 	size_t rc;
-	int i;
+	int sg_cnt;
 
 	buf = kzalloc(cmp_len, GFP_KERNEL);
 	if (!buf) {
@@ -467,7 +467,7 @@ compare_and_write_do_cmp(struct scatterlist *read_sgl, unsigned int read_nents,
 	 */
 	offset = 0;
 	ret = TCM_NO_SENSE;
-	for_each_sg(read_sgl, sg, read_nents, i) {
+	for_each_sg(read_sgl, sg, read_nents, sg_cnt) {
 		unsigned int len = min(sg->length, cmp_len);
 		unsigned char *addr = kmap_atomic(sg_page(sg));
 

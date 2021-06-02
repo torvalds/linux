@@ -26,9 +26,10 @@ static const struct snd_sof_debugfs_map icl_dsp_debugfs[] = {
 
 /* Icelake ops */
 const struct snd_sof_dsp_ops sof_icl_ops = {
-	/* probe and remove */
+	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
+	.shutdown	= hda_dsp_shutdown,
 
 	/* Register IO */
 	.write		= sof_io_write,

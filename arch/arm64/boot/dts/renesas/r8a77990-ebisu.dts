@@ -16,6 +16,9 @@
 	aliases {
 		serial0 = &scif2;
 		ethernet0 = &avb;
+		mmc0 = &sdhi3;
+		mmc1 = &sdhi0;
+		mmc2 = &sdhi1;
 	};
 
 	chosen {
@@ -295,8 +298,6 @@
 
 	ports {
 		port@0 {
-			reg = <0>;
-
 			csi40_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
@@ -621,7 +622,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 
 	/* Single DAI */
@@ -653,8 +654,8 @@
 
 	rcar_sound,dai {
 		dai0 {
-			playback = <&ssi0 &src0 &dvc0>;
-			capture  = <&ssi1 &src1 &dvc1>;
+			playback = <&ssi0>, <&src0>, <&dvc0>;
+			capture  = <&ssi1>, <&src1>, <&dvc1>;
 		};
 	};
 

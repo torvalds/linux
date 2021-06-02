@@ -113,7 +113,7 @@ dmc620_pmu_event_show(struct device *dev,
 
 	eattr = container_of(attr, typeof(*eattr), attr);
 
-	return sprintf(page, "event=0x%x,clkdiv2=0x%x\n", eattr->eventid, eattr->clkdiv2);
+	return sysfs_emit(page, "event=0x%x,clkdiv2=0x%x\n", eattr->eventid, eattr->clkdiv2);
 }
 
 #define DMC620_PMU_EVENT_ATTR(_name, _eventid, _clkdiv2)		\

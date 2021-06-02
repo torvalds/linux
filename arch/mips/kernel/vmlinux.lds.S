@@ -176,7 +176,7 @@ SECTIONS
 	.fill : {
 		FILL(0);
 		BYTE(0);
-		. = ALIGN(8);
+		STRUCT_ALIGN();
 	}
 	__appended_dtb = .;
 	/* leave space for appended DTB */

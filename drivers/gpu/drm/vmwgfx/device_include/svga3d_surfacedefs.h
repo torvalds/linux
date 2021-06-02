@@ -1467,6 +1467,7 @@ struct svga3dsurface_cache {
 
 /**
  * struct svga3dsurface_loc - Surface location
+ * @sheet: The multisample sheet.
  * @sub_resource: Surface subresource. Defined as layer * num_mip_levels +
  * mip_level.
  * @x: X coordinate.
@@ -1474,6 +1475,7 @@ struct svga3dsurface_cache {
  * @z: Z coordinate.
  */
 struct svga3dsurface_loc {
+	u32 sheet;
 	u32 sub_resource;
 	u32 x, y, z;
 };
@@ -1566,8 +1568,8 @@ svga3dsurface_get_loc(const struct svga3dsurface_cache *cache,
 	u32 layer;
 	int i;
 
-	if (offset >= cache->sheet_bytes)
-		offset %= cache->sheet_bytes;
+	loc->sheet = offset / cache->sheet_bytes;
+	offset -= loc->sheet * cache->sheet_bytes;
 
 	layer = offset / cache->mip_chain_bytes;
 	offset -= layer * cache->mip_chain_bytes;
@@ -1631,6 +1633,7 @@ svga3dsurface_min_loc(const struct svga3dsurface_cache *cache,
 		      u32 sub_resource,
 		      struct svga3dsurface_loc *loc)
 {
+	loc->sheet = 0;
 	loc->sub_resource = sub_resource;
 	loc->x = loc->y = loc->z = 0;
 }
@@ -1652,6 +1655,7 @@ svga3dsurface_max_loc(const struct svga3dsurface_cache *cache,
 	const struct drm_vmw_size *size;
 	u32 mip;
 
+	loc->sheet = 0;
 	loc->sub_resource = sub_resource + 1;
 	mip = sub_resource % cache->num_mip_levels;
 	size = &cache->mip[mip].size;

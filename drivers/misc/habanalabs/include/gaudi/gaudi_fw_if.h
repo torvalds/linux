@@ -20,20 +20,6 @@
 #define UBOOT_FW_OFFSET			0x100000	/* 1MB in SRAM */
 #define LINUX_FW_OFFSET			0x800000	/* 8MB in HBM */
 
-enum gaudi_pll_index {
-	CPU_PLL = 0,
-	PCI_PLL,
-	SRAM_PLL,
-	HBM_PLL,
-	NIC_PLL,
-	DMA_PLL,
-	MESH_PLL,
-	MME_PLL,
-	TPC_PLL,
-	IF_PLL,
-	PLL_MAX
-};
-
 enum gaudi_nic_axi_error {
 	RXB,
 	RXE,

@@ -155,7 +155,6 @@ static int pwm_imx1_probe(struct platform_device *pdev)
 
 	imx->chip.ops = &pwm_imx1_ops;
 	imx->chip.dev = &pdev->dev;
-	imx->chip.base = -1;
 	imx->chip.npwm = 1;
 
 	imx->mmio_base = devm_platform_ioremap_resource(pdev, 0);

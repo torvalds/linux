@@ -29,17 +29,21 @@ PATH=${KVM}/bin:$PATH; export PATH
 TORTURE_ALLOTED_CPUS="`identify_qemu_vcpus`"
 TORTURE_DEFCONFIG=defconfig
 TORTURE_BOOT_IMAGE=""
+TORTURE_BUILDONLY=
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
 TORTURE_KCONFIG_ARG=""
 TORTURE_KCONFIG_GDB_ARG=""
 TORTURE_BOOT_GDB_ARG=""
 TORTURE_QEMU_GDB_ARG=""
+TORTURE_JITTER_START=""
+TORTURE_JITTER_STOP=""
 TORTURE_KCONFIG_KASAN_ARG=""
 TORTURE_KCONFIG_KCSAN_ARG=""
 TORTURE_KMAKE_ARG=""
 TORTURE_QEMU_MEM=512
 TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
+TORTURE_MOD=rcutorture
 TORTURE_TRUST_MAKE=""
 resdir=""
 configs=""
@@ -100,7 +104,7 @@ do
 		TORTURE_BUILDONLY=1
 		;;
 	--configs|--config)
-		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]\+$' '^--'
+		checkarg --configs "(list of config files)" "$#" "$2" '^[^/.a-z]\+$' '^--'
 		configs="$configs $2"
 		shift
 		;;
@@ -116,7 +120,7 @@ do
 		shift
 		;;
 	--datestamp)
-		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[a-zA-Z0-9._-/]*$' '^--'
+		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[a-zA-Z0-9._/-]*$' '^--'
 		ds=$2
 		shift
 		;;
@@ -215,6 +219,7 @@ do
 	--torture)
 		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuscale\|refscale\|scf\)$' '^--'
 		TORTURE_SUITE=$2
+		TORTURE_MOD="`echo $TORTURE_SUITE | sed -e 's/^\(lock\|rcu\|scf\)$/\1torture/'`"
 		shift
 		if test "$TORTURE_SUITE" = rcuscale || test "$TORTURE_SUITE" = refscale
 		then
@@ -381,6 +386,7 @@ TORTURE_QEMU_GDB_ARG="$TORTURE_QEMU_GDB_ARG"; export TORTURE_QEMU_GDB_ARG
 TORTURE_KCONFIG_KASAN_ARG="$TORTURE_KCONFIG_KASAN_ARG"; export TORTURE_KCONFIG_KASAN_ARG
 TORTURE_KCONFIG_KCSAN_ARG="$TORTURE_KCONFIG_KCSAN_ARG"; export TORTURE_KCONFIG_KCSAN_ARG
 TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG"; export TORTURE_KMAKE_ARG
+TORTURE_MOD="$TORTURE_MOD"; export TORTURE_MOD
 TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD"; export TORTURE_QEMU_CMD
 TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE"; export TORTURE_QEMU_INTERACTIVE
 TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC"; export TORTURE_QEMU_MAC
@@ -399,12 +405,17 @@ echo Results directory: $resdir/$ds
 echo $scriptname $args
 touch $resdir/$ds/log
 echo $scriptname $args >> $resdir/$ds/log
-echo ${TORTURE_SUITE} > $resdir/$ds/TORTURE_SUITE
-pwd > $resdir/$ds/testid.txt
+echo ${TORTURE_SUITE} > $resdir/$ds/torture_suite
+echo Build directory: `pwd` > $resdir/$ds/testid.txt
 if test -d .git
 then
+	echo Current commit: `git rev-parse HEAD` >> $resdir/$ds/testid.txt
+	echo >> $resdir/$ds/testid.txt
+	echo ' ---' Output of "'"git status"'": >> $resdir/$ds/testid.txt
 	git status >> $resdir/$ds/testid.txt
-	git rev-parse HEAD >> $resdir/$ds/testid.txt
+	echo >> $resdir/$ds/testid.txt
+	echo >> $resdir/$ds/testid.txt
+	echo ' ---' Output of "'"git diff HEAD"'": >> $resdir/$ds/testid.txt
 	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
@@ -434,42 +445,6 @@ function dump(first, pastlast, batchnum)
 	print "echo ----Start batch " batchnum ": `date` | tee -a " rd "log";
 	print "needqemurun="
 	jn=1
-	for (j = first; j < pastlast; j++) {
-		builddir=KVM "/b" j - first + 1
-		cpusr[jn] = cpus[j];
-		if (cfrep[cf[j]] == "") {
-			cfr[jn] = cf[j];
-			cfrep[cf[j]] = 1;
-		} else {
-			cfrep[cf[j]]++;
-			cfr[jn] = cf[j] "." cfrep[cf[j]];
-		}
-		if (cpusr[jn] > ncpus && ncpus != 0)
-			ovf = "-ovf";
-		else
-			ovf = "";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
-		print "rm -f " builddir ".*";
-		print "touch " builddir ".wait";
-		print "mkdir " rd cfr[jn] " || :";
-		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
-		print "while test -f " builddir ".wait"
-		print "do"
-		print "\tsleep 1"
-		print "done"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` | tee -a " rd "log";
-		jn++;
-	}
-	for (j = 1; j < jn; j++) {
-		builddir=KVM "/b" j
-		print "rm -f " builddir ".ready"
-		print "if test -f \"" rd cfr[j] "/builtkernel\""
-		print "then"
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` | tee -a " rd "log";
-		print "\tneedqemurun=1"
-		print "fi"
-	}
 	njitter = 0;
 	split(jitter, ja);
 	if (ja[1] == -1 && ncpus == 0)
@@ -478,6 +453,49 @@ function dump(first, pastlast, batchnum)
 		njitter = ncpus;
 	else
 		njitter = ja[1];
+	print "TORTURE_JITTER_START=\". jitterstart.sh " njitter " " rd " " dur " " ja[2] " " ja[3] "\"; export TORTURE_JITTER_START";
+	print "TORTURE_JITTER_STOP=\". jitterstop.sh " rd " \"; export TORTURE_JITTER_STOP"
+	for (j = first; j < pastlast; j++) {
+		cpusr[jn] = cpus[j];
+		if (cfrep[cf[j]] == "") {
+			cfr[jn] = cf[j];
+			cfrep[cf[j]] = 1;
+		} else {
+			cfrep[cf[j]]++;
+			cfr[jn] = cf[j] "." cfrep[cf[j]];
+		}
+		builddir=rd cfr[jn] "/build";
+		if (cpusr[jn] > ncpus && ncpus != 0)
+			ovf = "-ovf";
+		else
+			ovf = "";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
+		print "mkdir " rd cfr[jn] " || :";
+		print "touch " builddir ".wait";
+		print "kvm-test-1-run.sh " CONFIGDIR cf[j], rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
+		print "while test -f " builddir ".wait"
+		print "do"
+		print "\tsleep 1"
+		print "done"
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` | tee -a " rd "log";
+		jn++;
+	}
+	print "runfiles="
+	for (j = 1; j < jn; j++) {
+		builddir=rd cfr[j] "/build";
+		if (TORTURE_BUILDONLY)
+			print "rm -f " builddir ".ready"
+		else
+			print "mv " builddir ".ready " builddir ".run"
+			print "runfiles=\"$runfiles " builddir ".run\""
+		fi
+		print "if test -f \"" rd cfr[j] "/builtkernel\""
+		print "then"
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` | tee -a " rd "log";
+		print "\tneedqemurun=1"
+		print "fi"
+	}
 	if (TORTURE_BUILDONLY && njitter != 0) {
 		njitter = 0;
 		print "echo Build-only run, so suppressing jitter | tee -a " rd "log"
@@ -488,19 +506,18 @@ function dump(first, pastlast, batchnum)
 	print "if test -n \"$needqemurun\""
 	print "then"
 	print "\techo ---- Starting kernels. `date` | tee -a " rd "log";
-	print "\techo > " rd "jitter_pids"
-	for (j = 0; j < njitter; j++) {
-		print "\tjitter.sh " j " " dur " " ja[2] " " ja[3] "&"
-		print "\techo $! >> " rd "jitter_pids"
-	}
-	print "\twait"
+	print "\t$TORTURE_JITTER_START";
+	print "\twhile ls $runfiles > /dev/null 2>&1"
+	print "\tdo"
+	print "\t\t:"
+	print "\tdone"
+	print "\t$TORTURE_JITTER_STOP";
 	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
 	print "else"
 	print "\twait"
 	print "\techo ---- No kernel runs. `date` | tee -a " rd "log";
 	print "fi"
 	for (j = 1; j < jn; j++) {
-		builddir=KVM "/b" j
 		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: | tee -a " rd "log";
 		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out | tee -a " rd "log";
 	}
@@ -548,6 +565,18 @@ echo 'ret=$?' >> $T/script
 echo "cat $T/kvm-recheck.sh.out | tee -a $resdir/$ds/log" >> $T/script
 echo 'exit $ret' >> $T/script
 
+# Extract the tests and their batches from the script.
+egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
+	sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
+	awk '
+	/^----Start/ {
+		batchno = $3;
+		next;
+	}
+	{
+		print batchno, $1, $2
+	}' > $T/batches
+
 if test "$dryrun" = script
 then
 	cat $T/script
@@ -566,21 +595,14 @@ then
 	exit 0
 elif test "$dryrun" = batches
 then
-	# Extract the tests and their batches from the script.
-	egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
-		sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
-		awk '
-		/^----Start/ {
-			batchno = $3;
-			next;
-		}
-		{
-			print batchno, $1, $2
-		}'
+	cat $T/batches
+	exit 0
 else
-	# Not a dryrun, so run the script.
+	# Not a dryrun.  Record the batches and the number of CPUs, then run the script.
 	bash $T/script
 	ret=$?
+	cp $T/batches $resdir/$ds/batches
+	echo '#' cpus=$cpus >> $resdir/$ds/batches
 	echo " --- Done at `date` (`get_starttime_duration $starttime`) exitcode $ret" | tee -a $resdir/$ds/log
 	exit $ret
 fi

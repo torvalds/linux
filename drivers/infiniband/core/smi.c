@@ -41,7 +41,7 @@
 #include "smi.h"
 #include "opa_smi.h"
 
-static enum smi_action __smi_handle_dr_smp_send(bool is_switch, int port_num,
+static enum smi_action __smi_handle_dr_smp_send(bool is_switch, u32 port_num,
 						u8 *hop_ptr, u8 hop_cnt,
 						const u8 *initial_path,
 						const u8 *return_path,
@@ -127,7 +127,7 @@ static enum smi_action __smi_handle_dr_smp_send(bool is_switch, int port_num,
  * Return IB_SMI_DISCARD if the SMP should be discarded
  */
 enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
-				       bool is_switch, int port_num)
+				       bool is_switch, u32 port_num)
 {
 	return __smi_handle_dr_smp_send(is_switch, port_num,
 					&smp->hop_ptr, smp->hop_cnt,
@@ -139,7 +139,7 @@ enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
 }
 
 enum smi_action opa_smi_handle_dr_smp_send(struct opa_smp *smp,
-				       bool is_switch, int port_num)
+				       bool is_switch, u32 port_num)
 {
 	return __smi_handle_dr_smp_send(is_switch, port_num,
 					&smp->hop_ptr, smp->hop_cnt,
@@ -152,7 +152,7 @@ enum smi_action opa_smi_handle_dr_smp_send(struct opa_smp *smp,
 					OPA_LID_PERMISSIVE);
 }
 
-static enum smi_action __smi_handle_dr_smp_recv(bool is_switch, int port_num,
+static enum smi_action __smi_handle_dr_smp_recv(bool is_switch, u32 port_num,
 						int phys_port_cnt,
 						u8 *hop_ptr, u8 hop_cnt,
 						const u8 *initial_path,
@@ -238,7 +238,7 @@ static enum smi_action __smi_handle_dr_smp_recv(bool is_switch, int port_num,
  * Return IB_SMI_DISCARD if the SMP should be dropped
  */
 enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, bool is_switch,
-				       int port_num, int phys_port_cnt)
+				       u32 port_num, int phys_port_cnt)
 {
 	return __smi_handle_dr_smp_recv(is_switch, port_num, phys_port_cnt,
 					&smp->hop_ptr, smp->hop_cnt,
@@ -254,7 +254,7 @@ enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, bool is_switch,
  * Return IB_SMI_DISCARD if the SMP should be dropped
  */
 enum smi_action opa_smi_handle_dr_smp_recv(struct opa_smp *smp, bool is_switch,
-					   int port_num, int phys_port_cnt)
+					   u32 port_num, int phys_port_cnt)
 {
 	return __smi_handle_dr_smp_recv(is_switch, port_num, phys_port_cnt,
 					&smp->hop_ptr, smp->hop_cnt,

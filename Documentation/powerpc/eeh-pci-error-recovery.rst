@@ -73,7 +73,7 @@ return all-ff's (0xff, 0xffff, 0xffffffff for 8/16/32-bit reads).
 This value was chosen because it is the same value you would
 get if the device was physically unplugged from the slot.
 This includes access to PCI memory, I/O space, and PCI config
-space.  Interrupts; however, will continued to be delivered.
+space.  Interrupts; however, will continue to be delivered.
 
 Detection and recovery are performed with the aid of ppc64
 firmware.  The programming interfaces in the Linux kernel

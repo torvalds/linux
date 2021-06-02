@@ -107,7 +107,7 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	bool unset_vlan_filtering = br_vlan_enabled(info->br);
 	struct dsa_switch_tree *dst = ds->dst;
 	struct netlink_ext_ack extack = {0};
-	int err, i;
+	int err, port;
 
 	if (dst->index == info->tree_index && ds->index == info->sw_index &&
 	    ds->ops->port_bridge_join)
@@ -124,13 +124,16 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	 * it. That is a good thing, because that lets us handle it and also
 	 * handle the case where the switch's vlan_filtering setting is global
 	 * (not per port). When that happens, the correct moment to trigger the
-	 * vlan_filtering callback is only when the last port left this bridge.
+	 * vlan_filtering callback is only when the last port leaves the last
+	 * VLAN-aware bridge.
 	 */
 	if (unset_vlan_filtering && ds->vlan_filtering_is_global) {
-		for (i = 0; i < ds->num_ports; i++) {
-			if (i == info->port)
-				continue;
-			if (dsa_to_port(ds, i)->bridge_dev == info->br) {
+		for (port = 0; port < ds->num_ports; port++) {
+			struct net_device *bridge_dev;
+
+			bridge_dev = dsa_to_port(ds, port)->bridge_dev;
+
+			if (bridge_dev && br_vlan_enabled(bridge_dev)) {
 				unset_vlan_filtering = false;
 				break;
 			}
@@ -320,15 +323,6 @@ static int dsa_switch_vlan_del(struct dsa_switch *ds,
 	return 0;
 }
 
-static bool dsa_switch_tag_proto_match(struct dsa_switch *ds, int port,
-				       struct dsa_notifier_tag_proto_info *info)
-{
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-		return true;
-
-	return false;
-}
-
 static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 				       struct dsa_notifier_tag_proto_info *info)
 {
@@ -341,16 +335,14 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 	ASSERT_RTNL();
 
 	for (port = 0; port < ds->num_ports; port++) {
-		if (dsa_switch_tag_proto_match(ds, port, info)) {
-			err = ds->ops->change_tag_protocol(ds, port,
-							   tag_ops->proto);
-			if (err)
-				return err;
+		if (!dsa_is_cpu_port(ds, port))
+			continue;
 
-			if (dsa_is_cpu_port(ds, port))
-				dsa_port_set_tag_protocol(dsa_to_port(ds, port),
-							  tag_ops);
-		}
+		err = ds->ops->change_tag_protocol(ds, port, tag_ops->proto);
+		if (err)
+			return err;
+
+		dsa_port_set_tag_protocol(dsa_to_port(ds, port), tag_ops);
 	}
 
 	/* Now that changing the tag protocol can no longer fail, let's update

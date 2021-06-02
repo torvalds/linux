@@ -107,17 +107,6 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 file_offset,
 	return NULL;
 }
 
-/*
- * helper to check if a given offset is inside a given entry
- */
-static int offset_in_entry(struct btrfs_ordered_extent *entry, u64 file_offset)
-{
-	if (file_offset < entry->file_offset ||
-	    entry->file_offset + entry->num_bytes <= file_offset)
-		return 0;
-	return 1;
-}
-
 static int range_overlaps(struct btrfs_ordered_extent *entry, u64 file_offset,
 			  u64 len)
 {
@@ -142,7 +131,7 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
 	if (tree->last) {
 		entry = rb_entry(tree->last, struct btrfs_ordered_extent,
 				 rb_node);
-		if (offset_in_entry(entry, file_offset))
+		if (in_range(file_offset, entry->file_offset, entry->num_bytes))
 			return tree->last;
 	}
 	ret = __tree_search(root, file_offset, &prev);
@@ -349,7 +338,7 @@ bool btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
 		goto out;
 
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-	if (!offset_in_entry(entry, *file_offset))
+	if (!in_range(*file_offset, entry->file_offset, entry->num_bytes))
 		goto out;
 
 	dec_start = max(*file_offset, entry->file_offset);
@@ -428,7 +417,7 @@ bool btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
 
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 have_entry:
-	if (!offset_in_entry(entry, file_offset))
+	if (!in_range(file_offset, entry->file_offset, entry->num_bytes))
 		goto out;
 
 	if (io_size > entry->bytes_left)
@@ -779,7 +768,7 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *ino
 		goto out;
 
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-	if (!offset_in_entry(entry, file_offset))
+	if (!in_range(file_offset, entry->file_offset, entry->num_bytes))
 		entry = NULL;
 	if (entry)
 		refcount_inc(&entry->refs);
@@ -995,7 +984,7 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 
 	if (pre)
 		ret = clone_ordered_extent(ordered, 0, pre);
-	if (post)
+	if (ret == 0 && post)
 		ret = clone_ordered_extent(ordered, pre + ordered->disk_num_bytes,
 					   post);
 

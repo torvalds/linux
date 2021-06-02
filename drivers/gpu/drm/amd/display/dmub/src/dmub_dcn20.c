@@ -385,7 +385,7 @@ union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub)
 	return status;
 }
 
-void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub)
+void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
 	union dmub_fw_boot_options boot_options = {0};
 
@@ -398,4 +398,9 @@ void dmub_dcn20_skip_dmub_panel_power_sequence(struct dmub_srv *dmub, bool skip)
 	boot_options.all = REG_READ(DMCUB_SCRATCH14);
 	boot_options.bits.skip_phy_init_panel_sequence = skip;
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
+}
+
+uint32_t dmub_dcn20_get_current_time(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_TIMER_CURRENT);
 }

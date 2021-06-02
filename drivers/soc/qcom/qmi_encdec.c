@@ -451,11 +451,11 @@ static int qmi_decode_basic_elem(void *buf_dst, const void *buf_src,
 
 /**
  * qmi_decode_struct_elem() - Decodes elements of struct data type
- * @ei_array: Struct info array descibing the struct element.
+ * @ei_array: Struct info array describing the struct element.
  * @buf_dst: Buffer to store the decoded element.
  * @buf_src: Buffer containing the elements in QMI wire format.
  * @elem_len: Number of elements to be decoded.
- * @tlv_len: Total size of the encoded inforation corresponding to
+ * @tlv_len: Total size of the encoded information corresponding to
  *           this struct element.
  * @dec_level: Depth of the nested structure from the main structure.
  *
@@ -499,10 +499,10 @@ static int qmi_decode_struct_elem(struct qmi_elem_info *ei_array,
 
 /**
  * qmi_decode_string_elem() - Decodes elements of string data type
- * @ei_array: Struct info array descibing the string element.
+ * @ei_array: Struct info array describing the string element.
  * @buf_dst: Buffer to store the decoded element.
  * @buf_src: Buffer containing the elements in QMI wire format.
- * @tlv_len: Total size of the encoded inforation corresponding to
+ * @tlv_len: Total size of the encoded information corresponding to
  *           this string element.
  * @dec_level: Depth of the string element from the main structure.
  *

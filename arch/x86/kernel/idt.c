@@ -245,7 +245,7 @@ static const __initconst struct idt_data ist_idts[] = {
  * after that.
  *
  * Note, that X86_64 cannot install the real #PF handler in
- * idt_setup_early_traps() because the memory intialization needs the #PF
+ * idt_setup_early_traps() because the memory initialization needs the #PF
  * handler from the early_idt_handler_array to initialize the early page
  * tables.
  */

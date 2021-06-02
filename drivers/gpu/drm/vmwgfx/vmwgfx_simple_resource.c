@@ -162,13 +162,8 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	account_size = ttm_round_pot(alloc_size) + VMW_IDA_ACC_SIZE +
 		TTM_OBJ_EXTRA_SIZE;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (ret)
-		return ret;
-
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), account_size,
 				   &ctx);
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for %s"

@@ -81,9 +81,9 @@ int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	if (bt->sample_point) {
 		sample_point_nominal = bt->sample_point;
 	} else {
-		if (bt->bitrate > 800000)
+		if (bt->bitrate > 800 * CAN_KBPS)
 			sample_point_nominal = 750;
-		else if (bt->bitrate > 500000)
+		else if (bt->bitrate > 500 * CAN_KBPS)
 			sample_point_nominal = 800;
 		else
 			sample_point_nominal = 875;
@@ -173,6 +173,30 @@ int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 		(bt->brp * (CAN_SYNC_SEG + tseg1 + tseg2));
 
 	return 0;
+}
+
+void can_calc_tdco(struct net_device *dev)
+{
+	struct can_priv *priv = netdev_priv(dev);
+	const struct can_bittiming *dbt = &priv->data_bittiming;
+	struct can_tdc *tdc = &priv->tdc;
+	const struct can_tdc_const *tdc_const = priv->tdc_const;
+
+	if (!tdc_const)
+		return;
+
+	/* As specified in ISO 11898-1 section 11.3.3 "Transmitter
+	 * delay compensation" (TDC) is only applicable if data BRP is
+	 * one or two.
+	 */
+	if (dbt->brp == 1 || dbt->brp == 2) {
+		/* Reuse "normal" sample point and convert it to time quanta */
+		u32 sample_point_in_tq = can_bit_time(dbt) * dbt->sample_point / 1000;
+
+		tdc->tdco = min(sample_point_in_tq, tdc_const->tdco_max);
+	} else {
+		tdc->tdco = 0;
+	}
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
 

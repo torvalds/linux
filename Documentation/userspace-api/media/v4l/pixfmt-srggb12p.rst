@@ -31,7 +31,7 @@ Below is an example of a small V4L2_PIX_FMT_SBGGR12P image:
 **Byte Order.**
 Each cell is one byte.
 
-.. tabularcolumns:: |p{2.2cm}|p{1.2cm}|p{1.2cm}|p{3.1cm}|p{1.2cm}|p{1.2cm}|p{3.1cm}|
+.. tabularcolumns:: |p{2.2cm}|p{1.2cm}|p{1.2cm}|p{3.1cm}|p{1.2cm}|p{1.2cm}|p{6.4cm}|
 
 
 .. flat-table::

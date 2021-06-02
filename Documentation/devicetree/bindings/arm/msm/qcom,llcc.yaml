@@ -22,6 +22,7 @@ properties:
   compatible:
     enum:
       - qcom,sc7180-llcc
+      - qcom,sc7280-llcc
       - qcom,sdm845-llcc
       - qcom,sm8150-llcc
       - qcom,sm8250-llcc

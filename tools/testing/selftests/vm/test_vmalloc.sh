@@ -11,6 +11,7 @@
 
 TEST_NAME="vmalloc"
 DRIVER="test_${TEST_NAME}"
+NUM_CPUS=`grep -c ^processor /proc/cpuinfo`
 
 # 1 if fails
 exitcode=1
@@ -22,9 +23,9 @@ ksft_skip=4
 # Static templates for performance, stressing and smoke tests.
 # Also it is possible to pass any supported parameters manualy.
 #
-PERF_PARAM="single_cpu_test=1 sequential_test_order=1 test_repeat_count=3"
-SMOKE_PARAM="single_cpu_test=1 test_loop_count=10000 test_repeat_count=10"
-STRESS_PARAM="test_repeat_count=20"
+PERF_PARAM="sequential_test_order=1 test_repeat_count=3"
+SMOKE_PARAM="test_loop_count=10000 test_repeat_count=10"
+STRESS_PARAM="nr_threads=$NUM_CPUS test_repeat_count=20"
 
 check_test_requirements()
 {
@@ -58,8 +59,8 @@ run_perfformance_check()
 
 run_stability_check()
 {
-	echo "Run stability tests. In order to stress vmalloc subsystem we run"
-	echo "all available test cases on all available CPUs simultaneously."
+	echo "Run stability tests. In order to stress vmalloc subsystem all"
+	echo "available test cases are run by NUM_CPUS workers simultaneously."
 	echo "It will take time, so be patient."
 
 	modprobe $DRIVER $STRESS_PARAM > /dev/null 2>&1
@@ -92,17 +93,17 @@ usage()
 	echo "# Shows help message"
 	echo "./${DRIVER}.sh"
 	echo
-	echo "# Runs 1 test(id_1), repeats it 5 times on all online CPUs"
-	echo "./${DRIVER}.sh run_test_mask=1 test_repeat_count=5"
+	echo "# Runs 1 test(id_1), repeats it 5 times by NUM_CPUS workers"
+	echo "./${DRIVER}.sh nr_threads=$NUM_CPUS run_test_mask=1 test_repeat_count=5"
 	echo
 	echo -n "# Runs 4 tests(id_1|id_2|id_4|id_16) on one CPU with "
 	echo "sequential order"
-	echo -n "./${DRIVER}.sh single_cpu_test=1 sequential_test_order=1 "
+	echo -n "./${DRIVER}.sh sequential_test_order=1 "
 	echo "run_test_mask=23"
 	echo
-	echo -n "# Runs all tests on all online CPUs, shuffled order, repeats "
+	echo -n "# Runs all tests by NUM_CPUS workers, shuffled order, repeats "
 	echo "20 times"
-	echo "./${DRIVER}.sh test_repeat_count=20"
+	echo "./${DRIVER}.sh nr_threads=$NUM_CPUS test_repeat_count=20"
 	echo
 	echo "# Performance analysis"
 	echo "./${DRIVER}.sh performance"

@@ -205,7 +205,6 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 
 	pwm_chip->chip.ops = &hibvt_pwm_ops;
 	pwm_chip->chip.dev = &pdev->dev;
-	pwm_chip->chip.base = -1;
 	pwm_chip->chip.npwm = soc->num_pwms;
 	pwm_chip->chip.of_xlate = of_pwm_xlate_with_flags;
 	pwm_chip->chip.of_pwm_n_cells = 3;

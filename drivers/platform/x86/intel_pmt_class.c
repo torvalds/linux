@@ -20,6 +20,28 @@
 #define PMT_XA_LIMIT		XA_LIMIT(PMT_XA_START, PMT_XA_MAX)
 
 /*
+ * Early implementations of PMT on client platforms have some
+ * differences from the server platforms (which use the Out Of Band
+ * Management Services Module OOBMSM). This list tracks those
+ * platforms as needed to handle those differences. Newer client
+ * platforms are expected to be fully compatible with server.
+ */
+static const struct pci_device_id pmt_telem_early_client_pci_ids[] = {
+	{ PCI_VDEVICE(INTEL, 0x467d) }, /* ADL */
+	{ PCI_VDEVICE(INTEL, 0x490e) }, /* DG1 */
+	{ PCI_VDEVICE(INTEL, 0x9a0d) }, /* TGL */
+	{ }
+};
+
+bool intel_pmt_is_early_client_hw(struct device *dev)
+{
+	struct pci_dev *parent = to_pci_dev(dev->parent);
+
+	return !!pci_match_id(pmt_telem_early_client_pci_ids, parent);
+}
+EXPORT_SYMBOL_GPL(intel_pmt_is_early_client_hw);
+
+/*
  * sysfs
  */
 static ssize_t
@@ -147,6 +169,30 @@ static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 		 * base address = end of discovery region + base offset
 		 */
 		entry->base_addr = disc_res->end + 1 + header->base_offset;
+
+		/*
+		 * Some hardware use a different calculation for the base address
+		 * when access_type == ACCESS_LOCAL. On the these systems
+		 * ACCCESS_LOCAL refers to an address in the same BAR as the
+		 * header but at a fixed offset. But as the header address was
+		 * supplied to the driver, we don't know which BAR it was in.
+		 * So search for the bar whose range includes the header address.
+		 */
+		if (intel_pmt_is_early_client_hw(dev)) {
+			int i;
+
+			entry->base_addr = 0;
+			for (i = 0; i < 6; i++)
+				if (disc_res->start >= pci_resource_start(pci_dev, i) &&
+				   (disc_res->start <= pci_resource_end(pci_dev, i))) {
+					entry->base_addr = pci_resource_start(pci_dev, i) +
+							   header->base_offset;
+					break;
+				}
+			if (!entry->base_addr)
+				return -EINVAL;
+		}
+
 		break;
 	case ACCESS_BARID:
 		/*
@@ -173,7 +219,7 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 				  struct intel_pmt_namespace *ns,
 				  struct device *parent)
 {
-	struct resource res;
+	struct resource res = {0};
 	struct device *dev;
 	int ret;
 

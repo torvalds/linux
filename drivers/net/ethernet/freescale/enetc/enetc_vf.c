@@ -165,6 +165,11 @@ static int enetc_vf_probe(struct pci_dev *pdev,
 
 	enetc_init_si_rings_params(priv);
 
+	err = enetc_setup_cbdr(priv->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
+			       &si->cbd_ring);
+	if (err)
+		goto err_setup_cbdr;
+
 	err = enetc_alloc_si_resources(priv);
 	if (err) {
 		dev_err(&pdev->dev, "SI resource alloc failed\n");
@@ -197,6 +202,8 @@ err_config_si:
 err_alloc_msix:
 	enetc_free_si_resources(priv);
 err_alloc_si_res:
+	enetc_teardown_cbdr(&si->cbd_ring);
+err_setup_cbdr:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
@@ -216,6 +223,7 @@ static void enetc_vf_remove(struct pci_dev *pdev)
 	enetc_free_msix(priv);
 
 	enetc_free_si_resources(priv);
+	enetc_teardown_cbdr(&si->cbd_ring);
 
 	free_netdev(si->ndev);
 

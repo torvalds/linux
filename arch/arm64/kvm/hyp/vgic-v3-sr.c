@@ -429,12 +429,21 @@ u64 __vgic_v3_get_gic_config(void)
 	if (has_vhe())
 		flags = local_daif_save();
 
+	/*
+	 * Table 11-2 "Permitted ICC_SRE_ELx.SRE settings" indicates
+	 * that to be able to set ICC_SRE_EL1.SRE to 0, all the
+	 * interrupt overrides must be set. You've got to love this.
+	 */
+	sysreg_clear_set(hcr_el2, 0, HCR_AMO | HCR_FMO | HCR_IMO);
+	isb();
 	write_gicreg(0, ICC_SRE_EL1);
 	isb();
 
 	val = read_gicreg(ICC_SRE_EL1);
 
 	write_gicreg(sre, ICC_SRE_EL1);
+	isb();
+	sysreg_clear_set(hcr_el2, HCR_AMO | HCR_FMO | HCR_IMO, 0);
 	isb();
 
 	if (has_vhe())

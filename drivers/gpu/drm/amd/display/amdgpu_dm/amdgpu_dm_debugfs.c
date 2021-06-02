@@ -34,6 +34,7 @@
 #include "resource.h"
 #include "dsc.h"
 #include "dc_link_dp.h"
+#include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
 
 struct dmub_debugfs_trace_header {
@@ -149,7 +150,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
  *
  * --- to get dp configuration
  *
- * cat link_settings
+ * cat /sys/kernel/debug/dri/0/DP-x/link_settings
  *
  * It will list current, verified, reported, preferred dp configuration.
  * current -- for current video mode
@@ -162,7 +163,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
  * echo <lane_count>  <link_rate> > link_settings
  *
  * for example, to force to  2 lane, 2.7GHz,
- * echo 4 0xa > link_settings
+ * echo 4 0xa > /sys/kernel/debug/dri/0/DP-x/link_settings
  *
  * spread_spectrum could not be changed dynamically.
  *
@@ -170,7 +171,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
  * done. please check link settings after force operation to see if HW get
  * programming.
  *
- * cat link_settings
+ * cat /sys/kernel/debug/dri/0/DP-x/link_settings
  *
  * check current and preferred settings.
  *
@@ -246,7 +247,6 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 {
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 	struct dc_link *link = connector->dc_link;
-	struct dc *dc = (struct dc *)link->dc;
 	struct dc_link_settings prefer_link_settings;
 	char *wr_buf = NULL;
 	const uint32_t wr_buf_size = 40;
@@ -254,7 +254,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	int max_param_num = 2;
 	uint8_t param_nums = 0;
 	long param[2];
-	bool valid_input = false;
+	bool valid_input = true;
 
 	if (size == 0)
 		return -EINVAL;
@@ -281,9 +281,9 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	case LANE_COUNT_ONE:
 	case LANE_COUNT_TWO:
 	case LANE_COUNT_FOUR:
-		valid_input = true;
 		break;
 	default:
+		valid_input = false;
 		break;
 	}
 
@@ -293,9 +293,9 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	case LINK_RATE_RBR2:
 	case LINK_RATE_HIGH2:
 	case LINK_RATE_HIGH3:
-		valid_input = true;
 		break;
 	default:
+		valid_input = false;
 		break;
 	}
 
@@ -309,10 +309,11 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	 * spread spectrum will not be changed
 	 */
 	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
+	prefer_link_settings.use_link_rate_set = false;
 	prefer_link_settings.lane_count = param[0];
 	prefer_link_settings.link_rate = param[1];
 
-	dc_link_set_preferred_link_settings(dc, &prefer_link_settings, link);
+	dp_retrain_link_dp_test(link, &prefer_link_settings, false);
 
 	kfree(wr_buf);
 	return size;
@@ -397,6 +398,70 @@ static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 
 	kfree(rd_buf);
 	return result;
+}
+
+static int dp_lttpr_status_show(struct seq_file *m, void *d)
+{
+	char *data;
+	struct amdgpu_dm_connector *connector = file_inode(m->file)->i_private;
+	struct dc_link *link = connector->dc_link;
+	uint32_t read_size = 1;
+	uint8_t repeater_count = 0;
+
+	data = kzalloc(read_size, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	dm_helpers_dp_read_dpcd(link->ctx, link, 0xF0002, data, read_size);
+
+	switch ((uint8_t)*data) {
+	case 0x80:
+		repeater_count = 1;
+		break;
+	case 0x40:
+		repeater_count = 2;
+		break;
+	case 0x20:
+		repeater_count = 3;
+		break;
+	case 0x10:
+		repeater_count = 4;
+		break;
+	case 0x8:
+		repeater_count = 5;
+		break;
+	case 0x4:
+		repeater_count = 6;
+		break;
+	case 0x2:
+		repeater_count = 7;
+		break;
+	case 0x1:
+		repeater_count = 8;
+		break;
+	case 0x0:
+		repeater_count = 0;
+		break;
+	default:
+		repeater_count = (uint8_t)*data;
+		break;
+	}
+
+	seq_printf(m, "phy repeater count: %d\n", repeater_count);
+
+	dm_helpers_dp_read_dpcd(link->ctx, link, 0xF0003, data, read_size);
+
+	if ((uint8_t)*data == 0x55)
+		seq_printf(m, "phy repeater mode: transparent\n");
+	else if ((uint8_t)*data == 0xAA)
+		seq_printf(m, "phy repeater mode: non-transparent\n");
+	else if ((uint8_t)*data == 0x00)
+		seq_printf(m, "phy repeater mode: non lttpr\n");
+	else
+		seq_printf(m, "phy repeater mode: read error\n");
+
+	kfree(data);
+	return 0;
 }
 
 static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
@@ -860,6 +925,22 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 	return 0;
 }
 #endif
+
+/*
+ * Returns whether the connected display is internal and not hotpluggable.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/internal_display
+ */
+static int internal_display_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+
+	seq_printf(m, "Internal: %u\n", link->is_internal_display);
+
+	return 0;
+}
+
 /* function description
  *
  * generic SDP message access for testing
@@ -2296,13 +2377,53 @@ unlock:
 	return size;
 }
 
+/*
+ * Backlight at this moment.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/eDP-1/current_backlight
+ */
+static int current_backlight_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(m->private);
+	struct dc_link *link = aconnector->dc_link;
+	unsigned int backlight;
+
+	backlight = dc_link_get_backlight_level(link);
+	seq_printf(m, "0x%x\n", backlight);
+
+	return 0;
+}
+
+/*
+ * Backlight value that is being approached.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/eDP-1/target_backlight
+ */
+static int target_backlight_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(m->private);
+	struct dc_link *link = aconnector->dc_link;
+	unsigned int backlight;
+
+	backlight = dc_link_get_target_backlight_pwm(link);
+	seq_printf(m, "0x%x\n", backlight);
+
+	return 0;
+}
+
 DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
 DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
 DEFINE_SHOW_ATTRIBUTE(output_bpc);
+DEFINE_SHOW_ATTRIBUTE(dp_lttpr_status);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 #endif
+DEFINE_SHOW_ATTRIBUTE(internal_display);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2420,6 +2541,7 @@ static const struct {
 } dp_debugfs_entries[] = {
 		{"link_settings", &dp_link_settings_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
+		{"lttpr_status", &dp_lttpr_status_fops},
 		{"test_pattern", &dp_phy_test_pattern_fops},
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 		{"hdcp_sink_capability", &hdcp_sink_capability_fops},
@@ -2527,13 +2649,17 @@ DEFINE_DEBUGFS_ATTRIBUTE(dmcub_trace_event_state_fops, dmcub_trace_event_state_g
 
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 
+DEFINE_SHOW_ATTRIBUTE(current_backlight);
+DEFINE_SHOW_ATTRIBUTE(target_backlight);
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
 } connector_debugfs_entries[] = {
 		{"force_yuv420_output", &force_yuv420_output_fops},
 		{"output_bpc", &output_bpc_fops},
-		{"trigger_hotplug", &trigger_hotplug_debugfs_fops}
+		{"trigger_hotplug", &trigger_hotplug_debugfs_fops},
+		{"internal_display", &internal_display_fops}
 };
 
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
@@ -2549,8 +2675,13 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					    dp_debugfs_entries[i].fops);
 		}
 	}
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
+		debugfs_create_file("amdgpu_current_backlight_pwm", 0444, dir, connector,
+				    &current_backlight_fops);
+		debugfs_create_file("amdgpu_target_backlight_pwm", 0444, dir, connector,
+				    &target_backlight_fops);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
 		debugfs_create_file(connector_debugfs_entries[i].name,
@@ -2853,38 +2984,6 @@ static ssize_t dtn_log_write(
 	return size;
 }
 
-/*
- * Backlight at this moment.  Read only.
- * As written to display, taking ABM and backlight lut into account.
- * Ranges from 0x0 to 0x10000 (= 100% PWM)
- */
-static int current_backlight_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct amdgpu_display_manager *dm = &adev->dm;
-
-	unsigned int backlight = dc_link_get_backlight_level(dm->backlight_link);
-
-	seq_printf(m, "0x%x\n", backlight);
-	return 0;
-}
-
-/*
- * Backlight value that is being approached.  Read only.
- * As written to display, taking ABM and backlight lut into account.
- * Ranges from 0x0 to 0x10000 (= 100% PWM)
- */
-static int target_backlight_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct amdgpu_display_manager *dm = &adev->dm;
-
-	unsigned int backlight = dc_link_get_target_backlight_pwm(dm->backlight_link);
-
-	seq_printf(m, "0x%x\n", backlight);
-	return 0;
-}
-
 static int mst_topo_show(struct seq_file *m, void *unused)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
@@ -2900,6 +2999,10 @@ static int mst_topo_show(struct seq_file *m, void *unused)
 
 		aconnector = to_amdgpu_dm_connector(connector);
 
+		/* Ensure we're only dumping the topology of a root mst node */
+		if (!aconnector->mst_mgr.mst_state)
+			continue;
+
 		seq_printf(m, "\nMST topology for connector %d\n", aconnector->connector_id);
 		drm_dp_mst_dump_topology(m, &aconnector->mst_mgr);
 	}
@@ -2909,7 +3012,73 @@ static int mst_topo_show(struct seq_file *m, void *unused)
 }
 
 /*
- * Sets the force_timing_sync debug optino from the given string.
+ * Sets trigger hpd for MST topologies.
+ * All connected connectors will be rediscovered and re started as needed if val of 1 is sent.
+ * All topologies will be disconnected if val of 0 is set .
+ * Usage to enable topologies: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_trigger_hpd_mst
+ * Usage to disable topologies: echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_trigger_hpd_mst
+ */
+static int trigger_hpd_mst_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_connector_list_iter iter;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector *connector;
+	struct dc_link *link = NULL;
+
+	if (val == 1) {
+		drm_connector_list_iter_begin(dev, &iter);
+		drm_for_each_connector_iter(connector, &iter) {
+			aconnector = to_amdgpu_dm_connector(connector);
+			if (aconnector->dc_link->type == dc_connection_mst_branch &&
+			    aconnector->mst_mgr.aux) {
+				dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+				drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+			}
+		}
+	} else if (val == 0) {
+		drm_connector_list_iter_begin(dev, &iter);
+		drm_for_each_connector_iter(connector, &iter) {
+			aconnector = to_amdgpu_dm_connector(connector);
+			if (!aconnector->dc_link)
+				continue;
+
+			if (!aconnector->mst_port)
+				continue;
+
+			link = aconnector->dc_link;
+			dp_receiver_power_ctrl(link, false);
+			drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_port->mst_mgr, false);
+			link->mst_stream_alloc_table.stream_count = 0;
+			memset(link->mst_stream_alloc_table.stream_allocations, 0,
+					sizeof(link->mst_stream_alloc_table.stream_allocations));
+		}
+	} else {
+		return 0;
+	}
+	drm_kms_helper_hotplug_event(dev);
+
+	return 0;
+}
+
+/*
+ * The interface doesn't need get function, so it will return the
+ * value of zero
+ * Usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_trigger_hpd_mst
+ */
+static int trigger_hpd_mst_get(void *data, u64 *val)
+{
+	*val = 0;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(trigger_hpd_mst_ops, trigger_hpd_mst_get,
+			 trigger_hpd_mst_set, "%llu\n");
+
+
+/*
+ * Sets the force_timing_sync debug option from the given string.
  * All connected displays will be force synchronized immediately.
  * Usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_force_timing_sync
  */
@@ -2940,6 +3109,37 @@ static int force_timing_sync_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(force_timing_sync_ops, force_timing_sync_get,
 			 force_timing_sync_set, "%llu\n");
 
+
+/*
+ * Disables all HPD and HPD RX interrupt handling in the
+ * driver when set to 1. Default is 0.
+ */
+static int disable_hpd_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.disable_hpd_irq = (bool)val;
+
+	return 0;
+}
+
+
+/*
+ * Returns 1 if HPD and HPRX interrupt handling is disabled,
+ * 0 otherwise.
+ */
+static int disable_hpd_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.disable_hpd_irq;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(disable_hpd_ops, disable_hpd_get,
+			 disable_hpd_set, "%llu\n");
+
 /*
  * Sets the DC visual confirm debug option from the given string.
  * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_visual_confirm
@@ -2966,11 +3166,67 @@ static int visual_confirm_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(current_backlight);
-DEFINE_SHOW_ATTRIBUTE(target_backlight);
 DEFINE_SHOW_ATTRIBUTE(mst_topo);
 DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
 			 visual_confirm_set, "%llu\n");
+
+/*
+ * Dumps the DCC_EN bit for each pipe.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dcc_en
+ */
+static ssize_t dcc_en_bits_read(
+	struct file *f,
+	char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+	char *rd_buf = NULL;
+	const uint32_t rd_buf_size = 32;
+	uint32_t result = 0;
+	int offset = 0;
+	int num_pipes = dc->res_pool->pipe_count;
+	int *dcc_en_bits;
+	int i, r;
+
+	dcc_en_bits = kcalloc(num_pipes, sizeof(int), GFP_KERNEL);
+	if (!dcc_en_bits)
+		return -ENOMEM;
+
+	if (!dc->hwss.get_dcc_en_bits) {
+		kfree(dcc_en_bits);
+		return 0;
+	}
+
+	dc->hwss.get_dcc_en_bits(dc, dcc_en_bits);
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+	if (!rd_buf)
+		return -ENOMEM;
+
+	for (i = 0; i < num_pipes; i++)
+		offset += snprintf(rd_buf + offset, rd_buf_size - offset,
+				   "%d  ", dcc_en_bits[i]);
+	rd_buf[strlen(rd_buf)] = '\n';
+
+	kfree(dcc_en_bits);
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
 
 void dtn_debugfs_init(struct amdgpu_device *adev)
 {
@@ -2980,14 +3236,15 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 		.write = dtn_log_write,
 		.llseek = default_llseek
 	};
+	static const struct file_operations dcc_en_bits_fops = {
+		.owner = THIS_MODULE,
+		.read = dcc_en_bits_read,
+		.llseek = default_llseek
+	};
 
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
 
-	debugfs_create_file("amdgpu_current_backlight_pwm", 0444,
-			    root, adev, &current_backlight_fops);
-	debugfs_create_file("amdgpu_target_backlight_pwm", 0444,
-			    root, adev, &target_backlight_fops);
 	debugfs_create_file("amdgpu_mst_topology", 0444, root,
 			    adev, &mst_topo_fops);
 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
@@ -3007,4 +3264,14 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_dmcub_trace_event_en", 0644, root,
 				   adev, &dmcub_trace_event_state_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_trigger_hpd_mst", 0644, root,
+				   adev, &trigger_hpd_mst_ops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dcc_en", 0644, root, adev,
+				   &dcc_en_bits_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_disable_hpd", 0644, root, adev,
+				   &disable_hpd_ops);
+
 }

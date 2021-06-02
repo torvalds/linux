@@ -259,7 +259,7 @@ static ssize_t ina209_interval_show(struct device *dev,
 {
 	struct ina209_data *data = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", data->update_interval);
+	return sysfs_emit(buf, "%d\n", data->update_interval);
 }
 
 /*
@@ -343,7 +343,7 @@ static ssize_t ina209_value_show(struct device *dev,
 		return PTR_ERR(data);
 
 	val = ina209_from_reg(attr->index, data->regs[attr->index]);
-	return snprintf(buf, PAGE_SIZE, "%ld\n", val);
+	return sysfs_emit(buf, "%ld\n", val);
 }
 
 static ssize_t ina209_alarm_show(struct device *dev,
@@ -363,7 +363,7 @@ static ssize_t ina209_alarm_show(struct device *dev,
 	 * All alarms are in the INA209_STATUS register. To avoid a long
 	 * switch statement, the mask is passed in attr->index
 	 */
-	return snprintf(buf, PAGE_SIZE, "%u\n", !!(status & mask));
+	return sysfs_emit(buf, "%u\n", !!(status & mask));
 }
 
 /* Shunt voltage, history, limits, alarms */

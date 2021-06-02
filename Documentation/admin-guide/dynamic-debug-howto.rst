@@ -347,7 +347,7 @@ Examples
 				<debugfs>/dynamic_debug/control
 
   // enable messages in files of which the paths include string "usb"
-  nullarbor:~ # echo -n '*usb* +p' > <debugfs>/dynamic_debug/control
+  nullarbor:~ # echo -n 'file *usb* +p' > <debugfs>/dynamic_debug/control
 
   // enable all messages
   nullarbor:~ # echo -n '+p' > <debugfs>/dynamic_debug/control

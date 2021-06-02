@@ -903,7 +903,7 @@ static void asd_dch_sas_isr(struct asd_ha_struct *asd_ha)
 }
 
 /**
- * ads_rbi_exsi_isr -- process external system interface interrupt (INITERR)
+ * asd_rbi_exsi_isr -- process external system interface interrupt (INITERR)
  * @asd_ha: pointer to host adapter structure
  */
 static void asd_rbi_exsi_isr(struct asd_ha_struct *asd_ha)
@@ -1144,7 +1144,7 @@ static void asd_swap_head_scb(struct asd_ha_struct *asd_ha,
 }
 
 /**
- * asd_start_timers -- (add and) start timers of SCBs
+ * asd_start_scb_timers -- (add and) start timers of SCBs
  * @list: pointer to struct list_head of the scbs
  *
  * If an SCB in the @list has no timer function, assign the default

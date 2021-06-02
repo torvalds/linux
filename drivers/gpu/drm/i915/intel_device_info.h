@@ -87,6 +87,7 @@ enum intel_platform {
 	INTEL_ROCKETLAKE,
 	INTEL_DG1,
 	INTEL_ALDERLAKE_S,
+	INTEL_ALDERLAKE_P,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -196,8 +197,10 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 	} display;
 
-	u16 ddb_size; /* in blocks */
-	u8 num_supported_dbuf_slices; /* number of DBuf slices */
+	struct {
+		u16 size; /* in blocks */
+		u8 slice_mask;
+	} dbuf;
 
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];

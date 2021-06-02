@@ -264,10 +264,10 @@ static void vega20_ih_reroute_ih(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
 
-	/* vega20 ih reroute will go through psp
-	 * this function is only used for arcturus
+	/* vega20 ih reroute will go through psp this
+	 * function is used for newer asics starting arcturus
 	 */
-	if (adev->asic_type == CHIP_ARCTURUS) {
+	if (adev->asic_type >= CHIP_ARCTURUS) {
 		/* Reroute to IH ring 1 for VMC */
 		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x12);
 		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
@@ -565,11 +565,7 @@ static int vega20_ih_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev, &adev->irq.ih_soft);
-	amdgpu_ih_ring_fini(adev, &adev->irq.ih2);
-	amdgpu_ih_ring_fini(adev, &adev->irq.ih1);
-	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
+	amdgpu_irq_fini_sw(adev);
 
 	return 0;
 }

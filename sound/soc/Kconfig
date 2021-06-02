@@ -37,7 +37,7 @@ config SND_SOC_COMPRESS
 config SND_SOC_TOPOLOGY
 	bool
 
-config SND_SOC_TOPOLOGY_KUNIT_TESTS
+config SND_SOC_TOPOLOGY_KUNIT_TEST
 	tristate "KUnit tests for SoC topology"
 	depends on KUNIT
 	depends on SND_SOC_TOPOLOGY

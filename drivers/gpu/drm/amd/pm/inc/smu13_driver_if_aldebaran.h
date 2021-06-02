@@ -64,7 +64,7 @@
 #define FEATURE_SMUIO_CG_BIT            28
 #define FEATURE_THM_CG_BIT              29
 #define FEATURE_CLK_CG_BIT              30
-#define FEATURE_SPARE_31_BIT            31
+#define FEATURE_EDC_BIT                 31
 #define FEATURE_SPARE_32_BIT            32
 #define FEATURE_SPARE_33_BIT            33
 #define FEATURE_SPARE_34_BIT            34
@@ -435,8 +435,15 @@ typedef struct {
   uint8_t  GpioI2cSda; // Serial Data
   uint16_t spare5;
 
+  uint16_t XgmiMaxCurrent; // in Amps
+  int8_t   XgmiOffset;     // in Amps
+  uint8_t  Padding_TelemetryXgmi;
+
+  uint16_t  EdcPowerLimit;
+  uint16_t  spare6;
+
   //reserved
-  uint32_t reserved[16];
+  uint32_t reserved[14];
 
 } PPTable_t;
 
@@ -481,7 +488,10 @@ typedef struct {
   uint16_t TemperatureAllHBM[4]  ;
   uint32_t GfxBusyAcc            ;
   uint32_t DramBusyAcc           ;
-  uint32_t Spare[4];
+  uint32_t EnergyAcc64bitLow     ; //15.259uJ resolution
+  uint32_t EnergyAcc64bitHigh    ;
+  uint32_t TimeStampLow          ; //10ns resolution
+  uint32_t TimeStampHigh         ;
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use

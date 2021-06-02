@@ -295,7 +295,7 @@ void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 
 
 /**
- * vmw_cmbuf_header_submit: Submit a command buffer to hardware.
+ * vmw_cmdbuf_header_submit: Submit a command buffer to hardware.
  *
  * @header: The header of the buffer to submit.
  */
@@ -620,7 +620,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 }
 
 /**
- * vmw_cmdbuf_man idle - Check whether the command buffer manager is idle.
+ * vmw_cmdbuf_man_idle - Check whether the command buffer manager is idle.
  *
  * @man: The command buffer manager.
  * @check_preempted: Check also the preempted queue for pending command buffers.

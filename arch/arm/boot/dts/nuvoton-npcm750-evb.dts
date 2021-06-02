@@ -9,7 +9,7 @@
 
 / {
 	model = "Nuvoton npcm750 Development Board (Device Tree)";
-	compatible = "nuvoton,npcm750";
+	compatible = "nuvoton,npcm750-evb", "nuvoton,npcm750";
 
 	aliases {
 		ethernet2 = &gmac0;
