@@ -1998,6 +1998,10 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 		}
 	} else {
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
+		sub_type_hdr->minimum_bandwidth_mbs =
+				amdgpu_amdkfd_get_pcie_bandwidth_mbytes(kdev->kgd, true);
+		sub_type_hdr->maximum_bandwidth_mbs =
+				amdgpu_amdkfd_get_pcie_bandwidth_mbytes(kdev->kgd, false);
 	}
 
 	sub_type_hdr->proximity_domain_from = proximity_domain;
