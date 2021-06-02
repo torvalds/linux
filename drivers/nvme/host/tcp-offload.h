@@ -65,6 +65,9 @@ struct nvme_tcp_ofld_queue {
 	unsigned long flags;
 	size_t cmnd_capsule_len;
 
+	/* mutex used during stop_queue */
+	struct mutex queue_lock;
+
 	u8 hdr_digest;
 	u8 data_digest;
 	u8 tos;
@@ -198,3 +201,4 @@ struct nvme_tcp_ofld_ops {
 int nvme_tcp_ofld_register_dev(struct nvme_tcp_ofld_dev *dev);
 void nvme_tcp_ofld_unregister_dev(struct nvme_tcp_ofld_dev *dev);
 void nvme_tcp_ofld_error_recovery(struct nvme_ctrl *nctrl);
+inline size_t nvme_tcp_ofld_inline_data_size(struct nvme_tcp_ofld_queue *queue);
