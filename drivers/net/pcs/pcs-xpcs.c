@@ -685,9 +685,8 @@ static void xpcs_resolve_pma(struct mdio_xpcs_args *xpcs,
 	}
 }
 
-static int xpcs_validate(struct mdio_xpcs_args *xpcs,
-			 unsigned long *supported,
-			 struct phylink_link_state *state)
+void xpcs_validate(struct mdio_xpcs_args *xpcs, unsigned long *supported,
+		   struct phylink_link_state *state)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(xpcs_supported);
 	const struct xpcs_compat *compat;
@@ -698,7 +697,7 @@ static int xpcs_validate(struct mdio_xpcs_args *xpcs,
 	 * advertising masks and exit.
 	 */
 	if (state->interface == PHY_INTERFACE_MODE_NA)
-		return 0;
+		return;
 
 	bitmap_zero(xpcs_supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -713,9 +712,8 @@ static int xpcs_validate(struct mdio_xpcs_args *xpcs,
 
 	linkmode_and(supported, supported, xpcs_supported);
 	linkmode_and(state->advertising, state->advertising, xpcs_supported);
-
-	return 0;
 }
+EXPORT_SYMBOL_GPL(xpcs_validate);
 
 static int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
 			   int enable)
@@ -1031,7 +1029,6 @@ static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 }
 
 static struct mdio_xpcs_ops xpcs_ops = {
-	.validate = xpcs_validate,
 	.config = xpcs_config,
 	.get_state = xpcs_get_state,
 	.link_up = xpcs_link_up,

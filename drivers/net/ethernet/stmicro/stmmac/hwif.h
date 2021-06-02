@@ -614,8 +614,6 @@ struct stmmac_mmc_ops {
 	stmmac_do_void_callback(__priv, mmc, read, __args)
 
 /* XPCS callbacks */
-#define stmmac_xpcs_validate(__priv, __args...) \
-	stmmac_do_callback(__priv, xpcs, validate, __args)
 #define stmmac_xpcs_config(__priv, __args...) \
 	stmmac_do_callback(__priv, xpcs, config, __args)
 #define stmmac_xpcs_get_state(__priv, __args...) \
