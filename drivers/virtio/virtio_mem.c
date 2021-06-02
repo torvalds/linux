@@ -2121,6 +2121,29 @@ static bool virtio_mem_bbm_bb_is_offline(struct virtio_mem *vm,
 	return true;
 }
 
+/*
+ * Test if a big block is completely onlined to ZONE_MOVABLE (or offline).
+ */
+static bool virtio_mem_bbm_bb_is_movable(struct virtio_mem *vm,
+					 unsigned long bb_id)
+{
+	const unsigned long start_pfn = PFN_DOWN(virtio_mem_bb_id_to_phys(vm, bb_id));
+	const unsigned long nr_pages = PFN_DOWN(vm->bbm.bb_size);
+	struct page *page;
+	unsigned long pfn;
+
+	for (pfn = start_pfn; pfn < start_pfn + nr_pages;
+	     pfn += PAGES_PER_SECTION) {
+		page = pfn_to_online_page(pfn);
+		if (!page)
+			continue;
+		if (page_zonenum(page) != ZONE_MOVABLE)
+			return false;
+	}
+
+	return true;
+}
+
 static int virtio_mem_bbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 {
 	uint64_t nb_bb = diff / vm->bbm.bb_size;
@@ -2134,7 +2157,7 @@ static int virtio_mem_bbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 	 * Try to unplug big blocks. Similar to SBM, start with offline
 	 * big blocks.
 	 */
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 3; i++) {
 		virtio_mem_bbm_for_each_bb_rev(vm, bb_id, VIRTIO_MEM_BBM_BB_ADDED) {
 			cond_resched();
 
@@ -2143,6 +2166,8 @@ static int virtio_mem_bbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 			 * but we don't care.
 			 */
 			if (i == 0 && !virtio_mem_bbm_bb_is_offline(vm, bb_id))
+				continue;
+			if (i == 1 && !virtio_mem_bbm_bb_is_movable(vm, bb_id))
 				continue;
 			rc = virtio_mem_bbm_offline_remove_and_unplug_bb(vm, bb_id);
 			if (rc == -EBUSY)
