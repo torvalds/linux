@@ -35,6 +35,7 @@ struct mlx5_vdpa_mr {
 
 	/* serialize mkey creation and destruction */
 	struct mutex mkey_mtx;
+	bool user_mr;
 };
 
 struct mlx5_vdpa_resources {
