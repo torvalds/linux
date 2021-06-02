@@ -26,12 +26,20 @@ struct tegra_mc_timing {
 struct tegra_mc_client {
 	unsigned int id;
 	const char *name;
-	unsigned int swgroup;
+	/*
+	 * For Tegra210 and earlier, this is the SWGROUP ID used for IOVA translations in the
+	 * Tegra SMMU, whereas on Tegra186 and later this is the ID used to override the ARM SMMU
+	 * stream ID used for IOVA translations for the given memory client.
+	 */
+	union {
+		unsigned int swgroup;
+		unsigned int sid;
+	};
 
 	unsigned int fifo_size;
 
 	struct {
-		/* Tegra SMMU enable */
+		/* Tegra SMMU enable (Tegra210 and earlier) */
 		struct {
 			unsigned int reg;
 			unsigned int bit;
@@ -44,6 +52,12 @@ struct tegra_mc_client {
 			unsigned int mask;
 			unsigned int def;
 		} la;
+
+		/* stream ID overrides (Tegra186 and later) */
+		struct {
+			unsigned int override;
+			unsigned int security;
+		} sid;
 	} regs;
 };
 
