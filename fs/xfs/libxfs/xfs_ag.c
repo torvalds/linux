@@ -104,19 +104,19 @@ xfs_perag_put(
  */
 int
 xfs_initialize_perag_data(
-	struct xfs_mount *mp,
-	xfs_agnumber_t	agcount)
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agcount)
 {
-	xfs_agnumber_t	index;
-	xfs_perag_t	*pag;
-	xfs_sb_t	*sbp = &mp->m_sb;
-	uint64_t	ifree = 0;
-	uint64_t	ialloc = 0;
-	uint64_t	bfree = 0;
-	uint64_t	bfreelst = 0;
-	uint64_t	btree = 0;
-	uint64_t	fdblocks;
-	int		error = 0;
+	xfs_agnumber_t		index;
+	struct xfs_perag	*pag;
+	struct xfs_sb		*sbp = &mp->m_sb;
+	uint64_t		ifree = 0;
+	uint64_t		ialloc = 0;
+	uint64_t		bfree = 0;
+	uint64_t		bfreelst = 0;
+	uint64_t		btree = 0;
+	uint64_t		fdblocks;
+	int			error = 0;
 
 	for (index = 0; index < agcount; index++) {
 		/*

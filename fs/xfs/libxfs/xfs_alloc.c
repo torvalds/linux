@@ -2694,21 +2694,21 @@ out_no_agbp:
  * Get a block from the freelist.
  * Returns with the buffer for the block gotten.
  */
-int				/* error */
+int
 xfs_alloc_get_freelist(
-	xfs_trans_t	*tp,	/* transaction pointer */
-	struct xfs_buf	*agbp,	/* buffer containing the agf structure */
-	xfs_agblock_t	*bnop,	/* block address retrieved from freelist */
-	int		btreeblk) /* destination is a AGF btree */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp,
+	xfs_agblock_t		*bnop,
+	int			btreeblk)
 {
-	struct xfs_agf	*agf = agbp->b_addr;
-	struct xfs_buf	*agflbp;/* buffer for a.g. freelist structure */
-	xfs_agblock_t	bno;	/* block number returned */
-	__be32		*agfl_bno;
-	int		error;
-	int		logflags;
-	xfs_mount_t	*mp = tp->t_mountp;
-	xfs_perag_t	*pag;	/* per allocation group data */
+	struct xfs_agf		*agf = agbp->b_addr;
+	struct xfs_buf		*agflbp;
+	xfs_agblock_t		bno;
+	__be32			*agfl_bno;
+	int			error;
+	int			logflags;
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_perag	*pag;
 
 	/*
 	 * Freelist is empty, give up.
@@ -2818,20 +2818,20 @@ xfs_alloc_pagf_init(
 /*
  * Put the block on the freelist for the allocation group.
  */
-int					/* error */
+int
 xfs_alloc_put_freelist(
-	xfs_trans_t		*tp,	/* transaction pointer */
-	struct xfs_buf		*agbp,	/* buffer for a.g. freelist header */
-	struct xfs_buf		*agflbp,/* buffer for a.g. free block array */
-	xfs_agblock_t		bno,	/* block being freed */
-	int			btreeblk) /* block came from a AGF btree */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp,
+	struct xfs_buf		*agflbp,
+	xfs_agblock_t		bno,
+	int			btreeblk)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	__be32			*blockp;/* pointer to array entry */
+	struct xfs_perag	*pag;
+	__be32			*blockp;
 	int			error;
 	int			logflags;
-	xfs_perag_t		*pag;	/* per allocation group data */
 	__be32			*agfl_bno;
 	int			startoff;
 
