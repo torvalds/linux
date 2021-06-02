@@ -1024,19 +1024,12 @@ static int arm_smmu_find_sme(struct arm_smmu_device *smmu, u16 id, u16 mask)
 
 static bool arm_smmu_free_sme(struct arm_smmu_device *smmu, int idx)
 {
-	bool pinned = smmu->s2crs[idx].pinned;
-	u8 cbndx = smmu->s2crs[idx].cbndx;
-
 	if (--smmu->s2crs[idx].count)
 		return false;
 
 	smmu->s2crs[idx] = s2cr_init_val;
-	if (pinned) {
-		smmu->s2crs[idx].pinned = true;
-		smmu->s2crs[idx].cbndx = cbndx;
-	} else if (smmu->smrs) {
+	if (smmu->smrs)
 		smmu->smrs[idx].valid = false;
-	}
 
 	return true;
 }
