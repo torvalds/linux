@@ -183,6 +183,12 @@ static int psp_sw_init(void *handle)
 			DRM_ERROR("Failed to load psp firmware!\n");
 			return ret;
 		}
+	} else if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_ALDEBARAN) {
+		ret = psp_init_ta_microcode(psp, "aldebaran");
+		if (ret) {
+			DRM_ERROR("Failed to initialize ta microcode!\n");
+			return ret;
+		}
 	}
 
 	ret = psp_memory_training_init(psp);
