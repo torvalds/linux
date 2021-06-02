@@ -384,21 +384,30 @@ restart:
 		}
 		goto restart;
 	}
+
 	/*
 	 * If the offset is beyond the size of the file, we need to zero any
 	 * blocks that fall between the existing EOF and the start of this
-	 * write.  If zeroing is needed and we are currently holding the
-	 * iolock shared, we need to update it to exclusive which implies
-	 * having to redo all checks before.
+	 * write.  If zeroing is needed and we are currently holding the iolock
+	 * shared, we need to update it to exclusive which implies having to
+	 * redo all checks before.
 	 *
-	 * We need to serialise against EOF updates that occur in IO
-	 * completions here. We want to make sure that nobody is changing the
-	 * size while we do this check until we have placed an IO barrier (i.e.
-	 * hold the XFS_IOLOCK_EXCL) that prevents new IO from being dispatched.
-	 * The spinlock effectively forms a memory barrier once we have the
-	 * XFS_IOLOCK_EXCL so we are guaranteed to see the latest EOF value
-	 * and hence be able to correctly determine if we need to run zeroing.
+	 * We need to serialise against EOF updates that occur in IO completions
+	 * here. We want to make sure that nobody is changing the size while we
+	 * do this check until we have placed an IO barrier (i.e.  hold the
+	 * XFS_IOLOCK_EXCL) that prevents new IO from being dispatched.  The
+	 * spinlock effectively forms a memory barrier once we have the
+	 * XFS_IOLOCK_EXCL so we are guaranteed to see the latest EOF value and
+	 * hence be able to correctly determine if we need to run zeroing.
+	 *
+	 * We can do an unlocked check here safely as IO completion can only
+	 * extend EOF. Truncate is locked out at this point, so the EOF can
+	 * not move backwards, only forwards. Hence we only need to take the
+	 * slow path and spin locks when we are at or beyond the current EOF.
 	 */
+	if (iocb->ki_pos <= i_size_read(inode))
+		goto out;
+
 	spin_lock(&ip->i_flags_lock);
 	isize = i_size_read(inode);
 	if (iocb->ki_pos > isize) {
@@ -426,7 +435,7 @@ restart:
 			drained_dio = true;
 			goto restart;
 		}
-	
+
 		trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
 		error = iomap_zero_range(inode, isize, iocb->ki_pos - isize,
 				NULL, &xfs_buffered_write_iomap_ops);
@@ -435,6 +444,7 @@ restart:
 	} else
 		spin_unlock(&ip->i_flags_lock);
 
+out:
 	return file_modified(file);
 }
 
@@ -500,7 +510,17 @@ xfs_dio_write_end_io(
 	 * other IO completions here to update the EOF. Failing to serialise
 	 * here can result in EOF moving backwards and Bad Things Happen when
 	 * that occurs.
+	 *
+	 * As IO completion only ever extends EOF, we can do an unlocked check
+	 * here to avoid taking the spinlock. If we land within the current EOF,
+	 * then we do not need to do an extending update at all, and we don't
+	 * need to take the lock to check this. If we race with an update moving
+	 * EOF, then we'll either still be beyond EOF and need to take the lock,
+	 * or we'll be within EOF and we don't need to take it at all.
 	 */
+	if (offset + size <= i_size_read(inode))
+		goto out;
+
 	spin_lock(&ip->i_flags_lock);
 	if (offset + size > i_size_read(inode)) {
 		i_size_write(inode, offset + size);
