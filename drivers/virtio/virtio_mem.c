@@ -1453,8 +1453,8 @@ static int virtio_mem_bbm_plug_bb(struct virtio_mem *vm, unsigned long bb_id)
  *
  * Note: can fail after some subblocks were unplugged.
  */
-static int virtio_mem_sbm_unplug_any_sb(struct virtio_mem *vm,
-					unsigned long mb_id, uint64_t *nb_sb)
+static int virtio_mem_sbm_unplug_any_sb_raw(struct virtio_mem *vm,
+					    unsigned long mb_id, uint64_t *nb_sb)
 {
 	int sb_id, count;
 	int rc;
@@ -1496,7 +1496,7 @@ static int virtio_mem_sbm_unplug_mb(struct virtio_mem *vm, unsigned long mb_id)
 {
 	uint64_t nb_sb = vm->sbm.sbs_per_mb;
 
-	return virtio_mem_sbm_unplug_any_sb(vm, mb_id, &nb_sb);
+	return virtio_mem_sbm_unplug_any_sb_raw(vm, mb_id, &nb_sb);
 }
 
 /*
@@ -1806,7 +1806,7 @@ static int virtio_mem_sbm_unplug_any_sb_offline(struct virtio_mem *vm,
 {
 	int rc;
 
-	rc = virtio_mem_sbm_unplug_any_sb(vm, mb_id, nb_sb);
+	rc = virtio_mem_sbm_unplug_any_sb_raw(vm, mb_id, nb_sb);
 
 	/* some subblocks might have been unplugged even on failure */
 	if (!virtio_mem_sbm_test_sb_plugged(vm, mb_id, 0, vm->sbm.sbs_per_mb))
@@ -1929,11 +1929,46 @@ unplugged:
 	return 0;
 }
 
+/*
+ * Unplug the desired number of plugged subblocks of a memory block that is
+ * already added to Linux. Will skip subblock of online memory blocks that are
+ * busy (by the OS). Will fail if any subblock that's not busy cannot get
+ * unplugged.
+ *
+ * Will modify the state of the memory block. Might temporarily drop the
+ * hotplug_mutex.
+ *
+ * Note: Can fail after some subblocks were successfully unplugged. Can
+ *       return 0 even if subblocks were busy and could not get unplugged.
+ */
+static int virtio_mem_sbm_unplug_any_sb(struct virtio_mem *vm,
+					unsigned long mb_id,
+					uint64_t *nb_sb)
+{
+	const int old_state = virtio_mem_sbm_get_mb_state(vm, mb_id);
+
+	switch (old_state) {
+	case VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL:
+	case VIRTIO_MEM_SBM_MB_ONLINE:
+		return virtio_mem_sbm_unplug_any_sb_online(vm, mb_id, nb_sb);
+	case VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL:
+	case VIRTIO_MEM_SBM_MB_OFFLINE:
+		return virtio_mem_sbm_unplug_any_sb_offline(vm, mb_id, nb_sb);
+	}
+	return -EINVAL;
+}
+
 static int virtio_mem_sbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 {
+	const int mb_states[] = {
+		VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL,
+		VIRTIO_MEM_SBM_MB_OFFLINE,
+		VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL,
+		VIRTIO_MEM_SBM_MB_ONLINE,
+	};
 	uint64_t nb_sb = diff / vm->sbm.sb_size;
 	unsigned long mb_id;
-	int rc;
+	int rc, i;
 
 	if (!nb_sb)
 		return 0;
@@ -1945,47 +1980,23 @@ static int virtio_mem_sbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 	 */
 	mutex_lock(&vm->hotplug_mutex);
 
-	/* Try to unplug subblocks of partially plugged offline blocks. */
-	virtio_mem_sbm_for_each_mb_rev(vm, mb_id,
-				       VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL) {
-		rc = virtio_mem_sbm_unplug_any_sb_offline(vm, mb_id, &nb_sb);
-		if (rc || !nb_sb)
-			goto out_unlock;
-		cond_resched();
-	}
-
-	/* Try to unplug subblocks of plugged offline blocks. */
-	virtio_mem_sbm_for_each_mb_rev(vm, mb_id, VIRTIO_MEM_SBM_MB_OFFLINE) {
-		rc = virtio_mem_sbm_unplug_any_sb_offline(vm, mb_id, &nb_sb);
-		if (rc || !nb_sb)
-			goto out_unlock;
-		cond_resched();
-	}
-
-	if (!unplug_online) {
-		mutex_unlock(&vm->hotplug_mutex);
-		return 0;
-	}
-
-	/* Try to unplug subblocks of partially plugged online blocks. */
-	virtio_mem_sbm_for_each_mb_rev(vm, mb_id,
-				       VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL) {
-		rc = virtio_mem_sbm_unplug_any_sb_online(vm, mb_id, &nb_sb);
-		if (rc || !nb_sb)
-			goto out_unlock;
-		mutex_unlock(&vm->hotplug_mutex);
-		cond_resched();
-		mutex_lock(&vm->hotplug_mutex);
-	}
-
-	/* Try to unplug subblocks of plugged online blocks. */
-	virtio_mem_sbm_for_each_mb_rev(vm, mb_id, VIRTIO_MEM_SBM_MB_ONLINE) {
-		rc = virtio_mem_sbm_unplug_any_sb_online(vm, mb_id, &nb_sb);
-		if (rc || !nb_sb)
-			goto out_unlock;
-		mutex_unlock(&vm->hotplug_mutex);
-		cond_resched();
-		mutex_lock(&vm->hotplug_mutex);
+	/*
+	 * We try unplug from partially plugged blocks first, to try removing
+	 * whole memory blocks along with metadata.
+	 */
+	for (i = 0; i < ARRAY_SIZE(mb_states); i++) {
+		virtio_mem_sbm_for_each_mb_rev(vm, mb_id, mb_states[i]) {
+			rc = virtio_mem_sbm_unplug_any_sb(vm, mb_id, &nb_sb);
+			if (rc || !nb_sb)
+				goto out_unlock;
+			mutex_unlock(&vm->hotplug_mutex);
+			cond_resched();
+			mutex_lock(&vm->hotplug_mutex);
+		}
+		if (!unplug_online && i == 1) {
+			mutex_unlock(&vm->hotplug_mutex);
+			return 0;
+		}
 	}
 
 	mutex_unlock(&vm->hotplug_mutex);
