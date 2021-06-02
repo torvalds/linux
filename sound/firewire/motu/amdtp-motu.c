@@ -16,6 +16,18 @@
 #define CIP_FMT_MOTU_TX_V3	0x22
 #define MOTU_FDF_AM824		0x22
 
+#define TICKS_PER_CYCLE		3072
+#define CYCLES_PER_SECOND	8000
+#define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
+
+#define IEEE1394_SEC_MODULUS	128
+
+#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
+
+#define CIP_SPH_CYCLE_SHIFT	12
+#define CIP_SPH_CYCLE_MASK	0x01fff000
+#define CIP_SPH_OFFSET_MASK	0x00000fff
+
 /*
  * Nominally 3125 bytes/second, but the MIDI port's clock might be
  * 1% too slow, and the bus clock 100 ppm too fast.
@@ -97,17 +109,16 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	p->midi_db_count = 0;
 	p->midi_db_interval = rate / MIDI_BYTES_PER_SECOND;
 
-	/* IEEE 1394 bus requires. */
-	delay = 0x2e00;
+	delay = TRANSFER_DELAY_TICKS;
 
-	/* For no-data or empty packets to adjust PCM sampling frequency. */
-	delay += 8000 * 3072 * s->syt_interval / rate;
+	// For no-data or empty packets to adjust PCM sampling frequency.
+	delay += TICKS_PER_SECOND * s->syt_interval / rate;
 
 	p->next_seconds = 0;
-	p->next_cycles = delay / 3072;
+	p->next_cycles = delay / TICKS_PER_CYCLE;
 	p->quotient_ticks_per_event = params[s->sfc].quotient_ticks_per_event;
 	p->remainder_ticks_per_event = params[s->sfc].remainder_ticks_per_event;
-	p->next_ticks = delay % 3072;
+	p->next_ticks = delay % TICKS_PER_CYCLE;
 	p->next_accumulated = 0;
 
 	return 0;
@@ -363,18 +374,18 @@ static inline void compute_next_elapse_from_start(struct amdtp_motu *p)
 	}
 
 	p->next_ticks += p->quotient_ticks_per_event;
-	if (p->next_ticks >= 3072) {
-		p->next_ticks -= 3072;
+	if (p->next_ticks >= TICKS_PER_CYCLE) {
+		p->next_ticks -= TICKS_PER_CYCLE;
 		p->next_cycles++;
 	}
 
-	if (p->next_cycles >= 8000) {
-		p->next_cycles -= 8000;
+	if (p->next_cycles >= CYCLES_PER_SECOND) {
+		p->next_cycles -= CYCLES_PER_SECOND;
 		p->next_seconds++;
 	}
 
-	if (p->next_seconds >= 128)
-		p->next_seconds -= 128;
+	if (p->next_seconds >= IEEE1394_SEC_MODULUS)
+		p->next_seconds -= IEEE1394_SEC_MODULUS;
 }
 
 static void write_sph(struct amdtp_stream *s, __be32 *buffer, unsigned int data_blocks,
@@ -386,8 +397,9 @@ static void write_sph(struct amdtp_stream *s, __be32 *buffer, unsigned int data_
 	u32 sph;
 
 	for (i = 0; i < data_blocks; i++) {
-		next_cycles = (rx_start_cycle + p->next_cycles) % 8000;
-		sph = ((next_cycles << 12) | p->next_ticks) & 0x01ffffff;
+		next_cycles = (rx_start_cycle + p->next_cycles) % CYCLES_PER_SECOND;
+		sph = ((next_cycles << CIP_SPH_CYCLE_SHIFT) | p->next_ticks) &
+		      (CIP_SPH_CYCLE_MASK | CIP_SPH_OFFSET_MASK);
 		*buffer = cpu_to_be32(sph);
 
 		compute_next_elapse_from_start(p);
