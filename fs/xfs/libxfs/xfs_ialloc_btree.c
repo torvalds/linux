@@ -20,6 +20,7 @@
 #include "xfs_trace.h"
 #include "xfs_trans.h"
 #include "xfs_rmap.h"
+#include "xfs_ag.h"
 
 STATIC int
 xfs_inobt_get_minrecs(
@@ -680,7 +681,7 @@ static int
 xfs_inobt_count_blocks(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum,
 	xfs_extlen_t		*tree_blocks)
 {
@@ -688,7 +689,7 @@ xfs_inobt_count_blocks(
 	struct xfs_btree_cur	*cur = NULL;
 	int			error;
 
-	error = xfs_inobt_cur(mp, tp, agno, btnum, &cur, &agbp);
+	error = xfs_inobt_cur(mp, tp, pag->pag_agno, btnum, &cur, &agbp);
 	if (error)
 		return error;
 
@@ -704,14 +705,14 @@ static int
 xfs_finobt_read_blocks(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	xfs_extlen_t		*tree_blocks)
 {
 	struct xfs_buf		*agbp;
 	struct xfs_agi		*agi;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
+	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, &agbp);
 	if (error)
 		return error;
 
@@ -728,7 +729,7 @@ int
 xfs_finobt_calc_reserves(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	xfs_extlen_t		*ask,
 	xfs_extlen_t		*used)
 {
@@ -739,14 +740,14 @@ xfs_finobt_calc_reserves(
 		return 0;
 
 	if (xfs_sb_version_hasinobtcounts(&mp->m_sb))
-		error = xfs_finobt_read_blocks(mp, tp, agno, &tree_len);
+		error = xfs_finobt_read_blocks(mp, tp, pag, &tree_len);
 	else
-		error = xfs_inobt_count_blocks(mp, tp, agno, XFS_BTNUM_FINO,
+		error = xfs_inobt_count_blocks(mp, tp, pag, XFS_BTNUM_FINO,
 				&tree_len);
 	if (error)
 		return error;
 
-	*ask += xfs_inobt_max_size(mp, agno);
+	*ask += xfs_inobt_max_size(mp, pag->pag_agno);
 	*used += tree_len;
 	return 0;
 }

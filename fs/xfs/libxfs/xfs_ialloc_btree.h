@@ -64,7 +64,7 @@ int xfs_inobt_rec_check_count(struct xfs_mount *,
 #endif	/* DEBUG */
 
 int xfs_finobt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+		struct xfs_perag *pag, xfs_extlen_t *ask, xfs_extlen_t *used);
 extern xfs_extlen_t xfs_iallocbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
 int xfs_inobt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
