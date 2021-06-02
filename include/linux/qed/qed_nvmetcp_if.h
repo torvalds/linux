@@ -5,6 +5,8 @@
 #define _QED_NVMETCP_IF_H
 #include <linux/types.h>
 #include <linux/qed/qed_if.h>
+#include <linux/qed/storage_common.h>
+#include <linux/qed/nvmetcp_common.h>
 
 #define QED_NVMETCP_MAX_IO_SIZE	0x800000
 
@@ -70,6 +72,35 @@ struct qed_nvmetcp_params_update {
 
 struct qed_nvmetcp_cb_ops {
 	struct qed_common_cb_ops common;
+};
+
+struct nvmetcp_sge {
+	struct regpair sge_addr; /* SGE address */
+	__le32 sge_len; /* SGE length */
+	__le32 reserved;
+};
+
+/* IO path HSI function SGL params */
+struct storage_sgl_task_params {
+	struct nvmetcp_sge *sgl;
+	struct regpair sgl_phys_addr;
+	u32 total_buffer_size;
+	u16 num_sges;
+	bool small_mid_sge;
+};
+
+/* IO path HSI function FW task context params */
+struct nvmetcp_task_params {
+	void *context; /* Output parameter - set/filled by the HSI function */
+	struct nvmetcp_wqe *sqe;
+	u32 tx_io_size; /* in bytes (Without DIF, if exists) */
+	u32 rx_io_size; /* in bytes (Without DIF, if exists) */
+	u16 conn_icid;
+	u16 itid;
+	struct regpair opq; /* qedn_task_ctx address */
+	u16 host_cccid;
+	u8 cq_rss_number;
+	bool send_write_incapsule;
 };
 
 /**
