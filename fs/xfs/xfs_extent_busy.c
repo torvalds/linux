@@ -605,12 +605,11 @@ void
 xfs_extent_busy_wait_all(
 	struct xfs_mount	*mp)
 {
+	struct xfs_perag	*pag;
 	DEFINE_WAIT		(wait);
 	xfs_agnumber_t		agno;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		struct xfs_perag *pag = xfs_perag_get(mp, agno);
-
+	for_each_perag(mp, agno, pag) {
 		do {
 			prepare_to_wait(&pag->pagb_wait, &wait, TASK_KILLABLE);
 			if  (RB_EMPTY_ROOT(&pag->pagb_tree))
@@ -618,8 +617,6 @@ xfs_extent_busy_wait_all(
 			schedule();
 		} while (1);
 		finish_wait(&pag->pagb_wait, &wait);
-
-		xfs_perag_put(pag);
 	}
 }
 
