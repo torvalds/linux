@@ -299,38 +299,6 @@ static int tegra_mc_reset_setup(struct tegra_mc *mc)
 	return 0;
 }
 
-static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
-{
-	unsigned long long tick;
-	unsigned int i;
-	u32 value;
-
-	/* compute the number of MC clock cycles per tick */
-	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
-	do_div(tick, NSEC_PER_SEC);
-
-	value = mc_readl(mc, MC_EMEM_ARB_CFG);
-	value &= ~MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK;
-	value |= MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(tick);
-	mc_writel(mc, value, MC_EMEM_ARB_CFG);
-
-	/* write latency allowance defaults */
-	for (i = 0; i < mc->soc->num_clients; i++) {
-		const struct tegra_mc_client *client = &mc->soc->clients[i];
-		u32 value;
-
-		value = mc_readl(mc, client->regs.la.reg);
-		value &= ~(client->regs.la.mask << client->regs.la.shift);
-		value |= (client->regs.la.def & client->regs.la.mask) << client->regs.la.shift;
-		mc_writel(mc, value, client->regs.la.reg);
-	}
-
-	/* latch new values */
-	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
-
-	return 0;
-}
-
 int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 {
 	unsigned int i;
@@ -367,6 +335,43 @@ unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc)
 	return dram_count;
 }
 EXPORT_SYMBOL_GPL(tegra_mc_get_emem_device_count);
+
+#if defined(CONFIG_ARCH_TEGRA_3x_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_114_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_124_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_132_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_210_SOC)
+static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
+{
+	unsigned long long tick;
+	unsigned int i;
+	u32 value;
+
+	/* compute the number of MC clock cycles per tick */
+	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
+	do_div(tick, NSEC_PER_SEC);
+
+	value = mc_readl(mc, MC_EMEM_ARB_CFG);
+	value &= ~MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK;
+	value |= MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(tick);
+	mc_writel(mc, value, MC_EMEM_ARB_CFG);
+
+	/* write latency allowance defaults */
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		const struct tegra_mc_client *client = &mc->soc->clients[i];
+		u32 value;
+
+		value = mc_readl(mc, client->regs.la.reg);
+		value &= ~(client->regs.la.mask << client->regs.la.shift);
+		value |= (client->regs.la.def & client->regs.la.mask) << client->regs.la.shift;
+		mc_writel(mc, value, client->regs.la.reg);
+	}
+
+	/* latch new values */
+	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
+
+	return 0;
+}
 
 static int load_one_timing(struct tegra_mc *mc,
 			   struct tegra_mc_timing *timing,
@@ -458,6 +463,39 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 
 	return 0;
 }
+
+int tegra30_mc_probe(struct tegra_mc *mc)
+{
+	int err;
+
+	mc->clk = devm_clk_get_optional(mc->dev, "mc");
+	if (IS_ERR(mc->clk)) {
+		dev_err(mc->dev, "failed to get MC clock: %ld\n", PTR_ERR(mc->clk));
+		return PTR_ERR(mc->clk);
+	}
+
+	/* ensure that debug features are disabled */
+	mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
+
+	err = tegra_mc_setup_latency_allowance(mc);
+	if (err < 0) {
+		dev_err(mc->dev, "failed to setup latency allowance: %d\n", err);
+		return err;
+	}
+
+	err = tegra_mc_setup_timings(mc);
+	if (err < 0) {
+		dev_err(mc->dev, "failed to setup timings: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+const struct tegra_mc_ops tegra30_mc_ops = {
+	.probe = tegra30_mc_probe,
+};
+#endif
 
 static const char *const status_names[32] = {
 	[ 1] = "External interrupt",
@@ -777,13 +815,6 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(mc->regs))
 		return PTR_ERR(mc->regs);
 
-	mc->clk = devm_clk_get(&pdev->dev, "mc");
-	if (IS_ERR(mc->clk)) {
-		dev_err(&pdev->dev, "failed to get MC clock: %ld\n",
-			PTR_ERR(mc->clk));
-		return PTR_ERR(mc->clk);
-	}
-
 	mc->debugfs.root = debugfs_create_dir("mc", NULL);
 
 	if (mc->soc->ops && mc->soc->ops->probe) {
@@ -798,25 +829,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	} else
 #endif
 	{
-		/* ensure that debug features are disabled */
-		mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
-
-		err = tegra_mc_setup_latency_allowance(mc);
-		if (err < 0) {
-			dev_err(&pdev->dev,
-				"failed to setup latency allowance: %d\n",
-				err);
-			return err;
-		}
-
 		isr = tegra_mc_irq;
-
-		err = tegra_mc_setup_timings(mc);
-		if (err < 0) {
-			dev_err(&pdev->dev, "failed to setup timings: %d\n",
-				err);
-			return err;
-		}
 	}
 
 	mc->irq = platform_get_irq(pdev, 0);

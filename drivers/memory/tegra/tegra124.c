@@ -1274,6 +1274,7 @@ const struct tegra_mc_soc tegra124_mc_soc = {
 	.resets = tegra124_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra124_mc_resets),
 	.icc_ops = &tegra124_mc_icc_ops,
+	.ops = &tegra30_mc_ops,
 };
 #endif /* CONFIG_ARCH_TEGRA_124_SOC */
 
@@ -1305,5 +1306,6 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.resets = tegra124_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra124_mc_resets),
 	.icc_ops = &tegra124_mc_icc_ops,
+	.ops = &tegra30_mc_ops,
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */
