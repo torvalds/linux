@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/interconnect-provider.h>
+#include <linux/irq.h>
 #include <linux/reset-controller.h>
 #include <linux/types.h>
 
@@ -177,6 +178,7 @@ struct tegra_mc_ops {
 	int (*probe)(struct tegra_mc *mc);
 	int (*suspend)(struct tegra_mc *mc);
 	int (*resume)(struct tegra_mc *mc);
+	irqreturn_t (*handle_irq)(int irq, void *data);
 };
 
 struct tegra_mc_soc {

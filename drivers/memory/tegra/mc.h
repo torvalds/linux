@@ -138,6 +138,9 @@ int tegra30_mc_probe(struct tegra_mc *mc);
 extern const struct tegra_mc_ops tegra30_mc_ops;
 #endif
 
+extern const char * const tegra_mc_status_names[32];
+extern const char * const tegra_mc_error_names[8];
+
 /*
  * These IDs are for internal use of Tegra ICC drivers. The ID numbers are
  * chosen such that they don't conflict with the device-tree ICC node IDs.
