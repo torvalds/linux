@@ -749,7 +749,7 @@ xfs_inode_inherit_flags2(
  * Initialise a newly allocated inode and return the in-core inode to the
  * caller locked exclusively.
  */
-static int
+int
 xfs_init_new_inode(
 	struct user_namespace	*mnt_userns,
 	struct xfs_trans	*tp,
@@ -886,54 +886,6 @@ xfs_init_new_inode(
 }
 
 /*
- * Allocates a new inode from disk and return a pointer to the incore copy. This
- * routine will internally commit the current transaction and allocate a new one
- * if we needed to allocate more on-disk free inodes to perform the requested
- * operation.
- *
- * If we are allocating quota inodes, we do not have a parent inode to attach to
- * or associate with (i.e. dp == NULL) because they are not linked into the
- * directory structure - they are attached directly to the superblock - and so
- * have no parent.
- */
-int
-xfs_dir_ialloc(
-	struct user_namespace	*mnt_userns,
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*dp,
-	umode_t			mode,
-	xfs_nlink_t		nlink,
-	dev_t			rdev,
-	prid_t			prid,
-	bool			init_xattrs,
-	struct xfs_inode	**ipp)
-{
-	struct xfs_buf		*agibp;
-	xfs_ino_t		parent_ino = dp ? dp->i_ino : 0;
-	xfs_ino_t		ino;
-	int			error;
-
-	ASSERT((*tpp)->t_flags & XFS_TRANS_PERM_LOG_RES);
-
-	/*
-	 * Call the space management code to pick the on-disk inode to be
-	 * allocated.
-	 */
-	error = xfs_dialloc_select_ag(tpp, parent_ino, mode, &agibp);
-	if (error)
-		return error;
-
-	/* Allocate an inode from the selected AG */
-	error = xfs_dialloc_ag(*tpp, agibp, parent_ino, &ino);
-	if (error)
-		return error;
-	ASSERT(ino != NULLFSINO);
-
-	return xfs_init_new_inode(mnt_userns, *tpp, dp, ino, mode, nlink, rdev,
-				  prid, init_xattrs, ipp);
-}
-
-/*
  * Decrement the link count on an inode & log the change.  If this causes the
  * link count to go to zero, move the inode to AGI unlinked list so that it can
  * be freed when the last active reference goes away via xfs_inactive().
@@ -990,6 +942,7 @@ xfs_create(
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_trans_res	*tres;
 	uint			resblks;
+	xfs_ino_t		ino;
 
 	trace_xfs_create(dp, name);
 
@@ -1046,14 +999,16 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, is_dir ? 2 : 1, rdev,
-			       prid, init_xattrs, &ip);
+	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
+	if (!error)
+		error = xfs_init_new_inode(mnt_userns, tp, dp, ino, mode,
+				is_dir ? 2 : 1, rdev, prid, init_xattrs, &ip);
 	if (error)
 		goto out_trans_cancel;
 
 	/*
 	 * Now we join the directory inode to the transaction.  We do not do it
-	 * earlier because xfs_dir_ialloc might commit the previous transaction
+	 * earlier because xfs_dialloc might commit the previous transaction
 	 * (and release all the locks).  An error from here on will result in
 	 * the transaction cancel unlocking dp so don't do it explicitly in the
 	 * error path.
@@ -1143,6 +1098,7 @@ xfs_create_tmpfile(
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_trans_res	*tres;
 	uint			resblks;
+	xfs_ino_t		ino;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
@@ -1167,8 +1123,10 @@ xfs_create_tmpfile(
 	if (error)
 		goto out_release_dquots;
 
-	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, 0, 0, prid,
-				false, &ip);
+	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
+	if (!error)
+		error = xfs_init_new_inode(mnt_userns, tp, dp, ino, mode,
+				0, 0, prid, false, &ip);
 	if (error)
 		goto out_trans_cancel;
 

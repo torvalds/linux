@@ -1428,7 +1428,7 @@ xfs_dialloc_ag_update_inobt(
  * The caller selected an AG for us, and made sure that free inodes are
  * available.
  */
-int
+static int
 xfs_dialloc_ag(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
@@ -1602,24 +1602,23 @@ xfs_ialloc_next_ag(
  * can be allocated, -ENOSPC be returned.
  */
 int
-xfs_dialloc_select_ag(
+xfs_dialloc(
 	struct xfs_trans	**tpp,
 	xfs_ino_t		parent,
 	umode_t			mode,
-	struct xfs_buf		**IO_agbp)
+	xfs_ino_t		*new_ino)
 {
 	struct xfs_mount	*mp = (*tpp)->t_mountp;
 	struct xfs_buf		*agbp;
 	xfs_agnumber_t		agno;
-	int			error;
+	int			error = 0;
 	xfs_agnumber_t		start_agno;
 	struct xfs_perag	*pag;
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	bool			okalloc = true;
 	int			needspace;
 	int			flags;
-
-	*IO_agbp = NULL;
+	xfs_ino_t		ino;
 
 	/*
 	 * Directories, symlinks, and regular files frequently allocate at least
@@ -1765,7 +1764,11 @@ nextag:
 	return error ? error : -ENOSPC;
 found_ag:
 	xfs_perag_put(pag);
-	*IO_agbp = agbp;
+	/* Allocate an inode in the found AG */
+	error = xfs_dialloc_ag(*tpp, agbp, parent, &ino);
+	if (error)
+		return error;
+	*new_ino = ino;
 	return 0;
 }
 

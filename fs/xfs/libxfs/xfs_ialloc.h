@@ -33,30 +33,11 @@ xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
 }
 
 /*
- * Allocate an inode on disk.
- * Mode is used to tell whether the new inode will need space, and whether
- * it is a directory.
- *
- * There are two phases to inode allocation: selecting an AG and ensuring
- * that it contains free inodes, followed by allocating one of the free
- * inodes. xfs_dialloc_select_ag() does the former and returns a locked AGI
- * to the caller, ensuring that followup call to xfs_dialloc_ag() will
- * have free inodes to allocate from. xfs_dialloc_ag() will return the inode
- * number of the free inode we allocated.
+ * Allocate an inode on disk.  Mode is used to tell whether the new inode will
+ * need space, and whether it is a directory.
  */
-int					/* error */
-xfs_dialloc_select_ag(
-	struct xfs_trans **tpp,		/* double pointer of transaction */
-	xfs_ino_t	parent,		/* parent inode (directory) */
-	umode_t		mode,		/* mode bits for new inode */
-	struct xfs_buf	**IO_agbp);
-
-int
-xfs_dialloc_ag(
-	struct xfs_trans	*tp,
-	struct xfs_buf		*agbp,
-	xfs_ino_t		parent,
-	xfs_ino_t		*inop);
+int xfs_dialloc(struct xfs_trans **tpp, xfs_ino_t parent, umode_t mode,
+		xfs_ino_t *new_ino);
 
 /*
  * Free disk inode.  Carefully avoids touching the incore inode, all
