@@ -35,30 +35,55 @@ static int xbc_show_value(struct xbc_node *node, bool semicolon)
 
 static void xbc_show_compact_tree(void)
 {
-	struct xbc_node *node, *cnode;
+	struct xbc_node *node, *cnode = NULL, *vnode;
 	int depth = 0, i;
 
 	node = xbc_root_node();
 	while (node && xbc_node_is_key(node)) {
 		for (i = 0; i < depth; i++)
 			printf("\t");
-		cnode = xbc_node_get_child(node);
+		if (!cnode)
+			cnode = xbc_node_get_child(node);
 		while (cnode && xbc_node_is_key(cnode) && !cnode->next) {
+			vnode = xbc_node_get_child(cnode);
+			/*
+			 * If @cnode has value and subkeys, this
+			 * should show it as below.
+			 *
+			 * key(@node) {
+			 *      key(@cnode) = value;
+			 *      key(@cnode) {
+			 *          subkeys;
+			 *      }
+			 * }
+			 */
+			if (vnode && xbc_node_is_value(vnode) && vnode->next)
+				break;
 			printf("%s.", xbc_node_get_data(node));
 			node = cnode;
-			cnode = xbc_node_get_child(node);
+			cnode = vnode;
 		}
 		if (cnode && xbc_node_is_key(cnode)) {
 			printf("%s {\n", xbc_node_get_data(node));
 			depth++;
 			node = cnode;
+			cnode = NULL;
 			continue;
 		} else if (cnode && xbc_node_is_value(cnode)) {
 			printf("%s = ", xbc_node_get_data(node));
 			xbc_show_value(cnode, true);
+			/*
+			 * If @node has value and subkeys, continue
+			 * looping on subkeys with same node.
+			 */
+			if (cnode->next) {
+				cnode = xbc_node_get_next(cnode);
+				continue;
+			}
 		} else {
 			printf("%s;\n", xbc_node_get_data(node));
 		}
+		cnode = NULL;
 
 		if (node->next) {
 			node = xbc_node_get_next(node);
@@ -70,10 +95,12 @@ static void xbc_show_compact_tree(void)
 				return;
 			if (!xbc_node_get_child(node)->next)
 				continue;
-			depth--;
-			for (i = 0; i < depth; i++)
-				printf("\t");
-			printf("}\n");
+			if (depth) {
+				depth--;
+				for (i = 0; i < depth; i++)
+					printf("\t");
+				printf("}\n");
+			}
 		}
 		node = xbc_node_get_next(node);
 	}
@@ -88,8 +115,10 @@ static void xbc_show_list(void)
 
 	xbc_for_each_key_value(leaf, val) {
 		ret = xbc_node_compose_key(leaf, key, XBC_KEYLEN_MAX);
-		if (ret < 0)
+		if (ret < 0) {
+			fprintf(stderr, "Failed to compose key %d\n", ret);
 			break;
+		}
 		printf("%s = ", key);
 		if (!val || val[0] == '\0') {
 			printf("\"\"\n");
