@@ -1742,10 +1742,26 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 
 	/* hdr2sdr and sdr2hdr will do csc itself */
 	if (vpstate->hdr2sdr_en) {
-	/* This is hdr2sdr enabled plane */
+		/*
+		 * This is hdr2sdr enabled plane
+		 * If it's RGB layer do hdr2sdr, we need to do r2y before send to hdr2sdr,
+		 * because hdr2sdr only support yuv input.
+		 */
+		if (!is_input_yuv) {
+			vpstate->r2y_en = 1;
+			vpstate->csc_mode = vop2_convert_csc_mode(output_csc);
+		}
 		return;
 	} else if (!vpstate->hdr_in && vp->sdr2hdr_en) {
-	/* This is sdr2hdr enabled plane */
+		/*
+		 * This is sdr2hdr enabled plane
+		 * If it's YUV layer do sdr2hdr, we need to do y2r before send to sdr2hdr,
+		 * because sdr2hdr only support rgb input.
+		 */
+		if (is_input_yuv) {
+			vpstate->y2r_en = 1;
+			vpstate->csc_mode = vop2_convert_csc_mode(input_csc);
+		}
 		return;
 	}
 
