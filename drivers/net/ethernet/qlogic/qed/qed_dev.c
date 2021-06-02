@@ -2266,7 +2266,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			num_cons =
 			    qed_cxt_get_proto_cid_count(p_hwfn,
-							PROTOCOLID_ISCSI,
+							PROTOCOLID_TCP_ULP,
 							NULL);
 			n_eqes += 2 * num_cons;
 		}

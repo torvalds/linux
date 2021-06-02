@@ -1118,7 +1118,7 @@ struct outer_tag_config_struct {
 /* personality per PF */
 enum personality_type {
 	BAD_PERSONALITY_TYP,
-	PERSONALITY_ISCSI,
+	PERSONALITY_TCP_ULP,
 	PERSONALITY_FCOE,
 	PERSONALITY_RDMA_AND_ETH,
 	PERSONALITY_RDMA,

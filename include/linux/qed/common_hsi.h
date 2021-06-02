@@ -702,7 +702,7 @@ enum mf_mode {
 
 /* Per-protocol connection types */
 enum protocol_type {
-	PROTOCOLID_ISCSI,
+	PROTOCOLID_TCP_ULP,
 	PROTOCOLID_FCOE,
 	PROTOCOLID_ROCE,
 	PROTOCOLID_CORE,
