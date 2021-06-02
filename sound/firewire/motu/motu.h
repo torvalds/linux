@@ -39,6 +39,13 @@ struct snd_motu_packet_format {
 	unsigned char pcm_chunks[3];
 };
 
+struct amdtp_motu_cache {
+	unsigned int *event_offsets;
+	unsigned int size;
+	unsigned int tail;
+	unsigned int tx_cycle_count;
+};
+
 struct snd_motu {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -70,6 +77,8 @@ struct snd_motu {
 	wait_queue_head_t hwdep_wait;
 
 	struct amdtp_domain domain;
+
+	struct amdtp_motu_cache cache;
 };
 
 enum snd_motu_spec_flags {
@@ -125,7 +134,8 @@ extern const struct snd_motu_spec snd_motu_spec_4pre;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_spec *spec);
+		    const struct snd_motu_spec *spec,
+		    struct amdtp_motu_cache *cache);
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats);

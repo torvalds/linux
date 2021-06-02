@@ -53,6 +53,8 @@ struct amdtp_motu {
 
 	int midi_db_count;
 	unsigned int midi_db_interval;
+
+	struct amdtp_motu_cache *cache;
 };
 
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
@@ -333,6 +335,34 @@ static void probe_tracepoints_events(struct amdtp_stream *s,
 	}
 }
 
+static void cache_event_offsets(struct amdtp_motu_cache *cache, const __be32 *buf,
+				unsigned int data_blocks, unsigned int data_block_quadlets)
+{
+	unsigned int *event_offsets = cache->event_offsets;
+	const unsigned int cache_size = cache->size;
+	unsigned int cache_tail = cache->tail;
+	unsigned int base_tick = cache->tx_cycle_count * TICKS_PER_CYCLE;
+	int i;
+
+	for (i = 0; i < data_blocks; ++i) {
+		u32 sph = be32_to_cpu(*buf);
+		unsigned int tick;
+
+		tick = ((sph & CIP_SPH_CYCLE_MASK) >> CIP_SPH_CYCLE_SHIFT) * TICKS_PER_CYCLE +
+		       (sph & CIP_SPH_OFFSET_MASK);
+
+		if (tick < base_tick)
+			tick += TICKS_PER_SECOND;
+		event_offsets[cache_tail] = tick - base_tick;
+
+		cache_tail = (cache_tail + 1) % cache_size;
+		buf += data_block_quadlets;
+	}
+
+	cache->tail = cache_tail;
+	cache->tx_cycle_count = (cache->tx_cycle_count + 1) % CYCLES_PER_SECOND;
+}
+
 static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 					    const struct pkt_desc *descs,
 					    unsigned int packets,
@@ -342,11 +372,16 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 	unsigned int pcm_frames = 0;
 	int i;
 
+	if (p->cache->tx_cycle_count == UINT_MAX)
+		p->cache->tx_cycle_count = (s->domain->processing_cycle.tx_start % CYCLES_PER_SECOND);
+
 	// For data block processing.
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = descs + i;
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
+
+		cache_event_offsets(p->cache, buf, data_blocks, s->data_block_quadlets);
 
 		if (pcm) {
 			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
@@ -449,11 +484,12 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_spec *spec)
+		    const struct snd_motu_spec *spec, struct amdtp_motu_cache *cache)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	int fmt = CIP_FMT_MOTU;
 	unsigned int flags = CIP_BLOCKING | CIP_UNAWARE_SYT;
+	struct amdtp_motu *p;
 	int err;
 
 	if (dir == AMDTP_IN_STREAM) {
@@ -492,6 +528,9 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		// Use fixed value for FDF field.
 		s->ctx_data.rx.fdf = MOTU_FDF_AM824;
 	}
+
+	p = s->protocol;
+	p->cache = cache;
 
 	return 0;
 }

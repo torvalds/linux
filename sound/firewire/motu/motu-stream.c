@@ -153,6 +153,9 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 		fw_iso_resources_free(&motu->tx_resources);
 		fw_iso_resources_free(&motu->rx_resources);
 
+		kfree(motu->cache.event_offsets);
+		motu->cache.event_offsets = NULL;
+
 		err = snd_motu_protocol_set_clock_rate(motu, rate);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
@@ -177,6 +180,15 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 		err = amdtp_domain_set_events_per_period(&motu->domain,
 					frames_per_period, frames_per_buffer);
 		if (err < 0) {
+			fw_iso_resources_free(&motu->tx_resources);
+			fw_iso_resources_free(&motu->rx_resources);
+			return err;
+		}
+
+		motu->cache.size = motu->tx_stream.syt_interval * frames_per_buffer;
+		motu->cache.event_offsets = kcalloc(motu->cache.size, sizeof(*motu->cache.event_offsets),
+						  GFP_KERNEL);
+		if (!motu->cache.event_offsets) {
 			fw_iso_resources_free(&motu->tx_resources);
 			fw_iso_resources_free(&motu->rx_resources);
 			return err;
@@ -260,6 +272,9 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		if (err < 0)
 			goto stop_streams;
 
+		motu->cache.tail = 0;
+		motu->cache.tx_cycle_count = UINT_MAX;
+
 		err = amdtp_domain_start(&motu->domain, 0, false, false);
 		if (err < 0)
 			goto stop_streams;
@@ -293,6 +308,9 @@ void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 
 		fw_iso_resources_free(&motu->tx_resources);
 		fw_iso_resources_free(&motu->rx_resources);
+
+		kfree(motu->cache.event_offsets);
+		motu->cache.event_offsets = NULL;
 	}
 }
 
@@ -314,7 +332,7 @@ static int init_stream(struct snd_motu *motu, struct amdtp_stream *s)
 	if (err < 0)
 		return err;
 
-	err = amdtp_motu_init(s, motu->unit, dir, motu->spec);
+	err = amdtp_motu_init(s, motu->unit, dir, motu->spec, &motu->cache);
 	if (err < 0)
 		fw_iso_resources_destroy(resources);
 
