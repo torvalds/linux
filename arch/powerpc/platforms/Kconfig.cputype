@@ -61,6 +61,7 @@ config 44x
 	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
+	select PPC_HAVE_KUEP
 
 endchoice
 
