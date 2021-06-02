@@ -516,6 +516,14 @@ rate_leafs_get()
 	       '.[] | to_entries | .[] | select(.value.type == "leaf") | .key | select(contains("'$handle'"))'
 }
 
+rate_nodes_get()
+{
+	local handle=$1
+
+	cmd_jq "devlink port function rate show -j" \
+		'.[] | to_entries | .[] | select(.value.type == "node") | .key | select(contains("'$handle'"))'
+}
+
 rate_attr_set()
 {
 	local handle=$1
@@ -555,6 +563,20 @@ rate_attr_tx_rate_check()
 	check_err $? "Unexpected $name attr value $api_value != $rate"
 }
 
+rate_node_add()
+{
+	local handle=$1
+
+	devlink port function rate add $handle
+}
+
+rate_node_del()
+{
+	local handle=$1
+
+	devlink port function rate del $handle
+}
+
 rate_test()
 {
 	RET=0
@@ -581,6 +603,29 @@ rate_test()
 			$DEBUGFS_DIR/ports/${r_obj##*/}/tx_max
 		rate=$(($rate+100))
 	done
+
+	local node1_name='group1'
+	local node1="$DL_HANDLE/$node1_name"
+	rate_node_add "$node1"
+	check_err $? "Failed to add node $node1"
+
+	local num_nodes=`rate_nodes_get $DL_HANDLE | wc -w`
+	[ $num_nodes == 1 ]
+	check_err $? "Expected 1 rate node in output but got $num_nodes"
+
+	local node_tx_share=10
+	rate_attr_tx_rate_check $node1 tx_share $node_tx_share \
+		$DEBUGFS_DIR/rate_nodes/${node1##*/}/tx_share
+
+	local node_tx_max=100
+	rate_attr_tx_rate_check $node1 tx_max $node_tx_max \
+		$DEBUGFS_DIR/rate_nodes/${node1##*/}/tx_max
+
+	rate_node_del "$node1"
+	check_err $? "Failed to delete node $node1"
+	local num_nodes=`rate_nodes_get $DL_HANDLE | wc -w`
+	[ $num_nodes == 0 ]
+	check_err $? "Expected 0 rate node but got $num_nodes"
 
 	log_test "rate test"
 }
