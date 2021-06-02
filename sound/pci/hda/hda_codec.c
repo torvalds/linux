@@ -2973,12 +2973,17 @@ static int hda_codec_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int hda_codec_pm_prepare(struct device *dev)
 {
+	dev->power.power_state = PMSG_SUSPEND;
 	return pm_runtime_suspended(dev);
 }
 
 static void hda_codec_pm_complete(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
+
+	/* If no other pm-functions are called between prepare() and complete() */
+	if (dev->power.power_state.event == PM_EVENT_SUSPEND)
+		dev->power.power_state = PMSG_RESUME;
 
 	if (pm_runtime_suspended(dev) && (codec->jackpoll_interval ||
 	    hda_codec_need_resume(codec) || codec->forced_resume))
