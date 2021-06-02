@@ -35,8 +35,7 @@ xfs_inobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_inobt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_ag.agbp, cur->bc_ag.agno,
-			cur->bc_ag.pag, cur->bc_btnum);
+			cur->bc_ag.agbp, cur->bc_ag.pag, cur->bc_btnum);
 }
 
 STATIC void
@@ -428,7 +427,6 @@ static struct xfs_btree_cur *
 xfs_inobt_init_common(
 	struct xfs_mount	*mp,		/* file system mount point */
 	struct xfs_trans	*tp,		/* transaction pointer */
-	xfs_agnumber_t		agno,		/* allocation group number */
 	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)		/* ialloc or free ino btree */
 {
@@ -451,12 +449,10 @@ xfs_inobt_init_common(
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
-	cur->bc_ag.agno = agno;
-	if (pag) {
-		/* take a reference for the cursor */
-		atomic_inc(&pag->pag_ref);
-	}
+	/* take a reference for the cursor */
+	atomic_inc(&pag->pag_ref);
 	cur->bc_ag.pag = pag;
+	cur->bc_ag.agno = pag->pag_agno;
 	return cur;
 }
 
@@ -466,14 +462,13 @@ xfs_inobt_init_cursor(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
-	xfs_agnumber_t		agno,
 	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)
 {
 	struct xfs_btree_cur	*cur;
 	struct xfs_agi		*agi = agbp->b_addr;
 
-	cur = xfs_inobt_init_common(mp, tp, agno, pag, btnum);
+	cur = xfs_inobt_init_common(mp, tp, pag, btnum);
 	if (btnum == XFS_BTNUM_INO)
 		cur->bc_nlevels = be32_to_cpu(agi->agi_level);
 	else
@@ -487,12 +482,12 @@ struct xfs_btree_cur *
 xfs_inobt_stage_cursor(
 	struct xfs_mount	*mp,
 	struct xbtree_afakeroot	*afake,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_inobt_init_common(mp, NULL, agno, NULL, btnum);
+	cur = xfs_inobt_init_common(mp, NULL, pag, btnum);
 	xfs_btree_stage_afakeroot(cur, afake);
 	return cur;
 }
@@ -664,7 +659,7 @@ int
 xfs_inobt_cur(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	xfs_btnum_t		which,
 	struct xfs_btree_cur	**curpp,
 	struct xfs_buf		**agi_bpp)
@@ -675,11 +670,11 @@ xfs_inobt_cur(
 	ASSERT(*agi_bpp == NULL);
 	ASSERT(*curpp == NULL);
 
-	error = xfs_ialloc_read_agi(mp, tp, agno, agi_bpp);
+	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, agi_bpp);
 	if (error)
 		return error;
 
-	cur = xfs_inobt_init_cursor(mp, tp, *agi_bpp, agno, NULL, which);
+	cur = xfs_inobt_init_cursor(mp, tp, *agi_bpp, pag, which);
 	*curpp = cur;
 	return 0;
 }
@@ -696,7 +691,7 @@ xfs_inobt_count_blocks(
 	struct xfs_btree_cur	*cur = NULL;
 	int			error;
 
-	error = xfs_inobt_cur(mp, tp, pag->pag_agno, btnum, &cur, &agbp);
+	error = xfs_inobt_cur(mp, tp, pag, btnum, &cur, &agbp);
 	if (error)
 		return error;
 

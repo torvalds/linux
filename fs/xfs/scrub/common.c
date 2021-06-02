@@ -458,7 +458,6 @@ xchk_ag_btcur_init(
 	struct xchk_ag		*sa)
 {
 	struct xfs_mount	*mp = sc->mp;
-	xfs_agnumber_t		agno = sa->agno;
 
 	xchk_perag_get(sc->mp, sa);
 	if (sa->agf_bp &&
@@ -479,14 +478,14 @@ xchk_ag_btcur_init(
 	if (sa->agi_bp &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
 		sa->ino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				agno, sa->pag, XFS_BTNUM_INO);
+				sa->pag, XFS_BTNUM_INO);
 	}
 
 	/* Set up a finobt cursor for cross-referencing. */
 	if (sa->agi_bp && xfs_sb_version_hasfinobt(&mp->m_sb) &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
 		sa->fino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				agno, sa->pag, XFS_BTNUM_FINO);
+				sa->pag, XFS_BTNUM_FINO);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
