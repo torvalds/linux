@@ -47,7 +47,7 @@ properties:
     description: Should contain a phandle to a PM domain provider node
       and an args specifier containing the USB device id
       value. This property is as per the binding,
-      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 
   phys:
     maxItems: 1
