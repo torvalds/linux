@@ -170,7 +170,11 @@ struct tegra_mc_icc_ops {
 };
 
 struct tegra_mc_ops {
-	int (*init)(struct tegra_mc *mc);
+	/*
+	 * @probe: Callback to set up SoC-specific bits of the memory controller. This is called
+	 * after basic, common set up that is done by the SoC-agnostic bits.
+	 */
+	int (*probe)(struct tegra_mc *mc);
 	int (*suspend)(struct tegra_mc *mc);
 	int (*resume)(struct tegra_mc *mc);
 };

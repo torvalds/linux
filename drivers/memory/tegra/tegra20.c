@@ -679,7 +679,7 @@ static int tegra20_mc_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int tegra20_mc_init(struct tegra_mc *mc)
+static int tegra20_mc_probe(struct tegra_mc *mc)
 {
 	debugfs_create_devm_seqfile(mc->dev, "stats", mc->debugfs.root,
 				    tegra20_mc_stats_show);
@@ -714,7 +714,7 @@ static int tegra20_mc_resume(struct tegra_mc *mc)
 }
 
 static const struct tegra_mc_ops tegra20_mc_ops = {
-	.init = tegra20_mc_init,
+	.probe = tegra20_mc_probe,
 	.suspend = tegra20_mc_suspend,
 	.resume = tegra20_mc_resume,
 };

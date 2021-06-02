@@ -784,6 +784,14 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return PTR_ERR(mc->clk);
 	}
 
+	mc->debugfs.root = debugfs_create_dir("mc", NULL);
+
+	if (mc->soc->ops && mc->soc->ops->probe) {
+		err = mc->soc->ops->probe(mc);
+		if (err < 0)
+			return err;
+	}
+
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	if (mc->soc == &tegra20_mc_soc) {
 		isr = tegra20_mc_irq;
@@ -825,15 +833,6 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
 			err);
 		return err;
-	}
-
-	mc->debugfs.root = debugfs_create_dir("mc", NULL);
-
-	if (mc->soc->ops && mc->soc->ops->init) {
-		err = mc->soc->ops->init(mc);
-		if (err < 0)
-			dev_err(&pdev->dev, "failed to initialize SoC driver: %d\n",
-				err);
 	}
 
 	err = tegra_mc_reset_setup(mc);
