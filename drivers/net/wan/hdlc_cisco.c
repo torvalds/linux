@@ -214,6 +214,7 @@ static int cisco_rx(struct sk_buff *skb)
 				st->last_poll = jiffies;
 				if (!st->up) {
 					u32 sec, min, hrs, days;
+
 					sec = ntohl(cisco_data->time) / 1000;
 					min = sec / 60; sec -= min * 60;
 					hrs = min / 60; min -= hrs * 60;
