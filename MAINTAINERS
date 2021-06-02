@@ -13325,7 +13325,7 @@ M:	Santosh Shilimkar <ssantosh@kernel.org>
 M:	Kevin Hilman <khilman@kernel.org>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/gpio/gpio-omap.txt
+F:	Documentation/devicetree/bindings/gpio/ti,omap-gpio.yaml
 F:	drivers/gpio/gpio-omap.c
 
 OMAP HARDWARE SPINLOCK SUPPORT
