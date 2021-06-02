@@ -510,25 +510,27 @@ int stmmac_mdio_register(struct net_device *ndev)
 	}
 
 	/* Try to probe the XPCS by scanning all addresses. */
-	if (priv->hw->xpcs) {
-		struct mdio_xpcs_args *xpcs = &priv->hw->xpcs_args;
-		int ret, mode = priv->plat->phy_interface;
-		max_addr = PHY_MAX_ADDR;
+	if (mdio_bus_data->has_xpcs) {
+		int mode = priv->plat->phy_interface;
+		struct mdio_device *mdiodev;
+		struct mdio_xpcs_args *xpcs;
 
-		xpcs->bus = new_bus;
+		for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+			mdiodev = mdio_device_create(new_bus, addr);
+			if (IS_ERR(mdiodev))
+				continue;
 
-		found = 0;
-		for (addr = 0; addr < max_addr; addr++) {
-			xpcs->addr = addr;
-
-			ret = xpcs_probe(xpcs, mode);
-			if (!ret) {
-				found = 1;
-				break;
+			xpcs = xpcs_create(mdiodev, mode);
+			if (IS_ERR_OR_NULL(xpcs)) {
+				mdio_device_free(mdiodev);
+				continue;
 			}
+
+			priv->hw->xpcs_args = xpcs;
+			break;
 		}
 
-		if (!found && !mdio_node) {
+		if (!priv->hw->xpcs_args) {
 			dev_warn(dev, "No XPCS found\n");
 			err = -ENODEV;
 			goto no_xpcs_found;
@@ -559,6 +561,11 @@ int stmmac_mdio_unregister(struct net_device *ndev)
 
 	if (!priv->mii)
 		return 0;
+
+	if (priv->hw->xpcs) {
+		mdio_device_free(priv->hw->xpcs_args->mdiodev);
+		xpcs_destroy(priv->hw->xpcs_args);
+	}
 
 	mdiobus_unregister(priv->mii);
 	priv->mii->priv = NULL;

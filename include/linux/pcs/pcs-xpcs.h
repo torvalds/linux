@@ -17,9 +17,8 @@
 struct xpcs_id;
 
 struct mdio_xpcs_args {
-	struct mii_bus *bus;
+	struct mdio_device *mdiodev;
 	const struct xpcs_id *id;
-	int addr;
 };
 
 struct mdio_xpcs_ops {
@@ -37,6 +36,8 @@ void xpcs_validate(struct mdio_xpcs_args *xpcs, unsigned long *supported,
 		   struct phylink_link_state *state);
 int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
 		    int enable);
-int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
+struct mdio_xpcs_args *xpcs_create(struct mdio_device *mdiodev,
+				   phy_interface_t interface);
+void xpcs_destroy(struct mdio_xpcs_args *xpcs);
 
 #endif /* __LINUX_PCS_XPCS_H */

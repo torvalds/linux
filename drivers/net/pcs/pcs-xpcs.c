@@ -241,15 +241,19 @@ static bool __xpcs_linkmode_supported(const struct xpcs_compat *compat,
 static int xpcs_read(struct mdio_xpcs_args *xpcs, int dev, u32 reg)
 {
 	u32 reg_addr = mdiobus_c45_addr(dev, reg);
+	struct mii_bus *bus = xpcs->mdiodev->bus;
+	int addr = xpcs->mdiodev->addr;
 
-	return mdiobus_read(xpcs->bus, xpcs->addr, reg_addr);
+	return mdiobus_read(bus, addr, reg_addr);
 }
 
 static int xpcs_write(struct mdio_xpcs_args *xpcs, int dev, u32 reg, u16 val)
 {
 	u32 reg_addr = mdiobus_c45_addr(dev, reg);
+	struct mii_bus *bus = xpcs->mdiodev->bus;
+	int addr = xpcs->mdiodev->addr;
 
-	return mdiobus_write(xpcs->bus, xpcs->addr, reg_addr, val);
+	return mdiobus_write(bus, addr, reg_addr, val);
 }
 
 static int xpcs_read_vendor(struct mdio_xpcs_args *xpcs, int dev, u32 reg)
@@ -315,7 +319,7 @@ static int xpcs_soft_reset(struct mdio_xpcs_args *xpcs,
 #define xpcs_warn(__xpcs, __state, __args...) \
 ({ \
 	if ((__state)->link) \
-		dev_warn(&(__xpcs)->bus->dev, ##__args); \
+		dev_warn(&(__xpcs)->mdiodev->dev, ##__args); \
 })
 
 static int xpcs_read_fault_c73(struct mdio_xpcs_args *xpcs,
@@ -1005,10 +1009,20 @@ static const struct xpcs_id xpcs_id_list[] = {
 	},
 };
 
-int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
+struct mdio_xpcs_args *xpcs_create(struct mdio_device *mdiodev,
+				   phy_interface_t interface)
 {
-	u32 xpcs_id = xpcs_get_id(xpcs);
-	int i;
+	struct mdio_xpcs_args *xpcs;
+	u32 xpcs_id;
+	int i, ret;
+
+	xpcs = kzalloc(sizeof(*xpcs), GFP_KERNEL);
+	if (!xpcs)
+		return NULL;
+
+	xpcs->mdiodev = mdiodev;
+
+	xpcs_id = xpcs_get_id(xpcs);
 
 	for (i = 0; i < ARRAY_SIZE(xpcs_id_list); i++) {
 		const struct xpcs_id *entry = &xpcs_id_list[i];
@@ -1020,15 +1034,32 @@ int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 		xpcs->id = entry;
 
 		compat = xpcs_find_compat(entry, interface);
-		if (!compat)
-			return -ENODEV;
+		if (!compat) {
+			ret = -ENODEV;
+			goto out;
+		}
 
-		return xpcs_soft_reset(xpcs, compat);
+		ret = xpcs_soft_reset(xpcs, compat);
+		if (ret)
+			goto out;
+
+		return xpcs;
 	}
 
-	return -ENODEV;
+	ret = -ENODEV;
+
+out:
+	kfree(xpcs);
+
+	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(xpcs_probe);
+EXPORT_SYMBOL_GPL(xpcs_create);
+
+void xpcs_destroy(struct mdio_xpcs_args *xpcs)
+{
+	kfree(xpcs);
+}
+EXPORT_SYMBOL_GPL(xpcs_destroy);
 
 static struct mdio_xpcs_ops xpcs_ops = {
 	.config = xpcs_config,
