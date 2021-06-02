@@ -1717,7 +1717,7 @@ xfs_dialloc_roll(
  * This function will ensure that the selected AG has free inodes available to
  * allocate from. The selected AGI will be returned locked to the caller, and it
  * will allocate more free inodes if required. If no free inodes are found or
- * can be allocated, no AGI will be returned.
+ * can be allocated, -ENOSPC be returned.
  */
 int
 xfs_dialloc_select_ag(
@@ -1730,7 +1730,6 @@ xfs_dialloc_select_ag(
 	struct xfs_buf		*agbp;
 	xfs_agnumber_t		agno;
 	int			error;
-	bool			noroom = false;
 	xfs_agnumber_t		start_agno;
 	struct xfs_perag	*pag;
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
@@ -1744,7 +1743,7 @@ xfs_dialloc_select_ag(
 	 */
 	start_agno = xfs_ialloc_ag_select(*tpp, parent, mode);
 	if (start_agno == NULLAGNUMBER)
-		return 0;
+		return -ENOSPC;
 
 	/*
 	 * If we have already hit the ceiling of inode blocks then clear
@@ -1757,7 +1756,6 @@ xfs_dialloc_select_ag(
 	if (igeo->maxicount &&
 	    percpu_counter_read_positive(&mp->m_icount) + igeo->ialloc_inos
 							> igeo->maxicount) {
-		noroom = true;
 		okalloc = false;
 	}
 
@@ -1794,10 +1792,8 @@ xfs_dialloc_select_ag(
 		if (error)
 			break;
 
-		if (pag->pagi_freecount) {
-			xfs_perag_put(pag);
+		if (pag->pagi_freecount)
 			goto found_ag;
-		}
 
 		if (!okalloc)
 			goto nextag_relse_buffer;
@@ -1805,9 +1801,6 @@ xfs_dialloc_select_ag(
 		error = xfs_ialloc_ag_alloc(*tpp, agbp, pag);
 		if (error < 0) {
 			xfs_trans_brelse(*tpp, agbp);
-
-			if (error == -ENOSPC)
-				error = 0;
 			break;
 		}
 
@@ -1818,12 +1811,11 @@ xfs_dialloc_select_ag(
 			 * allocate one of the new inodes.
 			 */
 			ASSERT(pag->pagi_freecount > 0);
-			xfs_perag_put(pag);
 
 			error = xfs_dialloc_roll(tpp, agbp);
 			if (error) {
 				xfs_buf_relse(agbp);
-				return error;
+				break;
 			}
 			goto found_ag;
 		}
@@ -1831,16 +1823,17 @@ xfs_dialloc_select_ag(
 nextag_relse_buffer:
 		xfs_trans_brelse(*tpp, agbp);
 nextag:
-		xfs_perag_put(pag);
 		if (++agno == mp->m_sb.sb_agcount)
 			agno = 0;
 		if (agno == start_agno)
-			return noroom ? -ENOSPC : 0;
+			break;
+		xfs_perag_put(pag);
 	}
 
 	xfs_perag_put(pag);
-	return error;
+	return error ? error : -ENOSPC;
 found_ag:
+	xfs_perag_put(pag);
 	*IO_agbp = agbp;
 	return 0;
 }
