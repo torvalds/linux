@@ -229,7 +229,7 @@ dma_resv_excl_fence(struct dma_resv *obj)
 }
 
 /**
- * dma_resv_get_excl_rcu - get the reservation object's
+ * dma_resv_get_excl_unlocked - get the reservation object's
  * exclusive fence, without lock held.
  * @obj: the reservation object
  *
@@ -240,7 +240,7 @@ dma_resv_excl_fence(struct dma_resv *obj)
  * The exclusive fence or NULL if none
  */
 static inline struct dma_fence *
-dma_resv_get_excl_rcu(struct dma_resv *obj)
+dma_resv_get_excl_unlocked(struct dma_resv *obj)
 {
 	struct dma_fence *fence;
 
