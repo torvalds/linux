@@ -36,8 +36,8 @@ struct xt_action_param {
 		const void *matchinfo, *targinfo;
 	};
 	const struct nf_hook_state *state;
-	int fragoff;
 	unsigned int thoff;
+	u16 fragoff;
 	bool hotdrop;
 };
 

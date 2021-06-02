@@ -57,8 +57,13 @@ union nft_entry {
 };
 
 static inline void
-nft_compat_set_par(struct xt_action_param *par, void *xt, const void *xt_info)
+nft_compat_set_par(struct xt_action_param *par,
+		   const struct nft_pktinfo *pkt,
+		   const void *xt, const void *xt_info)
 {
+	par->state	= pkt->state;
+	par->thoff	= nft_thoff(pkt);
+	par->fragoff	= pkt->fragoff;
 	par->target	= xt;
 	par->targinfo	= xt_info;
 	par->hotdrop	= false;
@@ -71,13 +76,14 @@ static void nft_target_eval_xt(const struct nft_expr *expr,
 	void *info = nft_expr_priv(expr);
 	struct xt_target *target = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
+	struct xt_action_param xt;
 	int ret;
 
-	nft_compat_set_par((struct xt_action_param *)&pkt->xt, target, info);
+	nft_compat_set_par(&xt, pkt, target, info);
 
-	ret = target->target(skb, &pkt->xt);
+	ret = target->target(skb, &xt);
 
-	if (pkt->xt.hotdrop)
+	if (xt.hotdrop)
 		ret = NF_DROP;
 
 	switch (ret) {
@@ -97,13 +103,14 @@ static void nft_target_eval_bridge(const struct nft_expr *expr,
 	void *info = nft_expr_priv(expr);
 	struct xt_target *target = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
+	struct xt_action_param xt;
 	int ret;
 
-	nft_compat_set_par((struct xt_action_param *)&pkt->xt, target, info);
+	nft_compat_set_par(&xt, pkt, target, info);
 
-	ret = target->target(skb, &pkt->xt);
+	ret = target->target(skb, &xt);
 
-	if (pkt->xt.hotdrop)
+	if (xt.hotdrop)
 		ret = NF_DROP;
 
 	switch (ret) {
@@ -350,13 +357,14 @@ static void __nft_match_eval(const struct nft_expr *expr,
 {
 	struct xt_match *match = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
+	struct xt_action_param xt;
 	bool ret;
 
-	nft_compat_set_par((struct xt_action_param *)&pkt->xt, match, info);
+	nft_compat_set_par(&xt, pkt, match, info);
 
-	ret = match->match(skb, (struct xt_action_param *)&pkt->xt);
+	ret = match->match(skb, &xt);
 
-	if (pkt->xt.hotdrop) {
+	if (xt.hotdrop) {
 		regs->verdict.code = NF_DROP;
 		return;
 	}

@@ -287,14 +287,11 @@ static int cttimeout_get_timeout(struct sk_buff *skb,
 			kfree_skb(skb2);
 			break;
 		}
-		ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-				      MSG_DONTWAIT);
-		if (ret > 0)
-			ret = 0;
 
-		/* this avoids a loop in nfnetlink. */
-		return ret == -EAGAIN ? -ENOBUFS : ret;
+		ret = nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
+		break;
 	}
+
 	return ret;
 }
 
@@ -427,9 +424,9 @@ static int cttimeout_default_get(struct sk_buff *skb,
 	const struct nf_conntrack_l4proto *l4proto;
 	unsigned int *timeouts = NULL;
 	struct sk_buff *skb2;
-	int ret, err;
 	__u16 l3num;
 	__u8 l4num;
+	int ret;
 
 	if (!cda[CTA_TIMEOUT_L3PROTO] || !cda[CTA_TIMEOUT_L4PROTO])
 		return -EINVAL;
@@ -438,9 +435,8 @@ static int cttimeout_default_get(struct sk_buff *skb,
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
 	l4proto = nf_ct_l4proto_find(l4num);
 
-	err = -EOPNOTSUPP;
 	if (l4proto->l4proto != l4num)
-		goto err;
+		return -EOPNOTSUPP;
 
 	switch (l4proto->l4proto) {
 	case IPPROTO_ICMP:
@@ -480,13 +476,11 @@ static int cttimeout_default_get(struct sk_buff *skb,
 	}
 
 	if (!timeouts)
-		goto err;
+		return -EOPNOTSUPP;
 
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (skb2 == NULL) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!skb2)
+		return -ENOMEM;
 
 	ret = cttimeout_default_fill_info(info->net, skb2,
 					  NETLINK_CB(skb).portid,
@@ -496,18 +490,10 @@ static int cttimeout_default_get(struct sk_buff *skb,
 					  l3num, l4proto, timeouts);
 	if (ret <= 0) {
 		kfree_skb(skb2);
-		err = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
-	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
-			      MSG_DONTWAIT);
-	if (ret > 0)
-		ret = 0;
 
-	/* this avoids a loop in nfnetlink. */
-	return ret == -EAGAIN ? -ENOBUFS : ret;
-err:
-	return err;
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 }
 
 static struct nf_ct_timeout *ctnl_timeout_find_get(struct net *net,
