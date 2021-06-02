@@ -566,26 +566,70 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
+/**
+ * ttm_bo_pipeline_gutting - purge the contents of a bo
+ * @bo: The buffer object
+ *
+ * Purge the contents of a bo, async if the bo is not idle.
+ * After a successful call, the bo is left unpopulated in
+ * system placement. The function may wait uninterruptible
+ * for idle on OOM.
+ *
+ * Return: 0 if successful, negative error code on failure.
+ */
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 {
 	static const struct ttm_place sys_mem = { .mem_type = TTM_PL_SYSTEM };
 	struct ttm_buffer_object *ghost;
+	struct ttm_tt *ttm;
 	int ret;
 
-	ret = ttm_buffer_object_transfer(bo, &ghost);
+	/* If already idle, no need for ghost object dance. */
+	ret = ttm_bo_wait(bo, false, true);
+	if (ret != -EBUSY) {
+		if (!bo->ttm) {
+			/* See comment below about clearing. */
+			ret = ttm_tt_create(bo, true);
+			if (ret)
+				return ret;
+		} else {
+			ttm_tt_unpopulate(bo->bdev, bo->ttm);
+			if (bo->type == ttm_bo_type_device)
+				ttm_tt_mark_for_clear(bo->ttm);
+		}
+		ttm_resource_free(bo, &bo->resource);
+		return ttm_resource_alloc(bo, &sys_mem, &bo->resource);
+	}
+
+	/*
+	 * We need an unpopulated ttm_tt after giving our current one,
+	 * if any, to the ghost object. And we can't afford to fail
+	 * creating one *after* the operation. If the bo subsequently gets
+	 * resurrected, make sure it's cleared (if ttm_bo_type_device)
+	 * to avoid leaking sensitive information to user-space.
+	 */
+
+	ttm = bo->ttm;
+	bo->ttm = NULL;
+	ret = ttm_tt_create(bo, true);
+	swap(bo->ttm, ttm);
 	if (ret)
 		return ret;
+
+	ret = ttm_buffer_object_transfer(bo, &ghost);
+	if (ret) {
+		ttm_tt_destroy(bo->bdev, ttm);
+		return ret;
+	}
 
 	ret = dma_resv_copy_fences(&ghost->base._resv, bo->base.resv);
 	/* Last resort, wait for the BO to be idle when we are OOM */
 	if (ret)
 		ttm_bo_wait(bo, false, false);
 
-	ret = ttm_resource_alloc(bo, &sys_mem, &bo->resource);
-	bo->ttm = NULL;
-
 	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);
+	bo->ttm = ttm;
 
-	return ret;
+	return ttm_resource_alloc(bo, &sys_mem, &bo->resource);
 }
