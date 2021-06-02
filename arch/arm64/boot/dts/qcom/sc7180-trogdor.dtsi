@@ -1589,7 +1589,7 @@ ap_spi_fp: &spi10 {
 
 		pinconf-sd-cd {
 			pins = "gpio69";
-			bias-disable;
+			bias-pull-up;
 			drive-strength = <2>;
 		};
 	};
