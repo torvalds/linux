@@ -177,6 +177,7 @@ struct rockchip_dmcfreq {
 
 	bool is_fixed;
 	bool is_msch_rl_work_started;
+	bool is_set_rate_direct;
 
 	struct thermal_cooling_device *devfreq_cooling;
 	u32 static_coefficient;
@@ -335,6 +336,70 @@ rk3328_de_skew_setting_2_register(struct rk3328_ddr_de_skew_setting *de_skew,
 	}
 }
 
+static int rk_drm_get_lcdc_type(void)
+{
+	struct drm_device *drm;
+	u32 lcdc_type = 0;
+
+	drm = drm_device_get_by_name("rockchip");
+	if (drm) {
+		struct drm_connector *conn;
+
+		list_for_each_entry(conn, &drm->mode_config.connector_list,
+				    head) {
+			if (conn->encoder) {
+				lcdc_type = conn->connector_type;
+				break;
+			}
+		}
+	}
+	switch (lcdc_type) {
+	case DRM_MODE_CONNECTOR_DPI:
+	case DRM_MODE_CONNECTOR_LVDS:
+		lcdc_type = SCREEN_LVDS;
+		break;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+		lcdc_type = SCREEN_DP;
+		break;
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+		lcdc_type = SCREEN_HDMI;
+		break;
+	case DRM_MODE_CONNECTOR_TV:
+		lcdc_type = SCREEN_TVOUT;
+		break;
+	case DRM_MODE_CONNECTOR_eDP:
+		lcdc_type = SCREEN_EDP;
+		break;
+	case DRM_MODE_CONNECTOR_DSI:
+		lcdc_type = SCREEN_MIPI;
+		break;
+	default:
+		lcdc_type = SCREEN_NULL;
+		break;
+	}
+
+	return lcdc_type;
+}
+
+static int rockchip_ddr_set_rate(unsigned long target_rate)
+{
+	struct arm_smccc_res res;
+
+	ddr_psci_param->hz = target_rate;
+	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
+	ddr_psci_param->wait_flag1 = 1;
+	ddr_psci_param->wait_flag0 = 1;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE);
+
+	if ((int)res.a1 == SIP_RET_SET_RATE_TIMEOUT)
+		rockchip_dmcfreq_wait_complete();
+
+	return res.a0;
+}
+
 static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
@@ -355,9 +420,13 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	target_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
-	target_rate = clk_round_rate(dmcfreq->dmc_clk, *freq);
-	if ((long)target_rate <= 0)
+	if (dmcfreq->is_set_rate_direct) {
 		target_rate = *freq;
+	} else {
+		target_rate = clk_round_rate(dmcfreq->dmc_clk, *freq);
+		if ((long)target_rate <= 0)
+			target_rate = *freq;
+	}
 
 	if (dmcfreq->rate == target_rate) {
 		if (dmcfreq->volt == target_volt)
@@ -435,7 +504,12 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	while (!down_write_trylock(&rockchip_dmcfreq_sem))
 		cond_resched();
 	dev_dbg(dev, "%lu-->%lu\n", old_clk_rate, target_rate);
-	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
+
+	if (dmcfreq->is_set_rate_direct)
+		err = rockchip_ddr_set_rate(target_rate);
+	else
+		err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
+
 	up_write(&rockchip_dmcfreq_sem);
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n",
@@ -1074,52 +1148,6 @@ err:
 	}
 	of_node_put(np_tim);
 	return timing;
-}
-
-static int rk_drm_get_lcdc_type(void)
-{
-	struct drm_device *drm;
-	u32 lcdc_type = 0;
-
-	drm = drm_device_get_by_name("rockchip");
-	if (drm) {
-		struct drm_connector *conn;
-
-		list_for_each_entry(conn, &drm->mode_config.connector_list,
-				    head) {
-			if (conn->encoder) {
-				lcdc_type = conn->connector_type;
-				break;
-			}
-		}
-	}
-	switch (lcdc_type) {
-	case DRM_MODE_CONNECTOR_DPI:
-	case DRM_MODE_CONNECTOR_LVDS:
-		lcdc_type = SCREEN_LVDS;
-		break;
-	case DRM_MODE_CONNECTOR_DisplayPort:
-		lcdc_type = SCREEN_DP;
-		break;
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
-		lcdc_type = SCREEN_HDMI;
-		break;
-	case DRM_MODE_CONNECTOR_TV:
-		lcdc_type = SCREEN_TVOUT;
-		break;
-	case DRM_MODE_CONNECTOR_eDP:
-		lcdc_type = SCREEN_EDP;
-		break;
-	case DRM_MODE_CONNECTOR_DSI:
-		lcdc_type = SCREEN_MIPI;
-		break;
-	default:
-		lcdc_type = SCREEN_NULL;
-		break;
-	}
-
-	return lcdc_type;
 }
 
 static int rockchip_ddr_set_auto_self_refresh(uint32_t en)
@@ -1848,6 +1876,7 @@ static __maybe_unused int rk3568_dmc_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "cannot get frequency info\n");
 		return ret;
 	}
+	dmcfreq->is_set_rate_direct = true;
 
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
