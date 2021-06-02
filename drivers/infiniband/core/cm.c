@@ -413,12 +413,19 @@ static int cm_alloc_response_msg(struct cm_port *port,
 
 	ret = cm_create_response_msg_ah(port, mad_recv_wc, m);
 	if (ret) {
-		cm_free_msg(m);
+		ib_free_send_mad(m);
 		return ret;
 	}
 
 	*msg = m;
 	return 0;
+}
+
+static void cm_free_response_msg(struct ib_mad_send_buf *msg)
+{
+	if (msg->ah)
+		rdma_destroy_ah(msg->ah, 0);
+	ib_free_send_mad(msg);
 }
 
 static void *cm_copy_private_data(const void *private_data, u8 private_data_len)
@@ -1569,16 +1576,16 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	ret = ib_post_send_mad(cm_id_priv->msg, NULL);
 	if (ret) {
+		cm_free_msg(cm_id_priv->msg);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		goto error2;
+		goto out;
 	}
 	BUG_ON(cm_id->state != IB_CM_IDLE);
 	cm_id->state = IB_CM_REQ_SENT;
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return 0;
-
-error2:	cm_free_msg(cm_id_priv->msg);
-out:	return ret;
+out:
+	return ret;
 }
 EXPORT_SYMBOL(ib_send_cm_req);
 
@@ -1618,7 +1625,7 @@ static int cm_issue_rej(struct cm_port *port,
 		IBA_GET(CM_REJ_REMOTE_COMM_ID, rcv_msg));
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
-		cm_free_msg(msg);
+		cm_free_response_msg(msg);
 
 	return ret;
 }
@@ -1974,7 +1981,7 @@ static void cm_dup_req_handler(struct cm_work *work,
 	return;
 
 unlock:	spin_unlock_irq(&cm_id_priv->lock);
-free:	cm_free_msg(msg);
+free:	cm_free_response_msg(msg);
 }
 
 static struct cm_id_private *cm_match_req(struct cm_work *work,
@@ -2453,7 +2460,7 @@ static void cm_dup_rep_handler(struct cm_work *work)
 	goto deref;
 
 unlock:	spin_unlock_irq(&cm_id_priv->lock);
-free:	cm_free_msg(msg);
+free:	cm_free_response_msg(msg);
 deref:	cm_deref_id(cm_id_priv);
 }
 
@@ -2794,7 +2801,7 @@ static int cm_issue_drep(struct cm_port *port,
 		IBA_GET(CM_DREQ_REMOTE_COMM_ID, dreq_msg));
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
-		cm_free_msg(msg);
+		cm_free_response_msg(msg);
 
 	return ret;
 }
@@ -2853,7 +2860,7 @@ static int cm_dreq_handler(struct cm_work *work)
 
 		if (cm_create_response_msg_ah(work->port, work->mad_recv_wc, msg) ||
 		    ib_post_send_mad(msg, NULL))
-			cm_free_msg(msg);
+			cm_free_response_msg(msg);
 		goto deref;
 	case IB_CM_DREQ_RCVD:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
@@ -3343,7 +3350,7 @@ static int cm_lap_handler(struct cm_work *work)
 
 		if (cm_create_response_msg_ah(work->port, work->mad_recv_wc, msg) ||
 		    ib_post_send_mad(msg, NULL))
-			cm_free_msg(msg);
+			cm_free_response_msg(msg);
 		goto deref;
 	case IB_CM_LAP_RCVD:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
