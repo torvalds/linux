@@ -513,7 +513,7 @@ static int igt_cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	if (err)
 		return err;
 
-	ptr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
+	ptr = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
@@ -593,7 +593,9 @@ static int igt_gpu_write(struct i915_gem_context *ctx,
 		if (err)
 			break;
 
+		i915_gem_object_lock(obj, NULL);
 		err = igt_cpu_check(obj, dword, rng);
+		i915_gem_object_unlock(obj);
 		if (err)
 			break;
 	} while (!__igt_timeout(end_time, NULL));
@@ -625,6 +627,88 @@ static int igt_lmem_create(void *arg)
 	i915_gem_object_unpin_pages(obj);
 out_put:
 	i915_gem_object_put(obj);
+
+	return err;
+}
+
+static int igt_lmem_create_cleared_cpu(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	I915_RND_STATE(prng);
+	IGT_TIMEOUT(end_time);
+	u32 size, i;
+	int err;
+
+	i915_gem_drain_freed_objects(i915);
+
+	size = max_t(u32, PAGE_SIZE, i915_prandom_u32_max_state(SZ_32M, &prng));
+	size = round_up(size, PAGE_SIZE);
+	i = 0;
+
+	do {
+		struct drm_i915_gem_object *obj;
+		unsigned int flags;
+		u32 dword, val;
+		void *vaddr;
+
+		/*
+		 * Alternate between cleared and uncleared allocations, while
+		 * also dirtying the pages each time to check that the pages are
+		 * always cleared if requested, since we should get some overlap
+		 * of the underlying pages, if not all, since we are the only
+		 * user.
+		 */
+
+		flags = I915_BO_ALLOC_CPU_CLEAR;
+		if (i & 1)
+			flags = 0;
+
+		obj = i915_gem_object_create_lmem(i915, size, flags);
+		if (IS_ERR(obj))
+			return PTR_ERR(obj);
+
+		i915_gem_object_lock(obj, NULL);
+		err = i915_gem_object_pin_pages(obj);
+		if (err)
+			goto out_put;
+
+		dword = i915_prandom_u32_max_state(PAGE_SIZE / sizeof(u32),
+						   &prng);
+
+		if (flags & I915_BO_ALLOC_CPU_CLEAR) {
+			err = igt_cpu_check(obj, dword, 0);
+			if (err) {
+				pr_err("%s failed with size=%u, flags=%u\n",
+				       __func__, size, flags);
+				goto out_unpin;
+			}
+		}
+
+		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+		if (IS_ERR(vaddr)) {
+			err = PTR_ERR(vaddr);
+			goto out_unpin;
+		}
+
+		val = prandom_u32_state(&prng);
+
+		memset32(vaddr, val, obj->base.size / sizeof(u32));
+
+		i915_gem_object_flush_map(obj);
+		i915_gem_object_unpin_map(obj);
+out_unpin:
+		i915_gem_object_unpin_pages(obj);
+		__i915_gem_object_put_pages(obj);
+out_put:
+		i915_gem_object_unlock(obj);
+		i915_gem_object_put(obj);
+
+		if (err)
+			break;
+		++i;
+	} while (!__igt_timeout(end_time, NULL));
+
+	pr_info("%s completed (%u) iterations\n", __func__, i);
 
 	return err;
 }
@@ -1043,6 +1127,7 @@ int intel_memory_region_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_lmem_create),
+		SUBTEST(igt_lmem_create_cleared_cpu),
 		SUBTEST(igt_lmem_write_cpu),
 		SUBTEST(igt_lmem_write_gpu),
 	};

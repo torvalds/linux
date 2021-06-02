@@ -27,6 +27,7 @@
 
 #include "display/intel_frontbuffer.h"
 
+#include "gem/i915_gem_lmem.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_gt.h"
@@ -93,7 +94,6 @@ static int __i915_vma_active(struct i915_active *ref)
 	return i915_vma_tryget(active_to_vma(ref)) ? 0 : -ENOENT;
 }
 
-__i915_active_call
 static void __i915_vma_retire(struct i915_active *ref)
 {
 	i915_vma_put(active_to_vma(ref));
@@ -124,7 +124,7 @@ vma_create(struct drm_i915_gem_object *obj,
 	vma->size = obj->base.size;
 	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
-	i915_active_init(&vma->active, __i915_vma_active, __i915_vma_retire);
+	i915_active_init(&vma->active, __i915_vma_active, __i915_vma_retire, 0);
 
 	/* Declare ourselves safe for use inside shrinkers */
 	if (IS_ENABLED(CONFIG_LOCKDEP)) {
@@ -448,9 +448,11 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	void __iomem *ptr;
 	int err;
 
-	if (GEM_WARN_ON(!i915_vma_is_map_and_fenceable(vma))) {
-		err = -ENODEV;
-		goto err;
+	if (!i915_gem_object_is_lmem(vma->obj)) {
+		if (GEM_WARN_ON(!i915_vma_is_map_and_fenceable(vma))) {
+			err = -ENODEV;
+			goto err;
+		}
 	}
 
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
@@ -458,9 +460,19 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 
 	ptr = READ_ONCE(vma->iomap);
 	if (ptr == NULL) {
-		ptr = io_mapping_map_wc(&i915_vm_to_ggtt(vma->vm)->iomap,
-					vma->node.start,
-					vma->node.size);
+		/*
+		 * TODO: consider just using i915_gem_object_pin_map() for lmem
+		 * instead, which already supports mapping non-contiguous chunks
+		 * of pages, that way we can also drop the
+		 * I915_BO_ALLOC_CONTIGUOUS when allocating the object.
+		 */
+		if (i915_gem_object_is_lmem(vma->obj))
+			ptr = i915_gem_object_lmem_io_map(vma->obj, 0,
+							  vma->obj->base.size);
+		else
+			ptr = io_mapping_map_wc(&i915_vm_to_ggtt(vma->vm)->iomap,
+						vma->node.start,
+						vma->node.size);
 		if (ptr == NULL) {
 			err = -ENOMEM;
 			goto err;
@@ -905,8 +917,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 			if (err)
 				goto err_fence;
 
-			err = i915_vm_pin_pt_stash(vma->vm,
-						   &work->stash);
+			err = i915_vm_map_pt_stash(vma->vm, &work->stash);
 			if (err)
 				goto err_fence;
 		}

@@ -607,9 +607,38 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN11_DIS_PICK_2ND_EU);
 }
 
+/*
+ * These settings aren't actually workarounds, but general tuning settings that
+ * need to be programmed on several platforms.
+ */
+static void gen12_ctx_gt_tuning_init(struct intel_engine_cs *engine,
+				     struct i915_wa_list *wal)
+{
+	/*
+	 * Although some platforms refer to it as Wa_1604555607, we need to
+	 * program it even on those that don't explicitly list that
+	 * workaround.
+	 *
+	 * Note that the programming of this register is further modified
+	 * according to the FF_MODE2 guidance given by Wa_1608008084:gen12.
+	 * Wa_1608008084 tells us the FF_MODE2 register will return the wrong
+	 * value when read. The default value for this register is zero for all
+	 * fields and there are no bit masks. So instead of doing a RMW we
+	 * should just write TDS timer value. For the same reason read
+	 * verification is ignored.
+	 */
+	wa_add(wal,
+	       FF_MODE2,
+	       FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_TDS_TIMER_128,
+	       0);
+}
+
 static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 				       struct i915_wa_list *wal)
 {
+	gen12_ctx_gt_tuning_init(engine, wal);
+
 	/*
 	 * Wa_1409142259:tgl
 	 * Wa_1409347922:tgl
@@ -628,27 +657,17 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
-}
-
-static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
-				     struct i915_wa_list *wal)
-{
-	gen12_ctx_workarounds_init(engine, wal);
 
 	/*
-	 * Wa_1604555607:tgl,rkl
+	 * Wa_16011163337
 	 *
-	 * Note that the implementation of this workaround is further modified
-	 * according to the FF_MODE2 guidance given by Wa_1608008084:gen12.
-	 * FF_MODE2 register will return the wrong value when read. The default
-	 * value for this register is zero for all fields and there are no bit
-	 * masks. So instead of doing a RMW we should just write the GS Timer
-	 * and TDS timer values for Wa_1604555607 and Wa_16011163337.
+	 * Like in gen12_ctx_gt_tuning_init(), read verification is ignored due
+	 * to Wa_1608008084.
 	 */
 	wa_add(wal,
 	       FF_MODE2,
-	       FF_MODE2_GS_TIMER_MASK | FF_MODE2_TDS_TIMER_MASK,
-	       FF_MODE2_GS_TIMER_224  | FF_MODE2_TDS_TIMER_128,
+	       FF_MODE2_GS_TIMER_MASK,
+	       FF_MODE2_GS_TIMER_224,
 	       0);
 }
 
@@ -664,16 +683,6 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* Wa_22010493298 */
 	wa_masked_en(wal, HIZ_CHICKEN,
 		     DG1_HZ_READ_SUPPRESSION_OPTIMIZATION_DISABLE);
-
-	/*
-	 * Wa_16011163337
-	 *
-	 * Like in tgl_ctx_workarounds_init(), read verification is ignored due
-	 * to Wa_1608008084.
-	 */
-	wa_add(wal,
-	       FF_MODE2,
-	       FF_MODE2_GS_TIMER_MASK, FF_MODE2_GS_TIMER_224, 0);
 }
 
 static void
@@ -690,9 +699,6 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
-	else if (IS_ALDERLAKE_S(i915) || IS_ROCKETLAKE(i915) ||
-		 IS_TIGERLAKE(i915))
-		tgl_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 12))
 		gen12_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 11))
@@ -1078,11 +1084,37 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 }
 
+/*
+ * Though there are per-engine instances of these registers,
+ * they retain their value through engine resets and should
+ * only be provided on the GT workaround list rather than
+ * the engine-specific workaround list.
+ */
+static void
+wa_14011060649(struct drm_i915_private *i915, struct i915_wa_list *wal)
+{
+	struct intel_engine_cs *engine;
+	struct intel_gt *gt = &i915->gt;
+	int id;
+
+	for_each_engine(engine, gt, id) {
+		if (engine->class != VIDEO_DECODE_CLASS ||
+		    (engine->instance % 2))
+			continue;
+
+		wa_write_or(wal, VDBOX_CGCTL3F10(engine->mmio_base),
+			    IECPUNIT_CLKGATE_DIS);
+	}
+}
+
 static void
 gen12_gt_workarounds_init(struct drm_i915_private *i915,
 			  struct i915_wa_list *wal)
 {
 	wa_init_mcr(i915, wal);
+
+	/* Wa_14011060649:tgl,rkl,dg1,adls */
+	wa_14011060649(i915, wal);
 }
 
 static void
@@ -1755,11 +1787,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
-		/* Wa_22010271021:ehl */
-		if (IS_JSL_EHL(i915))
-			wa_masked_en(wal,
-				     GEN9_CS_DEBUG_MODE1,
-				     FF_DOP_CLOCK_GATE_DISABLE);
+		/* Wa_22010271021 */
+		wa_masked_en(wal,
+			     GEN9_CS_DEBUG_MODE1,
+			     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 12)) {
@@ -1828,9 +1859,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			      CACHE_MODE_0_GEN7,
 			      /* enable HiZ Raw Stall Optimization */
 			      HIZ_RAW_STALL_OPT_DISABLE);
-
-		/* WaDisable4x2SubspanOptimization:hsw */
-		wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
 	}
 
 	if (IS_VALLEYVIEW(i915)) {

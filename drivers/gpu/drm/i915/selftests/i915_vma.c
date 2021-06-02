@@ -967,6 +967,9 @@ static int igt_vma_remapped_gtt(void *arg)
 	intel_wakeref_t wakeref;
 	int err = 0;
 
+	if (!i915_ggtt_has_aperture(&i915->ggtt))
+		return 0;
+
 	obj = i915_gem_object_create_internal(i915, 10 * 10 * PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);

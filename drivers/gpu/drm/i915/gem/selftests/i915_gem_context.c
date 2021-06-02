@@ -1740,7 +1740,6 @@ out:
 static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
 {
 	struct i915_address_space *vm;
-	struct page *page;
 	u32 *vaddr;
 	int err = 0;
 
@@ -1748,24 +1747,18 @@ static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
 	if (!vm)
 		return -ENODEV;
 
-	page = __px_page(vm->scratch[0]);
-	if (!page) {
+	if (!vm->scratch[0]) {
 		pr_err("No scratch page!\n");
 		return -EINVAL;
 	}
 
-	vaddr = kmap(page);
-	if (!vaddr) {
-		pr_err("No (mappable) scratch page!\n");
-		return -EINVAL;
-	}
+	vaddr = __px_vaddr(vm->scratch[0]);
 
 	memcpy(out, vaddr, sizeof(*out));
 	if (memchr_inv(vaddr, *out, PAGE_SIZE)) {
 		pr_err("Inconsistent initial state of scratch page!\n");
 		err = -EINVAL;
 	}
-	kunmap(page);
 
 	return err;
 }

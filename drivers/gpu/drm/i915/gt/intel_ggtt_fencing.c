@@ -653,8 +653,8 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 * banks of memory are paired and unswizzled on the
 		 * uneven portion, so leave that as unknown.
 		 */
-		if (intel_uncore_read16(uncore, C0DRB3) ==
-		    intel_uncore_read16(uncore, C1DRB3)) {
+		if (intel_uncore_read16(uncore, C0DRB3_BW) ==
+		    intel_uncore_read16(uncore, C1DRB3_BW)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
@@ -867,7 +867,7 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 	for (i = 0; i < num_fences; i++) {
 		struct i915_fence_reg *fence = &ggtt->fence_regs[i];
 
-		i915_active_init(&fence->active, NULL, NULL);
+		i915_active_init(&fence->active, NULL, NULL, 0);
 		fence->ggtt = ggtt;
 		fence->id = i;
 		list_add_tail(&fence->link, &ggtt->fence_list);

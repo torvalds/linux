@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/io-mapping.h>
 #include <drm/drm_mm.h>
+#include <drm/i915_drm.h>
 
 #include "i915_buddy.h"
 
@@ -19,25 +20,25 @@ struct drm_i915_gem_object;
 struct intel_memory_region;
 struct sg_table;
 
-/**
- *  Base memory type
- */
 enum intel_memory_type {
-	INTEL_MEMORY_SYSTEM = 0,
-	INTEL_MEMORY_LOCAL,
+	INTEL_MEMORY_SYSTEM = I915_MEMORY_CLASS_SYSTEM,
+	INTEL_MEMORY_LOCAL = I915_MEMORY_CLASS_DEVICE,
 	INTEL_MEMORY_STOLEN_SYSTEM,
+	INTEL_MEMORY_STOLEN_LOCAL,
 };
 
 enum intel_region_id {
 	INTEL_REGION_SMEM = 0,
 	INTEL_REGION_LMEM,
 	INTEL_REGION_STOLEN_SMEM,
+	INTEL_REGION_STOLEN_LMEM,
 	INTEL_REGION_UNKNOWN, /* Should be last */
 };
 
 #define REGION_SMEM     BIT(INTEL_REGION_SMEM)
 #define REGION_LMEM     BIT(INTEL_REGION_LMEM)
 #define REGION_STOLEN_SMEM   BIT(INTEL_REGION_STOLEN_SMEM)
+#define REGION_STOLEN_LMEM   BIT(INTEL_REGION_STOLEN_LMEM)
 
 #define I915_ALLOC_MIN_PAGE_SIZE  BIT(0)
 #define I915_ALLOC_CONTIGUOUS     BIT(1)
@@ -82,7 +83,8 @@ struct intel_memory_region {
 	u16 type;
 	u16 instance;
 	enum intel_region_id id;
-	char name[8];
+	char name[16];
+	bool private; /* not for userspace */
 
 	struct list_head reserved;
 
@@ -94,6 +96,10 @@ struct intel_memory_region {
 		struct list_head purgeable;
 	} objects;
 };
+
+struct intel_memory_region *
+intel_memory_region_lookup(struct drm_i915_private *i915,
+			   u16 class, u16 instance);
 
 int intel_memory_region_init_buddy(struct intel_memory_region *mem);
 void intel_memory_region_release_buddy(struct intel_memory_region *mem);

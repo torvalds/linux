@@ -211,7 +211,6 @@ static int frontbuffer_active(struct i915_active *ref)
 	return 0;
 }
 
-__i915_active_call
 static void frontbuffer_retire(struct i915_active *ref)
 {
 	struct intel_frontbuffer *front =
@@ -266,7 +265,8 @@ intel_frontbuffer_get(struct drm_i915_gem_object *obj)
 	atomic_set(&front->bits, 0);
 	i915_active_init(&front->write,
 			 frontbuffer_active,
-			 i915_active_may_sleep(frontbuffer_retire));
+			 frontbuffer_retire,
+			 I915_ACTIVE_RETIRE_SLEEPS);
 
 	spin_lock(&i915->fb_tracking.lock);
 	if (rcu_access_pointer(obj->frontbuffer)) {
