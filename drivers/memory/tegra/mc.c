@@ -829,8 +829,8 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	mc->debugfs.root = debugfs_create_dir("mc", NULL);
 
-	if (mc->soc->init) {
-		err = mc->soc->init(mc);
+	if (mc->soc->ops && mc->soc->ops->init) {
+		err = mc->soc->ops->init(mc);
 		if (err < 0)
 			dev_err(&pdev->dev, "failed to initialize SoC driver: %d\n",
 				err);

@@ -169,6 +169,10 @@ struct tegra_mc_icc_ops {
 						void *data);
 };
 
+struct tegra_mc_ops {
+	int (*init)(struct tegra_mc *mc);
+};
+
 struct tegra_mc_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
@@ -190,8 +194,7 @@ struct tegra_mc_soc {
 	unsigned int num_resets;
 
 	const struct tegra_mc_icc_ops *icc_ops;
-
-	int (*init)(struct tegra_mc *mc);
+	const struct tegra_mc_ops *ops;
 };
 
 struct tegra_mc {

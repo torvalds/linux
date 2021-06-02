@@ -687,6 +687,10 @@ static int tegra20_mc_init(struct tegra_mc *mc)
 	return 0;
 }
 
+static const struct tegra_mc_ops tegra20_mc_ops = {
+	.init = tegra20_mc_init,
+};
+
 const struct tegra_mc_soc tegra20_mc_soc = {
 	.clients = tegra20_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra20_mc_clients),
@@ -698,5 +702,5 @@ const struct tegra_mc_soc tegra20_mc_soc = {
 	.resets = tegra20_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra20_mc_resets),
 	.icc_ops = &tegra20_mc_icc_ops,
-	.init = tegra20_mc_init,
+	.ops = &tegra20_mc_ops,
 };
