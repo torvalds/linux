@@ -1816,15 +1816,13 @@ static void work_stop(void)
 
 static int work_start(void)
 {
-	recv_workqueue = alloc_workqueue("dlm_recv",
-					 WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	recv_workqueue = alloc_ordered_workqueue("dlm_recv", WQ_MEM_RECLAIM);
 	if (!recv_workqueue) {
 		log_print("can't start dlm_recv");
 		return -ENOMEM;
 	}
 
-	send_workqueue = alloc_workqueue("dlm_send",
-					 WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	send_workqueue = alloc_ordered_workqueue("dlm_send", WQ_MEM_RECLAIM);
 	if (!send_workqueue) {
 		log_print("can't start dlm_send");
 		destroy_workqueue(recv_workqueue);
