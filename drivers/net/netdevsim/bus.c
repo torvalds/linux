@@ -27,9 +27,9 @@ static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 				   unsigned int num_vfs)
 {
-	nsim_bus_dev->vfconfigs = kcalloc(num_vfs,
-					  sizeof(struct nsim_vf_config),
-					  GFP_KERNEL | __GFP_NOWARN);
+	if (nsim_bus_dev->max_vfs < num_vfs)
+		return -ENOMEM;
+
 	if (!nsim_bus_dev->vfconfigs)
 		return -ENOMEM;
 	nsim_bus_dev->num_vfs = num_vfs;
@@ -39,8 +39,6 @@ static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 
 static void nsim_bus_dev_vfs_disable(struct nsim_bus_dev *nsim_bus_dev)
 {
-	kfree(nsim_bus_dev->vfconfigs);
-	nsim_bus_dev->vfconfigs = NULL;
 	nsim_bus_dev->num_vfs = 0;
 }
 
@@ -56,7 +54,7 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	rtnl_lock();
+	mutex_lock(&nsim_bus_dev->vfs_lock);
 	if (nsim_bus_dev->num_vfs == num_vfs)
 		goto exit_good;
 	if (nsim_bus_dev->num_vfs && num_vfs) {
@@ -74,7 +72,7 @@ nsim_bus_dev_numvfs_store(struct device *dev, struct device_attribute *attr,
 exit_good:
 	ret = count;
 exit_unlock:
-	rtnl_unlock();
+	mutex_unlock(&nsim_bus_dev->vfs_lock);
 
 	return ret;
 }
@@ -91,6 +89,73 @@ nsim_bus_dev_numvfs_show(struct device *dev,
 static struct device_attribute nsim_bus_dev_numvfs_attr =
 	__ATTR(sriov_numvfs, 0664, nsim_bus_dev_numvfs_show,
 	       nsim_bus_dev_numvfs_store);
+
+ssize_t nsim_bus_dev_max_vfs_read(struct file *file,
+				  char __user *data,
+				  size_t count, loff_t *ppos)
+{
+	struct nsim_bus_dev *nsim_bus_dev = file->private_data;
+	char buf[11];
+	size_t len;
+
+	len = snprintf(buf, sizeof(buf), "%u\n", nsim_bus_dev->max_vfs);
+	if (len < 0)
+		return len;
+
+	return simple_read_from_buffer(data, count, ppos, buf, len);
+}
+
+ssize_t nsim_bus_dev_max_vfs_write(struct file *file,
+				   const char __user *data,
+				   size_t count, loff_t *ppos)
+{
+	struct nsim_bus_dev *nsim_bus_dev = file->private_data;
+	struct nsim_vf_config *vfconfigs;
+	ssize_t ret;
+	char buf[10];
+	u32 val;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (count >= sizeof(buf))
+		return -ENOSPC;
+
+	mutex_lock(&nsim_bus_dev->vfs_lock);
+	/* Reject if VFs are configured */
+	if (nsim_bus_dev->num_vfs) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	ret = copy_from_user(buf, data, count);
+	if (ret) {
+		ret = -EFAULT;
+		goto unlock;
+	}
+
+	buf[count] = '\0';
+	ret = kstrtouint(buf, 10, &val);
+	if (ret) {
+		ret = -EIO;
+		goto unlock;
+	}
+
+	vfconfigs = kcalloc(val, sizeof(struct nsim_vf_config), GFP_KERNEL | __GFP_NOWARN);
+	if (!vfconfigs) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	kfree(nsim_bus_dev->vfconfigs);
+	nsim_bus_dev->vfconfigs = vfconfigs;
+	nsim_bus_dev->max_vfs = val;
+	*ppos += count;
+	ret = count;
+unlock:
+	mutex_unlock(&nsim_bus_dev->vfs_lock);
+	return ret;
+}
 
 static ssize_t
 new_port_store(struct device *dev, struct device_attribute *attr,
@@ -311,6 +376,8 @@ static struct bus_type nsim_bus = {
 	.num_vf		= nsim_num_vf,
 };
 
+#define NSIM_BUS_DEV_MAX_VFS 4
+
 static struct nsim_bus_dev *
 nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 {
@@ -329,15 +396,28 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 	nsim_bus_dev->dev.type = &nsim_bus_dev_type;
 	nsim_bus_dev->port_count = port_count;
 	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
+	nsim_bus_dev->max_vfs = NSIM_BUS_DEV_MAX_VFS;
 	mutex_init(&nsim_bus_dev->nsim_bus_reload_lock);
+	mutex_init(&nsim_bus_dev->vfs_lock);
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
 
+	nsim_bus_dev->vfconfigs = kcalloc(nsim_bus_dev->max_vfs,
+					  sizeof(struct nsim_vf_config),
+					  GFP_KERNEL | __GFP_NOWARN);
+	if (!nsim_bus_dev->vfconfigs) {
+		err = -ENOMEM;
+		goto err_nsim_bus_dev_id_free;
+	}
+
 	err = device_register(&nsim_bus_dev->dev);
 	if (err)
-		goto err_nsim_bus_dev_id_free;
+		goto err_nsim_vfs_free;
+
 	return nsim_bus_dev;
 
+err_nsim_vfs_free:
+	kfree(nsim_bus_dev->vfconfigs);
 err_nsim_bus_dev_id_free:
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
 err_nsim_bus_dev_free:
@@ -351,6 +431,7 @@ static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 	smp_store_release(&nsim_bus_dev->init, false);
 	device_unregister(&nsim_bus_dev->dev);
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
+	kfree(nsim_bus_dev->vfconfigs);
 	kfree(nsim_bus_dev);
 }
 

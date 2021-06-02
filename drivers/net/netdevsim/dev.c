@@ -192,6 +192,14 @@ static const struct file_operations nsim_dev_trap_fa_cookie_fops = {
 	.owner = THIS_MODULE,
 };
 
+static const struct file_operations nsim_dev_max_vfs_fops = {
+	.open = simple_open,
+	.read = nsim_bus_dev_max_vfs_read,
+	.write = nsim_bus_dev_max_vfs_write,
+	.llseek = generic_file_llseek,
+	.owner = THIS_MODULE,
+};
+
 static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 {
 	char dev_ddir_name[sizeof(DRV_NAME) + 10];
@@ -231,6 +239,11 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 	debugfs_create_bool("fail_trap_policer_counter_get", 0600,
 			    nsim_dev->ddir,
 			    &nsim_dev->fail_trap_policer_counter_get);
+	nsim_dev->max_vfs = debugfs_create_file("max_vfs",
+						0600,
+						nsim_dev->ddir,
+						nsim_dev->nsim_bus_dev,
+						&nsim_dev_max_vfs_fops);
 	nsim_udp_tunnels_debugfs_create(nsim_dev);
 	return 0;
 }
