@@ -26,10 +26,10 @@
 
 #include <linux/iversion.h>
 
-static int xfs_inode_walk(struct xfs_mount *mp, int iter_flags,
+static int xfs_icwalk(struct xfs_mount *mp, int iter_flags,
 		int (*execute)(struct xfs_inode *ip, void *args),
 		void *args, int tag);
-static int xfs_inode_walk_ag(struct xfs_perag *pag, int iter_flags,
+static int xfs_icwalk_ag(struct xfs_perag *pag, int iter_flags,
 		int (*execute)(struct xfs_inode *ip, void *args),
 		void *args, int tag);
 
@@ -740,7 +740,7 @@ xfs_icache_inode_is_allocated(
  * lookup reduction and stack usage. This is in the reclaim path, so we can't
  * be too greedy.
  *
- * XXX: This will be moved closer to xfs_inode_walk* once we get rid of the
+ * XXX: This will be moved closer to xfs_icwalk* once we get rid of the
  * separate reclaim walk functions.
  */
 #define XFS_LOOKUP_BATCH	32
@@ -790,7 +790,7 @@ xfs_dqrele_all_inodes(
 	if (qflags & XFS_PQUOTA_ACCT)
 		eofb.eof_flags |= XFS_ICWALK_FLAG_DROP_PDQUOT;
 
-	return xfs_inode_walk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
+	return xfs_icwalk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
 			&eofb, XFS_ICI_NO_TAG);
 }
 #endif /* CONFIG_XFS_QUOTA */
@@ -1538,7 +1538,7 @@ xfs_blockgc_worker(
 
 	if (!sb_start_write_trylock(mp->m_super))
 		return;
-	error = xfs_inode_walk_ag(pag, 0, xfs_blockgc_scan_inode, NULL,
+	error = xfs_icwalk_ag(pag, 0, xfs_blockgc_scan_inode, NULL,
 			XFS_ICI_BLOCKGC_TAG);
 	if (error)
 		xfs_info(mp, "AG %u preallocation gc worker failed, err=%d",
@@ -1557,7 +1557,7 @@ xfs_blockgc_free_space(
 {
 	trace_xfs_blockgc_free_space(mp, eofb, _RET_IP_);
 
-	return xfs_inode_walk(mp, 0, xfs_blockgc_scan_inode, eofb,
+	return xfs_icwalk(mp, 0, xfs_blockgc_scan_inode, eofb,
 			XFS_ICI_BLOCKGC_TAG);
 }
 
@@ -1634,7 +1634,7 @@ xfs_blockgc_free_quota(
  * inodes with the given radix tree @tag.
  */
 static int
-xfs_inode_walk_ag(
+xfs_icwalk_ag(
 	struct xfs_perag	*pag,
 	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, void *args),
@@ -1740,7 +1740,7 @@ restart:
 
 /* Fetch the next (possibly tagged) per-AG structure. */
 static inline struct xfs_perag *
-xfs_inode_walk_get_perag(
+xfs_icwalk_get_perag(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	int			tag)
@@ -1755,7 +1755,7 @@ xfs_inode_walk_get_perag(
  * @tag.
  */
 static int
-xfs_inode_walk(
+xfs_icwalk(
 	struct xfs_mount	*mp,
 	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, void *args),
@@ -1767,9 +1767,9 @@ xfs_inode_walk(
 	int			last_error = 0;
 	xfs_agnumber_t		agno = 0;
 
-	while ((pag = xfs_inode_walk_get_perag(mp, agno, tag))) {
+	while ((pag = xfs_icwalk_get_perag(mp, agno, tag))) {
 		agno = pag->pag_agno + 1;
-		error = xfs_inode_walk_ag(pag, iter_flags, execute, args, tag);
+		error = xfs_icwalk_ag(pag, iter_flags, execute, args, tag);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
