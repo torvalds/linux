@@ -772,7 +772,8 @@ static const struct intel_memory_region_ops i915_region_stolen_lmem_ops = {
 };
 
 struct intel_memory_region *
-i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
+i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
+			   u16 instance)
 {
 	struct intel_uncore *uncore = &i915->uncore;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
@@ -790,6 +791,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
 
 	mem = intel_memory_region_create(i915, lmem_base, lmem_size,
 					 I915_GTT_PAGE_SIZE_4K, io_start,
+					 type, instance,
 					 &i915_region_stolen_lmem_ops);
 	if (IS_ERR(mem))
 		return mem;
@@ -811,14 +813,15 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
 }
 
 struct intel_memory_region*
-i915_gem_stolen_smem_setup(struct drm_i915_private *i915)
+i915_gem_stolen_smem_setup(struct drm_i915_private *i915, u16 type,
+			   u16 instance)
 {
 	struct intel_memory_region *mem;
 
 	mem = intel_memory_region_create(i915,
 					 intel_graphics_stolen_res.start,
 					 resource_size(&intel_graphics_stolen_res),
-					 PAGE_SIZE, 0,
+					 PAGE_SIZE, 0, type, instance,
 					 &i915_region_stolen_smem_ops);
 	if (IS_ERR(mem))
 		return mem;
@@ -826,7 +829,6 @@ i915_gem_stolen_smem_setup(struct drm_i915_private *i915)
 	intel_memory_region_set_name(mem, "stolen-system");
 
 	mem->private = true;
-
 	return mem;
 }
 

@@ -13,8 +13,6 @@
 #include <drm/drm_mm.h>
 #include <drm/i915_drm.h>
 
-#include "i915_buddy.h"
-
 struct drm_i915_private;
 struct drm_i915_gem_object;
 struct intel_memory_region;
@@ -25,6 +23,7 @@ enum intel_memory_type {
 	INTEL_MEMORY_LOCAL = I915_MEMORY_CLASS_DEVICE,
 	INTEL_MEMORY_STOLEN_SYSTEM,
 	INTEL_MEMORY_STOLEN_LOCAL,
+	INTEL_MEMORY_MOCK,
 };
 
 enum intel_region_id {
@@ -59,10 +58,19 @@ struct intel_memory_region_ops {
 			   unsigned int flags);
 };
 
+struct intel_memory_region_private_ops {
+	void *(*reserve)(struct intel_memory_region *mem,
+			 resource_size_t offset,
+			 resource_size_t size);
+	void (*free)(struct intel_memory_region *mem,
+		     void *node);
+};
+
 struct intel_memory_region {
 	struct drm_i915_private *i915;
 
 	const struct intel_memory_region_ops *ops;
+	const struct intel_memory_region_private_ops *priv_ops;
 
 	struct io_mapping iomap;
 	struct resource region;
@@ -70,7 +78,6 @@ struct intel_memory_region {
 	/* For fake LMEM */
 	struct drm_mm_node fake_mappable;
 
-	struct i915_buddy_mm mm;
 	struct mutex mm_lock;
 
 	struct kref kref;
@@ -95,29 +102,17 @@ struct intel_memory_region {
 		struct list_head list;
 		struct list_head purgeable;
 	} objects;
+
+	size_t chunk_size;
+	unsigned int max_order;
+	bool is_range_manager;
+
+	void *region_private;
 };
 
 struct intel_memory_region *
 intel_memory_region_lookup(struct drm_i915_private *i915,
 			   u16 class, u16 instance);
-
-int intel_memory_region_init_buddy(struct intel_memory_region *mem);
-void intel_memory_region_release_buddy(struct intel_memory_region *mem);
-
-int __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
-					  resource_size_t size,
-					  unsigned int flags,
-					  struct list_head *blocks);
-struct i915_buddy_block *
-__intel_memory_region_get_block_buddy(struct intel_memory_region *mem,
-				      resource_size_t size,
-				      unsigned int flags);
-void __intel_memory_region_put_pages_buddy(struct intel_memory_region *mem,
-					   struct list_head *blocks);
-void __intel_memory_region_put_block_buddy(struct i915_buddy_block *block);
-
-int intel_memory_region_reserve(struct intel_memory_region *mem,
-				u64 offset, u64 size);
 
 struct intel_memory_region *
 intel_memory_region_create(struct drm_i915_private *i915,
@@ -125,6 +120,8 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t size,
 			   resource_size_t min_page_size,
 			   resource_size_t io_start,
+			   u16 type,
+			   u16 instance,
 			   const struct intel_memory_region_ops *ops);
 
 struct intel_memory_region *
@@ -141,4 +138,9 @@ __printf(2, 3) void
 intel_memory_region_set_name(struct intel_memory_region *mem,
 			     const char *fmt, ...);
 
+void intel_memory_region_unreserve(struct intel_memory_region *mem);
+
+int intel_memory_region_reserve(struct intel_memory_region *mem,
+				resource_size_t offset,
+				resource_size_t size);
 #endif

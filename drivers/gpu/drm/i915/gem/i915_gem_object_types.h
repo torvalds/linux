@@ -235,10 +235,12 @@ struct drm_i915_gem_object {
 		 * Memory region for this object.
 		 */
 		struct intel_memory_region *region;
+
 		/**
-		 * List of memory region blocks allocated for this object.
+		 * Memory manager node allocated for this object.
 		 */
-		struct list_head blocks;
+		void *st_mm_node;
+
 		/**
 		 * Element within memory_region->objects or region->purgeable
 		 * if the object is marked as DONTNEED. Access is protected by
