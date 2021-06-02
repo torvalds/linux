@@ -463,6 +463,8 @@ struct vop2_video_port {
 	 */
 	uint8_t nr_layers;
 
+	int cursor_win_id;
+
 	/**
 	 * @active_tv_state: TV connector related states
 	 */
@@ -2980,12 +2982,18 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		DRM_ERROR("vp%d %s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
 			  vp->id, win->name, dest->x1, dsp_w, adjusted_mode->hdisplay);
 		dsp_w = adjusted_mode->hdisplay - dest->x1;
+		if (dsp_w < 4)
+			dsp_w = 4;
+		actual_w = dsp_w * actual_w / drm_rect_width(dest);
 	}
 	dsp_h = drm_rect_height(dest);
 	if (dest->y1 + dsp_h > adjusted_mode->vdisplay) {
 		DRM_ERROR("vp%d %s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
 			  vp->id, win->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
 		dsp_h = adjusted_mode->vdisplay - dest->y1;
+		if (dsp_h < 4)
+			dsp_h = 4;
+		actual_h = dsp_h * actual_h / drm_rect_height(dest);
 	}
 
 	/*
@@ -5681,7 +5689,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 
 	if (win->feature & WIN_FEATURE_AFBDC) {
 		if (vop2->disable_afbc_win)
-			return 0;
+			return -EACCES;
 	}
 
 	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, possible_crtcs,
@@ -5757,6 +5765,24 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
 
 	return 0;
+}
+
+static struct drm_plane *vop2_cursor_plane_init(struct vop2_video_port *vp,
+						unsigned long possible_crtcs)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_plane *cursor = NULL;
+	struct vop2_win *win;
+
+	win = vop2_find_win_by_phys_id(vop2, vp->cursor_win_id);
+	if (win) {
+		win->type = DRM_PLANE_TYPE_CURSOR;
+		win->zpos = vop2->registered_num_wins - 1;
+		if (!vop2_plane_init(vop2, win, possible_crtcs))
+			cursor = &win->base;
+	}
+
+	return cursor;
 }
 
 static int vop2_gamma_init(struct vop2 *vop2)
@@ -5848,6 +5874,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	struct drm_device *drm_dev = vop2->drm_dev;
 	struct device *dev = vop2->dev;
 	struct drm_plane *plane;
+	struct drm_plane *cursor = NULL;
 	struct drm_crtc *crtc;
 	struct device_node *port;
 	struct vop2_win *win = NULL;
@@ -5875,6 +5902,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		vp->vop2 = vop2;
 		vp->id = vp_data->id;
 		vp->regs = vp_data->regs;
+		vp->cursor_win_id = -1;
 		if (vop2_soc_is_rk3566())
 			soc_id = vp_data->soc_id[1];
 		else
@@ -5888,6 +5916,14 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 
 		crtc = &vp->crtc;
+
+		port = of_graph_get_port_by_id(dev->of_node, i);
+		if (!port) {
+			DRM_DEV_ERROR(vop2->dev, "no port node found for video_port%d\n", i);
+			return -ENOENT;
+		}
+		crtc->port = port;
+		of_property_read_u32(port, "cursor-win-id", &vp->cursor_win_id);
 
 		if (vp->primary_plane_phy_id >= 0) {
 			win = vop2_find_win_by_phys_id(vop2, vp->primary_plane_phy_id);
@@ -5929,11 +5965,24 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 
 		if (vop2_plane_init(vop2, win, possible_crtcs)) {
-			DRM_DEV_ERROR(vop2->dev, "failed to init plane\n");
+			DRM_DEV_ERROR(vop2->dev, "failed to init primary plane\n");
 			break;
 		}
 		plane = &win->base;
-		ret = drm_crtc_init_with_planes(drm_dev, crtc, plane, NULL, &vop2_crtc_funcs,
+
+		/* some times we want a cursor window for some vp */
+		if (vp->cursor_win_id >= 0) {
+			cursor = vop2_cursor_plane_init(vp, possible_crtcs);
+			if (!cursor)
+				DRM_WARN("failed to init cursor plane for vp%d\n", vp->id);
+			else
+				DRM_DEV_INFO(vop2->dev, "%s as cursor plane for vp%d\n",
+					     cursor->name, vp->id);
+		} else {
+			cursor = NULL;
+		}
+
+		ret = drm_crtc_init_with_planes(drm_dev, crtc, plane, cursor, &vop2_crtc_funcs,
 						"video_port%d", vp->id);
 		if (ret) {
 			DRM_DEV_ERROR(vop2->dev, "crtc init for video_port%d failed\n", i);
@@ -5941,14 +5990,6 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 
 		drm_crtc_helper_add(crtc, &vop2_crtc_helper_funcs);
-
-		port = of_graph_get_port_by_id(dev->of_node, i);
-		if (!port) {
-			DRM_DEV_ERROR(vop2->dev, "no port node found for video_port%d\n", i);
-			ret = -ENOENT;
-		}
-
-		crtc->port = port;
 
 		drm_flip_work_init(&vp->fb_unref_work, "fb_unref", vop2_fb_unref_worker);
 
@@ -6001,13 +6042,11 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			continue;
 
 		ret = vop2_plane_init(vop2, win, possible_crtcs);
-		if (ret) {
-			DRM_DEV_ERROR(vop2->dev, "failed to init overlay\n");
-			break;
-		}
+		if (ret)
+			DRM_WARN("failed to init overlay plane %s\n", win->name);
 	}
 
-	return ret;
+	return 0;
 }
 
 static void vop2_destroy_crtc(struct drm_crtc *crtc)
