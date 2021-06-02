@@ -143,7 +143,6 @@
 #define VOP2_COLOR_KEY_NONE		(0 << 31)
 #define VOP2_COLOR_KEY_MASK		(1 << 31)
 
-
 enum vop2_data_format {
 	VOP2_FMT_ARGB8888 = 0,
 	VOP2_FMT_RGB888,
@@ -538,6 +537,7 @@ struct vop2 {
 	struct drm_property *soc_id_prop;
 	struct drm_property *vp_id_prop;
 	struct drm_property *aclk_prop;
+	struct drm_property *bg_prop;
 	struct drm_prop_enum_list *plane_name_list;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
@@ -5036,15 +5036,30 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
 	uint32_t val;
+	uint32_t r, g, b;
 
 	spin_lock(&vop2->reg_lock);
 
 	VOP_MODULE_SET(vop2, vp, overlay_mode, vcstate->yuv_overlay);
 
-	if (vcstate->yuv_overlay)
-		val = 0x20010200;
-	else
-		val = 0;
+	/*
+	 * userspace specified background.
+	 */
+	if (vcstate->background) {
+		r = (vcstate->background & 0xff0000) >> 16;
+		g = (vcstate->background & 0xff00) >> 8;
+		b = (vcstate->background & 0xff);
+		r <<= 2;
+		g <<= 2;
+		b <<= 2;
+		val = (r << 20) | (g << 10) | b;
+	} else {
+		if (vcstate->yuv_overlay)
+			val = 0x20010200;
+		else
+			val = 0;
+	}
+
 	VOP_MODULE_SET(vop2, vp, dsp_background, val);
 
 	vop2_tv_config_update(crtc, old_crtc_state);
@@ -5170,6 +5185,7 @@ static void vop2_crtc_reset(struct drm_crtc *crtc)
 	vcstate->right_margin = 100;
 	vcstate->top_margin = 100;
 	vcstate->bottom_margin = 100;
+	vcstate->background = 0;
 }
 
 static struct drm_crtc_state *vop2_crtc_duplicate_state(struct drm_crtc *crtc)
@@ -5302,7 +5318,14 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	DRM_ERROR("failed to get vop2 crtc property\n");
+
+	if (property == vop2->bg_prop) {
+		*val = vcstate->background;
+		return 0;
+	}
+
+	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
+
 	return -EINVAL;
 }
 
@@ -5312,8 +5335,10 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 uint64_t val)
 {
 	struct drm_device *drm_dev = crtc->dev;
-	struct drm_mode_config *mode_config = &drm_dev->mode_config;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(state);
+	struct drm_mode_config *mode_config = &drm_dev->mode_config;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
 
 	if (property == mode_config->tv_left_margin_property) {
 		vcstate->left_margin = val;
@@ -5335,7 +5360,14 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	DRM_ERROR("failed to set vop2 crtc property\n");
+
+	if (property == vop2->bg_prop) {
+		vcstate->background = val;
+		return 0;
+	}
+
+	DRM_ERROR("failed to set vop2 crtc property %s\n", property->name);
+
 	return -EINVAL;
 }
 
@@ -5887,6 +5919,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, soc_id);
 		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
 		drm_object_attach_property(&crtc->base, vop2->aclk_prop, 0);
+		drm_object_attach_property(&crtc->base, vop2->bg_prop, 0);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_left_margin_property, 100);
 		drm_object_attach_property(&crtc->base,
@@ -6065,8 +6098,9 @@ static int vop2_win_init(struct vop2 *vop2)
 	vop2->vp_id_prop = prop;
 
 	vop2->aclk_prop = drm_property_create_range(vop2->drm_dev, 0, "ACLK", 0, UINT_MAX);
+	vop2->bg_prop = drm_property_create_range(vop2->drm_dev, 0, "BACKGROUND", 0, UINT_MAX);
 
-	if (!vop2->soc_id_prop || !vop2->vp_id_prop || !vop2->aclk_prop) {
+	if (!vop2->soc_id_prop || !vop2->vp_id_prop || !vop2->aclk_prop || !vop2->bg_prop) {
 		DRM_DEV_ERROR(vop2->dev, "failed to create soc_id/vp_id/aclk property\n");
 		return -ENOMEM;
 	}
