@@ -24,6 +24,50 @@ struct qed_nvmetcp_tid {
 	u8 *blocks[MAX_TID_BLOCKS_NVMETCP];
 };
 
+struct qed_nvmetcp_id_params {
+	u8 mac[ETH_ALEN];
+	u32 ip[4];
+	u16 port;
+};
+
+struct qed_nvmetcp_params_offload {
+	/* FW initializations */
+	dma_addr_t sq_pbl_addr;
+	dma_addr_t nvmetcp_cccid_itid_table_addr;
+	u16 nvmetcp_cccid_max_range;
+	u8 default_cq;
+
+	/* Networking and TCP stack initializations */
+	struct qed_nvmetcp_id_params src;
+	struct qed_nvmetcp_id_params dst;
+	u32 ka_timeout;
+	u32 ka_interval;
+	u32 max_rt_time;
+	u32 cwnd;
+	u16 mss;
+	u16 vlan_id;
+	bool timestamp_en;
+	bool delayed_ack_en;
+	bool tcp_keep_alive_en;
+	bool ecn_en;
+	u8 ip_version;
+	u8 ka_max_probe_cnt;
+	u8 ttl;
+	u8 tos_or_tc;
+	u8 rcv_wnd_scale;
+};
+
+struct qed_nvmetcp_params_update {
+	u32 max_io_size;
+	u32 max_recv_pdu_length;
+	u32 max_send_pdu_length;
+
+	/* Placeholder: pfv, cpda, hpda */
+
+	bool hdr_digest_en;
+	bool data_digest_en;
+};
+
 struct qed_nvmetcp_cb_ops {
 	struct qed_common_cb_ops common;
 };
@@ -47,6 +91,38 @@ struct qed_nvmetcp_cb_ops {
  * @stop:		nvmetcp in FW
  *			@param cdev
  *			return 0 on success, otherwise error value.
+ * @acquire_conn:	acquire a new nvmetcp connection
+ *			@param cdev
+ *			@param handle - qed will fill handle that should be
+ *				used henceforth as identifier of the
+ *				connection.
+ *			@param p_doorbell - qed will fill the address of the
+ *				doorbell.
+ *			@return 0 on sucesss, otherwise error value.
+ * @release_conn:	release a previously acquired nvmetcp connection
+ *			@param cdev
+ *			@param handle - the connection handle.
+ *			@return 0 on success, otherwise error value.
+ * @offload_conn:	configures an offloaded connection
+ *			@param cdev
+ *			@param handle - the connection handle.
+ *			@param conn_info - the configuration to use for the
+ *				offload.
+ *			@return 0 on success, otherwise error value.
+ * @update_conn:	updates an offloaded connection
+ *			@param cdev
+ *			@param handle - the connection handle.
+ *			@param conn_info - the configuration to use for the
+ *				offload.
+ *			@return 0 on success, otherwise error value.
+ * @destroy_conn:	stops an offloaded connection
+ *			@param cdev
+ *			@param handle - the connection handle.
+ *			@return 0 on success, otherwise error value.
+ * @clear_sq:		clear all task in sq
+ *			@param cdev
+ *			@param handle - the connection handle.
+ *			@return 0 on success, otherwise error value.
  */
 struct qed_nvmetcp_ops {
 	const struct qed_common_ops *common;
@@ -64,6 +140,24 @@ struct qed_nvmetcp_ops {
 		     void *event_context, nvmetcp_event_cb_t async_event_cb);
 
 	int (*stop)(struct qed_dev *cdev);
+
+	int (*acquire_conn)(struct qed_dev *cdev,
+			    u32 *handle,
+			    u32 *fw_cid, void __iomem **p_doorbell);
+
+	int (*release_conn)(struct qed_dev *cdev, u32 handle);
+
+	int (*offload_conn)(struct qed_dev *cdev,
+			    u32 handle,
+			    struct qed_nvmetcp_params_offload *conn_info);
+
+	int (*update_conn)(struct qed_dev *cdev,
+			   u32 handle,
+			   struct qed_nvmetcp_params_update *conn_info);
+
+	int (*destroy_conn)(struct qed_dev *cdev, u32 handle, u8 abrt_conn);
+
+	int (*clear_sq)(struct qed_dev *cdev, u32 handle);
 };
 
 const struct qed_nvmetcp_ops *qed_get_nvmetcp_ops(void);

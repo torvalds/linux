@@ -6,6 +6,8 @@
 
 #include "tcp_common.h"
 
+#define NVMETCP_SLOW_PATH_LAYER_CODE (6)
+
 /* NVMeTCP firmware function init parameters */
 struct nvmetcp_spe_func_init {
 	__le16 half_way_close_timeout;
@@ -43,12 +45,153 @@ enum nvmetcp_ramrod_cmd_id {
 	NVMETCP_RAMROD_CMD_ID_UNUSED = 0,
 	NVMETCP_RAMROD_CMD_ID_INIT_FUNC = 1,
 	NVMETCP_RAMROD_CMD_ID_DESTROY_FUNC = 2,
+	NVMETCP_RAMROD_CMD_ID_OFFLOAD_CONN = 3,
+	NVMETCP_RAMROD_CMD_ID_UPDATE_CONN = 4,
+	NVMETCP_RAMROD_CMD_ID_TERMINATION_CONN = 5,
+	NVMETCP_RAMROD_CMD_ID_CLEAR_SQ = 6,
 	MAX_NVMETCP_RAMROD_CMD_ID
 };
 
 struct nvmetcp_glbl_queue_entry {
 	struct regpair cq_pbl_addr;
 	struct regpair reserved;
+};
+
+/* NVMeTCP conn level EQEs */
+enum nvmetcp_eqe_opcode {
+	NVMETCP_EVENT_TYPE_INIT_FUNC = 0, /* Response after init Ramrod */
+	NVMETCP_EVENT_TYPE_DESTROY_FUNC, /* Response after destroy Ramrod */
+	NVMETCP_EVENT_TYPE_OFFLOAD_CONN,/* Response after option 2 offload Ramrod */
+	NVMETCP_EVENT_TYPE_UPDATE_CONN, /* Response after update Ramrod */
+	NVMETCP_EVENT_TYPE_CLEAR_SQ, /* Response after clear sq Ramrod */
+	NVMETCP_EVENT_TYPE_TERMINATE_CONN, /* Response after termination Ramrod */
+	NVMETCP_EVENT_TYPE_RESERVED0,
+	NVMETCP_EVENT_TYPE_RESERVED1,
+	NVMETCP_EVENT_TYPE_ASYN_CONNECT_COMPLETE, /* Connect completed (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_TERMINATE_DONE, /* Termination completed (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_START_OF_ERROR_TYPES = 10, /* Separate EQs from err EQs */
+	NVMETCP_EVENT_TYPE_ASYN_ABORT_RCVD, /* TCP RST packet receive (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_CLOSE_RCVD, /* TCP FIN packet receive (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_SYN_RCVD, /* TCP SYN+ACK packet receive (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_MAX_RT_TIME, /* TCP max retransmit time (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_MAX_RT_CNT, /* TCP max retransmit count (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_MAX_KA_PROBES_CNT, /* TCP ka probes count (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_ASYN_FIN_WAIT2, /* TCP fin wait 2 (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_NVMETCP_CONN_ERROR, /* NVMeTCP error response (A-syn EQE) */
+	NVMETCP_EVENT_TYPE_TCP_CONN_ERROR, /* NVMeTCP error - tcp error (A-syn EQE) */
+	MAX_NVMETCP_EQE_OPCODE
+};
+
+struct nvmetcp_conn_offload_section {
+	struct regpair cccid_itid_table_addr; /* CCCID to iTID table address */
+	__le16 cccid_max_range; /* CCCID max value - used for validation */
+	__le16 reserved[3];
+};
+
+/* NVMe TCP connection offload params passed by driver to FW in NVMeTCP offload ramrod */
+struct nvmetcp_conn_offload_params {
+	struct regpair sq_pbl_addr;
+	struct regpair r2tq_pbl_addr;
+	struct regpair xhq_pbl_addr;
+	struct regpair uhq_pbl_addr;
+	__le16 physical_q0;
+	__le16 physical_q1;
+	u8 flags;
+#define NVMETCP_CONN_OFFLOAD_PARAMS_TCP_ON_CHIP_1B_MASK 0x1
+#define NVMETCP_CONN_OFFLOAD_PARAMS_TCP_ON_CHIP_1B_SHIFT 0
+#define NVMETCP_CONN_OFFLOAD_PARAMS_TARGET_MODE_MASK 0x1
+#define NVMETCP_CONN_OFFLOAD_PARAMS_TARGET_MODE_SHIFT 1
+#define NVMETCP_CONN_OFFLOAD_PARAMS_RESTRICTED_MODE_MASK 0x1
+#define NVMETCP_CONN_OFFLOAD_PARAMS_RESTRICTED_MODE_SHIFT 2
+#define NVMETCP_CONN_OFFLOAD_PARAMS_NVMETCP_MODE_MASK 0x1
+#define NVMETCP_CONN_OFFLOAD_PARAMS_NVMETCP_MODE_SHIFT 3
+#define NVMETCP_CONN_OFFLOAD_PARAMS_RESERVED1_MASK 0xF
+#define NVMETCP_CONN_OFFLOAD_PARAMS_RESERVED1_SHIFT 4
+	u8 default_cq;
+	__le16 reserved0;
+	__le32 reserved1;
+	__le32 initial_ack;
+
+	struct nvmetcp_conn_offload_section nvmetcp; /* NVMe/TCP section */
+};
+
+/* NVMe TCP and TCP connection offload params passed by driver to FW in NVMeTCP offload ramrod. */
+struct nvmetcp_spe_conn_offload {
+	__le16 reserved;
+	__le16 conn_id;
+	__le32 fw_cid;
+	struct nvmetcp_conn_offload_params nvmetcp;
+	struct tcp_offload_params_opt2 tcp;
+};
+
+/* NVMeTCP connection update params passed by driver to FW in NVMETCP update ramrod. */
+struct nvmetcp_conn_update_ramrod_params {
+	__le16 reserved0;
+	__le16 conn_id;
+	__le32 reserved1;
+	u8 flags;
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_HD_EN_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_HD_EN_SHIFT 0
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_DD_EN_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_DD_EN_SHIFT 1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED0_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED0_SHIFT 2
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_DATA_SHIFT 3
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED2_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED2_SHIFT 4
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED3_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED3_SHIFT 5
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED4_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED4_SHIFT 6
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED5_MASK 0x1
+#define NVMETCP_CONN_UPDATE_RAMROD_PARAMS_RESERVED5_SHIFT 7
+	u8 reserved3[3];
+	__le32 max_seq_size;
+	__le32 max_send_pdu_length;
+	__le32 max_recv_pdu_length;
+	__le32 first_seq_length;
+	__le32 reserved4[5];
+};
+
+/* NVMeTCP connection termination request */
+struct nvmetcp_spe_conn_termination {
+	__le16 reserved0;
+	__le16 conn_id;
+	__le32 reserved1;
+	u8 abortive;
+	u8 reserved2[7];
+	struct regpair reserved3;
+	struct regpair reserved4;
+};
+
+struct nvmetcp_dif_flags {
+	u8 flags;
+};
+
+enum nvmetcp_wqe_type {
+	NVMETCP_WQE_TYPE_NORMAL,
+	NVMETCP_WQE_TYPE_TASK_CLEANUP,
+	NVMETCP_WQE_TYPE_MIDDLE_PATH,
+	NVMETCP_WQE_TYPE_IC,
+	MAX_NVMETCP_WQE_TYPE
+};
+
+struct nvmetcp_wqe {
+	__le16 task_id;
+	u8 flags;
+#define NVMETCP_WQE_WQE_TYPE_MASK 0x7 /* [use nvmetcp_wqe_type] */
+#define NVMETCP_WQE_WQE_TYPE_SHIFT 0
+#define NVMETCP_WQE_NUM_SGES_MASK 0xF
+#define NVMETCP_WQE_NUM_SGES_SHIFT 3
+#define NVMETCP_WQE_RESPONSE_MASK 0x1
+#define NVMETCP_WQE_RESPONSE_SHIFT 7
+	struct nvmetcp_dif_flags prot_flags;
+	__le32 contlen_cdbsize;
+#define NVMETCP_WQE_CONT_LEN_MASK 0xFFFFFF
+#define NVMETCP_WQE_CONT_LEN_SHIFT 0
+#define NVMETCP_WQE_CDB_SIZE_OR_NVMETCP_CMD_MASK 0xFF
+#define NVMETCP_WQE_CDB_SIZE_OR_NVMETCP_CMD_SHIFT 24
 };
 
 #endif /* __NVMETCP_COMMON__ */
