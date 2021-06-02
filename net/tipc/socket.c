@@ -73,9 +73,6 @@ struct sockaddr_pair {
 /**
  * struct tipc_sock - TIPC socket structure
  * @sk: socket - interacts with 'port' and with user via the socket API
- * @conn_type: TIPC type used when connection was established
- * @conn_instance: TIPC instance used when connection was established
- * @published: non-zero if port has one or more associated names
  * @max_pkt: maximum packet size "hint" used when building messages sent by port
  * @maxnagle: maximum size of msg which can be subject to nagle
  * @portid: unique port identity in TIPC socket hash table
@@ -106,11 +103,11 @@ struct sockaddr_pair {
  * @expect_ack: whether this TIPC socket is expecting an ack
  * @nodelay: setsockopt() TIPC_NODELAY setting
  * @group_is_open: TIPC socket group is fully open (FIXME)
+ * @published: true if port has one or more associated names
+ * @conn_addrtype: address type used when establishing connection
  */
 struct tipc_sock {
 	struct sock sk;
-	u32 conn_type;
-	u32 conn_instance;
 	u32 max_pkt;
 	u32 maxnagle;
 	u32 portid;
@@ -141,6 +138,7 @@ struct tipc_sock {
 	bool nodelay;
 	bool group_is_open;
 	bool published;
+	u8 conn_addrtype;
 };
 
 static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
@@ -1463,10 +1461,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 			return -EISCONN;
 		if (tsk->published)
 			return -EOPNOTSUPP;
-		if (atype == TIPC_SERVICE_ADDR) {
-			tsk->conn_type = ua->sa.type;
-			tsk->conn_instance = ua->sa.instance;
-		}
+		if (atype == TIPC_SERVICE_ADDR)
+			tsk->conn_addrtype = atype;
 		msg_set_syn(hdr, 1);
 	}
 
@@ -1783,10 +1779,10 @@ static int tipc_sk_anc_data_recv(struct msghdr *m, struct sk_buff *skb,
 		anc_data[2] = msg_nameupper(msg);
 		break;
 	case TIPC_CONN_MSG:
-		has_name = (tsk->conn_type != 0);
-		anc_data[0] = tsk->conn_type;
-		anc_data[1] = tsk->conn_instance;
-		anc_data[2] = tsk->conn_instance;
+		has_name = !!tsk->conn_addrtype;
+		anc_data[0] = msg_nametype(&tsk->phdr);
+		anc_data[1] = msg_nameinst(&tsk->phdr);
+		anc_data[2] = anc_data[1];
 		break;
 	default:
 		has_name = 0;
@@ -2750,8 +2746,9 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
 
 	tsk_set_importance(new_sk, msg_importance(msg));
 	if (msg_named(msg)) {
-		new_tsock->conn_type = msg_nametype(msg);
-		new_tsock->conn_instance = msg_nameinst(msg);
+		new_tsock->conn_addrtype = TIPC_SERVICE_ADDR;
+		msg_set_nametype(&new_tsock->phdr, msg_nametype(msg));
+		msg_set_nameinst(&new_tsock->phdr, msg_nameinst(msg));
 	}
 
 	/*
@@ -3455,13 +3452,14 @@ void tipc_socket_stop(void)
 /* Caller should hold socket lock for the passed tipc socket. */
 static int __tipc_nl_add_sk_con(struct sk_buff *skb, struct tipc_sock *tsk)
 {
-	u32 peer_node;
-	u32 peer_port;
+	u32 peer_node, peer_port;
+	u32 conn_type, conn_instance;
 	struct nlattr *nest;
 
 	peer_node = tsk_peer_node(tsk);
 	peer_port = tsk_peer_port(tsk);
-
+	conn_type = msg_nametype(&tsk->phdr);
+	conn_instance = msg_nameinst(&tsk->phdr);
 	nest = nla_nest_start_noflag(skb, TIPC_NLA_SOCK_CON);
 	if (!nest)
 		return -EMSGSIZE;
@@ -3471,12 +3469,12 @@ static int __tipc_nl_add_sk_con(struct sk_buff *skb, struct tipc_sock *tsk)
 	if (nla_put_u32(skb, TIPC_NLA_CON_SOCK, peer_port))
 		goto msg_full;
 
-	if (tsk->conn_type != 0) {
+	if (tsk->conn_addrtype != 0) {
 		if (nla_put_flag(skb, TIPC_NLA_CON_FLAG))
 			goto msg_full;
-		if (nla_put_u32(skb, TIPC_NLA_CON_TYPE, tsk->conn_type))
+		if (nla_put_u32(skb, TIPC_NLA_CON_TYPE, conn_type))
 			goto msg_full;
-		if (nla_put_u32(skb, TIPC_NLA_CON_INST, tsk->conn_instance))
+		if (nla_put_u32(skb, TIPC_NLA_CON_INST, conn_instance))
 			goto msg_full;
 	}
 	nla_nest_end(skb, nest);
@@ -3866,9 +3864,9 @@ bool tipc_sk_filtering(struct sock *sk)
 	}
 
 	if (!tipc_sk_type_connectionless(sk)) {
-		type = tsk->conn_type;
-		lower = tsk->conn_instance;
-		upper = tsk->conn_instance;
+		type = msg_nametype(&tsk->phdr);
+		lower = msg_nameinst(&tsk->phdr);
+		upper = lower;
 	}
 
 	if ((_type && _type != type) || (_lower && _lower != lower) ||
@@ -3933,6 +3931,7 @@ int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf)
 {
 	int i = 0;
 	size_t sz = (dqueues) ? SK_LMAX : SK_LMIN;
+	u32 conn_type, conn_instance;
 	struct tipc_sock *tsk;
 	struct publication *p;
 	bool tsk_connected;
@@ -3953,8 +3952,10 @@ int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf)
 	if (tsk_connected) {
 		i += scnprintf(buf + i, sz - i, " %x", tsk_peer_node(tsk));
 		i += scnprintf(buf + i, sz - i, " %u", tsk_peer_port(tsk));
-		i += scnprintf(buf + i, sz - i, " %u", tsk->conn_type);
-		i += scnprintf(buf + i, sz - i, " %u", tsk->conn_instance);
+		conn_type = msg_nametype(&tsk->phdr);
+		conn_instance = msg_nameinst(&tsk->phdr);
+		i += scnprintf(buf + i, sz - i, " %u", conn_type);
+		i += scnprintf(buf + i, sz - i, " %u", conn_instance);
 	}
 	i += scnprintf(buf + i, sz - i, " | %u", tsk->published);
 	if (tsk->published) {
