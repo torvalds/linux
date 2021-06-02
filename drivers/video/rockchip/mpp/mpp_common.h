@@ -350,6 +350,8 @@ struct mpp_session {
 	u16 trans_table[MPP_MAX_REG_TRANS_NUM];
 	u32 msg_flags;
 	/* link to mpp_service session_list */
+	struct list_head service_link;
+	/* link to mpp_workqueue session_attach / session_detach */
 	struct list_head session_link;
 	/* private data */
 	void *priv;
@@ -399,6 +401,14 @@ struct mpp_task {
 };
 
 struct mpp_taskqueue {
+	/* lock for session attach and session_detach */
+	struct mutex session_lock;
+	/* link to session session_link for attached sessions */
+	struct list_head session_attach;
+	/* link to session session_link for detached sessions */
+	struct list_head session_detach;
+	atomic_t detach_count;
+
 	/* lock for pending list */
 	struct mutex pending_lock;
 	struct list_head pending_list;
@@ -450,6 +460,7 @@ struct mpp_service {
 	struct mpp_taskqueue *task_queues[MPP_DEVICE_BUTT];
 	u32 reset_group_cnt;
 	struct mpp_reset_group *reset_groups[MPP_DEVICE_BUTT];
+
 	/* lock for session list */
 	struct mutex session_lock;
 	struct list_head session_list;
@@ -542,6 +553,8 @@ int mpp_task_dump_reg(struct mpp_dev *mpp,
 		      struct mpp_task *task);
 int mpp_task_dump_hw_reg(struct mpp_dev *mpp,
 			 struct mpp_task *task);
+
+int mpp_session_deinit(struct mpp_session *session);
 
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);

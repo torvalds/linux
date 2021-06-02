@@ -47,6 +47,8 @@
 #define DEBUG_GET_PERF_VAL			0x00100000
 #define DEBUG_SRAM_INFO				0x00200000
 
+#define DEBUG_SESSION				0x00400000
+
 #define PRINT_FUNCTION				0x80000000
 #define PRINT_LINE				0x40000000
 
@@ -87,5 +89,20 @@ extern unsigned int mpp_dev_debug;
 
 #define mpp_err(fmt, args...)					\
 		pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
+
+#define mpp_dbg_link_flow(fmt, args...)				\
+	do {							\
+		if (unlikely(mpp_dev_debug & DEBUG_LINK_TABLE)) {		\
+			pr_info("%s:%d: " fmt,			\
+				 __func__, __LINE__, ##args);	\
+		}						\
+	} while (0)
+
+#define mpp_dbg_session(fmt, args...)				\
+	do {							\
+		if (unlikely(mpp_dev_debug & DEBUG_SESSION)) {	\
+			pr_info(fmt, ##args);			\
+		}						\
+	} while (0)
 
 #endif
