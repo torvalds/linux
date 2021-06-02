@@ -422,7 +422,8 @@ int ima_appraise_measurement(enum ima_hooks func,
 		goto out;
 	case INTEGRITY_FAIL_IMMUTABLE:
 		set_bit(IMA_DIGSIG, &iint->atomic_flags);
-		fallthrough;
+		cause = "invalid-fail-immutable";
+		goto out;
 	case INTEGRITY_FAIL:		/* Invalid HMAC/signature. */
 		cause = "invalid-HMAC";
 		goto out;
