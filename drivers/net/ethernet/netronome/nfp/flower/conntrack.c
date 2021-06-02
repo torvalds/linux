@@ -83,6 +83,10 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	zt->priv = priv;
 	zt->nft = NULL;
 
+	/* init the various hash tables and lists*/
+	INIT_LIST_HEAD(&zt->pre_ct_list);
+	INIT_LIST_HEAD(&zt->post_ct_list);
+
 	if (wildcarded) {
 		priv->ct_zone_wc = zt;
 	} else {
@@ -98,6 +102,100 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 err_zone_insert:
 	kfree(zt);
 	return ERR_PTR(err);
+}
+
+static struct
+nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
+					 struct net_device *netdev,
+					 struct flow_cls_offload *flow)
+{
+	struct nfp_fl_ct_flow_entry *entry;
+	struct flow_action_entry *act;
+	int err, i;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+
+	entry->zt = zt;
+	entry->netdev = netdev;
+	entry->cookie = flow->cookie;
+	entry->rule = flow_rule_alloc(flow->rule->action.num_entries);
+	if (!entry->rule) {
+		err = -ENOMEM;
+		goto err_pre_ct_act;
+	}
+	entry->rule->match.dissector = flow->rule->match.dissector;
+	entry->rule->match.mask = flow->rule->match.mask;
+	entry->rule->match.key = flow->rule->match.key;
+	entry->chain_index = flow->common.chain_index;
+	entry->tun_offset = NFP_FL_CT_NO_TUN;
+
+	/* Copy over action data. Unfortunately we do not get a handle to the
+	 * original tcf_action data, and the flow objects gets destroyed, so we
+	 * cannot just save a pointer to this either, so need to copy over the
+	 * data unfortunately.
+	 */
+	entry->rule->action.num_entries = flow->rule->action.num_entries;
+	flow_action_for_each(i, act, &flow->rule->action) {
+		struct flow_action_entry *new_act;
+
+		new_act = &entry->rule->action.entries[i];
+		memcpy(new_act, act, sizeof(struct flow_action_entry));
+		/* Entunnel is a special case, need to allocate and copy
+		 * tunnel info.
+		 */
+		if (act->id == FLOW_ACTION_TUNNEL_ENCAP) {
+			struct ip_tunnel_info *tun = act->tunnel;
+			size_t tun_size = sizeof(*tun) + tun->options_len;
+
+			new_act->tunnel = kmemdup(tun, tun_size, GFP_ATOMIC);
+			if (!new_act->tunnel) {
+				err = -ENOMEM;
+				goto err_pre_ct_tun_cp;
+			}
+			entry->tun_offset = i;
+		}
+	}
+
+	INIT_LIST_HEAD(&entry->children);
+
+	/* Creation of a ct_map_entry and adding it to a hashtable
+	 * will happen here in follow up patches.
+	 */
+
+	return entry;
+
+err_pre_ct_tun_cp:
+	kfree(entry->rule);
+err_pre_ct_act:
+	kfree(entry);
+	return ERR_PTR(err);
+}
+
+static void nfp_free_tc_merge_children(struct nfp_fl_ct_flow_entry *entry)
+{
+}
+
+static void nfp_free_nft_merge_children(void *entry, bool is_nft_flow)
+{
+}
+
+void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry)
+{
+	list_del(&entry->list_node);
+
+	if (!list_empty(&entry->children)) {
+		if (entry->type == CT_TYPE_NFT)
+			nfp_free_nft_merge_children(entry, true);
+		else
+			nfp_free_tc_merge_children(entry);
+	}
+
+	if (entry->tun_offset != NFP_FL_CT_NO_TUN)
+		kfree(entry->rule->action.entries[entry->tun_offset].tunnel);
+	kfree(entry->rule);
+	kfree(entry);
 }
 
 static struct flow_action_entry *get_flow_act(struct flow_cls_offload *flow,
@@ -118,13 +216,21 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 			    struct flow_cls_offload *flow,
 			    struct netlink_ext_ack *extack)
 {
-	struct flow_action_entry *ct_act;
+	struct flow_action_entry *ct_act, *ct_goto;
+	struct nfp_fl_ct_flow_entry *ct_entry;
 	struct nfp_fl_ct_zone_entry *zt;
 
 	ct_act = get_flow_act(flow, FLOW_ACTION_CT);
 	if (!ct_act) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: Conntrack action empty in conntrack offload");
+		return -EOPNOTSUPP;
+	}
+
+	ct_goto = get_flow_act(flow, FLOW_ACTION_GOTO);
+	if (!ct_goto) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload: Conntrack requires ACTION_GOTO");
 		return -EOPNOTSUPP;
 	}
 
@@ -138,7 +244,17 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	if (!zt->nft)
 		zt->nft = ct_act->ct.flow_table;
 
+	/* Add entry to pre_ct_list */
+	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow);
+	if (IS_ERR(ct_entry))
+		return PTR_ERR(ct_entry);
+	ct_entry->type = CT_TYPE_PRE_CT;
+	ct_entry->chain_index = ct_goto->chain_index;
+	list_add(&ct_entry->list_node, &zt->pre_ct_list);
+	zt->pre_ct_count++;
+
 	NL_SET_ERR_MSG_MOD(extack, "unsupported offload: Conntrack action not supported");
+	nfp_fl_ct_clean_flow_entry(ct_entry);
 	return -EOPNOTSUPP;
 }
 
@@ -148,6 +264,7 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 			     struct netlink_ext_ack *extack)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+	struct nfp_fl_ct_flow_entry *ct_entry;
 	struct nfp_fl_ct_zone_entry *zt;
 	bool wildcarded = false;
 	struct flow_match_ct ct;
@@ -168,6 +285,17 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 		return PTR_ERR(zt);
 	}
 
+	/* Add entry to post_ct_list */
+	ct_entry = nfp_fl_ct_add_flow(zt, netdev, flow);
+	if (IS_ERR(ct_entry))
+		return PTR_ERR(ct_entry);
+
+	ct_entry->type = CT_TYPE_POST_CT;
+	ct_entry->chain_index = flow->common.chain_index;
+	list_add(&ct_entry->list_node, &zt->post_ct_list);
+	zt->post_ct_count++;
+
 	NL_SET_ERR_MSG_MOD(extack, "unsupported offload: Conntrack match not supported");
+	nfp_fl_ct_clean_flow_entry(ct_entry);
 	return -EOPNOTSUPP;
 }

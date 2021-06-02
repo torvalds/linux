@@ -6,6 +6,8 @@
 
 #include "main.h"
 
+#define NFP_FL_CT_NO_TUN	0xff
+
 extern const struct rhashtable_params nfp_zone_table_params;
 
 /**
@@ -14,6 +16,12 @@ extern const struct rhashtable_params nfp_zone_table_params;
  * @hash_node:	Used by the hashtable
  * @priv:	Pointer to nfp_flower_priv data
  * @nft:	Pointer to nf_flowtable for this zone
+ *
+ * @pre_ct_list:	The pre_ct_list of nfp_fl_ct_flow_entry entries
+ * @pre_ct_count:	Keep count of the number of pre_ct entries
+ *
+ * @post_ct_list:	The post_ct_list of nfp_fl_ct_flow_entry entries
+ * @post_ct_count:	Keep count of the number of post_ct entries
  */
 struct nfp_fl_ct_zone_entry {
 	u16 zone;
@@ -21,6 +29,44 @@ struct nfp_fl_ct_zone_entry {
 
 	struct nfp_flower_priv *priv;
 	struct nf_flowtable *nft;
+
+	struct list_head pre_ct_list;
+	unsigned int pre_ct_count;
+
+	struct list_head post_ct_list;
+	unsigned int post_ct_count;
+};
+
+enum ct_entry_type {
+	CT_TYPE_PRE_CT,
+	CT_TYPE_NFT,
+	CT_TYPE_POST_CT,
+};
+
+/**
+ * struct nfp_fl_ct_flow_entry - Flow entry containing conntrack flow information
+ * @cookie:	Flow cookie, same as original TC flow, used as key
+ * @list_node:	Used by the list
+ * @chain_index:	Chain index of the original flow
+ * @netdev:	netdev structure.
+ * @type:	Type of pre-entry from enum ct_entry_type
+ * @zt:		Reference to the zone table this belongs to
+ * @children:	List of tc_merge flows this flow forms part of
+ * @rule:	Reference to the original TC flow rule
+ * @stats:	Used to cache stats for updating
+ * @tun_offset: Used to indicate tunnel action offset in action list
+ */
+struct nfp_fl_ct_flow_entry {
+	unsigned long cookie;
+	struct list_head list_node;
+	u32 chain_index;
+	enum ct_entry_type type;
+	struct net_device *netdev;
+	struct nfp_fl_ct_zone_entry *zt;
+	struct list_head children;
+	struct flow_rule *rule;
+	struct flow_stats stats;
+	u8 tun_offset;		// Set to NFP_FL_CT_NO_TUN if no tun
 };
 
 bool is_pre_ct_flow(struct flow_cls_offload *flow);
@@ -59,4 +105,9 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 			     struct flow_cls_offload *flow,
 			     struct netlink_ext_ack *extack);
 
+/**
+ * nfp_fl_ct_clean_flow_entry() - Free a nfp_fl_ct_flow_entry
+ * @entry:	Flow entry to cleanup
+ */
+void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry);
 #endif

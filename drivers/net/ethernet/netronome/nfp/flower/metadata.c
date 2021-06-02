@@ -583,11 +583,38 @@ err_free_flow_table:
 	return -ENOMEM;
 }
 
+static void nfp_zone_table_entry_destroy(struct nfp_fl_ct_zone_entry *zt)
+{
+	if (!zt)
+		return;
+
+	if (!list_empty(&zt->pre_ct_list)) {
+		struct nfp_fl_ct_flow_entry *entry, *tmp;
+
+		WARN_ONCE(1, "pre_ct_list not empty as expected, cleaning up\n");
+		list_for_each_entry_safe(entry, tmp, &zt->pre_ct_list,
+					 list_node) {
+			nfp_fl_ct_clean_flow_entry(entry);
+		}
+	}
+
+	if (!list_empty(&zt->post_ct_list)) {
+		struct nfp_fl_ct_flow_entry *entry, *tmp;
+
+		WARN_ONCE(1, "post_ct_list not empty as expected, cleaning up\n");
+		list_for_each_entry_safe(entry, tmp, &zt->post_ct_list,
+					 list_node) {
+			nfp_fl_ct_clean_flow_entry(entry);
+		}
+	}
+	kfree(zt);
+}
+
 static void nfp_free_zone_table_entry(void *ptr, void *arg)
 {
 	struct nfp_fl_ct_zone_entry *zt = ptr;
 
-	kfree(zt);
+	nfp_zone_table_entry_destroy(zt);
 }
 
 void nfp_flower_metadata_cleanup(struct nfp_app *app)
@@ -605,7 +632,7 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app)
 				    nfp_check_rhashtable_empty, NULL);
 	rhashtable_free_and_destroy(&priv->ct_zone_table,
 				    nfp_free_zone_table_entry, NULL);
-	kfree(priv->ct_zone_wc);
+	nfp_zone_table_entry_destroy(priv->ct_zone_wc);
 	kvfree(priv->stats);
 	kfree(priv->mask_ids.mask_id_free_list.buf);
 	kfree(priv->mask_ids.last_used);
