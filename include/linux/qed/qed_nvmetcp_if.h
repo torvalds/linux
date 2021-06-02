@@ -9,6 +9,9 @@
 #include <linux/qed/nvmetcp_common.h>
 
 #define QED_NVMETCP_MAX_IO_SIZE	0x800000
+#define QED_NVMETCP_CMN_HDR_SIZE (sizeof(struct nvme_tcp_hdr))
+#define QED_NVMETCP_CMD_HDR_SIZE (sizeof(struct nvme_tcp_cmd_pdu))
+#define QED_NVMETCP_NON_IO_HDR_SIZE ((QED_NVMETCP_CMN_HDR_SIZE + 16))
 
 typedef int (*nvmetcp_event_cb_t) (void *context,
 				   u8 fw_event_code, void *fw_handle);
@@ -213,6 +216,23 @@ struct qed_nvmetcp_ops {
 	void (*remove_dst_tcp_port_filter)(struct qed_dev *cdev, u16 dest_port);
 
 	void (*clear_all_filters)(struct qed_dev *cdev);
+
+	void (*init_read_io)(struct nvmetcp_task_params *task_params,
+			     struct nvme_tcp_cmd_pdu *cmd_pdu_header,
+			     struct nvme_command *nvme_cmd,
+			     struct storage_sgl_task_params *sgl_task_params);
+
+	void (*init_write_io)(struct nvmetcp_task_params *task_params,
+			      struct nvme_tcp_cmd_pdu *cmd_pdu_header,
+			      struct nvme_command *nvme_cmd,
+			      struct storage_sgl_task_params *sgl_task_params);
+
+	void (*init_icreq_exchange)(struct nvmetcp_task_params *task_params,
+				    struct nvme_tcp_icreq_pdu *init_conn_req_pdu_hdr,
+				    struct storage_sgl_task_params *tx_sgl_task_params,
+				    struct storage_sgl_task_params *rx_sgl_task_params);
+
+	void (*init_task_cleanup)(struct nvmetcp_task_params *task_params);
 };
 
 const struct qed_nvmetcp_ops *qed_get_nvmetcp_ops(void);

@@ -27,6 +27,7 @@
 #include "qed_mcp.h"
 #include "qed_sp.h"
 #include "qed_reg_addr.h"
+#include "qed_nvmetcp_fw_funcs.h"
 
 static int qed_nvmetcp_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
 				   u16 echo, union event_ring_data *data,
@@ -809,7 +810,11 @@ static const struct qed_nvmetcp_ops qed_nvmetcp_ops_pass = {
 	.remove_src_tcp_port_filter = &qed_llh_remove_src_tcp_port_filter,
 	.add_dst_tcp_port_filter = &qed_llh_add_dst_tcp_port_filter,
 	.remove_dst_tcp_port_filter = &qed_llh_remove_dst_tcp_port_filter,
-	.clear_all_filters = &qed_llh_clear_all_filters
+	.clear_all_filters = &qed_llh_clear_all_filters,
+	.init_read_io = &init_nvmetcp_host_read_task,
+	.init_write_io = &init_nvmetcp_host_write_task,
+	.init_icreq_exchange = &init_nvmetcp_init_conn_req_task,
+	.init_task_cleanup = &init_cleanup_task_nvmetcp
 };
 
 const struct qed_nvmetcp_ops *qed_get_nvmetcp_ops(void)

@@ -5,6 +5,7 @@
 #define __NVMETCP_COMMON__
 
 #include "tcp_common.h"
+#include <linux/nvme-tcp.h>
 
 #define NVMETCP_SLOW_PATH_LAYER_CODE (6)
 #define NVMETCP_WQE_NUM_SGES_SLOWIO (0xf)
