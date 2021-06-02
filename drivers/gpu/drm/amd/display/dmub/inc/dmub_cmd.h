@@ -337,7 +337,11 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_access : 1; /**< 1 if PHY access should be skipped */
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+		uint32_t z10_disable: 1; /**< 1 to disable z10 */
+#else
 		uint32_t reserved_unreleased: 1; /**< reserved for an unreleased feature */
+#endif
 		uint32_t reserved : 25; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
@@ -602,6 +606,20 @@ enum dmub_cmd_type {
 	 * Command type used for OUTBOX1 notification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+	/**
+	 * Command type used for all idle optimization commands.
+	 */
+	DMUB_CMD__IDLE_OPT = 72,
+	/**
+	 * Command type used for all clock manager commands.
+	 */
+	DMUB_CMD__CLK_MGR = 73,
+	/**
+	 * Command type used for all panel control commands.
+	 */
+	DMUB_CMD__PANEL_CNTL = 74,
+#endif
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
@@ -811,6 +829,53 @@ struct dmub_rb_cmd_mall {
 	uint8_t reserved2; /**< Reserved bits */
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+
+/**
+ * enum dmub_cmd_idle_opt_type - Idle optimization command type.
+ */
+enum dmub_cmd_idle_opt_type {
+	/**
+	 * DCN hardware restore.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_RESTORE = 0,
+};
+
+/**
+ * struct dmub_rb_cmd_idle_opt_dcn_restore - DCN restore command data.
+ */
+struct dmub_rb_cmd_idle_opt_dcn_restore {
+	struct dmub_cmd_header header; /**< header */
+};
+
+/**
+ * struct dmub_clocks - Clock update notification.
+ */
+struct dmub_clocks {
+	uint32_t dispclk_khz; /**< dispclk kHz */
+	uint32_t dppclk_khz; /**< dppclk kHz */
+	uint32_t dcfclk_khz; /**< dcfclk kHz */
+	uint32_t dcfclk_deep_sleep_khz; /**< dcfclk deep sleep kHz */
+};
+
+/**
+ * enum dmub_cmd_clk_mgr_type - Clock manager commands.
+ */
+enum dmub_cmd_clk_mgr_type {
+	/**
+	 * Notify DMCUB of clock update.
+	 */
+	DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS = 0,
+};
+
+/**
+ * struct dmub_rb_cmd_clk_mgr_notify_clocks - Clock update notification.
+ */
+struct dmub_rb_cmd_clk_mgr_notify_clocks {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_clocks clocks; /**< clock data */
+};
+#endif
 /**
  * struct dmub_cmd_digx_encoder_control_data - Encoder control data.
  */
@@ -1956,6 +2021,43 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_optc_state dmub_optc_state_req;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+/**
+ * enum dmub_cmd_panel_cntl_type - Panel control command.
+ */
+enum dmub_cmd_panel_cntl_type {
+	/**
+	 * Initializes embedded panel hardware blocks.
+	 */
+	DMUB_CMD__PANEL_CNTL_HW_INIT = 0,
+	/**
+	 * Queries backlight info for the embedded panel.
+	 */
+	DMUB_CMD__PANEL_CNTL_QUERY_BACKLIGHT_INFO = 1,
+};
+
+/**
+ * struct dmub_cmd_panel_cntl_data - Panel control data.
+ */
+struct dmub_cmd_panel_cntl_data {
+	uint32_t inst; /**< panel instance */
+	uint32_t current_backlight; /* in/out */
+	uint32_t bl_pwm_cntl; /* in/out */
+	uint32_t bl_pwm_period_cntl; /* in/out */
+	uint32_t bl_pwm_ref_div1; /* in/out */
+	uint8_t is_backlight_on : 1; /* in/out */
+	uint8_t is_powered_on : 1; /* in/out */
+};
+
+/**
+ * struct dmub_rb_cmd_panel_cntl - Panel control command.
+ */
+struct dmub_rb_cmd_panel_cntl {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_cmd_panel_cntl_data data; /**< payload */
+};
+#endif
+
 /**
  * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
  */
@@ -2053,6 +2155,22 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__MALL command.
 	 */
 	struct dmub_rb_cmd_mall mall;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+	/**
+	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
+	 */
+	struct dmub_rb_cmd_idle_opt_dcn_restore dcn_restore;
+
+	/**
+	 * Definition of a DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS command.
+	 */
+	struct dmub_rb_cmd_clk_mgr_notify_clocks notify_clocks;
+
+	/**
+	 * Definition of DMUB_CMD__PANEL_CNTL commands.
+	 */
+	struct dmub_rb_cmd_panel_cntl panel_cntl;
+#endif
 	/**
 	 * Definition of a DMUB_CMD__ABM_SET_PIPE command.
 	 */
