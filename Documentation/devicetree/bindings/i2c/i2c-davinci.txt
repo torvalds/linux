@@ -8,7 +8,7 @@ Required properties:
 - reg : Offset and length of the register set for the device
 - clocks: I2C functional clock phandle.
 	  For 66AK2G this property should be set per binding,
-	  Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+	  Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
 
 SoC-specific Required Properties:
 

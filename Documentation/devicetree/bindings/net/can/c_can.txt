@@ -22,7 +22,7 @@ The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 			  Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 - clocks		: CAN functional clock phandle. This property is as per the
 			  binding,
-			  Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+			  Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
 
 Optional properties:
 - syscon-raminit	: Handle to system control region that contains the

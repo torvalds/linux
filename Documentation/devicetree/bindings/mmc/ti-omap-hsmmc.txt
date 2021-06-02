@@ -28,7 +28,7 @@ The following are mandatory properties for 66AK2G SoCs only:
 		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 - clocks:	Must contain an entry for each entry in clock-names. Should
 		be defined as per the he appropriate clock bindings consumer
-		usage in Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+		usage in Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
 - clock-names:	Shall be "fck" for the functional clock,
 		and "mmchsdb_fck" for the debounce clock.
 

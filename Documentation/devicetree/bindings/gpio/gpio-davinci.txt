@@ -32,7 +32,7 @@ Required Properties:
           Documentation/devicetree/bindings/clock/keystone-gate.txt
                             for 66AK2HK/66AK2L/66AK2E SoCs or,
 
-          Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+          Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
                             for 66AK2G SoCs
 
 - clock-names: Name should be "gpio";
