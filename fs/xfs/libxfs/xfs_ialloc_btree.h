@@ -13,6 +13,7 @@
 struct xfs_buf;
 struct xfs_btree_cur;
 struct xfs_mount;
+struct xfs_perag;
 
 /*
  * Btree block header size depends on a superblock flag.
@@ -45,9 +46,9 @@ struct xfs_mount;
 		 (maxrecs) * sizeof(xfs_inobt_key_t) + \
 		 ((index) - 1) * sizeof(xfs_inobt_ptr_t)))
 
-extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
-		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t,
-		xfs_btnum_t);
+extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *mp,
+		struct xfs_trans *tp, struct xfs_buf *agbp, xfs_agnumber_t agno,
+		struct xfs_perag *pag, xfs_btnum_t btnum);
 struct xfs_btree_cur *xfs_inobt_stage_cursor(struct xfs_mount *mp,
 		struct xbtree_afakeroot *afake, xfs_agnumber_t agno,
 		xfs_btnum_t btnum);

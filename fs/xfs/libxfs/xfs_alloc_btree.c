@@ -27,7 +27,7 @@ xfs_allocbt_dup_cursor(
 {
 	return xfs_allocbt_init_cursor(cur->bc_mp, cur->bc_tp,
 			cur->bc_ag.agbp, cur->bc_ag.agno,
-			cur->bc_btnum);
+			cur->bc_ag.pag, cur->bc_btnum);
 }
 
 STATIC void
@@ -473,6 +473,7 @@ xfs_allocbt_init_common(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)
 {
 	struct xfs_btree_cur	*cur;
@@ -497,6 +498,11 @@ xfs_allocbt_init_common(
 
 	cur->bc_ag.agno = agno;
 	cur->bc_ag.abt.active = false;
+	if (pag) {
+		/* take a reference for the cursor */
+		atomic_inc(&pag->pag_ref);
+	}
+	cur->bc_ag.pag = pag;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
@@ -513,12 +519,13 @@ xfs_allocbt_init_cursor(
 	struct xfs_trans	*tp,		/* transaction pointer */
 	struct xfs_buf		*agbp,		/* buffer for agf structure */
 	xfs_agnumber_t		agno,		/* allocation group number */
+	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)		/* btree identifier */
 {
 	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_allocbt_init_common(mp, tp, agno, btnum);
+	cur = xfs_allocbt_init_common(mp, tp, agno, pag, btnum);
 	if (btnum == XFS_BTNUM_CNT)
 		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
 	else
@@ -539,7 +546,7 @@ xfs_allocbt_stage_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_allocbt_init_common(mp, NULL, agno, btnum);
+	cur = xfs_allocbt_init_common(mp, NULL, agno, NULL, btnum);
 	xfs_btree_stage_afakeroot(cur, afake);
 	return cur;
 }

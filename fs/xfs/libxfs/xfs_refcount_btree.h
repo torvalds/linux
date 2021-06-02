@@ -47,7 +47,7 @@ struct xbtree_afakeroot;
 
 extern struct xfs_btree_cur *xfs_refcountbt_init_cursor(struct xfs_mount *mp,
 		struct xfs_trans *tp, struct xfs_buf *agbp,
-		xfs_agnumber_t agno);
+		xfs_agnumber_t agno, struct xfs_perag *pag);
 struct xfs_btree_cur *xfs_refcountbt_stage_cursor(struct xfs_mount *mp,
 		struct xbtree_afakeroot *afake, xfs_agnumber_t agno);
 extern int xfs_refcountbt_maxrecs(int blocklen, bool leaf);
