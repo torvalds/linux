@@ -108,7 +108,3 @@
 &pcie2_rc {
 	compatible = "ti,dra726-pcie-rc", "ti,dra7-pcie";
 };
-
-&usb4_tm {
-	status = "disabled";
-};
