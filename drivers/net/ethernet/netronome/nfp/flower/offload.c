@@ -7,6 +7,7 @@
 
 #include "cmsg.h"
 #include "main.h"
+#include "conntrack.h"
 #include "../nfpcore/nfp_cpp.h"
 #include "../nfpcore/nfp_nsp.h"
 #include "../nfp_app.h"
@@ -1315,6 +1316,12 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	extack = flow->common.extack;
 	if (nfp_netdev_is_nfp_repr(netdev))
 		port = nfp_port_from_netdev(netdev);
+
+	if (is_pre_ct_flow(flow))
+		return nfp_fl_ct_handle_pre_ct(priv, netdev, flow, extack);
+
+	if (is_post_ct_flow(flow))
+		return nfp_fl_ct_handle_post_ct(priv, netdev, flow, extack);
 
 	if (!offload_pre_check(flow))
 		return -EOPNOTSUPP;
