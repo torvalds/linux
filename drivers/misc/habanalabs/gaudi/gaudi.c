@@ -7451,6 +7451,16 @@ static void gaudi_print_out_of_sync_info(struct hl_device *hdev,
 			sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
 }
 
+static void gaudi_print_fw_alive_info(struct hl_device *hdev,
+					struct hl_eq_fw_alive *fw_alive)
+{
+	dev_err(hdev->dev,
+		"FW alive report: severity=%s, process_id=%u, thread_id=%u, uptime=%llu seconds\n",
+		(fw_alive->severity == FW_ALIVE_SEVERITY_MINOR) ?
+		"Minor" : "Critical", fw_alive->process_id,
+		fw_alive->thread_id, fw_alive->uptime_seconds);
+}
+
 static int gaudi_soft_reset_late_init(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -7900,6 +7910,11 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_PKT_QUEUE_OUT_SYNC:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
+		goto reset_device;
+
+	case GAUDI_EVENT_FW_ALIVE_S:
+		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_fw_alive_info(hdev, &eq_entry->fw_alive);
 		goto reset_device;
 
 	default:

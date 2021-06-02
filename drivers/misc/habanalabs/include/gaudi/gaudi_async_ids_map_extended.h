@@ -669,7 +669,7 @@ static struct gaudi_async_events_ids_map gaudi_irq_map_table[] = {
 	{ .fc_id = 642, .cpu_id = 491, .valid = 0, .name = "" },
 	{ .fc_id = 643, .cpu_id = 492, .valid = 0, .name = "" },
 	{ .fc_id = 644, .cpu_id = 493, .valid = 0, .name = "" },
-	{ .fc_id = 645, .cpu_id = 494, .valid = 0, .name = "" },
+	{ .fc_id = 645, .cpu_id = 494, .valid = 1, .name = "FW_ALIVE_S" },
 	{ .fc_id = 646, .cpu_id = 495, .valid = 1, .name = "DEV_RESET_REQ" },
 	{ .fc_id = 647, .cpu_id = 496, .valid = 1,
 		.name = "PKT_QUEUE_OUT_SYNC" },

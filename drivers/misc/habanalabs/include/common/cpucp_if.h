@@ -84,6 +84,20 @@ struct hl_eq_sm_sei_data {
 	__u8 pad[3];
 };
 
+enum hl_fw_alive_severity {
+	FW_ALIVE_SEVERITY_MINOR,
+	FW_ALIVE_SEVERITY_CRITICAL
+};
+
+struct hl_eq_fw_alive {
+	__le64 uptime_seconds;
+	__le32 process_id;
+	__le32 thread_id;
+	/* enum hl_fw_alive_severity */
+	__u8 severity;
+	__u8 pad[7];
+};
+
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
@@ -91,6 +105,7 @@ struct hl_eq_entry {
 		struct hl_eq_hbm_ecc_data hbm_ecc_data;
 		struct hl_eq_sm_sei_data sm_sei_data;
 		struct cpucp_pkt_sync_err pkt_sync_err;
+		struct hl_eq_fw_alive fw_alive;
 		__le64 data[7];
 	};
 };
