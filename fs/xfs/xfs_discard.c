@@ -50,7 +50,7 @@ xfs_trim_extents(
 		goto out_put_perag;
 	agf = agbp->b_addr;
 
-	cur = xfs_allocbt_init_cursor(mp, NULL, agbp, agno, pag, XFS_BTNUM_CNT);
+	cur = xfs_allocbt_init_cursor(mp, NULL, agbp, pag, XFS_BTNUM_CNT);
 
 	/*
 	 * Look up the longest btree in the AGF and start with it.

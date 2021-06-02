@@ -465,14 +465,14 @@ xchk_ag_btcur_init(
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
 		/* Set up a bnobt cursor for cross-referencing. */
 		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				agno, sa->pag, XFS_BTNUM_BNO);
+				sa->pag, XFS_BTNUM_BNO);
 	}
 
 	if (sa->agf_bp &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
 		/* Set up a cntbt cursor for cross-referencing. */
 		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				agno, sa->pag, XFS_BTNUM_CNT);
+				sa->pag, XFS_BTNUM_CNT);
 	}
 
 	/* Set up a inobt cursor for cross-referencing. */
