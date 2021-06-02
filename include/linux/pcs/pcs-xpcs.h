@@ -36,13 +36,6 @@ struct mdio_xpcs_ops {
 			  int enable);
 };
 
-#if IS_ENABLED(CONFIG_PCS_XPCS)
 struct mdio_xpcs_ops *mdio_xpcs_get_ops(void);
-#else
-static inline struct mdio_xpcs_ops *mdio_xpcs_get_ops(void)
-{
-	return NULL;
-}
-#endif
 
 #endif /* __LINUX_PCS_XPCS_H */
