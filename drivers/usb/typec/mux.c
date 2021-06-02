@@ -30,6 +30,22 @@ static void *typec_switch_match(struct fwnode_handle *fwnode, const char *id,
 {
 	struct device *dev;
 
+	/*
+	 * Device graph (OF graph) does not give any means to identify the
+	 * device type or the device class of the remote port parent that @fwnode
+	 * represents, so in order to identify the type or the class of @fwnode
+	 * an additional device property is needed. With typec switches the
+	 * property is named "orientation-switch" (@id). The value of the device
+	 * property is ignored.
+	 */
+	if (id && !fwnode_property_present(fwnode, id))
+		return NULL;
+
+	/*
+	 * At this point we are sure that @fwnode is a typec switch in all
+	 * cases. If the switch hasn't yet been registered for some reason, the
+	 * function "defers probe" for now.
+	 */
 	dev = class_find_device(&typec_mux_class, NULL, fwnode,
 				switch_fwnode_match);
 
