@@ -621,7 +621,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 	bkey_init(&delete.k);
 	delete.k.p = k.k->p;
 
-	bch2_trans_update(trans, iter, &delete, 0);
+	ret = bch2_trans_update(trans, iter, &delete, 0);
 err:
 	bch2_trans_iter_put(trans, iter);
 	return ret;

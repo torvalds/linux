@@ -1198,9 +1198,9 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 	bkey_init(&k.k);
 	k.k.p = iter->pos;
 
-	bch2_trans_update(trans, iter, &k, 0);
-	return bch2_trans_commit(trans, NULL, NULL,
-				 BTREE_INSERT_NOFAIL|flags);
+	return  bch2_trans_update(trans, iter, &k, 0) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BTREE_INSERT_NOFAIL|flags);
 }
 
 int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
@@ -1251,8 +1251,8 @@ retry:
 				break;
 		}
 
-		bch2_trans_update(trans, iter, &delete, 0);
-		ret = bch2_trans_commit(trans, NULL, journal_seq,
+		ret   = bch2_trans_update(trans, iter, &delete, 0) ?:
+			bch2_trans_commit(trans, NULL, journal_seq,
 					BTREE_INSERT_NOFAIL);
 		if (ret)
 			break;

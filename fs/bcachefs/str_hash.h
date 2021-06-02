@@ -281,7 +281,7 @@ not_found:
 			swap(iter, slot);
 
 		insert->k.p = iter->pos;
-		bch2_trans_update(trans, iter, insert, 0);
+		ret = bch2_trans_update(trans, iter, insert, 0);
 	}
 
 	goto out;
@@ -296,20 +296,20 @@ int bch2_hash_delete_at(struct btree_trans *trans,
 	struct bkey_i *delete;
 	int ret;
 
+	delete = bch2_trans_kmalloc(trans, sizeof(*delete));
+	ret = PTR_ERR_OR_ZERO(delete);
+	if (ret)
+		return ret;
+
 	ret = bch2_hash_needs_whiteout(trans, desc, info, iter);
 	if (ret < 0)
 		return ret;
-
-	delete = bch2_trans_kmalloc(trans, sizeof(*delete));
-	if (IS_ERR(delete))
-		return PTR_ERR(delete);
 
 	bkey_init(&delete->k);
 	delete->k.p = iter->pos;
 	delete->k.type = ret ? KEY_TYPE_hash_whiteout : KEY_TYPE_deleted;
 
-	bch2_trans_update(trans, iter, delete, 0);
-	return 0;
+	return bch2_trans_update(trans, iter, delete, 0);
 }
 
 static __always_inline

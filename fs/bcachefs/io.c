@@ -311,8 +311,9 @@ int bch2_extent_update(struct btree_trans *trans,
 
 		inode_iter = bch2_inode_peek(trans, &inode_u,
 				k->k.p.inode, BTREE_ITER_INTENT);
-		if (IS_ERR(inode_iter))
-			return PTR_ERR(inode_iter);
+		ret = PTR_ERR_OR_ZERO(inode_iter);
+		if (ret)
+			return ret;
 
 		/*
 		 * XXX:
@@ -339,11 +340,14 @@ int bch2_extent_update(struct btree_trans *trans,
 
 			inode_p.inode.k.p.snapshot = iter->snapshot;
 
-			bch2_trans_update(trans, inode_iter,
+			ret = bch2_trans_update(trans, inode_iter,
 					  &inode_p.inode.k_i, 0);
 		}
 
 		bch2_trans_iter_put(trans, inode_iter);
+
+		if (ret)
+			return ret;
 	}
 
 	ret =   bch2_trans_update(trans, iter, k, 0) ?:
@@ -1780,7 +1784,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (!bch2_bkey_narrow_crcs(new, new_crc))
 		goto out;
 
-	bch2_trans_update(trans, iter, new, 0);
+	ret = bch2_trans_update(trans, iter, new, 0);
 out:
 	bch2_trans_iter_put(trans, iter);
 	return ret;

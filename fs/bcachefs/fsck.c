@@ -305,9 +305,8 @@ static int hash_redo_key(struct btree_trans *trans,
 
 	bkey_init(&delete->k);
 	delete->k.p = k_iter->pos;
-	bch2_trans_update(trans, k_iter, delete, 0);
-
-	return bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode, tmp, 0);
+	return  bch2_trans_update(trans, k_iter, delete, 0) ?:
+		bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode, tmp, 0);
 }
 
 static int fsck_hash_delete_at(struct btree_trans *trans,
@@ -563,12 +562,12 @@ static int fix_overlapping_extent(struct btree_trans *trans,
 				   BTREE_ITER_INTENT|BTREE_ITER_NOT_EXTENTS);
 
 	BUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
-	bch2_trans_update(trans, iter, u, BTREE_TRIGGER_NORUN);
+	ret   = bch2_trans_update(trans, iter, u, BTREE_TRIGGER_NORUN) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_LAZY_RW);
 	bch2_trans_iter_put(trans, iter);
-
-	return bch2_trans_commit(trans, NULL, NULL,
-				 BTREE_INSERT_NOFAIL|
-				 BTREE_INSERT_LAZY_RW);
+	return ret;
 }
 
 static int inode_backpointer_exists(struct btree_trans *trans,
@@ -887,7 +886,7 @@ retry:
 			ret = __bch2_trans_do(&trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
-				(bch2_trans_update(&trans, iter, &n->k_i, 0), 0));
+				bch2_trans_update(&trans, iter, &n->k_i, 0));
 			kfree(n);
 			if (ret)
 				goto err;

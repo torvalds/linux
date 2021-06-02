@@ -741,9 +741,8 @@ found_slot:
 
 	stripe->k.p = iter->pos;
 
-	bch2_trans_update(&trans, iter, &stripe->k_i, 0);
-
-	ret = bch2_trans_commit(&trans, res, NULL,
+	ret   = bch2_trans_update(&trans, iter, &stripe->k_i, 0) ?:
+		bch2_trans_commit(&trans, res, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
 	bch2_trans_iter_put(&trans, iter);
@@ -791,7 +790,7 @@ static int ec_stripe_bkey_update(struct btree_trans *trans,
 		stripe_blockcount_set(&new->v, i,
 			stripe_blockcount_get(existing, i));
 
-	bch2_trans_update(trans, iter, &new->k_i, 0);
+	ret = bch2_trans_update(trans, iter, &new->k_i, 0);
 err:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
@@ -864,9 +863,8 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 		extent_stripe_ptr_add(e, s, ec_ptr, block);
 
 		bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
-		bch2_trans_update(&trans, iter, sk.k, 0);
-
-		ret = bch2_trans_commit(&trans, NULL, NULL,
+		ret   = bch2_trans_update(&trans, iter, sk.k, 0) ?:
+			bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL);
 		if (ret == -EINTR)
 			ret = 0;
@@ -1588,8 +1586,7 @@ write:
 		stripe_blockcount_set(&new_key->v, i,
 				      m->block_sectors[i]);
 
-	bch2_trans_update(trans, iter, &new_key->k_i, 0);
-	return 0;
+	return bch2_trans_update(trans, iter, &new_key->k_i, 0);
 }
 
 int bch2_stripes_write(struct bch_fs *c, unsigned flags)

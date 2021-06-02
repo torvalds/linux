@@ -333,8 +333,7 @@ int bch2_inode_write(struct btree_trans *trans,
 
 	bch2_inode_pack(trans->c, inode_p, inode);
 	inode_p->inode.k.p.snapshot = iter->snapshot;
-	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
-	return 0;
+	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
 }
 
 const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
@@ -629,9 +628,8 @@ retry:
 	delete.k.p = iter->pos;
 	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
 
-	bch2_trans_update(&trans, iter, &delete.k_i, 0);
-
-	ret = bch2_trans_commit(&trans, NULL, NULL,
+	ret   = bch2_trans_update(&trans, iter, &delete.k_i, 0) ?:
+		bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
 	bch2_trans_iter_put(&trans, iter);

@@ -340,9 +340,9 @@ retry:
 		return 0;
 
 	bch2_alloc_pack(c, &a, new_u);
-	bch2_trans_update(trans, iter, &a.k,
-			  BTREE_TRIGGER_NORUN);
-	ret = bch2_trans_commit(trans, NULL, NULL,
+	ret   = bch2_trans_update(trans, iter, &a.k,
+				  BTREE_TRIGGER_NORUN) ?:
+		bch2_trans_commit(trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|flags);
 err:
 	if (ret == -EINTR)
@@ -726,7 +726,8 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 	u.write_time	= atomic64_read(&c->io_clock[WRITE].now);
 
 	bch2_alloc_pack(c, a, u);
-	bch2_trans_update(trans, iter, &a->k, BTREE_TRIGGER_BUCKET_INVALIDATE);
+	ret = bch2_trans_update(trans, iter, &a->k,
+				BTREE_TRIGGER_BUCKET_INVALIDATE);
 err:
 	bch2_trans_iter_put(trans, iter);
 	return ret;

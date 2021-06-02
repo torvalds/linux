@@ -1877,7 +1877,9 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	}
 
 	bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
-	bch2_trans_update(trans, iter, n, 0);
+	ret = bch2_trans_update(trans, iter, n, 0);
+	if (ret)
+		goto err;
 out:
 	ret = sectors;
 err:
