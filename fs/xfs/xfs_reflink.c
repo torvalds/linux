@@ -27,7 +27,7 @@
 #include "xfs_quota.h"
 #include "xfs_reflink.h"
 #include "xfs_iomap.h"
-#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
 /*

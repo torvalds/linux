@@ -9,7 +9,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_btree.h"
 #include "xfs_btree_staging.h"
@@ -20,6 +19,7 @@
 #include "xfs_trans.h"
 #include "xfs_bit.h"
 #include "xfs_rmap.h"
+#include "xfs_ag.h"
 
 static struct xfs_btree_cur *
 xfs_refcountbt_dup_cursor(

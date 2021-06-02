@@ -25,6 +25,7 @@
 #include "xfs_icache.h"
 #include "xfs_error.h"
 #include "xfs_buf_item.h"
+#include "xfs_ag.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 

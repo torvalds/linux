@@ -32,6 +32,7 @@
 #include "xfs_extent_busy.h"
 #include "xfs_health.h"
 #include "xfs_trace.h"
+#include "xfs_ag.h"
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;

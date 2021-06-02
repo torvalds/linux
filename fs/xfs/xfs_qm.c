@@ -23,6 +23,7 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_error.h"
+#include "xfs_ag.h"
 
 /*
  * The global quota manager. There is only one of these for the entire

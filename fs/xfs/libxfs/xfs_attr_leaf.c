@@ -27,6 +27,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_dir2.h"
 #include "xfs_log.h"
+#include "xfs_ag.h"
 
 
 /*

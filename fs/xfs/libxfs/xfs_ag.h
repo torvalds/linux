@@ -9,6 +9,16 @@
 
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_perag;
+
+/*
+ * perag get/put wrappers for ref counting
+ */
+int	xfs_initialize_perag_data(struct xfs_mount *, xfs_agnumber_t);
+struct xfs_perag *xfs_perag_get(struct xfs_mount *, xfs_agnumber_t);
+struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *, xfs_agnumber_t,
+				   int tag);
+void	xfs_perag_put(struct xfs_perag *pag);
 
 struct aghdr_init_data {
 	/* per ag data */

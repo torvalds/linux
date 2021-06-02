@@ -36,6 +36,7 @@
 #include "xfs_bmap_item.h"
 #include "xfs_reflink.h"
 #include "xfs_pwork.h"
+#include "xfs_ag.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>

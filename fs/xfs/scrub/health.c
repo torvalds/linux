@@ -8,7 +8,7 @@
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_btree.h"
-#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_health.h"
 #include "scrub/scrub.h"
 #include "scrub/health.h"

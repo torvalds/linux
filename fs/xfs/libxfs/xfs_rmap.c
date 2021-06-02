@@ -21,6 +21,7 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_inode.h"
+#include "xfs_ag.h"
 
 /*
  * Lookup the first record less than or equal to [bno, len, owner, offset]
