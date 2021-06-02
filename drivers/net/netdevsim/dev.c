@@ -263,12 +263,16 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 						nsim_dev->ddir,
 						nsim_dev->nsim_bus_dev,
 						&nsim_dev_max_vfs_fops);
+	nsim_dev->nodes_ddir = debugfs_create_dir("rate_nodes", nsim_dev->ddir);
+	if (IS_ERR(nsim_dev->nodes_ddir))
+		return PTR_ERR(nsim_dev->nodes_ddir);
 	nsim_udp_tunnels_debugfs_create(nsim_dev);
 	return 0;
 }
 
 static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
 {
+	debugfs_remove_recursive(nsim_dev->nodes_ddir);
 	debugfs_remove_recursive(nsim_dev->ports_ddir);
 	debugfs_remove_recursive(nsim_dev->ddir);
 }
@@ -451,8 +455,10 @@ static void nsim_dev_dummy_region_exit(struct nsim_dev *nsim_dev)
 static void __nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port);
 int nsim_esw_legacy_enable(struct nsim_dev *nsim_dev, struct netlink_ext_ack *extack)
 {
+	struct devlink *devlink = priv_to_devlink(nsim_dev);
 	struct nsim_dev_port *nsim_dev_port, *tmp;
 
+	devlink_rate_nodes_destroy(devlink);
 	mutex_lock(&nsim_dev->port_list_lock);
 	list_for_each_entry_safe(nsim_dev_port, tmp, &nsim_dev->port_list, list)
 		if (nsim_dev_port_is_vf(nsim_dev_port))
@@ -1060,6 +1066,76 @@ static int nsim_leaf_tx_max_set(struct devlink_rate *devlink_rate, void *priv,
 	return 0;
 }
 
+struct nsim_rate_node {
+	struct dentry *ddir;
+	u16 tx_share;
+	u16 tx_max;
+};
+
+static int nsim_node_tx_share_set(struct devlink_rate *devlink_rate, void *priv,
+				  u64 tx_share, struct netlink_ext_ack *extack)
+{
+	struct nsim_rate_node *nsim_node = priv;
+	int err;
+
+	err = nsim_rate_bytes_to_units("tx_share", &tx_share, extack);
+	if (err)
+		return err;
+
+	nsim_node->tx_share = tx_share;
+	return 0;
+}
+
+static int nsim_node_tx_max_set(struct devlink_rate *devlink_rate, void *priv,
+				u64 tx_max, struct netlink_ext_ack *extack)
+{
+	struct nsim_rate_node *nsim_node = priv;
+	int err;
+
+	err = nsim_rate_bytes_to_units("tx_max", &tx_max, extack);
+	if (err)
+		return err;
+
+	nsim_node->tx_max = tx_max;
+	return 0;
+}
+
+static int nsim_rate_node_new(struct devlink_rate *node, void **priv,
+			      struct netlink_ext_ack *extack)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(node->devlink);
+	struct nsim_rate_node *nsim_node;
+
+	if (!nsim_esw_mode_is_switchdev(nsim_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Node creation allowed only in switchdev mode.");
+		return -EOPNOTSUPP;
+	}
+
+	nsim_node = kzalloc(sizeof(*nsim_node), GFP_KERNEL);
+	if (!nsim_node)
+		return -ENOMEM;
+
+	nsim_node->ddir = debugfs_create_dir(node->name, nsim_dev->nodes_ddir);
+	if (!nsim_node->ddir) {
+		kfree(nsim_node);
+		return -ENOMEM;
+	}
+	debugfs_create_u16("tx_share", 0400, nsim_node->ddir, &nsim_node->tx_share);
+	debugfs_create_u16("tx_max", 0400, nsim_node->ddir, &nsim_node->tx_max);
+	*priv = nsim_node;
+	return 0;
+}
+
+static int nsim_rate_node_del(struct devlink_rate *node, void *priv,
+			      struct netlink_ext_ack *extack)
+{
+	struct nsim_rate_node *nsim_node = priv;
+
+	debugfs_remove_recursive(nsim_node->ddir);
+	kfree(nsim_node);
+	return 0;
+}
+
 static const struct devlink_ops nsim_dev_devlink_ops = {
 	.eswitch_mode_set = nsim_devlink_eswitch_mode_set,
 	.eswitch_mode_get = nsim_devlink_eswitch_mode_get,
@@ -1077,6 +1153,10 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.trap_policer_counter_get = nsim_dev_devlink_trap_policer_counter_get,
 	.rate_leaf_tx_share_set = nsim_leaf_tx_share_set,
 	.rate_leaf_tx_max_set = nsim_leaf_tx_max_set,
+	.rate_node_tx_share_set = nsim_node_tx_share_set,
+	.rate_node_tx_max_set = nsim_node_tx_max_set,
+	.rate_node_new = nsim_rate_node_new,
+	.rate_node_del = nsim_rate_node_del,
 };
 
 #define NSIM_DEV_MAX_MACS_DEFAULT 32
