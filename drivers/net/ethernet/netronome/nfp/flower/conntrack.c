@@ -64,6 +64,77 @@ bool is_post_ct_flow(struct flow_cls_offload *flow)
 	return false;
 }
 
+static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
+			      struct nfp_fl_ct_flow_entry *entry2)
+{
+	return 0;
+}
+
+static int nfp_ct_do_tc_merge(struct nfp_fl_ct_zone_entry *zt,
+			      struct nfp_fl_ct_flow_entry *ct_entry1,
+			      struct nfp_fl_ct_flow_entry *ct_entry2)
+{
+	struct nfp_fl_ct_flow_entry *post_ct_entry, *pre_ct_entry;
+	struct nfp_fl_ct_tc_merge *m_entry;
+	unsigned long new_cookie[2];
+	int err;
+
+	if (ct_entry1->type == CT_TYPE_PRE_CT) {
+		pre_ct_entry = ct_entry1;
+		post_ct_entry = ct_entry2;
+	} else {
+		post_ct_entry = ct_entry1;
+		pre_ct_entry = ct_entry2;
+	}
+
+	if (post_ct_entry->netdev != pre_ct_entry->netdev)
+		return -EINVAL;
+	/* Checks that the chain_index of the filter matches the
+	 * chain_index of the GOTO action.
+	 */
+	if (post_ct_entry->chain_index != pre_ct_entry->chain_index)
+		return -EINVAL;
+
+	err = nfp_ct_merge_check(post_ct_entry, pre_ct_entry);
+	if (err)
+		return err;
+
+	new_cookie[0] = pre_ct_entry->cookie;
+	new_cookie[1] = post_ct_entry->cookie;
+	m_entry = get_hashentry(&zt->tc_merge_tb, &new_cookie,
+				nfp_tc_ct_merge_params, sizeof(*m_entry));
+	if (IS_ERR(m_entry))
+		return PTR_ERR(m_entry);
+
+	/* m_entry already present, not merging again */
+	if (!memcmp(&new_cookie, m_entry->cookie, sizeof(new_cookie)))
+		return 0;
+
+	memcpy(&m_entry->cookie, &new_cookie, sizeof(new_cookie));
+	m_entry->zt = zt;
+	m_entry->post_ct_parent = post_ct_entry;
+	m_entry->pre_ct_parent = pre_ct_entry;
+
+	/* Add this entry to the pre_ct and post_ct lists */
+	list_add(&m_entry->post_ct_list, &post_ct_entry->children);
+	list_add(&m_entry->pre_ct_list, &pre_ct_entry->children);
+	INIT_LIST_HEAD(&m_entry->children);
+
+	err = rhashtable_insert_fast(&zt->tc_merge_tb, &m_entry->hash_node,
+				     nfp_tc_ct_merge_params);
+	if (err)
+		goto err_ct_tc_merge_insert;
+	zt->tc_merge_count++;
+
+	return 0;
+
+err_ct_tc_merge_insert:
+	list_del(&m_entry->post_ct_list);
+	list_del(&m_entry->pre_ct_list);
+	kfree(m_entry);
+	return err;
+}
+
 static struct
 nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 					 u16 zone, bool wildcarded)
@@ -210,12 +281,48 @@ err_pre_ct_act:
 	return ERR_PTR(err);
 }
 
-static void nfp_free_tc_merge_children(struct nfp_fl_ct_flow_entry *entry)
+static void nfp_free_nft_merge_children(void *entry, bool is_nft_flow)
 {
 }
 
-static void nfp_free_nft_merge_children(void *entry, bool is_nft_flow)
+static void nfp_del_tc_merge_entry(struct nfp_fl_ct_tc_merge *m_ent)
 {
+	struct nfp_fl_ct_zone_entry *zt;
+	int err;
+
+	zt = m_ent->zt;
+	err = rhashtable_remove_fast(&zt->tc_merge_tb,
+				     &m_ent->hash_node,
+				     nfp_tc_ct_merge_params);
+	if (err)
+		pr_warn("WARNING: could not remove merge_entry from hashtable\n");
+	zt->tc_merge_count--;
+	list_del(&m_ent->post_ct_list);
+	list_del(&m_ent->pre_ct_list);
+
+	if (!list_empty(&m_ent->children))
+		nfp_free_nft_merge_children(m_ent, false);
+	kfree(m_ent);
+}
+
+static void nfp_free_tc_merge_children(struct nfp_fl_ct_flow_entry *entry)
+{
+	struct nfp_fl_ct_tc_merge *m_ent, *tmp;
+
+	switch (entry->type) {
+	case CT_TYPE_PRE_CT:
+		list_for_each_entry_safe(m_ent, tmp, &entry->children, pre_ct_list) {
+			nfp_del_tc_merge_entry(m_ent);
+		}
+		break;
+	case CT_TYPE_POST_CT:
+		list_for_each_entry_safe(m_ent, tmp, &entry->children, post_ct_list) {
+			nfp_del_tc_merge_entry(m_ent);
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 void nfp_fl_ct_clean_flow_entry(struct nfp_fl_ct_flow_entry *entry)
@@ -246,6 +353,27 @@ static struct flow_action_entry *get_flow_act(struct flow_cls_offload *flow,
 			return act;
 	}
 	return NULL;
+}
+
+static void
+nfp_ct_merge_tc_entries(struct nfp_fl_ct_flow_entry *ct_entry1,
+			struct nfp_fl_ct_zone_entry *zt_src,
+			struct nfp_fl_ct_zone_entry *zt_dst)
+{
+	struct nfp_fl_ct_flow_entry *ct_entry2, *ct_tmp;
+	struct list_head *ct_list;
+
+	if (ct_entry1->type == CT_TYPE_PRE_CT)
+		ct_list = &zt_src->post_ct_list;
+	else if (ct_entry1->type == CT_TYPE_POST_CT)
+		ct_list = &zt_src->pre_ct_list;
+	else
+		return;
+
+	list_for_each_entry_safe(ct_entry2, ct_tmp, ct_list,
+				 list_node) {
+		nfp_ct_do_tc_merge(zt_dst, ct_entry2, ct_entry1);
+	}
 }
 
 int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
@@ -290,8 +418,13 @@ int nfp_fl_ct_handle_pre_ct(struct nfp_flower_priv *priv,
 	list_add(&ct_entry->list_node, &zt->pre_ct_list);
 	zt->pre_ct_count++;
 
+	nfp_ct_merge_tc_entries(ct_entry, zt, zt);
+
+	/* Need to check and merge with tables in the wc_zone as well */
+	if (priv->ct_zone_wc)
+		nfp_ct_merge_tc_entries(ct_entry, priv->ct_zone_wc, zt);
+
 	NL_SET_ERR_MSG_MOD(extack, "unsupported offload: Conntrack action not supported");
-	nfp_fl_ct_clean_flow_entry(ct_entry);
 	return -EOPNOTSUPP;
 }
 
@@ -332,7 +465,28 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 	list_add(&ct_entry->list_node, &zt->post_ct_list);
 	zt->post_ct_count++;
 
+	if (wildcarded) {
+		/* Iterate through all zone tables if not empty, look for merges with
+		 * pre_ct entries and merge them.
+		 */
+		struct rhashtable_iter iter;
+		struct nfp_fl_ct_zone_entry *zone_table;
+
+		rhashtable_walk_enter(&priv->ct_zone_table, &iter);
+		rhashtable_walk_start(&iter);
+		while ((zone_table = rhashtable_walk_next(&iter)) != NULL) {
+			if (IS_ERR(zone_table))
+				continue;
+			rhashtable_walk_stop(&iter);
+			nfp_ct_merge_tc_entries(ct_entry, zone_table, zone_table);
+			rhashtable_walk_start(&iter);
+		}
+		rhashtable_walk_stop(&iter);
+		rhashtable_walk_exit(&iter);
+	} else {
+		nfp_ct_merge_tc_entries(ct_entry, zt, zt);
+	}
+
 	NL_SET_ERR_MSG_MOD(extack, "unsupported offload: Conntrack match not supported");
-	nfp_fl_ct_clean_flow_entry(ct_entry);
 	return -EOPNOTSUPP;
 }
