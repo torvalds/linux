@@ -138,7 +138,7 @@ static inline void ethnl_update_bool32(u32 *dst, const struct nlattr *attr,
 }
 
 /**
- * ethnl_update_binary() - update binary data from NLA_BINARY atribute
+ * ethnl_update_binary() - update binary data from NLA_BINARY attribute
  * @dst:  value to update
  * @len:  destination buffer length
  * @attr: netlink attribute with new value or null
