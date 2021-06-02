@@ -112,7 +112,7 @@ void amdgpu_pasid_free_delayed(struct dma_resv *resv,
 	unsigned count;
 	int r;
 
-	r = dma_resv_get_fences_rcu(resv, NULL, &count, &fences);
+	r = dma_resv_get_fences(resv, NULL, &count, &fences);
 	if (r)
 		goto fallback;
 
@@ -156,8 +156,7 @@ fallback:
 	/* Not enough memory for the delayed delete, as last resort
 	 * block for all the fences to complete.
 	 */
-	dma_resv_wait_timeout_rcu(resv, true, false,
-					    MAX_SCHEDULE_TIMEOUT);
+	dma_resv_wait_timeout(resv, true, false, MAX_SCHEDULE_TIMEOUT);
 	amdgpu_pasid_free(pasid);
 }
 

@@ -1594,8 +1594,8 @@ i915_request_await_object(struct i915_request *to,
 		struct dma_fence **shared;
 		unsigned int count, i;
 
-		ret = dma_resv_get_fences_rcu(obj->base.resv,
-							&excl, &count, &shared);
+		ret = dma_resv_get_fences(obj->base.resv, &excl, &count,
+					  &shared);
 		if (ret)
 			return ret;
 

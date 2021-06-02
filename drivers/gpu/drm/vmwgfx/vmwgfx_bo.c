@@ -743,9 +743,9 @@ static int vmw_user_bo_synccpu_grab(struct vmw_user_buffer_object *user_bo,
 	if (flags & drm_vmw_synccpu_allow_cs) {
 		long lret;
 
-		lret = dma_resv_wait_timeout_rcu
-			(bo->base.resv, true, true,
-			 nonblock ? 0 : MAX_SCHEDULE_TIMEOUT);
+		lret = dma_resv_wait_timeout(bo->base.resv, true, true,
+					     nonblock ? 0 :
+					     MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
 		else if (lret < 0)

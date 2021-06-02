@@ -964,8 +964,8 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	lret = dma_resv_wait_timeout_rcu(nvbo->bo.base.resv, write, true,
-						   no_wait ? 0 : 30 * HZ);
+	lret = dma_resv_wait_timeout(nvbo->bo.base.resv, write, true,
+				     no_wait ? 0 : 30 * HZ);
 	if (!lret)
 		ret = -EBUSY;
 	else if (lret > 0)

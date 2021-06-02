@@ -1481,7 +1481,7 @@ static inline bool use_reloc_gpu(struct i915_vma *vma)
 	if (DBG_FORCE_RELOC)
 		return false;
 
-	return !dma_resv_test_signaled_rcu(vma->resv, true);
+	return !dma_resv_test_signaled(vma->resv, true);
 }
 
 static unsigned long vma_phys_addr(struct i915_vma *vma, u32 offset)
