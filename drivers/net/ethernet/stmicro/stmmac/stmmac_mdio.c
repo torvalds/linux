@@ -444,14 +444,6 @@ int stmmac_mdio_register(struct net_device *ndev)
 		max_addr = PHY_MAX_ADDR;
 	}
 
-	if (mdio_bus_data->has_xpcs) {
-		priv->hw->xpcs = mdio_xpcs_get_ops();
-		if (!priv->hw->xpcs) {
-			err = -ENODEV;
-			goto bus_register_fail;
-		}
-	}
-
 	if (mdio_bus_data->needs_reset)
 		new_bus->reset = &stmmac_mdio_reset;
 
@@ -526,11 +518,11 @@ int stmmac_mdio_register(struct net_device *ndev)
 				continue;
 			}
 
-			priv->hw->xpcs_args = xpcs;
+			priv->hw->xpcs = xpcs;
 			break;
 		}
 
-		if (!priv->hw->xpcs_args) {
+		if (!priv->hw->xpcs) {
 			dev_warn(dev, "No XPCS found\n");
 			err = -ENODEV;
 			goto no_xpcs_found;
@@ -563,8 +555,8 @@ int stmmac_mdio_unregister(struct net_device *ndev)
 		return 0;
 
 	if (priv->hw->xpcs) {
-		mdio_device_free(priv->hw->xpcs_args->mdiodev);
-		xpcs_destroy(priv->hw->xpcs_args);
+		mdio_device_free(priv->hw->xpcs->mdiodev);
+		xpcs_destroy(priv->hw->xpcs);
 	}
 
 	mdiobus_unregister(priv->mii);

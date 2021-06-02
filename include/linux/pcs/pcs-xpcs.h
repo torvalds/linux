@@ -19,19 +19,10 @@ struct xpcs_id;
 struct mdio_xpcs_args {
 	struct mdio_device *mdiodev;
 	const struct xpcs_id *id;
-};
-
-struct mdio_xpcs_ops {
-	int (*config)(struct mdio_xpcs_args *xpcs,
-		      const struct phylink_link_state *state);
-	int (*get_state)(struct mdio_xpcs_args *xpcs,
-			 struct phylink_link_state *state);
-	int (*link_up)(struct mdio_xpcs_args *xpcs, int speed,
-		       phy_interface_t interface);
+	struct phylink_pcs pcs;
 };
 
 int xpcs_get_an_mode(struct mdio_xpcs_args *xpcs, phy_interface_t interface);
-struct mdio_xpcs_ops *mdio_xpcs_get_ops(void);
 void xpcs_validate(struct mdio_xpcs_args *xpcs, unsigned long *supported,
 		   struct phylink_link_state *state);
 int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
