@@ -1250,9 +1250,15 @@ out:
 	return ret;
 }
 
-static void kernel_init_free_pages(struct page *page, int numpages)
+static void kernel_init_free_pages(struct page *page, int numpages, bool zero_tags)
 {
 	int i;
+
+	if (zero_tags) {
+		for (i = 0; i < numpages; i++)
+			tag_clear_highpage(page + i);
+		return;
+	}
 
 	/* s390's use of memset() could override KASAN redzones. */
 	kasan_disable_current();
@@ -1347,7 +1353,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
 		bool init = want_init_on_free();
 
 		if (init)
-			kernel_init_free_pages(page, 1 << order);
+			kernel_init_free_pages(page, 1 << order, false);
 		if (!skip_kasan_poison)
 			kasan_poison_pages(page, order, init);
 	}
@@ -2363,7 +2369,8 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 
 		kasan_unpoison_pages(page, order, init);
 		if (init)
-			kernel_init_free_pages(page, 1 << order);
+			kernel_init_free_pages(page, 1 << order,
+					       gfp_flags & __GFP_ZEROTAGS);
 	}
 
 	kernel_unpoison_pages(page, 1 << order);
