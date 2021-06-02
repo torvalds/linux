@@ -367,6 +367,16 @@ out:
 	return ERR_PTR(ret);
 }
 
+static void cm_free_msg(struct ib_mad_send_buf *msg)
+{
+	struct cm_id_private *cm_id_priv = msg->context[0];
+
+	if (msg->ah)
+		rdma_destroy_ah(msg->ah, 0);
+	cm_deref_id(cm_id_priv);
+	ib_free_send_mad(msg);
+}
+
 static struct ib_mad_send_buf *
 cm_alloc_priv_msg(struct cm_id_private *cm_id_priv)
 {
@@ -418,15 +428,6 @@ static int cm_create_response_msg_ah(struct cm_port *port,
 
 	msg->ah = ah;
 	return 0;
-}
-
-static void cm_free_msg(struct ib_mad_send_buf *msg)
-{
-	if (msg->ah)
-		rdma_destroy_ah(msg->ah, 0);
-	if (msg->context[0])
-		cm_deref_id(msg->context[0]);
-	ib_free_send_mad(msg);
 }
 
 static int cm_alloc_response_msg(struct cm_port *port,
@@ -3455,7 +3456,6 @@ static int cm_apr_handler(struct cm_work *work)
 	}
 	cm_id_priv->id.lap_state = IB_CM_LAP_IDLE;
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
-	cm_id_priv->msg = NULL;
 	cm_queue_work_unlock(cm_id_priv, work);
 	return 0;
 out:
