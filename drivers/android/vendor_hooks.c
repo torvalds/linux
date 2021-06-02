@@ -59,6 +59,7 @@
 #include <trace/hooks/mmc_core.h>
 #include <trace/hooks/v4l2core.h>
 #include <trace/hooks/v4l2mc.h>
+#include <trace/hooks/scmi.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -308,3 +309,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_media_device_setup_link);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_reserved_fmt_fields);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_fill_ext_fmtdesc);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_mask_adjust);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_scmi_timeout_sync);
