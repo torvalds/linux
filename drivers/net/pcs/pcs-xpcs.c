@@ -715,8 +715,8 @@ void xpcs_validate(struct mdio_xpcs_args *xpcs, unsigned long *supported,
 }
 EXPORT_SYMBOL_GPL(xpcs_validate);
 
-static int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
-			   int enable)
+int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
+		    int enable)
 {
 	int ret;
 
@@ -747,6 +747,7 @@ static int xpcs_config_eee(struct mdio_xpcs_args *xpcs, int mult_fact_100ns,
 	ret |= DW_VR_MII_EEE_TRN_LPI;
 	return xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1, ret);
 }
+EXPORT_SYMBOL_GPL(xpcs_config_eee);
 
 static int xpcs_config_aneg_c37_sgmii(struct mdio_xpcs_args *xpcs)
 {
@@ -1033,7 +1034,6 @@ static struct mdio_xpcs_ops xpcs_ops = {
 	.get_state = xpcs_get_state,
 	.link_up = xpcs_link_up,
 	.probe = xpcs_probe,
-	.config_eee = xpcs_config_eee,
 };
 
 struct mdio_xpcs_ops *mdio_xpcs_get_ops(void)
