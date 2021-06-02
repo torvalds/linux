@@ -110,7 +110,7 @@ static int amdgpu_vm_cpu_commit(struct amdgpu_vm_update_params *p,
 {
 	/* Flush HDP */
 	mb();
-	amdgpu_asic_flush_hdp(p->adev, NULL);
+	amdgpu_device_flush_hdp(p->adev, NULL);
 	return 0;
 }
 
