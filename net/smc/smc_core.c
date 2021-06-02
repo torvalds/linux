@@ -1235,20 +1235,6 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	kfree(lgr);
 }
 
-static void smcd_unregister_all_dmbs(struct smc_link_group *lgr)
-{
-	int i;
-
-	for (i = 0; i < SMC_RMBE_SIZES; i++) {
-		struct smc_buf_desc *buf_desc;
-
-		list_for_each_entry(buf_desc, &lgr->rmbs[i], list) {
-			buf_desc->len += sizeof(struct smcd_cdc_msg);
-			smc_ism_unregister_dmb(lgr->smcd, buf_desc);
-		}
-	}
-}
-
 static void smc_sk_wake_ups(struct smc_sock *smc)
 {
 	smc->sk.sk_write_space(&smc->sk);
@@ -1285,7 +1271,6 @@ static void smc_lgr_cleanup(struct smc_link_group *lgr)
 {
 	if (lgr->is_smcd) {
 		smc_ism_signal_shutdown(lgr);
-		smcd_unregister_all_dmbs(lgr);
 	} else {
 		u32 rsn = lgr->llc_termination_rsn;
 
