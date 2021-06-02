@@ -1755,6 +1755,7 @@ static inline int task_on_rq_migrating(struct task_struct *p)
 #define WF_FORK			0x02		/* Child wakeup after fork */
 #define WF_MIGRATED		0x04		/* Internal use, task got migrated */
 #define WF_ON_CPU		0x08		/* Wakee is on_cpu */
+#define WF_ANDROID_VENDOR	0x1000		/* Vendor specific for Android */
 
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
