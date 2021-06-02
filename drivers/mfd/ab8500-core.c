@@ -827,8 +827,8 @@ static const struct mfd_cell ab8540_cut2_devs[] = {
 	},
 };
 
-static ssize_t show_chip_id(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t chip_id_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct ab8500 *ab8500;
 
@@ -848,8 +848,8 @@ static ssize_t show_chip_id(struct device *dev,
  * 0x40 Power on key 1 pressed longer than 10 seconds
  * 0x80 DB8500 thermal shutdown
  */
-static ssize_t show_switch_off_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t switch_off_status_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -883,8 +883,8 @@ void ab8500_override_turn_on_stat(u8 mask, u8 set)
  * 0x40 UsbIDDetect
  * 0x80 Reserved
  */
-static ssize_t show_turn_on_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t turn_on_status_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -912,8 +912,8 @@ static ssize_t show_turn_on_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
-static ssize_t show_turn_on_status_2(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t turn_on_status_2_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -927,8 +927,8 @@ static ssize_t show_turn_on_status_2(struct device *dev,
 	return sprintf(buf, "%#x\n", (value & 0x1));
 }
 
-static ssize_t show_ab9540_dbbrstn(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t dbbrstn_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct ab8500 *ab8500;
 	int ret;
@@ -945,7 +945,7 @@ static ssize_t show_ab9540_dbbrstn(struct device *dev,
 			(value & AB9540_MODEM_CTRL2_SWDBBRSTN_BIT) ? 1 : 0);
 }
 
-static ssize_t store_ab9540_dbbrstn(struct device *dev,
+static ssize_t dbbrstn_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ab8500 *ab8500;
@@ -980,12 +980,11 @@ exit:
 	return ret;
 }
 
-static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
-static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
-static DEVICE_ATTR(turn_on_status, S_IRUGO, show_turn_on_status, NULL);
-static DEVICE_ATTR(turn_on_status_2, S_IRUGO, show_turn_on_status_2, NULL);
-static DEVICE_ATTR(dbbrstn, S_IRUGO | S_IWUSR,
-			show_ab9540_dbbrstn, store_ab9540_dbbrstn);
+static DEVICE_ATTR_RO(chip_id);
+static DEVICE_ATTR_RO(switch_off_status);
+static DEVICE_ATTR_RO(turn_on_status);
+static DEVICE_ATTR_RO(turn_on_status_2);
+static DEVICE_ATTR_RW(dbbrstn);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
