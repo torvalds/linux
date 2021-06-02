@@ -1130,7 +1130,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		if (!hci_sock_gen_cookie(sk)) {
 			/* In the case when a cookie has already been assigned,
 			 * then there has been already an ioctl issued against
-			 * an unbound socket and with that triggerd an open
+			 * an unbound socket and with that triggered an open
 			 * notification. Send a close notification first to
 			 * allow the state transition to bounded.
 			 */
@@ -1326,9 +1326,9 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		if (hci_pi(sk)->channel == HCI_CHANNEL_CONTROL) {
 			if (!hci_sock_gen_cookie(sk)) {
 				/* In the case when a cookie has already been
-				 * assigned, this socket will transtion from
+				 * assigned, this socket will transition from
 				 * a raw socket into a control socket. To
-				 * allow for a clean transtion, send the
+				 * allow for a clean transition, send the
 				 * close notification first.
 				 */
 				skb = create_monitor_ctrl_close(sk);

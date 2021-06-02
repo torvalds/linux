@@ -758,7 +758,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	conn->state = BT_CLOSED;
 
 	/* If the status indicates successful cancellation of
-	 * the attempt (i.e. Unkown Connection Id) there's no point of
+	 * the attempt (i.e. Unknown Connection Id) there's no point of
 	 * notifying failure since we'll go back to keep trying to
 	 * connect. The only exception is explicit connect requests
 	 * where a timeout + cancel does indicate an actual failure.

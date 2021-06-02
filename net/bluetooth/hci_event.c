@@ -6032,7 +6032,7 @@ static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
 		return true;
 	}
 
-	/* Check if request ended in Command Status - no way to retreive
+	/* Check if request ended in Command Status - no way to retrieve
 	 * any extra parameters in this case.
 	 */
 	if (hdr->evt == HCI_EV_CMD_STATUS)
