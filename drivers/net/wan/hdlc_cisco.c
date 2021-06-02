@@ -58,7 +58,7 @@ struct cisco_state {
 
 static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr);
 
-static inline struct cisco_state* state(hdlc_device *hdlc)
+static inline struct cisco_state *state(hdlc_device *hdlc)
 {
 	return (struct cisco_state *)hdlc->state;
 }
@@ -73,7 +73,7 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
-	data = (struct hdlc_header*)skb->data;
+	data = (struct hdlc_header *)skb->data;
 	if (type == CISCO_KEEPALIVE)
 		data->address = CISCO_MULTICAST;
 	else
@@ -98,7 +98,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	}
 	skb_reserve(skb, 4);
 	cisco_hard_header(skb, dev, CISCO_KEEPALIVE, NULL, NULL, 0);
-	data = (struct cisco_packet*)(skb->data + 4);
+	data = (struct cisco_packet *)(skb->data + 4);
 
 	data->type = htonl(type);
 	data->par1 = par1;
@@ -118,7 +118,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 
 static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	struct hdlc_header *data = (struct hdlc_header*)skb->data;
+	struct hdlc_header *data = (struct hdlc_header *)skb->data;
 
 	if (skb->len < sizeof(struct hdlc_header))
 		return cpu_to_be16(ETH_P_HDLC);
@@ -143,7 +143,7 @@ static int cisco_rx(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct cisco_state *st = state(hdlc);
-	struct hdlc_header *data = (struct hdlc_header*)skb->data;
+	struct hdlc_header *data = (struct hdlc_header *)skb->data;
 	struct cisco_packet *cisco_data;
 	struct in_device *in_dev;
 	__be32 addr, mask;
@@ -172,7 +172,7 @@ static int cisco_rx(struct sk_buff *skb)
 			goto rx_error;
 		}
 
-		cisco_data = (struct cisco_packet*)(skb->data + sizeof
+		cisco_data = (struct cisco_packet *)(skb->data + sizeof
 						    (struct hdlc_header));
 
 		switch (ntohl (cisco_data->type)) {
