@@ -330,6 +330,7 @@ static inline void aspeed_jtag_output_disable(struct aspeed_jtag *aspeed_jtag)
 static inline void
 aspeed_jtag_output_disable_26xx(struct aspeed_jtag *aspeed_jtag)
 {
+	aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_CTRL);
 	aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_GBLCTRL);
 }
 
