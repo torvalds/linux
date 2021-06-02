@@ -1432,6 +1432,7 @@ static int
 xfs_dialloc_ag(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
+	struct xfs_perag	*pag,
 	xfs_ino_t		parent,
 	xfs_ino_t		*inop)
 {
@@ -1446,7 +1447,6 @@ xfs_dialloc_ag(
 	int				error;
 	int				offset;
 	int				i;
-	struct xfs_perag		*pag = agbp->b_pag;
 
 	if (!xfs_sb_version_hasfinobt(&mp->m_sb))
 		return xfs_dialloc_ag_inobt(tp, agbp, pag, parent, inop);
@@ -1763,9 +1763,9 @@ nextag:
 	xfs_perag_put(pag);
 	return error ? error : -ENOSPC;
 found_ag:
-	xfs_perag_put(pag);
 	/* Allocate an inode in the found AG */
-	error = xfs_dialloc_ag(*tpp, agbp, parent, &ino);
+	error = xfs_dialloc_ag(*tpp, agbp, pag, parent, &ino);
+	xfs_perag_put(pag);
 	if (error)
 		return error;
 	*new_ino = ino;
