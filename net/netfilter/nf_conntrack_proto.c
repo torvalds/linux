@@ -42,8 +42,6 @@
 #include <net/ipv6.h>
 #include <net/inet_frag.h>
 
-extern unsigned int nf_conntrack_net_id;
-
 static DEFINE_MUTEX(nf_ct_proto_mutex);
 
 #ifdef CONFIG_SYSCTL
@@ -446,7 +444,7 @@ static struct nf_ct_bridge_info *nf_ct_bridge_info;
 
 static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	bool fixup_needed = false, retry = true;
 	int err = 0;
 retry:
@@ -531,7 +529,7 @@ retry:
 
 static void nf_ct_netns_do_put(struct net *net, u8 nfproto)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	mutex_lock(&nf_ct_proto_mutex);
 	switch (nfproto) {

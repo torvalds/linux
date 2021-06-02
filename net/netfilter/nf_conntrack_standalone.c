@@ -512,9 +512,7 @@ static void nf_conntrack_standalone_fini_proc(struct net *net)
 
 u32 nf_conntrack_count(const struct net *net)
 {
-	const struct nf_conntrack_net *cnet;
-
-	cnet = net_generic(net, nf_conntrack_net_id);
+	const struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	return atomic_read(&cnet->count);
 }
@@ -1032,7 +1030,7 @@ static void nf_conntrack_standalone_init_gre_sysctl(struct net *net,
 
 static int nf_conntrack_standalone_init_sysctl(struct net *net)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	struct nf_udp_net *un = nf_udp_pernet(net);
 	struct ctl_table *table;
 
@@ -1085,7 +1083,7 @@ out_unregister_netfilter:
 
 static void nf_conntrack_standalone_fini_sysctl(struct net *net)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	struct ctl_table *table;
 
 	table = cnet->sysctl_header->ctl_table_arg;
