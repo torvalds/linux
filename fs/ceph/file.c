@@ -742,14 +742,16 @@ retry:
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
-	dentry = ceph_handle_snapdir(req, dentry, err);
-	if (IS_ERR(dentry)) {
-		err = PTR_ERR(dentry);
-		goto out_req;
+	if (err == -ENOENT) {
+		dentry = ceph_handle_snapdir(req, dentry);
+		if (IS_ERR(dentry)) {
+			err = PTR_ERR(dentry);
+			goto out_req;
+		}
+		err = 0;
 	}
-	err = 0;
 
-	if ((flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
+	if (!err && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
 
 	if (d_in_lookup(dentry)) {
