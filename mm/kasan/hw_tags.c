@@ -246,6 +246,9 @@ void kasan_alloc_pages(struct page *page, unsigned int order, gfp_t flags)
 	 */
 	bool init = !want_init_on_free() && want_init_on_alloc(flags);
 
+	if (flags & __GFP_SKIP_KASAN_POISON)
+		SetPageSkipKASanPoison(page);
+
 	if (flags & __GFP_ZEROTAGS) {
 		int i;
 
