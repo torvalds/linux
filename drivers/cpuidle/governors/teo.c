@@ -4,6 +4,10 @@
  *
  * Copyright (C) 2018 - 2021 Intel Corporation
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+ */
+
+/**
+ * DOC: teo-description
  *
  * The idea of this governor is based on the observation that on many systems
  * timer events are two or more orders of magnitude more frequent than any
@@ -28,7 +32,7 @@
  *
  * The computations carried out by this governor are based on using bins whose
  * boundaries are aligned with the target residency parameter values of the CPU
- * idle states provided by the cpuidle driver in the ascending order.  That is,
+ * idle states provided by the %CPUIdle driver in the ascending order.  That is,
  * the first bin spans from 0 up to, but not including, the target residency of
  * the second idle state (idle state 1), the second bin spans from the target
  * residency of idle state 1 up to, but not including, the target residency of
@@ -51,8 +55,8 @@
  * situations are referred to as "intercepts" below).
  *
  * In addition to the metrics described above, the governor counts recent
- * intercepts (that is, intercepts that have occurred during the last NR_RECENT
- * invocations of it for the given CPU) for each bin.
+ * intercepts (that is, intercepts that have occurred during the last
+ * %NR_RECENT invocations of it for the given CPU) for each bin.
  *
  * In order to select an idle state for a CPU, the governor takes the following
  * steps (modulo the possible latency constraint that must be taken into account
@@ -76,7 +80,7 @@
  *      shallower than the candidate one.
  *
  * 2. If the second sum is greater than the first one or the third sum is
- *    greater than NR_RECENT / 2, the CPU is likely to wake up early, so look
+ *    greater than %NR_RECENT / 2, the CPU is likely to wake up early, so look
  *    for an alternative idle state to select.
  *
  *    - Traverse the idle states shallower than the candidate one in the
