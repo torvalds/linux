@@ -276,17 +276,26 @@ static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
 static int nsim_dev_port_debugfs_init(struct nsim_dev *nsim_dev,
 				      struct nsim_dev_port *nsim_dev_port)
 {
+	struct nsim_bus_dev *nsim_bus_dev = nsim_dev->nsim_bus_dev;
+	unsigned int port_index = nsim_dev_port->port_index;
 	char port_ddir_name[16];
 	char dev_link_name[32];
 
-	sprintf(port_ddir_name, "%u", nsim_dev_port->port_index);
+	sprintf(port_ddir_name, "%u", port_index);
 	nsim_dev_port->ddir = debugfs_create_dir(port_ddir_name,
 						 nsim_dev->ports_ddir);
 	if (IS_ERR(nsim_dev_port->ddir))
 		return PTR_ERR(nsim_dev_port->ddir);
 
-	sprintf(dev_link_name, "../../../" DRV_NAME "%u",
-		nsim_dev->nsim_bus_dev->dev.id);
+	sprintf(dev_link_name, "../../../" DRV_NAME "%u", nsim_bus_dev->dev.id);
+	if (nsim_dev_port_is_vf(nsim_dev_port)) {
+		unsigned int vf_id = nsim_dev_port_index_to_vf_index(port_index);
+
+		debugfs_create_u16("tx_share", 0400, nsim_dev_port->ddir,
+				   &nsim_bus_dev->vfconfigs[vf_id].min_tx_rate);
+		debugfs_create_u16("tx_max", 0400, nsim_dev_port->ddir,
+				   &nsim_bus_dev->vfconfigs[vf_id].max_tx_rate);
+	}
 	debugfs_create_symlink("dev", nsim_dev_port->ddir, dev_link_name);
 
 	return 0;
@@ -990,6 +999,67 @@ nsim_dev_devlink_trap_policer_counter_get(struct devlink *devlink,
 	return 0;
 }
 
+#define NSIM_LINK_SPEED_MAX     5000 /* Mbps */
+#define NSIM_LINK_SPEED_UNIT    125000 /* 1 Mbps given in bytes/sec to avoid
+					* u64 overflow during conversion from
+					* bytes to bits.
+					*/
+
+static int nsim_rate_bytes_to_units(char *name, u64 *rate, struct netlink_ext_ack *extack)
+{
+	u64 val;
+	u32 rem;
+
+	val = div_u64_rem(*rate, NSIM_LINK_SPEED_UNIT, &rem);
+	if (rem) {
+		pr_err("%s rate value %lluBps not in link speed units of 1Mbps.\n",
+		       name, *rate);
+		NL_SET_ERR_MSG_MOD(extack, "TX rate value not in link speed units of 1Mbps.");
+		return -EINVAL;
+	}
+
+	if (val > NSIM_LINK_SPEED_MAX) {
+		pr_err("%s rate value %lluMbps exceed link maximum speed 5000Mbps.\n",
+		       name, val);
+		NL_SET_ERR_MSG_MOD(extack, "TX rate value exceed link maximum speed 5000Mbps.");
+		return -EINVAL;
+	}
+	*rate = val;
+	return 0;
+}
+
+static int nsim_leaf_tx_share_set(struct devlink_rate *devlink_rate, void *priv,
+				  u64 tx_share, struct netlink_ext_ack *extack)
+{
+	struct nsim_dev_port *nsim_dev_port = priv;
+	struct nsim_bus_dev *nsim_bus_dev = nsim_dev_port->ns->nsim_bus_dev;
+	int vf_id = nsim_dev_port_index_to_vf_index(nsim_dev_port->port_index);
+	int err;
+
+	err = nsim_rate_bytes_to_units("tx_share", &tx_share, extack);
+	if (err)
+		return err;
+
+	nsim_bus_dev->vfconfigs[vf_id].min_tx_rate = tx_share;
+	return 0;
+}
+
+static int nsim_leaf_tx_max_set(struct devlink_rate *devlink_rate, void *priv,
+				u64 tx_max, struct netlink_ext_ack *extack)
+{
+	struct nsim_dev_port *nsim_dev_port = priv;
+	struct nsim_bus_dev *nsim_bus_dev = nsim_dev_port->ns->nsim_bus_dev;
+	int vf_id = nsim_dev_port_index_to_vf_index(nsim_dev_port->port_index);
+	int err;
+
+	err = nsim_rate_bytes_to_units("tx_max", &tx_max, extack);
+	if (err)
+		return err;
+
+	nsim_bus_dev->vfconfigs[vf_id].max_tx_rate = tx_max;
+	return 0;
+}
+
 static const struct devlink_ops nsim_dev_devlink_ops = {
 	.eswitch_mode_set = nsim_devlink_eswitch_mode_set,
 	.eswitch_mode_get = nsim_devlink_eswitch_mode_get,
@@ -1005,6 +1075,8 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.trap_group_set = nsim_dev_devlink_trap_group_set,
 	.trap_policer_set = nsim_dev_devlink_trap_policer_set,
 	.trap_policer_counter_get = nsim_dev_devlink_trap_policer_counter_get,
+	.rate_leaf_tx_share_set = nsim_leaf_tx_share_set,
+	.rate_leaf_tx_max_set = nsim_leaf_tx_max_set,
 };
 
 #define NSIM_DEV_MAX_MACS_DEFAULT 32
