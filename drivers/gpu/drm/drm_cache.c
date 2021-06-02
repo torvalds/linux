@@ -28,12 +28,16 @@
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
+#include <linux/dma-buf-map.h>
 #include <linux/export.h>
 #include <linux/highmem.h>
 #include <linux/mem_encrypt.h>
 #include <xen/xen.h>
 
 #include <drm/drm_cache.h>
+
+/* A small bounce buffer that fits on the stack. */
+#define MEMCPY_BOUNCE_SIZE 128
 
 #if defined(CONFIG_X86)
 #include <asm/smp.h>
@@ -209,3 +213,147 @@ bool drm_need_swiotlb(int dma_bits)
 	return max_iomem > ((u64)1 << dma_bits);
 }
 EXPORT_SYMBOL(drm_need_swiotlb);
+
+static void memcpy_fallback(struct dma_buf_map *dst,
+			    const struct dma_buf_map *src,
+			    unsigned long len)
+{
+	if (!dst->is_iomem && !src->is_iomem) {
+		memcpy(dst->vaddr, src->vaddr, len);
+	} else if (!src->is_iomem) {
+		dma_buf_map_memcpy_to(dst, src->vaddr, len);
+	} else if (!dst->is_iomem) {
+		memcpy_fromio(dst->vaddr, src->vaddr_iomem, len);
+	} else {
+		/*
+		 * Bounce size is not performance tuned, but using a
+		 * bounce buffer like this is significantly faster than
+		 * resorting to ioreadxx() + iowritexx().
+		 */
+		char bounce[MEMCPY_BOUNCE_SIZE];
+		void __iomem *_src = src->vaddr_iomem;
+		void __iomem *_dst = dst->vaddr_iomem;
+
+		while (len >= MEMCPY_BOUNCE_SIZE) {
+			memcpy_fromio(bounce, _src, MEMCPY_BOUNCE_SIZE);
+			memcpy_toio(_dst, bounce, MEMCPY_BOUNCE_SIZE);
+			_src += MEMCPY_BOUNCE_SIZE;
+			_dst += MEMCPY_BOUNCE_SIZE;
+			len -= MEMCPY_BOUNCE_SIZE;
+		}
+		if (len) {
+			memcpy_fromio(bounce, _src, MEMCPY_BOUNCE_SIZE);
+			memcpy_toio(_dst, bounce, MEMCPY_BOUNCE_SIZE);
+		}
+	}
+}
+
+#ifdef CONFIG_X86
+
+static DEFINE_STATIC_KEY_FALSE(has_movntdqa);
+
+static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
+{
+	kernel_fpu_begin();
+
+	while (len >= 4) {
+		asm("movntdqa	(%0), %%xmm0\n"
+		    "movntdqa 16(%0), %%xmm1\n"
+		    "movntdqa 32(%0), %%xmm2\n"
+		    "movntdqa 48(%0), %%xmm3\n"
+		    "movaps %%xmm0,   (%1)\n"
+		    "movaps %%xmm1, 16(%1)\n"
+		    "movaps %%xmm2, 32(%1)\n"
+		    "movaps %%xmm3, 48(%1)\n"
+		    :: "r" (src), "r" (dst) : "memory");
+		src += 64;
+		dst += 64;
+		len -= 4;
+	}
+	while (len--) {
+		asm("movntdqa (%0), %%xmm0\n"
+		    "movaps %%xmm0, (%1)\n"
+		    :: "r" (src), "r" (dst) : "memory");
+		src += 16;
+		dst += 16;
+	}
+
+	kernel_fpu_end();
+}
+
+/*
+ * __drm_memcpy_from_wc copies @len bytes from @src to @dst using
+ * non-temporal instructions where available. Note that all arguments
+ * (@src, @dst) must be aligned to 16 bytes and @len must be a multiple
+ * of 16.
+ */
+static void __drm_memcpy_from_wc(void *dst, const void *src, unsigned long len)
+{
+	if (unlikely(((unsigned long)dst | (unsigned long)src | len) & 15))
+		memcpy(dst, src, len);
+	else if (likely(len))
+		__memcpy_ntdqa(dst, src, len >> 4);
+}
+
+/**
+ * drm_memcpy_from_wc - Perform the fastest available memcpy from a source
+ * that may be WC.
+ * @dst: The destination pointer
+ * @src: The source pointer
+ * @len: The size of the area o transfer in bytes
+ *
+ * Tries an arch optimized memcpy for prefetching reading out of a WC region,
+ * and if no such beast is available, falls back to a normal memcpy.
+ */
+void drm_memcpy_from_wc(struct dma_buf_map *dst,
+			const struct dma_buf_map *src,
+			unsigned long len)
+{
+	if (WARN_ON(in_interrupt())) {
+		memcpy_fallback(dst, src, len);
+		return;
+	}
+
+	if (static_branch_likely(&has_movntdqa)) {
+		__drm_memcpy_from_wc(dst->is_iomem ?
+				     (void __force *)dst->vaddr_iomem :
+				     dst->vaddr,
+				     src->is_iomem ?
+				     (void const __force *)src->vaddr_iomem :
+				     src->vaddr,
+				     len);
+		return;
+	}
+
+	memcpy_fallback(dst, src, len);
+}
+EXPORT_SYMBOL(drm_memcpy_from_wc);
+
+/*
+ * drm_memcpy_init_early - One time initialization of the WC memcpy code
+ */
+void drm_memcpy_init_early(void)
+{
+	/*
+	 * Some hypervisors (e.g. KVM) don't support VEX-prefix instructions
+	 * emulation. So don't enable movntdqa in hypervisor guest.
+	 */
+	if (static_cpu_has(X86_FEATURE_XMM4_1) &&
+	    !boot_cpu_has(X86_FEATURE_HYPERVISOR))
+		static_branch_enable(&has_movntdqa);
+}
+#else
+void drm_memcpy_from_wc(struct dma_buf_map *dst,
+			const struct dma_buf_map *src,
+			unsigned long len)
+{
+	WARN_ON(in_interrupt());
+
+	memcpy_fallback(dst, src, len);
+}
+EXPORT_SYMBOL(drm_memcpy_from_wc);
+
+void drm_memcpy_init_early(void)
+{
+}
+#endif /* CONFIG_X86 */
