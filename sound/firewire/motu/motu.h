@@ -44,6 +44,8 @@ struct amdtp_motu_cache {
 	unsigned int size;
 	unsigned int tail;
 	unsigned int tx_cycle_count;
+	unsigned int head;
+	unsigned int rx_cycle_count;
 };
 
 struct snd_motu {

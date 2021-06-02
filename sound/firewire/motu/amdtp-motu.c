@@ -20,10 +20,6 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
-#define IEEE1394_SEC_MODULUS	128
-
-#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
-
 #define CIP_SPH_CYCLE_SHIFT	12
 #define CIP_SPH_CYCLE_MASK	0x01fff000
 #define CIP_SPH_OFFSET_MASK	0x00000fff
@@ -35,14 +31,6 @@
 #define MIDI_BYTES_PER_SECOND	3093
 
 struct amdtp_motu {
-	/* For timestamp processing.  */
-	unsigned int quotient_ticks_per_event;
-	unsigned int remainder_ticks_per_event;
-	unsigned int next_ticks;
-	unsigned int next_accumulated;
-	unsigned int next_cycles;
-	unsigned int next_seconds;
-
 	unsigned int pcm_chunks;
 	unsigned int pcm_byte_offset;
 
@@ -61,20 +49,8 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats)
 {
-	static const struct {
-		unsigned int quotient_ticks_per_event;
-		unsigned int remainder_ticks_per_event;
-	} params[] = {
-		[CIP_SFC_44100]  = { 557, 123 },
-		[CIP_SFC_48000]  = { 512,   0 },
-		[CIP_SFC_88200]  = { 278, 282 },
-		[CIP_SFC_96000]  = { 256,   0 },
-		[CIP_SFC_176400] = { 139, 141 },
-		[CIP_SFC_192000] = { 128,   0 },
-	};
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_chunks, data_chunks, data_block_quadlets;
-	unsigned int delay;
 	unsigned int mode;
 	int i, err;
 
@@ -110,18 +86,6 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 
 	p->midi_db_count = 0;
 	p->midi_db_interval = rate / MIDI_BYTES_PER_SECOND;
-
-	delay = TRANSFER_DELAY_TICKS;
-
-	// For no-data or empty packets to adjust PCM sampling frequency.
-	delay += TICKS_PER_SECOND * s->syt_interval / rate;
-
-	p->next_seconds = 0;
-	p->next_cycles = delay / TICKS_PER_CYCLE;
-	p->quotient_ticks_per_event = params[s->sfc].quotient_ticks_per_event;
-	p->remainder_ticks_per_event = params[s->sfc].remainder_ticks_per_event;
-	p->next_ticks = delay % TICKS_PER_CYCLE;
-	p->next_accumulated = 0;
 
 	return 0;
 }
@@ -400,47 +364,26 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 	return pcm_frames;
 }
 
-static inline void compute_next_elapse_from_start(struct amdtp_motu *p)
+static void write_sph(struct amdtp_motu_cache *cache, __be32 *buffer, unsigned int data_blocks,
+		      unsigned int data_block_quadlets)
 {
-	p->next_accumulated += p->remainder_ticks_per_event;
-	if (p->next_accumulated >= 441) {
-		p->next_accumulated -= 441;
-		p->next_ticks++;
-	}
-
-	p->next_ticks += p->quotient_ticks_per_event;
-	if (p->next_ticks >= TICKS_PER_CYCLE) {
-		p->next_ticks -= TICKS_PER_CYCLE;
-		p->next_cycles++;
-	}
-
-	if (p->next_cycles >= CYCLES_PER_SECOND) {
-		p->next_cycles -= CYCLES_PER_SECOND;
-		p->next_seconds++;
-	}
-
-	if (p->next_seconds >= IEEE1394_SEC_MODULUS)
-		p->next_seconds -= IEEE1394_SEC_MODULUS;
-}
-
-static void write_sph(struct amdtp_stream *s, __be32 *buffer, unsigned int data_blocks,
-		      const unsigned int rx_start_cycle)
-{
-	struct amdtp_motu *p = s->protocol;
-	unsigned int next_cycles;
-	unsigned int i;
-	u32 sph;
+	unsigned int *event_offsets = cache->event_offsets;
+	const unsigned int cache_size = cache->size;
+	unsigned int cache_head = cache->head;
+	unsigned int base_tick = cache->rx_cycle_count * TICKS_PER_CYCLE;
+	int i;
 
 	for (i = 0; i < data_blocks; i++) {
-		next_cycles = (rx_start_cycle + p->next_cycles) % CYCLES_PER_SECOND;
-		sph = ((next_cycles << CIP_SPH_CYCLE_SHIFT) | p->next_ticks) &
-		      (CIP_SPH_CYCLE_MASK | CIP_SPH_OFFSET_MASK);
+		unsigned int tick = (base_tick + event_offsets[cache_head]) % TICKS_PER_SECOND;
+		u32 sph = ((tick / TICKS_PER_CYCLE) << CIP_SPH_CYCLE_SHIFT) | (tick % TICKS_PER_CYCLE);
 		*buffer = cpu_to_be32(sph);
 
-		compute_next_elapse_from_start(p);
-
-		buffer += s->data_block_quadlets;
+		cache_head = (cache_head + 1) % cache_size;
+		buffer += data_block_quadlets;
 	}
+
+	cache->head = cache_head;
+	cache->rx_cycle_count = (cache->rx_cycle_count + 1) % CYCLES_PER_SECOND;
 }
 
 static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
@@ -448,10 +391,12 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 					    unsigned int packets,
 					    struct snd_pcm_substream *pcm)
 {
-	const unsigned int rx_start_cycle = s->domain->processing_cycle.rx_start;
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
+
+	if (p->cache->rx_cycle_count == UINT_MAX)
+		p->cache->rx_cycle_count = (s->domain->processing_cycle.rx_start % CYCLES_PER_SECOND);
 
 	// For data block processing.
 	for (i = 0; i < packets; ++i) {
@@ -471,7 +416,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		// TODO: how to interact control messages between userspace?
 
-		write_sph(s, buf, data_blocks, rx_start_cycle);
+		write_sph(p->cache, buf, data_blocks, s->data_block_quadlets);
 	}
 
 	// For tracepoints.

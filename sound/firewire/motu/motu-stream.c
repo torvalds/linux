@@ -274,8 +274,13 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 
 		motu->cache.tail = 0;
 		motu->cache.tx_cycle_count = UINT_MAX;
+		motu->cache.head = 0;
+		motu->cache.rx_cycle_count = UINT_MAX;
 
-		err = amdtp_domain_start(&motu->domain, 0, false, false);
+		// NOTE: The device requires both of replay; the sequence of the number of data
+		// blocks per packet, and the sequence of source packet header per data block as
+		// presentation time.
+		err = amdtp_domain_start(&motu->domain, 0, true, false);
 		if (err < 0)
 			goto stop_streams;
 
