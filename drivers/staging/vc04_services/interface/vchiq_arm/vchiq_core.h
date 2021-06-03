@@ -64,11 +64,6 @@
 #define vchiq_loud_error(...) \
 	vchiq_log_error(vchiq_core_log_level, "===== " __VA_ARGS__)
 
-#ifndef vchiq_static_assert
-#define vchiq_static_assert(cond) __attribute__((unused)) \
-	extern int vchiq_static_assert[(cond) ? 1 : -1]
-#endif
-
 #define VCHIQ_SLOT_MASK        (VCHIQ_SLOT_SIZE - 1)
 #define VCHIQ_SLOT_QUEUE_MASK  (VCHIQ_MAX_SLOTS_PER_SIDE - 1)
 #define VCHIQ_SLOT_ZERO_SLOTS  DIV_ROUND_UP(sizeof(struct vchiq_slot_zero), \
@@ -82,7 +77,7 @@
 
 typedef uint32_t BITSET_T;
 
-vchiq_static_assert((sizeof(BITSET_T) * 8) == 32);
+static_assert((sizeof(BITSET_T) * 8) == 32);
 
 #define BITSET_SIZE(b)        ((b + 31) >> 5)
 #define BITSET_WORD(b)        (b >> 5)

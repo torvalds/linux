@@ -45,10 +45,10 @@
 	((unsigned short)msgid & 0xfff)
 
 /* Ensure the fields are wide enough */
-vchiq_static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
+static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
 	== 0);
-vchiq_static_assert(VCHIQ_MSG_TYPE(VCHIQ_MAKE_MSG(0, VCHIQ_PORT_MAX, 0)) == 0);
-vchiq_static_assert((unsigned int)VCHIQ_PORT_MAX <
+static_assert(VCHIQ_MSG_TYPE(VCHIQ_MAKE_MSG(0, VCHIQ_PORT_MAX, 0)) == 0);
+static_assert((unsigned int)VCHIQ_PORT_MAX <
 	(unsigned int)VCHIQ_PORT_FREE);
 
 #define VCHIQ_MSGID_PADDING            VCHIQ_MAKE_MSG(VCHIQ_MSG_PADDING, 0, 0)
@@ -123,8 +123,8 @@ enum {
 };
 
 /* we require this for consistency between endpoints */
-vchiq_static_assert(sizeof(struct vchiq_header) == 8);
-vchiq_static_assert(VCHIQ_VERSION >= VCHIQ_VERSION_MIN);
+static_assert(sizeof(struct vchiq_header) == 8);
+static_assert(VCHIQ_VERSION >= VCHIQ_VERSION_MIN);
 
 static inline void check_sizes(void)
 {
