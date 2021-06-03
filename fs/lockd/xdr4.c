@@ -324,6 +324,17 @@ nlm4svc_decode_notify(struct svc_rqst *rqstp, __be32 *p)
 	return 1;
 }
 
+
+/*
+ * Encode Reply results
+ */
+
+int
+nlm4svc_encode_void(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
 int
 nlm4svc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 {
@@ -354,11 +365,5 @@ nlm4svc_encode_res(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = nlm4_encode_cookie(p, &resp->cookie)))
 		return 0;
 	*p++ = resp->status;
-	return xdr_ressize_check(rqstp, p);
-}
-
-int
-nlm4svc_encode_void(struct svc_rqst *rqstp, __be32 *p)
-{
 	return xdr_ressize_check(rqstp, p);
 }
