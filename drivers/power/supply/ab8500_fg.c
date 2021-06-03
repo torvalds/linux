@@ -59,7 +59,7 @@
 	((y1) + ((((y2) - (y1)) * ((x) - (x1))) / ((x2) - (x1))));
 
 /**
- * struct ab8500_fg_interrupts - ab8500 fg interupts
+ * struct ab8500_fg_interrupts - ab8500 fg interrupts
  * @name:	name of the interrupt
  * @isr		function pointer to the isr
  */
