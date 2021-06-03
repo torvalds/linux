@@ -29,11 +29,13 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 	u8  *buffer;
 	u32 internal_fw_addrbase = WL18XX_DATA_RAM_BASE_ADDRESS;
 	u32 addr = WL18XX_LOGGER_SDIO_BUFF_ADDR;
-	u32 end_buff_addr = WL18XX_LOGGER_SDIO_BUFF_ADDR +
-				WL18XX_LOGGER_BUFF_OFFSET;
+	u32 addr_ptr;
+	u32 buff_start_ptr;
+	u32 buff_read_ptr;
+	u32 buff_end_ptr;
 	u32 available_len;
 	u32 actual_len;
-	u32 clear_addr;
+	u32 clear_ptr;
 	size_t len;
 	u32 start_loc;
 
@@ -59,17 +61,29 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 	if (actual_len == 0)
 		goto free_out;
 
-	start_loc = (le32_to_cpu(fw_log.buff_read_ptr) -
-			internal_fw_addrbase) - addr;
-	end_buff_addr += le32_to_cpu(fw_log.max_buff_size);
-	available_len = end_buff_addr -
-			(le32_to_cpu(fw_log.buff_read_ptr) -
-				 internal_fw_addrbase);
+	/* Calculate the internal pointer to the fwlog structure */
+	addr_ptr = internal_fw_addrbase + addr;
 
-	/* Copy initial part from end of ring buffer */
+	/* Calculate the internal pointers to the start and end of log buffer */
+	buff_start_ptr = addr_ptr + WL18XX_LOGGER_BUFF_OFFSET;
+	buff_end_ptr = buff_start_ptr + le32_to_cpu(fw_log.max_buff_size);
+
+	/* Read the read pointer and validate it */
+	buff_read_ptr = le32_to_cpu(fw_log.buff_read_ptr);
+	if (buff_read_ptr < buff_start_ptr ||
+	    buff_read_ptr >= buff_end_ptr) {
+		wl1271_error("buffer read pointer out of bounds: %x not in (%x-%x)\n",
+			     buff_read_ptr, buff_start_ptr, buff_end_ptr);
+		goto free_out;
+	}
+
+	start_loc = buff_read_ptr - addr_ptr;
+	available_len = buff_end_ptr - buff_read_ptr;
+
+	/* Copy initial part up to the end of ring buffer */
 	len = min(actual_len, available_len);
 	wl12xx_copy_fwlog(wl, &buffer[start_loc], len);
-	clear_addr = addr + start_loc + actual_len + internal_fw_addrbase;
+	clear_ptr = addr_ptr + start_loc + actual_len;
 
 	/* Copy any remaining part from beginning of ring buffer */
 	len = actual_len - len;
@@ -77,14 +91,13 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 		wl12xx_copy_fwlog(wl,
 				  &buffer[WL18XX_LOGGER_BUFF_OFFSET],
 				  len);
-		clear_addr = addr + WL18XX_LOGGER_BUFF_OFFSET + len +
-				internal_fw_addrbase;
+		clear_ptr = addr_ptr + WL18XX_LOGGER_BUFF_OFFSET + len;
 	}
 
 	/* double check that clear address and write pointer are the same */
-	if (clear_addr != le32_to_cpu(fw_log.buff_write_ptr)) {
+	if (clear_ptr != le32_to_cpu(fw_log.buff_write_ptr)) {
 		wl1271_error("Calculate of clear addr Clear = %x, write = %x",
-			     clear_addr, le32_to_cpu(fw_log.buff_write_ptr));
+			     clear_ptr, le32_to_cpu(fw_log.buff_write_ptr));
 	}
 
 	/* indicate FW about Clear buffer */
