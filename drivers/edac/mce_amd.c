@@ -431,7 +431,7 @@ static const char * const smca_xgmipcs_mce_desc[] = {
 	"Replay Buffer Parity Error",
 	"Data Parity Error",
 	"Replay Fifo Overflow Error",
-	"Replay FIfo Underflow Error",
+	"Replay Fifo Underflow Error",
 	"Elastic Fifo Overflow Error",
 	"Deskew Error",
 	"Flow Control CRC Error",
