@@ -310,3 +310,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_reserved_fmt_fields);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_fill_ext_fmtdesc);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_mask_adjust);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_scmi_timeout_sync);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_new_ilb);
