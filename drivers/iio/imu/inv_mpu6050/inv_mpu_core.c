@@ -1314,8 +1314,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 		for (i = 0; i < INV_NUM_PARTS; ++i) {
 			if (regval == hw_info[i].whoami) {
 				dev_warn(regmap_get_device(st->map),
-					"whoami mismatch got %#02x (%s)"
-					"expected %#02hhx (%s)\n",
+					"whoami mismatch got 0x%02x (%s) expected 0x%02x (%s)\n",
 					regval, hw_info[i].name,
 					st->hw->whoami, st->hw->name);
 				break;
@@ -1323,7 +1322,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 		}
 		if (i >= INV_NUM_PARTS) {
 			dev_err(regmap_get_device(st->map),
-				"invalid whoami %#02x expected %#02hhx (%s)\n",
+				"invalid whoami 0x%02x expected 0x%02x (%s)\n",
 				regval, st->hw->whoami, st->hw->name);
 			return -ENODEV;
 		}
