@@ -766,7 +766,7 @@ bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
 
 	rcu_for_each_leaf_node(rnp) {
 		if (!cpup) {
-			if (READ_ONCE(rnp->qsmask)) {
+			if (data_race(READ_ONCE(rnp->qsmask))) {
 				return false;
 			} else {
 				if (READ_ONCE(rnp->gp_tasks))
