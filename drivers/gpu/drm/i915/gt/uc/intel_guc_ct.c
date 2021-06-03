@@ -7,14 +7,36 @@
 #include "intel_guc_ct.h"
 #include "gt/intel_gt.h"
 
+static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
+{
+	return container_of(ct, struct intel_guc, ct);
+}
+
+static inline struct intel_gt *ct_to_gt(struct intel_guc_ct *ct)
+{
+	return guc_to_gt(ct_to_guc(ct));
+}
+
+static inline struct drm_i915_private *ct_to_i915(struct intel_guc_ct *ct)
+{
+	return ct_to_gt(ct)->i915;
+}
+
+static inline struct drm_device *ct_to_drm(struct intel_guc_ct *ct)
+{
+	return &ct_to_i915(ct)->drm;
+}
+
 #define CT_ERROR(_ct, _fmt, ...) \
-	DRM_DEV_ERROR(ct_to_dev(_ct), "CT: " _fmt, ##__VA_ARGS__)
+	drm_err(ct_to_drm(_ct), "CT: " _fmt, ##__VA_ARGS__)
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
 #define CT_DEBUG(_ct, _fmt, ...) \
-	DRM_DEV_DEBUG_DRIVER(ct_to_dev(_ct), "CT: " _fmt, ##__VA_ARGS__)
+	drm_dbg(ct_to_drm(_ct), "CT: " _fmt, ##__VA_ARGS__)
 #else
 #define CT_DEBUG(...)	do { } while (0)
 #endif
+#define CT_PROBE_ERROR(_ct, _fmt, ...) \
+	i915_probe_error(ct_to_i915(ct), "CT: " _fmt, ##__VA_ARGS__)
 
 struct ct_request {
 	struct list_head link;
@@ -45,26 +67,6 @@ void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 	INIT_LIST_HEAD(&ct->requests.pending);
 	INIT_LIST_HEAD(&ct->requests.incoming);
 	INIT_WORK(&ct->requests.worker, ct_incoming_request_worker_func);
-}
-
-static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
-{
-	return container_of(ct, struct intel_guc, ct);
-}
-
-static inline struct intel_gt *ct_to_gt(struct intel_guc_ct *ct)
-{
-	return guc_to_gt(ct_to_guc(ct));
-}
-
-static inline struct drm_i915_private *ct_to_i915(struct intel_guc_ct *ct)
-{
-	return ct_to_gt(ct)->i915;
-}
-
-static inline struct device *ct_to_dev(struct intel_guc_ct *ct)
-{
-	return ct_to_i915(ct)->drm.dev;
 }
 
 static inline const char *guc_ct_buffer_type_to_str(u32 type)
@@ -264,7 +266,7 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 err_deregister:
 	ct_deregister_buffer(ct, INTEL_GUC_CT_BUFFER_TYPE_RECV);
 err_out:
-	CT_ERROR(ct, "Failed to open open CT channel (err=%d)\n", err);
+	CT_PROBE_ERROR(ct, "Failed to open channel (err=%d)\n", err);
 	return err;
 }
 
