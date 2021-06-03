@@ -255,6 +255,11 @@ struct cgroup_subsys_state *vmpressure_to_css(struct vmpressure *vmpr)
 #ifdef CONFIG_MEMCG_KMEM
 extern spinlock_t css_set_lock;
 
+bool mem_cgroup_kmem_disabled(void)
+{
+	return cgroup_memory_nokmem;
+}
+
 static int __memcg_kmem_charge(struct mem_cgroup *memcg, gfp_t gfp,
 			       unsigned int nr_pages);
 static void __memcg_kmem_uncharge(struct mem_cgroup *memcg,
