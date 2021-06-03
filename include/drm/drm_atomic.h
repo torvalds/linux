@@ -898,6 +898,10 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 /**
  * for_each_new_plane_in_state_reverse - other than only tracking new state,
  * it's the same as for_each_oldnew_plane_in_state_reverse
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @new_plane_state: &struct drm_plane_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
  */
 #define for_each_new_plane_in_state_reverse(__state, plane, new_plane_state, __i) \
 	for ((__i) = ((__state)->dev->mode_config.num_total_plane - 1);	\
