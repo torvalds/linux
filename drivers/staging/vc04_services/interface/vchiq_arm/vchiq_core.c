@@ -35,14 +35,14 @@
 
 #define VCHIQ_PORT_MAX                 (VCHIQ_MAX_SERVICES - 1)
 #define VCHIQ_PORT_FREE                0x1000
-#define VCHIQ_PORT_IS_VALID(port)      (port < VCHIQ_PORT_FREE)
+#define VCHIQ_PORT_IS_VALID(port)      ((port) < VCHIQ_PORT_FREE)
 #define VCHIQ_MAKE_MSG(type, srcport, dstport) \
-	((type << 24) | (srcport << 12) | (dstport << 0))
-#define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)msgid >> 24)
+	(((type) << 24) | ((srcport) << 12) | ((dstport) << 0))
+#define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)(msgid) >> 24)
 #define VCHIQ_MSG_SRCPORT(msgid) \
-	(unsigned short)(((unsigned int)msgid >> 12) & 0xfff)
+	(unsigned short)(((unsigned int)(msgid) >> 12) & 0xfff)
 #define VCHIQ_MSG_DSTPORT(msgid) \
-	((unsigned short)msgid & 0xfff)
+	((unsigned short)(msgid) & 0xfff)
 
 /* Ensure the fields are wide enough */
 static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
@@ -55,7 +55,7 @@ static_assert((unsigned int)VCHIQ_PORT_MAX <
 #define VCHIQ_MSGID_CLAIMED            0x40000000
 
 #define VCHIQ_FOURCC_INVALID           0x00000000
-#define VCHIQ_FOURCC_IS_LEGAL(fourcc)  (fourcc != VCHIQ_FOURCC_INVALID)
+#define VCHIQ_FOURCC_IS_LEGAL(fourcc)  ((fourcc) != VCHIQ_FOURCC_INVALID)
 
 #define VCHIQ_BULK_ACTUAL_ABORTED -1
 
@@ -84,7 +84,7 @@ static_assert((unsigned int)VCHIQ_PORT_MAX <
 #define SLOT_QUEUE_INDEX_FROM_POS_MASKED(pos) \
 	(SLOT_QUEUE_INDEX_FROM_POS(pos) & VCHIQ_SLOT_QUEUE_MASK)
 
-#define BULK_INDEX(x) (x & (VCHIQ_NUM_SERVICE_BULKS - 1))
+#define BULK_INDEX(x) ((x) & (VCHIQ_NUM_SERVICE_BULKS - 1))
 
 #define SRVTRACE_LEVEL(srv) \
 	(((srv) && (srv)->trace) ? VCHIQ_LOG_TRACE : vchiq_core_msg_log_level)
