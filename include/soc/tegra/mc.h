@@ -180,6 +180,7 @@ struct tegra_mc_ops {
 	int (*suspend)(struct tegra_mc *mc);
 	int (*resume)(struct tegra_mc *mc);
 	irqreturn_t (*handle_irq)(int irq, void *data);
+	int (*probe_device)(struct tegra_mc *mc, struct device *dev);
 };
 
 struct tegra_mc_soc {
@@ -243,5 +244,7 @@ devm_tegra_memory_controller_get(struct device *dev)
 	return ERR_PTR(-ENODEV);
 }
 #endif
+
+int tegra_mc_probe_device(struct tegra_mc *mc, struct device *dev);
 
 #endif /* __SOC_TEGRA_MC_H__ */
