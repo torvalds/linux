@@ -7,6 +7,27 @@
 
 #ifndef __ASSEMBLY__
 
+static __always_inline bool kuep_is_disabled(void)
+{
+	return !IS_ENABLED(CONFIG_PPC_KUEP);
+}
+
+static inline void kuep_lock(void)
+{
+	if (kuep_is_disabled())
+		return;
+
+	update_user_segments(mfsr(0) | SR_NX);
+}
+
+static inline void kuep_unlock(void)
+{
+	if (kuep_is_disabled())
+		return;
+
+	update_user_segments(mfsr(0) & ~SR_NX);
+}
+
 #ifdef CONFIG_PPC_KUAP
 
 #include <linux/sched.h>

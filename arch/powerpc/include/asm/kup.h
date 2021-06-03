@@ -46,10 +46,7 @@ void setup_kuep(bool disabled);
 static inline void setup_kuep(bool disabled) { }
 #endif /* CONFIG_PPC_KUEP */
 
-#if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
-void kuep_lock(void);
-void kuep_unlock(void);
-#else
+#ifndef CONFIG_PPC_BOOK3S_32
 static inline void kuep_lock(void) { }
 static inline void kuep_unlock(void) { }
 #endif
