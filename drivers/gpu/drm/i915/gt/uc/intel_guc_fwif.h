@@ -9,6 +9,7 @@
 #include <linux/bits.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include "gt/intel_engine_types.h"
 
 #include "abi/guc_actions_abi.h"
 #include "abi/guc_errors_abi.h"
@@ -32,6 +33,12 @@
 #define GUC_VIDEO_ENGINE2		4
 #define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
+#define GUC_RENDER_CLASS		0
+#define GUC_VIDEO_CLASS			1
+#define GUC_VIDEOENHANCE_CLASS		2
+#define GUC_BLITTER_CLASS		3
+#define GUC_RESERVED_CLASS		4
+#define GUC_LAST_ENGINE_CLASS		GUC_RESERVED_CLASS
 #define GUC_MAX_ENGINE_CLASSES		16
 #define GUC_MAX_INSTANCES_PER_CLASS	32
 
@@ -128,6 +135,25 @@
 	(((guc_id) & GUC_ENGINE_CLASS_MASK) >> GUC_ENGINE_CLASS_SHIFT)
 #define GUC_ID_TO_ENGINE_INSTANCE(guc_id) \
 	(((guc_id) & GUC_ENGINE_INSTANCE_MASK) >> GUC_ENGINE_INSTANCE_SHIFT)
+
+static inline u8 engine_class_to_guc_class(u8 class)
+{
+	BUILD_BUG_ON(GUC_RENDER_CLASS != RENDER_CLASS);
+	BUILD_BUG_ON(GUC_BLITTER_CLASS != COPY_ENGINE_CLASS);
+	BUILD_BUG_ON(GUC_VIDEO_CLASS != VIDEO_DECODE_CLASS);
+	BUILD_BUG_ON(GUC_VIDEOENHANCE_CLASS != VIDEO_ENHANCEMENT_CLASS);
+	GEM_BUG_ON(class > MAX_ENGINE_CLASS || class == OTHER_CLASS);
+
+	return class;
+}
+
+static inline u8 guc_class_to_engine_class(u8 guc_class)
+{
+	GEM_BUG_ON(guc_class > GUC_LAST_ENGINE_CLASS);
+	GEM_BUG_ON(guc_class == GUC_RESERVED_CLASS);
+
+	return guc_class;
+}
 
 /* Work item for submitting workloads into work queue of GuC. */
 struct guc_wq_item {

@@ -265,6 +265,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	const struct engine_info *info = &intel_engines[id];
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_engine_cs *engine;
+	u8 guc_class;
 
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
@@ -293,9 +294,10 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
 	engine->hw_id = info->hw_id;
-	engine->guc_id = MAKE_GUC_ID(info->class, info->instance);
+	guc_class = engine_class_to_guc_class(info->class);
+	engine->guc_id = MAKE_GUC_ID(guc_class, info->instance);
+	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
 
 	engine->irq_handler = nop_irq_handler;
 
