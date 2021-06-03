@@ -43,6 +43,9 @@
 #include "svm.h"
 #include "svm_ops.h"
 
+#include "kvm_onhyperv.h"
+#include "svm_onhyperv.h"
+
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 
 MODULE_AUTHOR("Qumranet");
@@ -1003,6 +1006,8 @@ static __init int svm_hardware_setup(void)
 	/* Note, SEV setup consumes npt_enabled. */
 	sev_hardware_setup();
 
+	svm_hv_hardware_setup();
+
 	svm_adjust_mmio_mask();
 
 	for_each_possible_cpu(cpu) {
@@ -1295,6 +1300,8 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 			sev_es_init_vmcb(svm);
 		}
 	}
+
+	svm_hv_init_vmcb(svm->vmcb);
 
 	vmcb_mark_all_dirty(svm->vmcb);
 
@@ -3891,6 +3898,8 @@ static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 	if (npt_enabled) {
 		svm->vmcb->control.nested_cr3 = __sme_set(root_hpa);
 		vmcb_mark_dirty(svm->vmcb, VMCB_NPT);
+
+		hv_track_root_tdp(vcpu, root_hpa);
 
 		/* Loading L2's CR3 is handled by enter_svm_guest_mode.  */
 		if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
