@@ -717,6 +717,68 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 						(tx_pos & VCHIQ_SLOT_MASK));
 }
 
+static void
+process_free_data_message(struct vchiq_state *state, BITSET_T *service_found,
+			  struct vchiq_header *header)
+{
+	int msgid = header->msgid;
+	int port = VCHIQ_MSG_SRCPORT(msgid);
+	struct vchiq_service_quota *quota = &state->service_quotas[port];
+	int count;
+
+	spin_lock(&quota_spinlock);
+	count = quota->message_use_count;
+	if (count > 0)
+		quota->message_use_count = count - 1;
+	spin_unlock(&quota_spinlock);
+
+	if (count == quota->message_quota) {
+		/*
+		 * Signal the service that it
+		 * has dropped below its quota
+		 */
+		complete(&quota->quota_event);
+	} else if (count == 0) {
+		vchiq_log_error(vchiq_core_log_level,
+			"service %d message_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
+			port,
+			quota->message_use_count,
+			header, msgid, header->msgid,
+			header->size);
+		WARN(1, "invalid message use count\n");
+	}
+	if (!BITSET_IS_SET(service_found, port)) {
+		/* Set the found bit for this service */
+		BITSET_SET(service_found, port);
+
+		spin_lock(&quota_spinlock);
+		count = quota->slot_use_count;
+		if (count > 0)
+			quota->slot_use_count = count - 1;
+		spin_unlock(&quota_spinlock);
+
+		if (count > 0) {
+			/*
+			 * Signal the service in case
+			 * it has dropped below its quota
+			 */
+			complete(&quota->quota_event);
+			vchiq_log_trace(vchiq_core_log_level,
+				"%d: pfq:%d %x@%pK - slot_use->%d",
+				state->id, port,
+				header->size, header,
+				count - 1);
+		} else {
+			vchiq_log_error(vchiq_core_log_level,
+					"service %d slot_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
+				port, count, header,
+				msgid, header->msgid,
+				header->size);
+			WARN(1, "bad slot use count\n");
+		}
+	}
+}
+
 /* Called by the recycle thread. */
 static void
 process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
@@ -767,66 +829,8 @@ process_free_queue(struct vchiq_state *state, BITSET_T *service_found,
 			int msgid = header->msgid;
 
 			if (VCHIQ_MSG_TYPE(msgid) == VCHIQ_MSG_DATA) {
-				int port = VCHIQ_MSG_SRCPORT(msgid);
-				struct vchiq_service_quota *quota =
-					&state->service_quotas[port];
-				int count;
-
-				spin_lock(&quota_spinlock);
-				count = quota->message_use_count;
-				if (count > 0)
-					quota->message_use_count = count - 1;
-				spin_unlock(&quota_spinlock);
-
-				if (count == quota->message_quota) {
-					/*
-					 * Signal the service that it
-					 * has dropped below its quota
-					 */
-					complete(&quota->quota_event);
-				} else if (count == 0) {
-					vchiq_log_error(vchiq_core_log_level,
-						"service %d message_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
-						port,
-						quota->message_use_count,
-						header, msgid, header->msgid,
-						header->size);
-					WARN(1, "invalid message use count\n");
-				}
-				if (!BITSET_IS_SET(service_found, port)) {
-					/* Set the found bit for this service */
-					BITSET_SET(service_found, port);
-
-					spin_lock(&quota_spinlock);
-					count = quota->slot_use_count;
-					if (count > 0)
-						quota->slot_use_count =
-							count - 1;
-					spin_unlock(&quota_spinlock);
-
-					if (count > 0) {
-						/*
-						 * Signal the service in case
-						 * it has dropped below its quota
-						 */
-						complete(&quota->quota_event);
-						vchiq_log_trace(
-							vchiq_core_log_level,
-							"%d: pfq:%d %x@%pK - slot_use->%d",
-							state->id, port,
-							header->size, header,
-							count - 1);
-					} else {
-						vchiq_log_error(
-							vchiq_core_log_level,
-								"service %d slot_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
-							port, count, header,
-							msgid, header->msgid,
-							header->size);
-						WARN(1, "bad slot use count\n");
-					}
-				}
-
+				process_free_data_message(state, service_found,
+							  header);
 				data_found = 1;
 			}
 
