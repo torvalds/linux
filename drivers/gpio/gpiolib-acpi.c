@@ -128,6 +128,34 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	return gpiochip_get_desc(chip, pin);
 }
 
+/**
+ * acpi_get_and_request_gpiod - Translate ACPI GPIO pin to GPIO descriptor and
+ *                              hold a refcount to the GPIO device.
+ * @path:      ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
+ * @pin:       ACPI GPIO pin number (0-based, controller-relative)
+ * @label:     Label to pass to gpiod_request()
+ *
+ * This function is a simple pass-through to acpi_get_gpiod(), except that
+ * as it is intended for use outside of the GPIO layer (in a similar fashion to
+ * gpiod_get_index() for example) it also holds a reference to the GPIO device.
+ */
+struct gpio_desc *acpi_get_and_request_gpiod(char *path, int pin, char *label)
+{
+	struct gpio_desc *gpio;
+	int ret;
+
+	gpio = acpi_get_gpiod(path, pin);
+	if (IS_ERR(gpio))
+		return gpio;
+
+	ret = gpiod_request(gpio, label);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return gpio;
+}
+EXPORT_SYMBOL_GPL(acpi_get_and_request_gpiod);
+
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 {
 	struct acpi_gpio_event *event = data;
