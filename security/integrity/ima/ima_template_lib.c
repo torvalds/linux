@@ -11,6 +11,7 @@
 
 #include "ima_template_lib.h"
 #include <linux/xattr.h>
+#include <linux/evm.h>
 
 static bool ima_template_hash_algo_allowed(u8 algo)
 {
@@ -24,7 +25,8 @@ enum data_formats {
 	DATA_FMT_DIGEST = 0,
 	DATA_FMT_DIGEST_WITH_ALGO,
 	DATA_FMT_STRING,
-	DATA_FMT_HEX
+	DATA_FMT_HEX,
+	DATA_FMT_UINT
 };
 
 static int ima_write_template_field_data(const void *data, const u32 datalen,
@@ -88,6 +90,35 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 	case DATA_FMT_STRING:
 		seq_printf(m, "%s", buf_ptr);
 		break;
+	case DATA_FMT_UINT:
+		switch (field_data->len) {
+		case sizeof(u8):
+			seq_printf(m, "%u", *(u8 *)buf_ptr);
+			break;
+		case sizeof(u16):
+			if (ima_canonical_fmt)
+				seq_printf(m, "%u",
+					   le16_to_cpu(*(u16 *)buf_ptr));
+			else
+				seq_printf(m, "%u", *(u16 *)buf_ptr);
+			break;
+		case sizeof(u32):
+			if (ima_canonical_fmt)
+				seq_printf(m, "%u",
+					   le32_to_cpu(*(u32 *)buf_ptr));
+			else
+				seq_printf(m, "%u", *(u32 *)buf_ptr);
+			break;
+		case sizeof(u64):
+			if (ima_canonical_fmt)
+				seq_printf(m, "%llu",
+					   le64_to_cpu(*(u64 *)buf_ptr));
+			else
+				seq_printf(m, "%llu", *(u64 *)buf_ptr);
+			break;
+		default:
+			break;
+		}
 	default:
 		break;
 	}
@@ -161,6 +192,12 @@ void ima_show_template_buf(struct seq_file *m, enum ima_show_type show,
 			   struct ima_field_data *field_data)
 {
 	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
+}
+
+void ima_show_template_uint(struct seq_file *m, enum ima_show_type show,
+			    struct ima_field_data *field_data)
+{
+	ima_show_template_field_data(m, show, DATA_FMT_UINT, field_data);
 }
 
 /**
@@ -514,4 +551,134 @@ int ima_eventevmsig_init(struct ima_event_data *event_data,
 					   field_data);
 	kfree(xattr_data);
 	return rc;
+}
+
+static int ima_eventinodedac_init_common(struct ima_event_data *event_data,
+					 struct ima_field_data *field_data,
+					 bool get_uid)
+{
+	unsigned int id;
+
+	if (!event_data->file)
+		return 0;
+
+	if (get_uid)
+		id = i_uid_read(file_inode(event_data->file));
+	else
+		id = i_gid_read(file_inode(event_data->file));
+
+	if (ima_canonical_fmt) {
+		if (sizeof(id) == sizeof(u16))
+			id = cpu_to_le16(id);
+		else
+			id = cpu_to_le32(id);
+	}
+
+	return ima_write_template_field_data((void *)&id, sizeof(id),
+					     DATA_FMT_UINT, field_data);
+}
+
+/*
+ *  ima_eventinodeuid_init - include the inode UID as part of the template
+ *  data
+ */
+int ima_eventinodeuid_init(struct ima_event_data *event_data,
+			   struct ima_field_data *field_data)
+{
+	return ima_eventinodedac_init_common(event_data, field_data, true);
+}
+
+/*
+ *  ima_eventinodegid_init - include the inode GID as part of the template
+ *  data
+ */
+int ima_eventinodegid_init(struct ima_event_data *event_data,
+			   struct ima_field_data *field_data)
+{
+	return ima_eventinodedac_init_common(event_data, field_data, false);
+}
+
+/*
+ *  ima_eventinodemode_init - include the inode mode as part of the template
+ *  data
+ */
+int ima_eventinodemode_init(struct ima_event_data *event_data,
+			    struct ima_field_data *field_data)
+{
+	struct inode *inode;
+	umode_t mode;
+
+	if (!event_data->file)
+		return 0;
+
+	inode = file_inode(event_data->file);
+	mode = inode->i_mode;
+	if (ima_canonical_fmt)
+		mode = cpu_to_le16(mode);
+
+	return ima_write_template_field_data((char *)&mode, sizeof(mode),
+					     DATA_FMT_UINT, field_data);
+}
+
+static int ima_eventinodexattrs_init_common(struct ima_event_data *event_data,
+					    struct ima_field_data *field_data,
+					    char type)
+{
+	u8 *buffer = NULL;
+	int rc;
+
+	if (!event_data->file)
+		return 0;
+
+	rc = evm_read_protected_xattrs(file_dentry(event_data->file), NULL, 0,
+				       type, ima_canonical_fmt);
+	if (rc < 0)
+		return 0;
+
+	buffer = kmalloc(rc, GFP_KERNEL);
+	if (!buffer)
+		return 0;
+
+	rc = evm_read_protected_xattrs(file_dentry(event_data->file), buffer,
+				       rc, type, ima_canonical_fmt);
+	if (rc < 0) {
+		rc = 0;
+		goto out;
+	}
+
+	rc = ima_write_template_field_data((char *)buffer, rc, DATA_FMT_HEX,
+					   field_data);
+out:
+	kfree(buffer);
+	return rc;
+}
+
+/*
+ *  ima_eventinodexattrnames_init - include a list of xattr names as part of the
+ *  template data
+ */
+int ima_eventinodexattrnames_init(struct ima_event_data *event_data,
+				  struct ima_field_data *field_data)
+{
+	return ima_eventinodexattrs_init_common(event_data, field_data, 'n');
+}
+
+/*
+ *  ima_eventinodexattrlengths_init - include a list of xattr lengths as part of
+ *  the template data
+ */
+int ima_eventinodexattrlengths_init(struct ima_event_data *event_data,
+				    struct ima_field_data *field_data)
+{
+	return ima_eventinodexattrs_init_common(event_data, field_data, 'l');
+}
+
+/*
+ *  ima_eventinodexattrvalues_init - include a list of xattr values as part of
+ *  the template data
+ */
+int ima_eventinodexattrvalues_init(struct ima_event_data *event_data,
+				   struct ima_field_data *field_data)
+{
+	return ima_eventinodexattrs_init_common(event_data, field_data, 'v');
 }

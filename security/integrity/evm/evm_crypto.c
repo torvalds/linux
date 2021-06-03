@@ -216,6 +216,13 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 		if (strcmp(xattr->name, XATTR_NAME_IMA) == 0)
 			is_ima = true;
 
+		/*
+		 * Skip non-enabled xattrs for locally calculated
+		 * signatures/HMACs.
+		 */
+		if (type != EVM_XATTR_PORTABLE_DIGSIG && !xattr->enabled)
+			continue;
+
 		if ((req_xattr_name && req_xattr_value)
 		    && !strcmp(xattr->name, req_xattr_name)) {
 			error = 0;

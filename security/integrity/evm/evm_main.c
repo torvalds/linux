@@ -34,24 +34,44 @@ static const char * const integrity_status_msg[] = {
 int evm_hmac_attrs;
 
 static struct xattr_list evm_config_default_xattrnames[] = {
+	{.name = XATTR_NAME_SELINUX,
 #ifdef CONFIG_SECURITY_SELINUX
-	{.name = XATTR_NAME_SELINUX},
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_SMACK,
 #ifdef CONFIG_SECURITY_SMACK
-	{.name = XATTR_NAME_SMACK},
+	 .enabled = true
+#endif
+	},
+	{.name = XATTR_NAME_SMACKEXEC,
 #ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	{.name = XATTR_NAME_SMACKEXEC},
-	{.name = XATTR_NAME_SMACKTRANSMUTE},
-	{.name = XATTR_NAME_SMACKMMAP},
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_SMACKTRANSMUTE,
+#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_SMACKMMAP,
+#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
+	 .enabled = true
+#endif
+	},
+	{.name = XATTR_NAME_APPARMOR,
 #ifdef CONFIG_SECURITY_APPARMOR
-	{.name = XATTR_NAME_APPARMOR},
+	 .enabled = true
 #endif
+	},
+	{.name = XATTR_NAME_IMA,
 #ifdef CONFIG_IMA_APPRAISE
-	{.name = XATTR_NAME_IMA},
+	 .enabled = true
 #endif
-	{.name = XATTR_NAME_CAPS},
+	},
+	{.name = XATTR_NAME_CAPS,
+	 .enabled = true
+	},
 };
 
 LIST_HEAD(evm_config_xattrnames);
@@ -76,7 +96,9 @@ static void __init evm_init_config(void)
 
 	pr_info("Initialising EVM extended attributes:\n");
 	for (i = 0; i < xattrs; i++) {
-		pr_info("%s\n", evm_config_default_xattrnames[i].name);
+		pr_info("%s%s\n", evm_config_default_xattrnames[i].name,
+			!evm_config_default_xattrnames[i].enabled ?
+			" (disabled)" : "");
 		list_add_tail(&evm_config_default_xattrnames[i].list,
 			      &evm_config_xattrnames);
 	}
@@ -257,7 +279,8 @@ out:
 	return evm_status;
 }
 
-static int evm_protected_xattr(const char *req_xattr_name)
+static int evm_protected_xattr_common(const char *req_xattr_name,
+				      bool all_xattrs)
 {
 	int namelen;
 	int found = 0;
@@ -265,6 +288,9 @@ static int evm_protected_xattr(const char *req_xattr_name)
 
 	namelen = strlen(req_xattr_name);
 	list_for_each_entry_lockless(xattr, &evm_config_xattrnames, list) {
+		if (!all_xattrs && !xattr->enabled)
+			continue;
+
 		if ((strlen(xattr->name) == namelen)
 		    && (strncmp(req_xattr_name, xattr->name, namelen) == 0)) {
 			found = 1;
@@ -279,6 +305,85 @@ static int evm_protected_xattr(const char *req_xattr_name)
 	}
 
 	return found;
+}
+
+static int evm_protected_xattr(const char *req_xattr_name)
+{
+	return evm_protected_xattr_common(req_xattr_name, false);
+}
+
+int evm_protected_xattr_if_enabled(const char *req_xattr_name)
+{
+	return evm_protected_xattr_common(req_xattr_name, true);
+}
+
+/**
+ * evm_read_protected_xattrs - read EVM protected xattr names, lengths, values
+ * @dentry: dentry of the read xattrs
+ * @inode: inode of the read xattrs
+ * @buffer: buffer xattr names, lengths or values are copied to
+ * @buffer_size: size of buffer
+ * @type: n: names, l: lengths, v: values
+ * @canonical_fmt: data format (true: little endian, false: native format)
+ *
+ * Read protected xattr names (separated by |), lengths (u32) or values for a
+ * given dentry and return the total size of copied data. If buffer is NULL,
+ * just return the total size.
+ *
+ * Returns the total size on success, a negative value on error.
+ */
+int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
+			      int buffer_size, char type, bool canonical_fmt)
+{
+	struct xattr_list *xattr;
+	int rc, size, total_size = 0;
+
+	list_for_each_entry_lockless(xattr, &evm_config_xattrnames, list) {
+		rc = __vfs_getxattr(dentry, d_backing_inode(dentry),
+				    xattr->name, NULL, 0);
+		if (rc < 0 && rc == -ENODATA)
+			continue;
+		else if (rc < 0)
+			return rc;
+
+		switch (type) {
+		case 'n':
+			size = strlen(xattr->name) + 1;
+			if (buffer) {
+				if (total_size)
+					*(buffer + total_size - 1) = '|';
+
+				memcpy(buffer + total_size, xattr->name, size);
+			}
+			break;
+		case 'l':
+			size = sizeof(u32);
+			if (buffer) {
+				if (canonical_fmt)
+					rc = cpu_to_le32(rc);
+
+				*(u32 *)(buffer + total_size) = rc;
+			}
+			break;
+		case 'v':
+			size = rc;
+			if (buffer) {
+				rc = __vfs_getxattr(dentry,
+					d_backing_inode(dentry), xattr->name,
+					buffer + total_size,
+					buffer_size - total_size);
+				if (rc < 0)
+					return rc;
+			}
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		total_size += size;
+	}
+
+	return total_size;
 }
 
 /**
