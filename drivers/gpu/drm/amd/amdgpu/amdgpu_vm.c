@@ -653,15 +653,15 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 	spin_lock(&adev->mman.bdev.lru_lock);
 	list_for_each_entry(bo_base, &vm->idle, vm_status) {
 		struct amdgpu_bo *bo = bo_base->bo;
+		struct amdgpu_bo *shadow = amdgpu_bo_shadowed(bo);
 
 		if (!bo->parent)
 			continue;
 
 		ttm_bo_move_to_lru_tail(&bo->tbo, &bo->tbo.mem,
 					&vm->lru_bulk_move);
-		if (bo->shadow)
-			ttm_bo_move_to_lru_tail(&bo->shadow->tbo,
-						&bo->shadow->tbo.mem,
+		if (shadow)
+			ttm_bo_move_to_lru_tail(&shadow->tbo, &shadow->tbo.mem,
 						&vm->lru_bulk_move);
 	}
 	spin_unlock(&adev->mman.bdev.lru_lock);
@@ -693,15 +693,21 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	list_for_each_entry_safe(bo_base, tmp, &vm->evicted, vm_status) {
 		struct amdgpu_bo *bo = bo_base->bo;
+		struct amdgpu_bo *shadow = amdgpu_bo_shadowed(bo);
 
 		r = validate(param, bo);
 		if (r)
 			return r;
+		if (shadow) {
+			r = validate(param, shadow);
+			if (r)
+				return r;
+		}
 
 		if (bo->tbo.type != ttm_bo_type_kernel) {
 			amdgpu_vm_bo_moved(bo_base);
 		} else {
-			vm->update_funcs->map_table(bo);
+			vm->update_funcs->map_table(to_amdgpu_bo_vm(bo));
 			amdgpu_vm_bo_relocated(bo_base);
 		}
 	}
@@ -733,7 +739,7 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  *
  * @adev: amdgpu_device pointer
  * @vm: VM to clear BO from
- * @bo: BO to clear
+ * @vmbo: BO to clear
  * @immediate: use an immediate update
  *
  * Root PD needs to be reserved when calling this.
@@ -743,13 +749,14 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  */
 static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			      struct amdgpu_vm *vm,
-			      struct amdgpu_bo *bo,
+			      struct amdgpu_bo_vm *vmbo,
 			      bool immediate)
 {
 	struct ttm_operation_ctx ctx = { true, false };
 	unsigned level = adev->vm_manager.root_level;
 	struct amdgpu_vm_update_params params;
-	struct amdgpu_bo *ancestor = bo;
+	struct amdgpu_bo *ancestor = &vmbo->bo;
+	struct amdgpu_bo *bo = &vmbo->bo;
 	unsigned entries, ats_entries;
 	uint64_t addr;
 	int r;
@@ -789,14 +796,15 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	if (bo->shadow) {
-		r = ttm_bo_validate(&bo->shadow->tbo, &bo->shadow->placement,
-				    &ctx);
+	if (vmbo->shadow) {
+		struct amdgpu_bo *shadow = vmbo->shadow;
+
+		r = ttm_bo_validate(&shadow->tbo, &shadow->placement, &ctx);
 		if (r)
 			return r;
 	}
 
-	r = vm->update_funcs->map_table(bo);
+	r = vm->update_funcs->map_table(vmbo);
 	if (r)
 		return r;
 
@@ -820,7 +828,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			amdgpu_gmc_get_vm_pde(adev, level, &value, &flags);
 		}
 
-		r = vm->update_funcs->update(&params, bo, addr, 0, ats_entries,
+		r = vm->update_funcs->update(&params, vmbo, addr, 0, ats_entries,
 					     value, flags);
 		if (r)
 			return r;
@@ -843,7 +851,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			}
 		}
 
-		r = vm->update_funcs->update(&params, bo, addr, 0, entries,
+		r = vm->update_funcs->update(&params, vmbo, addr, 0, entries,
 					     value, flags);
 		if (r)
 			return r;
@@ -859,14 +867,17 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
  * @vm: requesting vm
  * @level: the page table level
  * @immediate: use a immediate update
- * @bo: pointer to the buffer object pointer
+ * @vmbo: pointer to the buffer object pointer
  */
 static int amdgpu_vm_pt_create(struct amdgpu_device *adev,
 			       struct amdgpu_vm *vm,
 			       int level, bool immediate,
-			       struct amdgpu_bo **bo)
+			       struct amdgpu_bo_vm **vmbo)
 {
 	struct amdgpu_bo_param bp;
+	struct amdgpu_bo *bo;
+	struct dma_resv *resv;
+	unsigned int num_entries;
 	int r;
 
 	memset(&bp, 0, sizeof(bp));
@@ -877,7 +888,14 @@ static int amdgpu_vm_pt_create(struct amdgpu_device *adev,
 	bp.domain = amdgpu_bo_get_preferred_pin_domain(adev, bp.domain);
 	bp.flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 		AMDGPU_GEM_CREATE_CPU_GTT_USWC;
-	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
+	if (level < AMDGPU_VM_PTB)
+		num_entries = amdgpu_vm_num_entries(adev, level);
+	else
+		num_entries = 0;
+
+	bp.bo_ptr_size = struct_size((*vmbo), entries, num_entries);
+
 	if (vm->use_cpu_for_update)
 		bp.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 
@@ -886,25 +904,40 @@ static int amdgpu_vm_pt_create(struct amdgpu_device *adev,
 	if (vm->root.base.bo)
 		bp.resv = vm->root.base.bo->tbo.base.resv;
 
-	r = amdgpu_bo_create(adev, &bp, bo);
+	r = amdgpu_bo_create_vm(adev, &bp, vmbo);
 	if (r)
 		return r;
 
-	if (vm->is_compute_context && (adev->flags & AMD_IS_APU))
+	bo = &(*vmbo)->bo;
+	if (vm->is_compute_context && (adev->flags & AMD_IS_APU)) {
+		(*vmbo)->shadow = NULL;
 		return 0;
+	}
 
 	if (!bp.resv)
-		WARN_ON(dma_resv_lock((*bo)->tbo.base.resv,
+		WARN_ON(dma_resv_lock(bo->tbo.base.resv,
 				      NULL));
-	r = amdgpu_bo_create_shadow(adev, bp.size, *bo);
+	resv = bp.resv;
+	memset(&bp, 0, sizeof(bp));
+	bp.size = amdgpu_vm_bo_size(adev, level);
+	bp.domain = AMDGPU_GEM_DOMAIN_GTT;
+	bp.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+	bp.type = ttm_bo_type_kernel;
+	bp.resv = bo->tbo.base.resv;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
-	if (!bp.resv)
-		dma_resv_unlock((*bo)->tbo.base.resv);
+	r = amdgpu_bo_create(adev, &bp, &(*vmbo)->shadow);
+
+	if (!resv)
+		dma_resv_unlock(bo->tbo.base.resv);
 
 	if (r) {
-		amdgpu_bo_unref(bo);
+		amdgpu_bo_unref(&bo);
 		return r;
 	}
+
+	(*vmbo)->shadow->parent = amdgpu_bo_ref(bo);
+	amdgpu_bo_add_to_shadow_list((*vmbo)->shadow);
 
 	return 0;
 }
@@ -929,22 +962,18 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			       bool immediate)
 {
 	struct amdgpu_vm_pt *entry = cursor->entry;
-	struct amdgpu_bo *pt;
+	struct amdgpu_bo *pt_bo;
+	struct amdgpu_bo_vm *pt;
 	int r;
 
-	if (cursor->level < AMDGPU_VM_PTB && !entry->entries) {
-		unsigned num_entries;
-
-		num_entries = amdgpu_vm_num_entries(adev, cursor->level);
-		entry->entries = kvmalloc_array(num_entries,
-						sizeof(*entry->entries),
-						GFP_KERNEL | __GFP_ZERO);
-		if (!entry->entries)
-			return -ENOMEM;
-	}
-
-	if (entry->base.bo)
+	if (entry->base.bo) {
+		if (cursor->level < AMDGPU_VM_PTB)
+			entry->entries =
+				to_amdgpu_bo_vm(entry->base.bo)->entries;
+		else
+			entry->entries = NULL;
 		return 0;
+	}
 
 	r = amdgpu_vm_pt_create(adev, vm, cursor->level, immediate, &pt);
 	if (r)
@@ -953,8 +982,13 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	/* Keep a reference to the root directory to avoid
 	 * freeing them up in the wrong order.
 	 */
-	pt->parent = amdgpu_bo_ref(cursor->parent->base.bo);
-	amdgpu_vm_bo_base_init(&entry->base, vm, pt);
+	pt_bo = &pt->bo;
+	pt_bo->parent = amdgpu_bo_ref(cursor->parent->base.bo);
+	amdgpu_vm_bo_base_init(&entry->base, vm, pt_bo);
+	if (cursor->level < AMDGPU_VM_PTB)
+		entry->entries = pt->entries;
+	else
+		entry->entries = NULL;
 
 	r = amdgpu_vm_clear_bo(adev, vm, pt, immediate);
 	if (r)
@@ -964,7 +998,7 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 
 error_free_pt:
 	amdgpu_bo_unref(&pt->shadow);
-	amdgpu_bo_unref(&pt);
+	amdgpu_bo_unref(&pt_bo);
 	return r;
 }
 
@@ -975,13 +1009,15 @@ error_free_pt:
  */
 static void amdgpu_vm_free_table(struct amdgpu_vm_pt *entry)
 {
+	struct amdgpu_bo *shadow;
+
 	if (entry->base.bo) {
+		shadow = amdgpu_bo_shadowed(entry->base.bo);
 		entry->base.bo->vm_bo = NULL;
 		list_del(&entry->base.vm_status);
-		amdgpu_bo_unref(&entry->base.bo->shadow);
+		amdgpu_bo_unref(&shadow);
 		amdgpu_bo_unref(&entry->base.bo);
 	}
-	kvfree(entry->entries);
 	entry->entries = NULL;
 }
 
@@ -1280,7 +1316,8 @@ static int amdgpu_vm_update_pde(struct amdgpu_vm_update_params *params,
 	level += params->adev->vm_manager.root_level;
 	amdgpu_gmc_get_pde_for_bo(entry->base.bo, level, &pt, &flags);
 	pde = (entry - parent->entries) * 8;
-	return vm->update_funcs->update(params, bo, pde, pt, 1, 0, flags);
+	return vm->update_funcs->update(params, to_amdgpu_bo_vm(bo), pde, pt,
+					1, 0, flags);
 }
 
 /**
@@ -1360,9 +1397,9 @@ error:
  * Make sure to set the right flags for the PTEs at the desired level.
  */
 static void amdgpu_vm_update_flags(struct amdgpu_vm_update_params *params,
-				   struct amdgpu_bo *bo, unsigned level,
+				   struct amdgpu_bo_vm *pt, unsigned int level,
 				   uint64_t pe, uint64_t addr,
-				   unsigned count, uint32_t incr,
+				   unsigned int count, uint32_t incr,
 				   uint64_t flags)
 
 {
@@ -1378,7 +1415,7 @@ static void amdgpu_vm_update_flags(struct amdgpu_vm_update_params *params,
 		flags |= AMDGPU_PTE_EXECUTABLE;
 	}
 
-	params->vm->update_funcs->update(params, bo, pe, addr, count, incr,
+	params->vm->update_funcs->update(params, pt, pe, addr, count, incr,
 					 flags);
 }
 
@@ -1558,9 +1595,9 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 						    nptes, dst, incr, upd_flags,
 						    vm->task_info.pid,
 						    vm->immediate.fence_context);
-			amdgpu_vm_update_flags(params, pt, cursor.level,
-					       pe_start, dst, nptes, incr,
-					       upd_flags);
+			amdgpu_vm_update_flags(params, to_amdgpu_bo_vm(pt),
+					       cursor.level, pe_start, dst,
+					       nptes, incr, upd_flags);
 
 			pe_start += nptes * 8;
 			dst += nptes * incr;
@@ -1583,9 +1620,12 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			 * completely covered by the range and so potentially still in use.
 			 */
 			while (cursor.pfn < frag_start) {
-				amdgpu_vm_free_pts(adev, params->vm, &cursor);
+				/* Make sure previous mapping is freed */
+				if (cursor.entry->base.bo) {
+					params->table_freed = true;
+					amdgpu_vm_free_pts(adev, params->vm, &cursor);
+				}
 				amdgpu_vm_pt_next(adev, &cursor);
-				params->table_freed = true;
 			}
 
 		} else if (frag >= shift) {
@@ -1822,7 +1862,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 				bo = gem_to_amdgpu_bo(gobj);
 		}
 		mem = &bo->tbo.mem;
-		if (mem->mem_type == TTM_PL_TT)
+		if (mem->mem_type == TTM_PL_TT ||
+		    mem->mem_type == AMDGPU_PL_PREEMPT)
 			pages_addr = bo->tbo.ttm->dma_address;
 	}
 
@@ -2673,7 +2714,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 	struct amdgpu_vm_bo_base *bo_base;
 
 	/* shadow bo doesn't have bo base, its validation needs its parent */
-	if (bo->parent && bo->parent->shadow == bo)
+	if (bo->parent && (amdgpu_bo_shadowed(bo->parent) == bo))
 		bo = bo->parent;
 
 	for (bo_base = bo->vm_bo; bo_base; bo_base = bo_base->next) {
@@ -2842,7 +2883,8 @@ long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
  */
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm, u32 pasid)
 {
-	struct amdgpu_bo *root;
+	struct amdgpu_bo *root_bo;
+	struct amdgpu_bo_vm *root;
 	int r, i;
 
 	vm->va = RB_ROOT_CACHED;
@@ -2896,16 +2938,16 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm, u32 pasid)
 				false, &root);
 	if (r)
 		goto error_free_delayed;
-
-	r = amdgpu_bo_reserve(root, true);
+	root_bo = &root->bo;
+	r = amdgpu_bo_reserve(root_bo, true);
 	if (r)
 		goto error_free_root;
 
-	r = dma_resv_reserve_shared(root->tbo.base.resv, 1);
+	r = dma_resv_reserve_shared(root_bo->tbo.base.resv, 1);
 	if (r)
 		goto error_unreserve;
 
-	amdgpu_vm_bo_base_init(&vm->root.base, vm, root);
+	amdgpu_vm_bo_base_init(&vm->root.base, vm, root_bo);
 
 	r = amdgpu_vm_clear_bo(adev, vm, root, false);
 	if (r)
@@ -2934,8 +2976,8 @@ error_unreserve:
 	amdgpu_bo_unreserve(vm->root.base.bo);
 
 error_free_root:
-	amdgpu_bo_unref(&vm->root.base.bo->shadow);
-	amdgpu_bo_unref(&vm->root.base.bo);
+	amdgpu_bo_unref(&root->shadow);
+	amdgpu_bo_unref(&root_bo);
 	vm->root.base.bo = NULL;
 
 error_free_delayed:
@@ -3033,7 +3075,9 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	 */
 	if (pte_support_ats != vm->pte_support_ats) {
 		vm->pte_support_ats = pte_support_ats;
-		r = amdgpu_vm_clear_bo(adev, vm, vm->root.base.bo, false);
+		r = amdgpu_vm_clear_bo(adev, vm,
+				       to_amdgpu_bo_vm(vm->root.base.bo),
+				       false);
 		if (r)
 			goto free_idr;
 	}
@@ -3077,7 +3121,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	/* Free the shadow bo for compute VM */
-	amdgpu_bo_unref(&vm->root.base.bo->shadow);
+	amdgpu_bo_unref(&to_amdgpu_bo_vm(vm->root.base.bo)->shadow);
 
 	if (pasid)
 		vm->pasid = pasid;

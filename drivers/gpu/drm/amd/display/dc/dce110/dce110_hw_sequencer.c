@@ -63,6 +63,9 @@
 
 #include "atomfirmware.h"
 
+#include "dce110_hw_sequencer.h"
+#include "dcn10/dcn10_hw_sequencer.h"
+
 #define GAMMA_HW_POINTS_NUM 256
 
 /*
@@ -264,6 +267,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 		prescale_params->scale = 0x2008;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		prescale_params->scale = 0x2000;
 		break;

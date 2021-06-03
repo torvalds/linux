@@ -172,16 +172,12 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 
 static bool dmub_abm_init_config(struct abm *abm,
 	const char *src,
-	unsigned int bytes)
+	unsigned int bytes,
+	unsigned int inst)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
-	uint32_t edp_id_count = dc->dc_edp_id_count;
-	int i;
-	uint8_t panel_mask = 0;
-
-	for (i = 0; i < edp_id_count; i++)
-		panel_mask |= 0x01 << i;
+	uint8_t panel_mask = 0x01 << inst;
 
 	// TODO: Optimize by only reading back final 4 bytes
 	dmub_flush_buffer_mem(&dc->dmub_srv->dmub->scratch_mem_fb);

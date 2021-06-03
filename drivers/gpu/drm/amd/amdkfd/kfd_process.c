@@ -110,8 +110,6 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 
 	workarea = container_of(work, struct kfd_sdma_activity_handler_workarea,
 				sdma_activity_work);
-	if (!workarea)
-		return;
 
 	pdd = workarea->pdd;
 	if (!pdd)

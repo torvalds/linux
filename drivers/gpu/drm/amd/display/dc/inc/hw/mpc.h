@@ -363,9 +363,6 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			int opp_id);
 
-	void (*set_bg_color)(struct mpc *mpc,
-			struct tg_color *bg_color,
-			int mpcc_id);
 };
 
 #endif

@@ -2116,7 +2116,7 @@ error_free_scratch:
 }
 
 /**
- * gfx_v7_0_ring_emit_hdp - emit an hdp flush on the cp
+ * gfx_v7_0_ring_emit_hdp_flush - emit an hdp flush on the cp
  *
  * @ring: amdgpu_ring structure holding ring information
  *
@@ -2242,7 +2242,7 @@ static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
  * IB stuff
  */
 /**
- * gfx_v7_0_ring_emit_ib - emit an IB (Indirect Buffer) on the ring
+ * gfx_v7_0_ring_emit_ib_gfx - emit an IB (Indirect Buffer) on the ring
  *
  * @ring: amdgpu_ring structure holding ring information
  * @job: job to retrieve vmid from
@@ -3196,7 +3196,7 @@ static int gfx_v7_0_cp_resume(struct amdgpu_device *adev)
 }
 
 /**
- * gfx_v7_0_ring_emit_vm_flush - cik vm flush using the CP
+ * gfx_v7_0_ring_emit_pipeline_sync - cik vm flush using the CP
  *
  * @ring: the ring to emit the commands to
  *

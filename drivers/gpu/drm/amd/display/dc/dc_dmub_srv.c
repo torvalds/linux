@@ -110,6 +110,15 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 		DC_ERROR("Error waiting for DMUB idle: status=%d\n", status);
 }
 
+void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
+		union dmub_inbox0_data_register data)
+{
+	struct dmub_srv *dmub = dmub_srv->dmub;
+	if (dmub->hw_funcs.send_inbox0_cmd)
+		dmub->hw_funcs.send_inbox0_cmd(dmub, data);
+	// TODO: Add wait command -- poll register for ACK
+}
+
 bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd)
 {
 	struct dmub_srv *dmub;

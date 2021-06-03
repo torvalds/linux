@@ -82,7 +82,6 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 	.set_pipe = dce110_set_pipe,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
-	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 };
 
 static const struct hwseq_private_funcs dcn10_private_funcs = {

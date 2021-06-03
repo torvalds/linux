@@ -179,6 +179,9 @@ struct dc_stream_state {
 
 	bool use_vsc_sdp_for_colorimetry;
 	bool ignore_msa_timing_param;
+
+	bool freesync_on_desktop;
+
 	bool converter_disable_audio;
 	uint8_t qs_bit;
 	uint8_t qy_bit;

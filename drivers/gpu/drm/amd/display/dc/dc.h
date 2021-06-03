@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.136"
+#define DC_VER "3.2.137"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -1068,8 +1068,6 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
  *   New streams are enabled with blank stream; no memory read.
  */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
-
-void dc_power_down_on_boot(struct dc *dc);
 
 struct dc_state *dc_create_state(struct dc *dc);
 struct dc_state *dc_copy_state(struct dc_state *src_ctx);
