@@ -81,53 +81,11 @@ vchiq_static_assert(IS_POW2(VCHIQ_MAX_SLOTS_PER_SIDE));
 #define VCHIQ_SLOT_ZERO_SLOTS  DIV_ROUND_UP(sizeof(struct vchiq_slot_zero), \
 					    VCHIQ_SLOT_SIZE)
 
-#define VCHIQ_MSG_PADDING            0  /* -                                 */
-#define VCHIQ_MSG_CONNECT            1  /* -                                 */
-#define VCHIQ_MSG_OPEN               2  /* + (srcport, -), fourcc, client_id */
-#define VCHIQ_MSG_OPENACK            3  /* + (srcport, dstport)              */
-#define VCHIQ_MSG_CLOSE              4  /* + (srcport, dstport)              */
-#define VCHIQ_MSG_DATA               5  /* + (srcport, dstport)              */
-#define VCHIQ_MSG_BULK_RX            6  /* + (srcport, dstport), data, size  */
-#define VCHIQ_MSG_BULK_TX            7  /* + (srcport, dstport), data, size  */
-#define VCHIQ_MSG_BULK_RX_DONE       8  /* + (srcport, dstport), actual      */
-#define VCHIQ_MSG_BULK_TX_DONE       9  /* + (srcport, dstport), actual      */
-#define VCHIQ_MSG_PAUSE             10  /* -                                 */
-#define VCHIQ_MSG_RESUME            11  /* -                                 */
-#define VCHIQ_MSG_REMOTE_USE        12  /* -                                 */
-#define VCHIQ_MSG_REMOTE_RELEASE    13  /* -                                 */
-#define VCHIQ_MSG_REMOTE_USE_ACTIVE 14  /* -                                 */
-
-#define VCHIQ_PORT_MAX                 (VCHIQ_MAX_SERVICES - 1)
-#define VCHIQ_PORT_FREE                0x1000
-#define VCHIQ_PORT_IS_VALID(port)      (port < VCHIQ_PORT_FREE)
-#define VCHIQ_MAKE_MSG(type, srcport, dstport) \
-	((type<<24) | (srcport<<12) | (dstport<<0))
-#define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)msgid >> 24)
-#define VCHIQ_MSG_SRCPORT(msgid) \
-	(unsigned short)(((unsigned int)msgid >> 12) & 0xfff)
-#define VCHIQ_MSG_DSTPORT(msgid) \
-	((unsigned short)msgid & 0xfff)
-
 #define VCHIQ_FOURCC_AS_4CHARS(fourcc)	\
 	((fourcc) >> 24) & 0xff, \
 	((fourcc) >> 16) & 0xff, \
 	((fourcc) >>  8) & 0xff, \
 	(fourcc) & 0xff
-
-/* Ensure the fields are wide enough */
-vchiq_static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
-	== 0);
-vchiq_static_assert(VCHIQ_MSG_TYPE(VCHIQ_MAKE_MSG(0, VCHIQ_PORT_MAX, 0)) == 0);
-vchiq_static_assert((unsigned int)VCHIQ_PORT_MAX <
-	(unsigned int)VCHIQ_PORT_FREE);
-
-#define VCHIQ_MSGID_PADDING            VCHIQ_MAKE_MSG(VCHIQ_MSG_PADDING, 0, 0)
-#define VCHIQ_MSGID_CLAIMED            0x40000000
-
-#define VCHIQ_FOURCC_INVALID           0x00000000
-#define VCHIQ_FOURCC_IS_LEGAL(fourcc)  (fourcc != VCHIQ_FOURCC_INVALID)
-
-#define VCHIQ_BULK_ACTUAL_ABORTED -1
 
 typedef uint32_t BITSET_T;
 
@@ -139,17 +97,6 @@ vchiq_static_assert((sizeof(BITSET_T) * 8) == 32);
 #define BITSET_IS_SET(bs, b)  (bs[BITSET_WORD(b)] & BITSET_BIT(b))
 #define BITSET_SET(bs, b)     (bs[BITSET_WORD(b)] |= BITSET_BIT(b))
 #define BITSET_CLR(bs, b)     (bs[BITSET_WORD(b)] &= ~BITSET_BIT(b))
-
-#if VCHIQ_ENABLE_STATS
-#define VCHIQ_STATS_INC(state, stat) (state->stats. stat++)
-#define VCHIQ_SERVICE_STATS_INC(service, stat) (service->stats. stat++)
-#define VCHIQ_SERVICE_STATS_ADD(service, stat, addend) \
-	(service->stats. stat += addend)
-#else
-#define VCHIQ_STATS_INC(state, stat) ((void)0)
-#define VCHIQ_SERVICE_STATS_INC(service, stat) ((void)0)
-#define VCHIQ_SERVICE_STATS_ADD(service, stat, addend) ((void)0)
-#endif
 
 enum {
 	DEBUG_ENTRIES,
@@ -210,14 +157,6 @@ enum {
 	VCHIQ_SRVSTATE_CLOSERECVD,
 	VCHIQ_SRVSTATE_CLOSEWAIT,
 	VCHIQ_SRVSTATE_CLOSED
-};
-
-enum {
-	VCHIQ_POLL_TERMINATE,
-	VCHIQ_POLL_REMOVE,
-	VCHIQ_POLL_TXNOTIFY,
-	VCHIQ_POLL_RXNOTIFY,
-	VCHIQ_POLL_COUNT
 };
 
 enum vchiq_bulk_dir {
