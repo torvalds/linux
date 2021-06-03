@@ -29,10 +29,12 @@ struct intel_guc;
  *
  * @desc: pointer to the buffer descriptor
  * @cmds: pointer to the commands buffer
+ * @size: size of the commands buffer
  */
 struct intel_guc_ct_buffer {
 	struct guc_ct_buffer_desc *desc;
 	u32 *cmds;
+	u32 size;
 };
 
 
