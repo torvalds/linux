@@ -274,7 +274,6 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 	int err_sctype = errval & (~NVME_SC_DNR);
 
 	switch (err_sctype) {
-
 	case (NVME_SC_CONNECT_INVALID_PARAM):
 		if (offset >> 16) {
 			char *inv_data = "Connect Invalid Data Parameter";
@@ -317,24 +316,24 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 			}
 		}
 		break;
-
 	case NVME_SC_CONNECT_INVALID_HOST:
 		dev_err(ctrl->device,
 			"Connect for subsystem %s is not allowed, hostnqn: %s\n",
 			data->subsysnqn, data->hostnqn);
 		break;
-
 	case NVME_SC_CONNECT_CTRL_BUSY:
 		dev_err(ctrl->device,
 			"Connect command failed: controller is busy or not available\n");
 		break;
-
 	case NVME_SC_CONNECT_FORMAT:
 		dev_err(ctrl->device,
 			"Connect incompatible format: %d",
 			cmd->connect.recfmt);
 		break;
-
+	case NVME_SC_HOST_PATH_ERROR:
+		dev_err(ctrl->device,
+			"Connect command failed: host path error\n");
+		break;
 	default:
 		dev_err(ctrl->device,
 			"Connect command failed, error wo/DNR bit: %d\n",
