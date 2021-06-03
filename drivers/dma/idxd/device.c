@@ -486,6 +486,7 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	union idxd_command_reg cmd;
 	DECLARE_COMPLETION_ONSTACK(done);
 	unsigned long flags;
+	u32 stat;
 
 	if (idxd_device_is_halted(idxd)) {
 		dev_warn(&idxd->pdev->dev, "Device is HALTED!\n");
@@ -518,11 +519,11 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	 */
 	spin_unlock_irqrestore(&idxd->cmd_lock, flags);
 	wait_for_completion(&done);
+	stat = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
 	spin_lock_irqsave(&idxd->cmd_lock, flags);
-	if (status) {
-		*status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
-		idxd->cmd_status = *status & GENMASK(7, 0);
-	}
+	if (status)
+		*status = stat;
+	idxd->cmd_status = stat & GENMASK(7, 0);
 
 	__clear_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
 	/* Wake up other pending commands */
