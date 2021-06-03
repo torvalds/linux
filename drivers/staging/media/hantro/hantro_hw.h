@@ -20,6 +20,8 @@
 #define MB_WIDTH(w)		DIV_ROUND_UP(w, MB_DIM)
 #define MB_HEIGHT(h)		DIV_ROUND_UP(h, MB_DIM)
 
+#define NUM_REF_PICTURES	(V4L2_HEVC_DPB_ENTRIES_NUM_MAX + 1)
+
 struct hantro_dev;
 struct hantro_ctx;
 struct hantro_buf;
@@ -93,6 +95,46 @@ struct hantro_h264_dec_hw_ctx {
 	struct v4l2_h264_dpb_entry dpb[HANTRO_H264_DPB_SIZE];
 	struct hantro_h264_dec_reflists reflists;
 	struct hantro_h264_dec_ctrls ctrls;
+};
+
+/**
+ * struct hantro_hevc_dec_ctrls
+ * @decode_params: Decode params
+ * @sps:	SPS info
+ * @pps:	PPS info
+ * @hevc_hdr_skip_length: the number of data (in bits) to skip in the
+ *			  slice segment header syntax after 'slice type'
+ *			  token
+ */
+struct hantro_hevc_dec_ctrls {
+	const struct v4l2_ctrl_hevc_decode_params *decode_params;
+	const struct v4l2_ctrl_hevc_sps *sps;
+	const struct v4l2_ctrl_hevc_pps *pps;
+	u32 hevc_hdr_skip_length;
+};
+
+/**
+ * struct hantro_hevc_dec_hw_ctx
+ * @tile_sizes:		Tile sizes buffer
+ * @tile_filter:	Tile vertical filter buffer
+ * @tile_sao:		Tile SAO buffer
+ * @tile_bsd:		Tile BSD control buffer
+ * @ref_bufs:		Internal reference buffers
+ * @ref_bufs_poc:	Internal reference buffers picture order count
+ * @ref_bufs_used:	Bitfield of used reference buffers
+ * @ctrls:		V4L2 controls attached to a run
+ * @num_tile_cols_allocated: number of allocated tiles
+ */
+struct hantro_hevc_dec_hw_ctx {
+	struct hantro_aux_buf tile_sizes;
+	struct hantro_aux_buf tile_filter;
+	struct hantro_aux_buf tile_sao;
+	struct hantro_aux_buf tile_bsd;
+	struct hantro_aux_buf ref_bufs[NUM_REF_PICTURES];
+	int ref_bufs_poc[NUM_REF_PICTURES];
+	u32 ref_bufs_used;
+	struct hantro_hevc_dec_ctrls ctrls;
+	unsigned int num_tile_cols_allocated;
 };
 
 /**
@@ -193,6 +235,15 @@ int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx);
 int hantro_g1_h264_dec_run(struct hantro_ctx *ctx);
 int hantro_h264_dec_init(struct hantro_ctx *ctx);
 void hantro_h264_dec_exit(struct hantro_ctx *ctx);
+
+int hantro_hevc_dec_init(struct hantro_ctx *ctx);
+void hantro_hevc_dec_exit(struct hantro_ctx *ctx);
+int hantro_g2_hevc_dec_run(struct hantro_ctx *ctx);
+int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx);
+dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, int poc);
+void hantro_hevc_ref_remove_unused(struct hantro_ctx *ctx);
+size_t hantro_hevc_chroma_offset(const struct v4l2_ctrl_hevc_sps *sps);
+size_t hantro_hevc_motion_vectors_offset(const struct v4l2_ctrl_hevc_sps *sps);
 
 static inline size_t
 hantro_h264_mv_size(unsigned int width, unsigned int height)
