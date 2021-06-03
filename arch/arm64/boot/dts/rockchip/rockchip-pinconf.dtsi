@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2020~2021 Rockchip Electronics Co., Ltd.
  */
 
 &pinctrl {
@@ -339,8 +339,44 @@
 	};
 
 	/omit-if-no-ref/
+	pcfg_output_high_pull_up: pcfg-output-high-pull-up {
+		output-high;
+		bias-pull-up;
+	};
+
+	/omit-if-no-ref/
+	pcfg_output_high_pull_down: pcfg-output-high-pull-down {
+		output-high;
+		bias-pull-down;
+	};
+
+	/omit-if-no-ref/
+	pcfg_output_high_pull_none: pcfg-output-high-pull-none {
+		output-high;
+		bias-disable;
+	};
+
+	/omit-if-no-ref/
 	pcfg_output_low: pcfg-output-low {
 		output-low;
+	};
+
+	/omit-if-no-ref/
+	pcfg_output_low_pull_up: pcfg-output-low-pull-up {
+		output-low;
+		bias-pull-up;
+	};
+
+	/omit-if-no-ref/
+	pcfg_output_low_pull_down: pcfg-output-low-pull-down {
+		output-low;
+		bias-pull-down;
+	};
+
+	/omit-if-no-ref/
+	pcfg_output_low_pull_none: pcfg-output-low-pull-none {
+		output-low;
+		bias-disable;
 	};
 };
 
