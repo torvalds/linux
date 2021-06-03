@@ -681,7 +681,7 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 {
 	struct btrfs_delayed_item *curr, *next;
 	int free_space;
-	int total_data_size = 0, total_size = 0;
+	int total_size = 0;
 	struct extent_buffer *leaf;
 	char *data_ptr;
 	struct btrfs_key *keys;
@@ -706,7 +706,6 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 	 */
 	while (total_size + next->data_len + sizeof(struct btrfs_item) <=
 	       free_space) {
-		total_data_size += next->data_len;
 		total_size += next->data_len + sizeof(struct btrfs_item);
 		list_add_tail(&next->tree_list, &head);
 		nitems++;
