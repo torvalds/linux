@@ -313,8 +313,8 @@ static int __maybe_unused xgpio_suspend(struct device *dev)
 	struct irq_data *data = irq_get_irq_data(gpio->irq);
 
 	if (!data) {
-		dev_err(dev, "irq_get_irq_data() failed\n");
-		return -EINVAL;
+		dev_dbg(dev, "IRQ not connected\n");
+		return pm_runtime_force_suspend(dev);
 	}
 
 	if (!irqd_is_wakeup_set(data))
@@ -359,8 +359,8 @@ static int __maybe_unused xgpio_resume(struct device *dev)
 	struct irq_data *data = irq_get_irq_data(gpio->irq);
 
 	if (!data) {
-		dev_err(dev, "irq_get_irq_data() failed\n");
-		return -EINVAL;
+		dev_dbg(dev, "IRQ not connected\n");
+		return pm_runtime_force_resume(dev);
 	}
 
 	if (!irqd_is_wakeup_set(data))
