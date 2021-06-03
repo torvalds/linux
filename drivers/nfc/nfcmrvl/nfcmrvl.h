@@ -1,4 +1,4 @@
-/**
+/*
  * Marvell NFC driver
  *
  * Copyright (C) 2014-2015, Marvell International Ltd.

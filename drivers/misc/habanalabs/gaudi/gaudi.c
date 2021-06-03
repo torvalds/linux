@@ -105,36 +105,6 @@
 
 #define GAUDI_PLL_MAX 10
 
-/*
- * this enum kept here for compatibility with old FW (in which each asic has
- * unique PLL numbering
- */
-enum gaudi_pll_index {
-	GAUDI_CPU_PLL = 0,
-	GAUDI_PCI_PLL,
-	GAUDI_SRAM_PLL,
-	GAUDI_HBM_PLL,
-	GAUDI_NIC_PLL,
-	GAUDI_DMA_PLL,
-	GAUDI_MESH_PLL,
-	GAUDI_MME_PLL,
-	GAUDI_TPC_PLL,
-	GAUDI_IF_PLL,
-};
-
-static enum pll_index gaudi_pll_map[PLL_MAX] = {
-	[CPU_PLL] = GAUDI_CPU_PLL,
-	[PCI_PLL] = GAUDI_PCI_PLL,
-	[SRAM_PLL] = GAUDI_SRAM_PLL,
-	[HBM_PLL] = GAUDI_HBM_PLL,
-	[NIC_PLL] = GAUDI_NIC_PLL,
-	[DMA_PLL] = GAUDI_DMA_PLL,
-	[MESH_PLL] = GAUDI_MESH_PLL,
-	[MME_PLL] = GAUDI_MME_PLL,
-	[TPC_PLL] = GAUDI_TPC_PLL,
-	[IF_PLL] = GAUDI_IF_PLL,
-};
-
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
 		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
@@ -810,7 +780,7 @@ static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 			freq = 0;
 		}
 	} else {
-		rc = hl_fw_cpucp_pll_info_get(hdev, CPU_PLL, pll_freq_arr);
+		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GAUDI_CPU_PLL, pll_freq_arr);
 
 		if (rc)
 			return rc;
@@ -1651,9 +1621,6 @@ static int gaudi_sw_init(struct hl_device *hdev)
 	gaudi->max_freq_value = GAUDI_MAX_CLK_FREQ;
 
 	hdev->asic_specific = gaudi;
-
-	/* store legacy PLL map */
-	hdev->legacy_pll_map = gaudi_pll_map;
 
 	/* Create DMA pool for small allocations */
 	hdev->dma_pool = dma_pool_create(dev_name(hdev->dev),
@@ -5612,6 +5579,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	struct hl_cs_job *job;
 	u32 cb_size, ctl, err_cause;
 	struct hl_cb *cb;
+	u64 id;
 	int rc;
 
 	cb = hl_cb_kernel_create(hdev, PAGE_SIZE, false);
@@ -5678,8 +5646,9 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	}
 
 release_cb:
+	id = cb->id;
 	hl_cb_put(cb);
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, id << PAGE_SHIFT);
 
 	return rc;
 }
@@ -8783,6 +8752,23 @@ static void gaudi_enable_events_from_fw(struct hl_device *hdev)
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_INTS_REGISTER);
 }
 
+static int gaudi_map_pll_idx_to_fw_idx(u32 pll_idx)
+{
+	switch (pll_idx) {
+	case HL_GAUDI_CPU_PLL: return CPU_PLL;
+	case HL_GAUDI_PCI_PLL: return PCI_PLL;
+	case HL_GAUDI_NIC_PLL: return NIC_PLL;
+	case HL_GAUDI_DMA_PLL: return DMA_PLL;
+	case HL_GAUDI_MESH_PLL: return MESH_PLL;
+	case HL_GAUDI_MME_PLL: return MME_PLL;
+	case HL_GAUDI_TPC_PLL: return TPC_PLL;
+	case HL_GAUDI_IF_PLL: return IF_PLL;
+	case HL_GAUDI_SRAM_PLL: return SRAM_PLL;
+	case HL_GAUDI_HBM_PLL: return HBM_PLL;
+	default: return -EINVAL;
+	}
+}
+
 static const struct hl_asic_funcs gaudi_funcs = {
 	.early_init = gaudi_early_init,
 	.early_fini = gaudi_early_fini,
@@ -8866,7 +8852,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.ack_protection_bits_errors = gaudi_ack_protection_bits_errors,
 	.get_hw_block_id = gaudi_get_hw_block_id,
 	.hw_block_mmap = gaudi_block_mmap,
-	.enable_events_from_fw = gaudi_enable_events_from_fw
+	.enable_events_from_fw = gaudi_enable_events_from_fw,
+	.map_pll_idx_to_fw_idx = gaudi_map_pll_idx_to_fw_idx
 };
 
 /**

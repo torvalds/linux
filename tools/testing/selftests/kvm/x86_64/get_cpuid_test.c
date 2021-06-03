@@ -19,7 +19,12 @@ struct {
 	u32 function;
 	u32 index;
 } mangled_cpuids[] = {
+	/*
+	 * These entries depend on the vCPU's XCR0 register and IA32_XSS MSR,
+	 * which are not controlled for by this test.
+	 */
 	{.function = 0xd, .index = 0},
+	{.function = 0xd, .index = 1},
 };
 
 static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
