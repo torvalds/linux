@@ -40,7 +40,6 @@
 	no-sdio;
 	no-sd;
 	non-removable;
-	rockchip,txclk-tapnum = <0x10>;
 	max-frequency = <200000000>;
 	status = "okay";
 };
