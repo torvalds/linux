@@ -273,6 +273,9 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 
 /**
  * htb_add_to_id_tree - adds class to the round robin list
+ * @root: the root of the tree
+ * @cl: the class to add
+ * @prio: the give prio in class
  *
  * Routine adds class to the list (actually tree) sorted by classid.
  * Make sure that class is not already on such list for given prio.
