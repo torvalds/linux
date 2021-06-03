@@ -106,6 +106,11 @@ Implicit Fence Poll Support
 .. kernel-doc:: drivers/dma-buf/dma-buf.c
    :doc: implicit fence polling
 
+DMA-BUF statistics
+~~~~~~~~~~~~~~~~~~
+.. kernel-doc:: drivers/dma-buf/dma-buf-sysfs-stats.c
+   :doc: overview
+
 Kernel Functions and Structures Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
