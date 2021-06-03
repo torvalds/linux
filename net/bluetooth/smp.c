@@ -859,7 +859,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	memset(smp->tk, 0, sizeof(smp->tk));
 	clear_bit(SMP_FLAG_TK_VALID, &smp->flags);
 
-	bt_dev_dbg(hcon->hdev, "auth:%d lcl:%d rem:%d", auth, local_io,
+	bt_dev_dbg(hcon->hdev, "auth:%u lcl:%u rem:%u", auth, local_io,
 		   remote_io);
 
 	/* If neither side wants MITM, either "just" confirm an incoming
@@ -925,7 +925,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		get_random_bytes(&passkey, sizeof(passkey));
 		passkey %= 1000000;
 		put_unaligned_le32(passkey, smp->tk);
-		bt_dev_dbg(hcon->hdev, "PassKey: %d", passkey);
+		bt_dev_dbg(hcon->hdev, "PassKey: %u", passkey);
 		set_bit(SMP_FLAG_TK_VALID, &smp->flags);
 	}
 
@@ -1655,7 +1655,7 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 	case MGMT_OP_USER_PASSKEY_REPLY:
 		value = le32_to_cpu(passkey);
 		memset(smp->tk, 0, sizeof(smp->tk));
-		bt_dev_dbg(conn->hcon->hdev, "PassKey: %d", value);
+		bt_dev_dbg(conn->hcon->hdev, "PassKey: %u", value);
 		put_unaligned_le32(value, smp->tk);
 		fallthrough;
 	case MGMT_OP_USER_CONFIRM_REPLY:
