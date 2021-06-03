@@ -47,12 +47,6 @@ static DEFINE_MUTEX(acpi_hp_context_lock);
  */
 static u64 spcr_uart_addr;
 
-struct acpi_dep_data {
-	struct list_head node;
-	acpi_handle supplier;
-	acpi_handle consumer;
-};
-
 void acpi_scan_lock_acquire(void)
 {
 	mutex_lock(&acpi_scan_lock);
@@ -2107,29 +2101,68 @@ static void acpi_bus_attach(struct acpi_device *device, bool first_pass)
 		device->handler->hotplug.notify_online(device);
 }
 
-void acpi_walk_dep_device_list(acpi_handle handle)
+static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
+{
+	struct acpi_device *adev;
+
+	acpi_bus_get_device(dep->consumer, &adev);
+
+	if (adev) {
+		adev->dep_unmet--;
+		if (!adev->dep_unmet)
+			acpi_bus_attach(adev, true);
+	}
+
+	list_del(&dep->node);
+	kfree(dep);
+
+	return 0;
+}
+
+/**
+ * acpi_walk_dep_device_list - Apply a callback to every entry in acpi_dep_list
+ * @handle:	The ACPI handle of the supplier device
+ * @callback:	Pointer to the callback function to apply
+ * @data:	Pointer to some data to pass to the callback
+ *
+ * The return value of the callback determines this function's behaviour. If 0
+ * is returned we continue to iterate over acpi_dep_list. If a positive value
+ * is returned then the loop is broken but this function returns 0. If a
+ * negative value is returned by the callback then the loop is broken and that
+ * value is returned as the final error.
+ */
+int acpi_walk_dep_device_list(acpi_handle handle,
+			      int (*callback)(struct acpi_dep_data *, void *),
+			      void *data)
 {
 	struct acpi_dep_data *dep, *tmp;
-	struct acpi_device *adev;
+	int ret;
 
 	mutex_lock(&acpi_dep_list_lock);
 	list_for_each_entry_safe(dep, tmp, &acpi_dep_list, node) {
 		if (dep->supplier == handle) {
-			acpi_bus_get_device(dep->consumer, &adev);
-
-			if (adev) {
-				adev->dep_unmet--;
-				if (!adev->dep_unmet)
-					acpi_bus_attach(adev, true);
-			}
-
-			list_del(&dep->node);
-			kfree(dep);
+			ret = callback(dep, data);
+			if (ret)
+				break;
 		}
 	}
 	mutex_unlock(&acpi_dep_list_lock);
+
+	return ret > 0 ? 0 : ret;
 }
 EXPORT_SYMBOL_GPL(acpi_walk_dep_device_list);
+
+/**
+ * acpi_dev_clear_dependencies - Inform consumers that the device is now active
+ * @supplier: Pointer to the supplier &struct acpi_device
+ *
+ * Clear dependencies on the given device.
+ */
+void acpi_dev_clear_dependencies(struct acpi_device *supplier)
+{
+	acpi_walk_dep_device_list(supplier->handle, acpi_scan_clear_dep, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_clear_dependencies);
 
 /**
  * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.
