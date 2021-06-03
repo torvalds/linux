@@ -33,12 +33,14 @@
 #define VCHIQ_MSG_REMOTE_RELEASE    13  /* -                                 */
 #define VCHIQ_MSG_REMOTE_USE_ACTIVE 14  /* -                                 */
 
+#define TYPE_SHIFT 24
+
 #define VCHIQ_PORT_MAX                 (VCHIQ_MAX_SERVICES - 1)
 #define VCHIQ_PORT_FREE                0x1000
 #define VCHIQ_PORT_IS_VALID(port)      ((port) < VCHIQ_PORT_FREE)
 #define VCHIQ_MAKE_MSG(type, srcport, dstport) \
-	(((type) << 24) | ((srcport) << 12) | ((dstport) << 0))
-#define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)(msgid) >> 24)
+	(((type) << TYPE_SHIFT) | ((srcport) << 12) | ((dstport) << 0))
+#define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)(msgid) >> TYPE_SHIFT)
 #define VCHIQ_MSG_SRCPORT(msgid) \
 	(unsigned short)(((unsigned int)(msgid) >> 12) & 0xfff)
 #define VCHIQ_MSG_DSTPORT(msgid) \
