@@ -379,6 +379,24 @@ err:
 	return ret;
 }
 
+static int genpd_set_performance_state(struct device *dev, unsigned int state)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
+	unsigned int prev_state;
+	int ret;
+
+	prev_state = gpd_data->performance_state;
+	gpd_data->performance_state = state;
+	state = _genpd_reeval_performance_state(genpd, state);
+
+	ret = _genpd_set_performance_state(genpd, state, 0);
+	if (ret)
+		gpd_data->performance_state = prev_state;
+
+	return ret;
+}
+
 /**
  * dev_pm_genpd_set_performance_state- Set performance state of device's power
  * domain.
@@ -397,8 +415,6 @@ err:
 int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 {
 	struct generic_pm_domain *genpd;
-	struct generic_pm_domain_data *gpd_data;
-	unsigned int prev;
 	int ret;
 
 	genpd = dev_to_genpd_safe(dev);
@@ -410,16 +426,7 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 		return -EINVAL;
 
 	genpd_lock(genpd);
-
-	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
-	prev = gpd_data->performance_state;
-	gpd_data->performance_state = state;
-
-	state = _genpd_reeval_performance_state(genpd, state);
-	ret = _genpd_set_performance_state(genpd, state, 0);
-	if (ret)
-		gpd_data->performance_state = prev;
-
+	ret = genpd_set_performance_state(dev, state);
 	genpd_unlock(genpd);
 
 	return ret;
