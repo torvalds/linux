@@ -108,14 +108,14 @@ static int usb4_do_read_data(u16 address, void *buf, size_t size,
 	unsigned int retries = USB4_DATA_RETRIES;
 	unsigned int offset;
 
-	offset = address & 3;
-	address = address & ~3;
-
 	do {
-		size_t nbytes = min_t(size_t, size, USB4_DATA_DWORDS * 4);
 		unsigned int dwaddress, dwords;
 		u8 data[USB4_DATA_DWORDS * 4];
+		size_t nbytes;
 		int ret;
+
+		offset = address & 3;
+		nbytes = min_t(size_t, size + offset, USB4_DATA_DWORDS * 4);
 
 		dwaddress = address / 4;
 		dwords = ALIGN(nbytes, 4) / 4;
@@ -127,6 +127,7 @@ static int usb4_do_read_data(u16 address, void *buf, size_t size,
 			return ret;
 		}
 
+		nbytes -= offset;
 		memcpy(buf, data + offset, nbytes);
 
 		size -= nbytes;
