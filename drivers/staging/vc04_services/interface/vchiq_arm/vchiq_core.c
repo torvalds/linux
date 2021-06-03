@@ -1526,95 +1526,89 @@ abort_outstanding_bulks(struct vchiq_service *service,
 static int
 parse_open(struct vchiq_state *state, struct vchiq_header *header)
 {
+	const struct vchiq_open_payload *payload;
 	struct vchiq_service *service = NULL;
 	int msgid, size;
-	unsigned int localport, remoteport;
+	unsigned int localport, remoteport, fourcc;
+	short version, version_min;
 
 	msgid = header->msgid;
 	size = header->size;
 	localport = VCHIQ_MSG_DSTPORT(msgid);
 	remoteport = VCHIQ_MSG_SRCPORT(msgid);
-	if (size >= sizeof(struct vchiq_open_payload)) {
-		const struct vchiq_open_payload *payload =
-			(struct vchiq_open_payload *)header->data;
-		unsigned int fourcc;
+	if (size < sizeof(struct vchiq_open_payload))
+		goto fail_open;
 
-		fourcc = payload->fourcc;
-		vchiq_log_info(vchiq_core_log_level,
-			"%d: prs OPEN@%pK (%d->'%c%c%c%c')",
-			state->id, header, localport,
-			VCHIQ_FOURCC_AS_4CHARS(fourcc));
+	payload = (struct vchiq_open_payload *)header->data;
+	fourcc = payload->fourcc;
+	vchiq_log_info(vchiq_core_log_level,
+		"%d: prs OPEN@%pK (%d->'%c%c%c%c')",
+		state->id, header, localport,
+		VCHIQ_FOURCC_AS_4CHARS(fourcc));
 
-		service = get_listening_service(state, fourcc);
+	service = get_listening_service(state, fourcc);
+	if (!service)
+		goto fail_open;
 
-		if (service) {
-			/* A matching service exists */
-			short version = payload->version;
-			short version_min = payload->version_min;
+	/* A matching service exists */
+	version = payload->version;
+	version_min = payload->version_min;
 
-			if ((service->version < version_min) ||
-				(version < service->version_min)) {
-				/* Version mismatch */
-				vchiq_loud_error_header();
-				vchiq_loud_error("%d: service %d (%c%c%c%c) "
-					"version mismatch - local (%d, min %d)"
-					" vs. remote (%d, min %d)",
-					state->id, service->localport,
-					VCHIQ_FOURCC_AS_4CHARS(fourcc),
-					service->version, service->version_min,
-					version, version_min);
-				vchiq_loud_error_footer();
-				vchiq_service_put(service);
-				service = NULL;
-				goto fail_open;
-			}
-			service->peer_version = version;
-
-			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
-				struct vchiq_openack_payload ack_payload = {
-					service->version
-				};
-
-				if (state->version_common <
-				    VCHIQ_VERSION_SYNCHRONOUS_MODE)
-					service->sync = 0;
-
-				/* Acknowledge the OPEN */
-				if (service->sync) {
-					if (queue_message_sync(
-						state,
-						NULL,
-						MAKE_OPENACK(service->localport,
-							     remoteport),
-						memcpy_copy_callback,
-						&ack_payload,
-						sizeof(ack_payload),
-						0) == VCHIQ_RETRY)
-						goto bail_not_ready;
-				} else {
-					if (queue_message(state,
-							NULL,
-							MAKE_OPENACK(
-							service->localport,
-							remoteport),
-						memcpy_copy_callback,
-						&ack_payload,
-						sizeof(ack_payload),
-						0) == VCHIQ_RETRY)
-						goto bail_not_ready;
-				}
-
-				/* The service is now open */
-				vchiq_set_service_state(service,
-					service->sync ? VCHIQ_SRVSTATE_OPENSYNC
-					: VCHIQ_SRVSTATE_OPEN);
-			}
-
-			/* Success - the message has been dealt with */
-			vchiq_service_put(service);
-			return 1;
-		}
+	if ((service->version < version_min) ||
+		(version < service->version_min)) {
+		/* Version mismatch */
+		vchiq_loud_error_header();
+		vchiq_loud_error("%d: service %d (%c%c%c%c) "
+			"version mismatch - local (%d, min %d)"
+			" vs. remote (%d, min %d)",
+			state->id, service->localport,
+			VCHIQ_FOURCC_AS_4CHARS(fourcc),
+			service->version, service->version_min,
+			version, version_min);
+		vchiq_loud_error_footer();
+		vchiq_service_put(service);
+		service = NULL;
+		goto fail_open;
 	}
+	service->peer_version = version;
+
+	if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
+		struct vchiq_openack_payload ack_payload = {
+			service->version
+		};
+
+		if (state->version_common <
+		    VCHIQ_VERSION_SYNCHRONOUS_MODE)
+			service->sync = 0;
+
+		/* Acknowledge the OPEN */
+		if (service->sync) {
+			if (queue_message_sync(state, NULL,
+				MAKE_OPENACK(service->localport, remoteport),
+				memcpy_copy_callback,
+				&ack_payload,
+				sizeof(ack_payload),
+				0) == VCHIQ_RETRY)
+				goto bail_not_ready;
+		} else {
+			if (queue_message(state, NULL,
+				MAKE_OPENACK(service->localport, remoteport),
+				memcpy_copy_callback,
+				&ack_payload,
+				sizeof(ack_payload),
+				0) == VCHIQ_RETRY)
+				goto bail_not_ready;
+		}
+
+		/* The service is now open */
+		vchiq_set_service_state(service,
+			service->sync ? VCHIQ_SRVSTATE_OPENSYNC
+			: VCHIQ_SRVSTATE_OPEN);
+	}
+
+	/* Success - the message has been dealt with */
+	vchiq_service_put(service);
+	return 1;
 
 fail_open:
 	/* No available service, or an invalid request - send a CLOSE */
