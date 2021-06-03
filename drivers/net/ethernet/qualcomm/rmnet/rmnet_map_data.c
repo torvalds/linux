@@ -269,27 +269,20 @@ static void rmnet_map_v5_checksum_uplink_packet(struct sk_buff *skb,
 		void *trans;
 		u8 proto;
 
-		if (skb->protocol != htons(ETH_P_IP) &&
-		    skb->protocol != htons(ETH_P_IPV6)) {
-			priv->stats.csum_err_invalid_ip_version++;
-			goto sw_csum;
-		}
-
 		if (skb->protocol == htons(ETH_P_IP)) {
 			u16 ip_len = ((struct iphdr *)iph)->ihl * 4;
 
 			proto = ((struct iphdr *)iph)->protocol;
 			trans = iph + ip_len;
-		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-#if IS_ENABLED(CONFIG_IPV6)
+		} else if (IS_ENABLED(CONFIG_IPV6) &&
+			   skb->protocol == htons(ETH_P_IPV6)) {
 			u16 ip_len = sizeof(struct ipv6hdr);
 
 			proto = ((struct ipv6hdr *)iph)->nexthdr;
 			trans = iph + ip_len;
-#else
+		} else {
 			priv->stats.csum_err_invalid_ip_version++;
 			goto sw_csum;
-#endif /* CONFIG_IPV6 */
 		}
 
 		check = rmnet_map_get_csum_field(proto, trans);
