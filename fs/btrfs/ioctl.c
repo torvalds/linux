@@ -3643,7 +3643,7 @@ static noinline long btrfs_ioctl_start_sync(struct btrfs_root *root,
 		goto out;
 	}
 	transid = trans->transid;
-	ret = btrfs_commit_transaction_async(trans, 0);
+	ret = btrfs_commit_transaction_async(trans);
 	if (ret) {
 		btrfs_end_transaction(trans);
 		return ret;
