@@ -1178,7 +1178,6 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 		if (!tmp) {
 			unlock_page(page);
 			put_page(page);
-			bytes = min(bytes, iov_iter_single_seg_count(ii));
 			goto again;
 		}
 
