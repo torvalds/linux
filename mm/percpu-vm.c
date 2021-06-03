@@ -328,13 +328,12 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	pcpu_free_pages(chunk, pages, page_start, page_end);
 }
 
-static struct pcpu_chunk *pcpu_create_chunk(enum pcpu_chunk_type type,
-					    gfp_t gfp)
+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 {
 	struct pcpu_chunk *chunk;
 	struct vm_struct **vms;
 
-	chunk = pcpu_alloc_chunk(type, gfp);
+	chunk = pcpu_alloc_chunk(gfp);
 	if (!chunk)
 		return NULL;
 
@@ -403,7 +402,7 @@ static bool pcpu_should_reclaim_chunk(struct pcpu_chunk *chunk)
 	 * chunk, move it to the to_depopulate list.
 	 */
 	return ((chunk->isolated && chunk->nr_empty_pop_pages) ||
-		(pcpu_nr_empty_pop_pages[pcpu_chunk_type(chunk)] >
-		 PCPU_EMPTY_POP_PAGES_HIGH + chunk->nr_empty_pop_pages &&
-		chunk->nr_empty_pop_pages >= chunk->nr_pages / 4));
+		(pcpu_nr_empty_pop_pages >
+		 (PCPU_EMPTY_POP_PAGES_HIGH + chunk->nr_empty_pop_pages) &&
+		 chunk->nr_empty_pop_pages >= chunk->nr_pages / 4));
 }
