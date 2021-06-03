@@ -329,7 +329,7 @@ allOf:
             - description: CX power domain
         power-domain-names:
           items:
-           - const: cx
+            - const: cx
 
   - if:
       properties:
@@ -345,7 +345,7 @@ allOf:
             - description: SSC-CX power domain
         power-domain-names:
           items:
-           - const: ssc_cx
+            - const: ssc_cx
       required:
         - px-supply
 
@@ -365,10 +365,10 @@ allOf:
             - description: MSS power domain
         power-domain-names:
           items:
-           - const: load_state
-           - const: cx
-           - const: mx
-           - const: mss
+            - const: load_state
+            - const: cx
+            - const: mx
+            - const: mss
 
   - if:
       properties:
@@ -385,8 +385,8 @@ allOf:
             - description: CX power domain
         power-domain-names:
           items:
-           - const: load_state
-           - const: cx
+            - const: load_state
+            - const: cx
 
   - if:
       properties:
@@ -404,9 +404,9 @@ allOf:
             - description: MSS power domain
         power-domain-names:
           items:
-           - const: load_state
-           - const: cx
-           - const: mss
+            - const: load_state
+            - const: cx
+            - const: mss
 
   - if:
       properties:
@@ -422,8 +422,8 @@ allOf:
             - description: MSS power domain
         power-domain-names:
           items:
-           - const: cx
-           - const: mss
+            - const: cx
+            - const: mss
 
   - if:
       properties:
@@ -444,9 +444,9 @@ allOf:
             - description: LMX power domain
         power-domain-names:
           items:
-           - const: load_state
-           - const: lcx
-           - const: lmx
+            - const: load_state
+            - const: lcx
+            - const: lmx
 
   - if:
       properties:
@@ -463,9 +463,9 @@ allOf:
             - description: MXC power domain
         power-domain-names:
           items:
-           - const: load_state
-           - const: cx
-           - const: mxc
+            - const: load_state
+            - const: cx
+            - const: mxc
 
   - if:
       properties:
