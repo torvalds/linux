@@ -1340,23 +1340,21 @@ poll_services_of_group(struct vchiq_state *state, int group)
 			continue;
 
 		service_flags = atomic_xchg(&service->poll_flags, 0);
-		if ((service_flags & BIT(VCHIQ_POLL_REMOVE)) == 0)
-			continue;
+		if (service_flags & BIT(VCHIQ_POLL_REMOVE)) {
+			vchiq_log_info(vchiq_core_log_level, "%d: ps - remove %d<->%d",
+				       state->id, service->localport,
+				       service->remoteport);
 
-		vchiq_log_info(vchiq_core_log_level, "%d: ps - remove %d<->%d",
-			       state->id, service->localport,
-			       service->remoteport);
+			/*
+			 * Make it look like a client, because
+			 * it must be removed and not left in
+			 * the LISTENING state.
+			 */
+			service->public_fourcc = VCHIQ_FOURCC_INVALID;
 
-		/*
-		 * Make it look like a client, because
-		 * it must be removed and not left in
-		 * the LISTENING state.
-		 */
-		service->public_fourcc = VCHIQ_FOURCC_INVALID;
-
-		if (vchiq_close_service_internal(service, NO_CLOSE_RECVD) !=
-						 VCHIQ_SUCCESS) {
-			request_poll(state, service, VCHIQ_POLL_REMOVE);
+			if (vchiq_close_service_internal(service, NO_CLOSE_RECVD) !=
+							 VCHIQ_SUCCESS)
+				request_poll(state, service, VCHIQ_POLL_REMOVE);
 		} else if (service_flags & BIT(VCHIQ_POLL_TERMINATE)) {
 			vchiq_log_info(vchiq_core_log_level,
 				"%d: ps - terminate %d<->%d",
