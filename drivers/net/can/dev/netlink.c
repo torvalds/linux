@@ -47,7 +47,7 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	if (data[IFLA_CAN_DATA_BITTIMING]) {
-		if (!is_can_fd || !data[IFLA_CAN_BITTIMING])
+		if (!is_can_fd)
 			return -EOPNOTSUPP;
 	}
 
