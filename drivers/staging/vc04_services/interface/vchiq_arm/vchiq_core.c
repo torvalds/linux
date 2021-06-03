@@ -124,11 +124,18 @@ enum {
 
 /* we require this for consistency between endpoints */
 vchiq_static_assert(sizeof(struct vchiq_header) == 8);
-vchiq_static_assert(IS_POW2(sizeof(struct vchiq_header)));
-vchiq_static_assert(IS_POW2(VCHIQ_NUM_CURRENT_BULKS));
-vchiq_static_assert(IS_POW2(VCHIQ_NUM_SERVICE_BULKS));
-vchiq_static_assert(IS_POW2(VCHIQ_MAX_SERVICES));
 vchiq_static_assert(VCHIQ_VERSION >= VCHIQ_VERSION_MIN);
+
+static inline void check_sizes(void)
+{
+	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_SLOT_SIZE);
+	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SLOTS);
+	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SLOTS_PER_SIDE);
+	BUILD_BUG_ON_NOT_POWER_OF_2(sizeof(struct vchiq_header));
+	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_NUM_CURRENT_BULKS);
+	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_NUM_SERVICE_BULKS);
+	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SERVICES);
+}
 
 /* Run time control of log level, based on KERN_XXX level. */
 int vchiq_core_log_level = VCHIQ_LOG_DEFAULT;
@@ -2205,6 +2212,8 @@ vchiq_init_slots(void *mem_base, int mem_size)
 		(struct vchiq_slot_zero *)(mem_base + mem_align);
 	int num_slots = (mem_size - mem_align)/VCHIQ_SLOT_SIZE;
 	int first_data_slot = VCHIQ_SLOT_ZERO_SLOTS;
+
+	check_sizes();
 
 	/* Ensure there is enough memory to run an absolutely minimum system */
 	num_slots -= first_data_slot;

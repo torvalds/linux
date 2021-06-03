@@ -69,13 +69,6 @@
 	extern int vchiq_static_assert[(cond) ? 1 : -1]
 #endif
 
-#define IS_POW2(x) (x && ((x & (x - 1)) == 0))
-
-/* Ensure that the slot size and maximum number of slots are powers of 2 */
-vchiq_static_assert(IS_POW2(VCHIQ_SLOT_SIZE));
-vchiq_static_assert(IS_POW2(VCHIQ_MAX_SLOTS));
-vchiq_static_assert(IS_POW2(VCHIQ_MAX_SLOTS_PER_SIDE));
-
 #define VCHIQ_SLOT_MASK        (VCHIQ_SLOT_SIZE - 1)
 #define VCHIQ_SLOT_QUEUE_MASK  (VCHIQ_MAX_SLOTS_PER_SIDE - 1)
 #define VCHIQ_SLOT_ZERO_SLOTS  DIV_ROUND_UP(sizeof(struct vchiq_slot_zero), \
