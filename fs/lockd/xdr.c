@@ -19,6 +19,8 @@
 
 #include <uapi/linux/nfs2.h>
 
+#include "svcxdr.h"
+
 #define NLMDBG_FACILITY		NLMDBG_XDR
 
 
@@ -178,8 +180,15 @@ nlm_encode_testres(__be32 *p, struct nlm_res *resp)
 
 
 /*
- * First, the server side XDR functions
+ * Decode Call arguments
  */
+
+int
+nlmsvc_decode_void(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
 int
 nlmsvc_decode_testargs(struct svc_rqst *rqstp, __be32 *p)
 {
@@ -336,12 +345,6 @@ nlmsvc_decode_res(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = nlm_decode_cookie(p, &resp->cookie)))
 		return 0;
 	resp->status = *p++;
-	return xdr_argsize_check(rqstp, p);
-}
-
-int
-nlmsvc_decode_void(struct svc_rqst *rqstp, __be32 *p)
-{
 	return xdr_argsize_check(rqstp, p);
 }
 
