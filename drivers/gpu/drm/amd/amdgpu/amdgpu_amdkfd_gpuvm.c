@@ -278,7 +278,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 	write_seqcount_end(&resv->seq);
 
 	/* Drop the references to the removed fences or move them to ef_list */
-	for (i = j, k = 0; i < old->shared_count; ++i) {
+	for (i = j; i < old->shared_count; ++i) {
 		struct dma_fence *f;
 
 		f = rcu_dereference_protected(new->shared[i],
