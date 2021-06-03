@@ -96,6 +96,12 @@ static void mtd_release(struct device *dev)
 	device_destroy(&mtd_class, index + 1);
 }
 
+#define MTD_DEVICE_ATTR_RO(name) \
+static DEVICE_ATTR(name, 0444, mtd_##name##_show, NULL)
+
+#define MTD_DEVICE_ATTR_RW(name) \
+static DEVICE_ATTR(name, 0644, mtd_##name##_show, mtd_##name##_store)
+
 static ssize_t mtd_type_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
