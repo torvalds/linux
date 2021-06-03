@@ -225,7 +225,7 @@ install_lib: all_cmd
 
 INSTALL_HEADERS = bpf.h libbpf.h btf.h libbpf_common.h libbpf_legacy.h xsk.h \
 		  bpf_helpers.h $(BPF_HELPER_DEFS) bpf_tracing.h	     \
-		  bpf_endian.h bpf_core_read.h
+		  bpf_endian.h bpf_core_read.h skel_internal.h
 
 install_headers: $(BPF_HELPER_DEFS)
 	$(call QUIET_INSTALL, headers)					     \
