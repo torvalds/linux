@@ -317,8 +317,41 @@ static ssize_t slots_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(slots);
 
+static ssize_t bus_slots_show(struct device *dev, struct device_attribute *attr,
+			      char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
+	u32 bus_slots = (cpu_pmu->reg_pmmir >> ARMV8_PMU_BUS_SLOTS_SHIFT)
+			& ARMV8_PMU_BUS_SLOTS_MASK;
+
+	return sysfs_emit(page, "0x%08x\n", bus_slots);
+}
+
+static DEVICE_ATTR_RO(bus_slots);
+
+static ssize_t bus_width_show(struct device *dev, struct device_attribute *attr,
+			      char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
+	u32 bus_width = (cpu_pmu->reg_pmmir >> ARMV8_PMU_BUS_WIDTH_SHIFT)
+			& ARMV8_PMU_BUS_WIDTH_MASK;
+	u32 val = 0;
+
+	/* Encoded as Log2(number of bytes), plus one */
+	if (bus_width > 2 && bus_width < 13)
+		val = 1 << (bus_width - 1);
+
+	return sysfs_emit(page, "0x%08x\n", val);
+}
+
+static DEVICE_ATTR_RO(bus_width);
+
 static struct attribute *armv8_pmuv3_caps_attrs[] = {
 	&dev_attr_slots.attr,
+	&dev_attr_bus_slots.attr,
+	&dev_attr_bus_width.attr,
 	NULL,
 };
 
