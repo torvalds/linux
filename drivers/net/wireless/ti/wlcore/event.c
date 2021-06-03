@@ -96,15 +96,9 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 		clear_ptr = addr_ptr + WL18XX_LOGGER_BUFF_OFFSET + len;
 	}
 
-	/* double check that clear address and write pointer are the same */
-	if (clear_ptr != le32_to_cpu(fw_log.buff_write_ptr)) {
-		wl1271_error("Calculate of clear addr Clear = %x, write = %x",
-			     clear_ptr, le32_to_cpu(fw_log.buff_write_ptr));
-	}
-
-	/* indicate FW about Clear buffer */
+	/* Update the read pointer */
 	ret = wlcore_write32(wl, addr + WL18XX_LOGGER_READ_POINT_OFFSET,
-			     fw_log.buff_write_ptr);
+			     clear_ptr);
 free_out:
 	kfree(buffer);
 out:
