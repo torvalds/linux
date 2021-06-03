@@ -579,7 +579,7 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
+	bch2_trans_init(&trans, c, 0, 1024);
 
 	/*
 	 * If this was a directory, there shouldn't be any real dirents left -

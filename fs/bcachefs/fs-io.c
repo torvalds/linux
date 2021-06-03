@@ -2531,7 +2531,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	}
 
 	bch2_bkey_buf_init(&copy);
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
 	src = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 			POS(inode->v.i_ino, src_start >> 9),
 			BTREE_ITER_INTENT);
@@ -2651,7 +2651,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 	unsigned replicas = io_opts(c, &inode->ei_inode).data_replicas;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 512);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 			POS(inode->v.i_ino, start_sector),
