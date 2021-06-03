@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/hwlock/allwinner,sun6i-hwspinlock.yaml#
+$id: http://devicetree.org/schemas/hwlock/allwinner,sun6i-a31-hwspinlock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: SUN6I hardware spinlock driver for Allwinner sun6i compatible SoCs
@@ -36,6 +36,9 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/sun8i-a23-a33-ccu.h>
+    #include <dt-bindings/reset/sun8i-a23-a33-ccu.h>
+
     hwlock@1c18000 {
         compatible = "allwinner,sun6i-a31-hwspinlock";
         reg = <0x01c18000 0x1000>;
