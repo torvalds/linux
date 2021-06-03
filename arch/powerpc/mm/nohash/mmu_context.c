@@ -21,7 +21,6 @@
  *     also clear mm->cpu_vm_mask bits when processes are migrated
  */
 
-//#define DEBUG_CLAMP_LAST_CONTEXT   31
 //#define DEBUG_HARDER
 
 /* We don't use DEBUG because it tends to be compiled in always nowadays
@@ -74,9 +73,7 @@ void *abatron_pteptrs[2];
  * -- BenH
  */
 #define FIRST_CONTEXT 1
-#ifdef DEBUG_CLAMP_LAST_CONTEXT
-#define LAST_CONTEXT DEBUG_CLAMP_LAST_CONTEXT
-#elif defined(CONFIG_PPC_8xx)
+#if defined(CONFIG_PPC_8xx)
 #define LAST_CONTEXT 16
 #elif defined(CONFIG_PPC_47x)
 #define LAST_CONTEXT 65535
