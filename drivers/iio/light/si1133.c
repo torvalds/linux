@@ -978,11 +978,11 @@ static int si1133_validate_ids(struct iio_dev *iio_dev)
 		return err;
 
 	dev_info(&iio_dev->dev,
-		 "Device ID part %#02hhx rev %#02hhx mfr %#02hhx\n",
+		 "Device ID part 0x%02x rev 0x%02x mfr 0x%02x\n",
 		 part_id, rev_id, mfr_id);
 	if (part_id != SI1133_PART_ID) {
 		dev_err(&iio_dev->dev,
-			"Part ID mismatch got %#02hhx, expected %#02x\n",
+			"Part ID mismatch got 0x%02x, expected 0x%02x\n",
 			part_id, SI1133_PART_ID);
 		return -ENODEV;
 	}
