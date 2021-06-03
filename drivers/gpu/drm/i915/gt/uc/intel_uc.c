@@ -502,10 +502,6 @@ static int __uc_init_hw(struct intel_uc *uc)
 
 	intel_huc_auth(huc);
 
-	ret = intel_guc_sample_forcewake(guc);
-	if (ret)
-		goto err_log_capture;
-
 	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_enable(guc);
 

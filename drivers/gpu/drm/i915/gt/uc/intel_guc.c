@@ -469,22 +469,6 @@ int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 	return 0;
 }
 
-int intel_guc_sample_forcewake(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
-	u32 action[2];
-
-	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
-	/* WaRsDisableCoarsePowerGating:skl,cnl */
-	if (!HAS_RC6(dev_priv) || NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
-		action[1] = 0;
-	else
-		/* bit 0 and 1 are for Render and Media domain separately */
-		action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
-
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
-}
-
 /**
  * intel_guc_auth_huc() - Send action to GuC to authenticate HuC ucode
  * @guc: intel_guc structure
