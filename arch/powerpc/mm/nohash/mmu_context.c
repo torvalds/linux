@@ -51,6 +51,12 @@
 #include <mm/mmu_decl.h>
 
 /*
+ * Room for two PTE table pointers, usually the kernel and current user
+ * pointer to their respective root page table (pgdir).
+ */
+void *abatron_pteptrs[2];
+
+/*
  * The MPC8xx has only 16 contexts. We rotate through them on each task switch.
  * A better way would be to keep track of tasks that own contexts, and implement
  * an LRU usage. That way very active tasks don't always have to pay the TLB
@@ -357,6 +363,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 
 	/* Flick the MMU and release lock */
 	pr_hardcont(" -> %d\n", id);
+	if (IS_ENABLED(CONFIG_BDI_SWITCH))
+		abatron_pteptrs[1] = next->pgd;
 	set_context(id, next->pgd);
 	raw_spin_unlock(&context_lock);
 }
