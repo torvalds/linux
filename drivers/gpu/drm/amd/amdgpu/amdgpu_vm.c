@@ -1763,7 +1763,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 		amdgpu_res_next(&cursor, num_entries * AMDGPU_GPU_PAGE_SIZE);
 		start = tmp;
-	};
+	}
 
 	r = vm->update_funcs->commit(&params, fence);
 
