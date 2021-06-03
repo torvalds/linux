@@ -168,9 +168,19 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		 * in blk_mq_dispatch_rq_list().
 		 */
 		list_add_tail(&rq->queuelist, &rq_list);
+		count++;
 		if (rq->mq_hctx != hctx)
 			multi_hctxs = true;
-	} while (++count < max_dispatch);
+
+		/*
+		 * If we cannot get tag for the request, stop dequeueing
+		 * requests from the IO scheduler. We are unlikely to be able
+		 * to submit them anyway and it creates false impression for
+		 * scheduling heuristics that the device can take more IO.
+		 */
+		if (!blk_mq_get_driver_tag(rq))
+			break;
+	} while (count < max_dispatch);
 
 	if (!count) {
 		if (run_queue)

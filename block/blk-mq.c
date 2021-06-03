@@ -1104,7 +1104,7 @@ static bool __blk_mq_get_driver_tag(struct request *rq)
 	return true;
 }
 
-static bool blk_mq_get_driver_tag(struct request *rq)
+bool blk_mq_get_driver_tag(struct request *rq)
 {
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
