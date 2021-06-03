@@ -47,6 +47,7 @@
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
+#include <asm/smp.h>
 
 #include <mm/mmu_decl.h>
 
@@ -86,9 +87,7 @@ void *abatron_pteptrs[2];
 
 static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
-#ifdef CONFIG_SMP
 static unsigned long *stale_map[NR_CPUS];
-#endif
 static struct mm_struct **context_mm;
 static DEFINE_RAW_SPINLOCK(context_lock);
 
@@ -111,7 +110,6 @@ static DEFINE_RAW_SPINLOCK(context_lock);
  * the stale map as we can just flush the local CPU
  *  -- benh
  */
-#ifdef CONFIG_SMP
 static unsigned int steal_context_smp(unsigned int id)
 {
 	struct mm_struct *mm;
@@ -164,14 +162,11 @@ static unsigned int steal_context_smp(unsigned int id)
 	/* This will cause the caller to try again */
 	return MMU_NO_CONTEXT;
 }
-#endif  /* CONFIG_SMP */
 
 static unsigned int steal_all_contexts(void)
 {
 	struct mm_struct *mm;
-#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
-#endif
 	unsigned int id;
 
 	for (id = FIRST_CONTEXT; id <= LAST_CONTEXT; id++) {
@@ -189,9 +184,8 @@ static unsigned int steal_all_contexts(void)
 			mm->context.active = 0;
 #endif
 		}
-#ifdef CONFIG_SMP
-		__clear_bit(id, stale_map[cpu]);
-#endif
+		if (IS_ENABLED(CONFIG_SMP))
+			__clear_bit(id, stale_map[cpu]);
 	}
 
 	/* Flush the TLB for all contexts (not to be used on SMP) */
@@ -210,9 +204,7 @@ static unsigned int steal_all_contexts(void)
 static unsigned int steal_context_up(unsigned int id)
 {
 	struct mm_struct *mm;
-#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
-#endif
 
 	/* Pick up the victim mm */
 	mm = context_mm[id];
@@ -226,9 +218,8 @@ static unsigned int steal_context_up(unsigned int id)
 	mm->context.id = MMU_NO_CONTEXT;
 
 	/* XXX This clear should ultimately be part of local_flush_tlb_mm */
-#ifdef CONFIG_SMP
-	__clear_bit(id, stale_map[cpu]);
-#endif
+	if (IS_ENABLED(CONFIG_SMP))
+		__clear_bit(id, stale_map[cpu]);
 
 	return id;
 }
@@ -295,9 +286,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
 	unsigned int id;
-#ifdef CONFIG_SMP
 	unsigned int i, cpu = smp_processor_id();
-#endif
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
@@ -306,17 +295,17 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	pr_hard("[%d] activating context for mm @%p, active=%d, id=%d",
 		cpu, next, next->context.active, next->context.id);
 
-#ifdef CONFIG_SMP
-	/* Mark us active and the previous one not anymore */
-	next->context.active++;
-	if (prev) {
-		pr_hardcont(" (old=0x%p a=%d)", prev, prev->context.active);
-		WARN_ON(prev->context.active < 1);
-		prev->context.active--;
+	if (IS_ENABLED(CONFIG_SMP)) {
+		/* Mark us active and the previous one not anymore */
+		next->context.active++;
+		if (prev) {
+			pr_hardcont(" (old=0x%p a=%d)", prev, prev->context.active);
+			WARN_ON(prev->context.active < 1);
+			prev->context.active--;
+		}
 	}
 
  again:
-#endif /* CONFIG_SMP */
 
 	/* If we already have a valid assigned context, skip all that */
 	id = next->context.id;
@@ -337,14 +326,12 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 
 	/* No more free contexts, let's try to steal one */
 	if (nr_free_contexts == 0) {
-#ifdef CONFIG_SMP
 		if (num_online_cpus() > 1) {
 			id = steal_context_smp(id);
 			if (id == MMU_NO_CONTEXT)
 				goto again;
 			goto stolen;
 		}
-#endif /* CONFIG_SMP */
 		if (IS_ENABLED(CONFIG_PPC_8xx))
 			id = steal_all_contexts();
 		else
@@ -371,8 +358,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	/* If that context got marked stale on this CPU, then flush the
 	 * local TLB for it and unmark it before we use it
 	 */
-#ifdef CONFIG_SMP
-	if (test_bit(id, stale_map[cpu])) {
+	if (IS_ENABLED(CONFIG_SMP) && test_bit(id, stale_map[cpu])) {
 		pr_hardcont(" | stale flush %d [%d..%d]",
 			    id, cpu_first_thread_sibling(cpu),
 			    cpu_last_thread_sibling(cpu));
@@ -386,7 +372,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 				__clear_bit(id, stale_map[i]);
 		}
 	}
-#endif
 
 	/* Flick the MMU and release lock */
 	pr_hardcont(" -> %d\n", id);
@@ -445,7 +430,6 @@ void destroy_context(struct mm_struct *mm)
 	raw_spin_unlock_irqrestore(&context_lock, flags);
 }
 
-#ifdef CONFIG_SMP
 static int mmu_ctx_cpu_prepare(unsigned int cpu)
 {
 	/* We don't touch CPU 0 map, it's allocated at aboot and kept
@@ -475,8 +459,6 @@ static int mmu_ctx_cpu_dead(unsigned int cpu)
 	return 0;
 }
 
-#endif /* CONFIG_SMP */
-
 /*
  * Initialize the context management stuff.
  */
@@ -500,16 +482,16 @@ void __init mmu_context_init(void)
 	if (!context_mm)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      sizeof(void *) * (LAST_CONTEXT + 1));
-#ifdef CONFIG_SMP
-	stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
-	if (!stale_map[boot_cpuid])
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      CTX_MAP_SIZE);
+	if (IS_ENABLED(CONFIG_SMP)) {
+		stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+		if (!stale_map[boot_cpuid])
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      CTX_MAP_SIZE);
 
-	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
-				  "powerpc/mmu/ctx:prepare",
-				  mmu_ctx_cpu_prepare, mmu_ctx_cpu_dead);
-#endif
+		cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
+					  "powerpc/mmu/ctx:prepare",
+					  mmu_ctx_cpu_prepare, mmu_ctx_cpu_dead);
+	}
 
 	printk(KERN_INFO
 	       "MMU: Allocated %zu bytes of context maps for %d contexts\n",
