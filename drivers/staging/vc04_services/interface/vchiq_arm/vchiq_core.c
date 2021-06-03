@@ -924,7 +924,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 	stride = calc_stride(size);
 
-	WARN_ON(!(stride <= VCHIQ_SLOT_SIZE));
+	WARN_ON(stride > VCHIQ_SLOT_SIZE);
 
 	if (!(flags & QMFLAGS_NO_MUTEX_LOCK) &&
 	    mutex_lock_killable(&state->slot_mutex))
@@ -1480,8 +1480,8 @@ abort_outstanding_bulks(struct vchiq_service *service,
 		service->state->id, service->localport, is_tx ? 't' : 'r',
 		queue->local_insert, queue->remote_insert, queue->process);
 
-	WARN_ON(!((int)(queue->local_insert - queue->process) >= 0));
-	WARN_ON(!((int)(queue->remote_insert - queue->process) >= 0));
+	WARN_ON((int)(queue->local_insert - queue->process) < 0);
+	WARN_ON((int)(queue->remote_insert - queue->process) < 0);
 
 	while ((queue->process != queue->local_insert) ||
 		(queue->process != queue->remote_insert)) {
@@ -1729,7 +1729,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 
 	switch (type) {
 	case VCHIQ_MSG_OPEN:
-		WARN_ON(!(VCHIQ_MSG_DSTPORT(msgid) == 0));
+		WARN_ON(VCHIQ_MSG_DSTPORT(msgid));
 		if (!parse_open(state, header))
 			goto bail_not_ready;
 		break;
@@ -1756,7 +1756,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		}
 		break;
 	case VCHIQ_MSG_CLOSE:
-		WARN_ON(size != 0); /* There should be no data */
+		WARN_ON(size); /* There should be no data */
 
 		vchiq_log_info(vchiq_core_log_level,
 			"%d: prs CLOSE@%pK (%d->%d)",
@@ -1958,7 +1958,7 @@ parse_rx_slots(struct vchiq_state *state)
 		if (!state->rx_data) {
 			int rx_index;
 
-			WARN_ON(!((state->rx_pos & VCHIQ_SLOT_MASK) == 0));
+			WARN_ON(state->rx_pos & VCHIQ_SLOT_MASK);
 			rx_index = remote->slot_queue[
 				SLOT_QUEUE_INDEX_FROM_POS_MASKED(state->rx_pos)];
 			state->rx_data = (char *)SLOT_DATA_FROM_INDEX(state,
