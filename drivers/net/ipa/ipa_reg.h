@@ -368,6 +368,7 @@ enum ipa_cs_offload_en {
 	IPA_CS_OFFLOAD_NONE		= 0x0,
 	IPA_CS_OFFLOAD_UL		= 0x1,	/* Before IPA v4.5 (TX) */
 	IPA_CS_OFFLOAD_DL		= 0x2,	/* Before IPA v4.5 (RX) */
+	IPA_CS_OFFLOAD_INLINE		= 0x1,	/* IPA v4.5 (TX and RX) */
 };
 
 /* Valid only for TX (IPA consumer) endpoints */

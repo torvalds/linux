@@ -88,11 +88,6 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 	if (ipa_gsi_endpoint_data_empty(data))
 		return true;
 
-	/* IPA v4.5+ uses checksum offload, not yet supported by RMNet */
-	if (ipa->version >= IPA_VERSION_4_5)
-		if (data->endpoint.config.checksum)
-			return false;
-
 	if (!data->toward_ipa) {
 		if (data->endpoint.filter_support) {
 			dev_err(dev, "filtering not supported for "
@@ -235,17 +230,6 @@ static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 				    const struct ipa_gsi_endpoint_data *data)
 {
-	const struct ipa_gsi_endpoint_data *dp = data;
-	enum ipa_endpoint_name name;
-
-	if (ipa->version < IPA_VERSION_4_5)
-		return true;
-
-	/* IPA v4.5+ uses checksum offload, not yet supported by RMNet */
-	for (name = 0; name < count; name++, dp++)
-		if (data->endpoint.config.checksum)
-			return false;
-
 	return true;
 }
 
@@ -457,28 +441,34 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_CFG_N_OFFSET(endpoint->endpoint_id);
+	enum ipa_cs_offload_en enabled;
 	u32 val = 0;
 
 	/* FRAG_OFFLOAD_EN is 0 */
 	if (endpoint->data->checksum) {
+		enum ipa_version version = endpoint->ipa->version;
+
 		if (endpoint->toward_ipa) {
 			u32 checksum_offset;
 
-			val |= u32_encode_bits(IPA_CS_OFFLOAD_UL,
-					       CS_OFFLOAD_EN_FMASK);
 			/* Checksum header offset is in 4-byte units */
 			checksum_offset = sizeof(struct rmnet_map_header);
 			checksum_offset /= sizeof(u32);
 			val |= u32_encode_bits(checksum_offset,
 					       CS_METADATA_HDR_OFFSET_FMASK);
+
+			enabled = version < IPA_VERSION_4_5
+					? IPA_CS_OFFLOAD_UL
+					: IPA_CS_OFFLOAD_INLINE;
 		} else {
-			val |= u32_encode_bits(IPA_CS_OFFLOAD_DL,
-					       CS_OFFLOAD_EN_FMASK);
+			enabled = version < IPA_VERSION_4_5
+					? IPA_CS_OFFLOAD_DL
+					: IPA_CS_OFFLOAD_INLINE;
 		}
 	} else {
-		val |= u32_encode_bits(IPA_CS_OFFLOAD_NONE,
-				       CS_OFFLOAD_EN_FMASK);
+		enabled = IPA_CS_OFFLOAD_NONE;
 	}
+	val |= u32_encode_bits(enabled, CS_OFFLOAD_EN_FMASK);
 	/* CS_GEN_QMB_MASTER_SEL is 0 */
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
@@ -496,6 +486,27 @@ static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
 	val = u32_encode_bits(IPA_NAT_BYPASS, NAT_EN_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
+}
+
+static u32
+ipa_qmap_header_size(enum ipa_version version, struct ipa_endpoint *endpoint)
+{
+	u32 header_size = sizeof(struct rmnet_map_header);
+
+	/* Without checksum offload, we just have the MAP header */
+	if (!endpoint->data->checksum)
+		return header_size;
+
+	if (version < IPA_VERSION_4_5) {
+		/* Checksum header inserted for AP TX endpoints only */
+		if (endpoint->toward_ipa)
+			header_size += sizeof(struct rmnet_map_ul_csum_header);
+	} else {
+		/* Checksum header is used in both directions */
+		header_size += sizeof(struct rmnet_map_v5_csum_header);
+	}
+
+	return header_size;
 }
 
 /**
@@ -526,13 +537,11 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 	u32 val = 0;
 
 	if (endpoint->data->qmap) {
-		size_t header_size = sizeof(struct rmnet_map_header);
 		enum ipa_version version = ipa->version;
+		size_t header_size;
 
-		/* We might supply a checksum header after the QMAP header */
-		if (endpoint->toward_ipa && endpoint->data->checksum)
-			header_size += sizeof(struct rmnet_map_ul_csum_header);
-		val |= ipa_header_size_encoded(version, header_size);
+		header_size = ipa_qmap_header_size(version, endpoint);
+		val = ipa_header_size_encoded(version, header_size);
 
 		/* Define how to fill fields in a received QMAP header */
 		if (!endpoint->toward_ipa) {
