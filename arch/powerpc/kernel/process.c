@@ -1745,6 +1745,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_ALTIVEC
 	p->thread.vr_save_area = NULL;
 #endif
+#if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
+	p->thread.kuap = KUAP_NONE;
+#endif
 
 	setup_ksp_vsid(p, sp);
 
