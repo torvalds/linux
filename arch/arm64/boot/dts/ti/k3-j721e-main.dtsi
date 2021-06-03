@@ -402,10 +402,13 @@
 			reg = <0x5000000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#clock-cells = <1>;
 			resets = <&serdes_wiz0 0>;
 			reset-names = "sierra_reset";
-			clocks = <&wiz0_cmn_refclk_dig_div>, <&wiz0_cmn_refclk1_dig_div>;
-			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div";
+			clocks = <&wiz0_cmn_refclk_dig_div>, <&wiz0_cmn_refclk1_dig_div>,
+				 <&wiz0_pll0_refclk>, <&wiz0_pll1_refclk>;
+			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div",
+				      "pll0_refclk", "pll1_refclk";
 		};
 	};
 
@@ -459,10 +462,13 @@
 			reg = <0x5010000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#clock-cells = <1>;
 			resets = <&serdes_wiz1 0>;
 			reset-names = "sierra_reset";
-			clocks = <&wiz1_cmn_refclk_dig_div>, <&wiz1_cmn_refclk1_dig_div>;
-			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div";
+			clocks = <&wiz1_cmn_refclk_dig_div>, <&wiz1_cmn_refclk1_dig_div>,
+				 <&wiz1_pll0_refclk>, <&wiz1_pll1_refclk>;
+			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div",
+				      "pll0_refclk", "pll1_refclk";
 		};
 	};
 
@@ -516,10 +522,13 @@
 			reg = <0x5020000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#clock-cells = <1>;
 			resets = <&serdes_wiz2 0>;
 			reset-names = "sierra_reset";
-			clocks = <&wiz2_cmn_refclk_dig_div>, <&wiz2_cmn_refclk1_dig_div>;
-			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div";
+			clocks = <&wiz2_cmn_refclk_dig_div>, <&wiz2_cmn_refclk1_dig_div>,
+				 <&wiz2_pll0_refclk>, <&wiz2_pll1_refclk>;
+			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div",
+				      "pll0_refclk", "pll1_refclk";
 		};
 	};
 
@@ -573,10 +582,13 @@
 			reg = <0x5030000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#clock-cells = <1>;
 			resets = <&serdes_wiz3 0>;
 			reset-names = "sierra_reset";
-			clocks = <&wiz3_cmn_refclk_dig_div>, <&wiz3_cmn_refclk1_dig_div>;
-			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div";
+			clocks = <&wiz3_cmn_refclk_dig_div>, <&wiz3_cmn_refclk1_dig_div>,
+				 <&wiz3_pll0_refclk>, <&wiz3_pll1_refclk>;
+			clock-names = "cmn_refclk_dig_div", "cmn_refclk1_dig_div",
+				      "pll0_refclk", "pll1_refclk";
 		};
 	};
 
