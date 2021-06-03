@@ -709,6 +709,8 @@ config INTEL_CHT_INT33FE
 	  device and CONFIG_TYPEC_FUSB302=m and CONFIG_BATTERY_MAX17042=m
 	  for Type-C device.
 
+source "drivers/platform/x86/intel-int3472/Kconfig"
+
 config INTEL_HID_EVENT
 	tristate "INTEL HID Event"
 	depends on ACPI

@@ -76,6 +76,7 @@ obj-$(CONFIG_INTEL_HID_EVENT)		+= intel-hid.o
 obj-$(CONFIG_INTEL_INT0002_VGPIO)	+= intel_int0002_vgpio.o
 obj-$(CONFIG_INTEL_MENLOW)		+= intel_menlow.o
 obj-$(CONFIG_INTEL_OAKTRAIL)		+= intel_oaktrail.o
+obj-$(CONFIG_INTEL_SKL_INT3472)		+= intel-int3472/
 obj-$(CONFIG_INTEL_VBTN)		+= intel-vbtn.o
 
 # MSI
