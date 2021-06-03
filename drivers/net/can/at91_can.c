@@ -1176,8 +1176,8 @@ static const struct net_device_ops at91_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
-static ssize_t at91_sysfs_show_mb0_id(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t mb0_id_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct at91_priv *priv = netdev_priv(to_net_dev(dev));
 
@@ -1187,8 +1187,8 @@ static ssize_t at91_sysfs_show_mb0_id(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "0x%03x\n", priv->mb0_id);
 }
 
-static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t mb0_id_store(struct device *dev,
+			    struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct net_device *ndev = to_net_dev(dev);
 	struct at91_priv *priv = netdev_priv(ndev);
@@ -1222,7 +1222,7 @@ static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(mb0_id, 0644, at91_sysfs_show_mb0_id, at91_sysfs_set_mb0_id);
+static DEVICE_ATTR_RW(mb0_id);
 
 static struct attribute *at91_sysfs_attrs[] = {
 	&dev_attr_mb0_id.attr,
