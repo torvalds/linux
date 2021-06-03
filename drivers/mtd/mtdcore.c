@@ -139,7 +139,7 @@ static ssize_t mtd_type_show(struct device *dev,
 
 	return sysfs_emit(buf, "%s\n", type);
 }
-static DEVICE_ATTR(type, S_IRUGO, mtd_type_show, NULL);
+MTD_DEVICE_ATTR_RO(type);
 
 static ssize_t mtd_flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -148,7 +148,7 @@ static ssize_t mtd_flags_show(struct device *dev,
 
 	return sysfs_emit(buf, "0x%lx\n", (unsigned long)mtd->flags);
 }
-static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
+MTD_DEVICE_ATTR_RO(flags);
 
 static ssize_t mtd_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -157,7 +157,7 @@ static ssize_t mtd_size_show(struct device *dev,
 
 	return sysfs_emit(buf, "%llu\n", (unsigned long long)mtd->size);
 }
-static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
+MTD_DEVICE_ATTR_RO(size);
 
 static ssize_t mtd_erasesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -166,7 +166,7 @@ static ssize_t mtd_erasesize_show(struct device *dev,
 
 	return sysfs_emit(buf, "%lu\n", (unsigned long)mtd->erasesize);
 }
-static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
+MTD_DEVICE_ATTR_RO(erasesize);
 
 static ssize_t mtd_writesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -175,7 +175,7 @@ static ssize_t mtd_writesize_show(struct device *dev,
 
 	return sysfs_emit(buf, "%lu\n", (unsigned long)mtd->writesize);
 }
-static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
+MTD_DEVICE_ATTR_RO(writesize);
 
 static ssize_t mtd_subpagesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -185,7 +185,7 @@ static ssize_t mtd_subpagesize_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", subpagesize);
 }
-static DEVICE_ATTR(subpagesize, S_IRUGO, mtd_subpagesize_show, NULL);
+MTD_DEVICE_ATTR_RO(subpagesize);
 
 static ssize_t mtd_oobsize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -194,7 +194,7 @@ static ssize_t mtd_oobsize_show(struct device *dev,
 
 	return sysfs_emit(buf, "%lu\n", (unsigned long)mtd->oobsize);
 }
-static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
+MTD_DEVICE_ATTR_RO(oobsize);
 
 static ssize_t mtd_oobavail_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
@@ -203,7 +203,7 @@ static ssize_t mtd_oobavail_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", mtd->oobavail);
 }
-static DEVICE_ATTR(oobavail, S_IRUGO, mtd_oobavail_show, NULL);
+MTD_DEVICE_ATTR_RO(oobavail);
 
 static ssize_t mtd_numeraseregions_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -212,8 +212,7 @@ static ssize_t mtd_numeraseregions_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", mtd->numeraseregions);
 }
-static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
-	NULL);
+MTD_DEVICE_ATTR_RO(numeraseregions);
 
 static ssize_t mtd_name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -222,7 +221,7 @@ static ssize_t mtd_name_show(struct device *dev,
 
 	return sysfs_emit(buf, "%s\n", mtd->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, mtd_name_show, NULL);
+MTD_DEVICE_ATTR_RO(name);
 
 static ssize_t mtd_ecc_strength_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
@@ -231,7 +230,7 @@ static ssize_t mtd_ecc_strength_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", mtd->ecc_strength);
 }
-static DEVICE_ATTR(ecc_strength, S_IRUGO, mtd_ecc_strength_show, NULL);
+MTD_DEVICE_ATTR_RO(ecc_strength);
 
 static ssize_t mtd_bitflip_threshold_show(struct device *dev,
 					  struct device_attribute *attr,
@@ -257,9 +256,7 @@ static ssize_t mtd_bitflip_threshold_store(struct device *dev,
 	mtd->bitflip_threshold = bitflip_threshold;
 	return count;
 }
-static DEVICE_ATTR(bitflip_threshold, S_IRUGO | S_IWUSR,
-		   mtd_bitflip_threshold_show,
-		   mtd_bitflip_threshold_store);
+MTD_DEVICE_ATTR_RW(bitflip_threshold);
 
 static ssize_t mtd_ecc_step_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -269,9 +266,9 @@ static ssize_t mtd_ecc_step_size_show(struct device *dev,
 	return sysfs_emit(buf, "%u\n", mtd->ecc_step_size);
 
 }
-static DEVICE_ATTR(ecc_step_size, S_IRUGO, mtd_ecc_step_size_show, NULL);
+MTD_DEVICE_ATTR_RO(ecc_step_size);
 
-static ssize_t mtd_ecc_stats_corrected_show(struct device *dev,
+static ssize_t mtd_corrected_bits_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
@@ -279,10 +276,9 @@ static ssize_t mtd_ecc_stats_corrected_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", ecc_stats->corrected);
 }
-static DEVICE_ATTR(corrected_bits, S_IRUGO,
-		   mtd_ecc_stats_corrected_show, NULL);
+MTD_DEVICE_ATTR_RO(corrected_bits);	/* ecc stats corrected */
 
-static ssize_t mtd_ecc_stats_errors_show(struct device *dev,
+static ssize_t mtd_ecc_failures_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
@@ -290,9 +286,9 @@ static ssize_t mtd_ecc_stats_errors_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", ecc_stats->failed);
 }
-static DEVICE_ATTR(ecc_failures, S_IRUGO, mtd_ecc_stats_errors_show, NULL);
+MTD_DEVICE_ATTR_RO(ecc_failures);	/* ecc stats errors */
 
-static ssize_t mtd_badblocks_show(struct device *dev,
+static ssize_t mtd_bad_blocks_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
@@ -300,9 +296,9 @@ static ssize_t mtd_badblocks_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", ecc_stats->badblocks);
 }
-static DEVICE_ATTR(bad_blocks, S_IRUGO, mtd_badblocks_show, NULL);
+MTD_DEVICE_ATTR_RO(bad_blocks);
 
-static ssize_t mtd_bbtblocks_show(struct device *dev,
+static ssize_t mtd_bbt_blocks_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
@@ -310,7 +306,7 @@ static ssize_t mtd_bbtblocks_show(struct device *dev,
 
 	return sysfs_emit(buf, "%u\n", ecc_stats->bbtblocks);
 }
-static DEVICE_ATTR(bbt_blocks, S_IRUGO, mtd_bbtblocks_show, NULL);
+MTD_DEVICE_ATTR_RO(bbt_blocks);
 
 static struct attribute *mtd_attrs[] = {
 	&dev_attr_type.attr,
