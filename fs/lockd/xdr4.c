@@ -42,37 +42,6 @@ loff_t_to_s64(loff_t offset)
 	return res;
 }
 
-/*
- * XDR functions for basic NLM types
- */
-static __be32 *
-nlm4_decode_cookie(__be32 *p, struct nlm_cookie *c)
-{
-	unsigned int	len;
-
-	len = ntohl(*p++);
-	
-	if(len==0)
-	{
-		c->len=4;
-		memset(c->data, 0, 4);	/* hockeypux brain damage */
-	}
-	else if(len<=NLM_MAXCOOKIELEN)
-	{
-		c->len=len;
-		memcpy(c->data, p, len);
-		p+=XDR_QUADLEN(len);
-	}
-	else 
-	{
-		dprintk("lockd: bad cookie size %d (only cookies under "
-			"%d bytes are supported.)\n",
-				len, NLM_MAXCOOKIELEN);
-		return NULL;
-	}
-	return p;
-}
-
 static __be32 *
 nlm4_encode_cookie(__be32 *p, struct nlm_cookie *c)
 {
@@ -80,20 +49,6 @@ nlm4_encode_cookie(__be32 *p, struct nlm_cookie *c)
 	memcpy(p, c->data, c->len);
 	p+=XDR_QUADLEN(c->len);
 	return p;
-}
-
-static __be32 *
-nlm4_decode_fh(__be32 *p, struct nfs_fh *f)
-{
-	memset(f->data, 0, sizeof(f->data));
-	f->size = ntohl(*p++);
-	if (f->size > NFS_MAXFHSIZE) {
-		dprintk("lockd: bad fhandle size %d (should be <=%d)\n",
-			f->size, NFS_MAXFHSIZE);
-		return NULL;
-	}
-      	memcpy(f->data, p, f->size);
-	return p + XDR_QUADLEN(f->size);
 }
 
 /*
@@ -120,15 +75,6 @@ svcxdr_decode_fhandle(struct xdr_stream *xdr, struct nfs_fh *fh)
 	memset(fh->data + len, 0, sizeof(fh->data) - len);
 
 	return true;
-}
-
-/*
- * Encode and decode owner handle
- */
-static __be32 *
-nlm4_decode_oh(__be32 *p, struct xdr_netobj *oh)
-{
-	return xdr_decode_netobj(p, oh);
 }
 
 static bool
@@ -336,6 +282,34 @@ nlm4svc_decode_reboot(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
+nlm4svc_decode_shareargs(struct svc_rqst *rqstp, __be32 *p)
+{
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	struct nlm_args *argp = rqstp->rq_argp;
+	struct nlm_lock	*lock = &argp->lock;
+
+	memset(lock, 0, sizeof(*lock));
+	locks_init_lock(&lock->fl);
+	lock->svid = ~(u32)0;
+
+	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
+		return 0;
+	if (!svcxdr_decode_string(xdr, &lock->caller, &lock->len))
+		return 0;
+	if (!svcxdr_decode_fhandle(xdr, &lock->fh))
+		return 0;
+	if (!svcxdr_decode_owner(xdr, &lock->oh))
+		return 0;
+	/* XXX: Range checks are missing in the original code */
+	if (xdr_stream_decode_u32(xdr, &argp->fsm_mode) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &argp->fsm_access) < 0)
+		return 0;
+
+	return 1;
+}
+
+int
 nlm4svc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -343,27 +317,6 @@ nlm4svc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = nlm4_encode_testres(p, resp)))
 		return 0;
 	return xdr_ressize_check(rqstp, p);
-}
-
-int
-nlm4svc_decode_shareargs(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nlm_args *argp = rqstp->rq_argp;
-	struct nlm_lock	*lock = &argp->lock;
-
-	memset(lock, 0, sizeof(*lock));
-	locks_init_lock(&lock->fl);
-	lock->svid = ~(u32) 0;
-
-	if (!(p = nlm4_decode_cookie(p, &argp->cookie))
-	 || !(p = xdr_decode_string_inplace(p, &lock->caller,
-					    &lock->len, NLM_MAXSTRLEN))
-	 || !(p = nlm4_decode_fh(p, &lock->fh))
-	 || !(p = nlm4_decode_oh(p, &lock->oh)))
-		return 0;
-	argp->fsm_mode = ntohl(*p++);
-	argp->fsm_access = ntohl(*p++);
-	return xdr_argsize_check(rqstp, p);
 }
 
 int
