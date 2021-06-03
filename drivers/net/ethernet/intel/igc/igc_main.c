@@ -111,6 +111,9 @@ void igc_reset(struct igc_adapter *adapter)
 	if (!netif_running(adapter->netdev))
 		igc_power_down_phy_copper_base(&adapter->hw);
 
+	/* Enable HW to recognize an 802.1Q VLAN Ethernet packet */
+	wr32(IGC_VET, ETH_P_8021Q);
+
 	/* Re-enable PTP, where applicable. */
 	igc_ptp_reset(adapter);
 
@@ -1122,12 +1125,16 @@ static inline int igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
 	 ((u32)((_input) & (_flag)) * ((_result) / (_flag))) :	\
 	 ((u32)((_input) & (_flag)) / ((_flag) / (_result))))
 
-static u32 igc_tx_cmd_type(u32 tx_flags)
+static u32 igc_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
 	u32 cmd_type = IGC_ADVTXD_DTYP_DATA |
 		       IGC_ADVTXD_DCMD_DEXT |
 		       IGC_ADVTXD_DCMD_IFCS;
+
+	/* set HW vlan bit if vlan is present */
+	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_VLAN,
+				 IGC_ADVTXD_DCMD_VLE);
 
 	/* set segmentation bits for TSO */
 	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_TSO,
@@ -1136,6 +1143,9 @@ static u32 igc_tx_cmd_type(u32 tx_flags)
 	/* set timestamp bit if present */
 	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_TSTAMP,
 				 (IGC_ADVTXD_MAC_TSTAMP));
+
+	/* insert frame checksum */
+	cmd_type ^= IGC_SET_FLAG(skb->no_fcs, 1, IGC_ADVTXD_DCMD_IFCS);
 
 	return cmd_type;
 }
@@ -1171,8 +1181,9 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 	u16 i = tx_ring->next_to_use;
 	unsigned int data_len, size;
 	dma_addr_t dma;
-	u32 cmd_type = igc_tx_cmd_type(tx_flags);
+	u32 cmd_type;
 
+	cmd_type = igc_tx_cmd_type(skb, tx_flags);
 	tx_desc = IGC_TX_DESC(tx_ring, i);
 
 	igc_tx_olinfo_status(tx_ring, tx_desc, tx_flags, skb->len - hdr_len);
@@ -1443,6 +1454,11 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 		}
 	}
 
+	if (skb_vlan_tag_present(skb)) {
+		tx_flags |= IGC_TX_FLAGS_VLAN;
+		tx_flags |= (skb_vlan_tag_get(skb) << IGC_TX_FLAGS_VLAN_SHIFT);
+	}
+
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
 	first->protocol = protocol;
@@ -1542,6 +1558,25 @@ static inline void igc_rx_hash(struct igc_ring *ring,
 			     PKT_HASH_TYPE_L3);
 }
 
+static void igc_rx_vlan(struct igc_ring *rx_ring,
+			union igc_adv_rx_desc *rx_desc,
+			struct sk_buff *skb)
+{
+	struct net_device *dev = rx_ring->netdev;
+	u16 vid;
+
+	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+	    igc_test_staterr(rx_desc, IGC_RXD_STAT_VP)) {
+		if (igc_test_staterr(rx_desc, IGC_RXDEXT_STATERR_LB) &&
+		    test_bit(IGC_RING_FLAG_RX_LB_VLAN_BSWAP, &rx_ring->flags))
+			vid = be16_to_cpu((__force __be16)rx_desc->wb.upper.vlan);
+		else
+			vid = le16_to_cpu(rx_desc->wb.upper.vlan);
+
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
+	}
+}
+
 /**
  * igc_process_skb_fields - Populate skb header fields from Rx descriptor
  * @rx_ring: rx descriptor ring packet is being transacted on
@@ -1560,9 +1595,35 @@ static void igc_process_skb_fields(struct igc_ring *rx_ring,
 
 	igc_rx_checksum(rx_ring, rx_desc, skb);
 
+	igc_rx_vlan(rx_ring, rx_desc, skb);
+
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+}
+
+static void igc_vlan_mode(struct net_device *netdev, netdev_features_t features)
+{
+	bool enable = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	u32 ctrl;
+
+	ctrl = rd32(IGC_CTRL);
+
+	if (enable) {
+		/* enable VLAN tag insert/strip */
+		ctrl |= IGC_CTRL_VME;
+	} else {
+		/* disable VLAN tag insert/strip */
+		ctrl &= ~IGC_CTRL_VME;
+	}
+	wr32(IGC_CTRL, ctrl);
+}
+
+static void igc_restore_vlan(struct igc_adapter *adapter)
+{
+	igc_vlan_mode(adapter->netdev, adapter->netdev->features);
 }
 
 static struct igc_rx_buffer *igc_get_rx_buffer(struct igc_ring *rx_ring,
@@ -3248,6 +3309,8 @@ static void igc_configure(struct igc_adapter *adapter)
 	igc_get_hw_control(adapter);
 	igc_set_rx_mode(netdev);
 
+	igc_restore_vlan(adapter);
+
 	igc_setup_tctl(adapter);
 	igc_setup_mrqc(adapter);
 	igc_setup_rctl(adapter);
@@ -4546,6 +4609,9 @@ static int igc_set_features(struct net_device *netdev,
 {
 	netdev_features_t changed = netdev->features ^ features;
 	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
+		igc_vlan_mode(netdev, features);
 
 	/* Add VLAN support */
 	if (!(changed & (NETIF_F_RXALL | NETIF_F_NTUPLE)))
@@ -5873,10 +5939,14 @@ static int igc_probe(struct pci_dev *pdev,
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= NETIF_F_NTUPLE;
+	netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX;
+	netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->hw_features |= netdev->features;
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
+
+	netdev->vlan_features |= netdev->features;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
