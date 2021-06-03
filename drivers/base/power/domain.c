@@ -387,6 +387,9 @@ static int genpd_set_performance_state(struct device *dev, unsigned int state)
 	int ret;
 
 	prev_state = gpd_data->performance_state;
+	if (prev_state == state)
+		return 0;
+
 	gpd_data->performance_state = state;
 	state = _genpd_reeval_performance_state(genpd, state);
 
