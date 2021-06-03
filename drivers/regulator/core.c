@@ -4370,22 +4370,36 @@ unsigned int regulator_get_mode(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_get_mode);
 
+static int rdev_get_cached_err_flags(struct regulator_dev *rdev)
+{
+	int ret = 0;
+
+	if (rdev->use_cached_err) {
+		spin_lock(&rdev->err_lock);
+		ret = rdev->cached_err;
+		spin_unlock(&rdev->err_lock);
+	}
+	return ret;
+}
+
 static int _regulator_get_error_flags(struct regulator_dev *rdev,
 					unsigned int *flags)
 {
-	int ret;
+	int cached_flags, ret = 0;
 
 	regulator_lock(rdev);
 
-	/* sanity check */
-	if (!rdev->desc->ops->get_error_flags) {
-		ret = -EINVAL;
-		goto out;
-	}
+	cached_flags = rdev_get_cached_err_flags(rdev);
 
-	ret = rdev->desc->ops->get_error_flags(rdev, flags);
-out:
+	if (rdev->desc->ops->get_error_flags)
+		ret = rdev->desc->ops->get_error_flags(rdev, flags);
+	else if (!rdev->use_cached_err)
+		ret = -EINVAL;
+
+	*flags |= cached_flags;
+
 	regulator_unlock(rdev);
+
 	return ret;
 }
 
@@ -5218,6 +5232,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		goto rinse;
 	}
 	device_initialize(&rdev->dev);
+	spin_lock_init(&rdev->err_lock);
 
 	/*
 	 * Duplicate the config so the driver could override it after
