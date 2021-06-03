@@ -27,6 +27,8 @@ int mlx5_ft_pool_init(struct mlx5_core_dev *dev)
 	int i;
 
 	ft_pool = kzalloc(sizeof(*ft_pool), GFP_KERNEL);
+	if (!ft_pool)
+		return -ENOMEM;
 
 	for (i = ARRAY_SIZE(FT_POOLS) - 1; i >= 0; i--)
 		ft_pool->ft_left[i] = FT_SIZE / FT_POOLS[i];

@@ -579,6 +579,9 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	if (mlx5_wq_cyc_missing(wq) < wqe_bulk)
 		return false;
 
+	if (rq->page_pool)
+		page_pool_nid_changed(rq->page_pool, numa_mem_id());
+
 	do {
 		u16 head = mlx5_wq_cyc_get_head(wq);
 
@@ -733,6 +736,9 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 #define UMR_WQE_BULK (2)
 	if (likely(missing < UMR_WQE_BULK))
 		return false;
+
+	if (rq->page_pool)
+		page_pool_nid_changed(rq->page_pool, numa_mem_id());
 
 	head = rq->mpwqe.actual_wq_head;
 	i = missing;
@@ -1554,9 +1560,6 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return 0;
-
-	if (rq->page_pool)
-		page_pool_nid_changed(rq->page_pool, numa_mem_id());
 
 	if (rq->cqd.left) {
 		work_done += mlx5e_decompress_cqes_cont(rq, cqwq, 0, budget);

@@ -6,7 +6,6 @@
 #include "sf.h"
 #include "mlx5_ifc_vhca_event.h"
 #include "ecpf.h"
-#include "vhca_event.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
 

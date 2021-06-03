@@ -58,7 +58,7 @@ static const struct counter_desc *get_tls_atomic_stats(struct mlx5e_priv *priv)
 {
 	if (!priv->tls)
 		return NULL;
-	if (mlx5_accel_is_ktls_device(priv->mdev))
+	if (mlx5e_accel_is_ktls_device(priv->mdev))
 		return mlx5e_ktls_sw_stats_desc;
 	return mlx5e_tls_sw_stats_desc;
 }
@@ -67,7 +67,7 @@ int mlx5e_tls_get_count(struct mlx5e_priv *priv)
 {
 	if (!priv->tls)
 		return 0;
-	if (mlx5_accel_is_ktls_device(priv->mdev))
+	if (mlx5e_accel_is_ktls_device(priv->mdev))
 		return ARRAY_SIZE(mlx5e_ktls_sw_stats_desc);
 	return ARRAY_SIZE(mlx5e_tls_sw_stats_desc);
 }
