@@ -40,7 +40,7 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 	buffer = kzalloc(WL18XX_LOGGER_SDIO_BUFF_MAX, GFP_KERNEL);
 	if (!buffer) {
 		wl1271_error("Fail to allocate fw logger memory");
-		fw_log.actual_buff_size = cpu_to_le32(0);
+		actual_len = 0;
 		goto out;
 	}
 
@@ -49,30 +49,30 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 	if (ret < 0) {
 		wl1271_error("Fail to read logger buffer, error_id = %d",
 			     ret);
-		fw_log.actual_buff_size = cpu_to_le32(0);
+		actual_len = 0;
 		goto free_out;
 	}
 
 	memcpy(&fw_log, buffer, sizeof(fw_log));
 
-	if (le32_to_cpu(fw_log.actual_buff_size) == 0)
+	actual_len = le32_to_cpu(fw_log.actual_buff_size);
+	if (actual_len == 0)
 		goto free_out;
 
-	actual_len = le32_to_cpu(fw_log.actual_buff_size);
 	start_loc = (le32_to_cpu(fw_log.buff_read_ptr) -
 			internal_fw_addrbase) - addr;
 	end_buff_addr += le32_to_cpu(fw_log.max_buff_size);
 	available_len = end_buff_addr -
 			(le32_to_cpu(fw_log.buff_read_ptr) -
 				 internal_fw_addrbase);
-	actual_len = min(actual_len, available_len);
-	len = actual_len;
 
+	/* Copy initial part from end of ring buffer */
+	len = min(actual_len, available_len);
 	wl12xx_copy_fwlog(wl, &buffer[start_loc], len);
-	clear_addr = addr + start_loc + le32_to_cpu(fw_log.actual_buff_size) +
-			internal_fw_addrbase;
+	clear_addr = addr + start_loc + actual_len + internal_fw_addrbase;
 
-	len = le32_to_cpu(fw_log.actual_buff_size) - len;
+	/* Copy any remaining part from beginning of ring buffer */
+	len = actual_len - len;
 	if (len) {
 		wl12xx_copy_fwlog(wl,
 				  &buffer[WL18XX_LOGGER_BUFF_OFFSET],
@@ -93,7 +93,7 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 free_out:
 	kfree(buffer);
 out:
-	return le32_to_cpu(fw_log.actual_buff_size);
+	return actual_len;
 }
 EXPORT_SYMBOL_GPL(wlcore_event_fw_logger);
 
