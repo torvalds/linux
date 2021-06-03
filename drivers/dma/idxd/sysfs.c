@@ -1246,6 +1246,24 @@ static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute 
 static struct device_attribute dev_attr_wq_ats_disable =
 		__ATTR(ats_disable, 0644, wq_ats_disable_show, wq_ats_disable_store);
 
+static ssize_t wq_occupancy_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+	u32 occup, offset;
+
+	if (!idxd->hw.wq_cap.occupancy)
+		return -EOPNOTSUPP;
+
+	offset = WQCFG_OFFSET(idxd, wq->id, WQCFG_OCCUP_IDX);
+	occup = ioread32(idxd->reg_base + offset) & WQCFG_OCCUP_MASK;
+
+	return sysfs_emit(buf, "%u\n", occup);
+}
+
+static struct device_attribute dev_attr_wq_occupancy =
+		__ATTR(occupancy, 0444, wq_occupancy_show, NULL);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -1261,6 +1279,7 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_max_transfer_size.attr,
 	&dev_attr_wq_max_batch_size.attr,
 	&dev_attr_wq_ats_disable.attr,
+	&dev_attr_wq_occupancy.attr,
 	NULL,
 };
 
