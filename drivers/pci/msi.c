@@ -464,11 +464,11 @@ static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 		return retval;
 
 	entry = irq_get_msi_desc(irq);
-	if (entry)
-		return sprintf(buf, "%s\n",
-				entry->msi_attrib.is_msix ? "msix" : "msi");
+	if (!entry)
+		return -ENODEV;
 
-	return -ENODEV;
+	return sysfs_emit(buf, "%s\n",
+			  entry->msi_attrib.is_msix ? "msix" : "msi");
 }
 
 static int populate_msi_sysfs(struct pci_dev *pdev)
