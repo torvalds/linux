@@ -3,15 +3,19 @@
 #include <asm/kup.h>
 #include <asm/smp.h>
 
+struct static_key_false disable_kuap_key;
+EXPORT_SYMBOL(disable_kuap_key);
+
 void __init setup_kuap(bool disabled)
 {
-	kuap_update_sr(mfsr(0) | SR_KS, 0, TASK_SIZE);
+	if (!disabled)
+		kuap_update_sr(mfsr(0) | SR_KS, 0, TASK_SIZE);
 
 	if (smp_processor_id() != boot_cpuid)
 		return;
 
-	pr_info("Activating Kernel Userspace Access Protection\n");
-
 	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
+		static_branch_enable(&disable_kuap_key);
+	else
+		pr_info("Activating Kernel Userspace Access Protection\n");
 }

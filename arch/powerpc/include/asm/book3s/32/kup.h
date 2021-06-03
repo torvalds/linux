@@ -9,11 +9,12 @@
 
 #include <linux/jump_label.h>
 
+extern struct static_key_false disable_kuap_key;
 extern struct static_key_false disable_kuep_key;
 
 static __always_inline bool kuap_is_disabled(void)
 {
-	return !IS_ENABLED(CONFIG_PPC_KUAP);
+	return !IS_ENABLED(CONFIG_PPC_KUAP) || static_branch_unlikely(&disable_kuap_key);
 }
 
 static __always_inline bool kuep_is_disabled(void)
@@ -62,6 +63,9 @@ static inline void kuap_save_and_lock(struct pt_regs *regs)
 	u32 addr = kuap & 0xf0000000;
 	u32 end = kuap << 28;
 
+	if (kuap_is_disabled())
+		return;
+
 	regs->kuap = kuap;
 	if (unlikely(!kuap))
 		return;
@@ -79,6 +83,9 @@ static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
 	u32 addr = regs->kuap & 0xf0000000;
 	u32 end = regs->kuap << 28;
 
+	if (kuap_is_disabled())
+		return;
+
 	current->thread.kuap = regs->kuap;
 
 	if (unlikely(regs->kuap == kuap))
@@ -90,6 +97,9 @@ static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
 static inline unsigned long kuap_get_and_assert_locked(void)
 {
 	unsigned long kuap = current->thread.kuap;
+
+	if (kuap_is_disabled())
+		return 0;
 
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && kuap != 0);
 
@@ -105,6 +115,9 @@ static __always_inline void allow_user_access(void __user *to, const void __user
 					      u32 size, unsigned long dir)
 {
 	u32 addr, end;
+
+	if (kuap_is_disabled())
+		return;
 
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
 	BUILD_BUG_ON(dir & ~KUAP_READ_WRITE);
@@ -127,6 +140,9 @@ static __always_inline void prevent_user_access(void __user *to, const void __us
 						u32 size, unsigned long dir)
 {
 	u32 addr, end;
+
+	if (kuap_is_disabled())
+		return;
 
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
 
@@ -159,6 +175,9 @@ static inline unsigned long prevent_user_access_return(void)
 	unsigned long end = flags << 28;
 	void __user *to = (__force void __user *)addr;
 
+	if (kuap_is_disabled())
+		return 0;
+
 	if (flags)
 		prevent_user_access(to, to, end - addr, KUAP_READ_WRITE);
 
@@ -171,6 +190,9 @@ static inline void restore_user_access(unsigned long flags)
 	unsigned long end = flags << 28;
 	void __user *to = (__force void __user *)addr;
 
+	if (kuap_is_disabled())
+		return;
+
 	if (flags)
 		allow_user_access(to, to, end - addr, KUAP_READ_WRITE);
 }
@@ -180,6 +202,9 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
 	unsigned long begin = regs->kuap & 0xf0000000;
 	unsigned long end = regs->kuap << 28;
+
+	if (kuap_is_disabled())
+		return false;
 
 	return is_write && (address < begin || address >= end);
 }
