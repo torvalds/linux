@@ -21,7 +21,6 @@
  *     also clear mm->cpu_vm_mask bits when processes are migrated
  */
 
-//#define DEBUG_MAP_CONSISTENCY
 //#define DEBUG_CLAMP_LAST_CONTEXT   31
 //#define DEBUG_HARDER
 
@@ -180,9 +179,6 @@ static unsigned int steal_all_contexts(void)
 		if (id != FIRST_CONTEXT) {
 			context_mm[id] = NULL;
 			__clear_bit(id, context_map);
-#ifdef DEBUG_MAP_CONSISTENCY
-			mm->context.active = 0;
-#endif
 		}
 		if (IS_ENABLED(CONFIG_SMP))
 			__clear_bit(id, stale_map[cpu]);
@@ -223,37 +219,6 @@ static unsigned int steal_context_up(unsigned int id)
 
 	return id;
 }
-
-#ifdef DEBUG_MAP_CONSISTENCY
-static void context_check_map(void)
-{
-	unsigned int id, nrf, nact;
-
-	nrf = nact = 0;
-	for (id = FIRST_CONTEXT; id <= LAST_CONTEXT; id++) {
-		int used = test_bit(id, context_map);
-		if (!used)
-			nrf++;
-		if (used != (context_mm[id] != NULL))
-			pr_err("MMU: Context %d is %s and MM is %p !\n",
-			       id, used ? "used" : "free", context_mm[id]);
-		if (context_mm[id] != NULL)
-			nact += context_mm[id]->context.active;
-	}
-	if (nrf != nr_free_contexts) {
-		pr_err("MMU: Free context count out of sync ! (%d vs %d)\n",
-		       nr_free_contexts, nrf);
-		nr_free_contexts = nrf;
-	}
-	if (nact > num_online_cpus())
-		pr_err("MMU: More active contexts than CPUs ! (%d vs %d)\n",
-		       nact, num_online_cpus());
-	if (FIRST_CONTEXT > 0 && !test_bit(0, context_map))
-		pr_err("MMU: Context 0 has been freed !!!\n");
-}
-#else
-static void context_check_map(void) { }
-#endif
 
 static void set_context(unsigned long id, pgd_t *pgd)
 {
@@ -309,14 +274,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 
 	/* If we already have a valid assigned context, skip all that */
 	id = next->context.id;
-	if (likely(id != MMU_NO_CONTEXT)) {
-#ifdef DEBUG_MAP_CONSISTENCY
-		if (context_mm[id] != next)
-			pr_err("MMU: mm 0x%p has id %d but context_mm[%d] says 0x%p\n",
-			       next, id, id, context_mm[id]);
-#endif
+	if (likely(id != MMU_NO_CONTEXT))
 		goto ctxt_ok;
-	}
 
 	/* We really don't have a context, let's try to acquire one */
 	id = next_context;
@@ -352,7 +311,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	next->context.id = id;
 	pr_hardcont(" | new id=%d,nrf=%d", id, nr_free_contexts);
 
-	context_check_map();
  ctxt_ok:
 
 	/* If that context got marked stale on this CPU, then flush the
@@ -421,9 +379,6 @@ void destroy_context(struct mm_struct *mm)
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
 		mm->context.id = MMU_NO_CONTEXT;
-#ifdef DEBUG_MAP_CONSISTENCY
-		mm->context.active = 0;
-#endif
 		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
