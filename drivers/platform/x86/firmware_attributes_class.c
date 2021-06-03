@@ -8,7 +8,7 @@
 #include "firmware_attributes_class.h"
 
 static DEFINE_MUTEX(fw_attr_lock);
-int fw_attr_inuse;
+static int fw_attr_inuse;
 
 static struct class firmware_attributes_class = {
 	.name = "firmware-attributes",
