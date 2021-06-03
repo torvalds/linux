@@ -199,11 +199,24 @@ failed:
 }
 EXPORT_SYMBOL(vchiq_initialise);
 
+static void free_bulk_waiter(struct vchiq_instance *instance)
+{
+	struct bulk_waiter_node *waiter, *next;
+
+	list_for_each_entry_safe(waiter, next,
+				 &instance->bulk_waiter_list, list) {
+		list_del(&waiter->list);
+		vchiq_log_info(vchiq_arm_log_level,
+				"bulk_waiter - cleaned up %pK for pid %d",
+				waiter, waiter->pid);
+		kfree(waiter);
+	}
+}
+
 enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance)
 {
 	enum vchiq_status status = VCHIQ_SUCCESS;
 	struct vchiq_state *state = instance->state;
-	struct bulk_waiter_node *waiter, *next;
 
 	if (mutex_lock_killable(&state->mutex))
 		return VCHIQ_RETRY;
@@ -216,14 +229,7 @@ enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p): returning %d", __func__, instance, status);
 
-	list_for_each_entry_safe(waiter, next,
-				 &instance->bulk_waiter_list, list) {
-		list_del(&waiter->list);
-		vchiq_log_info(vchiq_arm_log_level,
-				"bulk_waiter - cleaned up %pK for pid %d",
-				waiter, waiter->pid);
-		kfree(waiter);
-	}
+	free_bulk_waiter(instance);
 	kfree(instance);
 
 	return status;
@@ -1943,18 +1949,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	/* Release the PEER service count. */
 	vchiq_release_internal(instance->state, NULL);
 
-	{
-		struct bulk_waiter_node *waiter, *next;
-
-		list_for_each_entry_safe(waiter, next,
-					 &instance->bulk_waiter_list, list) {
-			list_del(&waiter->list);
-			vchiq_log_info(vchiq_arm_log_level,
-				"bulk_waiter - cleaned up %pK for pid %d",
-				waiter, waiter->pid);
-			kfree(waiter);
-		}
-	}
+	free_bulk_waiter(instance);
 
 	vchiq_debugfs_remove_instance(instance);
 
