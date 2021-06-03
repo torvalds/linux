@@ -8,10 +8,6 @@
 #ifndef __LINUX_EXTCON_SM5502_H
 #define __LINUX_EXTCON_SM5502_H
 
-enum sm5502_types {
-	TYPE_SM5502,
-};
-
 /* SM5502 registers */
 enum sm5502_reg {
 	SM5502_REG_DEVICE_ID = 0x01,

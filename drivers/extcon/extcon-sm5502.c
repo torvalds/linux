@@ -40,16 +40,12 @@ struct sm5502_muic_info {
 	struct i2c_client *i2c;
 	struct regmap *regmap;
 
+	const struct sm5502_type *type;
 	struct regmap_irq_chip_data *irq_data;
-	struct muic_irq *muic_irqs;
-	unsigned int num_muic_irqs;
 	int irq;
 	bool irq_attach;
 	bool irq_detach;
 	struct work_struct irq_work;
-
-	struct reg_data *reg_data;
-	unsigned int num_reg_data;
 
 	struct mutex mutex;
 
@@ -60,6 +56,17 @@ struct sm5502_muic_info {
 	 * driver should notify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
+};
+
+struct sm5502_type {
+	struct muic_irq *muic_irqs;
+	unsigned int num_muic_irqs;
+	const struct regmap_irq_chip *irq_chip;
+
+	struct reg_data *reg_data;
+	unsigned int num_reg_data;
+
+	int (*parse_irq)(struct sm5502_muic_info *info, int irq_type);
 };
 
 /* Default value of SM5502 register to bring up MUIC device. */
@@ -502,11 +509,11 @@ static irqreturn_t sm5502_muic_irq_handler(int irq, void *data)
 	struct sm5502_muic_info *info = data;
 	int i, irq_type = -1, ret;
 
-	for (i = 0; i < info->num_muic_irqs; i++)
-		if (irq == info->muic_irqs[i].virq)
-			irq_type = info->muic_irqs[i].irq;
+	for (i = 0; i < info->type->num_muic_irqs; i++)
+		if (irq == info->type->muic_irqs[i].virq)
+			irq_type = info->type->muic_irqs[i].irq;
 
-	ret = sm5502_parse_irq(info, irq_type);
+	ret = info->type->parse_irq(info, irq_type);
 	if (ret < 0) {
 		dev_warn(info->dev, "cannot handle is interrupt:%d\n",
 				    irq_type);
@@ -551,14 +558,14 @@ static void sm5502_init_dev_type(struct sm5502_muic_info *info)
 			    version_id, vendor_id);
 
 	/* Initiazle the register of SM5502 device to bring-up */
-	for (i = 0; i < info->num_reg_data; i++) {
+	for (i = 0; i < info->type->num_reg_data; i++) {
 		unsigned int val = 0;
 
-		if (!info->reg_data[i].invert)
-			val |= ~info->reg_data[i].val;
+		if (!info->type->reg_data[i].invert)
+			val |= ~info->type->reg_data[i].val;
 		else
-			val = info->reg_data[i].val;
-		regmap_write(info->regmap, info->reg_data[i].reg, val);
+			val = info->type->reg_data[i].val;
+		regmap_write(info->regmap, info->type->reg_data[i].reg, val);
 	}
 }
 
@@ -579,10 +586,13 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 	info->dev = &i2c->dev;
 	info->i2c = i2c;
 	info->irq = i2c->irq;
-	info->muic_irqs = sm5502_muic_irqs;
-	info->num_muic_irqs = ARRAY_SIZE(sm5502_muic_irqs);
-	info->reg_data = sm5502_reg_data;
-	info->num_reg_data = ARRAY_SIZE(sm5502_reg_data);
+	info->type = device_get_match_data(info->dev);
+	if (!info->type)
+		return -EINVAL;
+	if (!info->type->parse_irq) {
+		dev_err(info->dev, "parse_irq missing in struct sm5502_type\n");
+		return -EINVAL;
+	}
 
 	mutex_init(&info->mutex);
 
@@ -598,16 +608,17 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 
 	/* Support irq domain for SM5502 MUIC device */
 	irq_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_SHARED;
-	ret = devm_regmap_add_irq_chip(info->dev, info->regmap, info->irq, irq_flags,
-				       0, &sm5502_muic_irq_chip, &info->irq_data);
+	ret = devm_regmap_add_irq_chip(info->dev, info->regmap, info->irq,
+				       irq_flags, 0, info->type->irq_chip,
+				       &info->irq_data);
 	if (ret != 0) {
 		dev_err(info->dev, "failed to request IRQ %d: %d\n",
 				    info->irq, ret);
 		return ret;
 	}
 
-	for (i = 0; i < info->num_muic_irqs; i++) {
-		struct muic_irq *muic_irq = &info->muic_irqs[i];
+	for (i = 0; i < info->type->num_muic_irqs; i++) {
+		struct muic_irq *muic_irq = &info->type->muic_irqs[i];
 		int virq = 0;
 
 		virq = regmap_irq_get_virq(info->irq_data, muic_irq->irq);
@@ -659,8 +670,17 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
+static const struct sm5502_type sm5502_data = {
+	.muic_irqs = sm5502_muic_irqs,
+	.num_muic_irqs = ARRAY_SIZE(sm5502_muic_irqs),
+	.irq_chip = &sm5502_muic_irq_chip,
+	.reg_data = sm5502_reg_data,
+	.num_reg_data = ARRAY_SIZE(sm5502_reg_data),
+	.parse_irq = sm5502_parse_irq,
+};
+
 static const struct of_device_id sm5502_dt_match[] = {
-	{ .compatible = "siliconmitus,sm5502-muic" },
+	{ .compatible = "siliconmitus,sm5502-muic", .data = &sm5502_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sm5502_dt_match);
@@ -691,7 +711,7 @@ static SIMPLE_DEV_PM_OPS(sm5502_muic_pm_ops,
 			 sm5502_muic_suspend, sm5502_muic_resume);
 
 static const struct i2c_device_id sm5502_i2c_id[] = {
-	{ "sm5502", TYPE_SM5502 },
+	{ "sm5502", (kernel_ulong_t)&sm5502_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sm5502_i2c_id);
