@@ -344,6 +344,16 @@ nlm4svc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
+nlm4svc_encode_res(struct svc_rqst *rqstp, __be32 *p)
+{
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
+	struct nlm_res *resp = rqstp->rq_resp;
+
+	return svcxdr_encode_cookie(xdr, &resp->cookie) &&
+		svcxdr_encode_stats(xdr, resp->status);
+}
+
+int
 nlm4svc_encode_shareres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -352,16 +362,5 @@ nlm4svc_encode_shareres(struct svc_rqst *rqstp, __be32 *p)
 		return 0;
 	*p++ = resp->status;
 	*p++ = xdr_zero;		/* sequence argument */
-	return xdr_ressize_check(rqstp, p);
-}
-
-int
-nlm4svc_encode_res(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nlm_res *resp = rqstp->rq_resp;
-
-	if (!(p = nlm4_encode_cookie(p, &resp->cookie)))
-		return 0;
-	*p++ = resp->status;
 	return xdr_ressize_check(rqstp, p);
 }
