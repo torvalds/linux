@@ -352,22 +352,22 @@ static int si1133_parse_response_err(struct device *dev, u32 resp, u8 cmd)
 
 	switch (resp) {
 	case SI1133_ERR_OUTPUT_BUFFER_OVERFLOW:
-		dev_warn(dev, "Output buffer overflow: %#02hhx\n", cmd);
+		dev_warn(dev, "Output buffer overflow: 0x%02x\n", cmd);
 		return -EOVERFLOW;
 	case SI1133_ERR_SATURATION_ADC_OR_OVERFLOW_ACCUMULATION:
-		dev_warn(dev, "Saturation of the ADC or overflow of accumulation: %#02hhx\n",
+		dev_warn(dev, "Saturation of the ADC or overflow of accumulation: 0x%02x\n",
 			 cmd);
 		return -EOVERFLOW;
 	case SI1133_ERR_INVALID_LOCATION_CMD:
 		dev_warn(dev,
-			 "Parameter access to an invalid location: %#02hhx\n",
+			 "Parameter access to an invalid location: 0x%02x\n",
 			 cmd);
 		return -EINVAL;
 	case SI1133_ERR_INVALID_CMD:
-		dev_warn(dev, "Invalid command %#02hhx\n", cmd);
+		dev_warn(dev, "Invalid command 0x%02x\n", cmd);
 		return -EINVAL;
 	default:
-		dev_warn(dev, "Unknown error %#02hhx\n", cmd);
+		dev_warn(dev, "Unknown error 0x%02x\n", cmd);
 		return -EINVAL;
 	}
 }
@@ -400,7 +400,7 @@ static int si1133_command(struct si1133_data *data, u8 cmd)
 
 	err = regmap_write(data->regmap, SI1133_REG_COMMAND, cmd);
 	if (err) {
-		dev_warn(dev, "Failed to write command %#02hhx, ret=%d\n", cmd,
+		dev_warn(dev, "Failed to write command 0x%02x, ret=%d\n", cmd,
 			 err);
 		goto out;
 	}
@@ -425,7 +425,7 @@ static int si1133_command(struct si1133_data *data, u8 cmd)
 					       SI1133_CMD_TIMEOUT_MS * 1000);
 		if (err) {
 			dev_warn(dev,
-				 "Failed to read command %#02hhx, ret=%d\n",
+				 "Failed to read command 0x%02x, ret=%d\n",
 				 cmd, err);
 			goto out;
 		}
