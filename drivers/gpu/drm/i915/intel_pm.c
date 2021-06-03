@@ -4163,7 +4163,7 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	struct intel_crtc_state *crtc_state;
 	struct skl_ddb_entry ddb_slices;
 	enum pipe pipe = crtc->pipe;
-	unsigned int mbus_offset;
+	unsigned int mbus_offset = 0;
 	u32 ddb_range_size;
 	u32 dbuf_slice_mask;
 	u32 start, end;
