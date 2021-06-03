@@ -7,6 +7,11 @@
 
 #ifndef __ASSEMBLY__
 
+static __always_inline bool kuap_is_disabled(void)
+{
+	return !IS_ENABLED(CONFIG_PPC_KUAP);
+}
+
 static __always_inline bool kuep_is_disabled(void)
 {
 	return !IS_ENABLED(CONFIG_PPC_KUEP);
