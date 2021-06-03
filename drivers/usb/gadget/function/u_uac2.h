@@ -23,6 +23,7 @@
 #define UAC2_DEF_CSSIZE 2
 #define UAC2_DEF_CSYNC		USB_ENDPOINT_SYNC_ASYNC
 #define UAC2_DEF_REQ_NUM 2
+#define UAC2_DEF_FB_MAX 5
 
 struct f_uac2_opts {
 	struct usb_function_instance	func_inst;
@@ -34,6 +35,7 @@ struct f_uac2_opts {
 	int				c_ssize;
 	int				c_sync;
 	int				req_number;
+	int				fb_max;
 	bool				bound;
 
 	struct mutex			lock;

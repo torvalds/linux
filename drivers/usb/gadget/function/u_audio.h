@@ -11,6 +11,14 @@
 
 #include <linux/usb/composite.h>
 
+/*
+ * Same maximum frequency deviation on the slower side as in
+ * sound/usb/endpoint.c. Value is expressed in per-mil deviation.
+ * The maximum deviation on the faster side will be provided as
+ * parameter, as it impacts the endpoint required bandwidth.
+ */
+#define FBACK_SLOW_MAX	250
+
 struct uac_params {
 	/* playback */
 	int p_chmask;	/* channel mask */
@@ -23,6 +31,7 @@ struct uac_params {
 	int c_ssize;	/* sample size */
 
 	int req_number; /* number of preallocated requests */
+	int fb_max;	/* upper frequency drift feedback limit per-mil */
 };
 
 struct g_audio {

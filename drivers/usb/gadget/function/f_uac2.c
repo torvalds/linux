@@ -584,8 +584,11 @@ static int set_ep_max_packet_size(const struct f_uac2_opts *uac2_opts,
 		ssize = uac2_opts->c_ssize;
 	}
 
+	if (!is_playback && (uac2_opts->c_sync == USB_ENDPOINT_SYNC_ASYNC))
+		srate = srate * (1000 + uac2_opts->fb_max) / 1000;
+
 	max_size_bw = num_channels(chmask) * ssize *
-		((srate / (factor / (1 << (ep_desc->bInterval - 1)))) + 1);
+		DIV_ROUND_UP(srate, factor / (1 << (ep_desc->bInterval - 1)));
 	ep_desc->wMaxPacketSize = cpu_to_le16(min_t(u16, max_size_bw,
 						    max_size_ep));
 
@@ -957,6 +960,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	agdev->params.c_srate = uac2_opts->c_srate;
 	agdev->params.c_ssize = uac2_opts->c_ssize;
 	agdev->params.req_number = uac2_opts->req_number;
+	agdev->params.fb_max = uac2_opts->fb_max;
 	ret = g_audio_setup(agdev, "UAC2 PCM", "UAC2_Gadget");
 	if (ret)
 		goto err_free_descs;
@@ -1329,6 +1333,7 @@ UAC2_ATTRIBUTE(c_srate);
 UAC2_ATTRIBUTE_SYNC(c_sync);
 UAC2_ATTRIBUTE(c_ssize);
 UAC2_ATTRIBUTE(req_number);
+UAC2_ATTRIBUTE(fb_max);
 
 static struct configfs_attribute *f_uac2_attrs[] = {
 	&f_uac2_opts_attr_p_chmask,
@@ -1339,6 +1344,7 @@ static struct configfs_attribute *f_uac2_attrs[] = {
 	&f_uac2_opts_attr_c_ssize,
 	&f_uac2_opts_attr_c_sync,
 	&f_uac2_opts_attr_req_number,
+	&f_uac2_opts_attr_fb_max,
 	NULL,
 };
 
@@ -1378,6 +1384,7 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 	opts->c_ssize = UAC2_DEF_CSSIZE;
 	opts->c_sync = UAC2_DEF_CSYNC;
 	opts->req_number = UAC2_DEF_REQ_NUM;
+	opts->fb_max = UAC2_DEF_FB_MAX;
 	return &opts->func_inst;
 }
 
