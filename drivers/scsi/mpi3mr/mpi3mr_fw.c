@@ -3297,6 +3297,7 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 re_init)
 	}
 	ioc_state = mpi3mr_get_iocstate(mrioc);
 	if (ioc_state != MRIOC_STATE_RESET) {
+		retval = -1;
 		ioc_err(mrioc, "Cannot bring IOC to reset state\n");
 		goto out_failed;
 	}
@@ -3393,6 +3394,7 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 re_init)
 
 	if (re_init &&
 	    (mrioc->shost->nr_hw_queues > mrioc->num_op_reply_q)) {
+		retval = -1;
 		ioc_err(mrioc,
 		    "Cannot create minimum number of OpQueues expected:%d created:%d\n",
 		    mrioc->shost->nr_hw_queues, mrioc->num_op_reply_q);
