@@ -314,6 +314,32 @@ nlmsvc_decode_res(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
+nlmsvc_decode_reboot(struct svc_rqst *rqstp, __be32 *p)
+{
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	struct nlm_reboot *argp = rqstp->rq_argp;
+	u32 len;
+
+	if (xdr_stream_decode_u32(xdr, &len) < 0)
+		return 0;
+	if (len > SM_MAXSTRLEN)
+		return 0;
+	p = xdr_inline_decode(xdr, len);
+	if (!p)
+		return 0;
+	argp->len = len;
+	argp->mon = (char *)p;
+	if (xdr_stream_decode_u32(xdr, &argp->state) < 0)
+		return 0;
+	p = xdr_inline_decode(xdr, SM_PRIV_SIZE);
+	if (!p)
+		return 0;
+	memcpy(&argp->priv.data, p, sizeof(argp->priv.data));
+
+	return 1;
+}
+
+int
 nlmsvc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -377,19 +403,6 @@ nlmsvc_decode_notify(struct svc_rqst *rqstp, __be32 *p)
 					    &lock->len, NLM_MAXSTRLEN)))
 		return 0;
 	argp->state = ntohl(*p++);
-	return xdr_argsize_check(rqstp, p);
-}
-
-int
-nlmsvc_decode_reboot(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nlm_reboot *argp = rqstp->rq_argp;
-
-	if (!(p = xdr_decode_string_inplace(p, &argp->mon, &argp->len, SM_MAXSTRLEN)))
-		return 0;
-	argp->state = ntohl(*p++);
-	memcpy(&argp->priv.data, p, sizeof(argp->priv.data));
-	p += XDR_QUADLEN(SM_PRIV_SIZE);
 	return xdr_argsize_check(rqstp, p);
 }
 
