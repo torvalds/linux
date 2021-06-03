@@ -7,6 +7,10 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/jump_label.h>
+
+extern struct static_key_false disable_kuep_key;
+
 static __always_inline bool kuap_is_disabled(void)
 {
 	return !IS_ENABLED(CONFIG_PPC_KUAP);
@@ -14,7 +18,7 @@ static __always_inline bool kuap_is_disabled(void)
 
 static __always_inline bool kuep_is_disabled(void)
 {
-	return !IS_ENABLED(CONFIG_PPC_KUEP);
+	return !IS_ENABLED(CONFIG_PPC_KUEP) || static_branch_unlikely(&disable_kuep_key);
 }
 
 static inline void kuep_lock(void)
