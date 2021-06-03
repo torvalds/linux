@@ -196,6 +196,29 @@ bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 }
 EXPORT_SYMBOL_GPL(acpi_gpio_get_irq_resource);
 
+/**
+ * acpi_gpio_get_io_resource - Fetch details of an ACPI resource if it is a GPIO
+ *			       I/O resource or return False if not.
+ * @ares:	Pointer to the ACPI resource to fetch
+ * @agpio:	Pointer to a &struct acpi_resource_gpio to store the output pointer
+ */
+bool acpi_gpio_get_io_resource(struct acpi_resource *ares,
+			       struct acpi_resource_gpio **agpio)
+{
+	struct acpi_resource_gpio *gpio;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
+		return false;
+
+	gpio = &ares->data.gpio;
+	if (gpio->connection_type != ACPI_RESOURCE_GPIO_TYPE_IO)
+		return false;
+
+	*agpio = gpio;
+	return true;
+}
+EXPORT_SYMBOL_GPL(acpi_gpio_get_io_resource);
+
 static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
 				      struct acpi_gpio_event *event)
 {
