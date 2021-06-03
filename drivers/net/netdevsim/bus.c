@@ -111,7 +111,7 @@ ssize_t nsim_bus_dev_max_vfs_read(struct file *file,
 {
 	struct nsim_bus_dev *nsim_bus_dev = file->private_data;
 	char buf[11];
-	size_t len;
+	ssize_t len;
 
 	len = snprintf(buf, sizeof(buf), "%u\n", nsim_bus_dev->max_vfs);
 	if (len < 0)
