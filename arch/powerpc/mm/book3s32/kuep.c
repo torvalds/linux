@@ -38,3 +38,11 @@ void kuep_unlock(void)
 {
 	kuep_update(mfsr(0) & ~SR_NX);
 }
+
+void __init setup_kuep(bool disabled)
+{
+	pr_info("Activating Kernel Userspace Execution Prevention\n");
+
+	if (disabled)
+		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
+}

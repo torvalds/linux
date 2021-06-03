@@ -10,3 +10,4 @@ obj-y += mmu.o mmu_context.o
 obj-$(CONFIG_PPC_BOOK3S_603) += nohash_low.o
 obj-$(CONFIG_PPC_BOOK3S_604) += hash_low.o tlb.o
 obj-$(CONFIG_PPC_KUEP) += kuep.o
+obj-$(CONFIG_PPC_KUAP) += kuap.o
