@@ -115,28 +115,32 @@ extern s32 patch__flush_hash_B;
 #include <asm/reg.h>
 #include <asm/task_size_32.h>
 
-#define UPDATE_TWO_USER_SEGMENTS(n) do {		\
-	if (TASK_SIZE > ((n) << 28))			\
-		mtsr(val1, (n) << 28);			\
-	if (TASK_SIZE > (((n) + 1) << 28))		\
-		mtsr(val2, ((n) + 1) << 28);		\
-	val1 = (val1 + 0x222) & 0xf0ffffff;		\
-	val2 = (val2 + 0x222) & 0xf0ffffff;		\
-} while (0)
+static __always_inline void update_user_segment(u32 n, u32 val)
+{
+	if (n << 28 < TASK_SIZE)
+		mtsr(val + n * 0x111, n << 28);
+}
 
 static __always_inline void update_user_segments(u32 val)
 {
-	int val1 = val;
-	int val2 = (val + 0x111) & 0xf0ffffff;
+	val &= 0xf0ffffff;
 
-	UPDATE_TWO_USER_SEGMENTS(0);
-	UPDATE_TWO_USER_SEGMENTS(2);
-	UPDATE_TWO_USER_SEGMENTS(4);
-	UPDATE_TWO_USER_SEGMENTS(6);
-	UPDATE_TWO_USER_SEGMENTS(8);
-	UPDATE_TWO_USER_SEGMENTS(10);
-	UPDATE_TWO_USER_SEGMENTS(12);
-	UPDATE_TWO_USER_SEGMENTS(14);
+	update_user_segment(0, val);
+	update_user_segment(1, val);
+	update_user_segment(2, val);
+	update_user_segment(3, val);
+	update_user_segment(4, val);
+	update_user_segment(5, val);
+	update_user_segment(6, val);
+	update_user_segment(7, val);
+	update_user_segment(8, val);
+	update_user_segment(9, val);
+	update_user_segment(10, val);
+	update_user_segment(11, val);
+	update_user_segment(12, val);
+	update_user_segment(13, val);
+	update_user_segment(14, val);
+	update_user_segment(15, val);
 }
 
 #endif /* !__ASSEMBLY__ */
