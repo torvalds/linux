@@ -2446,6 +2446,9 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
 		break;
+	case FUNC_MF_CFG_PROTOCOL_NVMETCP:
+		*p_proto = QED_PCI_NVMETCP;
+		break;
 	case FUNC_MF_CFG_PROTOCOL_FCOE:
 		*p_proto = QED_PCI_FCOE;
 		break;

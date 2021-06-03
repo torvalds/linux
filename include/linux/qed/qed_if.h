@@ -542,6 +542,22 @@ struct qed_iscsi_pf_params {
 	u8 bdq_pbl_num_entries[3];
 };
 
+struct qed_nvmetcp_pf_params {
+	u64 glbl_q_params_addr;
+	u16 cq_num_entries;
+	u16 num_cons;
+	u16 num_tasks;
+	u8 num_sq_pages_in_ring;
+	u8 num_r2tq_pages_in_ring;
+	u8 num_uhq_pages_in_ring;
+	u8 num_queues;
+	u8 gl_rq_pi;
+	u8 gl_cmd_pi;
+	u8 debug_mode;
+	u8 ll2_ooo_queue_id;
+	u16 min_rto;
+};
+
 struct qed_rdma_pf_params {
 	/* Supplied to QED during resource allocation (may affect the ILT and
 	 * the doorbell BAR).
@@ -560,6 +576,7 @@ struct qed_pf_params {
 	struct qed_eth_pf_params eth_pf_params;
 	struct qed_fcoe_pf_params fcoe_pf_params;
 	struct qed_iscsi_pf_params iscsi_pf_params;
+	struct qed_nvmetcp_pf_params nvmetcp_pf_params;
 	struct qed_rdma_pf_params rdma_pf_params;
 };
 
@@ -662,6 +679,7 @@ enum qed_sb_type {
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
 	QED_PROTOCOL_ISCSI,
+	QED_PROTOCOL_NVMETCP = QED_PROTOCOL_ISCSI,
 	QED_PROTOCOL_FCOE,
 };
 
