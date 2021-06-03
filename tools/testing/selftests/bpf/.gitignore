@@ -38,3 +38,4 @@ test_cpp
 /bench
 *.ko
 xdpxceiver
+xdp_redirect_multi
