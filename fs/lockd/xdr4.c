@@ -97,6 +97,32 @@ nlm4_decode_fh(__be32 *p, struct nfs_fh *f)
 }
 
 /*
+ * NLM file handles are defined by specification to be a variable-length
+ * XDR opaque no longer than 1024 bytes. However, this implementation
+ * limits their length to the size of an NFSv3 file handle.
+ */
+static bool
+svcxdr_decode_fhandle(struct xdr_stream *xdr, struct nfs_fh *fh)
+{
+	__be32 *p;
+	u32 len;
+
+	if (xdr_stream_decode_u32(xdr, &len) < 0)
+		return false;
+	if (len > NFS_MAXFHSIZE)
+		return false;
+
+	p = xdr_inline_decode(xdr, len);
+	if (!p)
+		return false;
+	fh->size = len;
+	memcpy(fh->data, p, len);
+	memset(fh->data + len, 0, sizeof(fh->data) - len);
+
+	return true;
+}
+
+/*
  * Encode and decode owner handle
  */
 static __be32 *
@@ -133,6 +159,39 @@ nlm4_decode_lock(__be32 *p, struct nlm_lock *lock)
 	else
 		fl->fl_end = s64_to_loff_t(end);
 	return p;
+}
+
+static bool
+svcxdr_decode_lock(struct xdr_stream *xdr, struct nlm_lock *lock)
+{
+	struct file_lock *fl = &lock->fl;
+	u64 len, start;
+	s64 end;
+
+	if (!svcxdr_decode_string(xdr, &lock->caller, &lock->len))
+		return false;
+	if (!svcxdr_decode_fhandle(xdr, &lock->fh))
+		return false;
+	if (!svcxdr_decode_owner(xdr, &lock->oh))
+		return false;
+	if (xdr_stream_decode_u32(xdr, &lock->svid) < 0)
+		return false;
+	if (xdr_stream_decode_u64(xdr, &start) < 0)
+		return false;
+	if (xdr_stream_decode_u64(xdr, &len) < 0)
+		return false;
+
+	locks_init_lock(fl);
+	fl->fl_flags = FL_POSIX;
+	fl->fl_type  = F_RDLCK;
+	end = start + len - 1;
+	fl->fl_start = s64_to_loff_t(start);
+	if (len == 0 || end < 0)
+		fl->fl_end = OFFSET_MAX;
+	else
+		fl->fl_end = s64_to_loff_t(end);
+
+	return true;
 }
 
 /*
@@ -189,19 +248,20 @@ nlm4svc_decode_void(struct svc_rqst *rqstp, __be32 *p)
 int
 nlm4svc_decode_testargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nlm_args *argp = rqstp->rq_argp;
-	u32	exclusive;
+	u32 exclusive;
 
-	if (!(p = nlm4_decode_cookie(p, &argp->cookie)))
+	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
 		return 0;
-
-	exclusive = ntohl(*p++);
-	if (!(p = nlm4_decode_lock(p, &argp->lock)))
+	if (xdr_stream_decode_bool(xdr, &exclusive) < 0)
+		return 0;
+	if (!svcxdr_decode_lock(xdr, &argp->lock))
 		return 0;
 	if (exclusive)
 		argp->lock.fl.fl_type = F_WRLCK;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
