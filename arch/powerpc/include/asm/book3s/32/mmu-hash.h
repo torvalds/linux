@@ -67,6 +67,16 @@ struct ppc_bat {
 #ifndef __ASSEMBLY__
 
 /*
+ * This macro defines the mapping from contexts to VSIDs (virtual
+ * segment IDs).  We use a skew on both the context and the high 4 bits
+ * of the 32-bit virtual address (the "effective segment ID") in order
+ * to spread out the entries in the MMU hash table.  Note, if this
+ * function is changed then hash functions will have to be
+ * changed to correspond.
+ */
+#define CTX_TO_VSID(c, id)	((((c) * (897 * 16)) + (id * 0x111)) & 0xffffff)
+
+/*
  * Hardware Page Table Entry
  * Note that the xpn and x bitfields are used only by processors that
  * support extended addressing; otherwise, those bits are reserved.
