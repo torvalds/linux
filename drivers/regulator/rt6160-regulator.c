@@ -46,6 +46,10 @@ struct rt6160_priv {
 	bool enable_state;
 };
 
+static const unsigned int rt6160_ramp_tables[] = {
+	1000, 2500, 5000, 10000
+};
+
 static int rt6160_enable(struct regulator_dev *rdev)
 {
 	struct rt6160_priv *priv = rdev_get_drvdata(rdev);
@@ -140,31 +144,6 @@ static int rt6160_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	return regmap_update_bits(regmap, reg, RT6160_VSEL_MASK, vsel);
 }
 
-static int rt6160_set_ramp_delay(struct regulator_dev *rdev, int target)
-{
-	struct regmap *regmap = rdev_get_regmap(rdev);
-	const int ramp_tables[] = { 1000, 2500, 5000, 10000 };
-	unsigned int i, sel;
-
-	/* Find closest larger or equal */
-	for (i = 0; i < ARRAY_SIZE(ramp_tables); i++) {
-		sel = i;
-
-		/* If ramp delay is equal to 0, directly set ramp speed to fastest */
-		if (target == 0) {
-			sel = ARRAY_SIZE(ramp_tables) - 1;
-			break;
-		}
-
-		if (target <= ramp_tables[i])
-			break;
-	}
-
-	sel <<= ffs(RT6160_RAMPRATE_MASK) - 1;
-
-	return regmap_update_bits(regmap, RT6160_REG_CNTL, RT6160_RAMPRATE_MASK, sel);
-}
-
 static int rt6160_get_error_flags(struct regulator_dev *rdev, unsigned int *flags)
 {
 	struct regmap *regmap = rdev_get_regmap(rdev);
@@ -203,7 +182,7 @@ static const struct regulator_ops rt6160_regulator_ops = {
 	.set_mode = rt6160_set_mode,
 	.get_mode = rt6160_get_mode,
 	.set_suspend_voltage = rt6160_set_suspend_voltage,
-	.set_ramp_delay = rt6160_set_ramp_delay,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 	.get_error_flags = rt6160_get_error_flags,
 };
 
@@ -292,6 +271,10 @@ static int rt6160_probe(struct i2c_client *i2c)
 	priv->desc.vsel_reg = RT6160_REG_VSELH;
 	priv->desc.vsel_mask = RT6160_VSEL_MASK;
 	priv->desc.n_voltages = RT6160_N_VOUTS;
+	priv->desc.ramp_reg = RT6160_REG_CNTL;
+	priv->desc.ramp_mask = RT6160_RAMPRATE_MASK;
+	priv->desc.ramp_delay_table = rt6160_ramp_tables;
+	priv->desc.n_ramp_values = ARRAY_SIZE(rt6160_ramp_tables);
 	priv->desc.of_map_mode = rt6160_of_map_mode;
 	priv->desc.ops = &rt6160_regulator_ops;
 	if (priv->vsel_active_low)
