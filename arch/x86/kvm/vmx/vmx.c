@@ -52,6 +52,7 @@
 #include "cpuid.h"
 #include "evmcs.h"
 #include "hyperv.h"
+#include "kvm_onhyperv.h"
 #include "irq.h"
 #include "kvm_cache_regs.h"
 #include "lapic.h"
@@ -458,86 +459,6 @@ static unsigned long host_idt_base;
 static bool __read_mostly enlightened_vmcs = true;
 module_param(enlightened_vmcs, bool, 0444);
 
-static int kvm_fill_hv_flush_list_func(struct hv_guest_mapping_flush_list *flush,
-		void *data)
-{
-	struct kvm_tlb_range *range = data;
-
-	return hyperv_fill_flush_guest_mapping_list(flush, range->start_gfn,
-			range->pages);
-}
-
-static inline int hv_remote_flush_root_ept(hpa_t root_ept,
-					   struct kvm_tlb_range *range)
-{
-	if (range)
-		return hyperv_flush_guest_mapping_range(root_ept,
-				kvm_fill_hv_flush_list_func, (void *)range);
-	else
-		return hyperv_flush_guest_mapping(root_ept);
-}
-
-static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
-		struct kvm_tlb_range *range)
-{
-	struct kvm_vmx *kvm_vmx = to_kvm_vmx(kvm);
-	struct kvm_vcpu *vcpu;
-	int ret = 0, i, nr_unique_valid_roots;
-	hpa_t root;
-
-	spin_lock(&kvm_vmx->hv_root_ept_lock);
-
-	if (!VALID_PAGE(kvm_vmx->hv_root_ept)) {
-		nr_unique_valid_roots = 0;
-
-		/*
-		 * Flush all valid roots, and see if all vCPUs have converged
-		 * on a common root, in which case future flushes can skip the
-		 * loop and flush the common root.
-		 */
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			root = to_vmx(vcpu)->hv_root_ept;
-			if (!VALID_PAGE(root) || root == kvm_vmx->hv_root_ept)
-				continue;
-
-			/*
-			 * Set the tracked root to the first valid root.  Keep
-			 * this root for the entirety of the loop even if more
-			 * roots are encountered as a low effort optimization
-			 * to avoid flushing the same (first) root again.
-			 */
-			if (++nr_unique_valid_roots == 1)
-				kvm_vmx->hv_root_ept = root;
-
-			if (!ret)
-				ret = hv_remote_flush_root_ept(root, range);
-
-			/*
-			 * Stop processing roots if a failure occurred and
-			 * multiple valid roots have already been detected.
-			 */
-			if (ret && nr_unique_valid_roots > 1)
-				break;
-		}
-
-		/*
-		 * The optimized flush of a single root can't be used if there
-		 * are multiple valid roots (obviously).
-		 */
-		if (nr_unique_valid_roots > 1)
-			kvm_vmx->hv_root_ept = INVALID_PAGE;
-	} else {
-		ret = hv_remote_flush_root_ept(kvm_vmx->hv_root_ept, range);
-	}
-
-	spin_unlock(&kvm_vmx->hv_root_ept_lock);
-	return ret;
-}
-static int hv_remote_flush_tlb(struct kvm *kvm)
-{
-	return hv_remote_flush_tlb_with_range(kvm, NULL);
-}
-
 static int hv_enable_direct_tlbflush(struct kvm_vcpu *vcpu)
 {
 	struct hv_enlightened_vmcs *evmcs;
@@ -564,21 +485,6 @@ static int hv_enable_direct_tlbflush(struct kvm_vcpu *vcpu)
 }
 
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
-
-static void hv_track_root_ept(struct kvm_vcpu *vcpu, hpa_t root_ept)
-{
-#if IS_ENABLED(CONFIG_HYPERV)
-	struct kvm_vmx *kvm_vmx = to_kvm_vmx(vcpu->kvm);
-
-	if (kvm_x86_ops.tlb_remote_flush == hv_remote_flush_tlb) {
-		spin_lock(&kvm_vmx->hv_root_ept_lock);
-		to_vmx(vcpu)->hv_root_ept = root_ept;
-		if (root_ept != kvm_vmx->hv_root_ept)
-			kvm_vmx->hv_root_ept = INVALID_PAGE;
-		spin_unlock(&kvm_vmx->hv_root_ept_lock);
-	}
-#endif
-}
 
 /*
  * Comment's format: document - errata name - stepping - processor name.
@@ -3184,7 +3090,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 		eptp = construct_eptp(vcpu, root_hpa, root_level);
 		vmcs_write64(EPT_POINTER, eptp);
 
-		hv_track_root_ept(vcpu, root_hpa);
+		hv_track_root_tdp(vcpu, root_hpa);
 
 		if (!enable_unrestricted_guest && !is_paging(vcpu))
 			guest_cr3 = to_kvm_vmx(kvm)->ept_identity_map_addr;
@@ -6966,9 +6872,6 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	vmx->pi_desc.nv = POSTED_INTR_VECTOR;
 	vmx->pi_desc.sn = 1;
 
-#if IS_ENABLED(CONFIG_HYPERV)
-	vmx->hv_root_ept = INVALID_PAGE;
-#endif
 	return 0;
 
 free_vmcs:
@@ -6985,10 +6888,6 @@ free_vpid:
 
 static int vmx_vm_init(struct kvm *kvm)
 {
-#if IS_ENABLED(CONFIG_HYPERV)
-	spin_lock_init(&to_kvm_vmx(kvm)->hv_root_ept_lock);
-#endif
-
 	if (!ple_gap)
 		kvm->arch.pause_in_guest = true;
 

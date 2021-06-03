@@ -334,10 +334,6 @@ struct vcpu_vmx {
 	/* SGX Launch Control public key hash */
 	u64 msr_ia32_sgxlepubkeyhash[4];
 
-#if IS_ENABLED(CONFIG_HYPERV)
-	u64 hv_root_ept;
-#endif
-
 	struct pt_desc pt_desc;
 	struct lbr_desc lbr_desc;
 
@@ -355,11 +351,6 @@ struct kvm_vmx {
 	unsigned int tss_addr;
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
-
-#if IS_ENABLED(CONFIG_HYPERV)
-	hpa_t hv_root_ept;
-	spinlock_t hv_root_ept_lock;
-#endif
 };
 
 bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
