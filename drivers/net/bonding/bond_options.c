@@ -705,7 +705,7 @@ out:
 int __bond_opt_set_notify(struct bonding *bond,
 			  unsigned int option, struct bond_opt_value *val)
 {
-	int ret = -ENOENT;
+	int ret;
 
 	ASSERT_RTNL();
 
