@@ -4683,10 +4683,6 @@
 				(that will set all pages holding image data
 				during restoration read-only).
 
-	reap_mem_when_killed_by=
-			The name of a process, the kill signal from which to a process
-			make its memory reaped with oom reaper.
-
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
 	rfkill.default_state=

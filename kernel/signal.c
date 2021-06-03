@@ -46,7 +46,6 @@
 #include <linux/livepatch.h>
 #include <linux/cgroup.h>
 #include <linux/audit.h>
-#include <linux/oom.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -66,18 +65,6 @@
 static struct kmem_cache *sigqueue_cachep;
 
 int print_fatal_signals __read_mostly;
-
-static char reaper_comm[TASK_COMM_LEN];
-
-static __init int setup_mem_reap(char *str)
-{
-	if (!str)
-		return 0;
-	strlcpy(reaper_comm, str, TASK_COMM_LEN);
-
-	return 1;
-}
-__setup("reap_mem_when_killed_by=", setup_mem_reap);
 
 static void __user *sig_handler(struct task_struct *t, int sig)
 {
@@ -1426,12 +1413,8 @@ int group_send_sig_info(int sig, struct kernel_siginfo *info,
 	ret = check_kill_permission(sig, info, p);
 	rcu_read_unlock();
 
-	if (!ret && sig) {
+	if (!ret && sig)
 		ret = do_send_sig_info(sig, info, p, type);
-		if (!ret && sig == SIGKILL &&
-			!strcmp(current->comm, reaper_comm))
-			add_to_oom_reaper(p);
-	}
 
 	return ret;
 }
