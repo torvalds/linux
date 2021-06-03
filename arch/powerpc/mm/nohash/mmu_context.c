@@ -264,6 +264,33 @@ static void context_check_map(void)
 static void context_check_map(void) { }
 #endif
 
+static void set_context(unsigned long id, pgd_t *pgd)
+{
+	if (IS_ENABLED(CONFIG_PPC_8xx)) {
+		s16 offset = (s16)(__pa(swapper_pg_dir));
+
+		/*
+		 * Register M_TWB will contain base address of level 1 table minus the
+		 * lower part of the kernel PGDIR base address, so that all accesses to
+		 * level 1 table are done relative to lower part of kernel PGDIR base
+		 * address.
+		 */
+		mtspr(SPRN_M_TWB, __pa(pgd) - offset);
+
+		/* Update context */
+		mtspr(SPRN_M_CASID, id - 1);
+
+		/* sync */
+		mb();
+	} else {
+		if (IS_ENABLED(CONFIG_40x))
+			mb();	/* sync */
+
+		mtspr(SPRN_PID, id);
+		isync();
+	}
+}
+
 void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {

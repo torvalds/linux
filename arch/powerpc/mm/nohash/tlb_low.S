@@ -360,11 +360,6 @@ _GLOBAL(_tlbivax_bcast)
 	sync
 	wrtee	r10
 	blr
-
-_GLOBAL(set_context)
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
-	blr
 #else
 #error Unsupported processor type !
 #endif

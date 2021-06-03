@@ -788,11 +788,6 @@ _GLOBAL(__fixup_440A_mcheck)
 	sync
 	blr
 
-_GLOBAL(set_context)
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
-	blr
-
 /*
  * Init CPU state. This is called at boot time or for secondary CPUs
  * to setup initial TLB entries, setup IVORs, etc...

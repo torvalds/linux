@@ -985,11 +985,6 @@ _GLOBAL(abort)
 	mtspr	SPRN_DBCR0,r13
 	isync
 
-_GLOBAL(set_context)
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
-	blr
-
 #ifdef CONFIG_SMP
 /* When we get here, r24 needs to hold the CPU # */
 	.globl __secondary_start
