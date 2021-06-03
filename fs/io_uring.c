@@ -8228,6 +8228,7 @@ static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
 {
 	int i, ret;
 
+	imu->acct_pages = 0;
 	for (i = 0; i < nr_pages; i++) {
 		if (!PageCompound(pages[i])) {
 			imu->acct_pages++;
