@@ -70,7 +70,7 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 
 	_enter("%pD,%li,%llx,%zx/%llx",
 	       file, file_inode(file)->i_ino, start_pos, len,
-	       i_size_read(file->f_inode));
+	       i_size_read(file_inode(file)));
 
 	/* If the caller asked us to seek for data before doing the read, then
 	 * we should do that now.  If we find a gap, we fill it with zeros.
@@ -194,7 +194,7 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 
 	_enter("%pD,%li,%llx,%zx/%llx",
 	       file, file_inode(file)->i_ino, start_pos, len,
-	       i_size_read(file->f_inode));
+	       i_size_read(file_inode(file)));
 
 	ki = kzalloc(sizeof(struct cachefiles_kiocb), GFP_KERNEL);
 	if (!ki)
