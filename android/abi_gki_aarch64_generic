@@ -263,6 +263,7 @@
   crypto_alloc_aead
   crypto_alloc_base
   crypto_alloc_shash
+  crypto_alloc_sync_skcipher
   crypto_comp_compress
   crypto_comp_decompress
   crypto_destroy_tfm
@@ -271,6 +272,8 @@
   crypto_shash_digest
   crypto_shash_finup
   crypto_shash_setkey
+  crypto_skcipher_encrypt
+  crypto_skcipher_setkey
   crypto_unregister_alg
   crypto_unregister_scomp
   csum_ipv6_magic
@@ -690,6 +693,7 @@
   drm_rotation_simplify
   drm_self_refresh_helper_alter_state
   drm_send_event
+  drm_send_event_locked
   drm_universal_plane_init
   drm_vblank_init
   drm_writeback_connector_init
@@ -1383,6 +1387,7 @@
   printk_deferred
   proc_create
   proc_create_data
+  proc_create_single_data
   proc_dointvec
   proc_dostring
   proc_douintvec_minmax
@@ -1763,6 +1768,7 @@
   synchronize_net
   synchronize_rcu
   syscon_regmap_lookup_by_phandle
+  sysctl_sched_latency
   sysfs_add_file_to_group
   sysfs_create_file_ns
   sysfs_create_files
@@ -1829,6 +1835,7 @@
   trace_event_reg
   trace_handle_return
   __traceiter_android_rvh_cgroup_force_kthread_migration
+  __traceiter_android_rvh_check_preempt_wakeup
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_find_energy_efficient_cpu
@@ -1860,6 +1867,7 @@
   __traceiter_android_vh_typec_tcpci_override_toggling
   __traceiter_android_vh_typec_tcpm_adj_current_limit
   __traceiter_android_vh_typec_tcpm_get_timer
+  __traceiter_android_vh_typec_tcpm_log
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_fill_prdt
@@ -1891,6 +1899,7 @@
   __traceiter_suspend_resume
   trace_output_call
   __tracepoint_android_rvh_cgroup_force_kthread_migration
+  __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_find_energy_efficient_cpu
@@ -1922,6 +1931,7 @@
   __tracepoint_android_vh_typec_tcpci_override_toggling
   __tracepoint_android_vh_typec_tcpm_adj_current_limit
   __tracepoint_android_vh_typec_tcpm_get_timer
+  __tracepoint_android_vh_typec_tcpm_log
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_fill_prdt
@@ -1956,6 +1966,7 @@
   trace_print_array_seq
   trace_print_bitmask_seq
   trace_print_flags_seq
+  trace_print_hex_seq
   trace_print_symbols_seq
   trace_raw_output_prep
   trace_seq_printf
@@ -2137,6 +2148,7 @@
   vm_map_pages
   vm_map_ram
   vm_unmap_ram
+  vprintk
   vring_del_virtqueue
   vring_interrupt
   vring_new_virtqueue
