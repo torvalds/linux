@@ -37,7 +37,7 @@
 #define VCHIQ_PORT_FREE                0x1000
 #define VCHIQ_PORT_IS_VALID(port)      (port < VCHIQ_PORT_FREE)
 #define VCHIQ_MAKE_MSG(type, srcport, dstport) \
-	((type<<24) | (srcport<<12) | (dstport<<0))
+	((type << 24) | (srcport << 12) | (dstport << 0))
 #define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)msgid >> 24)
 #define VCHIQ_MSG_SRCPORT(msgid) \
 	(unsigned short)(((unsigned int)msgid >> 12) & 0xfff)
@@ -2210,7 +2210,7 @@ vchiq_init_slots(void *mem_base, int mem_size)
 		(int)((VCHIQ_SLOT_SIZE - (long)mem_base) & VCHIQ_SLOT_MASK);
 	struct vchiq_slot_zero *slot_zero =
 		(struct vchiq_slot_zero *)(mem_base + mem_align);
-	int num_slots = (mem_size - mem_align)/VCHIQ_SLOT_SIZE;
+	int num_slots = (mem_size - mem_align) / VCHIQ_SLOT_SIZE;
 	int first_data_slot = VCHIQ_SLOT_ZERO_SLOTS;
 
 	check_sizes();
@@ -2237,9 +2237,9 @@ vchiq_init_slots(void *mem_base, int mem_size)
 
 	slot_zero->master.slot_sync = first_data_slot;
 	slot_zero->master.slot_first = first_data_slot + 1;
-	slot_zero->master.slot_last = first_data_slot + (num_slots/2) - 1;
-	slot_zero->slave.slot_sync = first_data_slot + (num_slots/2);
-	slot_zero->slave.slot_first = first_data_slot + (num_slots/2) + 1;
+	slot_zero->master.slot_last = first_data_slot + (num_slots / 2) - 1;
+	slot_zero->slave.slot_sync = first_data_slot + (num_slots / 2);
+	slot_zero->slave.slot_first = first_data_slot + (num_slots / 2) + 1;
 	slot_zero->slave.slot_last = first_data_slot + num_slots - 1;
 
 	return slot_zero;
@@ -2309,7 +2309,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 		complete(&state->slot_available_event);
 	}
 
-	state->default_slot_quota = state->slot_queue_available/2;
+	state->default_slot_quota = state->slot_queue_available / 2;
 	state->default_message_quota =
 		min((unsigned short)(state->default_slot_quota * 256),
 		(unsigned short)~0);
