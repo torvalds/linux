@@ -564,6 +564,7 @@ static inline bool is_hint_crossing_range(enum hl_va_range_type range_type,
  * @hint_addr: hint for requested address by the user.
  * @va_block_align: required alignment of the virtual block start address.
  * @range_type: va range type (host, dram)
+ * @flags: additional memory flags, currently only uses HL_MEM_FORCE_HINT
  *
  * This function does the following:
  * - Iterate on the virtual block list to find a suitable virtual block for the
@@ -574,7 +575,8 @@ static inline bool is_hint_crossing_range(enum hl_va_range_type range_type,
 static u64 get_va_block(struct hl_device *hdev,
 				struct hl_va_range *va_range,
 				u64 size, u64 hint_addr, u32 va_block_align,
-				enum hl_va_range_type range_type)
+				enum hl_va_range_type range_type,
+				u32 flags)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -584,6 +586,7 @@ static u64 get_va_block(struct hl_device *hdev,
 	bool add_prev = false;
 	bool is_align_pow_2  = is_power_of_2(va_range->page_size);
 	bool is_hint_dram_addr = hl_is_dram_va(hdev, hint_addr);
+	bool force_hint = flags & HL_MEM_FORCE_HINT;
 
 	if (is_align_pow_2)
 		align_mask = ~((u64)va_block_align - 1);
@@ -602,6 +605,15 @@ static u64 get_va_block(struct hl_device *hdev,
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
 		(!is_align_pow_2 && is_hint_dram_addr &&
 			do_div(tmp_hint_addr, va_range->page_size))) {
+
+		if (force_hint) {
+			/* Hint must be repected, so here we just fail.
+			 */
+			dev_err(hdev->dev,
+				"Hint address 0x%llx is not page aligned - cannot be respected\n",
+				hint_addr);
+			return 0;
+		}
 
 		dev_dbg(hdev->dev,
 			"Hint address 0x%llx will be ignored because it is not aligned\n",
@@ -660,6 +672,17 @@ static u64 get_va_block(struct hl_device *hdev,
 		goto out;
 	}
 
+	if (force_hint && reserved_valid_start != hint_addr) {
+		/* Hint address must be respected. If we are here - this means
+		 * we could not respect it.
+		 */
+		dev_err(hdev->dev,
+			"Hint address 0x%llx could not be respected\n",
+			hint_addr);
+		reserved_valid_start = 0;
+		goto out;
+	}
+
 	/*
 	 * Check if there is some leftover range due to reserving the new
 	 * va block, then return it to the main virtual addresses list.
@@ -712,7 +735,8 @@ u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 		enum hl_va_range_type type, u32 size, u32 alignment)
 {
 	return get_va_block(hdev, ctx->va_range[type], size, 0,
-			max(alignment, ctx->va_range[type]->page_size), type);
+			max(alignment, ctx->va_range[type]->page_size),
+			type, 0);
 }
 
 /**
@@ -1145,9 +1169,24 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto hnode_err;
 	}
 
+	if (hint_addr && phys_pg_pack->offset) {
+		if (args->flags & HL_MEM_FORCE_HINT) {
+			/* If hint must be repected, since we can't - just fail.
+			 */
+			dev_err(hdev->dev,
+				"Hint address 0x%llx cannot be respected because source memory is not aligned 0x%x\n",
+				hint_addr, phys_pg_pack->offset);
+			rc = -EINVAL;
+			goto va_block_err;
+		}
+		dev_dbg(hdev->dev,
+			"Hint address 0x%llx will be ignored because source memory is not aligned 0x%x\n",
+			hint_addr, phys_pg_pack->offset);
+	}
+
 	ret_vaddr = get_va_block(hdev, va_range, phys_pg_pack->total_size,
 					hint_addr, va_block_align,
-					va_range_type);
+					va_range_type, args->flags);
 	if (!ret_vaddr) {
 		dev_err(hdev->dev, "no available va block for handle %u\n",
 				handle);

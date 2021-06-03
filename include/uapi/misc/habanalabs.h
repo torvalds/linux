@@ -813,6 +813,7 @@ union hl_wait_cs_args {
 #define HL_MEM_CONTIGUOUS	0x1
 #define HL_MEM_SHARED		0x2
 #define HL_MEM_USERPTR		0x4
+#define HL_MEM_FORCE_HINT	0x8
 
 struct hl_mem_in {
 	union {
