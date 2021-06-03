@@ -355,7 +355,7 @@ static int goya_mmu_set_dram_default_page(struct hl_device *hdev);
 static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev);
 static void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
 
-int goya_get_fixed_properties(struct hl_device *hdev)
+int goya_set_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i;
@@ -587,7 +587,7 @@ static int goya_early_init(struct hl_device *hdev)
 	u32 fw_boot_status, val;
 	int rc;
 
-	rc = goya_get_fixed_properties(hdev);
+	rc = goya_set_fixed_properties(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get fixed properties\n");
 		return rc;

@@ -410,7 +410,7 @@ static inline void set_default_power_values(struct hl_device *hdev)
 	}
 }
 
-static int gaudi_get_fixed_properties(struct hl_device *hdev)
+static int gaudi_set_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u32 num_sync_stream_queues = 0;
@@ -655,9 +655,9 @@ static int gaudi_early_init(struct hl_device *hdev)
 	u32 fw_boot_status;
 	int rc;
 
-	rc = gaudi_get_fixed_properties(hdev);
+	rc = gaudi_set_fixed_properties(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to get fixed properties\n");
+		dev_err(hdev->dev, "Failed setting fixed properties\n");
 		return rc;
 	}
 

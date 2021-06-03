@@ -1395,7 +1395,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	dev_info(hdev->dev, "Found %s device with %lluGB DRAM\n",
 		hdev->asic_name,
-		hdev->asic_prop.dram_size / 1024 / 1024 / 1024);
+		hdev->asic_prop.dram_size / SZ_1G);
 
 	rc = hl_vm_init(hdev);
 	if (rc) {
