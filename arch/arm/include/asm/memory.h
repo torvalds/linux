@@ -20,8 +20,14 @@
 #endif
 #include <asm/kasan_def.h>
 
-/* PAGE_OFFSET - the virtual address of the start of the kernel image */
+/*
+ * PAGE_OFFSET: the virtual address of the start of lowmem, memory above
+ *   the virtual address range for userspace.
+ * KERNEL_OFFSET: the virtual address of the start of the kernel image.
+ *   we may further offset this with TEXT_OFFSET in practice.
+ */
 #define PAGE_OFFSET		UL(CONFIG_PAGE_OFFSET)
+#define KERNEL_OFFSET		(PAGE_OFFSET)
 
 #ifdef CONFIG_MMU
 
