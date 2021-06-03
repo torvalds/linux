@@ -21,19 +21,6 @@
  *     also clear mm->cpu_vm_mask bits when processes are migrated
  */
 
-//#define DEBUG_HARDER
-
-/* We don't use DEBUG because it tends to be compiled in always nowadays
- * and this would generate way too much output
- */
-#ifdef DEBUG_HARDER
-#define pr_hard(args...)	printk(KERN_DEBUG args)
-#define pr_hardcont(args...)	printk(KERN_CONT args)
-#else
-#define pr_hard(args...)	do { } while(0)
-#define pr_hardcont(args...)	do { } while(0)
-#endif
-
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -127,7 +114,6 @@ static unsigned int steal_context_smp(unsigned int id)
 				id = FIRST_CONTEXT;
 			continue;
 		}
-		pr_hardcont(" | steal %d from 0x%p", id, mm);
 
 		/* Mark this mm has having no context anymore */
 		mm->context.id = MMU_NO_CONTEXT;
@@ -169,8 +155,6 @@ static unsigned int steal_all_contexts(void)
 		/* Pick up the victim mm */
 		mm = context_mm[id];
 
-		pr_hardcont(" | steal %d from 0x%p", id, mm);
-
 		/* Mark this mm as having no context anymore */
 		mm->context.id = MMU_NO_CONTEXT;
 		if (id != FIRST_CONTEXT) {
@@ -201,8 +185,6 @@ static unsigned int steal_context_up(unsigned int id)
 
 	/* Pick up the victim mm */
 	mm = context_mm[id];
-
-	pr_hardcont(" | steal %d from 0x%p", id, mm);
 
 	/* Flush the TLB for that context */
 	local_flush_tlb_mm(mm);
@@ -254,14 +236,10 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	/* No lockless fast path .. yet */
 	raw_spin_lock(&context_lock);
 
-	pr_hard("[%d] activating context for mm @%p, active=%d, id=%d",
-		cpu, next, next->context.active, next->context.id);
-
 	if (IS_ENABLED(CONFIG_SMP)) {
 		/* Mark us active and the previous one not anymore */
 		next->context.active++;
 		if (prev) {
-			pr_hardcont(" (old=0x%p a=%d)", prev, prev->context.active);
 			WARN_ON(prev->context.active < 1);
 			prev->context.active--;
 		}
@@ -306,7 +284,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	next_context = id + 1;
 	context_mm[id] = next;
 	next->context.id = id;
-	pr_hardcont(" | new id=%d,nrf=%d", id, nr_free_contexts);
 
  ctxt_ok:
 
@@ -314,10 +291,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	 * local TLB for it and unmark it before we use it
 	 */
 	if (IS_ENABLED(CONFIG_SMP) && test_bit(id, stale_map[cpu])) {
-		pr_hardcont(" | stale flush %d [%d..%d]",
-			    id, cpu_first_thread_sibling(cpu),
-			    cpu_last_thread_sibling(cpu));
-
 		local_flush_tlb_mm(next);
 
 		/* XXX This clear should ultimately be part of local_flush_tlb_mm */
@@ -329,7 +302,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	}
 
 	/* Flick the MMU and release lock */
-	pr_hardcont(" -> %d\n", id);
 	if (IS_ENABLED(CONFIG_BDI_SWITCH))
 		abatron_pteptrs[1] = next->pgd;
 	set_context(id, next->pgd);
@@ -341,8 +313,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
  */
 int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
-	pr_hard("initing context for mm @%p\n", mm);
-
 	/*
 	 * We have MMU_NO_CONTEXT set to be ~0. Hence check
 	 * explicitly against context.id == 0. This ensures that we properly
@@ -390,7 +360,6 @@ static int mmu_ctx_cpu_prepare(unsigned int cpu)
 	if (cpu == boot_cpuid)
 		return 0;
 
-	pr_devel("MMU: Allocating stale context map for CPU %d\n", cpu);
 	stale_map[cpu] = kzalloc(CTX_MAP_SIZE, GFP_KERNEL);
 	return 0;
 }
@@ -401,7 +370,6 @@ static int mmu_ctx_cpu_dead(unsigned int cpu)
 	if (cpu == boot_cpuid)
 		return 0;
 
-	pr_devel("MMU: Freeing stale context map for CPU %d\n", cpu);
 	kfree(stale_map[cpu]);
 	stale_map[cpu] = NULL;
 
