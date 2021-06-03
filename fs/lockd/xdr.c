@@ -140,36 +140,6 @@ nlm_encode_oh(__be32 *p, struct xdr_netobj *oh)
 	return xdr_encode_netobj(p, oh);
 }
 
-static __be32 *
-nlm_decode_lock(__be32 *p, struct nlm_lock *lock)
-{
-	struct file_lock	*fl = &lock->fl;
-	s32			start, len, end;
-
-	if (!(p = xdr_decode_string_inplace(p, &lock->caller,
-					    &lock->len,
-					    NLM_MAXSTRLEN))
-	 || !(p = nlm_decode_fh(p, &lock->fh))
-	 || !(p = nlm_decode_oh(p, &lock->oh)))
-		return NULL;
-	lock->svid  = ntohl(*p++);
-
-	locks_init_lock(fl);
-	fl->fl_flags = FL_POSIX;
-	fl->fl_type  = F_RDLCK;		/* as good as anything else */
-	start = ntohl(*p++);
-	len = ntohl(*p++);
-	end = start + len - 1;
-
-	fl->fl_start = s32_to_loff_t(start);
-
-	if (len == 0 || end < 0)
-		fl->fl_end = OFFSET_MAX;
-	else
-		fl->fl_end = s32_to_loff_t(end);
-	return p;
-}
-
 static bool
 svcxdr_decode_lock(struct xdr_stream *xdr, struct nlm_lock *lock)
 {
@@ -315,6 +285,21 @@ nlmsvc_decode_cancargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
+nlmsvc_decode_unlockargs(struct svc_rqst *rqstp, __be32 *p)
+{
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	struct nlm_args *argp = rqstp->rq_argp;
+
+	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
+		return 0;
+	if (!svcxdr_decode_lock(xdr, &argp->lock))
+		return 0;
+	argp->lock.fl.fl_type = F_UNLCK;
+
+	return 1;
+}
+
+int
 nlmsvc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -322,18 +307,6 @@ nlmsvc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = nlm_encode_testres(p, resp)))
 		return 0;
 	return xdr_ressize_check(rqstp, p);
-}
-
-int
-nlmsvc_decode_unlockargs(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nlm_args *argp = rqstp->rq_argp;
-
-	if (!(p = nlm_decode_cookie(p, &argp->cookie))
-	 || !(p = nlm_decode_lock(p, &argp->lock)))
-		return 0;
-	argp->lock.fl.fl_type = F_UNLCK;
-	return xdr_argsize_check(rqstp, p);
 }
 
 int
