@@ -7379,9 +7379,6 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 			device, ch, hbm_ecc_data->first_addr, type,
 			hbm_ecc_data->sec_cont_cnt, hbm_ecc_data->sec_cnt,
 			hbm_ecc_data->dec_cnt);
-
-		err = 1;
-
 		return 0;
 	}
 
