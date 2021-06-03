@@ -1871,18 +1871,6 @@ int btrfs_transaction_blocked(struct btrfs_fs_info *info)
 }
 
 /*
- * wait for the current transaction commit to start and block subsequent
- * transaction joins
- */
-static void wait_current_trans_commit_start(struct btrfs_fs_info *fs_info,
-					    struct btrfs_transaction *trans)
-{
-	wait_event(fs_info->transaction_blocked_wait,
-		   trans->state >= TRANS_STATE_COMMIT_START ||
-		   TRANS_ABORTED(trans));
-}
-
-/*
  * commit transactions asynchronously. once btrfs_commit_transaction_async
  * returns, any subsequent transaction will not be allowed to join.
  */
@@ -1941,7 +1929,13 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans)
 		__sb_writers_release(fs_info->sb, SB_FREEZE_FS);
 
 	schedule_work(&ac->work);
-	wait_current_trans_commit_start(fs_info, cur_trans);
+	/*
+	 * Wait for the current transaction commit to start and block
+	 * subsequent transaction joins
+	 */
+	wait_event(fs_info->transaction_blocked_wait,
+		   cur_trans->state >= TRANS_STATE_COMMIT_START ||
+		   TRANS_ABORTED(cur_trans));
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 
