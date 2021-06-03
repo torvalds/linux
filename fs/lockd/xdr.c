@@ -268,6 +268,32 @@ nlmsvc_decode_testargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
+nlmsvc_decode_lockargs(struct svc_rqst *rqstp, __be32 *p)
+{
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	struct nlm_args *argp = rqstp->rq_argp;
+	u32 exclusive;
+
+	if (!svcxdr_decode_cookie(xdr, &argp->cookie))
+		return 0;
+	if (xdr_stream_decode_bool(xdr, &argp->block) < 0)
+		return 0;
+	if (xdr_stream_decode_bool(xdr, &exclusive) < 0)
+		return 0;
+	if (!svcxdr_decode_lock(xdr, &argp->lock))
+		return 0;
+	if (exclusive)
+		argp->lock.fl.fl_type = F_WRLCK;
+	if (xdr_stream_decode_bool(xdr, &argp->reclaim) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &argp->state) < 0)
+		return 0;
+	argp->monitor = 1;		/* monitor client by default */
+
+	return 1;
+}
+
+int
 nlmsvc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_res *resp = rqstp->rq_resp;
@@ -275,27 +301,6 @@ nlmsvc_encode_testres(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = nlm_encode_testres(p, resp)))
 		return 0;
 	return xdr_ressize_check(rqstp, p);
-}
-
-int
-nlmsvc_decode_lockargs(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nlm_args *argp = rqstp->rq_argp;
-	u32	exclusive;
-
-	if (!(p = nlm_decode_cookie(p, &argp->cookie)))
-		return 0;
-	argp->block  = ntohl(*p++);
-	exclusive    = ntohl(*p++);
-	if (!(p = nlm_decode_lock(p, &argp->lock)))
-		return 0;
-	if (exclusive)
-		argp->lock.fl.fl_type = F_WRLCK;
-	argp->reclaim = ntohl(*p++);
-	argp->state   = ntohl(*p++);
-	argp->monitor = 1;		/* monitor client by default */
-
-	return xdr_argsize_check(rqstp, p);
 }
 
 int
