@@ -31,6 +31,11 @@ struct hv_enlightenments {
 	u64 reserved;
 } __packed;
 
+/*
+ * Hyper-V uses the software reserved clean bit in VMCB
+ */
+#define VMCB_HV_NESTED_ENLIGHTENMENTS VMCB_SW
+
 static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
 {
 	struct hv_enlightenments *hve =
@@ -52,6 +57,23 @@ static inline void svm_hv_hardware_setup(void)
 	}
 }
 
+static inline void svm_hv_vmcb_dirty_nested_enlightenments(
+		struct kvm_vcpu *vcpu)
+{
+	struct vmcb *vmcb = to_svm(vcpu)->vmcb;
+	struct hv_enlightenments *hve =
+		(struct hv_enlightenments *)vmcb->control.reserved_sw;
+
+	/*
+	 * vmcb can be NULL if called during early vcpu init.
+	 * And its okay not to mark vmcb dirty during vcpu init
+	 * as we mark it dirty unconditionally towards end of vcpu
+	 * init phase.
+	 */
+	if (vmcb && vmcb_is_clean(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS) &&
+	    hve->hv_enlightenments_control.msr_bitmap)
+		vmcb_mark_dirty(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS);
+}
 #else
 
 static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
@@ -59,6 +81,11 @@ static inline void svm_hv_init_vmcb(struct vmcb *vmcb)
 }
 
 static inline void svm_hv_hardware_setup(void)
+{
+}
+
+static inline void svm_hv_vmcb_dirty_nested_enlightenments(
+		struct kvm_vcpu *vcpu)
 {
 }
 #endif /* CONFIG_HYPERV */
