@@ -71,8 +71,8 @@ struct guc_ct_buffer_desc {
 	u32 head;		/* offset updated by GuC*/
 	u32 tail;		/* offset updated by owner */
 	u32 is_in_error;	/* error indicator */
-	u32 fence;		/* fence updated by GuC */
-	u32 status;		/* status updated by GuC */
+	u32 reserved1;
+	u32 reserved2;
 	u32 owner;		/* id of the channel owner */
 	u32 owner_sub_id;	/* owner-defined field for extra tracking */
 	u32 reserved[5];
