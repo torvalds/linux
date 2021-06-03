@@ -93,7 +93,10 @@
 #define FC_LOCAL_PTP_FID_LO   0x010101
 #define FC_LOCAL_PTP_FID_HI   0x010102
 
-#define	DNS_DELAY	      3 /* Discovery delay after RSCN (in seconds)*/
+#define	DNS_DELAY		3 /* Discovery delay after RSCN (in seconds)*/
+#define	MAX_CT_PAYLOAD		2048
+#define	DISCOVERED_PORTS	4
+#define	NUMBER_OF_PORTS		1
 
 static void fc_lport_error(struct fc_lport *, struct fc_frame *);
 
@@ -1859,7 +1862,26 @@ int fc_lport_init(struct fc_lport *lport)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_1GBIT;
 	if (lport->link_supported_speeds & FC_PORTSPEED_10GBIT)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_10GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_40GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_40GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_100GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_100GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_25GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_25GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_50GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_50GBIT;
+	if (lport->link_supported_speeds & FC_PORTSPEED_100GBIT)
+		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_100GBIT;
+
 	fc_fc4_add_lport(lport);
+
+	fc_host_num_discovered_ports(lport->host) = DISCOVERED_PORTS;
+	fc_host_port_state(lport->host) = FC_PORTSTATE_ONLINE;
+	fc_host_max_ct_payload(lport->host) = MAX_CT_PAYLOAD;
+	fc_host_num_ports(lport->host) = NUMBER_OF_PORTS;
+	fc_host_bootbios_state(lport->host) = 0X00000000;
+	snprintf(fc_host_bootbios_version(lport->host),
+		FC_SYMBOLIC_NAME_SIZE, "%s", "Unknown");
 
 	return 0;
 }
