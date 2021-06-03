@@ -6,6 +6,7 @@
 #ifndef _INTEL_GUC_CT_H_
 #define _INTEL_GUC_CT_H_
 
+#include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
@@ -54,6 +55,8 @@ struct intel_guc_ct {
 		struct intel_guc_ct_buffer send;
 		struct intel_guc_ct_buffer recv;
 	} ctbs;
+
+	struct tasklet_struct receive_tasklet;
 
 	struct {
 		u32 last_fence; /* last fence used to send request */

@@ -81,6 +81,7 @@ enum { CTB_SEND = 0, CTB_RECV = 1 };
 
 enum { CTB_OWNER_HOST = 0 };
 
+static void ct_receive_tasklet_func(struct tasklet_struct *t);
 static void ct_incoming_request_worker_func(struct work_struct *w);
 
 /**
@@ -95,6 +96,7 @@ void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 	INIT_LIST_HEAD(&ct->requests.pending);
 	INIT_LIST_HEAD(&ct->requests.incoming);
 	INIT_WORK(&ct->requests.worker, ct_incoming_request_worker_func);
+	tasklet_setup(&ct->receive_tasklet, ct_receive_tasklet_func);
 }
 
 static inline const char *guc_ct_buffer_type_to_str(u32 type)
@@ -244,6 +246,7 @@ void intel_guc_ct_fini(struct intel_guc_ct *ct)
 {
 	GEM_BUG_ON(ct->enabled);
 
+	tasklet_kill(&ct->receive_tasklet);
 	i915_vma_unpin_and_release(&ct->vma, I915_VMA_RELEASE_MAP);
 	memset(ct, 0, sizeof(*ct));
 }
@@ -651,7 +654,7 @@ static int ct_read(struct intel_guc_ct *ct, u32 *data)
 	CT_DEBUG(ct, "received %*ph\n", 4 * len, data);
 
 	desc->head = head * 4;
-	return 0;
+	return available - len;
 
 corrupted:
 	CT_ERROR(ct, "Corrupted descriptor addr=%#x head=%u tail=%u size=%u\n",
@@ -687,10 +690,10 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 	u32 status;
 	u32 datalen;
 	struct ct_request *req;
+	unsigned long flags;
 	bool found = false;
 
 	GEM_BUG_ON(!ct_header_is_response(header));
-	GEM_BUG_ON(!in_irq());
 
 	/* Response payload shall at least include fence and status */
 	if (unlikely(len < 2)) {
@@ -710,7 +713,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 
 	CT_DEBUG(ct, "response fence %u status %#x\n", fence, status);
 
-	spin_lock(&ct->requests.lock);
+	spin_lock_irqsave(&ct->requests.lock, flags);
 	list_for_each_entry(req, &ct->requests.pending, link) {
 		if (unlikely(fence != req->fence)) {
 			CT_DEBUG(ct, "request %u awaits response\n",
@@ -729,7 +732,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 		found = true;
 		break;
 	}
-	spin_unlock(&ct->requests.lock);
+	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
 	if (!found)
 		CT_ERROR(ct, "Unsolicited response %*ph\n", msgsize, msg);
@@ -843,31 +846,55 @@ static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
 	return 0;
 }
 
+static int ct_receive(struct intel_guc_ct *ct)
+{
+	u32 msg[GUC_CT_MSG_LEN_MASK + 1]; /* one extra dw for the header */
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&ct->ctbs.recv.lock, flags);
+	ret = ct_read(ct, msg);
+	spin_unlock_irqrestore(&ct->ctbs.recv.lock, flags);
+	if (ret < 0)
+		return ret;
+
+	if (ct_header_is_response(msg[0]))
+		ct_handle_response(ct, msg);
+	else
+		ct_handle_request(ct, msg);
+
+	return ret;
+}
+
+static void ct_try_receive_message(struct intel_guc_ct *ct)
+{
+	int ret;
+
+	if (GEM_WARN_ON(!ct->enabled))
+		return;
+
+	ret = ct_receive(ct);
+	if (ret > 0)
+		tasklet_hi_schedule(&ct->receive_tasklet);
+}
+
+static void ct_receive_tasklet_func(struct tasklet_struct *t)
+{
+	struct intel_guc_ct *ct = from_tasklet(ct, t, receive_tasklet);
+
+	ct_try_receive_message(ct);
+}
+
 /*
  * When we're communicating with the GuC over CT, GuC uses events
  * to notify us about new messages being posted on the RECV buffer.
  */
 void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 {
-	u32 msg[GUC_CT_MSG_LEN_MASK + 1]; /* one extra dw for the header */
-	unsigned long flags;
-	int err = 0;
-
 	if (unlikely(!ct->enabled)) {
 		WARN(1, "Unexpected GuC event received while CT disabled!\n");
 		return;
 	}
 
-	do {
-		spin_lock_irqsave(&ct->ctbs.recv.lock, flags);
-		err = ct_read(ct, msg);
-		spin_unlock_irqrestore(&ct->ctbs.recv.lock, flags);
-		if (err)
-			break;
-
-		if (ct_header_is_response(msg[0]))
-			err = ct_handle_response(ct, msg);
-		else
-			err = ct_handle_request(ct, msg);
-	} while (!err);
+	ct_try_receive_message(ct);
 }
