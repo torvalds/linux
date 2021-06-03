@@ -1992,6 +1992,56 @@ parse_rx_slots(struct vchiq_state *state)
 	}
 }
 
+/**
+ * handle_poll() - handle service polling and other rare conditions
+ * @state:  vchiq state struct
+ *
+ * Context: Process context
+ *
+ * Return:
+ * * 0        - poll handled successful
+ * * -EAGAIN  - retry later
+ */
+static int
+handle_poll(struct vchiq_state *state)
+{
+	switch (state->conn_state) {
+	case VCHIQ_CONNSTATE_CONNECTED:
+		/* Poll the services as requested */
+		poll_services(state);
+		break;
+
+	case VCHIQ_CONNSTATE_PAUSING:
+		if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
+				  QMFLAGS_NO_MUTEX_UNLOCK) != VCHIQ_RETRY) {
+			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSE_SENT);
+		} else {
+			/* Retry later */
+			return -EAGAIN;
+		}
+		break;
+
+	case VCHIQ_CONNSTATE_RESUMING:
+		if (queue_message(state, NULL, MAKE_RESUME, NULL, NULL, 0,
+				  QMFLAGS_NO_MUTEX_LOCK) != VCHIQ_RETRY) {
+			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
+		} else {
+			/*
+			 * This should really be impossible,
+			 * since the PAUSE should have flushed
+			 * through outstanding messages.
+			 */
+			vchiq_log_error(vchiq_core_log_level,
+				"Failed to send RESUME message");
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 /* Called by the slot handler thread */
 static int
 slot_handler_func(void *v)
@@ -2010,52 +2060,14 @@ slot_handler_func(void *v)
 
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
 		if (state->poll_needed) {
-
 			state->poll_needed = 0;
 
 			/*
 			 * Handle service polling and other rare conditions here
 			 * out of the mainline code
 			 */
-			switch (state->conn_state) {
-			case VCHIQ_CONNSTATE_CONNECTED:
-				/* Poll the services as requested */
-				poll_services(state);
-				break;
-
-			case VCHIQ_CONNSTATE_PAUSING:
-				if (queue_message(state, NULL, MAKE_PAUSE,
-					NULL, NULL, 0,
-					QMFLAGS_NO_MUTEX_UNLOCK)
-				    != VCHIQ_RETRY) {
-					vchiq_set_conn_state(state,
-						VCHIQ_CONNSTATE_PAUSE_SENT);
-				} else {
-					/* Retry later */
-					state->poll_needed = 1;
-				}
-				break;
-
-			case VCHIQ_CONNSTATE_RESUMING:
-				if (queue_message(state, NULL, MAKE_RESUME,
-					NULL, NULL, 0, QMFLAGS_NO_MUTEX_LOCK)
-					!= VCHIQ_RETRY) {
-					vchiq_set_conn_state(state,
-						VCHIQ_CONNSTATE_CONNECTED);
-				} else {
-					/*
-					 * This should really be impossible,
-					 * since the PAUSE should have flushed
-					 * through outstanding messages.
-					 */
-					vchiq_log_error(vchiq_core_log_level,
-						"Failed to send RESUME message");
-				}
-				break;
-			default:
-				break;
-			}
-
+			if (handle_poll(state) == -EAGAIN)
+				state->poll_needed = 1;
 		}
 
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
