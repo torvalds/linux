@@ -7,8 +7,34 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
+#include <asm/thread_info.h>
+
+/*
+ * If we have SMCCC v1.3 and (as is likely) no SVE state in
+ * the registers then set the SMCCC hint bit to say there's no
+ * need to preserve it.  Do this by directly adjusting the SMCCC
+ * function value which is already stored in x0 ready to be called.
+ */
+SYM_FUNC_START(__arm_smccc_sve_check)
+
+	ldr_l	x16, smccc_has_sve_hint
+	cbz	x16, 2f
+
+	get_current_task x16
+	ldr	x16, [x16, #TSK_TI_FLAGS]
+	tbnz	x16, #TIF_FOREIGN_FPSTATE, 1f	// Any live FP state?
+	tbnz	x16, #TIF_SVE, 2f		// Does that state include SVE?
+
+1:	orr	x0, x0, ARM_SMCCC_1_3_SVE_HINT
+
+2:	ret
+SYM_FUNC_END(__arm_smccc_sve_check)
+EXPORT_SYMBOL(__arm_smccc_sve_check)
 
 	.macro SMCCC instr
+alternative_if ARM64_SVE
+	bl	__arm_smccc_sve_check
+alternative_else_nop_endif
 	\instr	#0
 	ldr	x4, [sp]
 	stp	x0, x1, [x4, #ARM_SMCCC_RES_X0_OFFS]
