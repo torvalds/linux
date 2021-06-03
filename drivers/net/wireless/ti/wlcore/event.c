@@ -84,6 +84,8 @@ int wlcore_event_fw_logger(struct wl1271 *wl)
 	len = min(actual_len, available_len);
 	wl12xx_copy_fwlog(wl, &buffer[start_loc], len);
 	clear_ptr = addr_ptr + start_loc + actual_len;
+	if (clear_ptr == buff_end_ptr)
+		clear_ptr = buff_start_ptr;
 
 	/* Copy any remaining part from beginning of ring buffer */
 	len = actual_len - len;
