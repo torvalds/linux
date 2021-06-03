@@ -42,6 +42,7 @@ struct mlx5_vdpa_resources {
 	u32 pdn;
 	struct mlx5_uars_page *uar;
 	void __iomem *kick_addr;
+	u64 phys_kick_addr;
 	u16 uid;
 	u32 null_mkey;
 	bool valid;

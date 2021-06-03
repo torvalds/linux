@@ -1876,8 +1876,22 @@ static void mlx5_vdpa_free(struct vdpa_device *vdev)
 
 static struct vdpa_notification_area mlx5_get_vq_notification(struct vdpa_device *vdev, u16 idx)
 {
+	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct vdpa_notification_area ret = {};
+	struct mlx5_vdpa_net *ndev;
+	phys_addr_t addr;
 
+	/* If SF BAR size is smaller than PAGE_SIZE, do not use direct
+	 * notification to avoid the risk of mapping pages that contain BAR of more
+	 * than one SF
+	 */
+	if (MLX5_CAP_GEN(mvdev->mdev, log_min_sf_size) + 12 < PAGE_SHIFT)
+		return ret;
+
+	ndev = to_mlx5_vdpa_ndev(mvdev);
+	addr = (phys_addr_t)ndev->mvdev.res.phys_kick_addr;
+	ret.addr = addr;
+	ret.size = PAGE_SIZE;
 	return ret;
 }
 

@@ -253,6 +253,7 @@ int mlx5_vdpa_alloc_resources(struct mlx5_vdpa_dev *mvdev)
 		goto err_key;
 
 	kick_addr = mdev->bar_addr + offset;
+	res->phys_kick_addr = kick_addr;
 
 	res->kick_addr = ioremap(kick_addr, PAGE_SIZE);
 	if (!res->kick_addr) {
