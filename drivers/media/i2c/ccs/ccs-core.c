@@ -2673,8 +2673,7 @@ static int ccs_get_skip_top_lines(struct v4l2_subdev *subdev, u32 *lines)
  */
 
 static ssize_t
-ccs_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
-		   char *buf)
+nvm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
@@ -2704,11 +2703,10 @@ ccs_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 	 */
 	return rval;
 }
-static DEVICE_ATTR(nvm, S_IRUGO, ccs_sysfs_nvm_read, NULL);
+static DEVICE_ATTR_RO(nvm);
 
 static ssize_t
-ccs_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
-		     char *buf)
+ident_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
@@ -2723,8 +2721,7 @@ ccs_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
 				minfo->smia_manufacturer_id, minfo->model_id,
 				minfo->revision_number) + 1;
 }
-
-static DEVICE_ATTR(ident, S_IRUGO, ccs_sysfs_ident_read, NULL);
+static DEVICE_ATTR_RO(ident);
 
 /* -----------------------------------------------------------------------------
  * V4L2 subdev core operations
