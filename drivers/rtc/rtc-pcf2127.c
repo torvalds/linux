@@ -10,7 +10,7 @@
  *
  * based on the other drivers in this same directory.
  *
- * Datasheet: http://cache.nxp.com/documents/data_sheet/PCF2127.pdf
+ * Datasheet: https://www.nxp.com/docs/en/data-sheet/PCF2127.pdf
  */
 
 #include <linux/i2c.h>
