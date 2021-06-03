@@ -162,6 +162,15 @@ config BLK_CGROUP_IOCOST
 	distributes IO capacity between different groups based on
 	their share of the overall weight distribution.
 
+config BLK_CGROUP_IOPRIO
+	bool "Cgroup I/O controller for assigning an I/O priority class"
+	depends on BLK_CGROUP
+	help
+	Enable the .prio interface for assigning an I/O priority class to
+	requests. The I/O priority class affects the order in which an I/O
+	scheduler and block devices process requests. Only some I/O schedulers
+	and some block devices support I/O priorities.
+
 config BLK_DEBUG_FS
 	bool "Block layer debugging information in debugfs"
 	default y

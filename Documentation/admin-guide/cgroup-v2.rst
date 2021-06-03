@@ -54,6 +54,7 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        5-3-3. IO Latency
          5-3-3-1. How IO Latency Throttling Works
          5-3-3-2. IO Latency Interface Files
+       5-3-4. IO Priority
      5-4. PID
        5-4-1. PID Interface Files
      5-5. Cpuset
@@ -1847,6 +1848,60 @@ IO Latency Interface Files
 		The sampling window size in milliseconds.  This is the minimum
 		duration of time between evaluation events.  Windows only elapse
 		with IO activity.  Idle periods extend the most recent window.
+
+IO Priority
+~~~~~~~~~~~
+
+A single attribute controls the behavior of the I/O priority cgroup policy,
+namely the blkio.prio.class attribute. The following values are accepted for
+that attribute:
+
+  no-change
+	Do not modify the I/O priority class.
+
+  none-to-rt
+	For requests that do not have an I/O priority class (NONE),
+	change the I/O priority class into RT. Do not modify
+	the I/O priority class of other requests.
+
+  restrict-to-be
+	For requests that do not have an I/O priority class or that have I/O
+	priority class RT, change it into BE. Do not modify the I/O priority
+	class of requests that have priority class IDLE.
+
+  idle
+	Change the I/O priority class of all requests into IDLE, the lowest
+	I/O priority class.
+
+The following numerical values are associated with the I/O priority policies:
+
++-------------+---+
+| no-change   | 0 |
++-------------+---+
+| none-to-rt  | 1 |
++-------------+---+
+| rt-to-be    | 2 |
++-------------+---+
+| all-to-idle | 3 |
++-------------+---+
+
+The numerical value that corresponds to each I/O priority class is as follows:
+
++-------------------------------+---+
+| IOPRIO_CLASS_NONE             | 0 |
++-------------------------------+---+
+| IOPRIO_CLASS_RT (real-time)   | 1 |
++-------------------------------+---+
+| IOPRIO_CLASS_BE (best effort) | 2 |
++-------------------------------+---+
+| IOPRIO_CLASS_IDLE             | 3 |
++-------------------------------+---+
+
+The algorithm to set the I/O priority class for a request is as follows:
+
+- Translate the I/O priority class policy into a number.
+- Change the request I/O priority class into the maximum of the I/O priority
+  class policy number and the numerical I/O priority class.
 
 PID
 ---
