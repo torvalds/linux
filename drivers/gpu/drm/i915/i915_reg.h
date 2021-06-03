@@ -10981,6 +10981,8 @@ enum skl_power_gate {
 #define BXT_DE_PLL_ENABLE		_MMIO(0x46070)
 #define   BXT_DE_PLL_PLL_ENABLE		(1 << 31)
 #define   BXT_DE_PLL_LOCK		(1 << 30)
+#define   BXT_DE_PLL_FREQ_REQ		(1 << 23)
+#define   BXT_DE_PLL_FREQ_REQ_ACK	(1 << 22)
 #define   CNL_CDCLK_PLL_RATIO(x)	(x)
 #define   CNL_CDCLK_PLL_RATIO_MASK	0xff
 
