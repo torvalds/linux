@@ -550,4 +550,14 @@ int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
 
 int regulator_desc_list_voltage_linear(const struct regulator_desc *desc,
 				       unsigned int selector);
+
+#ifdef CONFIG_REGULATOR
+const char *rdev_get_name(struct regulator_dev *rdev);
+#else
+static inline const char *rdev_get_name(struct regulator_dev *rdev)
+{
+	return NULL;
+}
+#endif
+
 #endif
