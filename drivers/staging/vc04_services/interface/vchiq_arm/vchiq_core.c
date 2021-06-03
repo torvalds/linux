@@ -1576,6 +1576,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 		struct vchiq_openack_payload ack_payload = {
 			service->version
 		};
+		int openack_id = MAKE_OPENACK(service->localport, remoteport);
 
 		if (state->version_common <
 		    VCHIQ_VERSION_SYNCHRONOUS_MODE)
@@ -1583,16 +1584,14 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 
 		/* Acknowledge the OPEN */
 		if (service->sync) {
-			if (queue_message_sync(state, NULL,
-				MAKE_OPENACK(service->localport, remoteport),
+			if (queue_message_sync(state, NULL, openack_id,
 				memcpy_copy_callback,
 				&ack_payload,
 				sizeof(ack_payload),
 				0) == VCHIQ_RETRY)
 				goto bail_not_ready;
 		} else {
-			if (queue_message(state, NULL,
-				MAKE_OPENACK(service->localport, remoteport),
+			if (queue_message(state, NULL, openack_id,
 				memcpy_copy_callback,
 				&ack_payload,
 				sizeof(ack_payload),
@@ -2804,6 +2803,8 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	struct vchiq_state *state = service->state;
 	enum vchiq_status status = VCHIQ_SUCCESS;
 	int is_server = (service->public_fourcc != VCHIQ_FOURCC_INVALID);
+	int close_id = MAKE_CLOSE(service->localport,
+				  VCHIQ_MSG_DSTPORT(service->remoteport));
 
 	vchiq_log_info(vchiq_core_log_level, "%d: csi:%d,%d (%s)",
 		service->state->id, service->localport, close_recvd,
@@ -2842,9 +2843,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 			complete(&service->remove_event);
 		} else {
 			/* Shutdown mid-open - let the other side know */
-			status = queue_message(state, service,
-				MAKE_CLOSE(service->localport,
-				VCHIQ_MSG_DSTPORT(service->remoteport)),
+			status = queue_message(state, service, close_id,
 				NULL, NULL, 0, 0);
 		}
 		break;
@@ -2861,9 +2860,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 		release_service_messages(service);
 
 		if (status == VCHIQ_SUCCESS)
-			status = queue_message(state, service,
-				MAKE_CLOSE(service->localport,
-				VCHIQ_MSG_DSTPORT(service->remoteport)),
+			status = queue_message(state, service, close_id,
 				NULL, NULL, 0, QMFLAGS_NO_MUTEX_UNLOCK);
 
 		if (status != VCHIQ_SUCCESS) {
@@ -3318,6 +3315,7 @@ vchiq_queue_message(unsigned int handle,
 {
 	struct vchiq_service *service = find_service_by_handle(handle);
 	enum vchiq_status status = VCHIQ_ERROR;
+	int data_id;
 
 	if (!service)
 		goto error_exit;
@@ -3336,17 +3334,15 @@ vchiq_queue_message(unsigned int handle,
 		goto error_exit;
 	}
 
+	data_id = MAKE_DATA(service->localport, service->remoteport);
+
 	switch (service->srvstate) {
 	case VCHIQ_SRVSTATE_OPEN:
-		status = queue_message(service->state, service,
-				MAKE_DATA(service->localport,
-					service->remoteport),
+		status = queue_message(service->state, service, data_id,
 				copy_callback, context, size, 1);
 		break;
 	case VCHIQ_SRVSTATE_OPENSYNC:
-		status = queue_message_sync(service->state, service,
-				MAKE_DATA(service->localport,
-					service->remoteport),
+		status = queue_message_sync(service->state, service, data_id,
 				copy_callback, context, size, 1);
 		break;
 	default:
