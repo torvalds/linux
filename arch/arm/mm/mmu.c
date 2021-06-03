@@ -1459,8 +1459,6 @@ static void __init kmap_init(void)
 
 static void __init map_lowmem(void)
 {
-	phys_addr_t kernel_x_start = round_down(__pa(KERNEL_START), SECTION_SIZE);
-	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
 	phys_addr_t start, end;
 	u64 i;
 
@@ -1468,53 +1466,124 @@ static void __init map_lowmem(void)
 	for_each_mem_range(i, &start, &end) {
 		struct map_desc map;
 
+		pr_debug("map lowmem start: 0x%08llx, end: 0x%08llx\n",
+			 (long long)start, (long long)end);
 		if (end > arm_lowmem_limit)
 			end = arm_lowmem_limit;
 		if (start >= end)
 			break;
 
-		if (end < kernel_x_start) {
-			map.pfn = __phys_to_pfn(start);
-			map.virtual = __phys_to_virt(start);
-			map.length = end - start;
-			map.type = MT_MEMORY_RWX;
+		/*
+		 * If our kernel image is in the VMALLOC area we need to remove
+		 * the kernel physical memory from lowmem since the kernel will
+		 * be mapped separately.
+		 *
+		 * The kernel will typically be at the very start of lowmem,
+		 * but any placement relative to memory ranges is possible.
+		 *
+		 * If the memblock contains the kernel, we have to chisel out
+		 * the kernel memory from it and map each part separately. We
+		 * get 6 different theoretical cases:
+		 *
+		 *                            +--------+ +--------+
+		 *  +-- start --+  +--------+ | Kernel | | Kernel |
+		 *  |           |  | Kernel | | case 2 | | case 5 |
+		 *  |           |  | case 1 | +--------+ |        | +--------+
+		 *  |  Memory   |  +--------+            |        | | Kernel |
+		 *  |  range    |  +--------+            |        | | case 6 |
+		 *  |           |  | Kernel | +--------+ |        | +--------+
+		 *  |           |  | case 3 | | Kernel | |        |
+		 *  +-- end ----+  +--------+ | case 4 | |        |
+		 *                            +--------+ +--------+
+		 */
 
-			create_mapping(&map);
-		} else if (start >= kernel_x_end) {
-			map.pfn = __phys_to_pfn(start);
-			map.virtual = __phys_to_virt(start);
-			map.length = end - start;
-			map.type = MT_MEMORY_RW;
+		/* Case 5: kernel covers range, don't map anything, should be rare */
+		if ((start > kernel_sec_start) && (end < kernel_sec_end))
+			break;
 
-			create_mapping(&map);
-		} else {
-			/* This better cover the entire kernel */
-			if (start < kernel_x_start) {
+		/* Cases where the kernel is starting inside the range */
+		if ((kernel_sec_start >= start) && (kernel_sec_start <= end)) {
+			/* Case 6: kernel is embedded in the range, we need two mappings */
+			if ((start < kernel_sec_start) && (end > kernel_sec_end)) {
+				/* Map memory below the kernel */
 				map.pfn = __phys_to_pfn(start);
 				map.virtual = __phys_to_virt(start);
-				map.length = kernel_x_start - start;
+				map.length = kernel_sec_start - start;
 				map.type = MT_MEMORY_RW;
-
 				create_mapping(&map);
-			}
-
-			map.pfn = __phys_to_pfn(kernel_x_start);
-			map.virtual = __phys_to_virt(kernel_x_start);
-			map.length = kernel_x_end - kernel_x_start;
-			map.type = MT_MEMORY_RWX;
-
-			create_mapping(&map);
-
-			if (kernel_x_end < end) {
-				map.pfn = __phys_to_pfn(kernel_x_end);
-				map.virtual = __phys_to_virt(kernel_x_end);
-				map.length = end - kernel_x_end;
+				/* Map memory above the kernel */
+				map.pfn = __phys_to_pfn(kernel_sec_end);
+				map.virtual = __phys_to_virt(kernel_sec_end);
+				map.length = end - kernel_sec_end;
 				map.type = MT_MEMORY_RW;
-
 				create_mapping(&map);
+				break;
 			}
+			/* Case 1: kernel and range start at the same address, should be common */
+			if (kernel_sec_start == start)
+				start = kernel_sec_end;
+			/* Case 3: kernel and range end at the same address, should be rare */
+			if (kernel_sec_end == end)
+				end = kernel_sec_start;
+		} else if ((kernel_sec_start < start) && (kernel_sec_end > start) && (kernel_sec_end < end)) {
+			/* Case 2: kernel ends inside range, starts below it */
+			start = kernel_sec_end;
+		} else if ((kernel_sec_start > start) && (kernel_sec_start < end) && (kernel_sec_end > end)) {
+			/* Case 4: kernel starts inside range, ends above it */
+			end = kernel_sec_start;
 		}
+		map.pfn = __phys_to_pfn(start);
+		map.virtual = __phys_to_virt(start);
+		map.length = end - start;
+		map.type = MT_MEMORY_RW;
+		create_mapping(&map);
 	}
+}
+
+static void __init map_kernel(void)
+{
+	/*
+	 * We use the well known kernel section start and end and split the area in the
+	 * middle like this:
+	 *  .                .
+	 *  | RW memory      |
+	 *  +----------------+ kernel_x_start
+	 *  | Executable     |
+	 *  | kernel memory  |
+	 *  +----------------+ kernel_x_end / kernel_nx_start
+	 *  | Non-executable |
+	 *  | kernel memory  |
+	 *  +----------------+ kernel_nx_end
+	 *  | RW memory      |
+	 *  .                .
+	 *
+	 * Notice that we are dealing with section sized mappings here so all of this
+	 * will be bumped to the closest section boundary. This means that some of the
+	 * non-executable part of the kernel memory is actually mapped as executable.
+	 * This will only persist until we turn on proper memory management later on
+	 * and we remap the whole kernel with page granularity.
+	 */
+	phys_addr_t kernel_x_start = kernel_sec_start;
+	phys_addr_t kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	phys_addr_t kernel_nx_start = kernel_x_end;
+	phys_addr_t kernel_nx_end = kernel_sec_end;
+	struct map_desc map;
+
+	map.pfn = __phys_to_pfn(kernel_x_start);
+	map.virtual = __phys_to_virt(kernel_x_start);
+	map.length = kernel_x_end - kernel_x_start;
+	map.type = MT_MEMORY_RWX;
+	create_mapping(&map);
+
+	/* If the nx part is small it may end up covered by the tail of the RWX section */
+	if (kernel_x_end == kernel_nx_end)
+		return;
+
+	map.pfn = __phys_to_pfn(kernel_nx_start);
+	map.virtual = __phys_to_virt(kernel_nx_start);
+	map.length = kernel_nx_end - kernel_nx_start;
+	map.type = MT_MEMORY_RW;
+	create_mapping(&map);
 }
 
 #ifdef CONFIG_ARM_PV_FIXUP
@@ -1647,9 +1716,18 @@ void __init paging_init(const struct machine_desc *mdesc)
 {
 	void *zero_page;
 
+	pr_debug("physical kernel sections: 0x%08x-0x%08x\n",
+		 kernel_sec_start, kernel_sec_end);
+
 	prepare_page_table();
 	map_lowmem();
 	memblock_set_current_limit(arm_lowmem_limit);
+	pr_debug("lowmem limit is %08llx\n", (long long)arm_lowmem_limit);
+	/*
+	 * After this point early_alloc(), i.e. the memblock allocator, can
+	 * be used
+	 */
+	map_kernel();
 	dma_contiguous_remap();
 	early_fixmap_shutdown();
 	devicemaps_init(mdesc);
