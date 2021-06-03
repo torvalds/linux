@@ -145,7 +145,6 @@ static __always_inline void allow_user_access(void __user *to, const void __user
 		return;
 
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
-	BUILD_BUG_ON(dir & ~KUAP_READ_WRITE);
 
 	if (!(dir & KUAP_WRITE))
 		return;
