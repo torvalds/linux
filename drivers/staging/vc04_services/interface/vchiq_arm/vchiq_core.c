@@ -368,7 +368,7 @@ next_service_by_instance(struct vchiq_state *state,
 }
 
 void
-lock_service(struct vchiq_service *service)
+vchiq_service_get(struct vchiq_service *service)
 {
 	if (!service) {
 		WARN(1, "%s service is NULL\n", __func__);
@@ -391,7 +391,7 @@ static void service_release(struct kref *kref)
 }
 
 void
-unlock_service(struct vchiq_service *service)
+vchiq_service_put(struct vchiq_service *service)
 {
 	if (!service) {
 		WARN(1, "%s: service is NULL\n", __func__);
@@ -1454,7 +1454,7 @@ poll_services_of_group(struct vchiq_state *state, int group)
 			notify_bulks(service, &service->bulk_tx, RETRY_POLL);
 		if (service_flags & BIT(VCHIQ_POLL_RXNOTIFY))
 			notify_bulks(service, &service->bulk_rx, RETRY_POLL);
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 }
 
@@ -1560,7 +1560,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 					service->version, service->version_min,
 					version, version_min);
 				vchiq_loud_error_footer();
-				unlock_service(service);
+				vchiq_service_put(service);
 				service = NULL;
 				goto fail_open;
 			}
@@ -1607,7 +1607,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 			}
 
 			/* Success - the message has been dealt with */
-			unlock_service(service);
+			vchiq_service_put(service);
 			return 1;
 		}
 	}
@@ -1622,7 +1622,7 @@ fail_open:
 
 bail_not_ready:
 	if (service)
-		unlock_service(service);
+		vchiq_service_put(service);
 
 	return 0;
 }
@@ -1678,7 +1678,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			 * the connected service
 			 */
 			if (service)
-				unlock_service(service);
+				vchiq_service_put(service);
 			service = get_connected_service(state,
 				remoteport);
 			if (service)
@@ -1934,7 +1934,7 @@ skip_message:
 
 bail_not_ready:
 	if (service)
-		unlock_service(service);
+		vchiq_service_put(service);
 
 	return ret;
 }
@@ -2190,7 +2190,7 @@ sync_func(void *v)
 			break;
 		}
 
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 
 	return 0;
@@ -2972,7 +2972,7 @@ vchiq_free_service_internal(struct vchiq_service *service)
 	complete(&service->remove_event);
 
 	/* Release the initial lock */
-	unlock_service(service);
+	vchiq_service_put(service);
 }
 
 enum vchiq_status
@@ -2988,7 +2988,7 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 		if (service->srvstate == VCHIQ_SRVSTATE_HIDDEN)
 			vchiq_set_service_state(service,
 				VCHIQ_SRVSTATE_LISTENING);
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 
 	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED) {
@@ -3021,7 +3021,7 @@ vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instan
 	while ((service = next_service_by_instance(state, instance,
 		&i)) !=	NULL) {
 		(void)vchiq_remove_service(service->handle);
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 }
 
@@ -3042,7 +3042,7 @@ vchiq_close_service(unsigned int handle)
 	if ((service->srvstate == VCHIQ_SRVSTATE_FREE) ||
 	    (service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
 	    (service->srvstate == VCHIQ_SRVSTATE_HIDDEN)) {
-		unlock_service(service);
+		vchiq_service_put(service);
 		return VCHIQ_ERROR;
 	}
 
@@ -3078,7 +3078,7 @@ vchiq_close_service(unsigned int handle)
 	    (service->srvstate != VCHIQ_SRVSTATE_LISTENING))
 		status = VCHIQ_ERROR;
 
-	unlock_service(service);
+	vchiq_service_put(service);
 
 	return status;
 }
@@ -3099,7 +3099,7 @@ vchiq_remove_service(unsigned int handle)
 		service->state->id, service->localport);
 
 	if (service->srvstate == VCHIQ_SRVSTATE_FREE) {
-		unlock_service(service);
+		vchiq_service_put(service);
 		return VCHIQ_ERROR;
 	}
 
@@ -3139,7 +3139,7 @@ vchiq_remove_service(unsigned int handle)
 	    (service->srvstate != VCHIQ_SRVSTATE_FREE))
 		status = VCHIQ_ERROR;
 
-	unlock_service(service);
+	vchiq_service_put(service);
 
 	return status;
 }
@@ -3284,7 +3284,7 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 		queue->local_insert, queue->remote_insert, queue->process);
 
 waiting:
-	unlock_service(service);
+	vchiq_service_put(service);
 
 	status = VCHIQ_SUCCESS;
 
@@ -3307,7 +3307,7 @@ unlock_error_exit:
 
 error_exit:
 	if (service)
-		unlock_service(service);
+		vchiq_service_put(service);
 	return status;
 }
 
@@ -3358,7 +3358,7 @@ vchiq_queue_message(unsigned int handle,
 
 error_exit:
 	if (service)
-		unlock_service(service);
+		vchiq_service_put(service);
 
 	return status;
 }
@@ -3417,7 +3417,7 @@ vchiq_release_message(unsigned int handle,
 		release_message_sync(state, header);
 	}
 
-	unlock_service(service);
+	vchiq_service_put(service);
 }
 EXPORT_SYMBOL(vchiq_release_message);
 
@@ -3448,7 +3448,7 @@ vchiq_get_peer_version(unsigned int handle, short *peer_version)
 
 exit:
 	if (service)
-		unlock_service(service);
+		vchiq_service_put(service);
 	return status;
 }
 EXPORT_SYMBOL(vchiq_get_peer_version);
@@ -3532,7 +3532,7 @@ vchiq_set_service_option(unsigned int handle,
 	default:
 		break;
 	}
-	unlock_service(service);
+	vchiq_service_put(service);
 
 	return ret;
 }
@@ -3673,7 +3673,7 @@ int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
 
 		if (service) {
 			err = vchiq_dump_service_state(dump_context, service);
-			unlock_service(service);
+			vchiq_service_put(service);
 			if (err)
 				return err;
 		}

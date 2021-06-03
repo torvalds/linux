@@ -554,10 +554,10 @@ next_service_by_instance(struct vchiq_state *state,
 			 int *pidx);
 
 extern void
-lock_service(struct vchiq_service *service);
+vchiq_service_get(struct vchiq_service *service);
 
 extern void
-unlock_service(struct vchiq_service *service);
+vchiq_service_put(struct vchiq_service *service);
 
 extern enum vchiq_status
 vchiq_queue_message(unsigned int handle,

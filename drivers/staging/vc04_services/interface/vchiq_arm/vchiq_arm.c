@@ -431,7 +431,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data, unsigned int size,
 
 	instance = service->instance;
 
-	unlock_service(service);
+	vchiq_service_put(service);
 
 	mutex_lock(&instance->bulk_waiter_list_mutex);
 	list_for_each_entry(waiter, &instance->bulk_waiter_list, list) {
@@ -539,7 +539,7 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 		 * Take an extra reference, to be held until
 		 * this CLOSED notification is delivered.
 		 */
-		lock_service(user_service->service);
+		vchiq_service_get(user_service->service);
 		if (instance->use_close_delivered)
 			user_service->close_pending = 1;
 	}
@@ -686,7 +686,7 @@ static void close_delivered(struct user_service *user_service)
 
 	if (user_service->close_pending) {
 		/* Allow the underlying service to be culled */
-		unlock_service(user_service->service);
+		vchiq_service_put(user_service->service);
 
 		/* Wake the user-thread blocked in close_ or remove_service */
 		complete(&user_service->close_event);
@@ -915,7 +915,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 	}
 	DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
 out:
-	unlock_service(service);
+	vchiq_service_put(service);
 	return ret;
 }
 
@@ -1001,7 +1001,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		ret = put_user(mode_waiting, mode);
 	}
 out:
-	unlock_service(service);
+	vchiq_service_put(service);
 	if (ret)
 		return ret;
 	else if (status == VCHIQ_ERROR)
@@ -1181,7 +1181,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 
 		if ((completion->reason == VCHIQ_SERVICE_CLOSED) &&
 		    !instance->use_close_delivered)
-			unlock_service(service);
+			vchiq_service_put(service);
 
 		/*
 		 * FIXME: address space mismatch, does bulk_userdata
@@ -1243,7 +1243,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		while ((service = next_service_by_instance(instance->state,
 			instance, &i))) {
 			status = vchiq_remove_service(service->handle);
-			unlock_service(service);
+			vchiq_service_put(service);
 			if (status != VCHIQ_SUCCESS)
 				break;
 		}
@@ -1508,7 +1508,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	if (service)
-		unlock_service(service);
+		vchiq_service_put(service);
 
 	if (ret == 0) {
 		if (status == VCHIQ_ERROR)
@@ -1641,7 +1641,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 
 		if (copy_from_user(&element32, args.elements,
 				   sizeof(element32))) {
-			unlock_service(service);
+			vchiq_service_put(service);
 			return -EFAULT;
 		}
 
@@ -1655,7 +1655,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 	} else {
 		ret = -EINVAL;
 	}
-	unlock_service(service);
+	vchiq_service_put(service);
 
 	return ret;
 }
@@ -1891,7 +1891,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 		complete(&user_service->remove_event);
 
 		vchiq_terminate_service_internal(service);
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 
 	/* ...and wait for them to die */
@@ -1902,7 +1902,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 		wait_for_completion(&service->remove_event);
 
 		if (WARN_ON(service->srvstate != VCHIQ_SRVSTATE_FREE)) {
-			unlock_service(service);
+			vchiq_service_put(service);
 			break;
 		}
 
@@ -1923,7 +1923,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 
 		spin_unlock(&msg_queue_spinlock);
 
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 
 	/* Release any closed services */
@@ -1941,7 +1941,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 			/* Wake any blocked user-thread */
 			if (instance->use_close_delivered)
 				complete(&user_service->close_event);
-			unlock_service(service);
+			vchiq_service_put(service);
 		}
 		instance->completion_remove++;
 	}
@@ -2444,7 +2444,7 @@ vchiq_use_service(unsigned int handle)
 	if (service) {
 		ret = vchiq_use_internal(service->state, service,
 				USE_TYPE_SERVICE);
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 	return ret;
 }
@@ -2458,7 +2458,7 @@ vchiq_release_service(unsigned int handle)
 
 	if (service) {
 		ret = vchiq_release_internal(service->state, service);
-		unlock_service(service);
+		vchiq_service_put(service);
 	}
 	return ret;
 }
