@@ -1153,7 +1153,7 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	prange->mapping.start = prange->start;
 	prange->mapping.last = prange->last;
-	prange->mapping.offset = prange->offset;
+	prange->mapping.offset = prange->ttm_res ? prange->offset : 0;
 	pte_flags = svm_range_get_pte_flags(adev, prange);
 
 	r = amdgpu_vm_bo_update_mapping(adev, bo_adev, vm, false, false, NULL,
