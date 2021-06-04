@@ -425,6 +425,12 @@ static const struct clk_ops clk_scu_cpu_ops = {
 	.unprepare = clk_scu_unprepare,
 };
 
+static const struct clk_ops clk_scu_pi_ops = {
+	.recalc_rate = clk_scu_recalc_rate,
+	.round_rate  = clk_scu_round_rate,
+	.set_rate    = clk_scu_set_rate,
+};
+
 struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 			     const char * const *parents, int num_parents,
 			     u32 rsrc_id, u8 clk_type)
@@ -445,6 +451,8 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 	init.ops = &clk_scu_ops;
 	if (rsrc_id == IMX_SC_R_A35)
 		init.ops = &clk_scu_cpu_ops;
+	else if (rsrc_id == IMX_SC_R_PI_0_PLL)
+		init.ops = &clk_scu_pi_ops;
 	else
 		init.ops = &clk_scu_ops;
 	init.parent_names = parents;
