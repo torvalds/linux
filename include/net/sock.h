@@ -2743,6 +2743,9 @@ static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
 void sock_def_readable(struct sock *sk);
 
 int sock_bindtoindex(struct sock *sk, int ifindex, bool lock_sk);
+void sock_set_timestamp(struct sock *sk, int optname, bool valbool);
+int sock_set_timestamping(struct sock *sk, int optname, int val);
+
 void sock_enable_timestamps(struct sock *sk);
 void sock_no_linger(struct sock *sk);
 void sock_set_keepalive(struct sock *sk);

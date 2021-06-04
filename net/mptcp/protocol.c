@@ -39,9 +39,14 @@ struct mptcp_skb_cb {
 	u64 map_seq;
 	u64 end_seq;
 	u32 offset;
+	u8  has_rxtstamp:1;
 };
 
 #define MPTCP_SKB_CB(__skb)	((struct mptcp_skb_cb *)&((__skb)->cb[0]))
+
+enum {
+	MPTCP_CMSG_TS = BIT(0),
+};
 
 static struct percpu_counter mptcp_sockets_allocated;
 
@@ -272,6 +277,7 @@ static bool __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	struct sock *sk = (struct sock *)msk;
 	struct sk_buff *tail;
+	bool has_rxtstamp;
 
 	__skb_unlink(skb, &ssk->sk_receive_queue);
 
@@ -287,6 +293,8 @@ static bool __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 			goto drop;
 	}
 
+	has_rxtstamp = TCP_SKB_CB(skb)->has_rxtstamp;
+
 	/* the skb map_seq accounts for the skb offset:
 	 * mptcp_subflow_get_mapped_dsn() is based on the current tp->copied_seq
 	 * value
@@ -294,6 +302,7 @@ static bool __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 	MPTCP_SKB_CB(skb)->map_seq = mptcp_subflow_get_mapped_dsn(subflow);
 	MPTCP_SKB_CB(skb)->end_seq = MPTCP_SKB_CB(skb)->map_seq + copy_len;
 	MPTCP_SKB_CB(skb)->offset = offset;
+	MPTCP_SKB_CB(skb)->has_rxtstamp = has_rxtstamp;
 
 	if (MPTCP_SKB_CB(skb)->map_seq == msk->ack_seq) {
 		/* in sequence */
@@ -1757,7 +1766,9 @@ static void mptcp_wait_data(struct sock *sk, long *timeo)
 
 static int __mptcp_recvmsg_mskq(struct mptcp_sock *msk,
 				struct msghdr *msg,
-				size_t len, int flags)
+				size_t len, int flags,
+				struct scm_timestamping_internal *tss,
+				int *cmsg_flags)
 {
 	struct sk_buff *skb, *tmp;
 	int copied = 0;
@@ -1775,6 +1786,11 @@ static int __mptcp_recvmsg_mskq(struct mptcp_sock *msk,
 					return err;
 				break;
 			}
+		}
+
+		if (MPTCP_SKB_CB(skb)->has_rxtstamp) {
+			tcp_update_recv_tstamps(skb, tss);
+			*cmsg_flags |= MPTCP_CMSG_TS;
 		}
 
 		copied += count;
@@ -1964,7 +1980,8 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			 int nonblock, int flags, int *addr_len)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	int copied = 0;
+	struct scm_timestamping_internal tss;
+	int copied = 0, cmsg_flags = 0;
 	int target;
 	long timeo;
 
@@ -1986,7 +2003,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	while (copied < len) {
 		int bytes_read;
 
-		bytes_read = __mptcp_recvmsg_mskq(msk, msg, len - copied, flags);
+		bytes_read = __mptcp_recvmsg_mskq(msk, msg, len - copied, flags, &tss, &cmsg_flags);
 		if (unlikely(bytes_read < 0)) {
 			if (!copied)
 				copied = bytes_read;
@@ -2067,6 +2084,11 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 	}
 out_err:
+	if (cmsg_flags && copied >= 0) {
+		if (cmsg_flags & MPTCP_CMSG_TS)
+			tcp_recv_timestamp(msg, sk, &tss);
+	}
+
 	pr_debug("msk=%p data_ready=%d rx queue empty=%d copied=%d",
 		 msk, test_bit(MPTCP_DATA_READY, &msk->flags),
 		 skb_queue_empty_lockless(&sk->sk_receive_queue), copied);
