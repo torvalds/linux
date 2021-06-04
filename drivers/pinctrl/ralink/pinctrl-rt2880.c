@@ -17,9 +17,9 @@
 #include <linux/pinctrl/machine.h>
 
 #include <asm/mach-ralink/ralink_regs.h>
-#include <asm/mach-ralink/pinmux.h>
 #include <asm/mach-ralink/mt7620.h>
 
+#include "pinmux.h"
 #include "../core.h"
 #include "../pinctrl-utils.h"
 
@@ -311,13 +311,14 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 	return 0;
 }
 
-static int rt2880_pinmux_probe(struct platform_device *pdev)
+int rt2880_pinmux_init(struct platform_device *pdev,
+		       struct rt2880_pmx_group *data)
 {
 	struct rt2880_priv *p;
 	struct pinctrl_dev *dev;
 	int err;
 
-	if (!rt2880_pinmux_data)
+	if (!data)
 		return -ENOTSUPP;
 
 	/* setup the private data */
@@ -327,7 +328,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 
 	p->dev = &pdev->dev;
 	p->desc = &rt2880_pctrl_desc;
-	p->groups = rt2880_pinmux_data;
+	p->groups = data;
 	platform_set_drvdata(pdev, p);
 
 	/* init the device */
@@ -346,24 +347,3 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 
 	return PTR_ERR_OR_ZERO(dev);
 }
-
-static const struct of_device_id rt2880_pinmux_match[] = {
-	{ .compatible = "ralink,rt2880-pinmux" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, rt2880_pinmux_match);
-
-static struct platform_driver rt2880_pinmux_driver = {
-	.probe = rt2880_pinmux_probe,
-	.driver = {
-		.name = "rt2880-pinmux",
-		.of_match_table = rt2880_pinmux_match,
-	},
-};
-
-static int __init rt2880_pinmux_init(void)
-{
-	return platform_driver_register(&rt2880_pinmux_driver);
-}
-
-core_initcall_sync(rt2880_pinmux_init);
