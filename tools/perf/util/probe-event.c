@@ -2127,19 +2127,55 @@ static int synthesize_probe_trace_arg(struct probe_trace_arg *arg,
 }
 
 static int
-synthesize_uprobe_trace_def(struct probe_trace_event *tev, struct strbuf *buf)
+synthesize_probe_trace_args(struct probe_trace_event *tev, struct strbuf *buf)
 {
-	struct probe_trace_point *tp = &tev->point;
+	int i, ret = 0;
+
+	for (i = 0; i < tev->nargs && ret >= 0; i++)
+		ret = synthesize_probe_trace_arg(&tev->args[i], buf);
+
+	return ret;
+}
+
+static int
+synthesize_uprobe_trace_def(struct probe_trace_point *tp, struct strbuf *buf)
+{
 	int err;
 
+	/* Uprobes must have tp->module */
+	if (!tp->module)
+		return -EINVAL;
+	/*
+	 * If tp->address == 0, then this point must be a
+	 * absolute address uprobe.
+	 * try_to_find_absolute_address() should have made
+	 * tp->symbol to "0x0".
+	 */
+	if (!tp->address && (!tp->symbol || strcmp(tp->symbol, "0x0")))
+		return -EINVAL;
+
+	/* Use the tp->address for uprobes */
 	err = strbuf_addf(buf, "%s:0x%lx", tp->module, tp->address);
 
 	if (err >= 0 && tp->ref_ctr_offset) {
 		if (!uprobe_ref_ctr_is_supported())
-			return -1;
+			return -EINVAL;
 		err = strbuf_addf(buf, "(0x%lx)", tp->ref_ctr_offset);
 	}
-	return err >= 0 ? 0 : -1;
+	return err >= 0 ? 0 : err;
+}
+
+static int
+synthesize_kprobe_trace_def(struct probe_trace_point *tp, struct strbuf *buf)
+{
+	if (!strncmp(tp->symbol, "0x", 2)) {
+		/* Absolute address. See try_to_find_absolute_address() */
+		return strbuf_addf(buf, "%s%s0x%lx", tp->module ?: "",
+				  tp->module ? ":" : "", tp->address);
+	} else {
+		return strbuf_addf(buf, "%s%s%s+%lu", tp->module ?: "",
+				tp->module ? ":" : "", tp->symbol, tp->offset);
+	}
 }
 
 char *synthesize_probe_trace_command(struct probe_trace_event *tev)
@@ -2147,11 +2183,7 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
 	struct probe_trace_point *tp = &tev->point;
 	struct strbuf buf;
 	char *ret = NULL;
-	int i, err;
-
-	/* Uprobes must have tp->module */
-	if (tev->uprobes && !tp->module)
-		return NULL;
+	int err;
 
 	if (strbuf_init(&buf, 32) < 0)
 		return NULL;
@@ -2159,37 +2191,17 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
 	if (strbuf_addf(&buf, "%c:%s/%s ", tp->retprobe ? 'r' : 'p',
 			tev->group, tev->event) < 0)
 		goto error;
-	/*
-	 * If tp->address == 0, then this point must be a
-	 * absolute address uprobe.
-	 * try_to_find_absolute_address() should have made
-	 * tp->symbol to "0x0".
-	 */
-	if (tev->uprobes && !tp->address) {
-		if (!tp->symbol || strcmp(tp->symbol, "0x0"))
-			goto error;
-	}
 
-	/* Use the tp->address for uprobes */
-	if (tev->uprobes) {
-		err = synthesize_uprobe_trace_def(tev, &buf);
-	} else if (!strncmp(tp->symbol, "0x", 2)) {
-		/* Absolute address. See try_to_find_absolute_address() */
-		err = strbuf_addf(&buf, "%s%s0x%lx", tp->module ?: "",
-				  tp->module ? ":" : "", tp->address);
-	} else {
-		err = strbuf_addf(&buf, "%s%s%s+%lu", tp->module ?: "",
-				tp->module ? ":" : "", tp->symbol, tp->offset);
-	}
+	if (tev->uprobes)
+		err = synthesize_uprobe_trace_def(tp, &buf);
+	else
+		err = synthesize_kprobe_trace_def(tp, &buf);
 
-	if (err)
-		goto error;
+	if (err >= 0)
+		err = synthesize_probe_trace_args(tev, &buf);
 
-	for (i = 0; i < tev->nargs; i++)
-		if (synthesize_probe_trace_arg(&tev->args[i], &buf) < 0)
-			goto error;
-
-	ret = strbuf_detach(&buf, NULL);
+	if (err >= 0)
+		ret = strbuf_detach(&buf, NULL);
 error:
 	strbuf_release(&buf);
 	return ret;
