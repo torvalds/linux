@@ -3095,8 +3095,10 @@ static int iavf_configure_clsflower(struct iavf_adapter *adapter,
 		return -ENOMEM;
 
 	while (!mutex_trylock(&adapter->crit_lock)) {
-		if (--count == 0)
-			goto err;
+		if (--count == 0) {
+			kfree(filter);
+			return err;
+		}
 		udelay(1);
 	}
 
