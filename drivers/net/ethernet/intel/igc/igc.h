@@ -372,6 +372,7 @@ extern char igc_driver_name[];
 
 /* VLAN info */
 #define IGC_TX_FLAGS_VLAN_MASK	0xffff0000
+#define IGC_TX_FLAGS_VLAN_SHIFT	16
 
 /* igc_test_staterr - tests bits within Rx descriptor status and error fields */
 static inline __le32 igc_test_staterr(union igc_adv_rx_desc *rx_desc,
