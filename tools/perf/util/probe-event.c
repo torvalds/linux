@@ -2936,7 +2936,7 @@ static int find_probe_functions(struct map *map, char *name,
 	bool cut_version = true;
 
 	if (map__load(map) < 0)
-		return 0;
+		return -EACCES;	/* Possible permission error to load symbols */
 
 	/* If user gives a version, don't cut off the version from symbols */
 	if (strchr(name, '@'))
@@ -2975,6 +2975,17 @@ void __weak arch__fix_tev_from_maps(struct perf_probe_event *pev __maybe_unused,
 				struct map *map __maybe_unused,
 				struct symbol *sym __maybe_unused) { }
 
+
+static void pr_kallsyms_access_error(void)
+{
+	pr_err("Please ensure you can read the /proc/kallsyms symbol addresses.\n"
+	       "If /proc/sys/kernel/kptr_restrict is '2', you can not read\n"
+	       "kernel symbol addresses even if you are a superuser. Please change\n"
+	       "it to '1'. If kptr_restrict is '1', the superuser can read the\n"
+	       "symbol addresses.\n"
+	       "In that case, please run this command again with sudo.\n");
+}
+
 /*
  * Find probe function addresses from map.
  * Return an error or the number of found probe_trace_event
@@ -3011,8 +3022,16 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	 */
 	num_matched_functions = find_probe_functions(map, pp->function, syms);
 	if (num_matched_functions <= 0) {
-		pr_err("Failed to find symbol %s in %s\n", pp->function,
-			pev->target ? : "kernel");
+		if (num_matched_functions == -EACCES) {
+			pr_err("Failed to load symbols from %s\n",
+			       pev->target ?: "/proc/kallsyms");
+			if (pev->target)
+				pr_err("Please ensure the file is not stripped.\n");
+			else
+				pr_kallsyms_access_error();
+		} else
+			pr_err("Failed to find symbol %s in %s\n", pp->function,
+				pev->target ? : "kernel");
 		ret = -ENOENT;
 		goto out;
 	} else if (num_matched_functions > probe_conf.max_probes) {
