@@ -40,6 +40,7 @@
 #define ACPI_SIG_PMTT           "PMTT"	/* Platform Memory Topology Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
+#define ACPI_SIG_RGRT           "RGRT"	/* Regulatory Graphics Resource Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
@@ -1789,6 +1790,32 @@ enum acpi_rasf_status {
 #define ACPI_RASF_SCI_DOORBELL          (1<<1)
 #define ACPI_RASF_ERROR                 (1<<2)
 #define ACPI_RASF_STATUS                (0x1F<<3)
+
+/*******************************************************************************
+ *
+ * RGRT - Regulatory Graphics Resource Table
+ *        Version 1
+ *
+ * Conforms to "ACPI RGRT" available at:
+ * https://microsoft.github.io/mu/dyn/mu_plus/ms_core_pkg/acpi_RGRT/feature_acpi_rgrt/
+ *
+ ******************************************************************************/
+
+struct acpi_table_rgrt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 version;
+	u8 image_type;
+	u8 reserved;
+	u8 image[0];
+};
+
+/* image_type values */
+
+enum acpi_rgrt_image_type {
+	ACPI_RGRT_TYPE_RESERVED0 = 0,
+	ACPI_RGRT_IMAGE_TYPE_PNG = 1,
+	ACPI_RGRT_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
 
 /*******************************************************************************
  *
