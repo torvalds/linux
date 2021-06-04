@@ -5514,7 +5514,7 @@ EXPORT_SYMBOL_GPL(nfsd4_ssc_init_umount_work);
  */
 static void nfsd4_ssc_shutdown_umount(struct nfsd_net *nn)
 {
-	struct nfsd4_ssc_umount_item *ni = 0;
+	struct nfsd4_ssc_umount_item *ni = NULL;
 	struct nfsd4_ssc_umount_item *tmp;
 
 	spin_lock(&nn->nfsd_ssc_lock);

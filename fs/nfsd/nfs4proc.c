@@ -1175,7 +1175,7 @@ extern void nfs_sb_deactive(struct super_block *sb);
 /*
  * setup a work entry in the ssc delayed unmount list.
  */
-static int nfsd4_ssc_setup_dul(struct nfsd_net *nn, char *ipaddr,
+static __be32 nfsd4_ssc_setup_dul(struct nfsd_net *nn, char *ipaddr,
 		struct nfsd4_ssc_umount_item **retwork, struct vfsmount **ss_mnt)
 {
 	struct nfsd4_ssc_umount_item *ni = 0;
@@ -1399,7 +1399,7 @@ nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct nfsd_file *src,
 	bool found = false;
 	long timeout;
 	struct nfsd4_ssc_umount_item *tmp;
-	struct nfsd4_ssc_umount_item *ni = 0;
+	struct nfsd4_ssc_umount_item *ni = NULL;
 	struct nfsd_net *nn = net_generic(dst->nf_net, nfsd_net_id);
 
 	nfs42_ssc_close(src->nf_file);
