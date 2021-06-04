@@ -1090,6 +1090,7 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	struct Scsi_Host *host;
 	u32 payload_sz = cmd_request->payload_sz;
 	void *payload = cmd_request->payload;
+	bool sense_ok;
 
 	host = stor_dev->host;
 
@@ -1099,11 +1100,10 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	scmnd->result = vm_srb->scsi_status;
 
 	if (scmnd->result) {
-		if (scsi_normalize_sense(scmnd->sense_buffer,
-				SCSI_SENSE_BUFFERSIZE, &sense_hdr) &&
-		    !(sense_hdr.sense_key == NOT_READY &&
-				 sense_hdr.asc == 0x03A) &&
-		    do_logging(STORVSC_LOGGING_ERROR))
+		sense_ok = scsi_normalize_sense(scmnd->sense_buffer,
+				SCSI_SENSE_BUFFERSIZE, &sense_hdr);
+
+		if (sense_ok && do_logging(STORVSC_LOGGING_WARN))
 			scsi_print_sense_hdr(scmnd->device, "storvsc",
 					     &sense_hdr);
 	}
@@ -1173,18 +1173,19 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 
 	if (vstor_packet->vm_srb.scsi_status != 0 ||
 	    vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS)
-		storvsc_log(device, STORVSC_LOGGING_WARN,
-			"cmd 0x%x scsi status 0x%x srb status 0x%x\n",
+		storvsc_log(device, STORVSC_LOGGING_ERROR,
+			"tag#%d cmd 0x%x status: scsi 0x%x srb 0x%x hv 0x%x\n",
+			request->cmd->request->tag,
 			stor_pkt->vm_srb.cdb[0],
 			vstor_packet->vm_srb.scsi_status,
-			vstor_packet->vm_srb.srb_status);
+			vstor_packet->vm_srb.srb_status,
+			vstor_packet->status);
 
 	if (vstor_packet->vm_srb.scsi_status == SAM_STAT_CHECK_CONDITION &&
 	    (vstor_packet->vm_srb.srb_status & SRB_STATUS_AUTOSENSE_VALID))
 		memcpy(request->cmd->sense_buffer,
 		       vstor_packet->vm_srb.sense_data,
 		       stor_pkt->vm_srb.sense_info_length);
-	}
 
 	stor_pkt->vm_srb.data_transfer_length =
 		vstor_packet->vm_srb.data_transfer_length;
