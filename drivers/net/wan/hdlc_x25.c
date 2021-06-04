@@ -333,7 +333,8 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 				return -EINVAL;
 		}
 
-		result=hdlc->attach(dev, ENCODING_NRZ,PARITY_CRC16_PR1_CCITT);
+		result = hdlc->attach(dev, ENCODING_NRZ,
+				      PARITY_CRC16_PR1_CCITT);
 		if (result)
 			return result;
 
