@@ -243,49 +243,45 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 	/* Clear status bits */
 	smu_v11_0_i2c_clear_status(control);
 
-
 	timeout_counter = jiffies + msecs_to_jiffies(20);
 
 	while (numbytes > 0) {
 		reg = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_STATUS);
-		if (REG_GET_FIELD(reg, CKSVII2C_IC_STATUS, TFNF)) {
-			do {
-				reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, DAT, data[bytes_sent]);
+		if (!REG_GET_FIELD(reg, CKSVII2C_IC_STATUS, TFNF)) {
+			/*
+			 * We waited for too long for the transmission
+			 * FIFO to become not-full.  Exit the loop
+			 * with error.
+			 */
+			if (time_after(jiffies, timeout_counter)) {
+				ret |= I2C_SW_TIMEOUT;
+				goto Err;
+			}
+		} else {
+			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, DAT,
+					    data[bytes_sent]);
 
-				/* Final message, final byte, must
-				 * generate a STOP, to release the
-				 * bus, i.e. don't hold SCL low.
-				 */
-				if (numbytes == 1 && i2c_flag & I2C_M_STOP)
-					reg = REG_SET_FIELD(reg,
-							    CKSVII2C_IC_DATA_CMD,
-							    STOP, 1);
+			/* Final message, final byte, must generate a
+			 * STOP to release the bus, i.e. don't hold
+			 * SCL low.
+			 */
+			if (numbytes == 1 && i2c_flag & I2C_M_STOP)
+				reg = REG_SET_FIELD(reg,
+						    CKSVII2C_IC_DATA_CMD,
+						    STOP, 1);
 
-				if (bytes_sent == 0 && i2c_flag & I2C_X_RESTART)
-					reg = REG_SET_FIELD(reg,
-							    CKSVII2C_IC_DATA_CMD,
-							    RESTART, 1);
+			if (bytes_sent == 0 && i2c_flag & I2C_X_RESTART)
+				reg = REG_SET_FIELD(reg,
+						    CKSVII2C_IC_DATA_CMD,
+						    RESTART, 1);
 
-				/* Write */
-				reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, CMD, 0);
-				WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_DATA_CMD, reg);
+			/* Write */
+			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, CMD, 0);
+			WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_DATA_CMD, reg);
 
-				/* Record that the bytes were transmitted */
-				bytes_sent++;
-				numbytes--;
-
-				reg = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_STATUS);
-
-			} while (numbytes &&  REG_GET_FIELD(reg, CKSVII2C_IC_STATUS, TFNF));
-		}
-
-		/*
-		 * We waited too long for the transmission FIFO to become not-full.
-		 * Exit the loop with error.
-		 */
-		if (time_after(jiffies, timeout_counter)) {
-			ret |= I2C_SW_TIMEOUT;
-			goto Err;
+			/* Record that the bytes were transmitted */
+			bytes_sent++;
+			numbytes--;
 		}
 	}
 
