@@ -2,3 +2,4 @@
 obj-$(CONFIG_PINCTRL_RT2880)   += pinctrl-rt2880.o
 
 obj-$(CONFIG_PINCTRL_MT7621)   += pinctrl-mt7621.o
+obj-$(CONFIG_PINCTRL_RT3883)   += pinctrl-rt3883.o
