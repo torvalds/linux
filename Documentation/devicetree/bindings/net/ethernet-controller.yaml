@@ -68,6 +68,7 @@ properties:
       - tbi
       - rev-mii
       - rmii
+      - rev-rmii
 
       # RX and TX delays are added by the MAC when required
       - rgmii
