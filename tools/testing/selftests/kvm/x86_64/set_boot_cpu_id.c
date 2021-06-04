@@ -14,15 +14,11 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "apic.h"
 
 #define N_VCPU 2
 #define VCPU_ID0 0
 #define VCPU_ID1 1
-
-static uint32_t get_bsp_flag(void)
-{
-	return rdmsr(MSR_IA32_APICBASE) & MSR_IA32_APICBASE_BSP;
-}
 
 static void guest_bsp_vcpu(void *arg)
 {

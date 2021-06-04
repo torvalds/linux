@@ -8,6 +8,10 @@
 #ifndef SELFTEST_KVM_APIC_H
 #define SELFTEST_KVM_APIC_H
 
+#include <stdint.h>
+
+#include "processor.h"
+
 #define APIC_DEFAULT_GPA		0xfee00000ULL
 
 /* APIC base address MSR and fields */
@@ -54,5 +58,24 @@
 #define		APIC_VECTOR_MASK	0x000FF
 #define	APIC_ICR2	0x310
 #define		SET_APIC_DEST_FIELD(x)	((x) << 24)
+
+void apic_disable(void);
+void xapic_enable(void);
+void x2apic_enable(void);
+
+static inline uint32_t get_bsp_flag(void)
+{
+	return rdmsr(MSR_IA32_APICBASE) & MSR_IA32_APICBASE_BSP;
+}
+
+static inline uint32_t xapic_read_reg(unsigned int reg)
+{
+	return ((volatile uint32_t *)APIC_DEFAULT_GPA)[reg >> 2];
+}
+
+static inline void xapic_write_reg(unsigned int reg, uint32_t val)
+{
+	((volatile uint32_t *)APIC_DEFAULT_GPA)[reg >> 2] = val;
+}
 
 #endif /* SELFTEST_KVM_APIC_H */

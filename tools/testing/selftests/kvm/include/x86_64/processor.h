@@ -13,6 +13,8 @@
 
 #include <asm/msr-index.h>
 
+#include "../kvm_util.h"
+
 #define X86_EFLAGS_FIXED	 (1u << 1)
 
 #define X86_CR4_VME		(1ul << 0)

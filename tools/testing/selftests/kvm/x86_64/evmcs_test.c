@@ -22,15 +22,6 @@
 
 static int ud_count;
 
-void enable_x2apic(void)
-{
-	uint32_t spiv_reg = APIC_BASE_MSR + (APIC_SPIV >> 4);
-
-	wrmsr(MSR_IA32_APICBASE, rdmsr(MSR_IA32_APICBASE) |
-	      MSR_IA32_APICBASE_ENABLE | MSR_IA32_APICBASE_EXTD);
-	wrmsr(spiv_reg, rdmsr(spiv_reg) | APIC_SPIV_APIC_ENABLED);
-}
-
 static void guest_ud_handler(struct ex_regs *regs)
 {
 	ud_count++;
@@ -59,7 +50,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 #define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 
-	enable_x2apic();
+	x2apic_enable();
 
 	GUEST_SYNC(1);
 	GUEST_SYNC(2);
