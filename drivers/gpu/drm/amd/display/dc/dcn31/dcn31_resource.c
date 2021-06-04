@@ -1633,7 +1633,7 @@ static void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 	}
 }
 
-static void dcn31_calculate_wm_and_dlg(
+static void dcn31_calculate_wm_and_dlg_fp(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
@@ -1757,6 +1757,17 @@ static void dcn31_calculate_wm_and_dlg(
 	}
 
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
+}
+
+static void dcn31_calculate_wm_and_dlg(
+		struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int pipe_cnt,
+		int vlevel)
+{
+	DC_FP_START();
+	dcn31_calculate_wm_and_dlg_fp(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 }
 
 static struct dc_cap_funcs cap_funcs = {
@@ -1889,6 +1900,8 @@ static bool dcn31_resource_construct(
 	int i;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
+
+	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -2152,10 +2165,13 @@ static bool dcn31_resource_construct(
 
 	dc->cap_funcs = cap_funcs;
 
+	DC_FP_END();
+
 	return true;
 
 create_fail:
 
+	DC_FP_END();
 	dcn31_resource_destruct(pool);
 
 	return false;
