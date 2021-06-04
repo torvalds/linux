@@ -86,7 +86,7 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 	}
 
 	buf->mem_priv = mem_priv;
-	if (dev->hw_dev->is_mmu) {
+	if (dev->hw_dev->is_dma_sg_ops) {
 		sg_tbl = (struct sg_table *)g_ops->cookie(mem_priv);
 		buf->dma_addr = sg_dma_address(sg_tbl->sgl);
 	} else {
@@ -312,7 +312,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 		ret = g_ops->map_dmabuf(mem);
 		if (ret)
 			goto err;
-		if (hw->is_mmu) {
+		if (hw->is_dma_sg_ops) {
 			sg_tbl = (struct sg_table *)g_ops->cookie(mem);
 			pool->dma[i] = sg_dma_address(sg_tbl->sgl);
 		} else {
