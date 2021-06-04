@@ -2228,7 +2228,7 @@ static int ssam_nf_refcount_disable_free(struct ssam_controller *ctrl,
 	const struct ssam_event_registry reg = entry->key.reg;
 	const struct ssam_event_id id = entry->key.id;
 	struct ssam_nf *nf = &ctrl->cplt.event.notif;
-	int status;
+	int status = 0;
 
 	lockdep_assert_held(&nf->lock);
 
