@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
+#include <linux/list.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
@@ -936,7 +937,7 @@ static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
 		return IOMEM_ERR_PTR(-ENXIO);
 	}
 
-	addr = pcim_iomap(pdev, bar, 0);
+	addr = pci_iomap(pdev, bar, 0);
 	if (!addr) {
 		dev_err(dev, "failed to map registers\n");
 		return addr;
@@ -945,7 +946,12 @@ static void __iomem *cxl_mem_map_regblock(struct cxl_mem *cxlm,
 	dev_dbg(dev, "Mapped CXL Memory Device resource bar %u @ %#llx\n",
 		bar, offset);
 
-	return pcim_iomap_table(pdev)[bar] + offset;
+	return addr;
+}
+
+static void cxl_mem_unmap_regblock(struct cxl_mem *cxlm, void __iomem *base)
+{
+	pci_iounmap(cxlm->pdev, base);
 }
 
 static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
@@ -971,6 +977,52 @@ static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
 	return 0;
 }
 
+static int cxl_probe_regs(struct cxl_mem *cxlm, void __iomem *base,
+			  struct cxl_register_map *map)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+	struct cxl_device_reg_map *dev_map;
+
+	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_MEMDEV:
+		dev_map = &map->device_map;
+		cxl_probe_device_regs(dev, base, dev_map);
+		if (!dev_map->status.valid || !dev_map->mbox.valid ||
+		    !dev_map->memdev.valid) {
+			dev_err(dev, "registers not found: %s%s%s\n",
+				!dev_map->status.valid ? "status " : "",
+				!dev_map->mbox.valid ? "status " : "",
+				!dev_map->memdev.valid ? "status " : "");
+			return -ENXIO;
+		}
+
+		dev_dbg(dev, "Probing device registers...\n");
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int cxl_map_regs(struct cxl_mem *cxlm, struct cxl_register_map *map)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+
+	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_MEMDEV:
+		cxl_map_device_regs(pdev, &cxlm->regs.device_regs, map);
+		dev_dbg(dev, "Probing device registers...\n");
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static void cxl_decode_register_block(u32 reg_lo, u32 reg_hi,
 				      u8 *bar, u64 *offset, u8 *reg_type)
 {
@@ -991,12 +1043,14 @@ static void cxl_decode_register_block(u32 reg_lo, u32 reg_hi,
  */
 static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 {
-	struct cxl_regs *regs = &cxlm->regs;
 	struct pci_dev *pdev = cxlm->pdev;
 	struct device *dev = &pdev->dev;
 	u32 regloc_size, regblocks;
 	void __iomem *base;
 	int regloc, i;
+	struct cxl_register_map *map, *n;
+	LIST_HEAD(register_maps);
+	int ret = 0;
 
 	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
 	if (!regloc) {
@@ -1020,7 +1074,14 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		u64 offset;
 		u8 bar;
 
-		/* "register low and high" contain other bits */
+		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		if (!map) {
+			ret = -ENOMEM;
+			goto free_maps;
+		}
+
+		list_add(&map->list, &register_maps);
+
 		pci_read_config_dword(pdev, regloc, &reg_lo);
 		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
 
@@ -1030,30 +1091,38 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 		dev_dbg(dev, "Found register block in bar %u @ 0x%llx of type %u\n",
 			bar, offset, reg_type);
 
-		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
-			base = cxl_mem_map_regblock(cxlm, bar, offset);
-			if (!base)
-				return -ENOMEM;
-			break;
+		base = cxl_mem_map_regblock(cxlm, bar, offset);
+		if (!base) {
+			ret = -ENOMEM;
+			goto free_maps;
 		}
+
+		map->barno = bar;
+		map->block_offset = offset;
+		map->reg_type = reg_type;
+
+		ret = cxl_probe_regs(cxlm, base + offset, map);
+
+		/* Always unmap the regblock regardless of probe success */
+		cxl_mem_unmap_regblock(cxlm, base);
+
+		if (ret)
+			goto free_maps;
 	}
 
-	if (i == regblocks) {
-		dev_err(dev, "Missing register locator for device registers\n");
-		return -ENXIO;
+	list_for_each_entry(map, &register_maps, list) {
+		ret = cxl_map_regs(cxlm, map);
+		if (ret)
+			goto free_maps;
 	}
 
-	cxl_setup_device_regs(dev, base, &regs->device_regs);
-
-	if (!regs->status || !regs->mbox || !regs->memdev) {
-		dev_err(dev, "registers not found: %s%s%s\n",
-			!regs->status ? "status " : "",
-			!regs->mbox ? "mbox " : "",
-			!regs->memdev ? "memdev" : "");
-		return -ENXIO;
+free_maps:
+	list_for_each_entry_safe(map, n, &register_maps, list) {
+		list_del(&map->list);
+		kfree(map);
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct cxl_memdev *to_cxl_memdev(struct device *dev)

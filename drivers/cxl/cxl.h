@@ -53,9 +53,7 @@ struct cxl_device_regs {
 /*
  * Note, the anonymous union organization allows for per
  * register-block-type helper routines, without requiring block-type
- * agnostic code to include the prefix. I.e.
- * cxl_setup_device_regs(&cxlm->regs.dev) vs readl(cxlm->regs.mbox).
- * The specificity reads naturally from left-to-right.
+ * agnostic code to include the prefix.
  */
 struct cxl_regs {
 	union {
@@ -66,8 +64,33 @@ struct cxl_regs {
 	};
 };
 
-void cxl_setup_device_regs(struct device *dev, void __iomem *base,
-			   struct cxl_device_regs *regs);
+struct cxl_reg_map {
+	bool valid;
+	unsigned long offset;
+	unsigned long size;
+};
+
+struct cxl_device_reg_map {
+	struct cxl_reg_map status;
+	struct cxl_reg_map mbox;
+	struct cxl_reg_map memdev;
+};
+
+struct cxl_register_map {
+	struct list_head list;
+	u64 block_offset;
+	u8 reg_type;
+	u8 barno;
+	union {
+		struct cxl_device_reg_map device_map;
+	};
+};
+
+void cxl_probe_device_regs(struct device *dev, void __iomem *base,
+			   struct cxl_device_reg_map *map);
+int cxl_map_device_regs(struct pci_dev *pdev,
+			struct cxl_device_regs *regs,
+			struct cxl_register_map *map);
 
 extern struct bus_type cxl_bus_type;
 #endif /* __CXL_H__ */
