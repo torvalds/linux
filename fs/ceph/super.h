@@ -988,8 +988,6 @@ extern int ceph_inode_holds_cap(struct inode *inode, int mask);
 extern bool ceph_inode_set_size(struct inode *inode, loff_t size);
 extern void __ceph_do_pending_vmtruncate(struct inode *inode);
 
-extern void ceph_async_iput(struct inode *inode);
-
 void ceph_queue_inode_work(struct inode *inode, int work_bit);
 
 static inline void ceph_queue_vmtruncate(struct inode *inode)
