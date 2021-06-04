@@ -838,4 +838,12 @@ int ssam_notifier_register(struct ssam_controller *ctrl,
 int ssam_notifier_unregister(struct ssam_controller *ctrl,
 			     struct ssam_event_notifier *n);
 
+int ssam_controller_event_enable(struct ssam_controller *ctrl,
+				 struct ssam_event_registry reg,
+				 struct ssam_event_id id, u8 flags);
+
+int ssam_controller_event_disable(struct ssam_controller *ctrl,
+				  struct ssam_event_registry reg,
+				  struct ssam_event_id id, u8 flags);
+
 #endif /* _LINUX_SURFACE_AGGREGATOR_CONTROLLER_H */
