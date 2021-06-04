@@ -70,21 +70,15 @@ static void x25_connect_disconnect(struct net_device *dev, int reason, int code)
 	tasklet_schedule(&x25st->rx_tasklet);
 }
 
-
-
 static void x25_connected(struct net_device *dev, int reason)
 {
 	x25_connect_disconnect(dev, reason, X25_IFACE_CONNECT);
 }
 
-
-
 static void x25_disconnected(struct net_device *dev, int reason)
 {
 	x25_connect_disconnect(dev, reason, X25_IFACE_DISCONNECT);
 }
-
-
 
 static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 {
@@ -108,8 +102,6 @@ static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-
-
 static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -122,8 +114,6 @@ static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 
 	hdlc->xmit(skb, dev); /* Ignore return value :-( */
 }
-
-
 
 static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -185,8 +175,6 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-
-
 static int x25_open(struct net_device *dev)
 {
 	static const struct lapb_register_struct cb = {
@@ -232,8 +220,6 @@ static int x25_open(struct net_device *dev)
 	return 0;
 }
 
-
-
 static void x25_close(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
@@ -246,8 +232,6 @@ static void x25_close(struct net_device *dev)
 	lapb_unregister(dev);
 	tasklet_kill(&x25st->rx_tasklet);
 }
-
-
 
 static int x25_rx(struct sk_buff *skb)
 {
@@ -279,7 +263,6 @@ static int x25_rx(struct sk_buff *skb)
 	return NET_RX_DROP;
 }
 
-
 static struct hdlc_proto proto = {
 	.open		= x25_open,
 	.close		= x25_close,
@@ -288,7 +271,6 @@ static struct hdlc_proto proto = {
 	.xmit		= x25_xmit,
 	.module		= THIS_MODULE,
 };
-
 
 static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
@@ -380,20 +362,16 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 	return -EINVAL;
 }
 
-
 static int __init mod_init(void)
 {
 	register_hdlc_protocol(&proto);
 	return 0;
 }
 
-
-
 static void __exit mod_exit(void)
 {
 	unregister_hdlc_protocol(&proto);
 }
-
 
 module_init(mod_init);
 module_exit(mod_exit);
