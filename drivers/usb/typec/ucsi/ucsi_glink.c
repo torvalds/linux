@@ -545,7 +545,7 @@ static void ucsi_qti_state_cb(void *priv, enum pmic_glink_state state)
 	switch (state) {
 	case PMIC_GLINK_STATE_DOWN:
 		if (!udev->ucsi) {
-			dev_err(udev->dev, "ucsi is NULL\n");
+			dev_dbg(udev->dev, "ucsi is NULL\n");
 			mutex_unlock(&udev->state_lock);
 			return;
 		}
