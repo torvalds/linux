@@ -254,7 +254,7 @@
 				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pmmc: pmmc@2921c00 {
+		pmmc: system-controller@2921c00 {
 			compatible = "ti,k2g-sci";
 			/*
 			 * In case of rare platforms that does not use k2g as
