@@ -38,9 +38,8 @@ void xapic_enable(void)
 
 void x2apic_enable(void)
 {
-	uint32_t spiv_reg = APIC_BASE_MSR + (APIC_SPIV >> 4);
-
 	wrmsr(MSR_IA32_APICBASE, rdmsr(MSR_IA32_APICBASE) |
 	      MSR_IA32_APICBASE_ENABLE | MSR_IA32_APICBASE_EXTD);
-	wrmsr(spiv_reg, rdmsr(spiv_reg) | APIC_SPIV_APIC_ENABLED);
+	x2apic_write_reg(APIC_SPIV,
+			 x2apic_read_reg(APIC_SPIV) | APIC_SPIV_APIC_ENABLED);
 }

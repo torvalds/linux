@@ -78,4 +78,14 @@ static inline void xapic_write_reg(unsigned int reg, uint32_t val)
 	((volatile uint32_t *)APIC_DEFAULT_GPA)[reg >> 2] = val;
 }
 
+static inline uint64_t x2apic_read_reg(unsigned int reg)
+{
+	return rdmsr(APIC_BASE_MSR + (reg >> 4));
+}
+
+static inline void x2apic_write_reg(unsigned int reg, uint64_t value)
+{
+	wrmsr(APIC_BASE_MSR + (reg >> 4), value);
+}
+
 #endif /* SELFTEST_KVM_APIC_H */
