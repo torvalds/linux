@@ -80,6 +80,7 @@ struct bd_status {
 	u8 done;
 	u8 err_type;
 	u16 flag;
+	u16 icv;
 };
 
 enum {
