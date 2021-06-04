@@ -294,6 +294,10 @@ static int csi_config(struct rkisp_csi_device *csi)
 		if (dev->hdr.op_mode == HDR_NORMAL &&
 		    (dev->isp_inp & INP_RAWRD2 || !dev->hw_dev->is_single))
 			dev->hdr.op_mode = HDR_RDBK_FRAME1;
+		/* HDR on the fly for isp21 */
+		if (dev->isp_ver == ISP_V21 && !(dev->isp_inp & INP_RAWRD2))
+			if (dev->hdr.op_mode == HDR_RDBK_FRAME2)
+				dev->hdr.op_mode = HDR_LINEX2_DDR;
 
 		/* op_mode update by mi_cfg_upd */
 		if (!dev->hw_dev->is_mi_update)
