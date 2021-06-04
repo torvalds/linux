@@ -512,6 +512,7 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret) {
+		pm_genpd_remove_device(dev);
 		pm_runtime_disable(dev);
 		return ret;
 	}
