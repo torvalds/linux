@@ -115,7 +115,8 @@ static inline bool walt_target_ok(int target_cpu, int order_index)
 
 #define MIN_UTIL_FOR_ENERGY_EVAL	10
 static void walt_get_indicies(struct task_struct *p, int *order_index,
-		int *end_index, int task_boost, bool uclamp_boost)
+		int *end_index, int per_task_boost, bool is_uclamp_boosted,
+		bool *energy_eval_needed)
 {
 	int i = 0;
 
@@ -125,12 +126,14 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 	if (num_sched_clusters <= 1)
 		return;
 
-	if (task_boost > TASK_BOOST_ON_MID) {
+	if (per_task_boost > TASK_BOOST_ON_MID) {
 		*order_index = num_sched_clusters - 1;
+		*energy_eval_needed = false;
 		return;
 	}
 
 	if (is_full_throttle_boost()) {
+		*energy_eval_needed = false;
 		*order_index = num_sched_clusters - 1;
 		if ((*order_index > 1) && task_demand_fits(p,
 			cpumask_first(&cpu_array[*order_index][1])))
@@ -138,10 +141,12 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		return;
 	}
 
-	if (uclamp_boost || task_boost ||
+	if (is_uclamp_boosted || per_task_boost ||
 		task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
-		walt_task_skip_min_cpu(p))
+		walt_task_skip_min_cpu(p)) {
+		*energy_eval_needed = false;
 		*order_index = 1;
+	}
 
 	for (i = *order_index ; i < num_sched_clusters - 1; i++) {
 		if (task_demand_fits(p, cpumask_first(&cpu_array[i][0])))
@@ -152,10 +157,14 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 
 	if (*order_index == 0 &&
 			(task_util(p) >= MIN_UTIL_FOR_ENERGY_EVAL) &&
+			!(p->in_iowait && task_in_related_thread_group(p)) &&
 			!walt_get_rtg_status(p) &&
 			!(sched_boost_type == CONSERVATIVE_BOOST && task_sched_boost(p))
 			)
 		*end_index = 1;
+
+	if (p->in_iowait && task_in_related_thread_group(p))
+		*energy_eval_needed = false;
 }
 
 enum fastpaths {
@@ -614,6 +623,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	bool uclamp_boost = walt_uclamp_boosted(p);
 	int start_cpu, order_index, end_index;
 	int max_cap_cpu = -1;
+	bool energy_eval_needed = true;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, &p->cpus_mask))
@@ -622,7 +632,8 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	if (unlikely(!cpu_array))
 		return -EPERM;
 
-	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost);
+	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost,
+								&energy_eval_needed);
 	start_cpu = cpumask_first(&cpu_array[order_index][0]);
 
 	is_rtg = task_in_related_thread_group(p);
@@ -685,10 +696,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 			max_cap_cpu = cpu;
 	}
 
-	if (task_placement_boost_enabled(p) ||
-		task_boost || uclamp_boost ||
-		!task_fits_max(p, prev_cpu) || !cpu_active(prev_cpu) ||
-			walt_get_rtg_status(p)) {
+	if (!energy_eval_needed) {
 		best_energy_cpu = max_cap_cpu;
 		rcu_read_unlock();
 		goto done;
