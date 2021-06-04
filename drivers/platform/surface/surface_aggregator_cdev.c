@@ -139,6 +139,8 @@ static int ssam_cdev_notifier_register(struct ssam_cdev_client *client, u8 tc, i
 	struct ssam_cdev_notifier *nf;
 	int status;
 
+	lockdep_assert_held_read(&client->cdev->lock);
+
 	/* Validate notifier target category. */
 	if (!ssh_rqid_is_event(rqid))
 		return -EINVAL;
@@ -187,6 +189,8 @@ static int ssam_cdev_notifier_unregister(struct ssam_cdev_client *client, u8 tc)
 	const u16 rqid = ssh_tc_to_rqid(tc);
 	const u16 event = ssh_rqid_to_event(rqid);
 	int status;
+
+	lockdep_assert_held_read(&client->cdev->lock);
 
 	/* Validate notifier target category. */
 	if (!ssh_rqid_is_event(rqid))
@@ -256,6 +260,8 @@ static long ssam_cdev_request(struct ssam_cdev_client *client, struct ssam_cdev_
 	const void __user *plddata;
 	void __user *rspdata;
 	int status = 0, ret = 0, tmp;
+
+	lockdep_assert_held_read(&client->cdev->lock);
 
 	ret = copy_struct_from_user(&rqst, sizeof(rqst), r, sizeof(*r));
 	if (ret)
@@ -367,6 +373,8 @@ static long ssam_cdev_notif_register(struct ssam_cdev_client *client,
 	struct ssam_cdev_notifier_desc desc;
 	long ret;
 
+	lockdep_assert_held_read(&client->cdev->lock);
+
 	ret = copy_struct_from_user(&desc, sizeof(desc), d, sizeof(*d));
 	if (ret)
 		return ret;
@@ -379,6 +387,8 @@ static long ssam_cdev_notif_unregister(struct ssam_cdev_client *client,
 {
 	struct ssam_cdev_notifier_desc desc;
 	long ret;
+
+	lockdep_assert_held_read(&client->cdev->lock);
 
 	ret = copy_struct_from_user(&desc, sizeof(desc), d, sizeof(*d));
 	if (ret)
@@ -394,6 +404,8 @@ static long ssam_cdev_event_enable(struct ssam_cdev_client *client,
 	struct ssam_event_registry reg;
 	struct ssam_event_id id;
 	long ret;
+
+	lockdep_assert_held_read(&client->cdev->lock);
 
 	/* Read descriptor from user-space. */
 	ret = copy_struct_from_user(&desc, sizeof(desc), d, sizeof(*d));
@@ -420,6 +432,8 @@ static long ssam_cdev_event_disable(struct ssam_cdev_client *client,
 	struct ssam_event_registry reg;
 	struct ssam_event_id id;
 	long ret;
+
+	lockdep_assert_held_read(&client->cdev->lock);
 
 	/* Read descriptor from user-space. */
 	ret = copy_struct_from_user(&desc, sizeof(desc), d, sizeof(*d));
@@ -513,6 +527,8 @@ static int ssam_cdev_device_release(struct inode *inode, struct file *filp)
 static long __ssam_cdev_device_ioctl(struct ssam_cdev_client *client, unsigned int cmd,
 				     unsigned long arg)
 {
+	lockdep_assert_held_read(&client->cdev->lock);
+
 	switch (cmd) {
 	case SSAM_CDEV_REQUEST:
 		return ssam_cdev_request(client, (struct ssam_cdev_request __user *)arg);
