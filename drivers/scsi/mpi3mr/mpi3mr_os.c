@@ -25,10 +25,10 @@ int prot_mask = -1;
 module_param(prot_mask, int, 0);
 MODULE_PARM_DESC(prot_mask, "Host protection capabilities mask, def=0x07");
 
-int prot_guard_mask = 3;
+static int prot_guard_mask = 3;
 module_param(prot_guard_mask, int, 0);
 MODULE_PARM_DESC(prot_guard_mask, " Host protection guard mask, def=3");
-int logging_level;
+static int logging_level;
 module_param(logging_level, int, 0);
 MODULE_PARM_DESC(logging_level,
 	" bits for enabling additional logging info (default=0)");
