@@ -13,6 +13,8 @@ struct sec_alg_res {
 	dma_addr_t pbuf_dma;
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
+	u8 *a_ivin;
+	dma_addr_t a_ivin_dma;
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
 };
@@ -33,6 +35,8 @@ struct sec_cipher_req {
 struct sec_aead_req {
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
+	u8 *a_ivin;
+	dma_addr_t a_ivin_dma;
 	struct aead_request *aead_req;
 };
 
