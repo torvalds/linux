@@ -77,6 +77,8 @@
 
 #ifdef CONFIG_XIP_KERNEL
 #define XIP_OFFSET		SZ_8M
+#else
+#define XIP_OFFSET		0
 #endif
 
 #ifndef __ASSEMBLY__
