@@ -275,6 +275,8 @@ static int clk_scu_atf_set_cpu_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (clk->rsrc_id == IMX_SC_R_A35 || clk->rsrc_id == IMX_SC_R_A53)
 		cluster_id = 0;
+	else if (clk->rsrc_id == IMX_SC_R_A72)
+		cluster_id = 1;
 	else
 		return -EINVAL;
 
@@ -449,7 +451,7 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &clk_scu_ops;
-	if (rsrc_id == IMX_SC_R_A35 || rsrc_id == IMX_SC_R_A53)
+	if (rsrc_id == IMX_SC_R_A35 || rsrc_id == IMX_SC_R_A53 || rsrc_id == IMX_SC_R_A72)
 		init.ops = &clk_scu_cpu_ops;
 	else if (rsrc_id == IMX_SC_R_PI_0_PLL)
 		init.ops = &clk_scu_pi_ops;
