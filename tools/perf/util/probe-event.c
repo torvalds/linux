@@ -682,8 +682,13 @@ static int post_process_probe_trace_point(struct probe_trace_point *tp,
 	u64 addr = tp->address - offs;
 
 	sym = map__find_symbol(map, addr);
-	if (!sym)
-		return -ENOENT;
+	if (!sym) {
+		/*
+		 * If the address is in the inittext section, map can not
+		 * find it. Ignore it if we are probing offline kernel.
+		 */
+		return (symbol_conf.ignore_vmlinux_buildid) ? 0 : -ENOENT;
+	}
 
 	if (strcmp(sym->name, tp->symbol)) {
 		/* If we have no realname, use symbol for it */
