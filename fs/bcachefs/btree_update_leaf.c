@@ -841,13 +841,11 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 	struct bpos start = bkey_start_pos(&insert->k);
 	struct bkey_i *update;
 	struct bkey_s_c k;
-	int ret = 0;
+	int ret;
 
-	iter = bch2_trans_get_iter(trans, btree_id, start,
-				   BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_with_updates(iter);
-
-	while (k.k && !(ret = bkey_err(k))) {
+	for_each_btree_key(trans, iter, btree_id, start,
+			   BTREE_ITER_INTENT|
+			   BTREE_ITER_WITH_UPDATES, k, ret) {
 		if (bkey_cmp(insert->k.p, bkey_start_pos(k.k)) <= 0)
 			break;
 
@@ -898,8 +896,6 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 			bch2_trans_iter_put(trans, update_iter);
 			break;
 		}
-
-		k = bch2_btree_iter_next_with_updates(iter);
 	}
 	bch2_trans_iter_put(trans, iter);
 

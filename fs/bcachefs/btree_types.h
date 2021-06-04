@@ -209,12 +209,13 @@ enum btree_iter_type {
  * @pos or the first key strictly greater than @pos
  */
 #define BTREE_ITER_IS_EXTENTS		(1 << 6)
-#define BTREE_ITER_ERROR		(1 << 7)
-#define BTREE_ITER_SET_POS_AFTER_COMMIT	(1 << 8)
-#define BTREE_ITER_CACHED_NOFILL	(1 << 9)
-#define BTREE_ITER_CACHED_NOCREATE	(1 << 10)
-#define BTREE_ITER_NOT_EXTENTS		(1 << 11)
-#define BTREE_ITER_ALL_SNAPSHOTS	(1 << 12)
+#define BTREE_ITER_NOT_EXTENTS		(1 << 7)
+#define BTREE_ITER_ERROR		(1 << 8)
+#define BTREE_ITER_SET_POS_AFTER_COMMIT	(1 << 9)
+#define BTREE_ITER_CACHED_NOFILL	(1 << 10)
+#define BTREE_ITER_CACHED_NOCREATE	(1 << 11)
+#define BTREE_ITER_WITH_UPDATES		(1 << 12)
+#define BTREE_ITER_ALL_SNAPSHOTS	(1 << 13)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
