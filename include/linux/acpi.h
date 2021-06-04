@@ -911,7 +911,7 @@ acpi_create_platform_device(struct acpi_device *adev,
 	return NULL;
 }
 
-static inline bool acpi_dma_supported(struct acpi_device *adev)
+static inline bool acpi_dma_supported(const struct acpi_device *adev)
 {
 	return false;
 }
