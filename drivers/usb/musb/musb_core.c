@@ -1984,6 +1984,20 @@ ATTRIBUTE_GROUPS(musb);
 #define MUSB_QUIRK_A_DISCONNECT_19	((3 << MUSB_DEVCTL_VBUS_SHIFT) | \
 					 MUSB_DEVCTL_SESSION)
 
+static bool musb_state_needs_recheck(struct musb *musb, const char *desc)
+{
+	if (musb->quirk_retries && !musb->flush_irq_work) {
+		musb_dbg(musb, desc);
+		schedule_delayed_work(&musb->irq_work,
+				      msecs_to_jiffies(1000));
+		musb->quirk_retries--;
+
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Check the musb devctl session bit to determine if we want to
  * allow PM runtime for the device. In general, we want to keep things
@@ -2004,32 +2018,18 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_DISCONNECT_99:
-		if (musb->quirk_retries && !musb->flush_irq_work) {
-			musb_dbg(musb, "Poll devctl in case of suspend after disconnect\n");
-			schedule_delayed_work(&musb->irq_work,
-					      msecs_to_jiffies(1000));
-			musb->quirk_retries--;
-		}
+		musb_state_needs_recheck(musb,
+			"Poll devctl in case of suspend after disconnect\n");
 		break;
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (musb->quirk_retries && !musb->flush_irq_work) {
-			musb_dbg(musb,
-				 "Poll devctl on invalid vbus, assume no session");
-			schedule_delayed_work(&musb->irq_work,
-					      msecs_to_jiffies(1000));
-			musb->quirk_retries--;
+		if (musb_state_needs_recheck(musb,
+				"Poll devctl on invalid vbus, assume no session"))
 			return;
-		}
 		fallthrough;
 	case MUSB_QUIRK_A_DISCONNECT_19:
-		if (musb->quirk_retries && !musb->flush_irq_work) {
-			musb_dbg(musb,
-				 "Poll devctl on possible host mode disconnect");
-			schedule_delayed_work(&musb->irq_work,
-					      msecs_to_jiffies(1000));
-			musb->quirk_retries--;
+		if (musb_state_needs_recheck(musb,
+				"Poll devctl on possible host mode disconnect"))
 			return;
-		}
 		if (!musb->session)
 			break;
 		musb_dbg(musb, "Allow PM on possible host mode disconnect");
