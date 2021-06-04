@@ -19,37 +19,6 @@ Required properties:
 	of support for RGMII internal delays (supported on P/Q/R/S, but not on
 	E/T).
 
-Optional properties:
-
-- sja1105,role-mac:
-- sja1105,role-phy:
-	Boolean properties that can be assigned under each port node. By
-	default (unless otherwise specified) a port is configured as MAC if it
-	is driving a PHY (phy-handle is present) or as PHY if it is PHY-less
-	(fixed-link specified, presumably because it is connected to a MAC).
-	The effect of this property (in either its implicit or explicit form)
-	is:
-	- In the case of MII or RMII it specifies whether the SJA1105 port is a
-	  clock source or sink for this interface (not applicable for RGMII
-	  where there is a Tx and an Rx clock).
-	- In the case of RGMII it affects the behavior regarding internal
-	  delays:
-	  1. If sja1105,role-mac is specified, and the phy-mode property is one
-	     of "rgmii-id", "rgmii-txid" or "rgmii-rxid", then the entity
-	     designated to apply the delay/clock skew necessary for RGMII
-	     is the PHY. The SJA1105 MAC does not apply any internal delays.
-	  2. If sja1105,role-phy is specified, and the phy-mode property is one
-	     of the above, the designated entity to apply the internal delays
-	     is the SJA1105 MAC (if hardware-supported). This is only supported
-	     by the second-generation (P/Q/R/S) hardware. On a first-generation
-	     E or T device, it is an error to specify an RGMII phy-mode other
-	     than "rgmii" for a port that is in fixed-link mode. In that case,
-	     the clock skew must either be added by the MAC at the other end of
-	     the fixed-link, or by PCB serpentine traces on the board.
-	These properties are required, for example, in the case where SJA1105
-	ports are at both ends of a MII/RMII PHY-less setup. One end would need
-	to have sja1105,role-mac, while the other sja1105,role-phy.
-
 See Documentation/devicetree/bindings/net/dsa/dsa.txt for the list of standard
 DSA required and optional properties.
 
@@ -87,7 +56,6 @@ arch/arm/boot/dts/ls1021a-tsn.dts:
 				phy-handle = <&rgmii_phy6>;
 				phy-mode = "rgmii-id";
 				reg = <0>;
-				/* Implicit "sja1105,role-mac;" */
 			};
 			port@1 {
 				/* ETH2 written on chassis */
@@ -95,7 +63,6 @@ arch/arm/boot/dts/ls1021a-tsn.dts:
 				phy-handle = <&rgmii_phy3>;
 				phy-mode = "rgmii-id";
 				reg = <1>;
-				/* Implicit "sja1105,role-mac;" */
 			};
 			port@2 {
 				/* ETH3 written on chassis */
@@ -103,7 +70,6 @@ arch/arm/boot/dts/ls1021a-tsn.dts:
 				phy-handle = <&rgmii_phy4>;
 				phy-mode = "rgmii-id";
 				reg = <2>;
-				/* Implicit "sja1105,role-mac;" */
 			};
 			port@3 {
 				/* ETH4 written on chassis */
@@ -111,14 +77,13 @@ arch/arm/boot/dts/ls1021a-tsn.dts:
 				label = "swp4";
 				phy-mode = "rgmii-id";
 				reg = <3>;
-				/* Implicit "sja1105,role-mac;" */
 			};
 			port@4 {
 				/* Internal port connected to eth2 */
 				ethernet = <&enet2>;
 				phy-mode = "rgmii";
 				reg = <4>;
-				/* Implicit "sja1105,role-phy;" */
+
 				fixed-link {
 					speed = <1000>;
 					full-duplex;
