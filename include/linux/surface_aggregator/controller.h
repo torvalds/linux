@@ -6,7 +6,7 @@
  * managing access and communication to and from the SSAM EC, as well as main
  * communication structures and definitions.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _LINUX_SURFACE_AGGREGATOR_CONTROLLER_H
