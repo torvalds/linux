@@ -1679,18 +1679,21 @@ static void vop2_disable_all_planes_for_crtc(struct drm_crtc *crtc)
 	struct vop2_win *win;
 	unsigned long win_mask = vp->win_mask;
 	int phys_id, ret;
-	bool active;
-
+	bool active, need_wait_win_disabled = false;
 
 	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
 		win = vop2_find_win_by_phys_id(vop2, phys_id);
+		need_wait_win_disabled |= VOP_WIN_GET(vop2, win, enable);
 		vop2_win_disable(win);
 	}
-	vop2_cfg_done(crtc);
-	ret = readx_poll_timeout_atomic(vop2_is_allwin_disabled, crtc,
-					active, active, 0, 500 * 1000);
-	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait win close timeout\n");
+
+	if (need_wait_win_disabled) {
+		vop2_cfg_done(crtc);
+		ret = readx_poll_timeout_atomic(vop2_is_allwin_disabled, crtc,
+						active, active, 0, 500 * 1000);
+		if (ret)
+			DRM_DEV_ERROR(vop2->dev, "wait win close timeout\n");
+	}
 }
 
 /*
