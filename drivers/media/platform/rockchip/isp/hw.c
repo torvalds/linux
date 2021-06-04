@@ -647,6 +647,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	struct rkisp_hw_dev *hw_dev;
 	struct resource *res;
 	int i, ret;
+	bool is_mem_reserved = true;
 
 	match = of_match_node(rkisp_hw_of_match, node);
 	if (IS_ERR(match))
@@ -737,22 +738,29 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_single = true;
 	hw_dev->is_mi_update = false;
 	hw_dev->is_dma_contig = true;
+	hw_dev->is_dma_sg_ops = false;
 	hw_dev->is_buf_init = false;
 	hw_dev->is_shutdown = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
+		is_mem_reserved = false;
+
 		if (!hw_dev->is_mmu)
-			dev_warn(dev, "No reserved memory region. default cma area!\n");
+			dev_info(dev, "No reserved memory region. default cma area!\n");
 		else
 			hw_dev->is_dma_contig = false;
 	}
-	if (!hw_dev->is_mmu)
-		hw_dev->mem_ops = &vb2_dma_contig_memops;
-	else if (!hw_dev->is_dma_contig)
-		hw_dev->mem_ops = &vb2_dma_sg_memops;
-	else
+	if (is_mem_reserved) {
+		/* reserved memory using rdma_sg */
 		hw_dev->mem_ops = &vb2_rdma_sg_memops;
+		hw_dev->is_dma_sg_ops = true;
+	} else if (hw_dev->is_mmu) {
+		hw_dev->mem_ops = &vb2_dma_sg_memops;
+		hw_dev->is_dma_sg_ops = true;
+	} else {
+		hw_dev->mem_ops = &vb2_dma_contig_memops;
+	}
 
 	pm_runtime_enable(dev);
 

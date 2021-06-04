@@ -71,6 +71,7 @@ struct rkisp_hw_dev {
 	int buf_init_cnt;
 	bool is_feature_on;
 	bool is_dma_contig;
+	bool is_dma_sg_ops;
 	bool is_mmu;
 	bool is_idle;
 	bool is_single;
