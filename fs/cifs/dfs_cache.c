@@ -24,6 +24,7 @@
 
 #define CACHE_HTABLE_SIZE 32
 #define CACHE_MAX_ENTRIES 64
+#define CACHE_MIN_TTL 120 /* 2 minutes */
 
 #define IS_INTERLINK_SET(v) ((v) & (DFSREF_REFERRAL_SERVER | \
 				    DFSREF_STORAGE_SERVER))
@@ -492,7 +493,7 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 {
 	int i;
 
-	ce->ttl = refs[0].ttl;
+	ce->ttl = max_t(int, refs[0].ttl, CACHE_MIN_TTL);
 	ce->etime = get_expire_time(ce->ttl);
 	ce->srvtype = refs[0].server_type;
 	ce->hdr_flags = refs[0].flags;
