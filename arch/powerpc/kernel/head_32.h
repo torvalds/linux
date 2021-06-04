@@ -158,12 +158,12 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	stw	r11,GPR1(r1)
 	stw	r11,0(r1)
 	mr	r11, r1
-	stw	r12,_NIP(r11)
+	stw	r12,_NIP(r1)
 	mflr	r12
 	stw	r12, _LINK(r11)
 	mfcr	r12
 	rlwinm	r12,r12,0,4,2	/* Clear SO bit in CR */
-	stw	r12,_CCR(r11)		/* save registers */
+	stw	r12,_CCR(r1)
 #ifdef CONFIG_40x
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #endif
