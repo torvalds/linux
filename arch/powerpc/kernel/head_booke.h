@@ -140,26 +140,8 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	rlwinm	r12,r12,0,4,2	/* Clear SO bit in CR */
 	ALLOC_STACK_FRAME(r1, THREAD_SIZE - INT_FRAME_SIZE)
 	stw	r12, _CCR(r1)
-	mflr	r12
-	stw	r12,_LINK(r1)
 	mfspr	r12,SPRN_SRR0
-	stw	r11, GPR1(r1)
-	stw	r11, 0(r1)
-	mr	r11, r1
 	stw	r12,_NIP(r1)
-	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?)	   */
-	lis	r12, STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
-	stw	r2,GPR2(r11)
-	addi	r12, r12, STACK_FRAME_REGS_MARKER@l
-	stw	r9,_MSR(r11)
-	li	r2, \trapno
-	stw	r12, 8(r11)
-	stw	r2,_TRAP(r11)
-	SAVE_GPR(0, r11)
-	SAVE_4GPRS(3, r11)
-	SAVE_2GPRS(7, r11)
-
-	addi	r2,r10,-THREAD
 	b	transfer_to_syscall	/* jump to handler */
 .endm
 

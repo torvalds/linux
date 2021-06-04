@@ -32,6 +32,7 @@
 #include <asm/barrier.h>
 #include <asm/kup.h>
 #include <asm/bug.h>
+#include <asm/interrupt.h>
 
 #include "head_32.h"
 
@@ -74,6 +75,24 @@ _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
 
 	.globl	transfer_to_syscall
 transfer_to_syscall:
+	stw	r11, GPR1(r1)
+	stw	r11, 0(r1)
+	mflr	r12
+	stw	r12, _LINK(r1)
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
+#endif
+	lis	r12,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
+	SAVE_GPR(2, r1)
+	addi	r12,r12,STACK_FRAME_REGS_MARKER@l
+	stw	r9,_MSR(r1)
+	li	r2, INTERRUPT_SYSCALL
+	stw	r12,8(r1)
+	stw	r2,_TRAP(r1)
+	SAVE_GPR(0, r1)
+	SAVE_4GPRS(3, r1)
+	SAVE_2GPRS(7, r1)
+	addi	r2,r10,-THREAD
 	SAVE_NVGPRS(r1)
 
 	/* Calling convention has r9 = orig r0, r10 = regs */
