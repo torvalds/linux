@@ -22,6 +22,7 @@ obj-$(CONFIG_NETFILTER_NETLINK_ACCT) += nfnetlink_acct.o
 obj-$(CONFIG_NETFILTER_NETLINK_QUEUE) += nfnetlink_queue.o
 obj-$(CONFIG_NETFILTER_NETLINK_LOG) += nfnetlink_log.o
 obj-$(CONFIG_NETFILTER_NETLINK_OSF) += nfnetlink_osf.o
+obj-$(CONFIG_NETFILTER_NETLINK_HOOK) += nfnetlink_hook.o
 
 # connection tracking
 obj-$(CONFIG_NF_CONNTRACK) += nf_conntrack.o
