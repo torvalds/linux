@@ -50,6 +50,8 @@ struct clk_scu {
 	u8 clk_type;
 
 	/* for state save&restore */
+	struct clk_hw *parent;
+	u8 parent_index;
 	bool is_enabled;
 	u32 rate;
 };
@@ -337,6 +339,8 @@ static u8 clk_scu_get_parent(struct clk_hw *hw)
 		return 0;
 	}
 
+	clk->parent_index = msg.data.resp.parent;
+
 	return msg.data.resp.parent;
 }
 
@@ -345,6 +349,7 @@ static int clk_scu_set_parent(struct clk_hw *hw, u8 index)
 	struct clk_scu *clk = to_clk_scu(hw);
 	struct imx_sc_msg_set_clock_parent msg;
 	struct imx_sc_rpc_msg *hdr = &msg.hdr;
+	int ret;
 
 	hdr->ver = IMX_SC_RPC_VERSION;
 	hdr->svc = IMX_SC_RPC_SVC_PM;
@@ -355,7 +360,16 @@ static int clk_scu_set_parent(struct clk_hw *hw, u8 index)
 	msg.clk = clk->clk_type;
 	msg.parent = index;
 
-	return imx_scu_call_rpc(ccm_ipc_handle, &msg, true);
+	ret = imx_scu_call_rpc(ccm_ipc_handle, &msg, true);
+	if (ret) {
+		pr_err("%s: failed to set clock parent %d\n",
+		       clk_hw_get_name(hw), ret);
+		return ret;
+	}
+
+	clk->parent_index = index;
+
+	return 0;
 }
 
 static int sc_pm_clock_enable(struct imx_sc_ipc *ipc, u16 resource,
@@ -547,6 +561,8 @@ static int __maybe_unused imx_clk_scu_suspend(struct device *dev)
 	    (rsrc_id == IMX_SC_R_A72))
 		return 0;
 
+	clk->parent = clk_hw_get_parent(&clk->hw);
+
 	/* DC SS needs to handle bypass clock using non-cached clock rate */
 	if (clk->rsrc_id == IMX_SC_R_DC_0_VIDEO0 ||
 		clk->rsrc_id == IMX_SC_R_DC_0_VIDEO1 ||
@@ -556,6 +572,10 @@ static int __maybe_unused imx_clk_scu_suspend(struct device *dev)
 	else
 		clk->rate = clk_hw_get_rate(&clk->hw);
 	clk->is_enabled = clk_hw_is_enabled(&clk->hw);
+
+	if (clk->parent)
+		dev_dbg(dev, "save parent %s idx %u\n", clk_hw_get_name(clk->parent),
+			clk->parent_index);
 
 	if (clk->rate)
 		dev_dbg(dev, "save rate %d\n", clk->rate);
@@ -575,6 +595,13 @@ static int __maybe_unused imx_clk_scu_resume(struct device *dev)
 	if ((rsrc_id == IMX_SC_R_A35) || (rsrc_id == IMX_SC_R_A53) ||
 	    (rsrc_id == IMX_SC_R_A72))
 		return 0;
+
+	if (clk->parent) {
+		ret = clk_scu_set_parent(&clk->hw, clk->parent_index);
+		dev_dbg(dev, "restore parent %s idx %u %s\n",
+			clk_hw_get_name(clk->parent),
+			clk->parent_index, !ret ? "success" : "failed");
+	}
 
 	if (clk->rate) {
 		ret = clk_scu_set_rate(&clk->hw, clk->rate, 0);
