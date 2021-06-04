@@ -21,6 +21,11 @@ config PINCTRL_MT7621
         depends on RALINK && SOC_MT7621
         select PINCTRL_RT2880
 
+config PINCTRL_RT288X
+        bool "RT288X pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT288X
+        select PINCTRL_RT2880
+
 config PINCTRL_RT305X
         bool "RT305X pinctrl driver for RALINK/Mediatek SOCs"
         depends on RALINK && SOC_RT305X
