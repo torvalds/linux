@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 menu "Clock driver for ARM Reference designs"
+	depends on HAS_IOMEM
 
 config ICST
 	bool "Clock driver for ARM Reference designs ICST"
