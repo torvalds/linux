@@ -573,7 +573,7 @@ static int __maybe_unused imx_clk_scu_resume(struct device *dev)
 			!ret ? "success" : "failed");
 	}
 
-	if (clk->is_enabled) {
+	if (clk->is_enabled && rsrc_id != IMX_SC_R_PI_0_PLL) {
 		ret = clk_scu_prepare(&clk->hw);
 		dev_dbg(dev, "restore enabled state %s\n",
 			!ret ? "success" : "failed");
