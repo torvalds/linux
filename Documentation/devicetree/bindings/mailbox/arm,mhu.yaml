@@ -126,9 +126,15 @@ examples:
             clock-names = "apb_pclk";
         };
 
-        mhu_client_scpi: scpi@2f000000 {
+        scpi {
             compatible = "arm,scpi";
-            reg = <0 0x2f000000 0 0x200>;
             mboxes = <&mhuB 1 4>; /* HP-NonSecure, 5th doorbell */
+            shmem = <&cpu_scp_hpri>; /* HP-NonSecure */
+
+            scpi_devpd: power-controller {
+                compatible = "arm,scpi-power-domains";
+                num-domains = <2>;
+                #power-domain-cells = <1>;
+            };
         };
     };
