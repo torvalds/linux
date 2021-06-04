@@ -32,6 +32,10 @@ properties:
     oneOf:
       - const: arm,scpi               # SCPI v1.0 and above
       - const: arm,scpi-pre-1.0       # Unversioned SCPI before v1.0
+      - items:
+          - enum:
+              - amlogic,meson-gxbb-scpi
+          - const: arm,scpi-pre-1.0
 
   mboxes:
     description:
@@ -81,7 +85,12 @@ properties:
 
     properties:
       compatible:
-        const: arm,scpi-sensors
+        oneOf:
+          - const: arm,scpi-sensors
+          - items:
+              - enum:
+                  - amlogic,meson-gxbb-scpi-sensors
+              - const: arm,scpi-sensors
 
       '#thermal-sensor-cells':
         const: 1
@@ -222,4 +231,17 @@ examples:
         };
     };
 
+  - |
+    firmware {
+        scpi {
+            compatible = "amlogic,meson-gxbb-scpi", "arm,scpi-pre-1.0";
+            mboxes = <&mailbox 1 &mailbox 2>;
+            shmem = <&cpu_scp_lpri &cpu_scp_hpri>;
+
+            scpi_sensors1: sensors {
+                compatible = "amlogic,meson-gxbb-scpi-sensors", "arm,scpi-sensors";
+                #thermal-sensor-cells = <1>;
+            };
+        };
+    };
 ...
