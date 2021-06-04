@@ -1834,22 +1834,6 @@ int remove_memory(int nid, u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-static bool __check_sections_offline(unsigned long start_pfn,
-		unsigned long nr_pages)
-{
-	const unsigned long end_pfn = start_pfn + nr_pages;
-	unsigned long pfn, sec_nr;
-
-	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-		sec_nr = pfn_to_section_nr(pfn);
-
-		if (!valid_section_nr(sec_nr) || online_section_nr(sec_nr))
-			return false;
-	}
-
-	return true;
-}
-
 int remove_memory_subsection(int nid, u64 start, u64 size)
 {
 	if (size ==  memory_block_size_bytes())
@@ -1863,15 +1847,6 @@ int remove_memory_subsection(int nid, u64 start, u64 size)
 	}
 
 	mem_hotplug_begin();
-
-	/* we cannot remove subsections that are invalid or online */
-	if(!__check_sections_offline(PHYS_PFN(start), size >> PAGE_SHIFT)) {
-		pr_err("%s: [%llx, %llx) sections are not offlined\n",
-			   __func__, start, start + size);
-		mem_hotplug_done();
-		return -EBUSY;
-	}
-
 	arch_remove_memory(nid, start, size, NULL);
 
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
