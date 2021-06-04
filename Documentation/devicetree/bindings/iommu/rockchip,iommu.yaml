@@ -19,7 +19,9 @@ description: |+
 
 properties:
   compatible:
-    const: rockchip,iommu
+    enum:
+      - rockchip,iommu
+      - rockchip,rk3568-iommu
 
   reg:
     items:
@@ -47,6 +49,9 @@ properties:
 
   "#iommu-cells":
     const: 0
+
+  power-domains:
+    maxItems: 1
 
   rockchip,disable-mmu-reset:
     $ref: /schemas/types.yaml#/definitions/flag
