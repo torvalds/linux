@@ -796,6 +796,20 @@ enum ssam_event_mask {
 	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_REG, 0x02, 0x01, 0x02)
 
 /**
+ * enum ssam_event_notifier_flags - Flags for event notifiers.
+ * @SSAM_EVENT_NOTIFIER_OBSERVER:
+ *	The corresponding notifier acts as observer. Registering a notifier
+ *	with this flag set will not attempt to enable any event. Equally,
+ *	unregistering will not attempt to disable any event. Note that a
+ *	notifier with this flag may not even correspond to a certain event at
+ *	all, only to a specific event target category. Event matching will not
+ *	be influenced by this flag.
+ */
+enum ssam_event_notifier_flags {
+	SSAM_EVENT_NOTIFIER_OBSERVER = BIT(0),
+};
+
+/**
  * struct ssam_event_notifier - Notifier block for SSAM events.
  * @base:        The base notifier block with callback function and priority.
  * @event:       The event for which this block will receive notifications.
@@ -803,6 +817,7 @@ enum ssam_event_mask {
  * @event.id:    ID specifying the event.
  * @event.mask:  Flags determining how events are matched to the notifier.
  * @event.flags: Flags used for enabling the event.
+ * @flags:       Notifier flags (see &enum ssam_event_notifier_flags).
  */
 struct ssam_event_notifier {
 	struct ssam_notifier_block base;
@@ -813,6 +828,8 @@ struct ssam_event_notifier {
 		enum ssam_event_mask mask;
 		u8 flags;
 	} event;
+
+	unsigned long flags;
 };
 
 int ssam_notifier_register(struct ssam_controller *ctrl,

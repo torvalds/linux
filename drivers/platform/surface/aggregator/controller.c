@@ -2127,9 +2127,15 @@ int ssam_ctrl_notif_d0_entry(struct ssam_controller *ctrl)
  * @ctrl: The controller to register the notifier on.
  * @n:    The event notifier to register.
  *
- * Register an event notifier and increment the usage counter of the
- * associated SAM event. If the event was previously not enabled, it will be
- * enabled during this call.
+ * Register an event notifier. Increment the usage counter of the associated
+ * SAM event if the notifier is not marked as an observer. If the event is not
+ * marked as an observer and is currently not enabled, it will be enabled
+ * during this call. If the notifier is marked as an observer, no attempt will
+ * be made at enabling any event and no reference count will be modified.
+ *
+ * Notifiers marked as observers do not need to be associated with one specific
+ * event, i.e. as long as no event matching is performed, only the event target
+ * category needs to be set.
  *
  * Return: Returns zero on success, %-ENOSPC if there have already been
  * %INT_MAX notifiers for the event ID/type associated with the notifier block
@@ -2138,11 +2144,10 @@ int ssam_ctrl_notif_d0_entry(struct ssam_controller *ctrl)
  * for the specific associated event, returns the status of the event-enable
  * EC-command.
  */
-int ssam_notifier_register(struct ssam_controller *ctrl,
-			   struct ssam_event_notifier *n)
+int ssam_notifier_register(struct ssam_controller *ctrl, struct ssam_event_notifier *n)
 {
 	u16 rqid = ssh_tc_to_rqid(n->event.id.target_category);
-	struct ssam_nf_refcount_entry *entry;
+	struct ssam_nf_refcount_entry *entry = NULL;
 	struct ssam_nf_head *nf_head;
 	struct ssam_nf *nf;
 	int status;
@@ -2155,29 +2160,32 @@ int ssam_notifier_register(struct ssam_controller *ctrl,
 
 	mutex_lock(&nf->lock);
 
-	entry = ssam_nf_refcount_inc(nf, n->event.reg, n->event.id);
-	if (IS_ERR(entry)) {
-		mutex_unlock(&nf->lock);
-		return PTR_ERR(entry);
-	}
+	if (!(n->flags & SSAM_EVENT_NOTIFIER_OBSERVER)) {
+		entry = ssam_nf_refcount_inc(nf, n->event.reg, n->event.id);
+		if (IS_ERR(entry)) {
+			mutex_unlock(&nf->lock);
+			return PTR_ERR(entry);
+		}
 
-	ssam_dbg(ctrl, "enabling event (reg: %#04x, tc: %#04x, iid: %#04x, rc: %d)\n",
-		 n->event.reg.target_category, n->event.id.target_category,
-		 n->event.id.instance, entry->refcount);
+		ssam_dbg(ctrl, "enabling event (reg: %#04x, tc: %#04x, iid: %#04x, rc: %d)\n",
+			 n->event.reg.target_category, n->event.id.target_category,
+			 n->event.id.instance, entry->refcount);
+	}
 
 	status = ssam_nfblk_insert(nf_head, &n->base);
 	if (status) {
-		entry = ssam_nf_refcount_dec(nf, n->event.reg, n->event.id);
-		if (entry->refcount == 0)
-			kfree(entry);
+		if (entry) {
+			entry = ssam_nf_refcount_dec(nf, n->event.reg, n->event.id);
+			if (entry->refcount == 0)
+				kfree(entry);
+		}
 
 		mutex_unlock(&nf->lock);
 		return status;
 	}
 
-	if (entry->refcount == 1) {
-		status = ssam_ssh_event_enable(ctrl, n->event.reg, n->event.id,
-					       n->event.flags);
+	if (entry && entry->refcount == 1) {
+		status = ssam_ssh_event_enable(ctrl, n->event.reg, n->event.id, n->event.flags);
 		if (status) {
 			ssam_nfblk_remove(&n->base);
 			kfree(ssam_nf_refcount_dec(nf, n->event.reg, n->event.id));
@@ -2188,7 +2196,7 @@ int ssam_notifier_register(struct ssam_controller *ctrl,
 
 		entry->flags = n->event.flags;
 
-	} else if (entry->flags != n->event.flags) {
+	} else if (entry && entry->flags != n->event.flags) {
 		ssam_warn(ctrl,
 			  "inconsistent flags when enabling event: got %#04x, expected %#04x (reg: %#04x, tc: %#04x, iid: %#04x)\n",
 			  n->event.flags, entry->flags, n->event.reg.target_category,
@@ -2205,17 +2213,16 @@ EXPORT_SYMBOL_GPL(ssam_notifier_register);
  * @ctrl: The controller the notifier has been registered on.
  * @n:    The event notifier to unregister.
  *
- * Unregister an event notifier and decrement the usage counter of the
- * associated SAM event. If the usage counter reaches zero, the event will be
- * disabled.
+ * Unregister an event notifier. Decrement the usage counter of the associated
+ * SAM event if the notifier is not marked as an observer. If the usage counter
+ * reaches zero, the event will be disabled.
  *
  * Return: Returns zero on success, %-ENOENT if the given notifier block has
  * not been registered on the controller. If the given notifier block was the
  * last one associated with its specific event, returns the status of the
  * event-disable EC-command.
  */
-int ssam_notifier_unregister(struct ssam_controller *ctrl,
-			     struct ssam_event_notifier *n)
+int ssam_notifier_unregister(struct ssam_controller *ctrl, struct ssam_event_notifier *n)
 {
 	u16 rqid = ssh_tc_to_rqid(n->event.id.target_category);
 	struct ssam_nf_refcount_entry *entry;
@@ -2235,6 +2242,13 @@ int ssam_notifier_unregister(struct ssam_controller *ctrl,
 		mutex_unlock(&nf->lock);
 		return -ENOENT;
 	}
+
+	/*
+	 * If this is an observer notifier, do not attempt to disable the
+	 * event, just remove it.
+	 */
+	if (n->flags & SSAM_EVENT_NOTIFIER_OBSERVER)
+		goto remove;
 
 	entry = ssam_nf_refcount_dec(nf, n->event.reg, n->event.id);
 	if (WARN_ON(!entry)) {
@@ -2260,8 +2274,7 @@ int ssam_notifier_unregister(struct ssam_controller *ctrl,
 	}
 
 	if (entry->refcount == 0) {
-		status = ssam_ssh_event_disable(ctrl, n->event.reg, n->event.id,
-						n->event.flags);
+		status = ssam_ssh_event_disable(ctrl, n->event.reg, n->event.id, n->event.flags);
 		kfree(entry);
 	}
 
