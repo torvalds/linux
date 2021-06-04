@@ -1110,6 +1110,8 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 			goto free_maps;
 	}
 
+	pci_release_mem_regions(pdev);
+
 	list_for_each_entry(map, &register_maps, list) {
 		ret = cxl_map_regs(cxlm, map);
 		if (ret)
