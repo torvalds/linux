@@ -1495,7 +1495,36 @@ static ssize_t btrfs_devinfo_writeable_show(struct kobject *kobj,
 }
 BTRFS_ATTR(devid, writeable, btrfs_devinfo_writeable_show);
 
+static ssize_t btrfs_devinfo_error_stats_show(struct kobject *kobj,
+		struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	if (!device->dev_stats_valid)
+		return scnprintf(buf, PAGE_SIZE, "invalid\n");
+
+	/*
+	 * Print all at once so we get a snapshot of all values from the same
+	 * time. Keep them in sync and in order of definition of
+	 * btrfs_dev_stat_values.
+	 */
+	return scnprintf(buf, PAGE_SIZE,
+		"write_errs %d\n"
+		"read_errs %d\n"
+		"flush_errs %d\n"
+		"corruption_errs %d\n"
+		"generation_errs %d\n",
+		btrfs_dev_stat_read(device, BTRFS_DEV_STAT_WRITE_ERRS),
+		btrfs_dev_stat_read(device, BTRFS_DEV_STAT_READ_ERRS),
+		btrfs_dev_stat_read(device, BTRFS_DEV_STAT_FLUSH_ERRS),
+		btrfs_dev_stat_read(device, BTRFS_DEV_STAT_CORRUPTION_ERRS),
+		btrfs_dev_stat_read(device, BTRFS_DEV_STAT_GENERATION_ERRS));
+}
+BTRFS_ATTR(devid, error_stats, btrfs_devinfo_error_stats_show);
+
 static struct attribute *devid_attrs[] = {
+	BTRFS_ATTR_PTR(devid, error_stats),
 	BTRFS_ATTR_PTR(devid, in_fs_metadata),
 	BTRFS_ATTR_PTR(devid, missing),
 	BTRFS_ATTR_PTR(devid, replace_target),
