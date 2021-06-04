@@ -463,12 +463,20 @@ void bch2_trans_downgrade(struct btree_trans *trans)
 
 /* Btree transaction locking: */
 
+static inline bool btree_iter_should_be_locked(struct btree_trans *trans,
+					       struct btree_iter *iter)
+{
+	return (iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT) ||
+		iter->should_be_locked;
+}
+
 bool bch2_trans_relock(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 
 	trans_for_each_iter(trans, iter)
-		if (!bch2_btree_iter_relock(iter, _RET_IP_)) {
+		if (!bch2_btree_iter_relock(iter, _RET_IP_) &&
+		    btree_iter_should_be_locked(trans, iter)) {
 			trace_trans_restart_relock(trans->ip, _RET_IP_,
 					iter->btree_id, &iter->real_pos);
 			return false;
@@ -1427,9 +1435,16 @@ btree_iter_traverse(struct btree_iter *iter)
 int __must_check
 bch2_btree_iter_traverse(struct btree_iter *iter)
 {
+	int ret;
+
 	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
 
-	return btree_iter_traverse(iter);
+	ret = btree_iter_traverse(iter);
+	if (ret)
+		return ret;
+
+	iter->should_be_locked = true;
+	return 0;
 }
 
 /* Iterate across nodes (leaf and interior nodes) */
@@ -1455,6 +1470,7 @@ struct btree *bch2_btree_iter_peek_node(struct btree_iter *iter)
 	iter->pos = iter->real_pos = b->key.k.p;
 
 	bch2_btree_iter_verify(iter);
+	iter->should_be_locked = true;
 
 	return b;
 }
@@ -1511,6 +1527,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	iter->pos = iter->real_pos = b->key.k.p;
 
 	bch2_btree_iter_verify(iter);
+	iter->should_be_locked = true;
 
 	return b;
 }
@@ -1527,6 +1544,7 @@ static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_p
 		goto out;
 
 	iter->real_pos = new_pos;
+	iter->should_be_locked = false;
 
 	if (unlikely(btree_iter_type(iter) == BTREE_ITER_CACHED)) {
 		btree_node_unlock(iter, 0);
@@ -1686,6 +1704,7 @@ start:
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
+	iter->should_be_locked = true;
 	return k;
 }
 
@@ -1770,6 +1789,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 out:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
+	iter->should_be_locked = true;
 	return k;
 no_key:
 	/*
@@ -1869,6 +1889,8 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
+	iter->should_be_locked = true;
+
 	return k;
 }
 
@@ -1905,6 +1927,8 @@ struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *iter)
 	EBUG_ON(iter->btree_id != ck->key.btree_id ||
 		bkey_cmp(iter->pos, ck->key.pos));
 	BUG_ON(!ck->valid);
+
+	iter->should_be_locked = true;
 
 	return bkey_i_to_s_c(ck->k);
 }
