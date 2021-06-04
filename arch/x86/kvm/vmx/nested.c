@@ -3707,7 +3707,7 @@ static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	if (max_irr != 256) {
 		vapic_page = vmx->nested.virtual_apic_map.hva;
 		if (!vapic_page)
-			return 0;
+			goto mmio_needed;
 
 		__kvm_apic_update_irr(vmx->nested.pi_desc->pir,
 			vapic_page, &max_irr);
@@ -3721,6 +3721,10 @@ static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 
 	nested_mark_vmcs12_pages_dirty(vcpu);
 	return 0;
+
+mmio_needed:
+	kvm_handle_memory_failure(vcpu, X86EMUL_IO_NEEDED, NULL);
+	return -ENXIO;
 }
 
 static void nested_vmx_inject_exception_vmexit(struct kvm_vcpu *vcpu,
