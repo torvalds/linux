@@ -816,7 +816,10 @@ lock_node:
 			if (bch2_btree_node_relock(iter, level + 1))
 				goto retry;
 
-			trace_trans_restart_btree_node_reused(iter->trans->ip);
+			trace_trans_restart_btree_node_reused(iter->trans->ip,
+							      trace_ip,
+							      iter->btree_id,
+							      &iter->real_pos);
 			return ERR_PTR(-EINTR);
 		}
 	}

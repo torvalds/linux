@@ -230,6 +230,7 @@ enum btree_iter_uptodate {
 #define BTREE_ITER_NO_NODE_DOWN		((struct btree *) 5)
 #define BTREE_ITER_NO_NODE_INIT		((struct btree *) 6)
 #define BTREE_ITER_NO_NODE_ERROR	((struct btree *) 7)
+#define BTREE_ITER_NO_NODE_CACHED	((struct btree *) 8)
 
 /*
  * @pos			- iterator's current position

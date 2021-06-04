@@ -228,7 +228,8 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 }
 
 static noinline int
-bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned u64s)
+bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned u64s,
+				   unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
 	int ret;
@@ -241,7 +242,7 @@ bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned u64s)
 		return ret;
 
 	if (!bch2_trans_relock(trans)) {
-		trace_trans_restart_journal_preres_get(trans->ip);
+		trace_trans_restart_journal_preres_get(trans->ip, trace_ip);
 		return -EINTR;
 	}
 
@@ -368,7 +369,8 @@ static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
 
 static inline int
 bch2_trans_commit_write_locked(struct btree_trans *trans,
-			       struct btree_insert_entry **stopped_at)
+			       struct btree_insert_entry **stopped_at,
+			       unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
@@ -378,7 +380,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	int ret;
 
 	if (race_fault()) {
-		trace_trans_restart_fault_inject(trans->ip);
+		trace_trans_restart_fault_inject(trans->ip, trace_ip);
 		return -EINTR;
 	}
 
@@ -525,7 +527,8 @@ static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
 static inline int do_bch2_trans_commit(struct btree_trans *trans,
-				       struct btree_insert_entry **stopped_at)
+				       struct btree_insert_entry **stopped_at,
+				       unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
@@ -559,7 +562,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			 ? JOURNAL_RES_GET_RESERVED : 0));
 	if (unlikely(ret == -EAGAIN))
 		ret = bch2_trans_journal_preres_get_cold(trans,
-						trans->journal_preres_u64s);
+						trans->journal_preres_u64s, trace_ip);
 	if (unlikely(ret))
 		return ret;
 
@@ -578,7 +581,9 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		if (iter->nodes_locked != iter->nodes_intent_locked) {
 			if (btree_iter_keep(trans, iter)) {
 				if (!bch2_btree_iter_upgrade(iter, 1)) {
-					trace_trans_restart_upgrade(trans->ip);
+					trace_trans_restart_upgrade(trans->ip, trace_ip,
+								    iter->btree_id,
+								    &iter->real_pos);
 					return -EINTR;
 				}
 			} else {
@@ -606,7 +611,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			bch2_btree_node_lock_for_insert(c,
 					iter_l(i->iter)->b, i->iter);
 
-	ret = bch2_trans_commit_write_locked(trans, stopped_at);
+	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
 
 	trans_for_each_update2(trans, i)
 		if (!same_leaf_as_prev(trans, i))
@@ -644,7 +649,7 @@ static int journal_reclaim_wait_done(struct bch_fs *c)
 static noinline
 int bch2_trans_commit_error(struct btree_trans *trans,
 			    struct btree_insert_entry *i,
-			    int ret)
+			    int ret, unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
 	unsigned flags = trans->flags;
@@ -685,7 +690,9 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (!ret ||
 		    ret == -EINTR ||
 		    (flags & BTREE_INSERT_NOUNLOCK)) {
-			trace_trans_restart_btree_node_split(trans->ip);
+			trace_trans_restart_btree_node_split(trans->ip, trace_ip,
+							     i->iter->btree_id,
+							     &i->iter->real_pos);
 			ret = -EINTR;
 		}
 		break;
@@ -703,7 +710,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trace_trans_restart_mark_replicas(trans->ip);
+		trace_trans_restart_mark_replicas(trans->ip, trace_ip);
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
@@ -720,13 +727,13 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trace_trans_restart_journal_res_get(trans->ip);
+		trace_trans_restart_journal_res_get(trans->ip, trace_ip);
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
 		bch2_trans_unlock(trans);
 
-		trace_trans_blocked_journal_reclaim(trans->ip);
+		trace_trans_blocked_journal_reclaim(trans->ip, trace_ip);
 
 		wait_event_freezable(c->journal.reclaim_wait,
 				     (ret = journal_reclaim_wait_done(c)));
@@ -736,7 +743,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trace_trans_restart_journal_reclaim(trans->ip);
+		trace_trans_restart_journal_reclaim(trans->ip, trace_ip);
 		ret = -EINTR;
 		break;
 	default:
@@ -950,7 +957,9 @@ int __bch2_trans_commit(struct btree_trans *trans)
 							     i->trigger_flags);
 				if (unlikely(ret)) {
 					if (ret == -EINTR)
-						trace_trans_restart_mark(trans->ip);
+						trace_trans_restart_mark(trans->ip, _RET_IP_,
+									 i->iter->btree_id,
+									 &i->iter->pos);
 					goto out;
 				}
 			}
@@ -976,12 +985,16 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	trans_for_each_update2(trans, i) {
 		ret = bch2_btree_iter_traverse(i->iter);
 		if (unlikely(ret)) {
-			trace_trans_restart_traverse(trans->ip);
+			trace_trans_restart_traverse(trans->ip, _RET_IP_,
+						     i->iter->btree_id,
+						     &i->iter->pos);
 			goto out;
 		}
 
 		if (unlikely(!bch2_btree_iter_upgrade(i->iter, i->level + 1))) {
-			trace_trans_restart_upgrade(trans->ip);
+			trace_trans_restart_upgrade(trans->ip, _RET_IP_,
+						    i->iter->btree_id,
+						    &i->iter->pos);
 			ret = -EINTR;
 			goto out;
 		}
@@ -997,7 +1010,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 retry:
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
-	ret = do_bch2_trans_commit(trans, &i);
+	ret = do_bch2_trans_commit(trans, &i, _RET_IP_);
 
 	/* make sure we didn't drop or screw up locks: */
 	bch2_btree_trans_verify_locks(trans);
@@ -1023,7 +1036,7 @@ out_reset:
 
 	return ret;
 err:
-	ret = bch2_trans_commit_error(trans, i, ret);
+	ret = bch2_trans_commit_error(trans, i, ret, _RET_IP_);
 	if (ret)
 		goto out;
 

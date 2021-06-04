@@ -955,7 +955,9 @@ retry:
 	 * instead of locking/reserving all the way to the root:
 	 */
 	if (!bch2_btree_iter_upgrade(iter, U8_MAX)) {
-		trace_trans_restart_iter_upgrade(trans->ip);
+		trace_trans_restart_iter_upgrade(trans->ip, _RET_IP_,
+						 iter->btree_id,
+						 &iter->real_pos);
 		return ERR_PTR(-EINTR);
 	}
 
@@ -996,7 +998,7 @@ retry:
 		 * closure argument
 		 */
 		if (flags & BTREE_INSERT_NOUNLOCK) {
-			trace_trans_restart_journal_preres_get(trans->ip);
+			trace_trans_restart_journal_preres_get(trans->ip, _RET_IP_);
 			ret = -EINTR;
 			goto err;
 		}
@@ -1012,7 +1014,7 @@ retry:
 				BTREE_UPDATE_JOURNAL_RES,
 				journal_flags);
 		if (ret) {
-			trace_trans_restart_journal_preres_get(trans->ip);
+			trace_trans_restart_journal_preres_get(trans->ip, _RET_IP_);
 			goto err;
 		}
 
