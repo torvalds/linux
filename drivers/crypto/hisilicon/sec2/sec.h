@@ -21,8 +21,6 @@ struct sec_alg_res {
 
 /* Cipher request of SEC private */
 struct sec_cipher_req {
-	struct hisi_acc_hw_sgl *c_in;
-	dma_addr_t c_in_dma;
 	struct hisi_acc_hw_sgl *c_out;
 	dma_addr_t c_out_dma;
 	u8 *c_ivin;
@@ -49,6 +47,11 @@ struct sec_req {
 	struct sec_ctx *ctx;
 	struct sec_qp_ctx *qp_ctx;
 
+	/**
+	 * Common parameter of the SEC request.
+	 */
+	struct hisi_acc_hw_sgl *in;
+	dma_addr_t in_dma;
 	struct sec_cipher_req c_req;
 	struct sec_aead_req aead_req;
 	struct list_head backlog_head;

@@ -871,8 +871,8 @@ static int sec_cipher_pbuf_map(struct sec_ctx *ctx, struct sec_req *req,
 		memcpy(a_req->out_mac, mac_offset, authsize);
 	}
 
-	c_req->c_in_dma = qp_ctx->res[req_id].pbuf_dma;
-	c_req->c_out_dma = c_req->c_in_dma;
+	req->in_dma = qp_ctx->res[req_id].pbuf_dma;
+	c_req->c_out_dma = req->in_dma;
 
 	return 0;
 }
@@ -950,14 +950,13 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 		a_req->out_mac_dma = res->out_mac_dma;
 	}
 
-	c_req->c_in = hisi_acc_sg_buf_map_to_hw_sgl(dev, src,
-						    qp_ctx->c_in_pool,
-						    req->req_id,
-						    &c_req->c_in_dma);
-
-	if (IS_ERR(c_req->c_in)) {
+	req->in = hisi_acc_sg_buf_map_to_hw_sgl(dev, src,
+						qp_ctx->c_in_pool,
+						req->req_id,
+						&req->in_dma);
+	if (IS_ERR(req->in)) {
 		dev_err(dev, "fail to dma map input sgl buffers!\n");
-		return PTR_ERR(c_req->c_in);
+		return PTR_ERR(req->in);
 	}
 
 	if (!c_req->encrypt && ctx->alg_type == SEC_AEAD) {
@@ -967,9 +966,10 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 			return ret;
 		}
 	}
+
 	if (dst == src) {
-		c_req->c_out = c_req->c_in;
-		c_req->c_out_dma = c_req->c_in_dma;
+		c_req->c_out = req->in;
+		c_req->c_out_dma = req->in_dma;
 	} else {
 		c_req->c_out = hisi_acc_sg_buf_map_to_hw_sgl(dev, dst,
 							     qp_ctx->c_out_pool,
@@ -978,7 +978,7 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 
 		if (IS_ERR(c_req->c_out)) {
 			dev_err(dev, "fail to dma map output sgl buffers!\n");
-			hisi_acc_sg_buf_unmap(dev, src, c_req->c_in);
+			hisi_acc_sg_buf_unmap(dev, src, req->in);
 			return PTR_ERR(c_req->c_out);
 		}
 	}
@@ -996,7 +996,7 @@ static void sec_cipher_unmap(struct sec_ctx *ctx, struct sec_req *req,
 		sec_cipher_pbuf_unmap(ctx, req, dst);
 	} else {
 		if (dst != src)
-			hisi_acc_sg_buf_unmap(dev, src, c_req->c_in);
+			hisi_acc_sg_buf_unmap(dev, src, req->in);
 
 		hisi_acc_sg_buf_unmap(dev, dst, c_req->c_out);
 	}
@@ -1236,7 +1236,7 @@ static int sec_skcipher_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
 
 	sec_sqe->type2.c_key_addr = cpu_to_le64(c_ctx->c_key_dma);
 	sec_sqe->type2.c_ivin_addr = cpu_to_le64(c_req->c_ivin_dma);
-	sec_sqe->type2.data_src_addr = cpu_to_le64(c_req->c_in_dma);
+	sec_sqe->type2.data_src_addr = cpu_to_le64(req->in_dma);
 	sec_sqe->type2.data_dst_addr = cpu_to_le64(c_req->c_out_dma);
 
 	sec_sqe->type2.icvw_kmode |= cpu_to_le16(((u16)c_ctx->c_mode) <<
@@ -1263,7 +1263,7 @@ static int sec_skcipher_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
 
 	sec_sqe->sdm_addr_type |= da_type;
 	scene = SEC_COMM_SCENE << SEC_SCENE_OFFSET;
-	if (c_req->c_in_dma != c_req->c_out_dma)
+	if (req->in_dma != c_req->c_out_dma)
 		de = 0x1 << SEC_DE_OFFSET;
 
 	sec_sqe->sds_sa_type = (de | scene | sa_type);
@@ -1286,7 +1286,7 @@ static int sec_skcipher_bd_fill_v3(struct sec_ctx *ctx, struct sec_req *req)
 
 	sec_sqe3->c_key_addr = cpu_to_le64(c_ctx->c_key_dma);
 	sec_sqe3->no_scene.c_ivin_addr = cpu_to_le64(c_req->c_ivin_dma);
-	sec_sqe3->data_src_addr = cpu_to_le64(c_req->c_in_dma);
+	sec_sqe3->data_src_addr = cpu_to_le64(req->in_dma);
 	sec_sqe3->data_dst_addr = cpu_to_le64(c_req->c_out_dma);
 
 	sec_sqe3->c_mode_alg = ((u8)c_ctx->c_alg << SEC_CALG_OFFSET_V3) |
@@ -1309,7 +1309,7 @@ static int sec_skcipher_bd_fill_v3(struct sec_ctx *ctx, struct sec_req *req)
 	}
 
 	bd_param |= SEC_COMM_SCENE << SEC_SCENE_OFFSET_V3;
-	if (c_req->c_in_dma != c_req->c_out_dma)
+	if (req->in_dma != c_req->c_out_dma)
 		bd_param |= 0x1 << SEC_DE_OFFSET_V3;
 
 	bd_param |= SEC_BD_TYPE3;
