@@ -19,7 +19,7 @@ struct allowedips_node {
 	u8 bits[16] __aligned(__alignof(u64));
 
 	/* Keep rarely used members at bottom to be beyond cache line. */
-	struct allowedips_node *__rcu *parent_bit; /* XXX: this puts us at 68->128 bytes instead of 60->64 bytes!! */
+	struct allowedips_node *__rcu *parent_bit;
 	union {
 		struct list_head peer_list;
 		struct rcu_head rcu;
@@ -52,5 +52,8 @@ struct wg_peer *wg_allowedips_lookup_src(struct allowedips *table,
 #ifdef DEBUG
 bool wg_allowedips_selftest(void);
 #endif
+
+int wg_allowedips_slab_init(void);
+void wg_allowedips_slab_uninit(void);
 
 #endif /* _WG_ALLOWEDIPS_H */
