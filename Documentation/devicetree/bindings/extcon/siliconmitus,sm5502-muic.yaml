@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/extcon/siliconmitus,sm5502-muic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SM5502 MUIC (Micro-USB Interface Controller) device
+title: SM5502/SM5504 MUIC (Micro-USB Interface Controller) device
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
@@ -19,10 +19,12 @@ properties:
   compatible:
     enum:
       - siliconmitus,sm5502-muic
+      - siliconmitus,sm5504-muic
 
   reg:
     maxItems: 1
-    description: I2C slave address of the device. Usually 0x25 for SM5502.
+    description: I2C slave address of the device. Usually 0x25 for SM5502,
+      0x14 for SM5504.
 
   interrupts:
     maxItems: 1
