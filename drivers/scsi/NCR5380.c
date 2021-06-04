@@ -1816,7 +1816,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				switch (tmp) {
 				case ABORT:
 					set_host_byte(cmd, DID_ABORT);
-					/* fallthrough */
+					fallthrough;
 				case COMMAND_COMPLETE:
 					/* Accept message by clearing ACK */
 					sink = 1;
