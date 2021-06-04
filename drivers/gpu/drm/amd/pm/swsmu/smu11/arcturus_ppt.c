@@ -2162,16 +2162,6 @@ static void arcturus_get_unique_id(struct smu_context *smu)
 	sprintf(adev->serial, "%llx", id);
 }
 
-static bool arcturus_is_baco_supported(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	if (!smu_v11_0_baco_is_support(smu) || amdgpu_sriov_vf(adev))
-		return false;
-
-	return true;
-}
-
 static int arcturus_set_df_cstate(struct smu_context *smu,
 				  enum pp_df_cstate state)
 {
@@ -2406,7 +2396,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= arcturus_is_baco_supported,
+	.baco_is_support = smu_v11_0_baco_is_support,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_enter = smu_v11_0_baco_enter,

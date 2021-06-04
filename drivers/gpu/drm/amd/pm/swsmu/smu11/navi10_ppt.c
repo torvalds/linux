@@ -2257,16 +2257,6 @@ static int navi10_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
 	return 0;
 }
 
-static bool navi10_is_baco_supported(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	if (amdgpu_sriov_vf(adev) || (!smu_v11_0_baco_is_support(smu)))
-		return false;
-
-	return true;
-}
-
 static int navi10_set_default_od_settings(struct smu_context *smu)
 {
 	OverDriveTable_t *od_table =
@@ -3102,7 +3092,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= navi10_is_baco_supported,
+	.baco_is_support = smu_v11_0_baco_is_support,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_enter = smu_v11_0_baco_enter,
