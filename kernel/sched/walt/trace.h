@@ -706,7 +706,7 @@ TRACE_EVENT(waltgov_next_freq,
 		    __entry->cached_raw_freq	= cached_raw_freq;
 		    __entry->need_freq_update	= need_freq_update;
 	    ),
-	    TP_printk("cpu=%u util=%lu max=%lu freq=%u policy_min_freq=%lu policy_max_freq=%lu cached_raw_freq=%lu need_update=%d",
+	    TP_printk("cpu=%u util=%lu max=%lu freq=%u policy_min_freq=%u policy_max_freq=%u cached_raw_freq=%u need_update=%d",
 		      __entry->cpu,
 		      __entry->util,
 		      __entry->max,
