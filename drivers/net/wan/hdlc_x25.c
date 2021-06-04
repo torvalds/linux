@@ -56,10 +56,8 @@ static void x25_connect_disconnect(struct net_device *dev, int reason, int code)
 	unsigned char *ptr;
 
 	skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
-	if (!skb) {
-		netdev_err(dev, "out of memory\n");
+	if (!skb)
 		return;
-	}
 
 	ptr = skb_put(skb, 1);
 	*ptr = code;
