@@ -310,8 +310,7 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 			new_settings.t1 = 3;
 			new_settings.t2 = 1;
 			new_settings.n2 = 10;
-		}
-		else {
+		} else {
 			if (copy_from_user(&new_settings, x25_s, size))
 				return -EFAULT;
 
