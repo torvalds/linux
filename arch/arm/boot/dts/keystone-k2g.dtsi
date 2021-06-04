@@ -272,7 +272,7 @@
 				#power-domain-cells = <1>;
 			};
 
-			k2g_clks: clocks {
+			k2g_clks: clock-controller {
 				compatible = "ti,k2g-sci-clk";
 				#clock-cells = <2>;
 			};
