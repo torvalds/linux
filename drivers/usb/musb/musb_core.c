@@ -480,9 +480,7 @@ int musb_set_host(struct musb *musb)
 
 	devctl = musb_read_devctl(musb);
 	if (!(devctl & MUSB_DEVCTL_BDEVICE)) {
-		dev_info(musb->controller,
-			 "%s: already in host mode: %02x\n",
-			 __func__, devctl);
+		trace_musb_state(musb, devctl, "Already in host mode");
 		goto init_data;
 	}
 
@@ -498,6 +496,9 @@ int musb_set_host(struct musb *musb)
 
 		return error;
 	}
+
+	devctl = musb_read_devctl(musb);
+	trace_musb_state(musb, devctl, "Host mode set");
 
 init_data:
 	musb->is_active = 1;
@@ -526,10 +527,7 @@ int musb_set_peripheral(struct musb *musb)
 
 	devctl = musb_read_devctl(musb);
 	if (devctl & MUSB_DEVCTL_BDEVICE) {
-		dev_info(musb->controller,
-			 "%s: already in peripheral mode: %02x\n",
-			 __func__, devctl);
-
+		trace_musb_state(musb, devctl, "Already in peripheral mode");
 		goto init_data;
 	}
 
@@ -545,6 +543,9 @@ int musb_set_peripheral(struct musb *musb)
 
 		return error;
 	}
+
+	devctl = musb_read_devctl(musb);
+	trace_musb_state(musb, devctl, "Peripheral mode set");
 
 init_data:
 	musb->is_active = 0;
@@ -1984,10 +1985,11 @@ ATTRIBUTE_GROUPS(musb);
 #define MUSB_QUIRK_A_DISCONNECT_19	((3 << MUSB_DEVCTL_VBUS_SHIFT) | \
 					 MUSB_DEVCTL_SESSION)
 
-static bool musb_state_needs_recheck(struct musb *musb, const char *desc)
+static bool musb_state_needs_recheck(struct musb *musb, u8 devctl,
+				     const char *desc)
 {
 	if (musb->quirk_retries && !musb->flush_irq_work) {
-		musb_dbg(musb, desc);
+		trace_musb_state(musb, devctl, desc);
 		schedule_delayed_work(&musb->irq_work,
 				      msecs_to_jiffies(1000));
 		musb->quirk_retries--;
@@ -2018,21 +2020,21 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_DISCONNECT_99:
-		musb_state_needs_recheck(musb,
-			"Poll devctl in case of suspend after disconnect\n");
+		musb_state_needs_recheck(musb, devctl,
+			"Poll devctl in case of suspend after disconnect");
 		break;
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (musb_state_needs_recheck(musb,
+		if (musb_state_needs_recheck(musb, devctl,
 				"Poll devctl on invalid vbus, assume no session"))
 			return;
 		fallthrough;
 	case MUSB_QUIRK_A_DISCONNECT_19:
-		if (musb_state_needs_recheck(musb,
+		if (musb_state_needs_recheck(musb, devctl,
 				"Poll devctl on possible host mode disconnect"))
 			return;
 		if (!musb->session)
 			break;
-		musb_dbg(musb, "Allow PM on possible host mode disconnect");
+		trace_musb_state(musb, devctl, "Allow PM on possible host mode disconnect");
 		pm_runtime_mark_last_busy(musb->controller);
 		pm_runtime_put_autosuspend(musb->controller);
 		musb->session = false;
@@ -2048,7 +2050,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 
 	/* Block PM or allow PM? */
 	if (s) {
-		musb_dbg(musb, "Block PM on active session: %02x", devctl);
+		trace_musb_state(musb, devctl, "Block PM on active session");
 		error = pm_runtime_get_sync(musb->controller);
 		if (error < 0)
 			dev_err(musb->controller, "Could not enable: %i\n",
@@ -2064,7 +2066,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 			schedule_delayed_work(&musb->irq_work,
 					      msecs_to_jiffies(3000));
 	} else {
-		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
+		trace_musb_state(musb, devctl, "Allow PM with no session");
 		pm_runtime_mark_last_busy(musb->controller);
 		pm_runtime_put_autosuspend(musb->controller);
 	}
