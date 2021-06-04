@@ -2827,7 +2827,7 @@ ufshcd_clear_cmd(struct ufs_hba *hba, int tag)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	/*
-	 * wait for for h/w to clear corresponding bit in door-bell.
+	 * wait for h/w to clear corresponding bit in door-bell.
 	 * max. wait is 1 sec.
 	 */
 	err = ufshcd_wait_for_register(hba,
