@@ -1160,17 +1160,16 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 		vstor_packet->vm_srb.srb_status = SRB_STATUS_SUCCESS;
 	}
 
-
 	/* Copy over the status...etc */
 	stor_pkt->vm_srb.scsi_status = vstor_packet->vm_srb.scsi_status;
 	stor_pkt->vm_srb.srb_status = vstor_packet->vm_srb.srb_status;
 
-	/* Validate sense_info_length (from Hyper-V) */
-	if (vstor_packet->vm_srb.sense_info_length > sense_buffer_size)
-		vstor_packet->vm_srb.sense_info_length = sense_buffer_size;
-
-	stor_pkt->vm_srb.sense_info_length =
-	vstor_packet->vm_srb.sense_info_length;
+	/*
+	 * Copy over the sense_info_length, but limit to the known max
+	 * size if Hyper-V returns a bad value.
+	 */
+	stor_pkt->vm_srb.sense_info_length = min_t(u8, sense_buffer_size,
+		vstor_packet->vm_srb.sense_info_length);
 
 	if (vstor_packet->vm_srb.scsi_status != 0 ||
 	    vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS)
@@ -1180,33 +1179,21 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 			vstor_packet->vm_srb.scsi_status,
 			vstor_packet->vm_srb.srb_status);
 
-	if ((vstor_packet->vm_srb.scsi_status & 0xFF) == 0x02) {
-		/* CHECK_CONDITION */
-		if (vstor_packet->vm_srb.srb_status &
-			SRB_STATUS_AUTOSENSE_VALID) {
-			/* autosense data available */
-
-			storvsc_log(device, STORVSC_LOGGING_WARN,
-				"stor pkt %p autosense data valid - len %d\n",
-				request, vstor_packet->vm_srb.sense_info_length);
-
-			memcpy(request->cmd->sense_buffer,
-			       vstor_packet->vm_srb.sense_data,
-			       vstor_packet->vm_srb.sense_info_length);
-
-		}
+	if (vstor_packet->vm_srb.scsi_status == SAM_STAT_CHECK_CONDITION &&
+	    (vstor_packet->vm_srb.srb_status & SRB_STATUS_AUTOSENSE_VALID))
+		memcpy(request->cmd->sense_buffer,
+		       vstor_packet->vm_srb.sense_data,
+		       stor_pkt->vm_srb.sense_info_length);
 	}
 
 	stor_pkt->vm_srb.data_transfer_length =
-	vstor_packet->vm_srb.data_transfer_length;
+		vstor_packet->vm_srb.data_transfer_length;
 
 	storvsc_command_completion(request, stor_device);
 
 	if (atomic_dec_and_test(&stor_device->num_outstanding_req) &&
 		stor_device->drain_notify)
 		wake_up(&stor_device->waiting_to_drain);
-
-
 }
 
 static void storvsc_on_receive(struct storvsc_device *stor_device,
@@ -1675,7 +1662,7 @@ static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 	 * this. So, don't send it.
 	 */
 	case SET_WINDOW:
-		scmnd->result = DID_ERROR << 16;
+		set_host_byte(scmnd, DID_ERROR);
 		allowed = false;
 		break;
 	default:
