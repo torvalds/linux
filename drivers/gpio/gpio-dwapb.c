@@ -13,17 +13,15 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/platform_data/gpio-dwapb.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/reset.h>
-#include <linux/spinlock.h>
-#include <linux/platform_data/gpio-dwapb.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 
 #include "gpiolib.h"
 #include "gpiolib-acpi.h"
