@@ -28,6 +28,10 @@ static int __init mod_init(void)
 #endif
 	wg_noise_init();
 
+	ret = wg_peer_init();
+	if (ret < 0)
+		goto err_peer;
+
 	ret = wg_device_init();
 	if (ret < 0)
 		goto err_device;
@@ -44,6 +48,8 @@ static int __init mod_init(void)
 err_netlink:
 	wg_device_uninit();
 err_device:
+	wg_peer_uninit();
+err_peer:
 	return ret;
 }
 
@@ -51,6 +57,7 @@ static void __exit mod_exit(void)
 {
 	wg_genetlink_uninit();
 	wg_device_uninit();
+	wg_peer_uninit();
 }
 
 module_init(mod_init);
