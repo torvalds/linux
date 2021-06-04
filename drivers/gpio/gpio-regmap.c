@@ -178,12 +178,6 @@ static int gpio_regmap_direction_output(struct gpio_chip *chip,
 	return gpio_regmap_set_direction(chip, offset, true);
 }
 
-void gpio_regmap_set_drvdata(struct gpio_regmap *gpio, void *data)
-{
-	gpio->driver_data = data;
-}
-EXPORT_SYMBOL_GPL(gpio_regmap_set_drvdata);
-
 void *gpio_regmap_get_drvdata(struct gpio_regmap *gpio)
 {
 	return gpio->driver_data;
@@ -226,6 +220,7 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 		return ERR_PTR(-ENOMEM);
 
 	gpio->parent = config->parent;
+	gpio->driver_data = config->drvdata;
 	gpio->regmap = config->regmap;
 	gpio->ngpio_per_reg = config->ngpio_per_reg;
 	gpio->reg_stride = config->reg_stride;
