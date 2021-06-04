@@ -521,16 +521,19 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 	struct clk_hw *hw;
 	int ret;
 
-	pm_runtime_set_suspended(dev);
-	pm_runtime_set_autosuspend_delay(dev, 50);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_enable(dev);
+	if (!((clk->rsrc == IMX_SC_R_A35) || (clk->rsrc == IMX_SC_R_A53) ||
+	    (clk->rsrc == IMX_SC_R_A72))) {
+		pm_runtime_set_suspended(dev);
+		pm_runtime_set_autosuspend_delay(dev, 50);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_enable(dev);
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret) {
-		pm_genpd_remove_device(dev);
-		pm_runtime_disable(dev);
-		return ret;
+		ret = pm_runtime_get_sync(dev);
+		if (ret) {
+			pm_genpd_remove_device(dev);
+			pm_runtime_disable(dev);
+			return ret;
+		}
 	}
 
 	hw = __imx_clk_scu(dev, clk->name, clk->parents, clk->num_parents,
@@ -543,8 +546,11 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 	clk->hw = hw;
 	list_add_tail(&clk->node, &imx_scu_clks[clk->rsrc]);
 
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
+	if (!((clk->rsrc == IMX_SC_R_A35) || (clk->rsrc == IMX_SC_R_A53) ||
+	    (clk->rsrc == IMX_SC_R_A72))) {
+		pm_runtime_mark_last_busy(&pdev->dev);
+		pm_runtime_put_autosuspend(&pdev->dev);
+	}
 
 	dev_dbg(dev, "register SCU clock rsrc:%d type:%d\n", clk->rsrc,
 		clk->clk_type);
