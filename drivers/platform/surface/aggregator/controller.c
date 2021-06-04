@@ -2464,7 +2464,7 @@ int ssam_controller_event_disable(struct ssam_controller *ctrl,
 	u16 rqid = ssh_tc_to_rqid(id.target_category);
 	struct ssam_nf *nf = &ctrl->cplt.event.notif;
 	struct ssam_nf_refcount_entry *entry;
-	int status = 0;
+	int status;
 
 	if (!ssh_rqid_is_event(rqid))
 		return -EINVAL;
