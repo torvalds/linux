@@ -1732,6 +1732,7 @@ static void mpi3mr_sastopochg_evt_th(struct mpi3mr_ioc *mrioc,
 				atomic_dec_if_positive
 				    (&scsi_tgt_priv_data->block_io);
 			}
+			break;
 		case MPI3_EVENT_SAS_TOPO_PHY_RC_PHY_CHANGED:
 		default:
 			break;
