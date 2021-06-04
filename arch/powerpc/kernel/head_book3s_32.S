@@ -766,9 +766,6 @@ PerformanceMonitor:
  * the kernel image to physical address PHYSICAL_START.
  */
 relocate_kernel:
-	addis	r9,r26,klimit@ha	/* fetch klimit */
-	lwz	r25,klimit@l(r9)
-	addis	r25,r25,-KERNELBASE@h
 	lis	r3,PHYSICAL_START@h	/* Destination base address */
 	li	r6,0			/* Destination offset */
 	li	r5,0x4000		/* # bytes of memory to copy */
@@ -776,7 +773,8 @@ relocate_kernel:
 	addi	r0,r3,4f@l		/* jump to the address of 4f */
 	mtctr	r0			/* in copy and do the rest. */
 	bctr				/* jump to the copy */
-4:	mr	r5,r25
+4:	lis	r5,_end-KERNELBASE@h
+	ori	r5,r5,_end-KERNELBASE@l
 	bl	copy_and_flush		/* copy the rest */
 	b	turn_on_mmu
 

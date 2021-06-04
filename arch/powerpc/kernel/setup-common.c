@@ -91,8 +91,6 @@ EXPORT_SYMBOL_GPL(boot_cpuid);
 int dcache_bsize;
 int icache_bsize;
 
-unsigned long klimit = (unsigned long) _end;
-
 /*
  * This still seems to be needed... -- paulus
  */ 
@@ -930,7 +928,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.start_code = (unsigned long)_stext;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = klimit;
+	init_mm.brk = (unsigned long)_end;
 
 	mm_iommu_init(&init_mm);
 	irqstack_early_init();
