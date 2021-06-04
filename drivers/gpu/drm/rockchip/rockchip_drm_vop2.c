@@ -4371,7 +4371,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	bool sdr2hdr_en = 0;
 	bool sdr2hdr_tf = 0;
 	bool hdr2sdr_tf_update = 1;
-	bool sdr2hdr_tf_update = 1;
+	bool sdr2hdr_tf_update = 0; /* default sdr2hdr curve is 1000 nit */
 	unsigned long win_mask = vp->win_mask;
 	int phys_id;
 	bool have_sdr_layer = false;
