@@ -3310,7 +3310,7 @@ void t3_sge_stop(struct adapter *adap)
 		struct sge_qset *qs = &adap->sge.qs[i];
 
 		cancel_work_sync(&qs->txq[TXQ_OFLD].qresume_task);
-		cancel_work_sync(&qs->txq[TXQ_OFLD].qresume_task);
+		cancel_work_sync(&qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
 
