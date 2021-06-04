@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include "processor.h"
+#include "apic.h"
 
 /*
  * Definitions of Primary Processor-Based VM-Execution Controls.
