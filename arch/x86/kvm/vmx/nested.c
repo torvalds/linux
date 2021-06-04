@@ -3184,6 +3184,15 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 				offset_in_page(vmcs12->posted_intr_desc_addr));
 			vmcs_write64(POSTED_INTR_DESC_ADDR,
 				     pfn_to_hpa(map->pfn) + offset_in_page(vmcs12->posted_intr_desc_addr));
+		} else {
+			/*
+			 * Defer the KVM_INTERNAL_EXIT until KVM tries to
+			 * access the contents of the VMCS12 posted interrupt
+			 * descriptor. (Note that KVM may do this when it
+			 * should not, per the architectural specification.)
+			 */
+			vmx->nested.pi_desc = NULL;
+			pin_controls_clearbit(vmx, PIN_BASED_POSTED_INTR);
 		}
 	}
 	if (nested_vmx_prepare_msr_bitmap(vcpu, vmcs12))
@@ -3696,10 +3705,14 @@ static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	void *vapic_page;
 	u16 status;
 
-	if (!vmx->nested.pi_desc || !vmx->nested.pi_pending)
+	if (!vmx->nested.pi_pending)
 		return 0;
 
+	if (!vmx->nested.pi_desc)
+		goto mmio_needed;
+
 	vmx->nested.pi_pending = false;
+
 	if (!pi_test_and_clear_on(vmx->nested.pi_desc))
 		return 0;
 
