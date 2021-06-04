@@ -91,6 +91,36 @@ struct ssam_cdev_notifier_desc {
 } __attribute__((__packed__));
 
 /**
+ * struct ssam_cdev_event_desc - Event descriptor.
+ * @reg:                 Registry via which the event will be enabled/disabled.
+ * @reg.target_category: Target category for the event registry requests.
+ * @reg.target_id:       Target ID for the event registry requests.
+ * @reg.cid_enable:      Command ID for the event-enable request.
+ * @reg.cid_disable:     Command ID for the event-disable request.
+ * @id:                  ID specifying the event.
+ * @id.target_category:  Target category of the event source.
+ * @id.instance:         Instance ID of the event source.
+ * @flags:               Flags used for enabling the event.
+ *
+ * Specifies which event should be enabled/disabled and how to do that.
+ */
+struct ssam_cdev_event_desc {
+	struct {
+		__u8 target_category;
+		__u8 target_id;
+		__u8 cid_enable;
+		__u8 cid_disable;
+	} reg;
+
+	struct {
+		__u8 target_category;
+		__u8 instance;
+	} id;
+
+	__u8 flags;
+} __attribute__((__packed__));
+
+/**
  * struct ssam_cdev_event - SSAM event sent by the EC.
  * @target_category: Target category of the event source. See &enum ssam_ssh_tc.
  * @target_id:       Target ID of the event source.
@@ -111,5 +141,7 @@ struct ssam_cdev_event {
 #define SSAM_CDEV_REQUEST		_IOWR(0xA5, 1, struct ssam_cdev_request)
 #define SSAM_CDEV_NOTIF_REGISTER	_IOW(0xA5, 2, struct ssam_cdev_notifier_desc)
 #define SSAM_CDEV_NOTIF_UNREGISTER	_IOW(0xA5, 3, struct ssam_cdev_notifier_desc)
+#define SSAM_CDEV_EVENT_ENABLE		_IOW(0xA5, 4, struct ssam_cdev_event_desc)
+#define SSAM_CDEV_EVENT_DISABLE		_IOW(0xA5, 5, struct ssam_cdev_event_desc)
 
 #endif /* _UAPI_LINUX_SURFACE_AGGREGATOR_CDEV_H */

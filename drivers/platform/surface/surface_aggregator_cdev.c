@@ -387,6 +387,58 @@ static long ssam_cdev_notif_unregister(struct ssam_cdev_client *client,
 	return ssam_cdev_notifier_unregister(client, desc.target_category);
 }
 
+static long ssam_cdev_event_enable(struct ssam_cdev_client *client,
+				   const struct ssam_cdev_event_desc __user *d)
+{
+	struct ssam_cdev_event_desc desc;
+	struct ssam_event_registry reg;
+	struct ssam_event_id id;
+	long ret;
+
+	/* Read descriptor from user-space. */
+	ret = copy_struct_from_user(&desc, sizeof(desc), d, sizeof(*d));
+	if (ret)
+		return ret;
+
+	/* Translate descriptor. */
+	reg.target_category = desc.reg.target_category;
+	reg.target_id = desc.reg.target_id;
+	reg.cid_enable = desc.reg.cid_enable;
+	reg.cid_disable = desc.reg.cid_disable;
+
+	id.target_category = desc.id.target_category;
+	id.instance = desc.id.instance;
+
+	/* Disable event. */
+	return ssam_controller_event_enable(client->cdev->ctrl, reg, id, desc.flags);
+}
+
+static long ssam_cdev_event_disable(struct ssam_cdev_client *client,
+				    const struct ssam_cdev_event_desc __user *d)
+{
+	struct ssam_cdev_event_desc desc;
+	struct ssam_event_registry reg;
+	struct ssam_event_id id;
+	long ret;
+
+	/* Read descriptor from user-space. */
+	ret = copy_struct_from_user(&desc, sizeof(desc), d, sizeof(*d));
+	if (ret)
+		return ret;
+
+	/* Translate descriptor. */
+	reg.target_category = desc.reg.target_category;
+	reg.target_id = desc.reg.target_id;
+	reg.cid_enable = desc.reg.cid_enable;
+	reg.cid_disable = desc.reg.cid_disable;
+
+	id.target_category = desc.id.target_category;
+	id.instance = desc.id.instance;
+
+	/* Disable event. */
+	return ssam_controller_event_disable(client->cdev->ctrl, reg, id, desc.flags);
+}
+
 
 /* -- File operations. ------------------------------------------------------ */
 
@@ -472,6 +524,12 @@ static long __ssam_cdev_device_ioctl(struct ssam_cdev_client *client, unsigned i
 	case SSAM_CDEV_NOTIF_UNREGISTER:
 		return ssam_cdev_notif_unregister(client,
 						  (struct ssam_cdev_notifier_desc __user *)arg);
+
+	case SSAM_CDEV_EVENT_ENABLE:
+		return ssam_cdev_event_enable(client, (struct ssam_cdev_event_desc __user *)arg);
+
+	case SSAM_CDEV_EVENT_DISABLE:
+		return ssam_cdev_event_disable(client, (struct ssam_cdev_event_desc __user *)arg);
 
 	default:
 		return -ENOTTY;
