@@ -311,38 +311,21 @@ static struct vfsmount *fuse_dentry_automount(struct path *path)
 	struct fs_context *fsc;
 	struct vfsmount *mnt;
 	struct fuse_inode *mp_fi = get_fuse_inode(d_inode(path->dentry));
-	int err;
 
 	fsc = fs_context_for_submount(path->mnt->mnt_sb->s_type, path->dentry);
-	if (IS_ERR(fsc)) {
-		err = PTR_ERR(fsc);
-		goto out;
-	}
+	if (IS_ERR(fsc))
+		return ERR_CAST(fsc);
 
 	/* Pass the FUSE inode of the mount for fuse_get_tree_submount() */
 	fsc->fs_private = mp_fi;
 
-	err = vfs_get_tree(fsc);
-	if (err)
-		goto out_put_fsc;
-
-	/* We are done configuring the superblock, so unlock it */
-	up_write(&fsc->root->d_sb->s_umount);
-
 	/* Create the submount */
-	mnt = vfs_create_mount(fsc);
-	if (IS_ERR(mnt)) {
-		err = PTR_ERR(mnt);
-		goto out_put_fsc;
-	}
-	mntget(mnt);
+	mnt = fc_mount(fsc);
+	if (!IS_ERR(mnt))
+		mntget(mnt);
+
 	put_fs_context(fsc);
 	return mnt;
-
-out_put_fsc:
-	put_fs_context(fsc);
-out:
-	return ERR_PTR(err);
 }
 
 const struct dentry_operations fuse_dentry_operations = {
