@@ -137,13 +137,15 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:	/* Data to be transmitted */
 		skb_pull(skb, 1);
-		if ((result = lapb_data_request(dev, skb)) != LAPB_OK)
+		result = lapb_data_request(dev, skb);
+		if (result != LAPB_OK)
 			dev_kfree_skb(skb);
 		spin_unlock_bh(&x25st->up_lock);
 		return NETDEV_TX_OK;
 
 	case X25_IFACE_CONNECT:
-		if ((result = lapb_connect_request(dev))!= LAPB_OK) {
+		result = lapb_connect_request(dev);
+		if (result != LAPB_OK) {
 			if (result == LAPB_CONNECTED)
 				/* Send connect confirm. msg to level 3 */
 				x25_connected(dev, 0);
@@ -154,7 +156,8 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 
 	case X25_IFACE_DISCONNECT:
-		if ((result = lapb_disconnect_request(dev)) != LAPB_OK) {
+		result = lapb_disconnect_request(dev);
+		if (result != LAPB_OK) {
 			if (result == LAPB_NOTCONNECTED)
 				/* Send disconnect confirm. msg to level 3 */
 				x25_disconnected(dev, 0);
@@ -237,7 +240,8 @@ static int x25_rx(struct sk_buff *skb)
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct x25_state *x25st = state(hdlc);
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb) {
 		dev->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
@@ -333,8 +337,9 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		if ((result = attach_hdlc_protocol(dev, &proto,
-						   sizeof(struct x25_state))))
+		result = attach_hdlc_protocol(dev, &proto,
+					      sizeof(struct x25_state));
+		if (result)
 			return result;
 
 		memcpy(&state(hdlc)->settings, &new_settings, size);
