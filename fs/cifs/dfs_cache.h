@@ -24,31 +24,26 @@ struct dfs_cache_tgt_iterator {
 	struct list_head it_list;
 };
 
-extern int dfs_cache_init(void);
-extern void dfs_cache_destroy(void);
+int dfs_cache_init(void);
+void dfs_cache_destroy(void);
 extern const struct proc_ops dfscache_proc_ops;
 
-extern int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
-			  const struct nls_table *nls_codepage, int remap,
-			  const char *path, struct dfs_info3_param *ref,
-			  struct dfs_cache_tgt_list *tgt_list);
-extern int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
-				struct dfs_cache_tgt_list *tgt_list);
-extern int dfs_cache_update_tgthint(const unsigned int xid,
-				    struct cifs_ses *ses,
-				    const struct nls_table *nls_codepage,
-				    int remap, const char *path,
-				    const struct dfs_cache_tgt_iterator *it);
-extern int
-dfs_cache_noreq_update_tgthint(const char *path,
-			       const struct dfs_cache_tgt_iterator *it);
-extern int dfs_cache_get_tgt_referral(const char *path,
-				      const struct dfs_cache_tgt_iterator *it,
-				      struct dfs_info3_param *ref);
-extern int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
-				   char **share, char **prefix);
+int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses, const struct nls_table *cp,
+		   int remap, const char *path, struct dfs_info3_param *ref,
+		   struct dfs_cache_tgt_list *tgt_list);
+int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
+			 struct dfs_cache_tgt_list *tgt_list);
+int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
+			     const struct nls_table *cp, int remap, const char *path,
+			     const struct dfs_cache_tgt_iterator *it);
+int dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it);
+int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iterator *it,
+			       struct dfs_info3_param *ref);
+int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
+			    char **prefix);
 void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id);
 void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses);
+char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap);
 
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,

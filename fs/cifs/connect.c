@@ -3010,9 +3010,8 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	return rc;
 }
 
-static inline int get_next_dfs_tgt(const char *path,
-				   struct dfs_cache_tgt_list *tgt_list,
-				   struct dfs_cache_tgt_iterator **tgt_it)
+static int get_next_dfs_tgt(struct dfs_cache_tgt_list *tgt_list,
+			    struct dfs_cache_tgt_iterator **tgt_it)
 {
 	if (!*tgt_it)
 		*tgt_it = dfs_cache_get_tgt_iterator(tgt_list);
@@ -3052,6 +3051,7 @@ static int do_dfs_failover(const char *path, const char *full_path, struct cifs_
 			   struct cifs_ses **ses, struct cifs_tcon **tcon)
 {
 	int rc;
+	char *npath = NULL;
 	struct dfs_cache_tgt_list tgt_list = {0};
 	struct dfs_cache_tgt_iterator *tgt_it = NULL;
 	struct smb3_fs_context tmp_ctx = {NULL};
@@ -3059,11 +3059,15 @@ static int do_dfs_failover(const char *path, const char *full_path, struct cifs_
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
 		return -EOPNOTSUPP;
 
-	cifs_dbg(FYI, "%s: path=%s full_path=%s\n", __func__, path, full_path);
+	npath = dfs_cache_canonical_path(path, cifs_sb->local_nls, cifs_remap(cifs_sb));
+	if (IS_ERR(npath))
+		return PTR_ERR(npath);
 
-	rc = dfs_cache_noreq_find(path, NULL, &tgt_list);
+	cifs_dbg(FYI, "%s: path=%s full_path=%s\n", __func__, npath, full_path);
+
+	rc = dfs_cache_noreq_find(npath, NULL, &tgt_list);
 	if (rc)
-		return rc;
+		goto out;
 	/*
 	 * We use a 'tmp_ctx' here because we need pass it down to the mount_{get,put} functions to
 	 * test connection against new DFS targets.
@@ -3077,11 +3081,11 @@ static int do_dfs_failover(const char *path, const char *full_path, struct cifs_
 		char *fake_devname = NULL, *mdata = NULL;
 
 		/* Get next DFS target server - if any */
-		rc = get_next_dfs_tgt(path, &tgt_list, &tgt_it);
+		rc = get_next_dfs_tgt(&tgt_list, &tgt_it);
 		if (rc)
 			break;
 
-		rc = dfs_cache_get_tgt_referral(path, tgt_it, &ref);
+		rc = dfs_cache_get_tgt_referral(npath, tgt_it, &ref);
 		if (rc)
 			break;
 
@@ -3130,6 +3134,7 @@ static int do_dfs_failover(const char *path, const char *full_path, struct cifs_
 	}
 
 out:
+	kfree(npath);
 	smb3_cleanup_fs_context_contents(&tmp_ctx);
 	dfs_cache_free_tgts(&tgt_list);
 	return rc;
@@ -3287,11 +3292,6 @@ static void set_root_ses(struct cifs_sb_info *cifs_sb, const uuid_t *mount_id, s
 	if (ses) {
 		spin_lock(&cifs_tcp_ses_lock);
 		ses->ses_count++;
-		cifs_dbg(FYI, "%s: new ses_count=%d\n", __func__, ses->ses_count);
-		if (ses->tcon_ipc) {
-			cifs_dbg(FYI, "%s: ipc tcon: %s\n", __func__, ses->tcon_ipc->treeName);
-			ses->tcon_ipc->remap = cifs_remap(cifs_sb);
-		}
 		spin_unlock(&cifs_tcp_ses_lock);
 		dfs_cache_add_refsrv_session(mount_id, ses);
 	}
@@ -3343,17 +3343,25 @@ out:
 }
 
 /* Check if resolved targets can handle any DFS referrals */
-static int is_referral_server(const char *ref_path, struct cifs_tcon *tcon, bool *ref_server)
+static int is_referral_server(const char *ref_path, struct cifs_sb_info *cifs_sb,
+			      struct cifs_tcon *tcon, bool *ref_server)
 {
 	int rc;
 	struct dfs_info3_param ref = {0};
 
+	cifs_dbg(FYI, "%s: ref_path=%s\n", __func__, ref_path);
+
 	if (is_tcon_dfs(tcon)) {
 		*ref_server = true;
 	} else {
-		cifs_dbg(FYI, "%s: ref_path=%s\n", __func__, ref_path);
+		char *npath;
 
-		rc = dfs_cache_noreq_find(ref_path, &ref, NULL);
+		npath = dfs_cache_canonical_path(ref_path, cifs_sb->local_nls, cifs_remap(cifs_sb));
+		if (IS_ERR(npath))
+			return PTR_ERR(npath);
+
+		rc = dfs_cache_noreq_find(npath, &ref, NULL);
+		kfree(npath);
 		if (rc) {
 			cifs_dbg(VFS, "%s: dfs_cache_noreq_find: failed (rc=%d)\n", __func__, rc);
 			return rc;
@@ -3443,7 +3451,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			continue;
 
 		/* Make sure that requests go through new root servers */
-		rc = is_referral_server(ref_path + 1, tcon, &ref_server);
+		rc = is_referral_server(ref_path + 1, cifs_sb, tcon, &ref_server);
 		if (rc)
 			break;
 		if (ref_server)
@@ -3460,7 +3468,6 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 		goto error;
 
 	kfree(ref_path);
-	ref_path = NULL;
 	/*
 	 * Store DFS full path in both superblock and tree connect structures.
 	 *
@@ -3469,15 +3476,25 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	 * links, the prefix path is included in both and may be changed during reconnect.  See
 	 * cifs_tree_connect().
 	 */
-	cifs_sb->origin_fullpath = kstrdup(full_path, GFP_KERNEL);
-	if (!cifs_sb->origin_fullpath) {
+	ref_path = dfs_cache_canonical_path(full_path, cifs_sb->local_nls, cifs_remap(cifs_sb));
+	kfree(full_path);
+	full_path = NULL;
+
+	if (IS_ERR(ref_path)) {
+		rc = PTR_ERR(ref_path);
+		ref_path = NULL;
+		goto error;
+	}
+	cifs_sb->origin_fullpath = ref_path;
+
+	ref_path = kstrdup(cifs_sb->origin_fullpath, GFP_KERNEL);
+	if (!ref_path) {
 		rc = -ENOMEM;
 		goto error;
 	}
 	spin_lock(&cifs_tcp_ses_lock);
-	tcon->dfs_path = full_path;
-	full_path = NULL;
-	tcon->remap = cifs_remap(cifs_sb);
+	tcon->dfs_path = ref_path;
+	ref_path = NULL;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*

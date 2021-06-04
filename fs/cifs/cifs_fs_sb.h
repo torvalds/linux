@@ -72,9 +72,8 @@ struct cifs_sb_info {
 	char *prepath;
 
 	/*
-	 * Path initially provided by the mount call. We might connect
-	 * to something different via DFS but we want to keep it to do
-	 * failover properly.
+	 * Canonical DFS path initially provided by the mount call. We might connect to something
+	 * different via DFS but we want to keep it to do failover properly.
 	 */
 	char *origin_fullpath; /* \\HOST\SHARE\[OPTIONAL PATH] */
 	/* randomly generated 128-bit number for indexing dfs mount groups in referral cache */

@@ -65,7 +65,7 @@ static struct workqueue_struct *dfscache_wq __read_mostly;
 static int cache_ttl;
 static DEFINE_SPINLOCK(cache_ttl_lock);
 
-static struct nls_table *cache_nlsc;
+static struct nls_table *cache_cp;
 
 /*
  * Number of entries in the cache
@@ -175,27 +175,45 @@ static void free_mount_group_list(void)
 	}
 }
 
-static int get_normalized_path(const char *path, const char **npath)
+/**
+ * dfs_cache_canonical_path - get a canonical DFS path
+ *
+ * @path: DFS path
+ * @cp: codepage
+ * @remap: mapping type
+ *
+ * Return canonical path if success, otherwise error.
+ */
+char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap)
 {
+	char *tmp;
+	int plen = 0;
+	char *npath;
+
 	if (!path || strlen(path) < 3 || (*path != '\\' && *path != '/'))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
-	if (*path == '\\') {
-		*npath = path;
+	if (unlikely(strcmp(cp->charset, cache_cp->charset))) {
+		tmp = (char *)cifs_strndup_to_utf16(path, strlen(path), &plen, cp, remap);
+		if (!tmp) {
+			cifs_dbg(VFS, "%s: failed to convert path to utf16\n", __func__);
+			return ERR_PTR(-EINVAL);
+		}
+
+		npath = cifs_strndup_from_utf16(tmp, plen, true, cache_cp);
+		kfree(tmp);
+
+		if (!npath) {
+			cifs_dbg(VFS, "%s: failed to convert path from utf16\n", __func__);
+			return ERR_PTR(-EINVAL);
+		}
 	} else {
-		char *s = kstrdup(path, GFP_KERNEL);
-		if (!s)
-			return -ENOMEM;
-		convert_delimiter(s, '\\');
-		*npath = s;
+		npath = kstrdup(path, GFP_KERNEL);
+		if (!npath)
+			return ERR_PTR(-ENOMEM);
 	}
-	return 0;
-}
-
-static inline void free_normalized_path(const char *path, const char *npath)
-{
-	if (path != npath)
-		kfree(npath);
+	convert_delimiter(npath, '\\');
+	return npath;
 }
 
 static inline bool cache_entry_expired(const struct cache_entry *ce)
@@ -394,7 +412,9 @@ int dfs_cache_init(void)
 		INIT_HLIST_HEAD(&cache_htable[i]);
 
 	atomic_set(&cache_count, 0);
-	cache_nlsc = load_nls_default();
+	cache_cp = load_nls("utf8");
+	if (!cache_cp)
+		cache_cp = load_nls_default();
 
 	cifs_dbg(FYI, "%s: initialized DFS referral cache\n", __func__);
 	return 0;
@@ -669,7 +689,7 @@ out:
 void dfs_cache_destroy(void)
 {
 	cancel_delayed_work_sync(&refresh_task);
-	unload_nls(cache_nlsc);
+	unload_nls(cache_cp);
 	free_mount_group_list();
 	flush_cache_ents();
 	kmem_cache_destroy(cache_slab);
@@ -707,23 +727,21 @@ static int update_cache_entry_locked(const char *path, const struct dfs_info3_pa
 	return rc;
 }
 
-static int get_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
-			    const struct nls_table *nls_codepage, int remap,
-			    const char *path,  struct dfs_info3_param **refs,
-			    int *numrefs)
+static int get_dfs_referral(const unsigned int xid, struct cifs_ses *ses, const char *path,
+			    struct dfs_info3_param **refs, int *numrefs)
 {
 	cifs_dbg(FYI, "%s: get an DFS referral for %s\n", __func__, path);
 
 	if (!ses || !ses->server || !ses->server->ops->get_dfs_refer)
 		return -EOPNOTSUPP;
-	if (unlikely(!nls_codepage))
+	if (unlikely(!cache_cp))
 		return -EINVAL;
 
 	*refs = NULL;
 	*numrefs = 0;
 
-	return ses->server->ops->get_dfs_refer(xid, ses, path, refs, numrefs,
-					       nls_codepage, remap);
+	return ses->server->ops->get_dfs_refer(xid, ses, path, refs, numrefs, cache_cp,
+					       NO_MAP_UNI_RSVD);
 }
 
 /*
@@ -735,8 +753,7 @@ static int get_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
  * For interlinks, cifs_mount() and expand_dfs_referral() are supposed to
  * handle them properly.
  */
-static int cache_refresh_path(const unsigned int xid, struct cifs_ses *ses,
-			      const struct nls_table *nls_codepage, int remap, const char *path)
+static int cache_refresh_path(const unsigned int xid, struct cifs_ses *ses, const char *path)
 {
 	int rc;
 	unsigned int hash;
@@ -764,8 +781,7 @@ static int cache_refresh_path(const unsigned int xid, struct cifs_ses *ses,
 	 * Either the entry was not found, or it is expired.
 	 * Request a new DFS referral in order to create or update a cache entry.
 	 */
-	rc = get_dfs_referral(xid, ses, nls_codepage, remap, path,
-			      &refs, &numrefs);
+	rc = get_dfs_referral(xid, ses, path, &refs, &numrefs);
 	if (rc)
 		goto out_unlock;
 
@@ -886,7 +902,7 @@ err_free_it:
  * needs to be issued:
  * @xid: syscall xid
  * @ses: smb session to issue the request on
- * @nls_codepage: charset conversion
+ * @cp: codepage
  * @remap: path character remapping type
  * @path: path to lookup in DFS referral cache.
  *
@@ -895,20 +911,19 @@ err_free_it:
  *
  * Return zero if the target was found, otherwise non-zero.
  */
-int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
-		   const struct nls_table *nls_codepage, int remap,
-		   const char *path, struct dfs_info3_param *ref,
+int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses, const struct nls_table *cp,
+		   int remap, const char *path, struct dfs_info3_param *ref,
 		   struct dfs_cache_tgt_list *tgt_list)
 {
 	int rc;
 	const char *npath;
 	struct cache_entry *ce;
 
-	rc = get_normalized_path(path, &npath);
-	if (rc)
-		return rc;
+	npath = dfs_cache_canonical_path(path, cp, remap);
+	if (IS_ERR(npath))
+		return PTR_ERR(npath);
 
-	rc = cache_refresh_path(xid, ses, nls_codepage, remap, npath);
+	rc = cache_refresh_path(xid, ses, npath);
 	if (rc)
 		goto out_free_path;
 
@@ -931,7 +946,7 @@ int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 	up_read(&htable_rw_lock);
 
 out_free_path:
-	free_normalized_path(path, npath);
+	kfree(npath);
 	return rc;
 }
 
@@ -943,7 +958,7 @@ out_free_path:
  * expired, nor create a new cache entry if @path hasn't been found. It heavily
  * relies on an existing cache entry.
  *
- * @path: path to lookup in the DFS referral cache.
+ * @path: canonical DFS path to lookup in the DFS referral cache.
  * @ref: when non-NULL, store single DFS referral result in it.
  * @tgt_list: when non-NULL, store complete DFS target list in it.
  *
@@ -955,18 +970,13 @@ int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
 			 struct dfs_cache_tgt_list *tgt_list)
 {
 	int rc;
-	const char *npath;
 	struct cache_entry *ce;
 
-	rc = get_normalized_path(path, &npath);
-	if (rc)
-		return rc;
-
-	cifs_dbg(FYI, "%s: path: %s\n", __func__, npath);
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
 
 	down_read(&htable_rw_lock);
 
-	ce = lookup_cache_entry(npath, NULL);
+	ce = lookup_cache_entry(path, NULL);
 	if (IS_ERR(ce)) {
 		rc = PTR_ERR(ce);
 		goto out_unlock;
@@ -981,8 +991,6 @@ int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
 
 out_unlock:
 	up_read(&htable_rw_lock);
-	free_normalized_path(path, npath);
-
 	return rc;
 }
 
@@ -997,16 +1005,15 @@ out_unlock:
  *
  * @xid: syscall id
  * @ses: smb session
- * @nls_codepage: charset conversion
+ * @cp: codepage
  * @remap: type of character remapping for paths
- * @path: path to lookup in DFS referral cache.
+ * @path: path to lookup in DFS referral cache
  * @it: DFS target iterator
  *
  * Return zero if the target hint was updated successfully, otherwise non-zero.
  */
 int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
-			     const struct nls_table *nls_codepage, int remap,
-			     const char *path,
+			     const struct nls_table *cp, int remap, const char *path,
 			     const struct dfs_cache_tgt_iterator *it)
 {
 	int rc;
@@ -1014,13 +1021,13 @@ int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
 	struct cache_entry *ce;
 	struct cache_dfs_tgt *t;
 
-	rc = get_normalized_path(path, &npath);
-	if (rc)
-		return rc;
+	npath = dfs_cache_canonical_path(path, cp, remap);
+	if (IS_ERR(npath))
+		return PTR_ERR(npath);
 
 	cifs_dbg(FYI, "%s: update target hint - path: %s\n", __func__, npath);
 
-	rc = cache_refresh_path(xid, ses, nls_codepage, remap, npath);
+	rc = cache_refresh_path(xid, ses, npath);
 	if (rc)
 		goto out_free_path;
 
@@ -1049,8 +1056,7 @@ int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
 out_unlock:
 	up_write(&htable_rw_lock);
 out_free_path:
-	free_normalized_path(path, npath);
-
+	kfree(npath);
 	return rc;
 }
 
@@ -1062,32 +1068,26 @@ out_free_path:
  * expired, nor create a new cache entry if @path hasn't been found. It heavily
  * relies on an existing cache entry.
  *
- * @path: path to lookup in DFS referral cache.
+ * @path: canonical DFS path to lookup in DFS referral cache.
  * @it: target iterator which contains the target hint to update the cache
  * entry with.
  *
  * Return zero if the target hint was updated successfully, otherwise non-zero.
  */
-int dfs_cache_noreq_update_tgthint(const char *path,
-				   const struct dfs_cache_tgt_iterator *it)
+int dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it)
 {
 	int rc;
-	const char *npath;
 	struct cache_entry *ce;
 	struct cache_dfs_tgt *t;
 
 	if (!it)
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
-	if (rc)
-		return rc;
-
-	cifs_dbg(FYI, "%s: path: %s\n", __func__, npath);
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
 
 	down_write(&htable_rw_lock);
 
-	ce = lookup_cache_entry(npath, NULL);
+	ce = lookup_cache_entry(path, NULL);
 	if (IS_ERR(ce)) {
 		rc = PTR_ERR(ce);
 		goto out_unlock;
@@ -1110,8 +1110,6 @@ int dfs_cache_noreq_update_tgthint(const char *path,
 
 out_unlock:
 	up_write(&htable_rw_lock);
-	free_normalized_path(path, npath);
-
 	return rc;
 }
 
@@ -1119,32 +1117,26 @@ out_unlock:
  * dfs_cache_get_tgt_referral - returns a DFS referral (@ref) from a given
  * target iterator (@it).
  *
- * @path: path to lookup in DFS referral cache.
+ * @path: canonical DFS path to lookup in DFS referral cache.
  * @it: DFS target iterator.
  * @ref: DFS referral pointer to set up the gathered information.
  *
  * Return zero if the DFS referral was set up correctly, otherwise non-zero.
  */
-int dfs_cache_get_tgt_referral(const char *path,
-			       const struct dfs_cache_tgt_iterator *it,
+int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iterator *it,
 			       struct dfs_info3_param *ref)
 {
 	int rc;
-	const char *npath;
 	struct cache_entry *ce;
 
 	if (!it || !ref)
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
-	if (rc)
-		return rc;
-
-	cifs_dbg(FYI, "%s: path: %s\n", __func__, npath);
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, path);
 
 	down_read(&htable_rw_lock);
 
-	ce = lookup_cache_entry(npath, NULL);
+	ce = lookup_cache_entry(path, NULL);
 	if (IS_ERR(ce)) {
 		rc = PTR_ERR(ce);
 		goto out_unlock;
@@ -1156,8 +1148,6 @@ int dfs_cache_get_tgt_referral(const char *path,
 
 out_unlock:
 	up_read(&htable_rw_lock);
-	free_normalized_path(path, npath);
-
 	return rc;
 }
 
@@ -1219,8 +1209,8 @@ void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id)
  *
  * Return zero if target was parsed correctly, otherwise non-zero.
  */
-int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it,
-			    char **share, char **prefix)
+int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
+			    char **prefix)
 {
 	char *s, sep, *p;
 	size_t len;
@@ -1310,7 +1300,7 @@ static void refresh_mounts(struct cifs_ses **sessions)
 		ses = find_ipc_from_server_path(sessions, path);
 		if (!IS_ERR(ses)) {
 			xid = get_xid();
-			cache_refresh_path(xid, ses, cache_nlsc, tcon->remap, path);
+			cache_refresh_path(xid, ses, path);
 			free_xid(xid);
 		}
 		cifs_put_tcon(tcon);
@@ -1346,8 +1336,7 @@ static void refresh_cache(struct cifs_ses **sessions)
 				continue;
 
 			xid = get_xid();
-			rc = get_dfs_referral(xid, ses, cache_nlsc, NO_MAP_UNI_RSVD, ce->path,
-					      &refs, &numrefs);
+			rc = get_dfs_referral(xid, ses, ce->path, &refs, &numrefs);
 			free_xid(xid);
 
 			if (!rc)
