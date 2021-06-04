@@ -212,7 +212,7 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 	dmap->writable = writable;
 	if (!upgrade) {
 		/*
-		 * We don't take a refernce on inode. inode is valid right now
+		 * We don't take a reference on inode. inode is valid right now
 		 * and when inode is going away, cleanup logic should first
 		 * cleanup dmap entries.
 		 */
@@ -621,7 +621,7 @@ static int fuse_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	}
 
 	/*
-	 * If read beyond end of file happnes, fs code seems to return
+	 * If read beyond end of file happens, fs code seems to return
 	 * it as hole
 	 */
 iomap_hole:
@@ -1206,7 +1206,7 @@ static void fuse_dax_free_mem_worker(struct work_struct *work)
 			 ret);
 	}
 
-	/* If number of free ranges are still below threhold, requeue */
+	/* If number of free ranges are still below threshold, requeue */
 	kick_dmap_free_worker(fcd, 1);
 }
 
