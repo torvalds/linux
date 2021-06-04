@@ -547,7 +547,14 @@ static int __maybe_unused imx_clk_scu_suspend(struct device *dev)
 	    (rsrc_id == IMX_SC_R_A72))
 		return 0;
 
-	clk->rate = clk_hw_get_rate(&clk->hw);
+	/* DC SS needs to handle bypass clock using non-cached clock rate */
+	if (clk->rsrc_id == IMX_SC_R_DC_0_VIDEO0 ||
+		clk->rsrc_id == IMX_SC_R_DC_0_VIDEO1 ||
+		clk->rsrc_id == IMX_SC_R_DC_1_VIDEO0 ||
+		clk->rsrc_id == IMX_SC_R_DC_1_VIDEO1)
+		clk->rate = clk_scu_recalc_rate(&clk->hw, 0);
+	else
+		clk->rate = clk_hw_get_rate(&clk->hw);
 	clk->is_enabled = clk_hw_is_enabled(&clk->hw);
 
 	if (clk->rate)
