@@ -315,20 +315,20 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 				return -EFAULT;
 
 			if ((new_settings.dce != 0 &&
-			new_settings.dce != 1) ||
-			(new_settings.modulo != 8 &&
-			new_settings.modulo != 128) ||
-			new_settings.window < 1 ||
-			(new_settings.modulo == 8 &&
-			new_settings.window > 7) ||
-			(new_settings.modulo == 128 &&
-			new_settings.window > 127) ||
-			new_settings.t1 < 1 ||
-			new_settings.t1 > 255 ||
-			new_settings.t2 < 1 ||
-			new_settings.t2 > 255 ||
-			new_settings.n2 < 1 ||
-			new_settings.n2 > 255)
+			     new_settings.dce != 1) ||
+			    (new_settings.modulo != 8 &&
+			     new_settings.modulo != 128) ||
+			    new_settings.window < 1 ||
+			    (new_settings.modulo == 8 &&
+			     new_settings.window > 7) ||
+			    (new_settings.modulo == 128 &&
+			     new_settings.window > 127) ||
+			    new_settings.t1 < 1 ||
+			    new_settings.t1 > 255 ||
+			    new_settings.t2 < 1 ||
+			    new_settings.t2 > 255 ||
+			    new_settings.n2 < 1 ||
+			    new_settings.n2 > 255)
 				return -EINVAL;
 		}
 
