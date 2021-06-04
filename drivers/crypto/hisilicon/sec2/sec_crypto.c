@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 
 #include <crypto/aes.h>
+#include <crypto/aead.h>
 #include <crypto/algapi.h>
 #include <crypto/authenc.h>
 #include <crypto/des.h>
@@ -853,12 +854,16 @@ GEN_SEC_SETKEY_FUNC(sm4_ctr, SEC_CALG_SM4, SEC_CMODE_CTR)
 static int sec_cipher_pbuf_map(struct sec_ctx *ctx, struct sec_req *req,
 			struct scatterlist *src)
 {
-	struct aead_request *aead_req = req->aead_req.aead_req;
+	struct sec_aead_req *a_req = &req->aead_req;
+	struct aead_request *aead_req = a_req->aead_req;
 	struct sec_cipher_req *c_req = &req->c_req;
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
 	struct device *dev = ctx->dev;
 	int copy_size, pbuf_length;
 	int req_id = req->req_id;
+	struct crypto_aead *tfm;
+	size_t authsize;
+	u8 *mac_offset;
 
 	if (ctx->alg_type == SEC_AEAD)
 		copy_size = aead_req->cryptlen + aead_req->assoclen;
@@ -866,11 +871,16 @@ static int sec_cipher_pbuf_map(struct sec_ctx *ctx, struct sec_req *req,
 		copy_size = c_req->c_len;
 
 	pbuf_length = sg_copy_to_buffer(src, sg_nents(src),
-							qp_ctx->res[req_id].pbuf,
-							copy_size);
+			qp_ctx->res[req_id].pbuf, copy_size);
 	if (unlikely(pbuf_length != copy_size)) {
 		dev_err(dev, "copy src data to pbuf error!\n");
 		return -EINVAL;
+	}
+	if (!c_req->encrypt && ctx->alg_type == SEC_AEAD) {
+		tfm = crypto_aead_reqtfm(aead_req);
+		authsize = crypto_aead_authsize(tfm);
+		mac_offset = qp_ctx->res[req_id].pbuf + copy_size - authsize;
+		memcpy(a_req->out_mac, mac_offset, authsize);
 	}
 
 	c_req->c_in_dma = qp_ctx->res[req_id].pbuf_dma;
@@ -1044,6 +1054,28 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 	return 0;
 }
 
+static int sec_aead_setauthsize(struct crypto_aead *aead, unsigned int authsize)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(aead);
+	struct sec_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct sec_auth_ctx *a_ctx = &ctx->a_ctx;
+
+	if (unlikely(a_ctx->fallback_aead_tfm))
+		return crypto_aead_setauthsize(a_ctx->fallback_aead_tfm, authsize);
+
+	return 0;
+}
+
+static int sec_aead_fallback_setkey(struct sec_auth_ctx *a_ctx,
+				    struct crypto_aead *tfm, const u8 *key,
+				    unsigned int keylen)
+{
+	crypto_aead_clear_flags(a_ctx->fallback_aead_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_aead_set_flags(a_ctx->fallback_aead_tfm,
+			      crypto_aead_get_flags(tfm) & CRYPTO_TFM_REQ_MASK);
+	return crypto_aead_setkey(a_ctx->fallback_aead_tfm, key, keylen);
+}
+
 static int sec_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 			   const u32 keylen, const enum sec_hash_alg a_alg,
 			   const enum sec_calg c_alg,
@@ -1052,6 +1084,7 @@ static int sec_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct sec_ctx *ctx = crypto_aead_ctx(tfm);
 	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
+	struct sec_auth_ctx *a_ctx = &ctx->a_ctx;
 	struct device *dev = ctx->dev;
 	struct crypto_authenc_keys keys;
 	int ret;
@@ -1068,6 +1101,12 @@ static int sec_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 			return ret;
 		}
 		memcpy(c_ctx->c_key, key, keylen);
+
+		if (unlikely(a_ctx->fallback_aead_tfm)) {
+			ret = sec_aead_fallback_setkey(a_ctx, tfm, key, keylen);
+			if (ret)
+				return ret;
+		}
 
 		return 0;
 	}
@@ -1857,7 +1896,10 @@ static void sec_aead_ctx_exit(struct crypto_aead *tfm)
 
 static int sec_aead_xcm_ctx_init(struct crypto_aead *tfm)
 {
+	struct aead_alg *alg = crypto_aead_alg(tfm);
 	struct sec_ctx *ctx = crypto_aead_ctx(tfm);
+	struct sec_auth_ctx *a_ctx = &ctx->a_ctx;
+	const char *aead_name = alg->base.cra_name;
 	int ret;
 
 	ret = sec_aead_init(tfm);
@@ -1866,11 +1908,24 @@ static int sec_aead_xcm_ctx_init(struct crypto_aead *tfm)
 		return ret;
 	}
 
+	a_ctx->fallback_aead_tfm = crypto_alloc_aead(aead_name, 0,
+						     CRYPTO_ALG_NEED_FALLBACK |
+						     CRYPTO_ALG_ASYNC);
+	if (IS_ERR(a_ctx->fallback_aead_tfm)) {
+		dev_err(ctx->dev, "aead driver alloc fallback tfm error!\n");
+		sec_aead_exit(tfm);
+		return PTR_ERR(a_ctx->fallback_aead_tfm);
+	}
+	a_ctx->fallback = false;
+
 	return 0;
 }
 
 static void sec_aead_xcm_ctx_exit(struct crypto_aead *tfm)
 {
+	struct sec_ctx *ctx = crypto_aead_ctx(tfm);
+
+	crypto_free_aead(ctx->a_ctx.fallback_aead_tfm);
 	sec_aead_exit(tfm);
 }
 
@@ -2189,6 +2244,7 @@ static int sec_aead_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 		if (unlikely(!req->cryptlen || (!sreq->c_req.encrypt &&
 		    req->cryptlen <= authsize))) {
 			dev_err(dev, "Kunpeng920 not support 0 length!\n");
+			ctx->a_ctx.fallback = true;
 			return -EINVAL;
 		}
 	}
@@ -2211,6 +2267,31 @@ static int sec_aead_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 	return 0;
 }
 
+static int sec_aead_soft_crypto(struct sec_ctx *ctx,
+				struct aead_request *aead_req,
+				bool encrypt)
+{
+	struct aead_request *subreq = aead_request_ctx(aead_req);
+	struct sec_auth_ctx *a_ctx = &ctx->a_ctx;
+	struct device *dev = ctx->dev;
+
+	/* Kunpeng920 aead mode not support input 0 size */
+	if (!a_ctx->fallback_aead_tfm) {
+		dev_err(dev, "aead fallbcak tfm is NULL!\n");
+		return -EINVAL;
+	}
+
+	aead_request_set_tfm(subreq, a_ctx->fallback_aead_tfm);
+	aead_request_set_callback(subreq, aead_req->base.flags,
+				  aead_req->base.complete, aead_req->base.data);
+	aead_request_set_crypt(subreq, aead_req->src, aead_req->dst,
+			       aead_req->cryptlen, aead_req->iv);
+	aead_request_set_ad(subreq, aead_req->assoclen);
+
+	return encrypt ? crypto_aead_encrypt(subreq) :
+		   crypto_aead_decrypt(subreq);
+}
+
 static int sec_aead_crypto(struct aead_request *a_req, bool encrypt)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(a_req);
@@ -2224,8 +2305,11 @@ static int sec_aead_crypto(struct aead_request *a_req, bool encrypt)
 	req->ctx = ctx;
 
 	ret = sec_aead_param_check(ctx, req);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		if (ctx->a_ctx.fallback)
+			return sec_aead_soft_crypto(ctx, a_req, encrypt);
 		return -EINVAL;
+	}
 
 	return ctx->req_op->process(ctx, req);
 }
@@ -2247,7 +2331,9 @@ static int sec_aead_decrypt(struct aead_request *a_req)
 		.cra_name = sec_cra_name,\
 		.cra_driver_name = "hisi_sec_"sec_cra_name,\
 		.cra_priority = SEC_PRIORITY,\
-		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,\
+		.cra_flags = CRYPTO_ALG_ASYNC |\
+		 CRYPTO_ALG_ALLOCATES_MEMORY |\
+		 CRYPTO_ALG_NEED_FALLBACK,\
 		.cra_blocksize = blk_size,\
 		.cra_ctxsize = sizeof(struct sec_ctx),\
 		.cra_module = THIS_MODULE,\
@@ -2255,6 +2341,7 @@ static int sec_aead_decrypt(struct aead_request *a_req)
 	.init = ctx_init,\
 	.exit = ctx_exit,\
 	.setkey = sec_set_key,\
+	.setauthsize = sec_aead_setauthsize,\
 	.decrypt = sec_aead_decrypt,\
 	.encrypt = sec_aead_encrypt,\
 	.ivsize = iv_size,\

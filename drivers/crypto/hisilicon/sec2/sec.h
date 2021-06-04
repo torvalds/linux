@@ -88,7 +88,9 @@ struct sec_auth_ctx {
 	u8 a_key_len;
 	u8 mac_len;
 	u8 a_alg;
+	bool fallback;
 	struct crypto_shash *hash_tfm;
+	struct crypto_aead *fallback_aead_tfm;
 };
 
 /* SEC cipher context which cipher's relatives */
