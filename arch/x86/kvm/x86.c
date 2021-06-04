@@ -8640,7 +8640,7 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 	static_call(kvm_x86_queue_exception)(vcpu);
 }
 
-static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit)
+static int inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit)
 {
 	int r;
 	bool can_inject = true;
@@ -8687,7 +8687,7 @@ static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit
 	if (is_guest_mode(vcpu)) {
 		r = kvm_check_nested_events(vcpu);
 		if (r < 0)
-			goto busy;
+			goto out;
 	}
 
 	/* try to inject new event if pending */
@@ -8729,7 +8729,7 @@ static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit
 	if (vcpu->arch.smi_pending) {
 		r = can_inject ? static_call(kvm_x86_smi_allowed)(vcpu, true) : -EBUSY;
 		if (r < 0)
-			goto busy;
+			goto out;
 		if (r) {
 			vcpu->arch.smi_pending = false;
 			++vcpu->arch.smi_count;
@@ -8742,7 +8742,7 @@ static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit
 	if (vcpu->arch.nmi_pending) {
 		r = can_inject ? static_call(kvm_x86_nmi_allowed)(vcpu, true) : -EBUSY;
 		if (r < 0)
-			goto busy;
+			goto out;
 		if (r) {
 			--vcpu->arch.nmi_pending;
 			vcpu->arch.nmi_injected = true;
@@ -8757,7 +8757,7 @@ static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit
 	if (kvm_cpu_has_injectable_intr(vcpu)) {
 		r = can_inject ? static_call(kvm_x86_interrupt_allowed)(vcpu, true) : -EBUSY;
 		if (r < 0)
-			goto busy;
+			goto out;
 		if (r) {
 			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu), false);
 			static_call(kvm_x86_set_irq)(vcpu);
@@ -8773,11 +8773,14 @@ static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit
 		*req_immediate_exit = true;
 
 	WARN_ON(vcpu->arch.exception.pending);
-	return;
+	return 0;
 
-busy:
-	*req_immediate_exit = true;
-	return;
+out:
+	if (r == -EBUSY) {
+		*req_immediate_exit = true;
+		r = 0;
+	}
+	return r;
 }
 
 static void process_nmi(struct kvm_vcpu *vcpu)
@@ -9338,7 +9341,11 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			goto out;
 		}
 
-		inject_pending_event(vcpu, &req_immediate_exit);
+		r = inject_pending_event(vcpu, &req_immediate_exit);
+		if (r < 0) {
+			r = 0;
+			goto out;
+		}
 		if (req_int_win)
 			static_call(kvm_x86_enable_irq_window)(vcpu);
 
