@@ -8625,9 +8625,6 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 
 int kvm_check_nested_events(struct kvm_vcpu *vcpu)
 {
-	if (WARN_ON_ONCE(!is_guest_mode(vcpu)))
-		return -EIO;
-
 	if (kvm_check_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
 		kvm_x86_ops.nested_ops->triple_fault(vcpu);
 		return 1;
