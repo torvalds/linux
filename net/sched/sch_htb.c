@@ -594,6 +594,8 @@ static inline void htb_activate(struct htb_sched *q, struct htb_class *cl)
 
 /**
  * htb_deactivate - remove leaf cl from active feeds
+ * @q: the priority event queue
+ * @cl: the target class
  *
  * Make sure that leaf is active. In the other words it can't be called
  * with non-active leaf. It also removes class from the drop list.
