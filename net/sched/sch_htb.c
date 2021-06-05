@@ -728,6 +728,9 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 
 /**
  * htb_do_events - make mode changes to classes at the level
+ * @q: the priority event queue
+ * @level: which wait_pq in 'q->hlevel'
+ * @start: start jiffies
  *
  * Scans event queue for pending events and applies them. Returns time of
  * next pending event (0 for no event in pq, q->now for too many events).
