@@ -13,7 +13,7 @@
 
 struct bcm63xx_pinctrl_soc {
 	const struct pinctrl_ops *pctl_ops;
-	struct pinmux_ops *pmx_ops;
+	const struct pinmux_ops *pmx_ops;
 
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;

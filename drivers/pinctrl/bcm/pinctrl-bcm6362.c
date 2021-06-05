@@ -579,7 +579,7 @@ static const struct pinctrl_ops bcm6362_pctl_ops = {
 	.get_groups_count = bcm6362_pinctrl_get_group_count,
 };
 
-static struct pinmux_ops bcm6362_pmx_ops = {
+static const struct pinmux_ops bcm6362_pmx_ops = {
 	.get_function_groups = bcm6362_pinctrl_get_groups,
 	.get_function_name = bcm6362_pinctrl_get_func_name,
 	.get_functions_count = bcm6362_pinctrl_get_func_count,
