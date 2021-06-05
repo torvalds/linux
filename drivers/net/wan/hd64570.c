@@ -75,7 +75,7 @@ static inline int sca_intr_status(card_t *card)
 	return result;
 }
 
-static inline port_t* dev_to_port(struct net_device *dev)
+static inline port_t *dev_to_port(struct net_device *dev)
 {
 	return dev_to_hdlc(dev)->priv;
 }
@@ -211,7 +211,7 @@ static void sca_init_port(port_t *port)
 static inline void sca_msci_intr(port_t *port)
 {
 	u16 msci = get_msci(port);
-	card_t* card = port_to_card(port);
+	card_t *card = port_to_card(port);
 	u8 stat = sca_in(msci + ST1, card); /* read MSCI ST1 status */
 
 	/* Reset MSCI TX underrun and CDCD status bit */
@@ -329,7 +329,7 @@ static inline void sca_tx_intr(port_t *port)
 {
 	struct net_device *dev = port_to_dev(port);
 	u16 dmac = get_dmac_tx(port);
-	card_t* card = port_to_card(port);
+	card_t *card = port_to_card(port);
 	u8 stat;
 
 	spin_lock(&port->lock);
@@ -360,7 +360,7 @@ static inline void sca_tx_intr(port_t *port)
 	spin_unlock(&port->lock);
 }
 
-static irqreturn_t sca_intr(int irq, void* dev_id)
+static irqreturn_t sca_intr(int irq, void *dev_id)
 {
 	card_t *card = dev_id;
 	int i;
@@ -392,7 +392,7 @@ static irqreturn_t sca_intr(int irq, void* dev_id)
 
 static void sca_set_port(port_t *port)
 {
-	card_t* card = port_to_card(port);
+	card_t *card = port_to_card(port);
 	u16 msci = get_msci(port);
 	u8 md2 = sca_in(msci + MD2, card);
 	unsigned int tmc, br = 10, brv = 1024;
@@ -443,7 +443,7 @@ static void sca_set_port(port_t *port)
 static void sca_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
-	card_t* card = port_to_card(port);
+	card_t *card = port_to_card(port);
 	u16 msci = get_msci(port);
 	u8 md0, md2;
 
@@ -506,7 +506,7 @@ static void sca_open(struct net_device *dev)
 static void sca_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
-	card_t* card = port_to_card(port);
+	card_t *card = port_to_card(port);
 
 	/* reset channel */
 	sca_out(CMD_RESET, get_msci(port) + CMD, port_to_card(port));
