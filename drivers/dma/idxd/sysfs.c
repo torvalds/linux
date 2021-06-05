@@ -129,7 +129,7 @@ static int enable_wq(struct idxd_wq *wq)
 	rc = idxd_wq_map_portal(wq);
 	if (rc < 0) {
 		dev_warn(dev, "wq portal mapping failed: %d\n", rc);
-		rc = idxd_wq_disable(wq);
+		rc = idxd_wq_disable(wq, false);
 		if (rc < 0)
 			dev_warn(dev, "IDXD wq disable failed\n");
 		mutex_unlock(&wq->wq_lock);
@@ -262,8 +262,6 @@ static void disable_wq(struct idxd_wq *wq)
 
 static int idxd_config_bus_remove(struct device *dev)
 {
-	int rc;
-
 	dev_dbg(dev, "%s called for %s\n", __func__, dev_name(dev));
 
 	/* disable workqueue here */
@@ -288,22 +286,12 @@ static int idxd_config_bus_remove(struct device *dev)
 		}
 
 		idxd_unregister_dma_device(idxd);
-		rc = idxd_device_disable(idxd);
-		if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
-			for (i = 0; i < idxd->max_wqs; i++) {
-				struct idxd_wq *wq = idxd->wqs[i];
-
-				mutex_lock(&wq->wq_lock);
-				idxd_wq_disable_cleanup(wq);
-				mutex_unlock(&wq->wq_lock);
-			}
-		}
+		idxd_device_disable(idxd);
+		if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+			idxd_device_reset(idxd);
 		module_put(THIS_MODULE);
-		if (rc < 0)
-			dev_warn(dev, "Device disable failed\n");
-		else
-			dev_info(dev, "Device %s disabled\n", dev_name(dev));
 
+		dev_info(dev, "Device %s disabled\n", dev_name(dev));
 	}
 
 	return 0;
