@@ -507,9 +507,9 @@ static void sca_open(struct net_device *dev)
 	sca_out(0x14, msci + TRC1, card); /* +1=TXRDY/DMA deactiv condition */
 
 /* We're using the following interrupts:
-   - TXINT (DMAC completed all transmisions, underrun or DCD change)
-   - all DMA interrupts
-*/
+ * - TXINT (DMAC completed all transmisions, underrun or DCD change)
+ * - all DMA interrupts
+ */
 	sca_set_carrier(port);
 
 	/* MSCI TX INT and RX INT A IRQ enable */
