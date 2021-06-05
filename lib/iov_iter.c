@@ -1781,8 +1781,8 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 	if (unlikely(iov_iter_is_pipe(i)))
 		return csum_and_copy_to_pipe_iter(addr, bytes, _csstate, i);
 
-	sum = csstate->csum;
-	off = csstate->off;
+	sum = csum_shift(csstate->csum, csstate->off);
+	off = 0;
 	if (unlikely(iov_iter_is_discard(i))) {
 		WARN_ON(1);	/* for now */
 		return 0;
@@ -1817,8 +1817,8 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 		off += v.bv_len;
 	})
 	)
-	csstate->csum = sum;
-	csstate->off = off;
+	csstate->csum = csum_shift(sum, csstate->off);
+	csstate->off += bytes;
 	return bytes;
 }
 EXPORT_SYMBOL(csum_and_copy_to_iter);
