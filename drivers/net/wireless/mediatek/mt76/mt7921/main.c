@@ -316,7 +316,7 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
 
-int mt7921_set_channel(struct mt7921_phy *phy)
+static int mt7921_set_channel(struct mt7921_phy *phy)
 {
 	struct mt7921_dev *dev = phy->dev;
 	int ret;
