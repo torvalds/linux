@@ -7,6 +7,7 @@
 #define _RTW_RECV_C_
 
 #include <linux/ieee80211.h>
+#include <linux/if_ether.h>
 
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -17,7 +18,6 @@
 #include <linux/vmalloc.h>
 #include <net/cfg80211.h>
 
-#define ETHERNET_HEADER_SIZE	14	/*  Ethernet Header Length */
 #define LLC_HEADER_SIZE			6	/*  LLC Header Length */
 
 static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
@@ -1503,7 +1503,7 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 		/* Offset 12 denote 2 mac address */
 		nSubframe_Length = get_unaligned_be16(pdata + 12);
 
-		if (a_len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
+		if (a_len < (ETH_HLEN + nSubframe_Length)) {
 			DBG_88E("nRemain_Length is %d and nSubframe_Length is : %d\n", a_len, nSubframe_Length);
 			goto exit;
 		}
