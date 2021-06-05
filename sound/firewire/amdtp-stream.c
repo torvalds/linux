@@ -1625,8 +1625,10 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			s->ctx_data.tx.cache.tail = 0;
 			s->ctx_data.tx.cache.descs = kcalloc(s->ctx_data.tx.cache.size,
 						sizeof(*s->ctx_data.tx.cache.descs), GFP_KERNEL);
-			if (!s->ctx_data.tx.cache.descs)
+			if (!s->ctx_data.tx.cache.descs) {
+				err = -ENOMEM;
 				goto err_context;
+			}
 		}
 	} else {
 		static const struct {
@@ -1643,8 +1645,10 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		};
 
 		s->ctx_data.rx.seq.descs = kcalloc(queue_size, sizeof(*s->ctx_data.rx.seq.descs), GFP_KERNEL);
-		if (!s->ctx_data.rx.seq.descs)
+		if (!s->ctx_data.rx.seq.descs) {
+			err = -ENOMEM;
 			goto err_context;
+		}
 		s->ctx_data.rx.seq.size = queue_size;
 		s->ctx_data.rx.seq.tail = 0;
 		s->ctx_data.rx.seq.head = 0;
