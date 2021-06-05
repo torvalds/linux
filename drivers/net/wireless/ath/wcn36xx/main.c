@@ -1112,11 +1112,16 @@ static int wcn36xx_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wow)
 
 	flush_workqueue(wcn->hal_ind_wq);
 	mutex_lock(&wcn->conf_mutex);
-	vif = wcn36xx_get_first_assoc_vif(wcn);
-	if (vif)
-		ret = wcn36xx_smd_set_power_params(wcn, true);
-	mutex_unlock(&wcn->conf_mutex);
 
+	vif = wcn36xx_get_first_assoc_vif(wcn);
+	if (vif) {
+		ret = wcn36xx_smd_arp_offload(wcn, vif, true);
+		if (ret)
+			goto out;
+		ret = wcn36xx_smd_set_power_params(wcn, true);
+	}
+out:
+	mutex_unlock(&wcn->conf_mutex);
 	return ret;
 }
 
@@ -1130,8 +1135,10 @@ static int wcn36xx_resume(struct ieee80211_hw *hw)
 	flush_workqueue(wcn->hal_ind_wq);
 	mutex_lock(&wcn->conf_mutex);
 	vif = wcn36xx_get_first_assoc_vif(wcn);
-	if (vif)
+	if (vif) {
 		wcn36xx_smd_set_power_params(wcn, false);
+		wcn36xx_smd_arp_offload(wcn, vif, false);
+	}
 	mutex_unlock(&wcn->conf_mutex);
 
 	return 0;
