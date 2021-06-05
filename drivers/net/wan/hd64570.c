@@ -47,7 +47,6 @@
 #define SCA_INTR_DMAC_RX(node) (node ? 0x20 : 0x02)
 #define SCA_INTR_DMAC_TX(node) (node ? 0x40 : 0x04)
 
-
 static inline struct net_device *port_to_dev(port_t *port)
 {
 	return port->dev;
@@ -87,7 +86,6 @@ static inline u16 next_desc(port_t *port, u16 desc, int transmit)
 			     : port_to_card(port)->rx_ring_buffers);
 }
 
-
 static inline u16 desc_abs_number(port_t *port, u16 desc, int transmit)
 {
 	u16 rx_buffs = port_to_card(port)->rx_ring_buffers;
@@ -98,13 +96,11 @@ static inline u16 desc_abs_number(port_t *port, u16 desc, int transmit)
 		transmit * rx_buffs + desc;
 }
 
-
 static inline u16 desc_offset(port_t *port, u16 desc, int transmit)
 {
 	/* Descriptor offset always fits in 16 bits */
 	return desc_abs_number(port, desc, transmit) * sizeof(pkt_desc);
 }
-
 
 static inline pkt_desc __iomem *desc_address(port_t *port, u16 desc,
 					     int transmit)
@@ -118,13 +114,11 @@ static inline pkt_desc __iomem *desc_address(port_t *port, u16 desc,
 #endif
 }
 
-
 static inline u32 buffer_offset(port_t *port, u16 desc, int transmit)
 {
 	return port_to_card(port)->buff_offset +
 		desc_abs_number(port, desc, transmit) * (u32)HDLC_MAX_MRU;
 }
-
 
 static inline void sca_set_carrier(port_t *port)
 {
@@ -142,7 +136,6 @@ static inline void sca_set_carrier(port_t *port)
 		netif_carrier_off(port_to_dev(port));
 	}
 }
-
 
 static void sca_init_port(port_t *port)
 {
@@ -213,7 +206,6 @@ static void sca_init_port(port_t *port)
 	sca_set_carrier(port);
 }
 
-
 #ifdef NEED_SCA_MSCI_INTR
 /* MSCI interrupt service */
 static inline void sca_msci_intr(port_t *port)
@@ -235,7 +227,6 @@ static inline void sca_msci_intr(port_t *port)
 		sca_set_carrier(port);
 }
 #endif
-
 
 static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc,
 			  u16 rxin)
@@ -281,7 +272,6 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc,
 	skb->protocol = hdlc_type_trans(skb, dev);
 	netif_rx(skb);
 }
-
 
 /* Receive DMA interrupt service */
 static inline void sca_rx_intr(port_t *port)
@@ -334,7 +324,6 @@ static inline void sca_rx_intr(port_t *port)
 	sca_out(DSR_DE, DSR_RX(phy_node(port)), card);
 }
 
-
 /* Transmit DMA interrupt service */
 static inline void sca_tx_intr(port_t *port)
 {
@@ -370,7 +359,6 @@ static inline void sca_tx_intr(port_t *port)
 	spin_unlock(&port->lock);
 }
 
-
 static irqreturn_t sca_intr(int irq, void* dev_id)
 {
 	card_t *card = dev_id;
@@ -400,14 +388,12 @@ static irqreturn_t sca_intr(int irq, void* dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-
 static void sca_set_port(port_t *port)
 {
 	card_t* card = port_to_card(port);
 	u16 msci = get_msci(port);
 	u8 md2 = sca_in(msci + MD2, card);
 	unsigned int tmc, br = 10, brv = 1024;
-
 
 	if (port->settings.clock_rate > 0) {
 		/* Try lower br for better accuracy*/
@@ -450,9 +436,7 @@ static void sca_set_port(port_t *port)
 		md2 &= ~MD2_LOOPBACK;
 
 	sca_out(md2, msci + MD2, card);
-
 }
-
 
 static void sca_open(struct net_device *dev)
 {
@@ -517,7 +501,6 @@ static void sca_open(struct net_device *dev)
 	netif_start_queue(dev);
 }
 
-
 static void sca_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
@@ -534,7 +517,6 @@ static void sca_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 }
-
 
 static int sca_attach(struct net_device *dev, unsigned short encoding,
 		      unsigned short parity)
@@ -557,7 +539,6 @@ static int sca_attach(struct net_device *dev, unsigned short encoding,
 	dev_to_port(dev)->parity = parity;
 	return 0;
 }
-
 
 #ifdef DEBUG_RINGS
 static void sca_dump_rings(struct net_device *dev)
@@ -612,7 +593,6 @@ static void sca_dump_rings(struct net_device *dev)
 #endif
 }
 #endif /* DEBUG_RINGS */
-
 
 static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -670,7 +650,6 @@ static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-
 #ifdef NEED_DETECT_RAM
 static u32 sca_detect_ram(card_t *card, u8 __iomem *rambase, u32 ramsize)
 {
@@ -698,7 +677,6 @@ static u32 sca_detect_ram(card_t *card, u8 __iomem *rambase, u32 ramsize)
 	return i;
 }
 #endif /* NEED_DETECT_RAM */
-
 
 static void sca_init(card_t *card, int wait_states)
 {
