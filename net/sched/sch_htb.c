@@ -510,6 +510,8 @@ static inline s64 htb_hiwater(const struct htb_class *cl)
 
 /**
  * htb_class_mode - computes and returns current class mode
+ * @cl: the target class
+ * @diff: diff time in microseconds
  *
  * It computes cl's mode at time cl->t_c+diff and returns it. If mode
  * is not HTB_CAN_SEND then cl->pq_key is updated to time difference
