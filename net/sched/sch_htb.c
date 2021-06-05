@@ -675,6 +675,10 @@ static inline void htb_accnt_ctokens(struct htb_class *cl, int bytes, s64 diff)
 
 /**
  * htb_charge_class - charges amount "bytes" to leaf and ancestors
+ * @q: the priority event queue
+ * @cl: the class to start iterate
+ * @level: the minimum level to account
+ * @skb: the socket buffer
  *
  * Routine assumes that packet "bytes" long was dequeued from leaf cl
  * borrowing from "level". It accounts bytes to ceil leaky bucket for
