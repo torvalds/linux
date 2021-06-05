@@ -35,7 +35,6 @@
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
 #include "amdgpu.h"
-#include "kfd_svm.h"
 
 struct mm_struct;
 
