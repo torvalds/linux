@@ -122,8 +122,8 @@ slhc_init(int rslots, int tslots)
 	comp->xmit_current = 255;
 	comp->recv_current = 255;
 	/*
-	 * don't accept any packets with implicit index until we get
-	 * one with an explicit index.  Otherwise the uncompress code
+	 * Don't accept any packets with implicit index until we get
+	 * one with an explicit index. Otherwise the uncompress code
 	 * will try to use connection 255, which is almost certainly
 	 * out of range
 	 */
@@ -322,15 +322,15 @@ slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 
 found:
 	/*
-	 * Found it -- move to the front on the connection list.
+	 * Found -- Move to the front on the connection list.
 	 */
 	if(lcs == ocs) {
- 		/* found at most recently used */
+ 		/* Found at most recently used */
 	} else if (cs == ocs) {
-		/* found at least recently used */
+		/* Found at least recently used */
 		comp->xmit_oldest = lcs->cs_this;
 	} else {
-		/* more than 2 elements */
+		/* More than 2 elements */
 		lcs->next = cs->next;
 		cs->next = ocs->next;
 		ocs->next = cs;
@@ -361,7 +361,7 @@ found:
 	}
 
 	/*
-	 * Figure out which of the changing fields changed.  The
+	 * Figure out which of the changing fields changed. The
 	 * receiver expects changes in the order: urgent, window,
 	 * ack, seq (the order minimizes the number of temporaries
 	 * needed in this section of code).
