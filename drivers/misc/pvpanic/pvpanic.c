@@ -65,9 +65,6 @@ static void pvpanic_remove(void *param)
 	struct pvpanic_instance *pi_cur, *pi_next;
 	struct pvpanic_instance *pi = param;
 
-	if (!pi)
-		return;
-
 	spin_lock(&pvpanic_lock);
 	list_for_each_entry_safe(pi_cur, pi_next, &pvpanic_list, list) {
 		if (pi_cur == pi) {
