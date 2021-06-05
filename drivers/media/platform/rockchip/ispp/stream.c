@@ -1810,6 +1810,7 @@ free_dummy_buf:
 	rkispp_free_common_dummy_buf(stream->isppdev);
 free_buf_queue:
 	destroy_buf_queue(stream, VB2_BUF_STATE_QUEUED);
+	rkispp_destroy_buf(stream);
 	atomic_dec(&dev->stream_vdev.refcnt);
 	stream->streaming = false;
 	stream->is_upd = false;
