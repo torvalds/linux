@@ -64,7 +64,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	/* mmap ioctl is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->flags & ~(I915_MMAP_WC))
