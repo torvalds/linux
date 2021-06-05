@@ -262,8 +262,9 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc,
 		memcpy_fromio(skb->data, winbase(card) + buff, maxlen);
 		openwin(card, page + 1);
 		memcpy_fromio(skb->data + maxlen, winbase(card), len - maxlen);
-	} else
+	} else {
 		memcpy_fromio(skb->data, winbase(card) + buff, len);
+	}
 
 #ifndef PAGE0_ALWAYS_MAPPED
 	openwin(card, 0);	/* select pkt_desc table page back */
@@ -318,8 +319,9 @@ static inline void sca_rx_intr(port_t *port)
 				dev->stats.rx_crc_errors++;
 			if (stat & ST_RX_EOM)
 				port->rxpart = 0; /* received last fragment */
-		} else
+		} else {
 			sca_rx(card, port, desc, port->rxin);
+		}
 
 		/* Set new error descriptor address */
 		sca_outw(desc_off, dmac + EDAL, card);
@@ -417,8 +419,9 @@ static void sca_set_port(port_t *port)
 			tmc = 1;
 			br = 0;	/* For baud=CLOCK_BASE we use tmc=1 br=0 */
 			brv = 1;
-		} else if (tmc > 255)
+		} else if (tmc > 255) {
 			tmc = 256; /* tmc=0 means 256 - low baud rates */
+		}
 
 		port->settings.clock_rate = CLOCK_BASE / brv / tmc;
 	} else {
@@ -651,8 +654,9 @@ static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy_toio(winbase(card) + buff, skb->data, maxlen);
 		openwin(card, page + 1);
 		memcpy_toio(winbase(card), skb->data + maxlen, len - maxlen);
-	} else
+	} else {
 		memcpy_toio(winbase(card) + buff, skb->data, len);
+	}
 
 #ifndef PAGE0_ALWAYS_MAPPED
 	openwin(card, 0);	/* select pkt_desc table page back */
