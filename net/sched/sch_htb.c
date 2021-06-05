@@ -799,6 +799,8 @@ static struct rb_node *htb_id_find_next_upper(int prio, struct rb_node *n,
 
 /**
  * htb_lookup_leaf - returns next leaf class in DRR order
+ * @hprio: the current one
+ * @prio: which prio in class
  *
  * Find leaf where current feed pointers points to.
  */
