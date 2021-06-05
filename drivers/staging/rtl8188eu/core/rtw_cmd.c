@@ -870,39 +870,28 @@ static void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type)
 
 u8 rtw_lps_ctrl_wk_cmd(struct adapter *padapter, u8 lps_ctrl_type, u8 enqueue)
 {
+	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
+	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
 	struct cmd_obj	*ph2c;
-	struct drvextra_cmd_parm	*pdrvextra_cmd_parm;
-	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
-	u8	res = _SUCCESS;
 
-	if (enqueue) {
-		ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
-		if (!ph2c) {
-			res = _FAIL;
-			goto exit;
-		}
-
-		pdrvextra_cmd_parm = kzalloc(sizeof(*pdrvextra_cmd_parm), GFP_ATOMIC);
-		if (!pdrvextra_cmd_parm) {
-			kfree(ph2c);
-			res = _FAIL;
-			goto exit;
-		}
-
-		pdrvextra_cmd_parm->ec_id = LPS_CTRL_WK_CID;
-		pdrvextra_cmd_parm->type_size = lps_ctrl_type;
-		pdrvextra_cmd_parm->pbuf = NULL;
-
-		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
-
-		res = rtw_enqueue_cmd(pcmdpriv, ph2c);
-	} else {
+	if (!enqueue) {
 		lps_ctrl_wk_hdl(padapter, lps_ctrl_type);
+		return _SUCCESS;
 	}
 
-exit:
+	ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
+	pdrvextra_cmd_parm = kzalloc(sizeof(*pdrvextra_cmd_parm), GFP_ATOMIC);
+	if (!ph2c || !pdrvextra_cmd_parm) {
+		kfree(ph2c);
+		kfree(pdrvextra_cmd_parm);
+		return _FAIL;
+	}
 
-	return res;
+	pdrvextra_cmd_parm->ec_id = LPS_CTRL_WK_CID;
+	pdrvextra_cmd_parm->type_size = lps_ctrl_type;
+
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, _Set_Drv_Extra_CMD_);
+	return rtw_enqueue_cmd(pcmdpriv, ph2c);
 }
 
 static void rpt_timer_setting_wk_hdl(struct adapter *padapter, u16 min_time)
