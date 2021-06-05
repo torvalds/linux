@@ -3323,7 +3323,7 @@ __le64 *irdma_sc_cqp_get_next_send_wqe_idx(struct irdma_sc_cqp *cqp, u64 scratch
  */
 enum irdma_status_code irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp)
 {
-	u32 cnt = 0, val = 1;
+	u32 cnt = 0, val;
 	enum irdma_status_code ret_code = 0;
 
 	writel(0, cqp->dev->hw_regs[IRDMA_CCQPHIGH]);
