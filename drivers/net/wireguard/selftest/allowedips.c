@@ -19,32 +19,22 @@
 
 #include <linux/siphash.h>
 
-static __init void swap_endian_and_apply_cidr(u8 *dst, const u8 *src, u8 bits,
-					      u8 cidr)
-{
-	swap_endian(dst, src, bits);
-	memset(dst + (cidr + 7) / 8, 0, bits / 8 - (cidr + 7) / 8);
-	if (cidr)
-		dst[(cidr + 7) / 8 - 1] &= ~0U << ((8 - (cidr % 8)) % 8);
-}
-
 static __init void print_node(struct allowedips_node *node, u8 bits)
 {
 	char *fmt_connection = KERN_DEBUG "\t\"%p/%d\" -> \"%p/%d\";\n";
-	char *fmt_declaration = KERN_DEBUG
-		"\t\"%p/%d\"[style=%s, color=\"#%06x\"];\n";
+	char *fmt_declaration = KERN_DEBUG "\t\"%p/%d\"[style=%s, color=\"#%06x\"];\n";
+	u8 ip1[16], ip2[16], cidr1, cidr2;
 	char *style = "dotted";
-	u8 ip1[16], ip2[16];
 	u32 color = 0;
 
+	if (node == NULL)
+		return;
 	if (bits == 32) {
 		fmt_connection = KERN_DEBUG "\t\"%pI4/%d\" -> \"%pI4/%d\";\n";
-		fmt_declaration = KERN_DEBUG
-			"\t\"%pI4/%d\"[style=%s, color=\"#%06x\"];\n";
+		fmt_declaration = KERN_DEBUG "\t\"%pI4/%d\"[style=%s, color=\"#%06x\"];\n";
 	} else if (bits == 128) {
 		fmt_connection = KERN_DEBUG "\t\"%pI6/%d\" -> \"%pI6/%d\";\n";
-		fmt_declaration = KERN_DEBUG
-			"\t\"%pI6/%d\"[style=%s, color=\"#%06x\"];\n";
+		fmt_declaration = KERN_DEBUG "\t\"%pI6/%d\"[style=%s, color=\"#%06x\"];\n";
 	}
 	if (node->peer) {
 		hsiphash_key_t key = { { 0 } };
@@ -55,24 +45,20 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 			hsiphash_1u32(0xabad1dea, &key) % 200;
 		style = "bold";
 	}
-	swap_endian_and_apply_cidr(ip1, node->bits, bits, node->cidr);
-	printk(fmt_declaration, ip1, node->cidr, style, color);
+	wg_allowedips_read_node(node, ip1, &cidr1);
+	printk(fmt_declaration, ip1, cidr1, style, color);
 	if (node->bit[0]) {
-		swap_endian_and_apply_cidr(ip2,
-				rcu_dereference_raw(node->bit[0])->bits, bits,
-				node->cidr);
-		printk(fmt_connection, ip1, node->cidr, ip2,
-		       rcu_dereference_raw(node->bit[0])->cidr);
-		print_node(rcu_dereference_raw(node->bit[0]), bits);
+		wg_allowedips_read_node(rcu_dereference_raw(node->bit[0]), ip2, &cidr2);
+		printk(fmt_connection, ip1, cidr1, ip2, cidr2);
 	}
 	if (node->bit[1]) {
-		swap_endian_and_apply_cidr(ip2,
-				rcu_dereference_raw(node->bit[1])->bits,
-				bits, node->cidr);
-		printk(fmt_connection, ip1, node->cidr, ip2,
-		       rcu_dereference_raw(node->bit[1])->cidr);
-		print_node(rcu_dereference_raw(node->bit[1]), bits);
+		wg_allowedips_read_node(rcu_dereference_raw(node->bit[1]), ip2, &cidr2);
+		printk(fmt_connection, ip1, cidr1, ip2, cidr2);
 	}
+	if (node->bit[0])
+		print_node(rcu_dereference_raw(node->bit[0]), bits);
+	if (node->bit[1])
+		print_node(rcu_dereference_raw(node->bit[1]), bits);
 }
 
 static __init void print_tree(struct allowedips_node __rcu *top, u8 bits)
@@ -121,8 +107,8 @@ static __init inline union nf_inet_addr horrible_cidr_to_mask(u8 cidr)
 {
 	union nf_inet_addr mask;
 
-	memset(&mask, 0x00, 128 / 8);
-	memset(&mask, 0xff, cidr / 8);
+	memset(&mask, 0, sizeof(mask));
+	memset(&mask.all, 0xff, cidr / 8);
 	if (cidr % 32)
 		mask.all[cidr / 32] = (__force u32)htonl(
 			(0xFFFFFFFFUL << (32 - (cidr % 32))) & 0xFFFFFFFFUL);
@@ -149,42 +135,36 @@ horrible_mask_self(struct horrible_allowedips_node *node)
 }
 
 static __init inline bool
-horrible_match_v4(const struct horrible_allowedips_node *node,
-		  struct in_addr *ip)
+horrible_match_v4(const struct horrible_allowedips_node *node, struct in_addr *ip)
 {
 	return (ip->s_addr & node->mask.ip) == node->ip.ip;
 }
 
 static __init inline bool
-horrible_match_v6(const struct horrible_allowedips_node *node,
-		  struct in6_addr *ip)
+horrible_match_v6(const struct horrible_allowedips_node *node, struct in6_addr *ip)
 {
-	return (ip->in6_u.u6_addr32[0] & node->mask.ip6[0]) ==
-		       node->ip.ip6[0] &&
-	       (ip->in6_u.u6_addr32[1] & node->mask.ip6[1]) ==
-		       node->ip.ip6[1] &&
-	       (ip->in6_u.u6_addr32[2] & node->mask.ip6[2]) ==
-		       node->ip.ip6[2] &&
+	return (ip->in6_u.u6_addr32[0] & node->mask.ip6[0]) == node->ip.ip6[0] &&
+	       (ip->in6_u.u6_addr32[1] & node->mask.ip6[1]) == node->ip.ip6[1] &&
+	       (ip->in6_u.u6_addr32[2] & node->mask.ip6[2]) == node->ip.ip6[2] &&
 	       (ip->in6_u.u6_addr32[3] & node->mask.ip6[3]) == node->ip.ip6[3];
 }
 
 static __init void
-horrible_insert_ordered(struct horrible_allowedips *table,
-			struct horrible_allowedips_node *node)
+horrible_insert_ordered(struct horrible_allowedips *table, struct horrible_allowedips_node *node)
 {
 	struct horrible_allowedips_node *other = NULL, *where = NULL;
 	u8 my_cidr = horrible_mask_to_cidr(node->mask);
 
 	hlist_for_each_entry(other, &table->head, table) {
-		if (!memcmp(&other->mask, &node->mask,
-			    sizeof(union nf_inet_addr)) &&
-		    !memcmp(&other->ip, &node->ip,
-			    sizeof(union nf_inet_addr)) &&
-		    other->ip_version == node->ip_version) {
+		if (other->ip_version == node->ip_version &&
+		    !memcmp(&other->mask, &node->mask, sizeof(union nf_inet_addr)) &&
+		    !memcmp(&other->ip, &node->ip, sizeof(union nf_inet_addr))) {
 			other->value = node->value;
 			kfree(node);
 			return;
 		}
+	}
+	hlist_for_each_entry(other, &table->head, table) {
 		where = other;
 		if (horrible_mask_to_cidr(other->mask) <= my_cidr)
 			break;
@@ -201,8 +181,7 @@ static __init int
 horrible_allowedips_insert_v4(struct horrible_allowedips *table,
 			      struct in_addr *ip, u8 cidr, void *value)
 {
-	struct horrible_allowedips_node *node = kzalloc(sizeof(*node),
-							GFP_KERNEL);
+	struct horrible_allowedips_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
 
 	if (unlikely(!node))
 		return -ENOMEM;
@@ -219,8 +198,7 @@ static __init int
 horrible_allowedips_insert_v6(struct horrible_allowedips *table,
 			      struct in6_addr *ip, u8 cidr, void *value)
 {
-	struct horrible_allowedips_node *node = kzalloc(sizeof(*node),
-							GFP_KERNEL);
+	struct horrible_allowedips_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
 
 	if (unlikely(!node))
 		return -ENOMEM;
@@ -234,39 +212,43 @@ horrible_allowedips_insert_v6(struct horrible_allowedips *table,
 }
 
 static __init void *
-horrible_allowedips_lookup_v4(struct horrible_allowedips *table,
-			      struct in_addr *ip)
+horrible_allowedips_lookup_v4(struct horrible_allowedips *table, struct in_addr *ip)
 {
 	struct horrible_allowedips_node *node;
-	void *ret = NULL;
 
 	hlist_for_each_entry(node, &table->head, table) {
-		if (node->ip_version != 4)
-			continue;
-		if (horrible_match_v4(node, ip)) {
-			ret = node->value;
-			break;
-		}
+		if (node->ip_version == 4 && horrible_match_v4(node, ip))
+			return node->value;
 	}
-	return ret;
+	return NULL;
 }
 
 static __init void *
-horrible_allowedips_lookup_v6(struct horrible_allowedips *table,
-			      struct in6_addr *ip)
+horrible_allowedips_lookup_v6(struct horrible_allowedips *table, struct in6_addr *ip)
 {
 	struct horrible_allowedips_node *node;
-	void *ret = NULL;
 
 	hlist_for_each_entry(node, &table->head, table) {
-		if (node->ip_version != 6)
-			continue;
-		if (horrible_match_v6(node, ip)) {
-			ret = node->value;
-			break;
-		}
+		if (node->ip_version == 6 && horrible_match_v6(node, ip))
+			return node->value;
 	}
-	return ret;
+	return NULL;
+}
+
+
+static __init void
+horrible_allowedips_remove_by_value(struct horrible_allowedips *table, void *value)
+{
+	struct horrible_allowedips_node *node;
+	struct hlist_node *h;
+
+	hlist_for_each_entry_safe(node, h, &table->head, table) {
+		if (node->value != value)
+			continue;
+		hlist_del(&node->table);
+		kfree(node);
+	}
+
 }
 
 static __init bool randomized_test(void)
@@ -296,6 +278,7 @@ static __init bool randomized_test(void)
 			goto free;
 		}
 		kref_init(&peers[i]->refcount);
+		INIT_LIST_HEAD(&peers[i]->allowedips_list);
 	}
 
 	mutex_lock(&mutex);
@@ -333,7 +316,7 @@ static __init bool randomized_test(void)
 			if (wg_allowedips_insert_v4(&t,
 						    (struct in_addr *)mutated,
 						    cidr, peer, &mutex) < 0) {
-				pr_err("allowedips random malloc: FAIL\n");
+				pr_err("allowedips random self-test malloc: FAIL\n");
 				goto free_locked;
 			}
 			if (horrible_allowedips_insert_v4(&h,
@@ -396,23 +379,33 @@ static __init bool randomized_test(void)
 		print_tree(t.root6, 128);
 	}
 
-	for (i = 0; i < NUM_QUERIES; ++i) {
-		prandom_bytes(ip, 4);
-		if (lookup(t.root4, 32, ip) !=
-		    horrible_allowedips_lookup_v4(&h, (struct in_addr *)ip)) {
-			pr_err("allowedips random self-test: FAIL\n");
-			goto free;
+	for (j = 0;; ++j) {
+		for (i = 0; i < NUM_QUERIES; ++i) {
+			prandom_bytes(ip, 4);
+			if (lookup(t.root4, 32, ip) != horrible_allowedips_lookup_v4(&h, (struct in_addr *)ip)) {
+				horrible_allowedips_lookup_v4(&h, (struct in_addr *)ip);
+				pr_err("allowedips random v4 self-test: FAIL\n");
+				goto free;
+			}
+			prandom_bytes(ip, 16);
+			if (lookup(t.root6, 128, ip) != horrible_allowedips_lookup_v6(&h, (struct in6_addr *)ip)) {
+				pr_err("allowedips random v6 self-test: FAIL\n");
+				goto free;
+			}
 		}
+		if (j >= NUM_PEERS)
+			break;
+		mutex_lock(&mutex);
+		wg_allowedips_remove_by_peer(&t, peers[j], &mutex);
+		mutex_unlock(&mutex);
+		horrible_allowedips_remove_by_value(&h, peers[j]);
 	}
 
-	for (i = 0; i < NUM_QUERIES; ++i) {
-		prandom_bytes(ip, 16);
-		if (lookup(t.root6, 128, ip) !=
-		    horrible_allowedips_lookup_v6(&h, (struct in6_addr *)ip)) {
-			pr_err("allowedips random self-test: FAIL\n");
-			goto free;
-		}
+	if (t.root4 || t.root6) {
+		pr_err("allowedips random self-test removal: FAIL\n");
+		goto free;
 	}
+
 	ret = true;
 
 free:
