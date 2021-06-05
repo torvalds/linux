@@ -381,6 +381,9 @@ static void htb_safe_rb_erase(struct rb_node *rb, struct rb_root *root)
 
 /**
  * htb_remove_class_from_row - removes class from its row
+ * @q: the priority event queue
+ * @cl: the class to add
+ * @mask: the given priorities in class in bitmap
  *
  * The class is removed from row at priorities marked in mask.
  * It does nothing if mask == 0.
