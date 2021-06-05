@@ -301,6 +301,9 @@ static void htb_add_to_id_tree(struct rb_root *root,
 
 /**
  * htb_add_to_wait_tree - adds class to the event queue with delay
+ * @q: the priority event queue
+ * @cl: the class to add
+ * @delay: delay in microseconds
  *
  * The class is added to priority event queue to indicate that class will
  * change its mode in cl->pq_key microseconds. Make sure that class is not
