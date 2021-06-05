@@ -301,7 +301,7 @@ static inline void sca_rx_intr(port_t *port)
 		pkt_desc __iomem *desc;
 		u32 cda = sca_inw(dmac + CDAL, card);
 
-		if ((cda >= desc_off) && (cda < desc_off + sizeof(pkt_desc)))
+		if (cda >= desc_off && (cda < desc_off + sizeof(pkt_desc)))
 			break;	/* No frame received */
 
 		desc = desc_address(port, port->rxin, 0);
@@ -354,7 +354,7 @@ static inline void sca_tx_intr(port_t *port)
 		u32 desc_off = desc_offset(port, port->txlast, 1);
 		u32 cda = sca_inw(dmac + CDAL, card);
 
-		if ((cda >= desc_off) && (cda < desc_off + sizeof(pkt_desc)))
+		if (cda >= desc_off && (cda < desc_off + sizeof(pkt_desc)))
 			break;	/* Transmitter is/will_be sending this frame */
 
 		desc = desc_address(port, port->txlast, 1);
