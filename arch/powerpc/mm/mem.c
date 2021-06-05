@@ -20,6 +20,7 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/kasan.h>
+#include <asm/sparsemem.h>
 #include <asm/svm.h>
 
 #include <mm/mmu_decl.h>
