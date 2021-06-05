@@ -356,7 +356,7 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		intel_uncore_write(uncore,
 				   GEN8_L3_LRA_1_GPGPU,
 				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
-	else if (INTEL_GEN(i915) >= 9 && INTEL_GEN(i915) <= 11)
+	else if (GRAPHICS_VER(i915) >= 9 && GRAPHICS_VER(i915) <= 11)
 		intel_uncore_write(uncore,
 				   GEN8_L3_LRA_1_GPGPU,
 				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
@@ -373,13 +373,13 @@ void gtt_write_workarounds(struct intel_gt *gt)
 	 * driver.
 	 */
 	if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_64K) &&
-	    INTEL_GEN(i915) <= 10)
+	    GRAPHICS_VER(i915) <= 10)
 		intel_uncore_rmw(uncore,
 				 GEN8_GAMW_ECO_DEV_RW_IA,
 				 0,
 				 GAMW_ECO_ENABLE_64K_IPS_FIELD);
 
-	if (IS_GEN_RANGE(i915, 8, 11)) {
+	if (IS_GRAPHICS_VER(i915, 8, 11)) {
 		bool can_use_gtt_cache = true;
 
 		/*
@@ -461,7 +461,7 @@ static void bdw_setup_private_ppat(struct intel_uncore *uncore)
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
 	/* for scanout with eLLC */
-	if (INTEL_GEN(i915) >= 9)
+	if (GRAPHICS_VER(i915) >= 9)
 		pat |= GEN8_PPAT(2, GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
 	else
 		pat |= GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
@@ -510,11 +510,11 @@ void setup_private_pat(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
 
-	GEM_BUG_ON(INTEL_GEN(i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(i915) < 8);
 
-	if (INTEL_GEN(i915) >= 12)
+	if (GRAPHICS_VER(i915) >= 12)
 		tgl_setup_private_ppat(uncore);
-	else if (INTEL_GEN(i915) >= 10)
+	else if (GRAPHICS_VER(i915) >= 10)
 		cnl_setup_private_ppat(uncore);
 	else if (IS_CHERRYVIEW(i915) || IS_GEN9_LP(i915))
 		chv_setup_private_ppat(uncore);

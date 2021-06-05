@@ -107,10 +107,10 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 	if (!intel_vtd_active())
 		return false;
 
-	if (IS_GEN(i915, 5) && IS_MOBILE(i915))
+	if (GRAPHICS_VER(i915) == 5 && IS_MOBILE(i915))
 		return true;
 
-	if (IS_GEN(i915, 12))
+	if (GRAPHICS_VER(i915) == 12)
 		return true; /* XXX DMAR fault reason 7 */
 
 	return false;
@@ -176,7 +176,7 @@ static void guc_ggtt_invalidate(struct i915_ggtt *ggtt)
 
 	gen8_ggtt_invalidate(ggtt);
 
-	if (INTEL_GEN(i915) >= 12)
+	if (GRAPHICS_VER(i915) >= 12)
 		intel_uncore_write_fw(uncore, GEN12_GUC_TLB_INV_CR,
 				      GEN12_GUC_TLB_INV_CR_INVALIDATE);
 	else
@@ -832,7 +832,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_GEN9_LP(i915) || INTEL_GEN(i915) >= 10)
+	if (IS_GEN9_LP(i915) || GRAPHICS_VER(i915) >= 10)
 		ggtt->gsm = ioremap(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
@@ -1078,7 +1078,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		ggtt->vm.pte_encode = hsw_pte_encode;
 	else if (IS_VALLEYVIEW(i915))
 		ggtt->vm.pte_encode = byt_pte_encode;
-	else if (INTEL_GEN(i915) >= 7)
+	else if (GRAPHICS_VER(i915) >= 7)
 		ggtt->vm.pte_encode = ivb_pte_encode;
 	else
 		ggtt->vm.pte_encode = snb_pte_encode;
@@ -1150,9 +1150,9 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 	ggtt->vm.dma = i915->drm.dev;
 	dma_resv_init(&ggtt->vm._resv);
 
-	if (INTEL_GEN(i915) <= 5)
+	if (GRAPHICS_VER(i915) <= 5)
 		ret = i915_gmch_probe(ggtt);
-	else if (INTEL_GEN(i915) < 8)
+	else if (GRAPHICS_VER(i915) < 8)
 		ret = gen6_gmch_probe(ggtt);
 	else
 		ret = gen8_gmch_probe(ggtt);
@@ -1209,7 +1209,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 
 int i915_ggtt_enable_hw(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) < 6 && !intel_enable_gtt())
+	if (GRAPHICS_VER(i915) < 6 && !intel_enable_gtt())
 		return -EIO;
 
 	return 0;
@@ -1274,7 +1274,7 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 	if (flush)
 		wbinvd_on_all_cpus();
 
-	if (INTEL_GEN(ggtt->vm.i915) >= 8)
+	if (GRAPHICS_VER(ggtt->vm.i915) >= 8)
 		setup_private_pat(ggtt->vm.gt->uncore);
 
 	intel_ggtt_restore_fences(ggtt);

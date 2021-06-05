@@ -166,7 +166,7 @@ static void __guc_ads_init(struct intel_guc *guc)
 	blob->system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK] =
 		gt->info.vdbox_sfc_access;
 
-	if (INTEL_GEN(i915) >= 12 && !IS_DGFX(i915)) {
+	if (GRAPHICS_VER(i915) >= 12 && !IS_DGFX(i915)) {
 		u32 distdbreg = intel_uncore_read(gt->uncore,
 						  GEN12_DIST_DBS_POPULATED);
 		blob->system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI] =

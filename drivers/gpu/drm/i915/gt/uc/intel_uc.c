@@ -23,7 +23,7 @@ static void uc_expand_default_options(struct intel_uc *uc)
 		return;
 
 	/* Don't enable GuC/HuC on pre-Gen12 */
-	if (INTEL_GEN(i915) < 12) {
+	if (GRAPHICS_VER(i915) < 12) {
 		i915->params.enable_guc = 0;
 		return;
 	}
@@ -467,7 +467,7 @@ static int __uc_init_hw(struct intel_uc *uc)
 
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
-	if (IS_GEN(i915, 9))
+	if (GRAPHICS_VER(i915) == 9)
 		attempts = 3;
 	else
 		attempts = 1;

@@ -399,7 +399,7 @@ void gen5_gt_irq_reset(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 
 	GEN3_IRQ_RESET(uncore, GT);
-	if (INTEL_GEN(gt->i915) >= 6)
+	if (GRAPHICS_VER(gt->i915) >= 6)
 		GEN3_IRQ_RESET(uncore, GEN6_PM);
 }
 
@@ -417,14 +417,14 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 	}
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;
-	if (IS_GEN(gt->i915, 5))
+	if (GRAPHICS_VER(gt->i915) == 5)
 		gt_irqs |= ILK_BSD_USER_INTERRUPT;
 	else
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 
 	GEN3_IRQ_INIT(uncore, GT, gt->gt_imr, gt_irqs);
 
-	if (INTEL_GEN(gt->i915) >= 6) {
+	if (GRAPHICS_VER(gt->i915) >= 6) {
 		/*
 		 * RPS interrupts will get enabled/disabled on demand when RPS
 		 * itself is enabled/disabled.

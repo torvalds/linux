@@ -145,7 +145,7 @@ read_nonprivs(struct intel_context *ce)
 		goto err_req;
 
 	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	if (INTEL_GEN(engine->i915) >= 8)
+	if (GRAPHICS_VER(engine->i915) >= 8)
 		srm++;
 
 	cs = intel_ring_begin(rq, 4 * RING_MAX_NONPRIV_SLOTS);
@@ -546,7 +546,7 @@ retry:
 
 		srm = MI_STORE_REGISTER_MEM;
 		lrm = MI_LOAD_REGISTER_MEM;
-		if (INTEL_GEN(engine->i915) >= 8)
+		if (GRAPHICS_VER(engine->i915) >= 8)
 			lrm++, srm++;
 
 		pr_debug("%s: Writing garbage to %x\n",
@@ -749,7 +749,7 @@ static int live_dirty_whitelist(void *arg)
 
 	/* Can the user write to the whitelisted registers? */
 
-	if (INTEL_GEN(gt->i915) < 7) /* minimum requirement for LRI, SRM, LRM */
+	if (GRAPHICS_VER(gt->i915) < 7) /* minimum requirement for LRI, SRM, LRM */
 		return 0;
 
 	for_each_engine(engine, gt, id) {
@@ -829,7 +829,7 @@ static int read_whitelisted_registers(struct intel_context *ce,
 		goto err_req;
 
 	srm = MI_STORE_REGISTER_MEM;
-	if (INTEL_GEN(engine->i915) >= 8)
+	if (GRAPHICS_VER(engine->i915) >= 8)
 		srm++;
 
 	cs = intel_ring_begin(rq, 4 * engine->whitelist.count);

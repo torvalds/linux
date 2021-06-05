@@ -1847,7 +1847,7 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
 			     head, upper_32_bits(csb), lower_32_bits(csb));
 
-		if (INTEL_GEN(engine->i915) >= 12)
+		if (GRAPHICS_VER(engine->i915) >= 12)
 			promote = gen12_csb_parse(csb);
 		else
 			promote = gen8_csb_parse(csb);
@@ -2772,7 +2772,7 @@ static void enable_execlists(struct intel_engine_cs *engine)
 
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
-	if (INTEL_GEN(engine->i915) >= 11)
+	if (GRAPHICS_VER(engine->i915) >= 11)
 		mode = _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE);
 	else
 		mode = _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE);
@@ -3103,7 +3103,7 @@ static void execlists_park(struct intel_engine_cs *engine)
 
 static bool can_preempt(struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) > 8)
+	if (GRAPHICS_VER(engine->i915) > 8)
 		return true;
 
 	/* GPGPU on bdw requires extra w/a; not implemented */
@@ -3156,13 +3156,13 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->emit_flush = gen8_emit_flush_xcs;
 	engine->emit_init_breadcrumb = gen8_emit_init_breadcrumb;
 	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_xcs;
-	if (INTEL_GEN(engine->i915) >= 12) {
+	if (GRAPHICS_VER(engine->i915) >= 12) {
 		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_xcs;
 		engine->emit_flush = gen12_emit_flush_xcs;
 	}
 	engine->set_default_submission = execlists_set_default_submission;
 
-	if (INTEL_GEN(engine->i915) < 11) {
+	if (GRAPHICS_VER(engine->i915) < 11) {
 		engine->irq_enable = gen8_logical_ring_enable_irq;
 		engine->irq_disable = gen8_logical_ring_disable_irq;
 	} else {
@@ -3195,7 +3195,7 @@ static void logical_ring_default_irqs(struct intel_engine_cs *engine)
 {
 	unsigned int shift = 0;
 
-	if (INTEL_GEN(engine->i915) < 11) {
+	if (GRAPHICS_VER(engine->i915) < 11) {
 		const u8 irq_shifts[] = {
 			[RCS0]  = GEN8_RCS_IRQ_SHIFT,
 			[BCS0]  = GEN8_BCS_IRQ_SHIFT,
@@ -3215,7 +3215,7 @@ static void logical_ring_default_irqs(struct intel_engine_cs *engine)
 
 static void rcs_submission_override(struct intel_engine_cs *engine)
 {
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	case 12:
 		engine->emit_flush = gen12_emit_flush_rcs;
 		engine->emit_fini_breadcrumb = gen12_emit_fini_breadcrumb_rcs;
@@ -3266,13 +3266,13 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
 
-	if (INTEL_GEN(i915) < 11)
+	if (GRAPHICS_VER(i915) < 11)
 		execlists->csb_size = GEN8_CSB_ENTRIES;
 	else
 		execlists->csb_size = GEN11_CSB_ENTRIES;
 
 	engine->context_tag = GENMASK(BITS_PER_LONG - 2, 0);
-	if (INTEL_GEN(engine->i915) >= 11) {
+	if (GRAPHICS_VER(engine->i915) >= 11) {
 		execlists->ccid |= engine->instance << (GEN11_ENGINE_INSTANCE_SHIFT - 32);
 		execlists->ccid |= engine->class << (GEN11_ENGINE_CLASS_SHIFT - 32);
 	}
