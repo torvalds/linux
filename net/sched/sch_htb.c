@@ -575,6 +575,8 @@ htb_change_class_mode(struct htb_sched *q, struct htb_class *cl, s64 *diff)
 
 /**
  * htb_activate - inserts leaf cl into appropriate active feeds
+ * @q: the priority event queue
+ * @cl: the target class
  *
  * Routine learns (new) priority of leaf and activates feed chain
  * for the prio. It can be called on already active leaf safely.
