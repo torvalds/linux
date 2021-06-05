@@ -448,6 +448,8 @@ static void htb_activate_prios(struct htb_sched *q, struct htb_class *cl)
 
 /**
  * htb_deactivate_prios - remove class from feed chain
+ * @q: the priority event queue
+ * @cl: the class to deactivate
  *
  * cl->cmode must represent old mode (before deactivation). It does
  * nothing if cl->prio_activity == 0. Class is removed from all feed
