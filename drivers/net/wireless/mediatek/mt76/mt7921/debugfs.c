@@ -184,7 +184,10 @@ mt7921_txpwr(struct seq_file *s, void *data)
 	struct mt7921_txpwr txpwr;
 	int ret;
 
+	mt7921_mutex_acquire(dev);
 	ret = mt7921_get_txpwr_info(dev, &txpwr);
+	mt7921_mutex_release(dev);
+
 	if (ret)
 		return ret;
 
