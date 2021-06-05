@@ -349,6 +349,9 @@ static inline void htb_next_rb_node(struct rb_node **n)
 
 /**
  * htb_add_class_to_row - add class to its row
+ * @q: the priority event queue
+ * @cl: the class to add
+ * @mask: the given priorities in class in bitmap
  *
  * The class is added to row at priorities marked in mask.
  * It does nothing if mask == 0.
