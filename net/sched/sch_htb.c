@@ -337,6 +337,7 @@ static void htb_add_to_wait_tree(struct htb_sched *q,
 
 /**
  * htb_next_rb_node - finds next node in binary tree
+ * @n: the current node in binary tree
  *
  * When we are past last key we return NULL.
  * Average complexity is 2 steps per call.
