@@ -1712,8 +1712,8 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_unlock;
 
-	amdgpu_res_first(res, offset, (last - start + 1) * AMDGPU_GPU_PAGE_SIZE,
-			 &cursor);
+	amdgpu_res_first(pages_addr ? NULL : res, offset,
+			 (last - start + 1) * AMDGPU_GPU_PAGE_SIZE, &cursor);
 	while (cursor.remaining) {
 		uint64_t tmp, num_entries, addr;
 
