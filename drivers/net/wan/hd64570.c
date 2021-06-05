@@ -376,7 +376,7 @@ static irqreturn_t sca_intr(int irq, void *dev_id)
 	int handled = 0;
 	u8 page = sca_get_page(card);
 
-	while((stat = sca_intr_status(card)) != 0) {
+	while ((stat = sca_intr_status(card)) != 0) {
 		handled = 1;
 		for (i = 0; i < 2; i++) {
 			port_t *port = get_port(card, i);
@@ -413,7 +413,7 @@ static void sca_set_port(port_t *port)
 
 			/* Baud Rate = CLOCK_BASE / TMC / 2^BR */
 			tmc = CLOCK_BASE / brv / port->settings.clock_rate;
-		}while (br > 1 && tmc <= 128);
+		} while (br > 1 && tmc <= 128);
 
 		if (tmc < 1) {
 			tmc = 1;
