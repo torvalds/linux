@@ -2771,6 +2771,62 @@ UVCG_OPTS_ATTR(pm_qos_latency, pm_qos_latency, PM_QOS_LATENCY_ANY);
 
 #undef UVCG_OPTS_ATTR
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+static ssize_t f_uvc_opts_device_name_show(struct config_item *item,
+					   char *page)
+{
+	struct f_uvc_opts *opts = to_f_uvc_opts(item);
+	int ret;
+
+	mutex_lock(&opts->lock);
+	ret = sprintf(page, "%s\n", opts->device_name ?: "");
+	mutex_unlock(&opts->lock);
+
+	return ret;
+}
+
+static ssize_t f_uvc_opts_device_name_store(struct config_item *item,
+					    const char *page, size_t len)
+{
+	struct f_uvc_opts *opts = to_f_uvc_opts(item);
+	const char *old_name;
+	char *name;
+	int ret;
+
+	if (strlen(page) < len)
+		return -EOVERFLOW;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	name = kstrdup(page, GFP_KERNEL);
+	if (!name) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	if (name[len - 1] == '\n')
+		name[len - 1] = '\0';
+
+	old_name = opts->device_name;
+	opts->device_name = name;
+
+	if (opts->device_name_allocated)
+		kfree(old_name);
+
+	opts->device_name_allocated = true;
+	ret = len;
+unlock:
+	mutex_unlock(&opts->lock);
+
+	return ret;
+}
+UVC_ATTR(f_uvc_opts_, device_name, device_name);
+#endif
+
 static struct configfs_attribute *uvc_attrs[] = {
 	&f_uvc_opts_attr_streaming_bulk,
 	&f_uvc_opts_attr_streaming_interval,
@@ -2778,6 +2834,9 @@ static struct configfs_attribute *uvc_attrs[] = {
 	&f_uvc_opts_attr_streaming_maxburst,
 	&f_uvc_opts_attr_uvc_num_request,
 	&f_uvc_opts_attr_pm_qos_latency,
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	&f_uvc_opts_attr_device_name,
+#endif
 	NULL,
 };
 

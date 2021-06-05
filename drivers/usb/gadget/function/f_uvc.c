@@ -923,6 +923,11 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 		uvc_ss_bulk_streaming_ep.bEndpointAddress = address;
 	}
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	if (opts->device_name)
+		uvc_en_us_strings[UVC_STRING_CONTROL_IDX].s = opts->device_name;
+#endif
+
 	us = usb_gstrings_attach(cdev, uvc_function_strings,
 				 ARRAY_SIZE(uvc_en_us_strings));
 	if (IS_ERR(us)) {
@@ -1037,6 +1042,15 @@ static void uvc_free_inst(struct usb_function_instance *f)
 	struct f_uvc_opts *opts = fi_to_f_uvc_opts(f);
 
 	mutex_destroy(&opts->lock);
+
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	if (opts->device_name_allocated) {
+		opts->device_name_allocated = false;
+		kfree(opts->device_name);
+		opts->device_name = NULL;
+	}
+#endif
+
 	kfree(opts);
 }
 
