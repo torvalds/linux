@@ -113,6 +113,14 @@
 		npe: npe@c8006000 {
 			compatible = "intel,ixp4xx-network-processing-engine";
 			reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+
+			/* NPE-C contains a crypto accelerator */
+			crypto {
+				compatible = "intel,ixp4xx-crypto";
+				intel,npe-handle = <&npe 2>;
+				queue-rx = <&qmgr 30>;
+				queue-txready = <&qmgr 29>;
+			};
 		};
 
 		/* This is known as EthB */
