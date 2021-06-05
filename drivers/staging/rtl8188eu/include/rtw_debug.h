@@ -85,24 +85,6 @@ extern u32 GlobalDebugLevel;
 		}							\
 	} while (0)
 
-#define RT_PRINT_DATA(_comp, _level, _titlestring, _hexdata, _hexdatalen)\
-	do {								\
-		if (_level <= GlobalDebugLevel) {			\
-			int __i;					\
-			u8	*ptr = (u8 *)_hexdata;			\
-			pr_info("%s", DRIVER_PREFIX);			\
-			pr_info(_titlestring);				\
-			for (__i = 0; __i < (int)_hexdatalen; __i++) {	\
-				pr_info("%02X%s", ptr[__i],		\
-					 (((__i + 1) % 4) == 0) ?	\
-					 "  " : " ");	\
-				if (((__i + 1) % 16) == 0)		\
-					pr_cont("\n");			\
-			}						\
-			pr_cont("\n");					\
-		}							\
-	} while (0)
-
 int proc_get_drv_version(char *page, char **start,
 			 off_t offset, int count,
 			 int *eof, void *data);
