@@ -59,7 +59,7 @@ static int grts_cb(const void *data, void *private)
 {
 	const u16 *touch_info = data;
 	struct grts_state *st = private;
-	unsigned int x, y, press;
+	unsigned int x, y, press = 0;
 
 	x = touch_info[st->ch_map[GRTS_CH_X]];
 	y = touch_info[st->ch_map[GRTS_CH_Y]];
@@ -84,8 +84,6 @@ static int grts_cb(const void *data, void *private)
 		 */
 		if (Rt < GRTS_DEFAULT_PRESSURE_MAX)
 			press = GRTS_DEFAULT_PRESSURE_MAX - Rt;
-		else
-			press = 0;
 	}
 
 	if ((!x && !y) || (st->pressure && (press < st->pressure_min))) {
