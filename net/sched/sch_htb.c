@@ -411,6 +411,8 @@ static inline void htb_remove_class_from_row(struct htb_sched *q,
 
 /**
  * htb_activate_prios - creates active classe's feed chain
+ * @q: the priority event queue
+ * @cl: the class to activate
  *
  * The class is connected to ancestors and/or appropriate rows
  * for priorities it is participating on. cl->cmode must be new
