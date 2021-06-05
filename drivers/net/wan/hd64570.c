@@ -58,12 +58,18 @@ static inline int sca_intr_status(card_t *card)
 	u8 isr0 = sca_in(ISR0, card);
 	u8 isr1 = sca_in(ISR1, card);
 
-	if (isr1 & 0x03) result |= SCA_INTR_DMAC_RX(0);
-	if (isr1 & 0x0C) result |= SCA_INTR_DMAC_TX(0);
-	if (isr1 & 0x30) result |= SCA_INTR_DMAC_RX(1);
-	if (isr1 & 0xC0) result |= SCA_INTR_DMAC_TX(1);
-	if (isr0 & 0x0F) result |= SCA_INTR_MSCI(0);
-	if (isr0 & 0xF0) result |= SCA_INTR_MSCI(1);
+	if (isr1 & 0x03)
+		result |= SCA_INTR_DMAC_RX(0);
+	if (isr1 & 0x0C)
+		result |= SCA_INTR_DMAC_TX(0);
+	if (isr1 & 0x30)
+		result |= SCA_INTR_DMAC_RX(1);
+	if (isr1 & 0xC0)
+		result |= SCA_INTR_DMAC_TX(1);
+	if (isr0 & 0x0F)
+		result |= SCA_INTR_MSCI(0);
+	if (isr0 & 0xF0)
+		result |= SCA_INTR_MSCI(1);
 
 	if (!(result & SCA_INTR_DMAC_TX(0)))
 		if (sca_in(DSR_TX(0), card) & DSR_EOM)
@@ -447,23 +453,41 @@ static void sca_open(struct net_device *dev)
 	u16 msci = get_msci(port);
 	u8 md0, md2;
 
-	switch(port->encoding) {
-	case ENCODING_NRZ:	md2 = MD2_NRZ;		break;
-	case ENCODING_NRZI:	md2 = MD2_NRZI;		break;
-	case ENCODING_FM_MARK:	md2 = MD2_FM_MARK;	break;
-	case ENCODING_FM_SPACE:	md2 = MD2_FM_SPACE;	break;
-	default:		md2 = MD2_MANCHESTER;
+	switch (port->encoding) {
+	case ENCODING_NRZ:
+		md2 = MD2_NRZ;
+		break;
+	case ENCODING_NRZI:
+		md2 = MD2_NRZI;
+		break;
+	case ENCODING_FM_MARK:
+		md2 = MD2_FM_MARK;
+		break;
+	case ENCODING_FM_SPACE:
+		md2 = MD2_FM_SPACE;
+		break;
+	default:
+		md2 = MD2_MANCHESTER;
 	}
 
 	if (port->settings.loopback)
 		md2 |= MD2_LOOPBACK;
 
-	switch(port->parity) {
-	case PARITY_CRC16_PR0:	     md0 = MD0_HDLC | MD0_CRC_16_0;  break;
-	case PARITY_CRC16_PR1:	     md0 = MD0_HDLC | MD0_CRC_16;    break;
-	case PARITY_CRC16_PR0_CCITT: md0 = MD0_HDLC | MD0_CRC_ITU_0; break;
-	case PARITY_CRC16_PR1_CCITT: md0 = MD0_HDLC | MD0_CRC_ITU;   break;
-	default:		     md0 = MD0_HDLC | MD0_CRC_NONE;
+	switch (port->parity) {
+	case PARITY_CRC16_PR0:
+		md0 = MD0_HDLC | MD0_CRC_16_0;
+		break;
+	case PARITY_CRC16_PR1:
+		md0 = MD0_HDLC | MD0_CRC_16;
+		break;
+	case PARITY_CRC16_PR0_CCITT:
+		md0 = MD0_HDLC | MD0_CRC_ITU_0;
+		break;
+	case PARITY_CRC16_PR1_CCITT:
+		md0 = MD0_HDLC | MD0_CRC_ITU;
+		break;
+	default:
+		md0 = MD0_HDLC | MD0_CRC_NONE;
 	}
 
 	sca_out(CMD_RESET, msci + CMD, card);
