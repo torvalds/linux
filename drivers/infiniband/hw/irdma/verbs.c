@@ -3442,7 +3442,7 @@ static void irdma_process_cqe(struct ib_wc *entry,
 		entry->src_qp = cq_poll_info->qp_id;
 	}
 
-		entry->byte_len = cq_poll_info->bytes_xfered;
+	entry->byte_len = cq_poll_info->bytes_xfered;
 }
 
 /**
