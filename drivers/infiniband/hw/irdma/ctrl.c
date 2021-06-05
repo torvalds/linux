@@ -2157,7 +2157,7 @@ static enum irdma_status_code irdma_sc_set_up_map(struct irdma_sc_cqp *cqp,
 		return IRDMA_ERR_RING_FULL;
 
 	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++)
-		temp |= info->map[i] << (i * 8);
+		temp |= (u64)info->map[i] << (i * 8);
 
 	set_64bit_val(wqe, 0, temp);
 	set_64bit_val(wqe, 40,
