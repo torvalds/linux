@@ -540,6 +540,9 @@ htb_class_mode(struct htb_class *cl, s64 *diff)
 
 /**
  * htb_change_class_mode - changes classe's mode
+ * @q: the priority event queue
+ * @cl: the target class
+ * @diff: diff time in microseconds
  *
  * This should be the only way how to change classe's mode under normal
  * circumstances. Routine will update feed lists linkage, change mode
