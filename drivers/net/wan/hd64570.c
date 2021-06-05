@@ -345,6 +345,7 @@ static inline void sca_tx_intr(port_t *port)
 
 		u32 desc_off = desc_offset(port, port->txlast, 1);
 		u32 cda = sca_inw(dmac + CDAL, card);
+
 		if ((cda >= desc_off) && (cda < desc_off + sizeof(pkt_desc)))
 			break;	/* Transmitter is/will_be sending this frame */
 
@@ -371,6 +372,7 @@ static irqreturn_t sca_intr(int irq, void* dev_id)
 		handled = 1;
 		for (i = 0; i < 2; i++) {
 			port_t *port = get_port(card, i);
+
 			if (port) {
 				if (stat & SCA_INTR_MSCI(i))
 					sca_msci_intr(port);
