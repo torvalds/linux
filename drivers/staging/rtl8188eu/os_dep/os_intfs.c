@@ -316,6 +316,7 @@ struct net_device *rtw_init_netdev(void)
 	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
 
 	loadparam(padapter, pnetdev);
+	padapter->cmdThread = NULL;
 
 	return pnetdev;
 }
@@ -326,10 +327,11 @@ static int rtw_start_drv_threads(struct adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
 
-	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter,
-					  "RTW_CMD_THREAD");
-	if (IS_ERR(padapter->cmdThread))
+	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter, "RTW_CMD_THREAD");
+	if (IS_ERR(padapter->cmdThread)) {
 		err = PTR_ERR(padapter->cmdThread);
+		padapter->cmdThread = NULL;
+	}
 
 	return err;
 }
@@ -338,10 +340,11 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 {
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+%s\n", __func__));
 
-	/* Below is to terminate rtw_cmd_thread & event_thread... */
+	if (!padapter->cmdThread)
+		return;
+
 	complete(&padapter->cmdpriv.cmd_queue_comp);
-	if (padapter->cmdThread)
-		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
+	kthread_stop(padapter->cmdThread);
 }
 
 static u8 rtw_init_default_value(struct adapter *padapter)

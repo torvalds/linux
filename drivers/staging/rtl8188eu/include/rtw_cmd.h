@@ -32,9 +32,7 @@ struct cmd_obj {
 
 struct cmd_priv {
 	struct completion cmd_queue_comp;
-	struct completion terminate_cmdthread_comp;
 	struct __queue cmd_queue;
-	u8 cmdthd_running;
 };
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \

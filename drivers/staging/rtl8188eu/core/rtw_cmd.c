@@ -55,7 +55,6 @@ static struct _cmd_callback rtw_cmd_callback[] = {
 void rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->cmd_queue_comp);
-	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
 	_rtw_init_queue(&pcmdpriv->cmd_queue);
 }
@@ -121,7 +120,7 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 		bAllow = true;
 
 	if ((!padapter->hw_init_completed && !bAllow) ||
-	    !pcmdpriv->cmdthd_running)	/* com_thread not running */
+	    !padapter->cmdThread) /* com_thread not running */
 		return _FAIL;
 	return _SUCCESS;
 }
@@ -181,9 +180,7 @@ int rtw_cmd_thread(void *context)
 
 	allow_signal(SIGTERM);
 
-	pcmdpriv->cmdthd_running = true;
-
-	while (1) {
+	do {
 		if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 			break;
 
@@ -223,16 +220,14 @@ int rtw_cmd_thread(void *context)
 
 		if (signal_pending(current))
 			flush_signals(current);
-	}
-	pcmdpriv->cmdthd_running = false;
+	} while (!kthread_should_stop());
 
 	/*  free all cmd_obj resources */
 	while ((pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue)))
 		rtw_free_cmd_obj(pcmd);
 
-	complete(&pcmdpriv->terminate_cmdthread_comp);
-
-	complete_and_exit(NULL, 0);
+	padapter->cmdThread = NULL;
+	return 0;
 }
 
 /*
