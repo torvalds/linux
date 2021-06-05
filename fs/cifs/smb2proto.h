@@ -64,8 +64,6 @@ extern void smb2_echo_request(struct work_struct *work);
 extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
-extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
-					  __u64 ses_id);
 extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
 
