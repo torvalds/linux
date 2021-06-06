@@ -116,11 +116,11 @@
 		};
 	};
 
-	mcu-navss {
+	mcu_navss: bus@28380000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x00 0x28380000 0x00 0x28380000 0x00 0x03880000>;
 		dma-coherent;
 		dma-ranges;
 

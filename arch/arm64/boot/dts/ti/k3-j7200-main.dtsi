@@ -68,8 +68,9 @@
 		};
 	};
 
-	main_gpio_intr: interrupt-controller0 {
+	main_gpio_intr: interrupt-controller@a00000 {
 		compatible = "ti,sci-intr";
+		reg = <0x00 0x00a00000 0x00 0x800>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;
@@ -85,9 +86,12 @@
 		#size-cells = <2>;
 		ranges = <0x00 0x30000000 0x00 0x30000000 0x00 0x0c400000>;
 		ti,sci-dev-id = <199>;
+		dma-coherent;
+		dma-ranges;
 
-		main_navss_intr: interrupt-controller1 {
+		main_navss_intr: interrupt-controller@310e0000 {
 			compatible = "ti,sci-intr";
+			reg = <0x00 0x310e0000 0x00 0x4000>;
 			ti,intr-trigger-type = <4>;
 			interrupt-controller;
 			interrupt-parent = <&gic500>;
