@@ -2032,7 +2032,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name)
 			goto err_mtu;
 	}
 
-	mvdev->vdev.dma_dev = mdev->device;
+	mvdev->vdev.dma_dev = &mdev->pdev->dev;
 	err = mlx5_vdpa_alloc_resources(&ndev->mvdev);
 	if (err)
 		goto err_mpfs;
