@@ -95,7 +95,7 @@ static int get_module_eeprom_by_page(struct net_device *dev,
 	if (dev->sfp_bus)
 		return sfp_get_module_eeprom_by_page(dev->sfp_bus, page_data, extack);
 
-	if (ops->get_module_info)
+	if (ops->get_module_eeprom_by_page)
 		return ops->get_module_eeprom_by_page(dev, page_data, extack);
 
 	return -EOPNOTSUPP;
