@@ -161,6 +161,14 @@ static irqreturn_t cy8ctmg110_irq_thread(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void cy8ctmg110_shut_off(void *_ts)
+{
+	struct cy8ctmg110 *ts = _ts;
+
+	cy8ctmg110_set_sleepmode(ts, true);
+	cy8ctmg110_power(ts, false);
+}
+
 static int cy8ctmg110_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
@@ -179,12 +187,13 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 					I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -EIO;
 
-	ts = kzalloc(sizeof(struct cy8ctmg110), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ts || !input_dev) {
-		err = -ENOMEM;
-		goto err_free_mem;
-	}
+	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
+	if (!ts)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&client->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	ts->client = client;
 	ts->input = input_dev;
@@ -196,56 +205,46 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 	input_dev->name = CY8CTMG110_DRIVER_NAME " Touchscreen";
 	input_dev->phys = ts->phys;
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-
+	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 	input_set_abs_params(input_dev, ABS_X,
 			CY8CTMG110_X_MIN, CY8CTMG110_X_MAX, 4, 0);
 	input_set_abs_params(input_dev, ABS_Y,
 			CY8CTMG110_Y_MIN, CY8CTMG110_Y_MAX, 4, 0);
 
 	if (ts->reset_pin) {
-		err = gpio_request(ts->reset_pin, NULL);
+		err = devm_gpio_request(&client->dev, ts->reset_pin, NULL);
 		if (err) {
 			dev_err(&client->dev,
 				"Unable to request GPIO pin %d.\n",
 				ts->reset_pin);
-			goto err_free_mem;
+			return err;
 		}
 	}
 
 	cy8ctmg110_power(ts, true);
 	cy8ctmg110_set_sleepmode(ts, false);
 
-	err = request_threaded_irq(client->irq, NULL, cy8ctmg110_irq_thread,
-				   IRQF_ONESHOT, "touch_reset_key", ts);
-	if (err < 0) {
+	err = devm_add_action_or_reset(&client->dev, cy8ctmg110_shut_off, ts);
+	if (err)
+		return err;
+
+	err = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, cy8ctmg110_irq_thread,
+					IRQF_ONESHOT, "touch_reset_key", ts);
+	if (err) {
 		dev_err(&client->dev,
 			"irq %d busy? error %d\n", client->irq, err);
-		goto err_shutoff_device;
+		return err;
 	}
 
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_free_irq;
+		return err;
 
 	i2c_set_clientdata(client, ts);
 
 	return 0;
-
-err_free_irq:
-	free_irq(client->irq, ts);
-err_shutoff_device:
-	cy8ctmg110_set_sleepmode(ts, true);
-	cy8ctmg110_power(ts, false);
-	if (ts->reset_pin)
-		gpio_free(ts->reset_pin);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(ts);
-	return err;
 }
 
 static int __maybe_unused cy8ctmg110_suspend(struct device *dev)
@@ -276,22 +275,6 @@ static int __maybe_unused cy8ctmg110_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cy8ctmg110_pm, cy8ctmg110_suspend, cy8ctmg110_resume);
 
-static int cy8ctmg110_remove(struct i2c_client *client)
-{
-	struct cy8ctmg110 *ts = i2c_get_clientdata(client);
-
-	cy8ctmg110_set_sleepmode(ts, true);
-	cy8ctmg110_power(ts, false);
-
-	free_irq(client->irq, ts);
-	input_unregister_device(ts->input);
-	if (ts->reset_pin)
-		gpio_free(ts->reset_pin);
-	kfree(ts);
-
-	return 0;
-}
-
 static const struct i2c_device_id cy8ctmg110_idtable[] = {
 	{ CY8CTMG110_DRIVER_NAME, 1 },
 	{ }
@@ -306,7 +289,6 @@ static struct i2c_driver cy8ctmg110_driver = {
 	},
 	.id_table	= cy8ctmg110_idtable,
 	.probe		= cy8ctmg110_probe,
-	.remove		= cy8ctmg110_remove,
 };
 
 module_i2c_driver(cy8ctmg110_driver);
