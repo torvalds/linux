@@ -1043,6 +1043,60 @@ static ssize_t hl_security_violations_read(struct file *f, char __user *buf,
 	return 0;
 }
 
+static ssize_t hl_state_dump_read(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	ssize_t rc;
+
+	down_read(&entry->state_dump_sem);
+	if (!entry->state_dump[entry->state_dump_head])
+		rc = 0;
+	else
+		rc = simple_read_from_buffer(
+			buf, count, ppos,
+			entry->state_dump[entry->state_dump_head],
+			strlen(entry->state_dump[entry->state_dump_head]));
+	up_read(&entry->state_dump_sem);
+
+	return rc;
+}
+
+static ssize_t hl_state_dump_write(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	ssize_t rc;
+	u32 size;
+	int i;
+
+	rc = kstrtouint_from_user(buf, count, 10, &size);
+	if (rc)
+		return rc;
+
+	if (size <= 0 || size >= ARRAY_SIZE(entry->state_dump)) {
+		dev_err(hdev->dev, "Invalid number of dumps to skip\n");
+		return -EINVAL;
+	}
+
+	if (entry->state_dump[entry->state_dump_head]) {
+		down_write(&entry->state_dump_sem);
+		for (i = 0; i < size; ++i) {
+			vfree(entry->state_dump[entry->state_dump_head]);
+			entry->state_dump[entry->state_dump_head] = NULL;
+			if (entry->state_dump_head > 0)
+				entry->state_dump_head--;
+			else
+				entry->state_dump_head =
+					ARRAY_SIZE(entry->state_dump) - 1;
+		}
+		up_write(&entry->state_dump_sem);
+	}
+
+	return count;
+}
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -1110,6 +1164,12 @@ static const struct file_operations hl_security_violations_fops = {
 	.read = hl_security_violations_read
 };
 
+static const struct file_operations hl_state_dump_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_state_dump_read,
+	.write = hl_state_dump_write
+};
+
 static const struct hl_info_list hl_debugfs_list[] = {
 	{"command_buffers", command_buffers_show, NULL},
 	{"command_submission", command_submission_show, NULL},
@@ -1172,6 +1232,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	INIT_LIST_HEAD(&dev_entry->userptr_list);
 	INIT_LIST_HEAD(&dev_entry->ctx_mem_hash_list);
 	mutex_init(&dev_entry->file_mutex);
+	init_rwsem(&dev_entry->state_dump_sem);
 	spin_lock_init(&dev_entry->cb_spinlock);
 	spin_lock_init(&dev_entry->cs_spinlock);
 	spin_lock_init(&dev_entry->cs_job_spinlock);
@@ -1283,6 +1344,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				&hdev->skip_reset_on_timeout);
 
+	debugfs_create_file("state_dump",
+				0600,
+				dev_entry->root,
+				dev_entry,
+				&hl_state_dump_fops);
+
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,
@@ -1297,12 +1364,16 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 void hl_debugfs_remove_device(struct hl_device *hdev)
 {
 	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
+	int i;
 
 	debugfs_remove_recursive(entry->root);
 
 	mutex_destroy(&entry->file_mutex);
 
 	vfree(entry->blob_desc.data);
+
+	for (i = 0; i < ARRAY_SIZE(entry->state_dump); ++i)
+		vfree(entry->state_dump[i]);
 
 	kfree(entry->entry_arr);
 }
@@ -1414,6 +1485,28 @@ void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
 	list_del(&ctx->debugfs_list);
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+}
+
+/**
+ * hl_debugfs_set_state_dump - register state dump making it accessible via
+ *                             debugfs
+ * @hdev: pointer to the device structure
+ * @data: the actual dump data
+ * @length: the length of the data
+ */
+void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
+					unsigned long length)
+{
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+
+	down_write(&dev_entry->state_dump_sem);
+
+	dev_entry->state_dump_head = (dev_entry->state_dump_head + 1) %
+					ARRAY_SIZE(dev_entry->state_dump);
+	vfree(dev_entry->state_dump[dev_entry->state_dump_head]);
+	dev_entry->state_dump[dev_entry->state_dump_head] = data;
+
+	up_write(&dev_entry->state_dump_sem);
 }
 
 void __init hl_debugfs_init(void)

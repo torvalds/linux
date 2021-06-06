@@ -20,6 +20,7 @@
 #include <linux/scatterlist.h>
 #include <linux/hashtable.h>
 #include <linux/debugfs.h>
+#include <linux/rwsem.h>
 #include <linux/bitfield.h>
 #include <linux/genalloc.h>
 #include <linux/sched/signal.h>
@@ -64,6 +65,11 @@
 #define HL_SIM_MAX_TIMEOUT_US		10000000 /* 10s */
 
 #define HL_COMMON_USER_INTERRUPT_ID	0xFFF
+
+#define HL_STATE_DUMP_HIST_LEN		5
+
+#define OBJ_NAMES_HASH_TABLE_BITS	7 /* 1 << 7 buckets */
+#define SYNC_TO_ENGINE_HASH_TABLE_BITS	7 /* 1 << 7 buckets */
 
 /* Memory */
 #define MEM_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
@@ -1123,6 +1129,7 @@ struct fw_load_mgr {
  *                         generic f/w compatible PLL Indexes
  * @init_firmware_loader: initialize data for FW loader.
  * @init_cpu_scrambler_dram: Enable CPU specific DRAM scrambling
+ * @state_dump_init: initialize constants required for state dump
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1248,6 +1255,7 @@ struct hl_asic_funcs {
 	int (*map_pll_idx_to_fw_idx)(u32 pll_idx);
 	void (*init_firmware_loader)(struct hl_device *hdev);
 	void (*init_cpu_scrambler_dram)(struct hl_device *hdev);
+	void (*state_dump_init)(struct hl_device *hdev);
 };
 
 
@@ -1781,9 +1789,12 @@ struct hl_debugfs_entry {
  * @ctx_mem_hash_list: list of available contexts with MMU mappings.
  * @ctx_mem_hash_spinlock: protects cb_list.
  * @blob_desc: descriptor of blob
+ * @state_dump: data of the system states in case of a bad cs.
+ * @state_dump_sem: protects state_dump.
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
  * @mmu_asid: ASID to use while translating in mmu_show.
+ * @state_dump_head: index of the latest state dump
  * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
  * @i2c_addr: generic u8 debugfs file for address value to use in i2c_data_read.
  * @i2c_reg: generic u8 debugfs file for register value to use in i2c_data_read.
@@ -1805,12 +1816,115 @@ struct hl_dbg_device_entry {
 	struct list_head		ctx_mem_hash_list;
 	spinlock_t			ctx_mem_hash_spinlock;
 	struct debugfs_blob_wrapper	blob_desc;
+	char				*state_dump[HL_STATE_DUMP_HIST_LEN];
+	struct rw_semaphore		state_dump_sem;
 	u64				addr;
 	u64				mmu_addr;
 	u32				mmu_asid;
+	u32				state_dump_head;
 	u8				i2c_bus;
 	u8				i2c_addr;
 	u8				i2c_reg;
+};
+
+/**
+ * struct hl_hw_obj_name_entry - single hw object name, member of
+ * hl_state_dump_specs
+ * @node: link to the containing hash table
+ * @name: hw object name
+ * @id: object identifier
+ */
+struct hl_hw_obj_name_entry {
+	struct hlist_node	node;
+	const char		*name;
+	u32			id;
+};
+
+enum hl_state_dump_specs_props {
+	SP_SYNC_OBJ_BASE_ADDR,
+	SP_NEXT_SYNC_OBJ_ADDR,
+	SP_SYNC_OBJ_AMOUNT,
+	SP_MON_OBJ_WR_ADDR_LOW,
+	SP_MON_OBJ_WR_ADDR_HIGH,
+	SP_MON_OBJ_WR_DATA,
+	SP_MON_OBJ_ARM_DATA,
+	SP_MON_OBJ_STATUS,
+	SP_MONITORS_AMOUNT,
+	SP_TPC0_CMDQ,
+	SP_TPC0_CFG_SO,
+	SP_NEXT_TPC,
+	SP_MME_CMDQ,
+	SP_MME_CFG_SO,
+	SP_NEXT_MME,
+	SP_DMA_CMDQ,
+	SP_DMA_CFG_SO,
+	SP_DMA_QUEUES_OFFSET,
+	SP_NUM_OF_MME_ENGINES,
+	SP_SUB_MME_ENG_NUM,
+	SP_NUM_OF_DMA_ENGINES,
+	SP_NUM_OF_TPC_ENGINES,
+	SP_ENGINE_NUM_OF_QUEUES,
+	SP_ENGINE_NUM_OF_STREAMS,
+	SP_ENGINE_NUM_OF_FENCES,
+	SP_FENCE0_CNT_OFFSET,
+	SP_FENCE0_RDATA_OFFSET,
+	SP_CP_STS_OFFSET,
+	SP_NUM_CORES,
+
+	SP_MAX
+};
+
+enum hl_sync_engine_type {
+	ENGINE_TPC,
+	ENGINE_DMA,
+	ENGINE_MME,
+};
+
+/**
+ * struct hl_sync_to_engine_map_entry - sync object id to engine mapping entry
+ * @engine_type: type of the engine
+ * @engine_id: id of the engine
+ * @sync_id: id of the sync object
+ */
+struct hl_sync_to_engine_map_entry {
+	struct hlist_node		node;
+	enum hl_sync_engine_type	engine_type;
+	u32				engine_id;
+	u32				sync_id;
+};
+
+/**
+ * struct hl_sync_to_engine_map - maps sync object id to associated engine id
+ * @tb: hash table containing the mapping, each element is of type
+ *      struct hl_sync_to_engine_map_entry
+ */
+struct hl_sync_to_engine_map {
+	DECLARE_HASHTABLE(tb, SYNC_TO_ENGINE_HASH_TABLE_BITS);
+};
+
+/**
+ * struct hl_state_dump_specs_funcs - virtual functions used by the state dump
+ * @gen_sync_to_engine_map: generate a hash map from sync obj id to its engine
+ */
+struct hl_state_dump_specs_funcs {
+	int (*gen_sync_to_engine_map)(struct hl_device *hdev,
+				struct hl_sync_to_engine_map *map);
+};
+
+/**
+ * struct hl_state_dump_specs - defines ASIC known hw objects names
+ * @so_id_to_str_tb: sync objects names index table
+ * @monitor_id_to_str_tb: monitors names index table
+ * @funcs: virtual functions used for state dump
+ * @sync_namager_names: readable names for sync manager if available (ex: N_E)
+ * @props: pointer to a per asic const props array required for state dump
+ */
+struct hl_state_dump_specs {
+	DECLARE_HASHTABLE(so_id_to_str_tb, OBJ_NAMES_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(monitor_id_to_str_tb, OBJ_NAMES_HASH_TABLE_BITS);
+	struct hl_state_dump_specs_funcs	funcs;
+	const char * const			*sync_namager_names;
+	s64					*props;
 };
 
 
@@ -2151,6 +2265,7 @@ struct hl_mmu_funcs {
  * @mmu_func: device-related MMU functions.
  * @fw_loader: FW loader manager.
  * @pci_mem_region: array of memory regions in the PCI
+ * @state_dump_specs: constants and dictionaries needed to dump system state.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2294,6 +2409,8 @@ struct hl_device {
 	struct fw_load_mgr		fw_loader;
 
 	struct pci_mem_region		pci_mem_region[PCI_REGION_NUMBER];
+
+	struct hl_state_dump_specs	state_dump_specs;
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2676,6 +2793,14 @@ void hl_release_pending_user_interrupts(struct hl_device *hdev);
 int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 			struct hl_hw_sob **hw_sob, u32 count);
 
+int hl_state_dump(struct hl_device *hdev);
+const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id);
+void hl_state_dump_free_sync_to_engine_map(struct hl_sync_to_engine_map *map);
+__printf(4, 5) int hl_snprintf_resize(char **buf, size_t *size, size_t *offset,
+					const char *format, ...);
+char *hl_format_as_binary(char *buf, size_t buf_len, u32 n);
+const char *hl_sync_engine_to_string(enum hl_sync_engine_type engine_type);
+
 #ifdef CONFIG_DEBUG_FS
 
 void hl_debugfs_init(void);
@@ -2695,6 +2820,8 @@ void hl_debugfs_remove_userptr(struct hl_device *hdev,
 				struct hl_userptr *userptr);
 void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
 void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
+void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
+					unsigned long length);
 
 #else
 
@@ -2765,6 +2892,11 @@ static inline void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev,
 
 static inline void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev,
 					struct hl_ctx *ctx)
+{
+}
+
+void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
+					unsigned long length)
 {
 }
 

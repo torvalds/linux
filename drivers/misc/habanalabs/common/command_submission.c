@@ -621,6 +621,10 @@ static void cs_timedout(struct work_struct *work)
 		break;
 	}
 
+	rc = hl_state_dump(hdev);
+	if (rc)
+		dev_err(hdev->dev, "Error during system state dump %d\n", rc);
+
 	cs_put(cs);
 
 	if (likely(!skip_reset_on_timeout)) {

@@ -350,6 +350,8 @@ static u32 goya_all_events[] = {
 	GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E
 };
 
+static s64 goya_state_dump_specs_props[SP_MAX] = {0};
+
 static int goya_mmu_clear_pgt_range(struct hl_device *hdev);
 static int goya_mmu_set_dram_default_page(struct hl_device *hdev);
 static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev);
@@ -5524,6 +5526,25 @@ static int goya_map_pll_idx_to_fw_idx(u32 pll_idx)
 	}
 }
 
+static int goya_gen_sync_to_engine_map(struct hl_device *hdev,
+				struct hl_sync_to_engine_map *map)
+{
+	/* Not implemented */
+	return 0;
+}
+
+
+static struct hl_state_dump_specs_funcs goya_state_dump_funcs = {
+	.gen_sync_to_engine_map = goya_gen_sync_to_engine_map,
+};
+
+static void goya_state_dump_init(struct hl_device *hdev)
+{
+	/* Not implemented */
+	hdev->state_dump_specs.props = goya_state_dump_specs_props;
+	hdev->state_dump_specs.funcs = goya_state_dump_funcs;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5609,7 +5630,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.enable_events_from_fw = goya_enable_events_from_fw,
 	.map_pll_idx_to_fw_idx = goya_map_pll_idx_to_fw_idx,
 	.init_firmware_loader = goya_init_firmware_loader,
-	.init_cpu_scrambler_dram = goya_cpu_init_scrambler_dram
+	.init_cpu_scrambler_dram = goya_cpu_init_scrambler_dram,
+	.state_dump_init = goya_state_dump_init,
 };
 
 /*

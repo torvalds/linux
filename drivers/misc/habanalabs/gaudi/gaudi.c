@@ -348,6 +348,8 @@ static enum hl_queue_type gaudi_queue_type[GAUDI_QUEUE_ID_SIZE] = {
 	QUEUE_TYPE_INT, /* GAUDI_QUEUE_ID_NIC_9_3 */
 };
 
+static s64 gaudi_state_dump_specs_props[SP_MAX] = {0};
+
 struct ecc_info_extract_params {
 	u64 block_address;
 	u32 num_memories;
@@ -8977,6 +8979,25 @@ static int gaudi_map_pll_idx_to_fw_idx(u32 pll_idx)
 	}
 }
 
+static int gaudi_gen_sync_to_engine_map(struct hl_device *hdev,
+				struct hl_sync_to_engine_map *map)
+{
+	/* Not implemented */
+	return 0;
+}
+
+
+static struct hl_state_dump_specs_funcs gaudi_state_dump_funcs = {
+	.gen_sync_to_engine_map = gaudi_gen_sync_to_engine_map,
+};
+
+static void gaudi_state_dump_init(struct hl_device *hdev)
+{
+	/* Not implemented */
+	hdev->state_dump_specs.props = gaudi_state_dump_specs_props;
+	hdev->state_dump_specs.funcs = gaudi_state_dump_funcs;
+}
+
 static const struct hl_asic_funcs gaudi_funcs = {
 	.early_init = gaudi_early_init,
 	.early_fini = gaudi_early_fini,
@@ -9062,7 +9083,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.enable_events_from_fw = gaudi_enable_events_from_fw,
 	.map_pll_idx_to_fw_idx = gaudi_map_pll_idx_to_fw_idx,
 	.init_firmware_loader = gaudi_init_firmware_loader,
-	.init_cpu_scrambler_dram = gaudi_init_scrambler_hbm
+	.init_cpu_scrambler_dram = gaudi_init_scrambler_hbm,
+	.state_dump_init = gaudi_state_dump_init
 };
 
 /**

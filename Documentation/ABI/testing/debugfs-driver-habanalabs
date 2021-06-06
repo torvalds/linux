@@ -215,6 +215,17 @@ Description:    Sets the skip reset on timeout option for the device. Value of
                 "0" means device will be reset in case some CS has timed out,
                 otherwise it will not be reset.
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/state_dump
+Date:           Oct 2021
+KernelVersion:  5.15
+Contact:        ynudelman@habana.ai
+Description:    Gets the state dump occurring on a CS timeout or failure.
+                State dump is used for debug and is created each time in case of
+                a problem in a CS execution, before reset.
+                Reading from the node returns the newest state dump available.
+                Writing an integer X discards X state dumps, so that the
+                next read would return X+1-st newest state dump.
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/stop_on_err
 Date:           Mar 2020
 KernelVersion:  5.6
