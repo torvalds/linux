@@ -988,7 +988,7 @@ int mt7921_run_firmware(struct mt7921_dev *dev)
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	mt7921_mcu_fw_log_2_host(dev, 1);
 
-	return 0;
+	return mt76_connac_mcu_get_nic_capability(&dev->mphy);
 }
 
 int mt7921_mcu_init(struct mt7921_dev *dev)
