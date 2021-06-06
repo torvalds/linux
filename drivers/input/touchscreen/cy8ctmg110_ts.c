@@ -7,15 +7,13 @@
  * Some cleanups by Alan Cox <alan@linux.intel.com>
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/input.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
-#include <linux/input/cy8ctmg110_pdata.h>
+#include <linux/input.h>
+#include <linux/interrupt.h>
+#include <linux/gpio/consumer.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #define CY8CTMG110_DRIVER_NAME      "cy8ctmg110"
@@ -46,17 +44,18 @@ struct cy8ctmg110 {
 	struct input_dev *input;
 	char phys[32];
 	struct i2c_client *client;
-	int reset_pin;
+	struct gpio_desc *reset_gpio;
 };
 
 /*
  * cy8ctmg110_power is the routine that is called when touch hardware
- * will powered off or on.
+ * is being powered off or on. When powering on this routine de-asserts
+ * the RESET line, when powering off reset line is asserted.
  */
 static void cy8ctmg110_power(struct cy8ctmg110 *ts, bool poweron)
 {
-	if (ts->reset_pin)
-		gpio_direction_output(ts->reset_pin, 1 - poweron);
+	if (ts->reset_gpio)
+		gpiod_set_value_cansleep(ts->reset_gpio, !poweron);
 }
 
 static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
@@ -172,16 +171,9 @@ static void cy8ctmg110_shut_off(void *_ts)
 static int cy8ctmg110_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	const struct cy8ctmg110_pdata *pdata = dev_get_platdata(&client->dev);
 	struct cy8ctmg110 *ts;
 	struct input_dev *input_dev;
 	int err;
-
-	/* No pdata no way forward */
-	if (pdata == NULL) {
-		dev_err(&client->dev, "no pdata\n");
-		return -ENODEV;
-	}
 
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_READ_WORD_DATA))
@@ -197,7 +189,6 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 
 	ts->client = client;
 	ts->input = input_dev;
-	ts->reset_pin = pdata->reset_pin;
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
@@ -212,14 +203,14 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_Y,
 			CY8CTMG110_Y_MIN, CY8CTMG110_Y_MAX, 4, 0);
 
-	if (ts->reset_pin) {
-		err = devm_gpio_request(&client->dev, ts->reset_pin, NULL);
-		if (err) {
-			dev_err(&client->dev,
-				"Unable to request GPIO pin %d.\n",
-				ts->reset_pin);
-			return err;
-		}
+	/* Request and assert reset line */
+	ts->reset_gpio = devm_gpiod_get_optional(&client->dev, NULL,
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(ts->reset_gpio)) {
+		err = PTR_ERR(ts->reset_gpio);
+		dev_err(&client->dev,
+			"Unable to request reset GPIO: %d\n", err);
+		return err;
 	}
 
 	cy8ctmg110_power(ts, true);
