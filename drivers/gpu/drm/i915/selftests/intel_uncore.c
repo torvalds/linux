@@ -321,7 +321,7 @@ static int live_fw_table(void *arg)
 	/* Confirm the table we load is still valid */
 	return intel_fw_table_check(gt->uncore->fw_domains_table,
 				    gt->uncore->fw_domains_table_entries,
-				    INTEL_GEN(gt->i915) >= 9);
+				    GRAPHICS_VER(gt->i915) >= 9);
 }
 
 int intel_uncore_live_selftests(struct drm_i915_private *i915)

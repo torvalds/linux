@@ -595,7 +595,7 @@ void i915_setup_sysfs(struct drm_i915_private *dev_priv)
 	ret = 0;
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = sysfs_create_files(&kdev->kobj, vlv_attrs);
-	else if (INTEL_GEN(dev_priv) >= 6)
+	else if (GRAPHICS_VER(dev_priv) >= 6)
 		ret = sysfs_create_files(&kdev->kobj, gen6_attrs);
 	if (ret)
 		drm_err(&dev_priv->drm, "RPS sysfs setup failed\n");
