@@ -404,6 +404,20 @@ enum cpucp_packet_id {
 #define CPUCP_PKT_RES_PLL_OUT3_SHIFT	48
 #define CPUCP_PKT_RES_PLL_OUT3_MASK	0xFFFF000000000000ull
 
+#define CPUCP_PKT_VAL_PFC_IN1_SHIFT	0
+#define CPUCP_PKT_VAL_PFC_IN1_MASK	0x0000000000000001ull
+#define CPUCP_PKT_VAL_PFC_IN2_SHIFT	1
+#define CPUCP_PKT_VAL_PFC_IN2_MASK	0x000000000000001Eull
+
+#define CPUCP_PKT_VAL_LPBK_IN1_SHIFT	0
+#define CPUCP_PKT_VAL_LPBK_IN1_MASK	0x0000000000000001ull
+#define CPUCP_PKT_VAL_LPBK_IN2_SHIFT	1
+#define CPUCP_PKT_VAL_LPBK_IN2_MASK	0x000000000000001Eull
+
+/* heartbeat status bits */
+#define CPUCP_PKT_HB_STATUS_EQ_FAULT_SHIFT		0
+#define CPUCP_PKT_HB_STATUS_EQ_FAULT_MASK		0x00000001
+
 struct cpucp_packet {
 	union {
 		__le64 value;	/* For SET packets */
@@ -445,6 +459,12 @@ struct cpucp_packet {
 
 		/* For get CpuCP info/EEPROM data/NIC info */
 		__le32 data_max_size;
+
+		/*
+		 * For any general status bitmask. Shall be used whenever the
+		 * result cannot be used to hold general purpose data.
+		 */
+		__le32 status_mask;
 	};
 
 	__le32 reserved;

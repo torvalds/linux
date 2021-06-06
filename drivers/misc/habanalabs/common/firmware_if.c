@@ -362,7 +362,7 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 
 int hl_fw_send_heartbeat(struct hl_device *hdev)
 {
-	struct cpucp_packet hb_pkt = {};
+	struct cpucp_packet hb_pkt = {0};
 	u64 result;
 	int rc;
 
@@ -374,7 +374,13 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 						sizeof(hb_pkt), 0, &result);
 
 	if ((rc) || (result != CPUCP_PACKET_FENCE_VAL))
+		return -EIO;
+
+	if (le32_to_cpu(hb_pkt.status_mask) &
+					CPUCP_PKT_HB_STATUS_EQ_FAULT_MASK) {
+		dev_warn(hdev->dev, "FW reported EQ fault during heartbeat\n");
 		rc = -EIO;
+	}
 
 	return rc;
 }
