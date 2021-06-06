@@ -241,7 +241,6 @@ static struct scmi_xfer *scmi_xfer_get(const struct scmi_handle *handle,
 
 	xfer = &minfo->xfer_block[xfer_id];
 	xfer->hdr.seq = xfer_id;
-	reinit_completion(&xfer->done);
 	xfer->transfer_id = atomic_inc_return(&transfer_last_id);
 
 	return xfer;
@@ -438,6 +437,7 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	 * the scmi_xfer structure.
 	 */
 	xfer->hdr.protocol_id = pi->proto->id;
+	reinit_completion(&xfer->done);
 
 	cinfo = idr_find(&info->tx_idr, xfer->hdr.protocol_id);
 	if (unlikely(!cinfo))
