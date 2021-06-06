@@ -23,7 +23,6 @@
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
-#include <linux/sched.h>	/* set_cpus_allowed() */
 #include <linux/clk.h>
 #include <linux/percpu.h>
 #include <linux/sh_clk.h>
