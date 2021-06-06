@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/input/cy8ctmg110_pdata.h>
+#include <asm/byteorder.h>
 
 #define CY8CTMG110_DRIVER_NAME      "cy8ctmg110"
 
@@ -111,7 +112,6 @@ static int cy8ctmg110_touch_pos(struct cy8ctmg110 *tsc)
 {
 	struct input_dev *input = tsc->input;
 	unsigned char reg_p[CY8CTMG110_REG_MAX];
-	int x, y;
 
 	memset(reg_p, 0, CY8CTMG110_REG_MAX);
 
@@ -119,16 +119,15 @@ static int cy8ctmg110_touch_pos(struct cy8ctmg110 *tsc)
 	if (cy8ctmg110_read_regs(tsc, reg_p, 9, CY8CTMG110_TOUCH_X1) != 0)
 		return -EIO;
 
-	y = reg_p[2] << 8 | reg_p[3];
-	x = reg_p[0] << 8 | reg_p[1];
-
 	/* Number of touch */
 	if (reg_p[8] == 0) {
 		input_report_key(input, BTN_TOUCH, 0);
 	} else  {
 		input_report_key(input, BTN_TOUCH, 1);
-		input_report_abs(input, ABS_X, x);
-		input_report_abs(input, ABS_Y, y);
+		input_report_abs(input, ABS_X,
+				 be16_to_cpup((__be16 *)(reg_p + 0)));
+		input_report_abs(input, ABS_Y,
+				 be16_to_cpup((__be16 *)(reg_p + 2)));
 	}
 
 	input_sync(input);
