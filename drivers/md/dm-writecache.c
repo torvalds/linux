@@ -1664,7 +1664,7 @@ pop_from_list:
 	return 0;
 }
 
-static bool wc_add_block(struct writeback_struct *wb, struct wc_entry *e, gfp_t gfp)
+static bool wc_add_block(struct writeback_struct *wb, struct wc_entry *e)
 {
 	struct dm_writecache *wc = wb->wc;
 	unsigned block_size = wc->block_size;
@@ -1725,7 +1725,7 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 			max_pages = WB_LIST_INLINE;
 		}
 
-		BUG_ON(!wc_add_block(wb, e, GFP_NOIO));
+		BUG_ON(!wc_add_block(wb, e));
 
 		wb->wc_list[0] = e;
 		wb->wc_list_n = 1;
@@ -1735,7 +1735,7 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 			if (read_original_sector(wc, f) !=
 			    read_original_sector(wc, e) + (wc->block_size >> SECTOR_SHIFT))
 				break;
-			if (!wc_add_block(wb, f, GFP_NOWAIT | __GFP_NOWARN))
+			if (!wc_add_block(wb, f))
 				break;
 			wbl->size--;
 			list_del(&f->lru);
