@@ -442,6 +442,8 @@ static int __bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k,
 	unsigned i;
 	int ret;
 
+	memset(&search, 0, sizeof(search));
+
 	for (i = 0; i < cached.nr; i++) {
 		bch2_replicas_entry_cached(&search.e, cached.devs[i]);
 
