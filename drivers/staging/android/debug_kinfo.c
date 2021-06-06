@@ -140,14 +140,17 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->bit_per_long = BITS_PER_LONG;
 	info->module_name_len = MODULE_NAME_LEN;
 	info->symbol_len = KSYM_SYMBOL_LEN;
-	info->_addresses_pa = (u64)__pa_symbol((volatile void *)kallsyms_addresses);
-	info->_relative_pa = (u64)__pa_symbol((volatile void *)kallsyms_relative_base);
+	if (!info->enabled_base_relative)
+		info->_addresses_pa = (u64)__pa_symbol((volatile void *)kallsyms_addresses);
+	else {
+		info->_relative_pa = (u64)__pa_symbol((volatile void *)kallsyms_relative_base);
+		info->_offsets_pa = (u64)__pa_symbol((volatile void *)kallsyms_offsets);
+	}
 	info->_stext_pa = (u64)__pa_symbol(_stext);
 	info->_etext_pa = (u64)__pa_symbol(_etext);
 	info->_sinittext_pa = (u64)__pa_symbol(_sinittext);
 	info->_einittext_pa = (u64)__pa_symbol(_einittext);
 	info->_end_pa = (u64)__pa_symbol(_end);
-	info->_offsets_pa = (u64)__pa_symbol((volatile void *)kallsyms_offsets);
 	info->_names_pa = (u64)__pa_symbol((volatile void *)kallsyms_names);
 	info->_token_table_pa = (u64)__pa_symbol((volatile void *)kallsyms_token_table);
 	info->_token_index_pa = (u64)__pa_symbol((volatile void *)kallsyms_token_index);
