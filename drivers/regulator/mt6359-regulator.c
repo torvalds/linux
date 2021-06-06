@@ -203,77 +203,77 @@ static const struct linear_range mt_volt_range8[] = {
 	REGULATOR_LINEAR_RANGE(506250, 0, 0x7f, 6250),
 };
 
-static const u32 vsim1_voltages[] = {
+static const unsigned int vsim1_voltages[] = {
 	0, 0, 0, 1700000, 1800000, 0, 0, 0, 2700000, 0, 0, 3000000, 3100000,
 };
 
-static const u32 vibr_voltages[] = {
+static const unsigned int vibr_voltages[] = {
 	1200000, 1300000, 1500000, 0, 1800000, 2000000, 0, 0, 2700000, 2800000,
 	0, 3000000, 0, 3300000,
 };
 
-static const u32 vrf12_voltages[] = {
+static const unsigned int vrf12_voltages[] = {
 	0, 0, 1100000, 1200000,	1300000,
 };
 
-static const u32 volt18_voltages[] = {
+static const unsigned int volt18_voltages[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1700000, 1800000, 1900000,
 };
 
-static const u32 vcn13_voltages[] = {
+static const unsigned int vcn13_voltages[] = {
 	900000, 1000000, 0, 1200000, 1300000,
 };
 
-static const u32 vcn33_voltages[] = {
+static const unsigned int vcn33_voltages[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 2800000, 0, 0, 0, 3300000, 3400000, 3500000,
 };
 
-static const u32 vefuse_voltages[] = {
+static const unsigned int vefuse_voltages[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1700000, 1800000, 1900000, 2000000,
 };
 
-static const u32 vxo22_voltages[] = {
+static const unsigned int vxo22_voltages[] = {
 	1800000, 0, 0, 0, 2200000,
 };
 
-static const u32 vrfck_voltages[] = {
+static const unsigned int vrfck_voltages[] = {
 	0, 0, 1500000, 0, 0, 0, 0, 1600000, 0, 0, 0, 0, 1700000,
 };
 
-static const u32 vrfck_voltages_1[] = {
+static const unsigned int vrfck_voltages_1[] = {
 	1240000, 1600000,
 };
 
-static const u32 vio28_voltages[] = {
+static const unsigned int vio28_voltages[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 2800000, 2900000, 3000000, 3100000, 3300000,
 };
 
-static const u32 vemc_voltages[] = {
+static const unsigned int vemc_voltages[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2900000, 3000000, 0, 3300000,
 };
 
-static const u32 vemc_voltages_1[] = {
+static const unsigned int vemc_voltages_1[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 2500000, 2800000, 2900000, 3000000, 3100000,
 	3300000,
 };
 
-static const u32 va12_voltages[] = {
+static const unsigned int va12_voltages[] = {
 	0, 0, 0, 0, 0, 0, 1200000, 1300000,
 };
 
-static const u32 va09_voltages[] = {
+static const unsigned int va09_voltages[] = {
 	0, 0, 800000, 900000, 0, 0, 1200000,
 };
 
-static const u32 vrf18_voltages[] = {
+static const unsigned int vrf18_voltages[] = {
 	0, 0, 0, 0, 0, 1700000, 1800000, 1810000,
 };
 
-static const u32 vbbck_voltages[] = {
+static const unsigned int vbbck_voltages[] = {
 	0, 0, 0, 0, 1100000, 0, 0, 0, 1150000, 0, 0, 0, 1200000,
 };
 
-static const u32 vsim2_voltages[] = {
+static const unsigned int vsim2_voltages[] = {
 	0, 0, 0, 1700000, 1800000, 0, 0, 0, 2700000, 0, 0, 3000000, 3100000,
 };
 
