@@ -1755,13 +1755,8 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 		// Later, the process context will sometimes schedules software
 		// IRQ context of the period_work. Then, no need to flush the
 		// queue by the same reason as described in the above
-		if (current_work() != &s->period_work) {
-			// Queued packet should be processed without any kernel
-			// preemption to keep latency against bus cycle.
-			preempt_disable();
+		if (current_work() != &s->period_work)
 			fw_iso_context_flush_completions(irq_target->context);
-			preempt_enable();
-		}
 	}
 
 	return READ_ONCE(s->pcm_buffer_pointer);
@@ -1781,13 +1776,8 @@ int amdtp_domain_stream_pcm_ack(struct amdtp_domain *d, struct amdtp_stream *s)
 
 	// Process isochronous packets for recent isochronous cycle to handle
 	// queued PCM frames.
-	if (irq_target && amdtp_stream_running(irq_target)) {
-		// Queued packet should be processed without any kernel
-		// preemption to keep latency against bus cycle.
-		preempt_disable();
+	if (irq_target && amdtp_stream_running(irq_target))
 		fw_iso_context_flush_completions(irq_target->context);
-		preempt_enable();
-	}
 
 	return 0;
 }
