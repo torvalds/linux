@@ -200,6 +200,18 @@
 #define HW_CAP_TPC_MASK		GENMASK(31, 24)
 #define HW_CAP_TPC_SHIFT	24
 
+#define NEXT_SYNC_OBJ_ADDR_INTERVAL \
+	(mmSYNC_MNGR_W_N_SYNC_MNGR_OBJS_SOB_OBJ_0 - \
+	 mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_0)
+#define NUM_OF_MME_ENGINES			2
+#define NUM_OF_MME_SUB_ENGINES		2
+#define NUM_OF_TPC_ENGINES			8
+#define NUM_OF_DMA_ENGINES			8
+#define NUM_OF_QUEUES				5
+#define NUM_OF_STREAMS				4
+#define NUM_OF_FENCES				4
+
+
 #define GAUDI_CPU_PCI_MSB_ADDR(addr)	(((addr) & GENMASK_ULL(49, 39)) >> 39)
 #define GAUDI_PCI_TO_CPU_ADDR(addr)			\
 	do {						\
