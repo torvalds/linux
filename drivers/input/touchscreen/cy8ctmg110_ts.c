@@ -46,7 +46,6 @@ struct cy8ctmg110 {
 	char phys[32];
 	struct i2c_client *client;
 	int reset_pin;
-	int irq_pin;
 };
 
 /*
@@ -191,7 +190,6 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 	ts->client = client;
 	ts->input = input_dev;
 	ts->reset_pin = pdata->reset_pin;
-	ts->irq_pin = pdata->irq_pin;
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
@@ -222,38 +220,13 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 	cy8ctmg110_power(ts, true);
 	cy8ctmg110_set_sleepmode(ts, false);
 
-	err = gpio_request(ts->irq_pin, "touch_irq_key");
-	if (err < 0) {
-		dev_err(&client->dev,
-			"Failed to request GPIO %d, error %d\n",
-			ts->irq_pin, err);
-		goto err_shutoff_device;
-	}
-
-	err = gpio_direction_input(ts->irq_pin);
-	if (err < 0) {
-		dev_err(&client->dev,
-			"Failed to configure input direction for GPIO %d, error %d\n",
-			ts->irq_pin, err);
-		goto err_free_irq_gpio;
-	}
-
-	client->irq = gpio_to_irq(ts->irq_pin);
-	if (client->irq < 0) {
-		err = client->irq;
-		dev_err(&client->dev,
-			"Unable to get irq number for GPIO %d, error %d\n",
-			ts->irq_pin, err);
-		goto err_free_irq_gpio;
-	}
-
 	err = request_threaded_irq(client->irq, NULL, cy8ctmg110_irq_thread,
 				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				   "touch_reset_key", ts);
 	if (err < 0) {
 		dev_err(&client->dev,
 			"irq %d busy? error %d\n", client->irq, err);
-		goto err_free_irq_gpio;
+		goto err_shutoff_device;
 	}
 
 	err = input_register_device(input_dev);
@@ -266,8 +239,6 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 
 err_free_irq:
 	free_irq(client->irq, ts);
-err_free_irq_gpio:
-	gpio_free(ts->irq_pin);
 err_shutoff_device:
 	cy8ctmg110_set_sleepmode(ts, true);
 	cy8ctmg110_power(ts, false);
@@ -318,7 +289,6 @@ static int cy8ctmg110_remove(struct i2c_client *client)
 
 	free_irq(client->irq, ts);
 	input_unregister_device(ts->input);
-	gpio_free(ts->irq_pin);
 	if (ts->reset_pin)
 		gpio_free(ts->reset_pin);
 	kfree(ts);
