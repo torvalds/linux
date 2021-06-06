@@ -233,7 +233,7 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 		goto err_free_irq;
 
 	i2c_set_clientdata(client, ts);
-	device_init_wakeup(&client->dev, 1);
+
 	return 0;
 
 err_free_irq:
