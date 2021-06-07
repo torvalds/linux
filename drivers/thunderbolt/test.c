@@ -303,18 +303,18 @@ static struct tb_switch *alloc_dev_default(struct kunit *test,
 	if (port->dual_link_port && upstream_port->dual_link_port) {
 		port->dual_link_port->remote = upstream_port->dual_link_port;
 		upstream_port->dual_link_port->remote = port->dual_link_port;
-	}
 
-	if (bonded) {
-		/* Bonding is used */
-		port->bonded = true;
-		port->total_credits *= 2;
-		port->dual_link_port->bonded = true;
-		port->dual_link_port->total_credits = 0;
-		upstream_port->bonded = true;
-		upstream_port->total_credits *= 2;
-		upstream_port->dual_link_port->bonded = true;
-		upstream_port->dual_link_port->total_credits = 0;
+		if (bonded) {
+			/* Bonding is used */
+			port->bonded = true;
+			port->total_credits *= 2;
+			port->dual_link_port->bonded = true;
+			port->dual_link_port->total_credits = 0;
+			upstream_port->bonded = true;
+			upstream_port->total_credits *= 2;
+			upstream_port->dual_link_port->bonded = true;
+			upstream_port->dual_link_port->total_credits = 0;
+		}
 	}
 
 	return sw;
