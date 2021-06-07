@@ -559,7 +559,6 @@ static void nvme_free_prps(struct nvme_dev *dev, struct request *req)
 		dma_pool_free(dev->prp_page_pool, prp_list, dma_addr);
 		dma_addr = next_dma_addr;
 	}
-
 }
 
 static void nvme_free_sgls(struct nvme_dev *dev, struct request *req)
@@ -576,7 +575,6 @@ static void nvme_free_sgls(struct nvme_dev *dev, struct request *req)
 		dma_pool_free(dev->prp_page_pool, sg_list, dma_addr);
 		dma_addr = next_dma_addr;
 	}
-
 }
 
 static void nvme_unmap_sg(struct nvme_dev *dev, struct request *req)
