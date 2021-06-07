@@ -134,7 +134,7 @@ examples:
     /* AM4376 PRU-ICSS */
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     pruss@0 {
-        compatible = "ti,am4376-pruss";
+        compatible = "ti,am4376-pruss1";
         reg = <0x0 0x40000>;
         #address-cells = <1>;
         #size-cells = <1>;
