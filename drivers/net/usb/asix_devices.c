@@ -262,7 +262,10 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.mdio_write = asix_mdio_write;
 	dev->mii.phy_id_mask = 0x3f;
 	dev->mii.reg_num_mask = 0x1f;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
+
+	dev->mii.phy_id = asix_read_phy_addr(dev, true);
+	if (dev->mii.phy_id < 0)
+		return dev->mii.phy_id;
 
 	dev->net->netdev_ops = &ax88172_netdev_ops;
 	dev->net->ethtool_ops = &ax88172_ethtool_ops;
@@ -717,7 +720,10 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.mdio_write = asix_mdio_write;
 	dev->mii.phy_id_mask = 0x1f;
 	dev->mii.reg_num_mask = 0x1f;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
+
+	dev->mii.phy_id = asix_read_phy_addr(dev, true);
+	if (dev->mii.phy_id < 0)
+		return dev->mii.phy_id;
 
 	dev->net->netdev_ops = &ax88772_netdev_ops;
 	dev->net->ethtool_ops = &ax88772_ethtool_ops;
@@ -1080,7 +1086,10 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.phy_id_mask = 0x1f;
 	dev->mii.reg_num_mask = 0xff;
 	dev->mii.supports_gmii = 1;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
+
+	dev->mii.phy_id = asix_read_phy_addr(dev, true);
+	if (dev->mii.phy_id < 0)
+		return dev->mii.phy_id;
 
 	dev->net->netdev_ops = &ax88178_netdev_ops;
 	dev->net->ethtool_ops = &ax88178_ethtool_ops;

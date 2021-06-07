@@ -288,32 +288,33 @@ int asix_set_hw_mii(struct usbnet *dev, int in_pm)
 	return ret;
 }
 
-int asix_read_phy_addr(struct usbnet *dev, int internal)
+int asix_read_phy_addr(struct usbnet *dev, bool internal)
 {
-	int offset = (internal ? 1 : 0);
+	int ret, offset;
 	u8 buf[2];
-	int ret = asix_read_cmd(dev, AX_CMD_READ_PHY_ID, 0, 0, 2, buf, 0);
 
-	netdev_dbg(dev->net, "asix_get_phy_addr()\n");
+	ret = asix_read_cmd(dev, AX_CMD_READ_PHY_ID, 0, 0, 2, buf, 0);
+	if (ret < 0)
+		goto error;
 
 	if (ret < 2) {
-		netdev_err(dev->net, "Error reading PHYID register: %02x\n", ret);
-		goto out;
+		ret = -EIO;
+		goto error;
 	}
-	netdev_dbg(dev->net, "asix_get_phy_addr() returning 0x%04x\n",
-		   *((__le16 *)buf));
+
+	offset = (internal ? 1 : 0);
 	ret = buf[offset];
 
-out:
+	netdev_dbg(dev->net, "%s PHY address 0x%x\n",
+		   internal ? "internal" : "external", ret);
+
+	return ret;
+
+error:
+	netdev_err(dev->net, "Error reading PHY_ID register: %02x\n", ret);
+
 	return ret;
 }
-
-int asix_get_phy_addr(struct usbnet *dev)
-{
-	/* return the address of the internal phy */
-	return asix_read_phy_addr(dev, 1);
-}
-
 
 int asix_sw_reset(struct usbnet *dev, u8 flags, int in_pm)
 {

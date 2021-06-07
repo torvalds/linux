@@ -205,8 +205,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 int asix_set_sw_mii(struct usbnet *dev, int in_pm);
 int asix_set_hw_mii(struct usbnet *dev, int in_pm);
 
-int asix_read_phy_addr(struct usbnet *dev, int internal);
-int asix_get_phy_addr(struct usbnet *dev);
+int asix_read_phy_addr(struct usbnet *dev, bool internal);
 
 int asix_sw_reset(struct usbnet *dev, u8 flags, int in_pm);
 

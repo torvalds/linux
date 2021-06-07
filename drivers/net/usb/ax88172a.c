@@ -220,6 +220,11 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	priv->phy_addr = asix_read_phy_addr(dev, priv->use_embdphy);
+	if (priv->phy_addr < 0) {
+		ret = priv->phy_addr;
+		goto free;
+	}
+
 	ax88172a_reset_phy(dev, priv->use_embdphy);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
