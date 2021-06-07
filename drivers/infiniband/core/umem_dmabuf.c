@@ -66,7 +66,7 @@ wait_fence:
 	 * may be not up-to-date. Wait for the exporter to finish
 	 * the migration.
 	 */
-	fence = dma_resv_get_excl(umem_dmabuf->attach->dmabuf->resv);
+	fence = dma_resv_excl_fence(umem_dmabuf->attach->dmabuf->resv);
 	if (fence)
 		return dma_fence_wait(fence, false);
 
