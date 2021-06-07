@@ -245,6 +245,7 @@ static int psp_sw_init(void *handle)
 	struct psp_context *psp = &adev->psp;
 	int ret;
 	struct psp_runtime_boot_cfg_entry boot_cfg_entry;
+	struct psp_memory_training_context *mem_training_ctx = &psp->mem_train_ctx;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		ret = psp_init_microcode(psp);
@@ -263,18 +264,36 @@ static int psp_sw_init(void *handle)
 	memset(&boot_cfg_entry, 0, sizeof(boot_cfg_entry));
 	if (psp_get_runtime_db_entry(adev,
 				PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG,
-				&boot_cfg_entry))
+				&boot_cfg_entry)) {
 		psp->boot_cfg_bitmask = boot_cfg_entry.boot_cfg_bitmask;
+		if ((psp->boot_cfg_bitmask) &
+		    BOOT_CFG_FEATURE_TWO_STAGE_DRAM_TRAINING) {
+			/* If psp runtime database exists, then
+			 * only enable two stage memory training
+			 * when TWO_STAGE_DRAM_TRAINING bit is set
+			 * in runtime database */
+			mem_training_ctx->enable_mem_training = true;
+		}
 
-	ret = psp_memory_training_init(psp);
-	if (ret) {
-		DRM_ERROR("Failed to initialize memory training!\n");
-		return ret;
+	} else {
+		/* If psp runtime database doesn't exist or
+		 * is invalid, force enable two stage memory
+		 * training */
+		mem_training_ctx->enable_mem_training = true;
 	}
-	ret = psp_mem_training(psp, PSP_MEM_TRAIN_COLD_BOOT);
-	if (ret) {
-		DRM_ERROR("Failed to process memory training!\n");
-		return ret;
+
+	if (mem_training_ctx->enable_mem_training) {
+		ret = psp_memory_training_init(psp);
+		if (ret) {
+			DRM_ERROR("Failed to initialize memory training!\n");
+			return ret;
+		}
+
+		ret = psp_mem_training(psp, PSP_MEM_TRAIN_COLD_BOOT);
+		if (ret) {
+			DRM_ERROR("Failed to process memory training!\n");
+			return ret;
+		}
 	}
 
 	if (adev->asic_type == CHIP_NAVI10 || adev->asic_type == CHIP_SIENNA_CICHLID) {
@@ -2694,10 +2713,12 @@ static int psp_resume(void *handle)
 
 	DRM_INFO("PSP is resuming...\n");
 
-	ret = psp_mem_training(psp, PSP_MEM_TRAIN_RESUME);
-	if (ret) {
-		DRM_ERROR("Failed to process memory training!\n");
-		return ret;
+	if (psp->mem_train_ctx.enable_mem_training) {
+		ret = psp_mem_training(psp, PSP_MEM_TRAIN_RESUME);
+		if (ret) {
+			DRM_ERROR("Failed to process memory training!\n");
+			return ret;
+		}
 	}
 
 	mutex_lock(&adev->firmware.mutex);

@@ -225,6 +225,7 @@ struct psp_memory_training_context {
 
 	enum psp_memory_training_init_flag init;
 	u32 training_cnt;
+	bool enable_mem_training;
 };
 
 /** PSP runtime DB **/
