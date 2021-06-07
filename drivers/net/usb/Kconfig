@@ -164,6 +164,8 @@ config USB_NET_AX8817X
 	depends on USB_USBNET
 	select CRC32
 	select PHYLIB
+	select AX88796B_PHY
+	imply NET_SELFTESTS
 	default y
 	help
 	  This option adds support for ASIX AX88xxx based USB 2.0

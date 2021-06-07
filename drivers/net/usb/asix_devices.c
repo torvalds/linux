@@ -262,7 +262,10 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.mdio_write = asix_mdio_write;
 	dev->mii.phy_id_mask = 0x3f;
 	dev->mii.reg_num_mask = 0x1f;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
+
+	dev->mii.phy_id = asix_read_phy_addr(dev, true);
+	if (dev->mii.phy_id < 0)
+		return dev->mii.phy_id;
 
 	dev->net->netdev_ops = &ax88172_netdev_ops;
 	dev->net->ethtool_ops = &ax88172_ethtool_ops;
@@ -280,9 +283,29 @@ out:
 	return ret;
 }
 
+static void ax88772_ethtool_get_strings(struct net_device *netdev, u32 sset,
+					u8 *data)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		net_selftest_get_strings(data);
+		break;
+	}
+}
+
+static int ax88772_ethtool_get_sset_count(struct net_device *ndev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		return net_selftest_get_count();
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops ax88772_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
-	.get_link		= asix_get_link,
+	.get_link		= usbnet_get_link,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 	.get_wol		= asix_get_wol,
@@ -290,37 +313,18 @@ static const struct ethtool_ops ax88772_ethtool_ops = {
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
 	.set_eeprom		= asix_set_eeprom,
-	.nway_reset		= usbnet_nway_reset,
-	.get_link_ksettings	= usbnet_get_link_ksettings_mii,
-	.set_link_ksettings	= usbnet_set_link_ksettings_mii,
+	.nway_reset		= phy_ethtool_nway_reset,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+	.self_test		= net_selftest,
+	.get_strings		= ax88772_ethtool_get_strings,
+	.get_sset_count		= ax88772_ethtool_get_sset_count,
 };
-
-static int ax88772_link_reset(struct usbnet *dev)
-{
-	u16 mode;
-	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
-
-	mii_check_media(&dev->mii, 1, 1);
-	mii_ethtool_gset(&dev->mii, &ecmd);
-	mode = AX88772_MEDIUM_DEFAULT;
-
-	if (ethtool_cmd_speed(&ecmd) != SPEED_100)
-		mode &= ~AX_MEDIUM_PS;
-
-	if (ecmd.duplex != DUPLEX_FULL)
-		mode &= ~AX_MEDIUM_FD;
-
-	netdev_dbg(dev->net, "ax88772_link_reset() speed: %u duplex: %d setting mode to 0x%04x\n",
-		   ethtool_cmd_speed(&ecmd), ecmd.duplex, mode);
-
-	asix_write_medium_mode(dev, mode, 0);
-
-	return 0;
-}
 
 static int ax88772_reset(struct usbnet *dev)
 {
 	struct asix_data *data = (struct asix_data *)&dev->data;
+	struct asix_common_private *priv = dev->driver_priv;
 	int ret;
 
 	/* Rewrite MAC address */
@@ -338,6 +342,8 @@ static int ax88772_reset(struct usbnet *dev)
 	ret = asix_write_medium_mode(dev, AX88772_MEDIUM_DEFAULT, 0);
 	if (ret < 0)
 		goto out;
+
+	phy_start(priv->phydev);
 
 	return 0;
 
@@ -583,7 +589,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= asix_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
@@ -674,12 +680,57 @@ static int asix_resume(struct usb_interface *intf)
 	return usbnet_resume(intf);
 }
 
+static int ax88772_init_mdio(struct usbnet *dev)
+{
+	struct asix_common_private *priv = dev->driver_priv;
+
+	priv->mdio = devm_mdiobus_alloc(&dev->udev->dev);
+	if (!priv->mdio)
+		return -ENOMEM;
+
+	priv->mdio->priv = dev;
+	priv->mdio->read = &asix_mdio_bus_read;
+	priv->mdio->write = &asix_mdio_bus_write;
+	priv->mdio->name = "Asix MDIO Bus";
+	/* mii bus name is usb-<usb bus number>-<usb device number> */
+	snprintf(priv->mdio->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
+		 dev->udev->bus->busnum, dev->udev->devnum);
+
+	return devm_mdiobus_register(&dev->udev->dev, priv->mdio);
+}
+
+static int ax88772_init_phy(struct usbnet *dev)
+{
+	struct asix_common_private *priv = dev->driver_priv;
+	int ret;
+
+	priv->phy_addr = asix_read_phy_addr(dev, true);
+	if (priv->phy_addr < 0)
+		return priv->phy_addr;
+
+	snprintf(priv->phy_name, sizeof(priv->phy_name), PHY_ID_FMT,
+		 priv->mdio->id, priv->phy_addr);
+
+	priv->phydev = phy_connect(dev->net, priv->phy_name, &asix_adjust_link,
+				   PHY_INTERFACE_MODE_INTERNAL);
+	if (IS_ERR(priv->phydev)) {
+		netdev_err(dev->net, "Could not connect to PHY device %s\n",
+			   priv->phy_name);
+		ret = PTR_ERR(priv->phydev);
+		return ret;
+	}
+
+	phy_attached_info(priv->phydev);
+
+	return 0;
+}
+
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	int ret, i;
 	u8 buf[ETH_ALEN] = {0}, chipcode = 0;
-	u32 phyid;
 	struct asix_common_private *priv;
+	int ret, i;
+	u32 phyid;
 
 	usbnet_get_endpoints(dev, intf);
 
@@ -711,14 +762,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	asix_set_netdev_dev_addr(dev, buf);
 
-	/* Initialize MII structure */
-	dev->mii.dev = dev->net;
-	dev->mii.mdio_read = asix_mdio_read;
-	dev->mii.mdio_write = asix_mdio_write;
-	dev->mii.phy_id_mask = 0x1f;
-	dev->mii.reg_num_mask = 0x1f;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
-
 	dev->net->netdev_ops = &ax88772_netdev_ops;
 	dev->net->ethtool_ops = &ax88772_ethtool_ops;
 	dev->net->needed_headroom = 4; /* cf asix_tx_fixup() */
@@ -746,11 +789,11 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 
-	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
-	if (!dev->driver_priv)
+	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
-	priv = dev->driver_priv;
+	dev->driver_priv = priv;
 
 	priv->presvd_phy_bmcr = 0;
 	priv->presvd_phy_advertise = 0;
@@ -762,13 +805,32 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		priv->suspend = ax88772_suspend;
 	}
 
+	ret = ax88772_init_mdio(dev);
+	if (ret)
+		return ret;
+
+	return ax88772_init_phy(dev);
+}
+
+static int ax88772_stop(struct usbnet *dev)
+{
+	struct asix_common_private *priv = dev->driver_priv;
+
+	/* On unplugged USB, we will get MDIO communication errors and the
+	 * PHY will be set in to PHY_HALTED state.
+	 */
+	if (priv->phydev->state != PHY_HALTED)
+		phy_stop(priv->phydev);
+
 	return 0;
 }
 
 static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
+	struct asix_common_private *priv = dev->driver_priv;
+
+	phy_disconnect(priv->phydev);
 	asix_rx_fixup_common_free(dev->driver_priv);
-	kfree(dev->driver_priv);
 }
 
 static const struct ethtool_ops ax88178_ethtool_ops = {
@@ -1081,7 +1143,10 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.phy_id_mask = 0x1f;
 	dev->mii.reg_num_mask = 0xff;
 	dev->mii.supports_gmii = 1;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
+
+	dev->mii.phy_id = asix_read_phy_addr(dev, true);
+	if (dev->mii.phy_id < 0)
+		return dev->mii.phy_id;
 
 	dev->net->netdev_ops = &ax88178_netdev_ops;
 	dev->net->ethtool_ops = &ax88178_ethtool_ops;
@@ -1153,8 +1218,8 @@ static const struct driver_info ax88772_info = {
 	.bind = ax88772_bind,
 	.unbind = ax88772_unbind,
 	.status = asix_status,
-	.link_reset = ax88772_link_reset,
 	.reset = ax88772_reset,
+	.stop = ax88772_stop,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR | FLAG_MULTI_PACKET,
 	.rx_fixup = asix_rx_fixup_common,
 	.tx_fixup = asix_tx_fixup,
@@ -1165,7 +1230,6 @@ static const struct driver_info ax88772b_info = {
 	.bind = ax88772_bind,
 	.unbind = ax88772_unbind,
 	.status = asix_status,
-	.link_reset = ax88772_link_reset,
 	.reset = ax88772_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
 	         FLAG_MULTI_PACKET,
@@ -1201,7 +1265,6 @@ static const struct driver_info hg20f9_info = {
 	.bind = ax88772_bind,
 	.unbind = ax88772_unbind,
 	.status = asix_status,
-	.link_reset = ax88772_link_reset,
 	.reset = ax88772_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
 	         FLAG_MULTI_PACKET,
