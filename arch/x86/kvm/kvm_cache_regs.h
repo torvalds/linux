@@ -55,6 +55,13 @@ static inline void kvm_register_mark_available(struct kvm_vcpu *vcpu,
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
 }
 
+static inline void kvm_register_clear_available(struct kvm_vcpu *vcpu,
+					       enum kvm_reg reg)
+{
+	__clear_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
+	__clear_bit(reg, (unsigned long *)&vcpu->arch.regs_dirty);
+}
+
 static inline void kvm_register_mark_dirty(struct kvm_vcpu *vcpu,
 					   enum kvm_reg reg)
 {
