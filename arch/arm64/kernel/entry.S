@@ -607,86 +607,26 @@ SYM_CODE_END(el1_error_invalid)
 /*
  * EL1 mode handlers.
  */
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el1_sync)
+SYM_CODE_START_LOCAL(el1_sync)
 	kernel_entry 1
 	mov	x0, sp
 	bl	el1_sync_handler
 	kernel_exit 1
 SYM_CODE_END(el1_sync)
 
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el1_irq)
+SYM_CODE_START_LOCAL(el1_irq)
 	kernel_entry 1
 	mov	x0, sp
 	bl	el1_irq_handler
 	kernel_exit 1
 SYM_CODE_END(el1_irq)
 
-SYM_CODE_START_LOCAL_NOALIGN(el1_fiq)
+SYM_CODE_START_LOCAL(el1_fiq)
 	kernel_entry 1
 	mov	x0, sp
 	bl	el1_fiq_handler
 	kernel_exit 1
 SYM_CODE_END(el1_fiq)
-
-/*
- * EL0 mode handlers.
- */
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_sync)
-	kernel_entry 0
-	mov	x0, sp
-	bl	el0_sync_handler
-	b	ret_to_user
-SYM_CODE_END(el0_sync)
-
-#ifdef CONFIG_COMPAT
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_sync_compat)
-	kernel_entry 0, 32
-	mov	x0, sp
-	bl	el0_sync_compat_handler
-	b	ret_to_user
-SYM_CODE_END(el0_sync_compat)
-
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_irq_compat)
-	kernel_entry 0, 32
-	mov	x0, sp
-	bl	el0_irq_compat_handler
-	b	ret_to_user
-SYM_CODE_END(el0_irq_compat)
-
-SYM_CODE_START_LOCAL_NOALIGN(el0_fiq_compat)
-	kernel_entry 0, 32
-	mov	x0, sp
-	bl	el0_fiq_compat_handler
-	b	ret_to_user
-SYM_CODE_END(el0_fiq_compat)
-
-SYM_CODE_START_LOCAL_NOALIGN(el0_error_compat)
-	kernel_entry 0, 32
-	mov	x0, sp
-	bl	el0_error_compat_handler
-	b	ret_to_user
-SYM_CODE_END(el0_error_compat)
-#endif
-
-	.align	6
-SYM_CODE_START_LOCAL_NOALIGN(el0_irq)
-	kernel_entry 0
-	mov	x0, sp
-	bl	el0_irq_handler
-	b	ret_to_user
-SYM_CODE_END(el0_irq)
-
-SYM_CODE_START_LOCAL_NOALIGN(el0_fiq)
-	kernel_entry 0
-	mov	x0, sp
-	bl	el0_fiq_handler
-	b	ret_to_user
-SYM_CODE_END(el0_fiq)
 
 SYM_CODE_START_LOCAL(el1_error)
 	kernel_entry 1
@@ -695,12 +635,66 @@ SYM_CODE_START_LOCAL(el1_error)
 	kernel_exit 1
 SYM_CODE_END(el1_error)
 
+/*
+ * EL0 mode handlers.
+ */
+SYM_CODE_START_LOCAL(el0_sync)
+	kernel_entry 0
+	mov	x0, sp
+	bl	el0_sync_handler
+	b	ret_to_user
+SYM_CODE_END(el0_sync)
+
+SYM_CODE_START_LOCAL(el0_irq)
+	kernel_entry 0
+	mov	x0, sp
+	bl	el0_irq_handler
+	b	ret_to_user
+SYM_CODE_END(el0_irq)
+
+SYM_CODE_START_LOCAL(el0_fiq)
+	kernel_entry 0
+	mov	x0, sp
+	bl	el0_fiq_handler
+	b	ret_to_user
+SYM_CODE_END(el0_fiq)
+
 SYM_CODE_START_LOCAL(el0_error)
 	kernel_entry 0
 	mov	x0, sp
 	bl	el0_error_handler
 	b	ret_to_user
 SYM_CODE_END(el0_error)
+
+#ifdef CONFIG_COMPAT
+SYM_CODE_START_LOCAL(el0_sync_compat)
+	kernel_entry 0, 32
+	mov	x0, sp
+	bl	el0_sync_compat_handler
+	b	ret_to_user
+SYM_CODE_END(el0_sync_compat)
+
+SYM_CODE_START_LOCAL(el0_irq_compat)
+	kernel_entry 0, 32
+	mov	x0, sp
+	bl	el0_irq_compat_handler
+	b	ret_to_user
+SYM_CODE_END(el0_irq_compat)
+
+SYM_CODE_START_LOCAL(el0_fiq_compat)
+	kernel_entry 0, 32
+	mov	x0, sp
+	bl	el0_fiq_compat_handler
+	b	ret_to_user
+SYM_CODE_END(el0_fiq_compat)
+
+SYM_CODE_START_LOCAL(el0_error_compat)
+	kernel_entry 0, 32
+	mov	x0, sp
+	bl	el0_error_compat_handler
+	b	ret_to_user
+SYM_CODE_END(el0_error_compat)
+#endif
 
 /*
  * "slow" syscall return path.
