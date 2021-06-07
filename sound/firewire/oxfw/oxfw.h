@@ -40,6 +40,8 @@ enum snd_oxfw_quirk {
 	SND_OXFW_QUIRK_WRONG_DBS = 0x02,
 	// Blocking transmission mode is used.
 	SND_OXFW_QUIRK_BLOCKING_TRANSMISSION = 0x04,
+	// Stanton SCS1.d and SCS1.m support unique transaction.
+	SND_OXFW_QUIRK_SCS_TRANSACTION = 0x08,
 };
 
 /* This is an arbitrary number for convinience. */
@@ -49,9 +51,6 @@ struct snd_oxfw {
 	struct fw_unit *unit;
 	struct mutex mutex;
 	spinlock_t lock;
-
-	bool registered;
-	struct delayed_work dwork;
 
 	// The combination of snd_oxfw_quirk enumeration-constants.
 	unsigned int quirks;
@@ -73,7 +72,6 @@ struct snd_oxfw {
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
 
-	const struct ieee1394_device_id *entry;
 	void *spec;
 
 	struct amdtp_domain domain;
