@@ -616,14 +616,14 @@ BRCMF_FW_DEF(43362, "brcmfmac43362-sdio");
 BRCMF_FW_DEF(4339, "brcmfmac4339-sdio");
 BRCMF_FW_DEF(43430A0, "brcmfmac43430a0-sdio");
 /* Note the names are not postfixed with a1 for backward compatibility */
-BRCMF_FW_DEF(43430A1, "brcmfmac43430-sdio");
-BRCMF_FW_DEF(43455, "brcmfmac43455-sdio");
+BRCMF_FW_CLM_DEF(43430A1, "brcmfmac43430-sdio");
+BRCMF_FW_CLM_DEF(43455, "brcmfmac43455-sdio");
 BRCMF_FW_DEF(43456, "brcmfmac43456-sdio");
-BRCMF_FW_DEF(4354, "brcmfmac4354-sdio");
-BRCMF_FW_DEF(4356, "brcmfmac4356-sdio");
+BRCMF_FW_CLM_DEF(4354, "brcmfmac4354-sdio");
+BRCMF_FW_CLM_DEF(4356, "brcmfmac4356-sdio");
 BRCMF_FW_DEF(4359, "brcmfmac4359-sdio");
-BRCMF_FW_DEF(4373, "brcmfmac4373-sdio");
-BRCMF_FW_DEF(43012, "brcmfmac43012-sdio");
+BRCMF_FW_CLM_DEF(4373, "brcmfmac4373-sdio");
+BRCMF_FW_CLM_DEF(43012, "brcmfmac43012-sdio");
 
 /* firmware config files */
 MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH "brcmfmac*-sdio.*.txt");
