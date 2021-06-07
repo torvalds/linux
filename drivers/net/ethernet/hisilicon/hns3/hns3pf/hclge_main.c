@@ -3792,28 +3792,6 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hnae3_ae_dev *ae_dev,
 	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
 	struct hclge_dev *hdev = ae_dev->priv;
 
-	/* first, resolve any unknown reset type to the known type(s) */
-	if (test_bit(HNAE3_UNKNOWN_RESET, addr)) {
-		u32 msix_sts_reg = hclge_read_dev(&hdev->hw,
-					HCLGE_MISC_VECTOR_INT_STS);
-		/* we will intentionally ignore any errors from this function
-		 *  as we will end up in *some* reset request in any case
-		 */
-		if (hclge_handle_hw_msix_error(hdev, addr))
-			dev_info(&hdev->pdev->dev, "received msix interrupt 0x%x\n",
-				 msix_sts_reg);
-
-		clear_bit(HNAE3_UNKNOWN_RESET, addr);
-		/* We defered the clearing of the error event which caused
-		 * interrupt since it was not posssible to do that in
-		 * interrupt context (and this is the reason we introduced
-		 * new UNKNOWN reset type). Now, the errors have been
-		 * handled and cleared in hardware we can safely enable
-		 * interrupts. This is an exception to the norm.
-		 */
-		hclge_enable_vector(&hdev->misc_vector, true);
-	}
-
 	/* return the highest priority reset level amongst all */
 	if (test_bit(HNAE3_IMP_RESET, addr)) {
 		rst_level = HNAE3_IMP_RESET;
