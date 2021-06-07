@@ -745,7 +745,7 @@ const char *esr_get_class_string(u32 esr)
 
 /*
  * bad_el0_sync handles unexpected, but potentially recoverable synchronous
- * exceptions taken from EL0. Unlike bad_mode, this returns.
+ * exceptions taken from EL0.
  */
 void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {

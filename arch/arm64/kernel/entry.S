@@ -45,16 +45,7 @@
 	.endr
 	.endm
 
-/*
- * Bad Abort numbers
- *-----------------
- */
-#define BAD_SYNC	0
-#define BAD_IRQ		1
-#define BAD_FIQ		2
-#define BAD_ERROR	3
-
-	.macro kernel_ventry, el:req, regsize:req, label:req
+	.macro kernel_ventry, el:req, ht:req, regsize:req, label:req
 	.align 7
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	.if	\el == 0
@@ -81,7 +72,7 @@ alternative_else_nop_endif
 	tbnz	x0, #THREAD_SHIFT, 0f
 	sub	x0, sp, x0			// x0'' = sp' - x0' = (sp + x0) - sp = x0
 	sub	sp, sp, x0			// sp'' = sp' - x0 = (sp + x0) - x0 = sp
-	b	el\()\el\()_\label
+	b	el\el\ht\()_\regsize\()_\label
 
 0:
 	/*
@@ -113,7 +104,7 @@ alternative_else_nop_endif
 	sub	sp, sp, x0
 	mrs	x0, tpidrro_el0
 #endif
-	b	el\()\el\()_\label
+	b	el\el\ht\()_\regsize\()_\label
 	.endm
 
 	.macro tramp_alias, dst, sym
@@ -504,32 +495,25 @@ tsk	.req	x28		// current thread_info
 
 	.align	11
 SYM_CODE_START(vectors)
-	kernel_ventry	1, 64, sync_invalid		// Synchronous EL1t
-	kernel_ventry	1, 64, irq_invalid		// IRQ EL1t
-	kernel_ventry	1, 64, fiq_invalid		// FIQ EL1t
-	kernel_ventry	1, 64, error_invalid		// Error EL1t
+	kernel_ventry	1, t, 64, sync		// Synchronous EL1t
+	kernel_ventry	1, t, 64, irq		// IRQ EL1t
+	kernel_ventry	1, t, 64, fiq		// FIQ EL1h
+	kernel_ventry	1, t, 64, error		// Error EL1t
 
-	kernel_ventry	1, 64, sync			// Synchronous EL1h
-	kernel_ventry	1, 64, irq			// IRQ EL1h
-	kernel_ventry	1, 64, fiq			// FIQ EL1h
-	kernel_ventry	1, 64, error			// Error EL1h
+	kernel_ventry	1, h, 64, sync		// Synchronous EL1h
+	kernel_ventry	1, h, 64, irq		// IRQ EL1h
+	kernel_ventry	1, h, 64, fiq		// FIQ EL1h
+	kernel_ventry	1, h, 64, error		// Error EL1h
 
-	kernel_ventry	0, 64, sync			// Synchronous 64-bit EL0
-	kernel_ventry	0, 64, irq			// IRQ 64-bit EL0
-	kernel_ventry	0, 64, fiq			// FIQ 64-bit EL0
-	kernel_ventry	0, 64, error			// Error 64-bit EL0
+	kernel_ventry	0, t, 64, sync		// Synchronous 64-bit EL0
+	kernel_ventry	0, t, 64, irq		// IRQ 64-bit EL0
+	kernel_ventry	0, t, 64, fiq		// FIQ 64-bit EL0
+	kernel_ventry	0, t, 64, error		// Error 64-bit EL0
 
-#ifdef CONFIG_COMPAT
-	kernel_ventry	0, 32, sync_compat		// Synchronous 32-bit EL0
-	kernel_ventry	0, 32, irq_compat		// IRQ 32-bit EL0
-	kernel_ventry	0, 32, fiq_compat		// FIQ 32-bit EL0
-	kernel_ventry	0, 32, error_compat		// Error 32-bit EL0
-#else
-	kernel_ventry	0, 32, sync_invalid		// Synchronous 32-bit EL0
-	kernel_ventry	0, 32, irq_invalid		// IRQ 32-bit EL0
-	kernel_ventry	0, 32, fiq_invalid		// FIQ 32-bit EL0
-	kernel_ventry	0, 32, error_invalid		// Error 32-bit EL0
-#endif
+	kernel_ventry	0, t, 32, sync		// Synchronous 32-bit EL0
+	kernel_ventry	0, t, 32, irq		// IRQ 32-bit EL0
+	kernel_ventry	0, t, 32, fiq		// FIQ 32-bit EL0
+	kernel_ventry	0, t, 32, error		// Error 32-bit EL0
 SYM_CODE_END(vectors)
 
 #ifdef CONFIG_VMAP_STACK
@@ -560,82 +544,42 @@ __bad_stack:
 	ASM_BUG()
 #endif /* CONFIG_VMAP_STACK */
 
-/*
- * Invalid mode handlers
- */
-	.macro	inv_entry, el, reason, regsize = 64
+
+	.macro entry_handler el:req, ht:req, regsize:req, label:req
+SYM_CODE_START_LOCAL(el\el\ht\()_\regsize\()_\label)
 	kernel_entry \el, \regsize
 	mov	x0, sp
-	mov	x1, #\reason
-	mrs	x2, esr_el1
-	bl	bad_mode
-	ASM_BUG()
-	.endm
-
-SYM_CODE_START_LOCAL(el0_sync_invalid)
-	inv_entry 0, BAD_SYNC
-SYM_CODE_END(el0_sync_invalid)
-
-SYM_CODE_START_LOCAL(el0_irq_invalid)
-	inv_entry 0, BAD_IRQ
-SYM_CODE_END(el0_irq_invalid)
-
-SYM_CODE_START_LOCAL(el0_fiq_invalid)
-	inv_entry 0, BAD_FIQ
-SYM_CODE_END(el0_fiq_invalid)
-
-SYM_CODE_START_LOCAL(el0_error_invalid)
-	inv_entry 0, BAD_ERROR
-SYM_CODE_END(el0_error_invalid)
-
-SYM_CODE_START_LOCAL(el1_sync_invalid)
-	inv_entry 1, BAD_SYNC
-SYM_CODE_END(el1_sync_invalid)
-
-SYM_CODE_START_LOCAL(el1_irq_invalid)
-	inv_entry 1, BAD_IRQ
-SYM_CODE_END(el1_irq_invalid)
-
-SYM_CODE_START_LOCAL(el1_fiq_invalid)
-	inv_entry 1, BAD_FIQ
-SYM_CODE_END(el1_fiq_invalid)
-
-SYM_CODE_START_LOCAL(el1_error_invalid)
-	inv_entry 1, BAD_ERROR
-SYM_CODE_END(el1_error_invalid)
-
-	.macro entry_handler el:req, regsize:req, label:req
-SYM_CODE_START_LOCAL(el\el\()_\label)
-	kernel_entry \el, \regsize
-	mov	x0, sp
-	bl	el\el\()_\label\()_handler
+	bl	el\el\ht\()_\regsize\()_\label\()_handler
 	.if \el == 0
 	b	ret_to_user
 	.else
 	b	ret_to_kernel
 	.endif
-SYM_CODE_END(el\el\()_\label)
+SYM_CODE_END(el\el\ht\()_\regsize\()_\label)
 	.endm
 
 /*
  * Early exception handlers
  */
-	entry_handler	1, 64, sync
-	entry_handler	1, 64, irq
-	entry_handler	1, 64, fiq
-	entry_handler	1, 64, error
+	entry_handler	1, t, 64, sync
+	entry_handler	1, t, 64, irq
+	entry_handler	1, t, 64, fiq
+	entry_handler	1, t, 64, error
 
-	entry_handler	0, 64, sync
-	entry_handler	0, 64, irq
-	entry_handler	0, 64, fiq
-	entry_handler	0, 64, error
+	entry_handler	1, h, 64, sync
+	entry_handler	1, h, 64, irq
+	entry_handler	1, h, 64, fiq
+	entry_handler	1, h, 64, error
 
-#ifdef CONFIG_COMPAT
-	entry_handler	0, 32, sync_compat
-	entry_handler	0, 32, irq_compat
-	entry_handler	0, 32, fiq_compat
-	entry_handler	0, 32, error_compat
-#endif
+	entry_handler	0, t, 64, sync
+	entry_handler	0, t, 64, irq
+	entry_handler	0, t, 64, fiq
+	entry_handler	0, t, 64, error
+
+	entry_handler	0, t, 32, sync
+	entry_handler	0, t, 32, irq
+	entry_handler	0, t, 32, fiq
+	entry_handler	0, t, 32, error
 
 SYM_CODE_START_LOCAL(ret_to_kernel)
 	kernel_exit 1

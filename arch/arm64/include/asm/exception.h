@@ -31,18 +31,25 @@ static inline u32 disr_to_esr(u64 disr)
 	return esr;
 }
 
-asmlinkage void el1_sync_handler(struct pt_regs *regs);
-asmlinkage void el1_irq_handler(struct pt_regs *regs);
-asmlinkage void el1_fiq_handler(struct pt_regs *regs);
-asmlinkage void el1_error_handler(struct pt_regs *regs);
-asmlinkage void el0_sync_handler(struct pt_regs *regs);
-asmlinkage void el0_irq_handler(struct pt_regs *regs);
-asmlinkage void el0_fiq_handler(struct pt_regs *regs);
-asmlinkage void el0_error_handler(struct pt_regs *regs);
-asmlinkage void el0_sync_compat_handler(struct pt_regs *regs);
-asmlinkage void el0_irq_compat_handler(struct pt_regs *regs);
-asmlinkage void el0_fiq_compat_handler(struct pt_regs *regs);
-asmlinkage void el0_error_compat_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_sync_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_irq_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_fiq_handler(struct pt_regs *regs);
+asmlinkage void el1t_64_error_handler(struct pt_regs *regs);
+
+asmlinkage void el1h_64_sync_handler(struct pt_regs *regs);
+asmlinkage void el1h_64_irq_handler(struct pt_regs *regs);
+asmlinkage void el1h_64_fiq_handler(struct pt_regs *regs);
+asmlinkage void el1h_64_error_handler(struct pt_regs *regs);
+
+asmlinkage void el0t_64_sync_handler(struct pt_regs *regs);
+asmlinkage void el0t_64_irq_handler(struct pt_regs *regs);
+asmlinkage void el0t_64_fiq_handler(struct pt_regs *regs);
+asmlinkage void el0t_64_error_handler(struct pt_regs *regs);
+
+asmlinkage void el0t_32_sync_handler(struct pt_regs *regs);
+asmlinkage void el0t_32_irq_handler(struct pt_regs *regs);
+asmlinkage void el0t_32_fiq_handler(struct pt_regs *regs);
+asmlinkage void el0t_32_error_handler(struct pt_regs *regs);
 
 asmlinkage void call_on_irq_stack(struct pt_regs *regs,
 				  void (*func)(struct pt_regs *));
@@ -53,7 +60,6 @@ void arm64_exit_nmi(struct pt_regs *regs);
 void do_mem_abort(unsigned long far, unsigned int esr, struct pt_regs *regs);
 void do_undefinstr(struct pt_regs *regs);
 void do_bti(struct pt_regs *regs);
-asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr);
 void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
 			struct pt_regs *regs);
 void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs);
