@@ -47,25 +47,3 @@
 	clock-names = "du.0", "du.1", "du.2", "du.3",
 		      "dclkin.0", "dclkin.1", "dclkin.2", "dclkin.3";
 };
-
-&ehci2 {
-	status = "okay";
-};
-
-&ohci2 {
-	status = "okay";
-};
-
-&pfc {
-	usb2_pins: usb2 {
-		groups = "usb2";
-		function = "usb2";
-	};
-};
-
-&usb2_phy2 {
-	pinctrl-0 = <&usb2_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};

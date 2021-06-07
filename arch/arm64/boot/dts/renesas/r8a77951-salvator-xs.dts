@@ -48,10 +48,6 @@
 		      "dclkin.0", "dclkin.1", "dclkin.2", "dclkin.3";
 };
 
-&ehci2 {
-	status = "okay";
-};
-
 &ehci3 {
 	dr_mode = "otg";
 	status = "okay";
@@ -62,21 +58,12 @@
 	status = "okay";
 };
 
-&ohci2 {
-	status = "okay";
-};
-
 &ohci3 {
 	dr_mode = "otg";
 	status = "okay";
 };
 
 &pfc {
-	usb2_pins: usb2 {
-		groups = "usb2";
-		function = "usb2";
-	};
-
 	/*
 	 * - On Salvator-X[S], GP6_3[01] are connected to ADV7482 as irq pins
 	 *   (when SW31 is the default setting on Salvator-XS).
@@ -93,13 +80,6 @@
 		groups = "usb2_ch3";
 		function = "usb2_ch3";
 	};
-};
-
-&usb2_phy2 {
-	pinctrl-0 = <&usb2_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
 };
 
 &usb2_phy3 {
