@@ -862,6 +862,12 @@ struct kvm_vcpu_arch {
 	/* Protected Guests */
 	bool guest_state_protected;
 
+	/*
+	 * Set when PDPTS were loaded directly by the userspace without
+	 * reading the guest memory
+	 */
+	bool pdptrs_from_userspace;
+
 #if IS_ENABLED(CONFIG_HYPERV)
 	hpa_t hv_root_tdp;
 #endif

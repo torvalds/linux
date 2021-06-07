@@ -1367,7 +1367,8 @@ static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
 	if (WARN_ON(!is_guest_mode(vcpu)))
 		return true;
 
-	if (!nested_npt_enabled(svm) && is_pae_paging(vcpu))
+	if (!vcpu->arch.pdptrs_from_userspace &&
+	    !nested_npt_enabled(svm) && is_pae_paging(vcpu))
 		/*
 		 * Reload the guest's PDPTRs since after a migration
 		 * the guest CR3 might be restored prior to setting the nested

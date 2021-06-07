@@ -3122,7 +3122,8 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 	struct page *page;
 	u64 hpa;
 
-	if (!nested_cpu_has_ept(vmcs12) && is_pae_paging(vcpu)) {
+	if (!vcpu->arch.pdptrs_from_userspace &&
+	    !nested_cpu_has_ept(vmcs12) && is_pae_paging(vcpu)) {
 		/*
 		 * Reload the guest's PDPTRs since after a migration
 		 * the guest CR3 might be restored prior to setting the nested

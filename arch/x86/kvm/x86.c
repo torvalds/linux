@@ -820,6 +820,8 @@ int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3)
 
 	memcpy(mmu->pdptrs, pdpte, sizeof(mmu->pdptrs));
 	kvm_register_mark_dirty(vcpu, VCPU_EXREG_PDPTR);
+	vcpu->arch.pdptrs_from_userspace = false;
+
 out:
 
 	return ret;
@@ -10265,6 +10267,7 @@ static int __set_sregs2(struct kvm_vcpu *vcpu, struct kvm_sregs2 *sregs2)
 
 		kvm_register_mark_dirty(vcpu, VCPU_EXREG_PDPTR);
 		mmu_reset_needed = 1;
+		vcpu->arch.pdptrs_from_userspace = true;
 	}
 	if (mmu_reset_needed)
 		kvm_mmu_reset_context(vcpu);
