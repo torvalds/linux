@@ -77,7 +77,7 @@ static const struct regulator_desc fan53880_regulators[] = {
 		},
 		.n_linear_ranges = 2,
 		.vsel_reg =	   FAN53880_BUCKVOUT,
-		.vsel_mask =	   0x7f,
+		.vsel_mask =	   0xff,
 		.enable_reg =	   FAN53880_ENABLE,
 		.enable_mask =	   0x10,
 		.enable_time =	   480,
