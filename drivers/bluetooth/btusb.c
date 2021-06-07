@@ -388,6 +388,8 @@ static const struct usb_device_id blacklist_table[] = {
 	/* Realtek 8822CE Bluetooth devices */
 	{ USB_DEVICE(0x0bda, 0xb00c), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
+	{ USB_DEVICE(0x0bda, 0xc822), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
 
 	/* Realtek 8852AE Bluetooth devices */
 	{ USB_DEVICE(0x0bda, 0xc852), .driver_info = BTUSB_REALTEK |
@@ -2527,10 +2529,17 @@ static int btusb_intel_download_firmware_newgen(struct hci_dev *hdev,
 	}
 
 	btusb_setup_intel_newgen_get_fw_name(ver, fwname, sizeof(fwname), "sfi");
-	err = request_firmware(&fw, fwname, &hdev->dev);
+	err = firmware_request_nowarn(&fw, fwname, &hdev->dev);
 	if (err < 0) {
+		if (!test_bit(BTUSB_BOOTLOADER, &data->flags)) {
+			/* Firmware has already been loaded */
+			set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
+			return 0;
+		}
+
 		bt_dev_err(hdev, "Failed to load Intel firmware file %s (%d)",
 			   fwname, err);
+
 		return err;
 	}
 
@@ -2680,12 +2689,24 @@ download:
 	err = btusb_setup_intel_new_get_fw_name(ver, params, fwname,
 						sizeof(fwname), "sfi");
 	if (err < 0) {
+		if (!test_bit(BTUSB_BOOTLOADER, &data->flags)) {
+			/* Firmware has already been loaded */
+			set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
+			return 0;
+		}
+
 		bt_dev_err(hdev, "Unsupported Intel firmware naming");
 		return -EINVAL;
 	}
 
-	err = request_firmware(&fw, fwname, &hdev->dev);
+	err = firmware_request_nowarn(&fw, fwname, &hdev->dev);
 	if (err < 0) {
+		if (!test_bit(BTUSB_BOOTLOADER, &data->flags)) {
+			/* Firmware has already been loaded */
+			set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
+			return 0;
+		}
+
 		bt_dev_err(hdev, "Failed to load Intel firmware file %s (%d)",
 			   fwname, err);
 		return err;

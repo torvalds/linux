@@ -19,6 +19,7 @@
 #include <objtool/elf.h>
 #include <objtool/arch.h>
 #include <objtool/warn.h>
+#include <objtool/endianness.h>
 #include <arch/elf.h>
 
 static int is_x86_64(const struct elf *elf)
@@ -725,7 +726,7 @@ static int elf_add_alternative(struct elf *elf,
 		return -1;
 	}
 
-	alt->cpuid = cpuid;
+	alt->cpuid = bswap_if_needed(cpuid);
 	alt->instrlen = orig_len;
 	alt->replacementlen = repl_len;
 

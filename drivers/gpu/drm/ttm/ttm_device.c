@@ -145,7 +145,7 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 			list_for_each_entry(bo, &man->lru[j], lru) {
 				uint32_t num_pages;
 
-				if (!bo->ttm ||
+				if (!bo->ttm || !ttm_tt_is_populated(bo->ttm) ||
 				    bo->ttm->page_flags & TTM_PAGE_FLAG_SG ||
 				    bo->ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)
 					continue;

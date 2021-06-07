@@ -41,5 +41,6 @@
 /kvm_create_max_vcpus
 /kvm_page_table_test
 /memslot_modification_stress_test
+/memslot_perf_test
 /set_memory_region_test
 /steal_time

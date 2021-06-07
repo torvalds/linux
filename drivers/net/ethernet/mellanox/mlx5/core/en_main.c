@@ -889,10 +889,13 @@ err_free_rq:
 void mlx5e_activate_rq(struct mlx5e_rq *rq)
 {
 	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-	if (rq->icosq)
+	if (rq->icosq) {
 		mlx5e_trigger_irq(rq->icosq);
-	else
+	} else {
+		local_bh_disable();
 		napi_schedule(rq->cq.napi);
+		local_bh_enable();
+	}
 }
 
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq)
@@ -2697,7 +2700,7 @@ static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 	int err;
 
 	old_num_txqs = netdev->real_num_tx_queues;
-	old_ntc = netdev->num_tc;
+	old_ntc = netdev->num_tc ? : 1;
 
 	nch = priv->channels.params.num_channels;
 	ntc = priv->channels.params.num_tc;
@@ -3855,6 +3858,16 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 			netdev_warn(netdev, "Disabling rxhash, not supported when CQE compress is active\n");
 	}
 
+	if (mlx5e_is_uplink_rep(priv)) {
+		features &= ~NETIF_F_HW_TLS_RX;
+		if (netdev->features & NETIF_F_HW_TLS_RX)
+			netdev_warn(netdev, "Disabling hw_tls_rx, not supported in switchdev mode\n");
+
+		features &= ~NETIF_F_HW_TLS_TX;
+		if (netdev->features & NETIF_F_HW_TLS_TX)
+			netdev_warn(netdev, "Disabling hw_tls_tx, not supported in switchdev mode\n");
+	}
+
 	mutex_unlock(&priv->state_lock);
 
 	return features;
@@ -3971,11 +3984,45 @@ int mlx5e_ptp_rx_manage_fs_ctx(struct mlx5e_priv *priv, void *ctx)
 	return mlx5e_ptp_rx_manage_fs(priv, set);
 }
 
-int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
+static int mlx5e_hwstamp_config_no_ptp_rx(struct mlx5e_priv *priv, bool rx_filter)
+{
+	bool rx_cqe_compress_def = priv->channels.params.rx_cqe_compress_def;
+	int err;
+
+	if (!rx_filter)
+		/* Reset CQE compression to Admin default */
+		return mlx5e_modify_rx_cqe_compression_locked(priv, rx_cqe_compress_def);
+
+	if (!MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS))
+		return 0;
+
+	/* Disable CQE compression */
+	netdev_warn(priv->netdev, "Disabling RX cqe compression\n");
+	err = mlx5e_modify_rx_cqe_compression_locked(priv, false);
+	if (err)
+		netdev_err(priv->netdev, "Failed disabling cqe compression err=%d\n", err);
+
+	return err;
+}
+
+static int mlx5e_hwstamp_config_ptp_rx(struct mlx5e_priv *priv, bool ptp_rx)
 {
 	struct mlx5e_params new_params;
+
+	if (ptp_rx == priv->channels.params.ptp_rx)
+		return 0;
+
+	new_params = priv->channels.params;
+	new_params.ptp_rx = ptp_rx;
+	return mlx5e_safe_switch_params(priv, &new_params, mlx5e_ptp_rx_manage_fs_ctx,
+					&new_params.ptp_rx, true);
+}
+
+int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
+{
 	struct hwtstamp_config config;
 	bool rx_cqe_compress_def;
+	bool ptp_rx;
 	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz) ||
@@ -3995,13 +4042,12 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	}
 
 	mutex_lock(&priv->state_lock);
-	new_params = priv->channels.params;
 	rx_cqe_compress_def = priv->channels.params.rx_cqe_compress_def;
 
 	/* RX HW timestamp */
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		new_params.ptp_rx = false;
+		ptp_rx = false;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
@@ -4018,24 +4064,25 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		new_params.ptp_rx = rx_cqe_compress_def;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		/* ptp_rx is set if both HW TS is set and CQE
+		 * compression is set
+		 */
+		ptp_rx = rx_cqe_compress_def;
 		break;
 	default:
-		mutex_unlock(&priv->state_lock);
-		return -ERANGE;
+		err = -ERANGE;
+		goto err_unlock;
 	}
 
-	if (new_params.ptp_rx == priv->channels.params.ptp_rx)
-		goto out;
+	if (!priv->profile->rx_ptp_support)
+		err = mlx5e_hwstamp_config_no_ptp_rx(priv,
+						     config.rx_filter != HWTSTAMP_FILTER_NONE);
+	else
+		err = mlx5e_hwstamp_config_ptp_rx(priv, ptp_rx);
+	if (err)
+		goto err_unlock;
 
-	err = mlx5e_safe_switch_params(priv, &new_params, mlx5e_ptp_rx_manage_fs_ctx,
-				       &new_params.ptp_rx, true);
-	if (err) {
-		mutex_unlock(&priv->state_lock);
-		return err;
-	}
-out:
 	memcpy(&priv->tstamp, &config, sizeof(config));
 	mutex_unlock(&priv->state_lock);
 
@@ -4044,6 +4091,9 @@ out:
 
 	return copy_to_user(ifr->ifr_data, &config,
 			    sizeof(config)) ? -EFAULT : 0;
+err_unlock:
+	mutex_unlock(&priv->state_lock);
+	return err;
 }
 
 int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
@@ -5229,6 +5279,11 @@ static void mlx5e_update_features(struct net_device *netdev)
 	rtnl_unlock();
 }
 
+static void mlx5e_reset_channels(struct net_device *netdev)
+{
+	netdev_reset_tc(netdev);
+}
+
 int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 {
 	const bool take_rtnl = priv->netdev->reg_state == NETREG_REGISTERED;
@@ -5283,6 +5338,7 @@ err_cleanup_tx:
 	profile->cleanup_tx(priv);
 
 out:
+	mlx5e_reset_channels(priv->netdev);
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	cancel_work_sync(&priv->update_stats_work);
 	return err;
@@ -5300,6 +5356,7 @@ void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 
 	profile->cleanup_rx(priv);
 	profile->cleanup_tx(priv);
+	mlx5e_reset_channels(priv->netdev);
 	cancel_work_sync(&priv->update_stats_work);
 }
 

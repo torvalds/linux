@@ -143,6 +143,14 @@ struct NISLANDS_SMC_SWSTATE
 
 typedef struct NISLANDS_SMC_SWSTATE NISLANDS_SMC_SWSTATE;
 
+struct NISLANDS_SMC_SWSTATE_SINGLE {
+	uint8_t                             flags;
+	uint8_t                             levelCount;
+	uint8_t                             padding2;
+	uint8_t                             padding3;
+	NISLANDS_SMC_HW_PERFORMANCE_LEVEL   level;
+};
+
 #define NISLANDS_SMC_VOLTAGEMASK_VDDC  0
 #define NISLANDS_SMC_VOLTAGEMASK_MVDD  1
 #define NISLANDS_SMC_VOLTAGEMASK_VDDCI 2
@@ -160,19 +168,19 @@ typedef struct NISLANDS_SMC_VOLTAGEMASKTABLE NISLANDS_SMC_VOLTAGEMASKTABLE;
 
 struct NISLANDS_SMC_STATETABLE
 {
-    uint8_t                             thermalProtectType;
-    uint8_t                             systemFlags;
-    uint8_t                             maxVDDCIndexInPPTable;
-    uint8_t                             extraFlags;
-    uint8_t                             highSMIO[NISLANDS_MAX_NO_VREG_STEPS];
-    uint32_t                            lowSMIO[NISLANDS_MAX_NO_VREG_STEPS];
-    NISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
-    PP_NIslands_DPM2Parameters          dpm2Params;
-    NISLANDS_SMC_SWSTATE                initialState;
-    NISLANDS_SMC_SWSTATE                ACPIState;
-    NISLANDS_SMC_SWSTATE                ULVState;
-    NISLANDS_SMC_SWSTATE                driverState;
-    NISLANDS_SMC_HW_PERFORMANCE_LEVEL   dpmLevels[NISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE - 1];
+	uint8_t                             thermalProtectType;
+	uint8_t                             systemFlags;
+	uint8_t                             maxVDDCIndexInPPTable;
+	uint8_t                             extraFlags;
+	uint8_t                             highSMIO[NISLANDS_MAX_NO_VREG_STEPS];
+	uint32_t                            lowSMIO[NISLANDS_MAX_NO_VREG_STEPS];
+	NISLANDS_SMC_VOLTAGEMASKTABLE       voltageMaskTable;
+	PP_NIslands_DPM2Parameters          dpm2Params;
+	struct NISLANDS_SMC_SWSTATE_SINGLE  initialState;
+	struct NISLANDS_SMC_SWSTATE_SINGLE  ACPIState;
+	struct NISLANDS_SMC_SWSTATE_SINGLE  ULVState;
+	NISLANDS_SMC_SWSTATE                driverState;
+	NISLANDS_SMC_HW_PERFORMANCE_LEVEL   dpmLevels[NISLANDS_MAX_SMC_PERFORMANCE_LEVELS_PER_SWSTATE];
 };
 
 typedef struct NISLANDS_SMC_STATETABLE NISLANDS_SMC_STATETABLE;

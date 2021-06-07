@@ -451,10 +451,10 @@ static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
 		goto out;
 	}
 
-	err = -1;
 	link = bpf_program__attach(skel->progs.on_switch);
-	if (!link) {
+	if (IS_ERR(link)) {
 		pr_err("Failed to attach leader program\n");
+		err = PTR_ERR(link);
 		goto out;
 	}
 
@@ -521,9 +521,10 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 
 	evsel->bperf_leader_link_fd = bpf_link_get_fd_by_id(entry.link_id);
 	if (evsel->bperf_leader_link_fd < 0 &&
-	    bperf_reload_leader_program(evsel, attr_map_fd, &entry))
+	    bperf_reload_leader_program(evsel, attr_map_fd, &entry)) {
+		err = -1;
 		goto out;
-
+	}
 	/*
 	 * The bpf_link holds reference to the leader program, and the
 	 * leader program holds reference to the maps. Therefore, if
@@ -550,6 +551,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 	/* Step 2: load the follower skeleton */
 	evsel->follower_skel = bperf_follower_bpf__open();
 	if (!evsel->follower_skel) {
+		err = -1;
 		pr_err("Failed to open follower skeleton\n");
 		goto out;
 	}

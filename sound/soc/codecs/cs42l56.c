@@ -1175,7 +1175,7 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
 	struct cs42l56_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
 	int ret, i;
-	unsigned int devid = 0;
+	unsigned int devid;
 	unsigned int alpha_rev, metal_rev;
 	unsigned int reg;
 
@@ -1245,6 +1245,11 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	ret = regmap_read(cs42l56->regmap, CS42L56_CHIP_ID_1, &reg);
+	if (ret) {
+		dev_err(&i2c_client->dev, "Failed to read chip ID: %d\n", ret);
+		return ret;
+	}
+
 	devid = reg & CS42L56_CHIP_ID_MASK;
 	if (devid != CS42L56_DEVID) {
 		dev_err(&i2c_client->dev,

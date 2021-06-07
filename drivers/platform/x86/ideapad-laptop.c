@@ -57,8 +57,8 @@ enum {
 };
 
 enum {
-	SMBC_CONSERVATION_ON  = 3,
-	SMBC_CONSERVATION_OFF = 5,
+	SBMC_CONSERVATION_ON  = 3,
+	SBMC_CONSERVATION_OFF = 5,
 };
 
 enum {
@@ -182,9 +182,9 @@ static int eval_gbmd(acpi_handle handle, unsigned long *res)
 	return eval_int(handle, "GBMD", res);
 }
 
-static int exec_smbc(acpi_handle handle, unsigned long arg)
+static int exec_sbmc(acpi_handle handle, unsigned long arg)
 {
-	return exec_simple_method(handle, "SMBC", arg);
+	return exec_simple_method(handle, "SBMC", arg);
 }
 
 static int eval_hals(acpi_handle handle, unsigned long *res)
@@ -477,7 +477,7 @@ static ssize_t conservation_mode_store(struct device *dev,
 	if (err)
 		return err;
 
-	err = exec_smbc(priv->adev->handle, state ? SMBC_CONSERVATION_ON : SMBC_CONSERVATION_OFF);
+	err = exec_sbmc(priv->adev->handle, state ? SBMC_CONSERVATION_ON : SBMC_CONSERVATION_OFF);
 	if (err)
 		return err;
 
@@ -809,6 +809,7 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 {
 	struct ideapad_dytc_priv *dytc = container_of(pprof, struct ideapad_dytc_priv, pprof);
 	struct ideapad_private *priv = dytc->priv;
+	unsigned long output;
 	int err;
 
 	err = mutex_lock_interruptible(&dytc->mutex);
@@ -829,7 +830,7 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 
 		/* Determine if we are in CQL mode. This alters the commands we do */
 		err = dytc_cql_command(priv, DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
-				       NULL);
+				       &output);
 		if (err)
 			goto unlock;
 	}
