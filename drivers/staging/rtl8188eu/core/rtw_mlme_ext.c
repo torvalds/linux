@@ -5376,8 +5376,8 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 #ifdef CONFIG_88EU_AP_MODE
 	else { /* tx bc/mc frames after update TIM */
 		struct sta_info *psta_bmc;
-		struct list_head *xmitframe_plist, *xmitframe_phead;
-		struct xmit_frame *pxmitframe = NULL;
+		struct list_head *xmitframe_phead;
+		struct xmit_frame *pxmitframe, *n;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		/* for BC/MC Frames */
@@ -5390,11 +5390,8 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 			spin_lock_bh(&psta_bmc->sleep_q.lock);
 
 			xmitframe_phead = get_list_head(&psta_bmc->sleep_q);
-			list_for_each(xmitframe_plist, xmitframe_phead) {
-				pxmitframe = list_entry(xmitframe_plist,
-							struct xmit_frame,
-							list);
-
+			list_for_each_entry_safe(pxmitframe, n, xmitframe_phead,
+						 list) {
 				list_del_init(&pxmitframe->list);
 
 				psta_bmc->sleepq_len--;
