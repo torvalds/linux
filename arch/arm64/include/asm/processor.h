@@ -257,8 +257,6 @@ void set_task_sctlr_el1(u64 sctlr);
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
 
-asmlinkage void arm64_preempt_schedule_irq(void);
-
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
 

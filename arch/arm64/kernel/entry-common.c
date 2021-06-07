@@ -19,6 +19,8 @@
 #include <asm/exception.h>
 #include <asm/kprobes.h>
 #include <asm/mmu.h>
+#include <asm/processor.h>
+#include <asm/stacktrace.h>
 #include <asm/sysreg.h>
 
 /*
@@ -101,7 +103,7 @@ void noinstr arm64_exit_nmi(struct pt_regs *regs)
 	__nmi_exit();
 }
 
-asmlinkage void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs)
+static void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs)
 {
 	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
 		arm64_enter_nmi(regs);
@@ -109,7 +111,7 @@ asmlinkage void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs)
 		enter_from_kernel_mode(regs);
 }
 
-asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
+static void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
 {
 	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
 		arm64_exit_nmi(regs);
@@ -117,7 +119,7 @@ asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
 		exit_to_kernel_mode(regs);
 }
 
-asmlinkage void __sched arm64_preempt_schedule_irq(void)
+static void __sched arm64_preempt_schedule_irq(void)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -141,6 +143,18 @@ asmlinkage void __sched arm64_preempt_schedule_irq(void)
 	if (system_capabilities_finalized())
 		preempt_schedule_irq();
 }
+
+static void do_interrupt_handler(struct pt_regs *regs,
+				 void (*handler)(struct pt_regs *))
+{
+	if (on_thread_stack())
+		call_on_irq_stack(regs, handler);
+	else
+		handler(regs);
+}
+
+extern void (*handle_arch_irq)(struct pt_regs *);
+extern void (*handle_arch_fiq)(struct pt_regs *);
 
 #ifdef CONFIG_ARM64_ERRATUM_1463225
 static DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
@@ -306,6 +320,36 @@ asmlinkage void noinstr el1_sync_handler(struct pt_regs *regs)
 	default:
 		el1_inv(regs, esr);
 	}
+}
+
+static void noinstr el1_interrupt(struct pt_regs *regs,
+				  void (*handler)(struct pt_regs *))
+{
+	write_sysreg(DAIF_PROCCTX_NOIRQ, daif);
+
+	enter_el1_irq_or_nmi(regs);
+	do_interrupt_handler(regs, handler);
+
+	/*
+	 * Note: thread_info::preempt_count includes both thread_info::count
+	 * and thread_info::need_resched, and is not equivalent to
+	 * preempt_count().
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPTION) &&
+	    READ_ONCE(current_thread_info()->preempt_count) == 0)
+		arm64_preempt_schedule_irq();
+
+	exit_el1_irq_or_nmi(regs);
+}
+
+asmlinkage void noinstr el1_irq_handler(struct pt_regs *regs)
+{
+	el1_interrupt(regs, handle_arch_irq);
+}
+
+asmlinkage void noinstr el1_fiq_handler(struct pt_regs *regs)
+{
+	el1_interrupt(regs, handle_arch_fiq);
 }
 
 asmlinkage void noinstr el1_error_handler(struct pt_regs *regs)
@@ -507,6 +551,39 @@ asmlinkage void noinstr el0_sync_handler(struct pt_regs *regs)
 	}
 }
 
+static void noinstr el0_interrupt(struct pt_regs *regs,
+				  void (*handler)(struct pt_regs *))
+{
+	enter_from_user_mode();
+
+	write_sysreg(DAIF_PROCCTX_NOIRQ, daif);
+
+	if (regs->pc & BIT(55))
+		arm64_apply_bp_hardening();
+
+	do_interrupt_handler(regs, handler);
+}
+
+static void noinstr __el0_irq_handler_common(struct pt_regs *regs)
+{
+	el0_interrupt(regs, handle_arch_irq);
+}
+
+asmlinkage void noinstr el0_irq_handler(struct pt_regs *regs)
+{
+	__el0_irq_handler_common(regs);
+}
+
+static void noinstr __el0_fiq_handler_common(struct pt_regs *regs)
+{
+	el0_interrupt(regs, handle_arch_fiq);
+}
+
+asmlinkage void noinstr el0_fiq_handler(struct pt_regs *regs)
+{
+	__el0_fiq_handler_common(regs);
+}
+
 static void __el0_error_handler_common(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
@@ -581,6 +658,16 @@ asmlinkage void noinstr el0_sync_compat_handler(struct pt_regs *regs)
 	default:
 		el0_inv(regs, esr);
 	}
+}
+
+asmlinkage void noinstr el0_irq_compat_handler(struct pt_regs *regs)
+{
+	__el0_irq_handler_common(regs);
+}
+
+asmlinkage void noinstr el0_fiq_compat_handler(struct pt_regs *regs)
+{
+	__el0_fiq_handler_common(regs);
 }
 
 asmlinkage void noinstr el0_error_compat_handler(struct pt_regs *regs)

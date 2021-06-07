@@ -32,14 +32,18 @@ static inline u32 disr_to_esr(u64 disr)
 }
 
 asmlinkage void el1_sync_handler(struct pt_regs *regs);
+asmlinkage void el1_irq_handler(struct pt_regs *regs);
+asmlinkage void el1_fiq_handler(struct pt_regs *regs);
 asmlinkage void el1_error_handler(struct pt_regs *regs);
 asmlinkage void el0_sync_handler(struct pt_regs *regs);
+asmlinkage void el0_irq_handler(struct pt_regs *regs);
+asmlinkage void el0_fiq_handler(struct pt_regs *regs);
 asmlinkage void el0_error_handler(struct pt_regs *regs);
 asmlinkage void el0_sync_compat_handler(struct pt_regs *regs);
+asmlinkage void el0_irq_compat_handler(struct pt_regs *regs);
+asmlinkage void el0_fiq_compat_handler(struct pt_regs *regs);
 asmlinkage void el0_error_compat_handler(struct pt_regs *regs);
 
-asmlinkage void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs);
-asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs);
 asmlinkage void call_on_irq_stack(struct pt_regs *regs,
 				  void (*func)(struct pt_regs *));
 asmlinkage void enter_from_user_mode(void);
