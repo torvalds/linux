@@ -689,16 +689,12 @@ xfs_buf_get_map(
 		return error;
 
 	error = xfs_buf_allocate_memory(new_bp, flags);
-	if (error) {
-		xfs_buf_free(new_bp);
-		return error;
-	}
+	if (error)
+		goto out_free_buf;
 
 	error = xfs_buf_find(target, map, nmaps, flags, new_bp, &bp);
-	if (error) {
-		xfs_buf_free(new_bp);
-		return error;
-	}
+	if (error)
+		goto out_free_buf;
 
 	if (bp != new_bp)
 		xfs_buf_free(new_bp);
@@ -726,6 +722,9 @@ found:
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	*bpp = bp;
 	return 0;
+out_free_buf:
+	xfs_buf_free(new_bp);
+	return error;
 }
 
 int
