@@ -1071,8 +1071,20 @@ static void vop2_win_disable(struct vop2_win *win)
 	struct vop2 *vop2 = win->vop2;
 
 	VOP_WIN_SET(vop2, win, enable, 0);
-	if (win->feature & WIN_FEATURE_CLUSTER_MAIN)
+	if (win->feature & WIN_FEATURE_CLUSTER_MAIN) {
+		struct vop2_win *sub_win;
+		int i = 0;
+
+		for (i = 0; i < vop2->registered_num_wins; i++) {
+			sub_win = &vop2->win[i];
+
+			if ((sub_win->phys_id == win->phys_id) &&
+			    (sub_win->feature & WIN_FEATURE_CLUSTER_SUB))
+				VOP_WIN_SET(vop2, sub_win, enable, 0);
+		}
+
 		VOP_CLUSTER_SET(vop2, win, enable, 0);
+	}
 }
 
 static inline void vop2_write_lut(struct vop2 *vop2, uint32_t offset, uint32_t v)
