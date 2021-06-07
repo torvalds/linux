@@ -283,6 +283,26 @@ out:
 	return ret;
 }
 
+static void ax88772_ethtool_get_strings(struct net_device *netdev, u32 sset,
+					u8 *data)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		net_selftest_get_strings(data);
+		break;
+	}
+}
+
+static int ax88772_ethtool_get_sset_count(struct net_device *ndev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		return net_selftest_get_count();
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops ax88772_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= usbnet_get_link,
@@ -296,6 +316,9 @@ static const struct ethtool_ops ax88772_ethtool_ops = {
 	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+	.self_test		= net_selftest,
+	.get_strings		= ax88772_ethtool_get_strings,
+	.get_sset_count		= ax88772_ethtool_get_sset_count,
 };
 
 static int ax88772_reset(struct usbnet *dev)

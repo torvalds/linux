@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
 #include <linux/phy.h>
+#include <net/selftests.h>
 
 #define DRIVER_VERSION "22-Dec-2011"
 #define DRIVER_NAME "asix"
