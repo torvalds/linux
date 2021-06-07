@@ -140,9 +140,4 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
 
-#define trans_for_each_update2(_trans, _i)				\
-	for ((_i) = (_trans)->updates2;					\
-	     (_i) < (_trans)->updates2 + (_trans)->nr_updates2;		\
-	     (_i)++)
-
 #endif /* _BCACHEFS_BTREE_UPDATE_H */

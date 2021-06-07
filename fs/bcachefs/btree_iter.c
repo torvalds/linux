@@ -2329,7 +2329,6 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 	trans->iters_touched &= trans->iters_live;
 
 	trans->nr_updates		= 0;
-	trans->nr_updates2		= 0;
 	trans->mem_top			= 0;
 
 	trans->hooks			= NULL;
@@ -2368,7 +2367,6 @@ static void bch2_trans_alloc_iters(struct btree_trans *trans, struct bch_fs *c)
 
 	trans->iters		= p; p += iters_bytes;
 	trans->updates		= p; p += updates_bytes;
-	trans->updates2		= p; p += updates_bytes;
 }
 
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
@@ -2574,7 +2572,6 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 	return  init_srcu_struct(&c->btree_trans_barrier) ?:
 		mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
 			sizeof(struct btree_iter) * nr +
-			sizeof(struct btree_insert_entry) * nr +
 			sizeof(struct btree_insert_entry) * nr) ?:
 		mempool_init_kmalloc_pool(&c->btree_trans_mem_pool, 1,
 					  BTREE_TRANS_MEM_MAX);

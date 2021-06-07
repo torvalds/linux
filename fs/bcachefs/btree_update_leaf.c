@@ -32,7 +32,7 @@ static inline int btree_insert_entry_cmp(const struct btree_insert_entry *l,
 static inline bool same_leaf_as_prev(struct btree_trans *trans,
 				     struct btree_insert_entry *i)
 {
-	return i != trans->updates2 &&
+	return i != trans->updates &&
 		iter_l(i[0].iter)->b == iter_l(i[-1].iter)->b;
 }
 
@@ -222,7 +222,7 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 static inline void btree_insert_entry_checks(struct btree_trans *trans,
 					     struct btree_insert_entry *i)
 {
-	BUG_ON(!i->is_extent && bpos_cmp(i->k->k.p, i->iter->real_pos));
+	BUG_ON(bpos_cmp(i->k->k.p, i->iter->real_pos));
 	BUG_ON(i->level		!= i->iter->level);
 	BUG_ON(i->btree_id	!= i->iter->btree_id);
 }
@@ -400,7 +400,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		h = h->next;
 	}
 
-	trans_for_each_update2(trans, i) {
+	trans_for_each_update(trans, i) {
 		/* Multiple inserts might go to same leaf: */
 		if (!same_leaf_as_prev(trans, i))
 			u64s = 0;
@@ -458,10 +458,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
 		if (bch2_journal_seq_verify)
-			trans_for_each_update2(trans, i)
+			trans_for_each_update(trans, i)
 				i->k->k.version.lo = trans->journal_res.seq;
 		else if (bch2_inject_invalid_keys)
-			trans_for_each_update2(trans, i)
+			trans_for_each_update(trans, i)
 				i->k->k.version = MAX_VERSION;
 	}
 
@@ -476,7 +476,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	if (unlikely(c->gc_pos.phase))
 		bch2_trans_mark_gc(trans);
 
-	trans_for_each_update2(trans, i)
+	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);
 err:
 	if (marking) {
@@ -504,7 +504,7 @@ static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree
 
 	BUG_ON(iter->level);
 
-	trans_for_each_update2(trans, i) {
+	trans_for_each_update(trans, i) {
 		if (iter_l(i->iter)->b != b)
 			continue;
 
@@ -535,7 +535,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	struct btree_iter *iter;
 	int ret;
 
-	trans_for_each_update2(trans, i) {
+	trans_for_each_update(trans, i) {
 		struct btree *b;
 
 		BUG_ON(!btree_node_intent_locked(i->iter, i->level));
@@ -552,7 +552,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		}
 	}
 
-	trans_for_each_update2(trans, i)
+	trans_for_each_update(trans, i)
 		BUG_ON(!btree_node_intent_locked(i->iter, i->level));
 
 	ret = bch2_journal_preres_get(&c->journal,
@@ -592,7 +592,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		}
 	}
 
-	trans_for_each_update2(trans, i) {
+	trans_for_each_update(trans, i) {
 		const char *invalid = bch2_bkey_invalid(c,
 				bkey_i_to_s_c(i->k), i->bkey_type);
 		if (invalid) {
@@ -606,14 +606,14 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	}
 	bch2_btree_trans_verify_locks(trans);
 
-	trans_for_each_update2(trans, i)
+	trans_for_each_update(trans, i)
 		if (!same_leaf_as_prev(trans, i))
 			bch2_btree_node_lock_for_insert(c,
 					iter_l(i->iter)->b, i->iter);
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
 
-	trans_for_each_update2(trans, i)
+	trans_for_each_update(trans, i)
 		if (!same_leaf_as_prev(trans, i))
 			bch2_btree_node_unlock_write_inlined(iter_l(i->iter)->b,
 							     i->iter);
@@ -775,42 +775,6 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	return 0;
 }
 
-static void bch2_trans_update2(struct btree_trans *trans,
-				 struct btree_insert_entry n)
-{
-	struct btree_insert_entry *i;
-
-	btree_insert_entry_checks(trans, &n);
-
-	EBUG_ON(trans->nr_updates2 >= BTREE_ITER_MAX);
-
-	n.iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
-
-	trans_for_each_update2(trans, i)
-		if (btree_insert_entry_cmp(&n, i) <= 0)
-			break;
-
-	if (i < trans->updates2 + trans->nr_updates2 &&
-	    !btree_insert_entry_cmp(&n, i))
-		*i = n;
-	else
-		array_insert_item(trans->updates2, trans->nr_updates2,
-				  i - trans->updates2, n);
-}
-
-static int extent_update_to_keys(struct btree_trans *trans,
-				 struct btree_insert_entry n)
-{
-	n.iter = bch2_trans_get_iter(trans, n.iter->btree_id, n.k->k.p,
-				     BTREE_ITER_INTENT|
-				     BTREE_ITER_NOT_EXTENTS);
-	n.is_extent = false;
-
-	bch2_trans_update2(trans, n);
-	bch2_trans_iter_put(trans, n.iter);
-	return 0;
-}
-
 static int extent_handle_overwrites(struct btree_trans *trans,
 				    enum btree_id btree_id,
 				    struct bkey_i *insert,
@@ -945,14 +909,6 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	} while (trans_trigger_run);
 
 	trans_for_each_update(trans, i) {
-		ret = i->is_extent
-			? extent_update_to_keys(trans, *i)
-			: (bch2_trans_update2(trans, *i), 0);
-		if (unlikely(ret))
-			goto out;
-	}
-
-	trans_for_each_update2(trans, i) {
 		ret = bch2_btree_iter_traverse(i->iter);
 		if (unlikely(ret)) {
 			trace_trans_restart_traverse(trans->ip, _RET_IP_,
@@ -1021,28 +977,27 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		.bkey_type	= __btree_node_type(iter->level, iter->btree_id),
 		.btree_id	= iter->btree_id,
 		.level		= iter->level,
-		.is_extent	= (iter->flags & BTREE_ITER_IS_EXTENTS) != 0,
 		.iter		= iter,
 		.k		= k
 	};
+	bool is_extent = (iter->flags & BTREE_ITER_IS_EXTENTS) != 0;
 	int ret = 0;
 
 	BUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	BUG_ON(bkey_cmp(iter->pos,
-			n.is_extent ? bkey_start_pos(&k->k) : k->k.p));
+			is_extent ? bkey_start_pos(&k->k) : k->k.p));
 
 	trans_for_each_update(trans, i) {
-		BUG_ON(bkey_cmp(i->iter->pos,
-				i->is_extent ? bkey_start_pos(&i->k->k) : i->k->k.p));
+		BUG_ON(bkey_cmp(i->iter->pos, i->k->k.p));
 
 		BUG_ON(i != trans->updates &&
 		       btree_insert_entry_cmp(i - 1, i) >= 0);
 	}
 #endif
 
-	if (n.is_extent) {
+	if (is_extent) {
 		ret = bch2_extent_can_insert(trans, n.iter, n.k);
 		if (ret)
 			return ret;
@@ -1061,7 +1016,6 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 					     BTREE_ITER_INTENT|
 					     BTREE_ITER_NOT_EXTENTS);
 		bch2_trans_iter_put(trans, n.iter);
-		n.is_extent = false;
 	}
 
 	BUG_ON(n.iter->flags & BTREE_ITER_IS_EXTENTS);

@@ -345,7 +345,6 @@ struct btree_insert_entry {
 	enum btree_id		btree_id:8;
 	u8			level;
 	unsigned		trans_triggers_run:1;
-	unsigned		is_extent:1;
 	struct bkey_i		*k;
 	struct btree_iter	*iter;
 };
@@ -381,7 +380,6 @@ struct btree_trans {
 	int			srcu_idx;
 
 	u8			nr_updates;
-	u8			nr_updates2;
 	unsigned		used_mempool:1;
 	unsigned		error:1;
 	unsigned		in_traverse_all:1;
@@ -396,7 +394,6 @@ struct btree_trans {
 
 	struct btree_iter	*iters;
 	struct btree_insert_entry *updates;
-	struct btree_insert_entry *updates2;
 
 	/* update path: */
 	struct btree_trans_commit_hook *hooks;
