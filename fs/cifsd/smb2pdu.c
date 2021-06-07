@@ -690,9 +690,11 @@ int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 	work->cancel_fn = fn;
 	work->cancel_argv = arg;
 
-	spin_lock(&conn->request_lock);
-	list_add_tail(&work->async_request_entry, &conn->async_requests);
-	spin_unlock(&conn->request_lock);
+	if (list_empty(&work->async_request_entry)) {
+		spin_lock(&conn->request_lock);
+		list_add_tail(&work->async_request_entry, &conn->async_requests);
+		spin_unlock(&conn->request_lock);
+	}
 
 	return 0;
 }
@@ -1710,10 +1712,10 @@ int smb2_tree_connect(struct ksmbd_work *work)
 					KSMBD_TREE_CONN_FLAG_WRITABLE)) {
 			rsp->MaximalAccess |= FILE_WRITE_DATA_LE |
 				FILE_APPEND_DATA_LE | FILE_WRITE_EA_LE |
-				FILE_DELETE_CHILD_LE | FILE_DELETE_LE |
-				FILE_WRITE_ATTRIBUTES_LE | FILE_DELETE_LE |
-				FILE_READ_CONTROL_LE | FILE_WRITE_DAC_LE |
-				FILE_WRITE_OWNER_LE | FILE_SYNCHRONIZE_LE;
+				FILE_DELETE_LE | FILE_WRITE_ATTRIBUTES_LE |
+				FILE_DELETE_CHILD_LE | FILE_READ_CONTROL_LE |
+				FILE_WRITE_DAC_LE | FILE_WRITE_OWNER_LE |
+				FILE_SYNCHRONIZE_LE;
 		}
 	}
 
