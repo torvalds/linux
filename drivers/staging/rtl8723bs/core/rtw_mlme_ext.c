@@ -6058,7 +6058,7 @@ u8 h2c_msg_hdl(struct adapter *padapter, unsigned char *pbuf)
 u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 {
 	struct sta_info *psta_bmc;
-	struct list_head	*xmitframe_plist, *xmitframe_phead;
+	struct list_head *xmitframe_plist, *xmitframe_phead, *tmp;
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct sta_priv  *pstapriv = &padapter->stapriv;
@@ -6075,7 +6075,7 @@ u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 		spin_lock_bh(&pxmitpriv->lock);
 
 		xmitframe_phead = get_list_head(&psta_bmc->sleep_q);
-		list_for_each(xmitframe_plist, xmitframe_phead) {
+		list_for_each_safe(xmitframe_plist, tmp, xmitframe_phead) {
 			pxmitframe = list_entry(xmitframe_plist,
 						struct xmit_frame, list);
 

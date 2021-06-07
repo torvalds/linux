@@ -260,7 +260,7 @@ exit:
 
 void rtw_free_network_queue(struct adapter *padapter, u8 isfreeall)
 {
-	struct list_head *phead, *plist;
+	struct list_head *phead, *plist, *tmp;
 	struct wlan_network *pnetwork;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct __queue *scanned_queue = &pmlmepriv->scanned_queue;
@@ -268,7 +268,7 @@ void rtw_free_network_queue(struct adapter *padapter, u8 isfreeall)
 	spin_lock_bh(&scanned_queue->lock);
 
 	phead = get_list_head(scanned_queue);
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 
 		pnetwork = list_entry(plist, struct wlan_network, list);
 

@@ -2453,7 +2453,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 				    struct station_del_parameters *params)
 {
 	int ret = 0;
-	struct list_head	*phead, *plist;
+	struct list_head *phead, *plist, *tmp;
 	u8 updated = false;
 	struct sta_info *psta = NULL;
 	struct adapter *padapter = rtw_netdev_priv(ndev);
@@ -2483,7 +2483,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 
 	phead = &pstapriv->asoc_list;
 	/* check asoc_queue */
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 		psta = list_entry(plist, struct sta_info, asoc_list);
 
 		if (!memcmp((u8 *)mac, psta->hwaddr, ETH_ALEN)) {

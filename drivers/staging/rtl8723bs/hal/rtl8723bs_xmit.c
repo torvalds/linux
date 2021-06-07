@@ -178,7 +178,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 	struct hw_xmit *hwxmits, *phwxmit;
 	u8 idx, hwentry;
 	struct tx_servq *ptxservq;
-	struct list_head *sta_plist, *sta_phead, *frame_plist, *frame_phead;
+	struct list_head *sta_plist, *sta_phead, *frame_plist, *frame_phead, *tmp;
 	struct xmit_frame *pxmitframe;
 	struct __queue *pframe_queue;
 	struct xmit_buf *pxmitbuf;
@@ -225,7 +225,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 		sta_phead = get_list_head(phwxmit->sta_queue);
 		/* because stop_sta_xmit may delete sta_plist at any time */
 		/* so we should add lock here, or while loop can not exit */
-		list_for_each(sta_plist, sta_phead) {
+		list_for_each_safe(sta_plist, tmp, sta_phead) {
 			ptxservq = list_entry(sta_plist, struct tx_servq,
 					      tx_pending);
 

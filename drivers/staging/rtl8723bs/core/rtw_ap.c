@@ -174,7 +174,7 @@ u8 chk_sta_is_alive(struct sta_info *psta)
 
 void expire_timeout_chk(struct adapter *padapter)
 {
-	struct list_head	*phead, *plist;
+	struct list_head *phead, *plist, *tmp;
 	u8 updated = false;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -186,7 +186,7 @@ void expire_timeout_chk(struct adapter *padapter)
 
 	phead = &pstapriv->auth_list;
 	/* check auth_queue */
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 		psta = list_entry(plist, struct sta_info, auth_list);
 
 		if (psta->expire_to > 0) {
@@ -211,7 +211,7 @@ void expire_timeout_chk(struct adapter *padapter)
 
 	phead = &pstapriv->asoc_list;
 	/* check asoc_queue */
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 		psta = list_entry(plist, struct sta_info, asoc_list);
 		if (chk_sta_is_alive(psta) || !psta->expire_to) {
 			psta->expire_to = pstapriv->expire_to;
@@ -1243,7 +1243,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 
 void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 {
-	struct list_head	*plist, *phead;
+	struct list_head *plist, *phead, *tmp;
 	struct rtw_wlan_acl_node *paclnode;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
@@ -1253,7 +1253,7 @@ void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 	spin_lock_bh(&(pacl_node_q->lock));
 
 	phead = get_list_head(pacl_node_q);
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
 
 		if (
@@ -1940,7 +1940,7 @@ u8 ap_free_sta(
 
 void rtw_sta_flush(struct adapter *padapter)
 {
-	struct list_head	*phead, *plist;
+	struct list_head *phead, *plist, *tmp;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1953,7 +1953,7 @@ void rtw_sta_flush(struct adapter *padapter)
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
 	/* free sta asoc_queue */
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 		psta = list_entry(plist, struct sta_info, asoc_list);
 
 		list_del_init(&psta->asoc_list);
@@ -2132,7 +2132,7 @@ void start_ap_mode(struct adapter *padapter)
 
 void stop_ap_mode(struct adapter *padapter)
 {
-	struct list_head	*phead, *plist;
+	struct list_head *phead, *plist, *tmp;
 	struct rtw_wlan_acl_node *paclnode;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -2156,7 +2156,7 @@ void stop_ap_mode(struct adapter *padapter)
 	/* for ACL */
 	spin_lock_bh(&(pacl_node_q->lock));
 	phead = get_list_head(pacl_node_q);
-	list_for_each(plist, phead) {
+	list_for_each_safe(plist, tmp, phead) {
 		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
 
 		if (paclnode->valid) {
