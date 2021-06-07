@@ -290,12 +290,14 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
 }
 
 static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
+				  struct device_node *node,
 				  int slot)
 {
 	struct mt7621_pcie_port *port;
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	char name[10];
+	int err;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -305,30 +307,32 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
 
-	snprintf(name, sizeof(name), "pcie%d", slot);
-	port->clk = devm_clk_get(dev, name);
+	port->clk = devm_get_clk_from_child(dev, node, NULL);
 	if (IS_ERR(port->clk)) {
 		dev_err(dev, "failed to get pcie%d clock\n", slot);
 		return PTR_ERR(port->clk);
 	}
 
-	snprintf(name, sizeof(name), "pcie%d", slot);
-	port->pcie_rst = devm_reset_control_get_exclusive(dev, name);
+	port->pcie_rst = of_reset_control_get_exclusive(node, NULL);
 	if (PTR_ERR(port->pcie_rst) == -EPROBE_DEFER) {
 		dev_err(dev, "failed to get pcie%d reset control\n", slot);
 		return PTR_ERR(port->pcie_rst);
 	}
 
 	snprintf(name, sizeof(name), "pcie-phy%d", slot);
-	port->phy = devm_phy_get(dev, name);
-	if (IS_ERR(port->phy) && slot != 1)
-		return PTR_ERR(port->phy);
+	port->phy = devm_of_phy_get(dev, node, name);
+	if (IS_ERR(port->phy)) {
+		dev_err(dev, "failed to get pcie-phy%d\n", slot);
+		err = PTR_ERR(port->phy);
+		goto remove_reset;
+	}
 
 	port->gpio_rst = devm_gpiod_get_index_optional(dev, "reset", slot,
 						       GPIOD_OUT_LOW);
 	if (IS_ERR(port->gpio_rst)) {
 		dev_err(dev, "Failed to get GPIO for PCIe%d\n", slot);
-		return PTR_ERR(port->gpio_rst);
+		err = PTR_ERR(port->gpio_rst);
+		goto remove_reset;
 	}
 
 	port->slot = slot;
@@ -338,6 +342,10 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	list_add_tail(&port->list, &pcie->ports);
 
 	return 0;
+
+remove_reset:
+	reset_control_put(port->pcie_rst);
+	return err;
 }
 
 static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
@@ -363,7 +371,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 
 		slot = PCI_SLOT(err);
 
-		err = mt7621_pcie_parse_port(pcie, slot);
+		err = mt7621_pcie_parse_port(pcie, child, slot);
 		if (err) {
 			of_node_put(child);
 			return err;
@@ -550,6 +558,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct soc_device_attribute *attr;
+	struct mt7621_pcie_port *port;
 	struct mt7621_pcie *pcie;
 	struct pci_host_bridge *bridge;
 	int err;
@@ -579,7 +588,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	err = mt7621_pci_parse_request_of_pci_ranges(bridge);
 	if (err) {
 		dev_err(dev, "Error requesting pci resources from ranges");
-		return err;
+		goto remove_resets;
 	}
 
 	/* set resources limits */
@@ -591,12 +600,29 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	err = mt7621_pcie_enable_ports(pcie);
 	if (err) {
 		dev_err(dev, "Error enabling pcie ports\n");
-		return err;
+		goto remove_resets;
 	}
 
 	setup_cm_memory_region(pcie);
 
 	return mt7621_pcie_register_host(bridge);
+
+remove_resets:
+	list_for_each_entry(port, &pcie->ports, list)
+		reset_control_put(port->pcie_rst);
+
+	return err;
+}
+
+static int mt7621_pci_remove(struct platform_device *pdev)
+{
+	struct mt7621_pcie *pcie = platform_get_drvdata(pdev);
+	struct mt7621_pcie_port *port;
+
+	list_for_each_entry(port, &pcie->ports, list)
+		reset_control_put(port->pcie_rst);
+
+	return 0;
 }
 
 static const struct of_device_id mt7621_pci_ids[] = {
@@ -607,6 +633,7 @@ MODULE_DEVICE_TABLE(of, mt7621_pci_ids);
 
 static struct platform_driver mt7621_pci_driver = {
 	.probe = mt7621_pci_probe,
+	.remove = mt7621_pci_remove,
 	.driver = {
 		.name = "mt7621-pci",
 		.of_match_table = of_match_ptr(mt7621_pci_ids),
