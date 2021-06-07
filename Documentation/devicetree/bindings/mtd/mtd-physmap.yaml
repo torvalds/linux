@@ -1,0 +1,208 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/mtd-physmap.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: CFI or JEDEC memory-mapped NOR flash, MTD-RAM (NVRAM...)
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+description: |
+  Flash chips (Memory Technology Devices) are often used for solid state
+  file systems on embedded devices.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - amd,s29gl01gp
+              - amd,s29gl032a
+              - amd,s29gl256n
+              - amd,s29gl512n
+              - arm,versatile-flash
+              - cortina,gemini-flash
+              - cypress,hyperflash
+              - ge,imp3a-firmware-mirror
+              - ge,imp3a-paged-flash
+              - gef,ppc9a-firmware-mirror
+              - gef,ppc9a-paged-flash
+              - gef,sbc310-firmware-mirror
+              - gef,sbc310-paged-flash
+              - gef,sbc610-firmware-mirror
+              - gef,sbc610-paged-flash
+              - intel,28f128j3
+              - intel,dt28f160
+              - intel,ixp4xx-flash
+              - intel,JS28F128
+              - intel,JS28F640
+              - intel,PC28F640P30T85
+              - numonyx,js28f00a
+              - numonyx,js28f128
+              - sst,sst39vf320
+              - xlnx,xps-mch-emc-2.00.a
+          - const: cfi-flash
+      - items:
+          - enum:
+              - cypress,cy7c1019dv33-10zsxi
+              - arm,vexpress-psram
+          - const: mtd-ram
+      - enum:
+          - cfi-flash
+          - jedec-flash
+          - mtd-ram
+          - mtd-rom
+
+  reg:
+    description: |
+      It's possible to (optionally) define multiple "reg" tuples so that
+      non-identical chips can be described in one node.
+    minItems: 1
+    maxItems: 8
+
+  bank-width:
+    description: Width (in bytes) of the bank.  Equal to the device width times
+      the number of interleaved chips.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 2, 4 ]
+
+  device-width:
+    description:
+      Width of a single mtd chip. If omitted, assumed to be equal to 'bank-width'.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 2 ]
+
+  no-unaligned-direct-access:
+    type: boolean
+    description: |
+      Disables the default direct mapping of the flash.
+
+      On some platforms (e.g. MPC5200) a direct 1:1 mapping may cause problems
+      with JFFS2 usage, as the local bus (LPB) doesn't support unaligned
+      accesses as implemented in the JFFS2 code via memcpy(). By defining
+      "no-unaligned-direct-access", the flash will not be exposed directly to
+      the MTD users (e.g. JFFS2) any more.
+
+  linux,mtd-name:
+    description:
+      Allows specifying the mtd name for retro capability with physmap-flash
+      drivers as boot loader pass the mtd partition via the old device name
+      physmap-flash.
+    $ref: /schemas/types.yaml#/definitions/string
+
+  use-advanced-sector-protection:
+    type: boolean
+    description: |
+      Enables support for the advanced sector protection (Spansion: PPB -
+      Persistent Protection Bits) locking.
+
+  erase-size:
+    description: The chip's physical erase block size in bytes.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  addr-gpios:
+    description:
+      List of GPIO descriptors that will be used to address the MSBs address
+      lines. The order goes from LSB to MSB.
+    minItems: 1
+    maxItems: 8
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  big-endian: true
+  little-endian: true
+
+patternProperties:
+  '@[0-9a-f]+$':
+    $ref: partitions/partition.yaml
+
+required:
+  - compatible
+  - reg
+
+# FIXME: A parent bus may define timing properties
+additionalProperties: true
+
+examples:
+  - |
+
+    flash@ff000000 {
+        compatible = "cfi-flash";
+        reg = <0xff000000 0x01000000>;
+        bank-width = <4>;
+        device-width = <1>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0xff000000 0x01000000>;
+
+        fs@0 {
+            label = "fs";
+            reg = <0 0xf80000>;
+        };
+        firmware@f80000 {
+            label ="firmware";
+            reg = <0xf80000 0x80000>;
+            read-only;
+        };
+    };
+
+  - |
+    /* An example with multiple "reg" tuples */
+
+    flash@0 {
+        compatible = "intel,PC28F640P30T85", "cfi-flash";
+        reg = <0x00000000 0x02000000>,
+              <0x02000000 0x02000000>;
+        bank-width = <2>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0 0x04000000>;
+
+        partition@0 {
+            label = "test-part1";
+            reg = <0 0x04000000>;
+        };
+    };
+
+  - |
+    /* An example using SRAM */
+    bus {
+        #address-cells = <2>;
+        #size-cells = <1>;
+
+        sram@2,0 {
+            compatible = "mtd-ram";
+            reg = <2 0 0x00200000>;
+            bank-width = <2>;
+        };
+    };
+
+  - |
+    /* An example using addr-gpios */
+    #include <dt-bindings/gpio/gpio.h>
+
+    flash@20000000 {
+        compatible = "cfi-flash";
+        reg = <0x20000000 0x02000000>;
+        bank-width = <2>;
+        addr-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x00000000 0x02000000>,
+                 <1 0x02000000 0x02000000>;
+
+        partition@0 {
+            label = "test-part1";
+            reg = <0 0x04000000>;
+        };
+    };
+...
