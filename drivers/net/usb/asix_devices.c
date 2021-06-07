@@ -746,11 +746,11 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 
-	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
-	if (!dev->driver_priv)
+	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
 
-	priv = dev->driver_priv;
+	dev->driver_priv = priv;
 
 	priv->presvd_phy_bmcr = 0;
 	priv->presvd_phy_advertise = 0;
@@ -768,7 +768,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	asix_rx_fixup_common_free(dev->driver_priv);
-	kfree(dev->driver_priv);
 }
 
 static const struct ethtool_ops ax88178_ethtool_ops = {
