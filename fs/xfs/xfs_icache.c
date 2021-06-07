@@ -523,9 +523,6 @@ xfs_iget_cache_hit(
 				XFS_INO_TO_AGINO(pag->pag_mount, ino),
 				XFS_ICI_RECLAIM_TAG);
 		inode->i_state = I_NEW;
-		ip->i_sick = 0;
-		ip->i_checked = 0;
-
 		spin_unlock(&ip->i_flags_lock);
 		spin_unlock(&pag->pag_ici_lock);
 	} else {
@@ -979,6 +976,8 @@ reclaim:
 	spin_lock(&ip->i_flags_lock);
 	ip->i_flags = XFS_IRECLAIM;
 	ip->i_ino = 0;
+	ip->i_sick = 0;
+	ip->i_checked = 0;
 	spin_unlock(&ip->i_flags_lock);
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
