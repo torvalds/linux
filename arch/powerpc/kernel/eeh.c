@@ -346,28 +346,7 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
  */
 static inline unsigned long eeh_token_to_phys(unsigned long token)
 {
-	pte_t *ptep;
-	unsigned long pa;
-	int hugepage_shift;
-
-	/*
-	 * We won't find hugepages here(this is iomem). Hence we are not
-	 * worried about _PAGE_SPLITTING/collapse. Also we will not hit
-	 * page table free, because of init_mm.
-	 */
-	ptep = find_init_mm_pte(token, &hugepage_shift);
-	if (!ptep)
-		return token;
-
-	pa = pte_pfn(*ptep);
-
-	/* On radix we can do hugepage mappings for io, so handle that */
-	if (!hugepage_shift)
-		hugepage_shift = PAGE_SHIFT;
-
-	pa <<= PAGE_SHIFT;
-	pa |= token & ((1ul << hugepage_shift) - 1);
-	return pa;
+	return ppc_find_vmap_phys(token);
 }
 
 /*

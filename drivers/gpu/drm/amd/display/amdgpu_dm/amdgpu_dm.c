@@ -925,7 +925,8 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
 	}
 
-	adev->dm.dc->ctx->dmub_srv = dc_dmub_srv_create(adev->dm.dc, dmub_srv);
+	if (!adev->dm.dc->ctx->dmub_srv)
+		adev->dm.dc->ctx->dmub_srv = dc_dmub_srv_create(adev->dm.dc, dmub_srv);
 	if (!adev->dm.dc->ctx->dmub_srv) {
 		DRM_ERROR("Couldn't allocate DC DMUB server!\n");
 		return -ENOMEM;
@@ -1953,7 +1954,6 @@ static int dm_suspend(void *handle)
 	s3_handle_mst(adev_to_drm(adev), true);
 
 	amdgpu_dm_irq_suspend(adev);
-
 
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D3);
 
@@ -5500,7 +5500,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	struct drm_display_mode saved_mode;
 	struct drm_display_mode *freesync_mode = NULL;
 	bool native_mode_found = false;
-	bool recalculate_timing = dm_state ? (dm_state->scaling != RMX_OFF) : false;
+	bool recalculate_timing = false;
+	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
 	int preferred_refresh = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -5563,7 +5564,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		 */
 		DRM_DEBUG_DRIVER("No preferred mode found\n");
 	} else {
-		recalculate_timing |= amdgpu_freesync_vid_mode &&
+		recalculate_timing = amdgpu_freesync_vid_mode &&
 				 is_freesync_video_mode(&mode, aconnector);
 		if (recalculate_timing) {
 			freesync_mode = get_highest_refresh_rate_mode(aconnector, false);
@@ -5571,11 +5572,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			mode = *freesync_mode;
 		} else {
 			decide_crtc_timing_for_drm_display_mode(
-				&mode, preferred_mode,
-				dm_state ? (dm_state->scaling != RMX_OFF) : false);
-		}
+				&mode, preferred_mode, scale);
 
-		preferred_refresh = drm_mode_vrefresh(preferred_mode);
+			preferred_refresh = drm_mode_vrefresh(preferred_mode);
+		}
 	}
 
 	if (recalculate_timing)
@@ -5587,7 +5587,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	* If scaling is enabled and refresh rate didn't change
 	* we copy the vic and polarities of the old timings
 	*/
-	if (!recalculate_timing || mode_refresh != preferred_refresh)
+	if (!scale || mode_refresh != preferred_refresh)
 		fill_stream_properties_from_drm_display_mode(
 			stream, &mode, &aconnector->base, con_state, NULL,
 			requested_bpc);
@@ -9854,7 +9854,7 @@ static int dm_check_crtc_cursor(struct drm_atomic_state *state,
 
 	if (cursor_scale_w != primary_scale_w ||
 	    cursor_scale_h != primary_scale_h) {
-		DRM_DEBUG_ATOMIC("Cursor plane scaling doesn't match primary plane\n");
+		drm_dbg_atomic(crtc->dev, "Cursor plane scaling doesn't match primary plane\n");
 		return -EINVAL;
 	}
 
@@ -9891,7 +9891,7 @@ static int validate_overlay(struct drm_atomic_state *state)
 	int i;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
-	struct drm_plane_state *primary_state, *overlay_state = NULL;
+	struct drm_plane_state *primary_state, *cursor_state, *overlay_state = NULL;
 
 	/* Check if primary plane is contained inside overlay */
 	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
@@ -9919,6 +9919,14 @@ static int validate_overlay(struct drm_atomic_state *state)
 
 	/* check if primary plane is enabled */
 	if (!primary_state->crtc)
+		return 0;
+
+	/* check if cursor plane is enabled */
+	cursor_state = drm_atomic_get_plane_state(state, overlay_state->crtc->cursor);
+	if (IS_ERR(cursor_state))
+		return PTR_ERR(cursor_state);
+
+	if (drm_atomic_plane_disabling(plane->state, cursor_state))
 		return 0;
 
 	/* Perform the bounds check to ensure the overlay plane covers the primary */

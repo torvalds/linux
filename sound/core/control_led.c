@@ -17,6 +17,9 @@ MODULE_LICENSE("GPL");
 #define MAX_LED (((SNDRV_CTL_ELEM_ACCESS_MIC_LED - SNDRV_CTL_ELEM_ACCESS_SPK_LED) \
 			>> SNDRV_CTL_ELEM_ACCESS_LED_SHIFT) + 1)
 
+#define to_led_card_dev(_dev) \
+	container_of(_dev, struct snd_ctl_led_card, dev)
+
 enum snd_ctl_led_mode {
 	 MODE_FOLLOW_MUTE = 0,
 	 MODE_FOLLOW_ROUTE,
@@ -371,6 +374,21 @@ static void snd_ctl_led_disconnect(struct snd_card *card)
 	snd_ctl_led_refresh();
 }
 
+static void snd_ctl_led_card_release(struct device *dev)
+{
+	struct snd_ctl_led_card *led_card = to_led_card_dev(dev);
+
+	kfree(led_card);
+}
+
+static void snd_ctl_led_release(struct device *dev)
+{
+}
+
+static void snd_ctl_led_dev_release(struct device *dev)
+{
+}
+
 /*
  * sysfs
  */
@@ -663,6 +681,7 @@ static void snd_ctl_led_sysfs_add(struct snd_card *card)
 		led_card->number = card->number;
 		led_card->led = led;
 		device_initialize(&led_card->dev);
+		led_card->dev.release = snd_ctl_led_card_release;
 		if (dev_set_name(&led_card->dev, "card%d", card->number) < 0)
 			goto cerr;
 		led_card->dev.parent = &led->dev;
@@ -681,7 +700,6 @@ cerr:
 		put_device(&led_card->dev);
 cerr2:
 		printk(KERN_ERR "snd_ctl_led: unable to add card%d", card->number);
-		kfree(led_card);
 	}
 }
 
@@ -700,8 +718,7 @@ static void snd_ctl_led_sysfs_remove(struct snd_card *card)
 		snprintf(link_name, sizeof(link_name), "led-%s", led->name);
 		sysfs_remove_link(&card->ctl_dev.kobj, link_name);
 		sysfs_remove_link(&led_card->dev.kobj, "card");
-		device_del(&led_card->dev);
-		kfree(led_card);
+		device_unregister(&led_card->dev);
 		led->cards[card->number] = NULL;
 	}
 }
@@ -723,6 +740,7 @@ static int __init snd_ctl_led_init(void)
 
 	device_initialize(&snd_ctl_led_dev);
 	snd_ctl_led_dev.class = sound_class;
+	snd_ctl_led_dev.release = snd_ctl_led_dev_release;
 	dev_set_name(&snd_ctl_led_dev, "ctl-led");
 	if (device_add(&snd_ctl_led_dev)) {
 		put_device(&snd_ctl_led_dev);
@@ -733,15 +751,16 @@ static int __init snd_ctl_led_init(void)
 		INIT_LIST_HEAD(&led->controls);
 		device_initialize(&led->dev);
 		led->dev.parent = &snd_ctl_led_dev;
+		led->dev.release = snd_ctl_led_release;
 		led->dev.groups = snd_ctl_led_dev_attr_groups;
 		dev_set_name(&led->dev, led->name);
 		if (device_add(&led->dev)) {
 			put_device(&led->dev);
 			for (; group > 0; group--) {
 				led = &snd_ctl_leds[group - 1];
-				device_del(&led->dev);
+				device_unregister(&led->dev);
 			}
-			device_del(&snd_ctl_led_dev);
+			device_unregister(&snd_ctl_led_dev);
 			return -ENOMEM;
 		}
 	}
@@ -767,9 +786,9 @@ static void __exit snd_ctl_led_exit(void)
 	}
 	for (group = 0; group < MAX_LED; group++) {
 		led = &snd_ctl_leds[group];
-		device_del(&led->dev);
+		device_unregister(&led->dev);
 	}
-	device_del(&snd_ctl_led_dev);
+	device_unregister(&snd_ctl_led_dev);
 	snd_ctl_led_clean(NULL);
 }
 
