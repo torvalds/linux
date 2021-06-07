@@ -1221,10 +1221,6 @@ _GLOBAL(restore_to_as0)
 	.align	12
 	.globl	sdata
 sdata:
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	4096
-EXPORT_SYMBOL(empty_zero_page)
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE

@@ -795,12 +795,6 @@ _GLOBAL(mmu_pin_tlb)
 	.data
 	.globl	sdata
 sdata:
-	.globl	empty_zero_page
-	.align	PAGE_SHIFT
-empty_zero_page:
-	.space	PAGE_SIZE
-EXPORT_SYMBOL(empty_zero_page)
-
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE

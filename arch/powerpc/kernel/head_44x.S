@@ -1241,10 +1241,6 @@ head_start_common:
 	.align	PAGE_SHIFT
 	.globl	sdata
 sdata:
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	PAGE_SIZE
-EXPORT_SYMBOL(empty_zero_page)
 
 /*
  * To support >32-bit physical addresses, we use an 8KB pgdir.
