@@ -75,7 +75,7 @@ static void noinstr exit_to_kernel_mode(struct pt_regs *regs)
 	}
 }
 
-void noinstr arm64_enter_nmi(struct pt_regs *regs)
+static void noinstr arm64_enter_nmi(struct pt_regs *regs)
 {
 	regs->lockdep_hardirqs = lockdep_hardirqs_enabled();
 
@@ -88,7 +88,7 @@ void noinstr arm64_enter_nmi(struct pt_regs *regs)
 	ftrace_nmi_enter();
 }
 
-void noinstr arm64_exit_nmi(struct pt_regs *regs)
+static void noinstr arm64_exit_nmi(struct pt_regs *regs)
 {
 	bool restore = regs->lockdep_hardirqs;
 
