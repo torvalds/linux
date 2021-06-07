@@ -1007,12 +1007,25 @@ static ssize_t nvmet_subsys_attr_version_show(struct config_item *item,
 			NVME_MINOR(subsys->ver));
 }
 
-static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
-					       const char *page, size_t count)
+static ssize_t
+nvmet_subsys_attr_version_store_locked(struct nvmet_subsys *subsys,
+		const char *page, size_t count)
 {
-	struct nvmet_subsys *subsys = to_subsys(item);
 	int major, minor, tertiary = 0;
 	int ret;
+
+	if (subsys->subsys_discovered) {
+		if (NVME_TERTIARY(subsys->ver))
+			pr_err("Can't set version number. %llu.%llu.%llu is already assigned\n",
+			       NVME_MAJOR(subsys->ver),
+			       NVME_MINOR(subsys->ver),
+			       NVME_TERTIARY(subsys->ver));
+		else
+			pr_err("Can't set version number. %llu.%llu is already assigned\n",
+			       NVME_MAJOR(subsys->ver),
+			       NVME_MINOR(subsys->ver));
+		return -EINVAL;
+	}
 
 	/* passthru subsystems use the underlying controller's version */
 	if (nvmet_passthru_ctrl(subsys))
@@ -1022,11 +1035,24 @@ static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
 	if (ret != 2 && ret != 3)
 		return -EINVAL;
 
-	down_write(&nvmet_config_sem);
 	subsys->ver = NVME_VS(major, minor, tertiary);
-	up_write(&nvmet_config_sem);
 
 	return count;
+}
+
+static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
+					       const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	ssize_t ret;
+
+	down_write(&nvmet_config_sem);
+	mutex_lock(&subsys->lock);
+	ret = nvmet_subsys_attr_version_store_locked(subsys, page, count);
+	mutex_unlock(&subsys->lock);
+	up_write(&nvmet_config_sem);
+
+	return ret;
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_version);
 
