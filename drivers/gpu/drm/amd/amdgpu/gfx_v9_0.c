@@ -790,7 +790,8 @@ static void gfx_v9_0_rlcg_w(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 static void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset,
 			       u32 v, u32 acc_flags, u32 hwip)
 {
-	if (amdgpu_sriov_fullaccess(adev)) {
+	if ((acc_flags & AMDGPU_REGS_RLC) &&
+	    amdgpu_sriov_fullaccess(adev)) {
 		gfx_v9_0_rlcg_w(adev, offset, v, acc_flags);
 
 		return;
