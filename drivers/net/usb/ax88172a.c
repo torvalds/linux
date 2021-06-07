@@ -25,20 +25,6 @@ struct ax88172a_private {
 	struct asix_rx_fixup_info rx_fixup_info;
 };
 
-/* MDIO read and write wrappers for phylib */
-static int asix_mdio_bus_read(struct mii_bus *bus, int phy_id, int regnum)
-{
-	return asix_mdio_read(((struct usbnet *)bus->priv)->net, phy_id,
-			      regnum);
-}
-
-static int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum,
-			       u16 val)
-{
-	asix_mdio_write(((struct usbnet *)bus->priv)->net, phy_id, regnum, val);
-	return 0;
-}
-
 /* set MAC link settings according to information from phylib */
 static void ax88172a_adjust_link(struct net_device *netdev)
 {
