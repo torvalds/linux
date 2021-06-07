@@ -22,6 +22,7 @@
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
 #include <asm/sysreg.h>
+#include <asm/system_misc.h>
 
 /*
  * This is intended to match the logic in irqentry_enter(), handling the kernel
@@ -155,6 +156,32 @@ static void do_interrupt_handler(struct pt_regs *regs,
 
 extern void (*handle_arch_irq)(struct pt_regs *);
 extern void (*handle_arch_fiq)(struct pt_regs *);
+
+/*
+ * bad_mode handles the impossible case in the exception vector. This is always
+ * fatal.
+ */
+asmlinkage void noinstr bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
+{
+	const char *handler[] = {
+		"Synchronous Abort",
+		"IRQ",
+		"FIQ",
+		"Error"
+	};
+
+	arm64_enter_nmi(regs);
+
+	console_verbose();
+
+	pr_crit("Bad mode in %s handler detected on CPU%d, code 0x%08x -- %s\n",
+		handler[reason], smp_processor_id(), esr,
+		esr_get_class_string(esr));
+
+	__show_regs(regs);
+	panic("bad mode");
+}
+
 
 #ifdef CONFIG_ARM64_ERRATUM_1463225
 static DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);

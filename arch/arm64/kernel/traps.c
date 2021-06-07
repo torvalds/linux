@@ -45,13 +45,6 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
-static const char *handler[] = {
-	"Synchronous Abort",
-	"IRQ",
-	"FIQ",
-	"Error"
-};
-
 int show_unhandled_signals = 0;
 
 static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
@@ -748,24 +741,6 @@ static const char *esr_class_str[] = {
 const char *esr_get_class_string(u32 esr)
 {
 	return esr_class_str[ESR_ELx_EC(esr)];
-}
-
-/*
- * bad_mode handles the impossible case in the exception vector. This is always
- * fatal.
- */
-asmlinkage void notrace bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
-{
-	arm64_enter_nmi(regs);
-
-	console_verbose();
-
-	pr_crit("Bad mode in %s handler detected on CPU%d, code 0x%08x -- %s\n",
-		handler[reason], smp_processor_id(), esr,
-		esr_get_class_string(esr));
-
-	__show_regs(regs);
-	panic("bad mode");
 }
 
 /*
