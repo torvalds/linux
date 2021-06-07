@@ -348,14 +348,13 @@ xfs_buf_alloc_kmem(
 static int
 xfs_buf_alloc_pages(
 	struct xfs_buf	*bp,
-	uint		page_count,
 	xfs_buf_flags_t	flags)
 {
 	gfp_t		gfp_mask = xb_to_gfp(flags);
 	long		filled = 0;
 
 	/* Make sure that we have a page list */
-	bp->b_page_count = page_count;
+	bp->b_page_count = DIV_ROUND_UP(BBTOB(bp->b_length), PAGE_SIZE);
 	if (bp->b_page_count <= XB_PAGES) {
 		bp->b_pages = bp->b_page_array;
 	} else {
@@ -409,7 +408,6 @@ xfs_buf_allocate_memory(
 	uint			flags)
 {
 	size_t			size;
-	xfs_off_t		start, end;
 	int			error;
 
 	/*
@@ -424,11 +422,7 @@ xfs_buf_allocate_memory(
 		if (!error)
 			return 0;
 	}
-
-	start = BBTOB(bp->b_maps[0].bm_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
-								>> PAGE_SHIFT;
-	return xfs_buf_alloc_pages(bp, end - start, flags);
+	return xfs_buf_alloc_pages(bp, flags);
 }
 
 /*
@@ -922,7 +916,6 @@ xfs_buf_get_uncached(
 	int			flags,
 	struct xfs_buf		**bpp)
 {
-	unsigned long		page_count;
 	int			error;
 	struct xfs_buf		*bp;
 	DEFINE_SINGLE_BUF_MAP(map, XFS_BUF_DADDR_NULL, numblks);
@@ -934,8 +927,7 @@ xfs_buf_get_uncached(
 	if (error)
 		return error;
 
-	page_count = PAGE_ALIGN(numblks << BBSHIFT) >> PAGE_SHIFT;
-	error = xfs_buf_alloc_pages(bp, page_count, flags);
+	error = xfs_buf_alloc_pages(bp, flags);
 	if (error)
 		goto fail_free_buf;
 
