@@ -562,17 +562,7 @@ tsk	.req	x28		// current thread_info
 
 #ifdef CONFIG_PREEMPTION
 	ldr	x24, [tsk, #TSK_TI_PREEMPT]	// get preempt count
-alternative_if ARM64_HAS_IRQ_PRIO_MASKING
-	/*
-	 * DA were cleared at start of handling, and IF are cleared by
-	 * the GIC irqchip driver using gic_arch_enable_irqs() for
-	 * normal IRQs. If anything is set, it means we come back from
-	 * an NMI instead of a normal IRQ, so skip preemption
-	 */
-	mrs	x0, daif
-	orr	x24, x24, x0
-alternative_else_nop_endif
-	cbnz	x24, 1f				// preempt count != 0 || NMI return path
+	cbnz	x24, 1f				// preempt count != 0
 	bl	arm64_preempt_schedule_irq	// irq en/disable is done inside
 1:
 #endif

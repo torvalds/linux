@@ -122,6 +122,15 @@ asmlinkage void __sched arm64_preempt_schedule_irq(void)
 	lockdep_assert_irqs_disabled();
 
 	/*
+	 * DAIF.DA are cleared at the start of IRQ/FIQ handling, and when GIC
+	 * priority masking is used the GIC irqchip driver will clear DAIF.IF
+	 * using gic_arch_enable_irqs() for normal IRQs. If anything is set in
+	 * DAIF we must have handled an NMI, so skip preemption.
+	 */
+	if (system_uses_irq_prio_masking() && read_sysreg(daif))
+		return;
+
+	/*
 	 * Preempting a task from an IRQ means we leave copies of PSTATE
 	 * on the stack. cpufeature's enable calls may modify PSTATE, but
 	 * resuming one of these preempted tasks would undo those changes.
