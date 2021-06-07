@@ -337,6 +337,12 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	u32 cmd_capsule_size;
 	u16 status = 0;
 
+	if (!subsys->subsys_discovered) {
+		mutex_lock(&subsys->lock);
+		subsys->subsys_discovered = true;
+		mutex_unlock(&subsys->lock);
+	}
+
 	/*
 	 * If there is no model number yet, set it now.  It will then remain
 	 * stable for the life time of the subsystem.

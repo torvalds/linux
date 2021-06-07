@@ -1044,11 +1044,17 @@ static ssize_t nvmet_subsys_attr_serial_show(struct config_item *item,
 	return snprintf(page, PAGE_SIZE, "%s\n", subsys->serial);
 }
 
-static ssize_t nvmet_subsys_attr_serial_store(struct config_item *item,
-					      const char *page, size_t count)
+static ssize_t
+nvmet_subsys_attr_serial_store_locked(struct nvmet_subsys *subsys,
+		const char *page, size_t count)
 {
-	struct nvmet_subsys *subsys = to_subsys(item);
 	int pos, len = strcspn(page, "\n");
+
+	if (subsys->subsys_discovered) {
+		pr_err("Can't set serial number. %s is already assigned\n",
+		       subsys->serial);
+		return -EINVAL;
+	}
 
 	if (!len || len > NVMET_SN_MAX_SIZE) {
 		pr_err("Serial Number can not be empty or exceed %d Bytes\n",
@@ -1063,13 +1069,24 @@ static ssize_t nvmet_subsys_attr_serial_store(struct config_item *item,
 		}
 	}
 
+	memcpy_and_pad(subsys->serial, NVMET_SN_MAX_SIZE, page, len, ' ');
+
+	return count;
+}
+
+static ssize_t nvmet_subsys_attr_serial_store(struct config_item *item,
+					      const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	ssize_t ret;
+
 	down_write(&nvmet_config_sem);
 	mutex_lock(&subsys->lock);
-	memcpy_and_pad(subsys->serial, NVMET_SN_MAX_SIZE, page, len, ' ');
+	ret = nvmet_subsys_attr_serial_store_locked(subsys, page, count);
 	mutex_unlock(&subsys->lock);
 	up_write(&nvmet_config_sem);
 
-	return count;
+	return ret;
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_serial);
 
