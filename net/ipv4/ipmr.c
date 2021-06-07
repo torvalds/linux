@@ -1317,7 +1317,7 @@ static void mroute_clean_tables(struct mr_table *mrt, int flags)
 }
 
 /* called from ip_ra_control(), before an RCU grace period,
- * we dont need to call synchronize_rcu() here
+ * we don't need to call synchronize_rcu() here
  */
 static void mrtsock_destruct(struct sock *sk)
 {
@@ -1938,7 +1938,7 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 	if (c->mfc_origin == htonl(INADDR_ANY) && true_vifi >= 0) {
 		struct mfc_cache *cache_proxy;
 
-		/* For an (*,G) entry, we only check that the incomming
+		/* For an (*,G) entry, we only check that the incoming
 		 * interface is part of the static tree.
 		 */
 		cache_proxy = mr_mfc_find_any_parent(mrt, vif);
