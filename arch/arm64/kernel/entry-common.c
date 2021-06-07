@@ -6,7 +6,11 @@
  */
 
 #include <linux/context_tracking.h>
+#include <linux/linkage.h>
+#include <linux/lockdep.h>
 #include <linux/ptrace.h>
+#include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/thread_info.h>
 
 #include <asm/cpufeature.h>
@@ -111,6 +115,22 @@ asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
 		arm64_exit_nmi(regs);
 	else
 		exit_to_kernel_mode(regs);
+}
+
+asmlinkage void __sched arm64_preempt_schedule_irq(void)
+{
+	lockdep_assert_irqs_disabled();
+
+	/*
+	 * Preempting a task from an IRQ means we leave copies of PSTATE
+	 * on the stack. cpufeature's enable calls may modify PSTATE, but
+	 * resuming one of these preempted tasks would undo those changes.
+	 *
+	 * Only allow a task to be preempted once cpufeatures have been
+	 * enabled.
+	 */
+	if (system_capabilities_finalized())
+		preempt_schedule_irq();
 }
 
 #ifdef CONFIG_ARM64_ERRATUM_1463225
