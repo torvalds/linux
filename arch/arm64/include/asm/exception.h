@@ -32,8 +32,11 @@ static inline u32 disr_to_esr(u64 disr)
 }
 
 asmlinkage void el1_sync_handler(struct pt_regs *regs);
+asmlinkage void el1_error_handler(struct pt_regs *regs);
 asmlinkage void el0_sync_handler(struct pt_regs *regs);
+asmlinkage void el0_error_handler(struct pt_regs *regs);
 asmlinkage void el0_sync_compat_handler(struct pt_regs *regs);
+asmlinkage void el0_error_compat_handler(struct pt_regs *regs);
 
 asmlinkage void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs);
 asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs);
@@ -57,4 +60,5 @@ void do_cp15instr(unsigned int esr, struct pt_regs *regs);
 void do_el0_svc(struct pt_regs *regs);
 void do_el0_svc_compat(struct pt_regs *regs);
 void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr);
+void do_serror(struct pt_regs *regs, unsigned int esr);
 #endif	/* __ASM_EXCEPTION_H */

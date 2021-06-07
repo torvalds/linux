@@ -279,6 +279,16 @@ asmlinkage void noinstr el1_sync_handler(struct pt_regs *regs)
 	}
 }
 
+asmlinkage void noinstr el1_error_handler(struct pt_regs *regs)
+{
+	unsigned long esr = read_sysreg(esr_el1);
+
+	local_daif_restore(DAIF_ERRCTX);
+	arm64_enter_nmi(regs);
+	do_serror(regs, esr);
+	arm64_exit_nmi(regs);
+}
+
 asmlinkage void noinstr enter_from_user_mode(void)
 {
 	lockdep_hardirqs_off(CALLER_ADDR0);
@@ -468,6 +478,23 @@ asmlinkage void noinstr el0_sync_handler(struct pt_regs *regs)
 	}
 }
 
+static void __el0_error_handler_common(struct pt_regs *regs)
+{
+	unsigned long esr = read_sysreg(esr_el1);
+
+	enter_from_user_mode();
+	local_daif_restore(DAIF_ERRCTX);
+	arm64_enter_nmi(regs);
+	do_serror(regs, esr);
+	arm64_exit_nmi(regs);
+	local_daif_restore(DAIF_PROCCTX);
+}
+
+asmlinkage void noinstr el0_error_handler(struct pt_regs *regs)
+{
+	__el0_error_handler_common(regs);
+}
+
 #ifdef CONFIG_COMPAT
 static void noinstr el0_cp15(struct pt_regs *regs, unsigned long esr)
 {
@@ -525,5 +552,10 @@ asmlinkage void noinstr el0_sync_compat_handler(struct pt_regs *regs)
 	default:
 		el0_inv(regs, esr);
 	}
+}
+
+asmlinkage void noinstr el0_error_compat_handler(struct pt_regs *regs)
+{
+	__el0_error_handler_common(regs);
 }
 #endif /* CONFIG_COMPAT */

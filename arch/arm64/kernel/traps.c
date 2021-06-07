@@ -869,15 +869,11 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 	}
 }
 
-asmlinkage void noinstr do_serror(struct pt_regs *regs, unsigned int esr)
+void do_serror(struct pt_regs *regs, unsigned int esr)
 {
-	arm64_enter_nmi(regs);
-
 	/* non-RAS errors are not containable */
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
 		arm64_serror_panic(regs, esr);
-
-	arm64_exit_nmi(regs);
 }
 
 /* GENERIC_BUG traps */
