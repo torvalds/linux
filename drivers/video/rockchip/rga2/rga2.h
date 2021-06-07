@@ -38,6 +38,7 @@
 #define RGA_BUF_GEM_TYPE_DMA       0x80
 #define RGA2_MAJOR_VERSION_MASK     (0xFF000000)
 #define RGA2_MINOR_VERSION_MASK     (0x00F00000)
+#define RGA2_SVN_VERSION_MASK       (0x000FFFFF)
 
 /* RGA2 process mode enum */
 enum
