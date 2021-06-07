@@ -765,7 +765,6 @@ asmlinkage void notrace bad_mode(struct pt_regs *regs, int reason, unsigned int 
 		esr_get_class_string(esr));
 
 	__show_regs(regs);
-	local_daif_mask();
 	panic("bad mode");
 }
 
