@@ -1494,10 +1494,11 @@ static bool CalculatePrefetchSchedule(
 		dml_print(
 				"DML:  Tsw: %fus = time to fetch enough pixel data and cursor data to feed the scalers init position and detile\n",
 				(double) LinesToRequestPrefetchPixelData * LineTime);
-		dml_print("DML: To: %fus - time for propogation from scaler to optc\n", (*DSTYAfterScaler + ((double) (*DSTXAfterScaler) / (double) myPipe->HTotal)) * LineTime);
+		dml_print("DML: To: %fus - time for propagation from scaler to optc\n",
+			  (*DSTYAfterScaler + ((double) (*DSTXAfterScaler) /
+			  (double) myPipe->HTotal)) * LineTime);
 		dml_print("DML: Tvstartup - TSetup - Tcalc - Twait - Tpre - To > 0\n");
-		dml_print(
-				"DML: Tslack(pre): %fus - time left over in schedule\n",
+		dml_print("DML: Tslack(pre): %fus - time left over in schedule\n",
 				VStartup * LineTime - TimeForFetchingMetaPTE - 2 * TimeForFetchingRowInVBlank
 						- (*DSTYAfterScaler + ((double) (*DSTXAfterScaler) / (double) myPipe->HTotal)) * LineTime - TWait - TCalc - *TSetup);
 		dml_print("DML: row_bytes = dpte_row_bytes (per_pipe) = PixelPTEBytesPerRow = : %d\n", PixelPTEBytesPerRow);
@@ -3023,7 +3024,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			for (k = 0; k < v->NumberOfActivePlanes; ++k) {
 				if (v->ImmediateFlipSupportedForPipe[k] == false) {
 #ifdef __DML_VBA_DEBUG__
-					dml_print("DML::%s: Pipe %0d not supporing iflip\n", __func__, k);
+					dml_print("DML::%s: Pipe %0d not supporting iflip\n",
+						  __func__, k);
 #endif
 					v->ImmediateFlipSupported = false;
 				}
