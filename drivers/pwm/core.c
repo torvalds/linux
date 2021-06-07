@@ -829,7 +829,7 @@ EXPORT_SYMBOL_GPL(of_pwm_get);
 
 /**
  * acpi_pwm_get() - request a PWM via parsing "pwms" property in ACPI
- * @fwnode: firmware node to get the "pwm" property from
+ * @fwnode: firmware node to get the "pwms" property from
  *
  * Returns the PWM device parsed from the fwnode and index specified in the
  * "pwms" property or a negative error-code on failure.
@@ -844,7 +844,7 @@ EXPORT_SYMBOL_GPL(of_pwm_get);
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-static struct pwm_device *acpi_pwm_get(struct fwnode_handle *fwnode)
+static struct pwm_device *acpi_pwm_get(const struct fwnode_handle *fwnode)
 {
 	struct pwm_device *pwm = ERR_PTR(-ENODEV);
 	struct fwnode_reference_args args;
@@ -928,6 +928,7 @@ void pwm_remove_table(struct pwm_lookup *table, size_t num)
  */
 struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 {
+	const struct fwnode_handle *fwnode = dev ? dev_fwnode(dev) : NULL;
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_device *pwm;
 	struct pwm_chip *chip;
@@ -938,12 +939,12 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	int err;
 
 	/* look up via DT first */
-	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
-		return of_pwm_get(dev, dev->of_node, con_id);
+	if (is_of_node(fwnode))
+		return of_pwm_get(dev, to_of_node(fwnode), con_id);
 
 	/* then lookup via ACPI */
-	if (dev && is_acpi_node(dev->fwnode)) {
-		pwm = acpi_pwm_get(dev->fwnode);
+	if (is_acpi_node(fwnode)) {
+		pwm = acpi_pwm_get(fwnode);
 		if (!IS_ERR(pwm) || PTR_ERR(pwm) != -ENOENT)
 			return pwm;
 	}
