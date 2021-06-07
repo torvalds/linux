@@ -3402,18 +3402,8 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 	/* vector 0 interrupt is shared with reset and mailbox source events.*/
 	switch (event_cause) {
 	case HCLGE_VECTOR0_EVENT_ERR:
-		/* we do not know what type of reset is required now. This could
-		 * only be decided after we fetch the type of errors which
-		 * caused this event. Therefore, we will do below for now:
-		 * 1. Assert HNAE3_UNKNOWN_RESET type of reset. This means we
-		 *    have defered type of reset to be used.
-		 * 2. Schedule the reset service task.
-		 * 3. When service task receives  HNAE3_UNKNOWN_RESET type it
-		 *    will fetch the correct type of reset.  This would be done
-		 *    by first decoding the types of errors.
-		 */
-		set_bit(HNAE3_UNKNOWN_RESET, &hdev->reset_request);
-		fallthrough;
+		hclge_errhand_task_schedule(hdev);
+		break;
 	case HCLGE_VECTOR0_EVENT_RST:
 		hclge_reset_task_schedule(hdev);
 		break;
@@ -4385,14 +4375,16 @@ static void hclge_service_task(struct work_struct *work)
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task.work);
 
+	hclge_errhand_service_task(hdev);
 	hclge_reset_service_task(hdev);
 	hclge_mailbox_service_task(hdev);
 	hclge_periodic_service_task(hdev);
 
-	/* Handle reset and mbx again in case periodical task delays the
-	 * handling by calling hclge_task_schedule() in
+	/* Handle error recovery, reset and mbx again in case periodical task
+	 * delays the handling by calling hclge_task_schedule() in
 	 * hclge_periodic_service_task().
 	 */
+	hclge_errhand_service_task(hdev);
 	hclge_reset_service_task(hdev);
 	hclge_mailbox_service_task(hdev);
 }
