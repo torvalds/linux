@@ -6,6 +6,28 @@
 
 struct mlx5e_flow_meters;
 
+enum mlx5e_flow_meter_mode {
+	MLX5_RATE_LIMIT_BPS,
+	MLX5_RATE_LIMIT_PPS,
+};
+
+struct mlx5e_flow_meter_params {
+	enum mlx5e_flow_meter_mode mode;
+	u64 rate;
+	u64 burst;
+};
+
+struct mlx5e_flow_meter_handle {
+	struct mlx5e_flow_meters *flow_meters;
+	u32 obj_id;
+	u8 idx;
+};
+
+int
+mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
+		      struct mlx5e_flow_meter_handle *meter,
+		      struct mlx5e_flow_meter_params *meter_params);
+
 struct mlx5e_flow_meters *
 mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 		       enum mlx5_flow_namespace_type ns_type,
