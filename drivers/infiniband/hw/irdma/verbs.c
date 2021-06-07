@@ -1472,7 +1472,7 @@ int irdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	unsigned long flags;
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return ~EOPNOTSUPP;
+		return -EOPNOTSUPP;
 
 	ctx_info = &iwqp->ctx_info;
 	offload_info = &iwqp->iwarp_info;
