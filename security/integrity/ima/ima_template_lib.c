@@ -119,6 +119,7 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
