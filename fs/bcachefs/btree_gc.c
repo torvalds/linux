@@ -36,6 +36,9 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/task.h>
 
+#define DROP_THIS_NODE		10
+#define DROP_PREV_NODE		11
+
 static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 {
 	preempt_disable();
@@ -203,8 +206,8 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 	return 0;
 }
 
-static int btree_repair_node_start(struct bch_fs *c, struct btree *b,
-				   struct btree *prev, struct btree *cur)
+static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
+					struct btree *prev, struct btree *cur)
 {
 	struct bpos expected_start = !prev
 		? b->data->min_key
@@ -220,22 +223,50 @@ static int btree_repair_node_start(struct bch_fs *c, struct btree *b,
 		bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(&prev->key));
 	}
 
-	if (mustfix_fsck_err_on(bpos_cmp(expected_start, cur->data->min_key), c,
-			"btree node with incorrect min_key at btree %s level %u:\n"
-			"  prev %s\n"
-			"  cur %s",
-			bch2_btree_ids[b->c.btree_id], b->c.level,
-			buf1,
-			(bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&cur->key)), buf2))) {
-		if (prev &&
-		    bpos_cmp(expected_start, cur->data->min_key) > 0 &&
-		    BTREE_NODE_SEQ(cur->data) > BTREE_NODE_SEQ(prev->data))
+	bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&cur->key));
+
+	if (prev &&
+	    bpos_cmp(expected_start, cur->data->min_key) > 0 &&
+	    BTREE_NODE_SEQ(cur->data) > BTREE_NODE_SEQ(prev->data)) {
+		/* cur overwrites prev: */
+
+		if (mustfix_fsck_err_on(bpos_cmp(prev->data->min_key,
+						 cur->data->min_key) >= 0, c,
+				"btree node overwritten by next node at btree %s level %u:\n"
+				"  node %s\n"
+				"  next %s",
+				bch2_btree_ids[b->c.btree_id], b->c.level,
+				buf1, buf2))
+			return DROP_PREV_NODE;
+
+		if (mustfix_fsck_err_on(bpos_cmp(prev->key.k.p,
+						 bpos_predecessor(cur->data->min_key)), c,
+				"btree node with incorrect max_key at btree %s level %u:\n"
+				"  node %s\n"
+				"  next %s",
+				bch2_btree_ids[b->c.btree_id], b->c.level,
+				buf1, buf2))
 			ret = set_node_max(c, prev,
-				bpos_predecessor(cur->data->min_key));
-		else
-			ret = set_node_min(c, cur, expected_start);
-		if (ret)
-			return ret;
+					   bpos_predecessor(cur->data->min_key));
+	} else {
+		/* prev overwrites cur: */
+
+		if (mustfix_fsck_err_on(bpos_cmp(expected_start,
+						 cur->data->max_key) >= 0, c,
+				"btree node overwritten by prev node at btree %s level %u:\n"
+				"  prev %s\n"
+				"  node %s",
+				bch2_btree_ids[b->c.btree_id], b->c.level,
+				buf1, buf2))
+			return DROP_THIS_NODE;
+
+		if (mustfix_fsck_err_on(bpos_cmp(expected_start, cur->data->min_key), c,
+				"btree node with incorrect min_key at btree %s level %u:\n"
+				"  prev %s\n"
+				"  node %s",
+				bch2_btree_ids[b->c.btree_id], b->c.level,
+				buf1, buf2))
+		    ret = set_node_min(c, cur, expected_start);
 	}
 fsck_err:
 	return ret;
@@ -262,13 +293,11 @@ fsck_err:
 	return ret;
 }
 
-#define DROP_THIS_NODE		10
-
 static int bch2_btree_repair_topology_recurse(struct bch_fs *c, struct btree *b)
 {
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
-	struct bkey_buf tmp;
+	struct bkey_buf prev_k, cur_k;
 	struct btree *prev = NULL, *cur = NULL;
 	bool have_child, dropped_children = false;
 	char buf[200];
@@ -277,8 +306,10 @@ static int bch2_btree_repair_topology_recurse(struct bch_fs *c, struct btree *b)
 	if (!b->c.level)
 		return 0;
 again:
+	prev = NULL;
 	have_child = dropped_children = false;
-	bch2_bkey_buf_init(&tmp);
+	bch2_bkey_buf_init(&prev_k);
+	bch2_bkey_buf_init(&cur_k);
 	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
@@ -286,9 +317,9 @@ again:
 		BUG_ON(bpos_cmp(k.k->p, b->data->max_key) > 0);
 
 		bch2_btree_and_journal_iter_advance(&iter);
-		bch2_bkey_buf_reassemble(&tmp, c, k);
+		bch2_bkey_buf_reassemble(&cur_k, c, k);
 
-		cur = bch2_btree_node_get_noiter(c, tmp.k,
+		cur = bch2_btree_node_get_noiter(c, cur_k.k,
 					b->c.btree_id, b->c.level - 1,
 					false);
 		ret = PTR_ERR_OR_ZERO(cur);
@@ -298,12 +329,12 @@ again:
 				"  %s",
 				bch2_btree_ids[b->c.btree_id],
 				b->c.level - 1,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(tmp.k)), buf))) {
-			bch2_btree_node_evict(c, tmp.k);
+				(bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(cur_k.k)), buf))) {
+			bch2_btree_node_evict(c, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
-						      b->c.level, tmp.k->k.p);
+						      b->c.level, cur_k.k->k.p);
 			if (ret)
-				goto err;
+				break;
 			continue;
 		}
 
@@ -313,14 +344,39 @@ again:
 			break;
 		}
 
-		ret = btree_repair_node_start(c, b, prev, cur);
+		ret = btree_repair_node_boundaries(c, b, prev, cur);
+
+		if (ret == DROP_THIS_NODE) {
+			six_unlock_read(&cur->c.lock);
+			bch2_btree_node_evict(c, cur_k.k);
+			ret = bch2_journal_key_delete(c, b->c.btree_id,
+						      b->c.level, cur_k.k->k.p);
+			if (ret)
+				break;
+			continue;
+		}
+
 		if (prev)
 			six_unlock_read(&prev->c.lock);
+		prev = NULL;
+
+		if (ret == DROP_PREV_NODE) {
+			bch2_btree_node_evict(c, prev_k.k);
+			ret = bch2_journal_key_delete(c, b->c.btree_id,
+						      b->c.level, prev_k.k->k.p);
+			if (ret)
+				break;
+
+			bch2_btree_and_journal_iter_exit(&iter);
+			bch2_bkey_buf_exit(&prev_k, c);
+			bch2_bkey_buf_exit(&cur_k, c);
+			goto again;
+		} else if (ret)
+			break;
+
 		prev = cur;
 		cur = NULL;
-
-		if (ret)
-			break;
+		bch2_bkey_buf_copy(&prev_k, c, cur_k.k);
 	}
 
 	if (!ret && !IS_ERR_OR_NULL(prev)) {
@@ -342,10 +398,10 @@ again:
 	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		bch2_bkey_buf_reassemble(&tmp, c, k);
+		bch2_bkey_buf_reassemble(&cur_k, c, k);
 		bch2_btree_and_journal_iter_advance(&iter);
 
-		cur = bch2_btree_node_get_noiter(c, tmp.k,
+		cur = bch2_btree_node_get_noiter(c, cur_k.k,
 					b->c.btree_id, b->c.level - 1,
 					false);
 		ret = PTR_ERR_OR_ZERO(cur);
@@ -361,9 +417,9 @@ again:
 		cur = NULL;
 
 		if (ret == DROP_THIS_NODE) {
-			bch2_btree_node_evict(c, tmp.k);
+			bch2_btree_node_evict(c, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
-						      b->c.level, tmp.k->k.p);
+						      b->c.level, cur_k.k->k.p);
 			dropped_children = true;
 		}
 
@@ -388,7 +444,8 @@ fsck_err:
 		six_unlock_read(&cur->c.lock);
 
 	bch2_btree_and_journal_iter_exit(&iter);
-	bch2_bkey_buf_exit(&tmp, c);
+	bch2_bkey_buf_exit(&prev_k, c);
+	bch2_bkey_buf_exit(&cur_k, c);
 
 	if (!ret && dropped_children)
 		goto again;
