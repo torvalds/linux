@@ -413,8 +413,7 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 				  struct xmit_priv *pxmitpriv)
 {
-	struct xmit_frame *pxmitframe = NULL;
-	struct xmit_frame *n;
+	struct xmit_frame *pxmitframe, *n;
 	struct xmit_frame *pfirstframe = NULL;
 	struct xmit_buf *pxmitbuf;
 
@@ -443,8 +442,6 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 		return false;
 
 	/* 3 1. pick up first frame */
-	rtw_free_xmitframe(pxmitpriv, pxmitframe);
-
 	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
 	if (!pxmitframe) {
 		/*  no more xmit frame, release xmit buffer */
