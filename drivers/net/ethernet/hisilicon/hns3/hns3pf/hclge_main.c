@@ -2843,6 +2843,14 @@ static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 				    hclge_wq, &hdev->service_task, 0);
 }
 
+static void hclge_errhand_task_schedule(struct hclge_dev *hdev)
+{
+	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
+	    !test_and_set_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
+		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
+				    hclge_wq, &hdev->service_task, 0);
+}
+
 void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
@@ -3394,18 +3402,8 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 	/* vector 0 interrupt is shared with reset and mailbox source events.*/
 	switch (event_cause) {
 	case HCLGE_VECTOR0_EVENT_ERR:
-		/* we do not know what type of reset is required now. This could
-		 * only be decided after we fetch the type of errors which
-		 * caused this event. Therefore, we will do below for now:
-		 * 1. Assert HNAE3_UNKNOWN_RESET type of reset. This means we
-		 *    have defered type of reset to be used.
-		 * 2. Schedule the reset service task.
-		 * 3. When service task receives  HNAE3_UNKNOWN_RESET type it
-		 *    will fetch the correct type of reset.  This would be done
-		 *    by first decoding the types of errors.
-		 */
-		set_bit(HNAE3_UNKNOWN_RESET, &hdev->reset_request);
-		fallthrough;
+		hclge_errhand_task_schedule(hdev);
+		break;
 	case HCLGE_VECTOR0_EVENT_RST:
 		hclge_reset_task_schedule(hdev);
 		break;
@@ -3793,28 +3791,6 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hnae3_ae_dev *ae_dev,
 {
 	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
 	struct hclge_dev *hdev = ae_dev->priv;
-
-	/* first, resolve any unknown reset type to the known type(s) */
-	if (test_bit(HNAE3_UNKNOWN_RESET, addr)) {
-		u32 msix_sts_reg = hclge_read_dev(&hdev->hw,
-					HCLGE_MISC_VECTOR_INT_STS);
-		/* we will intentionally ignore any errors from this function
-		 *  as we will end up in *some* reset request in any case
-		 */
-		if (hclge_handle_hw_msix_error(hdev, addr))
-			dev_info(&hdev->pdev->dev, "received msix interrupt 0x%x\n",
-				 msix_sts_reg);
-
-		clear_bit(HNAE3_UNKNOWN_RESET, addr);
-		/* We defered the clearing of the error event which caused
-		 * interrupt since it was not posssible to do that in
-		 * interrupt context (and this is the reason we introduced
-		 * new UNKNOWN reset type). Now, the errors have been
-		 * handled and cleared in hardware we can safely enable
-		 * interrupts. This is an exception to the norm.
-		 */
-		hclge_enable_vector(&hdev->misc_vector, true);
-	}
 
 	/* return the highest priority reset level amongst all */
 	if (test_bit(HNAE3_IMP_RESET, addr)) {
@@ -4264,6 +4240,36 @@ static void hclge_reset_subtask(struct hclge_dev *hdev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 }
 
+static void hclge_misc_err_recovery(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	struct device *dev = &hdev->pdev->dev;
+	u32 msix_sts_reg;
+
+	msix_sts_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
+
+	if (msix_sts_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
+		if (hclge_handle_hw_msix_error(hdev,
+					       &hdev->default_reset_request))
+			dev_info(dev, "received msix interrupt 0x%x\n",
+				 msix_sts_reg);
+
+		if (hdev->default_reset_request)
+			if (ae_dev->ops->reset_event)
+				ae_dev->ops->reset_event(hdev->pdev, NULL);
+	}
+
+	hclge_enable_vector(&hdev->misc_vector, true);
+}
+
+static void hclge_errhand_service_task(struct hclge_dev *hdev)
+{
+	if (!test_and_clear_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
+		return;
+
+	hclge_misc_err_recovery(hdev);
+}
+
 static void hclge_reset_service_task(struct hclge_dev *hdev)
 {
 	if (!test_and_clear_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state))
@@ -4347,14 +4353,16 @@ static void hclge_service_task(struct work_struct *work)
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task.work);
 
+	hclge_errhand_service_task(hdev);
 	hclge_reset_service_task(hdev);
 	hclge_mailbox_service_task(hdev);
 	hclge_periodic_service_task(hdev);
 
-	/* Handle reset and mbx again in case periodical task delays the
-	 * handling by calling hclge_task_schedule() in
+	/* Handle error recovery, reset and mbx again in case periodical task
+	 * delays the handling by calling hclge_task_schedule() in
 	 * hclge_periodic_service_task().
 	 */
+	hclge_errhand_service_task(hdev);
 	hclge_reset_service_task(hdev);
 	hclge_mailbox_service_task(hdev);
 }

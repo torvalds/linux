@@ -1940,8 +1940,8 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 
 	if (!test_bit(HCLGE_STATE_SERVICE_INITED, &hdev->state)) {
 		dev_err(dev,
-			"Can't handle - MSIx error reported during dev init\n");
-		return 0;
+			"failed to handle msix error during dev init\n");
+		return -EAGAIN;
 	}
 
 	return hclge_handle_all_hw_msix_error(hdev, reset_requests);
