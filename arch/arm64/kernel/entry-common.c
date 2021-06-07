@@ -157,10 +157,21 @@ static void do_interrupt_handler(struct pt_regs *regs,
 extern void (*handle_arch_irq)(struct pt_regs *);
 extern void (*handle_arch_fiq)(struct pt_regs *);
 
-/*
- * bad_mode handles the impossible case in the exception vector. This is always
- * fatal.
- */
+static void noinstr __panic_unhandled(struct pt_regs *regs, const char *vector,
+				      unsigned int esr)
+{
+	arm64_enter_nmi(regs);
+
+	console_verbose();
+
+	pr_crit("Unhandled %s exception on CPU%d, ESR 0x%08x -- %s\n",
+		vector, smp_processor_id(), esr,
+		esr_get_class_string(esr));
+
+	__show_regs(regs);
+	panic("Unhandled exception");
+}
+
 asmlinkage void noinstr bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 {
 	const char *handler[] = {
@@ -170,18 +181,8 @@ asmlinkage void noinstr bad_mode(struct pt_regs *regs, int reason, unsigned int 
 		"Error"
 	};
 
-	arm64_enter_nmi(regs);
-
-	console_verbose();
-
-	pr_crit("Bad mode in %s handler detected on CPU%d, code 0x%08x -- %s\n",
-		handler[reason], smp_processor_id(), esr,
-		esr_get_class_string(esr));
-
-	__show_regs(regs);
-	panic("bad mode");
+	__panic_unhandled(regs, handler[reason], esr);
 }
-
 
 #ifdef CONFIG_ARM64_ERRATUM_1463225
 static DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
