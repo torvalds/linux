@@ -2299,6 +2299,7 @@ void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 
 	p = trans->mem + trans->mem_top;
 	trans->mem_top += size;
+	memset(p, 0, size);
 	return p;
 }
 
