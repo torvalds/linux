@@ -414,6 +414,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 				  struct xmit_priv *pxmitpriv)
 {
 	struct xmit_frame *pxmitframe = NULL;
+	struct xmit_frame *n;
 	struct xmit_frame *pfirstframe = NULL;
 	struct xmit_buf *pxmitbuf;
 
@@ -422,7 +423,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 	struct sta_info *psta = NULL;
 	struct tx_servq *ptxservq = NULL;
 
-	struct list_head *xmitframe_plist = NULL, *xmitframe_phead = NULL;
+	struct list_head *xmitframe_phead = NULL;
 
 	u32 pbuf;	/*  next pkt address */
 	u32 pbuf_tail;	/*  last pkt tail */
@@ -507,10 +508,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 	spin_lock_bh(&pxmitpriv->lock);
 
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
-	list_for_each(xmitframe_plist, xmitframe_phead) {
-		pxmitframe = list_entry(xmitframe_plist, struct xmit_frame,
-					list);
-
+	list_for_each_entry_safe(pxmitframe, n, xmitframe_phead, list) {
 		pxmitframe->agg_num = 0; /*  not first frame of aggregation */
 		pxmitframe->pkt_offset = 0; /*  not first frame of aggregation, no need to reserve offset */
 
