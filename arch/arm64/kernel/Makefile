@@ -14,6 +14,11 @@ CFLAGS_REMOVE_return_address.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_syscall.o	 = -fstack-protector -fstack-protector-strong
 CFLAGS_syscall.o	+= -fno-stack-protector
 
+# It's not safe to invoke KCOV when portions of the kernel environment aren't
+# available or are out-of-sync with HW state. Since `noinstr` doesn't always
+# inhibit KCOV instrumentation, disable it for the entire compilation unit.
+KCOV_INSTRUMENT_entry.o := n
+
 # Object file lists.
 obj-y			:= debug-monitors.o entry.o irq.o fpsimd.o		\
 			   entry-common.o entry-fpsimd.o process.o ptrace.o	\
