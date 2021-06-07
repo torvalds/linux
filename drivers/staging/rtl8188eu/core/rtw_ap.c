@@ -1688,8 +1688,7 @@ void start_ap_mode(struct adapter *padapter)
 
 void stop_ap_mode(struct adapter *padapter)
 {
-	struct list_head *phead, *plist;
-	struct rtw_wlan_acl_node *paclnode;
+	struct rtw_wlan_acl_node *paclnode, *n;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1709,10 +1708,7 @@ void stop_ap_mode(struct adapter *padapter)
 
 	/* for ACL */
 	spin_lock_bh(&pacl_node_q->lock);
-	phead = get_list_head(pacl_node_q);
-	list_for_each(plist, phead) {
-		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
-
+	list_for_each_entry_safe(paclnode, n, &pacl_node_q->queue, list) {
 		if (paclnode->valid) {
 			paclnode->valid = false;
 
