@@ -129,6 +129,27 @@ _LPP_OFFSET	= __LC_LPP
 		    "jnz .+8; .long 0xb2e8d000", 82
 	.endm
 
+#if IS_ENABLED(CONFIG_KVM)
+	/*
+	 * The OUTSIDE macro jumps to the provided label in case the value
+	 * in the provided register is outside of the provided range. The
+	 * macro is useful for checking whether a PSW stored in a register
+	 * pair points inside or outside of a block of instructions.
+	 * @reg: register to check
+	 * @start: start of the range
+	 * @end: end of the range
+	 * @outside_label: jump here if @reg is outside of [@start..@end)
+	 */
+	.macro OUTSIDE reg,start,end,outside_label
+	lgr	%r14,\reg
+	larl	%r13,\start
+	slgr	%r14,%r13
+	lghi	%r13,\end - \start
+	clgr	%r14,%r13
+	jhe	\outside_label
+	.endm
+#endif
+
 	GEN_BR_THUNK %r14
 	GEN_BR_THUNK %r14,%r13
 
@@ -319,12 +340,7 @@ ENTRY(pgm_check_handler)
 .Lpgm_skip_asce:
 #if IS_ENABLED(CONFIG_KVM)
 	# cleanup critical section for program checks in sie64a
-	lgr	%r14,%r9
-	larl	%r13,.Lsie_gmap
-	slgr	%r14,%r13
-	lghi	%r13,.Lsie_done - .Lsie_gmap
-	clgr	%r14,%r13
-	jhe	1f
+	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,1f
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
@@ -393,12 +409,7 @@ ENTRY(\name)
 	tmhh	%r8,0x0001			# interrupting from user ?
 	jnz	1f
 #if IS_ENABLED(CONFIG_KVM)
-	lgr	%r14,%r9
-	larl	%r13,.Lsie_gmap
-	slgr	%r14,%r13
-	lghi	%r13,.Lsie_done - .Lsie_gmap
-	clgr	%r14,%r13
-	jhe	0f
+	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,0f
 	brasl	%r14,.Lcleanup_sie
 #endif
 0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
@@ -541,17 +552,8 @@ ENTRY(mcck_int_handler)
 	tmhh	%r8,0x0001			# interrupting from user ?
 	jnz	.Lmcck_user
 #if IS_ENABLED(CONFIG_KVM)
-	lgr	%r14,%r9
-	larl	%r13,.Lsie_gmap
-	slgr	%r14,%r13
-	lghi	%r13,.Lsie_done - .Lsie_gmap
-	clgr	%r14,%r13
-	jhe	.Lmcck_stack
-	larl	%r13,.Lsie_entry
-	slgr	%r9,%r13
-	lghi	%r13,.Lsie_skip - .Lsie_entry
-	clgr	%r9,%r13
-	jhe	5f
+	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_stack
+	OUTSIDE	%r9,.Lsie_entry,.Lsie_skip,5f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 5:	brasl	%r14,.Lcleanup_sie
 #endif
