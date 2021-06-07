@@ -1912,17 +1912,14 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *psta)
 {
 	u8 wmmps_ac = 0;
-	struct list_head *xmitframe_plist, *xmitframe_phead;
-	struct xmit_frame *pxmitframe = NULL;
+	struct list_head *xmitframe_phead;
+	struct xmit_frame *pxmitframe, *n;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	spin_lock_bh(&psta->sleep_q.lock);
 
 	xmitframe_phead = get_list_head(&psta->sleep_q);
-	list_for_each(xmitframe_plist, xmitframe_phead) {
-		pxmitframe = list_entry(xmitframe_plist, struct xmit_frame,
-					list);
-
+	list_for_each_entry_safe(pxmitframe, n, xmitframe_phead, list) {
 		switch (pxmitframe->attrib.priority) {
 		case 1:
 		case 2:
