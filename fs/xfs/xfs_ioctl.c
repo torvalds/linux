@@ -1887,7 +1887,18 @@ xfs_fs_eofblocks_from_user(
 	    memchr_inv(src->pad64, 0, sizeof(src->pad64)))
 		return -EINVAL;
 
-	dst->eof_flags = src->eof_flags;
+	dst->eof_flags = 0;
+	if (src->eof_flags & XFS_EOF_FLAGS_SYNC)
+		dst->eof_flags |= XFS_ICWALK_FLAG_SYNC;
+	if (src->eof_flags & XFS_EOF_FLAGS_UID)
+		dst->eof_flags |= XFS_ICWALK_FLAG_UID;
+	if (src->eof_flags & XFS_EOF_FLAGS_GID)
+		dst->eof_flags |= XFS_ICWALK_FLAG_GID;
+	if (src->eof_flags & XFS_EOF_FLAGS_PRID)
+		dst->eof_flags |= XFS_ICWALK_FLAG_PRID;
+	if (src->eof_flags & XFS_EOF_FLAGS_MINFILESIZE)
+		dst->eof_flags |= XFS_ICWALK_FLAG_MINFILESIZE;
+
 	dst->eof_prid = src->eof_prid;
 	dst->eof_min_file_size = src->eof_min_file_size;
 

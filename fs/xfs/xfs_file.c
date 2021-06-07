@@ -769,7 +769,7 @@ write_retry:
 	 */
 	if (ret == -EDQUOT && !cleared_space) {
 		xfs_iunlock(ip, iolock);
-		xfs_blockgc_free_quota(ip, XFS_EOF_FLAGS_SYNC);
+		xfs_blockgc_free_quota(ip, XFS_ICWALK_FLAG_SYNC);
 		cleared_space = true;
 		goto write_retry;
 	} else if (ret == -ENOSPC && !cleared_space) {
@@ -779,7 +779,7 @@ write_retry:
 		xfs_flush_inodes(ip->i_mount);
 
 		xfs_iunlock(ip, iolock);
-		eofb.eof_flags = XFS_EOF_FLAGS_SYNC;
+		eofb.eof_flags = XFS_ICWALK_FLAG_SYNC;
 		xfs_blockgc_free_space(ip->i_mount, &eofb);
 		goto write_retry;
 	}

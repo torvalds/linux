@@ -62,7 +62,7 @@ static int xfs_icwalk_ag(struct xfs_perag *pag,
 
 /*
  * Private inode cache walk flags for struct xfs_eofblocks.  Must not coincide
- * with XFS_EOF_FLAGS_*.
+ * with XFS_ICWALK_FLAGS_VALID.
  */
 #define XFS_ICWALK_FLAG_DROP_UDQUOT	(1U << 31)
 #define XFS_ICWALK_FLAG_DROP_GDQUOT	(1U << 30)
@@ -72,12 +72,14 @@ static int xfs_icwalk_ag(struct xfs_perag *pag,
 #define XFS_ICWALK_FLAG_SCAN_LIMIT	(1U << 28)
 
 #define XFS_ICWALK_FLAG_RECLAIM_SICK	(1U << 27)
+#define XFS_ICWALK_FLAG_UNION		(1U << 26) /* union filter algorithm */
 
 #define XFS_ICWALK_PRIVATE_FLAGS	(XFS_ICWALK_FLAG_DROP_UDQUOT | \
 					 XFS_ICWALK_FLAG_DROP_GDQUOT | \
 					 XFS_ICWALK_FLAG_DROP_PDQUOT | \
 					 XFS_ICWALK_FLAG_SCAN_LIMIT | \
-					 XFS_ICWALK_FLAG_RECLAIM_SICK)
+					 XFS_ICWALK_FLAG_RECLAIM_SICK | \
+					 XFS_ICWALK_FLAG_UNION)
 
 /*
  * Allocate and initialise an xfs_inode.
@@ -1113,15 +1115,15 @@ xfs_inode_match_id(
 	struct xfs_inode	*ip,
 	struct xfs_eofblocks	*eofb)
 {
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_UID) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_UID) &&
 	    !uid_eq(VFS_I(ip)->i_uid, eofb->eof_uid))
 		return false;
 
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_GID) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_GID) &&
 	    !gid_eq(VFS_I(ip)->i_gid, eofb->eof_gid))
 		return false;
 
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_PRID) &&
 	    ip->i_projid != eofb->eof_prid)
 		return false;
 
@@ -1137,15 +1139,15 @@ xfs_inode_match_id_union(
 	struct xfs_inode	*ip,
 	struct xfs_eofblocks	*eofb)
 {
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_UID) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_UID) &&
 	    uid_eq(VFS_I(ip)->i_uid, eofb->eof_uid))
 		return true;
 
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_GID) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_GID) &&
 	    gid_eq(VFS_I(ip)->i_gid, eofb->eof_gid))
 		return true;
 
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_PRID) &&
 	    ip->i_projid == eofb->eof_prid)
 		return true;
 
@@ -1167,7 +1169,7 @@ xfs_inode_matches_eofb(
 	if (!eofb)
 		return true;
 
-	if (eofb->eof_flags & XFS_EOF_FLAGS_UNION)
+	if (eofb->eof_flags & XFS_ICWALK_FLAG_UNION)
 		match = xfs_inode_match_id_union(ip, eofb);
 	else
 		match = xfs_inode_match_id(ip, eofb);
@@ -1175,7 +1177,7 @@ xfs_inode_matches_eofb(
 		return false;
 
 	/* skip the inode if the file size is too small */
-	if ((eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE) &&
+	if ((eofb->eof_flags & XFS_ICWALK_FLAG_MINFILESIZE) &&
 	    XFS_ISIZE(ip) < eofb->eof_min_file_size)
 		return false;
 
@@ -1207,7 +1209,7 @@ xfs_inode_free_eofblocks(
 {
 	bool			wait;
 
-	wait = eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC);
+	wait = eofb && (eofb->eof_flags & XFS_ICWALK_FLAG_SYNC);
 
 	if (!xfs_iflags_test(ip, XFS_IEOFBLOCKS))
 		return 0;
@@ -1370,7 +1372,7 @@ xfs_inode_free_cowblocks(
 	bool			wait;
 	int			ret = 0;
 
-	wait = eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC);
+	wait = eofb && (eofb->eof_flags & XFS_ICWALK_FLAG_SYNC);
 
 	if (!xfs_iflags_test(ip, XFS_ICOWBLOCKS))
 		return 0;
@@ -1552,7 +1554,7 @@ xfs_blockgc_free_space(
  * scan.
  *
  * Callers must not hold any inode's ILOCK.  If requesting a synchronous scan
- * (XFS_EOF_FLAGS_SYNC), the caller also must not hold any inode's IOLOCK or
+ * (XFS_ICWALK_FLAG_SYNC), the caller also must not hold any inode's IOLOCK or
  * MMAPLOCK.
  */
 int
@@ -1561,7 +1563,7 @@ xfs_blockgc_free_dquots(
 	struct xfs_dquot	*udqp,
 	struct xfs_dquot	*gdqp,
 	struct xfs_dquot	*pdqp,
-	unsigned int		eof_flags)
+	unsigned int		iwalk_flags)
 {
 	struct xfs_eofblocks	eofb = {0};
 	bool			do_work = false;
@@ -1573,23 +1575,23 @@ xfs_blockgc_free_dquots(
 	 * Run a scan to free blocks using the union filter to cover all
 	 * applicable quotas in a single scan.
 	 */
-	eofb.eof_flags = XFS_EOF_FLAGS_UNION | eof_flags;
+	eofb.eof_flags = XFS_ICWALK_FLAG_UNION | iwalk_flags;
 
 	if (XFS_IS_UQUOTA_ENFORCED(mp) && udqp && xfs_dquot_lowsp(udqp)) {
 		eofb.eof_uid = make_kuid(mp->m_super->s_user_ns, udqp->q_id);
-		eofb.eof_flags |= XFS_EOF_FLAGS_UID;
+		eofb.eof_flags |= XFS_ICWALK_FLAG_UID;
 		do_work = true;
 	}
 
 	if (XFS_IS_UQUOTA_ENFORCED(mp) && gdqp && xfs_dquot_lowsp(gdqp)) {
 		eofb.eof_gid = make_kgid(mp->m_super->s_user_ns, gdqp->q_id);
-		eofb.eof_flags |= XFS_EOF_FLAGS_GID;
+		eofb.eof_flags |= XFS_ICWALK_FLAG_GID;
 		do_work = true;
 	}
 
 	if (XFS_IS_PQUOTA_ENFORCED(mp) && pdqp && xfs_dquot_lowsp(pdqp)) {
 		eofb.eof_prid = pdqp->q_id;
-		eofb.eof_flags |= XFS_EOF_FLAGS_PRID;
+		eofb.eof_flags |= XFS_ICWALK_FLAG_PRID;
 		do_work = true;
 	}
 
@@ -1603,12 +1605,12 @@ xfs_blockgc_free_dquots(
 int
 xfs_blockgc_free_quota(
 	struct xfs_inode	*ip,
-	unsigned int		eof_flags)
+	unsigned int		iwalk_flags)
 {
 	return xfs_blockgc_free_dquots(ip->i_mount,
 			xfs_inode_dquot(ip, XFS_DQTYPE_USER),
 			xfs_inode_dquot(ip, XFS_DQTYPE_GROUP),
-			xfs_inode_dquot(ip, XFS_DQTYPE_PROJ), eof_flags);
+			xfs_inode_dquot(ip, XFS_DQTYPE_PROJ), iwalk_flags);
 }
 
 /* XFS Inode Cache Walking Code */
@@ -1828,5 +1830,5 @@ xfs_icwalk(
 		}
 	}
 	return last_error;
-	BUILD_BUG_ON(XFS_ICWALK_PRIVATE_FLAGS & XFS_EOF_FLAGS_VALID);
+	BUILD_BUG_ON(XFS_ICWALK_PRIVATE_FLAGS & XFS_ICWALK_FLAGS_VALID);
 }
