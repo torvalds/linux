@@ -699,3 +699,14 @@ UNHANDLED(el0t, 32, irq)
 UNHANDLED(el0t, 32, fiq)
 UNHANDLED(el0t, 32, error)
 #endif /* CONFIG_COMPAT */
+
+#ifdef CONFIG_VMAP_STACK
+asmlinkage void noinstr handle_bad_stack(struct pt_regs *regs)
+{
+	unsigned int esr = read_sysreg(esr_el1);
+	unsigned long far = read_sysreg(far_el1);
+
+	arm64_enter_nmi(regs);
+	panic_bad_stack(regs, esr, far);
+}
+#endif /* CONFIG_VMAP_STACK */

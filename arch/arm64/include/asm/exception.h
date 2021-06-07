@@ -31,6 +31,8 @@ static inline u32 disr_to_esr(u64 disr)
 	return esr;
 }
 
+asmlinkage void handle_bad_stack(struct pt_regs *regs);
+
 asmlinkage void el1t_64_sync_handler(struct pt_regs *regs);
 asmlinkage void el1t_64_irq_handler(struct pt_regs *regs);
 asmlinkage void el1t_64_fiq_handler(struct pt_regs *regs);
@@ -73,4 +75,6 @@ void do_el0_svc(struct pt_regs *regs);
 void do_el0_svc_compat(struct pt_regs *regs);
 void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr);
 void do_serror(struct pt_regs *regs, unsigned int esr);
+
+void panic_bad_stack(struct pt_regs *regs, unsigned int esr, unsigned long far);
 #endif	/* __ASM_EXCEPTION_H */
