@@ -37,11 +37,12 @@
 #define SMB2_LEASE_KEY_SIZE		16
 
 struct lease_ctx_info {
-	__u8	lease_key[SMB2_LEASE_KEY_SIZE];
-	__le32	req_state;
-	__le32	flags;
-	__le64	duration;
-	int dlease;
+	__u8			lease_key[SMB2_LEASE_KEY_SIZE];
+	__le32			req_state;
+	__le32			flags;
+	__le64			duration;
+	__u8			parent_lease_key[SMB2_LEASE_KEY_SIZE];
+	int			version;
 };
 
 struct lease_table {
@@ -57,6 +58,9 @@ struct lease {
 	__le32			new_state;
 	__le32			flags;
 	__le64			duration;
+	__u8			parent_lease_key[SMB2_LEASE_KEY_SIZE];
+	int			version;
+	unsigned short		epoch;
 	struct lease_table	*l_lb;
 };
 
@@ -86,6 +90,7 @@ struct oplock_info {
 struct lease_break_info {
 	__le32			curr_state;
 	__le32			new_state;
+	__le16			epoch;
 	char			lease_key[SMB2_LEASE_KEY_SIZE];
 };
 

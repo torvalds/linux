@@ -102,6 +102,9 @@ static int alloc_lease(struct oplock_info *opinfo, struct lease_ctx_info *lctx)
 	lease->new_state = 0;
 	lease->flags = lctx->flags;
 	lease->duration = lctx->duration;
+	memcpy(lease->parent_lease_key, lctx->parent_lease_key, SMB2_LEASE_KEY_SIZE);
+	lease->version = lctx->version;
+	lease->epoch = 0;
 	INIT_LIST_HEAD(&opinfo->lease_entry);
 	opinfo->o_lease = lease;
 
@@ -750,7 +753,7 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 
 	rsp = work->response_buf;
 	rsp->StructureSize = cpu_to_le16(44);
-	rsp->Reserved = 0;
+	rsp->Epoch = br_info->epoch;
 	rsp->Flags = 0;
 
 	if (br_info->curr_state & (SMB2_LEASE_WRITE_CACHING_LE |
@@ -798,6 +801,10 @@ static int smb2_lease_break_noti(struct oplock_info *opinfo)
 
 	br_info->curr_state = lease->state;
 	br_info->new_state = lease->new_state;
+	if (lease->version == 2)
+		br_info->epoch = cpu_to_le16(++lease->epoch);
+	else
+		br_info->epoch = 0;
 	memcpy(br_info->lease_key, lease->lease_key, SMB2_LEASE_KEY_SIZE);
 
 	work->request_buf = (char *)br_info;
@@ -1084,11 +1091,8 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 	__le32 prev_op_state = 0;
 
 	/* not support directory lease */
-	if (S_ISDIR(file_inode(fp->filp)->i_mode)) {
-		if (lctx)
-			lctx->dlease = 1;
+	if (S_ISDIR(file_inode(fp->filp)->i_mode))
 		return 0;
-	}
 
 	opinfo = alloc_opinfo(work, pid, tid);
 	if (!opinfo)
@@ -1328,24 +1332,48 @@ __u8 smb2_map_lease_to_oplock(__le32 lease_state)
  */
 void create_lease_buf(u8 *rbuf, struct lease *lease)
 {
-	struct create_lease *buf = (struct create_lease *)rbuf;
 	char *LeaseKey = (char *)&lease->lease_key;
 
-	memset(buf, 0, sizeof(struct create_lease));
-	buf->lcontext.LeaseKeyLow = *((__le64 *)LeaseKey);
-	buf->lcontext.LeaseKeyHigh = *((__le64 *)(LeaseKey + 8));
-	buf->lcontext.LeaseFlags = lease->flags;
-	buf->lcontext.LeaseState = lease->state;
-	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-					(struct create_lease, lcontext));
-	buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context));
-	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+	if (lease->version == 2) {
+		struct create_lease_v2 *buf = (struct create_lease_v2 *)rbuf;
+		char *ParentLeaseKey = (char *)&lease->parent_lease_key;
+
+		memset(buf, 0, sizeof(struct create_lease_v2));
+		buf->lcontext.LeaseKeyLow = *((__le64 *)LeaseKey);
+		buf->lcontext.LeaseKeyHigh = *((__le64 *)(LeaseKey + 8));
+		buf->lcontext.LeaseFlags = lease->flags;
+		buf->lcontext.LeaseState = lease->state;
+		buf->lcontext.ParentLeaseKeyLow = *((__le64 *)ParentLeaseKey);
+		buf->lcontext.ParentLeaseKeyHigh = *((__le64 *)(ParentLeaseKey + 8));
+		buf->ccontext.DataOffset = cpu_to_le16(offsetof
+				(struct create_lease_v2, lcontext));
+		buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context_v2));
+		buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_lease_v2, Name));
+		buf->ccontext.NameLength = cpu_to_le16(4);
+		buf->Name[0] = 'R';
+		buf->Name[1] = 'q';
+		buf->Name[2] = 'L';
+		buf->Name[3] = 's';
+	} else {
+		struct create_lease *buf = (struct create_lease *)rbuf;
+
+		memset(buf, 0, sizeof(struct create_lease));
+		buf->lcontext.LeaseKeyLow = *((__le64 *)LeaseKey);
+		buf->lcontext.LeaseKeyHigh = *((__le64 *)(LeaseKey + 8));
+		buf->lcontext.LeaseFlags = lease->flags;
+		buf->lcontext.LeaseState = lease->state;
+		buf->ccontext.DataOffset = cpu_to_le16(offsetof
+				(struct create_lease, lcontext));
+		buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context));
+		buf->ccontext.NameOffset = cpu_to_le16(offsetof
 				(struct create_lease, Name));
-	buf->ccontext.NameLength = cpu_to_le16(4);
-	buf->Name[0] = 'R';
-	buf->Name[1] = 'q';
-	buf->Name[2] = 'L';
-	buf->Name[3] = 's';
+		buf->ccontext.NameLength = cpu_to_le16(4);
+		buf->Name[0] = 'R';
+		buf->Name[1] = 'q';
+		buf->Name[2] = 'L';
+		buf->Name[3] = 's';
+	}
 }
 
 /**
@@ -1382,12 +1410,27 @@ struct lease_ctx_info *parse_lease_state(void *open_req)
 	} while (next != 0);
 
 	if (found) {
-		struct create_lease *lc = (struct create_lease *)cc;
-		*((__le64 *)lreq->lease_key) = lc->lcontext.LeaseKeyLow;
-		*((__le64 *)(lreq->lease_key + 8)) = lc->lcontext.LeaseKeyHigh;
-		lreq->req_state = lc->lcontext.LeaseState;
-		lreq->flags = lc->lcontext.LeaseFlags;
-		lreq->duration = lc->lcontext.LeaseDuration;
+		if (sizeof(struct lease_context_v2) == le32_to_cpu(cc->DataLength)) {
+			struct create_lease_v2 *lc = (struct create_lease_v2 *)cc;
+
+			*((__le64 *)lreq->lease_key) = lc->lcontext.LeaseKeyLow;
+			*((__le64 *)(lreq->lease_key + 8)) = lc->lcontext.LeaseKeyHigh;
+			lreq->req_state = lc->lcontext.LeaseState;
+			lreq->flags = lc->lcontext.LeaseFlags;
+			lreq->duration = lc->lcontext.LeaseDuration;
+			*((__le64 *)lreq->parent_lease_key) = lc->lcontext.ParentLeaseKeyLow;
+			*((__le64 *)(lreq->parent_lease_key + 8)) = lc->lcontext.ParentLeaseKeyHigh;
+			lreq->version = 2;
+		} else {
+			struct create_lease *lc = (struct create_lease *)cc;
+
+			*((__le64 *)lreq->lease_key) = lc->lcontext.LeaseKeyLow;
+			*((__le64 *)(lreq->lease_key + 8)) = lc->lcontext.LeaseKeyHigh;
+			lreq->req_state = lc->lcontext.LeaseState;
+			lreq->flags = lc->lcontext.LeaseFlags;
+			lreq->duration = lc->lcontext.LeaseDuration;
+			lreq->version = 1;
+		}
 		return lreq;
 	}
 
