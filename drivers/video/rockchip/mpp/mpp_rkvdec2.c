@@ -37,7 +37,7 @@
 #include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_iommu.h"
-
+#include "hack/mpp_rkvdec2_hack_rk3568.c"
 #define RKVDEC_DRIVER_NAME		"mpp_rkvdec2"
 
 #define	RKVDEC_SESSION_MAX_BUFFERS	40
@@ -96,6 +96,8 @@
 #define RKVDEC_CACHE_PERMIT_READ_ALLOCATE	BIT(1)
 #define RKVDEC_CACHE_LINE_SIZE_64_BYTES		BIT(4)
 
+#define RKVDEC_FORMAT_H264 0X1
+
 #define to_rkvdec2_task(task)		\
 		container_of(task, struct rkvdec2_task, mpp_task)
 #define to_rkvdec2_dev(dev)		\
@@ -146,6 +148,7 @@ struct rkvdec2_task {
 	u32 width;
 	u32 height;
 	u32 pixels;
+	u32 need_hack;
 };
 
 struct rkvdec2_session_priv {
@@ -189,6 +192,7 @@ struct rkvdec2_dev {
 	dma_addr_t rcb_iova;
 	struct page *rcb_page;
 	u32 rcb_min_width;
+	struct mpp_dma_buffer *fix;
 };
 
 /*
@@ -426,6 +430,25 @@ fail:
 	return NULL;
 }
 
+static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
+				struct mpp_task_msgs *msgs)
+{
+	u32 fmt;
+	struct mpp_task *mpp_task = NULL;
+	struct rkvdec2_task *task = NULL;
+
+	mpp_task = rkvdec2_alloc_task(session, msgs);
+	if (!mpp_task)
+		return NULL;
+
+	task = to_rkvdec2_task(mpp_task);
+	fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_FORMAT_INDEX]);
+	/* workaround for rk356x, fix the hw bug of cabac/cavlc switch only in h264d */
+	task->need_hack = (fmt == RKVDEC_FORMAT_H264);
+
+	return mpp_task;
+}
+
 static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	int i;
@@ -478,6 +501,37 @@ static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	mpp_debug_leave();
 
 	return 0;
+}
+
+static int rkvdec2_rk3568_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	struct rkvdec2_dev *dec = NULL;
+	struct rkvdec2_task *task = NULL;
+	int ret = 0;
+
+	mpp_debug_enter();
+
+	dec = to_rkvdec2_dev(mpp);
+	task = to_rkvdec2_task(mpp_task);
+	switch (dec->state) {
+	case RKVDEC_STATE_NORMAL:
+		/*
+		 * run fix before task processing
+		 * workaround for rk356x, fix the hw bug of cabac/cavlc switch only in h264d
+		 */
+		if (task->need_hack)
+			rkvdec2_3568_hack_fix(mpp);
+
+		ret = rkvdec2_run(mpp, mpp_task);
+
+		break;
+	default:
+		break;
+	}
+
+	mpp_debug_leave();
+
+	return ret;
 }
 
 static int rkvdec2_irq(struct mpp_dev *mpp)
@@ -835,6 +889,33 @@ static int rkvdec2_init(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int rkvdec2_rk3568_init(struct mpp_dev *mpp)
+{
+	int ret;
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+
+	dec->fix = mpp_dma_alloc(mpp->dev, FIX_RK3568_BUF_SIZE);
+	ret = dec->fix ? 0 : -ENOMEM;
+	if (!ret)
+		rkvdec2_3568_hack_data_setup(dec->fix);
+	else
+		dev_err(mpp->dev, "failed to create buffer for hack\n");
+
+	ret = rkvdec2_init(mpp);
+
+	return ret;
+}
+
+static int rkvdec2_rk3568_exit(struct mpp_dev *mpp)
+{
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+
+	if (dec->fix)
+		mpp_dma_free(dec->fix);
+
+	return 0;
+}
+
 static int rkvdec2_clk_on(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
@@ -962,9 +1043,33 @@ static struct mpp_hw_ops rkvdec_v2_hw_ops = {
 	.reset = rkvdec2_reset,
 };
 
+static struct mpp_hw_ops rkvdec_rk3568_hw_ops = {
+	.init = rkvdec2_rk3568_init,
+	.exit = rkvdec2_rk3568_exit,
+	.clk_on = rkvdec2_clk_on,
+	.clk_off = rkvdec2_clk_off,
+	.get_freq = rkvdec2_get_freq,
+	.set_freq = rkvdec2_set_freq,
+	.reduce_freq = rkvdec2_reduce_freq,
+	.reset = rkvdec2_reset,
+};
+
 static struct mpp_dev_ops rkvdec_v2_dev_ops = {
 	.alloc_task = rkvdec2_alloc_task,
 	.run = rkvdec2_run,
+	.irq = rkvdec2_irq,
+	.isr = rkvdec2_isr,
+	.finish = rkvdec2_finish,
+	.result = rkvdec2_result,
+	.free_task = rkvdec2_free_task,
+	.ioctl = rkvdec2_control,
+	.init_session = rkvdec2_init_session,
+	.free_session = rkvdec2_free_session,
+};
+
+static struct mpp_dev_ops rkvdec_rk3568_dev_ops = {
+	.alloc_task = rkvdec2_rk3568_alloc_task,
+	.run = rkvdec2_rk3568_run,
 	.irq = rkvdec2_irq,
 	.isr = rkvdec2_isr,
 	.finish = rkvdec2_finish,
@@ -983,10 +1088,22 @@ static const struct mpp_dev_var rkvdec_v2_data = {
 	.dev_ops = &rkvdec_v2_dev_ops,
 };
 
+static const struct mpp_dev_var rkvdec_rk3568_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_v2_hw_info,
+	.trans_info = rkvdec_v2_trans,
+	.hw_ops = &rkvdec_rk3568_hw_ops,
+	.dev_ops = &rkvdec_rk3568_dev_ops,
+};
+
 static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-v2",
 		.data = &rkvdec_v2_data,
+	},
+	{
+		.compatible = "rockchip,rkv-decoder-rk3568",
+		.data = &rkvdec_rk3568_data,
 	},
 	{},
 };
