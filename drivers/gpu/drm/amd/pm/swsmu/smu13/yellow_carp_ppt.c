@@ -728,7 +728,7 @@ static int yellow_carp_get_current_clk_freq(struct smu_context *smu,
 		return smu_cmn_send_smc_msg_with_param(smu,
 				SMU_MSG_GetFclkFrequency, 0, value);
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	return yellow_carp_get_smu_metrics_data(smu, member_type, value);
