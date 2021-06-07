@@ -264,15 +264,6 @@ static void noinstr el1_undef(struct pt_regs *regs)
 	exit_to_kernel_mode(regs);
 }
 
-static void noinstr el1_inv(struct pt_regs *regs, unsigned long esr)
-{
-	enter_from_kernel_mode(regs);
-	local_daif_inherit(regs);
-	__panic_unhandled(regs, "64-bit el1h sync", esr);
-	local_daif_mask();
-	exit_to_kernel_mode(regs);
-}
-
 static void noinstr arm64_enter_el1_dbg(struct pt_regs *regs)
 {
 	regs->lockdep_hardirqs = lockdep_hardirqs_enabled();
@@ -346,7 +337,7 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
 		el1_fpac(regs, esr);
 		break;
 	default:
-		el1_inv(regs, esr);
+		__panic_unhandled(regs, "64-bit el1h sync", esr);
 	}
 }
 
