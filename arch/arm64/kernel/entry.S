@@ -794,7 +794,7 @@ el0_error_naked:
 	mov	x0, sp
 	mov	x1, x25
 	bl	do_serror
-	enable_da
+	enable_daif
 	b	ret_to_user
 SYM_CODE_END(el0_error)
 

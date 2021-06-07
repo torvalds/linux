@@ -398,7 +398,7 @@ static void noinstr el0_dbg(struct pt_regs *regs, unsigned long esr)
 
 	enter_from_user_mode();
 	do_debug_exception(far, esr, regs);
-	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+	local_daif_restore(DAIF_PROCCTX);
 }
 
 static void noinstr el0_svc(struct pt_regs *regs)
