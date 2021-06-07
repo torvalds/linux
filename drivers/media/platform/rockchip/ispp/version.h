@@ -99,6 +99,10 @@
  * 9. add cru reset
  * 10. check SHARP_CORE_CTRL after update
  * 11. add uvnr sd32 self en control
+ *
+ * v1.6.1
+ * 1. reserved memory using rdma_sg ops
+ * 2. destory ispp buffers if start_stream failed
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

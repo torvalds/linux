@@ -123,6 +123,23 @@
  * 9. fix err of mp dump raw for isp20
  * 10. make sure 3dlut no continuous read twice
  * 11. adjust rdbk times with mulit dev for isp2.0
+ *
+ * v1.6.1:
+ * 1.fix multi dev refcnt
+ * 2.update procfs info
+ * 3.add check for params subscribe event
+ * 4.resolution limit for isp21
+ * 5.dma buf alloc limit to DMA32
+ * 6.add monitor to restart if abnormal
+ * 7.adjust probe order
+ * 8.max height 3072 for isp21
+ * 9.dmatx support embedded and shield pixels data
+ * 10.separate rdbk from csi subdev
+ * 11.add bt601/bt709/bt2020 colorspace
+ * 12.apply en params if no match for isp20
+ * 13.apply en params if no match for isp21
+ * 14.isp21 get 3a stats from ddr
+ * 15.reserved memory using rdma_sg ops
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
