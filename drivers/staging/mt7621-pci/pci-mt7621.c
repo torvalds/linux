@@ -47,7 +47,6 @@
 #define MT7621_PCIE_OFFSET		0x2000
 #define MT7621_NEXT_PORT		0x1000
 
-#define RALINK_PCI_BAR0SETUP_ADDR	0x0010
 #define RALINK_PCI_ID			0x0030
 #define RALINK_PCI_CLASS		0x0034
 #define RALINK_PCI_SUBID		0x0038
@@ -494,7 +493,7 @@ static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 
 	/* map 2G DDR region */
 	pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
-		   offset + RALINK_PCI_BAR0SETUP_ADDR);
+		   offset + PCI_BASE_ADDRESS_0);
 
 	/* configure class code and revision ID */
 	pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
