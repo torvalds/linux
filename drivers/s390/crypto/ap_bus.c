@@ -703,7 +703,7 @@ static int __ap_calc_helper(struct device *dev, void *arg)
 
 	if (is_queue_dev(dev)) {
 		pctrs->apqns++;
-		if ((to_ap_dev(dev))->drv)
+		if (dev->driver)
 			pctrs->bound++;
 	}
 
@@ -883,7 +883,6 @@ static int ap_device_probe(struct device *dev)
 			 to_ap_queue(dev)->qid);
 	spin_unlock_bh(&ap_queues_lock);
 
-	ap_dev->drv = ap_drv;
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
 
 	if (rc) {
@@ -891,7 +890,6 @@ static int ap_device_probe(struct device *dev)
 		if (is_queue_dev(dev))
 			hash_del(&to_ap_queue(dev)->hnode);
 		spin_unlock_bh(&ap_queues_lock);
-		ap_dev->drv = NULL;
 	} else
 		ap_check_bindings_complete();
 
@@ -904,7 +902,7 @@ out:
 static int ap_device_remove(struct device *dev)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
-	struct ap_driver *ap_drv = ap_dev->drv;
+	struct ap_driver *ap_drv = to_ap_drv(dev->driver);
 
 	/* prepare ap queue device removal */
 	if (is_queue_dev(dev))
@@ -923,7 +921,6 @@ static int ap_device_remove(struct device *dev)
 	if (is_queue_dev(dev))
 		hash_del(&to_ap_queue(dev)->hnode);
 	spin_unlock_bh(&ap_queues_lock);
-	ap_dev->drv = NULL;
 
 	put_device(dev);
 

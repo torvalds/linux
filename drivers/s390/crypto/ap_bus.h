@@ -157,7 +157,6 @@ void ap_driver_unregister(struct ap_driver *);
 
 struct ap_device {
 	struct device device;
-	struct ap_driver *drv;		/* Pointer to AP device driver. */
 	int device_type;		/* AP device type. */
 };
 
