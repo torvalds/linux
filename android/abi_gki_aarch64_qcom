@@ -377,6 +377,7 @@
   dev_alloc_name
   dev_coredumpv
   _dev_crit
+  __dev_direct_xmit
   dev_driver_string
   _dev_emerg
   _dev_err
@@ -393,6 +394,7 @@
   __dev_get_by_index
   dev_get_by_index
   dev_get_by_name
+  dev_get_by_name_rcu
   dev_get_regmap
   device_add
   device_add_disk
@@ -862,6 +864,7 @@
   drm_universal_plane_init
   drm_vblank_init
   drm_wait_one_vblank
+  dst_release
   dump_stack
   __dynamic_dev_dbg
   __dynamic_pr_debug
@@ -1170,6 +1173,7 @@
   __iowrite32_copy
   ip_compute_csum
   ipi_desc_get
+  ip_route_output_flow
   iput
   __ipv6_addr_type
   ipv6_ext_hdr
@@ -1438,7 +1442,10 @@
   napi_gro_receive
   __napi_schedule
   napi_schedule_prep
+  neigh_destroy
+  __neigh_event_send
   neigh_lookup
+  neigh_xmit
   __netdev_alloc_skb
   netdev_rx_handler_register
   netdev_rx_handler_unregister
