@@ -122,8 +122,7 @@ struct msm_gpu {
 	 */
 #define DRM_MSM_INACTIVE_PERIOD   66 /* in ms (roughly four frames) */
 
-#define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */
-#define DRM_MSM_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_MSM_HANGCHECK_PERIOD)
+#define DRM_MSM_HANGCHECK_DEFAULT_PERIOD 500 /* in ms */
 	struct timer_list hangcheck_timer;
 
 	/* work for handling GPU recovery: */

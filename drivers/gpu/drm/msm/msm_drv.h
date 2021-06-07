@@ -244,6 +244,9 @@ struct msm_drm_private {
 	struct shrinker shrinker;
 
 	struct drm_atomic_state *pm_state;
+
+	/* For hang detection, in ms */
+	unsigned int hangcheck_period;
 };
 
 struct msm_format {

@@ -561,8 +561,9 @@ static void recover_worker(struct kthread_work *work)
 
 static void hangcheck_timer_reset(struct msm_gpu *gpu)
 {
+	struct msm_drm_private *priv = gpu->dev->dev_private;
 	mod_timer(&gpu->hangcheck_timer,
-			round_jiffies_up(jiffies + DRM_MSM_HANGCHECK_JIFFIES));
+			round_jiffies_up(jiffies + msecs_to_jiffies(priv->hangcheck_period)));
 }
 
 static void hangcheck_handler(struct timer_list *t)
