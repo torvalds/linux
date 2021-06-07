@@ -690,9 +690,11 @@ int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 	work->cancel_fn = fn;
 	work->cancel_argv = arg;
 
-	spin_lock(&conn->request_lock);
-	list_add_tail(&work->async_request_entry, &conn->async_requests);
-	spin_unlock(&conn->request_lock);
+	if (list_empty(&work->async_request_entry)) {
+		spin_lock(&conn->request_lock);
+		list_add_tail(&work->async_request_entry, &conn->async_requests);
+		spin_unlock(&conn->request_lock);
+	}
 
 	return 0;
 }
