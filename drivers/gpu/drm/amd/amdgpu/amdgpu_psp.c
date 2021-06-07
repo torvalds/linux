@@ -1235,17 +1235,60 @@ static int psp_ras_terminate(struct psp_context *psp)
 static int psp_ras_initialize(struct psp_context *psp)
 {
 	int ret;
+	uint32_t boot_cfg = 0xFF;
+	struct amdgpu_device *adev = psp->adev;
 
 	/*
 	 * TODO: bypass the initialize in sriov for now
 	 */
-	if (amdgpu_sriov_vf(psp->adev))
+	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	if (!psp->adev->psp.ta_ras_ucode_size ||
-	    !psp->adev->psp.ta_ras_start_addr) {
-		dev_info(psp->adev->dev, "RAS: optional ras ta ucode is not available\n");
+	if (!adev->psp.ta_ras_ucode_size ||
+	    !adev->psp.ta_ras_start_addr) {
+		dev_info(adev->dev, "RAS: optional ras ta ucode is not available\n");
 		return 0;
+	}
+
+	if (amdgpu_atomfirmware_dynamic_boot_config_supported(adev)) {
+		/* query GECC enablement status from boot config
+		 * boot_cfg: 1: GECC is enabled or 0: GECC is disabled
+		 */
+		ret = psp_boot_config_get(adev, &boot_cfg);
+		if (ret)
+			dev_warn(adev->dev, "PSP get boot config failed\n");
+
+		if (!amdgpu_ras_is_supported(psp->adev, AMDGPU_RAS_BLOCK__UMC)) {
+			if (!boot_cfg) {
+				dev_info(adev->dev, "GECC is disabled\n");
+			} else {
+				/* disable GECC in next boot cycle if ras is
+				 * disabled by module parameter amdgpu_ras_enable
+				 * and/or amdgpu_ras_mask, or boot_config_get call
+				 * is failed
+				 */
+				ret = psp_boot_config_set(adev, 0);
+				if (ret)
+					dev_warn(adev->dev, "PSP set boot config failed\n");
+				else
+					dev_warn(adev->dev, "GECC will be disabled in next boot cycle "
+						 "if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
+			}
+		} else {
+			if (1 == boot_cfg) {
+				dev_info(adev->dev, "GECC is enabled\n");
+			} else {
+				/* enable GECC in next boot cycle if it is disabled
+				 * in boot config, or force enable GECC if failed to
+				 * get boot configuration
+				 */
+				ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
+				if (ret)
+					dev_warn(adev->dev, "PSP set boot config failed\n");
+				else
+					dev_warn(adev->dev, "GECC will be enabled in next boot cycle\n");
+			}
+		}
 	}
 
 	if (!psp->ras.ras_initialized) {
@@ -1966,12 +2009,6 @@ static int psp_hw_start(struct psp_context *psp)
 	if (ret) {
 		DRM_ERROR("PSP create ring failed!\n");
 		return ret;
-	}
-
-	if (amdgpu_atomfirmware_dynamic_boot_config_supported(adev)) {
-		ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
-		if (ret)
-			dev_warn(adev->dev, "PSP set boot config failed\n");
 	}
 
 	ret = psp_tmr_init(psp);
