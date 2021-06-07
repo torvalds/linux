@@ -27,7 +27,7 @@ struct rt715_sdca_priv {
 	enum sdw_slave_status status;
 	struct sdw_bus_params params;
 	bool hw_init;
-	bool first_init;
+	bool first_hw_init;
 	int l_is_unmute;
 	int r_is_unmute;
 	int hw_sdw_ver;
