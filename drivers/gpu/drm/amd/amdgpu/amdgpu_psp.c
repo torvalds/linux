@@ -171,6 +171,74 @@ Err_out:
 	return ret;
 }
 
+/*
+ * Helper funciton to query psp runtime database entry
+ *
+ * @adev: amdgpu_device pointer
+ * @entry_type: the type of psp runtime database entry
+ * @db_entry: runtime database entry pointer
+ *
+ * Return false if runtime database doesn't exit or entry is invalid
+ * or true if the specific database entry is found, and copy to @db_entry
+ */
+static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
+				     enum psp_runtime_entry_type entry_type,
+				     void *db_entry)
+{
+	uint64_t db_header_pos, db_dir_pos;
+	struct psp_runtime_data_header db_header = {0};
+	struct psp_runtime_data_directory db_dir = {0};
+	bool ret = false;
+	int i;
+
+	db_header_pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
+	db_dir_pos = db_header_pos + sizeof(struct psp_runtime_data_header);
+
+	/* read runtime db header from vram */
+	amdgpu_device_vram_access(adev, db_header_pos, (uint32_t *)&db_header,
+			sizeof(struct psp_runtime_data_header), false);
+
+	if (db_header.cookie != PSP_RUNTIME_DB_COOKIE_ID) {
+		/* runtime db doesn't exist, exit */
+		dev_warn(adev->dev, "PSP runtime database doesn't exist\n");
+		return false;
+	}
+
+	/* read runtime database entry from vram */
+	amdgpu_device_vram_access(adev, db_dir_pos, (uint32_t *)&db_dir,
+			sizeof(struct psp_runtime_data_directory), false);
+
+	if (db_dir.entry_count >= PSP_RUNTIME_DB_DIAG_ENTRY_MAX_COUNT) {
+		/* invalid db entry count, exit */
+		dev_warn(adev->dev, "Invalid PSP runtime database entry count\n");
+		return false;
+	}
+
+	/* look up for requested entry type */
+	for (i = 0; i < db_dir.entry_count && !ret; i++) {
+		if (db_dir.entry_list[i].entry_type == entry_type) {
+			switch (entry_type) {
+			case PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG:
+				if (db_dir.entry_list[i].size < sizeof(struct psp_runtime_boot_cfg_entry)) {
+					/* invalid db entry size */
+					dev_warn(adev->dev, "Invalid PSP runtime database entry size\n");
+					return false;
+				}
+				/* read runtime database entry */
+				amdgpu_device_vram_access(adev, db_header_pos + db_dir.entry_list[i].offset,
+							  (uint32_t *)db_entry, sizeof(struct psp_runtime_boot_cfg_entry), false);
+				ret = true;
+				break;
+			default:
+				ret = false;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static int psp_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
