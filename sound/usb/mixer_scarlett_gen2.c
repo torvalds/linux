@@ -117,11 +117,12 @@
 #define SCARLETT2_MIXER_MAX_DB 6
 #define SCARLETT2_MIXER_MAX_VALUE \
 	((SCARLETT2_MIXER_MAX_DB - SCARLETT2_MIXER_MIN_DB) * 2)
+#define SCARLETT2_MIXER_VALUE_COUNT (SCARLETT2_MIXER_MAX_VALUE + 1)
 
 /* map from (dB + 80) * 2 to mixer value
  * for dB in 0 .. 172: int(8192 * pow(10, ((dB - 160) / 2 / 20)))
  */
-static const u16 scarlett2_mixer_values[173] = {
+static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 	0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
 	2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 8, 8,
 	9, 9, 10, 10, 11, 12, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -465,6 +466,7 @@ static int scarlett2_get_port_start_num(const struct scarlett2_ports *ports,
 
 #define SCARLETT2_USB_INIT_SEQ 0x00000000
 #define SCARLETT2_USB_GET_METER_LEVELS 0x00001001
+#define SCARLETT2_USB_GET_MIX 0x00002001
 #define SCARLETT2_USB_SET_MIX 0x00002002
 #define SCARLETT2_USB_SET_MUX 0x00003002
 #define SCARLETT2_USB_GET_DATA 0x00800000
@@ -782,6 +784,49 @@ static int scarlett2_usb_get_volume_status(
 {
 	return scarlett2_usb_get(mixer, SCARLETT2_USB_VOLUME_STATUS_OFFSET,
 				 buf, sizeof(*buf));
+}
+
+/* Send a USB message to get the volumes for all inputs of one mix
+ * and put the values into private->mix[]
+ */
+static int scarlett2_usb_get_mix(struct usb_mixer_interface *mixer,
+				 int mix_num)
+{
+	struct scarlett2_mixer_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+
+	int num_mixer_in =
+		info->ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_OUT];
+	int err, i, j, k;
+
+	struct {
+		__le16 mix_num;
+		__le16 count;
+	} __packed req;
+
+	__le16 data[SCARLETT2_INPUT_MIX_MAX];
+
+	req.mix_num = cpu_to_le16(mix_num);
+	req.count = cpu_to_le16(num_mixer_in);
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_GET_MIX,
+			    &req, sizeof(req),
+			    data, num_mixer_in * sizeof(u16));
+	if (err < 0)
+		return err;
+
+	for (i = 0, j = mix_num * num_mixer_in; i < num_mixer_in; i++, j++) {
+		u16 mixer_value = le16_to_cpu(data[i]);
+
+		for (k = 0; k < SCARLETT2_MIXER_VALUE_COUNT; k++)
+			if (scarlett2_mixer_values[k] >= mixer_value)
+				break;
+		if (k == SCARLETT2_MIXER_VALUE_COUNT)
+			k = SCARLETT2_MIXER_MAX_VALUE;
+		private->mix[j] = k;
+	}
+
+	return 0;
 }
 
 /* Send a USB message to set the volumes for all inputs of one mix
@@ -1831,7 +1876,7 @@ static int scarlett2_init_private(struct usb_mixer_interface *mixer,
 	return scarlett2_usb(mixer, SCARLETT2_USB_INIT_SEQ, NULL, 0, NULL, 0);
 }
 
-/* Read line-in config and line-out volume settings on start */
+/* Read configuration from the interface on start */
 static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_mixer_data *private = mixer->private_data;
@@ -1839,6 +1884,8 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	const struct scarlett2_ports *ports = info->ports;
 	int num_line_out =
 		ports[SCARLETT2_PORT_TYPE_ANALOGUE].num[SCARLETT2_PORT_OUT];
+	int num_mixer_out =
+		ports[SCARLETT2_PORT_TYPE_MIX].num[SCARLETT2_PORT_IN];
 	u8 level_switches[SCARLETT2_LEVEL_SWITCH_MAX];
 	u8 pad_switches[SCARLETT2_PAD_SWITCH_MAX];
 	struct scarlett2_usb_volume_status volume_status;
@@ -1893,6 +1940,12 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 
 	for (i = 0; i < info->button_count; i++)
 		private->buttons[i] = !!volume_status.buttons[i];
+
+	for (i = 0; i < num_mixer_out; i++) {
+		err = scarlett2_usb_get_mix(mixer, i);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }
