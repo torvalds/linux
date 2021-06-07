@@ -74,6 +74,11 @@ int ext4_resize_begin(struct super_block *sb)
 		return -EPERM;
 	}
 
+	if (ext4_has_feature_bigalloc(sb)) {
+		ext4_msg(sb, KERN_ERR, "Online resizing not supported with bigalloc");
+		return -EOPNOTSUPP;
+	}
+
 	if (test_and_set_bit_lock(EXT4_FLAGS_RESIZING,
 				  &EXT4_SB(sb)->s_ext4_flags))
 		ret = -EBUSY;
