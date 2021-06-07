@@ -54,9 +54,6 @@ struct snd_motu {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	/* Model dependent information. */
 	const struct snd_motu_spec *spec;
 
