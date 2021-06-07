@@ -83,10 +83,6 @@ struct snd_bebob {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
-	const struct ieee1394_device_id *entry;
 	const struct snd_bebob_spec *spec;
 
 	unsigned int midi_input_ports;

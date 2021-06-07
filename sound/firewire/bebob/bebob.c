@@ -136,6 +136,9 @@ bebob_card_free(struct snd_card *card)
 	mutex_unlock(&devices_mutex);
 
 	snd_bebob_stream_destroy_duplex(bebob);
+
+	mutex_destroy(&bebob->mutex);
+	fw_unit_put(bebob->unit);
 }
 
 static const struct snd_bebob_spec *
@@ -163,16 +166,30 @@ check_audiophile_booted(struct fw_unit *unit)
 	return strncmp(name, "FW Audiophile Bootloader", 24) != 0;
 }
 
-static void
-do_registration(struct work_struct *work)
+static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
-	struct snd_bebob *bebob =
-			container_of(work, struct snd_bebob, dwork.work);
 	unsigned int card_index;
+	struct snd_card *card;
+	struct snd_bebob *bebob;
+	const struct snd_bebob_spec *spec;
 	int err;
 
-	if (bebob->registered)
-		return;
+	if (entry->vendor_id == VEN_FOCUSRITE &&
+	    entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH)
+		spec = get_saffire_spec(unit);
+	else if (entry->vendor_id == VEN_MAUDIO1 &&
+		 entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH &&
+		 !check_audiophile_booted(unit))
+		spec = NULL;
+	else
+		spec = (const struct snd_bebob_spec *)entry->driver_data;
+
+	if (spec == NULL) {
+		if (entry->vendor_id == VEN_MAUDIO1 || entry->vendor_id == VEN_MAUDIO2)
+			return snd_bebob_maudio_load_firmware(unit);
+		else
+			return -ENODEV;
+	}
 
 	mutex_lock(&devices_mutex);
 	for (card_index = 0; card_index < SNDRV_CARDS; card_index++) {
@@ -181,27 +198,36 @@ do_registration(struct work_struct *work)
 	}
 	if (card_index >= SNDRV_CARDS) {
 		mutex_unlock(&devices_mutex);
-		return;
+		return -ENOENT;
 	}
 
-	err = snd_card_new(&bebob->unit->device, index[card_index],
-			   id[card_index], THIS_MODULE, 0, &bebob->card);
+	err = snd_card_new(&unit->device, index[card_index], id[card_index], THIS_MODULE,
+			   sizeof(*bebob), &card);
 	if (err < 0) {
 		mutex_unlock(&devices_mutex);
-		return;
+		return err;
 	}
+	card->private_free = bebob_card_free;
 	set_bit(card_index, devices_used);
 	mutex_unlock(&devices_mutex);
 
-	bebob->card->private_free = bebob_card_free;
-	bebob->card->private_data = bebob;
+	bebob = card->private_data;
+	bebob->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, bebob);
+	bebob->card = card;
+	bebob->card_index = card_index;
+
+	bebob->spec = spec;
+	mutex_init(&bebob->mutex);
+	spin_lock_init(&bebob->lock);
+	init_waitqueue_head(&bebob->hwdep_wait);
 
 	err = name_device(bebob);
 	if (err < 0)
 		goto error;
 
 	if (bebob->spec == &maudio_special_spec) {
-		if (bebob->entry->model_id == MODEL_MAUDIO_FW1814)
+		if (entry->model_id == MODEL_MAUDIO_FW1814)
 			err = snd_bebob_maudio_special_discover(bebob, true);
 		else
 			err = snd_bebob_maudio_special_discover(bebob, false);
@@ -214,8 +240,7 @@ do_registration(struct work_struct *work)
 	// M-Audio ProFire Lightbridge has a quirk to transfer packets with discontinuous cycle or
 	// data block counter in early stage of packet streaming. The cycle span from the first
 	// packet with event is variable.
-	if (bebob->entry->vendor_id == VEN_MAUDIO1 &&
-	    bebob->entry->model_id == MODEL_MAUDIO_PROFIRELIGHTBRIDGE)
+	if (entry->vendor_id == VEN_MAUDIO1 && entry->model_id == MODEL_MAUDIO_PROFIRELIGHTBRIDGE)
 		bebob->discontinuity_quirk = true;
 
 	err = snd_bebob_stream_init_duplex(bebob);
@@ -238,80 +263,26 @@ do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(bebob->card);
+	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
 
-	bebob->registered = true;
-
-	return;
-error:
-	snd_card_free(bebob->card);
-	dev_info(&bebob->unit->device,
-		 "Sound card registration failed: %d\n", err);
-}
-
-static int
-bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
-{
-	struct snd_bebob *bebob;
-	const struct snd_bebob_spec *spec;
-
-	if (entry->vendor_id == VEN_FOCUSRITE &&
-	    entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH)
-		spec = get_saffire_spec(unit);
-	else if (entry->vendor_id == VEN_MAUDIO1 &&
-		 entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH &&
-		 !check_audiophile_booted(unit))
-		spec = NULL;
-	else
-		spec = (const struct snd_bebob_spec *)entry->driver_data;
-
-	if (spec == NULL) {
-		if (entry->vendor_id == VEN_MAUDIO1 ||
-		    entry->vendor_id == VEN_MAUDIO2)
-			return snd_bebob_maudio_load_firmware(unit);
-		else
-			return -ENODEV;
-	}
-
-	/* Allocate this independent of sound card instance. */
-	bebob = devm_kzalloc(&unit->device, sizeof(struct snd_bebob),
-			     GFP_KERNEL);
-	if (!bebob)
-		return -ENOMEM;
-	bebob->unit = fw_unit_get(unit);
-	dev_set_drvdata(&unit->device, bebob);
-
-	bebob->entry = entry;
-	bebob->spec = spec;
-	mutex_init(&bebob->mutex);
-	spin_lock_init(&bebob->lock);
-	init_waitqueue_head(&bebob->hwdep_wait);
-
-	/* Allocate and register this sound card later. */
-	INIT_DEFERRABLE_WORK(&bebob->dwork, do_registration);
-
-	if (entry->vendor_id != VEN_MAUDIO1 ||
-	    (entry->model_id != MODEL_MAUDIO_FW1814 &&
-	     entry->model_id != MODEL_MAUDIO_PROJECTMIX)) {
-		snd_fw_schedule_registration(unit, &bebob->dwork);
-	} else {
-		/*
-		 * This is a workaround. This bus reset seems to have an effect
-		 * to make devices correctly handling transactions. Without
-		 * this, the devices have gap_count mismatch. This causes much
-		 * failure of transaction.
-		 *
-		 * Just after registration, user-land application receive
-		 * signals from dbus and starts I/Os. To avoid I/Os till the
-		 * future bus reset, registration is done in next update().
-		 */
-		fw_schedule_bus_reset(fw_parent_device(bebob->unit)->card,
-				      false, true);
+	if (entry->vendor_id == VEN_MAUDIO1 &&
+	    (entry->model_id == MODEL_MAUDIO_FW1814 || entry->model_id == MODEL_MAUDIO_PROJECTMIX)) {
+		// This is a workaround. This bus reset seems to have an effect to make devices
+		// correctly handling transactions. Without this, the devices have gap_count
+		// mismatch. This causes much failure of transaction.
+		//
+		// Just after registration, user-land application receive signals from dbus and
+		// starts I/Os. To avoid I/Os till the future bus reset, registration is done in
+		// next update().
+		fw_schedule_bus_reset(fw_parent_device(bebob->unit)->card, false, true);
 	}
 
 	return 0;
+error:
+	snd_card_free(card);
+	return err;
 }
 
 /*
@@ -338,11 +309,7 @@ bebob_update(struct fw_unit *unit)
 	if (bebob == NULL)
 		return;
 
-	/* Postpone a workqueue for deferred registration. */
-	if (!bebob->registered)
-		snd_fw_schedule_registration(unit, &bebob->dwork);
-	else
-		fcp_bus_reset(bebob->unit);
+	fcp_bus_reset(bebob->unit);
 }
 
 static void bebob_remove(struct fw_unit *unit)
@@ -352,20 +319,8 @@ static void bebob_remove(struct fw_unit *unit)
 	if (bebob == NULL)
 		return;
 
-	/*
-	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
-	 */
-	cancel_delayed_work_sync(&bebob->dwork);
-
-	if (bebob->registered) {
-		// Block till all of ALSA character devices are released.
-		snd_card_free(bebob->card);
-	}
-
-	mutex_destroy(&bebob->mutex);
-	fw_unit_put(bebob->unit);
+	// Block till all of ALSA character devices are released.
+	snd_card_free(bebob->card);
 }
 
 static const struct snd_bebob_rate_spec normal_rate_spec = {

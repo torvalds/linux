@@ -60,7 +60,7 @@ static bool detect_loud_models(struct fw_unit *unit)
 	return match_string(models, ARRAY_SIZE(models), model) >= 0;
 }
 
-static int name_card(struct snd_oxfw *oxfw)
+static int name_card(struct snd_oxfw *oxfw, const struct ieee1394_device_id *entry)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
 	const struct compat_info *info;
@@ -92,9 +92,8 @@ static int name_card(struct snd_oxfw *oxfw)
 		oxfw->quirks |= SND_OXFW_QUIRK_JUMBO_PAYLOAD;
 
 	/* to apply card definitions */
-	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
-	    oxfw->entry->vendor_id == VENDOR_LACIE) {
-		info = (const struct compat_info *)oxfw->entry->driver_data;
+	if (entry->vendor_id == VENDOR_GRIFFIN || entry->vendor_id == VENDOR_LACIE) {
+		info = (const struct compat_info *)entry->driver_data;
 		d = info->driver_name;
 		v = info->vendor_name;
 		m = info->model_name;
@@ -123,9 +122,12 @@ static void oxfw_card_free(struct snd_card *card)
 
 	if (oxfw->has_output || oxfw->has_input)
 		snd_oxfw_stream_destroy_duplex(oxfw);
+
+	mutex_destroy(&oxfw->mutex);
+	fw_unit_put(oxfw->unit);
 }
 
-static int detect_quirks(struct snd_oxfw *oxfw)
+static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id *entry)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
 	struct fw_csr_iterator it;
@@ -136,17 +138,18 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 	 * Add ALSA control elements for two models to keep compatibility to
 	 * old firewire-speaker module.
 	 */
-	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN)
+	if (entry->vendor_id == VENDOR_GRIFFIN)
 		return snd_oxfw_add_spkr(oxfw, false);
-	if (oxfw->entry->vendor_id == VENDOR_LACIE)
+	if (entry->vendor_id == VENDOR_LACIE)
 		return snd_oxfw_add_spkr(oxfw, true);
 
 	/*
 	 * Stanton models supports asynchronous transactions for unique MIDI
 	 * messages.
 	 */
-	if (oxfw->entry->vendor_id == OUI_STANTON) {
-		if (oxfw->entry->model_id == MODEL_SCS1M)
+	if (entry->vendor_id == OUI_STANTON) {
+		oxfw->quirks |= SND_OXFW_QUIRK_SCS_TRANSACTION;
+		if (entry->model_id == MODEL_SCS1M)
 			oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION;
 
 		// No physical MIDI ports.
@@ -156,14 +159,14 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 		return snd_oxfw_scs1x_add(oxfw);
 	}
 
-	if (oxfw->entry->vendor_id == OUI_APOGEE && oxfw->entry->model_id == MODEL_DUET_FW)
+	if (entry->vendor_id == OUI_APOGEE && entry->model_id == MODEL_DUET_FW)
 		oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION;
 
 	/*
 	 * TASCAM FireOne has physical control and requires a pair of additional
 	 * MIDI ports.
 	 */
-	if (oxfw->entry->vendor_id == VENDOR_TASCAM) {
+	if (entry->vendor_id == VENDOR_TASCAM) {
 		oxfw->midi_input_ports++;
 		oxfw->midi_output_ports++;
 		return 0;
@@ -189,22 +192,30 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 	return 0;
 }
 
-static void do_registration(struct work_struct *work)
+static int oxfw_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
-	struct snd_oxfw *oxfw = container_of(work, struct snd_oxfw, dwork.work);
+	struct snd_card *card;
+	struct snd_oxfw *oxfw;
 	int err;
 
-	if (oxfw->registered)
-		return;
+	if (entry->vendor_id == VENDOR_LOUD && entry->model_id == 0 && !detect_loud_models(unit))
+		return -ENODEV;
 
-	err = snd_card_new(&oxfw->unit->device, -1, NULL, THIS_MODULE, 0,
-			   &oxfw->card);
+	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE, sizeof(*oxfw), &card);
 	if (err < 0)
-		return;
-	oxfw->card->private_free = oxfw_card_free;
-	oxfw->card->private_data = oxfw;
+		return err;
+	card->private_free = oxfw_card_free;
 
-	err = name_card(oxfw);
+	oxfw = card->private_data;
+	oxfw->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, oxfw);
+	oxfw->card = card;
+
+	mutex_init(&oxfw->mutex);
+	spin_lock_init(&oxfw->lock);
+	init_waitqueue_head(&oxfw->hwdep_wait);
+
+	err = name_card(oxfw, entry);
 	if (err < 0)
 		goto error;
 
@@ -212,7 +223,7 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = detect_quirks(oxfw);
+	err = detect_quirks(oxfw, entry);
 	if (err < 0)
 		goto error;
 
@@ -236,85 +247,38 @@ static void do_registration(struct work_struct *work)
 			goto error;
 	}
 
-	err = snd_card_register(oxfw->card);
+	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
 
-	oxfw->registered = true;
-
-	return;
-error:
-	snd_card_free(oxfw->card);
-	dev_info(&oxfw->unit->device,
-		 "Sound card registration failed: %d\n", err);
-}
-
-static int oxfw_probe(struct fw_unit *unit,
-		      const struct ieee1394_device_id *entry)
-{
-	struct snd_oxfw *oxfw;
-
-	if (entry->vendor_id == VENDOR_LOUD && entry->model_id == 0 && !detect_loud_models(unit))
-		return -ENODEV;
-
-	/* Allocate this independent of sound card instance. */
-	oxfw = devm_kzalloc(&unit->device, sizeof(struct snd_oxfw), GFP_KERNEL);
-	if (!oxfw)
-		return -ENOMEM;
-	oxfw->unit = fw_unit_get(unit);
-	dev_set_drvdata(&unit->device, oxfw);
-
-	oxfw->entry = entry;
-	mutex_init(&oxfw->mutex);
-	spin_lock_init(&oxfw->lock);
-	init_waitqueue_head(&oxfw->hwdep_wait);
-
-	/* Allocate and register this sound card later. */
-	INIT_DEFERRABLE_WORK(&oxfw->dwork, do_registration);
-	snd_fw_schedule_registration(unit, &oxfw->dwork);
-
 	return 0;
+error:
+	snd_card_free(card);
+	return err;
 }
 
 static void oxfw_bus_reset(struct fw_unit *unit)
 {
 	struct snd_oxfw *oxfw = dev_get_drvdata(&unit->device);
 
-	if (!oxfw->registered)
-		snd_fw_schedule_registration(unit, &oxfw->dwork);
-
 	fcp_bus_reset(oxfw->unit);
 
-	if (oxfw->registered) {
-		if (oxfw->has_output || oxfw->has_input) {
-			mutex_lock(&oxfw->mutex);
-			snd_oxfw_stream_update_duplex(oxfw);
-			mutex_unlock(&oxfw->mutex);
-		}
-
-		if (oxfw->entry->vendor_id == OUI_STANTON)
-			snd_oxfw_scs1x_update(oxfw);
+	if (oxfw->has_output || oxfw->has_input) {
+		mutex_lock(&oxfw->mutex);
+		snd_oxfw_stream_update_duplex(oxfw);
+		mutex_unlock(&oxfw->mutex);
 	}
+
+	if (oxfw->quirks & SND_OXFW_QUIRK_SCS_TRANSACTION)
+		snd_oxfw_scs1x_update(oxfw);
 }
 
 static void oxfw_remove(struct fw_unit *unit)
 {
 	struct snd_oxfw *oxfw = dev_get_drvdata(&unit->device);
 
-	/*
-	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
-	 */
-	cancel_delayed_work_sync(&oxfw->dwork);
-
-	if (oxfw->registered) {
-		// Block till all of ALSA character devices are released.
-		snd_card_free(oxfw->card);
-	}
-
-	mutex_destroy(&oxfw->mutex);
-	fw_unit_put(oxfw->unit);
+	// Block till all of ALSA character devices are released.
+	snd_card_free(oxfw->card);
 }
 
 static const struct compat_info griffin_firewave = {
