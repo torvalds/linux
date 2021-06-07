@@ -88,12 +88,14 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
-	if (unlikely(ret))
+	if (unlikely(ret)) {
 		kfree(node);
-	else
-		node->base.start = node->mm_nodes[0].start;
+		return ret;
+	}
 
-	return ret;
+	node->base.start = node->mm_nodes[0].start;
+	*res = &node->base;
+	return 0;
 }
 
 static void ttm_range_man_free(struct ttm_resource_manager *man,
