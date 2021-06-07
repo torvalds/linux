@@ -70,6 +70,7 @@ static bool rt715_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x2000036:
 	case 0x2000037:
 	case 0x2000039:
+	case 0x2000044:
 	case 0x6100000:
 		return true;
 	default:

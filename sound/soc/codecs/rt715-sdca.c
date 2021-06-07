@@ -1054,6 +1054,9 @@ int rt715_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		rt715_sdca_index_update_bits(rt715, RT715_VENDOR_REG,
 			RT715_REV_1, 0x40, 0x40);
 	}
+	/* DFLL Calibration trigger */
+	rt715_sdca_index_update_bits(rt715, RT715_VENDOR_REG,
+			RT715_DFLL_VAD, 0x1, 0x1);
 	/* trigger mode = VAD enable */
 	regmap_write(rt715->regmap,
 		SDW_SDCA_CTL(FUN_MIC_ARRAY, RT715_SDCA_SMPU_TRIG_ST_EN,

@@ -81,6 +81,7 @@ struct rt715_sdca_kcontrol_private {
 #define RT715_AD_FUNC_EN				0x36
 #define RT715_REV_1					0x37
 #define RT715_SDW_INPUT_SEL				0x39
+#define RT715_DFLL_VAD					0x44
 #define RT715_EXT_DMIC_CLK_CTRL2			0x54
 
 /* Index (NID:61h) */
