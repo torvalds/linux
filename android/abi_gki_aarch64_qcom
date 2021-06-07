@@ -2561,6 +2561,7 @@
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_printk_hotplug
+  __tracepoint_android_vh_process_killed
   __tracepoint_android_vh_psi_event
   __tracepoint_android_vh_psi_group
   __tracepoint_android_vh_scheduler_tick
