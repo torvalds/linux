@@ -841,9 +841,6 @@ static void sci_transmit_chars(struct uart_port *port)
 
 }
 
-/* On SH3, SCIF may read end-of-break as a space->mark char */
-#define STEPFN(c)  ({int __c = (c); (((__c-1)|(__c)) == -1); })
-
 static void sci_receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
