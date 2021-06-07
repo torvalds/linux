@@ -398,6 +398,19 @@ int smu_cmn_get_enabled_32_bits_mask(struct smu_context *smu,
 
 }
 
+uint64_t smu_cmn_get_indep_throttler_status(
+					const unsigned long dep_status,
+					const uint8_t *throttler_map)
+{
+	uint64_t indep_status = 0;
+	uint8_t dep_bit = 0;
+
+	for_each_set_bit(dep_bit, &dep_status, 32)
+		indep_status |= 1ULL << throttler_map[dep_bit];
+
+	return indep_status;
+}
+
 int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 					uint64_t feature_mask,
 					bool enabled)
