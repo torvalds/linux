@@ -242,7 +242,6 @@ examples:
         clock-names = "phyclk";
         #clock-cells = <0>;
         clock-output-names = "clk_usbphy0_480m";
-        #phy-cells = <0>;
 
         u2phy0_host: host-port {
           #phy-cells = <0>;
