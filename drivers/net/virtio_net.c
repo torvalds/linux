@@ -401,6 +401,9 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	/* If whole_page, there is an offset between the beginning of the
 	 * data and the allocated space, otherwise the data and the allocated
 	 * space are aligned.
+	 *
+	 * Buffers with headroom use PAGE_SIZE as alloc size, see
+	 * add_recvbuf_mergeable() + get_mergeable_buf_len()
 	 */
 	if (whole_page) {
 		/* Buffers with whole_page use PAGE_SIZE as alloc size,

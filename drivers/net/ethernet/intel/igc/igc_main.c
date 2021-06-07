@@ -2214,15 +2214,19 @@ static int __igc_xdp_run_prog(struct igc_adapter *adapter,
 	case XDP_PASS:
 		return IGC_XDP_PASS;
 	case XDP_TX:
-		return igc_xdp_xmit_back(adapter, xdp) < 0 ?
-			IGC_XDP_CONSUMED : IGC_XDP_TX;
+		if (igc_xdp_xmit_back(adapter, xdp) < 0)
+			goto out_failure;
+		return IGC_XDP_TX;
 	case XDP_REDIRECT:
-		return xdp_do_redirect(adapter->netdev, xdp, prog) < 0 ?
-			IGC_XDP_CONSUMED : IGC_XDP_REDIRECT;
+		if (xdp_do_redirect(adapter->netdev, xdp, prog) < 0)
+			goto out_failure;
+		return IGC_XDP_REDIRECT;
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
 		fallthrough;
 	case XDP_ABORTED:
+out_failure:
 		trace_xdp_exception(adapter->netdev, prog, act);
 		fallthrough;
 	case XDP_DROP:

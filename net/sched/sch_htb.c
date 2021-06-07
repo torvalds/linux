@@ -1523,7 +1523,8 @@ static void htb_parent_to_leaf_offload(struct Qdisc *sch,
 	struct Qdisc *old_q;
 
 	/* One ref for cl->leaf.q, the other for dev_queue->qdisc. */
-	qdisc_refcount_inc(new_q);
+	if (new_q)
+		qdisc_refcount_inc(new_q);
 	old_q = htb_graft_helper(dev_queue, new_q);
 	WARN_ON(!(old_q->flags & TCQ_F_BUILTIN));
 }
@@ -1710,10 +1711,9 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg,
 					  cl->parent->common.classid,
 					  NULL);
 		if (q->offload) {
-			if (new_q) {
+			if (new_q)
 				htb_set_lockdep_class_child(new_q);
-				htb_parent_to_leaf_offload(sch, dev_queue, new_q);
-			}
+			htb_parent_to_leaf_offload(sch, dev_queue, new_q);
 		}
 	}
 
