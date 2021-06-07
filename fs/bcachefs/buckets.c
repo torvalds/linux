@@ -1083,32 +1083,6 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	return 0;
 }
 
-static int __reflink_p_frag_references(struct bkey_s_c_reflink_p p,
-				       u64 p_start, u64 p_end,
-				       u64 v_start, u64 v_end)
-{
-	if (p_start == p_end)
-		return false;
-
-	p_start	+= le64_to_cpu(p.v->idx);
-	p_end	+= le64_to_cpu(p.v->idx);
-
-	if (p_end <= v_start)
-		return false;
-	if (p_start >= v_end)
-		return false;
-	return true;
-}
-
-static int reflink_p_frag_references(struct bkey_s_c_reflink_p p,
-				     u64 start, u64 end,
-				     struct bkey_s_c k)
-{
-	return __reflink_p_frag_references(p, start, end,
-					   bkey_start_offset(k.k),
-					   k.k->p.offset);
-}
-
 static int __bch2_mark_reflink_p(struct bch_fs *c,
 			struct bkey_s_c_reflink_p p,
 			u64 idx, unsigned sectors,
@@ -1119,7 +1093,6 @@ static int __bch2_mark_reflink_p(struct bch_fs *c,
 {
 	struct reflink_gc *r;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
-	int frags_referenced;
 
 	while (1) {
 		if (*r_idx >= c->reflink_gc_nr)
@@ -1130,20 +1103,6 @@ static int __bch2_mark_reflink_p(struct bch_fs *c,
 		if (r->offset > idx)
 			break;
 		(*r_idx)++;
-	}
-
-	frags_referenced =
-		__reflink_p_frag_references(p, 0, front_frag,
-					    r->offset - r->size, r->offset) +
-		__reflink_p_frag_references(p, back_frag, p.k->size,
-					    r->offset - r->size, r->offset);
-
-	if (frags_referenced == 2) {
-		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE_SPLIT));
-		add = -add;
-	} else if (frags_referenced == 1) {
-		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE));
-		add = 0;
 	}
 
 	BUG_ON((s64) r->refcount + add < 0);
@@ -1806,8 +1765,6 @@ static int bch2_trans_mark_stripe(struct btree_trans *trans,
 static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 			struct bkey_s_c_reflink_p p,
 			u64 idx, unsigned sectors,
-			unsigned front_frag,
-			unsigned back_frag,
 			unsigned flags)
 {
 	struct bch_fs *c = trans->c;
@@ -1816,7 +1773,6 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct bkey_i *n;
 	__le64 *refcount;
 	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
-	int frags_referenced;
 	s64 ret;
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_reflink, POS(0, idx),
@@ -1828,18 +1784,6 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		goto err;
 
 	sectors = min_t(u64, sectors, k.k->p.offset - idx);
-
-	frags_referenced =
-		reflink_p_frag_references(p, 0, front_frag, k) +
-		reflink_p_frag_references(p, back_frag, p.k->size, k);
-
-	if (frags_referenced == 2) {
-		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE_SPLIT));
-		add = -add;
-	} else if (frags_referenced == 1) {
-		BUG_ON(!(flags & BTREE_TRIGGER_OVERWRITE));
-		goto out;
-	}
 
 	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 	ret = PTR_ERR_OR_ZERO(n);
@@ -1870,7 +1814,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	ret = bch2_trans_update(trans, iter, n, 0);
 	if (ret)
 		goto err;
-out:
+
 	ret = sectors;
 err:
 	bch2_trans_iter_put(trans, iter);
@@ -1882,20 +1826,15 @@ static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
 			s64 sectors, unsigned flags)
 {
 	u64 idx = le64_to_cpu(p.v->idx) + offset;
-	unsigned front_frag, back_frag;
 	s64 ret = 0;
 
 	if (sectors < 0)
 		sectors = -sectors;
 
-	BUG_ON(offset + sectors > p.k->size);
-
-	front_frag = offset;
-	back_frag = offset + sectors;
+	BUG_ON(offset || sectors != p.k->size);
 
 	while (sectors) {
-		ret = __bch2_trans_mark_reflink_p(trans, p, idx, sectors,
-					front_frag, back_frag, flags);
+		ret = __bch2_trans_mark_reflink_p(trans, p, idx, sectors, flags);
 		if (ret < 0)
 			return ret;
 
