@@ -880,7 +880,6 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 				 struct bio *bio, unsigned int sectors)
 {
 	int ret = MAP_CONTINUE;
-	unsigned int reada = 0;
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 	struct bio *miss, *cache_bio;
 
@@ -892,14 +891,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 		goto out_submit;
 	}
 
-	if (!(bio->bi_opf & REQ_RAHEAD) &&
-	    !(bio->bi_opf & (REQ_META|REQ_PRIO)) &&
-	    s->iop.c->gc_stats.in_use < CUTOFF_CACHE_READA)
-		reada = min_t(sector_t, dc->readahead >> 9,
-			      get_capacity(bio->bi_bdev->bd_disk) -
-			      bio_end_sector(bio));
-
-	s->insert_bio_sectors = min(sectors, bio_sectors(bio) + reada);
+	s->insert_bio_sectors = min(sectors, bio_sectors(bio));
 
 	s->iop.replace_key = KEY(s->iop.inode,
 				 bio->bi_iter.bi_sector + s->insert_bio_sectors,
@@ -932,9 +924,6 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	bch_bio_map(cache_bio, NULL);
 	if (bch_bio_alloc_pages(cache_bio, __GFP_NOWARN|GFP_NOIO))
 		goto out_put;
-
-	if (reada)
-		bch_mark_cache_readahead(s->iop.c, s->d);
 
 	s->cache_miss	= miss;
 	s->iop.bio	= cache_bio;
