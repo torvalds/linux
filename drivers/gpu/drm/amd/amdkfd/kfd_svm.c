@@ -2663,8 +2663,53 @@ int svm_range_list_init(struct kfd_process *p)
 }
 
 /**
+ * svm_range_check_vm - check if virtual address range mapped already
+ * @p: current kfd_process
+ * @start: range start address, in pages
+ * @last: range last address, in pages
+ *
+ * The purpose is to avoid virtual address ranges already allocated by
+ * kfd_ioctl_alloc_memory_of_gpu ioctl.
+ * It looks for each pdd in the kfd_process.
+ *
+ * Context: Process context
+ *
+ * Return 0 - OK, if the range is not mapped.
+ * Otherwise error code:
+ * -EADDRINUSE - if address is mapped already by kfd_ioctl_alloc_memory_of_gpu
+ * -ERESTARTSYS - A wait for the buffer to become unreserved was interrupted by
+ * a signal. Release all buffer reservations and return to user-space.
+ */
+static int
+svm_range_check_vm(struct kfd_process *p, uint64_t start, uint64_t last)
+{
+	uint32_t i;
+	int r;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct amdgpu_vm *vm;
+
+		if (!p->pdds[i]->drm_priv)
+			continue;
+
+		vm = drm_priv_to_vm(p->pdds[i]->drm_priv);
+		r = amdgpu_bo_reserve(vm->root.bo, false);
+		if (r)
+			return r;
+		if (interval_tree_iter_first(&vm->va, start, last)) {
+			pr_debug("Range [0x%llx 0x%llx] already mapped\n", start, last);
+			amdgpu_bo_unreserve(vm->root.bo);
+			return -EADDRINUSE;
+		}
+		amdgpu_bo_unreserve(vm->root.bo);
+	}
+
+	return 0;
+}
+
+/**
  * svm_range_is_valid - check if virtual address range is valid
- * @mm: current process mm_struct
+ * @p: current kfd_process
  * @start: range start address, in pages
  * @size: range size, in pages
  *
@@ -2673,28 +2718,27 @@ int svm_range_list_init(struct kfd_process *p)
  * Context: Process context
  *
  * Return:
- *  true - valid svm range
- *  false - invalid svm range
+ *  0 - OK, otherwise error code
  */
-static bool
-svm_range_is_valid(struct mm_struct *mm, uint64_t start, uint64_t size)
+static int
+svm_range_is_valid(struct kfd_process *p, uint64_t start, uint64_t size)
 {
 	const unsigned long device_vma = VM_IO | VM_PFNMAP | VM_MIXEDMAP;
 	struct vm_area_struct *vma;
 	unsigned long end;
+	unsigned long start_unchg = start;
 
 	start <<= PAGE_SHIFT;
 	end = start + (size << PAGE_SHIFT);
-
 	do {
-		vma = find_vma(mm, start);
+		vma = find_vma(p->mm, start);
 		if (!vma || start < vma->vm_start ||
 		    (vma->vm_flags & device_vma))
-			return false;
+			return -EFAULT;
 		start = min(end, vma->vm_end);
 	} while (start < end);
 
-	return true;
+	return svm_range_check_vm(p, start_unchg, (end - 1) >> PAGE_SHIFT);
 }
 
 /**
@@ -2997,9 +3041,9 @@ svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 
 	svm_range_list_lock_and_flush_work(svms, mm);
 
-	if (!svm_range_is_valid(mm, start, size)) {
-		pr_debug("invalid range\n");
-		r = -EFAULT;
+	r = svm_range_is_valid(p, start, size);
+	if (r) {
+		pr_debug("invalid range r=%d\n", r);
 		mmap_write_unlock(mm);
 		goto out;
 	}
@@ -3101,6 +3145,7 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 	uint32_t flags_or = 0;
 	int gpuidx;
 	uint32_t i;
+	int r = 0;
 
 	pr_debug("svms 0x%p [0x%llx 0x%llx] nattr 0x%x\n", &p->svms, start,
 		 start + size - 1, nattr);
@@ -3114,12 +3159,12 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 	flush_work(&p->svms.deferred_list_work);
 
 	mmap_read_lock(mm);
-	if (!svm_range_is_valid(mm, start, size)) {
-		pr_debug("invalid range\n");
-		mmap_read_unlock(mm);
-		return -EINVAL;
-	}
+	r = svm_range_is_valid(p, start, size);
 	mmap_read_unlock(mm);
+	if (r) {
+		pr_debug("invalid range r=%d\n", r);
+		return r;
+	}
 
 	for (i = 0; i < nattr; i++) {
 		switch (attrs[i].type) {

@@ -1251,6 +1251,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	struct kfd_process_device *pdd;
 	void *mem;
 	struct kfd_dev *dev;
+	struct svm_range_list *svms = &p->svms;
 	int idr_handle;
 	long err;
 	uint64_t offset = args->mmap_offset;
@@ -1259,6 +1260,18 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	if (args->size == 0)
 		return -EINVAL;
 
+#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+	mutex_lock(&svms->lock);
+	if (interval_tree_iter_first(&svms->objects,
+				     args->va_addr >> PAGE_SHIFT,
+				     (args->va_addr + args->size - 1) >> PAGE_SHIFT)) {
+		pr_err("Address: 0x%llx already allocated by SVM\n",
+			args->va_addr);
+		mutex_unlock(&svms->lock);
+		return -EADDRINUSE;
+	}
+	mutex_unlock(&svms->lock);
+#endif
 	dev = kfd_device_by_id(args->gpu_id);
 	if (!dev)
 		return -EINVAL;
