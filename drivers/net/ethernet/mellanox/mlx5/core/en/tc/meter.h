@@ -4,6 +4,7 @@
 #ifndef __MLX5_EN_FLOW_METER_H__
 #define __MLX5_EN_FLOW_METER_H__
 
+struct mlx5e_flow_meter_aso_obj;
 struct mlx5e_flow_meters;
 
 enum mlx5e_flow_meter_mode {
@@ -13,20 +14,32 @@ enum mlx5e_flow_meter_mode {
 
 struct mlx5e_flow_meter_params {
 	enum mlx5e_flow_meter_mode mode;
+	 /* police action index */
+	u32 index;
 	u64 rate;
 	u64 burst;
 };
 
 struct mlx5e_flow_meter_handle {
 	struct mlx5e_flow_meters *flow_meters;
+	struct mlx5e_flow_meter_aso_obj *meters_obj;
 	u32 obj_id;
 	u8 idx;
+
+	int refcnt;
+	struct hlist_node hlist;
+	struct mlx5e_flow_meter_params params;
 };
 
 int
 mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 		      struct mlx5e_flow_meter_handle *meter,
 		      struct mlx5e_flow_meter_params *meter_params);
+
+struct mlx5e_flow_meter_handle *
+mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *params);
+void
+mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter);
 
 struct mlx5e_flow_meters *
 mlx5e_flow_meters_init(struct mlx5e_priv *priv,
