@@ -499,15 +499,18 @@ static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 	/* configure class code and revision ID */
 	pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
 		   offset + RALINK_PCI_CLASS);
+
+	/* configure RC FTS number to 250 when it leaves L0s */
+	val = read_config(pcie, slot, PCIE_FTS_NUM);
+	val &= ~PCIE_FTS_NUM_MASK;
+	val |= PCIE_FTS_NUM_L0(0x50);
+	write_config(pcie, slot, PCIE_FTS_NUM, val);
 }
 
 static int mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct mt7621_pcie_port *port;
-	u8 num_slots_enabled = 0;
-	u32 slot;
-	u32 val;
 	int err;
 
 	/* Setup MEMWIN and IOWIN */
@@ -518,25 +521,14 @@ static int mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 		if (port->enabled) {
 			err = clk_prepare_enable(port->clk);
 			if (err) {
-				dev_err(dev, "enabling clk pcie%d\n", slot);
+				dev_err(dev, "enabling clk pcie%d\n",
+					port->slot);
 				return err;
 			}
 
 			mt7621_pcie_enable_port(port);
 			dev_info(dev, "PCIE%d enabled\n", port->slot);
-			num_slots_enabled++;
 		}
-	}
-
-	for (slot = 0; slot < num_slots_enabled; slot++) {
-		val = read_config(pcie, slot, PCI_COMMAND);
-		val |= PCI_COMMAND_MASTER;
-		write_config(pcie, slot, PCI_COMMAND, val);
-		/* configure RC FTS number to 250 when it leaves L0s */
-		val = read_config(pcie, slot, PCIE_FTS_NUM);
-		val &= ~PCIE_FTS_NUM_MASK;
-		val |= PCIE_FTS_NUM_L0(0x50);
-		write_config(pcie, slot, PCIE_FTS_NUM, val);
 	}
 
 	return 0;
