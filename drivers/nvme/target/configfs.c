@@ -1154,14 +1154,8 @@ static ssize_t nvmet_subsys_attr_model_show(struct config_item *item,
 					    char *page)
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
-	int ret;
 
-	mutex_lock(&subsys->lock);
-	ret = snprintf(page, PAGE_SIZE, "%s\n", subsys->model_number ?
-			subsys->model_number : NVMET_DEFAULT_CTRL_MODEL);
-	mutex_unlock(&subsys->lock);
-
-	return ret;
+	return snprintf(page, PAGE_SIZE, "%s\n", subsys->model_number);
 }
 
 static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
@@ -1169,7 +1163,7 @@ static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
 {
 	int pos = 0, len;
 
-	if (subsys->model_number) {
+	if (subsys->subsys_discovered) {
 		pr_err("Can't set model number. %s is already assigned\n",
 		       subsys->model_number);
 		return -EINVAL;

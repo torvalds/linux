@@ -1494,6 +1494,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 {
 	struct nvmet_subsys *subsys;
 	char serial[NVMET_SN_MAX_SIZE / 2];
+	int ret;
 
 	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
 	if (!subsys)
@@ -1504,6 +1505,12 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	get_random_bytes(&serial, sizeof(serial));
 	bin2hex(subsys->serial, &serial, sizeof(serial));
 
+	subsys->model_number = kstrdup(NVMET_DEFAULT_CTRL_MODEL, GFP_KERNEL);
+	if (!subsys->model_number) {
+		ret = -ENOMEM;
+		goto free_subsys;
+	}
+
 	switch (type) {
 	case NVME_NQN_NVME:
 		subsys->max_qid = NVMET_NR_QUEUES;
@@ -1513,15 +1520,15 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		break;
 	default:
 		pr_err("%s: Unknown Subsystem type - %d\n", __func__, type);
-		kfree(subsys);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto free_mn;
 	}
 	subsys->type = type;
 	subsys->subsysnqn = kstrndup(subsysnqn, NVMF_NQN_SIZE,
 			GFP_KERNEL);
 	if (!subsys->subsysnqn) {
-		kfree(subsys);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto free_mn;
 	}
 	subsys->cntlid_min = NVME_CNTLID_MIN;
 	subsys->cntlid_max = NVME_CNTLID_MAX;
@@ -1533,6 +1540,12 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	INIT_LIST_HEAD(&subsys->hosts);
 
 	return subsys;
+
+free_mn:
+	kfree(subsys->model_number);
+free_subsys:
+	kfree(subsys);
+	return ERR_PTR(ret);
 }
 
 static void nvmet_subsys_free(struct kref *ref)
