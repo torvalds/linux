@@ -109,32 +109,32 @@ struct mt7621_pcie {
 
 static inline u32 pcie_read(struct mt7621_pcie *pcie, u32 reg)
 {
-	return readl(pcie->base + reg);
+	return readl_relaxed(pcie->base + reg);
 }
 
 static inline void pcie_write(struct mt7621_pcie *pcie, u32 val, u32 reg)
 {
-	writel(val, pcie->base + reg);
+	writel_relaxed(val, pcie->base + reg);
 }
 
 static inline void pcie_rmw(struct mt7621_pcie *pcie, u32 reg, u32 clr, u32 set)
 {
-	u32 val = readl(pcie->base + reg);
+	u32 val = readl_relaxed(pcie->base + reg);
 
 	val &= ~clr;
 	val |= set;
-	writel(val, pcie->base + reg);
+	writel_relaxed(val, pcie->base + reg);
 }
 
 static inline u32 pcie_port_read(struct mt7621_pcie_port *port, u32 reg)
 {
-	return readl(port->base + reg);
+	return readl_relaxed(port->base + reg);
 }
 
 static inline void pcie_port_write(struct mt7621_pcie_port *port,
 				   u32 val, u32 reg)
 {
-	writel(val, port->base + reg);
+	writel_relaxed(val, port->base + reg);
 }
 
 static inline u32 mt7621_pci_get_cfgaddr(unsigned int bus, unsigned int slot,
@@ -151,7 +151,7 @@ static void __iomem *mt7621_pcie_map_bus(struct pci_bus *bus,
 	u32 address = mt7621_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					     PCI_FUNC(devfn), where);
 
-	writel(address, pcie->base + RALINK_PCI_CONFIG_ADDR);
+	writel_relaxed(address, pcie->base + RALINK_PCI_CONFIG_ADDR);
 
 	return pcie->base + RALINK_PCI_CONFIG_DATA + (where & 3);
 }
