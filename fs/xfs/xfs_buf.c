@@ -22,9 +22,6 @@
 
 static kmem_zone_t *xfs_buf_zone;
 
-#define xb_to_gfp(flags) \
-	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : GFP_NOFS) | __GFP_NOWARN)
-
 /*
  * Locking orders
  *
@@ -350,8 +347,13 @@ xfs_buf_alloc_pages(
 	struct xfs_buf	*bp,
 	xfs_buf_flags_t	flags)
 {
-	gfp_t		gfp_mask = xb_to_gfp(flags);
+	gfp_t		gfp_mask = __GFP_NOWARN;
 	long		filled = 0;
+
+	if (flags & XBF_READ_AHEAD)
+		gfp_mask |= __GFP_NORETRY;
+	else
+		gfp_mask |= GFP_NOFS;
 
 	/* Make sure that we have a page list */
 	bp->b_page_count = DIV_ROUND_UP(BBTOB(bp->b_length), PAGE_SIZE);
