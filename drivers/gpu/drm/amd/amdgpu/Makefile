@@ -120,6 +120,7 @@ amdgpu-y += \
 amdgpu-y += \
 	dce_v10_0.o \
 	dce_v11_0.o \
+	amdgpu_vkms.o \
 	dce_virtual.o
 
 # add GFX block

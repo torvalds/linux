@@ -22,6 +22,7 @@
  */
 
 #include <drm/drm_vblank.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
@@ -40,6 +41,7 @@
 #include "dce_virtual.h"
 #include "ivsrcid/ivsrcid_vislands30.h"
 #include "amdgpu_display.h"
+#include "amdgpu_vkms.h"
 
 #define DCE_VIRTUAL_VBLANK_PERIOD 16666666
 
@@ -374,6 +376,12 @@ static const struct drm_connector_funcs dce_virtual_connector_funcs = {
 	.force = dce_virtual_force,
 };
 
+const struct drm_mode_config_funcs dce_virtual_mode_funcs = {
+	.fb_create = amdgpu_display_user_framebuffer_create,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
 static int dce_virtual_sw_init(void *handle)
 {
 	int r, i;
@@ -385,10 +393,10 @@ static int dce_virtual_sw_init(void *handle)
 
 	adev_to_drm(adev)->max_vblank_count = 0;
 
-	adev_to_drm(adev)->mode_config.funcs = &amdgpu_mode_funcs;
+	adev_to_drm(adev)->mode_config.funcs = &dce_virtual_mode_funcs;
 
-	adev_to_drm(adev)->mode_config.max_width = 16384;
-	adev_to_drm(adev)->mode_config.max_height = 16384;
+	adev_to_drm(adev)->mode_config.max_width = XRES_MAX;
+	adev_to_drm(adev)->mode_config.max_height = YRES_MAX;
 
 	adev_to_drm(adev)->mode_config.preferred_depth = 24;
 	adev_to_drm(adev)->mode_config.prefer_shadow = 1;
@@ -399,15 +407,11 @@ static int dce_virtual_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev_to_drm(adev)->mode_config.max_width = 16384;
-	adev_to_drm(adev)->mode_config.max_height = 16384;
+	adev->amdgpu_vkms_output = kcalloc(adev->mode_info.num_crtc, sizeof(struct amdgpu_vkms_output), GFP_KERNEL);
 
 	/* allocate crtcs, encoders, connectors */
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		r = dce_virtual_crtc_init(adev, i);
-		if (r)
-			return r;
-		r = dce_virtual_connector_encoder_init(adev, i);
+		r = amdgpu_vkms_output_init(adev_to_drm(adev), &adev->amdgpu_vkms_output[i], i);
 		if (r)
 			return r;
 	}
@@ -428,6 +432,7 @@ static int dce_virtual_sw_fini(void *handle)
 			hrtimer_cancel(&adev->mode_info.crtcs[i]->vblank_timer);
 
 	kfree(adev->mode_info.bios_hardcoded_edid);
+	kfree(adev->amdgpu_vkms_output);
 
 	drm_kms_helper_poll_fini(adev_to_drm(adev));
 
