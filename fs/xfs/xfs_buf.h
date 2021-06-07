@@ -167,7 +167,8 @@ struct xfs_buf {
 	atomic_t		b_pin_count;	/* pin count */
 	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
 	unsigned int		b_page_count;	/* size of page array */
-	unsigned int		b_offset;	/* page offset in first page */
+	unsigned int		b_offset;	/* page offset of b_addr,
+						   only for _XBF_KMEM buffers */
 	int			b_error;	/* error code on I/O */
 
 	/*
