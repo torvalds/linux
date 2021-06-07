@@ -2843,6 +2843,14 @@ static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 				    hclge_wq, &hdev->service_task, 0);
 }
 
+static void hclge_errhand_task_schedule(struct hclge_dev *hdev)
+{
+	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
+	    !test_and_set_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
+		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
+				    hclge_wq, &hdev->service_task, 0);
+}
+
 void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time)
 {
 	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
@@ -4262,6 +4270,36 @@ static void hclge_reset_subtask(struct hclge_dev *hdev)
 		hclge_do_reset(hdev);
 
 	hdev->reset_type = HNAE3_NONE_RESET;
+}
+
+static void hclge_misc_err_recovery(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	struct device *dev = &hdev->pdev->dev;
+	u32 msix_sts_reg;
+
+	msix_sts_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
+
+	if (msix_sts_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
+		if (hclge_handle_hw_msix_error(hdev,
+					       &hdev->default_reset_request))
+			dev_info(dev, "received msix interrupt 0x%x\n",
+				 msix_sts_reg);
+
+		if (hdev->default_reset_request)
+			if (ae_dev->ops->reset_event)
+				ae_dev->ops->reset_event(hdev->pdev, NULL);
+	}
+
+	hclge_enable_vector(&hdev->misc_vector, true);
+}
+
+static void hclge_errhand_service_task(struct hclge_dev *hdev)
+{
+	if (!test_and_clear_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
+		return;
+
+	hclge_misc_err_recovery(hdev);
 }
 
 static void hclge_reset_service_task(struct hclge_dev *hdev)
