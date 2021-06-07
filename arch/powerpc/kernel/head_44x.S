@@ -1233,23 +1233,8 @@ head_start_common:
 	isync
 	blr
 
-/*
- * We put a few things here that have to be page-aligned. This stuff
- * goes at the beginning of the data segment, which is page-aligned.
- */
-	.data
-	.align	PAGE_SHIFT
-	.globl	sdata
-sdata:
-
-/*
- * To support >32-bit physical addresses, we use an 8KB pgdir.
- */
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
 #ifdef CONFIG_SMP
+	.data
 	.align	12
 temp_boot_stack:
 	.space	1024

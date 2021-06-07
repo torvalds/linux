@@ -1212,15 +1212,3 @@ _GLOBAL(restore_to_as0)
 	*/
 3:	mr	r3,r5
 	bl	_start
-
-/*
- * We put a few things here that have to be page-aligned. This stuff
- * goes at the beginning of the data segment, which is page-aligned.
- */
-	.data
-	.align	12
-	.globl	sdata
-sdata:
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE

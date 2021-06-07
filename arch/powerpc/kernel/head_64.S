@@ -997,18 +997,3 @@ start_here_common:
 0:	trap
 	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 	.previous
-
-/*
- * We put a few things here that have to be page-aligned.
- * This stuff goes at the beginning of the bss, which is page-aligned.
- */
-	.section ".bss"
-/*
- * pgd dir should be aligned to PGD_TABLE_SIZE which is 64K.
- * We will need to find a better way to fix this
- */
-	.align	16
-
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE

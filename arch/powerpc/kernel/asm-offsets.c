@@ -354,11 +354,6 @@ int main(void)
 	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
 #endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
-	DEFINE(PGD_TABLE_SIZE, (sizeof(pgd_t) << max(RADIX_PGD_INDEX_SIZE, H_PGD_INDEX_SIZE)));
-#else
-	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
-#endif
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM

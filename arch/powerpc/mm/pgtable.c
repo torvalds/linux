@@ -28,6 +28,8 @@
 #include <asm/hugetlb.h>
 #include <asm/pte-walk.h>
 
+pgd_t swapper_pg_dir[MAX_PTRS_PER_PGD] __page_aligned_bss;
+
 static inline int is_exec_fault(void)
 {
 	return current->thread.regs && TRAP(current->thread.regs) == 0x400;

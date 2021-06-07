@@ -786,15 +786,3 @@ _GLOBAL(mmu_pin_tlb)
 	mtspr	SPRN_SRR1, r10
 	mtspr	SPRN_SRR0, r11
 	rfi
-
-/*
- * We put a few things here that have to be page-aligned.
- * This stuff goes at the beginning of the data segment,
- * which is page-aligned.
- */
-	.data
-	.globl	sdata
-sdata:
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
