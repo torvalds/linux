@@ -9,12 +9,12 @@
 struct xfs_mount;
 struct xfs_perag;
 
-struct xfs_eofblocks {
-	__u32		eof_flags;
-	kuid_t		eof_uid;
-	kgid_t		eof_gid;
-	prid_t		eof_prid;
-	__u64		eof_min_file_size;
+struct xfs_icwalk {
+	__u32		icw_flags;
+	kuid_t		icw_uid;
+	kgid_t		icw_gid;
+	prid_t		icw_prid;
+	__u64		icw_min_file_size;
 	int		icw_scan_limit;
 };
 
@@ -58,7 +58,7 @@ int xfs_blockgc_free_dquots(struct xfs_mount *mp, struct xfs_dquot *udqp,
 		struct xfs_dquot *gdqp, struct xfs_dquot *pdqp,
 		unsigned int iwalk_flags);
 int xfs_blockgc_free_quota(struct xfs_inode *ip, unsigned int iwalk_flags);
-int xfs_blockgc_free_space(struct xfs_mount *mp, struct xfs_eofblocks *eofb);
+int xfs_blockgc_free_space(struct xfs_mount *mp, struct xfs_icwalk *icm);
 
 void xfs_inode_set_eofblocks_tag(struct xfs_inode *ip);
 void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
