@@ -12,6 +12,7 @@ Contents
 - `Enabling the driver and kconfig options`_
 - `Devlink info`_
 - `Devlink parameters`_
+- `Bridge offload`_
 - `mlx5 subfunction`_
 - `mlx5 function attributes`_
 - `Devlink health reporters`_
@@ -216,6 +217,20 @@ users try to enable them.
 - Change eswitch mode to switchdev mode where after choosing the metadata value::
 
     $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
+
+Bridge offload
+==============
+The mlx5 driver implements support for offloading bridge rules when in switchdev
+mode. Linux bridge FDBs are automatically offloaded when mlx5 switchdev
+representor is attached to bridge.
+
+- Change device to switchdev mode::
+
+    $ devlink dev eswitch set pci/0000:06:00.0 mode switchdev
+
+- Attach mlx5 switchdev representor 'enp8s0f0' to bridge netdev 'bridge1'::
+
+    $ ip link set enp8s0f0 master bridge1
 
 mlx5 subfunction
 ================

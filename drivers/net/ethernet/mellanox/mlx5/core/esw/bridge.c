@@ -3,6 +3,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/list.h>
+#include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include "bridge.h"
 #include "eswitch.h"
@@ -21,14 +22,52 @@ enum {
 	MLX5_ESW_BRIDGE_LEVEL_EGRESS_TABLE,
 };
 
+struct mlx5_esw_bridge_fdb_key {
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+};
+
+struct mlx5_esw_bridge_fdb_entry {
+	struct mlx5_esw_bridge_fdb_key key;
+	struct rhash_head ht_node;
+	struct list_head list;
+	u16 vport_num;
+
+	struct mlx5_flow_handle *ingress_handle;
+	struct mlx5_flow_handle *egress_handle;
+};
+
+static const struct rhashtable_params fdb_ht_params = {
+	.key_offset = offsetof(struct mlx5_esw_bridge_fdb_entry, key),
+	.key_len = sizeof(struct mlx5_esw_bridge_fdb_key),
+	.head_offset = offsetof(struct mlx5_esw_bridge_fdb_entry, ht_node),
+	.automatic_shrinking = true,
+};
+
 struct mlx5_esw_bridge {
 	int ifindex;
 	int refcnt;
 	struct list_head list;
+	struct mlx5_esw_bridge_offloads *br_offloads;
+
+	struct list_head fdb_list;
+	struct rhashtable fdb_ht;
 
 	struct mlx5_flow_table *egress_ft;
 	struct mlx5_flow_group *egress_mac_fg;
 };
+
+static void
+mlx5_esw_bridge_fdb_offload_notify(struct net_device *dev, const unsigned char *addr, u16 vid,
+				   unsigned long val)
+{
+	struct switchdev_notifier_fdb_info send_info;
+
+	send_info.addr = addr;
+	send_info.vid = vid;
+	send_info.offloaded = true;
+	call_switchdev_notifiers(val, dev, &send_info.info, NULL);
+}
 
 static struct mlx5_flow_table *
 mlx5_esw_bridge_table_create(int max_fte, u32 level, struct mlx5_eswitch *esw)
@@ -128,6 +167,9 @@ mlx5_esw_bridge_ingress_table_init(struct mlx5_esw_bridge_offloads *br_offloads)
 	struct mlx5_flow_group *mac_fg;
 	int err;
 
+	if (!mlx5_eswitch_vport_match_metadata_enabled(br_offloads->esw))
+		return -EOPNOTSUPP;
+
 	ingress_ft = mlx5_esw_bridge_table_create(MLX5_ESW_BRIDGE_INGRESS_TABLE_SIZE,
 						  MLX5_ESW_BRIDGE_LEVEL_INGRESS_TABLE,
 						  br_offloads->esw);
@@ -194,6 +236,82 @@ mlx5_esw_bridge_egress_table_cleanup(struct mlx5_esw_bridge *bridge)
 	mlx5_destroy_flow_table(bridge->egress_ft);
 }
 
+static struct mlx5_flow_handle *
+mlx5_esw_bridge_ingress_flow_create(u16 vport_num, const unsigned char *addr, u16 vid,
+				    struct mlx5_esw_bridge *bridge)
+{
+	struct mlx5_esw_bridge_offloads *br_offloads = bridge->br_offloads;
+	struct mlx5_flow_destination dest = {
+		.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE,
+		.ft = bridge->egress_ft,
+	};
+	struct mlx5_flow_act flow_act = {
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+		.flags = FLOW_ACT_NO_APPEND,
+	};
+	struct mlx5_flow_spec *rule_spec;
+	struct mlx5_flow_handle *handle;
+	u8 *smac_v, *smac_c;
+
+	rule_spec = kvzalloc(sizeof(*rule_spec), GFP_KERNEL);
+	if (!rule_spec)
+		return ERR_PTR(-ENOMEM);
+
+	rule_spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS_2;
+
+	smac_v = MLX5_ADDR_OF(fte_match_param, rule_spec->match_value,
+			      outer_headers.smac_47_16);
+	ether_addr_copy(smac_v, addr);
+	smac_c = MLX5_ADDR_OF(fte_match_param, rule_spec->match_criteria,
+			      outer_headers.smac_47_16);
+	eth_broadcast_addr(smac_c);
+
+	MLX5_SET(fte_match_param, rule_spec->match_criteria,
+		 misc_parameters_2.metadata_reg_c_0, mlx5_eswitch_get_vport_metadata_mask());
+	MLX5_SET(fte_match_param, rule_spec->match_value, misc_parameters_2.metadata_reg_c_0,
+		 mlx5_eswitch_get_vport_metadata_for_match(br_offloads->esw, vport_num));
+
+	handle = mlx5_add_flow_rules(br_offloads->ingress_ft, rule_spec, &flow_act, &dest, 1);
+
+	kvfree(rule_spec);
+	return handle;
+}
+
+static struct mlx5_flow_handle *
+mlx5_esw_bridge_egress_flow_create(u16 vport_num, const unsigned char *addr, u16 vid,
+				   struct mlx5_esw_bridge *bridge)
+{
+	struct mlx5_flow_destination dest = {
+		.type = MLX5_FLOW_DESTINATION_TYPE_VPORT,
+		.vport.num = vport_num,
+	};
+	struct mlx5_flow_act flow_act = {
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+		.flags = FLOW_ACT_NO_APPEND,
+	};
+	struct mlx5_flow_spec *rule_spec;
+	struct mlx5_flow_handle *handle;
+	u8 *dmac_v, *dmac_c;
+
+	rule_spec = kvzalloc(sizeof(*rule_spec), GFP_KERNEL);
+	if (!rule_spec)
+		return ERR_PTR(-ENOMEM);
+
+	rule_spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+
+	dmac_v = MLX5_ADDR_OF(fte_match_param, rule_spec->match_value,
+			      outer_headers.dmac_47_16);
+	ether_addr_copy(dmac_v, addr);
+	dmac_c = MLX5_ADDR_OF(fte_match_param, rule_spec->match_criteria,
+			      outer_headers.dmac_47_16);
+	eth_broadcast_addr(dmac_c);
+
+	handle = mlx5_add_flow_rules(bridge->egress_ft, rule_spec, &flow_act, &dest, 1);
+
+	kvfree(rule_spec);
+	return handle;
+}
+
 static struct mlx5_esw_bridge *mlx5_esw_bridge_create(int ifindex,
 						      struct mlx5_esw_bridge_offloads *br_offloads)
 {
@@ -204,16 +322,24 @@ static struct mlx5_esw_bridge *mlx5_esw_bridge_create(int ifindex,
 	if (!bridge)
 		return ERR_PTR(-ENOMEM);
 
+	bridge->br_offloads = br_offloads;
 	err = mlx5_esw_bridge_egress_table_init(br_offloads, bridge);
 	if (err)
 		goto err_egress_tbl;
 
+	err = rhashtable_init(&bridge->fdb_ht, &fdb_ht_params);
+	if (err)
+		goto err_fdb_ht;
+
+	INIT_LIST_HEAD(&bridge->fdb_list);
 	bridge->ifindex = ifindex;
 	bridge->refcnt = 1;
 	list_add(&bridge->list, &br_offloads->bridges);
 
 	return bridge;
 
+err_fdb_ht:
+	mlx5_esw_bridge_egress_table_cleanup(bridge);
 err_egress_tbl:
 	kvfree(bridge);
 	return ERR_PTR(err);
@@ -232,6 +358,7 @@ static void mlx5_esw_bridge_put(struct mlx5_esw_bridge_offloads *br_offloads,
 
 	mlx5_esw_bridge_egress_table_cleanup(bridge);
 	list_del(&bridge->list);
+	rhashtable_destroy(&bridge->fdb_ht);
 	kvfree(bridge);
 
 	if (list_empty(&br_offloads->bridges))
@@ -265,6 +392,69 @@ mlx5_esw_bridge_lookup(int ifindex, struct mlx5_esw_bridge_offloads *br_offloads
 	return bridge;
 }
 
+static void
+mlx5_esw_bridge_fdb_entry_cleanup(struct mlx5_esw_bridge_fdb_entry *entry,
+				  struct mlx5_esw_bridge *bridge)
+{
+	rhashtable_remove_fast(&bridge->fdb_ht, &entry->ht_node, fdb_ht_params);
+	mlx5_del_flow_rules(entry->egress_handle);
+	mlx5_del_flow_rules(entry->ingress_handle);
+	list_del(&entry->list);
+	kvfree(entry);
+}
+
+static struct mlx5_esw_bridge_fdb_entry *
+mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsigned char *addr,
+			       u16 vid, struct mlx5_eswitch *esw, struct mlx5_esw_bridge *bridge)
+{
+	struct mlx5_esw_bridge_fdb_entry *entry;
+	struct mlx5_flow_handle *handle;
+	int err;
+
+	entry = kvzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+
+	ether_addr_copy(entry->key.addr, addr);
+	entry->key.vid = vid;
+	entry->vport_num = vport_num;
+
+	handle = mlx5_esw_bridge_ingress_flow_create(vport_num, addr, vid, bridge);
+	if (IS_ERR(handle)) {
+		err = PTR_ERR(handle);
+		esw_warn(esw->dev, "Failed to create ingress flow(vport=%u,err=%d)\n",
+			 vport_num, err);
+		goto err_ingress_flow_create;
+	}
+	entry->ingress_handle = handle;
+
+	handle = mlx5_esw_bridge_egress_flow_create(vport_num, addr, vid, bridge);
+	if (IS_ERR(handle)) {
+		err = PTR_ERR(handle);
+		esw_warn(esw->dev, "Failed to create egress flow(vport=%u,err=%d)\n",
+			 vport_num, err);
+		goto err_egress_flow_create;
+	}
+	entry->egress_handle = handle;
+
+	err = rhashtable_insert_fast(&bridge->fdb_ht, &entry->ht_node, fdb_ht_params);
+	if (err) {
+		esw_warn(esw->dev, "Failed to insert FDB flow(vport=%u,err=%d)\n", vport_num, err);
+		goto err_ht_init;
+	}
+
+	list_add(&entry->list, &bridge->fdb_list);
+	return entry;
+
+err_ht_init:
+	mlx5_del_flow_rules(entry->egress_handle);
+err_egress_flow_create:
+	mlx5_del_flow_rules(entry->ingress_handle);
+err_ingress_flow_create:
+	kvfree(entry);
+	return ERR_PTR(err);
+}
+
 static int mlx5_esw_bridge_vport_init(struct mlx5_esw_bridge *bridge,
 				      struct mlx5_vport *vport)
 {
@@ -275,7 +465,14 @@ static int mlx5_esw_bridge_vport_init(struct mlx5_esw_bridge *bridge,
 static int mlx5_esw_bridge_vport_cleanup(struct mlx5_esw_bridge_offloads *br_offloads,
 					 struct mlx5_vport *vport)
 {
-	mlx5_esw_bridge_put(br_offloads, vport->bridge);
+	struct mlx5_esw_bridge *bridge = vport->bridge;
+	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &bridge->fdb_list, list)
+		if (entry->vport_num == vport->vport)
+			mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
+
+	mlx5_esw_bridge_put(br_offloads, bridge);
 	vport->bridge = NULL;
 	return 0;
 }
@@ -299,16 +496,67 @@ int mlx5_esw_bridge_vport_link(int ifindex, struct mlx5_esw_bridge_offloads *br_
 int mlx5_esw_bridge_vport_unlink(int ifindex, struct mlx5_esw_bridge_offloads *br_offloads,
 				 struct mlx5_vport *vport, struct netlink_ext_ack *extack)
 {
-	if (!vport->bridge) {
+	struct mlx5_esw_bridge *bridge = vport->bridge;
+
+	if (!bridge) {
 		NL_SET_ERR_MSG_MOD(extack, "Port is not attached to any bridge");
 		return -EINVAL;
 	}
-	if (vport->bridge->ifindex != ifindex) {
+	if (bridge->ifindex != ifindex) {
 		NL_SET_ERR_MSG_MOD(extack, "Port is attached to another bridge");
 		return -EINVAL;
 	}
 
 	return mlx5_esw_bridge_vport_cleanup(br_offloads, vport);
+}
+
+void mlx5_esw_bridge_fdb_create(struct net_device *dev, struct mlx5_eswitch *esw,
+				struct mlx5_vport *vport,
+				struct switchdev_notifier_fdb_info *fdb_info)
+{
+	struct mlx5_esw_bridge *bridge = vport->bridge;
+	struct mlx5_esw_bridge_fdb_entry *entry;
+	u16 vport_num = vport->vport;
+
+	if (!bridge) {
+		esw_info(esw->dev, "Vport is not assigned to bridge (vport=%u)\n", vport_num);
+		return;
+	}
+
+	entry = mlx5_esw_bridge_fdb_entry_init(dev, vport_num, fdb_info->addr, fdb_info->vid,
+					       esw, bridge);
+	if (IS_ERR(entry))
+		return;
+
+	mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
+					   SWITCHDEV_FDB_OFFLOADED);
+}
+
+void mlx5_esw_bridge_fdb_remove(struct net_device *dev, struct mlx5_eswitch *esw,
+				struct mlx5_vport *vport,
+				struct switchdev_notifier_fdb_info *fdb_info)
+{
+	struct mlx5_esw_bridge *bridge = vport->bridge;
+	struct mlx5_esw_bridge_fdb_entry *entry;
+	struct mlx5_esw_bridge_fdb_key key;
+	u16 vport_num = vport->vport;
+
+	if (!bridge) {
+		esw_warn(esw->dev, "Vport is not assigned to bridge (vport=%u)\n", vport_num);
+		return;
+	}
+
+	ether_addr_copy(key.addr, fdb_info->addr);
+	key.vid = fdb_info->vid;
+	entry = rhashtable_lookup_fast(&bridge->fdb_ht, &key, fdb_ht_params);
+	if (!entry) {
+		esw_warn(esw->dev,
+			 "FDB entry with specified key not found (MAC=%pM,vid=%u,vport=%u)\n",
+			 key.addr, key.vid, vport_num);
+		return;
+	}
+
+	mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
 }
 
 static void mlx5_esw_bridge_flush(struct mlx5_esw_bridge_offloads *br_offloads)
