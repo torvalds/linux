@@ -27,3 +27,16 @@
 		clock-names = "xin";
 	};
 };
+
+#ifdef SOC_HAS_SATA
+&pca9654 {
+	pcie-sata-switch-hog {
+		gpio-hog;
+		gpios = <7 GPIO_ACTIVE_HIGH>;
+		output-low; /* enable SATA by default */
+		line-name = "PCIE/SATA switch";
+	};
+};
+
+/* SW12-7 must be set 'Off' (MD12 set to 1) which is not the default! */
+#endif /* SOC_HAS_SATA */

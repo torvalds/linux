@@ -870,6 +870,12 @@
 	status = "okay";
 };
 
+#ifdef SOC_HAS_SATA
+&sata {
+	status = "okay";
+};
+#endif /* SOC_HAS_SATA */
+
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";

@@ -71,15 +71,6 @@
 	status = "okay";
 };
 
-&pca9654 {
-	pcie-sata-switch-hog {
-		gpio-hog;
-		gpios = <7 GPIO_ACTIVE_HIGH>;
-		output-low; /* enable SATA by default */
-		line-name = "PCIE/SATA switch";
-	};
-};
-
 &pfc {
 	usb2_pins: usb2 {
 		groups = "usb2";
@@ -102,11 +93,6 @@
 		groups = "usb2_ch3";
 		function = "usb2_ch3";
 	};
-};
-
-/* SW12-7 must be set 'Off' (MD12 set to 1) which is not the default! */
-&sata {
-	status = "okay";
 };
 
 &usb2_phy2 {

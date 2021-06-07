@@ -63,10 +63,6 @@
 	};
 };
 
-&sata {
-	status = "okay";
-};
-
 &usb2_phy2 {
 	pinctrl-0 = <&usb2_pins>;
 	pinctrl-names = "default";
