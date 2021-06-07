@@ -44,9 +44,6 @@
 #define RALINK_PCI_IOBASE		0x002C
 
 /* PCIe RC control registers */
-#define MT7621_PCIE_OFFSET		0x2000
-#define MT7621_NEXT_PORT		0x1000
-
 #define RALINK_PCI_ID			0x0030
 #define RALINK_PCI_CLASS		0x0034
 #define RALINK_PCI_SUBID		0x0038
@@ -491,7 +488,6 @@ static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 {
 	struct mt7621_pcie *pcie = port->pcie;
 	u32 slot = port->slot;
-	u32 offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
 	u32 val;
 
 	/* enable pcie interrupt */
@@ -500,12 +496,12 @@ static void mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 	pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 
 	/* map 2G DDR region */
-	pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
-		   offset + PCI_BASE_ADDRESS_0);
+	pcie_port_write(port, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
+			PCI_BASE_ADDRESS_0);
 
 	/* configure class code and revision ID */
-	pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
-		   offset + RALINK_PCI_CLASS);
+	pcie_port_write(port, PCIE_CLASS_CODE | PCIE_REVISION_ID,
+			RALINK_PCI_CLASS);
 
 	/* configure RC FTS number to 250 when it leaves L0s */
 	val = read_config(pcie, slot, PCIE_FTS_NUM);
