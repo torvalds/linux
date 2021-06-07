@@ -132,8 +132,7 @@ static void zcrypt_cex2a_card_remove(struct ap_device *ap_dev)
 {
 	struct zcrypt_card *zc = dev_get_drvdata(&ap_dev->device);
 
-	if (zc)
-		zcrypt_card_unregister(zc);
+	zcrypt_card_unregister(zc);
 }
 
 static struct ap_driver zcrypt_cex2a_card_driver = {
@@ -192,8 +191,7 @@ static void zcrypt_cex2a_queue_remove(struct ap_device *ap_dev)
 {
 	struct zcrypt_queue *zq = dev_get_drvdata(&ap_dev->device);
 
-	if (zq)
-		zcrypt_queue_unregister(zq);
+	zcrypt_queue_unregister(zq);
 }
 
 static struct ap_driver zcrypt_cex2a_queue_driver = {

@@ -575,8 +575,8 @@ static void zcrypt_cex4_card_remove(struct ap_device *ap_dev)
 		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_grp);
 	else if (ap_test_bit(&ac->functions, AP_FUNC_EP11))
 		sysfs_remove_group(&ap_dev->device.kobj, &ep11_card_attr_grp);
-	if (zc)
-		zcrypt_card_unregister(zc);
+
+	zcrypt_card_unregister(zc);
 }
 
 static struct ap_driver zcrypt_cex4_card_driver = {
@@ -665,8 +665,8 @@ static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_grp);
 	else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11))
 		sysfs_remove_group(&ap_dev->device.kobj, &ep11_queue_attr_grp);
-	if (zq)
-		zcrypt_queue_unregister(zq);
+
+	zcrypt_queue_unregister(zq);
 }
 
 static struct ap_driver zcrypt_cex4_queue_driver = {
