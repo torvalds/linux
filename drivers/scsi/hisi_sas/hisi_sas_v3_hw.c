@@ -843,7 +843,7 @@ static int clear_itct_v3_hw(struct hisi_hba *hisi_hba,
 	hisi_sas_write32(hisi_hba, ITCT_CLR, reg_val);
 
 	if (!wait_for_completion_timeout(sas_dev->completion,
-					 CLEAR_ITCT_TIMEOUT * HZ)) {
+					 HISI_SAS_CLEAR_ITCT_TIMEOUT)) {
 		dev_warn(dev, "failed to clear ITCT\n");
 		return -ETIMEDOUT;
 	}
