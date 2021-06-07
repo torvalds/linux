@@ -219,8 +219,8 @@ resv_iova:
 		} else if (end < start) {
 			/* dma_ranges list should be sorted */
 			dev_err(&dev->dev,
-				"Failed to reserve IOVA [%#010llx-%#010llx]\n",
-				start, end);
+				"Failed to reserve IOVA [%pa-%pa]\n",
+				&start, &end);
 			return -EINVAL;
 		}
 
