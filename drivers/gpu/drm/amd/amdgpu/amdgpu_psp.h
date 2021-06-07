@@ -379,6 +379,8 @@ struct psp_context
 	struct psp_securedisplay_context	securedisplay_context;
 	struct mutex			mutex;
 	struct psp_memory_training_context mem_train_ctx;
+
+	uint32_t			boot_cfg_bitmask;
 };
 
 struct amdgpu_psp_funcs {

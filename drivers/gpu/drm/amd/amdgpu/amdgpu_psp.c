@@ -244,6 +244,7 @@ static int psp_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 	int ret;
+	struct psp_runtime_boot_cfg_entry boot_cfg_entry;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		ret = psp_init_microcode(psp);
@@ -258,6 +259,12 @@ static int psp_sw_init(void *handle)
 			return ret;
 		}
 	}
+
+	memset(&boot_cfg_entry, 0, sizeof(boot_cfg_entry));
+	if (psp_get_runtime_db_entry(adev,
+				PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG,
+				&boot_cfg_entry))
+		psp->boot_cfg_bitmask = boot_cfg_entry.boot_cfg_bitmask;
 
 	ret = psp_memory_training_init(psp);
 	if (ret) {
