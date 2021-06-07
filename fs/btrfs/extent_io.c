@@ -2687,21 +2687,6 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 	ASSERT(page_offset(page) <= start &&
 	       start + len <= page_offset(page) + PAGE_SIZE);
 
-	/*
-	 * For subapge metadata case, all btrfs_page_* helpers need page to
-	 * have page::private populated.
-	 * But we can have rare case where the last eb in the page is only
-	 * referred by the IO, and it gets released immedately after it's
-	 * read and verified.
-	 *
-	 * This can detach the page private completely.
-	 * In that case, we can just skip the page status update completely,
-	 * as the page has no eb anymore.
-	 */
-	if (fs_info->sectorsize < PAGE_SIZE && unlikely(!PagePrivate(page))) {
-		ASSERT(!is_data_inode(page->mapping->host));
-		return;
-	}
 	if (uptodate) {
 		btrfs_page_set_uptodate(fs_info, page, start, len);
 	} else {
@@ -2711,11 +2696,7 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 
 	if (fs_info->sectorsize == PAGE_SIZE)
 		unlock_page(page);
-	else if (is_data_inode(page->mapping->host))
-		/*
-		 * For subpage data, unlock the page if we're the last reader.
-		 * For subpage metadata, page lock is not utilized for read.
-		 */
+	else
 		btrfs_subpage_end_reader(fs_info, page, start, len);
 }
 
@@ -5603,6 +5584,12 @@ static bool page_range_has_eb(struct btrfs_fs_info *fs_info, struct page *page)
 		subpage = (struct btrfs_subpage *)page->private;
 		if (atomic_read(&subpage->eb_refs))
 			return true;
+		/*
+		 * Even there is no eb refs here, we may still have
+		 * end_page_read() call relying on page::private.
+		 */
+		if (atomic_read(&subpage->readers))
+			return true;
 	}
 	return false;
 }
@@ -5663,7 +5650,7 @@ static void detach_extent_buffer_page(struct extent_buffer *eb, struct page *pag
 
 	/*
 	 * We can only detach the page private if there are no other ebs in the
-	 * page range.
+	 * page range and no unfinished IO.
 	 */
 	if (!page_range_has_eb(fs_info, page))
 		btrfs_detach_subpage(fs_info, page);
@@ -6381,6 +6368,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	check_buffer_tree_ref(eb);
 	btrfs_subpage_clear_error(fs_info, page, eb->start, eb->len);
 
+	btrfs_subpage_start_reader(fs_info, page, eb->start, eb->len);
 	ret = submit_extent_page(REQ_OP_READ | REQ_META, NULL, &bio_ctrl,
 				 page, eb->start, eb->len,
 				 eb->start - page_offset(page),

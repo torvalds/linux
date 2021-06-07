@@ -22,6 +22,14 @@ struct btrfs_subpage {
 	u16 error_bitmap;
 	u16 dirty_bitmap;
 	u16 writeback_bitmap;
+	/*
+	 * Both data and metadata needs to track how many readers are for the
+	 * page.
+	 * Data relies on @readers to unlock the page when last reader finished.
+	 * While metadata doesn't need page unlock, it needs to prevent
+	 * page::private get cleared before the last end_page_read().
+	 */
+	atomic_t readers;
 	union {
 		/*
 		 * Structures only used by metadata
@@ -32,7 +40,6 @@ struct btrfs_subpage {
 		atomic_t eb_refs;
 		/* Structures only used by data */
 		struct {
-			atomic_t readers;
 			atomic_t writers;
 
 			/* Tracke pending ordered extent in this sector */

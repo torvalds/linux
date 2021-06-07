@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 #include "ctree.h"
 #include "subpage.h"
+#include "btrfs_inode.h"
 
 /*
  * Subpage (sectorsize < PAGE_SIZE) support overview:
@@ -185,12 +186,10 @@ void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
 	const int nbits = len >> fs_info->sectorsize_bits;
-	int ret;
 
 	btrfs_subpage_assert(fs_info, page, start, len);
 
-	ret = atomic_add_return(nbits, &subpage->readers);
-	ASSERT(ret == nbits);
+	atomic_add(nbits, &subpage->readers);
 }
 
 void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
@@ -198,10 +197,22 @@ void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
 	const int nbits = len >> fs_info->sectorsize_bits;
+	bool is_data;
+	bool last;
 
 	btrfs_subpage_assert(fs_info, page, start, len);
+	is_data = is_data_inode(page->mapping->host);
 	ASSERT(atomic_read(&subpage->readers) >= nbits);
-	if (atomic_sub_and_test(nbits, &subpage->readers))
+	last = atomic_sub_and_test(nbits, &subpage->readers);
+
+	/*
+	 * For data we need to unlock the page if the last read has finished.
+	 *
+	 * And please don't replace @last with atomic_sub_and_test() call
+	 * inside if () condition.
+	 * As we want the atomic_sub_and_test() to be always executed.
+	 */
+	if (is_data && last)
 		unlock_page(page);
 }
 
