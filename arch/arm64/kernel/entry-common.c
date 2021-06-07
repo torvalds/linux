@@ -20,6 +20,7 @@
 #include <asm/kprobes.h>
 #include <asm/mmu.h>
 #include <asm/processor.h>
+#include <asm/sdei.h>
 #include <asm/stacktrace.h>
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
@@ -710,3 +711,39 @@ asmlinkage void noinstr handle_bad_stack(struct pt_regs *regs)
 	panic_bad_stack(regs, esr, far);
 }
 #endif /* CONFIG_VMAP_STACK */
+
+#ifdef CONFIG_ARM_SDE_INTERFACE
+asmlinkage noinstr unsigned long
+__sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
+{
+	unsigned long ret;
+
+	/*
+	 * We didn't take an exception to get here, so the HW hasn't
+	 * set/cleared bits in PSTATE that we may rely on.
+	 *
+	 * The original SDEI spec (ARM DEN 0054A) can be read ambiguously as to
+	 * whether PSTATE bits are inherited unchanged or generated from
+	 * scratch, and the TF-A implementation always clears PAN and always
+	 * clears UAO. There are no other known implementations.
+	 *
+	 * Subsequent revisions (ARM DEN 0054B) follow the usual rules for how
+	 * PSTATE is modified upon architectural exceptions, and so PAN is
+	 * either inherited or set per SCTLR_ELx.SPAN, and UAO is always
+	 * cleared.
+	 *
+	 * We must explicitly reset PAN to the expected state, including
+	 * clearing it when the host isn't using it, in case a VM had it set.
+	 */
+	if (system_uses_hw_pan())
+		set_pstate_pan(1);
+	else if (cpu_has_pan())
+		set_pstate_pan(0);
+
+	arm64_enter_nmi(regs);
+	ret = do_sdei_event(regs, arg);
+	arm64_exit_nmi(regs);
+
+	return ret;
+}
+#endif /* CONFIG_ARM_SDE_INTERFACE */
