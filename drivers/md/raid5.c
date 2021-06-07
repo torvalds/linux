@@ -5403,6 +5403,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	sector_t sector, end_sector, first_bad;
 	int bad_sectors, dd_idx;
 	struct md_io_acct *md_io_acct;
+	bool did_inc;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
 		pr_debug("%s: non aligned\n", __func__);
@@ -5454,11 +5455,24 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	/* No reshape active, so we can trust rdev->data_offset */
 	align_bio->bi_iter.bi_sector += rdev->data_offset;
 
-	spin_lock_irq(&conf->device_lock);
-	wait_event_lock_irq(conf->wait_for_quiescent, conf->quiesce == 0,
-			    conf->device_lock);
-	atomic_inc(&conf->active_aligned_reads);
-	spin_unlock_irq(&conf->device_lock);
+	did_inc = false;
+	if (conf->quiesce == 0) {
+		atomic_inc(&conf->active_aligned_reads);
+		did_inc = true;
+	}
+	/* need a memory barrier to detect the race with raid5_quiesce() */
+	if (!did_inc || smp_load_acquire(&conf->quiesce) != 0) {
+		/* quiesce is in progress, so we need to undo io activation and wait
+		 * for it to finish
+		 */
+		if (did_inc && atomic_dec_and_test(&conf->active_aligned_reads))
+			wake_up(&conf->wait_for_quiescent);
+		spin_lock_irq(&conf->device_lock);
+		wait_event_lock_irq(conf->wait_for_quiescent, conf->quiesce == 0,
+				    conf->device_lock);
+		atomic_inc(&conf->active_aligned_reads);
+		spin_unlock_irq(&conf->device_lock);
+	}
 
 	if (mddev->gendisk)
 		trace_block_bio_remap(align_bio, disk_devt(mddev->gendisk),
@@ -8346,7 +8360,10 @@ static void raid5_quiesce(struct mddev *mddev, int quiesce)
 		 * active stripes can drain
 		 */
 		r5c_flush_cache(conf, INT_MAX);
-		conf->quiesce = 2;
+		/* need a memory barrier to make sure read_one_chunk() sees
+		 * quiesce started and reverts to slow (locked) path.
+		 */
+		smp_store_release(&conf->quiesce, 2);
 		wait_event_cmd(conf->wait_for_quiescent,
 				    atomic_read(&conf->active_stripes) == 0 &&
 				    atomic_read(&conf->active_aligned_reads) == 0,
