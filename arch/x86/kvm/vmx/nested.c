@@ -1105,7 +1105,8 @@ static bool nested_vmx_transition_mmu_sync(struct kvm_vcpu *vcpu)
  * Exit Qualification (for a VM-Entry consistency check VM-Exit) is assigned to
  * @entry_failure_code.
  */
-static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool nested_ept,
+static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
+			       bool nested_ept, bool reload_pdptrs,
 			       enum vm_entry_failure_code *entry_failure_code)
 {
 	if (CC(kvm_vcpu_is_illegal_gpa(vcpu, cr3))) {
@@ -1117,7 +1118,7 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	 * If PAE paging and EPT are both on, CR3 is not used by the CPU and
 	 * must not be dereferenced.
 	 */
-	if (!nested_ept && is_pae_paging(vcpu) &&
+	if (reload_pdptrs && !nested_ept && is_pae_paging(vcpu) &&
 	    CC(!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))) {
 		*entry_failure_code = ENTRY_FAIL_PDPTE;
 		return -EINVAL;
@@ -2487,6 +2488,7 @@ static void prepare_vmcs02_rare(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
  * is assigned to entry_failure_code on failure.
  */
 static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
+			  bool from_vmentry,
 			  enum vm_entry_failure_code *entry_failure_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2579,7 +2581,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 	/* Shadow page tables on either EPT or shadow page tables. */
 	if (nested_vmx_load_cr3(vcpu, vmcs12->guest_cr3, nested_cpu_has_ept(vmcs12),
-				entry_failure_code))
+				from_vmentry, entry_failure_code))
 		return -EINVAL;
 
 	/*
@@ -3120,6 +3122,17 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 	struct page *page;
 	u64 hpa;
 
+	if (!nested_cpu_has_ept(vmcs12) && is_pae_paging(vcpu)) {
+		/*
+		 * Reload the guest's PDPTRs since after a migration
+		 * the guest CR3 might be restored prior to setting the nested
+		 * state which can lead to a load of wrong PDPTRs.
+		 */
+		if (CC(!load_pdptrs(vcpu, vcpu->arch.walk_mmu, vcpu->arch.cr3)))
+			return false;
+	}
+
+
 	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		/*
 		 * Translate L1 physical address to host physical
@@ -3371,7 +3384,7 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 
 	enter_guest_mode(vcpu);
 
-	if (prepare_vmcs02(vcpu, vmcs12, &entry_failure_code)) {
+	if (prepare_vmcs02(vcpu, vmcs12, from_vmentry, &entry_failure_code)) {
 		exit_reason.basic = EXIT_REASON_INVALID_STATE;
 		vmcs12->exit_qualification = entry_failure_code;
 		goto vmentry_fail_vmexit_guest_mode;
@@ -4226,7 +4239,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	 * Only PDPTE load can fail as the value of cr3 was checked on entry and
 	 * couldn't have changed.
 	 */
-	if (nested_vmx_load_cr3(vcpu, vmcs12->host_cr3, false, &ignored))
+	if (nested_vmx_load_cr3(vcpu, vmcs12->host_cr3, false, true, &ignored))
 		nested_vmx_abort(vcpu, VMX_ABORT_LOAD_HOST_PDPTE_FAIL);
 
 	nested_vmx_transition_tlb_flush(vcpu, vmcs12, false);
