@@ -54,7 +54,7 @@
 #define BAD_FIQ		2
 #define BAD_ERROR	3
 
-	.macro kernel_ventry, el, label, regsize = 64
+	.macro kernel_ventry, el:req, regsize:req, label:req
 	.align 7
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	.if	\el == 0
@@ -504,31 +504,31 @@ tsk	.req	x28		// current thread_info
 
 	.align	11
 SYM_CODE_START(vectors)
-	kernel_ventry	1, sync_invalid			// Synchronous EL1t
-	kernel_ventry	1, irq_invalid			// IRQ EL1t
-	kernel_ventry	1, fiq_invalid			// FIQ EL1t
-	kernel_ventry	1, error_invalid		// Error EL1t
+	kernel_ventry	1, 64, sync_invalid		// Synchronous EL1t
+	kernel_ventry	1, 64, irq_invalid		// IRQ EL1t
+	kernel_ventry	1, 64, fiq_invalid		// FIQ EL1t
+	kernel_ventry	1, 64, error_invalid		// Error EL1t
 
-	kernel_ventry	1, sync				// Synchronous EL1h
-	kernel_ventry	1, irq				// IRQ EL1h
-	kernel_ventry	1, fiq				// FIQ EL1h
-	kernel_ventry	1, error			// Error EL1h
+	kernel_ventry	1, 64, sync			// Synchronous EL1h
+	kernel_ventry	1, 64, irq			// IRQ EL1h
+	kernel_ventry	1, 64, fiq			// FIQ EL1h
+	kernel_ventry	1, 64, error			// Error EL1h
 
-	kernel_ventry	0, sync				// Synchronous 64-bit EL0
-	kernel_ventry	0, irq				// IRQ 64-bit EL0
-	kernel_ventry	0, fiq				// FIQ 64-bit EL0
-	kernel_ventry	0, error			// Error 64-bit EL0
+	kernel_ventry	0, 64, sync			// Synchronous 64-bit EL0
+	kernel_ventry	0, 64, irq			// IRQ 64-bit EL0
+	kernel_ventry	0, 64, fiq			// FIQ 64-bit EL0
+	kernel_ventry	0, 64, error			// Error 64-bit EL0
 
 #ifdef CONFIG_COMPAT
-	kernel_ventry	0, sync_compat, 32		// Synchronous 32-bit EL0
-	kernel_ventry	0, irq_compat, 32		// IRQ 32-bit EL0
-	kernel_ventry	0, fiq_compat, 32		// FIQ 32-bit EL0
-	kernel_ventry	0, error_compat, 32		// Error 32-bit EL0
+	kernel_ventry	0, 32, sync_compat		// Synchronous 32-bit EL0
+	kernel_ventry	0, 32, irq_compat		// IRQ 32-bit EL0
+	kernel_ventry	0, 32, fiq_compat		// FIQ 32-bit EL0
+	kernel_ventry	0, 32, error_compat		// Error 32-bit EL0
 #else
-	kernel_ventry	0, sync_invalid, 32		// Synchronous 32-bit EL0
-	kernel_ventry	0, irq_invalid, 32		// IRQ 32-bit EL0
-	kernel_ventry	0, fiq_invalid, 32		// FIQ 32-bit EL0
-	kernel_ventry	0, error_invalid, 32		// Error 32-bit EL0
+	kernel_ventry	0, 32, sync_invalid		// Synchronous 32-bit EL0
+	kernel_ventry	0, 32, irq_invalid		// IRQ 32-bit EL0
+	kernel_ventry	0, 32, fiq_invalid		// FIQ 32-bit EL0
+	kernel_ventry	0, 32, error_invalid		// Error 32-bit EL0
 #endif
 SYM_CODE_END(vectors)
 
