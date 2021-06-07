@@ -3960,7 +3960,8 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
 			le32_to_cpu(dyn_regs->gic_host_pi_upd_irq);
 
-	WREG32(irq_handler_offset, GAUDI_EVENT_PI_UPDATE);
+	WREG32(irq_handler_offset,
+		gaudi_irq_map_table[GAUDI_EVENT_PI_UPDATE].cpu_id);
 
 	err = hl_poll_timeout(
 		hdev,
@@ -4146,7 +4147,8 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 				mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
 				le32_to_cpu(dyn_regs->gic_host_halt_irq);
 
-		WREG32(irq_handler_offset, GAUDI_EVENT_HALT_MACHINE);
+		WREG32(irq_handler_offset,
+			gaudi_irq_map_table[GAUDI_EVENT_HALT_MACHINE].cpu_id);
 	} else {
 		if (hdev->asic_prop.hard_reset_done_by_fw)
 			gaudi_ask_hard_reset_without_linux(hdev);
@@ -4599,7 +4601,8 @@ static void gaudi_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 				mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
 				le32_to_cpu(dyn_regs->gic_host_pi_upd_irq);
 
-		WREG32(irq_handler_offset, GAUDI_EVENT_PI_UPDATE);
+		WREG32(irq_handler_offset,
+			gaudi_irq_map_table[GAUDI_EVENT_PI_UPDATE].cpu_id);
 	}
 }
 
@@ -8988,7 +8991,8 @@ static void gaudi_enable_events_from_fw(struct hl_device *hdev)
 			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
 			le32_to_cpu(dyn_regs->gic_host_ints_irq);
 
-	WREG32(irq_handler_offset, GAUDI_EVENT_INTS_REGISTER);
+	WREG32(irq_handler_offset,
+		gaudi_irq_map_table[GAUDI_EVENT_INTS_REGISTER].cpu_id);
 }
 
 static int gaudi_map_pll_idx_to_fw_idx(u32 pll_idx)
