@@ -322,8 +322,6 @@ struct vcpu_vmx {
 	/* apic deadline value in host tsc */
 	u64 hv_deadline_tsc;
 
-	u64 current_tsc_ratio;
-
 	unsigned long host_debugctlmsr;
 
 	/*
@@ -530,12 +528,6 @@ static inline struct vmcs *alloc_vmcs(bool shadow)
 {
 	return alloc_vmcs_cpu(shadow, raw_smp_processor_id(),
 			      GFP_KERNEL_ACCOUNT);
-}
-
-static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
-{
-	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
-	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 }
 
 static inline bool vmx_has_waitpkg(struct vcpu_vmx *vmx)
