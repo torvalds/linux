@@ -28,6 +28,7 @@
 #define NVMET_NO_ERROR_LOC		((u16)-1)
 #define NVMET_DEFAULT_CTRL_MODEL	"Linux"
 #define NVMET_MN_MAX_SIZE		40
+#define NVMET_SN_MAX_SIZE		20
 
 /*
  * Supported optional AENs:
@@ -229,7 +230,7 @@ struct nvmet_subsys {
 	u16			max_qid;
 
 	u64			ver;
-	u64			serial;
+	char			serial[NVMET_SN_MAX_SIZE];
 	char			*subsysnqn;
 	bool			pi_support;
 

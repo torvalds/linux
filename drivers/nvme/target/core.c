@@ -1493,6 +1493,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type)
 {
 	struct nvmet_subsys *subsys;
+	char serial[NVMET_SN_MAX_SIZE / 2];
 
 	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
 	if (!subsys)
@@ -1500,7 +1501,8 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 
 	subsys->ver = NVMET_DEFAULT_VS;
 	/* generate a random serial number as our controllers are ephemeral: */
-	get_random_bytes(&subsys->serial, sizeof(subsys->serial));
+	get_random_bytes(&serial, sizeof(serial));
+	bin2hex(subsys->serial, &serial, sizeof(serial));
 
 	switch (type) {
 	case NVME_NQN_NVME:

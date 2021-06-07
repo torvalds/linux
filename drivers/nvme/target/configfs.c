@@ -1030,24 +1030,43 @@ static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_version);
 
+/* See Section 1.5 of NVMe 1.4 */
+static bool nvmet_is_ascii(const char c)
+{
+	return c >= 0x20 && c <= 0x7e;
+}
+
 static ssize_t nvmet_subsys_attr_serial_show(struct config_item *item,
 					     char *page)
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
 
-	return snprintf(page, PAGE_SIZE, "%llx\n", subsys->serial);
+	return snprintf(page, PAGE_SIZE, "%s\n", subsys->serial);
 }
 
 static ssize_t nvmet_subsys_attr_serial_store(struct config_item *item,
 					      const char *page, size_t count)
 {
-	u64 serial;
+	struct nvmet_subsys *subsys = to_subsys(item);
+	int pos, len = strcspn(page, "\n");
 
-	if (sscanf(page, "%llx\n", &serial) != 1)
+	if (!len || len > NVMET_SN_MAX_SIZE) {
+		pr_err("Serial Number can not be empty or exceed %d Bytes\n",
+		       NVMET_SN_MAX_SIZE);
 		return -EINVAL;
+	}
+
+	for (pos = 0; pos < len; pos++) {
+		if (!nvmet_is_ascii(page[pos])) {
+			pr_err("Serial Number must contain only ASCII strings\n");
+			return -EINVAL;
+		}
+	}
 
 	down_write(&nvmet_config_sem);
-	to_subsys(item)->serial = serial;
+	mutex_lock(&subsys->lock);
+	memcpy_and_pad(subsys->serial, NVMET_SN_MAX_SIZE, page, len, ' ');
+	mutex_unlock(&subsys->lock);
 	up_write(&nvmet_config_sem);
 
 	return count;
@@ -1126,12 +1145,6 @@ static ssize_t nvmet_subsys_attr_model_show(struct config_item *item,
 	mutex_unlock(&subsys->lock);
 
 	return ret;
-}
-
-/* See Section 1.5 of NVMe 1.4 */
-static bool nvmet_is_ascii(const char c)
-{
-	return c >= 0x20 && c <= 0x7e;
 }
 
 static ssize_t nvmet_subsys_attr_model_store_locked(struct nvmet_subsys *subsys,
