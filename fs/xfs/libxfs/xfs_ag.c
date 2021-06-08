@@ -43,7 +43,6 @@ xfs_get_aghdr_buf(
 	if (error)
 		return error;
 
-	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
 	bp->b_bn = blkno;
 	bp->b_maps[0].bm_bn = blkno;
 	bp->b_ops = ops;
