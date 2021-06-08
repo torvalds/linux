@@ -345,7 +345,7 @@ static void rpm_suspend_suppliers(struct device *dev)
 static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
-	int retval, idx;
+	int retval = 0, idx;
 	bool use_links = dev->power.links_count > 0;
 
 	if (dev->power.irq_safe) {
@@ -373,7 +373,8 @@ static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 		}
 	}
 
-	retval = cb(dev);
+	if (cb)
+		retval = cb(dev);
 
 	if (dev->power.irq_safe) {
 		spin_lock(&dev->power.lock);
@@ -483,9 +484,6 @@ static int rpm_idle(struct device *dev, int rpmflags)
 static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 {
 	int retval;
-
-	if (!cb)
-		return -ENOSYS;
 
 	if (dev->power.memalloc_noio) {
 		unsigned int noio_flag;
