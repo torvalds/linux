@@ -4299,7 +4299,7 @@ static void hclge_errhand_service_task(struct hclge_dev *hdev)
 	if (!test_and_clear_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
 		return;
 
-	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+	if (hnae3_dev_ras_imp_supported(hdev))
 		hclge_handle_err_recovery(hdev);
 	else
 		hclge_misc_err_recovery(hdev);
