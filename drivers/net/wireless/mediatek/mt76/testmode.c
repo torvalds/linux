@@ -521,6 +521,14 @@ mt76_testmode_dump_stats(struct mt76_phy *phy, struct sk_buff *msg)
 	u64 rx_fcs_error = 0;
 	int i;
 
+	if (dev->test_ops->dump_stats) {
+		int ret;
+
+		ret = dev->test_ops->dump_stats(phy, msg);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(td->rx_stats.packets); i++) {
 		rx_packets += td->rx_stats.packets[i];
 		rx_fcs_error += td->rx_stats.fcs_error[i];
@@ -534,9 +542,6 @@ mt76_testmode_dump_stats(struct mt76_phy *phy, struct sk_buff *msg)
 	    nla_put_u64_64bit(msg, MT76_TM_STATS_ATTR_RX_FCS_ERROR, rx_fcs_error,
 			      MT76_TM_STATS_ATTR_PAD))
 		return -EMSGSIZE;
-
-	if (dev->test_ops->dump_stats)
-		return dev->test_ops->dump_stats(phy, msg);
 
 	return 0;
 }
