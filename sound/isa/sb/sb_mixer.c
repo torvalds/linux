@@ -485,7 +485,8 @@ int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int ty
 	strscpy(ctl->id.name, name, sizeof(ctl->id.name));
 	ctl->id.index = index;
 	ctl->private_value = value;
-	if ((err = snd_ctl_add(chip->card, ctl)) < 0)
+	err = snd_ctl_add(chip->card, ctl);
+	if (err < 0)
 		return err;
 	return 0;
 }
@@ -736,33 +737,36 @@ int snd_sbmixer_new(struct snd_sb *chip)
 		return 0; /* no mixer chip on SB1.x */
 	case SB_HW_20:
 	case SB_HW_201:
-		if ((err = snd_sbmixer_init(chip,
-					    snd_sb20_controls,
-					    ARRAY_SIZE(snd_sb20_controls),
-					    snd_sb20_init_values,
-					    ARRAY_SIZE(snd_sb20_init_values),
-					    "CTL1335")) < 0)
+		err = snd_sbmixer_init(chip,
+				       snd_sb20_controls,
+				       ARRAY_SIZE(snd_sb20_controls),
+				       snd_sb20_init_values,
+				       ARRAY_SIZE(snd_sb20_init_values),
+				       "CTL1335");
+		if (err < 0)
 			return err;
 		break;
 	case SB_HW_PRO:
 	case SB_HW_JAZZ16:
-		if ((err = snd_sbmixer_init(chip,
-					    snd_sbpro_controls,
-					    ARRAY_SIZE(snd_sbpro_controls),
-					    snd_sbpro_init_values,
-					    ARRAY_SIZE(snd_sbpro_init_values),
-					    "CTL1345")) < 0)
+		err = snd_sbmixer_init(chip,
+				       snd_sbpro_controls,
+				       ARRAY_SIZE(snd_sbpro_controls),
+				       snd_sbpro_init_values,
+				       ARRAY_SIZE(snd_sbpro_init_values),
+				       "CTL1345");
+		if (err < 0)
 			return err;
 		break;
 	case SB_HW_16:
 	case SB_HW_ALS100:
 	case SB_HW_CS5530:
-		if ((err = snd_sbmixer_init(chip,
-					    snd_sb16_controls,
-					    ARRAY_SIZE(snd_sb16_controls),
-					    snd_sb16_init_values,
-					    ARRAY_SIZE(snd_sb16_init_values),
-					    "CTL1745")) < 0)
+		err = snd_sbmixer_init(chip,
+				       snd_sb16_controls,
+				       ARRAY_SIZE(snd_sb16_controls),
+				       snd_sb16_init_values,
+				       ARRAY_SIZE(snd_sb16_init_values),
+				       "CTL1745");
+		if (err < 0)
 			return err;
 		break;
 	case SB_HW_ALS4000:
@@ -775,12 +779,13 @@ int snd_sbmixer_new(struct snd_sb *chip)
 					"ALS4000");
 		if (err < 0)
 			return err;
-		if ((err = snd_sbmixer_init(chip,
-					    snd_als4000_controls,
-					    ARRAY_SIZE(snd_als4000_controls),
-					    snd_als4000_init_values,
-					    ARRAY_SIZE(snd_als4000_init_values),
-					    "ALS4000")) < 0)
+		err = snd_sbmixer_init(chip,
+				       snd_als4000_controls,
+				       ARRAY_SIZE(snd_als4000_controls),
+				       snd_als4000_init_values,
+				       ARRAY_SIZE(snd_als4000_init_values),
+				       "ALS4000");
+		if (err < 0)
 			return err;
 		break;
 	case SB_HW_DT019X:
