@@ -108,6 +108,24 @@ bool arm64_use_ng_mappings = false;
 EXPORT_SYMBOL(arm64_use_ng_mappings);
 
 /*
+ * Permit PER_LINUX32 and execve() of 32-bit binaries even if not all CPUs
+ * support it?
+ */
+static bool __read_mostly allow_mismatched_32bit_el0;
+
+/*
+ * Static branch enabled only if allow_mismatched_32bit_el0 is set and we have
+ * seen at least one CPU capable of 32-bit EL0.
+ */
+DEFINE_STATIC_KEY_FALSE(arm64_mismatched_32bit_el0);
+
+/*
+ * Mask of CPUs supporting 32-bit EL0.
+ * Only valid if arm64_mismatched_32bit_el0 is enabled.
+ */
+static cpumask_var_t cpu_32bit_el0_mask __cpumask_var_read_mostly;
+
+/*
  * Flag to indicate if we have computed the system wide
  * capabilities based on the boot time active CPUs. This
  * will be used to determine if a new booting CPU should
@@ -775,7 +793,7 @@ static void __init sort_ftr_regs(void)
  * Any bits that are not covered by an arm64_ftr_bits entry are considered
  * RES0 for the system-wide value, and must strictly match.
  */
-static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
+static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 {
 	u64 val = 0;
 	u64 strict_mask = ~0x0ULL;
@@ -871,7 +889,7 @@ static void __init init_cpu_hwcaps_indirect_list(void)
 
 static void __init setup_boot_cpu_capabilities(void);
 
-static void __init init_32bit_cpu_features(struct cpuinfo_32bit *info)
+static void init_32bit_cpu_features(struct cpuinfo_32bit *info)
 {
 	init_cpu_ftr_reg(SYS_ID_DFR0_EL1, info->reg_id_dfr0);
 	init_cpu_ftr_reg(SYS_ID_DFR1_EL1, info->reg_id_dfr1);
@@ -988,6 +1006,22 @@ static void relax_cpu_ftr_reg(u32 sys_id, int field)
 
 	/* Bogus field? */
 	WARN_ON(!ftrp->width);
+}
+
+static void lazy_init_32bit_cpu_features(struct cpuinfo_arm64 *info,
+					 struct cpuinfo_arm64 *boot)
+{
+	static bool boot_cpu_32bit_regs_overridden = false;
+
+	if (!allow_mismatched_32bit_el0 || boot_cpu_32bit_regs_overridden)
+		return;
+
+	if (id_aa64pfr0_32bit_el0(boot->reg_id_aa64pfr0))
+		return;
+
+	boot->aarch32 = info->aarch32;
+	init_32bit_cpu_features(&boot->aarch32);
+	boot_cpu_32bit_regs_overridden = true;
 }
 
 static int update_32bit_cpu_features(int cpu, struct cpuinfo_32bit *info,
@@ -1161,6 +1195,7 @@ void update_cpu_features(int cpu,
 	 * (e.g. SYS_ID_AA64PFR0_EL1), so we call it last.
 	 */
 	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
+		lazy_init_32bit_cpu_features(info, boot);
 		taint |= update_32bit_cpu_features(cpu, &info->aarch32,
 						   &boot->aarch32);
 	}
@@ -1271,6 +1306,28 @@ has_cpuid_feature(const struct arm64_cpu_capabilities *entry, int scope)
 		val = __read_sysreg_by_encoding(entry->sys_reg);
 
 	return feature_matches(val, entry);
+}
+
+const struct cpumask *system_32bit_el0_cpumask(void)
+{
+	if (!system_supports_32bit_el0())
+		return cpu_none_mask;
+
+	if (static_branch_unlikely(&arm64_mismatched_32bit_el0))
+		return cpu_32bit_el0_mask;
+
+	return cpu_possible_mask;
+}
+
+static bool has_32bit_el0(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	if (!has_cpuid_feature(entry, scope))
+		return allow_mismatched_32bit_el0;
+
+	if (scope == SCOPE_SYSTEM)
+		pr_info("detected: 32-bit EL0 Support\n");
+
+	return true;
 }
 
 static bool has_useable_gicv3_cpuif(const struct arm64_cpu_capabilities *entry, int scope)
@@ -1891,10 +1948,9 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.cpu_enable = cpu_copy_el2regs,
 	},
 	{
-		.desc = "32-bit EL0 Support",
-		.capability = ARM64_HAS_32BIT_EL0,
+		.capability = ARM64_HAS_32BIT_EL0_DO_NOT_USE,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.matches = has_cpuid_feature,
+		.matches = has_32bit_el0,
 		.sys_reg = SYS_ID_AA64PFR0_EL1,
 		.sign = FTR_UNSIGNED,
 		.field_pos = ID_AA64PFR0_EL0_SHIFT,
@@ -2403,7 +2459,7 @@ static const struct arm64_cpu_capabilities compat_elf_hwcaps[] = {
 	{},
 };
 
-static void __init cap_set_elf_hwcap(const struct arm64_cpu_capabilities *cap)
+static void cap_set_elf_hwcap(const struct arm64_cpu_capabilities *cap)
 {
 	switch (cap->hwcap_type) {
 	case CAP_HWCAP:
@@ -2448,7 +2504,7 @@ static bool cpus_have_elf_hwcap(const struct arm64_cpu_capabilities *cap)
 	return rc;
 }
 
-static void __init setup_elf_hwcaps(const struct arm64_cpu_capabilities *hwcaps)
+static void setup_elf_hwcaps(const struct arm64_cpu_capabilities *hwcaps)
 {
 	/* We support emulation of accesses to CPU ID feature registers */
 	cpu_set_named_feature(CPUID);
@@ -2623,7 +2679,7 @@ static void check_early_cpu_features(void)
 }
 
 static void
-verify_local_elf_hwcaps(const struct arm64_cpu_capabilities *caps)
+__verify_local_elf_hwcaps(const struct arm64_cpu_capabilities *caps)
 {
 
 	for (; caps->matches; caps++)
@@ -2632,6 +2688,14 @@ verify_local_elf_hwcaps(const struct arm64_cpu_capabilities *caps)
 					smp_processor_id(), caps->desc);
 			cpu_die_early();
 		}
+}
+
+static void verify_local_elf_hwcaps(void)
+{
+	__verify_local_elf_hwcaps(arm64_elf_hwcaps);
+
+	if (id_aa64pfr0_32bit_el0(read_cpuid(ID_AA64PFR0_EL1)))
+		__verify_local_elf_hwcaps(compat_elf_hwcaps);
 }
 
 static void verify_sve_features(void)
@@ -2698,11 +2762,7 @@ static void verify_local_cpu_capabilities(void)
 	 * on all secondary CPUs.
 	 */
 	verify_local_cpu_caps(SCOPE_ALL & ~SCOPE_BOOT_CPU);
-
-	verify_local_elf_hwcaps(arm64_elf_hwcaps);
-
-	if (system_supports_32bit_el0())
-		verify_local_elf_hwcaps(compat_elf_hwcaps);
+	verify_local_elf_hwcaps();
 
 	if (system_supports_sve())
 		verify_sve_features();
@@ -2836,6 +2896,34 @@ void __init setup_cpu_features(void)
 		pr_warn("No Cache Writeback Granule information, assuming %d\n",
 			ARCH_DMA_MINALIGN);
 }
+
+static int enable_mismatched_32bit_el0(unsigned int cpu)
+{
+	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
+	bool cpu_32bit = id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0);
+
+	if (cpu_32bit) {
+		cpumask_set_cpu(cpu, cpu_32bit_el0_mask);
+		static_branch_enable_cpuslocked(&arm64_mismatched_32bit_el0);
+		setup_elf_hwcaps(compat_elf_hwcaps);
+	}
+
+	return 0;
+}
+
+static int __init init_32bit_el0_mask(void)
+{
+	if (!allow_mismatched_32bit_el0)
+		return 0;
+
+	if (!zalloc_cpumask_var(&cpu_32bit_el0_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+				 "arm64/mismatched_32bit_el0:online",
+				 enable_mismatched_32bit_el0, NULL);
+}
+subsys_initcall_sync(init_32bit_el0_mask);
 
 static void __maybe_unused cpu_enable_cnp(struct arm64_cpu_capabilities const *cap)
 {
