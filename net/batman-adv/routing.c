@@ -1182,9 +1182,9 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	struct batadv_bcast_packet *bcast_packet;
 	struct ethhdr *ethhdr;
 	int hdr_size = sizeof(*bcast_packet);
-	int ret = NET_RX_DROP;
 	s32 seq_diff;
 	u32 seqno;
+	int ret;
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
@@ -1210,7 +1210,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (batadv_is_my_mac(bat_priv, bcast_packet->orig))
 		goto free_skb;
 
-	if (bcast_packet->ttl < 2)
+	if (bcast_packet->ttl-- < 2)
 		goto free_skb;
 
 	orig_node = batadv_orig_hash_find(bat_priv, bcast_packet->orig);
@@ -1249,7 +1249,9 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	batadv_skb_set_priority(skb, sizeof(struct batadv_bcast_packet));
 
 	/* rebroadcast packet */
-	batadv_add_bcast_packet_to_list(bat_priv, skb, 1, false);
+	ret = batadv_forw_bcast_packet(bat_priv, skb, 0, false);
+	if (ret == NETDEV_TX_BUSY)
+		goto free_skb;
 
 	/* don't hand the broadcast up if it is from an originator
 	 * from the same backbone.
@@ -1275,6 +1277,7 @@ spin_unlock:
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 free_skb:
 	kfree_skb(skb);
+	ret = NET_RX_DROP;
 out:
 	if (orig_node)
 		batadv_orig_node_put(orig_node);
