@@ -2484,6 +2484,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
         for ( i = 0 ; i < card->nports ; i++ ) {
 		struct net_device *dev = alloc_hdlcdev(&card->ports[i]);
 		hdlc_device *hdlc;
+
 		if (!dev) {
 			while (i--)
 				free_netdev(card->ports[i].dev);
@@ -2608,6 +2609,7 @@ fst_remove_one(struct pci_dev *pdev)
 
 	for (i = 0; i < card->nports; i++) {
 		struct net_device *dev = port_to_dev(&card->ports[i]);
+
 		unregister_hdlc_device(dev);
 	}
 
