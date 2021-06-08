@@ -422,7 +422,7 @@ struct buf_window {
 /*      Per port (line or channel) information
  */
 struct fst_port_info {
-        struct net_device *dev; /* Device struct - must be first */
+	struct net_device *dev; /* Device struct - must be first */
 	struct fst_card_info *card;	/* Card we're associated with */
 	int index;		/* Port index on the card */
 	int hwif;		/* Line hardware (lineInterface copy) */
@@ -786,7 +786,7 @@ fst_init_dma(struct fst_card_info *card)
 	/* This is only required for the PLX 9054
 	 */
 	if (card->family == FST_FAMILY_TXU) {
-	        pci_set_master(card->device);
+		pci_set_master(card->device);
 		outl(0x00020441, card->pci_conf + DMAMODE0);
 		outl(0x00020441, card->pci_conf + DMAMODE1);
 		outl(0x0, card->pci_conf + DMATHR);
@@ -1561,7 +1561,7 @@ fst_intr(int dummy, void *dev_id)
 			rdidx = 0;
 	}
 	FST_WRB(card, interruptEvent.rdindex, rdidx);
-        return IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 /*      Check that the shared memory configuration is one that we can handle
@@ -2129,7 +2129,7 @@ fst_open(struct net_device *dev)
 
 	port = dev_to_port(dev);
 	if (!try_module_get(THIS_MODULE))
-          return -EBUSY;
+		return -EBUSY;
 
 	if (port->mode != FST_RAW) {
 		err = hdlc_open(dev);
@@ -2421,9 +2421,9 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				(ent->driver_data == FST_TYPE_T2U)) ? 2 : 4;
 
 	card->state = FST_UNINIT;
-        spin_lock_init ( &card->card_lock );
+	spin_lock_init(&card->card_lock);
 
-        for ( i = 0 ; i < card->nports ; i++ ) {
+	for (i = 0; i < card->nports; i++) {
 		struct net_device *dev = alloc_hdlcdev(&card->ports[i]);
 		hdlc_device *hdlc;
 
@@ -2435,29 +2435,29 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto hdlcdev_fail;
 		}
 		card->ports[i].dev    = dev;
-                card->ports[i].card   = card;
-                card->ports[i].index  = i;
-                card->ports[i].run    = 0;
+		card->ports[i].card   = card;
+		card->ports[i].index  = i;
+		card->ports[i].run    = 0;
 
 		hdlc = dev_to_hdlc(dev);
 
-                /* Fill in the net device info */
+		/* Fill in the net device info */
 		/* Since this is a PCI setup this is purely
 		 * informational. Give them the buffer addresses
 		 * and basic card I/O.
 		 */
-                dev->mem_start   = card->phys_mem
-                                 + BUF_OFFSET ( txBuffer[i][0][0]);
-                dev->mem_end     = card->phys_mem
-                                 + BUF_OFFSET ( txBuffer[i][NUM_TX_BUFFER - 1][LEN_RX_BUFFER - 1]);
-                dev->base_addr   = card->pci_conf;
-                dev->irq         = card->irq;
+		dev->mem_start   = card->phys_mem
+				+ BUF_OFFSET(txBuffer[i][0][0]);
+		dev->mem_end     = card->phys_mem
+				+ BUF_OFFSET(txBuffer[i][NUM_TX_BUFFER - 1][LEN_RX_BUFFER - 1]);
+		dev->base_addr   = card->pci_conf;
+		dev->irq         = card->irq;
 
 		dev->netdev_ops = &fst_ops;
 		dev->tx_queue_len = FST_TX_QUEUE_LEN;
 		dev->watchdog_timeo = FST_TX_TIMEOUT;
-                hdlc->attach = fst_attach;
-                hdlc->xmit   = fst_start_xmit;
+		hdlc->attach = fst_attach;
+		hdlc->xmit   = fst_start_xmit;
 	}
 
 	card->device = pdev;
