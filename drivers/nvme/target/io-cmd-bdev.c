@@ -174,11 +174,10 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
 {
 	struct blk_integrity *bi;
 	struct bio_integrity_payload *bip;
-	struct block_device *bdev = req->ns->bdev;
 	int rc;
 	size_t resid, len;
 
-	bi = bdev_get_integrity(bdev);
+	bi = bdev_get_integrity(req->ns->bdev);
 	if (unlikely(!bi)) {
 		pr_err("Unable to locate bio_integrity\n");
 		return -ENODEV;
