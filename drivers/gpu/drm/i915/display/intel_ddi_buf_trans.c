@@ -1051,102 +1051,34 @@ intel_get_buf_trans(const struct intel_ddi_buf_trans *ddi_translations, int *num
 }
 
 static const struct intel_ddi_buf_trans *
-bdw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
+hsw_get_buf_trans(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state,
+		  int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (dev_priv->vbt.edp.low_vswing) {
-		return intel_get_buf_trans(&bdw_ddi_translations_edp,
-					   n_entries);
-	} else {
-		return intel_get_buf_trans(&bdw_ddi_translations_dp,
-					   n_entries);
-	}
-}
-
-static const struct intel_ddi_buf_trans *
-skl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_SKL_ULX(dev_priv)) {
-		return intel_get_buf_trans(&skl_y_ddi_translations_dp,
-					   n_entries);
-	} else if (IS_SKL_ULT(dev_priv)) {
-		return intel_get_buf_trans(&skl_u_ddi_translations_dp,
-					   n_entries);
-	} else {
-		return intel_get_buf_trans(&skl_ddi_translations_dp,
-					   n_entries);
-	}
-}
-
-static const struct intel_ddi_buf_trans *
-kbl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_KBL_ULX(dev_priv) ||
-	    IS_CFL_ULX(dev_priv) ||
-	    IS_CML_ULX(dev_priv)) {
-		return intel_get_buf_trans(&kbl_y_ddi_translations_dp,
-					   n_entries);
-	} else if (IS_KBL_ULT(dev_priv) ||
-		   IS_CFL_ULT(dev_priv) ||
-		   IS_CML_ULT(dev_priv)) {
-		return intel_get_buf_trans(&kbl_u_ddi_translations_dp,
-					   n_entries);
-	} else {
-		return intel_get_buf_trans(&kbl_ddi_translations_dp,
-					   n_entries);
-	}
-}
-
-static const struct intel_ddi_buf_trans *
-skl_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (dev_priv->vbt.edp.low_vswing) {
-		if (IS_SKL_ULX(dev_priv) ||
-		    IS_KBL_ULX(dev_priv) ||
-		    IS_CFL_ULX(dev_priv) ||
-		    IS_CML_ULX(dev_priv)) {
-			return intel_get_buf_trans(&skl_y_ddi_translations_edp,
-						   n_entries);
-		} else if (IS_SKL_ULT(dev_priv) ||
-			   IS_KBL_ULT(dev_priv) ||
-			   IS_CFL_ULT(dev_priv) ||
-			   IS_CML_ULT(dev_priv)) {
-			return intel_get_buf_trans(&skl_u_ddi_translations_edp,
-						   n_entries);
-		} else {
-			return intel_get_buf_trans(&skl_ddi_translations_edp,
-						   n_entries);
-		}
-	}
-
-	if (IS_KABYLAKE(dev_priv) ||
-	    IS_COFFEELAKE(dev_priv) ||
-	    IS_COMETLAKE(dev_priv))
-		return kbl_get_buf_trans_dp(encoder, n_entries);
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
+		return intel_get_buf_trans(&hsw_ddi_translations_fdi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&hsw_ddi_translations_hdmi, n_entries);
 	else
-		return skl_get_buf_trans_dp(encoder, n_entries);
+		return intel_get_buf_trans(&hsw_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
-skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
+bdw_get_buf_trans(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state,
+		  int *n_entries)
 {
-	if (IS_SKL_ULX(dev_priv) ||
-	    IS_KBL_ULX(dev_priv) ||
-	    IS_CFL_ULX(dev_priv) ||
-	    IS_CML_ULX(dev_priv)) {
-		return intel_get_buf_trans(&skl_y_ddi_translations_hdmi,
-					   n_entries);
-	} else {
-		return intel_get_buf_trans(&skl_ddi_translations_hdmi,
-					   n_entries);
-	}
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
+		return intel_get_buf_trans(&bdw_ddi_translations_fdi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&bdw_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return intel_get_buf_trans(&bdw_ddi_translations_edp, n_entries);
+	else
+		return intel_get_buf_trans(&bdw_ddi_translations_dp, n_entries);
 }
 
 static int skl_buf_trans_num_entries(enum port port, int n_entries)
@@ -1159,131 +1091,109 @@ static int skl_buf_trans_num_entries(enum port port, int n_entries)
 }
 
 static const struct intel_ddi_buf_trans *
-hsw_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_KABYLAKE(dev_priv) ||
-	    IS_COFFEELAKE(dev_priv) ||
-	    IS_COMETLAKE(dev_priv)) {
-		const struct intel_ddi_buf_trans *ddi_translations =
-			kbl_get_buf_trans_dp(encoder, n_entries);
-		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
-		return ddi_translations;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		const struct intel_ddi_buf_trans *ddi_translations =
-			skl_get_buf_trans_dp(encoder, n_entries);
-		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
-		return ddi_translations;
-	} else if (IS_BROADWELL(dev_priv)) {
-		return intel_get_buf_trans(&bdw_ddi_translations_dp,
-					   n_entries);
-	} else if (IS_HASWELL(dev_priv)) {
-		return intel_get_buf_trans(&hsw_ddi_translations_dp,
-					   n_entries);
-	}
-
-	*n_entries = 0;
-	return NULL;
-}
-
-static const struct intel_ddi_buf_trans *
-hsw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
-		const struct intel_ddi_buf_trans *ddi_translations =
-			skl_get_buf_trans_edp(encoder, n_entries);
-		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
-		return ddi_translations;
-	} else if (IS_BROADWELL(dev_priv)) {
-		return bdw_get_buf_trans_edp(encoder, n_entries);
-	} else if (IS_HASWELL(dev_priv)) {
-		return intel_get_buf_trans(&hsw_ddi_translations_dp,
-					   n_entries);
-	}
-
-	*n_entries = 0;
-	return NULL;
-}
-
-static const struct intel_ddi_buf_trans *
-hsw_get_buf_trans_fdi(struct intel_encoder *encoder,
+_skl_get_buf_trans_dp(struct intel_encoder *encoder,
+		      const struct intel_ddi_buf_trans *ddi_translations,
 		      int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_BROADWELL(dev_priv)) {
-		return intel_get_buf_trans(&bdw_ddi_translations_fdi,
-					   n_entries);
-	} else if (IS_HASWELL(dev_priv)) {
-		return intel_get_buf_trans(&hsw_ddi_translations_fdi,
-					   n_entries);
-	}
-
-	*n_entries = 0;
-	return NULL;
+	ddi_translations = intel_get_buf_trans(ddi_translations, n_entries);
+	*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
+	return ddi_translations;
 }
 
 static const struct intel_ddi_buf_trans *
-hsw_get_buf_trans_hdmi(struct intel_encoder *encoder,
-		       int *n_entries)
+skl_y_get_buf_trans(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state,
+		    int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
-	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
-		return skl_get_buf_trans_hdmi(dev_priv, n_entries);
-	} else if (IS_BROADWELL(dev_priv)) {
-		return intel_get_buf_trans(&bdw_ddi_translations_hdmi,
-					   n_entries);
-	} else if (IS_HASWELL(dev_priv)) {
-		return intel_get_buf_trans(&hsw_ddi_translations_hdmi,
-					   n_entries);
-	}
-
-	*n_entries = 0;
-	return NULL;
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&skl_y_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return _skl_get_buf_trans_dp(encoder, &skl_y_ddi_translations_edp, n_entries);
+	else
+		return _skl_get_buf_trans_dp(encoder, &skl_y_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
-hsw_get_buf_trans(struct intel_encoder *encoder,
+skl_u_get_buf_trans(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state,
+		    int *n_entries)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&skl_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return _skl_get_buf_trans_dp(encoder, &skl_u_ddi_translations_edp, n_entries);
+	else
+		return _skl_get_buf_trans_dp(encoder, &skl_u_ddi_translations_dp, n_entries);
+}
+
+static const struct intel_ddi_buf_trans *
+skl_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries)
 {
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
-		return hsw_get_buf_trans_fdi(encoder, n_entries);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		return hsw_get_buf_trans_hdmi(encoder, n_entries);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-		return hsw_get_buf_trans_edp(encoder, n_entries);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&skl_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return _skl_get_buf_trans_dp(encoder, &skl_ddi_translations_edp, n_entries);
 	else
-		return hsw_get_buf_trans_dp(encoder, n_entries);
+		return _skl_get_buf_trans_dp(encoder, &skl_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
-bxt_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
+kbl_y_get_buf_trans(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state,
+		    int *n_entries)
 {
-	return intel_get_buf_trans(&bxt_ddi_translations_dp, n_entries);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&skl_y_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return _skl_get_buf_trans_dp(encoder, &skl_y_ddi_translations_edp, n_entries);
+	else
+		return _skl_get_buf_trans_dp(encoder, &kbl_y_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
-bxt_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
+kbl_u_get_buf_trans(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state,
+		    int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
-	if (dev_priv->vbt.edp.low_vswing) {
-		return intel_get_buf_trans(&bxt_ddi_translations_edp,
-					   n_entries);
-	}
-
-	return bxt_get_buf_trans_dp(encoder, n_entries);
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&skl_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return _skl_get_buf_trans_dp(encoder, &skl_u_ddi_translations_edp, n_entries);
+	else
+		return _skl_get_buf_trans_dp(encoder, &kbl_u_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
-bxt_get_buf_trans_hdmi(struct intel_encoder *encoder, int *n_entries)
+kbl_get_buf_trans(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state,
+		  int *n_entries)
 {
-	return intel_get_buf_trans(&bxt_ddi_translations_hdmi, n_entries);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return intel_get_buf_trans(&skl_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return _skl_get_buf_trans_dp(encoder, &skl_ddi_translations_edp, n_entries);
+	else
+		return _skl_get_buf_trans_dp(encoder, &kbl_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
@@ -1291,11 +1201,15 @@ bxt_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		return bxt_get_buf_trans_hdmi(encoder, n_entries);
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-		return bxt_get_buf_trans_edp(encoder, n_entries);
-	return bxt_get_buf_trans_dp(encoder, n_entries);
+		return intel_get_buf_trans(&bxt_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 i915->vbt.edp.low_vswing)
+		return intel_get_buf_trans(&bxt_ddi_translations_edp, n_entries);
+	else
+		return intel_get_buf_trans(&bxt_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
@@ -1746,6 +1660,20 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 		encoder->get_buf_trans = cnl_get_buf_trans;
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
 		encoder->get_buf_trans = bxt_get_buf_trans;
+	} else if (IS_CML_ULX(i915) || IS_CFL_ULX(i915) || IS_KBL_ULX(i915)) {
+		encoder->get_buf_trans = kbl_y_get_buf_trans;
+	} else if (IS_CML_ULT(i915) || IS_CFL_ULT(i915) || IS_KBL_ULT(i915)) {
+		encoder->get_buf_trans = kbl_u_get_buf_trans;
+	} else if (IS_COMETLAKE(i915) || IS_COFFEELAKE(i915) || IS_KABYLAKE(i915)) {
+		encoder->get_buf_trans = kbl_get_buf_trans;
+	} else if (IS_SKL_ULX(i915)) {
+		encoder->get_buf_trans = skl_y_get_buf_trans;
+	} else if (IS_SKL_ULT(i915)) {
+		encoder->get_buf_trans = skl_u_get_buf_trans;
+	} else if (IS_SKYLAKE(i915)) {
+		encoder->get_buf_trans = skl_get_buf_trans;
+	} else if (IS_BROADWELL(i915)) {
+		encoder->get_buf_trans = bdw_get_buf_trans;
 	} else {
 		encoder->get_buf_trans = hsw_get_buf_trans;
 	}
