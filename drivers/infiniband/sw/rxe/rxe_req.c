@@ -584,6 +584,7 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	struct rxe_dev *rxe;
 	struct rxe_mr *mr;
 	u32 rkey;
+	int ret;
 
 	switch (opcode) {
 	case IB_WR_LOCAL_INV:
@@ -608,6 +609,13 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		mr->ibmr.rkey = wqe->wr.wr.reg.key;
 		mr->iova = wqe->wr.wr.reg.mr->iova;
 		rxe_drop_ref(mr);
+		break;
+	case IB_WR_BIND_MW:
+		ret = rxe_bind_mw(qp, wqe);
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_MW_BIND_ERR;
+			return ret;
+		}
 		break;
 	default:
 		pr_err("Unexpected send wqe opcode %d\n", opcode);
