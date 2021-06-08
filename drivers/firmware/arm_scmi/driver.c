@@ -432,9 +432,9 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	struct scmi_chan_info *cinfo;
 
 	/*
-	 * Re-instate protocol id here from protocol handle so that cannot be
+	 * Initialise protocol id now from protocol handle to avoid it being
 	 * overridden by mistake (or malice) by the protocol code mangling with
-	 * the scmi_xfer structure.
+	 * the scmi_xfer structure prior to this.
 	 */
 	xfer->hdr.protocol_id = pi->proto->id;
 	reinit_completion(&xfer->done);
@@ -509,10 +509,7 @@ static int do_xfer_with_response(const struct scmi_protocol_handle *ph,
 				 struct scmi_xfer *xfer)
 {
 	int ret, timeout = msecs_to_jiffies(SCMI_MAX_RESPONSE_TIMEOUT);
-	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
 	DECLARE_COMPLETION_ONSTACK(async_response);
-
-	xfer->hdr.protocol_id = pi->proto->id;
 
 	xfer->async_done = &async_response;
 
@@ -569,7 +566,6 @@ static int xfer_get_init(const struct scmi_protocol_handle *ph,
 	xfer->tx.len = tx_size;
 	xfer->rx.len = rx_size ? : info->desc->max_msg_size;
 	xfer->hdr.id = msg_id;
-	xfer->hdr.protocol_id = pi->proto->id;
 	xfer->hdr.poll_completion = false;
 
 	*p = xfer;
