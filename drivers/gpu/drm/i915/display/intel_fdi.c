@@ -4,7 +4,6 @@
  */
 #include "intel_atomic.h"
 #include "intel_ddi.h"
-#include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
@@ -569,7 +568,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 	u32 temp, i, rx_ctl_val;
 	int n_entries;
 
-	hsw_get_buf_trans(encoder, crtc_state, &n_entries);
+	encoder->get_buf_trans(encoder, crtc_state, &n_entries);
 
 	hsw_prepare_dp_ddi_buffers(encoder, crtc_state);
 

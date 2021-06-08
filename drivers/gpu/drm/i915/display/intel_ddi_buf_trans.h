@@ -65,48 +65,6 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state,
 			       int *default_entry);
 
-const struct intel_ddi_buf_trans *
-hsw_get_buf_trans(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state,
-		  int *n_entries);
-
-const struct intel_ddi_buf_trans *
-bxt_get_buf_trans(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state,
-		  int *n_entries);
-
-const struct intel_ddi_buf_trans *
-adlp_get_dkl_buf_trans(struct intel_encoder *encoder,
-		       const struct intel_crtc_state *crtc_state,
-		       int *n_entries);
-const struct intel_ddi_buf_trans *
-tgl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct intel_ddi_buf_trans *
-tgl_get_dkl_buf_trans(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state,
-		      int *n_entries);
-const struct intel_ddi_buf_trans *
-jsl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct intel_ddi_buf_trans *
-ehl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct intel_ddi_buf_trans *
-icl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct intel_ddi_buf_trans *
-icl_get_mg_buf_trans(struct intel_encoder *encoder,
-		     const struct intel_crtc_state *crtc_state,
-		     int *n_entries);
-
-const struct intel_ddi_buf_trans *
-cnl_get_buf_trans(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state,
-		  int *n_entries);
+void intel_ddi_buf_trans_init(struct intel_encoder *encoder);
 
 #endif
