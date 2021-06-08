@@ -86,6 +86,12 @@ static void ena_increase_stat(u64 *statp, u64 cnt,
 	u64_stats_update_end(syncp);
 }
 
+static void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
+{
+	ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+	ena_increase_stat(&tx_ring->tx_stats.doorbells, 1, &tx_ring->syncp);
+}
+
 static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ena_adapter *adapter = netdev_priv(dev);
@@ -144,7 +150,7 @@ static int ena_xmit_common(struct net_device *dev,
 		netif_dbg(adapter, tx_queued, dev,
 			  "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
 			  ring->qid);
-		ena_com_write_sq_doorbell(ring->ena_com_io_sq);
+		ena_ring_tx_doorbell(ring);
 	}
 
 	/* prepare the packet's descriptors to dma engine */
@@ -313,14 +319,12 @@ static int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
 			     xdpf->len);
 	if (rc)
 		goto error_unmap_dma;
-	/* trigger the dma engine. ena_com_write_sq_doorbell()
-	 * has a mb
+
+	/* trigger the dma engine. ena_ring_tx_doorbell()
+	 * calls a memory barrier inside it.
 	 */
-	if (flags & XDP_XMIT_FLUSH) {
-		ena_com_write_sq_doorbell(xdp_ring->ena_com_io_sq);
-		ena_increase_stat(&xdp_ring->tx_stats.doorbells, 1,
-				  &xdp_ring->syncp);
-	}
+	if (flags & XDP_XMIT_FLUSH)
+		ena_ring_tx_doorbell(xdp_ring);
 
 	return rc;
 
@@ -361,11 +365,8 @@ static int ena_xdp_xmit(struct net_device *dev, int n,
 	}
 
 	/* Ring doorbell to make device aware of the packets */
-	if (flags & XDP_XMIT_FLUSH) {
-		ena_com_write_sq_doorbell(xdp_ring->ena_com_io_sq);
-		ena_increase_stat(&xdp_ring->tx_stats.doorbells, 1,
-				  &xdp_ring->syncp);
-	}
+	if (flags & XDP_XMIT_FLUSH)
+		ena_ring_tx_doorbell(xdp_ring);
 
 	spin_unlock(&xdp_ring->xdp_tx_lock);
 
@@ -3100,14 +3101,11 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (netif_xmit_stopped(txq) || !netdev_xmit_more()) {
-		/* trigger the dma engine. ena_com_write_sq_doorbell()
-		 * has a mb
+	if (netif_xmit_stopped(txq) || !netdev_xmit_more())
+		/* trigger the dma engine. ena_ring_tx_doorbell()
+		 * calls a memory barrier inside it.
 		 */
-		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
-		ena_increase_stat(&tx_ring->tx_stats.doorbells, 1,
-				  &tx_ring->syncp);
-	}
+		ena_ring_tx_doorbell(tx_ring);
 
 	return NETDEV_TX_OK;
 
