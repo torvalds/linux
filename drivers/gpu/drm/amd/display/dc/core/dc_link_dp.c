@@ -1664,6 +1664,7 @@ static enum link_training_result dp_perform_8b_10b_link_training(
 
 	uint8_t repeater_cnt;
 	uint8_t repeater_id;
+	uint8_t lane = 0;
 
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, lt_settings, DPRX);
@@ -1694,6 +1695,9 @@ static enum link_training_result dp_perform_8b_10b_link_training(
 
 			repeater_training_done(link, repeater_id);
 		}
+
+		for (lane = 0; lane < (uint8_t)lt_settings->link_settings.lane_count; lane++)
+			lt_settings->lane_settings[lane].VOLTAGE_SWING = VOLTAGE_SWING_LEVEL0;
 	}
 
 	if (status == LINK_TRAINING_SUCCESS) {
