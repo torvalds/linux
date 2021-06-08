@@ -1238,11 +1238,8 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
 
-	if (mdio_bus_data->has_xpcs) {
-		struct mdio_xpcs_args *xpcs = priv->hw->xpcs;
-
-		phylink_set_pcs(phylink, &xpcs->pcs);
-	}
+	if (priv->hw->xpcs)
+		phylink_set_pcs(phylink, &priv->hw->xpcs->pcs);
 
 	priv->phylink = phylink;
 	return 0;
