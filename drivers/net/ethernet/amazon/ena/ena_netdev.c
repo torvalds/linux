@@ -228,6 +228,7 @@ static int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 	xdp_ring->tx_stats.napi_comp += napi_comp_call;
 	xdp_ring->tx_stats.tx_poll++;
 	u64_stats_update_end(&xdp_ring->syncp);
+	xdp_ring->tx_stats.last_napi_jiffies = jiffies;
 
 	return ret;
 }
@@ -1989,6 +1990,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	tx_ring->tx_stats.tx_poll++;
 	u64_stats_update_end(&tx_ring->syncp);
 
+	tx_ring->tx_stats.last_napi_jiffies = jiffies;
+
 	return ret;
 }
 
@@ -3695,6 +3698,9 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 					  struct ena_ring *tx_ring)
 {
 	struct ena_napi *ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
+	unsigned int time_since_last_napi;
+	unsigned int missing_tx_comp_to;
+	bool is_tx_comp_time_expired;
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
 	u32 missed_tx = 0;
@@ -3708,9 +3714,10 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			/* no pending Tx at this location */
 			continue;
 
-		if (unlikely(!READ_ONCE(ena_napi->first_interrupt) &&
-			time_is_before_jiffies(last_jiffies + 2 *
-				adapter->missing_tx_completion_to))) {
+		is_tx_comp_time_expired = time_is_before_jiffies(last_jiffies +
+			 2 * adapter->missing_tx_completion_to);
+
+		if (unlikely(!READ_ONCE(ena_napi->first_interrupt) && is_tx_comp_time_expired)) {
 			/* If after graceful period interrupt is still not
 			 * received, we schedule a reset
 			 */
@@ -3723,12 +3730,17 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			return -EIO;
 		}
 
-		if (unlikely(time_is_before_jiffies(last_jiffies +
-				adapter->missing_tx_completion_to))) {
-			if (!tx_buf->print_once)
+		is_tx_comp_time_expired = time_is_before_jiffies(last_jiffies +
+			adapter->missing_tx_completion_to);
+
+		if (unlikely(is_tx_comp_time_expired)) {
+			if (!tx_buf->print_once) {
+				time_since_last_napi = jiffies_to_usecs(jiffies - tx_ring->tx_stats.last_napi_jiffies);
+				missing_tx_comp_to = jiffies_to_msecs(adapter->missing_tx_completion_to);
 				netif_notice(adapter, tx_err, adapter->netdev,
-					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
-					     tx_ring->qid, i);
+					     "Found a Tx that wasn't completed on time, qid %d, index %d. %u usecs have passed since last napi execution. Missing Tx timeout value %u msecs\n",
+					     tx_ring->qid, i, time_since_last_napi, missing_tx_comp_to);
+			}
 
 			tx_buf->print_once = 1;
 			missed_tx++;

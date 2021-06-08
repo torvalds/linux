@@ -206,6 +206,7 @@ struct ena_stats_tx {
 	u64 llq_buffer_copy;
 	u64 missed_tx;
 	u64 unmask_interrupt;
+	u64 last_napi_jiffies;
 };
 
 struct ena_stats_rx {
