@@ -98,21 +98,21 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 		case sizeof(u16):
 			if (ima_canonical_fmt)
 				seq_printf(m, "%u",
-					   le16_to_cpu(*(u16 *)buf_ptr));
+					   le16_to_cpu(*(__le16 *)buf_ptr));
 			else
 				seq_printf(m, "%u", *(u16 *)buf_ptr);
 			break;
 		case sizeof(u32):
 			if (ima_canonical_fmt)
 				seq_printf(m, "%u",
-					   le32_to_cpu(*(u32 *)buf_ptr));
+					   le32_to_cpu(*(__le32 *)buf_ptr));
 			else
 				seq_printf(m, "%u", *(u32 *)buf_ptr);
 			break;
 		case sizeof(u64):
 			if (ima_canonical_fmt)
 				seq_printf(m, "%llu",
-					   le64_to_cpu(*(u64 *)buf_ptr));
+					   le64_to_cpu(*(__le64 *)buf_ptr));
 			else
 				seq_printf(m, "%llu", *(u64 *)buf_ptr);
 			break;
@@ -226,9 +226,10 @@ int ima_parse_buf(void *bufstartp, void *bufendp, void **bufcurp,
 			if (bufp > (bufendp - sizeof(u32)))
 				break;
 
-			fields[i].len = *(u32 *)bufp;
 			if (ima_canonical_fmt)
-				fields[i].len = le32_to_cpu(fields[i].len);
+				fields[i].len = le32_to_cpu(*(__le32 *)bufp);
+			else
+				fields[i].len = *(u32 *)bufp;
 
 			bufp += sizeof(u32);
 		}

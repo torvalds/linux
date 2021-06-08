@@ -423,9 +423,9 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		return 0;
 
 	if (ima_canonical_fmt) {
-		khdr->version = le16_to_cpu(khdr->version);
-		khdr->count = le64_to_cpu(khdr->count);
-		khdr->buffer_size = le64_to_cpu(khdr->buffer_size);
+		khdr->version = le16_to_cpu((__force __le16)khdr->version);
+		khdr->count = le64_to_cpu((__force __le64)khdr->count);
+		khdr->buffer_size = le64_to_cpu((__force __le64)khdr->buffer_size);
 	}
 
 	if (khdr->version != 1) {
@@ -515,7 +515,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		}
 
 		entry->pcr = !ima_canonical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
-			     le32_to_cpu(*(u32 *)(hdr[HDR_PCR].data));
+			     le32_to_cpu(*(__le32 *)(hdr[HDR_PCR].data));
 		ret = ima_restore_measurement_entry(entry);
 		if (ret < 0)
 			break;
