@@ -256,13 +256,9 @@ void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
 static int ssusb_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 {
 	struct ssusb_mtk *ssusb = usb_role_switch_get_drvdata(sw);
-	bool to_host = false;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	if (role == USB_ROLE_HOST)
-		to_host = true;
-
-	if (to_host ^ ssusb->is_host)
-		ssusb_mode_switch(ssusb, to_host);
+	ssusb_set_mode(otg_sx, role);
 
 	return 0;
 }
@@ -270,11 +266,8 @@ static int ssusb_role_sw_set(struct usb_role_switch *sw, enum usb_role role)
 static enum usb_role ssusb_role_sw_get(struct usb_role_switch *sw)
 {
 	struct ssusb_mtk *ssusb = usb_role_switch_get_drvdata(sw);
-	enum usb_role role;
 
-	role = ssusb->is_host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
-
-	return role;
+	return ssusb->is_host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
 }
 
 static int ssusb_role_sw_register(struct otg_switch_mtk *otg_sx)
