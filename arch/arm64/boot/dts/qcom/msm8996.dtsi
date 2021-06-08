@@ -898,6 +898,8 @@
 				phy-names = "hdmi_phy";
 				#sound-dai-cells = <1>;
 
+				status = "disabled";
+
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -931,6 +933,8 @@
 					 <&gcc GCC_HDMI_CLKREF_CLK>;
 				clock-names = "iface",
 					      "ref";
+
+				status = "disabled";
 			};
 		};
 
