@@ -184,13 +184,12 @@ static void wwan_remove_dev(struct wwan_device *wwandev)
 
 /* ------- WWAN port management ------- */
 
-/* Keep aligned with wwan_port_type enum */
-static const char * const wwan_port_type_str[] = {
-	"AT",
-	"MBIM",
-	"QMI",
-	"QCDM",
-	"FIREHOSE"
+static const char * const wwan_port_type_str[WWAN_PORT_MAX + 1] = {
+	[WWAN_PORT_AT] = "AT",
+	[WWAN_PORT_MBIM] = "MBIM",
+	[WWAN_PORT_QMI] = "QMI",
+	[WWAN_PORT_QCDM] = "QCDM",
+	[WWAN_PORT_FIREHOSE] = "FIREHOSE",
 };
 
 static ssize_t type_show(struct device *dev, struct device_attribute *attr,
