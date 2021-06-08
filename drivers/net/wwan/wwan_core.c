@@ -12,6 +12,7 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/termios.h>
 #include <linux/wwan.h>
 
 /* Maximum number of minors in use */
@@ -618,6 +619,30 @@ static __poll_t wwan_port_fops_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
+static long wwan_port_fops_ioctl(struct file *filp, unsigned int cmd,
+				 unsigned long arg)
+{
+	struct wwan_port *port = filp->private_data;
+
+	switch (cmd) {
+	case TIOCINQ: {	/* aka SIOCINQ aka FIONREAD */
+		unsigned long flags;
+		struct sk_buff *skb;
+		int amount = 0;
+
+		spin_lock_irqsave(&port->rxq.lock, flags);
+		skb_queue_walk(&port->rxq, skb)
+			amount += skb->len;
+		spin_unlock_irqrestore(&port->rxq.lock, flags);
+
+		return put_user(amount, (int __user *)arg);
+	}
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 static const struct file_operations wwan_port_fops = {
 	.owner = THIS_MODULE,
 	.open = wwan_port_fops_open,
@@ -625,6 +650,10 @@ static const struct file_operations wwan_port_fops = {
 	.read = wwan_port_fops_read,
 	.write = wwan_port_fops_write,
 	.poll = wwan_port_fops_poll,
+	.unlocked_ioctl = wwan_port_fops_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = compat_ptr_ioctl,
+#endif
 	.llseek = noop_llseek,
 };
 
