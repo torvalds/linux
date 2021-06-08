@@ -35,9 +35,6 @@ MODULE_LICENSE("GPL");
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
 		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 static struct ena_aenq_handlers aenq_handlers;
 
@@ -3360,7 +3357,7 @@ static int ena_set_queues_placement_policy(struct pci_dev *pdev,
 
 	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
 	if (!(ena_dev->supported_features & llq_feature_mask)) {
-		dev_err(&pdev->dev,
+		dev_warn(&pdev->dev,
 			"LLQ is not supported Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 		return 0;
@@ -4271,7 +4268,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->ena_dev = ena_dev;
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = DEFAULT_MSG_ENABLE;
 
 	ena_dev->net_device = netdev;
 
