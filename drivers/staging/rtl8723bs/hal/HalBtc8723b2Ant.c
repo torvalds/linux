@@ -410,20 +410,12 @@ static u8 halbtc8723b2ant_ActionAlgorithm(struct btc_coexist *pBtCoexist)
 				pBtLinkInfo->bHidExist &&
 				pBtLinkInfo->bPanExist
 			) {
-				if (bBtHsOn) {
-					algorithm = BT_8723B_2ANT_COEX_ALGO_PANEDR_HID;
-				} else {
-					algorithm = BT_8723B_2ANT_COEX_ALGO_PANEDR_HID;
-				}
+				algorithm = BT_8723B_2ANT_COEX_ALGO_PANEDR_HID;
 			} else if (
 				pBtLinkInfo->bPanExist &&
 				pBtLinkInfo->bA2dpExist
 			) {
-				if (bBtHsOn) {
-					algorithm = BT_8723B_2ANT_COEX_ALGO_PANEDR_HID;
-				} else {
-					algorithm = BT_8723B_2ANT_COEX_ALGO_PANEDR_HID;
-				}
+				algorithm = BT_8723B_2ANT_COEX_ALGO_PANEDR_HID;
 			}
 		} else {
 			if (
