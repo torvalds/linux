@@ -15,8 +15,10 @@
  * @WWAN_PORT_QMI: Qcom modem/MSM interface for modem control
  * @WWAN_PORT_QCDM: Qcom Modem diagnostic interface
  * @WWAN_PORT_FIREHOSE: XML based command protocol
- * @WWAN_PORT_UNKNOWN: Unknown port type
- * @WWAN_PORT_MAX: Number of supported port types
+ *
+ * @WWAN_PORT_MAX: Highest supported port types
+ * @WWAN_PORT_UNKNOWN: Special value to indicate an unknown port type
+ * @__WWAN_PORT_MAX: Internal use
  */
 enum wwan_port_type {
 	WWAN_PORT_AT,
@@ -24,8 +26,12 @@ enum wwan_port_type {
 	WWAN_PORT_QMI,
 	WWAN_PORT_QCDM,
 	WWAN_PORT_FIREHOSE,
+
+	/* Add new port types above this line */
+
+	__WWAN_PORT_MAX,
+	WWAN_PORT_MAX = __WWAN_PORT_MAX - 1,
 	WWAN_PORT_UNKNOWN,
-	WWAN_PORT_MAX = WWAN_PORT_UNKNOWN,
 };
 
 struct wwan_port;

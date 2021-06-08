@@ -20,6 +20,16 @@ config WWAN_CORE
 	  To compile this driver as a module, choose M here: the module will be
 	  called wwan.
 
+config WWAN_HWSIM
+	tristate "Simulated WWAN device"
+	depends on WWAN_CORE
+	help
+	  This driver is a developer testing tool that can be used to test WWAN
+	  framework.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wwan_hwsim.  If unsure, say N.
+
 config MHI_WWAN_CTRL
 	tristate "MHI WWAN control driver for QCOM-based PCIe modems"
 	select WWAN_CORE
