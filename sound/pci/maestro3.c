@@ -1765,7 +1765,8 @@ snd_m3_playback_open(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	int err;
 
-	if ((err = snd_m3_substream_open(chip, subs)) < 0)
+	err = snd_m3_substream_open(chip, subs);
+	if (err < 0)
 		return err;
 
 	runtime->hw = snd_m3_playback;
@@ -1789,7 +1790,8 @@ snd_m3_capture_open(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	int err;
 
-	if ((err = snd_m3_substream_open(chip, subs)) < 0)
+	err = snd_m3_substream_open(chip, subs);
+	if (err < 0)
 		return err;
 
 	runtime->hw = snd_m3_capture;
@@ -2036,12 +2038,14 @@ static int snd_m3_mixer(struct snd_m3 *chip)
 		.read = snd_m3_ac97_read,
 	};
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus);
+	if (err < 0)
 		return err;
 	
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
-	if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97)) < 0)
+	err = snd_ac97_mixer(pbus, &ac97, &chip->ac97);
+	if (err < 0)
 		return err;
 
 	/* seems ac97 PCM needs initialization.. hack hack.. */
@@ -2642,16 +2646,19 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	if (err < 0)
 		goto free_chip;
 
-	if ((err = snd_m3_mixer(chip)) < 0)
+	err = snd_m3_mixer(chip);
+	if (err < 0)
 		return err;
 
 	for (i = 0; i < chip->num_substreams; i++) {
 		struct m3_dma *s = &chip->substreams[i];
-		if ((err = snd_m3_assp_client_init(chip, s, i)) < 0)
+		err = snd_m3_assp_client_init(chip, s, i);
+		if (err < 0)
 			return err;
 	}
 
-	if ((err = snd_m3_pcm(chip, 0)) < 0)
+	err = snd_m3_pcm(chip, 0);
+	if (err < 0)
 		return err;
 
 #ifdef CONFIG_SND_MAESTRO3_INPUT
