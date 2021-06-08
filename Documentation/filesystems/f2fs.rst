@@ -281,6 +281,18 @@ compress_extension=%s	 Support adding specified extension, so that f2fs can enab
 			 For other files, we can still enable compression via ioctl.
 			 Note that, there is one reserved special extension '*', it
 			 can be set to enable compression for all files.
+nocompress_extension=%s	   Support adding specified extension, so that f2fs can disable
+			 compression on those corresponding files, just contrary to compression extension.
+			 If you know exactly which files cannot be compressed, you can use this.
+			 The same extension name can't appear in both compress and nocompress
+			 extension at the same time.
+			 If the compress extension specifies all files, the types specified by the
+			 nocompress extension will be treated as special cases and will not be compressed.
+			 Don't allow use '*' to specifie all file in nocompress extension.
+			 After add nocompress_extension, the priority should be:
+			 dir_flag < comp_extention,nocompress_extension < comp_file_flag,no_comp_file_flag.
+			 See more in compression sections.
+
 compress_chksum		 Support verifying chksum of raw data in compressed cluster.
 compress_mode=%s	 Control file compression mode. This supports "fs" and "user"
 			 modes. In "fs" mode (default), f2fs does automatic compression
@@ -817,12 +829,29 @@ Compression implementation
   all logical blocks in cluster contain valid data and compress ratio of
   cluster data is lower than specified threshold.
 
-- To enable compression on regular inode, there are three ways:
+- To enable compression on regular inode, there are four ways:
 
   * chattr +c file
   * chattr +c dir; touch dir/file
   * mount w/ -o compress_extension=ext; touch file.ext
   * mount w/ -o compress_extension=*; touch any_file
+
+- To disable compression on regular inode, there are two ways:
+
+  * chattr -c file
+  * mount w/ -o nocompress_extension=ext; touch file.ext
+
+- Priority in between FS_COMPR_FL, FS_NOCOMP_FS, extensions:
+
+  * compress_extension=so; nocompress_extension=zip; chattr +c dir; touch
+    dir/foo.so; touch dir/bar.zip; touch dir/baz.txt; then foo.so and baz.txt
+    should be compresse, bar.zip should be non-compressed. chattr +c dir/bar.zip
+    can enable compress on bar.zip.
+  * compress_extension=so; nocompress_extension=zip; chattr -c dir; touch
+    dir/foo.so; touch dir/bar.zip; touch dir/baz.txt; then foo.so should be
+    compresse, bar.zip and baz.txt should be non-compressed.
+    chattr+c dir/bar.zip; chattr+c dir/baz.txt; can enable compress on bar.zip
+    and baz.txt.
 
 - At this point, compression feature doesn't expose compressed space to user
   directly in order to guarantee potential data updates later to the space.
