@@ -611,7 +611,7 @@ fst_process_tx_work_q(struct tasklet_struct *unused)
 	 */
 	for (i = 0; i < FST_MAX_CARDS; i++) {
 		if (work_txq & 0x01) {
-			if (fst_card_array[i] != NULL) {
+			if (fst_card_array[i]) {
 				dbg(DBG_TX, "Calling tx bh for card %d\n", i);
 				do_bottom_half_tx(fst_card_array[i]);
 			}
@@ -639,7 +639,7 @@ fst_process_int_work_q(struct tasklet_struct *unused)
 	 */
 	for (i = 0; i < FST_MAX_CARDS; i++) {
 		if (work_intq & 0x01) {
-			if (fst_card_array[i] != NULL) {
+			if (fst_card_array[i]) {
 				dbg(DBG_INTR,
 				    "Calling rx & tx bh for card %d\n", i);
 				do_bottom_half_rx(fst_card_array[i]);
