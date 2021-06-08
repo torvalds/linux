@@ -12,7 +12,7 @@ struct drm_i915_private;
 struct intel_encoder;
 struct intel_crtc_state;
 
-struct ddi_buf_trans {
+struct hsw_ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
 	u32 trans2;	/* vref sel, vswing */
 	u8 i_boost;	/* SKL: I_boost; valid: 0x0, 0x1, 0x3, 0x7 */
@@ -51,16 +51,14 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state,
 			       int *default_entry);
 
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries);
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
-			    int *n_entries);
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
-			     int *n_entries);
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries);
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries);
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv, int *n_entries);
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder, int *n_entries);
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries);
 
 const struct bxt_ddi_buf_trans *
 bxt_get_buf_trans(struct intel_encoder *encoder,

@@ -13,7 +13,7 @@
  * them for both DP and FDI transports, allowing those ports to
  * automatically adapt to HDMI connections as well
  */
-static const struct ddi_buf_trans hsw_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans hsw_ddi_translations_dp[] = {
 	{ 0x00FFFFFF, 0x0006000E, 0x0 },
 	{ 0x00D75FFF, 0x0005000A, 0x0 },
 	{ 0x00C30FFF, 0x00040006, 0x0 },
@@ -25,7 +25,7 @@ static const struct ddi_buf_trans hsw_ddi_translations_dp[] = {
 	{ 0x80D75FFF, 0x000B0000, 0x0 },
 };
 
-static const struct ddi_buf_trans hsw_ddi_translations_fdi[] = {
+static const struct hsw_ddi_buf_trans hsw_ddi_translations_fdi[] = {
 	{ 0x00FFFFFF, 0x0007000E, 0x0 },
 	{ 0x00D75FFF, 0x000F000A, 0x0 },
 	{ 0x00C30FFF, 0x00060006, 0x0 },
@@ -37,7 +37,7 @@ static const struct ddi_buf_trans hsw_ddi_translations_fdi[] = {
 	{ 0x00D75FFF, 0x001E0000, 0x0 },
 };
 
-static const struct ddi_buf_trans hsw_ddi_translations_hdmi[] = {
+static const struct hsw_ddi_buf_trans hsw_ddi_translations_hdmi[] = {
 					/* Idx	NT mV d	T mV d	db	*/
 	{ 0x00FFFFFF, 0x0006000E, 0x0 },/* 0:	400	400	0	*/
 	{ 0x00E79FFF, 0x000E000C, 0x0 },/* 1:	400	500	2	*/
@@ -53,7 +53,7 @@ static const struct ddi_buf_trans hsw_ddi_translations_hdmi[] = {
 	{ 0x80FFFFFF, 0x00030002, 0x0 },/* 11:	1000	1000	0	*/
 };
 
-static const struct ddi_buf_trans bdw_ddi_translations_edp[] = {
+static const struct hsw_ddi_buf_trans bdw_ddi_translations_edp[] = {
 	{ 0x00FFFFFF, 0x00000012, 0x0 },
 	{ 0x00EBAFFF, 0x00020011, 0x0 },
 	{ 0x00C71FFF, 0x0006000F, 0x0 },
@@ -65,7 +65,7 @@ static const struct ddi_buf_trans bdw_ddi_translations_edp[] = {
 	{ 0x00DB6FFF, 0x000A000C, 0x0 },
 };
 
-static const struct ddi_buf_trans bdw_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans bdw_ddi_translations_dp[] = {
 	{ 0x00FFFFFF, 0x0007000E, 0x0 },
 	{ 0x00D75FFF, 0x000E000A, 0x0 },
 	{ 0x00BEFFFF, 0x00140006, 0x0 },
@@ -77,7 +77,7 @@ static const struct ddi_buf_trans bdw_ddi_translations_dp[] = {
 	{ 0x80D75FFF, 0x001B0002, 0x0 },
 };
 
-static const struct ddi_buf_trans bdw_ddi_translations_fdi[] = {
+static const struct hsw_ddi_buf_trans bdw_ddi_translations_fdi[] = {
 	{ 0x00FFFFFF, 0x0001000E, 0x0 },
 	{ 0x00D75FFF, 0x0004000A, 0x0 },
 	{ 0x00C30FFF, 0x00070006, 0x0 },
@@ -89,7 +89,7 @@ static const struct ddi_buf_trans bdw_ddi_translations_fdi[] = {
 	{ 0x00D75FFF, 0x000C0000, 0x0 },
 };
 
-static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
+static const struct hsw_ddi_buf_trans bdw_ddi_translations_hdmi[] = {
 					/* Idx	NT mV d	T mV df	db	*/
 	{ 0x00FFFFFF, 0x0007000E, 0x0 },/* 0:	400	400	0	*/
 	{ 0x00D75FFF, 0x000E000A, 0x0 },/* 1:	400	600	3.5	*/
@@ -104,7 +104,7 @@ static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
 };
 
 /* Skylake H and S */
-static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans skl_ddi_translations_dp[] = {
 	{ 0x00002016, 0x000000A0, 0x0 },
 	{ 0x00005012, 0x0000009B, 0x0 },
 	{ 0x00007011, 0x00000088, 0x0 },
@@ -117,7 +117,7 @@ static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
 };
 
 /* Skylake U */
-static const struct ddi_buf_trans skl_u_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans skl_u_ddi_translations_dp[] = {
 	{ 0x0000201B, 0x000000A2, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
 	{ 0x80007011, 0x000000CD, 0x1 },
@@ -130,7 +130,7 @@ static const struct ddi_buf_trans skl_u_ddi_translations_dp[] = {
 };
 
 /* Skylake Y */
-static const struct ddi_buf_trans skl_y_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans skl_y_ddi_translations_dp[] = {
 	{ 0x00000018, 0x000000A2, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
 	{ 0x80007011, 0x000000CD, 0x3 },
@@ -143,7 +143,7 @@ static const struct ddi_buf_trans skl_y_ddi_translations_dp[] = {
 };
 
 /* Kabylake H and S */
-static const struct ddi_buf_trans kbl_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans kbl_ddi_translations_dp[] = {
 	{ 0x00002016, 0x000000A0, 0x0 },
 	{ 0x00005012, 0x0000009B, 0x0 },
 	{ 0x00007011, 0x00000088, 0x0 },
@@ -156,7 +156,7 @@ static const struct ddi_buf_trans kbl_ddi_translations_dp[] = {
 };
 
 /* Kabylake U */
-static const struct ddi_buf_trans kbl_u_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans kbl_u_ddi_translations_dp[] = {
 	{ 0x0000201B, 0x000000A1, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
 	{ 0x80007011, 0x000000CD, 0x3 },
@@ -169,7 +169,7 @@ static const struct ddi_buf_trans kbl_u_ddi_translations_dp[] = {
 };
 
 /* Kabylake Y */
-static const struct ddi_buf_trans kbl_y_ddi_translations_dp[] = {
+static const struct hsw_ddi_buf_trans kbl_y_ddi_translations_dp[] = {
 	{ 0x00001017, 0x000000A1, 0x0 },
 	{ 0x00005012, 0x00000088, 0x0 },
 	{ 0x80007011, 0x000000CD, 0x3 },
@@ -185,7 +185,7 @@ static const struct ddi_buf_trans kbl_y_ddi_translations_dp[] = {
  * Skylake/Kabylake H and S
  * eDP 1.4 low vswing translation parameters
  */
-static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
+static const struct hsw_ddi_buf_trans skl_ddi_translations_edp[] = {
 	{ 0x00000018, 0x000000A8, 0x0 },
 	{ 0x00004013, 0x000000A9, 0x0 },
 	{ 0x00007011, 0x000000A2, 0x0 },
@@ -202,7 +202,7 @@ static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
  * Skylake/Kabylake U
  * eDP 1.4 low vswing translation parameters
  */
-static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
+static const struct hsw_ddi_buf_trans skl_u_ddi_translations_edp[] = {
 	{ 0x00000018, 0x000000A8, 0x0 },
 	{ 0x00004013, 0x000000A9, 0x0 },
 	{ 0x00007011, 0x000000A2, 0x0 },
@@ -219,7 +219,7 @@ static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
  * Skylake/Kabylake Y
  * eDP 1.4 low vswing translation parameters
  */
-static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
+static const struct hsw_ddi_buf_trans skl_y_ddi_translations_edp[] = {
 	{ 0x00000018, 0x000000A8, 0x0 },
 	{ 0x00004013, 0x000000AB, 0x0 },
 	{ 0x00007011, 0x000000A4, 0x0 },
@@ -233,7 +233,7 @@ static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
 };
 
 /* Skylake/Kabylake U, H and S */
-static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
+static const struct hsw_ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000AC, 0x0 },
 	{ 0x00005012, 0x0000009D, 0x0 },
 	{ 0x00007011, 0x00000088, 0x0 },
@@ -248,7 +248,7 @@ static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 };
 
 /* Skylake/Kabylake Y */
-static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
+static const struct hsw_ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000A1, 0x0 },
 	{ 0x00005012, 0x000000DF, 0x0 },
 	{ 0x80007011, 0x000000CB, 0x3 },
@@ -261,7 +261,6 @@ static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
 	{ 0x80003015, 0x000000C0, 0x3 },
 	{ 0x80000018, 0x000000C0, 0x3 },
 };
-
 
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
 					/* Idx	NT mV diff	db  */
@@ -768,7 +767,7 @@ bool is_hobl_buf_trans(const struct cnl_ddi_buf_trans *table)
 	return table == tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
 }
 
-static const struct ddi_buf_trans *
+static const struct hsw_ddi_buf_trans *
 bdw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -782,7 +781,7 @@ bdw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 	}
 }
 
-static const struct ddi_buf_trans *
+static const struct hsw_ddi_buf_trans *
 skl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -799,7 +798,7 @@ skl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	}
 }
 
-static const struct ddi_buf_trans *
+static const struct hsw_ddi_buf_trans *
 kbl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -820,7 +819,7 @@ kbl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	}
 }
 
-static const struct ddi_buf_trans *
+static const struct hsw_ddi_buf_trans *
 skl_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -852,7 +851,7 @@ skl_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 		return skl_get_buf_trans_dp(encoder, n_entries);
 }
 
-static const struct ddi_buf_trans *
+static const struct hsw_ddi_buf_trans *
 skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 {
 	if (IS_SKL_ULX(dev_priv) ||
@@ -876,20 +875,20 @@ static int skl_buf_trans_num_entries(enum port port, int n_entries)
 		return min(n_entries, 9);
 }
 
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (IS_KABYLAKE(dev_priv) ||
 	    IS_COFFEELAKE(dev_priv) ||
 	    IS_COMETLAKE(dev_priv)) {
-		const struct ddi_buf_trans *ddi_translations =
+		const struct hsw_ddi_buf_trans *ddi_translations =
 			kbl_get_buf_trans_dp(encoder, n_entries);
 		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
 		return ddi_translations;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		const struct ddi_buf_trans *ddi_translations =
+		const struct hsw_ddi_buf_trans *ddi_translations =
 			skl_get_buf_trans_dp(encoder, n_entries);
 		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
 		return ddi_translations;
@@ -905,13 +904,13 @@ intel_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	return NULL;
 }
 
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
-		const struct ddi_buf_trans *ddi_translations =
+		const struct hsw_ddi_buf_trans *ddi_translations =
 			skl_get_buf_trans_edp(encoder, n_entries);
 		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
 		return ddi_translations;
@@ -926,9 +925,9 @@ intel_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 	return NULL;
 }
 
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
-			    int *n_entries)
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
+			  int *n_entries)
 {
 	if (IS_BROADWELL(dev_priv)) {
 		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
@@ -942,9 +941,9 @@ intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
-			     int *n_entries)
+const struct hsw_ddi_buf_trans *
+hsw_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
+			   int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -1428,13 +1427,13 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 		bxt_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = n_entries - 1;
 	} else if (DISPLAY_VER(dev_priv) == 9) {
-		intel_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+		hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 8;
 	} else if (IS_BROADWELL(dev_priv)) {
-		intel_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+		hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 7;
 	} else if (IS_HASWELL(dev_priv)) {
-		intel_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+		hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 6;
 	} else {
 		drm_WARN(&dev_priv->drm, 1, "ddi translation table missing\n");

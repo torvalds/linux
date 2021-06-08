@@ -569,9 +569,9 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 	u32 temp, i, rx_ctl_val;
 	int n_entries;
 
-	intel_ddi_get_buf_trans_fdi(dev_priv, &n_entries);
+	hsw_ddi_get_buf_trans_fdi(dev_priv, &n_entries);
 
-	intel_prepare_dp_ddi_buffers(encoder, crtc_state);
+	hsw_prepare_dp_ddi_buffers(encoder, crtc_state);
 
 	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
 	 * mode set "sequence for CRT port" document:

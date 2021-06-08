@@ -95,24 +95,21 @@ static int intel_ddi_hdmi_level(struct intel_encoder *encoder,
  * values in advance. This function programs the correct values for
  * DP/eDP/FDI use cases.
  */
-void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
-				  const struct intel_crtc_state *crtc_state)
+void hsw_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
 	int i, n_entries;
 	enum port port = encoder->port;
-	const struct ddi_buf_trans *ddi_translations;
+	const struct hsw_ddi_buf_trans *ddi_translations;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
-		ddi_translations = intel_ddi_get_buf_trans_fdi(dev_priv,
-							       &n_entries);
+		ddi_translations = hsw_ddi_get_buf_trans_fdi(dev_priv, &n_entries);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-		ddi_translations = intel_ddi_get_buf_trans_edp(encoder,
-							       &n_entries);
+		ddi_translations = hsw_ddi_get_buf_trans_edp(encoder, &n_entries);
 	else
-		ddi_translations = intel_ddi_get_buf_trans_dp(encoder,
-							      &n_entries);
+		ddi_translations = hsw_ddi_get_buf_trans_dp(encoder, &n_entries);
 
 	/* If we're boosting the current, set bit 31 of trans1 */
 	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv) &&
@@ -132,16 +129,16 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
  * values in advance. This function programs the correct values for
  * HDMI/DVI use cases.
  */
-static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
-					   int level)
+static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
+					 int level)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
 	int n_entries;
 	enum port port = encoder->port;
-	const struct ddi_buf_trans *ddi_translations;
+	const struct hsw_ddi_buf_trans *ddi_translations;
 
-	ddi_translations = intel_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+	ddi_translations = hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
 		return;
@@ -948,15 +945,15 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 		iboost = intel_bios_encoder_dp_boost_level(encoder->devdata);
 
 	if (iboost == 0) {
-		const struct ddi_buf_trans *ddi_translations;
+		const struct hsw_ddi_buf_trans *ddi_translations;
 		int n_entries;
 
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-			ddi_translations = intel_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+			ddi_translations = hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
 		else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-			ddi_translations = intel_ddi_get_buf_trans_edp(encoder, &n_entries);
+			ddi_translations = hsw_ddi_get_buf_trans_edp(encoder, &n_entries);
 		else
-			ddi_translations = intel_ddi_get_buf_trans_dp(encoder, &n_entries);
+			ddi_translations = hsw_ddi_get_buf_trans_dp(encoder, &n_entries);
 
 		if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
 			return;
@@ -1031,9 +1028,9 @@ static u8 intel_ddi_dp_voltage_max(struct intel_dp *intel_dp,
 		bxt_get_buf_trans(encoder, crtc_state, &n_entries);
 	} else {
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
-			intel_ddi_get_buf_trans_edp(encoder, &n_entries);
+			hsw_ddi_get_buf_trans_edp(encoder, &n_entries);
 		else
-			intel_ddi_get_buf_trans_dp(encoder, &n_entries);
+			hsw_ddi_get_buf_trans_dp(encoder, &n_entries);
 	}
 
 	if (drm_WARN_ON(&dev_priv->drm, n_entries < 1))
@@ -2702,7 +2699,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, crtc_state, level);
 	else
-		intel_prepare_dp_ddi_buffers(encoder, crtc_state);
+		hsw_prepare_dp_ddi_buffers(encoder, crtc_state);
 
 	intel_ddi_power_up_lanes(encoder, crtc_state);
 
@@ -3150,7 +3147,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, crtc_state, level);
 	else
-		intel_prepare_hdmi_ddi_buffers(encoder, level);
+		hsw_prepare_hdmi_ddi_buffers(encoder, level);
 
 	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		skl_ddi_set_iboost(encoder, crtc_state, level);
