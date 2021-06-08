@@ -573,6 +573,7 @@ struct vm_fault {
 	 */
 	unsigned long vma_flags;
 	pgprot_t vma_page_prot;
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 };
 
 /* page entry size for vm->huge_fault() */

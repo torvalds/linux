@@ -42,6 +42,12 @@ DECLARE_HOOK(android_vh_pagecache_get_page,
 	TP_PROTO(struct address_space *mapping, pgoff_t index,
 		int fgp_flags, gfp_t gfp_mask, struct page *page),
 	TP_ARGS(mapping, index, fgp_flags, gfp_mask, page));
+DECLARE_HOOK(android_vh_filemap_fault_get_page,
+	TP_PROTO(struct vm_fault *vmf, struct page **page, bool *retry),
+	TP_ARGS(vmf, page, retry));
+DECLARE_HOOK(android_vh_filemap_fault_cache_page,
+	TP_PROTO(struct vm_fault *vmf, struct page *page),
+	TP_ARGS(vmf, page));
 DECLARE_HOOK(android_vh_meminfo_proc_show,
 	TP_PROTO(struct seq_file *m),
 	TP_ARGS(m));
