@@ -87,7 +87,6 @@ config NVME_TCP
 
 config NVME_TCP_OFFLOAD
 	tristate "NVM Express over Fabrics TCP offload common layer"
-	default m
 	depends on BLOCK
 	depends on INET
 	select NVME_CORE
