@@ -76,7 +76,7 @@ MODULE_LICENSE("GPL");
 static int fst_txq_low = FST_LOW_WATER_MARK;
 static int fst_txq_high = FST_HIGH_WATER_MARK;
 static int fst_max_reads = 7;
-static int fst_excluded_cards = 0;
+static int fst_excluded_cards;
 static int fst_excluded_list[FST_MAX_CARDS];
 
 module_param(fst_txq_low, int, 0);
@@ -2401,7 +2401,7 @@ static const struct net_device_ops fst_ops = {
 static int
 fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int no_of_cards_added = 0;
+	static int no_of_cards_added;
 	struct fst_card_info *card;
 	int err = 0;
 	int i;
