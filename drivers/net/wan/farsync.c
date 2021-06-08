@@ -577,7 +577,7 @@ static u64 fst_work_txq;
 static u64 fst_work_intq;
 
 static void
-fst_q_work_item(u64 * queue, int card_index)
+fst_q_work_item(u64 *queue, int card_index)
 {
 	unsigned long flags;
 	u64 mask;
