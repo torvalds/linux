@@ -420,29 +420,49 @@ static int mlxsw_thermal_module_unbind(struct thermal_zone_device *tzdev,
 	return err;
 }
 
+static void
+mlxsw_thermal_module_temp_and_thresholds_get(struct mlxsw_core *core,
+					     u16 sensor_index, int *p_temp,
+					     int *p_crit_temp,
+					     int *p_emerg_temp)
+{
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	int err;
+
+	/* Read module temperature and thresholds. */
+	mlxsw_reg_mtmp_pack(mtmp_pl, sensor_index, false, false);
+	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err) {
+		/* Set temperature and thresholds to zero to avoid passing
+		 * uninitialized data back to the caller.
+		 */
+		*p_temp = 0;
+		*p_crit_temp = 0;
+		*p_emerg_temp = 0;
+
+		return;
+	}
+	mlxsw_reg_mtmp_unpack(mtmp_pl, p_temp, NULL, p_crit_temp, p_emerg_temp,
+			      NULL);
+}
+
 static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 					 int *p_temp)
 {
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 	struct mlxsw_thermal *thermal = tz->parent;
-	struct device *dev = thermal->bus_info->dev;
-	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	struct device *dev;
+	u16 sensor_index;
 	int temp;
 	int err;
 
-	/* Read module temperature. */
-	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN +
-			    tz->module, false, false);
-	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
-	if (err) {
-		/* Do not return error - in case of broken module's sensor
-		 * it will cause error message flooding.
-		 */
-		temp = 0;
-		*p_temp = (int) temp;
-		return 0;
-	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
+	dev = thermal->bus_info->dev;
+	sensor_index = MLXSW_REG_MTMP_MODULE_INDEX_MIN + tz->module;
+
+	/* Read module temperature and thresholds. */
+	mlxsw_thermal_module_temp_and_thresholds_get(thermal->core,
+						     sensor_index, &temp, NULL,
+						     NULL);
 	*p_temp = temp;
 
 	if (!temp)
