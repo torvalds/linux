@@ -377,19 +377,19 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 
 	/* Reference clock derived from DSI link clock. */
 	regmap_write(ctx->regmap, REG_RC_LVDS_PLL,
-		REG_RC_LVDS_PLL_LVDS_CLK_RANGE(sn65dsi83_get_lvds_range(ctx)) |
-		REG_RC_LVDS_PLL_HS_CLK_SRC_DPHY);
+		     REG_RC_LVDS_PLL_LVDS_CLK_RANGE(sn65dsi83_get_lvds_range(ctx)) |
+		     REG_RC_LVDS_PLL_HS_CLK_SRC_DPHY);
 	regmap_write(ctx->regmap, REG_DSI_CLK,
-		REG_DSI_CLK_CHA_DSI_CLK_RANGE(sn65dsi83_get_dsi_range(ctx)));
+		     REG_DSI_CLK_CHA_DSI_CLK_RANGE(sn65dsi83_get_dsi_range(ctx)));
 	regmap_write(ctx->regmap, REG_RC_DSI_CLK,
-		REG_RC_DSI_CLK_DSI_CLK_DIVIDER(sn65dsi83_get_dsi_div(ctx)));
+		     REG_RC_DSI_CLK_DSI_CLK_DIVIDER(sn65dsi83_get_dsi_div(ctx)));
 
 	/* Set number of DSI lanes and LVDS link config. */
 	regmap_write(ctx->regmap, REG_DSI_LANE,
-		REG_DSI_LANE_DSI_CHANNEL_MODE_SINGLE |
-		REG_DSI_LANE_CHA_DSI_LANES(~(ctx->dsi_lanes - 1)) |
-		/* CHB is DSI85-only, set to default on DSI83/DSI84 */
-		REG_DSI_LANE_CHB_DSI_LANES(3));
+		     REG_DSI_LANE_DSI_CHANNEL_MODE_SINGLE |
+		     REG_DSI_LANE_CHA_DSI_LANES(~(ctx->dsi_lanes - 1)) |
+		     /* CHB is DSI85-only, set to default on DSI83/DSI84 */
+		     REG_DSI_LANE_CHB_DSI_LANES(3));
 	/* No equalization. */
 	regmap_write(ctx->regmap, REG_DSI_EQ, 0x00);
 
@@ -420,10 +420,10 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 	regmap_write(ctx->regmap, REG_LVDS_FMT, val);
 	regmap_write(ctx->regmap, REG_LVDS_VCOM, 0x05);
 	regmap_write(ctx->regmap, REG_LVDS_LANE,
-		(ctx->lvds_dual_link_even_odd_swap ?
-		 REG_LVDS_LANE_EVEN_ODD_SWAP : 0) |
-		REG_LVDS_LANE_CHA_LVDS_TERM |
-		REG_LVDS_LANE_CHB_LVDS_TERM);
+		     (ctx->lvds_dual_link_even_odd_swap ?
+		      REG_LVDS_LANE_EVEN_ODD_SWAP : 0) |
+		     REG_LVDS_LANE_CHA_LVDS_TERM |
+		     REG_LVDS_LANE_CHB_LVDS_TERM);
 	regmap_write(ctx->regmap, REG_LVDS_CM, 0x00);
 
 	val = cpu_to_le16(ctx->mode.hdisplay);
@@ -455,8 +455,8 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 	regmap_write(ctx->regmap, REG_RC_PLL_EN, REG_RC_PLL_EN_PLL_EN);
 	usleep_range(3000, 4000);
 	ret = regmap_read_poll_timeout(ctx->regmap, REG_RC_LVDS_PLL, pval,
-					pval & REG_RC_LVDS_PLL_PLL_EN_STAT,
-					1000, 100000);
+				       pval & REG_RC_LVDS_PLL_PLL_EN_STAT,
+				       1000, 100000);
 	if (ret) {
 		dev_err(ctx->dev, "failed to lock PLL, ret=%i\n", ret);
 		/* On failure, disable PLL again and exit. */
@@ -513,8 +513,8 @@ static void sn65dsi83_mode_set(struct drm_bridge *bridge,
 }
 
 static bool sn65dsi83_mode_fixup(struct drm_bridge *bridge,
-			       const struct drm_display_mode *mode,
-			       struct drm_display_mode *adj)
+				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *adj)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	u32 input_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
@@ -546,8 +546,8 @@ static bool sn65dsi83_mode_fixup(struct drm_bridge *bridge,
 			ctx->lvds_format_24bpp = true;
 			ctx->lvds_format_jeida = false;
 			dev_warn(ctx->dev,
-				"Unsupported LVDS bus format 0x%04x, please check output bridge driver. Falling back to SPWG24.\n",
-				connector->display_info.bus_formats[0]);
+				 "Unsupported LVDS bus format 0x%04x, please check output bridge driver. Falling back to SPWG24.\n",
+				 connector->display_info.bus_formats[0]);
 			break;
 		}
 
