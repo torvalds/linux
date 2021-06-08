@@ -16,29 +16,6 @@
 #define USB2_PORT 2
 #define USB3_PORT 3
 
-enum mtu3_vbus_id_state {
-	MTU3_ID_FLOAT = 1,
-	MTU3_ID_GROUND,
-	MTU3_VBUS_OFF,
-	MTU3_VBUS_VALID,
-};
-
-static char *mailbox_state_string(enum mtu3_vbus_id_state state)
-{
-	switch (state) {
-	case MTU3_ID_FLOAT:
-		return "ID_FLOAT";
-	case MTU3_ID_GROUND:
-		return "ID_GROUND";
-	case MTU3_VBUS_OFF:
-		return "VBUS_OFF";
-	case MTU3_VBUS_VALID:
-		return "VBUS_VALID";
-	default:
-		return "UNKNOWN";
-	}
-}
-
 static void toggle_opstate(struct ssusb_mtk *ssusb)
 {
 	if (!ssusb->otg_switch.is_u3_drd) {
@@ -147,31 +124,32 @@ int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on)
 	return 0;
 }
 
-static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
-	enum mtu3_vbus_id_state status)
+static void ssusb_set_role(struct otg_switch_mtk *otg_sx, enum usb_role role)
 {
 	struct ssusb_mtk *ssusb =
 		container_of(otg_sx, struct ssusb_mtk, otg_switch);
 	struct mtu3 *mtu = ssusb->u3d;
 
-	dev_dbg(ssusb->dev, "mailbox %s\n", mailbox_state_string(status));
-	mtu3_dbg_trace(ssusb->dev, "mailbox %s", mailbox_state_string(status));
+	dev_dbg(ssusb->dev, "set role : %d\n", role);
+	mtu3_dbg_trace(ssusb->dev, "set role : %d", role);
 
-	switch (status) {
-	case MTU3_ID_GROUND:
+	switch (role) {
+	case USB_ROLE_HOST:
 		mtu3_stop(mtu);
 		switch_port_to_host(ssusb);
 		ssusb_set_vbus(otg_sx, 1);
 		ssusb->is_host = true;
 		break;
-	case MTU3_ID_FLOAT:
+	case USB_ROLE_DEVICE:
 		ssusb->is_host = false;
 		ssusb_set_vbus(otg_sx, 0);
 		switch_port_to_device(ssusb);
 		mtu3_start(mtu);
 		break;
+	case USB_ROLE_NONE:
+		break;
 	default:
-		dev_err(ssusb->dev, "invalid state\n");
+		dev_err(ssusb->dev, "invalid role\n");
 	}
 }
 
@@ -181,13 +159,13 @@ static void ssusb_id_work(struct work_struct *work)
 		container_of(work, struct otg_switch_mtk, id_work);
 
 	if (otg_sx->id_event)
-		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
+		ssusb_set_role(otg_sx, USB_ROLE_HOST);
 	else
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+		ssusb_set_role(otg_sx, USB_ROLE_DEVICE);
 }
 
 /*
- * @ssusb_id_notifier is called in atomic context, but @ssusb_set_mailbox
+ * @ssusb_id_notifier is called in atomic context, but ssusb_set_role()
  * may sleep, so use work queue here
  */
 static int ssusb_id_notifier(struct notifier_block *nb,
@@ -226,7 +204,7 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 
 	/* default as host, switch to device mode if needed */
 	if (extcon_get_state(edev, EXTCON_USB_HOST) == false)
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+		ssusb_set_role(otg_sx, USB_ROLE_DEVICE);
 
 	return 0;
 }
@@ -243,10 +221,10 @@ void ssusb_mode_switch(struct ssusb_mtk *ssusb, int to_host)
 
 	if (to_host) {
 		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
-		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
+		ssusb_set_role(otg_sx, USB_ROLE_HOST);
 	} else {
 		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_DEVICE);
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+		ssusb_set_role(otg_sx, USB_ROLE_DEVICE);
 	}
 }
 
