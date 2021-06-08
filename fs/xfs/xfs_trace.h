@@ -153,10 +153,8 @@ DEFINE_EVENT(xfs_perag_class, name,	\
 DEFINE_PERAG_REF_EVENT(xfs_perag_get);
 DEFINE_PERAG_REF_EVENT(xfs_perag_get_tag);
 DEFINE_PERAG_REF_EVENT(xfs_perag_put);
-DEFINE_PERAG_REF_EVENT(xfs_perag_set_reclaim);
-DEFINE_PERAG_REF_EVENT(xfs_perag_clear_reclaim);
-DEFINE_PERAG_REF_EVENT(xfs_perag_set_blockgc);
-DEFINE_PERAG_REF_EVENT(xfs_perag_clear_blockgc);
+DEFINE_PERAG_REF_EVENT(xfs_perag_set_inode_tag);
+DEFINE_PERAG_REF_EVENT(xfs_perag_clear_inode_tag);
 
 DECLARE_EVENT_CLASS(xfs_ag_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),
@@ -3898,6 +3896,7 @@ DECLARE_EVENT_CLASS(xfs_eofblocks_class,
 		__field(uint32_t, gid)
 		__field(prid_t, prid)
 		__field(__u64, min_file_size)
+		__field(int, scan_limit)
 		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
@@ -3909,15 +3908,17 @@ DECLARE_EVENT_CLASS(xfs_eofblocks_class,
 						eofb->eof_gid) : 0;
 		__entry->prid = eofb ? eofb->eof_prid : 0;
 		__entry->min_file_size = eofb ? eofb->eof_min_file_size : 0;
+		__entry->scan_limit = eofb ? eofb->icw_scan_limit : 0;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d flags 0x%x uid %u gid %u prid %u minsize %llu caller %pS",
+	TP_printk("dev %d:%d flags 0x%x uid %u gid %u prid %u minsize %llu scan_limit %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->flags,
 		  __entry->uid,
 		  __entry->gid,
 		  __entry->prid,
 		  __entry->min_file_size,
+		  __entry->scan_limit,
 		  (char *)__entry->caller_ip)
 );
 #define DEFINE_EOFBLOCKS_EVENT(name)	\
