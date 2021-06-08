@@ -9463,6 +9463,14 @@ MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 12);
 					  ((s16)((GENMASK(15, 0) + (v_) + 1) \
 					   * 125)); })
 
+/* reg_mtmp_max_operational_temperature
+ * The highest temperature in the nominal operational range. Reading is in
+ * 0.125 Celsius degrees units.
+ * In case of module this is SFF critical temperature threshold.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtmp, max_operational_temperature, 0x04, 16, 16);
+
 /* reg_mtmp_temperature
  * Temperature reading from the sensor. Reading is in 0.125 Celsius
  * degrees units.
@@ -9541,7 +9549,9 @@ static inline void mlxsw_reg_mtmp_pack(char *payload, u16 sensor_index,
 }
 
 static inline void mlxsw_reg_mtmp_unpack(char *payload, int *p_temp,
-					 int *p_max_temp, char *sensor_name)
+					 int *p_max_temp, int *p_temp_hi,
+					 int *p_max_oper_temp,
+					 char *sensor_name)
 {
 	s16 temp;
 
@@ -9552,6 +9562,14 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, int *p_temp,
 	if (p_max_temp) {
 		temp = mlxsw_reg_mtmp_max_temperature_get(payload);
 		*p_max_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (p_temp_hi) {
+		temp = mlxsw_reg_mtmp_temperature_threshold_hi_get(payload);
+		*p_temp_hi = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (p_max_oper_temp) {
+		temp = mlxsw_reg_mtmp_max_operational_temperature_get(payload);
+		*p_max_oper_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
 	}
 	if (sensor_name)
 		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);

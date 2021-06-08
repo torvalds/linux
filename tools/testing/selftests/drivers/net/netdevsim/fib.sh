@@ -33,12 +33,14 @@ ALL_TESTS="
 NETDEVSIM_PATH=/sys/bus/netdevsim/
 DEV_ADDR=1337
 DEV=netdevsim${DEV_ADDR}
-DEVLINK_DEV=netdevsim/${DEV}
 SYSFS_NET_DIR=/sys/bus/netdevsim/devices/$DEV/net/
 NUM_NETIFS=0
 source $lib_dir/lib.sh
-source $lib_dir/devlink_lib.sh
 source $lib_dir/fib_offload_lib.sh
+
+DEVLINK_DEV=
+source $lib_dir/devlink_lib.sh
+DEVLINK_DEV=netdevsim/${DEV}
 
 ipv4_identical_routes()
 {

@@ -68,7 +68,7 @@ wait_for_routes()
 	local t0=$1; shift
 	local route_count=$1; shift
 
-	local t1=$(ip route | grep -o 'offload' | wc -l)
+	local t1=$(ip route | grep 'offload' | grep -v 'offload_failed' | wc -l)
 	local delta=$((t1 - t0))
 	echo $delta
 	[[ $delta -ge $route_count ]]

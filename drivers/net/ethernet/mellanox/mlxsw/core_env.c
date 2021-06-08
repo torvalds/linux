@@ -125,6 +125,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 					 int off, int *temp)
 {
+	unsigned int module_temp, module_crit, module_emerg;
 	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	union {
 		u8 buf[MLXSW_REG_MCIA_TH_ITEM_SIZE];
@@ -132,7 +133,6 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	} temp_thresh;
 	char mcia_pl[MLXSW_REG_MCIA_LEN] = {0};
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int module_temp;
 	bool qsfp, cmis;
 	int page;
 	int err;
@@ -142,9 +142,18 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
 		return err;
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, &module_crit,
+			      &module_emerg, NULL);
 	if (!module_temp) {
 		*temp = 0;
+		return 0;
+	}
+
+	/* Validate if threshold reading is available through MTMP register,
+	 * otherwise fallback to read through MCIA.
+	 */
+	if (module_emerg) {
+		*temp = off == SFP_TEMP_HIGH_WARN ? module_crit : module_emerg;
 		return 0;
 	}
 

@@ -4312,9 +4312,6 @@ static void mlxsw_sp_nexthop4_event(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nexthop_key key;
 	struct mlxsw_sp_nexthop *nh;
 
-	if (mlxsw_sp->router->aborted)
-		return;
-
 	key.fib_nh = fib_nh;
 	nh = mlxsw_sp_nexthop_lookup(mlxsw_sp, key);
 	if (!nh)
@@ -6422,9 +6419,6 @@ mlxsw_sp_router_fib4_replace(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_fib_node *fib_node;
 	int err;
 
-	if (mlxsw_sp->router->aborted)
-		return 0;
-
 	if (fen_info->fi->nh &&
 	    !mlxsw_sp_nexthop_obj_group_lookup(mlxsw_sp, fen_info->fi->nh->id))
 		return 0;
@@ -6484,9 +6478,6 @@ static int mlxsw_sp_router_fib4_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_fib4_entry *fib4_entry;
 	struct mlxsw_sp_fib_node *fib_node;
 	int err;
-
-	if (mlxsw_sp->router->aborted)
-		return 0;
 
 	fib4_entry = mlxsw_sp_fib4_entry_lookup(mlxsw_sp, fen_info);
 	if (!fib4_entry)
@@ -7070,9 +7061,6 @@ static int mlxsw_sp_router_fib6_replace(struct mlxsw_sp *mlxsw_sp,
 	struct fib6_info *rt = rt_arr[0];
 	int err;
 
-	if (mlxsw_sp->router->aborted)
-		return 0;
-
 	if (rt->fib6_src.plen)
 		return -EINVAL;
 
@@ -7136,9 +7124,6 @@ static int mlxsw_sp_router_fib6_append(struct mlxsw_sp *mlxsw_sp,
 	struct fib6_info *rt = rt_arr[0];
 	int err;
 
-	if (mlxsw_sp->router->aborted)
-		return 0;
-
 	if (rt->fib6_src.plen)
 		return -EINVAL;
 
@@ -7180,9 +7165,6 @@ static int mlxsw_sp_router_fib6_del(struct mlxsw_sp *mlxsw_sp,
 	struct fib6_info *rt = rt_arr[0];
 	int err;
 
-	if (mlxsw_sp->router->aborted)
-		return 0;
-
 	if (mlxsw_sp_fib6_rt_should_ignore(rt))
 		return 0;
 
@@ -7211,55 +7193,6 @@ static int mlxsw_sp_router_fib6_del(struct mlxsw_sp *mlxsw_sp,
 	return err;
 }
 
-static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
-					    enum mlxsw_sp_l3proto proto,
-					    u8 tree_id)
-{
-	const struct mlxsw_sp_router_ll_ops *ll_ops = mlxsw_sp->router->proto_ll_ops[proto];
-	enum mlxsw_reg_ralxx_protocol ralxx_proto =
-				(enum mlxsw_reg_ralxx_protocol) proto;
-	struct mlxsw_sp_fib_entry_priv *priv;
-	char xralta_pl[MLXSW_REG_XRALTA_LEN];
-	char xralst_pl[MLXSW_REG_XRALST_LEN];
-	int i, err;
-
-	mlxsw_reg_xralta_pack(xralta_pl, true, ralxx_proto, tree_id);
-	err = ll_ops->ralta_write(mlxsw_sp, xralta_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_xralst_pack(xralst_pl, 0xff, tree_id);
-	err = ll_ops->ralst_write(mlxsw_sp, xralst_pl);
-	if (err)
-		return err;
-
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
-		struct mlxsw_sp_fib_entry_op_ctx *op_ctx = mlxsw_sp->router->ll_op_ctx;
-		struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[i];
-		char xraltb_pl[MLXSW_REG_XRALTB_LEN];
-
-		mlxsw_sp_fib_entry_op_ctx_clear(op_ctx);
-		mlxsw_reg_xraltb_pack(xraltb_pl, vr->id, ralxx_proto, tree_id);
-		err = ll_ops->raltb_write(mlxsw_sp, xraltb_pl);
-		if (err)
-			return err;
-
-		priv = mlxsw_sp_fib_entry_priv_create(ll_ops);
-		if (IS_ERR(priv))
-			return PTR_ERR(priv);
-
-		ll_ops->fib_entry_pack(op_ctx, proto, MLXSW_SP_FIB_ENTRY_OP_WRITE,
-				       vr->id, 0, NULL, priv);
-		ll_ops->fib_entry_act_ip2me_pack(op_ctx);
-		err = ll_ops->fib_entry_commit(mlxsw_sp, op_ctx, NULL);
-		mlxsw_sp_fib_entry_priv_put(priv);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static struct mlxsw_sp_mr_table *
 mlxsw_sp_router_fibmr_family_to_table(struct mlxsw_sp_vr *vr, int family)
 {
@@ -7276,9 +7209,6 @@ static int mlxsw_sp_router_fibmr_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_vr *vr;
 
-	if (mlxsw_sp->router->aborted)
-		return 0;
-
 	vr = mlxsw_sp_vr_get(mlxsw_sp, men_info->tb_id, NULL);
 	if (IS_ERR(vr))
 		return PTR_ERR(vr);
@@ -7292,9 +7222,6 @@ static void mlxsw_sp_router_fibmr_del(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_vr *vr;
-
-	if (mlxsw_sp->router->aborted)
-		return;
 
 	vr = mlxsw_sp_vr_find(mlxsw_sp, men_info->tb_id);
 	if (WARN_ON(!vr))
@@ -7312,9 +7239,6 @@ mlxsw_sp_router_fibmr_vif_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_vr *vr;
-
-	if (mlxsw_sp->router->aborted)
-		return 0;
 
 	vr = mlxsw_sp_vr_get(mlxsw_sp, ven_info->tb_id, NULL);
 	if (IS_ERR(vr))
@@ -7334,9 +7258,6 @@ mlxsw_sp_router_fibmr_vif_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_vr *vr;
 
-	if (mlxsw_sp->router->aborted)
-		return;
-
 	vr = mlxsw_sp_vr_find(mlxsw_sp, ven_info->tb_id);
 	if (WARN_ON(!vr))
 		return;
@@ -7344,25 +7265,6 @@ mlxsw_sp_router_fibmr_vif_del(struct mlxsw_sp *mlxsw_sp,
 	mrt = mlxsw_sp_router_fibmr_family_to_table(vr, ven_info->info.family);
 	mlxsw_sp_mr_vif_del(mrt, ven_info->vif_index);
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
-}
-
-static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
-{
-	enum mlxsw_sp_l3proto proto = MLXSW_SP_L3_PROTO_IPV4;
-	int err;
-
-	err = __mlxsw_sp_router_set_abort_trap(mlxsw_sp, proto,
-					       MLXSW_SP_LPM_TREE_MIN);
-	if (err)
-		return err;
-
-	/* The multicast router code does not need an abort trap as by default,
-	 * packets that don't match any routes are trapped to the CPU.
-	 */
-
-	proto = MLXSW_SP_L3_PROTO_IPV6;
-	return __mlxsw_sp_router_set_abort_trap(mlxsw_sp, proto,
-						MLXSW_SP_LPM_TREE_MIN + 1);
 }
 
 static void mlxsw_sp_fib4_node_flush(struct mlxsw_sp *mlxsw_sp,
@@ -7451,20 +7353,6 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp->router->adj_discard_index_valid = false;
 }
 
-static void mlxsw_sp_router_fib_abort(struct mlxsw_sp *mlxsw_sp)
-{
-	int err;
-
-	if (mlxsw_sp->router->aborted)
-		return;
-	dev_warn(mlxsw_sp->bus_info->dev, "FIB abort triggered. Note that FIB entries are no longer being offloaded to this device.\n");
-	mlxsw_sp_router_fib_flush(mlxsw_sp);
-	mlxsw_sp->router->aborted = true;
-	err = mlxsw_sp_router_set_abort_trap(mlxsw_sp);
-	if (err)
-		dev_warn(mlxsw_sp->bus_info->dev, "Failed to set abort trap.\n");
-}
-
 struct mlxsw_sp_fib6_event {
 	struct fib6_info **rt_arr;
 	unsigned int nrt6;
@@ -7546,7 +7434,7 @@ static void mlxsw_sp_router_fib4_event_process(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_sp_router_fib4_replace(mlxsw_sp, op_ctx, &fib_event->fen_info);
 		if (err) {
 			mlxsw_sp_fib_entry_op_ctx_priv_put_all(op_ctx);
-			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			dev_warn(mlxsw_sp->bus_info->dev, "FIB replace failed.\n");
 			mlxsw_sp_fib4_offload_failed_flag_set(mlxsw_sp,
 							      &fib_event->fen_info);
 		}
@@ -7581,7 +7469,7 @@ static void mlxsw_sp_router_fib6_event_process(struct mlxsw_sp *mlxsw_sp,
 						   fib_event->fib6_event.nrt6);
 		if (err) {
 			mlxsw_sp_fib_entry_op_ctx_priv_put_all(op_ctx);
-			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			dev_warn(mlxsw_sp->bus_info->dev, "FIB replace failed.\n");
 			mlxsw_sp_fib6_offload_failed_flag_set(mlxsw_sp,
 							      fib6_event->rt_arr,
 							      fib6_event->nrt6);
@@ -7593,7 +7481,7 @@ static void mlxsw_sp_router_fib6_event_process(struct mlxsw_sp *mlxsw_sp,
 						  fib_event->fib6_event.nrt6);
 		if (err) {
 			mlxsw_sp_fib_entry_op_ctx_priv_put_all(op_ctx);
-			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			dev_warn(mlxsw_sp->bus_info->dev, "FIB append failed.\n");
 			mlxsw_sp_fib6_offload_failed_flag_set(mlxsw_sp,
 							      fib6_event->rt_arr,
 							      fib6_event->nrt6);
@@ -7625,7 +7513,7 @@ static void mlxsw_sp_router_fibmr_event_process(struct mlxsw_sp *mlxsw_sp,
 
 		err = mlxsw_sp_router_fibmr_add(mlxsw_sp, &fib_event->men_info, replace);
 		if (err)
-			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			dev_warn(mlxsw_sp->bus_info->dev, "MR entry add failed.\n");
 		mr_cache_put(fib_event->men_info.mfc);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
@@ -7636,7 +7524,7 @@ static void mlxsw_sp_router_fibmr_event_process(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_sp_router_fibmr_vif_add(mlxsw_sp,
 						    &fib_event->ven_info);
 		if (err)
-			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			dev_warn(mlxsw_sp->bus_info->dev, "MR VIF add failed.\n");
 		dev_put(fib_event->ven_info.dev);
 		break;
 	case FIB_EVENT_VIF_DEL:
@@ -7800,9 +7688,6 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 	if (event == FIB_EVENT_RULE_DEL)
 		return 0;
 
-	if (mlxsw_sp->router->aborted)
-		return 0;
-
 	fr_info = container_of(info, struct fib_rule_notifier_info, info);
 	rule = fr_info->rule;
 
@@ -7860,10 +7745,6 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	case FIB_EVENT_ENTRY_ADD:
 	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_APPEND:
-		if (router->aborted) {
-			NL_SET_ERR_MSG_MOD(info->extack, "FIB offload was aborted. Not configuring route");
-			return notifier_from_errno(-EINVAL);
-		}
 		if (info->family == AF_INET) {
 			struct fib_entry_notifier_info *fen_info = ptr;
 

@@ -18,7 +18,7 @@ if [[ ! -v DEVLINK_DEV ]]; then
 
 	DEVLINK_VIDDID=$(lspci -s $(echo $DEVLINK_DEV | cut -d"/" -f2) \
 			 -n | cut -d" " -f3)
-else
+elif [[ ! -z "$DEVLINK_DEV" ]]; then
 	devlink dev show $DEVLINK_DEV &> /dev/null
 	if [ $? -ne 0 ]; then
 		echo "SKIP: devlink device \"$DEVLINK_DEV\" not found"
