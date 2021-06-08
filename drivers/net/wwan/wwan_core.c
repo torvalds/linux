@@ -240,7 +240,6 @@ static void wwan_port_destroy(struct device *dev)
 
 	ida_free(&minors, MINOR(port->dev.devt));
 	mutex_destroy(&port->data_lock);
-	skb_queue_purge(&port->rxq);
 	mutex_destroy(&port->ops_lock);
 	kfree(port);
 }
@@ -462,8 +461,11 @@ static void wwan_port_op_stop(struct wwan_port *port)
 {
 	mutex_lock(&port->ops_lock);
 	port->start_count--;
-	if (port->ops && !port->start_count)
-		port->ops->stop(port);
+	if (!port->start_count) {
+		if (port->ops)
+			port->ops->stop(port);
+		skb_queue_purge(&port->rxq);
+	}
 	mutex_unlock(&port->ops_lock);
 }
 
