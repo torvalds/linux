@@ -1420,8 +1420,7 @@ irdma_ieq_handle_partial(struct irdma_puda_rsrc *ieq, struct irdma_pfpdu *pfpdu,
 error:
 	while (!list_empty(&pbufl)) {
 		buf = (struct irdma_puda_buf *)(pbufl.prev);
-		list_del(&buf->list);
-		list_add(&buf->list, rxlist);
+		list_move(&buf->list, rxlist);
 	}
 	if (txbuf)
 		irdma_puda_ret_bufpool(ieq, txbuf);
