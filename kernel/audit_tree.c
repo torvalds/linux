@@ -689,8 +689,7 @@ void audit_trim_trees(void)
 
 		tree = container_of(cursor.next, struct audit_tree, list);
 		get_tree(tree);
-		list_del(&cursor);
-		list_add(&cursor, &tree->list);
+		list_move(&cursor, &tree->list);
 		mutex_unlock(&audit_filter_mutex);
 
 		err = kern_path(tree->pathname, 0, &path);
@@ -899,8 +898,7 @@ int audit_tag_tree(char *old, char *new)
 
 		tree = container_of(cursor.next, struct audit_tree, list);
 		get_tree(tree);
-		list_del(&cursor);
-		list_add(&cursor, &tree->list);
+		list_move(&cursor, &tree->list);
 		mutex_unlock(&audit_filter_mutex);
 
 		err = kern_path(tree->pathname, 0, &path2);
@@ -925,8 +923,7 @@ int audit_tag_tree(char *old, char *new)
 		mutex_lock(&audit_filter_mutex);
 		spin_lock(&hash_lock);
 		if (!tree->goner) {
-			list_del(&tree->list);
-			list_add(&tree->list, &tree_list);
+			list_move(&tree->list, &tree_list);
 		}
 		spin_unlock(&hash_lock);
 		put_tree(tree);
@@ -937,8 +934,7 @@ int audit_tag_tree(char *old, char *new)
 
 		tree = container_of(barrier.prev, struct audit_tree, list);
 		get_tree(tree);
-		list_del(&tree->list);
-		list_add(&tree->list, &barrier);
+		list_move(&tree->list, &barrier);
 		mutex_unlock(&audit_filter_mutex);
 
 		if (!failed) {
