@@ -40,6 +40,7 @@
 #include <trace/hooks/iommu.h>
 #include <trace/hooks/thermal.h>
 #include <trace/hooks/ufshcd.h>
+#include <trace/hooks/block.h>
 #include <trace/hooks/cgroup.h>
 #include <trace/hooks/workqueue.h>
 #include <trace/hooks/sys.h>
@@ -239,6 +240,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_insert);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_node_delete);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_node_replace);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_lookup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_blk_alloc_rqs);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_commit_creds);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_exit_creds);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_override_creds);
