@@ -65,7 +65,7 @@ struct npcm7xx_kcs_reg {
 };
 
 struct npcm7xx_kcs_bmc {
-	struct kcs_bmc kcs_bmc;
+	struct kcs_bmc_device kcs_bmc;
 
 	struct regmap *map;
 
@@ -78,12 +78,12 @@ static const struct npcm7xx_kcs_reg npcm7xx_kcs_reg_tbl[KCS_CHANNEL_MAX] = {
 	{ .sts = KCS3ST, .dob = KCS3DO, .dib = KCS3DI, .ctl = KCS3CTL, .ie = KCS3IE },
 };
 
-static inline struct npcm7xx_kcs_bmc *to_npcm7xx_kcs_bmc(struct kcs_bmc *kcs_bmc)
+static inline struct npcm7xx_kcs_bmc *to_npcm7xx_kcs_bmc(struct kcs_bmc_device *kcs_bmc)
 {
 	return container_of(kcs_bmc, struct npcm7xx_kcs_bmc, kcs_bmc);
 }
 
-static u8 npcm7xx_kcs_inb(struct kcs_bmc *kcs_bmc, u32 reg)
+static u8 npcm7xx_kcs_inb(struct kcs_bmc_device *kcs_bmc, u32 reg)
 {
 	struct npcm7xx_kcs_bmc *priv = to_npcm7xx_kcs_bmc(kcs_bmc);
 	u32 val = 0;
@@ -95,7 +95,7 @@ static u8 npcm7xx_kcs_inb(struct kcs_bmc *kcs_bmc, u32 reg)
 	return rc == 0 ? (u8)val : 0;
 }
 
-static void npcm7xx_kcs_outb(struct kcs_bmc *kcs_bmc, u32 reg, u8 data)
+static void npcm7xx_kcs_outb(struct kcs_bmc_device *kcs_bmc, u32 reg, u8 data)
 {
 	struct npcm7xx_kcs_bmc *priv = to_npcm7xx_kcs_bmc(kcs_bmc);
 	int rc;
@@ -104,7 +104,7 @@ static void npcm7xx_kcs_outb(struct kcs_bmc *kcs_bmc, u32 reg, u8 data)
 	WARN(rc != 0, "regmap_write() failed: %d\n", rc);
 }
 
-static void npcm7xx_kcs_updateb(struct kcs_bmc *kcs_bmc, u32 reg, u8 mask, u8 data)
+static void npcm7xx_kcs_updateb(struct kcs_bmc_device *kcs_bmc, u32 reg, u8 mask, u8 data)
 {
 	struct npcm7xx_kcs_bmc *priv = to_npcm7xx_kcs_bmc(kcs_bmc);
 	int rc;
@@ -113,7 +113,7 @@ static void npcm7xx_kcs_updateb(struct kcs_bmc *kcs_bmc, u32 reg, u8 mask, u8 da
 	WARN(rc != 0, "regmap_update_bits() failed: %d\n", rc);
 }
 
-static void npcm7xx_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
+static void npcm7xx_kcs_enable_channel(struct kcs_bmc_device *kcs_bmc, bool enable)
 {
 	struct npcm7xx_kcs_bmc *priv = to_npcm7xx_kcs_bmc(kcs_bmc);
 
@@ -126,12 +126,12 @@ static void npcm7xx_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 
 static irqreturn_t npcm7xx_kcs_irq(int irq, void *arg)
 {
-	struct kcs_bmc *kcs_bmc = arg;
+	struct kcs_bmc_device *kcs_bmc = arg;
 
 	return kcs_bmc_handle_event(kcs_bmc);
 }
 
-static int npcm7xx_kcs_config_irq(struct kcs_bmc *kcs_bmc,
+static int npcm7xx_kcs_config_irq(struct kcs_bmc_device *kcs_bmc,
 				  struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -155,7 +155,7 @@ static int npcm7xx_kcs_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct npcm7xx_kcs_bmc *priv;
-	struct kcs_bmc *kcs_bmc;
+	struct kcs_bmc_device *kcs_bmc;
 	u32 chan;
 	int rc;
 
@@ -207,7 +207,7 @@ static int npcm7xx_kcs_probe(struct platform_device *pdev)
 static int npcm7xx_kcs_remove(struct platform_device *pdev)
 {
 	struct npcm7xx_kcs_bmc *priv = platform_get_drvdata(pdev);
-	struct kcs_bmc *kcs_bmc = &priv->kcs_bmc;
+	struct kcs_bmc_device *kcs_bmc = &priv->kcs_bmc;
 
 	kcs_bmc_remove_device(kcs_bmc);
 

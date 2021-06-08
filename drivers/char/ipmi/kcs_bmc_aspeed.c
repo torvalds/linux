@@ -61,7 +61,7 @@
 #define LPC_STR4             0x11C
 
 struct aspeed_kcs_bmc {
-	struct kcs_bmc kcs_bmc;
+	struct kcs_bmc_device kcs_bmc;
 
 	struct regmap *map;
 };
@@ -71,12 +71,12 @@ struct aspeed_kcs_of_ops {
 	int (*get_io_address)(struct platform_device *pdev);
 };
 
-static inline struct aspeed_kcs_bmc *to_aspeed_kcs_bmc(struct kcs_bmc *kcs_bmc)
+static inline struct aspeed_kcs_bmc *to_aspeed_kcs_bmc(struct kcs_bmc_device *kcs_bmc)
 {
 	return container_of(kcs_bmc, struct aspeed_kcs_bmc, kcs_bmc);
 }
 
-static u8 aspeed_kcs_inb(struct kcs_bmc *kcs_bmc, u32 reg)
+static u8 aspeed_kcs_inb(struct kcs_bmc_device *kcs_bmc, u32 reg)
 {
 	struct aspeed_kcs_bmc *priv = to_aspeed_kcs_bmc(kcs_bmc);
 	u32 val = 0;
@@ -88,7 +88,7 @@ static u8 aspeed_kcs_inb(struct kcs_bmc *kcs_bmc, u32 reg)
 	return rc == 0 ? (u8) val : 0;
 }
 
-static void aspeed_kcs_outb(struct kcs_bmc *kcs_bmc, u32 reg, u8 data)
+static void aspeed_kcs_outb(struct kcs_bmc_device *kcs_bmc, u32 reg, u8 data)
 {
 	struct aspeed_kcs_bmc *priv = to_aspeed_kcs_bmc(kcs_bmc);
 	int rc;
@@ -97,7 +97,7 @@ static void aspeed_kcs_outb(struct kcs_bmc *kcs_bmc, u32 reg, u8 data)
 	WARN(rc != 0, "regmap_write() failed: %d\n", rc);
 }
 
-static void aspeed_kcs_updateb(struct kcs_bmc *kcs_bmc, u32 reg, u8 mask, u8 val)
+static void aspeed_kcs_updateb(struct kcs_bmc_device *kcs_bmc, u32 reg, u8 mask, u8 val)
 {
 	struct aspeed_kcs_bmc *priv = to_aspeed_kcs_bmc(kcs_bmc);
 	int rc;
@@ -119,7 +119,7 @@ static void aspeed_kcs_updateb(struct kcs_bmc *kcs_bmc, u32 reg, u8 mask, u8 val
  *     C. KCS4
  *        D / C : CA4h / CA5h
  */
-static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
+static void aspeed_kcs_set_address(struct kcs_bmc_device *kcs_bmc, u16 addr)
 {
 	struct aspeed_kcs_bmc *priv = to_aspeed_kcs_bmc(kcs_bmc);
 
@@ -153,7 +153,7 @@ static void aspeed_kcs_set_address(struct kcs_bmc *kcs_bmc, u16 addr)
 	}
 }
 
-static void aspeed_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
+static void aspeed_kcs_enable_channel(struct kcs_bmc_device *kcs_bmc, bool enable)
 {
 	struct aspeed_kcs_bmc *priv = to_aspeed_kcs_bmc(kcs_bmc);
 
@@ -228,12 +228,12 @@ static const struct kcs_bmc_device_ops aspeed_kcs_ops = {
 
 static irqreturn_t aspeed_kcs_irq(int irq, void *arg)
 {
-	struct kcs_bmc *kcs_bmc = arg;
+	struct kcs_bmc_device *kcs_bmc = arg;
 
 	return kcs_bmc_handle_event(kcs_bmc);
 }
 
-static int aspeed_kcs_config_irq(struct kcs_bmc *kcs_bmc,
+static int aspeed_kcs_config_irq(struct kcs_bmc_device *kcs_bmc,
 			struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -335,8 +335,8 @@ static int aspeed_kcs_of_v2_get_io_address(struct platform_device *pdev)
 static int aspeed_kcs_probe(struct platform_device *pdev)
 {
 	const struct aspeed_kcs_of_ops *ops;
+	struct kcs_bmc_device *kcs_bmc;
 	struct aspeed_kcs_bmc *priv;
-	struct kcs_bmc *kcs_bmc;
 	struct device_node *np;
 	int rc, channel, addr;
 
@@ -399,7 +399,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 static int aspeed_kcs_remove(struct platform_device *pdev)
 {
 	struct aspeed_kcs_bmc *priv = platform_get_drvdata(pdev);
-	struct kcs_bmc *kcs_bmc = &priv->kcs_bmc;
+	struct kcs_bmc_device *kcs_bmc = &priv->kcs_bmc;
 
 	kcs_bmc_remove_device(kcs_bmc);
 
