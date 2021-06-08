@@ -683,13 +683,13 @@ static int rt711_sdca_set_fu1e_capture_ctl(struct rt711_sdca_priv *rt711)
 	ch_r = (rt711->fu1e_dapm_mute || rt711->fu1e_mixer_r_mute) ? 0x01 : 0x00;
 
 	err = regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU1E,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E,
 			RT711_SDCA_CTL_FU_MUTE, CH_L), ch_l);
 	if (err < 0)
 		return err;
 
 	err = regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU1E,
+			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E,
 			RT711_SDCA_CTL_FU_MUTE, CH_R), ch_r);
 	if (err < 0)
 		return err;
