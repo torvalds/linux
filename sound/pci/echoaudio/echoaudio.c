@@ -301,38 +301,42 @@ static int pcm_open(struct snd_pcm_substream *substream,
 	snd_pcm_set_sync(substream);
 
 	/* Only mono and any even number of channels are allowed */
-	if ((err = snd_pcm_hw_constraint_list(runtime, 0,
-					      SNDRV_PCM_HW_PARAM_CHANNELS,
-					      &pipe->constr)) < 0)
+	err = snd_pcm_hw_constraint_list(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_CHANNELS,
+					 &pipe->constr);
+	if (err < 0)
 		return err;
 
 	/* All periods should have the same size */
-	if ((err = snd_pcm_hw_constraint_integer(runtime,
-						 SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime,
+					    SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
 		return err;
 
 	/* The hw accesses memory in chunks 32 frames long and they should be
 	32-bytes-aligned. It's not a requirement, but it seems that IRQs are
 	generated with a resolution of 32 frames. Thus we need the following */
-	if ((err = snd_pcm_hw_constraint_step(runtime, 0,
-					      SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-					      32)) < 0)
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 32);
+	if (err < 0)
 		return err;
-	if ((err = snd_pcm_hw_constraint_step(runtime, 0,
-					      SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-					      32)) < 0)
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 32);
+	if (err < 0)
 		return err;
 
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_RATE,
-					hw_rule_sample_rate, chip,
-				       SNDRV_PCM_HW_PARAM_RATE, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_RATE,
+				  hw_rule_sample_rate, chip,
+				  SNDRV_PCM_HW_PARAM_RATE, -1);
+	if (err < 0)
 		return err;
 
 	/* Allocate a page for the scatter-gather list */
-	if ((err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				       &chip->pci->dev,
-				       PAGE_SIZE, &pipe->sgpage)) < 0) {
+	err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+				  &chip->pci->dev,
+				  PAGE_SIZE, &pipe->sgpage);
+	if (err < 0) {
 		dev_err(chip->card->dev, "s-g list allocation failed\n");
 		return err;
 	}
@@ -358,18 +362,21 @@ static int pcm_analog_in_open(struct snd_pcm_substream *substream)
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
 	int err;
 
-	if ((err = pcm_open(substream, num_analog_busses_in(chip) -
-			    substream->number)) < 0)
+	err = pcm_open(substream,
+		       num_analog_busses_in(chip) - substream->number);
+	if (err < 0)
 		return err;
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_CHANNELS,
-				       hw_rule_capture_channels_by_format, NULL,
-				       SNDRV_PCM_HW_PARAM_FORMAT, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  hw_rule_capture_channels_by_format, NULL,
+				  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+	if (err < 0)
 		return err;
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_FORMAT,
-				       hw_rule_capture_format_by_channels, NULL,
-				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  hw_rule_capture_format_by_channels, NULL,
+				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	if (err < 0)
 		return err;
 
 	return 0;
@@ -387,19 +394,22 @@ static int pcm_analog_out_open(struct snd_pcm_substream *substream)
 #else
 	max_channels = num_analog_busses_out(chip);
 #endif
-	if ((err = pcm_open(substream, max_channels - substream->number)) < 0)
+	err = pcm_open(substream, max_channels - substream->number);
+	if (err < 0)
 		return err;
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_CHANNELS,
-				       hw_rule_playback_channels_by_format,
-				       NULL,
-				       SNDRV_PCM_HW_PARAM_FORMAT, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  hw_rule_playback_channels_by_format,
+				  NULL,
+				  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+	if (err < 0)
 		return err;
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_FORMAT,
-				       hw_rule_playback_format_by_channels,
-				       NULL,
-				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  hw_rule_playback_format_by_channels,
+				  NULL,
+				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	if (err < 0)
 		return err;
 
 	return 0;
@@ -426,15 +436,17 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto din_exit;
 
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_CHANNELS,
-				       hw_rule_capture_channels_by_format, NULL,
-				       SNDRV_PCM_HW_PARAM_FORMAT, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  hw_rule_capture_channels_by_format, NULL,
+				  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+	if (err < 0)
 		goto din_exit;
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_FORMAT,
-				       hw_rule_capture_format_by_channels, NULL,
-				       SNDRV_PCM_HW_PARAM_CHANNELS, -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  hw_rule_capture_format_by_channels, NULL,
+				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+	if (err < 0)
 		goto din_exit;
 
 din_exit:
@@ -463,17 +475,19 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto dout_exit;
 
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_CHANNELS,
-				       hw_rule_playback_channels_by_format,
-				       NULL, SNDRV_PCM_HW_PARAM_FORMAT,
-				       -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  hw_rule_playback_channels_by_format,
+				  NULL, SNDRV_PCM_HW_PARAM_FORMAT,
+				  -1);
+	if (err < 0)
 		goto dout_exit;
-	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
-				       SNDRV_PCM_HW_PARAM_FORMAT,
-				       hw_rule_playback_format_by_channels,
-				       NULL, SNDRV_PCM_HW_PARAM_CHANNELS,
-				       -1)) < 0)
+	err = snd_pcm_hw_rule_add(substream->runtime, 0,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  hw_rule_playback_format_by_channels,
+				  NULL, SNDRV_PCM_HW_PARAM_CHANNELS,
+				  -1);
+	if (err < 0)
 		goto dout_exit;
 
 dout_exit:
@@ -907,8 +921,9 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	separated */
 
 	/* PCM#0 Virtual outputs and analog inputs */
-	if ((err = snd_pcm_new(chip->card, "PCM", 0, num_pipes_out(chip),
-				num_analog_busses_in(chip), &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "PCM", 0, num_pipes_out(chip),
+			  num_analog_busses_in(chip), &pcm);
+	if (err < 0)
 		return err;
 	pcm->private_data = chip;
 	chip->analog_pcm = pcm;
@@ -919,8 +934,9 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	/* PCM#1 Digital inputs, no outputs */
-	if ((err = snd_pcm_new(chip->card, "Digital PCM", 1, 0,
-			       num_digital_busses_in(chip), &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "Digital PCM", 1, 0,
+			  num_digital_busses_in(chip), &pcm);
+	if (err < 0)
 		return err;
 	pcm->private_data = chip;
 	chip->digital_pcm = pcm;
@@ -937,9 +953,10 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	register two PCM devices: */
 
 	/* PCM#0 Analog i/o */
-	if ((err = snd_pcm_new(chip->card, "Analog PCM", 0,
-			       num_analog_busses_out(chip),
-			       num_analog_busses_in(chip), &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "Analog PCM", 0,
+			  num_analog_busses_out(chip),
+			  num_analog_busses_in(chip), &pcm);
+	if (err < 0)
 		return err;
 	pcm->private_data = chip;
 	chip->analog_pcm = pcm;
@@ -950,9 +967,10 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	/* PCM#1 Digital i/o */
-	if ((err = snd_pcm_new(chip->card, "Digital PCM", 1,
-			       num_digital_busses_out(chip),
-			       num_digital_busses_in(chip), &pcm)) < 0)
+	err = snd_pcm_new(chip->card, "Digital PCM", 1,
+			  num_digital_busses_out(chip),
+			  num_digital_busses_in(chip), &pcm);
+	if (err < 0)
 		return err;
 	pcm->private_data = chip;
 	chip->digital_pcm = pcm;
@@ -1567,7 +1585,8 @@ static int snd_echo_clock_source_put(struct snd_kcontrol *kcontrol,
 	if (chip->input_clock != dclock) {
 		mutex_lock(&chip->mode_mutex);
 		spin_lock_irq(&chip->lock);
-		if ((changed = set_input_clock(chip, dclock)) == 0)
+		changed = set_input_clock(chip, dclock);
+		if (!changed)
 			changed = 1;	/* no errors */
 		spin_unlock_irq(&chip->lock);
 		mutex_unlock(&chip->mode_mutex);
@@ -1911,7 +1930,8 @@ static int snd_echo_create(struct snd_card *card,
 
 	pci_write_config_byte(pci, PCI_LATENCY_TIMER, 0xC0);
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 	pci_set_master(pci);
 
@@ -1943,8 +1963,9 @@ static int snd_echo_create(struct snd_card *card,
 	if (sz > PAGE_SIZE)
 		sz = PAGE_SIZE;		/* We map only the required part */
 
-	if ((chip->iores = request_mem_region(chip->dsp_registers_phys, sz,
-					      ECHOCARD_NAME)) == NULL) {
+	chip->iores = request_mem_region(chip->dsp_registers_phys, sz,
+					 ECHOCARD_NAME);
+	if (!chip->iores) {
 		dev_err(chip->card->dev, "cannot get memory region\n");
 		snd_echo_free(chip);
 		return -EBUSY;
@@ -1988,7 +2009,8 @@ static int snd_echo_create(struct snd_card *card,
 		return err;
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_echo_free(chip);
 		return err;
 	}
@@ -2024,7 +2046,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 		return err;
 
 	chip = NULL;	/* Tells snd_echo_create to allocate chip */
-	if ((err = snd_echo_create(card, pci, &chip)) < 0) {
+	err = snd_echo_create(card, pci, &chip);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -2040,7 +2063,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 		card->shortname, pci_id->subdevice & 0x000f, dsp,
 		chip->dsp_registers_phys, chip->irq);
 
-	if ((err = snd_echo_new_pcm(chip)) < 0) {
+	err = snd_echo_new_pcm(chip);
+	if (err < 0) {
 		dev_err(chip->card->dev, "new pcm error %d\n", err);
 		snd_card_free(card);
 		return err;
@@ -2048,7 +2072,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 
 #ifdef ECHOCARD_HAS_MIDI
 	if (chip->has_midi) {	/* Some Mia's do not have midi */
-		if ((err = snd_echo_midi_create(card, chip)) < 0) {
+		err = snd_echo_midi_create(card, chip);
+		if (err < 0) {
 			dev_err(chip->card->dev, "new midi error %d\n", err);
 			snd_card_free(card);
 			return err;
@@ -2058,7 +2083,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 
 #ifdef ECHOCARD_HAS_VMIXER
 	snd_echo_vmixer.count = num_pipes_out(chip) * num_busses_out(chip);
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vmixer, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vmixer, chip));
+	if (err < 0)
 		goto ctl_error;
 #ifdef ECHOCARD_HAS_LINE_OUT_GAIN
 	err = snd_ctl_add(chip->card,
@@ -2074,39 +2100,48 @@ static int snd_echo_probe(struct pci_dev *pci,
 #endif /* ECHOCARD_HAS_VMIXER */
 
 #ifdef ECHOCARD_HAS_INPUT_GAIN
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_line_input_gain, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_line_input_gain, chip));
+	if (err < 0)
 		goto ctl_error;
 #endif
 
 #ifdef ECHOCARD_HAS_INPUT_NOMINAL_LEVEL
-	if (!chip->hasnt_input_nominal_level)
-		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_intput_nominal_level, chip))) < 0)
+	if (!chip->hasnt_input_nominal_level) {
+		err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_intput_nominal_level, chip));
+		if (err < 0)
 			goto ctl_error;
+	}
 #endif
 
 #ifdef ECHOCARD_HAS_OUTPUT_NOMINAL_LEVEL
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_output_nominal_level, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_output_nominal_level, chip));
+	if (err < 0)
 		goto ctl_error;
 #endif
 
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vumeters_switch, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vumeters_switch, chip));
+	if (err < 0)
 		goto ctl_error;
 
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vumeters, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_vumeters, chip));
+	if (err < 0)
 		goto ctl_error;
 
 #ifdef ECHOCARD_HAS_MONITOR
 	snd_echo_monitor_mixer.count = num_busses_in(chip) * num_busses_out(chip);
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_monitor_mixer, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_monitor_mixer, chip));
+	if (err < 0)
 		goto ctl_error;
 #endif
 
 #ifdef ECHOCARD_HAS_DIGITAL_IN_AUTOMUTE
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_automute_switch, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_automute_switch, chip));
+	if (err < 0)
 		goto ctl_error;
 #endif
 
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_channels_info, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_channels_info, chip));
+	if (err < 0)
 		goto ctl_error;
 
 #ifdef ECHOCARD_HAS_DIGITAL_MODE_SWITCH
@@ -2116,7 +2151,8 @@ static int snd_echo_probe(struct pci_dev *pci,
 		if (chip->digital_modes & (1 << i))
 			chip->digital_mode_list[chip->num_digital_modes++] = i;
 
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_digital_mode_switch, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_digital_mode_switch, chip));
+	if (err < 0)
 		goto ctl_error;
 #endif /* ECHOCARD_HAS_DIGITAL_MODE_SWITCH */
 
@@ -2129,20 +2165,24 @@ static int snd_echo_probe(struct pci_dev *pci,
 
 	if (chip->num_clock_sources > 1) {
 		chip->clock_src_ctl = snd_ctl_new1(&snd_echo_clock_source_switch, chip);
-		if ((err = snd_ctl_add(chip->card, chip->clock_src_ctl)) < 0)
+		err = snd_ctl_add(chip->card, chip->clock_src_ctl);
+		if (err < 0)
 			goto ctl_error;
 	}
 #endif /* ECHOCARD_HAS_EXTERNAL_CLOCK */
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
-	if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_spdif_mode_switch, chip))) < 0)
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_spdif_mode_switch, chip));
+	if (err < 0)
 		goto ctl_error;
 #endif
 
 #ifdef ECHOCARD_HAS_PHANTOM_POWER
-	if (chip->has_phantom_power)
-		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_phantom_power_switch, chip))) < 0)
+	if (chip->has_phantom_power) {
+		err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_echo_phantom_power_switch, chip));
+		if (err < 0)
 			goto ctl_error;
+	}
 #endif
 
 	err = snd_card_register(card);
