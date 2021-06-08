@@ -51,6 +51,8 @@ struct wwan_device {
  * @dev: Underlying device
  * @rxq: Buffer inbound queue
  * @waitqueue: The waitqueue for port fops (read/write/poll)
+ * @data_lock: Port specific data access serialization
+ * @at_data: AT port specific data
  */
 struct wwan_port {
 	enum wwan_port_type type;
@@ -61,6 +63,13 @@ struct wwan_port {
 	struct device dev;
 	struct sk_buff_head rxq;
 	wait_queue_head_t waitqueue;
+	struct mutex data_lock;	/* Port specific data access serialization */
+	union {
+		struct {
+			struct ktermios termios;
+			int mdmbits;
+		} at_data;
+	};
 };
 
 static ssize_t index_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -230,6 +239,7 @@ static void wwan_port_destroy(struct device *dev)
 	struct wwan_port *port = to_wwan_port(dev);
 
 	ida_free(&minors, MINOR(port->dev.devt));
+	mutex_destroy(&port->data_lock);
 	skb_queue_purge(&port->rxq);
 	mutex_destroy(&port->ops_lock);
 	kfree(port);
@@ -344,6 +354,7 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	mutex_init(&port->ops_lock);
 	skb_queue_head_init(&port->rxq);
 	init_waitqueue_head(&port->waitqueue);
+	mutex_init(&port->data_lock);
 
 	port->dev.parent = &wwandev->dev;
 	port->dev.class = wwan_class;
@@ -619,10 +630,90 @@ static __poll_t wwan_port_fops_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
+/* Implements minimalistic stub terminal IOCTLs support */
+static long wwan_port_fops_at_ioctl(struct wwan_port *port, unsigned int cmd,
+				    unsigned long arg)
+{
+	int ret = 0;
+
+	mutex_lock(&port->data_lock);
+
+	switch (cmd) {
+	case TCFLSH:
+		break;
+
+	case TCGETS:
+		if (copy_to_user((void __user *)arg, &port->at_data.termios,
+				 sizeof(struct termios)))
+			ret = -EFAULT;
+		break;
+
+	case TCSETS:
+	case TCSETSW:
+	case TCSETSF:
+		if (copy_from_user(&port->at_data.termios, (void __user *)arg,
+				   sizeof(struct termios)))
+			ret = -EFAULT;
+		break;
+
+#ifdef TCGETS2
+	case TCGETS2:
+		if (copy_to_user((void __user *)arg, &port->at_data.termios,
+				 sizeof(struct termios2)))
+			ret = -EFAULT;
+		break;
+
+	case TCSETS2:
+	case TCSETSW2:
+	case TCSETSF2:
+		if (copy_from_user(&port->at_data.termios, (void __user *)arg,
+				   sizeof(struct termios2)))
+			ret = -EFAULT;
+		break;
+#endif
+
+	case TIOCMGET:
+		ret = put_user(port->at_data.mdmbits, (int __user *)arg);
+		break;
+
+	case TIOCMSET:
+	case TIOCMBIC:
+	case TIOCMBIS: {
+		int mdmbits;
+
+		if (copy_from_user(&mdmbits, (int __user *)arg, sizeof(int))) {
+			ret = -EFAULT;
+			break;
+		}
+		if (cmd == TIOCMBIC)
+			port->at_data.mdmbits &= ~mdmbits;
+		else if (cmd == TIOCMBIS)
+			port->at_data.mdmbits |= mdmbits;
+		else
+			port->at_data.mdmbits = mdmbits;
+		break;
+	}
+
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	mutex_unlock(&port->data_lock);
+
+	return ret;
+}
+
 static long wwan_port_fops_ioctl(struct file *filp, unsigned int cmd,
 				 unsigned long arg)
 {
 	struct wwan_port *port = filp->private_data;
+	int res;
+
+	if (port->type == WWAN_PORT_AT) {	/* AT port specific IOCTLs */
+		res = wwan_port_fops_at_ioctl(port, cmd, arg);
+		if (res != -ENOIOCTLCMD)
+			return res;
+	}
 
 	switch (cmd) {
 	case TIOCINQ: {	/* aka SIOCINQ aka FIONREAD */
