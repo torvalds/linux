@@ -846,7 +846,14 @@ static inline struct bkey_s_c __btree_iter_unpack(struct btree_iter *iter,
 
 	ret = bkey_disassemble(l->b, k, u);
 
-	if (bch2_debug_check_bkeys)
+	/*
+	 * XXX: bch2_btree_bset_insert_key() generates invalid keys when we
+	 * overwrite extents - it sets k->type = KEY_TYPE_deleted on the key
+	 * being overwritten but doesn't change k->size. But this is ok, because
+	 * those keys are never written out, we just have to avoid a spurious
+	 * assertion here:
+	 */
+	if (bch2_debug_check_bkeys && !bkey_deleted(ret.k))
 		bch2_bkey_debugcheck(iter->trans->c, l->b, ret);
 
 	return ret;
