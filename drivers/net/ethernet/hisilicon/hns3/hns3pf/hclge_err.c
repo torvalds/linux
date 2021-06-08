@@ -1611,10 +1611,26 @@ static const struct hclge_hw_blk hw_blk[] = {
 	{ /* sentinel */ }
 };
 
+static void hclge_config_all_msix_error(struct hclge_dev *hdev, bool enable)
+{
+	u32 reg_val;
+
+	reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
+
+	if (enable)
+		reg_val |= BIT(HCLGE_VECTOR0_ALL_MSIX_ERR_B);
+	else
+		reg_val &= ~BIT(HCLGE_VECTOR0_ALL_MSIX_ERR_B);
+
+	hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG, reg_val);
+}
+
 int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state)
 {
 	const struct hclge_hw_blk *module = hw_blk;
 	int ret = 0;
+
+	hclge_config_all_msix_error(hdev, state);
 
 	while (module->name) {
 		if (module->config_err_int) {

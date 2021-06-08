@@ -3307,11 +3307,13 @@ static int hclge_set_vf_link_state(struct hnae3_handle *handle, int vf,
 
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 {
-	u32 cmdq_src_reg, msix_src_reg;
+	u32 cmdq_src_reg, msix_src_reg, hw_err_src_reg;
 
 	/* fetch the events from their corresponding regs */
 	cmdq_src_reg = hclge_read_dev(&hdev->hw, HCLGE_VECTOR0_CMDQ_SRC_REG);
 	msix_src_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
+	hw_err_src_reg = hclge_read_dev(&hdev->hw,
+					HCLGE_RAS_PF_OTHER_INT_STS_REG);
 
 	/* Assumption: If by any chance reset and mailbox events are reported
 	 * together then we will only process reset event in this go and will
@@ -3339,11 +3341,11 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		return HCLGE_VECTOR0_EVENT_RST;
 	}
 
-	/* check for vector0 msix event source */
-	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
-		*clearval = msix_src_reg;
+	/* check for vector0 msix event and hardware error event source */
+	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK ||
+	    hw_err_src_reg & HCLGE_RAS_REG_NFE_MASK ||
+	    hw_err_src_reg & HCLGE_RAS_REG_ROCEE_ERR_MASK)
 		return HCLGE_VECTOR0_EVENT_ERR;
-	}
 
 	/* check for vector0 mailbox(=CMDQ RX) event source */
 	if (BIT(HCLGE_VECTOR0_RX_CMDQ_INT_B) & cmdq_src_reg) {
@@ -3354,9 +3356,8 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 
 	/* print other vector0 event source */
 	dev_info(&hdev->pdev->dev,
-		 "CMDQ INT status:0x%x, other INT status:0x%x\n",
-		 cmdq_src_reg, msix_src_reg);
-	*clearval = msix_src_reg;
+		 "INT status: CMDQ(%#x) HW errors(%#x) other(%#x)\n",
+		 cmdq_src_reg, hw_err_src_reg, msix_src_reg);
 
 	return HCLGE_VECTOR0_EVENT_OTHER;
 }
@@ -3427,15 +3428,10 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 
 	hclge_clear_event_cause(hdev, event_cause, clearval);
 
-	/* Enable interrupt if it is not cause by reset. And when
-	 * clearval equal to 0, it means interrupt status may be
-	 * cleared by hardware before driver reads status register.
-	 * For this case, vector0 interrupt also should be enabled.
-	 */
-	if (!clearval ||
-	    event_cause == HCLGE_VECTOR0_EVENT_MBX) {
+	/* Enable interrupt if it is not caused by reset event or error event */
+	if (event_cause == HCLGE_VECTOR0_EVENT_MBX ||
+	    event_cause == HCLGE_VECTOR0_EVENT_OTHER)
 		hclge_enable_vector(&hdev->misc_vector, true);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -4244,22 +4240,27 @@ static void hclge_misc_err_recovery(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct device *dev = &hdev->pdev->dev;
+	enum hnae3_reset_type reset_type;
 	u32 msix_sts_reg;
 
 	msix_sts_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
-
 	if (msix_sts_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
-		if (hclge_handle_hw_msix_error(hdev,
-					       &hdev->default_reset_request))
+		if (hclge_handle_hw_msix_error
+				(hdev, &hdev->default_reset_request))
 			dev_info(dev, "received msix interrupt 0x%x\n",
 				 msix_sts_reg);
+	}
+	hclge_enable_vector(&hdev->misc_vector, true);
 
-		if (hdev->default_reset_request)
-			if (ae_dev->ops->reset_event)
-				ae_dev->ops->reset_event(hdev->pdev, NULL);
+	hclge_handle_hw_ras_error(ae_dev);
+	if (ae_dev->hw_err_reset_req) {
+		reset_type = hclge_get_reset_level(ae_dev,
+						   &ae_dev->hw_err_reset_req);
+		hclge_set_def_reset_request(ae_dev, reset_type);
 	}
 
-	hclge_enable_vector(&hdev->misc_vector, true);
+	if (hdev->default_reset_request && ae_dev->ops->reset_event)
+		ae_dev->ops->reset_event(hdev->pdev, NULL);
 }
 
 static void hclge_errhand_service_task(struct hclge_dev *hdev)
