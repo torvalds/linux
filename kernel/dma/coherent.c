@@ -111,7 +111,7 @@ static int dma_assign_coherent_memory(struct device *dev,
  * Declare a region of memory to be handed out by dma_alloc_coherent() when it
  * is asked for coherent memory for this device.  This shall only be used
  * from platform code, usually based on the device tree description.
- * 
+ *
  * phys_addr is the CPU physical address to which the memory is currently
  * assigned (this will be ioremapped so the CPU can access the region).
  *
