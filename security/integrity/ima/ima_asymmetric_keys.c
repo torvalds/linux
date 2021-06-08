@@ -11,6 +11,7 @@
 
 #include <keys/asymmetric-type.h>
 #include <linux/user_namespace.h>
+#include <linux/ima.h>
 #include "ima.h"
 
 /**
