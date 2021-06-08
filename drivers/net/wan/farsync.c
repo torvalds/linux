@@ -63,7 +63,7 @@ MODULE_LICENSE("GPL");
 #define FST_MAX_MTU             8000	/* Huge but possible */
 #define FST_DEF_MTU             1500	/* Common sane value */
 
-#define FST_TX_TIMEOUT          (2*HZ)
+#define FST_TX_TIMEOUT          (2 * HZ)
 
 #ifdef ARPHRD_RAWHDLC
 #define ARPHRD_MYTYPE   ARPHRD_RAWHDLC	/* Raw frames */
@@ -1144,7 +1144,7 @@ fst_recover_rx_error(struct fst_card_info *card, struct fst_port_info *port,
 	i = 0;
 	while ((dmabits & (DMA_OWN | RX_STP)) == 0) {
 		FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
-		rxp = (rxp+1) % NUM_RX_BUFFER;
+		rxp = (rxp + 1) % NUM_RX_BUFFER;
 		if (++i > NUM_RX_BUFFER) {
 			dbg(DBG_ASS, "intr_rx: Discarding more bufs"
 			    " than we have\n");
@@ -1158,7 +1158,7 @@ fst_recover_rx_error(struct fst_card_info *card, struct fst_port_info *port,
 	/* Discard the terminal buffer */
 	if (!(dmabits & DMA_OWN)) {
 		FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
-		rxp = (rxp+1) % NUM_RX_BUFFER;
+		rxp = (rxp + 1) % NUM_RX_BUFFER;
 	}
 	port->rxpos = rxp;
 	return;
@@ -1203,7 +1203,7 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 		/* Return descriptor to card */
 		FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
 
-		rxp = (rxp+1) % NUM_RX_BUFFER;
+		rxp = (rxp + 1) % NUM_RX_BUFFER;
 		port->rxpos = rxp;
 		return;
 	}
@@ -1229,7 +1229,7 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 		/* Return descriptor to card */
 		FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
 
-		rxp = (rxp+1) % NUM_RX_BUFFER;
+		rxp = (rxp + 1) % NUM_RX_BUFFER;
 		port->rxpos = rxp;
 		return;
 	}
@@ -1273,7 +1273,7 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 		dbg(DBG_ASS, "About to increment rxpos by more than 1\n");
 		dbg(DBG_ASS, "rxp = %d rxpos = %d\n", rxp, port->rxpos);
 	}
-	rxp = (rxp+1) % NUM_RX_BUFFER;
+	rxp = (rxp + 1) % NUM_RX_BUFFER;
 	port->rxpos = rxp;
 }
 
