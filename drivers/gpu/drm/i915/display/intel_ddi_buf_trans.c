@@ -1377,42 +1377,16 @@ icl_get_mg_buf_trans(struct intel_encoder *encoder,
 		return icl_get_mg_buf_trans_dp(encoder, crtc_state, n_entries);
 }
 
-static const struct intel_ddi_buf_trans *
-ehl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *crtc_state,
-			     int *n_entries)
-{
-	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_hdmi,
-				   n_entries);
-}
-
-static const struct intel_ddi_buf_trans *
-ehl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *crtc_state,
-			   int *n_entries)
-{
-	return intel_get_buf_trans(&ehl_combo_phy_ddi_translations_dp,
-				   n_entries);
-}
 
 static const struct intel_ddi_buf_trans *
 ehl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (dev_priv->vbt.edp.low_vswing) {
-		if (crtc_state->port_clock > 270000) {
-			return intel_get_buf_trans(&ehl_combo_phy_ddi_translations_edp_hbr2,
-						   n_entries);
-		} else {
-			return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr2,
-						   n_entries);
-		}
-	}
-
-	return ehl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
+	if (crtc_state->port_clock > 270000)
+		return intel_get_buf_trans(&ehl_combo_phy_ddi_translations_edp_hbr2, n_entries);
+	else
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr2, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
@@ -1420,30 +1394,15 @@ ehl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		return ehl_get_combo_buf_trans_hdmi(encoder, crtc_state, n_entries);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 dev_priv->vbt.edp.low_vswing)
 		return ehl_get_combo_buf_trans_edp(encoder, crtc_state, n_entries);
 	else
-		return ehl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
-}
-
-static const struct intel_ddi_buf_trans *
-jsl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *crtc_state,
-			     int *n_entries)
-{
-	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_hdmi,
-				   n_entries);
-}
-
-static const struct intel_ddi_buf_trans *
-jsl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *crtc_state,
-			   int *n_entries)
-{
-	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
-				   n_entries);
+		return intel_get_buf_trans(&ehl_combo_phy_ddi_translations_dp, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
@@ -1451,19 +1410,10 @@ jsl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (dev_priv->vbt.edp.low_vswing) {
-		if (crtc_state->port_clock > 270000) {
-			return intel_get_buf_trans(&jsl_combo_phy_ddi_translations_edp_hbr2,
-						   n_entries);
-		} else {
-			return intel_get_buf_trans(&jsl_combo_phy_ddi_translations_edp_hbr,
-						   n_entries);
-		}
-	}
-
-	return jsl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
+	if (crtc_state->port_clock > 270000)
+		return intel_get_buf_trans(&jsl_combo_phy_ddi_translations_edp_hbr2, n_entries);
+	else
+		return intel_get_buf_trans(&jsl_combo_phy_ddi_translations_edp_hbr, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
@@ -1471,12 +1421,15 @@ jsl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		return jsl_get_combo_buf_trans_hdmi(encoder, crtc_state, n_entries);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_hdmi, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP) &&
+		 dev_priv->vbt.edp.low_vswing)
 		return jsl_get_combo_buf_trans_edp(encoder, crtc_state, n_entries);
 	else
-		return jsl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3, n_entries);
 }
 
 static const struct intel_ddi_buf_trans *
