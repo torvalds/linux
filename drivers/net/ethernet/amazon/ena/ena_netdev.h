@@ -55,12 +55,6 @@
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
-/* limit the buffer size to 600 bytes to handle MTU changes from very
- * small to very large, in which case the number of buffers per packet
- * could exceed ENA_PKT_MAX_BUFS
- */
-#define ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE 600
-
 #define ENA_MIN_MTU		128
 
 #define ENA_NAME_MAX_LEN	20
@@ -416,11 +410,6 @@ enum ena_xdp_errors_t {
 	ENA_XDP_CURRENT_MTU_TOO_LARGE,
 	ENA_XDP_NO_ENOUGH_QUEUES,
 };
-
-static inline bool ena_xdp_queues_present(struct ena_adapter *adapter)
-{
-	return adapter->xdp_first_ring != 0;
-}
 
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {
