@@ -629,6 +629,7 @@ void tick_offline_cpu(unsigned int cpu)
 
 /**
  * tick_cleanup_dead_cpu - Cleanup the tick and clockevents of a dead cpu
+ * @cpu:	The dead CPU
  */
 void tick_cleanup_dead_cpu(int cpu)
 {
