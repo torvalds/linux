@@ -1190,7 +1190,7 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(hdr);
 
-	if (__copy_from_user(&hdr, ubuf + offset, size))
+	if (copy_from_user(&hdr, ubuf + offset, size))
 		return -EFAULT;
 
 	if (validate_user_xstate_header(&hdr))
@@ -1205,7 +1205,7 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			if (__copy_from_user(dst, ubuf + offset, size))
+			if (copy_from_user(dst, ubuf + offset, size))
 				return -EFAULT;
 		}
 	}
@@ -1213,7 +1213,7 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 	if (xfeatures_mxcsr_quirk(hdr.xfeatures)) {
 		offset = offsetof(struct fxregs_state, mxcsr);
 		size = MXCSR_AND_FLAGS_SIZE;
-		if (__copy_from_user(&xsave->i387.mxcsr, ubuf + offset, size))
+		if (copy_from_user(&xsave->i387.mxcsr, ubuf + offset, size))
 			return -EFAULT;
 	}
 
