@@ -61,6 +61,7 @@
 #include <trace/hooks/v4l2mc.h>
 #include <trace/hooks/scmi.h>
 #include <trace/hooks/user.h>
+#include <trace/hooks/cpuidle_psci.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -318,3 +319,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_force_compatible_post);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_uid);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_free_user);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_balance_anon_file_reclaim);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpuidle_psci_enter);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpuidle_psci_exit);
