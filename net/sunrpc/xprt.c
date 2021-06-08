@@ -55,6 +55,7 @@
 #include <trace/events/sunrpc.h>
 
 #include "sunrpc.h"
+#include "sysfs.h"
 
 /*
  * Local variables
@@ -443,7 +444,7 @@ void xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 }
 EXPORT_SYMBOL_GPL(xprt_release_xprt_cong);
 
-static inline void xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
+void xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	if (xprt->snd_task != task)
 		return;
@@ -1812,6 +1813,7 @@ void xprt_free(struct rpc_xprt *xprt)
 	put_net(xprt->xprt_net);
 	xprt_free_all_slots(xprt);
 	xprt_free_id(xprt);
+	rpc_sysfs_xprt_destroy(xprt);
 	kfree_rcu(xprt, rcu);
 }
 EXPORT_SYMBOL_GPL(xprt_free);
