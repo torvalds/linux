@@ -207,7 +207,7 @@ int spectre_v2_test(void)
 		break;
 	case COUNT_CACHE_DISABLED:
 		if (miss_percent < 95) {
-			printf("Branch misses < 20%% unexpected in this configuration!\n");
+			printf("Branch misses < 95%% unexpected in this configuration!\n");
 			printf("Possible mis-match between reported & actual mitigation\n");
 			return 1;
 		}
