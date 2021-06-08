@@ -436,8 +436,12 @@ int scmi_do_xfer_with_response(const struct scmi_handle *handle,
 	xfer->async_done = &async_response;
 
 	ret = scmi_do_xfer(handle, xfer);
-	if (!ret && !wait_for_completion_timeout(xfer->async_done, timeout))
-		ret = -ETIMEDOUT;
+	if (!ret) {
+		if (!wait_for_completion_timeout(xfer->async_done, timeout))
+			ret = -ETIMEDOUT;
+		else if (xfer->hdr.status)
+			ret = scmi_to_linux_errno(xfer->hdr.status);
+	}
 
 	xfer->async_done = NULL;
 	return ret;
