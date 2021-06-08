@@ -48,7 +48,6 @@ static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
 
 /**
  *	tty_register_ldisc	-	install a line discipline
- *	@disc: ldisc number
  *	@new_ldisc: pointer to the ldisc object
  *
  *	Installs a new line discipline into the kernel. The discipline
@@ -77,7 +76,7 @@ EXPORT_SYMBOL(tty_register_ldisc);
 
 /**
  *	tty_unregister_ldisc	-	unload a line discipline
- *	@disc: ldisc number
+ *	@ldisc: ldisc number
  *
  *	Remove a line discipline from the kernel providing it is not
  *	currently in use.
