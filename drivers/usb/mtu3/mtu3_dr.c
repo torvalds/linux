@@ -147,10 +147,6 @@ int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on)
 	return 0;
 }
 
-/*
- * switch to host: -> MTU3_VBUS_OFF --> MTU3_ID_GROUND
- * switch to device: -> MTU3_ID_FLOAT --> MTU3_VBUS_VALID
- */
 static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
 	enum mtu3_vbus_id_state status)
 {
@@ -163,6 +159,7 @@ static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
 
 	switch (status) {
 	case MTU3_ID_GROUND:
+		mtu3_stop(mtu);
 		switch_port_to_host(ssusb);
 		ssusb_set_vbus(otg_sx, 1);
 		ssusb->is_host = true;
@@ -171,11 +168,6 @@ static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
 		ssusb->is_host = false;
 		ssusb_set_vbus(otg_sx, 0);
 		switch_port_to_device(ssusb);
-		break;
-	case MTU3_VBUS_OFF:
-		mtu3_stop(mtu);
-		break;
-	case MTU3_VBUS_VALID:
 		mtu3_start(mtu);
 		break;
 	default:
@@ -194,17 +186,6 @@ static void ssusb_id_work(struct work_struct *work)
 		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
 }
 
-static void ssusb_vbus_work(struct work_struct *work)
-{
-	struct otg_switch_mtk *otg_sx =
-		container_of(work, struct otg_switch_mtk, vbus_work);
-
-	if (otg_sx->vbus_event)
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
-	else
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
-}
-
 /*
  * @ssusb_id_notifier is called in atomic context, but @ssusb_set_mailbox
  * may sleep, so use work queue here
@@ -221,18 +202,6 @@ static int ssusb_id_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int ssusb_vbus_notifier(struct notifier_block *nb,
-	unsigned long event, void *ptr)
-{
-	struct otg_switch_mtk *otg_sx =
-		container_of(nb, struct otg_switch_mtk, vbus_nb);
-
-	otg_sx->vbus_event = event;
-	schedule_work(&otg_sx->vbus_work);
-
-	return NOTIFY_DONE;
-}
-
 static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 {
 	struct ssusb_mtk *ssusb =
@@ -244,14 +213,6 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 	if (!edev)
 		return 0;
 
-	otg_sx->vbus_nb.notifier_call = ssusb_vbus_notifier;
-	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB,
-					&otg_sx->vbus_nb);
-	if (ret < 0) {
-		dev_err(ssusb->dev, "failed to register notifier for USB\n");
-		return ret;
-	}
-
 	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
 	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
 					&otg_sx->id_nb);
@@ -260,15 +221,12 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 		return ret;
 	}
 
-	dev_dbg(ssusb->dev, "EXTCON_USB: %d, EXTCON_USB_HOST: %d\n",
-		extcon_get_state(edev, EXTCON_USB),
+	dev_dbg(ssusb->dev, "EXTCON_USB_HOST: %d\n",
 		extcon_get_state(edev, EXTCON_USB_HOST));
 
 	/* default as host, switch to device mode if needed */
 	if (extcon_get_state(edev, EXTCON_USB_HOST) == false)
 		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
-	if (extcon_get_state(edev, EXTCON_USB) == true)
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
 
 	return 0;
 }
@@ -285,12 +243,10 @@ void ssusb_mode_switch(struct ssusb_mtk *ssusb, int to_host)
 
 	if (to_host) {
 		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
 		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
 	} else {
 		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_DEVICE);
 		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
 	}
 }
 
@@ -365,7 +321,6 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 	int ret = 0;
 
 	INIT_WORK(&otg_sx->id_work, ssusb_id_work);
-	INIT_WORK(&otg_sx->vbus_work, ssusb_vbus_work);
 
 	if (otg_sx->manual_drd_enabled)
 		ssusb_dr_debugfs_init(ssusb);
@@ -382,6 +337,5 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
 	cancel_work_sync(&otg_sx->id_work);
-	cancel_work_sync(&otg_sx->vbus_work);
 	usb_role_switch_unregister(otg_sx->role_sw);
 }
