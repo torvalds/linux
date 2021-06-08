@@ -1085,6 +1085,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_PTP_KVM 198
 #define KVM_CAP_HYPERV_ENFORCE_CPUID 199
 #define KVM_CAP_SREGS2 200
+#define KVM_CAP_EXIT_HYPERCALL 201
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
