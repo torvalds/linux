@@ -213,8 +213,6 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 
 static void ssusb_host_setup(struct ssusb_mtk *ssusb)
 {
-	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
-
 	host_ports_num_get(ssusb);
 
 	/*
@@ -222,9 +220,7 @@ static void ssusb_host_setup(struct ssusb_mtk *ssusb)
 	 * if support OTG, gadget driver will switch port0 to device mode
 	 */
 	ssusb_host_enable(ssusb);
-
-	if (otg_sx->manual_drd_enabled)
-		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
+	ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
 
 	/* if port0 supports dual-role, works as host mode by default */
 	ssusb_set_vbus(&ssusb->otg_switch, 1);
