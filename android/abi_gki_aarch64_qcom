@@ -2379,6 +2379,7 @@
   task_may_not_preempt
   __task_pid_nr_ns
   __task_rq_lock
+  thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
   thermal_pressure
