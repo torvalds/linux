@@ -368,6 +368,7 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	unsigned int pval;
+	__le16 le16val;
 	u16 val;
 	int ret;
 
@@ -426,21 +427,21 @@ static void sn65dsi83_enable(struct drm_bridge *bridge)
 		     REG_LVDS_LANE_CHB_LVDS_TERM);
 	regmap_write(ctx->regmap, REG_LVDS_CM, 0x00);
 
-	val = cpu_to_le16(ctx->mode.hdisplay);
+	le16val = cpu_to_le16(ctx->mode.hdisplay);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_ACTIVE_LINE_LENGTH_LOW,
-			  &val, 2);
-	val = cpu_to_le16(ctx->mode.vdisplay);
+			  &le16val, 2);
+	le16val = cpu_to_le16(ctx->mode.vdisplay);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_VERTICAL_DISPLAY_SIZE_LOW,
-			  &val, 2);
+			  &le16val, 2);
 	/* 32 + 1 pixel clock to ensure proper operation */
-	val = cpu_to_le16(32 + 1);
-	regmap_bulk_write(ctx->regmap, REG_VID_CHA_SYNC_DELAY_LOW, &val, 2);
-	val = cpu_to_le16(ctx->mode.hsync_end - ctx->mode.hsync_start);
+	le16val = cpu_to_le16(32 + 1);
+	regmap_bulk_write(ctx->regmap, REG_VID_CHA_SYNC_DELAY_LOW, &le16val, 2);
+	le16val = cpu_to_le16(ctx->mode.hsync_end - ctx->mode.hsync_start);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_HSYNC_PULSE_WIDTH_LOW,
-			  &val, 2);
-	val = cpu_to_le16(ctx->mode.vsync_end - ctx->mode.vsync_start);
+			  &le16val, 2);
+	le16val = cpu_to_le16(ctx->mode.vsync_end - ctx->mode.vsync_start);
 	regmap_bulk_write(ctx->regmap, REG_VID_CHA_VSYNC_PULSE_WIDTH_LOW,
-			  &val, 2);
+			  &le16val, 2);
 	regmap_write(ctx->regmap, REG_VID_CHA_HORIZONTAL_BACK_PORCH,
 		     ctx->mode.htotal - ctx->mode.hsync_end);
 	regmap_write(ctx->regmap, REG_VID_CHA_VERTICAL_BACK_PORCH,
