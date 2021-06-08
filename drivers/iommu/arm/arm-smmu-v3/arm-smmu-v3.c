@@ -3848,10 +3848,20 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	ret = iommu_device_register(&smmu->iommu, &arm_smmu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
-		return ret;
+		goto err_sysfs_remove;
 	}
 
-	return arm_smmu_set_bus_ops(&arm_smmu_ops);
+	ret = arm_smmu_set_bus_ops(&arm_smmu_ops);
+	if (ret)
+		goto err_unregister_device;
+
+	return 0;
+
+err_unregister_device:
+	iommu_device_unregister(&smmu->iommu);
+err_sysfs_remove:
+	iommu_device_sysfs_remove(&smmu->iommu);
+	return ret;
 }
 
 static int arm_smmu_device_remove(struct platform_device *pdev)
