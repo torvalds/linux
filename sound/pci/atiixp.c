@@ -1039,7 +1039,8 @@ static int snd_atiixp_pcm_open(struct snd_pcm_substream *substream,
 		/* direct SPDIF */
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE;
 	}
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
 		return err;
 	runtime->private_data = dma;
 
@@ -1415,7 +1416,8 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 	if (snd_atiixp_codec_detect(chip) < 0)
 		return -ENXIO;
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus);
+	if (err < 0)
 		return err;
 	pbus->clock = clock;
 	chip->ac97_bus = pbus;
@@ -1431,7 +1433,8 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 		if (! chip->spdif_over_aclink)
 			ac97.scaps |= AC97_SCAP_NO_SPDIF;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
+		err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i]);
+		if (err < 0) {
 			chip->ac97[i] = NULL; /* to be sure */
 			dev_dbg(chip->card->dev,
 				"codec %d not available for audio\n", i);
@@ -1562,7 +1565,8 @@ static int snd_atiixp_create(struct snd_card *card,
 	struct atiixp *chip;
 	int err;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -1576,7 +1580,8 @@ static int snd_atiixp_create(struct snd_card *card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	if ((err = pci_request_regions(pci, "ATI IXP AC97")) < 0) {
+	err = pci_request_regions(pci, "ATI IXP AC97");
+	if (err < 0) {
 		pci_disable_device(pci);
 		kfree(chip);
 		return err;
@@ -1599,7 +1604,8 @@ static int snd_atiixp_create(struct snd_card *card,
 	card->sync_irq = chip->irq;
 	pci_set_master(pci);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		snd_atiixp_free(chip);
 		return err;
 	}
@@ -1622,19 +1628,23 @@ static int snd_atiixp_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, spdif_aclink ? "ATIIXP" : "ATIIXP-SPDMA");
 	strcpy(card->shortname, "ATI IXP");
-	if ((err = snd_atiixp_create(card, pci, &chip)) < 0)
+	err = snd_atiixp_create(card, pci, &chip);
+	if (err < 0)
 		goto __error;
 	card->private_data = chip;
 
-	if ((err = snd_atiixp_aclink_reset(chip)) < 0)
+	err = snd_atiixp_aclink_reset(chip);
+	if (err < 0)
 		goto __error;
 
 	chip->spdif_over_aclink = spdif_aclink;
 
-	if ((err = snd_atiixp_mixer_new(chip, ac97_clock, ac97_quirk)) < 0)
+	err = snd_atiixp_mixer_new(chip, ac97_clock, ac97_quirk);
+	if (err < 0)
 		goto __error;
 
-	if ((err = snd_atiixp_pcm_new(chip)) < 0)
+	err = snd_atiixp_pcm_new(chip);
+	if (err < 0)
 		goto __error;
 	
 	snd_atiixp_proc_init(chip);
@@ -1647,7 +1657,8 @@ static int snd_atiixp_probe(struct pci_dev *pci,
 		 chip->ac97[0] ? snd_ac97_get_short_name(chip->ac97[0]) : "?",
 		 chip->addr, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0)
+	err = snd_card_register(card);
+	if (err < 0)
 		goto __error;
 
 	pci_set_drvdata(pci, card);
