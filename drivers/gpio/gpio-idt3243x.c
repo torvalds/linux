@@ -142,8 +142,8 @@ static int idt_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctrl->gpio = devm_platform_ioremap_resource_byname(pdev, "gpio");
-	if (!ctrl->gpio)
-		return -ENOMEM;
+	if (IS_ERR(ctrl->gpio))
+		return PTR_ERR(ctrl->gpio);
 
 	ctrl->gc.parent = dev;
 
@@ -160,8 +160,8 @@ static int idt_gpio_probe(struct platform_device *pdev)
 
 	if (device_property_read_bool(dev, "interrupt-controller")) {
 		ctrl->pic = devm_platform_ioremap_resource_byname(pdev, "pic");
-		if (!ctrl->pic)
-			return -ENOMEM;
+		if (IS_ERR(ctrl->pic))
+			return PTR_ERR(ctrl->pic);
 
 		parent_irq = platform_get_irq(pdev, 0);
 		if (!parent_irq)
