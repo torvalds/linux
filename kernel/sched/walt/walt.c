@@ -2585,6 +2585,7 @@ static void walt_update_cluster_topology(void)
 	init_cpu_array();
 	build_cpu_array();
 
+	create_util_to_cost();
 	walt_clusters_parsed = true;
 }
 

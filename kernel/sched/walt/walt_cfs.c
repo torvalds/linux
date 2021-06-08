@@ -11,6 +11,46 @@
 #include <../../../drivers/android/binder_internal.h>
 #include "../../../drivers/android/binder_trace.h"
 
+static void create_util_to_cost_pd(struct em_perf_domain *pd)
+{
+	int util, cpu = cpumask_first(to_cpumask(pd->cpus));
+	unsigned long fmax;
+	unsigned long scale_cpu;
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_sched_cluster *cluster = wrq->cluster;
+
+	fmax = (u64)pd->table[pd->nr_perf_states - 1].frequency;
+	scale_cpu = arch_scale_cpu_capacity(cpu);
+
+	for (util = 0; util < 1024; util++) {
+		int j;
+
+		int f = (fmax * util) / scale_cpu;
+		struct em_perf_state *ps = &pd->table[0];
+
+		for (j = 0; j < pd->nr_perf_states; j++) {
+			ps = &pd->table[j];
+			if (ps->frequency >= f)
+				break;
+		}
+		cluster->util_to_cost[util] = ps->cost;
+	}
+}
+
+void create_util_to_cost(void)
+{
+	struct perf_domain *pd;
+	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
+
+	rcu_read_lock();
+	pd = rcu_dereference(rd->pd);
+	for (; pd; pd = pd->next)
+		create_util_to_cost_pd(pd->em_pd);
+	rcu_read_unlock();
+}
+
+DECLARE_PER_CPU(unsigned long, gov_last_util);
+
 /* Migration margins */
 unsigned int sched_capacity_margin_up[WALT_NR_CPUS] = {
 			[0 ... WALT_NR_CPUS-1] = 1078 /* ~5% margin */
@@ -445,32 +485,23 @@ cpu_util_next_walt_prs(int cpu, struct task_struct *p, int dst_cpu, bool prev_ds
 static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
 				unsigned long max_util, unsigned long sum_util)
 {
-	unsigned long freq, scale_cpu;
-	struct em_perf_state *ps;
-	int i, cpu;
+	unsigned long scale_cpu;
+	int cpu;
+	struct walt_rq *wrq;
 
 	if (!sum_util)
 		return 0;
 
 	/*
-	 * In order to predict the performance state, map the utilization of
-	 * the most utilized CPU of the performance domain to a requested
-	 * frequency, like schedutil.
+	 * In order to predict the capacity state, map the utilization of the
+	 * most utilized CPU of the performance domain to a requested frequency,
+	 * like schedutil.
 	 */
 	cpu = cpumask_first(to_cpumask(pd->cpus));
 	scale_cpu = arch_scale_cpu_capacity(cpu);
-	ps = &pd->table[pd->nr_perf_states - 1];
-	freq = map_util_freq(max_util, ps->frequency, scale_cpu);
 
-	/*
-	 * Find the lowest performance state of the Energy Model above the
-	 * requested frequency.
-	 */
-	for (i = 0; i < pd->nr_perf_states; i++) {
-		ps = &pd->table[i];
-		if (ps->frequency >= freq)
-			break;
-	}
+	max_util = max_util + (max_util >> 2); /* account  for TARGET_LOAD usually 80 */
+	max_util = max(max_util, arch_scale_freq_capacity(cpu));
 
 	/*
 	 * The capacity of a CPU in the domain at the performance state (ps)
@@ -514,7 +545,11 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
 	 *   pd_nrg = ------------------------                       (4)
 	 *                  scale_cpu
 	 */
-	return ps->cost * sum_util / scale_cpu;
+	if (max_util >= 1024)
+		max_util = 1023;
+
+	wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	return wrq->cluster->util_to_cost[max_util] * sum_util / scale_cpu;
 }
 
 /*
