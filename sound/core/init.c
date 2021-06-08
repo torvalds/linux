@@ -770,7 +770,8 @@ int snd_card_register(struct snd_card *card)
 		card->registered = true;
 	}
 
-	if ((err = snd_device_register_all(card)) < 0)
+	err = snd_device_register_all(card);
+	if (err < 0)
 		return err;
 	mutex_lock(&snd_card_mutex);
 	if (snd_cards[card->number]) {
@@ -813,7 +814,8 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 
 	for (idx = count = 0; idx < SNDRV_CARDS; idx++) {
 		mutex_lock(&snd_card_mutex);
-		if ((card = snd_cards[idx]) != NULL) {
+		card = snd_cards[idx];
+		if (card) {
 			count++;
 			snd_iprintf(buffer, "%2i [%-15s]: %s - %s\n",
 					idx,
@@ -837,7 +839,8 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 
 	for (idx = count = 0; idx < SNDRV_CARDS; idx++) {
 		mutex_lock(&snd_card_mutex);
-		if ((card = snd_cards[idx]) != NULL) {
+		card = snd_cards[idx];
+		if (card) {
 			count++;
 			snd_iprintf(buffer, "%s\n", card->longname);
 		}
@@ -859,7 +862,8 @@ static void snd_card_module_info_read(struct snd_info_entry *entry,
 
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
 		mutex_lock(&snd_card_mutex);
-		if ((card = snd_cards[idx]) != NULL)
+		card = snd_cards[idx];
+		if (card)
 			snd_iprintf(buffer, "%2i %s\n",
 				    idx, card->module->name);
 		mutex_unlock(&snd_card_mutex);
