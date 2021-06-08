@@ -1628,20 +1628,26 @@
   param_set_copystring
   param_set_int
   pause_cpus
+  pci_aer_clear_nonfatal_status
   pci_alloc_irq_vectors_affinity
   pci_assign_resource
   pci_bus_type
   pci_clear_master
   pci_d3cold_disable
   pci_device_group
+  pci_device_is_present
   pci_dev_present
   pci_disable_device
   pci_disable_msi
+  pci_disable_pcie_error_reporting
+  pcie_capability_clear_and_set_word
   pcie_capability_read_word
   pci_enable_device
+  pci_enable_pcie_error_reporting
   pci_find_ext_capability
   pci_free_irq_vectors
   pci_get_device
+  pci_get_domain_bus_and_slot
   pci_host_probe
   pci_iomap
   pci_irq_vector
