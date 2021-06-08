@@ -24,8 +24,9 @@ additionalProperties: true
 
 examples:
   - |
-    pwm: pwm@7000a000 {
-        compatible = "nvidia,tegra20-pwm";
-        reg = <0x7000a000 0x100>;
-        #pwm-cells = <2>;
+    pwm: pwm@1c20e00 {
+        compatible = "allwinner,sun7i-a20-pwm";
+        reg = <0x01c20e00 0xc>;
+        clocks = <&osc24M>;
+        #pwm-cells = <3>;
     };
