@@ -4236,11 +4236,49 @@ static void hclge_reset_subtask(struct hclge_dev *hdev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 }
 
+static void hclge_handle_err_reset_request(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	enum hnae3_reset_type reset_type;
+
+	if (ae_dev->hw_err_reset_req) {
+		reset_type = hclge_get_reset_level(ae_dev,
+						   &ae_dev->hw_err_reset_req);
+		hclge_set_def_reset_request(ae_dev, reset_type);
+	}
+
+	if (hdev->default_reset_request && ae_dev->ops->reset_event)
+		ae_dev->ops->reset_event(hdev->pdev, NULL);
+
+	/* enable interrupt after error handling complete */
+	hclge_enable_vector(&hdev->misc_vector, true);
+}
+
+static void hclge_handle_err_recovery(struct hclge_dev *hdev)
+{
+	u32 mask_val = HCLGE_RAS_REG_NFE_MASK | HCLGE_RAS_REG_ROCEE_ERR_MASK;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	u32 msix_src_flag, hw_err_src_flag;
+
+	msix_src_flag = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS) &
+			HCLGE_VECTOR0_REG_MSIX_MASK;
+
+	hw_err_src_flag = hclge_read_dev(&hdev->hw,
+					 HCLGE_RAS_PF_OTHER_INT_STS_REG) &
+			  mask_val;
+
+	if (msix_src_flag || hw_err_src_flag) {
+		hclge_handle_error_info_log(ae_dev);
+		hclge_handle_mac_tnl(hdev);
+	}
+
+	hclge_handle_err_reset_request(hdev);
+}
+
 static void hclge_misc_err_recovery(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct device *dev = &hdev->pdev->dev;
-	enum hnae3_reset_type reset_type;
 	u32 msix_sts_reg;
 
 	msix_sts_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
@@ -4250,17 +4288,10 @@ static void hclge_misc_err_recovery(struct hclge_dev *hdev)
 			dev_info(dev, "received msix interrupt 0x%x\n",
 				 msix_sts_reg);
 	}
-	hclge_enable_vector(&hdev->misc_vector, true);
 
 	hclge_handle_hw_ras_error(ae_dev);
-	if (ae_dev->hw_err_reset_req) {
-		reset_type = hclge_get_reset_level(ae_dev,
-						   &ae_dev->hw_err_reset_req);
-		hclge_set_def_reset_request(ae_dev, reset_type);
-	}
 
-	if (hdev->default_reset_request && ae_dev->ops->reset_event)
-		ae_dev->ops->reset_event(hdev->pdev, NULL);
+	hclge_handle_err_reset_request(hdev);
 }
 
 static void hclge_errhand_service_task(struct hclge_dev *hdev)
@@ -4268,7 +4299,10 @@ static void hclge_errhand_service_task(struct hclge_dev *hdev)
 	if (!test_and_clear_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
 		return;
 
-	hclge_misc_err_recovery(hdev);
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		hclge_handle_err_recovery(hdev);
+	else
+		hclge_misc_err_recovery(hdev);
 }
 
 static void hclge_reset_service_task(struct hclge_dev *hdev)
