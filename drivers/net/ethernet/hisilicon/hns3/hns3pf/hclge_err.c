@@ -2152,6 +2152,28 @@ msi_error:
 	kfree(desc);
 }
 
+bool hclge_find_error_source(struct hclge_dev *hdev)
+{
+	u32 msix_src_flag, hw_err_src_flag;
+
+	msix_src_flag = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS) &
+			HCLGE_VECTOR0_REG_MSIX_MASK;
+
+	hw_err_src_flag = hclge_read_dev(&hdev->hw,
+					 HCLGE_RAS_PF_OTHER_INT_STS_REG) &
+			  HCLGE_RAS_REG_ERR_MASK;
+
+	return msix_src_flag || hw_err_src_flag;
+}
+
+void hclge_handle_occurred_error(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	if (hclge_find_error_source(hdev))
+		hclge_handle_error_info_log(ae_dev);
+}
+
 static void
 hclge_handle_error_type_reg_log(struct device *dev,
 				struct hclge_mod_err_info *mod_info,

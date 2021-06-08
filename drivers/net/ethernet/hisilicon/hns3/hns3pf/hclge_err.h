@@ -215,6 +215,8 @@ int hclge_config_mac_tnl_int(struct hclge_dev *hdev, bool en);
 int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state);
 int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en);
 void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev);
+bool hclge_find_error_source(struct hclge_dev *hdev);
+void hclge_handle_occurred_error(struct hclge_dev *hdev);
 pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev);
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests);

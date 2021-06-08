@@ -4255,18 +4255,11 @@ static void hclge_handle_err_reset_request(struct hclge_dev *hdev)
 
 static void hclge_handle_err_recovery(struct hclge_dev *hdev)
 {
-	u32 mask_val = HCLGE_RAS_REG_NFE_MASK | HCLGE_RAS_REG_ROCEE_ERR_MASK;
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
-	u32 msix_src_flag, hw_err_src_flag;
 
-	msix_src_flag = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS) &
-			HCLGE_VECTOR0_REG_MSIX_MASK;
+	ae_dev->hw_err_reset_req = 0;
 
-	hw_err_src_flag = hclge_read_dev(&hdev->hw,
-					 HCLGE_RAS_PF_OTHER_INT_STS_REG) &
-			  mask_val;
-
-	if (msix_src_flag || hw_err_src_flag) {
+	if (hclge_find_error_source(hdev)) {
 		hclge_handle_error_info_log(ae_dev);
 		hclge_handle_mac_tnl(hdev);
 	}
@@ -11558,7 +11551,10 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_clear_resetting_state(hdev);
 
 	/* Log and clear the hw errors those already occurred */
-	hclge_handle_all_hns_hw_errors(ae_dev);
+	if (hnae3_dev_ras_imp_supported(hdev))
+		hclge_handle_occurred_error(hdev);
+	else
+		hclge_handle_all_hns_hw_errors(ae_dev);
 
 	/* request delayed reset for the error recovery because an immediate
 	 * global reset on a PF affecting pending initialization of other PFs
@@ -11911,7 +11907,10 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	}
 
 	/* Log and clear the hw errors those already occurred */
-	hclge_handle_all_hns_hw_errors(ae_dev);
+	if (hnae3_dev_ras_imp_supported(hdev))
+		hclge_handle_occurred_error(hdev);
+	else
+		hclge_handle_all_hns_hw_errors(ae_dev);
 
 	/* Re-enable the hw error interrupts because
 	 * the interrupts get disabled on global reset.
