@@ -22,41 +22,6 @@ struct hyp_pool {
 	unsigned int max_order;
 };
 
-static inline void hyp_page_ref_inc(struct hyp_page *p)
-{
-	struct hyp_pool *pool = hyp_page_to_pool(p);
-
-	hyp_spin_lock(&pool->lock);
-	p->refcount++;
-	hyp_spin_unlock(&pool->lock);
-}
-
-static inline int hyp_page_ref_dec_and_test(struct hyp_page *p)
-{
-	struct hyp_pool *pool = hyp_page_to_pool(p);
-	int ret;
-
-	hyp_spin_lock(&pool->lock);
-	p->refcount--;
-	ret = (p->refcount == 0);
-	hyp_spin_unlock(&pool->lock);
-
-	return ret;
-}
-
-static inline void hyp_set_page_refcounted(struct hyp_page *p)
-{
-	struct hyp_pool *pool = hyp_page_to_pool(p);
-
-	hyp_spin_lock(&pool->lock);
-	if (p->refcount) {
-		hyp_spin_unlock(&pool->lock);
-		BUG();
-	}
-	p->refcount = 1;
-	hyp_spin_unlock(&pool->lock);
-}
-
 /* Allocation */
 void *hyp_alloc_pages(struct hyp_pool *pool, unsigned int order);
 void hyp_get_page(void *addr);
