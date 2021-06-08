@@ -565,6 +565,60 @@ void sja1105_frame_memory_partitioning(struct sja1105_private *priv)
 	vl_fwd_params->partspc[0] = SJA1105_VL_FRAME_MEMORY;
 }
 
+/* SJA1110 TDMACONFIGIDX values:
+ *
+ *      | 100 Mbps ports |  1Gbps ports  | 2.5Gbps ports | Disabled ports
+ * -----+----------------+---------------+---------------+---------------
+ *   0  |   0, [5:10]    |     [1:2]     |     [3:4]     |     retag
+ *   1  |0, [5:10], retag|     [1:2]     |     [3:4]     |       -
+ *   2  |   0, [5:10]    |  [1:3], retag |       4       |       -
+ *   3  |   0, [5:10]    |[1:2], 4, retag|       3       |       -
+ *   4  |  0, 2, [5:10]  |    1, retag   |     [3:4]     |       -
+ *   5  |  0, 1, [5:10]  |    2, retag   |     [3:4]     |       -
+ *  14  |   0, [5:10]    | [1:4], retag  |       -       |       -
+ *  15  |     [5:10]     | [0:4], retag  |       -       |       -
+ */
+static void sja1110_select_tdmaconfigidx(struct sja1105_private *priv)
+{
+	struct sja1105_general_params_entry *general_params;
+	struct sja1105_table *table;
+	bool port_1_is_base_tx;
+	bool port_3_is_2500;
+	bool port_4_is_2500;
+	u64 tdmaconfigidx;
+
+	if (priv->info->device_id != SJA1110_DEVICE_ID)
+		return;
+
+	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
+	general_params = table->entries;
+
+	/* All the settings below are "as opposed to SGMII", which is the
+	 * other pinmuxing option.
+	 */
+	port_1_is_base_tx = priv->phy_mode[1] == PHY_INTERFACE_MODE_INTERNAL;
+	port_3_is_2500 = priv->phy_mode[3] == PHY_INTERFACE_MODE_2500BASEX;
+	port_4_is_2500 = priv->phy_mode[4] == PHY_INTERFACE_MODE_2500BASEX;
+
+	if (port_1_is_base_tx)
+		/* Retagging port will operate at 1 Gbps */
+		tdmaconfigidx = 5;
+	else if (port_3_is_2500 && port_4_is_2500)
+		/* Retagging port will operate at 100 Mbps */
+		tdmaconfigidx = 1;
+	else if (port_3_is_2500)
+		/* Retagging port will operate at 1 Gbps */
+		tdmaconfigidx = 3;
+	else if (port_4_is_2500)
+		/* Retagging port will operate at 1 Gbps */
+		tdmaconfigidx = 2;
+	else
+		/* Retagging port will operate at 1 Gbps */
+		tdmaconfigidx = 14;
+
+	general_params->tdmaconfigidx = tdmaconfigidx;
+}
+
 static int sja1105_init_general_params(struct sja1105_private *priv)
 {
 	struct sja1105_general_params_entry default_general_params = {
@@ -639,6 +693,8 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 	/* This table only has a single entry */
 	((struct sja1105_general_params_entry *)table->entries)[0] =
 				default_general_params;
+
+	sja1110_select_tdmaconfigidx(priv);
 
 	return 0;
 }

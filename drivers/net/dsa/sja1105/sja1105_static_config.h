@@ -216,6 +216,7 @@ struct sja1105_general_params_entry {
 	u64 replay_port;
 	/* SJA1110 only */
 	u64 tte_en;
+	u64 tdmaconfigidx;
 };
 
 struct sja1105_schedule_entry_points_entry {
