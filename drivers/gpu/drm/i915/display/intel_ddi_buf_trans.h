@@ -45,52 +45,60 @@ struct tgl_dkl_phy_ddi_buf_trans {
 	u32 dkl_de_emphasis_control;
 };
 
-bool is_hobl_buf_trans(const struct cnl_ddi_buf_trans *table);
+union intel_ddi_buf_trans_entry {
+	struct hsw_ddi_buf_trans hsw;
+	struct bxt_ddi_buf_trans bxt;
+	struct cnl_ddi_buf_trans cnl;
+	struct icl_mg_phy_ddi_buf_trans mg;
+	struct tgl_dkl_phy_ddi_buf_trans dkl;
+};
+
+bool is_hobl_buf_trans(const union intel_ddi_buf_trans_entry *table);
 
 int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state,
 			       int *default_entry);
 
-const struct hsw_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 hsw_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries);
 
-const struct bxt_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 bxt_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries);
 
-const struct tgl_dkl_phy_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 adlp_get_dkl_buf_trans(struct intel_encoder *encoder,
 		       const struct intel_crtc_state *crtc_state,
 		       int *n_entries);
-const struct cnl_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 tgl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries);
-const struct tgl_dkl_phy_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 tgl_get_dkl_buf_trans(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state,
 		      int *n_entries);
-const struct cnl_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 jsl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries);
-const struct cnl_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 ehl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries);
-const struct cnl_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 icl_get_combo_buf_trans(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state,
 			int *n_entries);
-const struct icl_mg_phy_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 icl_get_mg_buf_trans(struct intel_encoder *encoder,
 		     const struct intel_crtc_state *crtc_state,
 		     int *n_entries);
 
-const struct cnl_ddi_buf_trans *
+const union intel_ddi_buf_trans_entry *
 cnl_get_buf_trans(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state,
 		  int *n_entries);
