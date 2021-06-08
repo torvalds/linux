@@ -569,7 +569,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 	u32 temp, i, rx_ctl_val;
 	int n_entries;
 
-	hsw_ddi_get_buf_trans_fdi(dev_priv, &n_entries);
+	hsw_get_buf_trans(encoder, crtc_state, &n_entries);
 
 	hsw_prepare_dp_ddi_buffers(encoder, crtc_state);
 

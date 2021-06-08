@@ -52,13 +52,9 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 			       int *default_entry);
 
 const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries);
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv, int *n_entries);
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder, int *n_entries);
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries);
+hsw_get_buf_trans(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state,
+		  int *n_entries);
 
 const struct bxt_ddi_buf_trans *
 bxt_get_buf_trans(struct intel_encoder *encoder,

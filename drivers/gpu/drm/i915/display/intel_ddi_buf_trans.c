@@ -875,8 +875,8 @@ static int skl_buf_trans_num_entries(enum port port, int n_entries)
 		return min(n_entries, 9);
 }
 
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
+static const struct hsw_ddi_buf_trans *
+hsw_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -904,8 +904,8 @@ hsw_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	return NULL;
 }
 
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
+static const struct hsw_ddi_buf_trans *
+hsw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -925,10 +925,12 @@ hsw_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 	return NULL;
 }
 
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
-			  int *n_entries)
+static const struct hsw_ddi_buf_trans *
+hsw_get_buf_trans_fdi(struct intel_encoder *encoder,
+		      int *n_entries)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (IS_BROADWELL(dev_priv)) {
 		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
 		return bdw_ddi_translations_fdi;
@@ -941,9 +943,9 @@ hsw_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
-const struct hsw_ddi_buf_trans *
-hsw_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
-			   int *n_entries)
+static const struct hsw_ddi_buf_trans *
+hsw_get_buf_trans_hdmi(struct intel_encoder *encoder,
+		       int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -959,6 +961,21 @@ hsw_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
 
 	*n_entries = 0;
 	return NULL;
+}
+
+const struct hsw_ddi_buf_trans *
+hsw_get_buf_trans(struct intel_encoder *encoder,
+		  const struct intel_crtc_state *crtc_state,
+		  int *n_entries)
+{
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
+		return hsw_get_buf_trans_fdi(encoder, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return hsw_get_buf_trans_hdmi(encoder, n_entries);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		return hsw_get_buf_trans_edp(encoder, n_entries);
+	else
+		return hsw_get_buf_trans_dp(encoder, n_entries);
 }
 
 static const struct bxt_ddi_buf_trans *
@@ -1427,13 +1444,13 @@ int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
 		bxt_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = n_entries - 1;
 	} else if (DISPLAY_VER(dev_priv) == 9) {
-		hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+		hsw_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 8;
 	} else if (IS_BROADWELL(dev_priv)) {
-		hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+		hsw_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 7;
 	} else if (IS_HASWELL(dev_priv)) {
-		hsw_ddi_get_buf_trans_hdmi(encoder, &n_entries);
+		hsw_get_buf_trans_hdmi(encoder, &n_entries);
 		*default_entry = 6;
 	} else {
 		drm_WARN(&dev_priv->drm, 1, "ddi translation table missing\n");
