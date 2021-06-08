@@ -10,6 +10,7 @@
 #define _NET_SUNRPC_XPRTMULTIPATH_H
 
 struct rpc_xprt_iter_ops;
+struct rpc_sysfs_xprt_switch;
 struct rpc_xprt_switch {
 	spinlock_t		xps_lock;
 	struct kref		xps_kref;
@@ -24,6 +25,7 @@ struct rpc_xprt_switch {
 
 	const struct rpc_xprt_iter_ops *xps_iter_ops;
 
+	struct rpc_sysfs_xprt_switch *xps_sysfs;
 	struct rcu_head		xps_rcu;
 };
 
