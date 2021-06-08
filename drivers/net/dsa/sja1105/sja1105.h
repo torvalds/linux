@@ -67,6 +67,12 @@ struct sja1105_regs {
 	u64 rmii_ref_clk[SJA1105_MAX_NUM_PORTS];
 	u64 rmii_ext_tx_clk[SJA1105_MAX_NUM_PORTS];
 	u64 stats[__MAX_SJA1105_STATS_AREA][SJA1105_MAX_NUM_PORTS];
+	u64 mdio_100base_tx;
+	u64 mdio_100base_t1;
+};
+
+struct sja1105_mdio_private {
+	struct sja1105_private *priv;
 };
 
 enum {
@@ -76,6 +82,12 @@ enum {
 	SJA1105_SPEED_1000MBPS,
 	SJA1105_SPEED_2500MBPS,
 	SJA1105_SPEED_MAX,
+};
+
+enum sja1105_internal_phy_t {
+	SJA1105_NO_PHY		= 0,
+	SJA1105_PHY_BASE_TX,
+	SJA1105_PHY_BASE_T1,
 };
 
 struct sja1105_info {
@@ -123,6 +135,7 @@ struct sja1105_info {
 	bool supports_rgmii[SJA1105_MAX_NUM_PORTS];
 	bool supports_sgmii[SJA1105_MAX_NUM_PORTS];
 	bool supports_2500basex[SJA1105_MAX_NUM_PORTS];
+	enum sja1105_internal_phy_t internal_phy[SJA1105_MAX_NUM_PORTS];
 	const u64 port_speed[SJA1105_SPEED_MAX];
 };
 
@@ -246,6 +259,8 @@ struct sja1105_private {
 	enum sja1105_vlan_state vlan_state;
 	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
+	struct mii_bus *mdio_base_t1;
+	struct mii_bus *mdio_base_tx;
 	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
 	struct sja1105_tas_data tas_data;
@@ -274,6 +289,10 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 			   struct netlink_ext_ack *extack);
 void sja1105_frame_memory_partitioning(struct sja1105_private *priv);
+
+/* From sja1105_mdio.c */
+int sja1105_mdiobus_register(struct dsa_switch *ds);
+void sja1105_mdiobus_unregister(struct dsa_switch *ds);
 
 /* From sja1105_devlink.c */
 int sja1105_devlink_setup(struct dsa_switch *ds);

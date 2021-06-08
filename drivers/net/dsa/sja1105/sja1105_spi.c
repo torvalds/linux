@@ -436,6 +436,8 @@ static struct sja1105_regs sja1105et_regs = {
 	.ptpclkval = 0x18, /* Spans 0x18 to 0x19 */
 	.ptpclkrate = 0x1A,
 	.ptpclkcorp = 0x1D,
+	.mdio_100base_tx = SJA1105_RSV_ADDR,
+	.mdio_100base_t1 = SJA1105_RSV_ADDR,
 };
 
 static struct sja1105_regs sja1105pqrs_regs = {
@@ -473,6 +475,8 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.ptpclkrate = 0x1B,
 	.ptpclkcorp = 0x1E,
 	.ptpsyncts = 0x1F,
+	.mdio_100base_tx = SJA1105_RSV_ADDR,
+	.mdio_100base_t1 = SJA1105_RSV_ADDR,
 };
 
 static struct sja1105_regs sja1110_regs = {
@@ -555,6 +559,8 @@ static struct sja1105_regs sja1110_regs = {
 	.ptpclkrate = SJA1110_SPI_ADDR(0x74),
 	.ptpclkcorp = SJA1110_SPI_ADDR(0x80),
 	.ptpsyncts = SJA1110_SPI_ADDR(0x84),
+	.mdio_100base_tx = 0x1c2400,
+	.mdio_100base_t1 = 0x1c1000,
 };
 
 const struct sja1105_info sja1105e_info = {
@@ -785,6 +791,12 @@ const struct sja1105_info sja1110a_info = {
 				   false, false, false, false, false, false},
 	.supports_2500basex	= {false, false, false, true, true,
 				   false, false, false, false, false, false},
+	.internal_phy		= {SJA1105_NO_PHY, SJA1105_PHY_BASE_TX,
+				   SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1},
 	.name			= "SJA1110A",
 };
 
@@ -824,6 +836,12 @@ const struct sja1105_info sja1110b_info = {
 				   false, false, false, false, false, false},
 	.supports_2500basex	= {false, false, false, true, true,
 				   false, false, false, false, false, false},
+	.internal_phy		= {SJA1105_NO_PHY, SJA1105_PHY_BASE_TX,
+				   SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1, SJA1105_PHY_BASE_T1,
+				   SJA1105_NO_PHY},
 	.name			= "SJA1110B",
 };
 
@@ -863,6 +881,12 @@ const struct sja1105_info sja1110c_info = {
 				   false, false, false, false, false, false},
 	.supports_2500basex	= {false, false, false, false, true,
 				   false, false, false, false, false, false},
+	.internal_phy		= {SJA1105_NO_PHY, SJA1105_PHY_BASE_TX,
+				   SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1, SJA1105_PHY_BASE_T1,
+				   SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY},
 	.name			= "SJA1110C",
 };
 
@@ -900,5 +924,11 @@ const struct sja1105_info sja1110d_info = {
 				   false, false, false, false, false, false},
 	.supports_sgmii		= {false, true, true, true, true,
 				   false, false, false, false, false, false},
+	.internal_phy		= {SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY, SJA1105_PHY_BASE_T1,
+				   SJA1105_PHY_BASE_T1, SJA1105_PHY_BASE_T1,
+				   SJA1105_NO_PHY, SJA1105_NO_PHY,
+				   SJA1105_NO_PHY},
 	.name			= "SJA1110D",
 };

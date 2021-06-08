@@ -168,6 +168,15 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv)
 			continue;
 
 		switch (priv->phy_mode[i]) {
+		case PHY_INTERFACE_MODE_INTERNAL:
+			if (priv->info->internal_phy[i] == SJA1105_NO_PHY)
+				goto unsupported;
+
+			mii->xmii_mode[i] = XMII_MODE_MII;
+			if (priv->info->internal_phy[i] == SJA1105_PHY_BASE_TX)
+				mii->special[i] = true;
+
+			break;
 		case PHY_INTERFACE_MODE_REVMII:
 			role = XMII_PHY;
 			fallthrough;
@@ -3109,11 +3118,19 @@ static int sja1105_setup(struct dsa_switch *ds)
 		dev_err(ds->dev, "Failed to register PTP clock: %d\n", rc);
 		return rc;
 	}
+
+	rc = sja1105_mdiobus_register(ds);
+	if (rc < 0) {
+		dev_err(ds->dev, "Failed to register MDIO bus: %pe\n",
+			ERR_PTR(rc));
+		goto out_ptp_clock_unregister;
+	}
+
 	/* Create and send configuration down to device */
 	rc = sja1105_static_config_load(priv);
 	if (rc < 0) {
 		dev_err(ds->dev, "Failed to load static config: %d\n", rc);
-		goto out_ptp_clock_unregister;
+		goto out_mdiobus_unregister;
 	}
 	/* Configure the CGU (PHY link modes and speeds) */
 	rc = priv->info->clocking_setup(priv);
@@ -3156,6 +3173,8 @@ static int sja1105_setup(struct dsa_switch *ds)
 
 out_devlink_teardown:
 	sja1105_devlink_teardown(ds);
+out_mdiobus_unregister:
+	sja1105_mdiobus_unregister(ds);
 out_ptp_clock_unregister:
 	sja1105_ptp_clock_unregister(ds);
 out_static_config_free:
