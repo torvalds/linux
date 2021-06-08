@@ -14,7 +14,8 @@
 #include <linux/types.h>
 #include <linux/wwan.h>
 
-#define WWAN_MAX_MINORS 256 /* 256 minors allowed with register_chrdev() */
+/* Maximum number of minors in use */
+#define WWAN_MAX_MINORS		(1 << MINORBITS)
 
 static DEFINE_MUTEX(wwan_register_lock); /* WWAN device create|remove lock */
 static DEFINE_IDA(minors); /* minors for WWAN port chardevs */
@@ -634,7 +635,8 @@ static int __init wwan_init(void)
 		return PTR_ERR(wwan_class);
 
 	/* chrdev used for wwan ports */
-	wwan_major = register_chrdev(0, "wwan_port", &wwan_port_fops);
+	wwan_major = __register_chrdev(0, 0, WWAN_MAX_MINORS, "wwan_port",
+				       &wwan_port_fops);
 	if (wwan_major < 0) {
 		class_destroy(wwan_class);
 		return wwan_major;
@@ -645,7 +647,7 @@ static int __init wwan_init(void)
 
 static void __exit wwan_exit(void)
 {
-	unregister_chrdev(wwan_major, "wwan_port");
+	__unregister_chrdev(wwan_major, 0, WWAN_MAX_MINORS, "wwan_port");
 	class_destroy(wwan_class);
 }
 
