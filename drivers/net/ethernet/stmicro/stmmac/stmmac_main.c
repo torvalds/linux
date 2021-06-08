@@ -6993,6 +6993,14 @@ int stmmac_dvr_probe(struct device *device,
 		}
 	}
 
+	if (priv->plat->mdio_bus_data) {
+		if (priv->plat->mdio_bus_data->has_xpcs) {
+			ret = stmmac_xpcs_setup(priv->mii);
+			if (ret)
+				goto error_xpcs_setup;
+		}
+	}
+
 	ret = stmmac_phy_setup(priv);
 	if (ret) {
 		netdev_err(ndev, "failed to setup phy (%d)\n", ret);
@@ -7029,6 +7037,7 @@ error_serdes_powerup:
 	unregister_netdev(ndev);
 error_netdev_register:
 	phylink_destroy(priv->phylink);
+error_xpcs_setup:
 error_phy_setup:
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI)
