@@ -931,6 +931,10 @@ static void stmmac_validate(struct phylink_config *config,
 	if ((max_speed > 0) && (max_speed < 1000)) {
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
+	} else if (priv->plat->has_gmac4) {
+		if (!max_speed || max_speed >= 2500)
+			phylink_set(mac_supported, 2500baseT_Full);
+			phylink_set(mac_supported, 2500baseX_Full);
 	} else if (priv->plat->has_xgmac) {
 		if (!max_speed || (max_speed >= 2500)) {
 			phylink_set(mac_supported, 2500baseT_Full);
@@ -6993,6 +6997,17 @@ int stmmac_dvr_probe(struct device *device,
 		}
 	}
 
+	if (priv->plat->speed_mode_2500)
+		priv->plat->speed_mode_2500(ndev, priv->plat->bsp_priv);
+
+	if (priv->plat->mdio_bus_data) {
+		if (priv->plat->mdio_bus_data->has_xpcs) {
+			ret = stmmac_xpcs_setup(priv->mii);
+			if (ret)
+				goto error_xpcs_setup;
+		}
+	}
+
 	ret = stmmac_phy_setup(priv);
 	if (ret) {
 		netdev_err(ndev, "failed to setup phy (%d)\n", ret);
@@ -7029,6 +7044,7 @@ error_serdes_powerup:
 	unregister_netdev(ndev);
 error_netdev_register:
 	phylink_destroy(priv->phylink);
+error_xpcs_setup:
 error_phy_setup:
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI)
