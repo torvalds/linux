@@ -245,6 +245,73 @@ err:
 	return ret;
 }
 
+static int rxe_check_invalidate_mw(struct rxe_qp *qp, struct rxe_mw *mw)
+{
+	if (unlikely(mw->state == RXE_MW_STATE_INVALID))
+		return -EINVAL;
+
+	/* o10-37.2.26 */
+	if (unlikely(mw->ibmw.type == IB_MW_TYPE_1))
+		return -EINVAL;
+
+	return 0;
+}
+
+static void rxe_do_invalidate_mw(struct rxe_mw *mw)
+{
+	struct rxe_qp *qp;
+	struct rxe_mr *mr;
+
+	/* valid type 2 MW will always have a QP pointer */
+	qp = mw->qp;
+	mw->qp = NULL;
+	rxe_drop_ref(qp);
+
+	/* valid type 2 MW will always have an MR pointer */
+	mr = mw->mr;
+	mw->mr = NULL;
+	atomic_dec(&mr->num_mw);
+	rxe_drop_ref(mr);
+
+	mw->access = 0;
+	mw->addr = 0;
+	mw->length = 0;
+	mw->state = RXE_MW_STATE_FREE;
+}
+
+int rxe_invalidate_mw(struct rxe_qp *qp, u32 rkey)
+{
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+	unsigned long flags;
+	struct rxe_mw *mw;
+	int ret;
+
+	mw = rxe_pool_get_index(&rxe->mw_pool, rkey >> 8);
+	if (!mw) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (rkey != mw->ibmw.rkey) {
+		ret = -EINVAL;
+		goto err_drop_ref;
+	}
+
+	spin_lock_irqsave(&mw->lock, flags);
+
+	ret = rxe_check_invalidate_mw(qp, mw);
+	if (ret)
+		goto err_unlock;
+
+	rxe_do_invalidate_mw(mw);
+err_unlock:
+	spin_unlock_irqrestore(&mw->lock, flags);
+err_drop_ref:
+	rxe_drop_ref(mw);
+err:
+	return ret;
+}
+
 void rxe_mw_cleanup(struct rxe_pool_entry *elem)
 {
 	struct rxe_mw *mw = container_of(elem, typeof(*mw), pelem);

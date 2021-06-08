@@ -278,6 +278,16 @@ enum rxe_mr_type {
 	RXE_MR_TYPE_MR,
 };
 
+enum rxe_mr_copy_dir {
+	RXE_TO_MR_OBJ,
+	RXE_FROM_MR_OBJ,
+};
+
+enum rxe_mr_lookup_type {
+	RXE_LOOKUP_LOCAL,
+	RXE_LOOKUP_REMOTE,
+};
+
 #define RXE_BUF_PER_MAP		(PAGE_SIZE / sizeof(struct rxe_phys_buf))
 
 struct rxe_phys_buf {
@@ -288,6 +298,13 @@ struct rxe_phys_buf {
 struct rxe_map {
 	struct rxe_phys_buf	buf[RXE_BUF_PER_MAP];
 };
+
+static inline int rkey_is_mw(u32 rkey)
+{
+	u32 index = rkey >> 8;
+
+	return (index >= RXE_MIN_MW_INDEX) && (index <= RXE_MAX_MW_INDEX);
+}
 
 struct rxe_mr {
 	struct rxe_pool_entry	pelem;
@@ -314,23 +331,23 @@ struct rxe_mr {
 	u32			max_buf;
 	u32			num_map;
 
-	struct rxe_map		**map;
-
 	atomic_t		num_mw;
+
+	struct rxe_map		**map;
 };
 
 enum rxe_mw_state {
-	RXE_MW_STATE_INVALID = RXE_MR_STATE_INVALID,
-	RXE_MW_STATE_FREE = RXE_MR_STATE_FREE,
-	RXE_MW_STATE_VALID = RXE_MR_STATE_VALID,
+	RXE_MW_STATE_INVALID	= RXE_MR_STATE_INVALID,
+	RXE_MW_STATE_FREE	= RXE_MR_STATE_FREE,
+	RXE_MW_STATE_VALID	= RXE_MR_STATE_VALID,
 };
 
 struct rxe_mw {
-	struct			ib_mw ibmw;
-	struct			rxe_pool_entry pelem;
+	struct ib_mw		ibmw;
+	struct rxe_pool_entry	pelem;
 	spinlock_t		lock;
 	enum rxe_mw_state	state;
-	struct rxe_qp		*qp;	/* Type 2 only */
+	struct rxe_qp		*qp; /* Type 2 only */
 	struct rxe_mr		*mr;
 	int			access;
 	u64			addr;
