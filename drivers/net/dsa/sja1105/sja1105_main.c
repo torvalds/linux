@@ -343,6 +343,7 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 {
 	struct sja1105_table *table;
 	struct sja1105_vlan_lookup_entry pvid = {
+		.type_entry = SJA1110_VLAN_D_TAG,
 		.ving_mirr = 0,
 		.vegr_mirr = 0,
 		.vmemb_port = 0,
@@ -455,6 +456,47 @@ static int sja1105_init_l2_forwarding(struct sja1105_private *priv)
 
 			l2fwd[ds->num_ports + i].vlan_pmap[j] = i;
 		}
+
+		l2fwd[ds->num_ports + i].type_egrpcp2outputq = true;
+	}
+
+	return 0;
+}
+
+static int sja1110_init_pcp_remapping(struct sja1105_private *priv)
+{
+	struct sja1110_pcp_remapping_entry *pcp_remap;
+	struct dsa_switch *ds = priv->ds;
+	struct sja1105_table *table;
+	int port, tc;
+
+	table = &priv->static_config.tables[BLK_IDX_PCP_REMAPPING];
+
+	/* Nothing to do for SJA1105 */
+	if (!table->ops->max_entry_count)
+		return 0;
+
+	if (table->entry_count) {
+		kfree(table->entries);
+		table->entry_count = 0;
+	}
+
+	table->entries = kcalloc(table->ops->max_entry_count,
+				 table->ops->unpacked_entry_size, GFP_KERNEL);
+	if (!table->entries)
+		return -ENOMEM;
+
+	table->entry_count = table->ops->max_entry_count;
+
+	pcp_remap = table->entries;
+
+	/* Repeat the configuration done for vlan_pmap */
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		for (tc = 0; tc < SJA1105_NUM_TC; tc++)
+			pcp_remap[port].egrpcp[tc] = tc;
 	}
 
 	return 0;
@@ -777,6 +819,9 @@ static int sja1105_static_config_load(struct sja1105_private *priv)
 	if (rc < 0)
 		return rc;
 	rc = sja1105_init_avb_params(priv);
+	if (rc < 0)
+		return rc;
+	rc = sja1110_init_pcp_remapping(priv);
 	if (rc < 0)
 		return rc;
 
@@ -2295,6 +2340,7 @@ sja1105_build_bridge_vlans(struct sja1105_private *priv,
 		new_vlan[match].vlan_bc |= BIT(v->port);
 		if (!v->untagged)
 			new_vlan[match].tag_port |= BIT(v->port);
+		new_vlan[match].type_entry = SJA1110_VLAN_D_TAG;
 	}
 
 	return 0;
@@ -2317,6 +2363,7 @@ sja1105_build_dsa_8021q_vlans(struct sja1105_private *priv,
 		new_vlan[match].vlan_bc |= BIT(v->port);
 		if (!v->untagged)
 			new_vlan[match].tag_port |= BIT(v->port);
+		new_vlan[match].type_entry = SJA1110_VLAN_D_TAG;
 	}
 
 	return 0;
@@ -2377,6 +2424,7 @@ static int sja1105_build_subvlans(struct sja1105_private *priv,
 			new_vlan[match].tag_port |= BIT(v->port);
 		/* But it's always tagged towards the CPU */
 		new_vlan[match].tag_port |= BIT(upstream);
+		new_vlan[match].type_entry = SJA1110_VLAN_D_TAG;
 
 		/* The Retagging Table generates packet *clones* with
 		 * the new VLAN. This is a very odd hardware quirk
@@ -2544,6 +2592,7 @@ sja1105_build_crosschip_subvlans(struct sja1105_private *priv,
 		if (!tmp->untagged)
 			new_vlan[match].tag_port |= BIT(tmp->port);
 		new_vlan[match].tag_port |= BIT(upstream);
+		new_vlan[match].type_entry = SJA1110_VLAN_D_TAG;
 		/* Deny egress of @rx_vid towards our front-panel port.
 		 * This will force the switch to drop it, and we'll see
 		 * only the re-retagged packets (having the original,
@@ -3684,7 +3733,7 @@ static int sja1105_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ds->dev = dev;
-	ds->num_ports = SJA1105_MAX_NUM_PORTS;
+	ds->num_ports = priv->info->num_ports;
 	ds->ops = &sja1105_switch_ops;
 	ds->priv = priv;
 	priv->ds = ds;
@@ -3788,6 +3837,10 @@ static const struct of_device_id sja1105_dt_ids[] = {
 	{ .compatible = "nxp,sja1105q", .data = &sja1105q_info },
 	{ .compatible = "nxp,sja1105r", .data = &sja1105r_info },
 	{ .compatible = "nxp,sja1105s", .data = &sja1105s_info },
+	{ .compatible = "nxp,sja1110a", .data = &sja1110a_info },
+	{ .compatible = "nxp,sja1110b", .data = &sja1110b_info },
+	{ .compatible = "nxp,sja1110c", .data = &sja1110c_info },
+	{ .compatible = "nxp,sja1110d", .data = &sja1110d_info },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sja1105_dt_ids);

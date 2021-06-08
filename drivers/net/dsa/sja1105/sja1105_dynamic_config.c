@@ -106,6 +106,9 @@
 #define SJA1105PQRS_SIZE_VL_LOOKUP_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + SJA1105_SIZE_VL_LOOKUP_ENTRY)
 
+#define SJA1110_SIZE_VL_POLICING_DYN_CMD			\
+	(SJA1105_SIZE_DYN_CMD + SJA1105_SIZE_VL_POLICING_ENTRY)
+
 #define SJA1105ET_SIZE_MAC_CONFIG_DYN_ENTRY			\
 	SJA1105_SIZE_DYN_CMD
 
@@ -115,8 +118,14 @@
 #define SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY)
 
+#define SJA1110_SIZE_L2_LOOKUP_DYN_CMD				\
+	(SJA1105_SIZE_DYN_CMD + SJA1110_SIZE_L2_LOOKUP_ENTRY)
+
 #define SJA1105_SIZE_VLAN_LOOKUP_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + 4 + SJA1105_SIZE_VLAN_LOOKUP_ENTRY)
+
+#define SJA1110_SIZE_VLAN_LOOKUP_DYN_CMD			\
+	(SJA1105_SIZE_DYN_CMD + SJA1110_SIZE_VLAN_LOOKUP_ENTRY)
 
 #define SJA1105_SIZE_L2_FORWARDING_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + SJA1105_SIZE_L2_FORWARDING_ENTRY)
@@ -133,11 +142,17 @@
 #define SJA1105PQRS_SIZE_L2_LOOKUP_PARAMS_DYN_CMD		\
 	(SJA1105_SIZE_DYN_CMD + SJA1105PQRS_SIZE_L2_LOOKUP_PARAMS_ENTRY)
 
+#define SJA1110_SIZE_L2_LOOKUP_PARAMS_DYN_CMD		\
+	(SJA1105_SIZE_DYN_CMD + SJA1110_SIZE_L2_LOOKUP_PARAMS_ENTRY)
+
 #define SJA1105ET_SIZE_GENERAL_PARAMS_DYN_CMD			\
 	SJA1105_SIZE_DYN_CMD
 
 #define SJA1105PQRS_SIZE_GENERAL_PARAMS_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + SJA1105PQRS_SIZE_GENERAL_PARAMS_ENTRY)
+
+#define SJA1110_SIZE_GENERAL_PARAMS_DYN_CMD			\
+	(SJA1105_SIZE_DYN_CMD + SJA1110_SIZE_GENERAL_PARAMS_ENTRY)
 
 #define SJA1105PQRS_SIZE_AVB_PARAMS_DYN_CMD			\
 	(SJA1105_SIZE_DYN_CMD + SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY)
@@ -151,8 +166,17 @@
 #define SJA1105PQRS_SIZE_CBS_DYN_CMD				\
 	(SJA1105_SIZE_DYN_CMD + SJA1105PQRS_SIZE_CBS_ENTRY)
 
+#define SJA1110_SIZE_XMII_PARAMS_DYN_CMD			\
+	SJA1110_SIZE_XMII_PARAMS_ENTRY
+
+#define SJA1110_SIZE_L2_POLICING_DYN_CMD			\
+	(SJA1105_SIZE_DYN_CMD + SJA1105_SIZE_L2_POLICING_ENTRY)
+
+#define SJA1110_SIZE_L2_FORWARDING_PARAMS_DYN_CMD		\
+	SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY
+
 #define SJA1105_MAX_DYN_CMD_SIZE				\
-	SJA1105PQRS_SIZE_GENERAL_PARAMS_DYN_CMD
+	SJA1110_SIZE_GENERAL_PARAMS_DYN_CMD
 
 struct sja1105_dyn_cmd {
 	bool search;
@@ -197,6 +221,19 @@ sja1105pqrs_vl_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	sja1105_packing(p, &cmd->index,    9,  0, size, op);
 }
 
+static void
+sja1110_vl_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+			      enum packing_op op)
+{
+	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+	sja1105_packing(p, &cmd->index,   11,  0, size, op);
+}
+
 static size_t sja1105et_vl_lookup_entry_packing(void *buf, void *entry_ptr,
 						enum packing_op op)
 {
@@ -206,6 +243,18 @@ static size_t sja1105et_vl_lookup_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->egrmirr,  21, 17, size, op);
 	sja1105_packing(buf, &entry->ingrmirr, 16, 16, size, op);
 	return size;
+}
+
+static void
+sja1110_vl_policing_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				enum packing_op op)
+{
+	u8 *p = buf + SJA1105_SIZE_VL_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->index,   11,  0, size, op);
 }
 
 static void
@@ -326,6 +375,18 @@ sja1105pqrs_dyn_l2_lookup_entry_packing(void *buf, void *entry_ptr,
 	return sja1105pqrs_l2_lookup_entry_packing(buf, entry_ptr, op);
 }
 
+static size_t sja1110_dyn_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+						  enum packing_op op)
+{
+	struct sja1105_l2_lookup_entry *entry = entry_ptr;
+	u8 *cmd = buf + SJA1110_SIZE_L2_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(cmd, &entry->lockeds, 28, 28, size, op);
+
+	return sja1110_l2_lookup_entry_packing(buf, entry_ptr, op);
+}
+
 static void
 sja1105et_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				enum packing_op op)
@@ -437,6 +498,39 @@ sja1105_vlan_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 			SJA1105_SIZE_VLAN_LOOKUP_ENTRY, op);
 }
 
+/* In SJA1110 there is no gap between the command and the data, yay... */
+static void
+sja1110_vlan_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				enum packing_op op)
+{
+	u8 *p = buf + SJA1110_SIZE_VLAN_LOOKUP_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+	u64 type_entry = 0;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+	/* Hack: treat 'vlanid' field of struct sja1105_vlan_lookup_entry as
+	 * cmd->index.
+	 */
+	sja1105_packing(buf, &cmd->index, 38, 27,
+			SJA1110_SIZE_VLAN_LOOKUP_ENTRY, op);
+
+	/* But the VALIDENT bit has disappeared, now we are supposed to
+	 * invalidate an entry through the TYPE_ENTRY field of the entry..
+	 * This is a hack to transform the non-zero quality of the TYPE_ENTRY
+	 * field into a VALIDENT bit.
+	 */
+	if (op == PACK && !cmd->valident) {
+		sja1105_packing(buf, &type_entry, 40, 39,
+				SJA1110_SIZE_VLAN_LOOKUP_ENTRY, PACK);
+	} else if (op == UNPACK) {
+		sja1105_packing(buf, &type_entry, 40, 39,
+				SJA1110_SIZE_VLAN_LOOKUP_ENTRY, UNPACK);
+		cmd->valident = !!type_entry;
+	}
+}
+
 static void
 sja1105_l2_forwarding_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				  enum packing_op op)
@@ -447,6 +541,19 @@ sja1105_l2_forwarding_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
 	sja1105_packing(p, &cmd->errors,  30, 30, size, op);
 	sja1105_packing(p, &cmd->rdwrset, 29, 29, size, op);
+	sja1105_packing(p, &cmd->index,    4,  0, size, op);
+}
+
+static void
+sja1110_l2_forwarding_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				  enum packing_op op)
+{
+	u8 *p = buf + SJA1105_SIZE_L2_FORWARDING_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
 	sja1105_packing(p, &cmd->index,    4,  0, size, op);
 }
 
@@ -505,6 +612,19 @@ sja1105pqrs_mac_config_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 }
 
 static void
+sja1110_mac_config_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+			       enum packing_op op)
+{
+	u8 *p = buf + SJA1105PQRS_SIZE_MAC_CONFIG_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+	sja1105_packing(p, &cmd->index,    3,  0, size, op);
+}
+
+static void
 sja1105et_l2_lookup_params_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				       enum packing_op op)
 {
@@ -534,6 +654,18 @@ sja1105pqrs_l2_lookup_params_cmd_packing(void *buf,
 
 	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
 	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+}
+
+static void
+sja1110_l2_lookup_params_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				     enum packing_op op)
+{
+	u8 *p = buf + SJA1110_SIZE_L2_LOOKUP_PARAMS_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
 }
 
 static void
@@ -571,6 +703,18 @@ sja1105pqrs_general_params_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 }
 
 static void
+sja1110_general_params_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				   enum packing_op op)
+{
+	u8 *p = buf + SJA1110_SIZE_GENERAL_PARAMS_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+}
+
+static void
 sja1105pqrs_avb_params_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				   enum packing_op op)
 {
@@ -594,6 +738,20 @@ sja1105_retagging_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	sja1105_packing(p, &cmd->valident, 29, 29, size, op);
 	sja1105_packing(p, &cmd->rdwrset,  28, 28, size, op);
 	sja1105_packing(p, &cmd->index,     5,  0, size, op);
+}
+
+static void
+sja1110_retagging_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+			      enum packing_op op)
+{
+	u8 *p = buf + SJA1105_SIZE_RETAGGING_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,    31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset,  30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,   29, 29, size, op);
+	sja1105_packing(p, &cmd->valident, 28, 28, size, op);
+	sja1105_packing(p, &cmd->index,     4,  0, size, op);
 }
 
 static void sja1105et_cbs_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
@@ -635,6 +793,18 @@ static void sja1105pqrs_cbs_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	sja1105_packing(p, &cmd->index,    3,  0, size, op);
 }
 
+static void sja1110_cbs_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				    enum packing_op op)
+{
+	u8 *p = buf + SJA1105PQRS_SIZE_CBS_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+	sja1105_packing(p, &cmd->index,    7,  0, size, op);
+}
+
 static size_t sja1105pqrs_cbs_entry_packing(void *buf, void *entry_ptr,
 					    enum packing_op op)
 {
@@ -648,6 +818,39 @@ static size_t sja1105pqrs_cbs_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->send_slope, 89,  58, size, op);
 	sja1105_packing(buf, &entry->idle_slope, 57,  26, size, op);
 	return size;
+}
+
+static size_t sja1110_cbs_entry_packing(void *buf, void *entry_ptr,
+					enum packing_op op)
+{
+	const size_t size = SJA1105PQRS_SIZE_CBS_ENTRY;
+	struct sja1105_cbs_entry *entry = entry_ptr;
+	u64 entry_type = SJA1110_CBS_SHAPER;
+
+	sja1105_packing(buf, &entry_type,       159, 159, size, op);
+	sja1105_packing(buf, &entry->credit_lo, 151, 120, size, op);
+	sja1105_packing(buf, &entry->credit_hi, 119,  88, size, op);
+	sja1105_packing(buf, &entry->send_slope, 87,  56, size, op);
+	sja1105_packing(buf, &entry->idle_slope, 55,  24, size, op);
+	return size;
+}
+
+static void sja1110_dummy_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				      enum packing_op op)
+{
+}
+
+static void
+sja1110_l2_policing_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				enum packing_op op)
+{
+	u8 *p = buf + SJA1105_SIZE_L2_POLICING_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+	sja1105_packing(p, &cmd->index,    6,  0, size, op);
 }
 
 #define OP_READ		BIT(0)
@@ -829,6 +1032,122 @@ const struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 		.access = OP_WRITE,
 		.packed_size = SJA1105PQRS_SIZE_CBS_DYN_CMD,
 		.addr = 0x32,
+	},
+};
+
+/* SJA1110: Third generation */
+const struct sja1105_dynamic_table_ops sja1110_dyn_ops[BLK_IDX_MAX_DYN] = {
+	[BLK_IDX_VL_LOOKUP] = {
+		.entry_packing = sja1110_vl_lookup_entry_packing,
+		.cmd_packing = sja1110_vl_lookup_cmd_packing,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.max_entry_count = SJA1110_MAX_VL_LOOKUP_COUNT,
+		.packed_size = SJA1105PQRS_SIZE_VL_LOOKUP_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x124),
+	},
+	[BLK_IDX_VL_POLICING] = {
+		.entry_packing = sja1110_vl_policing_entry_packing,
+		.cmd_packing = sja1110_vl_policing_cmd_packing,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.max_entry_count = SJA1110_MAX_VL_POLICING_COUNT,
+		.packed_size = SJA1110_SIZE_VL_POLICING_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x310),
+	},
+	[BLK_IDX_L2_LOOKUP] = {
+		.entry_packing = sja1110_dyn_l2_lookup_entry_packing,
+		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
+		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
+		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
+		.packed_size = SJA1110_SIZE_L2_LOOKUP_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x8c),
+	},
+	[BLK_IDX_VLAN_LOOKUP] = {
+		.entry_packing = sja1110_vlan_lookup_entry_packing,
+		.cmd_packing = sja1110_vlan_lookup_cmd_packing,
+		.access = (OP_READ | OP_WRITE | OP_DEL),
+		.max_entry_count = SJA1105_MAX_VLAN_LOOKUP_COUNT,
+		.packed_size = SJA1110_SIZE_VLAN_LOOKUP_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0xb4),
+	},
+	[BLK_IDX_L2_FORWARDING] = {
+		.entry_packing = sja1110_l2_forwarding_entry_packing,
+		.cmd_packing = sja1110_l2_forwarding_cmd_packing,
+		.max_entry_count = SJA1110_MAX_L2_FORWARDING_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1105_SIZE_L2_FORWARDING_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0xa8),
+	},
+	[BLK_IDX_MAC_CONFIG] = {
+		.entry_packing = sja1110_mac_config_entry_packing,
+		.cmd_packing = sja1110_mac_config_cmd_packing,
+		.max_entry_count = SJA1110_MAX_MAC_CONFIG_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1105PQRS_SIZE_MAC_CONFIG_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x134),
+	},
+	[BLK_IDX_L2_LOOKUP_PARAMS] = {
+		.entry_packing = sja1110_l2_lookup_params_entry_packing,
+		.cmd_packing = sja1110_l2_lookup_params_cmd_packing,
+		.max_entry_count = SJA1105_MAX_L2_LOOKUP_PARAMS_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1110_SIZE_L2_LOOKUP_PARAMS_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x158),
+	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.entry_packing = sja1105pqrs_avb_params_entry_packing,
+		.cmd_packing = sja1105pqrs_avb_params_cmd_packing,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1105PQRS_SIZE_AVB_PARAMS_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x2000C),
+	},
+	[BLK_IDX_GENERAL_PARAMS] = {
+		.entry_packing = sja1110_general_params_entry_packing,
+		.cmd_packing = sja1110_general_params_cmd_packing,
+		.max_entry_count = SJA1105_MAX_GENERAL_PARAMS_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1110_SIZE_GENERAL_PARAMS_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0xe8),
+	},
+	[BLK_IDX_RETAGGING] = {
+		.entry_packing = sja1110_retagging_entry_packing,
+		.cmd_packing = sja1110_retagging_cmd_packing,
+		.max_entry_count = SJA1105_MAX_RETAGGING_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_DEL),
+		.packed_size = SJA1105_SIZE_RETAGGING_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0xdc),
+	},
+	[BLK_IDX_CBS] = {
+		.entry_packing = sja1110_cbs_entry_packing,
+		.cmd_packing = sja1110_cbs_cmd_packing,
+		.max_entry_count = SJA1110_MAX_CBS_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1105PQRS_SIZE_CBS_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0xc4),
+	},
+	[BLK_IDX_XMII_PARAMS] = {
+		.entry_packing = sja1110_xmii_params_entry_packing,
+		.cmd_packing = sja1110_dummy_cmd_packing,
+		.max_entry_count = SJA1105_MAX_XMII_PARAMS_COUNT,
+		.access = (OP_READ | OP_VALID_ANYWAY),
+		.packed_size = SJA1110_SIZE_XMII_PARAMS_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x3c),
+	},
+	[BLK_IDX_L2_POLICING] = {
+		.entry_packing = sja1110_l2_policing_entry_packing,
+		.cmd_packing = sja1110_l2_policing_cmd_packing,
+		.max_entry_count = SJA1110_MAX_L2_POLICING_COUNT,
+		.access = (OP_READ | OP_WRITE | OP_VALID_ANYWAY),
+		.packed_size = SJA1110_SIZE_L2_POLICING_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x2fc),
+	},
+	[BLK_IDX_L2_FORWARDING_PARAMS] = {
+		.entry_packing = sja1110_l2_forwarding_params_entry_packing,
+		.cmd_packing = sja1110_dummy_cmd_packing,
+		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
+		.access = (OP_READ | OP_VALID_ANYWAY),
+		.packed_size = SJA1110_SIZE_L2_FORWARDING_PARAMS_DYN_CMD,
+		.addr = SJA1110_SPI_ADDR(0x20000),
 	},
 };
 

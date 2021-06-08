@@ -13,15 +13,12 @@
 #include <linux/mutex.h>
 #include "sja1105_static_config.h"
 
-#define SJA1105_NUM_PORTS		5
-#define SJA1105_MAX_NUM_PORTS		SJA1105_NUM_PORTS
-#define SJA1105_NUM_TC			8
 #define SJA1105ET_FDB_BIN_SIZE		4
 /* The hardware value is in multiples of 10 ms.
  * The passed parameter is in multiples of 1 ms.
  */
 #define SJA1105_AGEING_TIME_MS(ms)	((ms) / 10)
-#define SJA1105_NUM_L2_POLICERS		45
+#define SJA1105_NUM_L2_POLICERS		SJA1110_MAX_L2_POLICING_COUNT
 
 typedef enum {
 	SPI_READ = 0,
@@ -99,6 +96,7 @@ struct sja1105_info {
 	int ptpegr_ts_bytes;
 	int num_cbs_shapers;
 	int max_frame_mem;
+	int num_ports;
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;
@@ -310,6 +308,10 @@ extern const struct sja1105_info sja1105p_info;
 extern const struct sja1105_info sja1105q_info;
 extern const struct sja1105_info sja1105r_info;
 extern const struct sja1105_info sja1105s_info;
+extern const struct sja1105_info sja1110a_info;
+extern const struct sja1105_info sja1110b_info;
+extern const struct sja1105_info sja1110c_info;
+extern const struct sja1105_info sja1110d_info;
 
 /* From sja1105_clocking.c */
 
@@ -326,8 +328,10 @@ typedef enum {
 } sja1105_phy_interface_t;
 
 int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port);
+int sja1110_setup_rgmii_delay(const void *ctx, int port);
 int sja1105_clocking_setup_port(struct sja1105_private *priv, int port);
 int sja1105_clocking_setup(struct sja1105_private *priv);
+int sja1110_clocking_setup(struct sja1105_private *priv);
 
 /* From sja1105_ethtool.c */
 void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data);
@@ -346,6 +350,18 @@ int sja1105_dynamic_config_write(struct sja1105_private *priv,
 enum sja1105_iotag {
 	SJA1105_C_TAG = 0, /* Inner VLAN header */
 	SJA1105_S_TAG = 1, /* Outer VLAN header */
+};
+
+enum sja1110_vlan_type {
+	SJA1110_VLAN_INVALID = 0,
+	SJA1110_VLAN_C_TAG = 1, /* Single inner VLAN tag */
+	SJA1110_VLAN_S_TAG = 2, /* Single outer VLAN tag */
+	SJA1110_VLAN_D_TAG = 3, /* Double tagged, use outer tag for lookup */
+};
+
+enum sja1110_shaper_type {
+	SJA1110_LEAKY_BUCKET_SHAPER = 0,
+	SJA1110_CBS_SHAPER = 1,
 };
 
 u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid);
