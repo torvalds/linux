@@ -921,15 +921,14 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 
 	device_init_wakeup(dev, true);
 
+	/* power down device IP for power saving by default */
+	mtu3_stop(mtu);
+
 	ret = mtu3_gadget_setup(mtu);
 	if (ret) {
 		dev_err(dev, "mtu3 gadget init failed:%d\n", ret);
 		goto gadget_err;
 	}
-
-	/* init as host mode, power down device IP for power saving */
-	if (mtu->ssusb->dr_mode == USB_DR_MODE_OTG)
-		mtu3_stop(mtu);
 
 	ssusb_dev_debugfs_init(ssusb);
 
