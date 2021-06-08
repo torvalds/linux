@@ -37,5 +37,6 @@ test_cpp
 /runqslower
 /bench
 *.ko
+*.tmp
 xdpxceiver
 xdp_redirect_multi
