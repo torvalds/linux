@@ -33,12 +33,10 @@ static int wwan_major;
  *
  * @id: WWAN device unique ID.
  * @dev: Underlying device.
- * @port_id: Current available port ID to pick.
  */
 struct wwan_device {
 	unsigned int id;
 	struct device dev;
-	atomic_t port_id;
 };
 
 /**
@@ -258,6 +256,56 @@ static struct wwan_port *wwan_port_get_by_minor(unsigned int minor)
 	return to_wwan_port(dev);
 }
 
+/* Allocate and set unique name based on passed format
+ *
+ * Name allocation approach is highly inspired by the __dev_alloc_name()
+ * function.
+ *
+ * To avoid names collision, the caller must prevent the new port device
+ * registration as well as concurrent invocation of this function.
+ */
+static int __wwan_port_dev_assign_name(struct wwan_port *port, const char *fmt)
+{
+	struct wwan_device *wwandev = to_wwan_dev(port->dev.parent);
+	const unsigned int max_ports = PAGE_SIZE * 8;
+	struct class_dev_iter iter;
+	unsigned long *idmap;
+	struct device *dev;
+	char buf[0x20];
+	int id;
+
+	idmap = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+	if (!idmap)
+		return -ENOMEM;
+
+	/* Collect ids of same name format ports */
+	class_dev_iter_init(&iter, wwan_class, NULL, &wwan_port_dev_type);
+	while ((dev = class_dev_iter_next(&iter))) {
+		if (dev->parent != &wwandev->dev)
+			continue;
+		if (sscanf(dev_name(dev), fmt, &id) != 1)
+			continue;
+		if (id < 0 || id >= max_ports)
+			continue;
+		set_bit(id, idmap);
+	}
+	class_dev_iter_exit(&iter);
+
+	/* Allocate unique id */
+	id = find_first_zero_bit(idmap, max_ports);
+	free_page((unsigned long)idmap);
+
+	snprintf(buf, sizeof(buf), fmt, id);	/* Name generation */
+
+	dev = device_find_child_by_name(&wwandev->dev, buf);
+	if (dev) {
+		put_device(dev);
+		return -ENFILE;
+	}
+
+	return dev_set_name(&port->dev, buf);
+}
+
 struct wwan_port *wwan_create_port(struct device *parent,
 				   enum wwan_port_type type,
 				   const struct wwan_port_ops *ops,
@@ -266,6 +314,7 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	struct wwan_device *wwandev;
 	struct wwan_port *port;
 	int minor, err = -ENOMEM;
+	char namefmt[0x20];
 
 	if (type > WWAN_PORT_MAX || !ops)
 		return ERR_PTR(-EINVAL);
@@ -300,12 +349,18 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	port->dev.devt = MKDEV(wwan_major, minor);
 	dev_set_drvdata(&port->dev, drvdata);
 
-	/* create unique name based on wwan device id, port index and type */
-	dev_set_name(&port->dev, "wwan%up%u%s", wwandev->id,
-		     atomic_inc_return(&wwandev->port_id),
-		     wwan_port_types[port->type].devsuf);
+	/* allocate unique name based on wwan device id, port type and number */
+	snprintf(namefmt, sizeof(namefmt), "wwan%u%s%%d", wwandev->id,
+		 wwan_port_types[port->type].devsuf);
 
+	/* Serialize ports registration */
+	mutex_lock(&wwan_register_lock);
+
+	__wwan_port_dev_assign_name(port, namefmt);
 	err = device_register(&port->dev);
+
+	mutex_unlock(&wwan_register_lock);
+
 	if (err)
 		goto error_put_device;
 
