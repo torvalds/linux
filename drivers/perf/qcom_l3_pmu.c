@@ -767,10 +767,8 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 
 	memrc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	l3pmu->regs = devm_ioremap_resource(&pdev->dev, memrc);
-	if (IS_ERR(l3pmu->regs)) {
-		dev_err(&pdev->dev, "Can't map PMU @%pa\n", &memrc->start);
+	if (IS_ERR(l3pmu->regs))
 		return PTR_ERR(l3pmu->regs);
-	}
 
 	qcom_l3_cache__init(l3pmu);
 
