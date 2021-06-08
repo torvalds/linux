@@ -9,14 +9,27 @@
 struct xfs_mount;
 struct xfs_perag;
 
-struct xfs_eofblocks {
-	__u32		eof_flags;
-	kuid_t		eof_uid;
-	kgid_t		eof_gid;
-	prid_t		eof_prid;
-	__u64		eof_min_file_size;
+struct xfs_icwalk {
+	__u32		icw_flags;
+	kuid_t		icw_uid;
+	kgid_t		icw_gid;
+	prid_t		icw_prid;
+	__u64		icw_min_file_size;
 	int		icw_scan_limit;
 };
+
+/* Flags that reflect xfs_fs_eofblocks functionality. */
+#define XFS_ICWALK_FLAG_SYNC		(1U << 0) /* sync/wait mode scan */
+#define XFS_ICWALK_FLAG_UID		(1U << 1) /* filter by uid */
+#define XFS_ICWALK_FLAG_GID		(1U << 2) /* filter by gid */
+#define XFS_ICWALK_FLAG_PRID		(1U << 3) /* filter by project id */
+#define XFS_ICWALK_FLAG_MINFILESIZE	(1U << 4) /* filter by min file size */
+
+#define XFS_ICWALK_FLAGS_VALID		(XFS_ICWALK_FLAG_SYNC | \
+					 XFS_ICWALK_FLAG_UID | \
+					 XFS_ICWALK_FLAG_GID | \
+					 XFS_ICWALK_FLAG_PRID | \
+					 XFS_ICWALK_FLAG_MINFILESIZE)
 
 /*
  * Flags for xfs_iget()
@@ -43,9 +56,9 @@ void xfs_inode_mark_reclaimable(struct xfs_inode *ip);
 
 int xfs_blockgc_free_dquots(struct xfs_mount *mp, struct xfs_dquot *udqp,
 		struct xfs_dquot *gdqp, struct xfs_dquot *pdqp,
-		unsigned int eof_flags);
-int xfs_blockgc_free_quota(struct xfs_inode *ip, unsigned int eof_flags);
-int xfs_blockgc_free_space(struct xfs_mount *mp, struct xfs_eofblocks *eofb);
+		unsigned int iwalk_flags);
+int xfs_blockgc_free_quota(struct xfs_inode *ip, unsigned int iwalk_flags);
+int xfs_blockgc_free_space(struct xfs_mount *mp, struct xfs_icwalk *icm);
 
 void xfs_inode_set_eofblocks_tag(struct xfs_inode *ip);
 void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
