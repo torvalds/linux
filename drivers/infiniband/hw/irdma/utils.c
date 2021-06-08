@@ -425,8 +425,8 @@ struct irdma_cqp_request *irdma_alloc_and_get_cqp_request(struct irdma_cqp *cqp,
 
 	spin_lock_irqsave(&cqp->req_lock, flags);
 	if (!list_empty(&cqp->cqp_avail_reqs)) {
-		cqp_request = list_entry(cqp->cqp_avail_reqs.next,
-					 struct irdma_cqp_request, list);
+		cqp_request = list_first_entry(&cqp->cqp_avail_reqs,
+					       struct irdma_cqp_request, list);
 		list_del_init(&cqp_request->list);
 	}
 	spin_unlock_irqrestore(&cqp->req_lock, flags);
