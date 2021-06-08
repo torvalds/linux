@@ -286,10 +286,11 @@ struct kvm_vm *vm_create_default_with_vcpus(uint32_t nr_vcpus, uint64_t extra_me
 					    uint32_t num_percpu_pages, void *guest_code,
 					    uint32_t vcpuids[]);
 
-/* Like vm_create_default_with_vcpus, but accepts mode as a parameter */
+/* Like vm_create_default_with_vcpus, but accepts mode and slot0 memory as a parameter */
 struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
-				    uint64_t extra_mem_pages, uint32_t num_percpu_pages,
-				    void *guest_code, uint32_t vcpuids[]);
+				    uint64_t slot0_mem_pages, uint64_t extra_mem_pages,
+				    uint32_t num_percpu_pages, void *guest_code,
+				    uint32_t vcpuids[]);
 
 /*
  * Adds a vCPU with reasonable defaults (e.g. a stack)
