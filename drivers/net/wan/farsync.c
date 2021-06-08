@@ -479,7 +479,6 @@ struct fst_card_info {
 #define dev_to_port(D)  (dev_to_hdlc(D)->priv)
 #define port_to_dev(P)  ((P)->dev)
 
-
 /*
  *      Shared memory window access macros
  *
@@ -1194,7 +1193,6 @@ fst_recover_rx_error(struct fst_card_info *card, struct fst_port_info *port,
 	}
 	port->rxpos = rxp;
 	return;
-
 }
 
 /*      Rx complete interrupt
@@ -2159,7 +2157,6 @@ fst_openport(struct fst_port_info *port)
 		port->txqe = 0;
 		port->txqs = 0;
 	}
-
 }
 
 static void
