@@ -489,13 +489,13 @@ struct fst_card_info {
  */
 #define WIN_OFFSET(X)   ((long)&(((struct fst_shared *)SMC_BASE)->X))
 
-#define FST_RDB(C,E)    readb ((C)->mem + WIN_OFFSET(E))
-#define FST_RDW(C,E)    readw ((C)->mem + WIN_OFFSET(E))
-#define FST_RDL(C,E)    readl ((C)->mem + WIN_OFFSET(E))
+#define FST_RDB(C, E)    (readb((C)->mem + WIN_OFFSET(E)))
+#define FST_RDW(C, E)    (readw((C)->mem + WIN_OFFSET(E)))
+#define FST_RDL(C, E)    (readl((C)->mem + WIN_OFFSET(E)))
 
-#define FST_WRB(C,E,B)  writeb ((B), (C)->mem + WIN_OFFSET(E))
-#define FST_WRW(C,E,W)  writew ((W), (C)->mem + WIN_OFFSET(E))
-#define FST_WRL(C,E,L)  writel ((L), (C)->mem + WIN_OFFSET(E))
+#define FST_WRB(C, E, B)  (writeb((B), (C)->mem + WIN_OFFSET(E)))
+#define FST_WRW(C, E, W)  (writew((W), (C)->mem + WIN_OFFSET(E)))
+#define FST_WRL(C, E, L)  (writel((L), (C)->mem + WIN_OFFSET(E)))
 
 /*      Debug support
  */
