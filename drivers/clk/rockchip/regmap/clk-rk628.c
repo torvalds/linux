@@ -491,26 +491,15 @@ static const struct regmap_config rk628_cru_regmap_config = {
 	.rd_table = &rk628_cru_readable_table,
 };
 
-static int rk628_cru_probe(struct platform_device *pdev)
+static void rk628_cru_init(struct rk628_cru *cru)
 {
-	struct rk628 *rk628 = dev_get_drvdata(pdev->dev.parent);
-	struct device *dev = &pdev->dev;
-	struct rk628_cru *cru;
-	struct clk **clk_table;
-	unsigned int i;
-	int ret;
+	u32 val = 0;
+	u8 mcu_mode;
 
-	cru = devm_kzalloc(dev, sizeof(*cru), GFP_KERNEL);
-	if (!cru)
-		return -ENOMEM;
-
-	cru->regmap = devm_regmap_init_i2c(rk628->client,
-					   &rk628_cru_regmap_config);
-	if (IS_ERR(cru->regmap)) {
-		ret = PTR_ERR(cru->regmap);
-		dev_err(dev, "failed to allocate register map: %d\n", ret);
-		return ret;
-	}
+	regmap_read(cru->parent->grf, GRF_SYSTEM_STATUS0, &val);
+	mcu_mode = (val & I2C_ONLY_FLAG) ? 0 : 1;
+	if (mcu_mode)
+		return;
 
 	/* clock switch and first set gpll almost 99MHz */
 	regmap_write(cru->regmap, CRU_GPLL_CON0, 0xffff701d);
@@ -540,6 +529,34 @@ static int rk628_cru_probe(struct platform_device *pdev)
 	usleep_range(1000, 1100);
 	/* set pclk use cpll, and set pclk 99MHz */
 	regmap_write(cru->regmap, CRU_CLKSEL_CON00, 0xff000b);
+}
+
+static int rk628_cru_probe(struct platform_device *pdev)
+{
+	struct rk628 *rk628 = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
+	struct rk628_cru *cru;
+	struct clk **clk_table;
+	unsigned int i;
+	int ret;
+
+	cru = devm_kzalloc(dev, sizeof(*cru), GFP_KERNEL);
+	if (!cru)
+		return -ENOMEM;
+
+	cru->dev = dev;
+	cru->parent = rk628;
+	platform_set_drvdata(pdev, cru);
+
+	cru->regmap = devm_regmap_init_i2c(rk628->client,
+					   &rk628_cru_regmap_config);
+	if (IS_ERR(cru->regmap)) {
+		ret = PTR_ERR(cru->regmap);
+		dev_err(dev, "failed to allocate register map: %d\n", ret);
+		return ret;
+	}
+
+	rk628_cru_init(cru);
 
 	clk_table = devm_kcalloc(dev, CGU_NR_CLKS, sizeof(struct clk *),
 				 GFP_KERNEL);
@@ -549,11 +566,8 @@ static int rk628_cru_probe(struct platform_device *pdev)
 	for (i = 0; i < CGU_NR_CLKS; i++)
 		clk_table[i] = ERR_PTR(-ENOENT);
 
-	cru->dev = dev;
-	cru->parent = rk628;
 	cru->clk_data.clks = clk_table;
 	cru->clk_data.clk_num = CGU_NR_CLKS;
-	platform_set_drvdata(pdev, cru);
 
 	rk628_clk_register_plls(cru);
 	rk628_clk_register_muxes(cru);

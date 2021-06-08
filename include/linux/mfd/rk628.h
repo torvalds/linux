@@ -184,6 +184,8 @@
 #define GRF_INTR1_STATUS		0x0118
 #define GRF_INTR1_RAW_STATUS		0x011c
 #define GRF_SYSTEM_STATUS0		0x0120
+/* 0: i2c mode and mcu mode; 1: i2c mode only */
+#define I2C_ONLY_FLAG			BIT(6)
 #define GRF_SYSTEM_STATUS3		0x012c
 #define GRF_SYSTEM_STATUS4		0x0130
 #define GRF_OS_REG0			0x0140
