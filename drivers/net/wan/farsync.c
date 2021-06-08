@@ -1252,7 +1252,8 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 	}
 
 	/* Allocate SKB */
-	if ((skb = dev_alloc_skb(len)) == NULL) {
+	skb = dev_alloc_skb(len);
+	if (!skb) {
 		dbg(DBG_RX, "intr_rx: can't allocate buffer\n");
 
 		dev->stats.rx_dropped++;
@@ -1344,7 +1345,8 @@ do_bottom_half_tx(struct fst_card_info *card)
 			 * bit on the next buffer we think we can use
 			 */
 			spin_lock_irqsave(&card->card_lock, flags);
-			if ((txq_length = port->txqe - port->txqs) < 0) {
+			txq_length = port->txqe - port->txqs;
+			if (txq_length < 0) {
 				/*
 				 * This is the case where one has wrapped and the
 				 * maths gives us a negative number
@@ -1633,7 +1635,8 @@ check_started_ok(struct fst_card_info *card)
 		return;
 	}
 	/* Firmware status flag, 0x00 = initialising, 0x01 = OK, 0xFF = fail */
-	if ((i = FST_RDB(card, taskStatus)) == 0x01) {
+	i = FST_RDB(card, taskStatus);
+	if (i == 0x01) {
 		card->state = FST_RUNNING;
 	} else if (i == 0xFF) {
 		pr_err("Firmware initialisation failed. Card halted\n");
@@ -2292,7 +2295,8 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * Check there is room in the port txq
 	 */
 	spin_lock_irqsave(&card->card_lock, flags);
-	if ((txq_length = port->txqe - port->txqs) < 0) {
+	txq_length = port->txqe - port->txqs;
+	if (txq_length < 0) {
 		/*
 		 * This is the case where the next free has wrapped but the
 		 * last used hasn't
@@ -2432,12 +2436,14 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	/* Try to enable the device */
-	if ((err = pci_enable_device(pdev)) != 0) {
+	err = pci_enable_device(pdev);
+	if (err) {
 		pr_err("Failed to enable card. Err %d\n", -err);
 		goto enable_fail;
 	}
 
-	if ((err = pci_request_regions(pdev, "FarSync")) !=0) {
+	err = pci_request_regions(pdev, "FarSync");
+	if (err) {
 		pr_err("Failed to allocate regions. Err %d\n", -err);
 		goto regions_fail;
 	}
@@ -2446,12 +2452,14 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	card->pci_conf = pci_resource_start(pdev, 1);
 	card->phys_mem = pci_resource_start(pdev, 2);
 	card->phys_ctlmem = pci_resource_start(pdev, 3);
-	if ((card->mem = ioremap(card->phys_mem, FST_MEMSIZE)) == NULL) {
+	card->mem = ioremap(card->phys_mem, FST_MEMSIZE);
+	if (!card->mem) {
 		pr_err("Physical memory remap failed\n");
 		err = -ENODEV;
 		goto ioremap_physmem_fail;
 	}
-	if ((card->ctlmem = ioremap(card->phys_ctlmem, 0x10)) == NULL) {
+	card->ctlmem = ioremap(card->phys_ctlmem, 0x10);
+	if (!card->ctlmem) {
 		pr_err("Control memory remap failed\n");
 		err = -ENODEV;
 		goto ioremap_ctlmem_fail;
