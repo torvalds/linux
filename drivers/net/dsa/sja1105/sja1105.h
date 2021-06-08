@@ -13,15 +13,12 @@
 #include <linux/mutex.h>
 #include "sja1105_static_config.h"
 
-#define SJA1105_NUM_PORTS		5
-#define SJA1105_MAX_NUM_PORTS		SJA1105_NUM_PORTS
-#define SJA1105_NUM_TC			8
 #define SJA1105ET_FDB_BIN_SIZE		4
 /* The hardware value is in multiples of 10 ms.
  * The passed parameter is in multiples of 1 ms.
  */
 #define SJA1105_AGEING_TIME_MS(ms)	((ms) / 10)
-#define SJA1105_NUM_L2_POLICERS		45
+#define SJA1105_NUM_L2_POLICERS		SJA1110_MAX_L2_POLICING_COUNT
 
 typedef enum {
 	SPI_READ = 0,
@@ -70,6 +67,12 @@ struct sja1105_regs {
 	u64 rmii_ref_clk[SJA1105_MAX_NUM_PORTS];
 	u64 rmii_ext_tx_clk[SJA1105_MAX_NUM_PORTS];
 	u64 stats[__MAX_SJA1105_STATS_AREA][SJA1105_MAX_NUM_PORTS];
+	u64 mdio_100base_tx;
+	u64 mdio_100base_t1;
+};
+
+struct sja1105_mdio_private {
+	struct sja1105_private *priv;
 };
 
 enum {
@@ -79,6 +82,12 @@ enum {
 	SJA1105_SPEED_1000MBPS,
 	SJA1105_SPEED_2500MBPS,
 	SJA1105_SPEED_MAX,
+};
+
+enum sja1105_internal_phy_t {
+	SJA1105_NO_PHY		= 0,
+	SJA1105_PHY_BASE_TX,
+	SJA1105_PHY_BASE_T1,
 };
 
 struct sja1105_info {
@@ -99,6 +108,7 @@ struct sja1105_info {
 	int ptpegr_ts_bytes;
 	int num_cbs_shapers;
 	int max_frame_mem;
+	int num_ports;
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;
@@ -125,6 +135,7 @@ struct sja1105_info {
 	bool supports_rgmii[SJA1105_MAX_NUM_PORTS];
 	bool supports_sgmii[SJA1105_MAX_NUM_PORTS];
 	bool supports_2500basex[SJA1105_MAX_NUM_PORTS];
+	enum sja1105_internal_phy_t internal_phy[SJA1105_MAX_NUM_PORTS];
 	const u64 port_speed[SJA1105_SPEED_MAX];
 };
 
@@ -248,6 +259,8 @@ struct sja1105_private {
 	enum sja1105_vlan_state vlan_state;
 	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
+	struct mii_bus *mdio_base_t1;
+	struct mii_bus *mdio_base_tx;
 	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
 	struct sja1105_tas_data tas_data;
@@ -276,6 +289,10 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 			   struct netlink_ext_ack *extack);
 void sja1105_frame_memory_partitioning(struct sja1105_private *priv);
+
+/* From sja1105_mdio.c */
+int sja1105_mdiobus_register(struct dsa_switch *ds);
+void sja1105_mdiobus_unregister(struct dsa_switch *ds);
 
 /* From sja1105_devlink.c */
 int sja1105_devlink_setup(struct dsa_switch *ds);
@@ -310,6 +327,10 @@ extern const struct sja1105_info sja1105p_info;
 extern const struct sja1105_info sja1105q_info;
 extern const struct sja1105_info sja1105r_info;
 extern const struct sja1105_info sja1105s_info;
+extern const struct sja1105_info sja1110a_info;
+extern const struct sja1105_info sja1110b_info;
+extern const struct sja1105_info sja1110c_info;
+extern const struct sja1105_info sja1110d_info;
 
 /* From sja1105_clocking.c */
 
@@ -326,8 +347,10 @@ typedef enum {
 } sja1105_phy_interface_t;
 
 int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port);
+int sja1110_setup_rgmii_delay(const void *ctx, int port);
 int sja1105_clocking_setup_port(struct sja1105_private *priv, int port);
 int sja1105_clocking_setup(struct sja1105_private *priv);
+int sja1110_clocking_setup(struct sja1105_private *priv);
 
 /* From sja1105_ethtool.c */
 void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data);
@@ -346,6 +369,18 @@ int sja1105_dynamic_config_write(struct sja1105_private *priv,
 enum sja1105_iotag {
 	SJA1105_C_TAG = 0, /* Inner VLAN header */
 	SJA1105_S_TAG = 1, /* Outer VLAN header */
+};
+
+enum sja1110_vlan_type {
+	SJA1110_VLAN_INVALID = 0,
+	SJA1110_VLAN_C_TAG = 1, /* Single inner VLAN tag */
+	SJA1110_VLAN_S_TAG = 2, /* Single outer VLAN tag */
+	SJA1110_VLAN_D_TAG = 3, /* Double tagged, use outer tag for lookup */
+};
+
+enum sja1110_shaper_type {
+	SJA1110_LEAKY_BUCKET_SHAPER = 0,
+	SJA1110_CBS_SHAPER = 1,
 };
 
 u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid);

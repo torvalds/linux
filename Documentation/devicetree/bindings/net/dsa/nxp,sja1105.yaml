@@ -27,9 +27,52 @@ properties:
       - nxp,sja1105q
       - nxp,sja1105r
       - nxp,sja1105s
+      - nxp,sja1110a
+      - nxp,sja1110b
+      - nxp,sja1110c
+      - nxp,sja1110d
 
   reg:
     maxItems: 1
+
+  # Optional container node for the 2 internal MDIO buses of the SJA1110
+  # (one for the internal 100base-T1 PHYs and the other for the single
+  # 100base-TX PHY). The "reg" property does not have physical significance.
+  # The PHY addresses to port correspondence is as follows: for 100base-T1,
+  # port 5 has PHY 1, port 6 has PHY 2 etc, while for 100base-TX, port 1 has
+  # PHY 1.
+  mdios:
+    type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^mdio@[0-1]$":
+        type: object
+
+        allOf:
+          - $ref: "http://devicetree.org/schemas/net/mdio.yaml#"
+
+        properties:
+          compatible:
+            oneOf:
+              - enum:
+                  - nxp,sja1110-base-t1-mdio
+                  - nxp,sja1110-base-tx-mdio
+
+          reg:
+            oneOf:
+              - enum:
+                - 0
+                - 1
+
+        required:
+          - compatible
+          - reg
 
 required:
   - compatible

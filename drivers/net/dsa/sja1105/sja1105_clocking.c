@@ -6,6 +6,7 @@
 #include "sja1105.h"
 
 #define SJA1105_SIZE_CGU_CMD	4
+#define SJA1110_BASE_TIMER_CLK	SJA1110_CGU_ADDR(0x74)
 
 /* Common structure for CFG_PAD_MIIx_RX and CFG_PAD_MIIx_TX */
 struct sja1105_cfg_pad_mii {
@@ -58,6 +59,12 @@ struct sja1105_cgu_pll_ctrl {
 	u64 direct;
 	u64 fbsel;
 	u64 bypass;
+	u64 pd;
+};
+
+struct sja1110_cgu_outclk {
+	u64 clksrc;
+	u64 autoblock;
 	u64 pd;
 };
 
@@ -461,6 +468,35 @@ sja1105_cfg_pad_mii_id_packing(void *buf, struct sja1105_cfg_pad_mii_id *cmd,
 	sja1105_packing(buf, &cmd->txc_pd,          0,  0, size, op);
 }
 
+static void
+sja1110_cfg_pad_mii_id_packing(void *buf, struct sja1105_cfg_pad_mii_id *cmd,
+			       enum packing_op op)
+{
+	const int size = SJA1105_SIZE_CGU_CMD;
+	u64 range = 4;
+
+	/* Fields RXC_RANGE and TXC_RANGE select the input frequency range:
+	 * 0 = 2.5MHz
+	 * 1 = 25MHz
+	 * 2 = 50MHz
+	 * 3 = 125MHz
+	 * 4 = Automatically determined by port speed.
+	 * There's no point in defining a structure different than the one for
+	 * SJA1105, so just hardcode the frequency range to automatic, just as
+	 * before.
+	 */
+	sja1105_packing(buf, &cmd->rxc_stable_ovr, 26, 26, size, op);
+	sja1105_packing(buf, &cmd->rxc_delay,      25, 21, size, op);
+	sja1105_packing(buf, &range,               20, 18, size, op);
+	sja1105_packing(buf, &cmd->rxc_bypass,     17, 17, size, op);
+	sja1105_packing(buf, &cmd->rxc_pd,         16, 16, size, op);
+	sja1105_packing(buf, &cmd->txc_stable_ovr, 10, 10, size, op);
+	sja1105_packing(buf, &cmd->txc_delay,       9,  5, size, op);
+	sja1105_packing(buf, &range,                4,  2, size, op);
+	sja1105_packing(buf, &cmd->txc_bypass,      1,  1, size, op);
+	sja1105_packing(buf, &cmd->txc_pd,          0,  0, size, op);
+}
+
 /* Valid range in degrees is an integer between 73.8 and 101.7 */
 static u64 sja1105_rgmii_delay(u64 phase)
 {
@@ -514,6 +550,35 @@ int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port)
 		pad_mii_id.txc_pd = 0;
 	}
 	sja1105_cfg_pad_mii_id_packing(packed_buf, &pad_mii_id, PACK);
+
+	return sja1105_xfer_buf(priv, SPI_WRITE, regs->pad_mii_id[port],
+				packed_buf, SJA1105_SIZE_CGU_CMD);
+}
+
+int sja1110_setup_rgmii_delay(const void *ctx, int port)
+{
+	const struct sja1105_private *priv = ctx;
+	const struct sja1105_regs *regs = priv->info->regs;
+	struct sja1105_cfg_pad_mii_id pad_mii_id = {0};
+	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
+
+	pad_mii_id.rxc_pd = 1;
+	pad_mii_id.txc_pd = 1;
+
+	if (priv->rgmii_rx_delay[port]) {
+		pad_mii_id.rxc_delay = sja1105_rgmii_delay(90);
+		/* The "BYPASS" bit in SJA1110 is actually a "don't bypass" */
+		pad_mii_id.rxc_bypass = 1;
+		pad_mii_id.rxc_pd = 0;
+	}
+
+	if (priv->rgmii_tx_delay[port]) {
+		pad_mii_id.txc_delay = sja1105_rgmii_delay(90);
+		pad_mii_id.txc_bypass = 1;
+		pad_mii_id.txc_pd = 0;
+	}
+
+	sja1110_cfg_pad_mii_id_packing(packed_buf, &pad_mii_id, PACK);
 
 	return sja1105_xfer_buf(priv, SPI_WRITE, regs->pad_mii_id[port],
 				packed_buf, SJA1105_SIZE_CGU_CMD);
@@ -754,4 +819,30 @@ int sja1105_clocking_setup(struct sja1105_private *priv)
 			return rc;
 	}
 	return 0;
+}
+
+static void
+sja1110_cgu_outclk_packing(void *buf, struct sja1110_cgu_outclk *outclk,
+			   enum packing_op op)
+{
+	const int size = 4;
+
+	sja1105_packing(buf, &outclk->clksrc,    27, 24, size, op);
+	sja1105_packing(buf, &outclk->autoblock, 11, 11, size, op);
+	sja1105_packing(buf, &outclk->pd,         0,  0, size, op);
+}
+
+/* Power down the BASE_TIMER_CLK in order to disable the watchdog */
+int sja1110_clocking_setup(struct sja1105_private *priv)
+{
+	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
+	struct sja1110_cgu_outclk outclk_7_c = {
+		.clksrc = 0x5,
+		.pd = true,
+	};
+
+	sja1110_cgu_outclk_packing(packed_buf, &outclk_7_c, PACK);
+
+	return sja1105_xfer_buf(priv, SPI_WRITE, SJA1110_BASE_TIMER_CLK,
+				packed_buf, SJA1105_SIZE_CGU_CMD);
 }
