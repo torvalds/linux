@@ -9,7 +9,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
@@ -23,6 +22,7 @@
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
 #include "xfs_ialloc.h"
+#include "xfs_ag.h"
 
 #include <linux/iversion.h>
 
@@ -1061,14 +1061,12 @@ xfs_reclaim_inodes_ag(
 	int			*nr_to_scan)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		ag = 0;
+	xfs_agnumber_t		agno;
 
-	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
+	for_each_perag_tag(mp, agno, pag, XFS_ICI_RECLAIM_TAG) {
 		unsigned long	first_index = 0;
 		int		done = 0;
 		int		nr_found = 0;
-
-		ag = pag->pag_agno + 1;
 
 		first_index = READ_ONCE(pag->pag_ici_reclaim_cursor);
 		do {
@@ -1134,7 +1132,6 @@ xfs_reclaim_inodes_ag(
 		if (done)
 			first_index = 0;
 		WRITE_ONCE(pag->pag_ici_reclaim_cursor, first_index);
-		xfs_perag_put(pag);
 	}
 }
 
@@ -1553,14 +1550,6 @@ xfs_inode_clear_cowblocks_tag(
 	trace_xfs_inode_clear_cowblocks_tag(ip);
 	return xfs_blockgc_clear_iflag(ip, XFS_ICOWBLOCKS);
 }
-
-#define for_each_perag_tag(mp, next_agno, pag, tag) \
-	for ((next_agno) = 0, (pag) = xfs_perag_get_tag((mp), 0, (tag)); \
-		(pag) != NULL; \
-		(next_agno) = (pag)->pag_agno + 1, \
-		xfs_perag_put(pag), \
-		(pag) = xfs_perag_get_tag((mp), (next_agno), (tag)))
-
 
 /* Disable post-EOF and CoW block auto-reclamation. */
 void

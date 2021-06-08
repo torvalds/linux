@@ -19,7 +19,7 @@
 #include "xfs_btree.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
 /*
@@ -250,7 +250,6 @@ xfs_ag_resv_init(
 	struct xfs_trans		*tp)
 {
 	struct xfs_mount		*mp = pag->pag_mount;
-	xfs_agnumber_t			agno = pag->pag_agno;
 	xfs_extlen_t			ask;
 	xfs_extlen_t			used;
 	int				error = 0, error2;
@@ -260,11 +259,11 @@ xfs_ag_resv_init(
 	if (pag->pag_meta_resv.ar_asked == 0) {
 		ask = used = 0;
 
-		error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask, &used);
+		error = xfs_refcountbt_calc_reserves(mp, tp, pag, &ask, &used);
 		if (error)
 			goto out;
 
-		error = xfs_finobt_calc_reserves(mp, tp, agno, &ask, &used);
+		error = xfs_finobt_calc_reserves(mp, tp, pag, &ask, &used);
 		if (error)
 			goto out;
 
@@ -282,7 +281,7 @@ xfs_ag_resv_init(
 
 			mp->m_finobt_nores = true;
 
-			error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask,
+			error = xfs_refcountbt_calc_reserves(mp, tp, pag, &ask,
 					&used);
 			if (error)
 				goto out;
@@ -300,7 +299,7 @@ xfs_ag_resv_init(
 	if (pag->pag_rmapbt_resv.ar_asked == 0) {
 		ask = used = 0;
 
-		error = xfs_rmapbt_calc_reserves(mp, tp, agno, &ask, &used);
+		error = xfs_rmapbt_calc_reserves(mp, tp, pag, &ask, &used);
 		if (error)
 			goto out;
 

@@ -576,10 +576,8 @@ xfs_fs_reserve_ag_blocks(
 	int			err2;
 
 	mp->m_finobt_nores = false;
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for_each_perag(mp, agno, pag) {
 		err2 = xfs_ag_resv_init(pag, NULL);
-		xfs_perag_put(pag);
 		if (err2 && !error)
 			error = err2;
 	}
@@ -605,10 +603,8 @@ xfs_fs_unreserve_ag_blocks(
 	int			error = 0;
 	int			err2;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for_each_perag(mp, agno, pag) {
 		err2 = xfs_ag_resv_free(pag);
-		xfs_perag_put(pag);
 		if (err2 && !error)
 			error = err2;
 	}

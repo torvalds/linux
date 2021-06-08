@@ -10,7 +10,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
@@ -19,6 +18,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
+#include "xfs_ag.h"
 
 static kmem_zone_t *xfs_buf_zone;
 
