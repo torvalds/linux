@@ -182,17 +182,23 @@ int spectre_v2_test(void)
 	case COUNT_CACHE_FLUSH_HW:
 		// These should all not affect userspace branch prediction
 		if (miss_percent > 15) {
+			if (miss_percent > 95) {
+				/*
+				 * Such a mismatch may be caused by a system being unaware
+				 * the count cache is disabled. This may be to enable
+				 * guest migration between hosts with different settings.
+				 * Return skip code to avoid detecting this as an error.
+				 * We are not vulnerable and reporting otherwise, so
+				 * missing such a mismatch is safe.
+				 */
+				printf("Branch misses > 95%% unexpected in this configuration.\n");
+				printf("Count cache likely disabled without Linux knowing.\n");
+				if (state == COUNT_CACHE_FLUSH_SW)
+					printf("WARNING: Kernel performing unnecessary flushes.\n");
+				return 4;
+			}
 			printf("Branch misses > 15%% unexpected in this configuration!\n");
 			printf("Possible mis-match between reported & actual mitigation\n");
-			/*
-			 * Such a mismatch may be caused by a guest system
-			 * reporting as vulnerable when the host is mitigated.
-			 * Return skip code to avoid detecting this as an error.
-			 * We are not vulnerable and reporting otherwise, so
-			 * missing such a mismatch is safe.
-			 */
-			if (miss_percent > 95)
-				return 4;
 
 			return 1;
 		}
