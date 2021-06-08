@@ -1156,7 +1156,6 @@ fst_recover_rx_error(struct fst_card_info *card, struct fst_port_info *port,
 		rxp = (rxp + 1) % NUM_RX_BUFFER;
 	}
 	port->rxpos = rxp;
-	return;
 }
 
 /*      Rx complete interrupt
