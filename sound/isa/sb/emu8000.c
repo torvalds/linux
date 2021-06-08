@@ -1020,6 +1020,7 @@ static const struct snd_kcontrol_new *mixer_defs[EMU8000_NUM_CONTROLS] = {
 static int
 snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 {
+	struct snd_kcontrol *kctl;
 	int i, err = 0;
 
 	if (snd_BUG_ON(!emu || !card))
@@ -1029,12 +1030,11 @@ snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 
 	memset(emu->controls, 0, sizeof(emu->controls));
 	for (i = 0; i < EMU8000_NUM_CONTROLS; i++) {
-		emu->controls[i] = snd_ctl_new1(mixer_defs[i], emu);
-		err = snd_ctl_add(card, emu->controls[i]);
-		if (err < 0) {
-			emu->controls[i] = NULL;
+		kctl = snd_ctl_new1(mixer_defs[i], emu);
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			goto __error;
-		}
+		emu->controls[i] = kctl;
 	}
 	return 0;
 
