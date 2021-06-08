@@ -672,6 +672,25 @@ static const struct intel_ddi_buf_trans ehl_combo_phy_ddi_translations_dp = {
 	.num_entries = ARRAY_SIZE(_ehl_combo_phy_ddi_translations_dp),
 };
 
+static const union intel_ddi_buf_trans_entry _ehl_combo_phy_ddi_translations_edp_hbr2[] = {
+							/* NT mV Trans mV db    */
+	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   200      0.0   */
+	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   250      1.9   */
+	{ .cnl = { 0x1, 0x7F, 0x3D, 0x00, 0x02 } },	/* 200   300      3.5   */
+	{ .cnl = { 0xA, 0x35, 0x39, 0x00, 0x06 } },	/* 200   350      4.9   */
+	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 250   250      0.0   */
+	{ .cnl = { 0x1, 0x7F, 0x3C, 0x00, 0x03 } },	/* 250   300      1.6   */
+	{ .cnl = { 0xA, 0x35, 0x39, 0x00, 0x06 } },	/* 250   350      2.9   */
+	{ .cnl = { 0x1, 0x7F, 0x3F, 0x00, 0x00 } },	/* 300   300      0.0   */
+	{ .cnl = { 0xA, 0x35, 0x38, 0x00, 0x07 } },	/* 300   350      1.3   */
+	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
+};
+
+static const struct intel_ddi_buf_trans ehl_combo_phy_ddi_translations_edp_hbr2 = {
+	.entries = _ehl_combo_phy_ddi_translations_edp_hbr2,
+	.num_entries = ARRAY_SIZE(_ehl_combo_phy_ddi_translations_edp_hbr2),
+};
+
 static const union intel_ddi_buf_trans_entry _jsl_combo_phy_ddi_translations_edp_hbr[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   200      0.0   */
@@ -1384,8 +1403,13 @@ ehl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (dev_priv->vbt.edp.low_vswing) {
-		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr2,
-					   n_entries);
+		if (crtc_state->port_clock > 270000) {
+			return intel_get_buf_trans(&ehl_combo_phy_ddi_translations_edp_hbr2,
+						   n_entries);
+		} else {
+			return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr2,
+						   n_entries);
+		}
 	}
 
 	return ehl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
