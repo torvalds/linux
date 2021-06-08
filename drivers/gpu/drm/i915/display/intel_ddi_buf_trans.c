@@ -13,7 +13,7 @@
  * them for both DP and FDI transports, allowing those ports to
  * automatically adapt to HDMI connections as well
  */
-static const union intel_ddi_buf_trans_entry hsw_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _hsw_ddi_translations_dp[] = {
 	{ .hsw = { 0x00FFFFFF, 0x0006000E, 0x0 } },
 	{ .hsw = { 0x00D75FFF, 0x0005000A, 0x0 } },
 	{ .hsw = { 0x00C30FFF, 0x00040006, 0x0 } },
@@ -25,7 +25,12 @@ static const union intel_ddi_buf_trans_entry hsw_ddi_translations_dp[] = {
 	{ .hsw = { 0x80D75FFF, 0x000B0000, 0x0 } },
 };
 
-static const union intel_ddi_buf_trans_entry hsw_ddi_translations_fdi[] = {
+static const struct intel_ddi_buf_trans hsw_ddi_translations_dp = {
+	.entries = _hsw_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_hsw_ddi_translations_dp),
+};
+
+static const union intel_ddi_buf_trans_entry _hsw_ddi_translations_fdi[] = {
 	{ .hsw = { 0x00FFFFFF, 0x0007000E, 0x0 } },
 	{ .hsw = { 0x00D75FFF, 0x000F000A, 0x0 } },
 	{ .hsw = { 0x00C30FFF, 0x00060006, 0x0 } },
@@ -37,7 +42,12 @@ static const union intel_ddi_buf_trans_entry hsw_ddi_translations_fdi[] = {
 	{ .hsw = { 0x00D75FFF, 0x001E0000, 0x0 } },
 };
 
-static const union intel_ddi_buf_trans_entry hsw_ddi_translations_hdmi[] = {
+static const struct intel_ddi_buf_trans hsw_ddi_translations_fdi = {
+	.entries = _hsw_ddi_translations_fdi,
+	.num_entries = ARRAY_SIZE(_hsw_ddi_translations_fdi),
+};
+
+static const union intel_ddi_buf_trans_entry _hsw_ddi_translations_hdmi[] = {
 							/* Idx	NT mV d	T mV d	db	*/
 	{ .hsw = { 0x00FFFFFF, 0x0006000E, 0x0 } },	/* 0:	400	400	0	*/
 	{ .hsw = { 0x00E79FFF, 0x000E000C, 0x0 } },	/* 1:	400	500	2	*/
@@ -53,7 +63,12 @@ static const union intel_ddi_buf_trans_entry hsw_ddi_translations_hdmi[] = {
 	{ .hsw = { 0x80FFFFFF, 0x00030002, 0x0 } },	/* 11:	1000	1000	0	*/
 };
 
-static const union intel_ddi_buf_trans_entry bdw_ddi_translations_edp[] = {
+static const struct intel_ddi_buf_trans hsw_ddi_translations_hdmi = {
+	.entries = _hsw_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_hsw_ddi_translations_hdmi),
+};
+
+static const union intel_ddi_buf_trans_entry _bdw_ddi_translations_edp[] = {
 	{ .hsw = { 0x00FFFFFF, 0x00000012, 0x0 } },
 	{ .hsw = { 0x00EBAFFF, 0x00020011, 0x0 } },
 	{ .hsw = { 0x00C71FFF, 0x0006000F, 0x0 } },
@@ -65,7 +80,12 @@ static const union intel_ddi_buf_trans_entry bdw_ddi_translations_edp[] = {
 	{ .hsw = { 0x00DB6FFF, 0x000A000C, 0x0 } },
 };
 
-static const union intel_ddi_buf_trans_entry bdw_ddi_translations_dp[] = {
+static const struct intel_ddi_buf_trans bdw_ddi_translations_edp = {
+	.entries = _bdw_ddi_translations_edp,
+	.num_entries = ARRAY_SIZE(_bdw_ddi_translations_edp),
+};
+
+static const union intel_ddi_buf_trans_entry _bdw_ddi_translations_dp[] = {
 	{ .hsw = { 0x00FFFFFF, 0x0007000E, 0x0 } },
 	{ .hsw = { 0x00D75FFF, 0x000E000A, 0x0 } },
 	{ .hsw = { 0x00BEFFFF, 0x00140006, 0x0 } },
@@ -77,7 +97,12 @@ static const union intel_ddi_buf_trans_entry bdw_ddi_translations_dp[] = {
 	{ .hsw = { 0x80D75FFF, 0x001B0002, 0x0 } },
 };
 
-static const union intel_ddi_buf_trans_entry bdw_ddi_translations_fdi[] = {
+static const struct intel_ddi_buf_trans bdw_ddi_translations_dp = {
+	.entries = _bdw_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_bdw_ddi_translations_dp),
+};
+
+static const union intel_ddi_buf_trans_entry _bdw_ddi_translations_fdi[] = {
 	{ .hsw = { 0x00FFFFFF, 0x0001000E, 0x0 } },
 	{ .hsw = { 0x00D75FFF, 0x0004000A, 0x0 } },
 	{ .hsw = { 0x00C30FFF, 0x00070006, 0x0 } },
@@ -89,7 +114,12 @@ static const union intel_ddi_buf_trans_entry bdw_ddi_translations_fdi[] = {
 	{ .hsw = { 0x00D75FFF, 0x000C0000, 0x0 } },
 };
 
-static const union intel_ddi_buf_trans_entry bdw_ddi_translations_hdmi[] = {
+static const struct intel_ddi_buf_trans bdw_ddi_translations_fdi = {
+	.entries = _bdw_ddi_translations_fdi,
+	.num_entries = ARRAY_SIZE(_bdw_ddi_translations_fdi),
+};
+
+static const union intel_ddi_buf_trans_entry _bdw_ddi_translations_hdmi[] = {
 							/* Idx	NT mV d	T mV df	db	*/
 	{ .hsw = { 0x00FFFFFF, 0x0007000E, 0x0 } },	/* 0:	400	400	0	*/
 	{ .hsw = { 0x00D75FFF, 0x000E000A, 0x0 } },	/* 1:	400	600	3.5	*/
@@ -103,8 +133,13 @@ static const union intel_ddi_buf_trans_entry bdw_ddi_translations_hdmi[] = {
 	{ .hsw = { 0x80FFFFFF, 0x001B0002, 0x0 } },	/* 9:	1000	1000	0	*/
 };
 
+static const struct intel_ddi_buf_trans bdw_ddi_translations_hdmi = {
+	.entries = _bdw_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_bdw_ddi_translations_hdmi),
+};
+
 /* Skylake H and S */
-static const union intel_ddi_buf_trans_entry skl_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _skl_ddi_translations_dp[] = {
 	{ .hsw = { 0x00002016, 0x000000A0, 0x0 } },
 	{ .hsw = { 0x00005012, 0x0000009B, 0x0 } },
 	{ .hsw = { 0x00007011, 0x00000088, 0x0 } },
@@ -116,8 +151,13 @@ static const union intel_ddi_buf_trans_entry skl_ddi_translations_dp[] = {
 	{ .hsw = { 0x80005012, 0x000000C0, 0x1 } },
 };
 
+static const struct intel_ddi_buf_trans skl_ddi_translations_dp = {
+	.entries = _skl_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_skl_ddi_translations_dp),
+};
+
 /* Skylake U */
-static const union intel_ddi_buf_trans_entry skl_u_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _skl_u_ddi_translations_dp[] = {
 	{ .hsw = { 0x0000201B, 0x000000A2, 0x0 } },
 	{ .hsw = { 0x00005012, 0x00000088, 0x0 } },
 	{ .hsw = { 0x80007011, 0x000000CD, 0x1 } },
@@ -129,8 +169,13 @@ static const union intel_ddi_buf_trans_entry skl_u_ddi_translations_dp[] = {
 	{ .hsw = { 0x80005012, 0x000000C0, 0x1 } },
 };
 
+static const struct intel_ddi_buf_trans skl_u_ddi_translations_dp = {
+	.entries = _skl_u_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_skl_u_ddi_translations_dp),
+};
+
 /* Skylake Y */
-static const union intel_ddi_buf_trans_entry skl_y_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _skl_y_ddi_translations_dp[] = {
 	{ .hsw = { 0x00000018, 0x000000A2, 0x0 } },
 	{ .hsw = { 0x00005012, 0x00000088, 0x0 } },
 	{ .hsw = { 0x80007011, 0x000000CD, 0x3 } },
@@ -142,8 +187,13 @@ static const union intel_ddi_buf_trans_entry skl_y_ddi_translations_dp[] = {
 	{ .hsw = { 0x80005012, 0x000000C0, 0x3 } },
 };
 
+static const struct intel_ddi_buf_trans skl_y_ddi_translations_dp = {
+	.entries = _skl_y_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_skl_y_ddi_translations_dp),
+};
+
 /* Kabylake H and S */
-static const union intel_ddi_buf_trans_entry kbl_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _kbl_ddi_translations_dp[] = {
 	{ .hsw = { 0x00002016, 0x000000A0, 0x0 } },
 	{ .hsw = { 0x00005012, 0x0000009B, 0x0 } },
 	{ .hsw = { 0x00007011, 0x00000088, 0x0 } },
@@ -155,8 +205,13 @@ static const union intel_ddi_buf_trans_entry kbl_ddi_translations_dp[] = {
 	{ .hsw = { 0x80005012, 0x000000C0, 0x1 } },
 };
 
+static const struct intel_ddi_buf_trans kbl_ddi_translations_dp = {
+	.entries = _kbl_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_kbl_ddi_translations_dp),
+};
+
 /* Kabylake U */
-static const union intel_ddi_buf_trans_entry kbl_u_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _kbl_u_ddi_translations_dp[] = {
 	{ .hsw = { 0x0000201B, 0x000000A1, 0x0 } },
 	{ .hsw = { 0x00005012, 0x00000088, 0x0 } },
 	{ .hsw = { 0x80007011, 0x000000CD, 0x3 } },
@@ -168,8 +223,13 @@ static const union intel_ddi_buf_trans_entry kbl_u_ddi_translations_dp[] = {
 	{ .hsw = { 0x80005012, 0x000000C0, 0x3 } },
 };
 
+static const struct intel_ddi_buf_trans kbl_u_ddi_translations_dp = {
+	.entries = _kbl_u_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_kbl_u_ddi_translations_dp),
+};
+
 /* Kabylake Y */
-static const union intel_ddi_buf_trans_entry kbl_y_ddi_translations_dp[] = {
+static const union intel_ddi_buf_trans_entry _kbl_y_ddi_translations_dp[] = {
 	{ .hsw = { 0x00001017, 0x000000A1, 0x0 } },
 	{ .hsw = { 0x00005012, 0x00000088, 0x0 } },
 	{ .hsw = { 0x80007011, 0x000000CD, 0x3 } },
@@ -181,11 +241,16 @@ static const union intel_ddi_buf_trans_entry kbl_y_ddi_translations_dp[] = {
 	{ .hsw = { 0x80005012, 0x000000C0, 0x3 } },
 };
 
+static const struct intel_ddi_buf_trans kbl_y_ddi_translations_dp = {
+	.entries = _kbl_y_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_kbl_y_ddi_translations_dp),
+};
+
 /*
  * Skylake/Kabylake H and S
  * eDP 1.4 low vswing translation parameters
  */
-static const union intel_ddi_buf_trans_entry skl_ddi_translations_edp[] = {
+static const union intel_ddi_buf_trans_entry _skl_ddi_translations_edp[] = {
 	{ .hsw = { 0x00000018, 0x000000A8, 0x0 } },
 	{ .hsw = { 0x00004013, 0x000000A9, 0x0 } },
 	{ .hsw = { 0x00007011, 0x000000A2, 0x0 } },
@@ -198,11 +263,16 @@ static const union intel_ddi_buf_trans_entry skl_ddi_translations_edp[] = {
 	{ .hsw = { 0x00000018, 0x000000DF, 0x0 } },
 };
 
+static const struct intel_ddi_buf_trans skl_ddi_translations_edp = {
+	.entries = _skl_ddi_translations_edp,
+	.num_entries = ARRAY_SIZE(_skl_ddi_translations_edp),
+};
+
 /*
  * Skylake/Kabylake U
  * eDP 1.4 low vswing translation parameters
  */
-static const union intel_ddi_buf_trans_entry skl_u_ddi_translations_edp[] = {
+static const union intel_ddi_buf_trans_entry _skl_u_ddi_translations_edp[] = {
 	{ .hsw = { 0x00000018, 0x000000A8, 0x0 } },
 	{ .hsw = { 0x00004013, 0x000000A9, 0x0 } },
 	{ .hsw = { 0x00007011, 0x000000A2, 0x0 } },
@@ -215,11 +285,16 @@ static const union intel_ddi_buf_trans_entry skl_u_ddi_translations_edp[] = {
 	{ .hsw = { 0x00000018, 0x000000DF, 0x0 } },
 };
 
+static const struct intel_ddi_buf_trans skl_u_ddi_translations_edp = {
+	.entries = _skl_u_ddi_translations_edp,
+	.num_entries = ARRAY_SIZE(_skl_u_ddi_translations_edp),
+};
+
 /*
  * Skylake/Kabylake Y
  * eDP 1.4 low vswing translation parameters
  */
-static const union intel_ddi_buf_trans_entry skl_y_ddi_translations_edp[] = {
+static const union intel_ddi_buf_trans_entry _skl_y_ddi_translations_edp[] = {
 	{ .hsw = { 0x00000018, 0x000000A8, 0x0 } },
 	{ .hsw = { 0x00004013, 0x000000AB, 0x0 } },
 	{ .hsw = { 0x00007011, 0x000000A4, 0x0 } },
@@ -232,8 +307,13 @@ static const union intel_ddi_buf_trans_entry skl_y_ddi_translations_edp[] = {
 	{ .hsw = { 0x00000018, 0x0000008A, 0x0 } },
 };
 
+static const struct intel_ddi_buf_trans skl_y_ddi_translations_edp = {
+	.entries = _skl_y_ddi_translations_edp,
+	.num_entries = ARRAY_SIZE(_skl_y_ddi_translations_edp),
+};
+
 /* Skylake/Kabylake U, H and S */
-static const union intel_ddi_buf_trans_entry skl_ddi_translations_hdmi[] = {
+static const union intel_ddi_buf_trans_entry _skl_ddi_translations_hdmi[] = {
 	{ .hsw = { 0x00000018, 0x000000AC, 0x0 } },
 	{ .hsw = { 0x00005012, 0x0000009D, 0x0 } },
 	{ .hsw = { 0x00007011, 0x00000088, 0x0 } },
@@ -247,8 +327,13 @@ static const union intel_ddi_buf_trans_entry skl_ddi_translations_hdmi[] = {
 	{ .hsw = { 0x80000018, 0x000000C0, 0x1 } },
 };
 
+static const struct intel_ddi_buf_trans skl_ddi_translations_hdmi = {
+	.entries = _skl_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_skl_ddi_translations_hdmi),
+};
+
 /* Skylake/Kabylake Y */
-static const union intel_ddi_buf_trans_entry skl_y_ddi_translations_hdmi[] = {
+static const union intel_ddi_buf_trans_entry _skl_y_ddi_translations_hdmi[] = {
 	{ .hsw = { 0x00000018, 0x000000A1, 0x0 } },
 	{ .hsw = { 0x00005012, 0x000000DF, 0x0 } },
 	{ .hsw = { 0x80007011, 0x000000CB, 0x3 } },
@@ -262,7 +347,12 @@ static const union intel_ddi_buf_trans_entry skl_y_ddi_translations_hdmi[] = {
 	{ .hsw = { 0x80000018, 0x000000C0, 0x3 } },
 };
 
-static const union intel_ddi_buf_trans_entry bxt_ddi_translations_dp[] = {
+static const struct intel_ddi_buf_trans skl_y_ddi_translations_hdmi = {
+	.entries = _skl_y_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_skl_y_ddi_translations_hdmi),
+};
+
+static const union intel_ddi_buf_trans_entry _bxt_ddi_translations_dp[] = {
 						/* Idx	NT mV diff	db  */
 	{ .bxt = { 52,  0x9A, 0, 128, } },	/* 0:	400		0   */
 	{ .bxt = { 78,  0x9A, 0, 85,  } },	/* 1:	400		3.5 */
@@ -276,7 +366,12 @@ static const union intel_ddi_buf_trans_entry bxt_ddi_translations_dp[] = {
 	{ .bxt = { 154, 0x9A, 1, 128, } },	/* 9:	1200		0   */
 };
 
-static const union intel_ddi_buf_trans_entry bxt_ddi_translations_edp[] = {
+static const struct intel_ddi_buf_trans bxt_ddi_translations_dp = {
+	.entries = _bxt_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_bxt_ddi_translations_dp),
+};
+
+static const union intel_ddi_buf_trans_entry _bxt_ddi_translations_edp[] = {
 					/* Idx	NT mV diff	db  */
 	{ .bxt = { 26, 0, 0, 128, } },	/* 0:	200		0   */
 	{ .bxt = { 38, 0, 0, 112, } },	/* 1:	200		1.5 */
@@ -290,10 +385,15 @@ static const union intel_ddi_buf_trans_entry bxt_ddi_translations_edp[] = {
 	{ .bxt = { 48, 0, 0, 128, } },	/* 9:	300		0   */
 };
 
+static const struct intel_ddi_buf_trans bxt_ddi_translations_edp = {
+	.entries = _bxt_ddi_translations_edp,
+	.num_entries = ARRAY_SIZE(_bxt_ddi_translations_edp),
+};
+
 /* BSpec has 2 recommended values - entries 0 and 8.
  * Using the entry with higher vswing.
  */
-static const union intel_ddi_buf_trans_entry bxt_ddi_translations_hdmi[] = {
+static const union intel_ddi_buf_trans_entry _bxt_ddi_translations_hdmi[] = {
 						/* Idx	NT mV diff	db  */
 	{ .bxt = { 52,  0x9A, 0, 128, } },	/* 0:	400		0   */
 	{ .bxt = { 52,  0x9A, 0, 85,  } },	/* 1:	400		3.5 */
@@ -307,8 +407,13 @@ static const union intel_ddi_buf_trans_entry bxt_ddi_translations_hdmi[] = {
 	{ .bxt = { 154, 0x9A, 1, 128, } },	/* 9:	1200		0   */
 };
 
+static const struct intel_ddi_buf_trans bxt_ddi_translations_hdmi = {
+	.entries = _bxt_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_bxt_ddi_translations_hdmi),
+};
+
 /* Voltage Swing Programming for VccIO 0.85V for DP */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_dp_0_85V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_dp_0_85V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x5D, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x6A, 0x38, 0x00, 0x07 } },	/* 350   500      3.1   */
@@ -322,8 +427,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_dp_0_85V[] = {
 	{ .cnl = { 0x6, 0x7B, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_dp_0_85V = {
+	.entries = _cnl_ddi_translations_dp_0_85V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_dp_0_85V),
+};
+
 /* Voltage Swing Programming for VccIO 0.85V for HDMI */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_hdmi_0_85V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_hdmi_0_85V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x60, 0x3F, 0x00, 0x00 } },	/* 450   450      0.0   */
 	{ .cnl = { 0xB, 0x73, 0x36, 0x00, 0x09 } },	/* 450   650      3.2   */
@@ -334,8 +444,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_hdmi_0_85V[] =
 	{ .cnl = { 0x6, 0x7F, 0x35, 0x00, 0x0A } },	/* 600   850      3.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_hdmi_0_85V = {
+	.entries = _cnl_ddi_translations_hdmi_0_85V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_hdmi_0_85V),
+};
+
 /* Voltage Swing Programming for VccIO 0.85V for eDP */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_edp_0_85V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_edp_0_85V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x66, 0x3A, 0x00, 0x05 } },	/* 384   500      2.3   */
 	{ .cnl = { 0x0, 0x7F, 0x38, 0x00, 0x07 } },	/* 153   200      2.3   */
@@ -348,8 +463,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_edp_0_85V[] = 
 	{ .cnl = { 0x2, 0x7F, 0x3F, 0x00, 0x00 } },	/* 400   400      0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_edp_0_85V = {
+	.entries = _cnl_ddi_translations_edp_0_85V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_edp_0_85V),
+};
+
 /* Voltage Swing Programming for VccIO 0.95V for DP */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_dp_0_95V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_dp_0_95V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x5D, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x6A, 0x38, 0x00, 0x07 } },	/* 350   500      3.1   */
@@ -363,8 +483,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_dp_0_95V[] = {
 	{ .cnl = { 0x6, 0x7B, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_dp_0_95V = {
+	.entries = _cnl_ddi_translations_dp_0_95V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_dp_0_95V),
+};
+
 /* Voltage Swing Programming for VccIO 0.95V for HDMI */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_hdmi_0_95V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_hdmi_0_95V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x5C, 0x3F, 0x00, 0x00 } },	/* 400   400      0.0   */
 	{ .cnl = { 0xB, 0x69, 0x37, 0x00, 0x08 } },	/* 400   600      3.5   */
@@ -379,8 +504,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_hdmi_0_95V[] =
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 1050  1050     0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_hdmi_0_95V = {
+	.entries = _cnl_ddi_translations_hdmi_0_95V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_hdmi_0_95V),
+};
+
 /* Voltage Swing Programming for VccIO 0.95V for eDP */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_edp_0_95V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_edp_0_95V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x61, 0x3A, 0x00, 0x05 } },	/* 384   500      2.3   */
 	{ .cnl = { 0x0, 0x7F, 0x38, 0x00, 0x07 } },	/* 153   200      2.3   */
@@ -394,8 +524,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_edp_0_95V[] = 
 	{ .cnl = { 0x2, 0x7F, 0x3F, 0x00, 0x00 } },	/* 400   400      0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_edp_0_95V = {
+	.entries = _cnl_ddi_translations_edp_0_95V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_edp_0_95V),
+};
+
 /* Voltage Swing Programming for VccIO 1.05V for DP */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_dp_1_05V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_dp_1_05V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x58, 0x3F, 0x00, 0x00 } },	/* 400   400      0.0   */
 	{ .cnl = { 0xB, 0x64, 0x37, 0x00, 0x08 } },	/* 400   600      3.5   */
@@ -409,8 +544,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_dp_1_05V[] = {
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 1050  1050     0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_dp_1_05V = {
+	.entries = _cnl_ddi_translations_dp_1_05V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_dp_1_05V),
+};
+
 /* Voltage Swing Programming for VccIO 1.05V for HDMI */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_hdmi_1_05V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_hdmi_1_05V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x58, 0x3F, 0x00, 0x00 } },	/* 400   400      0.0   */
 	{ .cnl = { 0xB, 0x64, 0x37, 0x00, 0x08 } },	/* 400   600      3.5   */
@@ -425,8 +565,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_hdmi_1_05V[] =
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 1050  1050     0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_hdmi_1_05V = {
+	.entries = _cnl_ddi_translations_hdmi_1_05V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_hdmi_1_05V),
+};
+
 /* Voltage Swing Programming for VccIO 1.05V for eDP */
-static const union intel_ddi_buf_trans_entry cnl_ddi_translations_edp_1_05V[] = {
+static const union intel_ddi_buf_trans_entry _cnl_ddi_translations_edp_1_05V[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x5E, 0x3A, 0x00, 0x05 } },	/* 384   500      2.3   */
 	{ .cnl = { 0x0, 0x7F, 0x38, 0x00, 0x07 } },	/* 153   200      2.3   */
@@ -439,8 +584,13 @@ static const union intel_ddi_buf_trans_entry cnl_ddi_translations_edp_1_05V[] = 
 	{ .cnl = { 0x2, 0x7F, 0x3F, 0x00, 0x00 } },	/* 400   400      0.0   */
 };
 
+static const struct intel_ddi_buf_trans cnl_ddi_translations_edp_1_05V = {
+	.entries = _cnl_ddi_translations_edp_1_05V,
+	.num_entries = ARRAY_SIZE(_cnl_ddi_translations_edp_1_05V),
+};
+
 /* icl_combo_phy_ddi_translations */
-static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_dp_hbr2[] = {
+static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_dp_hbr2[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
@@ -454,7 +604,12 @@ static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_dp_h
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_edp_hbr2[] = {
+static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hbr2 = {
+	.entries = _icl_combo_phy_ddi_translations_dp_hbr2,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_dp_hbr2),
+};
+
+static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_edp_hbr2[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0x0, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   200      0.0   */
 	{ .cnl = { 0x8, 0x7F, 0x38, 0x00, 0x07 } },	/* 200   250      1.9   */
@@ -468,7 +623,12 @@ static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_edp_
 	{ .cnl = { 0x9, 0x7F, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_edp_hbr3[] = {
+static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_edp_hbr2 = {
+	.entries = _icl_combo_phy_ddi_translations_edp_hbr2,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_edp_hbr2),
+};
+
+static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_edp_hbr3[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
@@ -482,7 +642,12 @@ static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_edp_
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_hdmi[] = {
+static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_edp_hbr3 = {
+	.entries = _icl_combo_phy_ddi_translations_edp_hbr3,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_edp_hbr3),
+};
+
+static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_hdmi[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x60, 0x3F, 0x00, 0x00 } },	/* 450   450      0.0   */
 	{ .cnl = { 0xB, 0x73, 0x36, 0x00, 0x09 } },	/* 450   650      3.2   */
@@ -493,7 +658,12 @@ static const union intel_ddi_buf_trans_entry icl_combo_phy_ddi_translations_hdmi
 	{ .cnl = { 0x6, 0x7F, 0x35, 0x00, 0x0A } },	/* 600   850      3.0   */
 };
 
-static const union intel_ddi_buf_trans_entry ehl_combo_phy_ddi_translations_dp[] = {
+static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_hdmi = {
+	.entries = _icl_combo_phy_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_hdmi),
+};
+
+static const union intel_ddi_buf_trans_entry _ehl_combo_phy_ddi_translations_dp[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x33, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x47, 0x36, 0x00, 0x09 } },	/* 350   500      3.1   */
@@ -507,7 +677,12 @@ static const union intel_ddi_buf_trans_entry ehl_combo_phy_ddi_translations_dp[]
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry jsl_combo_phy_ddi_translations_edp_hbr[] = {
+static const struct intel_ddi_buf_trans ehl_combo_phy_ddi_translations_dp = {
+	.entries = _ehl_combo_phy_ddi_translations_dp,
+	.num_entries = ARRAY_SIZE(_ehl_combo_phy_ddi_translations_dp),
+};
+
+static const union intel_ddi_buf_trans_entry _jsl_combo_phy_ddi_translations_edp_hbr[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   200      0.0   */
 	{ .cnl = { 0x8, 0x7F, 0x38, 0x00, 0x07 } },	/* 200   250      1.9   */
@@ -521,7 +696,12 @@ static const union intel_ddi_buf_trans_entry jsl_combo_phy_ddi_translations_edp_
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry jsl_combo_phy_ddi_translations_edp_hbr2[] = {
+static const struct intel_ddi_buf_trans jsl_combo_phy_ddi_translations_edp_hbr = {
+	.entries = _jsl_combo_phy_ddi_translations_edp_hbr,
+	.num_entries = ARRAY_SIZE(_jsl_combo_phy_ddi_translations_edp_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _jsl_combo_phy_ddi_translations_edp_hbr2[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   200      0.0   */
 	{ .cnl = { 0x8, 0x7F, 0x3F, 0x00, 0x00 } },	/* 200   250      1.9   */
@@ -535,7 +715,12 @@ static const union intel_ddi_buf_trans_entry jsl_combo_phy_ddi_translations_edp_
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry dg1_combo_phy_ddi_translations_dp_rbr_hbr[] = {
+static const struct intel_ddi_buf_trans jsl_combo_phy_ddi_translations_edp_hbr2 = {
+	.entries = _jsl_combo_phy_ddi_translations_edp_hbr2,
+	.num_entries = ARRAY_SIZE(_jsl_combo_phy_ddi_translations_edp_hbr2),
+};
+
+static const union intel_ddi_buf_trans_entry _dg1_combo_phy_ddi_translations_dp_rbr_hbr[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x32, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x48, 0x35, 0x00, 0x0A } },	/* 350   500      3.1   */
@@ -549,7 +734,12 @@ static const union intel_ddi_buf_trans_entry dg1_combo_phy_ddi_translations_dp_r
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry dg1_combo_phy_ddi_translations_dp_hbr2_hbr3[] = {
+static const struct intel_ddi_buf_trans dg1_combo_phy_ddi_translations_dp_rbr_hbr = {
+	.entries = _dg1_combo_phy_ddi_translations_dp_rbr_hbr,
+	.num_entries = ARRAY_SIZE(_dg1_combo_phy_ddi_translations_dp_rbr_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _dg1_combo_phy_ddi_translations_dp_hbr2_hbr3[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x32, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x48, 0x35, 0x00, 0x0A } },	/* 350   500      3.1   */
@@ -563,7 +753,12 @@ static const union intel_ddi_buf_trans_entry dg1_combo_phy_ddi_translations_dp_h
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry icl_mg_phy_ddi_translations_rbr_hbr[] = {
+static const struct intel_ddi_buf_trans dg1_combo_phy_ddi_translations_dp_hbr2_hbr3 = {
+	.entries = _dg1_combo_phy_ddi_translations_dp_hbr2_hbr3,
+	.num_entries = ARRAY_SIZE(_dg1_combo_phy_ddi_translations_dp_hbr2_hbr3),
+};
+
+static const union intel_ddi_buf_trans_entry _icl_mg_phy_ddi_translations_rbr_hbr[] = {
 					/* Voltage swing  pre-emphasis */
 	{ .mg = { 0x18, 0x00, 0x00 } },	/* 0              0   */
 	{ .mg = { 0x1D, 0x00, 0x05 } },	/* 0              1   */
@@ -577,7 +772,12 @@ static const union intel_ddi_buf_trans_entry icl_mg_phy_ddi_translations_rbr_hbr
 	{ .mg = { 0x3F, 0x00, 0x00 } },	/* 3              0   */
 };
 
-static const union intel_ddi_buf_trans_entry icl_mg_phy_ddi_translations_hbr2_hbr3[] = {
+static const struct intel_ddi_buf_trans icl_mg_phy_ddi_translations_rbr_hbr = {
+	.entries = _icl_mg_phy_ddi_translations_rbr_hbr,
+	.num_entries = ARRAY_SIZE(_icl_mg_phy_ddi_translations_rbr_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _icl_mg_phy_ddi_translations_hbr2_hbr3[] = {
 					/* Voltage swing  pre-emphasis */
 	{ .mg = { 0x18, 0x00, 0x00 } },	/* 0              0   */
 	{ .mg = { 0x1D, 0x00, 0x05 } },	/* 0              1   */
@@ -591,7 +791,12 @@ static const union intel_ddi_buf_trans_entry icl_mg_phy_ddi_translations_hbr2_hb
 	{ .mg = { 0x3F, 0x00, 0x00 } },	/* 3              0   */
 };
 
-static const union intel_ddi_buf_trans_entry icl_mg_phy_ddi_translations_hdmi[] = {
+static const struct intel_ddi_buf_trans icl_mg_phy_ddi_translations_hbr2_hbr3 = {
+	.entries = _icl_mg_phy_ddi_translations_hbr2_hbr3,
+	.num_entries = ARRAY_SIZE(_icl_mg_phy_ddi_translations_hbr2_hbr3),
+};
+
+static const union intel_ddi_buf_trans_entry _icl_mg_phy_ddi_translations_hdmi[] = {
 					/* HDMI Preset	VS	Pre-emph */
 	{ .mg = { 0x1A, 0x0, 0x0 } },	/* 1		400mV	0dB */
 	{ .mg = { 0x20, 0x0, 0x0 } },	/* 2		500mV	0dB */
@@ -605,7 +810,12 @@ static const union intel_ddi_buf_trans_entry icl_mg_phy_ddi_translations_hdmi[] 
 	{ .mg = { 0x36, 0x0, 0x9 } },	/* 10		Full	-3 dB */
 };
 
-static const union intel_ddi_buf_trans_entry tgl_dkl_phy_ddi_translations_dp_hbr[] = {
+static const struct intel_ddi_buf_trans icl_mg_phy_ddi_translations_hdmi = {
+	.entries = _icl_mg_phy_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_icl_mg_phy_ddi_translations_hdmi),
+};
+
+static const union intel_ddi_buf_trans_entry _tgl_dkl_phy_ddi_translations_dp_hbr[] = {
 					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x00 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x05 } },	/* 0	1	400mV		3.5 dB */
@@ -619,7 +829,12 @@ static const union intel_ddi_buf_trans_entry tgl_dkl_phy_ddi_translations_dp_hbr
 	{ .dkl = { 0x0, 0x0, 0x00 } },	/* 3	0	1200mV		0 dB HDMI default */
 };
 
-static const union intel_ddi_buf_trans_entry tgl_dkl_phy_ddi_translations_dp_hbr2[] = {
+static const struct intel_ddi_buf_trans tgl_dkl_phy_ddi_translations_dp_hbr = {
+	.entries = _tgl_dkl_phy_ddi_translations_dp_hbr,
+	.num_entries = ARRAY_SIZE(_tgl_dkl_phy_ddi_translations_dp_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _tgl_dkl_phy_ddi_translations_dp_hbr2[] = {
 					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x00 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x05 } },	/* 0	1	400mV		3.5 dB */
@@ -633,7 +848,12 @@ static const union intel_ddi_buf_trans_entry tgl_dkl_phy_ddi_translations_dp_hbr
 	{ .dkl = { 0x0, 0x0, 0x00 } },	/* 3	0	1200mV		0 dB HDMI default */
 };
 
-static const union intel_ddi_buf_trans_entry tgl_dkl_phy_ddi_translations_hdmi[] = {
+static const struct intel_ddi_buf_trans tgl_dkl_phy_ddi_translations_dp_hbr2 = {
+	.entries = _tgl_dkl_phy_ddi_translations_dp_hbr2,
+	.num_entries = ARRAY_SIZE(_tgl_dkl_phy_ddi_translations_dp_hbr2),
+};
+
+static const union intel_ddi_buf_trans_entry _tgl_dkl_phy_ddi_translations_hdmi[] = {
 					/* HDMI Preset	VS	Pre-emph */
 	{ .dkl = { 0x7, 0x0, 0x0 } },	/* 1		400mV	0dB */
 	{ .dkl = { 0x6, 0x0, 0x0 } },	/* 2		500mV	0dB */
@@ -647,7 +867,12 @@ static const union intel_ddi_buf_trans_entry tgl_dkl_phy_ddi_translations_hdmi[]
 	{ .dkl = { 0x0, 0x0, 0xA } },	/* 10		Full	-3 dB */
 };
 
-static const union intel_ddi_buf_trans_entry tgl_combo_phy_ddi_translations_dp_hbr[] = {
+static const struct intel_ddi_buf_trans tgl_dkl_phy_ddi_translations_hdmi = {
+	.entries = _tgl_dkl_phy_ddi_translations_hdmi,
+	.num_entries = ARRAY_SIZE(_tgl_dkl_phy_ddi_translations_hdmi),
+};
+
+static const union intel_ddi_buf_trans_entry _tgl_combo_phy_ddi_translations_dp_hbr[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x32, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
@@ -661,7 +886,12 @@ static const union intel_ddi_buf_trans_entry tgl_combo_phy_ddi_translations_dp_h
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry tgl_combo_phy_ddi_translations_dp_hbr2[] = {
+static const struct intel_ddi_buf_trans tgl_combo_phy_ddi_translations_dp_hbr = {
+	.entries = _tgl_combo_phy_ddi_translations_dp_hbr,
+	.num_entries = ARRAY_SIZE(_tgl_combo_phy_ddi_translations_dp_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _tgl_combo_phy_ddi_translations_dp_hbr2[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
@@ -675,7 +905,12 @@ static const union intel_ddi_buf_trans_entry tgl_combo_phy_ddi_translations_dp_h
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry tgl_uy_combo_phy_ddi_translations_dp_hbr2[] = {
+static const struct intel_ddi_buf_trans tgl_combo_phy_ddi_translations_dp_hbr2 = {
+	.entries = _tgl_combo_phy_ddi_translations_dp_hbr2,
+	.num_entries = ARRAY_SIZE(_tgl_combo_phy_ddi_translations_dp_hbr2),
+};
+
+static const union intel_ddi_buf_trans_entry _tgl_uy_combo_phy_ddi_translations_dp_hbr2[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x36, 0x00, 0x09 } },	/* 350   500      3.1   */
@@ -689,11 +924,16 @@ static const union intel_ddi_buf_trans_entry tgl_uy_combo_phy_ddi_translations_d
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
+static const struct intel_ddi_buf_trans tgl_uy_combo_phy_ddi_translations_dp_hbr2 = {
+	.entries = _tgl_uy_combo_phy_ddi_translations_dp_hbr2,
+	.num_entries = ARRAY_SIZE(_tgl_uy_combo_phy_ddi_translations_dp_hbr2),
+};
+
 /*
  * Cloned the HOBL entry to comply with the voltage and pre-emphasis entries
  * that DisplayPort specification requires
  */
-static const union intel_ddi_buf_trans_entry tgl_combo_phy_ddi_translations_edp_hbr2_hobl[] = {
+static const union intel_ddi_buf_trans_entry _tgl_combo_phy_ddi_translations_edp_hbr2_hobl[] = {
 							/* VS	pre-emp	*/
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 0	0	*/
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 0	1	*/
@@ -706,7 +946,12 @@ static const union intel_ddi_buf_trans_entry tgl_combo_phy_ddi_translations_edp_
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 2	1	*/
 };
 
-static const union intel_ddi_buf_trans_entry rkl_combo_phy_ddi_translations_dp_hbr[] = {
+static const struct intel_ddi_buf_trans tgl_combo_phy_ddi_translations_edp_hbr2_hobl = {
+	.entries = _tgl_combo_phy_ddi_translations_edp_hbr2_hobl,
+	.num_entries = ARRAY_SIZE(_tgl_combo_phy_ddi_translations_edp_hbr2_hobl),
+};
+
+static const union intel_ddi_buf_trans_entry _rkl_combo_phy_ddi_translations_dp_hbr[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x2F, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
@@ -720,7 +965,12 @@ static const union intel_ddi_buf_trans_entry rkl_combo_phy_ddi_translations_dp_h
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry rkl_combo_phy_ddi_translations_dp_hbr2_hbr3[] = {
+static const struct intel_ddi_buf_trans rkl_combo_phy_ddi_translations_dp_hbr = {
+	.entries = _rkl_combo_phy_ddi_translations_dp_hbr,
+	.num_entries = ARRAY_SIZE(_rkl_combo_phy_ddi_translations_dp_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _rkl_combo_phy_ddi_translations_dp_hbr2_hbr3[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x50, 0x38, 0x00, 0x07 } },	/* 350   500      3.1   */
@@ -734,7 +984,12 @@ static const union intel_ddi_buf_trans_entry rkl_combo_phy_ddi_translations_dp_h
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const union intel_ddi_buf_trans_entry adlp_dkl_phy_ddi_translations_dp_hbr[] = {
+static const struct intel_ddi_buf_trans rkl_combo_phy_ddi_translations_dp_hbr2_hbr3 = {
+	.entries = _rkl_combo_phy_ddi_translations_dp_hbr2_hbr3,
+	.num_entries = ARRAY_SIZE(_rkl_combo_phy_ddi_translations_dp_hbr2_hbr3),
+};
+
+static const union intel_ddi_buf_trans_entry _adlp_dkl_phy_ddi_translations_dp_hbr[] = {
 					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x01 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x06 } },	/* 0	1	400mV		3.5 dB */
@@ -748,7 +1003,12 @@ static const union intel_ddi_buf_trans_entry adlp_dkl_phy_ddi_translations_dp_hb
 	{ .dkl = { 0x0, 0x0, 0x00 } },	/* 3	0	1200mV		0 dB */
 };
 
-static const union intel_ddi_buf_trans_entry adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3[] = {
+static const struct intel_ddi_buf_trans adlp_dkl_phy_ddi_translations_dp_hbr = {
+	.entries = _adlp_dkl_phy_ddi_translations_dp_hbr,
+	.num_entries = ARRAY_SIZE(_adlp_dkl_phy_ddi_translations_dp_hbr),
+};
+
+static const union intel_ddi_buf_trans_entry _adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3[] = {
 					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x00 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x04 } },	/* 0	1	400mV		3.5 dB */
@@ -762,9 +1022,14 @@ static const union intel_ddi_buf_trans_entry adlp_dkl_phy_ddi_translations_dp_hb
 	{ .dkl = { 0x0, 0x0, 0x00 } },	/* 3	0	1200mV		0 dB */
 };
 
+static const struct intel_ddi_buf_trans adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3 = {
+	.entries = _adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3,
+	.num_entries = ARRAY_SIZE(_adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3),
+};
+
 bool is_hobl_buf_trans(const union intel_ddi_buf_trans_entry *table)
 {
-	return table == tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
+	return table == tgl_combo_phy_ddi_translations_edp_hbr2_hobl.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -773,11 +1038,11 @@ bdw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (dev_priv->vbt.edp.low_vswing) {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
-		return bdw_ddi_translations_edp;
+		*n_entries = bdw_ddi_translations_edp.num_entries;
+		return bdw_ddi_translations_edp.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
-		return bdw_ddi_translations_dp;
+		*n_entries = bdw_ddi_translations_dp.num_entries;
+		return bdw_ddi_translations_dp.entries;
 	}
 }
 
@@ -787,14 +1052,14 @@ skl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (IS_SKL_ULX(dev_priv)) {
-		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-		return skl_y_ddi_translations_dp;
+		*n_entries = skl_y_ddi_translations_dp.num_entries;
+		return skl_y_ddi_translations_dp.entries;
 	} else if (IS_SKL_ULT(dev_priv)) {
-		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
-		return skl_u_ddi_translations_dp;
+		*n_entries = skl_u_ddi_translations_dp.num_entries;
+		return skl_u_ddi_translations_dp.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-		return skl_ddi_translations_dp;
+		*n_entries = skl_ddi_translations_dp.num_entries;
+		return skl_ddi_translations_dp.entries;
 	}
 }
 
@@ -806,16 +1071,16 @@ kbl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	if (IS_KBL_ULX(dev_priv) ||
 	    IS_CFL_ULX(dev_priv) ||
 	    IS_CML_ULX(dev_priv)) {
-		*n_entries = ARRAY_SIZE(kbl_y_ddi_translations_dp);
-		return kbl_y_ddi_translations_dp;
+		*n_entries = kbl_y_ddi_translations_dp.num_entries;
+		return kbl_y_ddi_translations_dp.entries;
 	} else if (IS_KBL_ULT(dev_priv) ||
 		   IS_CFL_ULT(dev_priv) ||
 		   IS_CML_ULT(dev_priv)) {
-		*n_entries = ARRAY_SIZE(kbl_u_ddi_translations_dp);
-		return kbl_u_ddi_translations_dp;
+		*n_entries = kbl_u_ddi_translations_dp.num_entries;
+		return kbl_u_ddi_translations_dp.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(kbl_ddi_translations_dp);
-		return kbl_ddi_translations_dp;
+		*n_entries = kbl_ddi_translations_dp.num_entries;
+		return kbl_ddi_translations_dp.entries;
 	}
 }
 
@@ -829,17 +1094,17 @@ skl_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 		    IS_KBL_ULX(dev_priv) ||
 		    IS_CFL_ULX(dev_priv) ||
 		    IS_CML_ULX(dev_priv)) {
-			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
-			return skl_y_ddi_translations_edp;
+			*n_entries = skl_y_ddi_translations_edp.num_entries;
+			return skl_y_ddi_translations_edp.entries;
 		} else if (IS_SKL_ULT(dev_priv) ||
 			   IS_KBL_ULT(dev_priv) ||
 			   IS_CFL_ULT(dev_priv) ||
 			   IS_CML_ULT(dev_priv)) {
-			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
-			return skl_u_ddi_translations_edp;
+			*n_entries = skl_u_ddi_translations_edp.num_entries;
+			return skl_u_ddi_translations_edp.entries;
 		} else {
-			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
-			return skl_ddi_translations_edp;
+			*n_entries = skl_ddi_translations_edp.num_entries;
+			return skl_ddi_translations_edp.entries;
 		}
 	}
 
@@ -858,11 +1123,11 @@ skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 	    IS_KBL_ULX(dev_priv) ||
 	    IS_CFL_ULX(dev_priv) ||
 	    IS_CML_ULX(dev_priv)) {
-		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
-		return skl_y_ddi_translations_hdmi;
+		*n_entries = skl_y_ddi_translations_hdmi.num_entries;
+		return skl_y_ddi_translations_hdmi.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
-		return skl_ddi_translations_hdmi;
+		*n_entries = skl_ddi_translations_hdmi.num_entries;
+		return skl_ddi_translations_hdmi.entries;
 	}
 }
 
@@ -893,11 +1158,11 @@ hsw_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 		*n_entries = skl_buf_trans_num_entries(encoder->port, *n_entries);
 		return ddi_translations;
 	} else if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
-		return  bdw_ddi_translations_dp;
+		*n_entries = bdw_ddi_translations_dp.num_entries;
+		return  bdw_ddi_translations_dp.entries;
 	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
-		return hsw_ddi_translations_dp;
+		*n_entries = hsw_ddi_translations_dp.num_entries;
+		return hsw_ddi_translations_dp.entries;
 	}
 
 	*n_entries = 0;
@@ -917,8 +1182,8 @@ hsw_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 	} else if (IS_BROADWELL(dev_priv)) {
 		return bdw_get_buf_trans_edp(encoder, n_entries);
 	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
-		return hsw_ddi_translations_dp;
+		*n_entries = hsw_ddi_translations_dp.num_entries;
+		return hsw_ddi_translations_dp.entries;
 	}
 
 	*n_entries = 0;
@@ -932,11 +1197,11 @@ hsw_get_buf_trans_fdi(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
-		return bdw_ddi_translations_fdi;
+		*n_entries = bdw_ddi_translations_fdi.num_entries;
+		return bdw_ddi_translations_fdi.entries;
 	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
-		return hsw_ddi_translations_fdi;
+		*n_entries = hsw_ddi_translations_fdi.num_entries;
+		return hsw_ddi_translations_fdi.entries;
 	}
 
 	*n_entries = 0;
@@ -952,11 +1217,11 @@ hsw_get_buf_trans_hdmi(struct intel_encoder *encoder,
 	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
 		return skl_get_buf_trans_hdmi(dev_priv, n_entries);
 	} else if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
-		return bdw_ddi_translations_hdmi;
+		*n_entries = bdw_ddi_translations_hdmi.num_entries;
+		return bdw_ddi_translations_hdmi.entries;
 	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
-		return hsw_ddi_translations_hdmi;
+		*n_entries = hsw_ddi_translations_hdmi.num_entries;
+		return hsw_ddi_translations_hdmi.entries;
 	}
 
 	*n_entries = 0;
@@ -981,8 +1246,8 @@ hsw_get_buf_trans(struct intel_encoder *encoder,
 static const union intel_ddi_buf_trans_entry *
 bxt_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(bxt_ddi_translations_dp);
-	return bxt_ddi_translations_dp;
+	*n_entries = bxt_ddi_translations_dp.num_entries;
+	return bxt_ddi_translations_dp.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -991,8 +1256,8 @@ bxt_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (dev_priv->vbt.edp.low_vswing) {
-		*n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
-		return bxt_ddi_translations_edp;
+		*n_entries = bxt_ddi_translations_edp.num_entries;
+		return bxt_ddi_translations_edp.entries;
 	}
 
 	return bxt_get_buf_trans_dp(encoder, n_entries);
@@ -1001,8 +1266,8 @@ bxt_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 static const union intel_ddi_buf_trans_entry *
 bxt_get_buf_trans_hdmi(struct intel_encoder *encoder, int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(bxt_ddi_translations_hdmi);
-	return bxt_ddi_translations_hdmi;
+	*n_entries = bxt_ddi_translations_hdmi.num_entries;
+	return bxt_ddi_translations_hdmi.entries;
 }
 
 const union intel_ddi_buf_trans_entry *
@@ -1024,14 +1289,14 @@ cnl_get_buf_trans_hdmi(struct intel_encoder *encoder, int *n_entries)
 	u32 voltage = intel_de_read(dev_priv, CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
 
 	if (voltage == VOLTAGE_INFO_0_85V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_85V);
-		return cnl_ddi_translations_hdmi_0_85V;
+		*n_entries = cnl_ddi_translations_hdmi_0_85V.num_entries;
+		return cnl_ddi_translations_hdmi_0_85V.entries;
 	} else if (voltage == VOLTAGE_INFO_0_95V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_95V);
-		return cnl_ddi_translations_hdmi_0_95V;
+		*n_entries = cnl_ddi_translations_hdmi_0_95V.num_entries;
+		return cnl_ddi_translations_hdmi_0_95V.entries;
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
-		return cnl_ddi_translations_hdmi_1_05V;
+		*n_entries = cnl_ddi_translations_hdmi_1_05V.num_entries;
+		return cnl_ddi_translations_hdmi_1_05V.entries;
 	} else {
 		*n_entries = 1; /* shut up gcc */
 		MISSING_CASE(voltage);
@@ -1046,14 +1311,14 @@ cnl_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries)
 	u32 voltage = intel_de_read(dev_priv, CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
 
 	if (voltage == VOLTAGE_INFO_0_85V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_85V);
-		return cnl_ddi_translations_dp_0_85V;
+		*n_entries = cnl_ddi_translations_dp_0_85V.num_entries;
+		return cnl_ddi_translations_dp_0_85V.entries;
 	} else if (voltage == VOLTAGE_INFO_0_95V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_95V);
-		return cnl_ddi_translations_dp_0_95V;
+		*n_entries = cnl_ddi_translations_dp_0_95V.num_entries;
+		return cnl_ddi_translations_dp_0_95V.entries;
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
-		return cnl_ddi_translations_dp_1_05V;
+		*n_entries = cnl_ddi_translations_dp_1_05V.num_entries;
+		return cnl_ddi_translations_dp_1_05V.entries;
 	} else {
 		*n_entries = 1; /* shut up gcc */
 		MISSING_CASE(voltage);
@@ -1069,14 +1334,14 @@ cnl_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 
 	if (dev_priv->vbt.edp.low_vswing) {
 		if (voltage == VOLTAGE_INFO_0_85V) {
-			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_85V);
-			return cnl_ddi_translations_edp_0_85V;
+			*n_entries = cnl_ddi_translations_edp_0_85V.num_entries;
+			return cnl_ddi_translations_edp_0_85V.entries;
 		} else if (voltage == VOLTAGE_INFO_0_95V) {
-			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_95V);
-			return cnl_ddi_translations_edp_0_95V;
+			*n_entries = cnl_ddi_translations_edp_0_95V.num_entries;
+			return cnl_ddi_translations_edp_0_95V.entries;
 		} else if (voltage == VOLTAGE_INFO_1_05V) {
-			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
-			return cnl_ddi_translations_edp_1_05V;
+			*n_entries = cnl_ddi_translations_edp_1_05V.num_entries;
+			return cnl_ddi_translations_edp_1_05V.entries;
 		} else {
 			*n_entries = 1; /* shut up gcc */
 			MISSING_CASE(voltage);
@@ -1104,8 +1369,8 @@ icl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
-	return icl_combo_phy_ddi_translations_hdmi;
+	*n_entries = icl_combo_phy_ddi_translations_hdmi.num_entries;
+	return icl_combo_phy_ddi_translations_hdmi.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1113,8 +1378,8 @@ icl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hbr2);
-	return icl_combo_phy_ddi_translations_dp_hbr2;
+	*n_entries = icl_combo_phy_ddi_translations_dp_hbr2.num_entries;
+	return icl_combo_phy_ddi_translations_dp_hbr2.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1125,17 +1390,17 @@ icl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (crtc_state->port_clock > 540000) {
-		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr3);
-		return icl_combo_phy_ddi_translations_edp_hbr3;
+		*n_entries = icl_combo_phy_ddi_translations_edp_hbr3.num_entries;
+		return icl_combo_phy_ddi_translations_edp_hbr3.entries;
 	} else if (dev_priv->vbt.edp.low_vswing) {
-		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
-		return icl_combo_phy_ddi_translations_edp_hbr2;
+		*n_entries = icl_combo_phy_ddi_translations_edp_hbr2.num_entries;
+		return icl_combo_phy_ddi_translations_edp_hbr2.entries;
 	} else if (IS_DG1(dev_priv) && crtc_state->port_clock > 270000) {
-		*n_entries = ARRAY_SIZE(dg1_combo_phy_ddi_translations_dp_hbr2_hbr3);
-		return dg1_combo_phy_ddi_translations_dp_hbr2_hbr3;
+		*n_entries = dg1_combo_phy_ddi_translations_dp_hbr2_hbr3.num_entries;
+		return dg1_combo_phy_ddi_translations_dp_hbr2_hbr3.entries;
 	} else if (IS_DG1(dev_priv)) {
-		*n_entries = ARRAY_SIZE(dg1_combo_phy_ddi_translations_dp_rbr_hbr);
-		return dg1_combo_phy_ddi_translations_dp_rbr_hbr;
+		*n_entries = dg1_combo_phy_ddi_translations_dp_rbr_hbr.num_entries;
+		return dg1_combo_phy_ddi_translations_dp_rbr_hbr.entries;
 	}
 
 	return icl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
@@ -1159,8 +1424,8 @@ icl_get_mg_buf_trans_hdmi(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *crtc_state,
 			  int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations_hdmi);
-	return icl_mg_phy_ddi_translations_hdmi;
+	*n_entries = icl_mg_phy_ddi_translations_hdmi.num_entries;
+	return icl_mg_phy_ddi_translations_hdmi.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1169,11 +1434,11 @@ icl_get_mg_buf_trans_dp(struct intel_encoder *encoder,
 			int *n_entries)
 {
 	if (crtc_state->port_clock > 270000) {
-		*n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations_hbr2_hbr3);
-		return icl_mg_phy_ddi_translations_hbr2_hbr3;
+		*n_entries = icl_mg_phy_ddi_translations_hbr2_hbr3.num_entries;
+		return icl_mg_phy_ddi_translations_hbr2_hbr3.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations_rbr_hbr);
-		return icl_mg_phy_ddi_translations_rbr_hbr;
+		*n_entries = icl_mg_phy_ddi_translations_rbr_hbr.num_entries;
+		return icl_mg_phy_ddi_translations_rbr_hbr.entries;
 	}
 }
 
@@ -1193,8 +1458,8 @@ ehl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
-	return icl_combo_phy_ddi_translations_hdmi;
+	*n_entries = icl_combo_phy_ddi_translations_hdmi.num_entries;
+	return icl_combo_phy_ddi_translations_hdmi.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1202,8 +1467,8 @@ ehl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(ehl_combo_phy_ddi_translations_dp);
-	return ehl_combo_phy_ddi_translations_dp;
+	*n_entries = ehl_combo_phy_ddi_translations_dp.num_entries;
+	return ehl_combo_phy_ddi_translations_dp.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1214,8 +1479,8 @@ ehl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (dev_priv->vbt.edp.low_vswing) {
-		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
-		return icl_combo_phy_ddi_translations_edp_hbr2;
+		*n_entries = icl_combo_phy_ddi_translations_edp_hbr2.num_entries;
+		return icl_combo_phy_ddi_translations_edp_hbr2.entries;
 	}
 
 	return ehl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
@@ -1239,8 +1504,8 @@ jsl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
-	return icl_combo_phy_ddi_translations_hdmi;
+	*n_entries = icl_combo_phy_ddi_translations_hdmi.num_entries;
+	return icl_combo_phy_ddi_translations_hdmi.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1248,8 +1513,8 @@ jsl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hbr2);
-	return icl_combo_phy_ddi_translations_dp_hbr2;
+	*n_entries = icl_combo_phy_ddi_translations_dp_hbr2.num_entries;
+	return icl_combo_phy_ddi_translations_dp_hbr2.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1261,11 +1526,11 @@ jsl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 
 	if (dev_priv->vbt.edp.low_vswing) {
 		if (crtc_state->port_clock > 270000) {
-			*n_entries = ARRAY_SIZE(jsl_combo_phy_ddi_translations_edp_hbr2);
-			return jsl_combo_phy_ddi_translations_edp_hbr2;
+			*n_entries = jsl_combo_phy_ddi_translations_edp_hbr2.num_entries;
+			return jsl_combo_phy_ddi_translations_edp_hbr2.entries;
 		} else {
-			*n_entries = ARRAY_SIZE(jsl_combo_phy_ddi_translations_edp_hbr);
-			return jsl_combo_phy_ddi_translations_edp_hbr;
+			*n_entries = jsl_combo_phy_ddi_translations_edp_hbr.num_entries;
+			return jsl_combo_phy_ddi_translations_edp_hbr.entries;
 		}
 	}
 
@@ -1290,8 +1555,8 @@ tgl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
 			     int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
-	return icl_combo_phy_ddi_translations_hdmi;
+	*n_entries = icl_combo_phy_ddi_translations_hdmi.num_entries;
+	return icl_combo_phy_ddi_translations_hdmi.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1303,22 +1568,22 @@ tgl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 
 	if (crtc_state->port_clock > 270000) {
 		if (IS_ROCKETLAKE(dev_priv)) {
-			*n_entries = ARRAY_SIZE(rkl_combo_phy_ddi_translations_dp_hbr2_hbr3);
-			return rkl_combo_phy_ddi_translations_dp_hbr2_hbr3;
+			*n_entries = rkl_combo_phy_ddi_translations_dp_hbr2_hbr3.num_entries;
+			return rkl_combo_phy_ddi_translations_dp_hbr2_hbr3.entries;
 		} else if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
-			*n_entries = ARRAY_SIZE(tgl_uy_combo_phy_ddi_translations_dp_hbr2);
-			return tgl_uy_combo_phy_ddi_translations_dp_hbr2;
+			*n_entries = tgl_uy_combo_phy_ddi_translations_dp_hbr2.num_entries;
+			return tgl_uy_combo_phy_ddi_translations_dp_hbr2.entries;
 		} else {
-			*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_dp_hbr2);
-			return tgl_combo_phy_ddi_translations_dp_hbr2;
+			*n_entries = tgl_combo_phy_ddi_translations_dp_hbr2.num_entries;
+			return tgl_combo_phy_ddi_translations_dp_hbr2.entries;
 		}
 	} else {
 		if (IS_ROCKETLAKE(dev_priv)) {
-			*n_entries = ARRAY_SIZE(rkl_combo_phy_ddi_translations_dp_hbr);
-			return rkl_combo_phy_ddi_translations_dp_hbr;
+			*n_entries = rkl_combo_phy_ddi_translations_dp_hbr.num_entries;
+			return rkl_combo_phy_ddi_translations_dp_hbr.entries;
 		} else {
-			*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_dp_hbr);
-			return tgl_combo_phy_ddi_translations_dp_hbr;
+			*n_entries = tgl_combo_phy_ddi_translations_dp_hbr.num_entries;
+			return tgl_combo_phy_ddi_translations_dp_hbr.entries;
 		}
 	}
 }
@@ -1332,14 +1597,14 @@ tgl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	if (crtc_state->port_clock > 540000) {
-		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr3);
-		return icl_combo_phy_ddi_translations_edp_hbr3;
+		*n_entries = icl_combo_phy_ddi_translations_edp_hbr3.num_entries;
+		return icl_combo_phy_ddi_translations_edp_hbr3.entries;
 	} else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed) {
-		*n_entries = ARRAY_SIZE(tgl_combo_phy_ddi_translations_edp_hbr2_hobl);
-		return tgl_combo_phy_ddi_translations_edp_hbr2_hobl;
+		*n_entries = tgl_combo_phy_ddi_translations_edp_hbr2_hobl.num_entries;
+		return tgl_combo_phy_ddi_translations_edp_hbr2_hobl.entries;
 	} else if (dev_priv->vbt.edp.low_vswing) {
-		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
-		return icl_combo_phy_ddi_translations_edp_hbr2;
+		*n_entries = icl_combo_phy_ddi_translations_edp_hbr2.num_entries;
+		return icl_combo_phy_ddi_translations_edp_hbr2.entries;
 	}
 
 	return tgl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
@@ -1363,8 +1628,8 @@ tgl_get_dkl_buf_trans_hdmi(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	*n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations_hdmi);
-	return tgl_dkl_phy_ddi_translations_hdmi;
+	*n_entries = tgl_dkl_phy_ddi_translations_hdmi.num_entries;
+	return tgl_dkl_phy_ddi_translations_hdmi.entries;
 }
 
 static const union intel_ddi_buf_trans_entry *
@@ -1373,11 +1638,11 @@ tgl_get_dkl_buf_trans_dp(struct intel_encoder *encoder,
 			 int *n_entries)
 {
 	if (crtc_state->port_clock > 270000) {
-		*n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations_dp_hbr2);
-		return tgl_dkl_phy_ddi_translations_dp_hbr2;
+		*n_entries = tgl_dkl_phy_ddi_translations_dp_hbr2.num_entries;
+		return tgl_dkl_phy_ddi_translations_dp_hbr2.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations_dp_hbr);
-		return tgl_dkl_phy_ddi_translations_dp_hbr;
+		*n_entries = tgl_dkl_phy_ddi_translations_dp_hbr.num_entries;
+		return tgl_dkl_phy_ddi_translations_dp_hbr.entries;
 	}
 }
 
@@ -1398,11 +1663,11 @@ adlp_get_dkl_buf_trans_dp(struct intel_encoder *encoder,
 			  int *n_entries)
 {
 	if (crtc_state->port_clock > 270000) {
-		*n_entries = ARRAY_SIZE(adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3);
-		return adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3;
+		*n_entries = adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3.num_entries;
+		return adlp_dkl_phy_ddi_translations_dp_hbr2_hbr3.entries;
 	} else {
-		*n_entries = ARRAY_SIZE(adlp_dkl_phy_ddi_translations_dp_hbr);
-		return adlp_dkl_phy_ddi_translations_dp_hbr;
+		*n_entries = adlp_dkl_phy_ddi_translations_dp_hbr.num_entries;
+		return adlp_dkl_phy_ddi_translations_dp_hbr.entries;
 	}
 }
 

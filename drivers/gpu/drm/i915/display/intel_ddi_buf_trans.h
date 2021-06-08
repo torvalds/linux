@@ -53,6 +53,11 @@ union intel_ddi_buf_trans_entry {
 	struct tgl_dkl_phy_ddi_buf_trans dkl;
 };
 
+struct intel_ddi_buf_trans {
+	const union intel_ddi_buf_trans_entry *entries;
+	u8 num_entries;
+};
+
 bool is_hobl_buf_trans(const union intel_ddi_buf_trans_entry *table);
 
 int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
