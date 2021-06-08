@@ -10,6 +10,7 @@
 
 /***************************************************************************/
 
+#include <linux/clkdev.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
@@ -34,27 +35,18 @@ unsigned char ledbank = 0xff;
 
 DEFINE_CLK(pll, "pll.0", MCF_CLK);
 DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
-DEFINE_CLK(mcftmr0, "mcftmr.0", MCF_BUSCLK);
-DEFINE_CLK(mcftmr1, "mcftmr.1", MCF_BUSCLK);
-DEFINE_CLK(mcftmr2, "mcftmr.2", MCF_BUSCLK);
-DEFINE_CLK(mcftmr3, "mcftmr.3", MCF_BUSCLK);
-DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
-DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
-DEFINE_CLK(mcfqspi0, "mcfqspi.0", MCF_BUSCLK);
-DEFINE_CLK(fec0, "fec.0", MCF_BUSCLK);
 
-struct clk *mcf_clks[] = {
-	&clk_pll,
-	&clk_sys,
-	&clk_mcftmr0,
-	&clk_mcftmr1,
-	&clk_mcftmr2,
-	&clk_mcftmr3,
-	&clk_mcfuart0,
-	&clk_mcfuart1,
-	&clk_mcfqspi0,
-	&clk_fec0,
-	NULL
+static struct clk_lookup m5272_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "pll.0", &clk_pll),
+	CLKDEV_INIT(NULL, "sys.0", &clk_sys),
+	CLKDEV_INIT("mcftmr.0", NULL, &clk_sys),
+	CLKDEV_INIT("mcftmr.1", NULL, &clk_sys),
+	CLKDEV_INIT("mcftmr.2", NULL, &clk_sys),
+	CLKDEV_INIT("mcftmr.3", NULL, &clk_sys),
+	CLKDEV_INIT("mcfuart.0", NULL, &clk_sys),
+	CLKDEV_INIT("mcfuart.1", NULL, &clk_sys),
+	CLKDEV_INIT("mcfqspi.0", NULL, &clk_sys),
+	CLKDEV_INIT("fec.0", NULL, &clk_sys),
 };
 
 /***************************************************************************/
@@ -128,6 +120,7 @@ static int __init init_BSP(void)
 {
 	m5272_uarts_init();
 	fixed_phy_add(PHY_POLL, 0, &nettel_fixed_phy_status);
+	clkdev_add_table(m5272_clk_lookup, ARRAY_SIZE(m5272_clk_lookup));
 	return 0;
 }
 
