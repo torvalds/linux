@@ -281,7 +281,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 		dev_err(dev, "Failed to query temp sensor\n");
 		return err;
 	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
 	if (temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, thermal->trips,
 					      temp);
@@ -442,7 +442,7 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 		*p_temp = (int) temp;
 		return 0;
 	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
 	*p_temp = temp;
 
 	if (!temp)
@@ -560,7 +560,7 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	if (err)
 		return err;
 
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
 	if (temp > 0)
 		mlxsw_thermal_tz_score_update(thermal, tzdev, tz->trips, temp);
 

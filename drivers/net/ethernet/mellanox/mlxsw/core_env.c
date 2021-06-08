@@ -142,7 +142,7 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
 		return err;
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &module_temp, NULL, NULL, NULL, NULL);
 	if (!module_temp) {
 		*temp = 0;
 		return 0;
