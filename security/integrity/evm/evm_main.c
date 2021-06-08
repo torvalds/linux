@@ -360,7 +360,7 @@ int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
 			size = sizeof(u32);
 			if (buffer) {
 				if (canonical_fmt)
-					rc = cpu_to_le32(rc);
+					rc = (__force int)cpu_to_le32(rc);
 
 				*(u32 *)(buffer + total_size) = rc;
 			}

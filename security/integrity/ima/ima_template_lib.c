@@ -133,7 +133,8 @@ static void ima_show_template_data_binary(struct seq_file *m,
 	    strlen(field_data->data) : field_data->len;
 
 	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN) {
-		u32 field_len = !ima_canonical_fmt ? len : cpu_to_le32(len);
+		u32 field_len = !ima_canonical_fmt ?
+				len : (__force u32)cpu_to_le32(len);
 
 		ima_putc(m, &field_len, sizeof(field_len));
 	}
@@ -570,9 +571,9 @@ static int ima_eventinodedac_init_common(struct ima_event_data *event_data,
 
 	if (ima_canonical_fmt) {
 		if (sizeof(id) == sizeof(u16))
-			id = cpu_to_le16(id);
+			id = (__force u16)cpu_to_le16(id);
 		else
-			id = cpu_to_le32(id);
+			id = (__force u32)cpu_to_le32(id);
 	}
 
 	return ima_write_template_field_data((void *)&id, sizeof(id),
@@ -607,7 +608,7 @@ int ima_eventinodemode_init(struct ima_event_data *event_data,
 			    struct ima_field_data *field_data)
 {
 	struct inode *inode;
-	umode_t mode;
+	u16 mode;
 
 	if (!event_data->file)
 		return 0;
@@ -615,7 +616,7 @@ int ima_eventinodemode_init(struct ima_event_data *event_data,
 	inode = file_inode(event_data->file);
 	mode = inode->i_mode;
 	if (ima_canonical_fmt)
-		mode = cpu_to_le16(mode);
+		mode = (__force u16)cpu_to_le16(mode);
 
 	return ima_write_template_field_data((char *)&mode, sizeof(mode),
 					     DATA_FMT_UINT, field_data);
