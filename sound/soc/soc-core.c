@@ -1211,8 +1211,8 @@ found:
 		mask |= SND_SOC_DAIFMT_CLOCK_MASK;
 	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_INV_MASK))
 		mask |= SND_SOC_DAIFMT_INV_MASK;
-	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK))
-		mask |= SND_SOC_DAIFMT_MASTER_MASK;
+	if (!(dai_link->dai_fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK))
+		mask |= SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 
 	dai_link->dai_fmt |= (dai_fmt & mask);
 }
