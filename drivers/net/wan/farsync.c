@@ -1075,7 +1075,7 @@ fst_intr_ctlchg(struct fst_card_info *card, struct fst_port_info *port)
 
 	signals = FST_RDL(card, v24DebouncedSts[port->index]);
 
-	if (signals & (((port->hwif == X21) || (port->hwif == X21D))
+	if (signals & ((port->hwif == X21 || port->hwif == X21D)
 		       ? IPSTS_INDICATE : IPSTS_DCD)) {
 		if (!netif_carrier_ok(port_to_dev(port))) {
 			dbg(DBG_INTR, "DCD active\n");
@@ -1233,7 +1233,7 @@ fst_intr_rx(struct fst_card_info *card, struct fst_port_info *port)
 	 * FST_MIN_DMA_LEN
 	 */
 
-	if ((len < FST_MIN_DMA_LEN) || (card->family == FST_FAMILY_TXP)) {
+	if (len < FST_MIN_DMA_LEN || card->family == FST_FAMILY_TXP) {
 		memcpy_fromio(skb_put(skb, len),
 			      card->mem + BUF_OFFSET(rxBuffer[pi][rxp][0]),
 			      len);
@@ -1326,8 +1326,8 @@ do_bottom_half_tx(struct fst_card_info *card)
 				 */
 				FST_WRW(card, txDescrRing[pi][port->txpos].bcnt,
 					cnv_bcnt(skb->len));
-				if ((skb->len < FST_MIN_DMA_LEN) ||
-				    (card->family == FST_FAMILY_TXP)) {
+				if (skb->len < FST_MIN_DMA_LEN ||
+				    card->family == FST_FAMILY_TXP) {
 					/* Enqueue the packet with normal io */
 					memcpy_toio(card->mem +
 						    BUF_OFFSET(txBuffer[pi]
@@ -2079,7 +2079,7 @@ fst_openport(struct fst_port_info *port)
 		port->run = 1;
 
 		signals = FST_RDL(port->card, v24DebouncedSts[port->index]);
-		if (signals & (((port->hwif == X21) || (port->hwif == X21D))
+		if (signals & ((port->hwif == X21 || port->hwif == X21D)
 			       ? IPSTS_INDICATE : IPSTS_DCD))
 			netif_carrier_on(port_to_dev(port));
 		else
@@ -2340,7 +2340,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 *
 		 */
 		for (i = 0; i < fst_excluded_cards; i++) {
-			if ((pdev->devfn) >> 3 == fst_excluded_list[i]) {
+			if (pdev->devfn >> 3 == fst_excluded_list[i]) {
 				pr_info("FarSync PCI device %d not assigned\n",
 					(pdev->devfn) >> 3);
 				return -EBUSY;
@@ -2397,8 +2397,8 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	card->family = ((ent->driver_data == FST_TYPE_T2P) ||
 			(ent->driver_data == FST_TYPE_T4P))
 	    ? FST_FAMILY_TXP : FST_FAMILY_TXU;
-	if ((ent->driver_data == FST_TYPE_T1U) ||
-	    (ent->driver_data == FST_TYPE_TE1))
+	if (ent->driver_data == FST_TYPE_T1U ||
+	    ent->driver_data == FST_TYPE_TE1)
 		card->nports = 1;
 	else
 		card->nports = ((ent->driver_data == FST_TYPE_T2P) ||
