@@ -6,4 +6,6 @@
 obj-$(CONFIG_WWAN_CORE) += wwan.o
 wwan-objs += wwan_core.o
 
+obj-$(CONFIG_WWAN_HWSIM) += wwan_hwsim.o
+
 obj-$(CONFIG_MHI_WWAN_CTRL) += mhi_wwan_ctrl.o
