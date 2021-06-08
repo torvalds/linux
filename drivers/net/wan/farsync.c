@@ -524,25 +524,25 @@ do {								\
 /*      PCI ID lookup table
  */
 static const struct pci_device_id fst_pci_dev_id[] = {
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T2P, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T2P, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_T2P},
 
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T4P, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T4P, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_T4P},
 
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T1U, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T1U, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_T1U},
 
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T2U, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T2U, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_T2U},
 
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T4U, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T4U, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_T4U},
 
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_TE1, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_TE1, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_TE1},
 
-	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_TE1C, PCI_ANY_ID, 
+	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_TE1C, PCI_ANY_ID,
 	 PCI_ANY_ID, 0, 0, FST_TYPE_TE1},
 	{0,}			/* End */
 };
@@ -551,11 +551,11 @@ MODULE_DEVICE_TABLE(pci, fst_pci_dev_id);
 
 /*      Device Driver Work Queues
  *
- *      So that we don't spend too much time processing events in the 
- *      Interrupt Service routine, we will declare a work queue per Card 
+ *      So that we don't spend too much time processing events in the
+ *      Interrupt Service routine, we will declare a work queue per Card
  *      and make the ISR schedule a task in the queue for later execution.
  *      In the 2.4 Kernel we used to use the immediate queue for BH's
- *      Now that they are gone, tasklets seem to be much better than work 
+ *      Now that they are gone, tasklets seem to be much better than work
  *      queues.
  */
 
@@ -1139,7 +1139,7 @@ fst_recover_rx_error(struct fst_card_info *card, struct fst_port_info *port,
 	pi = port->index;
 	/* Discard buffer descriptors until we see the start of the
 	 * next frame.  Note that for long frames this could be in
-	 * a subsequent interrupt. 
+	 * a subsequent interrupt.
 	 */
 	i = 0;
 	while ((dmabits & (DMA_OWN | RX_STP)) == 0) {
@@ -1436,7 +1436,7 @@ fst_intr(int dummy, void *dev_id)
 
 		/* It is possible to really be running, i.e. we have re-loaded
 		 * a running card
-		 * Clear and reprime the interrupt source 
+		 * Clear and reprime the interrupt source
 		 */
 		fst_clear_intr(card);
 		return IRQ_HANDLED;
@@ -1616,8 +1616,8 @@ set_conf_from_info(struct fst_card_info *card, struct fst_port_info *port,
 	int err;
 	unsigned char my_framing;
 
-	/* Set things according to the user set valid flags 
-	 * Several of the old options have been invalidated/replaced by the 
+	/* Set things according to the user set valid flags
+	 * Several of the old options have been invalidated/replaced by the
 	 * generic hdlc package.
 	 */
 	err = 0;
@@ -1739,7 +1739,7 @@ gather_conf_info(struct fst_card_info *card, struct fst_port_info *port,
 	info->smcFirmwareVersion = FST_RDL(card, smcFirmwareVersion);
 
 	/* The T2U can report cable presence for both A or B
-	 * in bits 0 and 1 of cableStatus.  See which port we are and 
+	 * in bits 0 and 1 of cableStatus.  See which port we are and
 	 * do the mapping.
 	 */
 	if (card->family == FST_FAMILY_TXU) {
