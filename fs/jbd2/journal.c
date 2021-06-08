@@ -934,10 +934,6 @@ int jbd2_fc_wait_bufs(journal_t *journal, int num_blks)
 }
 EXPORT_SYMBOL(jbd2_fc_wait_bufs);
 
-/*
- * Wait on fast commit buffers that were allocated by jbd2_fc_get_buf
- * for completion.
- */
 int jbd2_fc_release_bufs(journal_t *journal)
 {
 	struct buffer_head *bh;
@@ -945,10 +941,6 @@ int jbd2_fc_release_bufs(journal_t *journal)
 
 	j_fc_off = journal->j_fc_off;
 
-	/*
-	 * Wait in reverse order to minimize chances of us being woken up before
-	 * all IOs have completed
-	 */
 	for (i = j_fc_off - 1; i >= 0; i--) {
 		bh = journal->j_fc_wbuf[i];
 		if (!bh)
