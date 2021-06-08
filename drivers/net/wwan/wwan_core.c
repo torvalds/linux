@@ -250,7 +250,7 @@ struct wwan_port *wwan_create_port(struct device *parent,
 	struct wwan_port *port;
 	int minor, err = -ENOMEM;
 
-	if (type >= WWAN_PORT_MAX || !ops)
+	if (type > WWAN_PORT_MAX || !ops)
 		return ERR_PTR(-EINVAL);
 
 	/* A port is always a child of a WWAN device, retrieve (allocate or
