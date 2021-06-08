@@ -1420,8 +1420,7 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 
 	chan->desc_submitcount++;
 	chan->desc_pendingcount--;
-	list_del(&desc->node);
-	list_add_tail(&desc->node, &chan->active_list);
+	list_move_tail(&desc->node, &chan->active_list);
 	if (chan->desc_submitcount == chan->num_frms)
 		chan->desc_submitcount = 0;
 
