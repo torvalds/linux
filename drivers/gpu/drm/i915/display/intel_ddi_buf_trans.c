@@ -598,7 +598,7 @@ static const struct intel_ddi_buf_trans cnl_ddi_translations_edp_1_05V = {
 };
 
 /* icl_combo_phy_ddi_translations */
-static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_dp_hbr2[] = {
+static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3[] = {
 							/* NT mV Trans mV db    */
 	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
 	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
@@ -612,9 +612,9 @@ static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_dp_
 	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
-static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hbr2 = {
-	.entries = _icl_combo_phy_ddi_translations_dp_hbr2,
-	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_dp_hbr2),
+static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3 = {
+	.entries = _icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
+	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3),
 };
 
 static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_edp_hbr2[] = {
@@ -634,25 +634,6 @@ static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_edp
 static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_edp_hbr2 = {
 	.entries = _icl_combo_phy_ddi_translations_edp_hbr2,
 	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_edp_hbr2),
-};
-
-static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_edp_hbr3[] = {
-							/* NT mV Trans mV db    */
-	{ .cnl = { 0xA, 0x35, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
-	{ .cnl = { 0xA, 0x4F, 0x37, 0x00, 0x08 } },	/* 350   500      3.1   */
-	{ .cnl = { 0xC, 0x71, 0x2F, 0x00, 0x10 } },	/* 350   700      6.0   */
-	{ .cnl = { 0x6, 0x7F, 0x2B, 0x00, 0x14 } },	/* 350   900      8.2   */
-	{ .cnl = { 0xA, 0x4C, 0x3F, 0x00, 0x00 } },	/* 500   500      0.0   */
-	{ .cnl = { 0xC, 0x73, 0x34, 0x00, 0x0B } },	/* 500   700      2.9   */
-	{ .cnl = { 0x6, 0x7F, 0x2F, 0x00, 0x10 } },	/* 500   900      5.1   */
-	{ .cnl = { 0xC, 0x6C, 0x3C, 0x00, 0x03 } },	/* 650   700      0.6   */
-	{ .cnl = { 0x6, 0x7F, 0x35, 0x00, 0x0A } },	/* 600   900      3.5   */
-	{ .cnl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
-};
-
-static const struct intel_ddi_buf_trans icl_combo_phy_ddi_translations_edp_hbr3 = {
-	.entries = _icl_combo_phy_ddi_translations_edp_hbr3,
-	.num_entries = ARRAY_SIZE(_icl_combo_phy_ddi_translations_edp_hbr3),
 };
 
 static const union intel_ddi_buf_trans_entry _icl_combo_phy_ddi_translations_hdmi[] = {
@@ -1308,7 +1289,7 @@ icl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2,
+	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
 				   n_entries);
 }
 
@@ -1320,7 +1301,7 @@ icl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (crtc_state->port_clock > 540000) {
-		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr3,
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
 					   n_entries);
 	} else if (dev_priv->vbt.edp.low_vswing) {
 		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr2,
@@ -1437,7 +1418,7 @@ jsl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2,
+	return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
 				   n_entries);
 }
 
@@ -1513,7 +1494,7 @@ tgl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	if (crtc_state->port_clock > 540000) {
-		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr3,
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
 					   n_entries);
 	} else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed) {
 		return intel_get_buf_trans(&tgl_combo_phy_ddi_translations_edp_hbr2_hobl,
@@ -1561,7 +1542,7 @@ dg1_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	if (crtc_state->port_clock > 540000)
-		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr3,
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
 					   n_entries);
 	else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed)
 		return intel_get_buf_trans(&tgl_combo_phy_ddi_translations_edp_hbr2_hobl,
@@ -1606,7 +1587,7 @@ rkl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	if (crtc_state->port_clock > 540000) {
-		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_edp_hbr3,
+		return intel_get_buf_trans(&icl_combo_phy_ddi_translations_dp_hbr2_edp_hbr3,
 					   n_entries);
 	} else if (dev_priv->vbt.edp.hobl && !intel_dp->hobl_failed) {
 		return intel_get_buf_trans(&tgl_combo_phy_ddi_translations_edp_hbr2_hobl,
