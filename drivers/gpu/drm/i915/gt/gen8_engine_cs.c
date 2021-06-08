@@ -208,7 +208,7 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		flags |= PIPE_CONTROL_FLUSH_L3;
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
-		/* Wa_1409600907:tgl */
+		/* Wa_1409600907:tgl,adl-p */
 		flags |= PIPE_CONTROL_DEPTH_STALL;
 		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
 		flags |= PIPE_CONTROL_FLUSH_ENABLE;

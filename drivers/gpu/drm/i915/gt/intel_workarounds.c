@@ -640,15 +640,16 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 	gen12_ctx_gt_tuning_init(engine, wal);
 
 	/*
-	 * Wa_1409142259:tgl
-	 * Wa_1409347922:tgl
-	 * Wa_1409252684:tgl
-	 * Wa_1409217633:tgl
-	 * Wa_1409207793:tgl
-	 * Wa_1409178076:tgl
-	 * Wa_1408979724:tgl
-	 * Wa_14010443199:rkl
-	 * Wa_14010698770:rkl
+	 * Wa_1409142259:tgl,dg1,adl-p
+	 * Wa_1409347922:tgl,dg1,adl-p
+	 * Wa_1409252684:tgl,dg1,adl-p
+	 * Wa_1409217633:tgl,dg1,adl-p
+	 * Wa_1409207793:tgl,dg1,adl-p
+	 * Wa_1409178076:tgl,dg1,adl-p
+	 * Wa_1408979724:tgl,dg1,adl-p
+	 * Wa_14010443199:tgl,rkl,dg1,adl-p
+	 * Wa_14010698770:tgl,rkl,dg1,adl-s,adl-p
+	 * Wa_1409342910:tgl,rkl,dg1,adl-s,adl-p
 	 */
 	wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
 		     GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
@@ -1113,7 +1114,7 @@ gen12_gt_workarounds_init(struct drm_i915_private *i915,
 {
 	wa_init_mcr(i915, wal);
 
-	/* Wa_14011060649:tgl,rkl,dg1,adls */
+	/* Wa_14011060649:tgl,rkl,dg1,adls,adl-p */
 	wa_14011060649(i915, wal);
 }
 
@@ -1633,38 +1634,40 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
-	if (IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
+	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1606931601:tgl,rkl,dg1,adl-s */
+		/* Wa_1606931601:tgl,rkl,dg1,adl-s,adl-p */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
 
 		/*
 		 * Wa_1407928979:tgl A*
 		 * Wa_18011464164:tgl[B0+],dg1[B0+]
 		 * Wa_22010931296:tgl[B0+],dg1[B0+]
-		 * Wa_14010919138:rkl,dg1,adl-s
+		 * Wa_14010919138:rkl,dg1,adl-s,adl-p
 		 */
 		wa_write_or(wal, GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
 		/*
-		 * Wa_1606700617:tgl,dg1
-		 * Wa_22010271021:tgl,rkl,dg1, adl-s
+		 * Wa_1606700617:tgl,dg1,adl-p
+		 * Wa_22010271021:tgl,rkl,dg1,adl-s,adl-p
+		 * Wa_14010826681:tgl,dg1,rkl,adl-p
 		 */
 		wa_masked_en(wal,
 			     GEN9_CS_DEBUG_MODE1,
 			     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
-	if (IS_ALDERLAKE_S(i915) || IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
+	    IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1409804808:tgl,rkl,dg1[a0],adl-s */
+		/* Wa_1409804808:tgl,rkl,dg1[a0],adl-s,adl-p */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
 			     GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
 		/*
 		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl,rkl,dg1[a0],adl-s
+		 * Wa_14010229206:tgl,rkl,dg1[a0],adl-s,adl-p
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
 	}

@@ -2667,7 +2667,7 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 }
 
 /*
- * Display WA #22010492432: ehl, tgl
+ * Display WA #22010492432: ehl, tgl, adl-p
  * Program half of the nominal DCO divider fraction value.
  */
 static bool
@@ -2675,7 +2675,7 @@ ehl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
 {
 	return ((IS_PLATFORM(i915, INTEL_ELKHARTLAKE) &&
 		 IS_JSL_EHL_REVID(i915, EHL_REVID_B0, REVID_FOREVER)) ||
-		 IS_TIGERLAKE(i915)) &&
+		 IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) &&
 		 i915->dpll.ref_clks.nssc == 38400;
 }
 
