@@ -204,7 +204,8 @@ static int snd_interwave_detect_stb(struct snd_interwave *iwcard,
 			port = 0x360;
 		}
 		while (port <= 0x380) {
-			if ((iwcard->i2c_res = request_region(port, 1, "InterWave (I2C bus)")) != NULL)
+			iwcard->i2c_res = request_region(port, 1, "InterWave (I2C bus)");
+			if (iwcard->i2c_res)
 				break;
 			port += 0x10;
 		}
@@ -217,11 +218,13 @@ static int snd_interwave_detect_stb(struct snd_interwave *iwcard,
 	}
 
 	sprintf(name, "InterWave-%i", card->number);
-	if ((err = snd_i2c_bus_create(card, name, NULL, &bus)) < 0)
+	err = snd_i2c_bus_create(card, name, NULL, &bus);
+	if (err < 0)
 		return err;
 	bus->private_value = port;
 	bus->hw_ops.bit = &snd_interwave_i2c_bit_ops;
-	if ((err = snd_tea6330t_detect(bus, 0)) < 0)
+	err = snd_tea6330t_detect(bus, 0);
+	if (err < 0)
 		return err;
 	*rbus = bus;
 	return 0;
@@ -241,14 +244,16 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 	int d;
 
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 0) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 0) {
 		snd_printdd("[0x%lx] check 1 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
 	udelay(160);
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 1);	/* release reset */
 	udelay(160);
-	if (((d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET)) & 0x07) != 1) {
+	d = snd_gf1_i_look8(gus, SNDRV_GF1_GB_RESET);
+	if ((d & 0x07) != 1) {
 		snd_printdd("[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
@@ -493,16 +498,20 @@ static int snd_interwave_mixer(struct snd_wss *chip)
 #if 0
 	/* remove mono microphone controls */
 	strcpy(id1.name, "Mic Playback Switch");
-	if ((err = snd_ctl_remove_id(card, &id1)) < 0)
+	err = snd_ctl_remove_id(card, &id1);
+	if (err < 0)
 		return err;
 	strcpy(id1.name, "Mic Playback Volume");
-	if ((err = snd_ctl_remove_id(card, &id1)) < 0)
+	err = snd_ctl_remove_id(card, &id1);
+	if (err < 0)
 		return err;
 #endif
 	/* add new master and mic controls */
-	for (idx = 0; idx < ARRAY_SIZE(snd_interwave_controls); idx++)
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_interwave_controls[idx], chip))) < 0)
+	for (idx = 0; idx < ARRAY_SIZE(snd_interwave_controls); idx++) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_interwave_controls[idx], chip));
+		if (err < 0)
 			return err;
+	}
 	snd_wss_out(chip, CS4231_LINE_LEFT_OUTPUT, 0x9f);
 	snd_wss_out(chip, CS4231_LINE_RIGHT_OUTPUT, 0x9f);
 	snd_wss_out(chip, CS4231_LEFT_MIC_INPUT, 0x9f);
@@ -510,20 +519,24 @@ static int snd_interwave_mixer(struct snd_wss *chip)
 	/* reassign AUXA to SYNTHESIZER */
 	strcpy(id1.name, "Aux Playback Switch");
 	strcpy(id2.name, "Synth Playback Switch");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	strcpy(id1.name, "Aux Playback Volume");
 	strcpy(id2.name, "Synth Playback Volume");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	/* reassign AUXB to CD */
 	strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
 	strcpy(id2.name, "CD Playback Switch");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	strcpy(id1.name, "Aux Playback Volume");
 	strcpy(id2.name, "CD Playback Volume");
-	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0)
 		return err;
 	return 0;
 }
@@ -633,18 +646,20 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 	xdma1 = dma1[dev];
 	xdma2 = dma2[dev];
 
-	if ((err = snd_gus_create(card,
-				  port[dev],
-				  -xirq, xdma1, xdma2,
-				  0, 32,
-				  pcm_channels[dev], effect[dev], &gus)) < 0)
+	err = snd_gus_create(card,
+			     port[dev],
+			     -xirq, xdma1, xdma2,
+			     0, 32,
+			     pcm_channels[dev], effect[dev], &gus);
+	if (err < 0)
 		return err;
 
-	if ((err = snd_interwave_detect(iwcard, gus, dev
+	err = snd_interwave_detect(iwcard, gus, dev
 #ifdef SNDRV_STB
-            , &i2c_bus
+				   , &i2c_bus
 #endif
-	    )) < 0)
+				   );
+	if (err < 0)
 		return err;
 
 	iwcard->gus_status_reg = gus->gf1.reg_irqstat;
@@ -652,7 +667,8 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 
 	snd_interwave_init(dev, gus);
 	snd_interwave_detect_memory(gus);
-	if ((err = snd_gus_initialize(gus)) < 0)
+	err = snd_gus_initialize(gus);
+	if (err < 0)
 		return err;
 
 	if (request_irq(xirq, snd_interwave_interrupt, 0,
@@ -708,19 +724,23 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 		strcpy(id1.name, "Master Playback Switch");
 		strcpy(id2.name, id1.name);
 		id2.index = 1;
-		if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+		err = snd_ctl_rename_id(card, &id1, &id2);
+		if (err < 0)
 			return err;
 		strcpy(id1.name, "Master Playback Volume");
 		strcpy(id2.name, id1.name);
-		if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+		err = snd_ctl_rename_id(card, &id1, &id2);
+		if (err < 0)
 			return err;
-		if ((err = snd_tea6330t_update_mixer(card, i2c_bus, 0, 1)) < 0)
+		err = snd_tea6330t_update_mixer(card, i2c_bus, 0, 1);
+		if (err < 0)
 			return err;
 	}
 #endif
 
 	gus->uart_enable = midi[dev];
-	if ((err = snd_gf1_rawmidi_new(gus, 0)) < 0)
+	err = snd_gf1_rawmidi_new(gus, 0);
+	if (err < 0)
 		return err;
 
 #ifndef SNDRV_STB
@@ -758,7 +778,8 @@ static int snd_interwave_isa_probe1(int dev, struct device *devptr)
 	if (err < 0)
 		return err;
 
-	if ((err = snd_interwave_probe(card, dev)) < 0) {
+	err = snd_interwave_probe(card, dev);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -786,19 +807,22 @@ static int snd_interwave_isa_probe(struct device *pdev,
 	static const int possible_dmas[] = {0, 1, 3, 5, 6, 7, -1};
 
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
-		if ((irq[dev] = snd_legacy_find_free_irq(possible_irqs)) < 0) {
+		irq[dev] = snd_legacy_find_free_irq(possible_irqs);
+		if (irq[dev] < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
 			return -EBUSY;
 		}
 	}
 	if (dma1[dev] == SNDRV_AUTO_DMA) {
-		if ((dma1[dev] = snd_legacy_find_free_dma(possible_dmas)) < 0) {
+		dma1[dev] = snd_legacy_find_free_dma(possible_dmas);
+		if (dma1[dev] < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free DMA1\n");
 			return -EBUSY;
 		}
 	}
 	if (dma2[dev] == SNDRV_AUTO_DMA) {
-		if ((dma2[dev] = snd_legacy_find_free_dma(possible_dmas)) < 0) {
+		dma2[dev] = snd_legacy_find_free_dma(possible_dmas);
+		if (dma2[dev] < 0) {
 			snd_printk(KERN_ERR PFX "unable to find a free DMA2\n");
 			return -EBUSY;
 		}
@@ -853,11 +877,13 @@ static int snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 	if (res < 0)
 		return res;
 
-	if ((res = snd_interwave_pnp(dev, card->private_data, pcard, pid)) < 0) {
+	res = snd_interwave_pnp(dev, card->private_data, pcard, pid);
+	if (res < 0) {
 		snd_card_free(card);
 		return res;
 	}
-	if ((res = snd_interwave_probe(card, dev)) < 0) {
+	res = snd_interwave_probe(card, dev);
+	if (res < 0) {
 		snd_card_free(card);
 		return res;
 	}
