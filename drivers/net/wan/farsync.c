@@ -2293,7 +2293,7 @@ fst_init_card(struct fst_card_info *card)
 		err = register_hdlc_device(card->ports[i].dev);
 		if (err < 0) {
 			pr_err("Cannot register HDLC device for port %d (errno %d)\n",
-				i, -err);
+			       i, -err);
 			while (i--)
 				unregister_hdlc_device(card->ports[i].dev);
 			return err;
