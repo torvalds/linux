@@ -543,7 +543,7 @@ xfs_stat_blksize(
 	 * always return the realtime extent size.
 	 */
 	if (XFS_IS_REALTIME_INODE(ip))
-		return xfs_get_extsz_hint(ip) << mp->m_sb.sb_blocklog;
+		return XFS_FSB_TO_B(mp, xfs_get_extsz_hint(ip));
 
 	/*
 	 * Allow large block sizes to be reported to userspace programs if the
@@ -560,7 +560,7 @@ xfs_stat_blksize(
 	 */
 	if (mp->m_flags & XFS_MOUNT_LARGEIO) {
 		if (mp->m_swidth)
-			return mp->m_swidth << mp->m_sb.sb_blocklog;
+			return XFS_FSB_TO_B(mp, mp->m_swidth);
 		if (mp->m_flags & XFS_MOUNT_ALLOCSIZE)
 			return 1U << mp->m_allocsize_log;
 	}
