@@ -28,6 +28,7 @@
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_psr.h"
 #include "intel_sideband.h"
 
 /**
@@ -1908,6 +1909,12 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 
 	intel_dump_cdclk_config(cdclk_config, "Changing CDCLK to");
 
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_psr_pause(intel_dp);
+	}
+
 	/*
 	 * Lock aux/gmbus while we change cdclk in case those
 	 * functions use cdclk. Not all platforms/ports do,
@@ -1929,6 +1936,12 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		mutex_unlock(&intel_dp->aux.hw_mutex);
 	}
 	mutex_unlock(&dev_priv->gmbus_mutex);
+
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_psr_resume(intel_dp);
+	}
 
 	if (drm_WARN(&dev_priv->drm,
 		     intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_config),
