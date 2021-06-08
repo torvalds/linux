@@ -51,6 +51,15 @@
 
 #define TICK_BASE_CNT	1
 
+#ifdef CONFIG_ARM
+/* Use values higher than ARM arch timer. See 6282edb72bed. */
+#define MCT_CLKSOURCE_RATING		450
+#define MCT_CLKEVENTS_RATING		500
+#else
+#define MCT_CLKSOURCE_RATING		350
+#define MCT_CLKEVENTS_RATING		350
+#endif
+
 enum {
 	MCT_INT_SPI,
 	MCT_INT_PPI
@@ -206,7 +215,7 @@ static void exynos4_frc_resume(struct clocksource *cs)
 
 static struct clocksource mct_frc = {
 	.name		= "mct-frc",
-	.rating		= 450,	/* use value higher than ARM arch timer */
+	.rating		= MCT_CLKSOURCE_RATING,
 	.read		= exynos4_frc_read,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
@@ -457,7 +466,7 @@ static int exynos4_mct_starting_cpu(unsigned int cpu)
 	evt->set_state_oneshot_stopped = set_state_shutdown;
 	evt->tick_resume = set_state_shutdown;
 	evt->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
-	evt->rating = 500;	/* use value higher than ARM arch timer */
+	evt->rating = MCT_CLKEVENTS_RATING,
 
 	exynos4_mct_write(TICK_BASE_CNT, mevt->base + MCT_L_TCNTB_OFFSET);
 
