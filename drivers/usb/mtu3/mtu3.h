@@ -10,6 +10,7 @@
 #ifndef __MTU3_H__
 #define __MTU3_H__
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
 #include <linux/extcon.h>
@@ -88,6 +89,8 @@ struct mtu3_request;
  * the SET_SEL request uses 6 so far, and GET_STATUS is 2
  */
 #define EP0_RESPONSE_BUF  6
+
+#define BULK_CLKS_CNT	4
 
 /* device operated link and speed got from DEVICE_CONF register */
 enum mtu3_speed {
@@ -219,10 +222,6 @@ struct otg_switch_mtk {
  * @mac_base: register base address of device MAC, exclude xHCI's
  * @ippc_base: register base address of IP Power and Clock interface (IPPC)
  * @vusb33: usb3.3V shared by device/host IP
- * @sys_clk: system clock of mtu3, shared by device/host IP
- * @ref_clk: reference clock
- * @mcu_clk: mcu_bus_ck clock for AHB bus etc
- * @dma_clk: dma_bus_ck clock for AXI bus etc
  * @dr_mode: works in which mode:
  *		host only, device only or dual-role mode
  * @u2_ports: number of usb2.0 host ports
@@ -244,10 +243,7 @@ struct ssusb_mtk {
 	int num_phys;
 	/* common power & clock */
 	struct regulator *vusb33;
-	struct clk *sys_clk;
-	struct clk *ref_clk;
-	struct clk *mcu_clk;
-	struct clk *dma_clk;
+	struct clk_bulk_data clks[BULK_CLKS_CNT];
 	/* otg */
 	struct otg_switch_mtk otg_switch;
 	enum usb_dr_mode dr_mode;
