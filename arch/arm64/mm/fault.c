@@ -99,6 +99,8 @@ static void mem_abort_decode(unsigned int esr)
 	pr_alert("  EA = %lu, S1PTW = %lu\n",
 		 (esr & ESR_ELx_EA) >> ESR_ELx_EA_SHIFT,
 		 (esr & ESR_ELx_S1PTW) >> ESR_ELx_S1PTW_SHIFT);
+	pr_alert("  FSC = 0x%02x: %s\n", (esr & ESR_ELx_FSC),
+		 esr_to_fault_info(esr)->name);
 
 	if (esr_is_data_abort(esr))
 		data_abort_decode(esr);
