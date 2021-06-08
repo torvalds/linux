@@ -1224,7 +1224,6 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	enum nixge_version version;
 	struct resource *ctrlres;
-	struct resource *dmares;
 	struct net_device *ndev;
 	struct nixge_priv *priv;
 
@@ -1236,12 +1235,9 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 	version = (enum nixge_version)of_id->data;
 	if (version <= NIXGE_V2)
-		dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		priv->dma_regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	else
-		dmares = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						      "dma");
-
-	priv->dma_regs = devm_ioremap_resource(&pdev->dev, dmares);
+		priv->dma_regs = devm_platform_ioremap_resource_byname(pdev, "dma");
 	if (IS_ERR(priv->dma_regs)) {
 		netdev_err(ndev, "failed to map dma regs\n");
 		return PTR_ERR(priv->dma_regs);
