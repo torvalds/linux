@@ -186,6 +186,7 @@ struct rxe_resp_info {
 
 	/* RDMA read / atomic only */
 	u64			va;
+	u64			offset;
 	struct rxe_mr		*mr;
 	u32			resid;
 	u32			rkey;
@@ -481,6 +482,16 @@ static inline u32 mr_lkey(struct rxe_mr *mr)
 static inline u32 mr_rkey(struct rxe_mr *mr)
 {
 	return mr->ibmr.rkey;
+}
+
+static inline struct rxe_pd *rxe_mw_pd(struct rxe_mw *mw)
+{
+	return to_rpd(mw->ibmw.pd);
+}
+
+static inline u32 rxe_mw_rkey(struct rxe_mw *mw)
+{
+	return mw->ibmw.rkey;
 }
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
