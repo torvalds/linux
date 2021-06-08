@@ -514,7 +514,8 @@
 				ti,mac-only;
 				label = "port1";
 				phys = <&phy_gmii_sel 1>;
-				mac-address = [00 00 de ad be ef];
+				mac-address = [00 00 00 00 00 00];
+				ti,syscon-efuse = <&main_conf 0x200>;
 			};
 
 			cpsw_port2: port@2 {
@@ -522,7 +523,7 @@
 				ti,mac-only;
 				label = "port2";
 				phys = <&phy_gmii_sel 2>;
-				mac-address = [00 01 de ad be ef];
+				mac-address = [00 00 00 00 00 00];
 			};
 		};
 
