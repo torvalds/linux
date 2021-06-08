@@ -708,7 +708,7 @@ fst_cpurelease(struct fst_card_info *card)
 	if (card->family == FST_FAMILY_TXU) {
 		/* Force posted writes to complete
 		 */
-		(void) readb(card->mem);
+		(void)readb(card->mem);
 
 		/* Release LRESET DO = 1
 		 * Then release Local Hold, DO = 1
@@ -716,7 +716,7 @@ fst_cpurelease(struct fst_card_info *card)
 		outw(0x040e, card->pci_conf + CNTRL_9054 + 2);
 		outw(0x040f, card->pci_conf + CNTRL_9054 + 2);
 	} else {
-		(void) readb(card->ctlmem);
+		(void)readb(card->ctlmem);
 	}
 }
 
@@ -726,7 +726,7 @@ static inline void
 fst_clear_intr(struct fst_card_info *card)
 {
 	if (card->family == FST_FAMILY_TXU) {
-		(void) readb(card->ctlmem);
+		(void)readb(card->ctlmem);
 	} else {
 		/* Poke the appropriate PLX chip register (same as enabling interrupts)
 		 */
@@ -984,8 +984,8 @@ fst_rx_config(struct fst_port_info *port)
 	for (i = 0; i < NUM_RX_BUFFER; i++) {
 		offset = BUF_OFFSET(rxBuffer[pi][i][0]);
 
-		FST_WRW(card, rxDescrRing[pi][i].ladr, (u16) offset);
-		FST_WRB(card, rxDescrRing[pi][i].hadr, (u8) (offset >> 16));
+		FST_WRW(card, rxDescrRing[pi][i].ladr, (u16)offset);
+		FST_WRB(card, rxDescrRing[pi][i].hadr, (u8)(offset >> 16));
 		FST_WRW(card, rxDescrRing[pi][i].bcnt, cnv_bcnt(LEN_RX_BUFFER));
 		FST_WRW(card, rxDescrRing[pi][i].mcnt, LEN_RX_BUFFER);
 		FST_WRB(card, rxDescrRing[pi][i].bits, DMA_OWN);
@@ -1011,8 +1011,8 @@ fst_tx_config(struct fst_port_info *port)
 	for (i = 0; i < NUM_TX_BUFFER; i++) {
 		offset = BUF_OFFSET(txBuffer[pi][i][0]);
 
-		FST_WRW(card, txDescrRing[pi][i].ladr, (u16) offset);
-		FST_WRB(card, txDescrRing[pi][i].hadr, (u8) (offset >> 16));
+		FST_WRW(card, txDescrRing[pi][i].ladr, (u16)offset);
+		FST_WRB(card, txDescrRing[pi][i].hadr, (u8)(offset >> 16));
 		FST_WRW(card, txDescrRing[pi][i].bcnt, 0);
 		FST_WRB(card, txDescrRing[pi][i].bits, 0);
 	}
@@ -1697,7 +1697,7 @@ gather_conf_info(struct fst_card_info *card, struct fst_port_info *port,
 {
 	int i;
 
-	memset(info, 0, sizeof (struct fstioc_info));
+	memset(info, 0, sizeof(struct fstioc_info));
 
 	i = port->index;
 	info->kernelVersion = LINUX_VERSION_CODE;
@@ -1905,7 +1905,7 @@ fst_get_iface(struct fst_card_info *card, struct fst_port_info *port,
 	if (copy_to_user(ifr->ifr_settings.ifs_ifsu.sync, &sync, sizeof(sync)))
 		return -EFAULT;
 
-	ifr->ifr_settings.size = sizeof (sync);
+	ifr->ifr_settings.size = sizeof(sync);
 	return 0;
 }
 
