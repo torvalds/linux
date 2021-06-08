@@ -22,6 +22,8 @@
 #define GRF_PCIE30PHY_CON1 0x4
 #define GRF_PCIE30PHY_CON6 0x18
 #define GRF_PCIE30PHY_CON9 0x24
+#define GRF_PCIE30PHY_STATUS0 0x80
+#define SRAM_INIT_DONE(reg) (reg & BIT(14))
 
 struct rockchip_p3phy_priv {
 	void __iomem *mmio;
@@ -62,6 +64,7 @@ static int rochchip_p3phy_init(struct phy *phy)
 {
 	struct rockchip_p3phy_priv *priv = phy_get_drvdata(phy);
 	int ret;
+	u32 reg;
 
 	ret = clk_prepare_enable(priv->ref_clk_m);
 	if (ret < 0)
@@ -90,6 +93,16 @@ static int rochchip_p3phy_init(struct phy *phy)
 	}
 
 	reset_control_deassert(priv->p30phy);
+
+	ret = regmap_read_poll_timeout(priv->phy_grf,
+				       GRF_PCIE30PHY_STATUS0,
+				       reg, SRAM_INIT_DONE(reg),
+				       0, 500);
+	if (ret) {
+		pr_err("%s: lock failed 0x%x, check input refclk and power supply\n",
+		       __func__, reg);
+		goto err_pclk;
+	}
 
 	return 0;
 err_pclk:
