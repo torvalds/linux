@@ -1482,6 +1482,7 @@ struct intel_psr {
 	bool sink_support;
 	bool source_support;
 	bool enabled;
+	bool paused;
 	enum pipe pipe;
 	enum transcoder transcoder;
 	bool active;
