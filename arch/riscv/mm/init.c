@@ -451,7 +451,7 @@ static uintptr_t load_sz __initdata;
 #endif
 
 #ifdef CONFIG_XIP_KERNEL
-static uintptr_t xiprom __inidata;
+static uintptr_t xiprom __initdata;
 static uintptr_t xiprom_sz __initdata;
 #define xiprom_sz      (*((uintptr_t *)XIP_FIXUP(&xiprom_sz)))
 #define xiprom         (*((uintptr_t *)XIP_FIXUP(&xiprom)))
