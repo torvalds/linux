@@ -3388,44 +3388,30 @@ static int rt5645_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
-	int ret = 0;
 
 	rt5645->component = component;
 
 	switch (rt5645->codec_type) {
 	case CODEC_TYPE_RT5645:
-		ret = snd_soc_dapm_new_controls(dapm,
+		snd_soc_dapm_new_controls(dapm,
 			rt5645_specific_dapm_widgets,
 			ARRAY_SIZE(rt5645_specific_dapm_widgets));
-		if (ret < 0)
-			goto exit;
-
-		ret = snd_soc_dapm_add_routes(dapm,
+		snd_soc_dapm_add_routes(dapm,
 			rt5645_specific_dapm_routes,
 			ARRAY_SIZE(rt5645_specific_dapm_routes));
-		if (ret < 0)
-			goto exit;
-
 		if (rt5645->v_id < 3) {
-			ret = snd_soc_dapm_add_routes(dapm,
+			snd_soc_dapm_add_routes(dapm,
 				rt5645_old_dapm_routes,
 				ARRAY_SIZE(rt5645_old_dapm_routes));
-			if (ret < 0)
-				goto exit;
 		}
 		break;
 	case CODEC_TYPE_RT5650:
-		ret = snd_soc_dapm_new_controls(dapm,
+		snd_soc_dapm_new_controls(dapm,
 			rt5650_specific_dapm_widgets,
 			ARRAY_SIZE(rt5650_specific_dapm_widgets));
-		if (ret < 0)
-			goto exit;
-
-		ret = snd_soc_dapm_add_routes(dapm,
+		snd_soc_dapm_add_routes(dapm,
 			rt5650_specific_dapm_routes,
 			ARRAY_SIZE(rt5650_specific_dapm_routes));
-		if (ret < 0)
-			goto exit;
 		break;
 	}
 
@@ -3433,17 +3419,9 @@ static int rt5645_probe(struct snd_soc_component *component)
 
 	/* for JD function */
 	if (rt5645->pdata.jd_mode) {
-		ret = snd_soc_dapm_force_enable_pin(dapm, "JD Power");
-		if (ret < 0)
-			goto exit;
-
-		ret = snd_soc_dapm_force_enable_pin(dapm, "LDO2");
-		if (ret < 0)
-			goto exit;
-
-		ret = snd_soc_dapm_sync(dapm);
-		if (ret < 0)
-			goto exit;
+		snd_soc_dapm_force_enable_pin(dapm, "JD Power");
+		snd_soc_dapm_force_enable_pin(dapm, "LDO2");
+		snd_soc_dapm_sync(dapm);
 	}
 
 	if (rt5645->pdata.long_name)
@@ -3454,14 +3432,9 @@ static int rt5645_probe(struct snd_soc_component *component)
 		GFP_KERNEL);
 
 	if (!rt5645->eq_param)
-		ret = -ENOMEM;
-exit:
-	/*
-	 * If there was an error above, everything will be cleaned up by the
-	 * caller if we return an error here.  This will be done with a later
-	 * call to rt5645_remove().
-	 */
-	return ret;
+		return -ENOMEM;
+
+	return 0;
 }
 
 static void rt5645_remove(struct snd_soc_component *component)
