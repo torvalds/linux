@@ -2463,7 +2463,7 @@ static int wcd934x_micbias_control(struct snd_soc_component *component,
 		dev_err(component->dev, "%s: Invalid micbias number: %d\n",
 			__func__, micb_num);
 		return -EINVAL;
-	};
+	}
 	mutex_lock(&wcd934x->micb_lock);
 
 	switch (req) {
@@ -2524,7 +2524,7 @@ static int wcd934x_micbias_control(struct snd_soc_component *component,
 			wcd_mbhc_event_notify(wcd934x->mbhc,
 					      WCD_EVENT_POST_DAPM_MICBIAS_2_OFF);
 		break;
-	};
+	}
 
 	mutex_unlock(&wcd934x->micb_lock);
 
@@ -5133,7 +5133,7 @@ static int wcd934x_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		wcd934x_micbias_control(component, micb_num, MICB_DISABLE, true);
 		break;
-	};
+	}
 
 	return 0;
 }
