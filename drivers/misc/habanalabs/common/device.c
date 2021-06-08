@@ -86,7 +86,7 @@ static void hpriv_release(struct kref *ref)
 
 	if ((hdev->reset_if_device_not_idle && !device_is_idle)
 			|| hdev->reset_upon_device_release)
-		hl_device_reset(hdev, 0);
+		hl_device_reset(hdev, HL_RESET_DEVICE_RELEASE);
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -885,7 +885,7 @@ static void device_disable_open_processes(struct hl_device *hdev)
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
-	bool hard_reset, from_hard_reset_thread;
+	bool hard_reset, from_hard_reset_thread, hard_instead_soft = false;
 	int i, rc;
 
 	if (!hdev->init_done) {
@@ -897,11 +897,28 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	hard_reset = (flags & HL_RESET_HARD) != 0;
 	from_hard_reset_thread = (flags & HL_RESET_FROM_RESET_THREAD) != 0;
 
-	if ((!hard_reset) && (!hdev->supports_soft_reset)) {
-		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+	if (!hard_reset && !hdev->supports_soft_reset) {
+		hard_instead_soft = true;
 		hard_reset = true;
 	}
 
+	if (hdev->reset_upon_device_release &&
+			(flags & HL_RESET_DEVICE_RELEASE)) {
+		dev_dbg(hdev->dev,
+			"Perform %s-reset upon device release\n",
+			hard_reset ? "hard" : "soft");
+		goto do_reset;
+	}
+
+	if (!hard_reset && !hdev->allow_external_soft_reset) {
+		hard_instead_soft = true;
+		hard_reset = true;
+	}
+
+	if (hard_instead_soft)
+		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+
+do_reset:
 	/* Re-entry of reset thread */
 	if (from_hard_reset_thread && hdev->process_kill_trial_cnt)
 		goto kill_processes;

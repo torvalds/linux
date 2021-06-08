@@ -119,11 +119,15 @@ enum hl_mmu_page_table_location {
  *
  * - HL_RESET_TDR
  *       Set if reset is due to TDR
+ *
+ * - HL_RESET_DEVICE_RELEASE
+ *       Set if reset is due to device release
  */
 #define HL_RESET_HARD			(1 << 0)
 #define HL_RESET_FROM_RESET_THREAD	(1 << 1)
 #define HL_RESET_HEARTBEAT		(1 << 2)
 #define HL_RESET_TDR			(1 << 3)
+#define HL_RESET_DEVICE_RELEASE		(1 << 4)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 
@@ -2181,6 +2185,8 @@ struct hl_mmu_funcs {
  * @collective_mon_idx: helper index for collective initialization
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
+ * @allow_external_soft_reset: true if soft reset initiated by user or TDR is
+ *                             allowed.
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
  * @needs_reset: true if reset_on_lockup is false and device should be reset
  *               due to lockup.
@@ -2301,6 +2307,7 @@ struct hl_device {
 	u8				collective_mon_idx;
 	u8				supports_coresight;
 	u8				supports_soft_reset;
+	u8				allow_external_soft_reset;
 	u8				supports_cb_mapping;
 	u8				needs_reset;
 	u8				process_kill_trial_cnt;
