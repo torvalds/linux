@@ -1060,17 +1060,18 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/*
-	 * Find free memory for the real mode trampoline and place it
-	 * there.
-	 * If there is not enough free memory under 1M, on EFI-enabled
-	 * systems there will be additional attempt to reclaim the memory
-	 * for the real mode trampoline at efi_free_boot_services().
+	 * Find free memory for the real mode trampoline and place it there. If
+	 * there is not enough free memory under 1M, on EFI-enabled systems
+	 * there will be additional attempt to reclaim the memory for the real
+	 * mode trampoline at efi_free_boot_services().
 	 *
-	 * Unconditionally reserve the entire first 1M of RAM because
-	 * BIOSes are know to corrupt low memory and several
-	 * hundred kilobytes are not worth complex detection what memory gets
-	 * clobbered. Moreover, on machines with SandyBridge graphics or in
-	 * setups that use crashkernel the entire 1M is reserved anyway.
+	 * Unconditionally reserve the entire first 1M of RAM because BIOSes
+	 * are known to corrupt low memory and several hundred kilobytes are not
+	 * worth complex detection what memory gets clobbered. Windows does the
+	 * same thing for very similar reasons.
+	 *
+	 * Moreover, on machines with SandyBridge graphics or in setups that use
+	 * crashkernel the entire 1M is reserved anyway.
 	 */
 	reserve_real_mode();
 
