@@ -849,46 +849,50 @@ static int vortex_a3d_register_controls(vortex_t *vortex)
 	int err, i;
 	/* HRTF controls. */
 	for (i = 0; i < NR_A3D; i++) {
-		if ((kcontrol =
-		     snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i])) == NULL)
+		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
+		if (!kcontrol)
 			return -ENOMEM;
 		kcontrol->id.numid = CTRLID_HRTF;
 		kcontrol->info = snd_vortex_a3d_hrtf_info;
 		kcontrol->put = snd_vortex_a3d_hrtf_put;
-		if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+		err = snd_ctl_add(vortex->card, kcontrol);
+		if (err < 0)
 			return err;
 	}
 	/* ITD controls. */
 	for (i = 0; i < NR_A3D; i++) {
-		if ((kcontrol =
-		     snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i])) == NULL)
+		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
+		if (!kcontrol)
 			return -ENOMEM;
 		kcontrol->id.numid = CTRLID_ITD;
 		kcontrol->info = snd_vortex_a3d_itd_info;
 		kcontrol->put = snd_vortex_a3d_itd_put;
-		if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+		err = snd_ctl_add(vortex->card, kcontrol);
+		if (err < 0)
 			return err;
 	}
 	/* ILD (gains) controls. */
 	for (i = 0; i < NR_A3D; i++) {
-		if ((kcontrol =
-		     snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i])) == NULL)
+		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
+		if (!kcontrol)
 			return -ENOMEM;
 		kcontrol->id.numid = CTRLID_GAINS;
 		kcontrol->info = snd_vortex_a3d_ild_info;
 		kcontrol->put = snd_vortex_a3d_ild_put;
-		if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+		err = snd_ctl_add(vortex->card, kcontrol);
+		if (err < 0)
 			return err;
 	}
 	/* Filter controls. */
 	for (i = 0; i < NR_A3D; i++) {
-		if ((kcontrol =
-		     snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i])) == NULL)
+		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
+		if (!kcontrol)
 			return -ENOMEM;
 		kcontrol->id.numid = CTRLID_FILTER;
 		kcontrol->info = snd_vortex_a3d_filter_info;
 		kcontrol->put = snd_vortex_a3d_filter_put;
-		if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+		err = snd_ctl_add(vortex->card, kcontrol);
+		if (err < 0)
 			return err;
 	}
 	return 0;
