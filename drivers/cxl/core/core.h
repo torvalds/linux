@@ -9,6 +9,16 @@ extern const struct device_type cxl_nvdimm_type;
 
 extern struct attribute_group cxl_base_attribute_group;
 
+#ifdef CONFIG_CXL_REGION
+extern struct device_attribute dev_attr_create_pmem_region;
+extern struct device_attribute dev_attr_delete_region;
+#define CXL_REGION_ATTR(x) (&dev_attr_##x.attr)
+#define SET_CXL_REGION_ATTR(x) (&dev_attr_##x.attr),
+#else
+#define CXL_REGION_ATTR(x) NULL
+#define SET_CXL_REGION_ATTR(x)
+#endif
+
 struct cxl_send_command;
 struct cxl_mem_query_commands;
 int cxl_query_cmd(struct cxl_memdev *cxlmd,

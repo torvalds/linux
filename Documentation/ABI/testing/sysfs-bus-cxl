@@ -268,3 +268,28 @@ Description:
 		to the next target in the interleave at address N +
 		interleave_granularity (assuming N is aligned to
 		interleave_granularity).
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/create_pmem_region
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Write a string in the form 'regionZ' to start the process
+		of defining a new persistent memory region (interleave-set)
+		within the decode range bounded by root decoder 'decoderX.Y'.
+		The value written must match the current value returned from
+		reading this attribute. An atomic compare exchange operation is
+		done on write to assign the requested id to a region and
+		allocate the region-id for the next creation attempt. EBUSY is
+		returned if the region name written does not match the current
+		cached value.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/delete_region
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a string in the form 'regionZ' to delete that region,
+		provided it is currently idle / not bound to a driver.

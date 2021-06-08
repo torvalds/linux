@@ -286,11 +286,27 @@ struct cxl_switch_decoder {
 /**
  * struct cxl_root_decoder - Static platform CXL address decoder
  * @res: host / parent resource for region allocations
+ * @region_id: region id for next region provisioning event
  * @cxlsd: base cxl switch decoder
  */
 struct cxl_root_decoder {
 	struct resource *res;
+	atomic_t region_id;
 	struct cxl_switch_decoder cxlsd;
+};
+
+/**
+ * struct cxl_region - CXL region
+ * @dev: This region's device
+ * @id: This region's id. Id is globally unique across all regions
+ * @mode: Endpoint decoder allocation / access mode
+ * @type: Endpoint decoder target type
+ */
+struct cxl_region {
+	struct device dev;
+	int id;
+	enum cxl_decoder_mode mode;
+	enum cxl_decoder_type type;
 };
 
 /**
@@ -446,6 +462,8 @@ struct cxl_hdm;
 struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port);
 int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm);
 int devm_cxl_add_passthrough_decoder(struct cxl_port *port);
+
+bool is_cxl_region(struct device *dev);
 
 extern struct bus_type cxl_bus_type;
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/memregion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
@@ -300,11 +301,35 @@ static struct attribute *cxl_decoder_root_attrs[] = {
 	&dev_attr_cap_type2.attr,
 	&dev_attr_cap_type3.attr,
 	&dev_attr_target_list.attr,
+	SET_CXL_REGION_ATTR(create_pmem_region)
+	SET_CXL_REGION_ATTR(delete_region)
 	NULL,
 };
 
+static bool can_create_pmem(struct cxl_root_decoder *cxlrd)
+{
+	unsigned long flags = CXL_DECODER_F_TYPE3 | CXL_DECODER_F_PMEM;
+
+	return (cxlrd->cxlsd.cxld.flags & flags) == flags;
+}
+
+static umode_t cxl_root_decoder_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
+
+	if (a == CXL_REGION_ATTR(create_pmem_region) && !can_create_pmem(cxlrd))
+		return 0;
+
+	if (a == CXL_REGION_ATTR(delete_region) && !can_create_pmem(cxlrd))
+		return 0;
+
+	return a->mode;
+}
+
 static struct attribute_group cxl_decoder_root_attribute_group = {
 	.attrs = cxl_decoder_root_attrs,
+	.is_visible = cxl_root_decoder_visible,
 };
 
 static const struct attribute_group *cxl_decoder_root_attribute_groups[] = {
@@ -387,6 +412,8 @@ static void cxl_root_decoder_release(struct device *dev)
 {
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
 
+	if (atomic_read(&cxlrd->region_id) >= 0)
+		memregion_free(atomic_read(&cxlrd->region_id));
 	__cxl_decoder_release(&cxlrd->cxlsd.cxld);
 	kfree(cxlrd);
 }
@@ -1484,6 +1511,18 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 
 	cxld = &cxlsd->cxld;
 	cxld->dev.type = &cxl_decoder_root_type;
+	/*
+	 * cxl_root_decoder_release() special cases negative ids to
+	 * detect memregion_alloc() failures.
+	 */
+	atomic_set(&cxlrd->region_id, -1);
+	rc = memregion_alloc(GFP_KERNEL);
+	if (rc < 0) {
+		put_device(&cxld->dev);
+		return ERR_PTR(rc);
+	}
+
+	atomic_set(&cxlrd->region_id, rc);
 	return cxlrd;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_root_decoder_alloc, CXL);

@@ -103,4 +103,9 @@ config CXL_SUSPEND
 	def_bool y
 	depends on SUSPEND && CXL_MEM
 
+config CXL_REGION
+	bool
+	default CXL_BUS
+	select MEMREGION
+
 endif
