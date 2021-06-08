@@ -298,14 +298,12 @@ struct pnp_protocol pnpbios_protocol = {
 
 static int __init insert_device(struct pnp_bios_node *node)
 {
-	struct list_head *pos;
 	struct pnp_dev *dev;
 	char id[8];
 	int error;
 
 	/* check if the device is already added */
-	list_for_each(pos, &pnpbios_protocol.devices) {
-		dev = list_entry(pos, struct pnp_dev, protocol_list);
+	list_for_each_entry(dev, &pnpbios_protocol.devices, protocol_list) {
 		if (dev->number == node->handle)
 			return -EEXIST;
 	}
