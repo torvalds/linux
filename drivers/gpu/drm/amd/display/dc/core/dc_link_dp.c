@@ -3750,9 +3750,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
 
 	is_lttpr_present = dp_retrieve_lttpr_cap(link);
-	if (!is_lttpr_present)
-		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
-
 
 	status = core_link_read_dpcd(link, DP_SET_POWER,
 			&dpcd_power_state, sizeof(dpcd_power_state));
@@ -3781,11 +3778,13 @@ static bool retrieve_link_cap(struct dc_link *link)
 			break;
 	}
 
-
 	if (status != DC_OK) {
 		dm_error("%s: Read receiver caps dpcd data failed.\n", __func__);
 		return false;
 	}
+
+	if (!is_lttpr_present)
+		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 
 	{
 		union training_aux_rd_interval aux_rd_interval;
