@@ -14,6 +14,11 @@
 #define USB2_PORT 2
 #define USB3_PORT 3
 
+static inline struct ssusb_mtk *otg_sx_to_ssusb(struct otg_switch_mtk *otg_sx)
+{
+	return container_of(otg_sx, struct ssusb_mtk, otg_switch);
+}
+
 static void toggle_opstate(struct ssusb_mtk *ssusb)
 {
 	if (!ssusb->otg_switch.is_u3_drd) {
@@ -98,8 +103,7 @@ static void switch_port_to_device(struct ssusb_mtk *ssusb)
 
 int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on)
 {
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 	struct regulator *vbus = otg_sx->vbus;
 	int ret;
 
@@ -126,8 +130,7 @@ static void ssusb_mode_sw_work(struct work_struct *work)
 {
 	struct otg_switch_mtk *otg_sx =
 		container_of(work, struct otg_switch_mtk, dr_work);
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 	struct mtu3 *mtu = ssusb->u3d;
 	enum usb_role desired_role = otg_sx->desired_role;
 	enum usb_role current_role;
@@ -164,8 +167,7 @@ static void ssusb_mode_sw_work(struct work_struct *work)
 
 static void ssusb_set_mode(struct otg_switch_mtk *otg_sx, enum usb_role role)
 {
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 
 	if (ssusb->dr_mode != USB_DR_MODE_OTG)
 		return;
@@ -187,8 +189,7 @@ static int ssusb_id_notifier(struct notifier_block *nb,
 
 static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 {
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 	struct extcon_dev *edev = otg_sx->edev;
 	int ret;
 
@@ -283,8 +284,7 @@ static enum usb_role ssusb_role_sw_get(struct usb_role_switch *sw)
 static int ssusb_role_sw_register(struct otg_switch_mtk *otg_sx)
 {
 	struct usb_role_switch_desc role_sx_desc = { 0 };
-	struct ssusb_mtk *ssusb =
-		container_of(otg_sx, struct ssusb_mtk, otg_switch);
+	struct ssusb_mtk *ssusb = otg_sx_to_ssusb(otg_sx);
 
 	if (!otg_sx->role_sw_used)
 		return 0;
