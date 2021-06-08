@@ -3295,13 +3295,10 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 		return -ENOMEM;
 
 	starget->hostdata = scsi_tgt_priv_data;
-	scsi_tgt_priv_data->starget = starget;
-	scsi_tgt_priv_data->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
 	tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
 	if (tgt_dev && !tgt_dev->is_hidden) {
-		starget->hostdata = scsi_tgt_priv_data;
 		scsi_tgt_priv_data->starget = starget;
 		scsi_tgt_priv_data->dev_handle = tgt_dev->dev_handle;
 		scsi_tgt_priv_data->perst_id = tgt_dev->perst_id;
@@ -3310,10 +3307,8 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 		tgt_dev->starget = starget;
 		atomic_set(&scsi_tgt_priv_data->block_io, 0);
 		retval = 0;
-	} else {
-		kfree(scsi_tgt_priv_data);
+	} else
 		retval = -ENXIO;
-	}
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
 	return retval;
