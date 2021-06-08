@@ -56,6 +56,7 @@ union intel_ddi_buf_trans_entry {
 struct intel_ddi_buf_trans {
 	const union intel_ddi_buf_trans_entry *entries;
 	u8 num_entries;
+	u8 hdmi_default_entry;
 };
 
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table);
