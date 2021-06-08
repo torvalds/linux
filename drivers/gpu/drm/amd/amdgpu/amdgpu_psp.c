@@ -694,6 +694,8 @@ int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 
 	psp_prep_reg_prog_cmd_buf(cmd, reg, value);
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (ret)
+		DRM_ERROR("PSP failed to program reg id %d", reg);
 
 	kfree(cmd);
 	return ret;
