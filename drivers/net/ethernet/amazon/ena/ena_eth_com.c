@@ -151,7 +151,7 @@ static int ena_com_close_bounce_buffer(struct ena_com_io_sq *io_sq)
 		return 0;
 
 	/* bounce buffer was used, so write it and get a new one */
-	if (pkt_ctrl->idx) {
+	if (likely(pkt_ctrl->idx)) {
 		rc = ena_com_write_bounce_buffer_to_dev(io_sq,
 							pkt_ctrl->curr_bounce_buf);
 		if (unlikely(rc))
