@@ -3307,11 +3307,13 @@ static int hclge_set_vf_link_state(struct hnae3_handle *handle, int vf,
 
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 {
-	u32 cmdq_src_reg, msix_src_reg;
+	u32 cmdq_src_reg, msix_src_reg, hw_err_src_reg;
 
 	/* fetch the events from their corresponding regs */
 	cmdq_src_reg = hclge_read_dev(&hdev->hw, HCLGE_VECTOR0_CMDQ_SRC_REG);
 	msix_src_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
+	hw_err_src_reg = hclge_read_dev(&hdev->hw,
+					HCLGE_RAS_PF_OTHER_INT_STS_REG);
 
 	/* Assumption: If by any chance reset and mailbox events are reported
 	 * together then we will only process reset event in this go and will
@@ -3339,11 +3341,10 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		return HCLGE_VECTOR0_EVENT_RST;
 	}
 
-	/* check for vector0 msix event source */
-	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
-		*clearval = msix_src_reg;
+	/* check for vector0 msix event and hardware error event source */
+	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK ||
+	    hw_err_src_reg & HCLGE_RAS_REG_ERR_MASK)
 		return HCLGE_VECTOR0_EVENT_ERR;
-	}
 
 	/* check for vector0 mailbox(=CMDQ RX) event source */
 	if (BIT(HCLGE_VECTOR0_RX_CMDQ_INT_B) & cmdq_src_reg) {
@@ -3354,9 +3355,8 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 
 	/* print other vector0 event source */
 	dev_info(&hdev->pdev->dev,
-		 "CMDQ INT status:0x%x, other INT status:0x%x\n",
-		 cmdq_src_reg, msix_src_reg);
-	*clearval = msix_src_reg;
+		 "INT status: CMDQ(%#x) HW errors(%#x) other(%#x)\n",
+		 cmdq_src_reg, hw_err_src_reg, msix_src_reg);
 
 	return HCLGE_VECTOR0_EVENT_OTHER;
 }
@@ -3427,15 +3427,10 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 
 	hclge_clear_event_cause(hdev, event_cause, clearval);
 
-	/* Enable interrupt if it is not cause by reset. And when
-	 * clearval equal to 0, it means interrupt status may be
-	 * cleared by hardware before driver reads status register.
-	 * For this case, vector0 interrupt also should be enabled.
-	 */
-	if (!clearval ||
-	    event_cause == HCLGE_VECTOR0_EVENT_MBX) {
+	/* Enable interrupt if it is not caused by reset event or error event */
+	if (event_cause == HCLGE_VECTOR0_EVENT_MBX ||
+	    event_cause == HCLGE_VECTOR0_EVENT_OTHER)
 		hclge_enable_vector(&hdev->misc_vector, true);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -4240,6 +4235,38 @@ static void hclge_reset_subtask(struct hclge_dev *hdev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 }
 
+static void hclge_handle_err_reset_request(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	enum hnae3_reset_type reset_type;
+
+	if (ae_dev->hw_err_reset_req) {
+		reset_type = hclge_get_reset_level(ae_dev,
+						   &ae_dev->hw_err_reset_req);
+		hclge_set_def_reset_request(ae_dev, reset_type);
+	}
+
+	if (hdev->default_reset_request && ae_dev->ops->reset_event)
+		ae_dev->ops->reset_event(hdev->pdev, NULL);
+
+	/* enable interrupt after error handling complete */
+	hclge_enable_vector(&hdev->misc_vector, true);
+}
+
+static void hclge_handle_err_recovery(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	ae_dev->hw_err_reset_req = 0;
+
+	if (hclge_find_error_source(hdev)) {
+		hclge_handle_error_info_log(ae_dev);
+		hclge_handle_mac_tnl(hdev);
+	}
+
+	hclge_handle_err_reset_request(hdev);
+}
+
 static void hclge_misc_err_recovery(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -4247,19 +4274,16 @@ static void hclge_misc_err_recovery(struct hclge_dev *hdev)
 	u32 msix_sts_reg;
 
 	msix_sts_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
-
 	if (msix_sts_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
-		if (hclge_handle_hw_msix_error(hdev,
-					       &hdev->default_reset_request))
+		if (hclge_handle_hw_msix_error
+				(hdev, &hdev->default_reset_request))
 			dev_info(dev, "received msix interrupt 0x%x\n",
 				 msix_sts_reg);
-
-		if (hdev->default_reset_request)
-			if (ae_dev->ops->reset_event)
-				ae_dev->ops->reset_event(hdev->pdev, NULL);
 	}
 
-	hclge_enable_vector(&hdev->misc_vector, true);
+	hclge_handle_hw_ras_error(ae_dev);
+
+	hclge_handle_err_reset_request(hdev);
 }
 
 static void hclge_errhand_service_task(struct hclge_dev *hdev)
@@ -4267,7 +4291,10 @@ static void hclge_errhand_service_task(struct hclge_dev *hdev)
 	if (!test_and_clear_bit(HCLGE_STATE_ERR_SERVICE_SCHED, &hdev->state))
 		return;
 
-	hclge_misc_err_recovery(hdev);
+	if (hnae3_dev_ras_imp_supported(hdev))
+		hclge_handle_err_recovery(hdev);
+	else
+		hclge_misc_err_recovery(hdev);
 }
 
 static void hclge_reset_service_task(struct hclge_dev *hdev)
@@ -11524,7 +11551,10 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_clear_resetting_state(hdev);
 
 	/* Log and clear the hw errors those already occurred */
-	hclge_handle_all_hns_hw_errors(ae_dev);
+	if (hnae3_dev_ras_imp_supported(hdev))
+		hclge_handle_occurred_error(hdev);
+	else
+		hclge_handle_all_hns_hw_errors(ae_dev);
 
 	/* request delayed reset for the error recovery because an immediate
 	 * global reset on a PF affecting pending initialization of other PFs
@@ -11877,7 +11907,10 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	}
 
 	/* Log and clear the hw errors those already occurred */
-	hclge_handle_all_hns_hw_errors(ae_dev);
+	if (hnae3_dev_ras_imp_supported(hdev))
+		hclge_handle_occurred_error(hdev);
+	else
+		hclge_handle_all_hns_hw_errors(ae_dev);
 
 	/* Re-enable the hw error interrupts because
 	 * the interrupts get disabled on global reset.

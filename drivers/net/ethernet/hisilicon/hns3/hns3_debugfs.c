@@ -350,6 +350,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 		.name = "support imp-controlled PHY",
 		.cap_bit = HNAE3_DEV_SUPPORT_PHY_IMP_B,
 	}, {
+		.name = "support imp-controlled RAS",
+		.cap_bit = HNAE3_DEV_SUPPORT_RAS_IMP_B,
+	}, {
 		.name = "support rxd advanced layout",
 		.cap_bit = HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
 	}, {

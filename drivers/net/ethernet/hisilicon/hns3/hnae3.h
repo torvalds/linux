@@ -91,6 +91,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_STASH_B,
 	HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B,
 	HNAE3_DEV_SUPPORT_PAUSE_B,
+	HNAE3_DEV_SUPPORT_RAS_IMP_B,
 	HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B,
 	HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
 	HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B,
@@ -128,6 +129,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_dev_phy_imp_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_ras_imp_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_RAS_IMP_B, (hdev)->ae_dev->caps)
 
 #define hnae3_dev_tqp_txrx_indep_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (hdev)->ae_dev->caps)
