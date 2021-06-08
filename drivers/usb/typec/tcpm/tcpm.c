@@ -4209,7 +4209,7 @@ static void run_state_machine(struct tcpm_port *port)
 		timer_val_msecs = 0;
 		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_STARTUP],
 						      SINK_DISCOVERY_BC12, &timer_val_msecs);
-		tcpm_set_state(port, SNK_DISCOVERY, 500);
+		tcpm_set_state(port, SNK_DISCOVERY, timer_val_msecs);
 		break;
 	case SNK_DISCOVERY:
 		if (port->vbus_present) {
