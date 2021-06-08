@@ -677,6 +677,36 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 	}, {
 		.module_id = MODULE_MASTER,
 		.msg = "MODULE_MASTER"
+	}, {
+		.module_id = MODULE_ROCEE_TOP,
+		.msg = "MODULE_ROCEE_TOP"
+	}, {
+		.module_id = MODULE_ROCEE_TIMER,
+		.msg = "MODULE_ROCEE_TIMER"
+	}, {
+		.module_id = MODULE_ROCEE_MDB,
+		.msg = "MODULE_ROCEE_MDB"
+	}, {
+		.module_id = MODULE_ROCEE_TSP,
+		.msg = "MODULE_ROCEE_TSP"
+	}, {
+		.module_id = MODULE_ROCEE_TRP,
+		.msg = "MODULE_ROCEE_TRP"
+	}, {
+		.module_id = MODULE_ROCEE_SCC,
+		.msg = "MODULE_ROCEE_SCC"
+	}, {
+		.module_id = MODULE_ROCEE_CAEP,
+		.msg = "MODULE_ROCEE_CAEP"
+	}, {
+		.module_id = MODULE_ROCEE_GEN_AC,
+		.msg = "MODULE_ROCEE_GEN_AC"
+	}, {
+		.module_id = MODULE_ROCEE_QMM,
+		.msg = "MODULE_ROCEE_QMM"
+	}, {
+		.module_id = MODULE_ROCEE_LSAN,
+		.msg = "MODULE_ROCEE_LSAN"
 	}
 };
 
@@ -720,6 +750,12 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 	}, {
 		.type_id = GLB_ERROR,
 		.msg = "glb_error"
+	}, {
+		.type_id = ROCEE_NORMAL_ERR,
+		.msg = "rocee_normal_error"
+	}, {
+		.type_id = ROCEE_OVF_ERR,
+		.msg = "rocee_ovf_error"
 	}
 };
 
@@ -2125,6 +2161,8 @@ hclge_handle_error_type_reg_log(struct device *dev,
 #define HCLGE_ERR_TYPE_IS_RAS_OFFSET 7
 
 	u8 mod_id, total_module, type_id, total_type, i, is_ras;
+	u8 index_module = MODULE_NONE;
+	u8 index_type = NONE_ERROR;
 
 	mod_id = mod_info->mod_id;
 	type_id = type_reg_info->type_id & HCLGE_ERR_TYPE_MASK;
@@ -2133,11 +2171,25 @@ hclge_handle_error_type_reg_log(struct device *dev,
 	total_module = ARRAY_SIZE(hclge_hw_module_id_st);
 	total_type = ARRAY_SIZE(hclge_hw_type_id_st);
 
-	if (mod_id < total_module && type_id < total_type)
+	for (i = 0; i < total_module; i++) {
+		if (mod_id == hclge_hw_module_id_st[i].module_id) {
+			index_module = i;
+			break;
+		}
+	}
+
+	for (i = 0; i < total_type; i++) {
+		if (type_id == hclge_hw_type_id_st[i].type_id) {
+			index_type = i;
+			break;
+		}
+	}
+
+	if (index_module != MODULE_NONE && index_type != NONE_ERROR)
 		dev_err(dev,
 			"found %s %s, is %s error.\n",
-			hclge_hw_module_id_st[mod_id].msg,
-			hclge_hw_type_id_st[type_id].msg,
+			hclge_hw_module_id_st[index_module].msg,
+			hclge_hw_type_id_st[index_type].msg,
 			is_ras ? "ras" : "msix");
 	else
 		dev_err(dev,

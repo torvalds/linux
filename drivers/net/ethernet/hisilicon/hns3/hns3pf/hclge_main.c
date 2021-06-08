@@ -3343,8 +3343,7 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 
 	/* check for vector0 msix event and hardware error event source */
 	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK ||
-	    hw_err_src_reg & HCLGE_RAS_REG_NFE_MASK ||
-	    hw_err_src_reg & HCLGE_RAS_REG_ROCEE_ERR_MASK)
+	    hw_err_src_reg & HCLGE_RAS_REG_ERR_MASK)
 		return HCLGE_VECTOR0_EVENT_ERR;
 
 	/* check for vector0 mailbox(=CMDQ RX) event source */
