@@ -10606,7 +10606,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	vcpu_load(vcpu);
 	kvm_set_tsc_khz(vcpu, max_tsc_khz);
 	kvm_vcpu_reset(vcpu, false);
-	kvm_init_mmu(vcpu, false);
+	kvm_init_mmu(vcpu);
 	vcpu_put(vcpu);
 	return 0;
 
