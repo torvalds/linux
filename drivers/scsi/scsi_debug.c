@@ -3232,28 +3232,6 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return 0;
 }
 
-static void dump_sector(unsigned char *buf, int len)
-{
-	int i, j, n;
-
-	pr_err(">>> Sector Dump <<<\n");
-	for (i = 0 ; i < len ; i += 16) {
-		char b[128];
-
-		for (j = 0, n = 0; j < 16; j++) {
-			unsigned char c = buf[i+j];
-
-			if (c >= 0x20 && c < 0x7e)
-				n += scnprintf(b + n, sizeof(b) - n,
-					       " %c ", buf[i+j]);
-			else
-				n += scnprintf(b + n, sizeof(b) - n,
-					       "%02x ", buf[i+j]);
-		}
-		pr_err("%04d: %s\n", i, b);
-	}
-}
-
 static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			     unsigned int sectors, u32 ei_lba)
 {
@@ -3300,10 +3278,8 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			daddr = diter.addr + dpage_offset;
 
 			ret = dif_verify(sdt, daddr, sector, ei_lba);
-			if (ret) {
-				dump_sector(daddr, sdebug_sector_size);
+			if (ret)
 				goto out;
-			}
 
 			sector++;
 			ei_lba++;
