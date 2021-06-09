@@ -6473,13 +6473,11 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 			       struct intel_load_detect_pipe *old,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
-	struct intel_crtc *intel_crtc;
-	struct intel_encoder *intel_encoder =
+	struct intel_encoder *encoder =
 		intel_attached_encoder(to_intel_connector(connector));
-	struct drm_crtc *possible_crtc;
-	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_crtc *crtc = NULL;
-	struct drm_device *dev = encoder->dev;
+	struct intel_crtc *possible_crtc;
+	struct intel_crtc *crtc = NULL;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_atomic_state *state = NULL, *restore_state = NULL;
@@ -6489,7 +6487,7 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		    connector->base.id, connector->name,
-		    encoder->base.id, encoder->name);
+		    encoder->base.base.id, encoder->base.name);
 
 	old->restore_state = NULL;
 
@@ -6507,9 +6505,9 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 
 	/* See if we already have a CRTC for this connector */
 	if (connector->state->crtc) {
-		crtc = connector->state->crtc;
+		crtc = to_intel_crtc(connector->state->crtc);
 
-		ret = drm_modeset_lock(&crtc->mutex, ctx);
+		ret = drm_modeset_lock(&crtc->base.mutex, ctx);
 		if (ret)
 			goto fail;
 
@@ -6518,16 +6516,17 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 	}
 
 	/* Find an unused one (if possible) */
-	for_each_crtc(dev, possible_crtc) {
-		if (!(encoder->possible_crtcs & drm_crtc_mask(possible_crtc)))
+	for_each_intel_crtc(dev, possible_crtc) {
+		if (!(encoder->base.possible_crtcs &
+		      drm_crtc_mask(&possible_crtc->base)))
 			continue;
 
-		ret = drm_modeset_lock(&possible_crtc->mutex, ctx);
+		ret = drm_modeset_lock(&possible_crtc->base.mutex, ctx);
 		if (ret)
 			goto fail;
 
-		if (possible_crtc->state->enable) {
-			drm_modeset_unlock(&possible_crtc->mutex);
+		if (possible_crtc->base.state->enable) {
+			drm_modeset_unlock(&possible_crtc->base.mutex);
 			continue;
 		}
 
@@ -6546,8 +6545,6 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 	}
 
 found:
-	intel_crtc = to_intel_crtc(crtc);
-
 	state = drm_atomic_state_alloc(dev);
 	restore_state = drm_atomic_state_alloc(dev);
 	if (!state || !restore_state) {
@@ -6564,11 +6561,11 @@ found:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_connector(connector_state, crtc);
+	ret = drm_atomic_set_crtc_for_connector(connector_state, &crtc->base);
 	if (ret)
 		goto fail;
 
-	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+	crtc_state = intel_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state)) {
 		ret = PTR_ERR(crtc_state);
 		goto fail;
@@ -6581,15 +6578,15 @@ found:
 	if (ret)
 		goto fail;
 
-	ret = intel_modeset_disable_planes(state, crtc);
+	ret = intel_modeset_disable_planes(state, &crtc->base);
 	if (ret)
 		goto fail;
 
 	ret = PTR_ERR_OR_ZERO(drm_atomic_get_connector_state(restore_state, connector));
 	if (!ret)
-		ret = PTR_ERR_OR_ZERO(drm_atomic_get_crtc_state(restore_state, crtc));
+		ret = PTR_ERR_OR_ZERO(drm_atomic_get_crtc_state(restore_state, &crtc->base));
 	if (!ret)
-		ret = drm_atomic_add_affected_planes(restore_state, crtc);
+		ret = drm_atomic_add_affected_planes(restore_state, &crtc->base);
 	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Failed to create a copy of old state to restore: %i\n",
@@ -6608,7 +6605,7 @@ found:
 	drm_atomic_state_put(state);
 
 	/* let the connector get through one full cycle before testing */
-	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
+	intel_wait_for_vblank(dev_priv, crtc->pipe);
 	return true;
 
 fail:
