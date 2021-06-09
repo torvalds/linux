@@ -325,7 +325,7 @@ static const struct ipa_mem ipa_mem_local_data[] = {
 		.size		= 0x100c,
 		.canary_count	= 2,
 	},
-	[IPA_MEM_UC_EVENT_RING] = {
+	[IPA_MEM_END_MARKER] = {
 		.offset		= 0x3000,
 		.size		= 0x0000,
 		.canary_count	= 1,

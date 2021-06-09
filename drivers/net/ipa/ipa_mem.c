@@ -120,6 +120,8 @@ static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 	else if (mem->offset + mem->size > ipa->mem_size)
 		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
 			mem_id, ipa->mem_size);
+	else if (mem_id == IPA_MEM_END_MARKER && mem->size)
+		dev_err(dev, "non-zero end marker region size\n");
 	else
 		return true;
 
