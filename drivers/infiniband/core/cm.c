@@ -216,7 +216,6 @@ struct cm_device {
 
 struct cm_av {
 	struct cm_port *port;
-	union ib_gid dgid;
 	struct rdma_ah_attr ah_attr;
 	u16 pkey_index;
 	u8 timeout;
@@ -249,6 +248,7 @@ struct cm_id_private {
 
 	struct rb_node service_node;
 	struct rb_node sidr_id_node;
+	u32 sidr_slid;
 	spinlock_t lock;	/* Do not acquire inside cm.lock */
 	struct completion comp;
 	refcount_t refcount;
@@ -827,7 +827,6 @@ cm_insert_remote_sidr(struct cm_id_private *cm_id_priv)
 	struct rb_node **link = &cm.remote_sidr_table.rb_node;
 	struct rb_node *parent = NULL;
 	struct cm_id_private *cur_cm_id_priv;
-	union ib_gid *port_gid = &cm_id_priv->av.dgid;
 	__be32 remote_id = cm_id_priv->id.remote_id;
 
 	while (*link) {
@@ -839,12 +838,9 @@ cm_insert_remote_sidr(struct cm_id_private *cm_id_priv)
 		else if (be32_gt(remote_id, cur_cm_id_priv->id.remote_id))
 			link = &(*link)->rb_right;
 		else {
-			int cmp;
-			cmp = memcmp(port_gid, &cur_cm_id_priv->av.dgid,
-				     sizeof *port_gid);
-			if (cmp < 0)
+			if (cur_cm_id_priv->sidr_slid < cm_id_priv->sidr_slid)
 				link = &(*link)->rb_left;
-			else if (cmp > 0)
+			else if (cur_cm_id_priv->sidr_slid > cm_id_priv->sidr_slid)
 				link = &(*link)->rb_right;
 			else
 				return cur_cm_id_priv;
@@ -3610,8 +3606,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	cm_id_priv->tid = sidr_req_msg->hdr.tid;
 
 	wc = work->mad_recv_wc->wc;
-	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
-	cm_id_priv->av.dgid.global.interface_id = 0;
+	cm_id_priv->sidr_slid = wc->slid;
 	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
 				      work->mad_recv_wc->recv_buf.grh,
 				      &cm_id_priv->av);
