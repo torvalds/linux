@@ -215,10 +215,6 @@ int ipa_mem_config(struct ipa *ipa)
 	ipa->zero_virt = virt;
 	ipa->zero_size = IPA_MEM_MAX;
 
-	/* Make sure all defined memory regions are valid */
-	if (!ipa_mem_valid(ipa))
-		goto err_dma_free;
-
 	/* For each region, write "canary" values in the space prior to
 	 * the region's base address if indicated.
 	 */
@@ -527,6 +523,10 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	/* The ipa->mem[] array is indexed by enum ipa_mem_id values */
 	ipa->mem_count = mem_data->local_count;
 	ipa->mem = mem_data->local;
+
+	/* Make sure all defined memory regions are valid */
+	if (!ipa_mem_valid(ipa))
+		goto err_unmap;
 
 	ret = ipa_imem_init(ipa, mem_data->imem_addr, mem_data->imem_size);
 	if (ret)
