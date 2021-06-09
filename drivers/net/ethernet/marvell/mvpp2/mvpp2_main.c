@@ -3938,7 +3938,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 			goto err_drop_frame;
 
 		/* Prefetch header */
-		prefetch(data);
+		prefetch(data + MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM);
 
 		if (bm_pool->frag_size > PAGE_SIZE)
 			frag_size = 0;
@@ -4008,8 +4008,8 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 
 		skb_reserve(skb, MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM);
 		skb_put(skb, rx_bytes);
-		skb->protocol = eth_type_trans(skb, dev);
 		mvpp2_rx_csum(port, rx_status, skb);
+		skb->protocol = eth_type_trans(skb, dev);
 
 		napi_gro_receive(napi, skb);
 		continue;
