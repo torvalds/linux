@@ -115,9 +115,6 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 	else if (mem->offset < mem->canary_count * sizeof(__le32))
 		dev_err(dev, "region %u offset too small for %hu canaries\n",
 			mem_id, mem->canary_count);
-	else if (mem->offset + mem->size > ipa->mem_size)
-		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
-			mem_id, ipa->mem_size);
 	else if (mem_id == IPA_MEM_END_MARKER && mem->size)
 		dev_err(dev, "non-zero end marker region size\n");
 	else
@@ -146,6 +143,28 @@ static bool ipa_mem_valid(struct ipa *ipa)
 		if (mem->offset)
 			dev_warn(dev, "empty region %u has non-zero offset\n",
 				 mem_id);
+	}
+
+	return true;
+}
+
+/* Do all memory regions fit within the IPA local memory? */
+static bool ipa_mem_size_valid(struct ipa *ipa)
+{
+	struct device *dev = &ipa->pdev->dev;
+	u32 limit = ipa->mem_size;
+	enum ipa_mem_id mem_id;
+
+	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
+		const struct ipa_mem *mem = &ipa->mem[mem_id];
+
+		if (mem->offset + mem->size <= limit)
+			continue;
+
+		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
+			mem_id, limit);
+
+		return false;
 	}
 
 	return true;
@@ -183,6 +202,10 @@ int ipa_mem_config(struct ipa *ipa)
 		dev_dbg(dev, "ignoring larger reported memory size: 0x%08x\n",
 			mem_size);
 	}
+
+	/* We know our memory size; make sure regions are all in range */
+	if (!ipa_mem_size_valid(ipa))
+		return -EINVAL;
 
 	/* Prealloc DMA memory for zeroing regions */
 	virt = dma_alloc_coherent(dev, IPA_MEM_MAX, &addr, GFP_KERNEL);
