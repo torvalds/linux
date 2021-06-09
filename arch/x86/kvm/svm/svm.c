@@ -185,6 +185,13 @@ module_param(vls, int, 0444);
 static int vgif = true;
 module_param(vgif, int, 0444);
 
+/*
+ * enable / disable AVIC.  Because the defaults differ for APICv
+ * support between VMX and SVM we cannot use module_param_named.
+ */
+static bool avic;
+module_param(avic, bool, 0444);
+
 bool __read_mostly dump_invalid_vmcb;
 module_param(dump_invalid_vmcb, bool, 0644);
 
@@ -1009,14 +1016,12 @@ static __init int svm_hardware_setup(void)
 			nrips = false;
 	}
 
-	if (avic) {
-		if (!npt_enabled || !boot_cpu_has(X86_FEATURE_AVIC)) {
-			avic = false;
-		} else {
-			pr_info("AVIC enabled\n");
+	enable_apicv = avic = avic && npt_enabled && boot_cpu_has(X86_FEATURE_AVIC);
 
-			amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
-		}
+	if (enable_apicv) {
+		pr_info("AVIC enabled\n");
+
+		amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
 	}
 
 	if (vls) {
@@ -4431,13 +4436,13 @@ static int svm_vm_init(struct kvm *kvm)
 	if (!pause_filter_count || !pause_filter_thresh)
 		kvm->arch.pause_in_guest = true;
 
-	if (avic) {
+	if (enable_apicv) {
 		int ret = avic_vm_init(kvm);
 		if (ret)
 			return ret;
 	}
 
-	kvm_apicv_init(kvm, avic);
+	kvm_apicv_init(kvm, enable_apicv);
 	return 0;
 }
 

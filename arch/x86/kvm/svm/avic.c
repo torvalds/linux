@@ -27,10 +27,6 @@
 #include "irq.h"
 #include "svm.h"
 
-/* enable / disable AVIC */
-bool avic;
-module_param(avic, bool, S_IRUGO);
-
 #define SVM_AVIC_DOORBELL	0xc001011b
 
 #define AVIC_HPA_MASK	~((0xFFFULL << 52) | 0xFFF)
@@ -124,7 +120,7 @@ void avic_vm_destroy(struct kvm *kvm)
 	unsigned long flags;
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
 
-	if (!avic)
+	if (!enable_apicv)
 		return;
 
 	if (kvm_svm->avic_logical_id_table_page)
@@ -147,7 +143,7 @@ int avic_vm_init(struct kvm *kvm)
 	struct page *l_page;
 	u32 vm_id;
 
-	if (!avic)
+	if (!enable_apicv)
 		return 0;
 
 	/* Allocating physical APIC ID table (4KB) */
@@ -569,7 +565,7 @@ int avic_init_vcpu(struct vcpu_svm *svm)
 	int ret;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 
-	if (!avic || !irqchip_in_kernel(vcpu->kvm))
+	if (!enable_apicv || !irqchip_in_kernel(vcpu->kvm))
 		return 0;
 
 	ret = avic_init_backing_page(vcpu);
@@ -593,7 +589,7 @@ void avic_post_state_restore(struct kvm_vcpu *vcpu)
 
 void svm_toggle_avic_for_irq_window(struct kvm_vcpu *vcpu, bool activate)
 {
-	if (!avic || !lapic_in_kernel(vcpu))
+	if (!enable_apicv || !lapic_in_kernel(vcpu))
 		return;
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
@@ -653,7 +649,7 @@ void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	struct vmcb *vmcb = svm->vmcb;
 	bool activated = kvm_vcpu_apicv_active(vcpu);
 
-	if (!avic)
+	if (!enable_apicv)
 		return;
 
 	if (activated) {
