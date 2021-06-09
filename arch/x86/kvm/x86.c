@@ -7219,7 +7219,7 @@ static void emulator_exiting_smm(struct x86_emulate_ctxt *ctxt)
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 
 	vcpu->arch.hflags &= ~(HF_SMM_MASK | HF_SMM_INSIDE_NMI_MASK);
-	kvm_mmu_reset_context(vcpu);
+	kvm_smm_changed(vcpu);
 }
 
 static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
@@ -7230,7 +7230,7 @@ static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
 
 static void emulator_post_leave_smm(struct x86_emulate_ctxt *ctxt)
 {
-	kvm_smm_changed(emul_to_vcpu(ctxt));
+	kvm_mmu_reset_context(emul_to_vcpu(ctxt));
 }
 
 static void emulator_triple_fault(struct x86_emulate_ctxt *ctxt)
