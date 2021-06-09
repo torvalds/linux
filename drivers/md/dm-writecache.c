@@ -1864,15 +1864,13 @@ restart:
 			if (unlikely(read_original_sector(wc, f) ==
 				     read_original_sector(wc, e))) {
 				BUG_ON(!f->write_in_progress);
-				list_del(&e->lru);
-				list_add(&e->lru, &skipped);
+				list_move(&e->lru, &skipped);
 				cond_resched();
 				continue;
 			}
 		}
 		wc->writeback_size++;
-		list_del(&e->lru);
-		list_add(&e->lru, &wbl.list);
+		list_move(&e->lru, &wbl.list);
 		wbl.size++;
 		e->write_in_progress = true;
 		e->wc_list_contiguous = 1;
@@ -1907,8 +1905,7 @@ restart:
 			//	break;
 
 			wc->writeback_size++;
-			list_del(&g->lru);
-			list_add(&g->lru, &wbl.list);
+			list_move(&g->lru, &wbl.list);
 			wbl.size++;
 			g->write_in_progress = true;
 			g->wc_list_contiguous = BIO_MAX_VECS;
