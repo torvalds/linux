@@ -354,8 +354,7 @@ static void bcm_vk_drain_all_pend(struct device *dev,
 	for (num = 0; num < chan->q_nr; num++) {
 		list_for_each_entry_safe(entry, tmp, &chan->pendq[num], node) {
 			if ((!ctx) || (entry->ctx->idx == ctx->idx)) {
-				list_del(&entry->node);
-				list_add_tail(&entry->node, &del_q);
+				list_move_tail(&entry->node, &del_q);
 			}
 		}
 	}
