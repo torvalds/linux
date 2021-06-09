@@ -99,6 +99,9 @@
 #define POWER_ENABLE			0x19
 #define TPS23861_NUM_PORTS		4
 
+#define TPS23861_GENERAL_MASK_1		0x17
+#define TPS23861_CURRENT_SHUNT_MASK	BIT(0)
+
 #define TEMPERATURE_LSB			652 /* 0.652 degrees Celsius */
 #define VOLTAGE_LSB			3662 /* 3.662 mV */
 #define SHUNT_RESISTOR_DEFAULT		255000 /* 255 mOhm */
@@ -560,6 +563,15 @@ static int tps23861_probe(struct i2c_client *client)
 		data->shunt_resistor = shunt_resistor;
 	else
 		data->shunt_resistor = SHUNT_RESISTOR_DEFAULT;
+
+	if (data->shunt_resistor == SHUNT_RESISTOR_DEFAULT)
+		regmap_clear_bits(data->regmap,
+				  TPS23861_GENERAL_MASK_1,
+				  TPS23861_CURRENT_SHUNT_MASK);
+	else
+		regmap_set_bits(data->regmap,
+				TPS23861_GENERAL_MASK_1,
+				TPS23861_CURRENT_SHUNT_MASK);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 data, &tps23861_chip_info,
