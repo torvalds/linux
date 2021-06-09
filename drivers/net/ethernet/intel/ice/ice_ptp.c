@@ -5,6 +5,37 @@
 #include "ice_lib.h"
 
 /**
+ * ice_set_tx_tstamp - Enable or disable Tx timestamping
+ * @pf: The PF pointer to search in
+ * @on: bool value for whether timestamps are enabled or disabled
+ */
+static void ice_set_tx_tstamp(struct ice_pf *pf, bool on)
+{
+	struct ice_vsi *vsi;
+	u32 val;
+	u16 i;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return;
+
+	/* Set the timestamp enable flag for all the Tx rings */
+	ice_for_each_rxq(vsi, i) {
+		if (!vsi->tx_rings[i])
+			continue;
+		vsi->tx_rings[i]->ptp_tx = on;
+	}
+
+	/* Configure the Tx timestamp interrupt */
+	val = rd32(&pf->hw, PFINT_OICR_ENA);
+	if (on)
+		val |= PFINT_OICR_TSYN_TX_M;
+	else
+		val &= ~PFINT_OICR_TSYN_TX_M;
+	wr32(&pf->hw, PFINT_OICR_ENA, val);
+}
+
+/**
  * ice_set_rx_tstamp - Enable or disable Rx timestamping
  * @pf: The PF pointer to search in
  * @on: bool value for whether timestamps are enabled or disabled
@@ -36,12 +67,16 @@ static void ice_set_rx_tstamp(struct ice_pf *pf, bool on)
  */
 static void ice_ptp_cfg_timestamp(struct ice_pf *pf, bool ena)
 {
+	ice_set_tx_tstamp(pf, ena);
 	ice_set_rx_tstamp(pf, ena);
 
-	if (ena)
+	if (ena) {
 		pf->ptp.tstamp_config.rx_filter = HWTSTAMP_FILTER_ALL;
-	else
+		pf->ptp.tstamp_config.tx_type = HWTSTAMP_TX_ON;
+	} else {
 		pf->ptp.tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+		pf->ptp.tstamp_config.tx_type = HWTSTAMP_TX_OFF;
+	}
 }
 
 /**
@@ -319,6 +354,40 @@ static u64 ice_ptp_extend_32b_ts(u64 cached_phc_time, u32 in_tstamp)
 }
 
 /**
+ * ice_ptp_extend_40b_ts - Convert a 40b timestamp to 64b nanoseconds
+ * @pf: Board private structure
+ * @in_tstamp: Ingress/egress 40b timestamp value
+ *
+ * The Tx and Rx timestamps are 40 bits wide, including 32 bits of nominal
+ * nanoseconds, 7 bits of sub-nanoseconds, and a valid bit.
+ *
+ *  *--------------------------------------------------------------*
+ *  | 32 bits of nanoseconds | 7 high bits of sub ns underflow | v |
+ *  *--------------------------------------------------------------*
+ *
+ * The low bit is an indicator of whether the timestamp is valid. The next
+ * 7 bits are a capture of the upper 7 bits of the sub-nanosecond underflow,
+ * and the remaining 32 bits are the lower 32 bits of the PHC timer.
+ *
+ * It is assumed that the caller verifies the timestamp is valid prior to
+ * calling this function.
+ *
+ * Extract the 32bit nominal nanoseconds and extend them. Use the cached PHC
+ * time stored in the device private PTP structure as the basis for timestamp
+ * extension.
+ *
+ * See ice_ptp_extend_32b_ts for a detailed explanation of the extension
+ * algorithm.
+ */
+static u64 ice_ptp_extend_40b_ts(struct ice_pf *pf, u64 in_tstamp)
+{
+	const u64 mask = GENMASK_ULL(31, 0);
+
+	return ice_ptp_extend_32b_ts(pf->ptp.cached_phc_time,
+				     (in_tstamp >> 8) & mask);
+}
+
+/**
  * ice_ptp_read_time - Read the time from the device
  * @pf: Board private structure
  * @ts: timespec structure to hold the current time value
@@ -574,6 +643,10 @@ ice_ptp_set_timestamp_mode(struct ice_pf *pf, struct hwtstamp_config *config)
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
+		ice_set_tx_tstamp(pf, false);
+		break;
+	case HWTSTAMP_TX_ON:
+		ice_set_tx_tstamp(pf, true);
 		break;
 	default:
 		return -ERANGE;
@@ -724,6 +797,291 @@ static long ice_ptp_create_clock(struct ice_pf *pf)
 	return 0;
 }
 
+/**
+ * ice_ptp_tx_tstamp_work - Process Tx timestamps for a port
+ * @work: pointer to the kthread_work struct
+ *
+ * Process timestamps captured by the PHY associated with this port. To do
+ * this, loop over each index with a waiting skb.
+ *
+ * If a given index has a valid timestamp, perform the following steps:
+ *
+ * 1) copy the timestamp out of the PHY register
+ * 4) clear the timestamp valid bit in the PHY register
+ * 5) unlock the index by clearing the associated in_use bit.
+ * 2) extend the 40b timestamp value to get a 64bit timestamp
+ * 3) send that timestamp to the stack
+ *
+ * After looping, if we still have waiting SKBs, then re-queue the work. This
+ * may cause us effectively poll even when not strictly necessary. We do this
+ * because it's possible a new timestamp was requested around the same time as
+ * the interrupt. In some cases hardware might not interrupt us again when the
+ * timestamp is captured.
+ *
+ * Note that we only take the tracking lock when clearing the bit and when
+ * checking if we need to re-queue this task. The only place where bits can be
+ * set is the hard xmit routine where an SKB has a request flag set. The only
+ * places where we clear bits are this work function, or the periodic cleanup
+ * thread. If the cleanup thread clears a bit we're processing we catch it
+ * when we lock to clear the bit and then grab the SKB pointer. If a Tx thread
+ * starts a new timestamp, we might not begin processing it right away but we
+ * will notice it at the end when we re-queue the work item. If a Tx thread
+ * starts a new timestamp just after this function exits without re-queuing,
+ * the interrupt when the timestamp finishes should trigger. Avoiding holding
+ * the lock for the entire function is important in order to ensure that Tx
+ * threads do not get blocked while waiting for the lock.
+ */
+static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
+{
+	struct ice_ptp_port *ptp_port;
+	struct ice_ptp_tx *tx;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+	u8 idx;
+
+	tx = container_of(work, struct ice_ptp_tx, work);
+	if (!tx->init)
+		return;
+
+	ptp_port = container_of(tx, struct ice_ptp_port, tx);
+	pf = ptp_port_to_pf(ptp_port);
+	hw = &pf->hw;
+
+	for_each_set_bit(idx, tx->in_use, tx->len) {
+		struct skb_shared_hwtstamps shhwtstamps = {};
+		u8 phy_idx = idx + tx->quad_offset;
+		u64 raw_tstamp, tstamp;
+		struct sk_buff *skb;
+		int err;
+
+		err = ice_read_phy_tstamp(hw, tx->quad, phy_idx,
+					  &raw_tstamp);
+		if (err)
+			continue;
+
+		/* Check if the timestamp is valid */
+		if (!(raw_tstamp & ICE_PTP_TS_VALID))
+			continue;
+
+		/* clear the timestamp register, so that it won't show valid
+		 * again when re-used.
+		 */
+		ice_clear_phy_tstamp(hw, tx->quad, phy_idx);
+
+		/* The timestamp is valid, so we'll go ahead and clear this
+		 * index and then send the timestamp up to the stack.
+		 */
+		spin_lock(&tx->lock);
+		clear_bit(idx, tx->in_use);
+		skb = tx->tstamps[idx].skb;
+		tx->tstamps[idx].skb = NULL;
+		spin_unlock(&tx->lock);
+
+		/* it's (unlikely but) possible we raced with the cleanup
+		 * thread for discarding old timestamp requests.
+		 */
+		if (!skb)
+			continue;
+
+		/* Extend the timestamp using cached PHC time */
+		tstamp = ice_ptp_extend_40b_ts(pf, raw_tstamp);
+		shhwtstamps.hwtstamp = ns_to_ktime(tstamp);
+
+		skb_tstamp_tx(skb, &shhwtstamps);
+		dev_kfree_skb_any(skb);
+	}
+
+	/* Check if we still have work to do. If so, re-queue this task to
+	 * poll for remaining timestamps.
+	 */
+	spin_lock(&tx->lock);
+	if (!bitmap_empty(tx->in_use, tx->len))
+		kthread_queue_work(pf->ptp.kworker, &tx->work);
+	spin_unlock(&tx->lock);
+}
+
+/**
+ * ice_ptp_request_ts - Request an available Tx timestamp index
+ * @tx: the PTP Tx timestamp tracker to request from
+ * @skb: the SKB to associate with this timestamp request
+ */
+s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
+{
+	u8 idx;
+
+	/* Check if this tracker is initialized */
+	if (!tx->init)
+		return -1;
+
+	spin_lock(&tx->lock);
+	/* Find and set the first available index */
+	idx = find_first_zero_bit(tx->in_use, tx->len);
+	if (idx < tx->len) {
+		/* We got a valid index that no other thread could have set. Store
+		 * a reference to the skb and the start time to allow discarding old
+		 * requests.
+		 */
+		set_bit(idx, tx->in_use);
+		tx->tstamps[idx].start = jiffies;
+		tx->tstamps[idx].skb = skb_get(skb);
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+	}
+
+	spin_unlock(&tx->lock);
+
+	/* return the appropriate PHY timestamp register index, -1 if no
+	 * indexes were available.
+	 */
+	if (idx >= tx->len)
+		return -1;
+	else
+		return idx + tx->quad_offset;
+}
+
+/**
+ * ice_ptp_process_ts - Spawn kthread work to handle timestamps
+ * @pf: Board private structure
+ *
+ * Queue work required to process the PTP Tx timestamps outside of interrupt
+ * context.
+ */
+void ice_ptp_process_ts(struct ice_pf *pf)
+{
+	if (pf->ptp.port.tx.init)
+		kthread_queue_work(pf->ptp.kworker, &pf->ptp.port.tx.work);
+}
+
+/**
+ * ice_ptp_alloc_tx_tracker - Initialize tracking for Tx timestamps
+ * @tx: Tx tracking structure to initialize
+ *
+ * Assumes that the length has already been initialized. Do not call directly,
+ * use the ice_ptp_init_tx_e822 or ice_ptp_init_tx_e810 instead.
+ */
+static int
+ice_ptp_alloc_tx_tracker(struct ice_ptp_tx *tx)
+{
+	tx->tstamps = kcalloc(tx->len, sizeof(*tx->tstamps), GFP_KERNEL);
+	if (!tx->tstamps)
+		return -ENOMEM;
+
+	tx->in_use = bitmap_zalloc(tx->len, GFP_KERNEL);
+	if (!tx->in_use) {
+		kfree(tx->tstamps);
+		tx->tstamps = NULL;
+		return -ENOMEM;
+	}
+
+	spin_lock_init(&tx->lock);
+	kthread_init_work(&tx->work, ice_ptp_tx_tstamp_work);
+
+	tx->init = 1;
+
+	return 0;
+}
+
+/**
+ * ice_ptp_flush_tx_tracker - Flush any remaining timestamps from the tracker
+ * @pf: Board private structure
+ * @tx: the tracker to flush
+ */
+static void
+ice_ptp_flush_tx_tracker(struct ice_pf *pf, struct ice_ptp_tx *tx)
+{
+	u8 idx;
+
+	for (idx = 0; idx < tx->len; idx++) {
+		u8 phy_idx = idx + tx->quad_offset;
+
+		/* Clear any potential residual timestamp in the PHY block */
+		if (!pf->hw.reset_ongoing)
+			ice_clear_phy_tstamp(&pf->hw, tx->quad, phy_idx);
+
+		if (tx->tstamps[idx].skb) {
+			dev_kfree_skb_any(tx->tstamps[idx].skb);
+			tx->tstamps[idx].skb = NULL;
+		}
+	}
+}
+
+/**
+ * ice_ptp_release_tx_tracker - Release allocated memory for Tx tracker
+ * @pf: Board private structure
+ * @tx: Tx tracking structure to release
+ *
+ * Free memory associated with the Tx timestamp tracker.
+ */
+static void
+ice_ptp_release_tx_tracker(struct ice_pf *pf, struct ice_ptp_tx *tx)
+{
+	tx->init = 0;
+
+	kthread_cancel_work_sync(&tx->work);
+
+	ice_ptp_flush_tx_tracker(pf, tx);
+
+	kfree(tx->tstamps);
+	tx->tstamps = NULL;
+
+	kfree(tx->in_use);
+	tx->in_use = NULL;
+
+	tx->len = 0;
+}
+
+/**
+ * ice_ptp_init_tx_e810 - Initialize tracking for Tx timestamps
+ * @pf: Board private structure
+ * @tx: the Tx tracking structure to initialize
+ *
+ * Initialize the Tx timestamp tracker for this PF. For E810 devices, each
+ * port has its own block of timestamps, independent of the other ports.
+ */
+static int
+ice_ptp_init_tx_e810(struct ice_pf *pf, struct ice_ptp_tx *tx)
+{
+	tx->quad = pf->hw.port_info->lport;
+	tx->quad_offset = 0;
+	tx->len = INDEX_PER_QUAD;
+
+	return ice_ptp_alloc_tx_tracker(tx);
+}
+
+/**
+ * ice_ptp_tx_tstamp_cleanup - Cleanup old timestamp requests that got dropped
+ * @tx: PTP Tx tracker to clean up
+ *
+ * Loop through the Tx timestamp requests and see if any of them have been
+ * waiting for a long time. Discard any SKBs that have been waiting for more
+ * than 2 seconds. This is long enough to be reasonably sure that the
+ * timestamp will never be captured. This might happen if the packet gets
+ * discarded before it reaches the PHY timestamping block.
+ */
+static void ice_ptp_tx_tstamp_cleanup(struct ice_ptp_tx *tx)
+{
+	u8 idx;
+
+	if (!tx->init)
+		return;
+
+	for_each_set_bit(idx, tx->in_use, tx->len) {
+		struct sk_buff *skb;
+
+		/* Check if this SKB has been waiting for too long */
+		if (time_is_after_jiffies(tx->tstamps[idx].start + 2 * HZ))
+			continue;
+
+		spin_lock(&tx->lock);
+		skb = tx->tstamps[idx].skb;
+		tx->tstamps[idx].skb = NULL;
+		clear_bit(idx, tx->in_use);
+		spin_unlock(&tx->lock);
+
+		/* Free the SKB after we've cleared the bit */
+		dev_kfree_skb_any(skb);
+	}
+}
+
 static void ice_ptp_periodic_work(struct kthread_work *work)
 {
 	struct ice_ptp *ptp = container_of(work, struct ice_ptp, work.work);
@@ -733,6 +1091,8 @@ static void ice_ptp_periodic_work(struct kthread_work *work)
 		return;
 
 	ice_ptp_update_cached_phctime(pf);
+
+	ice_ptp_tx_tstamp_cleanup(&pf->ptp.port.tx);
 
 	/* Run twice a second */
 	kthread_queue_delayed_work(ptp->kworker, &ptp->work,
@@ -842,6 +1202,9 @@ void ice_ptp_init(struct ice_pf *pf)
 	/* Disable timestamping for both Tx and Rx */
 	ice_ptp_cfg_timestamp(pf, false);
 
+	/* Initialize the PTP port Tx timestamp tracker */
+	ice_ptp_init_tx_e810(pf, &pf->ptp.port.tx);
+
 	/* Initialize work functions */
 	kthread_init_delayed_work(&pf->ptp.work, ice_ptp_periodic_work);
 
@@ -883,6 +1246,8 @@ void ice_ptp_release(struct ice_pf *pf)
 {
 	/* Disable timestamping for both Tx and Rx */
 	ice_ptp_cfg_timestamp(pf, false);
+
+	ice_ptp_release_tx_tracker(pf, &pf->ptp.port.tx);
 
 	clear_bit(ICE_FLAG_PTP, pf->flags);
 

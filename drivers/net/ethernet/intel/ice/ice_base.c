@@ -287,6 +287,15 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	/* make sure the context is associated with the right VSI */
 	tlan_ctx->src_vsi = ice_get_hw_vsi_num(hw, vsi->idx);
 
+	/* Restrict Tx timestamps to the PF VSI */
+	switch (vsi->type) {
+	case ICE_VSI_PF:
+		tlan_ctx->tsyn_ena = 1;
+		break;
+	default:
+		break;
+	}
+
 	tlan_ctx->tso_ena = ICE_TX_LEGACY;
 	tlan_ctx->tso_qnum = pf_q;
 

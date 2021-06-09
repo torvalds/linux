@@ -2792,6 +2792,11 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 		}
 	}
 
+	if (oicr & PFINT_OICR_TSYN_TX_M) {
+		ena_mask &= ~PFINT_OICR_TSYN_TX_M;
+		ice_ptp_process_ts(pf);
+	}
+
 #define ICE_AUX_CRIT_ERR (PFINT_OICR_PE_CRITERR_M | PFINT_OICR_HMC_ERR_M | PFINT_OICR_PE_PUSH_M)
 	if (oicr & ICE_AUX_CRIT_ERR) {
 		struct iidc_event *event;
