@@ -44,7 +44,8 @@
 static const u8 bcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /* If this number is made larger, check that the temporary string buffer
- * in lapbeth_new_device is large enough to store the probe device name.*/
+ * in lapbeth_new_device is large enough to store the probe device name.
+ */
 #define MAXLAPBDEV 100
 
 struct lapbethdev {
@@ -64,8 +65,7 @@ static void lapbeth_disconnected(struct net_device *dev, int reason);
 
 /* ------------------------------------------------------------------------ */
 
-/*
- *	Get the LAPB device for the ethernet device
+/*	Get the LAPB device for the ethernet device
  */
 static struct lapbethdev *lapbeth_get_x25_dev(struct net_device *dev)
 {
@@ -105,8 +105,7 @@ static int lapbeth_napi_poll(struct napi_struct *napi, int budget)
 	return processed;
 }
 
-/*
- *	Receive a LAPB frame via an ethernet interface.
+/*	Receive a LAPB frame via an ethernet interface.
  */
 static int lapbeth_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *ptype, struct net_device *orig_dev)
 {
@@ -179,8 +178,7 @@ static int lapbeth_data_indication(struct net_device *dev, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-/*
- *	Send a LAPB frame via an ethernet interface
+/*	Send a LAPB frame via an ethernet interface
  */
 static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
@@ -296,8 +294,7 @@ static void lapbeth_disconnected(struct net_device *dev, int reason)
 	napi_schedule(&lapbeth->napi);
 }
 
-/*
- *	Set AX.25 callsign
+/*	Set AX.25 callsign
  */
 static int lapbeth_set_mac_address(struct net_device *dev, void *addr)
 {
@@ -316,8 +313,7 @@ static const struct lapb_register_struct lapbeth_callbacks = {
 	.data_transmit           = lapbeth_data_transmit,
 };
 
-/*
- * open/close a device
+/* open/close a device
  */
 static int lapbeth_open(struct net_device *dev)
 {
@@ -376,8 +372,7 @@ static void lapbeth_setup(struct net_device *dev)
 	dev->addr_len        = 0;
 }
 
-/*
- *	Setup a new device.
+/*	Setup a new device.
  */
 static int lapbeth_new_device(struct net_device *dev)
 {
@@ -428,8 +423,7 @@ fail:
 	goto out;
 }
 
-/*
- *	Free a lapb network device.
+/*	Free a lapb network device.
  */
 static void lapbeth_free_device(struct lapbethdev *lapbeth)
 {
@@ -438,8 +432,7 @@ static void lapbeth_free_device(struct lapbethdev *lapbeth)
 	unregister_netdevice(lapbeth->axdev);
 }
 
-/*
- *	Handle device status changes.
+/*	Handle device status changes.
  *
  * Called from notifier with RTNL held.
  */
