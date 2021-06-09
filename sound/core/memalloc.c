@@ -128,6 +128,23 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 EXPORT_SYMBOL(snd_dma_free_pages);
 
 /**
+ * snd_dma_buffer_mmap - perform mmap of the given DMA buffer
+ * @dmab: buffer allocation information
+ * @area: VM area information
+ */
+int snd_dma_buffer_mmap(struct snd_dma_buffer *dmab,
+			struct vm_area_struct *area)
+{
+	const struct snd_malloc_ops *ops = snd_dma_get_ops(dmab);
+
+	if (ops && ops->mmap)
+		return ops->mmap(dmab, area);
+	else
+		return -ENOENT;
+}
+EXPORT_SYMBOL(snd_dma_buffer_mmap);
+
+/**
  * snd_sgbuf_get_addr - return the physical address at the corresponding offset
  * @dmab: buffer allocation information
  * @offset: offset in the ring buffer
@@ -283,9 +300,20 @@ static void snd_dma_iram_free(struct snd_dma_buffer *dmab)
 		gen_pool_free(pool, (unsigned long)dmab->area, dmab->bytes);
 }
 
+static int snd_dma_iram_mmap(struct snd_dma_buffer *dmab,
+			     struct vm_area_struct *area)
+{
+	area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+	return remap_pfn_range(area, area->vm_start,
+			       dmab->addr >> PAGE_SHIFT,
+			       area->vm_end - area->vm_start,
+			       area->vm_page_prot);
+}
+
 static const struct snd_malloc_ops snd_dma_iram_ops = {
 	.alloc = snd_dma_iram_alloc,
 	.free = snd_dma_iram_free,
+	.mmap = snd_dma_iram_mmap,
 };
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 
@@ -320,9 +348,17 @@ static void snd_dma_dev_free(struct snd_dma_buffer *dmab)
 	dma_free_coherent(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 }
 
+static int snd_dma_dev_mmap(struct snd_dma_buffer *dmab,
+			    struct vm_area_struct *area)
+{
+	return dma_mmap_coherent(dmab->dev.dev, area,
+				 dmab->area, dmab->addr, dmab->bytes);
+}
+
 static const struct snd_malloc_ops snd_dma_dev_ops = {
 	.alloc = snd_dma_dev_alloc,
 	.free = snd_dma_dev_free,
+	.mmap = snd_dma_dev_mmap,
 };
 #endif /* CONFIG_HAS_DMA */
 

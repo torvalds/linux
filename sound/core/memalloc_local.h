@@ -9,6 +9,7 @@ struct snd_malloc_ops {
 	struct page *(*get_page)(struct snd_dma_buffer *dmab, size_t offset);
 	unsigned int (*get_chunk_size)(struct snd_dma_buffer *dmab,
 				       unsigned int ofs, unsigned int size);
+	int (*mmap)(struct snd_dma_buffer *dmab, struct vm_area_struct *area);
 };
 
 #ifdef CONFIG_SND_DMA_SGBUF

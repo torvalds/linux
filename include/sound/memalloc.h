@@ -11,6 +11,7 @@
 
 struct device;
 struct page;
+struct vm_area_struct;
 
 /*
  * buffer device info
@@ -69,6 +70,8 @@ int snd_dma_alloc_pages(int type, struct device *dev, size_t size,
 int snd_dma_alloc_pages_fallback(int type, struct device *dev, size_t size,
                                  struct snd_dma_buffer *dmab);
 void snd_dma_free_pages(struct snd_dma_buffer *dmab);
+int snd_dma_buffer_mmap(struct snd_dma_buffer *dmab,
+			struct vm_area_struct *area);
 
 dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab, size_t offset);
 struct page *snd_sgbuf_get_page(struct snd_dma_buffer *dmab, size_t offset);
