@@ -30,6 +30,12 @@ CXL Memory Device
 
 CXL Core
 --------
+.. kernel-doc:: drivers/cxl/cxl.h
+   :doc: cxl objects
+
+.. kernel-doc:: drivers/cxl/cxl.h
+   :internal:
+
 .. kernel-doc:: drivers/cxl/core.c
    :doc: cxl core
 

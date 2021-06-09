@@ -4,6 +4,8 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/idr.h>
 #include "cxl.h"
 
 /**
@@ -12,6 +14,164 @@
  * The CXL core provides a sysfs hierarchy for control devices and a rendezvous
  * point for cross-device interleave coordination through cxl ports.
  */
+
+static DEFINE_IDA(cxl_port_ida);
+
+static ssize_t devtype_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	return sysfs_emit(buf, "%s\n", dev->type->name);
+}
+static DEVICE_ATTR_RO(devtype);
+
+static struct attribute *cxl_base_attributes[] = {
+	&dev_attr_devtype.attr,
+	NULL,
+};
+
+static struct attribute_group cxl_base_attribute_group = {
+	.attrs = cxl_base_attributes,
+};
+
+static void cxl_port_release(struct device *dev)
+{
+	struct cxl_port *port = to_cxl_port(dev);
+
+	ida_free(&cxl_port_ida, port->id);
+	kfree(port);
+}
+
+static const struct attribute_group *cxl_port_attribute_groups[] = {
+	&cxl_base_attribute_group,
+	NULL,
+};
+
+static const struct device_type cxl_port_type = {
+	.name = "cxl_port",
+	.release = cxl_port_release,
+	.groups = cxl_port_attribute_groups,
+};
+
+struct cxl_port *to_cxl_port(struct device *dev)
+{
+	if (dev_WARN_ONCE(dev, dev->type != &cxl_port_type,
+			  "not a cxl_port device\n"))
+		return NULL;
+	return container_of(dev, struct cxl_port, dev);
+}
+
+static void unregister_dev(void *dev)
+{
+	device_unregister(dev);
+}
+
+static void cxl_unlink_uport(void *_port)
+{
+	struct cxl_port *port = _port;
+
+	sysfs_remove_link(&port->dev.kobj, "uport");
+}
+
+static int devm_cxl_link_uport(struct device *host, struct cxl_port *port)
+{
+	int rc;
+
+	rc = sysfs_create_link(&port->dev.kobj, &port->uport->kobj, "uport");
+	if (rc)
+		return rc;
+	return devm_add_action_or_reset(host, cxl_unlink_uport, port);
+}
+
+static struct cxl_port *cxl_port_alloc(struct device *uport,
+				       resource_size_t component_reg_phys,
+				       struct cxl_port *parent_port)
+{
+	struct cxl_port *port;
+	struct device *dev;
+	int rc;
+
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (!port)
+		return ERR_PTR(-ENOMEM);
+
+	rc = ida_alloc(&cxl_port_ida, GFP_KERNEL);
+	if (rc < 0)
+		goto err;
+	port->id = rc;
+
+	/*
+	 * The top-level cxl_port "cxl_root" does not have a cxl_port as
+	 * its parent and it does not have any corresponding component
+	 * registers as its decode is described by a fixed platform
+	 * description.
+	 */
+	dev = &port->dev;
+	if (parent_port)
+		dev->parent = &parent_port->dev;
+	else
+		dev->parent = uport;
+
+	port->uport = uport;
+	port->component_reg_phys = component_reg_phys;
+
+	device_initialize(dev);
+	device_set_pm_not_required(dev);
+	dev->bus = &cxl_bus_type;
+	dev->type = &cxl_port_type;
+
+	return port;
+
+err:
+	kfree(port);
+	return ERR_PTR(rc);
+}
+
+/**
+ * devm_cxl_add_port - register a cxl_port in CXL memory decode hierarchy
+ * @host: host device for devm operations
+ * @uport: "physical" device implementing this upstream port
+ * @component_reg_phys: (optional) for configurable cxl_port instances
+ * @parent_port: next hop up in the CXL memory decode hierarchy
+ */
+struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
+				   resource_size_t component_reg_phys,
+				   struct cxl_port *parent_port)
+{
+	struct cxl_port *port;
+	struct device *dev;
+	int rc;
+
+	port = cxl_port_alloc(uport, component_reg_phys, parent_port);
+	if (IS_ERR(port))
+		return port;
+
+	dev = &port->dev;
+	if (parent_port)
+		rc = dev_set_name(dev, "port%d", port->id);
+	else
+		rc = dev_set_name(dev, "root%d", port->id);
+	if (rc)
+		goto err;
+
+	rc = device_add(dev);
+	if (rc)
+		goto err;
+
+	rc = devm_add_action_or_reset(host, unregister_dev, dev);
+	if (rc)
+		return ERR_PTR(rc);
+
+	rc = devm_cxl_link_uport(host, port);
+	if (rc)
+		return ERR_PTR(rc);
+
+	return port;
+
+err:
+	put_device(dev);
+	return ERR_PTR(rc);
+}
+EXPORT_SYMBOL_GPL(devm_cxl_add_port);
 
 /**
  * cxl_probe_component_regs() - Detect CXL Component register blocks

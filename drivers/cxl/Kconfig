@@ -45,4 +45,19 @@ config CXL_MEM_RAW_COMMANDS
 	  potential impact to memory currently in use by the kernel.
 
 	  If developing CXL hardware or the driver say Y, otherwise say N.
+
+config CXL_ACPI
+	tristate "CXL ACPI: Platform Support"
+	depends on ACPI
+	help
+	  Enable support for host managed device memory (HDM) resources
+	  published by a platform's ACPI CXL memory layout description.  See
+	  Chapter 9.14.1 CXL Early Discovery Table (CEDT) in the CXL 2.0
+	  specification, and CXL Fixed Memory Window Structures (CEDT.CFMWS)
+	  (https://www.computeexpresslink.org/spec-landing). The CXL core
+	  consumes these resource to publish the root of a cxl_port decode
+	  hierarchy to map regions that represent System RAM, or Persistent
+	  Memory regions to be managed by LIBNVDIMM.
+
+	  If unsure say 'm'.
 endif

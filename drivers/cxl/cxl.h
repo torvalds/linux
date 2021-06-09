@@ -8,6 +8,14 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 
+/**
+ * DOC: cxl objects
+ *
+ * The CXL core objects like ports, decoders, and regions are shared
+ * between the subsystem drivers cxl_acpi, cxl_pci, and core drivers
+ * (port-driver, region-driver, nvdimm object-drivers... etc).
+ */
+
 /* CXL 2.0 8.2.5 CXL.cache and CXL.mem Registers*/
 #define CXL_CM_OFFSET 0x1000
 #define CXL_CM_CAP_HDR_OFFSET 0x0
@@ -144,6 +152,29 @@ int cxl_map_component_regs(struct pci_dev *pdev,
 int cxl_map_device_regs(struct pci_dev *pdev,
 			struct cxl_device_regs *regs,
 			struct cxl_register_map *map);
+
+#define CXL_RESOURCE_NONE ((resource_size_t) -1)
+
+/**
+ * struct cxl_port - logical collection of upstream port devices and
+ *		     downstream port devices to construct a CXL memory
+ *		     decode hierarchy.
+ * @dev: this port's device
+ * @uport: PCI or platform device implementing the upstream port capability
+ * @id: id for port device-name
+ * @component_reg_phys: component register capability base address (optional)
+ */
+struct cxl_port {
+	struct device dev;
+	struct device *uport;
+	int id;
+	resource_size_t component_reg_phys;
+};
+
+struct cxl_port *to_cxl_port(struct device *dev);
+struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
+				   resource_size_t component_reg_phys,
+				   struct cxl_port *parent_port);
 
 extern struct bus_type cxl_bus_type;
 #endif /* __CXL_H__ */

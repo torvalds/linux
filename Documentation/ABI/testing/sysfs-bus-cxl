@@ -24,3 +24,23 @@ Description:
 		(RO) "Persistent Only Capacity" as bytes. Represents the
 		identically named field in the Identify Memory Device Output
 		Payload in the CXL-2.0 specification.
+
+What:		/sys/bus/cxl/devices/*/devtype
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL device objects export the devtype attribute which mirrors
+		the same value communicated in the DEVTYPE environment variable
+		for uevents for devices on the "cxl" bus.
+
+What:		/sys/bus/cxl/devices/portX/uport
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL port objects are enumerated from either a platform firmware
+		device (ACPI0017 and ACPI0016) or PCIe switch upstream port with
+		CXL component registers. The 'uport' symlink connects the CXL
+		portX object to the device that published the CXL port
+		capability.
