@@ -742,7 +742,7 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 			  struct mlxsw_thermal *thermal, u8 module)
 {
 	struct mlxsw_thermal_module *module_tz;
-	int crit_temp, emerg_temp;
+	int dummy_temp, crit_temp, emerg_temp;
 	u16 sensor_index;
 
 	sensor_index = MLXSW_REG_MTMP_MODULE_INDEX_MIN + module;
@@ -757,7 +757,7 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 	/* Initialize all trip point. */
 	mlxsw_thermal_module_trips_reset(module_tz);
 	/* Read module temperature and thresholds. */
-	mlxsw_thermal_module_temp_and_thresholds_get(core, sensor_index, NULL,
+	mlxsw_thermal_module_temp_and_thresholds_get(core, sensor_index, &dummy_temp,
 						     &crit_temp, &emerg_temp);
 	/* Update trip point according to the module data. */
 	return mlxsw_thermal_module_trips_update(dev, core, module_tz,
