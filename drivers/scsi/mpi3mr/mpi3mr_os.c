@@ -1963,7 +1963,6 @@ static void mpi3mr_setup_eedp(struct mpi3mr_ioc *mrioc,
 {
 	u16 eedp_flags = 0;
 	unsigned char prot_op = scsi_get_prot_op(scmd);
-	unsigned char prot_type = scsi_get_prot_type(scmd);
 
 	switch (prot_op) {
 	case SCSI_PROT_NORMAL:
@@ -1983,60 +1982,42 @@ static void mpi3mr_setup_eedp(struct mpi3mr_ioc *mrioc,
 		scsiio_req->msg_flags |= MPI3_SCSIIO_MSGFLAGS_METASGL_VALID;
 		break;
 	case SCSI_PROT_READ_PASS:
-		eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK |
-		    MPI3_EEDPFLAGS_CHK_REF_TAG | MPI3_EEDPFLAGS_CHK_APP_TAG |
-		    MPI3_EEDPFLAGS_CHK_GUARD;
+		eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK;
 		scsiio_req->msg_flags |= MPI3_SCSIIO_MSGFLAGS_METASGL_VALID;
 		break;
 	case SCSI_PROT_WRITE_PASS:
-		if (scsi_host_get_guard(scmd->device->host)
-		    & SHOST_DIX_GUARD_IP) {
-			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK_REGEN |
-			    MPI3_EEDPFLAGS_CHK_APP_TAG |
-			    MPI3_EEDPFLAGS_CHK_GUARD |
-			    MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
+		if (scmd->prot_flags & SCSI_PROT_IP_CHECKSUM) {
+			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK_REGEN;
 			scsiio_req->sgl[0].eedp.application_tag_translation_mask =
 			    0xffff;
-		} else {
-			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK |
-			    MPI3_EEDPFLAGS_CHK_REF_TAG |
-			    MPI3_EEDPFLAGS_CHK_APP_TAG |
-			    MPI3_EEDPFLAGS_CHK_GUARD;
-		}
+		} else
+			eedp_flags = MPI3_EEDPFLAGS_EEDP_OP_CHECK;
+
 		scsiio_req->msg_flags |= MPI3_SCSIIO_MSGFLAGS_METASGL_VALID;
 		break;
 	default:
 		return;
 	}
 
-	if (scsi_host_get_guard(scmd->device->host) & SHOST_DIX_GUARD_IP)
+	if (scmd->prot_flags & SCSI_PROT_GUARD_CHECK)
+		eedp_flags |= MPI3_EEDPFLAGS_CHK_GUARD;
+
+	if (scmd->prot_flags & SCSI_PROT_IP_CHECKSUM)
 		eedp_flags |= MPI3_EEDPFLAGS_HOST_GUARD_IP_CHKSUM;
 
-	switch (prot_type) {
-	case SCSI_PROT_DIF_TYPE0:
-		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
+	if (scmd->prot_flags & SCSI_PROT_REF_CHECK) {
+		eedp_flags |= MPI3_EEDPFLAGS_CHK_REF_TAG |
+			MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
 		scsiio_req->cdb.eedp32.primary_reference_tag =
-		    cpu_to_be32(t10_pi_ref_tag(scsi_cmd_to_rq(scmd)));
-		break;
-	case SCSI_PROT_DIF_TYPE1:
-	case SCSI_PROT_DIF_TYPE2:
-		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG |
-		    MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE |
-		    MPI3_EEDPFLAGS_CHK_GUARD;
-		scsiio_req->cdb.eedp32.primary_reference_tag =
-		    cpu_to_be32(t10_pi_ref_tag(scsi_cmd_to_rq(scmd)));
-		break;
-	case SCSI_PROT_DIF_TYPE3:
-		eedp_flags |= MPI3_EEDPFLAGS_CHK_GUARD |
-		    MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE;
-		break;
-
-	default:
-		scsiio_req->msg_flags &= ~(MPI3_SCSIIO_MSGFLAGS_METASGL_VALID);
-		return;
+			cpu_to_be32(scsi_prot_ref_tag(scmd));
 	}
 
-	switch (scmd->device->sector_size) {
+	if (scmd->prot_flags & SCSI_PROT_REF_INCREMENT)
+		eedp_flags |= MPI3_EEDPFLAGS_INCR_PRI_REF_TAG;
+
+	eedp_flags |= MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE;
+
+	switch (scsi_prot_interval(scmd)) {
 	case 512:
 		scsiio_req->sgl[0].eedp.user_data_size = MPI3_EEDP_UDS_512;
 		break;
