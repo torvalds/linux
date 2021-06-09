@@ -99,7 +99,7 @@ int ipa_mem_setup(struct ipa *ipa)
 	return 0;
 }
 
-static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem *mem)
+static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 {
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id = mem->id;
@@ -124,6 +124,31 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem *mem)
 		return true;
 
 	return false;
+}
+
+/* Verify each defined memory region is valid. */
+static bool ipa_mem_valid(struct ipa *ipa)
+{
+	struct device *dev = &ipa->pdev->dev;
+	enum ipa_mem_id mem_id;
+
+	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
+		const struct ipa_mem *mem = &ipa->mem[mem_id];
+
+		/* Defined regions have non-zero size and/or canary count */
+		if (mem->size || mem->canary_count) {
+			if (ipa_mem_valid_one(ipa, mem))
+				continue;
+			return false;
+		}
+
+		/* It's harmless, but warn if an offset is provided */
+		if (mem->offset)
+			dev_warn(dev, "empty region %u has non-zero offset\n",
+				 mem_id);
+	}
+
+	return true;
 }
 
 /**
@@ -167,18 +192,17 @@ int ipa_mem_config(struct ipa *ipa)
 	ipa->zero_virt = virt;
 	ipa->zero_size = IPA_MEM_MAX;
 
-	/* Verify each defined memory region is valid, and if indicated
-	 * for the region, write "canary" values in the space prior to
-	 * the region's base address.
+	/* Make sure all defined memory regions are valid */
+	if (!ipa_mem_valid(ipa))
+		goto err_dma_free;
+
+	/* For each region, write "canary" values in the space prior to
+	 * the region's base address if indicated.
 	 */
 	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
 		const struct ipa_mem *mem = &ipa->mem[mem_id];
 		u16 canary_count;
 		__le32 *canary;
-
-		/* Validate all regions (even undefined ones) */
-		if (!ipa_mem_valid(ipa, mem))
-			goto err_dma_free;
 
 		/* Skip over undefined regions */
 		if (!mem->offset && !mem->size)
