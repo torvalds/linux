@@ -411,7 +411,7 @@ static int flow_get_tirn(struct mlx5e_priv *priv,
 			 u32 rss_context, u32 *tirn)
 {
 	if (fs->flow_type & FLOW_RSS) {
-		struct mlx5e_lro_param lro_param;
+		struct mlx5e_packet_merge_param pkt_merge_param;
 		struct mlx5e_rss *rss;
 		u32 flow_type;
 		int err;
@@ -426,8 +426,8 @@ static int flow_get_tirn(struct mlx5e_priv *priv,
 		if (tt < 0)
 			return -EINVAL;
 
-		lro_param = mlx5e_get_lro_param(&priv->channels.params);
-		err = mlx5e_rss_obtain_tirn(rss, tt, &lro_param, false, tirn);
+		pkt_merge_param = priv->channels.params.packet_merge;
+		err = mlx5e_rss_obtain_tirn(rss, tt, &pkt_merge_param, false, tirn);
 		if (err)
 			return err;
 		eth_rule->rss = rss;
