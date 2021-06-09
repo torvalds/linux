@@ -1274,17 +1274,6 @@ snd_pcm_sgbuf_get_addr(struct snd_pcm_substream *substream, unsigned int ofs)
 }
 
 /**
- * snd_pcm_sgbuf_get_ptr - Get the virtual address at the corresponding offset
- * @substream: PCM substream
- * @ofs: byte offset
- */
-static inline void *
-snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
-{
-	return snd_sgbuf_get_ptr(snd_pcm_get_dma_buf(substream), ofs);
-}
-
-/**
  * snd_pcm_sgbuf_get_chunk_size - Compute the max size that fits within the
  * contig. page from the given size
  * @substream: PCM substream

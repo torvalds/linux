@@ -103,19 +103,6 @@ static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
 	return addr + offset % PAGE_SIZE;
 }
 
-/*
- * return the virtual address at the corresponding offset
- */
-static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
-				     size_t offset)
-{
-	struct snd_sg_buf *sgbuf = dmab->private_data;
-
-	if (!sgbuf)
-		return dmab->area + offset;
-	return sgbuf->table[offset >> PAGE_SHIFT].buf + offset % PAGE_SIZE;
-}
-
 unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
 				      unsigned int ofs, unsigned int size);
 #else
@@ -124,12 +111,6 @@ static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
 					    size_t offset)
 {
 	return dmab->addr + offset;
-}
-
-static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
-				      size_t offset)
-{
-	return dmab->area + offset;
 }
 
 #define snd_sgbuf_get_chunk_size(dmab, ofs, size)	(size)
