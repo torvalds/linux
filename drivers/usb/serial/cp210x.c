@@ -252,9 +252,11 @@ struct cp210x_serial_private {
 	u8			gpio_input;
 #endif
 	u8			partnum;
+	u32			fw_version;
 	speed_t			min_speed;
 	speed_t			max_speed;
 	bool			use_actual_rate;
+	bool			no_flow_control;
 };
 
 enum cp210x_event_state {
@@ -398,6 +400,7 @@ struct cp210x_special_chars {
 
 /* CP210X_VENDOR_SPECIFIC values */
 #define CP210X_READ_2NCONFIG	0x000E
+#define CP210X_GET_FW_VER_2N	0x0010
 #define CP210X_READ_LATCH	0x00C2
 #define CP210X_GET_PARTNUM	0x370B
 #define CP210X_GET_PORTCONFIG	0x370C
@@ -1128,12 +1131,22 @@ static bool cp210x_termios_change(const struct ktermios *a, const struct ktermio
 static void cp210x_set_flow_control(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
+	struct cp210x_serial_private *priv = usb_get_serial_data(port->serial);
 	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
 	struct cp210x_special_chars chars;
 	struct cp210x_flow_ctl flow_ctl;
 	u32 flow_repl;
 	u32 ctl_hs;
 	int ret;
+
+	/*
+	 * Some CP2102N interpret ulXonLimit as ulFlowReplace (erratum
+	 * CP2102N_E104). Report back that flow control is not supported.
+	 */
+	if (priv->no_flow_control) {
+		tty->termios.c_cflag &= ~CRTSCTS;
+		tty->termios.c_iflag &= ~(IXON | IXOFF);
+	}
 
 	if (old_termios &&
 			C_CRTSCTS(tty) == (old_termios->c_cflag & CRTSCTS) &&
@@ -1191,18 +1204,19 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 		port_priv->crtscts = false;
 	}
 
-	if (I_IXOFF(tty))
+	if (I_IXOFF(tty)) {
 		flow_repl |= CP210X_SERIAL_AUTO_RECEIVE;
-	else
+
+		flow_ctl.ulXonLimit = cpu_to_le32(128);
+		flow_ctl.ulXoffLimit = cpu_to_le32(128);
+	} else {
 		flow_repl &= ~CP210X_SERIAL_AUTO_RECEIVE;
+	}
 
 	if (I_IXON(tty))
 		flow_repl |= CP210X_SERIAL_AUTO_TRANSMIT;
 	else
 		flow_repl &= ~CP210X_SERIAL_AUTO_TRANSMIT;
-
-	flow_ctl.ulXonLimit = cpu_to_le32(128);
-	flow_ctl.ulXoffLimit = cpu_to_le32(128);
 
 	dev_dbg(&port->dev, "%s - ctrl = 0x%02x, flow = 0x%02x\n", __func__,
 			ctl_hs, flow_repl);
@@ -1926,6 +1940,45 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 	priv->use_actual_rate = use_actual_rate;
 }
 
+static int cp210x_get_fw_version(struct usb_serial *serial, u16 value)
+{
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	u8 ver[3];
+	int ret;
+
+	ret = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST, value,
+			ver, sizeof(ver));
+	if (ret)
+		return ret;
+
+	dev_dbg(&serial->interface->dev, "%s - %d.%d.%d\n", __func__,
+			ver[0], ver[1], ver[2]);
+
+	priv->fw_version = ver[0] << 16 | ver[1] << 8 | ver[2];
+
+	return 0;
+}
+
+static void cp210x_determine_quirks(struct usb_serial *serial)
+{
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	int ret;
+
+	switch (priv->partnum) {
+	case CP210X_PARTNUM_CP2102N_QFN28:
+	case CP210X_PARTNUM_CP2102N_QFN24:
+	case CP210X_PARTNUM_CP2102N_QFN20:
+		ret = cp210x_get_fw_version(serial, CP210X_GET_FW_VER_2N);
+		if (ret)
+			break;
+		if (priv->fw_version <= 0x10004)
+			priv->no_flow_control = true;
+		break;
+	default:
+		break;
+	}
+}
+
 static int cp210x_attach(struct usb_serial *serial)
 {
 	int result;
@@ -1946,6 +1999,7 @@ static int cp210x_attach(struct usb_serial *serial)
 
 	usb_set_serial_data(serial, priv);
 
+	cp210x_determine_quirks(serial);
 	cp210x_init_max_speed(serial);
 
 	result = cp210x_gpio_init(serial);
