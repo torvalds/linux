@@ -117,6 +117,7 @@ struct tps23861_data {
 static struct regmap_config tps23861_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0x6f,
 };
 
 static int tps23861_read_temp(struct tps23861_data *data, long *val)
