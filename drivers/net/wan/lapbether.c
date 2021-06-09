@@ -451,7 +451,7 @@ static int lapbeth_device_event(struct notifier_block *this,
 	switch (event) {
 	case NETDEV_UP:
 		/* New ethernet device -> new LAPB interface	 */
-		if (lapbeth_get_x25_dev(dev) == NULL)
+		if (!lapbeth_get_x25_dev(dev))
 			lapbeth_new_device(dev);
 		break;
 	case NETDEV_GOING_DOWN:
