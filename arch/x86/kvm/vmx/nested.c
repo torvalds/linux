@@ -1063,48 +1063,6 @@ static void prepare_vmx_msr_autostore_list(struct kvm_vcpu *vcpu,
 }
 
 /*
- * Returns true if the MMU needs to be sync'd on nested VM-Enter/VM-Exit.
- * tl;dr: the MMU needs a sync if L0 is using shadow paging and L1 didn't
- * enable VPID for L2 (implying it expects a TLB flush on VMX transitions).
- * Here's why.
- *
- * If EPT is enabled by L0 a sync is never needed:
- * - if it is disabled by L1, then L0 is not shadowing L1 or L2 PTEs, there
- *   cannot be unsync'd SPTEs for either L1 or L2.
- *
- * - if it is also enabled by L1, then L0 doesn't need to sync on VM-Enter
- *   VM-Enter as VM-Enter isn't required to invalidate guest-physical mappings
- *   (irrespective of VPID), i.e. L1 can't rely on the (virtual) CPU to flush
- *   stale guest-physical mappings for L2 from the TLB.  And as above, L0 isn't
- *   shadowing L1 PTEs so there are no unsync'd SPTEs to sync on VM-Exit.
- *
- * If EPT is disabled by L0:
- * - if VPID is enabled by L1 (for L2), the situation is similar to when L1
- *   enables EPT: L0 doesn't need to sync as VM-Enter and VM-Exit aren't
- *   required to invalidate linear mappings (EPT is disabled so there are
- *   no combined or guest-physical mappings), i.e. L1 can't rely on the
- *   (virtual) CPU to flush stale linear mappings for either L2 or itself (L1).
- *
- * - however if VPID is disabled by L1, then a sync is needed as L1 expects all
- *   linear mappings (EPT is disabled so there are no combined or guest-physical
- *   mappings) to be invalidated on both VM-Enter and VM-Exit.
- *
- * Note, this logic is subtly different than nested_has_guest_tlb_tag(), which
- * additionally checks that L2 has been assigned a VPID (when EPT is disabled).
- * Whether or not L2 has been assigned a VPID by L0 is irrelevant with respect
- * to L1's expectations, e.g. L0 needs to invalidate hardware TLB entries if L2
- * doesn't have a unique VPID to prevent reusing L1's entries (assuming L1 has
- * been assigned a VPID), but L0 doesn't need to do a MMU sync because L1
- * doesn't expect stale (virtual) TLB entries to be flushed, i.e. L1 doesn't
- * know that L0 will flush the TLB and so L1 will do INVVPID as needed to flush
- * stale TLB entries, at which point L0 will sync L2's MMU.
- */
-static bool nested_vmx_transition_mmu_sync(struct kvm_vcpu *vcpu)
-{
-	return !enable_ept && !nested_cpu_has_vpid(get_vmcs12(vcpu));
-}
-
-/*
  * Load guest's/host's cr3 at nested entry/exit.  @nested_ept is true if we are
  * emulating VM-Entry into a guest with EPT enabled.  On failure, the expected
  * Exit Qualification (for a VM-Entry consistency check VM-Exit) is assigned to
@@ -1129,17 +1087,8 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 		return -EINVAL;
 	}
 
-	if (!nested_ept) {
+	if (!nested_ept)
 		kvm_mmu_new_pgd(vcpu, cr3);
-
-		/*
-		 * A TLB flush on VM-Enter/VM-Exit flushes all linear mappings
-		 * across all PCIDs, i.e. all PGDs need to be synchronized.
-		 * See nested_vmx_transition_mmu_sync() for more details.
-		 */
-		if (nested_vmx_transition_mmu_sync(vcpu))
-			kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
-	}
 
 	vcpu->arch.cr3 = cr3;
 	kvm_register_mark_available(vcpu, VCPU_EXREG_CR3);
@@ -1177,17 +1126,28 @@ static void nested_vmx_transition_tlb_flush(struct kvm_vcpu *vcpu,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	/*
-	 * If VPID is disabled, linear and combined mappings are flushed on
-	 * VM-Enter/VM-Exit, and guest-physical mappings are valid only for
-	 * their associated EPTP.
+	 * If vmcs12 doesn't use VPID, L1 expects linear and combined mappings
+	 * for *all* contexts to be flushed on VM-Enter/VM-Exit, i.e. it's a
+	 * full TLB flush from the guest's perspective.  This is required even
+	 * if VPID is disabled in the host as KVM may need to synchronize the
+	 * MMU in response to the guest TLB flush.
+	 *
+	 * Note, using TLB_FLUSH_GUEST is correct even if nested EPT is in use.
+	 * EPT is a special snowflake, as guest-physical mappings aren't
+	 * flushed on VPID invalidations, including VM-Enter or VM-Exit with
+	 * VPID disabled.  As a result, KVM _never_ needs to sync nEPT
+	 * entries on VM-Enter because L1 can't rely on VM-Enter to flush
+	 * those mappings.
 	 */
-	if (!enable_vpid)
+	if (!nested_cpu_has_vpid(vmcs12)) {
+		kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
 		return;
+	}
+
+	/* L2 should never have a VPID if VPID is disabled. */
+	WARN_ON(!enable_vpid);
 
 	/*
-	 * If vmcs12 doesn't use VPID, L1 expects linear and combined mappings
-	 * for *all* contexts to be flushed on VM-Enter/VM-Exit.
-	 *
 	 * If VPID is enabled and used by vmc12, but L2 does not have a unique
 	 * TLB tag (ASID), i.e. EPT is disabled and KVM was unable to allocate
 	 * a VPID for L2, flush the current context as the effective ASID is
@@ -1199,13 +1159,12 @@ static void nested_vmx_transition_tlb_flush(struct kvm_vcpu *vcpu,
 	 *
 	 * If a TLB flush isn't required due to any of the above, and vpid12 is
 	 * changing then the new "virtual" VPID (vpid12) will reuse the same
-	 * "real" VPID (vpid02), and so needs to be sync'd.  There is no direct
+	 * "real" VPID (vpid02), and so needs to be flushed.  There's no direct
 	 * mapping between vpid02 and vpid12, vpid02 is per-vCPU and reused for
-	 * all nested vCPUs.
+	 * all nested vCPUs.  Remember, a flush on VM-Enter does not invalidate
+	 * guest-physical mappings, so there is no need to sync the nEPT MMU.
 	 */
-	if (!nested_cpu_has_vpid(vmcs12)) {
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
-	} else if (!nested_has_guest_tlb_tag(vcpu)) {
+	if (!nested_has_guest_tlb_tag(vcpu)) {
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 	} else if (is_vmenter &&
 		   vmcs12->virtual_processor_id != vmx->nested.last_vpid) {
