@@ -236,11 +236,8 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
 			case Z2MINOR_Z2ONLY:
 				z2ram_map = kmalloc(max_z2_map, GFP_KERNEL);
-				if (z2ram_map == NULL) {
-					printk(KERN_ERR DEVICE_NAME
-					       ": cannot get mem for z2ram_map\n");
+				if (!z2ram_map)
 					goto err_out;
-				}
 
 				get_z2ram();
 
@@ -253,11 +250,8 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
 			case Z2MINOR_CHIPONLY:
 				z2ram_map = kmalloc(max_chip_map, GFP_KERNEL);
-				if (z2ram_map == NULL) {
-					printk(KERN_ERR DEVICE_NAME
-					       ": cannot get mem for z2ram_map\n");
+				if (!z2ram_map)
 					goto err_out;
-				}
 
 				get_chipram();
 
