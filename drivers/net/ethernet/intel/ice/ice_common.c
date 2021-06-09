@@ -1293,6 +1293,64 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	{ 0 }
 };
 
+/* Sideband Queue command wrappers */
+
+/**
+ * ice_sbq_send_cmd - send Sideband Queue command to Sideband Queue
+ * @hw: pointer to the HW struct
+ * @desc: descriptor describing the command
+ * @buf: buffer to use for indirect commands (NULL for direct commands)
+ * @buf_size: size of buffer for indirect commands (0 for direct commands)
+ * @cd: pointer to command details structure
+ */
+static int
+ice_sbq_send_cmd(struct ice_hw *hw, struct ice_sbq_cmd_desc *desc,
+		 void *buf, u16 buf_size, struct ice_sq_cd *cd)
+{
+	return ice_status_to_errno(ice_sq_send_cmd(hw, ice_get_sbq(hw),
+						   (struct ice_aq_desc *)desc,
+						   buf, buf_size, cd));
+}
+
+/**
+ * ice_sbq_rw_reg - Fill Sideband Queue command
+ * @hw: pointer to the HW struct
+ * @in: message info to be filled in descriptor
+ */
+int ice_sbq_rw_reg(struct ice_hw *hw, struct ice_sbq_msg_input *in)
+{
+	struct ice_sbq_cmd_desc desc = {0};
+	struct ice_sbq_msg_req msg = {0};
+	u16 msg_len;
+	int status;
+
+	msg_len = sizeof(msg);
+
+	msg.dest_dev = in->dest_dev;
+	msg.opcode = in->opcode;
+	msg.flags = ICE_SBQ_MSG_FLAGS;
+	msg.sbe_fbe = ICE_SBQ_MSG_SBE_FBE;
+	msg.msg_addr_low = cpu_to_le16(in->msg_addr_low);
+	msg.msg_addr_high = cpu_to_le32(in->msg_addr_high);
+
+	if (in->opcode)
+		msg.data = cpu_to_le32(in->data);
+	else
+		/* data read comes back in completion, so shorten the struct by
+		 * sizeof(msg.data)
+		 */
+		msg_len -= sizeof(msg.data);
+
+	desc.flags = cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.opcode = cpu_to_le16(ice_sbq_opc_neigh_dev_req);
+	desc.param0.cmd_len = cpu_to_le16(msg_len);
+	status = ice_sbq_send_cmd(hw, &desc, &msg, msg_len, NULL);
+	if (!status && !in->opcode)
+		in->data = le32_to_cpu
+			(((struct ice_sbq_msg_cmpl *)&msg)->data);
+	return status;
+}
+
 /* FW Admin Queue command wrappers */
 
 /* Software lock/mutex that is meant to be held while the Global Config Lock

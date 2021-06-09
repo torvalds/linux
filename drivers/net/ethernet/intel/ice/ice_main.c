@@ -1231,6 +1231,10 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		cq = &hw->adminq;
 		qtype = "Admin";
 		break;
+	case ICE_CTL_Q_SB:
+		cq = &hw->sbq;
+		qtype = "Sideband";
+		break;
 	case ICE_CTL_Q_MAILBOX:
 		cq = &hw->mailboxq;
 		qtype = "Mailbox";
@@ -1400,6 +1404,34 @@ static void ice_clean_mailboxq_subtask(struct ice_pf *pf)
 
 	if (ice_ctrlq_pending(hw, &hw->mailboxq))
 		__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX);
+
+	ice_flush(hw);
+}
+
+/**
+ * ice_clean_sbq_subtask - clean the Sideband Queue rings
+ * @pf: board private structure
+ */
+static void ice_clean_sbq_subtask(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+
+	/* Nothing to do here if sideband queue is not supported */
+	if (!ice_is_sbq_supported(hw)) {
+		clear_bit(ICE_SIDEBANDQ_EVENT_PENDING, pf->state);
+		return;
+	}
+
+	if (!test_bit(ICE_SIDEBANDQ_EVENT_PENDING, pf->state))
+		return;
+
+	if (__ice_clean_ctrlq(pf, ICE_CTL_Q_SB))
+		return;
+
+	clear_bit(ICE_SIDEBANDQ_EVENT_PENDING, pf->state);
+
+	if (ice_ctrlq_pending(hw, &hw->sbq))
+		__ice_clean_ctrlq(pf, ICE_CTL_Q_SB);
 
 	ice_flush(hw);
 }
@@ -2106,6 +2138,7 @@ static void ice_service_task(struct work_struct *work)
 
 	ice_process_vflr_event(pf);
 	ice_clean_mailboxq_subtask(pf);
+	ice_clean_sbq_subtask(pf);
 	ice_sync_arfs_fltrs(pf);
 	ice_flush_fdir_ctx(pf);
 
@@ -2121,6 +2154,7 @@ static void ice_service_task(struct work_struct *work)
 	    test_bit(ICE_VFLR_EVENT_PENDING, pf->state) ||
 	    test_bit(ICE_MAILBOXQ_EVENT_PENDING, pf->state) ||
 	    test_bit(ICE_FD_VF_FLUSH_CTX, pf->state) ||
+	    test_bit(ICE_SIDEBANDQ_EVENT_PENDING, pf->state) ||
 	    test_bit(ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
 }
@@ -2139,6 +2173,10 @@ static void ice_set_ctrlq_len(struct ice_hw *hw)
 	hw->mailboxq.num_sq_entries = ICE_MBXSQ_LEN;
 	hw->mailboxq.rq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
 	hw->mailboxq.sq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
+	hw->sbq.num_rq_entries = ICE_SBQ_LEN;
+	hw->sbq.num_sq_entries = ICE_SBQ_LEN;
+	hw->sbq.rq_buf_size = ICE_SBQ_MAX_BUF_LEN;
+	hw->sbq.sq_buf_size = ICE_SBQ_MAX_BUF_LEN;
 }
 
 /**
@@ -2679,6 +2717,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	dev = ice_pf_to_dev(pf);
 	set_bit(ICE_ADMINQ_EVENT_PENDING, pf->state);
 	set_bit(ICE_MAILBOXQ_EVENT_PENDING, pf->state);
+	set_bit(ICE_SIDEBANDQ_EVENT_PENDING, pf->state);
 
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
@@ -2800,6 +2839,9 @@ static void ice_dis_ctrlq_interrupts(struct ice_hw *hw)
 	wr32(hw, PFINT_MBX_CTL,
 	     rd32(hw, PFINT_MBX_CTL) & ~PFINT_MBX_CTL_CAUSE_ENA_M);
 
+	wr32(hw, PFINT_SB_CTL,
+	     rd32(hw, PFINT_SB_CTL) & ~PFINT_SB_CTL_CAUSE_ENA_M);
+
 	/* disable Control queue Interrupt causes */
 	wr32(hw, PFINT_OICR_CTL,
 	     rd32(hw, PFINT_OICR_CTL) & ~PFINT_OICR_CTL_CAUSE_ENA_M);
@@ -2853,6 +2895,11 @@ static void ice_ena_ctrlq_interrupts(struct ice_hw *hw, u16 reg_idx)
 	val = ((reg_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
 	       PFINT_MBX_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_MBX_CTL, val);
+
+	/* This enables Sideband queue Interrupt causes */
+	val = ((reg_idx & PFINT_SB_CTL_MSIX_INDX_M) |
+	       PFINT_SB_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_SB_CTL, val);
 
 	ice_flush(hw);
 }

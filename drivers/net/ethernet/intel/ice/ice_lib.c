@@ -3392,13 +3392,22 @@ int ice_status_to_errno(enum ice_status err)
 	case ICE_ERR_DOES_NOT_EXIST:
 		return -ENOENT;
 	case ICE_ERR_OUT_OF_RANGE:
-		return -ENOTTY;
+	case ICE_ERR_AQ_ERROR:
+	case ICE_ERR_AQ_TIMEOUT:
+	case ICE_ERR_AQ_EMPTY:
+	case ICE_ERR_AQ_FW_CRITICAL:
+		return -EIO;
 	case ICE_ERR_PARAM:
+	case ICE_ERR_INVAL_SIZE:
 		return -EINVAL;
 	case ICE_ERR_NO_MEMORY:
 		return -ENOMEM;
 	case ICE_ERR_MAX_LIMIT:
 		return -EAGAIN;
+	case ICE_ERR_RESET_ONGOING:
+		return -EBUSY;
+	case ICE_ERR_AQ_FULL:
+		return -ENOSPC;
 	default:
 		return -EINVAL;
 	}
