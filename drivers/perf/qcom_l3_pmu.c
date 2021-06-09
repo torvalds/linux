@@ -647,10 +647,7 @@ static ssize_t l3cache_pmu_event_show(struct device *dev,
 }
 
 #define L3CACHE_EVENT_ATTR(_name, _id)					     \
-	(&((struct perf_pmu_events_attr[]) {				     \
-		{ .attr = __ATTR(_name, 0444, l3cache_pmu_event_show, NULL), \
-		  .id = _id, }						     \
-	})[0].attr.attr)
+	PMU_EVENT_ATTR_ID(_name, l3cache_pmu_event_show, _id)
 
 static struct attribute *qcom_l3_cache_pmu_events[] = {
 	L3CACHE_EVENT_ATTR(cycles, L3_EVENT_CYCLES),
