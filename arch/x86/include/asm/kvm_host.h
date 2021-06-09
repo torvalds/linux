@@ -1180,6 +1180,7 @@ struct kvm_vcpu_stat {
 	u64 nested_run;
 	u64 directed_yield_attempted;
 	u64 directed_yield_successful;
+	u64 guest_mode;
 };
 
 struct x86_instruction_info;
