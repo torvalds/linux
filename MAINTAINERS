@@ -13107,14 +13107,6 @@ F:	drivers/nvme/host/
 F:	include/linux/nvme.h
 F:	include/uapi/linux/nvme_ioctl.h
 
-NVM EXPRESS TCP OFFLOAD TRANSPORT DRIVERS
-M:	Shai Malin <smalin@marvell.com>
-M:	Ariel Elior <aelior@marvell.com>
-L:	linux-nvme@lists.infradead.org
-S:	Supported
-F:	drivers/nvme/host/tcp-offload.c
-F:	drivers/nvme/host/tcp-offload.h
-
 NVM EXPRESS FC TRANSPORT DRIVERS
 M:	James Smart <james.smart@broadcom.com>
 L:	linux-nvme@lists.infradead.org
