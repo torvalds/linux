@@ -175,6 +175,9 @@ ice_process_skb_fields(struct ice_ring *rx_ring,
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 	ice_rx_csum(rx_ring, skb, rx_desc, ptype);
+
+	if (rx_ring->ptp_rx)
+		ice_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 }
 
 /**

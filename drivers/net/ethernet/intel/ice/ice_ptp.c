@@ -5,6 +5,46 @@
 #include "ice_lib.h"
 
 /**
+ * ice_set_rx_tstamp - Enable or disable Rx timestamping
+ * @pf: The PF pointer to search in
+ * @on: bool value for whether timestamps are enabled or disabled
+ */
+static void ice_set_rx_tstamp(struct ice_pf *pf, bool on)
+{
+	struct ice_vsi *vsi;
+	u16 i;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return;
+
+	/* Set the timestamp flag for all the Rx rings */
+	ice_for_each_rxq(vsi, i) {
+		if (!vsi->rx_rings[i])
+			continue;
+		vsi->rx_rings[i]->ptp_rx = on;
+	}
+}
+
+/**
+ * ice_ptp_cfg_timestamp - Configure timestamp for init/deinit
+ * @pf: Board private structure
+ * @ena: bool value to enable or disable time stamp
+ *
+ * This function will configure timestamping during PTP initialization
+ * and deinitialization
+ */
+static void ice_ptp_cfg_timestamp(struct ice_pf *pf, bool ena)
+{
+	ice_set_rx_tstamp(pf, ena);
+
+	if (ena)
+		pf->ptp.tstamp_config.rx_filter = HWTSTAMP_FILTER_ALL;
+	else
+		pf->ptp.tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+}
+
+/**
  * ice_get_ptp_clock_index - Get the PTP clock index
  * @pf: the PF pointer
  *
@@ -172,6 +212,113 @@ ice_ptp_read_src_clk_reg(struct ice_pf *pf, struct ptp_system_timestamp *sts)
 }
 
 /**
+ * ice_ptp_update_cached_phctime - Update the cached PHC time values
+ * @pf: Board specific private structure
+ *
+ * This function updates the system time values which are cached in the PF
+ * structure and the Rx rings.
+ *
+ * This function must be called periodically to ensure that the cached value
+ * is never more than 2 seconds old. It must also be called whenever the PHC
+ * time has been changed.
+ */
+static void ice_ptp_update_cached_phctime(struct ice_pf *pf)
+{
+	u64 systime;
+	int i;
+
+	/* Read the current PHC time */
+	systime = ice_ptp_read_src_clk_reg(pf, NULL);
+
+	/* Update the cached PHC time stored in the PF structure */
+	WRITE_ONCE(pf->ptp.cached_phc_time, systime);
+
+	ice_for_each_vsi(pf, i) {
+		struct ice_vsi *vsi = pf->vsi[i];
+		int j;
+
+		if (!vsi)
+			continue;
+
+		if (vsi->type != ICE_VSI_PF)
+			continue;
+
+		ice_for_each_rxq(vsi, j) {
+			if (!vsi->rx_rings[j])
+				continue;
+			WRITE_ONCE(vsi->rx_rings[j]->cached_phctime, systime);
+		}
+	}
+}
+
+/**
+ * ice_ptp_extend_32b_ts - Convert a 32b nanoseconds timestamp to 64b
+ * @cached_phc_time: recently cached copy of PHC time
+ * @in_tstamp: Ingress/egress 32b nanoseconds timestamp value
+ *
+ * Hardware captures timestamps which contain only 32 bits of nominal
+ * nanoseconds, as opposed to the 64bit timestamps that the stack expects.
+ * Note that the captured timestamp values may be 40 bits, but the lower
+ * 8 bits are sub-nanoseconds and generally discarded.
+ *
+ * Extend the 32bit nanosecond timestamp using the following algorithm and
+ * assumptions:
+ *
+ * 1) have a recently cached copy of the PHC time
+ * 2) assume that the in_tstamp was captured 2^31 nanoseconds (~2.1
+ *    seconds) before or after the PHC time was captured.
+ * 3) calculate the delta between the cached time and the timestamp
+ * 4) if the delta is smaller than 2^31 nanoseconds, then the timestamp was
+ *    captured after the PHC time. In this case, the full timestamp is just
+ *    the cached PHC time plus the delta.
+ * 5) otherwise, if the delta is larger than 2^31 nanoseconds, then the
+ *    timestamp was captured *before* the PHC time, i.e. because the PHC
+ *    cache was updated after the timestamp was captured by hardware. In this
+ *    case, the full timestamp is the cached time minus the inverse delta.
+ *
+ * This algorithm works even if the PHC time was updated after a Tx timestamp
+ * was requested, but before the Tx timestamp event was reported from
+ * hardware.
+ *
+ * This calculation primarily relies on keeping the cached PHC time up to
+ * date. If the timestamp was captured more than 2^31 nanoseconds after the
+ * PHC time, it is possible that the lower 32bits of PHC time have
+ * overflowed more than once, and we might generate an incorrect timestamp.
+ *
+ * This is prevented by (a) periodically updating the cached PHC time once
+ * a second, and (b) discarding any Tx timestamp packet if it has waited for
+ * a timestamp for more than one second.
+ */
+static u64 ice_ptp_extend_32b_ts(u64 cached_phc_time, u32 in_tstamp)
+{
+	u32 delta, phc_time_lo;
+	u64 ns;
+
+	/* Extract the lower 32 bits of the PHC time */
+	phc_time_lo = (u32)cached_phc_time;
+
+	/* Calculate the delta between the lower 32bits of the cached PHC
+	 * time and the in_tstamp value
+	 */
+	delta = (in_tstamp - phc_time_lo);
+
+	/* Do not assume that the in_tstamp is always more recent than the
+	 * cached PHC time. If the delta is large, it indicates that the
+	 * in_tstamp was taken in the past, and should be converted
+	 * forward.
+	 */
+	if (delta > (U32_MAX / 2)) {
+		/* reverse the delta calculation here */
+		delta = (phc_time_lo - in_tstamp);
+		ns = cached_phc_time - delta;
+	} else {
+		ns = cached_phc_time + delta;
+	}
+
+	return ns;
+}
+
+/**
  * ice_ptp_read_time - Read the time from the device
  * @pf: Board private structure
  * @ts: timespec structure to hold the current time value
@@ -323,6 +470,9 @@ ice_ptp_settime64(struct ptp_clock_info *info, const struct timespec64 *ts)
 	err = ice_ptp_write_init(pf, &ts64);
 	ice_ptp_unlock(hw);
 
+	if (!err)
+		ice_ptp_update_cached_phctime(pf);
+
 exit:
 	if (err) {
 		dev_err(ice_pf_to_dev(pf), "PTP failed to set time %d\n", err);
@@ -385,7 +535,140 @@ static int ice_ptp_adjtime(struct ptp_clock_info *info, s64 delta)
 		return err;
 	}
 
+	ice_ptp_update_cached_phctime(pf);
+
 	return 0;
+}
+
+/**
+ * ice_ptp_get_ts_config - ioctl interface to read the timestamping config
+ * @pf: Board private structure
+ * @ifr: ioctl data
+ *
+ * Copy the timestamping config to user buffer
+ */
+int ice_ptp_get_ts_config(struct ice_pf *pf, struct ifreq *ifr)
+{
+	struct hwtstamp_config *config;
+
+	if (!test_bit(ICE_FLAG_PTP, pf->flags))
+		return -EIO;
+
+	config = &pf->ptp.tstamp_config;
+
+	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
+		-EFAULT : 0;
+}
+
+/**
+ * ice_ptp_set_timestamp_mode - Setup driver for requested timestamp mode
+ * @pf: Board private structure
+ * @config: hwtstamp settings requested or saved
+ */
+static int
+ice_ptp_set_timestamp_mode(struct ice_pf *pf, struct hwtstamp_config *config)
+{
+	/* Reserved for future extensions. */
+	if (config->flags)
+		return -EINVAL;
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_OFF:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		ice_set_rx_tstamp(pf, false);
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
+	case HWTSTAMP_FILTER_ALL:
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
+		ice_set_rx_tstamp(pf, true);
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
+/**
+ * ice_ptp_set_ts_config - ioctl interface to control the timestamping
+ * @pf: Board private structure
+ * @ifr: ioctl data
+ *
+ * Get the user config and store it
+ */
+int ice_ptp_set_ts_config(struct ice_pf *pf, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	int err;
+
+	if (!test_bit(ICE_FLAG_PTP, pf->flags))
+		return -EAGAIN;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	err = ice_ptp_set_timestamp_mode(pf, &config);
+	if (err)
+		return err;
+
+	/* Save these settings for future reference */
+	pf->ptp.tstamp_config = config;
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
+/**
+ * ice_ptp_rx_hwtstamp - Check for an Rx timestamp
+ * @rx_ring: Ring to get the VSI info
+ * @rx_desc: Receive descriptor
+ * @skb: Particular skb to send timestamp with
+ *
+ * The driver receives a notification in the receive descriptor with timestamp.
+ * The timestamp is in ns, so we must convert the result first.
+ */
+void
+ice_ptp_rx_hwtstamp(struct ice_ring *rx_ring,
+		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb)
+{
+	u32 ts_high;
+	u64 ts_ns;
+
+	/* Populate timesync data into skb */
+	if (rx_desc->wb.time_stamp_low & ICE_PTP_TS_VALID) {
+		struct skb_shared_hwtstamps *hwtstamps;
+
+		/* Use ice_ptp_extend_32b_ts directly, using the ring-specific
+		 * cached PHC value, rather than accessing the PF. This also
+		 * allows us to simply pass the upper 32bits of nanoseconds
+		 * directly. Calling ice_ptp_extend_40b_ts is unnecessary as
+		 * it would just discard these bits itself.
+		 */
+		ts_high = le32_to_cpu(rx_desc->wb.flex_ts.ts_high);
+		ts_ns = ice_ptp_extend_32b_ts(rx_ring->cached_phctime, ts_high);
+
+		hwtstamps = skb_hwtstamps(skb);
+		memset(hwtstamps, 0, sizeof(*hwtstamps));
+		hwtstamps->hwtstamp = ns_to_ktime(ts_ns);
+	}
 }
 
 /**
@@ -439,6 +722,21 @@ static long ice_ptp_create_clock(struct ice_pf *pf)
 	pf->ptp.clock = clock;
 
 	return 0;
+}
+
+static void ice_ptp_periodic_work(struct kthread_work *work)
+{
+	struct ice_ptp *ptp = container_of(work, struct ice_ptp, work.work);
+	struct ice_pf *pf = container_of(ptp, struct ice_pf, ptp);
+
+	if (!test_bit(ICE_FLAG_PTP, pf->flags))
+		return;
+
+	ice_ptp_update_cached_phctime(pf);
+
+	/* Run twice a second */
+	kthread_queue_delayed_work(ptp->kworker, &ptp->work,
+				   msecs_to_jiffies(500));
 }
 
 /**
@@ -526,6 +824,7 @@ err_exit:
 void ice_ptp_init(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
+	struct kthread_worker *kworker;
 	struct ice_hw *hw = &pf->hw;
 	int err;
 
@@ -540,9 +839,37 @@ void ice_ptp_init(struct ice_pf *pf)
 			return;
 	}
 
+	/* Disable timestamping for both Tx and Rx */
+	ice_ptp_cfg_timestamp(pf, false);
+
+	/* Initialize work functions */
+	kthread_init_delayed_work(&pf->ptp.work, ice_ptp_periodic_work);
+
+	/* Allocate a kworker for handling work required for the ports
+	 * connected to the PTP hardware clock.
+	 */
+	kworker = kthread_create_worker(0, "ice-ptp-%s", dev_name(dev));
+	if (IS_ERR(kworker)) {
+		err = PTR_ERR(kworker);
+		goto err_kworker;
+	}
+	pf->ptp.kworker = kworker;
+
 	set_bit(ICE_FLAG_PTP, pf->flags);
 
+	/* Start periodic work going */
+	kthread_queue_delayed_work(pf->ptp.kworker, &pf->ptp.work, 0);
+
 	dev_info(dev, "PTP init successful\n");
+	return;
+
+err_kworker:
+	/* If we registered a PTP clock, release it */
+	if (pf->ptp.clock) {
+		ptp_clock_unregister(pf->ptp.clock);
+		pf->ptp.clock = NULL;
+	}
+	dev_err(dev, "PTP failed %d\n", err);
 }
 
 /**
@@ -554,7 +881,17 @@ void ice_ptp_init(struct ice_pf *pf)
  */
 void ice_ptp_release(struct ice_pf *pf)
 {
+	/* Disable timestamping for both Tx and Rx */
+	ice_ptp_cfg_timestamp(pf, false);
+
 	clear_bit(ICE_FLAG_PTP, pf->flags);
+
+	kthread_cancel_delayed_work_sync(&pf->ptp.work);
+
+	if (pf->ptp.kworker) {
+		kthread_destroy_worker(pf->ptp.kworker);
+		pf->ptp.kworker = NULL;
+	}
 
 	if (!pf->ptp.clock)
 		return;
