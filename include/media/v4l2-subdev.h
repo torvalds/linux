@@ -871,7 +871,7 @@ struct v4l2_subdev_platform_data {
  * @asd: Pointer to respective &struct v4l2_async_subdev.
  * @notifier: Pointer to the managing notifier.
  * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
- *		     device using v4l2_device_register_sensor_subdev().
+ *		     device using v4l2_async_register_subdev_sensor().
  * @pdata: common part of subdevice platform data
  *
  * Each instance of a subdev driver should create this struct, either
