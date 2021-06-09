@@ -932,9 +932,10 @@ static void stmmac_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
 	} else if (priv->plat->has_gmac4) {
-		if (!max_speed || max_speed >= 2500)
+		if (!max_speed || max_speed >= 2500) {
 			phylink_set(mac_supported, 2500baseT_Full);
 			phylink_set(mac_supported, 2500baseX_Full);
+		}
 	} else if (priv->plat->has_xgmac) {
 		if (!max_speed || (max_speed >= 2500)) {
 			phylink_set(mac_supported, 2500baseT_Full);
