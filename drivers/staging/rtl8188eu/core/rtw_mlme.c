@@ -19,6 +19,7 @@
 #include <wlan_bssdef.h>
 #include <rtw_ioctl_set.h>
 #include <linux/vmalloc.h>
+#include <linux/etherdevice.h>
 
 extern const u8 MCS_rate_1R[16];
 
@@ -179,9 +180,8 @@ struct wlan_network *rtw_find_network(struct __queue *scanned_queue, u8 *addr)
 {
 	struct list_head *phead, *plist;
 	struct wlan_network *pnetwork = NULL;
-	u8 zero_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
-	if (!memcmp(zero_addr, addr, ETH_ALEN)) {
+	if (is_zero_ether_addr(addr)) {
 		pnetwork = NULL;
 		goto exit;
 	}
