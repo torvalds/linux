@@ -145,7 +145,6 @@ inline int
 qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 {
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	uint8_t	guard = scsi_host_get_guard(cmd->device->host);
 
 	/* We always use DIFF Bundling for best performance */
 	*fw_prot_opts = 0;
@@ -166,7 +165,7 @@ qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 		break;
 	case SCSI_PROT_READ_PASS:
 	case SCSI_PROT_WRITE_PASS:
-		if (guard & SHOST_DIX_GUARD_IP)
+		if (cmd->prot_flags & SCSI_PROT_IP_CHECKSUM)
 			*fw_prot_opts |= PO_MODE_DIF_TCP_CKSUM;
 		else
 			*fw_prot_opts |= PO_MODE_DIF_PASS;
@@ -175,6 +174,9 @@ qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 		*fw_prot_opts |= PO_MODE_DIF_PASS;
 		break;
 	}
+
+	if (!(cmd->prot_flags & SCSI_PROT_GUARD_CHECK))
+		*fw_prot_opts |= PO_DISABLE_GUARD_CHECK;
 
 	return scsi_prot_sg_count(cmd);
 }
@@ -772,74 +774,19 @@ qla24xx_set_t10dif_tags(srb_t *sp, struct fw_dif_context *pkt,
 {
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 
-	switch (scsi_get_prot_type(cmd)) {
-	case SCSI_PROT_DIF_TYPE0:
-		/*
-		 * No check for ql2xenablehba_err_chk, as it would be an
-		 * I/O error if hba tag generation is not done.
-		 */
-		pkt->ref_tag = cpu_to_le32((uint32_t)
-		    (0xffffffff & scsi_get_lba(cmd)));
+	pkt->ref_tag = cpu_to_le32(scsi_prot_ref_tag(cmd));
 
-		if (!qla2x00_hba_err_chk_enabled(sp))
-			break;
-
+	if (cmd->prot_flags & SCSI_PROT_REF_CHECK &&
+	    qla2x00_hba_err_chk_enabled(sp)) {
 		pkt->ref_tag_mask[0] = 0xff;
 		pkt->ref_tag_mask[1] = 0xff;
 		pkt->ref_tag_mask[2] = 0xff;
 		pkt->ref_tag_mask[3] = 0xff;
-		break;
-
-	/*
-	 * For TYPE 2 protection: 16 bit GUARD + 32 bit REF tag has to
-	 * match LBA in CDB + N
-	 */
-	case SCSI_PROT_DIF_TYPE2:
-		pkt->app_tag = cpu_to_le16(0);
-		pkt->app_tag_mask[0] = 0x0;
-		pkt->app_tag_mask[1] = 0x0;
-
-		pkt->ref_tag = cpu_to_le32((uint32_t)
-		    (0xffffffff & scsi_get_lba(cmd)));
-
-		if (!qla2x00_hba_err_chk_enabled(sp))
-			break;
-
-		/* enable ALL bytes of the ref tag */
-		pkt->ref_tag_mask[0] = 0xff;
-		pkt->ref_tag_mask[1] = 0xff;
-		pkt->ref_tag_mask[2] = 0xff;
-		pkt->ref_tag_mask[3] = 0xff;
-		break;
-
-	/* For Type 3 protection: 16 bit GUARD only */
-	case SCSI_PROT_DIF_TYPE3:
-		pkt->ref_tag_mask[0] = pkt->ref_tag_mask[1] =
-			pkt->ref_tag_mask[2] = pkt->ref_tag_mask[3] =
-								0x00;
-		break;
-
-	/*
-	 * For TYpe 1 protection: 16 bit GUARD tag, 32 bit REF tag, and
-	 * 16 bit app tag.
-	 */
-	case SCSI_PROT_DIF_TYPE1:
-		pkt->ref_tag = cpu_to_le32((uint32_t)
-		    (0xffffffff & scsi_get_lba(cmd)));
-		pkt->app_tag = cpu_to_le16(0);
-		pkt->app_tag_mask[0] = 0x0;
-		pkt->app_tag_mask[1] = 0x0;
-
-		if (!qla2x00_hba_err_chk_enabled(sp))
-			break;
-
-		/* enable ALL bytes of the ref tag */
-		pkt->ref_tag_mask[0] = 0xff;
-		pkt->ref_tag_mask[1] = 0xff;
-		pkt->ref_tag_mask[2] = 0xff;
-		pkt->ref_tag_mask[3] = 0xff;
-		break;
 	}
+
+	pkt->app_tag = cpu_to_le16(0);
+	pkt->app_tag_mask[0] = 0x0;
+	pkt->app_tag_mask[1] = 0x0;
 }
 
 int
@@ -905,7 +852,7 @@ qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *ha, srb_t *sp,
 	memset(&sgx, 0, sizeof(struct qla2_sgx));
 	if (sp) {
 		cmd = GET_CMD_SP(sp);
-		prot_int = cmd->device->sector_size;
+		prot_int = scsi_prot_interval(cmd);
 
 		sgx.tot_bytes = scsi_bufflen(cmd);
 		sgx.cur_sg = scsi_sglist(cmd);
