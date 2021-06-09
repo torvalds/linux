@@ -50,14 +50,6 @@
 #define RKISP_DEFAULT_WIDTH		800
 #define RKISP_DEFAULT_HEIGHT		600
 
-#define RKISP_MAX_STREAM		6
-#define RKISP_STREAM_MP			0
-#define RKISP_STREAM_SP			1
-#define RKISP_STREAM_DMATX0		2
-#define RKISP_STREAM_DMATX1		3
-#define RKISP_STREAM_DMATX2		4
-#define RKISP_STREAM_DMATX3		5
-
 #define RKISP_PLANE_Y			0
 #define RKISP_PLANE_CB			1
 #define RKISP_PLANE_CR			2
@@ -78,6 +70,7 @@ enum rkisp_isp_ver {
 	ISP_V13 = 0x30,
 	ISP_V20 = 0x40,
 	ISP_V21 = 0x50,
+	ISP_V30 = 0x60,
 };
 
 enum rkisp_sd_type {
@@ -103,6 +96,7 @@ enum rkisp_fmt_pix_type {
 	FMT_FBCGAIN,
 	FMT_EBD,
 	FMT_SPD,
+	FMT_FBC,
 	FMT_MAX
 };
 

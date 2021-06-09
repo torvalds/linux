@@ -371,11 +371,14 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 	struct v4l2_subdev *isp;
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev_selection sel;
-	u32 width, height, code;
+	u32 i, width, height, code;
 
 	isp = &dev->isp_sdev.sd;
 
-	fmt = dev->active_sensor->fmt[0];
+	if (dev->active_sensor)
+		fmt = dev->active_sensor->fmt[0];
+	else
+		fmt.format = dev->isp_sdev.in_frm;
 	code = fmt.format.code;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt.pad = RKISP_ISP_PAD_SINK;
@@ -411,7 +414,7 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
 					 width, height, V4L2_PIX_FMT_NV12);
 	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) &&
-	    dev->isp_inp == INP_CSI) {
+	    dev->isp_inp == INP_CSI && dev->active_sensor) {
 		width = dev->active_sensor->fmt[1].format.width;
 		height = dev->active_sensor->fmt[1].format.height;
 		code = dev->active_sensor->fmt[1].format.code;
@@ -431,12 +434,28 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
 	}
 
-	if (dev->isp_ver == ISP_V20 && dev->isp_inp == INP_CSI) {
+	if (dev->isp_ver == ISP_V20 &&
+	    dev->isp_inp == INP_CSI && dev->active_sensor) {
 		width = dev->active_sensor->fmt[2].format.width;
 		height = dev->active_sensor->fmt[2].format.height;
 		code = dev->active_sensor->fmt[2].format.code;
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX1,
 			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
+	}
+
+	if (dev->isp_ver == ISP_V30) {
+		struct v4l2_pix_format_mplane pixm = {
+			.width = width,
+			.height = height,
+			.pixelformat = rkisp_mbus_pixelcode_to_v4l2(code),
+		};
+
+		for (i = RKISP_STREAM_RAWRD0; i <= RKISP_STREAM_RAWRD2; i++)
+			rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[i], pixm);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_FBC,
+					 width, height, V4L2_PIX_FMT_FBC0);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
+					 width, height, V4L2_PIX_FMT_NV12);
 	}
 	return 0;
 }
@@ -456,10 +475,12 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0)
 		goto unlock;
 
-	ret = rkisp_update_sensor_info(dev);
-	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev, "update sensor failed\n");
-		goto unlock;
+	if (dev->isp_inp) {
+		ret = rkisp_update_sensor_info(dev);
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev, "update sensor failed\n");
+			goto unlock;
+		}
 	}
 
 	ret = _set_pipeline_default_fmt(dev);
@@ -723,6 +744,9 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 
 	sprintf(isp_dev->media_dev.model, "%s%d",
 		DRIVER_NAME, isp_dev->dev_id);
+	strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
+	strscpy(isp_dev->media_dev.driver_name, isp_dev->name,
+		sizeof(isp_dev->media_dev.driver_name));
 
 	ret = rkisp_get_reserved_mem(isp_dev);
 	if (ret)
@@ -745,9 +769,6 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		}
 	}
 
-	strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
-	strscpy(isp_dev->media_dev.driver_name, isp_dev->name,
-		sizeof(isp_dev->media_dev.driver_name));
 	isp_dev->media_dev.dev = dev;
 	isp_dev->media_dev.ops = &rkisp_media_ops;
 

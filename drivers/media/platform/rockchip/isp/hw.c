@@ -72,6 +72,21 @@ static void default_sw_reg_flag(struct rkisp_device *dev)
 		ISP_RAWHIST_BIG3_BASE, ISP_YUVAE_CTRL, ISP_RAWAF_CTRL,
 		ISP21_RAWAWB_CTRL,
 	};
+	u32 v30_reg[] = {
+		ISP3X_VI_ISP_PATH, ISP3X_IMG_EFF_CTRL, ISP3X_CMSK_CTRL0,
+		ISP3X_CCM_CTRL, ISP3X_CPROC_CTRL, ISP3X_DUAL_CROP_CTRL,
+		ISP3X_GAMMA_OUT_CTRL, ISP3X_SELF_RESIZE_CTRL, ISP3X_MAIN_RESIZE_CTRL,
+		ISP3X_LSC_CTRL, ISP3X_DEBAYER_CONTROL, ISP3X_CAC_CTRL,
+		ISP3X_YNR_GLOBAL_CTRL, ISP3X_CNR_CTRL, ISP3X_SHARP_EN,
+		ISP3X_BAY3D_CTRL, ISP3X_GIC_CONTROL, ISP3X_BLS_CTRL,
+		ISP3X_DPCC0_MODE, ISP3X_DPCC1_MODE, ISP3X_DPCC2_MODE,
+		ISP3X_HDRMGE_CTRL, ISP3X_DRC_CTRL0, ISP3X_BAYNR_CTRL,
+		ISP3X_LDCH_STS, ISP3X_DHAZ_CTRL, ISP3X_3DLUT_CTRL,
+		ISP3X_GAIN_CTRL, ISP3X_RAWAE_LITE_CTRL, ISP3X_RAWAE_BIG1_BASE,
+		ISP3X_RAWAE_BIG2_BASE, ISP3X_RAWAE_BIG3_BASE, ISP3X_RAWHIST_LITE_CTRL,
+		ISP3X_RAWHIST_BIG1_BASE, ISP3X_RAWHIST_BIG2_BASE, ISP3X_RAWHIST_BIG3_BASE,
+		ISP3X_RAWAF_CTRL, ISP3X_RAWAWB_CTRL,
+	};
 	u32 i, *flag, *reg, size;
 
 	switch (dev->isp_ver) {
@@ -82,6 +97,10 @@ static void default_sw_reg_flag(struct rkisp_device *dev)
 	case ISP_V21:
 		reg = v21_reg;
 		size = ARRAY_SIZE(v21_reg);
+		break;
+	case ISP_V30:
+		reg = v30_reg;
+		size = ARRAY_SIZE(v30_reg);
 		break;
 	default:
 		return;
@@ -111,7 +130,9 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 
 		if (err1 || err2 || err3)
 			rkisp_mipi_v13_isr(err1, err2, err3, isp);
-	} else if (hw_dev->isp_ver == ISP_V20 || hw_dev->isp_ver == ISP_V21) {
+	} else if (hw_dev->isp_ver == ISP_V20 ||
+		   hw_dev->isp_ver == ISP_V21 ||
+		   hw_dev->isp_ver == ISP_V30) {
 		u32 phy, packet, overflow, state;
 
 		state = readl(hw_dev->base_addr + CSI2RX_ERR_STAT);
@@ -121,8 +142,10 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 		if (phy | packet | overflow | state) {
 			if (hw_dev->isp_ver == ISP_V20)
 				rkisp_mipi_v20_isr(phy, packet, overflow, state, isp);
-			else
+			else if (hw_dev->isp_ver == ISP_V21)
 				rkisp_mipi_v21_isr(phy, packet, overflow, state, isp);
+			else
+				rkisp_mipi_v30_isr(phy, packet, overflow, state, isp);
 		}
 	} else {
 		u32 mis_val = readl(hw_dev->base_addr + CIF_MIPI_MIS);
@@ -168,7 +191,9 @@ static irqreturn_t isp_irq_hdl(int irq, void *ctx)
 		return IRQ_HANDLED;
 
 	mis_val = readl(hw_dev->base_addr + CIF_ISP_MIS);
-	if (hw_dev->isp_ver == ISP_V20 || hw_dev->isp_ver == ISP_V21)
+	if (hw_dev->isp_ver == ISP_V20 ||
+	    hw_dev->isp_ver == ISP_V21 ||
+	    hw_dev->isp_ver == ISP_V30)
 		mis_3a = readl(hw_dev->base_addr + ISP_ISP3A_MIS);
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
@@ -184,7 +209,9 @@ static irqreturn_t irq_handler(int irq, void *ctx)
 	unsigned int mis_val, mis_3a = 0;
 
 	mis_val = readl(hw_dev->base_addr + CIF_ISP_MIS);
-	if (hw_dev->isp_ver == ISP_V20 || hw_dev->isp_ver == ISP_V21)
+	if (hw_dev->isp_ver == ISP_V20 ||
+	    hw_dev->isp_ver == ISP_V21 ||
+	    hw_dev->isp_ver == ISP_V30)
 		mis_3a = readl(hw_dev->base_addr + ISP_ISP3A_MIS);
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
@@ -573,7 +600,9 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		      CIF_CLK_CTRL_CP | CIF_CLK_CTRL_IE;
 
 		writel(val, dev->base_addr + CIF_VI_ISP_CLK_CTRL_V12);
-	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
+	} else if (dev->isp_ver == ISP_V20 ||
+		   dev->isp_ver == ISP_V21 ||
+		   dev->isp_ver == ISP_V30) {
 		val = !on ? 0 :
 		      CLK_CTRL_MI_LDC | CLK_CTRL_MI_MP |
 		      CLK_CTRL_MI_JPEG | CLK_CTRL_MI_DP |
@@ -702,8 +731,11 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	for (i = 0; i < match_data->num_clks; i++) {
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
-		if (IS_ERR(clk))
-			dev_dbg(dev, "failed to get %s\n", match_data->clks[i]);
+		if (IS_ERR(clk)) {
+			dev_err(dev, "failed to get %s\n", match_data->clks[i]);
+			ret = PTR_ERR(clk);
+			goto err;
+		}
 		hw_dev->clks[i] = clk;
 	}
 	hw_dev->num_clks = match_data->num_clks;

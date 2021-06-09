@@ -490,6 +490,9 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 	if (IS_HDR_RDBK(dev->hdr.op_mode))
 		rkisp_set_bits(dev, CTRL_SWS_CFG, 0, SW_MPIP_DROP_FRM_DIS, true);
 
+	if (dev->isp_ver == ISP_V30)
+		rkisp_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS, true);
+
 	memset(dev->filt_state, 0, sizeof(dev->filt_state));
 	dev->rdbk_cnt = -1;
 	dev->rdbk_cnt_x1 = -1;
@@ -556,6 +559,8 @@ int rkisp_register_csi_subdev(struct rkisp_device *dev,
 		csi_dev->pads[CSI_SRC_CH2].flags = MEDIA_PAD_FL_SOURCE;
 		csi_dev->pads[CSI_SRC_CH3].flags = MEDIA_PAD_FL_SOURCE;
 		csi_dev->pads[CSI_SRC_CH4].flags = MEDIA_PAD_FL_SOURCE;
+	} else if (dev->isp_ver == ISP_V30) {
+		return 0;
 	}
 
 	ret = media_entity_pads_init(&sd->entity, csi_dev->max_pad,

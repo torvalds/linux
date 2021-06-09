@@ -48,17 +48,6 @@
 
 #define DRIVER_NAME "rkisp"
 #define ISP_VDEV_NAME DRIVER_NAME  "_ispdev"
-#define SP_VDEV_NAME DRIVER_NAME   "_selfpath"
-#define MP_VDEV_NAME DRIVER_NAME   "_mainpath"
-#define DMA_VDEV_NAME DRIVER_NAME  "_dmapath"
-#define RAW_VDEV_NAME DRIVER_NAME  "_rawpath"
-#define DMATX0_VDEV_NAME DRIVER_NAME "_rawwr0"
-#define DMATX1_VDEV_NAME DRIVER_NAME "_rawwr1"
-#define DMATX2_VDEV_NAME DRIVER_NAME "_rawwr2"
-#define DMATX3_VDEV_NAME DRIVER_NAME "_rawwr3"
-#define DMARX0_VDEV_NAME DRIVER_NAME "_rawrd0_m"
-#define DMARX1_VDEV_NAME DRIVER_NAME "_rawrd1_l"
-#define DMARX2_VDEV_NAME DRIVER_NAME "_rawrd2_s"
 
 #define GRP_ID_SENSOR			BIT(0)
 #define GRP_ID_MIPIPHY			BIT(1)
@@ -84,6 +73,7 @@ enum rkisp_isp_state {
 	ISP_FRAME_MP = BIT(3),
 	ISP_FRAME_SP = BIT(4),
 	ISP_FRAME_MPFBC = BIT(5),
+	ISP_FRAME_BP = BIT(6),
 
 	ISP_STOP = BIT(8),
 	ISP_START = BIT(9),

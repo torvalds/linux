@@ -269,7 +269,7 @@ int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev)
 	struct rkisp_dummy_buffer *dummy_buf = &hw->dummy_buf;
 	struct rkisp_stream *stream;
 	struct rkisp_device *isp;
-	u32 i, j, size = 0;
+	u32 i, j, val, size = 0;
 	int ret = 0;
 
 	if (dummy_buf->mem_priv)
@@ -283,9 +283,11 @@ int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev)
 			stream = &isp->cap_dev.stream[j];
 			if (!stream->linked)
 				continue;
-			size = max(size,
-				   stream->out_fmt.plane_fmt[0].bytesperline *
-				   stream->out_fmt.height);
+			val = stream->out_isp_fmt.fmt_type == FMT_FBC ?
+				stream->out_fmt.plane_fmt[1].sizeimage :
+				stream->out_fmt.plane_fmt[0].bytesperline *
+				stream->out_fmt.height;
+			size = max(size, val);
 		}
 	}
 	if (size == 0)

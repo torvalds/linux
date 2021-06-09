@@ -513,8 +513,8 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 	}
 
 	rkisp_chk_tb_over(dev);
-	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
-		 v4l2_type_names[queue->type], *num_buffers, sizes[0]);
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s %s count %d, size %d\n",
+		 stream->vnode.vdev.name, v4l2_type_names[queue->type], *num_buffers, sizes[0]);
 
 	return 0;
 }
@@ -598,6 +598,10 @@ static void destroy_buf_queue(struct rkisp_stream *stream,
 static void dmarx_stop_streaming(struct vb2_queue *queue)
 {
 	struct rkisp_stream *stream = queue->drv_priv;
+	struct v4l2_device *v4l2_dev = &stream->ispdev->v4l2_dev;
+
+	v4l2_dbg(1, rkisp_debug, v4l2_dev, "%s %s id:%d\n",
+		 __func__, stream->vnode.vdev.name, stream->id);
 
 	if (!stream->streaming)
 		return;
@@ -618,19 +622,20 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = -1;
 
+	v4l2_dbg(1, rkisp_debug, v4l2_dev, "%s %s id:%d\n",
+		 __func__, stream->vnode.vdev.name, stream->id);
+
 	if (WARN_ON(stream->streaming))
 		return -EBUSY;
 
 	if (!stream->linked) {
-		v4l2_err(v4l2_dev, "check video link\n");
+		v4l2_err(v4l2_dev, "check %s link\n", stream->vnode.vdev.name);
 		goto free_buf_queue;
 	}
 
 	ret = dmarx_start(stream);
 	if (ret < 0) {
-		v4l2_err(v4l2_dev,
-			 "start dmarx stream:%d failed\n",
-			 stream->id);
+		v4l2_err(v4l2_dev, "start %s failed\n", stream->vnode.vdev.name);
 		goto free_buf_queue;
 	}
 	return 0;
@@ -717,7 +722,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height += RKMODULE_EXTEND_LINE;
 
 		if ((stream->ispdev->isp_ver == ISP_V20 ||
-		     stream->ispdev->isp_ver == ISP_V21) &&
+		     stream->ispdev->isp_ver == ISP_V21 ||
+		     stream->ispdev->isp_ver == ISP_V30) &&
 		    fmt->fmt_type == FMT_BAYER &&
 		    !stream->memory &&
 		    stream->id != RKISP_STREAM_DMARX)
@@ -750,7 +756,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			DIV_ROUND_UP(fmt->bpp[0], 8);
 
 		v4l2_dbg(1, rkisp_debug, &stream->ispdev->v4l2_dev,
-			 "%s: stream: %d req(%d, %d) out(%d, %d)\n", __func__,
+			 "%s: rx:%d req(%d, %d) out(%d, %d)\n", __func__,
 			 stream->id, pixm->width, pixm->height,
 			 stream->out_fmt.width, stream->out_fmt.height);
 	}
@@ -800,7 +806,8 @@ static int rkisp_s_fmt_vid_out_mplane(struct file *file,
 	struct rkisp_device *dev = stream->ispdev;
 
 	if (vb2_is_busy(&node->buf_queue)) {
-		v4l2_err(&dev->v4l2_dev, "%s queue busy\n", __func__);
+		v4l2_err(&dev->v4l2_dev, "%s rx:%d queue busy\n",
+			 __func__, stream->id);
 		return -EBUSY;
 	}
 
@@ -1111,7 +1118,9 @@ int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 	if (ret < 0)
 		goto err;
 #endif
-	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
+	if (dev->isp_ver == ISP_V20 ||
+	    dev->isp_ver == ISP_V21 ||
+	    dev->isp_ver == ISP_V30) {
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD0);
 		if (ret < 0)
 			goto err_free_dmarx;
@@ -1119,7 +1128,7 @@ int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 		if (ret < 0)
 			goto err_free_dmarx0;
 	}
-	if (dev->isp_ver == ISP_V20) {
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) {
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD1);
 		if (ret < 0)
 			goto err_free_dmarx2;
@@ -1148,14 +1157,16 @@ void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev)
 	rkisp_unregister_dmarx_video(stream);
 #endif
 
-	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
+	if (dev->isp_ver == ISP_V20 ||
+	    dev->isp_ver == ISP_V21 ||
+	    dev->isp_ver == ISP_V30) {
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD0];
 		rkisp_unregister_dmarx_video(stream);
 
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD2];
 		rkisp_unregister_dmarx_video(stream);
 	}
-	if (dev->isp_ver == ISP_V20) {
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) {
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD1];
 		rkisp_unregister_dmarx_video(stream);
 	}

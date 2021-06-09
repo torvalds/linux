@@ -31,4 +31,7 @@ video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V21) += \
 		isp_params_v21.o \
 		capture_v21.o
 
+video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30) += \
+		capture_v30.o
+
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) += rkisp_tb_helper.o

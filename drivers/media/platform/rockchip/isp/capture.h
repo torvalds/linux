@@ -38,14 +38,39 @@
 #include "common.h"
 #include "capture_v1x.h"
 #include "capture_v2x.h"
+#include "capture_v3x.h"
 #include "isp_ispp.h"
 
-#define RDBK_MAX		3
-#define RDBK_L			0
-#define RDBK_M			1
-#define RDBK_S			2
+#define SP_VDEV_NAME DRIVER_NAME	"_selfpath"
+#define MP_VDEV_NAME DRIVER_NAME	"_mainpath"
+#define FBC_VDEV_NAME DRIVER_NAME	"_fbcpath"
+#define BP_VDEV_NAME DRIVER_NAME	"_fullpath"
+
+#define DMATX0_VDEV_NAME DRIVER_NAME	"_rawwr0"
+#define DMATX1_VDEV_NAME DRIVER_NAME	"_rawwr1"
+#define DMATX2_VDEV_NAME DRIVER_NAME	"_rawwr2"
+#define DMATX3_VDEV_NAME DRIVER_NAME	"_rawwr3"
 
 struct rkisp_stream;
+
+enum {
+	RDBK_L,
+	RDBK_M,
+	RDBK_S,
+	RDBK_MAX,
+};
+
+enum {
+	RKISP_STREAM_MP,
+	RKISP_STREAM_SP,
+	RKISP_STREAM_DMATX0,
+	RKISP_STREAM_DMATX1,
+	RKISP_STREAM_DMATX2,
+	RKISP_STREAM_DMATX3,
+	RKISP_STREAM_FBC,
+	RKISP_STREAM_BP,
+	RKISP_MAX_STREAM,
+};
 
 /*
  * @fourcc: pixel format

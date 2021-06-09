@@ -392,6 +392,7 @@ int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_YVU422M:
+	case V4L2_PIX_FMT_FBC2:
 		*xsubs = 2;
 		*ysubs = 1;
 		break;
@@ -402,6 +403,7 @@ int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_FBCG:
+	case V4L2_PIX_FMT_FBC0:
 		*xsubs = 2;
 		*ysubs = 2;
 		break;
@@ -899,11 +901,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	const struct capture_fmt *fmt;
 	const struct stream_config *config = stream->config;
 	struct rkisp_device *dev = stream->ispdev;
-	struct rkisp_stream *other_stream;
-	unsigned int imagsize = 0;
-	unsigned int planes;
-	u32 xsubs = 1, ysubs = 1;
-	unsigned int i;
+	u32 planes, imagsize = 0;
+	u32 i, xsubs = 1, ysubs = 1;
 
 	fmt = find_fmt(stream, pixm->pixelformat);
 	if (!fmt) {
@@ -916,51 +915,41 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		return -EINVAL;
 	}
 
-	if (stream->id == RKISP_STREAM_MP ||
-	    stream->id == RKISP_STREAM_SP) {
+	if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP) {
 		struct v4l2_rect max_rsz;
 
-		other_stream = (stream->id == RKISP_STREAM_MP) ?
-			&dev->cap_dev.stream[RKISP_STREAM_SP] :
-			&dev->cap_dev.stream[RKISP_STREAM_MP];
 		/* do checks on resolution */
 		restrict_rsz_resolution(stream->ispdev, config, &max_rsz);
 		pixm->width = clamp_t(u32, pixm->width,
 				      config->min_rsz_width, max_rsz.width);
 		pixm->height = clamp_t(u32, pixm->height,
 				       config->min_rsz_height, max_rsz.height);
-	} else {
-		other_stream =
-			&stream->ispdev->cap_dev.stream[RKISP_STREAM_MP];
+	} else if (stream->id == RKISP_STREAM_FBC || stream->id == RKISP_STREAM_BP) {
+		/* full resolution equal to isp output size */
+		pixm->width = dev->isp_sdev.out_crop.width;
+		pixm->height = dev->isp_sdev.out_crop.height;
 	}
+
 	pixm->num_planes = fmt->mplanes;
 	pixm->field = V4L2_FIELD_NONE;
 	/* get quantization from ispsd */
 	pixm->quantization = stream->ispdev->isp_sdev.quantization;
-
-	/* output full range by default, take effect in isp_params */
-	if (!pixm->quantization)
-		pixm->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	/* can not change quantization when stream-on */
-	if (other_stream->streaming)
-		pixm->quantization = other_stream->out_fmt.quantization;
 
 	/* calculate size */
 	rkisp_fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
 	planes = fmt->cplanes ? fmt->cplanes : fmt->mplanes;
 	for (i = 0; i < planes; i++) {
 		struct v4l2_plane_pix_format *plane_fmt;
-		unsigned int width, height, bytesperline;
+		unsigned int width, height, bytesperline, w, h;
 
 		plane_fmt = pixm->plane_fmt + i;
 
-		if (i == 0) {
-			width = pixm->width;
-			height = pixm->height;
-		} else {
-			width = pixm->width / xsubs;
-			height = pixm->height / ysubs;
-		}
+		w = (fmt->fmt_type == FMT_FBC) ?
+			ALIGN(pixm->width, 16) : pixm->width;
+		h = (fmt->fmt_type == FMT_FBC) ?
+			ALIGN(pixm->height, 16) : pixm->height;
+		width = i ? w / xsubs : w;
+		height = i ? h / ysubs : h;
 
 		if (dev->isp_ver == ISP_V20 &&
 		    fmt->fmt_type == FMT_BAYER &&
@@ -977,20 +966,28 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);
 		else
 			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
+
 		/* 128bit AXI, 16byte align for bytesperline */
-		if (dev->isp_ver >= ISP_V20 && stream->id == RKISP_STREAM_SP)
+		if ((dev->isp_ver == ISP_V20 && stream->id == RKISP_STREAM_SP) ||
+		    dev->isp_ver == ISP_V30)
 			bytesperline = ALIGN(bytesperline, 16);
-		/* stride is only available for sp stream and y plane */
-		if (stream->id != RKISP_STREAM_SP || i != 0 ||
-		    plane_fmt->bytesperline < bytesperline)
+
+		if (i != 0 || plane_fmt->bytesperline < bytesperline)
 			plane_fmt->bytesperline = bytesperline;
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
 
-		/* uv address is y size offset need 64 align */
+		/* FMT_FBCGAIN: uv address is y size offset need 64 align
+		 * FMT_FBC: width and height need 16 align
+		 *          header: width * height / 16, and 4096 align for mpp
+		 *          payload: yuv420 or yuv422 size
+		 */
 		if (fmt->fmt_type == FMT_FBCGAIN && i == 0)
 			plane_fmt->sizeimage = ALIGN(plane_fmt->sizeimage, 64);
-
+		else if (fmt->fmt_type == FMT_FBC && i == 0)
+			plane_fmt->sizeimage = ALIGN(plane_fmt->sizeimage >> 4, RK_MPP_ALIGN);
+		else if (fmt->fmt_type == FMT_FBC)
+			plane_fmt->sizeimage += w * h;
 		imagsize += plane_fmt->sizeimage;
 	}
 
@@ -1503,6 +1500,8 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 		ret = rkisp_register_stream_v20(dev);
 	else if (dev->isp_ver == ISP_V21)
 		ret = rkisp_register_stream_v21(dev);
+	else if (dev->isp_ver == ISP_V30)
+		ret = rkisp_register_stream_v30(dev);
 	return ret;
 }
 
@@ -1514,6 +1513,8 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 		rkisp_unregister_stream_v20(dev);
 	else if (dev->isp_ver == ISP_V21)
 		rkisp_unregister_stream_v21(dev);
+	else if (dev->isp_ver == ISP_V30)
+		rkisp_unregister_stream_v30(dev);
 }
 
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
@@ -1524,4 +1525,6 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		rkisp_mi_v20_isr(mis_val, dev);
 	else if (dev->isp_ver == ISP_V21)
 		rkisp_mi_v21_isr(mis_val, dev);
+	else if (dev->isp_ver == ISP_V30)
+		rkisp_mi_v30_isr(mis_val, dev);
 }
