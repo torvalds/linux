@@ -88,11 +88,12 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 			goto free_skb;
 		skb_pull(skb, sizeof(*map_header));
 		rmnet_set_skb_proto(skb);
-	} else if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4) {
+	} else {
 		/* Subtract MAP header */
 		skb_pull(skb, sizeof(*map_header));
 		rmnet_set_skb_proto(skb);
-		if (!rmnet_map_checksum_downlink_packet(skb, len + pad))
+		if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4 &&
+		    !rmnet_map_checksum_downlink_packet(skb, len + pad))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
