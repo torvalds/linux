@@ -1881,6 +1881,24 @@ enum hl_sync_engine_type {
 };
 
 /**
+ * struct hl_mon_state_dump - represents a state dump of a single monitor
+ * @id: monitor id
+ * @wr_addr_low: address monitor will write to, low bits
+ * @wr_addr_high: address monitor will write to, high bits
+ * @wr_data: data monitor will write
+ * @arm_data: register value containing monitor configuration
+ * @status: monitor status
+ */
+struct hl_mon_state_dump {
+	u32		id;
+	u32		wr_addr_low;
+	u32		wr_addr_high;
+	u32		wr_data;
+	u32		arm_data;
+	u32		status;
+};
+
+/**
  * struct hl_sync_to_engine_map_entry - sync object id to engine mapping entry
  * @engine_type: type of the engine
  * @engine_id: id of the engine
@@ -1905,10 +1923,23 @@ struct hl_sync_to_engine_map {
 /**
  * struct hl_state_dump_specs_funcs - virtual functions used by the state dump
  * @gen_sync_to_engine_map: generate a hash map from sync obj id to its engine
+ * @print_single_monitor: format monitor data as string
+ * @monitor_valid: return true if given monitor dump is valid
+ * @print_fences_single_engine: format fences data as string
  */
 struct hl_state_dump_specs_funcs {
 	int (*gen_sync_to_engine_map)(struct hl_device *hdev,
 				struct hl_sync_to_engine_map *map);
+	int (*print_single_monitor)(char **buf, size_t *size, size_t *offset,
+				    struct hl_device *hdev,
+				    struct hl_mon_state_dump *mon);
+	int (*monitor_valid)(struct hl_mon_state_dump *mon);
+	int (*print_fences_single_engine)(struct hl_device *hdev,
+					u64 base_offset,
+					u64 status_base_offset,
+					enum hl_sync_engine_type engine_type,
+					u32 engine_id, char **buf,
+					size_t *size, size_t *offset);
 };
 
 /**
@@ -2795,6 +2826,8 @@ int hl_cs_signal_sob_wraparound_handler(struct hl_device *hdev, u32 q_idx,
 
 int hl_state_dump(struct hl_device *hdev);
 const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id);
+const char *hl_state_dump_get_monitor_name(struct hl_device *hdev,
+					struct hl_mon_state_dump *mon);
 void hl_state_dump_free_sync_to_engine_map(struct hl_sync_to_engine_map *map);
 __printf(4, 5) int hl_snprintf_resize(char **buf, size_t *size, size_t *offset,
 					const char *format, ...);
@@ -2895,8 +2928,8 @@ static inline void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev,
 {
 }
 
-void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
-					unsigned long length)
+static inline void hl_debugfs_set_state_dump(struct hl_device *hdev,
+					char *data, unsigned long length)
 {
 }
 

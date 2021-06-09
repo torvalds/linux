@@ -5,6 +5,7 @@
  * All Rights Reserved.
  */
 
+#include <linux/vmalloc.h>
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
@@ -192,6 +193,30 @@ const char *hl_state_dump_get_sync_name(struct hl_device *hdev, u32 sync_id)
 }
 
 /**
+ * hl_state_dump_get_monitor_name - transform monitor object dump to monitor
+ * name if available
+ * @hdev: pointer to the device
+ * @mon: monitor state dump
+ *
+ * Returns a name literal or NULL if not resolved.
+ * Note: returning NULL shall not be considered as a failure, as not all
+ * monitors are named.
+ */
+const char *hl_state_dump_get_monitor_name(struct hl_device *hdev,
+					struct hl_mon_state_dump *mon)
+{
+	struct hl_state_dump_specs *sds = &hdev->state_dump_specs;
+	struct hl_hw_obj_name_entry *entry;
+
+	hash_for_each_possible(sds->monitor_id_to_str_tb,
+				entry, node, mon->id)
+		if (mon->id == entry->id)
+			return entry->name;
+
+	return NULL;
+}
+
+/**
  * hl_state_dump_free_sync_to_engine_map - free sync object to engine map
  * @map: sync object to engine map
  *
@@ -244,23 +269,15 @@ static u32 *hl_state_dump_read_sync_objects(struct hl_device *hdev, u32 index)
 	s64 base_addr; /* Base addr can be negative */
 	int i;
 
-	base_addr =
-		sds->props[SP_SYNC_OBJ_BASE_ADDR] +
-		sds->props[SP_NEXT_SYNC_OBJ_ADDR] *
-		index;
+	base_addr = sds->props[SP_SYNC_OBJ_BASE_ADDR] +
+			sds->props[SP_NEXT_SYNC_OBJ_ADDR] * index;
 
-	sync_objects = vmalloc(
-		sds->props[SP_SYNC_OBJ_AMOUNT] *
-		sizeof(u32));
+	sync_objects = vmalloc(sds->props[SP_SYNC_OBJ_AMOUNT] * sizeof(u32));
 	if (!sync_objects)
 		return NULL;
 
-	for (i = 0;
-		i < sds->props[SP_SYNC_OBJ_AMOUNT];
-		++i) {
-		sync_objects[i] =
-		RREG32(base_addr + i * sizeof(u32));
-	}
+	for (i = 0; i < sds->props[SP_SYNC_OBJ_AMOUNT]; ++i)
+		sync_objects[i] = RREG32(base_addr + i * sizeof(u32));
 
 	return sync_objects;
 }
@@ -312,19 +329,16 @@ hl_state_dump_print_syncs_single_block(struct hl_device *hdev, u32 index,
 		goto out;
 	}
 
-	for (i = 0;
-		i < sds->props[SP_SYNC_OBJ_AMOUNT];
-		++i) {
+	for (i = 0; i < sds->props[SP_SYNC_OBJ_AMOUNT]; ++i) {
 		struct hl_sync_to_engine_map_entry *entry;
 		u64 sync_object_addr;
 
 		if (!sync_objects[i])
 			continue;
 
-		sync_object_addr =
-			sds->props[SP_SYNC_OBJ_BASE_ADDR] +
-			sds->props[SP_NEXT_SYNC_OBJ_ADDR] *
-			index + i * sizeof(u32);
+		sync_object_addr = sds->props[SP_SYNC_OBJ_BASE_ADDR] +
+				sds->props[SP_NEXT_SYNC_OBJ_ADDR] * index +
+				i * sizeof(u32);
 
 		rc = hl_snprintf_resize(buf, size, offset, "sync id: %u", i);
 		if (rc)
@@ -345,7 +359,8 @@ hl_state_dump_print_syncs_single_block(struct hl_device *hdev, u32 index,
 		entry = hl_state_dump_get_sync_to_engine(map,
 			(u32)sync_object_addr);
 		if (entry) {
-			rc = hl_snprintf_resize(buf, size, offset, ", Engine: ");
+			rc = hl_snprintf_resize(buf, size, offset,
+						", Engine: ");
 			if (rc)
 				goto free_sync_objects;
 			rc = hl_print_resize_sync_engine(buf, size, offset,
@@ -422,6 +437,245 @@ free_map_mem:
 }
 
 /**
+ * hl_state_dump_alloc_read_sm_block_monitors - read monitors for a specific
+ * block
+ * @hdev: pointer to the device
+ * @index: sync manager block index starting with E_N
+ *
+ * Returns an array of monitor data of size SP_MONITORS_AMOUNT or NULL
+ * on error
+ */
+static struct hl_mon_state_dump *
+hl_state_dump_alloc_read_sm_block_monitors(struct hl_device *hdev, u32 index)
+{
+	struct hl_state_dump_specs *sds = &hdev->state_dump_specs;
+	struct hl_mon_state_dump *monitors;
+	s64 base_addr; /* Base addr can be negative */
+	int i;
+
+	monitors = vmalloc(sds->props[SP_MONITORS_AMOUNT] *
+			   sizeof(struct hl_mon_state_dump));
+	if (!monitors)
+		return NULL;
+
+	base_addr = sds->props[SP_NEXT_SYNC_OBJ_ADDR] * index;
+
+	for (i = 0; i < sds->props[SP_MONITORS_AMOUNT]; ++i) {
+		monitors[i].id = i;
+		monitors[i].wr_addr_low =
+			RREG32(base_addr + sds->props[SP_MON_OBJ_WR_ADDR_LOW] +
+				i * sizeof(u32));
+
+		monitors[i].wr_addr_high =
+			RREG32(base_addr + sds->props[SP_MON_OBJ_WR_ADDR_HIGH] +
+				i * sizeof(u32));
+
+		monitors[i].wr_data =
+			RREG32(base_addr + sds->props[SP_MON_OBJ_WR_DATA] +
+				i * sizeof(u32));
+
+		monitors[i].arm_data =
+			RREG32(base_addr + sds->props[SP_MON_OBJ_ARM_DATA] +
+				i * sizeof(u32));
+
+		monitors[i].status =
+			RREG32(base_addr + sds->props[SP_MON_OBJ_STATUS] +
+				i * sizeof(u32));
+	}
+
+	return monitors;
+}
+
+/**
+ * hl_state_dump_free_monitors - free the monitors structure
+ * @monitors: monitors array created with
+ *            hl_state_dump_alloc_read_sm_block_monitors
+ */
+static void hl_state_dump_free_monitors(struct hl_mon_state_dump *monitors)
+{
+	vfree(monitors);
+}
+
+/**
+ * hl_state_dump_print_monitors_single_block - print active monitors on a
+ * single block
+ * @hdev: pointer to the device
+ * @index: sync manager block index starting with E_N
+ * @buf: destination buffer double pointer to be used with hl_snprintf_resize
+ * @size: pointer to the size container
+ * @offset: pointer to the offset container
+ *
+ * Returns 0 on success or error code on failure
+ */
+static int hl_state_dump_print_monitors_single_block(struct hl_device *hdev,
+						u32 index,
+						char **buf, size_t *size,
+						size_t *offset)
+{
+	struct hl_state_dump_specs *sds = &hdev->state_dump_specs;
+	struct hl_mon_state_dump *monitors = NULL;
+	int rc = 0, i;
+
+	if (sds->sync_namager_names) {
+		rc = hl_snprintf_resize(
+			buf, size, offset, "%s\n",
+			sds->sync_namager_names[index]);
+		if (rc)
+			goto out;
+	}
+
+	monitors = hl_state_dump_alloc_read_sm_block_monitors(hdev, index);
+	if (!monitors) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < sds->props[SP_MONITORS_AMOUNT]; ++i) {
+		if (!(sds->funcs.monitor_valid(&monitors[i])))
+			continue;
+
+		/* Monitor is valid, dump it */
+		rc = sds->funcs.print_single_monitor(buf, size, offset, hdev,
+							&monitors[i]);
+		if (rc)
+			goto free_monitors;
+
+		hl_snprintf_resize(buf, size, offset, "\n");
+	}
+
+free_monitors:
+	hl_state_dump_free_monitors(monitors);
+out:
+	return rc;
+}
+
+/**
+ * hl_state_dump_print_monitors - print active monitors
+ * @hdev: pointer to the device
+ * @buf: destination buffer double pointer to be used with hl_snprintf_resize
+ * @size: pointer to the size container
+ * @offset: pointer to the offset container
+ *
+ * Returns 0 on success or error code on failure
+ */
+static int hl_state_dump_print_monitors(struct hl_device *hdev,
+					char **buf, size_t *size,
+					size_t *offset)
+{
+	struct hl_state_dump_specs *sds = &hdev->state_dump_specs;
+	u32 index;
+	int rc = 0;
+
+	rc = hl_snprintf_resize(buf, size, offset,
+		"Valid (armed) monitor objects:\n");
+	if (rc)
+		goto out;
+
+	if (sds->sync_namager_names) {
+		for (index = 0; sds->sync_namager_names[index]; ++index) {
+			rc = hl_state_dump_print_monitors_single_block(
+				hdev, index, buf, size, offset);
+			if (rc)
+				goto out;
+		}
+	} else {
+		for (index = 0; index < sds->props[SP_NUM_CORES]; ++index) {
+			rc = hl_state_dump_print_monitors_single_block(
+				hdev, index, buf, size, offset);
+			if (rc)
+				goto out;
+		}
+	}
+
+out:
+	return rc;
+}
+
+/**
+ * hl_state_dump_print_engine_fences - print active fences for a specific
+ * engine
+ * @hdev: pointer to the device
+ * @engine_type: engine type to use
+ * @buf: destination buffer double pointer to be used with hl_snprintf_resize
+ * @size: pointer to the size container
+ * @offset: pointer to the offset container
+ */
+static int
+hl_state_dump_print_engine_fences(struct hl_device *hdev,
+				  enum hl_sync_engine_type engine_type,
+				  char **buf, size_t *size, size_t *offset)
+{
+	struct hl_state_dump_specs *sds = &hdev->state_dump_specs;
+	int rc = 0, i, n_fences;
+	u64 base_addr, next_fence;
+
+	switch (engine_type) {
+	case ENGINE_TPC:
+		n_fences = sds->props[SP_NUM_OF_TPC_ENGINES];
+		base_addr = sds->props[SP_TPC0_CMDQ];
+		next_fence = sds->props[SP_NEXT_TPC];
+		break;
+	case ENGINE_MME:
+		n_fences = sds->props[SP_NUM_OF_MME_ENGINES];
+		base_addr = sds->props[SP_MME_CMDQ];
+		next_fence = sds->props[SP_NEXT_MME];
+		break;
+	case ENGINE_DMA:
+		n_fences = sds->props[SP_NUM_OF_DMA_ENGINES];
+		base_addr = sds->props[SP_DMA_CMDQ];
+		next_fence = sds->props[SP_DMA_QUEUES_OFFSET];
+		break;
+	default:
+		return -EINVAL;
+	}
+	for (i = 0; i < n_fences; ++i) {
+		rc = sds->funcs.print_fences_single_engine(
+			hdev,
+			base_addr + next_fence * i +
+				sds->props[SP_FENCE0_CNT_OFFSET],
+			base_addr + next_fence * i +
+				sds->props[SP_CP_STS_OFFSET],
+			engine_type, i, buf, size, offset);
+		if (rc)
+			goto out;
+	}
+out:
+	return rc;
+}
+
+/**
+ * hl_state_dump_print_fences - print active fences
+ * @hdev: pointer to the device
+ * @buf: destination buffer double pointer to be used with hl_snprintf_resize
+ * @size: pointer to the size container
+ * @offset: pointer to the offset container
+ */
+static int hl_state_dump_print_fences(struct hl_device *hdev, char **buf,
+				      size_t *size, size_t *offset)
+{
+	int rc = 0;
+
+	rc = hl_snprintf_resize(buf, size, offset, "Valid (armed) fences:\n");
+	if (rc)
+		goto out;
+
+	rc = hl_state_dump_print_engine_fences(hdev, ENGINE_TPC, buf, size, offset);
+	if (rc)
+		goto out;
+
+	rc = hl_state_dump_print_engine_fences(hdev, ENGINE_MME, buf, size, offset);
+	if (rc)
+		goto out;
+
+	rc = hl_state_dump_print_engine_fences(hdev, ENGINE_DMA, buf, size, offset);
+	if (rc)
+		goto out;
+
+out:
+	return rc;
+}
+
+/**
  * hl_state_dump() - dump system state
  * @hdev: pointer to device structure
  */
@@ -438,6 +692,18 @@ int hl_state_dump(struct hl_device *hdev)
 		goto err;
 
 	rc = hl_state_dump_print_syncs(hdev, &buf, &size, &offset);
+	if (rc)
+		goto err;
+
+	hl_snprintf_resize(&buf, &size, &offset, "\n");
+
+	rc = hl_state_dump_print_monitors(hdev, &buf, &size, &offset);
+	if (rc)
+		goto err;
+
+	hl_snprintf_resize(&buf, &size, &offset, "\n");
+
+	rc = hl_state_dump_print_fences(hdev, &buf, &size, &offset);
 	if (rc)
 		goto err;
 

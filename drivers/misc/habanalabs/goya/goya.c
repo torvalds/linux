@@ -5533,9 +5533,36 @@ static int goya_gen_sync_to_engine_map(struct hl_device *hdev,
 	return 0;
 }
 
+static int goya_monitor_valid(struct hl_mon_state_dump *mon)
+{
+	/* Not implemented */
+	return 0;
+}
+
+static int goya_print_single_monitor(char **buf, size_t *size, size_t *offset,
+				struct hl_device *hdev,
+				struct hl_mon_state_dump *mon)
+{
+	/* Not implemented */
+	return 0;
+}
+
+
+static int goya_print_fences_single_engine(
+	struct hl_device *hdev, u64 base_offset, u64 status_base_offset,
+	enum hl_sync_engine_type engine_type, u32 engine_id, char **buf,
+	size_t *size, size_t *offset)
+{
+	/* Not implemented */
+	return 0;
+}
+
 
 static struct hl_state_dump_specs_funcs goya_state_dump_funcs = {
+	.monitor_valid = goya_monitor_valid,
+	.print_single_monitor = goya_print_single_monitor,
 	.gen_sync_to_engine_map = goya_gen_sync_to_engine_map,
+	.print_fences_single_engine = goya_print_fences_single_engine,
 };
 
 static void goya_state_dump_init(struct hl_device *hdev)
