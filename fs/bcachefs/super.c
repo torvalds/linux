@@ -1826,6 +1826,11 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		goto err;
 	}
 
+	ret = bch2_trans_mark_dev_sb(c, ca);
+	if (ret) {
+		goto err;
+	}
+
 	mutex_lock(&c->sb_lock);
 	mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
 	mi->nbuckets = cpu_to_le64(nbuckets);
