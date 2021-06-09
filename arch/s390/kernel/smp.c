@@ -1233,21 +1233,21 @@ subsys_initcall(s390_smp_init);
 
 static __always_inline void set_new_lowcore(struct lowcore *lc)
 {
-	struct lowcore *old_lc = &S390_lowcore;
-	struct lowcore *new_lc = lc;
+	union register_pair dst, src;
 	u32 pfx;
-	register struct lowcore *reg2 asm ("2") = new_lc;
-	register unsigned long	 reg3 asm ("3") = sizeof(*reg2);
-	register struct lowcore *reg4 asm ("4") = old_lc;
-	register unsigned long	 reg5 asm ("5") = sizeof(*reg4);
+
+	src.even = (unsigned long) &S390_lowcore;
+	src.odd  = sizeof(S390_lowcore);
+	dst.even = (unsigned long) lc;
+	dst.odd  = sizeof(*lc);
+	pfx = (unsigned long) lc;
 
 	asm volatile(
-		"	st	2,%[pfx]\n"
-		"	mvcl	2,4\n"
+		"	mvcl	%[dst],%[src]\n"
 		"	spx	%[pfx]\n"
-		: "+&d" (reg2), "+&d" (reg3),
-		  "+&d" (reg4), "+&d" (reg5), [pfx] "=Q" (pfx)
-		: : "memory", "cc");
+		: [dst] "+&d" (dst.pair), [src] "+&d" (src.pair)
+		: [pfx] "Q" (pfx)
+		: "memory", "cc");
 }
 
 static int __init smp_reinit_ipl_cpu(void)
