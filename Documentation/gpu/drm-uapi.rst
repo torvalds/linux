@@ -457,6 +457,19 @@ Userspace API Structures
 .. kernel-doc:: include/uapi/drm/drm_mode.h
    :doc: overview
 
+.. _crtc_index:
+
+CRTC index
+----------
+
+CRTC's have both an object ID and an index, and they are not the same thing.
+The index is used in cases where a densely packed identifier for a CRTC is
+needed, for instance a bitmask of CRTC's. The member possible_crtcs of struct
+drm_mode_get_plane is an example.
+
+DRM_IOCTL_MODE_GETRESOURCES populates a structure with an array of CRTC ID's,
+and the CRTC index is its position in this array.
+
 .. kernel-doc:: include/uapi/drm/drm.h
    :internal:
 

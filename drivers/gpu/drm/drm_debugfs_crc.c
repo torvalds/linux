@@ -46,10 +46,10 @@
  * it reached a given hardware component (a CRC sampling "source").
  *
  * Userspace can control generation of CRCs in a given CRTC by writing to the
- * file dri/0/crtc-N/crc/control in debugfs, with N being the index of the CRTC.
- * Accepted values are source names (which are driver-specific) and the "auto"
- * keyword, which will let the driver select a default source of frame CRCs
- * for this CRTC.
+ * file dri/0/crtc-N/crc/control in debugfs, with N being the :ref:`index of
+ * the CRTC<crtc_index>`. Accepted values are source names (which are
+ * driver-specific) and the "auto" keyword, which will let the driver select a
+ * default source of frame CRCs for this CRTC.
  *
  * Once frame CRC generation is enabled, userspace can capture them by reading
  * the dri/0/crtc-N/crc/data file. Each line in that file contains the frame
