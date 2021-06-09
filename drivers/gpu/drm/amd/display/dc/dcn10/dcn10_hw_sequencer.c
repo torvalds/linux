@@ -466,6 +466,39 @@ void dcn10_log_hw_state(struct dc *dc,
 
 	log_mpc_crc(dc, log_ctx);
 
+	{
+		int hpo_dp_link_enc_count = 0;
+
+		if (pool->hpo_dp_stream_enc_count > 0) {
+			DTN_INFO("DP HPO S_ENC:  Enabled  OTG   Format   Depth   Vid   SDP   Compressed  Link\n");
+			for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
+				struct hpo_dp_stream_encoder_state hpo_dp_se_state = {0};
+				struct hpo_dp_stream_encoder *hpo_dp_stream_enc = pool->hpo_dp_stream_enc[i];
+
+				if (hpo_dp_stream_enc && hpo_dp_stream_enc->funcs->read_state) {
+					hpo_dp_stream_enc->funcs->read_state(hpo_dp_stream_enc, &hpo_dp_se_state);
+
+					DTN_INFO("[%d]:                 %d    %d   %6s       %d     %d     %d            %d     %d\n",
+							hpo_dp_stream_enc->id - ENGINE_ID_HPO_DP_0,
+							hpo_dp_se_state.stream_enc_enabled,
+							hpo_dp_se_state.otg_inst,
+							(hpo_dp_se_state.pixel_encoding == 0) ? "4:4:4" :
+									((hpo_dp_se_state.pixel_encoding == 1) ? "4:2:2" :
+									(hpo_dp_se_state.pixel_encoding == 2) ? "4:2:0" : "Y-Only"),
+							(hpo_dp_se_state.component_depth == 0) ? 6 :
+									((hpo_dp_se_state.component_depth == 1) ? 8 :
+									(hpo_dp_se_state.component_depth == 2) ? 10 : 12),
+							hpo_dp_se_state.vid_stream_enabled,
+							hpo_dp_se_state.sdp_enabled,
+							hpo_dp_se_state.compressed_format,
+							hpo_dp_se_state.mapped_to_link_enc);
+				}
+			}
+
+			DTN_INFO("\n");
+		}
+	}
+
 	DTN_INFO_END();
 }
 
