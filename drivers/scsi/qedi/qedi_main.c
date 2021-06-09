@@ -2417,11 +2417,9 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	int rval;
 	u16 retry = 10;
 
-	if (mode == QEDI_MODE_SHUTDOWN)
-		iscsi_host_for_each_session(qedi->shost,
-					    qedi_clear_session_ctx);
-
 	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
+		iscsi_host_remove(qedi->shost);
+
 		if (qedi->tmf_thread) {
 			flush_workqueue(qedi->tmf_thread);
 			destroy_workqueue(qedi->tmf_thread);
@@ -2482,7 +2480,6 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 		if (qedi->boot_kset)
 			iscsi_boot_destroy_kset(qedi->boot_kset);
 
-		iscsi_host_remove(qedi->shost);
 		iscsi_host_free(qedi->shost);
 	}
 }

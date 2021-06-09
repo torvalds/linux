@@ -1659,23 +1659,6 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep,
 		qedi_start_conn_recovery(qedi_conn->qedi, qedi_conn);
 }
 
-void qedi_clear_session_ctx(struct iscsi_cls_session *cls_sess)
-{
-	struct iscsi_session *session = cls_sess->dd_data;
-	struct iscsi_conn *conn = session->leadconn;
-	struct qedi_conn *qedi_conn = conn->dd_data;
-
-	if (iscsi_is_session_online(cls_sess)) {
-		if (conn)
-			iscsi_suspend_queue(conn);
-		qedi_ep_disconnect(qedi_conn->iscsi_ep);
-	}
-
-	qedi_conn_destroy(qedi_conn->cls_conn);
-
-	qedi_session_destroy(cls_sess);
-}
-
 void qedi_process_tcp_error(struct qedi_endpoint *ep,
 			    struct iscsi_eqe_data *data)
 {
