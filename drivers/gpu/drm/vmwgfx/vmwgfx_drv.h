@@ -358,7 +358,6 @@ struct vmw_piter {
 	unsigned long num_pages;
 	bool (*next)(struct vmw_piter *);
 	dma_addr_t (*dma_address)(struct vmw_piter *);
-	struct page *(*page)(struct vmw_piter *);
 };
 
 /*
@@ -1088,7 +1087,7 @@ static inline dma_addr_t vmw_piter_dma_addr(struct vmw_piter *viter)
  */
 static inline struct page *vmw_piter_page(struct vmw_piter *viter)
 {
-	return viter->page(viter);
+	return viter->pages[viter->i];
 }
 
 /**
