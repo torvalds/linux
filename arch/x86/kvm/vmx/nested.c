@@ -351,16 +351,21 @@ static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 	vmcs12->guest_physical_address = fault->address;
 }
 
+static void nested_ept_new_eptp(struct kvm_vcpu *vcpu)
+{
+	kvm_init_shadow_ept_mmu(vcpu,
+				to_vmx(vcpu)->nested.msrs.ept_caps &
+				VMX_EPT_EXECUTE_ONLY_BIT,
+				nested_ept_ad_enabled(vcpu),
+				nested_ept_get_eptp(vcpu));
+}
+
 static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
 {
 	WARN_ON(mmu_is_nested(vcpu));
 
 	vcpu->arch.mmu = &vcpu->arch.guest_mmu;
-	kvm_init_shadow_ept_mmu(vcpu,
-			to_vmx(vcpu)->nested.msrs.ept_caps &
-			VMX_EPT_EXECUTE_ONLY_BIT,
-			nested_ept_ad_enabled(vcpu),
-			nested_ept_get_eptp(vcpu));
+	nested_ept_new_eptp(vcpu);
 	vcpu->arch.mmu->get_guest_pgd     = nested_ept_get_eptp;
 	vcpu->arch.mmu->inject_page_fault = nested_ept_inject_page_fault;
 	vcpu->arch.mmu->get_pdptr         = kvm_pdptr_read;
@@ -5521,8 +5526,10 @@ static int nested_vmx_eptp_switching(struct kvm_vcpu *vcpu,
 			return 1;
 
 		vmcs12->ept_pointer = new_eptp;
+		nested_ept_new_eptp(vcpu);
 
-		kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
+		if (!nested_cpu_has_vpid(vmcs12))
+			kvm_make_request(KVM_REQ_TLB_FLUSH_GUEST, vcpu);
 	}
 
 	return 0;
