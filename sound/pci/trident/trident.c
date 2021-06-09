@@ -67,11 +67,12 @@ static int snd_trident_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	if ((err = snd_trident_create(card, pci,
-				      pcm_channels[dev],
-				      ((pci->vendor << 16) | pci->device) == TRIDENT_DEVICE_ID_SI7018 ? 1 : 2,
-				      wavetable_size[dev],
-				      &trident)) < 0) {
+	err = snd_trident_create(card, pci,
+				 pcm_channels[dev],
+				 ((pci->vendor << 16) | pci->device) == TRIDENT_DEVICE_ID_SI7018 ? 1 : 2,
+				 wavetable_size[dev],
+				 &trident);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -100,38 +101,44 @@ static int snd_trident_probe(struct pci_dev *pci,
 	sprintf(card->longname, "%s PCI Audio at 0x%lx, irq %d",
 		card->shortname, trident->port, trident->irq);
 
-	if ((err = snd_trident_pcm(trident, pcm_dev++)) < 0) {
+	err = snd_trident_pcm(trident, pcm_dev++);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 	switch (trident->device) {
 	case TRIDENT_DEVICE_ID_DX:
 	case TRIDENT_DEVICE_ID_NX:
-		if ((err = snd_trident_foldback_pcm(trident, pcm_dev++)) < 0) {
+		err = snd_trident_foldback_pcm(trident, pcm_dev++);
+		if (err < 0) {
 			snd_card_free(card);
 			return err;
 		}
 		break;
 	}
 	if (trident->device == TRIDENT_DEVICE_ID_NX || trident->device == TRIDENT_DEVICE_ID_SI7018) {
-		if ((err = snd_trident_spdif_pcm(trident, pcm_dev++)) < 0) {
+		err = snd_trident_spdif_pcm(trident, pcm_dev++);
+		if (err < 0) {
 			snd_card_free(card);
 			return err;
 		}
 	}
-	if (trident->device != TRIDENT_DEVICE_ID_SI7018 &&
-	    (err = snd_mpu401_uart_new(card, 0, MPU401_HW_TRID4DWAVE,
-				       trident->midi_port,
-				       MPU401_INFO_INTEGRATED |
-				       MPU401_INFO_IRQ_HOOK,
-				       -1, &trident->rmidi)) < 0) {
-		snd_card_free(card);
-		return err;
+	if (trident->device != TRIDENT_DEVICE_ID_SI7018) {
+		err = snd_mpu401_uart_new(card, 0, MPU401_HW_TRID4DWAVE,
+					  trident->midi_port,
+					  MPU401_INFO_INTEGRATED |
+					  MPU401_INFO_IRQ_HOOK,
+					  -1, &trident->rmidi);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
 	}
 
 	snd_trident_create_gameport(trident);
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}

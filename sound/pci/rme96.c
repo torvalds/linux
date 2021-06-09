@@ -666,12 +666,14 @@ snd_rme96_playback_getrate(struct rme96 *rme96)
 	int rate, dummy;
 
 	if (!(rme96->wcreg & RME96_WCR_MASTER) &&
-            snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
-	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
-	{
-	        /* slave clock */
-	        return rate;
+	    snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG) {
+		rate = snd_rme96_capture_getrate(rme96, &dummy);
+		if (rate > 0) {
+			/* slave clock */
+			return rate;
+		}
 	}
+
 	rate = ((rme96->wcreg >> RME96_WCR_BITPOS_FREQ_0) & 1) +
 		(((rme96->wcreg >> RME96_WCR_BITPOS_FREQ_1) & 1) << 1);
 	switch (rate) {
@@ -984,10 +986,11 @@ snd_rme96_playback_hw_params(struct snd_pcm_substream *substream,
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
 	spin_lock_irq(&rme96->lock);
+	rate = 0;
 	if (!(rme96->wcreg & RME96_WCR_MASTER) &&
-            snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
-	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
-	{
+	    snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG)
+		rate = snd_rme96_capture_getrate(rme96, &dummy);
+	if (rate > 0) {
                 /* slave clock */
                 if ((int)params_rate(params) != rate) {
 			err = -EIO;
@@ -1046,28 +1049,30 @@ snd_rme96_capture_hw_params(struct snd_pcm_substream *substream,
 	runtime->dma_bytes = RME96_BUFFER_SIZE;
 
 	spin_lock_irq(&rme96->lock);
-	if ((err = snd_rme96_capture_setformat(rme96, params_format(params))) < 0) {
+	err = snd_rme96_capture_setformat(rme96, params_format(params));
+	if (err < 0) {
 		spin_unlock_irq(&rme96->lock);
 		return err;
 	}
 	if (snd_rme96_getinputtype(rme96) == RME96_INPUT_ANALOG) {
-		if ((err = snd_rme96_capture_analog_setrate(rme96,
-							    params_rate(params))) < 0)
-		{
+		err = snd_rme96_capture_analog_setrate(rme96, params_rate(params));
+		if (err < 0) {
 			spin_unlock_irq(&rme96->lock);
 			return err;
 		}
-	} else if ((rate = snd_rme96_capture_getrate(rme96, &isadat)) > 0) {
-                if ((int)params_rate(params) != rate) {
-			spin_unlock_irq(&rme96->lock);
-			return -EIO;                    
-                }
-                if ((isadat && runtime->hw.channels_min == 2) ||
-                    (!isadat && runtime->hw.channels_min == 8))
-                {
-			spin_unlock_irq(&rme96->lock);
-			return -EIO;
-                }
+	} else {
+		rate = snd_rme96_capture_getrate(rme96, &isadat);
+		if (rate > 0) {
+			if ((int)params_rate(params) != rate) {
+				spin_unlock_irq(&rme96->lock);
+				return -EIO;
+			}
+			if ((isadat && runtime->hw.channels_min == 2) ||
+			    (!isadat && runtime->hw.channels_min == 8)) {
+				spin_unlock_irq(&rme96->lock);
+				return -EIO;
+			}
+		}
         }
 	snd_rme96_setframelog(rme96, params_channels(params), 0);
 	if (rme96->playback_periodsize != 0) {
@@ -1160,8 +1165,10 @@ rme96_set_buffer_size_constraint(struct rme96 *rme96,
 
 	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				     RME96_BUFFER_SIZE);
-	if ((size = rme96->playback_periodsize) != 0 ||
-	    (size = rme96->capture_periodsize) != 0)
+	size = rme96->playback_periodsize;
+	if (!size)
+		size = rme96->capture_periodsize;
+	if (size)
 		snd_pcm_hw_constraint_single(runtime,
 					     SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 					     size);
@@ -1191,13 +1198,14 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 
 	runtime->hw = snd_rme96_playback_spdif_info;
 	if (!(rme96->wcreg & RME96_WCR_MASTER) &&
-            snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
-	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
-	{
-                /* slave clock */
-                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
-                runtime->hw.rate_min = rate;
-                runtime->hw.rate_max = rate;
+	    snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG) {
+		rate = snd_rme96_capture_getrate(rme96, &dummy);
+		if (rate > 0) {
+			/* slave clock */
+			runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
+			runtime->hw.rate_min = rate;
+			runtime->hw.rate_max = rate;
+		}
 	}        
 	rme96_set_buffer_size_constraint(rme96, runtime);
 
@@ -1217,16 +1225,16 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
 
 	snd_pcm_set_sync(substream);
 	runtime->hw = snd_rme96_capture_spdif_info;
-        if (snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
-            (rate = snd_rme96_capture_getrate(rme96, &isadat)) > 0)
-        {
-                if (isadat) {
-                        return -EIO;
-                }
-                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
-                runtime->hw.rate_min = rate;
-                runtime->hw.rate_max = rate;
-        }
+	if (snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG) {
+		rate = snd_rme96_capture_getrate(rme96, &isadat);
+		if (rate > 0) {
+			if (isadat)
+				return -EIO;
+			runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
+			runtime->hw.rate_min = rate;
+			runtime->hw.rate_max = rate;
+		}
+	}
         
 	spin_lock_irq(&rme96->lock);
 	if (rme96->capture_substream) {
@@ -1260,14 +1268,16 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
 	
 	runtime->hw = snd_rme96_playback_adat_info;
 	if (!(rme96->wcreg & RME96_WCR_MASTER) &&
-            snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
-	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
-	{
-                /* slave clock */
-                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
-                runtime->hw.rate_min = rate;
-                runtime->hw.rate_max = rate;
-	}        
+	    snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG) {
+		rate = snd_rme96_capture_getrate(rme96, &dummy);
+		if (rate > 0) {
+			/* slave clock */
+			runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
+			runtime->hw.rate_min = rate;
+			runtime->hw.rate_max = rate;
+		}
+	}
+
 	rme96_set_buffer_size_constraint(rme96, runtime);
 	return 0;
 }
@@ -1286,7 +1296,8 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
                    expension cards AEB4/8-I are RME96_INPUT_INTERNAL */
                 return -EIO;
         }
-        if ((rate = snd_rme96_capture_getrate(rme96, &isadat)) > 0) {
+	rate = snd_rme96_capture_getrate(rme96, &isadat);
+	if (rate > 0) {
                 if (!isadat) {
                         return -EIO;
                 }
@@ -1603,10 +1614,12 @@ snd_rme96_create(struct rme96 *rme96)
 	rme96->irq = -1;
 	spin_lock_init(&rme96->lock);
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
-	if ((err = pci_request_regions(pci, "RME96")) < 0)
+	err = pci_request_regions(pci, "RME96");
+	if (err < 0)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);
 
@@ -1630,11 +1643,11 @@ snd_rme96_create(struct rme96 *rme96)
 	pci_read_config_byte(pci, 8, &rme96->rev);	
 	
 	/* set up ALSA pcm device for S/PDIF */
-	if ((err = snd_pcm_new(rme96->card, "Digi96 IEC958", 0,
-			       1, 1, &rme96->spdif_pcm)) < 0)
-	{
+	err = snd_pcm_new(rme96->card, "Digi96 IEC958", 0,
+			  1, 1, &rme96->spdif_pcm);
+	if (err < 0)
 		return err;
-	}
+
 	rme96->spdif_pcm->private_data = rme96;
 	rme96->spdif_pcm->private_free = snd_rme96_free_spdif_pcm;
 	strcpy(rme96->spdif_pcm->name, "Digi96 IEC958");
@@ -1648,11 +1661,10 @@ snd_rme96_create(struct rme96 *rme96)
 		/* ADAT is not available on the base model */
 		rme96->adat_pcm = NULL;
 	} else {
-		if ((err = snd_pcm_new(rme96->card, "Digi96 ADAT", 1,
-				       1, 1, &rme96->adat_pcm)) < 0)
-		{
+		err = snd_pcm_new(rme96->card, "Digi96 ADAT", 1,
+				  1, 1, &rme96->adat_pcm);
+		if (err < 0)
 			return err;
-		}		
 		rme96->adat_pcm->private_data = rme96;
 		rme96->adat_pcm->private_free = snd_rme96_free_adat_pcm;
 		strcpy(rme96->adat_pcm->name, "Digi96 ADAT");
@@ -1701,9 +1713,9 @@ snd_rme96_create(struct rme96 *rme96)
 	}
 	
 	/* init switch interface */
-	if ((err = snd_rme96_create_switches(rme96->card, rme96)) < 0) {
+	err = snd_rme96_create_switches(rme96->card, rme96);
+	if (err < 0)
 		return err;
-	}
 
         /* init proc interface */
 	snd_rme96_proc_init(rme96);
@@ -2336,16 +2348,20 @@ snd_rme96_create_switches(struct snd_card *card,
 	struct snd_kcontrol *kctl;
 
 	for (idx = 0; idx < 7; idx++) {
-		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_rme96_controls[idx], rme96))) < 0)
+		kctl = snd_ctl_new1(&snd_rme96_controls[idx], rme96);
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			return err;
 		if (idx == 1)	/* IEC958 (S/PDIF) Stream */
 			rme96->spdif_ctl = kctl;
 	}
 
 	if (RME96_HAS_ANALOG_OUT(rme96)) {
-		for (idx = 7; idx < 10; idx++)
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_rme96_controls[idx], rme96))) < 0)
+		for (idx = 7; idx < 10; idx++) {
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_rme96_controls[idx], rme96));
+			if (err < 0)
 				return err;
+		}
 	}
 	
 	return 0;

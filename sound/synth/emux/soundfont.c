@@ -349,7 +349,8 @@ sf_zone_new(struct snd_sf_list *sflist, struct snd_soundfont *sf)
 {
 	struct snd_sf_zone *zp;
 
-	if ((zp = kzalloc(sizeof(*zp), GFP_KERNEL)) == NULL)
+	zp = kzalloc(sizeof(*zp), GFP_KERNEL);
+	if (!zp)
 		return NULL;
 	zp->next = sf->zones;
 	sf->zones = zp;
@@ -381,7 +382,8 @@ sf_sample_new(struct snd_sf_list *sflist, struct snd_soundfont *sf)
 {
 	struct snd_sf_sample *sp;
 
-	if ((sp = kzalloc(sizeof(*sp), GFP_KERNEL)) == NULL)
+	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+	if (!sp)
 		return NULL;
 
 	sp->next = sf->samples;
@@ -451,7 +453,8 @@ load_map(struct snd_sf_list *sflist, const void __user *data, int count)
 	}
 
 	/* create a new zone */
-	if ((zp = sf_zone_new(sflist, sf)) == NULL)
+	zp = sf_zone_new(sflist, sf);
+	if (!zp)
 		return -ENOMEM;
 
 	zp->bank = map.map_bank;
@@ -514,7 +517,8 @@ load_info(struct snd_sf_list *sflist, const void __user *data, long count)
 	int i;
 
 	/* patch must be opened */
-	if ((sf = sflist->currsf) == NULL)
+	sf = sflist->currsf;
+	if (!sf)
 		return -EINVAL;
 
 	if (is_special_type(sf->type))
@@ -579,9 +583,9 @@ load_info(struct snd_sf_list *sflist, const void __user *data, long count)
 			init_voice_parm(&tmpzone.v.parm);
 
 		/* create a new zone */
-		if ((zone = sf_zone_new(sflist, sf)) == NULL) {
+		zone = sf_zone_new(sflist, sf);
+		if (!zone)
 			return -ENOMEM;
-		}
 
 		/* copy the temporary data */
 		zone->bank = tmpzone.bank;
@@ -700,7 +704,8 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 	long off;
 
 	/* patch must be opened */
-	if ((sf = sflist->currsf) == NULL)
+	sf = sflist->currsf;
+	if (!sf)
 		return -EINVAL;
 
 	if (is_special_type(sf->type))
@@ -723,7 +728,8 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 	}
 
 	/* Allocate a new sample structure */
-	if ((sp = sf_sample_new(sflist, sf)) == NULL)
+	sp = sf_sample_new(sflist, sf);
+	if (!sp)
 		return -ENOMEM;
 
 	sp->v = sample_info;
@@ -958,7 +964,8 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	sf = newsf(sflist, SNDRV_SFNT_PAT_TYPE_GUS|SNDRV_SFNT_PAT_SHARED, NULL);
 	if (sf == NULL)
 		return -ENOMEM;
-	if ((smp = sf_sample_new(sflist, sf)) == NULL)
+	smp = sf_sample_new(sflist, sf);
+	if (!smp)
 		return -ENOMEM;
 	sample_id = sflist->sample_counter;
 	smp->v.sample = sample_id;
@@ -996,7 +1003,8 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	smp->v.sf_id = sf->id;
 
 	/* set up voice info */
-	if ((zone = sf_zone_new(sflist, sf)) == NULL) {
+	zone = sf_zone_new(sflist, sf);
+	if (!zone) {
 		sf_sample_delete(sflist, sf, smp);
 		return -ENOMEM;
 	}
@@ -1181,7 +1189,8 @@ add_preset(struct snd_sf_list *sflist, struct snd_sf_zone *cur)
 	}
 
 	/* prepend this zone */
-	if ((index = get_index(cur->bank, cur->instr, cur->v.low)) < 0)
+	index = get_index(cur->bank, cur->instr, cur->v.low);
+	if (index < 0)
 		return;
 	cur->next_zone = zone; /* zone link */
 	cur->next_instr = sflist->presets[index]; /* preset table link */
@@ -1197,7 +1206,8 @@ delete_preset(struct snd_sf_list *sflist, struct snd_sf_zone *zp)
 	int index;
 	struct snd_sf_zone *p;
 
-	if ((index = get_index(zp->bank, zp->instr, zp->v.low)) < 0)
+	index = get_index(zp->bank, zp->instr, zp->v.low);
+	if (index < 0)
 		return;
 	for (p = sflist->presets[index]; p; p = p->next_instr) {
 		while (p->next_instr == zp) {
@@ -1257,7 +1267,8 @@ search_first_zone(struct snd_sf_list *sflist, int bank, int preset, int key)
 	int index;
 	struct snd_sf_zone *zp;
 
-	if ((index = get_index(bank, preset, key)) < 0)
+	index = get_index(bank, preset, key);
+	if (index < 0)
 		return NULL;
 	for (zp = sflist->presets[index]; zp; zp = zp->next_instr) {
 		if (zp->instr == preset && zp->bank == bank)
@@ -1386,7 +1397,8 @@ snd_sf_new(struct snd_sf_callback *callback, struct snd_util_memhdr *hdr)
 {
 	struct snd_sf_list *sflist;
 
-	if ((sflist = kzalloc(sizeof(*sflist), GFP_KERNEL)) == NULL)
+	sflist = kzalloc(sizeof(*sflist), GFP_KERNEL);
+	if (!sflist)
 		return NULL;
 
 	mutex_init(&sflist->presets_mutex);

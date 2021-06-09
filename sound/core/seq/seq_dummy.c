@@ -109,7 +109,8 @@ create_port(int idx, int type)
 	struct snd_seq_port_callback pcb;
 	struct snd_seq_dummy_port *rec;
 
-	if ((rec = kzalloc(sizeof(*rec), GFP_KERNEL)) == NULL)
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	if (!rec)
 		return NULL;
 
 	rec->client = my_client;

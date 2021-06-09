@@ -1160,7 +1160,8 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	chip->playback.stream = SNDRV_PCM_STREAM_PLAYBACK;
 	chip->capture.stream = SNDRV_PCM_STREAM_CAPTURE;
 
-	if ((err = snd_pmac_detect(chip)) < 0)
+	err = snd_pmac_detect(chip);
+	if (err < 0)
 		goto __error;
 
 	if (snd_pmac_dbdma_alloc(chip, &chip->playback.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
@@ -1299,7 +1300,8 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	/* Reset dbdma channels */
 	snd_pmac_dbdma_reset(chip);
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0)
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0)
 		goto __error;
 
 	*chip_return = chip;

@@ -36,7 +36,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != DARLA20))
 		return -ENODEV;
 
-	if ((err = init_dsp_comm_page(chip))) {
+	err = init_dsp_comm_page(chip);
+	if (err) {
 		dev_err(chip->card->dev,
 			"init_hw: could not initialize DSP comm page\n");
 		return err;
@@ -53,7 +54,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->asic_loaded = true;
 	chip->input_clock_types = ECHO_CLOCK_BIT_INTERNAL;
 
-	if ((err = load_firmware(chip)) < 0)
+	err = load_firmware(chip);
+	if (err < 0)
 		return err;
 	chip->bad_board = false;
 

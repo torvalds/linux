@@ -67,13 +67,16 @@ static int __init alsa_seq_oss_init(void)
 {
 	int rc;
 
-	if ((rc = register_device()) < 0)
+	rc = register_device();
+	if (rc < 0)
 		goto error;
-	if ((rc = register_proc()) < 0) {
+	rc = register_proc();
+	if (rc < 0) {
 		unregister_device();
 		goto error;
 	}
-	if ((rc = snd_seq_oss_create_client()) < 0) {
+	rc = snd_seq_oss_create_client();
+	if (rc < 0) {
 		unregister_proc();
 		unregister_device();
 		goto error;
@@ -133,7 +136,8 @@ odev_release(struct inode *inode, struct file *file)
 {
 	struct seq_oss_devinfo *dp;
 
-	if ((dp = file->private_data) == NULL)
+	dp = file->private_data;
+	if (!dp)
 		return 0;
 
 	mutex_lock(&register_mutex);
@@ -226,16 +230,18 @@ register_device(void)
 	int rc;
 
 	mutex_lock(&register_mutex);
-	if ((rc = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_SEQUENCER,
-					  NULL, 0,
-					  &seq_oss_f_ops, NULL)) < 0) {
+	rc = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_SEQUENCER,
+				     NULL, 0,
+				     &seq_oss_f_ops, NULL);
+	if (rc < 0) {
 		pr_err("ALSA: seq_oss: can't register device seq\n");
 		mutex_unlock(&register_mutex);
 		return rc;
 	}
-	if ((rc = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MUSIC,
-					  NULL, 0,
-					  &seq_oss_f_ops, NULL)) < 0) {
+	rc = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MUSIC,
+				     NULL, 0,
+				     &seq_oss_f_ops, NULL);
+	if (rc < 0) {
 		pr_err("ALSA: seq_oss: can't register device music\n");
 		snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_SEQUENCER, NULL, 0);
 		mutex_unlock(&register_mutex);
