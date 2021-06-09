@@ -345,6 +345,11 @@ static inline bool strict_kernel_rwx_enabled(void)
 	return false;
 }
 #endif
+
+static inline bool strict_module_rwx_enabled(void)
+{
+	return IS_ENABLED(CONFIG_STRICT_MODULE_RWX) && strict_kernel_rwx_enabled();
+}
 #endif /* !__ASSEMBLY__ */
 
 /* The kernel use the constants below to index in the page sizes array.
