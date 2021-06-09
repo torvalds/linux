@@ -134,7 +134,7 @@ static const char * const encoding_options[] = {
 	[TLMI_ENCODING_SCANCODE] = "scancode",
 };
 static struct think_lmi tlmi_priv;
-struct class *fw_attr_class;
+static struct class *fw_attr_class;
 
 /* ------ Utility functions ------------*/
 /* Convert BIOS WMI error string to suitable error code */
