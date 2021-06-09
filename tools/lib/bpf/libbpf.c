@@ -2465,10 +2465,8 @@ static int bpf_object__init_maps(struct bpf_object *obj,
 	err = err ?: bpf_object__init_global_data_maps(obj);
 	err = err ?: bpf_object__init_kconfig_map(obj);
 	err = err ?: bpf_object__init_struct_ops_maps(obj);
-	if (err)
-		return err;
 
-	return 0;
+	return err;
 }
 
 static bool section_have_execinstr(struct bpf_object *obj, int idx)
