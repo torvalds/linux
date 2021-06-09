@@ -1501,12 +1501,18 @@ out_disabled:
 void hl_device_fini(struct hl_device *hdev)
 {
 	ktime_t timeout;
+	u64 reset_sec;
 	int i, rc;
 
 	dev_info(hdev->dev, "Removing device\n");
 
 	hdev->device_fini_pending = 1;
 	flush_delayed_work(&hdev->device_reset_work.reset_work);
+
+	if (hdev->pldm)
+		reset_sec = HL_PLDM_HARD_RESET_MAX_TIMEOUT;
+	else
+		reset_sec = HL_HARD_RESET_MAX_TIMEOUT;
 
 	/*
 	 * This function is competing with the reset function, so try to
@@ -1516,8 +1522,7 @@ void hl_device_fini(struct hl_device *hdev)
 	 * ports, the hard reset could take between 10-30 seconds
 	 */
 
-	timeout = ktime_add_us(ktime_get(),
-				HL_HARD_RESET_MAX_TIMEOUT * 1000 * 1000);
+	timeout = ktime_add_us(ktime_get(), reset_sec * 1000 * 1000);
 	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 	while (rc) {
 		usleep_range(50, 200);
