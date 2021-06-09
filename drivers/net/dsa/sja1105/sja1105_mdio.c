@@ -171,7 +171,7 @@ static int sja1105_mdiobus_base_tx_register(struct sja1105_private *priv,
 out_put_np:
 	of_node_put(np);
 
-	return 0;
+	return rc;
 }
 
 static void sja1105_mdiobus_base_tx_unregister(struct sja1105_private *priv)
