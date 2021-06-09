@@ -6,6 +6,10 @@
 /**
  * struct iio_dev_opaque - industrial I/O device opaque information
  * @indio_dev:			public industrial I/O device information
+ * @id:			used to identify device internally
+ * @driver_module:		used to make it harder to undercut users
+ * @info_exist_lock:		lock to prevent use during removal
+ * @trig_readonly:		mark the current trigger immutable
  * @event_interface:		event chrdevs associated with interrupt lines
  * @attached_buffers:		array of buffers statically attached by the driver
  * @attached_buffers_cnt:	number of buffers in the array of statically attached buffers
@@ -19,6 +23,10 @@
  * @groupcounter:		index of next attribute group
  * @legacy_scan_el_group:	attribute group for legacy scan elements attribute group
  * @legacy_buffer_group:	attribute group for legacy buffer attributes group
+ * @scan_index_timestamp:	cache of the index to the timestamp
+ * @clock_id:			timestamping clock posix identifier
+ * @chrdev:			associated character device
+ * @flags:			file ops related flags including busy flag.
  * @debugfs_dentry:		device specific debugfs dentry
  * @cached_reg_addr:		cached register address for debugfs reads
  * @read_buf:			read buffer to be used for the initial reg read
@@ -26,6 +34,10 @@
  */
 struct iio_dev_opaque {
 	struct iio_dev			indio_dev;
+	int				id;
+	struct module			*driver_module;
+	struct mutex			info_exist_lock;
+	bool				trig_readonly;
 	struct iio_event_interface	*event_interface;
 	struct iio_buffer		**attached_buffers;
 	unsigned int			attached_buffers_cnt;
@@ -38,6 +50,12 @@ struct iio_dev_opaque {
 	int				groupcounter;
 	struct attribute_group		legacy_scan_el_group;
 	struct attribute_group		legacy_buffer_group;
+
+	unsigned int			scan_index_timestamp;
+	clockid_t			clock_id;
+	struct cdev			chrdev;
+	unsigned long			flags;
+
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;
 	unsigned			cached_reg_addr;
@@ -46,7 +64,7 @@ struct iio_dev_opaque {
 #endif
 };
 
-#define to_iio_dev_opaque(indio_dev)		\
-	container_of(indio_dev, struct iio_dev_opaque, indio_dev)
+#define to_iio_dev_opaque(_indio_dev)		\
+	container_of((_indio_dev), struct iio_dev_opaque, indio_dev)
 
 #endif

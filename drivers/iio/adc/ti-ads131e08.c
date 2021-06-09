@@ -830,7 +830,6 @@ static int ads131e08_probe(struct spi_device *spi)
 		return ret;
 
 	indio_dev->name = st->info->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ads131e08_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -850,7 +849,7 @@ static int ads131e08_probe(struct spi_device *spi)
 	}
 
 	st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
-		indio_dev->name, indio_dev->id);
+		indio_dev->name, iio_device_id(indio_dev));
 	if (!st->trig) {
 		dev_err(&spi->dev, "failed to allocate IIO trigger\n");
 		return -ENOMEM;

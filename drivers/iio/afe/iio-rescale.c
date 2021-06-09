@@ -29,6 +29,7 @@ struct rescale {
 	struct iio_channel *source;
 	struct iio_chan_spec chan;
 	struct iio_chan_spec_ext_info *ext_info;
+	bool chan_processed;
 	s32 numerator;
 	s32 denominator;
 };
@@ -43,10 +44,27 @@ static int rescale_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return iio_read_channel_raw(rescale->source, val);
+		if (rescale->chan_processed)
+			/*
+			 * When only processed channels are supported, we
+			 * read the processed data and scale it by 1/1
+			 * augmented with whatever the rescaler has calculated.
+			 */
+			return iio_read_channel_processed(rescale->source, val);
+		else
+			return iio_read_channel_raw(rescale->source, val);
 
 	case IIO_CHAN_INFO_SCALE:
-		ret = iio_read_channel_scale(rescale->source, val, val2);
+		if (rescale->chan_processed) {
+			/*
+			 * Processed channels are scaled 1-to-1
+			 */
+			*val = 1;
+			*val2 = 1;
+			ret = IIO_VAL_FRACTIONAL;
+		} else {
+			ret = iio_read_channel_scale(rescale->source, val, val2);
+		}
 		switch (ret) {
 		case IIO_VAL_FRACTIONAL:
 			*val *= rescale->numerator;
@@ -130,16 +148,27 @@ static int rescale_configure_channel(struct device *dev,
 	chan->ext_info = rescale->ext_info;
 	chan->type = rescale->cfg->type;
 
-	if (!iio_channel_has_info(schan, IIO_CHAN_INFO_RAW) ||
-	    !iio_channel_has_info(schan, IIO_CHAN_INFO_SCALE)) {
-		dev_err(dev, "source channel does not support raw/scale\n");
+	if (iio_channel_has_info(schan, IIO_CHAN_INFO_RAW) ||
+	    iio_channel_has_info(schan, IIO_CHAN_INFO_SCALE)) {
+		dev_info(dev, "using raw+scale source channel\n");
+	} else if (iio_channel_has_info(schan, IIO_CHAN_INFO_PROCESSED)) {
+		dev_info(dev, "using processed channel\n");
+		rescale->chan_processed = true;
+	} else {
+		dev_err(dev, "source channel is not supported\n");
 		return -EINVAL;
 	}
 
 	chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_SCALE);
 
-	if (iio_channel_has_available(schan, IIO_CHAN_INFO_RAW))
+	/*
+	 * Using .read_avail() is fringe to begin with and makes no sense
+	 * whatsoever for processed channels, so we make sure that this cannot
+	 * be called on a processed channel.
+	 */
+	if (iio_channel_has_available(schan, IIO_CHAN_INFO_RAW) &&
+	    !rescale->chan_processed)
 		chan->info_mask_separate_available |= BIT(IIO_CHAN_INFO_RAW);
 
 	return 0;

@@ -86,16 +86,29 @@ static int st_gyro_i2c_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	err = st_gyro_common_probe(indio_dev);
-	if (err < 0)
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
 		return err;
 
+	err = st_gyro_common_probe(indio_dev);
+	if (err < 0)
+		goto st_gyro_power_off;
+
 	return 0;
+
+st_gyro_power_off:
+	st_sensors_power_disable(indio_dev);
+
+	return err;
 }
 
 static int st_gyro_i2c_remove(struct i2c_client *client)
 {
-	st_gyro_common_remove(i2c_get_clientdata(client));
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+
+	st_sensors_power_disable(indio_dev);
+
+	st_gyro_common_remove(indio_dev);
 
 	return 0;
 }

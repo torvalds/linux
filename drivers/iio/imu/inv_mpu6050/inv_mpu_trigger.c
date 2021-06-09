@@ -238,7 +238,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 	st->trig = devm_iio_trigger_alloc(&indio_dev->dev,
 					  "%s-dev%d",
 					  indio_dev->name,
-					  indio_dev->id);
+					  iio_device_id(indio_dev));
 	if (!st->trig)
 		return -ENOMEM;
 

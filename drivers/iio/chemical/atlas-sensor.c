@@ -91,8 +91,8 @@ struct atlas_data {
 	struct regmap *regmap;
 	struct irq_work work;
 	unsigned int interrupt_enabled;
-
-	__be32 buffer[6]; /* 96-bit data + 32-bit pad + 64-bit timestamp */
+	/* 96-bit data + 32-bit pad + 64-bit timestamp */
+	__be32 buffer[6] __aligned(8);
 };
 
 static const struct regmap_config atlas_regmap_config = {
@@ -640,7 +640,7 @@ static int atlas_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE;
 
 	trig = devm_iio_trigger_alloc(&client->dev, "%s-dev%d",
-				      indio_dev->name, indio_dev->id);
+				      indio_dev->name, iio_device_id(indio_dev));
 
 	if (!trig)
 		return -ENOMEM;

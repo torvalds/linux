@@ -248,7 +248,8 @@ static int ad7766_probe(struct spi_device *spi)
 
 	if (spi->irq > 0) {
 		ad7766->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
-			indio_dev->name, indio_dev->id);
+						      indio_dev->name,
+						      iio_device_id(indio_dev));
 		if (!ad7766->trig)
 			return -ENOMEM;
 
@@ -289,10 +290,7 @@ static int ad7766_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_iio_device_register(&spi->dev, indio_dev);
-	if (ret)
-		return ret;
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7766_id[] = {

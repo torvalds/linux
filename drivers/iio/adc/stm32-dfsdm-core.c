@@ -135,11 +135,9 @@ int stm32_dfsdm_start_dfsdm(struct stm32_dfsdm *dfsdm)
 	int ret;
 
 	if (atomic_inc_return(&priv->n_active_ch) == 1) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(dev);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0)
 			goto error_ret;
-		}
 
 		/* select clock source, e.g. 0 for "dfsdm" or 1 for "audio" */
 		clk_src = priv->aclk ? 1 : 0;

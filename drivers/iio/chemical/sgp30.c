@@ -425,7 +425,7 @@ static int sgp_check_compat(struct sgp_data *data,
 
 	product = SGP_VERS_PRODUCT(data);
 	if (product != product_id) {
-		dev_err(dev, "sensor reports a different product: 0x%04hx\n",
+		dev_err(dev, "sensor reports a different product: 0x%04x\n",
 			product);
 		return -ENODEV;
 	}

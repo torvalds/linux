@@ -575,7 +575,7 @@ int rm3100_common_probe(struct device *dev, struct regmap *regmap, int irq)
 
 		data->drdy_trig = devm_iio_trigger_alloc(dev, "%s-drdy%d",
 							 indio_dev->name,
-							 indio_dev->id);
+							 iio_device_id(indio_dev));
 		if (!data->drdy_trig)
 			return -ENOMEM;
 

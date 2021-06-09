@@ -163,18 +163,15 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 
 	if (state) {
 		atomic_inc(&st->user_requested_state);
-		ret = pm_runtime_get_sync(&st->pdev->dev);
+		ret = pm_runtime_resume_and_get(&st->pdev->dev);
 	} else {
 		atomic_dec(&st->user_requested_state);
 		pm_runtime_mark_last_busy(&st->pdev->dev);
 		pm_runtime_use_autosuspend(&st->pdev->dev);
 		ret = pm_runtime_put_autosuspend(&st->pdev->dev);
 	}
-	if (ret < 0) {
-		if (state)
-			pm_runtime_put_noidle(&st->pdev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 #else
@@ -222,7 +219,6 @@ void hid_sensor_remove_trigger(struct iio_dev *indio_dev,
 		pm_runtime_disable(&attrb->pdev->dev);
 
 	pm_runtime_set_suspended(&attrb->pdev->dev);
-	pm_runtime_put_noidle(&attrb->pdev->dev);
 
 	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
@@ -256,7 +252,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	}
 
 	trig = iio_trigger_alloc(indio_dev->dev.parent,
-				 "%s-dev%d", name, indio_dev->id);
+				 "%s-dev%d", name, iio_device_id(indio_dev));
 	if (trig == NULL) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
 		ret = -ENOMEM;

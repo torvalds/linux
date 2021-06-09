@@ -5,7 +5,6 @@
  * Copyright 2019 Analog Devices Inc.
  */
 
-#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 

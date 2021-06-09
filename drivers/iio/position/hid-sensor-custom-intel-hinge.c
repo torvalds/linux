@@ -303,7 +303,6 @@ static int hid_hinge_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &hinge_info;
 	indio_dev->name = "hinge";
 	indio_dev->modes = INDIO_DIRECT_MODE;
