@@ -3900,15 +3900,19 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		phys_addr_t phys_addr;
 		u32 rx_status, timestamp;
 		int pool, rx_bytes, err, ret;
+		struct page *page;
 		void *data;
+
+		phys_addr = mvpp2_rxdesc_cookie_get(port, rx_desc);
+		data = (void *)phys_to_virt(phys_addr);
+		page = virt_to_page(data);
+		prefetch(page);
 
 		rx_done++;
 		rx_status = mvpp2_rxdesc_status_get(port, rx_desc);
 		rx_bytes = mvpp2_rxdesc_size_get(port, rx_desc);
 		rx_bytes -= MVPP2_MH_SIZE;
 		dma_addr = mvpp2_rxdesc_dma_addr_get(port, rx_desc);
-		phys_addr = mvpp2_rxdesc_cookie_get(port, rx_desc);
-		data = (void *)phys_to_virt(phys_addr);
 
 		pool = (rx_status & MVPP2_RXD_BM_POOL_ID_MASK) >>
 			MVPP2_RXD_BM_POOL_ID_OFFS;
@@ -3997,7 +4001,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		}
 
 		if (pp)
-			skb_mark_for_recycle(skb, virt_to_page(data), pp);
+			skb_mark_for_recycle(skb, page, pp);
 		else
 			dma_unmap_single_attrs(dev->dev.parent, dma_addr,
 					       bm_pool->buf_size, DMA_FROM_DEVICE,
