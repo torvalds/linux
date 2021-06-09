@@ -6369,7 +6369,7 @@ struct mlx5_ifc_modify_tir_bitmask_bits {
 	u8         reserved_at_3c[0x1];
 	u8         hash[0x1];
 	u8         reserved_at_3e[0x1];
-	u8         lro[0x1];
+	u8         packet_merge[0x1];
 };
 
 struct mlx5_ifc_modify_tir_out_bits {

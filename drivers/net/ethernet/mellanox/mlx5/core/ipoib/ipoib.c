@@ -67,7 +67,7 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 		MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE;
 
-	params->lro_en = false;
+	params->packet_merge.type = MLX5E_PACKET_MERGE_NONE;
 	params->hard_mtu = MLX5_IB_GRH_BYTES + MLX5_IPOIB_HARD_LEN;
 	params->tunneled_offload_en = false;
 }
@@ -353,7 +353,6 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_lro_param lro_param;
 	int err;
 
 	priv->rx_res = mlx5e_rx_res_alloc();
@@ -368,9 +367,9 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	lro_param = mlx5e_get_lro_param(&priv->channels.params);
 	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, 0,
-				priv->max_nch, priv->drop_rq.rqn, &lro_param,
+				priv->max_nch, priv->drop_rq.rqn,
+				&priv->channels.params.packet_merge,
 				priv->channels.params.num_channels);
 	if (err)
 		goto err_close_drop_rq;
