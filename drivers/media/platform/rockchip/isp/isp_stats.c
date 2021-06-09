@@ -11,6 +11,7 @@
 #include "isp_stats_v1x.h"
 #include "isp_stats_v2x.h"
 #include "isp_stats_v21.h"
+#include "isp_stats_v3x.h"
 
 #define STATS_NAME DRIVER_NAME "-statistics"
 #define RKISP_ISP_STATS_REQ_BUFS_MIN 2
@@ -127,13 +128,7 @@ static int rkisp_stats_vb2_queue_setup(struct vb2_queue *vq,
 	*num_buffers = clamp_t(u32, *num_buffers, RKISP_ISP_STATS_REQ_BUFS_MIN,
 			       RKISP_ISP_STATS_REQ_BUFS_MAX);
 
-	if (stats_vdev->dev->isp_ver <= ISP_V13)
-		sizes[0] = sizeof(struct rkisp1_stat_buffer);
-	else if (stats_vdev->dev->isp_ver == ISP_V21)
-		sizes[0] = sizeof(struct isp21_stat);
-	else
-		sizes[0] = sizeof(struct isp2x_stat);
-
+	sizes[0] = stats_vdev->vdev_fmt.fmt.meta.buffersize;
 	INIT_LIST_HEAD(&stats_vdev->stat);
 
 	return 0;
@@ -246,17 +241,14 @@ static void rkisp_init_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 	stats_vdev->wr_buf_idx = 0;
 	memset(stats_vdev->stats_buf, 0, sizeof(stats_vdev->stats_buf));
 
-	stats_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISP1_STAT_3A;
-	stats_vdev->vdev_fmt.fmt.meta.buffersize =
-		sizeof(struct rkisp1_stat_buffer);
-
 	if (stats_vdev->dev->isp_ver <= ISP_V13)
 		rkisp_init_stats_vdev_v1x(stats_vdev);
 	else if (stats_vdev->dev->isp_ver == ISP_V21)
 		rkisp_init_stats_vdev_v21(stats_vdev);
-	else
+	else if (stats_vdev->dev->isp_ver == ISP_V20)
 		rkisp_init_stats_vdev_v2x(stats_vdev);
+	else
+		rkisp_init_stats_vdev_v3x(stats_vdev);
 }
 
 static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
@@ -265,8 +257,10 @@ static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_uninit_stats_vdev_v1x(stats_vdev);
 	else if (stats_vdev->dev->isp_ver == ISP_V21)
 		rkisp_uninit_stats_vdev_v21(stats_vdev);
-	else
+	else if (stats_vdev->dev->isp_ver == ISP_V20)
 		rkisp_uninit_stats_vdev_v2x(stats_vdev);
+	else
+		rkisp_uninit_stats_vdev_v3x(stats_vdev);
 }
 
 void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en)
@@ -280,6 +274,8 @@ void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_stats_first_ddr_config_v2x(stats_vdev);
 	else if (stats_vdev->dev->isp_ver == ISP_V21)
 		rkisp_stats_first_ddr_config_v21(stats_vdev);
+	else if (stats_vdev->dev->isp_ver == ISP_V30)
+		rkisp_stats_first_ddr_config_v3x(stats_vdev);
 }
 
 void rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev,

@@ -12,6 +12,7 @@
 #include "isp_params_v1x.h"
 #include "isp_params_v2x.h"
 #include "isp_params_v21.h"
+#include "isp_params_v3x.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
 #define RKISP_ISP_PARAMS_REQ_BUFS_MIN	2
@@ -285,17 +286,23 @@ rkisp_params_init_vb2_queue(struct vb2_queue *q,
 
 static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 {
-	params_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISP1_PARAMS;
-	params_vdev->vdev_fmt.fmt.meta.buffersize =
-		sizeof(struct rkisp1_isp_params_cfg);
+	int ret;
 
 	if (params_vdev->dev->isp_ver <= ISP_V13)
-		return rkisp_init_params_vdev_v1x(params_vdev);
+		ret = rkisp_init_params_vdev_v1x(params_vdev);
 	else if (params_vdev->dev->isp_ver == ISP_V21)
-		return rkisp_init_params_vdev_v21(params_vdev);
+		ret = rkisp_init_params_vdev_v21(params_vdev);
+	else if (params_vdev->dev->isp_ver == ISP_V20)
+		ret = rkisp_init_params_vdev_v2x(params_vdev);
 	else
-		return rkisp_init_params_vdev_v2x(params_vdev);
+		ret = rkisp_init_params_vdev_v3x(params_vdev);
+
+	params_vdev->vdev_fmt.fmt.meta.dataformat =
+		V4L2_META_FMT_RK_ISP1_PARAMS;
+	if (params_vdev->ops && params_vdev->ops->get_param_size)
+		params_vdev->ops->get_param_size(params_vdev,
+			&params_vdev->vdev_fmt.fmt.meta.buffersize);
+	return ret;
 }
 
 static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
@@ -304,8 +311,10 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v1x(params_vdev);
 	else if (params_vdev->dev->isp_ver == ISP_V21)
 		rkisp_uninit_params_vdev_v21(params_vdev);
-	else
+	else if (params_vdev->dev->isp_ver == ISP_V20)
 		rkisp_uninit_params_vdev_v2x(params_vdev);
+	else
+		rkisp_uninit_params_vdev_v3x(params_vdev);
 }
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)

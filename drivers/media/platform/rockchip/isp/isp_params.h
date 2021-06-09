@@ -6,6 +6,7 @@
 
 #include <linux/rkisp1-config.h>
 #include <linux/rkisp2-config.h>
+#include <linux/rkisp3-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 
@@ -57,6 +58,7 @@ struct rkisp_isp_params_vdev {
 		struct rkisp1_isp_params_cfg *isp1x_params;
 		struct isp2x_isp_params_cfg *isp2x_params;
 		struct isp21_isp_params_cfg *isp21_params;
+		struct isp3x_isp_params_cfg *isp3x_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;
