@@ -461,6 +461,7 @@ static int psp_v11_0_ring_create(struct psp_context *psp,
 	struct amdgpu_device *adev = psp->adev;
 
 	if (amdgpu_sriov_vf(adev)) {
+		ring->ring_wptr = 0;
 		ret = psp_v11_0_ring_stop(psp, ring_type);
 		if (ret) {
 			DRM_ERROR("psp_v11_0_ring_stop_sriov failed!\n");
