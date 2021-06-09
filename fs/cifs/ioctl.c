@@ -33,6 +33,7 @@
 #include "cifsfs.h"
 #include "cifs_ioctl.h"
 #include "smb2proto.h"
+#include "smb2glob.h"
 #include <linux/btrfs.h>
 
 static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
@@ -214,48 +215,112 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 	return 0;
 }
 
-static int cifs_dump_full_key(struct cifs_tcon *tcon, unsigned long arg)
+static int cifs_dump_full_key(struct cifs_tcon *tcon, struct smb3_full_key_debug_info __user *in)
 {
-	struct smb3_full_key_debug_info pfull_key_inf;
-	__u64 suid;
-	struct list_head *tmp;
+	struct smb3_full_key_debug_info out;
 	struct cifs_ses *ses;
+	int rc = 0;
 	bool found = false;
+	u8 __user *end;
 
-	if (!smb3_encryption_required(tcon))
-		return -EOPNOTSUPP;
+	if (!smb3_encryption_required(tcon)) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
 
-	ses = tcon->ses; /* default to user id for current user */
-	if (get_user(suid, (__u64 __user *)arg))
-		suid = 0;
-	if (suid) {
-		/* search to see if there is a session with a matching SMB UID */
+	/* copy user input into our output buffer */
+	if (copy_from_user(&out, in, sizeof(out))) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (!out.session_id) {
+		/* if ses id is 0, use current user session */
+		ses = tcon->ses;
+	} else {
+		/* otherwise if a session id is given, look for it in all our sessions */
+		struct cifs_ses *ses_it = NULL;
+		struct TCP_Server_Info *server_it = NULL;
+
 		spin_lock(&cifs_tcp_ses_lock);
-		list_for_each(tmp, &tcon->ses->server->smb_ses_list) {
-			ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
-			if (ses->Suid == suid) {
-				found = true;
-				break;
+		list_for_each_entry(server_it, &cifs_tcp_ses_list, tcp_ses_list) {
+			list_for_each_entry(ses_it, &server_it->smb_ses_list, smb_ses_list) {
+				if (ses_it->Suid == out.session_id) {
+					ses = ses_it;
+					/*
+					 * since we are using the session outside the crit
+					 * section, we need to make sure it won't be released
+					 * so increment its refcount
+					 */
+					ses->ses_count++;
+					found = true;
+					goto search_end;
+				}
 			}
 		}
+search_end:
 		spin_unlock(&cifs_tcp_ses_lock);
-		if (found == false)
-			return -EINVAL;
-	} /* else uses default user's SMB UID (ie current user) */
+		if (!found) {
+			rc = -ENOENT;
+			goto out;
+		}
+	}
 
-	pfull_key_inf.cipher_type = le16_to_cpu(ses->server->cipher_type);
-	pfull_key_inf.Suid = ses->Suid;
-	memcpy(pfull_key_inf.auth_key, ses->auth_key.response,
-	       16 /* SMB2_NTLMV2_SESSKEY_SIZE */);
-	memcpy(pfull_key_inf.smb3decryptionkey, ses->smb3decryptionkey,
-	       32 /* SMB3_ENC_DEC_KEY_SIZE */);
-	memcpy(pfull_key_inf.smb3encryptionkey,
-	       ses->smb3encryptionkey, 32 /* SMB3_ENC_DEC_KEY_SIZE */);
-	if (copy_to_user((void __user *)arg, &pfull_key_inf,
-			 sizeof(struct smb3_full_key_debug_info)))
-		return -EFAULT;
+	switch (ses->server->cipher_type) {
+	case SMB2_ENCRYPTION_AES128_CCM:
+	case SMB2_ENCRYPTION_AES128_GCM:
+		out.session_key_length = CIFS_SESS_KEY_SIZE;
+		out.server_in_key_length = out.server_out_key_length = SMB3_GCM128_CRYPTKEY_SIZE;
+		break;
+	case SMB2_ENCRYPTION_AES256_CCM:
+	case SMB2_ENCRYPTION_AES256_GCM:
+		out.session_key_length = CIFS_SESS_KEY_SIZE;
+		out.server_in_key_length = out.server_out_key_length = SMB3_GCM256_CRYPTKEY_SIZE;
+		break;
+	default:
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
 
-	return 0;
+	/* check if user buffer is big enough to store all the keys */
+	if (out.in_size < sizeof(out) + out.session_key_length + out.server_in_key_length
+	    + out.server_out_key_length) {
+		rc = -ENOBUFS;
+		goto out;
+	}
+
+	out.session_id = ses->Suid;
+	out.cipher_type = le16_to_cpu(ses->server->cipher_type);
+
+	/* overwrite user input with our output */
+	if (copy_to_user(in, &out, sizeof(out))) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	/* append all the keys at the end of the user buffer */
+	end = in->data;
+	if (copy_to_user(end, ses->auth_key.response, out.session_key_length)) {
+		rc = -EINVAL;
+		goto out;
+	}
+	end += out.session_key_length;
+
+	if (copy_to_user(end, ses->smb3encryptionkey, out.server_in_key_length)) {
+		rc = -EINVAL;
+		goto out;
+	}
+	end += out.server_in_key_length;
+
+	if (copy_to_user(end, ses->smb3decryptionkey, out.server_out_key_length)) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+out:
+	if (found)
+		cifs_put_smb_ses(ses);
+	return rc;
 }
 
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
@@ -371,6 +436,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EOPNOTSUPP;
 			break;
 		case CIFS_DUMP_KEY:
+			/*
+			 * Dump encryption keys. This is an old ioctl that only
+			 * handles AES-128-{CCM,GCM}.
+			 */
 			if (pSMBFile == NULL)
 				break;
 			if (!capable(CAP_SYS_ADMIN)) {
@@ -398,11 +467,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			else
 				rc = 0;
 			break;
-		/*
-		 * Dump full key (32 bytes instead of 16 bytes) is
-		 * needed if GCM256 (stronger encryption) negotiated
-		 */
 		case CIFS_DUMP_FULL_KEY:
+			/*
+			 * Dump encryption keys (handles any key sizes)
+			 */
 			if (pSMBFile == NULL)
 				break;
 			if (!capable(CAP_SYS_ADMIN)) {
@@ -410,8 +478,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				break;
 			}
 			tcon = tlink_tcon(pSMBFile->tlink);
-			rc = cifs_dump_full_key(tcon, arg);
-
+			rc = cifs_dump_full_key(tcon, (void __user *)arg);
 			break;
 		case CIFS_IOC_NOTIFY:
 			if (!S_ISDIR(inode->i_mode)) {

@@ -57,20 +57,22 @@ static int parse_fixed_partitions(struct mtd_info *master,
 	if (!mtd_node)
 		return 0;
 
-	ofpart_node = of_get_child_by_name(mtd_node, "partitions");
-	if (!ofpart_node && !master->parent) {
-		/*
-		 * We might get here even when ofpart isn't used at all (e.g.,
-		 * when using another parser), so don't be louder than
-		 * KERN_DEBUG
-		 */
-		pr_debug("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
-			 master->name, mtd_node);
+	if (!master->parent) { /* Master */
+		ofpart_node = of_get_child_by_name(mtd_node, "partitions");
+		if (!ofpart_node) {
+			/*
+			 * We might get here even when ofpart isn't used at all (e.g.,
+			 * when using another parser), so don't be louder than
+			 * KERN_DEBUG
+			 */
+			pr_debug("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
+				master->name, mtd_node);
+			ofpart_node = mtd_node;
+			dedicated = false;
+		}
+	} else { /* Partition */
 		ofpart_node = mtd_node;
-		dedicated = false;
 	}
-	if (!ofpart_node)
-		return 0;
 
 	of_id = of_match_node(parse_ofpart_match_table, ofpart_node);
 	if (dedicated && !of_id) {

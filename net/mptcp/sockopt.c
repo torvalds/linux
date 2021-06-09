@@ -547,7 +547,7 @@ static int mptcp_setsockopt_sol_tcp_congestion(struct mptcp_sock *msk, sockptr_t
 	}
 
 	if (ret == 0)
-		tcp_set_congestion_control(sk, name, false, cap_net_admin);
+		strcpy(msk->ca_name, name);
 
 	release_sock(sk);
 	return ret;
@@ -705,7 +705,7 @@ static void sync_socket_options(struct mptcp_sock *msk, struct sock *ssk)
 	sock_valbool_flag(ssk, SOCK_DBG, sock_flag(sk, SOCK_DBG));
 
 	if (inet_csk(sk)->icsk_ca_ops != inet_csk(ssk)->icsk_ca_ops)
-		tcp_set_congestion_control(ssk, inet_csk(sk)->icsk_ca_ops->name, false, true);
+		tcp_set_congestion_control(ssk, msk->ca_name, false, true);
 }
 
 static void __mptcp_sockopt_sync(struct mptcp_sock *msk, struct sock *ssk)

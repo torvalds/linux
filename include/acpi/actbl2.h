@@ -24,6 +24,7 @@
  * file. Useful because they make it more difficult to inadvertently type in
  * the wrong signature.
  */
+#define ACPI_SIG_BDAT           "BDAT"	/* BIOS Data ACPI Table */
 #define ACPI_SIG_IORT           "IORT"	/* IO Remapping Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_LPIT           "LPIT"	/* Low Power Idle Table */
@@ -40,10 +41,12 @@
 #define ACPI_SIG_PMTT           "PMTT"	/* Platform Memory Topology Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
+#define ACPI_SIG_RGRT           "RGRT"	/* Regulatory Graphics Resource Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
 #define ACPI_SIG_NHLT           "NHLT"	/* Non-HDAudio Link Table */
+#define ACPI_SIG_SVKL           "SVKL"	/* Storage Volume Key Location Table */
 
 /*
  * All tables must be byte-packed to match the ACPI specification, since
@@ -62,6 +65,20 @@
  * and stuck with it." Norman Ramsey.
  * See http://stackoverflow.com/a/1053662/41661
  */
+
+/*******************************************************************************
+ *
+ * BDAT - BIOS Data ACPI Table
+ *
+ * Conforms to "BIOS Data ACPI Table", Interface Specification v4.0 Draft 5
+ * Nov 2020
+ *
+ ******************************************************************************/
+
+struct acpi_table_bdat {
+	struct acpi_table_header header;
+	struct acpi_generic_address gas;
+};
 
 /*******************************************************************************
  *
@@ -446,6 +463,12 @@ struct acpi_ivrs_device_hid {
 	u8 uid_length;
 };
 
+/* Values for uid_type above */
+
+#define ACPI_IVRS_UID_NOT_PRESENT   0
+#define ACPI_IVRS_UID_IS_INTEGER    1
+#define ACPI_IVRS_UID_IS_STRING     2
+
 /* 0x20, 0x21, 0x22: I/O Virtualization Memory Definition Block (IVMD) */
 
 struct acpi_ivrs_memory {
@@ -762,6 +785,20 @@ struct acpi_madt_multiproc_wakeup {
 	u32 reserved;		/* reserved - must be zero */
 	u64 base_address;
 };
+
+#define ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE	2032
+#define ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE	2048
+
+struct acpi_madt_multiproc_wakeup_mailbox {
+	u16 command;
+	u16 reserved;		/* reserved - must be zero */
+	u32 apic_id;
+	u64 wakeup_vector;
+	u8 reserved_os[ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE];	/* reserved for OS use */
+	u8 reserved_firmware[ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE];	/* reserved for firmware use */
+};
+
+#define ACPI_MP_WAKE_COMMAND_WAKEUP    1
 
 /*
  * Common flags fields for MADT subtables
@@ -1771,6 +1808,32 @@ enum acpi_rasf_status {
 
 /*******************************************************************************
  *
+ * RGRT - Regulatory Graphics Resource Table
+ *        Version 1
+ *
+ * Conforms to "ACPI RGRT" available at:
+ * https://microsoft.github.io/mu/dyn/mu_plus/ms_core_pkg/acpi_RGRT/feature_acpi_rgrt/
+ *
+ ******************************************************************************/
+
+struct acpi_table_rgrt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 version;
+	u8 image_type;
+	u8 reserved;
+	u8 image[0];
+};
+
+/* image_type values */
+
+enum acpi_rgrt_image_type {
+	ACPI_RGRT_TYPE_RESERVED0 = 0,
+	ACPI_RGRT_IMAGE_TYPE_PNG = 1,
+	ACPI_RGRT_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
+/*******************************************************************************
+ *
  * SBST - Smart Battery Specification Table
  *        Version 1
  *
@@ -1897,6 +1960,37 @@ struct acpi_sdev_pcie {
 struct acpi_sdev_pcie_path {
 	u8 device;
 	u8 function;
+};
+
+/*******************************************************************************
+ *
+ * SVKL - Storage Volume Key Location Table (ACPI 6.4)
+ *        From: "Guest-Host-Communication Interface (GHCI) for Intel
+ *        Trust Domain Extensions (Intel TDX)".
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_svkl {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 count;
+};
+
+struct acpi_svkl_key {
+	u16 type;
+	u16 format;
+	u32 size;
+	u64 address;
+};
+
+enum acpi_svkl_type {
+	ACPI_SVKL_TYPE_MAIN_STORAGE = 0,
+	ACPI_SVKL_TYPE_RESERVED = 1	/* 1 and greater are reserved */
+};
+
+enum acpi_svkl_format {
+	ACPI_SVKL_FORMAT_RAW_BINARY = 0,
+	ACPI_SVKL_FORMAT_RESERVED = 1	/* 1 and greater are reserved */
 };
 
 /* Reset to default packing */

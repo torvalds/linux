@@ -264,22 +264,17 @@ static void hns3_vector_coalesce_init(struct hns3_enet_tqp_vector *tqp_vector,
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
 	struct hns3_enet_coalesce *tx_coal = &tqp_vector->tx_group.coal;
 	struct hns3_enet_coalesce *rx_coal = &tqp_vector->rx_group.coal;
+	struct hns3_enet_coalesce *ptx_coal = &priv->tx_coal;
+	struct hns3_enet_coalesce *prx_coal = &priv->rx_coal;
 
-	/* initialize the configuration for interrupt coalescing.
-	 * 1. GL (Interrupt Gap Limiter)
-	 * 2. RL (Interrupt Rate Limiter)
-	 * 3. QL (Interrupt Quantity Limiter)
-	 *
-	 * Default: enable interrupt coalescing self-adaptive and GL
-	 */
-	tx_coal->adapt_enable = 1;
-	rx_coal->adapt_enable = 1;
+	tx_coal->adapt_enable = ptx_coal->adapt_enable;
+	rx_coal->adapt_enable = prx_coal->adapt_enable;
 
-	tx_coal->int_gl = HNS3_INT_GL_50K;
-	rx_coal->int_gl = HNS3_INT_GL_50K;
+	tx_coal->int_gl = ptx_coal->int_gl;
+	rx_coal->int_gl = prx_coal->int_gl;
 
-	rx_coal->flow_level = HNS3_FLOW_LOW;
-	tx_coal->flow_level = HNS3_FLOW_LOW;
+	rx_coal->flow_level = prx_coal->flow_level;
+	tx_coal->flow_level = ptx_coal->flow_level;
 
 	/* device version above V3(include V3), GL can configure 1us
 	 * unit, so uses 1us unit.
@@ -294,8 +289,8 @@ static void hns3_vector_coalesce_init(struct hns3_enet_tqp_vector *tqp_vector,
 		rx_coal->ql_enable = 1;
 		tx_coal->int_ql_max = ae_dev->dev_specs.int_ql_max;
 		rx_coal->int_ql_max = ae_dev->dev_specs.int_ql_max;
-		tx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
-		rx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+		tx_coal->int_ql = ptx_coal->int_ql;
+		rx_coal->int_ql = prx_coal->int_ql;
 	}
 }
 
@@ -846,8 +841,6 @@ static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 	      l4.udp->dest == htons(4790))))
 		return false;
 
-	skb_checksum_help(skb);
-
 	return true;
 }
 
@@ -924,8 +917,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			/* the stack computes the IP header already,
 			 * driver calculate l4 checksum when not TSO.
 			 */
-			skb_checksum_help(skb);
-			return 0;
+			return skb_checksum_help(skb);
 		}
 
 		hns3_set_outer_l2l3l4(skb, ol4_proto, ol_type_vlan_len_msec);
@@ -970,7 +962,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 		break;
 	case IPPROTO_UDP:
 		if (hns3_tunnel_csum_bug(skb))
-			break;
+			return skb_checksum_help(skb);
 
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4T_S,
@@ -995,8 +987,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 		/* the stack computes the IP header already,
 		 * driver calculate l4 checksum when not TSO.
 		 */
-		skb_checksum_help(skb);
-		return 0;
+		return skb_checksum_help(skb);
 	}
 
 	return 0;
@@ -3844,6 +3835,34 @@ map_ring_fail:
 	return ret;
 }
 
+static void hns3_nic_init_coal_cfg(struct hns3_nic_priv *priv)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hns3_enet_coalesce *tx_coal = &priv->tx_coal;
+	struct hns3_enet_coalesce *rx_coal = &priv->rx_coal;
+
+	/* initialize the configuration for interrupt coalescing.
+	 * 1. GL (Interrupt Gap Limiter)
+	 * 2. RL (Interrupt Rate Limiter)
+	 * 3. QL (Interrupt Quantity Limiter)
+	 *
+	 * Default: enable interrupt coalescing self-adaptive and GL
+	 */
+	tx_coal->adapt_enable = 1;
+	rx_coal->adapt_enable = 1;
+
+	tx_coal->int_gl = HNS3_INT_GL_50K;
+	rx_coal->int_gl = HNS3_INT_GL_50K;
+
+	rx_coal->flow_level = HNS3_FLOW_LOW;
+	tx_coal->flow_level = HNS3_FLOW_LOW;
+
+	if (ae_dev->dev_specs.int_ql_max) {
+		tx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+		rx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+	}
+}
+
 static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
@@ -4295,6 +4314,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_get_ring_cfg;
 	}
 
+	hns3_nic_init_coal_cfg(priv);
+
 	ret = hns3_nic_alloc_vector_data(priv);
 	if (ret) {
 		ret = -ENOMEM;
@@ -4316,12 +4337,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	ret = hns3_init_phy(netdev);
 	if (ret)
 		goto out_init_phy;
-
-	ret = register_netdev(netdev);
-	if (ret) {
-		dev_err(priv->dev, "probe register netdev fail!\n");
-		goto out_reg_netdev_fail;
-	}
 
 	/* the device can work without cpu rmap, only aRFS needs it */
 	ret = hns3_set_rx_cpu_rmap(netdev);
@@ -4355,17 +4370,23 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
 		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
 
+	ret = register_netdev(netdev);
+	if (ret) {
+		dev_err(priv->dev, "probe register netdev fail!\n");
+		goto out_reg_netdev_fail;
+	}
+
 	if (netif_msg_drv(handle))
 		hns3_info_show(priv);
 
 	return ret;
 
+out_reg_netdev_fail:
+	hns3_dbg_uninit(handle);
 out_client_start:
 	hns3_free_rx_cpu_rmap(netdev);
 	hns3_nic_uninit_irq(priv);
 out_init_irq_fail:
-	unregister_netdev(netdev);
-out_reg_netdev_fail:
 	hns3_uninit_phy(netdev);
 out_init_phy:
 	hns3_uninit_all_ring(priv);
@@ -4571,31 +4592,6 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 	return 0;
 }
 
-static void hns3_store_coal(struct hns3_nic_priv *priv)
-{
-	/* ethtool only support setting and querying one coal
-	 * configuration for now, so save the vector 0' coal
-	 * configuration here in order to restore it.
-	 */
-	memcpy(&priv->tx_coal, &priv->tqp_vector[0].tx_group.coal,
-	       sizeof(struct hns3_enet_coalesce));
-	memcpy(&priv->rx_coal, &priv->tqp_vector[0].rx_group.coal,
-	       sizeof(struct hns3_enet_coalesce));
-}
-
-static void hns3_restore_coal(struct hns3_nic_priv *priv)
-{
-	u16 vector_num = priv->vector_num;
-	int i;
-
-	for (i = 0; i < vector_num; i++) {
-		memcpy(&priv->tqp_vector[i].tx_group.coal, &priv->tx_coal,
-		       sizeof(struct hns3_enet_coalesce));
-		memcpy(&priv->tqp_vector[i].rx_group.coal, &priv->rx_coal,
-		       sizeof(struct hns3_enet_coalesce));
-	}
-}
-
 static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
@@ -4653,8 +4649,6 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	ret = hns3_nic_alloc_vector_data(priv);
 	if (ret)
 		goto err_put_ring;
-
-	hns3_restore_coal(priv);
 
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
@@ -4720,8 +4714,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	hns3_reset_tx_queue(priv->ae_handle);
 
 	hns3_nic_uninit_vector_data(priv);
-
-	hns3_store_coal(priv);
 
 	hns3_nic_dealloc_vector_data(priv);
 

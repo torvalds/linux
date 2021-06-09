@@ -167,7 +167,7 @@ struct nvmet_ctrl {
 	struct nvmet_subsys	*subsys;
 	struct nvmet_sq		**sqs;
 
-	bool			cmd_seen;
+	bool			reset_tbkas;
 
 	struct mutex		lock;
 	u64			cap;
@@ -614,6 +614,12 @@ static inline __le64 nvmet_sect_to_lba(struct nvmet_ns *ns, sector_t sect)
 static inline sector_t nvmet_lba_to_sect(struct nvmet_ns *ns, __le64 lba)
 {
 	return le64_to_cpu(lba) << (ns->blksize_shift - SECTOR_SHIFT);
+}
+
+static inline bool nvmet_use_inline_bvec(struct nvmet_req *req)
+{
+	return req->transfer_len <= NVMET_MAX_INLINE_DATA_LEN &&
+	       req->sg_cnt <= NVMET_MAX_INLINE_BIOVEC;
 }
 
 #endif /* _NVMET_H */

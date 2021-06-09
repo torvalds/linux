@@ -26,7 +26,7 @@
  * for transport over USB using a simpler USB device model than the
  * previous CDC "Ethernet Control Model" (ECM, or "CDC Ethernet").
  *
- * For details, see www.usb.org/developers/devclass_docs/CDC_EEM10.pdf
+ * For details, see https://usb.org/sites/default/files/CDC_EEM10.pdf
  *
  * This version has been tested with GIGAntIC WuaoW SIM Smart Card on 2.6.24,
  * 2.6.27 and 2.6.30rc2 kernel.

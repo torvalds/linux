@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include "kselftest.h"
 
 static inline int _no_printf(const char *format, ...) { return 0; }
@@ -84,6 +85,8 @@ enum vm_mem_backing_src_type {
 	VM_MEM_SRC_ANONYMOUS_HUGETLB_1GB,
 	VM_MEM_SRC_ANONYMOUS_HUGETLB_2GB,
 	VM_MEM_SRC_ANONYMOUS_HUGETLB_16GB,
+	VM_MEM_SRC_SHMEM,
+	VM_MEM_SRC_SHARED_HUGETLB,
 	NUM_SRC_TYPES,
 };
 
@@ -99,5 +102,14 @@ const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i);
 size_t get_backing_src_pagesz(uint32_t i);
 void backing_src_help(void);
 enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name);
+
+/*
+ * Whether or not the given source type is shared memory (as opposed to
+ * anonymous).
+ */
+static inline bool backing_src_is_shared(enum vm_mem_backing_src_type t)
+{
+	return vm_mem_backing_src_alias(t)->flag & MAP_SHARED;
+}
 
 #endif /* SELFTEST_KVM_TEST_UTIL_H */

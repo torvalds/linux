@@ -28,6 +28,7 @@ struct mlx5_chains_attr {
 
 bool
 mlx5_chains_prios_supported(struct mlx5_fs_chains *chains);
+bool mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains);
 bool
 mlx5_chains_backwards_supported(struct mlx5_fs_chains *chains);
 u32
@@ -69,6 +70,10 @@ mlx5_chains_set_end_ft(struct mlx5_fs_chains *chains,
 		       struct mlx5_flow_table *ft);
 
 #else /* CONFIG_MLX5_CLS_ACT */
+
+static inline bool
+mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains)
+{ return false; }
 
 static inline struct mlx5_flow_table *
 mlx5_chains_get_table(struct mlx5_fs_chains *chains, u32 chain, u32 prio,

@@ -282,7 +282,8 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 {
 	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF ||
 		idx == NETXTREME_S_VF || idx == NETXTREME_C_VF_HV ||
-		idx == NETXTREME_E_VF_HV || idx == NETXTREME_E_P5_VF);
+		idx == NETXTREME_E_VF_HV || idx == NETXTREME_E_P5_VF ||
+		idx == NETXTREME_E_P5_VF_HV);
 }
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
@@ -6932,17 +6933,10 @@ ctx_err:
 static void bnxt_hwrm_set_pg_attr(struct bnxt_ring_mem_info *rmem, u8 *pg_attr,
 				  __le64 *pg_dir)
 {
-	u8 pg_size = 0;
-
 	if (!rmem->nr_pages)
 		return;
 
-	if (BNXT_PAGE_SHIFT == 13)
-		pg_size = 1 << 4;
-	else if (BNXT_PAGE_SIZE == 16)
-		pg_size = 2 << 4;
-
-	*pg_attr = pg_size;
+	BNXT_SET_CTX_PAGE_ATTR(*pg_attr);
 	if (rmem->depth >= 1) {
 		if (rmem->depth == 2)
 			*pg_attr |= 2;
@@ -10785,37 +10779,125 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	return rc;
 }
 
+static bool bnxt_exthdr_check(struct bnxt *bp, struct sk_buff *skb, int nw_off,
+			      u8 **nextp)
+{
+	struct ipv6hdr *ip6h = (struct ipv6hdr *)(skb->data + nw_off);
+	int hdr_count = 0;
+	u8 *nexthdr;
+	int start;
+
+	/* Check that there are at most 2 IPv6 extension headers, no
+	 * fragment header, and each is <= 64 bytes.
+	 */
+	start = nw_off + sizeof(*ip6h);
+	nexthdr = &ip6h->nexthdr;
+	while (ipv6_ext_hdr(*nexthdr)) {
+		struct ipv6_opt_hdr *hp;
+		int hdrlen;
+
+		if (hdr_count >= 3 || *nexthdr == NEXTHDR_NONE ||
+		    *nexthdr == NEXTHDR_FRAGMENT)
+			return false;
+		hp = __skb_header_pointer(NULL, start, sizeof(*hp), skb->data,
+					  skb_headlen(skb), NULL);
+		if (!hp)
+			return false;
+		if (*nexthdr == NEXTHDR_AUTH)
+			hdrlen = ipv6_authlen(hp);
+		else
+			hdrlen = ipv6_optlen(hp);
+
+		if (hdrlen > 64)
+			return false;
+		nexthdr = &hp->nexthdr;
+		start += hdrlen;
+		hdr_count++;
+	}
+	if (nextp) {
+		/* Caller will check inner protocol */
+		if (skb->encapsulation) {
+			*nextp = nexthdr;
+			return true;
+		}
+		*nextp = NULL;
+	}
+	/* Only support TCP/UDP for non-tunneled ipv6 and inner ipv6 */
+	return *nexthdr == IPPROTO_TCP || *nexthdr == IPPROTO_UDP;
+}
+
+/* For UDP, we can only handle 1 Vxlan port and 1 Geneve port. */
+static bool bnxt_udp_tunl_check(struct bnxt *bp, struct sk_buff *skb)
+{
+	struct udphdr *uh = udp_hdr(skb);
+	__be16 udp_port = uh->dest;
+
+	if (udp_port != bp->vxlan_port && udp_port != bp->nge_port)
+		return false;
+	if (skb->inner_protocol_type == ENCAP_TYPE_ETHER) {
+		struct ethhdr *eh = inner_eth_hdr(skb);
+
+		switch (eh->h_proto) {
+		case htons(ETH_P_IP):
+			return true;
+		case htons(ETH_P_IPV6):
+			return bnxt_exthdr_check(bp, skb,
+						 skb_inner_network_offset(skb),
+						 NULL);
+		}
+	}
+	return false;
+}
+
+static bool bnxt_tunl_check(struct bnxt *bp, struct sk_buff *skb, u8 l4_proto)
+{
+	switch (l4_proto) {
+	case IPPROTO_UDP:
+		return bnxt_udp_tunl_check(bp, skb);
+	case IPPROTO_IPIP:
+		return true;
+	case IPPROTO_GRE: {
+		switch (skb->inner_protocol) {
+		default:
+			return false;
+		case htons(ETH_P_IP):
+			return true;
+		case htons(ETH_P_IPV6):
+			fallthrough;
+		}
+	}
+	case IPPROTO_IPV6:
+		/* Check ext headers of inner ipv6 */
+		return bnxt_exthdr_check(bp, skb, skb_inner_network_offset(skb),
+					 NULL);
+	}
+	return false;
+}
+
 static netdev_features_t bnxt_features_check(struct sk_buff *skb,
 					     struct net_device *dev,
 					     netdev_features_t features)
 {
-	struct bnxt *bp;
-	__be16 udp_port;
-	u8 l4_proto = 0;
+	struct bnxt *bp = netdev_priv(dev);
+	u8 *l4_proto;
 
 	features = vlan_features_check(skb, features);
-	if (!skb->encapsulation)
-		return features;
-
 	switch (vlan_get_protocol(skb)) {
 	case htons(ETH_P_IP):
-		l4_proto = ip_hdr(skb)->protocol;
+		if (!skb->encapsulation)
+			return features;
+		l4_proto = &ip_hdr(skb)->protocol;
+		if (bnxt_tunl_check(bp, skb, *l4_proto))
+			return features;
 		break;
 	case htons(ETH_P_IPV6):
-		l4_proto = ipv6_hdr(skb)->nexthdr;
+		if (!bnxt_exthdr_check(bp, skb, skb_network_offset(skb),
+				       &l4_proto))
+			break;
+		if (!l4_proto || bnxt_tunl_check(bp, skb, *l4_proto))
+			return features;
 		break;
-	default:
-		return features;
 	}
-
-	if (l4_proto != IPPROTO_UDP)
-		return features;
-
-	bp = netdev_priv(dev);
-	/* For UDP, we can only handle 1 Vxlan port and 1 Geneve port. */
-	udp_port = udp_hdr(skb)->dest;
-	if (udp_port == bp->vxlan_port || udp_port == bp->nge_port)
-		return features;
 	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 }
 
