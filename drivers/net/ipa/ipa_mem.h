@@ -43,6 +43,7 @@ struct ipa_mem_data;
 
 /* IPA-resident memory region ids */
 enum ipa_mem_id {
+	IPA_MEM_UNDEFINED = 0,		/* undefined region */
 	IPA_MEM_UC_SHARED,		/* 0 canaries */
 	IPA_MEM_UC_INFO,		/* 0 canaries */
 	IPA_MEM_V4_FILTER_HASHED,	/* 2 canaries */
@@ -76,11 +77,13 @@ enum ipa_mem_id {
 
 /**
  * struct ipa_mem - IPA local memory region description
+ * @id:			memory region identifier
  * @offset:		offset in IPA memory space to base of the region
  * @size:		size in bytes base of the region
  * @canary_count:	Number of 32-bit "canary" values that precede region
  */
 struct ipa_mem {
+	enum ipa_mem_id id;
 	u32 offset;
 	u16 size;
 	u16 canary_count;
