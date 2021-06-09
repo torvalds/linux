@@ -3331,12 +3331,6 @@ static int snd_trident_tlb_alloc(struct snd_trident *trident)
 	}
 	trident->tlb.entries = (__le32 *)ALIGN((unsigned long)trident->tlb.buffer.area, SNDRV_TRIDENT_MAX_PAGES * 4);
 	trident->tlb.entries_dmaaddr = ALIGN(trident->tlb.buffer.addr, SNDRV_TRIDENT_MAX_PAGES * 4);
-	/* allocate shadow TLB page table (virtual addresses) */
-	trident->tlb.shadow_entries =
-		vmalloc(array_size(SNDRV_TRIDENT_MAX_PAGES,
-				   sizeof(unsigned long)));
-	if (!trident->tlb.shadow_entries)
-		return -ENOMEM;
 
 	/* allocate and setup silent page and initialise TLB entries */
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &trident->pci->dev,
@@ -3345,10 +3339,8 @@ static int snd_trident_tlb_alloc(struct snd_trident *trident)
 		return -ENOMEM;
 	}
 	memset(trident->tlb.silent_page.area, 0, SNDRV_TRIDENT_PAGE_SIZE);
-	for (i = 0; i < SNDRV_TRIDENT_MAX_PAGES; i++) {
+	for (i = 0; i < SNDRV_TRIDENT_MAX_PAGES; i++)
 		trident->tlb.entries[i] = cpu_to_le32(trident->tlb.silent_page.addr & ~(SNDRV_TRIDENT_PAGE_SIZE-1));
-		trident->tlb.shadow_entries[i] = (unsigned long)trident->tlb.silent_page.area;
-	}
 
 	/* use emu memory block manager code to manage tlb page allocation */
 	trident->tlb.memhdr = snd_util_memhdr_new(SNDRV_TRIDENT_PAGE_SIZE * SNDRV_TRIDENT_MAX_PAGES);
@@ -3665,7 +3657,6 @@ static int snd_trident_free(struct snd_trident *trident)
 		snd_util_memhdr_free(trident->tlb.memhdr);
 		if (trident->tlb.silent_page.area)
 			snd_dma_free_pages(&trident->tlb.silent_page);
-		vfree(trident->tlb.shadow_entries);
 		snd_dma_free_pages(&trident->tlb.buffer);
 	}
 	pci_release_regions(trident->pci);
