@@ -690,7 +690,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!sb->s_root) {
 		exfat_err(sb, "failed to get the root dentry");
 		err = -ENOMEM;
-		goto put_inode;
+		goto free_table;
 	}
 
 	return 0;
