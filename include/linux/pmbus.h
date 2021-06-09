@@ -65,6 +65,14 @@
  */
 #define PMBUS_NO_WRITE_PROTECT			BIT(4)
 
+/*
+ * PMBUS_USE_COEFFICIENTS_CMD
+ *
+ * When this flag is set the PMBus core driver will use the COEFFICIENTS
+ * register to initialize the coefficients for the direct mode format.
+ */
+#define PMBUS_USE_COEFFICIENTS_CMD		BIT(5)
+
 struct pmbus_platform_data {
 	u32 flags;		/* Device specific flags */
 

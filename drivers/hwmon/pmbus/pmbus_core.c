@@ -2142,6 +2142,111 @@ static int pmbus_find_attributes(struct i2c_client *client,
 }
 
 /*
+ * The pmbus_class_attr_map structure maps one sensor class to
+ * it's corresponding sensor attributes array.
+ */
+struct pmbus_class_attr_map {
+	enum pmbus_sensor_classes class;
+	int nattr;
+	const struct pmbus_sensor_attr *attr;
+};
+
+static const struct pmbus_class_attr_map class_attr_map[] = {
+	{
+		.class = PSC_VOLTAGE_IN,
+		.attr = voltage_attributes,
+		.nattr = ARRAY_SIZE(voltage_attributes),
+	}, {
+		.class = PSC_VOLTAGE_OUT,
+		.attr = voltage_attributes,
+		.nattr = ARRAY_SIZE(voltage_attributes),
+	}, {
+		.class = PSC_CURRENT_IN,
+		.attr = current_attributes,
+		.nattr = ARRAY_SIZE(current_attributes),
+	}, {
+		.class = PSC_CURRENT_OUT,
+		.attr = current_attributes,
+		.nattr = ARRAY_SIZE(current_attributes),
+	}, {
+		.class = PSC_POWER,
+		.attr = power_attributes,
+		.nattr = ARRAY_SIZE(power_attributes),
+	}, {
+		.class = PSC_TEMPERATURE,
+		.attr = temp_attributes,
+		.nattr = ARRAY_SIZE(temp_attributes),
+	}
+};
+
+/*
+ * Read the coefficients for direct mode.
+ */
+static int pmbus_read_coefficients(struct i2c_client *client,
+				   struct pmbus_driver_info *info,
+				   const struct pmbus_sensor_attr *attr)
+{
+	int rv;
+	union i2c_smbus_data data;
+	enum pmbus_sensor_classes class = attr->class;
+	s8 R;
+	s16 m, b;
+
+	data.block[0] = 2;
+	data.block[1] = attr->reg;
+	data.block[2] = 0x01;
+
+	rv = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+			    I2C_SMBUS_WRITE, PMBUS_COEFFICIENTS,
+			    I2C_SMBUS_BLOCK_PROC_CALL, &data);
+
+	if (rv < 0)
+		return rv;
+
+	if (data.block[0] != 5)
+		return -EIO;
+
+	m = data.block[1] | (data.block[2] << 8);
+	b = data.block[3] | (data.block[4] << 8);
+	R = data.block[5];
+	info->m[class] = m;
+	info->b[class] = b;
+	info->R[class] = R;
+
+	return rv;
+}
+
+static int pmbus_init_coefficients(struct i2c_client *client,
+				   struct pmbus_driver_info *info)
+{
+	int i, n, ret = -EINVAL;
+	const struct pmbus_class_attr_map *map;
+	const struct pmbus_sensor_attr *attr;
+
+	for (i = 0; i < ARRAY_SIZE(class_attr_map); i++) {
+		map = &class_attr_map[i];
+		if (info->format[map->class] != direct)
+			continue;
+		for (n = 0; n < map->nattr; n++) {
+			attr = &map->attr[n];
+			if (map->class != attr->class)
+				continue;
+			ret = pmbus_read_coefficients(client, info, attr);
+			if (ret >= 0)
+				break;
+		}
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"No coefficients found for sensor class %d\n",
+				map->class);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+/*
  * Identify chip parameters.
  * This function is called for all chips.
  */
@@ -2262,6 +2367,17 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			return ret;
 		}
 	}
+
+	if (data->flags & PMBUS_USE_COEFFICIENTS_CMD) {
+		if (!i2c_check_functionality(client->adapter,
+					     I2C_FUNC_SMBUS_BLOCK_PROC_CALL))
+			return -ENODEV;
+
+		ret = pmbus_init_coefficients(client, info);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
