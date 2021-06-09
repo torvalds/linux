@@ -2749,7 +2749,7 @@ int psp_init_asd_microcode(struct psp_context *psp,
 
 	asd_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.asd_fw->data;
 	adev->psp.asd_fw_version = le32_to_cpu(asd_hdr->header.ucode_version);
-	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->ucode_feature_version);
+	adev->psp.asd_feature_version = le32_to_cpu(asd_hdr->sos.fw_version);
 	adev->psp.asd_ucode_size = le32_to_cpu(asd_hdr->header.ucode_size_bytes);
 	adev->psp.asd_start_addr = (uint8_t *)asd_hdr +
 				le32_to_cpu(asd_hdr->header.ucode_array_offset_bytes);
@@ -2785,7 +2785,7 @@ int psp_init_toc_microcode(struct psp_context *psp,
 
 	toc_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.toc_fw->data;
 	adev->psp.toc_fw_version = le32_to_cpu(toc_hdr->header.ucode_version);
-	adev->psp.toc_feature_version = le32_to_cpu(toc_hdr->ucode_feature_version);
+	adev->psp.toc_feature_version = le32_to_cpu(toc_hdr->sos.fw_version);
 	adev->psp.toc_bin_size = le32_to_cpu(toc_hdr->header.ucode_size_bytes);
 	adev->psp.toc_start_addr = (uint8_t *)toc_hdr +
 				le32_to_cpu(toc_hdr->header.ucode_array_offset_bytes);
@@ -2828,42 +2828,42 @@ int psp_init_sos_microcode(struct psp_context *psp,
 	switch (sos_hdr->header.header_version_major) {
 	case 1:
 		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
-		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
-		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
-		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos_offset_bytes);
+		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->sos.fw_version);
+		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos.size_bytes);
+		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos.offset_bytes);
 		adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
 				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 		adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr->sos_offset_bytes);
+				le32_to_cpu(sos_hdr->sos.offset_bytes);
 		if (sos_hdr->header.header_version_minor == 1) {
 			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc_size_bytes);
+			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc.size_bytes);
 			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-					le32_to_cpu(sos_hdr_v1_1->toc_offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb_size_bytes);
+					le32_to_cpu(sos_hdr_v1_1->toc.offset_bytes);
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb.size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-					le32_to_cpu(sos_hdr_v1_1->kdb_offset_bytes);
+					le32_to_cpu(sos_hdr_v1_1->kdb.offset_bytes);
 		}
 		if (sos_hdr->header.header_version_minor == 2) {
 			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb_size_bytes);
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb.size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-						    le32_to_cpu(sos_hdr_v1_2->kdb_offset_bytes);
+						    le32_to_cpu(sos_hdr_v1_2->kdb.offset_bytes);
 		}
 		if (sos_hdr->header.header_version_minor == 3) {
 			sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
-			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.toc_size_bytes);
+			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.toc.size_bytes);
 			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->v1_1.toc_offset_bytes);
-			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.kdb_size_bytes);
+				le32_to_cpu(sos_hdr_v1_3->v1_1.toc.offset_bytes);
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->v1_1.kdb_offset_bytes);
-			adev->psp.spl_bin_size = le32_to_cpu(sos_hdr_v1_3->spl_size_bytes);
+				le32_to_cpu(sos_hdr_v1_3->v1_1.kdb.offset_bytes);
+			adev->psp.spl_bin_size = le32_to_cpu(sos_hdr_v1_3->spl.size_bytes);
 			adev->psp.spl_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->spl_offset_bytes);
-			adev->psp.rl_bin_size = le32_to_cpu(sos_hdr_v1_3->rl_size_bytes);
+				le32_to_cpu(sos_hdr_v1_3->spl.offset_bytes);
+			adev->psp.rl_bin_size = le32_to_cpu(sos_hdr_v1_3->rl.size_bytes);
 			adev->psp.rl_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(sos_hdr_v1_3->rl_offset_bytes);
+				le32_to_cpu(sos_hdr_v1_3->rl.offset_bytes);
 		}
 		break;
 	default:
