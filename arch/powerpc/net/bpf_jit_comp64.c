@@ -153,8 +153,8 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 	PPC_LI64(b2p[TMP_REG_2], func);
 	/* Load actual entry point from function descriptor */
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_2], 0);
-	/* ... and move it to LR */
-	EMIT(PPC_RAW_MTLR(b2p[TMP_REG_1]));
+	/* ... and move it to CTR */
+	EMIT(PPC_RAW_MTCTR(b2p[TMP_REG_1]));
 	/*
 	 * Load TOC from function descriptor at offset 8.
 	 * We can clobber r2 since we get called through a
@@ -165,9 +165,9 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 #else
 	/* We can clobber r12 */
 	PPC_FUNC_ADDR(12, func);
-	EMIT(PPC_RAW_MTLR(12));
+	EMIT(PPC_RAW_MTCTR(12));
 #endif
-	EMIT(PPC_RAW_BLRL());
+	EMIT(PPC_RAW_BCTRL());
 }
 
 void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func)
@@ -202,8 +202,8 @@ void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 fun
 	PPC_BPF_LL(12, 12, 0);
 #endif
 
-	EMIT(PPC_RAW_MTLR(12));
-	EMIT(PPC_RAW_BLRL());
+	EMIT(PPC_RAW_MTCTR(12));
+	EMIT(PPC_RAW_BCTRL());
 }
 
 static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
