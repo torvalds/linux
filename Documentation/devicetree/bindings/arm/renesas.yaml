@@ -312,6 +312,8 @@ properties:
       - description: RZ/G2{L,LC} (R9A07G044)
         items:
           - enum:
+              - renesas,smarc-evk # SMARC EVK
+          - enum:
               - renesas,r9a07g044c1 # Single Cortex-A55 RZ/G2LC
               - renesas,r9a07g044c2 # Dual Cortex-A55 RZ/G2LC
               - renesas,r9a07g044l1 # Single Cortex-A55 RZ/G2L
