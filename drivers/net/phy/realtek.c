@@ -94,24 +94,25 @@ static int rtl821x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct rtl821x_priv *priv;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->phycr1 = phy_read_paged(phydev, 0xa43, RTL8211F_PHYCR1);
-	if (priv->phycr1 < 0)
-		return priv->phycr1;
+	ret = phy_read_paged(phydev, 0xa43, RTL8211F_PHYCR1);
+	if (ret < 0)
+		return ret;
 
-	priv->phycr1 &= (RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF);
+	priv->phycr1 = ret & (RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF);
 	if (of_property_read_bool(dev->of_node, "realtek,aldps-enable"))
 		priv->phycr1 |= RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF;
 
-	priv->phycr2 = phy_read_paged(phydev, 0xa43, RTL8211F_PHYCR2);
-	if (priv->phycr2 < 0)
-		return priv->phycr2;
+	ret = phy_read_paged(phydev, 0xa43, RTL8211F_PHYCR2);
+	if (ret < 0)
+		return ret;
 
-	priv->phycr2 &= RTL8211F_CLKOUT_EN;
+	priv->phycr2 = ret & RTL8211F_CLKOUT_EN;
 	if (of_property_read_bool(dev->of_node, "realtek,clkout-disable"))
 		priv->phycr2 &= ~RTL8211F_CLKOUT_EN;
 
