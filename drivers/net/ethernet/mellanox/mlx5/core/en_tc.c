@@ -240,6 +240,30 @@ mlx5e_get_int_port_priv(struct mlx5e_priv *priv)
 	return NULL;
 }
 
+struct mlx5e_flow_meters *
+mlx5e_get_flow_meters(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *uplink_rpriv;
+	struct mlx5e_priv *priv;
+
+	if (is_mdev_switchdev_mode(dev)) {
+		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+		uplink_priv = &uplink_rpriv->uplink_priv;
+		priv = netdev_priv(uplink_rpriv->netdev);
+		if (!uplink_priv->flow_meters)
+			uplink_priv->flow_meters =
+				mlx5e_flow_meters_init(priv,
+						       MLX5_FLOW_NAMESPACE_FDB,
+						       uplink_priv->post_act);
+		if (!IS_ERR(uplink_priv->flow_meters))
+			return uplink_priv->flow_meters;
+	}
+
+	return NULL;
+}
+
 static struct mlx5_tc_ct_priv *
 get_ct_priv(struct mlx5e_priv *priv)
 {
@@ -4956,6 +4980,7 @@ void mlx5e_tc_esw_cleanup(struct mlx5_rep_uplink_priv *uplink_priv)
 	mlx5e_tc_sample_cleanup(uplink_priv->tc_psample);
 	mlx5e_tc_int_port_cleanup(uplink_priv->int_port_priv);
 	mlx5_tc_ct_clean(uplink_priv->ct_priv);
+	mlx5e_flow_meters_cleanup(uplink_priv->flow_meters);
 	mlx5e_tc_post_act_destroy(uplink_priv->post_act);
 }
 

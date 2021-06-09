@@ -39,6 +39,7 @@
 #include "en/tc_ct.h"
 #include "en/tc_tun.h"
 #include "en/tc/int_port.h"
+#include "en/tc/meter.h"
 #include "en_rep.h"
 
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
