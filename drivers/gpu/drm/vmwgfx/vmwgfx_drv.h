@@ -513,7 +513,6 @@ struct vmw_private {
 	bool has_gmr;
 	bool has_mob;
 	spinlock_t hw_lock;
-	spinlock_t cap_lock;
 	bool assume_16bpp;
 
 	enum vmw_sm_type sm_type;
@@ -629,6 +628,8 @@ struct vmw_private {
 
 	/* Validation memory reservation */
 	struct vmw_validation_mem vvm;
+
+	uint32 *devcaps;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)

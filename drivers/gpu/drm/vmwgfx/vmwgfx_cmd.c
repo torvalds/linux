@@ -30,6 +30,7 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_devcaps.h"
 
 bool vmw_supports_3d(struct vmw_private *dev_priv)
 {
@@ -45,10 +46,7 @@ bool vmw_supports_3d(struct vmw_private *dev_priv)
 		if (!dev_priv->has_mob)
 			return false;
 
-		spin_lock(&dev_priv->cap_lock);
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_3D);
-		result = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
-		spin_unlock(&dev_priv->cap_lock);
+		result = vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_3D);
 
 		return (result != 0);
 	}

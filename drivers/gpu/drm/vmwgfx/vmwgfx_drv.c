@@ -41,6 +41,7 @@
 
 #include "ttm_object.h"
 #include "vmwgfx_binding.h"
+#include "vmwgfx_devcaps.h"
 #include "vmwgfx_drv.h"
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
@@ -792,7 +793,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	spin_lock_init(&dev_priv->resource_lock);
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
-	spin_lock_init(&dev_priv->cap_lock);
 	spin_lock_init(&dev_priv->cursor_lock);
 
 	ret = vmw_setup_pci_resources(dev_priv, pci_id);
@@ -982,6 +982,12 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		goto out_no_vram;
 	}
 
+	ret = vmw_devcaps_create(dev_priv);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed initializing device caps.\n");
+		goto out_no_vram;
+	}
+
 	/*
 	 * "Guest Memory Regions" is an aperture like feature with
 	 *  one slot per bo. There is an upper limit of the number of
@@ -1008,11 +1014,8 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	}
 
 	if (dev_priv->has_mob && (dev_priv->capabilities & SVGA_CAP_DX)) {
-		spin_lock(&dev_priv->cap_lock);
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DXCONTEXT);
-		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+		if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_DXCONTEXT))
 			dev_priv->sm_type = VMW_SM_4;
-		spin_unlock(&dev_priv->cap_lock);
 	}
 
 	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
@@ -1020,15 +1023,11 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	/* SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1 support */
 	if (has_sm4_context(dev_priv) &&
 	    (dev_priv->capabilities2 & SVGA_CAP2_DX2)) {
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_SM41);
-
-		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+		if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_SM41))
 			dev_priv->sm_type = VMW_SM_4_1;
-
 		if (has_sm4_1_context(dev_priv) &&
-		    (dev_priv->capabilities2 & SVGA_CAP2_DX3)) {
-			vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_SM5);
-			if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+				(dev_priv->capabilities2 & SVGA_CAP2_DX3)) {
+			if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_SM5))
 				dev_priv->sm_type = VMW_SM_5;
 		}
 	}
@@ -1073,6 +1072,7 @@ out_no_kms:
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_GMR);
+	vmw_devcaps_destroy(dev_priv);
 	vmw_vram_manager_fini(dev_priv);
 out_no_vram:
 	ttm_device_fini(&dev_priv->bdev);
@@ -1121,6 +1121,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_release_device_early(dev_priv);
 	if (dev_priv->has_mob)
 		vmw_gmrid_man_fini(dev_priv, VMW_PL_MOB);
+	vmw_devcaps_destroy(dev_priv);
 	vmw_vram_manager_fini(dev_priv);
 	ttm_device_fini(&dev_priv->bdev);
 	drm_vma_offset_manager_destroy(&dev_priv->vma_manager);
