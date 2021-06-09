@@ -487,8 +487,7 @@ struct vmw_private {
 	struct ttm_device bdev;
 
 	struct drm_vma_offset_manager vma_manager;
-	unsigned long pci_id;
-	u32 vmw_chipset;
+	u32 pci_id;
 	resource_size_t io_start;
 	resource_size_t vram_start;
 	resource_size_t vram_size;

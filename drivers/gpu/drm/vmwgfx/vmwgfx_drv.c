@@ -706,7 +706,7 @@ static void vmw_vram_manager_fini(struct vmw_private *dev_priv)
 }
 
 static int vmw_setup_pci_resources(struct vmw_private *dev,
-				   unsigned long pci_id)
+				   u32 pci_id)
 {
 	resource_size_t rmmio_start;
 	resource_size_t rmmio_size;
@@ -783,7 +783,7 @@ static int vmw_detect_version(struct vmw_private *dev)
 	svga_id = vmw_read(dev, SVGA_REG_ID);
 	if (svga_id != SVGA_ID_2 && svga_id != SVGA_ID_3) {
 		DRM_ERROR("Unsupported SVGA ID 0x%x on chipset 0x%x\n",
-			  svga_id, dev->vmw_chipset);
+			  svga_id, dev->pci_id);
 		return -ENOSYS;
 	}
 	BUG_ON(vmw_is_svga_v3(dev) && (svga_id != SVGA_ID_3));
@@ -798,7 +798,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	bool refuse_dma = false;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
-	dev_priv->vmw_chipset = pci_id;
 	dev_priv->drm.dev_private = dev_priv;
 
 	mutex_init(&dev_priv->cmdbuf_mutex);
