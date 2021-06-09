@@ -1412,7 +1412,7 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	const struct qca8k_mib_desc *mib;
 	u32 reg, i, val;
-	u64 hi = 0;
+	u32 hi = 0;
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(ar8327_mib); i++) {
@@ -1424,14 +1424,14 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 			continue;
 
 		if (mib->size == 2) {
-			ret = qca8k_read(priv, reg + 4, (u32 *)&hi);
+			ret = qca8k_read(priv, reg + 4, &hi);
 			if (ret < 0)
 				continue;
 		}
 
 		data[i] = val;
 		if (mib->size == 2)
-			data[i] |= hi << 32;
+			data[i] |= (u64)hi << 32;
 	}
 }
 
