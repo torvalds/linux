@@ -2717,10 +2717,10 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 	intel_wait_for_vblank(dev_priv, crtc->pipe);
 }
 
-static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
+static void intel_crtc_dpms_overlay_disable(struct intel_crtc *crtc)
 {
-	if (intel_crtc->overlay)
-		(void) intel_overlay_switch_off(intel_crtc->overlay);
+	if (crtc->overlay)
+		(void) intel_overlay_switch_off(crtc->overlay);
 
 	/* Let userspace switch the overlay on again. In most cases userspace
 	 * has to recompute where to put it anyway.

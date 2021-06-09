@@ -308,9 +308,9 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	 * connector
 	 */
 	if (new_crtc) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(new_crtc);
+		struct intel_crtc *crtc = to_intel_crtc(new_crtc);
 		struct intel_crtc_state *crtc_state =
-			intel_atomic_get_new_crtc_state(state, intel_crtc);
+			intel_atomic_get_new_crtc_state(state, crtc);
 
 		if (!crtc_state ||
 		    !drm_atomic_crtc_needs_modeset(&crtc_state->uapi) ||
