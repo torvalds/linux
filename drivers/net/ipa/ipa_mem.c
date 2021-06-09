@@ -99,6 +99,61 @@ int ipa_mem_setup(struct ipa *ipa)
 	return 0;
 }
 
+/* Is the given memory region ID is valid for the current IPA version? */
+static bool ipa_mem_id_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
+{
+	enum ipa_version version = ipa->version;
+
+	switch (mem_id) {
+	case IPA_MEM_UC_SHARED:
+	case IPA_MEM_UC_INFO:
+	case IPA_MEM_V4_FILTER_HASHED:
+	case IPA_MEM_V4_FILTER:
+	case IPA_MEM_V6_FILTER_HASHED:
+	case IPA_MEM_V6_FILTER:
+	case IPA_MEM_V4_ROUTE_HASHED:
+	case IPA_MEM_V4_ROUTE:
+	case IPA_MEM_V6_ROUTE_HASHED:
+	case IPA_MEM_V6_ROUTE:
+	case IPA_MEM_MODEM_HEADER:
+	case IPA_MEM_AP_HEADER:
+	case IPA_MEM_MODEM_PROC_CTX:
+	case IPA_MEM_AP_PROC_CTX:
+	case IPA_MEM_MODEM:
+	case IPA_MEM_UC_EVENT_RING:
+	case IPA_MEM_PDN_CONFIG:
+	case IPA_MEM_STATS_QUOTA_MODEM:
+	case IPA_MEM_STATS_QUOTA_AP:
+	case IPA_MEM_END_MARKER:	/* pseudo region */
+		break;
+
+	case IPA_MEM_STATS_TETHERING:
+	case IPA_MEM_STATS_DROP:
+		if (version < IPA_VERSION_4_0)
+			return false;
+		break;
+
+	case IPA_MEM_STATS_V4_FILTER:
+	case IPA_MEM_STATS_V6_FILTER:
+	case IPA_MEM_STATS_V4_ROUTE:
+	case IPA_MEM_STATS_V6_ROUTE:
+		if (version < IPA_VERSION_4_0 || version > IPA_VERSION_4_2)
+			return false;
+		break;
+
+	case IPA_MEM_NAT_TABLE:
+	case IPA_MEM_STATS_FILTER_ROUTE:
+		if (version < IPA_VERSION_4_5)
+			return false;
+		break;
+
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 /* Must the given memory region be present in the configuration? */
 static bool ipa_mem_id_required(struct ipa *ipa, enum ipa_mem_id mem_id)
 {
@@ -134,6 +189,12 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id = mem->id;
 	u16 size_multiple;
+
+	/* Make sure the memory region is valid for this version of IPA */
+	if (!ipa_mem_id_valid(ipa, mem_id)) {
+		dev_err(dev, "region id %u not valid\n", mem_id);
+		return false;
+	}
 
 	/* Other than modem memory, sizes must be a multiple of 8 */
 	size_multiple = mem_id == IPA_MEM_MODEM ? 4 : 8;
