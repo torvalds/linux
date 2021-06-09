@@ -291,9 +291,8 @@ static void dpaa2_qdma_issue_pending(struct dma_chan *chan)
 
 		err = dpaa2_io_service_enqueue_fq(NULL, dpaa2_chan->fqid, fd);
 		if (err) {
-			list_del(&dpaa2_comp->list);
-			list_add_tail(&dpaa2_comp->list,
-				      &dpaa2_chan->comp_free);
+			list_move_tail(&dpaa2_comp->list,
+				       &dpaa2_chan->comp_free);
 		}
 	}
 err_enqueue:
@@ -626,8 +625,7 @@ static void dpaa2_qdma_free_desc(struct virt_dma_desc *vdesc)
 	dpaa2_comp = to_fsl_qdma_comp(vdesc);
 	qchan = dpaa2_comp->qchan;
 	spin_lock_irqsave(&qchan->queue_lock, flags);
-	list_del(&dpaa2_comp->list);
-	list_add_tail(&dpaa2_comp->list, &qchan->comp_free);
+	list_move_tail(&dpaa2_comp->list, &qchan->comp_free);
 	spin_unlock_irqrestore(&qchan->queue_lock, flags);
 }
 
