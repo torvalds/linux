@@ -7214,11 +7214,11 @@ static unsigned emulator_get_hflags(struct x86_emulate_ctxt *ctxt)
 	return emul_to_vcpu(ctxt)->arch.hflags;
 }
 
-static void emulator_set_hflags(struct x86_emulate_ctxt *ctxt, unsigned emul_flags)
+static void emulator_exiting_smm(struct x86_emulate_ctxt *ctxt)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 
-	vcpu->arch.hflags = emul_flags;
+	vcpu->arch.hflags &= ~(HF_SMM_MASK | HF_SMM_INSIDE_NMI_MASK);
 	kvm_mmu_reset_context(vcpu);
 }
 
@@ -7284,7 +7284,7 @@ static const struct x86_emulate_ops emulate_ops = {
 	.guest_has_fxsr      = emulator_guest_has_fxsr,
 	.set_nmi_mask        = emulator_set_nmi_mask,
 	.get_hflags          = emulator_get_hflags,
-	.set_hflags          = emulator_set_hflags,
+	.exiting_smm         = emulator_exiting_smm,
 	.pre_leave_smm       = emulator_pre_leave_smm,
 	.post_leave_smm      = emulator_post_leave_smm,
 	.triple_fault        = emulator_triple_fault,

@@ -2535,8 +2535,7 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	if ((ctxt->ops->get_hflags(ctxt) & X86EMUL_SMM_INSIDE_NMI_MASK) == 0)
 		ctxt->ops->set_nmi_mask(ctxt, false);
 
-	ctxt->ops->set_hflags(ctxt, ctxt->ops->get_hflags(ctxt) &
-		~(X86EMUL_SMM_INSIDE_NMI_MASK | X86EMUL_SMM_MASK));
+	ctxt->ops->exiting_smm(ctxt);
 
 	/*
 	 * Get back to real mode, to prepare a safe state in which to load
