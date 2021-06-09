@@ -2468,6 +2468,14 @@ struct ib_device_ops {
 			 enum ib_uverbs_advise_mr_advice advice, u32 flags,
 			 struct ib_sge *sg_list, u32 num_sge,
 			 struct uverbs_attr_bundle *attrs);
+
+	/*
+	 * Kernel users should universally support relaxed ordering (RO), as
+	 * they are designed to read data only after observing the CQE and use
+	 * the DMA API correctly.
+	 *
+	 * Some drivers implicitly enable RO if platform supports it.
+	 */
 	int (*map_mr_sg)(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 			 unsigned int *sg_offset);
 	int (*check_mr_status)(struct ib_mr *mr, u32 check_mask,

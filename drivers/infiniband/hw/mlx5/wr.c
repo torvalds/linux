@@ -866,7 +866,10 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	bool atomic = wr->access & IB_ACCESS_REMOTE_ATOMIC;
 	u8 flags = 0;
 
-	/* Matches access in mlx5_set_umr_free_mkey() */
+	/* Matches access in mlx5_set_umr_free_mkey().
+	 * Relaxed Ordering is set implicitly in mlx5_set_umr_free_mkey() and
+	 * kernel ULPs are not aware of it, so we don't set it here.
+	 */
 	if (!mlx5_ib_can_reconfig_with_umr(dev, 0, wr->access)) {
 		mlx5_ib_warn(
 			to_mdev(qp->ibqp.device),
