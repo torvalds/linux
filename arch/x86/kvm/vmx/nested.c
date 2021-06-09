@@ -5506,10 +5506,8 @@ static int nested_vmx_eptp_switching(struct kvm_vcpu *vcpu,
 	u32 index = kvm_rcx_read(vcpu);
 	u64 new_eptp;
 
-	if (!nested_cpu_has_eptp_switching(vmcs12) ||
-	    !nested_cpu_has_ept(vmcs12))
+	if (WARN_ON_ONCE(!nested_cpu_has_ept(vmcs12)))
 		return 1;
-
 	if (index >= VMFUNC_EPTP_ENTRIES)
 		return 1;
 
