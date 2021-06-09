@@ -131,4 +131,6 @@ struct rzg2l_cpg_info {
 	unsigned int num_crit_mod_clks;
 };
 
+extern const struct rzg2l_cpg_info r9a07g044_cpg_info;
+
 #endif
