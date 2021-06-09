@@ -6876,7 +6876,10 @@ static unsigned emulator_get_hflags(struct x86_emulate_ctxt *ctxt)
 
 static void emulator_set_hflags(struct x86_emulate_ctxt *ctxt, unsigned emul_flags)
 {
-	emul_to_vcpu(ctxt)->arch.hflags = emul_flags;
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
+	vcpu->arch.hflags = emul_flags;
+	kvm_mmu_reset_context(vcpu);
 }
 
 static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
