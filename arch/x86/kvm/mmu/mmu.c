@@ -4684,7 +4684,7 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer,
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
 	union kvm_mmu_role new_role = kvm_calc_shadow_npt_root_page_role(vcpu);
 
-	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base, false, false);
+	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base, true, true);
 
 	if (new_role.as_u64 != context->mmu_role.as_u64) {
 		shadow_mmu_init_context(vcpu, context, cr0, cr4, efer, new_role);

@@ -380,6 +380,25 @@ static inline bool nested_npt_enabled(struct vcpu_svm *svm)
 	return svm->nested.ctl.nested_ctl & SVM_NESTED_CTL_NP_ENABLE;
 }
 
+static void nested_svm_transition_tlb_flush(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * TODO: optimize unconditional TLB flush/MMU sync.  A partial list of
+	 * things to fix before this can be conditional:
+	 *
+	 *  - Flush TLBs for both L1 and L2 remote TLB flush
+	 *  - Honor L1's request to flush an ASID on nested VMRUN
+	 *  - Sync nested NPT MMU on VMRUN that flushes L2's ASID[*]
+	 *  - Don't crush a pending TLB flush in vmcb02 on nested VMRUN
+	 *  - Flush L1's ASID on KVM_REQ_TLB_FLUSH_GUEST
+	 *
+	 * [*] Unlike nested EPT, SVM's ASID management can invalidate nested
+	 *     NPT guest-physical mappings on VMRUN.
+	 */
+	kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
+	kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+}
+
 /*
  * Load guest's/host's cr3 on nested vmentry or vmexit. @nested_npt is true
  * if we are emulating VM-Entry into a guest with NPT enabled.
@@ -394,12 +413,8 @@ static int nested_svm_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 	    CC(!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3)))
 		return -EINVAL;
 
-	/*
-	 * TODO: optimize unconditional TLB flush/MMU sync here and in
-	 * kvm_init_shadow_npt_mmu().
-	 */
 	if (!nested_npt)
-		kvm_mmu_new_pgd(vcpu, cr3, false, false);
+		kvm_mmu_new_pgd(vcpu, cr3, true, true);
 
 	vcpu->arch.cr3 = cr3;
 	kvm_register_mark_available(vcpu, VCPU_EXREG_CR3);
@@ -479,6 +494,7 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 {
 	const u32 mask = V_INTR_MASKING_MASK | V_GIF_ENABLE_MASK | V_GIF_MASK;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 
 	/*
 	 * Filled at exit: exit_code, exit_code_hi, exit_info_1, exit_info_2,
@@ -503,10 +519,10 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 
 	/* nested_cr3.  */
 	if (nested_npt_enabled(svm))
-		nested_svm_init_mmu_context(&svm->vcpu);
+		nested_svm_init_mmu_context(vcpu);
 
-	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
-		svm->vcpu.arch.l1_tsc_offset + svm->nested.ctl.tsc_offset;
+	svm->vmcb->control.tsc_offset = vcpu->arch.tsc_offset =
+		vcpu->arch.l1_tsc_offset + svm->nested.ctl.tsc_offset;
 
 	svm->vmcb->control.int_ctl             =
 		(svm->nested.ctl.int_ctl & ~mask) |
@@ -521,8 +537,10 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	svm->vmcb->control.pause_filter_count  = svm->nested.ctl.pause_filter_count;
 	svm->vmcb->control.pause_filter_thresh = svm->nested.ctl.pause_filter_thresh;
 
+	nested_svm_transition_tlb_flush(vcpu);
+
 	/* Enter Guest-Mode */
-	enter_guest_mode(&svm->vcpu);
+	enter_guest_mode(vcpu);
 
 	/*
 	 * Merge guest and host intercepts - must be called with vcpu in
@@ -798,6 +816,8 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 				       KVM_ISA_SVM);
 
 	kvm_vcpu_unmap(vcpu, &map, true);
+
+	nested_svm_transition_tlb_flush(vcpu);
 
 	nested_svm_uninit_mmu_context(vcpu);
 
