@@ -152,7 +152,7 @@ static void dpcd_reduce_address_range(
 		const uint32_t reduced_size)
 {
 	const uint32_t reduced_end_address = END_ADDRESS(reduced_address, reduced_size);
-	const uint32_t extended_end_address = END_ADDRESS(reduced_address, extended_size);
+	const uint32_t extended_end_address = END_ADDRESS(extended_address, extended_size);
 	const uint32_t offset = reduced_address - extended_address;
 
 	if (extended_end_address == reduced_end_address && extended_address == reduced_address)
