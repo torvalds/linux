@@ -1111,7 +1111,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	hypervisor_ppn_add((PPN64)page_to_pfn(page));
 
 	dev_priv->mksstat_user_pages[slot] = page;
-	atomic_set(&dev_priv->mksstat_user_pids[slot], current->pid);
+	atomic_set(&dev_priv->mksstat_user_pids[slot], task_pgrp_vnr(current));
 
 	arg->id = slot;
 
@@ -1158,37 +1158,31 @@ int vmw_mksstat_remove_ioctl(struct drm_device *dev, void *data,
 	struct vmw_private *const dev_priv = vmw_priv(dev);
 
 	const size_t slot = arg->id;
-	pid_t pid0;
+	pid_t pgid, pid;
 
 	if (slot >= ARRAY_SIZE(dev_priv->mksstat_user_pids))
 		return -EINVAL;
 
 	DRM_DEV_INFO(dev->dev, "pid=%d arg.id=%lu\n", current->pid, slot);
 
-	pid0 = atomic_read(&dev_priv->mksstat_user_pids[slot]);
+	pgid = task_pgrp_vnr(current);
+	pid = atomic_cmpxchg(&dev_priv->mksstat_user_pids[slot], pgid, MKSSTAT_PID_RESERVED);
 
-	if (!pid0)
+	if (!pid)
 		return 0;
 
-	if (pid0 != MKSSTAT_PID_RESERVED) {
-		const pid_t pid1 = atomic_cmpxchg(&dev_priv->mksstat_user_pids[slot], pid0, MKSSTAT_PID_RESERVED);
+	if (pid == pgid) {
+		struct page *const page = dev_priv->mksstat_user_pages[slot];
 
-		if (!pid1)
-			return 0;
+		BUG_ON(!page);
 
-		if (pid1 == pid0) {
-			struct page *const page = dev_priv->mksstat_user_pages[slot];
+		dev_priv->mksstat_user_pages[slot] = NULL;
+		atomic_set(&dev_priv->mksstat_user_pids[slot], 0);
 
-			BUG_ON(!page);
+		hypervisor_ppn_remove((PPN64)page_to_pfn(page));
 
-			dev_priv->mksstat_user_pages[slot] = NULL;
-			atomic_set(&dev_priv->mksstat_user_pids[slot], 0);
-
-			hypervisor_ppn_remove((PPN64)page_to_pfn(page));
-
-			vmw_mksstat_cleanup_descriptor(page);
-			return 0;
-		}
+		vmw_mksstat_cleanup_descriptor(page);
+		return 0;
 	}
 
 	return -EAGAIN;
