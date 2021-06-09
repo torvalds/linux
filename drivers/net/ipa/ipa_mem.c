@@ -99,12 +99,10 @@ int ipa_mem_setup(struct ipa *ipa)
 	return 0;
 }
 
-#ifdef IPA_VALIDATE
-
-static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
+static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem *mem)
 {
-	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	struct device *dev = &ipa->pdev->dev;
+	enum ipa_mem_id mem_id = mem->id;
 	u16 size_multiple;
 
 	/* Other than modem memory, sizes must be a multiple of 8 */
@@ -127,15 +125,6 @@ static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 
 	return false;
 }
-
-#else /* !IPA_VALIDATE */
-
-static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
-{
-	return true;
-}
-
-#endif /*! IPA_VALIDATE */
 
 /**
  * ipa_mem_config() - Configure IPA shared memory
@@ -188,7 +177,7 @@ int ipa_mem_config(struct ipa *ipa)
 		__le32 *canary;
 
 		/* Validate all regions (even undefined ones) */
-		if (!ipa_mem_valid(ipa, mem_id))
+		if (!ipa_mem_valid(ipa, mem))
 			goto err_dma_free;
 
 		/* Skip over undefined regions */
