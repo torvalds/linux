@@ -1454,10 +1454,8 @@ qca8k_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee)
 
 	mutex_lock(&priv->reg_mutex);
 	ret = qca8k_read(priv, QCA8K_REG_EEE_CTRL, &reg);
-	if (reg < 0) {
-		ret = reg;
+	if (ret < 0)
 		goto exit;
-	}
 
 	if (eee->eee_enabled)
 		reg |= lpi_en;
