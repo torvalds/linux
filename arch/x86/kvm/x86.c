@@ -7544,7 +7544,7 @@ static int complete_emulated_pio(struct kvm_vcpu *vcpu);
 
 static void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
 {
-	trace_kvm_enter_smm(vcpu->vcpu_id, vcpu->arch.smbase, entering_smm);
+	trace_kvm_smm_transition(vcpu->vcpu_id, vcpu->arch.smbase, entering_smm);
 
 	if (entering_smm) {
 		vcpu->arch.hflags |= HF_SMM_MASK;
