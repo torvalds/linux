@@ -8306,6 +8306,8 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 		for (i = 0; i < nr_pages; i++) {
 			struct vm_area_struct *vma = vmas[i];
 
+			if (vma_is_shmem(vma))
+				continue;
 			if (vma->vm_file &&
 			    !is_file_hugepages(vma->vm_file)) {
 				ret = -EOPNOTSUPP;
