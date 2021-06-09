@@ -443,10 +443,13 @@ static ssize_t kbdlang_store(struct kobject *kobj,
 	int length;
 
 	length = strlen(buf);
+	if (!length)
+		return -EINVAL;
+
 	if (buf[length-1] == '\n')
 		length--;
 
-	if (!length || (length >= TLMI_LANG_MAXLEN))
+	if (length >= TLMI_LANG_MAXLEN)
 		return -EINVAL;
 
 	memcpy(setting->kbdlang, buf, length);
