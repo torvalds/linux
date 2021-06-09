@@ -6485,7 +6485,7 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_atomic_state *state = NULL, *restore_state = NULL;
 	struct drm_connector_state *connector_state;
 	struct intel_crtc_state *crtc_state;
-	int ret, i = -1;
+	int ret;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		    connector->base.id, connector->name,
@@ -6519,8 +6519,7 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 
 	/* Find an unused one (if possible) */
 	for_each_crtc(dev, possible_crtc) {
-		i++;
-		if (!(encoder->possible_crtcs & (1 << i)))
+		if (!(encoder->possible_crtcs & drm_crtc_mask(possible_crtc)))
 			continue;
 
 		ret = drm_modeset_lock(&possible_crtc->mutex, ctx);
