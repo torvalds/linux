@@ -433,6 +433,23 @@
 #define GLV_UPRCL(_i)				(0x003B2000 + ((_i) * 8))
 #define GLV_UPTCL(_i)				(0x0030A000 + ((_i) * 8))
 #define PRTRPB_RDPC				0x000AC260
+#define GLTSYN_CMD				0x00088810
+#define GLTSYN_CMD_SYNC				0x00088814
+#define GLTSYN_ENA(_i)				(0x00088808 + ((_i) * 4))
+#define GLTSYN_ENA_TSYN_ENA_M			BIT(0)
+#define GLTSYN_INCVAL_H(_i)			(0x00088920 + ((_i) * 4))
+#define GLTSYN_INCVAL_L(_i)			(0x00088918 + ((_i) * 4))
+#define GLTSYN_SHADJ_H(_i)			(0x00088910 + ((_i) * 4))
+#define GLTSYN_SHADJ_L(_i)			(0x00088908 + ((_i) * 4))
+#define GLTSYN_SHTIME_0(_i)			(0x000888E0 + ((_i) * 4))
+#define GLTSYN_SHTIME_H(_i)			(0x000888F0 + ((_i) * 4))
+#define GLTSYN_SHTIME_L(_i)			(0x000888E8 + ((_i) * 4))
+#define GLTSYN_STAT(_i)				(0x000888C0 + ((_i) * 4))
+#define GLTSYN_SYNC_DLAY			0x00088818
+#define GLTSYN_TIME_H(_i)			(0x000888D8 + ((_i) * 4))
+#define GLTSYN_TIME_L(_i)			(0x000888D0 + ((_i) * 4))
+#define PFTSYN_SEM				0x00088880
+#define PFTSYN_SEM_BUSY_M			BIT(0)
 #define VSIQF_FD_CNT(_VSI)			(0x00464000 + ((_VSI) * 4))
 #define VSIQF_FD_CNT_FD_GCNT_S			0
 #define VSIQF_FD_CNT_FD_GCNT_M			ICE_M(0x3FFF, 0)
