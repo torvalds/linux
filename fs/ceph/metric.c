@@ -233,8 +233,7 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 
 	cancel_delayed_work_sync(&m->delayed_work);
 
-	if (m->session)
-		ceph_put_mds_session(m->session);
+	ceph_put_mds_session(m->session);
 }
 
 static inline void __update_latency(ktime_t *totalp, ktime_t *lsump,
