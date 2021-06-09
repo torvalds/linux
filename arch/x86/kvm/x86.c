@@ -7544,13 +7544,12 @@ static int complete_emulated_pio(struct kvm_vcpu *vcpu);
 
 static void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
 {
+	trace_kvm_enter_smm(vcpu->vcpu_id, vcpu->arch.smbase, entering_smm);
+
 	if (entering_smm) {
 		vcpu->arch.hflags |= HF_SMM_MASK;
 	} else {
 		vcpu->arch.hflags &= ~(HF_SMM_MASK | HF_SMM_INSIDE_NMI_MASK);
-
-		/* This is a good place to trace that we are exiting SMM.  */
-		trace_kvm_enter_smm(vcpu->vcpu_id, vcpu->arch.smbase, false);
 
 		/* Process a latched INIT or SMI, if any.  */
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
@@ -9004,7 +9003,6 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 	char buf[512];
 	u32 cr0;
 
-	trace_kvm_enter_smm(vcpu->vcpu_id, vcpu->arch.smbase, true);
 	memset(buf, 0, 512);
 #ifdef CONFIG_X86_64
 	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
