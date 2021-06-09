@@ -3949,8 +3949,7 @@ static bool fast_pgd_switch(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 }
 
 static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
-			      union kvm_mmu_page_role new_role,
-			      bool skip_tlb_flush, bool skip_mmu_sync)
+			      union kvm_mmu_page_role new_role)
 {
 	if (!fast_pgd_switch(vcpu, new_pgd, new_role)) {
 		kvm_mmu_free_roots(vcpu, vcpu->arch.mmu, KVM_MMU_ROOT_CURRENT);
@@ -3965,10 +3964,10 @@ static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 	 */
 	kvm_make_request(KVM_REQ_LOAD_MMU_PGD, vcpu);
 
-	if (!skip_mmu_sync || force_flush_and_sync_on_reuse)
+	if (force_flush_and_sync_on_reuse) {
 		kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
-	if (!skip_tlb_flush || force_flush_and_sync_on_reuse)
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+	}
 
 	/*
 	 * The last MMIO access's GVA and GPA are cached in the VCPU. When
@@ -3987,11 +3986,9 @@ static void __kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd,
 				to_shadow_page(vcpu->arch.mmu->root_hpa));
 }
 
-void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd, bool skip_tlb_flush,
-		     bool skip_mmu_sync)
+void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 {
-	__kvm_mmu_new_pgd(vcpu, new_pgd, kvm_mmu_calc_root_page_role(vcpu),
-			  skip_tlb_flush, skip_mmu_sync);
+	__kvm_mmu_new_pgd(vcpu, new_pgd, kvm_mmu_calc_root_page_role(vcpu));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_new_pgd);
 
@@ -4684,7 +4681,7 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer,
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
 	union kvm_mmu_role new_role = kvm_calc_shadow_npt_root_page_role(vcpu);
 
-	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base, true, true);
+	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
 
 	if (new_role.as_u64 != context->mmu_role.as_u64) {
 		shadow_mmu_init_context(vcpu, context, cr0, cr4, efer, new_role);
@@ -4736,7 +4733,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
-	__kvm_mmu_new_pgd(vcpu, new_eptp, new_role.base, true, true);
+	__kvm_mmu_new_pgd(vcpu, new_eptp, new_role.base);
 
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;

@@ -1129,12 +1129,8 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 		return -EINVAL;
 	}
 
-	/*
-	 * Unconditionally skip the TLB flush on fast CR3 switch, all TLB
-	 * flushes are handled by nested_vmx_transition_tlb_flush().
-	 */
 	if (!nested_ept) {
-		kvm_mmu_new_pgd(vcpu, cr3, true, true);
+		kvm_mmu_new_pgd(vcpu, cr3);
 
 		/*
 		 * A TLB flush on VM-Enter/VM-Exit flushes all linear mappings
