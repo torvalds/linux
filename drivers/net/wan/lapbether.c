@@ -116,7 +116,8 @@ static int lapbeth_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	if (dev_net(dev) != &init_net)
 		goto drop;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	if (!pskb_may_pull(skb, 2))
@@ -137,7 +138,8 @@ static int lapbeth_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	skb_pull(skb, 2);	/* Remove the length bytes */
 	skb_trim(skb, len);	/* Set the length of the data */
 
-	if ((err = lapb_data_received(lapbeth->axdev, skb)) != LAPB_OK) {
+	err = lapb_data_received(lapbeth->axdev, skb);
+	if (err != LAPB_OK) {
 		printk(KERN_DEBUG "lapbether: lapb_data_received err - %d\n", err);
 		goto drop_unlock;
 	}
@@ -219,7 +221,8 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 
 	skb_pull(skb, 1);
 
-	if ((err = lapb_data_request(dev, skb)) != LAPB_OK) {
+	err = lapb_data_request(dev, skb);
+	if (err != LAPB_OK) {
 		pr_err("lapb_data_request error - %d\n", err);
 		goto drop;
 	}
@@ -327,7 +330,8 @@ static int lapbeth_open(struct net_device *dev)
 
 	napi_enable(&lapbeth->napi);
 
-	if ((err = lapb_register(dev, &lapbeth_callbacks)) != LAPB_OK) {
+	err = lapb_register(dev, &lapbeth_callbacks);
+	if (err != LAPB_OK) {
 		pr_err("lapb_register error: %d\n", err);
 		return -ENODEV;
 	}
@@ -348,7 +352,8 @@ static int lapbeth_close(struct net_device *dev)
 	lapbeth->up = false;
 	spin_unlock_bh(&lapbeth->up_lock);
 
-	if ((err = lapb_unregister(dev)) != LAPB_OK)
+	err = lapb_unregister(dev);
+	if (err != LAPB_OK)
 		pr_err("lapb_unregister error: %d\n", err);
 
 	napi_disable(&lapbeth->napi);
