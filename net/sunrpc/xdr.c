@@ -1230,10 +1230,9 @@ static unsigned int xdr_set_page_base(struct xdr_stream *xdr,
 	void *kaddr;
 
 	maxlen = xdr->buf->page_len;
-	if (base >= maxlen) {
-		base = maxlen;
-		maxlen = 0;
-	} else
+	if (base >= maxlen)
+		return 0;
+	else
 		maxlen -= base;
 	if (len > maxlen)
 		len = maxlen;
