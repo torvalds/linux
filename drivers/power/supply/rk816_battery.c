@@ -172,7 +172,7 @@ struct rk816_battery {
 	struct wake_lock		wake_lock;
 	struct notifier_block           fb_nb;
 	struct timer_list		caltimer;
-	time_t				rtc_base;
+	time64_t			rtc_base;
 	struct iio_channel		*iio_chan;
 	struct notifier_block		cable_cg_nb;
 	struct notifier_block		cable_host_nb;
@@ -303,9 +303,9 @@ static struct led_ops *rk816_led_ops;
 
 static u64 get_boot_sec(void)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
-	get_monotonic_boottime(&ts);
+	ktime_get_boottime_ts64(&ts);
 
 	return ts.tv_sec;
 }
@@ -1873,15 +1873,13 @@ static int rk816_bat_fb_notifier(struct notifier_block *nb,
 	struct rk816_battery *di;
 	struct fb_event *evdata = data;
 
+	if (event != FB_EVENT_BLANK)
+		return NOTIFY_DONE;
+
 	di = container_of(nb, struct rk816_battery, fb_nb);
+	di->fb_blank = *(int *)evdata->data;
 
-	if (event == FB_EVENT_BLANK || event == FB_EARLY_EVENT_BLANK ||
-	    event == FB_R_EARLY_EVENT_BLANK)
-		di->fb_blank = *(int *)evdata->data;
-	else
-		di->fb_blank = 1;
-
-	return 0;
+	return NOTIFY_OK;
 }
 
 static int rk816_bat_register_fb_notify(struct rk816_battery *di)
@@ -4352,13 +4350,11 @@ static int rk816_bat_init_charger(struct rk816_battery *di)
 	return 0;
 }
 
-static time_t rk816_get_rtc_sec(void)
+static time64_t rk816_get_rtc_sec(void)
 {
 	int err;
 	struct rtc_time tm;
-	struct timespec tv = { .tv_nsec = NSEC_PER_SEC >> 1, };
 	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-	time_t sec;
 
 	err = rtc_read_time(rtc, &tm);
 	if (err) {
@@ -4372,10 +4368,7 @@ static time_t rk816_get_rtc_sec(void)
 		return 0;
 	}
 
-	rtc_tm_to_time(&tm, &tv.tv_sec);
-	sec = tv.tv_sec;
-
-	return sec;
+	return rtc_tm_to_time64(&tm);
 }
 
 static int rk816_bat_rtc_sleep_sec(struct rk816_battery *di)

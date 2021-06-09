@@ -560,7 +560,7 @@ struct rk817_battery_device {
 	int				zero_batocv_to_cap;
 	int				zero_xsoc;
 	unsigned long			finish_base;
-	time_t				rtc_base;
+	time64_t			rtc_base;
 	int				sm_remain_cap;
 	int				sm_linek;
 	int				sm_chrg_dsoc;
@@ -631,9 +631,9 @@ static void rk817_bat_resume_work(struct work_struct *work);
 
 static u64 get_boot_sec(void)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
-	get_monotonic_boottime(&ts);
+	ktime_get_boottime_ts64(&ts);
 
 	return ts.tv_sec;
 }
@@ -3079,13 +3079,11 @@ static void rk817_battery_shutdown(struct platform_device *dev)
 {
 }
 
-static time_t rk817_get_rtc_sec(void)
+static time64_t rk817_get_rtc_sec(void)
 {
 	int err;
 	struct rtc_time tm;
-	struct timespec tv = { .tv_nsec = NSEC_PER_SEC >> 1, };
 	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-	time_t sec;
 
 	err = rtc_read_time(rtc, &tm);
 	if (err) {
@@ -3099,10 +3097,7 @@ static time_t rk817_get_rtc_sec(void)
 		return 0;
 	}
 
-	rtc_tm_to_time(&tm, &tv.tv_sec);
-	sec = tv.tv_sec;
-
-	return sec;
+	return rtc_tm_to_time64(&tm);
 }
 
 #ifdef CONFIG_PM_SLEEP

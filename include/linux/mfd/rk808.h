@@ -367,6 +367,8 @@ enum rk818_reg {
 	RK818_ID_OTG_SWITCH,
 };
 
+#define RK818_VB_MON_REG		0x21
+#define RK818_THERMAL_REG		0x22
 #define RK818_DCDC_EN_REG		0x23
 #define RK818_LDO_EN_REG		0x24
 #define RK818_SLEEP_SET_OFF_REG1	0x25
@@ -419,6 +421,7 @@ enum rk818_reg {
 #define RK818_BOOST_LDO9_SLP_VSEL_REG	0x55
 #define RK818_BOOST_CTRL_REG		0x56
 #define RK818_DCDC_ILMAX		0x90
+#define RK818_CHRG_COMP_REG		0x9a
 #define RK818_SUP_STS_REG		0xa0
 #define RK818_USB_CTRL_REG		0xa1
 #define RK818_CHRG_CTRL_REG1		0xa3
@@ -495,6 +498,7 @@ enum rk818_reg {
 #define RK818_CALC_REST_REGH		0xf0
 #define RK818_CALC_REST_REGL		0xf1
 #define RK818_SAVE_DATA19		0xf2
+#define RK818_NUM_REGULATOR		17
 
 #define RK818_H5V_EN			BIT(0)
 #define RK818_REF_RDY_CTRL		BIT(1)
