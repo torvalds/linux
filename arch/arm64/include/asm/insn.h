@@ -12,6 +12,9 @@
 
 #include <asm/alternative.h>
 
+/* A64 instructions are always 32 bits. */
+#define	AARCH64_INSN_SIZE		4
+
 #ifndef __ASSEMBLY__
 /*
  * ARM Architecture Reference Manual for ARMv8 Profile-A, Issue A.a

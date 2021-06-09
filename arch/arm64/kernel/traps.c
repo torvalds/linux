@@ -36,6 +36,7 @@
 #include <asm/esr.h>
 #include <asm/exception.h>
 #include <asm/extable.h>
+#include <asm/insn.h>
 #include <asm/kprobes.h>
 #include <asm/patching.h>
 #include <asm/traps.h>

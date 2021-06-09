@@ -8,6 +8,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
+#include <asm/insn.h>
 #include <asm/kprobes.h>
 #include <asm/patching.h>
 #include <asm/sections.h>
