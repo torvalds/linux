@@ -1436,8 +1436,6 @@ static inline void mtsr(u32 val, u32 idx)
 }
 #endif
 
-#define proc_trap()	asm volatile("trap")
-
 extern unsigned long current_stack_frame(void);
 
 register unsigned long current_stack_pointer asm("r1");
