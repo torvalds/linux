@@ -1108,11 +1108,6 @@ static inline void spi_message_free(struct spi_message *m)
 	kfree(m);
 }
 
-extern int spi_set_cs_timing(struct spi_device *spi,
-			     struct spi_delay *setup,
-			     struct spi_delay *hold,
-			     struct spi_delay *inactive);
-
 extern int spi_setup(struct spi_device *spi);
 extern int spi_async(struct spi_device *spi, struct spi_message *message);
 extern int spi_async_locked(struct spi_device *spi,
