@@ -1001,9 +1001,8 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	err = -ENOMEM;
 	if (!port) {
-		printk(KERN_ERR PFX "Cannot allocate vdc_port.\n");
+		err = -ENOMEM;
 		goto err_out_release_mdesc;
 	}
 
