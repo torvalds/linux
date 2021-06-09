@@ -1074,7 +1074,7 @@ static void kvm_invalidate_pcid(struct kvm_vcpu *vcpu, unsigned long pcid)
 	 * happen anyway before switching to any other CR3.
 	 */
 	if (kvm_get_active_pcid(vcpu) == pcid) {
-		kvm_mmu_sync_roots(vcpu);
+		kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
 	}
 
