@@ -2150,7 +2150,7 @@ int acpi_walk_dep_device_list(acpi_handle handle,
 			      void *data)
 {
 	struct acpi_dep_data *dep, *tmp;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&acpi_dep_list_lock);
 	list_for_each_entry_safe(dep, tmp, &acpi_dep_list, node) {
