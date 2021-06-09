@@ -9137,6 +9137,15 @@ void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 	vcpu->arch.apicv_active = kvm_apicv_activated(vcpu->kvm);
 	kvm_apic_update_apicv(vcpu);
 	static_call(kvm_x86_refresh_apicv_exec_ctrl)(vcpu);
+
+	/*
+	 * When APICv gets disabled, we may still have injected interrupts
+	 * pending. At the same time, KVM_REQ_EVENT may not be set as APICv was
+	 * still active when the interrupt got accepted. Make sure
+	 * inject_pending_event() is called to check for that.
+	 */
+	if (!vcpu->arch.apicv_active)
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
 
