@@ -222,13 +222,8 @@ void mt7615_dma_start(struct mt7615_dev *dev)
 int mt7615_dma_init(struct mt7615_dev *dev)
 {
 	int rx_ring_size = MT7615_RX_RING_SIZE;
-	int rx_buf_size = MT_RX_BUF_SIZE;
 	u32 mask;
 	int ret;
-
-	/* Increase buffer size to receive large VHT MPDUs */
-	if (dev->mphy.cap.has_5ghz)
-		rx_buf_size *= 2;
 
 	mt76_dma_attach(&dev->mt76);
 
@@ -270,7 +265,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 
 	/* init rx queues */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU], 1,
-			       MT7615_RX_MCU_RING_SIZE, rx_buf_size,
+			       MT7615_RX_MCU_RING_SIZE, MT_RX_BUF_SIZE,
 			       MT_RX_RING_BASE);
 	if (ret)
 		return ret;
@@ -279,7 +274,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	    rx_ring_size /= 2;
 
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN], 0,
-			       rx_ring_size, rx_buf_size, MT_RX_RING_BASE);
+			       rx_ring_size, MT_RX_BUF_SIZE, MT_RX_RING_BASE);
 	if (ret)
 		return ret;
 

@@ -79,8 +79,6 @@ void mt7915_dma_prefetch(struct mt7915_dev *dev)
 
 int mt7915_dma_init(struct mt7915_dev *dev)
 {
-	/* Increase buffer size to receive large VHT/HE MPDUs */
-	int rx_buf_size = MT_RX_BUF_SIZE * 2;
 	u32 hif1_ofs = 0;
 	int ret;
 
@@ -144,28 +142,28 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 	/* event from WM */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
 			       MT7915_RXQ_MCU_WM, MT7915_RX_MCU_RING_SIZE,
-			       rx_buf_size, MT_RX_EVENT_RING_BASE);
+			       MT_RX_BUF_SIZE, MT_RX_EVENT_RING_BASE);
 	if (ret)
 		return ret;
 
 	/* event from WA */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
 			       MT7915_RXQ_MCU_WA, MT7915_RX_MCU_RING_SIZE,
-			       rx_buf_size, MT_RX_EVENT_RING_BASE);
+			       MT_RX_BUF_SIZE, MT_RX_EVENT_RING_BASE);
 	if (ret)
 		return ret;
 
 	/* rx data queue */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
 			       MT7915_RXQ_BAND0, MT7915_RX_RING_SIZE,
-			       rx_buf_size, MT_RX_DATA_RING_BASE);
+			       MT_RX_BUF_SIZE, MT_RX_DATA_RING_BASE);
 	if (ret)
 		return ret;
 
 	if (dev->dbdc_support) {
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT],
 				       MT7915_RXQ_BAND1, MT7915_RX_RING_SIZE,
-				       rx_buf_size,
+				       MT_RX_BUF_SIZE,
 				       MT_RX_DATA_RING_BASE + hif1_ofs);
 		if (ret)
 			return ret;
@@ -174,7 +172,7 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT_WA],
 				       MT7915_RXQ_MCU_WA_EXT,
 				       MT7915_RX_MCU_RING_SIZE,
-				       rx_buf_size,
+				       MT_RX_BUF_SIZE,
 				       MT_RX_EVENT_RING_BASE + hif1_ofs);
 		if (ret)
 			return ret;
