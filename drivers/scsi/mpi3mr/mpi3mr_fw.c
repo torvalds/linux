@@ -3583,8 +3583,7 @@ static void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 
 	for (i = 0; i < mrioc->intr_info_count; i++) {
 		intr_info = mrioc->intr_info + i;
-		if (intr_info)
-			intr_info->op_reply_q = NULL;
+		intr_info->op_reply_q = NULL;
 	}
 
 	kfree(mrioc->req_qinfo);
