@@ -665,8 +665,9 @@ static inline int mpi3mr_request_irq(struct mpi3mr_ioc *mrioc, u16 index)
 static int mpi3mr_setup_isr(struct mpi3mr_ioc *mrioc, u8 setup_one)
 {
 	unsigned int irq_flags = PCI_IRQ_MSIX;
-	u16 max_vectors = 0, i;
-	int retval = 0;
+	int max_vectors;
+	int retval;
+	int i;
 	struct irq_affinity desc = { .pre_vectors =  1};
 
 	mpi3mr_cleanup_isr(mrioc);
@@ -687,29 +688,29 @@ static int mpi3mr_setup_isr(struct mpi3mr_ioc *mrioc, u8 setup_one)
 	irq_flags |= PCI_IRQ_AFFINITY | PCI_IRQ_ALL_TYPES;
 
 	mrioc->op_reply_q_offset = (max_vectors > 1) ? 1 : 0;
-	i = pci_alloc_irq_vectors_affinity(mrioc->pdev,
-	    1, max_vectors, irq_flags, &desc);
-	if (i <= 0) {
+	retval = pci_alloc_irq_vectors_affinity(mrioc->pdev,
+				1, max_vectors, irq_flags, &desc);
+	if (retval < 0) {
 		ioc_err(mrioc, "Cannot alloc irq vectors\n");
 		goto out_failed;
 	}
-	if (i != max_vectors) {
+	if (retval != max_vectors) {
 		ioc_info(mrioc,
 		    "allocated vectors (%d) are less than configured (%d)\n",
-		    i, max_vectors);
+		    retval, max_vectors);
 		/*
 		 * If only one MSI-x is allocated, then MSI-x 0 will be shared
 		 * between Admin queue and operational queue
 		 */
-		if (i == 1)
+		if (retval == 1)
 			mrioc->op_reply_q_offset = 0;
 
-		max_vectors = i;
+		max_vectors = retval;
 	}
 	mrioc->intr_info = kzalloc(sizeof(struct mpi3mr_intr_info) * max_vectors,
 	    GFP_KERNEL);
 	if (!mrioc->intr_info) {
-		retval = -1;
+		retval = -ENOMEM;
 		pci_free_irq_vectors(mrioc->pdev);
 		goto out_failed;
 	}
@@ -722,7 +723,8 @@ static int mpi3mr_setup_isr(struct mpi3mr_ioc *mrioc, u8 setup_one)
 	}
 	mrioc->intr_info_count = max_vectors;
 	mpi3mr_ioc_enable_intr(mrioc);
-	return retval;
+	return 0;
+
 out_failed:
 	mpi3mr_cleanup_isr(mrioc);
 
