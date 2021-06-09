@@ -149,6 +149,8 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	 */
 	if (bo->base.dev)
 		drm_gem_object_release(&bo->base);
+	else
+		dma_resv_fini(&bo->base._resv);
 
 	kfree(nvbo);
 }
@@ -329,6 +331,10 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 				tile_flags);
 	if (IS_ERR(nvbo))
 		return PTR_ERR(nvbo);
+
+	nvbo->bo.base.size = size;
+	dma_resv_init(&nvbo->bo.base._resv);
+	drm_vma_node_reset(&nvbo->bo.base.vma_node);
 
 	ret = nouveau_bo_init(nvbo, size, align, domain, sg, robj);
 	if (ret)
