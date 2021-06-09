@@ -221,7 +221,7 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
 	return &avic_physical_id_table[index];
 }
 
-/**
+/*
  * Note:
  * AVIC hardware walks the nested page table to check permissions,
  * but does not use the SPA address specified in the leaf page
@@ -764,7 +764,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * Note:
  * The HW cannot support posting multicast/broadcast
  * interrupts to a vCPU. So, we still use legacy interrupt
@@ -1005,7 +1005,7 @@ void avic_vcpu_put(struct kvm_vcpu *vcpu)
 	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
 }
 
-/**
+/*
  * This function is called during VCPU halt/unhalt.
  */
 static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
