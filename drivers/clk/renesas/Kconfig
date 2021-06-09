@@ -182,6 +182,10 @@ config CLK_RCAR_USB2_CLOCK_SEL
 	help
 	  This is a driver for R-Car USB2 clock selector
 
+config CLK_RZG2L
+	bool "Renesas RZ/G2L family clock support" if COMPILE_TEST
+	select RESET_CONTROLLER
+
 # Generic
 config CLK_RENESAS_CPG_MSSR
 	bool "CPG/MSSR clock support" if COMPILE_TEST
