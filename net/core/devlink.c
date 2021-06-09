@@ -1732,7 +1732,7 @@ static bool devlink_rate_set_ops_supported(const struct devlink_ops *ops,
 			return false;
 		}
 	} else {
-		WARN_ON("Unknown type of rate object");
+		WARN(1, "Unknown type of rate object");
 		return false;
 	}
 
