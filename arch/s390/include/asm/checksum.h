@@ -29,13 +29,15 @@
  */
 static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
-	register unsigned long reg2 asm("2") = (unsigned long) buff;
-	register unsigned long reg3 asm("3") = (unsigned long) len;
+	union register_pair rp = {
+		.even = (unsigned long) buff,
+		.odd = (unsigned long) len,
+	};
 
 	asm volatile(
-		"0:	cksm	%0,%1\n"	/* do checksum on longs */
+		"0:	cksm	%[sum],%[rp]\n"
 		"	jo	0b\n"
-		: "+d" (sum), "+d" (reg2), "+d" (reg3) : : "cc", "memory");
+		: [sum] "+&d" (sum), [rp] "+&d" (rp.pair) : : "cc", "memory");
 	return sum;
 }
 
