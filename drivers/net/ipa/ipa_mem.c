@@ -124,13 +124,19 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 }
 
 /* Verify each defined memory region is valid. */
-static bool ipa_mem_valid(struct ipa *ipa)
+static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 {
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id;
 
-	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
-		const struct ipa_mem *mem = &ipa->mem[mem_id];
+	if (mem_data->local_count > IPA_MEM_COUNT) {
+		dev_err(dev, "too many memory regions (%u > %u)\n",
+			mem_data->local_count, IPA_MEM_COUNT);
+		return false;
+	}
+
+	for (mem_id = 0; mem_id < mem_data->local_count; mem_id++) {
+		const struct ipa_mem *mem = &mem_data->local[mem_id];
 
 		/* Defined regions have non-zero size and/or canary count */
 		if (mem->size || mem->canary_count) {
@@ -491,11 +497,12 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	struct resource *res;
 	int ret;
 
-	if (mem_data->local_count > IPA_MEM_COUNT) {
-		dev_err(dev, "to many memory regions (%u > %u)\n",
-			mem_data->local_count, IPA_MEM_COUNT);
+	/* Make sure the set of defined memory regions is valid */
+	if (!ipa_mem_valid(ipa, mem_data))
 		return -EINVAL;
-	}
+
+	ipa->mem_count = mem_data->local_count;
+	ipa->mem = mem_data->local;
 
 	ret = dma_set_mask_and_coherent(&ipa->pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
@@ -519,14 +526,6 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 
 	ipa->mem_addr = res->start;
 	ipa->mem_size = resource_size(res);
-
-	/* The ipa->mem[] array is indexed by enum ipa_mem_id values */
-	ipa->mem_count = mem_data->local_count;
-	ipa->mem = mem_data->local;
-
-	/* Make sure all defined memory regions are valid */
-	if (!ipa_mem_valid(ipa))
-		goto err_unmap;
 
 	ret = ipa_imem_init(ipa, mem_data->imem_addr, mem_data->imem_size);
 	if (ret)
