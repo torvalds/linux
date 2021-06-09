@@ -524,6 +524,16 @@ static int aldebaran_freqs_in_same_level(int32_t frequency1,
 	return (abs(frequency1 - frequency2) <= EPSILON);
 }
 
+static bool aldebaran_is_primary(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->smuio.funcs && adev->smuio.funcs->get_die_id)
+		return adev->smuio.funcs->get_die_id(adev) == 0;
+
+	return true;
+}
+
 static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 					  MetricsMember_t member,
 					  uint32_t *value)
@@ -577,7 +587,10 @@ static int aldebaran_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->AverageUclkActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->AverageSocketPower << 8;
+		/* Valid power data is available only from primary die */
+		*value = aldebaran_is_primary(smu) ?
+				 metrics->AverageSocketPower << 8 :
+				 0;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->TemperatureEdge *
@@ -1158,15 +1171,22 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		return -EINVAL;
 
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
+	/* Valid power data is available only from primary die.
+	 * For secondary die show the value as 0.
+	 */
+	if (aldebaran_is_primary(smu)) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit,
+					   &power_limit);
 
-	if (ret) {
-		/* the last hope to figure out the ppt limit */
-		if (!pptable) {
-			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
-			return -EINVAL;
+		if (ret) {
+			/* the last hope to figure out the ppt limit */
+			if (!pptable) {
+				dev_err(smu->adev->dev,
+					"Cannot get PPT limit due to pptable missing!");
+				return -EINVAL;
+			}
+			power_limit = pptable->PptLimit;
 		}
-		power_limit = pptable->PptLimit;
 	}
 
 	if (current_power_limit)
@@ -1180,6 +1200,15 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 	}
 
 	return 0;
+}
+
+static int aldebaran_set_power_limit(struct smu_context *smu, uint32_t n)
+{
+	/* Power limit can be set only through primary die */
+	if (aldebaran_is_primary(smu))
+		return smu_v13_0_set_power_limit(smu, n);
+
+	return -EINVAL;
 }
 
 static int aldebaran_system_features_control(struct  smu_context *smu, bool enable)
@@ -1753,10 +1782,16 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
 	gpu_metrics->average_mm_activity = 0;
 
-	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
-	gpu_metrics->energy_accumulator =
+	/* Valid power data is available only from primary die */
+	if (aldebaran_is_primary(smu)) {
+		gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+		gpu_metrics->energy_accumulator =
 			(uint64_t)metrics.EnergyAcc64bitHigh << 32 |
 			metrics.EnergyAcc64bitLow;
+	} else {
+		gpu_metrics->average_socket_power = 0;
+		gpu_metrics->energy_accumulator = 0;
+	}
 
 	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
@@ -1924,7 +1959,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
-	.set_power_limit = smu_v13_0_set_power_limit,
+	.set_power_limit = aldebaran_set_power_limit,
 	.init_max_sustainable_clocks = smu_v13_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v13_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v13_0_disable_thermal_alert,
