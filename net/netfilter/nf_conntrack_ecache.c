@@ -27,8 +27,6 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
-extern unsigned int nf_conntrack_net_id;
-
 static DEFINE_MUTEX(nf_ct_ecache_mutex);
 
 #define ECACHE_RETRY_WAIT (HZ/10)
@@ -348,7 +346,7 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_notifier);
 
 void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	if (state == NFCT_ECACHE_DESTROY_FAIL &&
 	    !delayed_work_pending(&cnet->ecache_dwork)) {
@@ -371,7 +369,7 @@ static const struct nf_ct_ext_type event_extend = {
 
 void nf_conntrack_ecache_pernet_init(struct net *net)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	net->ct.sysctl_events = nf_ct_events;
 	cnet->ct_net = &net->ct;
@@ -380,7 +378,7 @@ void nf_conntrack_ecache_pernet_init(struct net *net)
 
 void nf_conntrack_ecache_pernet_fini(struct net *net)
 {
-	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	cancel_delayed_work_sync(&cnet->ecache_dwork);
 }

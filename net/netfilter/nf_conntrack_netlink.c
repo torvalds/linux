@@ -1528,7 +1528,7 @@ static int ctnetlink_del_conntrack(struct sk_buff *skb,
 				   const struct nfnl_info *info,
 				   const struct nlattr * const cda[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	u8 family = info->nfmsg->nfgen_family;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_zone zone;
@@ -1541,12 +1541,12 @@ static int ctnetlink_del_conntrack(struct sk_buff *skb,
 
 	if (cda[CTA_TUPLE_ORIG])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_ORIG,
-					    nfmsg->nfgen_family, &zone);
+					    family, &zone);
 	else if (cda[CTA_TUPLE_REPLY])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_REPLY,
-					    nfmsg->nfgen_family, &zone);
+					    family, &zone);
 	else {
-		u_int8_t u3 = nfmsg->version ? nfmsg->nfgen_family : AF_UNSPEC;
+		u_int8_t u3 = info->nfmsg->version ? family : AF_UNSPEC;
 
 		return ctnetlink_flush_conntrack(info->net, cda,
 						 NETLINK_CB(skb).portid,
@@ -1586,8 +1586,7 @@ static int ctnetlink_get_conntrack(struct sk_buff *skb,
 				   const struct nfnl_info *info,
 				   const struct nlattr * const cda[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int8_t u3 = nfmsg->nfgen_family;
+	u_int8_t u3 = info->nfmsg->nfgen_family;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_zone zone;
@@ -2363,10 +2362,9 @@ static int ctnetlink_new_conntrack(struct sk_buff *skb,
 				   const struct nfnl_info *info,
 				   const struct nlattr * const cda[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	struct nf_conntrack_tuple otuple, rtuple;
 	struct nf_conntrack_tuple_hash *h = NULL;
-	u_int8_t u3 = nfmsg->nfgen_family;
+	u_int8_t u3 = info->nfmsg->nfgen_family;
 	struct nf_conntrack_zone zone;
 	struct nf_conn *ct;
 	int err;
@@ -3259,8 +3257,7 @@ static int ctnetlink_get_expect(struct sk_buff *skb,
 				const struct nfnl_info *info,
 				const struct nlattr * const cda[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int8_t u3 = nfmsg->nfgen_family;
+	u_int8_t u3 = info->nfmsg->nfgen_family;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_zone zone;
@@ -3349,8 +3346,7 @@ static int ctnetlink_del_expect(struct sk_buff *skb,
 				const struct nfnl_info *info,
 				const struct nlattr * const cda[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int8_t u3 = nfmsg->nfgen_family;
+	u_int8_t u3 = info->nfmsg->nfgen_family;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_zone zone;
@@ -3601,8 +3597,7 @@ static int ctnetlink_new_expect(struct sk_buff *skb,
 				const struct nfnl_info *info,
 				const struct nlattr * const cda[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int8_t u3 = nfmsg->nfgen_family;
+	u_int8_t u3 = info->nfmsg->nfgen_family;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_zone zone;
