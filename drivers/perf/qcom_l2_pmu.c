@@ -679,11 +679,8 @@ static ssize_t l2cache_pmu_event_show(struct device *dev,
 	return sysfs_emit(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
-#define L2CACHE_EVENT_ATTR(_name, _id)					     \
-	(&((struct perf_pmu_events_attr[]) {				     \
-		{ .attr = __ATTR(_name, 0444, l2cache_pmu_event_show, NULL), \
-		  .id = _id, }						     \
-	})[0].attr.attr)
+#define L2CACHE_EVENT_ATTR(_name, _id)			    \
+	PMU_EVENT_ATTR_ID(_name, l2cache_pmu_event_show, _id)
 
 static struct attribute *l2_cache_pmu_events[] = {
 	L2CACHE_EVENT_ATTR(cycles, L2_EVENT_CYCLES),
