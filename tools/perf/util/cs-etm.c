@@ -2407,6 +2407,11 @@ static int cs_etm__process_event(struct perf_session *session,
 			return err;
 	}
 
+	/*
+	 * Don't wait for cs_etm__flush_events() in per-thread/timeless mode to start the decode. We
+	 * need the tid of the PERF_RECORD_EXIT event to assign to the synthesised samples because
+	 * ETM_OPT_CTXTID is not enabled.
+	 */
 	if (etm->timeless_decoding &&
 	    event->header.type == PERF_RECORD_EXIT)
 		return cs_etm__process_timeless_queues(etm,
@@ -2424,7 +2429,6 @@ static int cs_etm__process_event(struct perf_session *session,
 		 * onwards.
 		 */
 		etm->latest_kernel_timestamp = sample_kernel_timestamp;
-		return cs_etm__process_queues(etm);
 	}
 
 	return 0;
