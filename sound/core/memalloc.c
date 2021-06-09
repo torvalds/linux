@@ -211,9 +211,19 @@ static void snd_dma_continuous_free(struct snd_dma_buffer *dmab)
 	free_pages_exact(dmab->area, dmab->bytes);
 }
 
+static int snd_dma_continuous_mmap(struct snd_dma_buffer *dmab,
+				   struct vm_area_struct *area)
+{
+	return remap_pfn_range(area, area->vm_start,
+			       dmab->addr >> PAGE_SHIFT,
+			       area->vm_end - area->vm_start,
+			       area->vm_page_prot);
+}
+
 static const struct snd_malloc_ops snd_dma_continuous_ops = {
 	.alloc = snd_dma_continuous_alloc,
 	.free = snd_dma_continuous_free,
+	.mmap = snd_dma_continuous_mmap,
 };
 
 /*
@@ -230,6 +240,12 @@ static int snd_dma_vmalloc_alloc(struct snd_dma_buffer *dmab, size_t size)
 static void snd_dma_vmalloc_free(struct snd_dma_buffer *dmab)
 {
 	vfree(dmab->area);
+}
+
+static int snd_dma_vmalloc_mmap(struct snd_dma_buffer *dmab,
+				struct vm_area_struct *area)
+{
+	return remap_vmalloc_range(area, dmab->area, 0);
 }
 
 static dma_addr_t snd_dma_vmalloc_get_addr(struct snd_dma_buffer *dmab,
@@ -259,6 +275,7 @@ snd_dma_vmalloc_get_chunk_size(struct snd_dma_buffer *dmab,
 static const struct snd_malloc_ops snd_dma_vmalloc_ops = {
 	.alloc = snd_dma_vmalloc_alloc,
 	.free = snd_dma_vmalloc_free,
+	.mmap = snd_dma_vmalloc_mmap,
 	.get_addr = snd_dma_vmalloc_get_addr,
 	.get_page = snd_dma_vmalloc_get_page,
 	.get_chunk_size = snd_dma_vmalloc_get_chunk_size,
