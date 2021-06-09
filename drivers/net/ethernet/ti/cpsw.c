@@ -1532,8 +1532,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	}
 	cpsw->bus_freq_mhz = clk_get_rate(clk) / 1000000;
 
-	ss_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ss_regs = devm_ioremap_resource(dev, ss_res);
+	ss_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &ss_res);
 	if (IS_ERR(ss_regs))
 		return PTR_ERR(ss_regs);
 	cpsw->regs = ss_regs;
