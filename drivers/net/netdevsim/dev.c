@@ -1141,7 +1141,6 @@ static int nsim_rate_node_new(struct devlink_rate *node, void **priv,
 {
 	struct nsim_dev *nsim_dev = devlink_priv(node->devlink);
 	struct nsim_rate_node *nsim_node;
-	int err;
 
 	if (!nsim_esw_mode_is_switchdev(nsim_dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Node creation allowed only in switchdev mode.");
@@ -1153,29 +1152,16 @@ static int nsim_rate_node_new(struct devlink_rate *node, void **priv,
 		return -ENOMEM;
 
 	nsim_node->ddir = debugfs_create_dir(node->name, nsim_dev->nodes_ddir);
-	if (!nsim_node->ddir) {
-		err = -ENOMEM;
-		goto err_node;
-	}
+
 	debugfs_create_u16("tx_share", 0400, nsim_node->ddir, &nsim_node->tx_share);
 	debugfs_create_u16("tx_max", 0400, nsim_node->ddir, &nsim_node->tx_max);
 	nsim_node->rate_parent = debugfs_create_file("rate_parent", 0400,
 						     nsim_node->ddir,
 						     &nsim_node->parent_name,
 						     &nsim_dev_rate_parent_fops);
-	if (IS_ERR(nsim_node->rate_parent)) {
-		err = PTR_ERR(nsim_node->rate_parent);
-		goto err_ddir;
-	}
 
 	*priv = nsim_node;
 	return 0;
-
-err_ddir:
-	debugfs_remove_recursive(nsim_node->ddir);
-err_node:
-	kfree(nsim_node);
-	return err;
 }
 
 static int nsim_rate_node_del(struct devlink_rate *node, void *priv,
