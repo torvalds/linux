@@ -11,7 +11,6 @@
 #include <linux/types.h>
 
 #include <asm/alternative.h>
-#include <asm/patching.h>
 
 #ifndef __ASSEMBLY__
 /*

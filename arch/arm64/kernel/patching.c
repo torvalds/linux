@@ -9,6 +9,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 #include <asm/kprobes.h>
+#include <asm/patching.h>
 #include <asm/sections.h>
 
 static DEFINE_RAW_SPINLOCK(patch_lock);

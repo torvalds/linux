@@ -37,6 +37,7 @@
 #include <asm/exception.h>
 #include <asm/extable.h>
 #include <asm/kprobes.h>
+#include <asm/patching.h>
 #include <asm/traps.h>
 #include <asm/smp.h>
 #include <asm/stack_pointer.h>
