@@ -107,7 +107,8 @@ static int lapbeth_napi_poll(struct napi_struct *napi, int budget)
 
 /*	Receive a LAPB frame via an ethernet interface.
  */
-static int lapbeth_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *ptype, struct net_device *orig_dev)
+static int lapbeth_rcv(struct sk_buff *skb, struct net_device *dev,
+		       struct packet_type *ptype, struct net_device *orig_dev)
 {
 	int len, err;
 	struct lapbethdev *lapbeth;
