@@ -205,11 +205,11 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto free;
 	}
 
-	priv->phy_addr = asix_read_phy_addr(dev, priv->use_embdphy);
-	if (priv->phy_addr < 0) {
-		ret = priv->phy_addr;
+	ret = asix_read_phy_addr(dev, priv->use_embdphy);
+	if (ret < 0)
 		goto free;
-	}
+
+	priv->phy_addr = ret;
 
 	ax88172a_reset_phy(dev, priv->use_embdphy);
 
