@@ -7222,11 +7222,6 @@ static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
 	return static_call(kvm_x86_pre_leave_smm)(emul_to_vcpu(ctxt), smstate);
 }
 
-static void emulator_post_leave_smm(struct x86_emulate_ctxt *ctxt)
-{
-	kvm_mmu_reset_context(emul_to_vcpu(ctxt));
-}
-
 static void emulator_triple_fault(struct x86_emulate_ctxt *ctxt)
 {
 	kvm_make_request(KVM_REQ_TRIPLE_FAULT, emul_to_vcpu(ctxt));
@@ -7280,7 +7275,6 @@ static const struct x86_emulate_ops emulate_ops = {
 	.get_hflags          = emulator_get_hflags,
 	.exiting_smm         = emulator_exiting_smm,
 	.pre_leave_smm       = emulator_pre_leave_smm,
-	.post_leave_smm      = emulator_post_leave_smm,
 	.triple_fault        = emulator_triple_fault,
 	.set_xcr             = emulator_set_xcr,
 };
