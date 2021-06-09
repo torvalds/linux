@@ -34,16 +34,6 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static const struct parent_map gcc_xo_sleep_map[] = {
-	{ P_XO, 0 },
-	{ P_SLEEP_CLK, 6 }
-};
-
-static const struct clk_parent_data gcc_xo_sleep[] = {
-	{ .fw_name = "xo" },
-	{ .fw_name = "sleep_clk" },
-};
-
 static struct clk_alpha_pll gpll0_early = {
 	.offset = 0x21000,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_DEFAULT],
@@ -112,19 +102,6 @@ static struct clk_regmap gpll1_vote = {
 		.ops = &clk_pll_vote_ops,
 	},
 };
-
-static const struct parent_map gcc_xo_gpll0_gpll1_map[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL1, 2 },
-};
-
-static const struct clk_parent_data gcc_xo_gpll0_gpll1[] = {
-	{ .fw_name = "xo" },
-	{ .hw = &gpll0.clkr.hw },
-	{ .hw = &gpll1_vote.hw },
-};
-
 
 static const struct parent_map gcc_xo_gpll0_gpll1_sleep_map[] = {
 	{ P_XO, 0 },
