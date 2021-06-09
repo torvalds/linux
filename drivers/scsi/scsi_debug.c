@@ -3076,6 +3076,7 @@ static void dif_copy_prot(struct scsi_cmnd *scp, sector_t sector,
 static int prot_verify_read(struct scsi_cmnd *scp, sector_t start_sec,
 			    unsigned int sectors, u32 ei_lba)
 {
+	int ret = 0;
 	unsigned int i;
 	sector_t sector;
 	struct sdeb_store_info *sip = devip2sip((struct sdebug_dev_info *)
@@ -3083,26 +3084,33 @@ static int prot_verify_read(struct scsi_cmnd *scp, sector_t start_sec,
 	struct t10_pi_tuple *sdt;
 
 	for (i = 0; i < sectors; i++, ei_lba++) {
-		int ret;
-
 		sector = start_sec + i;
 		sdt = dif_store(sip, sector);
 
 		if (sdt->app_tag == cpu_to_be16(0xffff))
 			continue;
 
-		ret = dif_verify(sdt, lba2fake_store(sip, sector), sector,
-				 ei_lba);
-		if (ret) {
-			dif_errors++;
-			return ret;
+		/*
+		 * Because scsi_debug acts as both initiator and
+		 * target we proceed to verify the PI even if
+		 * RDPROTECT=3. This is done so the "initiator" knows
+		 * which type of error to return. Otherwise we would
+		 * have to iterate over the PI twice.
+		 */
+		if (scp->cmnd[1] >> 5) { /* RDPROTECT */
+			ret = dif_verify(sdt, lba2fake_store(sip, sector),
+					 sector, ei_lba);
+			if (ret) {
+				dif_errors++;
+				break;
+			}
 		}
 	}
 
 	dif_copy_prot(scp, start_sec, sectors, true);
 	dix_reads++;
 
-	return 0;
+	return ret;
 }
 
 static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
@@ -3196,12 +3204,29 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 
 	/* DIX + T10 DIF */
 	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
-		int prot_ret = prot_verify_read(scp, lba, num, ei_lba);
-
-		if (prot_ret) {
-			read_unlock(macc_lckp);
-			mk_sense_buffer(scp, ABORTED_COMMAND, 0x10, prot_ret);
-			return illegal_condition_result;
+		switch (prot_verify_read(scp, lba, num, ei_lba)) {
+		case 1: /* Guard tag error */
+			if (cmd[1] >> 5 != 3) { /* RDPROTECT != 3 */
+				read_unlock(macc_lckp);
+				mk_sense_buffer(scp, ABORTED_COMMAND, 0x10, 1);
+				return check_condition_result;
+			} else if (scp->prot_flags & SCSI_PROT_GUARD_CHECK) {
+				read_unlock(macc_lckp);
+				mk_sense_buffer(scp, ILLEGAL_REQUEST, 0x10, 1);
+				return illegal_condition_result;
+			}
+			break;
+		case 3: /* Reference tag error */
+			if (cmd[1] >> 5 != 3) { /* RDPROTECT != 3 */
+				read_unlock(macc_lckp);
+				mk_sense_buffer(scp, ABORTED_COMMAND, 0x10, 3);
+				return check_condition_result;
+			} else if (scp->prot_flags & SCSI_PROT_REF_CHECK) {
+				read_unlock(macc_lckp);
+				mk_sense_buffer(scp, ILLEGAL_REQUEST, 0x10, 3);
+				return illegal_condition_result;
+			}
+			break;
 		}
 	}
 
@@ -3277,9 +3302,11 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			sdt = piter.addr + ppage_offset;
 			daddr = diter.addr + dpage_offset;
 
-			ret = dif_verify(sdt, daddr, sector, ei_lba);
-			if (ret)
-				goto out;
+			if (SCpnt->cmnd[1] >> 5 != 3) { /* WRPROTECT */
+				ret = dif_verify(sdt, daddr, sector, ei_lba);
+				if (ret)
+					goto out;
+			}
 
 			sector++;
 			ei_lba++;
@@ -3456,12 +3483,29 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 
 	/* DIX + T10 DIF */
 	if (unlikely(sdebug_dix && scsi_prot_sg_count(scp))) {
-		int prot_ret = prot_verify_write(scp, lba, num, ei_lba);
-
-		if (prot_ret) {
-			write_unlock(macc_lckp);
-			mk_sense_buffer(scp, ILLEGAL_REQUEST, 0x10, prot_ret);
-			return illegal_condition_result;
+		switch (prot_verify_write(scp, lba, num, ei_lba)) {
+		case 1: /* Guard tag error */
+			if (scp->prot_flags & SCSI_PROT_GUARD_CHECK) {
+				write_unlock(macc_lckp);
+				mk_sense_buffer(scp, ILLEGAL_REQUEST, 0x10, 1);
+				return illegal_condition_result;
+			} else if (scp->cmnd[1] >> 5 != 3) { /* WRPROTECT != 3 */
+				write_unlock(macc_lckp);
+				mk_sense_buffer(scp, ABORTED_COMMAND, 0x10, 1);
+				return check_condition_result;
+			}
+			break;
+		case 3: /* Reference tag error */
+			if (scp->prot_flags & SCSI_PROT_REF_CHECK) {
+				write_unlock(macc_lckp);
+				mk_sense_buffer(scp, ILLEGAL_REQUEST, 0x10, 3);
+				return illegal_condition_result;
+			} else if (scp->cmnd[1] >> 5 != 3) { /* WRPROTECT != 3 */
+				write_unlock(macc_lckp);
+				mk_sense_buffer(scp, ABORTED_COMMAND, 0x10, 3);
+				return check_condition_result;
+			}
+			break;
 		}
 	}
 
