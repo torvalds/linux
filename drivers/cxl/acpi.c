@@ -70,6 +70,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	struct device *host = root_port->dev.parent;
 	struct acpi_pci_root *pci_root;
 	struct cxl_walk_context ctx;
+	struct cxl_decoder *cxld;
 	struct cxl_port *port;
 
 	if (!bridge)
@@ -94,7 +95,24 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 
 	if (ctx.count == 0)
 		return -ENODEV;
-	return ctx.error;
+	if (ctx.error)
+		return ctx.error;
+
+	/* TODO: Scan CHBCR for HDM Decoder resources */
+
+	/*
+	 * In the single-port host-bridge case there are no HDM decoders
+	 * in the CHBCR and a 1:1 passthrough decode is implied.
+	 */
+	if (ctx.count == 1) {
+		cxld = devm_cxl_add_passthrough_decoder(host, port);
+		if (IS_ERR(cxld))
+			return PTR_ERR(cxld);
+
+		dev_dbg(host, "add: %s\n", dev_name(&cxld->dev));
+	}
+
+	return 0;
 }
 
 static int add_host_bridge_dport(struct device *match, void *arg)

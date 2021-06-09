@@ -33,6 +33,168 @@ static struct attribute_group cxl_base_attribute_group = {
 	.attrs = cxl_base_attributes,
 };
 
+static ssize_t start_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+
+	return sysfs_emit(buf, "%#llx\n", cxld->range.start);
+}
+static DEVICE_ATTR_RO(start);
+
+static ssize_t size_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+
+	return sysfs_emit(buf, "%#llx\n", range_len(&cxld->range));
+}
+static DEVICE_ATTR_RO(size);
+
+#define CXL_DECODER_FLAG_ATTR(name, flag)                            \
+static ssize_t name##_show(struct device *dev,                       \
+			   struct device_attribute *attr, char *buf) \
+{                                                                    \
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);              \
+                                                                     \
+	return sysfs_emit(buf, "%s\n",                               \
+			  (cxld->flags & (flag)) ? "1" : "0");       \
+}                                                                    \
+static DEVICE_ATTR_RO(name)
+
+CXL_DECODER_FLAG_ATTR(cap_pmem, CXL_DECODER_F_PMEM);
+CXL_DECODER_FLAG_ATTR(cap_ram, CXL_DECODER_F_RAM);
+CXL_DECODER_FLAG_ATTR(cap_type2, CXL_DECODER_F_TYPE2);
+CXL_DECODER_FLAG_ATTR(cap_type3, CXL_DECODER_F_TYPE3);
+CXL_DECODER_FLAG_ATTR(locked, CXL_DECODER_F_LOCK);
+
+static ssize_t target_type_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+
+	switch (cxld->target_type) {
+	case CXL_DECODER_ACCELERATOR:
+		return sysfs_emit(buf, "accelerator\n");
+	case CXL_DECODER_EXPANDER:
+		return sysfs_emit(buf, "expander\n");
+	}
+	return -ENXIO;
+}
+static DEVICE_ATTR_RO(target_type);
+
+static ssize_t target_list_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	ssize_t offset = 0;
+	int i, rc = 0;
+
+	device_lock(dev);
+	for (i = 0; i < cxld->interleave_ways; i++) {
+		struct cxl_dport *dport = cxld->target[i];
+		struct cxl_dport *next = NULL;
+
+		if (!dport)
+			break;
+
+		if (i + 1 < cxld->interleave_ways)
+			next = cxld->target[i + 1];
+		rc = sysfs_emit_at(buf, offset, "%d%s", dport->port_id,
+				   next ? "," : "");
+		if (rc < 0)
+			break;
+		offset += rc;
+	}
+	device_unlock(dev);
+
+	if (rc < 0)
+		return rc;
+
+	rc = sysfs_emit_at(buf, offset, "\n");
+	if (rc < 0)
+		return rc;
+
+	return offset + rc;
+}
+static DEVICE_ATTR_RO(target_list);
+
+static struct attribute *cxl_decoder_base_attrs[] = {
+	&dev_attr_start.attr,
+	&dev_attr_size.attr,
+	&dev_attr_locked.attr,
+	&dev_attr_target_list.attr,
+	NULL,
+};
+
+static struct attribute_group cxl_decoder_base_attribute_group = {
+	.attrs = cxl_decoder_base_attrs,
+};
+
+static struct attribute *cxl_decoder_root_attrs[] = {
+	&dev_attr_cap_pmem.attr,
+	&dev_attr_cap_ram.attr,
+	&dev_attr_cap_type2.attr,
+	&dev_attr_cap_type3.attr,
+	NULL,
+};
+
+static struct attribute_group cxl_decoder_root_attribute_group = {
+	.attrs = cxl_decoder_root_attrs,
+};
+
+static const struct attribute_group *cxl_decoder_root_attribute_groups[] = {
+	&cxl_decoder_root_attribute_group,
+	&cxl_decoder_base_attribute_group,
+	&cxl_base_attribute_group,
+	NULL,
+};
+
+static struct attribute *cxl_decoder_switch_attrs[] = {
+	&dev_attr_target_type.attr,
+	NULL,
+};
+
+static struct attribute_group cxl_decoder_switch_attribute_group = {
+	.attrs = cxl_decoder_switch_attrs,
+};
+
+static const struct attribute_group *cxl_decoder_switch_attribute_groups[] = {
+	&cxl_decoder_switch_attribute_group,
+	&cxl_decoder_base_attribute_group,
+	&cxl_base_attribute_group,
+	NULL,
+};
+
+static void cxl_decoder_release(struct device *dev)
+{
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	struct cxl_port *port = to_cxl_port(dev->parent);
+
+	ida_free(&port->decoder_ida, cxld->id);
+	kfree(cxld);
+}
+
+static const struct device_type cxl_decoder_switch_type = {
+	.name = "cxl_decoder_switch",
+	.release = cxl_decoder_release,
+	.groups = cxl_decoder_switch_attribute_groups,
+};
+
+static const struct device_type cxl_decoder_root_type = {
+	.name = "cxl_decoder_root",
+	.release = cxl_decoder_release,
+	.groups = cxl_decoder_root_attribute_groups,
+};
+
+struct cxl_decoder *to_cxl_decoder(struct device *dev)
+{
+	if (dev_WARN_ONCE(dev, dev->type->release != cxl_decoder_release,
+			  "not a cxl_decoder device\n"))
+		return NULL;
+	return container_of(dev, struct cxl_decoder, dev);
+}
+
 static void cxl_dport_release(struct cxl_dport *dport)
 {
 	list_del(&dport->list);
@@ -138,6 +300,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 
 	port->uport = uport;
 	port->component_reg_phys = component_reg_phys;
+	ida_init(&port->decoder_ida);
 	INIT_LIST_HEAD(&port->dports);
 
 	device_initialize(dev);
@@ -273,6 +436,108 @@ err:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(cxl_add_dport);
+
+static struct cxl_decoder *
+cxl_decoder_alloc(struct cxl_port *port, int nr_targets, resource_size_t base,
+		  resource_size_t len, int interleave_ways,
+		  int interleave_granularity, enum cxl_decoder_type type,
+		  unsigned long flags)
+{
+	struct cxl_decoder *cxld;
+	struct device *dev;
+	int rc = 0;
+
+	if (interleave_ways < 1)
+		return ERR_PTR(-EINVAL);
+
+	device_lock(&port->dev);
+	if (list_empty(&port->dports))
+		rc = -EINVAL;
+	device_unlock(&port->dev);
+	if (rc)
+		return ERR_PTR(rc);
+
+	cxld = kzalloc(struct_size(cxld, target, nr_targets), GFP_KERNEL);
+	if (!cxld)
+		return ERR_PTR(-ENOMEM);
+
+	rc = ida_alloc(&port->decoder_ida, GFP_KERNEL);
+	if (rc < 0)
+		goto err;
+
+	*cxld = (struct cxl_decoder) {
+		.id = rc,
+		.range = {
+			.start = base,
+			.end = base + len - 1,
+		},
+		.flags = flags,
+		.interleave_ways = interleave_ways,
+		.interleave_granularity = interleave_granularity,
+		.target_type = type,
+	};
+
+	/* handle implied target_list */
+	if (interleave_ways == 1)
+		cxld->target[0] =
+			list_first_entry(&port->dports, struct cxl_dport, list);
+	dev = &cxld->dev;
+	device_initialize(dev);
+	device_set_pm_not_required(dev);
+	dev->parent = &port->dev;
+	dev->bus = &cxl_bus_type;
+
+	/* root ports do not have a cxl_port_type parent */
+	if (port->dev.parent->type == &cxl_port_type)
+		dev->type = &cxl_decoder_switch_type;
+	else
+		dev->type = &cxl_decoder_root_type;
+
+	return cxld;
+err:
+	kfree(cxld);
+	return ERR_PTR(rc);
+}
+
+static void unregister_dev(void *dev)
+{
+	device_unregister(dev);
+}
+
+struct cxl_decoder *
+devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
+		     resource_size_t base, resource_size_t len,
+		     int interleave_ways, int interleave_granularity,
+		     enum cxl_decoder_type type, unsigned long flags)
+{
+	struct cxl_decoder *cxld;
+	struct device *dev;
+	int rc;
+
+	cxld = cxl_decoder_alloc(port, nr_targets, base, len, interleave_ways,
+				 interleave_granularity, type, flags);
+	if (IS_ERR(cxld))
+		return cxld;
+
+	dev = &cxld->dev;
+	rc = dev_set_name(dev, "decoder%d.%d", port->id, cxld->id);
+	if (rc)
+		goto err;
+
+	rc = device_add(dev);
+	if (rc)
+		goto err;
+
+	rc = devm_add_action_or_reset(host, unregister_dev, dev);
+	if (rc)
+		return ERR_PTR(rc);
+	return cxld;
+
+err:
+	put_device(dev);
+	return ERR_PTR(rc);
+}
+EXPORT_SYMBOL_GPL(devm_cxl_add_decoder);
 
 /**
  * cxl_probe_component_regs() - Detect CXL Component register blocks

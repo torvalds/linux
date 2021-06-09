@@ -156,6 +156,45 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 #define CXL_RESOURCE_NONE ((resource_size_t) -1)
 #define CXL_TARGET_STRLEN 20
 
+/*
+ * cxl_decoder flags that define the type of memory / devices this
+ * decoder supports as well as configuration lock status See "CXL 2.0
+ * 8.2.5.12.7 CXL HDM Decoder 0 Control Register" for details.
+ */
+#define CXL_DECODER_F_RAM   BIT(0)
+#define CXL_DECODER_F_PMEM  BIT(1)
+#define CXL_DECODER_F_TYPE2 BIT(2)
+#define CXL_DECODER_F_TYPE3 BIT(3)
+#define CXL_DECODER_F_LOCK  BIT(4)
+#define CXL_DECODER_F_MASK  GENMASK(4, 0)
+
+enum cxl_decoder_type {
+       CXL_DECODER_ACCELERATOR = 2,
+       CXL_DECODER_EXPANDER = 3,
+};
+
+/**
+ * struct cxl_decoder - CXL address range decode configuration
+ * @dev: this decoder's device
+ * @id: kernel device name id
+ * @range: address range considered by this decoder
+ * @interleave_ways: number of cxl_dports in this decode
+ * @interleave_granularity: data stride per dport
+ * @target_type: accelerator vs expander (type2 vs type3) selector
+ * @flags: memory type capabilities and locking
+ * @target: active ordered target list in current decoder configuration
+ */
+struct cxl_decoder {
+	struct device dev;
+	int id;
+	struct range range;
+	int interleave_ways;
+	int interleave_granularity;
+	enum cxl_decoder_type target_type;
+	unsigned long flags;
+	struct cxl_dport *target[];
+};
+
 /**
  * struct cxl_port - logical collection of upstream port devices and
  *		     downstream port devices to construct a CXL memory
@@ -164,6 +203,7 @@ int cxl_map_device_regs(struct pci_dev *pdev,
  * @uport: PCI or platform device implementing the upstream port capability
  * @id: id for port device-name
  * @dports: cxl_dport instances referenced by decoders
+ * @decoder_ida: allocator for decoder ids
  * @component_reg_phys: component register capability base address (optional)
  */
 struct cxl_port {
@@ -171,6 +211,7 @@ struct cxl_port {
 	struct device *uport;
 	int id;
 	struct list_head dports;
+	struct ida decoder_ida;
 	resource_size_t component_reg_phys;
 };
 
@@ -197,5 +238,27 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 
 int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
 		  resource_size_t component_reg_phys);
+
+struct cxl_decoder *to_cxl_decoder(struct device *dev);
+struct cxl_decoder *
+devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
+		     resource_size_t base, resource_size_t len,
+		     int interleave_ways, int interleave_granularity,
+		     enum cxl_decoder_type type, unsigned long flags);
+
+/*
+ * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability Structure)
+ * single ported host-bridges need not publish a decoder capability when a
+ * passthrough decode can be assumed, i.e. all transactions that the uport sees
+ * are claimed and passed to the single dport. Default the range a 0-base
+ * 0-length until the first CXL region is activated.
+ */
+static inline struct cxl_decoder *
+devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port)
+{
+	return devm_cxl_add_decoder(host, port, 1, 0, 0, 1, PAGE_SIZE,
+				    CXL_DECODER_EXPANDER, 0);
+}
+
 extern struct bus_type cxl_bus_type;
 #endif /* __CXL_H__ */
