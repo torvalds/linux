@@ -2580,7 +2580,7 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	 * state-save area.
 	 */
 	if (ctxt->ops->pre_leave_smm(ctxt, buf))
-		return X86EMUL_UNHANDLEABLE;
+		goto emulate_shutdown;
 
 #ifdef CONFIG_X86_64
 	if (emulator_has_longmode(ctxt))
@@ -2589,13 +2589,15 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 #endif
 		ret = rsm_load_state_32(ctxt, buf);
 
-	if (ret != X86EMUL_CONTINUE) {
-		/* FIXME: should triple fault */
-		return X86EMUL_UNHANDLEABLE;
-	}
+	if (ret != X86EMUL_CONTINUE)
+		goto emulate_shutdown;
 
 	ctxt->ops->post_leave_smm(ctxt);
 
+	return X86EMUL_CONTINUE;
+
+emulate_shutdown:
+	ctxt->ops->triple_fault(ctxt);
 	return X86EMUL_CONTINUE;
 }
 
