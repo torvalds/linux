@@ -69,7 +69,7 @@ struct regmap *__regmap_init_mdio(struct mdio_device *mdio_dev,
 	const struct regmap_config *config, struct lock_class_key *lock_key,
 	const char *lock_name)
 {
-	struct regmap_bus *bus;
+	const struct regmap_bus *bus;
 
 	if (config->reg_bits == 5 && config->val_bits == 16)
 		bus = &regmap_mdio_c22_bus;
