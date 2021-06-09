@@ -8471,16 +8471,15 @@ bool kvm_apicv_activated(struct kvm *kvm)
 }
 EXPORT_SYMBOL_GPL(kvm_apicv_activated);
 
-void kvm_apicv_init(struct kvm *kvm, bool enable)
+static void kvm_apicv_init(struct kvm *kvm)
 {
-	if (enable)
+	if (enable_apicv)
 		clear_bit(APICV_INHIBIT_REASON_DISABLE,
 			  &kvm->arch.apicv_inhibit_reasons);
 	else
 		set_bit(APICV_INHIBIT_REASON_DISABLE,
 			&kvm->arch.apicv_inhibit_reasons);
 }
-EXPORT_SYMBOL_GPL(kvm_apicv_init);
 
 static void kvm_sched_yield(struct kvm_vcpu *vcpu, unsigned long dest_id)
 {
@@ -10885,6 +10884,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	INIT_DELAYED_WORK(&kvm->arch.kvmclock_update_work, kvmclock_update_fn);
 	INIT_DELAYED_WORK(&kvm->arch.kvmclock_sync_work, kvmclock_sync_fn);
 
+	kvm_apicv_init(kvm);
 	kvm_hv_init_vm(kvm);
 	kvm_page_track_init(kvm);
 	kvm_mmu_init_vm(kvm);
