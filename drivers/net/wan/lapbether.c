@@ -266,10 +266,8 @@ static void lapbeth_connected(struct net_device *dev, int reason)
 	unsigned char *ptr;
 	struct sk_buff *skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
 
-	if (!skb) {
-		pr_err("out of memory\n");
+	if (!skb)
 		return;
-	}
 
 	ptr  = skb_put(skb, 1);
 	*ptr = X25_IFACE_CONNECT;
@@ -286,10 +284,8 @@ static void lapbeth_disconnected(struct net_device *dev, int reason)
 	unsigned char *ptr;
 	struct sk_buff *skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
 
-	if (!skb) {
-		pr_err("out of memory\n");
+	if (!skb)
 		return;
-	}
 
 	ptr  = skb_put(skb, 1);
 	*ptr = X25_IFACE_DISCONNECT;
