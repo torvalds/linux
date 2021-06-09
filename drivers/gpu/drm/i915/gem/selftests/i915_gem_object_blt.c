@@ -220,7 +220,7 @@ static int igt_fill_blt_thread(void *arg)
 			return PTR_ERR(ctx);
 
 		prio = i915_prandom_u32_max_state(I915_PRIORITY_MAX, prng);
-		ctx->sched.priority = I915_USER_PRIORITY(prio);
+		ctx->sched.priority = prio;
 	}
 
 	ce = i915_gem_context_get_engine(ctx, 0);
@@ -262,7 +262,7 @@ static int igt_fill_blt_thread(void *arg)
 			goto err_flush;
 		}
 
-		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 		if (IS_ERR(vaddr)) {
 			err = PTR_ERR(vaddr);
 			goto err_put;
@@ -338,7 +338,7 @@ static int igt_copy_blt_thread(void *arg)
 			return PTR_ERR(ctx);
 
 		prio = i915_prandom_u32_max_state(I915_PRIORITY_MAX, prng);
-		ctx->sched.priority = I915_USER_PRIORITY(prio);
+		ctx->sched.priority = prio;
 	}
 
 	ce = i915_gem_context_get_engine(ctx, 0);
@@ -380,7 +380,7 @@ static int igt_copy_blt_thread(void *arg)
 			goto err_flush;
 		}
 
-		vaddr = i915_gem_object_pin_map(src, I915_MAP_WB);
+		vaddr = i915_gem_object_pin_map_unlocked(src, I915_MAP_WB);
 		if (IS_ERR(vaddr)) {
 			err = PTR_ERR(vaddr);
 			goto err_put_src;
@@ -400,7 +400,7 @@ static int igt_copy_blt_thread(void *arg)
 			goto err_put_src;
 		}
 
-		vaddr = i915_gem_object_pin_map(dst, I915_MAP_WB);
+		vaddr = i915_gem_object_pin_map_unlocked(dst, I915_MAP_WB);
 		if (IS_ERR(vaddr)) {
 			err = PTR_ERR(vaddr);
 			goto err_put_dst;

@@ -1,6 +1,5 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2014-2018 Intel Corporation
  */
 
@@ -40,7 +39,7 @@
 
 #define ASSIGN_CTX_PML4(ppgtt, reg_state) do { \
 	u32 *reg_state__ = (reg_state); \
-	const u64 addr__ = px_dma(ppgtt->pd); \
+	const u64 addr__ = px_dma((ppgtt)->pd); \
 	(reg_state__)[CTX_PDP0_UDW] = upper_32_bits(addr__); \
 	(reg_state__)[CTX_PDP0_LDW] = lower_32_bits(addr__); \
 } while (0)

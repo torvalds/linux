@@ -483,11 +483,16 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 			goto wakeup;
 
 		/*
-		 * Switch events will wake the device and report the new switch
-		 * position to the input subsystem.
+		 * Some devices send (duplicate) tablet-mode events when moved
+		 * around even though the mode has not changed; and they do this
+		 * even when suspended.
+		 * Update the switch state in case it changed and then return
+		 * without waking up to avoid spurious wakeups.
 		 */
-		if (priv->switches && (event == 0xcc || event == 0xcd))
-			goto wakeup;
+		if (event == 0xcc || event == 0xcd) {
+			report_tablet_mode_event(priv->switches, event);
+			return;
+		}
 
 		/* Wake up on 5-button array events only. */
 		if (event == 0xc0 || !priv->array)
@@ -500,9 +505,6 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 wakeup:
 		pm_wakeup_hard_event(&device->dev);
-
-		if (report_tablet_mode_event(priv->switches, event))
-			return;
 
 		return;
 	}

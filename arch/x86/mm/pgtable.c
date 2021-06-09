@@ -780,14 +780,6 @@ int pmd_clear_huge(pmd_t *pmd)
 	return 0;
 }
 
-/*
- * Until we support 512GB pages, skip them in the vmap area.
- */
-int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
-{
-	return 0;
-}
-
 #ifdef CONFIG_X86_64
 /**
  * pud_free_pmd_page - Clear pud entry and free pmd page.
@@ -860,11 +852,6 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 }
 
 #else /* !CONFIG_X86_64 */
-
-int pud_free_pmd_page(pud_t *pud, unsigned long addr)
-{
-	return pud_none(*pud);
-}
 
 /*
  * Disable free page handling on x86-PAE. This assures that ioremap()

@@ -2,8 +2,6 @@
 #
 # x86 crypto algorithms
 
-OBJECT_FILES_NON_STANDARD := y
-
 obj-$(CONFIG_CRYPTO_TWOFISH_586) += twofish-i586.o
 twofish-i586-y := twofish-i586-asm_32.o twofish_glue.o
 obj-$(CONFIG_CRYPTO_TWOFISH_X86_64) += twofish-x86_64.o

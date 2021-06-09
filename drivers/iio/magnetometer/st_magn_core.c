@@ -337,6 +337,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 		.sensors_supported = {
 			[0] = LSM303AGR_MAGN_DEV_NAME,
 			[1] = LIS2MDL_MAGN_DEV_NAME,
+			[2] = IIS2MDC_MAGN_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_magn_3_16bit_channels,
 		.odr = {

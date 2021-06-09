@@ -35,9 +35,9 @@
  */
 
 static void *spu_syscall_table[] = {
+#define __SYSCALL_WITH_COMPAT(nr, entry, compat) __SYSCALL(nr, entry)
 #define __SYSCALL(nr, entry) [nr] = entry,
 #include <asm/syscall_table_spu.h>
-#undef __SYSCALL
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)

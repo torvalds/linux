@@ -3,13 +3,13 @@
     "EventName": "ic_oc_mode_switch.oc_ic_mode_switch",
     "EventCode": "0x28a",
     "BriefDescription": "OC Mode Switch. OC to IC mode switch.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "ic_oc_mode_switch.ic_oc_mode_switch",
     "EventCode": "0x28a",
     "BriefDescription": "OC Mode Switch. IC to OC mode switch.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.retire_token_stall",
@@ -33,24 +33,24 @@
     "EventName": "de_dis_dispatch_token_stalls0.alsq3_0_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ 3_0 Tokens unavailable.",
-    "UMask": "0x8"
+    "UMask": "0x08"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.alsq3_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ 3 Tokens unavailable.",
-    "UMask": "0x4"
+    "UMask": "0x04"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.alsq2_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ 2 Tokens unavailable.",
-    "UMask": "0x2"
+    "UMask": "0x02"
   },
   {
     "EventName": "de_dis_dispatch_token_stalls0.alsq1_token_stall",
     "EventCode": "0xaf",
     "BriefDescription": "Cycles where a dispatch group is valid but does not get dispatched due to a token stall. ALSQ 1 Tokens unavailable.",
-    "UMask": "0x1"
+    "UMask": "0x01"
   }
 ]

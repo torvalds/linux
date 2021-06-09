@@ -24,6 +24,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 
+#include <drm/amdgpu_drm.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -78,6 +80,217 @@
 #include "dce_virtual.h"
 #include "mxgpu_vi.h"
 #include "amdgpu_dm.h"
+
+#define ixPCIE_LC_L1_PM_SUBSTATE	0x100100C6
+#define PCIE_LC_L1_PM_SUBSTATE__LC_L1_SUBSTATES_OVERRIDE_EN_MASK	0x00000001L
+#define PCIE_LC_L1_PM_SUBSTATE__LC_PCI_PM_L1_2_OVERRIDE_MASK	0x00000002L
+#define PCIE_LC_L1_PM_SUBSTATE__LC_PCI_PM_L1_1_OVERRIDE_MASK	0x00000004L
+#define PCIE_LC_L1_PM_SUBSTATE__LC_ASPM_L1_2_OVERRIDE_MASK		0x00000008L
+#define PCIE_LC_L1_PM_SUBSTATE__LC_ASPM_L1_1_OVERRIDE_MASK		0x00000010L
+#define ixPCIE_L1_PM_SUB_CNTL	0x378
+#define PCIE_L1_PM_SUB_CNTL__ASPM_L1_2_EN_MASK	0x00000004L
+#define PCIE_L1_PM_SUB_CNTL__ASPM_L1_1_EN_MASK	0x00000008L
+#define PCIE_L1_PM_SUB_CNTL__PCI_PM_L1_2_EN_MASK	0x00000001L
+#define PCIE_L1_PM_SUB_CNTL__PCI_PM_L1_1_EN_MASK	0x00000002L
+#define PCIE_LC_CNTL6__LC_L1_POWERDOWN_MASK		0x00200000L
+#define LINK_CAP	0x64
+#define PCIE_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK	0x00040000L
+#define ixCPM_CONTROL	0x1400118
+#define ixPCIE_LC_CNTL7	0x100100BC
+#define PCIE_LC_CNTL7__LC_L1_SIDEBAND_CLKREQ_PDWN_EN_MASK	0x00000400L
+#define PCIE_LC_CNTL__LC_L0S_INACTIVITY_DEFAULT	0x00000007
+#define PCIE_LC_CNTL__LC_L1_INACTIVITY_DEFAULT	0x00000009
+#define CPM_CONTROL__CLKREQb_UNGATE_TXCLK_ENABLE_MASK	0x01000000L
+#define PCIE_L1_PM_SUB_CNTL	0x378
+#define ASIC_IS_P22(asic_type, rid)	((asic_type >= CHIP_POLARIS10) && \
+									(asic_type <= CHIP_POLARIS12) && \
+									(rid >= 0x6E))
+/* Topaz */
+static const struct amdgpu_video_codecs topaz_video_codecs_encode =
+{
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+/* Tonga, CZ, ST, Fiji */
+static const struct amdgpu_video_codec_info tonga_video_codecs_encode_array[] =
+{
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
+		.max_width = 4096,
+		.max_height = 2304,
+		.max_pixels_per_frame = 4096 * 2304,
+		.max_level = 0,
+	},
+};
+
+static const struct amdgpu_video_codecs tonga_video_codecs_encode =
+{
+	.codec_count = ARRAY_SIZE(tonga_video_codecs_encode_array),
+	.codec_array = tonga_video_codecs_encode_array,
+};
+
+/* Polaris */
+static const struct amdgpu_video_codec_info polaris_video_codecs_encode_array[] =
+{
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
+		.max_width = 4096,
+		.max_height = 2304,
+		.max_pixels_per_frame = 4096 * 2304,
+		.max_level = 0,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC,
+		.max_width = 4096,
+		.max_height = 2304,
+		.max_pixels_per_frame = 4096 * 2304,
+		.max_level = 0,
+	},
+};
+
+static const struct amdgpu_video_codecs polaris_video_codecs_encode =
+{
+	.codec_count = ARRAY_SIZE(polaris_video_codecs_encode_array),
+	.codec_array = polaris_video_codecs_encode_array,
+};
+
+/* Topaz */
+static const struct amdgpu_video_codecs topaz_video_codecs_decode =
+{
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+/* Tonga */
+static const struct amdgpu_video_codec_info tonga_video_codecs_decode_array[] =
+{
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 3,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 5,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 52,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 4,
+	},
+};
+
+static const struct amdgpu_video_codecs tonga_video_codecs_decode =
+{
+	.codec_count = ARRAY_SIZE(tonga_video_codecs_decode_array),
+	.codec_array = tonga_video_codecs_decode_array,
+};
+
+/* CZ, ST, Fiji, Polaris */
+static const struct amdgpu_video_codec_info cz_video_codecs_decode_array[] =
+{
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 3,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 5,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 52,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 4,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 186,
+	},
+	{
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG,
+		.max_width = 4096,
+		.max_height = 4096,
+		.max_pixels_per_frame = 4096 * 4096,
+		.max_level = 0,
+	},
+};
+
+static const struct amdgpu_video_codecs cz_video_codecs_decode =
+{
+	.codec_count = ARRAY_SIZE(cz_video_codecs_decode_array),
+	.codec_array = cz_video_codecs_decode_array,
+};
+
+static int vi_query_video_codecs(struct amdgpu_device *adev, bool encode,
+				 const struct amdgpu_video_codecs **codecs)
+{
+	switch (adev->asic_type) {
+	case CHIP_TOPAZ:
+		if (encode)
+			*codecs = &topaz_video_codecs_encode;
+		else
+			*codecs = &topaz_video_codecs_decode;
+		return 0;
+	case CHIP_TONGA:
+		if (encode)
+			*codecs = &tonga_video_codecs_encode;
+		else
+			*codecs = &tonga_video_codecs_decode;
+		return 0;
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
+		if (encode)
+			*codecs = &polaris_video_codecs_encode;
+		else
+			*codecs = &cz_video_codecs_decode;
+		return 0;
+	case CHIP_FIJI:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		if (encode)
+			*codecs = &tonga_video_codecs_encode;
+		else
+			*codecs = &cz_video_codecs_decode;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
 
 /*
  * Indirect registers accessor
@@ -902,13 +1115,178 @@ static void vi_pcie_gen3_enable(struct amdgpu_device *adev)
 	/* todo */
 }
 
+static void vi_enable_aspm(struct amdgpu_device *adev)
+{
+	u32 data, orig;
+
+	orig = data = RREG32_PCIE(ixPCIE_LC_CNTL);
+	data |= PCIE_LC_CNTL__LC_L0S_INACTIVITY_DEFAULT <<
+			PCIE_LC_CNTL__LC_L0S_INACTIVITY__SHIFT;
+	data |= PCIE_LC_CNTL__LC_L1_INACTIVITY_DEFAULT <<
+			PCIE_LC_CNTL__LC_L1_INACTIVITY__SHIFT;
+	data &= ~PCIE_LC_CNTL__LC_PMI_TO_L1_DIS_MASK;
+	data |= PCIE_LC_CNTL__LC_DELAY_L1_EXIT_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_LC_CNTL, data);
+}
+
 static void vi_program_aspm(struct amdgpu_device *adev)
 {
+	u32 data, data1, orig;
+	bool bL1SS = false;
+	bool bClkReqSupport = true;
 
-	if (amdgpu_aspm == 0)
+	if (amdgpu_aspm != 1)
 		return;
 
-	/* todo */
+	if (adev->flags & AMD_IS_APU ||
+	    adev->asic_type < CHIP_POLARIS10)
+		return;
+
+	orig = data = RREG32_PCIE(ixPCIE_LC_CNTL);
+	data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;
+	data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+	data |= PCIE_LC_CNTL__LC_PMI_TO_L1_DIS_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_LC_CNTL, data);
+
+	orig = data = RREG32_PCIE(ixPCIE_LC_N_FTS_CNTL);
+	data &= ~PCIE_LC_N_FTS_CNTL__LC_XMIT_N_FTS_MASK;
+	data |= 0x0024 << PCIE_LC_N_FTS_CNTL__LC_XMIT_N_FTS__SHIFT;
+	data |= PCIE_LC_N_FTS_CNTL__LC_XMIT_N_FTS_OVERRIDE_EN_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_LC_N_FTS_CNTL, data);
+
+	orig = data = RREG32_PCIE(ixPCIE_LC_CNTL3);
+	data |= PCIE_LC_CNTL3__LC_GO_TO_RECOVERY_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_LC_CNTL3, data);
+
+	orig = data = RREG32_PCIE(ixPCIE_P_CNTL);
+	data |= PCIE_P_CNTL__P_IGNORE_EDB_ERR_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_P_CNTL, data);
+
+	data = RREG32_PCIE(ixPCIE_LC_L1_PM_SUBSTATE);
+	pci_read_config_dword(adev->pdev, PCIE_L1_PM_SUB_CNTL, &data1);
+	if (data & PCIE_LC_L1_PM_SUBSTATE__LC_L1_SUBSTATES_OVERRIDE_EN_MASK &&
+	    (data & (PCIE_LC_L1_PM_SUBSTATE__LC_PCI_PM_L1_2_OVERRIDE_MASK |
+		    PCIE_LC_L1_PM_SUBSTATE__LC_PCI_PM_L1_1_OVERRIDE_MASK |
+			PCIE_LC_L1_PM_SUBSTATE__LC_ASPM_L1_2_OVERRIDE_MASK |
+			PCIE_LC_L1_PM_SUBSTATE__LC_ASPM_L1_1_OVERRIDE_MASK))) {
+		bL1SS = true;
+	} else if (data1 & (PCIE_L1_PM_SUB_CNTL__ASPM_L1_2_EN_MASK |
+	    PCIE_L1_PM_SUB_CNTL__ASPM_L1_1_EN_MASK |
+	    PCIE_L1_PM_SUB_CNTL__PCI_PM_L1_2_EN_MASK |
+	    PCIE_L1_PM_SUB_CNTL__PCI_PM_L1_1_EN_MASK)) {
+		bL1SS = true;
+	}
+
+	orig = data = RREG32_PCIE(ixPCIE_LC_CNTL6);
+	data |= PCIE_LC_CNTL6__LC_L1_POWERDOWN_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_LC_CNTL6, data);
+
+	orig = data = RREG32_PCIE(ixPCIE_LC_LINK_WIDTH_CNTL);
+	data |= PCIE_LC_LINK_WIDTH_CNTL__LC_DYN_LANES_PWR_STATE_MASK;
+	if (orig != data)
+		WREG32_PCIE(ixPCIE_LC_LINK_WIDTH_CNTL, data);
+
+	pci_read_config_dword(adev->pdev, LINK_CAP, &data);
+	if (!(data & PCIE_LINK_CAP__CLOCK_POWER_MANAGEMENT_MASK))
+		bClkReqSupport = false;
+
+	if (bClkReqSupport) {
+		orig = data = RREG32_SMC(ixTHM_CLK_CNTL);
+		data &= ~(THM_CLK_CNTL__CMON_CLK_SEL_MASK | THM_CLK_CNTL__TMON_CLK_SEL_MASK);
+		data |= (1 << THM_CLK_CNTL__CMON_CLK_SEL__SHIFT) |
+				(1 << THM_CLK_CNTL__TMON_CLK_SEL__SHIFT);
+		if (orig != data)
+			WREG32_SMC(ixTHM_CLK_CNTL, data);
+
+		orig = data = RREG32_SMC(ixMISC_CLK_CTRL);
+		data &= ~(MISC_CLK_CTRL__DEEP_SLEEP_CLK_SEL_MASK |
+			MISC_CLK_CTRL__ZCLK_SEL_MASK | MISC_CLK_CTRL__DFT_SMS_PG_CLK_SEL_MASK);
+		data |= (1 << MISC_CLK_CTRL__DEEP_SLEEP_CLK_SEL__SHIFT) |
+				(1 << MISC_CLK_CTRL__ZCLK_SEL__SHIFT);
+		data |= (0x20 << MISC_CLK_CTRL__DFT_SMS_PG_CLK_SEL__SHIFT);
+		if (orig != data)
+			WREG32_SMC(ixMISC_CLK_CTRL, data);
+
+		orig = data = RREG32_SMC(ixCG_CLKPIN_CNTL);
+		data |= CG_CLKPIN_CNTL__XTALIN_DIVIDE_MASK;
+		if (orig != data)
+			WREG32_SMC(ixCG_CLKPIN_CNTL, data);
+
+		orig = data = RREG32_SMC(ixCG_CLKPIN_CNTL_2);
+		data |= CG_CLKPIN_CNTL_2__ENABLE_XCLK_MASK;
+		if (orig != data)
+			WREG32_SMC(ixCG_CLKPIN_CNTL, data);
+
+		orig = data = RREG32_SMC(ixMPLL_BYPASSCLK_SEL);
+		data &= ~MPLL_BYPASSCLK_SEL__MPLL_CLKOUT_SEL_MASK;
+		data |= (4 << MPLL_BYPASSCLK_SEL__MPLL_CLKOUT_SEL__SHIFT);
+		if (orig != data)
+			WREG32_SMC(ixMPLL_BYPASSCLK_SEL, data);
+
+		orig = data = RREG32_PCIE(ixCPM_CONTROL);
+		data |= (CPM_CONTROL__REFCLK_XSTCLK_ENABLE_MASK |
+				CPM_CONTROL__CLKREQb_UNGATE_TXCLK_ENABLE_MASK);
+		if (orig != data)
+			WREG32_PCIE(ixCPM_CONTROL, data);
+
+		orig = data = RREG32_PCIE(ixPCIE_CONFIG_CNTL);
+		data &= ~PCIE_CONFIG_CNTL__DYN_CLK_LATENCY_MASK;
+		data |= (0xE << PCIE_CONFIG_CNTL__DYN_CLK_LATENCY__SHIFT);
+		if (orig != data)
+			WREG32_PCIE(ixPCIE_CONFIG_CNTL, data);
+
+		orig = data = RREG32(mmBIF_CLK_CTRL);
+		data |= BIF_CLK_CTRL__BIF_XSTCLK_READY_MASK;
+		if (orig != data)
+			WREG32(mmBIF_CLK_CTRL, data);
+
+		orig = data = RREG32_PCIE(ixPCIE_LC_CNTL7);
+		data |= PCIE_LC_CNTL7__LC_L1_SIDEBAND_CLKREQ_PDWN_EN_MASK;
+		if (orig != data)
+			WREG32_PCIE(ixPCIE_LC_CNTL7, data);
+
+		orig = data = RREG32_PCIE(ixPCIE_HW_DEBUG);
+		data |= PCIE_HW_DEBUG__HW_01_DEBUG_MASK;
+		if (orig != data)
+			WREG32_PCIE(ixPCIE_HW_DEBUG, data);
+
+		orig = data = RREG32_PCIE(ixPCIE_LC_CNTL2);
+		data |= PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L23_MASK;
+		data |= PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L1_MASK;
+		if (bL1SS)
+			data &= ~PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L1_MASK;
+		if (orig != data)
+			WREG32_PCIE(ixPCIE_LC_CNTL2, data);
+
+	}
+
+	vi_enable_aspm(adev);
+
+	data = RREG32_PCIE(ixPCIE_LC_N_FTS_CNTL);
+	data1 = RREG32_PCIE(ixPCIE_LC_STATUS1);
+	if (((data & PCIE_LC_N_FTS_CNTL__LC_N_FTS_MASK) == PCIE_LC_N_FTS_CNTL__LC_N_FTS_MASK) &&
+	    data1 & PCIE_LC_STATUS1__LC_REVERSE_XMIT_MASK &&
+	    data1 & PCIE_LC_STATUS1__LC_REVERSE_RCVR_MASK) {
+		orig = data = RREG32_PCIE(ixPCIE_LC_CNTL);
+		data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+		if (orig != data)
+			WREG32_PCIE(ixPCIE_LC_CNTL, data);
+	}
+
+	if ((adev->asic_type == CHIP_POLARIS12 &&
+	    !(ASICID_IS_P23(adev->pdev->device, adev->pdev->revision))) ||
+	    ASIC_IS_P22(adev->asic_type, adev->external_rev_id)) {
+		orig = data = RREG32_PCIE(ixPCIE_LC_TRAINING_CNTL);
+		data &= ~PCIE_LC_TRAINING_CNTL__LC_DISABLE_TRAINING_BIT_ARCH_MASK;
+		if (orig != data)
+			WREG32_PCIE(ixPCIE_LC_TRAINING_CNTL, data);
+	}
 }
 
 static void vi_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -1085,6 +1463,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_pcie_replay_count = &vi_get_pcie_replay_count,
 	.supports_baco = &vi_asic_supports_baco,
 	.pre_asic_init = &vi_pre_asic_init,
+	.query_video_codecs = &vi_query_video_codecs,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

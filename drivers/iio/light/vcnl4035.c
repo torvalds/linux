@@ -511,7 +511,6 @@ static int vcnl4035_probe_trigger(struct iio_dev *indio_dev)
 	if (!data->drdy_trigger0)
 		return -ENOMEM;
 
-	data->drdy_trigger0->dev.parent = indio_dev->dev.parent;
 	data->drdy_trigger0->ops = &vcnl4035_trigger_ops;
 	iio_trigger_set_drvdata(data->drdy_trigger0, indio_dev);
 	ret = devm_iio_trigger_register(indio_dev->dev.parent,

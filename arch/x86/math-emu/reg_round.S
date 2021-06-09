@@ -575,7 +575,7 @@ Normalise_result:
 #ifdef PECULIAR_486
 	/*
 	 * This implements a special feature of 80486 behaviour.
-	 * Underflow will be signalled even if the number is
+	 * Underflow will be signaled even if the number is
 	 * not a denormal after rounding.
 	 * This difference occurs only for masked underflow, and not
 	 * in the unmasked case.

@@ -58,7 +58,7 @@ static int chtdc_ti_pwrbtn_probe(struct platform_device *pdev)
 
 	err = devm_request_threaded_irq(dev, irq, NULL,
 					chtdc_ti_pwrbtn_interrupt,
-					0, KBUILD_MODNAME, input);
+					IRQF_ONESHOT, KBUILD_MODNAME, input);
 	if (err)
 		return err;
 

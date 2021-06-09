@@ -49,7 +49,7 @@ struct lock_stat {
 
 	/*
 	 * FIXME: evsel__intval() returns u64,
-	 * so address of lockdep_map should be dealed as 64bit.
+	 * so address of lockdep_map should be treated as 64bit.
 	 * Is there more better solution?
 	 */
 	void			*addr;		/* address of lockdep_map, used as ID */

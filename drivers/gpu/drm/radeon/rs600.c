@@ -945,12 +945,6 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
-static void rs600_debugfs(struct radeon_device *rdev)
-{
-	if (r100_debugfs_rbbm_init(rdev))
-		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
-}
-
 void rs600_set_safe_registers(struct radeon_device *rdev)
 {
 	rdev->config.r300.reg_safe_bm = rs600_reg_safe_bm;
@@ -1136,7 +1130,7 @@ int rs600_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* initialize memory controller */
 	rs600_mc_init(rdev);
-	rs600_debugfs(rdev);
+	r100_debugfs_rbbm_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

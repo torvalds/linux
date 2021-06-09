@@ -60,7 +60,7 @@ static int rx_err_add_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
 
@@ -101,7 +101,7 @@ out:
 	if (err)
 		mlx5_modify_header_dealloc(mdev, modify_hdr);
 out_spec:
-	kfree(spec);
+	kvfree(spec);
 	return err;
 }
 

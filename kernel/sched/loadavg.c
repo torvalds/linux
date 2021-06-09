@@ -189,7 +189,7 @@ calc_load_n(unsigned long load, unsigned long exp,
  *    w:0 1 1           0 0           1 1           0 0
  *
  *    This ensures we'll fold the old NO_HZ contribution in this window while
- *    accumlating the new one.
+ *    accumulating the new one.
  *
  *  - When we wake up from NO_HZ during the window, we push up our
  *    contribution, since we effectively move our sample point to a known

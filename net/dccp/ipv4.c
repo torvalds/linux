@@ -23,14 +23,21 @@
 #include <net/tcp_states.h>
 #include <net/xfrm.h>
 #include <net/secure_seq.h>
+#include <net/netns/generic.h>
 
 #include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
 #include "feat.h"
 
+struct dccp_v4_pernet {
+	struct sock *v4_ctl_sk;
+};
+
+static unsigned int dccp_v4_pernet_id __read_mostly;
+
 /*
- * The per-net dccp.v4_ctl_sk socket is used for responding to
+ * The per-net v4_ctl_sk socket is used for responding to
  * the Out-of-the-blue (OOTB) packets. A control sock will be created
  * for this socket at the initialization time.
  */
@@ -513,7 +520,8 @@ static void dccp_v4_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	struct sk_buff *skb;
 	struct dst_entry *dst;
 	struct net *net = dev_net(skb_dst(rxskb)->dev);
-	struct sock *ctl_sk = net->dccp.v4_ctl_sk;
+	struct dccp_v4_pernet *pn;
+	struct sock *ctl_sk;
 
 	/* Never send a reset in response to a reset. */
 	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
@@ -522,6 +530,8 @@ static void dccp_v4_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	if (skb_rtable(rxskb)->rt_type != RTN_LOCAL)
 		return;
 
+	pn = net_generic(net, dccp_v4_pernet_id);
+	ctl_sk = pn->v4_ctl_sk;
 	dst = dccp_v4_route_skb(net, ctl_sk, rxskb);
 	if (dst == NULL)
 		return;
@@ -1005,16 +1015,20 @@ static struct inet_protosw dccp_v4_protosw = {
 
 static int __net_init dccp_v4_init_net(struct net *net)
 {
+	struct dccp_v4_pernet *pn = net_generic(net, dccp_v4_pernet_id);
+
 	if (dccp_hashinfo.bhash == NULL)
 		return -ESOCKTNOSUPPORT;
 
-	return inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
+	return inet_ctl_sock_create(&pn->v4_ctl_sk, PF_INET,
 				    SOCK_DCCP, IPPROTO_DCCP, net);
 }
 
 static void __net_exit dccp_v4_exit_net(struct net *net)
 {
-	inet_ctl_sock_destroy(net->dccp.v4_ctl_sk);
+	struct dccp_v4_pernet *pn = net_generic(net, dccp_v4_pernet_id);
+
+	inet_ctl_sock_destroy(pn->v4_ctl_sk);
 }
 
 static void __net_exit dccp_v4_exit_batch(struct list_head *net_exit_list)
@@ -1026,6 +1040,8 @@ static struct pernet_operations dccp_v4_ops = {
 	.init	= dccp_v4_init_net,
 	.exit	= dccp_v4_exit_net,
 	.exit_batch = dccp_v4_exit_batch,
+	.id	= &dccp_v4_pernet_id,
+	.size   = sizeof(struct dccp_v4_pernet),
 };
 
 static int __init dccp_v4_init(void)

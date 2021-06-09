@@ -244,7 +244,10 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_COALESCE_GET]	= &ethnl_coalesce_request_ops,
 	[ETHTOOL_MSG_PAUSE_GET]		= &ethnl_pause_request_ops,
 	[ETHTOOL_MSG_EEE_GET]		= &ethnl_eee_request_ops,
+	[ETHTOOL_MSG_FEC_GET]		= &ethnl_fec_request_ops,
 	[ETHTOOL_MSG_TSINFO_GET]	= &ethnl_tsinfo_request_ops,
+	[ETHTOOL_MSG_MODULE_EEPROM_GET]	= &ethnl_module_eeprom_request_ops,
+	[ETHTOOL_MSG_STATS_GET]		= &ethnl_stats_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -384,7 +387,8 @@ static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 	int ret;
 
 	ehdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			   &ethtool_genl_family, 0, ctx->ops->reply_cmd);
+			   &ethtool_genl_family, NLM_F_MULTI,
+			   ctx->ops->reply_cmd);
 	if (!ehdr)
 		return -EMSGSIZE;
 
@@ -551,6 +555,7 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_COALESCE_NTF]	= &ethnl_coalesce_request_ops,
 	[ETHTOOL_MSG_PAUSE_NTF]		= &ethnl_pause_request_ops,
 	[ETHTOOL_MSG_EEE_NTF]		= &ethnl_eee_request_ops,
+	[ETHTOOL_MSG_FEC_NTF]		= &ethnl_fec_request_ops,
 };
 
 /* default notification handler */
@@ -643,6 +648,7 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_COALESCE_NTF]	= ethnl_default_notify,
 	[ETHTOOL_MSG_PAUSE_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_EEE_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_FEC_NTF]		= ethnl_default_notify,
 };
 
 void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
@@ -911,6 +917,41 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.dumpit	= ethnl_tunnel_info_dumpit,
 		.policy = ethnl_tunnel_info_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_tunnel_info_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_FEC_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+		.policy = ethnl_fec_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_fec_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_FEC_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_fec,
+		.policy = ethnl_fec_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_fec_set_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_MODULE_EEPROM_GET,
+		.flags  = GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+		.policy = ethnl_module_eeprom_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_module_eeprom_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_STATS_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+		.policy = ethnl_stats_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_stats_get_policy) - 1,
 	},
 };
 

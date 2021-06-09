@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Notification support
  *
- * Copyright (C) 2020 ARM Ltd.
+ * Copyright (C) 2020-2021 ARM Ltd.
  */
 /**
  * DOC: Theory of operation
@@ -91,6 +91,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "common.h"
 #include "notify.h"
 
 #define SCMI_MAX_PROTO		256
@@ -177,7 +178,7 @@
 #define REVT_NOTIFY_SET_STATUS(revt, eid, sid, state)		\
 ({								\
 	typeof(revt) r = revt;					\
-	r->proto->ops->set_notify_enabled(r->proto->ni->handle,	\
+	r->proto->ops->set_notify_enabled(r->proto->ph,		\
 					(eid), (sid), (state));	\
 })
 
@@ -190,7 +191,7 @@
 #define REVT_FILL_REPORT(revt, ...)				\
 ({								\
 	typeof(revt) r = revt;					\
-	r->proto->ops->fill_custom_report(r->proto->ni->handle,	\
+	r->proto->ops->fill_custom_report(r->proto->ph,		\
 					  __VA_ARGS__);		\
 })
 
@@ -278,6 +279,7 @@ struct scmi_registered_event;
  *		       events' descriptors, whose fixed-size is determined at
  *		       compile time.
  * @registered_mtx: A mutex to protect @registered_events_handlers
+ * @ph: SCMI protocol handle reference
  * @registered_events_handlers: An hashtable containing all events' handlers
  *				descriptors registered for this protocol
  *
@@ -302,6 +304,7 @@ struct scmi_registered_events_desc {
 	struct scmi_registered_event	**registered_events;
 	/* mutex to protect registered_events_handlers */
 	struct mutex			registered_mtx;
+	const struct scmi_protocol_handle	*ph;
 	DECLARE_HASHTABLE(registered_events_handlers, SCMI_REGISTERED_HASH_SZ);
 };
 
@@ -368,7 +371,7 @@ static struct scmi_event_handler *
 scmi_get_active_handler(struct scmi_notify_instance *ni, u32 evt_key);
 static void scmi_put_active_handler(struct scmi_notify_instance *ni,
 				    struct scmi_event_handler *hndl);
-static void scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
+static bool scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
 				      struct scmi_event_handler *hndl);
 
 /**
@@ -579,11 +582,9 @@ int scmi_notify(const struct scmi_handle *handle, u8 proto_id, u8 evt_id,
 	struct scmi_event_header eh;
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return 0;
-	ni = handle->notify_priv;
 
 	r_evt = SCMI_GET_REVT(ni, proto_id, evt_id);
 	if (!r_evt)
@@ -732,14 +733,10 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
 /**
  * scmi_register_protocol_events()  - Register Protocol Events with the core
  * @handle: The handle identifying the platform instance against which the
- *	    the protocol's events are registered
+ *	    protocol's events are registered
  * @proto_id: Protocol ID
- * @queue_sz: Size in bytes of the associated queue to be allocated
- * @ops: Protocol specific event-related operations
- * @evt: Event descriptor array
- * @num_events: Number of events in @evt array
- * @num_sources: Number of possible sources for this protocol on this
- *		 platform.
+ * @ph: SCMI protocol handle.
+ * @ee: A structure describing the events supported by this protocol.
  *
  * Used by SCMI Protocols initialization code to register with the notification
  * core the list of supported events and their descriptors: takes care to
@@ -748,60 +745,69 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
  *
  * Return: 0 on Success
  */
-int scmi_register_protocol_events(const struct scmi_handle *handle,
-				  u8 proto_id, size_t queue_sz,
-				  const struct scmi_event_ops *ops,
-				  const struct scmi_event *evt, int num_events,
-				  int num_sources)
+int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
+				  const struct scmi_protocol_handle *ph,
+				  const struct scmi_protocol_events *ee)
 {
 	int i;
+	unsigned int num_sources;
 	size_t payld_sz = 0;
 	struct scmi_registered_events_desc *pd;
 	struct scmi_notify_instance *ni;
+	const struct scmi_event *evt;
 
-	if (!ops || !evt)
+	if (!ee || !ee->ops || !ee->evts || !ph ||
+	    (!ee->num_sources && !ee->ops->get_num_sources))
 		return -EINVAL;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
-		return -ENOMEM;
-	ni = handle->notify_priv;
-
-	/* Attach to the notification main devres group */
-	if (!devres_open_group(ni->handle->dev, ni->gid, GFP_KERNEL))
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return -ENOMEM;
 
-	for (i = 0; i < num_events; i++)
+	/* num_sources cannot be <= 0 */
+	if (ee->num_sources) {
+		num_sources = ee->num_sources;
+	} else {
+		int nsrc = ee->ops->get_num_sources(ph);
+
+		if (nsrc <= 0)
+			return -EINVAL;
+		num_sources = nsrc;
+	}
+
+	evt = ee->evts;
+	for (i = 0; i < ee->num_events; i++)
 		payld_sz = max_t(size_t, payld_sz, evt[i].max_payld_sz);
 	payld_sz += sizeof(struct scmi_event_header);
 
-	pd = scmi_allocate_registered_events_desc(ni, proto_id, queue_sz,
-						  payld_sz, num_events, ops);
+	pd = scmi_allocate_registered_events_desc(ni, proto_id, ee->queue_sz,
+						  payld_sz, ee->num_events,
+						  ee->ops);
 	if (IS_ERR(pd))
-		goto err;
+		return PTR_ERR(pd);
 
-	for (i = 0; i < num_events; i++, evt++) {
+	pd->ph = ph;
+	for (i = 0; i < ee->num_events; i++, evt++) {
 		struct scmi_registered_event *r_evt;
 
 		r_evt = devm_kzalloc(ni->handle->dev, sizeof(*r_evt),
 				     GFP_KERNEL);
 		if (!r_evt)
-			goto err;
+			return -ENOMEM;
 		r_evt->proto = pd;
 		r_evt->evt = evt;
 
 		r_evt->sources = devm_kcalloc(ni->handle->dev, num_sources,
 					      sizeof(refcount_t), GFP_KERNEL);
 		if (!r_evt->sources)
-			goto err;
+			return -ENOMEM;
 		r_evt->num_sources = num_sources;
 		mutex_init(&r_evt->sources_mtx);
 
 		r_evt->report = devm_kzalloc(ni->handle->dev,
 					     evt->max_report_sz, GFP_KERNEL);
 		if (!r_evt->report)
-			goto err;
+			return -ENOMEM;
 
 		pd->registered_events[i] = r_evt;
 		/* Ensure events are updated */
@@ -815,8 +821,6 @@ int scmi_register_protocol_events(const struct scmi_handle *handle,
 	/* Ensure protocols are updated */
 	smp_wmb();
 
-	devres_close_group(ni->handle->dev, ni->gid);
-
 	/*
 	 * Finalize any pending events' handler which could have been waiting
 	 * for this protocol's events registration.
@@ -824,13 +828,33 @@ int scmi_register_protocol_events(const struct scmi_handle *handle,
 	schedule_work(&ni->init_work);
 
 	return 0;
+}
 
-err:
-	dev_warn(handle->dev, "Proto:%X - Registration Failed !\n", proto_id);
-	/* A failing protocol registration does not trigger full failure */
-	devres_close_group(ni->handle->dev, ni->gid);
+/**
+ * scmi_deregister_protocol_events  - Deregister protocol events with the core
+ * @handle: The handle identifying the platform instance against which the
+ *	    protocol's events are registered
+ * @proto_id: Protocol ID
+ */
+void scmi_deregister_protocol_events(const struct scmi_handle *handle,
+				     u8 proto_id)
+{
+	struct scmi_notify_instance *ni;
+	struct scmi_registered_events_desc *pd;
 
-	return -ENOMEM;
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
+		return;
+
+	pd = ni->registered_protocols[proto_id];
+	if (!pd)
+		return;
+
+	ni->registered_protocols[proto_id] = NULL;
+	/* Ensure protocols are updated */
+	smp_wmb();
+
+	cancel_work_sync(&pd->equeue.notify_work);
 }
 
 /**
@@ -900,9 +924,21 @@ static inline int scmi_bind_event_handler(struct scmi_notify_instance *ni,
 	if (!r_evt)
 		return -EINVAL;
 
-	/* Remove from pending and insert into registered */
+	/*
+	 * Remove from pending and insert into registered while getting hold
+	 * of protocol instance.
+	 */
 	hash_del(&hndl->hash);
+	/*
+	 * Acquire protocols only for NON pending handlers, so as NOT to trigger
+	 * protocol initialization when a notifier is registered against a still
+	 * not registered protocol, since it would make little sense to force init
+	 * protocols for which still no SCMI driver user exists: they wouldn't
+	 * emit any event anyway till some SCMI driver starts using it.
+	 */
+	scmi_protocol_acquire(ni->handle, KEY_XTRACT_PROTO_ID(hndl->key));
 	hndl->r_evt = r_evt;
+
 	mutex_lock(&r_evt->proto->registered_mtx);
 	hash_add(r_evt->proto->registered_events_handlers,
 		 &hndl->hash, hndl->key);
@@ -1193,41 +1229,65 @@ static int scmi_disable_events(struct scmi_event_handler *hndl)
  * * unregister and free the handler itself
  *
  * Context: Assumes all the proper locking has been managed by the caller.
+ *
+ * Return: True if handler was freed (users dropped to zero)
  */
-static void scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
+static bool scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
 				      struct scmi_event_handler *hndl)
 {
+	bool freed = false;
+
 	if (refcount_dec_and_test(&hndl->users)) {
 		if (!IS_HNDL_PENDING(hndl))
 			scmi_disable_events(hndl);
 		scmi_free_event_handler(hndl);
+		freed = true;
 	}
+
+	return freed;
 }
 
 static void scmi_put_handler(struct scmi_notify_instance *ni,
 			     struct scmi_event_handler *hndl)
 {
+	bool freed;
+	u8 protocol_id;
 	struct scmi_registered_event *r_evt = hndl->r_evt;
 
 	mutex_lock(&ni->pending_mtx);
-	if (r_evt)
+	if (r_evt) {
+		protocol_id = r_evt->proto->id;
 		mutex_lock(&r_evt->proto->registered_mtx);
+	}
 
-	scmi_put_handler_unlocked(ni, hndl);
+	freed = scmi_put_handler_unlocked(ni, hndl);
 
-	if (r_evt)
+	if (r_evt) {
 		mutex_unlock(&r_evt->proto->registered_mtx);
+		/*
+		 * Only registered handler acquired protocol; must be here
+		 * released only AFTER unlocking registered_mtx, since
+		 * releasing a protocol can trigger its de-initialization
+		 * (ie. including r_evt and registered_mtx)
+		 */
+		if (freed)
+			scmi_protocol_release(ni->handle, protocol_id);
+	}
 	mutex_unlock(&ni->pending_mtx);
 }
 
 static void scmi_put_active_handler(struct scmi_notify_instance *ni,
 				    struct scmi_event_handler *hndl)
 {
+	bool freed;
 	struct scmi_registered_event *r_evt = hndl->r_evt;
+	u8 protocol_id = r_evt->proto->id;
 
 	mutex_lock(&r_evt->proto->registered_mtx);
-	scmi_put_handler_unlocked(ni, hndl);
+	freed = scmi_put_handler_unlocked(ni, hndl);
 	mutex_unlock(&r_evt->proto->registered_mtx);
+	if (freed)
+		scmi_protocol_release(ni->handle, protocol_id);
 }
 
 /**
@@ -1247,7 +1307,7 @@ static int scmi_event_handler_enable_events(struct scmi_event_handler *hndl)
 }
 
 /**
- * scmi_register_notifier()  - Register a notifier_block for an event
+ * scmi_notifier_register()  - Register a notifier_block for an event
  * @handle: The handle identifying the platform instance against which the
  *	    callback is registered
  * @proto_id: Protocol ID
@@ -1279,8 +1339,8 @@ static int scmi_event_handler_enable_events(struct scmi_event_handler *hndl)
  *
  * Return: 0 on Success
  */
-static int scmi_register_notifier(const struct scmi_handle *handle,
-				  u8 proto_id, u8 evt_id, u32 *src_id,
+static int scmi_notifier_register(const struct scmi_handle *handle,
+				  u8 proto_id, u8 evt_id, const u32 *src_id,
 				  struct notifier_block *nb)
 {
 	int ret = 0;
@@ -1288,11 +1348,9 @@ static int scmi_register_notifier(const struct scmi_handle *handle,
 	struct scmi_event_handler *hndl;
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return -ENODEV;
-	ni = handle->notify_priv;
 
 	evt_key = MAKE_HASH_KEY(proto_id, evt_id,
 				src_id ? *src_id : SRC_ID_MASK);
@@ -1313,7 +1371,7 @@ static int scmi_register_notifier(const struct scmi_handle *handle,
 }
 
 /**
- * scmi_unregister_notifier()  - Unregister a notifier_block for an event
+ * scmi_notifier_unregister()  - Unregister a notifier_block for an event
  * @handle: The handle identifying the platform instance against which the
  *	    callback is unregistered
  * @proto_id: Protocol ID
@@ -1328,19 +1386,17 @@ static int scmi_register_notifier(const struct scmi_handle *handle,
  *
  * Return: 0 on Success
  */
-static int scmi_unregister_notifier(const struct scmi_handle *handle,
-				    u8 proto_id, u8 evt_id, u32 *src_id,
+static int scmi_notifier_unregister(const struct scmi_handle *handle,
+				    u8 proto_id, u8 evt_id, const u32 *src_id,
 				    struct notifier_block *nb)
 {
 	u32 evt_key;
 	struct scmi_event_handler *hndl;
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return -ENODEV;
-	ni = handle->notify_priv;
 
 	evt_key = MAKE_HASH_KEY(proto_id, evt_id,
 				src_id ? *src_id : SRC_ID_MASK);
@@ -1356,7 +1412,7 @@ static int scmi_unregister_notifier(const struct scmi_handle *handle,
 	scmi_put_handler(ni, hndl);
 
 	/*
-	 * This balances the initial get issued in @scmi_register_notifier.
+	 * This balances the initial get issued in @scmi_notifier_register.
 	 * If this notifier_block happened to be the last known user callback
 	 * for this event, the handler is here freed and the event's generation
 	 * stopped.
@@ -1369,6 +1425,129 @@ static int scmi_unregister_notifier(const struct scmi_handle *handle,
 	scmi_put_handler(ni, hndl);
 
 	return 0;
+}
+
+struct scmi_notifier_devres {
+	const struct scmi_handle *handle;
+	u8 proto_id;
+	u8 evt_id;
+	u32 __src_id;
+	u32 *src_id;
+	struct notifier_block *nb;
+};
+
+static void scmi_devm_release_notifier(struct device *dev, void *res)
+{
+	struct scmi_notifier_devres *dres = res;
+
+	scmi_notifier_unregister(dres->handle, dres->proto_id, dres->evt_id,
+				 dres->src_id, dres->nb);
+}
+
+/**
+ * scmi_devm_notifier_register()  - Managed registration of a notifier_block
+ * for an event
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @proto_id: Protocol ID
+ * @evt_id: Event ID
+ * @src_id: Source ID, when NULL register for events coming form ALL possible
+ *	    sources
+ * @nb: A standard notifier block to register for the specified event
+ *
+ * Generic devres managed helper to register a notifier_block against a
+ * protocol event.
+ */
+static int scmi_devm_notifier_register(struct scmi_device *sdev,
+				       u8 proto_id, u8 evt_id,
+				       const u32 *src_id,
+				       struct notifier_block *nb)
+{
+	int ret;
+	struct scmi_notifier_devres *dres;
+
+	dres = devres_alloc(scmi_devm_release_notifier,
+			    sizeof(*dres), GFP_KERNEL);
+	if (!dres)
+		return -ENOMEM;
+
+	ret = scmi_notifier_register(sdev->handle, proto_id,
+				     evt_id, src_id, nb);
+	if (ret) {
+		devres_free(dres);
+		return ret;
+	}
+
+	dres->handle = sdev->handle;
+	dres->proto_id = proto_id;
+	dres->evt_id = evt_id;
+	dres->nb = nb;
+	if (src_id) {
+		dres->__src_id = *src_id;
+		dres->src_id = &dres->__src_id;
+	} else {
+		dres->src_id = NULL;
+	}
+	devres_add(&sdev->dev, dres);
+
+	return ret;
+}
+
+static int scmi_devm_notifier_match(struct device *dev, void *res, void *data)
+{
+	struct scmi_notifier_devres *dres = res;
+	struct scmi_notifier_devres *xres = data;
+
+	if (WARN_ON(!dres || !xres))
+		return 0;
+
+	return dres->proto_id == xres->proto_id &&
+		dres->evt_id == xres->evt_id &&
+		dres->nb == xres->nb &&
+		((!dres->src_id && !xres->src_id) ||
+		  (dres->src_id && xres->src_id &&
+		   dres->__src_id == xres->__src_id));
+}
+
+/**
+ * scmi_devm_notifier_unregister()  - Managed un-registration of a
+ * notifier_block for an event
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @proto_id: Protocol ID
+ * @evt_id: Event ID
+ * @src_id: Source ID, when NULL register for events coming form ALL possible
+ *	    sources
+ * @nb: A standard notifier block to register for the specified event
+ *
+ * Generic devres managed helper to explicitly un-register a notifier_block
+ * against a protocol event, which was previously registered using the above
+ * @scmi_devm_notifier_register.
+ */
+static int scmi_devm_notifier_unregister(struct scmi_device *sdev,
+					 u8 proto_id, u8 evt_id,
+					 const u32 *src_id,
+					 struct notifier_block *nb)
+{
+	int ret;
+	struct scmi_notifier_devres dres;
+
+	dres.handle = sdev->handle;
+	dres.proto_id = proto_id;
+	dres.evt_id = evt_id;
+	if (src_id) {
+		dres.__src_id = *src_id;
+		dres.src_id = &dres.__src_id;
+	} else {
+		dres.src_id = NULL;
+	}
+
+	ret = devres_release(&sdev->dev, scmi_devm_release_notifier,
+			     scmi_devm_notifier_match, &dres);
+
+	WARN_ON(ret);
+
+	return ret;
 }
 
 /**
@@ -1428,8 +1607,10 @@ static void scmi_protocols_late_init(struct work_struct *work)
  * directly from an scmi_driver to register its own notifiers.
  */
 static const struct scmi_notify_ops notify_ops = {
-	.register_event_notifier = scmi_register_notifier,
-	.unregister_event_notifier = scmi_unregister_notifier,
+	.devm_event_notifier_register = scmi_devm_notifier_register,
+	.devm_event_notifier_unregister = scmi_devm_notifier_unregister,
+	.event_notifier_register = scmi_notifier_register,
+	.event_notifier_unregister = scmi_notifier_unregister,
 };
 
 /**
@@ -1490,8 +1671,8 @@ int scmi_notification_init(struct scmi_handle *handle)
 
 	INIT_WORK(&ni->init_work, scmi_protocols_late_init);
 
+	scmi_notification_instance_data_set(handle, ni);
 	handle->notify_ops = &notify_ops;
-	handle->notify_priv = ni;
 	/* Ensure handle is up to date */
 	smp_wmb();
 
@@ -1503,7 +1684,7 @@ int scmi_notification_init(struct scmi_handle *handle)
 
 err:
 	dev_warn(handle->dev, "Initialization Failed.\n");
-	devres_release_group(handle->dev, NULL);
+	devres_release_group(handle->dev, gid);
 	return -ENOMEM;
 }
 
@@ -1515,15 +1696,10 @@ void scmi_notification_exit(struct scmi_handle *handle)
 {
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return;
-	ni = handle->notify_priv;
-
-	handle->notify_priv = NULL;
-	/* Ensure handle is up to date */
-	smp_wmb();
+	scmi_notification_instance_data_set(handle, NULL);
 
 	/* Destroy while letting pending work complete */
 	destroy_workqueue(ni->notify_wq);

@@ -303,7 +303,7 @@ static int imx7ulp_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver imx7ulp_pinctrl_driver = {
 	.driver = {
 		.name = "imx7ulp-pinctrl",
-		.of_match_table = of_match_ptr(imx7ulp_pinctrl_of_match),
+		.of_match_table = imx7ulp_pinctrl_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe = imx7ulp_pinctrl_probe,

@@ -11,6 +11,11 @@
 	model = "Rockchip PX5 EVB";
 	compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial4:115200n8";
 	};

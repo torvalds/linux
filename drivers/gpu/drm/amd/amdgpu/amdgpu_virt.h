@@ -104,6 +104,17 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_GIM_MM_BW_MGR = 0x8,
 	/* PP ONE VF MODE in GIM */
 	AMDGIM_FEATURE_PP_ONE_VF = (1 << 4),
+	/* Indirect Reg Access enabled */
+	AMDGIM_FEATURE_INDIRECT_REG_ACCESS = (1 << 5),
+};
+
+enum AMDGIM_REG_ACCESS_FLAG {
+	/* Use PSP to program IH_RB_CNTL */
+	AMDGIM_FEATURE_IH_REG_PSP_EN     = (1 << 0),
+	/* Use RLC to program MMHUB regs */
+	AMDGIM_FEATURE_MMHUB_REG_RLC_EN  = (1 << 1),
+	/* Use RLC to program GC regs */
+	AMDGIM_FEATURE_GC_REG_RLC_EN     = (1 << 2),
 };
 
 struct amdgim_pf2vf_info_v1 {
@@ -217,6 +228,7 @@ struct amdgpu_virt {
 	bool tdr_debug;
 	struct amdgpu_virt_ras_err_handler_data *virt_eh_data;
 	bool ras_init_done;
+	uint32_t reg_access;
 
 	/* vf2pf message */
 	struct delayed_work vf2pf_work;
@@ -237,6 +249,22 @@ struct amdgpu_virt {
 
 #define amdgpu_sriov_fullaccess(adev) \
 (amdgpu_sriov_vf((adev)) && !amdgpu_sriov_runtime((adev)))
+
+#define amdgpu_sriov_reg_indirect_en(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.gim_feature & (AMDGIM_FEATURE_INDIRECT_REG_ACCESS)))
+
+#define amdgpu_sriov_reg_indirect_ih(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_IH_REG_PSP_EN)))
+
+#define amdgpu_sriov_reg_indirect_mmhub(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_MMHUB_REG_RLC_EN)))
+
+#define amdgpu_sriov_reg_indirect_gc(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_GC_REG_RLC_EN)))
 
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)

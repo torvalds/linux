@@ -5,6 +5,10 @@
 	model = "NVIDIA Jetson Xavier NX (eMMC)";
 	compatible = "nvidia,p3668-0001", "nvidia,tegra194";
 
+	aliases {
+		mmc0 = "/bus@0/mmc@3460000";
+	};
+
 	bus@0 {
 		/* SDMMC4 (eMMC) */
 		mmc@3460000 {

@@ -402,7 +402,7 @@ int vx_send_rih(struct vx_core *chip, int cmd)
 #define END_OF_RESET_WAIT_TIME		500	/* us */
 
 /**
- * snd_vx_boot_xilinx - boot up the xilinx interface
+ * snd_vx_load_boot_image - boot up the xilinx interface
  * @chip: VX core instance
  * @boot: the boot record to load
  */

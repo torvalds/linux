@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
+#include <linux/ptp_pch.h>
 #include <linux/gpio.h>
 
 #define DRV_VERSION     "1.01"

@@ -387,6 +387,7 @@ void r8712_SwitchBandwidth(struct _adapter *pAdapter)
 		break;
 	}
 }
+
 /*------------------------------Define structure----------------------------*/
 struct R_ANTENNA_SELECT_OFDM {
 	u32	r_tx_antenna:4;

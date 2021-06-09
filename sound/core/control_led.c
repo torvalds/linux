@@ -94,11 +94,15 @@ static struct snd_ctl_led *snd_ctl_led_get_by_access(unsigned int access)
 	return &snd_ctl_leds[group];
 }
 
+/*
+ * A note for callers:
+ *   The two static variables info and value are protected using snd_ctl_led_mutex.
+ */
 static int snd_ctl_led_get(struct snd_ctl_led_ctl *lctl)
 {
+	static struct snd_ctl_elem_info info;
+	static struct snd_ctl_elem_value value;
 	struct snd_kcontrol *kctl = lctl->kctl;
-	struct snd_ctl_elem_info info;
-	struct snd_ctl_elem_value value;
 	unsigned int i;
 	int result;
 
@@ -391,7 +395,7 @@ static ssize_t store_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct snd_ctl_led *led = container_of(dev, struct snd_ctl_led, dev);
 	char _buf[16];
-	size_t l = min(count, sizeof(_buf) - 1) + 1;
+	size_t l = min(count, sizeof(_buf) - 1);
 	enum snd_ctl_led_mode mode;
 
 	memcpy(_buf, buf, l);
@@ -506,7 +510,7 @@ static char *parse_iface(char *s, unsigned int *val)
 static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, size_t count,
 			  bool attach)
 {
-	char buf2[256], *s;
+	char buf2[256], *s, *os;
 	size_t len = max(sizeof(s) - 1, count);
 	struct snd_ctl_elem_id id;
 	int err;
@@ -517,6 +521,7 @@ static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, si
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	s = buf2;
 	while (*s) {
+		os = s;
 		if (!strncasecmp(s, "numid=", 6)) {
 			s = parse_uint(s + 6, &id.numid);
 		} else if (!strncasecmp(s, "iface=", 6)) {
@@ -546,6 +551,8 @@ static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, si
 		}
 		if (*s == ',')
 			s++;
+		if (s == os)
+			break;
 	}
 
 	err = snd_ctl_led_set_id(led_card->number, &id, led_card->led->group, attach);
@@ -731,7 +738,7 @@ static int __init snd_ctl_led_init(void)
 		if (device_add(&led->dev)) {
 			put_device(&led->dev);
 			for (; group > 0; group--) {
-				led = &snd_ctl_leds[group];
+				led = &snd_ctl_leds[group - 1];
 				device_del(&led->dev);
 			}
 			device_del(&snd_ctl_led_dev);

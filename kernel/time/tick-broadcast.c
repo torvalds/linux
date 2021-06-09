@@ -107,6 +107,19 @@ void tick_install_broadcast_device(struct clock_event_device *dev)
 	tick_broadcast_device.evtdev = dev;
 	if (!cpumask_empty(tick_broadcast_mask))
 		tick_broadcast_start_periodic(dev);
+
+	if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
+		return;
+
+	/*
+	 * If the system already runs in oneshot mode, switch the newly
+	 * registered broadcast device to oneshot mode explicitly.
+	 */
+	if (tick_broadcast_oneshot_active()) {
+		tick_broadcast_switch_to_oneshot();
+		return;
+	}
+
 	/*
 	 * Inform all cpus about this. We might be in a situation
 	 * where we did not switch to oneshot mode because the per cpu
@@ -115,8 +128,7 @@ void tick_install_broadcast_device(struct clock_event_device *dev)
 	 * notification the systems stays stuck in periodic mode
 	 * forever.
 	 */
-	if (dev->features & CLOCK_EVT_FEAT_ONESHOT)
-		tick_clock_notify();
+	tick_clock_notify();
 }
 
 /*
@@ -157,7 +169,7 @@ static void tick_device_setup_broadcast_func(struct clock_event_device *dev)
 }
 
 /*
- * Check, if the device is disfunctional and a place holder, which
+ * Check, if the device is dysfunctional and a placeholder, which
  * needs to be handled by the broadcast device.
  */
 int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
@@ -391,7 +403,7 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 			 * - the broadcast device exists
 			 * - the broadcast device is not a hrtimer based one
 			 * - the broadcast device is in periodic mode to
-			 *   avoid a hickup during switch to oneshot mode
+			 *   avoid a hiccup during switch to oneshot mode
 			 */
 			if (bc && !(bc->features & CLOCK_EVT_FEAT_HRTIMER) &&
 			    tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)

@@ -2,6 +2,70 @@
 #ifndef _ASM_POWERPC_INTERRUPT_H
 #define _ASM_POWERPC_INTERRUPT_H
 
+/* BookE/4xx */
+#define INTERRUPT_CRITICAL_INPUT  0x100
+
+/* BookE */
+#define INTERRUPT_DEBUG           0xd00
+#ifdef CONFIG_BOOKE
+#define INTERRUPT_PERFMON         0x260
+#define INTERRUPT_DOORBELL        0x280
+#endif
+
+/* BookS/4xx/8xx */
+#define INTERRUPT_MACHINE_CHECK   0x200
+
+/* BookS/8xx */
+#define INTERRUPT_SYSTEM_RESET    0x100
+
+/* BookS */
+#define INTERRUPT_DATA_SEGMENT    0x380
+#define INTERRUPT_INST_SEGMENT    0x480
+#define INTERRUPT_TRACE           0xd00
+#define INTERRUPT_H_DATA_STORAGE  0xe00
+#define INTERRUPT_HMI			0xe60
+#define INTERRUPT_H_FAC_UNAVAIL   0xf80
+#ifdef CONFIG_PPC_BOOK3S
+#define INTERRUPT_DOORBELL        0xa00
+#define INTERRUPT_PERFMON         0xf00
+#define INTERRUPT_ALTIVEC_UNAVAIL	0xf20
+#endif
+
+/* BookE/BookS/4xx/8xx */
+#define INTERRUPT_DATA_STORAGE    0x300
+#define INTERRUPT_INST_STORAGE    0x400
+#define INTERRUPT_EXTERNAL		0x500
+#define INTERRUPT_ALIGNMENT       0x600
+#define INTERRUPT_PROGRAM         0x700
+#define INTERRUPT_SYSCALL         0xc00
+#define INTERRUPT_TRACE			0xd00
+
+/* BookE/BookS/44x */
+#define INTERRUPT_FP_UNAVAIL      0x800
+
+/* BookE/BookS/44x/8xx */
+#define INTERRUPT_DECREMENTER     0x900
+
+#ifndef INTERRUPT_PERFMON
+#define INTERRUPT_PERFMON         0x0
+#endif
+
+/* 8xx */
+#define INTERRUPT_SOFT_EMU_8xx		0x1000
+#define INTERRUPT_INST_TLB_MISS_8xx	0x1100
+#define INTERRUPT_DATA_TLB_MISS_8xx	0x1200
+#define INTERRUPT_INST_TLB_ERROR_8xx	0x1300
+#define INTERRUPT_DATA_TLB_ERROR_8xx	0x1400
+#define INTERRUPT_DATA_BREAKPOINT_8xx	0x1c00
+#define INTERRUPT_INST_BREAKPOINT_8xx	0x1d00
+
+/* 603 */
+#define INTERRUPT_INST_TLB_MISS_603		0x1000
+#define INTERRUPT_DATA_LOAD_TLB_MISS_603	0x1100
+#define INTERRUPT_DATA_STORE_TLB_MISS_603	0x1200
+
+#ifndef __ASSEMBLY__
+
 #include <linux/context_tracking.h>
 #include <linux/hardirq.h>
 #include <asm/cputime.h>
@@ -9,10 +73,18 @@
 #include <asm/kprobes.h>
 #include <asm/runlatch.h>
 
-struct interrupt_state {
-#ifdef CONFIG_PPC_BOOK3E_64
-	enum ctx_state ctx_state;
+static inline void nap_adjust_return(struct pt_regs *regs)
+{
+#ifdef CONFIG_PPC_970_NAP
+	if (unlikely(test_thread_local_flags(_TLF_NAPPING))) {
+		/* Can avoid a test-and-clear because NMIs do not call this */
+		clear_thread_local_flags(_TLF_NAPPING);
+		regs->nip = (unsigned long)power4_idle_nap_return;
+	}
 #endif
+}
+
+struct interrupt_state {
 };
 
 static inline void booke_restore_dbcr0(void)
@@ -29,10 +101,19 @@ static inline void booke_restore_dbcr0(void)
 
 static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrupt_state *state)
 {
-	/*
-	 * Book3E reconciles irq soft mask in asm
-	 */
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC32
+	if (!arch_irq_disabled_regs(regs))
+		trace_hardirqs_off();
+
+	if (user_mode(regs)) {
+		kuep_lock();
+		account_cpu_user_entry();
+	} else {
+		kuap_save_and_lock(regs);
+	}
+#endif
+
+#ifdef CONFIG_PPC64
 	if (irq_soft_mask_set_return(IRQS_ALL_DISABLED) == IRQS_ENABLED)
 		trace_hardirqs_off();
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -48,16 +129,12 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		 * CT_WARN_ON comes here via program_check_exception,
 		 * so avoid recursion.
 		 */
-		if (TRAP(regs) != 0x700)
+		if (TRAP(regs) != INTERRUPT_PROGRAM)
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	}
 #endif
 
-#ifdef CONFIG_PPC_BOOK3E_64
-	state->ctx_state = exception_enter();
-	if (user_mode(regs))
-		account_cpu_user_entry();
-#endif
+	booke_restore_dbcr0();
 }
 
 /*
@@ -76,23 +153,6 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
  */
 static inline void interrupt_exit_prepare(struct pt_regs *regs, struct interrupt_state *state)
 {
-#ifdef CONFIG_PPC_BOOK3E_64
-	exception_exit(state->ctx_state);
-#endif
-
-	/*
-	 * Book3S exits to user via interrupt_exit_user_prepare(), which does
-	 * context tracking, which is a cleaner way to handle PREEMPT=y
-	 * and avoid context entry/exit in e.g., preempt_schedule_irq()),
-	 * which is likely to be where the core code wants to end up.
-	 *
-	 * The above comment explains why we can't do the
-	 *
-	 *     if (user_mode(regs))
-	 *         user_exit_irqoff();
-	 *
-	 * sequence here.
-	 */
 }
 
 static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct interrupt_state *state)
@@ -109,24 +169,46 @@ static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct in
 
 static inline void interrupt_async_exit_prepare(struct pt_regs *regs, struct interrupt_state *state)
 {
+	/*
+	 * Adjust at exit so the main handler sees the true NIA. This must
+	 * come before irq_exit() because irq_exit can enable interrupts, and
+	 * if another interrupt is taken before nap_adjust_return has run
+	 * here, then that interrupt would return directly to idle nap return.
+	 */
+	nap_adjust_return(regs);
+
 	irq_exit();
 	interrupt_exit_prepare(regs, state);
 }
 
 struct interrupt_nmi_state {
 #ifdef CONFIG_PPC64
-#ifdef CONFIG_PPC_BOOK3S_64
 	u8 irq_soft_mask;
 	u8 irq_happened;
-#endif
 	u8 ftrace_enabled;
 #endif
 };
 
+static inline bool nmi_disables_ftrace(struct pt_regs *regs)
+{
+	/* Allow DEC and PMI to be traced when they are soft-NMI */
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64)) {
+		if (TRAP(regs) == INTERRUPT_DECREMENTER)
+		       return false;
+		if (TRAP(regs) == INTERRUPT_PERFMON)
+		       return false;
+	}
+	if (IS_ENABLED(CONFIG_PPC_BOOK3E)) {
+		if (TRAP(regs) == INTERRUPT_PERFMON)
+			return false;
+	}
+
+	return true;
+}
+
 static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct interrupt_nmi_state *state)
 {
 #ifdef CONFIG_PPC64
-#ifdef CONFIG_PPC_BOOK3S_64
 	state->irq_soft_mask = local_paca->irq_soft_mask;
 	state->irq_happened = local_paca->irq_happened;
 
@@ -138,10 +220,16 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	local_paca->irq_soft_mask = IRQS_ALL_DISABLED;
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !(regs->msr & MSR_PR) &&
+				regs->nip < (unsigned long)__end_interrupts) {
+		// Kernel code running below __end_interrupts is
+		// implicitly soft-masked.
+		regs->softe = IRQS_ALL_DISABLED;
+	}
+
 	/* Don't do any per-CPU operations until interrupt state is fixed */
-#endif
-	/* Allow DEC and PMI to be traced when they are soft-NMI */
-	if (TRAP(regs) != 0x900 && TRAP(regs) != 0xf00 && TRAP(regs) != 0x260) {
+
+	if (nmi_disables_ftrace(regs)) {
 		state->ftrace_enabled = this_cpu_get_ftrace_enabled();
 		this_cpu_set_ftrace_enabled(0);
 	}
@@ -164,16 +252,19 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 			radix_enabled() || (mfmsr() & MSR_DR))
 		nmi_exit();
 
+	/*
+	 * nmi does not call nap_adjust_return because nmi should not create
+	 * new work to do (must use irq_work for that).
+	 */
+
 #ifdef CONFIG_PPC64
-	if (TRAP(regs) != 0x900 && TRAP(regs) != 0xf00 && TRAP(regs) != 0x260)
+	if (nmi_disables_ftrace(regs))
 		this_cpu_set_ftrace_enabled(state->ftrace_enabled);
 
-#ifdef CONFIG_PPC_BOOK3S_64
 	/* Check we didn't change the pending interrupt mask. */
 	WARN_ON_ONCE((state->irq_happened | PACA_IRQ_HARD_DIS) != local_paca->irq_happened);
 	local_paca->irq_happened = state->irq_happened;
 	local_paca->irq_soft_mask = state->irq_soft_mask;
-#endif
 #endif
 }
 
@@ -387,6 +478,7 @@ DECLARE_INTERRUPT_HANDLER(SMIException);
 DECLARE_INTERRUPT_HANDLER(handle_hmi_exception);
 DECLARE_INTERRUPT_HANDLER(unknown_exception);
 DECLARE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception);
+DECLARE_INTERRUPT_HANDLER_NMI(unknown_nmi_exception);
 DECLARE_INTERRUPT_HANDLER(instruction_breakpoint_exception);
 DECLARE_INTERRUPT_HANDLER(RunModeException);
 DECLARE_INTERRUPT_HANDLER(single_step_exception);
@@ -410,7 +502,7 @@ DECLARE_INTERRUPT_HANDLER(altivec_assist_exception);
 DECLARE_INTERRUPT_HANDLER(CacheLockingException);
 DECLARE_INTERRUPT_HANDLER(SPEFloatingPointException);
 DECLARE_INTERRUPT_HANDLER(SPEFloatingPointRoundException);
-DECLARE_INTERRUPT_HANDLER(WatchdogException);
+DECLARE_INTERRUPT_HANDLER_NMI(WatchdogException);
 DECLARE_INTERRUPT_HANDLER(kernel_bad_stack);
 
 /* slb.c */
@@ -421,7 +513,7 @@ DECLARE_INTERRUPT_HANDLER(do_bad_slb_fault);
 DECLARE_INTERRUPT_HANDLER_RAW(do_hash_fault);
 
 /* fault.c */
-DECLARE_INTERRUPT_HANDLER_RET(do_page_fault);
+DECLARE_INTERRUPT_HANDLER(do_page_fault);
 DECLARE_INTERRUPT_HANDLER(do_bad_page_fault_segv);
 
 /* process.c */
@@ -436,7 +528,7 @@ DECLARE_INTERRUPT_HANDLER_NMI(hmi_exception_realmode);
 
 DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
 
-void unrecoverable_exception(struct pt_regs *regs);
+void __noreturn unrecoverable_exception(struct pt_regs *regs);
 
 void replay_system_reset(void);
 void replay_soft_interrupts(void);
@@ -446,5 +538,7 @@ static inline void interrupt_cond_local_irq_enable(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 }
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_INTERRUPT_H */

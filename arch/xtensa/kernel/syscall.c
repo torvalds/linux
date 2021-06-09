@@ -17,7 +17,6 @@
  */
 #include <linux/uaccess.h>
 #include <asm/syscall.h>
-#include <asm/unistd.h>
 #include <linux/linkage.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
@@ -28,12 +27,9 @@
 #include <linux/sched/mm.h>
 #include <linux/shm.h>
 
-syscall_t sys_call_table[__NR_syscalls] /* FIXME __cacheline_aligned */= {
-	[0 ... __NR_syscalls - 1] = (syscall_t)&sys_ni_syscall,
-
-#define __SYSCALL(nr, entry, nargs)[nr] = (syscall_t)entry,
+syscall_t sys_call_table[] /* FIXME __cacheline_aligned */= {
+#define __SYSCALL(nr, entry)	(syscall_t)entry,
 #include <asm/syscall_table.h>
-#undef __SYSCALL
 };
 
 #define COLOUR_ALIGN(addr, pgoff) \

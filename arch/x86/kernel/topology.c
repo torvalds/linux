@@ -113,7 +113,7 @@ int arch_register_cpu(int num)
 	 * Two known BSP/CPU0 dependencies: Resume from suspend/hibernate
 	 * depends on BSP. PIC interrupts depend on BSP.
 	 *
-	 * If the BSP depencies are under control, one can tell kernel to
+	 * If the BSP dependencies are under control, one can tell kernel to
 	 * enable BSP hotplug. This basically adds a control file and
 	 * one can attempt to offline BSP.
 	 */

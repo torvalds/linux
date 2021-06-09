@@ -63,7 +63,7 @@ config SOC_IMX35
 	select MXC_AVIC
 	select PINCTRL_IMX35
 	help
-	  This enables support for Freescale i.MX31 processor
+	  This enables support for Freescale i.MX35 processor
 
 endif
 

@@ -129,6 +129,10 @@ static struct inode *__lookup_inode(struct super_block *sb, u64 ino)
 
 	vino.ino = ino;
 	vino.snap = CEPH_NOSNAP;
+
+	if (ceph_vino_is_reserved(vino))
+		return ERR_PTR(-ESTALE);
+
 	inode = ceph_find_inode(sb, vino);
 	if (!inode) {
 		struct ceph_mds_request *req;
@@ -178,8 +182,10 @@ static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
 		return ERR_CAST(inode);
 	/* We need LINK caps to reliably check i_nlink */
 	err = ceph_do_getattr(inode, CEPH_CAP_LINK_SHARED, false);
-	if (err)
+	if (err) {
+		iput(inode);
 		return ERR_PTR(err);
+	}
 	/* -ESTALE if inode as been unlinked and no file is open */
 	if ((inode->i_nlink == 0) && (atomic_read(&inode->i_count) == 1)) {
 		iput(inode);
@@ -212,6 +218,10 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 		vino.ino = sfh->ino;
 		vino.snap = sfh->snapid;
 	}
+
+	if (ceph_vino_is_reserved(vino))
+		return ERR_PTR(-ESTALE);
+
 	inode = ceph_find_inode(sb, vino);
 	if (inode)
 		return d_obtain_alias(inode);
@@ -248,9 +258,10 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 			ihold(inode);
 		} else {
 			/* mds does not support lookup snapped inode */
-			err = -EOPNOTSUPP;
-			inode = NULL;
+			inode = ERR_PTR(-EOPNOTSUPP);
 		}
+	} else {
+		inode = ERR_PTR(-ESTALE);
 	}
 	ceph_mdsc_put_request(req);
 
@@ -261,8 +272,8 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 		dout("snapfh_to_dentry %llx.%llx parent %llx hash %x err=%d",
 		      vino.ino, vino.snap, sfh->parent_ino, sfh->hash, err);
 	}
-	if (!inode)
-		return ERR_PTR(-ESTALE);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 	/* see comments in ceph_get_parent() */
 	return unlinked ? d_obtain_root(inode) : d_obtain_alias(inode);
 }

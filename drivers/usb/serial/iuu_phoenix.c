@@ -643,7 +643,6 @@ static void iuu_uart_read_callback(struct urb *urb)
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int status = urb->status;
-	int error = 0;
 	int len = 0;
 	unsigned char *data = urb->transfer_buffer;
 	priv->poll++;
@@ -660,12 +659,11 @@ static void iuu_uart_read_callback(struct urb *urb)
 	if (urb->actual_length > 1) {
 		dev_dbg(&port->dev, "%s - urb->actual_length = %i\n", __func__,
 		    urb->actual_length);
-		error = 1;
 		return;
 	}
 	/* if len > 0 call readbuf */
 
-	if (len > 0 && error == 0) {
+	if (len > 0) {
 		dev_dbg(&port->dev, "%s - call read buf - len to read is %i\n",
 			__func__, len);
 		status = iuu_read_buf(port, len);

@@ -36,7 +36,7 @@ EXPORT_SYMBOL(msrs_free);
  * argument @m.
  *
  */
-int msr_read(u32 msr, struct msr *m)
+static int msr_read(u32 msr, struct msr *m)
 {
 	int err;
 	u64 val;
@@ -54,7 +54,7 @@ int msr_read(u32 msr, struct msr *m)
  * @msr: MSR to write
  * @m: value to write
  */
-int msr_write(u32 msr, struct msr *m)
+static int msr_write(u32 msr, struct msr *m)
 {
 	return wrmsrl_safe(msr, m->q);
 }

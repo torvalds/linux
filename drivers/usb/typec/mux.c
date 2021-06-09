@@ -13,9 +13,9 @@
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/slab.h>
-#include <linux/usb/typec_mux.h>
 
-#include "bus.h"
+#include "class.h"
+#include "mux.h"
 
 static bool dev_name_ends_with(struct device *dev, const char *suffix)
 {

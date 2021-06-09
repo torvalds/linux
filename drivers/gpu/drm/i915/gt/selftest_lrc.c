@@ -27,7 +27,7 @@
 
 static struct i915_vma *create_scratch(struct intel_gt *gt)
 {
-	return __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
+	return __vm_create_scratch_for_read_pinned(&gt->ggtt->vm, PAGE_SIZE);
 }
 
 static bool is_active(struct i915_request *rq)
@@ -627,7 +627,7 @@ static int __live_lrc_gpr(struct intel_engine_cs *engine,
 		goto err_rq;
 	}
 
-	cs = i915_gem_object_pin_map(scratch->obj, I915_MAP_WB);
+	cs = i915_gem_object_pin_map_unlocked(scratch->obj, I915_MAP_WB);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
 		goto err_rq;
@@ -733,7 +733,6 @@ create_timestamp(struct intel_context *ce, void *slot, int idx)
 
 	intel_ring_advance(rq, cs);
 
-	rq->sched.attr.priority = I915_PRIORITY_MASK;
 	err = 0;
 err:
 	i915_request_get(rq);
@@ -921,7 +920,7 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 	if (IS_ERR(batch))
 		return batch;
 
-	cs = i915_gem_object_pin_map(batch->obj, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(batch->obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		i915_vma_put(batch);
 		return ERR_CAST(cs);
@@ -1085,7 +1084,7 @@ static struct i915_vma *load_context(struct intel_context *ce, u32 poison)
 	if (IS_ERR(batch))
 		return batch;
 
-	cs = i915_gem_object_pin_map(batch->obj, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(batch->obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		i915_vma_put(batch);
 		return ERR_CAST(cs);
@@ -1199,29 +1198,29 @@ static int compare_isolation(struct intel_engine_cs *engine,
 	u32 *defaults;
 	int err = 0;
 
-	A[0] = i915_gem_object_pin_map(ref[0]->obj, I915_MAP_WC);
+	A[0] = i915_gem_object_pin_map_unlocked(ref[0]->obj, I915_MAP_WC);
 	if (IS_ERR(A[0]))
 		return PTR_ERR(A[0]);
 
-	A[1] = i915_gem_object_pin_map(ref[1]->obj, I915_MAP_WC);
+	A[1] = i915_gem_object_pin_map_unlocked(ref[1]->obj, I915_MAP_WC);
 	if (IS_ERR(A[1])) {
 		err = PTR_ERR(A[1]);
 		goto err_A0;
 	}
 
-	B[0] = i915_gem_object_pin_map(result[0]->obj, I915_MAP_WC);
+	B[0] = i915_gem_object_pin_map_unlocked(result[0]->obj, I915_MAP_WC);
 	if (IS_ERR(B[0])) {
 		err = PTR_ERR(B[0]);
 		goto err_A1;
 	}
 
-	B[1] = i915_gem_object_pin_map(result[1]->obj, I915_MAP_WC);
+	B[1] = i915_gem_object_pin_map_unlocked(result[1]->obj, I915_MAP_WC);
 	if (IS_ERR(B[1])) {
 		err = PTR_ERR(B[1]);
 		goto err_B0;
 	}
 
-	lrc = i915_gem_object_pin_map(ce->state->obj,
+	lrc = i915_gem_object_pin_map_unlocked(ce->state->obj,
 				      i915_coherent_map_type(engine->i915));
 	if (IS_ERR(lrc)) {
 		err = PTR_ERR(lrc);

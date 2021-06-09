@@ -106,13 +106,11 @@ err_free_sg:
 }
 
 void i915_gem_object_init_memory_region(struct drm_i915_gem_object *obj,
-					struct intel_memory_region *mem,
-					unsigned long flags)
+					struct intel_memory_region *mem)
 {
 	INIT_LIST_HEAD(&obj->mm.blocks);
 	obj->mm.region = intel_memory_region_get(mem);
 
-	obj->flags |= flags;
 	if (obj->base.size <= mem->min_page_size)
 		obj->flags |= I915_BO_ALLOC_CONTIGUOUS;
 
@@ -161,17 +159,7 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	GEM_BUG_ON(!size);
 	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_MIN_ALIGNMENT));
 
-	/*
-	 * XXX: There is a prevalence of the assumption that we fit the
-	 * object's page count inside a 32bit _signed_ variable. Let's document
-	 * this and catch if we ever need to fix it. In the meantime, if you do
-	 * spot such a local variable, please consider fixing!
-	 */
-
-	if (size >> PAGE_SHIFT > INT_MAX)
-		return ERR_PTR(-E2BIG);
-
-	if (overflows_type(size, obj->base.size))
+	if (i915_gem_object_size_2big(size))
 		return ERR_PTR(-E2BIG);
 
 	obj = i915_gem_object_alloc();

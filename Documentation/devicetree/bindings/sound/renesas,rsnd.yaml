@@ -78,7 +78,6 @@ properties:
 
   clock-frequency:
     description: for audio_clkout0/1/2/3
-    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   clkout-lr-asynchronous:
     description: audio_clkoutn is asynchronizes with lr-clock.

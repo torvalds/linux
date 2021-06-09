@@ -12,9 +12,26 @@
 
 #include "dsa_priv.h"
 
-/* This tag length is 4 bytes, older ones were 6 bytes, we do not
- * handle them
- */
+/* Legacy Broadcom tag (6 bytes) */
+#define BRCM_LEG_TAG_LEN	6
+
+/* Type fields */
+/* 1st byte in the tag */
+#define BRCM_LEG_TYPE_HI	0x88
+/* 2nd byte in the tag */
+#define BRCM_LEG_TYPE_LO	0x74
+
+/* Tag fields */
+/* 3rd byte in the tag */
+#define BRCM_LEG_UNICAST	(0 << 5)
+#define BRCM_LEG_MULTICAST	(1 << 5)
+#define BRCM_LEG_EGRESS		(2 << 5)
+#define BRCM_LEG_INGRESS	(3 << 5)
+
+/* 6th byte in the tag */
+#define BRCM_LEG_PORT_ID	(0xf)
+
+/* Newer Broadcom tag (4 bytes) */
 #define BRCM_TAG_LEN	4
 
 /* Tag is constructed and desconstructed using byte by byte access
@@ -195,6 +212,87 @@ DSA_TAG_DRIVER(brcm_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM);
 #endif
 
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_LEGACY)
+static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
+					 struct net_device *dev)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	u8 *brcm_tag;
+
+	/* The Ethernet switch we are interfaced with needs packets to be at
+	 * least 64 bytes (including FCS) otherwise they will be discarded when
+	 * they enter the switch port logic. When Broadcom tags are enabled, we
+	 * need to make sure that packets are at least 70 bytes
+	 * (including FCS and tag) because the length verification is done after
+	 * the Broadcom tag is stripped off the ingress packet.
+	 *
+	 * Let dsa_slave_xmit() free the SKB
+	 */
+	if (__skb_put_padto(skb, ETH_ZLEN + BRCM_LEG_TAG_LEN, false))
+		return NULL;
+
+	skb_push(skb, BRCM_LEG_TAG_LEN);
+
+	memmove(skb->data, skb->data + BRCM_LEG_TAG_LEN, 2 * ETH_ALEN);
+
+	brcm_tag = skb->data + 2 * ETH_ALEN;
+
+	/* Broadcom tag type */
+	brcm_tag[0] = BRCM_LEG_TYPE_HI;
+	brcm_tag[1] = BRCM_LEG_TYPE_LO;
+
+	/* Broadcom tag value */
+	brcm_tag[2] = BRCM_LEG_EGRESS;
+	brcm_tag[3] = 0;
+	brcm_tag[4] = 0;
+	brcm_tag[5] = dp->index & BRCM_LEG_PORT_ID;
+
+	return skb;
+}
+
+static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
+					struct net_device *dev,
+					struct packet_type *pt)
+{
+	int source_port;
+	u8 *brcm_tag;
+
+	if (unlikely(!pskb_may_pull(skb, BRCM_LEG_PORT_ID)))
+		return NULL;
+
+	brcm_tag = skb->data - 2;
+
+	source_port = brcm_tag[5] & BRCM_LEG_PORT_ID;
+
+	skb->dev = dsa_master_find_slave(dev, 0, source_port);
+	if (!skb->dev)
+		return NULL;
+
+	/* Remove Broadcom tag and update checksum */
+	skb_pull_rcsum(skb, BRCM_LEG_TAG_LEN);
+
+	skb->offload_fwd_mark = 1;
+
+	/* Move the Ethernet DA and SA */
+	memmove(skb->data - ETH_HLEN,
+		skb->data - ETH_HLEN - BRCM_LEG_TAG_LEN,
+		2 * ETH_ALEN);
+
+	return skb;
+}
+
+static const struct dsa_device_ops brcm_legacy_netdev_ops = {
+	.name = "brcm-legacy",
+	.proto = DSA_TAG_PROTO_BRCM_LEGACY,
+	.xmit = brcm_leg_tag_xmit,
+	.rcv = brcm_leg_tag_rcv,
+	.overhead = BRCM_LEG_TAG_LEN,
+};
+
+DSA_TAG_DRIVER(brcm_legacy_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_LEGACY);
+#endif /* CONFIG_NET_DSA_TAG_BRCM_LEGACY */
+
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
 static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
 					     struct net_device *dev)
@@ -226,6 +324,9 @@ MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);
 static struct dsa_tag_driver *dsa_tag_driver_array[] =	{
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
 	&DSA_TAG_DRIVER_NAME(brcm_netdev_ops),
+#endif
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_LEGACY)
+	&DSA_TAG_DRIVER_NAME(brcm_legacy_netdev_ops),
 #endif
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
 	&DSA_TAG_DRIVER_NAME(brcm_prepend_netdev_ops),

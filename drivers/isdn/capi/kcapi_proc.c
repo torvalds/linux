@@ -201,6 +201,7 @@ static ssize_t empty_read(struct file *file, char __user *buf,
 
 static const struct proc_ops empty_proc_ops = {
 	.proc_read	= empty_read,
+	.proc_lseek	= default_llseek,
 };
 
 // ---------------------------------------------------------------------------

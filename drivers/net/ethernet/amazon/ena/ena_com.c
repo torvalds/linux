@@ -863,7 +863,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 
 	if (unlikely(i == timeout)) {
 		netdev_err(ena_dev->net_device,
-			   "Reading reg failed for timeout. expected: req id[%hu] offset[%hu] actual: req id[%hu] offset[%hu]\n",
+			   "Reading reg failed for timeout. expected: req id[%u] offset[%u] actual: req id[%u] offset[%u]\n",
 			   mmio_read->seq_num, offset, read_resp->req_id,
 			   read_resp->reg_off);
 		ret = ENA_MMIO_READ_TIMEOUT;
@@ -2396,7 +2396,7 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 		if (key) {
 			if (key_len != sizeof(hash_key->key)) {
 				netdev_err(ena_dev->net_device,
-					   "key len (%hu) doesn't equal the supported size (%zu)\n",
+					   "key len (%u) doesn't equal the supported size (%zu)\n",
 					   key_len, sizeof(hash_key->key));
 				return -EINVAL;
 			}

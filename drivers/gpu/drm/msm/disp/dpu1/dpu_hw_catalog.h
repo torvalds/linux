@@ -41,7 +41,7 @@
 #define DPU_HW_VER_501	DPU_HW_VER(5, 0, 1) /* sm8150 v2.0 */
 #define DPU_HW_VER_600	DPU_HW_VER(6, 0, 0) /* sm8250 */
 #define DPU_HW_VER_620	DPU_HW_VER(6, 2, 0) /* sc7180 v1.0 */
-
+#define DPU_HW_VER_720	DPU_HW_VER(7, 2, 0) /* sc7280 */
 
 #define IS_MSM8996_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_170)
 #define IS_MSM8998_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_300)
@@ -49,7 +49,7 @@
 #define IS_SDM670_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_410)
 #define IS_SDM855_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_500)
 #define IS_SC7180_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_620)
-
+#define IS_SC7280_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_720)
 
 #define DPU_HW_BLK_NAME_LEN	16
 
@@ -185,6 +185,7 @@ enum {
 enum {
 	DPU_CTL_SPLIT_DISPLAY = 0x1,
 	DPU_CTL_ACTIVE_CFG,
+	DPU_CTL_FETCH_ACTIVE,
 	DPU_CTL_MAX
 };
 
@@ -193,11 +194,14 @@ enum {
  * @DPU_INTF_INPUT_CTRL         Supports the setting of pp block from which
  *                              pixel data arrives to this INTF
  * @DPU_INTF_TE                 INTF block has TE configuration support
+ * @DPU_DATA_HCTL_EN            Allows data to be transferred at different rate
+                                than video timing
  * @DPU_INTF_MAX
  */
 enum {
 	DPU_INTF_INPUT_CTRL = 0x1,
 	DPU_INTF_TE,
+	DPU_DATA_HCTL_EN,
 	DPU_INTF_MAX
 };
 
@@ -719,6 +723,7 @@ struct dpu_perf_cfg {
  * @cursor_formats     Supported formats for cursor pipe
  * @vig_formats        Supported formats for vig pipe
  * @mdss_irqs:         Bitmap with the irqs supported by the target
+ * @obsolete_irq:       Irq types that are obsolete for a particular target
  */
 struct dpu_mdss_cfg {
 	u32 hwversion;
@@ -765,6 +770,7 @@ struct dpu_mdss_cfg {
 	const struct dpu_format_extended *vig_formats;
 
 	unsigned long mdss_irqs;
+	unsigned long obsolete_irq;
 };
 
 struct dpu_mdss_hw_cfg_handler {

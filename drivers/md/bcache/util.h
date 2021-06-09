@@ -27,7 +27,7 @@ struct closure;
 
 #else /* DEBUG */
 
-#define EBUG_ON(cond)			do { if (cond); } while (0)
+#define EBUG_ON(cond)		do { if (cond) do {} while (0); } while (0)
 #define atomic_dec_bug(v)	atomic_dec(v)
 #define atomic_inc_bug(v, i)	atomic_inc(v)
 

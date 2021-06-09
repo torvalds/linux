@@ -354,7 +354,7 @@ static int __init stack_realloc(void)
 	if (!new)
 		panic("Couldn't allocate machine check stack");
 	WRITE_ONCE(S390_lowcore.mcck_stack, new + STACK_INIT_OFFSET);
-	memblock_free(old, THREAD_SIZE);
+	memblock_free_late(old, THREAD_SIZE);
 	return 0;
 }
 early_initcall(stack_realloc);
@@ -937,9 +937,9 @@ static int __init setup_hwcaps(void)
 	if (MACHINE_HAS_VX) {
 		elf_hwcap |= HWCAP_S390_VXRS;
 		if (test_facility(134))
-			elf_hwcap |= HWCAP_S390_VXRS_EXT;
-		if (test_facility(135))
 			elf_hwcap |= HWCAP_S390_VXRS_BCD;
+		if (test_facility(135))
+			elf_hwcap |= HWCAP_S390_VXRS_EXT;
 		if (test_facility(148))
 			elf_hwcap |= HWCAP_S390_VXRS_EXT2;
 		if (test_facility(152))

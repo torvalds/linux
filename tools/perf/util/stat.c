@@ -76,8 +76,7 @@ double rel_stddev_stats(double stddev, double avg)
 	return pct;
 }
 
-bool __perf_evsel_stat__is(struct evsel *evsel,
-			   enum perf_stat_evsel_id id)
+bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id)
 {
 	struct perf_stat_evsel *ps = evsel->stats;
 

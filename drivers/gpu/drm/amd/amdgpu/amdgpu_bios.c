@@ -97,6 +97,10 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 		if (amdgpu_device_need_post(adev))
 			return false;
 
+	/* FB BAR not enabled */
+	if (pci_resource_len(adev->pdev, 0) == 0)
+		return false;
+
 	adev->bios = NULL;
 	vram_base = pci_resource_start(adev->pdev, 0);
 	bios = ioremap_wc(vram_base, size);
@@ -316,7 +320,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 
 	adev->bios = kmalloc(size, GFP_KERNEL);
 	if (!adev->bios) {
-		DRM_ERROR("Unable to allocate bios\n");
+		dev_err(adev->dev, "Unable to allocate bios\n");
 		return false;
 	}
 
@@ -364,7 +368,7 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 		return false;
 	tbl_size = hdr->length;
 	if (tbl_size < sizeof(UEFI_ACPI_VFCT)) {
-		DRM_ERROR("ACPI VFCT table present but broken (too short #1)\n");
+		dev_info(adev->dev, "ACPI VFCT table present but broken (too short #1),skipping\n");
 		return false;
 	}
 
@@ -377,13 +381,13 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 
 		offset += sizeof(VFCT_IMAGE_HEADER);
 		if (offset > tbl_size) {
-			DRM_ERROR("ACPI VFCT image header truncated\n");
+			dev_info(adev->dev, "ACPI VFCT image header truncated,skipping\n");
 			return false;
 		}
 
 		offset += vhdr->ImageLength;
 		if (offset > tbl_size) {
-			DRM_ERROR("ACPI VFCT image truncated\n");
+			dev_info(adev->dev, "ACPI VFCT image truncated,skipping\n");
 			return false;
 		}
 
@@ -406,7 +410,7 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 		}
 	}
 
-	DRM_ERROR("ACPI VFCT table present but broken (too short #2)\n");
+	dev_info(adev->dev, "ACPI VFCT table present but broken (too short #2),skipping\n");
 	return false;
 }
 #else
@@ -453,7 +457,7 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 		goto success;
 	}
 
-	DRM_ERROR("Unable to locate a BIOS ROM\n");
+	dev_err(adev->dev, "Unable to locate a BIOS ROM\n");
 	return false;
 
 success:

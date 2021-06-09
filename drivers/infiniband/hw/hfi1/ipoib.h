@@ -52,8 +52,9 @@ union hfi1_ipoib_flow {
  * @producer_lock: producer sync lock
  * @consumer_lock: consumer sync lock
  */
+struct ipoib_txreq;
 struct hfi1_ipoib_circ_buf {
-	void **items;
+	struct ipoib_txreq **items;
 	unsigned long head;
 	unsigned long tail;
 	unsigned long max_items;
@@ -125,10 +126,10 @@ hfi1_ipoib_priv(const struct net_device *dev)
 	return &((struct hfi1_ipoib_rdma_netdev *)netdev_priv(dev))->dev_priv;
 }
 
-int hfi1_ipoib_send_dma(struct net_device *dev,
-			struct sk_buff *skb,
-			struct ib_ah *address,
-			u32 dqpn);
+int hfi1_ipoib_send(struct net_device *dev,
+		    struct sk_buff *skb,
+		    struct ib_ah *address,
+		    u32 dqpn);
 
 int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv);
 void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv);
@@ -143,8 +144,10 @@ struct sk_buff *hfi1_ipoib_prepare_skb(struct hfi1_netdev_rxq *rxq,
 				       int size, void *data);
 
 int hfi1_ipoib_rn_get_params(struct ib_device *device,
-			     u8 port_num,
+			     u32 port_num,
 			     enum rdma_netdev_t type,
 			     struct rdma_netdev_alloc_params *params);
+
+void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q);
 
 #endif /* _IPOIB_H */

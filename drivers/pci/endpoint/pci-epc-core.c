@@ -594,6 +594,8 @@ EXPORT_SYMBOL_GPL(pci_epc_add_epf);
  * pci_epc_remove_epf() - remove PCI endpoint function from endpoint controller
  * @epc: the EPC device from which the endpoint function should be removed
  * @epf: the endpoint function to be removed
+ * @type: identifies if the EPC is connected to the primary or secondary
+ *        interface of EPF
  *
  * Invoke to remove PCI endpoint function from the endpoint controller.
  */

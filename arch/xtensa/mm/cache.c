@@ -81,13 +81,8 @@ static inline void kmap_invalidate_coherent(struct page *page,
 static inline void *coherent_kvaddr(struct page *page, unsigned long base,
 				    unsigned long vaddr, unsigned long *paddr)
 {
-	if (PageHighMem(page) || !DCACHE_ALIAS_EQ(page_to_phys(page), vaddr)) {
-		*paddr = page_to_phys(page);
-		return (void *)(base + (vaddr & DCACHE_ALIAS_MASK));
-	} else {
-		*paddr = 0;
-		return page_to_virt(page);
-	}
+	*paddr = page_to_phys(page);
+	return (void *)(base + (vaddr & DCACHE_ALIAS_MASK));
 }
 
 void clear_user_highpage(struct page *page, unsigned long vaddr)

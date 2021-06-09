@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 generic-y += asm-offsets.h
+generic-y += extable.h
 generic-y += gpio.h
 generic-y += kvm_para.h
 generic-y += qrwlock.h

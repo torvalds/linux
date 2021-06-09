@@ -28,18 +28,19 @@
 
 /* debug */
 #ifdef CONFIG_DVB_USB_DEBUG
-#define dprintk(var,level,args...) \
-	    do { if ((var & level)) { printk(args); } } while (0)
+#define dprintk(var, level, args...) \
+	    do { if (((var) & (level))) { printk(args); } } while (0)
 
-#define debug_dump(b,l,func) {\
+#define debug_dump(b, l, func) {\
 	int loop_; \
-	for (loop_ = 0; loop_ < l; loop_++) func("%02x ", b[loop_]); \
+	for (loop_ = 0; loop_ < (l); loop_++) \
+		func("%02x ", b[loop_]); \
 	func("\n");\
 }
 #define DVB_USB_DEBUG_STATUS
 #else
-#define dprintk(args...)
-#define debug_dump(b,l,func)
+#define dprintk(var, level, args...) no_printk(args)
+#define debug_dump(b, l, func) do { } while (0)
 
 #define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
 
@@ -95,7 +96,7 @@ struct dvb_usb_device;
 struct dvb_usb_adapter;
 struct usb_data_stream;
 
-/**
+/*
  * Properties of USB streaming - TODO this structure should be somewhere else
  * describes the kind of USB transfer used for data-streaming.
  *  (BULK or ISOC)
@@ -120,7 +121,7 @@ struct usb_data_stream_properties {
 };
 
 /**
- * struct dvb_usb_adapter_properties - properties of a dvb-usb-adapter.
+ * struct dvb_usb_adapter_fe_properties - properties of a dvb-usb-adapter.
  *    A DVB-USB-Adapter is basically a dvb_adapter which is present on a USB-device.
  * @caps: capabilities of the DVB USB device.
  * @pid_filter_count: number of PID filter position in the optional hardware
@@ -139,6 +140,7 @@ struct usb_data_stream_properties {
  * @tuner_attach: called to attach the correct tuner and to fill pll_addr,
  *  pll_desc and pll_init_buf of struct dvb_usb_device).
  * @stream: configuration of the USB streaming
+ * @size_of_priv: size of the priv memory in struct dvb_usb_adapter
  */
 struct dvb_usb_adapter_fe_properties {
 #define DVB_USB_ADAP_HAS_PID_FILTER               0x01
@@ -191,15 +193,17 @@ struct dvb_rc_legacy {
 };
 
 /**
- * struct dvb_rc properties of remote controller, using rc-core
+ * struct dvb_rc - properties of remote controller, using rc-core
  * @rc_codes: name of rc codes table
  * @protocol: type of protocol(s) currently used by the driver
  * @allowed_protos: protocol(s) supported by the driver
  * @driver_type: Used to point if a device supports raw mode
  * @change_protocol: callback to change protocol
+ * @module_name: module name
  * @rc_query: called to query an event event.
  * @rc_interval: time in ms between two queries.
  * @bulk_mode: device supports bulk mode for RC (disable polling mode)
+ * @scancode_mask: scancode mask
  */
 struct dvb_rc {
 	char *rc_codes;
@@ -219,6 +223,9 @@ struct dvb_rc {
  *		       based on rc-core
  * This is initialized/used only inside dvb-usb-remote.c.
  * It shouldn't be set by the drivers.
+ *
+ * @DVB_RC_LEGACY: legacy driver
+ * @DVB_RC_CORE: rc-core driver
  */
 enum dvb_usb_mode {
 	DVB_RC_LEGACY,
@@ -227,6 +234,7 @@ enum dvb_usb_mode {
 
 /**
  * struct dvb_usb_device_properties - properties of a dvb-usb-device
+ * @caps: capabilities
  * @usb_ctrl: which USB device-side controller is in use. Needed for firmware
  *  download.
  * @firmware: name of the firmware file.
@@ -243,6 +251,8 @@ enum dvb_usb_mode {
  * @priv_destroy: just like priv_init, only called before deallocating
  * the memory pointed by private field of struct dvb_usb_device.
  *
+ * @num_adapters: the number of adapters in @adapters
+ * @adapter: the adapters
  * @power_ctrl: called to enable/disable power of the device.
  * @read_mac_address: called to read the MAC address of the device.
  * @identify_state: called to determine the state (cold or warm), when it
@@ -267,9 +277,8 @@ enum dvb_usb_mode {
  * @devices: array of struct dvb_usb_device_description compatibles with these
  *  properties.
  */
-#define MAX_NO_OF_ADAPTER_PER_DEVICE 2
 struct dvb_usb_device_properties {
-
+#define MAX_NO_OF_ADAPTER_PER_DEVICE 2
 #define DVB_USB_IS_AN_I2C_ADAPTER            0x01
 	int caps;
 
@@ -313,6 +322,11 @@ struct dvb_usb_device_properties {
 
 /**
  * struct usb_data_stream - generic object of an USB stream
+ * @udev: the USB device
+ * @props: data stream properties
+ * @state: state of the stream
+ * @complete: complete callback
+ * @urb_list: list of URBs
  * @buf_num: number of buffer allocated.
  * @buf_size: size of each buffer in buf_list.
  * @buf_list: array containing all allocate buffers for streaming.
@@ -320,9 +334,10 @@ struct dvb_usb_device_properties {
  *
  * @urbs_initialized: number of URBs initialized.
  * @urbs_submitted: number of URBs submitted.
+ * @user_priv: for private use.
  */
-#define MAX_NO_URBS_FOR_DATA_STREAM 10
 struct usb_data_stream {
+#define MAX_NO_URBS_FOR_DATA_STREAM 10
 	struct usb_device                 *udev;
 	struct usb_data_stream_properties  props;
 
@@ -345,29 +360,15 @@ struct usb_data_stream {
 };
 
 /**
- * struct dvb_usb_adapter - a DVB adapter on a USB device
- * @id: index of this adapter (starting with 0).
- *
- * @feedcount: number of requested feeds (used for streaming-activation)
- * @pid_filtering: is hardware pid_filtering used or not.
- *
- * @pll_addr: I2C address of the tuner for programming
- * @pll_init: array containing the initialization buffer
- * @pll_desc: pointer to the appropriate struct dvb_pll_desc
- * @tuner_pass_ctrl: called to (de)activate tuner passthru of the demod or the board
- *
- * @dvb_adap: device's dvb_adapter.
- * @dmxdev: device's dmxdev.
- * @demux: device's software demuxer.
- * @dvb_net: device's dvb_net interfaces.
- * @dvb_frontend: device's frontend.
- * @max_feed_count: how many feeds can be handled simultaneously by this
- *  device
- *
+ * struct dvb_usb_fe_adapter - a DVB adapter on a USB device
+ * @fe: frontend
  * @fe_init:  rerouted frontend-init (wakeup) function.
  * @fe_sleep: rerouted frontend-sleep function.
- *
  * @stream: the usb data stream.
+ * @pid_filtering: is hardware pid_filtering used or not.
+ * @max_feed_count: how many feeds can be handled simultaneously by this
+ *  device
+ * @priv: private pointer
  */
 struct dvb_usb_fe_adapter {
 	struct dvb_frontend *fe;
@@ -383,6 +384,25 @@ struct dvb_usb_fe_adapter {
 	void *priv;
 };
 
+/**
+ * struct dvb_usb_adapter - a DVB adapter on a USB device
+ * @dev: DVB USB device pointer
+ * @props: properties
+ * @state: status
+ * @id: index of this adapter (starting with 0).
+ *
+ * @feedcount: number of requested feeds (used for streaming-activation)
+ *
+ * @dvb_adap: device's dvb_adapter.
+ * @dmxdev: device's dmxdev.
+ * @demux: device's software demuxer.
+ * @dvb_net: device's dvb_net interfaces.
+ *
+ * @fe_adap: frontend adapters
+ * @active_fe: active frontend
+ * @num_frontends_initialized: number of initialized frontends
+ * @priv: private pointer
+ */
 struct dvb_usb_adapter {
 	struct dvb_usb_device *dev;
 	struct dvb_usb_adapter_properties props;
@@ -427,8 +447,12 @@ struct dvb_usb_adapter {
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
  *
+ * @num_adapters_initialized: number of initialized adapters
+ * @adapter: adapters
+ *
  * @rc_dev: rc device for the remote control (rc-core mode)
  * @input_dev: input device for the remote control (legacy mode)
+ * @rc_phys: rc device path
  * @rc_query_work: struct work_struct frequent rc queries
  * @last_event: last triggered event
  * @last_state: last state (no, pressed, repeat)
@@ -487,7 +511,8 @@ extern int __must_check
 dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
 
 /* commonly used remote control parsing */
-extern int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *, int *);
+int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d, u8 keybuf[5],
+				u32 *event, int *state);
 
 /* commonly used firmware download types and function */
 struct hexline {

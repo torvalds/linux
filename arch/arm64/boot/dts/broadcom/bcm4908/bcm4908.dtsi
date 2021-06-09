@@ -2,6 +2,8 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/soc/bcm-pmb.h>
 
 /dts-v1/;
 
@@ -110,28 +112,52 @@
 		#size-cells = <1>;
 		ranges = <0x00 0x00 0x80000000 0x281000>;
 
-		usb@c300 {
+		enet: ethernet@2000 {
+			compatible = "brcm,bcm4908-enet";
+			reg = <0x2000 0x1000>;
+
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rx", "tx";
+		};
+
+		usb_phy: usb-phy@c200 {
+			compatible = "brcm,bcm4908-usb-phy";
+			reg = <0xc200 0x100>;
+			reg-names = "ctrl";
+			power-domains = <&pmb BCM_PMB_HOST_USB>;
+			dr_mode = "host";
+			brcm,has-xhci;
+			brcm,has-eohci;
+			#phy-cells = <1>;
+			status = "disabled";
+		};
+
+		ehci: usb@c300 {
 			compatible = "generic-ehci";
 			reg = <0xc300 0x100>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb_phy PHY_TYPE_USB2>;
 			status = "disabled";
 		};
 
-		usb@c400 {
+		ohci: usb@c400 {
 			compatible = "generic-ohci";
 			reg = <0xc400 0x100>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb_phy PHY_TYPE_USB2>;
 			status = "disabled";
 		};
 
-		usb@d000 {
+		xhci: usb@d000 {
 			compatible = "generic-xhci";
 			reg = <0xd000 0x8c8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb_phy PHY_TYPE_USB3>;
 			status = "disabled";
 		};
 
-		ethernet-switch@80000 {
+		bus@80000 {
 			compatible = "simple-bus";
 			#size-cells = <1>;
 			#address-cells = <1>;
@@ -182,6 +208,17 @@
 						phy-mode = "internal";
 						phy-handle = <&phy11>;
 					};
+
+					port@8 {
+						reg = <8>;
+						phy-mode = "internal";
+						ethernet = <&enet>;
+
+						fixed-link {
+							speed = <1000>;
+							full-duplex;
+						};
+					};
 				};
 			};
 
@@ -222,7 +259,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			power-controller@2800c0 {
+			pmb: power-controller@2800c0 {
 				compatible = "brcm,bcm4908-pmb";
 				reg = <0x2800c0 0x40>;
 				#power-domain-cells = <1>;

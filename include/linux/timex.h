@@ -133,7 +133,7 @@
 
 /*
  * kernel variables
- * Note: maximum error = NTP synch distance = dispersion + delay / 2;
+ * Note: maximum error = NTP sync distance = dispersion + delay / 2;
  * estimated error = NTP dispersion.
  */
 extern unsigned long tick_usec;		/* USER_HZ period (usec) */

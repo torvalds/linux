@@ -145,4 +145,6 @@ int its_init_v4(struct irq_domain *domain,
 		const struct irq_domain_ops *vpe_ops,
 		const struct irq_domain_ops *sgi_ops);
 
+bool gic_cpuif_has_vsgi(void);
+
 #endif

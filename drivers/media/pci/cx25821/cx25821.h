@@ -28,7 +28,6 @@
 #include "cx25821-sram.h"
 #include "cx25821-audio.h"
 
-#include <linux/version.h>
 #include <linux/mutex.h>
 
 #define UNSET (-1U)

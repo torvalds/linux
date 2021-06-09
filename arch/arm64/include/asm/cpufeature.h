@@ -63,6 +63,23 @@ struct arm64_ftr_bits {
 	s64		safe_val; /* safe value for FTR_EXACT features */
 };
 
+/*
+ * Describe the early feature override to the core override code:
+ *
+ * @val			Values that are to be merged into the final
+ *			sanitised value of the register. Only the bitfields
+ *			set to 1 in @mask are valid
+ * @mask		Mask of the features that are overridden by @val
+ *
+ * A @mask field set to full-1 indicates that the corresponding field
+ * in @val is a valid override.
+ *
+ * A @mask field set to full-0 with the corresponding @val field set
+ * to full-0 denotes that this field has no override
+ *
+ * A @mask field set to full-0 with the corresponding @val field set
+ * to full-1 denotes thath this field has an invalid override.
+ */
 struct arm64_ftr_override {
 	u64		val;
 	u64		mask;

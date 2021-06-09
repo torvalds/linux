@@ -257,7 +257,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 
 /*======================================================================*/
 
-/**
+/*
  * readable() - iomem validation function for cards with a valid CIS
  */
 static int readable(struct pcmcia_socket *s, struct resource *res,
@@ -288,7 +288,7 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 	return 0;
 }
 
-/**
+/*
  * checksum() - iomem validation function for simple memory cards
  */
 static int checksum(struct pcmcia_socket *s, struct resource *res,
@@ -343,9 +343,9 @@ static int checksum(struct pcmcia_socket *s, struct resource *res,
  */
 static int do_validate_mem(struct pcmcia_socket *s,
 			   unsigned long base, unsigned long size,
-			   int validate (struct pcmcia_socket *s,
-					 struct resource *res,
-					 unsigned int *value))
+			   int (*validate)(struct pcmcia_socket *s,
+					   struct resource *res,
+					   unsigned int *value))
 {
 	struct socket_data *s_data = s->resource_data;
 	struct resource *res1, *res2;
@@ -398,12 +398,12 @@ static int do_validate_mem(struct pcmcia_socket *s,
  * function returns the size of the usable memory area.
  */
 static int do_mem_probe(struct pcmcia_socket *s, u_long base, u_long num,
-			int validate (struct pcmcia_socket *s,
-				      struct resource *res,
-				      unsigned int *value),
-			int fallback (struct pcmcia_socket *s,
-				      struct resource *res,
-				      unsigned int *value))
+			int (*validate)(struct pcmcia_socket *s,
+					struct resource *res,
+					unsigned int *value),
+			int (*fallback)(struct pcmcia_socket *s,
+					struct resource *res,
+					unsigned int *value))
 {
 	struct socket_data *s_data = s->resource_data;
 	u_long i, j, bad, fail, step;

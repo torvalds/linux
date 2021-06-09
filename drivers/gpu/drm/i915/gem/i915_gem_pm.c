@@ -116,7 +116,7 @@ int i915_gem_freeze_late(struct drm_i915_private *i915)
 	 */
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		i915_gem_shrink(i915, -1UL, NULL, ~0);
+		i915_gem_shrink(NULL, i915, -1UL, NULL, ~0);
 	i915_gem_drain_freed_objects(i915);
 
 	wbinvd_on_all_cpus();

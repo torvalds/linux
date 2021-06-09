@@ -5,7 +5,7 @@
  * Early support for invoking 32-bit EFI services from a 64-bit kernel.
  *
  * Because this thunking occurs before ExitBootServices() we have to
- * restore the firmware's 32-bit GDT before we make EFI serivce calls,
+ * restore the firmware's 32-bit GDT before we make EFI service calls,
  * since the firmware's 32-bit IDT is still currently installed and it
  * needs to be able to service interrupts.
  *

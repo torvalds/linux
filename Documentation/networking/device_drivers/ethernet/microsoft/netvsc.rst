@@ -87,11 +87,15 @@ Receive Buffer
   contain one or more packets. The number of receive sections may be changed
   via ethtool Rx ring parameters.
 
-  There is a similar send buffer which is used to aggregate packets for sending.
-  The send area is broken into chunks of 6144 bytes, each of section may
-  contain one or more packets. The send buffer is an optimization, the driver
-  will use slower method to handle very large packets or if the send buffer
-  area is exhausted.
+  There is a similar send buffer which is used to aggregate packets
+  for sending.  The send area is broken into chunks, typically of 6144
+  bytes, each of section may contain one or more packets. Small
+  packets are usually transmitted via copy to the send buffer. However,
+  if the buffer is temporarily exhausted, or the packet to be transmitted is
+  an LSO packet, the driver will provide the host with pointers to the data
+  from the SKB. This attempts to achieve a balance between the overhead of
+  data copy and the impact of remapping VM memory to be accessible by the
+  host.
 
 XDP support
 -----------

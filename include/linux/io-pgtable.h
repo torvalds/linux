@@ -204,10 +204,6 @@ struct io_pgtable {
 
 #define io_pgtable_ops_to_pgtable(x) container_of((x), struct io_pgtable, ops)
 
-struct io_pgtable_domain_attr {
-	unsigned long quirks;
-};
-
 static inline void io_pgtable_tlb_flush_all(struct io_pgtable *iop)
 {
 	if (iop->cfg.tlb && iop->cfg.tlb->tlb_flush_all)

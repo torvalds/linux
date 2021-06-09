@@ -59,10 +59,10 @@ out:
 }
 
 /**
- *	llc_sap_find - searchs a SAP in station
+ *	llc_sap_find - searches a SAP in station
  *	@sap_value: sap to be found
  *
- *	Searchs for a sap in the sap list of the LLC's station upon the sap ID.
+ *	Searches for a sap in the sap list of the LLC's station upon the sap ID.
  *	If the sap is found it will be refcounted and the user will have to do
  *	a llc_sap_put after use.
  *	Returns the sap or %NULL if not found.

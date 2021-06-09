@@ -99,28 +99,6 @@
 	__hround	\out2, \out3, \in2, \in1, \in0, \in3, \in1, \in0, 0, \sz, \op, \oldcpsr
 	.endm
 
-	.macro		__rev, out, in
-	.if		__LINUX_ARM_ARCH__ < 6
-	lsl		t0, \in, #24
-	and		t1, \in, #0xff00
-	and		t2, \in, #0xff0000
-	orr		\out, t0, \in, lsr #24
-	orr		\out, \out, t1, lsl #8
-	orr		\out, \out, t2, lsr #8
-	.else
-	rev		\out, \in
-	.endif
-	.endm
-
-	.macro		__adrl, out, sym, c
-	.if		__LINUX_ARM_ARCH__ < 7
-	ldr\c		\out, =\sym
-	.else
-	movw\c		\out, #:lower16:\sym
-	movt\c		\out, #:upper16:\sym
-	.endif
-	.endm
-
 	.macro		do_crypt, round, ttab, ltab, bsz
 	push		{r3-r11, lr}
 
@@ -133,10 +111,10 @@
 	ldr		r7, [in, #12]
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	__rev		r4, r4
-	__rev		r5, r5
-	__rev		r6, r6
-	__rev		r7, r7
+	rev_l		r4, t0
+	rev_l		r5, t0
+	rev_l		r6, t0
+	rev_l		r7, t0
 #endif
 
 	eor		r4, r4, r8
@@ -144,7 +122,7 @@
 	eor		r6, r6, r10
 	eor		r7, r7, r11
 
-	__adrl		ttab, \ttab
+	mov_l		ttab, \ttab
 	/*
 	 * Disable interrupts and prefetch the 1024-byte 'ft' or 'it' table into
 	 * L1 cache, assuming cacheline size >= 32.  This is a hardening measure
@@ -180,7 +158,7 @@
 2:	.ifb		\ltab
 	add		ttab, ttab, #1
 	.else
-	__adrl		ttab, \ltab
+	mov_l		ttab, \ltab
 	// Prefetch inverse S-box for final round; see explanation above
 	.set		i, 0
 	.rept		256 / 64
@@ -194,10 +172,10 @@
 	\round		r4, r5, r6, r7, r8, r9, r10, r11, \bsz, b, rounds
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	__rev		r4, r4
-	__rev		r5, r5
-	__rev		r6, r6
-	__rev		r7, r7
+	rev_l		r4, t0
+	rev_l		r5, t0
+	rev_l		r6, t0
+	rev_l		r7, t0
 #endif
 
 	ldr		out, [sp]

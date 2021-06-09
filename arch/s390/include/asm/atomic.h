@@ -15,48 +15,46 @@
 #include <asm/barrier.h>
 #include <asm/cmpxchg.h>
 
-static inline int atomic_read(const atomic_t *v)
+static inline int arch_atomic_read(const atomic_t *v)
 {
-	int c;
-
-	asm volatile(
-		"	l	%0,%1\n"
-		: "=d" (c) : "Q" (v->counter));
-	return c;
+	return __atomic_read(v);
 }
+#define arch_atomic_read arch_atomic_read
 
-static inline void atomic_set(atomic_t *v, int i)
+static inline void arch_atomic_set(atomic_t *v, int i)
 {
-	asm volatile(
-		"	st	%1,%0\n"
-		: "=Q" (v->counter) : "d" (i));
+	__atomic_set(v, i);
 }
+#define arch_atomic_set arch_atomic_set
 
-static inline int atomic_add_return(int i, atomic_t *v)
+static inline int arch_atomic_add_return(int i, atomic_t *v)
 {
 	return __atomic_add_barrier(i, &v->counter) + i;
 }
+#define arch_atomic_add_return arch_atomic_add_return
 
-static inline int atomic_fetch_add(int i, atomic_t *v)
+static inline int arch_atomic_fetch_add(int i, atomic_t *v)
 {
 	return __atomic_add_barrier(i, &v->counter);
 }
+#define arch_atomic_fetch_add arch_atomic_fetch_add
 
-static inline void atomic_add(int i, atomic_t *v)
+static inline void arch_atomic_add(int i, atomic_t *v)
 {
 	__atomic_add(i, &v->counter);
 }
+#define arch_atomic_add arch_atomic_add
 
-#define atomic_sub(_i, _v)		atomic_add(-(int)(_i), _v)
-#define atomic_sub_return(_i, _v)	atomic_add_return(-(int)(_i), _v)
-#define atomic_fetch_sub(_i, _v)	atomic_fetch_add(-(int)(_i), _v)
+#define arch_atomic_sub(_i, _v)		arch_atomic_add(-(int)(_i), _v)
+#define arch_atomic_sub_return(_i, _v)	arch_atomic_add_return(-(int)(_i), _v)
+#define arch_atomic_fetch_sub(_i, _v)	arch_atomic_fetch_add(-(int)(_i), _v)
 
 #define ATOMIC_OPS(op)							\
-static inline void atomic_##op(int i, atomic_t *v)			\
+static inline void arch_atomic_##op(int i, atomic_t *v)			\
 {									\
 	__atomic_##op(i, &v->counter);					\
 }									\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 {									\
 	return __atomic_##op##_barrier(i, &v->counter);			\
 }
@@ -67,60 +65,67 @@ ATOMIC_OPS(xor)
 
 #undef ATOMIC_OPS
 
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_and			arch_atomic_and
+#define arch_atomic_or			arch_atomic_or
+#define arch_atomic_xor			arch_atomic_xor
+#define arch_atomic_fetch_and		arch_atomic_fetch_and
+#define arch_atomic_fetch_or		arch_atomic_fetch_or
+#define arch_atomic_fetch_xor		arch_atomic_fetch_xor
 
-static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), new))
+
+static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	return __atomic_cmpxchg(&v->counter, old, new);
 }
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
 #define ATOMIC64_INIT(i)  { (i) }
 
-static inline s64 atomic64_read(const atomic64_t *v)
+static inline s64 arch_atomic64_read(const atomic64_t *v)
 {
-	s64 c;
-
-	asm volatile(
-		"	lg	%0,%1\n"
-		: "=d" (c) : "Q" (v->counter));
-	return c;
+	return __atomic64_read(v);
 }
+#define arch_atomic64_read arch_atomic64_read
 
-static inline void atomic64_set(atomic64_t *v, s64 i)
+static inline void arch_atomic64_set(atomic64_t *v, s64 i)
 {
-	asm volatile(
-		"	stg	%1,%0\n"
-		: "=Q" (v->counter) : "d" (i));
+	__atomic64_set(v, i);
 }
+#define arch_atomic64_set arch_atomic64_set
 
-static inline s64 atomic64_add_return(s64 i, atomic64_t *v)
+static inline s64 arch_atomic64_add_return(s64 i, atomic64_t *v)
 {
 	return __atomic64_add_barrier(i, (long *)&v->counter) + i;
 }
+#define arch_atomic64_add_return arch_atomic64_add_return
 
-static inline s64 atomic64_fetch_add(s64 i, atomic64_t *v)
+static inline s64 arch_atomic64_fetch_add(s64 i, atomic64_t *v)
 {
 	return __atomic64_add_barrier(i, (long *)&v->counter);
 }
+#define arch_atomic64_fetch_add arch_atomic64_fetch_add
 
-static inline void atomic64_add(s64 i, atomic64_t *v)
+static inline void arch_atomic64_add(s64 i, atomic64_t *v)
 {
 	__atomic64_add(i, (long *)&v->counter);
 }
+#define arch_atomic64_add arch_atomic64_add
 
-#define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic64_xchg(v, new)	(arch_xchg(&((v)->counter), new))
 
-static inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
+static inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {
 	return __atomic64_cmpxchg((long *)&v->counter, old, new);
 }
+#define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
 
 #define ATOMIC64_OPS(op)						\
-static inline void atomic64_##op(s64 i, atomic64_t *v)			\
+static inline void arch_atomic64_##op(s64 i, atomic64_t *v)		\
 {									\
 	__atomic64_##op(i, (long *)&v->counter);			\
 }									\
-static inline long atomic64_fetch_##op(s64 i, atomic64_t *v)		\
+static inline long arch_atomic64_fetch_##op(s64 i, atomic64_t *v)	\
 {									\
 	return __atomic64_##op##_barrier(i, (long *)&v->counter);	\
 }
@@ -131,8 +136,17 @@ ATOMIC64_OPS(xor)
 
 #undef ATOMIC64_OPS
 
-#define atomic64_sub_return(_i, _v)	atomic64_add_return(-(s64)(_i), _v)
-#define atomic64_fetch_sub(_i, _v)	atomic64_fetch_add(-(s64)(_i), _v)
-#define atomic64_sub(_i, _v)		atomic64_add(-(s64)(_i), _v)
+#define arch_atomic64_and		arch_atomic64_and
+#define arch_atomic64_or		arch_atomic64_or
+#define arch_atomic64_xor		arch_atomic64_xor
+#define arch_atomic64_fetch_and		arch_atomic64_fetch_and
+#define arch_atomic64_fetch_or		arch_atomic64_fetch_or
+#define arch_atomic64_fetch_xor		arch_atomic64_fetch_xor
+
+#define arch_atomic64_sub_return(_i, _v) arch_atomic64_add_return(-(s64)(_i), _v)
+#define arch_atomic64_fetch_sub(_i, _v)  arch_atomic64_fetch_add(-(s64)(_i), _v)
+#define arch_atomic64_sub(_i, _v)	 arch_atomic64_add(-(s64)(_i), _v)
+
+#define ARCH_ATOMIC
 
 #endif /* __ARCH_S390_ATOMIC__  */

@@ -437,6 +437,7 @@ struct qeth_qdio_out_buffer {
 
 	struct qeth_qdio_out_q *q;
 	struct list_head list_entry;
+	struct qaob *aob;
 };
 
 struct qeth_card;
@@ -499,7 +500,6 @@ struct qeth_out_q_stats {
 struct qeth_qdio_out_q {
 	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
-	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	struct list_head pending_bufs;
 	struct qeth_out_q_stats stats;
 	spinlock_t lock;
@@ -563,7 +563,6 @@ struct qeth_qdio_info {
 	/* output */
 	unsigned int no_out_queues;
 	struct qeth_qdio_out_q *out_qs[QETH_MAX_OUT_QUEUES];
-	struct qdio_outbuf_state *out_bufstates;
 
 	/* priority queueing */
 	int do_prio_queueing;

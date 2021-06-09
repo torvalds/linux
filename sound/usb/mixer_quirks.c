@@ -151,7 +151,7 @@ static int add_single_ctl_with_resume(struct usb_mixer_interface *mixer,
 		*listp = list;
 	list->mixer = mixer;
 	list->id = id;
-	list->resume = resume;
+	list->reset_resume = resume;
 	kctl = snd_ctl_new1(knew, list);
 	if (!kctl) {
 		kfree(list);
@@ -2649,9 +2649,11 @@ static int snd_bbfpro_controls_create(struct usb_mixer_interface *mixer)
 #define SND_DJM_DEVICE_SHIFT	24
 
 // device table index
+// used for the snd_djm_devices table, so please update accordingly
 #define SND_DJM_250MK2_IDX	0x0
 #define SND_DJM_750_IDX		0x1
-#define SND_DJM_900NXS2_IDX	0x2
+#define SND_DJM_850_IDX		0x2
+#define SND_DJM_900NXS2_IDX	0x3
 
 
 #define SND_DJM_CTL(_name, suffix, _default_value, _windex) { \
@@ -2691,7 +2693,7 @@ static const char *snd_djm_get_label_caplevel(u16 wvalue)
 	}
 };
 
-static const char *snd_djm_get_label_cap(u16 wvalue)
+static const char *snd_djm_get_label_cap_common(u16 wvalue)
 {
 	switch (wvalue & 0x00ff) {
 	case SND_DJM_CAP_LINE:		return "Control Tone LINE";
@@ -2713,6 +2715,25 @@ static const char *snd_djm_get_label_cap(u16 wvalue)
 	}
 };
 
+// The DJM-850 has different values for CD/LINE and LINE capture
+// control options than the other DJM declared in this file.
+static const char *snd_djm_get_label_cap_850(u16 wvalue)
+{
+	switch (wvalue & 0x00ff) {
+	case 0x00:		return "Control Tone CD/LINE";
+	case 0x01:		return "Control Tone LINE";
+	default:		return snd_djm_get_label_cap_common(wvalue);
+	}
+};
+
+static const char *snd_djm_get_label_cap(u8 device_idx, u16 wvalue)
+{
+	switch (device_idx) {
+	case SND_DJM_850_IDX:		return snd_djm_get_label_cap_850(wvalue);
+	default:			return snd_djm_get_label_cap_common(wvalue);
+	}
+};
+
 static const char *snd_djm_get_label_pb(u16 wvalue)
 {
 	switch (wvalue & 0x00ff) {
@@ -2723,21 +2744,22 @@ static const char *snd_djm_get_label_pb(u16 wvalue)
 	}
 };
 
-static const char *snd_djm_get_label(u16 wvalue, u16 windex)
+static const char *snd_djm_get_label(u8 device_idx, u16 wvalue, u16 windex)
 {
 	switch (windex) {
 	case SND_DJM_WINDEX_CAPLVL:	return snd_djm_get_label_caplevel(wvalue);
-	case SND_DJM_WINDEX_CAP:	return snd_djm_get_label_cap(wvalue);
+	case SND_DJM_WINDEX_CAP:	return snd_djm_get_label_cap(device_idx, wvalue);
 	case SND_DJM_WINDEX_PB:		return snd_djm_get_label_pb(wvalue);
 	default:			return NULL;
 	}
 };
 
-
-// DJM-250MK2
+// common DJM capture level option values
 static const u16 snd_djm_opts_cap_level[] = {
 	0x0000, 0x0100, 0x0200, 0x0300 };
 
+
+// DJM-250MK2
 static const u16 snd_djm_opts_250mk2_cap1[] = {
 	0x0103, 0x0100, 0x0106, 0x0107, 0x0108, 0x0109, 0x010d, 0x010a };
 
@@ -2781,6 +2803,25 @@ static const struct snd_djm_ctl snd_djm_ctls_750[] = {
 };
 
 
+// DJM-850
+static const u16 snd_djm_opts_850_cap1[] = {
+	0x0100, 0x0103, 0x0106, 0x0107, 0x0108, 0x0109, 0x010a, 0x010f };
+static const u16 snd_djm_opts_850_cap2[] = {
+	0x0200, 0x0201, 0x0206, 0x0207, 0x0208, 0x0209, 0x020a, 0x020f };
+static const u16 snd_djm_opts_850_cap3[] = {
+	0x0300, 0x0301, 0x0306, 0x0307, 0x0308, 0x0309, 0x030a, 0x030f };
+static const u16 snd_djm_opts_850_cap4[] = {
+	0x0400, 0x0403, 0x0406, 0x0407, 0x0408, 0x0409, 0x040a, 0x040f };
+
+static const struct snd_djm_ctl snd_djm_ctls_850[] = {
+	SND_DJM_CTL("Capture Level", cap_level, 0, SND_DJM_WINDEX_CAPLVL),
+	SND_DJM_CTL("Ch1 Input",   850_cap1, 1, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch2 Input",   850_cap2, 0, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch3 Input",   850_cap3, 0, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch4 Input",   850_cap4, 1, SND_DJM_WINDEX_CAP)
+};
+
+
 // DJM-900NXS2
 static const u16 snd_djm_opts_900nxs2_cap1[] = {
 	0x0100, 0x0102, 0x0103, 0x0106, 0x0107, 0x0108, 0x0109, 0x010a };
@@ -2806,6 +2847,7 @@ static const struct snd_djm_ctl snd_djm_ctls_900nxs2[] = {
 static const struct snd_djm_device snd_djm_devices[] = {
 	SND_DJM_DEVICE(250mk2),
 	SND_DJM_DEVICE(750),
+	SND_DJM_DEVICE(850),
 	SND_DJM_DEVICE(900nxs2)
 };
 
@@ -2829,7 +2871,8 @@ static int snd_djm_controls_info(struct snd_kcontrol *kctl,
 	if (info->value.enumerated.item >= noptions)
 		info->value.enumerated.item = noptions - 1;
 
-	name = snd_djm_get_label(ctl->options[info->value.enumerated.item],
+	name = snd_djm_get_label(device_idx,
+				ctl->options[info->value.enumerated.item],
 				ctl->wIndex);
 	if (!name)
 		return -EINVAL;
@@ -3044,6 +3087,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		break;
 	case USB_ID(0x08e4, 0x017f): /* Pioneer DJ DJM-750 */
 		err = snd_djm_controls_create(mixer, SND_DJM_750_IDX);
+		break;
+	case USB_ID(0x08e4, 0x0163): /* Pioneer DJ DJM-850 */
+		err = snd_djm_controls_create(mixer, SND_DJM_850_IDX);
 		break;
 	case USB_ID(0x2b73, 0x000a): /* Pioneer DJ DJM-900NXS2 */
 		err = snd_djm_controls_create(mixer, SND_DJM_900NXS2_IDX);

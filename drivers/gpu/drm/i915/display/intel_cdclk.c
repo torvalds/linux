@@ -96,7 +96,7 @@ static void fixed_450mhz_get_cdclk(struct drm_i915_private *dev_priv,
 static void i85x_get_cdclk(struct drm_i915_private *dev_priv,
 			   struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	u16 hpllcc = 0;
 
 	/*
@@ -138,7 +138,7 @@ static void i85x_get_cdclk(struct drm_i915_private *dev_priv,
 static void i915gm_get_cdclk(struct drm_i915_private *dev_priv,
 			     struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
@@ -162,7 +162,7 @@ static void i915gm_get_cdclk(struct drm_i915_private *dev_priv,
 static void i945gm_get_cdclk(struct drm_i915_private *dev_priv,
 			     struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
@@ -256,7 +256,7 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 static void g33_get_cdclk(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	static const u8 div_3200[] = { 12, 10,  8,  7, 5, 16 };
 	static const u8 div_4000[] = { 14, 12, 10,  8, 6, 20 };
 	static const u8 div_4800[] = { 20, 14, 12, 10, 8, 24 };
@@ -305,7 +305,7 @@ fail:
 static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
@@ -339,7 +339,7 @@ static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
 static void i965gm_get_cdclk(struct drm_i915_private *dev_priv,
 			     struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	static const u8 div_3200[] = { 16, 10,  8 };
 	static const u8 div_4000[] = { 20, 12, 10 };
 	static const u8 div_5333[] = { 24, 16, 14 };
@@ -384,7 +384,7 @@ fail:
 static void gm45_get_cdclk(struct drm_i915_private *dev_priv,
 			   struct intel_cdclk_config *cdclk_config)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	unsigned int cdclk_sel;
 	u16 tmp = 0;
 
@@ -1375,7 +1375,7 @@ static void bxt_de_pll_readout(struct drm_i915_private *dev_priv,
 {
 	u32 val, ratio;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		icl_readout_refclk(dev_priv, cdclk_config);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_readout_refclk(dev_priv, cdclk_config);
@@ -1397,7 +1397,7 @@ static void bxt_de_pll_readout(struct drm_i915_private *dev_priv,
 	 * CNL+ have the ratio directly in the PLL enable register, gen9lp had
 	 * it in a separate PLL control register.
 	 */
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		ratio = val & CNL_CDCLK_PLL_RATIO_MASK;
 	else
 		ratio = intel_de_read(dev_priv, BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
@@ -1413,9 +1413,9 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 
 	bxt_de_pll_readout(dev_priv, cdclk_config);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		cdclk_config->bypass = cdclk_config->ref / 2;
-	else if (INTEL_GEN(dev_priv) >= 11)
+	else if (DISPLAY_VER(dev_priv) >= 11)
 		cdclk_config->bypass = 50000;
 	else
 		cdclk_config->bypass = cdclk_config->ref;
@@ -1433,7 +1433,7 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
 		drm_WARN(&dev_priv->drm,
-			 IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10,
+			 DISPLAY_VER(dev_priv) >= 10,
 			 "Unsupported divider\n");
 		div = 3;
 		break;
@@ -1441,7 +1441,8 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 		div = 4;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_4:
-		drm_WARN(&dev_priv->drm, INTEL_GEN(dev_priv) >= 10,
+		drm_WARN(&dev_priv->drm,
+			 DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv),
 			 "Unsupported divider\n");
 		div = 8;
 		break;
@@ -1530,12 +1531,12 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 
 static u32 bxt_cdclk_cd2x_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		if (pipe == INVALID_PIPE)
 			return TGL_CDCLK_CD2X_PIPE_NONE;
 		else
 			return TGL_CDCLK_CD2X_PIPE(pipe);
-	} else if (INTEL_GEN(dev_priv) >= 11) {
+	} else if (DISPLAY_VER(dev_priv) >= 11) {
 		if (pipe == INVALID_PIPE)
 			return ICL_CDCLK_CD2X_PIPE_NONE;
 		else
@@ -1558,7 +1559,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	int ret;
 
 	/* Inform power controller of upcoming frequency change. */
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 					SKL_CDCLK_PREPARE_FOR_CHANGE,
 					SKL_CDCLK_READY_FOR_CHANGE,
@@ -1591,7 +1592,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		break;
 	case 3:
 		drm_WARN(&dev_priv->drm,
-			 IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10,
+			 DISPLAY_VER(dev_priv) >= 10,
 			 "Unsupported divider\n");
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
 		break;
@@ -1599,13 +1600,14 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
 		break;
 	case 8:
-		drm_WARN(&dev_priv->drm, INTEL_GEN(dev_priv) >= 10,
+		drm_WARN(&dev_priv->drm,
+			 DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv),
 			 "Unsupported divider\n");
 		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
 		break;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 10) {
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
 		if (dev_priv->cdclk.hw.vco != 0 &&
 		    dev_priv->cdclk.hw.vco != vco)
 			cnl_cdclk_pll_disable(dev_priv);
@@ -1636,7 +1638,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	if (pipe != INVALID_PIPE)
 		intel_wait_for_vblank(dev_priv, pipe);
 
-	if (INTEL_GEN(dev_priv) >= 10) {
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
 		ret = sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 					      cdclk_config->voltage_level);
 	} else {
@@ -1661,7 +1663,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 
 	intel_update_cdclk(dev_priv);
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		/*
 		 * Can't read out the voltage level :(
 		 * Let's just assume everything is as expected.
@@ -1795,7 +1797,7 @@ static void bxt_cdclk_uninit_hw(struct drm_i915_private *dev_priv)
  */
 void intel_cdclk_init_hw(struct drm_i915_private *i915)
 {
-	if (IS_GEN9_LP(i915) || INTEL_GEN(i915) >= 10)
+	if (IS_GEN9_LP(i915) || DISPLAY_VER(i915) >= 10)
 		bxt_cdclk_init_hw(i915);
 	else if (IS_GEN9_BC(i915))
 		skl_cdclk_init_hw(i915);
@@ -1810,7 +1812,7 @@ void intel_cdclk_init_hw(struct drm_i915_private *i915)
  */
 void intel_cdclk_uninit_hw(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 10 || IS_GEN9_LP(i915))
+	if (DISPLAY_VER(i915) >= 10 || IS_GEN9_LP(i915))
 		bxt_cdclk_uninit_hw(i915);
 	else if (IS_GEN9_BC(i915))
 		skl_cdclk_uninit_hw(i915);
@@ -1850,7 +1852,7 @@ static bool intel_cdclk_can_cd2x_update(struct drm_i915_private *dev_priv,
 					const struct intel_cdclk_config *b)
 {
 	/* Older hw doesn't have the capability */
-	if (INTEL_GEN(dev_priv) < 10 && !IS_GEN9_LP(dev_priv))
+	if (DISPLAY_VER(dev_priv) < 10 && !IS_GEN9_LP(dev_priv))
 		return false;
 
 	return a->cdclk != b->cdclk &&
@@ -1998,9 +2000,9 @@ static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	int pixel_rate = crtc_state->pixel_rate;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		return DIV_ROUND_UP(pixel_rate, 2);
-	else if (IS_GEN(dev_priv, 9) ||
+	else if (IS_DISPLAY_VER(dev_priv, 9) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return pixel_rate;
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -2048,10 +2050,10 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	    crtc_state->has_audio &&
 	    crtc_state->port_clock >= 540000 &&
 	    crtc_state->lane_count == 4) {
-		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
+		if (IS_DISPLAY_VER(dev_priv, 10)) {
 			/* Display WA #1145: glk,cnl */
 			min_cdclk = max(316800, min_cdclk);
-		} else if (IS_GEN(dev_priv, 9) || IS_BROADWELL(dev_priv)) {
+		} else if (IS_DISPLAY_VER(dev_priv, 9) || IS_BROADWELL(dev_priv)) {
 			/* Display WA #1144: skl,bxt */
 			min_cdclk = max(432000, min_cdclk);
 		}
@@ -2061,7 +2063,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 * According to BSpec, "The CD clock frequency must be at least twice
 	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
 	 */
-	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9)
+	if (crtc_state->has_audio && DISPLAY_VER(dev_priv) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
 
 	/*
@@ -2145,10 +2147,10 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 		if (IS_ERR(bw_state))
 			return PTR_ERR(bw_state);
 
-		if (cdclk_state->min_cdclk[i] == min_cdclk)
+		if (cdclk_state->min_cdclk[crtc->pipe] == min_cdclk)
 			continue;
 
-		cdclk_state->min_cdclk[i] = min_cdclk;
+		cdclk_state->min_cdclk[crtc->pipe] = min_cdclk;
 
 		ret = intel_atomic_lock_global_state(&cdclk_state->base);
 		if (ret)
@@ -2199,10 +2201,10 @@ static int bxt_compute_min_voltage_level(struct intel_cdclk_state *cdclk_state)
 		else
 			min_voltage_level = 0;
 
-		if (cdclk_state->min_voltage_level[i] == min_voltage_level)
+		if (cdclk_state->min_voltage_level[crtc->pipe] == min_voltage_level)
 			continue;
 
-		cdclk_state->min_voltage_level[i] = min_voltage_level;
+		cdclk_state->min_voltage_level[crtc->pipe] = min_voltage_level;
 
 		ret = intel_atomic_lock_global_state(&cdclk_state->base);
 		if (ret)
@@ -2588,14 +2590,14 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 {
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		return 2 * max_cdclk_freq;
-	else if (IS_GEN(dev_priv, 9) ||
+	else if (IS_DISPLAY_VER(dev_priv, 9) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return max_cdclk_freq;
 	else if (IS_CHERRYVIEW(dev_priv))
 		return max_cdclk_freq*95/100;
-	else if (INTEL_GEN(dev_priv) < 4)
+	else if (DISPLAY_VER(dev_priv) < 4)
 		return 2*max_cdclk_freq*90/100;
 	else
 		return max_cdclk_freq*90/100;
@@ -2616,7 +2618,7 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 			dev_priv->max_cdclk_freq = 552000;
 		else
 			dev_priv->max_cdclk_freq = 556800;
-	} else if (INTEL_GEN(dev_priv) >= 11) {
+	} else if (DISPLAY_VER(dev_priv) >= 11) {
 		if (dev_priv->cdclk.hw.ref == 24000)
 			dev_priv->max_cdclk_freq = 648000;
 		else
@@ -2831,7 +2833,7 @@ u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
 		freq = pch_rawclk(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		freq = vlv_hrawclk(dev_priv);
-	else if (INTEL_GEN(dev_priv) >= 3)
+	else if (DISPLAY_VER(dev_priv) >= 3)
 		freq = i9xx_hrawclk(dev_priv);
 	else
 		/* no rawclk on other platforms, or no need to know it */
@@ -2852,7 +2854,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
 		dev_priv->cdclk.table = rkl_cdclk_table;
-	} else if (INTEL_GEN(dev_priv) >= 12) {
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
@@ -2864,7 +2866,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = ehl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
-	} else if (INTEL_GEN(dev_priv) >= 11) {
+	} else if (DISPLAY_VER(dev_priv) >= 11) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
@@ -2906,7 +2908,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = fixed_modeset_calc_cdclk;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEN9_LP(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEN9_LP(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;
 	else if (IS_GEN9_BC(dev_priv))
 		dev_priv->display.get_cdclk = skl_get_cdclk;
@@ -2916,9 +2918,9 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = hsw_get_cdclk;
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display.get_cdclk = vlv_get_cdclk;
-	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+	else if (IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dev_priv->display.get_cdclk = fixed_400mhz_get_cdclk;
-	else if (IS_GEN(dev_priv, 5))
+	else if (IS_IRONLAKE(dev_priv))
 		dev_priv->display.get_cdclk = fixed_450mhz_get_cdclk;
 	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_cdclk = gm45_get_cdclk;

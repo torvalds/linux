@@ -40,13 +40,13 @@ static atomic_t fence_seq = ATOMIC_INIT(0);
  * All the BOs in a process share an eviction fence. When process X wants
  * to map VRAM memory but TTM can't find enough space, TTM will attempt to
  * evict BOs from its LRU list. TTM checks if the BO is valuable to evict
- * by calling ttm_bo_driver->eviction_valuable().
+ * by calling ttm_device_funcs->eviction_valuable().
  *
- * ttm_bo_driver->eviction_valuable() - will return false if the BO belongs
+ * ttm_device_funcs->eviction_valuable() - will return false if the BO belongs
  *  to process X. Otherwise, it will return true to indicate BO can be
  *  evicted by TTM.
  *
- * If ttm_bo_driver->eviction_valuable returns true, then TTM will continue
+ * If ttm_device_funcs->eviction_valuable returns true, then TTM will continue
  * the evcition process for that BO by calling ttm_bo_evict --> amdgpu_bo_move
  * --> amdgpu_copy_buffer(). This sets up job in GPU scheduler.
  *

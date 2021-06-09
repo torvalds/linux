@@ -268,7 +268,7 @@ static int __init parisc_init_resources(void)
 	result = request_resource(&iomem_resource, &local_broadcast);
 	if (result < 0) {
 		printk(KERN_ERR 
-		       "%s: failed to claim %saddress space!\n", 
+		       "%s: failed to claim %s address space!\n",
 		       __FILE__, local_broadcast.name);
 		return result;
 	}

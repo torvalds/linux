@@ -91,7 +91,7 @@ static DEFINE_MUTEX(set_freq_lock);
 /* Use 800MHz when entering sleep mode */
 #define SLEEP_FREQ	(800 * 1000)
 
-/* Tracks if cpu freqency can be updated anymore */
+/* Tracks if CPU frequency can be updated anymore */
 static bool no_cpufreq_access;
 
 /*
@@ -190,7 +190,7 @@ static u32 clkdiv_val[5][11] = {
 
 /*
  * This function set DRAM refresh counter
- * accoriding to operating frequency of DRAM
+ * according to operating frequency of DRAM
  * ch: DMC port number 0 or 1
  * freq: Operating frequency of DRAM(KHz)
  */
@@ -320,7 +320,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 
 		/*
 		 * 3. DMC1 refresh count for 133Mhz if (index == L4) is
-		 * true refresh counter is already programed in upper
+		 * true refresh counter is already programmed in upper
 		 * code. 0x287@83Mhz
 		 */
 		if (!bus_speed_changing)
@@ -378,7 +378,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 		/*
 		 * 6. Turn on APLL
 		 * 6-1. Set PMS values
-		 * 6-2. Wait untile the PLL is locked
+		 * 6-2. Wait until the PLL is locked
 		 */
 		if (index == L0)
 			writel_relaxed(APLL_VAL_1000, S5P_APLL_CON);
@@ -390,7 +390,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 		} while (!(reg & (0x1 << 29)));
 
 		/*
-		 * 7. Change souce clock from SCLKMPLL(667Mhz)
+		 * 7. Change source clock from SCLKMPLL(667Mhz)
 		 * to SCLKA2M(200Mhz) in MFC_MUX and G3D MUX
 		 * (667/4=166)->(200/4=50)Mhz
 		 */
@@ -439,8 +439,8 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	}
 
 	/*
-	 * L4 level need to change memory bus speed, hence onedram clock divier
-	 * and memory refresh parameter should be changed
+	 * L4 level needs to change memory bus speed, hence ONEDRAM clock
+	 * divider and memory refresh parameter should be changed
 	 */
 	if (bus_speed_changing) {
 		reg = readl_relaxed(S5P_CLK_DIV6);

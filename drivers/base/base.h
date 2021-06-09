@@ -185,11 +185,13 @@ extern int device_links_read_lock(void);
 extern void device_links_read_unlock(int idx);
 extern int device_links_read_lock_held(void);
 extern int device_links_check_suppliers(struct device *dev);
+extern void device_links_force_bind(struct device *dev);
 extern void device_links_driver_bound(struct device *dev);
 extern void device_links_driver_cleanup(struct device *dev);
 extern void device_links_no_driver(struct device *dev);
 extern bool device_links_busy(struct device *dev);
 extern void device_links_unbind_consumers(struct device *dev);
+extern void fw_devlink_drivers_done(void);
 
 /* device pm support */
 void device_pm_move_to_tail(struct device *dev);

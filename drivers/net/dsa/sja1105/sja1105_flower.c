@@ -317,11 +317,16 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
-	rc = -EOPNOTSUPP;
-
 	flow_action_for_each(i, act, &rule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
+			if (act->police.rate_pkt_ps) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "QoS offload not support packets per second");
+				rc = -EOPNOTSUPP;
+				goto out;
+			}
+
 			rc = sja1105_flower_policer(priv, port, extack, cookie,
 						    &key,
 						    act->police.rate_bytes_ps,

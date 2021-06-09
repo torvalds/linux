@@ -207,9 +207,9 @@ Documentation/driver-api/console.rst. To summarize:
 Echo a value to the bind file that represents the framebuffer console
 driver. So assuming vtcon1 represents fbcon, then::
 
-  echo 1 > sys/class/vtconsole/vtcon1/bind - attach framebuffer console to
+  echo 1 > /sys/class/vtconsole/vtcon1/bind - attach framebuffer console to
 					     console layer
-  echo 0 > sys/class/vtconsole/vtcon1/bind - detach framebuffer console from
+  echo 0 > /sys/class/vtconsole/vtcon1/bind - detach framebuffer console from
 					     console layer
 
 If fbcon is detached from the console layer, your boot console driver (which is

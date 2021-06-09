@@ -113,16 +113,21 @@ int dcn301_smu_send_msg_with_param(
 
 int dcn301_smu_get_smu_version(struct clk_mgr_internal *clk_mgr)
 {
-	return dcn301_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_GetSmuVersion,
-			0);
+	int smu_version = dcn301_smu_send_msg_with_param(clk_mgr,
+							 VBIOSSMC_MSG_GetSmuVersion,
+							 0);
+
+	DC_LOG_DEBUG("%s %x\n", __func__, smu_version);
+
+	return smu_version;
 }
 
 
 int dcn301_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispclk_khz)
 {
 	int actual_dispclk_set_mhz = -1;
+
+	DC_LOG_DEBUG("%s(%d)\n", __func__, requested_dispclk_khz);
 
 	/*  Unit of SMU msg parameter is Mhz */
 	actual_dispclk_set_mhz = dcn301_smu_send_msg_with_param(
@@ -136,6 +141,8 @@ int dcn301_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispc
 int dcn301_smu_set_dprefclk(struct clk_mgr_internal *clk_mgr)
 {
 	int actual_dprefclk_set_mhz = -1;
+
+	DC_LOG_DEBUG("%s %d\n", __func__, clk_mgr->base.dprefclk_khz / 1000);
 
 	actual_dprefclk_set_mhz = dcn301_smu_send_msg_with_param(
 			clk_mgr,
@@ -151,6 +158,8 @@ int dcn301_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int request
 {
 	int actual_dcfclk_set_mhz = -1;
 
+	DC_LOG_DEBUG("%s(%d)\n", __func__, requested_dcfclk_khz);
+
 	actual_dcfclk_set_mhz = dcn301_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_SetHardMinDcfclkByFreq,
@@ -162,6 +171,8 @@ int dcn301_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int request
 int dcn301_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_min_ds_dcfclk_khz)
 {
 	int actual_min_ds_dcfclk_mhz = -1;
+
+	DC_LOG_DEBUG("%s(%d)\n", __func__, requested_min_ds_dcfclk_khz);
 
 	actual_min_ds_dcfclk_mhz = dcn301_smu_send_msg_with_param(
 			clk_mgr,
@@ -175,6 +186,8 @@ int dcn301_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_kh
 {
 	int actual_dppclk_set_mhz = -1;
 
+	DC_LOG_DEBUG("%s(%d)\n", __func__, requested_dpp_khz);
+
 	actual_dppclk_set_mhz = dcn301_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_SetDppclkFreq,
@@ -186,6 +199,8 @@ int dcn301_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_kh
 void dcn301_smu_set_display_idle_optimization(struct clk_mgr_internal *clk_mgr, uint32_t idle_info)
 {
 	//TODO: Work with smu team to define optimization options.
+
+	DC_LOG_DEBUG("%s(%x)\n", __func__, idle_info);
 
 	dcn301_smu_send_msg_with_param(
 		clk_mgr,
@@ -201,6 +216,8 @@ void dcn301_smu_enable_phy_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool 
 		idle_info.idle_info.df_request_disabled = 1;
 		idle_info.idle_info.phy_ref_clk_off = 1;
 	}
+
+	DC_LOG_DEBUG("%s(%d)\n", __func__, enable);
 
 	dcn301_smu_send_msg_with_param(
 			clk_mgr,
@@ -218,12 +235,16 @@ void dcn301_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr)
 
 void dcn301_smu_set_dram_addr_high(struct clk_mgr_internal *clk_mgr, uint32_t addr_high)
 {
+	DC_LOG_DEBUG("%s(%x)\n", __func__, addr_high);
+
 	dcn301_smu_send_msg_with_param(clk_mgr,
 			VBIOSSMC_MSG_SetVbiosDramAddrHigh, addr_high);
 }
 
 void dcn301_smu_set_dram_addr_low(struct clk_mgr_internal *clk_mgr, uint32_t addr_low)
 {
+	DC_LOG_DEBUG("%s(%x)\n", __func__, addr_low);
+
 	dcn301_smu_send_msg_with_param(clk_mgr,
 			VBIOSSMC_MSG_SetVbiosDramAddrLow, addr_low);
 }

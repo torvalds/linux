@@ -7,41 +7,41 @@
  */
 
 &ppmu_dmc0 {
-       status = "okay";
+	status = "okay";
 
-       events {
-	       ppmu_dmc0_3: ppmu-event3-dmc0 {
-		       event-name = "ppmu-event3-dmc0";
-	       };
-       };
+	events {
+		ppmu_dmc0_3: ppmu-event3-dmc0 {
+			event-name = "ppmu-event3-dmc0";
+		};
+	};
 };
 
 &ppmu_dmc1 {
-       status = "okay";
+	status = "okay";
 
-       events {
-	       ppmu_dmc1_3: ppmu-event3-dmc1 {
-		       event-name = "ppmu-event3-dmc1";
-	       };
-       };
+	events {
+		ppmu_dmc1_3: ppmu-event3-dmc1 {
+			event-name = "ppmu-event3-dmc1";
+		};
+	};
 };
 
 &ppmu_leftbus {
-       status = "okay";
+	status = "okay";
 
-       events {
-	       ppmu_leftbus_3: ppmu-event3-leftbus {
-		       event-name = "ppmu-event3-leftbus";
-	       };
-       };
+	events {
+		ppmu_leftbus_3: ppmu-event3-leftbus {
+			event-name = "ppmu-event3-leftbus";
+		};
+	};
 };
 
 &ppmu_rightbus {
-       status = "okay";
+	status = "okay";
 
-       events {
-	       ppmu_rightbus_3: ppmu-event3-rightbus {
-		       event-name = "ppmu-event3-rightbus";
-	       };
-       };
+	events {
+		ppmu_rightbus_3: ppmu-event3-rightbus {
+			event-name = "ppmu-event3-rightbus";
+		};
+	};
 };

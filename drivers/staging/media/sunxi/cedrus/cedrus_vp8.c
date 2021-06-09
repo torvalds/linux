@@ -423,7 +423,8 @@ static const u8 prob_table_init[] = {
  * This table is a copy of k_mv_entropy_update_probs from the VP8
  * specification.
  *
- * FIXME: If any other driver uses it, move this table to media/vp8-ctrls.h
+ * FIXME: If any other driver uses it, we can consider moving
+ * this table so it can be shared.
  */
 static const u8 k_mv_entropy_update_probs[2][V4L2_VP8_MV_PROB_CNT] = {
 	{ 237, 246, 253, 253, 254, 254, 254, 254, 254,
@@ -522,11 +523,11 @@ static void cedrus_irq_clear(struct cedrus_dev *dev)
 }
 
 static void cedrus_read_header(struct cedrus_dev *dev,
-			       const struct v4l2_ctrl_vp8_frame_header *slice)
+			       const struct v4l2_ctrl_vp8_frame *slice)
 {
 	int i, j;
 
-	if (VP8_FRAME_IS_KEY_FRAME(slice)) {
+	if (V4L2_VP8_FRAME_IS_KEY_FRAME(slice)) {
 		read_bits(dev, 1, VP8_PROB_HALF);
 		read_bits(dev, 1, VP8_PROB_HALF);
 	}
@@ -550,12 +551,12 @@ static void cedrus_read_header(struct cedrus_dev *dev,
 	for (i = 0; i < QUANT_DELTA_COUNT; i++)
 		get_delta_q(dev);
 
-	if (!VP8_FRAME_IS_KEY_FRAME(slice))
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(slice))
 		process_ref_frame_info(dev);
 
 	read_bits(dev, 1, VP8_PROB_HALF);
 
-	if (!VP8_FRAME_IS_KEY_FRAME(slice))
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(slice))
 		read_bits(dev, 1, VP8_PROB_HALF);
 
 	cedrus_write(dev, VE_H264_TRIGGER_TYPE, VE_H264_TRIGGER_TYPE_VP8_UPDATE_COEF);
@@ -565,7 +566,7 @@ static void cedrus_read_header(struct cedrus_dev *dev,
 	if (read_bits(dev, 1, VP8_PROB_HALF))
 		read_bits(dev, 8, VP8_PROB_HALF);
 
-	if (!VP8_FRAME_IS_KEY_FRAME(slice)) {
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(slice)) {
 		read_bits(dev, 8, VP8_PROB_HALF);
 		read_bits(dev, 8, VP8_PROB_HALF);
 		read_bits(dev, 8, VP8_PROB_HALF);
@@ -590,34 +591,34 @@ static void cedrus_read_header(struct cedrus_dev *dev,
 	}
 }
 
-static void cedrus_vp8_update_probs(const struct v4l2_ctrl_vp8_frame_header *slice,
+static void cedrus_vp8_update_probs(const struct v4l2_ctrl_vp8_frame *slice,
 				    u8 *prob_table)
 {
 	int i, j, k;
 
-	memcpy(&prob_table[0x1008], slice->entropy_header.y_mode_probs,
-	       sizeof(slice->entropy_header.y_mode_probs));
-	memcpy(&prob_table[0x1010], slice->entropy_header.uv_mode_probs,
-	       sizeof(slice->entropy_header.uv_mode_probs));
+	memcpy(&prob_table[0x1008], slice->entropy.y_mode_probs,
+	       sizeof(slice->entropy.y_mode_probs));
+	memcpy(&prob_table[0x1010], slice->entropy.uv_mode_probs,
+	       sizeof(slice->entropy.uv_mode_probs));
 
-	memcpy(&prob_table[0x1018], slice->segment_header.segment_probs,
-	       sizeof(slice->segment_header.segment_probs));
+	memcpy(&prob_table[0x1018], slice->segment.segment_probs,
+	       sizeof(slice->segment.segment_probs));
 
 	prob_table[0x101c] = slice->prob_skip_false;
 	prob_table[0x101d] = slice->prob_intra;
 	prob_table[0x101e] = slice->prob_last;
 	prob_table[0x101f] = slice->prob_gf;
 
-	memcpy(&prob_table[0x1020], slice->entropy_header.mv_probs[0],
+	memcpy(&prob_table[0x1020], slice->entropy.mv_probs[0],
 	       V4L2_VP8_MV_PROB_CNT);
-	memcpy(&prob_table[0x1040], slice->entropy_header.mv_probs[1],
+	memcpy(&prob_table[0x1040], slice->entropy.mv_probs[1],
 	       V4L2_VP8_MV_PROB_CNT);
 
 	for (i = 0; i < 4; ++i)
 		for (j = 0; j < 8; ++j)
 			for (k = 0; k < 3; ++k)
 				memcpy(&prob_table[i * 512 + j * 64 + k * 16],
-				       slice->entropy_header.coeff_probs[i][j][k], 11);
+				       slice->entropy.coeff_probs[i][j][k], 11);
 }
 
 static enum cedrus_irq_status
@@ -653,7 +654,7 @@ static void cedrus_vp8_irq_disable(struct cedrus_ctx *ctx)
 static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 			     struct cedrus_run *run)
 {
-	const struct v4l2_ctrl_vp8_frame_header *slice = run->vp8.frame_params;
+	const struct v4l2_ctrl_vp8_frame *slice = run->vp8.frame_params;
 	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
 	struct vb2_buffer *src_buf = &run->src->vb2_buf;
 	struct cedrus_dev *dev = ctx->dev;
@@ -672,7 +673,7 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 	reg = slice->first_part_size * 8;
 	cedrus_write(dev, VE_VP8_FIRST_DATA_PART_LEN, reg);
 
-	header_size = VP8_FRAME_IS_KEY_FRAME(slice) ? 10 : 3;
+	header_size = V4L2_VP8_FRAME_IS_KEY_FRAME(slice) ? 10 : 3;
 
 	reg = slice->first_part_size + header_size;
 	cedrus_write(dev, VE_VP8_PART_SIZE_OFFSET, reg);
@@ -719,34 +720,34 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 		reg |= VE_VP8_PPS_FULL_PIXEL;
 		break;
 	}
-	if (slice->segment_header.flags & V4L2_VP8_SEGMENT_HEADER_FLAG_UPDATE_MAP)
+	if (slice->segment.flags & V4L2_VP8_SEGMENT_FLAG_UPDATE_MAP)
 		reg |= VE_VP8_PPS_UPDATE_MB_SEGMENTATION_MAP;
-	if (!(slice->segment_header.flags & V4L2_VP8_SEGMENT_HEADER_FLAG_DELTA_VALUE_MODE))
+	if (!(slice->segment.flags & V4L2_VP8_SEGMENT_FLAG_DELTA_VALUE_MODE))
 		reg |= VE_VP8_PPS_MB_SEGMENT_ABS_DELTA;
-	if (slice->segment_header.flags & V4L2_VP8_SEGMENT_HEADER_FLAG_ENABLED)
+	if (slice->segment.flags & V4L2_VP8_SEGMENT_FLAG_ENABLED)
 		reg |= VE_VP8_PPS_SEGMENTATION_ENABLE;
 	if (ctx->codec.vp8.last_filter_type)
 		reg |= VE_VP8_PPS_LAST_LOOP_FILTER_SIMPLE;
-	reg |= VE_VP8_PPS_SHARPNESS_LEVEL(slice->lf_header.sharpness_level);
-	if (slice->lf_header.flags & V4L2_VP8_LF_FILTER_TYPE_SIMPLE)
+	reg |= VE_VP8_PPS_SHARPNESS_LEVEL(slice->lf.sharpness_level);
+	if (slice->lf.flags & V4L2_VP8_LF_FILTER_TYPE_SIMPLE)
 		reg |= VE_VP8_PPS_LOOP_FILTER_SIMPLE;
-	reg |= VE_VP8_PPS_LOOP_FILTER_LEVEL(slice->lf_header.level);
-	if (slice->lf_header.flags & V4L2_VP8_LF_HEADER_ADJ_ENABLE)
+	reg |= VE_VP8_PPS_LOOP_FILTER_LEVEL(slice->lf.level);
+	if (slice->lf.flags & V4L2_VP8_LF_ADJ_ENABLE)
 		reg |= VE_VP8_PPS_MODE_REF_LF_DELTA_ENABLE;
-	if (slice->lf_header.flags & V4L2_VP8_LF_HEADER_DELTA_UPDATE)
+	if (slice->lf.flags & V4L2_VP8_LF_DELTA_UPDATE)
 		reg |= VE_VP8_PPS_MODE_REF_LF_DELTA_UPDATE;
 	reg |= VE_VP8_PPS_TOKEN_PARTITION(ilog2(slice->num_dct_parts));
-	if (slice->flags & V4L2_VP8_FRAME_HEADER_FLAG_MB_NO_SKIP_COEFF)
+	if (slice->flags & V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF)
 		reg |= VE_VP8_PPS_MB_NO_COEFF_SKIP;
 	reg |= VE_VP8_PPS_RELOAD_ENTROPY_PROBS;
-	if (slice->flags & V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_GOLDEN)
+	if (slice->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN)
 		reg |= VE_VP8_PPS_GOLDEN_SIGN_BIAS;
-	if (slice->flags & V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_ALT)
+	if (slice->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT)
 		reg |= VE_VP8_PPS_ALTREF_SIGN_BIAS;
 	if (ctx->codec.vp8.last_frame_p_type)
 		reg |= VE_VP8_PPS_LAST_PIC_TYPE_P_FRAME;
 	reg |= VE_VP8_PPS_LAST_SHARPNESS_LEVEL(ctx->codec.vp8.last_sharpness_level);
-	if (!(slice->flags & V4L2_VP8_FRAME_HEADER_FLAG_KEY_FRAME))
+	if (!(slice->flags & V4L2_VP8_FRAME_FLAG_KEY_FRAME))
 		reg |= VE_VP8_PPS_PIC_TYPE_P_FRAME;
 	cedrus_write(dev, VE_VP8_PPS, reg);
 
@@ -758,12 +759,12 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 	cedrus_write(dev, VE_H264_ERROR_CASE, 0);
 
 	reg = 0;
-	reg |= VE_VP8_QP_INDEX_DELTA_UVAC(slice->quant_header.uv_ac_delta);
-	reg |= VE_VP8_QP_INDEX_DELTA_UVDC(slice->quant_header.uv_dc_delta);
-	reg |= VE_VP8_QP_INDEX_DELTA_Y2AC(slice->quant_header.y2_ac_delta);
-	reg |= VE_VP8_QP_INDEX_DELTA_Y2DC(slice->quant_header.y2_dc_delta);
-	reg |= VE_VP8_QP_INDEX_DELTA_Y1DC(slice->quant_header.y_dc_delta);
-	reg |= VE_VP8_QP_INDEX_DELTA_BASE_QINDEX(slice->quant_header.y_ac_qi);
+	reg |= VE_VP8_QP_INDEX_DELTA_UVAC(slice->quant.uv_ac_delta);
+	reg |= VE_VP8_QP_INDEX_DELTA_UVDC(slice->quant.uv_dc_delta);
+	reg |= VE_VP8_QP_INDEX_DELTA_Y2AC(slice->quant.y2_ac_delta);
+	reg |= VE_VP8_QP_INDEX_DELTA_Y2DC(slice->quant.y2_dc_delta);
+	reg |= VE_VP8_QP_INDEX_DELTA_Y1DC(slice->quant.y_dc_delta);
+	reg |= VE_VP8_QP_INDEX_DELTA_BASE_QINDEX(slice->quant.y_ac_qi);
 	cedrus_write(dev, VE_VP8_QP_INDEX_DELTA, reg);
 
 	reg = 0;
@@ -777,31 +778,31 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 	cedrus_write(dev, VE_VP8_PICSIZE, reg);
 
 	reg = 0;
-	reg |= VE_VP8_SEGMENT3(slice->segment_header.quant_update[3]);
-	reg |= VE_VP8_SEGMENT2(slice->segment_header.quant_update[2]);
-	reg |= VE_VP8_SEGMENT1(slice->segment_header.quant_update[1]);
-	reg |= VE_VP8_SEGMENT0(slice->segment_header.quant_update[0]);
+	reg |= VE_VP8_SEGMENT3(slice->segment.quant_update[3]);
+	reg |= VE_VP8_SEGMENT2(slice->segment.quant_update[2]);
+	reg |= VE_VP8_SEGMENT1(slice->segment.quant_update[1]);
+	reg |= VE_VP8_SEGMENT0(slice->segment.quant_update[0]);
 	cedrus_write(dev, VE_VP8_SEGMENT_FEAT_MB_LV0, reg);
 
 	reg = 0;
-	reg |= VE_VP8_SEGMENT3(slice->segment_header.lf_update[3]);
-	reg |= VE_VP8_SEGMENT2(slice->segment_header.lf_update[2]);
-	reg |= VE_VP8_SEGMENT1(slice->segment_header.lf_update[1]);
-	reg |= VE_VP8_SEGMENT0(slice->segment_header.lf_update[0]);
+	reg |= VE_VP8_SEGMENT3(slice->segment.lf_update[3]);
+	reg |= VE_VP8_SEGMENT2(slice->segment.lf_update[2]);
+	reg |= VE_VP8_SEGMENT1(slice->segment.lf_update[1]);
+	reg |= VE_VP8_SEGMENT0(slice->segment.lf_update[0]);
 	cedrus_write(dev, VE_VP8_SEGMENT_FEAT_MB_LV1, reg);
 
 	reg = 0;
-	reg |= VE_VP8_LF_DELTA3(slice->lf_header.ref_frm_delta[3]);
-	reg |= VE_VP8_LF_DELTA2(slice->lf_header.ref_frm_delta[2]);
-	reg |= VE_VP8_LF_DELTA1(slice->lf_header.ref_frm_delta[1]);
-	reg |= VE_VP8_LF_DELTA0(slice->lf_header.ref_frm_delta[0]);
+	reg |= VE_VP8_LF_DELTA3(slice->lf.ref_frm_delta[3]);
+	reg |= VE_VP8_LF_DELTA2(slice->lf.ref_frm_delta[2]);
+	reg |= VE_VP8_LF_DELTA1(slice->lf.ref_frm_delta[1]);
+	reg |= VE_VP8_LF_DELTA0(slice->lf.ref_frm_delta[0]);
 	cedrus_write(dev, VE_VP8_REF_LF_DELTA, reg);
 
 	reg = 0;
-	reg |= VE_VP8_LF_DELTA3(slice->lf_header.mb_mode_delta[3]);
-	reg |= VE_VP8_LF_DELTA2(slice->lf_header.mb_mode_delta[2]);
-	reg |= VE_VP8_LF_DELTA1(slice->lf_header.mb_mode_delta[1]);
-	reg |= VE_VP8_LF_DELTA0(slice->lf_header.mb_mode_delta[0]);
+	reg |= VE_VP8_LF_DELTA3(slice->lf.mb_mode_delta[3]);
+	reg |= VE_VP8_LF_DELTA2(slice->lf.mb_mode_delta[2]);
+	reg |= VE_VP8_LF_DELTA1(slice->lf.mb_mode_delta[1]);
+	reg |= VE_VP8_LF_DELTA0(slice->lf.mb_mode_delta[0]);
 	cedrus_write(dev, VE_VP8_MODE_LF_DELTA, reg);
 
 	luma_addr = cedrus_dst_buf_addr(ctx, run->dst->vb2_buf.index, 0);
@@ -846,13 +847,13 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 		     VE_H264_CTRL_DECODE_ERR_INT |
 		     VE_H264_CTRL_SLICE_DECODE_INT);
 
-	if (slice->lf_header.level) {
+	if (slice->lf.level) {
 		ctx->codec.vp8.last_filter_type =
-			!!(slice->lf_header.flags & V4L2_VP8_LF_FILTER_TYPE_SIMPLE);
+			!!(slice->lf.flags & V4L2_VP8_LF_FILTER_TYPE_SIMPLE);
 		ctx->codec.vp8.last_frame_p_type =
-			!VP8_FRAME_IS_KEY_FRAME(slice);
+			!V4L2_VP8_FRAME_IS_KEY_FRAME(slice);
 		ctx->codec.vp8.last_sharpness_level =
-			slice->lf_header.sharpness_level;
+			slice->lf.sharpness_level;
 	}
 }
 

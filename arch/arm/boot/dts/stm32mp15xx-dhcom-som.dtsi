@@ -92,6 +92,10 @@
 	};
 };
 
+&crc1 {
+	status = "okay";
+};
+
 &dac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dac_ch1_pins_a &dac_ch2_pins_a>;
@@ -164,8 +168,68 @@
 	};
 };
 
+&gpioa {
+	gpio-line-names = "", "", "", "",
+			  "", "", "DHCOM-K", "",
+			  "", "", "", "",
+			  "", "", "", "";
+};
+
+&gpiob {
+	gpio-line-names = "", "", "", "",
+			  "", "", "", "",
+			  "DHCOM-Q", "", "", "",
+			  "", "", "", "";
+};
+
 &gpioc {
+	gpio-line-names = "", "", "", "",
+			  "", "", "DHCOM-E", "",
+			  "", "", "", "",
+			  "", "", "", "";
 	status = "okay";
+};
+
+&gpiod {
+	gpio-line-names = "", "", "", "",
+			  "", "", "DHCOM-B", "",
+			  "", "", "", "DHCOM-F",
+			  "DHCOM-D", "", "", "";
+};
+
+&gpioe {
+	gpio-line-names = "", "", "", "",
+			  "", "", "DHCOM-P", "",
+			  "", "", "", "",
+			  "", "", "", "";
+};
+
+&gpiof {
+	gpio-line-names = "", "", "", "DHCOM-A",
+			  "", "", "", "",
+			  "", "", "", "",
+			  "", "", "", "";
+};
+
+&gpiog {
+	gpio-line-names = "DHCOM-C", "", "", "",
+			  "", "", "", "",
+			  "DHCOM-L", "", "", "",
+			  "", "", "", "";
+};
+
+&gpioh {
+	gpio-line-names = "", "", "", "",
+			  "", "", "", "DHCOM-N",
+			  "DHCOM-J", "DHCOM-W", "DHCOM-V", "DHCOM-U",
+			  "DHCOM-T", "", "DHCOM-S", "";
+};
+
+&gpioi {
+	gpio-line-names = "DHCOM-G", "DHCOM-O", "DHCOM-H", "DHCOM-I",
+			  "DHCOM-R", "DHCOM-M", "", "",
+			  "", "", "", "",
+			  "", "", "", "";
 };
 
 &i2c4 {

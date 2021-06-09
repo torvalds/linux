@@ -247,7 +247,7 @@ static void __init pmd_huge_tests(pmd_t *pmdp, unsigned long pfn, pgprot_t prot)
 {
 	pmd_t pmd;
 
-	if (!arch_ioremap_pmd_supported())
+	if (!arch_vmap_pmd_supported(prot))
 		return;
 
 	pr_debug("Validating PMD huge\n");
@@ -385,7 +385,7 @@ static void __init pud_huge_tests(pud_t *pudp, unsigned long pfn, pgprot_t prot)
 {
 	pud_t pud;
 
-	if (!arch_ioremap_pud_supported())
+	if (!arch_vmap_pud_supported(prot))
 		return;
 
 	pr_debug("Validating PUD huge\n");

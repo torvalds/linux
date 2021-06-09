@@ -429,7 +429,7 @@ struct mlx4_sriov_alias_guid_port_rec_det {
 	struct mlx4_sriov_alias_guid_info_rec_det all_rec_per_port[NUM_ALIAS_GUID_REC_IN_PORT];
 	struct workqueue_struct *wq;
 	struct delayed_work alias_guid_work;
-	u8 port;
+	u32 port;
 	u32 state_flags;
 	struct mlx4_sriov_alias_guid *parent;
 	struct list_head cb_list;
@@ -657,7 +657,7 @@ struct mlx4_ib_qp_tunnel_init_attr {
 	struct ib_qp_init_attr init_attr;
 	int slave;
 	enum ib_qp_type proxy_qp_type;
-	u8 port;
+	u32 port;
 };
 
 struct mlx4_uverbs_ex_query_device {
@@ -810,24 +810,24 @@ int mlx4_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int mad_ifc_flags,
 		 int port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		 const void *in_mad, void *response_mad);
-int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad *in, struct ib_mad *out,
 			size_t *out_mad_size, u16 *out_mad_pkey_index);
 int mlx4_ib_mad_init(struct mlx4_ib_dev *dev);
 void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev);
 
-int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
+int __mlx4_ib_query_port(struct ib_device *ibdev, u32 port,
 			 struct ib_port_attr *props, int netw_view);
-int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int __mlx4_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			 u16 *pkey, int netw_view);
 
-int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
+int __mlx4_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 			union ib_gid *gid, int netw_view);
 
 static inline bool mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
-	u8 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;
+	u32 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;
 
 	if (rdma_port_get_link_layer(ah->ibah.device, port) == IB_LINK_LAYER_ETHERNET)
 		return true;
@@ -841,7 +841,7 @@ void clean_vf_mcast(struct mlx4_ib_demux_ctx *ctx, int slave);
 int mlx4_ib_mcg_init(void);
 void mlx4_ib_mcg_destroy(void);
 
-int mlx4_ib_find_real_gid(struct ib_device *ibdev, u8 port, __be64 guid);
+int mlx4_ib_find_real_gid(struct ib_device *ibdev, u32 port, __be64 guid);
 
 int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port, int slave,
 				  struct ib_sa_mad *sa_mad);
@@ -851,16 +851,16 @@ int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid);
 
-void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
+void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u32 port_num,
 			    enum ib_event_type type);
 
 void mlx4_ib_tunnels_update_work(struct work_struct *work);
 
-int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
+int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u32 port,
 			  enum ib_qp_type qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad);
 
-int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
+int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u32 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
 			 u32 qkey, struct rdma_ah_attr *attr, u8 *s_mac,
 			 u16 vlan_id, struct ib_mad *mad);
@@ -884,10 +884,10 @@ void mlx4_ib_invalidate_all_guid_record(struct mlx4_ib_dev *dev, int port);
 
 void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 					  int block_num,
-					  u8 port_num, u8 *p_data);
+					  u32 port_num, u8 *p_data);
 
 void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev,
-					 int block_num, u8 port_num,
+					 int block_num, u32 port_num,
 					 u8 *p_data);
 
 int add_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,

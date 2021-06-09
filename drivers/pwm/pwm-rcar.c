@@ -224,7 +224,6 @@ static int rcar_pwm_probe(struct platform_device *pdev)
 
 	rcar_pwm->chip.dev = &pdev->dev;
 	rcar_pwm->chip.ops = &rcar_pwm_ops;
-	rcar_pwm->chip.base = -1;
 	rcar_pwm->chip.npwm = 1;
 
 	pm_runtime_enable(&pdev->dev);

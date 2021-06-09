@@ -36,6 +36,7 @@
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/xsk/tx.h"
+#include "en_accel/ktls_txrx.h"
 
 static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
 {
@@ -170,6 +171,10 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 		 * queueing more WQEs and overflowing the async ICOSQ.
 		 */
 		clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state);
+
+	/* Keep after async ICOSQ CQ poll */
+	if (unlikely(mlx5e_ktls_rx_pending_resync_list(c, budget)))
+		busy |= mlx5e_ktls_rx_handle_resync_list(c, budget);
 
 	busy |= INDIRECT_CALL_2(rq->post_wqes,
 				mlx5e_post_rx_mpwqes,

@@ -41,6 +41,25 @@ enum mlx5_ib_create_flow_action_attrs {
 	MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS = (1U << UVERBS_ID_NS_SHIFT),
 };
 
+enum mlx5_ib_dm_methods {
+	MLX5_IB_METHOD_DM_MAP_OP_ADDR  = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_METHOD_DM_QUERY,
+};
+
+enum mlx5_ib_dm_map_op_addr_attrs {
+	MLX5_IB_ATTR_DM_MAP_OP_ADDR_REQ_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_DM_MAP_OP_ADDR_REQ_OP,
+	MLX5_IB_ATTR_DM_MAP_OP_ADDR_RESP_START_OFFSET,
+	MLX5_IB_ATTR_DM_MAP_OP_ADDR_RESP_PAGE_INDEX,
+};
+
+enum mlx5_ib_query_dm_attrs {
+	MLX5_IB_ATTR_QUERY_DM_REQ_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_QUERY_DM_RESP_START_OFFSET,
+	MLX5_IB_ATTR_QUERY_DM_RESP_PAGE_INDEX,
+	MLX5_IB_ATTR_QUERY_DM_RESP_LENGTH,
+};
+
 enum mlx5_ib_alloc_dm_attrs {
 	MLX5_IB_ATTR_ALLOC_DM_RESP_START_OFFSET = (1U << UVERBS_ID_NS_SHIFT),
 	MLX5_IB_ATTR_ALLOC_DM_RESP_PAGE_INDEX,
@@ -154,6 +173,7 @@ enum mlx5_ib_devx_umem_reg_attrs {
 	MLX5_IB_ATTR_DEVX_UMEM_REG_LEN,
 	MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
 	MLX5_IB_ATTR_DEVX_UMEM_REG_OUT_ID,
+	MLX5_IB_ATTR_DEVX_UMEM_REG_PGSZ_BITMAP,
 };
 
 enum mlx5_ib_devx_umem_dereg_attrs {
@@ -298,6 +318,15 @@ enum mlx5_ib_query_pd_attrs {
 enum mlx5_ib_pd_methods {
 	MLX5_IB_METHOD_PD_QUERY = (1U << UVERBS_ID_NS_SHIFT),
 
+};
+
+enum mlx5_ib_device_methods {
+	MLX5_IB_METHOD_QUERY_PORT = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum mlx5_ib_query_port_attrs {
+	MLX5_IB_ATTR_QUERY_PORT_PORT_NUM = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_QUERY_PORT,
 };
 
 #endif

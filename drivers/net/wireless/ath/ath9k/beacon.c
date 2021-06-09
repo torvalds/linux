@@ -251,7 +251,7 @@ void ath9k_beacon_ensure_primary_slot(struct ath_softc *sc)
 	int first_slot = ATH_BCBUF;
 	int slot;
 
-	tasklet_disable(&sc->bcon_tasklet);
+	tasklet_disable_in_atomic(&sc->bcon_tasklet);
 
 	/* Find first taken slot. */
 	for (slot = 0; slot < ATH_BCBUF; slot++) {

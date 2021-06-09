@@ -116,7 +116,7 @@ static int ftm_set_next_event(unsigned long delta,
 	 * to the MOD register latches the value into a buffer. The MOD
 	 * register is updated with the value of its write buffer with
 	 * the following scenario:
-	 * a, the counter source clock is diabled.
+	 * a, the counter source clock is disabled.
 	 */
 	ftm_counter_disable(priv->clkevt_base);
 

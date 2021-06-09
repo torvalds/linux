@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <memory.h>
-#include "../../util/evsel.h"
-#include "../../util/kvm-stat.h"
+#include "../../../util/evsel.h"
+#include "../../../util/kvm-stat.h"
 #include "arm64_exception_types.h"
 #include "debug.h"
 
@@ -71,7 +71,7 @@ struct kvm_reg_events_ops kvm_reg_events_ops[] = {
 		.name	= "vmexit",
 		.ops	= &exit_events,
 	},
-	{ NULL },
+	{ NULL, NULL },
 };
 
 const char * const kvm_skip_events[] = {

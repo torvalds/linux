@@ -314,6 +314,9 @@ static void set_srq_ext_param(struct hns_roce_srq *srq,
 {
 	srq->cqn = ib_srq_has_cq(init_attr->srq_type) ?
 		   to_hr_cq(init_attr->ext.cq)->cqn : 0;
+
+	srq->xrcdn = (init_attr->srq_type == IB_SRQT_XRC) ?
+		     to_hr_xrcd(init_attr->ext.xrc.xrcd)->xrcdn : 0;
 }
 
 static int set_srq_param(struct hns_roce_srq *srq,
@@ -412,7 +415,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 		}
 	}
 
-	srq->db_reg_l = hr_dev->reg_base + SRQ_DB_REG;
+	srq->db_reg = hr_dev->reg_base + SRQ_DB_REG;
 	srq->event = hns_roce_ib_srq_event;
 	atomic_set(&srq->refcount, 1);
 	init_completion(&srq->free);

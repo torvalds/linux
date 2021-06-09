@@ -362,7 +362,7 @@ static bool pt_event_valid(struct perf_event *event)
 
 	/*
 	 * Setting bit 0 (TraceEn in RTIT_CTL MSR) in the attr.config
-	 * clears the assomption that BranchEn must always be enabled,
+	 * clears the assumption that BranchEn must always be enabled,
 	 * as was the case with the first implementation of PT.
 	 * If this bit is not set, the legacy behavior is preserved
 	 * for compatibility with the older userspace.

@@ -130,6 +130,7 @@
 #define GLINT_DYN_CTL_ITR_INDX_M		ICE_M(0x3, 3)
 #define GLINT_DYN_CTL_INTERVAL_S		5
 #define GLINT_DYN_CTL_INTERVAL_M		ICE_M(0xFFF, 5)
+#define GLINT_DYN_CTL_SW_ITR_INDX_ENA_M		BIT(24)
 #define GLINT_DYN_CTL_SW_ITR_INDX_M		ICE_M(0x3, 25)
 #define GLINT_DYN_CTL_WB_ON_ITR_M		BIT(30)
 #define GLINT_DYN_CTL_INTENA_MSK_M		BIT(31)
@@ -306,8 +307,23 @@
 #define GLQF_FD_SIZE_FD_BSIZE_S			16
 #define GLQF_FD_SIZE_FD_BSIZE_M			ICE_M(0x7FFF, 16)
 #define GLQF_FDINSET(_i, _j)			(0x00412000 + ((_i) * 4 + (_j) * 512))
+#define GLQF_FDMASK(_i)				(0x00410800 + ((_i) * 4))
+#define GLQF_FDMASK_MAX_INDEX			31
+#define GLQF_FDMASK_MSK_INDEX_S			0
+#define GLQF_FDMASK_MSK_INDEX_M			ICE_M(0x1F, 0)
+#define GLQF_FDMASK_MASK_S			16
+#define GLQF_FDMASK_MASK_M			ICE_M(0xFFFF, 16)
 #define GLQF_FDMASK_SEL(_i)			(0x00410400 + ((_i) * 4))
 #define GLQF_FDSWAP(_i, _j)			(0x00413000 + ((_i) * 4 + (_j) * 512))
+#define GLQF_HMASK(_i)				(0x0040FC00 + ((_i) * 4))
+#define GLQF_HMASK_MAX_INDEX			31
+#define GLQF_HMASK_MSK_INDEX_S			0
+#define GLQF_HMASK_MSK_INDEX_M			ICE_M(0x1F, 0)
+#define GLQF_HMASK_MASK_S			16
+#define GLQF_HMASK_MASK_M			ICE_M(0xFFFF, 16)
+#define GLQF_HMASK_SEL(_i)			(0x00410000 + ((_i) * 4))
+#define GLQF_HMASK_SEL_MAX_INDEX		127
+#define GLQF_HMASK_SEL_MASK_SEL_S		0
 #define PFQF_FD_ENA				0x0043A000
 #define PFQF_FD_ENA_FD_ENA_M			BIT(0)
 #define PFQF_FD_SIZE				0x00460100
@@ -369,6 +385,9 @@
 #define VSIQF_FD_CNT(_VSI)			(0x00464000 + ((_VSI) * 4))
 #define VSIQF_FD_CNT_FD_GCNT_S			0
 #define VSIQF_FD_CNT_FD_GCNT_M			ICE_M(0x3FFF, 0)
+#define VSIQF_FD_CNT_FD_BCNT_S			16
+#define VSIQF_FD_CNT_FD_BCNT_M			ICE_M(0x3FFF, 16)
+#define VSIQF_FD_SIZE(_VSI)			(0x00462000 + ((_VSI) * 4))
 #define VSIQF_HKEY_MAX_INDEX			12
 #define VSIQF_HLUT_MAX_INDEX			15
 #define PFPM_APM				0x000B8080

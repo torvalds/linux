@@ -110,4 +110,4 @@ obj-$(CONFIG_LEDS_CLASS_FLASH)		+= flash/
 obj-$(CONFIG_LEDS_TRIGGERS)		+= trigger/
 
 # LED Blink
-obj-$(CONFIG_LEDS_BLINK)                += blink/
+obj-y					+= blink/

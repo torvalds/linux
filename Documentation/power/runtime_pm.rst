@@ -339,6 +339,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       checked additionally, and -EACCES means that 'power.disable_depth' is
       different from 0
 
+  `int pm_runtime_resume_and_get(struct device *dev);`
+    - run pm_runtime_resume(dev) and if successful, increment the device's
+      usage counter; return the result of pm_runtime_resume
+
   `int pm_request_idle(struct device *dev);`
     - submit a request to execute the subsystem-level idle callback for the
       device (the request is represented by a work item in pm_wq); returns 0 on

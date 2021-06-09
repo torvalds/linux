@@ -98,28 +98,6 @@ static void pool_free_work(struct work_struct *wrk)
 				      round_jiffies_up_relative(HZ));
 }
 
-static int pool_active(struct i915_active *ref)
-{
-	struct intel_gt_buffer_pool_node *node =
-		container_of(ref, typeof(*node), active);
-	struct dma_resv *resv = node->obj->base.resv;
-	int err;
-
-	if (dma_resv_trylock(resv)) {
-		dma_resv_add_excl_fence(resv, NULL);
-		dma_resv_unlock(resv);
-	}
-
-	err = i915_gem_object_pin_pages(node->obj);
-	if (err)
-		return err;
-
-	/* Hide this pinned object from the shrinker until retired */
-	i915_gem_object_make_unshrinkable(node->obj);
-
-	return 0;
-}
-
 __i915_active_call
 static void pool_retire(struct i915_active *ref)
 {
@@ -129,10 +107,13 @@ static void pool_retire(struct i915_active *ref)
 	struct list_head *list = bucket_for_size(pool, node->obj->base.size);
 	unsigned long flags;
 
-	i915_gem_object_unpin_pages(node->obj);
+	if (node->pinned) {
+		i915_gem_object_unpin_pages(node->obj);
 
-	/* Return this object to the shrinker pool */
-	i915_gem_object_make_purgeable(node->obj);
+		/* Return this object to the shrinker pool */
+		i915_gem_object_make_purgeable(node->obj);
+		node->pinned = false;
+	}
 
 	GEM_BUG_ON(node->age);
 	spin_lock_irqsave(&pool->lock, flags);
@@ -142,6 +123,19 @@ static void pool_retire(struct i915_active *ref)
 
 	schedule_delayed_work(&pool->work,
 			      round_jiffies_up_relative(HZ));
+}
+
+void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_node *node)
+{
+	assert_object_held(node->obj);
+
+	if (node->pinned)
+		return;
+
+	__i915_gem_object_pin_pages(node->obj);
+	/* Hide this pinned object from the shrinker until retired */
+	i915_gem_object_make_unshrinkable(node->obj);
+	node->pinned = true;
 }
 
 static struct intel_gt_buffer_pool_node *
@@ -159,7 +153,8 @@ node_create(struct intel_gt_buffer_pool *pool, size_t sz,
 
 	node->age = 0;
 	node->pool = pool;
-	i915_active_init(&node->active, pool_active, pool_retire);
+	node->pinned = false;
+	i915_active_init(&node->active, NULL, pool_retire);
 
 	obj = i915_gem_object_create_internal(gt->i915, sz);
 	if (IS_ERR(obj)) {

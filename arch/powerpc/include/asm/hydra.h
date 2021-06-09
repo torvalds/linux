@@ -94,8 +94,6 @@ extern volatile struct Hydra __iomem *Hydra;
 #define HYDRA_INT_EXT7		18	/* Power Off Request */
 #define HYDRA_INT_SPARE		19
 
-extern int hydra_init(void);
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASMPPC_HYDRA_H */

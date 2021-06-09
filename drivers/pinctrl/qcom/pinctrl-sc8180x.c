@@ -23,6 +23,21 @@ enum {
 	WEST
 };
 
+/*
+ * ACPI DSDT has one single memory resource for TLMM.  The offsets below are
+ * used to locate different tiles for ACPI probe.
+ */
+struct tile_info {
+	u32 offset;
+	u32 size;
+};
+
+static const struct tile_info sc8180x_tile_info[] = {
+	{ 0x00d00000, 0x00300000, },
+	{ 0x00500000, 0x00700000, },
+	{ 0x00100000, 0x00300000, },
+};
+
 #define FUNCTION(fname)					\
 	[msm_mux_##fname] = {				\
 		.name = #fname,				\
@@ -1557,6 +1572,13 @@ static const struct msm_pingroup sc8180x_groups[] = {
 	[193] = SDC_QDSD_PINGROUP(sdc2_data, 0x4b2000, 9, 0),
 };
 
+static const int sc8180x_acpi_reserved_gpios[] = {
+	0, 1, 2, 3,
+	47, 48, 49, 50,
+	126, 127, 128, 129,
+	-1 /* terminator */
+};
+
 static const struct msm_gpio_wakeirq_map sc8180x_pdc_map[] = {
 	{ 3, 31 }, { 5, 32 }, { 8, 33 }, { 9, 34 }, { 10, 100 }, { 12, 104 },
 	{ 24, 37 }, { 26, 38 }, { 27, 41 }, { 28, 42 }, { 30, 39 }, { 36, 43 },
@@ -1588,13 +1610,109 @@ static struct msm_pinctrl_soc_data sc8180x_pinctrl = {
 	.nwakeirq_map = ARRAY_SIZE(sc8180x_pdc_map),
 };
 
-static int sc8180x_pinctrl_probe(struct platform_device *pdev)
+static const struct msm_pinctrl_soc_data sc8180x_acpi_pinctrl = {
+	.tiles = sc8180x_tiles,
+	.ntiles = ARRAY_SIZE(sc8180x_tiles),
+	.pins = sc8180x_pins,
+	.npins = ARRAY_SIZE(sc8180x_pins),
+	.groups = sc8180x_groups,
+	.ngroups = ARRAY_SIZE(sc8180x_groups),
+	.reserved_gpios = sc8180x_acpi_reserved_gpios,
+	.ngpios = 190,
+};
+
+/*
+ * ACPI DSDT has one single memory resource for TLMM, which voilates the
+ * hardware layout of 3 sepearte tiles.  Let's split the memory resource into
+ * 3 named ones, so that msm_pinctrl_probe() can map memory for ACPI in the
+ * same way as for DT probe.
+ */
+static int sc8180x_pinctrl_add_tile_resources(struct platform_device *pdev)
 {
-	return msm_pinctrl_probe(pdev, &sc8180x_pinctrl);
+	int nres_num = pdev->num_resources + ARRAY_SIZE(sc8180x_tiles) - 1;
+	struct resource *mres, *nres, *res;
+	int i, ret;
+
+	/*
+	 * DT already has tiles defined properly, so nothing needs to be done
+	 * for DT probe.
+	 */
+	if (pdev->dev.of_node)
+		return 0;
+
+	/* Allocate for new resources */
+	nres = devm_kzalloc(&pdev->dev, sizeof(*nres) * nres_num, GFP_KERNEL);
+	if (!nres)
+		return -ENOMEM;
+
+	res = nres;
+
+	for (i = 0; i < pdev->num_resources; i++) {
+		struct resource *r = &pdev->resource[i];
+
+		/* Save memory resource and copy others */
+		if (resource_type(r) == IORESOURCE_MEM)
+			mres = r;
+		else
+			*res++ = *r;
+	}
+
+	/* Append tile memory resources */
+	for (i = 0; i < ARRAY_SIZE(sc8180x_tiles); i++, res++) {
+		const struct tile_info *info = &sc8180x_tile_info[i];
+
+		res->start = mres->start + info->offset;
+		res->end = mres->start + info->offset + info->size - 1;
+		res->flags = mres->flags;
+		res->name = sc8180x_tiles[i];
+
+		/* Add new MEM to resource tree */
+		insert_resource(mres->parent, res);
+	}
+
+	/* Remove old MEM from resource tree */
+	remove_resource(mres);
+
+	/* Free old resources and install new ones */
+	ret = platform_device_add_resources(pdev, nres, nres_num);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to add new resources: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
+static int sc8180x_pinctrl_probe(struct platform_device *pdev)
+{
+	const struct msm_pinctrl_soc_data *soc_data;
+	int ret;
+
+	soc_data = device_get_match_data(&pdev->dev);
+	if (!soc_data)
+		return -EINVAL;
+
+	ret = sc8180x_pinctrl_add_tile_resources(pdev);
+	if (ret)
+		return ret;
+
+	return msm_pinctrl_probe(pdev, soc_data);
+}
+
+static const struct acpi_device_id sc8180x_pinctrl_acpi_match[] = {
+	{
+		.id = "QCOM040D",
+		.driver_data = (kernel_ulong_t) &sc8180x_acpi_pinctrl,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, sc8180x_pinctrl_acpi_match);
+
 static const struct of_device_id sc8180x_pinctrl_of_match[] = {
-	{ .compatible = "qcom,sc8180x-tlmm", },
+	{
+		.compatible = "qcom,sc8180x-tlmm",
+		.data = &sc8180x_pinctrl,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sc8180x_pinctrl_of_match);
@@ -1603,6 +1721,7 @@ static struct platform_driver sc8180x_pinctrl_driver = {
 	.driver = {
 		.name = "sc8180x-pinctrl",
 		.of_match_table = sc8180x_pinctrl_of_match,
+		.acpi_match_table = sc8180x_pinctrl_acpi_match,
 	},
 	.probe = sc8180x_pinctrl_probe,
 	.remove = msm_pinctrl_remove,

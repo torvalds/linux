@@ -99,6 +99,8 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 		ih->rptr_addr = adev->wb.gpu_addr + rptr_offs * 4;
 		ih->rptr_cpu = &adev->wb.wb[rptr_offs];
 	}
+
+	init_waitqueue_head(&ih->wait_process);
 	return 0;
 }
 
@@ -160,6 +162,52 @@ void amdgpu_ih_ring_write(struct amdgpu_ih_ring *ih, const uint32_t *iv,
 	}
 }
 
+/* Waiter helper that checks current rptr matches or passes checkpoint wptr */
+static bool amdgpu_ih_has_checkpoint_processed(struct amdgpu_device *adev,
+					struct amdgpu_ih_ring *ih,
+					uint32_t checkpoint_wptr,
+					uint32_t *prev_rptr)
+{
+	uint32_t cur_rptr = ih->rptr | (*prev_rptr & ~ih->ptr_mask);
+
+	/* rptr has wrapped. */
+	if (cur_rptr < *prev_rptr)
+		cur_rptr += ih->ptr_mask + 1;
+	*prev_rptr = cur_rptr;
+
+	return cur_rptr >= checkpoint_wptr;
+}
+
+/**
+ * amdgpu_ih_wait_on_checkpoint_process - wait to process IVs up to checkpoint
+ *
+ * @adev: amdgpu_device pointer
+ * @ih: ih ring to process
+ *
+ * Used to ensure ring has processed IVs up to the checkpoint write pointer.
+ */
+int amdgpu_ih_wait_on_checkpoint_process(struct amdgpu_device *adev,
+					struct amdgpu_ih_ring *ih)
+{
+	uint32_t checkpoint_wptr, rptr;
+
+	if (!ih->enabled || adev->shutdown)
+		return -ENODEV;
+
+	checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
+	/* Order wptr with rptr. */
+	rmb();
+	rptr = READ_ONCE(ih->rptr);
+
+	/* wptr has wrapped. */
+	if (rptr > checkpoint_wptr)
+		checkpoint_wptr += ih->ptr_mask + 1;
+
+	return wait_event_interruptible(ih->wait_process,
+				amdgpu_ih_has_checkpoint_processed(adev, ih,
+						checkpoint_wptr, &rptr));
+}
+
 /**
  * amdgpu_ih_process - interrupt handler
  *
@@ -180,10 +228,6 @@ int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 	wptr = amdgpu_ih_get_wptr(adev, ih);
 
 restart_ih:
-	/* is somebody else already processing irqs? */
-	if (atomic_xchg(&ih->lock, 1))
-		return IRQ_NONE;
-
 	DRM_DEBUG("%s: rptr %d, wptr %d\n", __func__, ih->rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
@@ -195,7 +239,7 @@ restart_ih:
 	}
 
 	amdgpu_ih_set_rptr(adev, ih);
-	atomic_set(&ih->lock, 0);
+	wake_up_all(&ih->wait_process);
 
 	/* make sure wptr hasn't changed while processing */
 	wptr = amdgpu_ih_get_wptr(adev, ih);

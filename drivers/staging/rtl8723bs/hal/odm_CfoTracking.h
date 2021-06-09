@@ -12,7 +12,7 @@
 #define		CFO_TH_XTAL_LOW			10		/*  kHz */
 #define		CFO_TH_ATC			80		/*  kHz */
 
-typedef struct _CFO_TRACKING_ {
+struct cfo_tracking {
 	bool bATCStatus;
 	bool largeCFOHit;
 	bool bAdjust;
@@ -25,7 +25,7 @@ typedef struct _CFO_TRACKING_ {
 
 	bool bForceXtalCap;
 	bool bReset;
-} CFO_TRACKING, *PCFO_TRACKING;
+};
 
 void ODM_CfoTrackingReset(void *pDM_VOID
 );

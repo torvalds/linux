@@ -109,8 +109,8 @@ struct pm860x_battery_info {
 };
 
 struct ccnt {
-	unsigned long long int pos;
-	unsigned long long int neg;
+	unsigned long long pos;
+	unsigned long long neg;
 	unsigned int spos;
 	unsigned int sneg;
 

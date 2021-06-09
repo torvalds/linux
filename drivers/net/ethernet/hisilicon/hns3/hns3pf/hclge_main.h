@@ -223,6 +223,9 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_LINK_UPDATING,
 	HCLGE_STATE_PROMISC_CHANGED,
 	HCLGE_STATE_RST_FAIL,
+	HCLGE_STATE_FD_TBL_CHANGED,
+	HCLGE_STATE_FD_CLEAR_ALL,
+	HCLGE_STATE_FD_USER_DEF_CHANGED,
 	HCLGE_STATE_MAX
 };
 
@@ -345,7 +348,6 @@ struct hclge_tc_info {
 };
 
 struct hclge_cfg {
-	u8 vmdq_vport_num;
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
@@ -536,6 +538,9 @@ enum HCLGE_FD_TUPLE {
 	MAX_TUPLE,
 };
 
+#define HCLGE_FD_TUPLE_USER_DEF_TUPLES \
+	(BIT(INNER_L2_RSV) | BIT(INNER_L3_RSV) | BIT(INNER_L4_RSV))
+
 enum HCLGE_FD_META_DATA {
 	PACKET_TYPE_ID,
 	IP_FRAGEMENT,
@@ -548,15 +553,32 @@ enum HCLGE_FD_META_DATA {
 	MAX_META_DATA,
 };
 
+enum HCLGE_FD_KEY_OPT {
+	KEY_OPT_U8,
+	KEY_OPT_LE16,
+	KEY_OPT_LE32,
+	KEY_OPT_MAC,
+	KEY_OPT_IP,
+	KEY_OPT_VNI,
+};
+
 struct key_info {
 	u8 key_type;
 	u8 key_length; /* use bit as unit */
+	enum HCLGE_FD_KEY_OPT key_opt;
+	int offset;
+	int moffset;
 };
 
 #define MAX_KEY_LENGTH	400
 #define MAX_KEY_DWORDS	DIV_ROUND_UP(MAX_KEY_LENGTH / 8, 4)
 #define MAX_KEY_BYTES	(MAX_KEY_DWORDS * 4)
 #define MAX_META_DATA_LENGTH	32
+
+#define HCLGE_FD_MAX_USER_DEF_OFFSET	9000
+#define HCLGE_FD_USER_DEF_DATA		GENMASK(15, 0)
+#define HCLGE_FD_USER_DEF_OFFSET	GENMASK(15, 0)
+#define HCLGE_FD_USER_DEF_OFFSET_UNMASK	GENMASK(15, 0)
 
 /* assigned by firmware, the real filter number for each pf may be less */
 #define MAX_FD_FILTER_NUM	4096
@@ -580,6 +602,33 @@ enum HCLGE_FD_ACTION {
 	HCLGE_FD_ACTION_SELECT_TC,
 };
 
+enum HCLGE_FD_NODE_STATE {
+	HCLGE_FD_TO_ADD,
+	HCLGE_FD_TO_DEL,
+	HCLGE_FD_ACTIVE,
+	HCLGE_FD_DELETED,
+};
+
+enum HCLGE_FD_USER_DEF_LAYER {
+	HCLGE_FD_USER_DEF_NONE,
+	HCLGE_FD_USER_DEF_L2,
+	HCLGE_FD_USER_DEF_L3,
+	HCLGE_FD_USER_DEF_L4,
+};
+
+#define HCLGE_FD_USER_DEF_LAYER_NUM 3
+struct hclge_fd_user_def_cfg {
+	u16 ref_cnt;
+	u16 offset;
+};
+
+struct hclge_fd_user_def_info {
+	enum HCLGE_FD_USER_DEF_LAYER layer;
+	u16 data;
+	u16 data_mask;
+	u16 offset;
+};
+
 struct hclge_fd_key_cfg {
 	u8 key_sel;
 	u8 inner_sipv6_word_en;
@@ -596,6 +645,7 @@ struct hclge_fd_cfg {
 	u32 rule_num[MAX_STAGE_NUM]; /* rule entry number */
 	u16 cnt_num[MAX_STAGE_NUM]; /* rule hit counter number */
 	struct hclge_fd_key_cfg key_cfg[MAX_STAGE_NUM];
+	struct hclge_fd_user_def_cfg user_def_cfg[HCLGE_FD_USER_DEF_LAYER_NUM];
 };
 
 #define IPV4_INDEX	3
@@ -612,6 +662,9 @@ struct hclge_fd_rule_tuples {
 	u16 dst_port;
 	u16 vlan_tag1;
 	u16 ether_proto;
+	u16 l2_user_def;
+	u16 l3_user_def;
+	u32 l4_user_def;
 	u8 ip_tos;
 	u8 ip_proto;
 };
@@ -630,11 +683,15 @@ struct hclge_fd_rule {
 		struct {
 			u16 flow_id; /* only used for arfs */
 		} arfs;
+		struct {
+			struct hclge_fd_user_def_info user_def;
+		} ep;
 	};
 	u16 queue_id;
 	u16 vf_id;
 	u16 location;
 	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
+	enum HCLGE_FD_NODE_STATE state;
 	u8 action;
 };
 
@@ -753,7 +810,6 @@ struct hclge_dev {
 	struct hclge_rst_stats rst_stats;
 	struct semaphore reset_sem;	/* protect reset process */
 	u32 fw_version;
-	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
 	u16 num_req_vfs;		/* Num VFs requested for this PF */
 
@@ -997,8 +1053,7 @@ int hclge_rss_init_hw(struct hclge_dev *hdev);
 void hclge_rss_indir_init_cfg(struct hclge_dev *hdev);
 
 void hclge_mbx_handler(struct hclge_dev *hdev);
-int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
-void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id);
+int hclge_reset_tqp(struct hnae3_handle *handle);
 int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
 int hclge_vport_start(struct hclge_vport *vport);
@@ -1034,4 +1089,5 @@ void hclge_report_hw_error(struct hclge_dev *hdev,
 			   enum hnae3_hw_error_type type);
 void hclge_inform_vf_promisc_info(struct hclge_vport *vport);
 void hclge_dbg_dump_rst_info(struct hclge_dev *hdev);
+int hclge_push_vf_link_status(struct hclge_vport *vport);
 #endif

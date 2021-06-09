@@ -42,7 +42,7 @@
 #endif
 
 /*
- * Regular printout to the terminal, supressed if -q is specified:
+ * Regular printout to the terminal, suppressed if -q is specified:
  */
 #define tprintf(x...) do { if (g && g->p.show_details >= 0) printf(x); } while (0)
 

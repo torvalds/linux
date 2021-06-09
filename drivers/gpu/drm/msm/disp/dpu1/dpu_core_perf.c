@@ -380,7 +380,6 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 	} else {
 		DPU_DEBUG("crtc=%d disable\n", crtc->base.id);
 		memset(old, 0, sizeof(*old));
-		memset(new, 0, sizeof(*new));
 		update_bus = true;
 		update_clk = true;
 	}

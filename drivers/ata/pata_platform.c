@@ -24,6 +24,8 @@
 #define DRV_VERSION "1.2"
 
 static int pio_mask = 1;
+module_param(pio_mask, int, 0);
+MODULE_PARM_DESC(pio_mask, "PIO modes supported, mode 0 only by default");
 
 /*
  * Provide our own set_mode() as we don't want to change anything that has
@@ -232,8 +234,6 @@ static struct platform_driver pata_platform_driver = {
 };
 
 module_platform_driver(pata_platform_driver);
-
-module_param(pio_mask, int, 0);
 
 MODULE_AUTHOR("Paul Mundt");
 MODULE_DESCRIPTION("low-level driver for platform device ATA");

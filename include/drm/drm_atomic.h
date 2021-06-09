@@ -66,6 +66,8 @@
  *
  * For an implementation of how to use this look at
  * drm_atomic_helper_setup_commit() from the atomic helper library.
+ *
+ * See also drm_crtc_commit_wait().
  */
 struct drm_crtc_commit {
 	/**
@@ -435,6 +437,8 @@ static inline void drm_crtc_commit_put(struct drm_crtc_commit *commit)
 {
 	kref_put(&commit->ref, __drm_crtc_commit_free);
 }
+
+int drm_crtc_commit_wait(struct drm_crtc_commit *commit);
 
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);

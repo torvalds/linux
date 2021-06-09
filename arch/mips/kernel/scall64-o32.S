@@ -213,9 +213,9 @@ einval: li	v0, -ENOSYS
 	jr	ra
 	END(sys32_syscall)
 
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
 #define __SYSCALL(nr, entry)	PTR entry
 	.align	3
 	.type	sys32_call_table,@object
 EXPORT(sys32_call_table)
-#include <asm/syscall_table_64_o32.h>
-#undef __SYSCALL
+#include <asm/syscall_table_o32.h>

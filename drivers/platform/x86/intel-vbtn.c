@@ -63,9 +63,6 @@ static const struct key_entry intel_vbtn_switchmap[] = {
 	{ KE_END }
 };
 
-#define KEYMAP_LEN \
-	(ARRAY_SIZE(intel_vbtn_keymap) + ARRAY_SIZE(intel_vbtn_switchmap) + 1)
-
 struct intel_vbtn_priv {
 	struct input_dev *buttons_dev;
 	struct input_dev *switches_dev;

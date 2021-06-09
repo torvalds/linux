@@ -11,7 +11,6 @@
 
 #include <asm/set_memory.h>
 
-#include "blitter.h"
 #include "psb_drv.h"
 
 
@@ -229,17 +228,8 @@ void psb_gtt_unpin(struct gtt_range *gt)
 	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 gpu_base = dev_priv->gtt.gatt_start;
-	int ret;
 
-	/* While holding the gtt_mutex no new blits can be initiated */
 	mutex_lock(&dev_priv->gtt_mutex);
-
-	/* Wait for any possible usage of the memory to be finished */
-	ret = gma_blt_wait_idle(dev_priv);
-	if (ret) {
-		DRM_ERROR("Failed to idle the blitter, unpin failed!");
-		goto out;
-	}
 
 	WARN_ON(!gt->in_gart);
 
@@ -251,7 +241,6 @@ void psb_gtt_unpin(struct gtt_range *gt)
 		psb_gtt_detach_pages(gt);
 	}
 
-out:
 	mutex_unlock(&dev_priv->gtt_mutex);
 }
 

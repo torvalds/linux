@@ -348,7 +348,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			debug_locks);
 
 	/*
-	 * Zappped classes and lockdep data buffers reuse statistics.
+	 * Zapped classes and lockdep data buffers reuse statistics.
 	 */
 	seq_puts(m, "\n");
 	seq_printf(m, " zapped classes:                %11lu\n",

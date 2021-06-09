@@ -35,7 +35,7 @@ static const struct rhashtable_params br_vlan_tunnel_rht_params = {
 };
 
 static struct net_bridge_vlan *br_vlan_tunnel_lookup(struct rhashtable *tbl,
-						     u64 tunnel_id)
+						     __be64 tunnel_id)
 {
 	return rhashtable_lookup_fast(tbl, &tunnel_id,
 				      br_vlan_tunnel_rht_params);

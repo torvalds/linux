@@ -34,26 +34,46 @@ static char nvram_buf[NVRAM_SPACE];
 static size_t nvram_len;
 static const u32 nvram_sizes[] = {0x6000, 0x8000, 0xF000, 0x10000};
 
-static u32 find_nvram_size(void __iomem *end)
+/**
+ * bcm47xx_nvram_is_valid - check for a valid NVRAM at specified memory
+ */
+static bool bcm47xx_nvram_is_valid(void __iomem *nvram)
 {
-	struct nvram_header __iomem *header;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
-		header = (struct nvram_header *)(end - nvram_sizes[i]);
-		if (header->magic == NVRAM_MAGIC)
-			return nvram_sizes[i];
-	}
-
-	return 0;
+	return ((struct nvram_header *)nvram)->magic == NVRAM_MAGIC;
 }
 
-/* Probe for NVRAM header */
-static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
+/**
+ * bcm47xx_nvram_copy - copy NVRAM to internal buffer
+ */
+static void bcm47xx_nvram_copy(void __iomem *nvram_start, size_t res_size)
 {
-	struct nvram_header __iomem *header;
-	u32 off;
-	u32 size;
+	struct nvram_header __iomem *header = nvram_start;
+	size_t copy_size;
+
+	copy_size = header->len;
+	if (copy_size > res_size) {
+		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
+		copy_size = res_size;
+	}
+	if (copy_size >= NVRAM_SPACE) {
+		pr_err("nvram on flash (%zu bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+		       copy_size, NVRAM_SPACE - 1);
+		copy_size = NVRAM_SPACE - 1;
+	}
+
+	__ioread32_copy(nvram_buf, nvram_start, DIV_ROUND_UP(copy_size, 4));
+	nvram_buf[NVRAM_SPACE - 1] = '\0';
+	nvram_len = copy_size;
+}
+
+/**
+ * bcm47xx_nvram_find_and_copy - find NVRAM on flash mapping & copy it
+ */
+static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_size)
+{
+	size_t flash_size;
+	size_t offset;
+	int i;
 
 	if (nvram_len) {
 		pr_warn("nvram already initialized\n");
@@ -61,49 +81,31 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 	}
 
 	/* TODO: when nvram is on nand flash check for bad blocks first. */
-	off = FLASH_MIN;
-	while (off <= lim) {
-		/* Windowed flash access */
-		size = find_nvram_size(iobase + off);
-		if (size) {
-			header = (struct nvram_header *)(iobase + off - size);
-			goto found;
+
+	/* Try every possible flash size and check for NVRAM at its end */
+	for (flash_size = FLASH_MIN; flash_size <= res_size; flash_size <<= 1) {
+		for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
+			offset = flash_size - nvram_sizes[i];
+			if (bcm47xx_nvram_is_valid(flash_start + offset))
+				goto found;
 		}
-		off <<= 1;
 	}
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
-	header = (struct nvram_header *)(iobase + 4096);
-	if (header->magic == NVRAM_MAGIC) {
-		size = NVRAM_SPACE;
-		goto found;
-	}
 
-	header = (struct nvram_header *)(iobase + 1024);
-	if (header->magic == NVRAM_MAGIC) {
-		size = NVRAM_SPACE;
+	offset = 4096;
+	if (bcm47xx_nvram_is_valid(flash_start + offset))
 		goto found;
-	}
+
+	offset = 1024;
+	if (bcm47xx_nvram_is_valid(flash_start + offset))
+		goto found;
 
 	pr_err("no nvram found\n");
 	return -ENXIO;
 
 found:
-	__ioread32_copy(nvram_buf, header, sizeof(*header) / 4);
-	nvram_len = ((struct nvram_header *)(nvram_buf))->len;
-	if (nvram_len > size) {
-		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
-		nvram_len = size;
-	}
-	if (nvram_len >= NVRAM_SPACE) {
-		pr_err("nvram on flash (%zu bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-		       nvram_len, NVRAM_SPACE - 1);
-		nvram_len = NVRAM_SPACE - 1;
-	}
-	/* proceed reading data after header */
-	__ioread32_copy(nvram_buf + sizeof(*header), header + 1,
-			DIV_ROUND_UP(nvram_len, 4));
-	nvram_buf[NVRAM_SPACE - 1] = '\0';
+	bcm47xx_nvram_copy(flash_start + offset, res_size - offset);
 
 	return 0;
 }
@@ -124,7 +126,7 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 	if (!iobase)
 		return -ENOMEM;
 
-	err = nvram_find_and_copy(iobase, lim);
+	err = bcm47xx_nvram_find_and_copy(iobase, lim);
 
 	iounmap(iobase);
 

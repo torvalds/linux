@@ -187,4 +187,17 @@ struct link_encoder_funcs {
 		struct link_encoder *enc);
 };
 
+/*
+ * Used to track assignments of links (display endpoints) to link encoders.
+ *
+ * Entry in link_enc_assignments table in struct resource_context.
+ * Entries only marked valid once encoder assigned to a link and invalidated once unassigned.
+ * Uses engine ID as identifier since PHY ID not relevant for USB4 DPIA endpoint.
+ */
+struct link_enc_assignment {
+	bool valid;
+	struct display_endpoint_id ep_id;
+	enum engine_id eng_id;
+};
+
 #endif /* LINK_ENCODER_H_ */

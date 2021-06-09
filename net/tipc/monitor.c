@@ -104,6 +104,36 @@ static struct tipc_monitor *tipc_monitor(struct net *net, int bearer_id)
 
 const int tipc_max_domain_size = sizeof(struct tipc_mon_domain);
 
+static inline u16 mon_cpu_to_le16(u16 val)
+{
+	return (__force __u16)htons(val);
+}
+
+static inline u32 mon_cpu_to_le32(u32 val)
+{
+	return (__force __u32)htonl(val);
+}
+
+static inline u64 mon_cpu_to_le64(u64 val)
+{
+	return (__force __u64)cpu_to_be64(val);
+}
+
+static inline u16 mon_le16_to_cpu(u16 val)
+{
+	return ntohs((__force __be16)val);
+}
+
+static inline u32 mon_le32_to_cpu(u32 val)
+{
+	return ntohl((__force __be32)val);
+}
+
+static inline u64 mon_le64_to_cpu(u64 val)
+{
+	return be64_to_cpu((__force __be64)val);
+}
+
 /* dom_rec_len(): actual length of domain record for transport
  */
 static int dom_rec_len(struct tipc_mon_domain *dom, u16 mcnt)
@@ -260,16 +290,16 @@ static void mon_update_local_domain(struct tipc_monitor *mon)
 		diff |= dom->members[i] != peer->addr;
 		dom->members[i] = peer->addr;
 		map_set(&dom->up_map, i, peer->is_up);
-		cache->members[i] = htonl(peer->addr);
+		cache->members[i] = mon_cpu_to_le32(peer->addr);
 	}
 	diff |= dom->up_map != prev_up_map;
 	if (!diff)
 		return;
 	dom->gen = ++mon->dom_gen;
-	cache->len = htons(dom->len);
-	cache->gen = htons(dom->gen);
-	cache->member_cnt = htons(member_cnt);
-	cache->up_map = cpu_to_be64(dom->up_map);
+	cache->len = mon_cpu_to_le16(dom->len);
+	cache->gen = mon_cpu_to_le16(dom->gen);
+	cache->member_cnt = mon_cpu_to_le16(member_cnt);
+	cache->up_map = mon_cpu_to_le64(dom->up_map);
 	mon_apply_domain(mon, self);
 }
 
@@ -455,10 +485,11 @@ void tipc_mon_rcv(struct net *net, void *data, u16 dlen, u32 addr,
 	struct tipc_mon_domain dom_bef;
 	struct tipc_mon_domain *dom;
 	struct tipc_peer *peer;
-	u16 new_member_cnt = ntohs(arrv_dom->member_cnt);
+	u16 new_member_cnt = mon_le16_to_cpu(arrv_dom->member_cnt);
 	int new_dlen = dom_rec_len(arrv_dom, new_member_cnt);
-	u16 new_gen = ntohs(arrv_dom->gen);
-	u16 acked_gen = ntohs(arrv_dom->ack_gen);
+	u16 new_gen = mon_le16_to_cpu(arrv_dom->gen);
+	u16 acked_gen = mon_le16_to_cpu(arrv_dom->ack_gen);
+	u16 arrv_dlen = mon_le16_to_cpu(arrv_dom->len);
 	bool probing = state->probing;
 	int i, applied_bef;
 
@@ -469,7 +500,7 @@ void tipc_mon_rcv(struct net *net, void *data, u16 dlen, u32 addr,
 		return;
 	if (dlen != dom_rec_len(arrv_dom, new_member_cnt))
 		return;
-	if ((dlen < new_dlen) || ntohs(arrv_dom->len) != new_dlen)
+	if (dlen < new_dlen || arrv_dlen != new_dlen)
 		return;
 
 	/* Synch generation numbers with peer if link just came up */
@@ -517,9 +548,9 @@ void tipc_mon_rcv(struct net *net, void *data, u16 dlen, u32 addr,
 	dom->len = new_dlen;
 	dom->gen = new_gen;
 	dom->member_cnt = new_member_cnt;
-	dom->up_map = be64_to_cpu(arrv_dom->up_map);
+	dom->up_map = mon_le64_to_cpu(arrv_dom->up_map);
 	for (i = 0; i < new_member_cnt; i++)
-		dom->members[i] = ntohl(arrv_dom->members[i]);
+		dom->members[i] = mon_le32_to_cpu(arrv_dom->members[i]);
 
 	/* Update peers affected by this domain record */
 	applied_bef = peer->applied;
@@ -548,19 +579,19 @@ void tipc_mon_prep(struct net *net, void *data, int *dlen,
 	if (likely(state->acked_gen == gen)) {
 		len = dom_rec_len(dom, 0);
 		*dlen = len;
-		dom->len = htons(len);
-		dom->gen = htons(gen);
-		dom->ack_gen = htons(state->peer_gen);
+		dom->len = mon_cpu_to_le16(len);
+		dom->gen = mon_cpu_to_le16(gen);
+		dom->ack_gen = mon_cpu_to_le16(state->peer_gen);
 		dom->member_cnt = 0;
 		return;
 	}
 	/* Send the full record */
 	read_lock_bh(&mon->lock);
-	len = ntohs(mon->cache.len);
+	len = mon_le16_to_cpu(mon->cache.len);
 	*dlen = len;
 	memcpy(data, &mon->cache, len);
 	read_unlock_bh(&mon->lock);
-	dom->ack_gen = htons(state->peer_gen);
+	dom->ack_gen = mon_cpu_to_le16(state->peer_gen);
 }
 
 void tipc_mon_get_state(struct net *net, u32 addr,

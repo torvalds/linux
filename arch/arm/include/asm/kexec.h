@@ -56,9 +56,6 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	}
 }
 
-/* Function pointer to optional machine-specific reinitialization */
-extern void (*kexec_reinit)(void);
-
 static inline unsigned long phys_to_boot_phys(phys_addr_t phys)
 {
 	return phys_to_idmap(phys);

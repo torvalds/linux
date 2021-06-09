@@ -8,6 +8,11 @@
 	model = "Beelink A1";
 	compatible = "azw,beelink-a1", "rockchip,rk3328";
 
+	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &emmc;
+	};
+
 	/*
 	 * UART pins, as viewed with bottom of case removed:
 	 *

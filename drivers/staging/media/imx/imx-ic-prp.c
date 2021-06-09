@@ -442,7 +442,9 @@ static int prp_registered(struct v4l2_subdev *sd)
 	/* set a default mbus format  */
 	imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
 
-	return imx_media_init_mbus_fmt(&priv->format_mbus, 640, 480, code,
+	return imx_media_init_mbus_fmt(&priv->format_mbus,
+				       IMX_MEDIA_DEF_PIX_WIDTH,
+				       IMX_MEDIA_DEF_PIX_HEIGHT, code,
 				       V4L2_FIELD_NONE, NULL);
 }
 

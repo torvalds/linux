@@ -17,21 +17,6 @@ ap_h1_spi: &spi0 {};
 / {
 	model = "Google Trogdor (rev1+)";
 	compatible = "google,trogdor", "qcom,sc7180";
-
-	panel: panel {
-		compatible = "auo,b116xa01";
-		power-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		hpd-gpios = <&sn65dsi86_bridge 2 GPIO_ACTIVE_HIGH>;
-
-		ports {
-			port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
-			};
-		};
-	};
 };
 
 ap_ts_pen_1v8: &i2c4 {
@@ -53,6 +38,10 @@ ap_ts_pen_1v8: &i2c4 {
 	};
 };
 
+&panel {
+	compatible = "auo,b116xa01";
+};
+
 &pp3300_hub {
 	/* pp3300_l7c is used to power the USB hub */
 	/delete-property/regulator-always-on;
@@ -66,6 +55,22 @@ ap_ts_pen_1v8: &i2c4 {
 
 &sdhc_2 {
 	status = "okay";
+};
+
+&trackpad {
+	interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
+};
+
+/* PINCTRL - modifications to sc7180-trogdor.dtsi */
+
+&trackpad_int_1v8_odl {
+	pinmux {
+		pins = "gpio58";
+	};
+
+	pinconf {
+		pins = "gpio58";
+	};
 };
 
 /* PINCTRL - board-specific pinctrl */

@@ -547,6 +547,8 @@ static void bfq_pd_init(struct blkg_policy_data *pd)
 
 	entity->orig_weight = entity->weight = entity->new_weight = d->weight;
 	entity->my_sched_data = &bfqg->sched_data;
+	entity->last_bfqq_created = NULL;
+
 	bfqg->my_entity = entity; /*
 				   * the root_group's will be set to NULL
 				   * in bfq_init_queue()

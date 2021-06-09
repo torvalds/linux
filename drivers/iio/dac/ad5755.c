@@ -399,8 +399,8 @@ static ssize_t ad5755_read_powerdown(struct iio_dev *indio_dev, uintptr_t priv,
 {
 	struct ad5755_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n",
-		       (bool)(st->pwr_down & (1 << chan->channel)));
+	return sysfs_emit(buf, "%d\n",
+			  (bool)(st->pwr_down & (1 << chan->channel)));
 }
 
 static ssize_t ad5755_write_powerdown(struct iio_dev *indio_dev, uintptr_t priv,

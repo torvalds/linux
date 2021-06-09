@@ -179,7 +179,7 @@ uinput old interface
 --------------------
 
 Before uinput version 5, there wasn't a dedicated ioctl to set up a virtual
-device. Programs supportinf older versions of uinput interface need to fill
+device. Programs supporting older versions of uinput interface need to fill
 a uinput_user_dev structure and write it to the uinput file descriptor to
 configure the new uinput device. New code should not use the old interface
 but interact with uinput via ioctl calls, or use libevdev.

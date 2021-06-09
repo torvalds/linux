@@ -1000,7 +1000,7 @@ static void i40iw_ilq_putback_rcvbuf(struct i40iw_sc_qp *qp, u32 wqe_idx)
 }
 
 /**
- * i40iw_ieq_get_fpdu - given length return fpdu length
+ * i40iw_ieq_get_fpdu_length - given length return fpdu length
  * @length: length if fpdu
  */
 static u16 i40iw_ieq_get_fpdu_length(u16 length)

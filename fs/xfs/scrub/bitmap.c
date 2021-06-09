@@ -63,8 +63,8 @@ xbitmap_init(
 static int
 xbitmap_range_cmp(
 	void			*priv,
-	struct list_head	*a,
-	struct list_head	*b)
+	const struct list_head	*a,
+	const struct list_head	*b)
 {
 	struct xbitmap_range	*ap;
 	struct xbitmap_range	*bp;

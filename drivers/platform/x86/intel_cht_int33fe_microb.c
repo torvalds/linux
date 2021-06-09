@@ -35,6 +35,10 @@ static const struct property_entry bq27xxx_props[] = {
 	{ }
 };
 
+static const struct software_node bq27xxx_node = {
+	.properties = bq27xxx_props,
+};
+
 int cht_int33fe_microb_probe(struct cht_int33fe_data *data)
 {
 	struct device *dev = data->dev;
@@ -43,7 +47,7 @@ int cht_int33fe_microb_probe(struct cht_int33fe_data *data)
 	memset(&board_info, 0, sizeof(board_info));
 	strscpy(board_info.type, "bq27542", ARRAY_SIZE(board_info.type));
 	board_info.dev_name = "bq27542";
-	board_info.properties = bq27xxx_props;
+	board_info.swnode = &bq27xxx_node;
 	data->battery_fg = i2c_acpi_new_device(dev, 1, &board_info);
 
 	return PTR_ERR_OR_ZERO(data->battery_fg);

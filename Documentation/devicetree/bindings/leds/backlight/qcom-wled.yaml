@@ -19,6 +19,7 @@ properties:
   compatible:
     enum:
       - qcom,pm8941-wled
+      - qcom,pmi8994-wled
       - qcom,pmi8998-wled
       - qcom,pm660l-wled
       - qcom,pm8150l-wled

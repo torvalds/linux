@@ -45,7 +45,7 @@ int tick_program_event(ktime_t expires, int force)
 }
 
 /**
- * tick_resume_onshot - resume oneshot mode
+ * tick_resume_oneshot - resume oneshot mode
  */
 void tick_resume_oneshot(void)
 {

@@ -40,6 +40,7 @@ struct intf_prog_fetch {
 
 struct intf_status {
 	u8 is_en;		/* interface timing engine is enabled or not */
+	u8 is_prog_fetch_en;	/* interface prog fetch counter is enabled or not */
 	u32 frame_count;	/* frame count since timing engine enabled */
 	u32 line_count;		/* current line count including blanking */
 };

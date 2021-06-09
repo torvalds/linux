@@ -1858,8 +1858,6 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	} else if (ret == -EEXIST) {
 		ret = 0;
-	} else {
-		BUG(); /* Logic Error */
 	}
 	iput(inode);
 
@@ -3165,19 +3163,21 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 */
 	mutex_unlock(&root->log_mutex);
 
-	btrfs_init_log_ctx(&root_log_ctx, NULL);
-
-	mutex_lock(&log_root_tree->log_mutex);
-
 	if (btrfs_is_zoned(fs_info)) {
+		mutex_lock(&fs_info->tree_root->log_mutex);
 		if (!log_root_tree->node) {
 			ret = btrfs_alloc_log_tree_node(trans, log_root_tree);
 			if (ret) {
-				mutex_unlock(&log_root_tree->log_mutex);
+				mutex_unlock(&fs_info->tree_log_mutex);
 				goto out;
 			}
 		}
+		mutex_unlock(&fs_info->tree_root->log_mutex);
 	}
+
+	btrfs_init_log_ctx(&root_log_ctx, NULL);
+
+	mutex_lock(&log_root_tree->log_mutex);
 
 	index2 = log_root_tree->log_transid % 2;
 	list_add_tail(&root_log_ctx.list, &log_root_tree->log_ctxs[index2]);
@@ -4136,7 +4136,8 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static int extent_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int extent_cmp(void *priv, const struct list_head *a,
+		      const struct list_head *b)
 {
 	struct extent_map *em1, *em2;
 
@@ -6058,7 +6059,8 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	 * (since logging them is pointless, a link count of 0 means they
 	 * will never be accessible).
 	 */
-	if (btrfs_inode_in_log(inode, trans->transid) ||
+	if ((btrfs_inode_in_log(inode, trans->transid) &&
+	     list_empty(&ctx->ordered_extents)) ||
 	    inode->vfs_inode.i_nlink == 0) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
@@ -6278,8 +6280,13 @@ again:
 		}
 
 		wc.replay_dest->log_root = log;
-		btrfs_record_root_in_trans(trans, wc.replay_dest);
-		ret = walk_log_tree(trans, log, &wc);
+		ret = btrfs_record_root_in_trans(trans, wc.replay_dest);
+		if (ret)
+			/* The loop needs to continue due to the root refs */
+			btrfs_handle_fs_error(fs_info, ret,
+				"failed to record the log root in transaction");
+		else
+			ret = walk_log_tree(trans, log, &wc);
 
 		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
 			ret = fixup_inode_link_counts(trans, wc.replay_dest,
@@ -6453,6 +6460,24 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	if (inode->logged_trans < trans->transid &&
 	    (!old_dir || old_dir->logged_trans < trans->transid))
 		return;
+
+	/*
+	 * If we are doing a rename (old_dir is not NULL) from a directory that
+	 * was previously logged, make sure the next log attempt on the directory
+	 * is not skipped and logs the inode again. This is because the log may
+	 * not currently be authoritative for a range including the old
+	 * BTRFS_DIR_ITEM_KEY and BTRFS_DIR_INDEX_KEY keys, so we want to make
+	 * sure after a log replay we do not end up with both the new and old
+	 * dentries around (in case the inode is a directory we would have a
+	 * directory with two hard links and 2 inode references for different
+	 * parents). The next log attempt of old_dir will happen at
+	 * btrfs_log_all_parents(), called through btrfs_log_inode_parent()
+	 * below, because we have previously set inode->last_unlink_trans to the
+	 * current transaction ID, either here or at btrfs_record_unlink_dir() in
+	 * case inode is a directory.
+	 */
+	if (old_dir)
+		old_dir->logged_trans = 0;
 
 	btrfs_init_log_ctx(&ctx, &inode->vfs_inode);
 	ctx.logging_new_name = true;

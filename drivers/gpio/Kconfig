@@ -321,9 +321,8 @@ config GPIO_HLWD
 
 config GPIO_ICH
 	tristate "Intel ICH GPIO"
-	depends on PCI && X86
-	select MFD_CORE
-	select LPC_ICH
+	depends on X86
+	depends on LPC_ICH
 	help
 	  Say yes here to support the GPIO functionality of a number of Intel
 	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
@@ -501,6 +500,19 @@ config GPIO_RDA
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to support RDA Micro GPIO controller.
+
+config GPIO_REALTEK_OTTO
+	tristate "Realtek Otto GPIO support"
+	depends on MACH_REALTEK_RTL
+	default MACH_REALTEK_RTL
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  The GPIO controller on the Otto MIPS platform supports up to two
+	  banks of 32 GPIOs, with edge triggered interrupts. The 32 GPIOs
+	  are grouped in four 8-bit wide ports.
+
+	  When built as a module, the module will be called realtek_otto_gpio.
 
 config GPIO_REG
 	bool
@@ -847,9 +859,9 @@ config GPIO_IT87
 
 config GPIO_SCH
 	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on (X86 || COMPILE_TEST) && PCI
-	select MFD_CORE
-	select LPC_SCH
+	depends on (X86 || COMPILE_TEST) && ACPI
+	depends on LPC_SCH
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
 	  Intel Tunnel Creek processor, Intel Centerton processor or
@@ -1104,6 +1116,16 @@ config GPIO_BD70528
 
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-bd70528.
+
+config GPIO_BD71815
+	tristate "ROHM BD71815 PMIC GPIO support"
+	depends on MFD_ROHM_BD71828
+	help
+	  Support for GPO(s) on ROHM BD71815 PMIC. There are two GPOs
+	  available on the ROHM PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-bd71815.
 
 config GPIO_BD71828
 	tristate "ROHM BD71828 GPIO support"

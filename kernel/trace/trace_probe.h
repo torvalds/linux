@@ -134,7 +134,7 @@ struct fetch_type {
 	size_t			size;		/* Byte size of type */
 	int			is_signed;	/* Signed flag */
 	print_type_func_t	print;		/* Print functions */
-	const char		*fmt;		/* Fromat string */
+	const char		*fmt;		/* Format string */
 	const char		*fmttype;	/* Name in format file */
 };
 

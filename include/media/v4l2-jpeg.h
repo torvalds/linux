@@ -88,10 +88,30 @@ struct v4l2_jpeg_scan_header {
 };
 
 /**
+ * enum v4l2_jpeg_app14_tf - APP14 transform flag
+ * According to Rec. ITU-T T.872 (06/2012) 6.5.3
+ * APP14 segment is for color encoding, it contains a transform flag,
+ * which may have values of 0, 1 and 2 and are interpreted as follows:
+ * @V4L2_JPEG_APP14_TF_CMYK_RGB: CMYK for images encoded with four components
+ *                               RGB for images encoded with three components
+ * @V4L2_JPEG_APP14_TF_YCBCR: an image encoded with three components using YCbCr
+ * @V4L2_JPEG_APP14_TF_YCCK: an image encoded with four components using YCCK
+ * @V4L2_JPEG_APP14_TF_UNKNOWN: indicate app14 is not present
+ */
+enum v4l2_jpeg_app14_tf {
+	V4L2_JPEG_APP14_TF_CMYK_RGB	= 0,
+	V4L2_JPEG_APP14_TF_YCBCR	= 1,
+	V4L2_JPEG_APP14_TF_YCCK		= 2,
+	V4L2_JPEG_APP14_TF_UNKNOWN	= -1,
+};
+
+/**
  * struct v4l2_jpeg_header - parsed JPEG header
  * @sof: pointer to frame header and size
  * @sos: pointer to scan header and size
+ * @num_dht: number of entries in @dht
  * @dht: pointers to huffman tables and sizes
+ * @num_dqt: number of entries in @dqt
  * @dqt: pointers to quantization tables and sizes
  * @frame: parsed frame header
  * @scan: pointer to parsed scan header, optional
@@ -100,6 +120,7 @@ struct v4l2_jpeg_scan_header {
  *                  order, optional
  * @restart_interval: number of MCU per restart interval, Ri
  * @ecs_offset: buffer offset in bytes to the entropy coded segment
+ * @app14_tf: transform flag from app14 data
  *
  * When this structure is passed to v4l2_jpeg_parse_header, the optional scan,
  * quantization_tables, and huffman_tables pointers must be initialized to NULL
@@ -119,6 +140,7 @@ struct v4l2_jpeg_header {
 	struct v4l2_jpeg_reference *huffman_tables;
 	u16 restart_interval;
 	size_t ecs_offset;
+	enum v4l2_jpeg_app14_tf app14_tf;
 };
 
 int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out);

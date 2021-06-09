@@ -8,6 +8,10 @@
 	model = "Rockchip RV1108 Evaluation board";
 	compatible = "rockchip,rv1108-evb", "rockchip,rv1108";
 
+	aliases {
+		mmc0 = &sdmmc;
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x08000000>;

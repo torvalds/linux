@@ -28,10 +28,8 @@ static void bug_at(const void *ip, int line)
 }
 
 static const void *
-__jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type, int init)
+__jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type)
 {
-	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
 	const void *expect, *code;
 	const void *addr, *dest;
 	int line;
@@ -41,10 +39,8 @@ __jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type, 
 
 	code = text_gen_insn(JMP32_INSN_OPCODE, addr, dest);
 
-	if (init) {
-		expect = default_nop; line = __LINE__;
-	} else if (type == JUMP_LABEL_JMP) {
-		expect = ideal_nop; line = __LINE__;
+	if (type == JUMP_LABEL_JMP) {
+		expect = x86_nops[5]; line = __LINE__;
 	} else {
 		expect = code; line = __LINE__;
 	}
@@ -53,7 +49,7 @@ __jump_label_set_jump_code(struct jump_entry *entry, enum jump_label_type type, 
 		bug_at(addr, line);
 
 	if (type == JUMP_LABEL_NOP)
-		code = ideal_nop;
+		code = x86_nops[5];
 
 	return code;
 }
@@ -62,7 +58,7 @@ static inline void __jump_label_transform(struct jump_entry *entry,
 					  enum jump_label_type type,
 					  int init)
 {
-	const void *opcode = __jump_label_set_jump_code(entry, type, init);
+	const void *opcode = __jump_label_set_jump_code(entry, type);
 
 	/*
 	 * As long as only a single processor is running and the code is still
@@ -113,7 +109,7 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 	}
 
 	mutex_lock(&text_mutex);
-	opcode = __jump_label_set_jump_code(entry, type, 0);
+	opcode = __jump_label_set_jump_code(entry, type);
 	text_poke_queue((void *)jump_entry_code(entry),
 			opcode, JUMP_LABEL_NOP_SIZE, NULL);
 	mutex_unlock(&text_mutex);
@@ -136,22 +132,6 @@ static enum {
 __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
 				      enum jump_label_type type)
 {
-	/*
-	 * This function is called at boot up and when modules are
-	 * first loaded. Check if the default nop, the one that is
-	 * inserted at compile time, is the ideal nop. If it is, then
-	 * we do not need to update the nop, and we can leave it as is.
-	 * If it is not, then we need to update the nop to the ideal nop.
-	 */
-	if (jlstate == JL_STATE_START) {
-		const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-		const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
-
-		if (memcmp(ideal_nop, default_nop, 5) != 0)
-			jlstate = JL_STATE_UPDATE;
-		else
-			jlstate = JL_STATE_NO_UPDATE;
-	}
 	if (jlstate == JL_STATE_UPDATE)
 		jump_label_transform(entry, type, 1);
 }

@@ -17,6 +17,7 @@
 #include <linux/capability.h>
 #include <linux/quotaops.h>
 #include <linux/types.h>
+#include <linux/mount.h>
 #include <linux/writeback.h>
 #include <linux/nospec.h>
 #include "compat.h"
@@ -471,6 +472,7 @@ static int quota_getstatev(struct super_block *sb, int type,
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
 	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
+	fqs->qs_rtbwarnlimit = state.s_state[type].rt_spc_warnlimit;
 
 	/* Inodes may be allocated even if inactive; copy out if present */
 	if (state.s_state[USRQUOTA].ino) {
@@ -827,8 +829,6 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	}
 }
 
-#ifdef CONFIG_BLOCK
-
 /* Return 1 if 'cmd' will block on frozen filesystem */
 static int quotactl_cmd_write(int cmd)
 {
@@ -850,7 +850,6 @@ static int quotactl_cmd_write(int cmd)
 	}
 	return 1;
 }
-#endif /* CONFIG_BLOCK */
 
 /* Return true if quotactl command is manipulating quota on/off state */
 static bool quotactl_cmd_onoff(int cmd)
@@ -966,5 +965,50 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 out:
 	if (pathp && !IS_ERR(pathp))
 		path_put(pathp);
+	return ret;
+}
+
+SYSCALL_DEFINE4(quotactl_path, unsigned int, cmd, const char __user *,
+		mountpoint, qid_t, id, void __user *, addr)
+{
+	struct super_block *sb;
+	struct path mountpath;
+	unsigned int cmds = cmd >> SUBCMDSHIFT;
+	unsigned int type = cmd & SUBCMDMASK;
+	int ret;
+
+	if (type >= MAXQUOTAS)
+		return -EINVAL;
+
+	ret = user_path_at(AT_FDCWD, mountpoint,
+			     LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT, &mountpath);
+	if (ret)
+		return ret;
+
+	sb = mountpath.mnt->mnt_sb;
+
+	if (quotactl_cmd_write(cmds)) {
+		ret = mnt_want_write(mountpath.mnt);
+		if (ret)
+			goto out;
+	}
+
+	if (quotactl_cmd_onoff(cmds))
+		down_write(&sb->s_umount);
+	else
+		down_read(&sb->s_umount);
+
+	ret = do_quotactl(sb, type, cmds, id, addr, ERR_PTR(-EINVAL));
+
+	if (quotactl_cmd_onoff(cmds))
+		up_write(&sb->s_umount);
+	else
+		up_read(&sb->s_umount);
+
+	if (quotactl_cmd_write(cmds))
+		mnt_drop_write(mountpath.mnt);
+out:
+	path_put(&mountpath);
+
 	return ret;
 }

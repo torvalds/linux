@@ -194,7 +194,7 @@ static int igt_dmabuf_import_ownership(void *arg)
 
 	dma_buf_put(dmabuf);
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err) {
 		pr_err("i915_gem_object_pin_pages failed with err=%d\n", err);
 		goto out_obj;

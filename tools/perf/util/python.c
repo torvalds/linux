@@ -90,12 +90,18 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
  */
 void bpf_counter__destroy(struct evsel *evsel);
 int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd);
+int bpf_counter__disable(struct evsel *evsel);
 
 void bpf_counter__destroy(struct evsel *evsel __maybe_unused)
 {
 }
 
 int bpf_counter__install_pe(struct evsel *evsel __maybe_unused, int cpu __maybe_unused, int fd __maybe_unused)
+{
+	return 0;
+}
+
+int bpf_counter__disable(struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }

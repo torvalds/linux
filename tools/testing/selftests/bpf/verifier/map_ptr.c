@@ -76,7 +76,7 @@
 	},
 	.fixup_map_hash_16b = { 4 },
 	.result_unpriv = REJECT,
-	.errstr_unpriv = "R1 tried to add from different maps, paths, or prohibited types",
+	.errstr_unpriv = "R1 has pointer with unsupported alu operation",
 	.result = ACCEPT,
 },
 {
@@ -94,6 +94,6 @@
 	},
 	.fixup_map_hash_16b = { 4 },
 	.result_unpriv = REJECT,
-	.errstr_unpriv = "R1 tried to add from different maps, paths, or prohibited types",
+	.errstr_unpriv = "R0 has pointer with unsupported alu operation",
 	.result = ACCEPT,
 },

@@ -79,12 +79,14 @@ struct mt7921_uni_txd {
 /* event table */
 enum {
 	MCU_EVENT_REG_ACCESS = 0x05,
+	MCU_EVENT_LP_INFO = 0x07,
 	MCU_EVENT_SCAN_DONE = 0x0d,
 	MCU_EVENT_BSS_ABSENCE  = 0x11,
 	MCU_EVENT_BSS_BEACON_LOSS = 0x13,
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
 	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
 	MCU_EVENT_DBG_MSG = 0x27,
+	MCU_EVENT_TXPWR = 0xd0,
 	MCU_EVENT_COREDUMP = 0xf0,
 };
 
@@ -177,25 +179,6 @@ enum {
 	MCU_PHY_STATE_OFDMLQ_CNINFO,
 };
 
-#define STA_TYPE_STA			BIT(0)
-#define STA_TYPE_AP			BIT(1)
-#define STA_TYPE_ADHOC			BIT(2)
-#define STA_TYPE_WDS			BIT(4)
-#define STA_TYPE_BC			BIT(5)
-
-#define NETWORK_INFRA			BIT(16)
-#define NETWORK_P2P			BIT(17)
-#define NETWORK_IBSS			BIT(18)
-#define NETWORK_WDS			BIT(21)
-
-#define CONNECTION_INFRA_STA		(STA_TYPE_STA | NETWORK_INFRA)
-#define CONNECTION_INFRA_AP		(STA_TYPE_AP | NETWORK_INFRA)
-#define CONNECTION_P2P_GC		(STA_TYPE_STA | NETWORK_P2P)
-#define CONNECTION_P2P_GO		(STA_TYPE_AP | NETWORK_P2P)
-#define CONNECTION_IBSS_ADHOC		(STA_TYPE_ADHOC | NETWORK_IBSS)
-#define CONNECTION_WDS			(STA_TYPE_WDS | NETWORK_WDS)
-#define CONNECTION_INFRA_BC		(STA_TYPE_BC | NETWORK_INFRA)
-
 struct sec_key {
 	u8 cipher_id;
 	u8 cipher_len;
@@ -250,29 +233,6 @@ enum {
 	MT_EBF = BIT(0),	/* explicit beamforming */
 	MT_IBF = BIT(1)		/* implicit beamforming */
 };
-
-#define MT7921_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\
-					 sizeof(struct wtbl_generic) +	\
-					 sizeof(struct wtbl_rx) +	\
-					 sizeof(struct wtbl_ht) +	\
-					 sizeof(struct wtbl_vht) +	\
-					 sizeof(struct wtbl_hdr_trans) +\
-					 sizeof(struct wtbl_ba) +	\
-					 sizeof(struct wtbl_smps))
-
-#define MT7921_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
-					 sizeof(struct sta_rec_basic) +	\
-					 sizeof(struct sta_rec_ht) +	\
-					 sizeof(struct sta_rec_he) +	\
-					 sizeof(struct sta_rec_ba) +	\
-					 sizeof(struct sta_rec_vht) +	\
-					 sizeof(struct sta_rec_uapsd) + \
-					 sizeof(struct sta_rec_amsdu) +	\
-					 sizeof(struct tlv) +		\
-					 MT7921_WTBL_UPDATE_MAX_SIZE)
-
-#define MT7921_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
-					 sizeof(struct wtbl_ba))
 
 #define STA_CAP_WMM			BIT(0)
 #define STA_CAP_SGI_20			BIT(4)
@@ -431,4 +391,20 @@ struct mt7921_mcu_wlan_info {
 	__le32 wlan_idx;
 	struct mt7921_mcu_wlan_info_event event;
 } __packed;
+
+struct mt7921_txpwr_req {
+	u8 ver;
+	u8 action;
+	__le16 len;
+	u8 dbdc_idx;
+	u8 rsv[3];
+} __packed;
+
+struct mt7921_txpwr_event {
+	u8 ver;
+	u8 action;
+	__le16 len;
+	struct mt7921_txpwr txpwr;
+} __packed;
+
 #endif

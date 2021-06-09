@@ -502,16 +502,20 @@ static inline void mainstone_init_keypad(void) {}
 #endif
 
 static int mst_pcmcia0_irqs[11] = {
-	[0 ... 10] = -1,
+	[0 ... 4] = -1,
 	[5] = MAINSTONE_S0_CD_IRQ,
+	[6 ... 7] = -1,
 	[8] = MAINSTONE_S0_STSCHG_IRQ,
+	[9] = -1,
 	[10] = MAINSTONE_S0_IRQ,
 };
 
 static int mst_pcmcia1_irqs[11] = {
-	[0 ... 10] = -1,
+	[0 ... 4] = -1,
 	[5] = MAINSTONE_S1_CD_IRQ,
+	[6 ... 7] = -1,
 	[8] = MAINSTONE_S1_STSCHG_IRQ,
+	[9] = -1,
 	[10] = MAINSTONE_S1_IRQ,
 };
 

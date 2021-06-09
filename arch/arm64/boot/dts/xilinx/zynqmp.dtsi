@@ -856,6 +856,7 @@
 			interrupts = <0 122 4>;
 			interrupt-parent = <&gic>;
 			clock-names = "axi_clk";
+			power-domains = <&zynqmp_firmware PD_DP>;
 			#dma-cells = <1>;
 		};
 

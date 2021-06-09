@@ -27,7 +27,7 @@ SYM_FUNC_START(sme_encrypt_execute)
 	 *     - stack page (PAGE_SIZE)
 	 *     - encryption routine page (PAGE_SIZE)
 	 *     - intermediate copy buffer (PMD_PAGE_SIZE)
-	 *    R8 - physcial address of the pagetables to use for encryption
+	 *    R8 - physical address of the pagetables to use for encryption
 	 */
 
 	push	%rbp

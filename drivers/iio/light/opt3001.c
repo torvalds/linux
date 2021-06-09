@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * opt3001.c - Texas Instruments OPT3001 Light Sensor
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com

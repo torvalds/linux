@@ -471,7 +471,13 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.DSCEnable[mode_lib->vba.NumberOfActivePlanes] = dout->dsc_enable;
 		mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dsc_slices;
-		mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpc;
+		if (!dout->dsc_input_bpc) {
+			mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
+				ip->maximum_dsc_bits_per_component;
+		} else {
+			mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
+				dout->dsc_input_bpc;
+		}
 		mode_lib->vba.WritebackEnable[mode_lib->vba.NumberOfActivePlanes] = dout->wb_enable;
 		mode_lib->vba.ActiveWritebacksPerPlane[mode_lib->vba.NumberOfActivePlanes] =
 				dout->num_active_wb;
@@ -599,7 +605,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			for (k = j + 1; k < mode_lib->vba.cache_num_pipes; ++k) {
 				display_pipe_source_params_st *src_k = &pipes[k].pipe.src;
 				display_pipe_dest_params_st *dst_k = &pipes[k].pipe.dest;
-				display_output_params_st *dout_k = &pipes[j].dout;
 
 				if (src_k->is_hsplit && !visited[k]
 						&& src->hsplit_grp == src_k->hsplit_grp) {
@@ -620,8 +625,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 						mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_height_c;
 					}
-					mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] +=
-							dout_k->dsc_slices;
 
 					visited[k] = true;
 				}

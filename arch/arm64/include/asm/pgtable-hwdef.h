@@ -94,6 +94,17 @@
 /*
  * Hardware page table definitions.
  *
+ * Level 0 descriptor (P4D).
+ */
+#define P4D_TYPE_TABLE		(_AT(p4dval_t, 3) << 0)
+#define P4D_TABLE_BIT		(_AT(p4dval_t, 1) << 1)
+#define P4D_TYPE_MASK		(_AT(p4dval_t, 3) << 0)
+#define P4D_TYPE_SECT		(_AT(p4dval_t, 1) << 0)
+#define P4D_SECT_RDONLY		(_AT(p4dval_t, 1) << 7)		/* AP[2] */
+#define P4D_TABLE_PXN		(_AT(p4dval_t, 1) << 59)
+#define P4D_TABLE_UXN		(_AT(p4dval_t, 1) << 60)
+
+/*
  * Level 1 descriptor (PUD).
  */
 #define PUD_TYPE_TABLE		(_AT(pudval_t, 3) << 0)
@@ -101,6 +112,8 @@
 #define PUD_TYPE_MASK		(_AT(pudval_t, 3) << 0)
 #define PUD_TYPE_SECT		(_AT(pudval_t, 1) << 0)
 #define PUD_SECT_RDONLY		(_AT(pudval_t, 1) << 7)		/* AP[2] */
+#define PUD_TABLE_PXN		(_AT(pudval_t, 1) << 59)
+#define PUD_TABLE_UXN		(_AT(pudval_t, 1) << 60)
 
 /*
  * Level 2 descriptor (PMD).
@@ -122,6 +135,8 @@
 #define PMD_SECT_CONT		(_AT(pmdval_t, 1) << 52)
 #define PMD_SECT_PXN		(_AT(pmdval_t, 1) << 53)
 #define PMD_SECT_UXN		(_AT(pmdval_t, 1) << 54)
+#define PMD_TABLE_PXN		(_AT(pmdval_t, 1) << 59)
+#define PMD_TABLE_UXN		(_AT(pmdval_t, 1) << 60)
 
 /*
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).

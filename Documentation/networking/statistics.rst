@@ -44,8 +44,27 @@ If `-s` is specified once the detailed errors won't be shown.
 Protocol-specific statistics
 ----------------------------
 
-Some of the interfaces used for configuring devices are also able
-to report related statistics. For example ethtool interface used
+Protocol-specific statistics are exposed via relevant interfaces,
+the same interfaces as are used to configure them.
+
+ethtool
+~~~~~~~
+
+Ethtool exposes common low-level statistics.
+All the standard statistics are expected to be maintained
+by the device, not the driver (as opposed to driver-defined stats
+described in the next section which mix software and hardware stats).
+For devices which contain unmanaged
+switches (e.g. legacy SR-IOV or multi-host NICs) the events counted
+may not pertain exclusively to the packets destined to
+the local host interface. In other words the events may
+be counted at the network port (MAC/PHY blocks) without separation
+for different host side (PCIe) devices. Such ambiguity must not
+be present when internal switch is managed by Linux (so called
+switchdev mode for NICs).
+
+Standard ethtool statistics can be accessed via the interfaces used
+for configuration. For example ethtool interface used
 to configure pause frames can report corresponding hardware counters::
 
   $ ethtool --include-statistics -a eth0
@@ -56,6 +75,27 @@ to configure pause frames can report corresponding hardware counters::
   Statistics:
     tx_pause_frames: 1
     rx_pause_frames: 1
+
+General Ethernet statistics not associated with any particular
+functionality are exposed via ``ethtool -S $ifc`` by specifying
+the ``--groups`` parameter::
+
+  $ ethtool -S eth0 --groups eth-phy eth-mac eth-ctrl rmon
+  Stats for eth0:
+  eth-phy-SymbolErrorDuringCarrier: 0
+  eth-mac-FramesTransmittedOK: 1
+  eth-mac-FrameTooLongErrors: 1
+  eth-ctrl-MACControlFramesTransmitted: 1
+  eth-ctrl-MACControlFramesReceived: 0
+  eth-ctrl-UnsupportedOpcodesReceived: 1
+  rmon-etherStatsUndersizePkts: 1
+  rmon-etherStatsJabbers: 0
+  rmon-rx-etherStatsPkts64Octets: 1
+  rmon-rx-etherStatsPkts65to127Octets: 0
+  rmon-rx-etherStatsPkts128to255Octets: 0
+  rmon-tx-etherStatsPkts64Octets: 2
+  rmon-tx-etherStatsPkts65to127Octets: 3
+  rmon-tx-etherStatsPkts128to255Octets: 0
 
 Driver-defined statistics
 -------------------------
@@ -130,6 +170,7 @@ the `ETHTOOL_FLAG_STATS` flag in `ETHTOOL_A_HEADER_FLAGS`. Currently
 statistics are supported in the following commands:
 
   - `ETHTOOL_MSG_PAUSE_GET`
+  - `ETHTOOL_MSG_FEC_GET`
 
 debugfs
 -------
@@ -176,3 +217,4 @@ translated to netlink attributes when dumped. Drivers must not overwrite
 the statistics they don't report with 0.
 
 - ethtool_pause_stats()
+- ethtool_fec_stats()

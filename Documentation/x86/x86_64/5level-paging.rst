@@ -6,9 +6,9 @@
 
 Overview
 ========
-Original x86-64 was limited by 4-level paing to 256 TiB of virtual address
+Original x86-64 was limited by 4-level paging to 256 TiB of virtual address
 space and 64 TiB of physical address space. We are already bumping into
-this limit: some vendors offers servers with 64 TiB of memory today.
+this limit: some vendors offer servers with 64 TiB of memory today.
 
 To overcome the limitation upcoming hardware will introduce support for
 5-level paging. It is a straight-forward extension of the current page

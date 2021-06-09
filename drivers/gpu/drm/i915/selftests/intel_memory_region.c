@@ -31,10 +31,12 @@ static void close_objects(struct intel_memory_region *mem,
 	struct drm_i915_gem_object *obj, *on;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
+		i915_gem_object_lock(obj, NULL);
 		if (i915_gem_object_has_pinned_pages(obj))
 			i915_gem_object_unpin_pages(obj);
 		/* No polluting the memory region between tests */
 		__i915_gem_object_put_pages(obj);
+		i915_gem_object_unlock(obj);
 		list_del(&obj->st_link);
 		i915_gem_object_put(obj);
 	}
@@ -69,7 +71,7 @@ static int igt_mock_fill(void *arg)
 			break;
 		}
 
-		err = i915_gem_object_pin_pages(obj);
+		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
 			i915_gem_object_put(obj);
 			break;
@@ -109,7 +111,7 @@ igt_object_create(struct intel_memory_region *mem,
 	if (IS_ERR(obj))
 		return obj;
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto put;
 
@@ -123,8 +125,10 @@ put:
 
 static void igt_object_release(struct drm_i915_gem_object *obj)
 {
+	i915_gem_object_lock(obj, NULL);
 	i915_gem_object_unpin_pages(obj);
 	__i915_gem_object_put_pages(obj);
+	i915_gem_object_unlock(obj);
 	list_del(&obj->st_link);
 	i915_gem_object_put(obj);
 }
@@ -142,6 +146,82 @@ static bool is_contiguous(struct drm_i915_gem_object *obj)
 	}
 
 	return true;
+}
+
+static int igt_mock_reserve(void *arg)
+{
+	struct intel_memory_region *mem = arg;
+	resource_size_t avail = resource_size(&mem->region);
+	struct drm_i915_gem_object *obj;
+	const u32 chunk_size = SZ_32M;
+	u32 i, offset, count, *order;
+	u64 allocated, cur_avail;
+	I915_RND_STATE(prng);
+	LIST_HEAD(objects);
+	int err = 0;
+
+	if (!list_empty(&mem->reserved)) {
+		pr_err("%s region reserved list is not empty\n", __func__);
+		return -EINVAL;
+	}
+
+	count = avail / chunk_size;
+	order = i915_random_order(count, &prng);
+	if (!order)
+		return 0;
+
+	/* Reserve a bunch of ranges within the region */
+	for (i = 0; i < count; ++i) {
+		u64 start = order[i] * chunk_size;
+		u64 size = i915_prandom_u32_max_state(chunk_size, &prng);
+
+		/* Allow for some really big holes */
+		if (!size)
+			continue;
+
+		size = round_up(size, PAGE_SIZE);
+		offset = igt_random_offset(&prng, 0, chunk_size, size,
+					   PAGE_SIZE);
+
+		err = intel_memory_region_reserve(mem, start + offset, size);
+		if (err) {
+			pr_err("%s failed to reserve range", __func__);
+			goto out_close;
+		}
+
+		/* XXX: maybe sanity check the block range here? */
+		avail -= size;
+	}
+
+	/* Try to see if we can allocate from the remaining space */
+	allocated = 0;
+	cur_avail = avail;
+	do {
+		u32 size = i915_prandom_u32_max_state(cur_avail, &prng);
+
+		size = max_t(u32, round_up(size, PAGE_SIZE), PAGE_SIZE);
+		obj = igt_object_create(mem, &objects, size, 0);
+		if (IS_ERR(obj)) {
+			if (PTR_ERR(obj) == -ENXIO)
+				break;
+
+			err = PTR_ERR(obj);
+			goto out_close;
+		}
+		cur_avail -= size;
+		allocated += size;
+	} while (1);
+
+	if (allocated != avail) {
+		pr_err("%s mismatch between allocation and free space", __func__);
+		err = -EINVAL;
+	}
+
+out_close:
+	kfree(order);
+	close_objects(mem, &objects);
+	i915_buddy_free_list(&mem->mm, &mem->reserved);
+	return err;
 }
 
 static int igt_mock_contiguous(void *arg)
@@ -433,7 +513,7 @@ static int igt_cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	if (err)
 		return err;
 
-	ptr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	ptr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
@@ -538,7 +618,7 @@ static int igt_lmem_create(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto out_put;
 
@@ -577,7 +657,7 @@ static int igt_lmem_write_gpu(void *arg)
 		goto out_file;
 	}
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err)
 		goto out_put;
 
@@ -649,7 +729,7 @@ static int igt_lmem_write_cpu(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto out_put;
@@ -753,7 +833,7 @@ create_region_for_mapping(struct intel_memory_region *mr, u64 size, u32 type,
 		return obj;
 	}
 
-	addr = i915_gem_object_pin_map(obj, type);
+	addr = i915_gem_object_pin_map_unlocked(obj, type);
 	if (IS_ERR(addr)) {
 		i915_gem_object_put(obj);
 		if (PTR_ERR(addr) == -ENXIO)
@@ -930,6 +1010,7 @@ static int perf_memcpy(void *arg)
 int intel_memory_region_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_mock_reserve),
 		SUBTEST(igt_mock_fill),
 		SUBTEST(igt_mock_contiguous),
 		SUBTEST(igt_mock_splintered_region),

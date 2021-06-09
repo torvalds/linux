@@ -507,6 +507,11 @@
 &i2c7 {
 	status = "okay";
 	//HSC, AirMax Conn A
+	adm1278@45 {
+		compatible = "adm1275";
+		reg = <0x45>;
+		shunt-resistor-micro-ohms = <250>;
+	};
 };
 
 &i2c8 {

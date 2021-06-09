@@ -36,6 +36,7 @@ FILES=                                          \
          test-libpython-version.bin             \
          test-libslang.bin                      \
          test-libslang-include-subdir.bin       \
+         test-libtraceevent.bin                 \
          test-libcrypto.bin                     \
          test-libunwind.bin                     \
          test-libunwind-debug-frame.bin         \
@@ -195,6 +196,9 @@ $(OUTPUT)test-libslang.bin:
 
 $(OUTPUT)test-libslang-include-subdir.bin:
 	$(BUILD) -lslang
+
+$(OUTPUT)test-libtraceevent.bin:
+	$(BUILD) -ltraceevent
 
 $(OUTPUT)test-libcrypto.bin:
 	$(BUILD) -lcrypto

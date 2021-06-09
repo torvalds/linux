@@ -185,7 +185,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 }
 
 /**
- * fm10k_dbg_free_q_vector_dir - setup debugfs for the q_vectors
+ * fm10k_dbg_q_vector_exit - setup debugfs for the q_vectors
  * @q_vector: q_vector to allocate directories for
  **/
 void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector)

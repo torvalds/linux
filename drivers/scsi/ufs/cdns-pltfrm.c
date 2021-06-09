@@ -100,6 +100,7 @@ static void cdns_ufs_set_l4_attr(struct ufs_hba *hba)
 }
 
 /**
+ * cdns_ufs_set_hclkdiv()
  * Sets HCLKDIV register value based on the core_clk
  * @hba: host controller instance
  *
@@ -141,6 +142,7 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 }
 
 /**
+ * cdns_ufs_hce_enable_notify()
  * Called before and after HCE enable bit is set.
  * @hba: host controller instance
  * @status: notify stage (pre, post change)
@@ -157,6 +159,7 @@ static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /**
+ * cdns_ufs_hibern8_notify()
  * Called around hibern8 enter/exit.
  * @hba: host controller instance
  * @cmd: UIC Command
@@ -173,6 +176,7 @@ static void cdns_ufs_hibern8_notify(struct ufs_hba *hba, enum uic_cmd_dme cmd,
 }
 
 /**
+ * cdns_ufs_link_startup_notify()
  * Called before and after Link startup is carried out.
  * @hba: host controller instance
  * @status: notify stage (pre, post change)

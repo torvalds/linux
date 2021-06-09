@@ -285,7 +285,7 @@ Description:	Disable L3 cache indices
 
 		All AMD processors with L3 caches provide this functionality.
 		For details, see BKDGs at
-		http://developer.amd.com/documentation/guides/Pages/default.aspx
+                https://www.amd.com/en/support/tech-docs?keyword=bios+kernel
 
 
 What:		/sys/devices/system/cpu/cpufreq/boost

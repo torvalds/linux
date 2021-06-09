@@ -181,10 +181,17 @@ void *mte_allocate_file_memory(size_t size, int mem_type, int mapping, bool tags
 	}
 	/* Initialize the file for mappable size */
 	lseek(fd, 0, SEEK_SET);
-	for (index = INIT_BUFFER_SIZE; index < size; index += INIT_BUFFER_SIZE)
-		write(fd, buffer, INIT_BUFFER_SIZE);
+	for (index = INIT_BUFFER_SIZE; index < size; index += INIT_BUFFER_SIZE) {
+		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
+			perror("initialising buffer");
+			return NULL;
+		}
+	}
 	index -= INIT_BUFFER_SIZE;
-	write(fd, buffer, size - index);
+	if (write(fd, buffer, size - index) != size - index) {
+		perror("initialising buffer");
+		return NULL;
+	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, 0, 0, tags, fd);
 }
 
@@ -202,9 +209,15 @@ void *mte_allocate_file_memory_tag_range(size_t size, int mem_type, int mapping,
 	/* Initialize the file for mappable size */
 	lseek(fd, 0, SEEK_SET);
 	for (index = INIT_BUFFER_SIZE; index < map_size; index += INIT_BUFFER_SIZE)
-		write(fd, buffer, INIT_BUFFER_SIZE);
+		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
+			perror("initialising buffer");
+			return NULL;
+		}
 	index -= INIT_BUFFER_SIZE;
-	write(fd, buffer, map_size - index);
+	if (write(fd, buffer, map_size - index) != map_size - index) {
+		perror("initialising buffer");
+		return NULL;
+	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, range_before,
 					   range_after, true, fd);
 }
@@ -271,29 +284,20 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 
 	en |= (incl_mask << PR_MTE_TAG_SHIFT);
 	/* Enable address tagging ABI, mte error reporting mode and tag inclusion mask. */
-	if (!prctl(PR_SET_TAGGED_ADDR_CTRL, en, 0, 0, 0) == 0) {
+	if (prctl(PR_SET_TAGGED_ADDR_CTRL, en, 0, 0, 0) != 0) {
 		ksft_print_msg("FAIL:prctl PR_SET_TAGGED_ADDR_CTRL for mte mode\n");
 		return -EINVAL;
 	}
 	return 0;
 }
 
-#define ID_AA64PFR1_MTE_SHIFT		8
-#define ID_AA64PFR1_MTE			2
-
 int mte_default_setup(void)
 {
-	unsigned long hwcaps = getauxval(AT_HWCAP);
+	unsigned long hwcaps2 = getauxval(AT_HWCAP2);
 	unsigned long en = 0;
 	int ret;
 
-	if (!(hwcaps & HWCAP_CPUID)) {
-		ksft_print_msg("FAIL: CPUID registers unavailable\n");
-		return KSFT_FAIL;
-	}
-	/* Read ID_AA64PFR1_EL1 register */
-	asm volatile("mrs %0, id_aa64pfr1_el1" : "=r"(hwcaps) : : "memory");
-	if (((hwcaps >> ID_AA64PFR1_MTE_SHIFT) & MT_TAG_MASK) != ID_AA64PFR1_MTE) {
+	if (!(hwcaps2 & HWCAP2_MTE)) {
 		ksft_print_msg("FAIL: MTE features unavailable\n");
 		return KSFT_SKIP;
 	}
@@ -333,6 +337,7 @@ int create_temp_file(void)
 	/* Create a file in the tmpfs filesystem */
 	fd = mkstemp(&filename[0]);
 	if (fd == -1) {
+		perror(filename);
 		ksft_print_msg("FAIL: Unable to open temporary file\n");
 		return 0;
 	}

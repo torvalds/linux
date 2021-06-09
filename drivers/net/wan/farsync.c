@@ -573,7 +573,7 @@ static DECLARE_TASKLET(fst_tx_task, fst_process_tx_work_q);
 static DECLARE_TASKLET(fst_int_task, fst_process_int_work_q);
 
 static struct fst_card_info *fst_card_array[FST_MAX_CARDS];
-static spinlock_t fst_work_q_lock;
+static DEFINE_SPINLOCK(fst_work_q_lock);
 static u64 fst_work_txq;
 static u64 fst_work_intq;
 
@@ -2648,7 +2648,6 @@ fst_init(void)
 
 	for (i = 0; i < FST_MAX_CARDS; i++)
 		fst_card_array[i] = NULL;
-	spin_lock_init(&fst_work_q_lock);
 	return pci_register_driver(&fst_driver);
 }
 

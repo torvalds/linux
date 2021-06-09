@@ -98,11 +98,7 @@ __tc_flower_test()
 			jq -r '[ .[] | select(.kind == "flower") |
 			.options | .in_hw ]' | jq .[] | wc -l)
 	[[ $((offload_count - 1)) -eq $count ]]
-	if [[ $should_fail -eq 0 ]]; then
-		check_err $? "Offload mismatch"
-	else
-		check_err_fail $should_fail $? "Offload more than expacted"
-	fi
+	check_err_fail $should_fail $? "Attempt to offload $count rules (actual result $((offload_count - 1)))"
 }
 
 tc_flower_test()

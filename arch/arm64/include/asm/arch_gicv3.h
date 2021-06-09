@@ -173,7 +173,7 @@ static inline void gic_pmr_mask_irqs(void)
 
 static inline void gic_arch_enable_irqs(void)
 {
-	asm volatile ("msr daifclr, #2" : : : "memory");
+	asm volatile ("msr daifclr, #3" : : : "memory");
 }
 
 #endif /* __ASSEMBLY__ */

@@ -7,6 +7,7 @@
 #include <linux/threads.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
@@ -18,8 +19,11 @@
 #include <sound/info.h>
 #include <sound/control.h>
 
-/* max number of user-defined controls */
-#define MAX_USER_CONTROLS	32
+// Max allocation size for user controls.
+static int max_user_ctl_alloc_size = 8 * 1024 * 1024;
+module_param_named(max_user_ctl_alloc_size, max_user_ctl_alloc_size, int, 0444);
+MODULE_PARM_DESC(max_user_ctl_alloc_size, "Max allocation size for user controls");
+
 #define MAX_CONTROL_COUNT	1028
 
 struct snd_kctl_ioctl {
@@ -561,9 +565,6 @@ static int snd_ctl_remove_user_ctl(struct snd_ctl_file * file,
 			goto error;
 		}
 	ret = snd_ctl_remove(card, kctl);
-	if (ret < 0)
-		goto error;
-	card->user_ctl_count--;
 error:
 	up_write(&card->controls_rwsem);
 	return ret;
@@ -1265,6 +1266,12 @@ struct user_element {
 	void *priv_data;		/* private data (like strings for enumerated type) */
 };
 
+// check whether the addition (in bytes) of user ctl element may overflow the limit.
+static bool check_user_elem_overflow(struct snd_card *card, ssize_t add)
+{
+	return (ssize_t)card->user_ctl_alloc_size + add > max_user_ctl_alloc_size;
+}
+
 static int snd_ctl_elem_user_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
@@ -1330,6 +1337,7 @@ static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+/* called in controls_rwsem write lock */
 static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 			    unsigned int size)
 {
@@ -1341,6 +1349,10 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 
 	if (size > 1024 * 128)	/* sane value */
 		return -EINVAL;
+
+	// does the TLV size change cause overflow?
+	if (check_user_elem_overflow(ue->card, (ssize_t)(size - ue->tlv_data_size)))
+		return -ENOMEM;
 
 	container = vmemdup_user(buf, size);
 	if (IS_ERR(container))
@@ -1359,11 +1371,16 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 		for (i = 0; i < kctl->count; ++i)
 			kctl->vd[i].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
 		mask = SNDRV_CTL_EVENT_MASK_INFO;
+	} else {
+		ue->card->user_ctl_alloc_size -= ue->tlv_data_size;
+		ue->tlv_data_size = 0;
+		kvfree(ue->tlv_data);
 	}
 
-	kvfree(ue->tlv_data);
 	ue->tlv_data = container;
 	ue->tlv_data_size = size;
+	// decremented at private_free.
+	ue->card->user_ctl_alloc_size += size;
 
 	mask |= SNDRV_CTL_EVENT_MASK_TLV;
 	for (i = 0; i < kctl->count; ++i)
@@ -1398,6 +1415,7 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kctl, int op_flag,
 		return read_user_tlv(kctl, buf, size);
 }
 
+/* called in controls_rwsem write lock */
 static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 {
 	char *names, *p;
@@ -1405,16 +1423,17 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 	unsigned int i;
 	const uintptr_t user_ptrval = ue->info.value.enumerated.names_ptr;
 
-	if (ue->info.value.enumerated.names_length > 64 * 1024)
+	buf_len = ue->info.value.enumerated.names_length;
+	if (buf_len > 64 * 1024)
 		return -EINVAL;
 
-	names = vmemdup_user((const void __user *)user_ptrval,
-		ue->info.value.enumerated.names_length);
+	if (check_user_elem_overflow(ue->card, buf_len))
+		return -ENOMEM;
+	names = vmemdup_user((const void __user *)user_ptrval, buf_len);
 	if (IS_ERR(names))
 		return PTR_ERR(names);
 
 	/* check that there are enough valid names */
-	buf_len = ue->info.value.enumerated.names_length;
 	p = names;
 	for (i = 0; i < ue->info.value.enumerated.items; ++i) {
 		name_len = strnlen(p, buf_len);
@@ -1428,13 +1447,26 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 
 	ue->priv_data = names;
 	ue->info.value.enumerated.names_ptr = 0;
+	// increment the allocation size; decremented again at private_free.
+	ue->card->user_ctl_alloc_size += ue->info.value.enumerated.names_length;
 
 	return 0;
+}
+
+static size_t compute_user_elem_size(size_t size, unsigned int count)
+{
+	return sizeof(struct user_element) + size * count;
 }
 
 static void snd_ctl_elem_user_free(struct snd_kcontrol *kcontrol)
 {
 	struct user_element *ue = kcontrol->private_data;
+
+	// decrement the allocation size.
+	ue->card->user_ctl_alloc_size -= compute_user_elem_size(ue->elem_data_size, kcontrol->count);
+	ue->card->user_ctl_alloc_size -= ue->tlv_data_size;
+	if (ue->priv_data)
+		ue->card->user_ctl_alloc_size -= ue->info.value.enumerated.names_length;
 
 	kvfree(ue->tlv_data);
 	kvfree(ue->priv_data);
@@ -1449,6 +1481,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	unsigned int count;
 	unsigned int access;
 	long private_size;
+	size_t alloc_size;
 	struct user_element *ue;
 	unsigned int offset;
 	int err;
@@ -1465,13 +1498,6 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		if (err)
 			return err;
 	}
-
-	/*
-	 * The number of userspace controls are counted control by control,
-	 * not element by element.
-	 */
-	if (card->user_ctl_count + 1 > MAX_USER_CONTROLS)
-		return -ENOMEM;
 
 	/* Check the number of elements for this userspace control. */
 	count = info->owner;
@@ -1503,6 +1529,13 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	if (info->count < 1)
 		return -EINVAL;
 	private_size = value_sizes[info->type] * info->count;
+	alloc_size = compute_user_elem_size(private_size, count);
+
+	down_write(&card->controls_rwsem);
+	if (check_user_elem_overflow(card, alloc_size)) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	/*
 	 * Keep memory object for this userspace control. After passing this
@@ -1512,18 +1545,21 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	 */
 	err = snd_ctl_new(&kctl, count, access, file);
 	if (err < 0)
-		return err;
+		goto unlock;
 	memcpy(&kctl->id, &info->id, sizeof(kctl->id));
-	kctl->private_data = kzalloc(sizeof(struct user_element) + private_size * count,
-				     GFP_KERNEL);
-	if (kctl->private_data == NULL) {
+	ue = kzalloc(alloc_size, GFP_KERNEL);
+	if (!ue) {
 		kfree(kctl);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto unlock;
 	}
+	kctl->private_data = ue;
 	kctl->private_free = snd_ctl_elem_user_free;
 
+	// increment the allocated size; decremented again at private_free.
+	card->user_ctl_alloc_size += alloc_size;
+
 	/* Set private data for this userspace control. */
-	ue = (struct user_element *)kctl->private_data;
 	ue->card = card;
 	ue->info = *info;
 	ue->info.access = 0;
@@ -1533,7 +1569,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		err = snd_ctl_elem_init_enum_names(ue);
 		if (err < 0) {
 			snd_ctl_free_one(kctl);
-			return err;
+			goto unlock;
 		}
 	}
 
@@ -1550,7 +1586,6 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		kctl->tlv.c = snd_ctl_elem_user_tlv;
 
 	/* This function manage to free the instance on failure. */
-	down_write(&card->controls_rwsem);
 	err = __snd_ctl_add_replace(card, kctl, CTL_ADD_EXCLUSIVE);
 	if (err < 0) {
 		snd_ctl_free_one(kctl);
@@ -1565,9 +1600,6 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	 * applications because the field originally means PID of a process
 	 * which locks the element.
 	 */
-
-	card->user_ctl_count++;
-
  unlock:
 	up_write(&card->controls_rwsem);
 	return err;
@@ -2074,7 +2106,7 @@ void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops)
 	struct snd_ctl_layer_ops *lops2, *prev_lops2;
 
 	down_write(&snd_ctl_layer_rwsem);
-	for (lops2 = snd_ctl_layer, prev_lops2 = NULL; lops2; lops2 = lops2->next)
+	for (lops2 = snd_ctl_layer, prev_lops2 = NULL; lops2; lops2 = lops2->next) {
 		if (lops2 == lops) {
 			if (!prev_lops2)
 				snd_ctl_layer = lops->next;
@@ -2082,6 +2114,8 @@ void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops)
 				prev_lops2->next = lops->next;
 			break;
 		}
+		prev_lops2 = lops2;
+	}
 	up_write(&snd_ctl_layer_rwsem);
 }
 EXPORT_SYMBOL_GPL(snd_ctl_disconnect_layer);

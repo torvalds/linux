@@ -262,14 +262,9 @@ struct clk_mgr_funcs {
 
 	/* Get current memclk states from PMFW, update relevant structures */
 	void (*get_memclk_states_from_smu)(struct clk_mgr *clk_mgr);
-};
 
-struct dpm_clocks;
-struct wartermarks;
-
-struct smu_watermark_set {
-	struct watermarks *wm_set;
-	union large_integer mc_address;
+	/* Get SMU present */
+	bool (*is_smu_present)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {
@@ -283,7 +278,6 @@ struct clk_mgr {
 	struct clk_state_registers_and_bypass boot_snapshot;
 	struct clk_bw_params *bw_params;
 	struct pp_smu_wm_range_sets ranges;
-	struct smu_watermark_set smu_wm_set;
 };
 
 /* forward declarations */

@@ -94,7 +94,7 @@ static int i40iw_query_device(struct ib_device *ibdev,
  * @props: returning device attributes
  */
 static int i40iw_query_port(struct ib_device *ibdev,
-			    u8 port,
+			    u32 port,
 			    struct ib_port_attr *props)
 {
 	props->lid = 1;
@@ -647,7 +647,7 @@ error:
 }
 
 /**
- * i40iw_query - query qp attributes
+ * i40iw_query_qp - query qp attributes
  * @ibqp: qp pointer
  * @attr: attributes pointer
  * @attr_mask: Not used
@@ -1846,7 +1846,7 @@ static struct ib_mr *i40iw_get_dma_mr(struct ib_pd *pd, int acc)
 }
 
 /**
- * i40iw_del_mem_list - Deleting pbl list entries for CQ/QP
+ * i40iw_del_memlist - Deleting pbl list entries for CQ/QP
  * @iwmr: iwmr for IB's user page addresses
  * @ucontext: ptr to user context
  */
@@ -2347,7 +2347,7 @@ static int i40iw_req_notify_cq(struct ib_cq *ibcq,
  * @port_num: port number
  * @immutable: immutable data for the port return
  */
-static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int i40iw_port_immutable(struct ib_device *ibdev, u32 port_num,
 				struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -2446,7 +2446,7 @@ static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str)
  * @port_num: port number
  */
 static struct rdma_hw_stats *i40iw_alloc_hw_stats(struct ib_device *ibdev,
-						  u8 port_num)
+						  u32 port_num)
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
@@ -2477,7 +2477,7 @@ static struct rdma_hw_stats *i40iw_alloc_hw_stats(struct ib_device *ibdev,
  */
 static int i40iw_get_hw_stats(struct ib_device *ibdev,
 			      struct rdma_hw_stats *stats,
-			      u8 port_num, int index)
+			      u32 port_num, int index)
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
@@ -2504,7 +2504,7 @@ static int i40iw_get_hw_stats(struct ib_device *ibdev,
  * @gid: Global ID
  */
 static int i40iw_query_gid(struct ib_device *ibdev,
-			   u8 port,
+			   u32 port,
 			   int index,
 			   union ib_gid *gid)
 {

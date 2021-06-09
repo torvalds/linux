@@ -23,7 +23,6 @@ properties:
 
     properties:
       qcom,soft-start-us:
-        $ref: /schemas/types.yaml#/definitions/uint32
         description: Regulator soft start time in microseconds.
         enum: [200, 400, 600, 800]
         default: 200

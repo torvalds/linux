@@ -29,11 +29,9 @@ properties:
 
   clock-frequency:
     description: common clock binding; frequency of MCKO
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   clock-output-names:
     description: common clock name
-    $ref: /schemas/types.yaml#/definitions/string
 
 required:
   - compatible

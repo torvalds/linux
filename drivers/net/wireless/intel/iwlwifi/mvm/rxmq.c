@@ -272,10 +272,10 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 	rx_status->chain_signal[2] = S8_MIN;
 }
 
-static int iwl_mvm_rx_mgmt_crypto(struct ieee80211_sta *sta,
-				  struct ieee80211_hdr *hdr,
-				  struct iwl_rx_mpdu_desc *desc,
-				  u32 status)
+static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
+				struct ieee80211_hdr *hdr,
+				struct iwl_rx_mpdu_desc *desc,
+				u32 status)
 {
 	struct iwl_mvm_sta *mvmsta;
 	struct iwl_mvm_vif *mvmvif;
@@ -284,6 +284,9 @@ static int iwl_mvm_rx_mgmt_crypto(struct ieee80211_sta *sta,
 	struct ieee80211_key_conf *key;
 	u32 len = le16_to_cpu(desc->mpdu_len);
 	const u8 *frame = (void *)hdr;
+
+	if ((status & IWL_RX_MPDU_STATUS_SEC_MASK) == IWL_RX_MPDU_STATUS_SEC_NONE)
+		return 0;
 
 	/*
 	 * For non-beacon, we don't really care. But beacons may
@@ -356,6 +359,10 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	    IWL_RX_MPDU_STATUS_SEC_UNKNOWN && !mvm->monitor_on)
 		return -1;
 
+	if (unlikely(ieee80211_is_mgmt(hdr->frame_control) &&
+		     !ieee80211_has_protected(hdr->frame_control)))
+		return iwl_mvm_rx_mgmt_prot(sta, hdr, desc, status);
+
 	if (!ieee80211_has_protected(hdr->frame_control) ||
 	    (status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
 	    IWL_RX_MPDU_STATUS_SEC_NONE)
@@ -411,7 +418,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		stats->flag |= RX_FLAG_DECRYPTED;
 		return 0;
 	case RX_MPDU_RES_STATUS_SEC_CMAC_GMAC_ENC:
-		return iwl_mvm_rx_mgmt_crypto(sta, hdr, desc, status);
+		break;
 	default:
 		/*
 		 * Sometimes we can get frames that were not decrypted
@@ -520,37 +527,6 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 	return false;
 }
 
-int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
-			    const struct iwl_mvm_internal_rxq_notif *notif,
-			    u32 notif_size, bool async)
-{
-	u8 buf[sizeof(struct iwl_rxq_sync_cmd) +
-	       sizeof(struct iwl_mvm_rss_sync_notif)];
-	struct iwl_rxq_sync_cmd *cmd = (void *)buf;
-	u32 data_size = sizeof(*cmd) + notif_size;
-	int ret;
-
-	/*
-	 * size must be a multiple of DWORD
-	 * Ensure we don't overflow buf
-	 */
-	if (WARN_ON(notif_size & 3 ||
-		    notif_size > sizeof(struct iwl_mvm_rss_sync_notif)))
-		return -EINVAL;
-
-	cmd->rxq_mask = cpu_to_le32(rxq_mask);
-	cmd->count =  cpu_to_le32(notif_size);
-	cmd->flags = 0;
-	memcpy(cmd->payload, notif, notif_size);
-
-	ret = iwl_mvm_send_cmd_pdu(mvm,
-				   WIDE_ID(DATA_PATH_GROUP,
-					   TRIGGER_RX_QUEUES_NOTIF_CMD),
-				   async ? CMD_ASYNC : 0, data_size, cmd);
-
-	return ret;
-}
-
 /*
  * Returns true if sn2 - buffer_size < sn1 < sn2.
  * To be used only in order to compare reorder buffer head with NSSN.
@@ -566,15 +542,13 @@ static bool iwl_mvm_is_sn_less(u16 sn1, u16 sn2, u16 buffer_size)
 static void iwl_mvm_sync_nssn(struct iwl_mvm *mvm, u8 baid, u16 nssn)
 {
 	if (IWL_MVM_USE_NSSN_SYNC) {
-		struct iwl_mvm_rss_sync_notif notif = {
-			.metadata.type = IWL_MVM_RXQ_NSSN_SYNC,
-			.metadata.sync = 0,
-			.nssn_sync.baid = baid,
-			.nssn_sync.nssn = nssn,
+		struct iwl_mvm_nssn_sync_data notif = {
+			.baid = baid,
+			.nssn = nssn,
 		};
 
-		iwl_mvm_sync_rx_queues_internal(mvm, (void *)&notif,
-						sizeof(notif));
+		iwl_mvm_sync_rx_queues_internal(mvm, IWL_MVM_RXQ_NSSN_SYNC, false,
+						&notif, sizeof(notif));
 	}
 }
 
@@ -823,8 +797,7 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct napi_struct *napi,
 		      "invalid notification size %d (%d)",
 		      len, (int)(sizeof(*notif) + sizeof(*internal_notif))))
 		return;
-	/* remove only the firmware header, we want all of our payload below */
-	len -= sizeof(*notif);
+	len -= sizeof(*notif) + sizeof(*internal_notif);
 
 	if (internal_notif->sync &&
 	    mvm->queue_sync_cookie != internal_notif->cookie) {
@@ -834,21 +807,19 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	switch (internal_notif->type) {
 	case IWL_MVM_RXQ_EMPTY:
-		WARN_ONCE(len != sizeof(*internal_notif),
-			  "invalid empty notification size %d (%d)",
-			  len, (int)sizeof(*internal_notif));
+		WARN_ONCE(len, "invalid empty notification size %d", len);
 		break;
 	case IWL_MVM_RXQ_NOTIF_DEL_BA:
-		if (WARN_ONCE(len != sizeof(struct iwl_mvm_rss_sync_notif),
+		if (WARN_ONCE(len != sizeof(struct iwl_mvm_delba_data),
 			      "invalid delba notification size %d (%d)",
-			      len, (int)sizeof(struct iwl_mvm_rss_sync_notif)))
+			      len, (int)sizeof(struct iwl_mvm_delba_data)))
 			break;
 		iwl_mvm_del_ba(mvm, queue, (void *)internal_notif->data);
 		break;
 	case IWL_MVM_RXQ_NSSN_SYNC:
-		if (WARN_ONCE(len != sizeof(struct iwl_mvm_rss_sync_notif),
+		if (WARN_ONCE(len != sizeof(struct iwl_mvm_nssn_sync_data),
 			      "invalid nssn sync notification size %d (%d)",
-			      len, (int)sizeof(struct iwl_mvm_rss_sync_notif)))
+			      len, (int)sizeof(struct iwl_mvm_nssn_sync_data)))
 			break;
 		iwl_mvm_nssn_sync(mvm, napi, queue,
 				  (void *)internal_notif->data);

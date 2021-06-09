@@ -41,7 +41,7 @@ struct diff_mmio {
 
 /* Compare two diff_mmio items. */
 static int mmio_offset_compare(void *priv,
-	struct list_head *a, struct list_head *b)
+	const struct list_head *a, const struct list_head *b)
 {
 	struct diff_mmio *ma;
 	struct diff_mmio *mb;

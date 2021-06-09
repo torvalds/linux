@@ -124,6 +124,13 @@ config SAMPLE_HIDRAW
 	bool "hidraw sample"
 	depends on CC_CAN_LINK && HEADERS_INSTALL
 
+config SAMPLE_LANDLOCK
+	bool "Landlock example"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build a simple Landlock sandbox manager able to start a process
+	  restricted by a user-defined filesystem access control policy.
+
 config SAMPLE_PIDFD
 	bool "pidfd sample"
 	depends on CC_CAN_LINK && HEADERS_INSTALL

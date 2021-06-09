@@ -64,9 +64,10 @@ bool bios_is_accelerated_mode(
 
 
 void bios_set_scratch_acc_mode_change(
-	struct dc_bios *bios)
+	struct dc_bios *bios,
+	uint32_t state)
 {
-	REG_UPDATE(BIOS_SCRATCH_6, S6_ACC_MODE, 1);
+	REG_UPDATE(BIOS_SCRATCH_6, S6_ACC_MODE, state);
 }
 
 

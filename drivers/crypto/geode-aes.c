@@ -21,7 +21,7 @@
 /* Static structures */
 
 static void __iomem *_iobase;
-static spinlock_t lock;
+static DEFINE_SPINLOCK(lock);
 
 /* Write a 128 bit field (either a writable key or IV) */
 static inline void
@@ -382,8 +382,6 @@ static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		ret = -ENOMEM;
 		goto erequest;
 	}
-
-	spin_lock_init(&lock);
 
 	/* Clear any pending activity */
 	iowrite32(AES_INTR_PENDING | AES_INTR_MASK, _iobase + AES_INTR_REG);

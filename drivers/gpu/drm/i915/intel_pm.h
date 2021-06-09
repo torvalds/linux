@@ -52,6 +52,11 @@ bool intel_can_enable_sagv(struct drm_i915_private *dev_priv,
 			   const struct intel_bw_state *bw_state);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
+const struct skl_wm_level *skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
+					      enum plane_id plane_id,
+					      int level);
+const struct skl_wm_level *skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
+					      enum plane_id plane_id);
 bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2);
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,

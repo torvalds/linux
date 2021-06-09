@@ -427,6 +427,12 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 		case 0:
 			dram_info->type = INTEL_DRAM_DDR4;
 			break;
+		case 1:
+			dram_info->type = INTEL_DRAM_DDR5;
+			break;
+		case 2:
+			dram_info->type = INTEL_DRAM_LPDDR5;
+			break;
 		case 3:
 			dram_info->type = INTEL_DRAM_LPDDR4;
 			break;

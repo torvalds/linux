@@ -1370,7 +1370,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 		    enum ib_sig_type send_policy,
 		    struct ib_qp_cap *cap,
 		    int qpn,
-		    int port,
+		    u32 port,
 		    struct mthca_qp *qp,
 		    struct ib_udata *udata)
 {

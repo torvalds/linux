@@ -2,7 +2,7 @@
 /*
  * Copyright 2012 ST-Ericsson AB
  *
- * Device Tree for the HREF version 60 or later with the TVK1281618 UIB
+ * Device Tree for the HREF version 60 or later with the TVK1281618 R2 UIB
  */
 
 /dts-v1/;
@@ -11,7 +11,7 @@
 #include "ste-href-tvk1281618-r2.dtsi"
 
 / {
-	model = "ST-Ericsson HREF (v60+) and TVK1281618 UIB";
+	model = "ST-Ericsson HREF (v60+) and TVK1281618 R2 UIB";
 	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
 
 	/* ST6G3244ME level translator for 1.8/2.9 V */

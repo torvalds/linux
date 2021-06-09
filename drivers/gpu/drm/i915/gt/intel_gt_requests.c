@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2019 Intel Corporation
  */
 
@@ -9,6 +8,7 @@
 #include "i915_drv.h" /* for_each_engine() */
 #include "i915_request.h"
 #include "intel_engine_heartbeat.h"
+#include "intel_execlists_submission.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
@@ -243,4 +243,31 @@ void intel_gt_fini_requests(struct intel_gt *gt)
 {
 	/* Wait until the work is marked as finished before unloading! */
 	cancel_delayed_work_sync(&gt->requests.retire_work);
+
+	flush_work(&gt->watchdog.work);
+}
+
+void intel_gt_watchdog_work(struct work_struct *work)
+{
+	struct intel_gt *gt =
+		container_of(work, typeof(*gt), watchdog.work);
+	struct i915_request *rq, *rn;
+	struct llist_node *first;
+
+	first = llist_del_all(&gt->watchdog.list);
+	if (!first)
+		return;
+
+	llist_for_each_entry_safe(rq, rn, first, watchdog.link) {
+		if (!i915_request_completed(rq)) {
+			struct dma_fence *f = &rq->fence;
+
+			pr_notice("Fence expiration time out i915-%s:%s:%llx!\n",
+				  f->ops->get_driver_name(f),
+				  f->ops->get_timeline_name(f),
+				  f->seqno);
+			i915_request_cancel(rq, -EINTR);
+		}
+		i915_request_put(rq);
+	}
 }

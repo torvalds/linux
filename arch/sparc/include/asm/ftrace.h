@@ -17,7 +17,7 @@ void _mcount(void);
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-/* reloction of mcount call site is the same as the address */
+/* relocation of mcount call site is the same as the address */
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	return addr;

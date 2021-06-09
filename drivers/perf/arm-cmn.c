@@ -348,19 +348,19 @@ static ssize_t arm_cmn_event_show(struct device *dev,
 	eattr = container_of(attr, typeof(*eattr), attr);
 
 	if (eattr->type == CMN_TYPE_DTC)
-		return snprintf(buf, PAGE_SIZE, "type=0x%x\n", eattr->type);
+		return sysfs_emit(buf, "type=0x%x\n", eattr->type);
 
 	if (eattr->type == CMN_TYPE_WP)
-		return snprintf(buf, PAGE_SIZE,
-				"type=0x%x,eventid=0x%x,wp_dev_sel=?,wp_chn_sel=?,wp_grp=?,wp_val=?,wp_mask=?\n",
-				eattr->type, eattr->eventid);
+		return sysfs_emit(buf,
+				  "type=0x%x,eventid=0x%x,wp_dev_sel=?,wp_chn_sel=?,wp_grp=?,wp_val=?,wp_mask=?\n",
+				  eattr->type, eattr->eventid);
 
 	if (arm_cmn_is_occup_event(eattr->type, eattr->eventid))
-		return snprintf(buf, PAGE_SIZE, "type=0x%x,eventid=0x%x,occupid=0x%x\n",
-				eattr->type, eattr->eventid, eattr->occupid);
+		return sysfs_emit(buf, "type=0x%x,eventid=0x%x,occupid=0x%x\n",
+				  eattr->type, eattr->eventid, eattr->occupid);
 
-	return snprintf(buf, PAGE_SIZE, "type=0x%x,eventid=0x%x\n",
-			eattr->type, eattr->eventid);
+	return sysfs_emit(buf, "type=0x%x,eventid=0x%x\n", eattr->type,
+			  eattr->eventid);
 }
 
 static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
@@ -560,12 +560,12 @@ static ssize_t arm_cmn_format_show(struct device *dev,
 	int lo = __ffs(fmt->field), hi = __fls(fmt->field);
 
 	if (lo == hi)
-		return snprintf(buf, PAGE_SIZE, "config:%d\n", lo);
+		return sysfs_emit(buf, "config:%d\n", lo);
 
 	if (!fmt->config)
-		return snprintf(buf, PAGE_SIZE, "config:%d-%d\n", lo, hi);
+		return sysfs_emit(buf, "config:%d-%d\n", lo, hi);
 
-	return snprintf(buf, PAGE_SIZE, "config%d:%d-%d\n", fmt->config, lo, hi);
+	return sysfs_emit(buf, "config%d:%d-%d\n", fmt->config, lo, hi);
 }
 
 #define _CMN_FORMAT_ATTR(_name, _cfg, _fld)				\

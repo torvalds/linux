@@ -335,12 +335,12 @@ static int mlx5_health_try_recover(struct mlx5_core_dev *dev)
 		return -EIO;
 	}
 	mlx5_core_err(dev, "starting health recovery flow\n");
-	mlx5_recover_device(dev);
-	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state) ||
-	    mlx5_health_check_fatal_sensors(dev)) {
+	if (mlx5_recover_device(dev) || mlx5_health_check_fatal_sensors(dev)) {
 		mlx5_core_err(dev, "health recovery failed\n");
 		return -EIO;
 	}
+
+	mlx5_core_info(dev, "health recovery succeeded\n");
 	return 0;
 }
 

@@ -5,33 +5,14 @@
 #include <soc/mscc/ocelot.h>
 #include "dsa_priv.h"
 
-static void ocelot_xmit_ptp(struct dsa_port *dp, void *injection,
-			    struct sk_buff *clone)
-{
-	struct ocelot *ocelot = dp->ds->priv;
-	struct ocelot_port *ocelot_port;
-	u64 rew_op;
-
-	ocelot_port = ocelot->ports[dp->index];
-	rew_op = ocelot_port->ptp_cmd;
-
-	/* Retrieve timestamp ID populated inside skb->cb[0] of the
-	 * clone by ocelot_port_add_txtstamp_skb
-	 */
-	if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
-		rew_op |= clone->cb[0] << 3;
-
-	ocelot_ifh_set_rew_op(injection, rew_op);
-}
-
 static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 			       __be32 ifh_prefix, void **ifh)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
 	struct dsa_switch *ds = dp->ds;
 	void *injection;
 	__be32 *prefix;
+	u32 rew_op = 0;
 
 	injection = skb_push(skb, OCELOT_TAG_LEN);
 	prefix = skb_push(skb, OCELOT_SHORT_PREFIX_LEN);
@@ -42,9 +23,9 @@ static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 	ocelot_ifh_set_src(injection, ds->num_ports);
 	ocelot_ifh_set_qos_class(injection, skb->priority);
 
-	/* TX timestamping was requested */
-	if (clone)
-		ocelot_xmit_ptp(dp, injection, clone);
+	rew_op = ocelot_ptp_rew_op(skb);
+	if (rew_op)
+		ocelot_ifh_set_rew_op(injection, rew_op);
 
 	*ifh = injection;
 }
@@ -83,7 +64,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	struct dsa_port *dp;
 	u8 *extraction;
 	u16 vlan_tpid;
-	u64 cpuq;
 
 	/* Revert skb->data by the amount consumed by the DSA master,
 	 * so it points to the beginning of the frame.
@@ -113,7 +93,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	ocelot_xfh_get_qos_class(extraction, &qos_class);
 	ocelot_xfh_get_tag_type(extraction, &tag_type);
 	ocelot_xfh_get_vlan_tci(extraction, &vlan_tci);
-	ocelot_xfh_get_cpuq(extraction, &cpuq);
 
 	skb->dev = dsa_master_find_slave(netdev, 0, src_port);
 	if (!skb->dev)
@@ -127,12 +106,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 
 	skb->offload_fwd_mark = 1;
 	skb->priority = qos_class;
-
-#if IS_ENABLED(CONFIG_BRIDGE_MRP)
-	if (eth_hdr(skb)->h_proto == cpu_to_be16(ETH_P_MRP) &&
-	    cpuq & BIT(OCELOT_MRP_CPUQ))
-		skb->offload_fwd_mark = 0;
-#endif
 
 	/* Ocelot switches copy frames unmodified to the CPU. However, it is
 	 * possible for the user to request a VLAN modification through

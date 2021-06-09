@@ -188,7 +188,7 @@ w2:	sw	r4, r5, r3
 	.text
 
 .align 4 /* Alignment is important to keep icache happy */
-page:	/* Create room on stack and save registers for storign values */
+page:	/* Create room on stack and save registers for storing values */
 	addik   r1, r1, -40
 	swi	r5, r1, 0
 	swi	r6, r1, 4

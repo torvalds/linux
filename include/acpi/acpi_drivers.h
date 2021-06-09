@@ -12,18 +12,6 @@
 #define ACPI_MAX_STRING			80
 
 /*
- * Please update drivers/acpi/debug.c and Documentation/firmware-guide/acpi/debug.rst
- * if you add to this list.
- */
-#define ACPI_SBS_COMPONENT		0x00100000
-#define ACPI_FAN_COMPONENT		0x00200000
-#define ACPI_PCI_COMPONENT		0x00400000
-#define ACPI_CONTAINER_COMPONENT	0x01000000
-#define ACPI_SYSTEM_COMPONENT		0x02000000
-#define ACPI_MEMORY_DEVICE_COMPONENT	0x08000000
-#define ACPI_PROCESSOR_COMPONENT	0x20000000
-
-/*
  * _HID definitions
  * HIDs must conform to ACPI spec(6.1.4)
  * Linux specific HIDs do not apply to this and begin with LNX:

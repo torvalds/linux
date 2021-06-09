@@ -195,14 +195,12 @@ static struct pl022_ssp_controller spear320_ssp_data[] = {
 		.dma_filter = pl08x_filter_id,
 		.dma_tx_param = "ssp1_tx",
 		.dma_rx_param = "ssp1_rx",
-		.num_chipselect = 2,
 	}, {
 		.bus_id = 2,
 		.enable_dma = 1,
 		.dma_filter = pl08x_filter_id,
 		.dma_tx_param = "ssp2_tx",
 		.dma_rx_param = "ssp2_rx",
-		.num_chipselect = 2,
 	}
 };
 

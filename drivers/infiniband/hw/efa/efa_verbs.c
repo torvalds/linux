@@ -247,7 +247,7 @@ int efa_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
-int efa_query_port(struct ib_device *ibdev, u8 port,
+int efa_query_port(struct ib_device *ibdev, u32 port,
 		   struct ib_port_attr *props)
 {
 	struct efa_dev *dev = to_edev(ibdev);
@@ -319,7 +319,7 @@ int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	return 0;
 }
 
-int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
+int efa_query_gid(struct ib_device *ibdev, u32 port, int index,
 		  union ib_gid *gid)
 {
 	struct efa_dev *dev = to_edev(ibdev);
@@ -329,7 +329,7 @@ int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
-int efa_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int efa_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 		   u16 *pkey)
 {
 	if (index > 0)
@@ -1619,7 +1619,7 @@ int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	return 0;
 }
 
-int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num,
+int efa_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 			   struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -1904,7 +1904,7 @@ int efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 	return 0;
 }
 
-struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num)
+struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u32 port_num)
 {
 	return rdma_alloc_hw_stats_struct(efa_stats_names,
 					  ARRAY_SIZE(efa_stats_names),
@@ -1912,7 +1912,7 @@ struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num)
 }
 
 int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
-		     u8 port_num, int index)
+		     u32 port_num, int index)
 {
 	struct efa_com_get_stats_params params = {};
 	union efa_com_get_stats_result result;
@@ -1981,7 +1981,7 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 }
 
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
-					 u8 port_num)
+					 u32 port_num)
 {
 	return IB_LINK_LAYER_UNSPECIFIED;
 }

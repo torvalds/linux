@@ -107,6 +107,7 @@ int __i915_subtests(const char *caller,
 
 #define I915_SELFTEST_DECLARE(x) x
 #define I915_SELFTEST_ONLY(x) unlikely(x)
+#define I915_SELFTEST_EXPORT
 
 #else /* !IS_ENABLED(CONFIG_DRM_I915_SELFTEST) */
 
@@ -116,6 +117,7 @@ static inline int i915_perf_selftests(struct pci_dev *pdev) { return 0; }
 
 #define I915_SELFTEST_DECLARE(x)
 #define I915_SELFTEST_ONLY(x) 0
+#define I915_SELFTEST_EXPORT static
 
 #endif
 

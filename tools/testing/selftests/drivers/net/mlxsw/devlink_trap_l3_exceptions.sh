@@ -446,6 +446,35 @@ __invalid_nexthop_test()
 	log_test "Unresolved neigh: nexthop does not exist: $desc"
 }
 
+__invalid_nexthop_bucket_test()
+{
+	local desc=$1; shift
+	local dip=$1; shift
+	local via_add=$1; shift
+	local trap_name="unresolved_neigh"
+
+	RET=0
+
+	# Check that route to nexthop that does not exist triggers
+	# unresolved_neigh
+	ip nexthop add id 1 via $via_add dev $rp2
+	ip nexthop add id 10 group 1 type resilient buckets 32
+	ip route add $dip nhid 10
+
+	t0_packets=$(devlink_trap_rx_packets_get $trap_name)
+	ping_do $h1 $dip
+	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
+
+	if [[ $t0_packets -eq $t1_packets ]]; then
+		check_err 1 "Trap counter did not increase"
+	fi
+
+	ip route del $dip nhid 10
+	ip nexthop del id 10
+	ip nexthop del id 1
+	log_test "Unresolved neigh: nexthop bucket does not exist: $desc"
+}
+
 unresolved_neigh_test()
 {
 	__host_miss_test "IPv4" 198.51.100.1
@@ -453,6 +482,8 @@ unresolved_neigh_test()
 	__invalid_nexthop_test "IPv4" 198.51.100.1 198.51.100.3 24 198.51.100.4
 	__invalid_nexthop_test "IPv6" 2001:db8:2::1 2001:db8:2::3 64 \
 		2001:db8:2::4
+	__invalid_nexthop_bucket_test "IPv4" 198.51.100.1 198.51.100.4
+	__invalid_nexthop_bucket_test "IPv6" 2001:db8:2::1 2001:db8:2::4
 }
 
 vrf_without_routes_create()

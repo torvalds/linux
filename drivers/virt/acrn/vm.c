@@ -94,7 +94,7 @@ int acrn_vm_destroy(struct acrn_vm *vm)
 }
 
 /**
- * acrn_inject_msi() - Inject a MSI interrupt into a User VM
+ * acrn_msi_inject() - Inject a MSI interrupt into a User VM
  * @vm:		User VM
  * @msi_addr:	The MSI address
  * @msi_data:	The MSI data

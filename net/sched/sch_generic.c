@@ -1325,6 +1325,48 @@ void dev_shutdown(struct net_device *dev)
 	WARN_ON(timer_pending(&dev->watchdog_timer));
 }
 
+/**
+ * psched_ratecfg_precompute__() - Pre-compute values for reciprocal division
+ * @rate:   Rate to compute reciprocal division values of
+ * @mult:   Multiplier for reciprocal division
+ * @shift:  Shift for reciprocal division
+ *
+ * The multiplier and shift for reciprocal division by rate are stored
+ * in mult and shift.
+ *
+ * The deal here is to replace a divide by a reciprocal one
+ * in fast path (a reciprocal divide is a multiply and a shift)
+ *
+ * Normal formula would be :
+ *  time_in_ns = (NSEC_PER_SEC * len) / rate_bps
+ *
+ * We compute mult/shift to use instead :
+ *  time_in_ns = (len * mult) >> shift;
+ *
+ * We try to get the highest possible mult value for accuracy,
+ * but have to make sure no overflows will ever happen.
+ *
+ * reciprocal_value() is not used here it doesn't handle 64-bit values.
+ */
+static void psched_ratecfg_precompute__(u64 rate, u32 *mult, u8 *shift)
+{
+	u64 factor = NSEC_PER_SEC;
+
+	*mult = 1;
+	*shift = 0;
+
+	if (rate <= 0)
+		return;
+
+	for (;;) {
+		*mult = div64_u64(factor, rate);
+		if (*mult & (1U << 31) || factor & (1ULL << 63))
+			break;
+		factor <<= 1;
+		(*shift)++;
+	}
+}
+
 void psched_ratecfg_precompute(struct psched_ratecfg *r,
 			       const struct tc_ratespec *conf,
 			       u64 rate64)
@@ -1333,33 +1375,16 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r,
 	r->overhead = conf->overhead;
 	r->rate_bytes_ps = max_t(u64, conf->rate, rate64);
 	r->linklayer = (conf->linklayer & TC_LINKLAYER_MASK);
-	r->mult = 1;
-	/*
-	 * The deal here is to replace a divide by a reciprocal one
-	 * in fast path (a reciprocal divide is a multiply and a shift)
-	 *
-	 * Normal formula would be :
-	 *  time_in_ns = (NSEC_PER_SEC * len) / rate_bps
-	 *
-	 * We compute mult/shift to use instead :
-	 *  time_in_ns = (len * mult) >> shift;
-	 *
-	 * We try to get the highest possible mult value for accuracy,
-	 * but have to make sure no overflows will ever happen.
-	 */
-	if (r->rate_bytes_ps > 0) {
-		u64 factor = NSEC_PER_SEC;
-
-		for (;;) {
-			r->mult = div64_u64(factor, r->rate_bytes_ps);
-			if (r->mult & (1U << 31) || factor & (1ULL << 63))
-				break;
-			factor <<= 1;
-			r->shift++;
-		}
-	}
+	psched_ratecfg_precompute__(r->rate_bytes_ps, &r->mult, &r->shift);
 }
 EXPORT_SYMBOL(psched_ratecfg_precompute);
+
+void psched_ppscfg_precompute(struct psched_pktrate *r, u64 pktrate64)
+{
+	r->rate_pkts_ps = pktrate64;
+	psched_ratecfg_precompute__(r->rate_pkts_ps, &r->mult, &r->shift);
+}
+EXPORT_SYMBOL(psched_ppscfg_precompute);
 
 static void mini_qdisc_rcu_func(struct rcu_head *head)
 {

@@ -113,11 +113,12 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
 
 #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
+/*
+ * Execute-only user mappings do not have the PTE_USER bit set. All valid
+ * kernel mappings have the PTE_UXN bit set.
+ */
 #define pte_valid_not_user(pte) \
-	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
-#define pte_valid_user(pte) \
-	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
-
+	((pte_val(pte) & (PTE_VALID | PTE_USER | PTE_UXN)) == (PTE_VALID | PTE_UXN))
 /*
  * Could the pte be present in the TLB? We must check mm_tlb_flush_pending
  * so that we don't erroneously return false for pages that have been
@@ -130,12 +131,14 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid(pte))
 
 /*
- * p??_access_permitted() is true for valid user mappings (subject to the
- * write permission check). PROT_NONE mappings do not have the PTE_VALID bit
- * set.
+ * p??_access_permitted() is true for valid user mappings (PTE_USER
+ * bit set, subject to the write permission check). For execute-only
+ * mappings, like PROT_EXEC with EPAN (both PTE_USER and PTE_UXN bits
+ * not set) must return false. PROT_NONE mappings do not have the
+ * PTE_VALID bit set.
  */
 #define pte_access_permitted(pte, write) \
-	(pte_valid_user(pte) && (!(write) || pte_write(pte)))
+	(((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER)) && (!(write) || pte_write(pte)))
 #define pmd_access_permitted(pmd, write) \
 	(pte_access_permitted(pmd_pte(pmd), (write)))
 #define pud_access_permitted(pud, write) \
@@ -994,6 +997,18 @@ static inline bool arch_wants_old_prefaulted_pte(void)
 	return !arch_faults_on_old_pte();
 }
 #define arch_wants_old_prefaulted_pte	arch_wants_old_prefaulted_pte
+
+static inline pgprot_t arch_filter_pgprot(pgprot_t prot)
+{
+	if (cpus_have_const_cap(ARM64_HAS_EPAN))
+		return prot;
+
+	if (pgprot_val(prot) != pgprot_val(PAGE_EXECONLY))
+		return prot;
+
+	return PAGE_READONLY_EXEC;
+}
+
 
 #endif /* !__ASSEMBLY__ */
 

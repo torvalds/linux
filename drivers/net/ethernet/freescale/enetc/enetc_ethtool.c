@@ -192,10 +192,18 @@ static const struct {
 static const char rx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Rx ring %2d frames",
 	"Rx ring %2d alloc errors",
+	"Rx ring %2d XDP drops",
+	"Rx ring %2d recycles",
+	"Rx ring %2d recycle failures",
+	"Rx ring %2d redirects",
+	"Rx ring %2d redirect failures",
+	"Rx ring %2d redirect S/G",
 };
 
 static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Tx ring %2d frames",
+	"Tx ring %2d XDP frames",
+	"Tx ring %2d XDP drops",
 };
 
 static int enetc_get_sset_count(struct net_device *ndev, int sset)
@@ -267,12 +275,21 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 	for (i = 0; i < ARRAY_SIZE(enetc_si_counters); i++)
 		data[o++] = enetc_rd64(hw, enetc_si_counters[i].reg);
 
-	for (i = 0; i < priv->num_tx_rings; i++)
+	for (i = 0; i < priv->num_tx_rings; i++) {
 		data[o++] = priv->tx_ring[i]->stats.packets;
+		data[o++] = priv->tx_ring[i]->stats.xdp_tx;
+		data[o++] = priv->tx_ring[i]->stats.xdp_tx_drops;
+	}
 
 	for (i = 0; i < priv->num_rx_rings; i++) {
 		data[o++] = priv->rx_ring[i]->stats.packets;
 		data[o++] = priv->rx_ring[i]->stats.rx_alloc_errs;
+		data[o++] = priv->rx_ring[i]->stats.xdp_drops;
+		data[o++] = priv->rx_ring[i]->stats.recycles;
+		data[o++] = priv->rx_ring[i]->stats.recycle_failures;
+		data[o++] = priv->rx_ring[i]->stats.xdp_redirect;
+		data[o++] = priv->rx_ring[i]->stats.xdp_redirect_failures;
+		data[o++] = priv->rx_ring[i]->stats.xdp_redirect_sg;
 	}
 
 	if (!enetc_si_is_pf(priv->si))
@@ -654,7 +671,8 @@ static int enetc_get_ts_info(struct net_device *ndev,
 				SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
-			 (1 << HWTSTAMP_TX_ON);
+			 (1 << HWTSTAMP_TX_ON) |
+			 (1 << HWTSTAMP_TX_ONESTEP_SYNC);
 	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
 #else
@@ -688,6 +706,22 @@ static int enetc_set_wol(struct net_device *dev,
 		device_set_wakeup_enable(&dev->dev, wol->wolopts);
 
 	return ret;
+}
+
+static void enetc_get_pauseparam(struct net_device *dev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	phylink_ethtool_get_pauseparam(priv->phylink, pause);
+}
+
+static int enetc_set_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *pause)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	return phylink_ethtool_set_pauseparam(priv->phylink, pause);
 }
 
 static int enetc_get_link_ksettings(struct net_device *dev,
@@ -736,6 +770,8 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_ts_info = enetc_get_ts_info,
 	.get_wol = enetc_get_wol,
 	.set_wol = enetc_set_wol,
+	.get_pauseparam = enetc_get_pauseparam,
+	.set_pauseparam = enetc_set_pauseparam,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {

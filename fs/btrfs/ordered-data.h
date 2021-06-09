@@ -39,8 +39,8 @@ struct btrfs_ordered_sum {
  */
 enum {
 	/*
-	 * Different types for direct io, one and only one of the 4 type can
-	 * be set when creating ordered extent.
+	 * Different types for ordered extents, one and only one of the 4 types
+	 * need to be set when creating ordered extent.
 	 *
 	 * REGULAR:	For regular non-compressed COW write
 	 * NOCOW:	For NOCOW write into existing non-hole extent

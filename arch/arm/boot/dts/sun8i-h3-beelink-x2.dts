@@ -111,6 +111,17 @@
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
 	};
+
+	r-gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "power";
+			linux,code = <KEY_POWER>;
+			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+	};
 };
 
 &de {

@@ -187,7 +187,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 
 static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
 {
-	struct adapter *padapter = rtw_netdev_priv(pnetdev);
+	struct adapter *padapter = netdev_priv(pnetdev);
 	struct sockaddr *addr = p;
 
 	if (!padapter->bup)
@@ -198,7 +198,7 @@ static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
 
 static struct net_device_stats *rtw_net_get_stats(struct net_device *pnetdev)
 {
-	struct adapter *padapter = rtw_netdev_priv(pnetdev);
+	struct adapter *padapter = netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
@@ -248,7 +248,7 @@ static unsigned int rtw_classify8021d(struct sk_buff *skb)
 static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb,
 			    struct net_device *sb_dev)
 {
-	struct adapter *padapter = rtw_netdev_priv(dev);
+	struct adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	skb->priority = rtw_classify8021d(skb);
@@ -296,21 +296,19 @@ static const struct device_type wlan_type = {
 	.name = "wlan",
 };
 
-struct net_device *rtw_init_netdev(struct adapter *old_padapter)
+struct net_device *rtw_init_netdev(void)
 {
 	struct adapter *padapter;
-	struct net_device *pnetdev = NULL;
+	struct net_device *pnetdev;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+init_net_dev\n"));
 
-	if (old_padapter)
-		pnetdev = rtw_alloc_etherdev_with_old_priv((void *)old_padapter);
-
+	pnetdev = alloc_etherdev_mq(sizeof(struct adapter), 4);
 	if (!pnetdev)
 		return NULL;
 
 	pnetdev->dev.type = &wlan_type;
-	padapter = rtw_netdev_priv(pnetdev);
+	padapter = netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
 	DBG_88E("register rtw_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtw_netdev_ops;
@@ -534,7 +532,7 @@ static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	int err;
-	struct adapter *padapter = rtw_netdev_priv(pnetdev);
+	struct adapter *padapter = netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+88eu_drv - dev_open\n"));
@@ -603,7 +601,7 @@ netdev_open_error:
 int netdev_open(struct net_device *pnetdev)
 {
 	int ret;
-	struct adapter *padapter = rtw_netdev_priv(pnetdev);
+	struct adapter *padapter = netdev_priv(pnetdev);
 
 	if (mutex_lock_interruptible(&padapter->hw_init_mutex))
 		return -ERESTARTSYS;
@@ -689,7 +687,7 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 
 static int netdev_close(struct net_device *pnetdev)
 {
-	struct adapter *padapter = rtw_netdev_priv(pnetdev);
+	struct adapter *padapter = netdev_priv(pnetdev);
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+88eu_drv - drv_close\n"));
 

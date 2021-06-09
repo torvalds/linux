@@ -67,6 +67,13 @@ red_test()
 {
 	install_qdisc
 
+	# Make sure that we get the non-zero value if there is any.
+	local cur=$(busywait 1100 until_counter_is "> 0" \
+			    qdisc_stats_get $swp3 10: .backlog)
+	(( cur == 0 ))
+	check_err $? "backlog of $cur observed on non-busy qdisc"
+	log_test "$QDISC backlog properly cleaned"
+
 	do_red_test 10 $BACKLOG1
 	do_red_test 11 $BACKLOG2
 

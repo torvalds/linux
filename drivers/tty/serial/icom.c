@@ -829,9 +829,7 @@ ignore_char:
 	}
 	icom_port->next_rcv = rcv_buff;
 
-	spin_unlock(&icom_port->uart_port.lock);
 	tty_flip_buffer_push(port);
-	spin_lock(&icom_port->uart_port.lock);
 }
 
 static void process_interrupt(u16 port_int_reg,

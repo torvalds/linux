@@ -114,9 +114,9 @@ static void crypto_kw_scatterlist_ff(struct scatter_walk *walk,
 			scatterwalk_start(walk, sg);
 			scatterwalk_advance(walk, skip);
 			break;
-		} else
-			skip -= sg->length;
+		}
 
+		skip -= sg->length;
 		sg = sg_next(sg);
 	}
 }

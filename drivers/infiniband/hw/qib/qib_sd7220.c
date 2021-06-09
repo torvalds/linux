@@ -687,7 +687,6 @@ static int qib_sd7220_reg_mod(struct qib_devdata *dd, int sdnum, u32 loc,
 		spin_unlock_irqrestore(&dd->cspec->sdepb_lock, flags);
 		return -1;
 	}
-	ret = 0;
 	for (tries = EPB_TRANS_TRIES; tries; --tries) {
 		transval = qib_read_kreg32(dd, trans);
 		if (transval & EPB_TRANS_RDY)

@@ -39,7 +39,7 @@ void test_fexit_sleep(void)
 		goto cleanup;
 
 	cpid = clone(do_sleep, child_stack + STACK_SIZE, CLONE_FILES | SIGCHLD, fexit_skel);
-	if (CHECK(cpid == -1, "clone", strerror(errno)))
+	if (CHECK(cpid == -1, "clone", "%s\n", strerror(errno)))
 		goto cleanup;
 
 	/* wait until first sys_nanosleep ends and second sys_nanosleep starts */
@@ -65,7 +65,7 @@ void test_fexit_sleep(void)
 	/* kill the thread to unwind sys_nanosleep stack through the trampoline */
 	kill(cpid, 9);
 
-	if (CHECK(waitpid(cpid, &wstatus, 0) == -1, "waitpid", strerror(errno)))
+	if (CHECK(waitpid(cpid, &wstatus, 0) == -1, "waitpid", "%s\n", strerror(errno)))
 		goto cleanup;
 	if (CHECK(WEXITSTATUS(wstatus) != 0, "exitstatus", "failed"))
 		goto cleanup;

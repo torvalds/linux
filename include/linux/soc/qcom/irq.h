@@ -7,7 +7,7 @@
 
 #define GPIO_NO_WAKE_IRQ	~0U
 
-/**
+/*
  * QCOM specific IRQ domain flags that distinguishes the handling of wakeup
  * capable interrupts by different interrupt controllers.
  *

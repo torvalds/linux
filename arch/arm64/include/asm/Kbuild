@@ -5,3 +5,5 @@ generic-y += qrwlock.h
 generic-y += qspinlock.h
 generic-y += set_memory.h
 generic-y += user.h
+
+generated-y += cpucaps.h

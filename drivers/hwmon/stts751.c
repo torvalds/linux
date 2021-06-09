@@ -387,7 +387,7 @@ static ssize_t max_alarm_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->max_alert);
+	return sysfs_emit(buf, "%d\n", priv->max_alert);
 }
 
 static ssize_t min_alarm_show(struct device *dev,
@@ -404,7 +404,7 @@ static ssize_t min_alarm_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->min_alert);
+	return sysfs_emit(buf, "%d\n", priv->min_alert);
 }
 
 static ssize_t input_show(struct device *dev, struct device_attribute *attr,
@@ -419,7 +419,7 @@ static ssize_t input_show(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->temp);
+	return sysfs_emit(buf, "%d\n", priv->temp);
 }
 
 static ssize_t therm_show(struct device *dev, struct device_attribute *attr,
@@ -427,7 +427,7 @@ static ssize_t therm_show(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->therm);
+	return sysfs_emit(buf, "%d\n", priv->therm);
 }
 
 static ssize_t therm_store(struct device *dev, struct device_attribute *attr,
@@ -469,7 +469,7 @@ static ssize_t hyst_show(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->hyst);
+	return sysfs_emit(buf, "%d\n", priv->hyst);
 }
 
 static ssize_t hyst_store(struct device *dev, struct device_attribute *attr,
@@ -509,7 +509,7 @@ static ssize_t therm_trip_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->therm_trip);
+	return sysfs_emit(buf, "%d\n", priv->therm_trip);
 }
 
 static ssize_t max_show(struct device *dev, struct device_attribute *attr,
@@ -517,7 +517,7 @@ static ssize_t max_show(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->event_max);
+	return sysfs_emit(buf, "%d\n", priv->event_max);
 }
 
 static ssize_t max_store(struct device *dev, struct device_attribute *attr,
@@ -551,7 +551,7 @@ static ssize_t min_show(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", priv->event_min);
+	return sysfs_emit(buf, "%d\n", priv->event_min);
 }
 
 static ssize_t min_store(struct device *dev, struct device_attribute *attr,
@@ -585,8 +585,8 @@ static ssize_t interval_show(struct device *dev,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			stts751_intervals[priv->interval]);
+	return sysfs_emit(buf, "%d\n",
+			  stts751_intervals[priv->interval]);
 }
 
 static ssize_t interval_store(struct device *dev,
