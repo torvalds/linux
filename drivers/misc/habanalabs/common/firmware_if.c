@@ -11,10 +11,40 @@
 #include <linux/firmware.h>
 #include <linux/crc32.h>
 #include <linux/slab.h>
+#include <linux/ctype.h>
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
 #define FW_CPU_STATUS_POLL_INTERVAL_USEC	10000
+
+static char *extract_fw_ver_from_str(const char *fw_str)
+{
+	char *str, *fw_ver, *whitespace;
+
+	fw_ver = kmalloc(16, GFP_KERNEL);
+	if (!fw_ver)
+		return NULL;
+
+	str = strnstr(fw_str, "fw-", VERSION_MAX_LEN);
+	if (!str)
+		goto free_fw_ver;
+
+	/* Skip the fw- part */
+	str += 3;
+
+	/* Copy until the next whitespace */
+	whitespace =  strnstr(str, " ", 15);
+	if (!whitespace)
+		goto free_fw_ver;
+
+	strscpy(fw_ver, str, whitespace - str + 1);
+
+	return fw_ver;
+
+free_fw_ver:
+	kfree(fw_ver);
+	return NULL;
+}
 
 static int hl_request_fw(struct hl_device *hdev,
 				const struct firmware **firmware_p,
@@ -573,8 +603,9 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet pkt = {};
-	void *cpucp_info_cpu_addr;
 	dma_addr_t cpucp_info_dma_addr;
+	void *cpucp_info_cpu_addr;
+	char *kernel_ver;
 	u64 result;
 	int rc;
 
@@ -619,6 +650,12 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 			"Failed to build hwmon channel info, error %d\n", rc);
 		rc = -EFAULT;
 		goto out;
+	}
+
+	kernel_ver = extract_fw_ver_from_str(prop->cpucp_info.kernel_version);
+	if (kernel_ver) {
+		dev_info(hdev->dev, "Linux version %s", kernel_ver);
+		kfree(kernel_ver);
 	}
 
 	/* assume EQ code doesn't need to check eqe index */
@@ -1066,24 +1103,26 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 static int hl_fw_static_read_device_fw_version(struct hl_device *hdev,
 					enum hl_fw_component fwc)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
 	struct static_fw_load_mgr *static_loader;
-	const char *name;
+	char *dest, *boot_ver, *preboot_ver;
 	u32 ver_off, limit;
-	char *dest;
+	const char *name;
+	char btl_ver[32];
 
 	static_loader = &hdev->fw_loader.static_loader;
 
 	switch (fwc) {
 	case FW_COMP_BOOT_FIT:
 		ver_off = RREG32(static_loader->boot_fit_version_offset_reg);
-		dest = hdev->asic_prop.uboot_ver;
+		dest = prop->uboot_ver;
 		name = "Boot-fit";
 		limit = static_loader->boot_fit_version_max_off;
 		break;
 	case FW_COMP_PREBOOT:
 		ver_off = RREG32(static_loader->preboot_version_offset_reg);
-		dest = hdev->asic_prop.preboot_ver;
+		dest = prop->preboot_ver;
 		name = "Preboot";
 		limit = static_loader->preboot_version_max_off;
 		break;
@@ -1103,6 +1142,30 @@ static int hl_fw_static_read_device_fw_version(struct hl_device *hdev,
 								name, ver_off);
 		strscpy(dest, "unavailable", VERSION_MAX_LEN);
 		return -EIO;
+	}
+
+	if (fwc == FW_COMP_BOOT_FIT) {
+		boot_ver = extract_fw_ver_from_str(prop->uboot_ver);
+		if (boot_ver) {
+			dev_info(hdev->dev, "boot-fit version %s\n", boot_ver);
+			kfree(boot_ver);
+		}
+	} else if (fwc == FW_COMP_PREBOOT) {
+		preboot_ver = strnstr(prop->preboot_ver, "Preboot",
+						VERSION_MAX_LEN);
+		if (preboot_ver && preboot_ver != prop->preboot_ver) {
+			strscpy(btl_ver, prop->preboot_ver,
+				min((int) (preboot_ver - prop->preboot_ver),
+									31));
+			dev_info(hdev->dev, "%s\n", btl_ver);
+		}
+
+		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
+		if (preboot_ver) {
+			dev_info(hdev->dev, "preboot version %s\n",
+								preboot_ver);
+			kfree(preboot_ver);
+		}
 	}
 
 	return 0;
@@ -1691,21 +1754,43 @@ static void hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 					enum hl_fw_component fwc,
 					const char *fw_version)
 {
-	char *dest;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	char *preboot_ver, *boot_ver;
+	char btl_ver[32];
 
 	switch (fwc) {
 	case FW_COMP_BOOT_FIT:
-		dest = hdev->asic_prop.uboot_ver;
+		strscpy(prop->uboot_ver, fw_version, VERSION_MAX_LEN);
+		boot_ver = extract_fw_ver_from_str(prop->uboot_ver);
+		if (boot_ver) {
+			dev_info(hdev->dev, "boot-fit version %s\n", boot_ver);
+			kfree(boot_ver);
+		}
+
 		break;
 	case FW_COMP_PREBOOT:
-		dest = hdev->asic_prop.preboot_ver;
+		strscpy(prop->preboot_ver, fw_version, VERSION_MAX_LEN);
+		preboot_ver = strnstr(prop->preboot_ver, "Preboot",
+						VERSION_MAX_LEN);
+		if (preboot_ver && preboot_ver != prop->preboot_ver) {
+			strscpy(btl_ver, prop->preboot_ver,
+				min((int) (preboot_ver - prop->preboot_ver),
+									31));
+			dev_info(hdev->dev, "%s\n", btl_ver);
+		}
+
+		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
+		if (preboot_ver) {
+			dev_info(hdev->dev, "preboot version %s\n",
+								preboot_ver);
+			kfree(preboot_ver);
+		}
+
 		break;
 	default:
 		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
 		return;
 	}
-
-	strscpy(dest, fw_version, VERSION_MAX_LEN);
 }
 
 /**
