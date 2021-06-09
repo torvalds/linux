@@ -23,9 +23,11 @@
  * SOFTWARE.
  *
  **********************************************************/
-#ifndef _VM_BASIC_TYPES_H_
-#define _VM_BASIC_TYPES_H_
+#ifndef _SVGA_TYPES_H_
+#define _SVGA_TYPES_H_
 #include <linux/kernel.h>
+#include <linux/mm.h>
+#include <asm/page.h>
 
 typedef u32 uint32;
 typedef s32 int32;
@@ -47,5 +49,91 @@ typedef bool Bool;
 #define MAX_UINT16 U16_MAX
 
 #define CONST64U(x) x##ULL
+
+/*
+ * MKS Guest Stats types
+ */
+
+typedef struct MKSGuestStatCounter {
+	atomic64_t count;
+} MKSGuestStatCounter;
+
+typedef struct MKSGuestStatCounterTime {
+	MKSGuestStatCounter counter;
+	atomic64_t selfCycles;
+	atomic64_t totalCycles;
+} MKSGuestStatCounterTime;
+
+/*
+ * Flags for MKSGuestStatInfoEntry::flags below
+ */
+
+#define MKS_GUEST_STAT_FLAG_NONE    0
+#define MKS_GUEST_STAT_FLAG_TIME    (1U << 0)
+
+typedef __attribute__((aligned(32))) struct MKSGuestStatInfoEntry {
+	union {
+		const char *s;
+		uint64 u;
+	} name;
+	union {
+		const char *s;
+		uint64 u;
+	} description;
+	uint64 flags;
+	union {
+		MKSGuestStatCounter *counter;
+		MKSGuestStatCounterTime *counterTime;
+		uint64 u;
+	} stat;
+} MKSGuestStatInfoEntry;
+
+#define INVALID_PPN64       ((PPN64)0x000fffffffffffffULL)
+#define vmw_num_pages(size) (PAGE_ALIGN(size) >> PAGE_SHIFT)
+
+#define MKS_GUEST_STAT_INSTANCE_DESC_LENGTH 1024
+#define MKS_GUEST_STAT_INSTANCE_MAX_STATS   4096
+#define MKS_GUEST_STAT_INSTANCE_MAX_STAT_PPNS                \
+	(vmw_num_pages(MKS_GUEST_STAT_INSTANCE_MAX_STATS *   \
+		sizeof(MKSGuestStatCounterTime)))
+#define MKS_GUEST_STAT_INSTANCE_MAX_INFO_PPNS                \
+	(vmw_num_pages(MKS_GUEST_STAT_INSTANCE_MAX_STATS *   \
+		sizeof(MKSGuestStatInfoEntry)))
+#define MKS_GUEST_STAT_AVERAGE_NAME_LENGTH  40
+#define MKS_GUEST_STAT_INSTANCE_MAX_STRS_PPNS                \
+	(vmw_num_pages(MKS_GUEST_STAT_INSTANCE_MAX_STATS *   \
+		MKS_GUEST_STAT_AVERAGE_NAME_LENGTH))
+
+/*
+ * The MKSGuestStatInstanceDescriptor is used as main interface to
+ * communicate guest stats back to the host code.  The guest must
+ * allocate an instance of this structure at the start of a page and
+ * provide the physical address to the host.  From there the host code
+ * can walk this structure to find other (pinned) pages containing the
+ * stats data.
+ *
+ * Since the MKSGuestStatInfoEntry structures contain userlevel
+ * pointers, the InstanceDescriptor also contains pointers to the
+ * begining of these sections allowing the host side code to correctly
+ * interpret the pointers.
+ *
+ * Because the host side code never acknowledges anything back to the
+ * guest there is no strict requirement to maintain compatability
+ * across releases.  If the interface changes the host might not be
+ * able to log stats, but the guest will continue to run normally.
+ */
+
+typedef struct MKSGuestStatInstanceDescriptor {
+	uint64 reservedMBZ; /* must be zero for now. */
+	uint64 statStartVA; /* VA of the start of the stats section. */
+	uint64 strsStartVA; /* VA of the start of the strings section. */
+	uint64 statLength;  /* length of the stats section in bytes. */
+	uint64 infoLength;  /* length of the info entry section in bytes. */
+	uint64 strsLength;  /* length of the strings section in bytes. */
+	PPN64  statPPNs[MKS_GUEST_STAT_INSTANCE_MAX_STAT_PPNS]; /* stat counters */
+	PPN64  infoPPNs[MKS_GUEST_STAT_INSTANCE_MAX_INFO_PPNS]; /* stat info */
+	PPN64  strsPPNs[MKS_GUEST_STAT_INSTANCE_MAX_STRS_PPNS]; /* strings */
+	char   description[MKS_GUEST_STAT_INSTANCE_DESC_LENGTH];
+} MKSGuestStatInstanceDescriptor;
 
 #endif

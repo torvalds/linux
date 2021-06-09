@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2021 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -90,6 +90,9 @@
 #define VMW_RES_STREAM ttm_driver_type2
 #define VMW_RES_FENCE ttm_driver_type3
 #define VMW_RES_SHADER ttm_driver_type4
+
+#define MKSSTAT_CAPACITY_LOG2 5U
+#define MKSSTAT_CAPACITY (1U << MKSSTAT_CAPACITY_LOG2)
 
 struct vmw_fpriv {
 	struct ttm_object_file *tfile;
@@ -630,6 +633,18 @@ struct vmw_private {
 	struct vmw_validation_mem vvm;
 
 	uint32 *devcaps;
+
+	/*
+	 * mksGuestStat instance-descriptor and pid arrays
+	 */
+	struct page *mksstat_user_pages[MKSSTAT_CAPACITY];
+	atomic_t mksstat_user_pids[MKSSTAT_CAPACITY];
+
+#if IS_ENABLED(CONFIG_DRM_VMWGFX_MKSSTATS)
+	struct page *mksstat_kern_pages[MKSSTAT_CAPACITY];
+	u8 mksstat_kern_top_timer[MKSSTAT_CAPACITY];
+	atomic_t mksstat_kern_pids[MKSSTAT_CAPACITY];
+#endif
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -1502,6 +1517,17 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 __printf(1, 2) int vmw_host_printf(const char *fmt, ...);
 int vmw_msg_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv);
+
+/* Host mksGuestStats -vmwgfx_msg.c: */
+int vmw_mksstat_get_kern_slot(pid_t pid, struct vmw_private *dev_priv);
+
+int vmw_mksstat_reset_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+int vmw_mksstat_remove_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+int vmw_mksstat_remove_all(struct vmw_private *dev_priv);
 
 /* VMW logging */
 

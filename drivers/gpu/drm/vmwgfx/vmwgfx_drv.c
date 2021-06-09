@@ -43,6 +43,7 @@
 #include "vmwgfx_binding.h"
 #include "vmwgfx_devcaps.h"
 #include "vmwgfx_drv.h"
+#include "vmwgfx_mksstat.h"
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 
@@ -148,6 +149,14 @@
 #define DRM_IOCTL_VMW_MSG						\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_MSG,			\
 		struct drm_vmw_msg_arg)
+#define DRM_IOCTL_VMW_MKSSTAT_RESET				\
+	DRM_IO(DRM_COMMAND_BASE + DRM_VMW_MKSSTAT_RESET)
+#define DRM_IOCTL_VMW_MKSSTAT_ADD				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_MKSSTAT_ADD,	\
+		struct drm_vmw_mksstat_add_arg)
+#define DRM_IOCTL_VMW_MKSSTAT_REMOVE				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_MKSSTAT_REMOVE,	\
+		struct drm_vmw_mksstat_remove_arg)
 
 /*
  * The core DRM version of this macro doesn't account for
@@ -243,6 +252,15 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_MSG,
 		      vmw_msg_ioctl,
+		      DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_MKSSTAT_RESET,
+		      vmw_mksstat_reset_ioctl,
+		      DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_MKSSTAT_ADD,
+		      vmw_mksstat_add_ioctl,
+		      DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_MKSSTAT_REMOVE,
+		      vmw_mksstat_remove_ioctl,
 		      DRM_RENDER_ALLOW),
 };
 
@@ -1136,6 +1154,8 @@ static void vmw_driver_unload(struct drm_device *dev)
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
 		idr_destroy(&dev_priv->res_idr[i]);
+
+	vmw_mksstat_remove_all(dev_priv);
 
 	pci_release_regions(pdev);
 }
