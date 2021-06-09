@@ -537,7 +537,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 	p = strchrnul(new_setting, '\n');
 	*p = '\0';
 
-	if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password) {
+	if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password[0]) {
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s,%s;",
 				tlmi_priv.pwd_admin->password,
 				encoding_options[tlmi_priv.pwd_admin->encoding],
@@ -563,7 +563,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 	if (ret)
 		goto out;
 
-	if (tlmi_priv.pwd_admin->valid && tlmi_priv.pwd_admin->password)
+	if (auth_str)
 		ret = tlmi_save_bios_settings(auth_str);
 	else
 		ret = tlmi_save_bios_settings("");
