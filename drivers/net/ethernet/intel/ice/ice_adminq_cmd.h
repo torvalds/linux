@@ -108,6 +108,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_TXQS				0x0042
 #define ICE_AQC_CAPS_MSIX				0x0043
 #define ICE_AQC_CAPS_FD					0x0045
+#define ICE_AQC_CAPS_1588				0x0046
 #define ICE_AQC_CAPS_MAX_MTU				0x0047
 #define ICE_AQC_CAPS_NVM_VER				0x0048
 #define ICE_AQC_CAPS_PENDING_NVM_VER			0x0049
