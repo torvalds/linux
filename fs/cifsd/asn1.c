@@ -18,8 +18,8 @@
 #include "asn1.h"
 #include "connection.h"
 #include "auth.h"
-#include "spnego_negtokeninit.asn1.h"
-#include "spnego_negtokentarg.asn1.h"
+#include "ksmbd_spnego_negtokeninit.asn1.h"
+#include "ksmbd_spnego_negtokentarg.asn1.h"
 
 #define SPNEGO_OID_LEN 7
 #define NTLMSSP_OID_LEN  10
@@ -119,7 +119,7 @@ int
 ksmbd_decode_negTokenInit(unsigned char *security_blob, int length,
 			  struct ksmbd_conn *conn)
 {
-	return asn1_ber_decoder(&spnego_negtokeninit_decoder, conn,
+	return asn1_ber_decoder(&ksmbd_spnego_negtokeninit_decoder, conn,
 				security_blob, length);
 }
 
@@ -127,7 +127,7 @@ int
 ksmbd_decode_negTokenTarg(unsigned char *security_blob, int length,
 			  struct ksmbd_conn *conn)
 {
-	return asn1_ber_decoder(&spnego_negtokentarg_decoder, conn,
+	return asn1_ber_decoder(&ksmbd_spnego_negtokentarg_decoder, conn,
 				security_blob, length);
 }
 
@@ -248,8 +248,8 @@ int build_spnego_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 	return 0;
 }
 
-int gssapi_this_mech(void *context, size_t hdrlen, unsigned char tag,
-		     const void *value, size_t vlen)
+int ksmbd_gssapi_this_mech(void *context, size_t hdrlen, unsigned char tag,
+			   const void *value, size_t vlen)
 {
 	unsigned long *oid;
 	size_t oidlen;
@@ -273,8 +273,9 @@ out:
 	return err;
 }
 
-int neg_token_init_mech_type(void *context, size_t hdrlen, unsigned char tag,
-			     const void *value, size_t vlen)
+int ksmbd_neg_token_init_mech_type(void *context, size_t hdrlen,
+				   unsigned char tag, const void *value,
+				   size_t vlen)
 {
 	struct ksmbd_conn *conn = context;
 	unsigned long *oid;
@@ -310,8 +311,9 @@ fail:
 	return -EBADMSG;
 }
 
-int neg_token_init_mech_token(void *context, size_t hdrlen, unsigned char tag,
-			      const void *value, size_t vlen)
+int ksmbd_neg_token_init_mech_token(void *context, size_t hdrlen,
+				    unsigned char tag, const void *value,
+				    size_t vlen)
 {
 	struct ksmbd_conn *conn = context;
 
@@ -324,8 +326,9 @@ int neg_token_init_mech_token(void *context, size_t hdrlen, unsigned char tag,
 	return 0;
 }
 
-int neg_token_targ_resp_token(void *context, size_t hdrlen, unsigned char tag,
-			      const void *value, size_t vlen)
+int ksmbd_neg_token_targ_resp_token(void *context, size_t hdrlen,
+				    unsigned char tag, const void *value,
+				    size_t vlen)
 {
 	struct ksmbd_conn *conn = context;
 
