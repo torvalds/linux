@@ -13,7 +13,7 @@ NegTokenTarg ::=
 		supportedMech
 			[1] OBJECT IDENTIFIER OPTIONAL,
 		responseToken
-			[2] OCTET STRING OPTIONAL ({neg_token_targ_resp_token}),
+			[2] OCTET STRING OPTIONAL ({ksmbd_neg_token_targ_resp_token}),
 		mechListMIC
 			[3] OCTET STRING OPTIONAL
 	}
