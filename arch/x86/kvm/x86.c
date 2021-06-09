@@ -4532,7 +4532,7 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	memset(&events->reserved, 0, sizeof(events->reserved));
 }
 
-static void kvm_smm_changed(struct kvm_vcpu *vcpu);
+static void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm);
 
 static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 					      struct kvm_vcpu_events *events)
@@ -4592,13 +4592,8 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 		vcpu->arch.apic->sipi_vector = events->sipi_vector;
 
 	if (events->flags & KVM_VCPUEVENT_VALID_SMM) {
-		if (!!(vcpu->arch.hflags & HF_SMM_MASK) != events->smi.smm) {
-			if (events->smi.smm)
-				vcpu->arch.hflags |= HF_SMM_MASK;
-			else
-				vcpu->arch.hflags &= ~HF_SMM_MASK;
-			kvm_smm_changed(vcpu);
-		}
+		if (!!(vcpu->arch.hflags & HF_SMM_MASK) != events->smi.smm)
+			kvm_smm_changed(vcpu, events->smi.smm);
 
 		vcpu->arch.smi_pending = events->smi.pending;
 
@@ -7218,8 +7213,7 @@ static void emulator_exiting_smm(struct x86_emulate_ctxt *ctxt)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 
-	vcpu->arch.hflags &= ~(HF_SMM_MASK | HF_SMM_INSIDE_NMI_MASK);
-	kvm_smm_changed(vcpu);
+	kvm_smm_changed(vcpu, false);
 }
 
 static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
@@ -7548,9 +7542,13 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 static int complete_emulated_mmio(struct kvm_vcpu *vcpu);
 static int complete_emulated_pio(struct kvm_vcpu *vcpu);
 
-static void kvm_smm_changed(struct kvm_vcpu *vcpu)
+static void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
 {
-	if (!(vcpu->arch.hflags & HF_SMM_MASK)) {
+	if (entering_smm) {
+		vcpu->arch.hflags |= HF_SMM_MASK;
+	} else {
+		vcpu->arch.hflags &= ~(HF_SMM_MASK | HF_SMM_INSIDE_NMI_MASK);
+
 		/* This is a good place to trace that we are exiting SMM.  */
 		trace_kvm_enter_smm(vcpu->vcpu_id, vcpu->arch.smbase, false);
 
@@ -9022,7 +9020,7 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 	 */
 	static_call(kvm_x86_pre_enter_smm)(vcpu, buf);
 
-	vcpu->arch.hflags |= HF_SMM_MASK;
+	kvm_smm_changed(vcpu, true);
 	kvm_vcpu_write_guest(vcpu, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf));
 
 	if (static_call(kvm_x86_get_nmi_mask)(vcpu))
