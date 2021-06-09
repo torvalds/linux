@@ -217,6 +217,7 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 /* Verify each defined memory region is valid. */
 static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 {
+	DECLARE_BITMAP(regions, IPA_MEM_COUNT) = { };
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id;
 
@@ -228,6 +229,14 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 
 	for (mem_id = 0; mem_id < mem_data->local_count; mem_id++) {
 		const struct ipa_mem *mem = &mem_data->local[mem_id];
+
+		if (mem_id == IPA_MEM_UNDEFINED)
+			continue;
+
+		if (__test_and_set_bit(mem->id, regions)) {
+			dev_err(dev, "duplicate memory region %u\n", mem->id);
+			return false;
+		}
 
 		/* Defined regions have non-zero size and/or canary count */
 		if (mem->size || mem->canary_count) {
