@@ -1219,7 +1219,7 @@ static int ucsi_init(struct ucsi *ucsi)
 		goto err_reset;
 	}
 
-	/* Allocate the connectors. Released in ucsi_unregister_ppm() */
+	/* Allocate the connectors. Released in ucsi_unregister() */
 	ucsi->connector = kcalloc(ucsi->cap.num_connectors + 1,
 				  sizeof(*ucsi->connector), GFP_KERNEL);
 	if (!ucsi->connector) {
