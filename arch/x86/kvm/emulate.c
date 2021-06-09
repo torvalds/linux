@@ -2574,11 +2574,11 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	}
 
 	/*
-	 * Give pre_leave_smm() a chance to make ISA-specific changes to the
-	 * vCPU state (e.g. enter guest mode) before loading state from the SMM
+	 * Give leave_smm() a chance to make ISA-specific changes to the vCPU
+	 * state (e.g. enter guest mode) before loading state from the SMM
 	 * state-save area.
 	 */
-	if (ctxt->ops->pre_leave_smm(ctxt, buf))
+	if (ctxt->ops->leave_smm(ctxt, buf))
 		goto emulate_shutdown;
 
 #ifdef CONFIG_X86_64

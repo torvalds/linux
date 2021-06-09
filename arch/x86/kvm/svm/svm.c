@@ -4258,7 +4258,7 @@ static int svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 	return !svm_smi_blocked(vcpu);
 }
 
-static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
+static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
@@ -4280,7 +4280,7 @@ static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 	return 0;
 }
 
-static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
+static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_host_map map;
@@ -4555,8 +4555,8 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.setup_mce = svm_setup_mce,
 
 	.smi_allowed = svm_smi_allowed,
-	.pre_enter_smm = svm_pre_enter_smm,
-	.pre_leave_smm = svm_pre_leave_smm,
+	.enter_smm = svm_enter_smm,
+	.leave_smm = svm_leave_smm,
 	.enable_smi_window = svm_enable_smi_window,
 
 	.mem_enc_op = svm_mem_enc_op,

@@ -7216,10 +7216,10 @@ static void emulator_exiting_smm(struct x86_emulate_ctxt *ctxt)
 	kvm_smm_changed(vcpu, false);
 }
 
-static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt,
+static int emulator_leave_smm(struct x86_emulate_ctxt *ctxt,
 				  const char *smstate)
 {
-	return static_call(kvm_x86_pre_leave_smm)(emul_to_vcpu(ctxt), smstate);
+	return static_call(kvm_x86_leave_smm)(emul_to_vcpu(ctxt), smstate);
 }
 
 static void emulator_triple_fault(struct x86_emulate_ctxt *ctxt)
@@ -7274,7 +7274,7 @@ static const struct x86_emulate_ops emulate_ops = {
 	.set_nmi_mask        = emulator_set_nmi_mask,
 	.get_hflags          = emulator_get_hflags,
 	.exiting_smm         = emulator_exiting_smm,
-	.pre_leave_smm       = emulator_pre_leave_smm,
+	.leave_smm           = emulator_leave_smm,
 	.triple_fault        = emulator_triple_fault,
 	.set_xcr             = emulator_set_xcr,
 };
@@ -9006,11 +9006,11 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 		enter_smm_save_state_32(vcpu, buf);
 
 	/*
-	 * Give pre_enter_smm() a chance to make ISA-specific changes to the
-	 * vCPU state (e.g. leave guest mode) after we've saved the state into
-	 * the SMM state-save area.
+	 * Give enter_smm() a chance to make ISA-specific changes to the vCPU
+	 * state (e.g. leave guest mode) after we've saved the state into the
+	 * SMM state-save area.
 	 */
-	static_call(kvm_x86_pre_enter_smm)(vcpu, buf);
+	static_call(kvm_x86_enter_smm)(vcpu, buf);
 
 	kvm_smm_changed(vcpu, true);
 	kvm_vcpu_write_guest(vcpu, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf));
