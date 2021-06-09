@@ -5,7 +5,50 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
+#include <linux/pci.h>
 #include "cxl.h"
+
+struct cxl_walk_context {
+	struct device *dev;
+	struct pci_bus *root;
+	struct cxl_port *port;
+	int error;
+	int count;
+};
+
+static int match_add_root_ports(struct pci_dev *pdev, void *data)
+{
+	struct cxl_walk_context *ctx = data;
+	struct pci_bus *root_bus = ctx->root;
+	struct cxl_port *port = ctx->port;
+	int type = pci_pcie_type(pdev);
+	struct device *dev = ctx->dev;
+	u32 lnkcap, port_num;
+	int rc;
+
+	if (pdev->bus != root_bus)
+		return 0;
+	if (!pci_is_pcie(pdev))
+		return 0;
+	if (type != PCI_EXP_TYPE_ROOT_PORT)
+		return 0;
+	if (pci_read_config_dword(pdev, pci_pcie_cap(pdev) + PCI_EXP_LNKCAP,
+				  &lnkcap) != PCIBIOS_SUCCESSFUL)
+		return 0;
+
+	/* TODO walk DVSEC to find component register base */
+	port_num = FIELD_GET(PCI_EXP_LNKCAP_PN, lnkcap);
+	rc = cxl_add_dport(port, &pdev->dev, port_num, CXL_RESOURCE_NONE);
+	if (rc) {
+		ctx->error = rc;
+		return rc;
+	}
+	ctx->count++;
+
+	dev_dbg(dev, "add dport%d: %s\n", port_num, dev_name(&pdev->dev));
+
+	return 0;
+}
 
 static struct acpi_device *to_cxl_host_bridge(struct device *dev)
 {
@@ -14,6 +57,44 @@ static struct acpi_device *to_cxl_host_bridge(struct device *dev)
 	if (strcmp(acpi_device_hid(adev), "ACPI0016") == 0)
 		return adev;
 	return NULL;
+}
+
+/*
+ * A host bridge is a dport to a CFMWS decode and it is a uport to the
+ * dport (PCIe Root Ports) in the host bridge.
+ */
+static int add_host_bridge_uport(struct device *match, void *arg)
+{
+	struct acpi_device *bridge = to_cxl_host_bridge(match);
+	struct cxl_port *root_port = arg;
+	struct device *host = root_port->dev.parent;
+	struct acpi_pci_root *pci_root;
+	struct cxl_walk_context ctx;
+	struct cxl_port *port;
+
+	if (!bridge)
+		return 0;
+
+	pci_root = acpi_pci_find_root(bridge->handle);
+	if (!pci_root)
+		return -ENXIO;
+
+	/* TODO: fold in CEDT.CHBS retrieval */
+	port = devm_cxl_add_port(host, match, CXL_RESOURCE_NONE, root_port);
+	if (IS_ERR(port))
+		return PTR_ERR(port);
+	dev_dbg(host, "%s: add: %s\n", dev_name(match), dev_name(&port->dev));
+
+	ctx = (struct cxl_walk_context){
+		.dev = host,
+		.root = pci_root->bus,
+		.port = port,
+	};
+	pci_walk_bus(pci_root->bus, match_add_root_ports, &ctx);
+
+	if (ctx.count == 0)
+		return -ENODEV;
+	return ctx.error;
 }
 
 static int add_host_bridge_dport(struct device *match, void *arg)
@@ -48,6 +129,7 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 
 static int cxl_acpi_probe(struct platform_device *pdev)
 {
+	int rc;
 	struct cxl_port *root_port;
 	struct device *host = &pdev->dev;
 	struct acpi_device *adev = ACPI_COMPANION(host);
@@ -57,8 +139,17 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 		return PTR_ERR(root_port);
 	dev_dbg(host, "add: %s\n", dev_name(&root_port->dev));
 
+	rc = bus_for_each_dev(adev->dev.bus, NULL, root_port,
+			      add_host_bridge_dport);
+	if (rc)
+		return rc;
+
+	/*
+	 * Root level scanned with host-bridge as dports, now scan host-bridges
+	 * for their role as CXL uports to their CXL-capable PCIe Root Ports.
+	 */
 	return bus_for_each_dev(adev->dev.bus, NULL, root_port,
-				add_host_bridge_dport);
+				add_host_bridge_uport);
 }
 
 static const struct acpi_device_id cxl_acpi_ids[] = {
