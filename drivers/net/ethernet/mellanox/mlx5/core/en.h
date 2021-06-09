@@ -79,6 +79,11 @@ struct page_pool;
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define MLX5E_RX_MAX_HEAD (256)
+#define MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE (9)
+#define MLX5E_SHAMPO_WQ_HEADER_PER_PAGE (PAGE_SIZE >> MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE)
+#define MLX5E_SHAMPO_WQ_BASE_HEAD_ENTRY_SIZE (64)
+#define MLX5E_SHAMPO_WQ_RESRV_SIZE (64 * 1024)
+#define MLX5E_SHAMPO_WQ_BASE_RESRV_SIZE (4096)
 
 #define MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev) \
 	(6 + MLX5_CAP_GEN(mdev, cache_line_128byte)) /* HW restriction */
@@ -273,6 +278,10 @@ enum packet_merge {
 struct mlx5e_packet_merge_param {
 	enum packet_merge type;
 	u32 timeout;
+	struct {
+		u8 match_criteria_type;
+		u8 alignment_granularity;
+	} shampo;
 };
 
 struct mlx5e_params {
@@ -319,7 +328,8 @@ enum {
 	MLX5E_RQ_STATE_NO_CSUM_COMPLETE,
 	MLX5E_RQ_STATE_CSUM_FULL, /* cqe_csum_full hw bit is set */
 	MLX5E_RQ_STATE_FPGA_TLS, /* FPGA TLS enabled */
-	MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX /* set when mini_cqe_resp_stride_index cap is used */
+	MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX, /* set when mini_cqe_resp_stride_index cap is used */
+	MLX5E_RQ_STATE_SHAMPO, /* set when SHAMPO cap is used */
 };
 
 struct mlx5e_cq {
@@ -610,6 +620,7 @@ typedef struct sk_buff *
 			 struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
 typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
+typedef void (*mlx5e_fp_shampo_dealloc_hd)(struct mlx5e_rq*, u16, u16, bool);
 
 int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk);
 void mlx5e_rq_set_trap_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params);
@@ -629,6 +640,19 @@ struct mlx5e_rq_frags_info {
 	u8 num_frags;
 	u8 log_num_frags;
 	u8 wqe_bulk;
+};
+
+struct mlx5e_shampo_hd {
+	struct mlx5_core_mkey mkey;
+	struct mlx5e_dma_info *info;
+	struct page *last_page;
+	u16 hd_per_wq;
+	u16 hd_per_wqe;
+	unsigned long *bitmap;
+	u16 pi;
+	u16 ci;
+	__be32 key;
+	u64 last_addr;
 };
 
 struct mlx5e_rq {
@@ -652,6 +676,7 @@ struct mlx5e_rq {
 			u8                     umr_in_progress;
 			u8                     umr_last_bulk;
 			u8                     umr_completed;
+			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};
 	struct {
@@ -947,6 +972,7 @@ void mlx5e_build_ptys2ethtool_map(void);
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev);
 
+void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
 

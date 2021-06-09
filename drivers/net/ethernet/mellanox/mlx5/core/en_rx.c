@@ -558,6 +558,44 @@ err:
 	return err;
 }
 
+/* This function is responsible to dealloc SHAMPO header buffer.
+ * close == true specifies that we are in the middle of closing RQ operation so
+ * we go over all the entries and if they are not in use we free them,
+ * otherwise we only go over a specific range inside the header buffer that are
+ * not in use.
+ */
+void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close)
+{
+	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+	int hd_per_wq = shampo->hd_per_wq;
+	struct page *deleted_page = NULL;
+	struct mlx5e_dma_info *hd_info;
+	int i, index = start;
+
+	for (i = 0; i < len; i++, index++) {
+		if (index == hd_per_wq)
+			index = 0;
+
+		if (close && !test_bit(index, shampo->bitmap))
+			continue;
+
+		hd_info = &shampo->info[index];
+		hd_info->addr = ALIGN_DOWN(hd_info->addr, PAGE_SIZE);
+		if (hd_info->page != deleted_page) {
+			deleted_page = hd_info->page;
+			mlx5e_page_release(rq, hd_info, false);
+		}
+	}
+
+	if (start + len > hd_per_wq) {
+		len -= hd_per_wq - start;
+		bitmap_clear(shampo->bitmap, start, hd_per_wq - start);
+		start = 0;
+	}
+
+	bitmap_clear(shampo->bitmap, start, len);
+}
+
 static void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];

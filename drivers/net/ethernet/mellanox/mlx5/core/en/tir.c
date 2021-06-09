@@ -79,15 +79,21 @@ void mlx5e_tir_builder_build_packet_merge(struct mlx5e_tir_builder *builder,
 	if (builder->modify)
 		MLX5_SET(modify_tir_in, builder->in, bitmask.packet_merge, 1);
 
-	if (pkt_merge_param->type == MLX5E_PACKET_MERGE_NONE)
-		return;
-
-	MLX5_SET(tirc, tirc, packet_merge_mask,
-		 MLX5_TIRC_PACKET_MERGE_MASK_IPV4_LRO |
-		 MLX5_TIRC_PACKET_MERGE_MASK_IPV6_LRO);
-	MLX5_SET(tirc, tirc, lro_max_ip_payload_size,
-		 (MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ - rough_max_l2_l3_hdr_sz) >> 8);
-	MLX5_SET(tirc, tirc, lro_timeout_period_usecs, pkt_merge_param->timeout);
+	switch (pkt_merge_param->type) {
+	case MLX5E_PACKET_MERGE_LRO:
+		MLX5_SET(tirc, tirc, packet_merge_mask,
+			 MLX5_TIRC_PACKET_MERGE_MASK_IPV4_LRO |
+			 MLX5_TIRC_PACKET_MERGE_MASK_IPV6_LRO);
+		MLX5_SET(tirc, tirc, lro_max_ip_payload_size,
+			 (MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ - rough_max_l2_l3_hdr_sz) >> 8);
+		MLX5_SET(tirc, tirc, lro_timeout_period_usecs, pkt_merge_param->timeout);
+		break;
+	case MLX5E_PACKET_MERGE_SHAMPO:
+		MLX5_SET(tirc, tirc, packet_merge_mask, MLX5_TIRC_PACKET_MERGE_MASK_SHAMPO);
+		break;
+	default:
+		break;
+	}
 }
 
 static int mlx5e_hfunc_to_hw(u8 hfunc)
