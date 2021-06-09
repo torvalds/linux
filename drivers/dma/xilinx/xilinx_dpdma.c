@@ -916,7 +916,7 @@ static u32 xilinx_dpdma_chan_ostand(struct xilinx_dpdma_chan *chan)
 }
 
 /**
- * xilinx_dpdma_chan_no_ostand - Notify no outstanding transaction event
+ * xilinx_dpdma_chan_notify_no_ostand - Notify no outstanding transaction event
  * @chan: DPDMA channel
  *
  * Notify waiters for no outstanding event, so waiters can stop the channel
