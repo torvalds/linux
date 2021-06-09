@@ -43,6 +43,7 @@ struct ipa_mem_data;
 
 /* IPA-resident memory region ids */
 enum ipa_mem_id {
+	IPA_MEM_UNDEFINED = 0,		/* undefined region */
 	IPA_MEM_UC_SHARED,		/* 0 canaries */
 	IPA_MEM_UC_INFO,		/* 0 canaries */
 	IPA_MEM_V4_FILTER_HASHED,	/* 2 canaries */
@@ -54,32 +55,36 @@ enum ipa_mem_id {
 	IPA_MEM_V6_ROUTE_HASHED,	/* 2 canaries */
 	IPA_MEM_V6_ROUTE,		/* 2 canaries */
 	IPA_MEM_MODEM_HEADER,		/* 2 canaries */
-	IPA_MEM_AP_HEADER,		/* 0 canaries */
+	IPA_MEM_AP_HEADER,		/* 0 canaries, optional */
 	IPA_MEM_MODEM_PROC_CTX,		/* 2 canaries */
 	IPA_MEM_AP_PROC_CTX,		/* 0 canaries */
-	IPA_MEM_NAT_TABLE,		/* 4 canaries (IPA v4.5 and above) */
-	IPA_MEM_PDN_CONFIG,		/* 0/2 canaries (IPA v4.0 and above) */
-	IPA_MEM_STATS_QUOTA_MODEM,	/* 2/4 canaries (IPA v4.0 and above) */
-	IPA_MEM_STATS_QUOTA_AP,		/* 0 canaries (IPA v4.0 and above) */
-	IPA_MEM_STATS_TETHERING,	/* 0 canaries (IPA v4.0 and above) */
+	IPA_MEM_MODEM,			/* 0/2 canaries */
+	IPA_MEM_UC_EVENT_RING,		/* 1 canary, optional */
+	IPA_MEM_PDN_CONFIG,		/* 0/2 canaries (IPA v4.0+) */
+	IPA_MEM_STATS_QUOTA_MODEM,	/* 2/4 canaries (IPA v4.0+) */
+	IPA_MEM_STATS_QUOTA_AP,		/* 0 canaries, optional (IPA v4.0+) */
+	IPA_MEM_STATS_TETHERING,	/* 0 canaries (IPA v4.0+) */
+	IPA_MEM_STATS_DROP,		/* 0 canaries, optional (IPA v4.0+) */
+	/* The next 5 filter and route statistics regions are optional */
 	IPA_MEM_STATS_V4_FILTER,	/* 0 canaries (IPA v4.0-v4.2) */
 	IPA_MEM_STATS_V6_FILTER,	/* 0 canaries (IPA v4.0-v4.2) */
 	IPA_MEM_STATS_V4_ROUTE,		/* 0 canaries (IPA v4.0-v4.2) */
 	IPA_MEM_STATS_V6_ROUTE,		/* 0 canaries (IPA v4.0-v4.2) */
-	IPA_MEM_STATS_FILTER_ROUTE,	/* 0 canaries (IPA v4.5 and above) */
-	IPA_MEM_STATS_DROP,		/* 0 canaries (IPA v4.0 and above) */
-	IPA_MEM_MODEM,			/* 0/2 canaries */
-	IPA_MEM_UC_EVENT_RING,		/* 1 canary */
+	IPA_MEM_STATS_FILTER_ROUTE,	/* 0 canaries (IPA v4.5+) */
+	IPA_MEM_NAT_TABLE,		/* 4 canaries, optional (IPA v4.5+) */
+	IPA_MEM_END_MARKER,		/* 1 canary (not a real region) */
 	IPA_MEM_COUNT,			/* Number of regions (not an index) */
 };
 
 /**
  * struct ipa_mem - IPA local memory region description
+ * @id:			memory region identifier
  * @offset:		offset in IPA memory space to base of the region
  * @size:		size in bytes base of the region
  * @canary_count:	Number of 32-bit "canary" values that precede region
  */
 struct ipa_mem {
+	enum ipa_mem_id id;
 	u32 offset;
 	u16 size;
 	u16 canary_count;

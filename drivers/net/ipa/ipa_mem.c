@@ -99,13 +99,102 @@ int ipa_mem_setup(struct ipa *ipa)
 	return 0;
 }
 
-#ifdef IPA_VALIDATE
-
-static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
+/* Is the given memory region ID is valid for the current IPA version? */
+static bool ipa_mem_id_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 {
-	const struct ipa_mem *mem = &ipa->mem[mem_id];
+	enum ipa_version version = ipa->version;
+
+	switch (mem_id) {
+	case IPA_MEM_UC_SHARED:
+	case IPA_MEM_UC_INFO:
+	case IPA_MEM_V4_FILTER_HASHED:
+	case IPA_MEM_V4_FILTER:
+	case IPA_MEM_V6_FILTER_HASHED:
+	case IPA_MEM_V6_FILTER:
+	case IPA_MEM_V4_ROUTE_HASHED:
+	case IPA_MEM_V4_ROUTE:
+	case IPA_MEM_V6_ROUTE_HASHED:
+	case IPA_MEM_V6_ROUTE:
+	case IPA_MEM_MODEM_HEADER:
+	case IPA_MEM_AP_HEADER:
+	case IPA_MEM_MODEM_PROC_CTX:
+	case IPA_MEM_AP_PROC_CTX:
+	case IPA_MEM_MODEM:
+	case IPA_MEM_UC_EVENT_RING:
+	case IPA_MEM_PDN_CONFIG:
+	case IPA_MEM_STATS_QUOTA_MODEM:
+	case IPA_MEM_STATS_QUOTA_AP:
+	case IPA_MEM_END_MARKER:	/* pseudo region */
+		break;
+
+	case IPA_MEM_STATS_TETHERING:
+	case IPA_MEM_STATS_DROP:
+		if (version < IPA_VERSION_4_0)
+			return false;
+		break;
+
+	case IPA_MEM_STATS_V4_FILTER:
+	case IPA_MEM_STATS_V6_FILTER:
+	case IPA_MEM_STATS_V4_ROUTE:
+	case IPA_MEM_STATS_V6_ROUTE:
+		if (version < IPA_VERSION_4_0 || version > IPA_VERSION_4_2)
+			return false;
+		break;
+
+	case IPA_MEM_NAT_TABLE:
+	case IPA_MEM_STATS_FILTER_ROUTE:
+		if (version < IPA_VERSION_4_5)
+			return false;
+		break;
+
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+/* Must the given memory region be present in the configuration? */
+static bool ipa_mem_id_required(struct ipa *ipa, enum ipa_mem_id mem_id)
+{
+	switch (mem_id) {
+	case IPA_MEM_UC_SHARED:
+	case IPA_MEM_UC_INFO:
+	case IPA_MEM_V4_FILTER_HASHED:
+	case IPA_MEM_V4_FILTER:
+	case IPA_MEM_V6_FILTER_HASHED:
+	case IPA_MEM_V6_FILTER:
+	case IPA_MEM_V4_ROUTE_HASHED:
+	case IPA_MEM_V4_ROUTE:
+	case IPA_MEM_V6_ROUTE_HASHED:
+	case IPA_MEM_V6_ROUTE:
+	case IPA_MEM_MODEM_HEADER:
+	case IPA_MEM_MODEM_PROC_CTX:
+	case IPA_MEM_AP_PROC_CTX:
+	case IPA_MEM_MODEM:
+		return true;
+
+	case IPA_MEM_PDN_CONFIG:
+	case IPA_MEM_STATS_QUOTA_MODEM:
+	case IPA_MEM_STATS_TETHERING:
+		return ipa->version >= IPA_VERSION_4_0;
+
+	default:
+		return false;		/* Anything else is optional */
+	}
+}
+
+static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
+{
 	struct device *dev = &ipa->pdev->dev;
+	enum ipa_mem_id mem_id = mem->id;
 	u16 size_multiple;
+
+	/* Make sure the memory region is valid for this version of IPA */
+	if (!ipa_mem_id_valid(ipa, mem_id)) {
+		dev_err(dev, "region id %u not valid\n", mem_id);
+		return false;
+	}
 
 	/* Other than modem memory, sizes must be a multiple of 8 */
 	size_multiple = mem_id == IPA_MEM_MODEM ? 4 : 8;
@@ -117,23 +206,84 @@ static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
 	else if (mem->offset < mem->canary_count * sizeof(__le32))
 		dev_err(dev, "region %u offset too small for %hu canaries\n",
 			mem_id, mem->canary_count);
-	else if (mem->offset + mem->size > ipa->mem_size)
-		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
-			mem_id, ipa->mem_size);
+	else if (mem_id == IPA_MEM_END_MARKER && mem->size)
+		dev_err(dev, "non-zero end marker region size\n");
 	else
 		return true;
 
 	return false;
 }
 
-#else /* !IPA_VALIDATE */
-
-static bool ipa_mem_valid(struct ipa *ipa, enum ipa_mem_id mem_id)
+/* Verify each defined memory region is valid. */
+static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 {
+	DECLARE_BITMAP(regions, IPA_MEM_COUNT) = { };
+	struct device *dev = &ipa->pdev->dev;
+	enum ipa_mem_id mem_id;
+
+	if (mem_data->local_count > IPA_MEM_COUNT) {
+		dev_err(dev, "too many memory regions (%u > %u)\n",
+			mem_data->local_count, IPA_MEM_COUNT);
+		return false;
+	}
+
+	for (mem_id = 0; mem_id < mem_data->local_count; mem_id++) {
+		const struct ipa_mem *mem = &mem_data->local[mem_id];
+
+		if (mem_id == IPA_MEM_UNDEFINED)
+			continue;
+
+		if (__test_and_set_bit(mem->id, regions)) {
+			dev_err(dev, "duplicate memory region %u\n", mem->id);
+			return false;
+		}
+
+		/* Defined regions have non-zero size and/or canary count */
+		if (mem->size || mem->canary_count) {
+			if (ipa_mem_valid_one(ipa, mem))
+				continue;
+			return false;
+		}
+
+		/* It's harmless, but warn if an offset is provided */
+		if (mem->offset)
+			dev_warn(dev, "empty region %u has non-zero offset\n",
+				 mem_id);
+	}
+
+	/* Now see if any required regions are not defined */
+	for (mem_id = find_first_zero_bit(regions, IPA_MEM_COUNT);
+	     mem_id < IPA_MEM_COUNT;
+	     mem_id = find_next_zero_bit(regions, IPA_MEM_COUNT, mem_id + 1)) {
+		if (ipa_mem_id_required(ipa, mem_id))
+			dev_err(dev, "required memory region %u missing\n",
+				mem_id);
+	}
+
 	return true;
 }
 
-#endif /*! IPA_VALIDATE */
+/* Do all memory regions fit within the IPA local memory? */
+static bool ipa_mem_size_valid(struct ipa *ipa)
+{
+	struct device *dev = &ipa->pdev->dev;
+	u32 limit = ipa->mem_size;
+	enum ipa_mem_id mem_id;
+
+	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
+		const struct ipa_mem *mem = &ipa->mem[mem_id];
+
+		if (mem->offset + mem->size <= limit)
+			continue;
+
+		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
+			mem_id, limit);
+
+		return false;
+	}
+
+	return true;
+}
 
 /**
  * ipa_mem_config() - Configure IPA shared memory
@@ -168,6 +318,10 @@ int ipa_mem_config(struct ipa *ipa)
 			mem_size);
 	}
 
+	/* We know our memory size; make sure regions are all in range */
+	if (!ipa_mem_size_valid(ipa))
+		return -EINVAL;
+
 	/* Prealloc DMA memory for zeroing regions */
 	virt = dma_alloc_coherent(dev, IPA_MEM_MAX, &addr, GFP_KERNEL);
 	if (!virt)
@@ -176,18 +330,13 @@ int ipa_mem_config(struct ipa *ipa)
 	ipa->zero_virt = virt;
 	ipa->zero_size = IPA_MEM_MAX;
 
-	/* Verify each defined memory region is valid, and if indicated
-	 * for the region, write "canary" values in the space prior to
-	 * the region's base address.
+	/* For each region, write "canary" values in the space prior to
+	 * the region's base address if indicated.
 	 */
 	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
 		const struct ipa_mem *mem = &ipa->mem[mem_id];
 		u16 canary_count;
 		__le32 *canary;
-
-		/* Validate all regions (even undefined ones) */
-		if (!ipa_mem_valid(ipa, mem_id))
-			goto err_dma_free;
 
 		/* Skip over undefined regions */
 		if (!mem->offset && !mem->size)
@@ -457,11 +606,12 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	struct resource *res;
 	int ret;
 
-	if (mem_data->local_count > IPA_MEM_COUNT) {
-		dev_err(dev, "to many memory regions (%u > %u)\n",
-			mem_data->local_count, IPA_MEM_COUNT);
+	/* Make sure the set of defined memory regions is valid */
+	if (!ipa_mem_valid(ipa, mem_data))
 		return -EINVAL;
-	}
+
+	ipa->mem_count = mem_data->local_count;
+	ipa->mem = mem_data->local;
 
 	ret = dma_set_mask_and_coherent(&ipa->pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
@@ -485,10 +635,6 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 
 	ipa->mem_addr = res->start;
 	ipa->mem_size = resource_size(res);
-
-	/* The ipa->mem[] array is indexed by enum ipa_mem_id values */
-	ipa->mem_count = mem_data->local_count;
-	ipa->mem = mem_data->local;
 
 	ret = ipa_imem_init(ipa, mem_data->imem_addr, mem_data->imem_size);
 	if (ret)
