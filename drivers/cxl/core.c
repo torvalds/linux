@@ -33,10 +33,22 @@ static struct attribute_group cxl_base_attribute_group = {
 	.attrs = cxl_base_attributes,
 };
 
+static void cxl_dport_release(struct cxl_dport *dport)
+{
+	list_del(&dport->list);
+	put_device(dport->dport);
+	kfree(dport);
+}
+
 static void cxl_port_release(struct device *dev)
 {
 	struct cxl_port *port = to_cxl_port(dev);
+	struct cxl_dport *dport, *_d;
 
+	device_lock(dev);
+	list_for_each_entry_safe(dport, _d, &port->dports, list)
+		cxl_dport_release(dport);
+	device_unlock(dev);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -60,9 +72,22 @@ struct cxl_port *to_cxl_port(struct device *dev)
 	return container_of(dev, struct cxl_port, dev);
 }
 
-static void unregister_dev(void *dev)
+static void unregister_port(void *_port)
 {
-	device_unregister(dev);
+	struct cxl_port *port = _port;
+	struct cxl_dport *dport;
+
+	device_lock(&port->dev);
+	list_for_each_entry(dport, &port->dports, list) {
+		char link_name[CXL_TARGET_STRLEN];
+
+		if (snprintf(link_name, CXL_TARGET_STRLEN, "dport%d",
+			     dport->port_id) >= CXL_TARGET_STRLEN)
+			continue;
+		sysfs_remove_link(&port->dev.kobj, link_name);
+	}
+	device_unlock(&port->dev);
+	device_unregister(&port->dev);
 }
 
 static void cxl_unlink_uport(void *_port)
@@ -113,6 +138,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 
 	port->uport = uport;
 	port->component_reg_phys = component_reg_phys;
+	INIT_LIST_HEAD(&port->dports);
 
 	device_initialize(dev);
 	device_set_pm_not_required(dev);
@@ -157,7 +183,7 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 	if (rc)
 		goto err;
 
-	rc = devm_add_action_or_reset(host, unregister_dev, dev);
+	rc = devm_add_action_or_reset(host, unregister_port, port);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -172,6 +198,81 @@ err:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(devm_cxl_add_port);
+
+static struct cxl_dport *find_dport(struct cxl_port *port, int id)
+{
+	struct cxl_dport *dport;
+
+	device_lock_assert(&port->dev);
+	list_for_each_entry (dport, &port->dports, list)
+		if (dport->port_id == id)
+			return dport;
+	return NULL;
+}
+
+static int add_dport(struct cxl_port *port, struct cxl_dport *new)
+{
+	struct cxl_dport *dup;
+
+	device_lock(&port->dev);
+	dup = find_dport(port, new->port_id);
+	if (dup)
+		dev_err(&port->dev,
+			"unable to add dport%d-%s non-unique port id (%s)\n",
+			new->port_id, dev_name(new->dport),
+			dev_name(dup->dport));
+	else
+		list_add_tail(&new->list, &port->dports);
+	device_unlock(&port->dev);
+
+	return dup ? -EEXIST : 0;
+}
+
+/**
+ * cxl_add_dport - append downstream port data to a cxl_port
+ * @port: the cxl_port that references this dport
+ * @dport_dev: firmware or PCI device representing the dport
+ * @port_id: identifier for this dport in a decoder's target list
+ * @component_reg_phys: optional location of CXL component registers
+ *
+ * Note that all allocations and links are undone by cxl_port deletion
+ * and release.
+ */
+int cxl_add_dport(struct cxl_port *port, struct device *dport_dev, int port_id,
+		  resource_size_t component_reg_phys)
+{
+	char link_name[CXL_TARGET_STRLEN];
+	struct cxl_dport *dport;
+	int rc;
+
+	if (snprintf(link_name, CXL_TARGET_STRLEN, "dport%d", port_id) >=
+	    CXL_TARGET_STRLEN)
+		return -EINVAL;
+
+	dport = kzalloc(sizeof(*dport), GFP_KERNEL);
+	if (!dport)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&dport->list);
+	dport->dport = get_device(dport_dev);
+	dport->port_id = port_id;
+	dport->component_reg_phys = component_reg_phys;
+	dport->port = port;
+
+	rc = add_dport(port, dport);
+	if (rc)
+		goto err;
+
+	rc = sysfs_create_link(&port->dev.kobj, &dport_dev->kobj, link_name);
+	if (rc)
+		goto err;
+
+	return 0;
+err:
+	cxl_dport_release(dport);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(cxl_add_dport);
 
 /**
  * cxl_probe_component_regs() - Detect CXL Component register blocks

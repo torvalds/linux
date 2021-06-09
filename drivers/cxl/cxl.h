@@ -154,6 +154,7 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 			struct cxl_register_map *map);
 
 #define CXL_RESOURCE_NONE ((resource_size_t) -1)
+#define CXL_TARGET_STRLEN 20
 
 /**
  * struct cxl_port - logical collection of upstream port devices and
@@ -162,13 +163,31 @@ int cxl_map_device_regs(struct pci_dev *pdev,
  * @dev: this port's device
  * @uport: PCI or platform device implementing the upstream port capability
  * @id: id for port device-name
+ * @dports: cxl_dport instances referenced by decoders
  * @component_reg_phys: component register capability base address (optional)
  */
 struct cxl_port {
 	struct device dev;
 	struct device *uport;
 	int id;
+	struct list_head dports;
 	resource_size_t component_reg_phys;
+};
+
+/**
+ * struct cxl_dport - CXL downstream port
+ * @dport: PCI bridge or firmware device representing the downstream link
+ * @port_id: unique hardware identifier for dport in decoder target list
+ * @component_reg_phys: downstream port component registers
+ * @port: reference to cxl_port that contains this downstream port
+ * @list: node for a cxl_port's list of cxl_dport instances
+ */
+struct cxl_dport {
+	struct device *dport;
+	int port_id;
+	resource_size_t component_reg_phys;
+	struct cxl_port *port;
+	struct list_head list;
 };
 
 struct cxl_port *to_cxl_port(struct device *dev);
@@ -176,5 +195,7 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
 				   struct cxl_port *parent_port);
 
+int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
+		  resource_size_t component_reg_phys);
 extern struct bus_type cxl_bus_type;
 #endif /* __CXL_H__ */

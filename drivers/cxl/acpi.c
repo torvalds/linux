@@ -7,17 +7,58 @@
 #include <linux/acpi.h>
 #include "cxl.h"
 
+static struct acpi_device *to_cxl_host_bridge(struct device *dev)
+{
+	struct acpi_device *adev = to_acpi_device(dev);
+
+	if (strcmp(acpi_device_hid(adev), "ACPI0016") == 0)
+		return adev;
+	return NULL;
+}
+
+static int add_host_bridge_dport(struct device *match, void *arg)
+{
+	int rc;
+	acpi_status status;
+	unsigned long long uid;
+	struct cxl_port *root_port = arg;
+	struct device *host = root_port->dev.parent;
+	struct acpi_device *bridge = to_cxl_host_bridge(match);
+
+	if (!bridge)
+		return 0;
+
+	status = acpi_evaluate_integer(bridge->handle, METHOD_NAME__UID, NULL,
+				       &uid);
+	if (status != AE_OK) {
+		dev_err(host, "unable to retrieve _UID of %s\n",
+			dev_name(match));
+		return -ENODEV;
+	}
+
+	rc = cxl_add_dport(root_port, match, uid, CXL_RESOURCE_NONE);
+	if (rc) {
+		dev_err(host, "failed to add downstream port: %s\n",
+			dev_name(match));
+		return rc;
+	}
+	dev_dbg(host, "add dport%llu: %s\n", uid, dev_name(match));
+	return 0;
+}
+
 static int cxl_acpi_probe(struct platform_device *pdev)
 {
 	struct cxl_port *root_port;
 	struct device *host = &pdev->dev;
+	struct acpi_device *adev = ACPI_COMPANION(host);
 
 	root_port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
 	if (IS_ERR(root_port))
 		return PTR_ERR(root_port);
 	dev_dbg(host, "add: %s\n", dev_name(&root_port->dev));
 
-	return 0;
+	return bus_for_each_dev(adev->dev.bus, NULL, root_port,
+				add_host_bridge_dport);
 }
 
 static const struct acpi_device_id cxl_acpi_ids[] = {

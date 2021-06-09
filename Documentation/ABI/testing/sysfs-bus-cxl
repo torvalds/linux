@@ -44,3 +44,16 @@ Description:
 		CXL component registers. The 'uport' symlink connects the CXL
 		portX object to the device that published the CXL port
 		capability.
+
+What:		/sys/bus/cxl/devices/portX/dportY
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL port objects are enumerated from either a platform firmware
+		device (ACPI0017 and ACPI0016) or PCIe switch upstream port with
+		CXL component registers. The 'dportY' symlink identifies one or
+		more downstream ports that the upstream port may target in its
+		decode of CXL memory resources.  The 'Y' integer reflects the
+		hardware port unique-id used in the hardware decoder target
+		list.
