@@ -1914,20 +1914,50 @@ static void intel_dpt_unpin(struct i915_address_space *vm)
 	i915_vma_put(dpt->vma);
 }
 
+static bool
+intel_reuse_initial_plane_obj(struct drm_i915_private *i915,
+			      const struct intel_initial_plane_config *plane_config,
+			      struct drm_framebuffer **fb,
+			      struct i915_vma **vma)
+{
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&i915->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+
+		if (!crtc_state->uapi.active)
+			continue;
+
+		if (!plane_state->ggtt_vma)
+			continue;
+
+		if (intel_plane_ggtt_offset(plane_state) == plane_config->base) {
+			*fb = plane_state->hw.fb;
+			*vma = plane_state->ggtt_vma;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static void
-intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
+intel_find_initial_plane_obj(struct intel_crtc *crtc,
 			     struct intel_initial_plane_config *plane_config)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *c;
-	struct drm_plane *primary = intel_crtc->base.primary;
-	struct drm_plane_state *plane_state = primary->state;
-	struct intel_plane *intel_plane = to_intel_plane(primary);
-	struct intel_plane_state *intel_state =
-		to_intel_plane_state(plane_state);
 	struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(intel_crtc->base.state);
+		to_intel_crtc_state(crtc->base.state);
+	struct intel_plane *plane =
+		to_intel_plane(crtc->base.primary);
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 
@@ -1939,7 +1969,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	if (!plane_config->fb)
 		return;
 
-	if (intel_alloc_initial_plane_obj(intel_crtc, plane_config)) {
+	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
 		fb = &plane_config->fb->base;
 		vma = plane_config->vma;
 		goto valid_fb;
@@ -1949,25 +1979,8 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * Failed to alloc the obj, check to see if we should share
 	 * an fb with another CRTC instead
 	 */
-	for_each_crtc(dev, c) {
-		struct intel_plane_state *state;
-
-		if (c == &intel_crtc->base)
-			continue;
-
-		if (!to_intel_crtc_state(c->state)->uapi.active)
-			continue;
-
-		state = to_intel_plane_state(c->primary->state);
-		if (!state->ggtt_vma)
-			continue;
-
-		if (intel_plane_ggtt_offset(state) == plane_config->base) {
-			fb = state->hw.fb;
-			vma = state->ggtt_vma;
-			goto valid_fb;
-		}
-	}
+	if (intel_reuse_initial_plane_obj(dev_priv, plane_config, &fb, &vma))
+		goto valid_fb;
 
 	/*
 	 * We've failed to reconstruct the BIOS FB.  Current display state
@@ -1976,7 +1989,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * simplest solution is to just disable the primary plane now and
 	 * pretend the BIOS never had it enabled.
 	 */
-	intel_plane_disable_noatomic(intel_crtc, intel_plane);
+	intel_plane_disable_noatomic(crtc, plane);
 	if (crtc_state->bigjoiner) {
 		struct intel_crtc *slave =
 			crtc_state->bigjoiner_linked_crtc;
@@ -1986,40 +1999,38 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
-	plane_state->rotation = plane_config->rotation;
-	intel_fb_fill_view(to_intel_framebuffer(fb), plane_state->rotation,
-			   &intel_state->view);
+	plane_state->uapi.rotation = plane_config->rotation;
+	intel_fb_fill_view(to_intel_framebuffer(fb),
+			   plane_state->uapi.rotation, &plane_state->view);
 
 	__i915_vma_pin(vma);
-	intel_state->ggtt_vma = i915_vma_get(vma);
-	if (intel_plane_uses_fence(intel_state) && i915_vma_pin_fence(vma) == 0)
-		if (vma->fence)
-			intel_state->flags |= PLANE_HAS_FENCE;
+	plane_state->ggtt_vma = i915_vma_get(vma);
+	if (intel_plane_uses_fence(plane_state) &&
+	    i915_vma_pin_fence(vma) == 0 && vma->fence)
+		plane_state->flags |= PLANE_HAS_FENCE;
 
-	plane_state->src_x = 0;
-	plane_state->src_y = 0;
-	plane_state->src_w = fb->width << 16;
-	plane_state->src_h = fb->height << 16;
+	plane_state->uapi.src_x = 0;
+	plane_state->uapi.src_y = 0;
+	plane_state->uapi.src_w = fb->width << 16;
+	plane_state->uapi.src_h = fb->height << 16;
 
-	plane_state->crtc_x = 0;
-	plane_state->crtc_y = 0;
-	plane_state->crtc_w = fb->width;
-	plane_state->crtc_h = fb->height;
+	plane_state->uapi.crtc_x = 0;
+	plane_state->uapi.crtc_y = 0;
+	plane_state->uapi.crtc_w = fb->width;
+	plane_state->uapi.crtc_h = fb->height;
 
 	if (plane_config->tiling)
 		dev_priv->preserve_bios_swizzle = true;
 
-	plane_state->fb = fb;
+	plane_state->uapi.fb = fb;
 	drm_framebuffer_get(fb);
 
-	plane_state->crtc = &intel_crtc->base;
-	intel_plane_copy_uapi_to_hw_state(intel_state, intel_state,
-					  intel_crtc);
+	plane_state->uapi.crtc = &crtc->base;
+	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
 
 	intel_frontbuffer_flush(to_intel_frontbuffer(fb), ORIGIN_DIRTYFB);
 
-	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
-		  &to_intel_frontbuffer(fb)->bits);
+	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 }
 
 unsigned int
