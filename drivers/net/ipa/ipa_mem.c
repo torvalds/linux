@@ -99,6 +99,36 @@ int ipa_mem_setup(struct ipa *ipa)
 	return 0;
 }
 
+/* Must the given memory region be present in the configuration? */
+static bool ipa_mem_id_required(struct ipa *ipa, enum ipa_mem_id mem_id)
+{
+	switch (mem_id) {
+	case IPA_MEM_UC_SHARED:
+	case IPA_MEM_UC_INFO:
+	case IPA_MEM_V4_FILTER_HASHED:
+	case IPA_MEM_V4_FILTER:
+	case IPA_MEM_V6_FILTER_HASHED:
+	case IPA_MEM_V6_FILTER:
+	case IPA_MEM_V4_ROUTE_HASHED:
+	case IPA_MEM_V4_ROUTE:
+	case IPA_MEM_V6_ROUTE_HASHED:
+	case IPA_MEM_V6_ROUTE:
+	case IPA_MEM_MODEM_HEADER:
+	case IPA_MEM_MODEM_PROC_CTX:
+	case IPA_MEM_AP_PROC_CTX:
+	case IPA_MEM_MODEM:
+		return true;
+
+	case IPA_MEM_PDN_CONFIG:
+	case IPA_MEM_STATS_QUOTA_MODEM:
+	case IPA_MEM_STATS_TETHERING:
+		return ipa->version >= IPA_VERSION_4_0;
+
+	default:
+		return false;		/* Anything else is optional */
+	}
+}
+
 static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 {
 	struct device *dev = &ipa->pdev->dev;
@@ -149,7 +179,19 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 		if (mem->offset)
 			dev_warn(dev, "empty region %u has non-zero offset\n",
 				 mem_id);
+
+		if (ipa_mem_id_required(ipa, mem_id)) {
+			dev_err(dev, "required memory region %u missing\n",
+				mem_id);
+			return false;
+		}
 	}
+
+	/* Now see if any required regions are not defined */
+	while (mem_id < IPA_MEM_COUNT)
+		if (ipa_mem_id_required(ipa, mem_id++))
+			dev_err(dev, "required memory region %u missing\n",
+				mem_id);
 
 	return true;
 }
