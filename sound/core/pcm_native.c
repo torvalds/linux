@@ -3644,24 +3644,6 @@ static int snd_pcm_mmap_control(struct snd_pcm_substream *substream, struct file
 }
 #endif /* coherent mmap */
 
-static inline struct page *
-snd_pcm_default_page_ops(struct snd_pcm_substream *substream, unsigned long ofs)
-{
-	void *vaddr = substream->runtime->dma_area + ofs;
-
-	switch (substream->dma_buffer.dev.type) {
-#ifdef CONFIG_SND_DMA_SGBUF
-	case SNDRV_DMA_TYPE_DEV_SG:
-	case SNDRV_DMA_TYPE_DEV_UC_SG:
-		return snd_pcm_sgbuf_ops_page(substream, ofs);
-#endif /* CONFIG_SND_DMA_SGBUF */
-	case SNDRV_DMA_TYPE_VMALLOC:
-		return vmalloc_to_page(vaddr);
-	default:
-		return virt_to_page(vaddr);
-	}
-}
-
 /*
  * fault callback for mmapping a RAM page
  */
@@ -3683,7 +3665,7 @@ static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 	if (substream->ops->page)
 		page = substream->ops->page(substream, offset);
 	else
-		page = snd_pcm_default_page_ops(substream, offset);
+		page = snd_sgbuf_get_page(snd_pcm_get_dma_buf(substream), offset);
 	if (!page)
 		return VM_FAULT_SIGBUS;
 	get_page(page);

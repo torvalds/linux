@@ -1254,14 +1254,6 @@ static inline int snd_pcm_lib_alloc_vmalloc_32_buffer
 
 #define snd_pcm_get_dma_buf(substream) ((substream)->runtime->dma_buffer_p)
 
-#ifdef CONFIG_SND_DMA_SGBUF
-/*
- * SG-buffer handling
- */
-#define snd_pcm_substream_sgbuf(substream) \
-	snd_pcm_get_dma_buf(substream)->private_data
-#endif /* SND_DMA_SGBUF */
-
 /**
  * snd_pcm_sgbuf_get_addr - Get the DMA address at the corresponding offset
  * @substream: PCM substream
