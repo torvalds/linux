@@ -3844,6 +3844,12 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 	svm->next_rip = 0;
 	if (is_guest_mode(vcpu)) {
 		nested_sync_control_from_vmcb02(svm);
+
+		/* Track VMRUNs that have made past consistency checking */
+		if (svm->nested.nested_run_pending &&
+		    svm->vmcb->control.exit_code != SVM_EXIT_ERR)
+                        ++vcpu->stat.nested_run;
+
 		svm->nested.nested_run_pending = 0;
 	}
 

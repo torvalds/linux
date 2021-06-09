@@ -6809,7 +6809,18 @@ static fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	kvm_load_host_xsave_state(vcpu);
 
-	vmx->nested.nested_run_pending = 0;
+	if (is_guest_mode(vcpu)) {
+		/*
+		 * Track VMLAUNCH/VMRESUME that have made past guest state
+		 * checking.
+		 */
+		if (vmx->nested.nested_run_pending &&
+		    !vmx->exit_reason.failed_vmentry)
+			++vcpu->stat.nested_run;
+
+		vmx->nested.nested_run_pending = 0;
+	}
+
 	vmx->idt_vectoring_info = 0;
 
 	if (unlikely(vmx->fail)) {
