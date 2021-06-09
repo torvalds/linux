@@ -249,19 +249,16 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 		if (mem->offset)
 			dev_warn(dev, "empty region %u has non-zero offset\n",
 				 mem_id);
-
-		if (ipa_mem_id_required(ipa, mem_id)) {
-			dev_err(dev, "required memory region %u missing\n",
-				mem_id);
-			return false;
-		}
 	}
 
 	/* Now see if any required regions are not defined */
-	while (mem_id < IPA_MEM_COUNT)
-		if (ipa_mem_id_required(ipa, mem_id++))
+	for (mem_id = find_first_zero_bit(regions, IPA_MEM_COUNT);
+	     mem_id < IPA_MEM_COUNT;
+	     mem_id = find_next_zero_bit(regions, IPA_MEM_COUNT, mem_id + 1)) {
+		if (ipa_mem_id_required(ipa, mem_id))
 			dev_err(dev, "required memory region %u missing\n",
 				mem_id);
+	}
 
 	return true;
 }
