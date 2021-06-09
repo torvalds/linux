@@ -76,6 +76,7 @@ extern unsigned long empty_zero_page[];
 extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
+void poking_init(void);
 
 extern unsigned long ioremap_bot;
 
