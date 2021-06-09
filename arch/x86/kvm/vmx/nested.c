@@ -5552,6 +5552,16 @@ static int handle_vmfunc(struct kvm_vcpu *vcpu)
 	}
 
 	vmcs12 = get_vmcs12(vcpu);
+
+	/*
+	 * #UD on out-of-bounds function has priority over VM-Exit, and VMFUNC
+	 * is enabled in vmcs02 if and only if it's enabled in vmcs12.
+	 */
+	if (WARN_ON_ONCE((function > 63) || !nested_cpu_has_vmfunc(vmcs12))) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return 1;
+	}
+
 	if (!(vmcs12->vm_function_control & BIT_ULL(function)))
 		goto fail;
 
