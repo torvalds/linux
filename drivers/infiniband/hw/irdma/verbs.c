@@ -2214,7 +2214,7 @@ static inline u64 *irdma_next_pbl_addr(u64 *pbl, struct irdma_pble_info **pinfo,
 	*idx = 0;
 	(*pinfo)++;
 
-	return (u64 *)(uintptr_t)(*pinfo)->addr;
+	return (*pinfo)->addr;
 }
 
 /**
@@ -2282,16 +2282,16 @@ static bool irdma_check_mr_contiguous(struct irdma_pble_alloc *palloc,
 	bool ret;
 
 	if (palloc->level == PBLE_LEVEL_1) {
-		arr = (u64 *)(uintptr_t)palloc->level1.addr;
+		arr = palloc->level1.addr;
 		ret = irdma_check_mem_contiguous(arr, palloc->total_cnt,
 						 pg_size);
 		return ret;
 	}
 
-	start_addr = (u64 *)(uintptr_t)leaf->addr;
+	start_addr = leaf->addr;
 
 	for (i = 0; i < lvl2->leaf_cnt; i++, leaf++) {
-		arr = (u64 *)(uintptr_t)leaf->addr;
+		arr = leaf->addr;
 		if ((*start_addr + (i * pg_size * PBLE_PER_PAGE)) != *arr)
 			return false;
 		ret = irdma_check_mem_contiguous(arr, leaf->cnt, pg_size);
@@ -2328,7 +2328,7 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 		level = palloc->level;
 		pinfo = (level == PBLE_LEVEL_1) ? &palloc->level1 :
 						  palloc->level2.leaf;
-		pbl = (u64 *)(uintptr_t)pinfo->addr;
+		pbl = pinfo->addr;
 	} else {
 		pbl = iwmr->pgaddrmem;
 	}
@@ -2376,7 +2376,7 @@ static int irdma_handle_q_mem(struct irdma_device *iwdev,
 	}
 
 	if (use_pbles)
-		arr = (u64 *)(uintptr_t)palloc->level1.addr;
+		arr = palloc->level1.addr;
 
 	switch (iwmr->type) {
 	case IRDMA_MEMREG_TYPE_QP:
@@ -2643,7 +2643,7 @@ static int irdma_set_page(struct ib_mr *ibmr, u64 addr)
 	if (unlikely(iwmr->npages == iwmr->page_cnt))
 		return -ENOMEM;
 
-	pbl = (u64 *)(uintptr_t)palloc->level1.addr;
+	pbl = palloc->level1.addr;
 	pbl[iwmr->npages++] = addr;
 
 	return 0;
@@ -3223,7 +3223,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 			stag_info.addr_type = IRDMA_ADDR_TYPE_VA_BASED;
 			stag_info.va = (void *)(uintptr_t)iwmr->ibmr.iova;
 			stag_info.total_len = iwmr->ibmr.length;
-			stag_info.reg_addr_pa = *((u64 *)(uintptr_t)palloc->level1.addr);
+			stag_info.reg_addr_pa = *palloc->level1.addr;
 			stag_info.first_pm_pbl_index = palloc->level1.idx;
 			stag_info.local_fence = ib_wr->send_flags & IB_SEND_FENCE;
 			if (iwmr->npages > IRDMA_MIN_PAGES_PER_FMR)

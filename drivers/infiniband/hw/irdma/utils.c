@@ -2315,7 +2315,7 @@ enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
 enum irdma_status_code
 irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
 		    struct irdma_pble_chunkinfo *chunkinfo, u32 mem_size,
-		    u64 *vaddr, u64 *fpm_addr)
+		    u64 **vaddr, u64 *fpm_addr)
 {
 	u64 bits_needed;
 	u64 bit_idx = PBLE_INVALID_IDX;
@@ -2323,7 +2323,7 @@ irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
 	struct list_head *chunk_entry = pprm->clist.next;
 	u32 offset;
 	unsigned long flags;
-	*vaddr = 0;
+	*vaddr = NULL;
 	*fpm_addr = 0;
 
 	bits_needed = (mem_size + (1 << pprm->pble_shift) - 1) >> pprm->pble_shift;
@@ -2429,8 +2429,8 @@ void irdma_pble_free_paged_mem(struct irdma_chunk *chunk)
 done:
 	kfree(chunk->dmainfo.dmaaddrs);
 	chunk->dmainfo.dmaaddrs = NULL;
-	vfree((void *)(uintptr_t)chunk->vaddr);
-	chunk->vaddr = 0;
+	vfree(chunk->vaddr);
+	chunk->vaddr = NULL;
 	chunk->type = 0;
 }
 
@@ -2459,7 +2459,7 @@ enum irdma_status_code irdma_pble_get_paged_mem(struct irdma_chunk *chunk,
 		vfree(va);
 		goto err;
 	}
-	chunk->vaddr = (uintptr_t)va;
+	chunk->vaddr = va;
 	chunk->size = size;
 	chunk->pg_cnt = pg_cnt;
 	chunk->type = PBLE_SD_PAGED;

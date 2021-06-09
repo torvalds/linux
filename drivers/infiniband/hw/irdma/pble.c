@@ -110,10 +110,10 @@ add_sd_direct(struct irdma_hmc_pble_rsrc *pble_rsrc,
 
 	offset = idx->rel_pd_idx << HMC_PAGED_BP_SHIFT;
 	chunk->size = info->pages << HMC_PAGED_BP_SHIFT;
-	chunk->vaddr = (uintptr_t)sd_entry->u.bp.addr.va + offset;
+	chunk->vaddr = sd_entry->u.bp.addr.va + offset;
 	chunk->fpm_addr = pble_rsrc->next_fpm_addr;
 	ibdev_dbg(to_ibdev(dev),
-		  "PBLE: chunk_size[%lld] = 0x%llx vaddr=0x%llx fpm_addr = %llx\n",
+		  "PBLE: chunk_size[%lld] = 0x%llx vaddr=0x%pK fpm_addr = %llx\n",
 		  chunk->size, chunk->size, chunk->vaddr, chunk->fpm_addr);
 
 	return 0;
@@ -163,7 +163,7 @@ add_bp_pages(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	if (status)
 		goto error;
 
-	addr = (u8 *)(uintptr_t)chunk->vaddr;
+	addr = chunk->vaddr;
 	for (i = 0; i < info->pages; i++) {
 		mem.pa = (u64)chunk->dmainfo.dmaaddrs[i];
 		mem.size = 4096;
@@ -375,7 +375,7 @@ get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 
 	root->idx = fpm_to_idx(pble_rsrc, fpm_addr);
 	root->cnt = total;
-	addr = (u64 *)(uintptr_t)root->addr;
+	addr = root->addr;
 	for (i = 0; i < total; i++, leaf++) {
 		pblcnt = (lflast && ((i + 1) == total)) ?
 				lflast : PBLE_PER_PAGE;
@@ -412,16 +412,15 @@ get_lvl1_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	      struct irdma_pble_alloc *palloc)
 {
 	enum irdma_status_code ret_code;
-	u64 fpm_addr, vaddr;
+	u64 fpm_addr;
 	struct irdma_pble_info *lvl1 = &palloc->level1;
 
 	ret_code = irdma_prm_get_pbles(&pble_rsrc->pinfo, &lvl1->chunkinfo,
-				       palloc->total_cnt << 3, &vaddr,
+				       palloc->total_cnt << 3, &lvl1->addr,
 				       &fpm_addr);
 	if (ret_code)
 		return IRDMA_ERR_NO_MEMORY;
 
-	lvl1->addr = vaddr;
 	palloc->level = PBLE_LEVEL_1;
 	lvl1->idx = fpm_to_idx(pble_rsrc, fpm_addr);
 	lvl1->cnt = palloc->total_cnt;

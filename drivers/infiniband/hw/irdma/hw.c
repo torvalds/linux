@@ -1314,7 +1314,7 @@ static enum irdma_status_code irdma_create_virt_aeq(struct irdma_pci_f *rf,
 		return status;
 	}
 
-	pg_arr = (dma_addr_t *)(uintptr_t)aeq->palloc.level1.addr;
+	pg_arr = (dma_addr_t *)aeq->palloc.level1.addr;
 	status = irdma_map_vm_page_list(&rf->hw, aeq->mem.va, pg_arr, pg_cnt);
 	if (status) {
 		irdma_free_pble(rf->pble_rsrc, &aeq->palloc);

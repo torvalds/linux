@@ -30,7 +30,7 @@ struct irdma_pble_chunkinfo {
 };
 
 struct irdma_pble_info {
-	u64 addr;
+	u64 *addr;
 	u32 idx;
 	u32 cnt;
 	struct irdma_pble_chunkinfo chunkinfo;
@@ -73,7 +73,7 @@ struct irdma_chunk {
 
 	u32 sizeofbitmap;
 	u64 size;
-	u64 vaddr;
+	void *vaddr;
 	u64 fpm_addr;
 	u32 pg_cnt;
 	enum irdma_alloc_type type;
@@ -122,7 +122,7 @@ enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
 enum irdma_status_code
 irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
 		    struct irdma_pble_chunkinfo *chunkinfo, u32 mem_size,
-		    u64 *vaddr, u64 *fpm_addr);
+		    u64 **vaddr, u64 *fpm_addr);
 void irdma_prm_return_pbles(struct irdma_pble_prm *pprm,
 			    struct irdma_pble_chunkinfo *chunkinfo);
 void irdma_pble_acquire_lock(struct irdma_hmc_pble_rsrc *pble_rsrc,
