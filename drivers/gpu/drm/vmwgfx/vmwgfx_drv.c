@@ -272,7 +272,6 @@ static const struct pci_device_id vmw_pci_id_list[] = {
 MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
 static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
-static int vmw_force_iommu;
 static int vmw_restrict_iommu;
 static int vmw_force_coherent;
 static int vmw_restrict_dma_mask;
@@ -284,8 +283,6 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 
 MODULE_PARM_DESC(enable_fbdev, "Enable vmwgfx fbdev");
 module_param_named(enable_fbdev, enable_fbdev, int, 0600);
-MODULE_PARM_DESC(force_dma_api, "Force using the DMA API for TTM pages");
-module_param_named(force_dma_api, vmw_force_iommu, int, 0600);
 MODULE_PARM_DESC(restrict_iommu, "Try to limit IOMMU usage for TTM pages");
 module_param_named(restrict_iommu, vmw_restrict_iommu, int, 0600);
 MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
@@ -645,7 +642,6 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 {
 	static const char *names[vmw_dma_map_max] = {
-		[vmw_dma_phys] = "Using physical TTM page addresses.",
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
 		[vmw_dma_map_populate] = "Caching DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
@@ -679,8 +675,7 @@ static int vmw_dma_masks(struct vmw_private *dev_priv)
 	int ret = 0;
 
 	ret = dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64));
-	if (dev_priv->map_mode != vmw_dma_phys &&
-	    (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask)) {
+	if (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask) {
 		DRM_INFO("Restricting DMA addresses to 44 bits.\n");
 		return dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(44));
 	}

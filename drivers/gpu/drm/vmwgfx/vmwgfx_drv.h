@@ -314,7 +314,6 @@ struct vmw_res_cache_entry {
  * enum vmw_dma_map_mode - indicate how to perform TTM page dma mappings.
  */
 enum vmw_dma_map_mode {
-	vmw_dma_phys,           /* Use physical page addresses */
 	vmw_dma_alloc_coherent, /* Use TTM coherent pages */
 	vmw_dma_map_populate,   /* Unmap from DMA just after unpopulate */
 	vmw_dma_map_bind,       /* Unmap from DMA just before unbind */
