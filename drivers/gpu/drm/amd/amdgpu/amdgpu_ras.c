@@ -2122,7 +2122,7 @@ static void amdgpu_ras_counte_dw(struct work_struct *work)
 	struct amdgpu_ras *con = container_of(work, struct amdgpu_ras,
 					      ras_counte_delay_work.work);
 	struct amdgpu_device *adev = con->adev;
-	struct drm_device *dev = &adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	unsigned long ce_count, ue_count;
 	int res;
 

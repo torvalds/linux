@@ -639,7 +639,7 @@ kfd_mem_attach_dmabuf(struct amdgpu_device *adev, struct kgd_mem *mem,
 		}
 	}
 
-	gobj = amdgpu_gem_prime_import(&adev->ddev, mem->dmabuf);
+	gobj = amdgpu_gem_prime_import(adev_to_drm(adev), mem->dmabuf);
 	if (IS_ERR(gobj))
 		return PTR_ERR(gobj);
 
