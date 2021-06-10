@@ -2393,11 +2393,14 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 
 	if (!(hdev->fw_components & FW_TYPE_LINUX)) {
 		dev_info(hdev->dev, "Skip loading Linux F/W\n");
+		rc = 0;
 		goto out;
 	}
 
-	if (status == CPU_BOOT_STATUS_SRAM_AVAIL)
+	if (status == CPU_BOOT_STATUS_SRAM_AVAIL) {
+		rc = 0;
 		goto out;
+	}
 
 	dev_info(hdev->dev,
 		"Loading firmware to device, may take some time...\n");
