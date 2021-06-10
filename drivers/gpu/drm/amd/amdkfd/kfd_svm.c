@@ -281,7 +281,8 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 
 	p = container_of(svms, struct kfd_process, svms);
 	if (p->xnack_enabled)
-		bitmap_fill(prange->bitmap_access, MAX_GPU_INSTANCE);
+		bitmap_copy(prange->bitmap_access, svms->bitmap_supported,
+			    MAX_GPU_INSTANCE);
 
 	svm_range_set_default_attributes(&prange->preferred_loc,
 					 &prange->prefetch_loc,
@@ -577,36 +578,25 @@ svm_range_check_attr(struct kfd_process *p,
 		     uint32_t nattr, struct kfd_ioctl_svm_attribute *attrs)
 {
 	uint32_t i;
-	int gpuidx;
 
 	for (i = 0; i < nattr; i++) {
+		uint32_t val = attrs[i].value;
+		int gpuidx = MAX_GPU_INSTANCE;
+
 		switch (attrs[i].type) {
 		case KFD_IOCTL_SVM_ATTR_PREFERRED_LOC:
-			if (attrs[i].value != KFD_IOCTL_SVM_LOCATION_SYSMEM &&
-			    attrs[i].value != KFD_IOCTL_SVM_LOCATION_UNDEFINED &&
-			    kfd_process_gpuidx_from_gpuid(p,
-							  attrs[i].value) < 0) {
-				pr_debug("no GPU 0x%x found\n", attrs[i].value);
-				return -EINVAL;
-			}
+			if (val != KFD_IOCTL_SVM_LOCATION_SYSMEM &&
+			    val != KFD_IOCTL_SVM_LOCATION_UNDEFINED)
+				gpuidx = kfd_process_gpuidx_from_gpuid(p, val);
 			break;
 		case KFD_IOCTL_SVM_ATTR_PREFETCH_LOC:
-			if (attrs[i].value != KFD_IOCTL_SVM_LOCATION_SYSMEM &&
-			    kfd_process_gpuidx_from_gpuid(p,
-							  attrs[i].value) < 0) {
-				pr_debug("no GPU 0x%x found\n", attrs[i].value);
-				return -EINVAL;
-			}
+			if (val != KFD_IOCTL_SVM_LOCATION_SYSMEM)
+				gpuidx = kfd_process_gpuidx_from_gpuid(p, val);
 			break;
 		case KFD_IOCTL_SVM_ATTR_ACCESS:
 		case KFD_IOCTL_SVM_ATTR_ACCESS_IN_PLACE:
 		case KFD_IOCTL_SVM_ATTR_NO_ACCESS:
-			gpuidx = kfd_process_gpuidx_from_gpuid(p,
-							       attrs[i].value);
-			if (gpuidx < 0) {
-				pr_debug("no GPU 0x%x found\n", attrs[i].value);
-				return -EINVAL;
-			}
+			gpuidx = kfd_process_gpuidx_from_gpuid(p, val);
 			break;
 		case KFD_IOCTL_SVM_ATTR_SET_FLAGS:
 			break;
@@ -616,6 +606,15 @@ svm_range_check_attr(struct kfd_process *p,
 			break;
 		default:
 			pr_debug("unknown attr type 0x%x\n", attrs[i].type);
+			return -EINVAL;
+		}
+
+		if (gpuidx < 0) {
+			pr_debug("no GPU 0x%x found\n", val);
+			return -EINVAL;
+		} else if (gpuidx < MAX_GPU_INSTANCE &&
+			   !test_bit(gpuidx, p->svms.bitmap_supported)) {
+			pr_debug("GPU 0x%x not supported\n", val);
 			return -EINVAL;
 		}
 	}
@@ -1855,7 +1854,7 @@ static void svm_range_drain_retry_fault(struct svm_range_list *svms)
 
 	p = container_of(svms, struct kfd_process, svms);
 
-	for (i = 0; i < p->n_pdds; i++) {
+	for_each_set_bit(i, svms->bitmap_supported, p->n_pdds) {
 		pdd = p->pdds[i];
 		if (!pdd)
 			continue;
@@ -2325,6 +2324,11 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	bool write_locked = false;
 	int r = 0;
 
+	if (!KFD_IS_SVM_API_SUPPORTED(adev->kfd.dev)) {
+		pr_debug("device does not support SVM\n");
+		return -EFAULT;
+	}
+
 	p = kfd_lookup_process_by_pasid(pasid);
 	if (!p) {
 		pr_debug("kfd process not founded pasid 0x%x\n", pasid);
@@ -2472,6 +2476,7 @@ void svm_range_list_fini(struct kfd_process *p)
 int svm_range_list_init(struct kfd_process *p)
 {
 	struct svm_range_list *svms = &p->svms;
+	int i;
 
 	svms->objects = RB_ROOT_CACHED;
 	mutex_init(&svms->lock);
@@ -2481,6 +2486,10 @@ int svm_range_list_init(struct kfd_process *p)
 	INIT_WORK(&svms->deferred_list_work, svm_range_deferred_list_work);
 	INIT_LIST_HEAD(&svms->deferred_range_list);
 	spin_lock_init(&svms->deferred_list_lock);
+
+	for (i = 0; i < p->n_pdds; i++)
+		if (KFD_IS_SVM_API_SUPPORTED(p->pdds[i]->dev))
+			bitmap_set(svms->bitmap_supported, i, 1);
 
 	return 0;
 }
@@ -2978,14 +2987,15 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 		svm_range_set_default_attributes(&location, &prefetch_loc,
 						 &granularity, &flags);
 		if (p->xnack_enabled)
-			bitmap_fill(bitmap_access, MAX_GPU_INSTANCE);
+			bitmap_copy(bitmap_access, svms->bitmap_supported,
+				    MAX_GPU_INSTANCE);
 		else
 			bitmap_zero(bitmap_access, MAX_GPU_INSTANCE);
 		bitmap_zero(bitmap_aip, MAX_GPU_INSTANCE);
 		goto fill_values;
 	}
-	bitmap_fill(bitmap_access, MAX_GPU_INSTANCE);
-	bitmap_fill(bitmap_aip, MAX_GPU_INSTANCE);
+	bitmap_copy(bitmap_access, svms->bitmap_supported, MAX_GPU_INSTANCE);
+	bitmap_copy(bitmap_aip, svms->bitmap_supported, MAX_GPU_INSTANCE);
 
 	while (node) {
 		struct interval_tree_node *next;

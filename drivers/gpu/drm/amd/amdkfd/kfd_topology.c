@@ -36,6 +36,7 @@
 #include "kfd_topology.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_iommu.h"
+#include "kfd_svm.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_ras.h"
 
@@ -1441,10 +1442,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		dev->node_props.capability |= (adev->ras_enabled != 0) ?
 			HSA_CAP_RASEVENTNOTIFY : 0;
 
-	/* SVM API and HMM page migration work together, device memory type
-	 * is initialized to not 0 when page migration register device memory.
-	 */
-	if (adev->kfd.dev->pgmap.type != 0)
+	if (KFD_IS_SVM_API_SUPPORTED(adev->kfd.dev))
 		dev->node_props.capability |= HSA_CAP_SVMAPI_SUPPORTED;
 
 	kfd_debug_print_topology();
