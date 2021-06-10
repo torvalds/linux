@@ -193,14 +193,14 @@ FIXTURE_TEARDOWN(enclave)
 	encl_delete(&self->encl);
 }
 
-#define ENCL_CALL(in, out, run, clobbered) \
+#define ENCL_CALL(op, run, clobbered) \
 	({ \
 		int ret; \
 		if ((clobbered)) \
-			ret = vdso_sgx_enter_enclave((unsigned long)(in), (unsigned long)(out), 0, \
+			ret = vdso_sgx_enter_enclave((unsigned long)(op), 0, 0, \
 						     EENTER, 0, 0, (run)); \
 		else \
-			ret = sgx_enter_enclave((void *)(in), (void *)(out), 0, EENTER, NULL, NULL, \
+			ret = sgx_enter_enclave((void *)(op), NULL, 0, EENTER, NULL, NULL, \
 						(run)); \
 		ret; \
 	})
@@ -215,22 +215,44 @@ FIXTURE_TEARDOWN(enclave)
 
 TEST_F(enclave, unclobbered_vdso)
 {
-	uint64_t result = 0;
+	struct encl_op op;
 
-	EXPECT_EQ(ENCL_CALL(&MAGIC, &result, &self->run, false), 0);
+	op.type = ENCL_OP_PUT;
+	op.buffer = MAGIC;
 
-	EXPECT_EQ(result, MAGIC);
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, false), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.user_data, 0);
+
+	op.type = ENCL_OP_GET;
+	op.buffer = 0;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, false), 0);
+
+	EXPECT_EQ(op.buffer, MAGIC);
 	EXPECT_EEXIT(&self->run);
 	EXPECT_EQ(self->run.user_data, 0);
 }
 
 TEST_F(enclave, clobbered_vdso)
 {
-	uint64_t result = 0;
+	struct encl_op op;
 
-	EXPECT_EQ(ENCL_CALL(&MAGIC, &result, &self->run, true), 0);
+	op.type = ENCL_OP_PUT;
+	op.buffer = MAGIC;
 
-	EXPECT_EQ(result, MAGIC);
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.user_data, 0);
+
+	op.type = ENCL_OP_GET;
+	op.buffer = 0;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
+
+	EXPECT_EQ(op.buffer, MAGIC);
 	EXPECT_EEXIT(&self->run);
 	EXPECT_EQ(self->run.user_data, 0);
 }
@@ -245,14 +267,25 @@ static int test_handler(long rdi, long rsi, long rdx, long ursp, long r8, long r
 
 TEST_F(enclave, clobbered_vdso_and_user_function)
 {
-	uint64_t result = 0;
+	struct encl_op op;
 
 	self->run.user_handler = (__u64)test_handler;
 	self->run.user_data = 0xdeadbeef;
 
-	EXPECT_EQ(ENCL_CALL(&MAGIC, &result, &self->run, true), 0);
+	op.type = ENCL_OP_PUT;
+	op.buffer = MAGIC;
 
-	EXPECT_EQ(result, MAGIC);
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.user_data, 0);
+
+	op.type = ENCL_OP_GET;
+	op.buffer = 0;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
+
+	EXPECT_EQ(op.buffer, MAGIC);
 	EXPECT_EEXIT(&self->run);
 	EXPECT_EQ(self->run.user_data, 0);
 }
