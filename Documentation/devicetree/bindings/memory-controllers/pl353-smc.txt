@@ -18,6 +18,10 @@ The child device node represents the controller connected to the SMC
 bus. Only one between: NAND controller, NOR controller and SRAM controller
 is allowed in a single system.
 
+Required device node properties:
+
+- reg:			Contains the chip-select id, the offset and the length
+			of the memory region requested by the device.
 
 Example:
 	smcc: memory-controller@e000e000
