@@ -1723,6 +1723,14 @@ vlv_pipe_to_channel(enum pipe pipe)
 	}
 }
 
+static inline bool intel_pipe_valid(struct drm_i915_private *i915, enum pipe pipe)
+{
+	return (pipe >= 0 &&
+		pipe < ARRAY_SIZE(i915->pipe_to_crtc_mapping) &&
+		INTEL_INFO(i915)->pipe_mask & BIT(pipe) &&
+		i915->pipe_to_crtc_mapping[pipe]);
+}
+
 static inline struct intel_crtc *
 intel_get_first_crtc(struct drm_i915_private *dev_priv)
 {
