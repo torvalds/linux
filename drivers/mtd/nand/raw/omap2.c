@@ -1528,7 +1528,9 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 	int ret;
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 
-	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+	ret = nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+	if (ret)
+		return ret;
 
 	/* Enable GPMC ecc engine */
 	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
@@ -1537,7 +1539,9 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 	chip->legacy.write_buf(chip, buf, mtd->writesize);
 
 	/* Update ecc vector from GPMC result registers */
-	omap_calculate_ecc_bch_multi(mtd, buf, &ecc_calc[0]);
+	ret = omap_calculate_ecc_bch_multi(mtd, buf, &ecc_calc[0]);
+	if (ret)
+		return ret;
 
 	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
 					 chip->ecc.total);
@@ -1580,7 +1584,9 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 	 * ECC is calculated for all subpages but we choose
 	 * only what we want.
 	 */
-	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+	ret = nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+	if (ret)
+		return ret;
 
 	/* Enable GPMC ECC engine */
 	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
@@ -1639,7 +1645,9 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 	int stat, ret;
 	unsigned int max_bitflips = 0;
 
-	nand_read_page_op(chip, page, 0, NULL, 0);
+	ret = nand_read_page_op(chip, page, 0, NULL, 0);
+	if (ret)
+		return ret;
 
 	/* Enable GPMC ecc engine */
 	chip->ecc.hwctl(chip, NAND_ECC_READ);
@@ -1648,13 +1656,17 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 	chip->legacy.read_buf(chip, buf, mtd->writesize);
 
 	/* Read oob bytes */
-	nand_change_read_column_op(chip,
-				   mtd->writesize + BBM_LEN,
-				   chip->oob_poi + BBM_LEN,
-				   chip->ecc.total, false);
+	ret = nand_change_read_column_op(chip,
+					 mtd->writesize + BBM_LEN,
+					 chip->oob_poi + BBM_LEN,
+					 chip->ecc.total, false);
+	if (ret)
+		return ret;
 
 	/* Calculate ecc bytes */
-	omap_calculate_ecc_bch_multi(mtd, buf, ecc_calc);
+	ret = omap_calculate_ecc_bch_multi(mtd, buf, ecc_calc);
+	if (ret)
+		return ret;
 
 	ret = mtd_ooblayout_get_eccbytes(mtd, ecc_code, chip->oob_poi, 0,
 					 chip->ecc.total);
