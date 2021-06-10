@@ -326,7 +326,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 
 		/* fill the feature_buffer with new configuration */
 		put_unaligned_le32(new_baudrate, feature_buffer);
-		feature_buffer[4] |= data_bits;   /* assign data bits in 2 bit space ( max 3 ) */
+		feature_buffer[4] |= data_bits - 5;   /* assign data bits in 2 bit space ( max 3 ) */
 		/* 1 bit gap */
 		feature_buffer[4] |= (stop_bits << 3);   /* assign stop bits in 1 bit space */
 		feature_buffer[4] |= (parity_enable << 4);   /* assign parity flag in 1 bit space */
@@ -889,20 +889,20 @@ static void cypress_set_termios(struct tty_struct *tty,
 
 	switch (cflag & CSIZE) {
 	case CS5:
-		data_bits = 0;
+		data_bits = 5;
 		break;
 	case CS6:
-		data_bits = 1;
+		data_bits = 6;
 		break;
 	case CS7:
-		data_bits = 2;
+		data_bits = 7;
 		break;
 	case CS8:
-		data_bits = 3;
+		data_bits = 8;
 		break;
 	default:
 		dev_err(dev, "%s - CSIZE was set, but not CS5-CS8\n", __func__);
-		data_bits = 3;
+		data_bits = 8;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
 	oldlines = priv->line_control;
