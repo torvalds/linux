@@ -870,6 +870,14 @@ static const struct drm_driver tegra_drm_driver = {
 int tegra_drm_register_client(struct tegra_drm *tegra,
 			      struct tegra_drm_client *client)
 {
+	/*
+	 * When MLOCKs are implemented, change to allocate a shared channel
+	 * only when MLOCKs are disabled.
+	 */
+	client->shared_channel = host1x_channel_request(&client->base);
+	if (!client->shared_channel)
+		return -EBUSY;
+
 	mutex_lock(&tegra->clients_lock);
 	list_add_tail(&client->list, &tegra->clients);
 	client->drm = tegra;
@@ -885,6 +893,9 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 	list_del_init(&client->list);
 	client->drm = NULL;
 	mutex_unlock(&tegra->clients_lock);
+
+	if (client->shared_channel)
+		host1x_channel_put(client->shared_channel);
 
 	return 0;
 }
