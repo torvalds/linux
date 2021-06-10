@@ -83,7 +83,6 @@
 #define PKT_HDLC_CRC_32			0x2 /* default = CRC-16 */
 #define PKT_HDLC_MSB_ENDIAN		0x4 /* default = LE */
 
-
 /* hss_config, PCRs */
 /* Frame sync sampling, default = active low */
 #define PCR_FRM_SYNC_ACTIVE_HIGH	0x40000000
@@ -150,7 +149,6 @@
 /* HSS number, default = 0 (first) */
 #define CCR_SECOND_HSS			0x01000000
 
-
 /* hss_config, clkCR: main:10, num:10, denom:12 */
 #define CLK42X_SPEED_EXP	((0x3FF << 22) | (  2 << 12) |   15) /*65 KHz*/
 
@@ -208,7 +206,6 @@
 #define HSS_CONFIG_TX_LUT	0x18 /* channel look-up tables */
 #define HSS_CONFIG_RX_LUT	0x38
 
-
 /* NPE command codes */
 /* writes the ConfigWord value to the location specified by offset */
 #define PORT_CONFIG_WRITE		0x40
@@ -239,7 +236,6 @@
 #define ERR_HDLC_TOO_LONG	5 /* HDLC frame size too long */
 #define ERR_HDLC_ABORT		6 /* abort sequence received */
 #define ERR_DISCONNECTING	7 /* disconnect is in progress */
-
 
 #ifdef __ARMEB__
 typedef struct sk_buff buffer_t;
@@ -307,7 +303,6 @@ struct desc {
 #endif
 	u32 __reserved1[4];
 };
-
 
 #define rx_desc_phys(port, n)	((port)->desc_tab_phys +		\
 				 (n) * sizeof(struct desc))
@@ -567,7 +562,6 @@ static inline void debug_pkt(struct net_device *dev, const char *func,
 #endif
 }
 
-
 static inline void debug_desc(u32 phys, struct desc *desc)
 {
 #if DEBUG_DESC
@@ -606,7 +600,6 @@ static inline void queue_put_desc(unsigned int queue, u32 phys,
 	   length and queues >= 32 don't support this check anyway. */
 }
 
-
 static inline void dma_unmap_tx(struct port *port, struct desc *desc)
 {
 #ifdef __ARMEB__
@@ -618,7 +611,6 @@ static inline void dma_unmap_tx(struct port *port, struct desc *desc)
 			 DMA_TO_DEVICE);
 #endif
 }
-
 
 static void hss_hdlc_set_carrier(void *pdev, int carrier)
 {
@@ -784,7 +776,6 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 	return received;	/* not all work done */
 }
 
-
 static void hss_hdlc_txdone_irq(void *pdev)
 {
 	struct net_device *dev = pdev;
@@ -909,7 +900,6 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	return NETDEV_TX_OK;
 }
-
 
 static int request_hdlc_queues(struct port *port)
 {
@@ -1159,7 +1149,6 @@ static int hss_hdlc_close(struct net_device *dev)
 	hdlc_close(dev);
 	return 0;
 }
-
 
 static int hss_hdlc_attach(struct net_device *dev, unsigned short encoding,
 			   unsigned short parity)
