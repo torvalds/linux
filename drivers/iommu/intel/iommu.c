@@ -683,9 +683,8 @@ static int domain_update_iommu_superpage(struct dmar_domain *domain,
 	struct intel_iommu *iommu;
 	int mask = 0x3;
 
-	if (!intel_iommu_superpage) {
+	if (!intel_iommu_superpage)
 		return 0;
-	}
 
 	/* set iommu_superpage to the smallest common denominator */
 	rcu_read_lock();
