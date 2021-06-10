@@ -87,7 +87,7 @@
 #define AUART_LINECTRL_BAUD_DIVFRAC(v)		(((v) & 0x3f) << 8)
 #define AUART_LINECTRL_SPS			(1 << 7)
 #define AUART_LINECTRL_WLEN_MASK		0x00000060
-#define AUART_LINECTRL_WLEN(v)			(((v) & 0x3) << 5)
+#define AUART_LINECTRL_WLEN(v)			((((v) - 5) & 0x3) << 5)
 #define AUART_LINECTRL_FEN			(1 << 4)
 #define AUART_LINECTRL_STP2			(1 << 3)
 #define AUART_LINECTRL_EPS			(1 << 2)
@@ -973,16 +973,16 @@ static void mxs_auart_settermios(struct uart_port *u,
 	/* byte size */
 	switch (cflag & CSIZE) {
 	case CS5:
-		bm = 0;
+		bm = 5;
 		break;
 	case CS6:
-		bm = 1;
+		bm = 6;
 		break;
 	case CS7:
-		bm = 2;
+		bm = 7;
 		break;
 	case CS8:
-		bm = 3;
+		bm = 8;
 		break;
 	default:
 		return;
@@ -1403,7 +1403,7 @@ auart_console_get_options(struct mxs_auart_port *s, int *baud,
 			*parity = 'o';
 	}
 
-	if ((lcr_h & AUART_LINECTRL_WLEN_MASK) == AUART_LINECTRL_WLEN(2))
+	if ((lcr_h & AUART_LINECTRL_WLEN_MASK) == AUART_LINECTRL_WLEN(7))
 		*bits = 7;
 	else
 		*bits = 8;
