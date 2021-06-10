@@ -282,15 +282,13 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
  * for the IPv4 and IPv6 non-hashed and hashed filter tables.
  */
 static int
-ipa_filter_reset_table(struct ipa *ipa, const struct ipa_mem *mem, bool modem)
+ipa_filter_reset_table(struct ipa *ipa, enum ipa_mem_id mem_id, bool modem)
 {
+	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	u32 ep_mask = ipa->filter_map;
 	u32 count = hweight32(ep_mask);
 	struct gsi_trans *trans;
 	enum gsi_ee_id ee_id;
-
-	if (!mem->size)
-		return 0;
 
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (!trans) {
@@ -327,20 +325,18 @@ static int ipa_filter_reset(struct ipa *ipa, bool modem)
 {
 	int ret;
 
-	ret = ipa_filter_reset_table(ipa, &ipa->mem[IPA_MEM_V4_FILTER], modem);
+	ret = ipa_filter_reset_table(ipa, IPA_MEM_V4_FILTER, modem);
 	if (ret)
 		return ret;
 
-	ret = ipa_filter_reset_table(ipa, &ipa->mem[IPA_MEM_V4_FILTER_HASHED],
-				     modem);
+	ret = ipa_filter_reset_table(ipa, IPA_MEM_V4_FILTER_HASHED, modem);
 	if (ret)
 		return ret;
 
-	ret = ipa_filter_reset_table(ipa, &ipa->mem[IPA_MEM_V6_FILTER], modem);
+	ret = ipa_filter_reset_table(ipa, IPA_MEM_V6_FILTER, modem);
 	if (ret)
 		return ret;
-	ret = ipa_filter_reset_table(ipa, &ipa->mem[IPA_MEM_V6_FILTER_HASHED],
-				     modem);
+	ret = ipa_filter_reset_table(ipa, IPA_MEM_V6_FILTER_HASHED, modem);
 
 	return ret;
 }
