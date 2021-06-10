@@ -104,7 +104,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	int i;
 	u32 fbc_ctl;
 
-	/* Note: fbc.threshold == 1 for i8xx */
+	/* Note: fbc.limit == 1 for i8xx */
 	cfb_pitch = params->cfb_size / FBC_LL_SIZE;
 	if (params->fb.stride < cfb_pitch)
 		cfb_pitch = params->fb.stride;
@@ -235,13 +235,13 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
-	int threshold = dev_priv->fbc.threshold;
+	int limit = dev_priv->fbc.limit;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 	if (params->fb.format->cpp[0] == 2)
-		threshold++;
+		limit++;
 
-	switch (threshold) {
+	switch (limit) {
 	case 4:
 	case 3:
 		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
@@ -300,7 +300,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
-	int threshold = dev_priv->fbc.threshold;
+	int limit = dev_priv->fbc.limit;
 
 	/* Display WA #0529: skl, kbl, bxt. */
 	if (DISPLAY_VER(dev_priv) == 9) {
@@ -319,9 +319,9 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 
 	if (params->fb.format->cpp[0] == 2)
-		threshold++;
+		limit++;
 
-	switch (threshold) {
+	switch (limit) {
 	case 4:
 	case 3:
 		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
@@ -433,12 +433,12 @@ static u64 intel_fbc_cfb_base_max(struct drm_i915_private *i915)
 		return BIT_ULL(32);
 }
 
-static int find_compression_threshold(struct drm_i915_private *dev_priv,
-				      struct drm_mm_node *node,
-				      unsigned int size,
-				      unsigned int fb_cpp)
+static int find_compression_limit(struct drm_i915_private *dev_priv,
+				  struct drm_mm_node *node,
+				  unsigned int size,
+				  unsigned int fb_cpp)
 {
-	int compression_threshold = 1;
+	int compression_limit = 1;
 	int ret;
 	u64 end;
 
@@ -458,19 +458,19 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 * code changes, this code needs to change as well.
 	 *
 	 * The enable_fbc code will attempt to use one of our 2 compression
-	 * thresholds, therefore, in that case, we only have 1 resort.
+	 * limits, therefore, in that case, we only have 1 resort.
 	 */
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
 	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size <<= 1,
 						   4096, 0, end);
 	if (ret == 0)
-		return compression_threshold;
+		return compression_limit;
 
 again:
 	/* HW's ability to limit the CFB is 1:4 */
-	if (compression_threshold > 4 ||
-	    (fb_cpp == 2 && compression_threshold == 2))
+	if (compression_limit > 4 ||
+	    (fb_cpp == 2 && compression_limit == 2))
 		return 0;
 
 	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size >>= 1,
@@ -478,10 +478,10 @@ again:
 	if (ret && DISPLAY_VER(dev_priv) <= 4) {
 		return 0;
 	} else if (ret) {
-		compression_threshold <<= 1;
+		compression_limit <<= 1;
 		goto again;
 	} else {
-		return compression_threshold;
+		return compression_limit;
 	}
 }
 
@@ -495,8 +495,8 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	drm_WARN_ON(&dev_priv->drm,
 		    drm_mm_node_allocated(&fbc->compressed_fb));
 
-	ret = find_compression_threshold(dev_priv, &fbc->compressed_fb,
-					 size, fb_cpp);
+	ret = find_compression_limit(dev_priv, &fbc->compressed_fb,
+				     size, fb_cpp);
 	if (!ret)
 		goto err_llb;
 	else if (ret > 1) {
@@ -504,7 +504,7 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 			      "Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
 	}
 
-	fbc->threshold = ret;
+	fbc->limit = ret;
 
 	if (DISPLAY_VER(dev_priv) >= 5)
 		intel_de_write(dev_priv, ILK_DPFC_CB_BASE,
@@ -537,8 +537,8 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	}
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
-		    fbc->compressed_fb.size, fbc->threshold);
+		    "reserved %llu bytes of contiguous stolen space for FBC, limit: %d\n",
+		    fbc->compressed_fb.size, fbc->limit);
 
 	return 0;
 
@@ -753,7 +753,7 @@ static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	return intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache) >
-		fbc->compressed_fb.size * fbc->threshold;
+		fbc->compressed_fb.size * fbc->limit;
 }
 
 static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
@@ -763,7 +763,7 @@ static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
 
 	if ((DISPLAY_VER(dev_priv) == 9) &&
 	    cache->fb.modifier != I915_FORMAT_MOD_X_TILED)
-		return DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
+		return DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->limit) * 8;
 	else
 		return 0;
 }

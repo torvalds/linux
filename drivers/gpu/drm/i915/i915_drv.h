@@ -345,13 +345,14 @@ struct intel_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
 	 * it's the outer lock when overlapping with stolen_lock. */
 	struct mutex lock;
-	unsigned threshold;
 	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
 	struct intel_crtc *crtc;
 
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node *compressed_llb;
+
+	u8 limit;
 
 	bool false_color;
 
