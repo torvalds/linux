@@ -4497,6 +4497,36 @@ static bool intel_ddi_is_tc(struct drm_i915_private *i915, enum port port)
 		return false;
 }
 
+static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	intel_dp_encoder_suspend(encoder);
+
+	if (!intel_phy_is_tc(i915, phy))
+		return;
+
+	intel_tc_port_disconnect_phy(dig_port);
+}
+
+static void intel_ddi_encoder_shutdown(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	intel_dp_encoder_shutdown(encoder);
+
+	if (!intel_phy_is_tc(i915, phy))
+		return;
+
+	intel_tc_port_disconnect_phy(dig_port);
+}
+
 #define port_tc_name(port) ((port) - PORT_TC1 + '1')
 #define tc_port_name(tc_port) ((tc_port) - TC_PORT_1 + '1')
 
@@ -4606,8 +4636,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->get_hw_state = intel_ddi_get_hw_state;
 	encoder->sync_state = intel_ddi_sync_state;
 	encoder->initial_fastset_check = intel_ddi_initial_fastset_check;
-	encoder->suspend = intel_dp_encoder_suspend;
-	encoder->shutdown = intel_dp_encoder_shutdown;
+	encoder->suspend = intel_ddi_encoder_suspend;
+	encoder->shutdown = intel_ddi_encoder_shutdown;
 	encoder->get_power_domains = intel_ddi_get_power_domains;
 
 	encoder->type = INTEL_OUTPUT_DDI;
