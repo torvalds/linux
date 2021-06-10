@@ -115,35 +115,6 @@
   cdev_device_add
   cdev_device_del
   cdev_init
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  cfg80211_chandef_create
-  cfg80211_ch_switch_notify
-  cfg80211_connect_done
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_external_auth_request
-  cfg80211_find_elem_match
-  cfg80211_get_bss
-  cfg80211_ibss_joined
-  cfg80211_inform_bss_frame_data
-  cfg80211_mgmt_tx_status
-  cfg80211_michael_mic_failure
-  cfg80211_new_sta
-  cfg80211_port_authorized
-  cfg80211_put_bss
-  cfg80211_ready_on_channel
-  cfg80211_remain_on_channel_expired
-  cfg80211_roamed
-  cfg80211_rx_mgmt_khz
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  cfg80211_sched_scan_stopped
-  cfg80211_sched_scan_stopped_rtnl
-  __cfg80211_send_event_skb
-  cfg80211_unlink_bss
-  cfg80211_unregister_wdev
-  cfg80211_vendor_cmd_reply
   __cfi_slowpath
   __check_object_size
   __class_create
@@ -887,9 +858,6 @@
   idr_for_each
   idr_preload
   idr_remove
-  ieee80211_channel_to_freq_khz
-  ieee80211_freq_khz_to_channel
-  ieee80211_get_channel_khz
   iio_device_unregister
   import_iovec
   in6_pton
@@ -1503,7 +1471,6 @@
   regulator_set_voltage
   regulator_set_voltage_sel_regmap
   regulator_unregister
-  regulatory_hint
   release_firmware
   __release_region
   remap_pfn_range
@@ -2195,11 +2162,6 @@
   watchdog_register_device
   watchdog_set_restart_priority
   watchdog_unregister_device
-  wiphy_apply_custom_regulatory
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
   woken_wake_function
   work_busy
   __xfrm_state_destroy

@@ -121,37 +121,6 @@
   cdev_device_add
   cdev_device_del
   cdev_init
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  cfg80211_calculate_bitrate
-  cfg80211_chandef_create
-  cfg80211_ch_switch_notify
-  cfg80211_connect_done
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_external_auth_request
-  cfg80211_ft_event
-  cfg80211_get_bss
-  cfg80211_gtk_rekey_notify
-  cfg80211_inform_bss_frame_data
-  cfg80211_mgmt_tx_status
-  cfg80211_michael_mic_failure
-  cfg80211_new_sta
-  cfg80211_pmksa_candidate_notify
-  cfg80211_put_bss
-  cfg80211_ready_on_channel
-  cfg80211_remain_on_channel_expired
-  cfg80211_roamed
-  cfg80211_rx_mgmt_khz
-  cfg80211_rx_unprot_mlme_mgmt
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  __cfg80211_send_event_skb
-  cfg80211_stop_iface
-  cfg80211_tdls_oper_request
-  cfg80211_unlink_bss
-  cfg80211_update_owe_info_event
-  cfg80211_vendor_cmd_reply
   __cfi_slowpath
   cgroup_path_ns
   cgroup_taskset_first
@@ -1084,9 +1053,6 @@
   idr_preload
   idr_remove
   idr_replace
-  ieee80211_freq_khz_to_channel
-  ieee80211_get_channel_khz
-  ieee80211_hdrlen
   iio_channel_get_all
   iio_read_channel_processed
   import_iovec
@@ -1960,7 +1926,6 @@
   regulator_set_mode
   regulator_set_voltage
   regulator_unregister_notifier
-  regulatory_set_wiphy_regd
   release_firmware
   __release_region
   release_sock
@@ -2923,10 +2888,6 @@
   wakeup_source_register
   wakeup_source_unregister
   __warn_printk
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
   wireless_send_event
   woken_wake_function
   work_busy
