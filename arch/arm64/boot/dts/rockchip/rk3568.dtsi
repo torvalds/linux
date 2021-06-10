@@ -2128,7 +2128,7 @@
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "complete";
 		devfreq-events = <&dfi>;
-		clocks = <&cru SCLK_DDRCLK>;
+		clocks = <&scmi_clk 3>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
 		ddr_timing = <&ddr_timing>;
