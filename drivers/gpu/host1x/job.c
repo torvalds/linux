@@ -24,14 +24,18 @@
 #define HOST1X_WAIT_SYNCPT_OFFSET 0x8
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
-				    u32 num_cmdbufs, u32 num_relocs)
+				    u32 num_cmdbufs, u32 num_relocs,
+				    bool skip_firewall)
 {
 	struct host1x_job *job = NULL;
 	unsigned int num_unpins = num_relocs;
+	bool enable_firewall;
 	u64 total;
 	void *mem;
 
-	if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+	enable_firewall = IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && !skip_firewall;
+
+	if (!enable_firewall)
 		num_unpins += num_cmdbufs;
 
 	/* Check that we're not going to overflow */
@@ -47,6 +51,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 	mem = job = kzalloc(total, GFP_KERNEL);
 	if (!job)
 		return NULL;
+
+	job->enable_firewall = enable_firewall;
 
 	kref_init(&job->ref);
 	job->channel = ch;
@@ -214,7 +220,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 	 * We will copy gathers BO content later, so there is no need to
 	 * hold and pin them.
 	 */
-	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+	if (job->enable_firewall)
 		return 0;
 
 	for (i = 0; i < job->num_cmds; i++) {
@@ -321,7 +327,7 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 		if (cmdbuf != reloc->cmdbuf.bo)
 			continue;
 
-		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
+		if (job->enable_firewall) {
 			target = (u32 *)job->gather_copy_mapped +
 					reloc->cmdbuf.offset / sizeof(u32) +
 						g->offset / sizeof(u32);
@@ -634,7 +640,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	if (err)
 		goto out;
 
-	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
+	if (job->enable_firewall) {
 		err = copy_gathers(host->dev, job, dev);
 		if (err)
 			goto out;
@@ -653,7 +659,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 			continue;
 
 		/* copy_gathers() sets gathers base if firewall is enabled */
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+		if (!job->enable_firewall)
 			g->base = job->gather_addr_phys[i];
 
 		for (j = i + 1; j < job->num_cmds; j++) {
@@ -688,8 +694,7 @@ void host1x_job_unpin(struct host1x_job *job)
 		struct device *dev = unpin->dev ?: host->dev;
 		struct sg_table *sgt = unpin->sgt;
 
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
-		    unpin->size && host->domain) {
+		if (!job->enable_firewall && unpin->size && host->domain) {
 			iommu_unmap(host->domain, job->addr_phys[i],
 				    unpin->size);
 			free_iova(&host->iova,

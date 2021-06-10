@@ -272,10 +272,14 @@ struct host1x_job {
 	/* Callback called when job is freed */
 	void (*release)(struct host1x_job *job);
 	void *user_data;
+
+	/* Whether host1x-side firewall should be ran for this job or not */
+	bool enable_firewall;
 };
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
-				    u32 num_cmdbufs, u32 num_relocs);
+				    u32 num_cmdbufs, u32 num_relocs,
+				    bool skip_firewall);
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 			   unsigned int words, unsigned int offset);
 void host1x_job_add_wait(struct host1x_job *job, u32 id, u32 thresh,
