@@ -111,9 +111,7 @@ static int mlx5_cmd_stub_delete_fte(struct mlx5_flow_root_namespace *ns,
 }
 
 static int mlx5_cmd_stub_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
-					       int reformat_type,
-					       size_t size,
-					       void *reformat_data,
+					       struct mlx5_pkt_reformat_params *params,
 					       enum mlx5_flow_namespace_type namespace,
 					       struct mlx5_pkt_reformat *pkt_reformat)
 {
@@ -701,9 +699,7 @@ int mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, u32 base_id, int bulk_len,
 }
 
 static int mlx5_cmd_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
-					  int reformat_type,
-					  size_t size,
-					  void *reformat_data,
+					  struct mlx5_pkt_reformat_params *params,
 					  enum mlx5_flow_namespace_type namespace,
 					  struct mlx5_pkt_reformat *pkt_reformat)
 {
@@ -721,14 +717,14 @@ static int mlx5_cmd_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
 	else
 		max_encap_size = MLX5_CAP_FLOWTABLE(dev, max_encap_header_size);
 
-	if (size > max_encap_size) {
+	if (params->size > max_encap_size) {
 		mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
-			       size, max_encap_size);
+			       params->size, max_encap_size);
 		return -EINVAL;
 	}
 
-	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) + size,
-		     GFP_KERNEL);
+	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) +
+		     params->size, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -737,15 +733,20 @@ static int mlx5_cmd_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
 	reformat = MLX5_ADDR_OF(packet_reformat_context_in,
 				packet_reformat_context_in,
 				reformat_data);
-	inlen = reformat - (void *)in  + size;
+	inlen = reformat - (void *)in + params->size;
 
 	MLX5_SET(alloc_packet_reformat_context_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT);
 	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
-		 reformat_data_size, size);
+		 reformat_data_size, params->size);
 	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
-		 reformat_type, reformat_type);
-	memcpy(reformat, reformat_data, size);
+		 reformat_type, params->type);
+	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+		 reformat_param_0, params->param_0);
+	MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+		 reformat_param_1, params->param_1);
+	if (params->data && params->size)
+		memcpy(reformat, params->data, params->size);
 
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 

@@ -79,6 +79,16 @@ config MLX5_ESWITCH
 	        Legacy SRIOV mode (L2 mac vlan steering based).
 	        Switchdev mode (eswitch offloads).
 
+config MLX5_BRIDGE
+	bool
+	depends on MLX5_ESWITCH && BRIDGE
+	default y
+	help
+	  mlx5 ConnectX offloads support for Ethernet Bridging (BRIDGE).
+	  Enable adding representors of mlx5 uplink and VF ports to Bridge and
+	  offloading rules for traffic between such ports. Supports VLANs (trunk and
+	  access modes).
+
 config MLX5_CLS_ACT
 	bool "MLX5 TC classifier action support"
 	depends on MLX5_ESWITCH && NET_CLS_ACT

@@ -89,6 +89,11 @@ enum {
 	DR_STE_SIZE_REDUCED = DR_STE_SIZE - DR_STE_SIZE_MASK,
 };
 
+enum mlx5dr_ste_ctx_action_cap {
+	DR_STE_CTX_ACTION_CAP_NONE = 0,
+	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 0,
+};
+
 enum {
 	DR_MODIFY_ACTION_SIZE = 8,
 };
@@ -118,6 +123,7 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_VPORT,
 	DR_ACTION_TYP_POP_VLAN,
 	DR_ACTION_TYP_PUSH_VLAN,
+	DR_ACTION_TYP_INSERT_HDR,
 	DR_ACTION_TYP_MAX,
 };
 
@@ -261,8 +267,12 @@ struct mlx5dr_ste_actions_attr {
 	u32	ctr_id;
 	u16	gvmi;
 	u16	hit_gvmi;
-	u32	reformat_id;
-	u32	reformat_size;
+	struct {
+		u32	id;
+		u32	size;
+		u8	param_0;
+		u8	param_1;
+	} reformat;
 	struct {
 		int	count;
 		u32	headers[MLX5DR_MAX_VLANS];
@@ -903,8 +913,10 @@ struct mlx5dr_action_rewrite {
 
 struct mlx5dr_action_reformat {
 	struct mlx5dr_domain *dmn;
-	u32 reformat_id;
-	u32 reformat_size;
+	u32 id;
+	u32 size;
+	u8 param_0;
+	u8 param_1;
 };
 
 struct mlx5dr_action_dest_tbl {
@@ -1142,6 +1154,8 @@ int mlx5dr_cmd_query_flow_table(struct mlx5_core_dev *dev,
 				struct mlx5dr_cmd_query_flow_table_details *output);
 int mlx5dr_cmd_create_reformat_ctx(struct mlx5_core_dev *mdev,
 				   enum mlx5_reformat_ctx_type rt,
+				   u8 reformat_param_0,
+				   u8 reformat_param_1,
 				   size_t reformat_size,
 				   void *reformat_data,
 				   u32 *reformat_id);
