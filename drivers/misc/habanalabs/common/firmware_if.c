@@ -392,10 +392,11 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 
 int hl_fw_send_heartbeat(struct hl_device *hdev)
 {
-	struct cpucp_packet hb_pkt = {0};
+	struct cpucp_packet hb_pkt;
 	u64 result;
 	int rc;
 
+	memset(&hb_pkt, 0, sizeof(hb_pkt));
 	hb_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST <<
 					CPUCP_PKT_CTL_OPCODE_SHIFT);
 	hb_pkt.value = cpu_to_le64(CPUCP_PACKET_FENCE_VAL);
