@@ -546,11 +546,11 @@ calc_map_type_and_dist_warn(struct pci_dev *provider, struct pci_dev *client,
 int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 			     int num_clients, bool verbose)
 {
+	enum pci_p2pdma_map_type map;
 	bool not_supported = false;
 	struct pci_dev *pci_client;
 	int total_dist = 0;
-	int distance;
-	int i, ret;
+	int i, distance;
 
 	if (num_clients == 0)
 		return -1;
@@ -565,15 +565,15 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		}
 
 		if (verbose)
-			ret = calc_map_type_and_dist_warn(provider, pci_client,
+			map = calc_map_type_and_dist_warn(provider, pci_client,
 							  &distance);
 		else
-			ret = calc_map_type_and_dist(provider, pci_client,
+			map = calc_map_type_and_dist(provider, pci_client,
 						     &distance, NULL, NULL);
 
 		pci_dev_put(pci_client);
 
-		if (ret == PCI_P2PDMA_MAP_NOT_SUPPORTED)
+		if (map == PCI_P2PDMA_MAP_NOT_SUPPORTED)
 			not_supported = true;
 
 		if (not_supported && !verbose)
