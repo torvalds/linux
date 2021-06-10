@@ -166,12 +166,6 @@
   ida_alloc_range
   ida_destroy
   ida_free
-  ieee80211_channel_to_freq_khz
-  ieee80211_connection_loss
-  ieee80211_find_sta
-  ieee80211_get_hdrlen_from_skb
-  ieee80211_queue_delayed_work
-  ieee80211_stop_rx_ba_session
   __init_swait_queue_head
   init_timer_key
   init_wait_entry
@@ -1225,17 +1219,10 @@
   tcpci_unregister_port
 
 # required by wl18xx.ko
-  __cfg80211_alloc_event_skb
-  __cfg80211_send_event_skb
-  ieee80211_radar_detected
   kstrtou8_from_user
 
 # required by wlcore.ko
   bcmp
-  __cfg80211_alloc_reply_skb
-  cfg80211_find_elem_match
-  cfg80211_find_vendor_elem
-  cfg80211_vendor_cmd_reply
   complete_all
   consume_skb
   device_create_bin_file
@@ -1244,40 +1231,6 @@
   dev_pm_set_dedicated_wake_irq
   disable_irq_nosync
   get_random_u32
-  ieee80211_alloc_hw_nm
-  ieee80211_ap_probereq_get
-  ieee80211_beacon_get_tim
-  ieee80211_chswitch_done
-  ieee80211_cqm_beacon_loss_notify
-  ieee80211_cqm_rssi_notify
-  ieee80211_csa_finish
-  ieee80211_free_hw
-  ieee80211_free_txskb
-  ieee80211_freq_khz_to_channel
-  ieee80211_hdrlen
-  ieee80211_iterate_active_interfaces_atomic
-  ieee80211_iterate_interfaces
-  ieee80211_nullfunc_get
-  ieee80211_probereq_get
-  ieee80211_proberesp_get
-  ieee80211_pspoll_get
-  ieee80211_queue_work
-  ieee80211_ready_on_channel
-  ieee80211_register_hw
-  ieee80211_remain_on_channel_expired
-  ieee80211_report_low_ack
-  ieee80211_restart_hw
-  ieee80211_rx_napi
-  ieee80211_scan_completed
-  ieee80211_sched_scan_results
-  ieee80211_sched_scan_stopped
-  ieee80211_sta_ps_transition
-  ieee80211_stop_queue
-  ieee80211_stop_queues
-  ieee80211_tx_status
-  ieee80211_unregister_hw
-  ieee80211_wake_queue
-  ieee80211_wake_queues
   jiffies_to_msecs
   jiffies_to_usecs
   __local_bh_enable_ip
@@ -1286,14 +1239,12 @@
   no_seek_end_llseek
   _raw_spin_trylock
   request_firmware_nowait
-  rfc1042_header
   skb_dequeue
   skb_push
   skb_put
   skb_queue_head
   skb_trim
   vscnprintf
-  wiphy_to_ieee80211_hw
 
 # required by wlcore_sdio.ko
   platform_device_add
