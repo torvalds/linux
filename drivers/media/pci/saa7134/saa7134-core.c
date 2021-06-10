@@ -1277,14 +1277,17 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	 */
 #ifdef CONFIG_MEDIA_CONTROLLER
 	err = media_device_register(dev->media_dev);
-	if (err)
+	if (err) {
+		media_device_cleanup(dev->media_dev);
 		goto err_unregister_video;
+	}
 #endif
 
 	return 0;
 
 err_unregister_video:
 	saa7134_unregister_video(dev);
+	list_del(&dev->devlist);
 	saa7134_i2c_unregister(dev);
 	free_irq(pci_dev->irq, dev);
 err_iounmap:
