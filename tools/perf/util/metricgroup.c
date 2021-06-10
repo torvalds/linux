@@ -1073,16 +1073,18 @@ static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
 
 	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = resolve_metric(d->metric_no_group,
 				     d->metric_list, NULL, d->ids);
 	if (ret)
-		return ret;
+		goto out;
 
 	*(d->has_match) = true;
 
-	return *d->ret;
+out:
+	*(d->ret) = ret;
+	return ret;
 }
 
 static int metricgroup__add_metric(const char *metric, bool metric_no_group,
