@@ -49,12 +49,17 @@ static void tegra_drm_channel_context_close(struct tegra_drm_context *context)
 void tegra_drm_uapi_close_file(struct tegra_drm_file *file)
 {
 	struct tegra_drm_context *context;
+	struct host1x_syncpt *sp;
 	unsigned long id;
 
 	xa_for_each(&file->contexts, id, context)
 		tegra_drm_channel_context_close(context);
 
+	xa_for_each(&file->syncpoints, id, sp)
+		host1x_syncpt_put(sp);
+
 	xa_destroy(&file->contexts);
+	xa_destroy(&file->syncpoints);
 }
 
 static struct tegra_drm_client *tegra_drm_find_client(struct tegra_drm *tegra, u32 class)
@@ -265,6 +270,50 @@ int tegra_drm_ioctl_channel_unmap(struct drm_device *drm, void *data, struct drm
 		return -EINVAL;
 
 	tegra_drm_mapping_put(mapping);
+	return 0;
+}
+
+int tegra_drm_ioctl_syncpoint_allocate(struct drm_device *drm, void *data, struct drm_file *file)
+{
+	struct host1x *host1x = tegra_drm_to_host1x(drm->dev_private);
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_syncpoint_allocate *args = data;
+	struct host1x_syncpt *sp;
+	int err;
+
+	if (args->id)
+		return -EINVAL;
+
+	sp = host1x_syncpt_alloc(host1x, HOST1X_SYNCPT_CLIENT_MANAGED, current->comm);
+	if (!sp)
+		return -EBUSY;
+
+	args->id = host1x_syncpt_id(sp);
+
+	err = xa_insert(&fpriv->syncpoints, args->id, sp, GFP_KERNEL);
+	if (err) {
+		host1x_syncpt_put(sp);
+		return err;
+	}
+
+	return 0;
+}
+
+int tegra_drm_ioctl_syncpoint_free(struct drm_device *drm, void *data, struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_syncpoint_allocate *args = data;
+	struct host1x_syncpt *sp;
+
+	mutex_lock(&fpriv->lock);
+	sp = xa_erase(&fpriv->syncpoints, args->id);
+	mutex_unlock(&fpriv->lock);
+
+	if (!sp)
+		return -EINVAL;
+
+	host1x_syncpt_put(sp);
+
 	return 0;
 }
 

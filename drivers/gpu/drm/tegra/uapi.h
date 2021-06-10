@@ -21,6 +21,7 @@ struct tegra_drm_file {
 
 	/* New UAPI state */
 	struct xarray contexts;
+	struct xarray syncpoints;
 };
 
 struct tegra_drm_mapping {
@@ -43,6 +44,10 @@ int tegra_drm_ioctl_channel_map(struct drm_device *drm, void *data,
 int tegra_drm_ioctl_channel_unmap(struct drm_device *drm, void *data,
 				  struct drm_file *file);
 int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
+				   struct drm_file *file);
+int tegra_drm_ioctl_syncpoint_allocate(struct drm_device *drm, void *data,
+				       struct drm_file *file);
+int tegra_drm_ioctl_syncpoint_free(struct drm_device *drm, void *data,
 				   struct drm_file *file);
 
 void tegra_drm_uapi_close_file(struct tegra_drm_file *file);
