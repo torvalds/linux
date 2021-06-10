@@ -92,25 +92,6 @@ static inline bool __cp_buffer_busy(struct journal_head *jh)
 }
 
 /*
- * Try to release a checkpointed buffer from its transaction.
- * Returns 1 if we released it and 2 if we also released the
- * whole transaction.
- *
- * Requires j_list_lock
- */
-static int __try_to_free_cp_buf(struct journal_head *jh)
-{
-	int ret = 0;
-	struct buffer_head *bh = jh2bh(jh);
-
-	if (!jh->b_transaction && !buffer_locked(bh) && !buffer_dirty(bh)) {
-		JBUFFER_TRACE(jh, "remove from checkpoint list");
-		ret = __jbd2_journal_remove_checkpoint(jh) + 1;
-	}
-	return ret;
-}
-
-/*
  * __jbd2_log_wait_for_space: wait until there is space in the journal.
  *
  * Called under j-state_lock *only*.  It will be unlocked if we have to wait
@@ -440,7 +421,6 @@ static int journal_clean_one_cp_list(struct journal_head *jh, bool destroy)
 {
 	struct journal_head *last_jh;
 	struct journal_head *next_jh = jh;
-	int ret;
 
 	if (!jh)
 		return 0;
@@ -449,13 +429,11 @@ static int journal_clean_one_cp_list(struct journal_head *jh, bool destroy)
 	do {
 		jh = next_jh;
 		next_jh = jh->b_cpnext;
-		if (!destroy)
-			ret = __try_to_free_cp_buf(jh);
-		else
-			ret = __jbd2_journal_remove_checkpoint(jh) + 1;
-		if (!ret)
+
+		if (!destroy && __cp_buffer_busy(jh))
 			return 0;
-		if (ret == 2)
+
+		if (__jbd2_journal_remove_checkpoint(jh))
 			return 1;
 		/*
 		 * This function only frees up some memory
