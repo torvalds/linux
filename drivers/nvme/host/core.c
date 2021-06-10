@@ -609,6 +609,7 @@ EXPORT_SYMBOL_NS_GPL(nvme_put_ns, NVME_TARGET_PASSTHRU);
 
 static inline void nvme_clear_nvme_request(struct request *req)
 {
+	nvme_req(req)->status = 0;
 	nvme_req(req)->retries = 0;
 	nvme_req(req)->flags = 0;
 	req->rq_flags |= RQF_DONTPREP;
@@ -1032,6 +1033,25 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 EXPORT_SYMBOL_GPL(nvme_setup_cmd);
 
 /*
+ * Return values:
+ * 0:  success
+ * >0: nvme controller's cqe status response
+ * <0: kernel error in lieu of controller response
+ */
+static int nvme_execute_rq(struct gendisk *disk, struct request *rq,
+		bool at_head)
+{
+	blk_status_t status;
+
+	status = blk_execute_rq(disk, rq, at_head);
+	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
+		return -EINTR;
+	if (nvme_req(rq)->status)
+		return nvme_req(rq)->status;
+	return blk_status_to_errno(status);
+}
+
+/*
  * Returns 0 on success.  If the result is negative, it's a Linux error code;
  * if the result is positive, it's an NVM Express status code
  */
@@ -1059,13 +1079,9 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 			goto out;
 	}
 
-	blk_execute_rq(NULL, req, at_head);
-	if (result)
+	ret = nvme_execute_rq(NULL, req, at_head);
+	if (result && ret >= 0)
 		*result = nvme_req(req)->result;
-	if (nvme_req(req)->flags & NVME_REQ_CANCELLED)
-		ret = -EINTR;
-	else
-		ret = nvme_req(req)->status;
  out:
 	blk_mq_free_request(req);
 	return ret;
@@ -1153,18 +1169,21 @@ static void nvme_passthru_end(struct nvme_ctrl *ctrl, u32 effects)
 	}
 }
 
-void nvme_execute_passthru_rq(struct request *rq)
+int nvme_execute_passthru_rq(struct request *rq)
 {
 	struct nvme_command *cmd = nvme_req(rq)->cmd;
 	struct nvme_ctrl *ctrl = nvme_req(rq)->ctrl;
 	struct nvme_ns *ns = rq->q->queuedata;
 	struct gendisk *disk = ns ? ns->disk : NULL;
 	u32 effects;
+	int  ret;
 
 	effects = nvme_passthru_start(ctrl, ns, cmd->common.opcode);
-	blk_execute_rq(disk, rq, 0);
+	ret = nvme_execute_rq(disk, rq, false);
 	if (effects) /* nothing to be done for zero cmd effects */
 		nvme_passthru_end(ctrl, effects);
+
+	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(nvme_execute_passthru_rq, NVME_TARGET_PASSTHRU);
 
