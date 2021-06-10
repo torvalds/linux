@@ -489,11 +489,12 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 			       unsigned int size, unsigned int fb_cpp)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_mm_node *compressed_llb;
 	int ret;
 
 	drm_WARN_ON(&dev_priv->drm,
 		    drm_mm_node_allocated(&fbc->compressed_fb));
+	drm_WARN_ON(&dev_priv->drm,
+		    drm_mm_node_allocated(&fbc->compressed_llb));
 
 	ret = find_compression_limit(dev_priv, &fbc->compressed_fb,
 				     size, fb_cpp);
@@ -507,16 +508,10 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	fbc->limit = ret;
 
 	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv)) {
-		compressed_llb = kzalloc(sizeof(*compressed_llb), GFP_KERNEL);
-		if (!compressed_llb)
-			goto err_fb;
-
-		ret = i915_gem_stolen_insert_node(dev_priv, compressed_llb,
+		ret = i915_gem_stolen_insert_node(dev_priv, &fbc->compressed_llb,
 						  4096, 4096);
 		if (ret)
 			goto err_fb;
-
-		fbc->compressed_llb = compressed_llb;
 	}
 
 	drm_dbg_kms(&dev_priv->drm,
@@ -526,7 +521,6 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	return 0;
 
 err_fb:
-	kfree(compressed_llb);
 	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
 err_llb:
 	if (drm_mm_initialized(&dev_priv->mm.stolen))
@@ -549,13 +543,13 @@ static void intel_fbc_program_cfb(struct drm_i915_private *dev_priv)
 						 fbc->compressed_fb.start,
 						 U32_MAX));
 		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
-						 fbc->compressed_llb->start,
+						 fbc->compressed_llb.start,
 						 U32_MAX));
 
 		intel_de_write(dev_priv, FBC_CFB_BASE,
 			       dev_priv->dsm.start + fbc->compressed_fb.start);
 		intel_de_write(dev_priv, FBC_LL_BASE,
-			       dev_priv->dsm.start + fbc->compressed_llb->start);
+			       dev_priv->dsm.start + fbc->compressed_llb.start);
 	}
 }
 
@@ -566,15 +560,10 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 	if (WARN_ON(intel_fbc_hw_is_active(dev_priv)))
 		return;
 
-	if (!drm_mm_node_allocated(&fbc->compressed_fb))
-		return;
-
-	if (fbc->compressed_llb) {
-		i915_gem_stolen_remove_node(dev_priv, fbc->compressed_llb);
-		kfree(fbc->compressed_llb);
-	}
-
-	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
+	if (drm_mm_node_allocated(&fbc->compressed_llb))
+		i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_llb);
+	if (drm_mm_node_allocated(&fbc->compressed_fb))
+		i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
 }
 
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)

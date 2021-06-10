@@ -350,7 +350,7 @@ struct intel_fbc {
 	struct intel_crtc *crtc;
 
 	struct drm_mm_node compressed_fb;
-	struct drm_mm_node *compressed_llb;
+	struct drm_mm_node compressed_llb;
 
 	u8 limit;
 
