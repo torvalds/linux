@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Plus SVK (BCM988312HR)";
-	compatible = "brcm,bcm88312", "brcm,nsp";
+	compatible = "brcm,bcm988312hr", "brcm,bcm88312", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";

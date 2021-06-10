@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar Plus XMC (BCM958525xmc)";
-	compatible = "brcm,bcm58525", "brcm,nsp";
+	compatible = "brcm,bcm958525xmc", "brcm,bcm58525", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
