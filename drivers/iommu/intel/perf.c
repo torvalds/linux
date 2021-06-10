@@ -141,14 +141,14 @@ int dmar_latency_snapshot(struct intel_iommu *iommu, char *str, size_t size)
 				if (val == UINT_MAX)
 					val = 0;
 				else
-					val /= 1000;
+					val = div_u64(val, 1000);
 				break;
 			case COUNTS_MAX:
-				val /= 1000;
+				val = div_u64(val, 1000);
 				break;
 			case COUNTS_SUM:
 				if (lstat[i].samples)
-					val /= (lstat[i].samples * 1000);
+					val = div_u64(val, (lstat[i].samples * 1000));
 				else
 					val = 0;
 				break;
