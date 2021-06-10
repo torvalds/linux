@@ -356,7 +356,7 @@ void mt7921_stats_work(struct work_struct *work);
 void mt7921_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
 void mt7921_set_stream_he_caps(struct mt7921_phy *phy);
-void mt7921_update_channel(struct mt76_dev *mdev);
+void mt7921_update_channel(struct mt76_phy *mphy);
 int mt7921_init_debugfs(struct mt7921_dev *dev);
 
 int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,

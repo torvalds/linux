@@ -1819,42 +1819,40 @@ mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 	state->noise = -(phy->noise >> 4);
 }
 
-static void __mt7615_update_channel(struct mt7615_dev *dev)
-{
-	struct mt76_dev *mdev = &dev->mt76;
-
-	mt7615_phy_update_channel(&mdev->phy, 0);
-	if (mdev->phy2)
-		mt7615_phy_update_channel(mdev->phy2, 1);
-
-	/* reset obss airtime */
-	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
-}
-
-void mt7615_update_channel(struct mt76_dev *mdev)
-{
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-
-	if (mt76_connac_pm_wake(&dev->mphy, &dev->pm))
-		return;
-
-	__mt7615_update_channel(dev);
-	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
-}
-EXPORT_SYMBOL_GPL(mt7615_update_channel);
-
 static void mt7615_update_survey(struct mt7615_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	ktime_t cur_time;
 
-	__mt7615_update_channel(dev);
+	/* MT7615 can only update both phys simultaneously
+	 * since some reisters are shared across bands.
+	 */
+
+	mt7615_phy_update_channel(&mdev->phy, 0);
+	if (mdev->phy2)
+		mt7615_phy_update_channel(mdev->phy2, 1);
+
 	cur_time = ktime_get_boottime();
 
 	mt76_update_survey_active_time(&mdev->phy, cur_time);
 	if (mdev->phy2)
 		mt76_update_survey_active_time(mdev->phy2, cur_time);
+
+	/* reset obss airtime */
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 }
+
+void mt7615_update_channel(struct mt76_phy *mphy)
+{
+	struct mt7615_dev *dev = container_of(mphy->dev, struct mt7615_dev, mt76);
+
+	if (mt76_connac_pm_wake(&dev->mphy, &dev->pm))
+		return;
+
+	mt7615_update_survey(dev);
+	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
+}
+EXPORT_SYMBOL_GPL(mt7615_update_channel);
 
 static void
 mt7615_mac_update_mib_stats(struct mt7615_phy *phy)

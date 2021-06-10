@@ -1227,18 +1227,18 @@ mt7921_phy_update_channel(struct mt76_phy *mphy, int idx)
 	state->noise = -(phy->noise >> 4);
 }
 
-void mt7921_update_channel(struct mt76_dev *mdev)
+void mt7921_update_channel(struct mt76_phy *mphy)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt7921_dev *dev = container_of(mphy->dev, struct mt7921_dev, mt76);
 
-	if (mt76_connac_pm_wake(&dev->mphy, &dev->pm))
+	if (mt76_connac_pm_wake(mphy, &dev->pm))
 		return;
 
-	mt7921_phy_update_channel(&mdev->phy, 0);
+	mt7921_phy_update_channel(mphy, 0);
 	/* reset obss airtime */
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
 
-	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
+	mt76_connac_power_save_sched(mphy, &dev->pm);
 }
 
 void mt7921_tx_token_put(struct mt7921_dev *dev)
@@ -1436,7 +1436,7 @@ void mt7921_mac_work(struct work_struct *work)
 
 	mt7921_mutex_acquire(phy->dev);
 
-	mt76_update_survey(mphy->dev);
+	mt76_update_survey(mphy);
 	if (++mphy->mac_work_count == 2) {
 		mphy->mac_work_count = 0;
 

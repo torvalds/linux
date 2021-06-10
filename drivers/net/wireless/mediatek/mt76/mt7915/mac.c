@@ -1471,29 +1471,22 @@ mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
 	return sum / n;
 }
 
-static void
-mt7915_phy_update_channel(struct mt76_phy *mphy, int idx)
+void mt7915_update_channel(struct mt76_phy *mphy)
 {
 	struct mt7915_phy *phy = (struct mt7915_phy *)mphy->priv;
 	struct mt76_channel_state *state = mphy->chan_state;
+	bool ext_phy = phy != &phy->dev->phy;
 	int nf;
 
 	mt7915_mcu_get_chan_mib_info(phy, false);
 
-	nf = mt7915_phy_get_nf(phy, idx);
+	nf = mt7915_phy_get_nf(phy, ext_phy);
 	if (!phy->noise)
 		phy->noise = nf << 4;
 	else if (nf)
 		phy->noise += nf - (phy->noise >> 4);
 
 	state->noise = -(phy->noise >> 4);
-}
-
-void mt7915_update_channel(struct mt76_dev *mdev)
-{
-	mt7915_phy_update_channel(&mdev->phy, 0);
-	if (mdev->phy2)
-		mt7915_phy_update_channel(mdev->phy2, 1);
 }
 
 static bool
@@ -1804,7 +1797,7 @@ void mt7915_mac_work(struct work_struct *work)
 
 	mutex_lock(&mphy->dev->mutex);
 
-	mt76_update_survey(mphy->dev);
+	mt76_update_survey(mphy);
 	if (++mphy->mac_work_count == 5) {
 		mphy->mac_work_count = 0;
 
