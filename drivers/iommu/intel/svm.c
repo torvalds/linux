@@ -23,9 +23,11 @@
 #include <asm/fpu/api.h>
 
 #include "pasid.h"
+#include "../iommu-sva-lib.h"
 
 static irqreturn_t prq_event_thread(int irq, void *d);
 static void intel_svm_drain_prq(struct device *dev, u32 pasid);
+#define to_intel_svm_dev(handle) container_of(handle, struct intel_svm_dev, sva)
 
 #define PRQ_ORDER 0
 
@@ -222,7 +224,6 @@ static const struct mmu_notifier_ops intel_mmuops = {
 };
 
 static DEFINE_MUTEX(pasid_mutex);
-static LIST_HEAD(global_svm_list);
 
 #define for_each_svm_dev(sdev, svm, d)			\
 	list_for_each_entry((sdev), &(svm)->devs, list)	\
@@ -477,79 +478,80 @@ static void load_pasid(struct mm_struct *mm, u32 pasid)
 	mutex_unlock(&mm->context.lock);
 }
 
-/* Caller must hold pasid_mutex, mm reference */
-static int
-intel_svm_bind_mm(struct device *dev, unsigned int flags,
-		  struct mm_struct *mm, struct intel_svm_dev **sd)
+static int intel_svm_alloc_pasid(struct device *dev, struct mm_struct *mm,
+				 unsigned int flags)
 {
-	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
-	struct intel_svm *svm = NULL, *t;
-	struct device_domain_info *info;
+	ioasid_t max_pasid = dev_is_pci(dev) ?
+			pci_max_pasids(to_pci_dev(dev)) : intel_pasid_max_id;
+
+	return iommu_sva_alloc_pasid(mm, PASID_MIN, max_pasid - 1);
+}
+
+static void intel_svm_free_pasid(struct mm_struct *mm)
+{
+	iommu_sva_free_pasid(mm);
+}
+
+static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
+					   struct device *dev,
+					   struct mm_struct *mm,
+					   unsigned int flags)
+{
+	struct device_domain_info *info = get_domain_info(dev);
+	unsigned long iflags, sflags;
 	struct intel_svm_dev *sdev;
-	unsigned long iflags;
-	int pasid_max;
-	int ret;
+	struct intel_svm *svm;
+	int ret = 0;
 
-	if (!iommu || dmar_disabled)
-		return -EINVAL;
+	svm = pasid_private_find(mm->pasid);
+	if (!svm) {
+		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
+		if (!svm)
+			return ERR_PTR(-ENOMEM);
 
-	if (!intel_svm_capable(iommu))
-		return -ENOTSUPP;
+		svm->pasid = mm->pasid;
+		svm->mm = mm;
+		svm->flags = flags;
+		INIT_LIST_HEAD_RCU(&svm->devs);
 
-	if (dev_is_pci(dev)) {
-		pasid_max = pci_max_pasids(to_pci_dev(dev));
-		if (pasid_max < 0)
-			return -EINVAL;
-	} else
-		pasid_max = 1 << 20;
+		if (!(flags & SVM_FLAG_SUPERVISOR_MODE)) {
+			svm->notifier.ops = &intel_mmuops;
+			ret = mmu_notifier_register(&svm->notifier, mm);
+			if (ret) {
+				kfree(svm);
+				return ERR_PTR(ret);
+			}
+		}
 
-	/* Bind supervisor PASID shuld have mm = NULL */
-	if (flags & SVM_FLAG_SUPERVISOR_MODE) {
-		if (!ecap_srs(iommu->ecap) || mm) {
-			pr_err("Supervisor PASID with user provided mm.\n");
-			return -EINVAL;
+		ret = pasid_private_add(svm->pasid, svm);
+		if (ret) {
+			if (svm->notifier.ops)
+				mmu_notifier_unregister(&svm->notifier, mm);
+			kfree(svm);
+			return ERR_PTR(ret);
 		}
 	}
 
-	list_for_each_entry(t, &global_svm_list, list) {
-		if (t->mm != mm)
-			continue;
-
-		svm = t;
-		if (svm->pasid >= pasid_max) {
-			dev_warn(dev,
-				 "Limited PASID width. Cannot use existing PASID %d\n",
-				 svm->pasid);
-			ret = -ENOSPC;
-			goto out;
-		}
-
-		/* Find the matching device in svm list */
-		for_each_svm_dev(sdev, svm, dev) {
-			sdev->users++;
-			goto success;
-		}
-
-		break;
+	/* Find the matching device in svm list */
+	for_each_svm_dev(sdev, svm, dev) {
+		sdev->users++;
+		goto success;
 	}
 
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		ret = -ENOMEM;
-		goto out;
+		goto free_svm;
 	}
+
 	sdev->dev = dev;
 	sdev->iommu = iommu;
-
-	ret = intel_iommu_enable_pasid(iommu, dev);
-	if (ret) {
-		kfree(sdev);
-		goto out;
-	}
-
-	info = get_domain_info(dev);
 	sdev->did = FLPT_DEFAULT_DID;
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
+	sdev->users = 1;
+	sdev->pasid = svm->pasid;
+	sdev->sva.dev = dev;
+	init_rcu_head(&sdev->rcu);
 	if (info->ats_enabled) {
 		sdev->dev_iotlb = 1;
 		sdev->qdep = info->ats_qdep;
@@ -557,96 +559,37 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 			sdev->qdep = 0;
 	}
 
-	/* Finish the setup now we know we're keeping it */
-	sdev->users = 1;
-	init_rcu_head(&sdev->rcu);
+	/* Setup the pasid table: */
+	sflags = (flags & SVM_FLAG_SUPERVISOR_MODE) ?
+			PASID_FLAG_SUPERVISOR_MODE : 0;
+	sflags |= cpu_feature_enabled(X86_FEATURE_LA57) ? PASID_FLAG_FL5LP : 0;
+	spin_lock_irqsave(&iommu->lock, iflags);
+	ret = intel_pasid_setup_first_level(iommu, dev, mm->pgd, mm->pasid,
+					    FLPT_DEFAULT_DID, sflags);
+	spin_unlock_irqrestore(&iommu->lock, iflags);
 
-	if (!svm) {
-		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
-		if (!svm) {
-			ret = -ENOMEM;
-			goto sdev_err;
-		}
+	if (ret)
+		goto free_sdev;
 
-		if (pasid_max > intel_pasid_max_id)
-			pasid_max = intel_pasid_max_id;
+	/* The newly allocated pasid is loaded to the mm. */
+	if (!(flags & SVM_FLAG_SUPERVISOR_MODE) && list_empty(&svm->devs))
+		load_pasid(mm, svm->pasid);
 
-		/* Do not use PASID 0, reserved for RID to PASID */
-		svm->pasid = ioasid_alloc(NULL, PASID_MIN,
-					  pasid_max - 1, NULL);
-		if (svm->pasid == INVALID_IOASID) {
-			ret = -ENOSPC;
-			goto svm_err;
-		}
-
-		ret = pasid_private_add(svm->pasid, svm);
-		if (ret)
-			goto pasid_err;
-
-		svm->notifier.ops = &intel_mmuops;
-		svm->mm = mm;
-		svm->flags = flags;
-		INIT_LIST_HEAD_RCU(&svm->devs);
-		INIT_LIST_HEAD(&svm->list);
-		ret = -ENOMEM;
-		if (mm) {
-			ret = mmu_notifier_register(&svm->notifier, mm);
-			if (ret)
-				goto priv_err;
-		}
-
-		spin_lock_irqsave(&iommu->lock, iflags);
-		ret = intel_pasid_setup_first_level(iommu, dev,
-				mm ? mm->pgd : init_mm.pgd,
-				svm->pasid, FLPT_DEFAULT_DID,
-				(mm ? 0 : PASID_FLAG_SUPERVISOR_MODE) |
-				(cpu_feature_enabled(X86_FEATURE_LA57) ?
-				 PASID_FLAG_FL5LP : 0));
-		spin_unlock_irqrestore(&iommu->lock, iflags);
-		if (ret) {
-			if (mm)
-				mmu_notifier_unregister(&svm->notifier, mm);
-priv_err:
-			pasid_private_remove(svm->pasid);
-pasid_err:
-			ioasid_put(svm->pasid);
-svm_err:
-			kfree(svm);
-sdev_err:
-			kfree(sdev);
-			goto out;
-		}
-
-		list_add_tail(&svm->list, &global_svm_list);
-		if (mm) {
-			/* The newly allocated pasid is loaded to the mm. */
-			load_pasid(mm, svm->pasid);
-		}
-	} else {
-		/*
-		 * Binding a new device with existing PASID, need to setup
-		 * the PASID entry.
-		 */
-		spin_lock_irqsave(&iommu->lock, iflags);
-		ret = intel_pasid_setup_first_level(iommu, dev,
-						mm ? mm->pgd : init_mm.pgd,
-						svm->pasid, FLPT_DEFAULT_DID,
-						(mm ? 0 : PASID_FLAG_SUPERVISOR_MODE) |
-						(cpu_feature_enabled(X86_FEATURE_LA57) ?
-						PASID_FLAG_FL5LP : 0));
-		spin_unlock_irqrestore(&iommu->lock, iflags);
-		if (ret)
-			goto sdev_err;
-	}
 	list_add_rcu(&sdev->list, &svm->devs);
 success:
-	sdev->pasid = svm->pasid;
-	sdev->sva.dev = dev;
-	if (sd)
-		*sd = sdev;
-	ret = 0;
-out:
-	return ret;
+	return &sdev->sva;
+
+free_sdev:
+	kfree(sdev);
+free_svm:
+	if (list_empty(&svm->devs)) {
+		if (svm->notifier.ops)
+			mmu_notifier_unregister(&svm->notifier, mm);
+		pasid_private_remove(mm->pasid);
+		kfree(svm);
+	}
+
+	return ERR_PTR(ret);
 }
 
 /* Caller must hold pasid_mutex */
@@ -655,6 +598,7 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 	struct intel_svm_dev *sdev;
 	struct intel_iommu *iommu;
 	struct intel_svm *svm;
+	struct mm_struct *mm;
 	int ret = -EINVAL;
 
 	iommu = device_to_iommu(dev, NULL, NULL);
@@ -664,6 +608,7 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 	ret = pasid_to_svm_sdev(dev, pasid, &svm, &sdev);
 	if (ret)
 		goto out;
+	mm = svm->mm;
 
 	if (sdev) {
 		sdev->users--;
@@ -682,13 +627,12 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 			kfree_rcu(sdev, rcu);
 
 			if (list_empty(&svm->devs)) {
-				ioasid_put(svm->pasid);
-				if (svm->mm) {
-					mmu_notifier_unregister(&svm->notifier, svm->mm);
+				intel_svm_free_pasid(mm);
+				if (svm->notifier.ops) {
+					mmu_notifier_unregister(&svm->notifier, mm);
 					/* Clear mm's pasid. */
-					load_pasid(svm->mm, PASID_DISABLED);
+					load_pasid(mm, PASID_DISABLED);
 				}
-				list_del(&svm->list);
 				pasid_private_remove(svm->pasid);
 				/* We mandate that no page faults may be outstanding
 				 * for the PASID when intel_svm_unbind_mm() is called.
@@ -1073,31 +1017,42 @@ prq_advance:
 	return IRQ_RETVAL(handled);
 }
 
-#define to_intel_svm_dev(handle) container_of(handle, struct intel_svm_dev, sva)
-struct iommu_sva *
-intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
+struct iommu_sva *intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
 {
-	struct iommu_sva *sva = ERR_PTR(-EINVAL);
-	struct intel_svm_dev *sdev = NULL;
+	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
 	unsigned int flags = 0;
+	struct iommu_sva *sva;
 	int ret;
 
-	/*
-	 * TODO: Consolidate with generic iommu-sva bind after it is merged.
-	 * It will require shared SVM data structures, i.e. combine io_mm
-	 * and intel_svm etc.
-	 */
 	if (drvdata)
 		flags = *(unsigned int *)drvdata;
-	mutex_lock(&pasid_mutex);
-	ret = intel_svm_bind_mm(dev, flags, mm, &sdev);
-	if (ret)
-		sva = ERR_PTR(ret);
-	else if (sdev)
-		sva = &sdev->sva;
-	else
-		WARN(!sdev, "SVM bind succeeded with no sdev!\n");
 
+	if (flags & SVM_FLAG_SUPERVISOR_MODE) {
+		if (!ecap_srs(iommu->ecap)) {
+			dev_err(dev, "%s: Supervisor PASID not supported\n",
+				iommu->name);
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+
+		if (mm) {
+			dev_err(dev, "%s: Supervisor PASID with user provided mm\n",
+				iommu->name);
+			return ERR_PTR(-EINVAL);
+		}
+
+		mm = &init_mm;
+	}
+
+	mutex_lock(&pasid_mutex);
+	ret = intel_svm_alloc_pasid(dev, mm, flags);
+	if (ret) {
+		mutex_unlock(&pasid_mutex);
+		return ERR_PTR(ret);
+	}
+
+	sva = intel_svm_bind_mm(iommu, dev, mm, flags);
+	if (IS_ERR_OR_NULL(sva))
+		intel_svm_free_pasid(mm);
 	mutex_unlock(&pasid_mutex);
 
 	return sva;
@@ -1105,10 +1060,9 @@ intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
 
 void intel_svm_unbind(struct iommu_sva *sva)
 {
-	struct intel_svm_dev *sdev;
+	struct intel_svm_dev *sdev = to_intel_svm_dev(sva);
 
 	mutex_lock(&pasid_mutex);
-	sdev = to_intel_svm_dev(sva);
 	intel_svm_unbind_mm(sdev->dev, sdev->pasid);
 	mutex_unlock(&pasid_mutex);
 }
