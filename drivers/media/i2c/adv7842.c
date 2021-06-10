@@ -2531,20 +2531,20 @@ static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 
 	switch (e->pad) {
 	case ADV7842_EDID_PORT_VGA:
-		memset(&state->vga_edid.edid, 0, sizeof(state->vga_edid.edid));
+		memset(state->vga_edid.edid, 0, sizeof(state->vga_edid.edid));
 		state->vga_edid.blocks = e->blocks;
 		state->vga_edid.present = e->blocks ? 0x1 : 0x0;
 		if (e->blocks)
-			memcpy(&state->vga_edid.edid, e->edid, 128 * e->blocks);
+			memcpy(state->vga_edid.edid, e->edid, 128);
 		err = edid_write_vga_segment(sd);
 		break;
 	case ADV7842_EDID_PORT_A:
 	case ADV7842_EDID_PORT_B:
-		memset(&state->hdmi_edid.edid, 0, sizeof(state->hdmi_edid.edid));
+		memset(state->hdmi_edid.edid, 0, sizeof(state->hdmi_edid.edid));
 		state->hdmi_edid.blocks = e->blocks;
 		if (e->blocks) {
 			state->hdmi_edid.present |= 0x04 << e->pad;
-			memcpy(&state->hdmi_edid.edid, e->edid, 128 * e->blocks);
+			memcpy(state->hdmi_edid.edid, e->edid, 128 * e->blocks);
 		} else {
 			state->hdmi_edid.present &= ~(0x04 << e->pad);
 			adv7842_s_detect_tx_5v_ctrl(sd);
