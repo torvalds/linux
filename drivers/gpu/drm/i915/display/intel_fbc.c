@@ -440,44 +440,45 @@ static u64 intel_fbc_stolen_end(struct drm_i915_private *dev_priv)
 	return min(end, intel_fbc_cfb_base_max(dev_priv));
 }
 
+static int intel_fbc_max_limit(struct drm_i915_private *dev_priv, int fb_cpp)
+{
+	/*
+	 * FIXME: FBC1 can have arbitrary cfb stride,
+	 * so we could support different compression ratios.
+	 */
+	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
+		return 1;
+
+	/* WaFbcOnly1to1Ratio:ctg */
+	if (IS_G4X(dev_priv))
+		return 1;
+
+	/* FBC2 can only do 1:1, 1:2, 1:4 */
+	return fb_cpp == 2 ? 2 : 4;
+}
+
 static int find_compression_limit(struct drm_i915_private *dev_priv,
 				  unsigned int size,
 				  unsigned int fb_cpp)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	u64 end = intel_fbc_stolen_end(dev_priv);
-	int compression_limit = 1;
-	int ret;
-
-	/* HACK: This code depends on what we will do in *_enable_fbc. If that
-	 * code changes, this code needs to change as well.
-	 *
-	 * The enable_fbc code will attempt to use one of our 2 compression
-	 * limits, therefore, in that case, we only have 1 resort.
-	 */
+	int ret, limit = 1;
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
 	ret = i915_gem_stolen_insert_node_in_range(dev_priv, &fbc->compressed_fb,
 						   size <<= 1, 4096, 0, end);
 	if (ret == 0)
-		return compression_limit;
+		return limit;
 
-again:
-	/* HW's ability to limit the CFB is 1:4 */
-	if (compression_limit > 4 ||
-	    (fb_cpp == 2 && compression_limit == 2))
-		return 0;
-
-	ret = i915_gem_stolen_insert_node_in_range(dev_priv, &fbc->compressed_fb,
-						   size >>= 1, 4096, 0, end);
-	if (ret && DISPLAY_VER(dev_priv) <= 4) {
-		return 0;
-	} else if (ret) {
-		compression_limit <<= 1;
-		goto again;
-	} else {
-		return compression_limit;
+	for (; limit <= intel_fbc_max_limit(dev_priv, fb_cpp); limit <<= 1) {
+		ret = i915_gem_stolen_insert_node_in_range(dev_priv, &fbc->compressed_fb,
+							   size >>= 1, 4096, 0, end);
+		if (ret == 0)
+			return limit;
 	}
+
+	return 0;
 }
 
 static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
