@@ -508,13 +508,36 @@ struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev)
 static int prestera_netdev_port_event(struct net_device *dev,
 				      unsigned long event, void *ptr)
 {
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *upper;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+	upper = info->upper_dev;
+
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
+		if (!netif_is_bridge_master(upper)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			return -EINVAL;
+		}
+
+		if (!info->linking)
+			break;
+
+		if (netdev_has_any_upper_dev(upper)) {
+			NL_SET_ERR_MSG_MOD(extack, "Upper device is already enslaved");
+			return -EINVAL;
+		}
+		break;
+
 	case NETDEV_CHANGEUPPER:
-		return prestera_bridge_port_event(dev, event, ptr);
-	default:
-		return 0;
+		if (netif_is_bridge_master(upper))
+			return prestera_bridge_port_event(dev, event, ptr);
+		break;
 	}
+
+	return 0;
 }
 
 static int prestera_netdev_event_handler(struct notifier_block *nb,
