@@ -525,6 +525,12 @@ struct hnae3_ae_dev {
  *   Check if any cls flower rule exist
  * dbg_read_cmd
  *   Execute debugfs read command.
+ * set_tx_hwts_info
+ *   Save information for 1588 tx packet
+ * get_rx_hwts
+ *   Get 1588 rx hwstamp
+ * get_ts_info
+ *   Get phc info
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -710,6 +716,12 @@ struct hnae3_ae_ops {
 				      struct ethtool_link_ksettings *cmd);
 	int (*set_phy_link_ksettings)(struct hnae3_handle *handle,
 				      const struct ethtool_link_ksettings *cmd);
+	bool (*set_tx_hwts_info)(struct hnae3_handle *handle,
+				 struct sk_buff *skb);
+	void (*get_rx_hwts)(struct hnae3_handle *handle, struct sk_buff *skb,
+			    u32 nsec, u32 sec);
+	int (*get_ts_info)(struct hnae3_handle *handle,
+			   struct ethtool_ts_info *info);
 };
 
 struct hnae3_dcb_ops {

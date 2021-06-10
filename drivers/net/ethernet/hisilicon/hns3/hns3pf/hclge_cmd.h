@@ -130,6 +130,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_COMMON_LOOPBACK       = 0x0315,
 	HCLGE_OPC_CONFIG_FEC_MODE	= 0x031A,
 
+	/* PTP commands */
+	HCLGE_OPC_PTP_INT_EN		= 0x0501,
+	HCLGE_OPC_PTP_MODE_CFG		= 0x0507,
+
 	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
 	HCLGE_OPC_CFG_PFC_PAUSE_EN      = 0x0702,
