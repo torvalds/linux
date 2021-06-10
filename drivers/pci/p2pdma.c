@@ -502,11 +502,10 @@ calc_map_type_and_dist_warn(struct pci_dev *provider, struct pci_dev *client,
 {
 	struct seq_buf acs_list;
 	bool acs_redirects;
+	char buf[128];
 	int ret;
 
-	seq_buf_init(&acs_list, kmalloc(PAGE_SIZE, GFP_KERNEL), PAGE_SIZE);
-	if (!acs_list.buffer)
-		return -ENOMEM;
+	seq_buf_init(&acs_list, buf, sizeof(buf));
 
 	ret = calc_map_type_and_dist(provider, client, dist, &acs_redirects,
 				     &acs_list);
@@ -523,8 +522,6 @@ calc_map_type_and_dist_warn(struct pci_dev *provider, struct pci_dev *client,
 		pci_warn(client, "cannot be used for peer-to-peer DMA as the client and provider (%s) do not share an upstream bridge or whitelisted host bridge\n",
 			 pci_name(provider));
 	}
-
-	kfree(acs_list.buffer);
 
 	return ret;
 }
