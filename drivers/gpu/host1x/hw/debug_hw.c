@@ -208,9 +208,14 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				    job->first_get, job->timeout,
 				    job->num_slots, job->num_unpins);
 
-		for (i = 0; i < job->num_gathers; i++) {
-			struct host1x_job_gather *g = &job->gathers[i];
+		for (i = 0; i < job->num_cmds; i++) {
+			struct host1x_job_gather *g;
 			u32 *mapped;
+
+			if (job->cmds[i].is_wait)
+				continue;
+
+			g = &job->cmds[i].gather;
 
 			if (job->gather_copy_mapped)
 				mapped = (u32 *)job->gather_copy_mapped;
