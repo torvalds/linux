@@ -215,12 +215,8 @@ enum fastpaths {
 
 static inline bool is_complex_sibling_idle(int cpu)
 {
-	if (is_min_capacity_cpu(cpu)) {
-		if (cpu % 2)
-			return available_idle_cpu(cpu - 1);
-		return available_idle_cpu(cpu + 1);
-	}
-
+	if (cpu_l2_sibling[cpu] != -1)
+		return available_idle_cpu(cpu_l2_sibling[cpu]);
 	return false;
 }
 

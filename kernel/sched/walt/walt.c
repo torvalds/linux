@@ -2517,6 +2517,41 @@ static void walt_get_possible_siblings(int cpuid, struct cpumask *cluster_cpus)
 	}
 }
 
+int cpu_l2_sibling[WALT_NR_CPUS] = {[0 ... WALT_NR_CPUS-1] = -1};
+static void find_cache_siblings(void)
+{
+	int cpu, cpu2;
+	struct device_node *cpu_dev, *cpu_dev2, *cpu_l2_cache_node, *cpu_l2_cache_node2;
+
+	for_each_possible_cpu(cpu) {
+		cpu_dev = of_get_cpu_node(cpu, NULL);
+		if (!cpu_dev)
+			continue;
+
+		cpu_l2_cache_node = of_parse_phandle(cpu_dev, "next-level-cache", 0);
+		if (!cpu_l2_cache_node)
+			continue;
+
+		for_each_possible_cpu(cpu2) {
+			if (cpu == cpu2)
+				continue;
+
+			cpu_dev2 = of_get_cpu_node(cpu2, NULL);
+			if (!cpu_dev2)
+				continue;
+
+			cpu_l2_cache_node2 = of_parse_phandle(cpu_dev2, "next-level-cache", 0);
+			if (!cpu_l2_cache_node2)
+				continue;
+
+			if (cpu_l2_cache_node == cpu_l2_cache_node2) {
+				cpu_l2_sibling[cpu] = cpu2;
+				break;
+			}
+		}
+	}
+}
+
 static void walt_update_cluster_topology(void)
 {
 	struct cpumask cpus = *cpu_possible_mask;
@@ -2584,6 +2619,7 @@ static void walt_update_cluster_topology(void)
 
 	init_cpu_array();
 	build_cpu_array();
+	find_cache_siblings();
 
 	create_util_to_cost();
 	walt_clusters_parsed = true;
