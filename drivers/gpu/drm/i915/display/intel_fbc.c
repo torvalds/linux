@@ -423,13 +423,8 @@ static u64 intel_fbc_cfb_base_max(struct drm_i915_private *i915)
 		return BIT_ULL(32);
 }
 
-static int find_compression_limit(struct drm_i915_private *dev_priv,
-				  unsigned int size,
-				  unsigned int fb_cpp)
+static u64 intel_fbc_stolen_end(struct drm_i915_private *dev_priv)
 {
-	struct intel_fbc *fbc = &dev_priv->fbc;
-	int compression_limit = 1;
-	int ret;
 	u64 end;
 
 	/* The FBC hardware for BDW/SKL doesn't have access to the stolen
@@ -442,7 +437,17 @@ static int find_compression_limit(struct drm_i915_private *dev_priv,
 	else
 		end = U64_MAX;
 
-	end = min(end, intel_fbc_cfb_base_max(dev_priv));
+	return min(end, intel_fbc_cfb_base_max(dev_priv));
+}
+
+static int find_compression_limit(struct drm_i915_private *dev_priv,
+				  unsigned int size,
+				  unsigned int fb_cpp)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	u64 end = intel_fbc_stolen_end(dev_priv);
+	int compression_limit = 1;
+	int ret;
 
 	/* HACK: This code depends on what we will do in *_enable_fbc. If that
 	 * code changes, this code needs to change as well.
