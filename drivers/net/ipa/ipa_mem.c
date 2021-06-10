@@ -28,9 +28,10 @@
 
 /* Add an immediate command to a transaction that zeroes a memory region */
 static void
-ipa_mem_zero_region_add(struct gsi_trans *trans, const struct ipa_mem *mem)
+ipa_mem_zero_region_add(struct gsi_trans *trans, enum ipa_mem_id mem_id)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
+	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	dma_addr_t addr = ipa->zero_addr;
 
 	if (!mem->size)
@@ -83,11 +84,9 @@ int ipa_mem_setup(struct ipa *ipa)
 
 	ipa_cmd_hdr_init_local_add(trans, offset, size, addr);
 
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM_PROC_CTX]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_AP_PROC_CTX]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM]);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM_PROC_CTX);
+	ipa_mem_zero_region_add(trans, IPA_MEM_AP_PROC_CTX);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM);
 
 	gsi_trans_commit_wait(trans);
 
@@ -411,11 +410,9 @@ int ipa_mem_zero_modem(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM_HEADER]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM_PROC_CTX]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM]);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM_HEADER);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM_PROC_CTX);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM);
 
 	gsi_trans_commit_wait(trans);
 
