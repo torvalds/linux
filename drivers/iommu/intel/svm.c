@@ -870,8 +870,8 @@ static int intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 		 */
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE;
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PRIV_DATA;
-		memcpy(event.fault.prm.private_data, desc->priv_data,
-		       sizeof(desc->priv_data));
+		event.fault.prm.private_data[0] = desc->priv_data[0];
+		event.fault.prm.private_data[1] = desc->priv_data[1];
 	} else if (dmar_latency_enabled(iommu, DMAR_LATENCY_PRQ)) {
 		/*
 		 * If the private data fields are not used by hardware, use it
@@ -910,11 +910,15 @@ static void handle_bad_prq_event(struct intel_iommu *iommu,
 			QI_PGRP_RESP_TYPE;
 	desc.qw1 = QI_PGRP_IDX(req->prg_index) |
 			QI_PGRP_LPIG(req->lpig);
-	desc.qw2 = 0;
-	desc.qw3 = 0;
 
-	if (req->priv_data_present)
-		memcpy(&desc.qw2, req->priv_data, sizeof(req->priv_data));
+	if (req->priv_data_present) {
+		desc.qw2 = req->priv_data[0];
+		desc.qw3 = req->priv_data[1];
+	} else {
+		desc.qw2 = 0;
+		desc.qw3 = 0;
+	}
+
 	qi_submit_sync(iommu, &desc, 1, 0);
 }
 
@@ -1176,12 +1180,14 @@ int intel_svm_page_response(struct device *dev,
 		desc.qw1 = QI_PGRP_IDX(prm->grpid) | QI_PGRP_LPIG(last_page);
 		desc.qw2 = 0;
 		desc.qw3 = 0;
-		if (private_present)
-			memcpy(&desc.qw2, prm->private_data,
-			       sizeof(prm->private_data));
-		else if (prm->private_data[0])
+
+		if (private_present) {
+			desc.qw2 = prm->private_data[0];
+			desc.qw3 = prm->private_data[1];
+		} else if (prm->private_data[0]) {
 			dmar_latency_update(iommu, DMAR_LATENCY_PRQ,
 				ktime_to_ns(ktime_get()) - prm->private_data[0]);
+		}
 
 		qi_submit_sync(iommu, &desc, 1, 0);
 	}
