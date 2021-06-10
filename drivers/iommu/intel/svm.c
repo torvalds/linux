@@ -48,6 +48,40 @@ static void *pasid_private_find(ioasid_t pasid)
 	return xa_load(&pasid_private_array, pasid);
 }
 
+static struct intel_svm_dev *
+svm_lookup_device_by_sid(struct intel_svm *svm, u16 sid)
+{
+	struct intel_svm_dev *sdev = NULL, *t;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(t, &svm->devs, list) {
+		if (t->sid == sid) {
+			sdev = t;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return sdev;
+}
+
+static struct intel_svm_dev *
+svm_lookup_device_by_dev(struct intel_svm *svm, struct device *dev)
+{
+	struct intel_svm_dev *sdev = NULL, *t;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(t, &svm->devs, list) {
+		if (t->dev == dev) {
+			sdev = t;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return sdev;
+}
+
 int intel_svm_enable_prq(struct intel_iommu *iommu)
 {
 	struct page *pages;
@@ -225,15 +259,11 @@ static const struct mmu_notifier_ops intel_mmuops = {
 
 static DEFINE_MUTEX(pasid_mutex);
 
-#define for_each_svm_dev(sdev, svm, d)			\
-	list_for_each_entry((sdev), &(svm)->devs, list)	\
-		if ((d) != (sdev)->dev) {} else
-
 static int pasid_to_svm_sdev(struct device *dev, unsigned int pasid,
 			     struct intel_svm **rsvm,
 			     struct intel_svm_dev **rsdev)
 {
-	struct intel_svm_dev *d, *sdev = NULL;
+	struct intel_svm_dev *sdev = NULL;
 	struct intel_svm *svm;
 
 	/* The caller should hold the pasid_mutex lock */
@@ -256,15 +286,7 @@ static int pasid_to_svm_sdev(struct device *dev, unsigned int pasid,
 	 */
 	if (WARN_ON(list_empty(&svm->devs)))
 		return -EINVAL;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(d, &svm->devs, list) {
-		if (d->dev == dev) {
-			sdev = d;
-			break;
-		}
-	}
-	rcu_read_unlock();
+	sdev = svm_lookup_device_by_dev(svm, dev);
 
 out:
 	*rsvm = svm;
@@ -533,7 +555,8 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 	}
 
 	/* Find the matching device in svm list */
-	for_each_svm_dev(sdev, svm, dev) {
+	sdev = svm_lookup_device_by_dev(svm, dev);
+	if (sdev) {
 		sdev->users++;
 		goto success;
 	}
@@ -901,19 +924,8 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 			}
 		}
 
-		if (!sdev || sdev->sid != req->rid) {
-			struct intel_svm_dev *t;
-
-			sdev = NULL;
-			rcu_read_lock();
-			list_for_each_entry_rcu(t, &svm->devs, list) {
-				if (t->sid == req->rid) {
-					sdev = t;
-					break;
-				}
-			}
-			rcu_read_unlock();
-		}
+		if (!sdev || sdev->sid != req->rid)
+			sdev = svm_lookup_device_by_sid(svm, req->rid);
 
 		/* Since we're using init_mm.pgd directly, we should never take
 		 * any faults on kernel addresses. */
