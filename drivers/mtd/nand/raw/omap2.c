@@ -1921,6 +1921,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	struct device *dev = &info->pdev->dev;
 	int min_oobbytes = BADBLOCK_MARKER_LENGTH;
+	int elm_bch_strength = -1;
 	int oobbytes_per_step;
 	dma_cap_mask_t mask;
 	int err;
@@ -2074,12 +2075,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		chip->ecc.write_subpage	= omap_write_subpage_bch;
 		mtd_set_ooblayout(mtd, &omap_ooblayout_ops);
 		oobbytes_per_step	= chip->ecc.bytes;
-
-		err = elm_config(info->elm_dev, BCH4_ECC,
-				 mtd->writesize / chip->ecc.size,
-				 chip->ecc.size, chip->ecc.bytes);
-		if (err < 0)
-			return err;
+		elm_bch_strength = BCH4_ECC;
 		break;
 
 	case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
@@ -2116,13 +2112,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		chip->ecc.write_subpage	= omap_write_subpage_bch;
 		mtd_set_ooblayout(mtd, &omap_ooblayout_ops);
 		oobbytes_per_step	= chip->ecc.bytes;
-
-		err = elm_config(info->elm_dev, BCH8_ECC,
-				 mtd->writesize / chip->ecc.size,
-				 chip->ecc.size, chip->ecc.bytes);
-		if (err < 0)
-			return err;
-
+		elm_bch_strength = BCH8_ECC;
 		break;
 
 	case OMAP_ECC_BCH16_CODE_HW:
@@ -2138,17 +2128,19 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		chip->ecc.write_subpage	= omap_write_subpage_bch;
 		mtd_set_ooblayout(mtd, &omap_ooblayout_ops);
 		oobbytes_per_step	= chip->ecc.bytes;
-
-		err = elm_config(info->elm_dev, BCH16_ECC,
-				 mtd->writesize / chip->ecc.size,
-				 chip->ecc.size, chip->ecc.bytes);
-		if (err < 0)
-			return err;
-
+		elm_bch_strength = BCH16_ECC;
 		break;
 	default:
 		dev_err(dev, "Invalid or unsupported ECC scheme\n");
 		return -EINVAL;
+	}
+
+	if (elm_bch_strength >= 0) {
+		err = elm_config(info->elm_dev, elm_bch_strength,
+				 mtd->writesize / chip->ecc.size,
+				 chip->ecc.size, chip->ecc.bytes);
+		if (err < 0)
+			return err;
 	}
 
 	/* Check if NAND device's OOB is enough to store ECC signatures */
