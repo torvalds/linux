@@ -180,6 +180,45 @@ err_port_vlan_alloc:
 	return ERR_PTR(err);
 }
 
+static int prestera_fdb_add(struct prestera_port *port,
+			    const unsigned char *mac, u16 vid, bool dynamic)
+{
+	if (prestera_port_is_lag_member(port))
+		return prestera_hw_lag_fdb_add(port->sw, prestera_port_lag_id(port),
+					      mac, vid, dynamic);
+
+	return prestera_hw_fdb_add(port, mac, vid, dynamic);
+}
+
+static int prestera_fdb_del(struct prestera_port *port,
+			    const unsigned char *mac, u16 vid)
+{
+	if (prestera_port_is_lag_member(port))
+		return prestera_hw_lag_fdb_del(port->sw, prestera_port_lag_id(port),
+					      mac, vid);
+	else
+		return prestera_hw_fdb_del(port, mac, vid);
+}
+
+static int prestera_fdb_flush_port_vlan(struct prestera_port *port, u16 vid,
+					u32 mode)
+{
+	if (prestera_port_is_lag_member(port))
+		return prestera_hw_fdb_flush_lag_vlan(port->sw, prestera_port_lag_id(port),
+						      vid, mode);
+	else
+		return prestera_hw_fdb_flush_port_vlan(port, vid, mode);
+}
+
+static int prestera_fdb_flush_port(struct prestera_port *port, u32 mode)
+{
+	if (prestera_port_is_lag_member(port))
+		return prestera_hw_fdb_flush_lag(port->sw, prestera_port_lag_id(port),
+						 mode);
+	else
+		return prestera_hw_fdb_flush_port(port, mode);
+}
+
 static void
 prestera_port_vlan_bridge_leave(struct prestera_port_vlan *port_vlan)
 {
@@ -199,11 +238,11 @@ prestera_port_vlan_bridge_leave(struct prestera_port_vlan *port_vlan)
 	last_port = port_count == 1;
 
 	if (last_vlan)
-		prestera_hw_fdb_flush_port(port, fdb_flush_mode);
+		prestera_fdb_flush_port(port, fdb_flush_mode);
 	else if (last_port)
 		prestera_hw_fdb_flush_vlan(port->sw, vid, fdb_flush_mode);
 	else
-		prestera_hw_fdb_flush_port_vlan(port, vid, fdb_flush_mode);
+		prestera_fdb_flush_port_vlan(port, vid, fdb_flush_mode);
 
 	list_del(&port_vlan->br_vlan_head);
 	prestera_bridge_vlan_put(br_vlan);
@@ -312,11 +351,29 @@ __prestera_bridge_port_by_dev(struct prestera_bridge *bridge,
 	return NULL;
 }
 
+static int prestera_match_upper_bridge_dev(struct net_device *dev,
+					   struct netdev_nested_priv *priv)
+{
+	if (netif_is_bridge_master(dev))
+		priv->data = dev;
+
+	return 0;
+}
+
+static struct net_device *prestera_get_upper_bridge_dev(struct net_device *dev)
+{
+	struct netdev_nested_priv priv = { };
+
+	netdev_walk_all_upper_dev_rcu(dev, prestera_match_upper_bridge_dev,
+				      &priv);
+	return priv.data;
+}
+
 static struct prestera_bridge_port *
 prestera_bridge_port_by_dev(struct prestera_switchdev *swdev,
 			    struct net_device *dev)
 {
-	struct net_device *br_dev = netdev_master_upper_dev_get(dev);
+	struct net_device *br_dev = prestera_get_upper_bridge_dev(dev);
 	struct prestera_bridge *bridge;
 
 	if (!br_dev)
@@ -723,9 +780,9 @@ static int prestera_port_fdb_set(struct prestera_port *port,
 		vid = bridge->bridge_id;
 
 	if (adding)
-		err = prestera_hw_fdb_add(port, fdb_info->addr, vid, false);
+		err = prestera_fdb_add(port, fdb_info->addr, vid, false);
 	else
-		err = prestera_hw_fdb_del(port, fdb_info->addr, vid);
+		err = prestera_fdb_del(port, fdb_info->addr, vid);
 
 	return err;
 }
@@ -962,15 +1019,15 @@ static int prestera_port_vlans_add(struct prestera_port *port,
 {
 	bool flag_untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool flag_pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
-	struct net_device *dev = vlan->obj.orig_dev;
+	struct net_device *orig_dev = vlan->obj.orig_dev;
 	struct prestera_bridge_port *br_port;
 	struct prestera_switch *sw = port->sw;
 	struct prestera_bridge *bridge;
 
-	if (netif_is_bridge_master(dev))
+	if (netif_is_bridge_master(orig_dev))
 		return 0;
 
-	br_port = prestera_bridge_port_by_dev(sw->swdev, dev);
+	br_port = prestera_bridge_port_by_dev(sw->swdev, port->dev);
 	if (WARN_ON(!br_port))
 		return -EINVAL;
 
@@ -1002,14 +1059,14 @@ static int prestera_port_obj_add(struct net_device *dev,
 static int prestera_port_vlans_del(struct prestera_port *port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
-	struct net_device *dev = vlan->obj.orig_dev;
+	struct net_device *orig_dev = vlan->obj.orig_dev;
 	struct prestera_bridge_port *br_port;
 	struct prestera_switch *sw = port->sw;
 
-	if (netif_is_bridge_master(dev))
+	if (netif_is_bridge_master(orig_dev))
 		return -EOPNOTSUPP;
 
-	br_port = prestera_bridge_port_by_dev(sw->swdev, dev);
+	br_port = prestera_bridge_port_by_dev(sw->swdev, port->dev);
 	if (WARN_ON(!br_port))
 		return -EINVAL;
 
@@ -1067,10 +1124,26 @@ static void prestera_fdb_event(struct prestera_switch *sw,
 			       struct prestera_event *evt, void *arg)
 {
 	struct switchdev_notifier_fdb_info info;
+	struct net_device *dev = NULL;
 	struct prestera_port *port;
+	struct prestera_lag *lag;
 
-	port = prestera_find_port(sw, evt->fdb_evt.port_id);
-	if (!port)
+	switch (evt->fdb_evt.type) {
+	case PRESTERA_FDB_ENTRY_TYPE_REG_PORT:
+		port = prestera_find_port(sw, evt->fdb_evt.dest.port_id);
+		if (port)
+			dev = port->dev;
+		break;
+	case PRESTERA_FDB_ENTRY_TYPE_LAG:
+		lag = prestera_lag_by_id(sw, evt->fdb_evt.dest.lag_id);
+		if (lag)
+			dev = lag->dev;
+		break;
+	default:
+		return;
+	}
+
+	if (!dev)
 		return;
 
 	info.addr = evt->fdb_evt.data.mac;
@@ -1082,11 +1155,11 @@ static void prestera_fdb_event(struct prestera_switch *sw,
 	switch (evt->id) {
 	case PRESTERA_FDB_EVENT_LEARNED:
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
-					 port->dev, &info.info, NULL);
+					 dev, &info.info, NULL);
 		break;
 	case PRESTERA_FDB_EVENT_AGED:
 		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
-					 port->dev, &info.info, NULL);
+					 dev, &info.info, NULL);
 		break;
 	}
 

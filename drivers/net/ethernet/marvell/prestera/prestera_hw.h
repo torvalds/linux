@@ -180,4 +180,18 @@ int prestera_hw_rxtx_init(struct prestera_switch *sw,
 			  struct prestera_rxtx_params *params);
 int prestera_hw_rxtx_port_init(struct prestera_port *port);
 
+/* LAG API */
+int prestera_hw_lag_member_add(struct prestera_port *port, u16 lag_id);
+int prestera_hw_lag_member_del(struct prestera_port *port, u16 lag_id);
+int prestera_hw_lag_member_enable(struct prestera_port *port, u16 lag_id,
+				  bool enable);
+int prestera_hw_lag_fdb_add(struct prestera_switch *sw, u16 lag_id,
+			    const unsigned char *mac, u16 vid, bool dynamic);
+int prestera_hw_lag_fdb_del(struct prestera_switch *sw, u16 lag_id,
+			    const unsigned char *mac, u16 vid);
+int prestera_hw_fdb_flush_lag(struct prestera_switch *sw, u16 lag_id,
+			      u32 mode);
+int prestera_hw_fdb_flush_lag_vlan(struct prestera_switch *sw,
+				   u16 lag_id, u16 vid, u32 mode);
+
 #endif /* _PRESTERA_HW_H_ */

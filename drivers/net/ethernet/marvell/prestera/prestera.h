@@ -60,10 +60,19 @@ struct prestera_port_caps {
 	u8 transceiver;
 };
 
+struct prestera_lag {
+	struct net_device *dev;
+	struct list_head members;
+	u16 member_count;
+	u16 lag_id;
+};
+
 struct prestera_port {
 	struct net_device *dev;
 	struct prestera_switch *sw;
 	struct devlink_port dl_port;
+	struct list_head lag_member;
+	struct prestera_lag *lag;
 	u32 id;
 	u32 hw_id;
 	u32 dev_id;
@@ -127,6 +136,12 @@ struct prestera_port_event {
 	} data;
 };
 
+enum prestera_fdb_entry_type {
+	PRESTERA_FDB_ENTRY_TYPE_REG_PORT,
+	PRESTERA_FDB_ENTRY_TYPE_LAG,
+	PRESTERA_FDB_ENTRY_TYPE_MAX
+};
+
 enum prestera_fdb_event_id {
 	PRESTERA_FDB_EVENT_UNSPEC,
 	PRESTERA_FDB_EVENT_LEARNED,
@@ -134,7 +149,11 @@ enum prestera_fdb_event_id {
 };
 
 struct prestera_fdb_event {
-	u32 port_id;
+	enum prestera_fdb_entry_type type;
+	union {
+		u32 port_id;
+		u16 lag_id;
+	} dest;
 	u32 vid;
 	union {
 		u8 mac[ETH_ALEN];
@@ -165,6 +184,9 @@ struct prestera_switch {
 	u32 mtu_min;
 	u32 mtu_max;
 	u8 id;
+	struct prestera_lag *lags;
+	u8 lag_member_max;
+	u8 lag_max;
 };
 
 struct prestera_rxtx_params {
@@ -202,5 +224,11 @@ struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev);
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid);
 
 bool prestera_netdev_check(const struct net_device *dev);
+
+bool prestera_port_is_lag_member(const struct prestera_port *port);
+
+struct prestera_lag *prestera_lag_by_id(struct prestera_switch *sw, u16 id);
+
+u16 prestera_port_lag_id(const struct prestera_port *port);
 
 #endif /* _PRESTERA_H_ */
