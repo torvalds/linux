@@ -102,7 +102,7 @@ Conexant codecs
 ---------------
 
 Auto-Mute Mode
-  See Reatek codecs.
+  See Realtek codecs.
 
 
 Analog codecs
