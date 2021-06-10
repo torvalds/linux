@@ -946,8 +946,8 @@ int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	int cmd_table_count;
 	int ret;
 
-	if (!IS_GEN(engine->i915, 7) && !(IS_GEN(engine->i915, 9) &&
-					  engine->class == COPY_ENGINE_CLASS))
+	if (GRAPHICS_VER(engine->i915) != 7 && !(GRAPHICS_VER(engine->i915) == 9 &&
+						 engine->class == COPY_ENGINE_CLASS))
 		return 0;
 
 	switch (engine->class) {
@@ -977,7 +977,7 @@ int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		break;
 	case COPY_ENGINE_CLASS:
 		engine->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
-		if (IS_GEN(engine->i915, 9)) {
+		if (GRAPHICS_VER(engine->i915) == 9) {
 			cmd_tables = gen9_blt_cmd_table;
 			cmd_table_count = ARRAY_SIZE(gen9_blt_cmd_table);
 			engine->get_cmd_length_mask =
@@ -993,7 +993,7 @@ int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 			cmd_table_count = ARRAY_SIZE(gen7_blt_cmd_table);
 		}
 
-		if (IS_GEN(engine->i915, 9)) {
+		if (GRAPHICS_VER(engine->i915) == 9) {
 			engine->reg_tables = gen9_blt_reg_tables;
 			engine->reg_table_count =
 				ARRAY_SIZE(gen9_blt_reg_tables);
@@ -1537,7 +1537,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 				if (IS_HASWELL(engine->i915))
 					flags = MI_BATCH_NON_SECURE_HSW;
 
-				GEM_BUG_ON(!IS_GEN_RANGE(engine->i915, 6, 7));
+				GEM_BUG_ON(!IS_GRAPHICS_VER(engine->i915, 6, 7));
 				__gen6_emit_bb_start(batch_end,
 						     batch_addr,
 						     flags);

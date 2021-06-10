@@ -1176,12 +1176,12 @@ __emit_semaphore_wait(struct i915_request *to,
 		      struct i915_request *from,
 		      u32 seqno)
 {
-	const int has_token = INTEL_GEN(to->engine->i915) >= 12;
+	const int has_token = GRAPHICS_VER(to->engine->i915) >= 12;
 	u32 hwsp_offset;
 	int len, err;
 	u32 *cs;
 
-	GEM_BUG_ON(INTEL_GEN(to->engine->i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(to->engine->i915) < 8);
 	GEM_BUG_ON(i915_request_has_initial_breadcrumb(to));
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */

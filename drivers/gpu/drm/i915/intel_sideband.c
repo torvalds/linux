@@ -430,7 +430,7 @@ static int __sandybridge_pcode_rw(struct drm_i915_private *i915,
 	if (is_read && val1)
 		*val1 = intel_uncore_read_fw(uncore, GEN6_PCODE_DATA1);
 
-	if (INTEL_GEN(i915) > 6)
+	if (GRAPHICS_VER(i915) > 6)
 		return gen7_check_mailbox_status(mbox);
 	else
 		return gen6_check_mailbox_status(mbox);

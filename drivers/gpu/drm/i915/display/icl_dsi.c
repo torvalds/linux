@@ -363,10 +363,19 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	int afe_clk_khz;
-	u32 esc_clk_div_m;
+	int theo_word_clk, act_word_clk;
+	u32 esc_clk_div_m, esc_clk_div_m_phy;
 
 	afe_clk_khz = afe_clk(encoder, crtc_state);
-	esc_clk_div_m = DIV_ROUND_UP(afe_clk_khz, DSI_MAX_ESC_CLK);
+
+	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv)) {
+		theo_word_clk = DIV_ROUND_UP(afe_clk_khz, 8 * DSI_MAX_ESC_CLK);
+		act_word_clk = max(3, theo_word_clk + (theo_word_clk + 1) % 2);
+		esc_clk_div_m = act_word_clk * 8;
+		esc_clk_div_m_phy = (act_word_clk - 1) / 2;
+	} else {
+		esc_clk_div_m = DIV_ROUND_UP(afe_clk_khz, DSI_MAX_ESC_CLK);
+	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_write(dev_priv, ICL_DSI_ESC_CLK_DIV(port),
@@ -378,6 +387,14 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 		intel_de_write(dev_priv, ICL_DPHY_ESC_CLK_DIV(port),
 			       esc_clk_div_m & ICL_ESC_CLK_DIV_MASK);
 		intel_de_posting_read(dev_priv, ICL_DPHY_ESC_CLK_DIV(port));
+	}
+
+	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			intel_de_write(dev_priv, ADL_MIPIO_DW(port, 8),
+				       esc_clk_div_m_phy & TX_ESC_CLK_DIV_PHY);
+			intel_de_posting_read(dev_priv, ADL_MIPIO_DW(port, 8));
+		}
 	}
 }
 

@@ -26,14 +26,13 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "intel_csr.h"
 #include "intel_de.h"
+#include "intel_dmc.h"
 
 /**
- * DOC: csr support for dmc
+ * DOC: DMC Firmware Support
  *
- * Display Context Save and Restore (CSR) firmware support added from gen9
- * onwards to drive newly added DMC (Display microcontroller) in display
+ * From gen9 onwards we have newly added DMC (Display microcontroller) in display
  * engine to save and restore the state of display engine when it enter into
  * low-power state and comes back to normal.
  */
@@ -44,55 +43,55 @@
 	__stringify(major) "_"		 \
 	__stringify(minor) ".bin"
 
-#define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
+#define GEN12_DMC_MAX_FW_SIZE		ICL_DMC_MAX_FW_SIZE
 
-#define ADLS_CSR_PATH			DMC_PATH(adls, 2, 01)
-#define ADLS_CSR_VERSION_REQUIRED	CSR_VERSION(2, 1)
-MODULE_FIRMWARE(ADLS_CSR_PATH);
+#define ADLS_DMC_PATH			DMC_PATH(adls, 2, 01)
+#define ADLS_DMC_VERSION_REQUIRED	DMC_VERSION(2, 1)
+MODULE_FIRMWARE(ADLS_DMC_PATH);
 
-#define DG1_CSR_PATH			DMC_PATH(dg1, 2, 02)
-#define DG1_CSR_VERSION_REQUIRED	CSR_VERSION(2, 2)
-MODULE_FIRMWARE(DG1_CSR_PATH);
+#define DG1_DMC_PATH			DMC_PATH(dg1, 2, 02)
+#define DG1_DMC_VERSION_REQUIRED	DMC_VERSION(2, 2)
+MODULE_FIRMWARE(DG1_DMC_PATH);
 
-#define RKL_CSR_PATH			DMC_PATH(rkl, 2, 02)
-#define RKL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 2)
-MODULE_FIRMWARE(RKL_CSR_PATH);
+#define RKL_DMC_PATH			DMC_PATH(rkl, 2, 02)
+#define RKL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 2)
+MODULE_FIRMWARE(RKL_DMC_PATH);
 
-#define TGL_CSR_PATH			DMC_PATH(tgl, 2, 08)
-#define TGL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 8)
-MODULE_FIRMWARE(TGL_CSR_PATH);
+#define TGL_DMC_PATH			DMC_PATH(tgl, 2, 08)
+#define TGL_DMC_VERSION_REQUIRED	DMC_VERSION(2, 8)
+MODULE_FIRMWARE(TGL_DMC_PATH);
 
-#define ICL_CSR_PATH			DMC_PATH(icl, 1, 09)
-#define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 9)
-#define ICL_CSR_MAX_FW_SIZE		0x6000
-MODULE_FIRMWARE(ICL_CSR_PATH);
+#define ICL_DMC_PATH			DMC_PATH(icl, 1, 09)
+#define ICL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 9)
+#define ICL_DMC_MAX_FW_SIZE		0x6000
+MODULE_FIRMWARE(ICL_DMC_PATH);
 
-#define CNL_CSR_PATH			DMC_PATH(cnl, 1, 07)
-#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-#define CNL_CSR_MAX_FW_SIZE		GLK_CSR_MAX_FW_SIZE
-MODULE_FIRMWARE(CNL_CSR_PATH);
+#define CNL_DMC_PATH			DMC_PATH(cnl, 1, 07)
+#define CNL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 7)
+#define CNL_DMC_MAX_FW_SIZE		GLK_DMC_MAX_FW_SIZE
+MODULE_FIRMWARE(CNL_DMC_PATH);
 
-#define GLK_CSR_PATH			DMC_PATH(glk, 1, 04)
-#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
-#define GLK_CSR_MAX_FW_SIZE		0x4000
-MODULE_FIRMWARE(GLK_CSR_PATH);
+#define GLK_DMC_PATH			DMC_PATH(glk, 1, 04)
+#define GLK_DMC_VERSION_REQUIRED	DMC_VERSION(1, 4)
+#define GLK_DMC_MAX_FW_SIZE		0x4000
+MODULE_FIRMWARE(GLK_DMC_PATH);
 
-#define KBL_CSR_PATH			DMC_PATH(kbl, 1, 04)
-#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
-#define KBL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
-MODULE_FIRMWARE(KBL_CSR_PATH);
+#define KBL_DMC_PATH			DMC_PATH(kbl, 1, 04)
+#define KBL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 4)
+#define KBL_DMC_MAX_FW_SIZE		BXT_DMC_MAX_FW_SIZE
+MODULE_FIRMWARE(KBL_DMC_PATH);
 
-#define SKL_CSR_PATH			DMC_PATH(skl, 1, 27)
-#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
-#define SKL_CSR_MAX_FW_SIZE		BXT_CSR_MAX_FW_SIZE
-MODULE_FIRMWARE(SKL_CSR_PATH);
+#define SKL_DMC_PATH			DMC_PATH(skl, 1, 27)
+#define SKL_DMC_VERSION_REQUIRED	DMC_VERSION(1, 27)
+#define SKL_DMC_MAX_FW_SIZE		BXT_DMC_MAX_FW_SIZE
+MODULE_FIRMWARE(SKL_DMC_PATH);
 
-#define BXT_CSR_PATH			DMC_PATH(bxt, 1, 07)
-#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
-#define BXT_CSR_MAX_FW_SIZE		0x3000
-MODULE_FIRMWARE(BXT_CSR_PATH);
+#define BXT_DMC_PATH			DMC_PATH(bxt, 1, 07)
+#define BXT_DMC_VERSION_REQUIRED	DMC_VERSION(1, 7)
+#define BXT_DMC_MAX_FW_SIZE		0x3000
+MODULE_FIRMWARE(BXT_DMC_PATH);
 
-#define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
+#define DMC_DEFAULT_FW_OFFSET		0xFFFFFFFF
 #define PACKAGE_MAX_FW_INFO_ENTRIES	20
 #define PACKAGE_V2_MAX_FW_INFO_ENTRIES	32
 #define DMC_V1_MAX_MMIO_COUNT		8
@@ -238,6 +237,11 @@ struct stepping_info {
 	char substepping;
 };
 
+bool intel_dmc_has_payload(struct drm_i915_private *i915)
+{
+	return i915->dmc.dmc_payload;
+}
+
 static const struct stepping_info skl_stepping_info[] = {
 	{'A', '0'}, {'B', '0'}, {'C', '0'},
 	{'D', '0'}, {'E', '0'}, {'F', '0'},
@@ -303,47 +307,47 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_csr_load_program() - write the firmware from memory to register.
+ * intel_dmc_load_program() - write the firmware from memory to register.
  * @dev_priv: i915 drm device.
  *
- * CSR firmware is read from a .bin file and kept in internal memory one time.
+ * DMC firmware is read from a .bin file and kept in internal memory one time.
  * Everytime display comes back from low power state this function is called to
  * copy the firmware from internal memory to registers.
  */
-void intel_csr_load_program(struct drm_i915_private *dev_priv)
+void intel_dmc_load_program(struct drm_i915_private *dev_priv)
 {
-	u32 *payload = dev_priv->csr.dmc_payload;
+	u32 *payload = dev_priv->dmc.dmc_payload;
 	u32 i, fw_size;
 
-	if (!HAS_CSR(dev_priv)) {
+	if (!HAS_DMC(dev_priv)) {
 		drm_err(&dev_priv->drm,
-			"No CSR support available for this platform\n");
+			"No DMC support available for this platform\n");
 		return;
 	}
 
-	if (!dev_priv->csr.dmc_payload) {
+	if (!intel_dmc_has_payload(dev_priv)) {
 		drm_err(&dev_priv->drm,
 			"Tried to program CSR with empty payload\n");
 		return;
 	}
 
-	fw_size = dev_priv->csr.dmc_fw_size;
+	fw_size = dev_priv->dmc.dmc_fw_size;
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	preempt_disable();
 
 	for (i = 0; i < fw_size; i++)
-		intel_uncore_write_fw(&dev_priv->uncore, CSR_PROGRAM(i),
+		intel_uncore_write_fw(&dev_priv->uncore, DMC_PROGRAM(i),
 				      payload[i]);
 
 	preempt_enable();
 
-	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
-		intel_de_write(dev_priv, dev_priv->csr.mmioaddr[i],
-			       dev_priv->csr.mmiodata[i]);
+	for (i = 0; i < dev_priv->dmc.mmio_count; i++) {
+		intel_de_write(dev_priv, dev_priv->dmc.mmioaddr[i],
+			       dev_priv->dmc.mmiodata[i]);
 	}
 
-	dev_priv->csr.dc_state = 0;
+	dev_priv->dmc.dc_state = 0;
 
 	gen9_set_dc_state_debugmask(dev_priv);
 }
@@ -357,7 +361,7 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 			      const struct stepping_info *si,
 			      u8 package_ver)
 {
-	u32 dmc_offset = CSR_DEFAULT_FW_OFFSET;
+	u32 dmc_offset = DMC_DEFAULT_FW_OFFSET;
 	unsigned int i;
 
 	for (i = 0; i < num_entries; i++) {
@@ -392,17 +396,18 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 	return dmc_offset;
 }
 
-static u32 parse_csr_fw_dmc(struct intel_csr *csr,
-			    const struct intel_dmc_header_base *dmc_header,
-			    size_t rem_size)
+static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
+			       const struct intel_dmc_header_base *dmc_header,
+			       size_t rem_size)
 {
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
 	unsigned int header_len_bytes, dmc_header_size, payload_size, i;
 	const u32 *mmioaddr, *mmiodata;
 	u32 mmio_count, mmio_count_max;
 	u8 *payload;
 
-	BUILD_BUG_ON(ARRAY_SIZE(csr->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
-		     ARRAY_SIZE(csr->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
+	BUILD_BUG_ON(ARRAY_SIZE(dmc->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
+		     ARRAY_SIZE(dmc->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
 
 	/*
 	 * Check if we can access common fields, we will checkc again below
@@ -440,34 +445,34 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 		header_len_bytes = dmc_header->header_len;
 		dmc_header_size = sizeof(*v1);
 	} else {
-		DRM_ERROR("Unknown DMC fw header version: %u\n",
-			  dmc_header->header_ver);
+		drm_err(&i915->drm, "Unknown DMC fw header version: %u\n",
+			dmc_header->header_ver);
 		return 0;
 	}
 
 	if (header_len_bytes != dmc_header_size) {
-		DRM_ERROR("DMC firmware has wrong dmc header length "
-			  "(%u bytes)\n", header_len_bytes);
+		drm_err(&i915->drm, "DMC firmware has wrong dmc header length "
+			"(%u bytes)\n", header_len_bytes);
 		return 0;
 	}
 
 	/* Cache the dmc header info. */
 	if (mmio_count > mmio_count_max) {
-		DRM_ERROR("DMC firmware has wrong mmio count %u\n", mmio_count);
+		drm_err(&i915->drm, "DMC firmware has wrong mmio count %u\n", mmio_count);
 		return 0;
 	}
 
 	for (i = 0; i < mmio_count; i++) {
-		if (mmioaddr[i] < CSR_MMIO_START_RANGE ||
-		    mmioaddr[i] > CSR_MMIO_END_RANGE) {
-			DRM_ERROR("DMC firmware has wrong mmio address 0x%x\n",
-				  mmioaddr[i]);
+		if (mmioaddr[i] < DMC_MMIO_START_RANGE ||
+		    mmioaddr[i] > DMC_MMIO_END_RANGE) {
+			drm_err(&i915->drm, "DMC firmware has wrong mmio address 0x%x\n",
+				mmioaddr[i]);
 			return 0;
 		}
-		csr->mmioaddr[i] = _MMIO(mmioaddr[i]);
-		csr->mmiodata[i] = mmiodata[i];
+		dmc->mmioaddr[i] = _MMIO(mmioaddr[i]);
+		dmc->mmiodata[i] = mmiodata[i];
 	}
-	csr->mmio_count = mmio_count;
+	dmc->mmio_count = mmio_count;
 
 	rem_size -= header_len_bytes;
 
@@ -476,34 +481,33 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 	if (rem_size < payload_size)
 		goto error_truncated;
 
-	if (payload_size > csr->max_fw_size) {
-		DRM_ERROR("DMC FW too big (%u bytes)\n", payload_size);
+	if (payload_size > dmc->max_fw_size) {
+		drm_err(&i915->drm, "DMC FW too big (%u bytes)\n", payload_size);
 		return 0;
 	}
-	csr->dmc_fw_size = dmc_header->fw_size;
+	dmc->dmc_fw_size = dmc_header->fw_size;
 
-	csr->dmc_payload = kmalloc(payload_size, GFP_KERNEL);
-	if (!csr->dmc_payload) {
-		DRM_ERROR("Memory allocation failed for dmc payload\n");
+	dmc->dmc_payload = kmalloc(payload_size, GFP_KERNEL);
+	if (!dmc->dmc_payload)
 		return 0;
-	}
 
 	payload = (u8 *)(dmc_header) + header_len_bytes;
-	memcpy(csr->dmc_payload, payload, payload_size);
+	memcpy(dmc->dmc_payload, payload, payload_size);
 
 	return header_len_bytes + payload_size;
 
 error_truncated:
-	DRM_ERROR("Truncated DMC firmware, refusing.\n");
+	drm_err(&i915->drm, "Truncated DMC firmware, refusing.\n");
 	return 0;
 }
 
 static u32
-parse_csr_fw_package(struct intel_csr *csr,
+parse_dmc_fw_package(struct intel_dmc *dmc,
 		     const struct intel_package_header *package_header,
 		     const struct stepping_info *si,
 		     size_t rem_size)
 {
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
 	u32 package_size = sizeof(struct intel_package_header);
 	u32 num_entries, max_entries, dmc_offset;
 	const struct intel_fw_info *fw_info;
@@ -516,8 +520,8 @@ parse_csr_fw_package(struct intel_csr *csr,
 	} else if (package_header->header_ver == 2) {
 		max_entries = PACKAGE_V2_MAX_FW_INFO_ENTRIES;
 	} else {
-		DRM_ERROR("DMC firmware has unknown header version %u\n",
-			  package_header->header_ver);
+		drm_err(&i915->drm, "DMC firmware has unknown header version %u\n",
+			package_header->header_ver);
 		return 0;
 	}
 
@@ -530,8 +534,8 @@ parse_csr_fw_package(struct intel_csr *csr,
 		goto error_truncated;
 
 	if (package_header->header_len * 4 != package_size) {
-		DRM_ERROR("DMC firmware has wrong package header length "
-			  "(%u bytes)\n", package_size);
+		drm_err(&i915->drm, "DMC firmware has wrong package header length "
+			"(%u bytes)\n", package_size);
 		return 0;
 	}
 
@@ -543,9 +547,9 @@ parse_csr_fw_package(struct intel_csr *csr,
 		((u8 *)package_header + sizeof(*package_header));
 	dmc_offset = find_dmc_fw_offset(fw_info, num_entries, si,
 					package_header->header_ver);
-	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
-		DRM_ERROR("DMC firmware not supported for %c stepping\n",
-			  si->stepping);
+	if (dmc_offset == DMC_DEFAULT_FW_OFFSET) {
+		drm_err(&i915->drm, "DMC firmware not supported for %c stepping\n",
+			si->stepping);
 		return 0;
 	}
 
@@ -553,51 +557,53 @@ parse_csr_fw_package(struct intel_csr *csr,
 	return package_size + dmc_offset * 4;
 
 error_truncated:
-	DRM_ERROR("Truncated DMC firmware, refusing.\n");
+	drm_err(&i915->drm, "Truncated DMC firmware, refusing.\n");
 	return 0;
 }
 
 /* Return number of bytes parsed or 0 on error */
-static u32 parse_csr_fw_css(struct intel_csr *csr,
+static u32 parse_dmc_fw_css(struct intel_dmc *dmc,
 			    struct intel_css_header *css_header,
 			    size_t rem_size)
 {
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+
 	if (rem_size < sizeof(struct intel_css_header)) {
-		DRM_ERROR("Truncated DMC firmware, refusing.\n");
+		drm_err(&i915->drm, "Truncated DMC firmware, refusing.\n");
 		return 0;
 	}
 
 	if (sizeof(struct intel_css_header) !=
 	    (css_header->header_len * 4)) {
-		DRM_ERROR("DMC firmware has wrong CSS header length "
-			  "(%u bytes)\n",
-			  (css_header->header_len * 4));
+		drm_err(&i915->drm, "DMC firmware has wrong CSS header length "
+			"(%u bytes)\n",
+			(css_header->header_len * 4));
 		return 0;
 	}
 
-	if (csr->required_version &&
-	    css_header->version != csr->required_version) {
-		DRM_INFO("Refusing to load DMC firmware v%u.%u,"
+	if (dmc->required_version &&
+	    css_header->version != dmc->required_version) {
+		drm_info(&i915->drm, "Refusing to load DMC firmware v%u.%u,"
 			 " please use v%u.%u\n",
-			 CSR_VERSION_MAJOR(css_header->version),
-			 CSR_VERSION_MINOR(css_header->version),
-			 CSR_VERSION_MAJOR(csr->required_version),
-			 CSR_VERSION_MINOR(csr->required_version));
+			 DMC_VERSION_MAJOR(css_header->version),
+			 DMC_VERSION_MINOR(css_header->version),
+			 DMC_VERSION_MAJOR(dmc->required_version),
+			 DMC_VERSION_MINOR(dmc->required_version));
 		return 0;
 	}
 
-	csr->version = css_header->version;
+	dmc->version = css_header->version;
 
 	return sizeof(struct intel_css_header);
 }
 
-static void parse_csr_fw(struct drm_i915_private *dev_priv,
+static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 			 const struct firmware *fw)
 {
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
 	struct intel_dmc_header_base *dmc_header;
-	struct intel_csr *csr = &dev_priv->csr;
+	struct intel_dmc *dmc = &dev_priv->dmc;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
 	u32 readcount = 0;
 	u32 r;
@@ -607,7 +613,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract CSS Header information */
 	css_header = (struct intel_css_header *)fw->data;
-	r = parse_csr_fw_css(csr, css_header, fw->size);
+	r = parse_dmc_fw_css(dmc, css_header, fw->size);
 	if (!r)
 		return;
 
@@ -615,7 +621,7 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract Package Header information */
 	package_header = (struct intel_package_header *)&fw->data[readcount];
-	r = parse_csr_fw_package(csr, package_header, si, fw->size - readcount);
+	r = parse_dmc_fw_package(dmc, package_header, si, fw->size - readcount);
 	if (!r)
 		return;
 
@@ -623,49 +629,49 @@ static void parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	/* Extract dmc_header information */
 	dmc_header = (struct intel_dmc_header_base *)&fw->data[readcount];
-	parse_csr_fw_dmc(csr, dmc_header, fw->size - readcount);
+	parse_dmc_fw_header(dmc, dmc_header, fw->size - readcount);
 }
 
-static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
+static void intel_dmc_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
-	dev_priv->csr.wakeref =
+	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
+	dev_priv->dmc.wakeref =
 		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 }
 
-static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
+static void intel_dmc_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
 	intel_wakeref_t wakeref __maybe_unused =
-		fetch_and_zero(&dev_priv->csr.wakeref);
+		fetch_and_zero(&dev_priv->dmc.wakeref);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
 }
 
-static void csr_load_work_fn(struct work_struct *work)
+static void dmc_load_work_fn(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_csr *csr;
+	struct intel_dmc *dmc;
 	const struct firmware *fw = NULL;
 
-	dev_priv = container_of(work, typeof(*dev_priv), csr.work);
-	csr = &dev_priv->csr;
+	dev_priv = container_of(work, typeof(*dev_priv), dmc.work);
+	dmc = &dev_priv->dmc;
 
-	request_firmware(&fw, dev_priv->csr.fw_path, dev_priv->drm.dev);
-	parse_csr_fw(dev_priv, fw);
+	request_firmware(&fw, dev_priv->dmc.fw_path, dev_priv->drm.dev);
+	parse_dmc_fw(dev_priv, fw);
 
-	if (dev_priv->csr.dmc_payload) {
-		intel_csr_load_program(dev_priv);
-		intel_csr_runtime_pm_put(dev_priv);
+	if (intel_dmc_has_payload(dev_priv)) {
+		intel_dmc_load_program(dev_priv);
+		intel_dmc_runtime_pm_put(dev_priv);
 
 		drm_info(&dev_priv->drm,
 			 "Finished loading DMC firmware %s (v%u.%u)\n",
-			 dev_priv->csr.fw_path, CSR_VERSION_MAJOR(csr->version),
-			 CSR_VERSION_MINOR(csr->version));
+			 dev_priv->dmc.fw_path, DMC_VERSION_MAJOR(dmc->version),
+			 DMC_VERSION_MINOR(dmc->version));
 	} else {
 		drm_notice(&dev_priv->drm,
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
-			   csr->fw_path);
+			   dmc->fw_path);
 		drm_notice(&dev_priv->drm, "DMC firmware homepage: %s",
 			   INTEL_UC_FIRMWARE_URL);
 	}
@@ -674,152 +680,152 @@ static void csr_load_work_fn(struct work_struct *work)
 }
 
 /**
- * intel_csr_ucode_init() - initialize the firmware loading.
+ * intel_dmc_ucode_init() - initialize the firmware loading.
  * @dev_priv: i915 drm device.
  *
  * This function is called at the time of loading the display driver to read
  * firmware from a .bin file and copied into a internal memory.
  */
-void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_csr *csr = &dev_priv->csr;
+	struct intel_dmc *dmc = &dev_priv->dmc;
 
-	INIT_WORK(&dev_priv->csr.work, csr_load_work_fn);
+	INIT_WORK(&dev_priv->dmc.work, dmc_load_work_fn);
 
-	if (!HAS_CSR(dev_priv))
+	if (!HAS_DMC(dev_priv))
 		return;
 
 	/*
-	 * Obtain a runtime pm reference, until CSR is loaded, to avoid entering
+	 * Obtain a runtime pm reference, until DMC is loaded, to avoid entering
 	 * runtime-suspend.
 	 *
 	 * On error, we return with the rpm wakeref held to prevent runtime
-	 * suspend as runtime suspend *requires* a working CSR for whatever
+	 * suspend as runtime suspend *requires* a working DMC for whatever
 	 * reason.
 	 */
-	intel_csr_runtime_pm_get(dev_priv);
+	intel_dmc_runtime_pm_get(dev_priv);
 
 	if (IS_ALDERLAKE_S(dev_priv)) {
-		csr->fw_path = ADLS_CSR_PATH;
-		csr->required_version = ADLS_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = ADLS_DMC_PATH;
+		dmc->required_version = ADLS_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (IS_DG1(dev_priv)) {
-		csr->fw_path = DG1_CSR_PATH;
-		csr->required_version = DG1_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = DG1_DMC_PATH;
+		dmc->required_version = DG1_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (IS_ROCKETLAKE(dev_priv)) {
-		csr->fw_path = RKL_CSR_PATH;
-		csr->required_version = RKL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = RKL_DMC_PATH;
+		dmc->required_version = RKL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		csr->fw_path = TGL_CSR_PATH;
-		csr->required_version = TGL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+		dmc->fw_path = TGL_DMC_PATH;
+		dmc->required_version = TGL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) == 11) {
-		csr->fw_path = ICL_CSR_PATH;
-		csr->required_version = ICL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = ICL_DMC_PATH;
+		dmc->required_version = ICL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = ICL_DMC_MAX_FW_SIZE;
 	} else if (IS_CANNONLAKE(dev_priv)) {
-		csr->fw_path = CNL_CSR_PATH;
-		csr->required_version = CNL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = CNL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = CNL_DMC_PATH;
+		dmc->required_version = CNL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = CNL_DMC_MAX_FW_SIZE;
 	} else if (IS_GEMINILAKE(dev_priv)) {
-		csr->fw_path = GLK_CSR_PATH;
-		csr->required_version = GLK_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
+		dmc->fw_path = GLK_DMC_PATH;
+		dmc->required_version = GLK_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = GLK_DMC_MAX_FW_SIZE;
 	} else if (IS_KABYLAKE(dev_priv) ||
 		   IS_COFFEELAKE(dev_priv) ||
 		   IS_COMETLAKE(dev_priv)) {
-		csr->fw_path = KBL_CSR_PATH;
-		csr->required_version = KBL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = KBL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = KBL_DMC_PATH;
+		dmc->required_version = KBL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = KBL_DMC_MAX_FW_SIZE;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		csr->fw_path = SKL_CSR_PATH;
-		csr->required_version = SKL_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = SKL_CSR_MAX_FW_SIZE;
+		dmc->fw_path = SKL_DMC_PATH;
+		dmc->required_version = SKL_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = SKL_DMC_MAX_FW_SIZE;
 	} else if (IS_BROXTON(dev_priv)) {
-		csr->fw_path = BXT_CSR_PATH;
-		csr->required_version = BXT_CSR_VERSION_REQUIRED;
-		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
+		dmc->fw_path = BXT_DMC_PATH;
+		dmc->required_version = BXT_DMC_VERSION_REQUIRED;
+		dmc->max_fw_size = BXT_DMC_MAX_FW_SIZE;
 	}
 
 	if (dev_priv->params.dmc_firmware_path) {
 		if (strlen(dev_priv->params.dmc_firmware_path) == 0) {
-			csr->fw_path = NULL;
+			dmc->fw_path = NULL;
 			drm_info(&dev_priv->drm,
-				 "Disabling CSR firmware and runtime PM\n");
+				 "Disabling DMC firmware and runtime PM\n");
 			return;
 		}
 
-		csr->fw_path = dev_priv->params.dmc_firmware_path;
+		dmc->fw_path = dev_priv->params.dmc_firmware_path;
 		/* Bypass version check for firmware override. */
-		csr->required_version = 0;
+		dmc->required_version = 0;
 	}
 
-	if (csr->fw_path == NULL) {
+	if (!dmc->fw_path) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "No known CSR firmware for platform, disabling runtime PM\n");
+			    "No known DMC firmware for platform, disabling runtime PM\n");
 		return;
 	}
 
-	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", csr->fw_path);
-	schedule_work(&dev_priv->csr.work);
+	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", dmc->fw_path);
+	schedule_work(&dev_priv->dmc.work);
 }
 
 /**
- * intel_csr_ucode_suspend() - prepare CSR firmware before system suspend
+ * intel_dmc_ucode_suspend() - prepare DMC firmware before system suspend
  * @dev_priv: i915 drm device
  *
  * Prepare the DMC firmware before entering system suspend. This includes
  * flushing pending work items and releasing any resources acquired during
  * init.
  */
-void intel_csr_ucode_suspend(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_suspend(struct drm_i915_private *dev_priv)
 {
-	if (!HAS_CSR(dev_priv))
+	if (!HAS_DMC(dev_priv))
 		return;
 
-	flush_work(&dev_priv->csr.work);
+	flush_work(&dev_priv->dmc.work);
 
 	/* Drop the reference held in case DMC isn't loaded. */
-	if (!dev_priv->csr.dmc_payload)
-		intel_csr_runtime_pm_put(dev_priv);
+	if (!intel_dmc_has_payload(dev_priv))
+		intel_dmc_runtime_pm_put(dev_priv);
 }
 
 /**
- * intel_csr_ucode_resume() - init CSR firmware during system resume
+ * intel_dmc_ucode_resume() - init DMC firmware during system resume
  * @dev_priv: i915 drm device
  *
  * Reinitialize the DMC firmware during system resume, reacquiring any
- * resources released in intel_csr_ucode_suspend().
+ * resources released in intel_dmc_ucode_suspend().
  */
-void intel_csr_ucode_resume(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_resume(struct drm_i915_private *dev_priv)
 {
-	if (!HAS_CSR(dev_priv))
+	if (!HAS_DMC(dev_priv))
 		return;
 
 	/*
 	 * Reacquire the reference to keep RPM disabled in case DMC isn't
 	 * loaded.
 	 */
-	if (!dev_priv->csr.dmc_payload)
-		intel_csr_runtime_pm_get(dev_priv);
+	if (!intel_dmc_has_payload(dev_priv))
+		intel_dmc_runtime_pm_get(dev_priv);
 }
 
 /**
- * intel_csr_ucode_fini() - unload the CSR firmware.
+ * intel_dmc_ucode_fini() - unload the DMC firmware.
  * @dev_priv: i915 drm device.
  *
  * Firmmware unloading includes freeing the internal memory and reset the
  * firmware loading status.
  */
-void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
+void intel_dmc_ucode_fini(struct drm_i915_private *dev_priv)
 {
-	if (!HAS_CSR(dev_priv))
+	if (!HAS_DMC(dev_priv))
 		return;
 
-	intel_csr_ucode_suspend(dev_priv);
-	drm_WARN_ON(&dev_priv->drm, dev_priv->csr.wakeref);
+	intel_dmc_ucode_suspend(dev_priv);
+	drm_WARN_ON(&dev_priv->drm, dev_priv->dmc.wakeref);
 
-	kfree(dev_priv->csr.dmc_payload);
+	kfree(dev_priv->dmc.dmc_payload);
 }

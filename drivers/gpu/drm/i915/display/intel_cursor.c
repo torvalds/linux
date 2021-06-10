@@ -383,6 +383,10 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	if (plane_state->hw.rotation & DRM_MODE_ROTATE_180)
 		cntl |= MCURSOR_ROTATE_180;
 
+	/* Wa_22012358565:adlp */
+	if (DISPLAY_VER(dev_priv) == 13)
+		cntl |= MCURSOR_ARB_SLOTS(1);
+
 	return cntl;
 }
 

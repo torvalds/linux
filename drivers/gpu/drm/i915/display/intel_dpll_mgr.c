@@ -149,6 +149,16 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			pll->info->name, onoff(state), onoff(cur_state));
 }
 
+static enum tc_port icl_pll_id_to_tc_port(enum intel_dpll_id id)
+{
+	return TC_PORT_1 + id - DPLL_ID_ICL_MGPLL1;
+}
+
+enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
+{
+	return tc_port - TC_PORT_1 + DPLL_ID_ICL_MGPLL1;
+}
+
 static i915_reg_t
 intel_combo_pll_enable_reg(struct drm_i915_private *i915,
 			   struct intel_shared_dpll *pll)
@@ -159,6 +169,19 @@ intel_combo_pll_enable_reg(struct drm_i915_private *i915,
 		return MG_PLL_ENABLE(0);
 
 	return CNL_DPLL_ENABLE(pll->info->id);
+}
+
+static i915_reg_t
+intel_tc_pll_enable_reg(struct drm_i915_private *i915,
+			struct intel_shared_dpll *pll)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	enum tc_port tc_port = icl_pll_id_to_tc_port(id);
+
+	if (IS_ALDERLAKE_P(i915))
+		return ADLP_PORTTC_PLL_ENABLE(tc_port);
+
+	return MG_PLL_ENABLE(tc_port);
 }
 
 /**
@@ -3120,16 +3143,6 @@ static void icl_calc_dpll_state(struct drm_i915_private *i915,
 		pll_state->cfgcr1 |= DPLL_CFGCR1_CENTRAL_FREQ_8400;
 }
 
-static enum tc_port icl_pll_id_to_tc_port(enum intel_dpll_id id)
-{
-	return id - DPLL_ID_ICL_MGPLL1;
-}
-
-enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
-{
-	return tc_port + DPLL_ID_ICL_MGPLL1;
-}
-
 static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				     u32 *target_dco_khz,
 				     struct intel_dpll_hw_state *state,
@@ -3728,12 +3741,14 @@ static bool mg_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	bool ret = false;
 	u32 val;
 
+	i915_reg_t enable_reg = intel_tc_pll_enable_reg(dev_priv, pll);
+
 	wakeref = intel_display_power_get_if_enabled(dev_priv,
 						     POWER_DOMAIN_DISPLAY_CORE);
 	if (!wakeref)
 		return false;
 
-	val = intel_de_read(dev_priv, MG_PLL_ENABLE(tc_port));
+	val = intel_de_read(dev_priv, enable_reg);
 	if (!(val & PLL_ENABLE))
 		goto out;
 
@@ -3797,7 +3812,7 @@ static bool dkl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	if (!wakeref)
 		return false;
 
-	val = intel_de_read(dev_priv, MG_PLL_ENABLE(tc_port));
+	val = intel_de_read(dev_priv, intel_tc_pll_enable_reg(dev_priv, pll));
 	if (!(val & PLL_ENABLE))
 		goto out;
 
@@ -4169,8 +4184,7 @@ static void tbt_pll_enable(struct drm_i915_private *dev_priv,
 static void mg_pll_enable(struct drm_i915_private *dev_priv,
 			  struct intel_shared_dpll *pll)
 {
-	i915_reg_t enable_reg =
-		MG_PLL_ENABLE(icl_pll_id_to_tc_port(pll->info->id));
+	i915_reg_t enable_reg = intel_tc_pll_enable_reg(dev_priv, pll);
 
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
 
@@ -4249,8 +4263,7 @@ static void tbt_pll_disable(struct drm_i915_private *dev_priv,
 static void mg_pll_disable(struct drm_i915_private *dev_priv,
 			   struct intel_shared_dpll *pll)
 {
-	i915_reg_t enable_reg =
-		MG_PLL_ENABLE(icl_pll_id_to_tc_port(pll->info->id));
+	i915_reg_t enable_reg = intel_tc_pll_enable_reg(dev_priv, pll);
 
 	icl_pll_disable(dev_priv, pll, enable_reg);
 }
@@ -4416,6 +4429,26 @@ static const struct intel_dpll_mgr adls_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct dpll_info adlp_plls[] = {
+	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
+	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
+	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
+	{ "TC PLL 1", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
+	{ "TC PLL 2", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
+	{ "TC PLL 3", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
+	{ "TC PLL 4", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr adlp_pll_mgr = {
+	.dpll_info = adlp_plls,
+	.get_dplls = icl_get_dplls,
+	.put_dplls = icl_put_dplls,
+	.update_active_dpll = icl_update_active_dpll,
+	.update_ref_clks = icl_update_dpll_ref_clks,
+	.dump_hw_state = icl_dump_hw_state,
+};
+
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
  * @dev: drm device
@@ -4429,7 +4462,9 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_ALDERLAKE_S(dev_priv))
+	if (IS_ALDERLAKE_P(dev_priv))
+		dpll_mgr = &adlp_pll_mgr;
+	else if (IS_ALDERLAKE_S(dev_priv))
 		dpll_mgr = &adls_pll_mgr;
 	else if (IS_DG1(dev_priv))
 		dpll_mgr = &dg1_pll_mgr;

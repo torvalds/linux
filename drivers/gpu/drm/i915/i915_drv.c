@@ -49,7 +49,7 @@
 #include "display/intel_acpi.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
-#include "display/intel_csr.h"
+#include "display/intel_dmc.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dp.h"
 #include "display/intel_fbdev.h"
@@ -106,12 +106,12 @@ static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 static int
 intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 {
-	int reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int reg = GRAPHICS_VER(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
 	int ret;
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (GRAPHICS_VER(dev_priv) >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
 	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
@@ -138,7 +138,7 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (GRAPHICS_VER(dev_priv) >= 4)
 		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
 				       upper_32_bits(dev_priv->mch_res.start));
 
@@ -151,7 +151,7 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 static void
 intel_setup_mchbar(struct drm_i915_private *dev_priv)
 {
-	int mchbar_reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int mchbar_reg = GRAPHICS_VER(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
 
@@ -190,7 +190,7 @@ intel_setup_mchbar(struct drm_i915_private *dev_priv)
 static void
 intel_teardown_mchbar(struct drm_i915_private *dev_priv)
 {
-	int mchbar_reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int mchbar_reg = GRAPHICS_VER(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 
 	if (dev_priv->mchbar_need_disable) {
 		if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
@@ -475,7 +475,7 @@ static int i915_set_dma_info(struct drm_i915_private *i915)
 		goto mask_err;
 
 	/* overlay on gen2 is broken and can't address above 1G */
-	if (IS_GEN(i915, 2))
+	if (GRAPHICS_VER(i915) == 2)
 		mask_size = 30;
 
 	/*
@@ -601,7 +601,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	 * device. The kernel then disables that interrupt source and so
 	 * prevents the other device from working properly.
 	 */
-	if (INTEL_GEN(dev_priv) >= 5) {
+	if (GRAPHICS_VER(dev_priv) >= 5) {
 		if (pci_enable_msi(pdev) < 0)
 			drm_dbg(&dev_priv->drm, "can't enable MSI");
 	}
@@ -729,7 +729,7 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 			   intel_platform_name(INTEL_INFO(dev_priv)->platform),
 			   intel_subplatform(RUNTIME_INFO(dev_priv),
 					     INTEL_INFO(dev_priv)->platform),
-			   INTEL_GEN(dev_priv));
+			   GRAPHICS_VER(dev_priv));
 
 		intel_device_info_print_static(INTEL_INFO(dev_priv), &p);
 		intel_device_info_print_runtime(RUNTIME_INFO(dev_priv), &p);
@@ -803,7 +803,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 	if (IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)) {
-		if (INTEL_GEN(i915) >= 9 && i915_selftest.live < 0 &&
+		if (GRAPHICS_VER(i915) >= 9 && i915_selftest.live < 0 &&
 		    i915->params.fake_lmem_start) {
 			mkwrite_device_info(i915)->memory_regions =
 				REGION_SMEM | REGION_LMEM | REGION_STOLEN_SMEM;
@@ -1043,7 +1043,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
 
-	intel_csr_ucode_suspend(i915);
+	intel_dmc_ucode_suspend(i915);
 
 	/*
 	 * The only requirement is to reboot with display DC states disabled,
@@ -1124,7 +1124,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
-	intel_csr_ucode_suspend(dev_priv);
+	intel_dmc_ucode_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1182,7 +1182,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 * Fujitsu FSC S7110
 	 * Acer Aspire 1830T
 	 */
-	if (!(hibernation && INTEL_GEN(dev_priv) < 6))
+	if (!(hibernation && GRAPHICS_VER(dev_priv) < 6))
 		pci_set_power_state(pdev, PCI_D3hot);
 
 out:
@@ -1226,7 +1226,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	i915_ggtt_resume(&dev_priv->ggtt);
 
-	intel_csr_ucode_resume(dev_priv);
+	intel_dmc_ucode_resume(dev_priv);
 
 	i915_restore_display(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);

@@ -1884,9 +1884,9 @@ static int igt_cs_tlb(void *arg)
 		u32 *cs = batch + i * 64 / sizeof(*cs);
 		u64 addr = (vm->total - PAGE_SIZE) + i * sizeof(u32);
 
-		GEM_BUG_ON(INTEL_GEN(i915) < 6);
+		GEM_BUG_ON(GRAPHICS_VER(i915) < 6);
 		cs[0] = MI_STORE_DWORD_IMM_GEN4;
-		if (INTEL_GEN(i915) >= 8) {
+		if (GRAPHICS_VER(i915) >= 8) {
 			cs[1] = lower_32_bits(addr);
 			cs[2] = upper_32_bits(addr);
 			cs[3] = i;

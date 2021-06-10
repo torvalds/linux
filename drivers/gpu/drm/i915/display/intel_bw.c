@@ -162,7 +162,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 {
 	struct intel_qgv_info qi = {};
 	bool is_y_tile = true; /* assume y tile may be used */
-	int num_channels = dev_priv->dram_info.num_channels;
+	int num_channels = max_t(u8, 1, dev_priv->dram_info.num_channels);
 	int deinterleave;
 	int ipqdepth, ipqdepthpch;
 	int dclk_max;
@@ -267,7 +267,7 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_ALDERLAKE_S(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv))
 		icl_get_bw_info(dev_priv, &adls_sa_info);
 	else if (IS_ROCKETLAKE(dev_priv))
 		icl_get_bw_info(dev_priv, &rkl_sa_info);

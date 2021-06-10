@@ -28,6 +28,7 @@
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_psr.h"
 #include "intel_sideband.h"
 
 /**
@@ -1547,6 +1548,35 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	dev_priv->cdclk.hw.vco = vco;
 }
 
+static bool has_cdclk_crawl(struct drm_i915_private *i915)
+{
+	return INTEL_INFO(i915)->has_cdclk_crawl;
+}
+
+static void adlp_cdclk_pll_crawl(struct drm_i915_private *dev_priv, int vco)
+{
+	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk.hw.ref);
+	u32 val;
+
+	/* Write PLL ratio without disabling */
+	val = CNL_CDCLK_PLL_RATIO(ratio) | BXT_DE_PLL_PLL_ENABLE;
+	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, val);
+
+	/* Submit freq change request */
+	val |= BXT_DE_PLL_FREQ_REQ;
+	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, val);
+
+	/* Timeout 200us */
+	if (intel_de_wait_for_set(dev_priv, BXT_DE_PLL_ENABLE,
+				  BXT_DE_PLL_LOCK | BXT_DE_PLL_FREQ_REQ_ACK, 1))
+		DRM_ERROR("timeout waiting for FREQ change request ack\n");
+
+	val &= ~BXT_DE_PLL_FREQ_REQ;
+	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, val);
+
+	dev_priv->cdclk.hw.vco = vco;
+}
+
 static u32 bxt_cdclk_cd2x_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	if (DISPLAY_VER(dev_priv) >= 12) {
@@ -1619,14 +1649,16 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
+	if (has_cdclk_crawl(dev_priv) && dev_priv->cdclk.hw.vco > 0 && vco > 0) {
+		if (dev_priv->cdclk.hw.vco != vco)
+			adlp_cdclk_pll_crawl(dev_priv, vco);
+	} else if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv)) {
 		if (dev_priv->cdclk.hw.vco != 0 &&
 		    dev_priv->cdclk.hw.vco != vco)
 			cnl_cdclk_pll_disable(dev_priv);
 
 		if (dev_priv->cdclk.hw.vco != vco)
 			cnl_cdclk_pll_enable(dev_priv, vco);
-
 	} else {
 		if (dev_priv->cdclk.hw.vco != 0 &&
 		    dev_priv->cdclk.hw.vco != vco)
@@ -1819,6 +1851,28 @@ void intel_cdclk_uninit_hw(struct drm_i915_private *i915)
 		skl_cdclk_uninit_hw(i915);
 }
 
+static bool intel_cdclk_can_crawl(struct drm_i915_private *dev_priv,
+				  const struct intel_cdclk_config *a,
+				  const struct intel_cdclk_config *b)
+{
+	int a_div, b_div;
+
+	if (!has_cdclk_crawl(dev_priv))
+		return false;
+
+	/*
+	 * The vco and cd2x divider will change independently
+	 * from each, so we disallow cd2x change when crawling.
+	 */
+	a_div = DIV_ROUND_CLOSEST(a->vco, a->cdclk);
+	b_div = DIV_ROUND_CLOSEST(b->vco, b->cdclk);
+
+	return a->vco != 0 && b->vco != 0 &&
+		a->vco != b->vco &&
+		a_div == b_div &&
+		a->ref == b->ref;
+}
+
 /**
  * intel_cdclk_needs_modeset - Determine if changong between the CDCLK
  *                             configurations requires a modeset on all pipes
@@ -1908,6 +1962,12 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 
 	intel_dump_cdclk_config(cdclk_config, "Changing CDCLK to");
 
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_psr_pause(intel_dp);
+	}
+
 	/*
 	 * Lock aux/gmbus while we change cdclk in case those
 	 * functions use cdclk. Not all platforms/ports do,
@@ -1929,6 +1989,12 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		mutex_unlock(&intel_dp->aux.hw_mutex);
 	}
 	mutex_unlock(&dev_priv->gmbus_mutex);
+
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_psr_resume(intel_dp);
+	}
 
 	if (drm_WARN(&dev_priv->drm,
 		     intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_config),
@@ -2462,7 +2528,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_cdclk_state *old_cdclk_state;
 	struct intel_cdclk_state *new_cdclk_state;
-	enum pipe pipe;
+	enum pipe pipe = INVALID_PIPE;
 	int ret;
 
 	new_cdclk_state = intel_atomic_get_cdclk_state(state);
@@ -2514,15 +2580,18 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 		if (drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
 			pipe = INVALID_PIPE;
-	} else {
-		pipe = INVALID_PIPE;
 	}
 
-	if (pipe != INVALID_PIPE) {
+	if (intel_cdclk_can_crawl(dev_priv,
+				  &old_cdclk_state->actual,
+				  &new_cdclk_state->actual)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Can change cdclk via crawl\n");
+	} else if (pipe != INVALID_PIPE) {
 		new_cdclk_state->pipe = pipe;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "Can change cdclk with pipe %c active\n",
+			    "Can change cdclk cd2x divider with pipe %c active\n",
 			    pipe_name(pipe));
 	} else if (intel_cdclk_needs_modeset(&old_cdclk_state->actual,
 					     &new_cdclk_state->actual)) {
@@ -2530,8 +2599,6 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		ret = intel_modeset_all_pipes(state);
 		if (ret)
 			return ret;
-
-		new_cdclk_state->pipe = INVALID_PIPE;
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "Modeset required for cdclk change\n");

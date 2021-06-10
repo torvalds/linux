@@ -442,7 +442,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* PREAD is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -722,7 +722,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	/* PWRITE is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
