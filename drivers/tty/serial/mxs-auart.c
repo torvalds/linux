@@ -962,7 +962,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 				 struct ktermios *old)
 {
 	struct mxs_auart_port *s = to_auart_port(u);
-	u32 bm, ctrl, ctrl2, div;
+	u32 ctrl, ctrl2, div;
 	unsigned int cflag, baud, baud_min, baud_max;
 
 	cflag = termios->c_cflag;
@@ -970,25 +970,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 	ctrl = AUART_LINECTRL_FEN;
 	ctrl2 = mxs_read(s, REG_CTRL2);
 
-	/* byte size */
-	switch (cflag & CSIZE) {
-	case CS5:
-		bm = 5;
-		break;
-	case CS6:
-		bm = 6;
-		break;
-	case CS7:
-		bm = 7;
-		break;
-	case CS8:
-		bm = 8;
-		break;
-	default:
-		return;
-	}
-
-	ctrl |= AUART_LINECTRL_WLEN(bm);
+	ctrl |= AUART_LINECTRL_WLEN(tty_get_char_size(cflag));
 
 	/* parity */
 	if (cflag & PARENB) {
