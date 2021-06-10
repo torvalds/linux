@@ -662,7 +662,7 @@ static int tipc_release(struct socket *sock)
  * @skaddr: socket address describing name(s) and desired operation
  * @alen: size of socket address data structure
  *
- * Name and name sequence binding is indicated using a positive scope value;
+ * Name and name sequence binding are indicated using a positive scope value;
  * a negative scope value unbinds the specified name.  Specifying no name
  * (i.e. a socket address length of 0) unbinds all names from the socket.
  *
