@@ -1566,12 +1566,28 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 			       i, args->n_devices);
 			goto unmap_memory_from_gpu_failed;
 		}
-		kfd_flush_tlb(peer_pdd, TLB_FLUSH_HEAVYWEIGHT);
 		args->n_success = i+1;
 	}
-	kfree(devices_arr);
-
 	mutex_unlock(&p->mutex);
+
+	err = amdgpu_amdkfd_gpuvm_sync_memory(dev->kgd, (struct kgd_mem *) mem, true);
+	if (err) {
+		pr_debug("Sync memory failed, wait interrupted by user signal\n");
+		goto sync_memory_failed;
+	}
+
+	/* Flush TLBs after waiting for the page table updates to complete */
+	for (i = 0; i < args->n_devices; i++) {
+		peer = kfd_device_by_id(devices_arr[i]);
+		if (WARN_ON_ONCE(!peer))
+			continue;
+		peer_pdd = kfd_get_process_device_data(peer, p);
+		if (WARN_ON_ONCE(!peer_pdd))
+			continue;
+		kfd_flush_tlb(peer_pdd, TLB_FLUSH_HEAVYWEIGHT);
+	}
+
+	kfree(devices_arr);
 
 	return 0;
 
@@ -1580,6 +1596,7 @@ get_mem_obj_from_handle_failed:
 unmap_memory_from_gpu_failed:
 	mutex_unlock(&p->mutex);
 copy_from_user_failed:
+sync_memory_failed:
 	kfree(devices_arr);
 	return err;
 }
