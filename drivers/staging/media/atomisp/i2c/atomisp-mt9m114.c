@@ -803,7 +803,7 @@ static int mt9m114_get_intg_factor(struct i2c_client *client,
 }
 
 static int mt9m114_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -824,7 +824,7 @@ static int mt9m114_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int mt9m114_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -848,7 +848,7 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 
 	mt9m114_try_res(&width, &height);
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		cfg->try_fmt = *fmt;
+		sd_state->pads->try_fmt = *fmt;
 		return 0;
 	}
 	res_index = mt9m114_to_res(width, height);
@@ -1168,7 +1168,7 @@ static int mt9m114_s_exposure_metering(struct v4l2_subdev *sd, s32 val)
  * This function is for touch exposure feature.
  */
 static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
-					struct v4l2_subdev_pad_config *cfg,
+					struct v4l2_subdev_state *sd_state,
 					struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1731,7 +1731,7 @@ static int mt9m114_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int mt9m114_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index)
@@ -1742,7 +1742,7 @@ static int mt9m114_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int mt9m114_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	unsigned int index = fse->index;

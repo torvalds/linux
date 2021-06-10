@@ -29,7 +29,7 @@ static int tpg_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int tpg_get_fmt(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *format)
 {
 	/*to fake*/
@@ -37,7 +37,7 @@ static int tpg_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int tpg_set_fmt(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -47,7 +47,7 @@ static int tpg_set_fmt(struct v4l2_subdev *sd,
 	/* only raw8 grbg is supported by TPG */
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		cfg->try_fmt = *fmt;
+		sd_state->pads->try_fmt = *fmt;
 		return 0;
 	}
 	return 0;
@@ -65,7 +65,7 @@ static int tpg_s_power(struct v4l2_subdev *sd, int on)
 }
 
 static int tpg_enum_mbus_code(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	/*to fake*/
@@ -73,7 +73,7 @@ static int tpg_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int tpg_enum_frame_size(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	/*to fake*/
@@ -81,7 +81,7 @@ static int tpg_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int tpg_enum_frame_ival(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_interval_enum *fie)
 {
 	/*to fake*/

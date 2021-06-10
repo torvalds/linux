@@ -712,7 +712,7 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int max9286_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index > 0)
@@ -725,12 +725,12 @@ static int max9286_enum_mbus_code(struct v4l2_subdev *sd,
 
 static struct v4l2_mbus_framefmt *
 max9286_get_pad_format(struct max9286_priv *priv,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&priv->sd, cfg, pad);
+		return v4l2_subdev_get_try_format(&priv->sd, sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &priv->fmt[pad];
 	default:
@@ -739,7 +739,7 @@ max9286_get_pad_format(struct max9286_priv *priv,
 }
 
 static int max9286_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
@@ -760,7 +760,8 @@ static int max9286_set_fmt(struct v4l2_subdev *sd,
 		break;
 	}
 
-	cfg_fmt = max9286_get_pad_format(priv, cfg, format->pad, format->which);
+	cfg_fmt = max9286_get_pad_format(priv, sd_state, format->pad,
+					 format->which);
 	if (!cfg_fmt)
 		return -EINVAL;
 
@@ -772,7 +773,7 @@ static int max9286_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int max9286_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
@@ -788,7 +789,7 @@ static int max9286_get_fmt(struct v4l2_subdev *sd,
 	if (pad == MAX9286_SRC_PAD)
 		pad = __ffs(priv->bound_sources);
 
-	cfg_fmt = max9286_get_pad_format(priv, cfg, pad, format->which);
+	cfg_fmt = max9286_get_pad_format(priv, sd_state, pad, format->which);
 	if (!cfg_fmt)
 		return -EINVAL;
 
@@ -832,7 +833,7 @@ static int max9286_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	unsigned int i;
 
 	for (i = 0; i < MAX9286_N_SINKS; i++) {
-		format = v4l2_subdev_get_try_format(subdev, fh->pad, i);
+		format = v4l2_subdev_get_try_format(subdev, fh->state, i);
 		max9286_init_format(format);
 	}
 

@@ -856,12 +856,13 @@ static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
 };
 
 static const struct v4l2_rect *
-__ov5647_get_pad_crop(struct ov5647 *ov5647, struct v4l2_subdev_pad_config *cfg,
+__ov5647_get_pad_crop(struct ov5647 *ov5647,
+		      struct v4l2_subdev_state *sd_state,
 		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov5647->sd, cfg, pad);
+		return v4l2_subdev_get_try_crop(&ov5647->sd, sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5647->mode->crop;
 	}
@@ -918,7 +919,7 @@ static const struct v4l2_subdev_video_ops ov5647_subdev_video_ops = {
 };
 
 static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index > 0)
@@ -930,7 +931,7 @@ static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov5647_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	const struct v4l2_mbus_framefmt *fmt;
@@ -949,7 +950,7 @@ static int ov5647_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int ov5647_get_pad_fmt(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -959,7 +960,8 @@ static int ov5647_get_pad_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 	switch (format->which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		sensor_format = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		sensor_format = v4l2_subdev_get_try_format(sd, sd_state,
+							   format->pad);
 		break;
 	default:
 		sensor_format = &sensor->mode->format;
@@ -973,7 +975,7 @@ static int ov5647_get_pad_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -987,7 +989,7 @@ static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
 	/* Update the sensor mode and apply at it at streamon time. */
 	mutex_lock(&sensor->lock);
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, cfg, format->pad) = mode->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = mode->format;
 	} else {
 		int exposure_max, exposure_def;
 		int hblank, vblank;
@@ -1020,7 +1022,7 @@ static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov5647_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	switch (sel->target) {
@@ -1028,7 +1030,7 @@ static int ov5647_get_selection(struct v4l2_subdev *sd,
 		struct ov5647 *sensor = to_sensor(sd);
 
 		mutex_lock(&sensor->lock);
-		sel->r = *__ov5647_get_pad_crop(sensor, cfg, sel->pad,
+		sel->r = *__ov5647_get_pad_crop(sensor, sd_state, sel->pad,
 						sel->which);
 		mutex_unlock(&sensor->lock);
 
@@ -1104,8 +1106,8 @@ static int ov5647_detect(struct v4l2_subdev *sd)
 static int ov5647_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
-	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
+	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, fh->state, 0);
 
 	crop->left = OV5647_PIXEL_ARRAY_LEFT;
 	crop->top = OV5647_PIXEL_ARRAY_TOP;

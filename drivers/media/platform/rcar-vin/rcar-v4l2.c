@@ -243,7 +243,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 			   struct v4l2_rect *src_rect)
 {
 	struct v4l2_subdev *sd = vin_to_source(vin);
-	struct v4l2_subdev_pad_config *pad_cfg;
+	struct v4l2_subdev_state *sd_state;
 	struct v4l2_subdev_format format = {
 		.which = which,
 		.pad = vin->parallel.source_pad,
@@ -252,8 +252,8 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	u32 width, height;
 	int ret;
 
-	pad_cfg = v4l2_subdev_alloc_pad_config(sd);
-	if (pad_cfg == NULL)
+	sd_state = v4l2_subdev_alloc_state(sd);
+	if (sd_state == NULL)
 		return -ENOMEM;
 
 	if (!rvin_format_from_pixel(vin, pix->pixelformat))
@@ -266,7 +266,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	width = pix->width;
 	height = pix->height;
 
-	ret = v4l2_subdev_call(sd, pad, set_fmt, pad_cfg, &format);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, sd_state, &format);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		goto done;
 	ret = 0;
@@ -288,7 +288,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 
 	rvin_format_align(vin, pix);
 done:
-	v4l2_subdev_free_pad_config(pad_cfg);
+	v4l2_subdev_free_state(sd_state);
 
 	return ret;
 }

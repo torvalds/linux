@@ -403,7 +403,7 @@ static int rdacm20_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int rdacm20_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index > 0)
@@ -415,7 +415,7 @@ static int rdacm20_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int rdacm20_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;

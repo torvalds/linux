@@ -705,7 +705,7 @@ exit:
 }
 
 static int ov9734_set_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct ov9734 *ov9734 = to_ov9734(sd);
@@ -720,7 +720,7 @@ static int ov9734_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov9734->mutex);
 	ov9734_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov9734->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov9734->link_freq, mode->link_freq_index);
@@ -746,14 +746,15 @@ static int ov9734_set_format(struct v4l2_subdev *sd,
 }
 
 static int ov9734_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct ov9734 *ov9734 = to_ov9734(sd);
 
 	mutex_lock(&ov9734->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov9734->sd, cfg,
+		fmt->format = *v4l2_subdev_get_try_format(&ov9734->sd,
+							  sd_state,
 							  fmt->pad);
 	else
 		ov9734_update_pad_format(ov9734->cur_mode, &fmt->format);
@@ -764,7 +765,7 @@ static int ov9734_get_format(struct v4l2_subdev *sd,
 }
 
 static int ov9734_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index > 0)
@@ -776,7 +777,7 @@ static int ov9734_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov9734_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -799,7 +800,7 @@ static int ov9734_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov9734->mutex);
 	ov9734_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->pad, 0));
+				 v4l2_subdev_get_try_format(sd, fh->state, 0));
 	mutex_unlock(&ov9734->mutex);
 
 	return 0;

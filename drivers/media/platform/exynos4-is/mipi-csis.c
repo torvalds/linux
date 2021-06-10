@@ -537,7 +537,7 @@ unlock:
 }
 
 static int s5pcsis_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5pcsis_formats))
@@ -565,23 +565,25 @@ static struct csis_pix_format const *s5pcsis_try_format(
 }
 
 static struct v4l2_mbus_framefmt *__s5pcsis_get_format(
-		struct csis_state *state, struct v4l2_subdev_pad_config *cfg,
+		struct csis_state *state, struct v4l2_subdev_state *sd_state,
 		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return cfg ? v4l2_subdev_get_try_format(&state->sd, cfg, 0) : NULL;
+		return sd_state ? v4l2_subdev_get_try_format(&state->sd,
+							     sd_state, 0) : NULL;
 
 	return &state->format;
 }
 
-static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5pcsis_set_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct csis_pix_format const *csis_fmt;
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5pcsis_get_format(state, cfg, fmt->which);
+	mf = __s5pcsis_get_format(state, sd_state, fmt->which);
 
 	if (fmt->pad == CSIS_PAD_SOURCE) {
 		if (mf) {
@@ -602,13 +604,14 @@ static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config
 	return 0;
 }
 
-static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5pcsis_get_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5pcsis_get_format(state, cfg, fmt->which);
+	mf = __s5pcsis_get_format(state, sd_state, fmt->which);
 	if (!mf)
 		return -EINVAL;
 

@@ -965,7 +965,7 @@ static int startup(struct v4l2_subdev *sd)
 }
 
 static int gc0310_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -999,7 +999,7 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		cfg->try_fmt = *fmt;
+		sd_state->pads->try_fmt = *fmt;
 		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
@@ -1032,7 +1032,7 @@ err:
 }
 
 static int gc0310_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -1205,7 +1205,7 @@ static int gc0310_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= MAX_FMTS)
@@ -1216,7 +1216,7 @@ static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int index = fse->index;

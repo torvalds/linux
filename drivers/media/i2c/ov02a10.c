@@ -295,7 +295,7 @@ static void ov02a10_fill_fmt(const struct ov02a10_mode *mode,
 }
 
 static int ov02a10_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct ov02a10 *ov02a10 = to_ov02a10(sd);
@@ -315,7 +315,7 @@ static int ov02a10_set_fmt(struct v4l2_subdev *sd,
 	ov02a10_fill_fmt(ov02a10->cur_mode, mbus_fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		frame_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		frame_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 	else
 		frame_fmt = &ov02a10->fmt;
 
@@ -327,7 +327,7 @@ out_unlock:
 }
 
 static int ov02a10_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct ov02a10 *ov02a10 = to_ov02a10(sd);
@@ -336,7 +336,8 @@ static int ov02a10_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov02a10->mutex);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
+							  fmt->pad);
 	} else {
 		fmt->format = ov02a10->fmt;
 		mbus_fmt->code = ov02a10->fmt.code;
@@ -349,7 +350,7 @@ static int ov02a10_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov02a10_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct ov02a10 *ov02a10 = to_ov02a10(sd);
@@ -363,7 +364,7 @@ static int ov02a10_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov02a10_enum_frame_sizes(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -511,7 +512,7 @@ static int __ov02a10_stop_stream(struct ov02a10 *ov02a10)
 }
 
 static int ov02a10_entity_init_cfg(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg)
+				   struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
@@ -521,7 +522,7 @@ static int ov02a10_entity_init_cfg(struct v4l2_subdev *sd,
 		}
 	};
 
-	ov02a10_set_fmt(sd, cfg, &fmt);
+	ov02a10_set_fmt(sd, sd_state, &fmt);
 
 	return 0;
 }

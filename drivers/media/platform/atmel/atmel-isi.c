@@ -557,7 +557,7 @@ static const struct isi_format *find_format_by_fourcc(struct atmel_isi *isi,
 }
 
 static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
-			struct v4l2_subdev_pad_config *pad_cfg)
+			struct v4l2_subdev_state *sd_state)
 {
 	int ret;
 	struct v4l2_subdev_frame_size_enum fse = {
@@ -566,17 +566,17 @@ static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 	};
 
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, enum_frame_size,
-			       pad_cfg, &fse);
+			       sd_state, &fse);
 	/*
 	 * Attempt to obtain format size from subdev. If not available,
 	 * just use the maximum ISI can receive.
 	 */
 	if (ret) {
-		pad_cfg->try_crop.width = MAX_SUPPORT_WIDTH;
-		pad_cfg->try_crop.height = MAX_SUPPORT_HEIGHT;
+		sd_state->pads->try_crop.width = MAX_SUPPORT_WIDTH;
+		sd_state->pads->try_crop.height = MAX_SUPPORT_HEIGHT;
 	} else {
-		pad_cfg->try_crop.width = fse.max_width;
-		pad_cfg->try_crop.height = fse.max_height;
+		sd_state->pads->try_crop.width = fse.max_width;
+		sd_state->pads->try_crop.height = fse.max_height;
 	}
 }
 
@@ -586,6 +586,9 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	const struct isi_format *isi_fmt;
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
+	struct v4l2_subdev_state pad_state = {
+		.pads = &pad_cfg
+		};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -603,10 +606,10 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, isi_fmt->mbus_code);
 
-	isi_try_fse(isi, isi_fmt, &pad_cfg);
+	isi_try_fse(isi, isi_fmt, &pad_state);
 
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, set_fmt,
-			       &pad_cfg, &format);
+			       &pad_state, &format);
 	if (ret < 0)
 		return ret;
 

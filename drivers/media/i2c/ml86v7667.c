@@ -188,7 +188,7 @@ static int ml86v7667_g_input_status(struct v4l2_subdev *sd, u32 *status)
 }
 
 static int ml86v7667_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index > 0)
@@ -200,7 +200,7 @@ static int ml86v7667_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ml86v7667_fill_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct ml86v7667_priv *priv = to_ml86v7667(sd);
