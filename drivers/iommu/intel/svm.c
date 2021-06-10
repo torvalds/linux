@@ -24,6 +24,7 @@
 #include <trace/events/intel_iommu.h>
 
 #include "pasid.h"
+#include "perf.h"
 #include "../iommu-sva-lib.h"
 
 static irqreturn_t prq_event_thread(int irq, void *d);
@@ -838,8 +839,8 @@ static int prq_to_iommu_prot(struct page_req_dsc *req)
 	return prot;
 }
 
-static int
-intel_svm_prq_report(struct device *dev, struct page_req_dsc *desc)
+static int intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
+				struct page_req_dsc *desc)
 {
 	struct iommu_fault_event event;
 
@@ -871,6 +872,12 @@ intel_svm_prq_report(struct device *dev, struct page_req_dsc *desc)
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PRIV_DATA;
 		memcpy(event.fault.prm.private_data, desc->priv_data,
 		       sizeof(desc->priv_data));
+	} else if (dmar_latency_enabled(iommu, DMAR_LATENCY_PRQ)) {
+		/*
+		 * If the private data fields are not used by hardware, use it
+		 * to monitor the prq handle latency.
+		 */
+		event.fault.prm.private_data[0] = ktime_to_ns(ktime_get());
 	}
 
 	return iommu_report_device_fault(dev, &event);
@@ -983,7 +990,7 @@ bad_req:
 		 * If prq is to be handled outside iommu driver via receiver of
 		 * the fault notifiers, we skip the page response here.
 		 */
-		if (intel_svm_prq_report(sdev->dev, req))
+		if (intel_svm_prq_report(iommu, sdev->dev, req))
 			handle_bad_prq_event(iommu, req, QI_RESP_INVALID);
 
 		trace_prq_report(iommu, sdev->dev, req->qw_0, req->qw_1,
@@ -1172,6 +1179,9 @@ int intel_svm_page_response(struct device *dev,
 		if (private_present)
 			memcpy(&desc.qw2, prm->private_data,
 			       sizeof(prm->private_data));
+		else if (prm->private_data[0])
+			dmar_latency_update(iommu, DMAR_LATENCY_PRQ,
+				ktime_to_ns(ktime_get()) - prm->private_data[0]);
 
 		qi_submit_sync(iommu, &desc, 1, 0);
 	}
