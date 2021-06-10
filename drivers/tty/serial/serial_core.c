@@ -334,39 +334,15 @@ void
 uart_update_timeout(struct uart_port *port, unsigned int cflag,
 		    unsigned int baud)
 {
-	unsigned int bits;
+	unsigned int size;
 
-	/* byte size and parity */
-	switch (cflag & CSIZE) {
-	case CS5:
-		bits = 7;
-		break;
-	case CS6:
-		bits = 8;
-		break;
-	case CS7:
-		bits = 9;
-		break;
-	default:
-		bits = 10;
-		break; /* CS8 */
-	}
-
-	if (cflag & CSTOPB)
-		bits++;
-	if (cflag & PARENB)
-		bits++;
-
-	/*
-	 * The total number of bits to be transmitted in the fifo.
-	 */
-	bits = bits * port->fifosize;
+	size = tty_get_frame_size(cflag) * port->fifosize;
 
 	/*
 	 * Figure the timeout to send the above number of bits.
 	 * Add .02 seconds of slop
 	 */
-	port->timeout = (HZ * bits) / baud + HZ/50;
+	port->timeout = (HZ * size) / baud + HZ/50;
 }
 
 EXPORT_SYMBOL(uart_update_timeout);

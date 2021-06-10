@@ -495,6 +495,9 @@ static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 	return tty_termios_baud_rate(&tty->termios);
 }
 
+unsigned char tty_get_char_size(unsigned int cflag);
+unsigned char tty_get_frame_size(unsigned int cflag);
+
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
 extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);

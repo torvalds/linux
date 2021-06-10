@@ -280,6 +280,51 @@ int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b)
 EXPORT_SYMBOL(tty_termios_hw_change);
 
 /**
+ *	tty_get_char_size	-	get size of a character
+ *	@cflag: termios cflag value
+ *
+ *	Get the size (in bits) of a character depending on @cflag's %CSIZE
+ *	setting.
+ */
+unsigned char tty_get_char_size(unsigned int cflag)
+{
+	switch (cflag & CSIZE) {
+	case CS5:
+		return 5;
+	case CS6:
+		return 6;
+	case CS7:
+		return 7;
+	case CS8:
+	default:
+		return 8;
+	}
+}
+EXPORT_SYMBOL_GPL(tty_get_char_size);
+
+/**
+ *	tty_get_frame_size	-	get size of a frame
+ *	@cflag: termios cflag value
+ *
+ *	Get the size (in bits) of a frame depending on @cflag's %CSIZE, %CSTOPB,
+ *	and %PARENB setting. The result is a sum of character size, start and
+ *	stop bits -- one bit each -- second stop bit (if set), and parity bit
+ *	(if set).
+ */
+unsigned char tty_get_frame_size(unsigned int cflag)
+{
+	unsigned char bits = 2 + tty_get_char_size(cflag);
+
+	if (cflag & CSTOPB)
+		bits++;
+	if (cflag & PARENB)
+		bits++;
+
+	return bits;
+}
+EXPORT_SYMBOL_GPL(tty_get_frame_size);
+
+/**
  *	tty_set_termios		-	update termios values
  *	@tty: tty to update
  *	@new_termios: desired new value
