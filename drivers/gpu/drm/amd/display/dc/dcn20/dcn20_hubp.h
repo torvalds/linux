@@ -216,16 +216,32 @@
 	type ROW_TTU_MODE; \
 	type NUM_PKRS
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+#define DCN31_HUBP_REG_FIELD_VARIABLE_LIST(type) \
+	DCN30_HUBP_REG_FIELD_VARIABLE_LIST(type);\
+	type HUBP_UNBOUNDED_REQ_MODE;\
+	type CURSOR_REQ_MODE;\
+	type HUBP_SOFT_RESET
+#endif
+
 struct dcn_hubp2_registers {
 	DCN30_HUBP_REG_COMMON_VARIABLE_LIST;
 };
 
 struct dcn_hubp2_shift {
+#if   defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	DCN31_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
+#else
 	DCN30_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
+#endif
 };
 
 struct dcn_hubp2_mask {
+#if   defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	DCN31_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
+#else
 	DCN30_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
+#endif
 };
 
 struct dcn20_hubp {

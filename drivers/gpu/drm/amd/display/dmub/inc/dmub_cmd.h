@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x992f4893d
+#define DMUB_FW_VERSION_GIT_HASH 0xefd666c1
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 66
+#define DMUB_FW_VERSION_REVISION 69
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -117,10 +117,19 @@
 /* Maximum number of planes on any ASIC. */
 #define DMUB_MAX_PLANES 6
 
-#define DMUB_MAX_SUBVP_STREAMS 2
-
 /* Trace buffer offset for entry */
 #define TRACE_BUFFER_ENTRY_OFFSET  16
+
+/**
+ *
+ * PSR control version legacy
+ */
+#define DMUB_CMD_PSR_CONTROL_VERSION_UNKNOWN 0x0
+/**
+ * PSR control version with multi edp support
+ */
+#define DMUB_CMD_PSR_CONTROL_VERSION_1 0x1
+
 
 /**
  * ABM control version legacy
@@ -337,7 +346,11 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_access : 1; /**< 1 if PHY access should be skipped */
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+		uint32_t z10_disable: 1; /**< 1 to disable z10 */
+#else
 		uint32_t reserved_unreleased: 1; /**< reserved for an unreleased feature */
+#endif
 		uint32_t reserved : 25; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
@@ -602,6 +615,20 @@ enum dmub_cmd_type {
 	 * Command type used for OUTBOX1 notification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+	/**
+	 * Command type used for all idle optimization commands.
+	 */
+	DMUB_CMD__IDLE_OPT = 72,
+	/**
+	 * Command type used for all clock manager commands.
+	 */
+	DMUB_CMD__CLK_MGR = 73,
+	/**
+	 * Command type used for all panel control commands.
+	 */
+	DMUB_CMD__PANEL_CNTL = 74,
+#endif
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
@@ -620,10 +647,6 @@ enum dmub_out_cmd_type {
 	 * Command type used for DP AUX Reply data notification
 	 */
 	DMUB_OUT_CMD__DP_AUX_REPLY = 1,
-	/**
-	 * Command type used for DP HPD event notification
-	 */
-	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
 };
 
 #pragma pack(push, 1)
@@ -811,6 +834,53 @@ struct dmub_rb_cmd_mall {
 	uint8_t reserved2; /**< Reserved bits */
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+
+/**
+ * enum dmub_cmd_idle_opt_type - Idle optimization command type.
+ */
+enum dmub_cmd_idle_opt_type {
+	/**
+	 * DCN hardware restore.
+	 */
+	DMUB_CMD__IDLE_OPT_DCN_RESTORE = 0,
+};
+
+/**
+ * struct dmub_rb_cmd_idle_opt_dcn_restore - DCN restore command data.
+ */
+struct dmub_rb_cmd_idle_opt_dcn_restore {
+	struct dmub_cmd_header header; /**< header */
+};
+
+/**
+ * struct dmub_clocks - Clock update notification.
+ */
+struct dmub_clocks {
+	uint32_t dispclk_khz; /**< dispclk kHz */
+	uint32_t dppclk_khz; /**< dppclk kHz */
+	uint32_t dcfclk_khz; /**< dcfclk kHz */
+	uint32_t dcfclk_deep_sleep_khz; /**< dcfclk deep sleep kHz */
+};
+
+/**
+ * enum dmub_cmd_clk_mgr_type - Clock manager commands.
+ */
+enum dmub_cmd_clk_mgr_type {
+	/**
+	 * Notify DMCUB of clock update.
+	 */
+	DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS = 0,
+};
+
+/**
+ * struct dmub_rb_cmd_clk_mgr_notify_clocks - Clock update notification.
+ */
+struct dmub_rb_cmd_clk_mgr_notify_clocks {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_clocks clocks; /**< clock data */
+};
+#endif
 /**
  * struct dmub_cmd_digx_encoder_control_data - Encoder control data.
  */
@@ -1315,9 +1385,15 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t fec_enable_delay_in100us;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * PSR control version.
 	 */
-	uint8_t pad3[2];
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
 };
 
 /**
@@ -1342,10 +1418,16 @@ struct dmub_cmd_psr_set_level_data {
 	 * 16-bit value dicated by driver that will enable/disable different functionality.
 	 */
 	uint16_t psr_level;
-	/**
-	 * Explicit padding to 4 byte boundary.
+		/**
+	 * PSR control version.
 	 */
-	uint8_t pad[2];
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
 };
 
 /**
@@ -1362,6 +1444,23 @@ struct dmub_rb_cmd_psr_set_level {
 	struct dmub_cmd_psr_set_level_data psr_set_level_data;
 };
 
+struct dmub_rb_cmd_psr_enable_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
 /**
  * Definition of a DMUB_CMD__PSR_ENABLE command.
  * PSR enable/disable is controlled using the sub_type.
@@ -1371,6 +1470,8 @@ struct dmub_rb_cmd_psr_enable {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+
+	struct dmub_rb_cmd_psr_enable_data data;
 };
 
 /**
@@ -1381,6 +1482,20 @@ struct dmub_cmd_psr_set_version_data {
 	 * PSR version that FW should implement.
 	 */
 	enum psr_version version;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -1397,6 +1512,23 @@ struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
 };
 
+struct dmub_cmd_psr_force_static_data {
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
 /**
  * Definition of a DMUB_CMD__PSR_FORCE_STATIC command.
  */
@@ -1405,6 +1537,10 @@ struct dmub_rb_cmd_psr_force_static {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__PSR_FORCE_STATIC command.
+	 */
+	struct dmub_cmd_psr_force_static_data psr_force_static_data;
 };
 
 /**
@@ -1479,7 +1615,6 @@ enum hw_lock_client {
 	 * Driver is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_DRIVER = 0,
-	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Invalid client.
 	 */
@@ -1956,6 +2091,43 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_optc_state dmub_optc_state_req;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+/**
+ * enum dmub_cmd_panel_cntl_type - Panel control command.
+ */
+enum dmub_cmd_panel_cntl_type {
+	/**
+	 * Initializes embedded panel hardware blocks.
+	 */
+	DMUB_CMD__PANEL_CNTL_HW_INIT = 0,
+	/**
+	 * Queries backlight info for the embedded panel.
+	 */
+	DMUB_CMD__PANEL_CNTL_QUERY_BACKLIGHT_INFO = 1,
+};
+
+/**
+ * struct dmub_cmd_panel_cntl_data - Panel control data.
+ */
+struct dmub_cmd_panel_cntl_data {
+	uint32_t inst; /**< panel instance */
+	uint32_t current_backlight; /* in/out */
+	uint32_t bl_pwm_cntl; /* in/out */
+	uint32_t bl_pwm_period_cntl; /* in/out */
+	uint32_t bl_pwm_ref_div1; /* in/out */
+	uint8_t is_backlight_on : 1; /* in/out */
+	uint8_t is_powered_on : 1; /* in/out */
+};
+
+/**
+ * struct dmub_rb_cmd_panel_cntl - Panel control command.
+ */
+struct dmub_rb_cmd_panel_cntl {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_cmd_panel_cntl_data data; /**< payload */
+};
+#endif
+
 /**
  * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
  */
@@ -2053,6 +2225,22 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__MALL command.
 	 */
 	struct dmub_rb_cmd_mall mall;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+	/**
+	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
+	 */
+	struct dmub_rb_cmd_idle_opt_dcn_restore dcn_restore;
+
+	/**
+	 * Definition of a DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS command.
+	 */
+	struct dmub_rb_cmd_clk_mgr_notify_clocks notify_clocks;
+
+	/**
+	 * Definition of DMUB_CMD__PANEL_CNTL commands.
+	 */
+	struct dmub_rb_cmd_panel_cntl panel_cntl;
+#endif
 	/**
 	 * Definition of a DMUB_CMD__ABM_SET_PIPE command.
 	 */

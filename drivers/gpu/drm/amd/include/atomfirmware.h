@@ -883,7 +883,8 @@ struct  atom_bracket_layout_record
 };
 
 enum atom_display_device_tag_def{
-  ATOM_DISPLAY_LCD1_SUPPORT            = 0x0002,  //an embedded display is either an LVDS or eDP signal type of display
+  ATOM_DISPLAY_LCD1_SUPPORT            = 0x0002, //an embedded display is either an LVDS or eDP signal type of display
+  ATOM_DISPLAY_LCD2_SUPPORT			       = 0x0020, //second edp device tag 0x0020 for backward compability
   ATOM_DISPLAY_DFP1_SUPPORT            = 0x0008,
   ATOM_DISPLAY_DFP2_SUPPORT            = 0x0080,
   ATOM_DISPLAY_DFP3_SUPPORT            = 0x0200,
@@ -1411,6 +1412,59 @@ struct atom_integrated_system_info_v2_1
         uint32_t reserved6[30];// reserve size of(atom_camera_data) for camera_info
         uint32_t reserved7[32];
 
+};
+
+struct atom_n6_display_phy_tuning_set {
+	uint8_t display_signal_type;
+	uint8_t phy_sel;
+	uint8_t preset_level;
+	uint8_t reserved1;
+	uint32_t reserved2;
+	uint32_t speed_upto;
+	uint8_t tx_vboost_level;
+	uint8_t tx_vreg_v2i;
+	uint8_t tx_vregdrv_byp;
+	uint8_t tx_term_cntl;
+	uint8_t tx_peak_level;
+	uint8_t tx_slew_en;
+	uint8_t tx_eq_pre;
+	uint8_t tx_eq_main;
+	uint8_t tx_eq_post;
+	uint8_t tx_en_inv_pre;
+	uint8_t tx_en_inv_post;
+	uint8_t reserved3;
+	uint32_t reserved4;
+	uint32_t reserved5;
+	uint32_t reserved6;
+};
+
+struct atom_display_phy_tuning_info {
+	struct atom_common_table_header table_header;
+	struct atom_n6_display_phy_tuning_set disp_phy_tuning[1];
+};
+
+struct atom_integrated_system_info_v2_2
+{
+	struct  atom_common_table_header  table_header;
+	uint32_t  vbios_misc;                       //enum of atom_system_vbiosmisc_def
+	uint32_t  gpucapinfo;                       //enum of atom_system_gpucapinf_def
+	uint32_t  system_config;
+	uint32_t  cpucapinfo;
+	uint16_t  gpuclk_ss_percentage;             //unit of 0.001%,   1000 mean 1%
+	uint16_t  gpuclk_ss_type;
+	uint16_t  dpphy_override;                   // bit vector, enum of atom_sysinfo_dpphy_override_def
+	uint8_t   memorytype;                       // enum of atom_dmi_t17_mem_type_def, APU memory type indication.
+	uint8_t   umachannelnumber;                 // number of memory channels
+	uint8_t   htc_hyst_limit;
+	uint8_t   htc_tmp_limit;
+	uint8_t   reserved1;
+	uint8_t   reserved2;
+	struct edp_info_table edp1_info;
+	struct edp_info_table edp2_info;
+	uint32_t  reserved3[8];
+	struct atom_external_display_connection_info extdispconninfo;
+
+	uint32_t  reserved4[189];
 };
 
 // system_config

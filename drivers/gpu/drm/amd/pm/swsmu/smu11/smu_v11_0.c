@@ -1483,7 +1483,7 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
-	if (!smu_baco->platform_support)
+	if (amdgpu_sriov_vf(smu->adev) || !smu_baco->platform_support)
 		return false;
 
 	/* Arcturus does not support this bit mask */

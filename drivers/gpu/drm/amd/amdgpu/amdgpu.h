@@ -211,6 +211,7 @@ extern int amdgpu_discovery;
 extern int amdgpu_mes;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
+extern int amdgpu_smartshift_bias;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
 extern bool debug_evictions;
@@ -267,6 +268,10 @@ extern int amdgpu_num_kcq;
 /* max cursor sizes (in pixels) */
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
+
+/* smasrt shift bias level limits */
+#define AMDGPU_SMARTSHIFT_MAX_BIAS (100)
+#define AMDGPU_SMARTSHIFT_MIN_BIAS (-100)
 
 struct amdgpu_device;
 struct amdgpu_ib;
@@ -1279,6 +1284,11 @@ bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 				      struct amdgpu_device *peer_adev);
 int amdgpu_device_baco_enter(struct drm_device *dev);
 int amdgpu_device_baco_exit(struct drm_device *dev);
+
+void amdgpu_device_flush_hdp(struct amdgpu_device *adev,
+		struct amdgpu_ring *ring);
+void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
+		struct amdgpu_ring *ring);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)

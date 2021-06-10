@@ -1218,6 +1218,8 @@ typedef enum {
 	METRICS_CURR_FANSPEED,
 	METRICS_VOLTAGE_VDDSOC,
 	METRICS_VOLTAGE_VDDGFX,
+	METRICS_SS_APU_SHARE,
+	METRICS_SS_DGPU_SHARE,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
@@ -1260,9 +1262,10 @@ enum smu_cmn2asic_mapping_type {
 	[profile] = {1, (workload)}
 
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
-int smu_get_power_limit(struct smu_context *smu,
+int smu_get_power_limit(void *handle,
 			uint32_t *limit,
-			enum smu_ppt_limit_level limit_level);
+			enum pp_power_limit_level pp_limit_level,
+			enum pp_power_type pp_power_type);
 
 bool smu_mode1_reset_is_support(struct smu_context *smu);
 bool smu_mode2_reset_is_support(struct smu_context *smu);

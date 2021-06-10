@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.137"
+#define DC_VER "3.2.139"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -318,6 +318,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
 	VISUAL_CONFIRM_PSR = 5,
+	VISUAL_CONFIRM_SWIZZLE = 9,
 };
 
 enum dcc_option {
@@ -350,6 +351,13 @@ enum dcn_pwr_state {
 	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+enum dcn_z9_support_state {
+	DCN_Z9_SUPPORT_UNKNOWN,
+	DCN_Z9_SUPPORT_ALLOW,
+	DCN_Z9_SUPPORT_DISALLOW,
+};
+#endif
 /*
  * For any clocks that may differ per pipe
  * only the max is stored in this structure
@@ -367,6 +375,10 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	enum dcn_z9_support_state z9_support;
+	bool dtbclk_en;
+#endif
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
@@ -433,6 +445,7 @@ struct dc_bw_validation_profile {
 
 union mem_low_power_enable_options {
 	struct {
+		bool vga: 1;
 		bool i2c: 1;
 		bool dmcu: 1;
 		bool dscl: 1;
@@ -487,6 +500,9 @@ struct dc_debug_options {
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_mem_low_power;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	bool pstate_enabled;
+#endif
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
@@ -505,6 +521,9 @@ struct dc_debug_options {
 	unsigned int force_odm_combine; //bit vector based on otg inst
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	bool disable_z9_mpc;
 #endif
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
@@ -547,6 +566,10 @@ struct dc_debug_options {
 	bool force_enable_edp_fec;
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	bool disable_z10;
+	bool enable_sw_cntl_psr;
+#endif
 };
 
 struct dc_debug_data {
@@ -571,6 +594,9 @@ struct dc_phy_addr_space_config {
 		uint64_t page_table_start_addr;
 		uint64_t page_table_end_addr;
 		uint64_t page_table_base_addr;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+		bool base_addr_is_mc_addr;
+#endif
 	} gart_config;
 
 	bool valid;
@@ -1308,6 +1334,9 @@ void dc_hardware_release(struct dc *dc);
 #endif
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+void dc_z10_restore(struct dc *dc);
+#endif
 
 bool dc_enable_dmub_notifications(struct dc *dc);
 

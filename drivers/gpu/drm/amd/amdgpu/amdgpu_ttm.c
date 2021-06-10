@@ -1725,6 +1725,13 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 				       NULL);
 	if (r)
 		return r;
+	r = amdgpu_bo_create_kernel_at(adev, adev->mman.stolen_reserved_offset,
+				       adev->mman.stolen_reserved_size,
+				       AMDGPU_GEM_DOMAIN_VRAM,
+				       &adev->mman.stolen_reserved_memory,
+				       NULL);
+	if (r)
+		return r;
 
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->gmc.real_vram_size / (1024 * 1024)));
@@ -1794,6 +1801,9 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	amdgpu_bo_free_kernel(&adev->mman.stolen_extended_memory, NULL, NULL);
 	/* return the IP Discovery TMR memory back to VRAM */
 	amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
+	if (adev->mman.stolen_reserved_size)
+		amdgpu_bo_free_kernel(&adev->mman.stolen_reserved_memory,
+				      NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
 
 	amdgpu_vram_mgr_fini(adev);

@@ -910,7 +910,7 @@ static int amdgpu_vm_pt_create(struct amdgpu_device *adev,
 		return r;
 
 	bo = &(*vmbo)->bo;
-	if (vm->is_compute_context && (adev->flags & AMD_IS_APU)) {
+	if (vm->is_compute_context || (adev->flags & AMD_IS_APU)) {
 		(*vmbo)->shadow = NULL;
 		return 0;
 	}
@@ -1713,8 +1713,8 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_unlock;
 
-	amdgpu_res_first(res, offset, (last - start + 1) * AMDGPU_GPU_PAGE_SIZE,
-			 &cursor);
+	amdgpu_res_first(pages_addr ? NULL : res, offset,
+			 (last - start + 1) * AMDGPU_GPU_PAGE_SIZE, &cursor);
 	while (cursor.remaining) {
 		uint64_t tmp, num_entries, addr;
 
@@ -1764,12 +1764,12 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 		amdgpu_res_next(&cursor, num_entries * AMDGPU_GPU_PAGE_SIZE);
 		start = tmp;
-	};
+	}
 
 	r = vm->update_funcs->commit(&params, fence);
 
 	if (table_freed)
-		*table_freed = params.table_freed;
+		*table_freed = *table_freed || params.table_freed;
 
 error_unlock:
 	amdgpu_vm_eviction_unlock(vm);
@@ -1827,6 +1827,7 @@ void amdgpu_vm_get_memory(struct amdgpu_vm *vm, uint64_t *vram_mem,
  * @adev: amdgpu_device pointer
  * @bo_va: requested BO and VM object
  * @clear: if true clear the entries
+ * @table_freed: return true if page table is freed
  *
  * Fill in the page table entries for @bo_va.
  *
@@ -1834,7 +1835,7 @@ void amdgpu_vm_get_memory(struct amdgpu_vm *vm, uint64_t *vram_mem,
  * 0 for success, -EINVAL for failure.
  */
 int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
-			bool clear)
+			bool clear, bool *table_freed)
 {
 	struct amdgpu_bo *bo = bo_va->base.bo;
 	struct amdgpu_vm *vm = bo_va->base.vm;
@@ -1913,7 +1914,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 						resv, mapping->start,
 						mapping->last, update_flags,
 						mapping->offset, mem,
-						pages_addr, last_update, NULL);
+						pages_addr, last_update, table_freed);
 		if (r)
 			return r;
 	}
@@ -2165,7 +2166,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 
 	list_for_each_entry_safe(bo_va, tmp, &vm->moved, base.vm_status) {
 		/* Per VM BOs never need to bo cleared in the page tables */
-		r = amdgpu_vm_bo_update(adev, bo_va, false);
+		r = amdgpu_vm_bo_update(adev, bo_va, false, NULL);
 		if (r)
 			return r;
 	}
@@ -2184,7 +2185,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		else
 			clear = true;
 
-		r = amdgpu_vm_bo_update(adev, bo_va, clear);
+		r = amdgpu_vm_bo_update(adev, bo_va, clear, NULL);
 		if (r)
 			return r;
 

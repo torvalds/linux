@@ -325,6 +325,48 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	return ret;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_stream_get_last_vrr_vtotal
+ *
+ *  @brief
+ *     Looks up the pipe context of dc_stream_state and gets the
+ *     last VTOTAL used by DRR (Dynamic Refresh Rate)
+ *
+ *  @param [in] dc: dc reference
+ *  @param [in] stream: Initial dc stream state
+ *  @param [in] adjust: Updated parameters for vertical_total_min and
+ *  vertical_total_max
+ *****************************************************************************
+ */
+bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t *refresh_rate)
+{
+	bool status = false;
+
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg) {
+			/* Only execute if a function pointer has been defined for
+			 * the DC version in question
+			 */
+			if (pipe->stream_res.tg->funcs->get_last_used_drr_vtotal) {
+				pipe->stream_res.tg->funcs->get_last_used_drr_vtotal(pipe->stream_res.tg, refresh_rate);
+
+				status = true;
+
+				break;
+			}
+		}
+	}
+
+	return status;
+}
+
 bool dc_stream_get_crtc_position(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		unsigned int *v_pos, unsigned int *nom_v_pos)
@@ -1482,6 +1524,13 @@ static uint8_t get_stream_mask(struct dc *dc, struct dc_state *context)
 	return stream_mask;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+void dc_z10_restore(struct dc *dc)
+{
+	if (dc->hwss.z10_restore)
+		dc->hwss.z10_restore(dc);
+}
+#endif
 /*
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
@@ -1495,6 +1544,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	dc_z10_restore(dc);
+#endif
 	dc_allow_idle_optimizations(dc, false);
 #endif
 
@@ -1917,8 +1969,13 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
 			|| u->plane_info->dcc.independent_64b_blks != u->surface->dcc.independent_64b_blks
 			|| u->plane_info->dcc.meta_pitch != u->surface->dcc.meta_pitch) {
+		/* During DCC on/off, stutter period is calculated before
+		 * DCC has fully transitioned. This results in incorrect
+		 * stutter period calculation. Triggering a full update will
+		 * recalculate stutter period.
+		 */
 		update_flags->bits.dcc_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
 	}
 
 	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
@@ -2569,6 +2626,10 @@ static void commit_planes_for_stream(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	dc_z10_restore(dc);
+#endif
+
 	if (get_seamless_boot_stream_count(context) > 0 && surface_count > 0) {
 		/* Optimize seamless boot flag keeps clocks and watermarks high until
 		 * first flip. After first flip, optimization is required to lower
@@ -3024,6 +3085,9 @@ void dc_set_power_state(
 	case DC_ACPI_CM_POWER_STATE_D0:
 		dc_resource_state_construct(dc, dc->current_state);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+		dc_z10_restore(dc);
+#endif
 		if (dc->ctx->dmub_srv)
 			dc_dmub_srv_wait_phy_init(dc->ctx->dmub_srv);
 
@@ -3256,10 +3320,13 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 			continue;
 
 		if (link->psr_settings.psr_feature_enabled) {
-			if (enable && !link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, true, false, false);
-			else if (!enable && link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, false, true, false);
+			if (enable && !link->psr_settings.psr_allow_active) {
+				if (!dc_link_set_psr_allow_active(link, true, false, false))
+					return false;
+			} else if (!enable && link->psr_settings.psr_allow_active) {
+				if (!dc_link_set_psr_allow_active(link, false, true, false))
+					return false;
+			}
 		}
 	}
 

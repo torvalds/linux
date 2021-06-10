@@ -31,6 +31,9 @@
 #include "dmub_dcn301.h"
 #include "dmub_dcn302.h"
 #include "dmub_dcn303.h"
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+#include "dmub_dcn31.h"
+#endif
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -203,6 +206,40 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->setup_windows = dmub_dcn30_setup_windows;
 		}
 		break;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+
+	case DMUB_ASIC_DCN31:
+		funcs->reset = dmub_dcn31_reset;
+		funcs->reset_release = dmub_dcn31_reset_release;
+		funcs->backdoor_load = dmub_dcn31_backdoor_load;
+		funcs->setup_windows = dmub_dcn31_setup_windows;
+		funcs->setup_mailbox = dmub_dcn31_setup_mailbox;
+		funcs->get_inbox1_rptr = dmub_dcn31_get_inbox1_rptr;
+		funcs->set_inbox1_wptr = dmub_dcn31_set_inbox1_wptr;
+		funcs->setup_out_mailbox = dmub_dcn31_setup_out_mailbox;
+		funcs->get_outbox1_wptr = dmub_dcn31_get_outbox1_wptr;
+		funcs->set_outbox1_rptr = dmub_dcn31_set_outbox1_rptr;
+		funcs->is_supported = dmub_dcn31_is_supported;
+		funcs->is_hw_init = dmub_dcn31_is_hw_init;
+		funcs->set_gpint = dmub_dcn31_set_gpint;
+		funcs->is_gpint_acked = dmub_dcn31_is_gpint_acked;
+		funcs->get_gpint_response = dmub_dcn31_get_gpint_response;
+		funcs->get_fw_status = dmub_dcn31_get_fw_boot_status;
+		funcs->enable_dmub_boot_options = dmub_dcn31_enable_dmub_boot_options;
+		funcs->skip_dmub_panel_power_sequence = dmub_dcn31_skip_dmub_panel_power_sequence;
+		//outbox0 call stacks
+		funcs->setup_outbox0 = dmub_dcn31_setup_outbox0;
+		funcs->get_outbox0_wptr = dmub_dcn31_get_outbox0_wptr;
+		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
+
+		if (asic == DMUB_ASIC_DCN31) {
+			dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
+		}
+
+		funcs->get_current_time = dmub_dcn31_get_current_time;
+
+		break;
+#endif
 
 	default:
 		return false;

@@ -112,6 +112,9 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_3_01:
 	case DCN_VERSION_3_02:
 	case DCN_VERSION_3_03:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	case DCN_VERSION_3_1:
+#endif
 		dal_hw_factory_dcn30_init(factory);
 		return true;
 #endif

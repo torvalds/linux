@@ -84,6 +84,7 @@ MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vangogh_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/yellow_carp_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -122,6 +123,7 @@ const char *amdgpu_asic_name[] = {
 	"VANGOGH",
 	"DIMGREY_CAVEFISH",
 	"BEIGE_GOBY",
+	"YELLOW_CARP",
 	"LAST",
 };
 
@@ -313,9 +315,9 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 		if (write) {
 			memcpy_toio(addr, buf, count);
 			mb();
-			amdgpu_asic_flush_hdp(adev, NULL);
+			amdgpu_device_flush_hdp(adev, NULL);
 		} else {
-			amdgpu_asic_invalidate_hdp(adev, NULL);
+			amdgpu_device_invalidate_hdp(adev, NULL);
 			mb();
 			memcpy_fromio(buf, addr, count);
 		}
@@ -1884,6 +1886,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_VANGOGH:
 		chip_name = "vangogh";
 		break;
+	case CHIP_YELLOW_CARP:
+		chip_name = "yellow_carp";
+		break;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
@@ -2062,8 +2067,11 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case  CHIP_DIMGREY_CAVEFISH:
 	case  CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 		if (adev->asic_type == CHIP_VANGOGH)
 			adev->family = AMDGPU_FAMILY_VGH;
+		else if (adev->asic_type == CHIP_YELLOW_CARP)
+			adev->family = AMDGPU_FAMILY_YC;
 		else
 			adev->family = AMDGPU_FAMILY_NV;
 
@@ -3146,6 +3154,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 #endif
 		return amdgpu_dc != 0;
 #endif
@@ -5475,4 +5484,31 @@ bool amdgpu_device_load_pci_state(struct pci_dev *pdev)
 	return true;
 }
 
+void amdgpu_device_flush_hdp(struct amdgpu_device *adev,
+		struct amdgpu_ring *ring)
+{
+#ifdef CONFIG_X86_64
+	if (adev->flags & AMD_IS_APU)
+		return;
+#endif
+	if (adev->gmc.xgmi.connected_to_cpu)
+		return;
 
+	if (ring && ring->funcs->emit_hdp_flush)
+		amdgpu_ring_emit_hdp_flush(ring);
+	else
+		amdgpu_asic_flush_hdp(adev, ring);
+}
+
+void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
+		struct amdgpu_ring *ring)
+{
+#ifdef CONFIG_X86_64
+	if (adev->flags & AMD_IS_APU)
+		return;
+#endif
+	if (adev->gmc.xgmi.connected_to_cpu)
+		return;
+
+	amdgpu_asic_invalidate_hdp(adev, ring);
+}

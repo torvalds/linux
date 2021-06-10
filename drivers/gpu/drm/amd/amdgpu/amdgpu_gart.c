@@ -250,7 +250,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 		}
 	}
 	mb();
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_device_flush_hdp(adev, NULL);
 	for (i = 0; i < adev->num_vmhubs; i++)
 		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
 
@@ -337,7 +337,7 @@ void amdgpu_gart_invalidate_tlb(struct amdgpu_device *adev)
 	int i;
 
 	mb();
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_device_flush_hdp(adev, NULL);
 	for (i = 0; i < adev->num_vmhubs; i++)
 		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
 }

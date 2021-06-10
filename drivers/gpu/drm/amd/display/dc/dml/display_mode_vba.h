@@ -39,6 +39,12 @@ dml_get_attr_decl(wm_memory_trip);
 dml_get_attr_decl(wm_writeback_urgent);
 dml_get_attr_decl(wm_stutter_exit);
 dml_get_attr_decl(wm_stutter_enter_exit);
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+dml_get_attr_decl(wm_z8_stutter_exit);
+dml_get_attr_decl(wm_z8_stutter_enter_exit);
+dml_get_attr_decl(stutter_efficiency_z8);
+dml_get_attr_decl(stutter_num_bursts_z8);
+#endif
 dml_get_attr_decl(wm_dram_clock_change);
 dml_get_attr_decl(wm_writeback_dram_clock_change);
 dml_get_attr_decl(stutter_efficiency_no_vblank);
@@ -102,6 +108,10 @@ dml_get_pipe_attr_decl(vstartup);
 dml_get_pipe_attr_decl(vupdate_offset);
 dml_get_pipe_attr_decl(vupdate_width);
 dml_get_pipe_attr_decl(vready_offset);
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+dml_get_pipe_attr_decl(vready_at_or_after_vsync);
+dml_get_pipe_attr_decl(min_dst_y_next_start);
+#endif
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
@@ -923,6 +933,48 @@ struct vba_vars_st {
 	bool ClampMinDCFCLK;
 	bool AllowDramClockChangeOneDisplayVactive;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+	double MaxAveragePercentOfIdealFabricAndSDPPortBWDisplayCanUseInNormalSystemOperation;
+	double PercentOfIdealFabricAndSDPPortBWReceivedAfterUrgLatency;
+	double PercentOfIdealDRAMBWReceivedAfterUrgLatencyPixelMixedWithVMData;
+	double PercentOfIdealDRAMBWReceivedAfterUrgLatencyVMDataOnly;
+	double PercentOfIdealDRAMBWReceivedAfterUrgLatencyPixelDataOnly;
+	double SRExitZ8Time;
+	double SREnterPlusExitZ8Time;
+	double Z8StutterExitWatermark;
+	double Z8StutterEnterPlusExitWatermark;
+	double Z8StutterEfficiencyNotIncludingVBlank;
+	double Z8StutterEfficiency;
+	double DCCFractionOfZeroSizeRequestsLuma[DC__NUM_DPP__MAX];
+	double DCCFractionOfZeroSizeRequestsChroma[DC__NUM_DPP__MAX];
+	double UrgBurstFactorCursor[DC__NUM_DPP__MAX];
+	double UrgBurstFactorLuma[DC__NUM_DPP__MAX];
+	double UrgBurstFactorChroma[DC__NUM_DPP__MAX];
+	double UrgBurstFactorCursorPre[DC__NUM_DPP__MAX];
+	double UrgBurstFactorLumaPre[DC__NUM_DPP__MAX];
+	double UrgBurstFactorChromaPre[DC__NUM_DPP__MAX];
+	bool NotUrgentLatencyHidingPre[DC__NUM_DPP__MAX];
+	bool LinkCapacitySupport[DC__NUM_DPP__MAX];
+	bool VREADY_AT_OR_AFTER_VSYNC[DC__NUM_DPP__MAX];
+	unsigned int MIN_DST_Y_NEXT_START[DC__NUM_DPP__MAX];
+	unsigned int VFrontPorch[DC__NUM_DPP__MAX];
+	int ConfigReturnBufferSizeInKByte;
+	enum unbounded_requesting_policy UseUnboundedRequesting;
+	int CompressedBufferSegmentSizeInkByte;
+	int CompressedBufferSizeInkByte;
+	int MetaFIFOSizeInKEntries;
+	int ZeroSizeBufferEntries;
+	int COMPBUF_RESERVED_SPACE_64B;
+	int COMPBUF_RESERVED_SPACE_ZS;
+	bool UnboundedRequestEnabled;
+	bool DSC422NativeSupport;
+	bool NoEnoughUrgentLatencyHiding;
+	bool NoEnoughUrgentLatencyHidingPre;
+	int NumberOfStutterBurstsPerFrame;
+	int Z8NumberOfStutterBurstsPerFrame;
+	unsigned int MaximumDSCBitsPerComponent;
+	unsigned int NotEnoughUrgentLatencyHidingA[DC__VOLTAGE_STATES][2];
+#endif
 };
 
 bool CalculateMinAndMaxPrefetchMode(

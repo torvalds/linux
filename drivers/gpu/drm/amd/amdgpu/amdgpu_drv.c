@@ -173,6 +173,7 @@ int amdgpu_tmz = -1; /* auto */
 uint amdgpu_freesync_vid_mode;
 int amdgpu_reset_method = -1; /* auto */
 int amdgpu_num_kcq = -1;
+int amdgpu_smartshift_bias;
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 

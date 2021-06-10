@@ -31,6 +31,13 @@ config DRM_AMD_DC_SI
 	  by default. This includes Tahiti, Pitcairn, Cape Verde, Oland.
 	  Hainan is not supported by AMD DC and it has no physical DCE6.
 
+config DRM_AMD_DC_DCN3_1
+        bool "DCN 3.1 family"
+        depends on DRM_AMD_DC_DCN
+        help
+            Choose this option if you want to have
+            DCN3.1 family support for display engine
+
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC

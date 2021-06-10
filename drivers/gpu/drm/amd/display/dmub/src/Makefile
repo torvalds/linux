@@ -24,6 +24,9 @@ DMUB = dmub_srv.o dmub_srv_stat.o dmub_reg.o dmub_dcn20.o dmub_dcn21.o
 DMUB += dmub_dcn30.o dmub_dcn301.o
 DMUB += dmub_dcn302.o
 DMUB += dmub_dcn303.o
+ifdef CONFIG_DRM_AMD_DC_DCN3_1
+DMUB += dmub_dcn31.o
+endif
 
 AMD_DAL_DMUB = $(addprefix $(AMDDALPATH)/dmub/src/,$(DMUB))
 

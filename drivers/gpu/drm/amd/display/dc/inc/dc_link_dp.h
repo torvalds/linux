@@ -130,12 +130,20 @@ bool dp_is_cr_done(enum dc_lane_count ln_count,
 enum link_training_result dp_get_cr_failure(enum dc_lane_count ln_count,
 	union lane_status *dpcd_lane_status);
 
+bool dp_is_ch_eq_done(enum dc_lane_count ln_count,
+	union lane_status *dpcd_lane_status);
+bool dp_is_symbol_locked(enum dc_lane_count ln_count,
+	union lane_status *dpcd_lane_status);
+bool dp_is_interlane_aligned(union lane_align_status_updated align_status);
+
 bool dp_is_max_vs_reached(
 	const struct link_training_settings *lt_settings);
 
 void dp_update_drive_settings(
 	struct link_training_settings *dest,
 	struct link_training_settings src);
+
+uint32_t dp_translate_training_aux_read_interval(uint32_t dpcd_aux_read_interval);
 
 enum dpcd_training_patterns
 	dc_dp_training_pattern_to_dpcd_training_pattern(

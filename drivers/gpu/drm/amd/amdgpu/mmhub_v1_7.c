@@ -111,6 +111,9 @@ static void mmhub_v1_7_init_system_aperture_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, regMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
 	WREG32_SOC15(MMHUB, 0, regMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(MMHUB, 0, regMC_VM_SYSTEM_APERTURE_LOW_ADDR,
 		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
@@ -129,8 +132,6 @@ static void mmhub_v1_7_init_system_aperture_regs(struct amdgpu_device *adev)
 		WREG32_SOC15(MMHUB, 0, regMC_VM_SYSTEM_APERTURE_LOW_ADDR, 0x3FFFFFFF);
 		WREG32_SOC15(MMHUB, 0, regMC_VM_SYSTEM_APERTURE_HIGH_ADDR, 0);
 	}
-	if (amdgpu_sriov_vf(adev))
-		return;
 
 	/* Set default page address. */
 	value = amdgpu_gmc_vram_mc2pa(adev, adev->vram_scratch.gpu_addr);
@@ -332,18 +333,6 @@ static void mmhub_v1_7_program_invalidation(struct amdgpu_device *adev)
 
 static int mmhub_v1_7_gart_enable(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev)) {
-		/*
-		 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
-		 * VF copy registers so vbios post doesn't program them, for
-		 * SRIOV driver need to program them
-		 */
-		WREG32_SOC15(MMHUB, 0, regMC_VM_FB_LOCATION_BASE,
-			     adev->gmc.vram_start >> 24);
-		WREG32_SOC15(MMHUB, 0, regMC_VM_FB_LOCATION_TOP,
-			     adev->gmc.vram_end >> 24);
-	}
-
 	/* GART Enable. */
 	mmhub_v1_7_init_gart_aperture_regs(adev);
 	mmhub_v1_7_init_system_aperture_regs(adev);

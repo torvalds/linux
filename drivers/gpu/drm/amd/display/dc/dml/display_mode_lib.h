@@ -38,6 +38,10 @@ enum dml_project {
 	DML_PROJECT_NAVI10v2,
 	DML_PROJECT_DCN21,
 	DML_PROJECT_DCN30,
+#ifdef CONFIG_DRM_AMD_DC_DCN3_1
+	DML_PROJECT_DCN31,
+	DML_PROJECT_DCN31_FPGA,
+#endif
 };
 
 struct display_mode_lib;

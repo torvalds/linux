@@ -35,6 +35,7 @@
 #include "renoir_ppt.h"
 #include "vangogh_ppt.h"
 #include "aldebaran_ppt.h"
+#include "yellow_carp_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -584,6 +585,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case CHIP_VANGOGH:
 		vangogh_set_ppt_funcs(smu);
 		break;
+	case CHIP_YELLOW_CARP:
+		yellow_carp_set_ppt_funcs(smu);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -666,6 +670,9 @@ static int smu_late_init(void *handle)
 		dev_err(adev->dev, "Failed to post smu init!\n");
 		return ret;
 	}
+
+	if (adev->asic_type == CHIP_YELLOW_CARP)
+		return 0;
 
 	if (!amdgpu_sriov_vf(adev) || smu->od_enabled) {
 		ret = smu_set_default_od_settings(smu);
@@ -2166,15 +2173,56 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 	return ret;
 }
 
-int smu_get_power_limit(struct smu_context *smu,
+/**
+ * smu_get_power_limit - Request one of the SMU Power Limits
+ *
+ * @handle: pointer to smu context
+ * @limit: requested limit is written back to this variable
+ * @pp_limit_level: &pp_power_limit_level which limit of the power to return
+ * @pp_power_type: &pp_power_type type of power
+ * Return:  0 on success, <0 on error
+ *
+ */
+int smu_get_power_limit(void *handle,
 			uint32_t *limit,
-			enum smu_ppt_limit_level limit_level)
+			enum pp_power_limit_level pp_limit_level,
+			enum pp_power_type pp_power_type)
 {
-	uint32_t limit_type = *limit >> 24;
+	struct smu_context *smu = handle;
+	enum smu_ppt_limit_level limit_level;
+	uint32_t limit_type;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
+
+	switch(pp_power_type) {
+	case PP_PWR_TYPE_SUSTAINED:
+		limit_type = SMU_DEFAULT_PPT_LIMIT;
+		break;
+	case PP_PWR_TYPE_FAST:
+		limit_type = SMU_FAST_PPT_LIMIT;
+		break;
+	default:
+		return -EOPNOTSUPP;
+		break;
+	}
+
+	switch(pp_limit_level){
+	case PP_PWR_LIMIT_CURRENT:
+		limit_level = SMU_PPT_LIMIT_CURRENT;
+		break;
+	case PP_PWR_LIMIT_DEFAULT:
+		limit_level = SMU_PPT_LIMIT_DEFAULT;
+		break;
+	case PP_PWR_LIMIT_MAX:
+		limit_level = SMU_PPT_LIMIT_MAX;
+		break;
+	case PP_PWR_LIMIT_MIN:
+	default:
+		return -EOPNOTSUPP;
+		break;
+	}
 
 	mutex_lock(&smu->mutex);
 
@@ -2962,6 +3010,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_fan_control_mode    = smu_get_fan_control_mode,
 	.set_fan_speed_percent   = smu_set_fan_speed_percent,
 	.get_fan_speed_percent   = smu_get_fan_speed_percent,
+	.force_clock_level       = smu_force_ppclk_levels,
+	.print_clock_levels      = smu_print_ppclk_levels,
 	.force_performance_level = smu_force_performance_level,
 	.read_sensor             = smu_read_sensor,
 	.get_performance_level   = smu_get_performance_level,
@@ -2974,38 +3024,37 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.switch_power_profile    = smu_switch_power_profile,
 	/* export to amdgpu */
 	.dispatch_tasks          = smu_handle_dpm_task,
+	.load_firmware           = smu_load_microcode,
 	.set_powergating_by_smu  = smu_dpm_set_power_gate,
 	.set_power_limit         = smu_set_power_limit,
+	.get_power_limit         = smu_get_power_limit,
+	.get_power_profile_mode  = smu_get_power_profile_mode,
+	.set_power_profile_mode  = smu_set_power_profile_mode,
 	.odn_edit_dpm_table      = smu_od_edit_dpm_table,
 	.set_mp1_state           = smu_set_mp1_state,
+	.gfx_state_change_set    = smu_gfx_state_change_set,
 	/* export to DC */
-	.get_sclk                = smu_get_sclk,
-	.get_mclk                = smu_get_mclk,
-	.enable_mgpu_fan_boost   = smu_enable_mgpu_fan_boost,
-	.get_asic_baco_capability = smu_get_baco_capability,
-	.set_asic_baco_state     = smu_baco_set_state,
-	.get_ppfeature_status    = smu_sys_get_pp_feature_mask,
-	.set_ppfeature_status    = smu_sys_set_pp_feature_mask,
-	.asic_reset_mode_2       = smu_mode2_reset,
-	.set_df_cstate           = smu_set_df_cstate,
-	.set_xgmi_pstate         = smu_set_xgmi_pstate,
-	.get_gpu_metrics         = smu_sys_get_gpu_metrics,
-	.set_power_profile_mode  = smu_set_power_profile_mode,
-	.get_power_profile_mode  = smu_get_power_profile_mode,
-	.force_clock_level       = smu_force_ppclk_levels,
-	.print_clock_levels      = smu_print_ppclk_levels,
-	.get_uclk_dpm_states     = smu_get_uclk_dpm_states,
-	.get_dpm_clock_table     = smu_get_dpm_clock_table,
-	.display_configuration_change        = smu_display_configuration_change,
-	.get_clock_by_type_with_latency      = smu_get_clock_by_type_with_latency,
-	.display_clock_voltage_request       = smu_display_clock_voltage_request,
-	.set_active_display_count            = smu_set_display_count,
-	.set_min_deep_sleep_dcefclk          = smu_set_deep_sleep_dcefclk,
+	.get_sclk                         = smu_get_sclk,
+	.get_mclk                         = smu_get_mclk,
+	.display_configuration_change     = smu_display_configuration_change,
+	.get_clock_by_type_with_latency   = smu_get_clock_by_type_with_latency,
+	.display_clock_voltage_request    = smu_display_clock_voltage_request,
+	.enable_mgpu_fan_boost            = smu_enable_mgpu_fan_boost,
+	.set_active_display_count         = smu_set_display_count,
+	.set_min_deep_sleep_dcefclk       = smu_set_deep_sleep_dcefclk,
+	.get_asic_baco_capability         = smu_get_baco_capability,
+	.set_asic_baco_state              = smu_baco_set_state,
+	.get_ppfeature_status             = smu_sys_get_pp_feature_mask,
+	.set_ppfeature_status             = smu_sys_set_pp_feature_mask,
+	.asic_reset_mode_2                = smu_mode2_reset,
+	.set_df_cstate                    = smu_set_df_cstate,
+	.set_xgmi_pstate                  = smu_set_xgmi_pstate,
+	.get_gpu_metrics                  = smu_sys_get_gpu_metrics,
 	.set_watermarks_for_clock_ranges     = smu_set_watermarks_for_clock_ranges,
 	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
-	.load_firmware           = smu_load_microcode,
-	.gfx_state_change_set    = smu_gfx_state_change_set,
+	.get_uclk_dpm_states              = smu_get_uclk_dpm_states,
+	.get_dpm_clock_table              = smu_get_dpm_clock_table,
 	.get_smu_prv_buf_details = smu_get_prv_buffer_details,
 };
 
