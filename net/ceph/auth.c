@@ -58,12 +58,10 @@ struct ceph_auth_client *ceph_auth_init(const char *name,
 					const int *con_modes)
 {
 	struct ceph_auth_client *ac;
-	int ret;
 
-	ret = -ENOMEM;
 	ac = kzalloc(sizeof(*ac), GFP_NOFS);
 	if (!ac)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&ac->mutex);
 	ac->negotiating = true;
@@ -78,9 +76,6 @@ struct ceph_auth_client *ceph_auth_init(const char *name,
 	dout("%s name '%s' preferred_mode %d fallback_mode %d\n", __func__,
 	     ac->name, ac->preferred_mode, ac->fallback_mode);
 	return ac;
-
-out:
-	return ERR_PTR(ret);
 }
 
 void ceph_auth_destroy(struct ceph_auth_client *ac)
