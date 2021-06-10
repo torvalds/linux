@@ -150,29 +150,16 @@ static void ipa_table_validate_build(void)
 }
 
 static bool
-ipa_table_valid_one(struct ipa *ipa, bool route, bool ipv6, bool hashed)
+ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
 {
+	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	struct device *dev = &ipa->pdev->dev;
-	const struct ipa_mem *mem;
 	u32 size;
 
-	if (route) {
-		if (ipv6)
-			mem = hashed ? &ipa->mem[IPA_MEM_V6_ROUTE_HASHED]
-				     : &ipa->mem[IPA_MEM_V6_ROUTE];
-		else
-			mem = hashed ? &ipa->mem[IPA_MEM_V4_ROUTE_HASHED]
-				     : &ipa->mem[IPA_MEM_V4_ROUTE];
+	if (route)
 		size = IPA_ROUTE_COUNT_MAX * sizeof(__le64);
-	} else {
-		if (ipv6)
-			mem = hashed ? &ipa->mem[IPA_MEM_V6_FILTER_HASHED]
-				     : &ipa->mem[IPA_MEM_V6_FILTER];
-		else
-			mem = hashed ? &ipa->mem[IPA_MEM_V4_FILTER_HASHED]
-				     : &ipa->mem[IPA_MEM_V4_FILTER];
+	else
 		size = (1 + IPA_FILTER_COUNT_MAX) * sizeof(__le64);
-	}
 
 	if (!ipa_cmd_table_valid(ipa, mem, route, ipv6, hashed))
 		return false;
@@ -185,9 +172,8 @@ ipa_table_valid_one(struct ipa *ipa, bool route, bool ipv6, bool hashed)
 	if (hashed && !mem->size)
 		return true;
 
-	dev_err(dev, "IPv%c %s%s table region size 0x%02x, expected 0x%02x\n",
-		ipv6 ? '6' : '4', hashed ? "hashed " : "",
-		route ? "route" : "filter", mem->size, size);
+	dev_err(dev, "%s table region %u size 0x%02x, expected 0x%02x\n",
+		route ? "route" : "filter", mem_id, mem->size, size);
 
 	return false;
 }
@@ -195,16 +181,16 @@ ipa_table_valid_one(struct ipa *ipa, bool route, bool ipv6, bool hashed)
 /* Verify the filter and route table memory regions are the expected size */
 bool ipa_table_valid(struct ipa *ipa)
 {
-	bool valid = true;
+	bool valid;
 
-	valid = valid && ipa_table_valid_one(ipa, false, false, false);
-	valid = valid && ipa_table_valid_one(ipa, false, false, true);
-	valid = valid && ipa_table_valid_one(ipa, false, true, false);
-	valid = valid && ipa_table_valid_one(ipa, false, true, true);
-	valid = valid && ipa_table_valid_one(ipa, true, false, false);
-	valid = valid && ipa_table_valid_one(ipa, true, false, true);
-	valid = valid && ipa_table_valid_one(ipa, true, true, false);
-	valid = valid && ipa_table_valid_one(ipa, true, true, true);
+	valid = ipa_table_valid_one(IPA_MEM_V4_FILTER, false);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V4_FILTER_HASHED, false);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V6_FILTER, false);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V6_FILTER_HASHED, false);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V4_ROUTE, true);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V4_ROUTE_HASHED, true);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V6_ROUTE, true);
+	valid = valid && ipa_table_valid_one(IPA_MEM_V6_ROUTE_HASHED, true);
 
 	return valid;
 }
