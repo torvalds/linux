@@ -731,21 +731,13 @@ config BLK_DEV_BUDDHA
 	  to one of its IDE interfaces.
 
 config BLK_DEV_FALCON_IDE
-	tristate "Falcon IDE interface support"
-	depends on ATARI
+	tristate "Falcon and Q40/Q60 IDE interface support"
+	depends on ATARI || Q40
 	help
 	  This is the IDE driver for the on-board IDE interface on the Atari
-	  Falcon. Say Y if you have a Falcon and want to use IDE devices (hard
-	  disks, CD-ROM drives, etc.) that are connected to the on-board IDE
-	  interface.
-
-config BLK_DEV_Q40IDE
-	tristate "Q40/Q60 IDE interface support"
-	depends on Q40
-	help
-	  Enable the on-board IDE controller in the Q40/Q60.  This should
-	  normally be on; disable it only if you are running a custom hard
-	  drive subsystem through an expansion card.
+	  Falcon and Q40/Q60. Say Y if you have such a machine and want to use
+	  IDE devices (hard disks, CD-ROM drives, etc.) that are connected to
+	  the on-board IDE interface.
 
 config BLK_DEV_PALMCHIP_BK3710
 	tristate "Palmchip bk3710 IDE controller support"

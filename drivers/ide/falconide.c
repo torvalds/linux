@@ -25,12 +25,7 @@
 
 #define DRV_NAME "falconide"
 
-    /*
-     *  Offsets from base address
-     */
-
-#define ATA_HD_CONTROL	0x39
-
+#ifdef CONFIG_ATARI
     /*
      *  falconide_intr_lock is used to obtain access to the IDE interrupt,
      *  which is shared between several drivers.
@@ -55,6 +50,7 @@ static void falconide_get_lock(irq_handler_t handler, void *data)
 		falconide_intr_lock = 1;
 	}
 }
+#endif
 
 static void falconide_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 				 void *buf, unsigned int len)
@@ -98,8 +94,10 @@ static const struct ide_tp_ops falconide_tp_ops = {
 };
 
 static const struct ide_port_info falconide_port_info = {
+#ifdef CONFIG_ATARI
 	.get_lock		= falconide_get_lock,
 	.release_lock		= falconide_release_lock,
+#endif
 	.tp_ops			= &falconide_tp_ops,
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_DMA,
@@ -107,7 +105,8 @@ static const struct ide_port_info falconide_port_info = {
 	.chipset		= ide_generic,
 };
 
-static void __init falconide_setup_ports(struct ide_hw *hw, unsigned long base)
+static void __init falconide_setup_ports(struct ide_hw *hw, unsigned long base,
+					 unsigned long ctl, int irq)
 {
 	int i;
 
@@ -118,9 +117,9 @@ static void __init falconide_setup_ports(struct ide_hw *hw, unsigned long base)
 	for (i = 1; i < 8; i++)
 		hw->io_ports_array[i] = base + 1 + i * 4;
 
-	hw->io_ports.ctl_addr = base + ATA_HD_CONTROL;
+	hw->io_ports.ctl_addr = ctl + 1;
 
-	hw->irq = IRQ_MFP_IDE;
+	hw->irq = irq;
 }
 
     /*
@@ -129,37 +128,69 @@ static void __init falconide_setup_ports(struct ide_hw *hw, unsigned long base)
 
 static int __init falconide_init(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct resource *base_mem_res, *ctl_mem_res;
+	struct resource *base_res, *ctl_res, *irq_res;
 	struct ide_host *host;
 	struct ide_hw hw, *hws[] = { &hw };
-	unsigned long base;
 	int rc;
+	int irq;
 
-	dev_info(&pdev->dev, "Atari Falcon IDE controller\n");
+	dev_info(&pdev->dev, "Atari Falcon and Q40/Q60 IDE controller\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), DRV_NAME)) {
+	base_res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (base_res && !devm_request_region(&pdev->dev, base_res->start,
+					   resource_size(base_res), DRV_NAME)) {
 		dev_err(&pdev->dev, "resources busy\n");
 		return -EBUSY;
 	}
 
-	base = (unsigned long)res->start;
-
-	falconide_setup_ports(&hw, base);
-
-	host = ide_host_alloc(&falconide_port_info, hws, 1);
-	if (host == NULL) {
-		rc = -ENOMEM;
-		goto err;
+	ctl_res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (ctl_res && !devm_request_region(&pdev->dev, ctl_res->start,
+					   resource_size(ctl_res), DRV_NAME)) {
+		dev_err(&pdev->dev, "resources busy\n");
+		return -EBUSY;
 	}
 
-	falconide_get_lock(NULL, NULL);
+	base_mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!base_mem_res)
+		return -ENODEV;
+
+	if (!devm_request_mem_region(&pdev->dev, base_mem_res->start,
+				     resource_size(base_mem_res), DRV_NAME)) {
+		dev_err(&pdev->dev, "resources busy\n");
+		return -EBUSY;
+	}
+
+	ctl_mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!ctl_mem_res)
+		return -ENODEV;
+
+	if (MACH_IS_ATARI) {
+		irq = IRQ_MFP_IDE;
+	} else {
+		irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+		if (irq_res && irq_res->start > 0)
+			irq = irq_res->start;
+		else
+			return -ENODEV;
+	}
+
+	falconide_setup_ports(&hw, base_mem_res->start, ctl_mem_res->start, irq);
+
+	host = ide_host_alloc(&falconide_port_info, hws, 1);
+	if (!host)
+		return -ENOMEM;
+
+	if (!MACH_IS_ATARI) {
+		host->get_lock = NULL;
+		host->release_lock = NULL;
+	}
+
+	if (host->get_lock)
+		host->get_lock(NULL, NULL);
 	rc = ide_host_register(host, &falconide_port_info, hws);
-	falconide_release_lock();
+	if (host->release_lock)
+		host->release_lock();
 
 	if (rc)
 		goto err_free;
@@ -168,8 +199,6 @@ static int __init falconide_init(struct platform_device *pdev)
 	return 0;
 err_free:
 	ide_host_free(host);
-err:
-	release_mem_region(res->start, resource_size(res));
 	return rc;
 }
 
