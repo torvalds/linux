@@ -445,6 +445,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 					  : SHRINK_BATCH;
 	long scanned = 0, next_deferred;
 
+	trace_android_vh_do_shrink_slab(shrinker, shrinkctl, priority);
+
 	if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
 		nid = 0;
 
@@ -670,6 +672,11 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
 {
 	unsigned long ret, freed = 0;
 	struct shrinker *shrinker;
+	bool bypass = false;
+
+	trace_android_vh_shrink_slab_bypass(gfp_mask, nid, memcg, priority, &bypass);
+	if (bypass)
+		return 0;
 
 	/*
 	 * The root memcg might be allocated even though memcg is disabled
@@ -2233,6 +2240,8 @@ static bool inactive_is_low(struct lruvec *lruvec, enum lru_list inactive_lru)
 	else
 		inactive_ratio = 1;
 
+	trace_android_vh_tune_inactive_ratio(&inactive_ratio, is_file_lru(inactive_lru));
+
 	return inactive * inactive_ratio < active;
 }
 
@@ -2263,6 +2272,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	enum scan_balance scan_balance;
 	unsigned long ap, fp;
 	enum lru_list lru;
+	bool balance_anon_file_reclaim = false;
 
 	/* If we have no swap space, do not bother scanning anon pages. */
 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
@@ -2301,11 +2311,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 		goto out;
 	}
 
+	trace_android_rvh_set_balance_anon_file_reclaim(&balance_anon_file_reclaim);
+
 	/*
 	 * If there is enough inactive page cache, we do not reclaim
-	 * anything from the anonymous working right now.
+	 * anything from the anonymous working right now. But when balancing
+	 * anon and page cache files for reclaim, allow swapping of anon pages
+	 * even if there are a number of inactive file cache pages.
 	 */
-	if (sc->cache_trim_mode) {
+	if (!balance_anon_file_reclaim && sc->cache_trim_mode) {
 		scan_balance = SCAN_FILE;
 		goto out;
 	}

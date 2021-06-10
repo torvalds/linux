@@ -729,6 +729,7 @@ static void binder_transaction_priority(struct task_struct *task,
 					bool inherit_rt)
 {
 	struct binder_priority desired_prio = t->priority;
+	bool skip = false;
 
 	if (t->set_priority_called)
 		return;
@@ -736,6 +737,10 @@ static void binder_transaction_priority(struct task_struct *task,
 	t->set_priority_called = true;
 	t->saved_priority.sched_policy = task->policy;
 	t->saved_priority.prio = task->normal_prio;
+
+	trace_android_vh_binder_transaction_priority_skip(task, &skip);
+	if (skip)
+		return;
 
 	if (!inherit_rt && is_rt_policy(desired_prio.sched_policy)) {
 		desired_prio.prio = NICE_TO_PRIO(0);
@@ -1197,6 +1202,7 @@ static struct binder_ref *binder_get_ref_for_node_olocked(
 		     "%d new ref %d desc %d for node %d\n",
 		      proc->pid, new_ref->data.debug_id, new_ref->data.desc,
 		      node->debug_id);
+	trace_android_vh_binder_new_ref(proc->tsk, new_ref->data.desc, new_ref->node->debug_id);
 	binder_node_unlock(node);
 	return new_ref;
 }
@@ -1364,6 +1370,7 @@ err_no_ref:
  */
 static void binder_free_ref(struct binder_ref *ref)
 {
+	trace_android_vh_binder_del_ref(ref->proc ? ref->proc->tsk : 0, ref->data.desc);
 	if (ref->node)
 		binder_free_node(ref->node);
 	kfree(ref->death);
@@ -2497,6 +2504,9 @@ static int binder_proc_transaction(struct binder_transaction *t,
 	if (!thread && !pending_async)
 		thread = binder_select_thread_ilocked(proc);
 
+	trace_android_vh_binder_proc_transaction(current, proc->tsk,
+		thread ? thread->task : 0, node->debug_id, t->code, pending_async);
+
 	if (thread) {
 		binder_transaction_priority(thread->task, t, node_prio,
 					    node->inherit_rt);
@@ -3149,7 +3159,10 @@ static void binder_transaction(struct binder_proc *proc,
 			goto err_bad_object_type;
 		}
 	}
-	tcomplete->type = BINDER_WORK_TRANSACTION_COMPLETE;
+	if (t->buffer->oneway_spam_suspect)
+		tcomplete->type = BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT;
+	else
+		tcomplete->type = BINDER_WORK_TRANSACTION_COMPLETE;
 	t->work.type = BINDER_WORK_TRANSACTION;
 
 	if (reply) {
@@ -4018,9 +4031,14 @@ retry:
 
 			binder_stat_br(proc, thread, cmd);
 		} break;
-		case BINDER_WORK_TRANSACTION_COMPLETE: {
+		case BINDER_WORK_TRANSACTION_COMPLETE:
+		case BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT: {
+			if (proc->oneway_spam_detection_enabled &&
+				   w->type == BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT)
+				cmd = BR_ONEWAY_SPAM_SUSPECT;
+			else
+				cmd = BR_TRANSACTION_COMPLETE;
 			binder_inner_proc_unlock(proc);
-			cmd = BR_TRANSACTION_COMPLETE;
 			kfree(w);
 			binder_stats_deleted(BINDER_STAT_TRANSACTION_COMPLETE);
 			if (put_user(cmd, (uint32_t __user *)ptr))
@@ -5024,6 +5042,18 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	}
+	case BINDER_ENABLE_ONEWAY_SPAM_DETECTION: {
+		uint32_t enable;
+
+		if (copy_from_user(&enable, ubuf, sizeof(enable))) {
+			ret = -EINVAL;
+			goto err;
+		}
+		binder_inner_proc_lock(proc);
+		proc->oneway_spam_detection_enabled = (bool)enable;
+		binder_inner_proc_unlock(proc);
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		goto err;
@@ -5695,7 +5725,9 @@ static const char * const binder_return_strings[] = {
 	"BR_FINISHED",
 	"BR_DEAD_BINDER",
 	"BR_CLEAR_DEATH_NOTIFICATION_DONE",
-	"BR_FAILED_REPLY"
+	"BR_FAILED_REPLY",
+	"BR_FROZEN_REPLY",
+	"BR_ONEWAY_SPAM_SUSPECT",
 };
 
 static const char * const binder_command_strings[] = {

@@ -78,3 +78,4 @@ MODULE_DESCRIPTION("IBM VMX cryptographic acceleration instructions "
 		   "support on Power 8");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

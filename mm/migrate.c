@@ -172,6 +172,7 @@ void putback_movable_pages(struct list_head *l)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(putback_movable_pages);
 
 /*
  * Restore a potential migration pte to a working pte entry
@@ -1404,6 +1405,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	int swapwrite = current->flags & PF_SWAPWRITE;
 	int rc, nr_subpages;
 
+	trace_mm_migrate_pages_start(mode, reason);
+
 	if (!swapwrite)
 		current->flags |= PF_SWAPWRITE;
 
@@ -1509,6 +1512,7 @@ out:
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(migrate_pages);
 
 struct page *alloc_migration_target(struct page *page, unsigned long private)
 {
@@ -1650,7 +1654,7 @@ out_putpage:
 	 * isolate_lru_page() or drop the page ref if it was
 	 * not isolated.
 	 */
-	put_page(page);
+	put_user_page(page);
 out:
 	mmap_read_unlock(mm);
 	return err;
@@ -2889,6 +2893,13 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 
 			swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
 			entry = swp_entry_to_pte(swp_entry);
+		} else {
+			/*
+			 * For now we only support migrating to un-addressable
+			 * device memory.
+			 */
+			pr_warn_once("Unsupported ZONE_DEVICE page type.\n");
+			goto abort;
 		}
 	} else {
 		entry = mk_pte(page, vma->vm_page_prot);

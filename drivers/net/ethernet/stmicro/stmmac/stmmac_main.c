@@ -1052,7 +1052,6 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
  */
 static int stmmac_init_phy(struct net_device *dev)
 {
-	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct device_node *node;
 	int ret;
@@ -1078,8 +1077,12 @@ static int stmmac_init_phy(struct net_device *dev)
 		ret = phylink_connect_phy(priv->phylink, phydev);
 	}
 
-	phylink_ethtool_get_wol(priv->phylink, &wol);
-	device_set_wakeup_capable(priv->device, !!wol.supported);
+	if (!priv->plat->pmt) {
+		struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
+
+		phylink_ethtool_get_wol(priv->phylink, &wol);
+		device_set_wakeup_capable(priv->device, !!wol.supported);
+	}
 
 	return ret;
 }
@@ -2727,8 +2730,15 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	/* Enable TSO */
 	if (priv->tso) {
-		for (chan = 0; chan < tx_cnt; chan++)
+		for (chan = 0; chan < tx_cnt; chan++) {
+			struct stmmac_tx_queue *tx_q = &priv->tx_queue[chan];
+
+			/* TSO and TBS cannot co-exist */
+			if (tx_q->tbs & STMMAC_TBS_AVAIL)
+				continue;
+
 			stmmac_enable_tso(priv, priv->ioaddr, 1, chan);
+		}
 	}
 
 	/* Enable Split Header */
@@ -2820,9 +2830,8 @@ static int stmmac_open(struct net_device *dev)
 		struct stmmac_tx_queue *tx_q = &priv->tx_queue[chan];
 		int tbs_en = priv->plat->tx_queues_cfg[chan].tbs_en;
 
+		/* Setup per-TXQ tbs flag before TX descriptor alloc */
 		tx_q->tbs |= tbs_en ? STMMAC_TBS_AVAIL : 0;
-		if (stmmac_enable_tbs(priv, priv->ioaddr, tbs_en, chan))
-			tx_q->tbs &= ~STMMAC_TBS_AVAIL;
 	}
 
 	ret = alloc_dma_desc_resources(priv);
@@ -4132,7 +4141,6 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || xmac) {
 		int status = stmmac_host_irq_status(priv, priv->hw, &priv->xstats);
-		int mtl_status;
 
 		if (unlikely(status)) {
 			/* For LPI we need to save the tx status */
@@ -4143,17 +4151,8 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 		}
 
 		for (queue = 0; queue < queues_count; queue++) {
-			struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-
-			mtl_status = stmmac_host_mtl_irq_status(priv, priv->hw,
-								queue);
-			if (mtl_status != -EINVAL)
-				status |= mtl_status;
-
-			if (status & CORE_IRQ_MTL_RX_OVERFLOW)
-				stmmac_set_rx_tail_ptr(priv, priv->ioaddr,
-						       rx_q->rx_tail_addr,
-						       queue);
+			status = stmmac_host_mtl_irq_status(priv, priv->hw,
+							    queue);
 		}
 
 		/* PCS link status */

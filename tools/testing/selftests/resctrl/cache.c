@@ -182,7 +182,7 @@ int measure_cache_vals(struct resctrl_val_param *param, int bm_pid)
 	/*
 	 * Measure cache miss from perf.
 	 */
-	if (!strcmp(param->resctrl_val, "cat")) {
+	if (!strncmp(param->resctrl_val, CAT_STR, sizeof(CAT_STR))) {
 		ret = get_llc_perf(&llc_perf_miss);
 		if (ret < 0)
 			return ret;
@@ -192,7 +192,7 @@ int measure_cache_vals(struct resctrl_val_param *param, int bm_pid)
 	/*
 	 * Measure llc occupancy from resctrl.
 	 */
-	if (!strcmp(param->resctrl_val, "cqm")) {
+	if (!strncmp(param->resctrl_val, CQM_STR, sizeof(CQM_STR))) {
 		ret = get_llc_occu_resctrl(&llc_occu_resc);
 		if (ret < 0)
 			return ret;
@@ -234,7 +234,7 @@ int cat_val(struct resctrl_val_param *param)
 	if (ret)
 		return ret;
 
-	if ((strcmp(resctrl_val, "cat") == 0)) {
+	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR))) {
 		ret = initialize_llc_perf();
 		if (ret)
 			return ret;
@@ -242,7 +242,7 @@ int cat_val(struct resctrl_val_param *param)
 
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
-		if (strcmp(resctrl_val, "cat") == 0) {
+		if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR))) {
 			ret = param->setup(1, param);
 			if (ret) {
 				ret = 0;

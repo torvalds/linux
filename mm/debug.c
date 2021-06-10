@@ -13,6 +13,7 @@
 #include <trace/events/mmflags.h>
 #include <linux/migrate.h>
 #include <linux/page_owner.h>
+#include <linux/page_pinner.h>
 #include <linux/ctype.h>
 
 #include "internal.h"
@@ -191,6 +192,7 @@ void dump_page(struct page *page, const char *reason)
 {
 	__dump_page(page, reason);
 	dump_page_owner(page);
+	dump_page_pinner(page);
 }
 EXPORT_SYMBOL(dump_page);
 

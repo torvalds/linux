@@ -189,13 +189,13 @@ EXPORT_SYMBOL(rproc_va_to_pa);
  * here the output of the DMA API for the carveouts, which should be more
  * correct.
  */
-void *rproc_da_to_va(struct rproc *rproc, u64 da, size_t len)
+void *rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct rproc_mem_entry *carveout;
 	void *ptr = NULL;
 
 	if (rproc->ops->da_to_va) {
-		ptr = rproc->ops->da_to_va(rproc, da, len);
+		ptr = rproc->ops->da_to_va(rproc, da, len, is_iomem);
 		if (ptr)
 			goto out;
 	}
@@ -216,6 +216,9 @@ void *rproc_da_to_va(struct rproc *rproc, u64 da, size_t len)
 			continue;
 
 		ptr = carveout->va + offset;
+
+		if (is_iomem)
+			*is_iomem = carveout->is_iomem;
 
 		break;
 	}
@@ -482,7 +485,7 @@ static int copy_dma_range_map(struct device *to, struct device *from)
 /**
  * rproc_handle_vdev() - handle a vdev fw resource
  * @rproc: the remote processor
- * @rsc: the vring resource descriptor
+ * @ptr: the vring resource descriptor
  * @offset: offset of the resource entry
  * @avail: size of available data (for sanity checking the image)
  *
@@ -507,9 +510,10 @@ static int copy_dma_range_map(struct device *to, struct device *from)
  *
  * Returns 0 on success, or an appropriate error code otherwise
  */
-static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
+static int rproc_handle_vdev(struct rproc *rproc, void *ptr,
 			     int offset, int avail)
 {
+	struct fw_rsc_vdev *rsc = ptr;
 	struct device *dev = &rproc->dev;
 	struct rproc_vdev *rvdev;
 	int i, ret;
@@ -627,7 +631,7 @@ void rproc_vdev_release(struct kref *ref)
 /**
  * rproc_handle_trace() - handle a shared trace buffer resource
  * @rproc: the remote processor
- * @rsc: the trace resource descriptor
+ * @ptr: the trace resource descriptor
  * @offset: offset of the resource entry
  * @avail: size of available data (for sanity checking the image)
  *
@@ -641,9 +645,10 @@ void rproc_vdev_release(struct kref *ref)
  *
  * Returns 0 on success, or an appropriate error code otherwise
  */
-static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
+static int rproc_handle_trace(struct rproc *rproc, void *ptr,
 			      int offset, int avail)
 {
+	struct fw_rsc_trace *rsc = ptr;
 	struct rproc_debug_trace *trace;
 	struct device *dev = &rproc->dev;
 	char name[15];
@@ -693,7 +698,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 /**
  * rproc_handle_devmem() - handle devmem resource entry
  * @rproc: remote processor handle
- * @rsc: the devmem resource entry
+ * @ptr: the devmem resource entry
  * @offset: offset of the resource entry
  * @avail: size of available data (for sanity checking the image)
  *
@@ -716,9 +721,10 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
  * and not allow firmwares to request access to physical addresses that
  * are outside those ranges.
  */
-static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
+static int rproc_handle_devmem(struct rproc *rproc, void *ptr,
 			       int offset, int avail)
 {
+	struct fw_rsc_devmem *rsc = ptr;
 	struct rproc_mem_entry *mapping;
 	struct device *dev = &rproc->dev;
 	int ret;
@@ -896,7 +902,7 @@ static int rproc_release_carveout(struct rproc *rproc,
 /**
  * rproc_handle_carveout() - handle phys contig memory allocation requests
  * @rproc: rproc handle
- * @rsc: the resource entry
+ * @ptr: the resource entry
  * @offset: offset of the resource entry
  * @avail: size of available data (for image validation)
  *
@@ -913,9 +919,9 @@ static int rproc_release_carveout(struct rproc *rproc,
  * pressure is important; it may have a substantial impact on performance.
  */
 static int rproc_handle_carveout(struct rproc *rproc,
-				 struct fw_rsc_carveout *rsc,
-				 int offset, int avail)
+				 void *ptr, int offset, int avail)
 {
+	struct fw_rsc_carveout *rsc = ptr;
 	struct rproc_mem_entry *carveout;
 	struct device *dev = &rproc->dev;
 
@@ -1097,10 +1103,10 @@ EXPORT_SYMBOL(rproc_of_parse_firmware);
  * enum fw_resource_type.
  */
 static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
-	[RSC_CARVEOUT] = (rproc_handle_resource_t)rproc_handle_carveout,
-	[RSC_DEVMEM] = (rproc_handle_resource_t)rproc_handle_devmem,
-	[RSC_TRACE] = (rproc_handle_resource_t)rproc_handle_trace,
-	[RSC_VDEV] = (rproc_handle_resource_t)rproc_handle_vdev,
+	[RSC_CARVEOUT] = rproc_handle_carveout,
+	[RSC_DEVMEM] = rproc_handle_devmem,
+	[RSC_TRACE] = rproc_handle_trace,
+	[RSC_VDEV] = rproc_handle_vdev,
 };
 
 /* handle firmware resource entries before booting the remote processor */
@@ -1996,6 +2002,11 @@ int rproc_add(struct rproc *rproc)
 	struct device *dev = &rproc->dev;
 	int ret;
 
+	/* add char device for this remoteproc */
+	ret = rproc_char_device_add(rproc);
+	if (ret < 0)
+		return ret;
+
 	ret = device_add(dev);
 	if (ret < 0)
 		return ret;
@@ -2008,11 +2019,6 @@ int rproc_add(struct rproc *rproc)
 
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
-
-	/* add char device for this remoteproc */
-	ret = rproc_char_device_add(rproc);
-	if (ret < 0)
-		return ret;
 
 	/*
 	 * Remind ourselves the remote processor has been attached to rather
@@ -2415,8 +2421,8 @@ void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
 	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
 		rproc->name, rproc_crash_to_string(type));
 
-	/* create a new task to handle the error */
-	schedule_work(&rproc->crash_handler);
+	/* Have a worker handle the error; ensure system is not suspended */
+	queue_work(system_freezable_wq, &rproc->crash_handler);
 }
 EXPORT_SYMBOL(rproc_report_crash);
 

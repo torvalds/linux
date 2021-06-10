@@ -21,6 +21,7 @@
   cdev_device_add
   cdev_device_del
   cdev_init
+  __cfi_slowpath
   __check_object_size
   clk_bulk_disable
   clk_bulk_enable
@@ -183,7 +184,6 @@
   flush_workqueue
   free_io_pgtable_ops
   free_irq
-  __free_pages
   generic_handle_irq
   generic_mii_ioctl
   get_device
@@ -224,7 +224,6 @@
   icc_nodes_remove
   icc_provider_add
   icc_provider_del
-  icc_put
   icc_set_bw
   icc_sync_state
   ida_alloc_range
@@ -241,6 +240,7 @@
   init_timer_key
   init_wait_entry
   __init_waitqueue_head
+  iomem_resource
   iommu_attach_device
   iommu_detach_device
   iommu_domain_alloc
@@ -276,6 +276,7 @@
   irq_to_desc
   is_vmalloc_addr
   jiffies
+  kasan_flag_enabled
   kasprintf
   kernel_connect
   kernel_getsockname
@@ -293,7 +294,6 @@
   kstrdup_const
   kstrtoint
   kstrtouint
-  kthread_create_on_node
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_real_ts64
@@ -348,13 +348,11 @@
   of_device_is_compatible
   of_device_uevent_modalias
   of_dma_configure_id
-  of_find_device_by_node
   of_find_property
   of_fwnode_ops
   of_genpd_add_provider_onecell
   of_genpd_del_provider
   of_get_child_by_name
-  of_get_compatible_child
   of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
@@ -455,7 +453,6 @@
   regcache_sync
   register_reboot_notifier
   __register_rpmsg_driver
-  register_shrinker
   regmap_bulk_read
   regmap_bulk_write
   __regmap_init
@@ -473,10 +470,12 @@
   regulator_set_load
   regulator_set_voltage
   release_firmware
+  __release_region
   remap_pfn_range
   request_firmware
   request_firmware_direct
   request_firmware_into_buf
+  __request_region
   request_threaded_irq
   reset_control_assert
   reset_control_deassert
@@ -576,6 +575,9 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
   __tracepoint_rwmmio_post_read
   __tracepoint_rwmmio_read
   __tracepoint_rwmmio_write
@@ -629,7 +631,6 @@
   vunmap
   wait_for_completion_timeout
   __wake_up
-  wake_up_process
   __warn_printk
   watchdog_init_timeout
 
@@ -694,11 +695,15 @@
 # required by ath10k_core.ko
   bcmp
   cancel_delayed_work
+  __cfg80211_alloc_event_skb
+  __cfg80211_alloc_reply_skb
   cfg80211_calculate_bitrate
   cfg80211_find_elem_match
   cfg80211_find_vendor_elem
   cfg80211_get_bss
   cfg80211_put_bss
+  __cfg80211_send_event_skb
+  cfg80211_vendor_cmd_reply
   cpu_latency_qos_add_request
   cpu_latency_qos_remove_request
   device_get_mac_address
@@ -757,6 +762,8 @@
   __kfifo_alloc
   __kfifo_free
   __local_bh_enable_ip
+  __nla_parse
+  nla_put
   param_ops_ulong
   regulatory_hint
   skb_copy
@@ -840,14 +847,9 @@
   of_clk_get_parent_name
 
 # required by cqhci.ko
+  devm_blk_ksm_init
   dmam_free_coherent
   mmc_cqe_request_done
-
-# required by deferred-free-helper.ko
-  freezing_slow_path
-  __refrigerator
-  sched_set_normal
-  system_freezing_cnt
 
 # required by extcon-usb-gpio.ko
   devm_extcon_dev_allocate
@@ -1185,12 +1187,14 @@
   hdmi_infoframe_pack
   hrtimer_init
   hrtimer_start_range_ns
+  icc_put
   invalidate_mapping_pages
   iommu_map_sg
   iommu_set_fault_handler
   irq_domain_xlate_onecell
   kstrdup_quotable_cmdline
   kstrtouint_from_user
+  kthread_create_on_node
   kthread_create_worker
   kthread_destroy_worker
   kthread_queue_work
@@ -1213,7 +1217,9 @@
   of_device_is_available
   of_drm_find_bridge
   of_drm_find_panel
+  of_find_device_by_node
   of_find_matching_node_and_match
+  of_get_compatible_child
   of_graph_get_endpoint_by_regs
   of_graph_get_next_endpoint
   of_graph_get_remote_port_parent
@@ -1229,6 +1235,7 @@
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
+  register_shrinker
   register_vmap_purge_notifier
   regulator_get
   regulator_put
@@ -1253,13 +1260,11 @@
   vm_get_page_prot
   vscnprintf
   vsnprintf
+  wake_up_process
   ww_mutex_lock_interruptible
   ww_mutex_unlock
 
 # required by msm_serial.ko
-  iomem_resource
-  __release_region
-  __request_region
   tty_termios_baud_rate
   tty_termios_encode_baud_rate
 
@@ -1317,11 +1322,6 @@
   usb_hcd_platform_shutdown
   usb_put_hcd
   usb_remove_hcd
-
-# required by page_pool.ko
-  __alloc_pages_nodemask
-  contig_page_data
-  mod_node_page_state
 
 # required by pdr_interface.ko
   strnlen
@@ -1403,9 +1403,7 @@
   of_get_cpu_node
 
 # required by qcom-geni-se.ko
-  console_drivers
   icc_set_tag
-  of_get_next_parent
 
 # required by qcom-pdc.ko
   irq_chip_get_parent_state
@@ -1677,10 +1675,17 @@
   spmi_controller_remove
 
 # required by system_heap.ko
+  deferred_free
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_heap_add
   dma_heap_get_dev
+  dma_heap_get_name
   dma_sync_sg_for_cpu
   dma_sync_sg_for_device
+  __free_pages
   preempt_schedule
   __sg_page_iter_next
 

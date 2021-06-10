@@ -187,7 +187,9 @@ static int erofs_read_superblock(struct super_block *sb)
 		ret = -EFSCORRUPTED;
 		goto out;
 	}
-	ret = 0;
+
+	/* parse on-disk compression configurations */
+	ret = z_erofs_load_lz4_config(sb, dsb);
 out:
 	kunmap(page);
 	put_page(page);
@@ -200,6 +202,7 @@ static void erofs_default_options(struct erofs_fs_context *ctx)
 #ifdef CONFIG_EROFS_FS_ZIP
 	ctx->cache_strategy = EROFS_ZIP_CACHE_READAROUND;
 	ctx->max_sync_decompress_pages = 3;
+	ctx->readahead_sync_decompress = false;
 #endif
 #ifdef CONFIG_EROFS_FS_XATTR
 	set_opt(ctx, XATTR_USER);

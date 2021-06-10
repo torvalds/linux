@@ -555,8 +555,13 @@ static void sdhci_gli_voltage_switch(struct sdhci_host *host)
 	 *
 	 * Wait 5ms after set 1.8V signal enable in Host Control 2 register
 	 * to ensure 1.8V signal enable bit is set by GL9750/GL9755.
+	 *
+	 * ...however, the controller in the NUC10i3FNK4 (a 9755) requires
+	 * slightly longer than 5ms before the control register reports that
+	 * 1.8V is ready, and far longer still before the card will actually
+	 * work reliably.
 	 */
-	usleep_range(5000, 5500);
+	usleep_range(100000, 110000);
 }
 
 static void sdhci_gl9750_reset(struct sdhci_host *host, u8 mask)

@@ -168,7 +168,7 @@ struct f2fs_checkpoint {
 	unsigned char alloc_type[MAX_ACTIVE_LOGS];
 
 	/* SIT and NAT version bitmap */
-	unsigned char sit_nat_version_bitmap[1];
+	unsigned char sit_nat_version_bitmap[];
 } __packed;
 
 #define CP_CHKSUM_OFFSET	4092	/* default chksum offset in checkpoint */
@@ -229,6 +229,7 @@ struct f2fs_extent {
 #define F2FS_INLINE_DOTS	0x10	/* file having implicit dot dentries */
 #define F2FS_EXTRA_ATTR		0x20	/* file having extra attribute */
 #define F2FS_PIN_FILE		0x40	/* file should not be gced */
+#define F2FS_COMPRESS_RELEASED	0x80	/* file released compressed blocks */
 
 struct f2fs_inode {
 	__le16 i_mode;			/* file mode */

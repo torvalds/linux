@@ -152,9 +152,12 @@ static int lan87xx_config_aneg(struct phy_device *phydev)
 	return genphy_config_aneg(phydev);
 }
 
-static int lan87xx_config_aneg_ext(struct phy_device *phydev)
+static int lan95xx_config_aneg_ext(struct phy_device *phydev)
 {
 	int rc;
+
+	if (phydev->phy_id != 0x0007c0f0) /* not (LAN9500A or LAN9505A) */
+		return lan87xx_config_aneg(phydev);
 
 	/* Extend Manual AutoMDIX timer */
 	rc = phy_read(phydev, PHY_EDPD_CONFIG);
@@ -408,7 +411,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.read_status	= lan87xx_read_status,
 	.config_init	= smsc_phy_config_init,
 	.soft_reset	= smsc_phy_reset,
-	.config_aneg	= lan87xx_config_aneg_ext,
+	.config_aneg	= lan95xx_config_aneg_ext,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,

@@ -70,6 +70,7 @@
 #define ARM64_HAS_LDAPR				59
 #define ARM64_KVM_PROTECTED_MODE		60
 
-#define ARM64_NCAPS				61
+/* kabi: reserve 62 - 76 for future cpu capabilities */
+#define ARM64_NCAPS				76
 
 #endif /* __ASM_CPUCAPS_H */

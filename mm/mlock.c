@@ -17,6 +17,7 @@
 #include <linux/mempolicy.h>
 #include <linux/syscalls.h>
 #include <linux/sched.h>
+#include <linux/page_pinner.h>
 #include <linux/export.h>
 #include <linux/rmap.h>
 #include <linux/mmzone.h>
@@ -470,8 +471,15 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		 * has sneaked into the range, we won't oops here: great).
 		 */
 		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
-
 		if (page && !IS_ERR(page)) {
+			/*
+			 * munlock_vma_pages_range uses follow_page(FOLL_GET)
+			 * so it need to use put_user_page but the munlock
+			 * path is quite complicated to deal with each put
+			 * sites correctly so just unattribute them to avoid
+			 * false positive at this moment.
+			 */
+			reset_page_pinner(page, compound_order(page));
 			if (PageTransTail(page)) {
 				VM_BUG_ON_PAGE(PageMlocked(page), page);
 				put_page(page); /* follow_page_mask() */

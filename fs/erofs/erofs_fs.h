@@ -39,7 +39,9 @@ struct erofs_super_block {
 	__u8 uuid[16];          /* 128-bit uuid for volume */
 	__u8 volume_name[16];   /* volume name */
 	__le32 feature_incompat;
-	__u8 reserved2[44];
+	/* customized lz4 sliding window size instead of 64k by default */
+	__le16 lz4_max_distance;
+	__u8 reserved2[42];
 };
 
 /*
@@ -74,6 +76,9 @@ static inline bool erofs_inode_is_data_compressed(unsigned int datamode)
 
 #define EROFS_I_VERSION_BIT             0
 #define EROFS_I_DATALAYOUT_BIT          1
+
+#define EROFS_I_ALL	\
+	((1 << (EROFS_I_DATALAYOUT_BIT + EROFS_I_DATALAYOUT_BITS)) - 1)
 
 /* 32-byte reduced form of an ondisk inode */
 struct erofs_inode_compact {

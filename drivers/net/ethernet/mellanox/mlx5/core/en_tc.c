@@ -2196,6 +2196,9 @@ static int mlx5e_flower_parse_meta(struct net_device *filter_dev,
 		return 0;
 
 	flow_rule_match_meta(rule, &match);
+	if (!match.mask->ingress_ifindex)
+		return 0;
+
 	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
 		return -EOPNOTSUPP;
@@ -4022,8 +4025,12 @@ static int add_vlan_push_action(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev),
-					dev_get_iflink(vlan_dev));
+	rcu_read_lock();
+	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev), dev_get_iflink(vlan_dev));
+	rcu_read_unlock();
+	if (!*out_dev)
+		return -ENODEV;
+
 	if (is_vlan_dev(*out_dev))
 		err = add_vlan_push_action(priv, attr, out_dev, action);
 
@@ -5487,7 +5494,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 	}
 
 	if (chain) {
-		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
+		tc_skb_ext = tc_skb_ext_alloc(skb);
 		if (WARN_ON(!tc_skb_ext))
 			return false;
 

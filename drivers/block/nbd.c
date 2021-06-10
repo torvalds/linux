@@ -2031,7 +2031,8 @@ static void nbd_disconnect_and_put(struct nbd_device *nbd)
 	 * config ref and try to destroy the workqueue from inside the work
 	 * queue.
 	 */
-	flush_workqueue(nbd->recv_workq);
+	if (nbd->recv_workq)
+		flush_workqueue(nbd->recv_workq);
 	if (test_and_clear_bit(NBD_RT_HAS_CONFIG_REF,
 			       &nbd->config->runtime_flags))
 		nbd_config_put(nbd);

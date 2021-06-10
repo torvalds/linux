@@ -317,6 +317,8 @@ struct tegra_pmc_soc {
 				   bool invert);
 	int (*irq_set_wake)(struct irq_data *data, unsigned int on);
 	int (*irq_set_type)(struct irq_data *data, unsigned int type);
+	int (*powergate_set)(struct tegra_pmc *pmc, unsigned int id,
+			     bool new_state);
 
 	const char * const *reset_sources;
 	unsigned int num_reset_sources;
@@ -517,6 +519,63 @@ static int tegra_powergate_lookup(struct tegra_pmc *pmc, const char *name)
 	return -ENODEV;
 }
 
+static int tegra20_powergate_set(struct tegra_pmc *pmc, unsigned int id,
+				 bool new_state)
+{
+	unsigned int retries = 100;
+	bool status;
+	int ret;
+
+	/*
+	 * As per TRM documentation, the toggle command will be dropped by PMC
+	 * if there is contention with a HW-initiated toggling (i.e. CPU core
+	 * power-gated), the command should be retried in that case.
+	 */
+	do {
+		tegra_pmc_writel(pmc, PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
+
+		/* wait for PMC to execute the command */
+		ret = readx_poll_timeout(tegra_powergate_state, id, status,
+					 status == new_state, 1, 10);
+	} while (ret == -ETIMEDOUT && retries--);
+
+	return ret;
+}
+
+static inline bool tegra_powergate_toggle_ready(struct tegra_pmc *pmc)
+{
+	return !(tegra_pmc_readl(pmc, PWRGATE_TOGGLE) & PWRGATE_TOGGLE_START);
+}
+
+static int tegra114_powergate_set(struct tegra_pmc *pmc, unsigned int id,
+				  bool new_state)
+{
+	bool status;
+	int err;
+
+	/* wait while PMC power gating is contended */
+	err = readx_poll_timeout(tegra_powergate_toggle_ready, pmc, status,
+				 status == true, 1, 100);
+	if (err)
+		return err;
+
+	tegra_pmc_writel(pmc, PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
+
+	/* wait for PMC to accept the command */
+	err = readx_poll_timeout(tegra_powergate_toggle_ready, pmc, status,
+				 status == true, 1, 100);
+	if (err)
+		return err;
+
+	/* wait for PMC to execute the command */
+	err = readx_poll_timeout(tegra_powergate_state, id, status,
+				 status == new_state, 10, 100000);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /**
  * tegra_powergate_set() - set the state of a partition
  * @pmc: power management controller
@@ -526,7 +585,6 @@ static int tegra_powergate_lookup(struct tegra_pmc *pmc, const char *name)
 static int tegra_powergate_set(struct tegra_pmc *pmc, unsigned int id,
 			       bool new_state)
 {
-	bool status;
 	int err;
 
 	if (id == TEGRA_POWERGATE_3D && pmc->soc->has_gpu_clamps)
@@ -539,10 +597,7 @@ static int tegra_powergate_set(struct tegra_pmc *pmc, unsigned int id,
 		return 0;
 	}
 
-	tegra_pmc_writel(pmc, PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
-
-	err = readx_poll_timeout(tegra_powergate_state, id, status,
-				 status == new_state, 10, 100000);
+	err = pmc->soc->powergate_set(pmc, id, new_state);
 
 	mutex_unlock(&pmc->powergates_lock);
 
@@ -2699,6 +2754,7 @@ static const struct tegra_pmc_soc tegra20_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
+	.powergate_set = tegra20_powergate_set,
 	.reset_sources = NULL,
 	.num_reset_sources = 0,
 	.reset_levels = NULL,
@@ -2757,6 +2813,7 @@ static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
+	.powergate_set = tegra20_powergate_set,
 	.reset_sources = tegra30_reset_sources,
 	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
@@ -2811,6 +2868,7 @@ static const struct tegra_pmc_soc tegra114_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
+	.powergate_set = tegra114_powergate_set,
 	.reset_sources = tegra30_reset_sources,
 	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
@@ -2925,6 +2983,7 @@ static const struct tegra_pmc_soc tegra124_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
+	.powergate_set = tegra114_powergate_set,
 	.reset_sources = tegra30_reset_sources,
 	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
@@ -3048,6 +3107,7 @@ static const struct tegra_pmc_soc tegra210_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
+	.powergate_set = tegra114_powergate_set,
 	.irq_set_wake = tegra210_pmc_irq_set_wake,
 	.irq_set_type = tegra210_pmc_irq_set_type,
 	.reset_sources = tegra210_reset_sources,

@@ -3764,7 +3764,8 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 
 	if (q->flags & TCQ_F_NOLOCK) {
 		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
-		qdisc_run(q);
+		if (likely(!netif_xmit_frozen_or_stopped(txq)))
+			qdisc_run(q);
 
 		if (unlikely(to_free))
 			kfree_skb_list(to_free);
@@ -4910,25 +4911,43 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 		sd->output_queue_tailp = &sd->output_queue;
 		local_irq_enable();
 
+		rcu_read_lock();
+
 		while (head) {
 			struct Qdisc *q = head;
 			spinlock_t *root_lock = NULL;
 
 			head = head->next_sched;
 
-			if (!(q->flags & TCQ_F_NOLOCK)) {
-				root_lock = qdisc_lock(q);
-				spin_lock(root_lock);
-			}
 			/* We need to make sure head->next_sched is read
 			 * before clearing __QDISC_STATE_SCHED
 			 */
 			smp_mb__before_atomic();
+
+			if (!(q->flags & TCQ_F_NOLOCK)) {
+				root_lock = qdisc_lock(q);
+				spin_lock(root_lock);
+			} else if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED,
+						     &q->state))) {
+				/* There is a synchronize_net() between
+				 * STATE_DEACTIVATED flag being set and
+				 * qdisc_reset()/some_qdisc_is_busy() in
+				 * dev_deactivate(), so we can safely bail out
+				 * early here to avoid data race between
+				 * qdisc_deactivate() and some_qdisc_is_busy()
+				 * for lockless qdisc.
+				 */
+				clear_bit(__QDISC_STATE_SCHED, &q->state);
+				continue;
+			}
+
 			clear_bit(__QDISC_STATE_SCHED, &q->state);
 			qdisc_run(q);
 			if (root_lock)
 				spin_unlock(root_lock);
 		}
+
+		rcu_read_unlock();
 	}
 
 	xfrm_dev_backlog(sd);
@@ -5857,7 +5876,7 @@ static struct list_head *gro_list_prepare(struct napi_struct *napi,
 	return head;
 }
 
-static void skb_gro_reset_offset(struct sk_buff *skb)
+static inline void skb_gro_reset_offset(struct sk_buff *skb, u32 nhoff)
 {
 	const struct skb_shared_info *pinfo = skb_shinfo(skb);
 	const skb_frag_t *frag0 = &pinfo->frags[0];
@@ -5867,7 +5886,8 @@ static void skb_gro_reset_offset(struct sk_buff *skb)
 	NAPI_GRO_CB(skb)->frag0_len = 0;
 
 	if (!skb_headlen(skb) && pinfo->nr_frags &&
-	    !PageHighMem(skb_frag_page(frag0))) {
+	    !PageHighMem(skb_frag_page(frag0)) &&
+	    (!NET_IP_ALIGN || !((skb_frag_off(frag0) + nhoff) & 3))) {
 		NAPI_GRO_CB(skb)->frag0 = skb_frag_address(frag0);
 		NAPI_GRO_CB(skb)->frag0_len = min_t(unsigned int,
 						    skb_frag_size(frag0),
@@ -6100,7 +6120,7 @@ gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	skb_mark_napi_id(skb, napi);
 	trace_napi_gro_receive_entry(skb);
 
-	skb_gro_reset_offset(skb);
+	skb_gro_reset_offset(skb, 0);
 
 	ret = napi_skb_finish(napi, skb, dev_gro_receive(napi, skb));
 	trace_napi_gro_receive_exit(ret);
@@ -6193,7 +6213,7 @@ static struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 	napi->skb = NULL;
 
 	skb_reset_mac_header(skb);
-	skb_gro_reset_offset(skb);
+	skb_gro_reset_offset(skb, hlen);
 
 	if (unlikely(skb_gro_header_hard(skb, hlen))) {
 		eth = skb_gro_header_slow(skb, hlen, 0);

@@ -825,11 +825,21 @@
 	}
 
 /*
+ * Keep .eh_frame with CFI.
+ */
+#ifdef CONFIG_CFI_CLANG
+#define EH_FRAME .eh_frame : { *(.eh_frame) }
+#else
+#define EH_FRAME
+#endif
+
+/*
  * DWARF debug sections.
  * Symbols in the DWARF debugging sections are relative to
  * the beginning of the section so we begin them at 0.
  */
 #define DWARF_DEBUG							\
+		EH_FRAME						\
 		/* DWARF 1 */						\
 		.debug          0 : { *(.debug) }			\
 		.line           0 : { *(.line) }			\
@@ -1033,8 +1043,7 @@
  * keep any .init_array.* sections.
  * https://bugs.llvm.org/show_bug.cgi?id=46478
  */
-#if defined(CONFIG_GCOV_KERNEL) || defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KCSAN) || \
-	defined(CONFIG_CFI_CLANG)
+#if defined(CONFIG_GCOV_KERNEL) || defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KCSAN)
 # ifdef CONFIG_CONSTRUCTORS
 #  define SANITIZER_DISCARDS						\
 	*(.eh_frame)

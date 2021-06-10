@@ -69,10 +69,10 @@ static void kasan_test_exit(struct kunit *test)
  * resource named "kasan_data". Do not use this name for KUnit resources
  * outside of KASAN tests.
  *
- * For hardware tag-based KASAN, when a tag fault happens, tag checking is
- * normally auto-disabled. When this happens, this test handler reenables
- * tag checking. As tag checking can be only disabled or enabled per CPU, this
- * handler disables migration (preemption).
+ * For hardware tag-based KASAN in sync mode, when a tag fault happens, tag
+ * checking is auto-disabled. When this happens, this test handler reenables
+ * tag checking. As tag checking can be only disabled or enabled per CPU,
+ * this handler disables migration (preemption).
  *
  * Since the compiler doesn't see that the expression can change the fail_data
  * fields, it can reorder or optimize away the accesses to those fields.
@@ -80,7 +80,8 @@ static void kasan_test_exit(struct kunit *test)
  * expression to prevent that.
  */
 #define KUNIT_EXPECT_KASAN_FAIL(test, expression) do {		\
-	if (IS_ENABLED(CONFIG_KASAN_HW_TAGS))			\
+	if (IS_ENABLED(CONFIG_KASAN_HW_TAGS) &&			\
+	    !kasan_async_mode_enabled())			\
 		migrate_disable();				\
 	WRITE_ONCE(fail_data.report_expected, true);		\
 	WRITE_ONCE(fail_data.report_found, false);		\
@@ -92,12 +93,16 @@ static void kasan_test_exit(struct kunit *test)
 	barrier();						\
 	expression;						\
 	barrier();						\
+	if (kasan_async_mode_enabled())				\
+		kasan_force_async_fault();			\
+	barrier();						\
 	KUNIT_EXPECT_EQ(test,					\
 			READ_ONCE(fail_data.report_expected),	\
 			READ_ONCE(fail_data.report_found));	\
-	if (IS_ENABLED(CONFIG_KASAN_HW_TAGS)) {			\
+	if (IS_ENABLED(CONFIG_KASAN_HW_TAGS) &&			\
+	    !kasan_async_mode_enabled()) {			\
 		if (READ_ONCE(fail_data.report_found))		\
-			kasan_enable_tagging();			\
+			kasan_enable_tagging_sync();		\
 		migrate_enable();				\
 	}							\
 } while (0)
@@ -646,8 +651,20 @@ static char global_array[10];
 
 static void kasan_global_oob(struct kunit *test)
 {
-	volatile int i = 3;
-	char *p = &global_array[ARRAY_SIZE(global_array) + i];
+	/*
+	 * Deliberate out-of-bounds access. To prevent CONFIG_UBSAN_LOCAL_BOUNDS
+	 * from failing here and panicing the kernel, access the array via a
+	 * volatile pointer, which will prevent the compiler from being able to
+	 * determine the array bounds.
+	 *
+	 * This access uses a volatile pointer to char (char *volatile) rather
+	 * than the more conventional pointer to volatile char (volatile char *)
+	 * because we want to prevent the compiler from making inferences about
+	 * the pointer itself (i.e. its array bounds), not the data that it
+	 * refers to.
+	 */
+	char *volatile array = global_array;
+	char *p = &array[ARRAY_SIZE(global_array) + 3];
 
 	/* Only generic mode instruments globals. */
 	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_GENERIC);
@@ -695,8 +712,9 @@ static void ksize_uaf(struct kunit *test)
 static void kasan_stack_oob(struct kunit *test)
 {
 	char stack_array[10];
-	volatile int i = OOB_TAG_OFF;
-	char *p = &stack_array[ARRAY_SIZE(stack_array) + i];
+	/* See comment in kasan_global_oob. */
+	char *volatile array = stack_array;
+	char *p = &array[ARRAY_SIZE(stack_array) + OOB_TAG_OFF];
 
 	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_STACK);
 
@@ -707,7 +725,9 @@ static void kasan_alloca_oob_left(struct kunit *test)
 {
 	volatile int i = 10;
 	char alloca_array[i];
-	char *p = alloca_array - 1;
+	/* See comment in kasan_global_oob. */
+	char *volatile array = alloca_array;
+	char *p = array - 1;
 
 	/* Only generic mode instruments dynamic allocas. */
 	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_GENERIC);
@@ -720,7 +740,9 @@ static void kasan_alloca_oob_right(struct kunit *test)
 {
 	volatile int i = 10;
 	char alloca_array[i];
-	char *p = alloca_array + i;
+	/* See comment in kasan_global_oob. */
+	char *volatile array = alloca_array;
+	char *p = array + i;
 
 	/* Only generic mode instruments dynamic allocas. */
 	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_GENERIC);

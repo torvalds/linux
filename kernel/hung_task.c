@@ -23,6 +23,8 @@
 #include <linux/sched/sysctl.h>
 
 #include <trace/events/sched.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/hung_task.h>
 
 /*
  * The number of tasks checked:
@@ -92,8 +94,8 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	 * Ensure the task is not frozen.
 	 * Also, skip vfork and any other user process that freezer should skip.
 	 */
-	if (unlikely(t->flags & (PF_FROZEN | PF_FREEZER_SKIP)))
-	    return;
+	if (unlikely(frozen_or_skipped(t)))
+		return;
 
 	/*
 	 * When a freshly created task is scheduled once, changes its state to
@@ -177,6 +179,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	int max_count = sysctl_hung_task_check_count;
 	unsigned long last_break = jiffies;
 	struct task_struct *g, *t;
+	bool need_check = true;
 
 	/*
 	 * If the system crashed already then all bets are off,
@@ -195,10 +198,13 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 				goto unlock;
 			last_break = jiffies;
 		}
-		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
-		if (t->state == TASK_UNINTERRUPTIBLE)
-			check_hung_task(t, timeout);
+		trace_android_vh_check_uninterruptible_tasks(t, timeout, &need_check);
+		if (need_check)
+			/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
+			if (t->state == TASK_UNINTERRUPTIBLE)
+				check_hung_task(t, timeout);
 	}
+	trace_android_vh_check_uninterruptible_tasks_dn(NULL);
  unlock:
 	rcu_read_unlock();
 	if (hung_task_show_lock)

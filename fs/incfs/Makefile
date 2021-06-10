@@ -7,6 +7,7 @@ incrementalfs-y := \
 	integrity.o \
 	main.o \
 	pseudo_files.o \
+	sysfs.o \
 	vfs.o
 
 incrementalfs-$(CONFIG_FS_VERITY) += verity.o

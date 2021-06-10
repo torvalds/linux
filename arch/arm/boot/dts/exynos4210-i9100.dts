@@ -136,7 +136,7 @@
 			compatible = "maxim,max17042";
 
 			interrupt-parent = <&gpx2>;
-			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
 			pinctrl-0 = <&max17042_fuel_irq>;
 			pinctrl-names = "default";

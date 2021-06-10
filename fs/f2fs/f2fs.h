@@ -97,6 +97,7 @@ extern const char *f2fs_fault_name[FAULT_MAX];
 #define F2FS_MOUNT_NORECOVERY		0x04000000
 #define F2FS_MOUNT_ATGC			0x08000000
 #define F2FS_MOUNT_MERGE_CHECKPOINT	0x10000000
+#define	F2FS_MOUNT_GC_MERGE		0x20000000
 
 #define F2FS_OPTION(sbi)	((sbi)->mount_opt)
 #define clear_opt(sbi, option)	(F2FS_OPTION(sbi).opt &= ~F2FS_MOUNT_##option)
@@ -637,21 +638,26 @@ enum {
 #define FADVISE_MODIFIABLE_BITS	(FADVISE_COLD_BIT | FADVISE_HOT_BIT)
 
 #define file_is_cold(inode)	is_file(inode, FADVISE_COLD_BIT)
-#define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
 #define file_set_cold(inode)	set_file(inode, FADVISE_COLD_BIT)
-#define file_lost_pino(inode)	set_file(inode, FADVISE_LOST_PINO_BIT)
 #define file_clear_cold(inode)	clear_file(inode, FADVISE_COLD_BIT)
+
+#define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
+#define file_lost_pino(inode)	set_file(inode, FADVISE_LOST_PINO_BIT)
 #define file_got_pino(inode)	clear_file(inode, FADVISE_LOST_PINO_BIT)
+
 #define file_is_encrypt(inode)	is_file(inode, FADVISE_ENCRYPT_BIT)
 #define file_set_encrypt(inode)	set_file(inode, FADVISE_ENCRYPT_BIT)
-#define file_clear_encrypt(inode) clear_file(inode, FADVISE_ENCRYPT_BIT)
+
 #define file_enc_name(inode)	is_file(inode, FADVISE_ENC_NAME_BIT)
 #define file_set_enc_name(inode) set_file(inode, FADVISE_ENC_NAME_BIT)
+
 #define file_keep_isize(inode)	is_file(inode, FADVISE_KEEP_SIZE_BIT)
 #define file_set_keep_isize(inode) set_file(inode, FADVISE_KEEP_SIZE_BIT)
+
 #define file_is_hot(inode)	is_file(inode, FADVISE_HOT_BIT)
 #define file_set_hot(inode)	set_file(inode, FADVISE_HOT_BIT)
 #define file_clear_hot(inode)	clear_file(inode, FADVISE_HOT_BIT)
+
 #define file_is_verity(inode)	is_file(inode, FADVISE_VERITY_BIT)
 #define file_set_verity(inode)	set_file(inode, FADVISE_VERITY_BIT)
 
@@ -700,6 +706,7 @@ enum {
 	FI_COMPRESS_CORRUPT,	/* indicate compressed cluster is corrupted */
 	FI_MMAP_FILE,		/* indicate file was mmapped */
 	FI_ENABLE_COMPRESS,	/* enable compression in "user" compression mode */
+	FI_COMPRESS_RELEASED,	/* compressed blocks were released */
 	FI_MAX,			/* max flag, never be used */
 };
 
@@ -860,7 +867,7 @@ struct f2fs_nm_info {
 	/* NAT cache management */
 	struct radix_tree_root nat_root;/* root of the nat entry cache */
 	struct radix_tree_root nat_set_root;/* root of the nat set cache */
-	struct rw_semaphore nat_tree_lock;	/* protect nat_tree_lock */
+	struct rw_semaphore nat_tree_lock;	/* protect nat entry tree */
 	struct list_head nat_entries;	/* cached nat entry list (clean) */
 	spinlock_t nat_list_lock;	/* protect clean nat entry list */
 	unsigned int nat_cnt[MAX_NAT_STATE]; /* the # of cached nat entries */
@@ -1285,25 +1292,85 @@ enum {
 				 */
 };
 
+static inline int f2fs_test_bit(unsigned int nr, char *addr);
+static inline void f2fs_set_bit(unsigned int nr, char *addr);
+static inline void f2fs_clear_bit(unsigned int nr, char *addr);
+
 /*
- * this value is set in page as a private data which indicate that
- * the page is atomically written, and it is in inmem_pages list.
+ * Layout of f2fs page.private:
+ *
+ * Layout A: lowest bit should be 1
+ * | bit0 = 1 | bit1 | bit2 | ... | bit MAX | private data .... |
+ * bit 0	PAGE_PRIVATE_NOT_POINTER
+ * bit 1	PAGE_PRIVATE_ATOMIC_WRITE
+ * bit 2	PAGE_PRIVATE_DUMMY_WRITE
+ * bit 3	PAGE_PRIVATE_ONGOING_MIGRATION
+ * bit 4	PAGE_PRIVATE_INLINE_INODE
+ * bit 5	PAGE_PRIVATE_REF_RESOURCE
+ * bit 6-	f2fs private data
+ *
+ * Layout B: lowest bit should be 0
+ * page.private is a wrapped pointer.
  */
-#define ATOMIC_WRITTEN_PAGE		((unsigned long)-1)
-#define DUMMY_WRITTEN_PAGE		((unsigned long)-2)
+enum {
+	PAGE_PRIVATE_NOT_POINTER,		/* private contains non-pointer data */
+	PAGE_PRIVATE_ATOMIC_WRITE,		/* data page from atomic write path */
+	PAGE_PRIVATE_DUMMY_WRITE,		/* data page for padding aligned IO */
+	PAGE_PRIVATE_ONGOING_MIGRATION,		/* data page which is on-going migrating */
+	PAGE_PRIVATE_INLINE_INODE,		/* inode page contains inline data */
+	PAGE_PRIVATE_REF_RESOURCE,		/* dirty page has referenced resources */
+	PAGE_PRIVATE_MAX
+};
 
-#define IS_ATOMIC_WRITTEN_PAGE(page)			\
-		(page_private(page) == ATOMIC_WRITTEN_PAGE)
-#define IS_DUMMY_WRITTEN_PAGE(page)			\
-		(page_private(page) == DUMMY_WRITTEN_PAGE)
+#define PAGE_PRIVATE_GET_FUNC(name, flagname) \
+static inline bool page_private_##name(struct page *page) \
+{ \
+	return test_bit(PAGE_PRIVATE_NOT_POINTER, &page_private(page)) && \
+		test_bit(PAGE_PRIVATE_##flagname, &page_private(page)); \
+}
 
-#ifdef CONFIG_F2FS_IO_TRACE
-#define IS_IO_TRACED_PAGE(page)			\
-		(page_private(page) > 0 &&		\
-		 page_private(page) < (unsigned long)PID_MAX_LIMIT)
-#else
-#define IS_IO_TRACED_PAGE(page) (0)
-#endif
+#define PAGE_PRIVATE_SET_FUNC(name, flagname) \
+static inline void set_page_private_##name(struct page *page) \
+{ \
+	if (!PagePrivate(page)) { \
+		get_page(page); \
+		SetPagePrivate(page); \
+	} \
+	set_bit(PAGE_PRIVATE_NOT_POINTER, &page_private(page)); \
+	set_bit(PAGE_PRIVATE_##flagname, &page_private(page)); \
+}
+
+#define PAGE_PRIVATE_CLEAR_FUNC(name, flagname) \
+static inline void clear_page_private_##name(struct page *page) \
+{ \
+	clear_bit(PAGE_PRIVATE_##flagname, &page_private(page)); \
+	if (page_private(page) == 1 << PAGE_PRIVATE_NOT_POINTER) { \
+		set_page_private(page, 0); \
+		if (PagePrivate(page)) { \
+			ClearPagePrivate(page); \
+			put_page(page); \
+		}\
+	} \
+}
+
+PAGE_PRIVATE_GET_FUNC(nonpointer, NOT_POINTER);
+PAGE_PRIVATE_GET_FUNC(reference, REF_RESOURCE);
+PAGE_PRIVATE_GET_FUNC(inline, INLINE_INODE);
+PAGE_PRIVATE_GET_FUNC(gcing, ONGOING_MIGRATION);
+PAGE_PRIVATE_GET_FUNC(atomic, ATOMIC_WRITE);
+PAGE_PRIVATE_GET_FUNC(dummy, DUMMY_WRITE);
+
+PAGE_PRIVATE_SET_FUNC(reference, REF_RESOURCE);
+PAGE_PRIVATE_SET_FUNC(inline, INLINE_INODE);
+PAGE_PRIVATE_SET_FUNC(gcing, ONGOING_MIGRATION);
+PAGE_PRIVATE_SET_FUNC(atomic, ATOMIC_WRITE);
+PAGE_PRIVATE_SET_FUNC(dummy, DUMMY_WRITE);
+
+PAGE_PRIVATE_CLEAR_FUNC(reference, REF_RESOURCE);
+PAGE_PRIVATE_CLEAR_FUNC(inline, INLINE_INODE);
+PAGE_PRIVATE_CLEAR_FUNC(gcing, ONGOING_MIGRATION);
+PAGE_PRIVATE_CLEAR_FUNC(atomic, ATOMIC_WRITE);
+PAGE_PRIVATE_CLEAR_FUNC(dummy, DUMMY_WRITE);
 
 /* For compression */
 enum compress_algorithm_type {
@@ -2220,6 +2287,7 @@ static inline block_t __cp_payload(struct f2fs_sb_info *sbi)
 static inline void *__bitmap_ptr(struct f2fs_sb_info *sbi, int flag)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
+	void *tmp_ptr = &ckpt->sit_nat_version_bitmap;
 	int offset;
 
 	if (is_set_ckpt_flags(sbi, CP_LARGE_NAT_BITMAP_FLAG)) {
@@ -2229,7 +2297,7 @@ static inline void *__bitmap_ptr(struct f2fs_sb_info *sbi, int flag)
 		 * if large_nat_bitmap feature is enabled, leave checksum
 		 * protection for all nat/sit bitmaps.
 		 */
-		return &ckpt->sit_nat_version_bitmap + offset + sizeof(__le32);
+		return tmp_ptr + offset + sizeof(__le32);
 	}
 
 	if (__cp_payload(sbi) > 0) {
@@ -2240,7 +2308,7 @@ static inline void *__bitmap_ptr(struct f2fs_sb_info *sbi, int flag)
 	} else {
 		offset = (flag == NAT_BITMAP) ?
 			le32_to_cpu(ckpt->sit_ver_bitmap_bytesize) : 0;
-		return &ckpt->sit_nat_version_bitmap + offset;
+		return tmp_ptr + offset;
 	}
 }
 
@@ -2679,6 +2747,7 @@ static inline void __mark_inode_dirty_flag(struct inode *inode,
 	case FI_DATA_EXIST:
 	case FI_INLINE_DOTS:
 	case FI_PIN_FILE:
+	case FI_COMPRESS_RELEASED:
 		f2fs_mark_inode_dirty_sync(inode, true);
 	}
 }
@@ -2800,6 +2869,8 @@ static inline void get_inline_info(struct inode *inode, struct f2fs_inode *ri)
 		set_bit(FI_EXTRA_ATTR, fi->flags);
 	if (ri->i_inline & F2FS_PIN_FILE)
 		set_bit(FI_PIN_FILE, fi->flags);
+	if (ri->i_inline & F2FS_COMPRESS_RELEASED)
+		set_bit(FI_COMPRESS_RELEASED, fi->flags);
 }
 
 static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
@@ -2820,6 +2891,8 @@ static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
 		ri->i_inline |= F2FS_EXTRA_ATTR;
 	if (is_inode_flag_set(inode, FI_PIN_FILE))
 		ri->i_inline |= F2FS_PIN_FILE;
+	if (is_inode_flag_set(inode, FI_COMPRESS_RELEASED))
+		ri->i_inline |= F2FS_COMPRESS_RELEASED;
 }
 
 static inline int f2fs_has_extra_attr(struct inode *inode)
@@ -3170,20 +3243,6 @@ static inline bool __is_valid_data_blkaddr(block_t blkaddr)
 	return true;
 }
 
-static inline void f2fs_set_page_private(struct page *page,
-						unsigned long data)
-{
-	if (PagePrivate(page))
-		return;
-
-	attach_page_private(page, (void *)data);
-}
-
-static inline void f2fs_clear_page_private(struct page *page)
-{
-	detach_page_private(page);
-}
-
 /*
  * file.c
  */
@@ -3303,7 +3362,6 @@ void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname);
 /*
  * node.c
  */
-struct dnode_of_data;
 struct node_info;
 
 int f2fs_check_nid_range(struct f2fs_sb_info *sbi, nid_t nid);
@@ -3380,6 +3438,7 @@ block_t f2fs_get_unusable_blocks(struct f2fs_sb_info *sbi);
 int f2fs_disable_cp_again(struct f2fs_sb_info *sbi, block_t unusable);
 void f2fs_release_discard_addrs(struct f2fs_sb_info *sbi);
 int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra);
+bool f2fs_segment_has_free_slot(struct f2fs_sb_info *sbi, int segno);
 void f2fs_init_inmem_curseg(struct f2fs_sb_info *sbi);
 void f2fs_save_inmem_curseg(struct f2fs_sb_info *sbi);
 void f2fs_restore_inmem_curseg(struct f2fs_sb_info *sbi);
@@ -3387,7 +3446,7 @@ void f2fs_get_new_segment(struct f2fs_sb_info *sbi,
 			unsigned int *newseg, bool new_sec, int dir);
 void f2fs_allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
 					unsigned int start, unsigned int end);
-void f2fs_allocate_new_segment(struct f2fs_sb_info *sbi, int type);
+void f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type, bool force);
 void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi);
 int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range);
 bool f2fs_exist_trim_candidates(struct f2fs_sb_info *sbi,
@@ -3551,7 +3610,7 @@ void f2fs_destroy_post_read_wq(struct f2fs_sb_info *sbi);
 int f2fs_start_gc_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi);
 block_t f2fs_start_bidx_of_node(unsigned int node_ofs, struct inode *inode);
-int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background,
+int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background, bool force,
 			unsigned int segno);
 void f2fs_build_gc_manager(struct f2fs_sb_info *sbi);
 int f2fs_resize_fs(struct f2fs_sb_info *sbi, __u64 block_count);
@@ -3563,6 +3622,8 @@ void f2fs_destroy_garbage_collection_cache(void);
  */
 int f2fs_recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only);
 bool f2fs_space_for_roll_forward(struct f2fs_sb_info *sbi);
+int __init f2fs_create_recovery_cache(void);
+void f2fs_destroy_recovery_cache(void);
 
 /*
  * debug.c
@@ -3953,7 +4014,7 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc);
 void f2fs_decompress_end_io(struct decompress_io_ctx *dic, bool failed);
 void f2fs_put_page_dic(struct page *page);
 int f2fs_init_compress_ctx(struct compress_ctx *cc);
-void f2fs_destroy_compress_ctx(struct compress_ctx *cc);
+void f2fs_destroy_compress_ctx(struct compress_ctx *cc, bool reuse);
 void f2fs_init_compress_info(struct f2fs_sb_info *sbi);
 int f2fs_init_page_array_cache(struct f2fs_sb_info *sbi);
 void f2fs_destroy_page_array_cache(struct f2fs_sb_info *sbi);
@@ -4198,8 +4259,7 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 		if (F2FS_IO_ALIGNED(sbi))
 			return true;
 	}
-	if (is_sbi_flag_set(F2FS_I_SB(inode), SBI_CP_DISABLED) &&
-					!IS_SWAPFILE(inode))
+	if (is_sbi_flag_set(F2FS_I_SB(inode), SBI_CP_DISABLED))
 		return true;
 
 	return false;

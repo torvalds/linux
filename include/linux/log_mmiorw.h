@@ -13,9 +13,9 @@
  * TODO - io.h is included in NVHE files and these tracepoints are getting
  * enabled for NVHE too. To avoid these tracepoints enabling in NHVE below
  * condition is introduced.
- * !(defined(__KVM_NVHE_HYPERVISOR__))
+ * !(defined(__DISABLE_TRACE_MMIO__))
  */
-#if IS_ENABLED(CONFIG_TRACE_MMIO_ACCESS) && !(defined(__KVM_NVHE_HYPERVISOR__))
+#if IS_ENABLED(CONFIG_TRACE_MMIO_ACCESS) && !(defined(__DISABLE_TRACE_MMIO__))
 DECLARE_TRACEPOINT(rwmmio_write);
 DECLARE_TRACEPOINT(rwmmio_read);
 DECLARE_TRACEPOINT(rwmmio_post_read);

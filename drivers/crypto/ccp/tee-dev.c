@@ -36,6 +36,7 @@ static int tee_alloc_ring(struct psp_tee_device *tee, int ring_size)
 	if (!start_addr)
 		return -ENOMEM;
 
+	memset(start_addr, 0x0, ring_size);
 	rb_mgr->ring_start = start_addr;
 	rb_mgr->ring_size = ring_size;
 	rb_mgr->ring_pa = __psp_pa(start_addr);
@@ -244,47 +245,63 @@ static int tee_submit_cmd(struct psp_tee_device *tee, enum tee_cmd_id cmd_id,
 			  void *buf, size_t len, struct tee_ring_cmd **resp)
 {
 	struct tee_ring_cmd *cmd;
-	u32 rptr, wptr;
 	int nloop = 1000, ret = 0;
+	u32 rptr;
 
 	*resp = NULL;
 
 	mutex_lock(&tee->rb_mgr.mutex);
 
-	wptr = tee->rb_mgr.wptr;
-
-	/* Check if ring buffer is full */
+	/* Loop until empty entry found in ring buffer */
 	do {
+		/* Get pointer to ring buffer command entry */
+		cmd = (struct tee_ring_cmd *)
+			(tee->rb_mgr.ring_start + tee->rb_mgr.wptr);
+
 		rptr = ioread32(tee->io_regs + tee->vdata->ring_rptr_reg);
 
-		if (!(wptr + sizeof(struct tee_ring_cmd) == rptr))
+		/* Check if ring buffer is full or command entry is waiting
+		 * for response from TEE
+		 */
+		if (!(tee->rb_mgr.wptr + sizeof(struct tee_ring_cmd) == rptr ||
+		      cmd->flag == CMD_WAITING_FOR_RESPONSE))
 			break;
 
-		dev_info(tee->dev, "tee: ring buffer full. rptr = %u wptr = %u\n",
-			 rptr, wptr);
+		dev_dbg(tee->dev, "tee: ring buffer full. rptr = %u wptr = %u\n",
+			rptr, tee->rb_mgr.wptr);
 
-		/* Wait if ring buffer is full */
+		/* Wait if ring buffer is full or TEE is processing data */
 		mutex_unlock(&tee->rb_mgr.mutex);
 		schedule_timeout_interruptible(msecs_to_jiffies(10));
 		mutex_lock(&tee->rb_mgr.mutex);
 
 	} while (--nloop);
 
-	if (!nloop && (wptr + sizeof(struct tee_ring_cmd) == rptr)) {
-		dev_err(tee->dev, "tee: ring buffer full. rptr = %u wptr = %u\n",
-			rptr, wptr);
+	if (!nloop &&
+	    (tee->rb_mgr.wptr + sizeof(struct tee_ring_cmd) == rptr ||
+	     cmd->flag == CMD_WAITING_FOR_RESPONSE)) {
+		dev_err(tee->dev, "tee: ring buffer full. rptr = %u wptr = %u response flag %u\n",
+			rptr, tee->rb_mgr.wptr, cmd->flag);
 		ret = -EBUSY;
 		goto unlock;
 	}
 
-	/* Pointer to empty data entry in ring buffer */
-	cmd = (struct tee_ring_cmd *)(tee->rb_mgr.ring_start + wptr);
+	/* Do not submit command if PSP got disabled while processing any
+	 * command in another thread
+	 */
+	if (psp_dead) {
+		ret = -EBUSY;
+		goto unlock;
+	}
 
 	/* Write command data into ring buffer */
 	cmd->cmd_id = cmd_id;
 	cmd->cmd_state = TEE_CMD_STATE_INIT;
 	memset(&cmd->buf[0], 0, sizeof(cmd->buf));
 	memcpy(&cmd->buf[0], buf, len);
+
+	/* Indicate driver is waiting for response */
+	cmd->flag = CMD_WAITING_FOR_RESPONSE;
 
 	/* Update local copy of write pointer */
 	tee->rb_mgr.wptr += sizeof(struct tee_ring_cmd);
@@ -353,11 +370,15 @@ int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
 		return ret;
 
 	ret = tee_wait_cmd_completion(tee, resp, TEE_DEFAULT_TIMEOUT);
-	if (ret)
+	if (ret) {
+		resp->flag = CMD_RESPONSE_TIMEDOUT;
 		return ret;
+	}
 
 	memcpy(buf, &resp->buf[0], len);
 	*status = resp->status;
+
+	resp->flag = CMD_RESPONSE_COPIED;
 
 	return 0;
 }

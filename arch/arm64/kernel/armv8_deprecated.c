@@ -277,7 +277,7 @@ static void __init register_insn_emulation_sysctl(void)
 
 #define __user_swpX_asm(data, addr, res, temp, temp2, B)	\
 do {								\
-	uaccess_enable();					\
+	uaccess_enable_privileged();				\
 	__asm__ __volatile__(					\
 	"	mov		%w3, %w7\n"			\
 	"0:	ldxr"B"		%w2, [%4]\n"			\
@@ -302,7 +302,7 @@ do {								\
 	  "i" (-EFAULT),					\
 	  "i" (__SWP_LL_SC_LOOPS)				\
 	: "memory");						\
-	uaccess_disable();					\
+	uaccess_disable_privileged();				\
 } while (0)
 
 #define __user_swp_asm(data, addr, res, temp, temp2) \

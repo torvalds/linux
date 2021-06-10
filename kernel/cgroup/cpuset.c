@@ -67,6 +67,7 @@
 #include <linux/wait.h>
 
 #include <trace/hooks/sched.h>
+#include <trace/hooks/cgroup.h>
 
 DEFINE_STATIC_KEY_FALSE(cpusets_pre_enable_key);
 DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
@@ -377,11 +378,14 @@ static inline bool is_in_v2_mode(void)
 static void guarantee_online_cpus(struct task_struct *tsk,
 				  struct cpumask *pmask)
 {
-	struct cpuset *cs = task_cs(tsk);
 	const struct cpumask *possible_mask = task_cpu_possible_mask(tsk);
+	struct cpuset *cs;
 
 	if (WARN_ON(!cpumask_and(pmask, possible_mask, cpu_active_mask)))
 		cpumask_copy(pmask, cpu_active_mask);
+
+	rcu_read_lock();
+	cs = task_cs(tsk);
 
 	while (!cpumask_intersects(cs->effective_cpus, pmask)) {
 		cs = parent_cs(cs);
@@ -393,10 +397,13 @@ static void guarantee_online_cpus(struct task_struct *tsk,
 			 * cpuset's effective_cpus is on its way to be
 			 * identical to cpu_online_mask.
 			 */
-			return;
+			goto out_unlock;
 		}
 	}
 	cpumask_and(pmask, pmask, cs->effective_cpus);
+
+out_unlock:
+	rcu_read_unlock();
 }
 
 /*
@@ -2902,10 +2909,13 @@ static void cpuset_bind(struct cgroup_subsys_state *root_css)
  */
 static void cpuset_fork(struct task_struct *task)
 {
+	int inherit_cpus = 0;
 	if (task_css_is_root(task, cpuset_cgrp_id))
 		return;
 
-	set_cpus_allowed_ptr(task, current->cpus_ptr);
+	trace_android_rvh_cpuset_fork(task, &inherit_cpus);
+	if (!inherit_cpus)
+		set_cpus_allowed_ptr(task, current->cpus_ptr);
 	task->mems_allowed = current->mems_allowed;
 }
 

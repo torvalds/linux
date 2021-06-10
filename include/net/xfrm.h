@@ -1557,7 +1557,7 @@ int xfrm_trans_queue_net(struct net *net, struct sk_buff *skb,
 int xfrm_trans_queue(struct sk_buff *skb,
 		     int (*finish)(struct net *, struct sock *,
 				   struct sk_buff *));
-int xfrm_output_resume(struct sock *sk, struct sk_buff *skb, int err);
+int xfrm_output_resume(struct sk_buff *skb, int err);
 int xfrm_output(struct sock *sk, struct sk_buff *skb);
 
 int pktgen_xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb);

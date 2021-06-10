@@ -107,23 +107,17 @@
 	 */
 	.text
 SYM_FUNC_START(sha512_ce_transform)
-	frame_push	3
-
-	mov		x19, x0
-	mov		x20, x1
-	mov		x21, x2
-
 	/* load state */
-0:	ld1		{v8.2d-v11.2d}, [x19]
+	ld1		{v8.2d-v11.2d}, [x0]
 
 	/* load first 4 round constants */
 	adr_l		x3, .Lsha512_rcon
 	ld1		{v20.2d-v23.2d}, [x3], #64
 
 	/* load input */
-1:	ld1		{v12.2d-v15.2d}, [x20], #64
-	ld1		{v16.2d-v19.2d}, [x20], #64
-	sub		w21, w21, #1
+0:	ld1		{v12.2d-v15.2d}, [x1], #64
+	ld1		{v16.2d-v19.2d}, [x1], #64
+	sub		w2, w2, #1
 
 CPU_LE(	rev64		v12.16b, v12.16b	)
 CPU_LE(	rev64		v13.16b, v13.16b	)
@@ -201,19 +195,12 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 	add		v10.2d, v10.2d, v2.2d
 	add		v11.2d, v11.2d, v3.2d
 
+	cond_yield	3f, x4, x5
 	/* handled all input blocks? */
-	cbz		w21, 3f
-
-	if_will_cond_yield_neon
-	st1		{v8.2d-v11.2d}, [x19]
-	do_cond_yield_neon
-	b		0b
-	endif_yield_neon
-
-	b		1b
+	cbnz		w2, 0b
 
 	/* store new state */
-3:	st1		{v8.2d-v11.2d}, [x19]
-	frame_pop
+3:	st1		{v8.2d-v11.2d}, [x0]
+	mov		w0, w2
 	ret
 SYM_FUNC_END(sha512_ce_transform)

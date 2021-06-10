@@ -156,7 +156,7 @@ xbc_node_find_child(struct xbc_node *parent, const char *key)
 	struct xbc_node *node;
 
 	if (parent)
-		node = xbc_node_get_child(parent);
+		node = xbc_node_get_subkey(parent);
 	else
 		node = xbc_root_node();
 
@@ -164,7 +164,7 @@ xbc_node_find_child(struct xbc_node *parent, const char *key)
 		if (!xbc_node_match_prefix(node, &key))
 			node = xbc_node_get_next(node);
 		else if (*key != '\0')
-			node = xbc_node_get_child(node);
+			node = xbc_node_get_subkey(node);
 		else
 			break;
 	}
@@ -274,6 +274,8 @@ int __init xbc_node_compose_key_after(struct xbc_node *root,
 struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
 						 struct xbc_node *node)
 {
+	struct xbc_node *next;
+
 	if (unlikely(!xbc_data))
 		return NULL;
 
@@ -282,6 +284,13 @@ struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
 		if (!node)
 			node = xbc_nodes;
 	} else {
+		/* Leaf node may have a subkey */
+		next = xbc_node_get_subkey(node);
+		if (next) {
+			node = next;
+			goto found;
+		}
+
 		if (node == root)	/* @root was a leaf, no child node. */
 			return NULL;
 
@@ -296,6 +305,7 @@ struct xbc_node * __init xbc_node_find_next_leaf(struct xbc_node *root,
 		node = xbc_node_get_next(node);
 	}
 
+found:
 	while (node && !xbc_node_is_leaf(node))
 		node = xbc_node_get_child(node);
 
@@ -367,18 +377,28 @@ static inline __init struct xbc_node *xbc_last_sibling(struct xbc_node *node)
 	return node;
 }
 
-static struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
+static inline __init struct xbc_node *xbc_last_child(struct xbc_node *node)
+{
+	while (node->child)
+		node = xbc_node_get_child(node);
+
+	return node;
+}
+
+static struct xbc_node * __init __xbc_add_sibling(char *data, u32 flag, bool head)
 {
 	struct xbc_node *sib, *node = xbc_add_node(data, flag);
 
 	if (node) {
 		if (!last_parent) {
+			/* Ignore @head in this case */
 			node->parent = XBC_NODE_MAX;
 			sib = xbc_last_sibling(xbc_nodes);
 			sib->next = xbc_node_index(node);
 		} else {
 			node->parent = xbc_node_index(last_parent);
-			if (!last_parent->child) {
+			if (!last_parent->child || head) {
+				node->next = last_parent->child;
 				last_parent->child = xbc_node_index(node);
 			} else {
 				sib = xbc_node_get_child(last_parent);
@@ -390,6 +410,16 @@ static struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
 		xbc_parse_error("Too many nodes", data);
 
 	return node;
+}
+
+static inline struct xbc_node * __init xbc_add_sibling(char *data, u32 flag)
+{
+	return __xbc_add_sibling(data, flag, false);
+}
+
+static inline struct xbc_node * __init xbc_add_head_sibling(char *data, u32 flag)
+{
+	return __xbc_add_sibling(data, flag, true);
 }
 
 static inline __init struct xbc_node *xbc_add_child(char *data, u32 flag)
@@ -517,17 +547,20 @@ static int __init xbc_parse_array(char **__v)
 	char *next;
 	int c = 0;
 
+	if (last_parent->child)
+		last_parent = xbc_node_get_child(last_parent);
+
 	do {
 		c = __xbc_parse_value(__v, &next);
 		if (c < 0)
 			return c;
 
-		node = xbc_add_sibling(*__v, XBC_VALUE);
+		node = xbc_add_child(*__v, XBC_VALUE);
 		if (!node)
 			return -ENOMEM;
 		*__v = next;
 	} while (c == ',');
-	node->next = 0;
+	node->child = 0;
 
 	return c;
 }
@@ -557,8 +590,9 @@ static int __init __xbc_add_key(char *k)
 		node = find_match_node(xbc_nodes, k);
 	else {
 		child = xbc_node_get_child(last_parent);
+		/* Since the value node is the first child, skip it. */
 		if (child && xbc_node_is_value(child))
-			return xbc_parse_error("Subkey is mixed with value", k);
+			child = xbc_node_get_next(child);
 		node = find_match_node(child, k);
 	}
 
@@ -601,23 +635,29 @@ static int __init xbc_parse_kv(char **k, char *v, int op)
 	if (ret)
 		return ret;
 
-	child = xbc_node_get_child(last_parent);
-	if (child) {
-		if (xbc_node_is_key(child))
-			return xbc_parse_error("Value is mixed with subkey", v);
-		else if (op == '=')
-			return xbc_parse_error("Value is redefined", v);
-	}
-
 	c = __xbc_parse_value(&v, &next);
 	if (c < 0)
 		return c;
 
-	if (op == ':' && child) {
-		xbc_init_node(child, v, XBC_VALUE);
-	} else if (!xbc_add_sibling(v, XBC_VALUE))
+	child = xbc_node_get_child(last_parent);
+	if (child && xbc_node_is_value(child)) {
+		if (op == '=')
+			return xbc_parse_error("Value is redefined", v);
+		if (op == ':') {
+			unsigned short nidx = child->next;
+
+			xbc_init_node(child, v, XBC_VALUE);
+			child->next = nidx;	/* keep subkeys */
+			goto array;
+		}
+		/* op must be '+' */
+		last_parent = xbc_last_child(child);
+	}
+	/* The value node should always be the first child */
+	if (!xbc_add_head_sibling(v, XBC_VALUE))
 		return -ENOMEM;
 
+array:
 	if (c == ',') {	/* Array */
 		c = xbc_parse_array(&next);
 		if (c < 0)

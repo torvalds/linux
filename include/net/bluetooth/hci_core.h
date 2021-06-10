@@ -669,6 +669,7 @@ struct hci_chan {
 	struct sk_buff_head data_q;
 	unsigned int	sent;
 	__u8		state;
+	bool		amp;
 };
 
 struct hci_conn_params {

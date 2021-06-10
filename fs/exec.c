@@ -73,6 +73,9 @@
 #include "internal.h"
 
 #include <trace/events/sched.h>
+#include <trace/hooks/sched.h>
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(task_rename);
 
 static int bprm_creds_from_file(struct linux_binprm *bprm);
 
@@ -232,7 +235,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 static void put_arg_page(struct page *page)
 {
-	put_page(page);
+	put_user_page(page);
 }
 
 static void free_arg_pages(struct linux_binprm *bprm)
@@ -1227,6 +1230,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
 	task_unlock(tsk);
 	perf_event_comm(tsk, exec);
+	trace_android_vh_set_task_comm(tsk);
 }
 
 /*

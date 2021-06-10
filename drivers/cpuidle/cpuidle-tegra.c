@@ -135,13 +135,13 @@ static int tegra_cpuidle_c7_enter(void)
 {
 	int err;
 
-	if (tegra_cpuidle_using_firmware()) {
-		err = call_firmware_op(prepare_idle, TF_PM_MODE_LP2_NOFLUSH_L2);
-		if (err)
-			return err;
+	err = call_firmware_op(prepare_idle, TF_PM_MODE_LP2_NOFLUSH_L2);
+	if (err && err != -ENOSYS)
+		return err;
 
-		return call_firmware_op(do_idle, 0);
-	}
+	err = call_firmware_op(do_idle, 0);
+	if (err != -ENOSYS)
+		return err;
 
 	return cpu_suspend(0, tegra30_pm_secondary_cpu_suspend);
 }

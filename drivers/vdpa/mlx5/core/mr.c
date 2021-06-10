@@ -273,8 +273,10 @@ done:
 	mr->log_size = log_entity_size;
 	mr->nsg = nsg;
 	mr->nent = dma_map_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
-	if (!mr->nent)
+	if (!mr->nent) {
+		err = -ENOMEM;
 		goto err_map;
+	}
 
 	err = create_direct_mr(mvdev, mr);
 	if (err)

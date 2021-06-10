@@ -223,5 +223,6 @@ void zcrypt_queue_unregister(struct zcrypt_queue *zq)
 	sysfs_remove_group(&zq->queue->ap_dev.device.kobj,
 			   &zcrypt_queue_attr_group);
 	zcrypt_card_put(zc);
+	zcrypt_queue_put(zq);
 }
 EXPORT_SYMBOL(zcrypt_queue_unregister);

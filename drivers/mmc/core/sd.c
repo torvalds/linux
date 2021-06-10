@@ -18,6 +18,8 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 
+#include <trace/hooks/mmc_core.h>
+
 #include "core.h"
 #include "card.h"
 #include "host.h"
@@ -135,6 +137,9 @@ static int mmc_decode_csd(struct mmc_card *card)
 			csd->erase_size = UNSTUFF_BITS(resp, 39, 7) + 1;
 			csd->erase_size <<= csd->write_blkbits - 9;
 		}
+
+		if (UNSTUFF_BITS(resp, 13, 1))
+			mmc_card_set_readonly(card);
 		break;
 	case 1:
 		/*
@@ -169,6 +174,9 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->write_blkbits = 9;
 		csd->write_partial = 0;
 		csd->erase_size = 1;
+
+		if (UNSTUFF_BITS(resp, 13, 1))
+			mmc_card_set_readonly(card);
 		break;
 	default:
 		pr_err("%s: unrecognised CSD structure version %d\n",
@@ -456,6 +464,8 @@ static void sd_update_bus_speed_mode(struct mmc_card *card)
 		    SD_MODE_UHS_SDR12)) {
 			card->sd_bus_speed = UHS_SDR12_BUS_SPEED;
 	}
+
+	trace_android_vh_sd_update_bus_speed_mode(card);
 }
 
 static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
@@ -1396,6 +1406,8 @@ err:
 
 	pr_err("%s: error %d whilst initialising SD card\n",
 		mmc_hostname(host), err);
+
+	trace_android_vh_mmc_attach_sd(host, ocr, err);
 
 	return err;
 }

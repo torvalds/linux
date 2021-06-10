@@ -188,7 +188,7 @@ static const char * const dra7_sr_instances[] = {
 
 int __init omap_devinit_smartreflex(void)
 {
-	const char * const *sr_inst;
+	const char * const *sr_inst = NULL;
 	int i, nr_sr = 0;
 
 	if (soc_is_omap44xx()) {

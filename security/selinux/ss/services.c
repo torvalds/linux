@@ -66,6 +66,8 @@
 #include "audit.h"
 #include "policycap_names.h"
 
+#include <trace/hooks/selinux.h>
+
 struct convert_context_args {
 	struct selinux_state *state;
 	struct policydb *oldp;
@@ -2253,6 +2255,7 @@ void selinux_policy_commit(struct selinux_state *state,
 		 */
 		selinux_mark_initialized(state);
 		selinux_complete_init();
+		trace_android_vh_selinux_is_initialized(state);
 	}
 
 	/* Free the old policy */

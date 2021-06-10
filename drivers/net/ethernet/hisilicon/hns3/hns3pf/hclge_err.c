@@ -753,8 +753,9 @@ static int hclge_config_igu_egu_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure IGU,EGU error interrupts */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_IGU_COMMON_INT_EN, false);
+	desc.data[0] = cpu_to_le32(HCLGE_IGU_ERR_INT_TYPE);
 	if (en)
-		desc.data[0] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN);
+		desc.data[0] |= cpu_to_le32(HCLGE_IGU_ERR_INT_EN);
 
 	desc.data[1] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN_MASK);
 

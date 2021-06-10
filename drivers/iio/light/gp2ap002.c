@@ -583,7 +583,7 @@ static int gp2ap002_probe(struct i2c_client *client,
 					"gp2ap002", indio_dev);
 	if (ret) {
 		dev_err(dev, "unable to request IRQ\n");
-		goto out_disable_vio;
+		goto out_put_pm;
 	}
 	gp2ap002->irq = client->irq;
 
@@ -613,8 +613,9 @@ static int gp2ap002_probe(struct i2c_client *client,
 
 	return 0;
 
-out_disable_pm:
+out_put_pm:
 	pm_runtime_put_noidle(dev);
+out_disable_pm:
 	pm_runtime_disable(dev);
 out_disable_vio:
 	regulator_disable(gp2ap002->vio);

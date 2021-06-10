@@ -260,7 +260,15 @@ kallsyms()
 	fi
 
 	info KSYMS ${2}
-	${NM} -n ${1} | scripts/kallsyms ${kallsymopt} > ${2}
+
+	if [ -n "${CONFIG_CFI_CLANG}" ]; then
+		${PERL} ${srctree}/scripts/generate_cfi_kallsyms.pl ${1} | \
+			sort -n > .tmp_kallsyms
+	else
+		${NM} -n ${1} > .tmp_kallsyms
+	fi
+
+	scripts/kallsyms ${kallsymopt} < .tmp_kallsyms > ${2}
 }
 
 # Perform one step in kallsyms generation, including temporary linking of
@@ -298,6 +306,7 @@ cleanup()
 {
 	rm -f .btf.*
 	rm -f .tmp_System.map
+	rm -f .tmp_kallsyms
 	rm -f .tmp_initcalls.lds
 	rm -f .tmp_symversions.lds
 	rm -f .tmp_vmlinux*

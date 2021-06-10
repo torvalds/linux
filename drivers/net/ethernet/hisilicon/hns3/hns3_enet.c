@@ -526,8 +526,8 @@ static int hns3_nic_net_stop(struct net_device *netdev)
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, false);
 
-	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
 
 	hns3_nic_net_down(netdev);
 
@@ -778,7 +778,7 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
  * and it is udp packet, which has a dest port as the IANA assigned.
  * the hardware is expected to do the checksum offload, but the
  * hardware will not do the checksum offload when udp dest port is
- * 4789 or 6081.
+ * 4789, 4790 or 6081.
  */
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
@@ -788,10 +788,9 @@ static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 
 	if (!(!skb->encapsulation &&
 	      (l4.udp->dest == htons(IANA_VXLAN_UDP_PORT) ||
-	      l4.udp->dest == htons(GENEVE_UDP_PORT))))
+	      l4.udp->dest == htons(GENEVE_UDP_PORT) ||
+	      l4.udp->dest == htons(4790))))
 		return false;
-
-	skb_checksum_help(skb);
 
 	return true;
 }
@@ -870,8 +869,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			/* the stack computes the IP header already,
 			 * driver calculate l4 checksum when not TSO.
 			 */
-			skb_checksum_help(skb);
-			return 0;
+			return skb_checksum_help(skb);
 		}
 
 		hns3_set_outer_l2l3l4(skb, ol4_proto, ol_type_vlan_len_msec);
@@ -916,7 +914,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 		break;
 	case IPPROTO_UDP:
 		if (hns3_tunnel_csum_bug(skb))
-			break;
+			return skb_checksum_help(skb);
 
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4T_S,
@@ -941,8 +939,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 		/* the stack computes the IP header already,
 		 * driver calculate l4 checksum when not TSO.
 		 */
-		skb_checksum_help(skb);
-		return 0;
+		return skb_checksum_help(skb);
 	}
 
 	return 0;
@@ -1192,23 +1189,21 @@ static unsigned int hns3_skb_bd_num(struct sk_buff *skb, unsigned int *bd_size,
 }
 
 static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size,
-				   u8 max_non_tso_bd_num)
+				   u8 max_non_tso_bd_num, unsigned int bd_num,
+				   unsigned int recursion_level)
 {
+#define HNS3_MAX_RECURSION_LEVEL	24
+
 	struct sk_buff *frag_skb;
-	unsigned int bd_num = 0;
 
 	/* If the total len is within the max bd limit */
-	if (likely(skb->len <= HNS3_MAX_BD_SIZE && !skb_has_frag_list(skb) &&
+	if (likely(skb->len <= HNS3_MAX_BD_SIZE && !recursion_level &&
+		   !skb_has_frag_list(skb) &&
 		   skb_shinfo(skb)->nr_frags < max_non_tso_bd_num))
 		return skb_shinfo(skb)->nr_frags + 1U;
 
-	/* The below case will always be linearized, return
-	 * HNS3_MAX_BD_NUM_TSO + 1U to make sure it is linearized.
-	 */
-	if (unlikely(skb->len > HNS3_MAX_TSO_SIZE ||
-		     (!skb_is_gso(skb) && skb->len >
-		      HNS3_MAX_NON_TSO_SIZE(max_non_tso_bd_num))))
-		return HNS3_MAX_TSO_BD_NUM + 1U;
+	if (unlikely(recursion_level >= HNS3_MAX_RECURSION_LEVEL))
+		return UINT_MAX;
 
 	bd_num = hns3_skb_bd_num(skb, bd_size, bd_num);
 
@@ -1216,7 +1211,8 @@ static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size,
 		return bd_num;
 
 	skb_walk_frags(skb, frag_skb) {
-		bd_num = hns3_skb_bd_num(frag_skb, bd_size, bd_num);
+		bd_num = hns3_tx_bd_num(frag_skb, bd_size, max_non_tso_bd_num,
+					bd_num, recursion_level + 1);
 		if (bd_num > HNS3_MAX_TSO_BD_NUM)
 			return bd_num;
 	}
@@ -1276,6 +1272,43 @@ void hns3_shinfo_pack(struct skb_shared_info *shinfo, __u32 *size)
 		size[i] = skb_frag_size(&shinfo->frags[i]);
 }
 
+static int hns3_skb_linearize(struct hns3_enet_ring *ring,
+			      struct sk_buff *skb,
+			      u8 max_non_tso_bd_num,
+			      unsigned int bd_num)
+{
+	/* 'bd_num == UINT_MAX' means the skb' fraglist has a
+	 * recursion level of over HNS3_MAX_RECURSION_LEVEL.
+	 */
+	if (bd_num == UINT_MAX) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.over_max_recursion++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	/* The skb->len has exceeded the hw limitation, linearization
+	 * will not help.
+	 */
+	if (skb->len > HNS3_MAX_TSO_SIZE ||
+	    (!skb_is_gso(skb) && skb->len >
+	     HNS3_MAX_NON_TSO_SIZE(max_non_tso_bd_num))) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.hw_limitation++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	if (__skb_linearize(skb)) {
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.sw_err_cnt++;
+		u64_stats_update_end(&ring->syncp);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 				  struct net_device *netdev,
 				  struct sk_buff *skb)
@@ -1285,7 +1318,7 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 	unsigned int bd_size[HNS3_MAX_TSO_BD_NUM + 1U];
 	unsigned int bd_num;
 
-	bd_num = hns3_tx_bd_num(skb, bd_size, max_non_tso_bd_num);
+	bd_num = hns3_tx_bd_num(skb, bd_size, max_non_tso_bd_num, 0, 0);
 	if (unlikely(bd_num > max_non_tso_bd_num)) {
 		if (bd_num <= HNS3_MAX_TSO_BD_NUM && skb_is_gso(skb) &&
 		    !hns3_skb_need_linearized(skb, bd_size, bd_num,
@@ -1294,16 +1327,11 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 			goto out;
 		}
 
-		if (__skb_linearize(skb))
+		if (hns3_skb_linearize(ring, skb, max_non_tso_bd_num,
+				       bd_num))
 			return -ENOMEM;
 
 		bd_num = hns3_tx_bd_count(skb->len);
-		if ((skb_is_gso(skb) && bd_num > HNS3_MAX_TSO_BD_NUM) ||
-		    (!skb_is_gso(skb) &&
-		     bd_num > max_non_tso_bd_num)) {
-			trace_hns3_over_max_bd(skb);
-			return -ENOMEM;
-		}
 
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.tx_copy++;
@@ -1326,6 +1354,10 @@ out:
 		netif_start_subqueue(netdev, ring->queue_index);
 		return bd_num;
 	}
+
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.tx_busy++;
+	u64_stats_update_end(&ring->syncp);
 
 	return -EBUSY;
 }
@@ -1374,6 +1406,7 @@ static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
 				 struct sk_buff *skb, enum hns_desc_type type)
 {
 	unsigned int size = skb_headlen(skb);
+	struct sk_buff *frag_skb;
 	int i, ret, bd_num = 0;
 
 	if (size) {
@@ -1392,6 +1425,15 @@ static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
 			continue;
 
 		ret = hns3_fill_desc(ring, frag, size, DESC_TYPE_PAGE);
+		if (unlikely(ret < 0))
+			return ret;
+
+		bd_num += ret;
+	}
+
+	skb_walk_frags(skb, frag_skb) {
+		ret = hns3_fill_skb_to_desc(ring, frag_skb,
+					    DESC_TYPE_FRAGLIST_SKB);
 		if (unlikely(ret < 0))
 			return ret;
 
@@ -1428,8 +1470,6 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct hns3_enet_ring *ring = &priv->ring[skb->queue_mapping];
 	struct netdev_queue *dev_queue;
 	int pre_ntu, next_to_use_head;
-	struct sk_buff *frag_skb;
-	int bd_num = 0;
 	bool doorbell;
 	int ret;
 
@@ -1445,15 +1485,8 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = hns3_nic_maybe_stop_tx(ring, netdev, skb);
 	if (unlikely(ret <= 0)) {
 		if (ret == -EBUSY) {
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.tx_busy++;
-			u64_stats_update_end(&ring->syncp);
 			hns3_tx_doorbell(ring, 0, true);
 			return NETDEV_TX_BUSY;
-		} else if (ret == -ENOMEM) {
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.sw_err_cnt++;
-			u64_stats_update_end(&ring->syncp);
 		}
 
 		hns3_rl_err(netdev, "xmit error: %d!\n", ret);
@@ -1466,20 +1499,13 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(ret < 0))
 		goto fill_err;
 
+	/* 'ret < 0' means filling error, 'ret == 0' means skb->len is
+	 * zero, which is unlikely, and 'ret > 0' means how many tx desc
+	 * need to be notified to the hw.
+	 */
 	ret = hns3_fill_skb_to_desc(ring, skb, DESC_TYPE_SKB);
-	if (unlikely(ret < 0))
+	if (unlikely(ret <= 0))
 		goto fill_err;
-
-	bd_num += ret;
-
-	skb_walk_frags(skb, frag_skb) {
-		ret = hns3_fill_skb_to_desc(ring, frag_skb,
-					    DESC_TYPE_FRAGLIST_SKB);
-		if (unlikely(ret < 0))
-			goto fill_err;
-
-		bd_num += ret;
-	}
 
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
@@ -1491,7 +1517,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	dev_queue = netdev_get_tx_queue(netdev, ring->queue_index);
 	doorbell = __netdev_tx_sent_queue(dev_queue, skb->len,
 					  netdev_xmit_more());
-	hns3_tx_doorbell(ring, bd_num, doorbell);
+	hns3_tx_doorbell(ring, ret, doorbell);
 
 	return NETDEV_TX_OK;
 
@@ -1656,11 +1682,15 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			tx_drop += ring->stats.tx_l4_proto_err;
 			tx_drop += ring->stats.tx_l2l3l4_err;
 			tx_drop += ring->stats.tx_tso_err;
+			tx_drop += ring->stats.over_max_recursion;
+			tx_drop += ring->stats.hw_limitation;
 			tx_errors += ring->stats.sw_err_cnt;
 			tx_errors += ring->stats.tx_vlan_err;
 			tx_errors += ring->stats.tx_l4_proto_err;
 			tx_errors += ring->stats.tx_l2l3l4_err;
 			tx_errors += ring->stats.tx_tso_err;
+			tx_errors += ring->stats.over_max_recursion;
+			tx_errors += ring->stats.hw_limitation;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
@@ -3526,7 +3556,6 @@ static void hns3_nic_set_cpumask(struct hns3_nic_priv *priv)
 
 static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 {
-	struct hnae3_ring_chain_node vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int ret;
@@ -3558,6 +3587,8 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	}
 
 	for (i = 0; i < priv->vector_num; i++) {
+		struct hnae3_ring_chain_node vector_ring_chain;
+
 		tqp_vector = &priv->tqp_vector[i];
 
 		tqp_vector->rx_group.total_bytes = 0;
@@ -4078,12 +4109,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	if (ret)
 		goto out_init_phy;
 
-	ret = register_netdev(netdev);
-	if (ret) {
-		dev_err(priv->dev, "probe register netdev fail!\n");
-		goto out_reg_netdev_fail;
-	}
-
 	/* the device can work without cpu rmap, only aRFS needs it */
 	ret = hns3_set_rx_cpu_rmap(netdev);
 	if (ret)
@@ -4111,17 +4136,23 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
+	ret = register_netdev(netdev);
+	if (ret) {
+		dev_err(priv->dev, "probe register netdev fail!\n");
+		goto out_reg_netdev_fail;
+	}
+
 	if (netif_msg_drv(handle))
 		hns3_info_show(priv);
 
 	return ret;
 
+out_reg_netdev_fail:
+	hns3_dbg_uninit(handle);
 out_client_start:
 	hns3_free_rx_cpu_rmap(netdev);
 	hns3_nic_uninit_irq(priv);
 out_init_irq_fail:
-	unregister_netdev(netdev);
-out_reg_netdev_fail:
 	hns3_uninit_phy(netdev);
 out_init_phy:
 	hns3_uninit_all_ring(priv);
@@ -4391,6 +4422,11 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
 	int ret = 0;
+
+	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
+		netdev_err(kinfo->netdev, "device is not initialized yet\n");
+		return -EFAULT;
+	}
 
 	clear_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 

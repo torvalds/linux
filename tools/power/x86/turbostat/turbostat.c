@@ -291,13 +291,16 @@ struct msr_sum_array {
 /* The percpu MSR sum array.*/
 struct msr_sum_array *per_cpu_msr_sum;
 
-int idx_to_offset(int idx)
+off_t idx_to_offset(int idx)
 {
-	int offset;
+	off_t offset;
 
 	switch (idx) {
 	case IDX_PKG_ENERGY:
-		offset = MSR_PKG_ENERGY_STATUS;
+		if (do_rapl & RAPL_AMD_F17H)
+			offset = MSR_PKG_ENERGY_STAT;
+		else
+			offset = MSR_PKG_ENERGY_STATUS;
 		break;
 	case IDX_DRAM_ENERGY:
 		offset = MSR_DRAM_ENERGY_STATUS;
@@ -320,12 +323,13 @@ int idx_to_offset(int idx)
 	return offset;
 }
 
-int offset_to_idx(int offset)
+int offset_to_idx(off_t offset)
 {
 	int idx;
 
 	switch (offset) {
 	case MSR_PKG_ENERGY_STATUS:
+	case MSR_PKG_ENERGY_STAT:
 		idx = IDX_PKG_ENERGY;
 		break;
 	case MSR_DRAM_ENERGY_STATUS:
@@ -353,7 +357,7 @@ int idx_valid(int idx)
 {
 	switch (idx) {
 	case IDX_PKG_ENERGY:
-		return do_rapl & RAPL_PKG;
+		return do_rapl & (RAPL_PKG | RAPL_AMD_F17H);
 	case IDX_DRAM_ENERGY:
 		return do_rapl & RAPL_DRAM;
 	case IDX_PP0_ENERGY:
@@ -3245,7 +3249,7 @@ static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg
 
 	for (i = IDX_PKG_ENERGY; i < IDX_COUNT; i++) {
 		unsigned long long msr_cur, msr_last;
-		int offset;
+		off_t offset;
 
 		if (!idx_valid(i))
 			continue;
@@ -3254,7 +3258,8 @@ static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg
 			continue;
 		ret = get_msr(cpu, offset, &msr_cur);
 		if (ret) {
-			fprintf(outf, "Can not update msr(0x%x)\n", offset);
+			fprintf(outf, "Can not update msr(0x%llx)\n",
+				(unsigned long long)offset);
 			continue;
 		}
 
@@ -4790,33 +4795,12 @@ double discover_bclk(unsigned int family, unsigned int model)
  * below this value, including the Digital Thermal Sensor (DTS),
  * Package Thermal Management Sensor (PTM), and thermal event thresholds.
  */
-int read_tcc_activation_temp()
-{
-	unsigned long long msr;
-	unsigned int tcc, target_c, offset_c;
-
-	/* Temperature Target MSR is Nehalem and newer only */
-	if (!do_nhm_platform_info)
-		return 0;
-
-	if (get_msr(base_cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
-		return 0;
-
-	target_c = (msr >> 16) & 0xFF;
-
-	offset_c = (msr >> 24) & 0xF;
-
-	tcc = target_c - offset_c;
-
-	if (!quiet)
-		fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n",
-			base_cpu, msr, tcc, target_c, offset_c);
-
-	return tcc;
-}
-
 int set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
+	unsigned long long msr;
+	unsigned int target_c_local;
+	int cpu;
+
 	/* tcc_activation_temp is used only for dts or ptm */
 	if (!(do_dts || do_ptm))
 		return 0;
@@ -4825,18 +4809,43 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
+	cpu = t->cpu_id;
+	if (cpu_migrate(cpu)) {
+		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		return -1;
+	}
+
 	if (tcc_activation_temp_override != 0) {
 		tcc_activation_temp = tcc_activation_temp_override;
-		fprintf(outf, "Using cmdline TCC Target (%d C)\n", tcc_activation_temp);
+		fprintf(outf, "cpu%d: Using cmdline TCC Target (%d C)\n",
+			cpu, tcc_activation_temp);
 		return 0;
 	}
 
-	tcc_activation_temp = read_tcc_activation_temp();
-	if (tcc_activation_temp)
-		return 0;
+	/* Temperature Target MSR is Nehalem and newer only */
+	if (!do_nhm_platform_info)
+		goto guess;
 
+	if (get_msr(base_cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
+		goto guess;
+
+	target_c_local = (msr >> 16) & 0xFF;
+
+	if (!quiet)
+		fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
+			cpu, msr, target_c_local);
+
+	if (!target_c_local)
+		goto guess;
+
+	tcc_activation_temp = target_c_local;
+
+	return 0;
+
+guess:
 	tcc_activation_temp = TJMAX_DEFAULT;
-	fprintf(outf, "Guessing tjMax %d C, Please use -T to specify\n", tcc_activation_temp);
+	fprintf(outf, "cpu%d: Guessing tjMax %d C, Please use -T to specify\n",
+		cpu, tcc_activation_temp);
 
 	return 0;
 }

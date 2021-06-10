@@ -628,7 +628,6 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 
 		err = pin_pt_dma(vm, pde->pt.base);
 		if (err) {
-			i915_gem_object_put(pde->pt.base);
 			free_pd(vm, pde);
 			return err;
 		}

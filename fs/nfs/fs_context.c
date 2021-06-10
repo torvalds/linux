@@ -938,6 +938,15 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 			       sizeof(mntfh->data) - mntfh->size);
 
 		/*
+		 * for proto == XPRT_TRANSPORT_UDP, which is what uses
+		 * to_exponential, implying shift: limit the shift value
+		 * to BITS_PER_LONG (majortimeo is unsigned long)
+		 */
+		if (!(data->flags & NFS_MOUNT_TCP)) /* this will be UDP */
+			if (data->retrans >= 64) /* shift value is too large */
+				goto out_invalid_data;
+
+		/*
 		 * Translate to nfs_fs_context, which nfs_fill_super
 		 * can deal with.
 		 */
@@ -1037,6 +1046,9 @@ out_no_address:
 
 out_invalid_fh:
 	return nfs_invalf(fc, "NFS: invalid root filehandle");
+
+out_invalid_data:
+	return nfs_invalf(fc, "NFS: invalid binary mount data");
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)

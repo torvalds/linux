@@ -1,0 +1,114 @@
+[abi_symbol_list]
+# commonly used symbols
+
+# required by xxx.ko
+
+# required by touch module
+  proc_mkdir_data
+
+# required by aw8697-haptic.ko
+  devm_gpio_free
+  i2c_smbus_read_byte_data
+  i2c_smbus_write_byte_data
+
+#required by memory module
+  blk_execute_rq
+  blk_rq_map_kern
+  scsi_device_lookup
+  scsi_host_lookup
+  scsi_host_put
+  ufshcd_read_desc_param
+  utf16s_to_utf8s
+  async_schedule_node
+  blk_ksm_register
+  blk_ksm_reprogram_all_keys
+  blk_mq_alloc_tag_set
+  blk_mq_init_queue
+  blk_mq_tagset_busy_iter
+  bsg_job_done
+  bsg_remove_queue
+  bsg_setup_queue
+  dev_pm_opp_remove
+  scsi_add_host_with_dma
+  scsi_block_requests
+  scsi_dma_unmap
+  scsi_is_host_device
+  scsi_remove_host
+  scsi_report_bus_reset
+  scsi_scan_host
+  scsi_unblock_requests
+  sg_copy_from_buffer
+  sg_copy_to_buffer
+  ufshcd_alloc_host
+  ufshcd_config_pwr_mode
+  ufshcd_dealloc_host
+  ufshcd_hba_enable
+  ufshcd_make_hba_operational
+  ufshcd_map_desc_id_to_length
+  ufshcd_query_attr_retry
+  ufshcd_query_flag_retry
+  wait_for_completion_io_timeout
+  __scsi_add_device
+  __scsi_execute
+  blk_mq_free_tag_set
+
+#required by cs35l41 module
+  regmap_raw_write_async
+  snd_soc_bytes_tlv_callback
+  regmap_async_complete
+  snd_compr_stop_error
+  snd_soc_component_disable_pin
+  snd_soc_component_force_enable_pin
+  snd_pcm_format_physical_width
+  snd_pcm_hw_constraint_list
+  regmap_multi_reg_write_bypassed
+  snd_ctl_boolean_mono_info
+  snd_soc_put_volsw_range
+  snd_soc_get_volsw_range
+  snd_soc_info_volsw_range
+  regmap_raw_write
+  regcache_drop_region
+  regmap_raw_read
+  regmap_multi_reg_write
+  regulator_bulk_enable
+
+#required by mtd module
+  __blk_mq_end_request
+  balance_dirty_pages_ratelimited
+  bdi_alloc
+  bdi_put
+  bdi_register
+  blk_mq_freeze_queue
+  blk_mq_init_sq_queue
+  blk_mq_quiesce_queue
+  blk_mq_start_request
+  blk_mq_unfreeze_queue
+  blk_mq_unquiesce_queue
+  blk_queue_write_cache
+  blk_update_request
+  blkdev_get_by_dev
+  blkdev_get_by_path
+  blkdev_put
+  deactivate_locked_super
+  fixed_size_llseek
+  generic_shutdown_super
+  kmsg_dump_get_buffer
+  kmsg_dump_register
+  kmsg_dump_rewind
+  kmsg_dump_unregister
+  ktime_get_coarse_real_ts64
+  lockref_get
+  logfc
+  lookup_bdev
+  name_to_dev_t
+  nvmem_register
+  nvmem_unregister
+  proc_create_single_data
+  read_cache_page
+  rq_flush_dcache_pages
+  set_disk_ro
+  set_page_dirty
+  sget_fc
+  simple_strtoul
+  sync_blockdev
+  wait_for_device_probe

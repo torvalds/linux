@@ -60,6 +60,7 @@ enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_L
  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
 unsigned int sysctl_sched_min_granularity			= 750000ULL;
+EXPORT_SYMBOL_GPL(sysctl_sched_min_granularity);
 static unsigned int normalized_sysctl_sched_min_granularity	= 750000ULL;
 
 /*
@@ -582,6 +583,7 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct sched_entity *entry;
 	bool leftmost = true;
 
+	trace_android_rvh_enqueue_entity(cfs_rq, se);
 	/*
 	 * Find the right place in the rbtree:
 	 */
@@ -607,6 +609,7 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
+	trace_android_rvh_dequeue_entity(cfs_rq, se);
 	rb_erase_cached(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
@@ -703,7 +706,13 @@ static u64 __sched_period(unsigned long nr_running)
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
+	unsigned int nr_running = cfs_rq->nr_running;
+	u64 slice;
+
+	if (sched_feat(ALT_PERIOD))
+		nr_running = rq_of(cfs_rq)->cfs.h_nr_running;
+
+	slice = __sched_period(nr_running + !se->on_rq);
 
 	for_each_sched_entity(se) {
 		struct load_weight *load;
@@ -720,6 +729,10 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		}
 		slice = __calc_delta(slice, se->load.weight, load);
 	}
+
+	if (sched_feat(BASE_SLICE))
+		slice = max(slice, (u64)sysctl_sched_min_granularity);
+
 	return slice;
 }
 
@@ -3790,12 +3803,15 @@ static inline void update_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
 	u64 now = cfs_rq_clock_pelt(cfs_rq);
 	int decayed;
 
+	trace_android_vh_prepare_update_load_avg_se(se, flags);
 	/*
 	 * Track task load average for carrying it to new CPU after migrated, and
 	 * track group sched_entity load average for task_h_load calc in migration
 	 */
 	if (se->avg.last_update_time && !(flags & SKIP_AGE_LOAD))
 		__update_load_avg_se(now, cfs_rq, se);
+
+	trace_android_vh_finish_update_load_avg_se(se, flags);
 
 	decayed  = update_cfs_rq_load_avg(now, cfs_rq);
 	decayed |= propagate_entity_load_avg(se);
@@ -3954,6 +3970,8 @@ static inline void util_est_dequeue(struct cfs_rq *cfs_rq,
 	trace_sched_util_est_cfs_tp(cfs_rq);
 }
 
+#define UTIL_EST_MARGIN (SCHED_CAPACITY_SCALE / 100)
+
 /*
  * Check if a (signed) value is within a specified (unsigned) margin,
  * based on the observation that:
@@ -3971,7 +3989,7 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 				   struct task_struct *p,
 				   bool task_sleep)
 {
-	long last_ewma_diff;
+	long last_ewma_diff, last_enqueued_diff;
 	struct util_est ue;
 	int ret = 0;
 
@@ -3997,6 +4015,8 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 	if (ue.enqueued & UTIL_AVG_UNCHANGED)
 		return;
 
+	last_enqueued_diff = ue.enqueued;
+
 	/*
 	 * Reset EWMA on utilization increases, the moving average is used only
 	 * to smooth utilization decreases.
@@ -4010,12 +4030,17 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 	}
 
 	/*
-	 * Skip update of task's estimated utilization when its EWMA is
+	 * Skip update of task's estimated utilization when its members are
 	 * already ~1% close to its last activation value.
 	 */
 	last_ewma_diff = ue.enqueued - ue.ewma;
-	if (within_margin(last_ewma_diff, (SCHED_CAPACITY_SCALE / 100)))
+	last_enqueued_diff -= ue.enqueued;
+	if (within_margin(last_ewma_diff, UTIL_EST_MARGIN)) {
+		if (!within_margin(last_enqueued_diff, UTIL_EST_MARGIN))
+			goto done;
+
 		return;
+	}
 
 	/*
 	 * To avoid overestimation of actual task utilization, skip updates if
@@ -4387,7 +4412,8 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	trace_android_rvh_check_preempt_tick(current, &ideal_runtime, &skip_preempt);
+	trace_android_rvh_check_preempt_tick(current, &ideal_runtime, &skip_preempt,
+			delta_exec, cfs_rq, curr, sysctl_sched_min_granularity);
 	if (skip_preempt)
 		return;
 	if (delta_exec > ideal_runtime) {
@@ -4418,8 +4444,7 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 		resched_curr(rq_of(cfs_rq));
 }
 
-static void
-set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	/* 'current' is not kept within the tree. */
 	if (se->on_rq) {
@@ -4450,6 +4475,8 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
+EXPORT_SYMBOL_GPL(set_next_entity);
+
 
 static int
 wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se);
@@ -4576,6 +4603,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 
 	if (cfs_rq->nr_running > 1)
 		check_preempt_tick(cfs_rq, curr);
+	trace_android_rvh_entity_tick(cfs_rq, curr);
 }
 
 
@@ -5555,6 +5583,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		flags = ENQUEUE_WAKEUP;
 	}
 
+	trace_android_rvh_enqueue_task_fair(rq, p, flags);
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 
@@ -5661,6 +5690,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		flags |= DEQUEUE_SLEEP;
 	}
 
+	trace_android_rvh_dequeue_task_fair(rq, p, flags);
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 
@@ -7079,7 +7109,8 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 
 	find_matching_se(&se, &pse);
 	update_curr(cfs_rq_of(se));
-	trace_android_rvh_check_preempt_wakeup(rq, p, &preempt, &nopreempt);
+	trace_android_rvh_check_preempt_wakeup(rq, p, &preempt, &nopreempt,
+			wake_flags, se, pse, next_buddy_marked, sysctl_sched_wakeup_granularity);
 	if (preempt)
 		goto preempt;
 	if (nopreempt)
@@ -7176,8 +7207,7 @@ again:
 	} while (cfs_rq);
 
 	p = task_of(se);
-	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, false);
-
+	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, false, prev);
 	/*
 	 * Since we haven't yet done put_prev_entity and if the selected task
 	 * is a different task than we started out with, try and touch the
@@ -7210,9 +7240,12 @@ simple:
 	if (prev)
 		put_prev_task(rq, prev);
 
-	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, true);
-	if (repick)
+	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, true, prev);
+	if (repick) {
+		for_each_sched_entity(se)
+			set_next_entity(cfs_rq_of(se), se);
 		goto done;
+	}
 
 	do {
 		se = pick_next_entity(cfs_rq, NULL);
@@ -7662,6 +7695,10 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
 		return 0;
 
+	/* Disregard pcpu kthreads; they are where they need to be. */
+	if ((p->flags & PF_KTHREAD) && kthread_is_per_cpu(p))
+		return 0;
+
 	if (!cpumask_test_cpu(env->dst_cpu, p->cpus_ptr)) {
 		int cpu;
 
@@ -7843,8 +7880,7 @@ static int detach_tasks(struct lb_env *env)
 			 * scheduler fails to find a good waiting task to
 			 * migrate.
 			 */
-
-			if ((load >> env->sd->nr_balance_failed) > env->imbalance)
+			if (shr_bound(load, env->sd->nr_balance_failed) > env->imbalance)
 				goto next;
 
 			env->imbalance -= load;
@@ -10224,7 +10260,11 @@ static inline int on_null_domain(struct rq *rq)
 
 static inline int find_new_ilb(void)
 {
-	int ilb;
+	int ilb = -1;
+
+	trace_android_rvh_find_new_ilb(nohz.idle_cpus_mask, &ilb);
+	if (ilb >= 0)
+		return ilb;
 
 	for_each_cpu_and(ilb, nohz.idle_cpus_mask,
 			      housekeeping_cpumask(HK_FLAG_MISC)) {
@@ -10986,16 +11026,22 @@ static void propagate_entity_cfs_rq(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq;
 
+	list_add_leaf_cfs_rq(cfs_rq_of(se));
+
 	/* Start to propagate at parent */
 	se = se->parent;
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 
-		if (cfs_rq_throttled(cfs_rq))
-			break;
+		if (!cfs_rq_throttled(cfs_rq)){
+			update_load_avg(cfs_rq, se, UPDATE_TG);
+			list_add_leaf_cfs_rq(cfs_rq);
+			continue;
+		}
 
-		update_load_avg(cfs_rq, se, UPDATE_TG);
+		if (list_add_leaf_cfs_rq(cfs_rq))
+			break;
 	}
 }
 #else

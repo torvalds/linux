@@ -222,7 +222,7 @@ struct fixed_file_data {
 struct io_buffer {
 	struct list_head list;
 	__u64 addr;
-	__s32 len;
+	__u32 len;
 	__u16 bid;
 };
 
@@ -527,7 +527,7 @@ struct io_splice {
 struct io_provide_buf {
 	struct file			*file;
 	__u64				addr;
-	__s32				len;
+	__u32				len;
 	__u32				bgid;
 	__u16				nbufs;
 	__u16				bid;
@@ -3996,7 +3996,7 @@ static int io_remove_buffers(struct io_kiocb *req, bool force_nonblock,
 static int io_provide_buffers_prep(struct io_kiocb *req,
 				   const struct io_uring_sqe *sqe)
 {
-	unsigned long size;
+	unsigned long size, tmp_check;
 	struct io_provide_buf *p = &req->pbuf;
 	u64 tmp;
 
@@ -4009,6 +4009,12 @@ static int io_provide_buffers_prep(struct io_kiocb *req,
 	p->nbufs = tmp;
 	p->addr = READ_ONCE(sqe->addr);
 	p->len = READ_ONCE(sqe->len);
+
+	if (check_mul_overflow((unsigned long)p->len, (unsigned long)p->nbufs,
+				&size))
+		return -EOVERFLOW;
+	if (check_add_overflow((unsigned long)p->addr, size, &tmp_check))
+		return -EOVERFLOW;
 
 	size = (unsigned long)p->len * p->nbufs;
 	if (!access_ok(u64_to_user_ptr(p->addr), size))
@@ -4034,7 +4040,7 @@ static int io_add_buffers(struct io_provide_buf *pbuf, struct io_buffer **head)
 			break;
 
 		buf->addr = addr;
-		buf->len = pbuf->len;
+		buf->len = min_t(__u32, pbuf->len, MAX_RW_COUNT);
 		buf->bid = bid;
 		addr += pbuf->len;
 		bid++;

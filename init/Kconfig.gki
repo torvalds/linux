@@ -48,6 +48,7 @@ config GKI_HIDDEN_SND_SOC_CONFIGS
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
 	select SND_PCM_IEC958
 	select SND_SOC_COMPRESS if (SND_SOC && SND)
+	select SND_SOC_TOPOLOGY if (SND_SOC && SND)
 	select DMADEVICES
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -162,6 +163,8 @@ config GKI_HIDDEN_RPMSG_CONFIGS
 config GKI_HIDDEN_GPU_CONFIGS
 	bool "Hidden GPU configuration needed for GKI"
 	select TRACE_GPU_MEM
+	select MMU_NOTIFIER
+	select HMM_MIRROR
 	help
 	  Dummy config option used to enable the hidden GPU config.
 	  These are normally selected implicitly when a module
@@ -209,6 +212,13 @@ config GKI_HIDDEN_MM_CONFIGS
 	  Dummy config option used to enable hidden MM configs,
 	  currently required for VIRTIO_BALLOON
 
+config GKI_HIDDEN_DMA_CONFIGS
+	bool "Hidden DMA configuration needed for GKI"
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Dummy config option used to enable the hidden DMA configs,
+	  required by various SoC platforms.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -238,6 +248,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_NET_CONFIGS
 	select GKI_HIDDEN_PHY_CONFIGS
 	select GKI_HIDDEN_MM_CONFIGS
+	select GKI_HIDDEN_DMA_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.

@@ -284,20 +284,12 @@ static const char * const imx8mn_clko2_sels[] = {"osc_24m", "sys_pll2_200m", "sy
 static struct clk_hw_onecell_data *clk_hw_data;
 static struct clk_hw **hws;
 
-static const int uart_clk_ids[] = {
-	IMX8MN_CLK_UART1_ROOT,
-	IMX8MN_CLK_UART2_ROOT,
-	IMX8MN_CLK_UART3_ROOT,
-	IMX8MN_CLK_UART4_ROOT,
-};
-static struct clk **uart_hws[ARRAY_SIZE(uart_clk_ids) + 1];
-
 static int imx8mn_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	void __iomem *base;
-	int ret, i;
+	int ret;
 
 	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
 					  IMX8MN_CLK_END), GFP_KERNEL);
@@ -573,13 +565,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 		goto unregister_hws;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(uart_clk_ids); i++) {
-		int index = uart_clk_ids[i];
-
-		uart_hws[i] = &hws[index]->clk;
-	}
-
-	imx_register_uart_clocks(uart_hws);
+	imx_register_uart_clocks(4);
 
 	return 0;
 

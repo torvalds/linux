@@ -9,7 +9,6 @@
 #include <linux/percpu_counter.h>
 #include <linux/xattr.h>
 #include <linux/fs_parser.h>
-#include <linux/userfaultfd_k.h>
 
 /* inode in-kernel data */
 
@@ -86,6 +85,7 @@ extern bool shmem_huge_enabled(struct vm_area_struct *vma);
 extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
 extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 						pgoff_t start, pgoff_t end);
+extern void shmem_mark_page_lazyfree(struct page *page);
 
 /* Flag allocation requirements to shmem_getpage */
 enum sgp_type {
@@ -121,13 +121,15 @@ extern void shmem_uncharge(struct inode *inode, long pages);
 
 #ifdef CONFIG_USERFAULTFD
 #ifdef CONFIG_SHMEM
-int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
-			   struct vm_area_struct *dst_vma,
-			   unsigned long dst_addr, unsigned long src_addr,
-			   enum mcopy_atomic_mode mode, struct page **pagep);
+extern int shmem_mfill_atomic_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
+				  struct vm_area_struct *dst_vma,
+				  unsigned long dst_addr,
+				  unsigned long src_addr,
+				  bool zeropage,
+				  struct page **pagep);
 #else /* !CONFIG_SHMEM */
-#define shmem_mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma, dst_addr, \
-			       src_addr, mode, pagep)        ({ BUG(); 0; })
+#define shmem_mfill_atomic_pte(dst_mm, dst_pmd, dst_vma, dst_addr, \
+			       src_addr, zeropage, pagep)       ({ BUG(); 0; })
 #endif /* CONFIG_SHMEM */
 #endif /* CONFIG_USERFAULTFD */
 

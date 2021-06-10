@@ -1207,7 +1207,7 @@ int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err)
-		return err;
+		goto power_cycle;
 
 	if (!mmc_host_is_spi(host) && (cmd.resp[0] & R1_ERROR))
 		return -EIO;
@@ -2357,80 +2357,6 @@ void mmc_stop_host(struct mmc_host *host)
 	mmc_power_off(host);
 	mmc_release_host(host);
 }
-
-#ifdef CONFIG_PM_SLEEP
-/* Do the card removal on suspend if card is assumed removeable
- * Do that in pm notifier while userspace isn't yet frozen, so we will be able
-   to sync the card.
-*/
-static int mmc_pm_notify(struct notifier_block *notify_block,
-			unsigned long mode, void *unused)
-{
-	struct mmc_host *host = container_of(
-		notify_block, struct mmc_host, pm_notify);
-	unsigned long flags;
-	int err = 0;
-
-	switch (mode) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
-	case PM_RESTORE_PREPARE:
-		spin_lock_irqsave(&host->lock, flags);
-		host->rescan_disable = 1;
-		spin_unlock_irqrestore(&host->lock, flags);
-		cancel_delayed_work_sync(&host->detect);
-
-		if (!host->bus_ops)
-			break;
-
-		/* Validate prerequisites for suspend */
-		if (host->bus_ops->pre_suspend)
-			err = host->bus_ops->pre_suspend(host);
-		if (!err)
-			break;
-
-		if (!mmc_card_is_removable(host)) {
-			dev_warn(mmc_dev(host),
-				 "pre_suspend failed for non-removable host: "
-				 "%d\n", err);
-			/* Avoid removing non-removable hosts */
-			break;
-		}
-
-		/* Calling bus_ops->remove() with a claimed host can deadlock */
-		host->bus_ops->remove(host);
-		mmc_claim_host(host);
-		mmc_detach_bus(host);
-		mmc_power_off(host);
-		mmc_release_host(host);
-		host->pm_flags = 0;
-		break;
-
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-	case PM_POST_RESTORE:
-
-		spin_lock_irqsave(&host->lock, flags);
-		host->rescan_disable = 0;
-		spin_unlock_irqrestore(&host->lock, flags);
-		_mmc_detect_change(host, 0, false);
-
-	}
-
-	return 0;
-}
-
-void mmc_register_pm_notifier(struct mmc_host *host)
-{
-	host->pm_notify.notifier_call = mmc_pm_notify;
-	register_pm_notifier(&host->pm_notify);
-}
-
-void mmc_unregister_pm_notifier(struct mmc_host *host)
-{
-	unregister_pm_notifier(&host->pm_notify);
-}
-#endif
 
 static int __init mmc_init(void)
 {

@@ -12,6 +12,7 @@
 #include <crypto/sha3.h>
 #include <crypto/skcipher.h>
 #include <crypto/sm3.h>
+#include <crypto/internal/cipher.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>

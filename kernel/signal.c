@@ -67,18 +67,6 @@ static struct kmem_cache *sigqueue_cachep;
 
 int print_fatal_signals __read_mostly;
 
-static char reaper_comm[TASK_COMM_LEN];
-
-static __init int setup_mem_reap(char *str)
-{
-	if (!str)
-		return 0;
-	strlcpy(reaper_comm, str, TASK_COMM_LEN);
-
-	return 1;
-}
-__setup("reap_mem_when_killed_by=", setup_mem_reap);
-
 static void __user *sig_handler(struct task_struct *t, int sig)
 {
 	return t->sighand->action[sig - 1].sa.sa_handler;
@@ -1428,9 +1416,13 @@ int group_send_sig_info(int sig, struct kernel_siginfo *info,
 
 	if (!ret && sig) {
 		ret = do_send_sig_info(sig, info, p, type);
-		if (!ret && sig == SIGKILL &&
-			!strcmp(current->comm, reaper_comm))
-			add_to_oom_reaper(p);
+		if (!ret && sig == SIGKILL) {
+			bool reap = false;
+
+			trace_android_vh_process_killed(current, &reap);
+			if (reap)
+				add_to_oom_reaper(p);
+		}
 	}
 
 	return ret;

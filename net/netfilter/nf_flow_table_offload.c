@@ -305,12 +305,12 @@ static void flow_offload_ipv6_mangle(struct nf_flow_rule *flow_rule,
 				     const __be32 *addr, const __be32 *mask)
 {
 	struct flow_action_entry *entry;
-	int i;
+	int i, j;
 
-	for (i = 0; i < sizeof(struct in6_addr) / sizeof(u32); i += sizeof(u32)) {
+	for (i = 0, j = 0; i < sizeof(struct in6_addr) / sizeof(u32); i += sizeof(u32), j++) {
 		entry = flow_action_entry_next(flow_rule);
 		flow_offload_mangle(entry, FLOW_ACT_MANGLE_HDR_TYPE_IP6,
-				    offset + i, &addr[i], mask);
+				    offset + i, &addr[j], mask);
 	}
 }
 
@@ -753,10 +753,11 @@ static void flow_offload_work_add(struct flow_offload_work *offload)
 
 	err = flow_offload_rule_add(offload, flow_rule);
 	if (err < 0)
-		set_bit(NF_FLOW_HW_REFRESH, &offload->flow->flags);
-	else
-		set_bit(IPS_HW_OFFLOAD_BIT, &offload->flow->ct->status);
+		goto out;
 
+	set_bit(IPS_HW_OFFLOAD_BIT, &offload->flow->ct->status);
+
+out:
 	nf_flow_offload_destroy(flow_rule);
 }
 

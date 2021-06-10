@@ -1115,12 +1115,22 @@ __acc_function_bind(struct usb_configuration *c,
 		return ret;
 
 	/* support high speed hardware */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		acc_highspeed_in_desc.bEndpointAddress =
-			acc_fullspeed_in_desc.bEndpointAddress;
-		acc_highspeed_out_desc.bEndpointAddress =
-			acc_fullspeed_out_desc.bEndpointAddress;
-	}
+	acc_highspeed_in_desc.bEndpointAddress =
+		acc_fullspeed_in_desc.bEndpointAddress;
+	acc_highspeed_out_desc.bEndpointAddress =
+		acc_fullspeed_out_desc.bEndpointAddress;
+
+	/* support super speed hardware */
+	acc_superspeed_in_desc.bEndpointAddress =
+		acc_fullspeed_in_desc.bEndpointAddress;
+	acc_superspeed_out_desc.bEndpointAddress =
+		acc_fullspeed_out_desc.bEndpointAddress;
+
+	/* support super speed plus hardware */
+	acc_superspeedplus_in_desc.bEndpointAddress =
+		acc_fullspeed_in_desc.bEndpointAddress;
+	acc_superspeedplus_out_desc.bEndpointAddress =
+		acc_fullspeed_out_desc.bEndpointAddress;
 
 	DBG(cdev, "%s speed %s: IN/%s, OUT/%s\n",
 			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",

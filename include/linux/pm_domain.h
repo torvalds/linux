@@ -57,18 +57,17 @@
  * GENPD_FLAG_RPM_ALWAYS_ON:	Instructs genpd to always keep the PM domain
  *				powered on except for system suspend.
  *
- * GENPD_FLAG_GOV_NEXT_WAKEUP:	Enable the genpd governor to consider its
- *				components' next wakeup when  determining the
- *				optimal idle state. This is setup only if the
- *				domain's idle state specifies a residency.
+ * GENPD_FLAG_MIN_RESIDENCY:	Enable the genpd governor to consider its
+ *				components' next wakeup when determining the
+ *				optimal idle state.
  */
-#define GENPD_FLAG_PM_CLK	   (1U << 0)
-#define GENPD_FLAG_IRQ_SAFE	   (1U << 1)
-#define GENPD_FLAG_ALWAYS_ON	   (1U << 2)
-#define GENPD_FLAG_ACTIVE_WAKEUP   (1U << 3)
-#define GENPD_FLAG_CPU_DOMAIN	   (1U << 4)
-#define GENPD_FLAG_RPM_ALWAYS_ON   (1U << 5)
-#define GENPD_FLAG_GOV_NEXT_WAKEUP (1U << 6)
+#define GENPD_FLAG_PM_CLK	 (1U << 0)
+#define GENPD_FLAG_IRQ_SAFE	 (1U << 1)
+#define GENPD_FLAG_ALWAYS_ON	 (1U << 2)
+#define GENPD_FLAG_ACTIVE_WAKEUP (1U << 3)
+#define GENPD_FLAG_CPU_DOMAIN	 (1U << 4)
+#define GENPD_FLAG_RPM_ALWAYS_ON (1U << 5)
+#define GENPD_FLAG_MIN_RESIDENCY (1U << 6)
 
 enum gpd_status {
 	GENPD_STATE_ON = 0,	/* PM domain is on */
@@ -214,11 +213,6 @@ static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
 	return to_gpd_data(dev->power.subsys_data->domain_data);
 }
 
-static inline bool genpd_may_use_next_wakeup(struct generic_pm_domain *genpd)
-{
-	return genpd->flags & GENPD_FLAG_GOV_NEXT_WAKEUP;
-}
-
 int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev);
 int pm_genpd_remove_device(struct device *dev);
 int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
@@ -231,8 +225,7 @@ int pm_genpd_remove(struct generic_pm_domain *genpd);
 int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state);
 int dev_pm_genpd_add_notifier(struct device *dev, struct notifier_block *nb);
 int dev_pm_genpd_remove_notifier(struct device *dev);
-void genpd_enable_next_wakeup(struct generic_pm_domain *genpd, bool enable);
-int dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next);
+void dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next);
 
 extern struct dev_power_governor simple_qos_governor;
 extern struct dev_power_governor pm_domain_always_on_gov;
@@ -291,14 +284,8 @@ static inline int dev_pm_genpd_remove_notifier(struct device *dev)
 	return -ENOTSUPP;
 }
 
-static void genpd_enable_next_wakeup(struct generic_pm_domain *genpd,
-				     bool enable)
+static inline void dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next)
 { }
-
-static inline int dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next)
-{
-	return -EOPNOTSUPP;
-}
 
 #define simple_qos_governor		(*(struct dev_power_governor *)(NULL))
 #define pm_domain_always_on_gov		(*(struct dev_power_governor *)(NULL))

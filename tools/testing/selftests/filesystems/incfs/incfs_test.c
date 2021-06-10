@@ -85,6 +85,16 @@ struct {
 #define TESTNE(statement, res)					\
 	TESTCOND((statement) != (res))
 
+#define TESTSYSCALL(statement)						\
+	do {								\
+		int res = statement;					\
+									\
+		if (res)						\
+			ksft_print_msg("Failed: %s (%d)\n",		\
+				       strerror(errno), errno);		\
+		TESTEQUAL(res, 0);					\
+	} while (false)
+
 void print_bytes(const void *data, size_t size)
 {
 	const uint8_t *bytes = data;
@@ -123,6 +133,8 @@ struct test_file {
 	struct hash_block *mtree;
 	int mtree_block_count;
 	struct test_signature sig;
+	unsigned char *verity_sig;
+	size_t verity_sig_size;
 };
 
 struct test_files_set {
@@ -213,6 +225,17 @@ static int get_file_block_seed(int file, int block)
 static loff_t min(loff_t a, loff_t b)
 {
 	return a < b ? a : b;
+}
+
+static int ilog2(size_t n)
+{
+	int l = 0;
+
+	while (n > 1) {
+		++l;
+		n >>= 1;
+	}
+	return l;
 }
 
 static pid_t flush_and_fork(void)
@@ -952,10 +975,8 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	close(fd);
 	if (err < fill_blocks.count)
 		err = errno;
-	else {
+	else
 		err = 0;
-		free(file->mtree);
-	}
 
 failure:
 	free(fill_block_array);
@@ -1379,7 +1400,6 @@ static int dynamic_files_and_data_test(const char *mount_dir)
 		struct test_file *file = &test.files[i];
 		int res;
 
-		build_mtree(file);
 		res = emit_file(cmd_fd, NULL, file->name, &file->id,
 				     file->size, NULL);
 		if (res < 0) {
@@ -1592,7 +1612,6 @@ static int work_after_remount_test(const char *mount_dir)
 	for (i = 0; i < file_num_stage1; i++) {
 		struct test_file *file = &test.files[i];
 
-		build_mtree(file);
 		if (emit_file(cmd_fd, NULL, file->name, &file->id,
 				     file->size, NULL))
 			goto failure;
@@ -1987,8 +2006,47 @@ failure:
 	return TEST_FAILURE;
 }
 
+static int validate_hash_tree(const char *mount_dir, struct test_file *file)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	int fd = -1;
+	unsigned char *buf;
+	int i, err;
+
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TEST(buf = malloc(INCFS_DATA_FILE_BLOCK_SIZE * 8), buf);
+
+	for (i = 0; i < file->mtree_block_count; ) {
+		int blocks_to_read = i % 7 + 1;
+		struct fsverity_read_metadata_arg args = {
+			.metadata_type = FS_VERITY_METADATA_TYPE_MERKLE_TREE,
+			.offset = i * INCFS_DATA_FILE_BLOCK_SIZE,
+			.length = blocks_to_read * INCFS_DATA_FILE_BLOCK_SIZE,
+			.buf_ptr = ptr_to_u64(buf),
+		};
+
+		TEST(err = ioctl(fd, FS_IOC_READ_VERITY_METADATA, &args),
+		     err == min(args.length, (file->mtree_block_count - i) *
+					     INCFS_DATA_FILE_BLOCK_SIZE));
+		TESTEQUAL(memcmp(buf, file->mtree[i].data, err), 0);
+
+		i += blocks_to_read;
+	}
+
+	result = TEST_SUCCESS;
+
+out:
+	free(buf);
+	close(fd);
+	free(filename);
+	return result;
+}
+
 static int hash_tree_test(const char *mount_dir)
 {
+	int result = TEST_FAILURE;
 	char *backing_dir;
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -2053,6 +2111,8 @@ static int hash_tree_test(const char *mount_dir)
 			}
 		} else if (validate_test_file_content(mount_dir, file) < 0)
 			goto failure;
+		else if (validate_hash_tree(mount_dir, file) < 0)
+			goto failure;
 	}
 
 	/* Unmount and mount again, to that hashes are persistent. */
@@ -2090,21 +2150,19 @@ static int hash_tree_test(const char *mount_dir)
 		} else if (validate_test_file_content(mount_dir, file) < 0)
 			goto failure;
 	}
-
-	/* Final unmount */
-	close(cmd_fd);
-	cmd_fd = -1;
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
-	return TEST_SUCCESS;
+	result = TEST_SUCCESS;
 
 failure:
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		free(file->mtree);
+	}
+
 	close(cmd_fd);
 	free(backing_dir);
 	umount(mount_dir);
-	return TEST_FAILURE;
+	return result;
 }
 
 enum expected_log { FULL_LOG, NO_LOG, PARTIAL_LOG };
@@ -3497,7 +3555,7 @@ out:
 
 	free(filename);
 	close(cmd_fd);
-	umount(backing_dir);
+	umount(mount_dir);
 	free(backing_dir);
 	return result;
 }
@@ -3780,8 +3838,6 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		.sig_size = 0,
 		.sig_ptr = 0,
 	};
-	unsigned char *sig = NULL;
-	size_t sig_len = 0;
 	struct {
 		__u8 version;           /* must be 1 */
 		__u8 hash_algorithm;    /* Merkle tree hash algorithm */
@@ -3807,6 +3863,8 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		.digest_algorithm = 1,
 		.digest_size = 32
 	};
+	unsigned char *sig = NULL;
+	size_t sig_size = 0;
 	uint64_t flags;
 	struct statx statxbuf = {};
 
@@ -3825,10 +3883,10 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 	/* First try to enable verity with random digest */
 	if (key) {
 		TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
-			    sizeof(fsverity_signed_digest), &sig, &sig_len),
+			    sizeof(fsverity_signed_digest), &sig, &sig_size),
 			  0);
 
-		fear.sig_size = sig_len;
+		fear.sig_size = sig_size;
 		fear.sig_ptr = ptr_to_u64(sig);
 		TESTEQUAL(ioctl(fd, FS_IOC_ENABLE_VERITY, &fear), -1);
 	}
@@ -3844,14 +3902,21 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		goto out;
 	}
 
+	free(sig);
+	sig = NULL;
+
 	if (key)
 		TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
-		       sizeof(fsverity_signed_digest), &sig, &sig_len),
+			       sizeof(fsverity_signed_digest),
+			       &sig, &sig_size),
 		  0);
 
 	if (use_signatures) {
-		fear.sig_size = sig_len;
+		fear.sig_size = sig_size;
+		file->verity_sig_size = sig_size;
 		fear.sig_ptr = ptr_to_u64(sig);
+		file->verity_sig = sig;
+		sig = NULL;
 	} else {
 		fear.sig_size = 0;
 		fear.sig_ptr = 0;
@@ -3866,6 +3931,16 @@ out:
 	return result;
 }
 
+static int memzero(const unsigned char *buf, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; ++i)
+		if (buf[i])
+			return -1;
+	return 0;
+}
+
 static int validate_verity(const char *mount_dir, struct test_file *file)
 {
 	int result = TEST_FAILURE;
@@ -3874,6 +3949,9 @@ static int validate_verity(const char *mount_dir, struct test_file *file)
 	uint64_t flags;
 	struct fsverity_digest *digest;
 	struct statx statxbuf = {};
+	struct fsverity_read_metadata_arg frma = {};
+	uint8_t *buf = NULL;
+	struct fsverity_descriptor desc;
 
 	TEST(digest = malloc(sizeof(struct fsverity_digest) +
 			     INCFS_MAX_HASH_SIZE), digest != NULL);
@@ -3890,8 +3968,48 @@ static int validate_verity(const char *mount_dir, struct test_file *file)
 	TESTEQUAL(digest->digest_algorithm, FS_VERITY_HASH_ALG_SHA256);
 	TESTEQUAL(digest->digest_size, 32);
 
+	if (file->verity_sig) {
+		TEST(buf = malloc(file->verity_sig_size), buf);
+		frma = (struct fsverity_read_metadata_arg) {
+			.metadata_type = FS_VERITY_METADATA_TYPE_SIGNATURE,
+			.length = file->verity_sig_size,
+			.buf_ptr = ptr_to_u64(buf),
+		};
+		TESTEQUAL(ioctl(fd, FS_IOC_READ_VERITY_METADATA, &frma),
+			  file->verity_sig_size);
+		TESTEQUAL(memcmp(buf, file->verity_sig, file->verity_sig_size),
+			  0);
+	} else {
+		frma = (struct fsverity_read_metadata_arg) {
+			.metadata_type = FS_VERITY_METADATA_TYPE_SIGNATURE,
+		};
+		TESTEQUAL(ioctl(fd, FS_IOC_READ_VERITY_METADATA, &frma), -1);
+		TESTEQUAL(errno, ENODATA);
+	}
+
+	frma = (struct fsverity_read_metadata_arg) {
+		.metadata_type = FS_VERITY_METADATA_TYPE_DESCRIPTOR,
+		.length = sizeof(desc),
+		.buf_ptr = ptr_to_u64(&desc),
+	};
+	TESTEQUAL(ioctl(fd, FS_IOC_READ_VERITY_METADATA, &frma),
+		  sizeof(desc));
+	TESTEQUAL(desc.version, 1);
+	TESTEQUAL(desc.hash_algorithm, FS_VERITY_HASH_ALG_SHA256);
+	TESTEQUAL(desc.log_blocksize, ilog2(INCFS_DATA_FILE_BLOCK_SIZE));
+	TESTEQUAL(desc.salt_size, 0);
+	TESTEQUAL(desc.__reserved_0x04, 0);
+	TESTEQUAL(desc.data_size, file->size);
+	TESTEQUAL(memcmp(desc.root_hash, file->root_hash, SHA256_DIGEST_SIZE),
+		  0);
+	TESTEQUAL(memzero(desc.root_hash + SHA256_DIGEST_SIZE,
+			  sizeof(desc.root_hash) - SHA256_DIGEST_SIZE), 0);
+	TESTEQUAL(memzero(desc.salt, sizeof(desc.salt)), 0);
+	TESTEQUAL(memzero(desc.__reserved, sizeof(desc.__reserved)), 0);
+
 	result = TEST_SUCCESS;
 out:
+	free(buf);
 	close(fd);
 	free(filename);
 	free(digest);
@@ -3949,7 +4067,7 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 				     file->size, file->root_hash,
 				     file->sig.add_data), 0);
 
-		TESTEQUAL(emit_partial_test_file_hash(mount_dir, file), 0);
+		TESTEQUAL(load_hash_tree(mount_dir, file), 0);
 		TESTEQUAL(enable_verity(mount_dir, file, key, cert,
 					use_signatures),
 			  0);
@@ -3969,6 +4087,16 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 
 	result = TEST_SUCCESS;
 out:
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		free(file->mtree);
+		free(file->verity_sig);
+
+		file->mtree = NULL;
+		file->verity_sig = NULL;
+	}
+
 	free(line);
 	BIO_free(mem);
 	X509_free(cert);
@@ -4041,7 +4169,7 @@ static int enable_verity_test(const char *mount_dir)
 		TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
 				     file->size, NULL), 0);
 		TESTEQUAL(emit_test_file_data(mount_dir, file), 0);
-		TESTEQUAL(enable_verity(mount_dir, file, NULL, NULL, true), 0);
+		TESTEQUAL(enable_verity(mount_dir, file, NULL, NULL, false), 0);
 	}
 
 	/* Check files are valid on disk */
@@ -4110,6 +4238,7 @@ static int mmap_test(const char *mount_dir)
 
 	result = TEST_SUCCESS;
 out:
+	free(file.mtree);
 	close(fd);
 	free(filename);
 	close(cmd_fd);
@@ -4153,6 +4282,328 @@ out:
 	close(fd);
 	free(backing_file);
 	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+static int stat_file_test(const char *mount_dir, int cmd_fd,
+			  struct test_file *file)
+{
+	int result = TEST_FAILURE;
+	struct stat st;
+	char *filename = NULL;
+
+	TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
+				     file->size, NULL), 0);
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TESTEQUAL(stat(filename, &st), 0);
+	TESTCOND(st.st_blocks < 32);
+	TESTEQUAL(emit_test_file_data(mount_dir, file), 0);
+	TESTEQUAL(stat(filename, &st), 0);
+	TESTCOND(st.st_blocks > file->size / 512);
+
+	result = TEST_SUCCESS;
+out:
+	free(filename);
+	return result;
+}
+
+static int stat_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		TESTEQUAL(stat_file_test(mount_dir, cmd_fd, file), 0);
+	}
+
+	result = TEST_SUCCESS;
+out:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+#define SYSFS_DIR "/sys/fs/incremental-fs/instances/test_node/"
+
+static int sysfs_test_value(const char *name, uint64_t value)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	FILE *file = NULL;
+	uint64_t res;
+
+	TEST(filename = concat_file_name(SYSFS_DIR, name), filename);
+	TEST(file = fopen(filename, "re"), file);
+	TESTEQUAL(fscanf(file, "%lu", &res), 1);
+	TESTEQUAL(res, value);
+
+	result = TEST_SUCCESS;
+out:
+	if (file)
+		fclose(file);
+	free(filename);
+	return result;
+}
+
+static int sysfs_test_value_range(const char *name, uint64_t low, uint64_t high)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	FILE *file = NULL;
+	uint64_t res;
+
+	TEST(filename = concat_file_name(SYSFS_DIR, name), filename);
+	TEST(file = fopen(filename, "re"), file);
+	TESTEQUAL(fscanf(file, "%lu", &res), 1);
+	TESTCOND(res >= low && res <= high);
+
+	result = TEST_SUCCESS;
+out:
+	if (file)
+		fclose(file);
+	free(filename);
+	return result;
+}
+
+static int ioctl_test_last_error(int cmd_fd, const incfs_uuid_t *file_id,
+				 int page, int error)
+{
+	int result = TEST_FAILURE;
+	struct incfs_get_last_read_error_args glre;
+
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_LAST_READ_ERROR, &glre), 0);
+	if (file_id)
+		TESTEQUAL(memcmp(&glre.file_id_out, file_id, sizeof(*file_id)),
+			  0);
+
+	TESTEQUAL(glre.page_out, page);
+	TESTEQUAL(glre.errno_out, error);
+	result = TEST_SUCCESS;
+out:
+	return result;
+}
+
+static int sysfs_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	struct test_file file = {
+		  .name = "file",
+		  .size = INCFS_DATA_FILE_BLOCK_SIZE,
+	};
+	char *filename = NULL;
+	int fd = -1;
+	int pid = -1;
+	char buffer[32];
+	int status;
+	struct incfs_per_uid_read_timeouts purt_set[] = {
+		{
+			.uid = 0,
+			.min_time_us = 1000000,
+			.min_pending_time_us = 1000000,
+			.max_pending_time_us = 2000000,
+		},
+	};
+	struct incfs_set_read_timeouts_args srt = {
+		ptr_to_u64(purt_set),
+		sizeof(purt_set)
+	};
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "sysfs_name=test_node",
+			       false),
+		  0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TESTEQUAL(build_mtree(&file), 0);
+	file.root_hash[0] ^= 0xff;
+	TESTEQUAL(crypto_emit_file(cmd_fd, NULL, file.name, &file.id, file.size,
+				   file.root_hash, file.sig.add_data),
+		  0);
+	TEST(filename = concat_file_name(mount_dir, file.name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl_test_last_error(cmd_fd, NULL, 0, 0), 0);
+	TESTEQUAL(sysfs_test_value("reads_failed_timed_out", 0), 0);
+	TEST(read(fd, NULL, 1), -1);
+	TESTEQUAL(ioctl_test_last_error(cmd_fd, &file.id, 0, -ETIME), 0);
+	TESTEQUAL(sysfs_test_value("reads_failed_timed_out", 2), 0);
+
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(sysfs_test_value("reads_failed_hash_verification", 0), 0);
+	TESTEQUAL(read(fd, NULL, 1), -1);
+	TESTEQUAL(sysfs_test_value("reads_failed_hash_verification", 1), 0);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TESTSYSCALL(unlink(filename));
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "read_timeout_ms=10000,sysfs_name=test_node",
+			       true),
+		  0);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTSYSCALL(fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC));
+	TEST(pid = fork(), pid != -1);
+	if (pid == 0) {
+		TESTEQUAL(read(fd, buffer, sizeof(buffer)), sizeof(buffer));
+		exit(0);
+	}
+	sleep(1);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 0), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTNE(wait(&status), -1);
+	TESTEQUAL(status, 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 1), 0);
+	/* Allow +/- 10% */
+	TESTEQUAL(sysfs_test_value_range("reads_delayed_pending_us", 900000, 1100000),
+		  0);
+
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TESTSYSCALL(unlink(filename));
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 0), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(read(fd, buffer, sizeof(buffer)), sizeof(buffer));
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 1), 0);
+	/* This should be exact */
+	TESTEQUAL(sysfs_test_value("reads_delayed_min_us", 1000000), 0);
+
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TESTSYSCALL(unlink(filename));
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTSYSCALL(fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC));
+	TEST(pid = fork(), pid != -1);
+	if (pid == 0) {
+		TESTEQUAL(read(fd, buffer, sizeof(buffer)), sizeof(buffer));
+		exit(0);
+	}
+	usleep(500000);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 1), 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 1), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTNE(wait(&status), -1);
+	TESTEQUAL(status, 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_pending", 2), 0);
+	TESTEQUAL(sysfs_test_value("reads_delayed_min", 2), 0);
+	/* Exact 1000000 plus 500000 +/- 10% */
+	TESTEQUAL(sysfs_test_value_range("reads_delayed_min_us", 1450000, 1550000), 0);
+	/* Allow +/- 10% */
+	TESTEQUAL(sysfs_test_value_range("reads_delayed_pending_us", 1350000, 1650000),
+		  0);
+
+	result = TEST_SUCCESS;
+out:
+	if (pid == 0)
+		exit(result);
+	free(file.mtree);
+	free(filename);
+	close(fd);
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+static int sysfs_test_directories(bool one_present, bool two_present)
+{
+	int result = TEST_FAILURE;
+	struct stat st;
+
+	TESTEQUAL(stat("/sys/fs/incremental-fs/instances/1", &st),
+		  one_present ? 0 : -1);
+	if (one_present)
+		TESTCOND(S_ISDIR(st.st_mode));
+	else
+		TESTEQUAL(errno, ENOENT);
+	TESTEQUAL(stat("/sys/fs/incremental-fs/instances/2", &st),
+		  two_present ? 0 : -1);
+	if (two_present)
+		TESTCOND(S_ISDIR(st.st_mode));
+	else
+		TESTEQUAL(errno, ENOENT);
+
+	result = TEST_SUCCESS;
+out:
+	return result;
+}
+
+static int sysfs_rename_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	char *mount_dir2 = NULL;
+	int fd = -1;
+	char c;
+
+	/* Mount with no node */
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	TESTEQUAL(sysfs_test_directories(false, false), 0);
+
+	/* Remount with node */
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "sysfs_name=1", true),
+		  0);
+	TESTEQUAL(sysfs_test_directories(true, false), 0);
+	TEST(fd = open("/sys/fs/incremental-fs/instances/1/reads_delayed_min",
+		       O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(pread(fd, &c, 1, 0), 1);
+	TESTEQUAL(c, '0');
+	TESTEQUAL(pread(fd, &c, 1, 0), 1);
+	TESTEQUAL(c, '0');
+
+	/* Rename node */
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "sysfs_name=2", true),
+		  0);
+	TESTEQUAL(sysfs_test_directories(false, true), 0);
+	TESTEQUAL(pread(fd, &c, 1, 0), -1);
+
+	/* Try mounting another instance with same node name */
+	TEST(mount_dir2 = concat_file_name(backing_dir, "incfs-mount-dir2"),
+	     mount_dir2);
+	rmdir(mount_dir2); /* In case we crashed before */
+	TESTSYSCALL(mkdir(mount_dir2, 0777));
+	TEST(mount_fs_opt(mount_dir2, backing_dir, "sysfs_name=2", false),
+		  -1);
+
+	/* Try mounting another instance then remounting with existing name */
+	TESTEQUAL(mount_fs(mount_dir2, backing_dir, 0), 0);
+	TESTEQUAL(mount_fs_opt(mount_dir2, backing_dir, "sysfs_name=2", true),
+		  -1);
+
+	/* Remount with no node */
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "", true),
+		  0);
+	TESTEQUAL(sysfs_test_directories(false, false), 0);
+
+	result = TEST_SUCCESS;
+out:
+	umount(mount_dir2);
+	rmdir(mount_dir2);
+	free(mount_dir2);
+	close(fd);
 	umount(mount_dir);
 	free(backing_dir);
 	return result;
@@ -4276,6 +4727,9 @@ int main(int argc, char *argv[])
 		MAKE_TEST(enable_verity_test),
 		MAKE_TEST(mmap_test),
 		MAKE_TEST(truncate_test),
+		MAKE_TEST(stat_test),
+		MAKE_TEST(sysfs_test),
+		MAKE_TEST(sysfs_rename_test),
 	};
 #undef MAKE_TEST
 

@@ -29,14 +29,22 @@ struct sha1_ce_state {
 extern const u32 sha1_ce_offsetof_count;
 extern const u32 sha1_ce_offsetof_finalize;
 
-asmlinkage void sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
-				  int blocks);
+asmlinkage int sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
+				 int blocks);
 
 static void __sha1_ce_transform(struct sha1_state *sst, u8 const *src,
 				int blocks)
 {
-	sha1_ce_transform(container_of(sst, struct sha1_ce_state, sst), src,
-			  blocks);
+	while (blocks) {
+		int rem;
+
+		kernel_neon_begin();
+		rem = sha1_ce_transform(container_of(sst, struct sha1_ce_state,
+						     sst), src, blocks);
+		kernel_neon_end();
+		src += (blocks - rem) * SHA1_BLOCK_SIZE;
+		blocks = rem;
+	}
 }
 
 const u32 sha1_ce_offsetof_count = offsetof(struct sha1_ce_state, sst.count);
@@ -51,9 +59,7 @@ static int sha1_ce_update(struct shash_desc *desc, const u8 *data,
 		return crypto_sha1_update(desc, data, len);
 
 	sctx->finalize = 0;
-	kernel_neon_begin();
 	sha1_base_do_update(desc, data, len, __sha1_ce_transform);
-	kernel_neon_end();
 
 	return 0;
 }
@@ -73,11 +79,9 @@ static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
 	 */
 	sctx->finalize = finalize;
 
-	kernel_neon_begin();
 	sha1_base_do_update(desc, data, len, __sha1_ce_transform);
 	if (!finalize)
 		sha1_base_do_finalize(desc, __sha1_ce_transform);
-	kernel_neon_end();
 	return sha1_base_finish(desc, out);
 }
 
@@ -89,9 +93,7 @@ static int sha1_ce_final(struct shash_desc *desc, u8 *out)
 		return crypto_sha1_finup(desc, NULL, 0, out);
 
 	sctx->finalize = 0;
-	kernel_neon_begin();
 	sha1_base_do_finalize(desc, __sha1_ce_transform);
-	kernel_neon_end();
 	return sha1_base_finish(desc, out);
 }
 

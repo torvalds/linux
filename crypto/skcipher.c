@@ -10,6 +10,7 @@
  */
 
 #include <crypto/internal/aead.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/bug.h>
@@ -986,3 +987,4 @@ EXPORT_SYMBOL_GPL(skcipher_alloc_instance_simple);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Symmetric key cipher type");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

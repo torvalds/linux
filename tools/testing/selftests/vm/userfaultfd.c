@@ -342,7 +342,7 @@ static struct uffd_test_ops hugetlb_uffd_test_ops = {
 
 static struct uffd_test_ops *uffd_test_ops;
 
-static int userfaultfd_open(uint64_t *features)
+static void userfaultfd_open(uint64_t *features)
 {
 	struct uffdio_api uffdio_api;
 
@@ -360,25 +360,61 @@ static int userfaultfd_open(uint64_t *features)
 		err("UFFDIO_API error: %" PRIu64, (uint64_t)uffdio_api.api);
 
 	*features = uffdio_api.features;
-	return 0;
 }
 
-static int uffd_test_ctx_init_ext(uint64_t *features)
+static inline void munmap_area(void **area)
+{
+	if (*area)
+		if (munmap(*area, nr_pages * page_size))
+			err("munmap");
+
+	*area = NULL;
+}
+
+static void uffd_test_ctx_clear(void)
+{
+	size_t i;
+
+	if (pipefd) {
+		for (i = 0; i < nr_cpus * 2; ++i) {
+			if (close(pipefd[i]))
+				err("close pipefd");
+		}
+		free(pipefd);
+		pipefd = NULL;
+	}
+
+	if (count_verify) {
+		free(count_verify);
+		count_verify = NULL;
+	}
+
+	if (uffd != -1) {
+		if (close(uffd))
+			err("close uffd");
+		uffd = -1;
+	}
+
+	huge_fd_off0 = NULL;
+	munmap_area((void **)&area_src);
+	munmap_area((void **)&area_src_alias);
+	munmap_area((void **)&area_dst);
+	munmap_area((void **)&area_dst_alias);
+}
+
+static void uffd_test_ctx_init_ext(uint64_t *features)
 {
 	unsigned long nr, cpu;
 
+	uffd_test_ctx_clear();
+
 	uffd_test_ops->allocate_area((void **)&area_src);
-	if (!area_src)
-		return 1;
 	uffd_test_ops->allocate_area((void **)&area_dst);
-	if (!area_dst)
-		return 1;
 
 	uffd_test_ops->release_pages(area_src);
 	uffd_test_ops->release_pages(area_dst);
 
-	if (userfaultfd_open(features))
-		return 1;
+	userfaultfd_open(features);
 
 	count_verify = malloc(nr_pages * sizeof(unsigned long long));
 	if (!count_verify)
@@ -404,57 +440,11 @@ static int uffd_test_ctx_init_ext(uint64_t *features)
 	for (cpu = 0; cpu < nr_cpus; cpu++)
 		if (pipe2(&pipefd[cpu * 2], O_CLOEXEC | O_NONBLOCK))
 			err("pipe");
-
-	return 0;
 }
 
-static inline int uffd_test_ctx_init(uint64_t features)
+static inline void uffd_test_ctx_init(uint64_t features)
 {
-	return uffd_test_ctx_init_ext(&features);
-}
-
-static inline int munmap_area(void **area)
-{
-	if (*area)
-		if (munmap(*area, nr_pages * page_size))
-			err("munmap");
-
-	*area = NULL;
-	return 0;
-}
-
-static int uffd_test_ctx_clear(void)
-{
-	int ret = 0;
-	size_t i;
-
-	if (pipefd) {
-		for (i = 0; i < nr_cpus * 2; ++i) {
-			if (close(pipefd[i]))
-				err("close pipefd");
-		}
-		free(pipefd);
-		pipefd = NULL;
-	}
-
-	if (count_verify) {
-		free(count_verify);
-		count_verify = NULL;
-	}
-
-	if (uffd != -1) {
-		if (close(uffd))
-			err("close uffd");
-		uffd = -1;
-	}
-
-	huge_fd_off0 = NULL;
-	ret |= munmap_area((void **)&area_src);
-	ret |= munmap_area((void **)&area_src_alias);
-	ret |= munmap_area((void **)&area_dst);
-	ret |= munmap_area((void **)&area_dst_alias);
-
-	return ret;
+	uffd_test_ctx_init_ext(&features);
 }
 
 static int my_bcmp(char *str1, char *str2, size_t n)
@@ -483,6 +473,7 @@ static void wp_range(int ufd, __u64 start, __u64 len, bool wp)
 static void continue_range(int ufd, __u64 start, __u64 len)
 {
 	struct uffdio_continue req;
+	int ret;
 
 	req.range.start = start;
 	req.range.len = len;
@@ -491,6 +482,17 @@ static void continue_range(int ufd, __u64 start, __u64 len)
 	if (ioctl(ufd, UFFDIO_CONTINUE, &req))
 		err("UFFDIO_CONTINUE failed for address 0x%" PRIx64,
 		    (uint64_t)start);
+
+	/*
+	 * Error handling within the kernel for continue is subtly different
+	 * from copy or zeropage, so it may be a source of bugs. Trigger an
+	 * error (-EEXIST) on purpose, to verify doing so doesn't cause a BUG.
+	 */
+	req.mapped = 0;
+	ret = ioctl(ufd, UFFDIO_CONTINUE, &req);
+	if (ret >= 0 || req.mapped != -EEXIST)
+		err("failed to exercise UFFDIO_CONTINUE error handling, ret=%d, mapped=%" PRId64,
+		    ret, (int64_t) req.mapped);
 }
 
 static void *locking_thread(void *arg)
@@ -1044,8 +1046,7 @@ static int userfaultfd_zeropage_test(void)
 	printf("testing UFFDIO_ZEROPAGE: ");
 	fflush(stdout);
 
-	if (uffd_test_ctx_clear() || uffd_test_ctx_init(0))
-		return 1;
+	uffd_test_ctx_init(0);
 
 	uffdio_register.range.start = (unsigned long) area_dst;
 	uffdio_register.range.len = nr_pages * page_size;
@@ -1082,8 +1083,7 @@ static int userfaultfd_events_test(void)
 
 	features = UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_EVENT_REMAP |
 		UFFD_FEATURE_EVENT_REMOVE;
-	if (uffd_test_ctx_clear() || uffd_test_ctx_init(features))
-		return 1;
+	uffd_test_ctx_init(features);
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
@@ -1137,8 +1137,7 @@ static int userfaultfd_sig_test(void)
 	fflush(stdout);
 
 	features = UFFD_FEATURE_EVENT_FORK|UFFD_FEATURE_SIGBUS;
-	if (uffd_test_ctx_clear() || uffd_test_ctx_init(features))
-		return 1;
+	uffd_test_ctx_init(features);
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
@@ -1180,6 +1179,7 @@ static int userfaultfd_sig_test(void)
 	printf("done.\n");
 	if (userfaults)
 		err("Signal test failed, userfaults: %ld", userfaults);
+
 	return userfaults != 0;
 }
 
@@ -1209,8 +1209,7 @@ static int userfaultfd_minor_test(void)
 		return 1;
 
 	features_out = req_features;
-	if (uffd_test_ctx_clear() || uffd_test_ctx_init_ext(&features_out))
-		return 1;
+	uffd_test_ctx_init_ext(&features_out);
 	/* If kernel reports required features aren't supported, skip test. */
 	if ((features_out & req_features) != req_features) {
 		printf("skipping test due to lack of feature support\n");
@@ -1277,8 +1276,7 @@ static int userfaultfd_stress(void)
 	struct uffdio_register uffdio_register;
 	struct uffd_stats uffd_stats[nr_cpus];
 
-	if (uffd_test_ctx_init(0))
-		return 1;
+	uffd_test_ctx_init(0);
 
 	if (posix_memalign(&area, page_size, page_size))
 		err("out of memory");

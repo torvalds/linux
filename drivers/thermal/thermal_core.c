@@ -23,6 +23,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/thermal.h>
 
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
@@ -1613,6 +1615,7 @@ static int thermal_pm_notify(struct notifier_block *nb,
 			     unsigned long mode, void *_unused)
 {
 	struct thermal_zone_device *tz;
+	int irq_wakeable = 0;
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
@@ -1626,6 +1629,10 @@ static int thermal_pm_notify(struct notifier_block *nb,
 		atomic_set(&in_suspend, 0);
 		list_for_each_entry(tz, &thermal_tz_list, node) {
 			if (!thermal_zone_device_is_enabled(tz))
+				continue;
+
+			trace_android_vh_thermal_pm_notify_suspend(tz, &irq_wakeable);
+			if (irq_wakeable)
 				continue;
 
 			thermal_zone_device_init(tz);

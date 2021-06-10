@@ -412,6 +412,16 @@ static inline void pasid_set_page_snoop(struct pasid_entry *pe, bool value)
 }
 
 /*
+ * Setup the Page Snoop (PGSNP) field (Bit 88) of a scalable mode
+ * PASID entry.
+ */
+static inline void
+pasid_set_pgsnp(struct pasid_entry *pe)
+{
+	pasid_set_bits(&pe->val[1], 1ULL << 24, 1ULL << 24);
+}
+
+/*
  * Setup the First Level Page table Pointer field (Bit 140~191)
  * of a scalable mode PASID entry.
  */
@@ -579,6 +589,9 @@ int intel_pasid_setup_first_level(struct intel_iommu *iommu,
 		}
 	}
 
+	if (flags & PASID_FLAG_PAGE_SNOOP)
+		pasid_set_pgsnp(pte);
+
 	pasid_set_domain_id(pte, did);
 	pasid_set_address_width(pte, iommu->agaw);
 	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
@@ -657,11 +670,15 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 	pasid_set_fault_enable(pte);
 	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
 
+	if (domain->domain.type == IOMMU_DOMAIN_UNMANAGED)
+		pasid_set_pgsnp(pte);
+
 	/*
 	 * Since it is a second level only translation setup, we should
 	 * set SRE bit as well (addresses are expected to be GPAs).
 	 */
-	pasid_set_sre(pte);
+	if (pasid != PASID_RID2PASID)
+		pasid_set_sre(pte);
 	pasid_set_present(pte);
 	pasid_flush_caches(iommu, pte, pasid, did);
 

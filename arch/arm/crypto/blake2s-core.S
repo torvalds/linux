@@ -8,6 +8,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 	// Registers used to hold message words temporarily.  There aren't
 	// enough ARM registers to hold the whole message block, so we have to
@@ -36,6 +37,23 @@
 	str		\a, [\dst, #\offset]
 	str		\b, [\dst, #\offset + 4]
 #endif
+.endm
+
+.macro _le32_bswap	a, tmp
+#ifdef __ARMEB__
+	rev_l		\a, \tmp
+#endif
+.endm
+
+.macro _le32_bswap_8x	a, b, c, d, e, f, g, h,  tmp
+	_le32_bswap	\a, \tmp
+	_le32_bswap	\b, \tmp
+	_le32_bswap	\c, \tmp
+	_le32_bswap	\d, \tmp
+	_le32_bswap	\e, \tmp
+	_le32_bswap	\f, \tmp
+	_le32_bswap	\g, \tmp
+	_le32_bswap	\h, \tmp
 .endm
 
 // Execute a quarter-round of BLAKE2s by mixing two columns or two diagonals.
@@ -180,8 +198,10 @@ ENTRY(blake2s_compress_arch)
 	tst		r1, #3
 	bne		.Lcopy_block_misaligned
 	ldmia		r1!, {r2-r9}
+	_le32_bswap_8x	r2, r3, r4, r5, r6, r7, r8, r9,  r14
 	stmia		r12!, {r2-r9}
 	ldmia		r1!, {r2-r9}
+	_le32_bswap_8x	r2, r3, r4, r5, r6, r7, r8, r9,  r14
 	stmia		r12, {r2-r9}
 .Lcopy_block_done:
 	str		r1, [sp, #68]		// Update message pointer
@@ -268,6 +288,7 @@ ENTRY(blake2s_compress_arch)
 1:
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	ldr		r3, [r1], #4
+	_le32_bswap	r3, r4
 #else
 	ldrb		r3, [r1, #0]
 	ldrb		r4, [r1, #1]

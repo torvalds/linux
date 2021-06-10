@@ -25,6 +25,8 @@
   blk_mq_quiesce_queue
   blk_mq_requeue_request
   blk_mq_start_request
+  blk_mq_tagset_busy_iter
+  blk_mq_tagset_wait_completed_request
   blk_mq_unquiesce_queue
   blk_put_queue
   blk_queue_flag_clear
@@ -44,6 +46,7 @@
   cdev_device_add
   cdev_device_del
   cdev_init
+  __cfi_slowpath
   __check_object_size
   __class_create
   class_destroy
@@ -193,7 +196,6 @@
   kstrtouint
   kstrtoul_from_user
   kstrtoull
-  kthread_create_on_node
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_with_offset
@@ -308,7 +310,6 @@
   __rcu_read_unlock
   rdev_get_drvdata
   refcount_warn_saturate
-  register_shrinker
   regmap_read
   regmap_update_bits_base
   regmap_write
@@ -376,6 +377,9 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
   __tracepoint_rwmmio_post_read
   __tracepoint_rwmmio_read
   __tracepoint_rwmmio_write
@@ -398,7 +402,6 @@
   wait_for_completion
   wait_for_completion_timeout
   __wake_up
-  wake_up_process
   __warn_printk
   xa_destroy
   xa_erase
@@ -506,12 +509,6 @@
   dev_pm_opp_set_sharing_cpus
   get_cpu_device
   policy_has_boost_freq
-
-# required by deferred-free-helper.ko
-  freezing_slow_path
-  __refrigerator
-  sched_set_normal
-  system_freezing_cnt
 
 # required by dw_mmc.ko
   debugfs_create_u32
@@ -809,6 +806,7 @@
   kimage_voffset
   kstrdup
   kstrtobool_from_user
+  kthread_create_on_node
   kthread_should_stop
   kthread_stop
   ktime_add_safe
@@ -830,6 +828,7 @@
   rb_next
   rb_prev
   rb_replace_node
+  register_shrinker
   regulator_get_optional
   regulator_put
   __release_region
@@ -857,6 +856,7 @@
   vmf_insert_pfn
   vm_mmap
   vzalloc
+  wake_up_process
 
 # required by mmc_block.ko
   blk_get_request
@@ -882,6 +882,8 @@
   mmc_cqe_post_req
   mmc_cqe_recovery
   mmc_cqe_start_req
+  mmc_crypto_prepare_req
+  mmc_crypto_setup_queue
   mmc_detect_card_removed
   mmc_erase
   mmc_erase_group_aligned
@@ -978,8 +980,6 @@
   blk_mq_complete_request_remote
   blk_mq_map_queues
   blk_mq_pci_map_queues
-  blk_mq_tagset_busy_iter
-  blk_mq_tagset_wait_completed_request
   blk_mq_tag_to_rq
   blk_mq_update_nr_hw_queues
   device_release_driver
@@ -1033,7 +1033,6 @@
   config_group_init
   config_group_init_type_name
   _ctype
-  filp_open
   fs_bio_set
   hex_to_bin
   iov_iter_bvec
@@ -1112,10 +1111,6 @@
   usb_hcd_platform_shutdown
   usb_put_hcd
   usb_remove_hcd
-
-# required by page_pool.ko
-  contig_page_data
-  mod_node_page_state
 
 # required by phy-hi3660-usb3.ko
   __devm_of_phy_provider_register
@@ -1212,6 +1207,11 @@
   __unregister_chrdev
 
 # required by system_heap.ko
+  deferred_free
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_heap_get_dev
   __sg_page_iter_next
   __sg_page_iter_start

@@ -646,7 +646,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 
 	/* deleted inode */
 	if (inode->i_nlink == 0)
-		clear_inline_node(node_page);
+		clear_page_private_inline(node_page);
 
 	F2FS_I(inode)->i_disk_time[0] = inode->i_atime;
 	F2FS_I(inode)->i_disk_time[1] = inode->i_ctime;
@@ -666,6 +666,7 @@ retry:
 	node_page = f2fs_get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(node_page)) {
 		int err = PTR_ERR(node_page);
+
 		if (err == -ENOMEM) {
 			cond_resched();
 			goto retry;
@@ -698,7 +699,7 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 	/*
 	 * We need to balance fs here to prevent from producing dirty node pages
-	 * during the urgent cleaning time when runing out of free sections.
+	 * during the urgent cleaning time when running out of free sections.
 	 */
 	f2fs_update_inode_page(inode);
 	if (wbc && wbc->nr_to_write)

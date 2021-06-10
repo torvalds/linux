@@ -455,6 +455,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	if (!count)
 		goto out;
 
+	trace_cma_alloc_start(cma->name, count, align);
+
 	mask = cma_bitmap_aligned_mask(cma, align);
 	offset = cma_bitmap_aligned_offset(cma, align);
 	bitmap_maxno = cma_bitmap_maxno(cma);
@@ -513,11 +515,14 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 
 		pr_debug("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
+
+		trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
+					   count, align);
 		/* try again with a bit different memory target */
 		start = bitmap_no + mask + 1;
 	}
 
-	trace_cma_alloc(pfn, page, count, align);
+	trace_cma_alloc_finish(cma->name, pfn, page, count, align);
 
 	/*
 	 * CMA can allocate multiple page blocks, which results in different
@@ -579,7 +584,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
 
 	free_contig_range(pfn, count);
 	cma_clear_bitmap(cma, pfn, count);
-	trace_cma_release(pfn, pages, count);
+	trace_cma_release(cma->name, pfn, pages, count);
 
 	return true;
 }

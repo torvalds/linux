@@ -39,6 +39,8 @@ static const struct hns3_stats hns3_txq_stats[] = {
 	HNS3_TQP_STAT("l4_proto_err", tx_l4_proto_err),
 	HNS3_TQP_STAT("l2l3l4_err", tx_l2l3l4_err),
 	HNS3_TQP_STAT("tso_err", tx_tso_err),
+	HNS3_TQP_STAT("over_max_recursion", over_max_recursion),
+	HNS3_TQP_STAT("hw_limitation", hw_limitation),
 };
 
 #define HNS3_TXQ_STATS_COUNT ARRAY_SIZE(hns3_txq_stats)

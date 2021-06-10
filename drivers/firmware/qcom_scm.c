@@ -113,14 +113,10 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->bus_clk);
 }
 
-static int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
-					u32 cmd_id);
+enum qcom_scm_convention qcom_scm_convention = SMC_CONVENTION_UNKNOWN;
+static DEFINE_SPINLOCK(scm_query_lock);
 
-enum qcom_scm_convention qcom_scm_convention;
-static bool has_queried __read_mostly;
-static DEFINE_SPINLOCK(query_lock);
-
-static void __query_convention(void)
+static enum qcom_scm_convention __get_convention(void)
 {
 	unsigned long flags;
 	struct qcom_scm_desc desc = {
@@ -133,36 +129,50 @@ static void __query_convention(void)
 		.owner = ARM_SMCCC_OWNER_SIP,
 	};
 	struct qcom_scm_res res;
+	enum qcom_scm_convention probed_convention;
 	int ret;
+	bool forced = false;
 
-	spin_lock_irqsave(&query_lock, flags);
-	if (has_queried)
-		goto out;
+	if (likely(qcom_scm_convention != SMC_CONVENTION_UNKNOWN))
+		return qcom_scm_convention;
 
-	qcom_scm_convention = SMC_CONVENTION_ARM_64;
-	// Device isn't required as there is only one argument - no device
-	// needed to dma_map_single to secure world
-	ret = scm_smc_call(NULL, &desc, &res, true);
+	/*
+	 * Device isn't required as there is only one argument - no device
+	 * needed to dma_map_single to secure world
+	 */
+	probed_convention = SMC_CONVENTION_ARM_64;
+	ret = __scm_smc_call(NULL, &desc, probed_convention, &res, true);
 	if (!ret && res.result[0] == 1)
-		goto out;
+		goto found;
 
-	qcom_scm_convention = SMC_CONVENTION_ARM_32;
-	ret = scm_smc_call(NULL, &desc, &res, true);
+	/*
+	 * Some SC7180 firmwares didn't implement the
+	 * QCOM_SCM_INFO_IS_CALL_AVAIL call, so we fallback to forcing ARM_64
+	 * calling conventions on these firmwares. Luckily we don't make any
+	 * early calls into the firmware on these SoCs so the device pointer
+	 * will be valid here to check if the compatible matches.
+	 */
+	if (of_device_is_compatible(__scm ? __scm->dev->of_node : NULL, "qcom,scm-sc7180")) {
+		forced = true;
+		goto found;
+	}
+
+	probed_convention = SMC_CONVENTION_ARM_32;
+	ret = __scm_smc_call(NULL, &desc, probed_convention, &res, true);
 	if (!ret && res.result[0] == 1)
-		goto out;
+		goto found;
 
-	qcom_scm_convention = SMC_CONVENTION_LEGACY;
-out:
-	has_queried = true;
-	spin_unlock_irqrestore(&query_lock, flags);
-	pr_info("qcom_scm: convention: %s\n",
-		qcom_scm_convention_names[qcom_scm_convention]);
-}
+	probed_convention = SMC_CONVENTION_LEGACY;
+found:
+	spin_lock_irqsave(&scm_query_lock, flags);
+	if (probed_convention != qcom_scm_convention) {
+		qcom_scm_convention = probed_convention;
+		pr_info("qcom_scm: convention: %s%s\n",
+			qcom_scm_convention_names[qcom_scm_convention],
+			forced ? " (forced)" : "");
+	}
+	spin_unlock_irqrestore(&scm_query_lock, flags);
 
-static inline enum qcom_scm_convention __get_convention(void)
-{
-	if (unlikely(!has_queried))
-		__query_convention();
 	return qcom_scm_convention;
 }
 
@@ -219,8 +229,8 @@ static int qcom_scm_call_atomic(struct device *dev,
 	}
 }
 
-static int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
-					u32 cmd_id)
+static bool __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
+					 u32 cmd_id)
 {
 	int ret;
 	struct qcom_scm_desc desc = {
@@ -247,7 +257,7 @@ static int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
 
 	ret = qcom_scm_call(dev, &desc, &res);
 
-	return ret ? : res.result[0];
+	return ret ? false : !!res.result[0];
 }
 
 /**
@@ -585,9 +595,8 @@ bool qcom_scm_pas_supported(u32 peripheral)
 	};
 	struct qcom_scm_res res;
 
-	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
-					   QCOM_SCM_PIL_PAS_IS_SUPPORTED);
-	if (ret <= 0)
+	if (!__qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
+					  QCOM_SCM_PIL_PAS_IS_SUPPORTED))
 		return false;
 
 	ret = qcom_scm_call(__scm->dev, &desc, &res);
@@ -1060,17 +1069,18 @@ EXPORT_SYMBOL(qcom_scm_ice_set_key);
  */
 bool qcom_scm_hdcp_available(void)
 {
+	bool avail;
 	int ret = qcom_scm_clk_enable();
 
 	if (ret)
 		return ret;
 
-	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_HDCP,
+	avail = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_HDCP,
 						QCOM_SCM_HDCP_INVOKE);
 
 	qcom_scm_clk_disable();
 
-	return ret > 0;
+	return avail;
 }
 EXPORT_SYMBOL(qcom_scm_hdcp_available);
 
@@ -1242,7 +1252,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	__scm = scm;
 	__scm->dev = &pdev->dev;
 
-	__query_convention();
+	__get_convention();
 
 	/*
 	 * If requested enable "download mode", from this point on warmboot

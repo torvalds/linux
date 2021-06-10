@@ -221,15 +221,30 @@ void dma_buf_stats_teardown(struct dma_buf *dmabuf)
 	kobject_put(&sysfs_entry->kobj);
 }
 
+/*
+ * Statistics files do not need to send uevents.
+ */
+static int dmabuf_sysfs_uevent_filter(struct kset *kset, struct kobject *kobj)
+{
+	return 0;
+}
+
+static const struct kset_uevent_ops dmabuf_sysfs_no_uevent_ops = {
+	.filter = dmabuf_sysfs_uevent_filter,
+};
+
 static struct kset *dma_buf_stats_kset;
 static struct kset *dma_buf_per_buffer_stats_kset;
 int dma_buf_init_sysfs_statistics(void)
 {
-	dma_buf_stats_kset = kset_create_and_add("dmabuf", NULL, kernel_kobj);
+	dma_buf_stats_kset = kset_create_and_add("dmabuf",
+						 &dmabuf_sysfs_no_uevent_ops,
+						 kernel_kobj);
 	if (!dma_buf_stats_kset)
 		return -ENOMEM;
 
-	dma_buf_per_buffer_stats_kset = kset_create_and_add("buffers", NULL,
+	dma_buf_per_buffer_stats_kset = kset_create_and_add("buffers",
+							    &dmabuf_sysfs_no_uevent_ops,
 							    &dma_buf_stats_kset->kobj);
 	if (!dma_buf_per_buffer_stats_kset) {
 		kset_unregister(dma_buf_stats_kset);
@@ -275,7 +290,8 @@ int dma_buf_stats_setup(struct dma_buf *dmabuf)
 		goto err_sysfs_dmabuf;
 
 	/* create the directory for attachment stats */
-	attach_stats_kset = kset_create_and_add("attachments", NULL,
+	attach_stats_kset = kset_create_and_add("attachments",
+						&dmabuf_sysfs_no_uevent_ops,
 						&sysfs_entry->kobj);
 	if (!attach_stats_kset) {
 		ret = -ENOMEM;

@@ -20,6 +20,12 @@ struct mod_arch_specific {
 
 	/* for CONFIG_DYNAMIC_FTRACE */
 	struct plt_entry	*ftrace_trampolines;
+
+	/* for FIPS 140 certified kernel module */
+	const Elf64_Rela	*text_relocations;
+	const Elf64_Rela	*rodata_relocations;
+	int			num_text_relocations;
+	int			num_rodata_relocations;
 };
 #endif
 

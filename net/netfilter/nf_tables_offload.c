@@ -45,6 +45,48 @@ void nft_flow_rule_set_addr_type(struct nft_flow_rule *flow,
 		offsetof(struct nft_flow_key, control);
 }
 
+struct nft_offload_ethertype {
+	__be16 value;
+	__be16 mask;
+};
+
+static void nft_flow_rule_transfer_vlan(struct nft_offload_ctx *ctx,
+					struct nft_flow_rule *flow)
+{
+	struct nft_flow_match *match = &flow->match;
+	struct nft_offload_ethertype ethertype;
+
+	if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL) &&
+	    match->key.basic.n_proto != htons(ETH_P_8021Q) &&
+	    match->key.basic.n_proto != htons(ETH_P_8021AD))
+		return;
+
+	ethertype.value = match->key.basic.n_proto;
+	ethertype.mask = match->mask.basic.n_proto;
+
+	if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_VLAN) &&
+	    (match->key.vlan.vlan_tpid == htons(ETH_P_8021Q) ||
+	     match->key.vlan.vlan_tpid == htons(ETH_P_8021AD))) {
+		match->key.basic.n_proto = match->key.cvlan.vlan_tpid;
+		match->mask.basic.n_proto = match->mask.cvlan.vlan_tpid;
+		match->key.cvlan.vlan_tpid = match->key.vlan.vlan_tpid;
+		match->mask.cvlan.vlan_tpid = match->mask.vlan.vlan_tpid;
+		match->key.vlan.vlan_tpid = ethertype.value;
+		match->mask.vlan.vlan_tpid = ethertype.mask;
+		match->dissector.offset[FLOW_DISSECTOR_KEY_CVLAN] =
+			offsetof(struct nft_flow_key, cvlan);
+		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
+	} else {
+		match->key.basic.n_proto = match->key.vlan.vlan_tpid;
+		match->mask.basic.n_proto = match->mask.vlan.vlan_tpid;
+		match->key.vlan.vlan_tpid = ethertype.value;
+		match->mask.vlan.vlan_tpid = ethertype.mask;
+		match->dissector.offset[FLOW_DISSECTOR_KEY_VLAN] =
+			offsetof(struct nft_flow_key, vlan);
+		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_VLAN);
+	}
+}
+
 struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 					   const struct nft_rule *rule)
 {
@@ -89,6 +131,8 @@ struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 
 		expr = nft_expr_next(expr);
 	}
+	nft_flow_rule_transfer_vlan(ctx, flow);
+
 	flow->proto = ctx->dep.l3num;
 	kfree(ctx);
 

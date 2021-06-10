@@ -289,6 +289,12 @@
 			do not want to use tracing_snapshot_alloc() as it needs
 			to be done where GFP_KERNEL allocations are allowed.
 
+	allow_file_spec_access
+			Allow speculative faults on file backed pages.
+			Speculative faults are enabled only for those vm_ops
+			that implement and return true for allow_speculation
+			callback.
+
 	allow_mismatched_32bit_el0 [ARM64]
 			Allow execve() of 32-bit applications and setting of the
 			PER_LINUX32 personality on systems where only a strict
@@ -4676,10 +4682,6 @@
 		protect_image	Turn on image protection during restoration
 				(that will set all pages holding image data
 				during restoration read-only).
-
-	reap_mem_when_killed_by=
-			The name of a process, the kill signal from which to a process
-			make its memory reaped with oom reaper.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 

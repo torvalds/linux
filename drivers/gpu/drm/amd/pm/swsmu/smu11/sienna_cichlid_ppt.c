@@ -1018,7 +1018,6 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_MCLK:
 	case SMU_UCLK:
-	case SMU_DCEFCLK:
 	case SMU_FCLK:
 		/* There is only 2 levels for fine grained DPM */
 		if (sienna_cichlid_is_support_fine_grained_dpm(smu, clk_type)) {
@@ -1037,6 +1036,9 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 		ret = smu_v11_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
 		if (ret)
 			goto forec_level_out;
+		break;
+	case SMU_DCEFCLK:
+		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is not supported!\n");
 		break;
 	default:
 		break;
@@ -2713,6 +2715,16 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 
 static int sienna_cichlid_enable_mgpu_fan_boost(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
+
+	/*
+	 * Skip the MGpuFanBoost setting for those ASICs
+	 * which do not support it
+	 */
+	if (!smc_pptable->MGpuFanBoostLimitRpm)
+		return 0;
+
 	return smu_cmn_send_smc_msg_with_param(smu,
 					       SMU_MSG_SetMGpuFanBoostLimitRpm,
 					       0,

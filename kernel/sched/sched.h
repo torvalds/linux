@@ -208,6 +208,13 @@ static inline void update_avg(u64 *avg, u64 sample)
 }
 
 /*
+ * Shifting a value by an exponent greater *or equal* to the size of said value
+ * is UB; cap at size-1.
+ */
+#define shr_bound(val, shift)							\
+	(val >> min_t(typeof(shift), shift, BITS_PER_TYPE(typeof(val)) - 1))
+
+/*
  * !! For sched_setattr_nocheck() (kernel) only !!
  *
  * This is actually gross. :(
@@ -1068,6 +1075,7 @@ struct rq {
 #endif
 
 	ANDROID_VENDOR_DATA_ARRAY(1, 96);
+	ANDROID_OEM_DATA_ARRAY(1, 16);
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
@@ -1748,6 +1756,7 @@ static inline int task_on_rq_migrating(struct task_struct *p)
 #define WF_FORK			0x02		/* Child wakeup after fork */
 #define WF_MIGRATED		0x04		/* Internal use, task got migrated */
 #define WF_ON_CPU		0x08		/* Wakee is on_cpu */
+#define WF_ANDROID_VENDOR	0x1000		/* Vendor specific for Android */
 
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution

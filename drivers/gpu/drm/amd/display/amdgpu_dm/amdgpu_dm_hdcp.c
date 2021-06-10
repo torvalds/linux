@@ -643,6 +643,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 
 	/* File created at /sys/class/drm/card0/device/hdcp_srm*/
 	hdcp_work[0].attr = data_attr;
+	sysfs_bin_attr_init(&hdcp_work[0].attr);
 
 	if (sysfs_create_bin_file(&adev->dev->kobj, &hdcp_work[0].attr))
 		DRM_WARN("Failed to create device file hdcp_srm");

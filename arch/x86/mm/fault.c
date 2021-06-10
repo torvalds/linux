@@ -1316,7 +1316,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 * protection keys since it can't be resolved.
 	 */
 	if (!(hw_error_code & X86_PF_PK)) {
-		fault = handle_speculative_fault(mm, address, flags, &vma);
+		fault = handle_speculative_fault(mm, address, flags, &vma, regs);
 		if (fault != VM_FAULT_RETRY)
 			goto done;
 	}

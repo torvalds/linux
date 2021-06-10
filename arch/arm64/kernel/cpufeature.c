@@ -995,8 +995,6 @@ static void relax_cpu_ftr_reg(u32 sys_id, int field)
 	WARN_ON(!ftrp->width);
 }
 
-static void update_compat_elf_hwcaps(void);
-
 static void update_mismatched_32bit_el0_cpu_features(struct cpuinfo_arm64 *info,
 						     struct cpuinfo_arm64 *boot)
 {
@@ -1010,7 +1008,6 @@ static void update_mismatched_32bit_el0_cpu_features(struct cpuinfo_arm64 *info,
 
 	boot->aarch32 = info->aarch32;
 	init_32bit_cpu_features(&boot->aarch32);
-	update_compat_elf_hwcaps();
 	boot_cpu_32bit_regs_overridden = true;
 }
 
@@ -1286,51 +1283,6 @@ has_cpuid_feature(const struct arm64_cpu_capabilities *entry, int scope)
 
 	return feature_matches(val, entry);
 }
-
-static int enable_mismatched_32bit_el0(unsigned int cpu)
-{
-	static int lucky_winner = -1;
-
-	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
-	bool cpu_32bit = id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0);
-
-	if (cpu_32bit) {
-		cpumask_set_cpu(cpu, cpu_32bit_el0_mask);
-		static_branch_enable_cpuslocked(&arm64_mismatched_32bit_el0);
-	}
-
-	if (cpumask_test_cpu(0, cpu_32bit_el0_mask) == cpu_32bit)
-		return 0;
-
-	if (lucky_winner >= 0)
-		return 0;
-
-	/*
-	 * We've detected a mismatch. We need to keep one of our CPUs with
-	 * 32-bit EL0 online so that is_cpu_allowed() doesn't end up rejecting
-	 * every CPU in the system for a 32-bit task.
-	 */
-	lucky_winner = cpu_32bit ? cpu : cpumask_any_and(cpu_32bit_el0_mask,
-							 cpu_active_mask);
-	get_cpu_device(lucky_winner)->offline_disabled = true;
-	pr_info("Asymmetric 32-bit EL0 support detected on CPU %u; CPU hot-unplug disabled on CPU %u\n",
-		cpu, lucky_winner);
-	return 0;
-}
-
-static int __init init_32bit_el0_mask(void)
-{
-	if (!allow_mismatched_32bit_el0)
-		return 0;
-
-	if (!zalloc_cpumask_var(&cpu_32bit_el0_mask, GFP_KERNEL))
-		return -ENOMEM;
-
-	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
-				 "arm64/mismatched_32bit_el0:online",
-				 enable_mismatched_32bit_el0, NULL);
-}
-subsys_initcall_sync(init_32bit_el0_mask);
 
 const struct cpumask *system_32bit_el0_cpumask(void)
 {
@@ -2567,12 +2519,6 @@ static void setup_elf_hwcaps(const struct arm64_cpu_capabilities *hwcaps)
 			cap_set_elf_hwcap(hwcaps);
 }
 
-static void update_compat_elf_hwcaps(void)
-{
-	if (system_capabilities_finalized())
-		setup_elf_hwcaps(compat_elf_hwcaps);
-}
-
 static void update_cpu_capabilities(u16 scope_mask)
 {
 	int i;
@@ -2739,7 +2685,7 @@ static void check_early_cpu_features(void)
 }
 
 static void
-verify_local_elf_hwcaps(const struct arm64_cpu_capabilities *caps)
+__verify_local_elf_hwcaps(const struct arm64_cpu_capabilities *caps)
 {
 
 	for (; caps->matches; caps++)
@@ -2748,6 +2694,14 @@ verify_local_elf_hwcaps(const struct arm64_cpu_capabilities *caps)
 					smp_processor_id(), caps->desc);
 			cpu_die_early();
 		}
+}
+
+static void verify_local_elf_hwcaps(void)
+{
+	__verify_local_elf_hwcaps(arm64_elf_hwcaps);
+
+	if (id_aa64pfr0_32bit_el0(read_cpuid(ID_AA64PFR0_EL1)))
+		__verify_local_elf_hwcaps(compat_elf_hwcaps);
 }
 
 static void verify_sve_features(void)
@@ -2814,11 +2768,7 @@ static void verify_local_cpu_capabilities(void)
 	 * on all secondary CPUs.
 	 */
 	verify_local_cpu_caps(SCOPE_ALL & ~SCOPE_BOOT_CPU);
-
-	verify_local_elf_hwcaps(arm64_elf_hwcaps);
-
-	if (system_supports_32bit_el0())
-		verify_local_elf_hwcaps(compat_elf_hwcaps);
+	verify_local_elf_hwcaps();
 
 	if (system_supports_sve())
 		verify_sve_features();
@@ -2952,6 +2902,52 @@ void __init setup_cpu_features(void)
 		pr_warn("No Cache Writeback Granule information, assuming %d\n",
 			ARCH_DMA_MINALIGN);
 }
+
+static int enable_mismatched_32bit_el0(unsigned int cpu)
+{
+	static int lucky_winner = -1;
+
+	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
+	bool cpu_32bit = id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0);
+
+	if (cpu_32bit) {
+		cpumask_set_cpu(cpu, cpu_32bit_el0_mask);
+		static_branch_enable_cpuslocked(&arm64_mismatched_32bit_el0);
+	}
+
+	if (cpumask_test_cpu(0, cpu_32bit_el0_mask) == cpu_32bit)
+		return 0;
+
+	if (lucky_winner >= 0)
+		return 0;
+
+	/*
+	 * We've detected a mismatch. We need to keep one of our CPUs with
+	 * 32-bit EL0 online so that is_cpu_allowed() doesn't end up rejecting
+	 * every CPU in the system for a 32-bit task.
+	 */
+	lucky_winner = cpu_32bit ? cpu : cpumask_any_and(cpu_32bit_el0_mask,
+							 cpu_active_mask);
+	get_cpu_device(lucky_winner)->offline_disabled = true;
+	setup_elf_hwcaps(compat_elf_hwcaps);
+	pr_info("Asymmetric 32-bit EL0 support detected on CPU %u; CPU hot-unplug disabled on CPU %u\n",
+		cpu, lucky_winner);
+	return 0;
+}
+
+static int __init init_32bit_el0_mask(void)
+{
+	if (!allow_mismatched_32bit_el0)
+		return 0;
+
+	if (!zalloc_cpumask_var(&cpu_32bit_el0_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+				 "arm64/mismatched_32bit_el0:online",
+				 enable_mismatched_32bit_el0, NULL);
+}
+subsys_initcall_sync(init_32bit_el0_mask);
 
 static bool __maybe_unused
 cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused)

@@ -1318,6 +1318,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 	struct page *page, *head;
 	int ret = 0;
 	LIST_HEAD(source);
+	static DEFINE_RATELIMIT_STATE(migrate_rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		if (!pfn_valid(pfn))
@@ -1364,8 +1366,10 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 						    page_is_file_lru(page));
 
 		} else {
-			pr_warn("failed to isolate pfn %lx\n", pfn);
-			dump_page(page, "isolation failed");
+			if (__ratelimit(&migrate_rs)) {
+				pr_warn("failed to isolate pfn %lx\n", pfn);
+				dump_page(page, "isolation failed");
+			}
 		}
 		put_page(page);
 	}
@@ -1394,9 +1398,11 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			(unsigned long)&mtc, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
 		if (ret) {
 			list_for_each_entry(page, &source, lru) {
-				pr_warn("migrating pfn %lx failed ret:%d ",
-				       page_to_pfn(page), ret);
-				dump_page(page, "migration failure");
+				if (__ratelimit(&migrate_rs)) {
+					pr_warn("migrating pfn %lx failed ret:%d\n",
+						page_to_pfn(page), ret);
+					dump_page(page, "migration failure");
+				}
 			}
 			putback_movable_pages(&source);
 		}
@@ -1828,22 +1834,6 @@ int remove_memory(int nid, u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-static bool __check_sections_offline(unsigned long start_pfn,
-		unsigned long nr_pages)
-{
-	const unsigned long end_pfn = start_pfn + nr_pages;
-	unsigned long pfn, sec_nr;
-
-	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-		sec_nr = pfn_to_section_nr(pfn);
-
-		if (!valid_section_nr(sec_nr) || online_section_nr(sec_nr))
-			return false;
-	}
-
-	return true;
-}
-
 int remove_memory_subsection(int nid, u64 start, u64 size)
 {
 	if (size ==  memory_block_size_bytes())
@@ -1857,15 +1847,6 @@ int remove_memory_subsection(int nid, u64 start, u64 size)
 	}
 
 	mem_hotplug_begin();
-
-	/* we cannot remove subsections that are invalid or online */
-	if(!__check_sections_offline(PHYS_PFN(start), size >> PAGE_SHIFT)) {
-		pr_err("%s: [%llx, %llx) sections are not offlined\n",
-			   __func__, start, start + size);
-		mem_hotplug_done();
-		return -EBUSY;
-	}
-
 	arch_remove_memory(nid, start, size, NULL);
 
 	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))

@@ -1753,16 +1753,25 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define SYSCALL_RET_SET(_regs, _val)				\
 	do {							\
 		typeof(_val) _result = (_val);			\
-		/*						\
-		 * A syscall error is signaled by CR0 SO bit	\
-		 * and the code is stored as a positive value.	\
-		 */						\
-		if (_result < 0) {				\
-			SYSCALL_RET(_regs) = -_result;		\
-			(_regs).ccr |= 0x10000000;		\
-		} else {					\
+		if ((_regs.trap & 0xfff0) == 0x3000) {		\
+			/*					\
+			 * scv 0 system call uses -ve result	\
+			 * for error, so no need to adjust.	\
+			 */					\
 			SYSCALL_RET(_regs) = _result;		\
-			(_regs).ccr &= ~0x10000000;		\
+		} else {					\
+			/*					\
+			 * A syscall error is signaled by the	\
+			 * CR0 SO bit and the code is stored as	\
+			 * a positive value.			\
+			 */					\
+			if (_result < 0) {			\
+				SYSCALL_RET(_regs) = -_result;	\
+				(_regs).ccr |= 0x10000000;	\
+			} else {				\
+				SYSCALL_RET(_regs) = _result;	\
+				(_regs).ccr &= ~0x10000000;	\
+			}					\
 		}						\
 	} while (0)
 # define SYSCALL_RET_SET_ON_PTRACE_EXIT

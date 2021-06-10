@@ -519,6 +519,7 @@ static int do_dump(int argc, char **argv)
 			NEXT_ARG();
 			if (argc < 1) {
 				p_err("expecting value for 'format' option\n");
+				err = -EINVAL;
 				goto done;
 			}
 			if (strcmp(*argv, "c") == 0) {
@@ -528,11 +529,13 @@ static int do_dump(int argc, char **argv)
 			} else {
 				p_err("unrecognized format specifier: '%s', possible values: raw, c",
 				      *argv);
+				err = -EINVAL;
 				goto done;
 			}
 			NEXT_ARG();
 		} else {
 			p_err("unrecognized option: '%s'", *argv);
+			err = -EINVAL;
 			goto done;
 		}
 	}

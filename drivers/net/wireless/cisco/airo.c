@@ -3825,6 +3825,68 @@ static inline void set_auth_type(struct airo_info *local, int auth_type)
 		local->last_auth = auth_type;
 }
 
+static int noinline_for_stack airo_readconfig(struct airo_info *ai, u8 *mac, int lock)
+{
+	int i, status;
+	/* large variables, so don't inline this function,
+	 * maybe change to kmalloc
+	 */
+	tdsRssiRid rssi_rid;
+	CapabilityRid cap_rid;
+
+	kfree(ai->SSID);
+	ai->SSID = NULL;
+	// general configuration (read/modify/write)
+	status = readConfigRid(ai, lock);
+	if (status != SUCCESS) return ERROR;
+
+	status = readCapabilityRid(ai, &cap_rid, lock);
+	if (status != SUCCESS) return ERROR;
+
+	status = PC4500_readrid(ai, RID_RSSI, &rssi_rid, sizeof(rssi_rid), lock);
+	if (status == SUCCESS) {
+		if (ai->rssi || (ai->rssi = kmalloc(512, GFP_KERNEL)) != NULL)
+			memcpy(ai->rssi, (u8*)&rssi_rid + 2, 512); /* Skip RID length member */
+	}
+	else {
+		kfree(ai->rssi);
+		ai->rssi = NULL;
+		if (cap_rid.softCap & cpu_to_le16(8))
+			ai->config.rmode |= RXMODE_NORMALIZED_RSSI;
+		else
+			airo_print_warn(ai->dev->name, "unknown received signal "
+					"level scale");
+	}
+	ai->config.opmode = adhoc ? MODE_STA_IBSS : MODE_STA_ESS;
+	set_auth_type(ai, AUTH_OPEN);
+	ai->config.modulation = MOD_CCK;
+
+	if (le16_to_cpu(cap_rid.len) >= sizeof(cap_rid) &&
+	    (cap_rid.extSoftCap & cpu_to_le16(1)) &&
+	    micsetup(ai) == SUCCESS) {
+		ai->config.opmode |= MODE_MIC;
+		set_bit(FLAG_MIC_CAPABLE, &ai->flags);
+	}
+
+	/* Save off the MAC */
+	for (i = 0; i < ETH_ALEN; i++) {
+		mac[i] = ai->config.macAddr[i];
+	}
+
+	/* Check to see if there are any insmod configured
+	   rates to add */
+	if (rates[0]) {
+		memset(ai->config.rates, 0, sizeof(ai->config.rates));
+		for (i = 0; i < 8 && rates[i]; i++) {
+			ai->config.rates[i] = rates[i];
+		}
+	}
+	set_bit (FLAG_COMMIT, &ai->flags);
+
+	return SUCCESS;
+}
+
+
 static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 {
 	Cmd cmd;
@@ -3871,58 +3933,9 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	if (lock)
 		up(&ai->sem);
 	if (ai->config.len == 0) {
-		int i;
-		tdsRssiRid rssi_rid;
-		CapabilityRid cap_rid;
-
-		kfree(ai->SSID);
-		ai->SSID = NULL;
-		// general configuration (read/modify/write)
-		status = readConfigRid(ai, lock);
-		if (status != SUCCESS) return ERROR;
-
-		status = readCapabilityRid(ai, &cap_rid, lock);
-		if (status != SUCCESS) return ERROR;
-
-		status = PC4500_readrid(ai, RID_RSSI,&rssi_rid, sizeof(rssi_rid), lock);
-		if (status == SUCCESS) {
-			if (ai->rssi || (ai->rssi = kmalloc(512, GFP_KERNEL)) != NULL)
-				memcpy(ai->rssi, (u8*)&rssi_rid + 2, 512); /* Skip RID length member */
-		}
-		else {
-			kfree(ai->rssi);
-			ai->rssi = NULL;
-			if (cap_rid.softCap & cpu_to_le16(8))
-				ai->config.rmode |= RXMODE_NORMALIZED_RSSI;
-			else
-				airo_print_warn(ai->dev->name, "unknown received signal "
-						"level scale");
-		}
-		ai->config.opmode = adhoc ? MODE_STA_IBSS : MODE_STA_ESS;
-		set_auth_type(ai, AUTH_OPEN);
-		ai->config.modulation = MOD_CCK;
-
-		if (le16_to_cpu(cap_rid.len) >= sizeof(cap_rid) &&
-		    (cap_rid.extSoftCap & cpu_to_le16(1)) &&
-		    micsetup(ai) == SUCCESS) {
-			ai->config.opmode |= MODE_MIC;
-			set_bit(FLAG_MIC_CAPABLE, &ai->flags);
-		}
-
-		/* Save off the MAC */
-		for (i = 0; i < ETH_ALEN; i++) {
-			mac[i] = ai->config.macAddr[i];
-		}
-
-		/* Check to see if there are any insmod configured
-		   rates to add */
-		if (rates[0]) {
-			memset(ai->config.rates, 0, sizeof(ai->config.rates));
-			for (i = 0; i < 8 && rates[i]; i++) {
-				ai->config.rates[i] = rates[i];
-			}
-		}
-		set_bit (FLAG_COMMIT, &ai->flags);
+		status = airo_readconfig(ai, mac, lock);
+		if (status != SUCCESS)
+			return ERROR;
 	}
 
 	/* Setup the SSIDs if present */

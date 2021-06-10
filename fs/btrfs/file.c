@@ -2065,6 +2065,30 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
 	return ret;
 }
 
+static inline bool skip_inode_logging(const struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_inode *inode = BTRFS_I(ctx->inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+
+	if (btrfs_inode_in_log(inode, fs_info->generation) &&
+	    list_empty(&ctx->ordered_extents))
+		return true;
+
+	/*
+	 * If we are doing a fast fsync we can not bail out if the inode's
+	 * last_trans is <= then the last committed transaction, because we only
+	 * update the last_trans of the inode during ordered extent completion,
+	 * and for a fast fsync we don't wait for that, we only wait for the
+	 * writeback to complete.
+	 */
+	if (inode->last_trans <= fs_info->last_trans_committed &&
+	    (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags) ||
+	     list_empty(&ctx->ordered_extents)))
+		return true;
+
+	return false;
+}
+
 /*
  * fsync call for both files and directories.  This logs the inode into
  * the tree log instead of forcing full commits whenever possible.
@@ -2080,7 +2104,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = d_inode(dentry);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_log_ctx ctx;
@@ -2187,17 +2210,8 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	atomic_inc(&root->log_batch);
 
-	/*
-	 * If we are doing a fast fsync we can not bail out if the inode's
-	 * last_trans is <= then the last committed transaction, because we only
-	 * update the last_trans of the inode during ordered extent completion,
-	 * and for a fast fsync we don't wait for that, we only wait for the
-	 * writeback to complete.
-	 */
 	smp_mb();
-	if (btrfs_inode_in_log(BTRFS_I(inode), fs_info->generation) ||
-	    (BTRFS_I(inode)->last_trans <= fs_info->last_trans_committed &&
-	     (full_sync || list_empty(&ctx.ordered_extents)))) {
+	if (skip_inode_logging(&ctx)) {
 		/*
 		 * We've had everything committed since the last time we were
 		 * modified so clear this flag in case it was set for whatever
