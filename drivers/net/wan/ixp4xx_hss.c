@@ -341,6 +341,7 @@ static inline struct port* dev_to_port(struct net_device *dev)
 static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 {
 	int i;
+
 	for (i = 0; i < cnt; i++)
 		dest[i] = swab32(src[i]);
 }
@@ -353,6 +354,7 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 static void hss_npe_send(struct port *port, struct msg *msg, const char* what)
 {
 	u32 *val = (u32*)msg;
+
 	if (npe_send_message(port->npe, msg, what)) {
 		pr_crit("HSS-%i: unable to send command [%08X:%08X] to %s\n",
 			port->id, val[0], val[1], npe_name(port->npe));
@@ -1006,6 +1008,7 @@ static void destroy_hdlc_queues(struct port *port)
 		for (i = 0; i < RX_DESCS; i++) {
 			struct desc *desc = rx_desc_ptr(port, i);
 			buffer_t *buff = port->rx_buff_tab[i];
+
 			if (buff) {
 				dma_unmap_single(&port->netdev->dev,
 						 desc->data, RX_SIZE,
@@ -1016,6 +1019,7 @@ static void destroy_hdlc_queues(struct port *port)
 		for (i = 0; i < TX_DESCS; i++) {
 			struct desc *desc = tx_desc_ptr(port, i);
 			buffer_t *buff = port->tx_buff_tab[i];
+
 			if (buff) {
 				dma_unmap_tx(port, desc);
 				free_buffer(buff);
@@ -1213,6 +1217,7 @@ static void find_best_clock(u32 timer_freq, u32 rate, u32 *best, u32 *reg)
 
 	for (b = 0; b < 0x400; b++) {
 		u64 c = (b + 1) * (u64)rate;
+
 		do_div(c, timer_freq - rate * a);
 		c--;
 		if (c >= 0xFFF) { /* 12-bit - no need to check more 'b's */
