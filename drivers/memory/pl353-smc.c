@@ -36,8 +36,8 @@ static int __maybe_unused pl353_smc_suspend(struct device *dev)
 
 static int __maybe_unused pl353_smc_resume(struct device *dev)
 {
-	int ret;
 	struct pl353_smc_data *pl353_smc = dev_get_drvdata(dev);
+	int ret;
 
 	ret = clk_enable(pl353_smc->aclk);
 	if (ret) {
@@ -70,11 +70,11 @@ static const struct of_device_id pl353_smc_supported_children[] = {
 
 static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 {
+	struct device_node *of_node = adev->dev.of_node;
+	const struct of_device_id *match = NULL;
 	struct pl353_smc_data *pl353_smc;
 	struct device_node *child;
 	int err;
-	struct device_node *of_node = adev->dev.of_node;
-	const struct of_device_id *match = NULL;
 
 	pl353_smc = devm_kzalloc(&adev->dev, sizeof(*pl353_smc), GFP_KERNEL);
 	if (!pl353_smc)
