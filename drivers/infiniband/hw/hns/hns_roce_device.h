@@ -961,7 +961,7 @@ struct hns_roce_dev {
 	void __iomem            *priv_addr;
 
 	struct hns_roce_cmdq	cmd;
-	struct hns_roce_bitmap    pd_bitmap;
+	struct hns_roce_ida pd_ida;
 	struct hns_roce_bitmap xrcd_bitmap;
 	struct hns_roce_uar_table uar_table;
 	struct hns_roce_mr_table  mr_table;
@@ -1143,14 +1143,13 @@ void hns_roce_mtr_destroy(struct hns_roce_dev *hr_dev,
 int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		     dma_addr_t *pages, unsigned int page_cnt);
 
-int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
+void hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev);
 
-void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);

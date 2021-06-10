@@ -34,39 +34,31 @@
 #include <linux/pci.h>
 #include "hns_roce_device.h"
 
-static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
+void hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
 {
-	return hns_roce_bitmap_alloc(&hr_dev->pd_bitmap, pdn) ? -ENOMEM : 0;
-}
+	struct hns_roce_ida *pd_ida = &hr_dev->pd_ida;
 
-static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
-{
-	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn);
-}
-
-int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
-{
-	return hns_roce_bitmap_init(&hr_dev->pd_bitmap, hr_dev->caps.num_pds,
-				    hr_dev->caps.num_pds - 1,
-				    hr_dev->caps.reserved_pds, 0);
-}
-
-void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev)
-{
-	hns_roce_bitmap_cleanup(&hr_dev->pd_bitmap);
+	ida_init(&pd_ida->ida);
+	pd_ida->max = hr_dev->caps.num_pds - 1;
+	pd_ida->min = hr_dev->caps.reserved_pds;
 }
 
 int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ib_device *ib_dev = ibpd->device;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
+	struct hns_roce_ida *pd_ida = &hr_dev->pd_ida;
 	struct hns_roce_pd *pd = to_hr_pd(ibpd);
-	int ret;
+	int ret = 0;
+	int id;
 
-	ret = hns_roce_pd_alloc(to_hr_dev(ib_dev), &pd->pdn);
-	if (ret) {
-		ibdev_err(ib_dev, "failed to alloc pd, ret = %d.\n", ret);
-		return ret;
+	id = ida_alloc_range(&pd_ida->ida, pd_ida->min, pd_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(ib_dev, "failed to alloc pd, id = %d.\n", id);
+		return -ENOMEM;
 	}
+	pd->pdn = (unsigned long)id;
 
 	if (udata) {
 		struct hns_roce_ib_alloc_pd_resp resp = {.pdn = pd->pdn};
@@ -74,7 +66,7 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 		ret = ib_copy_to_udata(udata, &resp,
 				       min(udata->outlen, sizeof(resp)));
 		if (ret) {
-			hns_roce_pd_free(to_hr_dev(ib_dev), pd->pdn);
+			ida_free(&pd_ida->ida, id);
 			ibdev_err(ib_dev, "failed to copy to udata, ret = %d\n", ret);
 		}
 	}
@@ -84,7 +76,10 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
-	hns_roce_pd_free(to_hr_dev(pd->device), to_hr_pd(pd)->pdn);
+	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+
+	ida_free(&hr_dev->pd_ida.ida, (int)to_hr_pd(pd)->pdn);
+
 	return 0;
 }
 
