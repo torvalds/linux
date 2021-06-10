@@ -985,6 +985,7 @@
   get_zeroed_page
   gfp_zone
   gic_nonsecure_priorities
+  gic_resume
   gov_attr_set_init
   gov_attr_set_put
   governor_sysfs_ops
@@ -2469,6 +2470,8 @@
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_cpuidle_psci_enter
+  __traceiter_android_vh_cpuidle_psci_exit
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_force_compatible_post
   __traceiter_android_vh_force_compatible_pre
@@ -2478,6 +2481,7 @@
   __traceiter_android_vh_ftrace_oops_enter
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
+  __traceiter_android_vh_gic_resume
   __traceiter_android_vh_gpio_block_read
   __traceiter_android_vh_iommu_setup_dma_ops
   __traceiter_android_vh_ipi_stop
@@ -2561,6 +2565,8 @@
   __tracepoint_android_vh_check_uninterruptible_tasks_dn
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
+  __tracepoint_android_vh_cpuidle_psci_enter
+  __tracepoint_android_vh_cpuidle_psci_exit
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_force_compatible_post
   __tracepoint_android_vh_force_compatible_pre
@@ -2570,6 +2576,7 @@
   __tracepoint_android_vh_ftrace_oops_enter
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
+  __tracepoint_android_vh_gic_resume
   __tracepoint_android_vh_gpio_block_read
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
