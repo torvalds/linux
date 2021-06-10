@@ -322,7 +322,7 @@ static DEFINE_SPINLOCK(npe_lock);
 
 static const struct {
 	int tx, txdone, rx, rxfree;
-}queue_ids[2] = {{HSS0_PKT_TX0_QUEUE, HSS0_PKT_TXDONE_QUEUE, HSS0_PKT_RX_QUEUE,
+} queue_ids[2] = {{HSS0_PKT_TX0_QUEUE, HSS0_PKT_TXDONE_QUEUE, HSS0_PKT_RX_QUEUE,
 		  HSS0_PKT_RXFREE0_QUEUE},
 		 {HSS1_PKT_TX0_QUEUE, HSS1_PKT_TXDONE_QUEUE, HSS1_PKT_RX_QUEUE,
 		  HSS1_PKT_RXFREE0_QUEUE},
@@ -1177,7 +1177,7 @@ static int hss_hdlc_attach(struct net_device *dev, unsigned short encoding,
 	if (encoding != ENCODING_NRZ)
 		return -EINVAL;
 
-	switch(parity) {
+	switch (parity) {
 	case PARITY_CRC16_PR1_CCITT:
 		port->hdlc_cfg = 0;
 		return 0;
@@ -1264,7 +1264,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
-	switch(ifr->ifr_settings.type) {
+	switch (ifr->ifr_settings.type) {
 	case IF_GET_IFACE:
 		ifr->ifr_settings.type = IF_IFACE_V35;
 		if (ifr->ifr_settings.size < size) {
@@ -1281,7 +1281,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case IF_IFACE_SYNC_SERIAL:
 	case IF_IFACE_V35:
-		if(!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		if (copy_from_user(&new_line, line, size))
 			return -EFAULT;
