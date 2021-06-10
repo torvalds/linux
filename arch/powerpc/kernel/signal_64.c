@@ -944,8 +944,8 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	regs->gpr[3] = ksig->sig;
 	regs->result = 0;
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
-		err |= get_user(regs->gpr[4], (unsigned long __user *)&frame->pinfo);
-		err |= get_user(regs->gpr[5], (unsigned long __user *)&frame->puc);
+		regs->gpr[4] = (unsigned long)&frame->info;
+		regs->gpr[5] = (unsigned long)&frame->uc;
 		regs->gpr[6] = (unsigned long) frame;
 	} else {
 		regs->gpr[4] = (unsigned long)&frame->uc.uc_mcontext;
