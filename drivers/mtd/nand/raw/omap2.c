@@ -1525,8 +1525,8 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 			       int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int ret;
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
+	int ret;
 
 	ret = nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	if (ret)
@@ -1595,7 +1595,7 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 	chip->legacy.write_buf(chip, buf, mtd->writesize);
 
 	for (step = 0; step < ecc_steps; step++) {
-		/* mask ECC of un-touched subpages by padding 0xFF */
+		/* Mask ECC of un-touched subpages with 0xFFs */
 		if (step < start_step || step > end_step)
 			memset(ecc_calc, 0xff, ecc_bytes);
 		else
@@ -1608,8 +1608,10 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 		ecc_calc += ecc_bytes;
 	}
 
-	/* copy calculated ECC for whole page to chip->buffer->oob */
-	/* this include masked-value(0xFF) for unwritten subpages */
+	/*
+	 * Copy the calculated ECC for the whole page including the
+	 * masked values (0xFF) corresponding to unwritten subpages.
+	 */
 	ecc_calc = chip->ecc.calc_buf;
 	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
 					 chip->ecc.total);
@@ -1642,8 +1644,8 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 	uint8_t *ecc_code = chip->ecc.code_buf;
-	int stat, ret;
 	unsigned int max_bitflips = 0;
+	int stat, ret;
 
 	ret = nand_read_page_op(chip, page, 0, NULL, 0);
 	if (ret)
