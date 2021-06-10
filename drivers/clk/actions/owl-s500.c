@@ -113,6 +113,7 @@ static const char * const sensor_clk_mux_p[] = { "hosc", "bisp_clk" };
 static const char * const sd_clk_mux_p[] = { "dev_clk", "nand_pll_clk" };
 static const char * const pwm_clk_mux_p[] = { "losc", "hosc" };
 static const char * const ahbprediv_clk_mux_p[] = { "dev_clk", "display_pll_clk", "nand_pll_clk", "ddr_pll_clk" };
+static const char * const nic_clk_mux_p[] = { "dev_clk", "display_pll_clk", "nand_pll_clk", "ddr_pll_clk" };
 static const char * const uart_clk_mux_p[] = { "hosc", "dev_pll_clk" };
 static const char * const de_clk_mux_p[] = { "display_pll_clk", "dev_clk" };
 static const char * const i2s_clk_mux_p[] = { "audio_pll_clk" };
@@ -194,7 +195,7 @@ static OWL_GATE(hdmi_clk, "hdmi_clk", "hosc", CMU_DEVCLKEN1, 3, 0, 0);
 
 /* divider clocks */
 static OWL_DIVIDER(h_clk, "h_clk", "ahbprediv_clk", CMU_BUSCLK1, 2, 2, NULL, 0, 0);
-static OWL_DIVIDER(apb_clk, "apb_clk", "ahb_clk", CMU_BUSCLK1, 14, 2, NULL, 0, 0);
+static OWL_DIVIDER(apb_clk, "apb_clk", "nic_clk", CMU_BUSCLK1, 14, 2, NULL, 0, 0);
 static OWL_DIVIDER(rmii_ref_clk, "rmii_ref_clk", "ethernet_pll_clk", CMU_ETHERNETPLL, 1, 1, rmii_ref_div_table, 0, 0);
 
 /* factor clocks */
@@ -202,6 +203,12 @@ static OWL_FACTOR(de1_clk, "de_clk1", "de_clk", CMU_DECLK, 0, 4, de_factor_table
 static OWL_FACTOR(de2_clk, "de_clk2", "de_clk", CMU_DECLK, 4, 4, de_factor_table, 0, 0);
 
 /* composite clocks */
+static OWL_COMP_DIV(nic_clk, "nic_clk", nic_clk_mux_p,
+			OWL_MUX_HW(CMU_BUSCLK1, 4, 3),
+			{ 0 },
+			OWL_DIVIDER_HW(CMU_BUSCLK1, 16, 2, 0, NULL),
+			0);
+
 static OWL_COMP_DIV(ahbprediv_clk, "ahbprediv_clk", ahbprediv_clk_mux_p,
 			OWL_MUX_HW(CMU_BUSCLK1, 8, 3),
 			{ 0 },
@@ -316,6 +323,10 @@ static OWL_COMP_FIXED_FACTOR(i2c2_clk, "i2c2_clk", "ethernet_pll_clk",
 static OWL_COMP_FIXED_FACTOR(i2c3_clk, "i2c3_clk", "ethernet_pll_clk",
 			OWL_GATE_HW(CMU_DEVCLKEN1, 31, 0),
 			1, 5, 0);
+
+static OWL_COMP_FIXED_FACTOR(ethernet_clk, "ethernet_clk", "ethernet_pll_clk",
+			OWL_GATE_HW(CMU_DEVCLKEN1, 22, 0),
+			1, 20, 0);
 
 static OWL_COMP_DIV(uart0_clk, "uart0_clk", uart_clk_mux_p,
 			OWL_MUX_HW(CMU_UART0CLK, 16, 1),
@@ -451,6 +462,8 @@ static struct owl_clk_common *s500_clks[] = {
 	&apb_clk.common,
 	&dmac_clk.common,
 	&gpio_clk.common,
+	&nic_clk.common,
+	&ethernet_clk.common,
 };
 
 static struct clk_hw_onecell_data s500_hw_clks = {
@@ -510,6 +523,8 @@ static struct clk_hw_onecell_data s500_hw_clks = {
 		[CLK_APB]		= &apb_clk.common.hw,
 		[CLK_DMAC]		= &dmac_clk.common.hw,
 		[CLK_GPIO]		= &gpio_clk.common.hw,
+		[CLK_NIC]		= &nic_clk.common.hw,
+		[CLK_ETHERNET]		= &ethernet_clk.common.hw,
 	},
 	.num = CLK_NR_CLKS,
 };
