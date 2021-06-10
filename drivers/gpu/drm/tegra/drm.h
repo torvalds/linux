@@ -64,12 +64,22 @@ struct tegra_drm {
 	struct tegra_display_hub *hub;
 };
 
+static inline struct host1x *tegra_drm_to_host1x(struct tegra_drm *tegra)
+{
+	return dev_get_drvdata(tegra->drm->dev->parent);
+}
+
 struct tegra_drm_client;
 
 struct tegra_drm_context {
 	struct tegra_drm_client *client;
 	struct host1x_channel *channel;
+
+	/* Only used by legacy UAPI. */
 	unsigned int id;
+
+	/* Only used by new UAPI. */
+	struct xarray mappings;
 };
 
 struct tegra_drm_client_ops {
