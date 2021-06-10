@@ -66,20 +66,10 @@ int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj)
 void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
 			  int rr)
 {
-	hns_roce_bitmap_free_range(bitmap, obj, 1, rr);
-}
-
-void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
-				unsigned long obj, int cnt,
-				int rr)
-{
-	int i;
-
 	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
-	for (i = 0; i < cnt; i++)
-		clear_bit(obj + i, bitmap->table);
+	clear_bit(obj, bitmap->table);
 
 	if (!rr)
 		bitmap->last = min(bitmap->last, obj);
