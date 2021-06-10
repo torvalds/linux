@@ -78,6 +78,8 @@
 		#size-cells = <2>;
 		ranges = <0x00 0x30000000 0x00 0x30000000 0x00 0x0c400000>;
 		ti,sci-dev-id = <199>;
+		dma-coherent;
+		dma-ranges;
 
 		main_navss_intr: interrupt-controller1 {
 			compatible = "ti,sci-intr";
