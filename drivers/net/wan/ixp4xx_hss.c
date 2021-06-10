@@ -150,21 +150,21 @@
 #define CCR_SECOND_HSS			0x01000000
 
 /* hss_config, clkCR: main:10, num:10, denom:12 */
-#define CLK42X_SPEED_EXP	((0x3FF << 22) | (  2 << 12) |   15) /*65 KHz*/
+#define CLK42X_SPEED_EXP	((0x3FF << 22) | (2 << 12) |   15) /*65 KHz*/
 
-#define CLK42X_SPEED_512KHZ	((  130 << 22) | (  2 << 12) |   15)
-#define CLK42X_SPEED_1536KHZ	((   43 << 22) | ( 18 << 12) |   47)
-#define CLK42X_SPEED_1544KHZ	((   43 << 22) | ( 33 << 12) |  192)
-#define CLK42X_SPEED_2048KHZ	((   32 << 22) | ( 34 << 12) |   63)
-#define CLK42X_SPEED_4096KHZ	((   16 << 22) | ( 34 << 12) |  127)
-#define CLK42X_SPEED_8192KHZ	((    8 << 22) | ( 34 << 12) |  255)
+#define CLK42X_SPEED_512KHZ	((130 << 22) | (2 << 12) |   15)
+#define CLK42X_SPEED_1536KHZ	((43 << 22) | (18 << 12) |   47)
+#define CLK42X_SPEED_1544KHZ	((43 << 22) | (33 << 12) |  192)
+#define CLK42X_SPEED_2048KHZ	((32 << 22) | (34 << 12) |   63)
+#define CLK42X_SPEED_4096KHZ	((16 << 22) | (34 << 12) |  127)
+#define CLK42X_SPEED_8192KHZ	((8 << 22) | (34 << 12) |  255)
 
-#define CLK46X_SPEED_512KHZ	((  130 << 22) | ( 24 << 12) |  127)
-#define CLK46X_SPEED_1536KHZ	((   43 << 22) | (152 << 12) |  383)
-#define CLK46X_SPEED_1544KHZ	((   43 << 22) | ( 66 << 12) |  385)
-#define CLK46X_SPEED_2048KHZ	((   32 << 22) | (280 << 12) |  511)
-#define CLK46X_SPEED_4096KHZ	((   16 << 22) | (280 << 12) | 1023)
-#define CLK46X_SPEED_8192KHZ	((    8 << 22) | (280 << 12) | 2047)
+#define CLK46X_SPEED_512KHZ	((130 << 22) | (24 << 12) |  127)
+#define CLK46X_SPEED_1536KHZ	((43 << 22) | (152 << 12) |  383)
+#define CLK46X_SPEED_1544KHZ	((43 << 22) | (66 << 12) |  385)
+#define CLK46X_SPEED_2048KHZ	((32 << 22) | (280 << 12) |  511)
+#define CLK46X_SPEED_4096KHZ	((16 << 22) | (280 << 12) | 1023)
+#define CLK46X_SPEED_8192KHZ	((8 << 22) | (280 << 12) | 2047)
 
 /*
  * HSS_CONFIG_CLOCK_CR register consists of 3 parts:
