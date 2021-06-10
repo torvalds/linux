@@ -28,6 +28,7 @@ config INTEL_IOMMU
 config INTEL_IOMMU_DEBUGFS
 	bool "Export Intel IOMMU internals in Debugfs"
 	depends on INTEL_IOMMU && IOMMU_DEBUGFS
+	select DMAR_PERF
 	help
 	  !!!WARNING!!!
 
