@@ -22,7 +22,6 @@
 	rockchip,sleep-mode-config = <
 		(0
 		| RKPM_PMU_HW_PLLS_PD
-		| RKPM_DBG_FSM_SOUT
 		| RKPM_PWM_VOLTAGE_DEFAULT
 		)
 	>;
