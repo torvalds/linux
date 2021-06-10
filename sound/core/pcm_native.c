@@ -3644,24 +3644,6 @@ static int snd_pcm_mmap_control(struct snd_pcm_substream *substream, struct file
 }
 #endif /* coherent mmap */
 
-static inline struct page *
-snd_pcm_default_page_ops(struct snd_pcm_substream *substream, unsigned long ofs)
-{
-	void *vaddr = substream->runtime->dma_area + ofs;
-
-	switch (substream->dma_buffer.dev.type) {
-#ifdef CONFIG_SND_DMA_SGBUF
-	case SNDRV_DMA_TYPE_DEV_SG:
-	case SNDRV_DMA_TYPE_DEV_UC_SG:
-		return snd_pcm_sgbuf_ops_page(substream, ofs);
-#endif /* CONFIG_SND_DMA_SGBUF */
-	case SNDRV_DMA_TYPE_VMALLOC:
-		return vmalloc_to_page(vaddr);
-	default:
-		return virt_to_page(vaddr);
-	}
-}
-
 /*
  * fault callback for mmapping a RAM page
  */
@@ -3683,7 +3665,7 @@ static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 	if (substream->ops->page)
 		page = substream->ops->page(substream, offset);
 	else
-		page = snd_pcm_default_page_ops(substream, offset);
+		page = snd_sgbuf_get_page(snd_pcm_get_dma_buf(substream), offset);
 	if (!page)
 		return VM_FAULT_SIGBUS;
 	get_page(page);
@@ -3718,22 +3700,9 @@ int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
 			     struct vm_area_struct *area)
 {
 	area->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
-#ifdef CONFIG_GENERIC_ALLOCATOR
-	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_IRAM) {
-		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
-		return remap_pfn_range(area, area->vm_start,
-				substream->dma_buffer.addr >> PAGE_SHIFT,
-				area->vm_end - area->vm_start, area->vm_page_prot);
-	}
-#endif /* CONFIG_GENERIC_ALLOCATOR */
-	if (IS_ENABLED(CONFIG_HAS_DMA) && !substream->ops->page &&
-	    (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV ||
-	     substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_UC))
-		return dma_mmap_coherent(substream->dma_buffer.dev.dev,
-					 area,
-					 substream->runtime->dma_area,
-					 substream->runtime->dma_addr,
-					 substream->runtime->dma_bytes);
+	if (!substream->ops->page &&
+	    !snd_dma_buffer_mmap(snd_pcm_get_dma_buf(substream), area))
+		return 0;
 	/* mmap with fault handler */
 	area->vm_ops = &snd_pcm_vm_ops_data_fault;
 	return 0;
