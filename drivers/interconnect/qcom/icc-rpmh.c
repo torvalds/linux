@@ -263,6 +263,8 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	qp->stub = of_property_read_bool(pdev->dev.of_node, "qcom,stub");
+
 	provider = &qp->provider;
 	provider->dev = dev;
 	provider->set = qcom_icc_set_stub;
@@ -275,19 +277,22 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 
 	qp->dev = dev;
 	qp->bcms = desc->bcms;
-	qp->num_bcms = desc->num_bcms;
 
-	qp->num_voters = desc->num_voters;
-	qp->voters = devm_kcalloc(&pdev->dev, qp->num_voters,
-				  sizeof(*qp->voters), GFP_KERNEL);
+	if (!qp->stub) {
+		qp->num_bcms = desc->num_bcms;
+		qp->num_voters = desc->num_voters;
 
-	if (!qp->voters)
-		return -ENOMEM;
+		qp->voters = devm_kcalloc(&pdev->dev, qp->num_voters,
+					  sizeof(*qp->voters), GFP_KERNEL);
 
-	for (i = 0; i < qp->num_voters; i++) {
-		qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
-		if (IS_ERR(qp->voters[i]))
-			return PTR_ERR(qp->voters[i]);
+		if (!qp->voters)
+			return -ENOMEM;
+
+		for (i = 0; i < qp->num_voters; i++) {
+			qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
+			if (IS_ERR(qp->voters[i]))
+				return PTR_ERR(qp->voters[i]);
+		}
 	}
 
 	qp->regmap = qcom_icc_rpmh_map(pdev, desc);
@@ -340,8 +345,10 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);
 
-	provider->set = qcom_icc_set;
-	provider->aggregate = qcom_icc_aggregate;
+	if (!qp->stub) {
+		provider->set = qcom_icc_set;
+		provider->aggregate = qcom_icc_aggregate;
+	}
 
 	qcom_icc_debug_register(provider);
 
