@@ -29,12 +29,13 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_range_manager.h>
+#include <drm/ttm/ttm_bo_api.h>
 #include <drm/drm_mm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
 
 /*
  * Currently we use a spinlock for the lock, but a mutex *may* be
@@ -57,11 +58,11 @@ to_range_manager(struct ttm_resource_manager *man)
 static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 			       struct ttm_buffer_object *bo,
 			       const struct ttm_place *place,
-			       struct ttm_resource *mem)
+			       struct ttm_resource **res)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
+	struct ttm_range_mgr_node *node;
 	struct drm_mm *mm = &rman->mm;
-	struct drm_mm_node *node;
 	enum drm_mm_insert_mode mode;
 	unsigned long lpfn;
 	int ret;
@@ -70,7 +71,7 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc(struct_size(node, mm_nodes, 1), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 
@@ -78,35 +79,36 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		mode = DRM_MM_INSERT_HIGH;
 
+	ttm_resource_init(bo, place, &node->base);
+
 	spin_lock(&rman->lock);
-	ret = drm_mm_insert_node_in_range(mm, node, mem->num_pages,
+	ret = drm_mm_insert_node_in_range(mm, &node->mm_nodes[0],
+					  node->base.num_pages,
 					  bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
 	if (unlikely(ret)) {
 		kfree(node);
-	} else {
-		mem->mm_node = node;
-		mem->start = node->start;
+		return ret;
 	}
 
-	return ret;
+	node->base.start = node->mm_nodes[0].start;
+	*res = &node->base;
+	return 0;
 }
 
 static void ttm_range_man_free(struct ttm_resource_manager *man,
-			       struct ttm_resource *mem)
+			       struct ttm_resource *res)
 {
+	struct ttm_range_mgr_node *node = to_ttm_range_mgr_node(res);
 	struct ttm_range_manager *rman = to_range_manager(man);
 
-	if (mem->mm_node) {
-		spin_lock(&rman->lock);
-		drm_mm_remove_node(mem->mm_node);
-		spin_unlock(&rman->lock);
+	spin_lock(&rman->lock);
+	drm_mm_remove_node(&node->mm_nodes[0]);
+	spin_unlock(&rman->lock);
 
-		kfree(mem->mm_node);
-		mem->mm_node = NULL;
-	}
+	kfree(node);
 }
 
 static void ttm_range_man_debug(struct ttm_resource_manager *man,
@@ -125,6 +127,17 @@ static const struct ttm_resource_manager_func ttm_range_manager_func = {
 	.debug = ttm_range_man_debug
 };
 
+/**
+ * ttm_range_man_init
+ *
+ * @bdev: ttm device
+ * @type: memory manager type
+ * @use_tt: if the memory manager uses tt
+ * @p_size: size of area to be managed in pages.
+ *
+ * Initialise a generic range manager for the selected memory type.
+ * The range manager is installed for this device in the type slot.
+ */
 int ttm_range_man_init(struct ttm_device *bdev,
 		       unsigned type, bool use_tt,
 		       unsigned long p_size)
@@ -152,6 +165,14 @@ int ttm_range_man_init(struct ttm_device *bdev,
 }
 EXPORT_SYMBOL(ttm_range_man_init);
 
+/**
+ * ttm_range_man_fini
+ *
+ * @bdev: ttm device
+ * @type: memory manager type
+ *
+ * Remove the generic range manager from a slot and tear it down.
+ */
 int ttm_range_man_fini(struct ttm_device *bdev,
 		       unsigned type)
 {

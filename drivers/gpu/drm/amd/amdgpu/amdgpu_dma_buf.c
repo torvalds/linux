@@ -49,10 +49,10 @@ __dma_resv_make_exclusive(struct dma_resv *obj)
 	unsigned int count;
 	int r;
 
-	if (!dma_resv_get_list(obj)) /* no shared fences to convert */
+	if (!dma_resv_shared_list(obj)) /* no shared fences to convert */
 		return 0;
 
-	r = dma_resv_get_fences_rcu(obj, NULL, &count, &fences);
+	r = dma_resv_get_fences(obj, NULL, &count, &fences);
 	if (r)
 		return r;
 
@@ -226,12 +226,12 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 		if (r)
 			return ERR_PTR(r);
 
-	} else if (!(amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type) &
+	} else if (!(amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type) &
 		     AMDGPU_GEM_DOMAIN_GTT)) {
 		return ERR_PTR(-EBUSY);
 	}
 
-	switch (bo->tbo.mem.mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_TT:
 		sgt = drm_prime_pages_to_sg(obj->dev,
 					    bo->tbo.ttm->pages,
@@ -245,8 +245,9 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 		break;
 
 	case TTM_PL_VRAM:
-		r = amdgpu_vram_mgr_alloc_sgt(adev, &bo->tbo.mem, 0,
-				bo->tbo.base.size, attach->dev, dir, &sgt);
+		r = amdgpu_vram_mgr_alloc_sgt(adev, bo->tbo.resource, 0,
+					      bo->tbo.base.size, attach->dev,
+					      dir, &sgt);
 		if (r)
 			return ERR_PTR(r);
 		break;
@@ -436,7 +437,7 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 	struct amdgpu_vm_bo_base *bo_base;
 	int r;
 
-	if (bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+	if (bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
 		return;
 
 	r = ttm_bo_validate(&bo->tbo, &placement, &ctx);

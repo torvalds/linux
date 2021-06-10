@@ -409,7 +409,7 @@ svm_range_validate_svm_bo(struct amdgpu_device *adev, struct svm_range *prange)
 			pr_debug("reuse old bo svms 0x%p [0x%lx 0x%lx]\n",
 				 prange->svms, prange->start, prange->last);
 
-			prange->ttm_res = &prange->svm_bo->bo->tbo.mem;
+			prange->ttm_res = prange->svm_bo->bo->tbo.resource;
 			return true;
 		}
 
@@ -515,7 +515,7 @@ svm_range_vram_node_new(struct amdgpu_device *adev, struct svm_range *prange,
 
 	svm_bo->bo = bo;
 	prange->svm_bo = svm_bo;
-	prange->ttm_res = &bo->tbo.mem;
+	prange->ttm_res = bo->tbo.resource;
 	prange->offset = 0;
 
 	spin_lock(&svm_bo->list_lock);

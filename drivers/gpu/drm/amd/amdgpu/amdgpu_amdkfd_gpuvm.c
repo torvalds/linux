@@ -247,7 +247,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 	if (!ef)
 		return -EINVAL;
 
-	old = dma_resv_get_list(resv);
+	old = dma_resv_shared_list(resv);
 	if (!old)
 		return 0;
 
@@ -1668,7 +1668,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	 * the next restore worker
 	 */
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) &&
-	    bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+	    bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
 		is_invalid_userptr = true;
 
 	ret = vm_validate_pt_pd_bos(avm);

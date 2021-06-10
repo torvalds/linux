@@ -276,7 +276,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 
 	if (is_power_of_2(nvbo->valid_domains))
 		rep->domain = nvbo->valid_domains;
-	else if (nvbo->bo.mem.mem_type == TTM_PL_TT)
+	else if (nvbo->bo.resource->mem_type == TTM_PL_TT)
 		rep->domain = NOUVEAU_GEM_DOMAIN_GART;
 	else
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
@@ -347,11 +347,11 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 	valid_domains &= ~(NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART);
 
 	if ((domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-	    bo->mem.mem_type == TTM_PL_VRAM)
+	    bo->resource->mem_type == TTM_PL_VRAM)
 		pref_domains |= NOUVEAU_GEM_DOMAIN_VRAM;
 
 	else if ((domains & NOUVEAU_GEM_DOMAIN_GART) &&
-		 bo->mem.mem_type == TTM_PL_TT)
+		 bo->resource->mem_type == TTM_PL_TT)
 		pref_domains |= NOUVEAU_GEM_DOMAIN_GART;
 
 	else if (domains & NOUVEAU_GEM_DOMAIN_VRAM)
@@ -561,13 +561,13 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 			if (nvbo->offset == b->presumed.offset &&
-			    ((nvbo->bo.mem.mem_type == TTM_PL_VRAM &&
+			    ((nvbo->bo.resource->mem_type == TTM_PL_VRAM &&
 			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
-			     (nvbo->bo.mem.mem_type == TTM_PL_TT &&
+			     (nvbo->bo.resource->mem_type == TTM_PL_TT &&
 			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_GART)))
 				continue;
 
-			if (nvbo->bo.mem.mem_type == TTM_PL_TT)
+			if (nvbo->bo.resource->mem_type == TTM_PL_TT)
 				b->presumed.domain = NOUVEAU_GEM_DOMAIN_GART;
 			else
 				b->presumed.domain = NOUVEAU_GEM_DOMAIN_VRAM;
@@ -681,7 +681,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 		}
 
 		if (!nvbo->kmap.virtual) {
-			ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
+			ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.resource->num_pages,
 					  &nvbo->kmap);
 			if (ret) {
 				NV_PRINTK(err, cli, "failed kmap for reloc\n");
@@ -870,7 +870,7 @@ revalidate:
 			if (unlikely(cmd != req->suffix0)) {
 				if (!nvbo->kmap.virtual) {
 					ret = ttm_bo_kmap(&nvbo->bo, 0,
-							  nvbo->bo.mem.
+							  nvbo->bo.resource->
 							  num_pages,
 							  &nvbo->kmap);
 					if (ret) {
@@ -964,8 +964,8 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	lret = dma_resv_wait_timeout_rcu(nvbo->bo.base.resv, write, true,
-						   no_wait ? 0 : 30 * HZ);
+	lret = dma_resv_wait_timeout(nvbo->bo.base.resv, write, true,
+				     no_wait ? 0 : 30 * HZ);
 	if (!lret)
 		ret = -EBUSY;
 	else if (lret > 0)

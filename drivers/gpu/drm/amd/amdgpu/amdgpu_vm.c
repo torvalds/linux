@@ -342,7 +342,7 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 		amdgpu_vm_bo_idle(base);
 
 	if (bo->preferred_domains &
-	    amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type))
+	    amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type))
 		return;
 
 	/*
@@ -658,10 +658,11 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 		if (!bo->parent)
 			continue;
 
-		ttm_bo_move_to_lru_tail(&bo->tbo, &bo->tbo.mem,
+		ttm_bo_move_to_lru_tail(&bo->tbo, bo->tbo.resource,
 					&vm->lru_bulk_move);
 		if (shadow)
-			ttm_bo_move_to_lru_tail(&shadow->tbo, &shadow->tbo.mem,
+			ttm_bo_move_to_lru_tail(&shadow->tbo,
+						shadow->tbo.resource,
 						&vm->lru_bulk_move);
 	}
 	spin_unlock(&adev->mman.bdev.lru_lock);
@@ -1858,10 +1859,10 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 			struct drm_gem_object *gobj = dma_buf->priv;
 			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
 
-			if (abo->tbo.mem.mem_type == TTM_PL_VRAM)
+			if (abo->tbo.resource->mem_type == TTM_PL_VRAM)
 				bo = gem_to_amdgpu_bo(gobj);
 		}
-		mem = &bo->tbo.mem;
+		mem = bo->tbo.resource;
 		if (mem->mem_type == TTM_PL_TT ||
 		    mem->mem_type == AMDGPU_PL_PREEMPT)
 			pages_addr = bo->tbo.ttm->dma_address;
@@ -1922,7 +1923,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	 * next command submission.
 	 */
 	if (bo && bo->tbo.base.resv == vm->root.base.bo->tbo.base.resv) {
-		uint32_t mem_type = bo->tbo.mem.mem_type;
+		uint32_t mem_type = bo->tbo.resource->mem_type;
 
 		if (!(bo->preferred_domains &
 		      amdgpu_mem_type_to_domain(mem_type)))
@@ -2063,13 +2064,12 @@ static void amdgpu_vm_prt_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	unsigned i, shared_count;
 	int r;
 
-	r = dma_resv_get_fences_rcu(resv, &excl,
-					      &shared_count, &shared);
+	r = dma_resv_get_fences(resv, &excl, &shared_count, &shared);
 	if (r) {
 		/* Not enough memory to grab the fence list, as last resort
 		 * block for all the fences to complete.
 		 */
-		dma_resv_wait_timeout_rcu(resv, true, false,
+		dma_resv_wait_timeout(resv, true, false,
 						    MAX_SCHEDULE_TIMEOUT);
 		return;
 	}
@@ -2681,7 +2681,7 @@ bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
 		return true;
 
 	/* Don't evict VM page tables while they are busy */
-	if (!dma_resv_test_signaled_rcu(bo->tbo.base.resv, true))
+	if (!dma_resv_test_signaled(bo->tbo.base.resv, true))
 		return false;
 
 	/* Try to block ongoing updates */
@@ -2861,8 +2861,8 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
  */
 long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
 {
-	timeout = dma_resv_wait_timeout_rcu(vm->root.base.bo->tbo.base.resv,
-					    true, true, timeout);
+	timeout = dma_resv_wait_timeout(vm->root.base.bo->tbo.base.resv, true,
+					true, timeout);
 	if (timeout <= 0)
 		return timeout;
 

@@ -889,7 +889,7 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 	header->cmd = man->map + offset;
 	if (man->using_mob) {
 		cb_hdr->flags = SVGA_CB_FLAG_MOB;
-		cb_hdr->ptr.mob.mobid = man->cmd_space->mem.start;
+		cb_hdr->ptr.mob.mobid = man->cmd_space->resource->start;
 		cb_hdr->ptr.mob.mobOffset = offset;
 	} else {
 		cb_hdr->ptr.pa = (u64)man->handle + (u64)offset;

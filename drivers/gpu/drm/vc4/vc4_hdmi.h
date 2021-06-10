@@ -148,8 +148,7 @@ struct vc4_hdmi {
 	/* VC5 Only */
 	void __iomem *rm_regs;
 
-	int hpd_gpio;
-	bool hpd_active_low;
+	struct gpio_desc *hpd_gpio;
 
 	/*
 	 * On some systems (like the RPi4), some modes are in the same

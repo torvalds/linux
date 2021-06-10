@@ -17,6 +17,8 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include <drm/ttm/ttm_range_manager.h>
+
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
 
 /**
@@ -248,10 +250,11 @@ EXPORT_SYMBOL(drm_gem_vram_put);
 static u64 drm_gem_vram_pg_offset(struct drm_gem_vram_object *gbo)
 {
 	/* Keep TTM behavior for now, remove when drivers are audited */
-	if (WARN_ON_ONCE(!gbo->bo.mem.mm_node))
+	if (WARN_ON_ONCE(!gbo->bo.resource ||
+			 gbo->bo.resource->mem_type == TTM_PL_SYSTEM))
 		return 0;
 
-	return gbo->bo.mem.start;
+	return gbo->bo.resource->start;
 }
 
 /**

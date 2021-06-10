@@ -817,9 +817,9 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 	struct dma_fence *fence;
 	int i, ret;
 
-	fobj = dma_resv_get_list(obj->resv);
+	fobj = dma_resv_shared_list(obj->resv);
 	if (!fobj || (fobj->shared_count == 0)) {
-		fence = dma_resv_get_excl(obj->resv);
+		fence = dma_resv_excl_fence(obj->resv);
 		/* don't need to wait on our own fences, since ring is fifo */
 		if (fence && (fence->context != fctx->context)) {
 			ret = dma_fence_wait(fence, true);
@@ -915,8 +915,7 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
 	long ret;
 
-	ret = dma_resv_wait_timeout_rcu(obj->resv, write,
-						  true,  remain);
+	ret = dma_resv_wait_timeout(obj->resv, write, true,  remain);
 	if (ret == 0)
 		return remain == 0 ? -EBUSY : -ETIMEDOUT;
 	else if (ret < 0)
@@ -1025,7 +1024,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 	}
 
 	rcu_read_lock();
-	fobj = rcu_dereference(robj->fence);
+	fobj = dma_resv_shared_list(robj);
 	if (fobj) {
 		unsigned int i, shared_count = fobj->shared_count;
 
@@ -1035,7 +1034,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 		}
 	}
 
-	fence = rcu_dereference(robj->fence_excl);
+	fence = dma_resv_excl_fence(robj);
 	if (fence)
 		describe_fence(fence, "Exclusive", m);
 	rcu_read_unlock();

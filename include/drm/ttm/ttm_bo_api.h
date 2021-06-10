@@ -136,7 +136,7 @@ struct ttm_buffer_object {
 	 * Members protected by the bo::resv::reserved lock.
 	 */
 
-	struct ttm_resource mem;
+	struct ttm_resource *resource;
 	struct ttm_tt *ttm;
 	bool deleted;
 

@@ -66,14 +66,18 @@ static DEVICE_ATTR_RO(mem_info_preempt_used);
 static int amdgpu_preempt_mgr_new(struct ttm_resource_manager *man,
 				  struct ttm_buffer_object *tbo,
 				  const struct ttm_place *place,
-				  struct ttm_resource *mem)
+				  struct ttm_resource **res)
 {
 	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
 
-	atomic64_add(mem->num_pages, &mgr->used);
+	*res = kzalloc(sizeof(**res), GFP_KERNEL);
+	if (*res)
+		return -ENOMEM;
 
-	mem->mm_node = NULL;
-	mem->start = AMDGPU_BO_INVALID_OFFSET;
+	ttm_resource_init(tbo, place, *res);
+	(*res)->start = AMDGPU_BO_INVALID_OFFSET;
+
+	atomic64_add((*res)->num_pages, &mgr->used);
 	return 0;
 }
 
@@ -86,11 +90,12 @@ static int amdgpu_preempt_mgr_new(struct ttm_resource_manager *man,
  * Free the allocated GTT again.
  */
 static void amdgpu_preempt_mgr_del(struct ttm_resource_manager *man,
-				   struct ttm_resource *mem)
+				   struct ttm_resource *res)
 {
 	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
 
-	atomic64_sub(mem->num_pages, &mgr->used);
+	atomic64_sub(res->num_pages, &mgr->used);
+	kfree(res);
 }
 
 /**

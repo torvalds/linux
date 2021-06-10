@@ -103,7 +103,7 @@ int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 		goto err;
 
 	if (buf->base.pin_count > 0)
-		ret = ttm_bo_mem_compat(placement, &bo->mem,
+		ret = ttm_bo_mem_compat(placement, bo->resource,
 					&new_flags) == true ? 0 : -EINVAL;
 	else
 		ret = ttm_bo_validate(bo, placement, &ctx);
@@ -145,7 +145,7 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 		goto err;
 
 	if (buf->base.pin_count > 0) {
-		ret = ttm_bo_mem_compat(&vmw_vram_gmr_placement, &bo->mem,
+		ret = ttm_bo_mem_compat(&vmw_vram_gmr_placement, bo->resource,
 					&new_flags) == true ? 0 : -EINVAL;
 		goto out_unreserve;
 	}
@@ -211,7 +211,7 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	uint32_t new_flags;
 
 	place = vmw_vram_placement.placement[0];
-	place.lpfn = bo->mem.num_pages;
+	place.lpfn = bo->resource->num_pages;
 	placement.num_placement = 1;
 	placement.placement = &place;
 	placement.num_busy_placement = 1;
@@ -227,22 +227,22 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	 * In that case, evict it first because TTM isn't good at handling
 	 * that situation.
 	 */
-	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    bo->mem.start < bo->mem.num_pages &&
-	    bo->mem.start > 0 &&
+	if (bo->resource->mem_type == TTM_PL_VRAM &&
+	    bo->resource->start < bo->resource->num_pages &&
+	    bo->resource->start > 0 &&
 	    buf->base.pin_count == 0) {
 		ctx.interruptible = false;
 		(void) ttm_bo_validate(bo, &vmw_sys_placement, &ctx);
 	}
 
 	if (buf->base.pin_count > 0)
-		ret = ttm_bo_mem_compat(&placement, &bo->mem,
+		ret = ttm_bo_mem_compat(&placement, bo->resource,
 					&new_flags) == true ? 0 : -EINVAL;
 	else
 		ret = ttm_bo_validate(bo, &placement, &ctx);
 
 	/* For some reason we didn't end up at the start of vram */
-	WARN_ON(ret == 0 && bo->mem.start != 0);
+	WARN_ON(ret == 0 && bo->resource->start != 0);
 	if (!ret)
 		vmw_bo_pin_reserved(buf, true);
 
@@ -293,11 +293,11 @@ err:
 void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
 			  SVGAGuestPtr *ptr)
 {
-	if (bo->mem.mem_type == TTM_PL_VRAM) {
+	if (bo->resource->mem_type == TTM_PL_VRAM) {
 		ptr->gmrId = SVGA_GMR_FRAMEBUFFER;
-		ptr->offset = bo->mem.start << PAGE_SHIFT;
+		ptr->offset = bo->resource->start << PAGE_SHIFT;
 	} else {
-		ptr->gmrId = bo->mem.start;
+		ptr->gmrId = bo->resource->start;
 		ptr->offset = 0;
 	}
 }
@@ -316,7 +316,7 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 	struct ttm_place pl;
 	struct ttm_placement placement;
 	struct ttm_buffer_object *bo = &vbo->base;
-	uint32_t old_mem_type = bo->mem.mem_type;
+	uint32_t old_mem_type = bo->resource->mem_type;
 	int ret;
 
 	dma_resv_assert_held(bo->base.resv);
@@ -326,8 +326,8 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 
 	pl.fpfn = 0;
 	pl.lpfn = 0;
-	pl.mem_type = bo->mem.mem_type;
-	pl.flags = bo->mem.placement;
+	pl.mem_type = bo->resource->mem_type;
+	pl.flags = bo->resource->placement;
 
 	memset(&placement, 0, sizeof(placement));
 	placement.num_placement = 1;
@@ -335,7 +335,7 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 
 	ret = ttm_bo_validate(bo, &placement, &ctx);
 
-	BUG_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
+	BUG_ON(ret != 0 || bo->resource->mem_type != old_mem_type);
 
 	if (pin)
 		ttm_bo_pin(bo);
@@ -369,7 +369,7 @@ void *vmw_bo_map_and_cache(struct vmw_buffer_object *vbo)
 	if (virtual)
 		return virtual;
 
-	ret = ttm_bo_kmap(bo, 0, bo->mem.num_pages, &vbo->map);
+	ret = ttm_bo_kmap(bo, 0, bo->resource->num_pages, &vbo->map);
 	if (ret)
 		DRM_ERROR("Buffer object map failed: %d.\n", ret);
 
@@ -743,9 +743,9 @@ static int vmw_user_bo_synccpu_grab(struct vmw_user_buffer_object *user_bo,
 	if (flags & drm_vmw_synccpu_allow_cs) {
 		long lret;
 
-		lret = dma_resv_wait_timeout_rcu
-			(bo->base.resv, true, true,
-			 nonblock ? 0 : MAX_SCHEDULE_TIMEOUT);
+		lret = dma_resv_wait_timeout(bo->base.resv, true, true,
+					     nonblock ? 0 :
+					     MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
 		else if (lret < 0)
@@ -1197,7 +1197,7 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 	 * With other types of moves, the underlying pages stay the same,
 	 * and the map can be kept.
 	 */
-	if (mem->mem_type == TTM_PL_VRAM || bo->mem.mem_type == TTM_PL_VRAM)
+	if (mem->mem_type == TTM_PL_VRAM || bo->resource->mem_type == TTM_PL_VRAM)
 		vmw_bo_unmap(vbo);
 
 	/*
@@ -1205,6 +1205,6 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 	 * read back all resource content first, and unbind the MOB from
 	 * the resource.
 	 */
-	if (mem->mem_type != VMW_PL_MOB && bo->mem.mem_type == VMW_PL_MOB)
+	if (mem->mem_type != VMW_PL_MOB && bo->resource->mem_type == VMW_PL_MOB)
 		vmw_resource_unbind_list(vbo);
 }

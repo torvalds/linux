@@ -161,7 +161,7 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
 		/* Asking for cpu access wait for object idle */
-		r = dma_resv_wait_timeout_rcu(robj->tbo.base.resv, true, true, 30 * HZ);
+		r = dma_resv_wait_timeout(robj->tbo.base.resv, true, true, 30 * HZ);
 		if (!r)
 			r = -EBUSY;
 
@@ -523,13 +523,13 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 
-	r = dma_resv_test_signaled_rcu(robj->tbo.base.resv, true);
+	r = dma_resv_test_signaled(robj->tbo.base.resv, true);
 	if (r == 0)
 		r = -EBUSY;
 	else
 		r = 0;
 
-	cur_placement = READ_ONCE(robj->tbo.mem.mem_type);
+	cur_placement = READ_ONCE(robj->tbo.resource->mem_type);
 	args->domain = radeon_mem_type_to_domain(cur_placement);
 	drm_gem_object_put(gobj);
 	return r;
@@ -552,14 +552,14 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gem_to_radeon_bo(gobj);
 
-	ret = dma_resv_wait_timeout_rcu(robj->tbo.base.resv, true, true, 30 * HZ);
+	ret = dma_resv_wait_timeout(robj->tbo.base.resv, true, true, 30 * HZ);
 	if (ret == 0)
 		r = -EBUSY;
 	else if (ret < 0)
 		r = ret;
 
 	/* Flush HDP cache via MMIO if necessary */
-	cur_placement = READ_ONCE(robj->tbo.mem.mem_type);
+	cur_placement = READ_ONCE(robj->tbo.resource->mem_type);
 	if (rdev->asic->mmio_hdp_flush &&
 	    radeon_mem_type_to_domain(cur_placement) == RADEON_GEM_DOMAIN_VRAM)
 		robj->rdev->asic->mmio_hdp_flush(rdev);
@@ -643,7 +643,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 		goto error_free;
 
 	list_for_each_entry(entry, &list, head) {
-		domain = radeon_mem_type_to_domain(entry->bo->mem.mem_type);
+		domain = radeon_mem_type_to_domain(entry->bo->resource->mem_type);
 		/* if anything is swapped out don't swap it in here,
 		   just abort and wait for the next CS */
 		if (domain == RADEON_GEM_DOMAIN_CPU)
@@ -656,7 +656,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 		goto error_unlock;
 
 	if (bo_va->it.start)
-		r = radeon_vm_bo_update(rdev, bo_va, &bo_va->bo->tbo.mem);
+		r = radeon_vm_bo_update(rdev, bo_va, bo_va->bo->tbo.resource);
 
 error_unlock:
 	mutex_unlock(&bo_va->vm->mutex);
@@ -860,7 +860,7 @@ static int radeon_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		unsigned domain;
 		const char *placement;
 
-		domain = radeon_mem_type_to_domain(rbo->tbo.mem.mem_type);
+		domain = radeon_mem_type_to_domain(rbo->tbo.resource->mem_type);
 		switch (domain) {
 		case RADEON_GEM_DOMAIN_VRAM:
 			placement = "VRAM";
