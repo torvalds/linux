@@ -90,6 +90,8 @@ struct ipa_mem {
 	u16 canary_count;
 };
 
+const struct ipa_mem *ipa_mem_find(struct ipa *ipa, enum ipa_mem_id mem_id);
+
 int ipa_mem_config(struct ipa *ipa);
 void ipa_mem_deconfig(struct ipa *ipa);
 

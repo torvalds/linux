@@ -152,7 +152,7 @@ static void ipa_table_validate_build(void)
 static bool
 ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
 {
-	const struct ipa_mem *mem = &ipa->mem[mem_id];
+	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
 	struct device *dev = &ipa->pdev->dev;
 	u32 size;
 
@@ -245,7 +245,7 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
 				u16 first, u16 count, enum ipa_mem_id mem_id)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	const struct ipa_mem *mem = &ipa->mem[mem_id];
+	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
 	dma_addr_t addr;
 	u32 offset;
 	u16 size;
@@ -417,8 +417,8 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 			       enum ipa_mem_id hash_mem_id)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	const struct ipa_mem *hash_mem = &ipa->mem[hash_mem_id];
-	const struct ipa_mem *mem = &ipa->mem[mem_id];
+	const struct ipa_mem *hash_mem = ipa_mem_find(ipa, hash_mem_id);
+	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
 	dma_addr_t hash_addr;
 	dma_addr_t addr;
 	u16 hash_count;

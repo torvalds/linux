@@ -218,7 +218,7 @@ static bool ipa_cmd_header_valid(struct ipa *ipa)
 	/* The header memory area contains both the modem and AP header
 	 * regions.  The modem portion defines the address of the region.
 	 */
-	mem = &ipa->mem[IPA_MEM_MODEM_HEADER];
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_HEADER);
 	offset = mem->offset;
 	size = mem->size;
 
@@ -231,8 +231,10 @@ static bool ipa_cmd_header_valid(struct ipa *ipa)
 		return false;
 	}
 
-	/* Add the size of the AP portion to the combined size */
-	size += ipa->mem[IPA_MEM_AP_HEADER].size;
+	/* Add the size of the AP portion (if defined) to the combined size */
+	mem = ipa_mem_find(ipa, IPA_MEM_AP_HEADER);
+	if (mem)
+		size += mem->size;
 
 	/* Make sure the combined size fits in the IPA command */
 	if (size > size_max) {
