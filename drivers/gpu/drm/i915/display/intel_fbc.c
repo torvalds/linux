@@ -492,6 +492,13 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	drm_WARN_ON(&dev_priv->drm,
 		    drm_mm_node_allocated(&fbc->compressed_llb));
 
+	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv)) {
+		ret = i915_gem_stolen_insert_node(dev_priv, &fbc->compressed_llb,
+						  4096, 4096);
+		if (ret)
+			goto err;
+	}
+
 	ret = find_compression_limit(dev_priv, size, fb_cpp);
 	if (!ret)
 		goto err_llb;
@@ -502,22 +509,15 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 
 	fbc->limit = ret;
 
-	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv)) {
-		ret = i915_gem_stolen_insert_node(dev_priv, &fbc->compressed_llb,
-						  4096, 4096);
-		if (ret)
-			goto err_fb;
-	}
-
 	drm_dbg_kms(&dev_priv->drm,
 		    "reserved %llu bytes of contiguous stolen space for FBC, limit: %d\n",
 		    fbc->compressed_fb.size, fbc->limit);
 
 	return 0;
 
-err_fb:
-	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
 err_llb:
+	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_llb);
+err:
 	if (drm_mm_initialized(&dev_priv->mm.stolen))
 		drm_info_once(&dev_priv->drm, "not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
