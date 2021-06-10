@@ -119,6 +119,7 @@ struct ishtp_hw_ops {
 			unsigned long buffer_length);
 	uint32_t	(*get_fw_status)(struct ishtp_device *dev);
 	void	(*sync_fw_clock)(struct ishtp_device *dev);
+	bool	(*dma_no_cache_snooping)(struct ishtp_device *dev);
 };
 
 /**

@@ -10,6 +10,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <asm/cacheflush.h>
 #include "hbm.h"
 #include "client.h"
 
@@ -772,6 +773,14 @@ static void ishtp_cl_send_msg_dma(struct ishtp_device *dev,
 	/* write msg to dma buf */
 	memcpy(msg_addr, cl_msg->send_buf.data, cl_msg->send_buf.size);
 
+	/*
+	 * if current fw don't support cache snooping, driver have to
+	 * flush the cache manually.
+	 */
+	if (dev->ops->dma_no_cache_snooping &&
+		dev->ops->dma_no_cache_snooping(dev))
+		clflush_cache_range(msg_addr, cl_msg->send_buf.size);
+
 	/* send dma_xfer hbm msg */
 	off = msg_addr - (unsigned char *)dev->ishtp_host_dma_tx_buf;
 	ishtp_hbm_hdr(&hdr, sizeof(struct dma_xfer_hbm));
@@ -996,6 +1005,15 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 		}
 
 		buffer = rb->buffer.data;
+
+		/*
+		 * if current fw don't support cache snooping, driver have to
+		 * flush the cache manually.
+		 */
+		if (dev->ops->dma_no_cache_snooping &&
+			dev->ops->dma_no_cache_snooping(dev))
+			clflush_cache_range(msg, hbm->msg_length);
+
 		memcpy(buffer, msg, hbm->msg_length);
 		rb->buf_idx = hbm->msg_length;
 
