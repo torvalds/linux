@@ -61,6 +61,7 @@ struct drm_i915_gem_object_ops {
 		     const struct drm_i915_gem_pread *arg);
 	int (*pwrite)(struct drm_i915_gem_object *obj,
 		      const struct drm_i915_gem_pwrite *arg);
+	u64 (*mmap_offset)(struct drm_i915_gem_object *obj);
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
 
@@ -79,6 +80,7 @@ struct drm_i915_gem_object_ops {
 	void (*delayed_free)(struct drm_i915_gem_object *obj);
 	void (*release)(struct drm_i915_gem_object *obj);
 
+	const struct vm_operations_struct *mmap_ops;
 	const char *name; /* friendly name for debug, e.g. lockdep classes */
 };
 
@@ -328,6 +330,7 @@ struct drm_i915_gem_object {
 
 	struct {
 		struct sg_table *cached_io_st;
+		struct i915_gem_object_page_iter get_io_page;
 		bool created:1;
 	} ttm;
 

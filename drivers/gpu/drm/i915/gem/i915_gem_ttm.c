@@ -13,6 +13,7 @@
 #include "gem/i915_gem_object.h"
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
+#include "gem/i915_gem_mman.h"
 
 #define I915_PL_LMEM0 TTM_PL_PRIV
 #define I915_PL_SYSTEM TTM_PL_SYSTEM
@@ -158,11 +159,20 @@ static int i915_ttm_move_notify(struct ttm_buffer_object *bo)
 
 static void i915_ttm_free_cached_io_st(struct drm_i915_gem_object *obj)
 {
-	if (obj->ttm.cached_io_st) {
-		sg_free_table(obj->ttm.cached_io_st);
-		kfree(obj->ttm.cached_io_st);
-		obj->ttm.cached_io_st = NULL;
-	}
+	struct radix_tree_iter iter;
+	void __rcu **slot;
+
+	if (!obj->ttm.cached_io_st)
+		return;
+
+	rcu_read_lock();
+	radix_tree_for_each_slot(slot, &obj->ttm.get_io_page.radix, &iter, 0)
+		radix_tree_delete(&obj->ttm.get_io_page.radix, iter.index);
+	rcu_read_unlock();
+
+	sg_free_table(obj->ttm.cached_io_st);
+	kfree(obj->ttm.cached_io_st);
+	obj->ttm.cached_io_st = NULL;
 }
 
 static void i915_ttm_purge(struct drm_i915_gem_object *obj)
@@ -338,10 +348,39 @@ static int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	ttm_bo_move_sync_cleanup(bo, dst_mem);
 	i915_ttm_free_cached_io_st(obj);
 
-	if (!dst_man->use_tt)
+	if (!dst_man->use_tt) {
 		obj->ttm.cached_io_st = dst_st;
+		obj->ttm.get_io_page.sg_pos = dst_st->sgl;
+		obj->ttm.get_io_page.sg_idx = 0;
+	}
 
 	return 0;
+}
+
+static int i915_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
+{
+	if (mem->mem_type < I915_PL_LMEM0)
+		return 0;
+
+	mem->bus.caching = ttm_write_combined;
+	mem->bus.is_iomem = true;
+
+	return 0;
+}
+
+static unsigned long i915_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
+					 unsigned long page_offset)
+{
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+	unsigned long base = obj->mm.region->iomap.base - obj->mm.region->region.start;
+	struct scatterlist *sg;
+	unsigned int ofs;
+
+	GEM_WARN_ON(bo->ttm);
+
+	sg = __i915_gem_object_get_sg(obj, &obj->ttm.get_io_page, page_offset, &ofs, true, true);
+
+	return ((base + sg_dma_address(sg)) >> PAGE_SHIFT) + ofs;
 }
 
 static struct ttm_device_funcs i915_ttm_bo_driver = {
@@ -353,6 +392,8 @@ static struct ttm_device_funcs i915_ttm_bo_driver = {
 	.move = i915_ttm_move,
 	.swap_notify = i915_ttm_swap_notify,
 	.delete_mem_notify = i915_ttm_delete_mem_notify,
+	.io_mem_reserve = i915_ttm_io_mem_reserve,
+	.io_mem_pfn = i915_ttm_io_mem_pfn,
 };
 
 /**
@@ -460,7 +501,67 @@ static void i915_ttm_delayed_free(struct drm_i915_gem_object *obj)
 	}
 }
 
-static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
+static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
+{
+	struct vm_area_struct *area = vmf->vma;
+	struct drm_i915_gem_object *obj =
+		i915_ttm_to_gem(area->vm_private_data);
+
+	/* Sanity check that we allow writing into this object */
+	if (unlikely(i915_gem_object_is_readonly(obj) &&
+		     area->vm_flags & VM_WRITE))
+		return VM_FAULT_SIGBUS;
+
+	return ttm_bo_vm_fault(vmf);
+}
+
+static int
+vm_access_ttm(struct vm_area_struct *area, unsigned long addr,
+	      void *buf, int len, int write)
+{
+	struct drm_i915_gem_object *obj =
+		i915_ttm_to_gem(area->vm_private_data);
+
+	if (i915_gem_object_is_readonly(obj) && write)
+		return -EACCES;
+
+	return ttm_bo_vm_access(area, addr, buf, len, write);
+}
+
+static void ttm_vm_open(struct vm_area_struct *vma)
+{
+	struct drm_i915_gem_object *obj =
+		i915_ttm_to_gem(vma->vm_private_data);
+
+	GEM_BUG_ON(!obj);
+	i915_gem_object_get(obj);
+}
+
+static void ttm_vm_close(struct vm_area_struct *vma)
+{
+	struct drm_i915_gem_object *obj =
+		i915_ttm_to_gem(vma->vm_private_data);
+
+	GEM_BUG_ON(!obj);
+	i915_gem_object_put(obj);
+}
+
+static const struct vm_operations_struct vm_ops_ttm = {
+	.fault = vm_fault_ttm,
+	.access = vm_access_ttm,
+	.open = ttm_vm_open,
+	.close = ttm_vm_close,
+};
+
+static u64 i915_ttm_mmap_offset(struct drm_i915_gem_object *obj)
+{
+	/* The ttm_bo must be allocated with I915_BO_ALLOC_USER */
+	GEM_BUG_ON(!drm_mm_node_allocated(&obj->base.vma_node.vm_node));
+
+	return drm_vma_node_offset_addr(&obj->base.vma_node);
+}
+
+const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
 	.name = "i915_gem_object_ttm",
 	.flags = I915_GEM_OBJECT_HAS_IOMEM,
 
@@ -469,6 +570,8 @@ static const struct drm_i915_gem_object_ops i915_gem_ttm_obj_ops = {
 	.truncate = i915_ttm_purge,
 	.adjust_lru = i915_ttm_adjust_lru,
 	.delayed_free = i915_ttm_delayed_free,
+	.mmap_offset = i915_ttm_mmap_offset,
+	.mmap_ops = &vm_ops_ttm,
 };
 
 void i915_ttm_bo_destroy(struct ttm_buffer_object *bo)
@@ -476,6 +579,7 @@ void i915_ttm_bo_destroy(struct ttm_buffer_object *bo)
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
 	i915_gem_object_release_memory_region(obj);
+	mutex_destroy(&obj->ttm.get_io_page.lock);
 	if (obj->ttm.created)
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
 }
@@ -517,6 +621,8 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	i915_gem_object_make_unshrinkable(obj);
 	obj->read_domains = I915_GEM_DOMAIN_WC | I915_GEM_DOMAIN_GTT;
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+	INIT_RADIX_TREE(&obj->ttm.get_io_page.radix, GFP_KERNEL | __GFP_NOWARN);
+	mutex_init(&obj->ttm.get_io_page.lock);
 
 	bo_type = (obj->flags & I915_BO_ALLOC_USER) ? ttm_bo_type_device :
 		ttm_bo_type_kernel;
@@ -528,6 +634,7 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	 * Similarly, in delayed_destroy, we can't call ttm_bo_put()
 	 * until successful initialization.
 	 */
+	obj->base.vma_node.driver_private = i915_gem_to_ttm(obj);
 	ret = ttm_bo_init(&i915->bdev, i915_gem_to_ttm(obj), size,
 			  bo_type, &i915_sys_placement, alignment,
 			  true, NULL, NULL, i915_ttm_bo_destroy);
