@@ -166,8 +166,7 @@
 #define CLK46X_SPEED_4096KHZ	((16 << 22) | (280 << 12) | 1023)
 #define CLK46X_SPEED_8192KHZ	((8 << 22) | (280 << 12) | 2047)
 
-/*
- * HSS_CONFIG_CLOCK_CR register consists of 3 parts:
+/* HSS_CONFIG_CLOCK_CR register consists of 3 parts:
  *     A (10 bits), B (10 bits) and C (12 bits).
  * IXP42x HSS clock generator operation (verified with an oscilloscope):
  * Each clock bit takes 7.5 ns (1 / 133.xx MHz).
@@ -217,7 +216,8 @@
 #define PORT_ERROR_READ			0x42
 
 /* triggers the NPE to reset internal status and enable the HssPacketized
-   operation for the flow specified by pPipe */
+ * operation for the flow specified by pPipe
+ */
 #define PKT_PIPE_FLOW_ENABLE		0x50
 #define PKT_PIPE_FLOW_DISABLE		0x51
 #define PKT_NUM_PIPES_WRITE		0x52
@@ -232,7 +232,8 @@
 #define ERR_HDLC_ALIGN		2 /* HDLC alignment error */
 #define ERR_HDLC_FCS		3 /* HDLC Frame Check Sum error */
 #define ERR_RXFREE_Q_EMPTY	4 /* RX-free queue became empty while receiving
-				     this packet (if buf_len < pkt_len) */
+				   * this packet (if buf_len < pkt_len)
+				   */
 #define ERR_HDLC_TOO_LONG	5 /* HDLC frame size too long */
 #define ERR_HDLC_ABORT		6 /* abort sequence received */
 #define ERR_DISCONNECTING	7 /* disconnect is in progress */
@@ -602,7 +603,8 @@ static inline void queue_put_desc(unsigned int queue, u32 phys,
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
 	/* Don't check for queue overflow here, we've allocated sufficient
-	   length and queues >= 32 don't support this check anyway. */
+	 * length and queues >= 32 don't support this check anyway.
+	 */
 }
 
 static inline void dma_unmap_tx(struct port *port, struct desc *desc)
