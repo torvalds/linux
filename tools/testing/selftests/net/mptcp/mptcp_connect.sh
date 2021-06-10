@@ -195,9 +195,6 @@ ip -net "$ns4" link set ns4eth3 up
 ip -net "$ns4" route add default via 10.0.3.2
 ip -net "$ns4" route add default via dead:beef:3::2
 
-# use TCP syn cookies, even if no flooding was detected.
-ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=2
-
 set_ethtool_flags() {
 	local ns="$1"
 	local dev="$2"
@@ -664,6 +661,14 @@ for sender in $ns1 $ns2 $ns3 $ns4;do
 	if [ $ret -ne 0 ] ;then
 		echo "FAIL: Could not even run loopback v6 test" 2>&1
 		exit $ret
+	fi
+
+	# ns1<->ns2 is not subject to reordering/tc delays. Use it to test
+	# mptcp syncookie support.
+	if [ $sender = $ns1 ]; then
+		ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=2
+	else
+		ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=1
 	fi
 
 	run_tests "$ns2" $sender 10.0.1.2
