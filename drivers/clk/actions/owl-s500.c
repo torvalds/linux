@@ -140,9 +140,16 @@ static struct clk_factor_table sd_factor_table[] = {
 	{ 0, 0, 0 },
 };
 
-static struct clk_factor_table bisp_factor_table[] = {
-	{ 0, 1, 1 }, { 1, 1, 2 }, { 2, 1, 3 }, { 3, 1, 4 },
-	{ 4, 1, 5 }, { 5, 1, 6 }, { 6, 1, 7 }, { 7, 1, 8 },
+static struct clk_factor_table de_factor_table[] = {
+	{ 0, 1, 1 }, { 1, 2, 3 }, { 2, 1, 2 }, { 3, 2, 5 },
+	{ 4, 1, 3 }, { 5, 1, 4 }, { 6, 1, 6 }, { 7, 1, 8 },
+	{ 8, 1, 12 },
+	{ 0, 0, 0 },
+};
+
+static struct clk_factor_table hde_factor_table[] = {
+	{ 0, 1, 1 }, { 1, 2, 3 }, { 2, 1, 2 }, { 3, 2, 5 },
+	{ 4, 1, 3 }, { 5, 1, 4 }, { 6, 1, 6 }, { 7, 1, 8 },
 	{ 0, 0, 0 },
 };
 
@@ -153,6 +160,13 @@ static struct clk_factor_table ahb_factor_table[] = {
 
 static struct clk_div_table rmii_ref_div_table[] = {
 	{ 0, 4 }, { 1, 10 },
+	{ 0, 0 },
+};
+
+static struct clk_div_table std12rate_div_table[] = {
+	{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
+	{ 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 8 },
+	{ 8, 9 }, { 9, 10 }, { 10, 11 }, { 11, 12 },
 	{ 0, 0 },
 };
 
@@ -191,39 +205,39 @@ static OWL_DIVIDER(rmii_ref_clk, "rmii_ref_clk", "ethernet_pll_clk", CMU_ETHERNE
 
 /* factor clocks */
 static OWL_FACTOR(ahb_clk, "ahb_clk", "h_clk", CMU_BUSCLK1, 2, 2, ahb_factor_table, 0, 0);
-static OWL_FACTOR(de1_clk, "de_clk1", "de_clk", CMU_DECLK, 0, 3, bisp_factor_table, 0, 0);
-static OWL_FACTOR(de2_clk, "de_clk2", "de_clk", CMU_DECLK, 4, 3, bisp_factor_table, 0, 0);
+static OWL_FACTOR(de1_clk, "de_clk1", "de_clk", CMU_DECLK, 0, 4, de_factor_table, 0, 0);
+static OWL_FACTOR(de2_clk, "de_clk2", "de_clk", CMU_DECLK, 4, 4, de_factor_table, 0, 0);
 
 /* composite clocks */
 static OWL_COMP_FACTOR(vce_clk, "vce_clk", hde_clk_mux_p,
 			OWL_MUX_HW(CMU_VCECLK, 4, 2),
 			OWL_GATE_HW(CMU_DEVCLKEN0, 26, 0),
-			OWL_FACTOR_HW(CMU_VCECLK, 0, 3, 0, bisp_factor_table),
+			OWL_FACTOR_HW(CMU_VCECLK, 0, 3, 0, hde_factor_table),
 			0);
 
 static OWL_COMP_FACTOR(vde_clk, "vde_clk", hde_clk_mux_p,
 			OWL_MUX_HW(CMU_VDECLK, 4, 2),
 			OWL_GATE_HW(CMU_DEVCLKEN0, 25, 0),
-			OWL_FACTOR_HW(CMU_VDECLK, 0, 3, 0, bisp_factor_table),
+			OWL_FACTOR_HW(CMU_VDECLK, 0, 3, 0, hde_factor_table),
 			0);
 
-static OWL_COMP_FACTOR(bisp_clk, "bisp_clk", bisp_clk_mux_p,
+static OWL_COMP_DIV(bisp_clk, "bisp_clk", bisp_clk_mux_p,
 			OWL_MUX_HW(CMU_BISPCLK, 4, 1),
 			OWL_GATE_HW(CMU_DEVCLKEN0, 14, 0),
-			OWL_FACTOR_HW(CMU_BISPCLK, 0, 3, 0, bisp_factor_table),
+			OWL_DIVIDER_HW(CMU_BISPCLK, 0, 4, 0, std12rate_div_table),
 			0);
 
-static OWL_COMP_FACTOR(sensor0_clk, "sensor0_clk", sensor_clk_mux_p,
+static OWL_COMP_DIV(sensor0_clk, "sensor0_clk", sensor_clk_mux_p,
 			OWL_MUX_HW(CMU_SENSORCLK, 4, 1),
 			OWL_GATE_HW(CMU_DEVCLKEN0, 14, 0),
-			OWL_FACTOR_HW(CMU_SENSORCLK, 0, 3, 0, bisp_factor_table),
-			CLK_IGNORE_UNUSED);
+			OWL_DIVIDER_HW(CMU_SENSORCLK, 0, 4, 0, std12rate_div_table),
+			0);
 
-static OWL_COMP_FACTOR(sensor1_clk, "sensor1_clk", sensor_clk_mux_p,
+static OWL_COMP_DIV(sensor1_clk, "sensor1_clk", sensor_clk_mux_p,
 			OWL_MUX_HW(CMU_SENSORCLK, 4, 1),
 			OWL_GATE_HW(CMU_DEVCLKEN0, 14, 0),
-			OWL_FACTOR_HW(CMU_SENSORCLK, 8, 3, 0, bisp_factor_table),
-			CLK_IGNORE_UNUSED);
+			OWL_DIVIDER_HW(CMU_SENSORCLK, 8, 4, 0, std12rate_div_table),
+			0);
 
 static OWL_COMP_FACTOR(sd0_clk, "sd0_clk", sd_clk_mux_p,
 			OWL_MUX_HW(CMU_SD0CLK, 9, 1),
