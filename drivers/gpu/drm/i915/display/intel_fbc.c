@@ -239,11 +239,10 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 	if (params->fb.format->cpp[0] == 2)
-		limit++;
+		limit <<= 1;
 
 	switch (limit) {
 	case 4:
-	case 3:
 		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
 		break;
 	case 2:
@@ -319,11 +318,10 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 
 	if (params->fb.format->cpp[0] == 2)
-		limit++;
+		limit <<= 1;
 
 	switch (limit) {
 	case 4:
-	case 3:
 		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
 		break;
 	case 2:
