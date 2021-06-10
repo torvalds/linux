@@ -8393,8 +8393,10 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 			HL_VA_RANGE_TYPE_HOST, HOST_SPACE_INTERNAL_CB_SZ,
 			HL_MMU_VA_ALIGNMENT_NOT_NEEDED);
 
-	if (!hdev->internal_cb_va_base)
+	if (!hdev->internal_cb_va_base) {
+		rc = -ENOMEM;
 		goto destroy_internal_cb_pool;
+	}
 
 	mutex_lock(&ctx->mmu_lock);
 	rc = hl_mmu_map_contiguous(ctx, hdev->internal_cb_va_base,
