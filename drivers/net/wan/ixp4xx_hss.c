@@ -332,7 +332,7 @@ static const struct {
  * utility functions
  ****************************************************************************/
 
-static inline struct port* dev_to_port(struct net_device *dev)
+static inline struct port *dev_to_port(struct net_device *dev)
 {
 	return dev_to_hdlc(dev)->priv;
 }
@@ -351,9 +351,9 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
  * HSS access
  ****************************************************************************/
 
-static void hss_npe_send(struct port *port, struct msg *msg, const char* what)
+static void hss_npe_send(struct port *port, struct msg *msg, const char *what)
 {
-	u32 *val = (u32*)msg;
+	u32 *val = (u32 *)msg;
 
 	if (npe_send_message(port->npe, msg, what)) {
 		pr_crit("HSS-%i: unable to send command [%08X:%08X] to %s\n",
