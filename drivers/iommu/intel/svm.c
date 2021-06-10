@@ -17,6 +17,7 @@
 #include <linux/dmar.h>
 #include <linux/interrupt.h>
 #include <linux/mm_types.h>
+#include <linux/xarray.h>
 #include <linux/ioasid.h>
 #include <asm/page.h>
 #include <asm/fpu/api.h>
@@ -27,6 +28,23 @@ static irqreturn_t prq_event_thread(int irq, void *d);
 static void intel_svm_drain_prq(struct device *dev, u32 pasid);
 
 #define PRQ_ORDER 0
+
+static DEFINE_XARRAY_ALLOC(pasid_private_array);
+static int pasid_private_add(ioasid_t pasid, void *priv)
+{
+	return xa_alloc(&pasid_private_array, &pasid, priv,
+			XA_LIMIT(pasid, pasid), GFP_ATOMIC);
+}
+
+static void pasid_private_remove(ioasid_t pasid)
+{
+	xa_erase(&pasid_private_array, pasid);
+}
+
+static void *pasid_private_find(ioasid_t pasid)
+{
+	return xa_load(&pasid_private_array, pasid);
+}
 
 int intel_svm_enable_prq(struct intel_iommu *iommu)
 {
@@ -224,7 +242,7 @@ static int pasid_to_svm_sdev(struct device *dev, unsigned int pasid,
 	if (pasid == INVALID_IOASID || pasid >= PASID_MAX)
 		return -EINVAL;
 
-	svm = ioasid_find(NULL, pasid, NULL);
+	svm = pasid_private_find(pasid);
 	if (IS_ERR(svm))
 		return PTR_ERR(svm);
 
@@ -334,7 +352,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 			svm->gpasid = data->gpasid;
 			svm->flags |= SVM_FLAG_GUEST_PASID;
 		}
-		ioasid_set_data(data->hpasid, svm);
+		pasid_private_add(data->hpasid, svm);
 		INIT_LIST_HEAD_RCU(&svm->devs);
 		mmput(svm->mm);
 	}
@@ -388,7 +406,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	list_add_rcu(&sdev->list, &svm->devs);
  out:
 	if (!IS_ERR_OR_NULL(svm) && list_empty(&svm->devs)) {
-		ioasid_set_data(data->hpasid, NULL);
+		pasid_private_remove(data->hpasid);
 		kfree(svm);
 	}
 
@@ -431,7 +449,7 @@ int intel_svm_unbind_gpasid(struct device *dev, u32 pasid)
 				 * the unbind, IOMMU driver will get notified
 				 * and perform cleanup.
 				 */
-				ioasid_set_data(pasid, NULL);
+				pasid_private_remove(pasid);
 				kfree(svm);
 			}
 		}
@@ -547,8 +565,7 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
 		if (!svm) {
 			ret = -ENOMEM;
-			kfree(sdev);
-			goto out;
+			goto sdev_err;
 		}
 
 		if (pasid_max > intel_pasid_max_id)
@@ -556,13 +573,16 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 
 		/* Do not use PASID 0, reserved for RID to PASID */
 		svm->pasid = ioasid_alloc(NULL, PASID_MIN,
-					  pasid_max - 1, svm);
+					  pasid_max - 1, NULL);
 		if (svm->pasid == INVALID_IOASID) {
-			kfree(svm);
-			kfree(sdev);
 			ret = -ENOSPC;
-			goto out;
+			goto svm_err;
 		}
+
+		ret = pasid_private_add(svm->pasid, svm);
+		if (ret)
+			goto pasid_err;
+
 		svm->notifier.ops = &intel_mmuops;
 		svm->mm = mm;
 		svm->flags = flags;
@@ -571,12 +591,8 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 		ret = -ENOMEM;
 		if (mm) {
 			ret = mmu_notifier_register(&svm->notifier, mm);
-			if (ret) {
-				ioasid_put(svm->pasid);
-				kfree(svm);
-				kfree(sdev);
-				goto out;
-			}
+			if (ret)
+				goto priv_err;
 		}
 
 		spin_lock_irqsave(&iommu->lock, iflags);
@@ -590,8 +606,13 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 		if (ret) {
 			if (mm)
 				mmu_notifier_unregister(&svm->notifier, mm);
+priv_err:
+			pasid_private_remove(svm->pasid);
+pasid_err:
 			ioasid_put(svm->pasid);
+svm_err:
 			kfree(svm);
+sdev_err:
 			kfree(sdev);
 			goto out;
 		}
@@ -614,10 +635,8 @@ intel_svm_bind_mm(struct device *dev, unsigned int flags,
 						(cpu_feature_enabled(X86_FEATURE_LA57) ?
 						PASID_FLAG_FL5LP : 0));
 		spin_unlock_irqrestore(&iommu->lock, iflags);
-		if (ret) {
-			kfree(sdev);
-			goto out;
-		}
+		if (ret)
+			goto sdev_err;
 	}
 	list_add_rcu(&sdev->list, &svm->devs);
 success:
@@ -670,6 +689,7 @@ static int intel_svm_unbind_mm(struct device *dev, u32 pasid)
 					load_pasid(svm->mm, PASID_DISABLED);
 				}
 				list_del(&svm->list);
+				pasid_private_remove(svm->pasid);
 				/* We mandate that no page faults may be outstanding
 				 * for the PASID when intel_svm_unbind_mm() is called.
 				 * If that is not obeyed, subtle errors will happen.
@@ -924,7 +944,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		}
 		if (!svm || svm->pasid != req->pasid) {
 			rcu_read_lock();
-			svm = ioasid_find(NULL, req->pasid, NULL);
+			svm = pasid_private_find(req->pasid);
 			/* It *can't* go away, because the driver is not permitted
 			 * to unbind the mm while any page faults are outstanding.
 			 * So we only need RCU to protect the internal idr code. */
