@@ -422,17 +422,17 @@ err_port_flood_set:
 	return err;
 }
 
-static int prestera_port_bridge_join(struct prestera_port *port,
-				     struct net_device *upper)
+int prestera_bridge_port_join(struct net_device *br_dev,
+			      struct prestera_port *port)
 {
 	struct prestera_switchdev *swdev = port->sw->swdev;
 	struct prestera_bridge_port *br_port;
 	struct prestera_bridge *bridge;
 	int err;
 
-	bridge = prestera_bridge_by_dev(swdev, upper);
+	bridge = prestera_bridge_by_dev(swdev, br_dev);
 	if (!bridge) {
-		bridge = prestera_bridge_create(swdev, upper);
+		bridge = prestera_bridge_create(swdev, br_dev);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}
@@ -505,14 +505,14 @@ static int prestera_port_vid_stp_set(struct prestera_port *port, u16 vid,
 	return prestera_hw_vlan_port_stp_set(port, vid, hw_state);
 }
 
-static void prestera_port_bridge_leave(struct prestera_port *port,
-				       struct net_device *upper)
+void prestera_bridge_port_leave(struct net_device *br_dev,
+				struct prestera_port *port)
 {
 	struct prestera_switchdev *swdev = port->sw->swdev;
 	struct prestera_bridge_port *br_port;
 	struct prestera_bridge *bridge;
 
-	bridge = prestera_bridge_by_dev(swdev, upper);
+	bridge = prestera_bridge_by_dev(swdev, br_dev);
 	if (!bridge)
 		return;
 
@@ -531,32 +531,6 @@ static void prestera_port_bridge_leave(struct prestera_port *port,
 	prestera_hw_port_flood_set(port, BR_FLOOD | BR_MCAST_FLOOD, 0);
 	prestera_port_vid_stp_set(port, PRESTERA_VID_ALL, BR_STATE_FORWARDING);
 	prestera_bridge_port_put(br_port);
-}
-
-int prestera_bridge_port_event(struct net_device *dev, unsigned long event,
-			       void *ptr)
-{
-	struct netdev_notifier_changeupper_info *info = ptr;
-	struct prestera_port *port;
-	struct net_device *upper;
-	int err;
-
-	port = netdev_priv(dev);
-	upper = info->upper_dev;
-
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		if (info->linking) {
-			err = prestera_port_bridge_join(port, upper);
-			if (err)
-				return err;
-		} else {
-			prestera_port_bridge_leave(port, upper);
-		}
-		break;
-	}
-
-	return 0;
 }
 
 static int prestera_port_attr_br_flags_set(struct prestera_port *port,

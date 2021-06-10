@@ -509,6 +509,7 @@ static int prestera_netdev_port_event(struct net_device *dev,
 				      unsigned long event, void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info = ptr;
+	struct prestera_port *port = netdev_priv(dev);
 	struct netlink_ext_ack *extack;
 	struct net_device *upper;
 
@@ -532,8 +533,12 @@ static int prestera_netdev_port_event(struct net_device *dev,
 		break;
 
 	case NETDEV_CHANGEUPPER:
-		if (netif_is_bridge_master(upper))
-			return prestera_bridge_port_event(dev, event, ptr);
+		if (netif_is_bridge_master(upper)) {
+			if (info->linking)
+				return prestera_bridge_port_join(upper, port);
+			else
+				prestera_bridge_port_leave(upper, port);
+		}
 		break;
 	}
 
