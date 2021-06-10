@@ -3,6 +3,7 @@
 
 #include "mt7915.h"
 #include "eeprom.h"
+#include "mcu.h"
 
 /** global debugfs **/
 
@@ -16,7 +17,7 @@ mt7915_implicit_txbf_set(void *data, u64 val)
 
 	dev->ibf = !!val;
 
-	return mt7915_mcu_set_txbf_type(dev);
+	return mt7915_mcu_set_txbf(dev, MT_BF_TYPE_UPDATE);
 }
 
 static int
