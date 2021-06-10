@@ -1768,7 +1768,7 @@ bool perform_link_training_with_retries(
 	enum signal_type signal,
 	bool do_fallback)
 {
-	uint8_t j;
+	int j;
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
@@ -2307,7 +2307,7 @@ bool dp_verify_link_cap_with_retries(
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts)
 {
-	uint8_t i = 0;
+	int i = 0;
 	bool success = false;
 
 	for (i = 0; i < attempts; i++) {

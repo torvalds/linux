@@ -821,7 +821,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
-	uint8_t i;
+	uint32_t i;
 	bool converter_disable_audio = false;
 	struct audio_support *aud_support = &link->dc->res_pool->audio_support;
 	bool same_edid = false;
