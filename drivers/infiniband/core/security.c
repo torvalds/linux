@@ -586,7 +586,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	WARN_ONCE((qp_attr_mask & IB_QP_PORT &&
 		   rdma_protocol_ib(real_qp->device, qp_attr->port_num) &&
 		   !real_qp->qp_sec),
-		   "%s: QP security is not initialized for IB QP: %d\n",
+		   "%s: QP security is not initialized for IB QP: %u\n",
 		   __func__, real_qp->qp_num);
 
 	/* The port/pkey settings are maintained only for the real QP. Open

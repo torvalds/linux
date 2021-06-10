@@ -240,7 +240,7 @@ static void free_gid_entry_locked(struct ib_gid_table_entry *entry)
 	u32 port_num = entry->attr.port_num;
 	struct ib_gid_table *table = rdma_gid_table(device, port_num);
 
-	dev_dbg(&device->dev, "%s port=%u index=%d gid %pI6\n", __func__,
+	dev_dbg(&device->dev, "%s port=%u index=%u gid %pI6\n", __func__,
 		port_num, entry->attr.index, entry->attr.gid.raw);
 
 	write_lock_irq(&table->rwlock);
@@ -323,7 +323,7 @@ static void store_gid_entry(struct ib_gid_table *table,
 {
 	entry->state = GID_TABLE_ENTRY_VALID;
 
-	dev_dbg(&entry->attr.device->dev, "%s port=%d index=%d gid %pI6\n",
+	dev_dbg(&entry->attr.device->dev, "%s port=%u index=%u gid %pI6\n",
 		__func__, entry->attr.port_num, entry->attr.index,
 		entry->attr.gid.raw);
 
@@ -354,7 +354,7 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
 	int ret;
 
 	if (!attr->ndev) {
-		dev_err(&attr->device->dev, "%s NULL netdev port=%d index=%d\n",
+		dev_err(&attr->device->dev, "%s NULL netdev port=%u index=%u\n",
 			__func__, attr->port_num, attr->index);
 		return -EINVAL;
 	}
@@ -362,7 +362,7 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
 		ret = attr->device->ops.add_gid(attr, &entry->context);
 		if (ret) {
 			dev_err(&attr->device->dev,
-				"%s GID add failed port=%d index=%d\n",
+				"%s GID add failed port=%u index=%u\n",
 				__func__, attr->port_num, attr->index);
 			return ret;
 		}
@@ -805,7 +805,7 @@ static void release_gid_table(struct ib_device *device,
 			continue;
 		if (kref_read(&table->data_vec[i]->kref) > 1) {
 			dev_err(&device->dev,
-				"GID entry ref leak for index %d ref=%d\n", i,
+				"GID entry ref leak for index %d ref=%u\n", i,
 				kref_read(&table->data_vec[i]->kref));
 			leak = true;
 		}

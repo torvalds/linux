@@ -3314,7 +3314,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 		ib_spec += ((union ib_flow_spec *) ib_spec)->size;
 	}
 	if (cmd.flow_attr.size || (i != flow_attr->num_of_specs)) {
-		pr_warn("create flow failed, flow %d: %d bytes left from uverb cmd\n",
+		pr_warn("create flow failed, flow %d: %u bytes left from uverb cmd\n",
 			i, cmd.flow_attr.size);
 		err = -EINVAL;
 		goto err_free;

@@ -307,7 +307,7 @@ int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
 	int ret = -EINVAL;
 
 	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid client = %d\n", __func__, nl_client);
+		pr_info("%s: Invalid client = %u\n", __func__, nl_client);
 		return ret;
 	}
 	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
@@ -655,7 +655,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 		err_str = "Unable to send a nlmsg";
 		goto mapinfo_num_error;
 	}
-	pr_debug("%s: Sent mapping number = %d\n", __func__, mapping_num);
+	pr_debug("%s: Sent mapping number = %u\n", __func__, mapping_num);
 	return 0;
 mapinfo_num_error:
 	pr_info("%s: %s\n", __func__, err_str);

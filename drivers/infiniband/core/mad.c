@@ -351,7 +351,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	/* Validate device and port */
 	port_priv = ib_get_mad_port(device, port_num);
 	if (!port_priv) {
-		dev_dbg_ratelimited(&device->dev, "%s: Invalid port %d\n",
+		dev_dbg_ratelimited(&device->dev, "%s: Invalid port %u\n",
 				    __func__, port_num);
 		ret = ERR_PTR(-ENODEV);
 		goto error1;
@@ -1626,7 +1626,7 @@ static int validate_mad(const struct ib_mad_hdr *mad_hdr,
 	/* Make sure MAD base version is understood */
 	if (mad_hdr->base_version != IB_MGMT_BASE_VERSION &&
 	    (!opa || mad_hdr->base_version != OPA_MGMT_BASE_VERSION)) {
-		pr_err("MAD received with unsupported base version %d %s\n",
+		pr_err("MAD received with unsupported base version %u %s\n",
 		       mad_hdr->base_version, opa ? "(opa)" : "");
 		goto out;
 	}
@@ -2867,7 +2867,7 @@ static void qp_event_handler(struct ib_event *event, void *qp_context)
 
 	/* It's worse than that! He's dead, Jim! */
 	dev_err(&qp_info->port_priv->device->dev,
-		"Fatal error (%d) on MAD QP (%d)\n",
+		"Fatal error (%d) on MAD QP (%u)\n",
 		event->event, qp_info->qp->qp_num);
 }
 
@@ -3125,9 +3125,9 @@ static void ib_mad_remove_device(struct ib_device *device, void *client_data)
 
 		if (ib_agent_port_close(device, i))
 			dev_err(&device->dev,
-				"Couldn't close port %d for agents\n", i);
+				"Couldn't close port %u for agents\n", i);
 		if (ib_mad_port_close(device, i))
-			dev_err(&device->dev, "Couldn't close port %d\n", i);
+			dev_err(&device->dev, "Couldn't close port %u\n", i);
 	}
 }
 

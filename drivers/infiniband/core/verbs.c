@@ -1834,7 +1834,7 @@ int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 		netdev_speed = lksettings.base.speed;
 	} else {
 		netdev_speed = SPEED_1000;
-		pr_warn("%s speed is unknown, defaulting to %d\n", netdev->name,
+		pr_warn("%s speed is unknown, defaulting to %u\n", netdev->name,
 			netdev_speed);
 	}
 

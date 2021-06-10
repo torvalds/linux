@@ -1745,7 +1745,7 @@ static u16 cm_get_bth_pkey(struct cm_work *work)
 
 	ret = ib_get_cached_pkey(ib_dev, port_num, pkey_index, &pkey);
 	if (ret) {
-		dev_warn_ratelimited(&ib_dev->dev, "ib_cm: Couldn't retrieve pkey for incoming request (port %d, pkey index %d). %d\n",
+		dev_warn_ratelimited(&ib_dev->dev, "ib_cm: Couldn't retrieve pkey for incoming request (port %u, pkey index %u). %d\n",
 				     port_num, pkey_index, ret);
 		return 0;
 	}
