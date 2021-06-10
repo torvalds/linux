@@ -256,14 +256,15 @@ static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 }
 
 static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
-				u16 first, u16 count, const struct ipa_mem *mem)
+				u16 first, u16 count, enum ipa_mem_id mem_id)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
+	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	dma_addr_t addr;
 	u32 offset;
 	u16 size;
 
-	/* Nothing to do if the table memory regions is empty */
+	/* Nothing to do if the table memory region is empty */
 	if (!mem->size)
 		return;
 
@@ -284,7 +285,6 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
 static int
 ipa_filter_reset_table(struct ipa *ipa, enum ipa_mem_id mem_id, bool modem)
 {
-	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	u32 ep_mask = ipa->filter_map;
 	u32 count = hweight32(ep_mask);
 	struct gsi_trans *trans;
@@ -309,7 +309,7 @@ ipa_filter_reset_table(struct ipa *ipa, enum ipa_mem_id mem_id, bool modem)
 		if (endpoint->ee_id != ee_id)
 			continue;
 
-		ipa_table_reset_add(trans, true, endpoint_id, 1, mem);
+		ipa_table_reset_add(trans, true, endpoint_id, 1, mem_id);
 	}
 
 	gsi_trans_commit_wait(trans);
@@ -367,15 +367,13 @@ static int ipa_route_reset(struct ipa *ipa, bool modem)
 		count = IPA_ROUTE_AP_COUNT;
 	}
 
+	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V4_ROUTE);
 	ipa_table_reset_add(trans, false, first, count,
-			    &ipa->mem[IPA_MEM_V4_ROUTE]);
-	ipa_table_reset_add(trans, false, first, count,
-			    &ipa->mem[IPA_MEM_V4_ROUTE_HASHED]);
+			    IPA_MEM_V4_ROUTE_HASHED);
 
+	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V6_ROUTE);
 	ipa_table_reset_add(trans, false, first, count,
-			    &ipa->mem[IPA_MEM_V6_ROUTE]);
-	ipa_table_reset_add(trans, false, first, count,
-			    &ipa->mem[IPA_MEM_V6_ROUTE_HASHED]);
+			    IPA_MEM_V6_ROUTE_HASHED);
 
 	gsi_trans_commit_wait(trans);
 
@@ -429,10 +427,12 @@ int ipa_table_hash_flush(struct ipa *ipa)
 
 static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 			       enum ipa_cmd_opcode opcode,
-			       const struct ipa_mem *mem,
-			       const struct ipa_mem *hash_mem)
+			       enum ipa_mem_id mem_id,
+			       enum ipa_mem_id hash_mem_id)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
+	const struct ipa_mem *hash_mem = &ipa->mem[hash_mem_id];
+	const struct ipa_mem *mem = &ipa->mem[mem_id];
 	dma_addr_t hash_addr;
 	dma_addr_t addr;
 	u16 hash_count;
@@ -473,20 +473,16 @@ int ipa_table_setup(struct ipa *ipa)
 	}
 
 	ipa_table_init_add(trans, false, IPA_CMD_IP_V4_ROUTING_INIT,
-			   &ipa->mem[IPA_MEM_V4_ROUTE],
-			   &ipa->mem[IPA_MEM_V4_ROUTE_HASHED]);
+			   IPA_MEM_V4_ROUTE, IPA_MEM_V4_ROUTE_HASHED);
 
 	ipa_table_init_add(trans, false, IPA_CMD_IP_V6_ROUTING_INIT,
-			   &ipa->mem[IPA_MEM_V6_ROUTE],
-			   &ipa->mem[IPA_MEM_V6_ROUTE_HASHED]);
+			   IPA_MEM_V6_ROUTE, IPA_MEM_V6_ROUTE_HASHED);
 
 	ipa_table_init_add(trans, true, IPA_CMD_IP_V4_FILTER_INIT,
-			   &ipa->mem[IPA_MEM_V4_FILTER],
-			   &ipa->mem[IPA_MEM_V4_FILTER_HASHED]);
+			   IPA_MEM_V4_FILTER, IPA_MEM_V4_FILTER_HASHED);
 
 	ipa_table_init_add(trans, true, IPA_CMD_IP_V6_FILTER_INIT,
-			   &ipa->mem[IPA_MEM_V6_FILTER],
-			   &ipa->mem[IPA_MEM_V6_FILTER_HASHED]);
+			   IPA_MEM_V6_FILTER, IPA_MEM_V6_FILTER_HASHED);
 
 	gsi_trans_commit_wait(trans);
 
