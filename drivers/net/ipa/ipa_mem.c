@@ -26,11 +26,26 @@
 /* SMEM host id representing the modem. */
 #define QCOM_SMEM_HOST_MODEM	1
 
+const struct ipa_mem *ipa_mem_find(struct ipa *ipa, enum ipa_mem_id mem_id)
+{
+	u32 i;
+
+	for (i = 0; i < ipa->mem_count; i++) {
+		const struct ipa_mem *mem = &ipa->mem[i];
+
+		if (mem->id == mem_id)
+			return mem;
+	}
+
+	return NULL;
+}
+
 /* Add an immediate command to a transaction that zeroes a memory region */
 static void
-ipa_mem_zero_region_add(struct gsi_trans *trans, const struct ipa_mem *mem)
+ipa_mem_zero_region_add(struct gsi_trans *trans, enum ipa_mem_id mem_id)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
+	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
 	dma_addr_t addr = ipa->zero_addr;
 
 	if (!mem->size)
@@ -60,6 +75,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, const struct ipa_mem *mem)
 int ipa_mem_setup(struct ipa *ipa)
 {
 	dma_addr_t addr = ipa->zero_addr;
+	const struct ipa_mem *mem;
 	struct gsi_trans *trans;
 	u32 offset;
 	u16 size;
@@ -74,25 +90,28 @@ int ipa_mem_setup(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	/* Initialize IPA-local header memory.  The modem and AP header
-	 * regions are contiguous, and initialized together.
+	/* Initialize IPA-local header memory.  The AP header region, if
+	 * present, is contiguous with and follows the modem header region,
+	 * and they are initialized together.
 	 */
-	offset = ipa->mem[IPA_MEM_MODEM_HEADER].offset;
-	size = ipa->mem[IPA_MEM_MODEM_HEADER].size;
-	size += ipa->mem[IPA_MEM_AP_HEADER].size;
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_HEADER);
+	offset = mem->offset;
+	size = mem->size;
+	mem = ipa_mem_find(ipa, IPA_MEM_AP_HEADER);
+	if (mem)
+		size += mem->size;
 
 	ipa_cmd_hdr_init_local_add(trans, offset, size, addr);
 
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM_PROC_CTX]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_AP_PROC_CTX]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM]);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM_PROC_CTX);
+	ipa_mem_zero_region_add(trans, IPA_MEM_AP_PROC_CTX);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM);
 
 	gsi_trans_commit_wait(trans);
 
 	/* Tell the hardware where the processing context area is located */
-	offset = ipa->mem_offset + ipa->mem[IPA_MEM_MODEM_PROC_CTX].offset;
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_PROC_CTX);
+	offset = ipa->mem_offset + mem->offset;
 	val = proc_cntxt_base_addr_encoded(ipa->version, offset);
 	iowrite32(val, ipa->reg_virt + IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET);
 
@@ -196,6 +215,11 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 		return false;
 	}
 
+	if (!mem->size && !mem->canary_count) {
+		dev_err(dev, "empty memory region %u\n", mem_id);
+		return false;
+	}
+
 	/* Other than modem memory, sizes must be a multiple of 8 */
 	size_multiple = mem_id == IPA_MEM_MODEM ? 4 : 8;
 	if (mem->size % size_multiple)
@@ -220,6 +244,7 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	DECLARE_BITMAP(regions, IPA_MEM_COUNT) = { };
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id;
+	u32 i;
 
 	if (mem_data->local_count > IPA_MEM_COUNT) {
 		dev_err(dev, "too many memory regions (%u > %u)\n",
@@ -227,11 +252,8 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 		return false;
 	}
 
-	for (mem_id = 0; mem_id < mem_data->local_count; mem_id++) {
-		const struct ipa_mem *mem = &mem_data->local[mem_id];
-
-		if (mem_id == IPA_MEM_UNDEFINED)
-			continue;
+	for (i = 0; i < mem_data->local_count; i++) {
+		const struct ipa_mem *mem = &mem_data->local[i];
 
 		if (__test_and_set_bit(mem->id, regions)) {
 			dev_err(dev, "duplicate memory region %u\n", mem->id);
@@ -239,16 +261,8 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 		}
 
 		/* Defined regions have non-zero size and/or canary count */
-		if (mem->size || mem->canary_count) {
-			if (ipa_mem_valid_one(ipa, mem))
-				continue;
+		if (!ipa_mem_valid_one(ipa, mem))
 			return false;
-		}
-
-		/* It's harmless, but warn if an offset is provided */
-		if (mem->offset)
-			dev_warn(dev, "empty region %u has non-zero offset\n",
-				 mem_id);
 	}
 
 	/* Now see if any required regions are not defined */
@@ -268,16 +282,16 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
 	u32 limit = ipa->mem_size;
-	enum ipa_mem_id mem_id;
+	u32 i;
 
-	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
-		const struct ipa_mem *mem = &ipa->mem[mem_id];
+	for (i = 0; i < ipa->mem_count; i++) {
+		const struct ipa_mem *mem = &ipa->mem[i];
 
 		if (mem->offset + mem->size <= limit)
 			continue;
 
 		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
-			mem_id, limit);
+			mem->id, limit);
 
 		return false;
 	}
@@ -294,11 +308,12 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 int ipa_mem_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
-	enum ipa_mem_id mem_id;
+	const struct ipa_mem *mem;
 	dma_addr_t addr;
 	u32 mem_size;
 	void *virt;
 	u32 val;
+	u32 i;
 
 	/* Check the advertised location and size of the shared memory area */
 	val = ioread32(ipa->reg_virt + IPA_REG_SHARED_MEM_SIZE_OFFSET);
@@ -330,24 +345,18 @@ int ipa_mem_config(struct ipa *ipa)
 	ipa->zero_virt = virt;
 	ipa->zero_size = IPA_MEM_MAX;
 
-	/* For each region, write "canary" values in the space prior to
-	 * the region's base address if indicated.
+	/* For each defined region, write "canary" values in the
+	 * space prior to the region's base address if indicated.
 	 */
-	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
-		const struct ipa_mem *mem = &ipa->mem[mem_id];
-		u16 canary_count;
+	for (i = 0; i < ipa->mem_count; i++) {
+		u16 canary_count = ipa->mem[i].canary_count;
 		__le32 *canary;
 
-		/* Skip over undefined regions */
-		if (!mem->offset && !mem->size)
-			continue;
-
-		canary_count = mem->canary_count;
 		if (!canary_count)
 			continue;
 
 		/* Write canary values in the space before the region */
-		canary = ipa->mem_virt + ipa->mem_offset + mem->offset;
+		canary = ipa->mem_virt + ipa->mem_offset + ipa->mem[i].offset;
 		do
 			*--canary = IPA_MEM_CANARY_VAL;
 		while (--canary_count);
@@ -361,8 +370,9 @@ int ipa_mem_config(struct ipa *ipa)
 	if (!ipa_cmd_data_valid(ipa))
 		goto err_dma_free;
 
-	/* Verify the microcontroller ring alignment (0 is OK too) */
-	if (ipa->mem[IPA_MEM_UC_EVENT_RING].offset % 1024) {
+	/* Verify the microcontroller ring alignment (if defined) */
+	mem = ipa_mem_find(ipa, IPA_MEM_UC_EVENT_RING);
+	if (mem && mem->offset % 1024) {
 		dev_err(dev, "microcontroller ring not 1024-byte aligned\n");
 		goto err_dma_free;
 	}
@@ -410,11 +420,9 @@ int ipa_mem_zero_modem(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM_HEADER]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM_PROC_CTX]);
-
-	ipa_mem_zero_region_add(trans, &ipa->mem[IPA_MEM_MODEM]);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM_HEADER);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM_PROC_CTX);
+	ipa_mem_zero_region_add(trans, IPA_MEM_MODEM);
 
 	gsi_trans_commit_wait(trans);
 
@@ -529,7 +537,7 @@ static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 	 * (in this case, the modem).  An allocation from SMEM is persistent
 	 * until the AP reboots; there is no way to free an allocated SMEM
 	 * region.  Allocation only reserves the space; to use it you need
-	 * to "get" a pointer it (this implies no reference counting).
+	 * to "get" a pointer it (this does not imply reference counting).
 	 * The item might have already been allocated, in which case we
 	 * use it unless the size isn't what we expect.
 	 */

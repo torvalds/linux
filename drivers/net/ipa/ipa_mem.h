@@ -43,7 +43,6 @@ struct ipa_mem_data;
 
 /* IPA-resident memory region ids */
 enum ipa_mem_id {
-	IPA_MEM_UNDEFINED = 0,		/* undefined region */
 	IPA_MEM_UC_SHARED,		/* 0 canaries */
 	IPA_MEM_UC_INFO,		/* 0 canaries */
 	IPA_MEM_V4_FILTER_HASHED,	/* 2 canaries */
@@ -89,6 +88,8 @@ struct ipa_mem {
 	u16 size;
 	u16 canary_count;
 };
+
+const struct ipa_mem *ipa_mem_find(struct ipa *ipa, enum ipa_mem_id mem_id);
 
 int ipa_mem_config(struct ipa *ipa);
 void ipa_mem_deconfig(struct ipa *ipa);

@@ -116,7 +116,8 @@ enum ipa_uc_event {
 
 static struct ipa_uc_mem_area *ipa_uc_shared(struct ipa *ipa)
 {
-	u32 offset = ipa->mem_offset + ipa->mem[IPA_MEM_UC_SHARED].offset;
+	const struct ipa_mem *mem = ipa_mem_find(ipa, IPA_MEM_UC_SHARED);
+	u32 offset = ipa->mem_offset + mem->offset;
 
 	return ipa->mem_virt + offset;
 }
