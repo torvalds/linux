@@ -429,7 +429,6 @@
 		(0
 		| RKPM_ARMOFF
 		| RKPM_PMU_HW_PLLS_PD
-		| RKPM_DBG_FSM_SOUT
 		)
 	>;
 
