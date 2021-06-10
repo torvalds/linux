@@ -506,13 +506,7 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 
 	fbc->limit = ret;
 
-	if (DISPLAY_VER(dev_priv) >= 5)
-		intel_de_write(dev_priv, ILK_DPFC_CB_BASE,
-			       fbc->compressed_fb.start);
-	else if (IS_GM45(dev_priv)) {
-		intel_de_write(dev_priv, DPFC_CB_BASE,
-			       fbc->compressed_fb.start);
-	} else {
+	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv)) {
 		compressed_llb = kzalloc(sizeof(*compressed_llb), GFP_KERNEL);
 		if (!compressed_llb)
 			goto err_fb;
@@ -523,17 +517,6 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 			goto err_fb;
 
 		fbc->compressed_llb = compressed_llb;
-
-		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
-						 fbc->compressed_fb.start,
-						 U32_MAX));
-		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
-						 fbc->compressed_llb->start,
-						 U32_MAX));
-		intel_de_write(dev_priv, FBC_CFB_BASE,
-			       dev_priv->dsm.start + fbc->compressed_fb.start);
-		intel_de_write(dev_priv, FBC_LL_BASE,
-			       dev_priv->dsm.start + compressed_llb->start);
 	}
 
 	drm_dbg_kms(&dev_priv->drm,
@@ -549,6 +532,31 @@ err_llb:
 	if (drm_mm_initialized(&dev_priv->mm.stolen))
 		drm_info_once(&dev_priv->drm, "not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
+}
+
+static void intel_fbc_program_cfb(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	if (DISPLAY_VER(dev_priv) >= 5) {
+		intel_de_write(dev_priv, ILK_DPFC_CB_BASE,
+			       fbc->compressed_fb.start);
+	} else if (IS_GM45(dev_priv)) {
+		intel_de_write(dev_priv, DPFC_CB_BASE,
+			       fbc->compressed_fb.start);
+	} else {
+		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
+						 fbc->compressed_fb.start,
+						 U32_MAX));
+		GEM_BUG_ON(range_overflows_end_t(u64, dev_priv->dsm.start,
+						 fbc->compressed_llb->start,
+						 U32_MAX));
+
+		intel_de_write(dev_priv, FBC_CFB_BASE,
+			       dev_priv->dsm.start + fbc->compressed_fb.start);
+		intel_de_write(dev_priv, FBC_LL_BASE,
+			       dev_priv->dsm.start + fbc->compressed_llb->start);
+	}
 }
 
 static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
@@ -1302,6 +1310,8 @@ void intel_fbc_enable(struct intel_atomic_state *state,
 	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
 
 	fbc->crtc = crtc;
+
+	intel_fbc_program_cfb(dev_priv);
 out:
 	mutex_unlock(&fbc->lock);
 }
