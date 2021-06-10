@@ -132,6 +132,7 @@ enum acpi_address_range_id {
 union acpi_subtable_headers {
 	struct acpi_subtable_header common;
 	struct acpi_hmat_structure hmat;
+	struct acpi_prmt_module_header prmt;
 };
 
 typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
