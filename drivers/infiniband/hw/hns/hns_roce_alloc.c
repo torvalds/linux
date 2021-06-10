@@ -69,45 +69,6 @@ void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
 	hns_roce_bitmap_free_range(bitmap, obj, 1, rr);
 }
 
-int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
-				int align, unsigned long *obj)
-{
-	int ret = 0;
-	int i;
-
-	if (likely(cnt == 1 && align == 1))
-		return hns_roce_bitmap_alloc(bitmap, obj);
-
-	spin_lock(&bitmap->lock);
-
-	*obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max,
-					  bitmap->last, cnt, align - 1);
-	if (*obj >= bitmap->max) {
-		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
-			       & bitmap->mask;
-		*obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max, 0,
-						  cnt, align - 1);
-	}
-
-	if (*obj < bitmap->max) {
-		for (i = 0; i < cnt; i++)
-			set_bit(*obj + i, bitmap->table);
-
-		if (*obj == bitmap->last) {
-			bitmap->last = (*obj + cnt);
-			if (bitmap->last >= bitmap->max)
-				bitmap->last = 0;
-		}
-		*obj |= bitmap->top;
-	} else {
-		ret = -EINVAL;
-	}
-
-	spin_unlock(&bitmap->lock);
-
-	return ret;
-}
-
 void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
 				unsigned long obj, int cnt,
 				int rr)
