@@ -534,6 +534,13 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 		 * rate.
 		 */
 		clock = snd_usb_clock_find_source(chip, fmt, false);
+
+		/* Denon DN-X1600 hardcoded
+		 * Sample rate seems to be set on the hardware itself
+		 */
+		if (chip->usb_id == USB_ID(0x154e, 0x500e))
+			return 0;
+
 		if (clock < 0)
 			return clock;
 	}
