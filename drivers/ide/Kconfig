@@ -739,20 +739,6 @@ config BLK_DEV_FALCON_IDE
 	  disks, CD-ROM drives, etc.) that are connected to the on-board IDE
 	  interface.
 
-config BLK_DEV_MAC_IDE
-	tristate "Macintosh Quadra/Powerbook IDE interface support"
-	depends on MAC
-	help
-	  This is the IDE driver for the on-board IDE interface on some m68k
-	  Macintosh models, namely Quadra/Centris 630, Performa 588 and
-	  Powerbook 150. The IDE interface on the Powerbook 190 is not
-	  supported by this driver and requires BLK_DEV_PLATFORM or
-	  PATA_PLATFORM.
-
-	  Say Y if you have such an Macintosh model and want to use IDE
-	  devices (hard disks, CD-ROM drives, etc.) that are connected to the
-	  on-board IDE interface.
-
 config BLK_DEV_Q40IDE
 	tristate "Q40/Q60 IDE interface support"
 	depends on Q40
