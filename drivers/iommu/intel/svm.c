@@ -724,22 +724,6 @@ struct page_req_dsc {
 
 #define PRQ_RING_MASK	((0x1000 << PRQ_ORDER) - 0x20)
 
-static bool access_error(struct vm_area_struct *vma, struct page_req_dsc *req)
-{
-	unsigned long requested = 0;
-
-	if (req->exe_req)
-		requested |= VM_EXEC;
-
-	if (req->rd_req)
-		requested |= VM_READ;
-
-	if (req->wr_req)
-		requested |= VM_WRITE;
-
-	return (requested & ~vma->vm_flags) != 0;
-}
-
 static bool is_canonical_address(u64 addr)
 {
 	int shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
@@ -808,6 +792,8 @@ prq_retry:
 		wait_for_completion(&iommu->prq_complete);
 		goto prq_retry;
 	}
+
+	iopf_queue_flush_dev(dev);
 
 	/*
 	 * Perform steps described in VT-d spec CH7.10 to drain page
@@ -924,61 +910,6 @@ static void handle_bad_prq_event(struct intel_iommu *iommu,
 	qi_submit_sync(iommu, &desc, 1, 0);
 }
 
-static void handle_single_prq_event(struct intel_iommu *iommu,
-				    struct mm_struct *mm,
-				    struct page_req_dsc *req)
-{
-	u64 address = (u64)req->addr << VTD_PAGE_SHIFT;
-	int result = QI_RESP_INVALID;
-	struct vm_area_struct *vma;
-	struct qi_desc desc;
-	unsigned int flags;
-	vm_fault_t ret;
-
-	/* If the mm is already defunct, don't handle faults. */
-	if (!mmget_not_zero(mm))
-		goto response;
-
-	mmap_read_lock(mm);
-	vma = find_extend_vma(mm, address);
-	if (!vma || address < vma->vm_start)
-		goto invalid;
-
-	if (access_error(vma, req))
-		goto invalid;
-
-	flags = FAULT_FLAG_USER | FAULT_FLAG_REMOTE;
-	if (req->wr_req)
-		flags |= FAULT_FLAG_WRITE;
-
-	ret = handle_mm_fault(vma, address, flags, NULL);
-	if (!(ret & VM_FAULT_ERROR))
-		result = QI_RESP_SUCCESS;
-invalid:
-	mmap_read_unlock(mm);
-	mmput(mm);
-
-response:
-	if (!(req->lpig || req->priv_data_present))
-		return;
-
-	desc.qw0 = QI_PGRP_PASID(req->pasid) |
-			QI_PGRP_DID(req->rid) |
-			QI_PGRP_PASID_P(req->pasid_present) |
-			QI_PGRP_PDP(req->priv_data_present) |
-			QI_PGRP_RESP_CODE(result) |
-			QI_PGRP_RESP_TYPE;
-	desc.qw1 = QI_PGRP_IDX(req->prg_index) |
-			QI_PGRP_LPIG(req->lpig);
-	desc.qw2 = 0;
-	desc.qw3 = 0;
-
-	if (req->priv_data_present)
-		memcpy(&desc.qw2, req->priv_data, sizeof(req->priv_data));
-
-	qi_submit_sync(iommu, &desc, 1, 0);
-}
-
 static irqreturn_t prq_event_thread(int irq, void *d)
 {
 	struct intel_svm_dev *sdev = NULL;
@@ -1049,14 +980,8 @@ bad_req:
 		 * If prq is to be handled outside iommu driver via receiver of
 		 * the fault notifiers, we skip the page response here.
 		 */
-		if (svm->flags & SVM_FLAG_GUEST_MODE) {
-			if (!intel_svm_prq_report(sdev->dev, req))
-				goto prq_advance;
-			else
-				goto bad_req;
-		}
-
-		handle_single_prq_event(iommu, svm->mm, req);
+		if (intel_svm_prq_report(sdev->dev, req))
+			handle_bad_prq_event(iommu, req, QI_RESP_INVALID);
 prq_advance:
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;
 	}
@@ -1073,6 +998,7 @@ prq_advance:
 		head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 		tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
 		if (head == tail) {
+			iopf_queue_discard_partial(iommu->iopf_queue);
 			writel(DMA_PRS_PRO, iommu->reg + DMAR_PRS_REG);
 			pr_info_ratelimited("IOMMU: %s: PRQ overflow cleared",
 					    iommu->name);

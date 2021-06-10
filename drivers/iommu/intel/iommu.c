@@ -5343,6 +5343,7 @@ static int intel_iommu_enable_sva(struct device *dev)
 {
 	struct device_domain_info *info = get_domain_info(dev);
 	struct intel_iommu *iommu = info->iommu;
+	int ret;
 
 	if (!info || !iommu || dmar_disabled)
 		return -EINVAL;
@@ -5356,15 +5357,24 @@ static int intel_iommu_enable_sva(struct device *dev)
 	if (!info->pasid_enabled || !info->pri_enabled || !info->ats_enabled)
 		return -EINVAL;
 
-	return iopf_queue_add_device(iommu->iopf_queue, dev);
+	ret = iopf_queue_add_device(iommu->iopf_queue, dev);
+	if (!ret)
+		ret = iommu_register_device_fault_handler(dev, iommu_queue_iopf, dev);
+
+	return ret;
 }
 
 static int intel_iommu_disable_sva(struct device *dev)
 {
 	struct device_domain_info *info = get_domain_info(dev);
 	struct intel_iommu *iommu = info->iommu;
+	int ret;
 
-	return iopf_queue_remove_device(iommu->iopf_queue, dev);
+	ret = iommu_unregister_device_fault_handler(dev);
+	if (!ret)
+		ret = iopf_queue_remove_device(iommu->iopf_queue, dev);
+
+	return ret;
 }
 
 /*
