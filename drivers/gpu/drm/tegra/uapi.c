@@ -7,6 +7,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_utils.h>
 
 #include "drm.h"
 #include "uapi.h"
@@ -317,39 +318,21 @@ int tegra_drm_ioctl_syncpoint_free(struct drm_device *drm, void *data, struct dr
 	return 0;
 }
 
-int tegra_drm_ioctl_gem_create(struct drm_device *drm, void *data,
-			       struct drm_file *file)
+int tegra_drm_ioctl_syncpoint_wait(struct drm_device *drm, void *data, struct drm_file *file)
 {
-	struct drm_tegra_gem_create *args = data;
-	struct tegra_bo *bo;
+	struct host1x *host1x = tegra_drm_to_host1x(drm->dev_private);
+	struct drm_tegra_syncpoint_wait *args = data;
+	signed long timeout_jiffies;
+	struct host1x_syncpt *sp;
 
-	if (args->flags)
+	if (args->padding != 0)
 		return -EINVAL;
 
-	bo = tegra_bo_create_with_handle(file, drm, args->size, args->flags,
-					 &args->handle);
-	if (IS_ERR(bo))
-		return PTR_ERR(bo);
-
-	return 0;
-}
-
-int tegra_drm_ioctl_gem_mmap(struct drm_device *drm, void *data,
-			     struct drm_file *file)
-{
-	struct drm_tegra_gem_mmap *args = data;
-	struct drm_gem_object *gem;
-	struct tegra_bo *bo;
-
-	gem = drm_gem_object_lookup(file, args->handle);
-	if (!gem)
+	sp = host1x_syncpt_get_by_id_noref(host1x, args->id);
+	if (!sp)
 		return -EINVAL;
 
-	bo = to_tegra_bo(gem);
+	timeout_jiffies = drm_timeout_abs_to_jiffies(args->timeout_ns);
 
-	args->offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
-
-	drm_gem_object_put(gem);
-
-	return 0;
+	return host1x_syncpt_wait(sp, args->threshold, timeout_jiffies, &args->value);
 }
