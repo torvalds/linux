@@ -192,11 +192,8 @@ static int scan_header(struct partition *part)
 
 	part->sector_map = vmalloc(array_size(sizeof(u_long),
 					      part->sector_count));
-	if (!part->sector_map) {
-		printk(KERN_ERR PREFIX "'%s': unable to allocate memory for "
-			"sector map", part->mbd.mtd->name);
+	if (!part->sector_map)
 		goto err;
-	}
 
 	for (i=0; i<part->sector_count; i++)
 		part->sector_map[i] = -1;
