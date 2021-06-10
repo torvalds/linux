@@ -1392,7 +1392,7 @@ restart:
 
 	unix_state_unlock(sk);
 
-	/* take ten and and send info to listening sock */
+	/* take ten and send info to listening sock */
 	spin_lock(&other->sk_receive_queue.lock);
 	__skb_queue_tail(&other->sk_receive_queue, skb);
 	spin_unlock(&other->sk_receive_queue.lock);
