@@ -81,9 +81,9 @@ struct kvmppc_book3s_shadow_vcpu;
 struct kvm_nested_guest;
 
 struct kvm_vm_stat {
-	ulong remote_tlb_flush;
-	ulong num_2M_pages;
-	ulong num_1G_pages;
+	u64 remote_tlb_flush;
+	u64 num_2M_pages;
+	u64 num_1G_pages;
 };
 
 struct kvm_vcpu_stat {

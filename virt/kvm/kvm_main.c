@@ -4833,14 +4833,14 @@ static int kvm_debugfs_release(struct inode *inode, struct file *file)
 
 static int kvm_get_stat_per_vm(struct kvm *kvm, size_t offset, u64 *val)
 {
-	*val = *(ulong *)((void *)kvm + offset);
+	*val = *(u64 *)((void *)kvm + offset);
 
 	return 0;
 }
 
 static int kvm_clear_stat_per_vm(struct kvm *kvm, size_t offset)
 {
-	*(ulong *)((void *)kvm + offset) = 0;
+	*(u64 *)((void *)kvm + offset) = 0;
 
 	return 0;
 }
