@@ -356,7 +356,7 @@ err:
 
 int mlx5e_arfs_create_tables(struct mlx5e_priv *priv)
 {
-	int err = 0;
+	int err = -ENOMEM;
 	int i;
 
 	if (!(priv->netdev->hw_features & NETIF_F_NTUPLE))
