@@ -131,7 +131,7 @@
 #define BCH_ECC_SIZE0		0x0	/* ecc_size0 = 0, no oob protection */
 #define BCH_ECC_SIZE1		0x20	/* ecc_size1 = 32 */
 
-#define BADBLOCK_MARKER_LENGTH		2
+#define BBM_LEN			2
 
 static u_char bch16_vector[] = {0xf5, 0x24, 0x1c, 0xd0, 0x61, 0xb3, 0xf1, 0x55,
 				0x2e, 0x2c, 0x86, 0xa3, 0xed, 0x36, 0x1b, 0x78,
@@ -1649,8 +1649,8 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 
 	/* Read oob bytes */
 	nand_change_read_column_op(chip,
-				   mtd->writesize + BADBLOCK_MARKER_LENGTH,
-				   chip->oob_poi + BADBLOCK_MARKER_LENGTH,
+				   mtd->writesize + BBM_LEN,
+				   chip->oob_poi + BBM_LEN,
 				   chip->ecc.total, false);
 
 	/* Calculate ecc bytes */
@@ -1820,7 +1820,7 @@ static int omap_ooblayout_ecc(struct mtd_info *mtd, int section,
 {
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	struct nand_chip *chip = &info->nand;
-	int off = BADBLOCK_MARKER_LENGTH;
+	int off = BBM_LEN;
 
 	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_HW &&
 	    !(chip->options & NAND_BUSWIDTH_16))
@@ -1840,7 +1840,7 @@ static int omap_ooblayout_free(struct mtd_info *mtd, int section,
 {
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	struct nand_chip *chip = &info->nand;
-	int off = BADBLOCK_MARKER_LENGTH;
+	int off = BBM_LEN;
 
 	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_HW &&
 	    !(chip->options & NAND_BUSWIDTH_16))
@@ -1870,7 +1870,7 @@ static int omap_sw_ooblayout_ecc(struct mtd_info *mtd, int section,
 	struct nand_device *nand = mtd_to_nanddev(mtd);
 	unsigned int nsteps = nanddev_get_ecc_nsteps(nand);
 	unsigned int ecc_bytes = nanddev_get_ecc_bytes_per_step(nand);
-	int off = BADBLOCK_MARKER_LENGTH;
+	int off = BBM_LEN;
 
 	if (section >= nsteps)
 		return -ERANGE;
@@ -1891,7 +1891,7 @@ static int omap_sw_ooblayout_free(struct mtd_info *mtd, int section,
 	struct nand_device *nand = mtd_to_nanddev(mtd);
 	unsigned int nsteps = nanddev_get_ecc_nsteps(nand);
 	unsigned int ecc_bytes = nanddev_get_ecc_bytes_per_step(nand);
-	int off = BADBLOCK_MARKER_LENGTH;
+	int off = BBM_LEN;
 
 	if (section)
 		return -ERANGE;
@@ -1920,7 +1920,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
 	struct device *dev = &info->pdev->dev;
-	int min_oobbytes = BADBLOCK_MARKER_LENGTH;
+	int min_oobbytes = BBM_LEN;
 	int elm_bch_strength = -1;
 	int oobbytes_per_step;
 	dma_cap_mask_t mask;
