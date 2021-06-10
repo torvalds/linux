@@ -91,7 +91,7 @@ static int alloc_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 
 	return 0;
 err_free_bitmap:
-	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap, obj, BITMAP_NO_RR);
+	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap, obj);
 	return err;
 }
 
@@ -100,7 +100,7 @@ static void free_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 	unsigned long obj = key_to_hw_index(mr->key);
 
 	hns_roce_table_put(hr_dev, &hr_dev->mr_table.mtpt_table, obj);
-	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap, obj, BITMAP_NO_RR);
+	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap, obj);
 }
 
 static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
@@ -504,7 +504,7 @@ static void hns_roce_mw_free(struct hns_roce_dev *hr_dev,
 	}
 
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
-			     key_to_hw_index(mw->rkey), BITMAP_NO_RR);
+			     key_to_hw_index(mw->rkey));
 }
 
 static int hns_roce_mw_enable(struct hns_roce_dev *hr_dev,

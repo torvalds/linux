@@ -41,7 +41,7 @@ static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
 
 static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
 {
-	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn, BITMAP_NO_RR);
+	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn);
 }
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
@@ -121,8 +121,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 
 void hns_roce_uar_free(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
-	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->logic_idx,
-			     BITMAP_NO_RR);
+	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->logic_idx);
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *hr_dev)
@@ -155,7 +154,7 @@ static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)
 static void hns_roce_xrcd_free(struct hns_roce_dev *hr_dev,
 			       u32 xrcdn)
 {
-	hns_roce_bitmap_free(&hr_dev->xrcd_bitmap, xrcdn, BITMAP_NO_RR);
+	hns_roce_bitmap_free(&hr_dev->xrcd_bitmap, xrcdn);
 }
 
 int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev)

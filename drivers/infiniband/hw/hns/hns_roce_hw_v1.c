@@ -1199,7 +1199,7 @@ free_mr:
 		mr->key, jiffies_to_usecs(jiffies) - jiffies_to_usecs(start));
 
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
-			     key_to_hw_index(mr->key), 0);
+			     key_to_hw_index(mr->key));
 	hns_roce_mtr_destroy(hr_dev, &mr->pbl_mtr);
 	kfree(mr);
 

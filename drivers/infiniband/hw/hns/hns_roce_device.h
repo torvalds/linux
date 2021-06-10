@@ -95,9 +95,6 @@
 
 #define HNS_ROCE_HOP_NUM_0			0xff
 
-#define BITMAP_NO_RR				0
-#define BITMAP_RR				1
-
 #define MR_TYPE_MR				0x00
 #define MR_TYPE_FRMR				0x01
 #define MR_TYPE_DMA				0x03
@@ -1156,8 +1153,7 @@ void hns_roce_cleanup_srq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_xrcd_table(struct hns_roce_dev *hr_dev);
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj);
-void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
-			 int rr);
+void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj);
 int hns_roce_bitmap_init(struct hns_roce_bitmap *bitmap, u32 num, u32 mask,
 			 u32 reserved_bot, u32 resetrved_top);
 void hns_roce_bitmap_cleanup(struct hns_roce_bitmap *bitmap);
