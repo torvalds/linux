@@ -134,35 +134,27 @@ void hns_roce_cleanup_uar_table(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)
 {
-	unsigned long obj;
-	int ret;
+	struct hns_roce_ida *xrcd_ida = &hr_dev->xrcd_ida;
+	int id;
 
-	ret = hns_roce_bitmap_alloc(&hr_dev->xrcd_bitmap, &obj);
-	if (ret)
-		return ret;
-
-	*xrcdn = obj;
+	id = ida_alloc_range(&xrcd_ida->ida, xrcd_ida->min, xrcd_ida->max,
+			     GFP_KERNEL);
+	if (id < 0) {
+		ibdev_err(&hr_dev->ib_dev, "failed to alloc xrcdn(%d).\n", id);
+		return -ENOMEM;
+	}
+	*xrcdn = (u32)id;
 
 	return 0;
 }
 
-static void hns_roce_xrcd_free(struct hns_roce_dev *hr_dev,
-			       u32 xrcdn)
+void hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev)
 {
-	hns_roce_bitmap_free(&hr_dev->xrcd_bitmap, xrcdn);
-}
+	struct hns_roce_ida *xrcd_ida = &hr_dev->xrcd_ida;
 
-int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev)
-{
-	return hns_roce_bitmap_init(&hr_dev->xrcd_bitmap,
-				    hr_dev->caps.num_xrcds,
-				    hr_dev->caps.num_xrcds - 1,
-				    hr_dev->caps.reserved_xrcds, 0);
-}
-
-void hns_roce_cleanup_xrcd_table(struct hns_roce_dev *hr_dev)
-{
-	hns_roce_bitmap_cleanup(&hr_dev->xrcd_bitmap);
+	ida_init(&xrcd_ida->ida);
+	xrcd_ida->max = hr_dev->caps.num_xrcds - 1;
+	xrcd_ida->min = hr_dev->caps.reserved_xrcds;
 }
 
 int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
@@ -175,18 +167,18 @@ int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
 		return -EINVAL;
 
 	ret = hns_roce_xrcd_alloc(hr_dev, &xrcd->xrcdn);
-	if (ret) {
-		dev_err(hr_dev->dev, "failed to alloc xrcdn, ret = %d.\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
 
 int hns_roce_dealloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
 {
-	hns_roce_xrcd_free(to_hr_dev(ib_xrcd->device),
-			   to_hr_xrcd(ib_xrcd)->xrcdn);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_xrcd->device);
+	u32 xrcdn = to_hr_xrcd(ib_xrcd)->xrcdn;
+
+	ida_free(&hr_dev->xrcd_ida.ida, (int)xrcdn);
 
 	return 0;
 }

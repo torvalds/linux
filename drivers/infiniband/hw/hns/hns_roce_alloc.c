@@ -245,7 +245,7 @@ done:
 void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev)
 {
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
-		hns_roce_cleanup_xrcd_table(hr_dev);
+		ida_destroy(&hr_dev->xrcd_ida.ida);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
 		hns_roce_cleanup_srq_table(hr_dev);
