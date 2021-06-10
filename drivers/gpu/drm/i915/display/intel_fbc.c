@@ -434,10 +434,10 @@ static u64 intel_fbc_cfb_base_max(struct drm_i915_private *i915)
 }
 
 static int find_compression_limit(struct drm_i915_private *dev_priv,
-				  struct drm_mm_node *node,
 				  unsigned int size,
 				  unsigned int fb_cpp)
 {
+	struct intel_fbc *fbc = &dev_priv->fbc;
 	int compression_limit = 1;
 	int ret;
 	u64 end;
@@ -462,8 +462,8 @@ static int find_compression_limit(struct drm_i915_private *dev_priv,
 	 */
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
-	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size <<= 1,
-						   4096, 0, end);
+	ret = i915_gem_stolen_insert_node_in_range(dev_priv, &fbc->compressed_fb,
+						   size <<= 1, 4096, 0, end);
 	if (ret == 0)
 		return compression_limit;
 
@@ -473,8 +473,8 @@ again:
 	    (fb_cpp == 2 && compression_limit == 2))
 		return 0;
 
-	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size >>= 1,
-						   4096, 0, end);
+	ret = i915_gem_stolen_insert_node_in_range(dev_priv, &fbc->compressed_fb,
+						   size >>= 1, 4096, 0, end);
 	if (ret && DISPLAY_VER(dev_priv) <= 4) {
 		return 0;
 	} else if (ret) {
@@ -496,8 +496,7 @@ static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
 	drm_WARN_ON(&dev_priv->drm,
 		    drm_mm_node_allocated(&fbc->compressed_llb));
 
-	ret = find_compression_limit(dev_priv, &fbc->compressed_fb,
-				     size, fb_cpp);
+	ret = find_compression_limit(dev_priv, size, fb_cpp);
 	if (!ret)
 		goto err_llb;
 	else if (ret > 1) {
