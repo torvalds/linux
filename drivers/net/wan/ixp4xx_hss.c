@@ -1299,11 +1299,11 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 
 		port->clock_type = clk; /* Update settings */
-		if (clk == CLOCK_INT)
+		if (clk == CLOCK_INT) {
 			find_best_clock(port->plat->timer_freq,
 					new_line.clock_rate,
 					&port->clock_rate, &port->clock_reg);
-		else {
+		} else {
 			port->clock_rate = 0;
 			port->clock_reg = CLK42X_SPEED_2048KHZ;
 		}
