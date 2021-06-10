@@ -5,6 +5,7 @@ menu "Intel ISH HID support"
 config INTEL_ISH_HID
 	tristate "Intel Integrated Sensor Hub"
 	default n
+	depends on X86
 	select HID
 	help
 	  The Integrated Sensor Hub (ISH) enables the ability to offload
