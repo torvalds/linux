@@ -71,6 +71,15 @@ struct msm_gpu_funcs {
 	uint32_t (*get_rptr)(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 };
 
+/* Additional state for iommu faults: */
+struct msm_gpu_fault_info {
+	u64 ttbr0;
+	unsigned long iova;
+	int flags;
+	const char *type;
+	const char *block;
+};
+
 struct msm_gpu {
 	const char *name;
 	struct drm_device *dev;
@@ -124,6 +133,12 @@ struct msm_gpu {
 
 #define DRM_MSM_HANGCHECK_DEFAULT_PERIOD 500 /* in ms */
 	struct timer_list hangcheck_timer;
+
+	/* Fault info for most recent iova fault: */
+	struct msm_gpu_fault_info fault_info;
+
+	/* work for handling GPU ioval faults: */
+	struct kthread_work fault_work;
 
 	/* work for handling GPU recovery: */
 	struct kthread_work recover_work;
@@ -231,6 +246,8 @@ struct msm_gpu_state {
 
 	char *comm;
 	char *cmd;
+
+	struct msm_gpu_fault_info fault_info;
 
 	int nr_bos;
 	struct msm_gpu_state_bo *bos;
