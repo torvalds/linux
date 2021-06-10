@@ -148,6 +148,9 @@ mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
 {
 	struct mt7915_dev *dev = s->private;
 	bool ext_phy = phy != &dev->phy;
+	static const char * const bw[] = {
+		"BW20", "BW40", "BW80", "BW160"
+	};
 	int cnt;
 
 	if (!phy)
@@ -165,11 +168,16 @@ mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
 	seq_puts(s, "Tx Beamformer Rx feedback statistics: ");
 
 	cnt = mt76_rr(dev, MT_ETBF_RX_FB_CNT(ext_phy));
-	seq_printf(s, "All: %ld, HE: %ld, VHT: %ld, HT: %ld\n",
+	seq_printf(s, "All: %ld, HE: %ld, VHT: %ld, HT: %ld, ",
 		   FIELD_GET(MT_ETBF_RX_FB_ALL, cnt),
 		   FIELD_GET(MT_ETBF_RX_FB_HE, cnt),
 		   FIELD_GET(MT_ETBF_RX_FB_VHT, cnt),
 		   FIELD_GET(MT_ETBF_RX_FB_HT, cnt));
+	cnt = mt76_rr(dev, MT_ETBF_RX_FB_CONT(ext_phy));
+	seq_printf(s, "%s, NC: %ld, NR: %ld\n",
+		   bw[FIELD_GET(MT_ETBF_RX_FB_BW, cnt)],
+		   FIELD_GET(MT_ETBF_RX_FB_NC, cnt),
+		   FIELD_GET(MT_ETBF_RX_FB_NR, cnt));
 
 	/* Tx Beamformee Rx NDPA & Tx feedback report */
 	cnt = mt76_rr(dev, MT_ETBF_TX_NDP_BFRP(ext_phy));
@@ -205,7 +213,7 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 	mt7915_txbf_stat_read_phy(mt7915_ext_phy(dev), file);
 
 	/* Tx amsdu info */
-	seq_puts(file, "Tx MSDU stat:\n");
+	seq_puts(file, "Tx MSDU statistics:\n");
 	for (i = 0, n = 0; i < ARRAY_SIZE(stat); i++) {
 		stat[i] = mt76_rr(dev,  MT_PLE_AMSDU_PACK_MSDU_CNT(i));
 		n += stat[i];

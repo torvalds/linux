@@ -99,6 +99,11 @@
 #define MT_ETBF_TX_FB_CPL		GENMASK(31, 16)
 #define MT_ETBF_TX_FB_TRI		GENMASK(15, 0)
 
+#define MT_ETBF_RX_FB_CONT(_band)	MT_WF_ETBF(_band, 0x068)
+#define MT_ETBF_RX_FB_BW		GENMASK(7, 6)
+#define MT_ETBF_RX_FB_NC		GENMASK(5, 3)
+#define MT_ETBF_RX_FB_NR		GENMASK(2, 0)
+
 #define MT_ETBF_TX_APP_CNT(_band)	MT_WF_ETBF(_band, 0x0f0)
 #define MT_ETBF_TX_IBF_CNT		GENMASK(31, 16)
 #define MT_ETBF_TX_EBF_CNT		GENMASK(15, 0)
