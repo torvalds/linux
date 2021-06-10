@@ -2512,6 +2512,7 @@ static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 					      unsigned int baud,
 					      unsigned int *frac)
 {
+	upf_t magic_multiplier = port->flags & UPF_MAGIC_MULTIPLIER;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned int quot;
 
@@ -2547,11 +2548,9 @@ static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 	 * Baud Rate Generator is capable of dividing the internal PLL
 	 * clock by any divisor from 1 to 65535.
 	 */
-	if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
-	    baud == (port->uartclk/4))
+	if (magic_multiplier && baud >= port->uartclk / 6)
 		quot = 0x8001;
-	else if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
-		 baud == (port->uartclk/8))
+	else if (magic_multiplier && baud >= port->uartclk / 12)
 		quot = 0x8002;
 	else if (up->port.type == PORT_NPCM)
 		quot = npcm_get_divisor(up, baud);
