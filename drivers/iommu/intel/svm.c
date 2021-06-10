@@ -84,6 +84,7 @@ svm_lookup_device_by_dev(struct intel_svm *svm, struct device *dev)
 
 int intel_svm_enable_prq(struct intel_iommu *iommu)
 {
+	struct iopf_queue *iopfq;
 	struct page *pages;
 	int irq, ret;
 
@@ -100,12 +101,19 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 		pr_err("IOMMU: %s: Failed to create IRQ vector for page request queue\n",
 		       iommu->name);
 		ret = -EINVAL;
-	err:
-		free_pages((unsigned long)iommu->prq, PRQ_ORDER);
-		iommu->prq = NULL;
-		return ret;
+		goto free_prq;
 	}
 	iommu->pr_irq = irq;
+
+	snprintf(iommu->iopfq_name, sizeof(iommu->iopfq_name),
+		 "dmar%d-iopfq", iommu->seq_id);
+	iopfq = iopf_queue_alloc(iommu->iopfq_name);
+	if (!iopfq) {
+		pr_err("IOMMU: %s: Failed to allocate iopf queue\n", iommu->name);
+		ret = -ENOMEM;
+		goto free_hwirq;
+	}
+	iommu->iopf_queue = iopfq;
 
 	snprintf(iommu->prq_name, sizeof(iommu->prq_name), "dmar%d-prq", iommu->seq_id);
 
@@ -114,9 +122,7 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	if (ret) {
 		pr_err("IOMMU: %s: Failed to request IRQ for page request queue\n",
 		       iommu->name);
-		dmar_free_hwirq(irq);
-		iommu->pr_irq = 0;
-		goto err;
+		goto free_iopfq;
 	}
 	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
 	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
@@ -125,6 +131,18 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	init_completion(&iommu->prq_complete);
 
 	return 0;
+
+free_iopfq:
+	iopf_queue_free(iommu->iopf_queue);
+	iommu->iopf_queue = NULL;
+free_hwirq:
+	dmar_free_hwirq(irq);
+	iommu->pr_irq = 0;
+free_prq:
+	free_pages((unsigned long)iommu->prq, PRQ_ORDER);
+	iommu->prq = NULL;
+
+	return ret;
 }
 
 int intel_svm_finish_prq(struct intel_iommu *iommu)
@@ -137,6 +155,11 @@ int intel_svm_finish_prq(struct intel_iommu *iommu)
 		free_irq(iommu->pr_irq, iommu);
 		dmar_free_hwirq(iommu->pr_irq);
 		iommu->pr_irq = 0;
+	}
+
+	if (iommu->iopf_queue) {
+		iopf_queue_free(iommu->iopf_queue);
+		iommu->iopf_queue = NULL;
 	}
 
 	free_pages((unsigned long)iommu->prq, PRQ_ORDER);
