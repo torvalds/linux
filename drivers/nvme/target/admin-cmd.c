@@ -179,6 +179,13 @@ static void nvmet_get_cmd_effects_nvm(struct nvme_effects_log *log)
 	log->iocs[nvme_cmd_write_zeroes]	= cpu_to_le32(1 << 0);
 }
 
+static void nvmet_get_cmd_effects_zns(struct nvme_effects_log *log)
+{
+	log->iocs[nvme_cmd_zone_append]		= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_zone_mgmt_send]	= cpu_to_le32(1 << 0);
+	log->iocs[nvme_cmd_zone_mgmt_recv]	= cpu_to_le32(1 << 0);
+}
+
 static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
 {
 	struct nvme_effects_log *log;
@@ -193,6 +200,14 @@ static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
 	switch (req->cmd->get_log_page.csi) {
 	case NVME_CSI_NVM:
 		nvmet_get_cmd_effects_nvm(log);
+		break;
+	case NVME_CSI_ZNS:
+		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			status = NVME_SC_INVALID_IO_CMD_SET;
+			goto free;
+		}
+		nvmet_get_cmd_effects_nvm(log);
+		nvmet_get_cmd_effects_zns(log);
 		break;
 	default:
 		status = NVME_SC_INVALID_LOG_PAGE;
@@ -647,6 +662,12 @@ static bool nvmet_handle_identify_desclist(struct nvmet_req *req)
 	case NVME_CSI_NVM:
 		nvmet_execute_identify_desclist(req);
 		return true;
+	case NVME_CSI_ZNS:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			nvmet_execute_identify_desclist(req);
+			return true;
+		}
+		return false;
 	default:
 		return false;
 	}
@@ -666,10 +687,30 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 			break;
 		}
 		break;
+	case NVME_ID_CNS_CS_NS:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				return nvmet_execute_identify_cns_cs_ns(req);
+			default:
+				break;
+			}
+		}
+		break;
 	case NVME_ID_CNS_CTRL:
 		switch (req->cmd->identify.csi) {
 		case NVME_CSI_NVM:
 			return nvmet_execute_identify_ctrl(req);
+		}
+		break;
+	case NVME_ID_CNS_CS_CTRL:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				return nvmet_execute_identify_cns_cs_ctrl(req);
+			default:
+				break;
+			}
 		}
 		break;
 	case NVME_ID_CNS_NS_ACTIVE_LIST:

@@ -16,6 +16,7 @@
 #include "nvmet.h"
 
 struct workqueue_struct *buffered_io_wq;
+struct workqueue_struct *zbd_wq;
 static const struct nvmet_fabrics_ops *nvmet_transports[NVMF_TRTYPE_MAX];
 static DEFINE_IDA(cntlid_ida);
 
@@ -883,6 +884,10 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 		if (req->ns->file)
 			return nvmet_file_parse_io_cmd(req);
 		return nvmet_bdev_parse_io_cmd(req);
+	case NVME_CSI_ZNS:
+		if (IS_ENABLED(CONFIG_BLK_DEV_ZONED))
+			return nvmet_bdev_zns_parse_io_cmd(req);
+		return NVME_SC_INVALID_IO_CMD_SET;
 	default:
 		return NVME_SC_INVALID_IO_CMD_SET;
 	}
@@ -1592,11 +1597,15 @@ static int __init nvmet_init(void)
 
 	nvmet_ana_group_enabled[NVMET_DEFAULT_ANA_GRPID] = 1;
 
+	zbd_wq = alloc_workqueue("nvmet-zbd-wq", WQ_MEM_RECLAIM, 0);
+	if (!zbd_wq)
+		return -ENOMEM;
+
 	buffered_io_wq = alloc_workqueue("nvmet-buffered-io-wq",
 			WQ_MEM_RECLAIM, 0);
 	if (!buffered_io_wq) {
 		error = -ENOMEM;
-		goto out;
+		goto out_free_zbd_work_queue;
 	}
 
 	error = nvmet_init_discovery();
@@ -1612,7 +1621,8 @@ out_exit_discovery:
 	nvmet_exit_discovery();
 out_free_work_queue:
 	destroy_workqueue(buffered_io_wq);
-out:
+out_free_zbd_work_queue:
+	destroy_workqueue(zbd_wq);
 	return error;
 }
 
@@ -1622,6 +1632,7 @@ static void __exit nvmet_exit(void)
 	nvmet_exit_discovery();
 	ida_destroy(&cntlid_ida);
 	destroy_workqueue(buffered_io_wq);
+	destroy_workqueue(zbd_wq);
 
 	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_entry) != 1024);
 	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_hdr) != 1024);
