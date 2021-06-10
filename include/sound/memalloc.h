@@ -9,8 +9,9 @@
 #ifndef __SOUND_MEMALLOC_H
 #define __SOUND_MEMALLOC_H
 
+#include <asm/page.h>
+
 struct device;
-struct page;
 struct vm_area_struct;
 
 /*
