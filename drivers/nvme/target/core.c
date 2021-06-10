@@ -682,6 +682,7 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 
 	uuid_gen(&ns->uuid);
 	ns->buffered_io = false;
+	ns->csi = NVME_CSI_NVM;
 
 	return ns;
 }
@@ -877,10 +878,14 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 		return ret;
 	}
 
-	if (req->ns->file)
-		return nvmet_file_parse_io_cmd(req);
-
-	return nvmet_bdev_parse_io_cmd(req);
+	switch (req->ns->csi) {
+	case NVME_CSI_NVM:
+		if (req->ns->file)
+			return nvmet_file_parse_io_cmd(req);
+		return nvmet_bdev_parse_io_cmd(req);
+	default:
+		return NVME_SC_INVALID_IO_CMD_SET;
+	}
 }
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
@@ -1102,6 +1107,17 @@ static inline u8 nvmet_cc_iocqes(u32 cc)
 	return (cc >> NVME_CC_IOCQES_SHIFT) & 0xf;
 }
 
+static inline bool nvmet_css_supported(u8 cc_css)
+{
+	switch (cc_css <<= NVME_CC_CSS_SHIFT) {
+	case NVME_CC_CSS_NVM:
+	case NVME_CC_CSS_CSI:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 {
 	lockdep_assert_held(&ctrl->lock);
@@ -1121,7 +1137,7 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 
 	if (nvmet_cc_mps(ctrl->cc) != 0 ||
 	    nvmet_cc_ams(ctrl->cc) != 0 ||
-	    nvmet_cc_css(ctrl->cc) != 0) {
+	    !nvmet_css_supported(nvmet_cc_css(ctrl->cc))) {
 		ctrl->csts = NVME_CSTS_CFS;
 		return;
 	}
@@ -1172,6 +1188,8 @@ static void nvmet_init_cap(struct nvmet_ctrl *ctrl)
 {
 	/* command sets supported: NVMe command set: */
 	ctrl->cap = (1ULL << 37);
+	/* Controller supports one or more I/O Command Sets */
+	ctrl->cap |= (1ULL << 43);
 	/* CC.EN timeout in 500msec units: */
 	ctrl->cap |= (15ULL << 24);
 	/* maximum queue entries supported: */

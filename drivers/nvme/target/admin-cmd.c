@@ -162,15 +162,8 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
+static void nvmet_get_cmd_effects_nvm(struct nvme_effects_log *log)
 {
-	u16 status = NVME_SC_INTERNAL;
-	struct nvme_effects_log *log;
-
-	log = kzalloc(sizeof(*log), GFP_KERNEL);
-	if (!log)
-		goto out;
-
 	log->acs[nvme_admin_get_log_page]	= cpu_to_le32(1 << 0);
 	log->acs[nvme_admin_identify]		= cpu_to_le32(1 << 0);
 	log->acs[nvme_admin_abort_cmd]		= cpu_to_le32(1 << 0);
@@ -184,9 +177,30 @@ static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
 	log->iocs[nvme_cmd_flush]		= cpu_to_le32(1 << 0);
 	log->iocs[nvme_cmd_dsm]			= cpu_to_le32(1 << 0);
 	log->iocs[nvme_cmd_write_zeroes]	= cpu_to_le32(1 << 0);
+}
+
+static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
+{
+	struct nvme_effects_log *log;
+	u16 status = NVME_SC_SUCCESS;
+
+	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	if (!log) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	switch (req->cmd->get_log_page.csi) {
+	case NVME_CSI_NVM:
+		nvmet_get_cmd_effects_nvm(log);
+		break;
+	default:
+		status = NVME_SC_INVALID_LOG_PAGE;
+		goto free;
+	}
 
 	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
-
+free:
 	kfree(log);
 out:
 	nvmet_req_complete(req, status);
@@ -613,12 +627,29 @@ static void nvmet_execute_identify_desclist(struct nvmet_req *req)
 			goto out;
 	}
 
+	status = nvmet_copy_ns_identifier(req, NVME_NIDT_CSI,
+					  NVME_NIDT_CSI_LEN,
+					  &req->ns->csi, &off);
+	if (status)
+		goto out;
+
 	if (sg_zero_buffer(req->sg, req->sg_cnt, NVME_IDENTIFY_DATA_SIZE - off,
 			off) != NVME_IDENTIFY_DATA_SIZE - off)
 		status = NVME_SC_INTERNAL | NVME_SC_DNR;
 
 out:
 	nvmet_req_complete(req, status);
+}
+
+static bool nvmet_handle_identify_desclist(struct nvmet_req *req)
+{
+	switch (req->cmd->identify.csi) {
+	case NVME_CSI_NVM:
+		nvmet_execute_identify_desclist(req);
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void nvmet_execute_identify(struct nvmet_req *req)
@@ -628,13 +659,31 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 
 	switch (req->cmd->identify.cns) {
 	case NVME_ID_CNS_NS:
-		return nvmet_execute_identify_ns(req);
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			return nvmet_execute_identify_ns(req);
+		default:
+			break;
+		}
+		break;
 	case NVME_ID_CNS_CTRL:
-		return nvmet_execute_identify_ctrl(req);
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			return nvmet_execute_identify_ctrl(req);
+		}
+		break;
 	case NVME_ID_CNS_NS_ACTIVE_LIST:
-		return nvmet_execute_identify_nslist(req);
+		switch (req->cmd->identify.csi) {
+		case NVME_CSI_NVM:
+			return nvmet_execute_identify_nslist(req);
+		default:
+			break;
+		}
+		break;
 	case NVME_ID_CNS_NS_DESC_LIST:
-		return nvmet_execute_identify_desclist(req);
+		if (nvmet_handle_identify_desclist(req) == true)
+			return;
+		break;
 	}
 
 	nvmet_req_cns_error_complete(req);
