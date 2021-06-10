@@ -21,6 +21,7 @@
 #include <linux/ioasid.h>
 #include <asm/page.h>
 #include <asm/fpu/api.h>
+#include <trace/events/intel_iommu.h>
 
 #include "pasid.h"
 #include "../iommu-sva-lib.h"
@@ -976,12 +977,18 @@ bad_req:
 				goto bad_req;
 		}
 
+		sdev->prq_seq_number++;
+
 		/*
 		 * If prq is to be handled outside iommu driver via receiver of
 		 * the fault notifiers, we skip the page response here.
 		 */
 		if (intel_svm_prq_report(sdev->dev, req))
 			handle_bad_prq_event(iommu, req, QI_RESP_INVALID);
+
+		trace_prq_report(iommu, sdev->dev, req->qw_0, req->qw_1,
+				 req->priv_data[0], req->priv_data[1],
+				 sdev->prq_seq_number);
 prq_advance:
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;
 	}
