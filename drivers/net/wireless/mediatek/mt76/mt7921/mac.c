@@ -13,16 +13,6 @@
 #define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
 						 IEEE80211_RADIOTAP_HE_##f)
 
-static u8
-mt7921_next_pid(struct mt7921_dev *dev, struct mt76_wcid *wcid)
-{
-	wcid->packet_id = (wcid->packet_id + 1) & MT_PACKET_ID_MASK;
-	if (wcid->packet_id == MT_PACKET_ID_NO_ACK ||
-	    wcid->packet_id == MT_PACKET_ID_NO_SKB)
-		wcid->packet_id = MT_PACKET_ID_FIRST;
-	return wcid->packet_id;
-}
-
 static unsigned long
 mt7921_next_txs_set(struct mt7921_dev *dev, struct mt76_wcid *wcid,
 		    u32 timeout)
@@ -756,7 +746,7 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_phy *mphy = &dev->mphy;
-	u8 pid, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
+	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	u16 tx_count = 15;
 	u32 val;
@@ -829,8 +819,9 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 	if ((FIELD_GET(MT_TXD2_FRAME_TYPE, txwi[2]) &
 		(IEEE80211_FTYPE_DATA >> 2)) &&
 		mt7921_next_txs_timeout(dev, wcid)) {
+		u8 pid = mt76_get_next_pkt_id(wcid);
+
 		mt7921_next_txs_set(dev, wcid, 250);
-		pid = mt7921_next_pid(dev, wcid);
 		val = MT_TXD5_TX_STATUS_MCU | FIELD_PREP(MT_TXD5_PID, pid);
 		txwi[5] |= cpu_to_le32(val);
 	}

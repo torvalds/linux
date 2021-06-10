@@ -1276,4 +1276,15 @@ mt76_token_put(struct mt76_dev *dev, int token)
 
 	return txwi;
 }
+
+static inline int
+mt76_get_next_pkt_id(struct mt76_wcid *wcid)
+{
+	wcid->packet_id = (wcid->packet_id + 1) & MT_PACKET_ID_MASK;
+	if (wcid->packet_id == MT_PACKET_ID_NO_ACK ||
+	    wcid->packet_id == MT_PACKET_ID_NO_SKB)
+		wcid->packet_id = MT_PACKET_ID_FIRST;
+
+	return wcid->packet_id;
+}
 #endif
