@@ -1005,8 +1005,11 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	if (obj->mm.madv != __I915_MADV_PURGED)
+	if (obj->mm.madv != __I915_MADV_PURGED) {
 		obj->mm.madv = args->madv;
+		if (obj->ops->adjust_lru)
+			obj->ops->adjust_lru(obj);
+	}
 
 	if (i915_gem_object_has_pages(obj)) {
 		unsigned long flags;
