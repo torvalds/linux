@@ -220,6 +220,7 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	DECLARE_BITMAP(regions, IPA_MEM_COUNT) = { };
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id;
+	u32 i;
 
 	if (mem_data->local_count > IPA_MEM_COUNT) {
 		dev_err(dev, "too many memory regions (%u > %u)\n",
@@ -227,10 +228,10 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 		return false;
 	}
 
-	for (mem_id = 0; mem_id < mem_data->local_count; mem_id++) {
-		const struct ipa_mem *mem = &mem_data->local[mem_id];
+	for (i = 0; i < mem_data->local_count; i++) {
+		const struct ipa_mem *mem = &mem_data->local[i];
 
-		if (mem_id == IPA_MEM_UNDEFINED)
+		if (mem->id == IPA_MEM_UNDEFINED)
 			continue;
 
 		if (__test_and_set_bit(mem->id, regions)) {
@@ -248,7 +249,7 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 		/* It's harmless, but warn if an offset is provided */
 		if (mem->offset)
 			dev_warn(dev, "empty region %u has non-zero offset\n",
-				 mem_id);
+				 mem->id);
 	}
 
 	/* Now see if any required regions are not defined */
@@ -268,16 +269,16 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
 	u32 limit = ipa->mem_size;
-	enum ipa_mem_id mem_id;
+	u32 i;
 
-	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
-		const struct ipa_mem *mem = &ipa->mem[mem_id];
+	for (i = 0; i < ipa->mem_count; i++) {
+		const struct ipa_mem *mem = &ipa->mem[i];
 
 		if (mem->offset + mem->size <= limit)
 			continue;
 
 		dev_err(dev, "region %u ends beyond memory limit (0x%08x)\n",
-			mem_id, limit);
+			mem->id, limit);
 
 		return false;
 	}
@@ -294,11 +295,11 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 int ipa_mem_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
-	enum ipa_mem_id mem_id;
 	dma_addr_t addr;
 	u32 mem_size;
 	void *virt;
 	u32 val;
+	u32 i;
 
 	/* Check the advertised location and size of the shared memory area */
 	val = ioread32(ipa->reg_virt + IPA_REG_SHARED_MEM_SIZE_OFFSET);
@@ -330,11 +331,11 @@ int ipa_mem_config(struct ipa *ipa)
 	ipa->zero_virt = virt;
 	ipa->zero_size = IPA_MEM_MAX;
 
-	/* For each region, write "canary" values in the space prior to
-	 * the region's base address if indicated.
+	/* For each defined region, write "canary" values in the
+	 * space prior to the region's base address if indicated.
 	 */
-	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
-		const struct ipa_mem *mem = &ipa->mem[mem_id];
+	for (i = 0; i < ipa->mem_count; i++) {
+		const struct ipa_mem *mem = &ipa->mem[i];
 		u16 canary_count;
 		__le32 *canary;
 
