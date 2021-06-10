@@ -28,8 +28,14 @@
 
 const struct ipa_mem *ipa_mem_find(struct ipa *ipa, enum ipa_mem_id mem_id)
 {
-	if (mem_id < IPA_MEM_COUNT)
-		return &ipa->mem[mem_id];
+	u32 i;
+
+	for (i = 0; i < ipa->mem_count; i++) {
+		const struct ipa_mem *mem = &ipa->mem[i];
+
+		if (mem->id == mem_id)
+			return mem;
+	}
 
 	return NULL;
 }
@@ -209,6 +215,11 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 		return false;
 	}
 
+	if (!mem->size && !mem->canary_count) {
+		dev_err(dev, "empty memory region %u\n", mem_id);
+		return false;
+	}
+
 	/* Other than modem memory, sizes must be a multiple of 8 */
 	size_multiple = mem_id == IPA_MEM_MODEM ? 4 : 8;
 	if (mem->size % size_multiple)
@@ -244,25 +255,14 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	for (i = 0; i < mem_data->local_count; i++) {
 		const struct ipa_mem *mem = &mem_data->local[i];
 
-		if (mem->id == IPA_MEM_UNDEFINED)
-			continue;
-
 		if (__test_and_set_bit(mem->id, regions)) {
 			dev_err(dev, "duplicate memory region %u\n", mem->id);
 			return false;
 		}
 
 		/* Defined regions have non-zero size and/or canary count */
-		if (mem->size || mem->canary_count) {
-			if (ipa_mem_valid_one(ipa, mem))
-				continue;
+		if (!ipa_mem_valid_one(ipa, mem))
 			return false;
-		}
-
-		/* It's harmless, but warn if an offset is provided */
-		if (mem->offset)
-			dev_warn(dev, "empty region %u has non-zero offset\n",
-				 mem->id);
 	}
 
 	/* Now see if any required regions are not defined */
@@ -349,20 +349,14 @@ int ipa_mem_config(struct ipa *ipa)
 	 * space prior to the region's base address if indicated.
 	 */
 	for (i = 0; i < ipa->mem_count; i++) {
-		u16 canary_count;
+		u16 canary_count = ipa->mem[i].canary_count;
 		__le32 *canary;
 
-		/* Skip over undefined regions */
-		mem = &ipa->mem[i];
-		if (!mem->offset && !mem->size)
-			continue;
-
-		canary_count = mem->canary_count;
 		if (!canary_count)
 			continue;
 
 		/* Write canary values in the space before the region */
-		canary = ipa->mem_virt + ipa->mem_offset + mem->offset;
+		canary = ipa->mem_virt + ipa->mem_offset + ipa->mem[i].offset;
 		do
 			*--canary = IPA_MEM_CANARY_VAL;
 		while (--canary_count);
