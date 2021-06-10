@@ -148,16 +148,35 @@ static bool i8xx_fbc_is_active(struct drm_i915_private *dev_priv)
 	return intel_de_read(dev_priv, FBC_CONTROL) & FBC_CTL_EN;
 }
 
+static u32 g4x_dpfc_ctl_limit(struct drm_i915_private *i915)
+{
+	const struct intel_fbc_reg_params *params = &i915->fbc.params;
+	int limit = i915->fbc.limit;
+
+	if (params->fb.format->cpp[0] == 2)
+		limit <<= 1;
+
+	switch (limit) {
+	default:
+		MISSING_CASE(limit);
+		fallthrough;
+	case 1:
+		return DPFC_CTL_LIMIT_1X;
+	case 2:
+		return DPFC_CTL_LIMIT_2X;
+	case 4:
+		return DPFC_CTL_LIMIT_4X;
+	}
+}
+
 static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane) | DPFC_SR_EN;
-	if (params->fb.format->cpp[0] == 2)
-		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-	else
-		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
+
+	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
 
 	if (params->fence_id >= 0) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fence_id;
@@ -235,23 +254,10 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
-	int limit = dev_priv->fbc.limit;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane);
-	if (params->fb.format->cpp[0] == 2)
-		limit <<= 1;
 
-	switch (limit) {
-	case 4:
-		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
-		break;
-	case 2:
-		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-		break;
-	case 1:
-		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
-		break;
-	}
+	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
 
 	if (params->fence_id >= 0) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
@@ -299,7 +305,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
-	int limit = dev_priv->fbc.limit;
 
 	/* Display WA #0529: skl, kbl, bxt. */
 	if (DISPLAY_VER(dev_priv) == 9) {
@@ -317,20 +322,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	if (IS_IVYBRIDGE(dev_priv))
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 
-	if (params->fb.format->cpp[0] == 2)
-		limit <<= 1;
-
-	switch (limit) {
-	case 4:
-		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
-		break;
-	case 2:
-		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-		break;
-	case 1:
-		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
-		break;
-	}
+	dpfc_ctl |= g4x_dpfc_ctl_limit(dev_priv);
 
 	if (params->fence_id >= 0) {
 		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
