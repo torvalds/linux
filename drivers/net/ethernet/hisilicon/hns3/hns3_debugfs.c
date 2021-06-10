@@ -316,6 +316,13 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.buf_len = HNS3_DBG_READ_LEN,
 		.init = hns3_dbg_common_file_init,
 	},
+	{
+		.name = "ptp_info",
+		.cmd = HNAE3_DBG_CMD_PTP_INFO,
+		.dentry = HNS3_DBG_DENTRY_COMMON,
+		.buf_len = HNS3_DBG_READ_LEN,
+		.init = hns3_dbg_common_file_init,
+	},
 };
 
 static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
@@ -1059,8 +1066,10 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 					   handle->hnae3_dbgfs);
 
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
-		if (hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_TM_NODES &&
-		    ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2)
+		if ((hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_TM_NODES &&
+		     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2) ||
+		    (hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_PTP_INFO &&
+		     !test_bit(HNAE3_DEV_SUPPORT_PTP_B, ae_dev->caps)))
 			continue;
 
 		if (!hns3_dbg_cmd[i].init) {
