@@ -453,6 +453,14 @@ config MTD_NAND_ROCKCHIP
 	    NFC v800: RK3308, RV1108
 	    NFC v900: PX30, RK3326
 
+config MTD_NAND_PL35X
+	tristate "ARM PL35X NAND controller"
+	depends on OF || COMPILE_TEST
+	depends on PL353_SMC
+	help
+	  Enables support for PrimeCell SMC PL351 and PL353 NAND
+	  controller found on Zynq7000.
+
 comment "Misc"
 
 config MTD_SM_COMMON
