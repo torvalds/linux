@@ -1325,9 +1325,6 @@ static char **split_devs(const char *_dev_name, unsigned *nr)
 	char *dev_name = NULL, **devs = NULL, *s;
 	size_t i, nr_devs = 0;
 
-	if (strlen(_dev_name) == 0)
-		return NULL;
-
 	dev_name = kstrdup(_dev_name, GFP_KERNEL);
 	if (!dev_name)
 		return NULL;
@@ -1502,6 +1499,9 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	ret = bch2_parse_mount_opts(NULL, &opts, data);
 	if (ret)
 		return ERR_PTR(ret);
+
+	if (!dev_name || strlen(dev_name) == 0)
+		return ERR_PTR(-EINVAL);
 
 	devs = split_devs(dev_name, &nr_devs);
 	if (!devs)
