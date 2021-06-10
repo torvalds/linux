@@ -609,14 +609,12 @@ i915_gem_object_is_userptr(struct drm_i915_gem_object *obj)
 
 int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj);
 int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj);
-void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj);
 int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj);
 #else
 static inline bool i915_gem_object_is_userptr(struct drm_i915_gem_object *obj) { return false; }
 
 static inline int i915_gem_object_userptr_submit_init(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
 static inline int i915_gem_object_userptr_submit_done(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
-static inline void i915_gem_object_userptr_submit_fini(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); }
 static inline int i915_gem_object_userptr_validate(struct drm_i915_gem_object *obj) { GEM_BUG_ON(1); return -ENODEV; }
 
 #endif

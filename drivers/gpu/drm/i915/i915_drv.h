@@ -552,7 +552,7 @@ struct i915_gem_mm {
 	 * notifier_lock for mmu notifiers, memory may not be allocated
 	 * while holding this lock.
 	 */
-	spinlock_t notifier_lock;
+	rwlock_t notifier_lock;
 #endif
 
 	/* shrinker accounting, also useful for userland debugging */
