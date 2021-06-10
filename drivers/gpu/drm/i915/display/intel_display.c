@@ -9618,7 +9618,6 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 					struct intel_crtc_state *old_crtc_state,
 					struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *slave_crtc_state, *master_crtc_state;
 	struct intel_crtc *slave, *master;
 
@@ -9634,15 +9633,15 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	if (!new_crtc_state->bigjoiner)
 		return 0;
 
-	if (1 + crtc->pipe >= INTEL_NUM_PIPES(dev_priv)) {
+	slave = intel_dsc_get_bigjoiner_secondary(crtc);
+	if (!slave) {
 		DRM_DEBUG_KMS("[CRTC:%d:%s] Big joiner configuration requires "
 			      "CRTC + 1 to be used, doesn't exist\n",
 			      crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
-	slave = new_crtc_state->bigjoiner_linked_crtc =
-		intel_get_crtc_for_pipe(dev_priv, crtc->pipe + 1);
+	new_crtc_state->bigjoiner_linked_crtc = slave;
 	slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave);
 	master = crtc;
 	if (IS_ERR(slave_crtc_state))
