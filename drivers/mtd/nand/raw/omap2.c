@@ -171,6 +171,10 @@ struct omap_nand_info {
 	struct device			*elm_dev;
 	/* NAND ready gpio */
 	struct gpio_desc		*ready_gpiod;
+	unsigned int			neccpg;
+	unsigned int			nsteps_per_eccpg;
+	unsigned int			eccpg_size;
+	unsigned int			eccpg_bytes;
 };
 
 static inline struct omap_nand_info *mtd_to_omap(struct mtd_info *mtd)
@@ -1355,7 +1359,7 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
 {
 	struct omap_nand_info *info = mtd_to_omap(nand_to_mtd(chip));
 	struct nand_ecc_ctrl *ecc = &info->nand.ecc;
-	int eccsteps = info->nand.ecc.steps;
+	int eccsteps = info->nsteps_per_eccpg;
 	int i , j, stat = 0;
 	int eccflag, actual_eccbytes;
 	struct elm_errorvec err_vec[ERROR_VECTOR_MAX];
@@ -1525,28 +1529,37 @@ static int omap_write_page_bch(struct nand_chip *chip, const uint8_t *buf,
 			       int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct omap_nand_info *info = mtd_to_omap(mtd);
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
+	unsigned int eccpg;
 	int ret;
 
 	ret = nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	if (ret)
 		return ret;
 
-	/* Enable GPMC ecc engine */
-	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
+	for (eccpg = 0; eccpg < info->neccpg; eccpg++) {
+		/* Enable GPMC ecc engine */
+		chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
-	/* Write data */
-	chip->legacy.write_buf(chip, buf, mtd->writesize);
+		/* Write data */
+		chip->legacy.write_buf(chip, buf + (eccpg * info->eccpg_size),
+				       info->eccpg_size);
 
-	/* Update ecc vector from GPMC result registers */
-	ret = omap_calculate_ecc_bch_multi(mtd, buf, &ecc_calc[0]);
-	if (ret)
-		return ret;
+		/* Update ecc vector from GPMC result registers */
+		ret = omap_calculate_ecc_bch_multi(mtd,
+						   buf + (eccpg * info->eccpg_size),
+						   ecc_calc);
+		if (ret)
+			return ret;
 
-	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
-					 chip->ecc.total);
-	if (ret)
-		return ret;
+		ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc,
+						 chip->oob_poi,
+						 eccpg * info->eccpg_bytes,
+						 info->eccpg_bytes);
+		if (ret)
+			return ret;
+	}
 
 	/* Write ecc vector to OOB area */
 	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
@@ -1570,12 +1583,13 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 				  int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct omap_nand_info *info = mtd_to_omap(mtd);
 	u8 *ecc_calc = chip->ecc.calc_buf;
 	int ecc_size      = chip->ecc.size;
 	int ecc_bytes     = chip->ecc.bytes;
-	int ecc_steps     = chip->ecc.steps;
 	u32 start_step = offset / ecc_size;
 	u32 end_step   = (offset + data_len - 1) / ecc_size;
+	unsigned int eccpg;
 	int step, ret = 0;
 
 	/*
@@ -1588,35 +1602,43 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
 	if (ret)
 		return ret;
 
-	/* Enable GPMC ECC engine */
-	chip->ecc.hwctl(chip, NAND_ECC_WRITE);
+	for (eccpg = 0; eccpg < info->neccpg; eccpg++) {
+		/* Enable GPMC ECC engine */
+		chip->ecc.hwctl(chip, NAND_ECC_WRITE);
 
-	/* Write data */
-	chip->legacy.write_buf(chip, buf, mtd->writesize);
+		/* Write data */
+		chip->legacy.write_buf(chip, buf + (eccpg * info->eccpg_size),
+				       info->eccpg_size);
 
-	for (step = 0; step < ecc_steps; step++) {
-		/* Mask ECC of un-touched subpages with 0xFFs */
-		if (step < start_step || step > end_step)
-			memset(ecc_calc, 0xff, ecc_bytes);
-		else
-			ret = _omap_calculate_ecc_bch(mtd, buf, ecc_calc, step);
+		for (step = 0; step < info->nsteps_per_eccpg; step++) {
+			unsigned int base_step = eccpg * info->nsteps_per_eccpg;
+			const u8 *bufoffs = buf + (eccpg * info->eccpg_size);
 
+			/* Mask ECC of un-touched subpages with 0xFFs */
+			if ((step + base_step) < start_step ||
+			    (step + base_step) > end_step)
+				memset(ecc_calc + (step * ecc_bytes), 0xff,
+				       ecc_bytes);
+			else
+				ret = _omap_calculate_ecc_bch(mtd,
+							      bufoffs + (step * ecc_size),
+							      ecc_calc + (step * ecc_bytes),
+							      step);
+
+			if (ret)
+				return ret;
+		}
+
+		/*
+		 * Copy the calculated ECC for the whole page including the
+		 * masked values (0xFF) corresponding to unwritten subpages.
+		 */
+		ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi,
+						 eccpg * info->eccpg_bytes,
+						 info->eccpg_bytes);
 		if (ret)
 			return ret;
-
-		buf += ecc_size;
-		ecc_calc += ecc_bytes;
 	}
-
-	/*
-	 * Copy the calculated ECC for the whole page including the
-	 * masked values (0xFF) corresponding to unwritten subpages.
-	 */
-	ecc_calc = chip->ecc.calc_buf;
-	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
-					 chip->ecc.total);
-	if (ret)
-		return ret;
 
 	/* write OOB buffer to NAND device */
 	chip->legacy.write_buf(chip, chip->oob_poi, mtd->oobsize);
@@ -1642,46 +1664,60 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 			      int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct omap_nand_info *info = mtd_to_omap(mtd);
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 	uint8_t *ecc_code = chip->ecc.code_buf;
-	unsigned int max_bitflips = 0;
+	unsigned int max_bitflips = 0, eccpg;
 	int stat, ret;
 
 	ret = nand_read_page_op(chip, page, 0, NULL, 0);
 	if (ret)
 		return ret;
 
-	/* Enable GPMC ecc engine */
-	chip->ecc.hwctl(chip, NAND_ECC_READ);
+	for (eccpg = 0; eccpg < info->neccpg; eccpg++) {
+		/* Enable GPMC ecc engine */
+		chip->ecc.hwctl(chip, NAND_ECC_READ);
 
-	/* Read data */
-	chip->legacy.read_buf(chip, buf, mtd->writesize);
+		/* Read data */
+		ret = nand_change_read_column_op(chip, eccpg * info->eccpg_size,
+						 buf + (eccpg * info->eccpg_size),
+						 info->eccpg_size, false);
+		if (ret)
+			return ret;
 
-	/* Read oob bytes */
-	ret = nand_change_read_column_op(chip,
-					 mtd->writesize + BBM_LEN,
-					 chip->oob_poi + BBM_LEN,
-					 chip->ecc.total, false);
-	if (ret)
-		return ret;
+		/* Read oob bytes */
+		ret = nand_change_read_column_op(chip,
+						 mtd->writesize + BBM_LEN +
+						 (eccpg * info->eccpg_bytes),
+						 chip->oob_poi + BBM_LEN +
+						 (eccpg * info->eccpg_bytes),
+						 info->eccpg_bytes, false);
+		if (ret)
+			return ret;
 
-	/* Calculate ecc bytes */
-	ret = omap_calculate_ecc_bch_multi(mtd, buf, ecc_calc);
-	if (ret)
-		return ret;
+		/* Calculate ecc bytes */
+		ret = omap_calculate_ecc_bch_multi(mtd,
+						   buf + (eccpg * info->eccpg_size),
+						   ecc_calc);
+		if (ret)
+			return ret;
 
-	ret = mtd_ooblayout_get_eccbytes(mtd, ecc_code, chip->oob_poi, 0,
-					 chip->ecc.total);
-	if (ret)
-		return ret;
+		ret = mtd_ooblayout_get_eccbytes(mtd, ecc_code,
+						 chip->oob_poi,
+						 eccpg * info->eccpg_bytes,
+						 info->eccpg_bytes);
+		if (ret)
+			return ret;
 
-	stat = chip->ecc.correct(chip, buf, ecc_code, ecc_calc);
-
-	if (stat < 0) {
-		mtd->ecc_stats.failed++;
-	} else {
-		mtd->ecc_stats.corrected += stat;
-		max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		stat = chip->ecc.correct(chip,
+					 buf + (eccpg * info->eccpg_size),
+					 ecc_code, ecc_calc);
+		if (stat < 0) {
+			mtd->ecc_stats.failed++;
+		} else {
+			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		}
 	}
 
 	return max_bitflips;
@@ -2150,9 +2186,20 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	}
 
 	if (elm_bch_strength >= 0) {
+		chip->ecc.steps = mtd->writesize / chip->ecc.size;
+		info->neccpg = chip->ecc.steps / ERROR_VECTOR_MAX;
+		if (info->neccpg) {
+			info->nsteps_per_eccpg = ERROR_VECTOR_MAX;
+		} else {
+			info->neccpg = 1;
+			info->nsteps_per_eccpg = chip->ecc.steps;
+		}
+		info->eccpg_size = info->nsteps_per_eccpg * chip->ecc.size;
+		info->eccpg_bytes = info->nsteps_per_eccpg * chip->ecc.bytes;
+
 		err = elm_config(info->elm_dev, elm_bch_strength,
-				 mtd->writesize / chip->ecc.size,
-				 chip->ecc.size, chip->ecc.bytes);
+				 info->nsteps_per_eccpg, chip->ecc.size,
+				 chip->ecc.bytes);
 		if (err < 0)
 			return err;
 	}
