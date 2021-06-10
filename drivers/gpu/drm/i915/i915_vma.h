@@ -68,6 +68,11 @@ static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 	return test_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
 }
 
+static inline bool i915_vma_is_dpt(const struct i915_vma *vma)
+{
+	return i915_is_dpt(vma->vm);
+}
+
 static inline bool i915_vma_has_ggtt_write(const struct i915_vma *vma)
 {
 	return test_bit(I915_VMA_GGTT_WRITE_BIT, __i915_vma_flags(vma));
@@ -158,7 +163,7 @@ i915_vma_compare(struct i915_vma *vma,
 {
 	ptrdiff_t cmp;
 
-	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM_BUG_ON(view && !i915_is_ggtt_or_dpt(vm));
 
 	cmp = ptrdiff(vma->vm, vm);
 	if (cmp)

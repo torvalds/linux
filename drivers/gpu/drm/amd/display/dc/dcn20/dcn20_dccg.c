@@ -96,6 +96,39 @@ void dccg2_get_dccg_ref_freq(struct dccg *dccg,
 	return;
 }
 
+void dccg2_set_fifo_errdet_ovr_en(struct dccg *dccg,
+		bool en)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(DISPCLK_FREQ_CHANGE_CNTL,
+			DCCG_FIFO_ERRDET_OVR_EN, en ? 1 : 0);
+}
+
+void dccg2_otg_add_pixel(struct dccg *dccg,
+		uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_ADD_PIXEL[otg_inst], 0,
+			OTG_DROP_PIXEL[otg_inst], 0);
+	REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_ADD_PIXEL[otg_inst], 1);
+}
+
+void dccg2_otg_drop_pixel(struct dccg *dccg,
+		uint32_t otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_ADD_PIXEL[otg_inst], 0,
+			OTG_DROP_PIXEL[otg_inst], 0);
+	REG_UPDATE(OTG_PIXEL_RATE_CNTL[otg_inst],
+			OTG_DROP_PIXEL[otg_inst], 1);
+}
+
 void dccg2_init(struct dccg *dccg)
 {
 }
@@ -103,6 +136,9 @@ void dccg2_init(struct dccg *dccg)
 static const struct dccg_funcs dccg2_funcs = {
 	.update_dpp_dto = dccg2_update_dpp_dto,
 	.get_dccg_ref_freq = dccg2_get_dccg_ref_freq,
+	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
+	.otg_add_pixel = dccg2_otg_add_pixel,
+	.otg_drop_pixel = dccg2_otg_drop_pixel,
 	.dccg_init = dccg2_init
 };
 

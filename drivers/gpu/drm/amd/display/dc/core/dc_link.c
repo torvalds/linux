@@ -1099,24 +1099,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			    dc_is_dvi_signal(link->connector_signal)) {
 				if (prev_sink)
 					dc_sink_release(prev_sink);
-				link_disconnect_sink(link);
-
-				return false;
-			}
-			/*
-			 * Abort detection for DP connectors if we have
-			 * no EDID and connector is active converter
-			 * as there are no display downstream
-			 *
-			 */
-			if (dc_is_dp_sst_signal(link->connector_signal) &&
-				(link->dpcd_caps.dongle_type ==
-						DISPLAY_DONGLE_DP_VGA_CONVERTER ||
-				link->dpcd_caps.dongle_type ==
-						DISPLAY_DONGLE_DP_DVI_CONVERTER)) {
-				if (prev_sink)
-					dc_sink_release(prev_sink);
-				link_disconnect_sink(link);
 
 				return false;
 			}
@@ -2701,16 +2683,24 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active,
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
 
 	if (psr == NULL && force_static)
 		return false;
 
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
 	link->psr_settings.psr_allow_active = allow_active;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	if (!allow_active)
+		dc_z10_restore(dc);
+#endif
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled) {
 		if (force_static && psr->funcs->psr_force_static)
-			psr->funcs->psr_force_static(psr);
-		psr->funcs->psr_enable(psr, allow_active, wait);
+			psr->funcs->psr_force_static(psr, panel_inst);
+		psr->funcs->psr_enable(psr, allow_active, wait, panel_inst);
 	} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 	else
@@ -2724,9 +2714,13 @@ bool dc_link_get_psr_state(const struct dc_link *link, enum dc_psr_state *state)
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
 
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_state(psr, state);
+		psr->funcs->psr_get_state(psr, state, panel_inst);
 	else if (dmcu != NULL && link->psr_settings.psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, state);
 
@@ -2776,6 +2770,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
 	int i;
+	unsigned int panel_inst;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
 
@@ -2789,6 +2784,9 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr = dc->res_pool->psr;
 
 	if (!dmcu && !psr)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
 
@@ -2875,8 +2873,16 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->psr_level.u32all = 0;
 
 	/*skip power down the single pipe since it blocks the cstate*/
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	if (link->ctx->asic_id.chip_family >= FAMILY_RV) {
+		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+		if (link->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP && !dc->debug.disable_z10)
+			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+	}
+#else
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
 		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+#endif
 
 	/* SMU will perform additional powerdown sequence.
 	 * For unsupported ASICs, set psr_level flag to skip PSR
@@ -2897,7 +2903,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->frame_delay = 0;
 
 	if (psr)
-		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
+		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
+			link, psr_context, panel_inst);
 	else
 		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
@@ -2915,10 +2922,14 @@ void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmub_psr *psr = dc->res_pool->psr;
+	unsigned int panel_inst;
 
-	// PSR residency measurements only supported on DMCUB
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return;
+
+	/* PSR residency measurements only supported on DMCUB */
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_residency(psr, residency);
+		psr->funcs->psr_get_residency(psr, residency, panel_inst);
 	else
 		*residency = 0;
 }
@@ -3208,8 +3219,14 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 				dp_get_panel_mode(pipe_ctx->stream->link);
 
 		config.otg_inst = (uint8_t) pipe_ctx->stream_res.tg->inst;
+		/*stream_enc_inst*/
 		config.dig_fe = (uint8_t) pipe_ctx->stream_res.stream_enc->stream_enc_inst;
 		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+		config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
+		config.link_enc_idx = pipe_ctx->stream->link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+		config.phy_idx = pipe_ctx->stream->link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+#endif
 		config.dpms_off = dpms_off;
 		config.dm_stream_ctx = pipe_ctx->stream->dm_stream_context;
 		config.assr_enabled = (panel_mode == DP_PANEL_MODE_EDP);

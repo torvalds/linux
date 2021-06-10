@@ -7,9 +7,25 @@
 
 #include <linux/fault-inject.h>
 
+#include "gem/i915_gem_lmem.h"
 #include "i915_trace.h"
 #include "intel_gt.h"
 #include "intel_gtt.h"
+
+struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
+{
+	struct drm_i915_gem_object *obj;
+
+	obj = i915_gem_object_create_lmem(vm->i915, sz, 0);
+	/*
+	 * Ensure all paging structures for this vm share the same dma-resv
+	 * object underneath, with the idea that one object_lock() will lock
+	 * them all at once.
+	 */
+	if (!IS_ERR(obj))
+		obj->base.resv = &vm->resv;
+	return obj;
+}
 
 struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 {
@@ -19,33 +35,39 @@ struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 		i915_gem_shrink_all(vm->i915);
 
 	obj = i915_gem_object_create_internal(vm->i915, sz);
-	/* ensure all dma objects have the same reservation class */
+	/*
+	 * Ensure all paging structures for this vm share the same dma-resv
+	 * object underneath, with the idea that one object_lock() will lock
+	 * them all at once.
+	 */
 	if (!IS_ERR(obj))
 		obj->base.resv = &vm->resv;
 	return obj;
 }
 
-int pin_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
+int map_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 {
-	int err;
+	enum i915_map_type type;
+	void *vaddr;
 
-	i915_gem_object_lock(obj, NULL);
-	err = i915_gem_object_pin_pages(obj);
-	i915_gem_object_unlock(obj);
-	if (err)
-		return err;
+	type = i915_coherent_map_type(vm->i915, obj, true);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, type);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
 
 	i915_gem_object_make_unshrinkable(obj);
 	return 0;
 }
 
-int pin_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
+int map_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 {
-	int err;
+	enum i915_map_type type;
+	void *vaddr;
 
-	err = i915_gem_object_pin_pages(obj);
-	if (err)
-		return err;
+	type = i915_coherent_map_type(vm->i915, obj, true);
+	vaddr = i915_gem_object_pin_map(obj, type);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
 
 	i915_gem_object_make_unshrinkable(obj);
 	return 0;
@@ -132,7 +154,22 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 	 */
 	mutex_init(&vm->mutex);
 	lockdep_set_subclass(&vm->mutex, subclass);
-	i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
+
+	if (!intel_vm_no_concurrent_access_wa(vm->i915)) {
+		i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
+	} else {
+		/*
+		 * CHV + BXT VTD workaround use stop_machine(),
+		 * which is allowed to allocate memory. This means &vm->mutex
+		 * is the outer lock, and in theory we can allocate memory inside
+		 * it through stop_machine().
+		 *
+		 * Add the annotation for this, we use trylock in shrinker.
+		 */
+		mutex_acquire(&vm->mutex.dep_map, 0, 0, _THIS_IP_);
+		might_alloc(GFP_KERNEL);
+		mutex_release(&vm->mutex.dep_map, _THIS_IP_);
+	}
 	dma_resv_init(&vm->resv);
 
 	GEM_BUG_ON(!vm->total);
@@ -155,6 +192,14 @@ void clear_pages(struct i915_vma *vma)
 	memset(&vma->page_sizes, 0, sizeof(vma->page_sizes));
 }
 
+void *__px_vaddr(struct drm_i915_gem_object *p)
+{
+	enum i915_map_type type;
+
+	GEM_BUG_ON(!i915_gem_object_has_pages(p));
+	return page_unpack_bits(p->mm.mapping, &type);
+}
+
 dma_addr_t __px_dma(struct drm_i915_gem_object *p)
 {
 	GEM_BUG_ON(!i915_gem_object_has_pages(p));
@@ -170,32 +215,22 @@ struct page *__px_page(struct drm_i915_gem_object *p)
 void
 fill_page_dma(struct drm_i915_gem_object *p, const u64 val, unsigned int count)
 {
-	struct page *page = __px_page(p);
-	void *vaddr;
+	void *vaddr = __px_vaddr(p);
 
-	vaddr = kmap(page);
 	memset64(vaddr, val, count);
 	clflush_cache_range(vaddr, PAGE_SIZE);
-	kunmap(page);
 }
 
 static void poison_scratch_page(struct drm_i915_gem_object *scratch)
 {
-	struct sgt_iter sgt;
-	struct page *page;
+	void *vaddr = __px_vaddr(scratch);
 	u8 val;
 
 	val = 0;
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		val = POISON_FREE;
 
-	for_each_sgt_page(page, sgt, scratch->mm.pages) {
-		void *vaddr;
-
-		vaddr = kmap(page);
-		memset(vaddr, val, PAGE_SIZE);
-		kunmap(page);
-	}
+	memset(vaddr, val, scratch->base.size);
 }
 
 int setup_scratch_page(struct i915_address_space *vm)
@@ -225,7 +260,7 @@ int setup_scratch_page(struct i915_address_space *vm)
 		if (IS_ERR(obj))
 			goto skip;
 
-		if (pin_pt_dma(vm, obj))
+		if (map_pt_dma(vm, obj))
 			goto skip_obj;
 
 		/* We need a single contiguous page for our scratch */

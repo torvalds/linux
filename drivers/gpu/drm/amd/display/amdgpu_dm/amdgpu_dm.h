@@ -456,6 +456,7 @@ struct dsc_preferred_settings {
 	uint32_t dsc_num_slices_v;
 	uint32_t dsc_num_slices_h;
 	uint32_t dsc_bits_per_pixel;
+	bool dsc_force_disable_passthrough;
 };
 
 struct amdgpu_dm_connector {

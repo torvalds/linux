@@ -95,6 +95,28 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 	sg_mark_end(sg);
 	i915_sg_trim(st);
 
+	/* Intended for kernel internal use only */
+	if (obj->flags & I915_BO_ALLOC_CPU_CLEAR) {
+		struct scatterlist *sg;
+		unsigned long i;
+
+		for_each_sg(st->sgl, sg, st->nents, i) {
+			unsigned int length;
+			void __iomem *vaddr;
+			dma_addr_t daddr;
+
+			daddr = sg_dma_address(sg);
+			daddr -= mem->region.start;
+			length = sg_dma_len(sg);
+
+			vaddr = io_mapping_map_wc(&mem->iomap, daddr, length);
+			memset64((void __force *)vaddr, 0, length / sizeof(u64));
+			io_mapping_unmap(vaddr);
+		}
+
+		wmb();
+	}
+
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;

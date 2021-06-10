@@ -227,7 +227,7 @@ static int aldebaran_mode2_restore_ip(struct amdgpu_device *adev)
 			break;
 		default:
 			break;
-		};
+		}
 	}
 
 	/* Reinit NBIF block */

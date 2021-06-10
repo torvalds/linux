@@ -189,12 +189,6 @@ void dcn10_bios_golden_init(struct dc *dc);
 void dcn10_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp);
-void dcn10_get_surface_visual_confirm_color(
-		const struct pipe_ctx *pipe_ctx,
-		struct tg_color *color);
-void dcn10_get_hdr_visual_confirm_color(
-		struct pipe_ctx *pipe_ctx,
-		struct tg_color *color);
 bool dcn10_disconnect_pipes(
 		struct dc *dc,
 		struct dc_state *context);

@@ -271,11 +271,6 @@ struct dc_edid_caps {
 	struct dc_panel_patch panel_patch;
 };
 
-struct view {
-	uint32_t width;
-	uint32_t height;
-};
-
 struct dc_mode_flags {
 	/* note: part of refresh rate flag*/
 	uint32_t INTERLACE :1;

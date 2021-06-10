@@ -110,6 +110,15 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 		DC_ERROR("Error waiting for DMUB idle: status=%d\n", status);
 }
 
+void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
+		union dmub_inbox0_data_register data)
+{
+	struct dmub_srv *dmub = dmub_srv->dmub;
+	if (dmub->hw_funcs.send_inbox0_cmd)
+		dmub->hw_funcs.send_inbox0_cmd(dmub, data);
+	// TODO: Add wait command -- poll register for ACK
+}
+
 bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd)
 {
 	struct dmub_srv *dmub;
@@ -171,6 +180,29 @@ bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 		       dmub, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
 		       stream_mask, timeout) == DMUB_STATUS_OK;
 }
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv)
+{
+	struct dmub_srv *dmub;
+	struct dc_context *dc_ctx;
+	union dmub_fw_boot_status boot_status;
+	enum dmub_status status;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dmub = dc_dmub_srv->dmub;
+	dc_ctx = dc_dmub_srv->ctx;
+
+	status = dmub_srv_get_fw_boot_status(dmub, &boot_status);
+	if (status != DMUB_STATUS_OK) {
+		DC_ERROR("Error querying DMUB boot status: error=%d\n", status);
+		return false;
+	}
+
+	return boot_status.bits.restore_required;
+}
+#endif
 
 bool dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_buf_entry *entry)
 {

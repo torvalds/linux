@@ -635,6 +635,7 @@ struct dce_hwseq_registers {
 	uint32_t HPO_TOP_CLOCK_CONTROL;
 	uint32_t ODM_MEM_PWR_CTRL3;
 	uint32_t DMU_MEM_PWR_CNTL;
+	uint32_t MMHUBBUB_MEM_PWR_CNTL;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -875,7 +876,8 @@ struct dce_hwseq_registers {
 	HWS_SF(, AZALIA_AUDIO_DTO, AZALIA_AUDIO_DTO_MODULE, mask_sh), \
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_UNASSIGNED_PWR_MODE, mask_sh), \
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_VBLANK_PWR_MODE, mask_sh), \
-	HWS_SF(, DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, mask_sh)
+	HWS_SF(, DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, mask_sh), \
+	HWS_SF(, MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, mask_sh)
 
 #define HWSEQ_DCN301_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
@@ -1092,7 +1094,8 @@ struct dce_hwseq_registers {
 	type AZALIA_AUDIO_DTO_MODULE; \
 	type ODM_MEM_UNASSIGNED_PWR_MODE; \
 	type ODM_MEM_VBLANK_PWR_MODE; \
-	type DMCU_ERAM_MEM_PWR_FORCE;
+	type DMCU_ERAM_MEM_PWR_FORCE; \
+	type VGA_MEM_PWR_FORCE;
 
 #define HWSEQ_DCN3_REG_FIELD_LIST(type) \
 	type HPO_HDMISTREAMCLK_GATE_DIS;
@@ -1103,11 +1106,22 @@ struct dce_hwseq_registers {
 	type PANEL_DIGON_OVRD;\
 	type PANEL_PWRSEQ_TARGET_STATE_R;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+#define HWSEQ_DCN31_REG_FIELD_LIST(type) \
+	type DOMAIN_POWER_FORCEON;\
+	type DOMAIN_POWER_GATE;\
+	type DOMAIN_PGFSM_PWR_STATUS;\
+	type HPO_HDMISTREAMCLK_G_GATE_DIS;
+
+#endif
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN3_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN301_REG_FIELD_LIST(uint8_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	HWSEQ_DCN31_REG_FIELD_LIST(uint8_t)
+#endif
 };
 
 struct dce_hwseq_mask {
@@ -1115,6 +1129,9 @@ struct dce_hwseq_mask {
 	HWSEQ_DCN_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN3_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN301_REG_FIELD_LIST(uint32_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	HWSEQ_DCN31_REG_FIELD_LIST(uint32_t)
+#endif
 };
 
 

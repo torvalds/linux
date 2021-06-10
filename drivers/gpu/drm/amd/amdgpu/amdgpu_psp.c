@@ -118,6 +118,10 @@ static int psp_early_init(void *handle)
 	case CHIP_ALDEBARAN:
 		psp_v13_0_set_psp_funcs(psp);
 		break;
+	case CHIP_YELLOW_CARP:
+		psp_v13_0_set_psp_funcs(psp);
+		psp->autoload_supported = true;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -177,6 +181,12 @@ static int psp_sw_init(void *handle)
 		ret = psp_init_microcode(psp);
 		if (ret) {
 			DRM_ERROR("Failed to load psp firmware!\n");
+			return ret;
+		}
+	} else if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_ALDEBARAN) {
+		ret = psp_init_ta_microcode(psp, "aldebaran");
+		if (ret) {
+			DRM_ERROR("Failed to initialize ta microcode!\n");
 			return ret;
 		}
 	}
@@ -282,7 +292,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		goto exit;
 	}
 
-	amdgpu_asic_invalidate_hdp(psp->adev, NULL);
+	amdgpu_device_invalidate_hdp(psp->adev, NULL);
 	while (*((unsigned int *)psp->fence_buf) != index) {
 		if (--timeout == 0)
 			break;
@@ -295,7 +305,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		if (ras_intr)
 			break;
 		usleep_range(10, 100);
-		amdgpu_asic_invalidate_hdp(psp->adev, NULL);
+		amdgpu_device_invalidate_hdp(psp->adev, NULL);
 	}
 
 	/* We allow TEE_ERROR_NOT_SUPPORTED for VMR command and PSP_ERR_UNKNOWN_COMMAND in SRIOV */
@@ -684,6 +694,8 @@ int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 
 	psp_prep_reg_prog_cmd_buf(cmd, reg, value);
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (ret)
+		DRM_ERROR("PSP failed to program reg id %d", reg);
 
 	kfree(cmd);
 	return ret;
@@ -2319,11 +2331,20 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (!psp->cmd)
 		return -ENOMEM;
 
-	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-					AMDGPU_GEM_DOMAIN_GTT,
-					&psp->fw_pri_bo,
-					&psp->fw_pri_mc_addr,
-					&psp->fw_pri_buf);
+	if (amdgpu_sriov_vf(adev)) {
+		ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
+						AMDGPU_GEM_DOMAIN_VRAM,
+						&psp->fw_pri_bo,
+						&psp->fw_pri_mc_addr,
+						&psp->fw_pri_buf);
+	} else {
+		ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
+						AMDGPU_GEM_DOMAIN_GTT,
+						&psp->fw_pri_bo,
+						&psp->fw_pri_mc_addr,
+						&psp->fw_pri_buf);
+	}
+
 	if (ret)
 		goto failed;
 
@@ -2696,7 +2717,7 @@ int psp_ring_cmd_submit(struct psp_context *psp,
 	write_frame->fence_addr_hi = upper_32_bits(fence_mc_addr);
 	write_frame->fence_addr_lo = lower_32_bits(fence_mc_addr);
 	write_frame->fence_value = index;
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_device_flush_hdp(adev, NULL);
 
 	/* Update the write Pointer in DWORDs */
 	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;

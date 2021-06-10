@@ -1635,7 +1635,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 #define fw_domain_init(uncore__, id__, set__, ack__) \
 	(ret ?: (ret = __fw_domain_init((uncore__), (id__), (set__), (ack__))))
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (GRAPHICS_VER(i915) >= 11) {
 		/* we'll prune the domains of missing engines later */
 		intel_engine_mask_t emask = INTEL_INFO(i915)->platform_engine_mask;
 		int i;
@@ -1665,7 +1665,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 				       FORCEWAKE_MEDIA_VEBOX_GEN11(i),
 				       FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(i));
 		}
-	} else if (IS_GEN_RANGE(i915, 9, 10)) {
+	} else if (IS_GRAPHICS_VER(i915, 9, 10)) {
 		uncore->funcs.force_wake_get = fw_domains_get_with_fallback;
 		uncore->funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
@@ -1733,7 +1733,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 			fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
 				       FORCEWAKE, FORCEWAKE_ACK);
 		}
-	} else if (IS_GEN(i915, 6)) {
+	} else if (GRAPHICS_VER(i915) == 6) {
 		uncore->funcs.force_wake_get =
 			fw_domains_get_with_thread_status;
 		uncore->funcs.force_wake_put = fw_domains_put;
@@ -1800,7 +1800,7 @@ static int uncore_mmio_setup(struct intel_uncore *uncore)
 	int mmio_bar;
 	int mmio_size;
 
-	mmio_bar = IS_GEN(i915, 2) ? 1 : 0;
+	mmio_bar = GRAPHICS_VER(i915) == 2 ? 1 : 0;
 	/*
 	 * Before gen4, the registers and the GTT are behind different BARs.
 	 * However, from gen4 onwards, the registers and the GTT are shared
@@ -1810,7 +1810,7 @@ static int uncore_mmio_setup(struct intel_uncore *uncore)
 	 * generations up to Ironlake.
 	 * For dgfx chips register range is expanded to 4MB.
 	 */
-	if (INTEL_GEN(i915) < 5)
+	if (GRAPHICS_VER(i915) < 5)
 		mmio_size = 512 * 1024;
 	else if (IS_DGFX(i915))
 		mmio_size = 4 * 1024 * 1024;
@@ -1849,7 +1849,7 @@ static void uncore_raw_init(struct intel_uncore *uncore)
 	if (intel_vgpu_active(uncore->i915)) {
 		ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, vgpu);
 		ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, vgpu);
-	} else if (IS_GEN(uncore->i915, 5)) {
+	} else if (GRAPHICS_VER(uncore->i915) == 5) {
 		ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen5);
 		ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen5);
 	} else {
@@ -1870,7 +1870,7 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 		return ret;
 	forcewake_early_sanitize(uncore, 0);
 
-	if (IS_GEN_RANGE(i915, 6, 7)) {
+	if (IS_GRAPHICS_VER(i915, 6, 7)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen6);
 
 		if (IS_VALLEYVIEW(i915)) {
@@ -1879,7 +1879,7 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 		} else {
 			ASSIGN_READ_MMIO_VFUNCS(uncore, gen6);
 		}
-	} else if (IS_GEN(i915, 8)) {
+	} else if (GRAPHICS_VER(i915) == 8) {
 		if (IS_CHERRYVIEW(i915)) {
 			ASSIGN_FW_DOMAINS_TABLE(uncore, __chv_fw_ranges);
 			ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
@@ -1888,11 +1888,11 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 			ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen8);
 			ASSIGN_READ_MMIO_VFUNCS(uncore, gen6);
 		}
-	} else if (IS_GEN_RANGE(i915, 9, 10)) {
+	} else if (IS_GRAPHICS_VER(i915, 9, 10)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen9_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
-	} else if (IS_GEN(i915, 11)) {
+	} else if (GRAPHICS_VER(i915) == 11) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
@@ -1917,6 +1917,18 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	if (ret)
 		return ret;
 
+	/*
+	 * The boot firmware initializes local memory and assesses its health.
+	 * If memory training fails, the punit will have been instructed to
+	 * keep the GT powered down; we won't be able to communicate with it
+	 * and we should not continue with driver initialization.
+	 */
+	if (IS_DGFX(i915) &&
+	    !(__raw_uncore_read32(uncore, GU_CNTL) & LMEM_INIT)) {
+		drm_err(&i915->drm, "LMEM not initialized by firmware\n");
+		return -ENODEV;
+	}
+
 	if (INTEL_GEN(i915) > 5 && !intel_vgpu_active(i915))
 		uncore->flags |= UNCORE_HAS_FORCEWAKE;
 
@@ -1940,7 +1952,7 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		uncore->flags |= UNCORE_HAS_DBG_UNCLAIMED;
 
-	if (IS_GEN_RANGE(i915, 6, 7))
+	if (IS_GRAPHICS_VER(i915, 6, 7))
 		uncore->flags |= UNCORE_HAS_FIFO;
 
 	/* clear out unclaimed reg detection bit */
@@ -1967,7 +1979,7 @@ void intel_uncore_prune_engine_fw_domains(struct intel_uncore *uncore,
 	enum forcewake_domain_id domain_id;
 	int i;
 
-	if (!intel_uncore_has_forcewake(uncore) || INTEL_GEN(uncore->i915) < 11)
+	if (!intel_uncore_has_forcewake(uncore) || GRAPHICS_VER(uncore->i915) < 11)
 		return;
 
 	for (i = 0; i < I915_MAX_VCS; i++) {

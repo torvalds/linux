@@ -35,6 +35,7 @@ struct drm_connector_state *
 intel_digital_connector_duplicate_state(struct drm_connector *connector);
 bool intel_connector_needs_modeset(struct intel_atomic_state *state,
 				   struct drm_connector *connector);
+bool intel_any_crtc_needs_modeset(struct intel_atomic_state *state);
 struct intel_digital_connector_state *
 intel_atomic_get_digital_connector_state(struct intel_atomic_state *state,
 					 struct intel_connector *connector);

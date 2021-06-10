@@ -124,6 +124,17 @@ stringify_page_sizes(unsigned int page_sizes, char *buf, size_t len)
 	}
 }
 
+static const char *stringify_vma_type(const struct i915_vma *vma)
+{
+	if (i915_vma_is_ggtt(vma))
+		return "ggtt";
+
+	if (i915_vma_is_dpt(vma))
+		return "dpt";
+
+	return "ppgtt";
+}
+
 void
 i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
@@ -156,11 +167,11 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		if (i915_vma_is_pinned(vma))
 			pin_count++;
 
-		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx, pages: %s",
-			   i915_vma_is_ggtt(vma) ? "g" : "pp",
+		seq_printf(m, " (%s offset: %08llx, size: %08llx, pages: %s",
+			   stringify_vma_type(vma),
 			   vma->node.start, vma->node.size,
 			   stringify_page_sizes(vma->page_sizes.gtt, NULL, 0));
-		if (i915_vma_is_ggtt(vma)) {
+		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
 			switch (vma->ggtt_view.type) {
 			case I915_GGTT_VIEW_NORMAL:
 				seq_puts(m, ", normal");
@@ -350,7 +361,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	if (IS_GEN(dev_priv, 5)) {
+	if (GRAPHICS_VER(dev_priv) == 5) {
 		u16 rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 		u16 rgvstat = intel_uncore_read16(uncore, MEMSTAT_ILK);
 
@@ -397,7 +408,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(rps, rps->efficient_freq));
-	} else if (INTEL_GEN(dev_priv) >= 6) {
+	} else if (GRAPHICS_VER(dev_priv) >= 6) {
 		u32 rp_state_limits;
 		u32 gt_perf_status;
 		u32 rp_state_cap;
@@ -421,7 +432,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		reqf = intel_uncore_read(&dev_priv->uncore, GEN6_RPNSWREQ);
-		if (INTEL_GEN(dev_priv) >= 9)
+		if (GRAPHICS_VER(dev_priv) >= 9)
 			reqf >>= 23;
 		else {
 			reqf &= ~GEN6_TURBO_DISABLE;
@@ -447,7 +458,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
-		if (INTEL_GEN(dev_priv) >= 11) {
+		if (GRAPHICS_VER(dev_priv) >= 11) {
 			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE);
 			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN11_GPM_WGBOXPERF_INTR_MASK);
 			/*
@@ -456,7 +467,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			 */
 			pm_isr = 0;
 			pm_iir = 0;
-		} else if (INTEL_GEN(dev_priv) >= 8) {
+		} else if (GRAPHICS_VER(dev_priv) >= 8) {
 			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IER(2));
 			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IMR(2));
 			pm_isr = intel_uncore_read(&dev_priv->uncore, GEN8_GT_ISR(2));
@@ -479,14 +490,14 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "PM IER=0x%08x IMR=0x%08x, MASK=0x%08x\n",
 			   pm_ier, pm_imr, pm_mask);
-		if (INTEL_GEN(dev_priv) <= 10)
+		if (GRAPHICS_VER(dev_priv) <= 10)
 			seq_printf(m, "PM ISR=0x%08x IIR=0x%08x\n",
 				   pm_isr, pm_iir);
 		seq_printf(m, "pm_intrmsk_mbz: 0x%08x\n",
 			   rps->pm_intrmsk_mbz);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
-			   (gt_perf_status & (INTEL_GEN(dev_priv) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
+			   (gt_perf_status & (GRAPHICS_VER(dev_priv) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
@@ -527,20 +538,20 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
 		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     INTEL_GEN(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     INTEL_GEN(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
 		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     INTEL_GEN(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
+			     GRAPHICS_VER(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(rps, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
@@ -611,20 +622,20 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 		seq_puts(m, "L-shaped memory detected\n");
 
 	/* On BDW+, swizzling is not used. See detect_bit_6_swizzle() */
-	if (INTEL_GEN(dev_priv) >= 8 || IS_VALLEYVIEW(dev_priv))
+	if (GRAPHICS_VER(dev_priv) >= 8 || IS_VALLEYVIEW(dev_priv))
 		return 0;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	if (IS_GEN_RANGE(dev_priv, 3, 4)) {
+	if (IS_GRAPHICS_VER(dev_priv, 3, 4)) {
 		seq_printf(m, "DDC = 0x%08x\n",
 			   intel_uncore_read(uncore, DCC));
 		seq_printf(m, "DDC2 = 0x%08x\n",
 			   intel_uncore_read(uncore, DCC2));
 		seq_printf(m, "C0DRB3 = 0x%04x\n",
-			   intel_uncore_read16(uncore, C0DRB3));
+			   intel_uncore_read16(uncore, C0DRB3_BW));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
-			   intel_uncore_read16(uncore, C1DRB3));
+			   intel_uncore_read16(uncore, C1DRB3_BW));
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		seq_printf(m, "MAD_DIMM_C0 = 0x%08x\n",
 			   intel_uncore_read(uncore, MAD_DIMM_C0));
@@ -634,7 +645,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 			   intel_uncore_read(uncore, MAD_DIMM_C2));
 		seq_printf(m, "TILECTL = 0x%08x\n",
 			   intel_uncore_read(uncore, TILECTL));
-		if (INTEL_GEN(dev_priv) >= 8)
+		if (GRAPHICS_VER(dev_priv) >= 8)
 			seq_printf(m, "GAMTARBMODE = 0x%08x\n",
 				   intel_uncore_read(uncore, GAMTARBMODE));
 		else
@@ -945,7 +956,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 
 	atomic_inc(&gt->user_wakeref);
 	intel_gt_pm_get(gt);
-	if (INTEL_GEN(i915) >= 6)
+	if (GRAPHICS_VER(i915) >= 6)
 		intel_uncore_forcewake_user_get(gt->uncore);
 
 	return 0;
@@ -956,7 +967,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 	struct drm_i915_private *i915 = inode->i_private;
 	struct intel_gt *gt = &i915->gt;
 
-	if (INTEL_GEN(i915) >= 6)
+	if (GRAPHICS_VER(i915) >= 6)
 		intel_uncore_forcewake_user_put(&i915->uncore);
 	intel_gt_pm_put(gt);
 	atomic_dec(&gt->user_wakeref);

@@ -84,6 +84,7 @@ MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vangogh_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/yellow_carp_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -122,6 +123,7 @@ const char *amdgpu_asic_name[] = {
 	"VANGOGH",
 	"DIMGREY_CAVEFISH",
 	"BEIGE_GOBY",
+	"YELLOW_CARP",
 	"LAST",
 };
 
@@ -265,6 +267,21 @@ bool amdgpu_device_supports_baco(struct drm_device *dev)
 	return amdgpu_asic_supports_baco(adev);
 }
 
+/**
+ * amdgpu_device_supports_smart_shift - Is the device dGPU with
+ * smart shift support
+ *
+ * @dev: drm_device pointer
+ *
+ * Returns true if the device is a dGPU with Smart Shift support,
+ * otherwise returns false.
+ */
+bool amdgpu_device_supports_smart_shift(struct drm_device *dev)
+{
+	return (amdgpu_device_supports_boco(dev) &&
+		amdgpu_acpi_is_power_shift_control_supported());
+}
+
 /*
  * VRAM access helper functions
  */
@@ -298,9 +315,9 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 		if (write) {
 			memcpy_toio(addr, buf, count);
 			mb();
-			amdgpu_asic_flush_hdp(adev, NULL);
+			amdgpu_device_flush_hdp(adev, NULL);
 		} else {
-			amdgpu_asic_invalidate_hdp(adev, NULL);
+			amdgpu_device_invalidate_hdp(adev, NULL);
 			mb();
 			memcpy_fromio(buf, addr, count);
 		}
@@ -501,7 +518,7 @@ void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 	    adev->gfx.rlc.funcs &&
 	    adev->gfx.rlc.funcs->is_rlcg_access_range) {
 		if (adev->gfx.rlc.funcs->is_rlcg_access_range(adev, reg))
-			return adev->gfx.rlc.funcs->rlcg_wreg(adev, reg, v, 0);
+			return adev->gfx.rlc.funcs->rlcg_wreg(adev, reg, v, 0, 0);
 	} else {
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
 	}
@@ -1869,6 +1886,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_VANGOGH:
 		chip_name = "vangogh";
 		break;
+	case CHIP_YELLOW_CARP:
+		chip_name = "yellow_carp";
+		break;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
@@ -2047,8 +2067,11 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case  CHIP_DIMGREY_CAVEFISH:
 	case  CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 		if (adev->asic_type == CHIP_VANGOGH)
 			adev->family = AMDGPU_FAMILY_VGH;
+		else if (adev->asic_type == CHIP_YELLOW_CARP)
+			adev->family = AMDGPU_FAMILY_YC;
 		else
 			adev->family = AMDGPU_FAMILY_NV;
 
@@ -3131,6 +3154,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 #endif
 		return amdgpu_dc != 0;
 #endif
@@ -3151,7 +3175,9 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
  */
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev) || adev->enable_virtual_display)
+	if (amdgpu_sriov_vf(adev) || 
+	    adev->enable_virtual_display ||
+	    (adev->harvest_ip_mask & AMD_HARVEST_IP_DMU_MASK))
 		return false;
 
 	return amdgpu_device_asic_has_dc_support(adev->asic_type);
@@ -3809,6 +3835,10 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 		return 0;
 
 	adev->in_suspend = true;
+
+	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D3))
+		DRM_WARN("smart shift update failed\n");
+
 	drm_kms_helper_poll_disable(dev);
 
 	if (fbcon)
@@ -3917,6 +3947,9 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	dev->dev->power.disable_depth--;
 #endif
 	adev->in_suspend = false;
+
+	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D0))
+		DRM_WARN("smart shift update failed\n");
 
 	return 0;
 }
@@ -4694,7 +4727,7 @@ static int amdgpu_device_suspend_display_audio(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_device_recheck_guilty_jobs(
+static void amdgpu_device_recheck_guilty_jobs(
 	struct amdgpu_device *adev, struct list_head *device_list_handle,
 	struct amdgpu_reset_context *reset_context)
 {
@@ -4997,6 +5030,8 @@ skip_hw_reset:
 			amdgpu_vf_error_put(tmp_adev, AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
 		} else {
 			dev_info(tmp_adev->dev, "GPU reset(%d) succeeded!\n", atomic_read(&tmp_adev->gpu_reset_counter));
+			if (amdgpu_acpi_smart_shift_update(adev_to_drm(tmp_adev), AMDGPU_SS_DEV_D0))
+				DRM_WARN("smart shift update failed\n");
 		}
 	}
 
@@ -5449,4 +5484,31 @@ bool amdgpu_device_load_pci_state(struct pci_dev *pdev)
 	return true;
 }
 
+void amdgpu_device_flush_hdp(struct amdgpu_device *adev,
+		struct amdgpu_ring *ring)
+{
+#ifdef CONFIG_X86_64
+	if (adev->flags & AMD_IS_APU)
+		return;
+#endif
+	if (adev->gmc.xgmi.connected_to_cpu)
+		return;
 
+	if (ring && ring->funcs->emit_hdp_flush)
+		amdgpu_ring_emit_hdp_flush(ring);
+	else
+		amdgpu_asic_flush_hdp(adev, ring);
+}
+
+void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
+		struct amdgpu_ring *ring)
+{
+#ifdef CONFIG_X86_64
+	if (adev->flags & AMD_IS_APU)
+		return;
+#endif
+	if (adev->gmc.xgmi.connected_to_cpu)
+		return;
+
+	amdgpu_asic_invalidate_hdp(adev, ring);
+}
