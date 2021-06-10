@@ -81,7 +81,6 @@ static int rt6160_disable(struct regulator_dev *rdev)
 	gpiod_set_value_cansleep(priv->enable_gpio, 0);
 
 	return 0;
-
 }
 
 static int rt6160_is_enabled(struct regulator_dev *rdev)
@@ -311,5 +310,6 @@ static struct i2c_driver rt6160_driver = {
 };
 module_i2c_driver(rt6160_driver);
 
+MODULE_DESCRIPTION("Richtek RT6160 voltage regulator driver");
 MODULE_AUTHOR("ChiYuan Huang <cy_huang@richtek.com>");
 MODULE_LICENSE("GPL v2");
