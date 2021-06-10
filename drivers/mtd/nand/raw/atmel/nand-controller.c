@@ -1629,10 +1629,8 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 	}
 
 	nand = devm_kzalloc(nc->dev, struct_size(nand, cs, numcs), GFP_KERNEL);
-	if (!nand) {
-		dev_err(nc->dev, "Failed to allocate NAND object\n");
+	if (!nand)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	nand->numcs = numcs;
 
