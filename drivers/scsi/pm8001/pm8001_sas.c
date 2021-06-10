@@ -118,10 +118,8 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 		align_offset = (dma_addr_t)align - 1;
 	mem_virt_alloc = dma_alloc_coherent(&pdev->dev, mem_size + align,
 					    &mem_dma_handle, GFP_KERNEL);
-	if (!mem_virt_alloc) {
-		pr_err("pm80xx: memory allocation error\n");
-		return -1;
-	}
+	if (!mem_virt_alloc)
+		return -ENOMEM;
 	*pphys_addr = mem_dma_handle;
 	phys_align = (*pphys_addr + align_offset) & ~align_offset;
 	*virt_addr = (void *)mem_virt_alloc + phys_align - *pphys_addr;
