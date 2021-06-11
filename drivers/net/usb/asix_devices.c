@@ -598,6 +598,9 @@ static void ax88772_suspend(struct usbnet *dev)
 	struct asix_common_private *priv = dev->driver_priv;
 	u16 medium;
 
+	if (netif_running(dev->net))
+		phy_stop(priv->phydev);
+
 	/* Stop MAC operation */
 	medium = asix_read_medium_status(dev, 1);
 	medium &= ~AX_MEDIUM_RE;
@@ -605,14 +608,6 @@ static void ax88772_suspend(struct usbnet *dev)
 
 	netdev_dbg(dev->net, "ax88772_suspend: medium=0x%04x\n",
 		   asix_read_medium_status(dev, 1));
-
-	/* Preserve BMCR for restoring */
-	priv->presvd_phy_bmcr =
-		asix_mdio_read_nopm(dev->net, dev->mii.phy_id, MII_BMCR);
-
-	/* Preserve ANAR for restoring */
-	priv->presvd_phy_advertise =
-		asix_mdio_read_nopm(dev->net, dev->mii.phy_id, MII_ADVERTISE);
 }
 
 static int asix_suspend(struct usb_interface *intf, pm_message_t message)
@@ -626,39 +621,22 @@ static int asix_suspend(struct usb_interface *intf, pm_message_t message)
 	return usbnet_suspend(intf, message);
 }
 
-static void ax88772_restore_phy(struct usbnet *dev)
-{
-	struct asix_common_private *priv = dev->driver_priv;
-
-	if (priv->presvd_phy_advertise) {
-		/* Restore Advertisement control reg */
-		asix_mdio_write_nopm(dev->net, dev->mii.phy_id, MII_ADVERTISE,
-				     priv->presvd_phy_advertise);
-
-		/* Restore BMCR */
-		if (priv->presvd_phy_bmcr & BMCR_ANENABLE)
-			priv->presvd_phy_bmcr |= BMCR_ANRESTART;
-
-		asix_mdio_write_nopm(dev->net, dev->mii.phy_id, MII_BMCR,
-				     priv->presvd_phy_bmcr);
-
-		priv->presvd_phy_advertise = 0;
-		priv->presvd_phy_bmcr = 0;
-	}
-}
-
 static void ax88772_resume(struct usbnet *dev)
 {
+	struct asix_common_private *priv = dev->driver_priv;
 	int i;
 
 	for (i = 0; i < 3; i++)
 		if (!ax88772_hw_reset(dev, 1))
 			break;
-	ax88772_restore_phy(dev);
+
+	if (netif_running(dev->net))
+		phy_start(priv->phydev);
 }
 
 static void ax88772a_resume(struct usbnet *dev)
 {
+	struct asix_common_private *priv = dev->driver_priv;
 	int i;
 
 	for (i = 0; i < 3; i++) {
@@ -666,7 +644,8 @@ static void ax88772a_resume(struct usbnet *dev)
 			break;
 	}
 
-	ax88772_restore_phy(dev);
+	if (netif_running(dev->net))
+		phy_start(priv->phydev);
 }
 
 static int asix_resume(struct usb_interface *intf)
@@ -721,6 +700,8 @@ static int ax88772_init_phy(struct usbnet *dev)
 		ret = PTR_ERR(priv->phydev);
 		return ret;
 	}
+
+	priv->phydev->mac_managed_pm = 1;
 
 	phy_attached_info(priv->phydev);
 
