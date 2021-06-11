@@ -399,11 +399,11 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 int stmmac_xpcs_setup(struct mii_bus *bus)
 {
-	int mode, addr;
 	struct net_device *ndev = bus->priv;
-	struct dw_xpcs *xpcs;
-	struct stmmac_priv *priv;
 	struct mdio_device *mdiodev;
+	struct stmmac_priv *priv;
+	struct dw_xpcs *xpcs;
+	int mode, addr;
 
 	priv = netdev_priv(ndev);
 	mode = priv->plat->phy_interface;
