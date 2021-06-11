@@ -1890,7 +1890,7 @@ static const struct v4l2_file_operations mxc_jpeg_fops = {
 	.mmap		= v4l2_m2m_fop_mmap,
 };
 
-static struct v4l2_m2m_ops mxc_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops mxc_jpeg_m2m_ops = {
 	.device_run	= mxc_jpeg_device_run,
 };
 
