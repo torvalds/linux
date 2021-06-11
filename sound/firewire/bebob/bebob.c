@@ -54,8 +54,7 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_TERRATEC	0x00000aac
 #define VEN_YAMAHA	0x0000a0de
 #define VEN_FOCUSRITE	0x0000130e
-#define VEN_MAUDIO1	0x00000d6c
-#define VEN_MAUDIO2	0x000007f5
+#define VEN_MAUDIO	0x00000d6c
 #define VEN_DIGIDESIGN	0x00a07e
 
 #define MODEL_FOCUSRITE_SAFFIRE_BOTH	0x00000000
@@ -159,7 +158,7 @@ check_audiophile_booted(struct fw_unit *unit)
 
 static int detect_quirks(struct snd_bebob *bebob, const struct ieee1394_device_id *entry)
 {
-	if (entry->vendor_id == VEN_MAUDIO1) {
+	if (entry->vendor_id == VEN_MAUDIO) {
 		switch (entry->model_id) {
 		case MODEL_MAUDIO_PROFIRELIGHTBRIDGE:
 			// M-Audio ProFire Lightbridge has a quirk to transfer packets with
@@ -192,7 +191,7 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 	if (entry->vendor_id == VEN_FOCUSRITE &&
 	    entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH)
 		spec = get_saffire_spec(unit);
-	else if (entry->vendor_id == VEN_MAUDIO1 &&
+	else if (entry->vendor_id == VEN_MAUDIO &&
 		 entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH &&
 		 !check_audiophile_booted(unit))
 		spec = NULL;
@@ -200,7 +199,8 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 		spec = (const struct snd_bebob_spec *)entry->driver_data;
 
 	if (spec == NULL) {
-		if (entry->vendor_id == VEN_MAUDIO1 || entry->vendor_id == VEN_MAUDIO2)
+		// To boot up M-Audio models.
+		if (entry->vendor_id == VEN_MAUDIO || entry->vendor_id == VEN_BRIDGECO)
 			return snd_bebob_maudio_load_firmware(unit);
 		else
 			return -ENODEV;
@@ -280,7 +280,7 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 	if (err < 0)
 		goto error;
 
-	if (entry->vendor_id == VEN_MAUDIO1 &&
+	if (entry->vendor_id == VEN_MAUDIO &&
 	    (entry->model_id == MODEL_MAUDIO_FW1814 || entry->model_id == MODEL_MAUDIO_PROJECTMIX)) {
 		// This is a workaround. This bus reset seems to have an effect to make devices
 		// correctly handling transactions. Without this, the devices have gap_count
@@ -443,26 +443,26 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* Focusrite, Saffire(no label and LE) */
 	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, MODEL_FOCUSRITE_SAFFIRE_BOTH,
 			    &saffire_spec),
-	/* M-Audio, Firewire 410 */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010058, NULL),	/* bootloader */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010046, &maudio_fw410_spec),
+	// M-Audio, Firewire 410. The vendor field is left as BridgeCo. AG.
+	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010058, NULL),
+	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010046, &maudio_fw410_spec),
 	/* M-Audio, Firewire Audiophile */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_AUDIOPHILE_BOTH,
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_AUDIOPHILE_BOTH,
 			    &maudio_audiophile_spec),
 	/* M-Audio, Firewire Solo */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010062, &maudio_solo_spec),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x00010062, &maudio_solo_spec),
 	/* M-Audio, Ozonic */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x0000000a, &maudio_ozonic_spec),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x0000000a, &maudio_ozonic_spec),
 	/* M-Audio NRV10 */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010081, &maudio_nrv10_spec),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x00010081, &maudio_nrv10_spec),
 	/* M-Audio, ProFireLightbridge */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROFIRELIGHTBRIDGE, &spec_normal),
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_PROFIRELIGHTBRIDGE, &spec_normal),
 	/* Firewire 1814 */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010070, NULL),	/* bootloader */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_FW1814,
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, 0x00010070, NULL),	/* bootloader */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_FW1814,
 			    &maudio_special_spec),
 	/* M-Audio ProjectMix */
-	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROJECTMIX,
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO, MODEL_MAUDIO_PROJECTMIX,
 			    &maudio_special_spec),
 	/* Digidesign Mbox 2 Pro */
 	SND_BEBOB_DEV_ENTRY(VEN_DIGIDESIGN, 0x0000a9, &spec_normal),
