@@ -33,13 +33,21 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 			       struct rmnet_map_dl_csum_trailer *csum_trailer,
 			       struct rmnet_priv *priv)
 {
-	__sum16 *csum_field, csum_temp, pseudo_csum, hdr_csum, ip_payload_csum;
-	u16 csum_value, csum_value_final;
-	struct iphdr *ip4h;
-	void *txporthdr;
+	struct iphdr *ip4h = (struct iphdr *)skb->data;
+	void *txporthdr = skb->data + ip4h->ihl * 4;
+	__sum16 *csum_field, csum_temp, pseudo_csum;
+	__sum16 ip_payload_csum;
+	u16 csum_value_final;
 	__be16 addend;
 
-	ip4h = (struct iphdr *)(skb->data);
+	/* Computing the checksum over just the IPv4 header--including its
+	 * checksum field--should yield 0.  If it doesn't, the IP header
+	 * is bad, so return an error and let the IP layer drop it.
+	 */
+	if (ip_fast_csum(ip4h, ip4h->ihl)) {
+		priv->stats.csum_ip4_header_bad++;
+		return -EINVAL;
+	}
 
 	/* We don't support checksum offload on IPv4 fragments */
 	if (ip_is_fragment(ip4h)) {
@@ -47,25 +55,30 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 		return -EOPNOTSUPP;
 	}
 
-	txporthdr = skb->data + ip4h->ihl * 4;
-
+	/* Checksum offload is only supported for UDP and TCP protocols */
 	csum_field = rmnet_map_get_csum_field(ip4h->protocol, txporthdr);
-
 	if (!csum_field) {
 		priv->stats.csum_err_invalid_transport++;
 		return -EPROTONOSUPPORT;
 	}
 
-	/* RFC 768 - Skip IPv4 UDP packets where sender checksum field is 0 */
-	if (*csum_field == 0 && ip4h->protocol == IPPROTO_UDP) {
+	/* RFC 768: UDP checksum is optional for IPv4, and is 0 if unused */
+	if (!*csum_field && ip4h->protocol == IPPROTO_UDP) {
 		priv->stats.csum_skipped++;
 		return 0;
 	}
 
-	csum_value = ~ntohs(csum_trailer->csum_value);
-	hdr_csum = ~ip_fast_csum(ip4h, (int)ip4h->ihl);
-	ip_payload_csum = csum16_sub((__force __sum16)csum_value,
-				     (__force __be16)hdr_csum);
+	/* The checksum value in the trailer is computed over the entire
+	 * IP packet, including the IP header and payload.  To derive the
+	 * transport checksum from this, we first subract the contribution
+	 * of the IP header from the trailer checksum.  We then add the
+	 * checksum computed over the pseudo header.
+	 *
+	 * We verified above that the IP header contributes zero to the
+	 * trailer checksum.  Therefore the checksum in the trailer is
+	 * just the checksum computed over the IP payload.
+	 */
+	ip_payload_csum = (__force __sum16)~ntohs(csum_trailer->csum_value);
 
 	pseudo_csum = ~csum_tcpudp_magic(ip4h->saddr, ip4h->daddr,
 					 ntohs(ip4h->tot_len) - ip4h->ihl * 4,
