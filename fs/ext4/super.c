@@ -718,6 +718,7 @@ static void flush_stashed_error_work(struct work_struct *work)
 			goto write_directly;
 		}
 		jbd2_journal_stop(handle);
+		ext4_notify_error_sysfs(sbi);
 		return;
 	}
 write_directly:
@@ -726,6 +727,7 @@ write_directly:
 	 * out and hope for the best.
 	 */
 	ext4_commit_super(sbi->s_sb);
+	ext4_notify_error_sysfs(sbi);
 }
 
 #define ext4_error_ratelimit(sb)					\
