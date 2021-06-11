@@ -305,6 +305,21 @@ uint32_t dmub_dcn31_get_gpint_response(struct dmub_srv *dmub)
 	return REG_READ(DMCUB_SCRATCH7);
 }
 
+uint32_t dmub_dcn31_get_gpint_dataout(struct dmub_srv *dmub)
+{
+	uint32_t dataout = REG_READ(DMCUB_GPINT_DATAOUT);
+
+	REG_UPDATE(DMCUB_INTERRUPT_ENABLE, DMCUB_GPINT_IH_INT_EN, 0);
+
+	REG_WRITE(DMCUB_GPINT_DATAOUT, 0);
+	REG_UPDATE(DMCUB_INTERRUPT_ACK, DMCUB_GPINT_IH_INT_ACK, 1);
+	REG_UPDATE(DMCUB_INTERRUPT_ACK, DMCUB_GPINT_IH_INT_ACK, 0);
+
+	REG_UPDATE(DMCUB_INTERRUPT_ENABLE, DMCUB_GPINT_IH_INT_EN, 1);
+
+	return dataout;
+}
+
 union dmub_fw_boot_status dmub_dcn31_get_fw_boot_status(struct dmub_srv *dmub)
 {
 	union dmub_fw_boot_status status;
