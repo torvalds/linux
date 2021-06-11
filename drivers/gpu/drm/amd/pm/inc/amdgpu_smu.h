@@ -1232,6 +1232,12 @@ struct pptable_funcs {
 	 */
 	int (*wait_for_event)(struct smu_context *smu,
 			      enum smu_event_type event, uint64_t event_arg);
+
+	/**
+	 * @sned_hbm_bad_pages_num:  message SMU to update bad page number
+	 *										of SMUBUS table.
+	 */
+	int (*send_hbm_bad_pages_num)(struct smu_context *smu, uint32_t size);
 };
 
 typedef enum {
