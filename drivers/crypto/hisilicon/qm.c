@@ -5317,6 +5317,16 @@ err_disable_pcidev:
 	return ret;
 }
 
+static void hisi_qm_init_work(struct hisi_qm *qm)
+{
+	INIT_WORK(&qm->work, qm_work_process);
+	if (qm->fun_type == QM_HW_PF)
+		INIT_WORK(&qm->rst_work, hisi_qm_controller_reset);
+
+	if (qm->ver > QM_HW_V2)
+		INIT_WORK(&qm->cmd_process, qm_cmd_process);
+}
+
 static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -5432,13 +5442,7 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (ret)
 		goto err_alloc_uacce;
 
-	INIT_WORK(&qm->work, qm_work_process);
-	if (qm->fun_type == QM_HW_PF)
-		INIT_WORK(&qm->rst_work, hisi_qm_controller_reset);
-
-	if (qm->ver >= QM_HW_V3)
-		INIT_WORK(&qm->cmd_process, qm_cmd_process);
-
+	hisi_qm_init_work(qm);
 	qm_cmd_init(qm);
 	atomic_set(&qm->status.flags, QM_INIT);
 
