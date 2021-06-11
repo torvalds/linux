@@ -69,9 +69,6 @@ struct at25_data {
  */
 #define	EE_TIMEOUT	25
 
-#define	IS_EEPROM	0
-#define	IS_FRAM		1
-
 /*-------------------------------------------------------------------------*/
 
 #define	io_limit	PAGE_SIZE	/* bytes */
@@ -363,8 +360,8 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 }
 
 static const struct of_device_id at25_of_match[] = {
-	{ .compatible = "atmel,at25", .data = (const void *)IS_EEPROM },
-	{ .compatible = "cypress,fm25", .data = (const void *)IS_FRAM },
+	{ .compatible = "atmel,at25",},
+	{ .compatible = "cypress,fm25",},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, at25_of_match);
@@ -379,11 +376,11 @@ static int at25_probe(struct spi_device *spi)
 	u8 sernum[FM25_SN_LEN];
 	int i;
 	const struct of_device_id *match;
-	unsigned long is_fram = 0;
+	bool is_fram = 0;
 
 	match = of_match_device(of_match_ptr(at25_of_match), &spi->dev);
-	if (match)
-		is_fram = (unsigned long)match->data;
+	if (match && !strcmp(match->compatible, "cypress,fm25"))
+		is_fram = 1;
 
 	/* Chip description */
 	if (!spi->dev.platform_data) {
