@@ -431,21 +431,15 @@ int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 		return -EINVAL;
 	}
 
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (skb->protocol == htons(ETH_P_IP))
 		return rmnet_map_ipv4_dl_csum_trailer(skb, csum_trailer, priv);
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-#if IS_ENABLED(CONFIG_IPV6)
-		return rmnet_map_ipv6_dl_csum_trailer(skb, csum_trailer, priv);
-#else
-		priv->stats.csum_err_invalid_ip_version++;
-		return -EPROTONOSUPPORT;
-#endif
-	} else {
-		priv->stats.csum_err_invalid_ip_version++;
-		return -EPROTONOSUPPORT;
-	}
 
-	return 0;
+	if (IS_ENABLED(CONFIG_IPV6) && skb->protocol == htons(ETH_P_IPV6))
+		return rmnet_map_ipv6_dl_csum_trailer(skb, csum_trailer, priv);
+
+	priv->stats.csum_err_invalid_ip_version++;
+
+	return -EPROTONOSUPPORT;
 }
 
 static void rmnet_map_v4_checksum_uplink_packet(struct sk_buff *skb,
@@ -462,27 +456,25 @@ static void rmnet_map_v4_checksum_uplink_packet(struct sk_buff *skb,
 		     (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM))))
 		goto sw_csum;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		iphdr = (char *)ul_header +
-			sizeof(struct rmnet_map_ul_csum_header);
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		goto sw_csum;
 
-		if (skb->protocol == htons(ETH_P_IP)) {
-			rmnet_map_ipv4_ul_csum_header(iphdr, ul_header, skb);
-			priv->stats.csum_hw++;
-			return;
-		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-#if IS_ENABLED(CONFIG_IPV6)
-			rmnet_map_ipv6_ul_csum_header(iphdr, ul_header, skb);
-			priv->stats.csum_hw++;
-			return;
-#else
-			priv->stats.csum_err_invalid_ip_version++;
-			goto sw_csum;
-#endif
-		} else {
-			priv->stats.csum_err_invalid_ip_version++;
-		}
+	iphdr = (char *)ul_header +
+		sizeof(struct rmnet_map_ul_csum_header);
+
+	if (skb->protocol == htons(ETH_P_IP)) {
+		rmnet_map_ipv4_ul_csum_header(iphdr, ul_header, skb);
+		priv->stats.csum_hw++;
+		return;
 	}
+
+	if (IS_ENABLED(CONFIG_IPV6) && skb->protocol == htons(ETH_P_IPV6)) {
+		rmnet_map_ipv6_ul_csum_header(iphdr, ul_header, skb);
+		priv->stats.csum_hw++;
+		return;
+	}
+
+	priv->stats.csum_err_invalid_ip_version++;
 
 sw_csum:
 	memset(ul_header, 0, sizeof(*ul_header));
