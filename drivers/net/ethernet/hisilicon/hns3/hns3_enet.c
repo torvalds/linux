@@ -1799,6 +1799,18 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 	WRITE_ONCE(ring->last_to_use, ring->next_to_use);
 }
 
+static void hns3_tsyn(struct net_device *netdev, struct sk_buff *skb,
+		      struct hns3_desc *desc)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!(h->ae_algo->ops->set_tx_hwts_info &&
+	      h->ae_algo->ops->set_tx_hwts_info(h, skb)))
+		return;
+
+	desc->tx.bdtp_fe_sc_vld_ra_ri |= cpu_to_le16(BIT(HNS3_TXD_TSYN_B));
+}
+
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -1851,9 +1863,15 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
+
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		hns3_tsyn(netdev, skb, &ring->desc[pre_ntu]);
+
 	ring->desc[pre_ntu].tx.bdtp_fe_sc_vld_ra_ri |=
 				cpu_to_le16(BIT(HNS3_TXD_FE_B));
 	trace_hns3_tx_desc(ring, pre_ntu);
+
+	skb_tx_timestamp(skb);
 
 	/* Complete translate all packets */
 	dev_queue = netdev_get_tx_queue(netdev, ring->queue_index);
@@ -3584,6 +3602,15 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	l234info = le32_to_cpu(desc->rx.l234_info);
 	ol_info = le32_to_cpu(desc->rx.ol_info);
 	csum = le16_to_cpu(desc->csum);
+
+	if (unlikely(bd_base_info & BIT(HNS3_RXD_TS_VLD_B))) {
+		struct hnae3_handle *h = hns3_get_handle(netdev);
+		u32 nsec = le32_to_cpu(desc->ts_nsec);
+		u32 sec = le32_to_cpu(desc->ts_sec);
+
+		if (h->ae_algo->ops->get_rx_hwts)
+			h->ae_algo->ops->get_rx_hwts(h, skb, nsec, sec);
+	}
 
 	/* Based on hw strategy, the tag offloaded will be stored at
 	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag

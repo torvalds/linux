@@ -2173,6 +2173,57 @@ static int hclge_dbg_dump_vlan_config(struct hclge_dev *hdev, char *buf,
 	return hclge_dbg_dump_vlan_offload_config(hdev, buf, len, &pos);
 }
 
+static int hclge_dbg_dump_ptp_info(struct hclge_dev *hdev, char *buf, int len)
+{
+	struct hclge_ptp *ptp = hdev->ptp;
+	u32 sw_cfg = ptp->ptp_cfg;
+	unsigned int tx_start;
+	unsigned int last_rx;
+	int pos = 0;
+	u32 hw_cfg;
+	int ret;
+
+	pos += scnprintf(buf + pos, len - pos, "phc %s's debug info:\n",
+			 ptp->info.name);
+	pos += scnprintf(buf + pos, len - pos, "ptp enable: %s\n",
+			 test_bit(HCLGE_PTP_FLAG_EN, &ptp->flags) ?
+			 "yes" : "no");
+	pos += scnprintf(buf + pos, len - pos, "ptp tx enable: %s\n",
+			 test_bit(HCLGE_PTP_FLAG_TX_EN, &ptp->flags) ?
+			 "yes" : "no");
+	pos += scnprintf(buf + pos, len - pos, "ptp rx enable: %s\n",
+			 test_bit(HCLGE_PTP_FLAG_RX_EN, &ptp->flags) ?
+			 "yes" : "no");
+
+	last_rx = jiffies_to_msecs(ptp->last_rx);
+	pos += scnprintf(buf + pos, len - pos, "last rx time: %lu.%lu\n",
+			 last_rx / MSEC_PER_SEC, last_rx % MSEC_PER_SEC);
+	pos += scnprintf(buf + pos, len - pos, "rx count: %lu\n", ptp->rx_cnt);
+
+	tx_start = jiffies_to_msecs(ptp->tx_start);
+	pos += scnprintf(buf + pos, len - pos, "last tx start time: %lu.%lu\n",
+			 tx_start / MSEC_PER_SEC, tx_start % MSEC_PER_SEC);
+	pos += scnprintf(buf + pos, len - pos, "tx count: %lu\n", ptp->tx_cnt);
+	pos += scnprintf(buf + pos, len - pos, "tx skipped count: %lu\n",
+			 ptp->tx_skipped);
+	pos += scnprintf(buf + pos, len - pos, "tx timeout count: %lu\n",
+			 ptp->tx_timeout);
+	pos += scnprintf(buf + pos, len - pos, "last tx seqid: %u\n",
+			 ptp->last_tx_seqid);
+
+	ret = hclge_ptp_cfg_qry(hdev, &hw_cfg);
+	if (ret)
+		return ret;
+
+	pos += scnprintf(buf + pos, len - pos, "sw_cfg: %#x, hw_cfg: %#x\n",
+			 sw_cfg, hw_cfg);
+
+	pos += scnprintf(buf + pos, len - pos, "tx type: %d, rx filter: %d\n",
+			 ptp->ts_cfg.tx_type, ptp->ts_cfg.rx_filter);
+
+	return 0;
+}
+
 static int hclge_dbg_dump_mac_uc(struct hclge_dev *hdev, char *buf, int len)
 {
 	hclge_dbg_dump_mac_list(hdev, buf, len, true);
@@ -2243,6 +2294,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_LOOPBACK,
 		.dbg_dump = hclge_dbg_dump_loopback,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_PTP_INFO,
+		.dbg_dump = hclge_dbg_dump_ptp_info,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_INTERRUPT_INFO,

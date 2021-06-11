@@ -10,6 +10,7 @@
 #include <linux/kfifo.h>
 
 #include "hclge_cmd.h"
+#include "hclge_ptp.h"
 #include "hnae3.h"
 
 #define HCLGE_MOD_VERSION "1.0"
@@ -178,6 +179,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_FUN_RST_ING_B		0
 
 /* Vector0 register bits define */
+#define HCLGE_VECTOR0_REG_PTP_INT_B	0
 #define HCLGE_VECTOR0_GLOBALRESET_INT_B	5
 #define HCLGE_VECTOR0_CORERESET_INT_B	6
 #define HCLGE_VECTOR0_IMPRESET_INT_B	7
@@ -230,6 +232,8 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_FD_TBL_CHANGED,
 	HCLGE_STATE_FD_CLEAR_ALL,
 	HCLGE_STATE_FD_USER_DEF_CHANGED,
+	HCLGE_STATE_PTP_EN,
+	HCLGE_STATE_PTP_TX_HANDLING,
 	HCLGE_STATE_MAX
 };
 
@@ -237,6 +241,7 @@ enum hclge_evt_cause {
 	HCLGE_VECTOR0_EVENT_RST,
 	HCLGE_VECTOR0_EVENT_MBX,
 	HCLGE_VECTOR0_EVENT_ERR,
+	HCLGE_VECTOR0_EVENT_PTP,
 	HCLGE_VECTOR0_EVENT_OTHER,
 };
 
@@ -935,6 +940,7 @@ struct hclge_dev {
 	/* affinity mask and notify for misc interrupt */
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
+	struct hclge_ptp *ptp;
 };
 
 /* VPort level vlan tag configuration for TX direction */
