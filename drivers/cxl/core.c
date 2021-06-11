@@ -595,7 +595,7 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 
 			hdr = readl(register_block);
 
-			decoder_cnt = FIELD_GET(CXL_HDM_DECODER_COUNT_MASK, hdr);
+			decoder_cnt = cxl_hdm_decoder_count(hdr);
 			length = 0x20 * decoder_cnt + 0x10;
 
 			map->hdm_decoder.valid = true;

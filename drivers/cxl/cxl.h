@@ -41,6 +41,13 @@
 #define CXL_HDM_DECODER0_SIZE_HIGH_OFFSET 0x1c
 #define CXL_HDM_DECODER0_CTRL_OFFSET 0x20
 
+static inline int cxl_hdm_decoder_count(u32 cap_hdr)
+{
+	int val = FIELD_GET(CXL_HDM_DECODER_COUNT_MASK, cap_hdr);
+
+	return val ? val * 2 : 1;
+}
+
 /* CXL 2.0 8.2.8.1 Device Capabilities Array Register */
 #define CXLDEV_CAP_ARRAY_OFFSET 0x0
 #define   CXLDEV_CAP_ARRAY_CAP_ID 0
