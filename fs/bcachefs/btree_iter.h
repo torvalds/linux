@@ -160,8 +160,6 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *);
 struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *);
 struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *);
 
-struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *);
-
 bool bch2_btree_iter_advance(struct btree_iter *);
 bool bch2_btree_iter_rewind(struct btree_iter *);
 
@@ -224,12 +222,9 @@ static inline int bch2_trans_cond_resched(struct btree_trans *trans)
 static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
 						     unsigned flags)
 {
-	if ((flags & BTREE_ITER_TYPE) == BTREE_ITER_CACHED)
-		return bch2_btree_iter_peek_cached(iter);
-	else
-		return flags & BTREE_ITER_SLOTS
-			? bch2_btree_iter_peek_slot(iter)
-			: bch2_btree_iter_peek(iter);
+	return flags & BTREE_ITER_SLOTS
+		? bch2_btree_iter_peek_slot(iter)
+		: bch2_btree_iter_peek(iter);
 }
 
 static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,

@@ -1917,17 +1917,10 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
-	if (btree_iter_type(iter) != BTREE_ITER_CACHED) {
-		old = bch2_btree_iter_peek_slot(iter);
-		ret = bkey_err(old);
-		if (ret)
-			return ret;
-	} else {
-		struct bkey_cached *ck = (void *) iter->l[0].b;
-
-		BUG_ON(!ck->valid);
-		old = bkey_i_to_s_c(ck->k);
-	}
+	old = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(old);
+	if (ret)
+		return ret;
 
 	if (old.k->type == new->k.type &&
 	    !btree_node_type_is_extents(iter->btree_id)) {

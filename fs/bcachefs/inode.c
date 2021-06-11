@@ -302,7 +302,7 @@ struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, inum),
 				   BTREE_ITER_CACHED|flags);
-	k = bch2_btree_iter_peek_cached(iter);
+	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -600,15 +600,12 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 retry:
 	bch2_trans_begin(&trans);
 
-	if (cached) {
-		iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
-					   BTREE_ITER_CACHED|BTREE_ITER_INTENT);
-		k = bch2_btree_iter_peek_cached(iter);
-	} else {
-		iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
-					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-		k = bch2_btree_iter_peek_slot(iter);
-	}
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
+				   (cached
+				    ? BTREE_ITER_CACHED
+				    : BTREE_ITER_SLOTS)|
+				   BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(iter);
 
 	ret = bkey_err(k);
 	if (ret)
