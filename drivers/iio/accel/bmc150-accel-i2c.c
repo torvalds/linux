@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * 3-axis accelerometer driver supporting following I2C Bosch-Sensortec chips:
- *  - BMC150
- *  - BMI055
- *  - BMA255
- *  - BMA250E
- *  - BMA222
- *  - BMA222E
- *  - BMA280
- *
+ * 3-axis accelerometer driver supporting many I2C Bosch-Sensortec chips
  * Copyright (c) 2014, Intel Corporation.
  */
 
