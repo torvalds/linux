@@ -51,6 +51,7 @@ struct ib_usrq_object;
 struct ib_uwq_object;
 struct rdma_cm_id;
 struct ib_port;
+struct hw_stats_device_data;
 
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
@@ -2695,8 +2696,7 @@ struct ib_device {
 	u8                           node_type;
 	u32			     phys_port_cnt;
 	struct ib_device_attr        attrs;
-	struct attribute_group	     *hw_stats_ag;
-	struct rdma_hw_stats         *hw_stats;
+	struct hw_stats_device_data *hw_stats_data;
 
 #ifdef CONFIG_CGROUP_RDMA
 	struct rdmacg_device         cg_device;
