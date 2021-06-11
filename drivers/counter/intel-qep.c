@@ -473,8 +473,7 @@ static void intel_qep_remove(struct pci_dev *pci)
 	intel_qep_writel(qep, INTEL_QEPCON, 0);
 }
 
-#ifdef CONFIG_PM
-static int intel_qep_suspend(struct device *dev)
+static int __maybe_unused intel_qep_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct intel_qep *qep = pci_get_drvdata(pdev);
@@ -486,7 +485,7 @@ static int intel_qep_suspend(struct device *dev)
 	return 0;
 }
 
-static int intel_qep_resume(struct device *dev)
+static int __maybe_unused intel_qep_resume(struct device *dev)
 {
 	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct intel_qep *qep = pci_get_drvdata(pdev);
@@ -512,7 +511,6 @@ static int intel_qep_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static UNIVERSAL_DEV_PM_OPS(intel_qep_pm_ops,
 			    intel_qep_suspend, intel_qep_resume, NULL);
