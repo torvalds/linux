@@ -54,8 +54,7 @@ static unsigned int CLOCK_BASE;
 
 enum { PC300_RSV = 1, PC300_X21, PC300_TE }; /* card types */
 
-/*
- *      PLX PCI9050-1 local configuration and shared runtime registers.
+/*      PLX PCI9050-1 local configuration and shared runtime registers.
  *      This structure can be used to access 9050 registers (memory mapped).
  */
 typedef struct {
