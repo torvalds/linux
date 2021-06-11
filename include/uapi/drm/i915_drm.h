@@ -1348,12 +1348,11 @@ struct drm_i915_gem_busy {
 	 * reading from the object simultaneously.
 	 *
 	 * The value of each engine class is the same as specified in the
-	 * I915_CONTEXT_SET_ENGINES parameter and via perf, i.e.
+	 * I915_CONTEXT_PARAM_ENGINES context parameter and via perf, i.e.
 	 * I915_ENGINE_CLASS_RENDER, I915_ENGINE_CLASS_COPY, etc.
-	 * reported as active itself. Some hardware may have parallel
-	 * execution engines, e.g. multiple media engines, which are
-	 * mapped to the same class identifier and so are not separately
-	 * reported for busyness.
+	 * Some hardware may have parallel execution engines, e.g. multiple
+	 * media engines, which are mapped to the same class identifier and so
+	 * are not separately reported for busyness.
 	 *
 	 * Caveat emptor:
 	 * Only the boolean result of this query is reliable; that is whether
