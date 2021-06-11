@@ -107,7 +107,6 @@ struct hw_stats_port_attribute {
 
 struct hw_stats_device_data {
 	struct attribute_group group;
-	const struct attribute_group *groups[2];
 	struct rdma_hw_stats *stats;
 	struct hw_stats_device_attribute attrs[];
 };
@@ -915,7 +914,6 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	mutex_init(&stats->lock);
 	data->group.name = "hw_counters";
 	data->stats = stats;
-	data->groups[0] = &data->group;
 	return data;
 
 err_free_data:
@@ -925,29 +923,33 @@ err_free_stats:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void free_hw_stats_device(struct hw_stats_device_data *data)
+void ib_device_release_hw_stats(struct hw_stats_device_data *data)
 {
 	kfree(data->group.attrs);
 	kfree(data->stats);
 	kfree(data);
 }
 
-static int setup_hw_device_stats(struct ib_device *ibdev)
+int ib_setup_device_attrs(struct ib_device *ibdev)
 {
 	struct hw_stats_device_attribute *attr;
 	struct hw_stats_device_data *data;
 	int i, ret;
 
 	data = alloc_hw_stats_device(ibdev);
-	if (IS_ERR(data))
+	if (IS_ERR(data)) {
+		if (PTR_ERR(data) == -EOPNOTSUPP)
+			return 0;
 		return PTR_ERR(data);
+	}
+	ibdev->hw_stats_data = data;
 
 	ret = ibdev->ops.get_hw_stats(ibdev, data->stats, 0,
 				      data->stats->num_counters);
 	if (ret != data->stats->num_counters) {
 		if (WARN_ON(ret >= 0))
-			ret = -EINVAL;
-		goto err_free;
+			return -EINVAL;
+		return ret;
 	}
 
 	data->stats->timestamp = jiffies;
@@ -971,26 +973,13 @@ static int setup_hw_device_stats(struct ib_device *ibdev)
 	attr->attr.store = hw_stat_device_store;
 	attr->store = set_stats_lifespan;
 	data->group.attrs[i] = &attr->attr.attr;
-
-	ibdev->hw_stats_data = data;
-	ret = device_add_groups(&ibdev->dev, data->groups);
-	if (ret)
-		goto err_free;
-	return 0;
-
-err_free:
-	free_hw_stats_device(data);
-	ibdev->hw_stats_data = NULL;
-	return ret;
-}
-
-static void destroy_hw_device_stats(struct ib_device *ibdev)
-{
-	if (!ibdev->hw_stats_data)
-		return;
-	device_remove_groups(&ibdev->dev, ibdev->hw_stats_data->groups);
-	free_hw_stats_device(ibdev->hw_stats_data);
-	ibdev->hw_stats_data = NULL;
+	for (i = 0; i != ARRAY_SIZE(ibdev->groups); i++)
+		if (!ibdev->groups[i]) {
+			ibdev->groups[i] = &data->group;
+			return 0;
+		}
+	WARN(true, "struct ib_device->groups is too small");
+	return -EINVAL;
 }
 
 static struct hw_stats_port_data *
@@ -1441,29 +1430,6 @@ int ib_setup_port_attrs(struct ib_core_device *coredev)
 err_put:
 	ib_free_port_attrs(coredev);
 	return ret;
-}
-
-int ib_device_register_sysfs(struct ib_device *device)
-{
-	int ret;
-
-	ret = ib_setup_port_attrs(&device->coredev);
-	if (ret)
-		return ret;
-
-	ret = setup_hw_device_stats(device);
-	if (ret && ret != -EOPNOTSUPP) {
-		ib_free_port_attrs(&device->coredev);
-		return ret;
-	}
-
-	return 0;
-}
-
-void ib_device_unregister_sysfs(struct ib_device *device)
-{
-	destroy_hw_device_stats(device);
-	ib_free_port_attrs(&device->coredev);
 }
 
 /**

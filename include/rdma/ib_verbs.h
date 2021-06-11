@@ -2677,11 +2677,12 @@ struct ib_device {
 		struct ib_core_device	coredev;
 	};
 
-	/* First group for device attributes,
-	 * Second group for driver provided attributes (optional).
-	 * It is NULL terminated array.
+	/* First group is for device attributes,
+	 * Second group is for driver provided attributes (optional).
+	 * Third group is for the hw_stats
+	 * It is a NULL terminated array.
 	 */
-	const struct attribute_group	*groups[3];
+	const struct attribute_group	*groups[4];
 
 	u64			     uverbs_cmd_mask;
 

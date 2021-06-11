@@ -78,8 +78,6 @@ static inline struct rdma_dev_net *rdma_net_to_dev_net(struct net *net)
 	return net_generic(net, rdma_dev_net_id);
 }
 
-int ib_device_register_sysfs(struct ib_device *device);
-void ib_device_unregister_sysfs(struct ib_device *device);
 int ib_device_rename(struct ib_device *ibdev, const char *name);
 int ib_device_set_dim(struct ib_device *ibdev, u8 use_dim);
 
@@ -379,6 +377,8 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 void ib_free_port_attrs(struct ib_core_device *coredev);
 int ib_setup_port_attrs(struct ib_core_device *coredev);
 struct rdma_hw_stats *ib_get_hw_stats_port(struct ib_device *ibdev, u32 port_num);
+void ib_device_release_hw_stats(struct hw_stats_device_data *data);
+int ib_setup_device_attrs(struct ib_device *ibdev);
 
 int rdma_compatdev_set(u8 enable);
 

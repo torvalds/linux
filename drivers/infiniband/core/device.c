@@ -491,6 +491,8 @@ static void ib_device_release(struct device *device)
 
 	free_netdevs(dev);
 	WARN_ON(refcount_read(&dev->refcount));
+	if (dev->hw_stats_data)
+		ib_device_release_hw_stats(dev->hw_stats_data);
 	if (dev->port_data) {
 		ib_cache_release_one(dev);
 		ib_security_release_port_pkey_list(dev);
@@ -1394,6 +1396,10 @@ int ib_register_device(struct ib_device *device, const char *name,
 		return ret;
 	}
 
+	ret = ib_setup_device_attrs(device);
+	if (ret)
+		goto cache_cleanup;
+
 	ib_device_register_rdmacg(device);
 
 	rdma_counter_init(device);
@@ -1407,7 +1413,7 @@ int ib_register_device(struct ib_device *device, const char *name,
 	if (ret)
 		goto cg_cleanup;
 
-	ret = ib_device_register_sysfs(device);
+	ret = ib_setup_port_attrs(&device->coredev);
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't register device with driver model\n");
@@ -1449,6 +1455,7 @@ dev_cleanup:
 cg_cleanup:
 	dev_set_uevent_suppress(&device->dev, false);
 	ib_device_unregister_rdmacg(device);
+cache_cleanup:
 	ib_cache_cleanup_one(device);
 	return ret;
 }
@@ -1473,7 +1480,7 @@ static void __ib_unregister_device(struct ib_device *ib_dev)
 	/* Expedite removing unregistered pointers from the hash table */
 	free_netdevs(ib_dev);
 
-	ib_device_unregister_sysfs(ib_dev);
+	ib_free_port_attrs(&ib_dev->coredev);
 	device_del(&ib_dev->dev);
 	ib_device_unregister_rdmacg(ib_dev);
 	ib_cache_cleanup_one(ib_dev);
