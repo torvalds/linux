@@ -143,7 +143,7 @@ static const struct dsa_device_ops ocelot_netdev_ops = {
 	.proto			= DSA_TAG_PROTO_OCELOT,
 	.xmit			= ocelot_xmit,
 	.rcv			= ocelot_rcv,
-	.overhead		= OCELOT_TOTAL_TAG_LEN,
+	.needed_headroom	= OCELOT_TOTAL_TAG_LEN,
 	.promisc_on_master	= true,
 };
 
@@ -155,7 +155,7 @@ static const struct dsa_device_ops seville_netdev_ops = {
 	.proto			= DSA_TAG_PROTO_SEVILLE,
 	.xmit			= seville_xmit,
 	.rcv			= ocelot_rcv,
-	.overhead		= OCELOT_TOTAL_TAG_LEN,
+	.needed_headroom	= OCELOT_TOTAL_TAG_LEN,
 	.promisc_on_master	= true,
 };
 

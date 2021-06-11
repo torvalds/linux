@@ -303,7 +303,7 @@ static const struct dsa_device_ops dsa_netdev_ops = {
 	.proto	  = DSA_TAG_PROTO_DSA,
 	.xmit	  = dsa_xmit,
 	.rcv	  = dsa_rcv,
-	.overhead = DSA_HLEN,
+	.needed_headroom = DSA_HLEN,
 };
 
 DSA_TAG_DRIVER(dsa_netdev_ops);
@@ -346,7 +346,7 @@ static const struct dsa_device_ops edsa_netdev_ops = {
 	.proto	  = DSA_TAG_PROTO_EDSA,
 	.xmit	  = edsa_xmit,
 	.rcv	  = edsa_rcv,
-	.overhead = EDSA_HLEN,
+	.needed_headroom = EDSA_HLEN,
 };
 
 DSA_TAG_DRIVER(edsa_netdev_ops);

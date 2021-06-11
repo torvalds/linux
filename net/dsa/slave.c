@@ -1569,7 +1569,7 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 
 	mtu_limit = min_t(int, master->max_mtu, dev->max_mtu);
 	old_master_mtu = master->mtu;
-	new_master_mtu = largest_mtu + cpu_dp->tag_ops->overhead;
+	new_master_mtu = largest_mtu + dsa_tag_protocol_overhead(cpu_dp->tag_ops);
 	if (new_master_mtu > mtu_limit)
 		return -ERANGE;
 
@@ -1605,7 +1605,7 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 out_port_failed:
 	if (new_master_mtu != old_master_mtu)
 		dsa_port_mtu_change(cpu_dp, old_master_mtu -
-				    cpu_dp->tag_ops->overhead,
+				    dsa_tag_protocol_overhead(cpu_dp->tag_ops),
 				    true);
 out_cpu_failed:
 	if (new_master_mtu != old_master_mtu)
@@ -1824,10 +1824,8 @@ void dsa_slave_setup_tagger(struct net_device *slave)
 	const struct dsa_port *cpu_dp = dp->cpu_dp;
 	struct net_device *master = cpu_dp->master;
 
-	if (cpu_dp->tag_ops->tail_tag)
-		slave->needed_tailroom = cpu_dp->tag_ops->overhead;
-	else
-		slave->needed_headroom = cpu_dp->tag_ops->overhead;
+	slave->needed_headroom = cpu_dp->tag_ops->needed_headroom;
+	slave->needed_tailroom = cpu_dp->tag_ops->needed_tailroom;
 	/* Try to save one extra realloc later in the TX path (in the master)
 	 * by also inheriting the master's needed headroom and tailroom.
 	 * The 8021q driver also does this.

@@ -91,7 +91,8 @@ struct dsa_device_ops {
 	 * as regular on the master net device.
 	 */
 	bool (*filter)(const struct sk_buff *skb, struct net_device *dev);
-	unsigned int overhead;
+	unsigned int needed_headroom;
+	unsigned int needed_tailroom;
 	const char *name;
 	enum dsa_tag_protocol proto;
 	/* Some tagging protocols either mangle or shift the destination MAC
@@ -100,7 +101,6 @@ struct dsa_device_ops {
 	 * its RX filter.
 	 */
 	bool promisc_on_master;
-	bool tail_tag;
 };
 
 /* This structure defines the control interfaces that are overlayed by the
@@ -926,7 +926,7 @@ static inline void dsa_tag_generic_flow_dissect(const struct sk_buff *skb,
 {
 #if IS_ENABLED(CONFIG_NET_DSA)
 	const struct dsa_device_ops *ops = skb->dev->dsa_ptr->tag_ops;
-	int tag_len = ops->overhead;
+	int tag_len = ops->needed_headroom;
 
 	*offset = tag_len;
 	*proto = ((__be16 *)skb->data)[(tag_len / 2) - 1];

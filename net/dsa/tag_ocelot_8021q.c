@@ -73,7 +73,7 @@ static const struct dsa_device_ops ocelot_8021q_netdev_ops = {
 	.proto			= DSA_TAG_PROTO_OCELOT_8021Q,
 	.xmit			= ocelot_xmit,
 	.rcv			= ocelot_rcv,
-	.overhead		= VLAN_HLEN,
+	.needed_headroom	= VLAN_HLEN,
 	.promisc_on_master	= true,
 };
 

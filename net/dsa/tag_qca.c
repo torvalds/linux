@@ -91,7 +91,7 @@ static const struct dsa_device_ops qca_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_QCA,
 	.xmit	= qca_tag_xmit,
 	.rcv	= qca_tag_rcv,
-	.overhead = QCA_HDR_LEN,
+	.needed_headroom = QCA_HDR_LEN,
 };
 
 MODULE_LICENSE("GPL");

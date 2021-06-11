@@ -362,7 +362,7 @@ static const struct dsa_device_ops sja1105_netdev_ops = {
 	.xmit = sja1105_xmit,
 	.rcv = sja1105_rcv,
 	.filter = sja1105_filter,
-	.overhead = VLAN_HLEN,
+	.needed_headroom = VLAN_HLEN,
 	.flow_dissect = sja1105_flow_dissect,
 	.promisc_on_master = true,
 };
