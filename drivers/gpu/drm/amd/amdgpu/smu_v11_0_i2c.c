@@ -54,12 +54,48 @@ static void smu_v11_0_i2c_set_clock_gating(struct i2c_adapter *control, bool en)
 	WREG32_SOC15(SMUIO, 0, mmSMUIO_PWRMGT, reg);
 }
 
+/* The T_I2C_POLL_US is defined as follows:
+ *
+ * "Define a timer interval (t_i2c_poll) equal to 10 times the
+ *  signalling period for the highest I2C transfer speed used in the
+ *  system and supported by DW_apb_i2c. For instance, if the highest
+ *  I2C data transfer mode is 400 kb/s, then t_i2c_poll is 25 us."  --
+ * DesignWare DW_apb_i2c Databook, Version 1.21a, section 3.8.3.1,
+ * page 56, with grammar and syntax corrections.
+ *
+ * Vcc for our device is at 1.8V which puts it at 400 kHz,
+ * see Atmel AT24CM02 datasheet, section 8.3 DC Characteristics table, page 14.
+ *
+ * The procedure to disable the IP block is described in section
+ * 3.8.3 Disabling DW_apb_i2c on page 56.
+ */
+#define I2C_SPEED_MODE_FAST     2
+#define T_I2C_POLL_US           25
+#define I2C_MAX_T_POLL_COUNT    1000
 
-static void smu_v11_0_i2c_enable(struct i2c_adapter *control, bool enable)
+static int smu_v11_0_i2c_enable(struct i2c_adapter *control, bool enable)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 
 	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE, enable ? 1 : 0);
+
+	if (!enable) {
+		int ii;
+
+		for (ii = I2C_MAX_T_POLL_COUNT; ii > 0; ii--) {
+			u32 en_stat = RREG32_SOC15(SMUIO,
+						   0,
+						   mmCKSVII2C_IC_ENABLE_STATUS);
+			if (REG_GET_FIELD(en_stat, CKSVII2C_IC_ENABLE_STATUS, IC_EN))
+				udelay(T_I2C_POLL_US);
+			else
+				return I2C_OK;
+		}
+
+		return I2C_ABORT;
+	}
+
+	return I2C_OK;
 }
 
 static void smu_v11_0_i2c_clear_status(struct i2c_adapter *control)
@@ -81,8 +117,13 @@ static void smu_v11_0_i2c_configure(struct i2c_adapter *control)
 	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_RESTART_EN, 1);
 	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_10BITADDR_MASTER, 0);
 	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_10BITADDR_SLAVE, 0);
-	/* Standard mode */
-	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_MAX_SPEED_MODE, 2);
+	/* The values of IC_MAX_SPEED_MODE are,
+	 * 1: standard mode, 0 - 100 Kb/s,
+	 * 2: fast mode, <= 400 Kb/s, or fast mode plus, <= 1000 Kb/s,
+	 * 3: high speed mode, <= 3.4 Mb/s.
+	 */
+	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_MAX_SPEED_MODE,
+			    I2C_SPEED_MODE_FAST);
 	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_MASTER_MODE, 1);
 
 	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_CON, reg);
@@ -404,7 +445,6 @@ static void smu_v11_0_i2c_abort(struct i2c_adapter *control)
 	DRM_DEBUG_DRIVER("I2C_Abort() Done.");
 }
 
-
 static bool smu_v11_0_i2c_activity_done(struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
@@ -415,7 +455,6 @@ static bool smu_v11_0_i2c_activity_done(struct i2c_adapter *control)
 
 	reg_ic_enable_status = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE_STATUS);
 	reg_ic_enable = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE);
-
 
 	if ((REG_GET_FIELD(reg_ic_enable, CKSVII2C_IC_ENABLE, ENABLE) == 0) &&
 	    (REG_GET_FIELD(reg_ic_enable_status, CKSVII2C_IC_ENABLE_STATUS, IC_EN) == 1)) {
@@ -446,6 +485,8 @@ static bool smu_v11_0_i2c_activity_done(struct i2c_adapter *control)
 
 static void smu_v11_0_i2c_init(struct i2c_adapter *control)
 {
+	int res;
+
 	/* Disable clock gating */
 	smu_v11_0_i2c_set_clock_gating(control, false);
 
@@ -453,7 +494,9 @@ static void smu_v11_0_i2c_init(struct i2c_adapter *control)
 		DRM_WARN("I2C busy !");
 
 	/* Disable I2C */
-	smu_v11_0_i2c_enable(control, false);
+	res = smu_v11_0_i2c_enable(control, false);
+	if (res != I2C_OK)
+		smu_v11_0_i2c_abort(control);
 
 	/* Configure I2C to operate as master and in standard mode */
 	smu_v11_0_i2c_configure(control);
@@ -466,21 +509,22 @@ static void smu_v11_0_i2c_init(struct i2c_adapter *control)
 static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	uint32_t reg_ic_enable_status, reg_ic_enable;
+	u32 status, enable, en_stat;
+	int res;
 
-	smu_v11_0_i2c_enable(control, false);
+	res = smu_v11_0_i2c_enable(control, false);
+	if (res != I2C_OK) {
+		status  = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_STATUS);
+		enable  = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE);
+		en_stat = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE_STATUS);
 
-	/* Double check if disabled, else force abort */
-	reg_ic_enable_status = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE_STATUS);
-	reg_ic_enable = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE);
-
-	if ((REG_GET_FIELD(reg_ic_enable, CKSVII2C_IC_ENABLE, ENABLE) == 0) &&
-	    (REG_GET_FIELD(reg_ic_enable_status,
-			   CKSVII2C_IC_ENABLE_STATUS, IC_EN) == 1)) {
-		/*
-		 * Nobody is using I2C engine, but engine remains active because
-		 * someone missed to send STOP
+		/* Nobody is using the I2C engine, yet it remains
+		 * active, possibly because someone missed to send
+		 * STOP.
 		 */
+		DRM_DEBUG_DRIVER("Aborting from fini: status:0x%08x "
+				 "enable:0x%08x enable_stat:0x%08x",
+				 status, enable, en_stat);
 		smu_v11_0_i2c_abort(control);
 	}
 
