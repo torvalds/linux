@@ -1087,7 +1087,7 @@ err_alloc_irq:
 /**
  * intel_eth_pci_remove
  *
- * @pdev: platform device pointer
+ * @pdev: pci device pointer
  * Description: this function calls the main to free the net resources
  * and releases the PCI resources.
  */
