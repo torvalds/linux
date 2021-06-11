@@ -527,6 +527,7 @@ struct qeth_qdio_out_q {
 
 	unsigned int coalesce_usecs;
 	unsigned int max_coalesced_frames;
+	unsigned int rescan_usecs;
 };
 
 #define qeth_for_each_output_queue(card, q, i)		\
@@ -885,6 +886,11 @@ struct qeth_card {
 static inline bool qeth_card_hw_is_reachable(struct qeth_card *card)
 {
 	return card->state == CARD_STATE_SOFTSETUP;
+}
+
+static inline bool qeth_use_tx_irqs(struct qeth_card *card)
+{
+	return !IS_IQD(card);
 }
 
 static inline void qeth_unlock_channel(struct qeth_card *card,

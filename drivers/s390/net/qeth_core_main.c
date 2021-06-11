@@ -2665,8 +2665,15 @@ static int qeth_alloc_qdio_queues(struct qeth_card *card)
 		INIT_LIST_HEAD(&queue->pending_bufs);
 		spin_lock_init(&queue->lock);
 		timer_setup(&queue->timer, qeth_tx_completion_timer, 0);
-		queue->coalesce_usecs = QETH_TX_COALESCE_USECS;
-		queue->max_coalesced_frames = QETH_TX_MAX_COALESCED_FRAMES;
+		if (IS_IQD(card)) {
+			queue->coalesce_usecs = QETH_TX_COALESCE_USECS;
+			queue->max_coalesced_frames = QETH_TX_MAX_COALESCED_FRAMES;
+			queue->rescan_usecs = QETH_TX_TIMER_USECS;
+		} else {
+			queue->coalesce_usecs = USEC_PER_SEC;
+			queue->max_coalesced_frames = 0;
+			queue->rescan_usecs = 10 * USEC_PER_SEC;
+		}
 		queue->priority = QETH_QIB_PQUE_PRIO_DEFAULT;
 	}
 
@@ -3603,8 +3610,8 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 			       int count)
 {
 	struct qeth_qdio_out_buffer *buf = queue->bufs[index];
-	unsigned int qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 	struct qeth_card *card = queue->card;
+	unsigned int frames, usecs;
 	struct qaob *aob = NULL;
 	int rc;
 	int i;
@@ -3660,14 +3667,11 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 				buf->buffer->element[0].sflags |= SBAL_SFLAGS0_PCI_REQ;
 			}
 		}
-
-		if (atomic_read(&queue->set_pci_flags_count))
-			qdio_flags |= QDIO_FLAG_PCI_OUT;
 	}
 
 	QETH_TXQ_STAT_INC(queue, doorbell);
-	rc = do_QDIO(CARD_DDEV(card), qdio_flags, queue->queue_no, index, count,
-		     aob);
+	rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_OUTPUT, queue->queue_no,
+		     index, count, aob);
 
 	switch (rc) {
 	case 0:
@@ -3675,17 +3679,20 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		/* ignore temporary SIGA errors without busy condition */
 
 		/* Fake the TX completion interrupt: */
-		if (IS_IQD(card)) {
-			unsigned int frames = READ_ONCE(queue->max_coalesced_frames);
-			unsigned int usecs = READ_ONCE(queue->coalesce_usecs);
+		frames = READ_ONCE(queue->max_coalesced_frames);
+		usecs = READ_ONCE(queue->coalesce_usecs);
 
-			if (frames && queue->coalesced_frames >= frames) {
-				napi_schedule(&queue->napi);
-				queue->coalesced_frames = 0;
-				QETH_TXQ_STAT_INC(queue, coal_frames);
-			} else if (usecs) {
-				qeth_tx_arm_timer(queue, usecs);
-			}
+		if (frames && queue->coalesced_frames >= frames) {
+			napi_schedule(&queue->napi);
+			queue->coalesced_frames = 0;
+			QETH_TXQ_STAT_INC(queue, coal_frames);
+		} else if (qeth_use_tx_irqs(card) &&
+			   atomic_read(&queue->used_buffers) >= 32) {
+			/* Old behaviour carried over from the qdio layer: */
+			napi_schedule(&queue->napi);
+			QETH_TXQ_STAT_INC(queue, coal_frames);
+		} else if (usecs) {
+			qeth_tx_arm_timer(queue, usecs);
 		}
 
 		break;
@@ -3833,36 +3840,14 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 				     unsigned long card_ptr)
 {
 	struct qeth_card *card        = (struct qeth_card *) card_ptr;
-	struct qeth_qdio_out_q *queue = card->qdio.out_qs[__queue];
 	struct net_device *dev = card->dev;
-	struct netdev_queue *txq;
-	int i;
 
 	QETH_CARD_TEXT(card, 6, "qdouhdl");
 	if (qdio_error & QDIO_ERROR_FATAL) {
 		QETH_CARD_TEXT(card, 2, "achkcond");
 		netif_tx_stop_all_queues(dev);
 		qeth_schedule_recovery(card);
-		return;
 	}
-
-	for (i = first_element; i < (first_element + count); ++i) {
-		struct qeth_qdio_out_buffer *buf = queue->bufs[QDIO_BUFNR(i)];
-
-		qeth_handle_send_error(card, buf, qdio_error);
-		qeth_clear_output_buffer(queue, buf, qdio_error, 0);
-	}
-
-	atomic_sub(count, &queue->used_buffers);
-	qeth_check_outbound_queue(queue);
-
-	txq = netdev_get_tx_queue(dev, __queue);
-	/* xmit may have observed the full-condition, but not yet stopped the
-	 * txq. In which case the code below won't trigger. So before returning,
-	 * xmit will re-check the txq's fill level and wake it up if needed.
-	 */
-	if (netif_tx_queue_stopped(txq) && !qeth_out_queue_is_full(queue))
-		netif_tx_wake_queue(txq);
 }
 
 /**
@@ -5258,7 +5243,6 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = in_sbal_ptrs;
 	init_data.output_sbal_addr_array = out_sbal_ptrs;
-	init_data.scan_threshold	 = IS_IQD(card) ? 0 : 32;
 
 	if (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_ALLOCATED,
 		QETH_QDIO_ESTABLISHED) == QETH_QDIO_ALLOCATED) {
@@ -5958,9 +5942,10 @@ static unsigned int qeth_rx_poll(struct qeth_card *card, int budget)
 		/* Fetch completed RX buffers: */
 		if (!card->rx.b_count) {
 			card->rx.qdio_err = 0;
-			card->rx.b_count = qdio_get_next_buffers(
-				card->data.ccwdev, 0, &card->rx.b_index,
-				&card->rx.qdio_err);
+			card->rx.b_count = qdio_inspect_queue(CARD_DDEV(card),
+							      0, true,
+							      &card->rx.b_index,
+							      &card->rx.qdio_err);
 			if (card->rx.b_count <= 0) {
 				card->rx.b_count = 0;
 				break;
@@ -6023,6 +6008,16 @@ int qeth_poll(struct napi_struct *napi, int budget)
 	unsigned int work_done;
 
 	work_done = qeth_rx_poll(card, budget);
+
+	if (qeth_use_tx_irqs(card)) {
+		struct qeth_qdio_out_q *queue;
+		unsigned int i;
+
+		qeth_for_each_output_queue(card, queue, i) {
+			if (!qeth_out_queue_is_empty(queue))
+				napi_schedule(&queue->napi);
+		}
+	}
 
 	if (card->options.cq == QETH_CQ_ENABLED)
 		qeth_cq_poll(card);
@@ -6140,7 +6135,10 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 	unsigned int work_done = 0;
 	struct netdev_queue *txq;
 
-	txq = netdev_get_tx_queue(dev, qeth_iqd_translate_txq(dev, queue_no));
+	if (IS_IQD(card))
+		txq = netdev_get_tx_queue(dev, qeth_iqd_translate_txq(dev, queue_no));
+	else
+		txq = netdev_get_tx_queue(dev, queue_no);
 
 	while (1) {
 		unsigned int start, error, i;
@@ -6167,8 +6165,9 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 					       &start, &error);
 		if (completed <= 0) {
 			/* Ensure we see TX completion for pending work: */
-			if (napi_complete_done(napi, 0))
-				qeth_tx_arm_timer(queue, QETH_TX_TIMER_USECS);
+			if (napi_complete_done(napi, 0) &&
+			    !atomic_read(&queue->set_pci_flags_count))
+				qeth_tx_arm_timer(queue, queue->rescan_usecs);
 			return 0;
 		}
 
@@ -6181,12 +6180,19 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 			bytes += buffer->bytes;
 
 			qeth_handle_send_error(card, buffer, error);
-			qeth_iqd_tx_complete(queue, bidx, error, budget);
+			if (IS_IQD(card))
+				qeth_iqd_tx_complete(queue, bidx, error, budget);
+			else
+				qeth_clear_output_buffer(queue, buffer, error,
+							 budget);
 		}
 
-		netdev_tx_completed_queue(txq, packets, bytes);
 		atomic_sub(completed, &queue->used_buffers);
 		work_done += completed;
+		if (IS_IQD(card))
+			netdev_tx_completed_queue(txq, packets, bytes);
+		else
+			qeth_check_outbound_queue(queue);
 
 		/* xmit may have observed the full-condition, but not yet
 		 * stopped the txq. In which case the code below won't trigger.
@@ -7230,6 +7236,8 @@ EXPORT_SYMBOL_GPL(qeth_iqd_select_queue);
 int qeth_open(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
+	struct qeth_qdio_out_q *queue;
+	unsigned int i;
 
 	QETH_CARD_TEXT(card, 4, "qethopen");
 
@@ -7237,16 +7245,11 @@ int qeth_open(struct net_device *dev)
 	netif_tx_start_all_queues(dev);
 
 	local_bh_disable();
-	if (IS_IQD(card)) {
-		struct qeth_qdio_out_q *queue;
-		unsigned int i;
-
-		qeth_for_each_output_queue(card, queue, i) {
-			netif_tx_napi_add(dev, &queue->napi, qeth_tx_poll,
-					  QETH_NAPI_WEIGHT);
-			napi_enable(&queue->napi);
-			napi_schedule(&queue->napi);
-		}
+	qeth_for_each_output_queue(card, queue, i) {
+		netif_tx_napi_add(dev, &queue->napi, qeth_tx_poll,
+				  QETH_NAPI_WEIGHT);
+		napi_enable(&queue->napi);
+		napi_schedule(&queue->napi);
 	}
 
 	napi_enable(&card->napi);
@@ -7261,6 +7264,8 @@ EXPORT_SYMBOL_GPL(qeth_open);
 int qeth_stop(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
+	struct qeth_qdio_out_q *queue;
+	unsigned int i;
 
 	QETH_CARD_TEXT(card, 4, "qethstop");
 
@@ -7268,24 +7273,17 @@ int qeth_stop(struct net_device *dev)
 	cancel_delayed_work_sync(&card->buffer_reclaim_work);
 	qdio_stop_irq(CARD_DDEV(card));
 
-	if (IS_IQD(card)) {
-		struct qeth_qdio_out_q *queue;
-		unsigned int i;
+	/* Quiesce the NAPI instances: */
+	qeth_for_each_output_queue(card, queue, i)
+		napi_disable(&queue->napi);
 
-		/* Quiesce the NAPI instances: */
-		qeth_for_each_output_queue(card, queue, i)
-			napi_disable(&queue->napi);
+	/* Stop .ndo_start_xmit, might still access queue->napi. */
+	netif_tx_disable(dev);
 
-		/* Stop .ndo_start_xmit, might still access queue->napi. */
-		netif_tx_disable(dev);
-
-		qeth_for_each_output_queue(card, queue, i) {
-			del_timer_sync(&queue->timer);
-			/* Queues may get re-allocated, so remove the NAPIs. */
-			netif_napi_del(&queue->napi);
-		}
-	} else {
-		netif_tx_disable(dev);
+	qeth_for_each_output_queue(card, queue, i) {
+		del_timer_sync(&queue->timer);
+		/* Queues may get re-allocated, so remove the NAPIs. */
+		netif_napi_del(&queue->napi);
 	}
 
 	return 0;
