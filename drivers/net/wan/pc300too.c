@@ -44,7 +44,7 @@
 #define MAX_TX_BUFFERS		10
 
 static int pci_clock_freq = 33000000;
-static int use_crystal_clock = 0;
+static int use_crystal_clock;
 static unsigned int CLOCK_BASE;
 
 /* Masks to access the init_ctrl PLX register */
