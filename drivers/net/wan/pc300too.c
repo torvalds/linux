@@ -110,7 +110,7 @@ typedef struct card_s {
 static void pc300_set_iface(port_t *port)
 {
 	card_t *card = port->card;
-	u32 __iomem * init_ctrl = &card->plxbase->init_ctrl;
+	u32 __iomem *init_ctrl = &card->plxbase->init_ctrl;
 	u16 msci = get_msci(port);
 	u8 rxs = port->rxs & CLK_BRG_MASK;
 	u8 txs = port->txs & CLK_BRG_MASK;
