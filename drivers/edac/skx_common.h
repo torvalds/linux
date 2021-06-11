@@ -32,9 +32,17 @@
 #define SKX_NUM_CHANNELS	3	/* Channels per memory controller */
 #define SKX_NUM_DIMMS		2	/* Max DIMMS per channel */
 
-#define I10NM_NUM_IMC		4
-#define I10NM_NUM_CHANNELS	2
-#define I10NM_NUM_DIMMS		2
+#define I10NM_NUM_DDR_IMC	4
+#define I10NM_NUM_DDR_CHANNELS	2
+#define I10NM_NUM_DDR_DIMMS	2
+
+#define I10NM_NUM_HBM_IMC	16
+#define I10NM_NUM_HBM_CHANNELS	2
+#define I10NM_NUM_HBM_DIMMS	1
+
+#define I10NM_NUM_IMC		(I10NM_NUM_DDR_IMC + I10NM_NUM_HBM_IMC)
+#define I10NM_NUM_CHANNELS	MAX(I10NM_NUM_DDR_CHANNELS, I10NM_NUM_HBM_CHANNELS)
+#define I10NM_NUM_DIMMS		MAX(I10NM_NUM_DDR_DIMMS, I10NM_NUM_HBM_DIMMS)
 
 #define MAX(a, b)	((a) > (b) ? (a) : (b))
 #define NUM_IMC		MAX(SKX_NUM_IMC, I10NM_NUM_IMC)
@@ -56,12 +64,16 @@ struct skx_dev {
 	struct pci_dev *sad_all;
 	struct pci_dev *util_all;
 	struct pci_dev *uracu; /* for i10nm CPU */
+	struct pci_dev *pcu_cr3; /* for HBM memory detection */
 	u32 mcroute;
 	struct skx_imc {
 		struct mem_ctl_info *mci;
 		struct pci_dev *mdev; /* for i10nm CPU */
 		void __iomem *mbase;  /* for i10nm CPU */
 		int chan_mmio_sz;     /* for i10nm CPU */
+		int num_channels; /* channels per memory controller */
+		int num_dimms; /* dimms per channel */
+		bool hbm_mc;
 		u8 mc;	/* system wide mc# */
 		u8 lmc;	/* socket relative mc# */
 		u8 src_id, node_id;
@@ -132,6 +144,8 @@ struct res_config {
 	int busno_cfg_offset;
 	/* Per DDR channel memory-mapped I/O size */
 	int ddr_chan_mmio_sz;
+	/* Per HBM channel memory-mapped I/O size */
+	int hbm_chan_mmio_sz;
 	bool support_ddr5;
 	/* SAD device number and function number */
 	unsigned int sad_all_devfn;
