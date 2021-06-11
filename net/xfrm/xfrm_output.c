@@ -123,6 +123,53 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 
 	return offset;
 }
+
+static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
+			     u8 **nexthdr)
+{
+	u16 offset = sizeof(struct ipv6hdr);
+	struct ipv6_opt_hdr *exthdr =
+				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
+	const unsigned char *nh = skb_network_header(skb);
+	unsigned int packet_len = skb_tail_pointer(skb) -
+		skb_network_header(skb);
+	int found_rhdr = 0;
+
+	*nexthdr = &ipv6_hdr(skb)->nexthdr;
+
+	while (offset + 1 <= packet_len) {
+		switch (**nexthdr) {
+		case NEXTHDR_HOP:
+			break;
+		case NEXTHDR_ROUTING:
+			if (offset + 3 <= packet_len) {
+				struct ipv6_rt_hdr *rt;
+
+				rt = (struct ipv6_rt_hdr *)(nh + offset);
+				if (rt->type != 0)
+					return offset;
+			}
+			found_rhdr = 1;
+			break;
+		case NEXTHDR_DEST:
+			if (ipv6_find_tlv(skb, offset, IPV6_TLV_HAO) >= 0)
+				return offset;
+
+			if (found_rhdr)
+				return offset;
+
+			break;
+		default:
+			return offset;
+		}
+
+		offset += ipv6_optlen(exthdr);
+		*nexthdr = &exthdr->nexthdr;
+		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
+	}
+
+	return offset;
+}
 #endif
 
 static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prevhdr)
@@ -131,6 +178,8 @@ static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prev
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case IPPROTO_DSTOPTS:
 		return mip6_destopt_offset(x, skb, prevhdr);
+	case IPPROTO_ROUTING:
+		return mip6_rthdr_offset(x, skb, prevhdr);
 #endif
 	default:
 		break;
