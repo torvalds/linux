@@ -80,10 +80,8 @@ static void qeth_add_stat_strings(u8 **data, const char *prefix,
 {
 	unsigned int i;
 
-	for (i = 0; i < size; i++) {
-		snprintf(*data, ETH_GSTRING_LEN, "%s%s", prefix, stats[i].name);
-		*data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < size; i++)
+		ethtool_sprintf(data, "%s%s", prefix, stats[i].name);
 }
 
 static int qeth_get_sset_count(struct net_device *dev, int stringset)
