@@ -195,15 +195,14 @@ static void rmnet_map_complement_ipv4_txporthdr_csum_field(void *iphdr)
 }
 
 static void
-rmnet_map_ipv4_ul_csum_header(void *iphdr,
+rmnet_map_ipv4_ul_csum_header(struct iphdr *iphdr,
 			      struct rmnet_map_ul_csum_header *ul_header,
 			      struct sk_buff *skb)
 {
-	struct iphdr *ip4h = iphdr;
 	u16 val;
 
 	val = MAP_CSUM_UL_ENABLED_FLAG;
-	if (ip4h->protocol == IPPROTO_UDP)
+	if (iphdr->protocol == IPPROTO_UDP)
 		val |= MAP_CSUM_UL_UDP_FLAG;
 	val |= skb->csum_offset & MAP_CSUM_UL_OFFSET_MASK;
 
@@ -231,15 +230,14 @@ static void rmnet_map_complement_ipv6_txporthdr_csum_field(void *ip6hdr)
 }
 
 static void
-rmnet_map_ipv6_ul_csum_header(void *ip6hdr,
+rmnet_map_ipv6_ul_csum_header(struct ipv6hdr *ipv6hdr,
 			      struct rmnet_map_ul_csum_header *ul_header,
 			      struct sk_buff *skb)
 {
-	struct ipv6hdr *ip6h = ip6hdr;
 	u16 val;
 
 	val = MAP_CSUM_UL_ENABLED_FLAG;
-	if (ip6h->nexthdr == IPPROTO_UDP)
+	if (ipv6hdr->nexthdr == IPPROTO_UDP)
 		val |= MAP_CSUM_UL_UDP_FLAG;
 	val |= skb->csum_offset & MAP_CSUM_UL_OFFSET_MASK;
 
@@ -248,7 +246,7 @@ rmnet_map_ipv6_ul_csum_header(void *ip6hdr,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	rmnet_map_complement_ipv6_txporthdr_csum_field(ip6hdr);
+	rmnet_map_complement_ipv6_txporthdr_csum_field(ipv6hdr);
 }
 #endif
 
