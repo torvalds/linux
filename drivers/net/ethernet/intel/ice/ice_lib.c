@@ -1298,6 +1298,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->reg_idx = vsi->txq_map[i];
 		ring->ring_active = false;
 		ring->vsi = vsi;
+		ring->tx_tstamps = &pf->ptp.port.tx;
 		ring->dev = dev;
 		ring->count = vsi->num_tx_desc;
 		WRITE_ONCE(vsi->tx_rings[i], ring);
@@ -1675,9 +1676,11 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
  * @pf_q: index of the Rx queue in the PF's queue space
  * @rxdid: flexible descriptor RXDID
  * @prio: priority for the RXDID for this queue
+ * @ena_ts: true to enable timestamp and false to disable timestamp
  */
 void
-ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio)
+ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio,
+			bool ena_ts)
 {
 	int regval = rd32(hw, QRXFLXP_CNTXT(pf_q));
 
@@ -1691,6 +1694,10 @@ ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio)
 
 	regval |= (prio << QRXFLXP_CNTXT_RXDID_PRIO_S) &
 		QRXFLXP_CNTXT_RXDID_PRIO_M;
+
+	if (ena_ts)
+		/* Enable TimeSync on this queue */
+		regval |= QRXFLXP_CNTXT_TS_M;
 
 	wr32(hw, QRXFLXP_CNTXT(pf_q), regval);
 }
@@ -3392,13 +3399,22 @@ int ice_status_to_errno(enum ice_status err)
 	case ICE_ERR_DOES_NOT_EXIST:
 		return -ENOENT;
 	case ICE_ERR_OUT_OF_RANGE:
-		return -ENOTTY;
+	case ICE_ERR_AQ_ERROR:
+	case ICE_ERR_AQ_TIMEOUT:
+	case ICE_ERR_AQ_EMPTY:
+	case ICE_ERR_AQ_FW_CRITICAL:
+		return -EIO;
 	case ICE_ERR_PARAM:
+	case ICE_ERR_INVAL_SIZE:
 		return -EINVAL;
 	case ICE_ERR_NO_MEMORY:
 		return -ENOMEM;
 	case ICE_ERR_MAX_LIMIT:
 		return -EAGAIN;
+	case ICE_ERR_RESET_ONGOING:
+		return -EBUSY;
+	case ICE_ERR_AQ_FULL:
+		return -ENOSPC;
 	default:
 		return -EINVAL;
 	}

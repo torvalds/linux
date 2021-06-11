@@ -59,6 +59,17 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
 }
 
 /**
+ * ice_is_e810
+ * @hw: pointer to the hardware structure
+ *
+ * returns true if the device is E810 based, false if not.
+ */
+bool ice_is_e810(struct ice_hw *hw)
+{
+	return hw->mac_type == ICE_MAC_E810;
+}
+
+/**
  * ice_clear_pf_cfg - Clear PF configuration
  * @hw: pointer to the hardware structure
  *
@@ -1293,6 +1304,64 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 	{ 0 }
 };
 
+/* Sideband Queue command wrappers */
+
+/**
+ * ice_sbq_send_cmd - send Sideband Queue command to Sideband Queue
+ * @hw: pointer to the HW struct
+ * @desc: descriptor describing the command
+ * @buf: buffer to use for indirect commands (NULL for direct commands)
+ * @buf_size: size of buffer for indirect commands (0 for direct commands)
+ * @cd: pointer to command details structure
+ */
+static int
+ice_sbq_send_cmd(struct ice_hw *hw, struct ice_sbq_cmd_desc *desc,
+		 void *buf, u16 buf_size, struct ice_sq_cd *cd)
+{
+	return ice_status_to_errno(ice_sq_send_cmd(hw, ice_get_sbq(hw),
+						   (struct ice_aq_desc *)desc,
+						   buf, buf_size, cd));
+}
+
+/**
+ * ice_sbq_rw_reg - Fill Sideband Queue command
+ * @hw: pointer to the HW struct
+ * @in: message info to be filled in descriptor
+ */
+int ice_sbq_rw_reg(struct ice_hw *hw, struct ice_sbq_msg_input *in)
+{
+	struct ice_sbq_cmd_desc desc = {0};
+	struct ice_sbq_msg_req msg = {0};
+	u16 msg_len;
+	int status;
+
+	msg_len = sizeof(msg);
+
+	msg.dest_dev = in->dest_dev;
+	msg.opcode = in->opcode;
+	msg.flags = ICE_SBQ_MSG_FLAGS;
+	msg.sbe_fbe = ICE_SBQ_MSG_SBE_FBE;
+	msg.msg_addr_low = cpu_to_le16(in->msg_addr_low);
+	msg.msg_addr_high = cpu_to_le32(in->msg_addr_high);
+
+	if (in->opcode)
+		msg.data = cpu_to_le32(in->data);
+	else
+		/* data read comes back in completion, so shorten the struct by
+		 * sizeof(msg.data)
+		 */
+		msg_len -= sizeof(msg.data);
+
+	desc.flags = cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.opcode = cpu_to_le16(ice_sbq_opc_neigh_dev_req);
+	desc.param0.cmd_len = cpu_to_le16(msg_len);
+	status = ice_sbq_send_cmd(hw, &desc, &msg, msg_len, NULL);
+	if (!status && !in->opcode)
+		in->data = le32_to_cpu
+			(((struct ice_sbq_msg_cmpl *)&msg)->data);
+	return status;
+}
+
 /* FW Admin Queue command wrappers */
 
 /* Software lock/mutex that is meant to be held while the Global Config Lock
@@ -2035,6 +2104,48 @@ ice_parse_vsi_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 }
 
 /**
+ * ice_parse_1588_func_caps - Parse ICE_AQC_CAPS_1588 function caps
+ * @hw: pointer to the HW struct
+ * @func_p: pointer to function capabilities structure
+ * @cap: pointer to the capability element to parse
+ *
+ * Extract function capabilities for ICE_AQC_CAPS_1588.
+ */
+static void
+ice_parse_1588_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
+			 struct ice_aqc_list_caps_elem *cap)
+{
+	struct ice_ts_func_info *info = &func_p->ts_func_info;
+	u32 number = le32_to_cpu(cap->number);
+
+	info->ena = ((number & ICE_TS_FUNC_ENA_M) != 0);
+	func_p->common_cap.ieee_1588 = info->ena;
+
+	info->src_tmr_owned = ((number & ICE_TS_SRC_TMR_OWND_M) != 0);
+	info->tmr_ena = ((number & ICE_TS_TMR_ENA_M) != 0);
+	info->tmr_index_owned = ((number & ICE_TS_TMR_IDX_OWND_M) != 0);
+	info->tmr_index_assoc = ((number & ICE_TS_TMR_IDX_ASSOC_M) != 0);
+
+	info->clk_freq = (number & ICE_TS_CLK_FREQ_M) >> ICE_TS_CLK_FREQ_S;
+	info->clk_src = ((number & ICE_TS_CLK_SRC_M) != 0);
+
+	ice_debug(hw, ICE_DBG_INIT, "func caps: ieee_1588 = %u\n",
+		  func_p->common_cap.ieee_1588);
+	ice_debug(hw, ICE_DBG_INIT, "func caps: src_tmr_owned = %u\n",
+		  info->src_tmr_owned);
+	ice_debug(hw, ICE_DBG_INIT, "func caps: tmr_ena = %u\n",
+		  info->tmr_ena);
+	ice_debug(hw, ICE_DBG_INIT, "func caps: tmr_index_owned = %u\n",
+		  info->tmr_index_owned);
+	ice_debug(hw, ICE_DBG_INIT, "func caps: tmr_index_assoc = %u\n",
+		  info->tmr_index_assoc);
+	ice_debug(hw, ICE_DBG_INIT, "func caps: clk_freq = %u\n",
+		  info->clk_freq);
+	ice_debug(hw, ICE_DBG_INIT, "func caps: clk_src = %u\n",
+		  info->clk_src);
+}
+
+/**
  * ice_parse_fdir_func_caps - Parse ICE_AQC_CAPS_FD function caps
  * @hw: pointer to the HW struct
  * @func_p: pointer to function capabilities structure
@@ -2099,6 +2210,9 @@ ice_parse_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 			break;
 		case ICE_AQC_CAPS_VSI:
 			ice_parse_vsi_func_caps(hw, func_p, &cap_resp[i]);
+			break;
+		case ICE_AQC_CAPS_1588:
+			ice_parse_1588_func_caps(hw, func_p, &cap_resp[i]);
 			break;
 		case ICE_AQC_CAPS_FD:
 			ice_parse_fdir_func_caps(hw, func_p);
@@ -2173,6 +2287,57 @@ ice_parse_vsi_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 }
 
 /**
+ * ice_parse_1588_dev_caps - Parse ICE_AQC_CAPS_1588 device caps
+ * @hw: pointer to the HW struct
+ * @dev_p: pointer to device capabilities structure
+ * @cap: capability element to parse
+ *
+ * Parse ICE_AQC_CAPS_1588 for device capabilities.
+ */
+static void
+ice_parse_1588_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
+			struct ice_aqc_list_caps_elem *cap)
+{
+	struct ice_ts_dev_info *info = &dev_p->ts_dev_info;
+	u32 logical_id = le32_to_cpu(cap->logical_id);
+	u32 phys_id = le32_to_cpu(cap->phys_id);
+	u32 number = le32_to_cpu(cap->number);
+
+	info->ena = ((number & ICE_TS_DEV_ENA_M) != 0);
+	dev_p->common_cap.ieee_1588 = info->ena;
+
+	info->tmr0_owner = number & ICE_TS_TMR0_OWNR_M;
+	info->tmr0_owned = ((number & ICE_TS_TMR0_OWND_M) != 0);
+	info->tmr0_ena = ((number & ICE_TS_TMR0_ENA_M) != 0);
+
+	info->tmr1_owner = (number & ICE_TS_TMR1_OWNR_M) >> ICE_TS_TMR1_OWNR_S;
+	info->tmr1_owned = ((number & ICE_TS_TMR1_OWND_M) != 0);
+	info->tmr1_ena = ((number & ICE_TS_TMR1_ENA_M) != 0);
+
+	info->ena_ports = logical_id;
+	info->tmr_own_map = phys_id;
+
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: ieee_1588 = %u\n",
+		  dev_p->common_cap.ieee_1588);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr0_owner = %u\n",
+		  info->tmr0_owner);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr0_owned = %u\n",
+		  info->tmr0_owned);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr0_ena = %u\n",
+		  info->tmr0_ena);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr1_owner = %u\n",
+		  info->tmr1_owner);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr1_owned = %u\n",
+		  info->tmr1_owned);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr1_ena = %u\n",
+		  info->tmr1_ena);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: ieee_1588 ena_ports = %u\n",
+		  info->ena_ports);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr_own_map = %u\n",
+		  info->tmr_own_map);
+}
+
+/**
  * ice_parse_fdir_dev_caps - Parse ICE_AQC_CAPS_FD device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
@@ -2232,6 +2397,9 @@ ice_parse_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 			break;
 		case ICE_AQC_CAPS_VSI:
 			ice_parse_vsi_dev_caps(hw, dev_p, &cap_resp[i]);
+			break;
+		case ICE_AQC_CAPS_1588:
+			ice_parse_1588_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
 		case  ICE_AQC_CAPS_FD:
 			ice_parse_fdir_dev_caps(hw, dev_p, &cap_resp[i]);
@@ -4521,6 +4689,81 @@ ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
 	if (status || num_elem_ret != 1)
 		ice_debug(hw, ICE_DBG_SCHED, "query element failed\n");
 	return status;
+}
+
+/**
+ * ice_aq_set_driver_param - Set driver parameter to share via firmware
+ * @hw: pointer to the HW struct
+ * @idx: parameter index to set
+ * @value: the value to set the parameter to
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set the value of one of the software defined parameters. All PFs connected
+ * to this device can read the value using ice_aq_get_driver_param.
+ *
+ * Note that firmware provides no synchronization or locking, and will not
+ * save the parameter value during a device reset. It is expected that
+ * a single PF will write the parameter value, while all other PFs will only
+ * read it.
+ */
+int
+ice_aq_set_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
+			u32 value, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_driver_shared_params *cmd;
+	struct ice_aq_desc desc;
+
+	if (idx >= ICE_AQC_DRIVER_PARAM_MAX)
+		return -EIO;
+
+	cmd = &desc.params.drv_shared_params;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_driver_shared_params);
+
+	cmd->set_or_get_op = ICE_AQC_DRIVER_PARAM_SET;
+	cmd->param_indx = idx;
+	cmd->param_val = cpu_to_le32(value);
+
+	return ice_status_to_errno(ice_aq_send_cmd(hw, &desc, NULL, 0, cd));
+}
+
+/**
+ * ice_aq_get_driver_param - Get driver parameter shared via firmware
+ * @hw: pointer to the HW struct
+ * @idx: parameter index to set
+ * @value: storage to return the shared parameter
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get the value of one of the software defined parameters.
+ *
+ * Note that firmware provides no synchronization or locking. It is expected
+ * that only a single PF will write a given parameter.
+ */
+int
+ice_aq_get_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
+			u32 *value, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_driver_shared_params *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	if (idx >= ICE_AQC_DRIVER_PARAM_MAX)
+		return -EIO;
+
+	cmd = &desc.params.drv_shared_params;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_driver_shared_params);
+
+	cmd->set_or_get_op = ICE_AQC_DRIVER_PARAM_GET;
+	cmd->param_indx = idx;
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+	if (status)
+		return ice_status_to_errno(status);
+
+	*value = le32_to_cpu(cmd->param_val);
+
+	return 0;
 }
 
 /**

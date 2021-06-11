@@ -108,6 +108,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_TXQS				0x0042
 #define ICE_AQC_CAPS_MSIX				0x0043
 #define ICE_AQC_CAPS_FD					0x0045
+#define ICE_AQC_CAPS_1588				0x0046
 #define ICE_AQC_CAPS_MAX_MTU				0x0047
 #define ICE_AQC_CAPS_NVM_VER				0x0048
 #define ICE_AQC_CAPS_PENDING_NVM_VER			0x0049
@@ -1611,6 +1612,15 @@ struct ice_aqc_get_set_rss_lut {
 	__le32 addr_low;
 };
 
+/* Sideband Control Interface Commands */
+/* Neighbor Device Request (indirect 0x0C00); also used for the response. */
+struct ice_aqc_neigh_dev_req {
+	__le16 sb_data_len;
+	u8 reserved[6];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* Add Tx LAN Queues (indirect 0x0C30) */
 struct ice_aqc_add_txqs {
 	u8 num_qgrps;
@@ -1843,6 +1853,30 @@ struct ice_aqc_get_pkg_info_resp {
 	struct ice_aqc_get_pkg_info pkg_info[];
 };
 
+/* Driver Shared Parameters (direct, 0x0C90) */
+struct ice_aqc_driver_shared_params {
+	u8 set_or_get_op;
+#define ICE_AQC_DRIVER_PARAM_OP_MASK		BIT(0)
+#define ICE_AQC_DRIVER_PARAM_SET		0
+#define ICE_AQC_DRIVER_PARAM_GET		1
+	u8 param_indx;
+#define ICE_AQC_DRIVER_PARAM_MAX_IDX		15
+	u8 rsvd[2];
+	__le32 param_val;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+enum ice_aqc_driver_params {
+	/* OS clock index for PTP timer Domain 0 */
+	ICE_AQC_DRIVER_PARAM_CLK_IDX_TMR0 = 0,
+	/* OS clock index for PTP timer Domain 1 */
+	ICE_AQC_DRIVER_PARAM_CLK_IDX_TMR1,
+
+	/* Add new parameters above */
+	ICE_AQC_DRIVER_PARAM_MAX = 16,
+};
+
 /* Lan Queue Overflow Event (direct, 0x1001) */
 struct ice_aqc_event_lan_overflow {
 	__le32 prtdcb_ruptq;
@@ -1911,6 +1945,7 @@ struct ice_aq_desc {
 		struct ice_aqc_lldp_filter_ctrl lldp_filter_ctrl;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
 		struct ice_aqc_get_set_rss_key get_set_rss_key;
+		struct ice_aqc_neigh_dev_req neigh_dev;
 		struct ice_aqc_add_txqs add_txqs;
 		struct ice_aqc_dis_txqs dis_txqs;
 		struct ice_aqc_add_rdma_qset add_rdma_qset;
@@ -1919,6 +1954,7 @@ struct ice_aq_desc {
 		struct ice_aqc_fw_logging fw_logging;
 		struct ice_aqc_get_clear_fw_log get_clear_fw_log;
 		struct ice_aqc_download_pkg download_pkg;
+		struct ice_aqc_driver_shared_params drv_shared_params;
 		struct ice_aqc_set_mac_lb set_mac_lb;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_set_mac_cfg set_mac_cfg;
@@ -2059,6 +2095,9 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_rss_key				= 0x0B04,
 	ice_aqc_opc_get_rss_lut				= 0x0B05,
 
+	/* Sideband Control Interface commands */
+	ice_aqc_opc_neighbour_device_request		= 0x0C00,
+
 	/* Tx queue handling commands/events */
 	ice_aqc_opc_add_txqs				= 0x0C30,
 	ice_aqc_opc_dis_txqs				= 0x0C31,
@@ -2068,6 +2107,8 @@ enum ice_adminq_opc {
 	ice_aqc_opc_download_pkg			= 0x0C40,
 	ice_aqc_opc_update_pkg				= 0x0C42,
 	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
+
+	ice_aqc_opc_driver_shared_params		= 0x0C90,
 
 	/* Standalone Commands/Events */
 	ice_aqc_opc_event_lan_overflow			= 0x1001,

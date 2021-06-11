@@ -2137,6 +2137,41 @@ static bool ice_chk_linearize(struct sk_buff *skb, unsigned int count)
 }
 
 /**
+ * ice_tstamp - set up context descriptor for hardware timestamp
+ * @tx_ring: pointer to the Tx ring to send buffer on
+ * @skb: pointer to the SKB we're sending
+ * @first: Tx buffer
+ * @off: Tx offload parameters
+ */
+static void
+ice_tstamp(struct ice_ring *tx_ring, struct sk_buff *skb,
+	   struct ice_tx_buf *first, struct ice_tx_offload_params *off)
+{
+	s8 idx;
+
+	/* only timestamp the outbound packet if the user has requested it */
+	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
+		return;
+
+	if (!tx_ring->ptp_tx)
+		return;
+
+	/* Tx timestamps cannot be sampled when doing TSO */
+	if (first->tx_flags & ICE_TX_FLAGS_TSO)
+		return;
+
+	/* Grab an open timestamp slot */
+	idx = ice_ptp_request_ts(tx_ring->tx_tstamps, skb);
+	if (idx < 0)
+		return;
+
+	off->cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |
+			     (ICE_TX_CTX_DESC_TSYN << ICE_TXD_CTX_QW1_CMD_S) |
+			     ((u64)idx << ICE_TXD_CTX_QW1_TSO_LEN_S));
+	first->tx_flags |= ICE_TX_FLAGS_TSYN;
+}
+
+/**
  * ice_xmit_frame_ring - Sends buffer on Tx ring
  * @skb: send buffer
  * @tx_ring: ring to send buffer on
@@ -2204,6 +2239,8 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 		offload.cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |
 					ICE_TX_CTX_DESC_SWTCH_UPLINK <<
 					ICE_TXD_CTX_QW1_CMD_S);
+
+	ice_tstamp(tx_ring, skb, first, &offload);
 
 	if (offload.cd_qw1 & ICE_TX_DESC_DTYPE_CTX) {
 		struct ice_tx_ctx_desc *cdesc;
