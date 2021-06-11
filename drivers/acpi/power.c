@@ -1004,7 +1004,7 @@ void acpi_resume_power_resources(void)
 
 		if (state == ACPI_POWER_RESOURCE_STATE_OFF
 		    && resource->ref_count) {
-			dev_info(&resource->device.dev, "Turning ON\n");
+			dev_dbg(&resource->device.dev, "Turning ON\n");
 			__acpi_power_on(resource);
 		}
 
@@ -1034,7 +1034,7 @@ void acpi_turn_off_unused_power_resources(void)
 		 */
 		if (!resource->ref_count &&
 		    resource->state != ACPI_POWER_RESOURCE_STATE_OFF) {
-			dev_info(&resource->device.dev, "Turning OFF\n");
+			dev_dbg(&resource->device.dev, "Turning OFF\n");
 			__acpi_power_off(resource);
 		}
 
