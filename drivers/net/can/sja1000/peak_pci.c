@@ -41,9 +41,7 @@ struct peak_pci_chan {
 #define PEAK_PCI_CDR		(CDR_CBP | CDR_CLKOUT_MASK)
 #define PEAK_PCI_OCR		OCR_TX0_PUSHPULL
 
-/*
- * Important PITA registers
- */
+/* Important PITA registers */
 #define PITA_ICR		0x00	/* Interrupt control register */
 #define PITA_GPIOICR		0x18	/* GPIO interface control register */
 #define PITA_MISC		0x1C	/* Miscellaneous register */
@@ -88,9 +86,7 @@ static const struct pci_device_id peak_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, peak_pci_tbl);
 
 #ifdef CONFIG_CAN_PEAK_PCIEC
-/*
- * PCAN-ExpressCard needs I2C bit-banging configuration option.
- */
+/* PCAN-ExpressCard needs I2C bit-banging configuration option. */
 
 /* GPIOICR byte access offsets */
 #define PITA_GPOUT		0x18	/* GPx output value */
@@ -230,9 +226,7 @@ static int pita_getscl(void *data)
 	return (readb(card->cfg_base + PITA_GPIN) & PITA_GPIN_SCL) ? 1 : 0;
 }
 
-/*
- * write commands to the LED chip though the I2C-bus of the PCAN-PCIeC
- */
+/* write commands to the LED chip though the I2C-bus of the PCAN-PCIeC */
 static int peak_pciec_write_pca9553(struct peak_pciec_card *card,
 				    u8 offset, u8 data)
 {
@@ -261,9 +255,7 @@ static int peak_pciec_write_pca9553(struct peak_pciec_card *card,
 	return 0;
 }
 
-/*
- * delayed work callback used to control the LEDs
- */
+/* delayed work callback used to control the LEDs */
 static void peak_pciec_led_work(struct work_struct *work)
 {
 	struct peak_pciec_card *card =
@@ -309,9 +301,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 		schedule_delayed_work(&card->led_work, HZ);
 }
 
-/*
- * set LEDs blinking state
- */
+/* set LEDs blinking state */
 static void peak_pciec_set_leds(struct peak_pciec_card *card, u8 led_mask, u8 s)
 {
 	u8 new_led = card->led_cache;
@@ -328,25 +318,19 @@ static void peak_pciec_set_leds(struct peak_pciec_card *card, u8 led_mask, u8 s)
 	peak_pciec_write_pca9553(card, 5, new_led);
 }
 
-/*
- * start one second delayed work to control LEDs
- */
+/* start one second delayed work to control LEDs */
 static void peak_pciec_start_led_work(struct peak_pciec_card *card)
 {
 	schedule_delayed_work(&card->led_work, HZ);
 }
 
-/*
- * stop LEDs delayed work
- */
+/* stop LEDs delayed work */
 static void peak_pciec_stop_led_work(struct peak_pciec_card *card)
 {
 	cancel_delayed_work_sync(&card->led_work);
 }
 
-/*
- * initialize the PCA9553 4-bit I2C-bus LED chip
- */
+/* initialize the PCA9553 4-bit I2C-bus LED chip */
 static int peak_pciec_init_leds(struct peak_pciec_card *card)
 {
 	int err;
@@ -375,17 +359,14 @@ static int peak_pciec_init_leds(struct peak_pciec_card *card)
 	return peak_pciec_write_pca9553(card, 5, PCA9553_LS0_INIT);
 }
 
-/*
- * restore LEDs state to off peak_pciec_leds_exit
- */
+/* restore LEDs state to off peak_pciec_leds_exit */
 static void peak_pciec_leds_exit(struct peak_pciec_card *card)
 {
 	/* switch LEDs to off */
 	peak_pciec_write_pca9553(card, 5, PCA9553_LED_OFF_ALL);
 }
 
-/*
- * normal write sja1000 register method overloaded to catch when controller
+/* normal write sja1000 register method overloaded to catch when controller
  * is started or stopped, to control leds
  */
 static void peak_pciec_write_reg(const struct sja1000_priv *priv,
@@ -506,9 +487,7 @@ static void peak_pciec_remove(struct peak_pciec_card *card)
 
 #else /* CONFIG_CAN_PEAK_PCIEC */
 
-/*
- * Placebo functions when PCAN-ExpressCard support is not selected
- */
+/* Placebo functions when PCAN-ExpressCard support is not selected */
 static inline int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 {
 	return -ENODEV;
@@ -642,8 +621,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		chan->prev_dev = pci_get_drvdata(pdev);
 		pci_set_drvdata(pdev, dev);
 
-		/*
-		 * PCAN-ExpressCard needs some additional i2c init.
+		/* PCAN-ExpressCard needs some additional i2c init.
 		 * This must be done *before* register_sja1000dev() but
 		 * *after* devices linkage
 		 */
@@ -709,7 +687,8 @@ failure_disable_pci:
 
 	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
 	 * the probe() function must return a negative errno in case of failure
-	 * (err is unchanged if negative) */
+	 * (err is unchanged if negative)
+	 */
 	return pcibios_err_to_errno(err);
 }
 
