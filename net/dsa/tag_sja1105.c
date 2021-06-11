@@ -307,8 +307,6 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 			__skb_vlan_pop(skb, &tci);
 		}
 		skb_pull_rcsum(skb, ETH_HLEN);
-		skb_reset_network_header(skb);
-		skb_reset_transport_header(skb);
 
 		vid = tci & VLAN_VID_MASK;
 		source_port = dsa_8021q_rx_source_port(vid);
