@@ -42,7 +42,7 @@ static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 
 	*res_base = base;
 	if (nomap)
-		return memblock_remove(base, size);
+		return memblock_mark_nomap(base, size);
 
 	return memblock_reserve(base, size);
 }
@@ -276,7 +276,7 @@ void __init fdt_init_reserved_mem(void)
 				pr_info("node %s compatible matching fail\n",
 					rmem->name);
 				if (nomap)
-					memblock_add(rmem->base, rmem->size);
+					memblock_clear_nomap(rmem->base, rmem->size);
 				else
 					memblock_free(rmem->base, rmem->size);
 			}
