@@ -227,7 +227,7 @@ $(obj)/wrapper.a: $(obj-wlib) FORCE
 
 hostprogs	:= addnote hack-coff mktree
 
-targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
+targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a) zImage.lds
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds
 
