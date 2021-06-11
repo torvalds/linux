@@ -3125,62 +3125,6 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id)
 	return 0;
 }
 
-static int hisi_qm_memory_init(struct hisi_qm *qm)
-{
-	struct device *dev = &qm->pdev->dev;
-	size_t qp_dma_size, off = 0;
-	int i, ret = 0;
-
-#define QM_INIT_BUF(qm, type, num) do { \
-	(qm)->type = ((qm)->qdma.va + (off)); \
-	(qm)->type##_dma = (qm)->qdma.dma + (off); \
-	off += QMC_ALIGN(sizeof(struct qm_##type) * (num)); \
-} while (0)
-
-	idr_init(&qm->qp_idr);
-	qm->qdma.size = QMC_ALIGN(sizeof(struct qm_eqe) * QM_EQ_DEPTH) +
-			QMC_ALIGN(sizeof(struct qm_aeqe) * QM_Q_DEPTH) +
-			QMC_ALIGN(sizeof(struct qm_sqc) * qm->qp_num) +
-			QMC_ALIGN(sizeof(struct qm_cqc) * qm->qp_num);
-	qm->qdma.va = dma_alloc_coherent(dev, qm->qdma.size, &qm->qdma.dma,
-					 GFP_ATOMIC);
-	dev_dbg(dev, "allocate qm dma buf size=%zx)\n", qm->qdma.size);
-	if (!qm->qdma.va)
-		return -ENOMEM;
-
-	QM_INIT_BUF(qm, eqe, QM_EQ_DEPTH);
-	QM_INIT_BUF(qm, aeqe, QM_Q_DEPTH);
-	QM_INIT_BUF(qm, sqc, qm->qp_num);
-	QM_INIT_BUF(qm, cqc, qm->qp_num);
-
-	qm->qp_array = kcalloc(qm->qp_num, sizeof(struct hisi_qp), GFP_KERNEL);
-	if (!qm->qp_array) {
-		ret = -ENOMEM;
-		goto err_alloc_qp_array;
-	}
-
-	/* one more page for device or qp statuses */
-	qp_dma_size = qm->sqe_size * QM_Q_DEPTH +
-		      sizeof(struct qm_cqe) * QM_Q_DEPTH;
-	qp_dma_size = PAGE_ALIGN(qp_dma_size);
-	for (i = 0; i < qm->qp_num; i++) {
-		ret = hisi_qp_memory_init(qm, qp_dma_size, i);
-		if (ret)
-			goto err_init_qp_mem;
-
-		dev_dbg(dev, "allocate qp dma buf size=%zx)\n", qp_dma_size);
-	}
-
-	return ret;
-
-err_init_qp_mem:
-	hisi_qp_memory_uninit(qm, i);
-err_alloc_qp_array:
-	dma_free_coherent(dev, qm->qdma.size, qm->qdma.va, qm->qdma.dma);
-
-	return ret;
-}
-
 static void hisi_qm_pre_init(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -3661,79 +3605,6 @@ static int qm_debugfs_atomic64_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
 			 qm_debugfs_atomic64_set, "%llu\n");
 
-/**
- * hisi_qm_debug_init() - Initialize qm related debugfs files.
- * @qm: The qm for which we want to add debugfs files.
- *
- * Create qm related debugfs files.
- */
-void hisi_qm_debug_init(struct hisi_qm *qm)
-{
-	struct qm_dfx *dfx = &qm->debug.dfx;
-	struct dentry *qm_d;
-	void *data;
-	int i;
-
-	qm_d = debugfs_create_dir("qm", qm->debug.debug_root);
-	qm->debug.qm_d = qm_d;
-
-	/* only show this in PF */
-	if (qm->fun_type == QM_HW_PF) {
-		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
-		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
-			qm_create_debugfs_file(qm, qm_d, i);
-	}
-
-	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
-
-	debugfs_create_file("cmd", 0444, qm->debug.qm_d, qm, &qm_cmd_fops);
-
-	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
-			&qm_status_fops);
-	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
-		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
-		debugfs_create_file(qm_dfx_files[i].name,
-			0644,
-			qm_d,
-			data,
-			&qm_atomic64_ops);
-	}
-}
-EXPORT_SYMBOL_GPL(hisi_qm_debug_init);
-
-/**
- * hisi_qm_debug_regs_clear() - clear qm debug related registers.
- * @qm: The qm for which we want to clear its debug registers.
- */
-void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
-{
-	struct qm_dfx_registers *regs;
-	int i;
-
-	/* clear current_qm */
-	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
-
-	/* clear current_q */
-	writel(0x0, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-	writel(0x0, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	/*
-	 * these registers are reading and clearing, so clear them after
-	 * reading them.
-	 */
-	writel(0x1, qm->io_base + QM_DFX_CNT_CLR_CE);
-
-	regs = qm_dfx_regs;
-	for (i = 0; i < CNT_CYC_REGS_NUM; i++) {
-		readl(qm->io_base + regs->reg_offset);
-		regs++;
-	}
-
-	writel(0x0, qm->io_base + QM_DFX_CNT_CLR_CE);
-}
-EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
-
 static void qm_hw_error_init(struct hisi_qm *qm)
 {
 	struct hisi_qm_err_info *err_info = &qm->err_info;
@@ -4131,6 +4002,83 @@ static void hisi_qm_set_algqos_init(struct hisi_qm *qm)
 		debugfs_create_file("alg_qos", 0444, qm->debug.debug_root,
 				    qm, &qm_algqos_fops);
 }
+
+/**
+ * hisi_qm_debug_init() - Initialize qm related debugfs files.
+ * @qm: The qm for which we want to add debugfs files.
+ *
+ * Create qm related debugfs files.
+ */
+void hisi_qm_debug_init(struct hisi_qm *qm)
+{
+	struct qm_dfx *dfx = &qm->debug.dfx;
+	struct dentry *qm_d;
+	void *data;
+	int i;
+
+	qm_d = debugfs_create_dir("qm", qm->debug.debug_root);
+	qm->debug.qm_d = qm_d;
+
+	/* only show this in PF */
+	if (qm->fun_type == QM_HW_PF) {
+		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
+		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
+			qm_create_debugfs_file(qm, qm->debug.qm_d, i);
+	}
+
+	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
+
+	debugfs_create_file("cmd", 0600, qm->debug.qm_d, qm, &qm_cmd_fops);
+
+	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
+			&qm_status_fops);
+	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
+		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
+		debugfs_create_file(qm_dfx_files[i].name,
+			0644,
+			qm_d,
+			data,
+			&qm_atomic64_ops);
+	}
+
+	if (qm->ver >= QM_HW_V3)
+		hisi_qm_set_algqos_init(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_debug_init);
+
+/**
+ * hisi_qm_debug_regs_clear() - clear qm debug related registers.
+ * @qm: The qm for which we want to clear its debug registers.
+ */
+void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
+{
+	struct qm_dfx_registers *regs;
+	int i;
+
+	/* clear current_qm */
+	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
+	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
+
+	/* clear current_q */
+	writel(0x0, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
+	writel(0x0, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
+
+	/*
+	 * these registers are reading and clearing, so clear them after
+	 * reading them.
+	 */
+	writel(0x1, qm->io_base + QM_DFX_CNT_CLR_CE);
+
+	regs = qm_dfx_regs;
+	for (i = 0; i < CNT_CYC_REGS_NUM; i++) {
+		readl(qm->io_base + regs->reg_offset);
+		regs++;
+	}
+
+	/* clear clear_enable */
+	writel(0x0, qm->io_base + QM_DFX_CNT_CLR_CE);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
 
 /**
  * hisi_qm_sriov_enable() - enable virtual functions
@@ -5366,6 +5314,84 @@ err_get_pci_res:
 	qm_put_pci_res(qm);
 err_disable_pcidev:
 	pci_disable_device(pdev);
+	return ret;
+}
+
+static int hisi_qp_alloc_memory(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	size_t qp_dma_size;
+	int i, ret;
+
+	qm->qp_array = kcalloc(qm->qp_num, sizeof(struct hisi_qp), GFP_KERNEL);
+	if (!qm->qp_array)
+		return -ENOMEM;
+
+	/* one more page for device or qp statuses */
+	qp_dma_size = qm->sqe_size * QM_Q_DEPTH +
+		      sizeof(struct qm_cqe) * QM_Q_DEPTH;
+	qp_dma_size = PAGE_ALIGN(qp_dma_size) + PAGE_SIZE;
+	for (i = 0; i < qm->qp_num; i++) {
+		ret = hisi_qp_memory_init(qm, qp_dma_size, i);
+		if (ret)
+			goto err_init_qp_mem;
+
+		dev_dbg(dev, "allocate qp dma buf size=%zx)\n", qp_dma_size);
+	}
+
+	return 0;
+err_init_qp_mem:
+	hisi_qp_memory_uninit(qm, i);
+
+	return ret;
+}
+
+static int hisi_qm_memory_init(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	int ret, total_vfs;
+	size_t off = 0;
+
+	total_vfs = pci_sriov_get_totalvfs(qm->pdev);
+	qm->factor = kcalloc(total_vfs + 1, sizeof(struct qm_shaper_factor), GFP_KERNEL);
+	if (!qm->factor)
+		return -ENOMEM;
+
+#define QM_INIT_BUF(qm, type, num) do { \
+	(qm)->type = ((qm)->qdma.va + (off)); \
+	(qm)->type##_dma = (qm)->qdma.dma + (off); \
+	off += QMC_ALIGN(sizeof(struct qm_##type) * (num)); \
+} while (0)
+
+	idr_init(&qm->qp_idr);
+	qm->qdma.size = QMC_ALIGN(sizeof(struct qm_eqe) * QM_EQ_DEPTH) +
+			QMC_ALIGN(sizeof(struct qm_aeqe) * QM_Q_DEPTH) +
+			QMC_ALIGN(sizeof(struct qm_sqc) * qm->qp_num) +
+			QMC_ALIGN(sizeof(struct qm_cqc) * qm->qp_num);
+	qm->qdma.va = dma_alloc_coherent(dev, qm->qdma.size, &qm->qdma.dma,
+					 GFP_ATOMIC);
+	dev_dbg(dev, "allocate qm dma buf size=%zx)\n", qm->qdma.size);
+	if (!qm->qdma.va) {
+		ret =  -ENOMEM;
+		goto err_alloc_qdma;
+	}
+
+	QM_INIT_BUF(qm, eqe, QM_EQ_DEPTH);
+	QM_INIT_BUF(qm, aeqe, QM_Q_DEPTH);
+	QM_INIT_BUF(qm, sqc, qm->qp_num);
+	QM_INIT_BUF(qm, cqc, qm->qp_num);
+
+	ret = hisi_qp_alloc_memory(qm);
+	if (ret)
+		goto err_alloc_qp_array;
+
+	return 0;
+
+err_alloc_qp_array:
+	dma_free_coherent(dev, qm->qdma.size, qm->qdma.va, qm->qdma.dma);
+err_alloc_qdma:
+	kfree(qm->factor);
+
 	return ret;
 }
 
