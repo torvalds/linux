@@ -347,17 +347,6 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 
 #define spin_end()	HMT_medium()
 
-#define spin_until_cond(cond)					\
-do {								\
-	if (unlikely(!(cond))) {				\
-		spin_begin();					\
-		do {						\
-			spin_cpu_relax();			\
-		} while (!(cond));				\
-		spin_end();					\
-	}							\
-} while (0)
-
 #endif
 
 /* Check that a certain kernel stack pointer is valid in task_struct p */
