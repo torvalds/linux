@@ -31,6 +31,7 @@
 #include "ipa_uc.h"
 #include "ipa_interrupt.h"
 #include "gsi_trans.h"
+#include "ipa_sysfs.h"
 
 /**
  * DOC: The IP Accelerator
@@ -906,6 +907,13 @@ static const struct dev_pm_ops ipa_pm_ops = {
 	.resume		= ipa_resume,
 };
 
+static const struct attribute_group *ipa_attribute_groups[] = {
+	&ipa_attribute_group,
+	&ipa_feature_attribute_group,
+	&ipa_modem_attribute_group,
+	NULL,
+};
+
 static struct platform_driver ipa_driver = {
 	.probe		= ipa_probe,
 	.remove		= ipa_remove,
@@ -914,6 +922,7 @@ static struct platform_driver ipa_driver = {
 		.name		= "ipa",
 		.pm		= &ipa_pm_ops,
 		.of_match_table	= ipa_match,
+		.dev_groups	= ipa_attribute_groups,
 	},
 };
 

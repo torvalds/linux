@@ -1,0 +1,78 @@
+What:		/sys/devices/platform/soc@X/XXXXXXX.ipa/
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The /sys/devices/platform/soc@X/XXXXXXX.ipa/ directory
+		contains read-only attributes exposing information about
+		an IPA device.  The X values could vary, but are typically
+		"soc@0/1e40000.ipa".
+
+What:		.../XXXXXXX.ipa/version
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/version file contains the IPA hardware
+		version, as a period-separated set of two or three integers
+		(e.g., "3.5.1" or "4.2").
+
+What:		.../XXXXXXX.ipa/feature/
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/ directory contains a set of
+		attributes describing features implemented by the IPA
+		hardware.
+
+What:		.../XXXXXXX.ipa/feature/rx_offload
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/rx_offload file contains a
+		string indicating the type of receive checksum offload
+		that is supported by the hardware.  The possible values
+		are "MAPv4" or "MAPv5".
+
+What:		.../XXXXXXX.ipa/feature/tx_offload
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/tx_offload file contains a
+		string indicating the type of transmit checksum offload
+		that is supported by the hardware.  The possible values
+		are "MAPv4" or "MAPv5".
+
+What:		.../XXXXXXX.ipa/modem/
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/modem/ directory contains a set of
+		attributes describing properties of the modem execution
+		environment reachable by the IPA hardware.
+
+What:		.../XXXXXXX.ipa/modem/rx_endpoint_id
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/rx_endpoint_id file contains
+		the AP endpoint ID that receives packets originating from
+		the modem execution environment.  The "rx" is from the
+		perspective of the AP; this endpoint is considered an "IPA
+		producer".  An endpoint ID is a small unsigned integer.
+
+What:		.../XXXXXXX.ipa/modem/tx_endpoint_id
+Date:		June 2021
+KernelVersion:	v5.14
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/feature/tx_endpoint_id file contains
+		the AP endpoint ID used to transmit packets destined for
+		the modem execution environment.  The "tx" is from the
+		perspective of the AP; this endpoint is considered an "IPA
+		consumer".  An endpoint ID is a small unsigned integer.
