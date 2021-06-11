@@ -68,7 +68,7 @@ typedef struct {
 	u32 cs_base[4];		/* 3C-48h : Chip Select Base Addrs */
 	u32 intr_ctrl_stat;	/* 4Ch : Interrupt Control/Status */
 	u32 init_ctrl;		/* 50h : EEPROM ctrl, Init Ctrl, etc */
-}plx9050;
+} plx9050;
 
 typedef struct port_s {
 	struct napi_struct napi;
@@ -85,7 +85,7 @@ typedef struct port_s {
 	u16 txlast;
 	u8 rxs, txs, tmc;	/* SCA registers */
 	u8 chan;		/* physical port # - 0 or 1 */
-}port_t;
+} port_t;
 
 typedef struct card_s {
 	int type;		/* RSV, X21, etc. */
@@ -100,7 +100,7 @@ typedef struct card_s {
 	u8 irq;			/* interrupt request level */
 
 	port_t ports[2];
-}card_t;
+} card_t;
 
 #define get_port(card, port)	     ((port) < (card)->n_ports ? \
 					 (&(card)->ports[port]) : (NULL))
@@ -117,7 +117,7 @@ static void pc300_set_iface(port_t *port)
 
 	sca_out(EXS_TES1, (port->chan ? MSCI1_OFFSET : MSCI0_OFFSET) + EXS,
 		port->card);
-	switch(port->settings.clock_type) {
+	switch (port->settings.clock_type) {
 	case CLOCK_INT:
 		rxs |= CLK_BRG; /* BRG output */
 		txs |= CLK_PIN_OUT | CLK_TX_RXCLK; /* RX clock */
