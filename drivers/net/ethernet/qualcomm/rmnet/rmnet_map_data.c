@@ -50,8 +50,9 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	__be16 addend;
 
 	ip4h = (struct iphdr *)(skb->data);
-	if ((ntohs(ip4h->frag_off) & IP_MF) ||
-	    ((ntohs(ip4h->frag_off) & IP_OFFSET) > 0)) {
+
+	/* We don't support checksum offload on IPv4 fragments */
+	if (ip_is_fragment(ip4h)) {
 		priv->stats.csum_fragmented_pkt++;
 		return -EOPNOTSUPP;
 	}
