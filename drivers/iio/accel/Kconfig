@@ -143,9 +143,12 @@ config BMC150_ACCEL
 	select BMC150_ACCEL_SPI if SPI
 	help
 	  Say yes here to build support for the following Bosch accelerometers:
-	  BMC150, BMI055, BMA250E, BMA222E, BMA255, BMA280.
+	  BMA222, BMA222E, BMA250E, BMA255, BMA280, BMC150, BMI055.
 
-	  This is a combo module with both accelerometer and magnetometer.
+	  Note that some of these are combo modules:
+	    - BMC150: accelerometer and magnetometer
+	    - BMI055: accelerometer and gyroscope
+
 	  This driver is only implementing accelerometer part, which has
 	  its own address and register map.
 
