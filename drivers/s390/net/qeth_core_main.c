@@ -70,9 +70,6 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 				    unsigned int data_length);
 static int qeth_qdio_establish(struct qeth_card *);
 static void qeth_free_qdio_queues(struct qeth_card *card);
-static void qeth_notify_skbs(struct qeth_qdio_out_q *queue,
-		struct qeth_qdio_out_buffer *buf,
-		enum iucv_tx_notify notification);
 
 static void qeth_close_dev_handler(struct work_struct *work)
 {
@@ -437,12 +434,9 @@ static enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
 static void qeth_qdio_handle_aob(struct qeth_card *card,
 				 unsigned long phys_aob_addr)
 {
-	enum qeth_qdio_out_buffer_state new_state = QETH_QDIO_BUF_QAOB_OK;
 	struct qaob *aob;
 	struct qeth_qdio_out_buffer *buffer;
-	enum iucv_tx_notify notification;
 	struct qeth_qdio_out_q *queue;
-	unsigned int i;
 
 	aob = (struct qaob *) phys_to_virt(phys_aob_addr);
 	QETH_CARD_TEXT(card, 5, "haob");
@@ -450,12 +444,10 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 	buffer = (struct qeth_qdio_out_buffer *) aob->user1;
 	QETH_CARD_TEXT_(card, 5, "%lx", aob->user1);
 
-	if (aob->aorc) {
+	if (aob->aorc)
 		QETH_CARD_TEXT_(card, 2, "aorc%02X", aob->aorc);
-		new_state = QETH_QDIO_BUF_QAOB_ERROR;
-	}
 
-	switch (atomic_xchg(&buffer->state, new_state)) {
+	switch (atomic_xchg(&buffer->state, QETH_QDIO_BUF_QAOB_DONE)) {
 	case QETH_QDIO_BUF_PRIMED:
 		/* Faster than TX completion code, let it handle the async
 		 * completion for us. It will also recycle the QAOB.
@@ -468,21 +460,6 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 		break;
 	case QETH_QDIO_BUF_NEED_QAOB:
 		/* TX completion code is already finished. */
-		notification = qeth_compute_cq_notification(aob->aorc, 1);
-		qeth_notify_skbs(buffer->q, buffer, notification);
-
-		/* Free dangling allocations. The attached skbs are handled by
-		 * qeth_tx_complete_pending_bufs(), and so is the QAOB.
-		 */
-		for (i = 0;
-		     i < aob->sb_count && i < QETH_MAX_BUFFER_ELEMENTS(card);
-		     i++) {
-			void *data = phys_to_virt(aob->sba[i]);
-
-			if (data && buffer->is_header[i])
-				kmem_cache_free(qeth_core_header_cache, data);
-			buffer->is_header[i] = 0;
-		}
 
 		queue = buffer->q;
 		atomic_set(&buffer->state, QETH_QDIO_BUF_EMPTY);
@@ -1435,14 +1412,28 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 	struct qeth_qdio_out_buffer *buf, *tmp;
 
 	list_for_each_entry_safe(buf, tmp, &queue->pending_bufs, list_entry) {
+		struct qaob *aob = buf->aob;
+		enum iucv_tx_notify notify;
+		unsigned int i;
+
 		if (drain || atomic_read(&buf->state) == QETH_QDIO_BUF_EMPTY) {
 			QETH_CARD_TEXT(card, 5, "fp");
 			QETH_CARD_TEXT_(card, 5, "%lx", (long) buf);
 
-			if (drain)
-				qeth_notify_skbs(queue, buf,
-						 TX_NOTIFY_GENERALERROR);
+			notify = drain ? TX_NOTIFY_GENERALERROR :
+					 qeth_compute_cq_notification(aob->aorc, 1);
+			qeth_notify_skbs(queue, buf, notify);
 			qeth_tx_complete_buf(buf, drain, budget);
+
+			for (i = 0;
+			     i < aob->sb_count && i < queue->max_elements;
+			     i++) {
+				void *data = phys_to_virt(aob->sba[i]);
+
+				if (data && buf->is_header[i])
+					kmem_cache_free(qeth_core_header_cache,
+							data);
+			}
 
 			list_del(&buf->list_entry);
 			qeth_free_out_buf(buf);
@@ -6048,6 +6039,7 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 
 	if (qdio_error == QDIO_ERROR_SLSB_PENDING) {
 		struct qaob *aob = buffer->aob;
+		enum iucv_tx_notify notify;
 
 		if (!aob) {
 			netdev_WARN_ONCE(card->dev,
@@ -6084,30 +6076,21 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 					 &queue->pending_bufs);
 				/* Skip clearing the buffer: */
 				return;
-			case QETH_QDIO_BUF_QAOB_OK:
-				qeth_notify_skbs(queue, buffer,
-						 TX_NOTIFY_DELAYED_OK);
-				error = false;
-				break;
-			case QETH_QDIO_BUF_QAOB_ERROR:
-				qeth_notify_skbs(queue, buffer,
-						 TX_NOTIFY_DELAYED_GENERALERROR);
-				error = true;
+			case QETH_QDIO_BUF_QAOB_DONE:
+				notify = qeth_compute_cq_notification(aob->aorc, 1);
+				qeth_notify_skbs(queue, buffer, notify);
+				error = !!aob->aorc;
 				break;
 			default:
 				WARN_ON_ONCE(1);
 			}
 
 			break;
-		case QETH_QDIO_BUF_QAOB_OK:
+		case QETH_QDIO_BUF_QAOB_DONE:
 			/* qeth_qdio_handle_aob() already received a QAOB: */
-			qeth_notify_skbs(queue, buffer, TX_NOTIFY_OK);
-			error = false;
-			break;
-		case QETH_QDIO_BUF_QAOB_ERROR:
-			/* qeth_qdio_handle_aob() already received a QAOB: */
-			qeth_notify_skbs(queue, buffer, TX_NOTIFY_GENERALERROR);
-			error = true;
+			notify = qeth_compute_cq_notification(aob->aorc, 0);
+			qeth_notify_skbs(queue, buffer, notify);
+			error = !!aob->aorc;
 			break;
 		default:
 			WARN_ON_ONCE(1);

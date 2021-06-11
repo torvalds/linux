@@ -422,8 +422,7 @@ enum qeth_qdio_out_buffer_state {
 	/* Finished by the TX completion code: */
 	QETH_QDIO_BUF_NEED_QAOB,
 	/* Received QAOB notification on CQ: */
-	QETH_QDIO_BUF_QAOB_OK,
-	QETH_QDIO_BUF_QAOB_ERROR,
+	QETH_QDIO_BUF_QAOB_DONE,
 };
 
 struct qeth_qdio_out_buffer {
