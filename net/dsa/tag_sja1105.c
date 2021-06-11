@@ -147,7 +147,7 @@ static void sja1105_transfer_meta(struct sk_buff *skb,
 
 	hdr->h_dest[3] = meta->dmac_byte_3;
 	hdr->h_dest[4] = meta->dmac_byte_4;
-	SJA1105_SKB_CB(skb)->meta_tstamp = meta->tstamp;
+	SJA1105_SKB_CB(skb)->tstamp = meta->tstamp;
 }
 
 /* This is a simple state machine which follows the hardware mechanism of

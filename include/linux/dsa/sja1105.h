@@ -48,7 +48,7 @@ struct sja1105_tagger_data {
 
 struct sja1105_skb_cb {
 	struct sk_buff *clone;
-	u32 meta_tstamp;
+	u64 tstamp;
 };
 
 #define SJA1105_SKB_CB(skb) \
