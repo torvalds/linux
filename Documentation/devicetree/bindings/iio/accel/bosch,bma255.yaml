@@ -19,6 +19,7 @@ properties:
       - bosch,bmc150_accel
       - bosch,bmi055_accel
       - bosch,bma253
+      - bosch,bma254
       - bosch,bma255
       - bosch,bma250e
       - bosch,bma222
