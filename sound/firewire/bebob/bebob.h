@@ -109,8 +109,6 @@ struct snd_bebob {
 	/* for M-Audio special devices */
 	void *maudio_special_quirk;
 
-	/* For BeBoB version quirk. */
-	unsigned int version;
 	bool discontinuity_quirk;
 
 	struct amdtp_domain domain;

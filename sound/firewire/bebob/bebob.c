@@ -75,7 +75,6 @@ name_device(struct snd_bebob *bebob)
 	u32 hw_id;
 	u32 data[2] = {0};
 	u32 revision;
-	u32 version;
 	int err;
 
 	/* get vendor name from root directory */
@@ -107,12 +106,6 @@ name_device(struct snd_bebob *bebob)
 				   data, sizeof(data));
 	if (err < 0)
 		goto end;
-
-	err = snd_bebob_read_quad(bebob->unit, INFO_OFFSET_BEBOB_VERSION,
-				  &version);
-	if (err < 0)
-		goto end;
-	bebob->version = version;
 
 	strcpy(bebob->card->driver, "BeBoB");
 	strcpy(bebob->card->shortname, model);

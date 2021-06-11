@@ -456,14 +456,6 @@ static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 	}
 
 	if (stream == &bebob->tx_stream) {
-		// BeBoB v3 transfers packets with these qurks:
-		//  - In the beginning of streaming, the value of dbc is
-		//    incremented even if no data blocks are transferred.
-		//  - The value of dbc is reset suddenly.
-		if (bebob->version > 2)
-			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
-						  CIP_SKIP_DBC_ZERO_CHECK;
-
 		// At high sampling rate, M-Audio special firmware transmits
 		// empty packet with the value of dbc incremented by 8 but the
 		// others are valid to IEC 61883-1.
