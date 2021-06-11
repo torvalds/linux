@@ -647,7 +647,6 @@ enum {
 	CRYPTOA_UNSPEC,
 	CRYPTOA_ALG,
 	CRYPTOA_TYPE,
-	CRYPTOA_U32,
 	__CRYPTOA_MAX,
 };
 
@@ -663,10 +662,6 @@ struct crypto_attr_alg {
 struct crypto_attr_type {
 	u32 type;
 	u32 mask;
-};
-
-struct crypto_attr_u32 {
-	u32 num;
 };
 
 /* 
