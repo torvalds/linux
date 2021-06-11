@@ -475,7 +475,7 @@ static void intel_qep_remove(struct pci_dev *pci)
 
 static int __maybe_unused intel_qep_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct intel_qep *qep = pci_get_drvdata(pdev);
 
 	qep->qepcon = intel_qep_readl(qep, INTEL_QEPCON);
@@ -487,7 +487,7 @@ static int __maybe_unused intel_qep_suspend(struct device *dev)
 
 static int __maybe_unused intel_qep_resume(struct device *dev)
 {
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct intel_qep *qep = pci_get_drvdata(pdev);
 
 	/*
