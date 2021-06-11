@@ -1606,9 +1606,9 @@ int nvmem_cell_read_u64(struct device *dev, const char *cell_id, u64 *val)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_read_u64);
 
-static void *nvmem_cell_read_variable_common(struct device *dev,
-					     const char *cell_id,
-					     size_t max_len, size_t *len)
+static const void *nvmem_cell_read_variable_common(struct device *dev,
+						   const char *cell_id,
+						   size_t max_len, size_t *len)
 {
 	struct nvmem_cell *cell;
 	int nbits;
@@ -1652,7 +1652,7 @@ int nvmem_cell_read_variable_le_u32(struct device *dev, const char *cell_id,
 				    u32 *val)
 {
 	size_t len;
-	u8 *buf;
+	const u8 *buf;
 	int i;
 
 	buf = nvmem_cell_read_variable_common(dev, cell_id, sizeof(*val), &len);
@@ -1683,7 +1683,7 @@ int nvmem_cell_read_variable_le_u64(struct device *dev, const char *cell_id,
 				    u64 *val)
 {
 	size_t len;
-	u8 *buf;
+	const u8 *buf;
 	int i;
 
 	buf = nvmem_cell_read_variable_common(dev, cell_id, sizeof(*val), &len);
