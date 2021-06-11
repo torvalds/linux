@@ -5329,10 +5329,14 @@ static int intel_iommu_disable_auxd(struct device *dev)
 static int intel_iommu_enable_sva(struct device *dev)
 {
 	struct device_domain_info *info = get_domain_info(dev);
-	struct intel_iommu *iommu = info->iommu;
+	struct intel_iommu *iommu;
 	int ret;
 
-	if (!info || !iommu || dmar_disabled)
+	if (!info || dmar_disabled)
+		return -EINVAL;
+
+	iommu = info->iommu;
+	if (!iommu)
 		return -EINVAL;
 
 	if (!(iommu->flags & VTD_FLAG_SVM_CAPABLE))
