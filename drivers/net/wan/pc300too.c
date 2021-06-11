@@ -158,8 +158,8 @@ static void pc300_set_iface(port_t *port)
 static int pc300_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
-
 	int result = hdlc_open(dev);
+
 	if (result)
 		return result;
 
@@ -426,6 +426,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 		port_t *port = &card->ports[i];
 		struct net_device *dev = port->netdev;
 		hdlc_device *hdlc = dev_to_hdlc(dev);
+
 		port->chan = i;
 
 		spin_lock_init(&port->lock);
