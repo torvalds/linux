@@ -1648,7 +1648,6 @@ static int isp1763_run(struct usb_hcd *hcd)
 	down_write(&ehci_cf_port_reset_rwsem);
 	retval = isp1760_hcd_set_and_wait(hcd, FLAG_CF, 250 * 1000);
 	up_write(&ehci_cf_port_reset_rwsem);
-	retval = 0;
 	if (retval)
 		return retval;
 
