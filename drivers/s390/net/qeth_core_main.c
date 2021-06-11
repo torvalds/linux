@@ -1400,8 +1400,10 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	int i;
 
 	/* is PCI flag set on buffer? */
-	if (buf->buffer->element[0].sflags & SBAL_SFLAGS0_PCI_REQ)
+	if (buf->buffer->element[0].sflags & SBAL_SFLAGS0_PCI_REQ) {
 		atomic_dec(&queue->set_pci_flags_count);
+		QETH_TXQ_STAT_INC(queue, completion_irq);
+	}
 
 	qeth_tx_complete_buf(buf, error, budget);
 

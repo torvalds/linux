@@ -41,6 +41,7 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("Queue stopped", stopped),
 	QETH_TXQ_STAT("Doorbell", doorbell),
 	QETH_TXQ_STAT("IRQ for frames", coal_frames),
+	QETH_TXQ_STAT("Completion IRQ", completion_irq),
 	QETH_TXQ_STAT("Completion yield", completion_yield),
 	QETH_TXQ_STAT("Completion timer", completion_timer),
 };

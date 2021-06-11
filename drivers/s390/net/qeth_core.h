@@ -483,6 +483,7 @@ struct qeth_out_q_stats {
 	u64 stopped;
 	u64 doorbell;
 	u64 coal_frames;
+	u64 completion_irq;
 	u64 completion_yield;
 	u64 completion_timer;
 
