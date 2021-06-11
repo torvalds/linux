@@ -178,7 +178,7 @@ static ssize_t sernum_show(struct device *dev, struct device_attribute *attr, ch
 	struct at25_data *at25;
 
 	at25 = dev_get_drvdata(dev);
-	return sysfs_emit(buf, "%*ph\n", sizeof(at25->sernum), at25->sernum);
+	return sysfs_emit(buf, "%*ph\n", (int)sizeof(at25->sernum), at25->sernum);
 }
 static DEVICE_ATTR_RO(sernum);
 
@@ -379,11 +379,11 @@ static int at25_probe(struct spi_device *spi)
 	u8 sernum[FM25_SN_LEN];
 	int i;
 	const struct of_device_id *match;
-	int is_fram = 0;
+	unsigned long is_fram = 0;
 
 	match = of_match_device(of_match_ptr(at25_of_match), &spi->dev);
 	if (match)
-		is_fram = (int)match->data;
+		is_fram = (unsigned long)match->data;
 
 	/* Chip description */
 	if (!spi->dev.platform_data) {
