@@ -2300,6 +2300,8 @@ struct ib_device_ops {
 	u32 uverbs_abi_ver;
 	unsigned int uverbs_no_driver_id_binding:1;
 
+	const struct attribute_group **port_groups;
+
 	int (*post_send)(struct ib_qp *qp, const struct ib_send_wr *send_wr,
 			 const struct ib_send_wr **bad_send_wr);
 	int (*post_recv)(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
@@ -2546,12 +2548,7 @@ struct ib_device_ops {
 	 */
 	int (*get_hw_stats)(struct ib_device *device,
 			    struct rdma_hw_stats *stats, u32 port, int index);
-	/*
-	 * This function is called once for each port when a ib device is
-	 * registered.
-	 */
-	int (*init_port)(struct ib_device *device, u32 port_num,
-			 struct kobject *port_sysfs);
+
 	/**
 	 * Allows rdma drivers to add their own restrack attributes.
 	 */

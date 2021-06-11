@@ -599,19 +599,13 @@ const struct attribute_group ib_hfi1_attr_group = {
 	.attrs = hfi1_attributes,
 };
 
-static const struct attribute_group *hfi1_port_groups[] = {
+const struct attribute_group *hfi1_attr_port_groups[] = {
 	&port_cc_group,
 	&port_sc2vl_group,
 	&port_sl2sc_group,
 	&port_vl2mtu_group,
 	NULL,
 };
-
-int hfi1_create_port_files(struct ib_device *ibdev, u32 port_num,
-			   struct kobject *kobj)
-{
-	return ib_port_sysfs_create_groups(ibdev, port_num, hfi1_port_groups);
-}
 
 struct sde_attribute {
 	struct attribute attr;
@@ -741,8 +735,4 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd)
 	/* Unwind operations in hfi1_verbs_register_sysfs() */
 	for (i = 0; i < dd->num_sdma; i++)
 		kobject_put(&dd->per_sdma[i].kobj);
-
-	for (i = 0; i < dd->num_pports; i++)
-		ib_port_sysfs_remove_groups(&dd->verbs_dev.rdi.ibdev, i + 1,
-					    hfi1_port_groups);
 }

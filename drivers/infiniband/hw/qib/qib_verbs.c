@@ -1483,7 +1483,7 @@ static const struct ib_device_ops qib_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_QIB,
 
-	.init_port = qib_create_port_files,
+	.port_groups = qib_attr_port_groups,
 	.modify_device = qib_modify_device,
 	.process_mad = qib_process_mad,
 };
@@ -1643,8 +1643,6 @@ err_hdrs:
 void qib_unregister_ib_device(struct qib_devdata *dd)
 {
 	struct qib_ibdev *dev = &dd->verbs_dev;
-
-	qib_verbs_unregister_sysfs(dd);
 
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 

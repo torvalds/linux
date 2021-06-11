@@ -1703,7 +1703,7 @@ int ib_device_set_netns_put(struct sk_buff *skb,
 	 * port_cleanup infrastructure is implemented, this limitation will be
 	 * removed.
 	 */
-	if (!dev->ops.disassociate_ucontext || dev->ops.init_port ||
+	if (!dev->ops.disassociate_ucontext || dev->ops.port_groups ||
 	    ib_devices_shared_netns) {
 		ret = -EOPNOTSUPP;
 		goto ns_err;
@@ -2668,7 +2668,6 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, get_vf_config);
 	SET_DEVICE_OP(dev_ops, get_vf_guid);
 	SET_DEVICE_OP(dev_ops, get_vf_stats);
-	SET_DEVICE_OP(dev_ops, init_port);
 	SET_DEVICE_OP(dev_ops, iw_accept);
 	SET_DEVICE_OP(dev_ops, iw_add_ref);
 	SET_DEVICE_OP(dev_ops, iw_connect);
@@ -2691,6 +2690,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, modify_wq);
 	SET_DEVICE_OP(dev_ops, peek_cq);
 	SET_DEVICE_OP(dev_ops, poll_cq);
+	SET_DEVICE_OP(dev_ops, port_groups);
 	SET_DEVICE_OP(dev_ops, post_recv);
 	SET_DEVICE_OP(dev_ops, post_send);
 	SET_DEVICE_OP(dev_ops, post_srq_recv);

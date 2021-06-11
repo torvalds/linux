@@ -31,10 +31,6 @@ struct ib_port_attribute {
 #define IB_PORT_ATTR_WO(_name)                                                 \
 	struct ib_port_attribute ib_port_attr_##_name = __ATTR_WO(_name)
 
-int ib_port_sysfs_create_groups(struct ib_device *ibdev, u32 port_num,
-				const struct attribute_group **groups);
-void ib_port_sysfs_remove_groups(struct ib_device *ibdev, u32 port_num,
-				 const struct attribute_group **groups);
 struct ib_device *ib_port_sysfs_get_ibdev_kobj(struct kobject *kobj,
 					       u32 *port_num);
 

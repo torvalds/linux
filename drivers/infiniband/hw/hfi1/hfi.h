@@ -2184,12 +2184,11 @@ static inline bool hfi1_packet_present(struct hfi1_ctxtdata *rcd)
 
 extern const char ib_hfi1_version[];
 extern const struct attribute_group ib_hfi1_attr_group;
+extern const struct attribute_group *hfi1_attr_port_groups[];
 
 int hfi1_device_create(struct hfi1_devdata *dd);
 void hfi1_device_remove(struct hfi1_devdata *dd);
 
-int hfi1_create_port_files(struct ib_device *ibdev, u32 port_num,
-			   struct kobject *kobj);
 int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd);
 void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 /* Hook for sysfs read of QSFP */

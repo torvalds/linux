@@ -418,7 +418,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		 * These functions are not part of verbs specifically but are
 		 * required for rdmavt to function.
 		 */
-		if ((!rdi->ibdev.ops.init_port) ||
+		if ((!rdi->ibdev.ops.port_groups) ||
 		    (!rdi->driver_f.get_pci_dev))
 			return -EINVAL;
 		break;

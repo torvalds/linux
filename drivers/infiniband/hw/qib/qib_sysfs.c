@@ -545,7 +545,7 @@ static const struct attribute_group port_diagc_group = {
 
 /* End diag_counters */
 
-static const struct attribute_group *qib_port_groups[] = {
+const struct attribute_group *qib_attr_port_groups[] = {
 	&port_linkcontrol_group,
 	&port_ccmgta_attribute_group,
 	&port_sl2vl_group,
@@ -733,21 +733,3 @@ static struct attribute *qib_attributes[] = {
 const struct attribute_group qib_attr_group = {
 	.attrs = qib_attributes,
 };
-
-int qib_create_port_files(struct ib_device *ibdev, u32 port_num,
-			  struct kobject *kobj)
-{
-	return ib_port_sysfs_create_groups(ibdev, port_num, qib_port_groups);
-}
-
-/*
- * Unregister and remove our files in /sys/class/infiniband.
- */
-void qib_verbs_unregister_sysfs(struct qib_devdata *dd)
-{
-	int i;
-
-	for (i = 0; i < dd->num_pports; i++)
-		ib_port_sysfs_remove_groups(&dd->verbs_dev.rdi.ibdev, i,
-					    qib_port_groups);
-}

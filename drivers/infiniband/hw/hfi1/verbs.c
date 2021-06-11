@@ -1791,8 +1791,8 @@ static const struct ib_device_ops hfi1_dev_ops = {
 	.alloc_rdma_netdev = hfi1_vnic_alloc_rn,
 	.get_dev_fw_str = hfi1_get_dev_fw_str,
 	.get_hw_stats = get_hw_stats,
-	.init_port = hfi1_create_port_files,
 	.modify_device = modify_device,
+	.port_groups = hfi1_attr_port_groups,
 	/* keep process mad in the driver */
 	.process_mad = hfi1_process_mad,
 	.rdma_netdev_get_params = hfi1_ipoib_rn_get_params,
