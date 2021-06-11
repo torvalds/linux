@@ -120,27 +120,33 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 			       struct rmnet_map_dl_csum_trailer *csum_trailer,
 			       struct rmnet_priv *priv)
 {
-	__sum16 *csum_field, ip6_payload_csum, pseudo_csum, csum_temp;
+	struct ipv6hdr *ip6h = (struct ipv6hdr *)skb->data;
+	void *txporthdr = skb->data + sizeof(*ip6h);
+	__sum16 *csum_field, pseudo_csum, csum_temp;
 	u16 csum_value, csum_value_final;
 	__be16 ip6_hdr_csum, addend;
-	struct ipv6hdr *ip6h;
-	void *txporthdr;
+	__sum16 ip6_payload_csum;
+	__be16 ip_header_csum;
 	u32 length;
 
-	ip6h = (struct ipv6hdr *)(skb->data);
-
-	txporthdr = skb->data + sizeof(struct ipv6hdr);
+	/* Checksum offload is only supported for UDP and TCP protocols;
+	 * the packet cannot include any IPv6 extension headers
+	 */
 	csum_field = rmnet_map_get_csum_field(ip6h->nexthdr, txporthdr);
-
 	if (!csum_field) {
 		priv->stats.csum_err_invalid_transport++;
 		return -EPROTONOSUPPORT;
 	}
 
+	/* The checksum value in the trailer is computed over the entire
+	 * IP packet, including the IP header and payload.  To derive the
+	 * transport checksum from this, we first subract the contribution
+	 * of the IP header from the trailer checksum.  We then add the
+	 * checksum computed over the pseudo header.
+	 */
 	csum_value = ~ntohs(csum_trailer->csum_value);
-	ip6_hdr_csum = (__force __be16)
-			~ntohs((__force __be16)ip_compute_csum(ip6h,
-			       (int)(txporthdr - (void *)(skb->data))));
+	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
+	ip6_hdr_csum = (__force __be16)~ntohs(ip_header_csum);
 	ip6_payload_csum = csum16_sub((__force __sum16)csum_value,
 				      ip6_hdr_csum);
 
