@@ -159,6 +159,30 @@ check_audiophile_booted(struct fw_unit *unit)
 	return strncmp(name, "FW Audiophile Bootloader", 24) != 0;
 }
 
+static int detect_quirks(struct snd_bebob *bebob, const struct ieee1394_device_id *entry)
+{
+	if (entry->vendor_id == VEN_MAUDIO1) {
+		switch (entry->model_id) {
+		case MODEL_MAUDIO_PROFIRELIGHTBRIDGE:
+			// M-Audio ProFire Lightbridge has a quirk to transfer packets with
+			// discontinuous cycle or data block counter in early stage of packet
+			// streaming. The cycle span from the first packet with event is variable.
+			bebob->quirks |= SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC;
+			break;
+		case MODEL_MAUDIO_FW1814:
+		case MODEL_MAUDIO_PROJECTMIX:
+			// At high sampling rate, M-Audio special firmware transmits empty packet
+			// with the value of dbc incremented by 8.
+			bebob->quirks |= SND_BEBOB_QUIRK_WRONG_DBC;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
 	unsigned int card_index;
@@ -219,6 +243,10 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 	if (err < 0)
 		goto error;
 
+	err = detect_quirks(bebob, entry);
+	if (err < 0)
+		goto error;
+
 	if (bebob->spec == &maudio_special_spec) {
 		if (entry->model_id == MODEL_MAUDIO_FW1814)
 			err = snd_bebob_maudio_special_discover(bebob, true);
@@ -229,12 +257,6 @@ static int bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *en
 	}
 	if (err < 0)
 		goto error;
-
-	// M-Audio ProFire Lightbridge has a quirk to transfer packets with discontinuous cycle or
-	// data block counter in early stage of packet streaming. The cycle span from the first
-	// packet with event is variable.
-	if (entry->vendor_id == VEN_MAUDIO1 && entry->model_id == MODEL_MAUDIO_PROFIRELIGHTBRIDGE)
-		bebob->discontinuity_quirk = true;
 
 	err = snd_bebob_stream_init_duplex(bebob);
 	if (err < 0)

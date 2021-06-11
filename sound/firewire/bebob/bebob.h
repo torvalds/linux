@@ -75,6 +75,11 @@ struct snd_bebob_spec {
 	const struct snd_bebob_meter_spec *meter;
 };
 
+enum snd_bebob_quirk {
+	SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC,
+	SND_BEBOB_QUIRK_WRONG_DBC,
+};
+
 struct snd_bebob {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -84,6 +89,7 @@ struct snd_bebob {
 	spinlock_t lock;
 
 	const struct snd_bebob_spec *spec;
+	unsigned int quirks;	// Combination of snd_bebob_quirk enumerations.
 
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
@@ -108,8 +114,6 @@ struct snd_bebob {
 
 	/* for M-Audio special devices */
 	void *maudio_special_quirk;
-
-	bool discontinuity_quirk;
 
 	struct amdtp_domain domain;
 };

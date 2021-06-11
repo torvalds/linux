@@ -430,6 +430,7 @@ static int start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 
 static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 {
+	unsigned int flags = CIP_BLOCKING;
 	enum amdtp_stream_direction dir_stream;
 	struct cmp_connection *conn;
 	enum cmp_direction dir_conn;
@@ -445,22 +446,19 @@ static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 		dir_conn = CMP_INPUT;
 	}
 
+	if (stream == &bebob->tx_stream) {
+		if (bebob->quirks & SND_BEBOB_QUIRK_WRONG_DBC)
+			flags |= CIP_EMPTY_HAS_WRONG_DBC;
+	}
+
 	err = cmp_connection_init(conn, bebob->unit, dir_conn, 0);
 	if (err < 0)
 		return err;
 
-	err = amdtp_am824_init(stream, bebob->unit, dir_stream, CIP_BLOCKING);
+	err = amdtp_am824_init(stream, bebob->unit, dir_stream, flags);
 	if (err < 0) {
 		cmp_connection_destroy(conn);
 		return err;
-	}
-
-	if (stream == &bebob->tx_stream) {
-		// At high sampling rate, M-Audio special firmware transmits
-		// empty packet with the value of dbc incremented by 8 but the
-		// others are valid to IEC 61883-1.
-		if (bebob->maudio_special_quirk)
-			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
 	}
 
 	return 0;
@@ -630,7 +628,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		if (err < 0)
 			goto error;
 
-		if (!bebob->discontinuity_quirk)
+		if (!(bebob->quirks & SND_BEBOB_QUIRK_INITIAL_DISCONTINUOUS_DBC))
 			tx_init_skip_cycles = 0;
 		else
 			tx_init_skip_cycles = 16000;
