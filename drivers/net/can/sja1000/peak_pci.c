@@ -152,12 +152,14 @@ static void peak_pci_write_reg(const struct sja1000_priv *priv,
 static inline void pita_set_scl_highz(struct peak_pciec_card *card)
 {
 	u8 gp_outen = readb(card->cfg_base + PITA_GPOEN) & ~PITA_GPIN_SCL;
+
 	writeb(gp_outen, card->cfg_base + PITA_GPOEN);
 }
 
 static inline void pita_set_sda_highz(struct peak_pciec_card *card)
 {
 	u8 gp_outen = readb(card->cfg_base + PITA_GPOEN) & ~PITA_GPIN_SDA;
+
 	writeb(gp_outen, card->cfg_base + PITA_GPOEN);
 }
 
@@ -242,7 +244,7 @@ static int peak_pciec_write_pca9553(struct peak_pciec_card *card,
 	int ret;
 
 	/* cache led mask */
-	if ((offset == 5) && (data == card->led_cache))
+	if (offset == 5 && data == card->led_cache)
 		return 0;
 
 	ret = i2c_transfer(&card->led_chip, &msg, 1);
@@ -424,7 +426,7 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 	/* channel is the first one: do the init part */
 	} else {
 		/* create the bit banging I2C adapter structure */
-		card = kzalloc(sizeof(struct peak_pciec_card), GFP_KERNEL);
+		card = kzalloc(sizeof(*card), GFP_KERNEL);
 		if (!card)
 			return -ENOMEM;
 
