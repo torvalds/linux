@@ -46,7 +46,6 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_BEHRINGER	0x00001564
 #define VEN_APOGEE	0x000003db
 #define VEN_ESI		0x00000f1b
-#define VEN_ACOUSTIC	0x00000002
 #define VEN_CME		0x0000000a
 #define VEN_PHONIC	0x00001496
 #define VEN_LYNX	0x000019e5
@@ -403,8 +402,8 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x01eeee, &spec_normal),
 	/* ESI, Quatafire610 */
 	SND_BEBOB_DEV_ENTRY(VEN_ESI, 0x00010064, &spec_normal),
-	/* AcousticReality, eARMasterOne */
-	SND_BEBOB_DEV_ENTRY(VEN_ACOUSTIC, 0x00000002, &spec_normal),
+	// AcousticReality, eARMasterOne. Terratec OEM.
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
 	/* CME, MatrixKFW */
 	SND_BEBOB_DEV_ENTRY(VEN_CME, 0x00030000, &spec_normal),
 	/* Phonic, Helix Board 12 MkII */
