@@ -288,6 +288,9 @@ static int read_sections(struct elf *elf)
 		}
 		sec->len = sec->sh.sh_size;
 
+		if (sec->sh.sh_flags & SHF_EXECINSTR)
+			elf->text_size += sec->len;
+
 		list_add_tail(&sec->list, &elf->sections);
 		elf_hash_add(section, &sec->hash, sec->idx);
 		elf_hash_add(section_name, &sec->name_hash, str_hash(sec->name));
@@ -581,13 +584,7 @@ static int read_relocs(struct elf *elf)
 	unsigned int symndx;
 	unsigned long nr_reloc, max_reloc = 0, tot_reloc = 0;
 
-	sec = find_section_by_name(elf, ".text");
-	if (!sec) {
-		WARN("no .text");
-		return -1;
-	}
-
-	if (!elf_alloc_hash(reloc, sec->len / 16))
+	if (!elf_alloc_hash(reloc, elf->text_size / 16))
 		return -1;
 
 	list_for_each_entry(sec, &elf->sections, list) {

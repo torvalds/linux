@@ -83,6 +83,7 @@ struct elf {
 	int fd;
 	bool changed;
 	char *name;
+	unsigned int text_size;
 	struct list_head sections;
 
 	int symbol_bits;
