@@ -38,3 +38,8 @@ void dcn303_dsc_pg_control(struct dce_hwseq *hws, unsigned int dsc_inst, bool po
 {
 	/*DCN303 removes PG registers*/
 }
+
+void dcn303_enable_power_gating_plane(struct dce_hwseq *hws, bool enable)
+{
+	/*DCN303 removes PG registers*/
+}
