@@ -725,7 +725,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		ca->usage_base->buckets_ec		= le64_to_cpu(u->buckets_ec);
 		ca->usage_base->buckets_unavailable	= le64_to_cpu(u->buckets_unavailable);
 
-		for (i = 0; i < nr_types; i++) {
+		for (i = 0; i < min_t(unsigned, nr_types, BCH_DATA_NR); i++) {
 			ca->usage_base->d[i].buckets	= le64_to_cpu(u->d[i].buckets);
 			ca->usage_base->d[i].sectors	= le64_to_cpu(u->d[i].sectors);
 			ca->usage_base->d[i].fragmented	= le64_to_cpu(u->d[i].fragmented);
