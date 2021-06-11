@@ -4385,7 +4385,7 @@ static void handle_vpd_rsp(union ibmvnic_crq *crq,
 
 complete:
 	if (adapter->fw_version[0] == '\0')
-		strncpy((char *)adapter->fw_version, "N/A", 3 * sizeof(char));
+		strscpy((char *)adapter->fw_version, "N/A", sizeof(adapter->fw_version));
 	complete(&adapter->fw_done);
 }
 
