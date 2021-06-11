@@ -1090,26 +1090,6 @@ static const struct iio_chan_spec bma280_accel_channels[] =
 
 static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 	{
-		.name = "BMA255/BMC150/BMI055",
-		.chip_id = 0xFA,
-		.channels = bmc150_accel_channels,
-		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
-		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
-				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
-				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
-	},
-	{
-		.name = "BMA250E",
-		.chip_id = 0xF9,
-		.channels = bma250e_accel_channels,
-		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
-		.scale_table = { {38344, BMC150_ACCEL_DEF_RANGE_2G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_4G},
-				 {153277, BMC150_ACCEL_DEF_RANGE_8G},
-				 {306457, BMC150_ACCEL_DEF_RANGE_16G} },
-	},
-	{
 		.name = "BMA222",
 		.chip_id = 0x03,
 		.channels = bma222e_accel_channels,
@@ -1133,6 +1113,26 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {306457, BMC150_ACCEL_DEF_RANGE_4G},
 				 {612915, BMC150_ACCEL_DEF_RANGE_8G},
 				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	{
+		.name = "BMA250E",
+		.chip_id = 0xF9,
+		.channels = bma250e_accel_channels,
+		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
+		.scale_table = { {38344, BMC150_ACCEL_DEF_RANGE_2G},
+				 {76590, BMC150_ACCEL_DEF_RANGE_4G},
+				 {153277, BMC150_ACCEL_DEF_RANGE_8G},
+				 {306457, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	{
+		.name = "BMA255/BMC150/BMI055",
+		.chip_id = 0xFA,
+		.channels = bmc150_accel_channels,
+		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
+		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
+				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
+				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
+				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	{
 		.name = "BMA280",

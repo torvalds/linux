@@ -213,41 +213,41 @@ static int bmc150_accel_remove(struct i2c_client *client)
 }
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {
-	{"BSBA0150"},
-	{"BMC150A"},
-	{"BMI055A"},
 	{"BMA0255"},
-	{"BMA250E"},
+	{"BMA0280"},
 	{"BMA222"},
 	{"BMA222E"},
-	{"BMA0280"},
+	{"BMA250E"},
+	{"BMC150A"},
+	{"BMI055A"},
 	{"BOSC0200"},
+	{"BSBA0150"},
 	{"DUAL250E"},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
 
 static const struct i2c_device_id bmc150_accel_id[] = {
-	{"bmc150_accel"},
-	{"bmi055_accel"},
-	{"bma255"},
-	{"bma250e"},
 	{"bma222"},
 	{"bma222e"},
+	{"bma250e"},
+	{"bma255"},
 	{"bma280"},
+	{"bmc150_accel"},
+	{"bmi055_accel"},
 	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, bmc150_accel_id);
 
 static const struct of_device_id bmc150_accel_of_match[] = {
-	{ .compatible = "bosch,bmc150_accel" },
-	{ .compatible = "bosch,bmi055_accel" },
-	{ .compatible = "bosch,bma255" },
-	{ .compatible = "bosch,bma250e" },
 	{ .compatible = "bosch,bma222" },
 	{ .compatible = "bosch,bma222e" },
+	{ .compatible = "bosch,bma250e" },
+	{ .compatible = "bosch,bma255" },
 	{ .compatible = "bosch,bma280" },
+	{ .compatible = "bosch,bmc150_accel" },
+	{ .compatible = "bosch,bmi055_accel" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bmc150_accel_of_match);
