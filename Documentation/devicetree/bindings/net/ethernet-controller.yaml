@@ -98,6 +98,7 @@ properties:
       - 10gbase-kr
       - usxgmii
       - 10gbase-r
+      - 25gbase-r
 
   phy-mode:
     $ref: "#/properties/phy-connection-type"
