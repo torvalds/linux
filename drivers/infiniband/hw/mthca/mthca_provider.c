@@ -1099,6 +1099,7 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.destroy_cq = mthca_destroy_cq,
 	.destroy_qp = mthca_destroy_qp,
 	.detach_mcast = mthca_multicast_detach,
+	.device_group = &mthca_attr_group,
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = mthca_get_dma_mr,
 	.get_port_immutable = mthca_port_immutable,
@@ -1186,7 +1187,6 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	mutex_init(&dev->cap_mask_mutex);
 
-	rdma_set_device_sysfs_group(&dev->ib_dev, &mthca_attr_group);
 	ret = ib_register_device(&dev->ib_dev, "mthca%d", &dev->pdev->dev);
 	if (ret)
 		return ret;

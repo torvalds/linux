@@ -1114,6 +1114,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.destroy_qp = rxe_destroy_qp,
 	.destroy_srq = rxe_destroy_srq,
 	.detach_mcast = rxe_detach_mcast,
+	.device_group = &rxe_attr_group,
 	.enable_driver = rxe_enable_driver,
 	.get_dma_mr = rxe_get_dma_mr,
 	.get_hw_stats = rxe_ib_get_hw_stats,
@@ -1180,7 +1181,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	}
 	rxe->tfm = tfm;
 
-	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	err = ib_register_device(dev, ibdev_name, NULL);
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);

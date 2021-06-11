@@ -1789,6 +1789,7 @@ static const struct ib_device_ops hfi1_dev_ops = {
 	.alloc_hw_device_stats = hfi1_alloc_hw_device_stats,
 	.alloc_hw_port_stats = hfi_alloc_hw_port_stats,
 	.alloc_rdma_netdev = hfi1_vnic_alloc_rn,
+	.device_group = &ib_hfi1_attr_group,
 	.get_dev_fw_str = hfi1_get_dev_fw_str,
 	.get_hw_stats = get_hw_stats,
 	.modify_device = modify_device,
@@ -1926,9 +1927,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 			      &ppd->ibport_data.rvp,
 			      i,
 			      ppd->pkeys);
-
-	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev,
-				    &ib_hfi1_attr_group);
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
