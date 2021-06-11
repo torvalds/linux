@@ -45,11 +45,14 @@ struct sja1105_tagger_data {
 	 */
 	spinlock_t meta_lock;
 	unsigned long state;
+	u8 ts_id;
 };
 
 struct sja1105_skb_cb {
 	struct sk_buff *clone;
 	u64 tstamp;
+	/* Only valid for packets cloned for 2-step TX timestamping */
+	u8 ts_id;
 };
 
 #define SJA1105_SKB_CB(skb) \
@@ -65,5 +68,25 @@ struct sja1105_port {
 	bool hwts_tx_en;
 	u16 xmit_tpid;
 };
+
+enum sja1110_meta_tstamp {
+	SJA1110_META_TSTAMP_TX = 0,
+	SJA1110_META_TSTAMP_RX = 1,
+};
+
+#if IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP)
+
+void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port, u8 ts_id,
+				 enum sja1110_meta_tstamp dir, u64 tstamp);
+
+#else
+
+static inline void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
+					       u8 ts_id, enum sja1110_meta_tstamp dir,
+					       u64 tstamp)
+{
+}
+
+#endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP) */
 
 #endif /* _NET_DSA_SJA1105_H */

@@ -25,6 +25,9 @@
 #define SJA1110_RX_TRAILER_SWITCH_ID(x)		(((x) & GENMASK(7, 4)) >> 4)
 #define SJA1110_RX_TRAILER_SRC_PORT(x)		((x) & GENMASK(3, 0))
 
+/* Meta frame format (for 2-step TX timestamps) */
+#define SJA1110_RX_HEADER_N_TS(x)		(((x) & GENMASK(8, 4)) >> 4)
+
 /* TX header */
 #define SJA1110_TX_HEADER_UPDATE_TC		BIT(14)
 #define SJA1110_TX_HEADER_TAKE_TS		BIT(13)
@@ -42,6 +45,8 @@
 #define SJA1110_TX_TRAILER_PRIO(x)		(((x) << 21) & GENMASK(23, 21))
 #define SJA1110_TX_TRAILER_SWITCHID(x)		(((x) << 12) & GENMASK(15, 12))
 #define SJA1110_TX_TRAILER_DESTPORTS(x)		(((x) << 1) & GENMASK(11, 1))
+
+#define SJA1110_META_TSTAMP_SIZE		10
 
 #define SJA1110_HEADER_LEN			4
 #define SJA1110_RX_TRAILER_LEN			13
@@ -184,6 +189,7 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
+	struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
 	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
@@ -221,6 +227,12 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	*tx_trailer = cpu_to_be32(SJA1110_TX_TRAILER_PRIO(pcp) |
 				  SJA1110_TX_TRAILER_SWITCHID(dp->ds->index) |
 				  SJA1110_TX_TRAILER_DESTPORTS(BIT(dp->index)));
+	if (clone) {
+		u8 ts_id = SJA1105_SKB_CB(clone)->ts_id;
+
+		*tx_header |= htons(SJA1110_TX_HEADER_TAKE_TS);
+		*tx_trailer |= cpu_to_be32(SJA1110_TX_TRAILER_TSTAMP_ID(ts_id));
+	}
 
 	return skb;
 }
@@ -423,6 +435,43 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 					      is_meta);
 }
 
+static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
+{
+	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
+	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
+	struct net_device *master = skb->dev;
+	struct dsa_port *cpu_dp;
+	u8 *buf = skb->data + 2;
+	struct dsa_switch *ds;
+	int i;
+
+	cpu_dp = master->dsa_ptr;
+	ds = dsa_switch_find(cpu_dp->dst->index, switch_id);
+	if (!ds) {
+		net_err_ratelimited("%s: cannot find switch id %d\n",
+				    master->name, switch_id);
+		return NULL;
+	}
+
+	for (i = 0; i <= n_ts; i++) {
+		u8 ts_id, source_port, dir;
+		u64 tstamp;
+
+		ts_id = buf[0];
+		source_port = (buf[1] & GENMASK(7, 4)) >> 4;
+		dir = (buf[1] & BIT(3)) >> 3;
+		tstamp = be64_to_cpu(*(__be64 *)(buf + 2));
+
+		sja1110_process_meta_tstamp(ds, source_port, ts_id, dir,
+					    tstamp);
+
+		buf += SJA1110_META_TSTAMP_SIZE;
+	}
+
+	/* Discard the meta frame, we've consumed the timestamps it contained */
+	return NULL;
+}
+
 static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 							    int *source_port,
 							    int *switch_id)
@@ -438,6 +487,9 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 	 * comes afterwards.
 	 */
 	rx_header = ntohs(*(__be16 *)skb->data);
+
+	if (rx_header & SJA1110_RX_HEADER_IS_METADATA)
+		return sja1110_rcv_meta(skb, rx_header);
 
 	/* Timestamp frame, we have a trailer */
 	if (rx_header & SJA1110_RX_HEADER_HAS_TRAILER) {
