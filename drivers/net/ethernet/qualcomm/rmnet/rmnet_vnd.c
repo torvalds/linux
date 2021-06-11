@@ -125,24 +125,24 @@ static void rmnet_get_stats64(struct net_device *dev,
 			      struct rtnl_link_stats64 *s)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
-	struct rmnet_vnd_stats total_stats;
+	struct rmnet_vnd_stats total_stats = { };
 	struct rmnet_pcpu_stats *pcpu_ptr;
+	struct rmnet_vnd_stats snapshot;
 	unsigned int cpu, start;
-
-	memset(&total_stats, 0, sizeof(struct rmnet_vnd_stats));
 
 	for_each_possible_cpu(cpu) {
 		pcpu_ptr = per_cpu_ptr(priv->pcpu_stats, cpu);
 
 		do {
 			start = u64_stats_fetch_begin_irq(&pcpu_ptr->syncp);
-			total_stats.rx_pkts += pcpu_ptr->stats.rx_pkts;
-			total_stats.rx_bytes += pcpu_ptr->stats.rx_bytes;
-			total_stats.tx_pkts += pcpu_ptr->stats.tx_pkts;
-			total_stats.tx_bytes += pcpu_ptr->stats.tx_bytes;
+			snapshot = pcpu_ptr->stats;	/* struct assignment */
 		} while (u64_stats_fetch_retry_irq(&pcpu_ptr->syncp, start));
 
-		total_stats.tx_drops += pcpu_ptr->stats.tx_drops;
+		total_stats.rx_pkts += snapshot.rx_pkts;
+		total_stats.rx_bytes += snapshot.rx_bytes;
+		total_stats.tx_pkts += snapshot.tx_pkts;
+		total_stats.tx_bytes += snapshot.tx_bytes;
+		total_stats.tx_drops += snapshot.tx_drops;
 	}
 
 	s->rx_packets = total_stats.rx_pkts;
