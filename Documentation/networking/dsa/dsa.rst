@@ -93,14 +93,15 @@ A tagging protocol may tag all packets with switch tags of the same length, or
 the tag length might vary (for example packets with PTP timestamps might
 require an extended switch tag, or there might be one tag length on TX and a
 different one on RX). Either way, the tagging protocol driver must populate the
-``struct dsa_device_ops::overhead`` with the length in octets of the longest
-switch frame header. The DSA framework will automatically adjust the MTU of the
-master interface to accomodate for this extra size in order for DSA user ports
-to support the standard MTU (L2 payload length) of 1500 octets. The ``overhead``
-is also used to request from the network stack, on a best-effort basis, the
-allocation of packets with a ``needed_headroom`` or ``needed_tailroom``
-sufficient such that the act of pushing the switch tag on transmission of a
-packet does not cause it to reallocate due to lack of memory.
+``struct dsa_device_ops::needed_headroom`` and/or ``struct dsa_device_ops::needed_tailroom``
+with the length in octets of the longest switch frame header/trailer. The DSA
+framework will automatically adjust the MTU of the master interface to
+accommodate for this extra size in order for DSA user ports to support the
+standard MTU (L2 payload length) of 1500 octets. The ``needed_headroom`` and
+``needed_tailroom`` properties are also used to request from the network stack,
+on a best-effort basis, the allocation of packets with enough extra space such
+that the act of pushing the switch tag on transmission of a packet does not
+cause it to reallocate due to lack of memory.
 
 Even though applications are not expected to parse DSA-specific frame headers,
 the format on the wire of the tagging protocol represents an Application Binary
@@ -169,8 +170,8 @@ The job of this method is to prepare the skb in a way that the switch will
 understand what egress port the packet is for (and not deliver it towards other
 ports). Typically this is fulfilled by pushing a frame header. Checking for
 insufficient size in the skb headroom or tailroom is unnecessary provided that
-the ``overhead`` and ``tail_tag`` properties were filled out properly, because
-DSA ensures there is enough space before calling this method.
+the ``needed_headroom`` and ``needed_tailroom`` properties were filled out
+properly, because DSA ensures there is enough space before calling this method.
 
 The reception of a packet goes through the tagger's ``rcv`` function. The
 passed ``struct sk_buff *skb`` has ``skb->data`` pointing at

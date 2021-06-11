@@ -125,7 +125,7 @@ static const struct dsa_device_ops lan9303_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_LAN9303,
 	.xmit = lan9303_xmit,
 	.rcv = lan9303_rcv,
-	.overhead = LAN9303_TAG_LEN,
+	.needed_headroom = LAN9303_TAG_LEN,
 };
 
 MODULE_LICENSE("GPL");

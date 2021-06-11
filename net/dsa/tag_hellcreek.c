@@ -54,8 +54,7 @@ static const struct dsa_device_ops hellcreek_netdev_ops = {
 	.proto	  = DSA_TAG_PROTO_HELLCREEK,
 	.xmit	  = hellcreek_xmit,
 	.rcv	  = hellcreek_rcv,
-	.overhead = HELLCREEK_TAG_LEN,
-	.tail_tag = true,
+	.needed_tailroom = HELLCREEK_TAG_LEN,
 };
 
 MODULE_LICENSE("Dual MIT/GPL");

@@ -212,6 +212,7 @@ size_t sja1110_general_params_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->egrmirrdei,   110, 110, size, op);
 	sja1105_packing(buf, &entry->replay_port,  109, 106, size, op);
 	sja1105_packing(buf, &entry->tdmaconfigidx, 70,  67, size, op);
+	sja1105_packing(buf, &entry->header_type,   64,  49, size, op);
 	sja1105_packing(buf, &entry->tte_en,        16,  16, size, op);
 	return size;
 }

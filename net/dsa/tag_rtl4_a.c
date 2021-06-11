@@ -124,7 +124,7 @@ static const struct dsa_device_ops rtl4a_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_RTL4_A,
 	.xmit	= rtl4a_tag_xmit,
 	.rcv	= rtl4a_tag_rcv,
-	.overhead = RTL4_A_HDR_LEN,
+	.needed_headroom = RTL4_A_HDR_LEN,
 };
 module_dsa_tag_driver(rtl4a_netdev_ops);
 
