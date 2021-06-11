@@ -123,10 +123,11 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	struct ipv6hdr *ip6h = (struct ipv6hdr *)skb->data;
 	void *txporthdr = skb->data + sizeof(*ip6h);
 	__sum16 *csum_field, pseudo_csum, csum_temp;
-	u16 csum_value, csum_value_final;
 	__be16 ip6_hdr_csum, addend;
 	__sum16 ip6_payload_csum;
 	__be16 ip_header_csum;
+	u16 csum_value_final;
+	__be16 csum_value;
 	u32 length;
 
 	/* Checksum offload is only supported for UDP and TCP protocols;
@@ -144,21 +145,21 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	 * of the IP header from the trailer checksum.  We then add the
 	 * checksum computed over the pseudo header.
 	 */
-	csum_value = ~ntohs(csum_trailer->csum_value);
+	csum_value = ~csum_trailer->csum_value;
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
-	ip6_hdr_csum = (__force __be16)~ntohs(ip_header_csum);
+	ip6_hdr_csum = (__force __be16)~ip_header_csum;
 	ip6_payload_csum = csum16_sub((__force __sum16)csum_value,
 				      ip6_hdr_csum);
 
 	length = (ip6h->nexthdr == IPPROTO_UDP) ?
 		 ntohs(((struct udphdr *)txporthdr)->len) :
 		 ntohs(ip6h->payload_len);
-	pseudo_csum = ~(csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
-			     length, ip6h->nexthdr, 0));
-	addend = (__force __be16)ntohs((__force __be16)pseudo_csum);
+	pseudo_csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+				       length, ip6h->nexthdr, 0);
+	addend = (__force __be16)pseudo_csum;
 	pseudo_csum = csum16_add(ip6_payload_csum, addend);
 
-	addend = (__force __be16)ntohs((__force __be16)*csum_field);
+	addend = (__force __be16)*csum_field;
 	csum_temp = ~csum16_sub(pseudo_csum, addend);
 	csum_value_final = (__force u16)csum_temp;
 
@@ -179,7 +180,7 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 		}
 	}
 
-	if (csum_value_final == ntohs((__force __be16)*csum_field)) {
+	if (csum_value_final == (__force u16)*csum_field) {
 		priv->stats.csum_ok++;
 		return 0;
 	} else {
