@@ -1290,10 +1290,10 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	}
 }
 
-static void qeth_tx_complete_buf(struct qeth_qdio_out_buffer *buf, bool error,
+static void qeth_tx_complete_buf(struct qeth_qdio_out_q *queue,
+				 struct qeth_qdio_out_buffer *buf, bool error,
 				 int budget)
 {
-	struct qeth_qdio_out_q *queue = buf->q;
 	struct sk_buff *skb;
 
 	/* Empty buffer? */
@@ -1342,7 +1342,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 		QETH_TXQ_STAT_INC(queue, completion_irq);
 	}
 
-	qeth_tx_complete_buf(buf, error, budget);
+	qeth_tx_complete_buf(queue, buf, error, budget);
 
 	for (i = 0; i < queue->max_elements; ++i) {
 		void *data = phys_to_virt(buf->buffer->element[i].addr);
@@ -1386,7 +1386,7 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 			notify = drain ? TX_NOTIFY_GENERALERROR :
 					 qeth_compute_cq_notification(aob->aorc, 1);
 			qeth_notify_skbs(queue, buf, notify);
-			qeth_tx_complete_buf(buf, drain, budget);
+			qeth_tx_complete_buf(queue, buf, drain, budget);
 
 			for (i = 0;
 			     i < aob->sb_count && i < queue->max_elements;
@@ -2530,7 +2530,6 @@ static int qeth_alloc_out_buf(struct qeth_qdio_out_q *q, unsigned int bidx,
 	newbuf->buffer = q->qdio_bufs[bidx];
 	skb_queue_head_init(&newbuf->skb_list);
 	lockdep_set_class(&newbuf->skb_list.lock, &qdio_out_skb_queue_key);
-	newbuf->q = q;
 	atomic_set(&newbuf->state, QETH_QDIO_BUF_EMPTY);
 	q->bufs[bidx] = newbuf;
 	return 0;
