@@ -11,6 +11,7 @@
 #include <linux/phylink.h>
 
 #define NXP_SJA1105_XPCS_ID		0x00000010
+#define NXP_SJA1110_XPCS_ID		0x00000020
 
 /* AN mode */
 #define DW_AN_C73			1
