@@ -715,10 +715,7 @@ static inline void percpu_u64_set(u64 __percpu *dst, u64 src)
 
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(dst, cpu) = 0;
-
-	preempt_disable();
-	*this_cpu_ptr(dst) = src;
-	preempt_enable();
+	this_cpu_write(*dst, src);
 }
 
 static inline void acc_u64s(u64 *acc, const u64 *src, unsigned nr)
