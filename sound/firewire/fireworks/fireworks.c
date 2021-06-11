@@ -300,6 +300,21 @@ static void efw_remove(struct fw_unit *unit)
 	snd_card_free(efw->card);
 }
 
+#define SPECIFIER_1394TA	0x00a02d
+#define VERSION_EFW		0x010000
+
+#define SND_EFW_DEV_ENTRY(vendor, model) \
+{ \
+	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
+			  IEEE1394_MATCH_MODEL_ID | \
+			  IEEE1394_MATCH_SPECIFIER_ID | \
+			  IEEE1394_MATCH_VERSION, \
+	.vendor_id	= vendor,\
+	.model_id	= model, \
+	.specifier_id	= SPECIFIER_1394TA, \
+	.version	= VERSION_EFW, \
+}
+
 static const struct ieee1394_device_id efw_id_table[] = {
 	SND_EFW_DEV_ENTRY(VENDOR_LOUD, MODEL_MACKIE_400F),
 	SND_EFW_DEV_ENTRY(VENDOR_LOUD, MODEL_MACKIE_1200F),
