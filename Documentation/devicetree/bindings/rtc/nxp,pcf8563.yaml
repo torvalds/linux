@@ -17,8 +17,10 @@ properties:
     enum:
       - epson,rtc8564
       - microcrystal,rv8564
-      - nxp,pcf8563
       - nxp,pca8565
+      - nxp,pcf8563
+      - nxp,pcf85263
+      - nxp,pcf85363
 
   reg:
     maxItems: 1
