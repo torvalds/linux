@@ -3727,19 +3727,16 @@ static void irdma_get_dev_fw_str(struct ib_device *dev, char *str)
 }
 
 /**
- * irdma_alloc_hw_stats - Allocate a hw stats structure
+ * irdma_alloc_hw_port_stats - Allocate a hw stats structure
  * @ibdev: device pointer from stack
  * @port_num: port number
  */
-static struct rdma_hw_stats *irdma_alloc_hw_stats(struct ib_device *ibdev,
-						  u32 port_num)
+static struct rdma_hw_stats *irdma_alloc_hw_port_stats(struct ib_device *ibdev,
+						       u32 port_num)
 {
 	int num_counters = IRDMA_HW_STAT_INDEX_MAX_32 +
 			   IRDMA_HW_STAT_INDEX_MAX_64;
 	unsigned long lifespan = RDMA_HW_STATS_DEFAULT_LIFESPAN;
-
-	if (!port_num)
-		return NULL;
 
 	BUILD_BUG_ON(ARRAY_SIZE(irdma_hw_stat_names) !=
 		     (IRDMA_HW_STAT_INDEX_MAX_32 + IRDMA_HW_STAT_INDEX_MAX_64));
@@ -4354,7 +4351,7 @@ static const struct ib_device_ops irdma_dev_ops = {
 	.driver_id = RDMA_DRIVER_IRDMA,
 	.uverbs_abi_ver = IRDMA_ABI_VER,
 
-	.alloc_hw_stats = irdma_alloc_hw_stats,
+	.alloc_hw_port_stats = irdma_alloc_hw_port_stats,
 	.alloc_mr = irdma_alloc_mr,
 	.alloc_mw = irdma_alloc_mw,
 	.alloc_pd = irdma_alloc_pd,

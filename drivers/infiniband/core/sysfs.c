@@ -981,8 +981,10 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	struct rdma_hw_stats *stats;
 	int i, ret;
 
-	stats = device->ops.alloc_hw_stats(device, port_num);
-
+	if (port_num)
+		stats = device->ops.alloc_hw_port_stats(device, port_num);
+	else
+		stats = device->ops.alloc_hw_device_stats(device);
 	if (!stats)
 		return;
 
@@ -1165,7 +1167,7 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	 * port, so holder should be device. Therefore skip per port conunter
 	 * initialization.
 	 */
-	if (device->ops.alloc_hw_stats && port_num && is_full_dev)
+	if (device->ops.alloc_hw_port_stats && port_num && is_full_dev)
 		setup_hw_stats(device, p, port_num);
 
 	list_add_tail(&p->kobj.entry, &coredev->port_list);
@@ -1409,7 +1411,7 @@ int ib_device_register_sysfs(struct ib_device *device)
 	if (ret)
 		return ret;
 
-	if (device->ops.alloc_hw_stats)
+	if (device->ops.alloc_hw_device_stats)
 		setup_hw_stats(device, NULL, 0);
 
 	return 0;
