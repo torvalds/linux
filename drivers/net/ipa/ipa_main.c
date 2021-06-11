@@ -31,6 +31,7 @@
 #include "ipa_uc.h"
 #include "ipa_interrupt.h"
 #include "gsi_trans.h"
+#include "ipa_sysfs.h"
 
 /**
  * DOC: The IP Accelerator
@@ -639,6 +640,27 @@ static void ipa_validate_build(void)
 #endif /* IPA_VALIDATE */
 }
 
+static bool ipa_version_valid(enum ipa_version version)
+{
+	switch (version) {
+	case IPA_VERSION_3_0:
+	case IPA_VERSION_3_1:
+	case IPA_VERSION_3_5:
+	case IPA_VERSION_3_5_1:
+	case IPA_VERSION_4_0:
+	case IPA_VERSION_4_1:
+	case IPA_VERSION_4_2:
+	case IPA_VERSION_4_5:
+	case IPA_VERSION_4_7:
+	case IPA_VERSION_4_9:
+	case IPA_VERSION_4_11:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 /**
  * ipa_probe() - IPA platform driver probe function
  * @pdev:	Platform device pointer
@@ -676,9 +698,13 @@ static int ipa_probe(struct platform_device *pdev)
 	/* Get configuration data early; needed for clock initialization */
 	data = of_device_get_match_data(dev);
 	if (!data) {
-		/* This is really IPA_VALIDATE (should never happen) */
 		dev_err(dev, "matched hardware not supported\n");
 		return -ENODEV;
+	}
+
+	if (!ipa_version_valid(data->version)) {
+		dev_err(dev, "invalid IPA version\n");
+		return -EINVAL;
 	}
 
 	/* If we need Trust Zone, make sure it's available */
@@ -881,6 +907,13 @@ static const struct dev_pm_ops ipa_pm_ops = {
 	.resume		= ipa_resume,
 };
 
+static const struct attribute_group *ipa_attribute_groups[] = {
+	&ipa_attribute_group,
+	&ipa_feature_attribute_group,
+	&ipa_modem_attribute_group,
+	NULL,
+};
+
 static struct platform_driver ipa_driver = {
 	.probe		= ipa_probe,
 	.remove		= ipa_remove,
@@ -889,6 +922,7 @@ static struct platform_driver ipa_driver = {
 		.name		= "ipa",
 		.pm		= &ipa_pm_ops,
 		.of_match_table	= ipa_match,
+		.dev_groups	= ipa_attribute_groups,
 	},
 };
 
