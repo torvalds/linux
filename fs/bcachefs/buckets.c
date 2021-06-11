@@ -1437,7 +1437,14 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 	 */
 	should_not_have_added = added - (s64) disk_res_sectors;
 	if (unlikely(should_not_have_added > 0)) {
-		atomic64_sub(should_not_have_added, &c->sectors_available);
+		u64 old, new, v = atomic64_read(&c->sectors_available);
+
+		do {
+			old = v;
+			new = max_t(s64, 0, old - should_not_have_added);
+		} while ((v = atomic64_cmpxchg(&c->sectors_available,
+					       old, new)) != old);
+
 		added -= should_not_have_added;
 		warn = true;
 	}
