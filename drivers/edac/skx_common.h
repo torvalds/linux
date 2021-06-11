@@ -9,6 +9,8 @@
 #ifndef _SKX_COMM_EDAC_H
 #define _SKX_COMM_EDAC_H
 
+#include <linux/bits.h>
+
 #define MSG_SIZE		1024
 
 /*
@@ -92,8 +94,16 @@ enum {
 	INDEX_MEMCTRL,
 	INDEX_CHANNEL,
 	INDEX_DIMM,
+	INDEX_NM_FIRST,
+	INDEX_NM_MEMCTRL = INDEX_NM_FIRST,
+	INDEX_NM_CHANNEL,
+	INDEX_NM_DIMM,
 	INDEX_MAX
 };
+
+#define BIT_NM_MEMCTRL	BIT_ULL(INDEX_NM_MEMCTRL)
+#define BIT_NM_CHANNEL	BIT_ULL(INDEX_NM_CHANNEL)
+#define BIT_NM_DIMM	BIT_ULL(INDEX_NM_DIMM)
 
 struct decoded_addr {
 	struct skx_dev *dev;
@@ -133,6 +143,7 @@ typedef void (*skx_show_retry_log_f)(struct decoded_addr *res, char *msg, int le
 int __init skx_adxl_get(void);
 void __exit skx_adxl_put(void);
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
+void skx_set_mem_cfg(bool mem_cfg_2lm);
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
 int skx_get_node_id(struct skx_dev *d, u8 *id);
