@@ -183,6 +183,12 @@ static struct work_struct ecclog_work;
 #define DID_EHL_SKU14	0x4534
 #define DID_EHL_SKU15	0x4536
 
+/* Compute die IDs for ICL-NNPI with IBECC */
+#define DID_ICL_SKU8	0x4581
+#define DID_ICL_SKU10	0x4585
+#define DID_ICL_SKU11	0x4589
+#define DID_ICL_SKU12	0x458d
+
 static bool ehl_ibecc_available(struct pci_dev *pdev)
 {
 	u32 v;
@@ -212,10 +218,29 @@ static u64 ehl_err_addr_to_imc_addr(u64 eaddr)
 	return eaddr;
 }
 
+static bool icl_ibecc_available(struct pci_dev *pdev)
+{
+	u32 v;
+
+	if (pci_read_config_dword(pdev, CAPID_C_OFFSET, &v))
+		return false;
+
+	return !(CAPID_C_IBECC & v) &&
+		(boot_cpu_data.x86_stepping >= 1);
+}
+
 static struct res_config ehl_cfg = {
 	.num_imc	 = 1,
 	.ibecc_base	 = 0xdc00,
 	.ibecc_available = ehl_ibecc_available,
+	.err_addr_to_sys_addr  = ehl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr  = ehl_err_addr_to_imc_addr,
+};
+
+static struct res_config icl_cfg = {
+	.num_imc	 = 1,
+	.ibecc_base	 = 0xd800,
+	.ibecc_available = icl_ibecc_available,
 	.err_addr_to_sys_addr  = ehl_err_addr_to_sys_addr,
 	.err_addr_to_imc_addr  = ehl_err_addr_to_imc_addr,
 };
@@ -232,6 +257,10 @@ static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU13), (kernel_ulong_t)&ehl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU14), (kernel_ulong_t)&ehl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU15), (kernel_ulong_t)&ehl_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ICL_SKU8), (kernel_ulong_t)&icl_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ICL_SKU10), (kernel_ulong_t)&icl_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ICL_SKU11), (kernel_ulong_t)&icl_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ICL_SKU12), (kernel_ulong_t)&icl_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, igen6_pci_tbl);
