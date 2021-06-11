@@ -362,15 +362,17 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	struct drm_exynos_ipp_task_rect *src_pos = &task->src.rect;
 	struct drm_exynos_ipp_task_rect *dst_pos = &task->dst.rect;
 	const struct scaler_format *src_fmt, *dst_fmt;
+	int ret = 0;
 
 	src_fmt = scaler_get_format(task->src.buf.fourcc);
 	dst_fmt = scaler_get_format(task->dst.buf.fourcc);
 
-	pm_runtime_get_sync(scaler->dev);
-	if (scaler_reset(scaler)) {
-		pm_runtime_put(scaler->dev);
+	ret = pm_runtime_resume_and_get(scaler->dev);
+	if (ret < 0)
+		return ret;
+
+	if (scaler_reset(scaler))
 		return -EIO;
-	}
 
 	scaler->task = task;
 

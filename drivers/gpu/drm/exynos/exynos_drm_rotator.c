@@ -219,8 +219,13 @@ static int rotator_commit(struct exynos_drm_ipp *ipp,
 {
 	struct rot_context *rot =
 			container_of(ipp, struct rot_context, ipp);
+	int ret;
 
-	pm_runtime_get_sync(rot->dev);
+	ret = pm_runtime_resume_and_get(rot->dev);
+	if (ret < 0) {
+		dev_err(rot->dev, "failed to enable ROTATOR device.\n");
+		return ret;
+	}
 	rot->task = task;
 
 	rotator_src_set_fmt(rot, task->src.buf.fourcc);
