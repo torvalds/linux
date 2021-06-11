@@ -223,7 +223,6 @@ struct rvu_pfvf {
 	u16		maxlen;
 	u16		minlen;
 
-	u8		pf_set_vf_cfg;
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
 	u8		default_mac[ETH_ALEN]; /* MAC address from FWdata */
 
@@ -249,7 +248,12 @@ struct rvu_pfvf {
 
 enum rvu_pfvf_flags {
 	NIXLF_INITIALIZED = 0,
+	PF_SET_VF_MAC,
+	PF_SET_VF_CFG,
+	PF_SET_VF_TRUSTED,
 };
+
+#define RVU_CLEAR_VF_PERM  ~GENMASK(PF_SET_VF_TRUSTED, PF_SET_VF_MAC)
 
 struct nix_txsch {
 	struct rsrc_bmap schq;

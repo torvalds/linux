@@ -3137,14 +3137,21 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 
-	/* VF can't overwrite admin(PF) changes */
-	if (from_vf && pfvf->pf_set_vf_cfg)
+	/* untrusted VF can't overwrite admin(PF) changes */
+	if (!test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) &&
+	    (from_vf && test_bit(PF_SET_VF_MAC, &pfvf->flags))) {
+		dev_warn(rvu->dev,
+			 "MAC address set by admin(PF) cannot be overwritten by untrusted VF");
 		return -EPERM;
+	}
 
 	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
 
 	rvu_npc_install_ucast_entry(rvu, pcifunc, nixlf,
 				    pfvf->rx_chan_base, req->mac_addr);
+
+	if (test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) && from_vf)
+		ether_addr_copy(pfvf->default_mac, req->mac_addr);
 
 	return 0;
 }
@@ -3187,6 +3194,11 @@ int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 				     "VF promisc/multicast not supported\n");
 		return 0;
 	}
+
+	/* untrusted VF can't configure promisc/allmulti */
+	if (is_vf(pcifunc) && !test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) &&
+	    (promisc || allmulti))
+		return 0;
 
 	err = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
 	if (err)
