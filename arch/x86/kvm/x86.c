@@ -8021,6 +8021,7 @@ void kvm_arch_exit(void)
 	kvm_x86_ops.hardware_enable = NULL;
 	kvm_mmu_module_exit();
 	free_percpu(user_return_msrs);
+	kmem_cache_destroy(x86_emulator_cache);
 	kmem_cache_destroy(x86_fpu_cache);
 }
 
