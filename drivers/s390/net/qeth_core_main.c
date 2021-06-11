@@ -431,45 +431,6 @@ static enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
 	return n;
 }
 
-static void qeth_qdio_handle_aob(struct qeth_card *card,
-				 unsigned long phys_aob_addr)
-{
-	struct qaob *aob;
-	struct qeth_qdio_out_buffer *buffer;
-	struct qeth_qdio_out_q *queue;
-
-	aob = (struct qaob *) phys_to_virt(phys_aob_addr);
-	QETH_CARD_TEXT(card, 5, "haob");
-	QETH_CARD_TEXT_(card, 5, "%lx", phys_aob_addr);
-	buffer = (struct qeth_qdio_out_buffer *) aob->user1;
-	QETH_CARD_TEXT_(card, 5, "%lx", aob->user1);
-
-	if (aob->aorc)
-		QETH_CARD_TEXT_(card, 2, "aorc%02X", aob->aorc);
-
-	switch (atomic_xchg(&buffer->state, QETH_QDIO_BUF_QAOB_DONE)) {
-	case QETH_QDIO_BUF_PRIMED:
-		/* Faster than TX completion code, let it handle the async
-		 * completion for us. It will also recycle the QAOB.
-		 */
-		break;
-	case QETH_QDIO_BUF_PENDING:
-		/* TX completion code is active and will handle the async
-		 * completion for us. It will also recycle the QAOB.
-		 */
-		break;
-	case QETH_QDIO_BUF_NEED_QAOB:
-		/* TX completion code is already finished. */
-
-		queue = buffer->q;
-		atomic_set(&buffer->state, QETH_QDIO_BUF_EMPTY);
-		napi_schedule(&queue->napi);
-		break;
-	default:
-		WARN_ON_ONCE(1);
-	}
-}
-
 static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
 			   void *data)
 {
@@ -1412,11 +1373,13 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 	struct qeth_qdio_out_buffer *buf, *tmp;
 
 	list_for_each_entry_safe(buf, tmp, &queue->pending_bufs, list_entry) {
+		struct qeth_qaob_priv1 *priv;
 		struct qaob *aob = buf->aob;
 		enum iucv_tx_notify notify;
 		unsigned int i;
 
-		if (drain || atomic_read(&buf->state) == QETH_QDIO_BUF_EMPTY) {
+		priv = (struct qeth_qaob_priv1 *)&aob->user1;
+		if (drain || READ_ONCE(priv->state) == QETH_QAOB_DONE) {
 			QETH_CARD_TEXT(card, 5, "fp");
 			QETH_CARD_TEXT_(card, 5, "%lx", (long) buf);
 
@@ -3625,8 +3588,12 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 			if (!buf->aob)
 				buf->aob = qdio_allocate_aob();
 			if (buf->aob) {
+				struct qeth_qaob_priv1 *priv;
+
 				aob = buf->aob;
-				aob->user1 = (u64) buf;
+				priv = (struct qeth_qaob_priv1 *)&aob->user1;
+				priv->state = QETH_QAOB_ISSUED;
+				priv->queue_no = queue->queue_no;
 			}
 		}
 	} else {
@@ -3765,6 +3732,18 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_configure_cq);
 
+static void qeth_qdio_handle_aob(struct qeth_card *card, struct qaob *aob)
+{
+	struct qeth_qaob_priv1 *priv = (struct qeth_qaob_priv1 *)&aob->user1;
+	unsigned int queue_no = priv->queue_no;
+
+	BUILD_BUG_ON(sizeof(*priv) > ARRAY_SIZE(aob->user1));
+
+	if (xchg(&priv->state, QETH_QAOB_DONE) == QETH_QAOB_PENDING &&
+	    queue_no < card->qdio.no_out_queues)
+		napi_schedule(&card->qdio.out_qs[queue_no]->napi);
+}
+
 static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 				 unsigned int queue, int first_element,
 				 int count)
@@ -3791,7 +3770,7 @@ static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 		       buffer->element[e].addr) {
 			unsigned long phys_aob_addr = buffer->element[e].addr;
 
-			qeth_qdio_handle_aob(card, phys_aob_addr);
+			qeth_qdio_handle_aob(card, phys_to_virt(phys_aob_addr));
 			++e;
 		}
 		qeth_scrub_qdio_buffer(buffer, QDIO_MAX_ELEMENTS_PER_BUFFER);
@@ -6039,6 +6018,7 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 
 	if (qdio_error == QDIO_ERROR_SLSB_PENDING) {
 		struct qaob *aob = buffer->aob;
+		struct qeth_qaob_priv1 *priv;
 		enum iucv_tx_notify notify;
 
 		if (!aob) {
@@ -6051,51 +6031,27 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 
 		QETH_CARD_TEXT_(card, 5, "pel%u", bidx);
 
-		switch (atomic_cmpxchg(&buffer->state,
-				       QETH_QDIO_BUF_PRIMED,
-				       QETH_QDIO_BUF_PENDING)) {
-		case QETH_QDIO_BUF_PRIMED:
-			/* We have initial ownership, no QAOB (yet): */
+		priv = (struct qeth_qaob_priv1 *)&aob->user1;
+		/* QAOB hasn't completed yet: */
+		if (xchg(&priv->state, QETH_QAOB_PENDING) != QETH_QAOB_DONE) {
 			qeth_notify_skbs(queue, buffer, TX_NOTIFY_PENDING);
 
-			/* Handle race with qeth_qdio_handle_aob(): */
-			switch (atomic_xchg(&buffer->state,
-					    QETH_QDIO_BUF_NEED_QAOB)) {
-			case QETH_QDIO_BUF_PENDING:
-				/* No concurrent QAOB notification. */
-
-				/* Prepare the queue slot for immediate re-use: */
-				qeth_scrub_qdio_buffer(buffer->buffer, queue->max_elements);
-				if (qeth_alloc_out_buf(queue, bidx,
-						       GFP_ATOMIC)) {
-					QETH_CARD_TEXT(card, 2, "outofbuf");
-					qeth_schedule_recovery(card);
-				}
-
-				list_add(&buffer->list_entry,
-					 &queue->pending_bufs);
-				/* Skip clearing the buffer: */
-				return;
-			case QETH_QDIO_BUF_QAOB_DONE:
-				notify = qeth_compute_cq_notification(aob->aorc, 1);
-				qeth_notify_skbs(queue, buffer, notify);
-				error = !!aob->aorc;
-				break;
-			default:
-				WARN_ON_ONCE(1);
+			/* Prepare the queue slot for immediate re-use: */
+			qeth_scrub_qdio_buffer(buffer->buffer, queue->max_elements);
+			if (qeth_alloc_out_buf(queue, bidx, GFP_ATOMIC)) {
+				QETH_CARD_TEXT(card, 2, "outofbuf");
+				qeth_schedule_recovery(card);
 			}
 
-			break;
-		case QETH_QDIO_BUF_QAOB_DONE:
-			/* qeth_qdio_handle_aob() already received a QAOB: */
-			notify = qeth_compute_cq_notification(aob->aorc, 0);
-			qeth_notify_skbs(queue, buffer, notify);
-			error = !!aob->aorc;
-			break;
-		default:
-			WARN_ON_ONCE(1);
+			list_add(&buffer->list_entry, &queue->pending_bufs);
+			/* Skip clearing the buffer: */
+			return;
 		}
 
+		/* QAOB already completed: */
+		notify = qeth_compute_cq_notification(aob->aorc, 0);
+		qeth_notify_skbs(queue, buffer, notify);
+		error = !!aob->aorc;
 		memset(aob, 0, sizeof(*aob));
 	} else if (card->options.cq == QETH_CQ_ENABLED) {
 		qeth_notify_skbs(queue, buffer,
