@@ -2078,16 +2078,6 @@ static struct name_cache_entry *name_cache_search(struct send_ctx *sctx,
 }
 
 /*
- * Removes the entry from the list and adds it back to the end. This marks the
- * entry as recently used so that name_cache_clean_unused does not remove it.
- */
-static void name_cache_used(struct send_ctx *sctx, struct name_cache_entry *nce)
-{
-	list_del(&nce->list);
-	list_add_tail(&nce->list, &sctx->name_cache_list);
-}
-
-/*
  * Remove some entries from the beginning of name_cache_list.
  */
 static void name_cache_clean_unused(struct send_ctx *sctx)
@@ -2147,7 +2137,13 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 			kfree(nce);
 			nce = NULL;
 		} else {
-			name_cache_used(sctx, nce);
+			/*
+			 * Removes the entry from the list and adds it back to
+			 * the end.  This marks the entry as recently used so
+			 * that name_cache_clean_unused does not remove it.
+			 */
+			list_move_tail(&nce->list, &sctx->name_cache_list);
+
 			*parent_ino = nce->parent_ino;
 			*parent_gen = nce->parent_gen;
 			ret = fs_path_add(dest, nce->name, nce->name_len);
