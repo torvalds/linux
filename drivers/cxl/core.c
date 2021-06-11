@@ -599,7 +599,7 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 			length = 0x20 * decoder_cnt + 0x10;
 
 			map->hdm_decoder.valid = true;
-			map->hdm_decoder.offset = offset;
+			map->hdm_decoder.offset = CXL_CM_OFFSET + offset;
 			map->hdm_decoder.size = length;
 			break;
 		default:
