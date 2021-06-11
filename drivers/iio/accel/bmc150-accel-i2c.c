@@ -221,14 +221,14 @@ static int bmc150_accel_remove(struct i2c_client *client)
 }
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {
-	{"BSBA0150",	bmc150},
-	{"BMC150A",	bmc150},
-	{"BMI055A",	bmi055},
-	{"BMA0255",	bma255},
-	{"BMA250E",	bma250e},
-	{"BMA222",	bma222},
-	{"BMA222E",	bma222e},
-	{"BMA0280",	bma280},
+	{"BSBA0150"},
+	{"BMC150A"},
+	{"BMI055A"},
+	{"BMA0255"},
+	{"BMA250E"},
+	{"BMA222"},
+	{"BMA222E"},
+	{"BMA0280"},
 	{"BOSC0200"},
 	{"DUAL250E"},
 	{ },
@@ -236,13 +236,13 @@ static const struct acpi_device_id bmc150_accel_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
 
 static const struct i2c_device_id bmc150_accel_id[] = {
-	{"bmc150_accel",	bmc150},
-	{"bmi055_accel",	bmi055},
-	{"bma255",		bma255},
-	{"bma250e",		bma250e},
-	{"bma222",		bma222},
-	{"bma222e",		bma222e},
-	{"bma280",		bma280},
+	{"bmc150_accel"},
+	{"bmi055_accel"},
+	{"bma255"},
+	{"bma250e"},
+	{"bma222"},
+	{"bma222e"},
+	{"bma280"},
 	{}
 };
 
