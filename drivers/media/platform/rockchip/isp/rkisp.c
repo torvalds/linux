@@ -2913,6 +2913,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 |
 		ISP2X_3A_RAWAF_SUM | ISP2X_3A_RAWAF_LUM |
 		ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
+	bool sof_event_later = false;
 
 	/*
 	 * The last time that rx perform 'back read' don't clear done flag
@@ -2967,7 +2968,9 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			}
 		}
 
-		if (dev->vs_irq < 0) {
+		if (isp_mis & CIF_ISP_FRAME)
+			sof_event_later = true;
+		if (dev->vs_irq < 0 && !sof_event_later) {
 			dev->isp_sdev.frm_timestamp = ktime_get_ns();
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
 		}
@@ -3072,6 +3075,12 @@ vs_skip:
 	 * Do the updates in the order of the processing flow.
 	 */
 	rkisp_params_isr(&dev->params_vdev, isp_mis);
+
+	/* cur frame end and next frame start irq togeter */
+	if (dev->vs_irq < 0 && sof_event_later) {
+		dev->isp_sdev.frm_timestamp = ktime_get_ns();
+		rkisp_isp_queue_event_sof(&dev->isp_sdev);
+	}
 
 	if (isp_mis & CIF_ISP_FRAME_IN)
 		rkisp_check_idle(dev, ISP_FRAME_IN);
