@@ -349,12 +349,14 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 	else
 		card->n_ports = 2;
 
-	for (i = 0; i < card->n_ports; i++)
-		if (!(card->ports[i].netdev = alloc_hdlcdev(&card->ports[i]))) {
+	for (i = 0; i < card->n_ports; i++) {
+		card->ports[i].netdev = alloc_hdlcdev(&card->ports[i]);
+		if (!card->ports[i].netdev) {
 			pr_err("unable to allocate memory\n");
 			pc300_pci_remove_one(pdev);
 			return -ENOMEM;
 		}
+	}
 
 	/* Reset PLX */
 	p = &card->plxbase->init_ctrl;
