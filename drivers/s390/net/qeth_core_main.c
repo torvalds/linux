@@ -1268,7 +1268,6 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		iob = (struct qeth_cmd_buffer *) (addr_t)intparm;
 	}
 
-	channel->active_cmd = NULL;
 	qeth_unlock_channel(card, channel);
 
 	rc = qeth_check_irb_error(card, cdev, irb);
@@ -1715,11 +1714,10 @@ static int qeth_stop_channel(struct qeth_channel *channel)
 	rc = ccw_device_set_offline(cdev);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
-	if (channel->active_cmd) {
+	if (channel->active_cmd)
 		dev_err(&cdev->dev, "Stopped channel while cmd %px was still active\n",
 			channel->active_cmd);
-		channel->active_cmd = NULL;
-	}
+
 	cdev->handler = NULL;
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
@@ -1732,7 +1730,7 @@ static int qeth_start_channel(struct qeth_channel *channel)
 	int rc;
 
 	channel->state = CH_STATE_DOWN;
-	atomic_set(&channel->irq_pending, 0);
+	xchg(&channel->active_cmd, NULL);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	cdev->handler = qeth_irq;
@@ -2039,7 +2037,7 @@ static int qeth_send_control_data(struct qeth_card *card,
 	reply->param = reply_param;
 
 	timeout = wait_event_interruptible_timeout(card->wait_q,
-						   qeth_trylock_channel(channel),
+						   qeth_trylock_channel(channel, iob),
 						   timeout);
 	if (timeout <= 0) {
 		qeth_put_cmd(iob);
@@ -2059,8 +2057,6 @@ static int qeth_send_control_data(struct qeth_card *card,
 	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
 	rc = ccw_device_start_timeout(channel->ccwdev, __ccw_from_cmd(iob),
 				      (addr_t) iob, 0, 0, timeout);
-	if (!rc)
-		channel->active_cmd = iob;
 	spin_unlock_irq(get_ccwdev_lock(channel->ccwdev));
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "qeth_send_control_data on device %x: ccw_device_start rc = %i\n",
