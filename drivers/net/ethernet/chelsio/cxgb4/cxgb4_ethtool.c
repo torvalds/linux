@@ -1337,11 +1337,27 @@ static int cxgb4_ethtool_flash_phy(struct net_device *netdev,
 		return ret;
 	}
 
-	ret = t4_load_phy_fw(adap, MEMWIN_NIC, NULL, data, size);
-	if (ret)
-		dev_err(adap->pdev_dev, "Failed to load PHY FW\n");
+	/* We have to RESET the chip/firmware because we need the
+	 * chip in uninitialized state for loading new PHY image.
+	 * Otherwise, the running firmware will only store the PHY
+	 * image in local RAM which will be lost after next reset.
+	 */
+	ret = t4_fw_reset(adap, adap->mbox, PIORSTMODE_F | PIORST_F);
+	if (ret < 0) {
+		dev_err(adap->pdev_dev,
+			"Set FW to RESET for flashing PHY FW failed. ret: %d\n",
+			ret);
+		return ret;
+	}
 
-	return ret;
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, NULL, data, size);
+	if (ret < 0) {
+		dev_err(adap->pdev_dev, "Failed to load PHY FW. ret: %d\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cxgb4_ethtool_flash_fw(struct net_device *netdev,
