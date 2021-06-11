@@ -401,12 +401,6 @@ static void break_both_connections(struct snd_bebob *bebob)
 {
 	cmp_connection_break(&bebob->in_conn);
 	cmp_connection_break(&bebob->out_conn);
-
-	// These models seem to be in transition state for a longer time. When
-	// accessing in the state, any transactions is corrupted. In the worst
-	// case, the device is going to reboot.
-	if (bebob->version < 2)
-		msleep(600);
 }
 
 static int start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
