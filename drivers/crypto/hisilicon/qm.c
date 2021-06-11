@@ -2142,6 +2142,42 @@ static void qm_trigger_pf_interrupt(struct hisi_qm *qm)
 	writel(val, qm->io_base + QM_IFC_INT_SET_V);
 }
 
+static int qm_ping_single_vf(struct hisi_qm *qm, u64 cmd, u32 fun_num)
+{
+	struct device *dev = &qm->pdev->dev;
+	struct qm_mailbox mailbox;
+	int cnt = 0;
+	u64 val;
+	int ret;
+
+	qm_mb_pre_init(&mailbox, QM_MB_CMD_SRC, cmd, fun_num, 0);
+	mutex_lock(&qm->mailbox_lock);
+	ret = qm_mb_nolock(qm, &mailbox);
+	if (ret) {
+		dev_err(dev, "failed to send command to vf(%u)!\n", fun_num);
+		goto err_unlock;
+	}
+
+	qm_trigger_vf_interrupt(qm, fun_num);
+	while (true) {
+		msleep(QM_WAIT_DST_ACK);
+		val = readq(qm->io_base + QM_IFC_READY_STATUS);
+		/* if VF respond, PF notifies VF successfully. */
+		if (!(val & BIT(fun_num)))
+			goto err_unlock;
+
+		if (++cnt > QM_MAX_PF_WAIT_COUNT) {
+			dev_err(dev, "failed to get response from VF(%u)!\n", fun_num);
+			ret = -ETIMEDOUT;
+			break;
+		}
+	}
+
+err_unlock:
+	mutex_unlock(&qm->mailbox_lock);
+	return ret;
+}
+
 static int qm_ping_all_vfs(struct hisi_qm *qm, u64 cmd)
 {
 	struct device *dev = &qm->pdev->dev;
