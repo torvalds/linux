@@ -654,14 +654,6 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.host_port = priv->ds->num_ports,
 		/* Default to an invalid value */
 		.mirr_port = priv->ds->num_ports,
-		/* Link-local traffic received on casc_port will be forwarded
-		 * to host_port without embedding the source port and device ID
-		 * info in the destination MAC address (presumably because it
-		 * is a cascaded port and a downstream SJA switch already did
-		 * that). Default to an invalid port (to disable the feature)
-		 * and overwrite this if we find any DSA (cascaded) ports.
-		 */
-		.casc_port = priv->ds->num_ports,
 		/* No TTEthernet */
 		.vllupformat = SJA1105_VL_FORMAT_PSFP,
 		.vlmarker = 0,
@@ -676,6 +668,7 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		/* Enable the TTEthernet engine on SJA1110 */
 		.tte_en = true,
 	};
+	struct sja1105_general_params_entry *general_params;
 	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
 	int port;
@@ -701,11 +694,25 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 
 	table->entry_count = table->ops->max_entry_count;
 
+	general_params = table->entries;
+
 	/* This table only has a single entry */
-	((struct sja1105_general_params_entry *)table->entries)[0] =
-				default_general_params;
+	general_params[0] = default_general_params;
 
 	sja1110_select_tdmaconfigidx(priv);
+
+	/* Link-local traffic received on casc_port will be forwarded
+	 * to host_port without embedding the source port and device ID
+	 * info in the destination MAC address, and no RX timestamps will be
+	 * taken either (presumably because it is a cascaded port and a
+	 * downstream SJA switch already did that).
+	 * To disable the feature, we need to do different things depending on
+	 * switch generation. On SJA1105 we need to set an invalid port, while
+	 * on SJA1110 which support multiple cascaded ports, this field is a
+	 * bitmask so it must be left zero.
+	 */
+	if (!priv->info->multiple_cascade_ports)
+		general_params->casc_port = ds->num_ports;
 
 	return 0;
 }
