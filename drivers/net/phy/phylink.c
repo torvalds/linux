@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2015 Russell King
  */
+#include <linux/acpi.h>
 #include <linux/ethtool.h>
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
@@ -1084,7 +1085,26 @@ EXPORT_SYMBOL_GPL(phylink_connect_phy);
 int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 			   u32 flags)
 {
-	struct device_node *phy_node;
+	return phylink_fwnode_phy_connect(pl, of_fwnode_handle(dn), flags);
+}
+EXPORT_SYMBOL_GPL(phylink_of_phy_connect);
+
+/**
+ * phylink_fwnode_phy_connect() - connect the PHY specified in the fwnode.
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @fwnode: a pointer to a &struct fwnode_handle.
+ * @flags: PHY-specific flags to communicate to the PHY device driver
+ *
+ * Connect the phy specified @fwnode to the phylink instance specified
+ * by @pl.
+ *
+ * Returns 0 on success or a negative errno.
+ */
+int phylink_fwnode_phy_connect(struct phylink *pl,
+			       struct fwnode_handle *fwnode,
+			       u32 flags)
+{
+	struct fwnode_handle *phy_fwnode;
 	struct phy_device *phy_dev;
 	int ret;
 
@@ -1094,28 +1114,25 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 	     phy_interface_mode_is_8023z(pl->link_interface)))
 		return 0;
 
-	phy_node = of_parse_phandle(dn, "phy-handle", 0);
-	if (!phy_node)
-		phy_node = of_parse_phandle(dn, "phy", 0);
-	if (!phy_node)
-		phy_node = of_parse_phandle(dn, "phy-device", 0);
-
-	if (!phy_node) {
+	phy_fwnode = fwnode_get_phy_node(fwnode);
+	if (IS_ERR(phy_fwnode)) {
 		if (pl->cfg_link_an_mode == MLO_AN_PHY)
 			return -ENODEV;
 		return 0;
 	}
 
-	phy_dev = of_phy_find_device(phy_node);
+	phy_dev = fwnode_phy_find_device(phy_fwnode);
 	/* We're done with the phy_node handle */
-	of_node_put(phy_node);
+	fwnode_handle_put(phy_fwnode);
 	if (!phy_dev)
 		return -ENODEV;
 
 	ret = phy_attach_direct(pl->netdev, phy_dev, flags,
 				pl->link_interface);
-	if (ret)
+	if (ret) {
+		phy_device_free(phy_dev);
 		return ret;
+	}
 
 	ret = phylink_bringup_phy(pl, phy_dev, pl->link_config.interface);
 	if (ret)
@@ -1123,7 +1140,7 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(phylink_of_phy_connect);
+EXPORT_SYMBOL_GPL(phylink_fwnode_phy_connect);
 
 /**
  * phylink_disconnect_phy() - disconnect any PHY attached to the phylink
