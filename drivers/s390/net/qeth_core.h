@@ -437,7 +437,7 @@ struct qeth_qdio_out_buffer {
 	unsigned int frames;
 	unsigned int bytes;
 	struct sk_buff_head skb_list;
-	int is_header[QDIO_MAX_ELEMENTS_PER_BUFFER];
+	DECLARE_BITMAP(from_kmem_cache, QDIO_MAX_ELEMENTS_PER_BUFFER);
 
 	struct list_head list_entry;
 	struct qaob *aob;

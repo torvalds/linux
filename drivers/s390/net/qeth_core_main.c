@@ -1347,9 +1347,8 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	for (i = 0; i < queue->max_elements; ++i) {
 		void *data = phys_to_virt(buf->buffer->element[i].addr);
 
-		if (data && buf->is_header[i])
+		if (__test_and_clear_bit(i, buf->from_kmem_cache) && data)
 			kmem_cache_free(qeth_core_header_cache, data);
-		buf->is_header[i] = 0;
 	}
 
 	qeth_scrub_qdio_buffer(buf->buffer, queue->max_elements);
@@ -1393,7 +1392,7 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 			     i++) {
 				void *data = phys_to_virt(aob->sba[i]);
 
-				if (data && buf->is_header[i])
+				if (test_bit(i, buf->from_kmem_cache) && data)
 					kmem_cache_free(qeth_core_header_cache,
 							data);
 			}
@@ -4053,7 +4052,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 
 		/* HW header is allocated from cache: */
 		if ((void *)hdr != skb->data)
-			buf->is_header[element] = 1;
+			__set_bit(element, buf->from_kmem_cache);
 		/* HW header was pushed and is contiguous with linear part: */
 		else if (length > 0 && !PAGE_ALIGNED(data) &&
 			 (data == (char *)hdr + hd_len))
