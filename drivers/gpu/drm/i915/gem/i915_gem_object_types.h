@@ -10,6 +10,7 @@
 #include <linux/mmu_notifier.h>
 
 #include <drm/drm_gem.h>
+#include <drm/ttm/ttm_bo_api.h>
 #include <uapi/drm/i915_drm.h>
 
 #include "i915_active.h"
@@ -99,7 +100,16 @@ struct i915_gem_object_page_iter {
 };
 
 struct drm_i915_gem_object {
-	struct drm_gem_object base;
+	/*
+	 * We might have reason to revisit the below since it wastes
+	 * a lot of space for non-ttm gem objects.
+	 * In any case, always use the accessors for the ttm_buffer_object
+	 * when accessing it.
+	 */
+	union {
+		struct drm_gem_object base;
+		struct ttm_buffer_object __do_not_access;
+	};
 
 	const struct drm_i915_gem_object_ops *ops;
 
@@ -149,6 +159,10 @@ struct drm_i915_gem_object {
 	 * when i915_gem_ww_ctx_backoff() or i915_gem_ww_ctx_fini() are called.
 	 */
 	struct list_head obj_link;
+	/**
+	 * @shared_resv_from: The object shares the resv from this vm.
+	 */
+	struct i915_address_space *shares_resv_from;
 
 	union {
 		struct rcu_head rcu;
@@ -231,10 +245,12 @@ struct drm_i915_gem_object {
 		 * Memory region for this object.
 		 */
 		struct intel_memory_region *region;
+
 		/**
-		 * List of memory region blocks allocated for this object.
+		 * Memory manager node allocated for this object.
 		 */
-		struct list_head blocks;
+		void *st_mm_node;
+
 		/**
 		 * Element within memory_region->objects or region->purgeable
 		 * if the object is marked as DONTNEED. Access is protected by

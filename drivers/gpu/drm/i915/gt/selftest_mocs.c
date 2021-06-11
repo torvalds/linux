@@ -183,7 +183,7 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	return INTEL_GEN(i915) >= 8 && offset >= 0xb000 && offset <= 0xb4ff;
+	return GRAPHICS_VER(i915) >= 8 && offset >= 0xb000 && offset <= 0xb4ff;
 }
 
 static int check_l3cc_table(struct intel_engine_cs *engine,

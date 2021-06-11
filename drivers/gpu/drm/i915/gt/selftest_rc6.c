@@ -140,7 +140,7 @@ static const u32 *__live_rc6_ctx(struct intel_context *ce)
 	}
 
 	cmd = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
-	if (INTEL_GEN(rq->engine->i915) >= 8)
+	if (GRAPHICS_VER(rq->engine->i915) >= 8)
 		cmd++;
 
 	*cs++ = cmd;
@@ -193,7 +193,7 @@ int live_rc6_ctx_wa(void *arg)
 	int err = 0;
 
 	/* A read of CTX_INFO upsets rc6. Poke the bear! */
-	if (INTEL_GEN(gt->i915) < 8)
+	if (GRAPHICS_VER(gt->i915) < 8)
 		return 0;
 
 	engines = randomised_engines(gt, &prng, &count);

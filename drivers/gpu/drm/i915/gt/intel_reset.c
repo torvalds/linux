@@ -421,7 +421,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine,
 		struct intel_engine_cs *paired_vecs;
 
 		if (engine->class != VIDEO_DECODE_CLASS ||
-		    !IS_GEN(engine->i915, 12))
+		    GRAPHICS_VER(engine->i915) != 12)
 			return 0;
 
 		/*
@@ -633,7 +633,7 @@ static int gen8_reset_engines(struct intel_gt *gt,
 		 */
 	}
 
-	if (INTEL_GEN(gt->i915) >= 11)
+	if (GRAPHICS_VER(gt->i915) >= 11)
 		ret = gen11_reset_engines(gt, engine_mask, retry);
 	else
 		ret = gen6_reset_engines(gt, engine_mask, retry);
@@ -662,17 +662,17 @@ static reset_func intel_get_gpu_reset(const struct intel_gt *gt)
 
 	if (is_mock_gt(gt))
 		return mock_reset;
-	else if (INTEL_GEN(i915) >= 8)
+	else if (GRAPHICS_VER(i915) >= 8)
 		return gen8_reset_engines;
-	else if (INTEL_GEN(i915) >= 6)
+	else if (GRAPHICS_VER(i915) >= 6)
 		return gen6_reset_engines;
-	else if (INTEL_GEN(i915) >= 5)
+	else if (GRAPHICS_VER(i915) >= 5)
 		return ilk_do_reset;
 	else if (IS_G4X(i915))
 		return g4x_do_reset;
 	else if (IS_G33(i915) || IS_PINEVIEW(i915))
 		return g33_do_reset;
-	else if (INTEL_GEN(i915) >= 3)
+	else if (GRAPHICS_VER(i915) >= 3)
 		return i915_do_reset;
 	else
 		return NULL;
@@ -724,7 +724,7 @@ bool intel_has_reset_engine(const struct intel_gt *gt)
 int intel_reset_guc(struct intel_gt *gt)
 {
 	u32 guc_domain =
-		INTEL_GEN(gt->i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
+		GRAPHICS_VER(gt->i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
 	int ret;
 
 	GEM_BUG_ON(!HAS_GT_UC(gt->i915));

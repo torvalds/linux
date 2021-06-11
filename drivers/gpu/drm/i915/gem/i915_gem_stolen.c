@@ -38,7 +38,7 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
 		return -ENODEV;
 
 	/* WaSkipStolenMemoryFirstPage:bdw+ */
-	if (INTEL_GEN(i915) >= 8 && start < 4096)
+	if (GRAPHICS_VER(i915) >= 8 && start < 4096)
 		start = 4096;
 
 	mutex_lock(&i915->mm.stolen_lock);
@@ -84,14 +84,14 @@ static int i915_adjust_stolen(struct drm_i915_private *i915,
 	 */
 
 	/* Make sure we don't clobber the GTT if it's within stolen memory */
-	if (INTEL_GEN(i915) <= 4 &&
+	if (GRAPHICS_VER(i915) <= 4 &&
 	    !IS_G33(i915) && !IS_PINEVIEW(i915) && !IS_G4X(i915)) {
 		struct resource stolen[2] = {*dsm, *dsm};
 		struct resource ggtt_res;
 		resource_size_t ggtt_start;
 
 		ggtt_start = intel_uncore_read(uncore, PGTBL_CTL);
-		if (IS_GEN(i915, 4))
+		if (GRAPHICS_VER(i915) == 4)
 			ggtt_start = (ggtt_start & PGTBL_ADDRESS_LO_MASK) |
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
@@ -156,7 +156,7 @@ static int i915_adjust_stolen(struct drm_i915_private *i915,
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
-		if (!r && !IS_GEN(i915, 3)) {
+		if (!r && GRAPHICS_VER(i915) != 3) {
 			drm_err(&i915->drm,
 				"conflict detected with stolen region: %pR\n",
 				dsm);
@@ -197,7 +197,7 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *i915,
 	 * Whether ILK really reuses the ELK register for this is unclear.
 	 * Let's see if we catch anyone with this supposedly enabled on ILK.
 	 */
-	drm_WARN(&i915->drm, IS_GEN(i915, 5),
+	drm_WARN(&i915->drm, GRAPHICS_VER(i915) == 5,
 		 "ILK stolen reserved found? 0x%08x\n",
 		 reg_val);
 
@@ -399,7 +399,7 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		return 0;
 	}
 
-	if (intel_vtd_active() && INTEL_GEN(i915) < 8) {
+	if (intel_vtd_active() && GRAPHICS_VER(i915) < 8) {
 		drm_notice(&i915->drm,
 			   "%s, disabling use of stolen memory\n",
 			   "DMAR active");
@@ -421,7 +421,7 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 	reserved_base = stolen_top;
 	reserved_size = 0;
 
-	switch (INTEL_GEN(i915)) {
+	switch (GRAPHICS_VER(i915)) {
 	case 2:
 	case 3:
 		break;
@@ -456,7 +456,7 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 						&reserved_base, &reserved_size);
 		break;
 	default:
-		MISSING_CASE(INTEL_GEN(i915));
+		MISSING_CASE(GRAPHICS_VER(i915));
 		fallthrough;
 	case 11:
 	case 12:
@@ -772,7 +772,8 @@ static const struct intel_memory_region_ops i915_region_stolen_lmem_ops = {
 };
 
 struct intel_memory_region *
-i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
+i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
+			   u16 instance)
 {
 	struct intel_uncore *uncore = &i915->uncore;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
@@ -790,6 +791,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
 
 	mem = intel_memory_region_create(i915, lmem_base, lmem_size,
 					 I915_GTT_PAGE_SIZE_4K, io_start,
+					 type, instance,
 					 &i915_region_stolen_lmem_ops);
 	if (IS_ERR(mem))
 		return mem;
@@ -811,14 +813,15 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
 }
 
 struct intel_memory_region*
-i915_gem_stolen_smem_setup(struct drm_i915_private *i915)
+i915_gem_stolen_smem_setup(struct drm_i915_private *i915, u16 type,
+			   u16 instance)
 {
 	struct intel_memory_region *mem;
 
 	mem = intel_memory_region_create(i915,
 					 intel_graphics_stolen_res.start,
 					 resource_size(&intel_graphics_stolen_res),
-					 PAGE_SIZE, 0,
+					 PAGE_SIZE, 0, type, instance,
 					 &i915_region_stolen_smem_ops);
 	if (IS_ERR(mem))
 		return mem;
@@ -826,7 +829,6 @@ i915_gem_stolen_smem_setup(struct drm_i915_private *i915)
 	intel_memory_region_set_name(mem, "stolen-system");
 
 	mem->private = true;
-
 	return mem;
 }
 
