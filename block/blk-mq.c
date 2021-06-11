@@ -3910,7 +3910,7 @@ int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 
 	hctx->poll_considered++;
 
-	state = current->state;
+	state = get_current_state();
 	do {
 		int ret;
 
