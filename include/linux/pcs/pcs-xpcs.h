@@ -10,6 +10,8 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 
+#define NXP_SJA1105_XPCS_ID		0x00000010
+
 /* AN mode */
 #define DW_AN_C73			1
 #define DW_AN_C37_SGMII			2

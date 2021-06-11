@@ -60,9 +60,14 @@
 /* EEE Mode Control Register */
 #define DW_VR_MII_EEE_MCTRL0		0x8006
 #define DW_VR_MII_EEE_MCTRL1		0x800b
+#define DW_VR_MII_DIG_CTRL2		0x80e1
 
 /* VR_MII_DIG_CTRL1 */
 #define DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW		BIT(9)
+
+/* VR_MII_DIG_CTRL2 */
+#define DW_VR_MII_DIG_CTRL2_TX_POL_INV		BIT(4)
+#define DW_VR_MII_DIG_CTRL2_RX_POL_INV		BIT(0)
 
 /* VR_MII_AN_CTRL */
 #define DW_VR_MII_AN_CTRL_TX_CONFIG_SHIFT	3
@@ -101,3 +106,8 @@
 
 /* VR MII EEE Control 1 defines */
 #define DW_VR_MII_EEE_TRN_LPI		BIT(0)	/* Transparent Mode Enable */
+
+int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg);
+int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val);
+
+int nxp_sja1105_sgmii_pma_config(struct dw_xpcs *xpcs);
