@@ -102,6 +102,8 @@
 #define HZIP_PREFETCH_ENABLE		(~(BIT(26) | BIT(17) | BIT(0)))
 #define HZIP_SVA_PREFETCH_DISABLE	BIT(26)
 #define HZIP_SVA_DISABLE_READY		(BIT(26) | BIT(30))
+#define HZIP_SHAPER_RATE_COMPRESS	252
+#define HZIP_SHAPER_RATE_DECOMPRESS	229
 #define HZIP_DELAY_1_US		1
 #define HZIP_POLL_TIMEOUT_US	1000
 
@@ -823,6 +825,7 @@ static void hisi_zip_qm_uninit(struct hisi_qm *qm)
 
 static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)
 {
+	u32 type_rate = HZIP_SHAPER_RATE_COMPRESS;
 	struct hisi_qm *qm = &hisi_zip->qm;
 	int ret;
 
@@ -830,6 +833,14 @@ static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)
 		ret = hisi_zip_pf_probe_init(hisi_zip);
 		if (ret)
 			return ret;
+		/* enable shaper type 0 */
+		if (qm->ver >= QM_HW_V3) {
+			type_rate |= QM_SHAPER_ENABLE;
+
+			/* ZIP need to enable shaper type 1 */
+			type_rate |= HZIP_SHAPER_RATE_DECOMPRESS << QM_SHAPER_TYPE1_OFFSET;
+			qm->type_rate = type_rate;
+		}
 	}
 
 	return 0;
