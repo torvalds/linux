@@ -78,15 +78,15 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	 * trailer checksum.  Therefore the checksum in the trailer is
 	 * just the checksum computed over the IP payload.
 	 */
-	ip_payload_csum = (__force __sum16)~ntohs(csum_trailer->csum_value);
+	ip_payload_csum = (__force __sum16)~csum_trailer->csum_value;
 
 	pseudo_csum = ~csum_tcpudp_magic(ip4h->saddr, ip4h->daddr,
 					 ntohs(ip4h->tot_len) - ip4h->ihl * 4,
 					 ip4h->protocol, 0);
-	addend = (__force __be16)ntohs((__force __be16)pseudo_csum);
+	addend = (__force __be16)pseudo_csum;
 	pseudo_csum = csum16_add(ip_payload_csum, addend);
 
-	addend = (__force __be16)ntohs((__force __be16)*csum_field);
+	addend = (__force __be16)*csum_field;
 	csum_temp = ~csum16_sub(pseudo_csum, addend);
 	csum_value_final = (__force u16)csum_temp;
 
@@ -105,7 +105,7 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 		}
 	}
 
-	if (csum_value_final == ntohs((__force __be16)*csum_field)) {
+	if (csum_value_final == (__force u16)*csum_field) {
 		priv->stats.csum_ok++;
 		return 0;
 	} else {
