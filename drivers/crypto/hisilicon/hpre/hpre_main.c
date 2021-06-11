@@ -92,6 +92,7 @@
 #define HPRE_QM_PM_FLR			BIT(11)
 #define HPRE_QM_SRIOV_FLR		BIT(12)
 
+#define HPRE_SHAPER_TYPE_RATE		128
 #define HPRE_VIA_MSI_DSM		1
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
@@ -947,6 +948,7 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 
 static int hpre_probe_init(struct hpre *hpre)
 {
+	u32 type_rate = HPRE_SHAPER_TYPE_RATE;
 	struct hisi_qm *qm = &hpre->qm;
 	int ret;
 
@@ -954,6 +956,11 @@ static int hpre_probe_init(struct hpre *hpre)
 		ret = hpre_pf_probe_init(hpre);
 		if (ret)
 			return ret;
+		/* Enable shaper type 0 */
+		if (qm->ver >= QM_HW_V3) {
+			type_rate |= QM_SHAPER_ENABLE;
+			qm->type_rate = type_rate;
+		}
 	}
 
 	return 0;
