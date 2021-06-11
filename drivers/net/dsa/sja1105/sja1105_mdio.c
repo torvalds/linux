@@ -427,7 +427,8 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 		if (dsa_is_unused_port(ds, port))
 			continue;
 
-		if (priv->phy_mode[port] != PHY_INTERFACE_MODE_SGMII)
+		if (priv->phy_mode[port] != PHY_INTERFACE_MODE_SGMII &&
+		    priv->phy_mode[port] != PHY_INTERFACE_MODE_2500BASEX)
 			continue;
 
 		mdiodev = mdio_device_create(bus, port);
