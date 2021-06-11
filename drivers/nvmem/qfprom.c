@@ -196,9 +196,9 @@ static int qfprom_enable_fuse_blowing(const struct qfprom_priv *priv,
 	}
 
 	/*
-	 * Hardware requires a min voltage for fuse blowing; this may be
-	 * a rail shared do don't specify a max--regulator constraints
-	 * will handle.
+	 * Hardware requires a minimum voltage for fuse blowing.
+	 * This may be a shared rail so don't specify a maximum.
+	 * Regulator constraints will cap to the actual maximum.
 	 */
 	ret = regulator_set_voltage(priv->vcc, qfprom_blow_uV, INT_MAX);
 	if (ret) {
