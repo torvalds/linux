@@ -611,7 +611,9 @@ enum nix_af_status {
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
 	NIX_AF_ERR_TX_VTAG_NOSPC    = -421,
 	NIX_AF_ERR_RX_VTAG_INUSE    = -422,
-	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -423,
+	NIX_AF_ERR_PTP_CONFIG_FAIL  = -423,
+	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -424,
+	NIX_AF_ERR_INVALID_NIXBLK   = -425,
 };
 
 /* For NIX RX vtag action  */
@@ -913,6 +915,7 @@ struct nix_rx_mode {
 #define NIX_RX_MODE_UCAST	BIT(0)
 #define NIX_RX_MODE_PROMISC	BIT(1)
 #define NIX_RX_MODE_ALLMULTI	BIT(2)
+#define NIX_RX_MODE_USE_MCE	BIT(3)
 	u16	mode;
 };
 

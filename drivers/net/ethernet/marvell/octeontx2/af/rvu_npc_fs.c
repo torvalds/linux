@@ -1177,9 +1177,12 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	}
 
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
+	if (err)
+		return -EINVAL;
 
-	/* If interface is uninitialized then do not enable entry */
-	if (err || (!req->default_rule && !pfvf->def_ucast_rule))
+	/* don't enable rule when nixlf not attached or initialized */
+	if (!(is_nixlf_attached(rvu, target) &&
+	      test_bit(NIXLF_INITIALIZED, &pfvf->flags)))
 		enable = false;
 
 	/* Packets reaching NPC in Tx path implies that a

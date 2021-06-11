@@ -1820,8 +1820,10 @@ static void otx2_do_set_rx_mode(struct work_struct *work)
 
 	if (promisc)
 		req->mode |= NIX_RX_MODE_PROMISC;
-	else if (netdev->flags & (IFF_ALLMULTI | IFF_MULTICAST))
+	if (netdev->flags & (IFF_ALLMULTI | IFF_MULTICAST))
 		req->mode |= NIX_RX_MODE_ALLMULTI;
+
+	req->mode |= NIX_RX_MODE_USE_MCE;
 
 	otx2_sync_mbox_msg(&pf->mbox);
 	mutex_unlock(&pf->mbox.lock);
