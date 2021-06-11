@@ -16,13 +16,13 @@
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/of_device.h>
+#include <linux/pcs/pcs-xpcs.h>
 #include <linux/netdev_features.h>
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/if_ether.h>
 #include <linux/dsa/8021q.h>
 #include "sja1105.h"
-#include "sja1105_sgmii.h"
 #include "sja1105_tas.h"
 
 #define SJA1105_UNKNOWN_MULTICAST	0x010000000000ull
@@ -1002,93 +1002,6 @@ static int sja1105_parse_dt(struct sja1105_private *priv)
 	return rc;
 }
 
-static int sja1105_sgmii_read(struct sja1105_private *priv, int port, int mmd,
-			      int pcs_reg)
-{
-	u64 addr = (mmd << 16) | pcs_reg;
-	u32 val;
-	int rc;
-
-	if (port != SJA1105_SGMII_PORT)
-		return -ENODEV;
-
-	rc = sja1105_xfer_u32(priv, SPI_READ, addr, &val, NULL);
-	if (rc < 0)
-		return rc;
-
-	return val;
-}
-
-static int sja1105_sgmii_write(struct sja1105_private *priv, int port, int mmd,
-			       int pcs_reg, u16 pcs_val)
-{
-	u64 addr = (mmd << 16) | pcs_reg;
-	u32 val = pcs_val;
-	int rc;
-
-	if (port != SJA1105_SGMII_PORT)
-		return -ENODEV;
-
-	rc = sja1105_xfer_u32(priv, SPI_WRITE, addr, &val, NULL);
-	if (rc < 0)
-		return rc;
-
-	return val;
-}
-
-static void sja1105_sgmii_pcs_config(struct sja1105_private *priv, int port,
-				     bool an_enabled, bool an_master)
-{
-	u16 ac = SJA1105_AC_AUTONEG_MODE_SGMII;
-
-	/* DIGITAL_CONTROL_1: Enable vendor-specific MMD1, allow the PHY to
-	 * stop the clock during LPI mode, make the MAC reconfigure
-	 * autonomously after PCS autoneg is done, flush the internal FIFOs.
-	 */
-	sja1105_sgmii_write(priv, port, MDIO_MMD_VEND2, SJA1105_DC1,
-			    SJA1105_DC1_EN_VSMMD1 |
-			    SJA1105_DC1_CLOCK_STOP_EN |
-			    SJA1105_DC1_MAC_AUTO_SW |
-			    SJA1105_DC1_INIT);
-	/* DIGITAL_CONTROL_2: No polarity inversion for TX and RX lanes */
-	sja1105_sgmii_write(priv, port, MDIO_MMD_VEND2, SJA1105_DC2,
-			    SJA1105_DC2_TX_POL_INV_DISABLE);
-	/* AUTONEG_CONTROL: Use SGMII autoneg */
-	if (an_master)
-		ac |= SJA1105_AC_PHY_MODE | SJA1105_AC_SGMII_LINK;
-	sja1105_sgmii_write(priv, port, MDIO_MMD_VEND2, SJA1105_AC, ac);
-	/* BASIC_CONTROL: enable in-band AN now, if requested. Otherwise,
-	 * sja1105_sgmii_pcs_force_speed must be called later for the link
-	 * to become operational.
-	 */
-	if (an_enabled)
-		sja1105_sgmii_write(priv, port, MDIO_MMD_VEND2, MDIO_CTRL1,
-				    BMCR_ANENABLE | BMCR_ANRESTART);
-}
-
-static void sja1105_sgmii_pcs_force_speed(struct sja1105_private *priv,
-					  int port, int speed)
-{
-	int pcs_speed;
-
-	switch (speed) {
-	case SPEED_1000:
-		pcs_speed = BMCR_SPEED1000;
-		break;
-	case SPEED_100:
-		pcs_speed = BMCR_SPEED100;
-		break;
-	case SPEED_10:
-		pcs_speed = BMCR_SPEED10;
-		break;
-	default:
-		dev_err(priv->ds->dev, "Invalid speed %d\n", speed);
-		return;
-	}
-	sja1105_sgmii_write(priv, port, MDIO_MMD_VEND2, MDIO_CTRL1,
-			    pcs_speed | BMCR_FULLDPLX);
-}
-
 /* Convert link speed from SJA1105 to ethtool encoding */
 static int sja1105_port_speed_to_ethtool(struct sja1105_private *priv,
 					 u64 speed)
@@ -1195,10 +1108,9 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 			       unsigned int mode,
 			       const struct phylink_link_state *state)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
-	bool is_sgmii;
-
-	is_sgmii = (state->interface == PHY_INTERFACE_MODE_SGMII);
+	struct dw_xpcs *xpcs;
 
 	if (sja1105_phy_mode_mismatch(priv, port, state->interface)) {
 		dev_err(ds->dev, "Changing PHY mode to %s not supported!\n",
@@ -1206,15 +1118,10 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 		return;
 	}
 
-	if (phylink_autoneg_inband(mode) && !is_sgmii) {
-		dev_err(ds->dev, "In-band AN not supported!\n");
-		return;
-	}
+	xpcs = priv->xpcs[port];
 
-	if (is_sgmii)
-		sja1105_sgmii_pcs_config(priv, port,
-					 phylink_autoneg_inband(mode),
-					 false);
+	if (xpcs)
+		phylink_set_pcs(dp->pl, &xpcs->pcs);
 }
 
 static void sja1105_mac_link_down(struct dsa_switch *ds, int port,
@@ -1234,10 +1141,6 @@ static void sja1105_mac_link_up(struct dsa_switch *ds, int port,
 	struct sja1105_private *priv = ds->priv;
 
 	sja1105_adjust_port_config(priv, port, speed);
-
-	if (priv->phy_mode[port] == PHY_INTERFACE_MODE_SGMII &&
-	    !phylink_autoneg_inband(mode))
-		sja1105_sgmii_pcs_force_speed(priv, port, speed);
 
 	sja1105_inhibit_tx(priv, BIT(port), false);
 }
@@ -1281,38 +1184,6 @@ static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
 	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	bitmap_and(state->advertising, state->advertising, mask,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static int sja1105_mac_pcs_get_state(struct dsa_switch *ds, int port,
-				     struct phylink_link_state *state)
-{
-	struct sja1105_private *priv = ds->priv;
-	int ais;
-
-	/* Read the vendor-specific AUTONEG_INTR_STATUS register */
-	ais = sja1105_sgmii_read(priv, port, MDIO_MMD_VEND2, SJA1105_AIS);
-	if (ais < 0)
-		return ais;
-
-	switch (SJA1105_AIS_SPEED(ais)) {
-	case 0:
-		state->speed = SPEED_10;
-		break;
-	case 1:
-		state->speed = SPEED_100;
-		break;
-	case 2:
-		state->speed = SPEED_1000;
-		break;
-	default:
-		dev_err(ds->dev, "Invalid SGMII PCS speed %lu\n",
-			SJA1105_AIS_SPEED(ais));
-	}
-	state->duplex = SJA1105_AIS_DUPLEX_MODE(ais);
-	state->an_complete = SJA1105_AIS_COMPLETE(ais);
-	state->link = SJA1105_AIS_LINK_STATUS(ais);
-
-	return 0;
 }
 
 static int
@@ -1990,14 +1861,14 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	 * change it through the dynamic interface later.
 	 */
 	for (i = 0; i < ds->num_ports; i++) {
+		u32 reg_addr = mdiobus_c45_addr(MDIO_MMD_VEND2, MDIO_CTRL1);
+
 		speed_mbps[i] = sja1105_port_speed_to_ethtool(priv,
 							      mac[i].speed);
 		mac[i].speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
 
-		if (priv->phy_mode[i] == PHY_INTERFACE_MODE_SGMII)
-			bmcr[i] = sja1105_sgmii_read(priv, i,
-						     MDIO_MMD_VEND2,
-						     MDIO_CTRL1);
+		if (priv->xpcs[i])
+			bmcr[i] = mdiobus_read(priv->mdio_pcs, i, reg_addr);
 	}
 
 	/* No PTP operations can run right now */
@@ -2045,20 +1916,28 @@ out_unlock_ptp:
 		goto out;
 
 	for (i = 0; i < ds->num_ports; i++) {
-		bool an_enabled;
+		struct dw_xpcs *xpcs = priv->xpcs[i];
+		unsigned int mode;
 
 		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i]);
 		if (rc < 0)
 			goto out;
 
-		if (priv->phy_mode[i] != PHY_INTERFACE_MODE_SGMII)
+		if (!xpcs)
 			continue;
 
-		an_enabled = !!(bmcr[i] & BMCR_ANENABLE);
+		if (bmcr[i] & BMCR_ANENABLE)
+			mode = MLO_AN_INBAND;
+		else if (priv->fixed_link[i])
+			mode = MLO_AN_FIXED;
+		else
+			mode = MLO_AN_PHY;
 
-		sja1105_sgmii_pcs_config(priv, i, an_enabled, false);
+		rc = xpcs_do_config(xpcs, priv->phy_mode[i], mode);
+		if (rc < 0)
+			goto out;
 
-		if (!an_enabled) {
+		if (!phylink_autoneg_inband(mode)) {
 			int speed = SPEED_UNKNOWN;
 
 			if (bmcr[i] & BMCR_SPEED1000)
@@ -2068,7 +1947,8 @@ out_unlock_ptp:
 			else
 				speed = SPEED_10;
 
-			sja1105_sgmii_pcs_force_speed(priv, i, speed);
+			xpcs_link_up(&xpcs->pcs, mode, priv->phy_mode[i],
+				     speed, DUPLEX_FULL);
 		}
 	}
 
@@ -3649,7 +3529,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_change_mtu	= sja1105_change_mtu,
 	.port_max_mtu		= sja1105_get_max_mtu,
 	.phylink_validate	= sja1105_phylink_validate,
-	.phylink_mac_link_state	= sja1105_mac_pcs_get_state,
 	.phylink_mac_config	= sja1105_mac_config,
 	.phylink_mac_link_up	= sja1105_mac_link_up,
 	.phylink_mac_link_down	= sja1105_mac_link_down,
