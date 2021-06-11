@@ -266,6 +266,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&panel_default_mode>;
 			spi-3wire;
+			/* TYPE 3: inverse clock polarity and phase */
+			spi-cpha;
+			spi-cpol;
 
 			port {
 				panel_in: endpoint {
