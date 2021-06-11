@@ -669,6 +669,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 	struct bkey_ptrs_c ptrs;
 	const struct bch_extent_ptr *ptr;
 	unsigned flags =
+		BTREE_TRIGGER_INSERT|
 		BTREE_TRIGGER_GC|
 		(initial ? BTREE_TRIGGER_NOATOMIC : 0);
 	int ret = 0;
@@ -710,7 +711,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 		*max_stale = max(*max_stale, ptr_stale(ca, ptr));
 	}
 
-	bch2_mark_key(c, *k, 0, k->k->size, NULL, 0, flags);
+	bch2_mark_key(c, *k, flags);
 fsck_err:
 err:
 	if (ret)
@@ -1081,8 +1082,7 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 	for_each_pending_btree_node_free(c, as, d)
 		if (d->index_update_done)
 			bch2_mark_key(c, bkey_i_to_s_c(&d->key),
-				      0, 0, NULL, 0,
-				      BTREE_TRIGGER_GC);
+				      BTREE_TRIGGER_INSERT|BTREE_TRIGGER_GC);
 
 	mutex_unlock(&c->btree_interior_update_lock);
 }

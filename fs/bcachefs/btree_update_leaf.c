@@ -362,7 +362,7 @@ static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
 		BUG_ON(btree_iter_type(i->iter) == BTREE_ITER_CACHED);
 
 		if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
-			bch2_mark_update(trans, i->iter, i->k, NULL,
+			bch2_mark_update(trans, i->iter, i->k,
 					 i->trigger_flags|BTREE_TRIGGER_GC);
 	}
 }
@@ -468,7 +468,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	trans_for_each_update(trans, i)
 		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type))
 			bch2_mark_update(trans, i->iter, i->k,
-					 NULL, i->trigger_flags);
+					 i->trigger_flags);
 
 	if (marking && trans->fs_usage_deltas)
 		bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas);

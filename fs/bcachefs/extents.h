@@ -426,6 +426,17 @@ void bch2_extent_crc_append(struct bkey_i *,
 
 /* Generic code for keys with pointers: */
 
+static inline bool bkey_is_btree_ptr(const struct bkey *k)
+{
+	switch (k->type) {
+	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline bool bkey_extent_is_direct_data(const struct bkey *k)
 {
 	switch (k->type) {

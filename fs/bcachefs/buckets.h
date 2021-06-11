@@ -125,20 +125,6 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 	return gen_after(ptr_bucket_mark(ca, ptr).gen, ptr->gen);
 }
 
-static inline s64 __ptr_disk_sectors(struct extent_ptr_decoded p,
-				     unsigned live_size)
-{
-	return live_size && p.crc.compression_type
-		? max(1U, DIV_ROUND_UP(live_size * p.crc.compressed_size,
-				       p.crc.uncompressed_size))
-		: live_size;
-}
-
-static inline s64 ptr_disk_sectors(struct extent_ptr_decoded p)
-{
-	return __ptr_disk_sectors(p, p.crc.live_size);
-}
-
 /* bucket gc marks */
 
 static inline unsigned bucket_sectors_used(struct bucket_mark mark)
@@ -240,14 +226,13 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       size_t, enum bch_data_type, unsigned,
 			       struct gc_pos, unsigned);
 
-int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned,
-		  s64, struct bch_fs_usage *, u64, unsigned);
+int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned);
 
 int bch2_mark_update(struct btree_trans *, struct btree_iter *,
-		     struct bkey_i *, struct bch_fs_usage *, unsigned);
+		     struct bkey_i *, unsigned);
 
-int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c, struct bkey_s_c,
-			unsigned, s64, unsigned);
+int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c,
+			struct bkey_s_c, unsigned);
 int bch2_trans_mark_update(struct btree_trans *, struct btree_iter *iter,
 			   struct bkey_i *insert, unsigned);
 void bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
