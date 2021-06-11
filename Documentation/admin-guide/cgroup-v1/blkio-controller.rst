@@ -97,40 +97,41 @@ Details of cgroup files
 Proportional weight policy files
 --------------------------------
 
-  blkio.weight
+  blkio.bfq.weight
 	  Specifies per cgroup weight. This is default weight of the group
-	  on all the devices until and unless overridden by per device rule.
-	  (See blkio.weight_device).
-	  Currently allowed range of weights is from 10 to 1000.
+	  on all the devices until and unless overridden by per device rule
+	  (see `blkio.bfq.weight_device` below).
 
-  blkio.weight_device
-	  One can specify per cgroup per device rules using this interface.
-	  These rules override the default value of group weight as specified
-	  by blkio.weight.
+	  Currently allowed range of weights is from 1 to 1000. For more details,
+          see Documentation/block/bfq-iosched.rst.
+
+  blkio.bfq.weight_device
+          Specifes per cgroup per device weights, overriding the default group
+          weight. For more details, see Documentation/block/bfq-iosched.rst.
 
 	  Following is the format::
 
-	    # echo dev_maj:dev_minor weight > blkio.weight_device
+	    # echo dev_maj:dev_minor weight > blkio.bfq.weight_device
 
 	  Configure weight=300 on /dev/sdb (8:16) in this cgroup::
 
-	    # echo 8:16 300 > blkio.weight_device
-	    # cat blkio.weight_device
+	    # echo 8:16 300 > blkio.bfq.weight_device
+	    # cat blkio.bfq.weight_device
 	    dev     weight
 	    8:16    300
 
 	  Configure weight=500 on /dev/sda (8:0) in this cgroup::
 
-	    # echo 8:0 500 > blkio.weight_device
-	    # cat blkio.weight_device
+	    # echo 8:0 500 > blkio.bfq.weight_device
+	    # cat blkio.bfq.weight_device
 	    dev     weight
 	    8:0     500
 	    8:16    300
 
 	  Remove specific weight for /dev/sda in this cgroup::
 
-	    # echo 8:0 0 > blkio.weight_device
-	    # cat blkio.weight_device
+	    # echo 8:0 0 > blkio.bfq.weight_device
+	    # cat blkio.bfq.weight_device
 	    dev     weight
 	    8:16    300
 
