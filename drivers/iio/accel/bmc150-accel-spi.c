@@ -50,6 +50,7 @@ static const struct spi_device_id bmc150_accel_id[] = {
 	{"bma222"},
 	{"bma222e"},
 	{"bma250e"},
+	{"bma253"},
 	{"bma255"},
 	{"bma280"},
 	{"bmc150_accel"},
