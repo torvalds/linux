@@ -54,6 +54,7 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 
 #include <asm/mipsregs.h>
 #include <asm/uasm.h>
