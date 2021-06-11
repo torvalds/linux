@@ -354,7 +354,11 @@
 	};
 };
 
-&qupv3_id_1 {
+&gmu {
+	status = "okay";
+};
+
+&gpu {
 	status = "okay";
 };
 
@@ -370,6 +374,10 @@
 		bias-pull-up;
 		linux,code = <KEY_VOLUMEDOWN>;
 	};
+};
+
+&qupv3_id_1 {
+	status = "okay";
 };
 
 &remoteproc_adsp {
