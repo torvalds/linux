@@ -77,6 +77,11 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
+static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prevhdr)
+{
+	return x->type->hdr_offset(x, skb, prevhdr);
+}
+
 /* Add encapsulation header.
  *
  * The IP header and mutable extension headers will be moved forward to make
@@ -92,7 +97,7 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ipv6_hdr(skb);
 	skb_set_inner_transport_header(skb, skb_transport_offset(skb));
 
-	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	hdr_len = xfrm6_hdr_offset(x, skb, &prevhdr);
 	if (hdr_len < 0)
 		return hdr_len;
 	skb_set_mac_header(skb,
@@ -122,7 +127,7 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	iph = ipv6_hdr(skb);
 
-	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
+	hdr_len = xfrm6_hdr_offset(x, skb, &prevhdr);
 	if (hdr_len < 0)
 		return hdr_len;
 	skb_set_mac_header(skb,
