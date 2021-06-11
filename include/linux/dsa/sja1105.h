@@ -14,6 +14,7 @@
 
 #define ETH_P_SJA1105				ETH_P_DSA_8021Q
 #define ETH_P_SJA1105_META			0x0008
+#define ETH_P_SJA1110				0xdadc
 
 /* IEEE 802.3 Annex 57A: Slow Protocols PDUs (01:80:C2:xx:xx:xx) */
 #define SJA1105_LINKLOCAL_FILTER_A		0x0180C2000000ull

@@ -217,6 +217,7 @@ struct sja1105_general_params_entry {
 	/* SJA1110 only */
 	u64 tte_en;
 	u64 tdmaconfigidx;
+	u64 header_type;
 };
 
 struct sja1105_schedule_entry_points_entry {

@@ -667,6 +667,8 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.tpid2 = ETH_P_SJA1105,
 		/* Enable the TTEthernet engine on SJA1110 */
 		.tte_en = true,
+		/* Set up the EtherType for control packets on SJA1110 */
+		.header_type = ETH_P_SJA1110,
 	};
 	struct sja1105_general_params_entry *general_params;
 	struct dsa_switch *ds = priv->ds;
@@ -2174,7 +2176,9 @@ static enum dsa_tag_protocol
 sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 			 enum dsa_tag_protocol mp)
 {
-	return DSA_TAG_PROTO_SJA1105;
+	struct sja1105_private *priv = ds->priv;
+
+	return priv->info->tag_proto;
 }
 
 static int sja1105_find_free_subvlan(u16 *subvlan_map, bool pvid)
