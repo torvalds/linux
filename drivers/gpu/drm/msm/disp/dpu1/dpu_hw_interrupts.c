@@ -205,10 +205,9 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 }
 
-static int dpu_hw_intr_enable_irq(struct dpu_hw_intr *intr, int irq_idx)
+static int dpu_hw_intr_enable_irq_locked(struct dpu_hw_intr *intr, int irq_idx)
 {
 	int reg_idx;
-	unsigned long irq_flags;
 	const struct dpu_intr_reg *reg;
 	const char *dbgstr = NULL;
 	uint32_t cache_irq_mask;
@@ -221,10 +220,16 @@ static int dpu_hw_intr_enable_irq(struct dpu_hw_intr *intr, int irq_idx)
 		return -EINVAL;
 	}
 
+	/*
+	 * The cache_irq_mask and hardware RMW operations needs to be done
+	 * under irq_lock and it's the caller's responsibility to ensure that's
+	 * held.
+	 */
+	assert_spin_locked(&intr->irq_lock);
+
 	reg_idx = DPU_IRQ_REG(irq_idx);
 	reg = &dpu_intr_set[reg_idx];
 
-	spin_lock_irqsave(&intr->irq_lock, irq_flags);
 	cache_irq_mask = intr->cache_irq_mask[reg_idx];
 	if (cache_irq_mask & DPU_IRQ_MASK(irq_idx)) {
 		dbgstr = "DPU IRQ already set:";
@@ -242,7 +247,6 @@ static int dpu_hw_intr_enable_irq(struct dpu_hw_intr *intr, int irq_idx)
 
 		intr->cache_irq_mask[reg_idx] = cache_irq_mask;
 	}
-	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 
 	pr_debug("%s MASK:0x%.8lx, CACHE-MASK:0x%.8x\n", dbgstr,
 			DPU_IRQ_MASK(irq_idx), cache_irq_mask);
@@ -250,7 +254,7 @@ static int dpu_hw_intr_enable_irq(struct dpu_hw_intr *intr, int irq_idx)
 	return 0;
 }
 
-static int dpu_hw_intr_disable_irq_nolock(struct dpu_hw_intr *intr, int irq_idx)
+static int dpu_hw_intr_disable_irq_locked(struct dpu_hw_intr *intr, int irq_idx)
 {
 	int reg_idx;
 	const struct dpu_intr_reg *reg;
@@ -264,6 +268,13 @@ static int dpu_hw_intr_disable_irq_nolock(struct dpu_hw_intr *intr, int irq_idx)
 		pr_err("invalid IRQ index: [%d]\n", irq_idx);
 		return -EINVAL;
 	}
+
+	/*
+	 * The cache_irq_mask and hardware RMW operations needs to be done
+	 * under irq_lock and it's the caller's responsibility to ensure that's
+	 * held.
+	 */
+	assert_spin_locked(&intr->irq_lock);
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
 	reg = &dpu_intr_set[reg_idx];
@@ -288,25 +299,6 @@ static int dpu_hw_intr_disable_irq_nolock(struct dpu_hw_intr *intr, int irq_idx)
 
 	pr_debug("%s MASK:0x%.8lx, CACHE-MASK:0x%.8x\n", dbgstr,
 			DPU_IRQ_MASK(irq_idx), cache_irq_mask);
-
-	return 0;
-}
-
-static int dpu_hw_intr_disable_irq(struct dpu_hw_intr *intr, int irq_idx)
-{
-	unsigned long irq_flags;
-
-	if (!intr)
-		return -EINVAL;
-
-	if (irq_idx < 0 || irq_idx >= intr->total_irqs) {
-		pr_err("invalid IRQ index: [%d]\n", irq_idx);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&intr->irq_lock, irq_flags);
-	dpu_hw_intr_disable_irq_nolock(intr, irq_idx);
-	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 
 	return 0;
 }
@@ -382,14 +374,30 @@ static u32 dpu_hw_intr_get_interrupt_status(struct dpu_hw_intr *intr,
 	return intr_status;
 }
 
+static unsigned long dpu_hw_intr_lock(struct dpu_hw_intr *intr)
+{
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&intr->irq_lock, irq_flags);
+
+	return irq_flags;
+}
+
+static void dpu_hw_intr_unlock(struct dpu_hw_intr *intr, unsigned long irq_flags)
+{
+	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
+}
+
 static void __setup_intr_ops(struct dpu_hw_intr_ops *ops)
 {
-	ops->enable_irq = dpu_hw_intr_enable_irq;
-	ops->disable_irq = dpu_hw_intr_disable_irq;
+	ops->enable_irq_locked = dpu_hw_intr_enable_irq_locked;
+	ops->disable_irq_locked = dpu_hw_intr_disable_irq_locked;
 	ops->dispatch_irqs = dpu_hw_intr_dispatch_irq;
 	ops->clear_all_irqs = dpu_hw_intr_clear_irqs;
 	ops->disable_all_irqs = dpu_hw_intr_disable_irqs;
 	ops->get_interrupt_status = dpu_hw_intr_get_interrupt_status;
+	ops->lock = dpu_hw_intr_lock;
+	ops->unlock = dpu_hw_intr_unlock;
 }
 
 static void __intr_offset(struct dpu_mdss_cfg *m,

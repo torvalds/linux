@@ -22,7 +22,6 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 	struct dpu_kms *dpu_kms = arg;
 	struct dpu_irq *irq_obj = &dpu_kms->irq_obj;
 	struct dpu_irq_callback *cb;
-	unsigned long irq_flags;
 
 	VERB("irq_idx=%d\n", irq_idx);
 
@@ -34,11 +33,9 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 	/*
 	 * Perform registered function callback
 	 */
-	spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
 	list_for_each_entry(cb, &irq_obj->irq_cb_tbl[irq_idx], list)
 		if (cb->func)
 			cb->func(cb->arg, irq_idx);
-	spin_unlock_irqrestore(&dpu_kms->irq_obj.cb_lock, irq_flags);
 }
 
 u32 dpu_core_irq_read(struct dpu_kms *dpu_kms, int irq_idx, bool clear)
@@ -82,22 +79,21 @@ int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms, int irq_idx,
 
 	VERB("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
 
-	spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
+	irq_flags = dpu_kms->hw_intr->ops.lock(dpu_kms->hw_intr);
 	trace_dpu_core_irq_register_callback(irq_idx, register_irq_cb);
 	list_del_init(&register_irq_cb->list);
 	list_add_tail(&register_irq_cb->list,
 			&dpu_kms->irq_obj.irq_cb_tbl[irq_idx]);
 	if (list_is_first(&register_irq_cb->list,
 			&dpu_kms->irq_obj.irq_cb_tbl[irq_idx])) {
-		int ret = dpu_kms->hw_intr->ops.enable_irq(
+		int ret = dpu_kms->hw_intr->ops.enable_irq_locked(
 				dpu_kms->hw_intr,
 				irq_idx);
 		if (ret)
 			DPU_ERROR("Fail to enable IRQ for irq_idx:%d\n",
 					irq_idx);
 	}
-
-	spin_unlock_irqrestore(&dpu_kms->irq_obj.cb_lock, irq_flags);
+	dpu_kms->hw_intr->ops.unlock(dpu_kms->hw_intr, irq_flags);
 
 	return 0;
 }
@@ -127,12 +123,12 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 
 	VERB("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
 
-	spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
+	irq_flags = dpu_kms->hw_intr->ops.lock(dpu_kms->hw_intr);
 	trace_dpu_core_irq_unregister_callback(irq_idx, register_irq_cb);
 	list_del_init(&register_irq_cb->list);
 	/* empty callback list but interrupt is still enabled */
 	if (list_empty(&dpu_kms->irq_obj.irq_cb_tbl[irq_idx])) {
-		int ret = dpu_kms->hw_intr->ops.disable_irq(
+		int ret = dpu_kms->hw_intr->ops.disable_irq_locked(
 				dpu_kms->hw_intr,
 				irq_idx);
 		if (ret)
@@ -140,7 +136,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 					irq_idx);
 		VERB("irq_idx=%d ret=%d\n", irq_idx, ret);
 	}
-	spin_unlock_irqrestore(&dpu_kms->irq_obj.cb_lock, irq_flags);
+	dpu_kms->hw_intr->ops.unlock(dpu_kms->hw_intr, irq_flags);
 
 	return 0;
 }
@@ -164,7 +160,8 @@ static void dpu_disable_all_irqs(struct dpu_kms *dpu_kms)
 #ifdef CONFIG_DEBUG_FS
 static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 {
-	struct dpu_irq *irq_obj = s->private;
+	struct dpu_kms *dpu_kms = s->private;
+	struct dpu_irq *irq_obj = &dpu_kms->irq_obj;
 	struct dpu_irq_callback *cb;
 	unsigned long irq_flags;
 	int i, irq_count, cb_count;
@@ -173,12 +170,12 @@ static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 		return 0;
 
 	for (i = 0; i < irq_obj->total_irqs; i++) {
-		spin_lock_irqsave(&irq_obj->cb_lock, irq_flags);
+		irq_flags = dpu_kms->hw_intr->ops.lock(dpu_kms->hw_intr);
 		cb_count = 0;
 		irq_count = atomic_read(&irq_obj->irq_counts[i]);
 		list_for_each_entry(cb, &irq_obj->irq_cb_tbl[i], list)
 			cb_count++;
-		spin_unlock_irqrestore(&irq_obj->cb_lock, irq_flags);
+		dpu_kms->hw_intr->ops.unlock(dpu_kms->hw_intr, irq_flags);
 
 		if (irq_count || cb_count)
 			seq_printf(s, "idx:%d irq:%d cb:%d\n",
@@ -193,7 +190,7 @@ DEFINE_SHOW_ATTRIBUTE(dpu_debugfs_core_irq);
 void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
-	debugfs_create_file("core_irq", 0600, parent, &dpu_kms->irq_obj,
+	debugfs_create_file("core_irq", 0600, parent, dpu_kms,
 		&dpu_debugfs_core_irq_fops);
 }
 #endif
@@ -206,8 +203,6 @@ void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
 	dpu_clear_all_irqs(dpu_kms);
 	dpu_disable_all_irqs(dpu_kms);
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
-
-	spin_lock_init(&dpu_kms->irq_obj.cb_lock);
 
 	/* Create irq callbacks for all possible irq_idx */
 	dpu_kms->irq_obj.total_irqs = dpu_kms->hw_intr->total_irqs;

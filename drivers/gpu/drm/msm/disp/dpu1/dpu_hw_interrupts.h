@@ -45,7 +45,7 @@ struct dpu_hw_intr_ops {
 	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
 	 * @return:	0 for success, otherwise failure
 	 */
-	int (*enable_irq)(
+	int (*enable_irq_locked)(
 			struct dpu_hw_intr *intr,
 			int irq_idx);
 
@@ -55,7 +55,7 @@ struct dpu_hw_intr_ops {
 	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
 	 * @return:	0 for success, otherwise failure
 	 */
-	int (*disable_irq)(
+	int (*disable_irq_locked)(
 			struct dpu_hw_intr *intr,
 			int irq_idx);
 
@@ -100,6 +100,22 @@ struct dpu_hw_intr_ops {
 			struct dpu_hw_intr *intr,
 			int irq_idx,
 			bool clear);
+
+	/**
+	 * lock - take the IRQ lock
+	 * @intr:	HW interrupt handle
+	 * @return:	irq_flags for the taken spinlock
+	 */
+	unsigned long (*lock)(
+			struct dpu_hw_intr *intr);
+
+	/**
+	 * unlock - take the IRQ lock
+	 * @intr:	HW interrupt handle
+	 * @irq_flags:  the irq_flags returned from lock
+	 */
+	void (*unlock)(
+			struct dpu_hw_intr *intr, unsigned long irq_flags);
 };
 
 /**
