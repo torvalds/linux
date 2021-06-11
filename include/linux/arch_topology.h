@@ -37,7 +37,6 @@ bool topology_scale_freq_invariant(void);
 enum scale_freq_source {
 	SCALE_FREQ_SOURCE_CPUFREQ = 0,
 	SCALE_FREQ_SOURCE_ARCH,
-	SCALE_FREQ_SOURCE_CPPC,
 };
 
 struct scale_freq_data {
