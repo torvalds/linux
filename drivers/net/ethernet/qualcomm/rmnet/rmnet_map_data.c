@@ -19,23 +19,13 @@
 static __sum16 *rmnet_map_get_csum_field(unsigned char protocol,
 					 const void *txporthdr)
 {
-	__sum16 *check = NULL;
+	if (protocol == IPPROTO_TCP)
+		return &((struct tcphdr *)txporthdr)->check;
 
-	switch (protocol) {
-	case IPPROTO_TCP:
-		check = &(((struct tcphdr *)txporthdr)->check);
-		break;
+	if (protocol == IPPROTO_UDP)
+		return &((struct udphdr *)txporthdr)->check;
 
-	case IPPROTO_UDP:
-		check = &(((struct udphdr *)txporthdr)->check);
-		break;
-
-	default:
-		check = NULL;
-		break;
-	}
-
-	return check;
+	return NULL;
 }
 
 static int
