@@ -673,6 +673,8 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		 */
 		.tpid = ETH_P_SJA1105,
 		.tpid2 = ETH_P_SJA1105,
+		/* Enable the TTEthernet engine on SJA1110 */
+		.tte_en = true,
 	};
 	struct dsa_switch *ds = priv->ds;
 	struct sja1105_table *table;
