@@ -223,6 +223,11 @@ struct otx2_hw {
 	u64			*nix_lmt_base;
 };
 
+enum vfperm {
+	OTX2_RESET_VF_PERM,
+	OTX2_TRUSTED_VF,
+};
+
 struct otx2_vf_config {
 	struct otx2_nic *pf;
 	struct delayed_work link_event_work;
@@ -230,6 +235,7 @@ struct otx2_vf_config {
 	u8 mac[ETH_ALEN];
 	u16 vlan;
 	int tx_vtag_idx;
+	bool trusted;
 };
 
 struct flr_work {

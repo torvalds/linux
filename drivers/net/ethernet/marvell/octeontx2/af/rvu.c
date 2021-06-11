@@ -1758,6 +1758,48 @@ int rvu_mbox_handler_get_hw_cap(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+int rvu_mbox_handler_set_vf_perm(struct rvu *rvu, struct set_vf_perm *req,
+				 struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+	int blkaddr, nixlf;
+	u16 target;
+
+	/* Only PF can add VF permissions */
+	if ((pcifunc & RVU_PFVF_FUNC_MASK) || is_afvf(pcifunc))
+		return -EOPNOTSUPP;
+
+	target = (pcifunc & ~RVU_PFVF_FUNC_MASK) | (req->vf + 1);
+	pfvf = rvu_get_pfvf(rvu, target);
+
+	if (req->flags & RESET_VF_PERM) {
+		pfvf->flags &= RVU_CLEAR_VF_PERM;
+	} else if (test_bit(PF_SET_VF_TRUSTED, &pfvf->flags) ^
+		 (req->flags & VF_TRUSTED)) {
+		change_bit(PF_SET_VF_TRUSTED, &pfvf->flags);
+		/* disable multicast and promisc entries */
+		if (!test_bit(PF_SET_VF_TRUSTED, &pfvf->flags)) {
+			blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, target);
+			if (blkaddr < 0)
+				return 0;
+			nixlf = rvu_get_lf(rvu, &hw->block[blkaddr],
+					   target, 0);
+			if (nixlf < 0)
+				return 0;
+			npc_enadis_default_mce_entry(rvu, target, nixlf,
+						     NIXLF_ALLMULTI_ENTRY,
+						     false);
+			npc_enadis_default_mce_entry(rvu, target, nixlf,
+						     NIXLF_PROMISC_ENTRY,
+						     false);
+		}
+	}
+
+	return 0;
+}
+
 static int rvu_process_mbox_msg(struct otx2_mbox *mbox, int devid,
 				struct mbox_msghdr *req)
 {

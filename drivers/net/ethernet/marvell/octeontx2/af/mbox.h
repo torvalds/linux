@@ -134,6 +134,7 @@ M(MSIX_OFFSET,		0x005, msix_offset, msg_req, msix_offset_rsp)	\
 M(VF_FLR,		0x006, vf_flr, msg_req, msg_rsp)		\
 M(PTP_OP,		0x007, ptp_op, ptp_req, ptp_rsp)		\
 M(GET_HW_CAP,		0x008, get_hw_cap, msg_req, get_hw_cap_rsp)	\
+M(SET_VF_PERM,		0x00b, set_vf_perm, set_vf_perm, msg_rsp)	\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
 M(CGX_START_RXTX,	0x200, cgx_start_rxtx, msg_req, msg_rsp)	\
 M(CGX_STOP_RXTX,	0x201, cgx_stop_rxtx, msg_req, msg_rsp)		\
@@ -611,7 +612,9 @@ enum nix_af_status {
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
 	NIX_AF_ERR_TX_VTAG_NOSPC    = -421,
 	NIX_AF_ERR_RX_VTAG_INUSE    = -422,
-	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -423,
+	NIX_AF_ERR_PTP_CONFIG_FAIL  = -423,
+	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -424,
+	NIX_AF_ERR_INVALID_NIXBLK   = -425,
 };
 
 /* For NIX RX vtag action  */
@@ -913,6 +916,7 @@ struct nix_rx_mode {
 #define NIX_RX_MODE_UCAST	BIT(0)
 #define NIX_RX_MODE_PROMISC	BIT(1)
 #define NIX_RX_MODE_ALLMULTI	BIT(2)
+#define NIX_RX_MODE_USE_MCE	BIT(3)
 	u16	mode;
 };
 
@@ -1226,6 +1230,14 @@ struct ptp_req {
 struct ptp_rsp {
 	struct mbox_msghdr hdr;
 	u64 clk;
+};
+
+struct set_vf_perm  {
+	struct  mbox_msghdr hdr;
+	u16	vf;
+#define RESET_VF_PERM		BIT_ULL(0)
+#define	VF_TRUSTED		BIT_ULL(1)
+	u64	flags;
 };
 
 /* CPT mailbox error codes
