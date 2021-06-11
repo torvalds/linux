@@ -185,7 +185,7 @@ static int xfrm6_hdr_offset(struct xfrm_state *x, struct sk_buff *skb, u8 **prev
 		break;
 	}
 
-	return x->type->hdr_offset(x, skb, prevhdr);
+	return ip6_find_1stfragopt(skb, prevhdr);
 }
 
 /* Add encapsulation header.
