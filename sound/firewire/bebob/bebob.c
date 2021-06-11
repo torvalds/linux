@@ -406,13 +406,16 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
 	/* CME, MatrixKFW */
 	SND_BEBOB_DEV_ENTRY(VEN_CME, 0x00030000, &spec_normal),
-	/* Phonic, Helix Board 12 MkII */
+	// Phonic Helix Board 12 FireWire MkII.
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00050000, &spec_normal),
-	/* Phonic, Helix Board 18 MkII */
+	// Phonic Helix Board 18 FireWire MkII.
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00060000, &spec_normal),
-	/* Phonic, Helix Board 24 MkII */
+	// Phonic Helix Board 24 FireWire MkII.
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00070000, &spec_normal),
-	/* Phonic, Helix Board 12 Universal/18 Universal/24 Universal */
+	// Phonic FireFly 808 FireWire.
+	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00080000, &spec_normal),
+	// Phonic FireFly 202, 302, 808 Universal.
+	// Phinic Helix Board 12/18/24 FireWire, 12/18/24 Universal
 	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00000000, &spec_normal),
 	/* Lynx, Aurora 8/16 (LT-FW) */
 	SND_BEBOB_DEV_ENTRY(VEN_LYNX, 0x00000001, &spec_normal),
@@ -476,11 +479,6 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/*  Infrasonic, Windy6 */
 	/*  Mackie, Digital X Bus x.200 */
 	/*  Mackie, Digital X Bus x.400 */
-	/*  Phonic, HB 12 */
-	/*  Phonic, HB 24 */
-	/*  Phonic, HB 18 */
-	/*  Phonic, FireFly 202 */
-	/*  Phonic, FireFly 302 */
 	/*  Rolf Spuler, Firewire Guitar */
 	{}
 };
