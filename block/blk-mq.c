@@ -3926,7 +3926,7 @@ int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 		if (signal_pending_state(state, current))
 			__set_current_state(TASK_RUNNING);
 
-		if (current->state == TASK_RUNNING)
+		if (task_is_running(current))
 			return 1;
 		if (ret < 0 || !spin)
 			break;
