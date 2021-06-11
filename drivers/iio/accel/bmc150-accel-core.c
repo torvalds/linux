@@ -1088,19 +1088,21 @@ static const struct iio_chan_spec bmc150_accel_channels[] =
 static const struct iio_chan_spec bma280_accel_channels[] =
 	BMC150_ACCEL_CHANNELS(14);
 
+/*
+ * The range for the Bosch sensors is typically +-2g/4g/8g/16g, distributed
+ * over the amount of bits (see above). The scale table can be calculated using
+ *     (range / 2^bits) * g = (range / 2^bits) * 9.80665 m/s^2
+ * e.g. for +-2g and 12 bits: (4 / 2^12) * 9.80665 m/s^2 = 0.0095768... m/s^2
+ * Multiply 10^6 and round to get the values listed below.
+ */
 static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 	{
 		.name = "BMA222",
 		.chip_id = 0x03,
 		.channels = bma222e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma222e_accel_channels),
-		/*
-		 * The datasheet page 17 says:
-		 * 15.6, 31.3, 62.5 and 125 mg per LSB.
-		 * IIO unit is m/s^2 so multiply by g = 9.80665 m/s^2.
-		 */
-		.scale_table = { {152984, BMC150_ACCEL_DEF_RANGE_2G},
-				 {306948, BMC150_ACCEL_DEF_RANGE_4G},
+		.scale_table = { {153229, BMC150_ACCEL_DEF_RANGE_2G},
+				 {306458, BMC150_ACCEL_DEF_RANGE_4G},
 				 {612916, BMC150_ACCEL_DEF_RANGE_8G},
 				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
@@ -1109,9 +1111,9 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 		.chip_id = 0xF8,
 		.channels = bma222e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma222e_accel_channels),
-		.scale_table = { {153277, BMC150_ACCEL_DEF_RANGE_2G},
-				 {306457, BMC150_ACCEL_DEF_RANGE_4G},
-				 {612915, BMC150_ACCEL_DEF_RANGE_8G},
+		.scale_table = { {153229, BMC150_ACCEL_DEF_RANGE_2G},
+				 {306458, BMC150_ACCEL_DEF_RANGE_4G},
+				 {612916, BMC150_ACCEL_DEF_RANGE_8G},
 				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	{
@@ -1119,30 +1121,30 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 		.chip_id = 0xF9,
 		.channels = bma250e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
-		.scale_table = { {38344, BMC150_ACCEL_DEF_RANGE_2G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_4G},
-				 {153277, BMC150_ACCEL_DEF_RANGE_8G},
-				 {306457, BMC150_ACCEL_DEF_RANGE_16G} },
+		.scale_table = { {38307, BMC150_ACCEL_DEF_RANGE_2G},
+				 {76614, BMC150_ACCEL_DEF_RANGE_4G},
+				 {153229, BMC150_ACCEL_DEF_RANGE_8G},
+				 {306458, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	{
 		.name = "BMA253/BMA254/BMA255/BMC150/BMI055",
 		.chip_id = 0xFA,
 		.channels = bmc150_accel_channels,
 		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
-		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
-				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
-				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
+		.scale_table = { {9577, BMC150_ACCEL_DEF_RANGE_2G},
+				 {19154, BMC150_ACCEL_DEF_RANGE_4G},
+				 {38307, BMC150_ACCEL_DEF_RANGE_8G},
+				 {76614, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	{
 		.name = "BMA280",
 		.chip_id = 0xFB,
 		.channels = bma280_accel_channels,
 		.num_channels = ARRAY_SIZE(bma280_accel_channels),
-		.scale_table = { {2392, BMC150_ACCEL_DEF_RANGE_2G},
-				 {4785, BMC150_ACCEL_DEF_RANGE_4G},
-				 {9581, BMC150_ACCEL_DEF_RANGE_8G},
-				 {19152, BMC150_ACCEL_DEF_RANGE_16G} },
+		.scale_table = { {2394, BMC150_ACCEL_DEF_RANGE_2G},
+				 {4788, BMC150_ACCEL_DEF_RANGE_4G},
+				 {9577, BMC150_ACCEL_DEF_RANGE_8G},
+				 {19154, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 };
 
