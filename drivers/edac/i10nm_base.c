@@ -24,6 +24,8 @@
 	pci_read_config_dword((d)->uracu, 0xd0, &(reg))
 #define I10NM_GET_IMC_BAR(d, i, reg)	\
 	pci_read_config_dword((d)->uracu, 0xd8 + (i) * 4, &(reg))
+#define I10NM_GET_SAD(d, offset, i, reg)\
+	pci_read_config_dword((d)->sad_all, (offset) + (i) * 8, &(reg))
 #define I10NM_GET_DIMMMTR(m, i, j)	\
 	readl((m)->mbase + 0x2080c + (i) * (m)->chan_mmio_sz + (j) * 4)
 #define I10NM_GET_MCDDRTCFG(m, i, j)	\
@@ -37,6 +39,10 @@
 #define I10NM_GET_IMC_MMIO_OFFSET(reg)	(GET_BITFIELD(reg, 0, 10) << 12)
 #define I10NM_GET_IMC_MMIO_SIZE(reg)	((GET_BITFIELD(reg, 13, 23) - \
 					 GET_BITFIELD(reg, 0, 10) + 1) << 12)
+
+#define I10NM_MAX_SAD			16
+#define I10NM_SAD_ENABLE(reg)		GET_BITFIELD(reg, 0, 0)
+#define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
 static struct list_head *i10nm_edac_list;
 
@@ -61,6 +67,31 @@ static struct pci_dev *pci_get_dev_wrapper(int dom, unsigned int bus,
 	pci_dev_get(pdev);
 
 	return pdev;
+}
+
+static bool i10nm_check_2lm(struct res_config *cfg)
+{
+	struct skx_dev *d;
+	u32 reg;
+	int i;
+
+	list_for_each_entry(d, i10nm_edac_list, list) {
+		d->sad_all = pci_get_dev_wrapper(d->seg, d->bus[1],
+						 PCI_SLOT(cfg->sad_all_devfn),
+						 PCI_FUNC(cfg->sad_all_devfn));
+		if (!d->sad_all)
+			continue;
+
+		for (i = 0; i < I10NM_MAX_SAD; i++) {
+			I10NM_GET_SAD(d, cfg->sad_all_offset, i, reg);
+			if (I10NM_SAD_ENABLE(reg) && I10NM_SAD_NM_CACHEABLE(reg)) {
+				edac_dbg(2, "2-level memory configuration.\n");
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 static int i10nm_get_all_munits(void)
@@ -132,6 +163,8 @@ static struct res_config i10nm_cfg0 = {
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xcc,
 	.ddr_chan_mmio_sz	= 0x4000,
+	.sad_all_devfn		= PCI_DEVFN(29, 0),
+	.sad_all_offset		= 0x108,
 };
 
 static struct res_config i10nm_cfg1 = {
@@ -139,6 +172,8 @@ static struct res_config i10nm_cfg1 = {
 	.decs_did		= 0x3452,
 	.busno_cfg_offset	= 0xd0,
 	.ddr_chan_mmio_sz	= 0x4000,
+	.sad_all_devfn		= PCI_DEVFN(29, 0),
+	.sad_all_offset		= 0x108,
 };
 
 static struct res_config spr_cfg = {
@@ -147,6 +182,8 @@ static struct res_config spr_cfg = {
 	.busno_cfg_offset	= 0xd0,
 	.ddr_chan_mmio_sz	= 0x8000,
 	.support_ddr5		= true,
+	.sad_all_devfn		= PCI_DEVFN(10, 0),
+	.sad_all_offset		= 0x300,
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {
@@ -295,6 +332,8 @@ static int __init i10nm_init(void)
 		i10nm_printk(KERN_ERR, "No memory controllers found\n");
 		return -ENODEV;
 	}
+
+	skx_set_mem_cfg(i10nm_check_2lm(cfg));
 
 	rc = i10nm_get_all_munits();
 	if (rc < 0)

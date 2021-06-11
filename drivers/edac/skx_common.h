@@ -133,6 +133,9 @@ struct res_config {
 	/* Per DDR channel memory-mapped I/O size */
 	int ddr_chan_mmio_sz;
 	bool support_ddr5;
+	/* SAD device number and function number */
+	unsigned int sad_all_devfn;
+	int sad_all_offset;
 };
 
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci,
