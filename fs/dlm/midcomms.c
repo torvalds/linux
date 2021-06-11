@@ -621,8 +621,23 @@ dlm_midcomms_recv_node_lookup(int nodeid, const union dlm_packet *p,
 
 	node = nodeid2node(nodeid, allocation);
 	if (!node) {
-		log_print_ratelimited("received dlm message cmd %d nextcmd %d from node %d in an invalid sequence",
-				      p->header.h_cmd, p->opts.o_nextcmd, nodeid);
+		switch (p->header.h_cmd) {
+		case DLM_OPTS:
+			if (msglen < sizeof(struct dlm_opts)) {
+				log_print("opts msg too small: %u, will skip this message from node %d",
+					  msglen, nodeid);
+				return NULL;
+			}
+
+			log_print_ratelimited("received dlm opts message nextcmd %d from node %d in an invalid sequence",
+					      p->opts.o_nextcmd, nodeid);
+			break;
+		default:
+			log_print_ratelimited("received dlm message cmd %d from node %d in an invalid sequence",
+					      p->header.h_cmd, nodeid);
+			break;
+		}
+
 		return NULL;
 	}
 
