@@ -275,44 +275,33 @@ static void sja1105_decode_subvlan(struct sk_buff *skb, u16 subvlan)
 	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
 }
 
+static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
+{
+	u16 tpid = ntohs(eth_hdr(skb)->h_proto);
+
+	return tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q ||
+	       skb_vlan_tag_present(skb);
+}
+
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
+	int source_port, switch_id, subvlan = 0;
 	struct sja1105_meta meta = {0};
-	int source_port, switch_id;
 	struct ethhdr *hdr;
-	u16 tpid, vid, tci;
 	bool is_link_local;
-	u16 subvlan = 0;
-	bool is_tagged;
 	bool is_meta;
 
 	hdr = eth_hdr(skb);
-	tpid = ntohs(hdr->h_proto);
-	is_tagged = (tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q ||
-		     skb_vlan_tag_present(skb));
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
 	skb->offload_fwd_mark = 1;
 
-	if (is_tagged) {
+	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
-		skb_push_rcsum(skb, ETH_HLEN);
-		if (skb_vlan_tag_present(skb)) {
-			tci = skb_vlan_tag_get(skb);
-			__vlan_hwaccel_clear_tag(skb);
-		} else {
-			__skb_vlan_pop(skb, &tci);
-		}
-		skb_pull_rcsum(skb, ETH_HLEN);
-
-		vid = tci & VLAN_VID_MASK;
-		source_port = dsa_8021q_rx_source_port(vid);
-		switch_id = dsa_8021q_rx_switch_id(vid);
-		skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-		subvlan = dsa_8021q_rx_subvlan(vid);
+		dsa_8021q_rcv(skb, &source_port, &switch_id, &subvlan);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
