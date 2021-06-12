@@ -675,8 +675,6 @@ static int __bpf_tc_detach(const struct bpf_tc_hook *hook,
 		return -EINVAL;
 	if (priority > UINT16_MAX)
 		return -EINVAL;
-	if (flags & ~BPF_TC_F_REPLACE)
-		return -EINVAL;
 	if (!flush) {
 		if (!handle || !priority)
 			return -EINVAL;
