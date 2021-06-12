@@ -13,26 +13,6 @@
 #define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
 						 IEEE80211_RADIOTAP_HE_##f)
 
-static unsigned long
-mt7921_next_txs_set(struct mt7921_dev *dev, struct mt76_wcid *wcid,
-		    u32 timeout)
-{
-	struct mt7921_sta *msta;
-
-	msta = container_of(wcid, struct mt7921_sta, wcid);
-	msta->next_txs_ts = jiffies + msecs_to_jiffies(timeout);
-	return msta->next_txs_ts;
-}
-
-static bool
-mt7921_next_txs_timeout(struct mt7921_dev *dev, struct mt76_wcid *wcid)
-{
-	struct mt7921_sta *msta;
-
-	msta = container_of(wcid, struct mt7921_sta, wcid);
-	return time_is_before_jiffies(msta->next_txs_ts);
-}
-
 static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
 					    u16 idx, bool unicast)
 {
@@ -739,6 +719,23 @@ mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
 	txwi[7] |= cpu_to_le32(val);
 }
 
+static void mt7921_update_txs(struct mt76_wcid *wcid, __le32 *txwi)
+{
+	struct mt7921_sta *msta = container_of(wcid, struct mt7921_sta, wcid);
+	u32 pid, frame_type = FIELD_GET(MT_TXD2_FRAME_TYPE, txwi[2]);
+
+	if (!(frame_type & (IEEE80211_FTYPE_DATA >> 2)))
+		return;
+
+	if (time_is_after_eq_jiffies(msta->next_txs_ts))
+		return;
+
+	msta->next_txs_ts = jiffies + msecs_to_jiffies(250);
+	pid = mt76_get_next_pkt_id(wcid);
+	txwi[5] |= cpu_to_le32(MT_TXD5_TX_STATUS_MCU |
+			       FIELD_PREP(MT_TXD5_PID, pid));
+}
+
 void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key, bool beacon)
@@ -816,15 +813,7 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
 	}
 
-	if ((FIELD_GET(MT_TXD2_FRAME_TYPE, txwi[2]) &
-		(IEEE80211_FTYPE_DATA >> 2)) &&
-		mt7921_next_txs_timeout(dev, wcid)) {
-		u8 pid = mt76_get_next_pkt_id(wcid);
-
-		mt7921_next_txs_set(dev, wcid, 250);
-		val = MT_TXD5_TX_STATUS_MCU | FIELD_PREP(MT_TXD5_PID, pid);
-		txwi[5] |= cpu_to_le32(val);
-	}
+	mt7921_update_txs(wcid, txwi);
 }
 
 static void
