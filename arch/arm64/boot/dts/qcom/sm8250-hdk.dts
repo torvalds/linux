@@ -365,6 +365,14 @@
 	};
 };
 
+&gmu {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
 &qupv3_id_1 {
 	status = "okay";
 };
@@ -451,4 +459,8 @@
 
 &usb_2_dwc3 {
 	dr_mode = "host";
+};
+
+&venus {
+	status = "okay";
 };

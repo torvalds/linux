@@ -1810,6 +1810,8 @@
 
 			qcom,gmu = <&gmu>;
 
+			status = "disabled";
+
 			zap-shader {
 				memory-region = <&gpu_mem>;
 			};
@@ -1882,6 +1884,8 @@
 			iommus = <&adreno_smmu 5 0x400>;
 
 			operating-points-v2 = <&gmu_opp_table>;
+
+			status = "disabled";
 
 			gmu_opp_table: opp-table {
 				compatible = "operating-points-v2";
@@ -2386,6 +2390,8 @@
 			resets = <&gcc GCC_VIDEO_AXI0_CLK_ARES>,
 				 <&videocc VIDEO_CC_MVS0C_CLK_ARES>;
 			reset-names = "bus", "core";
+
+			status = "disabled";
 
 			video-decoder {
 				compatible = "venus-decoder";
