@@ -457,7 +457,7 @@ static int tc_qdisc_modify(struct bpf_tc_hook *hook, int cmd, int flags)
 
 static int tc_qdisc_create_excl(struct bpf_tc_hook *hook)
 {
-	return tc_qdisc_modify(hook, RTM_NEWQDISC, NLM_F_CREATE);
+	return tc_qdisc_modify(hook, RTM_NEWQDISC, NLM_F_CREATE | NLM_F_EXCL);
 }
 
 static int tc_qdisc_delete(struct bpf_tc_hook *hook)
