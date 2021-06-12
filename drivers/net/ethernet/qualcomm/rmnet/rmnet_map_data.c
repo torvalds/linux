@@ -140,8 +140,8 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	 * checksum computed over the pseudo header.
 	 */
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
-	ip6_payload_csum = csum16_sub((__force __sum16)~csum_trailer->csum_value,
-				      ~ip_header_csum);
+	ip6_payload_csum = ~csum16_sub((__force __sum16)csum_trailer->csum_value,
+				       ip_header_csum);
 
 	length = (ip6h->nexthdr == IPPROTO_UDP) ?
 		 ntohs(((struct udphdr *)txporthdr)->len) :
