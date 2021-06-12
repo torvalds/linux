@@ -87,11 +87,11 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	 * header checksum value; it is already accounted for in the
 	 * checksum value found in the trailer.
 	 */
-	ip_payload_csum = ~csum_trailer->csum_value;
+	ip_payload_csum = csum_trailer->csum_value;
 
-	pseudo_csum = ~csum_tcpudp_magic(ip4h->saddr, ip4h->daddr,
-					 ntohs(ip4h->tot_len) - ip4h->ihl * 4,
-					 ip4h->protocol, 0);
+	pseudo_csum = csum_tcpudp_magic(ip4h->saddr, ip4h->daddr,
+					ntohs(ip4h->tot_len) - ip4h->ihl * 4,
+					ip4h->protocol, 0);
 
 	/* The cast is required to ensure only the low 16 bits are examined */
 	if (ip_payload_csum != (__sum16)~pseudo_csum) {
@@ -132,13 +132,13 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	 * checksum computed over the pseudo header.
 	 */
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
-	ip6_payload_csum = ~csum16_sub(csum_trailer->csum_value, ip_header_csum);
+	ip6_payload_csum = csum16_sub(csum_trailer->csum_value, ip_header_csum);
 
 	length = (ip6h->nexthdr == IPPROTO_UDP) ?
 		 ntohs(((struct udphdr *)txporthdr)->len) :
 		 ntohs(ip6h->payload_len);
-	pseudo_csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
-				       length, ip6h->nexthdr, 0);
+	pseudo_csum = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+				      length, ip6h->nexthdr, 0);
 
 	/* It's sufficient to compare the IP payload checksum with the
 	 * negated pseudo checksum to determine whether the packet
