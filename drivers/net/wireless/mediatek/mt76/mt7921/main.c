@@ -432,6 +432,9 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 
 	mt7921_mutex_acquire(dev);
 
+	if (changed & IEEE80211_CONF_CHANGE_POWER)
+		mt76_connac_mcu_set_rate_txpower(phy->mt76);
+
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
 

@@ -1768,12 +1768,15 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 		142, 144, 149, 151, 153, 155, 157,
 		159, 161, 165
 	};
+	int i, n_chan, batch_size, idx = 0, tx_power, last_ch;
 	struct mt76_connac_sku_tlv sku_tlbv;
-	int i, n_chan, batch_size, idx = 0;
 	struct mt76_power_limits limits;
 	const u8 *ch_list;
 
 	sku_len = is_mt7921(dev) ? sizeof(sku_tlbv) : sizeof(sku_tlbv) - 92;
+	tx_power = 2 * phy->hw->conf.power_level;
+	if (!tx_power)
+		tx_power = 127;
 
 	if (band == NL80211_BAND_2GHZ) {
 		n_chan = ARRAY_SIZE(chan_list_2ghz);
@@ -1784,39 +1787,48 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 	}
 	batch_size = DIV_ROUND_UP(n_chan, batch_len);
 
+	if (!phy->cap.has_5ghz)
+		last_ch = chan_list_2ghz[n_chan - 1];
+	else
+		last_ch = chan_list_5ghz[n_chan - 1];
+
 	for (i = 0; i < batch_size; i++) {
-		bool last_msg = i == batch_size - 1;
-		int num_ch = last_msg ? n_chan % batch_len : batch_len;
 		struct mt76_connac_tx_power_limit_tlv tx_power_tlv = {
 			.band = band == NL80211_BAND_2GHZ ? 1 : 2,
-			.n_chan = num_ch,
-			.last_msg = last_msg,
 		};
+		int j, err, msg_len, num_ch;
 		struct sk_buff *skb;
-		int j, err, msg_len;
 
+		num_ch = i == batch_size - 1 ? n_chan % batch_len : batch_len;
 		msg_len = sizeof(tx_power_tlv) + num_ch * sizeof(sku_tlbv);
 		skb = mt76_mcu_msg_alloc(dev, NULL, msg_len);
 		if (!skb)
 			return -ENOMEM;
 
+		skb_reserve(skb, sizeof(tx_power_tlv));
+
 		BUILD_BUG_ON(sizeof(dev->alpha2) > sizeof(tx_power_tlv.alpha2));
 		memcpy(tx_power_tlv.alpha2, dev->alpha2, sizeof(dev->alpha2));
+		tx_power_tlv.n_chan = num_ch;
 
-		skb_put_data(skb, &tx_power_tlv, sizeof(tx_power_tlv));
 		for (j = 0; j < num_ch; j++, idx++) {
 			struct ieee80211_channel chan = {
 				.hw_value = ch_list[idx],
 				.band = band,
 			};
 
-			mt76_get_rate_power_limits(phy, &chan, &limits, 127);
+			mt76_get_rate_power_limits(phy, &chan, &limits,
+						   tx_power);
 
+			tx_power_tlv.last_msg = ch_list[idx] == last_ch;
 			sku_tlbv.channel = ch_list[idx];
+
 			mt76_connac_mcu_build_sku(dev, sku_tlbv.pwr_limit,
 						  &limits, band);
 			skb_put_data(skb, &sku_tlbv, sku_len);
 		}
+		__skb_push(skb, sizeof(tx_power_tlv));
+		memcpy(skb->data, &tx_power_tlv, sizeof(tx_power_tlv));
 
 		err = mt76_mcu_skb_send_msg(dev, skb,
 					    MCU_CMD_SET_RATE_TX_POWER, false);
