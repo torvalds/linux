@@ -466,7 +466,6 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	if (PageNeed == 1)
 		PageNeed += 1;
 	PageNum += PageNeed;
-	adapt->HalData->FwRsvdPageStartOffset = PageNum;
 
 	BufIndex += PageNeed * 128;
 
