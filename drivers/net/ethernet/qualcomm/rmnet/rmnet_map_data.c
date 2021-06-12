@@ -84,6 +84,11 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 					 ip4h->protocol, 0);
 	pseudo_csum = csum16_add(ip_payload_csum, (__force __be16)pseudo_csum);
 
+	/* The trailer checksum *includes* the checksum in the transport
+	 * header.  Adding that to the pseudo checksum will yield 0xffff
+	 * ("negative 0") if the message arrived intact.
+	 */
+	WARN_ON((__sum16)~pseudo_csum);
 	csum_value_final = ~csum16_sub(pseudo_csum, (__force __be16)*csum_field);
 
 	if (unlikely(!csum_value_final)) {
@@ -150,6 +155,10 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 				       length, ip6h->nexthdr, 0);
 	pseudo_csum = csum16_add(ip6_payload_csum, (__force __be16)pseudo_csum);
 
+	/* Adding the payload checksum to the pseudo checksum yields 0xffff
+	 * ("negative 0") if the message arrived intact.
+	 */
+	WARN_ON((__sum16)~pseudo_csum);
 	csum_value_final = ~csum16_sub(pseudo_csum, (__force __be16)*csum_field);
 
 	if (unlikely(csum_value_final == 0)) {
