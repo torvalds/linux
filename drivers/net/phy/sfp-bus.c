@@ -392,6 +392,11 @@ EXPORT_SYMBOL_GPL(sfp_parse_support);
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 				     unsigned long *link_modes)
 {
+	if (phylink_test(link_modes, 25000baseCR_Full) ||
+	    phylink_test(link_modes, 25000baseKR_Full) ||
+	    phylink_test(link_modes, 25000baseSR_Full))
+		return PHY_INTERFACE_MODE_25GBASER;
+
 	if (phylink_test(link_modes, 10000baseCR_Full) ||
 	    phylink_test(link_modes, 10000baseSR_Full) ||
 	    phylink_test(link_modes, 10000baseLR_Full) ||
