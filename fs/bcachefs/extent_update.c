@@ -173,38 +173,3 @@ int bch2_extent_is_atomic(struct bkey_i *k, struct btree_iter *iter)
 
 	return !bkey_cmp(end, k->k.p);
 }
-
-enum btree_insert_ret
-bch2_extent_can_insert(struct btree_trans *trans,
-		       struct btree_iter *iter,
-		       struct bkey_i *insert)
-{
-	struct bkey_s_c k;
-	int ret, sectors;
-
-	k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
-
-	/* Check if we're splitting a compressed extent: */
-
-	if (bkey_cmp(bkey_start_pos(&insert->k), bkey_start_pos(k.k)) > 0 &&
-	    bkey_cmp(insert->k.p, k.k->p) < 0 &&
-	    (sectors = bch2_bkey_sectors_compressed(k))) {
-		int flags = trans->flags & BTREE_INSERT_NOFAIL
-			? BCH_DISK_RESERVATION_NOFAIL : 0;
-
-		switch (bch2_disk_reservation_add(trans->c, trans->disk_res,
-						  sectors, flags)) {
-		case 0:
-			break;
-		case -ENOSPC:
-			return BTREE_INSERT_ENOSPC;
-		default:
-			BUG();
-		}
-	}
-
-	return BTREE_INSERT_OK;
-}

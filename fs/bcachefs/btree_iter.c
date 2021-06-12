@@ -2329,6 +2329,7 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 
 	trans->iters_touched &= trans->iters_live;
 
+	trans->extra_journal_res	= 0;
 	trans->nr_updates		= 0;
 	trans->mem_top			= 0;
 

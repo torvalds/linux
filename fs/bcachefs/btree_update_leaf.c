@@ -696,10 +696,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			ret = -EINTR;
 		}
 		break;
-	case BTREE_INSERT_ENOSPC:
-		BUG_ON(flags & BTREE_INSERT_NOFAIL);
-		ret = -ENOSPC;
-		break;
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
 		bch2_trans_unlock(trans);
 
@@ -833,7 +829,7 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 	struct bpos start = bkey_start_pos(&i->k->k);
 	struct bkey_i *update;
 	struct bkey_s_c k;
-	int ret = 0;
+	int ret = 0, compressed_sectors;
 
 	iter = bch2_trans_get_iter(trans, i->btree_id, start,
 				   BTREE_ITER_INTENT|
@@ -854,6 +850,16 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 	}
 
 	while (bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) > 0) {
+		/*
+		 * If we're going to be splitting a compressed extent, note it
+		 * so that __bch2_trans_commit() can increase our disk
+		 * reservation:
+		 */
+		if (bkey_cmp(bkey_start_pos(k.k), start) < 0 &&
+		    bkey_cmp(k.k->p, i->k->k.p) > 0 &&
+		    (compressed_sectors = bch2_bkey_sectors_compressed(k)))
+			trans->extra_journal_res += compressed_sectors;
+
 		if (bkey_cmp(bkey_start_pos(k.k), start) < 0) {
 			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
@@ -992,6 +998,15 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			trans->journal_preres_u64s += u64s;
 		trans->journal_u64s += u64s;
 	}
+
+	if (trans->extra_journal_res) {
+		ret = bch2_disk_reservation_add(trans->c, trans->disk_res,
+				trans->extra_journal_res,
+				(trans->flags & BTREE_INSERT_NOFAIL)
+				? BCH_DISK_RESERVATION_NOFAIL : 0);
+		if (ret)
+			goto err;
+	}
 retry:
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
@@ -1045,22 +1060,12 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	BUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
-	BUG_ON(bkey_cmp(iter->pos,
-			is_extent ? bkey_start_pos(&k->k) : k->k.p));
-
-	trans_for_each_update(trans, i) {
-		BUG_ON(bkey_cmp(i->iter->pos, i->k->k.p));
-
+	trans_for_each_update(trans, i)
 		BUG_ON(i != trans->updates &&
 		       btree_insert_entry_cmp(i - 1, i) >= 0);
-	}
 #endif
 
 	if (is_extent) {
-		ret = bch2_extent_can_insert(trans, n.iter, n.k);
-		if (ret)
-			return ret;
-
 		ret = extent_handle_overwrites(trans, &n);
 		if (ret)
 			return ret;

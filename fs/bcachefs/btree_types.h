@@ -383,6 +383,11 @@ struct btree_trans {
 	unsigned		used_mempool:1;
 	unsigned		error:1;
 	unsigned		in_traverse_all:1;
+	/*
+	 * For when bch2_trans_update notices we'll be splitting a compressed
+	 * extent:
+	 */
+	unsigned		extra_journal_res;
 
 	u64			iters_linked;
 	u64			iters_live;
@@ -680,7 +685,6 @@ enum btree_insert_ret {
 	BTREE_INSERT_OK,
 	/* leaf node needs to be split */
 	BTREE_INSERT_BTREE_NODE_FULL,
-	BTREE_INSERT_ENOSPC,
 	BTREE_INSERT_NEED_MARK_REPLICAS,
 	BTREE_INSERT_NEED_JOURNAL_RES,
 	BTREE_INSERT_NEED_JOURNAL_RECLAIM,
