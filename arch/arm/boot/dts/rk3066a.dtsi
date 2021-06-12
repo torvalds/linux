@@ -217,7 +217,7 @@
 				       <150000000>, <75000000>;
 	};
 
-	timer@2000e000 {
+	timer2: timer@2000e000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x2000e000 0x100>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
@@ -238,7 +238,7 @@
 		};
 	};
 
-	timer@20038000 {
+	timer0: timer@20038000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x20038000 0x100>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
@@ -246,7 +246,7 @@
 		clock-names = "timer", "pclk";
 	};
 
-	timer@2003a000 {
+	timer1: timer@2003a000 {
 		compatible = "snps,dw-apb-timer-osc";
 		reg = <0x2003a000 0x100>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
