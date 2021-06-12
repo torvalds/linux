@@ -30,5 +30,38 @@
 			interrupts = <33 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
+
+		/* This is known as EthB1 */
+		ethernet@c800d000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc800d000 0x1000>;
+			status = "disabled";
+			intel,npe = <1>;
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 0>;
+			queue-txready = <&qmgr 0>;
+		};
+
+		/* This is known as EthB2 */
+		ethernet@c800e000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc800e000 0x1000>;
+			status = "disabled";
+			intel,npe = <2>;
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 0>;
+			queue-txready = <&qmgr 0>;
+		};
+
+		/* This is known as EthB3 */
+		ethernet@c800f000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc800f000 0x1000>;
+			status = "disabled";
+			intel,npe = <3>;
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 0>;
+			queue-txready = <&qmgr 0>;
+		};
 	};
 };
