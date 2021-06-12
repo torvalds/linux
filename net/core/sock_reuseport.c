@@ -18,6 +18,49 @@ DEFINE_SPINLOCK(reuseport_lock);
 
 static DEFINE_IDA(reuseport_ida);
 
+static int reuseport_sock_index(struct sock *sk,
+				const struct sock_reuseport *reuse,
+				bool closed)
+{
+	int left, right;
+
+	if (!closed) {
+		left = 0;
+		right = reuse->num_socks;
+	} else {
+		left = reuse->max_socks - reuse->num_closed_socks;
+		right = reuse->max_socks;
+	}
+
+	for (; left < right; left++)
+		if (reuse->socks[left] == sk)
+			return left;
+	return -1;
+}
+
+static void __reuseport_add_sock(struct sock *sk,
+				 struct sock_reuseport *reuse)
+{
+	reuse->socks[reuse->num_socks] = sk;
+	/* paired with smp_rmb() in reuseport_select_sock() */
+	smp_wmb();
+	reuse->num_socks++;
+}
+
+static bool __reuseport_detach_sock(struct sock *sk,
+				    struct sock_reuseport *reuse)
+{
+	int i = reuseport_sock_index(sk, reuse, false);
+
+	if (i == -1)
+		return false;
+
+	reuse->socks[i] = reuse->socks[reuse->num_socks - 1];
+	reuse->num_socks--;
+
+	return true;
+}
+
 static struct sock_reuseport *__reuseport_alloc(unsigned int max_socks)
 {
 	unsigned int size = sizeof(struct sock_reuseport) +
@@ -72,9 +115,9 @@ int reuseport_alloc(struct sock *sk, bool bind_inany)
 	}
 
 	reuse->reuseport_id = id;
+	reuse->bind_inany = bind_inany;
 	reuse->socks[0] = sk;
 	reuse->num_socks = 1;
-	reuse->bind_inany = bind_inany;
 	rcu_assign_pointer(sk->sk_reuseport_cb, reuse);
 
 out:
@@ -98,6 +141,7 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 		return NULL;
 
 	more_reuse->num_socks = reuse->num_socks;
+	more_reuse->num_closed_socks = reuse->num_closed_socks;
 	more_reuse->prog = reuse->prog;
 	more_reuse->reuseport_id = reuse->reuseport_id;
 	more_reuse->bind_inany = reuse->bind_inany;
@@ -105,9 +149,13 @@ static struct sock_reuseport *reuseport_grow(struct sock_reuseport *reuse)
 
 	memcpy(more_reuse->socks, reuse->socks,
 	       reuse->num_socks * sizeof(struct sock *));
+	memcpy(more_reuse->socks +
+	       (more_reuse->max_socks - more_reuse->num_closed_socks),
+	       reuse->socks + (reuse->max_socks - reuse->num_closed_socks),
+	       reuse->num_closed_socks * sizeof(struct sock *));
 	more_reuse->synq_overflow_ts = READ_ONCE(reuse->synq_overflow_ts);
 
-	for (i = 0; i < reuse->num_socks; ++i)
+	for (i = 0; i < reuse->max_socks; ++i)
 		rcu_assign_pointer(reuse->socks[i]->sk_reuseport_cb,
 				   more_reuse);
 
@@ -158,7 +206,7 @@ int reuseport_add_sock(struct sock *sk, struct sock *sk2, bool bind_inany)
 		return -EBUSY;
 	}
 
-	if (reuse->num_socks == reuse->max_socks) {
+	if (reuse->num_socks + reuse->num_closed_socks == reuse->max_socks) {
 		reuse = reuseport_grow(reuse);
 		if (!reuse) {
 			spin_unlock_bh(&reuseport_lock);
@@ -166,10 +214,7 @@ int reuseport_add_sock(struct sock *sk, struct sock *sk2, bool bind_inany)
 		}
 	}
 
-	reuse->socks[reuse->num_socks] = sk;
-	/* paired with smp_rmb() in reuseport_select_sock() */
-	smp_wmb();
-	reuse->num_socks++;
+	__reuseport_add_sock(sk, reuse);
 	rcu_assign_pointer(sk->sk_reuseport_cb, reuse);
 
 	spin_unlock_bh(&reuseport_lock);
@@ -183,7 +228,6 @@ EXPORT_SYMBOL(reuseport_add_sock);
 void reuseport_detach_sock(struct sock *sk)
 {
 	struct sock_reuseport *reuse;
-	int i;
 
 	spin_lock_bh(&reuseport_lock);
 	reuse = rcu_dereference_protected(sk->sk_reuseport_cb,
@@ -200,16 +244,11 @@ void reuseport_detach_sock(struct sock *sk)
 	bpf_sk_reuseport_detach(sk);
 
 	rcu_assign_pointer(sk->sk_reuseport_cb, NULL);
+	__reuseport_detach_sock(sk, reuse);
 
-	for (i = 0; i < reuse->num_socks; i++) {
-		if (reuse->socks[i] == sk) {
-			reuse->socks[i] = reuse->socks[reuse->num_socks - 1];
-			reuse->num_socks--;
-			if (reuse->num_socks == 0)
-				call_rcu(&reuse->rcu, reuseport_free_rcu);
-			break;
-		}
-	}
+	if (reuse->num_socks + reuse->num_closed_socks == 0)
+		call_rcu(&reuse->rcu, reuseport_free_rcu);
+
 	spin_unlock_bh(&reuseport_lock);
 }
 EXPORT_SYMBOL(reuseport_detach_sock);
@@ -274,7 +313,7 @@ struct sock *reuseport_select_sock(struct sock *sk,
 	prog = rcu_dereference(reuse->prog);
 	socks = READ_ONCE(reuse->num_socks);
 	if (likely(socks)) {
-		/* paired with smp_wmb() in reuseport_add_sock() */
+		/* paired with smp_wmb() in __reuseport_add_sock() */
 		smp_rmb();
 
 		if (!prog || !skb)
