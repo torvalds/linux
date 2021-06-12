@@ -114,7 +114,6 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	__sum16 *csum_field, pseudo_csum;
 	__sum16 ip6_payload_csum;
 	__be16 ip_header_csum;
-	u32 length;
 
 	/* Checksum offload is only supported for UDP and TCP protocols;
 	 * the packet cannot include any IPv6 extension headers
@@ -134,11 +133,9 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
 	ip6_payload_csum = csum16_sub(csum_trailer->csum_value, ip_header_csum);
 
-	length = (ip6h->nexthdr == IPPROTO_UDP) ?
-		 ntohs(((struct udphdr *)txporthdr)->len) :
-		 ntohs(ip6h->payload_len);
 	pseudo_csum = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
-				      length, ip6h->nexthdr, 0);
+				      ntohs(ip6h->payload_len),
+				      ip6h->nexthdr, 0);
 
 	/* It's sufficient to compare the IP payload checksum with the
 	 * negated pseudo checksum to determine whether the packet
