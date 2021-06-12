@@ -86,16 +86,24 @@
 	};
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
+	status = "okay";
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
+	ti,dual-emac-pvid = <2>;
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	phy1: ethernet-phy@6 {
 		reg = <6>;
 		eee-broken-1000t;
 	};
+};
+
+&mac_sw {
+	pinctrl-0 = <&eth_slave1_pins_default>, <&eth_slave2_pins_default>;
+	pinctrl-1 = <&eth_slave1_pins_sleep>, <&eth_slave2_pins_sleep>;
+	slaves = <2>;
 };
 
 &dcan0 {
@@ -192,12 +200,6 @@
 		color = <LED_COLOR_ID_GREEN>;
 		default-state = "off";
 	};
-};
-
-&mac {
-	pinctrl-0 = <&eth_slave1_pins_default>, <&eth_slave2_pins_default>;
-	pinctrl-1 = <&eth_slave1_pins_sleep>, <&eth_slave2_pins_sleep>;
-	slaves = <2>;
 };
 
 &mcasp0 {
