@@ -280,7 +280,7 @@
 
 	chosen {
 		stdout-path = &uart1;
-		bootargs = "console=ttyS1,9600n8 root=/dev/ram rw earlyprintk";
+		bootargs = "console=ttyS1,9600n8 root=/dev/ram rw earlycon";
 	};
 
 	ast-adc-hwmon {
