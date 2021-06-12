@@ -44,7 +44,7 @@ static void __reuseport_add_sock(struct sock *sk,
 				 struct sock_reuseport *reuse)
 {
 	reuse->socks[reuse->num_socks] = sk;
-	/* paired with smp_rmb() in reuseport_select_sock() */
+	/* paired with smp_rmb() in reuseport_(select|migrate)_sock() */
 	smp_wmb();
 	reuse->num_socks++;
 }
@@ -434,6 +434,23 @@ static struct sock *run_bpf_filter(struct sock_reuseport *reuse, u16 socks,
 	return reuse->socks[index];
 }
 
+static struct sock *reuseport_select_sock_by_hash(struct sock_reuseport *reuse,
+						  u32 hash, u16 num_socks)
+{
+	int i, j;
+
+	i = j = reciprocal_scale(hash, num_socks);
+	while (reuse->socks[i]->sk_state == TCP_ESTABLISHED) {
+		i++;
+		if (i >= num_socks)
+			i = 0;
+		if (i == j)
+			return NULL;
+	}
+
+	return reuse->socks[i];
+}
+
 /**
  *  reuseport_select_sock - Select a socket from an SO_REUSEPORT group.
  *  @sk: First socket in the group.
@@ -477,19 +494,8 @@ struct sock *reuseport_select_sock(struct sock *sk,
 
 select_by_hash:
 		/* no bpf or invalid bpf result: fall back to hash usage */
-		if (!sk2) {
-			int i, j;
-
-			i = j = reciprocal_scale(hash, socks);
-			while (reuse->socks[i]->sk_state == TCP_ESTABLISHED) {
-				i++;
-				if (i >= socks)
-					i = 0;
-				if (i == j)
-					goto out;
-			}
-			sk2 = reuse->socks[i];
-		}
+		if (!sk2)
+			sk2 = reuseport_select_sock_by_hash(reuse, hash, socks);
 	}
 
 out:
@@ -497,6 +503,50 @@ out:
 	return sk2;
 }
 EXPORT_SYMBOL(reuseport_select_sock);
+
+/**
+ *  reuseport_migrate_sock - Select a socket from an SO_REUSEPORT group.
+ *  @sk: close()ed or shutdown()ed socket in the group.
+ *  @migrating_sk: ESTABLISHED/SYN_RECV full socket in the accept queue or
+ *    NEW_SYN_RECV request socket during 3WHS.
+ *  @skb: skb to run through BPF filter.
+ *  Returns a socket (with sk_refcnt +1) that should accept the child socket
+ *  (or NULL on error).
+ */
+struct sock *reuseport_migrate_sock(struct sock *sk,
+				    struct sock *migrating_sk,
+				    struct sk_buff *skb)
+{
+	struct sock_reuseport *reuse;
+	struct sock *nsk = NULL;
+	u16 socks;
+	u32 hash;
+
+	rcu_read_lock();
+
+	reuse = rcu_dereference(sk->sk_reuseport_cb);
+	if (!reuse)
+		goto out;
+
+	socks = READ_ONCE(reuse->num_socks);
+	if (unlikely(!socks))
+		goto out;
+
+	/* paired with smp_wmb() in __reuseport_add_sock() */
+	smp_rmb();
+
+	hash = migrating_sk->sk_hash;
+	if (sock_net(sk)->ipv4.sysctl_tcp_migrate_req)
+		nsk = reuseport_select_sock_by_hash(reuse, hash, socks);
+
+	if (nsk && unlikely(!refcount_inc_not_zero(&nsk->sk_refcnt)))
+		nsk = NULL;
+
+out:
+	rcu_read_unlock();
+	return nsk;
+}
+EXPORT_SYMBOL(reuseport_migrate_sock);
 
 int reuseport_attach_prog(struct sock *sk, struct bpf_prog *prog)
 {
