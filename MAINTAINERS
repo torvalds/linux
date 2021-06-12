@@ -18873,6 +18873,13 @@ S:	Maintained
 F:	drivers/usb/host/isp116x*
 F:	include/linux/usb/isp116x.h
 
+USB ISP1760 DRIVER
+M:	Rui Miguel Silva <rui.silva@linaro.org>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/isp1760/*
+F:	Documentation/devicetree/bindings/usb/nxp,isp1760.yaml
+
 USB LAN78XX ETHERNET DRIVER
 M:	Woojung Huh <woojung.huh@microchip.com>
 M:	UNGLinuxDriver@microchip.com
