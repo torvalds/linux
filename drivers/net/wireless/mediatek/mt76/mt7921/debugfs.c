@@ -251,7 +251,7 @@ mt7921_pm_set(void *data, u64 val)
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    mt7921_pm_interface_iter, mphy->priv);
 
-	mt76_connac_mcu_set_deep_sleep(&dev->mt76, !!pm->enable);
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
 
 	mt7921_mutex_release(dev);
 
@@ -274,15 +274,31 @@ static int
 mt7921_deep_sleep_set(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
+	struct mt76_connac_pm *pm = &dev->pm;
+	bool enable = !!val;
 
 	mt7921_mutex_acquire(dev);
-	mt76_connac_mcu_set_deep_sleep(&dev->mt76, !!val);
+	if (pm->ds_enable != enable) {
+		mt76_connac_mcu_set_deep_sleep(&dev->mt76, enable);
+		pm->ds_enable = enable;
+	}
 	mt7921_mutex_release(dev);
 
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_ds, NULL, mt7921_deep_sleep_set, "%lld\n");
+static int
+mt7921_deep_sleep_get(void *data, u64 *val)
+{
+	struct mt7921_dev *dev = data;
+
+	*val = dev->pm.ds_enable;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ds, mt7921_deep_sleep_get,
+			 mt7921_deep_sleep_set, "%lld\n");
 
 static int
 mt7921_pm_stats(struct seq_file *s, void *data)

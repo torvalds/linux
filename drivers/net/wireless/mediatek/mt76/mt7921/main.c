@@ -820,7 +820,7 @@ static int mt7921_sta_state(struct ieee80211_hw *hw,
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 
-	if (dev->pm.enable) {
+	if (dev->pm.ds_enable) {
 		mt7921_mutex_acquire(dev);
 		mt76_connac_sta_state_dp(&dev->mt76, old_state, new_state);
 		mt7921_mutex_release(dev);

@@ -201,6 +201,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	dev->pm.stats.last_wake_event = jiffies;
 	dev->pm.stats.last_doze_event = jiffies;
 	dev->pm.enable = true;
+	dev->pm.ds_enable = true;
 
 	ret = mt7921_init_hardware(dev);
 	if (ret)
@@ -235,7 +236,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	if (ret)
 		return ret;
 
-	return mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.enable);
+	return mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
 }
 
 void mt7921_unregister_device(struct mt7921_dev *dev)
