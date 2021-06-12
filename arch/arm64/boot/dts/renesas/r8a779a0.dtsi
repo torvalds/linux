@@ -618,6 +618,7 @@
 					  "ch20", "ch21", "ch22", "ch23",
 					  "ch24";
 			clocks = <&cpg CPG_MOD 211>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 211>;
 			phy-mode = "rgmii";
@@ -665,6 +666,7 @@
 					  "ch20", "ch21", "ch22", "ch23",
 					  "ch24";
 			clocks = <&cpg CPG_MOD 212>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 212>;
 			phy-mode = "rgmii";
@@ -712,6 +714,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 213>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 213>;
 			phy-mode = "rgmii";
@@ -759,6 +762,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 214>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 214>;
 			phy-mode = "rgmii";
@@ -806,6 +810,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 215>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 215>;
 			phy-mode = "rgmii";
@@ -853,6 +858,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 216>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 216>;
 			phy-mode = "rgmii";
