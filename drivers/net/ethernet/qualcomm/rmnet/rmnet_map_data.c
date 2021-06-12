@@ -37,7 +37,6 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	void *txporthdr = skb->data + ip4h->ihl * 4;
 	__sum16 *csum_field, pseudo_csum;
 	__sum16 ip_payload_csum;
-	__sum16 csum_value_final;
 
 	/* Computing the checksum over just the IPv4 header--including its
 	 * checksum field--should yield 0.  If it doesn't, the IP header
@@ -93,37 +92,15 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	pseudo_csum = ~csum_tcpudp_magic(ip4h->saddr, ip4h->daddr,
 					 ntohs(ip4h->tot_len) - ip4h->ihl * 4,
 					 ip4h->protocol, 0);
-	pseudo_csum = csum16_add(ip_payload_csum, (__force __be16)pseudo_csum);
 
 	/* The cast is required to ensure only the low 16 bits are examined */
-	if ((__sum16)~pseudo_csum) {
+	if (ip_payload_csum != (__sum16)~pseudo_csum) {
 		priv->stats.csum_validation_failed++;
 		return -EINVAL;
 	}
-	csum_value_final = ~csum16_sub(pseudo_csum, (__force __be16)*csum_field);
 
-	if (unlikely(!csum_value_final)) {
-		switch (ip4h->protocol) {
-		case IPPROTO_UDP:
-			/* RFC 768 - DL4 1's complement rule for UDP csum 0 */
-			csum_value_final = ~csum_value_final;
-			break;
-
-		case IPPROTO_TCP:
-			/* DL4 Non-RFC compliant TCP checksum found */
-			if (*csum_field == (__force __sum16)0xFFFF)
-				csum_value_final = ~csum_value_final;
-			break;
-		}
-	}
-
-	if (csum_value_final == *csum_field) {
-		priv->stats.csum_ok++;
-		return 0;
-	} else {
-		priv->stats.csum_validation_failed++;
-		return -EINVAL;
-	}
+	priv->stats.csum_ok++;
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -137,7 +114,6 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	__sum16 *csum_field, pseudo_csum;
 	__sum16 ip6_payload_csum;
 	__be16 ip_header_csum;
-	__sum16 csum_value_final;
 	u32 length;
 
 	/* Checksum offload is only supported for UDP and TCP protocols;
@@ -154,11 +130,6 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	 * transport checksum from this, we first subract the contribution
 	 * of the IP header from the trailer checksum.  We then add the
 	 * checksum computed over the pseudo header.
-	 *
-	 * It's sufficient to compare the IP payload checksum with the
-	 * negated pseudo checksum to determine whether the packet
-	 * checksum was good.  (See further explanation in comments
-	 * in rmnet_map_ipv4_dl_csum_trailer()).
 	 */
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
 	ip6_payload_csum = ~csum16_sub((__force __sum16)csum_trailer->csum_value,
@@ -169,40 +140,22 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 		 ntohs(ip6h->payload_len);
 	pseudo_csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
 				       length, ip6h->nexthdr, 0);
-	pseudo_csum = csum16_add(ip6_payload_csum, (__force __be16)pseudo_csum);
 
-	/* The cast is required to ensure only the low 16 bits are examined */
-	if ((__sum16)~pseudo_csum) {
+	/* It's sufficient to compare the IP payload checksum with the
+	 * negated pseudo checksum to determine whether the packet
+	 * checksum was good.  (See further explanation in comments
+	 * in rmnet_map_ipv4_dl_csum_trailer()).
+	 *
+	 * The cast is required to ensure only the low 16 bits are
+	 * examined.
+	 */
+	if (ip6_payload_csum != (__sum16)~pseudo_csum) {
 		priv->stats.csum_validation_failed++;
 		return -EINVAL;
 	}
 
-	csum_value_final = ~csum16_sub(pseudo_csum, (__force __be16)*csum_field);
-
-	if (unlikely(csum_value_final == 0)) {
-		switch (ip6h->nexthdr) {
-		case IPPROTO_UDP:
-			/* RFC 2460 section 8.1
-			 * DL6 One's complement rule for UDP checksum 0
-			 */
-			csum_value_final = ~csum_value_final;
-			break;
-
-		case IPPROTO_TCP:
-			/* DL6 Non-RFC compliant TCP checksum found */
-			if (*csum_field == (__force __sum16)0xFFFF)
-				csum_value_final = ~csum_value_final;
-			break;
-		}
-	}
-
-	if (csum_value_final == *csum_field) {
-		priv->stats.csum_ok++;
-		return 0;
-	} else {
-		priv->stats.csum_validation_failed++;
-		return -EINVAL;
-	}
+	priv->stats.csum_ok++;
+	return 0;
 }
 #endif
 
