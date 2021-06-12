@@ -194,7 +194,7 @@
 			ranges = <0x0 0x9000 0x1000>;
 
 			uart0: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 			};
@@ -712,7 +712,7 @@
 			ranges = <0x0 0x22000 0x1000>;
 
 			uart1: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -740,7 +740,7 @@
 			ranges = <0x0 0x24000 0x1000>;
 
 			uart2: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1168,7 +1168,7 @@
 				#mbox-cells = <1>;
 				ti,mbox-num-users = <4>;
 				ti,mbox-num-fifos = <8>;
-				mbox_wkupm3: wkup_m3 {
+				mbox_wkupm3: mbox-wkup-m3 {
 					ti,mbox-send-noirq;
 					ti,mbox-tx = <0 0 0>;
 					ti,mbox-rx = <0 0 3>;
@@ -1399,7 +1399,7 @@
 			ranges = <0x0 0xa6000 0x1000>;
 
 			uart3: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1427,7 +1427,7 @@
 			ranges = <0x0 0xa8000 0x1000>;
 
 			uart4: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1455,7 +1455,7 @@
 			ranges = <0x0 0xaa000 0x1000>;
 
 			uart5: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -2070,7 +2070,7 @@
 			};
 		};
 
-		target-module@22000 {			/* 0x48322000, ap 116 64.0 */
+		gpio5_target: target-module@22000 {		/* 0x48322000, ap 116 64.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			reg = <0x22000 0x4>,
 			      <0x22010 0x4>,
