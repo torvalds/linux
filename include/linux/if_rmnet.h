@@ -25,7 +25,7 @@ struct rmnet_map_dl_csum_trailer {
 	u8 flags;			/* MAP_CSUM_DL_VALID_FLAG */
 	__be16 csum_start_offset;
 	__be16 csum_length;
-	__be16 csum_value;
+	__sum16 csum_value;
 } __aligned(1);
 
 /* rmnet_map_dl_csum_trailer flags field:

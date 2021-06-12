@@ -87,7 +87,7 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	 * header checksum value; it is already accounted for in the
 	 * checksum value found in the trailer.
 	 */
-	ip_payload_csum = (__force __sum16)~csum_trailer->csum_value;
+	ip_payload_csum = ~csum_trailer->csum_value;
 
 	pseudo_csum = ~csum_tcpudp_magic(ip4h->saddr, ip4h->daddr,
 					 ntohs(ip4h->tot_len) - ip4h->ihl * 4,
@@ -132,8 +132,7 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	 * checksum computed over the pseudo header.
 	 */
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
-	ip6_payload_csum = ~csum16_sub((__force __sum16)csum_trailer->csum_value,
-				       ip_header_csum);
+	ip6_payload_csum = ~csum16_sub(csum_trailer->csum_value, ip_header_csum);
 
 	length = (ip6h->nexthdr == IPPROTO_UDP) ?
 		 ntohs(((struct udphdr *)txporthdr)->len) :
