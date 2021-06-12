@@ -162,18 +162,6 @@ static void get_tx_power_index(struct adapter *adapt, u8 channel, u8 *cck_pwr,
 	}
 }
 
-static void phy_power_index_check(struct adapter *adapt, u8 channel,
-				  u8 *cck_pwr, u8 *ofdm_pwr, u8 *bw20_pwr,
-				  u8 *bw40_pwr)
-{
-	struct hal_data_8188e *hal_data = adapt->HalData;
-
-	hal_data->CurrentCckTxPwrIdx = cck_pwr[0];
-	hal_data->CurrentOfdm24GTxPwrIdx = ofdm_pwr[0];
-	hal_data->CurrentBW2024GTxPwrIdx = bw20_pwr[0];
-	hal_data->CurrentBW4024GTxPwrIdx = bw40_pwr[0];
-}
-
 void phy_set_tx_power_level(struct adapter *adapt, u8 channel)
 {
 	u8 cck_pwr[MAX_TX_COUNT] = {0};
@@ -183,9 +171,6 @@ void phy_set_tx_power_level(struct adapter *adapt, u8 channel)
 
 	get_tx_power_index(adapt, channel, &cck_pwr[0], &ofdm_pwr[0],
 			   &bw20_pwr[0], &bw40_pwr[0]);
-
-	phy_power_index_check(adapt, channel, &cck_pwr[0], &ofdm_pwr[0],
-			      &bw20_pwr[0], &bw40_pwr[0]);
 
 	rtl88eu_phy_rf6052_set_cck_txpower(adapt, &cck_pwr[0]);
 	rtl88eu_phy_rf6052_set_ofdm_txpower(adapt, &ofdm_pwr[0], &bw20_pwr[0],
