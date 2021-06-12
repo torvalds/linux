@@ -377,13 +377,17 @@ void reuseport_stop_listen_sock(struct sock *sk)
 {
 	if (sk->sk_protocol == IPPROTO_TCP) {
 		struct sock_reuseport *reuse;
+		struct bpf_prog *prog;
 
 		spin_lock_bh(&reuseport_lock);
 
 		reuse = rcu_dereference_protected(sk->sk_reuseport_cb,
 						  lockdep_is_held(&reuseport_lock));
+		prog = rcu_dereference_protected(reuse->prog,
+						 lockdep_is_held(&reuseport_lock));
 
-		if (sock_net(sk)->ipv4.sysctl_tcp_migrate_req) {
+		if (sock_net(sk)->ipv4.sysctl_tcp_migrate_req ||
+		    (prog && prog->expected_attach_type == BPF_SK_REUSEPORT_SELECT_OR_MIGRATE)) {
 			/* Migration capable, move sk from the listening section
 			 * to the closed section.
 			 */
@@ -488,7 +492,7 @@ struct sock *reuseport_select_sock(struct sock *sk,
 			goto select_by_hash;
 
 		if (prog->type == BPF_PROG_TYPE_SK_REUSEPORT)
-			sk2 = bpf_run_sk_reuseport(reuse, sk, prog, skb, hash);
+			sk2 = bpf_run_sk_reuseport(reuse, sk, prog, skb, NULL, hash);
 		else
 			sk2 = run_bpf_filter(reuse, socks, prog, skb, hdr_len);
 
@@ -519,6 +523,8 @@ struct sock *reuseport_migrate_sock(struct sock *sk,
 {
 	struct sock_reuseport *reuse;
 	struct sock *nsk = NULL;
+	bool allocated = false;
+	struct bpf_prog *prog;
 	u16 socks;
 	u32 hash;
 
@@ -536,10 +542,30 @@ struct sock *reuseport_migrate_sock(struct sock *sk,
 	smp_rmb();
 
 	hash = migrating_sk->sk_hash;
-	if (sock_net(sk)->ipv4.sysctl_tcp_migrate_req)
+	prog = rcu_dereference(reuse->prog);
+	if (!prog || prog->expected_attach_type != BPF_SK_REUSEPORT_SELECT_OR_MIGRATE) {
+		if (sock_net(sk)->ipv4.sysctl_tcp_migrate_req)
+			goto select_by_hash;
+		goto out;
+	}
+
+	if (!skb) {
+		skb = alloc_skb(0, GFP_ATOMIC);
+		if (!skb)
+			goto out;
+		allocated = true;
+	}
+
+	nsk = bpf_run_sk_reuseport(reuse, sk, prog, skb, migrating_sk, hash);
+
+	if (allocated)
+		kfree_skb(skb);
+
+select_by_hash:
+	if (!nsk)
 		nsk = reuseport_select_sock_by_hash(reuse, hash, socks);
 
-	if (nsk && unlikely(!refcount_inc_not_zero(&nsk->sk_refcnt)))
+	if (IS_ERR_OR_NULL(nsk) || unlikely(!refcount_inc_not_zero(&nsk->sk_refcnt)))
 		nsk = NULL;
 
 out:
