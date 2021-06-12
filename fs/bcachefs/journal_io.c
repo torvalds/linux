@@ -449,7 +449,7 @@ static int journal_entry_validate_dev_usage(struct bch_fs *c,
 	struct jset_entry_dev_usage *u =
 		container_of(entry, struct jset_entry_dev_usage, entry);
 	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
-	unsigned expected = sizeof(*u) + sizeof(u->d[0]) * 7; /* Current value of BCH_DATA_NR */
+	unsigned expected = sizeof(*u);
 	unsigned dev;
 	int ret = 0;
 
