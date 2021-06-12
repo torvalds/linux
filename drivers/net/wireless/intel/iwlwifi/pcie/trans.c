@@ -3413,6 +3413,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	struct iwl_trans *trans;
 	int ret, addr_size;
 	const struct iwl_trans_ops *ops = &trans_ops_pcie_gen2;
+	void __iomem * const *table;
 
 	if (!cfg_trans->gen2)
 		ops = &trans_ops_pcie;
@@ -3485,9 +3486,16 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		goto out_no_pci;
 	}
 
-	trans_pcie->hw_base = pcim_iomap_table(pdev)[0];
-	if (!trans_pcie->hw_base) {
+	table = pcim_iomap_table(pdev);
+	if (!table) {
 		dev_err(&pdev->dev, "pcim_iomap_table failed\n");
+		ret = -ENOMEM;
+		goto out_no_pci;
+	}
+
+	trans_pcie->hw_base = table[0];
+	if (!trans_pcie->hw_base) {
+		dev_err(&pdev->dev, "couldn't find IO mem in first BAR\n");
 		ret = -ENODEV;
 		goto out_no_pci;
 	}
