@@ -20,7 +20,7 @@
 	};
 
 	leds {
-		act {
+		led-act {
 			gpios = <&expgpio 2 GPIO_ACTIVE_HIGH>;
 		};
 	};
