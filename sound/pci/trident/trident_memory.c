@@ -82,7 +82,7 @@ static inline void set_tlb_bus(struct snd_trident *trident, int page,
 {
 	int i;
 	page *= UNIT_PAGES;
-	for (i = 0; i < UNIT_PAGES; i++, pagetr++) {
+	for (i = 0; i < UNIT_PAGES; i++, page++) {
 		__set_tlb_bus(trident, page, addr);
 		addr += SNDRV_TRIDENT_PAGE_SIZE;
 	}
