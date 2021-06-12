@@ -593,6 +593,20 @@ static inline void memmove_u64s_down(void *dst, const void *src,
 	__memmove_u64s_down(dst, src, u64s);
 }
 
+static inline void __memmove_u64s_down_small(void *dst, const void *src,
+				       unsigned u64s)
+{
+	memcpy_u64s_small(dst, src, u64s);
+}
+
+static inline void memmove_u64s_down_small(void *dst, const void *src,
+				     unsigned u64s)
+{
+	EBUG_ON(dst > src);
+
+	__memmove_u64s_down_small(dst, src, u64s);
+}
+
 static inline void __memmove_u64s_up_small(void *_dst, const void *_src,
 					   unsigned u64s)
 {
