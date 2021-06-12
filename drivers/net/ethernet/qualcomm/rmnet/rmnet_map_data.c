@@ -76,6 +76,17 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	 * We verified above that the IP header contributes zero to the
 	 * trailer checksum.  Therefore the checksum in the trailer is
 	 * just the checksum computed over the IP payload.
+
+	 * If the IP payload arrives intact, adding the pseudo header
+	 * checksum to the IP payload checksum will yield 0xffff (negative
+	 * zero).  This means the trailer checksum and the pseudo checksum
+	 * are additive inverses of each other.  Put another way, the
+	 * message passes the checksum test if the trailer checksum value
+	 * is the negated pseudo header checksum.
+	 *
+	 * Knowing this, we don't even need to examine the transport
+	 * header checksum value; it is already accounted for in the
+	 * checksum value found in the trailer.
 	 */
 	ip_payload_csum = (__force __sum16)~csum_trailer->csum_value;
 
@@ -84,11 +95,11 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 					 ip4h->protocol, 0);
 	pseudo_csum = csum16_add(ip_payload_csum, (__force __be16)pseudo_csum);
 
-	/* The trailer checksum *includes* the checksum in the transport
-	 * header.  Adding that to the pseudo checksum will yield 0xffff
-	 * ("negative 0") if the message arrived intact.
-	 */
-	WARN_ON((__sum16)~pseudo_csum);
+	/* The cast is required to ensure only the low 16 bits are examined */
+	if ((__sum16)~pseudo_csum) {
+		priv->stats.csum_validation_failed++;
+		return -EINVAL;
+	}
 	csum_value_final = ~csum16_sub(pseudo_csum, (__force __be16)*csum_field);
 
 	if (unlikely(!csum_value_final)) {
@@ -143,6 +154,11 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	 * transport checksum from this, we first subract the contribution
 	 * of the IP header from the trailer checksum.  We then add the
 	 * checksum computed over the pseudo header.
+	 *
+	 * It's sufficient to compare the IP payload checksum with the
+	 * negated pseudo checksum to determine whether the packet
+	 * checksum was good.  (See further explanation in comments
+	 * in rmnet_map_ipv4_dl_csum_trailer()).
 	 */
 	ip_header_csum = (__force __be16)ip_fast_csum(ip6h, sizeof(*ip6h) / 4);
 	ip6_payload_csum = ~csum16_sub((__force __sum16)csum_trailer->csum_value,
@@ -155,10 +171,12 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 				       length, ip6h->nexthdr, 0);
 	pseudo_csum = csum16_add(ip6_payload_csum, (__force __be16)pseudo_csum);
 
-	/* Adding the payload checksum to the pseudo checksum yields 0xffff
-	 * ("negative 0") if the message arrived intact.
-	 */
-	WARN_ON((__sum16)~pseudo_csum);
+	/* The cast is required to ensure only the low 16 bits are examined */
+	if ((__sum16)~pseudo_csum) {
+		priv->stats.csum_validation_failed++;
+		return -EINVAL;
+	}
+
 	csum_value_final = ~csum16_sub(pseudo_csum, (__force __be16)*csum_field);
 
 	if (unlikely(csum_value_final == 0)) {
