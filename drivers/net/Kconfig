@@ -431,6 +431,7 @@ config VSOCKMON
 config MHI_NET
 	tristate "MHI network driver"
 	depends on MHI_BUS
+	select WWAN_CORE
 	help
 	  This is the network driver for MHI bus.  It can be used with
 	  QCOM based WWAN modems (like SDX55).  Say Y or M.
