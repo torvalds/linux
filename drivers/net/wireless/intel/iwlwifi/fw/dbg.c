@@ -1933,6 +1933,13 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 	u32 num_of_ranges, i, size;
 	void *range;
 
+	/*
+	 * The higher part of the ID in version 2 is irrelevant for
+	 * us, so mask it out.
+	 */
+	if (le32_to_cpu(reg->hdr.version) == 2)
+		id &= IWL_FW_INI_REGION_V2_MASK;
+
 	if (!ops->get_num_of_ranges || !ops->get_size || !ops->fill_mem_hdr ||
 	    !ops->fill_range)
 		return 0;
@@ -1957,7 +1964,7 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 	num_of_ranges = ops->get_num_of_ranges(fwrt, reg_data);
 
 	header = (void *)tlv->data;
-	header->region_id = reg->id;
+	header->region_id = cpu_to_le32(id);
 	header->num_of_ranges = cpu_to_le32(num_of_ranges);
 	header->name_len = cpu_to_le32(IWL_FW_INI_MAX_NAME);
 	memcpy(header->name, reg->name, IWL_FW_INI_MAX_NAME);
