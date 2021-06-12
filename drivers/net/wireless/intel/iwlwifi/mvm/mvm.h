@@ -16,6 +16,8 @@
 #include <linux/thermal.h>
 #endif
 
+#include <linux/ktime.h>
+
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
 #include "fw/notif-wait.h"
@@ -1450,7 +1452,8 @@ u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac);
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
 u8 first_antenna(u8 mask);
 u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
-void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime);
+void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type, u32 *gp2,
+			   u64 *boottime, ktime_t *realtime);
 u32 iwl_mvm_get_systime(struct iwl_mvm *mvm);
 
 /* Tx / Host Commands */

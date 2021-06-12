@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -1398,7 +1398,8 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 	return iwl_read_prph(mvm->trans, reg_addr);
 }
 
-void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
+void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type,
+			   u32 *gp2, u64 *boottime, ktime_t *realtime)
 {
 	bool ps_disabled;
 
@@ -1412,7 +1413,11 @@ void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 	}
 
 	*gp2 = iwl_mvm_get_systime(mvm);
-	*boottime = ktime_get_boottime_ns();
+
+	if (clock_type == CLOCK_BOOTTIME && boottime)
+		*boottime = ktime_get_boottime_ns();
+	else if (clock_type == CLOCK_REALTIME && realtime)
+		*realtime = ktime_get_real();
 
 	if (!ps_disabled) {
 		mvm->ps_disabled = ps_disabled;
