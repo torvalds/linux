@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -682,55 +682,6 @@ static inline u8 iwlmvm_wowlan_gtk_idx(struct iwl_wowlan_gtk_status *gtk)
 {
 	return gtk->key_flags & IWL_WOWLAN_GTK_IDX_MASK;
 }
-
-#define IWL_WOWLAN_TCP_MAX_PACKET_LEN		64
-#define IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN	128
-#define IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS	2048
-
-struct iwl_tcp_packet_info {
-	__le16 tcp_pseudo_header_checksum;
-	__le16 tcp_payload_length;
-} __packed; /* TCP_PACKET_INFO_API_S_VER_2 */
-
-struct iwl_tcp_packet {
-	struct iwl_tcp_packet_info info;
-	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
-	u8 data[IWL_WOWLAN_TCP_MAX_PACKET_LEN];
-} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
-
-struct iwl_remote_wake_packet {
-	struct iwl_tcp_packet_info info;
-	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
-	u8 data[IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN];
-} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
-
-struct iwl_wowlan_remote_wake_config {
-	__le32 connection_max_time; /* unused */
-	/* TCP_PROTOCOL_CONFIG_API_S_VER_1 */
-	u8 max_syn_retries;
-	u8 max_data_retries;
-	u8 tcp_syn_ack_timeout;
-	u8 tcp_ack_timeout;
-
-	struct iwl_tcp_packet syn_tx;
-	struct iwl_tcp_packet synack_rx;
-	struct iwl_tcp_packet keepalive_ack_rx;
-	struct iwl_tcp_packet fin_tx;
-
-	struct iwl_remote_wake_packet keepalive_tx;
-	struct iwl_remote_wake_packet wake_rx;
-
-	/* REMOTE_WAKE_OFFSET_INFO_API_S_VER_1 */
-	u8 sequence_number_offset;
-	u8 sequence_number_length;
-	u8 token_offset;
-	u8 token_length;
-	/* REMOTE_WAKE_PROTOCOL_PARAMS_API_S_VER_1 */
-	__le32 initial_sequence_number;
-	__le16 keepalive_interval;
-	__le16 num_tokens;
-	u8 tokens[IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS];
-} __packed; /* REMOTE_WAKE_CONFIG_API_S_VER_2 */
 
 /* TODO: NetDetect API */
 
