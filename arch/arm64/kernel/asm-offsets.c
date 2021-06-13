@@ -46,6 +46,8 @@ int main(void)
   DEFINE(THREAD_SCTLR_USER,	offsetof(struct task_struct, thread.sctlr_user));
 #ifdef CONFIG_ARM64_PTR_AUTH
   DEFINE(THREAD_KEYS_USER,	offsetof(struct task_struct, thread.keys_user));
+#endif
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
   DEFINE(THREAD_KEYS_KERNEL,	offsetof(struct task_struct, thread.keys_kernel));
 #endif
 #ifdef CONFIG_ARM64_MTE

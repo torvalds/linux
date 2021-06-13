@@ -463,7 +463,7 @@ void lkdtm_DOUBLE_FAULT(void)
 #ifdef CONFIG_ARM64
 static noinline void change_pac_parameters(void)
 {
-	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH)) {
+	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL)) {
 		/* Reset the keys of current task */
 		ptrauth_thread_init_kernel(current);
 		ptrauth_thread_switch_kernel(current);
@@ -477,8 +477,8 @@ noinline void lkdtm_CORRUPT_PAC(void)
 #define CORRUPT_PAC_ITERATE	10
 	int i;
 
-	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH))
-		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH\n");
+	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
+		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH_KERNEL\n");
 
 	if (!system_supports_address_auth()) {
 		pr_err("FAIL: CPU lacks pointer authentication feature\n");
