@@ -68,7 +68,7 @@ static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->polarity != pwm->state.polarity) {
 		if (enabled) {
 			writew(0x0, ep93xx_pwm->base + EP93XX_PWMx_ENABLE);
-			clk_disable(ep93xx_pwm->clk);
+			clk_disable_unprepare(ep93xx_pwm->clk);
 			enabled = false;
 		}
 
@@ -76,7 +76,7 @@ static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * The clock needs to be enabled to access the PWM registers.
 		 * Polarity can only be changed when the PWM is disabled.
 		 */
-		ret = clk_enable(ep93xx_pwm->clk);
+		ret = clk_prepare_enable(ep93xx_pwm->clk);
 		if (ret)
 			return ret;
 
@@ -85,13 +85,13 @@ static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		else
 			writew(0x0, ep93xx_pwm->base + EP93XX_PWMx_INVERT);
 
-		clk_disable(ep93xx_pwm->clk);
+		clk_disable_unprepare(ep93xx_pwm->clk);
 	}
 
 	if (!state->enabled) {
 		if (enabled) {
 			writew(0x0, ep93xx_pwm->base + EP93XX_PWMx_ENABLE);
-			clk_disable(ep93xx_pwm->clk);
+			clk_disable_unprepare(ep93xx_pwm->clk);
 		}
 
 		return 0;
@@ -111,7 +111,7 @@ static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * Configuration can be changed at any time.
 		 */
 		if (!pwm_is_enabled(pwm)) {
-			ret = clk_enable(ep93xx_pwm->clk);
+			ret = clk_prepare_enable(ep93xx_pwm->clk);
 			if (ret)
 				return ret;
 		}
@@ -142,14 +142,14 @@ static int ep93xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		}
 
 		if (!pwm_is_enabled(pwm))
-			clk_disable(ep93xx_pwm->clk);
+			clk_disable_unprepare(ep93xx_pwm->clk);
 
 		if (ret)
 			return ret;
 	}
 
 	if (!enabled) {
-		ret = clk_enable(ep93xx_pwm->clk);
+		ret = clk_prepare_enable(ep93xx_pwm->clk);
 		if (ret)
 			return ret;
 
