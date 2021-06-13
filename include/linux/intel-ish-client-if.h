@@ -81,6 +81,8 @@ int ishtp_register_event_cb(struct ishtp_cl_device *device,
 
 /* Get the device * from ishtp device instance */
 struct device *ishtp_device(struct ishtp_cl_device *cl_device);
+/* wait for IPC resume */
+bool ishtp_wait_resume(struct ishtp_device *dev);
 /* Trace interface for clients */
 ishtp_print_log ishtp_trace_callback(struct ishtp_cl_device *cl_device);
 /* Get device pointer of PCI device for DMA acces */
