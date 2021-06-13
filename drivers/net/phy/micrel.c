@@ -488,8 +488,7 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 
 static int ksz9021_config_init(struct phy_device *phydev)
 {
-	const struct device *dev = &phydev->mdio.dev;
-	const struct device_node *of_node = dev->of_node;
+	const struct device_node *of_node;
 	const struct device *dev_walker;
 
 	/* The Micrel driver has a deprecated option to place phy OF
@@ -711,8 +710,7 @@ static int ksz9031_config_rgmii_delay(struct phy_device *phydev)
 
 static int ksz9031_config_init(struct phy_device *phydev)
 {
-	const struct device *dev = &phydev->mdio.dev;
-	const struct device_node *of_node = dev->of_node;
+	const struct device_node *of_node;
 	static const char *clk_skews[2] = {"rxc-skew-ps", "txc-skew-ps"};
 	static const char *rx_data_skews[4] = {
 		"rxd0-skew-ps", "rxd1-skew-ps",
@@ -907,8 +905,7 @@ static int ksz9131_config_rgmii_delay(struct phy_device *phydev)
 
 static int ksz9131_config_init(struct phy_device *phydev)
 {
-	const struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_node *of_node;
 	char *clk_skews[2] = {"rxc-skew-psec", "txc-skew-psec"};
 	char *rx_data_skews[4] = {
 		"rxd0-skew-psec", "rxd1-skew-psec",
