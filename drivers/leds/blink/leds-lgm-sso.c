@@ -7,7 +7,8 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
@@ -422,7 +423,7 @@ static void sso_gpio_free(struct gpio_chip *chip, unsigned int offset)
 
 static int sso_gpio_get_dir(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int
