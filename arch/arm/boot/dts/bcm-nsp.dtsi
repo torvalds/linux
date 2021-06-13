@@ -370,6 +370,35 @@
 			#address-cells = <1>;
 		};
 
+		mdio-mux@32000 {
+			compatible = "mdio-mux-mmioreg";
+			reg = <0x32000 0x4>;
+			mux-mask = <0x200>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mdio-parent-bus = <&mdio>;
+
+			mdio_int: mdio@0 {
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb3_phy: usb3-phy@10 {
+					compatible = "brcm,ns-bx-usb3-phy";
+					reg = <0x10>;
+					usb3-dmp-syscon = <&usb3_dmp>;
+					#phy-cells = <0>;
+					status = "disabled";
+				};
+			};
+
+			mdio_ext: mdio@200 {
+				reg = <0x200>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		rng: rng@33000 {
 			compatible = "brcm,bcm-nsp-rng";
 			reg = <0x33000 0x14>;
@@ -528,13 +557,8 @@
 			};
 		};
 
-		usb3_phy: usb3-phy@104000 {
-			compatible = "brcm,ns-bx-usb3-phy";
-			reg = <0x104000 0x1000>,
-			      <0x032000 0x1000>;
-			reg-names = "dmp", "ccb-mii";
-			#phy-cells = <0>;
-			status = "disabled";
+		usb3_dmp: syscon@104000 {
+			reg = <0x104000 0x1000>;
 		};
 	};
 
