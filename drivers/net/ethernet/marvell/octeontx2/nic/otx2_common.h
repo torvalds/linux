@@ -267,24 +267,26 @@ struct otx2_mac_table {
 
 struct otx2_flow_config {
 	u16			entry[NPC_MAX_NONCONTIG_ENTRIES];
-	u32			nr_flows;
-#define OTX2_MAX_NTUPLE_FLOWS	32
-#define OTX2_MAX_UNICAST_FLOWS	8
-#define OTX2_MAX_VLAN_FLOWS	1
-#define OTX2_MAX_TC_FLOWS	OTX2_MAX_NTUPLE_FLOWS
-#define OTX2_MCAM_COUNT		(OTX2_MAX_NTUPLE_FLOWS + \
+	u16			*flow_ent;
+	u16			*def_ent;
+	u16			nr_flows;
+#define OTX2_DEFAULT_FLOWCOUNT		16
+#define OTX2_MAX_UNICAST_FLOWS		8
+#define OTX2_MAX_VLAN_FLOWS		1
+#define OTX2_MAX_TC_FLOWS	OTX2_DEFAULT_FLOWCOUNT
+#define OTX2_MCAM_COUNT		(OTX2_DEFAULT_FLOWCOUNT + \
 				 OTX2_MAX_UNICAST_FLOWS + \
 				 OTX2_MAX_VLAN_FLOWS)
-	u32			ntuple_offset;
-	u32			unicast_offset;
-	u32			rx_vlan_offset;
-	u32			vf_vlan_offset;
-#define OTX2_PER_VF_VLAN_FLOWS	2 /* rx+tx per VF */
+	u16			ntuple_offset;
+	u16			unicast_offset;
+	u16			rx_vlan_offset;
+	u16			vf_vlan_offset;
+#define OTX2_PER_VF_VLAN_FLOWS	2 /* Rx + Tx per VF */
 #define OTX2_VF_VLAN_RX_INDEX	0
 #define OTX2_VF_VLAN_TX_INDEX	1
-	u32			tc_flower_offset;
-	u32                     ntuple_max_flows;
-	u32			tc_max_flows;
+	u16			tc_flower_offset;
+	u16                     ntuple_max_flows;
+	u16			tc_max_flows;
 	struct list_head	flow_list;
 };
 

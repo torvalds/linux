@@ -2537,8 +2537,11 @@ int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
 	rsp->free_count = 0;
 
 	/* Check if ref_entry is within range */
-	if (req->priority && req->ref_entry >= mcam->bmap_entries)
+	if (req->priority && req->ref_entry >= mcam->bmap_entries) {
+		dev_err(rvu->dev, "%s: reference entry %d is out of range\n",
+			__func__, req->ref_entry);
 		return NPC_MCAM_INVALID_REQ;
+	}
 
 	/* ref_entry can't be '0' if requested priority is high.
 	 * Can't be last entry if requested priority is low.
@@ -2551,8 +2554,12 @@ int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
 	/* Since list of allocated indices needs to be sent to requester,
 	 * max number of non-contiguous entries per mbox msg is limited.
 	 */
-	if (!req->contig && req->count > NPC_MAX_NONCONTIG_ENTRIES)
+	if (!req->contig && req->count > NPC_MAX_NONCONTIG_ENTRIES) {
+		dev_err(rvu->dev,
+			"%s: %d Non-contiguous MCAM entries requested is morethan max (%d) allowed\n",
+			__func__, req->count, NPC_MAX_NONCONTIG_ENTRIES);
 		return NPC_MCAM_INVALID_REQ;
+	}
 
 	/* Alloc request from PFFUNC with no NIXLF attached should be denied */
 	if (!is_nixlf_attached(rvu, pcifunc))
