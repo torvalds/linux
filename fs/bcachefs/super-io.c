@@ -684,7 +684,7 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 
 	sb->offset = sb->layout.sb_offset[idx];
 
-	SET_BCH_SB_CSUM_TYPE(sb, c->opts.metadata_checksum);
+	SET_BCH_SB_CSUM_TYPE(sb, bch2_csum_opt_to_type(c->opts.metadata_checksum, false));
 	sb->csum = csum_vstruct(c, BCH_SB_CSUM_TYPE(sb),
 				null_nonce(), sb);
 
