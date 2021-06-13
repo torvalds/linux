@@ -363,6 +363,13 @@
 			status = "disabled";
 		};
 
+		mdio: mdio@32000 {
+			compatible = "brcm,iproc-mdio";
+			reg = <0x32000 0x8>;
+			#size-cells = <0>;
+			#address-cells = <1>;
+		};
+
 		rng: rng@33000 {
 			compatible = "brcm,bcm-nsp-rng";
 			reg = <0x33000 0x14>;
