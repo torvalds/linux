@@ -507,7 +507,7 @@ static void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
 
 	for (j = 0; j < 2; j++) {
 		if (!j) {
-			offset = 0;
+			offset = adc->base;
 			pr_debug("ADC SDAM DUMP\n");
 		} else {
 			if (adc->debug_base)
@@ -518,7 +518,7 @@ static void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
 		}
 
 		for (i = 0; i < ADC_SDAM_REG_DUMP; i++) {
-			rc = adc5_read(adc, offset, buf, sizeof(buf));
+			rc = regmap_bulk_read(adc->regmap, offset, buf, sizeof(buf));
 			if (rc < 0) {
 				pr_err("debug register dump failed\n");
 				return;
