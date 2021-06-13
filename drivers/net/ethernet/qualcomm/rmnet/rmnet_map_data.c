@@ -153,6 +153,14 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	priv->stats.csum_ok++;
 	return 0;
 }
+#else
+static int
+rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
+			       struct rmnet_map_dl_csum_trailer *csum_trailer,
+			       struct rmnet_priv *priv)
+{
+	return 0;
+}
 #endif
 
 static void rmnet_map_complement_ipv4_txporthdr_csum_field(void *iphdr)
@@ -222,6 +230,13 @@ rmnet_map_ipv6_ul_csum_header(struct ipv6hdr *ipv6hdr,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	rmnet_map_complement_ipv6_txporthdr_csum_field(ipv6hdr);
+}
+#else
+static void
+rmnet_map_ipv6_ul_csum_header(void *ip6hdr,
+			      struct rmnet_map_ul_csum_header *ul_header,
+			      struct sk_buff *skb)
+{
 }
 #endif
 
