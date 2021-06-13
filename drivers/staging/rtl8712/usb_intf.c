@@ -379,13 +379,11 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 3.
 	 * initialize the dvobj_priv
 	 */
-	if (!padapter->dvobj_init) {
+
+	status = padapter->dvobj_init(padapter);
+	if (status != _SUCCESS)
 		goto error;
-	} else {
-		status = padapter->dvobj_init(padapter);
-		if (status != _SUCCESS)
-			goto error;
-	}
+
 	/* step 4. */
 	status = r8712_init_drv_sw(padapter);
 	if (status)
