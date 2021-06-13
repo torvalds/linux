@@ -181,18 +181,6 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config OMAP_PACKAGE_CBC
-       bool
-
-config OMAP_PACKAGE_CBB
-       bool
-
-config OMAP_PACKAGE_CUS
-       bool
-
-config OMAP_PACKAGE_CBP
-       bool
-
 comment "OMAP Legacy Platform Data Board Type"
 	depends on ARCH_OMAP2PLUS
 
