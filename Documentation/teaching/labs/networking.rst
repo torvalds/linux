@@ -45,9 +45,9 @@ possible to implement the TCP/IP stack in user space using raw sockets (the
 layer protocol in kernel (`TUX web server
 <http://en.wikipedia.org/wiki/TUX_web_server>`_).
 
-For more details about user space programming using sockets, see `Bee's Guide to
+For more details about user space programming using sockets, see `Beej's Guide to
 Network Programming Using Internet
-Sockets <http://www.beej.us/guide/bgnet/output/html/multipage/>`_.
+Sockets <https://www.beej.us/guide/bgnet/>`_.
 
 Linux networking
 ================
@@ -968,7 +968,7 @@ Further reading
 
 .. _Linux IP networking: http://www.cs.unh.edu/cnrg/gherrin/
 .. _The TUX Web Server: http://www.stllinux.org/meeting_notes/2001/0719/myTUX/
-.. _Beej's Guide to Network Programming Using Internet Sockets: http://beej.us/net2/bgnet.html
+.. _Beej's Guide to Network Programming Using Internet Sockets: https://www.beej.us/guide/bgnet/
 .. _Kernel Korner - Network Programming in the Kernel: http://www.linuxjournal.com/article/7660
 .. _Hacking the Linux Kernel Network Stack: http://phrack.org/issues/61/13.html
 .. _The netfilter.org project: http://www.netfilter.org/
