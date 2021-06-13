@@ -7,19 +7,7 @@
 #include <asm/cpufeature.h>
 #include <asm/sysreg.h>
 
-#ifdef CONFIG_ARM64_PTR_AUTH
-/*
- * thread.keys_user.ap* as offset exceeds the #imm offset range
- * so use the base value of ldp as thread.keys_user and offset as
- * thread.keys_user.ap*.
- */
-	.macro __ptrauth_keys_install_user tsk, tmp1, tmp2, tmp3
-	mov	\tmp1, #THREAD_KEYS_USER
-	add	\tmp1, \tsk, \tmp1
-	ldp	\tmp2, \tmp3, [\tmp1, #PTRAUTH_USER_KEY_APIA]
-	msr_s	SYS_APIAKEYLO_EL1, \tmp2
-	msr_s	SYS_APIAKEYHI_EL1, \tmp3
-	.endm
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
 
 	.macro __ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
 	mov	\tmp1, #THREAD_KEYS_KERNEL
@@ -40,6 +28,33 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	__ptrauth_keys_install_kernel_nosync \tsk, \tmp1, \tmp2, \tmp3
 	isb
 alternative_else_nop_endif
+	.endm
+
+#else /* CONFIG_ARM64_PTR_AUTH_KERNEL */
+
+	.macro __ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
+	.endm
+
+	.macro ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
+	.endm
+
+	.macro ptrauth_keys_install_kernel tsk, tmp1, tmp2, tmp3
+	.endm
+
+#endif /* CONFIG_ARM64_PTR_AUTH_KERNEL */
+
+#ifdef CONFIG_ARM64_PTR_AUTH
+/*
+ * thread.keys_user.ap* as offset exceeds the #imm offset range
+ * so use the base value of ldp as thread.keys_user and offset as
+ * thread.keys_user.ap*.
+ */
+	.macro __ptrauth_keys_install_user tsk, tmp1, tmp2, tmp3
+	mov	\tmp1, #THREAD_KEYS_USER
+	add	\tmp1, \tsk, \tmp1
+	ldp	\tmp2, \tmp3, [\tmp1, #PTRAUTH_USER_KEY_APIA]
+	msr_s	SYS_APIAKEYLO_EL1, \tmp2
+	msr_s	SYS_APIAKEYHI_EL1, \tmp3
 	.endm
 
 	.macro __ptrauth_keys_init_cpu tsk, tmp1, tmp2, tmp3
@@ -64,15 +79,9 @@ alternative_else_nop_endif
 .Lno_addr_auth\@:
 	.endm
 
-#else /* CONFIG_ARM64_PTR_AUTH */
+#else /* !CONFIG_ARM64_PTR_AUTH */
 
 	.macro ptrauth_keys_install_user tsk, tmp1, tmp2, tmp3
-	.endm
-
-	.macro ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
-	.endm
-
-	.macro ptrauth_keys_install_kernel tsk, tmp1, tmp2, tmp3
 	.endm
 
 #endif /* CONFIG_ARM64_PTR_AUTH */

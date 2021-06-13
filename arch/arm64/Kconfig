@@ -1503,7 +1503,7 @@ config ARM64_PTR_AUTH
 	  not be selected.
 
 config ARM64_PTR_AUTH_KERNEL
-	bool
+	bool "Use pointer authentication for kernel"
 	default y
 	depends on ARM64_PTR_AUTH
 	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_PAC
