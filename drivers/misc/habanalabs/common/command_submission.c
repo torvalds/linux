@@ -663,6 +663,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
 	cs->timeout_jiffies = timeout;
 	cs->skip_reset_on_timeout =
+		hdev->skip_reset_on_timeout ||
 		!!(flags & HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT);
 	cs->submission_time_jiffies = jiffies;
 	INIT_LIST_HEAD(&cs->job_list);

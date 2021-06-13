@@ -2191,6 +2191,8 @@ struct hl_mmu_funcs {
  * @supports_staged_submission: true if staged submissions are supported
  * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
  *                    triggered, and cleared after it is shared with preboot.
+ * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
+ *                         complete instead.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2305,6 +2307,7 @@ struct hl_device {
 	u8				device_fini_pending;
 	u8				supports_staged_submission;
 	u8				curr_reset_cause;
+	u8				skip_reset_on_timeout;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
