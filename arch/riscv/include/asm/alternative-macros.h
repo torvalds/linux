@@ -51,7 +51,7 @@
 	REG_ASM " " newlen "\n" \
 	".word " errata_id "\n"
 
-#define ALT_NEW_CONSTENT(vendor_id, errata_id, enable, new_c) \
+#define ALT_NEW_CONTENT(vendor_id, errata_id, enable, new_c) \
 	".if " __stringify(enable) " == 1\n"				\
 	".pushsection .alternative, \"a\"\n"				\
 	ALT_ENTRY("886b", "888f", __stringify(vendor_id), __stringify(errata_id), "889f - 888f") \
@@ -69,7 +69,7 @@
 	"886 :\n"	\
 	old_c "\n"	\
 	"887 :\n"	\
-	ALT_NEW_CONSTENT(vendor_id, errata_id, enable, new_c)
+	ALT_NEW_CONTENT(vendor_id, errata_id, enable, new_c)
 
 #define _ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, CONFIG_k)	\
 	__ALTERNATIVE_CFG(old_c, new_c, vendor_id, errata_id, IS_ENABLED(CONFIG_k))
