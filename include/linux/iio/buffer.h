@@ -38,6 +38,10 @@ static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
 	return iio_push_to_buffers(indio_dev, data);
 }
 
+int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
+					  const void *data, size_t data_sz,
+					  int64_t timestamp);
+
 bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 				   const unsigned long *mask);
 

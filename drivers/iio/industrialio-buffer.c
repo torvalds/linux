@@ -1732,6 +1732,52 @@ int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data)
 EXPORT_SYMBOL_GPL(iio_push_to_buffers);
 
 /**
+ * iio_push_to_buffers_with_ts_unaligned() - push to registered buffer,
+ *    no alignment or space requirements.
+ * @indio_dev:		iio_dev structure for device.
+ * @data:		channel data excluding the timestamp.
+ * @data_sz:		size of data.
+ * @timestamp:		timestamp for the sample data.
+ *
+ * This special variant of iio_push_to_buffers_with_timestamp() does
+ * not require space for the timestamp, or 8 byte alignment of data.
+ * It does however require an allocation on first call and additional
+ * copies on all calls, so should be avoided if possible.
+ */
+int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
+					  const void *data,
+					  size_t data_sz,
+					  int64_t timestamp)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	/*
+	 * Conservative estimate - we can always safely copy the minimum
+	 * of either the data provided or the length of the destination buffer.
+	 * This relaxed limit allows the calling drivers to be lax about
+	 * tracking the size of the data they are pushing, at the cost of
+	 * unnecessary copying of padding.
+	 */
+	data_sz = min_t(size_t, indio_dev->scan_bytes, data_sz);
+	if (iio_dev_opaque->bounce_buffer_size !=  indio_dev->scan_bytes) {
+		void *bb;
+
+		bb = devm_krealloc(&indio_dev->dev,
+				   iio_dev_opaque->bounce_buffer,
+				   indio_dev->scan_bytes, GFP_KERNEL);
+		if (!bb)
+			return -ENOMEM;
+		iio_dev_opaque->bounce_buffer = bb;
+		iio_dev_opaque->bounce_buffer_size = indio_dev->scan_bytes;
+	}
+	memcpy(iio_dev_opaque->bounce_buffer, data, data_sz);
+	return iio_push_to_buffers_with_timestamp(indio_dev,
+						  iio_dev_opaque->bounce_buffer,
+						  timestamp);
+}
+EXPORT_SYMBOL_GPL(iio_push_to_buffers_with_ts_unaligned);
+
+/**
  * iio_buffer_release() - Free a buffer's resources
  * @ref: Pointer to the kref embedded in the iio_buffer struct
  *
