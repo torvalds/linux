@@ -2312,9 +2312,11 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 {
 	struct btree_iter *iter;
 
-	trans_for_each_iter(trans, iter)
+	trans_for_each_iter(trans, iter) {
 		iter->flags &= ~(BTREE_ITER_KEEP_UNTIL_COMMIT|
 				 BTREE_ITER_SET_POS_AFTER_COMMIT);
+		iter->should_be_locked = false;
+	}
 
 	bch2_trans_unlink_iters(trans);
 
