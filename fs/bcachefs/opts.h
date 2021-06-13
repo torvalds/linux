@@ -173,6 +173,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH_SB_SHARD_INUMS,		false,				\
 	  NULL,		"Shard new inode numbers by CPU id")		\
+	x(inodes_use_key_cache,	u8,					\
+	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_BOOL(),							\
+	  BCH_SB_INODES_USE_KEY_CACHE,	true,				\
+	  NULL,		"Use the btree key cache for the inodes btree")	\
 	x(gc_reserve_percent,		u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
 	  OPT_UINT(5, 21),						\

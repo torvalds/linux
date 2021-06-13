@@ -300,8 +300,10 @@ struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, inum),
-				   BTREE_ITER_CACHED|flags);
+	if (trans->c->opts.inodes_use_key_cache)
+		flags |= BTREE_ITER_CACHED;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, inum), flags);
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -577,7 +579,11 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 	struct bpos end = POS(inode_nr + 1, 0);
 	struct bch_inode_unpacked inode_u;
 	struct bkey_s_c k;
+	unsigned iter_flags = BTREE_ITER_INTENT;
 	int ret;
+
+	if (cached && c->opts.inodes_use_key_cache)
+		iter_flags |= BTREE_ITER_CACHED;
 
 	bch2_trans_init(&trans, c, 0, 1024);
 
@@ -600,11 +606,8 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 retry:
 	bch2_trans_begin(&trans);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
-				   (cached
-				    ? BTREE_ITER_CACHED
-				    : BTREE_ITER_SLOTS)|
-				   BTREE_ITER_INTENT);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes,
+				   POS(0, inode_nr), iter_flags);
 	k = bch2_btree_iter_peek_slot(iter);
 
 	ret = bkey_err(k);
