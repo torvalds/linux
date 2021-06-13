@@ -362,18 +362,14 @@
 	status = "okay";
 };
 
-&pon {
-	pwrkey {
-		status = "okay";
-	};
+&pon_pwrkey {
+	status = "okay";
+};
 
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <0x0 0x8 0x1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pon_resin {
+	status = "okay";
+
+	linux,code = <KEY_VOLUMEDOWN>;
 };
 
 &qupv3_id_1 {
