@@ -361,7 +361,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 1. */
 	pnetdev = r8712_init_netdev();
 	if (!pnetdev)
-		goto error;
+		goto put_dev;
 	padapter = netdev_priv(pnetdev);
 	disable_ht_for_spec_devid(pdid, padapter);
 	pdvobjpriv = &padapter->dvobjpriv;
@@ -381,16 +381,16 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	 * initialize the dvobj_priv
 	 */
 	if (!padapter->dvobj_init) {
-		goto error;
+		goto put_dev;
 	} else {
 		status = padapter->dvobj_init(padapter);
 		if (status != _SUCCESS)
-			goto error;
+			goto free_netdev;
 	}
 	/* step 4. */
 	status = r8712_init_drv_sw(padapter);
 	if (status)
-		goto error;
+		goto dvobj_deinit;
 	/* step 5. read efuse/eeprom data and get mac_addr */
 	{
 		int i, offset;
@@ -570,17 +570,20 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	}
 	/* step 6. Load the firmware asynchronously */
 	if (rtl871x_load_fw(padapter))
-		goto error;
+		goto deinit_drv_sw;
 	spin_lock_init(&padapter->lock_rx_ff0_filter);
 	mutex_init(&padapter->mutex_start);
 	return 0;
-error:
+
+deinit_drv_sw:
+	r8712_free_drv_sw(padapter);
+dvobj_deinit:
+	padapter->dvobj_deinit(padapter);
+free_netdev:
+	free_netdev(pnetdev);
+put_dev:
 	usb_put_dev(udev);
 	usb_set_intfdata(pusb_intf, NULL);
-	if (padapter && padapter->dvobj_deinit)
-		padapter->dvobj_deinit(padapter);
-	if (pnetdev)
-		free_netdev(pnetdev);
 	return -ENODEV;
 }
 
@@ -612,6 +615,7 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		r8712_stop_drv_timers(padapter);
 		r871x_dev_unload(padapter);
 		r8712_free_drv_sw(padapter);
+		free_netdev(pnetdev);
 
 		/* decrease the reference count of the usb device structure
 		 * when disconnect
