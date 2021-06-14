@@ -1572,21 +1572,12 @@ static void destroy_con(struct rtrs_clt_con *con)
 static int create_con_cq_qp(struct rtrs_clt_con *con)
 {
 	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
-	u32 max_send_wr, max_recv_wr, cq_num, max_send_sge;
+	u32 max_send_wr, max_recv_wr, cq_num, max_send_sge, wr_limit;
 	int err, cq_vector;
 	struct rtrs_msg_rkey_rsp *rsp;
 
 	lockdep_assert_held(&con->con_mutex);
 	if (con->c.cid == 0) {
-		/*
-		 * Two (request + registration) completion for send
-		 * Two for recv if always_invalidate is set on server
-		 * or one for recv.
-		 * + 2 for drain and heartbeat
-		 * in case qp gets into error state.
-		 */
-		max_send_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
-		max_recv_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
 		max_send_sge = 1;
 		/* We must be the first here */
 		if (WARN_ON(sess->s.dev))
@@ -1606,6 +1597,17 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 		}
 		sess->s.dev_ref = 1;
 		query_fast_reg_mode(sess);
+		wr_limit = sess->s.dev->ib_dev->attrs.max_qp_wr;
+		/*
+		 * Two (request + registration) completion for send
+		 * Two for recv if always_invalidate is set on server
+		 * or one for recv.
+		 * + 2 for drain and heartbeat
+		 * in case qp gets into error state.
+		 */
+		max_send_wr =
+			min_t(int, wr_limit, SERVICE_CON_QUEUE_DEPTH * 2 + 2);
+		max_recv_wr = max_send_wr;
 	} else {
 		/*
 		 * Here we assume that session members are correctly set.
@@ -1617,14 +1619,13 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 		if (WARN_ON(!sess->queue_depth))
 			return -EINVAL;
 
+		wr_limit = sess->s.dev->ib_dev->attrs.max_qp_wr;
 		/* Shared between connections */
 		sess->s.dev_ref++;
-		max_send_wr =
-			min_t(int, sess->s.dev->ib_dev->attrs.max_qp_wr,
+		max_send_wr = min_t(int, wr_limit,
 			      /* QD * (REQ + RSP + FR REGS or INVS) + drain */
 			      sess->queue_depth * 3 + 1);
-		max_recv_wr =
-			min_t(int, sess->s.dev->ib_dev->attrs.max_qp_wr,
+		max_recv_wr = min_t(int, wr_limit,
 			      sess->queue_depth * 3 + 1);
 		max_send_sge = sess->clt->max_segments + 1;
 	}

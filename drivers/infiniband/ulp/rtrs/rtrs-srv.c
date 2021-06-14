@@ -1649,22 +1649,17 @@ static int create_con(struct rtrs_srv_sess *sess,
 	con->c.sess = &sess->s;
 	con->c.cid = cid;
 	atomic_set(&con->wr_cnt, 1);
+	wr_limit = sess->s.dev->ib_dev->attrs.max_qp_wr;
 
 	if (con->c.cid == 0) {
 		/*
 		 * All receive and all send (each requiring invalidate)
 		 * + 2 for drain and heartbeat
 		 */
-		max_send_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
-		max_recv_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
+		max_send_wr = min_t(int, wr_limit,
+				    SERVICE_CON_QUEUE_DEPTH * 2 + 2);
+		max_recv_wr = max_send_wr;
 	} else {
-		/*
-		 * In theory we might have queue_depth * 32
-		 * outstanding requests if an unsafe global key is used
-		 * and we have queue_depth read requests each consisting
-		 * of 32 different addresses. div 3 for mlx5.
-		 */
-		wr_limit = sess->s.dev->ib_dev->attrs.max_qp_wr / 3;
 		/* when always_invlaidate enalbed, we need linv+rinv+mr+imm */
 		if (always_invalidate)
 			max_send_wr =
