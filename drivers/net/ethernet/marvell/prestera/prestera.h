@@ -170,6 +170,7 @@ struct prestera_event {
 
 struct prestera_switchdev;
 struct prestera_rxtx;
+struct prestera_trap_data;
 
 struct prestera_switch {
 	struct prestera_device *dev;
@@ -177,6 +178,7 @@ struct prestera_switch {
 	struct prestera_rxtx *rxtx;
 	struct list_head event_handlers;
 	struct notifier_block netdev_nb;
+	struct prestera_trap_data *trap_data;
 	char base_mac[ETH_ALEN];
 	struct list_head port_list;
 	rwlock_t port_list_lock;
