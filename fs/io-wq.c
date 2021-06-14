@@ -109,8 +109,6 @@ struct io_wq {
 
 	struct io_wq_hash *hash;
 
-	refcount_t refs;
-
 	atomic_t worker_refs;
 	struct completion worker_done;
 
@@ -949,7 +947,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	}
 
 	wq->task = get_task_struct(data->task);
-	refcount_set(&wq->refs, 1);
 	atomic_set(&wq->worker_refs, 1);
 	init_completion(&wq->worker_done);
 	return wq;
@@ -1038,8 +1035,7 @@ void io_wq_put_and_exit(struct io_wq *wq)
 	WARN_ON_ONCE(!test_bit(IO_WQ_BIT_EXIT, &wq->state));
 
 	io_wq_exit_workers(wq);
-	if (refcount_dec_and_test(&wq->refs))
-		io_wq_destroy(wq);
+	io_wq_destroy(wq);
 }
 
 static bool io_wq_worker_affinity(struct io_worker *worker, void *data)
