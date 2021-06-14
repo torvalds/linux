@@ -188,6 +188,8 @@ struct cal_dev {
 	struct media_device	mdev;
 	struct v4l2_device	v4l2_dev;
 	struct v4l2_async_notifier notifier;
+
+	unsigned long		reserved_pix_proc_mask;
 };
 
 /*
