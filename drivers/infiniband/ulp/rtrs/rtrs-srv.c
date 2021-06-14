@@ -1634,7 +1634,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 	struct rtrs_sess *s = &sess->s;
 	struct rtrs_srv_con *con;
 
-	u32 cq_size, max_send_wr, max_recv_wr, wr_limit;
+	u32 cq_num, max_send_wr, max_recv_wr, wr_limit;
 	int err, cq_vector;
 
 	con = kzalloc(sizeof(*con), GFP_KERNEL);
@@ -1657,7 +1657,6 @@ static int create_con(struct rtrs_srv_sess *sess,
 		 */
 		max_send_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
 		max_recv_wr = SERVICE_CON_QUEUE_DEPTH * 2 + 2;
-		cq_size = max_send_wr + max_recv_wr;
 	} else {
 		/*
 		 * In theory we might have queue_depth * 32
@@ -1683,13 +1682,13 @@ static int create_con(struct rtrs_srv_sess *sess,
 		 * requires an invalidate request + drain
 		 * and qp gets into error state.
 		 */
-		cq_size = max_send_wr + max_recv_wr;
 	}
+	cq_num = max_send_wr + max_recv_wr;
 	atomic_set(&con->sq_wr_avail, max_send_wr);
 	cq_vector = rtrs_srv_get_next_cq_vector(sess);
 
 	/* TODO: SOFTIRQ can be faster, but be careful with softirq context */
-	err = rtrs_cq_qp_create(&sess->s, &con->c, 1, cq_vector, cq_size,
+	err = rtrs_cq_qp_create(&sess->s, &con->c, 1, cq_vector, cq_num,
 				 max_send_wr, max_recv_wr,
 				 IB_POLL_WORKQUEUE);
 	if (err) {

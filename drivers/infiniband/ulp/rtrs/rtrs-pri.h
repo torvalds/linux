@@ -95,7 +95,7 @@ struct rtrs_con {
 	struct ib_cq		*cq;
 	struct rdma_cm_id	*cm_id;
 	unsigned int		cid;
-	u16                     cq_size;
+	int                     nr_cqe;
 };
 
 struct rtrs_sess {
@@ -294,10 +294,10 @@ struct rtrs_msg_rdma_hdr {
 
 /* rtrs.c */
 
-struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t t,
+struct rtrs_iu *rtrs_iu_alloc(u32 queue_num, size_t size, gfp_t t,
 			      struct ib_device *dev, enum dma_data_direction,
 			      void (*done)(struct ib_cq *cq, struct ib_wc *wc));
-void rtrs_iu_free(struct rtrs_iu *iu, struct ib_device *dev, u32 queue_size);
+void rtrs_iu_free(struct rtrs_iu *iu, struct ib_device *dev, u32 queue_num);
 int rtrs_iu_post_recv(struct rtrs_con *con, struct rtrs_iu *iu);
 int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		      struct ib_send_wr *head);
@@ -312,8 +312,8 @@ int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
 				   u32 imm_data, enum ib_send_flags flags,
 				   struct ib_send_wr *head);
 
-int rtrs_cq_qp_create(struct rtrs_sess *rtrs_sess, struct rtrs_con *con,
-		      u32 max_send_sge, int cq_vector, int cq_size,
+int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
+		      u32 max_send_sge, int cq_vector, int nr_cqe,
 		      u32 max_send_wr, u32 max_recv_wr,
 		      enum ib_poll_context poll_ctx);
 void rtrs_cq_qp_destroy(struct rtrs_con *con);
