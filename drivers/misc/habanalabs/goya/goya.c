@@ -2937,7 +2937,7 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 
 	*dma_handle = hdev->asic_prop.sram_base_address;
 
-	base = (void *) hdev->pcie_bar[SRAM_CFG_BAR_ID];
+	base = (__force void *) hdev->pcie_bar[SRAM_CFG_BAR_ID];
 
 	switch (queue_id) {
 	case GOYA_QUEUE_ID_MME:
