@@ -18,6 +18,7 @@
 #include <linux/micrel_phy.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
+#include <linux/phylink.h>
 
 #include "ksz_common.h"
 #include "ksz8795_reg.h"
@@ -1420,11 +1421,65 @@ static int ksz8_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static void ksz8_validate(struct dsa_switch *ds, int port,
+			  unsigned long *supported,
+			  struct phylink_link_state *state)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	struct ksz_device *dev = ds->priv;
+
+	if (port == dev->cpu_port) {
+		if (state->interface != PHY_INTERFACE_MODE_RMII &&
+		    state->interface != PHY_INTERFACE_MODE_MII &&
+		    state->interface != PHY_INTERFACE_MODE_NA)
+			goto unsupported;
+	} else {
+		if (state->interface != PHY_INTERFACE_MODE_INTERNAL &&
+		    state->interface != PHY_INTERFACE_MODE_NA)
+			goto unsupported;
+	}
+
+	/* Allow all the expected bits */
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+
+	/* Silicon Errata Sheet (DS80000830A):
+	 * "Port 1 does not respond to received flow control PAUSE frames"
+	 * So, disable Pause support on "Port 1" (port == 0) for all ksz88x3
+	 * switches.
+	 */
+	if (!ksz_is_ksz88x3(dev) || port)
+		phylink_set(mask, Pause);
+
+	/* Asym pause is not supported on KSZ8863 and KSZ8873 */
+	if (!ksz_is_ksz88x3(dev))
+		phylink_set(mask, Asym_Pause);
+
+	/* 10M and 100M are only supported */
+	phylink_set(mask, 10baseT_Half);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
+	phylink_set(mask, 100baseT_Full);
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	return;
+
+unsupported:
+	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	dev_err(ds->dev, "Unsupported interface: %s, port: %d\n",
+		phy_modes(state->interface), port);
+}
+
 static const struct dsa_switch_ops ksz8_switch_ops = {
 	.get_tag_protocol	= ksz8_get_tag_protocol,
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
+	.phylink_validate	= ksz8_validate,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
 	.get_strings		= ksz8_get_strings,
