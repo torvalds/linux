@@ -416,4 +416,7 @@
 
 &zynqmp_dpsub {
 	status = "okay";
+	phy-names = "dp-phy0", "dp-phy1";
+	phys = <&psgtr 1 PHY_TYPE_DP 0 0>,
+	       <&psgtr 0 PHY_TYPE_DP 1 1>;
 };
