@@ -25,29 +25,31 @@ int kaslr_enabled;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
-	register unsigned long _addr asm("0") = (unsigned long)addr;
-	register unsigned long _rc asm("1") = 0;
 	unsigned long reg1, reg2;
+	union register_pair r1;
 	psw_t old;
 
+	r1.even = (unsigned long) addr;
+	r1.odd	= 0;
 	asm volatile(
 		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%0,%1\n"
-		"	st	%0,0(%[psw_pgm])\n"
-		"	st	%1,4(%[psw_pgm])\n"
-		"	larl	%0,1f\n"
-		"	stg	%0,8(%[psw_pgm])\n"
-		"	diag	%[addr],%[subcode],0x308\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
+		"	diag	%[r1],%[subcode],0x308\n"
 		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: "=&d" (reg1), "=&a" (reg2),
+		: [r1] "+&d" (r1.pair),
+		  [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
 		  "+Q" (S390_lowcore.program_new_psw),
-		  "=Q" (old),
-		  [addr] "+d" (_addr), "+d" (_rc)
+		  "=Q" (old)
 		: [subcode] "d" (subcode),
 		  [psw_old] "a" (&old),
 		  [psw_pgm] "a" (&S390_lowcore.program_new_psw)
 		: "cc", "memory");
-	return _rc;
+	return r1.odd;
 }
 
 void store_ipl_parmblock(void)
