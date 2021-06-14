@@ -55,11 +55,17 @@
 
 /* PHY Control 1 */
 #define MII_KSZPHY_CTRL_1			0x1e
+#define KSZ8081_CTRL1_MDIX_STAT			BIT(4)
 
 /* PHY Control 2 / PHY Control (if no PHY Control 1) */
 #define MII_KSZPHY_CTRL_2			0x1f
 #define MII_KSZPHY_CTRL				MII_KSZPHY_CTRL_2
 /* bitmap of PHY register to set interrupt mode */
+#define KSZ8081_CTRL2_HP_MDIX			BIT(15)
+#define KSZ8081_CTRL2_MDI_MDI_X_SELECT		BIT(14)
+#define KSZ8081_CTRL2_DISABLE_AUTO_MDIX		BIT(13)
+#define KSZ8081_CTRL2_FORCE_LINK		BIT(11)
+#define KSZ8081_CTRL2_POWER_SAVING		BIT(10)
 #define KSZPHY_CTRL_INT_ACTIVE_HIGH		BIT(9)
 #define KSZPHY_RMII_REF_CLK_SEL			BIT(7)
 
@@ -420,6 +426,87 @@ static int ksz8081_config_init(struct phy_device *phydev)
 	phy_clear_bits(phydev, MII_KSZPHY_OMSO, KSZPHY_OMSO_FACTORY_TEST);
 
 	return kszphy_config_init(phydev);
+}
+
+static int ksz8081_config_mdix(struct phy_device *phydev, u8 ctrl)
+{
+	u16 val;
+
+	switch (ctrl) {
+	case ETH_TP_MDI:
+		val = KSZ8081_CTRL2_DISABLE_AUTO_MDIX;
+		break;
+	case ETH_TP_MDI_X:
+		val = KSZ8081_CTRL2_DISABLE_AUTO_MDIX |
+			KSZ8081_CTRL2_MDI_MDI_X_SELECT;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	return phy_modify(phydev, MII_KSZPHY_CTRL_2,
+			  KSZ8081_CTRL2_HP_MDIX |
+			  KSZ8081_CTRL2_MDI_MDI_X_SELECT |
+			  KSZ8081_CTRL2_DISABLE_AUTO_MDIX,
+			  KSZ8081_CTRL2_HP_MDIX | val);
+}
+
+static int ksz8081_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_config_aneg(phydev);
+	if (ret)
+		return ret;
+
+	/* The MDI-X configuration is automatically changed by the PHY after
+	 * switching from autoneg off to on. So, take MDI-X configuration under
+	 * own control and set it after autoneg configuration was done.
+	 */
+	return ksz8081_config_mdix(phydev, phydev->mdix_ctrl);
+}
+
+static int ksz8081_mdix_update(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZPHY_CTRL_2);
+	if (ret < 0)
+		return ret;
+
+	if (ret & KSZ8081_CTRL2_DISABLE_AUTO_MDIX) {
+		if (ret & KSZ8081_CTRL2_MDI_MDI_X_SELECT)
+			phydev->mdix_ctrl = ETH_TP_MDI_X;
+		else
+			phydev->mdix_ctrl = ETH_TP_MDI;
+	} else {
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	}
+
+	ret = phy_read(phydev, MII_KSZPHY_CTRL_1);
+	if (ret < 0)
+		return ret;
+
+	if (ret & KSZ8081_CTRL1_MDIX_STAT)
+		phydev->mdix = ETH_TP_MDI;
+	else
+		phydev->mdix = ETH_TP_MDI_X;
+
+	return 0;
+}
+
+static int ksz8081_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz8081_mdix_update(phydev);
+	if (ret < 0)
+		return ret;
+
+	return genphy_read_status(phydev);
 }
 
 static int ksz8061_config_init(struct phy_device *phydev)
@@ -1387,6 +1474,8 @@ static struct phy_driver ksphy_driver[] = {
 	.probe		= kszphy_probe,
 	.config_init	= ksz8081_config_init,
 	.soft_reset	= genphy_soft_reset,
+	.config_aneg	= ksz8081_config_aneg,
+	.read_status	= ksz8081_read_status,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.get_sset_count = kszphy_get_sset_count,
