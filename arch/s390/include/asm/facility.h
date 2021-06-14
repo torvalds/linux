@@ -64,13 +64,15 @@ static inline int test_facility(unsigned long nr)
 
 static inline unsigned long __stfle_asm(u64 *stfle_fac_list, int size)
 {
-	register unsigned long reg0 asm("0") = size - 1;
+	unsigned long reg0 = size - 1;
 
 	asm volatile(
-		".insn s,0xb2b00000,0(%1)" /* stfle */
-		: "+d" (reg0)
-		: "a" (stfle_fac_list)
-		: "memory", "cc");
+		"	lgr	0,%[reg0]\n"
+		"	.insn	s,0xb2b00000,%[list]\n" /* stfle */
+		"	lgr	%[reg0],0\n"
+		: [reg0] "+&d" (reg0), [list] "+Q" (*stfle_fac_list)
+		:
+		: "memory", "cc", "0");
 	return reg0;
 }
 
