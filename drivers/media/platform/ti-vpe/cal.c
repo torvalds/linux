@@ -635,20 +635,20 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 	int pad;
 	int ret;
 
-	if (phy->sensor) {
+	if (phy->source) {
 		phy_info(phy, "Rejecting subdev %s (Already set!!)",
 			 subdev->name);
 		return 0;
 	}
 
-	phy->sensor = subdev;
-	phy_dbg(1, phy, "Using sensor %s for capture\n", subdev->name);
+	phy->source = subdev;
+	phy_dbg(1, phy, "Using source %s for capture\n", subdev->name);
 
 	pad = media_entity_get_fwnode_pad(&subdev->entity,
-					  of_fwnode_handle(phy->sensor_ep_node),
+					  of_fwnode_handle(phy->source_ep_node),
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
-		phy_err(phy, "Sensor %s has no connected source pad\n",
+		phy_err(phy, "Source %s has no connected source pad\n",
 			subdev->name);
 		return pad;
 	}
@@ -658,7 +658,7 @@ static int cal_async_notifier_bound(struct v4l2_async_notifier *notifier,
 				    MEDIA_LNK_FL_IMMUTABLE |
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret) {
-		phy_err(phy, "Failed to create media link for sensor %s\n",
+		phy_err(phy, "Failed to create media link for source %s\n",
 			subdev->name);
 		return ret;
 	}
@@ -701,10 +701,10 @@ static int cal_async_notifier_register(struct cal_dev *cal)
 		struct cal_v4l2_async_subdev *casd;
 		struct fwnode_handle *fwnode;
 
-		if (!phy->sensor_node)
+		if (!phy->source_node)
 			continue;
 
-		fwnode = of_fwnode_handle(phy->sensor_node);
+		fwnode = of_fwnode_handle(phy->source_node);
 		casd = v4l2_async_notifier_add_fwnode_subdev(&cal->notifier,
 							     fwnode,
 							     struct cal_v4l2_async_subdev);
@@ -1045,7 +1045,7 @@ static int cal_probe(struct platform_device *pdev)
 			goto error_camerarx;
 		}
 
-		if (cal->phy[i]->sensor_node)
+		if (cal->phy[i]->source_node)
 			connected = true;
 	}
 
@@ -1057,7 +1057,7 @@ static int cal_probe(struct platform_device *pdev)
 
 	/* Create contexts. */
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
-		if (!cal->phy[i]->sensor_node)
+		if (!cal->phy[i]->source_node)
 			continue;
 
 		cal->ctx[i] = cal_ctx_create(cal, i);

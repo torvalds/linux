@@ -50,15 +50,15 @@ static s64 cal_camerarx_get_external_rate(struct cal_camerarx *phy)
 	struct v4l2_ctrl *ctrl;
 	s64 rate;
 
-	ctrl = v4l2_ctrl_find(phy->sensor->ctrl_handler, V4L2_CID_PIXEL_RATE);
+	ctrl = v4l2_ctrl_find(phy->source->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
 		phy_err(phy, "no pixel rate control in subdev: %s\n",
-			phy->sensor->name);
+			phy->source->name);
 		return -EPIPE;
 	}
 
 	rate = v4l2_ctrl_g_ctrl_int64(ctrl);
-	phy_dbg(3, phy, "sensor Pixel Rate: %llu\n", rate);
+	phy_dbg(3, phy, "Source Pixel Rate: %llu\n", rate);
 
 	return rate;
 }
@@ -279,7 +279,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	if (external_rate < 0)
 		return external_rate;
 
-	ret = v4l2_subdev_call(phy->sensor, core, s_power, 1);
+	ret = v4l2_subdev_call(phy->source, core, s_power, 1);
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV) {
 		phy_err(phy, "power on failed in subdev\n");
 		return ret;
@@ -311,7 +311,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	 * 2. CSI PHY and link initialization sequence.
 	 *
 	 *    a. Deassert the CSI-2 PHY reset. Do not wait for reset completion
-	 *       at this point, as it requires the external sensor to send the
+	 *       at this point, as it requires the external source to send the
 	 *       CSI-2 HS clock.
 	 */
 	cal_write_field(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance),
@@ -370,12 +370,12 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	cal_camerarx_power(phy, true);
 
 	/*
-	 * Start the sensor to enable the CSI-2 HS clock. We can now wait for
+	 * Start the source to enable the CSI-2 HS clock. We can now wait for
 	 * CSI-2 PHY reset to complete.
 	 */
-	ret = v4l2_subdev_call(phy->sensor, video, s_stream, 1);
+	ret = v4l2_subdev_call(phy->source, video, s_stream, 1);
 	if (ret) {
-		v4l2_subdev_call(phy->sensor, core, s_power, 0);
+		v4l2_subdev_call(phy->source, core, s_power, 0);
 		cal_camerarx_disable_irqs(phy);
 		phy_err(phy, "stream on failed in subdev\n");
 		return ret;
@@ -435,10 +435,10 @@ static void cal_camerarx_stop(struct cal_camerarx *phy)
 	/* Disable the phy */
 	cal_camerarx_disable(phy);
 
-	if (v4l2_subdev_call(phy->sensor, video, s_stream, 0))
+	if (v4l2_subdev_call(phy->source, video, s_stream, 0))
 		phy_err(phy, "stream off failed in subdev\n");
 
-	ret = v4l2_subdev_call(phy->sensor, core, s_power, 0);
+	ret = v4l2_subdev_call(phy->source, core, s_power, 0);
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 		phy_err(phy, "power off failed in subdev\n");
 }
@@ -558,16 +558,16 @@ static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 		endpoint->bus.mipi_csi2.flags);
 
 	/* Retrieve the connected device and store it for later use. */
-	phy->sensor_ep_node = of_graph_get_remote_endpoint(ep_node);
-	phy->sensor_node = of_graph_get_port_parent(phy->sensor_ep_node);
-	if (!phy->sensor_node) {
+	phy->source_ep_node = of_graph_get_remote_endpoint(ep_node);
+	phy->source_node = of_graph_get_port_parent(phy->source_ep_node);
+	if (!phy->source_node) {
 		phy_dbg(3, phy, "Can't get remote parent\n");
-		of_node_put(phy->sensor_ep_node);
+		of_node_put(phy->source_ep_node);
 		ret = -EINVAL;
 		goto done;
 	}
 
-	phy_dbg(1, phy, "Found connected device %pOFn\n", phy->sensor_node);
+	phy_dbg(1, phy, "Found connected device %pOFn\n", phy->source_node);
 
 done:
 	of_node_put(ep_node);
@@ -868,7 +868,7 @@ void cal_camerarx_destroy(struct cal_camerarx *phy)
 
 	v4l2_device_unregister_subdev(&phy->subdev);
 	media_entity_cleanup(&phy->subdev.entity);
-	of_node_put(phy->sensor_ep_node);
-	of_node_put(phy->sensor_node);
+	of_node_put(phy->source_ep_node);
+	of_node_put(phy->source_node);
 	kfree(phy);
 }

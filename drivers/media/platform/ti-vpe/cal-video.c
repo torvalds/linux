@@ -128,7 +128,7 @@ static int __subdev_get_format(struct cal_ctx *ctx,
 	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sd_fmt.pad = 0;
 
-	ret = v4l2_subdev_call(ctx->phy->sensor, pad, get_fmt, NULL, &sd_fmt);
+	ret = v4l2_subdev_call(ctx->phy->source, pad, get_fmt, NULL, &sd_fmt);
 	if (ret)
 		return ret;
 
@@ -151,7 +151,7 @@ static int __subdev_set_format(struct cal_ctx *ctx,
 	sd_fmt.pad = 0;
 	*mbus_fmt = *fmt;
 
-	ret = v4l2_subdev_call(ctx->phy->sensor, pad, set_fmt, NULL, &sd_fmt);
+	ret = v4l2_subdev_call(ctx->phy->source, pad, set_fmt, NULL, &sd_fmt);
 	if (ret)
 		return ret;
 
@@ -216,7 +216,7 @@ static int cal_try_fmt_vid_cap(struct file *file, void *priv,
 	fse.code = fmtinfo->code;
 	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	for (fse.index = 0; ; fse.index++) {
-		ret = v4l2_subdev_call(ctx->phy->sensor, pad, enum_frame_size,
+		ret = v4l2_subdev_call(ctx->phy->source, pad, enum_frame_size,
 				       NULL, &fse);
 		if (ret)
 			break;
@@ -321,7 +321,7 @@ static int cal_enum_framesizes(struct file *file, void *fh,
 	fse.code = fmtinfo->code;
 	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
-	ret = v4l2_subdev_call(ctx->phy->sensor, pad, enum_frame_size, NULL,
+	ret = v4l2_subdev_call(ctx->phy->source, pad, enum_frame_size, NULL,
 			       &fse);
 	if (ret)
 		return ret;
@@ -378,7 +378,7 @@ static int cal_enum_frameintervals(struct file *file, void *priv,
 		return -EINVAL;
 
 	fie.code = fmtinfo->code;
-	ret = v4l2_subdev_call(ctx->phy->sensor, pad, enum_frame_interval,
+	ret = v4l2_subdev_call(ctx->phy->source, pad, enum_frame_interval,
 			       NULL, &fie);
 	if (ret)
 		return ret;
@@ -392,14 +392,14 @@ static int cal_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 
-	return v4l2_g_parm_cap(video_devdata(file), ctx->phy->sensor, a);
+	return v4l2_g_parm_cap(video_devdata(file), ctx->phy->source, a);
 }
 
 static int cal_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 
-	return v4l2_s_parm_cap(video_devdata(file), ctx->phy->sensor, a);
+	return v4l2_s_parm_cap(video_devdata(file), ctx->phy->source, a);
 }
 
 static const struct v4l2_ioctl_ops cal_ioctl_video_ops = {
@@ -801,20 +801,20 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 		memset(&mbus_code, 0, sizeof(mbus_code));
 		mbus_code.index = j;
 		mbus_code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(ctx->phy->sensor, pad, enum_mbus_code,
+		ret = v4l2_subdev_call(ctx->phy->source, pad, enum_mbus_code,
 				       NULL, &mbus_code);
 		if (ret == -EINVAL)
 			break;
 
 		if (ret) {
 			ctx_err(ctx, "Error enumerating mbus codes in subdev %s: %d\n",
-				ctx->phy->sensor->name, ret);
+				ctx->phy->source->name, ret);
 			return ret;
 		}
 
 		ctx_dbg(2, ctx,
 			"subdev %s: code: %04x idx: %u\n",
-			ctx->phy->sensor->name, mbus_code.code, j);
+			ctx->phy->source->name, mbus_code.code, j);
 
 		for (k = 0; k < cal_num_formats; k++) {
 			fmtinfo = &cal_formats[k];
@@ -832,7 +832,7 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 
 	if (i == 0) {
 		ctx_err(ctx, "No suitable format reported by subdev %s\n",
-			ctx->phy->sensor->name);
+			ctx->phy->source->name);
 		return -EINVAL;
 	}
 
@@ -869,10 +869,10 @@ int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 	if (!cal_mc_api) {
 		struct v4l2_ctrl_handler *hdl = &ctx->ctrl_handler;
 
-		ret = v4l2_ctrl_add_handler(hdl, ctx->phy->sensor->ctrl_handler,
+		ret = v4l2_ctrl_add_handler(hdl, ctx->phy->source->ctrl_handler,
 					    NULL, true);
 		if (ret < 0) {
-			ctx_err(ctx, "Failed to add sensor ctrl handler\n");
+			ctx_err(ctx, "Failed to add source ctrl handler\n");
 			return ret;
 		}
 	}

@@ -155,9 +155,9 @@ struct cal_camerarx {
 	unsigned int		instance;
 
 	struct v4l2_fwnode_endpoint	endpoint;
-	struct device_node	*sensor_ep_node;
-	struct device_node	*sensor_node;
-	struct v4l2_subdev	*sensor;
+	struct device_node	*source_ep_node;
+	struct device_node	*source_node;
+	struct v4l2_subdev	*source;
 	struct media_pipeline	pipe;
 
 	struct v4l2_subdev	subdev;
