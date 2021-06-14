@@ -227,8 +227,5 @@ For developer reference, here are all the important structures and APIs:
 .. kernel-doc:: include/linux/pstore_zone.h
    :internal:
 
-.. kernel-doc:: fs/pstore/blk.c
-   :internal:
-
 .. kernel-doc:: include/linux/pstore_blk.h
    :internal:
