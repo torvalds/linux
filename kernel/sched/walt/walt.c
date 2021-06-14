@@ -2373,6 +2373,8 @@ static void add_cluster(const struct cpumask *cpus, struct list_head *head)
 	int i;
 	struct walt_rq *wrq;
 
+	BUG_ON(num_sched_clusters >= MAX_CLUSTERS);
+
 	for_each_cpu(i, cpus) {
 		wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
 		wrq->cluster = cluster;
