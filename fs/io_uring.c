@@ -7161,27 +7161,38 @@ static void io_rsrc_data_free(struct io_rsrc_data *data)
 	kfree(data);
 }
 
-static struct io_rsrc_data *io_rsrc_data_alloc(struct io_ring_ctx *ctx,
-					       rsrc_put_fn *do_put,
-					       unsigned nr)
+static int io_rsrc_data_alloc(struct io_ring_ctx *ctx, rsrc_put_fn *do_put,
+			      u64 __user *utags, unsigned nr,
+			      struct io_rsrc_data **pdata)
 {
 	struct io_rsrc_data *data;
+	unsigned i;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return NULL;
+		return -ENOMEM;
 
 	data->tags = kvcalloc(nr, sizeof(*data->tags), GFP_KERNEL);
 	if (!data->tags) {
 		kfree(data);
-		return NULL;
+		return -ENOMEM;
+	}
+	if (utags) {
+		for (i = 0; i < nr; i++) {
+			if (copy_from_user(&data->tags[i], &utags[i],
+					   sizeof(data->tags[i]))) {
+				io_rsrc_data_free(data);
+				return -EFAULT;
+			}
+		}
 	}
 
 	atomic_set(&data->refs, 1);
 	data->ctx = ctx;
 	data->do_put = do_put;
 	init_completion(&data->done);
-	return data;
+	*pdata = data;
+	return 0;
 }
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -7633,7 +7644,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	struct file *file;
 	int fd, ret;
 	unsigned i;
-	struct io_rsrc_data *file_data;
 
 	if (ctx->file_data)
 		return -EBUSY;
@@ -7644,27 +7654,24 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	ret = io_rsrc_node_switch_start(ctx);
 	if (ret)
 		return ret;
+	ret = io_rsrc_data_alloc(ctx, io_rsrc_file_put, tags, nr_args,
+				 &ctx->file_data);
+	if (ret)
+		return ret;
 
-	file_data = io_rsrc_data_alloc(ctx, io_rsrc_file_put, nr_args);
-	if (!file_data)
-		return -ENOMEM;
-	ctx->file_data = file_data;
 	ret = -ENOMEM;
 	if (!io_alloc_file_tables(&ctx->file_table, nr_args))
 		goto out_free;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
-		u64 tag = 0;
-
-		if ((tags && copy_from_user(&tag, &tags[i], sizeof(tag))) ||
-		    copy_from_user(&fd, &fds[i], sizeof(fd))) {
+		if (copy_from_user(&fd, &fds[i], sizeof(fd))) {
 			ret = -EFAULT;
 			goto out_fput;
 		}
 		/* allow sparse sets */
 		if (fd == -1) {
 			ret = -EINVAL;
-			if (unlikely(tag))
+			if (unlikely(ctx->file_data->tags[i]))
 				goto out_fput;
 			continue;
 		}
@@ -7685,7 +7692,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			fput(file);
 			goto out_fput;
 		}
-		ctx->file_data->tags[i] = tag;
 		io_fixed_file_set(io_fixed_file_slot(&ctx->file_table, i), file);
 	}
 
@@ -8403,9 +8409,9 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	ret = io_rsrc_node_switch_start(ctx);
 	if (ret)
 		return ret;
-	data = io_rsrc_data_alloc(ctx, io_rsrc_buf_put, nr_args);
-	if (!data)
-		return -ENOMEM;
+	ret = io_rsrc_data_alloc(ctx, io_rsrc_buf_put, tags, nr_args, &data);
+	if (ret)
+		return ret;
 	ret = io_buffers_map_alloc(ctx, nr_args);
 	if (ret) {
 		io_rsrc_data_free(data);
@@ -8413,19 +8419,13 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
-		u64 tag = 0;
-
-		if (tags && copy_from_user(&tag, &tags[i], sizeof(tag))) {
-			ret = -EFAULT;
-			break;
-		}
 		ret = io_copy_iov(ctx, &iov, arg, i);
 		if (ret)
 			break;
 		ret = io_buffer_validate(&iov);
 		if (ret)
 			break;
-		if (!iov.iov_base && tag) {
+		if (!iov.iov_base && data->tags[i]) {
 			ret = -EINVAL;
 			break;
 		}
@@ -8434,7 +8434,6 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 					     &last_hpage);
 		if (ret)
 			break;
-		data->tags[i] = tag;
 	}
 
 	WARN_ON_ONCE(ctx->buf_data);
