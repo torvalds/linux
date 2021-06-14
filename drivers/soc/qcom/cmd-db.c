@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2016-2018, 2020, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2016-2018, 2020-2021, The Linux Foundation. All rights reserved. */
 
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
@@ -17,6 +17,7 @@
 #define MAX_SLV_ID		8
 #define SLAVE_ID_MASK		0x7
 #define SLAVE_ID_SHIFT		16
+#define CMD_DB_STANDALONE_MASK BIT(0)
 
 /**
  * struct entry_header: header for each entry in cmddb
@@ -309,6 +310,16 @@ static const struct file_operations cmd_db_debugfs_ops = {
 	.release = single_release,
 };
 
+bool cmd_db_is_standalone(void)
+{
+	int ret = cmd_db_ready();
+	u32 standalone = le32_to_cpu(cmd_db_header->reserved) &
+			 CMD_DB_STANDALONE_MASK;
+
+	return !ret && standalone;
+}
+EXPORT_SYMBOL(cmd_db_is_standalone);
+
 static int cmd_db_dev_probe(struct platform_device *pdev)
 {
 	struct reserved_mem *rmem;
@@ -333,6 +344,9 @@ static int cmd_db_dev_probe(struct platform_device *pdev)
 	}
 
 	debugfs_create_file("cmd-db", 0400, NULL, NULL, &cmd_db_debugfs_ops);
+
+	if (cmd_db_is_standalone())
+		pr_info("Command DB is initialized in standalone mode\n");
 
 	return 0;
 }
