@@ -14,6 +14,7 @@
 #include <linux/jiffies.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/security.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -1069,11 +1070,13 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_probe_read_user:
 		return &bpf_probe_read_user_proto;
 	case BPF_FUNC_probe_read_kernel:
-		return &bpf_probe_read_kernel_proto;
+		return security_locked_down(LOCKDOWN_BPF_READ) < 0 ?
+		       NULL : &bpf_probe_read_kernel_proto;
 	case BPF_FUNC_probe_read_user_str:
 		return &bpf_probe_read_user_str_proto;
 	case BPF_FUNC_probe_read_kernel_str:
-		return &bpf_probe_read_kernel_str_proto;
+		return security_locked_down(LOCKDOWN_BPF_READ) < 0 ?
+		       NULL : &bpf_probe_read_kernel_str_proto;
 	case BPF_FUNC_snprintf_btf:
 		return &bpf_snprintf_btf_proto;
 	case BPF_FUNC_snprintf:

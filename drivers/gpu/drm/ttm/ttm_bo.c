@@ -1172,7 +1172,10 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	if (!ttm_bo_evict_swapout_allowable(bo, ctx, &locked, NULL))
 		return -EBUSY;
 
-	if (!ttm_bo_get_unless_zero(bo)) {
+	if (!bo->ttm || !ttm_tt_is_populated(bo->ttm) ||
+	    bo->ttm->page_flags & TTM_PAGE_FLAG_SG ||
+	    bo->ttm->page_flags & TTM_PAGE_FLAG_SWAPPED ||
+	    !ttm_bo_get_unless_zero(bo)) {
 		if (locked)
 			dma_resv_unlock(bo->base.resv);
 		return -EBUSY;

@@ -975,9 +975,13 @@ static int __die_find_variable_cb(Dwarf_Die *die_mem, void *data)
 	if ((tag == DW_TAG_formal_parameter ||
 	     tag == DW_TAG_variable) &&
 	    die_compare_name(die_mem, fvp->name) &&
-	/* Does the DIE have location information or external instance? */
+	/*
+	 * Does the DIE have location information or const value
+	 * or external instance?
+	 */
 	    (dwarf_attr(die_mem, DW_AT_external, &attr) ||
-	     dwarf_attr(die_mem, DW_AT_location, &attr)))
+	     dwarf_attr(die_mem, DW_AT_location, &attr) ||
+	     dwarf_attr(die_mem, DW_AT_const_value, &attr)))
 		return DIE_FIND_CB_END;
 	if (dwarf_haspc(die_mem, fvp->addr))
 		return DIE_FIND_CB_CONTINUE;

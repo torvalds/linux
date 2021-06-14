@@ -1406,6 +1406,8 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 						die_id = i;
 					else
 						die_id = topology_phys_to_logical_pkg(i);
+					if (die_id < 0)
+						die_id = -ENODEV;
 					map->pbus_to_dieid[bus] = die_id;
 					break;
 				}
@@ -1452,14 +1454,14 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			i = -1;
 			if (reverse) {
 				for (bus = 255; bus >= 0; bus--) {
-					if (map->pbus_to_dieid[bus] >= 0)
+					if (map->pbus_to_dieid[bus] != -1)
 						i = map->pbus_to_dieid[bus];
 					else
 						map->pbus_to_dieid[bus] = i;
 				}
 			} else {
 				for (bus = 0; bus <= 255; bus++) {
-					if (map->pbus_to_dieid[bus] >= 0)
+					if (map->pbus_to_dieid[bus] != -1)
 						i = map->pbus_to_dieid[bus];
 					else
 						map->pbus_to_dieid[bus] = i;
@@ -5097,9 +5099,10 @@ static struct intel_uncore_type icx_uncore_m2m = {
 	.perf_ctr	= SNR_M2M_PCI_PMON_CTR0,
 	.event_ctl	= SNR_M2M_PCI_PMON_CTL0,
 	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,
+	.event_mask_ext	= SNR_M2M_PCI_PMON_UMASK_EXT,
 	.box_ctl	= SNR_M2M_PCI_PMON_BOX_CTL,
 	.ops		= &snr_m2m_uncore_pci_ops,
-	.format_group	= &skx_uncore_format_group,
+	.format_group	= &snr_m2m_uncore_format_group,
 };
 
 static struct attribute *icx_upi_uncore_formats_attr[] = {
