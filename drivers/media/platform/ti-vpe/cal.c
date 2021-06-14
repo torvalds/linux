@@ -430,6 +430,15 @@ static bool cal_ctx_wr_dma_stopped(struct cal_ctx *ctx)
 	return stopped;
 }
 
+int cal_ctx_prepare(struct cal_ctx *ctx)
+{
+	return 0;
+}
+
+void cal_ctx_unprepare(struct cal_ctx *ctx)
+{
+}
+
 void cal_ctx_start(struct cal_ctx *ctx)
 {
 	ctx->sequence = 0;

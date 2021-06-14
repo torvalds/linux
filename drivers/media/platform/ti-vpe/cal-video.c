@@ -708,6 +708,12 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto error_pipeline;
 	}
 
+	ret = cal_ctx_prepare(ctx);
+	if (ret) {
+		ctx_err(ctx, "Failed to prepare context: %d\n", ret);
+		goto error_pipeline;
+	}
+
 	spin_lock_irq(&ctx->dma.lock);
 	buf = list_first_entry(&ctx->dma.queue, struct cal_buffer, list);
 	ctx->dma.pending = buf;
@@ -735,6 +741,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 error_stop:
 	cal_ctx_stop(ctx);
 	pm_runtime_put_sync(ctx->cal->dev);
+	cal_ctx_unprepare(ctx);
 
 error_pipeline:
 	media_pipeline_stop(&ctx->vdev.entity);
@@ -753,6 +760,8 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	v4l2_subdev_call(&ctx->phy->subdev, video, s_stream, 0);
 
 	pm_runtime_put_sync(ctx->cal->dev);
+
+	cal_ctx_unprepare(ctx);
 
 	cal_release_buffers(ctx, VB2_BUF_STATE_ERROR);
 
