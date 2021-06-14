@@ -219,14 +219,12 @@ ice_ptp_read_src_clk_reg(struct ice_pf *pf, struct ptp_system_timestamp *sts)
 
 	tmr_idx = ice_get_ptp_src_clock_index(hw);
 	/* Read the system timestamp pre PHC read */
-	if (sts)
-		ptp_read_system_prets(sts);
+	ptp_read_system_prets(sts);
 
 	lo = rd32(hw, GLTSYN_TIME_L(tmr_idx));
 
 	/* Read the system timestamp post PHC read */
-	if (sts)
-		ptp_read_system_postts(sts);
+	ptp_read_system_postts(sts);
 
 	hi = rd32(hw, GLTSYN_TIME_H(tmr_idx));
 	lo2 = rd32(hw, GLTSYN_TIME_L(tmr_idx));
@@ -235,11 +233,9 @@ ice_ptp_read_src_clk_reg(struct ice_pf *pf, struct ptp_system_timestamp *sts)
 		/* if TIME_L rolled over read TIME_L again and update
 		 * system timestamps
 		 */
-		if (sts)
-			ptp_read_system_prets(sts);
+		ptp_read_system_prets(sts);
 		lo = rd32(hw, GLTSYN_TIME_L(tmr_idx));
-		if (sts)
-			ptp_read_system_postts(sts);
+		ptp_read_system_postts(sts);
 		hi = rd32(hw, GLTSYN_TIME_H(tmr_idx));
 	}
 
