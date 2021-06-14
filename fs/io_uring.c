@@ -353,6 +353,7 @@ struct io_ring_ctx {
 		unsigned int		restricted: 1;
 	} ____cacheline_aligned_in_smp;
 
+	/* submission data */
 	struct {
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
@@ -369,13 +370,27 @@ struct io_ring_ctx {
 		struct io_uring_sqe	*sq_sqes;
 		unsigned		cached_sq_head;
 		unsigned		sq_entries;
-		unsigned		sq_thread_idle;
 		unsigned		cached_sq_dropped;
 		unsigned long		sq_check_overflow;
-
 		struct list_head	defer_list;
+
+		/*
+		 * Fixed resources fast path, should be accessed only under
+		 * uring_lock, and updated through io_uring_register(2)
+		 */
+		struct io_rsrc_node	*rsrc_node;
+		struct io_file_table	file_table;
+		unsigned		nr_user_files;
+		unsigned		nr_user_bufs;
+		struct io_mapped_ubuf	**user_bufs;
+
+		struct io_submit_state	submit_state;
 		struct list_head	timeout_list;
 		struct list_head	cq_overflow_list;
+		struct xarray		io_buffers;
+		struct xarray		personalities;
+		u32			pers_next;
+		unsigned		sq_thread_idle;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
@@ -383,7 +398,6 @@ struct io_ring_ctx {
 		wait_queue_head_t	wait;
 	} ____cacheline_aligned_in_smp;
 
-	struct io_submit_state		submit_state;
 	/* IRQ completion list, under ->completion_lock */
 	struct list_head	locked_free_list;
 	unsigned int		locked_free_nr;
@@ -393,21 +407,6 @@ struct io_ring_ctx {
 
 	struct wait_queue_head	sqo_sq_wait;
 	struct list_head	sqd_list;
-
-	/*
-	 * Fixed resources fast path, should be accessed only under uring_lock,
-	 * and updated through io_uring_register(2)
-	 */
-	struct io_rsrc_node	*rsrc_node;
-
-	struct io_file_table	file_table;
-	unsigned		nr_user_files;
-	unsigned		nr_user_bufs;
-	struct io_mapped_ubuf	**user_bufs;
-
-	struct xarray		io_buffers;
-	struct xarray		personalities;
-	u32			pers_next;
 
 	struct {
 		unsigned		cached_cq_tail;
