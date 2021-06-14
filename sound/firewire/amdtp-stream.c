@@ -804,7 +804,7 @@ static void generate_pkt_descs(struct amdtp_stream *s, struct pkt_desc *descs,
 static inline void cancel_stream(struct amdtp_stream *s)
 {
 	s->packet_index = -1;
-	if (current_work() == &s->period_work)
+	if (in_interrupt())
 		amdtp_stream_pcm_abort(s);
 	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 }

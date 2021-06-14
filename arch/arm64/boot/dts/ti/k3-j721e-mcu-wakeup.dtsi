@@ -6,7 +6,7 @@
  */
 
 &cbass_mcu_wakeup {
-	dmsc: dmsc@44083000 {
+	dmsc: system-controller@44083000 {
 		compatible = "ti,k2g-sci";
 		ti,host-id = <12>;
 
@@ -23,7 +23,7 @@
 			#power-domain-cells = <2>;
 		};
 
-		k3_clks: clocks {
+		k3_clks: clock-controller {
 			compatible = "ti,k2g-sci-clk";
 			#clock-cells = <2>;
 		};
@@ -96,8 +96,9 @@
 		clock-names = "fclk";
 	};
 
-	wkup_gpio_intr: interrupt-controller2 {
+	wkup_gpio_intr: interrupt-controller@42200000 {
 		compatible = "ti,sci-intr";
+		reg = <0x00 0x42200000 0x00 0x400>;
 		ti,intr-trigger-type = <1>;
 		interrupt-controller;
 		interrupt-parent = <&gic500>;
@@ -249,11 +250,11 @@
 		};
 	};
 
-	mcu-navss {
+	mcu_navss: bus@28380000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x00 0x28380000 0x00 0x28380000 0x00 0x03880000>;
 		dma-coherent;
 		dma-ranges;
 

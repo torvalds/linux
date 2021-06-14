@@ -1005,19 +1005,23 @@ static unsigned int nvmet_data_transfer_len(struct nvmet_req *req)
 	return req->transfer_len - req->metadata_len;
 }
 
-static int nvmet_req_alloc_p2pmem_sgls(struct nvmet_req *req)
+static int nvmet_req_alloc_p2pmem_sgls(struct pci_dev *p2p_dev,
+		struct nvmet_req *req)
 {
-	req->sg = pci_p2pmem_alloc_sgl(req->p2p_dev, &req->sg_cnt,
+	req->sg = pci_p2pmem_alloc_sgl(p2p_dev, &req->sg_cnt,
 			nvmet_data_transfer_len(req));
 	if (!req->sg)
 		goto out_err;
 
 	if (req->metadata_len) {
-		req->metadata_sg = pci_p2pmem_alloc_sgl(req->p2p_dev,
+		req->metadata_sg = pci_p2pmem_alloc_sgl(p2p_dev,
 				&req->metadata_sg_cnt, req->metadata_len);
 		if (!req->metadata_sg)
 			goto out_free_sg;
 	}
+
+	req->p2p_dev = p2p_dev;
+
 	return 0;
 out_free_sg:
 	pci_p2pmem_free_sgl(req->p2p_dev, req->sg);
@@ -1025,25 +1029,19 @@ out_err:
 	return -ENOMEM;
 }
 
-static bool nvmet_req_find_p2p_dev(struct nvmet_req *req)
+static struct pci_dev *nvmet_req_find_p2p_dev(struct nvmet_req *req)
 {
-	if (!IS_ENABLED(CONFIG_PCI_P2PDMA))
-		return false;
-
-	if (req->sq->ctrl && req->sq->qid && req->ns) {
-		req->p2p_dev = radix_tree_lookup(&req->sq->ctrl->p2p_ns_map,
-						 req->ns->nsid);
-		if (req->p2p_dev)
-			return true;
-	}
-
-	req->p2p_dev = NULL;
-	return false;
+	if (!IS_ENABLED(CONFIG_PCI_P2PDMA) ||
+	    !req->sq->ctrl || !req->sq->qid || !req->ns)
+		return NULL;
+	return radix_tree_lookup(&req->sq->ctrl->p2p_ns_map, req->ns->nsid);
 }
 
 int nvmet_req_alloc_sgls(struct nvmet_req *req)
 {
-	if (nvmet_req_find_p2p_dev(req) && !nvmet_req_alloc_p2pmem_sgls(req))
+	struct pci_dev *p2p_dev = nvmet_req_find_p2p_dev(req);
+
+	if (p2p_dev && !nvmet_req_alloc_p2pmem_sgls(p2p_dev, req))
 		return 0;
 
 	req->sg = sgl_alloc(nvmet_data_transfer_len(req), GFP_KERNEL,
@@ -1072,6 +1070,7 @@ void nvmet_req_free_sgls(struct nvmet_req *req)
 		pci_p2pmem_free_sgl(req->p2p_dev, req->sg);
 		if (req->metadata_sg)
 			pci_p2pmem_free_sgl(req->p2p_dev, req->metadata_sg);
+		req->p2p_dev = NULL;
 	} else {
 		sgl_free(req->sg);
 		if (req->metadata_sg)

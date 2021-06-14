@@ -107,7 +107,7 @@ bool mlx5_chains_prios_supported(struct mlx5_fs_chains *chains)
 	return chains->flags & MLX5_CHAINS_AND_PRIOS_SUPPORTED;
 }
 
-static bool mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains)
+bool mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains)
 {
 	return chains->flags & MLX5_CHAINS_IGNORE_FLOW_LEVEL_SUPPORTED;
 }

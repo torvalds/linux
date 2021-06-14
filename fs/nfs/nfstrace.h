@@ -430,10 +430,6 @@ TRACE_DEFINE_ENUM(O_CLOEXEC);
 		{ O_NOATIME, "O_NOATIME" }, \
 		{ O_CLOEXEC, "O_CLOEXEC" })
 
-TRACE_DEFINE_ENUM(FMODE_READ);
-TRACE_DEFINE_ENUM(FMODE_WRITE);
-TRACE_DEFINE_ENUM(FMODE_EXEC);
-
 #define show_fmode_flags(mode) \
 	__print_flags(mode, "|", \
 		{ ((__force unsigned long)FMODE_READ), "READ" }, \

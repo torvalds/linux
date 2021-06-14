@@ -100,7 +100,7 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 		kfree(ubo->metadata);
 	}
 
-	kfree(bo);
+	kvfree(bo);
 }
 
 /**
@@ -552,7 +552,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	BUG_ON(bp->bo_ptr_size < sizeof(struct amdgpu_bo));
 
 	*bo_ptr = NULL;
-	bo = kzalloc(bp->bo_ptr_size, GFP_KERNEL);
+	bo = kvzalloc(bp->bo_ptr_size, GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
 	drm_gem_private_object_init(adev_to_drm(adev), &bo->tbo.base, size);

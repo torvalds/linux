@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * USB ZyXEL omni.net LCD PLUS driver
+ * USB ZyXEL omni.net driver
  *
  * Copyright (C) 2013,2017 Johan Hovold <johan@kernel.org>
  *
@@ -22,10 +22,11 @@
 #include <linux/usb/serial.h>
 
 #define DRIVER_AUTHOR "Alessandro Zummo"
-#define DRIVER_DESC "USB ZyXEL omni.net LCD PLUS Driver"
+#define DRIVER_DESC "USB ZyXEL omni.net Driver"
 
 #define ZYXEL_VENDOR_ID		0x0586
 #define ZYXEL_OMNINET_ID	0x1000
+#define ZYXEL_OMNI_56K_PLUS_ID	0x1500
 /* This one seems to be a re-branded ZyXEL device */
 #define BT_IGNITIONPRO_ID	0x2000
 
@@ -40,6 +41,7 @@ static void omninet_port_remove(struct usb_serial_port *port);
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, ZYXEL_OMNINET_ID) },
+	{ USB_DEVICE(ZYXEL_VENDOR_ID, ZYXEL_OMNI_56K_PLUS_ID) },
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, BT_IGNITIONPRO_ID) },
 	{ }						/* Terminating entry */
 };
@@ -50,7 +52,7 @@ static struct usb_serial_driver zyxel_omninet_device = {
 		.owner =	THIS_MODULE,
 		.name =		"omninet",
 	},
-	.description =		"ZyXEL - omni.net lcd plus usb",
+	.description =		"ZyXEL - omni.net usb",
 	.id_table =		id_table,
 	.num_bulk_out =		2,
 	.calc_num_ports =	omninet_calc_num_ports,

@@ -1031,7 +1031,7 @@ config REGULATOR_RT5033
 	  current source, LDO and Buck.
 
 config REGULATOR_RTMV20
-	tristate "RTMV20 Laser Diode Regulator"
+	tristate "Richtek RTMV20 Laser Diode Regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help

@@ -55,7 +55,6 @@
 
 #define FAN53555_NVOLTAGES	64	/* Numbers of voltages */
 #define FAN53526_NVOLTAGES	128
-#define TCS4525_NVOLTAGES	127	/* Numbers of voltages */
 
 #define TCS_VSEL_NSEL_MASK	0x7f
 #define TCS_VSEL0_MODE		(1 << 7)
@@ -376,7 +375,7 @@ static int fan53555_voltages_setup_tcs(struct fan53555_device_info *di)
 	/* Init voltage range and step */
 	di->vsel_min = 600000;
 	di->vsel_step = 6250;
-	di->vsel_count = TCS4525_NVOLTAGES;
+	di->vsel_count = FAN53526_NVOLTAGES;
 
 	return 0;
 }

@@ -199,6 +199,7 @@
  * must end with any of these keywords:
  *   break;
  *   fallthrough;
+ *   continue;
  *   goto <label>;
  *   return [expression];
  *
