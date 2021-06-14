@@ -429,9 +429,7 @@ static void nvmet_bdev_execute_write_zeroes(struct nvmet_req *req)
 
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req)
 {
-	struct nvme_command *cmd = req->cmd;
-
-	switch (cmd->common.opcode) {
+	switch (req->cmd->common.opcode) {
 	case nvme_cmd_read:
 	case nvme_cmd_write:
 		req->execute = nvmet_bdev_execute_rw;
