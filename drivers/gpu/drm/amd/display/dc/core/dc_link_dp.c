@@ -2080,7 +2080,7 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 		struct dc_link *link,
 		struct link_training_settings *lt_settings)
 {
-	uint8_t loop_count = 0;
+	uint8_t loop_count;
 	uint32_t aux_rd_interval = 0;
 	uint32_t wait_time = 0;
 	struct link_training_settings req_settings;
@@ -2088,25 +2088,29 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 
-	/* Transmit 128b/132b_TPS1 over Main-Link and Set TRAINING_PATTERN_SET to 01h */
+	/* Transmit 128b/132b_TPS1 over Main-Link */
 	dp_set_hw_training_pattern(link, lt_settings->pattern_for_cr, DPRX);
+	/* Set TRAINING_PATTERN_SET to 01h */
 	dpcd_set_training_pattern(link, lt_settings->pattern_for_cr);
 
-	/* Adjust TX_FFE_PRESET_VALUE as requested */
+	/* Adjust TX_FFE_PRESET_VALUE and Transmit 128b/132b_TPS2 over Main-Link */
+	dpcd_128b_132b_get_aux_rd_interval(link, &aux_rd_interval);
 	dp_get_lane_status_and_drive_settings(link, lt_settings, dpcd_lane_status,
 			&dpcd_lane_status_updated, &req_settings, DPRX);
 	dp_update_drive_settings(lt_settings, req_settings);
-	dpcd_128b_132b_get_aux_rd_interval(link, &aux_rd_interval);
 	dp_set_hw_lane_settings(link, lt_settings, DPRX);
-	dpcd_set_lane_settings(link, lt_settings, DPRX);
 
-	/* Transmit 128b/132b_TPS2 over Main-Link and Set TRAINING_PATTERN_SET to 02h */
 	dp_set_hw_training_pattern(link, lt_settings->pattern_for_eq, DPRX);
-	dpcd_set_training_pattern(link, lt_settings->pattern_for_eq);
+
+	/* Set loop counter to start from 1 */
+	loop_count = 1;
+
+	/* Set TRAINING_PATTERN_SET to 02h and TX_FFE_PRESET_VALUE in one AUX transaction */
+	dpcd_set_lt_pattern_and_lane_settings(link, lt_settings,
+			lt_settings->pattern_for_eq, DPRX);
 
 	/* poll for channel EQ done */
 	while (status == LINK_TRAINING_SUCCESS) {
-		loop_count++;
 		dp_wait_for_training_aux_rd_interval(link, aux_rd_interval);
 		wait_time += aux_rd_interval;
 		dp_get_lane_status_and_drive_settings(link, lt_settings, dpcd_lane_status,
@@ -2125,6 +2129,7 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 			dp_set_hw_lane_settings(link, lt_settings, DPRX);
 			dpcd_set_lane_settings(link, lt_settings, DPRX);
 		}
+		loop_count++;
 	}
 
 	/* poll for EQ interlane align done */
