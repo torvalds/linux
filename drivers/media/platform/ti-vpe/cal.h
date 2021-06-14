@@ -163,7 +163,6 @@ struct cal_camerarx {
 	struct v4l2_subdev	subdev;
 	struct media_pad	pads[2];
 	struct v4l2_mbus_framefmt	formats[2];
-	const struct cal_format_info	*fmtinfo;
 };
 
 struct cal_dev {

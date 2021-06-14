@@ -49,8 +49,15 @@ static s64 cal_camerarx_get_ext_link_freq(struct cal_camerarx *phy)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 = &phy->endpoint.bus.mipi_csi2;
 	u32 num_lanes = mipi_csi2->num_data_lanes;
-	u32 bpp = phy->fmtinfo->bpp;
+	const struct cal_format_info *fmtinfo;
+	u32 bpp;
 	s64 freq;
+
+	fmtinfo = cal_format_by_code(phy->formats[CAL_CAMERARX_PAD_SINK].code);
+	if (!fmtinfo)
+		return -EINVAL;
+
+	bpp = fmtinfo->bpp;
 
 	freq = v4l2_get_link_freq(phy->source->ctrl_handler, bpp, 2 * num_lanes);
 	if (freq < 0) {
@@ -727,9 +734,6 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 					  CAL_CAMERARX_PAD_SOURCE,
 					  format->which);
 	*fmt = format->format;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		phy->fmtinfo = fmtinfo;
 
 	return 0;
 }
