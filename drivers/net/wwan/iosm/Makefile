@@ -21,6 +21,3 @@ iosm-y = \
 	iosm_ipc_mux_codec.o
 
 obj-$(CONFIG_IOSM) := iosm.o
-
-# compilation flags
-ccflags-y += -DDEBUG
