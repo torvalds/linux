@@ -102,7 +102,6 @@ struct io_wqe {
  * Per io_wq state
   */
 struct io_wq {
-	struct io_wqe **wqes;
 	unsigned long state;
 
 	free_work_fn *free_work;
@@ -118,6 +117,8 @@ struct io_wq {
 	struct hlist_node cpuhp_node;
 
 	struct task_struct *task;
+
+	struct io_wqe *wqes[];
 };
 
 static enum cpuhp_state io_wq_online;
@@ -907,17 +908,12 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	if (WARN_ON_ONCE(!data->free_work || !data->do_work))
 		return ERR_PTR(-EINVAL);
 
-	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
+	wq = kzalloc(struct_size(wq, wqes, nr_node_ids), GFP_KERNEL);
 	if (!wq)
 		return ERR_PTR(-ENOMEM);
-
-	wq->wqes = kcalloc(nr_node_ids, sizeof(struct io_wqe *), GFP_KERNEL);
-	if (!wq->wqes)
-		goto err_wq;
-
 	ret = cpuhp_state_add_instance_nocalls(io_wq_online, &wq->cpuhp_node);
 	if (ret)
-		goto err_wqes;
+		goto err_wq;
 
 	refcount_inc(&data->hash->refs);
 	wq->hash = data->hash;
@@ -962,8 +958,6 @@ err:
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
 	for_each_node(node)
 		kfree(wq->wqes[node]);
-err_wqes:
-	kfree(wq->wqes);
 err_wq:
 	kfree(wq);
 	return ERR_PTR(ret);
@@ -1036,7 +1030,6 @@ static void io_wq_destroy(struct io_wq *wq)
 		kfree(wqe);
 	}
 	io_wq_put_hash(wq->hash);
-	kfree(wq->wqes);
 	kfree(wq);
 }
 
