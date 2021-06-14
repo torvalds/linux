@@ -341,17 +341,19 @@ struct io_submit_state {
 };
 
 struct io_ring_ctx {
+	/* const or read-mostly hot data */
 	struct {
 		struct percpu_ref	refs;
-	} ____cacheline_aligned_in_smp;
 
-	struct {
+		struct io_rings		*rings;
 		unsigned int		flags;
 		unsigned int		compat: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
+	} ____cacheline_aligned_in_smp;
 
+	struct {
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
 		 * mmapped by the application using the IORING_OFF_SQES offset.
@@ -385,8 +387,6 @@ struct io_ring_ctx {
 	/* IRQ completion list, under ->completion_lock */
 	struct list_head	locked_free_list;
 	unsigned int		locked_free_nr;
-
-	struct io_rings	*rings;
 
 	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */
