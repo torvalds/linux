@@ -55,7 +55,8 @@ struct amdgpu_bo_param {
 	u64				flags;
 	enum ttm_bo_type		type;
 	bool				no_wait_gpu;
-	struct dma_resv	*resv;
+	struct dma_resv			*resv;
+	void				(*destroy)(struct ttm_buffer_object *bo);
 };
 
 /* bo virtual addresses in a vm */
