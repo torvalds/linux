@@ -6616,8 +6616,8 @@ fail_req:
 
 		/* last request of a link, enqueue the link */
 		if (!(req->flags & (REQ_F_LINK | REQ_F_HARDLINK))) {
-			io_queue_sqe(head);
 			link->head = NULL;
+			io_queue_sqe(head);
 		}
 	} else {
 		if (unlikely(ctx->drain_next)) {
