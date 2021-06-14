@@ -473,13 +473,15 @@ int cal_ctx_prepare(struct cal_ctx *ctx)
 	}
 
 	ctx->pix_proc = ret;
+	ctx->use_pix_proc = true;
 
 	return 0;
 }
 
 void cal_ctx_unprepare(struct cal_ctx *ctx)
 {
-	cal_release_pix_proc(ctx->cal, ctx->pix_proc);
+	if (ctx->use_pix_proc)
+		cal_release_pix_proc(ctx->cal, ctx->pix_proc);
 }
 
 void cal_ctx_start(struct cal_ctx *ctx)
@@ -489,7 +491,8 @@ void cal_ctx_start(struct cal_ctx *ctx)
 
 	/* Configure the CSI-2, pixel processing and write DMA contexts. */
 	cal_ctx_csi2_config(ctx);
-	cal_ctx_pix_proc_config(ctx);
+	if (ctx->use_pix_proc)
+		cal_ctx_pix_proc_config(ctx);
 	cal_ctx_wr_dma_config(ctx);
 
 	/* Enable IRQ_WDMA_END and IRQ_WDMA_START. */
@@ -530,7 +533,8 @@ void cal_ctx_stop(struct cal_ctx *ctx)
 	cal_write(ctx->cal, CAL_CSI2_CTX(ctx->phy->instance, ctx->csi2_ctx), 0);
 
 	/* Disable pix proc */
-	cal_write(ctx->cal, CAL_PIX_PROC(ctx->pix_proc), 0);
+	if (ctx->use_pix_proc)
+		cal_write(ctx->cal, CAL_PIX_PROC(ctx->pix_proc), 0);
 }
 
 /* ------------------------------------------------------------------
