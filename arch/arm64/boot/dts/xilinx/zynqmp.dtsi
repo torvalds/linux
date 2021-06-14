@@ -193,6 +193,11 @@
 				compatible = "xlnx,zynqmp-reset";
 				#reset-cells = <1>;
 			};
+
+			pinctrl0: pinctrl {
+				compatible = "xlnx,zynqmp-pinctrl";
+				status = "disabled";
+			};
 		};
 	};
 

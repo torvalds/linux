@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP zc1751-xm016-dc2
  *
- * (C) Copyright 2015 - 2019, Xilinx, Inc.
+ * (C) Copyright 2015 - 2021, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
@@ -12,6 +12,7 @@
 #include "zynqmp.dtsi"
 #include "zynqmp-clk-ccf.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/pinctrl-zynqmp.h>
 
 / {
 	model = "ZynqMP zc1751-xm016-dc2 RevA";
@@ -42,10 +43,14 @@
 
 &can0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can0_default>;
 };
 
 &can1 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can1_default>;
 };
 
 &fpd_dma_chan1 {
@@ -84,6 +89,8 @@
 	status = "okay";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gem2_default>;
 	phy0: ethernet-phy@5 {
 		reg = <5>;
 		ti,rx-internal-delay = <0x8>;
@@ -100,6 +107,11 @@
 &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c0_default>;
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	scl-gpios = <&gpio 6 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
 
 	tca6416_u26: gpio@20 {
 		compatible = "ti,tca6416";
@@ -115,6 +127,285 @@
 	};
 };
 
+&pinctrl0 {
+	status = "okay";
+	pinctrl_can0_default: can0-default {
+		mux {
+			function = "can0";
+			groups = "can0_9_grp";
+		};
+
+		conf {
+			groups = "can0_9_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO38";
+			bias-high-impedance;
+		};
+
+		conf-tx {
+			pins = "MIO39";
+			bias-disable;
+		};
+	};
+
+	pinctrl_can1_default: can1-default {
+		mux {
+			function = "can1";
+			groups = "can1_8_grp";
+		};
+
+		conf {
+			groups = "can1_8_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO33";
+			bias-high-impedance;
+		};
+
+		conf-tx {
+			pins = "MIO32";
+			bias-disable;
+		};
+	};
+
+	pinctrl_i2c0_default: i2c0-default {
+		mux {
+			groups = "i2c0_1_grp";
+			function = "i2c0";
+		};
+
+		conf {
+			groups = "i2c0_1_grp";
+			bias-pull-up;
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+	};
+
+	pinctrl_i2c0_gpio: i2c0-gpio {
+		mux {
+			groups = "gpio0_6_grp", "gpio0_7_grp";
+			function = "gpio0";
+		};
+
+		conf {
+			groups = "gpio0_6_grp", "gpio0_7_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+	};
+
+	pinctrl_uart0_default: uart0-default {
+		mux {
+			groups = "uart0_10_grp";
+			function = "uart0";
+		};
+
+		conf {
+			groups = "uart0_10_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO42";
+			bias-high-impedance;
+		};
+
+		conf-tx {
+			pins = "MIO43";
+			bias-disable;
+		};
+	};
+
+	pinctrl_uart1_default: uart1-default {
+		mux {
+			groups = "uart1_10_grp";
+			function = "uart1";
+		};
+
+		conf {
+			groups = "uart1_10_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO41";
+			bias-high-impedance;
+		};
+
+		conf-tx {
+			pins = "MIO40";
+			bias-disable;
+		};
+	};
+
+	pinctrl_usb1_default: usb1-default {
+		mux {
+			groups = "usb1_0_grp";
+			function = "usb1";
+		};
+
+		conf {
+			groups = "usb1_0_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO64", "MIO65", "MIO67";
+			bias-high-impedance;
+		};
+
+		conf-tx {
+			pins = "MIO66", "MIO68", "MIO69", "MIO70", "MIO71",
+			       "MIO72", "MIO73", "MIO74", "MIO75";
+			bias-disable;
+		};
+	};
+
+	pinctrl_gem2_default: gem2-default {
+		mux {
+			function = "ethernet2";
+			groups = "ethernet2_0_grp";
+		};
+
+		conf {
+			groups = "ethernet2_0_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO58", "MIO59", "MIO60", "MIO61", "MIO62",
+									"MIO63";
+			bias-high-impedance;
+			low-power-disable;
+		};
+
+		conf-tx {
+			pins = "MIO52", "MIO53", "MIO54", "MIO55", "MIO56",
+									"MIO57";
+			bias-disable;
+			low-power-enable;
+		};
+
+		mux-mdio {
+			function = "mdio2";
+			groups = "mdio2_0_grp";
+		};
+
+		conf-mdio {
+			groups = "mdio2_0_grp";
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+			bias-disable;
+		};
+	};
+
+	pinctrl_nand0_default: nand0-default {
+		mux {
+			groups = "nand0_0_grp";
+			function = "nand0";
+		};
+
+		conf {
+			groups = "nand0_0_grp";
+			bias-pull-up;
+		};
+
+		mux-ce {
+			groups = "nand0_ce_0_grp";
+			function = "nand0_ce";
+		};
+
+		conf-ce {
+			groups = "nand0_ce_0_grp";
+			bias-pull-up;
+		};
+
+		mux-rb {
+			groups = "nand0_rb_0_grp";
+			function = "nand0_rb";
+		};
+
+		conf-rb {
+			groups = "nand0_rb_0_grp";
+			bias-pull-up;
+		};
+
+		mux-dqs {
+			groups = "nand0_dqs_0_grp";
+			function = "nand0_dqs";
+		};
+
+		conf-dqs {
+			groups = "nand0_dqs_0_grp";
+			bias-pull-up;
+		};
+	};
+
+	pinctrl_spi0_default: spi0-default {
+		mux {
+			groups = "spi0_0_grp";
+			function = "spi0";
+		};
+
+		conf {
+			groups = "spi0_0_grp";
+			bias-disable;
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		mux-cs {
+			groups = "spi0_ss_0_grp", "spi0_ss_1_grp",
+							"spi0_ss_2_grp";
+			function = "spi0_ss";
+		};
+
+		conf-cs {
+			groups = "spi0_ss_0_grp", "spi0_ss_1_grp",
+							"spi0_ss_2_grp";
+			bias-disable;
+		};
+	};
+
+	pinctrl_spi1_default: spi1-default {
+		mux {
+			groups = "spi1_3_grp";
+			function = "spi1";
+		};
+
+		conf {
+			groups = "spi1_3_grp";
+			bias-disable;
+			slew-rate = <SLEW_RATE_SLOW>;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		mux-cs {
+			groups = "spi1_ss_9_grp", "spi1_ss_10_grp",
+							"spi1_ss_11_grp";
+			function = "spi1_ss";
+		};
+
+		conf-cs {
+			groups = "spi1_ss_9_grp", "spi1_ss_10_grp",
+							"spi1_ss_11_grp";
+			bias-disable;
+		};
+	};
+};
+
 &rtc {
 	status = "okay";
 };
@@ -122,6 +413,8 @@
 &spi0 {
 	status = "okay";
 	num-cs = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi0_default>;
 
 	spi0_flash0: flash@0 {
 		#address-cells = <1>;
@@ -140,6 +433,8 @@
 &spi1 {
 	status = "okay";
 	num-cs = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default>;
 
 	spi1_flash0: flash@0 {
 		#address-cells = <1>;
@@ -158,13 +453,19 @@
 /* ULPI SMSC USB3320 */
 &usb1 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb1_default>;
 	dr_mode = "host";
 };
 
 &uart0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0_default>;
 };
 
 &uart1 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_default>;
 };
