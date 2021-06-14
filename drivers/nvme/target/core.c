@@ -141,14 +141,13 @@ static u32 nvmet_async_event_result(struct nvmet_async_event *aen)
 
 static void nvmet_async_events_failall(struct nvmet_ctrl *ctrl)
 {
-	u16 status = NVME_SC_INTERNAL | NVME_SC_DNR;
 	struct nvmet_req *req;
 
 	mutex_lock(&ctrl->lock);
 	while (ctrl->nr_async_event_cmds) {
 		req = ctrl->async_event_cmds[--ctrl->nr_async_event_cmds];
 		mutex_unlock(&ctrl->lock);
-		nvmet_req_complete(req, status);
+		nvmet_req_complete(req, NVME_SC_INTERNAL | NVME_SC_DNR);
 		mutex_lock(&ctrl->lock);
 	}
 	mutex_unlock(&ctrl->lock);
